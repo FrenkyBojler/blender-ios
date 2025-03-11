@@ -63,11 +63,6 @@ void Context::reset(const Depsgraph *depsgraph)
   cache_manager_.reset();
 }
 
-IDRecalcFlag Context::query_id_recalc_flag(Image *image) const
-{
-  return IDRecalcFlag(image->runtime.last_update > depsgraph_last_update_ ? ID_RECALC_ALL : 0);
-}
-
 IDRecalcFlag Context::query_id_recalc_flag(Tex *texture) const
 {
   return IDRecalcFlag(texture->runtime.last_update > depsgraph_last_update_ ? ID_RECALC_ALL : 0);

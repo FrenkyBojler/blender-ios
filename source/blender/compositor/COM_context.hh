@@ -117,7 +117,6 @@ class Context {
    * The ID recalculate flag is a mechanism through which one can identify if an ID has changed
    * since the last time the flag was reset, hence why the method reset the flag after querying it,
    * that is, to ready it to track the next change. */
-  IDRecalcFlag query_id_recalc_flag(Image *image) const;
   IDRecalcFlag query_id_recalc_flag(Tex *texture) const;
   IDRecalcFlag query_id_recalc_flag(MovieClip *movie_clip) const;
   IDRecalcFlag query_id_recalc_flag(Mask *mask) const;
