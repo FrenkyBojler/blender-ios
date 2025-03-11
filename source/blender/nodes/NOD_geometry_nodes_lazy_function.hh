@@ -613,8 +613,8 @@ struct EvaluateClosureFunction {
   EvaluateClosureFunctionIndices indices;
 };
 
-EvaluateClosureFunction build_evaluate_closure_node_lazy_function(
-    ResourceScope &scope, const bNode &bnode, GeometryNodesLazyFunctionGraphInfo &lf_graph_info);
+EvaluateClosureFunction build_evaluate_closure_node_lazy_function(ResourceScope &scope,
+                                                                  const bNode &bnode);
 
 void initialize_zone_wrapper(const bke::bNodeTreeZone &zone,
                              ZoneBuildInfo &zone_info,

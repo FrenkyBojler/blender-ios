@@ -227,8 +227,7 @@ class LazyFunctionForEvaluateClosureNode : public LazyFunction {
   EvaluateClosureFunctionIndices indices_;
 
  public:
-  LazyFunctionForEvaluateClosureNode(const bNode &bnode,
-                                     GeometryNodesLazyFunctionGraphInfo &lf_graph_info)
+  LazyFunctionForEvaluateClosureNode(const bNode &bnode)
       : btree_(bnode.owner_tree()), bnode_(bnode)
   {
     debug_name_ = bnode.name;
@@ -253,8 +252,6 @@ class LazyFunctionForEvaluateClosureNode : public LazyFunction {
         const int input_i = inputs_.append_and_get_index_as(
             "Reference Set", CPPType::get<bke::GeometryNodesReferenceSet>());
         indices_.inputs.reference_set_by_output.add(i, input_i);
-        lf_graph_info.mapping
-            .lf_input_index_for_reference_set_for_output[bsocket.index_in_all_outputs()] = input_i;
       }
     }
   }
@@ -697,11 +694,11 @@ LazyFunction &build_closure_zone_lazy_function(ResourceScope &scope,
   return scope.construct<LazyFunctionForClosureZone>(btree, zone, zone_info, body_fn);
 }
 
-EvaluateClosureFunction build_evaluate_closure_node_lazy_function(
-    ResourceScope &scope, const bNode &bnode, GeometryNodesLazyFunctionGraphInfo &lf_graph_info)
+EvaluateClosureFunction build_evaluate_closure_node_lazy_function(ResourceScope &scope,
+                                                                  const bNode &bnode)
 {
   EvaluateClosureFunction info;
-  auto &fn = scope.construct<LazyFunctionForEvaluateClosureNode>(bnode, lf_graph_info);
+  auto &fn = scope.construct<LazyFunctionForEvaluateClosureNode>(bnode);
   info.lazy_function = &fn;
   info.indices = fn.indices();
   return info;
