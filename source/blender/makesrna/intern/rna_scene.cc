@@ -863,14 +863,13 @@ static void rna_Gpencil_vertex_mask_segment_update(bContext *C, PointerRNA *ptr)
   }
 }
 
-static void rna_active_grease_pencil_update(bContext *C, PointerRNA * /*ptr*/)
+static void rna_all_grease_pencil_update(bContext *C, PointerRNA * /*ptr*/)
 {
-  Object *active_object = CTX_data_active_object(C);
-  if (!active_object || active_object->type != OB_GREASE_PENCIL) {
-    return;
+  /* FIXME: We shouldn't have to tag all the Grease Pencil IDs for an update! */
+  Main *bmain = CTX_data_main(C);
+  LISTBASE_FOREACH (GreasePencil *, grease_pencil, &bmain->grease_pencils) {
+    DEG_id_tag_update(&grease_pencil->id, ID_RECALC_GEOMETRY);
   }
-  GreasePencil *grease_pencil = static_cast<GreasePencil *>(active_object->data);
-  DEG_id_tag_update(&grease_pencil->id, ID_RECALC_GEOMETRY);
   WM_main_add_notifier(NC_GPENCIL | NA_EDITED, nullptr);
 }
 
@@ -957,7 +956,7 @@ static void rna_Scene_fps_update(Main *bmain, Scene * /*active_scene*/, PointerR
   /* NOTE: Tag via dependency graph will take care of all the updates ion the evaluated domain,
    * however, changes in FPS actually modifies an original skip length,
    * so this we take care about here. */
-  SEQ_sound_update_length(bmain, scene);
+  blender::seq::sound_update_length(bmain, scene);
   /* Reset simulation states because new frame interval doesn't apply anymore. */
   blender::bke::bake::scene_simulation_states_reset(*scene);
 }
@@ -2309,7 +2308,7 @@ static std::optional<std::string> rna_View3DCursor_path(const PointerRNA * /*ptr
 
 static TimeMarker *rna_TimeLine_add(Scene *scene, const char name[], int frame)
 {
-  TimeMarker *marker = MEM_cnew<TimeMarker>("TimeMarker");
+  TimeMarker *marker = MEM_callocN<TimeMarker>("TimeMarker");
   marker->flag = SELECT;
   marker->frame = frame;
   STRNCPY_UTF8(marker->name, name);
@@ -2466,7 +2465,7 @@ static void rna_SceneCamera_update(Main * /*bmain*/, Scene * /*scene*/, PointerR
   Scene *scene = (Scene *)ptr->owner_id;
   Object *camera = scene->camera;
 
-  SEQ_cache_cleanup(scene);
+  blender::seq::cache_cleanup(scene);
 
   if (camera && (camera->type == OB_CAMERA)) {
     DEG_id_tag_update(&camera->id, ID_RECALC_GEOMETRY);
@@ -2475,7 +2474,7 @@ static void rna_SceneCamera_update(Main * /*bmain*/, Scene * /*scene*/, PointerR
 
 static void rna_SceneSequencer_update(Main * /*bmain*/, Scene * /*scene*/, PointerRNA *ptr)
 {
-  SEQ_cache_cleanup((Scene *)ptr->owner_id);
+  blender::seq::cache_cleanup((Scene *)ptr->owner_id);
 }
 
 static std::optional<std::string> rna_ToolSettings_path(const PointerRNA * /*ptr*/)
@@ -2984,6 +2983,7 @@ static void rna_def_gpencil_interpolate(BlenderRNA *brna)
   RNA_def_struct_ui_text(srna,
                          "Grease Pencil Interpolate Settings",
                          "Settings for Grease Pencil interpolation tools");
+  RNA_def_struct_clear_flag(srna, STRUCT_UNDO);
 
   /* Custom curve-map. */
   prop = RNA_def_property(srna, "interpolation_curve", PROP_POINTER, PROP_NONE);
@@ -3235,6 +3235,12 @@ static void rna_def_tool_settings(BlenderRNA *brna)
   srna = RNA_def_struct(brna, "ToolSettings", nullptr);
   RNA_def_struct_path_func(srna, "rna_ToolSettings_path");
   RNA_def_struct_ui_text(srna, "Tool Settings", "");
+  /*
+   * `STRUCT_UNDO` only applies to the top level attributes and not nested structs, any struct
+   * contained within the `ToolSettings` struct should also clear this flag to avoid pushing empty
+   * undo steps.
+   */
+  RNA_def_struct_clear_flag(srna, STRUCT_UNDO);
 
   prop = RNA_def_property(srna, "sculpt", PROP_POINTER, PROP_NONE);
   RNA_def_property_struct_type(prop, "Sculpt");
@@ -3959,8 +3965,9 @@ static void rna_def_tool_settings(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Multi-frame Editing", "Enable multi-frame editing");
   RNA_def_property_ui_icon(prop, ICON_GP_MULTIFRAME_EDITING, 0);
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  /* FIXME: We shouldn't have to tag all the Grease Pencil IDs for an update! */
   RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
-  RNA_def_property_update(prop, NC_GPENCIL | ND_DATA, "rna_active_grease_pencil_update");
+  RNA_def_property_update(prop, NC_GPENCIL | ND_DATA, "rna_all_grease_pencil_update");
 
   /* Annotations - 2D Views Stroke Placement */
   prop = RNA_def_property(srna, "annotation_stroke_placement_view2d", PROP_ENUM, PROP_NONE);
@@ -4192,6 +4199,7 @@ static void rna_def_sequencer_tool_settings(BlenderRNA *brna)
   srna = RNA_def_struct(brna, "SequencerToolSettings", nullptr);
   RNA_def_struct_path_func(srna, "rna_SequencerToolSettings_path");
   RNA_def_struct_ui_text(srna, "Sequencer Tool Settings", "");
+  RNA_def_struct_clear_flag(srna, STRUCT_UNDO);
 
   /* Add strip settings. */
   prop = RNA_def_property(srna, "fit_method", PROP_ENUM, PROP_NONE);
@@ -4284,6 +4292,7 @@ static void rna_def_unified_paint_settings(BlenderRNA *brna)
   RNA_def_struct_path_func(srna, "rna_UnifiedPaintSettings_path");
   RNA_def_struct_ui_text(
       srna, "Unified Paint Settings", "Overrides for some of the active brush's settings");
+  RNA_def_struct_clear_flag(srna, STRUCT_UNDO);
 
   /* high-level flags to enable or disable unified paint settings */
   prop = RNA_def_property(srna, "use_unified_size", PROP_BOOLEAN, PROP_NONE);
@@ -4392,6 +4401,7 @@ static void rna_def_curve_paint_settings(BlenderRNA *brna)
   srna = RNA_def_struct(brna, "CurvePaintSettings", nullptr);
   RNA_def_struct_path_func(srna, "rna_CurvePaintSettings_path");
   RNA_def_struct_ui_text(srna, "Curve Paint Settings", "");
+  RNA_def_struct_clear_flag(srna, STRUCT_UNDO);
 
   static const EnumPropertyItem curve_type_items[] = {
       {CU_POLY, "POLY", 0, "Poly", ""},
@@ -4542,6 +4552,7 @@ static void rna_def_statvis(BlenderRNA *brna)
   srna = RNA_def_struct(brna, "MeshStatVis", nullptr);
   RNA_def_struct_path_func(srna, "rna_MeshStatVis_path");
   RNA_def_struct_ui_text(srna, "Mesh Visualize Statistics", "");
+  RNA_def_struct_clear_flag(srna, STRUCT_UNDO);
 
   prop = RNA_def_property(srna, "type", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_items(prop, stat_type);
