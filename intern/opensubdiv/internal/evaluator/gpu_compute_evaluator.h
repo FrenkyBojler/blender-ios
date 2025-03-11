@@ -104,13 +104,28 @@ class GPUStencilTableSSBO {
 class GPUComputeEvaluator {
  public:
   using Instantiatable = bool;
+  /** 
+   * Blender doesn't use 2nd derivatives, but the OSD evaluator cache does expect this constructor
+   * to be present. 
+   */
   static GPUComputeEvaluator *Create(OpenSubdiv::Osd::BufferDescriptor const &srcDesc,
                                      OpenSubdiv::Osd::BufferDescriptor const &dstDesc,
                                      OpenSubdiv::Osd::BufferDescriptor const &duDesc,
                                      OpenSubdiv::Osd::BufferDescriptor const &dvDesc,
+                                     OpenSubdiv::Osd::BufferDescriptor const & /*duuDesc*/,
+                                     OpenSubdiv::Osd::BufferDescriptor const & /*duvDesc*/,
+                                     OpenSubdiv::Osd::BufferDescriptor const & /*dvvDesc*/,
                                      void *deviceContext = nullptr)
   {
-    (void)deviceContext;  // not used
+    return Create(srcDesc, dstDesc, duDesc, dvDesc, deviceContext);
+  }
+
+  static GPUComputeEvaluator *Create(OpenSubdiv::Osd::BufferDescriptor const &srcDesc,
+                                     OpenSubdiv::Osd::BufferDescriptor const &dstDesc,
+                                     OpenSubdiv::Osd::BufferDescriptor const &duDesc,
+                                     OpenSubdiv::Osd::BufferDescriptor const &dvDesc,
+                                     void * /*deviceContext*/ = nullptr)
+  {
     GPUComputeEvaluator *instance = new GPUComputeEvaluator();
     if (instance->Compile(srcDesc, dstDesc, duDesc, dvDesc)) {
       return instance;
