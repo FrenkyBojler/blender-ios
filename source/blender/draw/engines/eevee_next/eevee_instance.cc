@@ -33,6 +33,7 @@
 #include "DNA_particle_types.h"
 
 #include "draw_common.hh"
+#include "draw_manager_c.hh"
 #include "draw_view_data.hh"
 
 namespace blender::eevee {
@@ -81,6 +82,10 @@ void Instance::init(const int2 &output_res,
   }
 
   if (is_viewport()) {
+    /* Note: Do not update the value here as we use it during sync for checking ID updates. */
+    if (depsgraph_last_update_ != DEG_get_update_count(depsgraph)) {
+      sampling.reset();
+    }
     if (assign_if_different(debug_mode, (eDebugMode)G.debug_value)) {
       sampling.reset();
     }
@@ -188,13 +193,6 @@ void Instance::update_eval_members()
   camera_eval_object = (camera_orig_object) ?
                            DEG_get_evaluated_object(depsgraph, camera_orig_object) :
                            nullptr;
-}
-
-void Instance::view_update()
-{
-  if (is_viewport()) {
-    sampling.reset();
-  }
 }
 
 /** \} */
@@ -404,8 +402,10 @@ bool Instance::do_planar_probe_sync() const
 void Instance::render_sample()
 {
   if (sampling.finished_viewport()) {
+    DRW_submission_start();
     film.display();
     lookdev.display();
+    DRW_submission_end();
     return;
   }
 
@@ -422,15 +422,21 @@ void Instance::render_sample()
 
   DebugScope debug_scope(debug_scope_render_sample, "EEVEE.render_sample");
 
-  sampling.step();
+  {
+    /* Critical section. Potential GPUShader concurrent usage. */
+    DRW_submission_start();
 
-  capture_view.render_world();
-  capture_view.render_probes();
+    sampling.step();
 
-  main_view.render();
+    capture_view.render_world();
+    capture_view.render_probes();
 
-  lookdev_view.render();
+    main_view.render();
 
+    lookdev_view.render();
+
+    DRW_submission_end();
+  }
   motion_blur.step();
 }
 
@@ -710,11 +716,13 @@ void Instance::light_bake_irradiance(
 {
   BLI_assert(is_baking());
 
+  DRWContext draw_ctx;
+
   auto custom_pipeline_wrapper = [&](FunctionRef<void()> callback) {
     context_enable();
-    DRW_custom_pipeline_begin(&draw_engine_eevee_next_type, depsgraph);
+    DRW_custom_pipeline_begin(draw_ctx, &draw_engine_eevee_next_type, depsgraph);
     callback();
-    DRW_custom_pipeline_end();
+    DRW_custom_pipeline_end(draw_ctx);
     context_disable();
   };
 
@@ -738,20 +746,28 @@ void Instance::light_bake_irradiance(
     sampling.init(probe);
     sampling.step();
 
-    DebugScope debug_scope(debug_scope_irradiance_setup, "EEVEE.irradiance_setup");
+    {
+      /* Critical section. Potential GPUShader concurrent usage. */
+      DRW_submission_start();
 
-    capture_view.render_world();
+      DebugScope debug_scope(debug_scope_irradiance_setup, "EEVEE.irradiance_setup");
 
-    volume_probes.bake.surfels_create(probe);
+      capture_view.render_world();
 
-    if (volume_probes.bake.should_break()) {
-      return;
+      volume_probes.bake.surfels_create(probe);
+
+      if (volume_probes.bake.should_break()) {
+        DRW_submission_end();
+        return;
+      }
+
+      volume_probes.bake.surfels_lights_eval();
+
+      volume_probes.bake.clusters_build();
+      volume_probes.bake.irradiance_offset();
+
+      DRW_submission_end();
     }
-
-    volume_probes.bake.surfels_lights_eval();
-
-    volume_probes.bake.clusters_build();
-    volume_probes.bake.irradiance_offset();
   });
 
   if (volume_probes.bake.should_break()) {
@@ -768,10 +784,16 @@ void Instance::light_bake_irradiance(
       /* TODO(fclem): Could make the number of iteration depend on the computation time. */
       for (int i = 0; i < 16 && !sampling.finished(); i++) {
         sampling.step();
+        {
+          /* Critical section. Potential GPUShader concurrent usage. */
+          DRW_submission_start();
 
-        volume_probes.bake.raylists_build();
-        volume_probes.bake.propagate_light();
-        volume_probes.bake.irradiance_capture();
+          volume_probes.bake.raylists_build();
+          volume_probes.bake.propagate_light();
+          volume_probes.bake.irradiance_capture();
+
+          DRW_submission_end();
+        }
       }
 
       LightProbeGridCacheFrame *cache_frame;

@@ -41,7 +41,7 @@ struct GreasePencilLineartModifierData;
 struct RV3DMatrixStore;
 
 namespace blender {
-struct RandomNumberGenerator;
+class RandomNumberGenerator;
 namespace bke {
 enum class AttrDomain : int8_t;
 class CurvesGeometry;
@@ -317,7 +317,9 @@ bool grease_pencil_context_poll(bContext *C);
 bool active_grease_pencil_poll(bContext *C);
 bool active_grease_pencil_material_poll(bContext *C);
 bool editable_grease_pencil_poll(bContext *C);
+bool editable_grease_pencil_with_region_view3d_poll(bContext *C);
 bool active_grease_pencil_layer_poll(bContext *C);
+bool active_grease_pencil_layer_group_poll(bContext *C);
 bool editable_grease_pencil_point_selection_poll(bContext *C);
 bool grease_pencil_selection_poll(bContext *C);
 bool grease_pencil_painting_poll(bContext *C);

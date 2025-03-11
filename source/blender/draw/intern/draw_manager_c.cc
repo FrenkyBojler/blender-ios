@@ -87,6 +87,7 @@
 #include "draw_shader.hh"
 #include "draw_subdivision.hh"
 #include "draw_view_c.hh"
+#include "draw_view_data.hh"
 
 /* only for callbacks */
 #include "draw_cache_impl.hh"
@@ -109,10 +110,8 @@
 
 #include "DRW_select_buffer.hh"
 
-static CLG_LogRef LOG = {"draw.manager"};
-
 /* -------------------------------------------------------------------- */
-/** \name Settings
+/** \name GPU & System Context
  *
  * A global GPUContext is used for rendering every viewports (even on different windows).
  * This is because some resources cannot be shared between contexts (GPUFramebuffers, GPUBatch).
@@ -128,15 +127,27 @@ static GPUContext *blender_gpu_context = nullptr;
  * was also locking so this is a bit of a preventive measure. Could eventually be removed.
  */
 static TicketMutex *system_gpu_context_mutex = nullptr;
+/**
+ * The usage of GPUShader objects is currently not thread safe. Since they are shared resources
+ * between render engine instances, we cannot allow pass submissions in a concurent manner.
+ */
+static TicketMutex *submission_mutex = nullptr;
 
 /** \} */
 
 /** Render State: No persistent data between draw calls. */
-DRWContext DST = {};
+thread_local DRWContext *g_context = nullptr;
+
+static void drw_set(DRWContext &context)
+{
+  BLI_assert(g_context == nullptr);
+  g_context = &context;
+  g_context->prepare_clean_for_draw();
+}
 
 DRWContext &drw_get()
 {
-  return DST;
+  return *g_context;
 }
 
 GPUFrameBuffer *DRWContext::default_framebuffer()
@@ -147,12 +158,8 @@ GPUFrameBuffer *DRWContext::default_framebuffer()
 
 void DRWContext::prepare_clean_for_draw()
 {
-  /* Only debug module is persistent. */
-  DRWDebugModule *debug = this->debug;
   /* Reset all members to default values. */
   *this = {};
-  /* Restore the debug module. */
-  this->debug = debug;
 }
 
 /* This function is used to reset draw manager to a state
@@ -160,22 +167,15 @@ void DRWContext::prepare_clean_for_draw()
  * draw calls. */
 void DRWContext::state_ensure_not_reused()
 {
-  /* Only debug module is persistent. */
-  DRWDebugModule *debug = this->debug;
 #if 0 /* Creates compilation warning. */
   /* Poison the whole module. */
-  memset(&DST, 0xff, sizeof(DRWContext));
+  memset(g_context, 0xff, sizeof(DRWContext));
 #endif
-  /* Restore the debug module. */
-  this->debug = debug;
+  BLI_assert(g_context == this);
+  g_context = nullptr;
 }
 
-static struct {
-  ListBase /*DRWRegisteredDrawEngine*/ engines;
-  int len;
-} g_registered_engines = {{nullptr}};
-
-static bool drw_draw_show_annotation()
+static bool draw_show_annotation()
 {
   if (drw_get().draw_ctx.space_data == nullptr) {
     View3D *v3d = drw_get().draw_ctx.v3d;
@@ -362,7 +362,7 @@ DRWData *DRW_viewport_data_create()
   drw_data->default_view = new blender::draw::View("DrawDefaultView");
 
   for (int i = 0; i < 2; i++) {
-    drw_data->view_data[i] = DRW_view_data_create(&g_registered_engines.engines);
+    drw_data->view_data[i] = new DRWViewData();
   }
   return drw_data;
 }
@@ -389,7 +389,7 @@ static void drw_viewport_data_reset(DRWData * /*drw_data*/)
 void DRW_viewport_data_free(DRWData *drw_data)
 {
   for (int i = 0; i < 2; i++) {
-    DRW_view_data_free(drw_data->view_data[i]);
+    delete drw_data->view_data[i];
   }
   DRW_volume_module_free(drw_data->volume_module);
   DRW_pointcloud_module_free(drw_data->pointcloud_module);
@@ -471,8 +471,7 @@ static void drw_manager_init(DRWContext *dst, GPUViewport *viewport, const int s
   dst->inv_size[1] = 1.0f / dst->size[1];
 
   if (do_validation) {
-    DRW_view_data_texture_list_size_validate(dst->view_data_active,
-                                             blender::int2{int(dst->size[0]), int(dst->size[1])});
+    dst->view_data_active->texture_list_size_validate(int2(dst->size));
   }
 
   if (viewport) {
@@ -548,7 +547,7 @@ void DRW_viewport_request_redraw()
 /* The Dupli systems generate a lot of transient objects that share the batch caches.
  * So we ensure to only clear and generate the cache once per source instance type using this
  * set. */
-/* TODO(fclem): This should be reconsidered as this has some uneeded overhead and complexity.
+/* TODO(fclem): This should be reconsidered as this has some unneeded overhead and complexity.
  * Maybe it isn't needed at all. */
 struct DupliCacheManager {
  private:
@@ -591,7 +590,7 @@ void DupliCacheManager::try_add(blender::draw::ObjectRef &ob_ref)
     return;
   }
   if (last_key_ == ob_ref.dupli_object) {
-    /* Same data as previous iter. No need to poll ghash for this. */
+    /* Same data as previous iteration. No need to perform the check again. */
     return;
   }
 
@@ -623,20 +622,25 @@ void DupliCacheManager::extract_all()
     return;
   }
 
+  /* Note these can referenced by the temporary object pointer `Object *ob` and needs to have at
+   * least the same lifetime. */
+  blender::bke::ObjectRuntime tmp_runtime;
+  Object tmp_object;
+
   using Iter = blender::Set<DupliKey>::Iterator;
   Iter begin = dupli_set_->begin();
   Iter end = dupli_set_->end();
   for (Iter iter = begin; iter != end; ++iter) {
     const DupliKey &key = *iter;
     Object *ob = iter->ob;
-    Object tmp_object;
 
     if (key.ob_data != ob->data) {
-      blender::bke::ObjectRuntime runtime = *ob->runtime;
+      /* Copy both object data and runtime. */
+      tmp_runtime = *ob->runtime;
       tmp_object = blender::dna::shallow_copy(*ob);
+      tmp_object.runtime = &tmp_runtime;
       /* Geometry instances shouldn't be rendered with edit mode overlays. */
       tmp_object.mode = OB_MODE_OBJECT;
-      tmp_object.runtime = &runtime;
       /* Do not modify the original bound-box. */
       BKE_object_replace_data_on_shallow_copy(&tmp_object, key.ob_data);
 
@@ -914,30 +918,34 @@ void DRW_cache_free_old_batches(Main *bmain)
 
 static void drw_engines_init()
 {
-  DRW_ENABLED_ENGINE_ITER (drw_get().view_data_active, engine, data) {
-    if (engine->engine_init) {
-      engine->engine_init(data);
-    }
-  }
+  DRWContext &ctx = drw_get();
+  ctx.view_data_active->foreach_enabled_engine(
+      [&](ViewportEngineData *data, DrawEngineType *engine) {
+        if (engine->engine_init) {
+          engine->engine_init(data);
+        }
+      });
 }
 
 static void drw_engines_cache_init()
 {
   DRW_manager_begin_sync();
 
-  DRW_ENABLED_ENGINE_ITER (drw_get().view_data_active, engine, data) {
-    if (data->text_draw_cache) {
-      DRW_text_cache_destroy(data->text_draw_cache);
-      data->text_draw_cache = nullptr;
-    }
-    if (drw_get().text_store_p == nullptr) {
-      drw_get().text_store_p = &data->text_draw_cache;
-    }
+  DRWContext &ctx = drw_get();
+  ctx.view_data_active->foreach_enabled_engine(
+      [&](ViewportEngineData *data, DrawEngineType *engine) {
+        if (data->text_draw_cache) {
+          DRW_text_cache_destroy(data->text_draw_cache);
+          data->text_draw_cache = nullptr;
+        }
+        if (drw_get().text_store_p == nullptr) {
+          drw_get().text_store_p = &data->text_draw_cache;
+        }
 
-    if (engine->cache_init) {
-      engine->cache_init(data);
-    }
-  }
+        if (engine->cache_init) {
+          engine->cache_init(data);
+        }
+      });
 }
 
 static void drw_engines_world_update(Scene *scene)
@@ -946,11 +954,13 @@ static void drw_engines_world_update(Scene *scene)
     return;
   }
 
-  DRW_ENABLED_ENGINE_ITER (drw_get().view_data_active, engine, data) {
-    if (engine->id_update) {
-      engine->id_update(data, &scene->world->id);
-    }
-  }
+  DRWContext &ctx = drw_get();
+  ctx.view_data_active->foreach_enabled_engine(
+      [&](ViewportEngineData *data, DrawEngineType *engine) {
+        if (engine->id_update) {
+          engine->id_update(data, &scene->world->id);
+        }
+      });
 }
 
 static void drw_engines_cache_populate(blender::draw::ObjectRef &ref)
@@ -966,11 +976,13 @@ static void drw_engines_cache_populate(blender::draw::ObjectRef &ref)
     drw_batch_cache_validate(ref.object);
   }
 
-  DRW_ENABLED_ENGINE_ITER (drw_get().view_data_active, engine, data) {
-    if (engine->cache_populate) {
-      engine->cache_populate(data, ref);
-    }
-  }
+  DRWContext &ctx = drw_get();
+  ctx.view_data_active->foreach_enabled_engine(
+      [&](ViewportEngineData *data, DrawEngineType *engine) {
+        if (engine->cache_populate) {
+          engine->cache_populate(data, ref);
+        }
+      });
 
   /* TODO: in the future it would be nice to generate once for all viewports.
    * But we need threaded DRW manager first. */
@@ -985,56 +997,63 @@ static void drw_engines_cache_populate(blender::draw::ObjectRef &ref)
 
 static void drw_engines_cache_finish()
 {
-  DRW_ENABLED_ENGINE_ITER (drw_get().view_data_active, engine, data) {
-    if (engine->cache_finish) {
-      engine->cache_finish(data);
-    }
-  }
+  DRWContext &ctx = drw_get();
+  ctx.view_data_active->foreach_enabled_engine(
+      [&](ViewportEngineData *data, DrawEngineType *engine) {
+        if (engine->cache_finish) {
+          engine->cache_finish(data);
+        }
+      });
 
   DRW_manager_end_sync();
 }
 
 static void drw_engines_draw_scene()
 {
-  DRW_ENABLED_ENGINE_ITER (drw_get().view_data_active, engine, data) {
-    if (engine->draw_scene) {
-      GPU_debug_group_begin(engine->idname);
-      engine->draw_scene(data);
-      /* Restore for next engine */
-      if (DRW_state_is_fbo()) {
-        GPU_framebuffer_bind(drw_get().default_framebuffer());
-      }
-      GPU_debug_group_end();
-    }
-  }
+  DRWContext &ctx = drw_get();
+  ctx.view_data_active->foreach_enabled_engine(
+      [&](ViewportEngineData *data, DrawEngineType *engine) {
+        if (engine->draw_scene) {
+          GPU_debug_group_begin(engine->idname);
+          engine->draw_scene(data);
+          /* Restore for next engine */
+          if (DRW_state_is_fbo()) {
+            GPU_framebuffer_bind(ctx.default_framebuffer());
+          }
+          GPU_debug_group_end();
+        }
+      });
   /* Reset state after drawing */
   blender::draw::command::StateSet::set();
 }
 
 static void drw_engines_draw_text()
 {
-  DRW_ENABLED_ENGINE_ITER (drw_get().view_data_active, engine, data) {
-    if (data->text_draw_cache) {
-      DRW_text_cache_draw(
-          data->text_draw_cache, drw_get().draw_ctx.region, drw_get().draw_ctx.v3d);
-    }
-  }
+  DRWContext &ctx = drw_get();
+  ctx.view_data_active->foreach_enabled_engine(
+      [&](ViewportEngineData *data, DrawEngineType * /*engine*/) {
+        if (data->text_draw_cache) {
+          DRW_text_cache_draw(data->text_draw_cache, ctx.draw_ctx.region, ctx.draw_ctx.v3d);
+        }
+      });
 }
 
 void DRW_draw_region_engine_info(int xoffset, int *yoffset, int line_height)
 {
-  DRW_ENABLED_ENGINE_ITER (drw_get().view_data_active, engine, data) {
-    if (data->info[0] != '\0') {
-      const char *buf_step = IFACE_(data->info);
-      do {
-        const char *buf = buf_step;
-        buf_step = BLI_strchr_or_end(buf, '\n');
-        const int buf_len = buf_step - buf;
-        *yoffset -= line_height;
-        BLF_draw_default(xoffset, *yoffset, 0.0f, buf, buf_len);
-      } while (*buf_step ? ((void)buf_step++, true) : false);
-    }
-  }
+  DRWContext &ctx = drw_get();
+  ctx.view_data_active->foreach_enabled_engine(
+      [&](ViewportEngineData *data, DrawEngineType * /*engine*/) {
+        if (data->info[0] != '\0') {
+          const char *buf_step = IFACE_(data->info);
+          do {
+            const char *buf = buf_step;
+            buf_step = BLI_strchr_or_end(buf, '\n');
+            const int buf_len = buf_step - buf;
+            *yoffset -= line_height;
+            BLF_draw_default(xoffset, *yoffset, 0.0f, buf, buf_len);
+          } while (*buf_step ? ((void)buf_step++, true) : false);
+        }
+      });
 }
 
 static void use_drw_engine(DrawEngineType *engine)
@@ -1184,134 +1203,13 @@ static bool drw_gpencil_engine_needed(Depsgraph *depsgraph, View3D *v3d)
 }
 
 /* -------------------------------------------------------------------- */
-/** \name View Update
- * \{ */
-
-void DRW_notify_view_update(const DRWUpdateContext *update_ctx)
-{
-  RenderEngineType *engine_type = update_ctx->engine_type;
-  ARegion *region = update_ctx->region;
-  View3D *v3d = update_ctx->v3d;
-  RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
-  Depsgraph *depsgraph = update_ctx->depsgraph;
-  Scene *scene = update_ctx->scene;
-  ViewLayer *view_layer = update_ctx->view_layer;
-
-  GPUViewport *viewport = WM_draw_region_get_viewport(region);
-  if (!viewport) {
-    return;
-  }
-
-  const bool gpencil_engine_needed = drw_gpencil_engine_needed(depsgraph, v3d);
-
-  /* XXX Really nasty locking. But else this could be executed by the
-   * material previews thread while rendering a viewport.
-   *
-   * Check for recursive lock which can deadlock. This should not
-   * happen, but in case there is a bug where depsgraph update is called
-   * during drawing we try not to hang Blender. */
-  if (!BLI_ticket_mutex_lock_check_recursive(system_gpu_context_mutex)) {
-    CLOG_ERROR(&LOG, "GPU context already bound");
-    BLI_assert_unreachable();
-    return;
-  }
-
-  /* Reset before using it. */
-  DST.prepare_clean_for_draw();
-
-  BKE_view_layer_synced_ensure(scene, view_layer);
-  drw_get().draw_ctx = {};
-  drw_get().draw_ctx.region = region;
-  drw_get().draw_ctx.rv3d = rv3d;
-  drw_get().draw_ctx.v3d = v3d;
-  drw_get().draw_ctx.scene = scene;
-  drw_get().draw_ctx.view_layer = view_layer;
-  drw_get().draw_ctx.obact = BKE_view_layer_active_object_get(view_layer);
-  drw_get().draw_ctx.engine_type = engine_type;
-  drw_get().draw_ctx.depsgraph = depsgraph;
-  drw_get().draw_ctx.object_mode = OB_MODE_OBJECT;
-
-  /* Custom lightweight initialize to avoid resetting the memory-pools. */
-  drw_get().viewport = viewport;
-  drw_get().data = drw_viewport_data_ensure(drw_get().viewport);
-
-  /* Separate update for each stereo view. */
-  int view_count = GPU_viewport_is_stereo_get(viewport) ? 2 : 1;
-  for (int view = 0; view < view_count; view++) {
-    drw_get().view_data_active = drw_get().data->view_data[view];
-
-    drw_engines_enable(view_layer, engine_type, gpencil_engine_needed);
-    drw_engines_data_validate();
-
-    DRW_view_data_engines_view_update(drw_get().view_data_active);
-
-    drw_engines_disable();
-  }
-
-  drw_manager_exit(&DST);
-
-  BLI_ticket_mutex_unlock(system_gpu_context_mutex);
-}
-
-/* update a viewport which belongs to a GPUOffscreen */
-static void drw_notify_view_update_offscreen(Depsgraph *depsgraph,
-                                             RenderEngineType *engine_type,
-                                             ARegion *region,
-                                             View3D *v3d,
-                                             GPUViewport *viewport)
-{
-
-  if (viewport && GPU_viewport_do_update(viewport)) {
-
-    Scene *scene = DEG_get_evaluated_scene(depsgraph);
-    ViewLayer *view_layer = DEG_get_evaluated_view_layer(depsgraph);
-    RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
-
-    const bool gpencil_engine_needed = drw_gpencil_engine_needed(depsgraph, v3d);
-
-    /* Reset before using it. */
-    DST.prepare_clean_for_draw();
-
-    BKE_view_layer_synced_ensure(scene, view_layer);
-    drw_get().draw_ctx = {};
-    drw_get().draw_ctx.region = region;
-    drw_get().draw_ctx.rv3d = rv3d;
-    drw_get().draw_ctx.v3d = v3d;
-    drw_get().draw_ctx.scene = scene;
-    drw_get().draw_ctx.view_layer = view_layer;
-    drw_get().draw_ctx.obact = BKE_view_layer_active_object_get(view_layer);
-    drw_get().draw_ctx.engine_type = engine_type;
-    drw_get().draw_ctx.depsgraph = depsgraph;
-
-    /* Custom lightweight initialize to avoid resetting the memory-pools. */
-    drw_get().viewport = viewport;
-    drw_get().data = drw_viewport_data_ensure(drw_get().viewport);
-
-    /* Separate update for each stereo view. */
-    int view_count = GPU_viewport_is_stereo_get(viewport) ? 2 : 1;
-    for (int view = 0; view < view_count; view++) {
-      drw_get().view_data_active = drw_get().data->view_data[view];
-
-      drw_engines_enable(view_layer, engine_type, gpencil_engine_needed);
-      drw_engines_data_validate();
-
-      DRW_view_data_engines_view_update(drw_get().view_data_active);
-
-      drw_engines_disable();
-    }
-
-    drw_manager_exit(&DST);
-  }
-}
-
-/** \} */
-
-/* -------------------------------------------------------------------- */
 /** \name Callbacks
  * \{ */
 
-void DRW_draw_callbacks_pre_scene()
+static void draw_callbacks_pre_scene()
 {
+  DRW_submission_start();
+
   RegionView3D *rv3d = drw_get().draw_ctx.rv3d;
 
   GPU_matrix_projection_set(rv3d->winmat);
@@ -1324,17 +1222,19 @@ void DRW_draw_callbacks_pre_scene()
      * Don't trust them! */
     blender::draw::command::StateSet::set();
   }
+  DRW_submission_end();
 }
 
-void DRW_draw_callbacks_post_scene()
+static void draw_callbacks_post_scene()
 {
   RegionView3D *rv3d = drw_get().draw_ctx.rv3d;
   ARegion *region = drw_get().draw_ctx.region;
   View3D *v3d = drw_get().draw_ctx.v3d;
   Depsgraph *depsgraph = drw_get().draw_ctx.depsgraph;
 
-  const bool do_annotations = drw_draw_show_annotation();
+  const bool do_annotations = draw_show_annotation();
 
+  DRW_submission_start();
   if (drw_get().draw_ctx.evil_C) {
     DefaultFramebufferList *dfbl = DRW_viewport_framebuffer_list_get();
 
@@ -1465,6 +1365,71 @@ void DRW_draw_callbacks_post_scene()
     }
 #endif
   }
+  DRW_submission_end();
+}
+
+static void draw_callbacks_pre_scene_2D()
+{
+  DRW_submission_start();
+
+  if (drw_get().draw_ctx.evil_C) {
+    ED_region_draw_cb_draw(
+        drw_get().draw_ctx.evil_C, drw_get().draw_ctx.region, REGION_DRAW_PRE_VIEW);
+  }
+
+  DRW_submission_end();
+}
+
+static void draw_callbacks_post_scene_2D(View2D &v2d)
+{
+  DRW_submission_start();
+
+  const bool do_annotations = draw_show_annotation();
+  const bool do_draw_gizmos = (drw_get().draw_ctx.space_data->spacetype != SPACE_IMAGE);
+
+  if (drw_get().draw_ctx.evil_C) {
+    DefaultFramebufferList *dfbl = DRW_viewport_framebuffer_list_get();
+
+    blender::draw::command::StateSet::set();
+
+    GPU_framebuffer_bind(dfbl->overlay_fb);
+
+    GPU_depth_test(GPU_DEPTH_NONE);
+    GPU_matrix_push_projection();
+
+    wmOrtho2(v2d.cur.xmin, v2d.cur.xmax, v2d.cur.ymin, v2d.cur.ymax);
+
+    if (do_annotations) {
+      ED_annotation_draw_view2d(drw_get().draw_ctx.evil_C, true);
+    }
+
+    GPU_depth_test(GPU_DEPTH_NONE);
+
+    ED_region_draw_cb_draw(
+        drw_get().draw_ctx.evil_C, drw_get().draw_ctx.region, REGION_DRAW_POST_VIEW);
+
+    GPU_matrix_pop_projection();
+    /* Callback can be nasty and do whatever they want with the state.
+     * Don't trust them! */
+    blender::draw::command::StateSet::set();
+
+    GPU_depth_test(GPU_DEPTH_NONE);
+    drw_engines_draw_text();
+
+    if (do_annotations) {
+      GPU_depth_test(GPU_DEPTH_NONE);
+      ED_annotation_draw_view2d(drw_get().draw_ctx.evil_C, false);
+    }
+  }
+
+  ED_region_pixelspace(drw_get().draw_ctx.region);
+
+  if (do_draw_gizmos) {
+    GPU_depth_test(GPU_DEPTH_NONE);
+    DRW_draw_gizmo_2d();
+  }
+
+  DRW_submission_end();
 }
 
 DRWTextStore *DRW_text_cache_ensure()
@@ -1515,7 +1480,7 @@ static void DRW_draw_render_loop_3d(Depsgraph *depsgraph,
   drw_task_graph_init();
   drw_context_state_init();
 
-  drw_manager_init(&DST, viewport, nullptr);
+  drw_manager_init(g_context, viewport, nullptr);
   DRW_viewport_colormanagement_set(viewport);
 
   const int object_type_exclude_viewport = v3d->object_type_exclude_viewport;
@@ -1584,7 +1549,7 @@ static void DRW_draw_render_loop_3d(Depsgraph *depsgraph,
 
   DRW_curves_update(*DRW_manager_get());
 
-  DRW_draw_callbacks_pre_scene();
+  draw_callbacks_pre_scene();
 
   drw_engines_draw_scene();
 
@@ -1595,7 +1560,7 @@ static void DRW_draw_render_loop_3d(Depsgraph *depsgraph,
 
   drw_get().data->modules_exit();
 
-  DRW_draw_callbacks_post_scene();
+  draw_callbacks_post_scene();
 
   if (WM_draw_region_get_bound_viewport(region)) {
     /* Don't unbind the frame-buffer yet in this case and let
@@ -1608,8 +1573,6 @@ static void DRW_draw_render_loop_3d(Depsgraph *depsgraph,
 
   blender::draw::command::StateSet::set();
   drw_engines_disable();
-
-  drw_manager_exit(&DST);
 }
 
 void DRW_draw_render_loop_offscreen(Depsgraph *depsgraph,
@@ -1629,20 +1592,20 @@ void DRW_draw_render_loop_offscreen(Depsgraph *depsgraph,
   if (viewport == nullptr) {
     render_viewport = GPU_viewport_create();
   }
-  else {
-    drw_notify_view_update_offscreen(depsgraph, engine_type, region, v3d, render_viewport);
-  }
 
   GPU_viewport_bind_from_offscreen(render_viewport, ofs, is_xr_surface);
 
   /* Just here to avoid an assert but shouldn't be required in practice. */
   GPU_framebuffer_restore();
 
-  /* Reset before using it. */
-  DST.prepare_clean_for_draw();
+  DRWContext draw_ctx;
+  drw_set(draw_ctx);
   drw_get().options.is_image_render = is_image_render;
   drw_get().options.draw_background = draw_background;
+
   DRW_draw_render_loop_3d(depsgraph, engine_type, region, v3d, render_viewport, nullptr);
+
+  drw_manager_exit(&draw_ctx);
 
   if (draw_background) {
     /* HACK(@fclem): In this case we need to make sure the final alpha is 1.
@@ -1686,7 +1649,7 @@ bool DRW_render_check_grease_pencil(Depsgraph *depsgraph)
   deg_iter_settings.flags = DEG_OBJECT_ITER_FOR_RENDER_ENGINE_FLAGS;
   DEG_OBJECT_ITER_BEGIN (&deg_iter_settings, ob) {
     if (ob->type == OB_GREASE_PENCIL) {
-      if (DRW_object_visibility_in_active_context(ob) & OB_VISIBLE_SELF) {
+      if (BKE_object_visibility(ob, DAG_EVAL_RENDER) & OB_VISIBLE_SELF) {
         return true;
       }
     }
@@ -1701,6 +1664,7 @@ static void DRW_render_gpencil_to_image(RenderEngine *engine,
                                         const rcti *rect)
 {
   DrawEngineType *draw_engine = &draw_engine_gpencil_type;
+
   if (draw_engine->render_to_image) {
     ViewportEngineData *gpdata = DRW_view_data_engine_data_get_ensure(drw_get().view_data_active,
                                                                       draw_engine);
@@ -1727,8 +1691,9 @@ void DRW_render_gpencil(RenderEngine *engine, Depsgraph *depsgraph)
 
   DRW_render_context_enable(render);
 
-  /* Reset before using it. */
-  DST.prepare_clean_for_draw();
+  DRWContext draw_ctx;
+  drw_set(draw_ctx);
+
   drw_get().options.is_image_render = true;
   drw_get().options.is_scene_render = true;
   drw_get().options.draw_background = scene->r.alphamode == R_ADDSKY;
@@ -1744,7 +1709,7 @@ void DRW_render_gpencil(RenderEngine *engine, Depsgraph *depsgraph)
 
   const int size[2] = {engine->resolution_x, engine->resolution_y};
 
-  drw_manager_init(&DST, nullptr, size);
+  drw_manager_init(g_context, nullptr, size);
 
   /* Main rendering. */
   rctf view_rect;
@@ -1767,7 +1732,7 @@ void DRW_render_gpencil(RenderEngine *engine, Depsgraph *depsgraph)
   GPU_depth_test(GPU_DEPTH_NONE);
 
   blender::gpu::TexturePool::get().reset(true);
-  drw_manager_exit(&DST);
+  drw_manager_exit(&draw_ctx);
 
   /* Restore Drawing area. */
   GPU_framebuffer_restore();
@@ -1788,8 +1753,9 @@ void DRW_render_to_image(RenderEngine *engine, Depsgraph *depsgraph)
    * This shall remain in effect until immediate mode supports
    * multiple threads. */
 
-  /* Reset before using it. */
-  DST.prepare_clean_for_draw();
+  DRWContext draw_ctx;
+
+  drw_set(draw_ctx);
   drw_get().options.is_image_render = true;
   drw_get().options.is_scene_render = true;
   drw_get().options.draw_background = scene->r.alphamode == R_ADDSKY;
@@ -1807,7 +1773,7 @@ void DRW_render_to_image(RenderEngine *engine, Depsgraph *depsgraph)
 
   const int size[2] = {engine->resolution_x, engine->resolution_y};
 
-  drw_manager_init(&DST, nullptr, size);
+  drw_manager_init(g_context, nullptr, size);
 
   ViewportEngineData *data = DRW_view_data_engine_data_get_ensure(drw_get().view_data_active,
                                                                   draw_engine_type);
@@ -1856,11 +1822,11 @@ void DRW_render_to_image(RenderEngine *engine, Depsgraph *depsgraph)
 
   blender::gpu::TexturePool::get().reset(true);
 
-  drw_manager_exit(&DST);
-  DRW_cache_free_old_subdiv();
-
   /* Reset state after drawing */
   blender::draw::command::StateSet::set();
+
+  drw_manager_exit(&draw_ctx);
+  DRW_cache_free_old_subdiv();
 
   /* End GPU workload Boundary */
   GPU_render_end();
@@ -1907,14 +1873,15 @@ void DRW_render_object_iter(void *vedata,
   drw_task_graph_deinit();
 }
 
-void DRW_custom_pipeline_begin(DrawEngineType *draw_engine_type, Depsgraph *depsgraph)
+void DRW_custom_pipeline_begin(DRWContext &draw_ctx,
+                               DrawEngineType *draw_engine_type,
+                               Depsgraph *depsgraph)
 {
   using namespace blender::draw;
   Scene *scene = DEG_get_evaluated_scene(depsgraph);
   ViewLayer *view_layer = DEG_get_evaluated_view_layer(depsgraph);
 
-  /* Reset before using it. */
-  DST.prepare_clean_for_draw();
+  drw_set(draw_ctx);
   drw_get().options.is_image_render = true;
   drw_get().options.is_scene_render = true;
   drw_get().options.draw_background = false;
@@ -1928,14 +1895,14 @@ void DRW_custom_pipeline_begin(DrawEngineType *draw_engine_type, Depsgraph *deps
 
   drw_context_state_init();
 
-  drw_manager_init(&DST, nullptr, nullptr);
+  drw_manager_init(g_context, nullptr, nullptr);
 
   drw_get().data->modules_init();
 
   DRW_view_data_engine_data_get_ensure(drw_get().view_data_active, draw_engine_type);
 }
 
-void DRW_custom_pipeline_end()
+void DRW_custom_pipeline_end(DRWContext &draw_ctx)
 {
   drw_get().data->modules_exit();
 
@@ -1951,22 +1918,7 @@ void DRW_custom_pipeline_end()
   }
 
   blender::gpu::TexturePool::get().reset(true);
-  drw_manager_exit(&DST);
-}
-
-void DRW_custom_pipeline(DrawEngineType *draw_engine_type,
-                         Depsgraph *depsgraph,
-                         void (*callback)(void *vedata, void *user_data),
-                         void *user_data)
-{
-  DRW_custom_pipeline_begin(draw_engine_type, depsgraph);
-
-  ViewportEngineData *data = DRW_view_data_engine_data_get_ensure(drw_get().view_data_active,
-                                                                  draw_engine_type);
-  /* Execute the callback. */
-  callback(data, user_data);
-
-  DRW_custom_pipeline_end();
+  drw_manager_exit(&draw_ctx);
 }
 
 void DRW_cache_restart()
@@ -1974,8 +1926,9 @@ void DRW_cache_restart()
   using namespace blender::draw;
   drw_get().data->modules_exit();
 
-  drw_manager_init(
-      &DST, drw_get().viewport, blender::int2{int(drw_get().size[0]), int(drw_get().size[1])});
+  drw_manager_init(g_context,
+                   drw_get().viewport,
+                   blender::int2{int(drw_get().size[0]), int(drw_get().size[1])});
 
   drw_get().data->modules_init();
 }
@@ -2001,14 +1954,12 @@ static void DRW_draw_render_loop_2d(Depsgraph *depsgraph,
   drw_get().draw_ctx.evil_C = evil_C;
 
   drw_context_state_init();
-  drw_manager_init(&DST, viewport, nullptr);
+  drw_manager_init(g_context, viewport, nullptr);
   DRW_viewport_colormanagement_set(viewport);
 
   /* TODO(jbakker): Only populate when editor needs to draw object.
    * for the image editor this is when showing UVs. */
   const bool do_populate_loop = (drw_get().draw_ctx.space_data->spacetype == SPACE_IMAGE);
-  const bool do_annotations = drw_draw_show_annotation();
-  const bool do_draw_gizmos = (drw_get().draw_ctx.space_data->spacetype != SPACE_IMAGE);
 
   /* Get list of enabled engines */
   drw_engines_enable_editors();
@@ -2050,10 +2001,7 @@ static void DRW_draw_render_loop_2d(Depsgraph *depsgraph,
   /* Start Drawing */
   blender::draw::command::StateSet::set();
 
-  if (drw_get().draw_ctx.evil_C) {
-    ED_region_draw_cb_draw(
-        drw_get().draw_ctx.evil_C, drw_get().draw_ctx.region, REGION_DRAW_PRE_VIEW);
-  }
+  draw_callbacks_pre_scene_2D();
 
   drw_engines_draw_scene();
 
@@ -2062,42 +2010,7 @@ static void DRW_draw_render_loop_2d(Depsgraph *depsgraph,
     GPU_flush();
   }
 
-  if (drw_get().draw_ctx.evil_C) {
-    DefaultFramebufferList *dfbl = DRW_viewport_framebuffer_list_get();
-    blender::draw::command::StateSet::set();
-
-    GPU_framebuffer_bind(dfbl->overlay_fb);
-
-    GPU_depth_test(GPU_DEPTH_NONE);
-    GPU_matrix_push_projection();
-    wmOrtho2(
-        region->v2d.cur.xmin, region->v2d.cur.xmax, region->v2d.cur.ymin, region->v2d.cur.ymax);
-    if (do_annotations) {
-      ED_annotation_draw_view2d(drw_get().draw_ctx.evil_C, true);
-    }
-    GPU_depth_test(GPU_DEPTH_NONE);
-    ED_region_draw_cb_draw(
-        drw_get().draw_ctx.evil_C, drw_get().draw_ctx.region, REGION_DRAW_POST_VIEW);
-    GPU_matrix_pop_projection();
-    /* Callback can be nasty and do whatever they want with the state.
-     * Don't trust them! */
-    blender::draw::command::StateSet::set();
-
-    GPU_depth_test(GPU_DEPTH_NONE);
-    drw_engines_draw_text();
-
-    if (do_annotations) {
-      GPU_depth_test(GPU_DEPTH_NONE);
-      ED_annotation_draw_view2d(drw_get().draw_ctx.evil_C, false);
-    }
-  }
-
-  ED_region_pixelspace(drw_get().draw_ctx.region);
-
-  if (do_draw_gizmos) {
-    GPU_depth_test(GPU_DEPTH_NONE);
-    DRW_draw_gizmo_2d();
-  }
+  draw_callbacks_post_scene_2D(region->v2d);
 
   GPU_depth_test(GPU_DEPTH_LESS_EQUAL);
 
@@ -2112,8 +2025,6 @@ static void DRW_draw_render_loop_2d(Depsgraph *depsgraph,
 
   blender::draw::command::StateSet::set();
   drw_engines_disable();
-
-  drw_manager_exit(&DST);
 }
 
 void DRW_draw_view(const bContext *C)
@@ -2122,14 +2033,15 @@ void DRW_draw_view(const bContext *C)
   ARegion *region = CTX_wm_region(C);
   GPUViewport *viewport = WM_draw_region_get_bound_viewport(region);
 
+  DRWContext draw_ctx;
+  drw_set(draw_ctx);
+
   View3D *v3d = CTX_wm_view3d(C);
 
   if (v3d) {
     Scene *scene = DEG_get_evaluated_scene(depsgraph);
     RenderEngineType *engine_type = ED_view3d_engine_type(scene, v3d->shading.type);
 
-    /* Reset before using it. */
-    DST.prepare_clean_for_draw();
     drw_get().options.draw_text = ((v3d->flag2 & V3D_HIDE_OVERLAYS) == 0 &&
                                    (v3d->overlay.flag & V3D_OVERLAY_HIDE_TEXT) != 0);
     drw_get().options.draw_background = (scene->r.alphamode == R_ADDSKY) ||
@@ -2138,9 +2050,10 @@ void DRW_draw_view(const bContext *C)
     DRW_draw_render_loop_3d(depsgraph, engine_type, region, v3d, viewport, C);
   }
   else {
-    DST.prepare_clean_for_draw();
     DRW_draw_render_loop_2d(depsgraph, region, viewport, C);
   }
+
+  drw_manager_exit(&draw_ctx);
 }
 
 static struct DRWSelectBuffer {
@@ -2204,8 +2117,8 @@ void DRW_draw_select_loop(Depsgraph *depsgraph,
   Object *obedit = use_obedit_skip ? nullptr : OBEDIT_FROM_OBACT(obact);
   RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
 
-  /* Reset before using it. */
-  DST.prepare_clean_for_draw();
+  DRWContext draw_ctx;
+  drw_set(draw_ctx);
 
   bool use_obedit = false;
   /* obedit_ctx_mode is used for selecting the right draw engines */
@@ -2263,7 +2176,7 @@ void DRW_draw_select_loop(Depsgraph *depsgraph,
   drw_context_state_init();
 
   const int viewport_size[2] = {BLI_rcti_size_x(rect), BLI_rcti_size_y(rect)};
-  drw_manager_init(&DST, nullptr, viewport_size);
+  drw_manager_init(g_context, nullptr, viewport_size);
 
   drw_get().options.is_select = true;
   drw_get().options.is_material_select = do_material_sub_selection;
@@ -2365,7 +2278,7 @@ void DRW_draw_select_loop(Depsgraph *depsgraph,
 
   /* Start Drawing */
   blender::draw::command::StateSet::set();
-  DRW_draw_callbacks_pre_scene();
+  draw_callbacks_pre_scene();
 
   DRW_curves_update(*DRW_manager_get());
 
@@ -2390,7 +2303,7 @@ void DRW_draw_select_loop(Depsgraph *depsgraph,
   blender::draw::command::StateSet::set();
   drw_engines_disable();
 
-  drw_manager_exit(&DST);
+  drw_manager_exit(&draw_ctx);
 
   GPU_framebuffer_restore();
 }
@@ -2400,7 +2313,8 @@ void DRW_draw_depth_loop(Depsgraph *depsgraph,
                          View3D *v3d,
                          GPUViewport *viewport,
                          const bool use_gpencil,
-                         const bool use_only_selected)
+                         const bool use_only_selected,
+                         const bool use_only_active_object)
 {
   using namespace blender::draw;
   Scene *scene = DEG_get_evaluated_scene(depsgraph);
@@ -2408,8 +2322,8 @@ void DRW_draw_depth_loop(Depsgraph *depsgraph,
   ViewLayer *view_layer = DEG_get_evaluated_view_layer(depsgraph);
   RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
 
-  /* Reset before using it. */
-  DST.prepare_clean_for_draw();
+  DRWContext draw_ctx;
+  drw_set(draw_ctx);
 
   drw_get().options.is_depth = true;
 
@@ -2426,7 +2340,7 @@ void DRW_draw_depth_loop(Depsgraph *depsgraph,
   drw_get().draw_ctx.depsgraph = depsgraph;
 
   drw_context_state_init();
-  drw_manager_init(&DST, viewport, nullptr);
+  drw_manager_init(g_context, viewport, nullptr);
 
   if (use_gpencil) {
     use_drw_engine(&draw_engine_gpencil_type);
@@ -2453,7 +2367,6 @@ void DRW_draw_depth_loop(Depsgraph *depsgraph,
   drw_get().data->modules_init();
 
   {
-    DupliCacheManager dupli_handler;
     drw_engines_cache_init();
     drw_engines_world_update(drw_get().draw_ctx.scene);
 
@@ -2464,26 +2377,33 @@ void DRW_draw_depth_loop(Depsgraph *depsgraph,
     if (v3d->flag2 & V3D_SHOW_VIEWER) {
       deg_iter_settings.viewer_path = &v3d->viewer_path;
     }
-    DEG_OBJECT_ITER_BEGIN (&deg_iter_settings, ob) {
-      if ((object_type_exclude_viewport & (1 << ob->type)) != 0) {
-        continue;
-      }
-      if (!BKE_object_is_visible_in_viewport(v3d, ob)) {
-        continue;
-      }
-      if (use_only_selected && !(ob->base_flag & BASE_SELECTED)) {
-        continue;
-      }
-      if ((ob->base_flag & BASE_SELECTABLE) == 0) {
-        continue;
-      }
-      blender::draw::ObjectRef ob_ref(data_, ob);
-      dupli_handler.try_add(ob_ref);
+    if (use_only_active_object) {
+      blender::draw::ObjectRef ob_ref(drw_get().draw_ctx.obact);
       drw_engines_cache_populate(ob_ref);
     }
-    DEG_OBJECT_ITER_END;
+    else {
+      DupliCacheManager dupli_handler;
+      DEG_OBJECT_ITER_BEGIN (&deg_iter_settings, ob) {
+        if ((object_type_exclude_viewport & (1 << ob->type)) != 0) {
+          continue;
+        }
+        if (!BKE_object_is_visible_in_viewport(v3d, ob)) {
+          continue;
+        }
+        if (use_only_selected && !(ob->base_flag & BASE_SELECTED)) {
+          continue;
+        }
+        if ((ob->base_flag & BASE_SELECTABLE) == 0) {
+          continue;
+        }
+        blender::draw::ObjectRef ob_ref(data_, ob);
+        dupli_handler.try_add(ob_ref);
+        drw_engines_cache_populate(ob_ref);
+      }
+      DEG_OBJECT_ITER_END;
+      dupli_handler.extract_all();
+    }
 
-    dupli_handler.extract_all();
     drw_engines_cache_finish();
 
     drw_task_graph_deinit();
@@ -2507,7 +2427,7 @@ void DRW_draw_depth_loop(Depsgraph *depsgraph,
 
   drw_engines_disable();
 
-  drw_manager_exit(&DST);
+  drw_manager_exit(&draw_ctx);
 }
 
 void DRW_draw_select_id(Depsgraph *depsgraph, ARegion *region, View3D *v3d)
@@ -2525,8 +2445,8 @@ void DRW_draw_select_id(Depsgraph *depsgraph, ARegion *region, View3D *v3d)
   ViewLayer *view_layer = DEG_get_evaluated_view_layer(depsgraph);
   RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
 
-  /* Reset before using it. */
-  DST.prepare_clean_for_draw();
+  DRWContext draw_ctx;
+  drw_set(draw_ctx);
 
   /* Instead of 'DRW_context_state_init(C, &drw_get().draw_ctx)', assign from args */
   BKE_view_layer_synced_ensure(scene, view_layer);
@@ -2542,7 +2462,7 @@ void DRW_draw_select_id(Depsgraph *depsgraph, ARegion *region, View3D *v3d)
   drw_task_graph_init();
   drw_context_state_init();
 
-  drw_manager_init(&DST, viewport, nullptr);
+  drw_manager_init(g_context, viewport, nullptr);
 
   /* Make sure select engine gets the correct vertex size. */
   UI_SetTheme(SPACE_VIEW3D, RGN_TYPE_WINDOW);
@@ -2593,91 +2513,7 @@ void DRW_draw_select_id(Depsgraph *depsgraph, ARegion *region, View3D *v3d)
 
   drw_engines_disable();
 
-  drw_manager_exit(&DST);
-}
-
-void DRW_draw_depth_object(
-    Scene *scene, ARegion *region, View3D *v3d, GPUViewport *viewport, Object *object)
-{
-  using namespace blender::draw;
-  RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
-
-  GPU_matrix_projection_set(rv3d->winmat);
-  GPU_matrix_set(rv3d->viewmat);
-  GPU_matrix_mul(object->object_to_world().ptr());
-
-  /* Setup frame-buffer. */
-  GPUTexture *depth_tx = GPU_viewport_depth_texture(viewport);
-
-  GPUFrameBuffer *depth_fb = nullptr;
-  GPU_framebuffer_ensure_config(&depth_fb,
-                                {
-                                    GPU_ATTACHMENT_TEXTURE(depth_tx),
-                                    GPU_ATTACHMENT_NONE,
-                                });
-
-  GPU_framebuffer_bind(depth_fb);
-  GPU_framebuffer_clear_depth(depth_fb, 1.0f);
-  GPU_depth_test(GPU_DEPTH_LESS_EQUAL);
-
-  GPUClipPlanes planes;
-  const bool use_clipping_planes = RV3D_CLIPPING_ENABLED(v3d, rv3d);
-  if (use_clipping_planes) {
-    GPU_clip_distances(6);
-    ED_view3d_clipping_local(rv3d, object->object_to_world().ptr());
-    for (int i = 0; i < 6; i++) {
-      copy_v4_v4(planes.world[i], rv3d->clip_local[i]);
-    }
-    copy_m4_m4(planes.ClipModelMatrix.ptr(), object->object_to_world().ptr());
-  }
-
-  drw_batch_cache_validate(object);
-
-  switch (object->type) {
-    case OB_MESH: {
-      blender::gpu::Batch *batch;
-
-      Mesh &mesh = *static_cast<Mesh *>(object->data);
-
-      if (object->mode & OB_MODE_EDIT) {
-        batch = DRW_mesh_batch_cache_get_edit_triangles(mesh);
-      }
-      else {
-        batch = DRW_mesh_batch_cache_get_surface(mesh);
-      }
-      TaskGraph *task_graph = BLI_task_graph_create();
-      DRW_mesh_batch_cache_create_requested(*task_graph, *object, mesh, *scene, false, true);
-      BLI_task_graph_work_and_wait(task_graph);
-      BLI_task_graph_free(task_graph);
-
-      const eGPUShaderConfig sh_cfg = use_clipping_planes ? GPU_SHADER_CFG_CLIPPED :
-                                                            GPU_SHADER_CFG_DEFAULT;
-      GPU_batch_program_set_builtin_with_config(batch, GPU_SHADER_3D_DEPTH_ONLY, sh_cfg);
-
-      GPUUniformBuf *ubo = nullptr;
-      if (use_clipping_planes) {
-        ubo = GPU_uniformbuf_create_ex(sizeof(GPUClipPlanes), &planes, __func__);
-        GPU_batch_uniformbuf_bind(batch, "clipPlanes", ubo);
-      }
-
-      GPU_batch_draw(batch);
-      GPU_uniformbuf_free(ubo);
-      break;
-    }
-    case OB_CURVES_LEGACY:
-    case OB_SURF:
-      break;
-  }
-
-  if (RV3D_CLIPPING_ENABLED(v3d, rv3d)) {
-    GPU_clip_distances(0);
-  }
-
-  GPU_matrix_set(rv3d->viewmat);
-  GPU_depth_test(GPU_DEPTH_NONE);
-  GPU_framebuffer_restore();
-
-  GPU_framebuffer_free(depth_fb);
+  drw_manager_exit(&draw_ctx);
 }
 
 bool DRW_draw_in_progress()
@@ -2789,36 +2625,12 @@ bool DRW_engine_render_support(DrawEngineType *draw_engine_type)
   return draw_engine_type->render_to_image;
 }
 
-void DRW_engine_register(DrawEngineType *draw_engine_type)
-{
-  DRWRegisteredDrawEngine *draw_engine = static_cast<DRWRegisteredDrawEngine *>(
-      MEM_mallocN(sizeof(DRWRegisteredDrawEngine), __func__));
-  draw_engine->draw_engine = draw_engine_type;
-  draw_engine->index = g_registered_engines.len;
-
-  BLI_addtail(&g_registered_engines.engines, draw_engine);
-  g_registered_engines.len = BLI_listbase_count(&g_registered_engines.engines);
-}
-
 void DRW_engines_register()
 {
   using namespace blender::draw;
   RE_engines_register(&DRW_engine_viewport_eevee_next_type);
 
   RE_engines_register(&DRW_engine_viewport_workbench_type);
-
-  DRW_engine_register(&draw_engine_gpencil_type);
-
-  DRW_engine_register(&draw_engine_overlay_next_type);
-  DRW_engine_register(&draw_engine_select_next_type);
-  DRW_engine_register(&draw_engine_select_type);
-  DRW_engine_register(&draw_engine_compositor_type);
-#ifdef WITH_DRAW_DEBUG
-  DRW_engine_register(&draw_engine_debug_select_type);
-#endif
-
-  DRW_engine_register(&draw_engine_image_type);
-  DRW_engine_register(DRW_engine_viewport_external_type.draw_engine);
 
   /* setup callbacks */
   {
@@ -2850,31 +2662,19 @@ void DRW_engines_register()
   }
 }
 
-static void drw_registered_engines_free()
-{
-  DRWRegisteredDrawEngine *next;
-  for (DRWRegisteredDrawEngine *type =
-           static_cast<DRWRegisteredDrawEngine *>(g_registered_engines.engines.first);
-       type;
-       type = next)
-  {
-    next = static_cast<DRWRegisteredDrawEngine *>(type->next);
-    BLI_remlink(&R_engines, type);
-
-    if (type->draw_engine->engine_free) {
-      type->draw_engine->engine_free();
-    }
-    MEM_freeN(type);
-  }
-
-  BLI_listbase_clear(&g_registered_engines.engines);
-  g_registered_engines.len = 0;
-}
-
 void DRW_engines_free()
 {
   using namespace blender::draw;
-  drw_registered_engines_free();
+
+  DRW_engine_viewport_eevee_next_type.draw_engine->engine_free();
+  DRW_engine_viewport_workbench_type.draw_engine->engine_free();
+  draw_engine_gpencil_type.engine_free();
+  draw_engine_image_type.engine_free();
+  draw_engine_overlay_next_type.engine_free();
+#ifdef WITH_DRAW_DEBUG
+  draw_engine_debug_select_type.engine_free();
+#endif
+  draw_engine_select_type.engine_free();
 
   if (system_gpu_context == nullptr) {
     /* Nothing has been setup. Nothing to clear.
@@ -2889,9 +2689,6 @@ void DRW_engines_free()
   GPU_FRAMEBUFFER_FREE_SAFE(g_select_buffer.framebuffer_depth_only);
 
   DRW_shaders_free();
-
-  drw_debug_module_free(drw_get().debug);
-  drw_get().debug = nullptr;
 
   DRW_gpu_context_disable();
 }
@@ -2962,6 +2759,7 @@ void DRW_gpu_context_create()
   DRW_shader_init();
 
   system_gpu_context_mutex = BLI_ticket_mutex_alloc();
+  submission_mutex = BLI_ticket_mutex_alloc();
   /* This changes the active context. */
   system_gpu_context = WM_system_gpu_context_create();
   WM_system_gpu_context_activate(system_gpu_context);
@@ -2983,8 +2781,21 @@ void DRW_gpu_context_destroy()
     GPU_context_active_set(blender_gpu_context);
     GPU_context_discard(blender_gpu_context);
     WM_system_gpu_context_dispose(system_gpu_context);
+    BLI_ticket_mutex_free(submission_mutex);
     BLI_ticket_mutex_free(system_gpu_context_mutex);
   }
+}
+
+void DRW_submission_start()
+{
+  bool locked = BLI_ticket_mutex_lock_check_recursive(submission_mutex);
+  BLI_assert(locked);
+  UNUSED_VARS_NDEBUG(locked);
+}
+
+void DRW_submission_end()
+{
+  BLI_ticket_mutex_unlock(submission_mutex);
 }
 
 void DRW_gpu_context_enable_ex(bool /*restore*/)
@@ -3042,14 +2853,12 @@ void DRW_system_gpu_render_context_enable(void *re_system_gpu_context)
   /* If thread is main you should use DRW_gpu_context_enable(). */
   BLI_assert(!BLI_thread_is_main());
 
-  BLI_ticket_mutex_lock(system_gpu_context_mutex);
   WM_system_gpu_context_activate(re_system_gpu_context);
 }
 
 void DRW_system_gpu_render_context_disable(void *re_system_gpu_context)
 {
   WM_system_gpu_context_release(re_system_gpu_context);
-  BLI_ticket_mutex_unlock(system_gpu_context_mutex);
 }
 
 void DRW_blender_gpu_render_context_enable(void *re_gpu_context)

@@ -942,7 +942,6 @@ static bAnimListElem *make_new_animlistelem(
     case ANIMTYPE_ANIMDATA:
     case ANIMTYPE_SPECIALDATA__UNUSED:
     case ANIMTYPE_DSMBALL:
-    case ANIMTYPE_GPDATABLOCK:
     case ANIMTYPE_MASKDATABLOCK:
     case ANIMTYPE_PALETTE:
     case ANIMTYPE_NUM_TYPES:
@@ -1018,9 +1017,9 @@ static bool skip_fcurve_selected_data(bAnimContext *ac,
         BLI_str_quoted_substr(fcu->rna_path, "strips_all[", strip_name, sizeof(strip_name)))
     {
       /* Get strip name, and check if this strip is selected. */
-      Editing *ed = SEQ_editing_get(scene);
+      Editing *ed = blender::seq::editing_get(scene);
       if (ed) {
-        strip = SEQ_get_sequence_by_name(ed->seqbasep, strip_name, false);
+        strip = blender::seq::get_sequence_by_name(ed->seqbasep, strip_name, false);
       }
 
       /* Can only add this F-Curve if it is selected. */
@@ -1959,6 +1958,8 @@ static size_t animdata_filter_shapekey(bAnimContext *ac,
                                        Key *key,
                                        const eAnimFilter_Flags filter_mode)
 {
+  using namespace blender::animrig;
+
   size_t items = 0;
 
   /* check if channels or only F-Curves */
@@ -2001,19 +2002,19 @@ static size_t animdata_filter_shapekey(bAnimContext *ac,
       if (!key->adt || !key->adt->action) {
         return 0;
       }
-      bAction *action = key->adt->action;
-      FCurve *first_fcu = static_cast<FCurve *>(action->curves.first);
-      for (FCurve *fcu = first_fcu;
-           (fcu =
-                animfilter_fcurve_next(ac, fcu, ANIMTYPE_FCURVE, filter_mode, nullptr, (ID *)key));
-           fcu = fcu->next)
-      {
-        /* Check if this is a "KEY_NORMAL" type keyframe */
-        if (STREQ(fcu->rna_path, "eval_time") || BLI_str_endswith(fcu->rna_path, ".interpolation"))
+      Action &action = key->adt->action->wrap();
+
+      Vector<FCurve *> key_fcurves;
+      for (FCurve *fcurve : fcurves_for_action_slot(action, key->adt->slot_handle)) {
+        if (STREQ(fcurve->rna_path, "eval_time") ||
+            BLI_str_endswith(fcurve->rna_path, ".interpolation"))
         {
-          ANIMCHANNEL_NEW_CHANNEL(ac->bmain, fcu, ANIMTYPE_FCURVE, (ID *)key, &action->id);
+          key_fcurves.append(fcurve);
         }
       }
+
+      items += animfilter_fcurves_span(
+          ac, anim_data, key_fcurves, key->adt->slot_handle, filter_mode, &key->id, &action.id);
     }
   }
   else {
@@ -2221,8 +2222,6 @@ static size_t animdata_filter_grease_pencil_data(bAnimContext *ac,
   if (filter_mode & ANIMFILTER_ANIMDATA) {
     if (show_animdata) {
       items += animfilter_block_data(ac, anim_data, (ID *)grease_pencil, filter_mode);
-      ANIMCHANNEL_NEW_CHANNEL(
-          ac->bmain, grease_pencil, ANIMTYPE_GREASE_PENCIL_DATABLOCK, grease_pencil, nullptr);
     }
   }
   else {
@@ -3612,7 +3611,7 @@ static Base **animdata_filter_ds_sorted_bases(bAnimContext *ac,
   size_t tot_bases = BLI_listbase_count(object_bases);
   size_t num_bases = 0;
 
-  Base **sorted_bases = MEM_cnew_array<Base *>(tot_bases, "Dopesheet Usable Sorted Bases");
+  Base **sorted_bases = MEM_calloc_arrayN<Base *>(tot_bases, "Dopesheet Usable Sorted Bases");
   LISTBASE_FOREACH (Base *, base, object_bases) {
     if (animdata_filter_base_is_ok(ac, base, OB_MODE_OBJECT, filter_mode)) {
       sorted_bases[num_bases++] = base;
