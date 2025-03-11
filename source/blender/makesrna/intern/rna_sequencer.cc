@@ -3088,7 +3088,7 @@ static void rna_def_sound(BlenderRNA *brna)
   RNA_def_property_float_funcs(prop, nullptr, nullptr, "rna_Strip_pan_range");
   RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_audio_update");
 
-  prop = RNA_def_property(srna, "sound_offset", PROP_FLOAT, PROP_TIME);
+  prop = RNA_def_property(srna, "sound_offset", PROP_FLOAT, PROP_TIME_ABSOLUTE);
   RNA_def_property_float_sdna(prop, nullptr, "sound_offset");
   RNA_def_property_range(prop, -FLT_MAX, FLT_MAX);
   RNA_def_property_ui_range(prop, -FLT_MAX, FLT_MAX, 1, 3);
