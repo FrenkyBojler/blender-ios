@@ -367,22 +367,22 @@ static void set_initial_data_and_reference_bits(const bNodeTree &tree,
 }
 
 static BitVector<> get_references_coming_from_outside_zone(
-    const bNodeTreeZone &zone,
-    const BitGroupVector<> &potential_data_by_socket,
-    const BitGroupVector<> &potential_reference_by_socket)
+    const bNodeTreeZone &zone, const Span<const BitGroupVector<> *> sources)
 {
-  BitVector<> found(potential_data_by_socket.group_size(), false);
+  BitVector<> found(sources.first()->group_size(), false);
   /* Gather references that are passed into the zone from the outside, either through the input
    * node or border links. */
   for (const bNodeSocket *socket : zone.input_node->input_sockets()) {
     const int src = socket->index_in_tree();
-    found |= potential_data_by_socket[src];
-    found |= potential_reference_by_socket[src];
+    for (const BitGroupVector<> *source : sources) {
+      found |= (*source)[src];
+    }
   }
   for (const bNodeLink *link : zone.border_links) {
     const int src = link->fromsock->index_in_tree();
-    found |= potential_data_by_socket[src];
-    found |= potential_reference_by_socket[src];
+    for (const BitGroupVector<> *source : sources) {
+      found |= (*source)[src];
+    }
   }
   return found;
 }
@@ -474,7 +474,7 @@ static bool pass_left_to_right(const bNodeTree &tree,
          * references created in the zone stay local inside the zone and are not propagated to the
          * outside. Instead, the foreach-element output node creates new references. */
         const BitVector<> outside_references = get_references_coming_from_outside_zone(
-            *zone, r_potential_data_by_socket, r_potential_reference_by_socket);
+            *zone, {&r_potential_data_by_socket, &r_potential_reference_by_socket});
         for (const int item_i : IndexRange(storage->generation_items.items_num)) {
           const int src_index =
               node->input_socket(storage->main_items.items_num + item_i).index_in_tree();
@@ -489,19 +489,35 @@ static bool pass_left_to_right(const bNodeTree &tree,
         }
         break;
       }
-      /* TODO: References on border links may exist on data inputs of the closure. */
+      case GEO_NODE_CLOSURE_INPUT: {
+        const bNodeTreeZone *zone = get_zone_of_node_if_full(zones, *node);
+        if (!zone) {
+          break;
+        }
+        /* Data referenced by border links may also be passed into the closure as input. */
+        const BitVector<> outside_references = get_references_coming_from_outside_zone(
+            *zone, {&r_potential_data_by_socket, &r_potential_reference_by_socket});
+        for (const int i : node->output_sockets().index_range()) {
+          const int dst_index = zone->input_node->output_socket(i).index_in_tree();
+          r_potential_data_by_socket[dst_index] |= outside_references;
+          r_potential_reference_by_socket[dst_index] |= outside_references;
+        }
+        break;
+      }
       case GEO_NODE_CLOSURE_OUTPUT: {
         const bNodeTreeZone *zone = get_zone_of_node_if_full(zones, *node);
         if (!zone) {
           break;
         }
-        const BitVector<> outside_references = get_references_coming_from_outside_zone(
-            *zone, r_potential_data_by_socket, r_potential_reference_by_socket);
+        /* References passed through border links are referenced by the closure. */
+        const BitVector<> passed_in_references = get_references_coming_from_outside_zone(
+            *zone, {&r_potential_reference_by_socket});
         const int dst_index = zone->output_node->output_socket(0).index_in_tree();
-        for (const int input_i : node->input_sockets().index_range()) {
-          const int src_index = zone->output_node->input_socket(input_i).index_in_tree();
+        for (const int i : node->input_sockets().index_range()) {
+          const int src_index = zone->output_node->input_socket(i).index_in_tree();
           r_potential_data_by_socket[dst_index] |= r_potential_data_by_socket[src_index];
           r_potential_reference_by_socket[dst_index] |= r_potential_reference_by_socket[src_index];
+          r_potential_reference_by_socket[dst_index] |= passed_in_references;
         }
         break;
       }
@@ -523,7 +539,7 @@ static bool pass_left_to_right(const bNodeTree &tree,
         }
 
         const BitVector<> outside_references = get_references_coming_from_outside_zone(
-            *zone, r_potential_data_by_socket, r_potential_reference_by_socket);
+            *zone, {&r_potential_data_by_socket, &r_potential_reference_by_socket});
 
         /* Propagate within output node. */
         for (const int i : IndexRange(items_num)) {
@@ -747,18 +763,15 @@ static bool pass_right_to_left(const bNodeTree &tree,
         }
         break;
       }
-      case GEO_NODE_CLOSURE_OUTPUT: {
-        const bNodeTreeZone *zone = get_zone_of_node_if_full(zones, *node);
-        if (!zone) {
-          break;
-        }
-        const bNodeSocket &output_socket = node->output_socket(0);
-        const int src_index = output_socket.index_in_tree();
-        for (const bNodeSocket *input_socket : node->input_sockets()) {
+      case GEO_NODE_EVALUATE_CLOSURE: {
+        /* Data referenced by the closure is required on all the other inputs. */
+        const bNodeSocket &closure_socket = node->input_socket(0);
+        const BoundedBitSpan required_references =
+            potential_reference_by_socket[closure_socket.index_in_tree()];
+        for (const bNodeSocket *input_socket : node->input_sockets().drop_front(1)) {
           const int dst_index = input_socket->index_in_tree();
-          r_required_data_by_socket[dst_index] |= r_required_data_by_socket[src_index];
+          r_required_data_by_socket[dst_index] |= required_references;
         }
-
         break;
       }
     }
@@ -942,7 +955,11 @@ static std::unique_ptr<ReferenceLifetimesInfo> make_reference_lifetimes_info(con
   std::cout << "\n\n"
             << node_tree_to_dot(tree,
                                 bNodeTreeBitGroupVectorOptions(
-                                    {required_data_by_socket, potential_reference_by_socket}))
+                                    // {required_data_by_socket, potential_reference_by_socket}
+                                    {potential_data_by_socket,
+                                     potential_reference_by_socket,
+                                     required_data_by_socket}  //
+                                    ))
 
             << "\n\n";
 #endif
