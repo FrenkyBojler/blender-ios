@@ -90,7 +90,7 @@ static void node_label(const bNodeTree * /*ntree*/,
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeGeometryClosureInput *data = MEM_cnew<NodeGeometryClosureInput>(__func__);
+  NodeGeometryClosureInput *data = MEM_callocN<NodeGeometryClosureInput>(__func__);
   /* Needs to be initialized for the node to work. */
   data->output_node_id = 0;
   node->storage = data;
@@ -150,14 +150,14 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeGeometryClosureOutput *data = MEM_cnew<NodeGeometryClosureOutput>(__func__);
+  NodeGeometryClosureOutput *data = MEM_callocN<NodeGeometryClosureOutput>(__func__);
   node->storage = data;
 }
 
 static void node_copy_storage(bNodeTree * /*dst_tree*/, bNode *dst_node, const bNode *src_node)
 {
   const NodeGeometryClosureOutput &src_storage = node_storage(*src_node);
-  auto *dst_storage = MEM_cnew<NodeGeometryClosureOutput>(__func__, src_storage);
+  auto *dst_storage = MEM_dupallocN<NodeGeometryClosureOutput>(__func__, src_storage);
   dst_node->storage = dst_storage;
 
   socket_items::copy_array<ClosureInputItemsAccessor>(*src_node, *dst_node);
