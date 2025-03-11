@@ -19,9 +19,55 @@
 
 #include "../../blenfont/BLF_api.hh"
 
+#include "../../imbuf/IMB_colormanagement.hh"
+#include "../../imbuf/IMB_imbuf.hh"
+#include "../../imbuf/IMB_imbuf_types.hh"
+
+#include "BLI_listbase.h"
 #include "BLI_utildefines.h"
 
+#include "python_compat.hh"
 #include "python_utildefines.hh"
+
+#include "imbuf_py_api.hh"
+
+/**
+ * A stack of targets with the last one being active.
+ * Currently only `ImBuf` targets are supported however we
+ * could support other kinds of targets if we wanted.
+ */
+ListBase g_blf_bind_target = {nullptr, nullptr};
+
+struct BPyBLFImBufContext {
+  PyObject_HEAD /* Required Python macro. */
+  PyObject *py_imbuf;
+  ColorManagedDisplay *display;
+
+  /**
+   * Back pointer to this items entry in `g_blf_bind_target`,
+   * non-null between the enter/exit callbacks.
+   */
+  LinkData *link_data;
+};
+
+static bool py_blf_bind_target_is_set()
+{
+  return (g_blf_bind_target.last != nullptr);
+}
+
+static BPyBLFImBufContext *py_blf_bind_target_get()
+{
+  if (g_blf_bind_target.last) {
+    BPyBLFImBufContext *py_blf_imbuf_ctx =
+        (BPyBLFImBufContext *)((LinkData *)g_blf_bind_target.last)->data;
+    if (py_blf_imbuf_ctx == nullptr) {
+      PyErr_SetString(PyExc_ValueError, "BLFImBufContext: internal error");
+      return nullptr;
+    }
+    return py_blf_imbuf_ctx;
+  }
+  return nullptr;
+}
 
 PyDoc_STRVAR(
     /* Wrap. */
@@ -134,7 +180,12 @@ static PyObject *py_blf_color(PyObject * /*self*/, PyObject *args)
     return nullptr;
   }
 
-  BLF_color4fv(fontid, rgba);
+  if (py_blf_bind_target_is_set()) {
+    BLF_buffer_col(fontid, rgba);
+  }
+  else {
+    BLF_color4fv(fontid, rgba);
+  }
 
   Py_RETURN_NONE;
 }
@@ -161,8 +212,22 @@ static PyObject *py_blf_draw(PyObject * /*self*/, PyObject *args)
     return nullptr;
   }
 
-  BLF_draw(fontid, text, uint(text_length));
-
+  if (py_blf_bind_target_is_set()) {
+    BPyBLFImBufContext *py_blf_imbuf_ctx = py_blf_bind_target_get();
+    if (py_blf_imbuf_ctx == nullptr) {
+      return nullptr;
+    }
+    ImBuf *ibuf = BPy_ImBuf_FromPyObject(py_blf_imbuf_ctx->py_imbuf);
+    if (ibuf == nullptr) {
+      return nullptr;
+    }
+    BLF_buffer(fontid, ibuf->float_buffer.data, ibuf->byte_buffer.data, ibuf->x, ibuf->y, nullptr);
+    BLF_draw_buffer(fontid, text, uint(text_length));
+    BLF_buffer(fontid, nullptr, nullptr, 0, 0, nullptr);
+  }
+  else {
+    BLF_draw(fontid, text, uint(text_length));
+  }
   Py_RETURN_NONE;
 }
 
@@ -455,6 +520,198 @@ static PyObject *py_blf_unload(PyObject * /*self*/, PyObject *args)
   Py_RETURN_NONE;
 }
 
+/* -------------------------------------------------------------------- */
+/** \name Image Buffer Access
+ *
+ * Context manager for #ImBuf.
+ * \{ */
+
+static PyObject *py_blf_bind_imbuf_enter(BPyBLFImBufContext *self)
+{
+  if (self->link_data) {
+    PyErr_SetString(PyExc_ValueError,
+                    "BLFImBufContext.__enter__: unable to enter the same context more than once");
+  }
+  self->link_data = MEM_new<LinkData>(__func__);
+  BLI_addtail(&g_blf_bind_target, self->link_data);
+  self->link_data->data = self;
+
+  Py_RETURN_NONE;
+}
+
+static PyObject *py_blf_bind_imbuf_exit(BPyBLFImBufContext *self, PyObject * /*args*/)
+{
+  if (self->link_data) {
+    BLI_remlink_safe(&g_blf_bind_target, self->link_data);
+    MEM_delete(self->link_data);
+    self->link_data = nullptr;
+  }
+
+  Py_RETURN_NONE;
+}
+
+static void py_blf_bind_imbuf_dealloc(BPyBLFImBufContext *self)
+{
+  PyObject_GC_UnTrack(self);
+  Py_CLEAR(self->py_imbuf);
+  PyObject_GC_Del(self);
+}
+
+static int py_blf_bind_imbuf_traverse(BPyBLFImBufContext *self, visitproc visit, void *arg)
+{
+  Py_VISIT(self->py_imbuf);
+  return 0;
+}
+
+static int py_blf_bind_imbuf_clear(BPyBLFImBufContext *self)
+{
+  Py_CLEAR(self->py_imbuf);
+  return 0;
+}
+
+#if (defined(__GNUC__) && !defined(__clang__))
+#  pragma GCC diagnostic push
+#  pragma GCC diagnostic ignored "-Wcast-function-type"
+#endif
+
+static PyMethodDef py_blf_bind_imbuf_methods[] = {
+    {"__enter__", (PyCFunction)py_blf_bind_imbuf_enter, METH_NOARGS},
+    {"__exit__", (PyCFunction)py_blf_bind_imbuf_exit, METH_VARARGS},
+    {nullptr},
+};
+
+#if (defined(__GNUC__) && !defined(__clang__))
+#  pragma GCC diagnostic pop
+#endif
+
+static PyTypeObject BPyBLFImBufContext_Type = {
+    /*ob_base*/ PyVarObject_HEAD_INIT(nullptr, 0)
+    /*tp_name*/ "BLFImBufContext",
+    /*tp_basicsize*/ sizeof(BPyBLFImBufContext),
+    /*tp_itemsize*/ 0,
+    /*tp_dealloc*/ (destructor)py_blf_bind_imbuf_dealloc,
+    /*tp_vectorcall_offset*/ 0,
+    /*tp_getattr*/ nullptr,
+    /*tp_setattr*/ nullptr,
+    /*tp_as_async*/ nullptr,
+    /*tp_repr*/ nullptr,
+    /*tp_as_number*/ nullptr,
+    /*tp_as_sequence*/ nullptr,
+    /*tp_as_mapping*/ nullptr,
+    /*tp_hash*/ nullptr,
+    /*tp_call*/ nullptr,
+    /*tp_str*/ nullptr,
+    /*tp_getattro*/ nullptr,
+    /*tp_setattro*/ nullptr,
+    /*tp_as_buffer*/ nullptr,
+    /*tp_flags*/ Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC,
+    /*tp_doc*/ nullptr,
+    /*tp_traverse*/ (traverseproc)py_blf_bind_imbuf_traverse,
+    /*tp_clear*/ (inquiry)py_blf_bind_imbuf_clear,
+    /*tp_richcompare*/ nullptr,
+    /*tp_weaklistoffset*/ 0,
+    /*tp_iter*/ nullptr,
+    /*tp_iternext*/ nullptr,
+    /*tp_methods*/ py_blf_bind_imbuf_methods,
+    /*tp_members*/ nullptr,
+    /*tp_getset*/ nullptr,
+    /*tp_base*/ nullptr,
+    /*tp_dict*/ nullptr,
+    /*tp_descr_get*/ nullptr,
+    /*tp_descr_set*/ nullptr,
+    /*tp_dictoffset*/ 0,
+    /*tp_init*/ nullptr,
+    /*tp_alloc*/ nullptr,
+    /*tp_new*/ nullptr,
+    /*tp_free*/ nullptr,
+    /*tp_is_gc*/ nullptr,
+    /*tp_bases*/ nullptr,
+    /*tp_mro*/ nullptr,
+    /*tp_cache*/ nullptr,
+    /*tp_subclasses*/ nullptr,
+    /*tp_weaklist*/ nullptr,
+    /*tp_del*/ nullptr,
+    /*tp_version_tag*/ 0,
+    /*tp_finalize*/ nullptr,
+    /*tp_vectorcall*/ nullptr,
+};
+
+/* NOTE(@ideasman42): `BLFImBufContext` isn't accessible from (without creating an instance),
+ * it should be exposed although it doesn't seem especially important either. */
+PyDoc_STRVAR(
+    /* Wrap. */
+    py_blf_bind_imbuf_doc,
+    ".. method:: bind_imbuf(image, display_name=None)\n"
+    "\n"
+    "   Context manager to draw text into an image buffer instead of the GPU's context.\n"
+    "\n"
+    "   :arg imbuf: The image to draw into.\n"
+    "   :type imbuf: :class:`imbuf.types.ImBuf`\n"
+    "   :arg display_name: The color management display name to use or None.\n"
+    "   :type display_name: str | None\n"
+
+    "   :return: The BLF ImBuf context manager.\n"
+    "   :rtype: BLFImBufContext\n");
+static PyObject *py_blf_bind_imbuf(PyObject * /*self*/, PyObject *args, PyObject *kwds)
+{
+  PyObject *py_imbuf = nullptr;
+  const char *display_name = nullptr;
+
+  static const char *_keywords[] = {
+      "",
+      "display_name",
+      nullptr,
+  };
+
+  static _PyArg_Parser _parser = {
+      PY_ARG_PARSER_HEAD_COMPAT()
+      "O!" /* `image` */
+      "|" /* Optional arguments. */
+      "z" /* `display_name` */
+      ":bind_imbuf",
+      _keywords,
+      nullptr,
+  };
+  if (!_PyArg_ParseTupleAndKeywordsFast(
+          args, kwds, &_parser, &Py_ImBuf_Type, &py_imbuf, &display_name))
+  {
+    return nullptr;
+  }
+
+  ColorManagedDisplay *display = nullptr;
+  if (display_name) {
+    display = IMB_colormanagement_display_get_named(display_name);
+    if (UNLIKELY(display == nullptr)) {
+      std::string display_names_all;
+      display_names_all.reserve(1024);
+      const char *ex = nullptr;
+      /* 1 based index. */
+      for (int i = 1; (ex = IMB_colormanagement_display_get_indexed_name(i)); i++) {
+        if (i > 1) {
+          display_names_all += ", ";
+        }
+        display_names_all += ex;
+      }
+      PyErr_Format(PyExc_ValueError,
+                   "bind_imbuf: color management \"%s\" not found in [%s]",
+                   display_name,
+                   display_names_all.c_str());
+      return nullptr;
+    }
+  }
+
+  BPyBLFImBufContext *ret = PyObject_GC_New(BPyBLFImBufContext, &BPyBLFImBufContext_Type);
+  ret->py_imbuf = Py_NewRef(py_imbuf);
+  ret->display = display;
+  ret->link_data = nullptr;
+
+  PyObject_GC_Track(ret);
+
+  return (PyObject *)ret;
+}
+
+/** \} */
+
 /*----------------------------MODULE INIT-------------------------*/
 static PyMethodDef BLF_methods[] = {
     {"aspect", (PyCFunction)py_blf_aspect, METH_VARARGS, py_blf_aspect_doc},
@@ -472,6 +729,11 @@ static PyMethodDef BLF_methods[] = {
     {"color", (PyCFunction)py_blf_color, METH_VARARGS, py_blf_color_doc},
     {"load", (PyCFunction)py_blf_load, METH_VARARGS, py_blf_load_doc},
     {"unload", (PyCFunction)py_blf_unload, METH_VARARGS, py_blf_unload_doc},
+    {"bind_imbuf",
+     (PyCFunction)py_blf_bind_imbuf,
+     METH_VARARGS | METH_KEYWORDS,
+     py_blf_bind_imbuf_doc},
+
     {nullptr, nullptr, 0, nullptr},
 };
 
