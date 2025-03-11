@@ -123,6 +123,15 @@ using ConstraintLinearSolveSizeFunc =
     std::function<void(int &r_num_components, int &r_num_position_vars, int &r_num_rotation_vars)>;
 
 /**
+ * Returns the variable indices used by a constraint.
+ */
+using ConstraintPositionLinearSolveVariablesFunc =
+    std::function<void(const bke::AttributeAccessor &attributes,
+                       const IndexMask &selection,
+                       MutableSpan<int> r_position_indices[4],
+                       MutableSpan<int> r_rotation_indices[4])>;
+
+/**
  * Compute elements of the constraint matrix for a global linear constraint solve.
  * The number of components and affected variables is defined by the separate size function.
  * This also determines the data type of the fields expected from this function (float, float2,
@@ -168,9 +177,7 @@ using ConstraintPositionLinearSolveElementsFunc =
                        GMutableSpan r_betas,
                        GMutableSpan r_residuals,
                        GMutableSpan r_position_gradients[4],
-                       GMutableSpan r_rotation_gradients[4],
-                       MutableSpan<int> r_position_indices[4],
-                       MutableSpan<int> r_rotation_indices[4])>;
+                       GMutableSpan r_rotation_gradients[4])>;
 
 // /**
 //  * Information to fill blocks in the sparse matrix for all constraints.

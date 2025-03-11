@@ -546,8 +546,8 @@ static void do_global_solve(const EvaluationTarget target,
    * and 4 rows/columns for each rotation. */
   num_columns += num_positions * 3 + num_rotations * 4;
   /* Each position adds 3 mass entries on the diagonal.
-   * Each rotation adds 3x3 moment-of-inertia block-diagonal entries. */
-  num_non_zeroes += num_positions * 3 + num_rotations * 9;
+   * Each rotation adds 4x4 moment-of-inertia block-diagonal entries. */
+  num_non_zeroes += num_positions * 3 + num_rotations * 16;
   for (ConstraintEvalData &data : constraint_data) {
     if (!data.type->linear_solve_size) {
       continue;
@@ -581,7 +581,15 @@ static void do_global_solve(const EvaluationTarget target,
     MutableSpan<int> column_sizes = {H.outerIndexPtr(), num_columns + 1};
 
     /* Diagonal entries for point masses. */
-    for (const int i :) {
+    for (const int i : positions_range) {
+      column_sizes[i] += 1;
+    }
+    /* Diagonal block entries for moment of inertia tensors. */
+    for (const int i : rotations_range) {
+      column_sizes[i] += 4;
+    }
+    /* Diagonal entries for compliance. */
+    for (const int i : components_range) {
       column_sizes[i] += 1;
     }
 
@@ -593,6 +601,12 @@ static void do_global_solve(const EvaluationTarget target,
       const int num_constraints = data.constraints.size();
       int num_components, num_position_vars, num_rotation_vars;
       data.type->linear_solve_size(num_components, num_position_vars, num_rotation_vars);
+
+      /* Lower-left corner:
+       * A column represents a variable, each row is a derivative of one component. */
+
+      /* Upper-right corner:
+       * A column represents a component, each row is a derivative wrt. one variable. */
     }
     column_sizes.last() = 0;
 
