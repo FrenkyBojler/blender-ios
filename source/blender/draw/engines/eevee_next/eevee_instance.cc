@@ -757,6 +757,7 @@ void Instance::light_bake_irradiance(
       volume_probes.bake.surfels_create(probe);
 
       if (volume_probes.bake.should_break()) {
+        DRW_submission_end();
         return;
       }
 
