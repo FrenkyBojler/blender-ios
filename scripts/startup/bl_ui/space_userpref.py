@@ -1895,11 +1895,6 @@ class USERPREF_PT_input_mouse_emulation(InputPanel, CenterAlignMixIn, Panel):
         self.draw_single(flow.row(), inputs, "mmb", 1)
         self.draw_single(flow.row(), inputs, "mmb", 2)
 
-        layout.separator()
-
-        col = layout.column()
-        col.prop(inputs, "mouse_emulate_button_consume_event")
-
         if sys.platform[:3] == "win" and inputs.is_oskey_unreachable:
             layout.label(
                 text="Windows Start Menu will be displayed when the OSKey is pressed.",

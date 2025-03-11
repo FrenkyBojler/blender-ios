@@ -227,10 +227,7 @@ static bool emulate_rmbmmb(wmEvent *event, bool test_only, bool is_double_press)
   /* Store which event triggered the reinterpretation of the upcoming event. */
   static int upcoming_event_source = EVENT_NONE;
 
-  int killed_modifiers = 0;
-  if (U.flag & USER_FLAG_MOUSE_EMULATE_BUTTON_CONSUME_EVENT) {
-    killed_modifiers = event_to_modifier(source_nonmouse_1) | event_to_modifier(source_nonmouse_2);
-  }
+  const int killed_modifiers = event_to_modifier(source_nonmouse_1) | event_to_modifier(source_nonmouse_2);
 
   bool kill_event = false;
 
@@ -309,7 +306,7 @@ void WM_eventemulation(wmEvent *event, bool test_only)
   enforce_tablet_pen_stroke_lmb(event);
   kill_event |= emulate_rmbmmb<RIGHTMOUSE>(event, test_only, is_double_press);
   kill_event |= emulate_rmbmmb<MIDDLEMOUSE>(event, test_only, is_double_press);
-  if (kill_event && (U.flag & USER_FLAG_MOUSE_EMULATE_BUTTON_CONSUME_EVENT)) {
+  if (kill_event) {
     /* Prevent the event from being processed any further. */
     event->type = EVENT_NONE;
     event->val = KM_NOTHING;

@@ -1414,8 +1414,6 @@ void blo_do_versions_userdef(UserDef *userdef)
   }
 
   if (!USER_VERSION_ATLEAST(405, 4)) {
-    userdef->flag |= USER_FLAG_MOUSE_EMULATE_BUTTON_CONSUME_EVENT;
-
     /* deprecated USER_TWOBUTTONMOUSE */
     if (userdef->flag & USER_FLAG_UNUSED_8) {
       userdef->flag &= ~USER_FLAG_UNUSED_8;

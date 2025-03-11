@@ -1226,7 +1226,7 @@ typedef enum eUserPref_Flag {
   USER_FLAG_NUMINPUT_ADVANCED = (1 << 1),
   USER_FLAG_RECENT_SEARCHES_DISABLE = (1 << 2),
   USER_FLAG_UNUSED_3 = (1 << 3), /* cleared */
-  USER_FLAG_MOUSE_EMULATE_BUTTON_CONSUME_EVENT = (1 << 4),
+  USER_FLAG_UNUSED_4 = (1 << 4), /* cleared */
   USER_TRACKBALL = (1 << 5),
   USER_FLAG_PEN_BARREL_AS_LMB = (1 << 6),
   USER_FLAG_UNUSED_7 = (1 << 7), /* cleared */

@@ -811,12 +811,6 @@ template<int EventType> static bool rna_UserDef_runtime_is_modifier_disabled_get
 {
   UserDef *userdef = static_cast<UserDef *>(ptr->data);
 
-  if (!(userdef->flag & USER_FLAG_MOUSE_EMULATE_BUTTON_CONSUME_EVENT)) {
-    /* Modifier key will not be consumed by mouse button emulation feature,
-     * making it available for further processing with keybinds. */
-    return false;
-  }
-
   int tests[] = {
       userdef->rmb_emulate_source_type_nonmouse_1,
       userdef->rmb_emulate_source_type_nonmouse_2,
@@ -6929,13 +6923,6 @@ static void rna_def_userdef_input(BlenderRNA *brna)
   RNA_def_property_int_sdna(prop, nullptr, "dbl_click_time");
   RNA_def_property_range(prop, 1, 1000);
   RNA_def_property_ui_text(prop, "Double Click Timeout", "Time/delay (in ms) for a double click");
-
-  prop = RNA_def_property(srna, "mouse_emulate_button_consume_event", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(
-      prop, nullptr, "flag", USER_FLAG_MOUSE_EMULATE_BUTTON_CONSUME_EVENT);
-  RNA_def_property_ui_text(prop,
-                           "Consume Modifier Key",
-                           "Prevent the modifier key specified below from being interpreted.");
 
   /* If a user already has a mouse with 3 buttons, mouse button emulation feature is not useful
    * for them. It is highly likely that if a user does not have 3 mouse buttons, then only
