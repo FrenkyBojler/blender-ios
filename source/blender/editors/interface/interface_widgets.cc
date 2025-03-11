@@ -55,9 +55,6 @@
 /* icons are 80% of height of button (16 pixels inside 20 height) */
 #define ICON_SIZE_FROM_BUTRECT(rect) (0.8f * BLI_rcti_size_y(rect))
 
-/** Draw #ICON_TEMP with reduced opacity by applying this factor when drawing. */
-#define ICON_TEMP_ALPHA_FAC 0.4f
-
 /* visual types for drawing */
 /* for time being separated from functional types */
 enum uiWidgetTypeEnum {
@@ -1273,12 +1270,6 @@ static void widget_draw_preview_icon(BIFIconID icon,
   }
 
   if (icon < BIFICONID_LAST_STATIC) {
-    const bool is_loading_icon = icon == ICON_TEMP;
-    /* Special handling: Previews often want to show a loading icon while the preview is being
-     * loaded. Draw this with reduced opacity. */
-    if (is_loading_icon) {
-      alpha *= ICON_TEMP_ALPHA_FAC;
-    }
     widget_draw_icon_centered(icon, aspect, alpha, rect, mono_color);
     return;
   }
@@ -1347,10 +1338,6 @@ static void widget_draw_icon(
     state.but_flag = but->flag;
     state.but_drawflag = but->drawflag;
     alpha *= widget_alpha_factor(&state);
-  }
-
-  if (icon == ICON_TEMP) {
-    alpha *= ICON_TEMP_ALPHA_FAC;
   }
 
   GPU_blend(GPU_BLEND_ALPHA);
