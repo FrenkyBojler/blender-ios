@@ -1874,15 +1874,15 @@ blender::float3 BKE_paint_randomize_color(const BrushColorJitterSettings &color_
 
   float hue_jitter_scale = color_jitter.hue;
   if ((color_jitter.flag & BRUSH_COLOR_JITTER_USE_HUE_RAND_PRESS)) {
-    hue_jitter_scale *= BKE_curvemapping_evaluateF(BKE_paint_default_curve(), 0, pressure);
+    hue_jitter_scale *= pressure;
   }
   float sat_jitter_scale = color_jitter.saturation;
   if ((color_jitter.flag & BRUSH_COLOR_JITTER_USE_SAT_RAND_PRESS)) {
-    sat_jitter_scale *= BKE_curvemapping_evaluateF(BKE_paint_default_curve(), 0, pressure);
+    sat_jitter_scale *= pressure;
   }
   float val_jitter_scale = color_jitter.value;
   if ((color_jitter.flag & BRUSH_COLOR_JITTER_USE_VAL_RAND_PRESS)) {
-    val_jitter_scale *= BKE_curvemapping_evaluateF(BKE_paint_default_curve(), 0, pressure);
+    val_jitter_scale *= pressure;
   }
 
   blender::float3 hsv;

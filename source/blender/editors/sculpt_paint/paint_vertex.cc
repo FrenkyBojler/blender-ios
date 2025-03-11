@@ -726,37 +726,37 @@ static Color vpaint_blend_stroke(const VPaint &vp,
                                  Color brush_mark_color,
                                  float brush_mark_alpha,
                                  float brush_strength,
-                                 int vert)
+                                 int index)
 {
   Color result;
   if (!vwpaint::brush_use_accumulate(vp)) {
     BLI_assert(!stroke_buffer.is_empty());
     BLI_assert(!prev_vertex_colors.is_empty());
 
-    if (isZero(prev_vertex_colors[vert])) {
-      prev_vertex_colors[vert] = vertex_colors[vert];
+    if (isZero(prev_vertex_colors[index])) {
+      prev_vertex_colors[index] = vertex_colors[index];
     }
 
     /* Mix with mesh color under the stroke (a bit easier than trying to premultiply
      * byte Color types */
-    if (isZero(stroke_buffer[vert])) {
-      stroke_buffer[vert] = vertex_colors[vert];
-      stroke_buffer[vert].a = 0;
+    if (isZero(stroke_buffer[index])) {
+      stroke_buffer[index] = vertex_colors[index];
+      stroke_buffer[index].a = 0;
     }
 
-    stroke_buffer[vert] = BLI_mix_colors<Color, Traits>(
-        IMB_BlendMode::IMB_BLEND_MIX, stroke_buffer[vert], brush_mark_color, brush_mark_alpha);
+    stroke_buffer[index] = BLI_mix_colors<Color, Traits>(
+        IMB_BlendMode::IMB_BLEND_MIX, stroke_buffer[index], brush_mark_color, brush_mark_alpha);
 
     result = vpaint_blend<Color, Traits>(vp,
-                                         prev_vertex_colors[vert],
-                                         prev_vertex_colors[vert],
-                                         stroke_buffer[vert],
-                                         stroke_buffer[vert].a,
+                                         prev_vertex_colors[index],
+                                         prev_vertex_colors[index],
+                                         stroke_buffer[index],
+                                         stroke_buffer[index].a,
                                          Traits::range * brush_strength);
   }
   else {
     result = vpaint_blend<Color, Traits>(vp,
-                                         vertex_colors[vert],
+                                         vertex_colors[index],
                                          Color() /* unused in accumulate mode */,
                                          brush_mark_color,
                                          brush_mark_alpha,
@@ -1854,7 +1854,7 @@ static void vpaint_do_draw(const bContext *C,
           tex_alpha = paint_and_tex_color_alpha<Color>(vp, vpd, symm_point, &color_final);
         }
 
-        const float alpha_final = Traits::frange * brush_fade * brush_strength * tex_alpha *
+        const float final_alpha = Traits::frange * brush_fade * brush_strength * tex_alpha *
                                   brush_alpha_pressure;
 
         if (vpd.domain == AttrDomain::Point) {
@@ -1863,7 +1863,7 @@ static void vpaint_do_draw(const bContext *C,
                                                             colors,
                                                             stroke_buffer,
                                                             color_final,
-                                                            alpha_final,
+                                                            final_alpha,
                                                             brush_strength,
                                                             vert);
         }
@@ -1880,7 +1880,7 @@ static void vpaint_do_draw(const bContext *C,
                                                                 colors,
                                                                 stroke_buffer,
                                                                 color_final,
-                                                                alpha_final,
+                                                                final_alpha,
                                                                 brush_strength,
                                                                 corner);
           }

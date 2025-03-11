@@ -165,13 +165,13 @@ ImBuf *BKE_brush_gen_radial_control_imbuf(Brush *br, bool secondary, bool displa
 
 /* Unified strength size and color. */
 
-typedef struct BrushColorJitterSettings {
+struct BrushColorJitterSettings {
   int flag;
   /** Jitter amounts */
   float hue;
   float saturation;
   float value;
-} BrushColorJitterSettings;
+};
 
 const float *BKE_brush_color_get(const Scene *scene, const Paint *paint, const Brush *brush);
 const std::optional<BrushColorJitterSettings> BKE_brush_color_jitter_get_settings(
