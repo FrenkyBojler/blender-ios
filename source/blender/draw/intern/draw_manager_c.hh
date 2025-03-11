@@ -110,6 +110,19 @@ struct DRWContext {
   /* Contains list of objects that needs to be extracted from other objects. */
   GSet *delayed_extraction = nullptr;
 
+  DRWContext() = default;
+  /**
+   * If `viewport` is nullptr, the DRWData will be considered temporary and discarded on exit.
+   * If `C` is nullptr, it means that the context is **not** associated with any UI or operator.
+   * If `region` is nullptr, it will be sourced from the context `C` or left as nullptr otherwise.
+   * If `v3d` is nullptr, it will be sourced from the context `C` or left as nullptr otherwise.
+   */
+  DRWContext(Depsgraph *depsgraph,
+             GPUViewport *viewport = nullptr,
+             const bContext *C = nullptr,
+             ARegion *region = nullptr,
+             View3D *v3d = nullptr);
+
   /* Reset all members before drawing in order to avoid undefined state. */
   void prepare_clean_for_draw();
   /* Poison all members to detect missing `prepare_clean_for_draw()`. */

@@ -239,30 +239,30 @@ bool DRW_state_draw_background();
 
 /* Avoid too many lookups while drawing */
 struct DRWContextState {
+  /* Evaluated Depsgraph. */
+  Depsgraph *depsgraph;
+  /* Evaluated Scene. */
+  Scene *scene;
+  /* Evaluated ViewLayer. */
+  ViewLayer *view_layer;
+
   /** Last resort (some functions take this as an arg so we can't easily avoid).
    * May be nullptr when used for selection or depth buffer. */
   const bContext *evil_C;
-  /* Evaluated Depsgraph.*/
-  Depsgraph *depsgraph;
-  Scene *scene;          /* 'CTX_data_scene(C)' */
-  ViewLayer *view_layer; /* 'CTX_data_view_layer(C)' */
-  /* Can be null. */
-  ARegion *region; /* 'CTX_wm_region(C)' */
-  /* Can be null. */
-  RegionView3D *rv3d; /* 'CTX_wm_region_view3d(C)' */
-  /* Can be null. */
-  View3D *v3d; /* 'CTX_wm_view3d(C)' */
-  /* Can be null. */
-  SpaceLink *space_data; /* 'CTX_wm_space_data(C)' */
+  /* Can be nullptr depending on context. */
+  ARegion *region;
+  /* Can be nullptr depending on context. */
+  SpaceLink *space_data;
+  /* Can be nullptr depending on context. */
+  RegionView3D *rv3d;
+  /* Can be nullptr depending on context. */
+  View3D *v3d;
 
   /* Use 'object_edit' for edit-mode */
   Object *obact;
 
   eObjectMode object_mode;
 
-  /* ---- */
-
-  /* Cache: initialized by 'drw_context_state_init'. */
   Object *object_pose;
   Object *object_edit;
 };

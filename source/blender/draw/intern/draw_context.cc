@@ -110,12 +110,61 @@ static void drw_set(DRWContext &context)
 {
   BLI_assert(g_context == nullptr);
   g_context = &context;
-  g_context->prepare_clean_for_draw();
 }
 
 DRWContext &drw_get()
 {
   return *g_context;
+}
+
+DRWContext::DRWContext(
+    Depsgraph *depsgraph, GPUViewport *viewport, const bContext *C, ARegion *region, View3D *v3d)
+{
+  this->viewport = viewport;
+
+  this->draw_ctx.depsgraph = depsgraph;
+  this->draw_ctx.scene = DEG_get_evaluated_scene(depsgraph);
+  this->draw_ctx.view_layer = DEG_get_evaluated_view_layer(depsgraph);
+
+  this->draw_ctx.evil_C = C;
+
+  this->draw_ctx.region = (region) ? region : ((C) ? CTX_wm_region(C) : nullptr);
+  this->draw_ctx.space_data = (C) ? CTX_wm_space_data(C) : nullptr;
+  this->draw_ctx.v3d = (v3d) ? v3d : ((C) ? CTX_wm_view3d(C) : nullptr);
+  if (this->draw_ctx.v3d != nullptr && this->draw_ctx.region != nullptr) {
+    this->draw_ctx.rv3d = static_cast<RegionView3D *>(this->draw_ctx.region->regiondata);
+  }
+  /* Active object. Set to nullptr for render (when region is nullptr). */
+  this->draw_ctx.obact = (this->draw_ctx.region) ?
+                             BKE_view_layer_active_object_get(this->draw_ctx.view_layer) :
+                             nullptr;
+  /* Object mode. */
+  this->draw_ctx.object_mode = (this->draw_ctx.obact) ? eObjectMode(this->draw_ctx.obact->mode) :
+                                                        OB_MODE_OBJECT;
+  /* Edit object. */
+  this->draw_ctx.object_edit = (this->draw_ctx.object_mode & OB_MODE_EDIT) ? this->draw_ctx.obact :
+                                                                             nullptr;
+  /* Pose object. */
+  if (this->draw_ctx.object_mode & OB_MODE_POSE) {
+    this->draw_ctx.object_pose = this->draw_ctx.obact;
+  }
+  else if (this->draw_ctx.object_mode & OB_MODE_ALL_WEIGHT_PAINT) {
+    this->draw_ctx.object_pose = BKE_object_pose_armature_get(this->draw_ctx.obact);
+  }
+  else {
+    this->draw_ctx.object_pose = nullptr;
+  }
+
+  /* View layer*/
+  BKE_view_layer_synced_ensure(this->draw_ctx.scene, this->draw_ctx.view_layer);
+
+  this->options.is_select = 0;
+  this->options.is_material_select = 0;
+  this->options.is_depth = 0;
+  this->options.is_image_render = 0;
+  this->options.is_scene_render = 0;
+  this->options.draw_background = 0;
+  this->options.draw_text = 0;
 }
 
 GPUFrameBuffer *DRWContext::default_framebuffer()
@@ -145,25 +194,25 @@ void DRWContext::state_ensure_not_reused()
 
 static bool draw_show_annotation()
 {
-  if (drw_get().draw_ctx.space_data == nullptr) {
-    View3D *v3d = drw_get().draw_ctx.v3d;
-    return (v3d && ((v3d->flag2 & V3D_SHOW_ANNOTATION) != 0) &&
-            ((v3d->flag2 & V3D_HIDE_OVERLAYS) == 0));
+  SpaceLink *space_data = drw_get().draw_ctx.space_data;
+  if (space_data != nullptr) {
+    switch (space_data->spacetype) {
+      case SPACE_IMAGE: {
+        SpaceImage *sima = (SpaceImage *)space_data;
+        return (sima->flag & SI_SHOW_GPENCIL) != 0;
+      }
+      case SPACE_NODE:
+        /* Don't draw the annotation for the node editor. Annotations are handled by space_image as
+         * the draw manager is only used to draw the background. */
+        return false;
+      default:
+        break;
+    }
   }
 
-  switch (drw_get().draw_ctx.space_data->spacetype) {
-    case SPACE_IMAGE: {
-      SpaceImage *sima = (SpaceImage *)drw_get().draw_ctx.space_data;
-      return (sima->flag & SI_SHOW_GPENCIL) != 0;
-    }
-    case SPACE_NODE:
-      /* Don't draw the annotation for the node editor. Annotations are handled by space_image as
-       * the draw manager is only used to draw the background. */
-      return false;
-    default:
-      BLI_assert(0);
-      return false;
-  }
+  View3D *v3d = drw_get().draw_ctx.v3d;
+  return (v3d && ((v3d->flag2 & V3D_SHOW_ANNOTATION) != 0) &&
+          ((v3d->flag2 & V3D_HIDE_OVERLAYS) == 0));
 }
 
 /* -------------------------------------------------------------------- */
@@ -286,36 +335,6 @@ bool DRW_object_is_visible_psys_in_active_context(const Object *object, const Pa
 blender::float2 DRW_viewport_size_get()
 {
   return blender::float2(drw_get().size);
-}
-
-/* Not a viewport variable, we could split this out. */
-static void drw_context_state_init()
-{
-  if (drw_get().draw_ctx.obact) {
-    drw_get().draw_ctx.object_mode = eObjectMode(drw_get().draw_ctx.obact->mode);
-  }
-  else {
-    drw_get().draw_ctx.object_mode = OB_MODE_OBJECT;
-  }
-
-  /* Edit object. */
-  if (drw_get().draw_ctx.object_mode & OB_MODE_EDIT) {
-    drw_get().draw_ctx.object_edit = drw_get().draw_ctx.obact;
-  }
-  else {
-    drw_get().draw_ctx.object_edit = nullptr;
-  }
-
-  /* Pose object. */
-  if (drw_get().draw_ctx.object_mode & OB_MODE_POSE) {
-    drw_get().draw_ctx.object_pose = drw_get().draw_ctx.obact;
-  }
-  else if (drw_get().draw_ctx.object_mode & OB_MODE_ALL_WEIGHT_PAINT) {
-    drw_get().draw_ctx.object_pose = BKE_object_pose_armature_get(drw_get().draw_ctx.obact);
-  }
-  else {
-    drw_get().draw_ctx.object_pose = nullptr;
-  }
 }
 
 DRWData *DRW_viewport_data_create()
@@ -1379,29 +1398,13 @@ static void drw_draw_render_loop_3d(Depsgraph *depsgraph,
                                     RenderEngineType *engine_type,
                                     ARegion *region,
                                     View3D *v3d,
-                                    GPUViewport *viewport,
-                                    const bContext *evil_C)
+                                    GPUViewport *viewport)
 {
   using namespace blender::draw;
   Scene *scene = DEG_get_evaluated_scene(depsgraph);
   ViewLayer *view_layer = DEG_get_evaluated_view_layer(depsgraph);
-  RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
-
-  BKE_view_layer_synced_ensure(scene, view_layer);
-  drw_get().draw_ctx = {};
-  drw_get().draw_ctx.region = region;
-  drw_get().draw_ctx.rv3d = rv3d;
-  drw_get().draw_ctx.v3d = v3d;
-  drw_get().draw_ctx.scene = scene;
-  drw_get().draw_ctx.view_layer = view_layer;
-  drw_get().draw_ctx.obact = BKE_view_layer_active_object_get(view_layer);
-  drw_get().draw_ctx.depsgraph = depsgraph;
-
-  /* reuse if caller sets */
-  drw_get().draw_ctx.evil_C = evil_C;
 
   drw_task_graph_init();
-  drw_context_state_init();
 
   drw_manager_init(g_context, viewport, nullptr);
   DRW_viewport_colormanagement_set(viewport);
@@ -1498,27 +1501,8 @@ static void drw_draw_render_loop_3d(Depsgraph *depsgraph,
   drw_engines_disable();
 }
 
-static void drw_draw_render_loop_2d(Depsgraph *depsgraph,
-                                    ARegion *region,
-                                    GPUViewport *viewport,
-                                    const bContext *evil_C)
+static void drw_draw_render_loop_2d(Depsgraph *depsgraph, ARegion *region, GPUViewport *viewport)
 {
-  Scene *scene = DEG_get_evaluated_scene(depsgraph);
-  ViewLayer *view_layer = DEG_get_evaluated_view_layer(depsgraph);
-
-  BKE_view_layer_synced_ensure(scene, view_layer);
-  drw_get().draw_ctx = {};
-  drw_get().draw_ctx.region = region;
-  drw_get().draw_ctx.scene = scene;
-  drw_get().draw_ctx.view_layer = view_layer;
-  drw_get().draw_ctx.obact = BKE_view_layer_active_object_get(view_layer);
-  drw_get().draw_ctx.depsgraph = depsgraph;
-  drw_get().draw_ctx.space_data = CTX_wm_space_data(evil_C);
-
-  /* reuse if caller sets */
-  drw_get().draw_ctx.evil_C = evil_C;
-
-  drw_context_state_init();
   drw_manager_init(g_context, viewport, nullptr);
   DRW_viewport_colormanagement_set(viewport);
 
@@ -1598,10 +1582,10 @@ void DRW_draw_view(const bContext *C)
   ARegion *region = CTX_wm_region(C);
   GPUViewport *viewport = WM_draw_region_get_bound_viewport(region);
 
-  DRWContext draw_ctx;
+  DRWContext draw_ctx(depsgraph, viewport, C);
   drw_set(draw_ctx);
 
-  View3D *v3d = CTX_wm_view3d(C);
+  View3D *v3d = draw_ctx.draw_ctx.v3d;
 
   if (v3d) {
     Scene *scene = DEG_get_evaluated_scene(depsgraph);
@@ -1612,10 +1596,10 @@ void DRW_draw_view(const bContext *C)
     drw_get().options.draw_background = (scene->r.alphamode == R_ADDSKY) ||
                                         (v3d->shading.type != OB_RENDER);
 
-    drw_draw_render_loop_3d(depsgraph, engine_type, region, v3d, viewport, C);
+    drw_draw_render_loop_3d(depsgraph, engine_type, region, v3d, viewport);
   }
   else {
-    drw_draw_render_loop_2d(depsgraph, region, viewport, C);
+    drw_draw_render_loop_2d(depsgraph, region, viewport);
   }
 
   drw_manager_exit(&draw_ctx);
@@ -1644,12 +1628,12 @@ void DRW_draw_render_loop_offscreen(Depsgraph *depsgraph,
   /* Just here to avoid an assert but shouldn't be required in practice. */
   GPU_framebuffer_restore();
 
-  DRWContext draw_ctx;
+  DRWContext draw_ctx(depsgraph, viewport, nullptr, region, v3d);
   drw_set(draw_ctx);
   drw_get().options.is_image_render = is_image_render;
   drw_get().options.draw_background = draw_background;
 
-  drw_draw_render_loop_3d(depsgraph, engine_type, region, v3d, render_viewport, nullptr);
+  drw_draw_render_loop_3d(depsgraph, engine_type, region, v3d, render_viewport);
 
   drw_manager_exit(&draw_ctx);
 
@@ -1736,20 +1720,12 @@ void DRW_render_gpencil(RenderEngine *engine, Depsgraph *depsgraph)
 
   DRW_render_context_enable(render);
 
-  DRWContext draw_ctx;
+  DRWContext draw_ctx(depsgraph);
   drw_set(draw_ctx);
 
   drw_get().options.is_image_render = true;
   drw_get().options.is_scene_render = true;
   drw_get().options.draw_background = scene->r.alphamode == R_ADDSKY;
-
-  drw_get().draw_ctx = {};
-  drw_get().draw_ctx.scene = scene;
-  drw_get().draw_ctx.view_layer = view_layer;
-  drw_get().draw_ctx.depsgraph = depsgraph;
-  drw_get().draw_ctx.object_mode = OB_MODE_OBJECT;
-
-  drw_context_state_init();
 
   const int size[2] = {engine->resolution_x, engine->resolution_y};
 
@@ -1797,19 +1773,11 @@ void DRW_render_to_image(RenderEngine *engine, Depsgraph *depsgraph)
    * This shall remain in effect until immediate mode supports
    * multiple threads. */
 
-  DRWContext draw_ctx;
-
+  DRWContext draw_ctx(depsgraph);
   drw_set(draw_ctx);
   drw_get().options.is_image_render = true;
   drw_get().options.is_scene_render = true;
   drw_get().options.draw_background = scene->r.alphamode == R_ADDSKY;
-  drw_get().draw_ctx = {};
-  drw_get().draw_ctx.scene = scene;
-  drw_get().draw_ctx.view_layer = view_layer;
-  drw_get().draw_ctx.depsgraph = depsgraph;
-  drw_get().draw_ctx.object_mode = OB_MODE_OBJECT;
-
-  drw_context_state_init();
 
   /* Begin GPU workload Boundary */
   GPU_render_begin();
@@ -1918,24 +1886,14 @@ void DRW_render_object_iter(void *vedata,
 
 void DRW_custom_pipeline_begin(DRWContext &draw_ctx,
                                DrawEngineType *draw_engine_type,
-                               Depsgraph *depsgraph)
+                               Depsgraph * /*depsgraph*/)
 {
   using namespace blender::draw;
-  Scene *scene = DEG_get_evaluated_scene(depsgraph);
-  ViewLayer *view_layer = DEG_get_evaluated_view_layer(depsgraph);
 
   drw_set(draw_ctx);
   drw_get().options.is_image_render = true;
   drw_get().options.is_scene_render = true;
   drw_get().options.draw_background = false;
-
-  drw_get().draw_ctx = {};
-  drw_get().draw_ctx.scene = scene;
-  drw_get().draw_ctx.view_layer = view_layer;
-  drw_get().draw_ctx.depsgraph = depsgraph;
-  drw_get().draw_ctx.object_mode = OB_MODE_OBJECT;
-
-  drw_context_state_init();
 
   drw_manager_init(g_context, nullptr, nullptr);
 
@@ -2030,12 +1988,10 @@ void DRW_draw_select_loop(Depsgraph *depsgraph,
   Scene *scene = DEG_get_evaluated_scene(depsgraph);
   ViewLayer *view_layer = DEG_get_evaluated_view_layer(depsgraph);
 
-  BKE_view_layer_synced_ensure(scene, view_layer);
   Object *obact = BKE_view_layer_active_object_get(view_layer);
   Object *obedit = use_obedit_skip ? nullptr : OBEDIT_FROM_OBACT(obact);
-  RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
 
-  DRWContext draw_ctx;
+  DRWContext draw_ctx(depsgraph, nullptr, nullptr, region, v3d);
   drw_set(draw_ctx);
 
   bool use_obedit = false;
@@ -2079,18 +2035,6 @@ void DRW_draw_select_loop(Depsgraph *depsgraph,
       }
     }
   }
-
-  /* Instead of 'DRW_context_state_init(C, &drw_get().draw_ctx)', assign from args */
-  drw_get().draw_ctx = {};
-  drw_get().draw_ctx.region = region;
-  drw_get().draw_ctx.rv3d = rv3d;
-  drw_get().draw_ctx.v3d = v3d;
-  drw_get().draw_ctx.scene = scene;
-  drw_get().draw_ctx.view_layer = view_layer;
-  drw_get().draw_ctx.obact = obact;
-  drw_get().draw_ctx.depsgraph = depsgraph;
-
-  drw_context_state_init();
 
   const int viewport_size[2] = {BLI_rcti_size_x(rect), BLI_rcti_size_y(rect)};
   drw_manager_init(g_context, nullptr, viewport_size);
@@ -2234,27 +2178,12 @@ void DRW_draw_depth_loop(Depsgraph *depsgraph,
                          const bool use_only_active_object)
 {
   using namespace blender::draw;
-  Scene *scene = DEG_get_evaluated_scene(depsgraph);
-  ViewLayer *view_layer = DEG_get_evaluated_view_layer(depsgraph);
-  RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
 
-  DRWContext draw_ctx;
+  DRWContext draw_ctx(depsgraph, viewport, nullptr, region, v3d);
   drw_set(draw_ctx);
 
   drw_get().options.is_depth = true;
 
-  /* Instead of 'DRW_context_state_init(C, &drw_get().draw_ctx)', assign from args */
-  BKE_view_layer_synced_ensure(scene, view_layer);
-  drw_get().draw_ctx = {};
-  drw_get().draw_ctx.region = region;
-  drw_get().draw_ctx.rv3d = rv3d;
-  drw_get().draw_ctx.v3d = v3d;
-  drw_get().draw_ctx.scene = scene;
-  drw_get().draw_ctx.view_layer = view_layer;
-  drw_get().draw_ctx.obact = BKE_view_layer_active_object_get(view_layer);
-  drw_get().draw_ctx.depsgraph = depsgraph;
-
-  drw_context_state_init();
   drw_manager_init(g_context, viewport, nullptr);
 
   if (use_gpencil) {
@@ -2356,26 +2285,10 @@ void DRW_draw_select_id(Depsgraph *depsgraph, ARegion *region, View3D *v3d)
     return;
   }
 
-  Scene *scene = DEG_get_evaluated_scene(depsgraph);
-  ViewLayer *view_layer = DEG_get_evaluated_view_layer(depsgraph);
-  RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
-
-  DRWContext draw_ctx;
+  DRWContext draw_ctx(depsgraph, viewport, nullptr, region, v3d);
   drw_set(draw_ctx);
 
-  /* Instead of 'DRW_context_state_init(C, &drw_get().draw_ctx)', assign from args */
-  BKE_view_layer_synced_ensure(scene, view_layer);
-  drw_get().draw_ctx = {};
-  drw_get().draw_ctx.region = region;
-  drw_get().draw_ctx.rv3d = rv3d;
-  drw_get().draw_ctx.v3d = v3d;
-  drw_get().draw_ctx.scene = scene;
-  drw_get().draw_ctx.view_layer = view_layer;
-  drw_get().draw_ctx.obact = BKE_view_layer_active_object_get(view_layer);
-  drw_get().draw_ctx.depsgraph = depsgraph;
-
   drw_task_graph_init();
-  drw_context_state_init();
 
   drw_manager_init(g_context, viewport, nullptr);
 

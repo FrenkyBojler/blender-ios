@@ -716,7 +716,7 @@ void Instance::light_bake_irradiance(
 {
   BLI_assert(is_baking());
 
-  DRWContext draw_ctx;
+  DRWContext draw_ctx(depsgraph);
 
   auto custom_pipeline_wrapper = [&](FunctionRef<void()> callback) {
     context_enable();
