@@ -1,3 +1,4 @@
+Scripts/presets/interface_theme
 <bpy>
   <Theme>
     <user_interface>
@@ -375,6 +376,7 @@
         edge_select="#ff9900"
         edge_mode_select="#ffd800"
         edge_seam="#db2512"
+        edge_seam_sharp = "#3b65d9"
         edge_sharp="#00ffff"
         edge_crease="#cc0099"
         edge_bevel="#00a5ff"
@@ -1643,3 +1645,4 @@
     </widget>
   </ThemeStyle>
 </bpy>
+

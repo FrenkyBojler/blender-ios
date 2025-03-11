@@ -15,7 +15,9 @@ vec4 EDIT_MESH_edge_color_outer(uint edge_flag, uint face_flag, float crease, fl
   color = ((edge_flag & EDGE_SHARP) != 0u) ? colorEdgeSharp : color;
   color = (crease > 0.0) ? vec4(colorEdgeCrease.rgb, crease) : color;
   color = (bweight > 0.0) ? vec4(colorEdgeBWeight.rgb, bweight) : color;
-  color = ((edge_flag & EDGE_SEAM) != 0u) ? colorEdgeSeam : color;
+  color = ((edge_flag & EDGE_SEAM) != 0u)
+              ? (((edge_flag & EDGE_SHARP) != 0u) ? colorEdgeSeamSharp : colorEdgeSeam)
+              : color;
   return color;
 }
 

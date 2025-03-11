@@ -327,6 +327,7 @@ const bTheme U_theme_default = {
     .edge_select = RGBA(0xff9900ff),
     .edge_mode_select = RGBA(0xffd800ff),
     .edge_seam = RGBA(0xdb2512ff),
+    .edge_seam_sharp = RGBA(0x3B65D9FF),
     .edge_sharp = RGBA(0x00ffffff),
     .edge_facesel = RGBA(0x4b4b4bff),
     .edge_crease = RGBA(0xcc0099ff),

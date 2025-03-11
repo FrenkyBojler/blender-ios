@@ -45,6 +45,7 @@ struct GlobalsUboStorage {
   float4 color_edge_select;      /* Stands for edge selection, not edge select mode. */
   float4 color_edge_mode_select; /* Stands for edge mode selection. */
   float4 color_edge_seam;
+  float4 color_edge_seam_sharp;
   float4 color_edge_sharp;
   float4 color_edge_crease;
   float4 color_edge_bweight;
@@ -168,6 +169,7 @@ BLI_STATIC_ASSERT_ALIGN(GlobalsUboStorage, 16)
 #  define colorEdgeSelect globalsBlock.color_edge_select
 #  define colorEdgeModeSelect globalsBlock.color_edge_mode_select
 #  define colorEdgeSeam globalsBlock.color_edge_seam
+#  define colorEdgeSeamSharp globalsBlock.color_edge_seam_sharp
 #  define colorEdgeSharp globalsBlock.color_edge_sharp
 #  define colorEdgeCrease globalsBlock.color_edge_crease
 #  define colorEdgeBWeight globalsBlock.color_edge_bweight

@@ -253,6 +253,7 @@ void Resources::update_theme_settings(const State &state)
   UI_GetThemeColor4fv(TH_GP_VERTEX_SELECT, gb->color_gpencil_vertex_select);
 
   UI_GetThemeColor4fv(TH_EDGE_SEAM, gb->color_edge_seam);
+  UI_GetThemeColor4fv(TH_EDGE_SEAM_SHARP, gb->color_edge_seam_sharp);
   UI_GetThemeColor4fv(TH_EDGE_SHARP, gb->color_edge_sharp);
   UI_GetThemeColor4fv(TH_EDGE_CREASE, gb->color_edge_crease);
   UI_GetThemeColor4fv(TH_EDGE_BEVEL, gb->color_edge_bweight);
@@ -1015,16 +1016,12 @@ bool Instance::object_needs_prepass(const ObjectRef &ob_ref, bool in_paint_mode)
 
   if (in_paint_mode) {
     /* Allow paint overlays to draw with depth equal test. */
-    if (object_is_rendered_transparent(ob_ref.object, state)) {
-      return true;
-    }
+    return object_is_rendered_transparent(ob_ref.object, state);
   }
 
   if (!state.xray_enabled) {
     /* Force depth prepass if depth buffer form render engine is not available. */
-    if (!state.is_render_depth_available && (ob_ref.object->dt >= OB_SOLID)) {
-      return true;
-    }
+    return !state.is_render_depth_available && (ob_ref.object->dt >= OB_SOLID);
   }
 
   return false;
