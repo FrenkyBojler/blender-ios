@@ -78,6 +78,9 @@ bool GHOST_XrGraphicsBindingVulkan::checkVersionRequirements(GHOST_Context &ghos
     return false;
   }
 
+  // TODO: Should we check if physical devices match? Otherwise it will be hard to blit blender generated
+  // images to an openxr swapchain.
+
   return true;
 }
 
@@ -104,6 +107,8 @@ void GHOST_XrGraphicsBindingVulkan::initFromGhostContext(GHOST_Context &ghost_ct
       XR_TYPE_VULKAN_GRAPHICS_DEVICE_GET_INFO_KHR, nullptr, system_id, vk_instance};
   VkPhysicalDevice xr_vk_physical_device = VK_NULL_HANDLE;
   s_xrGetVulkanGraphicsDevice2KHR_fn(instance, &get_info, &xr_vk_physical_device);
+
+  /* Create a new logical device */ 
 
   oxr_binding.vk.type = XR_TYPE_GRAPHICS_BINDING_VULKAN_KHR;
   oxr_binding.vk.next = nullptr;
