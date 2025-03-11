@@ -5045,7 +5045,7 @@ static void SCREEN_OT_header_toggle_menus(wmOperatorType *ot)
  * \{ */
 static int screen_region_toggle_visibility_exec(bContext *C, wmOperator *op)
 {
-  const int region_type = RNA_int_get(op->ptr, "region_type");
+  const int region_type = RGN_TYPE_NAV_BAR;
   ScrArea *area = CTX_wm_area(C);
 
   if (ARegion *region = BKE_area_find_region_type(area, region_type)) {
@@ -5069,7 +5069,7 @@ static void SCREEN_OT_region_toggle_visibility_for_navigation_bar(wmOperatorType
   ot->poll = ED_operator_areaactive;
 
   RNA_def_int(ot->srna,
-              "region_type",
+              "",
               RGN_TYPE_NAV_BAR,
               0,
               INT_MAX,
@@ -5218,15 +5218,7 @@ void ED_screens_navigation_tools_menu_create(bContext *C, uiLayout *layout, void
     }
   }
   
-  const char *but_flip_str = region_alignment == RGN_ALIGN_LEFT   ? IFACE_("Flip to Right") :
-                             region_alignment == RGN_ALIGN_RIGHT  ? IFACE_("Flip to Left") :
-                             region_alignment == RGN_ALIGN_BOTTOM ? IFACE_("Flip to Top") :
-                                                                    IFACE_("Flip to Bottom");
-
-  /* default is WM_OP_INVOKE_REGION_WIN, which we don't want here. */
-  uiLayoutSetOperatorContext(layout, WM_OP_INVOKE_DEFAULT);
-
-  uiItemO(layout, but_flip_str, ICON_NONE, "SCREEN_OT_region_flip");
+  ED_screens_region_flip_menu_create(C, layout, nullptr);
 }
 
 static void ed_screens_statusbar_menu_create(uiLayout *layout, void * /*arg*/)
