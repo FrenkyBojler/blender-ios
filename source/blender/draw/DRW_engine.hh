@@ -34,8 +34,6 @@ struct rcti;
 void DRW_engines_register();
 void DRW_engines_free();
 
-bool DRW_engine_render_support(DrawEngineType *draw_engine_type);
-
 void DRW_engine_external_free(RegionView3D *rv3d);
 
 enum eDRWSelectStage {
@@ -124,7 +122,16 @@ void DRW_submission_end();
 
 void DRW_gpu_context_create();
 void DRW_gpu_context_destroy();
+/**
+ * Binds the draw GPU context to the active thread.
+ * In background mode, this will create the draw GPU context on first call.
+ */
 void DRW_gpu_context_enable();
+/**
+ * Tries to bind the draw GPU context to the active thread.
+ * Returns true on success, false if the draw GPU context does not exists.
+ */
+bool DRW_gpu_context_try_enable();
 void DRW_gpu_context_disable();
 
 #ifdef WITH_XR_OPENXR
