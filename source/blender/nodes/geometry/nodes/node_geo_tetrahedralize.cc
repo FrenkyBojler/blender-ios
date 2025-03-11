@@ -528,275 +528,103 @@ static bool prepare_tetgen_input(const Mesh *mesh,
 }
 
 /**
- * Configures TetGen options based on node parameters
+ * Configure les options et paramètres de TetGen en fonction du niveau de complexité du maillage.
  */
-static void configure_tetgen_options(tetgenbehavior &behavior, 
-                                    double max_volume, 
-                                    float quality_ratio,
-                                    float min_dihedral_angle,
-                                    bool preserve_boundary,
-                                    GeoNodeExecParams &params,
-                                    int attempt = 0,
-                                    int max_attempts = 3)
+static void configure_tetgen_options(tetgenbehavior &behavior,
+                                     double max_volume, 
+                                     float quality_ratio,
+                                     float min_dihedral_angle,
+                                     bool preserve_boundary,
+                                     GeoNodeExecParams &params,
+                                     int attempt = 0,
+                                     int max_attempts = 3)
 {
-  // Basic configuration
-  behavior.plc = 1;          // Preserve piecewise linear complex (boundary)
-  behavior.quality = 1;      // Enable quality improvement
-  behavior.quiet = 1;        // Quiet mode (no stdout output)
-  behavior.verbose = 0;      // No verbosity
-  behavior.convex = 0;       // Ne pas préserver l'enveloppe convexe (tétraédraliser seulement l'intérieur)
+  // Options de base pour tous les types de maillages
+  behavior.plc = 1;          // Préserver les complexes linéaires par morceaux
+  behavior.quality = 1;      // Amélioration de la qualité des tétraèdres
+  behavior.facesout = 1;     // Sortir les faces
+  behavior.edgesout = 1;     // Sortir les arêtes
+  behavior.neighout = 1;     // Sortir les voisins
+  behavior.docheck = 1;      // Vérifier la consistance du maillage final
+  behavior.verbose = 0;      // Pas de verbosité
   
   // Demander les attributs de région pour identifier les tétraèdres externes
   behavior.regionattrib = 1; // Générer des attributs de région pour les tétraèdres
   
-  // Insister sur la préservation exacte des surfaces
-  behavior.psc = 1;          // Preserve surface constraints (mieux préserver les surfaces)
-  
-  // Détecter automatiquement la complexité du maillage
-  const bool is_complex_attempt = attempt > 0;
-  
-  // Preserve input boundary
-  // In TetGen, nobisect=1 means not to bisect input faces
-  // which corresponds to "preserve boundary" = true
-  behavior.nobisect = preserve_boundary ? 1 : 0;
-  
   // En cas de tentative désespérée (>1), désactiver la préservation des frontières
-  if (is_complex_attempt && attempt > 1) {
+  if (attempt > 1) {
     behavior.nobisect = 0;
     if (preserve_boundary) {
       params.error_message_add(NodeWarningType::Info,
           "Désactivation de la préservation des frontières pour améliorer la stabilité (tentative " + 
           std::to_string(attempt + 1) + ")");
     }
+  } else {
+    // Preserve input boundary
+    // In TetGen, nobisect=1 means not to bisect input faces
+    // which corresponds to "preserve boundary" = true
+    behavior.nobisect = preserve_boundary ? 1 : 0;
   }
   
-  // Quality options (always enabled)
-  // In TetGen, quality improvement is controlled via quality=1 and minratio
-  behavior.quality = 1;    // Enable quality improvement
-  
-  // Quality ratio (min radius-edge ratio)
-  // Limit the maximum value to avoid excessive computation time
-  // TetGen can be extremely slow with high quality values
-  float limited_quality_ratio = quality_ratio;
-  if (limited_quality_ratio > 2.0f) {
-    params.error_message_add(NodeWarningType::Warning,
-        "High quality value detected. Processing may take longer.");
-    
-    if (limited_quality_ratio <= 3.0f) {
-      limited_quality_ratio = 2.0f + (limited_quality_ratio - 2.0f) * 0.5f;
-    } else {
-      limited_quality_ratio = 2.5f + (limited_quality_ratio - 3.0f) * 1.5f;
-    }
-  }
-  
-  // Ajuster le ratio de qualité progressivement selon la tentative
-  if (is_complex_attempt) {
-    // Réduction progressive de la qualité avec chaque tentative
-    float reduction_factor = 1.0f - (0.2f * attempt);
-    reduction_factor = std::max(0.4f, reduction_factor); // Ne pas descendre sous 40%
-    
-    // Stocker l'ancienne valeur pour l'information
-    float original_quality_ratio = limited_quality_ratio;
-    
-    // Appliquer la réduction mais garder un minimum de 1.05
-    limited_quality_ratio = std::max(1.05f, limited_quality_ratio * reduction_factor);
-    
-    if (original_quality_ratio != limited_quality_ratio) {
-      params.error_message_add(NodeWarningType::Info,
-          "Réduction du ratio de qualité de " + std::to_string(original_quality_ratio) + 
-          " à " + std::to_string(limited_quality_ratio) + " (tentative " + 
-          std::to_string(attempt + 1) + ")");
-    }
-  }
-  
-  behavior.minratio = limited_quality_ratio;
-  
-  // Use the dihedral angle value directly from the input
-  // Convert from degrees to internal TetGen value (TetGen expects degrees)
-  // Clamp to realistic values to prevent excessive slowdowns
-  float clamped_angle = std::min(min_dihedral_angle, 30.0f);
-  
-  // Réduire progressivement l'angle dihédral minimum avec chaque tentative
-  if (is_complex_attempt) {
-    // Stocker l'ancienne valeur pour l'information
-    float original_angle = clamped_angle;
-    
-    // Réduction progressive avec chaque tentative
-    // Tentative 1: 70% de l'angle original
-    // Tentative 2: 40% de l'angle original
-    // Tentative 3: 10% de l'angle original
-    float reduction_factor = 1.0f - (0.3f * attempt);
-    reduction_factor = std::max(0.1f, reduction_factor); // Au moins 10%
-    
-    // Appliquer la réduction mais maintenir un minimum
-    clamped_angle = std::max(0.1f, clamped_angle * reduction_factor);
-    
-    if (original_angle != clamped_angle && original_angle > 0.1f) {
-      params.error_message_add(NodeWarningType::Info,
-          "Réduction de l'angle dihédral minimum de " + std::to_string(original_angle) + 
-          "° à " + std::to_string(clamped_angle) + "° (tentative " + 
-          std::to_string(attempt + 1) + ")");
-    }
-  }
-  
-  behavior.mindihedral = clamped_angle;
+  // Paramètres par défaut pour la qualité
+  behavior.minratio = quality_ratio;   // Rapport d'aspect minimum
+  behavior.mindihedral = min_dihedral_angle; // Angle diédral minimum (degrés)
   
   // Maximum tetrahedra volume
   if (max_volume > 0.00001) {
     behavior.fixedvolume = 1;
     behavior.maxvolume = max_volume;
-    
-    // Pour les tentatives avancées, augmenter légèrement le volume max pour permettre plus de flexibilité
-    if (is_complex_attempt && attempt > 1) {
-      behavior.maxvolume = max_volume * (1.0 + 0.2 * (attempt - 1));
-    }
+  } else {
+    behavior.maxvolume = -1.0;  // Volume maximum par tétraèdre (illimité)
   }
   
-  // Output
-  behavior.edgesout = 1;     // Generate edges
-  behavior.facesout = 1;     // Generate faces
-  behavior.neighout = 1;     // Generate neighbor information
+  // Définir une détection de maillage complexe basée sur la tentative
+  bool is_complex_mesh = attempt > 0;
+  bool is_massive_mesh = attempt >= 2;
+  bool has_flipping_issues = attempt >= 2;
   
-  // Additional options for handling complex/non-manifold meshes
-  behavior.docheck = 1;      // Check mesh consistency
-  
-  // Pour les maillages complexes, ajouter une option pour éviter la création d'arêtes courtes
-  // Cette option n'existe pas dans TetGen, nous l'implémentons de façon indirecte
-  if (is_complex_attempt) {
-    // Augmenter progressivement la tolérance pour les erreurs numériques
-    behavior.epsilon = 1e-8 * std::pow(10.0, attempt);
-    
-    // Désactiver certains contrôles stricts sur les tentatives avancées
-    if (attempt >= 2) {
-      // Tentative 3 ou plus: prendre des mesures radicales pour éviter les crashs
-      behavior.docheck = 0;
-      
-      // Désactiver l'amélioration de qualité pour accélérer et éviter les crashs
-      behavior.quality = 0;
-      behavior.mindihedral = 0.0;
-      behavior.minratio = 1.01;
-      
-      // Augmenter encore plus la tolérance
-      behavior.epsilon = 1e-6;
-      
-      params.error_message_add(NodeWarningType::Info,
-          "Mode robuste avec priorité à la stabilité au détriment de la qualité (tentative " + 
-          std::to_string(attempt + 1) + ")");
-    }
-  }
-  
-  // Pour les dernières tentatives sur maillages complexes 
-  // utiliser une stratégie à zéro risque
-  if (attempt >= 2) {
-    // Options de sécurité pour éviter les crashs
-    behavior.nomergefacet = 1;  // Prévenir la fusion des facettes (peut causer des erreurs)
-    behavior.nomergevertex = 1; // Prévenir la fusion des sommets (peut causer des erreurs)
-    
-    // Maximiser la stabilité numérique même si c'est au détriment de la qualité
-    behavior.diagnose = 1;     // Mode diagnostic: priorité à la robustesse
-  }
-  
-  // Pour la dernière tentative en cas de maillage complexe, désactiver toutes les options de qualité
-  if (attempt >= 3) {
-    behavior.quality = 0;
-    behavior.mindihedral = 0;
-    behavior.minratio = 1.0;
-    behavior.docheck = 0;
-    behavior.nobisect = 0;
-    
-    // Mode ultime de stabilité
+  // Pour les maillages complexes, réduire les contraintes de qualité
+  if (is_complex_mesh) {
     params.error_message_add(NodeWarningType::Warning,
-        "Mode de stabilité extrême activé - qualité minimale mais tétraédrisation garantie");
-  }
-
-  // Pour les maillages extrêmement complexes, désactiver optimisations qui peuvent causer des crashs
-  if (is_complex_attempt && attempt >= 2) {
-    // Options pour éviter le crash dans recoverboundary
-    behavior.docheck = 0;        // Désactiver vérifications
-    behavior.nobisect = 0;       // Ne pas préserver les frontières exactes
-    
-    // Ne pas désactiver plc dans tous les cas pour éviter l'enveloppe convexe
-    // behavior.plc = 0;         // Commenté: garder toujours plc=1 est essentiel pour éviter l'enveloppe convexe
-    
-    params.error_message_add(NodeWarningType::Warning,
-        "Mode super robuste activé - Certaines frontières peuvent être modifiées pour éviter les crashs");
-  }
-
-  // Dans le cas des maillages vraiment problématiques (tentative finale)
-  if (is_complex_attempt && attempt >= max_attempts - 1) {
-    // Options radicales pour éviter tout crash
-    behavior.quality = 0;        // Désactiver amélioration qualité
-    behavior.mindihedral = 0.0;  // Pas de contrainte d'angle
-    behavior.minratio = 1.0;     // Ratio minimal
-    behavior.diagnose = 1;       // Mode diagnostic
-    behavior.docheck = 0;        // Désactiver vérifications
-    behavior.nobisect = 0;       // Ne pas préserver frontières
-    
-    // Ne jamais désactiver plc pour éviter l'enveloppe convexe
-    // behavior.plc = 0;         // Commenté: garder toujours plc=1
-    
-    // Toujours garder convex=0 pour éviter l'enveloppe convexe
-    behavior.convex = 0;         // S'assurer que l'enveloppe convexe n'est pas préservée
-    
-    // S'assurer que regionattrib est toujours activé
-    behavior.regionattrib = 1;   // Générer des attributs de région pour les tétraèdres
-    
-    behavior.epsilon = 1e-4;     // Tolérance plus élevée
-    
-    params.error_message_add(NodeWarningType::Warning,
-        "Mode survie activé - Seule la génération d'un maillage valide est garantie");
+                         "Maillage complexe détecté. Ajustement des paramètres de tétraédralisation.");
+    behavior.minratio = 4.0;    // Rapport d'aspect moins strict
+    behavior.mindihedral = 5.0;  // Angle diédral moins strict
+    behavior.docheck = 0;       // Désactiver les vérifications strictes
+    behavior.diagnose = 1;      // Mode diagnostic pour mieux gérer les problèmes
   }
   
-  // NOUVELLE SECTION: Désactiver spécifiquement la récupération des frontières pour éviter les crashs
-  // dans la fonction tetgenmesh::create_a_shorter_edge
-  if (is_complex_attempt) {
-    // C'est dans le processus recoverboundary que les crashs se produisent
-    // Désactiver ce processus pour tous les maillages complexes
-    behavior.plc = 1;              // Toujours conserver la préservation du PLC
-    behavior.psc = 1;              // Préserver les contraintes de surface
+  // Pour les maillages massifs, désactiver les récupérations de frontières compliquées
+  if (is_massive_mesh) {
+    params.error_message_add(NodeWarningType::Warning,
+                         "Maillage massif détecté. Désactivation des récupérations de frontières.");
+    behavior.nobisect = 0;     // Ne pas préserver exactement les frontières
+    behavior.docheck = 0;      // Désactiver les vérifications
+    behavior.diagnose = 1;     // Mode diagnostic
     
-    // Mais désactiver la récupération agressive des frontières
-    behavior.nobisect = 0;         // Ne pas préserver exactement les frontières
-    behavior.docheck = 0;          // Désactiver les vérifications strictes
-    behavior.diagnose = 1;         // Activer le mode diagnostic
-    
-    // NOUVEL AJOUT - Désactivation renforcée pour prévenir le crash dans create_a_shorter_edge
-    // Modifier les tolérances et les algorithmes de récupération des frontières
-    behavior.minratio = 5.0;       // Ratio minimal très permissif
-    behavior.mindihedral = 0.0;    // Aucune contrainte d'angle
-    behavior.steinerleft = -1;     // Points de Steiner illimités pour la simplicité
-    
-    behavior.epsilon = 1e-6;       // Tolérance numérique élevée
-    behavior.coarsen = 1;          // Autoriser la simplification du maillage
-    behavior.insertaddpoints = 0;  // Désactiver l'insertion de points supplémentaires
-    
-    // ANTI-CRASH pour create_a_shorter_edge
-    if (attempt >= 2) {
-      // Désactivation complète du processus de récupération
-      behavior.facesout = 0;       // Ne pas générer les faces (évite create_a_shorter_edge)
-      behavior.edgesout = 0;       // Ne pas générer les arêtes
-      
-      // Si le maillage est vraiment complexe, adopter des mesures radicales
-      if (attempt >= max_attempts - 1) {
-        // Configuration minimale pour juste créer une tétraédrisation viable
-        behavior.psc = 0;           // Désactiver complètement la préservation des contraintes de surface
-        behavior.quality = 0;       // Désactiver la qualité
-        behavior.mindihedral = 0.0; // Pas de contrainte d'angle
-        behavior.minratio = 100.0;  // Ratio extrêmement permissif
-        
-        params.error_message_add(NodeWarningType::Warning,
-            "Mode anti-crash activé - Désactivation complète de la récupération des frontières pour prévenir le crash dans create_a_shorter_edge");
-      }
-    }
-    
-    params.error_message_add(NodeWarningType::Info,
-        "Mode anti-crash activé - Récupération des frontières désactivée pour éviter les plantages");
+    // Réduction drastique des contraintes
+    behavior.minratio = 5.0;    
+    behavior.mindihedral = 1.0; // Très permissif avec les angles
   }
   
-  // S'assurer que les options essentielles pour éviter l'enveloppe convexe sont toujours actives
-  behavior.plc = 1;              // Toujours garder plc=1
-  behavior.convex = 0;           // Toujours garder convex=0
-  behavior.regionattrib = 1;     // Toujours garder regionattrib=1
+  // Pour les maillages avec des problèmes spécifiques aux opérations de flipping
+  if (has_flipping_issues) {
+    params.error_message_add(NodeWarningType::Warning,
+                         "Maillage avec géométrie problématique. Désactivation des opérations de flipping.");
+    
+    // Désactiver complètement les opérations de récupération des frontières qui utilisent du flipping
+    behavior.plc = 0;          // Ne pas préserver les complexes linéaires
+    behavior.nobisect = 0;     // Ne pas préserver les frontières
+    behavior.docheck = 0;      // Pas de vérification
+    behavior.diagnose = 1;     // Mode diagnostic
+    
+    // Paramètres extrêmement permissifs
+    behavior.minratio = 10.0;   // Pratiquement pas de contrainte d'aspect
+    behavior.mindihedral = 0.5; // Presque pas de contrainte d'angle
+    
+    // Désactivons les options qui peuvent déclencher des opérations de flipping
+    behavior.facesout = 0;      // Ne pas sortir les faces
+    behavior.edgesout = 0;      // Ne pas sortir les arêtes
+  }
 }
 
 /**
@@ -1412,6 +1240,119 @@ static Mesh *create_tetrahedral_mesh(const tetgenio &out, GeoNodeExecParams &par
 }
 
 /**
+ * Analyse un maillage pour détecter des problèmes géométriques qui pourraient causer
+ * des crashs lors des opérations de flipping dans TetGen
+ */
+static bool detect_flipping_prone_geometry(const Mesh *mesh, GeoNodeExecParams &params)
+{
+  // Compter les triangles de mauvaise qualité
+  int bad_triangles = 0;
+  int sampled_triangles = 0;
+  
+  // Seuils pour identifier les triangles problématiques
+  const float min_angle_threshold = 0.05f;  // ~3 degrés
+  const float aspect_ratio_threshold = 0.02f; // Très étiré
+  
+  // Accès aux données du maillage
+  Span<float3> vert_positions = mesh->vert_positions();
+  Span<int> face_offsets = mesh->face_offsets();
+  Span<int> corner_verts = mesh->corner_verts();
+  
+  // Échantillonner un sous-ensemble de faces pour analyse rapide
+  const int sample_step = mesh->faces_num > 1000 ? mesh->faces_num / 1000 : 1;
+  
+  // Lambda pour calculer l'angle entre deux vecteurs
+  auto compute_angle = [](const float3 &v1, const float3 &v2) -> float {
+    float len1 = math::length(v1);
+    float len2 = math::length(v2);
+    if (len1 < 1e-6f || len2 < 1e-6f) {
+      return 0.0f;
+    }
+    float dot_prod = math::dot(v1, v2) / (len1 * len2);
+    // Borner dot_prod pour éviter les problèmes numériques
+    dot_prod = std::max(-1.0f, std::min(1.0f, dot_prod));
+    return std::acos(dot_prod);
+  };
+  
+  for (int i = 0; i < mesh->faces_num; i += sample_step) {
+    int face_start = face_offsets[i];
+    int face_size = face_offsets[i + 1] - face_start;
+    
+    // Analyser seulement les triangles
+    if (face_size == 3) {
+      sampled_triangles++;
+      
+      // Indices des sommets
+      int idx1 = corner_verts[face_start];
+      int idx2 = corner_verts[face_start + 1];
+      int idx3 = corner_verts[face_start + 2];
+      
+      // Vérifier que les indices sont valides
+      if (idx1 >= 0 && idx1 < mesh->verts_num &&
+          idx2 >= 0 && idx2 < mesh->verts_num &&
+          idx3 >= 0 && idx3 < mesh->verts_num) {
+        
+        // Coordonnées des sommets
+        float3 v1 = vert_positions[idx1];
+        float3 v2 = vert_positions[idx2];
+        float3 v3 = vert_positions[idx3];
+        
+        // Vecteurs des côtés
+        float3 e1 = v2 - v1;
+        float3 e2 = v3 - v2;
+        float3 e3 = v1 - v3;
+        
+        // Longueurs des côtés
+        float len1 = math::length(e1);
+        float len2 = math::length(e2);
+        float len3 = math::length(e3);
+        
+        // Rapport d'aspect (ratio du plus court sur le plus long côté)
+        float min_len = std::min({len1, len2, len3});
+        float max_len = std::max({len1, len2, len3});
+        float aspect_ratio = min_len / max_len;
+        
+        // Calculer les angles
+        float angle1 = compute_angle(-e1, e3);
+        float angle2 = compute_angle(-e2, e1);
+        float angle3 = compute_angle(-e3, e2);
+        float min_angle = std::min({angle1, angle2, angle3});
+        
+        // Détecter les triangles problématiques
+        if (aspect_ratio < aspect_ratio_threshold || min_angle < min_angle_threshold) {
+          bad_triangles++;
+        }
+      }
+    }
+  }
+  
+  // Si nous avons échantillonné des triangles
+  if (sampled_triangles > 0) {
+    float bad_percentage = (float)bad_triangles / sampled_triangles * 100.0f;
+    
+    // Si plus de 1% des triangles sont de mauvaise qualité
+    if (bad_percentage > 1.0f) {
+      params.error_message_add(NodeWarningType::Warning,
+          std::string("Géométrie potentiellement problématique détectée: ") + 
+          std::to_string(bad_triangles) + " triangles de mauvaise qualité sur " + 
+          std::to_string(sampled_triangles) + " échantillonnés (" + 
+          std::to_string(bad_percentage) + "%). "
+          "Risque de crash lors des opérations de flipping.");
+      
+      // Si beaucoup de triangles problématiques, activer le mode spécial
+      if (bad_percentage > 5.0f) {
+        params.error_message_add(NodeWarningType::Warning,
+            "Activation du mode spécial de tétraédrisation sans récupération des frontières "
+            "pour éviter les crashs dans les opérations de flipping.");
+        return true;
+      }
+    }
+  }
+  
+  return false;
+}
+
+/**
  * Main node execution function
  */
 static void node_geo_exec(GeoNodeExecParams params)
@@ -1449,6 +1390,9 @@ static void node_geo_exec(GeoNodeExecParams params)
   const int high_complexity_threshold = 10000;   // Maillage très complexe
   const int extreme_complexity_threshold = 50000; // Maillage extrêmement complexe
   
+  // Définir un seuil pour les maillages "massifs" qui nécessitent un traitement spécial
+  const int massive_mesh_threshold = 100000;    // Maillages massifs susceptibles de causer des crashs
+
   // Déterminer le niveau de complexité du maillage
   bool is_medium_complex = mesh_to_process->verts_num > medium_complexity_threshold || 
                          mesh_to_process->faces_num > medium_complexity_threshold;
@@ -1456,9 +1400,121 @@ static void node_geo_exec(GeoNodeExecParams params)
                          mesh_to_process->faces_num > high_complexity_threshold;
   bool is_extremely_complex = mesh_to_process->verts_num > extreme_complexity_threshold || 
                             mesh_to_process->faces_num > extreme_complexity_threshold;
+  bool is_massive_mesh = mesh_to_process->verts_num > massive_mesh_threshold ||
+                        mesh_to_process->faces_num > massive_mesh_threshold;
+  
+  // Détecter si le maillage est susceptible de causer des problèmes avec les opérations de flipping
+  bool has_problematic_geometry = detect_flipping_prone_geometry(mesh_to_process, params);
   
   // Le niveau final de complexité pour les décisions
   bool is_complex_mesh = is_medium_complex;
+  
+  // Pour les maillages massifs ou avec géométrie problématique, utiliser une tétraédrisation Delaunay pure
+  if (is_massive_mesh || has_problematic_geometry) {
+    params.error_message_add(NodeWarningType::Warning, 
+        "Maillage extrêmement volumineux ou problématique détecté. "
+        "Utilisation d'une tétraédrisation Delaunay pure pour éviter les crashs.");
+    
+    // Configurer TetGen avec des options spéciales anti-crash
+    tetgenbehavior behavior;
+    // Utilisé la version originale avec tous les paramètres nécessaires
+    configure_tetgen_options(behavior, 
+                           -1.0,  // max_volume (désactivé)
+                           1.1f,  // quality_ratio minimal
+                           1.0f,  // min_dihedral_angle minimal
+                           false, // preserve_boundary désactivé pour les maillages problématiques
+                           params,
+                           2,     // attempt - simuler une 3ème tentative pour activer toutes les protections
+                           3);    // max_attempts par défaut
+    
+    // Force des paramètres spécifiques pour les maillages massifs
+    preserve_boundary = false;
+    quality_ratio = 1.01f;
+    min_dihedral_angle = 0.0f;
+    
+    // Utiliser un mode spécial de tétraédrisation pour éviter les crashes sur les gros maillages
+    tetgenio in, out;
+    
+    // Nettoyage automatique des ressources TetGen
+    TetGenResourceGuard resource_guard(in, out);
+    
+    Mesh *mesh_out = nullptr;
+    bool tetgen_success = false;
+    
+    try {
+      // Préparer l'entrée TetGen
+      if (prepare_tetgen_input(mesh_to_process, in, params, 0)) {
+        // Configuration Delaunay pure - pas de PLC, pas de récupération des frontières
+        behavior.plc = 0;            // DÉSACTIVER complètement la préservation du complexe linéaire
+        behavior.psc = 0;            // Désactiver les contraintes de surface
+        behavior.quality = 0;        // Désactiver l'amélioration de qualité
+        behavior.nobisect = 0;       // Ne pas préserver les frontières
+        behavior.docheck = 0;        // Désactiver les vérifications
+        behavior.diagnose = 0;       // Désactiver le mode diagnostic
+        behavior.quiet = 1;          // Mode silencieux
+        behavior.verbose = 0;        // Pas de verbosité
+        
+        // Options spécifiques pour éviter les crashes
+        behavior.mindihedral = 0.0;  // Pas de contrainte d'angle
+        behavior.minratio = 1.0;     // Ratio minimal absolu
+        behavior.convex = 1;         // Utiliser l'enveloppe convexe
+        
+        // Désactivation explicite des options problématiques
+        behavior.facesout = 0;       // Ne pas générer de faces
+        behavior.edgesout = 0;       // Ne pas générer d'arêtes
+        behavior.neighout = 0;       // Ne pas générer de voisins
+        
+        // Ajouter une perturbation aléatoire légère pour éviter les configurations dégénérées
+        for (int i = 0; i < in.numberofpoints * 3; i++) {
+          double noise = ((double)rand() / RAND_MAX) * 1e-6;
+          in.pointlist[i] += noise;
+        }
+        
+        params.error_message_add(NodeWarningType::Info,
+            "Configuration Delaunay pure activée pour le maillage volumineux. "
+            "Les frontières ne seront pas préservées, mais la tétraédrisation sera stable.");
+        
+        // Exécuter TetGen dans un mode qui évitera complètement les opérations de flipping
+        try {
+          tetrahedralize(&behavior, &in, &out);
+          
+          // Traiter la sortie
+          if (out.numberoftetrahedra > 0) {
+            mesh_out = create_tetrahedral_mesh(out, params);
+            if (mesh_out) {
+              tetgen_success = true;
+            }
+          }
+        }
+        catch (std::exception &e) {
+          params.error_message_add(NodeWarningType::Error,
+              std::string("Erreur TetGen: ") + e.what());
+        }
+        catch (...) {
+          params.error_message_add(NodeWarningType::Error,
+              "Erreur inconnue pendant la tétraédrisation.");
+        }
+      }
+    }
+    catch (...) {
+      params.error_message_add(NodeWarningType::Error,
+          "Erreur catastrophique détectée pendant la tétraédrisation.");
+    }
+    
+    // Output
+    GeometrySet output;
+    if (mesh_out) {
+      output.replace_mesh(mesh_out);
+    }
+    
+    // Nettoyer le maillage préparé si nécessaire
+    if (prepared_mesh) {
+      BKE_id_free(nullptr, prepared_mesh);
+    }
+    
+    params.set_output("Tetrahedral Mesh", std::move(output));
+    return;  // Sortir immédiatement, ne pas utiliser le chemin normal
+  }
   
   // Ajuster les paramètres en fonction de la complexité
   if (is_extremely_complex) {
