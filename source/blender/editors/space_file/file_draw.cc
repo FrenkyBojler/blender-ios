@@ -406,31 +406,34 @@ static uiBut *file_add_icon_but(const SpaceFile *sfile,
                                 int icon,
                                 int width,
                                 int height,
+                                int padx,
                                 bool dimmed)
 {
   uiBut *but;
 
-  const int x = tile_draw_rect->xmin;
+  const int x = tile_draw_rect->xmin + 2 * padx;
   const int y = tile_draw_rect->ymax - sfile->layout->tile_border_y -
                 round_fl_to_int((sfile->layout->tile_h + height) / 2.0f);
 
   if (icon < BIFICONID_LAST_STATIC) {
-    /* Small built-in icon. */
+    /* Small built-in icon. Draw centered in given width. */
     but = uiDefIconBut(block,
                        UI_BTYPE_LABEL,
                        0,
                        icon,
-                       x + (width - ICON_DEFAULT_WIDTH_SCALE) / 2,
-                       y,
+                       x,
+                       y + 1,
                        width,
                        height,
                        nullptr,
                        0.0f,
                        0.0f,
                        std::nullopt);
+    /* Center the icon. */
+    UI_but_drawflag_disable(but, UI_BUT_ICON_LEFT);
   }
   else {
-    /* Larger preview icon. */
+    /* Larger preview icon. Fills available width/height. */
     but = uiDefIconPreviewBut(
         block, UI_BTYPE_LABEL, 0, icon, x, y, width, height, nullptr, 0.0f, 0.0f, std::nullopt);
   }
@@ -1134,7 +1137,7 @@ static void draw_details_columns(const FileSelectParams *params,
 {
   const bool compact = FILE_LAYOUT_COMPACT(layout);
   const bool update_stat_strings = layout->width != layout->curr_size;
-  int sx = tile_draw_rect->xmin - layout->tile_border_x - (UI_UNIT_X * 0.1f);
+  int sx = tile_draw_rect->xmin - layout->tile_border_x;
 
   for (int column_type = 0; column_type < ATTRIBUTE_COLUMN_MAX; column_type++) {
     const FileAttributeColumn *column = &layout->attribute_columns[column_type];
@@ -1169,8 +1172,7 @@ static void draw_details_columns(const FileSelectParams *params,
 static rcti tile_draw_rect_get(const View2D *v2d,
                                const FileLayout *layout,
                                const eFileDisplayType display,
-                               const int file_idx,
-                               const int padx)
+                               const int file_idx)
 {
   int tile_pos_x, tile_pos_y;
   ED_fileselect_layout_tilepos(layout, file_idx, &tile_pos_x, &tile_pos_y);
@@ -1178,9 +1180,9 @@ static rcti tile_draw_rect_get(const View2D *v2d,
   tile_pos_y = int(v2d->tot.ymax - tile_pos_y);
 
   rcti rect;
-  rect.xmin = tile_pos_x + padx;
+  rect.xmin = tile_pos_x;
   rect.xmax = rect.xmin + (ELEM(display, FILE_VERTICALDISPLAY, FILE_HORIZONTALDISPLAY) ?
-                               layout->tile_w - (2 * padx) :
+                               layout->tile_w :
                                layout->tile_w);
   rect.ymax = tile_pos_y;
   rect.ymin = rect.ymax - layout->tile_h - layout->tile_border_y;
@@ -1278,7 +1280,7 @@ void file_draw_list(const bContext *C, ARegion *region)
     int icon_ofs = 0;
 
     const rcti tile_draw_rect = tile_draw_rect_get(
-        v2d, layout, eFileDisplayType(params->display), i, padx);
+        v2d, layout, eFileDisplayType(params->display), i);
 
     file = filelist_file(files, i);
     file_selflag = filelist_entry_select_get(sfile->files, file, CHECK_ALL);
@@ -1348,7 +1350,7 @@ void file_draw_list(const bContext *C, ARegion *region)
         return filelist_geticon_file_type(files, i, true);
       }();
 
-      icon_ofs += layout->prv_w + 0.2f * UI_UNIT_X;
+      icon_ofs += layout->prv_w + 3 * padx;
 
       /* Add dummy draggable button covering the icon and the label. */
       if (do_drag) {
@@ -1384,6 +1386,7 @@ void file_draw_list(const bContext *C, ARegion *region)
                                           icon,
                                           layout->prv_w,
                                           layout->prv_h,
+                                          padx,
                                           is_hidden);
       if (do_drag) {
         /* For some reason the dragging is unreliable for the icon button if we don't explicitly
@@ -1453,7 +1456,7 @@ void file_draw_list(const bContext *C, ARegion *region)
 
   if (numfiles < 1) {
     const rcti tile_draw_rect = tile_draw_rect_get(
-        v2d, layout, eFileDisplayType(params->display), 0, 0);
+        v2d, layout, eFileDisplayType(params->display), 0);
     const uiStyle *style = UI_style_get();
 
     const bool is_filtered = params->filter_search[0] != '\0';
