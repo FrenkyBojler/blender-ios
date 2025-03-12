@@ -11,3 +11,4 @@ Referenced by issue #127722, EEVEE crash on AMD Radeon Graphics under Linux
 Referenced by issue #125589, Window_manager invoked popup crashes blender if File Browser opens maximized
 Referenced by issue #135693, System hangs when switching to viewport shading (Arch Linux/Wayland)
 Referenced by issue #135820, Blender 4.3.2 Crashes When Switching To Wireframe View
+Referenced by issue #134604, Intel Arc: The text of the interface is displayed incorrectly
