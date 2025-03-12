@@ -20,6 +20,7 @@
 #include "BLI_span.hh"
 #include "BLI_string.h"
 #include "BLI_task.hh"
+#include "BLI_threads.h"
 #include "BLI_virtual_array.hh"
 
 #include "DNA_node_types.h"
@@ -1161,6 +1162,7 @@ static void write_boolean_benchmark_time(
   const int num_faces_2 = mesh2 ? mesh2->faces_num : 0;
   const int num_tris_1 = mesh1 ? mesh1->corner_tris().size() : 0;
   const int num_tris_2 = mesh2 ? mesh2->corner_tris().size() : 0;
+  const int threads = BLI_system_num_threads_override_get();
 
   /* Add header line if file doesn't exsit yet. */
   bool first_time = false;
@@ -1172,11 +1174,12 @@ static void write_boolean_benchmark_time(
 
   if (outfile.is_open()) {
     if (first_time) {
-      outfile << "solver,op,mesh1,mesh2,face1,face2,tris1,tris2,time_in_ms" << std::endl;
+      outfile << "solver,op,mesh1,mesh2,face1,face2,tris1,tris2,time_in_ms,threads" << std::endl;
     }
     outfile << solver << "," << op << ",\"" << mesh1_name << "\",\"" << mesh2_name << "\","
             << num_faces_1 << "," << num_faces_2 << "," << num_tris_1 << "," << num_tris_2 << ","
-            << time_ms << std::endl;
+            << time_ms << ","
+            << threads << std::endl;
     outfile.close();
   }
   else {
