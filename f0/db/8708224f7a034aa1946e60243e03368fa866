@@ -1,4 +1,4 @@
 Referenced by commit ed0d01c5afd, UI: Remember scroll offset for tree-views
 Referenced by commit e2b1f1f818f, UI: Remember scroll offset for tree-views
 Referenced by issue #132105, Bone collections window size reset
-Referenced by pull request #135426, UI: Increase default rows of bone collection and node interface
+Referenced by pull request #135426, UI: Increase default rows of tree view
