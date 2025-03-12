@@ -226,8 +226,17 @@ endif()
 # /Zc:preprocessor: Available from MSVC 16.5 (1925) and up. Enables standards-conforming
 #                   preprocessor.
 if(NOT MSVC_CLANG)
-  string(APPEND CMAKE_CXX_FLAGS " /permissive- /Zc:__cplusplus /Zc:inline /Zc:preprocessor")
-  string(APPEND CMAKE_C_FLAGS   " /Zc:inline /Zc:preprocessor")
+  string(APPEND CMAKE_CXX_FLAGS " /permissive- /Zc:__cplusplus /Zc:inline")
+  string(APPEND CMAKE_C_FLAGS   " /Zc:inline")
+
+  # For ARM64 devices, we need to tell MSVC to use the new preprocessor
+  # This is because sse2neon requires it. Additionally, OpenUSD headers cause
+  # Intellisense failures without it. However, this is only suitable for use
+  # with VS2022 and up.
+  if(CMAKE_SYSTEM_PROCESSOR STREQUAL "ARM64" OR CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 19.30.30423)
+    string(APPEND CMAKE_CXX_FLAGS " /Zc:preprocessor")
+    string(APPEND CMAKE_C_FLAGS " /Zc:preprocessor")
+  endif()
 endif()
 
 if(WITH_WINDOWS_SCCACHE AND CMAKE_VS_MSBUILD_COMMAND)
