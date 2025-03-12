@@ -19,8 +19,8 @@
 
 #include "draw_manager_text.hh"
 
+#include "draw_context_private.hh"
 #include "draw_manager.hh"
-#include "draw_manager_c.hh"
 #include "draw_view_data.hh"
 
 #include "engines/compositor/compositor_engine.h"

@@ -14,9 +14,9 @@
 #include "BLI_math_base.h"
 #include "GPU_compute.hh"
 
+#include "draw_context_private.hh"
 #include "draw_defines.hh"
 #include "draw_manager.hh"
-#include "draw_manager_c.hh"
 #include "draw_pass.hh"
 #include "draw_shader.hh"
 

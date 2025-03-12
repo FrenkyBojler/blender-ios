@@ -33,7 +33,7 @@
 #include "DNA_particle_types.h"
 
 #include "draw_common.hh"
-#include "draw_manager_c.hh"
+#include "draw_context_private.hh"
 #include "draw_view_data.hh"
 
 namespace blender::eevee {

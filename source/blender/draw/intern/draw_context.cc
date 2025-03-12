@@ -75,7 +75,7 @@
 #include "draw_cache.hh"
 #include "draw_color_management.hh"
 #include "draw_common_c.hh"
-#include "draw_manager_c.hh"
+#include "draw_context_private.hh"
 #include "draw_manager_text.hh"
 #include "draw_shader.hh"
 #include "draw_subdivision.hh"

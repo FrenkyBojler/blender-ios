@@ -30,9 +30,9 @@
 #include "DRW_gpu_wrapper.hh"
 
 #include "draw_common_c.hh"
+#include "draw_context_private.hh"
 #include "draw_hair_private.hh"
 #include "draw_manager.hh"
-#include "draw_manager_c.hh"
 #include "draw_shader.hh"
 #include "draw_shader_shared.hh"
 
