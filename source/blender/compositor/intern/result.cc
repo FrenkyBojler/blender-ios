@@ -514,6 +514,7 @@ void Result::free()
   }
 
   delete data_reference_count_;
+  data_reference_count_ = nullptr;
 
   delete derived_resources_;
   derived_resources_ = nullptr;
