@@ -14,7 +14,7 @@ convention for menus.
 
 .. note::
 
-   Menus have their :class:`Layout.operator_context` initialized as
+   Menus have their :class:`UILayout.operator_context` initialized as
    'EXEC_REGION_WIN' rather than 'INVOKE_DEFAULT' (see :ref:`Execution Context <operator-execution_context>`).
    If the operator context needs to initialize inputs from the
    :class:`Operator.invoke` function, then this needs to be explicitly set.
