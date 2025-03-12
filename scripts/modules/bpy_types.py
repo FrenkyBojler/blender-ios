@@ -263,10 +263,10 @@ class Object(_types.ID):
         :arg depsgraph: The depsgraph the evaluated geometry is retrieved from.
         :type depsgraph: :class:`bpy.types.Depsgraph`
         :return: The evaluated geometry.
-        :rtype: :class:`bpy.geometry_set.GeometrySet`
+        :rtype: :class:`bpy.types.GeometrySet`
         """
-        from bpy.geometry_set import GeometrySet
         ob_eval = self if self.is_evaluated else depsgraph.id_eval_get(self)
+        from bpy.types import GeometrySet
         return GeometrySet.from_evaluated_object(ob_eval, depsgraph)
 
 
