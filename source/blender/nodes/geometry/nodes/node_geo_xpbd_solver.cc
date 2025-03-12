@@ -723,11 +723,11 @@ static void do_build_global_solve_system(const ConstraintEvalParams &params,
   static_assert(!H.IsRowMajor);
 
   /* Determine size of per-column arrays. */
+  const IndexRange positions_range = {0, num_positions * 3};
+  const IndexRange rotations_range = positions_range.after(num_rotations * 4);
   {
     MutableSpan<int> column_sizes = {H.outerIndexPtr(), num_columns + 1};
 
-    const IndexRange positions_range = {0, num_positions * 3};
-    const IndexRange rotations_range = positions_range.after(num_rotations * 4);
     auto add_position_uses = [&](const int index, const int count) {
       const int start = index * 3;
       column_sizes[positions_range[start + 0]] += count;
@@ -812,6 +812,43 @@ static void do_build_global_solve_system(const ConstraintEvalParams &params,
   {
     MutableSpan<int> row_indices = {H.innerIndexPtr(), num_non_zeroes};
     MutableSpan<float> values = {H.valuePtr(), num_non_zeroes};
+
+    /* Point masses in the upper left positions section. */
+    for (const int index : IndexRange(num_positions)) {
+      const float mass = params.masses[index];
+
+      const IndexRange columns = positions_range.slice(index * 3, 3);
+      for (const int k : columns.index_range()) {
+        const int column = columns[k];
+        MutableSpan<int> column_row_indices = row_indices.slice(column_offsets[column]);
+        MutableSpan<float> column_values = values.slice(column_offsets[column]);
+
+        column_row_indices[0] = column;
+        column_values[0] = mass;
+      }
+    }
+    /* Inertia tensors in the upper left rotations section. */
+    for (const int index : IndexRange(num_rotations)) {
+      const float4x4 inertia_tensor = quaternion_matrix(
+          variables.rotations[index] * math::Quaternion(0.0f, params.local_inertia[index]));
+
+      const IndexRange columns = rotations_range.slice(index * 4, 4);
+      for (const int k : columns.index_range()) {
+        const int column = columns[k];
+        MutableSpan<int> column_row_indices = row_indices.slice(column_offsets[column]);
+        MutableSpan<float> column_values = values.slice(column_offsets[column]);
+
+        column_row_indices[0] = columns[0];
+        column_row_indices[1] = columns[1];
+        column_row_indices[2] = columns[2];
+        column_row_indices[3] = columns[3];
+        column_values[0] = inertia_tensor[k][0];
+        column_values[1] = inertia_tensor[k][1];
+        column_values[2] = inertia_tensor[k][2];
+        column_values[3] = inertia_tensor[k][3];
+      }
+    }
+
     for (ConstraintEvalData &data : constraint_data) {
       if (!data.geometry) {
         continue;

@@ -457,6 +457,8 @@ static auto simple_solver_data(const bool use_velocities)
 {
   xpbd_constraints::ConstraintEvalParams params;
   params.masses = VArray<float>::ForContainer(Array<float>{1.0f, 3.0f, 0.5f});
+  params.local_inertia = VArray<float3>::ForContainer(
+      Array<float3>{float3(1.0f), float3(1, 2, 1), float3(0.2f, 10.f, 0.5f)});
 
   MutableSpan<xpbd_constraints::ConstraintEvalData> data;
 
@@ -473,6 +475,53 @@ static auto simple_solver_data(const bool use_velocities)
   return std::make_tuple(std::move(params), std::move(data), std::move(vars));
 }
 
+inline float4x4 quaternion_matrix(const math::Quaternion &q)
+{
+  float4x4 result;
+  result[0] = float4{q.w, q.x, q.y, q.z};
+  result[1] = float4{-q.x, q.x, -q.z, q.y};
+  result[1] = float4{-q.y, q.z, q.y, -q.x};
+  result[1] = float4{-q.z, -q.y, q.x, q.z};
+  return result;
+}
+
+// #define EXPECT_EIGEN_V3_NEAR(a, ofs, b, eps) \
+//   do { \
+//     Eigen::Vector3f a3 = a.block<3>(ofs); \
+//     EXPECT_NEAR(a4[0], b[0], eps); \
+//     EXPECT_NEAR(a4[1], b[1], eps); \
+//     EXPECT_NEAR(a4[2], b[2], eps); \
+//   } while (false);
+
+// #define EXPECT_EIGEN_V4_NEAR(a, ofs, b, eps) \
+//   do { \
+//     Eigen::Vector4f a4 = a.block<4>(ofs); \
+//     EXPECT_NEAR(a4[0], b[0], eps); \
+//     EXPECT_NEAR(a4[1], b[1], eps); \
+//     EXPECT_NEAR(a4[2], b[2], eps); \
+//     EXPECT_NEAR(a4[3], b[3], eps); \
+//   } while (false);
+
+#define EXPECT_EIGEN_M4_NEAR(a, b, eps) \
+  do { \
+    EXPECT_NEAR(a[0][0], b.coeff(0, 0), eps); \
+    EXPECT_NEAR(a[0][1], b.coeff(1, 0), eps); \
+    EXPECT_NEAR(a[0][2], b.coeff(2, 0), eps); \
+    EXPECT_NEAR(a[0][3], b.coeff(3, 0), eps); \
+    EXPECT_NEAR(a[1][0], b.coeff(0, 1), eps); \
+    EXPECT_NEAR(a[1][1], b.coeff(1, 1), eps); \
+    EXPECT_NEAR(a[1][2], b.coeff(2, 1), eps); \
+    EXPECT_NEAR(a[1][3], b.coeff(3, 1), eps); \
+    EXPECT_NEAR(a[2][0], b.coeff(0, 2), eps); \
+    EXPECT_NEAR(a[2][1], b.coeff(1, 2), eps); \
+    EXPECT_NEAR(a[2][2], b.coeff(2, 2), eps); \
+    EXPECT_NEAR(a[2][3], b.coeff(3, 2), eps); \
+    EXPECT_NEAR(a[3][0], b.coeff(0, 3), eps); \
+    EXPECT_NEAR(a[3][1], b.coeff(1, 3), eps); \
+    EXPECT_NEAR(a[3][2], b.coeff(2, 3), eps); \
+    EXPECT_NEAR(a[3][3], b.coeff(3, 3), eps); \
+  } while (false);
+
 TEST(xpbd_constraints, GlobalSolverUnconstrained)
 {
   auto [params, data, vars] = simple_solver_data(false);
@@ -481,9 +530,25 @@ TEST(xpbd_constraints, GlobalSolverUnconstrained)
   Eigen::VectorXf b;
   xpbd_constraints::build_global_solve_system(params, data, vars, true, H, b);
 
-  EXPECT_EQ(H.coeff(0, 0), params.masses[0]);
-  EXPECT_EQ(H.coeff(1, 1), params.masses[1]);
-  EXPECT_EQ(H.coeff(2, 2), params.masses[2]);
+  EXPECT_EQ(params.masses[0], H.coeff(0, 0));
+  EXPECT_EQ(params.masses[0], H.coeff(1, 1));
+  EXPECT_EQ(params.masses[0], H.coeff(2, 2));
+  EXPECT_EQ(params.masses[1], H.coeff(3, 3));
+  EXPECT_EQ(params.masses[1], H.coeff(4, 4));
+  EXPECT_EQ(params.masses[1], H.coeff(5, 5));
+  EXPECT_EQ(params.masses[2], H.coeff(6, 6));
+  EXPECT_EQ(params.masses[2], H.coeff(7, 7));
+  EXPECT_EQ(params.masses[2], H.coeff(8, 8));
+
+  const float4x4 inertia_tensor0 = quaternion_matrix(
+      vars.rotations[0] * math::Quaternion(0.0f, params.local_inertia[0]));
+  const float4x4 inertia_tensor1 = quaternion_matrix(
+      vars.rotations[1] * math::Quaternion(0.0f, params.local_inertia[1]));
+  const float4x4 inertia_tensor2 = quaternion_matrix(
+      vars.rotations[2] * math::Quaternion(0.0f, params.local_inertia[2]));
+  EXPECT_EIGEN_M4_NEAR(inertia_tensor0, H.block(9, 9, 4, 4).toDense(), 1e-6f);
+  EXPECT_EIGEN_M4_NEAR(inertia_tensor1, H.block(13, 13, 4, 4).toDense(), 1e-6f);
+  EXPECT_EIGEN_M4_NEAR(inertia_tensor2, H.block(17, 17, 4, 4).toDense(), 1e-6f);
 }
 
 }  // namespace blender::nodes::tests
