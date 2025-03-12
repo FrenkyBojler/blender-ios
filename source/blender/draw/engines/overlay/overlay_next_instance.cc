@@ -393,7 +393,7 @@ void Instance::draw(Manager &manager)
   /* TODO(fclem): To be moved to overlay UBO. */
   state.ndc_offset_factor = state.offset_data_get().polygon_offset_factor(view.winmat());
 
-  resources.pre_draw(state.v3d->shading.flag & V3D_SHADING_BACKFACE_CULLING);
+  resources.pre_draw();
 
   outline.flat_objects_pass_sync(manager, view, resources, state);
   GreasePencil::compute_depth_planes(manager, view, resources, state);

@@ -26,10 +26,6 @@ void select_id_output(int id)
     return;
   }
 
-  if (select_info_buf.backface_culling && !gl_FrontFacing) {
-    return;
-  }
-
   if (select_info_buf.mode == SELECT_ALL) {
     /* Set the bit of the select id in the bitmap. */
     atomicOr(out_select_buf[id / 32u], 1u << (uint(id) % 32u));
