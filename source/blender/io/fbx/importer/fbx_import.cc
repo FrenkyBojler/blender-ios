@@ -89,7 +89,8 @@ struct FbxImportContext {
                              Object *arm_obj,
                              EditBone *parent_bone,
                              const ufbx_matrix &parent_bind_mtx,
-                             const ufbx_matrix &world_to_arm);
+                             const ufbx_matrix &world_to_arm,
+                             const float parent_bone_size);
 };
 
 static void matrix_to_m44(const ufbx_matrix &src, float dst[4][4])
@@ -739,7 +740,8 @@ void FbxImportContext::create_armature_bones(const ufbx_node *node,
                                              Object *arm_obj,
                                              EditBone *parent_bone,
                                              const ufbx_matrix &parent_bind_mtx,
-                                             const ufbx_matrix &world_to_arm)
+                                             const ufbx_matrix &world_to_arm,
+                                             const float parent_bone_size)
 {
   bArmature *arm = static_cast<bArmature *>(arm_obj->data);
 
@@ -785,6 +787,9 @@ void FbxImportContext::create_armature_bones(const ufbx_node *node,
   if (child_bone_count > 0) {
     bone_size /= child_bone_count;
   }
+  else {
+    bone_size = parent_bone_size;
+  }
   /* Zero length bones are automatically collapsed into their parent when you leave edit mode,
    * so enforce a minimum length. */
   bone_size = math::max(bone_size, 0.01f);
@@ -810,7 +815,7 @@ void FbxImportContext::create_armature_bones(const ufbx_node *node,
       }
     }
     if (!skip_child) {
-      create_armature_bones(fchild, arm_obj, bone, bind_mtx, world_to_arm);
+      create_armature_bones(fchild, arm_obj, bone, bind_mtx, world_to_arm, bone_size);
     }
   }
 }
@@ -848,7 +853,7 @@ void FbxImportContext::find_armatures(const ufbx_node *node)
     ED_armature_to_edit(arm);
     for (const ufbx_node *fchild : node->children) {
       if (fchild->attrib_type == UFBX_ELEMENT_BONE) {
-        create_armature_bones(fchild, arm_obj, nullptr, ufbx_identity_matrix, world_to_arm);
+        create_armature_bones(fchild, arm_obj, nullptr, ufbx_identity_matrix, world_to_arm, 1.0f);
       }
     }
     ED_armature_from_edit(this->bmain, arm);

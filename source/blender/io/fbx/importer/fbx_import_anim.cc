@@ -113,7 +113,8 @@ static Vector<ElementAnimations> gather_animated_properties(const ufbx_scene &fb
           continue;
         }
 
-        /* Ignore animation of rigged meshes (very hard to handle; matches behavior of python fbx importer). */
+        /* Ignore animation of rigged meshes (very hard to handle; matches behavior of python fbx
+         * importer). */
         if (target_obj && target_obj->type == OB_MESH && target_obj->parent &&
             target_obj->parent->type == OB_ARMATURE)
         {
