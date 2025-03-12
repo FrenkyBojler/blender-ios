@@ -112,6 +112,22 @@ static void matrix_to_m44(const ufbx_matrix &src, float dst[4][4])
   dst[3][3] = 1.0f;
 }
 
+static void m44_to_matrix(const float src[4][4], ufbx_matrix &dst)
+{
+  dst.m00 = src[0][0];
+  dst.m01 = src[1][0];
+  dst.m02 = src[2][0];
+  dst.m03 = src[3][0];
+  dst.m10 = src[0][1];
+  dst.m11 = src[1][1];
+  dst.m12 = src[2][1];
+  dst.m13 = src[3][1];
+  dst.m20 = src[0][2];
+  dst.m21 = src[1][2];
+  dst.m22 = src[2][2];
+  dst.m23 = src[3][2];
+}
+
 static void ufbx_matrix_to_obj(const ufbx_matrix &mtx, Object *obj, bool use_parent_matrix = false)
 {
   float obmat[4][4];
@@ -824,7 +840,9 @@ void FbxImportContext::find_armatures(const ufbx_node *node)
     }
 
     /* Create bones. */
-    ufbx_matrix world_to_arm = ufbx_matrix_invert(&node->node_to_world);
+    ufbx_matrix arm_to_world;
+    m44_to_matrix(arm_obj->runtime->object_to_world.ptr(), arm_to_world);
+    ufbx_matrix world_to_arm = ufbx_matrix_invert(&arm_to_world);
 
     bArmature *arm = static_cast<bArmature *>(arm_obj->data);
     ED_armature_to_edit(arm);
