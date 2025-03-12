@@ -458,6 +458,11 @@ void DRWContext::release_data()
 {
   BLI_assert(GPU_context_active_get() != nullptr);
 
+  /* Reset drawing state to avoid to side-effects. */
+  blender::draw::command::StateSet::set();
+
+  DRW_view_data_reset(this->view_data_active);
+
   if (this->data != nullptr && this->viewport == nullptr) {
     DRW_viewport_data_free(this->data);
   }
@@ -1000,99 +1005,96 @@ void DRW_draw_region_engine_info(int xoffset, int *yoffset, int line_height)
       });
 }
 
-static void drw_use_engine(DrawEngineType *engine)
+void DRWContext::enable_engines(bool gpencil_engine_needed, RenderEngineType *render_engine_type)
 {
-  DRW_view_data_use_engine(drw_get().view_data_active, engine);
-}
+  DRWViewData &view_data = *this->view_data_active;
 
-/* Gather all draw engines needed and store them in drw_get().view_data_active
- * That also define the rendering order of engines */
-static void drw_engines_enable_from_engine(const RenderEngineType *engine_type, eDrawType drawtype)
-{
-  switch (drawtype) {
-    case OB_WIRE:
-    case OB_SOLID:
-      drw_use_engine(DRW_engine_viewport_workbench_type.draw_engine);
-      break;
-    case OB_MATERIAL:
-    case OB_RENDER:
-    default:
-      if (engine_type->draw_engine != nullptr) {
-        drw_use_engine(engine_type->draw_engine);
-      }
-      else if ((engine_type->flag & RE_INTERNAL) == 0) {
-        drw_use_engine(DRW_engine_viewport_external_type.draw_engine);
-      }
-      break;
-  }
-}
-
-static void drw_engines_enable_overlays()
-{
-  drw_use_engine(&draw_engine_overlay_next_type);
-}
-
-static void drw_engine_enable_image_editor()
-{
-  if (DRW_engine_external_acquire_for_image_editor()) {
-    drw_use_engine(&draw_engine_external_type);
-  }
-  else {
-    drw_use_engine(&draw_engine_image_type);
-  }
-
-  drw_use_engine(&draw_engine_overlay_next_type);
-}
-
-static void drw_engines_enable_editors()
-{
-  SpaceLink *space_data = drw_get().space_data;
-  if (!space_data) {
+  SpaceLink *space_data = this->space_data;
+  if (space_data && space_data->spacetype == SPACE_IMAGE) {
+    if (DRW_engine_external_acquire_for_image_editor()) {
+      view_data.external.used = true;
+    }
+    else {
+      view_data.image.used = true;
+    }
+    view_data.overlay.used = true;
     return;
   }
 
-  if (space_data->spacetype == SPACE_IMAGE) {
-    drw_engine_enable_image_editor();
-  }
-  else if (space_data->spacetype == SPACE_NODE) {
+  if (space_data && space_data->spacetype == SPACE_NODE) {
     /* Only enable when drawing the space image backdrop. */
     SpaceNode *snode = (SpaceNode *)space_data;
     if ((snode->flag & SNODE_BACKDRAW) != 0) {
-      drw_use_engine(&draw_engine_image_type);
-      drw_use_engine(&draw_engine_overlay_next_type);
+      view_data.image.used = true;
+      view_data.overlay.used = true;
     }
-  }
-}
-
-static void drw_engines_enable(ViewLayer * /*view_layer*/,
-                               RenderEngineType *engine_type,
-                               bool gpencil_engine_needed)
-{
-  View3D *v3d = drw_get().v3d;
-  const eDrawType drawtype = eDrawType(v3d->shading.type);
-  const bool use_xray = XRAY_ENABLED(v3d);
-
-  drw_engines_enable_from_engine(engine_type, drawtype);
-  if (gpencil_engine_needed && ((drawtype >= OB_SOLID) || !use_xray)) {
-    drw_use_engine(&draw_engine_gpencil_type);
+    return;
   }
 
-  if (DRW_state_viewport_compositor_enabled()) {
-    drw_use_engine(&draw_engine_compositor_type);
+  if (ELEM(this->mode, DRWContext::SELECT_OBJECT, DRWContext::SELECT_OBJECT_MATERIAL)) {
+    this->view_data_active->grease_pencil.used = gpencil_engine_needed;
+    this->view_data_active->object_select.used = true;
+    return;
   }
 
-  drw_engines_enable_overlays();
+  if (ELEM(this->mode, DRWContext::SELECT_EDIT_MESH)) {
+    this->view_data_active->edit_select.used = true;
+    return;
+  }
+
+  if (ELEM(this->mode, DRWContext::DEPTH)) {
+    this->view_data_active->grease_pencil.used = gpencil_engine_needed;
+    this->view_data_active->overlay.used = true;
+    return;
+  }
+
+  /* Regular V3D drawing. */
+  {
+    const eDrawType drawtype = eDrawType(this->v3d->shading.type);
+    const bool use_xray = XRAY_ENABLED(this->v3d);
+
+    /* Base engine. */
+    switch (drawtype) {
+      case OB_WIRE:
+      case OB_SOLID:
+        view_data.workbench.used = true;
+        break;
+      case OB_MATERIAL:
+      case OB_RENDER:
+      default:
+        if (render_engine_type->draw_engine != nullptr) {
+          if (render_engine_type == &DRW_engine_viewport_eevee_next_type) {
+            view_data.eevee.used = true;
+          }
+          else if (render_engine_type == &DRW_engine_viewport_workbench_type) {
+            view_data.workbench.used = true;
+          }
+          else {
+            BLI_assert_unreachable();
+          }
+        }
+        else if ((render_engine_type->flag & RE_INTERNAL) == 0) {
+          view_data.external.used = true;
+        }
+        break;
+    }
+
+    if (gpencil_engine_needed && ((drawtype >= OB_SOLID) || !use_xray)) {
+      view_data.grease_pencil.used = true;
+    }
+
+    if (DRW_state_viewport_compositor_enabled()) {
+      view_data.compositor.used = true;
+    }
+
+    view_data.overlay.used = true;
 
 #ifdef WITH_DRAW_DEBUG
-  if (G.debug_value == 31) {
-    drw_use_engine(&draw_engine_debug_select_type);
-  }
+    if (G.debug_value == 31) {
+      view_data_active.edit_select_debug.used = true;
+    }
 #endif
-}
-
-static void drw_engines_disable()
-{
-  DRW_view_data_reset(drw_get().view_data_active);
+  }
 }
 
 static void drw_engines_data_validate()
@@ -1367,11 +1369,7 @@ static void drw_draw_render_loop_3d(DRWContext &draw_ctx, RenderEngineType *engi
   GPUViewport *viewport = draw_ctx.viewport;
   Depsgraph *depsgraph = draw_ctx.depsgraph;
   Scene *scene = draw_ctx.scene;
-  ViewLayer *view_layer = draw_ctx.view_layer;
   View3D *v3d = draw_ctx.v3d;
-
-  drw_task_graph_init();
-  DRW_viewport_colormanagement_set(viewport);
 
   const int object_type_exclude_viewport = v3d->object_type_exclude_viewport;
   /* Check if scene needs to perform the populate loop */
@@ -1382,9 +1380,11 @@ static void drw_draw_render_loop_3d(DRWContext &draw_ctx, RenderEngineType *engi
   const bool do_populate_loop = internal_engine || overlays_on || !draw_type_render ||
                                 gpencil_engine_needed;
 
-  /* Get list of enabled engines */
-  drw_engines_enable(view_layer, engine_type, gpencil_engine_needed);
+  draw_ctx.enable_engines(gpencil_engine_needed, engine_type);
   drw_engines_data_validate();
+
+  drw_task_graph_init();
+  DRW_viewport_colormanagement_set(viewport);
 
   drw_debug_init();
   draw_ctx.data->modules_init();
@@ -1460,9 +1460,6 @@ static void drw_draw_render_loop_3d(DRWContext &draw_ctx, RenderEngineType *engi
   else {
     GPU_framebuffer_restore();
   }
-
-  blender::draw::command::StateSet::set();
-  drw_engines_disable();
 }
 
 static void drw_draw_render_loop_2d(DRWContext &draw_ctx)
@@ -1477,8 +1474,7 @@ static void drw_draw_render_loop_2d(DRWContext &draw_ctx)
    * for the image editor this is when showing UVs. */
   const bool do_populate_loop = (draw_ctx.space_data->spacetype == SPACE_IMAGE);
 
-  /* Get list of enabled engines */
-  drw_engines_enable_editors();
+  draw_ctx.enable_engines();
   drw_engines_data_validate();
 
   drw_debug_init();
@@ -1538,9 +1534,6 @@ static void drw_draw_render_loop_2d(DRWContext &draw_ctx)
   else {
     GPU_framebuffer_restore();
   }
-
-  blender::draw::command::StateSet::set();
-  drw_engines_disable();
 }
 
 void DRW_draw_view(const bContext *C)
@@ -1714,6 +1707,7 @@ void DRW_render_gpencil(RenderEngine *engine, Depsgraph *depsgraph)
   GPU_depth_test(GPU_DEPTH_NONE);
 
   blender::gpu::TexturePool::get().reset(true);
+
   draw_ctx.release_data();
 
   /* Restore Drawing area. */
@@ -1788,9 +1782,6 @@ void DRW_render_to_image(RenderEngine *engine, Depsgraph *depsgraph)
   draw_ctx.data->modules_exit();
 
   blender::gpu::TexturePool::get().reset(true);
-
-  /* Reset state after drawing */
-  blender::draw::command::StateSet::set();
 
   draw_ctx.release_data();
   DRW_cache_free_old_subdiv();
@@ -1936,17 +1927,11 @@ void DRW_draw_select_loop(Depsgraph *depsgraph,
   Object *obact = BKE_view_layer_active_object_get(view_layer);
   Object *obedit = use_obedit_skip ? nullptr : OBEDIT_FROM_OBACT(obact);
 
-  DRWContext::Mode mode = do_material_sub_selection ? DRWContext::SELECT_OBJECT_MATERIAL :
-                                                      DRWContext::SELECT_OBJECT;
-
-  DRWContext draw_ctx(mode, depsgraph, viewport_size, nullptr, region, v3d);
-  draw_ctx.acquire_data();
-
   bool use_obedit = false;
   /* obedit_ctx_mode is used for selecting the right draw engines */
   // eContextObjectMode obedit_ctx_mode;
   /* object_mode is used for filtering objects in the depsgraph */
-  eObjectMode object_mode;
+  eObjectMode object_mode = eObjectMode::OB_MODE_EDIT;
   int object_type = 0;
   if (obedit != nullptr) {
     object_type = obedit->type;
@@ -1984,18 +1969,17 @@ void DRW_draw_select_loop(Depsgraph *depsgraph,
     }
   }
 
+  bool use_gpencil = !use_obedit && !draw_surface && drw_gpencil_engine_needed(depsgraph, v3d);
+
+  DRWContext::Mode mode = do_material_sub_selection ? DRWContext::SELECT_OBJECT_MATERIAL :
+                                                      DRWContext::SELECT_OBJECT;
+
+  DRWContext draw_ctx(mode, depsgraph, viewport_size, nullptr, region, v3d);
+  draw_ctx.acquire_data();
+  draw_ctx.enable_engines(use_gpencil);
+
   drw_task_graph_init();
-  /* Get list of enabled engines */
-  drw_use_engine(&draw_engine_select_next_type);
-  if (use_obedit) {
-    /* Noop. */
-  }
-  else if (!draw_surface) {
-    /* grease pencil selection */
-    if (drw_gpencil_engine_needed(depsgraph, v3d)) {
-      drw_use_engine(&draw_engine_gpencil_type);
-    }
-  }
+
   drw_engines_data_validate();
 
   /* Init engines */
@@ -2104,9 +2088,6 @@ void DRW_draw_select_loop(Depsgraph *depsgraph,
   /* WORKAROUND: Do not leave ownership to the viewport list. */
   DRW_viewport_texture_list_get()->depth = nullptr;
 
-  blender::draw::command::StateSet::set();
-  drw_engines_disable();
-
   draw_ctx.release_data();
 
   GPU_framebuffer_restore();
@@ -2124,11 +2105,7 @@ void DRW_draw_depth_loop(Depsgraph *depsgraph,
 
   DRWContext draw_ctx(DRWContext::DEPTH, depsgraph, viewport, nullptr, region, v3d);
   draw_ctx.acquire_data();
-
-  if (use_gpencil) {
-    drw_use_engine(&draw_engine_gpencil_type);
-  }
-  drw_engines_enable_overlays();
+  draw_ctx.enable_engines(use_gpencil);
 
   drw_task_graph_init();
 
@@ -2201,14 +2178,10 @@ void DRW_draw_depth_loop(Depsgraph *depsgraph,
 
   draw_ctx.data->modules_exit();
 
-  blender::draw::command::StateSet::set();
-
   /* TODO: Reading depth for operators should be done here. */
 
   GPU_framebuffer_restore();
   GPU_framebuffer_free(depth_fb);
-
-  drw_engines_disable();
 
   draw_ctx.release_data();
 }
@@ -2226,14 +2199,13 @@ void DRW_draw_select_id(Depsgraph *depsgraph, ARegion *region, View3D *v3d)
 
   DRWContext draw_ctx(DRWContext::SELECT_EDIT_MESH, depsgraph, viewport, nullptr, region, v3d);
   draw_ctx.acquire_data();
+  draw_ctx.enable_engines();
 
   drw_task_graph_init();
 
   /* Make sure select engine gets the correct vertex size. */
   UI_SetTheme(SPACE_VIEW3D, RGN_TYPE_WINDOW);
 
-  /* Select Engine */
-  drw_use_engine(&draw_engine_select_type);
   drw_engines_init();
   {
     drw_engines_cache_init();
@@ -2274,9 +2246,6 @@ void DRW_draw_select_id(Depsgraph *depsgraph, ARegion *region, View3D *v3d)
   /* Start Drawing */
   blender::draw::command::StateSet::set();
   drw_engines_draw_scene();
-  blender::draw::command::StateSet::set();
-
-  drw_engines_disable();
 
   draw_ctx.release_data();
 }

@@ -321,6 +321,7 @@ struct DRWContext {
   ~DRWContext();
 
   /**
+   * Acquire `data` and `view_data_active`.
    * Needs to be called before enabling any draw engine.
    * IMPORTANT: This can be called multiple times before release_data.
    * IMPORTANT: This must be called with an active GPUContext.
@@ -333,6 +334,15 @@ struct DRWContext {
    * with.
    */
   void release_data();
+
+  /**
+   * Enable engines from context. Not needed for Mode::RENDER and Mode::CUSTOM.
+   *
+   * `render_engine_type` specify the engine to use in OB_MATERIAL or OB_RENDER modes.
+   * `gpencil_engine_needed` should be set to true if the grease pencil engine is needed.
+   */
+  void enable_engines(bool gpencil_engine_needed = false,
+                      RenderEngineType *render_engine_type = nullptr);
 
   static DRWContext &get_active()
   {
