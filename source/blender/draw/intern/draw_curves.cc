@@ -194,6 +194,9 @@ void DRW_curves_update(draw::Manager &manager)
   manager.submit(pass);
   GPU_memory_barrier(GPU_BARRIER_SHADER_STORAGE);
 
+  /* Make sure calling this function again will not subdivide the same data. */
+  pass.init();
+
   DRW_submission_end();
 }
 

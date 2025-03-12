@@ -350,27 +350,17 @@ void Instance::end_sync()
 
 void Instance::render_sync()
 {
-  /* TODO: Remove old draw manager calls. */
-  DRW_cache_restart();
-
   manager->begin_sync();
-
-  DRW_curves_init();
 
   begin_sync();
 
   DRW_render_object_iter(this, render, depsgraph, object_sync_render);
-
-  DRW_curves_update(*manager);
 
   velocity.geometry_steps_fill();
 
   end_sync();
 
   manager->end_sync();
-
-  /* TODO: Remove old draw manager calls. */
-  DRW_curves_update(*manager);
 }
 
 bool Instance::needs_lightprobe_sphere_passes() const

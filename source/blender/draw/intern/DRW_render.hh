@@ -341,6 +341,14 @@ struct DRWContext {
   /* Free unused engine data. */
   void engines_data_validate();
 
+  using iter_callback_t =
+      std::function<void(struct DupliCacheManager &, struct ExtractionGraph &)>;
+
+  /* Run the sync phase with data extraction. iter_callback defines which object to sync. */
+  void sync(iter_callback_t iter_callback);
+  /* Run enabled engine init and sync callbacks. iter_callback defines which object to sync. */
+  void engines_init_and_sync(iter_callback_t iter_callback);
+
   static DRWContext &get_active()
   {
     return *g_context;
