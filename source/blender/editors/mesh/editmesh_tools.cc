@@ -1027,11 +1027,10 @@ void MESH_OT_edge_face_add(wmOperatorType *ot)
 
 static int edbm_mark_seam_exec(bContext *C, wmOperator *op)
 {
+  using namespace blender;
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   const bool clear = RNA_boolean_get(op->ptr, "clear");
-  BMEdge *eed;
-  BMIter iter;
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
       scene, view_layer, CTX_wm_view3d(C));
@@ -1045,41 +1044,65 @@ static int edbm_mark_seam_exec(bContext *C, wmOperator *op)
       continue;
     }
 
-    for (int axis = 0; axis < 3; axis++) {
-      if ((me->symmetry & (ME_SYMMETRY_X << axis)) == 0) {
-        continue;
+    if (me->symmetry == 0) {
+      BMIter iter;
+      BMEdge *eed;
+      if (clear) {
+        BM_ITER_MESH (eed, &iter, bm, BM_EDGES_OF_MESH) {
+          if (BM_elem_flag_test(eed, BM_ELEM_SELECT) && !BM_elem_flag_test(eed, BM_ELEM_HIDDEN)) {
+            BM_elem_flag_disable(eed, BM_ELEM_SEAM);
+          }
+        }
       }
-      const bool use_topology = ((me->editflag & ME_EDIT_MIRROR_TOPO) != 0);
-      EDBM_verts_mirror_cache_begin(em, axis, false, true, false, use_topology);
-
-      BM_ITER_MESH (eed, &iter, bm, BM_EDGES_OF_MESH) {
-        if (!BM_elem_flag_test(eed, BM_ELEM_SELECT) || BM_elem_flag_test(eed, BM_ELEM_HIDDEN)) {
+      else {
+        BM_ITER_MESH (eed, &iter, bm, BM_EDGES_OF_MESH) {
+          if (BM_elem_flag_test(eed, BM_ELEM_SELECT) && !BM_elem_flag_test(eed, BM_ELEM_HIDDEN)) {
+            BM_elem_flag_enable(eed, BM_ELEM_SEAM);
+          }
+        }
+      }
+    }
+    else {
+      for (int axis = 0; axis < 3; axis++) {
+        const int axis_flag = (ME_SYMMETRY_X << axis);
+        if ((me->symmetry & axis_flag) == 0) {
           continue;
         }
+        const bool use_topology = ((me->editflag & ME_EDIT_MIRROR_TOPO) != 0);
 
-        if (clear) {
-          BM_elem_flag_disable(eed, BM_ELEM_SEAM);
-        }
-        else {
-          BM_elem_flag_enable(eed, BM_ELEM_SEAM);
-        }
+        EDBM_verts_mirror_cache_begin(em, axis, false, true, false, use_topology);
 
-        BMEdge *eed_mirror = EDBM_verts_mirror_get_edge(em, eed);
-        if (eed_mirror) {
+        BMIter iter;
+        BMEdge *eed;
+        BM_ITER_MESH (eed, &iter, bm, BM_EDGES_OF_MESH) {
+          if (!BM_elem_flag_test(eed, BM_ELEM_SELECT) || BM_elem_flag_test(eed, BM_ELEM_HIDDEN)) {
+            continue;
+          }
           if (clear) {
-            BM_elem_flag_disable(eed_mirror, BM_ELEM_SEAM);
+            BM_elem_flag_disable(eed, BM_ELEM_SEAM);
           }
           else {
-            BM_elem_flag_enable(eed_mirror, BM_ELEM_SEAM);
+            BM_elem_flag_enable(eed, BM_ELEM_SEAM);
+          }
+
+          BMEdge *eed_mirror = EDBM_verts_mirror_get_edge(em, eed);
+          if (eed_mirror) {
+            if (clear) {
+              BM_elem_flag_disable(eed_mirror, BM_ELEM_SEAM);
+            }
+            else {
+              BM_elem_flag_enable(eed_mirror, BM_ELEM_SEAM);
+            }
           }
         }
-      }
 
-      EDBM_verts_mirror_cache_end(em);
+        EDBM_verts_mirror_cache_end(em);
+      }
     }
   }
 
   ED_uvedit_live_unwrap(scene, objects);
+
   for (Object *obedit : objects) {
     EDBMUpdate_Params params{};
     params.calc_looptris = true;
