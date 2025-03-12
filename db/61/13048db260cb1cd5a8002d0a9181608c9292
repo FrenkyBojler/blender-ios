@@ -1,2 +1,3 @@
 Referenced by commit 9baf082dc55, Fix #128760: NLA bake action throws error
 Referenced by issue #128762, Fix #128760: NLA bake action throws error
+Referenced by issue #135775, (BPY) Bake to an Empty Action Using bake_action_objects throws error
