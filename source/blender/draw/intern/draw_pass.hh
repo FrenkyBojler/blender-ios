@@ -96,11 +96,6 @@ class SubPassVector {
     blocks_.clear();
   }
 
-  size_t size()
-  {
-    return blocks_.is_empty() ? 0 : (blocks_.size() - 1) + blocks_.last()->size();
-  }
-
   int64_t append_and_get_index(T &&elem)
   {
     /* Do not go over the inline size so that existing members never move. */
@@ -618,14 +613,6 @@ template<class T> inline bool PassBase<T>::is_empty() const
   }
 
   return true;
-
-  // TODO: This is recursive?
-  size_t size = sub_passes_.size();
-  for (int i = 0; i < size; i++) {
-    if (!sub_passes_[i].is_empty()) {
-      return false;
-    }
-  }
 }
 
 template<class T> inline command::Undetermined &PassBase<T>::create_command(command::Type type)
