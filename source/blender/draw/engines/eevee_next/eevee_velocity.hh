@@ -13,8 +13,6 @@
 
 #pragma once
 
-#include <functional>
-
 #include "BLI_map.hh"
 
 #include "eevee_shader_shared.hh"
@@ -36,11 +34,23 @@ class VelocityModule {
   };
   struct VelocityGeometryData {
     /** VertBuf not yet ready to be copied to the #VelocityGeometryBuf. */
-    std::function<gpu::VertBuf *()> pos_buf;
+    gpu::Batch *batch_with_pos = nullptr;
+    gpu::VertBuf *pos_buf = nullptr;
     /* Offset in the #VelocityGeometryBuf to the start of the data. In vertex. */
     int ofs = 0;
     /* Length of the vertex buffer. In vertex. */
     int len = 0;
+
+    gpu::VertBuf *pos_buf_get()
+    {
+      if (this->pos_buf) {
+        return this->pos_buf;
+      }
+      if (this->batch_with_pos) {
+        return this->batch_with_pos->verts_(0);
+      }
+      return nullptr;
+    }
   };
   /**
    * The map contains indirection indices to the obmat and geometry in each step buffer.

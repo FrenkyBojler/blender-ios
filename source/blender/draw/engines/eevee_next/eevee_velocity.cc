@@ -184,34 +184,27 @@ bool VelocityModule::step_object_sync(ObjectKey &object_key,
       VelocityGeometryData data;
       if (particle_sys) {
         if (inst_.is_viewport()) {
-          gpu::VertBuf *vbo = DRW_hair_pos_buffer_get(ob, particle_sys, modifier_data);
-          data.pos_buf = [vbo]() { return vbo; };
+          data.pos_buf = DRW_hair_pos_buffer_get(ob, particle_sys, modifier_data);
         }
         else {
-          gpu::VertBuf *vbo = draw::hair_pos_buffer_get(
-              inst_.scene, ob, particle_sys, modifier_data);
-          data.pos_buf = [vbo]() { return vbo; };
+          data.pos_buf = draw::hair_pos_buffer_get(inst_.scene, ob, particle_sys, modifier_data);
         }
         return data;
       }
       switch (ob->type) {
         case OB_CURVES:
           if (inst_.is_viewport()) {
-            gpu::VertBuf *vbo = DRW_curves_pos_buffer_get(ob);
-            data.pos_buf = [vbo]() { return vbo; };
+            data.pos_buf = DRW_curves_pos_buffer_get(ob);
           }
           else {
-            gpu::VertBuf *vbo = draw::curves_pos_buffer_get(inst_.scene, ob);
-            data.pos_buf = [vbo]() { return vbo; };
+            data.pos_buf = draw::curves_pos_buffer_get(inst_.scene, ob);
           }
           break;
-        case OB_POINTCLOUD: {
-          gpu::VertBuf *vbo = DRW_pointcloud_position_and_radius_buffer_get(ob);
-          data.pos_buf = [vbo]() { return vbo; };
+        case OB_POINTCLOUD:
+          data.pos_buf = DRW_pointcloud_position_and_radius_buffer_get(ob);
           break;
-        }
-        default:
-          data.pos_buf = DRW_cache_object_pos_vertbuf_get(ob);
+        case OB_MESH:
+          data.batch_with_pos = DRW_mesh_batch_cache_get_surface(*static_cast<Mesh *>(ob->data));
           break;
       }
       return data;
@@ -219,7 +212,7 @@ bool VelocityModule::step_object_sync(ObjectKey &object_key,
 
     const VelocityGeometryData &data = geometry_map.lookup_or_add_cb(vel.id, add_cb);
 
-    if (!data.pos_buf) {
+    if (!(data.pos_buf || data.batch_with_pos)) {
       has_deform = false;
     }
   }
@@ -260,10 +253,11 @@ void VelocityModule::geometry_steps_fill()
 {
   uint dst_ofs = 0;
   for (VelocityGeometryData &geom : geometry_map.values()) {
-    if (!geom.pos_buf) {
+    gpu::VertBuf *pos_buf = geom.pos_buf_get();
+    if (!pos_buf) {
       continue;
     }
-    uint src_len = GPU_vertbuf_get_vertex_len(geom.pos_buf());
+    uint src_len = GPU_vertbuf_get_vertex_len(pos_buf);
     geom.len = src_len;
     geom.ofs = dst_ofs;
     dst_ofs += src_len;
@@ -281,10 +275,10 @@ void VelocityModule::geometry_steps_fill()
   copy_ps.bind_ssbo("out_buf", *geometry_steps[step_]);
 
   for (VelocityGeometryData &geom : geometry_map.values()) {
-    if (!geom.pos_buf || geom.len == 0) {
+    gpu::VertBuf *pos_buf = geom.pos_buf_get();
+    if (!pos_buf || geom.len == 0) {
       continue;
     }
-    gpu::VertBuf *pos_buf = geom.pos_buf();
     const GPUVertFormat *format = GPU_vertbuf_get_format(pos_buf);
     if (format->stride == 16) {
       GPU_storagebuf_copy_sub_from_vertbuf(*geometry_steps[step_],
@@ -395,8 +389,8 @@ void VelocityModule::end_sync()
       /* Current geometry step will be copied at the end of the frame.
        * Thus vel.geo.len[STEP_CURRENT] is not yet valid and the current length is manually
        * retrieved. */
-      const auto &pos_buf_fn = geometry_map.lookup_default(vel.id, VelocityGeometryData()).pos_buf;
-      gpu::VertBuf *pos_buf = pos_buf_fn ? pos_buf_fn() : nullptr;
+      gpu::VertBuf *pos_buf =
+          geometry_map.lookup_default(vel.id, VelocityGeometryData()).pos_buf_get();
       vel.geo.do_deform = pos_buf != nullptr &&
                           (vel.geo.len[STEP_PREVIOUS] == GPU_vertbuf_get_vertex_len(pos_buf));
     }

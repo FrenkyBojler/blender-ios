@@ -8,8 +8,6 @@
 
 #pragma once
 
-#include <functional>
-
 #include "BLI_math_matrix_types.hh"
 #include "BLI_span.hh"
 
@@ -48,12 +46,6 @@ blender::gpu::Batch *DRW_cache_object_loose_edges_get(Object *ob);
 blender::Span<blender::gpu::Batch *> DRW_cache_object_surface_material_get(
     Object *ob, blender::Span<const GPUMaterial *> materials);
 blender::gpu::Batch *DRW_cache_object_face_wireframe_get(const Scene *scene, Object *ob);
-
-/**
- * Returns the vertbuf used by shaded surface batch.
- * Function must be called after #DRW_mesh_batch_cache_create_requested.
- */
-std::function<blender::gpu::VertBuf *()> DRW_cache_object_pos_vertbuf_get(Object *ob);
 
 /* Meshes */
 

@@ -174,21 +174,6 @@ blender::gpu::Batch *DRW_cache_object_surface_get(Object *ob)
   }
 }
 
-std::function<blender::gpu::VertBuf *()> DRW_cache_object_pos_vertbuf_get(Object *ob)
-{
-  using namespace blender::draw;
-  Mesh *mesh = BKE_object_get_evaluated_mesh_no_subsurf_unchecked(ob);
-  short type = (mesh != nullptr) ? short(OB_MESH) : ob->type;
-
-  switch (type) {
-    case OB_MESH:
-      return DRW_mesh_batch_cache_pos_vertbuf_get(
-          *static_cast<Mesh *>((mesh != nullptr) ? mesh : ob->data));
-    default:
-      return {};
-  }
-}
-
 Span<blender::gpu::Batch *> DRW_cache_object_surface_material_get(
     Object *ob, const Span<const GPUMaterial *> materials)
 {
