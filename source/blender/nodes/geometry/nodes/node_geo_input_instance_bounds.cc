@@ -10,7 +10,6 @@ namespace blender::nodes::node_geo_input_instance_bounds_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Geometry>("Instances");
   b.add_input<decl::Bool>("Use Radius")
       .default_value(true)
       .description(
@@ -20,69 +19,71 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Vector>("Bounds Max").field_source();
 }
 
-class InstanceVectorFieldInput final : public bke::InstancesFieldInput {
+class InstanceBoundsField final : public bke::InstancesFieldInput {
  private:
-  GVArray gvarray;
+  bool use_radius_;
+  bool return_max_;
 
  public:
-  InstanceVectorFieldInput(VArray<float3> vectors)
-      : bke::InstancesFieldInput(CPPType::get<float3>(), "Vectors"), gvarray(std::move(vectors))
+  InstanceBoundsField(bool use_radius, bool return_max)
+      : bke::InstancesFieldInput(CPPType::get<float3>(), return_max ? "Bounds Max" : "Bounds Min"),
+        use_radius_(use_radius),
+        return_max_(return_max)
   {
   }
 
   GVArray get_varray_for_context(const bke::Instances &instances,
                                  const IndexMask & /*mask*/) const final
   {
-    return gvarray;
+    Span<int> handles = instances.reference_handles();
+    const int instance_count = instances.instances_num();
+    const int handle_count = instances.references().size();
+
+    Array<float3> bounds_min(handle_count, float3(0.0f));
+    Array<float3> bounds_max(handle_count, float3(0.0f));
+    Array<float3> output_bounds(instance_count, float3(0.0f));
+
+    bke::Instances &const_instances = const_cast<bke::Instances &>(instances);
+    const_instances.ensure_geometry_instances();
+
+    for (const int handle : instances.references().index_range()) {
+      const blender::bke::InstanceReference &reference = instances.references()[handle];
+      if (reference.type() == blender::bke::InstanceReference::Type::GeometrySet) {
+        GeometrySet &instance_geometry = const_instances.geometry_set_from_reference(handle);
+
+        std::optional<Bounds<float3>> sub_bounds =
+            instance_geometry.compute_boundbox_without_instances(use_radius_);
+
+        if (sub_bounds) {
+          bounds_min[handle] = sub_bounds->min;
+          bounds_max[handle] = sub_bounds->max;
+        }
+      }
+    }
+
+    for (int i = 0; i < instance_count; ++i) {
+      output_bounds[i] = return_max_ ? bounds_max[handles[i]] : bounds_min[handles[i]];
+    }
+
+    return VArray<float3>::ForContainer(std::move(output_bounds));
+  }
+
+  uint64_t hash() const override
+  {
+    return 22374372;
+  }
+
+  bool is_equal_to(const fn::FieldNode &other) const override
+  {
+    return dynamic_cast<const InstanceBoundsField *>(&other) != nullptr;
   }
 };
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  GeometrySet geometry_set = params.get_input<GeometrySet>("Instances");
-  const bool use_radius = params.extract_input<bool>("Use Radius");
-
-  if (!geometry_set.has_instances()) {
-    params.set_default_remaining_outputs();
-    return;
-  }
-
-  blender::bke::Instances &instances = *geometry_set.get_instances_for_write();
-  Span<int> handles = instances.reference_handles();
-  const int instance_count = instances.instances_num();
-  const int handle_count = instances.references().size();
-
-  Array<float3> bounds_min(handle_count, float3(0.0f));
-  Array<float3> bounds_max(handle_count, float3(0.0f));
-  Array<float3> inst_bounds_min(instance_count, float3(0.0f));
-  Array<float3> inst_bounds_max(instance_count, float3(0.0));
-
-  instances.ensure_geometry_instances();
-  for (const int handle : instances.references().index_range()) {
-
-    const blender::bke::InstanceReference &reference = instances.references()[handle];
-    if (reference.type() == blender::bke::InstanceReference::Type::GeometrySet) {
-      GeometrySet &instance_geometry = instances.geometry_set_from_reference(handle);
-
-      std::optional<Bounds<float3>> sub_bounds =
-          instance_geometry.compute_boundbox_without_instances(use_radius);
-
-      if (sub_bounds) {
-        bounds_min[handle] = sub_bounds->min;
-        bounds_max[handle] = sub_bounds->max;
-      }
-    }
-  }
-
-  for (int i = 0; i < instance_count; ++i) {
-    inst_bounds_min[i] = bounds_min[handles[i]];
-    inst_bounds_max[i] = bounds_max[handles[i]];
-  }
-
-  Field<float3> min_field{std::make_shared<InstanceVectorFieldInput>(
-      VArray<float3>::ForContainer(std::move(inst_bounds_min)))};
-  Field<float3> max_field{std::make_shared<InstanceVectorFieldInput>(
-      VArray<float3>::ForContainer(std::move(inst_bounds_max)))};
+  bool use_radius = params.extract_input<bool>("Use Radius");
+  Field<float3> min_field{std::make_shared<InstanceBoundsField>(use_radius, true)};
+  Field<float3> max_field{std::make_shared<InstanceBoundsField>(use_radius, false)};
 
   params.set_output("Bounds Min", min_field);
   params.set_output("Bounds Max", max_field);
