@@ -1211,7 +1211,7 @@ static void node_update_basis_from_socket_lists(
     socket->flag &= ~SOCK_PANEL_COLLAPSED;
 
     if (node_update_basis_socket(C, ntree, node, nullptr, nullptr, socket, block, locx, locy)) {
-      if (socket->next) {
+      if (socket->next && socket->next->is_available()) {
         locy -= NODE_ITEM_SPACING_Y;
       }
       add_output_space = true;
