@@ -3470,6 +3470,41 @@ static Object *convert_curves(Base &base,
   }
 }
 
+static int grease_pencil_to_mesh_add_material(Main& bmain,
+    Object& ob_grease_pencil,
+    const StringRefNull name,
+    const std::optional<float4>& stroke_color,
+    const std::optional<float4>& fill_color)
+{
+    /* Create or retrieve the material */
+    Material* ma = BKE_material_add(&bmain, name.c_str());
+
+    if (!ma) {
+        return -1;
+    }
+
+    /* Assign the material*/
+    BKE_object_material_slot_add(&bmain, &ob_grease_pencil);
+    BKE_object_material_assign(&bmain, &ob_grease_pencil, ma, ob_grease_pencil.totcol, BKE_MAT_ASSIGN_USERPREF);
+
+    /* Assign stroke and fill colors if provided. */
+    if (stroke_color.has_value()) {
+        copy_v4_v4(ma->gp_style->stroke_rgba, stroke_color.value());
+        srgb_to_linearrgb_v4(ma->gp_style->stroke_rgba, ma->gp_style->stroke_rgba);
+    }
+
+    if (fill_color.has_value()) {
+        copy_v4_v4(ma->gp_style->fill_rgba, fill_color.value());
+        srgb_to_linearrgb_v4(ma->gp_style->fill_rgba, ma->gp_style->fill_rgba);
+    }
+
+    /* Enable stroke/fill if the colors are set. */
+    SET_FLAG_FROM_TEST(ma->gp_style->flag, stroke_color.has_value(), GP_MATERIAL_STROKE_SHOW);
+    SET_FLAG_FROM_TEST(ma->gp_style->flag, fill_color.has_value(), GP_MATERIAL_FILL_SHOW);
+
+    return ob_grease_pencil.totcol - 1;
+}
+
 static Object *convert_grease_pencil_to_mesh(Base &base,
                                              ObjectConversionInfo &info,
                                              Base **r_new_base)
