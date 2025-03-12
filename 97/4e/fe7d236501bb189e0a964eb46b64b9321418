@@ -1,2 +1,3 @@
 Referenced by issue #135806, IO: Wrong error shown whith file permission issue on video output
 Referenced by pull request #135859, Fix #135806: Wrong error message on render to directory without permission
+Referenced by commit 92f2027f6258a10337338cd3a943a3caf946e9a2, Fix #135806: Wrong error message on render to directory without permission
