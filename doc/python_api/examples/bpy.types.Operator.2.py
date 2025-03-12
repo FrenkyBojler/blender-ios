@@ -9,6 +9,13 @@ execute().
 Some operators don't have an execute() function, removing the ability to be
 repeated from a script or macro.
 
+By default when operator is called directly from other scripts it's not going to use invoke()
+but going to use execute(). When it's called from UI it's going to
+use operator context from :class:`UILayout.operator_context` and in most cases it is invoke().
+In both cases different execution context can be provided:
+for UI - by changing :class:`UILayout.operator_context`
+and for scripts - by providing execution context argument to ``bpy.ops`` function.
+
 This example shows how to define an operator which gets mouse input to
 execute a function and that this operator can be invoked or executed from
 the python api.
