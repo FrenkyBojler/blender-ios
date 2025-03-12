@@ -348,6 +348,8 @@ struct DRWContext {
   void sync(iter_callback_t iter_callback);
   /* Run enabled engine init and sync callbacks. iter_callback defines which object to sync. */
   void engines_init_and_sync(iter_callback_t iter_callback);
+  /* Run enabled engine init and draw scene callbacks. */
+  void engines_draw_scene();
 
   static DRWContext &get_active()
   {

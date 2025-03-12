@@ -977,17 +977,19 @@ void DRWContext::engines_init_and_sync(iter_callback_t iter_callback)
   });
 }
 
-static void drw_engines_draw_scene()
+void DRWContext::engines_draw_scene()
 {
-  DRWContext &ctx = drw_get();
-  ctx.view_data_active->foreach_enabled_engine(
-      [&](ViewportEngineData *data, DrawEngineType *engine) {
-        if (engine->draw_scene) {
-          GPU_debug_group_begin(engine->idname);
-          engine->draw_scene(data);
-          GPU_debug_group_end();
-        }
-      });
+  /* Start Drawing */
+  blender::draw::command::StateSet::set();
+
+  view_data_active->foreach_enabled_engine([&](ViewportEngineData *data, DrawEngineType *engine) {
+    if (engine->draw_scene) {
+      GPU_debug_group_begin(engine->idname);
+      engine->draw_scene(data);
+      GPU_debug_group_end();
+    }
+  });
+
   /* Reset state after drawing */
   blender::draw::command::StateSet::set();
 
@@ -1138,28 +1140,25 @@ static bool drw_gpencil_engine_needed(Depsgraph *depsgraph, View3D *v3d)
 /** \name Callbacks
  * \{ */
 
-static void drw_callbacks_pre_scene()
+static void drw_callbacks_pre_scene(DRWContext &draw_ctx)
 {
-  DRWContext &draw_ctx = drw_get();
   RegionView3D *rv3d = draw_ctx.rv3d;
-
-  DRW_submission_start();
 
   GPU_matrix_projection_set(rv3d->winmat);
   GPU_matrix_set(rv3d->viewmat);
 
   if (draw_ctx.evil_C) {
-    ED_region_draw_cb_draw(draw_ctx.evil_C, draw_ctx.region, REGION_DRAW_PRE_VIEW);
-    /* Callback can be nasty and do whatever they want with the state.
-     * Don't trust them! */
     blender::draw::command::StateSet::set();
+    DRW_submission_start();
+    ED_region_draw_cb_draw(draw_ctx.evil_C, draw_ctx.region, REGION_DRAW_PRE_VIEW);
+    DRW_submission_end();
   }
-  DRW_submission_end();
+
+  /* State is reset later at the begining of `draw_ctx.engines_draw_scene()`. */
 }
 
-static void drw_callbacks_post_scene()
+static void drw_callbacks_post_scene(DRWContext &draw_ctx)
 {
-  DRWContext &draw_ctx = drw_get();
   RegionView3D *rv3d = draw_ctx.rv3d;
   ARegion *region = draw_ctx.region;
   View3D *v3d = draw_ctx.v3d;
@@ -1167,11 +1166,11 @@ static void drw_callbacks_post_scene()
 
   const bool do_annotations = draw_show_annotation();
 
+  /* State has been reset at the end `draw_ctx.engines_draw_scene()`. */
+
   DRW_submission_start();
   if (draw_ctx.evil_C) {
     DefaultFramebufferList *dfbl = DRW_viewport_framebuffer_list_get();
-
-    blender::draw::command::StateSet::set();
 
     GPU_framebuffer_bind(dfbl->overlay_fb);
 
@@ -1298,32 +1297,32 @@ static void drw_callbacks_post_scene()
 #endif
   }
   DRW_submission_end();
+
+  blender::draw::command::StateSet::set();
 }
 
-static void drw_callbacks_pre_scene_2D()
+static void drw_callbacks_pre_scene_2D(DRWContext &draw_ctx)
 {
-  DRWContext &draw_ctx = drw_get();
-  DRW_submission_start();
-
   if (draw_ctx.evil_C) {
+    blender::draw::command::StateSet::set();
+    DRW_submission_start();
     ED_region_draw_cb_draw(draw_ctx.evil_C, draw_ctx.region, REGION_DRAW_PRE_VIEW);
+    DRW_submission_end();
   }
 
-  DRW_submission_end();
+  /* State is reset later at the begining of `draw_ctx.engines_draw_scene()`. */
 }
 
-static void drw_callbacks_post_scene_2D(View2D &v2d)
+static void drw_callbacks_post_scene_2D(DRWContext &draw_ctx, View2D &v2d)
 {
-  DRWContext &draw_ctx = drw_get();
-  DRW_submission_start();
-
   const bool do_annotations = draw_show_annotation();
   const bool do_draw_gizmos = (draw_ctx.space_data->spacetype != SPACE_IMAGE);
 
+  /* State has been reset at the end `draw_ctx.engines_draw_scene()`. */
+
+  DRW_submission_start();
   if (draw_ctx.evil_C) {
     DefaultFramebufferList *dfbl = DRW_viewport_framebuffer_list_get();
-
-    blender::draw::command::StateSet::set();
 
     GPU_framebuffer_bind(dfbl->overlay_fb);
 
@@ -1362,6 +1361,8 @@ static void drw_callbacks_post_scene_2D(View2D &v2d)
   }
 
   DRW_submission_end();
+
+  blender::draw::command::StateSet::set();
 }
 
 DRWTextStore *DRW_text_cache_ensure()
@@ -1426,19 +1427,14 @@ static void drw_draw_render_loop_3d(DRWContext &draw_ctx, RenderEngineType *engi
     }
   });
 
-  /* Start Drawing */
-  blender::draw::command::StateSet::set();
-
   /* No frame-buffer allowed before drawing. */
   BLI_assert(GPU_framebuffer_active_get() == GPU_framebuffer_back_get());
   GPU_framebuffer_bind(draw_ctx.default_framebuffer());
   GPU_framebuffer_clear_depth_stencil(draw_ctx.default_framebuffer(), 1.0f, 0xFF);
 
-  drw_callbacks_pre_scene();
-
-  drw_engines_draw_scene();
-
-  drw_callbacks_post_scene();
+  drw_callbacks_pre_scene(draw_ctx);
+  draw_ctx.engines_draw_scene();
+  drw_callbacks_post_scene(draw_ctx);
 
   if (WM_draw_region_get_bound_viewport(draw_ctx.region)) {
     /* Don't unbind the frame-buffer yet in this case and let
@@ -1481,21 +1477,9 @@ static void drw_draw_render_loop_2d(DRWContext &draw_ctx)
   GPU_framebuffer_bind(draw_ctx.default_framebuffer());
   GPU_framebuffer_clear_depth_stencil(draw_ctx.default_framebuffer(), 1.0f, 0xFF);
 
-  /* Start Drawing */
-  blender::draw::command::StateSet::set();
-
-  drw_callbacks_pre_scene_2D();
-
-  drw_engines_draw_scene();
-
-  /* Fix 3D view being "laggy" on MACOS and MS-Windows+NVIDIA. (See #56996, #61474) */
-  if (GPU_type_matches_ex(GPU_DEVICE_ANY, GPU_OS_ANY, GPU_DRIVER_ANY, GPU_BACKEND_OPENGL)) {
-    GPU_flush();
-  }
-
-  drw_callbacks_post_scene_2D(region->v2d);
-
-  GPU_depth_test(GPU_DEPTH_LESS_EQUAL);
+  drw_callbacks_pre_scene_2D(draw_ctx);
+  draw_ctx.engines_draw_scene();
+  drw_callbacks_post_scene_2D(draw_ctx, region->v2d);
 
   if (WM_draw_region_get_bound_viewport(region)) {
     /* Don't unbind the frame-buffer yet in this case and let
@@ -1516,14 +1500,12 @@ void DRW_draw_view(const bContext *C)
   DRWContext draw_ctx(DRWContext::VIEWPORT, depsgraph, viewport, C);
   draw_ctx.acquire_data();
 
-  View3D *v3d = draw_ctx.v3d;
-
-  if (v3d) {
+  if (draw_ctx.v3d) {
     Scene *scene = DEG_get_evaluated_scene(depsgraph);
-    RenderEngineType *engine_type = ED_view3d_engine_type(scene, v3d->shading.type);
+    RenderEngineType *engine_type = ED_view3d_engine_type(scene, draw_ctx.v3d->shading.type);
 
     draw_ctx.options.draw_background = (scene->r.alphamode == R_ADDSKY) ||
-                                       (v3d->shading.type != OB_RENDER);
+                                       (draw_ctx.v3d->shading.type != OB_RENDER);
 
     drw_draw_render_loop_3d(draw_ctx, engine_type);
   }
@@ -2004,24 +1986,20 @@ void DRW_draw_select_loop(Depsgraph *depsgraph,
   draw_select_framebuffer_depth_only_setup(viewport_size);
   GPU_framebuffer_bind(g_select_buffer.framebuffer_depth_only);
   GPU_framebuffer_clear_depth(g_select_buffer.framebuffer_depth_only, 1.0f);
+
   /* WORKAROUND: Needed for Select-Next for keeping the same code-flow as Overlay-Next. */
   /* TODO(pragma37): Some engines retrieve the depth texture before this point (See #132922).
    * Check with @fclem. */
   BLI_assert(DRW_viewport_texture_list_get()->depth == nullptr);
   DRW_viewport_texture_list_get()->depth = g_select_buffer.texture_depth;
 
-  /* Start Drawing */
-  blender::draw::command::StateSet::set();
-  drw_callbacks_pre_scene();
-
+  drw_callbacks_pre_scene(draw_ctx);
   /* Only 1-2 passes. */
   while (true) {
     if (!select_pass_fn(DRW_SELECT_PASS_PRE, select_pass_user_data)) {
       break;
     }
-
-    drw_engines_draw_scene();
-
+    draw_ctx.engines_draw_scene();
     if (!select_pass_fn(DRW_SELECT_PASS_POST, select_pass_user_data)) {
       break;
     }
@@ -2086,21 +2064,16 @@ void DRW_draw_depth_loop(Depsgraph *depsgraph,
 
   /* Setup frame-buffer. */
   GPUTexture *depth_tx = GPU_viewport_depth_texture(viewport);
-
   GPUFrameBuffer *depth_fb = nullptr;
   GPU_framebuffer_ensure_config(&depth_fb,
                                 {
                                     GPU_ATTACHMENT_TEXTURE(depth_tx),
                                     GPU_ATTACHMENT_NONE,
                                 });
-
   GPU_framebuffer_bind(depth_fb);
   GPU_framebuffer_clear_depth(depth_fb, 1.0f);
 
-  /* Start Drawing */
-  blender::draw::command::StateSet::set();
-
-  drw_engines_draw_scene();
+  draw_ctx.engines_draw_scene();
 
   /* TODO: Reading depth for operators should be done here. */
 
@@ -2157,9 +2130,7 @@ void DRW_draw_select_id(Depsgraph *depsgraph, ARegion *region, View3D *v3d)
     }
   });
 
-  /* Start Drawing */
-  blender::draw::command::StateSet::set();
-  drw_engines_draw_scene();
+  draw_ctx.engines_draw_scene();
 
   draw_ctx.release_data();
 }
