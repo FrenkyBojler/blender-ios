@@ -630,8 +630,7 @@ template<class T> inline command::Undetermined &PassBase<T>::create_command(comm
            Type::Dispatch,
            Type::DispatchIndirect,
            Type::Draw,
-           Type::DrawIndirect,
-           Type::SubPassTransition))
+           Type::DrawIndirect))
   {
     is_empty_ = false;
   }
