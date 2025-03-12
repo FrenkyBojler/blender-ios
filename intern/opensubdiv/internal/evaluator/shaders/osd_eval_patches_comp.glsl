@@ -24,15 +24,6 @@
 
 //------------------------------------------------------------------------------
 
-#if defined(OPENSUBDIV_GLSL_COMPUTE_KERNEL_EVAL_STENCILS)
-uint getGlobalInvocationIndex()
-{
-  uint invocations_per_row = gl_WorkGroupSize.x * gl_NumWorkGroups.x;
-  return gl_GlobalInvocationID.x + gl_GlobalInvocationID.y * invocations_per_row;
-}
-#endif
-
-#if defined(OPENSUBDIV_GLSL_COMPUTE_KERNEL_EVAL_PATCHES)
 OsdPatchCoord GetPatchCoord(int coordIndex)
 {
   return patchCoords[coordIndex];
@@ -47,7 +38,6 @@ OsdPatchParam GetPatchParam(int patchIndex)
 {
   return patchParamBuffer[patchIndex];
 }
-#endif
 
 //------------------------------------------------------------------------------
 
@@ -105,103 +95,7 @@ void writeDv(int index, Vertex dv)
 }
 #endif
 
-#if defined(OPENSUBDIV_GLSL_COMPUTE_USE_2ND_DERIVATIVES)
-void writeDuu(int index, Vertex duu)
-{
-  int duuIndex = duuDesc.x + index * duuDesc.z;
-  for (int i = 0; i < LENGTH; ++i) {
-    duuBuffer[duuIndex + i] = duu.vertexData[i];
-  }
-}
-
-void writeDuv(int index, Vertex duv)
-{
-  int duvIndex = duvDesc.x + index * duvDesc.z;
-  for (int i = 0; i < LENGTH; ++i) {
-    duvBuffer[duvIndex + i] = duv.vertexData[i];
-  }
-}
-
-void writeDvv(int index, Vertex dvv)
-{
-  int dvvIndex = dvvDesc.x + index * dvvDesc.z;
-  for (int i = 0; i < LENGTH; ++i) {
-    dvvBuffer[dvvIndex + i] = dvv.vertexData[i];
-  }
-}
-#endif
-
 //------------------------------------------------------------------------------
-#if defined(OPENSUBDIV_GLSL_COMPUTE_KERNEL_EVAL_STENCILS)
-
-void main()
-{
-  int current = int(getGlobalInvocationIndex()) + batchStart;
-
-  if (current >= batchEnd) {
-    return;
-  }
-
-  Vertex dst;
-  clear(dst);
-
-  int offset = offsets_buf[current], size = sizes_buf[current];
-
-  for (int stencil = 0; stencil < size; ++stencil) {
-    int vindex = offset + stencil;
-    addWithWeight(dst, readVertex(indices_buf[vindex]), weights_buf[vindex]);
-  }
-
-  writeVertex(current, dst);
-
-#  if defined(OPENSUBDIV_GLSL_COMPUTE_USE_1ST_DERIVATIVES)
-  Vertex du, dv;
-  clear(du);
-  clear(dv);
-  for (int i = 0; i < size; ++i) {
-    // expects the compiler optimizes readVertex out here.
-    Vertex src = readVertex(indices_buf[offset + i]);
-    addWithWeight(du, src, du_weights_buf[offset + i]);
-    addWithWeight(dv, src, dv_weights_buf[offset + i]);
-  }
-
-  if (duDesc.y > 0) {  // length
-    writeDu(current, du);
-  }
-  if (dvDesc.y > 0) {
-    writeDv(current, dv);
-  }
-#  endif
-#  if defined(OPENSUBDIV_GLSL_COMPUTE_USE_2ND_DERIVATIVES)
-  Vertex duu, duv, dvv;
-  clear(duu);
-  clear(duv);
-  clear(dvv);
-  for (int i = 0; i < size; ++i) {
-    // expects the compiler optimizes readVertex out here.
-    Vertex src = readVertex(indices_buf[offset + i]);
-    addWithWeight(duu, src, duu_weights_buf[offset + i]);
-    addWithWeight(duv, src, duv_weights_buf[offset + i]);
-    addWithWeight(dvv, src, dvv_weights_buf[offset + i]);
-  }
-
-  if (duuDesc.y > 0) {  // length
-    writeDuu(current, duu);
-  }
-  if (duvDesc.y > 0) {
-    writeDuv(current, duv);
-  }
-  if (dvvDesc.y > 0) {
-    writeDvv(current, dvv);
-  }
-#  endif
-}
-
-#endif
-
-//------------------------------------------------------------------------------
-#if defined(OPENSUBDIV_GLSL_COMPUTE_KERNEL_EVAL_PATCHES)
-
 // PERFORMANCE: stride could be constant, but not as significant as length
 
 void main()
@@ -223,9 +117,6 @@ void main()
   clear(dst);
   clear(du);
   clear(dv);
-  clear(duu);
-  clear(duv);
-  clear(dvv);
 
   int indexBase = array.indexBase + array.stride * (coord.patchIndex - array.primitiveIdBase);
 
@@ -234,31 +125,15 @@ void main()
     addWithWeight(dst, readVertex(index), wP[cv]);
     addWithWeight(du, readVertex(index), wDu[cv]);
     addWithWeight(dv, readVertex(index), wDv[cv]);
-    addWithWeight(duu, readVertex(index), wDuu[cv]);
-    addWithWeight(duv, readVertex(index), wDuv[cv]);
-    addWithWeight(dvv, readVertex(index), wDvv[cv]);
   }
   writeVertex(current, dst);
 
-#  if defined(OPENSUBDIV_GLSL_COMPUTE_USE_1ST_DERIVATIVES)
+#if defined(OPENSUBDIV_GLSL_COMPUTE_USE_1ST_DERIVATIVES)
   if (duDesc.y > 0) {  // length
     writeDu(current, du);
   }
   if (dvDesc.y > 0) {
     writeDv(current, dv);
   }
-#  endif
-#  if defined(OPENSUBDIV_GLSL_COMPUTE_USE_2ND_DERIVATIVES)
-  if (duuDesc.y > 0) {  // length
-    writeDuu(current, duu);
-  }
-  if (duvDesc.y > 0) {  // length
-    writeDuv(current, duv);
-  }
-  if (dvvDesc.y > 0) {
-    writeDvv(current, dvv);
-  }
-#  endif
-}
-
 #endif
+}
