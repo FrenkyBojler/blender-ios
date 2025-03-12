@@ -114,7 +114,7 @@ void SceneState::init(bool scene_updated, Object *camera_ob /*=nullptr*/)
     camera_object = (rv3d->persp == RV3D_CAMOB) ? v3d->camera : nullptr;
   }
   camera = camera_object && camera_object->type == OB_CAMERA ?
-               static_cast<Camera *>(camera_object->data) :
+               &DRW_object_get_data_for_drawing<Camera>(*camera_object) :
                nullptr;
 
   object_mode = CTX_data_mode_enum_ex(context->object_edit, context->obact, context->object_mode);
@@ -294,9 +294,9 @@ ObjectState::ObjectState(const SceneState &scene_state,
   bool has_uv = false;
 
   if (ob->type == OB_MESH) {
-    const Mesh *mesh = static_cast<Mesh *>(ob->data);
-    const CustomData *cd_vdata = get_vert_custom_data(mesh);
-    const CustomData *cd_ldata = get_loop_custom_data(mesh);
+    const Mesh &mesh = DRW_object_get_data_for_drawing<Mesh>(*ob);
+    const CustomData *cd_vdata = get_vert_custom_data(&mesh);
+    const CustomData *cd_ldata = get_loop_custom_data(&mesh);
 
     has_color = (CustomData_has_layer(cd_vdata, CD_PROP_COLOR) ||
                  CustomData_has_layer(cd_vdata, CD_PROP_BYTE_COLOR) ||
