@@ -740,11 +740,10 @@ gpu::Batch *DRW_mesh_batch_cache_get_surface(Mesh &mesh)
 gpu::Batch *DRW_mesh_batch_cache_get_loose_edges(Mesh &mesh)
 {
   MeshBatchCache &cache = *mesh_batch_cache_get(mesh);
-  mesh_batch_cache_add_request(cache, MBC_LOOSE_EDGES);
   if (cache.no_loose_wire) {
     return nullptr;
   }
-
+  mesh_batch_cache_add_request(cache, MBC_LOOSE_EDGES);
   return DRW_batch_request(&cache.batch.loose_edges);
 }
 
