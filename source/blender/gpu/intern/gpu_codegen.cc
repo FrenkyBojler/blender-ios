@@ -54,12 +54,6 @@ using namespace blender::gpu::shader;
 
 static bool gpu_pass_shader_validate(struct GPUCodegenCreateInfo *create_info, GPUShader *shader);
 
-/**
- * IMPORTANT: Never add external reference. The GPUMaterial used to create the GPUPass (and its
- * GPUCodegenCreateInfo) can be free before actually compiling. This happens if there is an update
- * before deferred compilation happens and the GPUPass gets picked up by another GPUMaterial
- * (because of GPUPass reuse).
- */
 struct GPUCodegenCreateInfo : ShaderCreateInfo {
   struct NameBuffer {
     using NameEntry = std::array<char, 32>;
