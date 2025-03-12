@@ -218,7 +218,7 @@ struct SelectMap {
     select_output_buf.push_update();
   }
 
-  void pre_draw()
+  void pre_draw(bool backface_culling)
   {
     if (selection_type == SelectionType::DISABLED) {
       return;
@@ -250,6 +250,9 @@ struct SelectMap {
         GPU_storagebuf_clear(select_output_buf, 0xFFFFFFFFu);
         break;
     }
+
+    info_buf.backface_culling = backface_culling;
+
     info_buf.push_update();
   }
 
