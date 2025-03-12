@@ -4123,7 +4123,7 @@ static int grease_pencil_stroke_split_exec(bContext *C, wmOperator * /*op*/)
                                                                 selected_points);
     info.drawing.tag_topology_changed();
     changed = true;
-    });
+  });
 
   if (changed) {
     DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
