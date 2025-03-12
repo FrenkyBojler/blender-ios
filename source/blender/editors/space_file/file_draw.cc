@@ -1341,7 +1341,7 @@ void file_draw_list(const bContext *C, ARegion *region)
           file->asset->ensure_previewable();
 
           if (!filelist_is_ready(files)) {
-            return BIFIconID(ICON_TEMP);
+            return BIFIconID(ICON_PREVIEW_LOADING);
           }
           return blender::ed::asset::asset_preview_or_icon(*file->asset);
         }
