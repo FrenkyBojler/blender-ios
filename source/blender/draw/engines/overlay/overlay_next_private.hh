@@ -611,9 +611,9 @@ struct Resources : public select::SelectMap {
     free_movieclips_textures();
   }
 
-  void begin_sync(bool backface_culling)
+  void begin_sync()
   {
-    SelectMap::begin_sync(backface_culling);
+    SelectMap::begin_sync();
     free_movieclips_textures();
   }
 

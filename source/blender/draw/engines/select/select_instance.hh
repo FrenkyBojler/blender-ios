@@ -103,8 +103,6 @@ struct SelectMap {
   /** Uniform buffer to bind to all passes to pass information about the selection state. */
   UniformBuffer<SelectInfoData> info_buf;
 
-  DRWState drw_state_overide;
-
   SelectMap(const SelectionType selection_type) : selection_type(selection_type){};
 
   /* TODO(fclem): The sub_object_id id should eventually become some enum or take a sub-object
@@ -149,7 +147,7 @@ struct SelectMap {
     return {uint32_t(-1)};
   }
 
-  void begin_sync(bool backface_culling)
+  void begin_sync()
   {
     if (selection_type == SelectionType::DISABLED) {
       return;
@@ -160,11 +158,6 @@ struct SelectMap {
 #ifndef NDEBUG
     map_names.clear();
 #endif
-
-    drw_state_overide = DRW_STATE_WRITE_COLOR;
-    if (backface_culling) {
-      drw_state_overide |= DRW_STATE_CULL_BACK;
-    }
   }
 
   /** IMPORTANT: Changes the draw state. Need to be called after the pass's own state_set. */
@@ -175,7 +168,7 @@ struct SelectMap {
     }
 
     /* TODO: clipping state. */
-    pass.state_set(drw_state_overide);
+    pass.state_set(DRW_STATE_WRITE_COLOR);
     pass.bind_ubo(SELECT_DATA, &info_buf);
     pass.bind_ssbo(SELECT_ID_OUT, &select_output_buf);
   }
@@ -189,7 +182,7 @@ struct SelectMap {
 
     pass.use_custom_ids = true;
     /* TODO: clipping state. */
-    pass.state_set(drw_state_overide);
+    pass.state_set(DRW_STATE_WRITE_COLOR);
     pass.bind_ubo(SELECT_DATA, &info_buf);
     /* IMPORTANT: This binds a dummy buffer `in_select_buf` but it is not supposed to be used. */
     pass.bind_ssbo(SELECT_ID_IN, &dummy_select_buf);
@@ -206,7 +199,7 @@ struct SelectMap {
 
     pass.use_custom_ids = true;
     /* TODO: clipping state. */
-    sub.state_set(drw_state_overide);
+    sub.state_set(DRW_STATE_WRITE_COLOR);
     sub.bind_ubo(SELECT_DATA, &info_buf);
     /* IMPORTANT: This binds a dummy buffer `in_select_buf` but it is not supposed to be used. */
     sub.bind_ssbo(SELECT_ID_IN, &dummy_select_buf);

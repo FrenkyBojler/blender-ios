@@ -131,7 +131,7 @@ void Instance::begin_sync()
   state.camera_position = view.viewinv().location();
   state.camera_forward = view.viewinv().z_axis();
 
-  resources.begin_sync(state.v3d->shading.flag & V3D_SHADING_BACKFACE_CULLING);
+  resources.begin_sync();
 
   background.begin_sync(resources, state);
   image_prepass.begin_sync(resources, state);
