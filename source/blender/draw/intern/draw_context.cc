@@ -110,8 +110,13 @@ DRWContext &drw_get()
   return DRWContext::get_active();
 }
 
-DRWContext::DRWContext(
-    Depsgraph *depsgraph, GPUViewport *viewport, const bContext *C, ARegion *region, View3D *v3d)
+DRWContext::DRWContext(Mode mode_,
+                       Depsgraph *depsgraph,
+                       GPUViewport *viewport,
+                       const bContext *C,
+                       ARegion *region,
+                       View3D *v3d)
+    : mode(mode_)
 {
   this->viewport = viewport;
 
@@ -142,6 +147,12 @@ DRWContext::DRWContext(
   }
   else {
     this->object_pose = nullptr;
+  }
+
+  /* TODO(fclem): This belongs to the overlay engine. */
+  if (this->v3d != nullptr && mode == DRWContext::VIEWPORT) {
+    this->options.draw_text = ((this->v3d->flag2 & V3D_HIDE_OVERLAYS) == 0 &&
+                               (this->v3d->overlay.flag & V3D_OVERLAY_HIDE_TEXT) == 0);
   }
 
   /* View layer*/
@@ -1549,7 +1560,7 @@ void DRW_draw_view(const bContext *C)
   ARegion *region = CTX_wm_region(C);
   GPUViewport *viewport = WM_draw_region_get_bound_viewport(region);
 
-  DRWContext draw_ctx(depsgraph, viewport, C);
+  DRWContext draw_ctx(DRWContext::VIEWPORT, depsgraph, viewport, C);
 
   View3D *v3d = draw_ctx.v3d;
 
@@ -1557,8 +1568,6 @@ void DRW_draw_view(const bContext *C)
     Scene *scene = DEG_get_evaluated_scene(depsgraph);
     RenderEngineType *engine_type = ED_view3d_engine_type(scene, v3d->shading.type);
 
-    draw_ctx.options.draw_text = ((v3d->flag2 & V3D_HIDE_OVERLAYS) == 0 &&
-                                  (v3d->overlay.flag & V3D_OVERLAY_HIDE_TEXT) == 0);
     draw_ctx.options.draw_background = (scene->r.alphamode == R_ADDSKY) ||
                                        (v3d->shading.type != OB_RENDER);
 
@@ -1594,8 +1603,12 @@ void DRW_draw_render_loop_offscreen(Depsgraph *depsgraph,
   /* Just here to avoid an assert but shouldn't be required in practice. */
   GPU_framebuffer_restore();
 
-  DRWContext draw_ctx(depsgraph, viewport, nullptr, region, v3d);
-  drw_get().options.is_image_render = is_image_render;
+  /* TODO(fclem): We might want to differentiate between render preview and offscreen render in the
+   * future. The later can do progressive rendering. */
+  BLI_assert(is_xr_surface == !is_image_render);
+  DRWContext::Mode mode = is_xr_surface ? DRWContext::VIEWPORT_XR : DRWContext::VIEWPORT_RENDER;
+
+  DRWContext draw_ctx(mode, depsgraph, viewport, nullptr, region, v3d);
   drw_get().options.draw_background = draw_background;
 
   drw_draw_render_loop_3d(draw_ctx, engine_type);
@@ -1685,10 +1698,7 @@ void DRW_render_gpencil(RenderEngine *engine, Depsgraph *depsgraph)
 
   DRW_render_context_enable(render);
 
-  DRWContext draw_ctx(depsgraph);
-
-  drw_get().options.is_image_render = true;
-  drw_get().options.is_scene_render = true;
+  DRWContext draw_ctx(DRWContext::RENDER, depsgraph);
   drw_get().options.draw_background = scene->r.alphamode == R_ADDSKY;
 
   const int size[2] = {engine->resolution_x, engine->resolution_y};
@@ -1737,9 +1747,7 @@ void DRW_render_to_image(RenderEngine *engine, Depsgraph *depsgraph)
    * This shall remain in effect until immediate mode supports
    * multiple threads. */
 
-  DRWContext draw_ctx(depsgraph);
-  drw_get().options.is_image_render = true;
-  drw_get().options.is_scene_render = true;
+  DRWContext draw_ctx(DRWContext::RENDER, depsgraph);
   drw_get().options.draw_background = scene->r.alphamode == R_ADDSKY;
 
   /* Begin GPU workload Boundary */
@@ -1851,8 +1859,6 @@ void DRW_custom_pipeline_begin(DRWContext & /*draw_ctx*/,
                                DrawEngineType * /*draw_engine_type*/,
                                Depsgraph * /*depsgraph*/)
 {
-  drw_get().options.is_image_render = true;
-  drw_get().options.is_scene_render = true;
   drw_get().options.draw_background = false;
 
   drw_manager_init(&drw_get(), nullptr, nullptr);
@@ -1949,7 +1955,10 @@ void DRW_draw_select_loop(Depsgraph *depsgraph,
   Object *obact = BKE_view_layer_active_object_get(view_layer);
   Object *obedit = use_obedit_skip ? nullptr : OBEDIT_FROM_OBACT(obact);
 
-  DRWContext draw_ctx(depsgraph, nullptr, nullptr, region, v3d);
+  DRWContext::Mode mode = do_material_sub_selection ? DRWContext::SELECT_OBJECT_MATERIAL :
+                                                      DRWContext::SELECT_OBJECT;
+
+  DRWContext draw_ctx(mode, depsgraph, nullptr, nullptr, region, v3d);
 
   bool use_obedit = false;
   /* obedit_ctx_mode is used for selecting the right draw engines */
@@ -1996,8 +2005,6 @@ void DRW_draw_select_loop(Depsgraph *depsgraph,
   const int viewport_size[2] = {BLI_rcti_size_x(rect), BLI_rcti_size_y(rect)};
   drw_manager_init(&draw_ctx, nullptr, viewport_size);
 
-  drw_get().options.is_select = true;
-  drw_get().options.is_material_select = do_material_sub_selection;
   drw_task_graph_init();
   /* Get list of enabled engines */
   drw_use_engine(&draw_engine_select_next_type);
@@ -2136,9 +2143,7 @@ void DRW_draw_depth_loop(Depsgraph *depsgraph,
 {
   using namespace blender::draw;
 
-  DRWContext draw_ctx(depsgraph, viewport, nullptr, region, v3d);
-
-  drw_get().options.is_depth = true;
+  DRWContext draw_ctx(DRWContext::DEPTH, depsgraph, viewport, nullptr, region, v3d);
 
   drw_manager_init(&draw_ctx, viewport, nullptr);
 
@@ -2241,7 +2246,7 @@ void DRW_draw_select_id(Depsgraph *depsgraph, ARegion *region, View3D *v3d)
     return;
   }
 
-  DRWContext draw_ctx(depsgraph, viewport, nullptr, region, v3d);
+  DRWContext draw_ctx(DRWContext::SELECT_EDIT_MESH, depsgraph, viewport, nullptr, region, v3d);
 
   drw_task_graph_init();
 
@@ -2338,8 +2343,7 @@ bool DRW_state_is_painting()
 
 bool DRW_state_show_text()
 {
-  return !drw_get().options.is_select && !drw_get().options.is_depth &&
-         !drw_get().options.is_scene_render && drw_get().options.draw_text;
+  return drw_get().options.draw_text;
 }
 
 bool DRW_state_draw_support()

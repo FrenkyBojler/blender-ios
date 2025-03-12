@@ -228,13 +228,36 @@ struct DRWContext {
   /* Returns the viewport's default framebuffer. */
   GPUFrameBuffer *default_framebuffer();
 
-  /* TODO(fclem): Make these options constant and specified in the constructor. */
+  const enum Mode {
+    /* Render for display of 2D or 3D area. Runs on main thread. */
+    VIEWPORT = 0,
+
+    /* These viewport modes will render without some overlays (i.e. no text). */
+
+    /* Render for a 3D viewport in XR. Runs on main thread. */
+    VIEWPORT_XR,
+    /* Render for a 3D viewport offscreen render (python). Runs on main thread. */
+    VIEWPORT_OFFSCREEN,
+    /* Render for a 3D viewport image render (render preview). Runs on main thread. */
+    VIEWPORT_RENDER,
+
+    /* Render for object mode selection. Runs on main thread. */
+    SELECT_OBJECT,
+    /* Render for object material selection. Runs on main thread. */
+    SELECT_OBJECT_MATERIAL,
+    /* Render for edit mesh selection. Runs on main thread. */
+    SELECT_EDIT_MESH,
+
+    /* Render for depth picking (auto-depth). Runs on main thread. */
+    DEPTH,
+
+    /* Render for F12 final render. Can run in any thread. */
+    RENDER,
+    /* Used by custom pipeline. Can run in any thread. */
+    CUSTOM,
+  } mode;
+
   struct {
-    bool is_select = false;
-    bool is_material_select = false;
-    bool is_depth = false;
-    bool is_image_render = false;
-    bool is_scene_render = false;
     bool draw_background = false;
     bool draw_text = false;
   } options;
@@ -279,14 +302,14 @@ struct DRWContext {
   eObjectMode object_mode = OB_MODE_OBJECT;
 
  public:
-  DRWContext() = default;
   /**
    * If `viewport` is nullptr, the DRWData will be considered temporary and discarded on exit.
    * If `C` is nullptr, it means that the context is **not** associated with any UI or operator.
    * If `region` is nullptr, it will be sourced from the context `C` or left as nullptr otherwise.
    * If `v3d` is nullptr, it will be sourced from the context `C` or left as nullptr otherwise.
    */
-  DRWContext(Depsgraph *depsgraph,
+  DRWContext(Mode mode,
+             Depsgraph *depsgraph,
              GPUViewport *viewport = nullptr,
              const bContext *C = nullptr,
              ARegion *region = nullptr,
@@ -305,6 +328,31 @@ struct DRWContext {
   {
     return *g_context;
   }
+
+  bool is_select() const
+  {
+    return ELEM(mode, SELECT_OBJECT, SELECT_OBJECT_MATERIAL, SELECT_EDIT_MESH);
+  }
+  bool is_material_select() const
+  {
+    return ELEM(mode, SELECT_OBJECT_MATERIAL);
+  }
+  bool is_depth() const
+  {
+    return ELEM(mode, DEPTH);
+  }
+  bool is_image_render() const
+  {
+    return ELEM(mode, VIEWPORT_RENDER, RENDER);
+  }
+  bool is_scene_render() const
+  {
+    return ELEM(mode, RENDER);
+  }
+  bool is_viewport_image_render() const
+  {
+    return ELEM(mode, VIEWPORT_RENDER);
+  }
 };
 
 /** \} */
@@ -316,8 +364,7 @@ const DRWContext *DRW_context_get();
  */
 static inline bool DRW_state_is_select()
 {
-  DRWContext &draw_ctx = DRWContext::get_active();
-  return draw_ctx.options.is_select;
+  return DRWContext::get_active().is_select();
 }
 
 /**
@@ -325,8 +372,7 @@ static inline bool DRW_state_is_select()
  */
 static inline bool DRW_state_is_material_select()
 {
-  DRWContext &draw_ctx = DRWContext::get_active();
-  return draw_ctx.options.is_material_select;
+  return DRWContext::get_active().is_material_select();
 }
 
 /**
@@ -334,8 +380,7 @@ static inline bool DRW_state_is_material_select()
  */
 static inline bool DRW_state_is_depth()
 {
-  DRWContext &draw_ctx = DRWContext::get_active();
-  return draw_ctx.options.is_depth;
+  return DRWContext::get_active().is_depth();
 }
 
 /**
@@ -343,8 +388,8 @@ static inline bool DRW_state_is_depth()
  */
 static inline bool DRW_state_is_image_render()
 {
-  DRWContext &draw_ctx = DRWContext::get_active();
-  return draw_ctx.options.is_image_render;
+  return DRWContext::get_active().is_image_render();
+  ;
 }
 
 /**
@@ -353,9 +398,7 @@ static inline bool DRW_state_is_image_render()
  */
 static inline bool DRW_state_is_scene_render()
 {
-  DRWContext &draw_ctx = DRWContext::get_active();
-  BLI_assert(draw_ctx.options.is_scene_render ? draw_ctx.options.is_image_render : true);
-  return draw_ctx.options.is_scene_render;
+  return DRWContext::get_active().is_scene_render();
 }
 
 /**
@@ -363,8 +406,7 @@ static inline bool DRW_state_is_scene_render()
  */
 static inline bool DRW_state_is_viewport_image_render()
 {
-  DRWContext &draw_ctx = DRWContext::get_active();
-  return draw_ctx.options.is_image_render && !draw_ctx.options.is_scene_render;
+  return DRWContext::get_active().is_viewport_image_render();
 }
 
 bool DRW_state_is_playback();
