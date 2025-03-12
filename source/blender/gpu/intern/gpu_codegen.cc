@@ -171,6 +171,12 @@ struct GPUPass {
 
   void update()
   {
+    update_compilation();
+    update_gc_timestamp();
+  }
+
+  void update_compilation()
+  {
     if (compilation_handle) {
       if (GPU_shader_batch_is_ready(compilation_handle)) {
         finalize_compilation();
@@ -182,7 +188,10 @@ struct GPUPass {
       compilation_handle = GPU_shader_batch_create_from_infos(
           Span<GPUShaderCreateInfo *>(&base_info, 1));
     }
+  }
 
+  void update_gc_timestamp()
+  {
     if (refcount == 0) {
       gc_timestamp++;
     }
@@ -298,7 +307,7 @@ class GPUPassCache {
 
     bool base_passes_ready = true;
 
-    /* Base Passes */
+    /* Base Passes. */
     for (auto &engine_passes : passes_) {
       for (std::unique_ptr<GPUPass> &pass : engine_passes[false].values()) {
         pass->update();
@@ -306,6 +315,17 @@ class GPUPassCache {
       }
 
       engine_passes[false].remove_if(
+          [&](auto item) { return item.value->should_gc(gc_collect_rate_); });
+    }
+
+    /* Optimization Passes GC. */
+    for (auto &engine_passes : passes_) {
+      for (std::unique_ptr<GPUPass> &pass : engine_passes[true].values()) {
+        pass->update_gc_timestamp();
+      }
+
+      engine_passes[true].remove_if(
+          /* TODO: Use lower rate for optimization passes? */
           [&](auto item) { return item.value->should_gc(gc_collect_rate_); });
     }
 
@@ -318,15 +338,11 @@ class GPUPassCache {
       return;
     }
 
-    /* Optimization Passes */
+    /* Optimization Passes Compilation. */
     for (auto &engine_passes : passes_) {
       for (std::unique_ptr<GPUPass> &pass : engine_passes[true].values()) {
-        pass->update();
+        pass->update_compilation();
       }
-
-      engine_passes[true].remove_if(
-          /* TODO: Use lower rate for optimization passes? */
-          [&](auto item) { return item.value->should_gc(gc_collect_rate_); });
     }
   }
 };
