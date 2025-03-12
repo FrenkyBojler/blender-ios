@@ -212,7 +212,30 @@ static void read_custom_properties(const ufbx_props &props, ID &id)
           idprop = IDP_New(IDP_STRING, &val, name);
         }
         break;
-      //@TODO: vector, color, color_with_alpha, translation, rotation, ...
+      case UFBX_PROP_VECTOR:
+      case UFBX_PROP_COLOR:
+        val.array.len = 3;
+        val.array.type = IDP_DOUBLE;
+        idprop = IDP_New(IDP_ARRAY, &val, name);
+        {
+          double *dst = static_cast<double *>(idprop->data.pointer);
+          dst[0] = prop.value_vec3.x;
+          dst[1] = prop.value_vec3.y;
+          dst[2] = prop.value_vec3.z;
+        }
+        break;
+      case UFBX_PROP_COLOR_WITH_ALPHA:
+        val.array.len = 4;
+        val.array.type = IDP_DOUBLE;
+        idprop = IDP_New(IDP_ARRAY, &val, name);
+        {
+          double *dst = static_cast<double *>(idprop->data.pointer);
+          dst[0] = prop.value_vec4.x;
+          dst[1] = prop.value_vec4.y;
+          dst[2] = prop.value_vec4.z;
+          dst[3] = prop.value_vec4.z;
+        }
+        break;
       default:
         break;
     }

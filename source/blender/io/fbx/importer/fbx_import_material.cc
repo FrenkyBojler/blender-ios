@@ -132,13 +132,19 @@ static void set_bsdf_socket_values(bNode *bsdf, Material *mat, const ufbx_materi
 
   /* Alpha: complex logic based on TransparencyFactor, Opacity or TransparentColor. */
   float alpha = 1.0f;
-  if (fmat.fbx.specular_exponent.has_value) {
+  if (fmat.fbx.transparency_factor.has_value) {
     alpha = 1.0f - fmat.fbx.transparency_factor.value_real;
   }
   if (alpha == 0.0f || alpha == 1.0f) {
-    /*@TODO: handle "Opacity" being present like in Python importer. */
-    if (fmat.fbx.transparency_color.has_value) {
+    float opacity = ufbx_find_real(&fmat.props, "Opacity", -1.0f);
+    if (opacity != -1.0f) {
+      alpha = opacity;
+    }
+    else if (fmat.fbx.transparency_color.has_value) {
       alpha = 1.0f - fmat.fbx.transparency_color.value_vec3.x;
+    }
+    else {
+      alpha = 1.0f;
     }
   }
   set_socket_float("Alpha", alpha, bsdf);
