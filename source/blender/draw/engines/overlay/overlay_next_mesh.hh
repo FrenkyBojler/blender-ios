@@ -726,7 +726,18 @@ class MeshUVs : Overlay {
 
     ResourceHandle res_handle = manager.unique_handle(ob_ref);
 
+    const SpaceImage *space_image = reinterpret_cast<const SpaceImage *>(state.space_data);
+
     if (show_wireframe_) {
+      // Overwrite the alpha value on the UV Wireframe shader so that selected objects appear less
+      // opaque than the active object in the Image Editor.
+      if (ob.data != state.view_layer->basact->object->data) {
+        wireframe_ps_.push_constant("alpha", space_image->uv_opacity * 0.25f);
+      }
+      else {
+        wireframe_ps_.push_constant("alpha", space_image->uv_opacity);
+      }
+
       gpu::Batch *geom = DRW_mesh_batch_cache_get_uv_edges(ob, mesh);
       wireframe_ps_.draw_expand(geom, GPU_PRIM_TRIS, 2, 1, res_handle);
     }

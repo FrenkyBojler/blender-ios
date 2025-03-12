@@ -201,6 +201,23 @@ static void extract_edituv_lines_mesh(const MeshRenderData &mr,
       }
     }
   }
+  else if (!mr.use_hide) {
+    // When use_hide is false on MeshRenderData, it means the Object the mesh belongs to is in
+    // Object mode since that boolean is only true when using edit modes. In this case, draw all
+    // the faces belonging to the mesh.
+    IndexMask all_faces = faces.index_range();
+    all_faces.foreach_index([&](const int face_index) {
+      const IndexRange face = faces[face_index];
+      for (const int corner : face) {
+        const int edge = corner_edges[corner];
+        if (!orig_index_edge.is_empty() && orig_index_edge[edge] == ORIGINDEX_NONE) {
+          continue;
+        }
+        const int corner_next = bke::mesh::face_corner_next(face, corner);
+        GPU_indexbuf_add_line_verts(&builder, corner, corner_next);
+      }
+    });
+  }
   else {
     IndexMaskMemory memory;
     IndexMask visible = faces.index_range();
