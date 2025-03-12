@@ -1,1 +1,2 @@
 Referenced by issue #135806, IO: Wrong error shown whith file permission issue on video output
+Referenced by pull request #135859, Fix #135806: Wrong error message on render to directory without permission
