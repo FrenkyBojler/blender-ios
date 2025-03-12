@@ -201,9 +201,9 @@ static void modify_stroke_color(Object &ob,
         const ColorGeometry4f material_color = get_material_color(curve_i);
 
         const IndexRange points = points_by_curve[curve_i];
-        for (const int64_t point_i : points) {
-          const float curve_input = points.size() >= 2 ? (float(point_i - points.first()) /
-                                                          float(points.size() - 1)) :
+        for (const int64_t i : points.index_range()) {
+          const int64_t point_i = points[i];
+          const float curve_input = points.size() >= 2 ? (float(i) / float(points.size() - 1)) :
                                                          0.0f;
           const float curve_factor = use_curve ? BKE_curvemapping_evaluateF(
                                                      tmd.influence.custom_curve, 0, curve_input) :
