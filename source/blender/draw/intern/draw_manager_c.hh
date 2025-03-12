@@ -80,13 +80,13 @@ void drw_debug_module_free(DRWDebugModule *module);
 GPUStorageBuf *drw_debug_gpu_draw_buf_get();
 
 void drw_batch_cache_validate(Object *ob);
-void drw_batch_cache_generate_requested(Object *ob);
+void drw_batch_cache_generate_requested(Object *ob, TaskGraph &task_graph);
 
 /**
  * \warning Only evaluated mesh data is handled by this delayed generation.
  */
 void drw_batch_cache_generate_requested_delayed(Object *ob);
-void drw_batch_cache_generate_requested_evaluated_mesh_or_curve(Object *ob);
+void drw_batch_cache_generate_requested_evaluated_mesh_or_curve(Object *ob, TaskGraph &task_graph);
 
 namespace blender::draw {
 

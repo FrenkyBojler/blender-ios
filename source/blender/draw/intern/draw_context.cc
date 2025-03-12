@@ -224,30 +224,50 @@ static bool draw_show_annotation()
 }
 
 /* -------------------------------------------------------------------- */
-/** \name Threading
+/** \name Threaded Extraction
  * \{ */
 
-static void drw_task_graph_init()
-{
-  DRWContext &draw_ctx = drw_get();
-  BLI_assert(draw_ctx.task_graph == nullptr);
-  draw_ctx.task_graph = BLI_task_graph_create();
-  draw_ctx.delayed_extraction = BLI_gset_ptr_new(__func__);
-}
+struct ExtractionGraph {
+ public:
+  TaskGraph *graph = BLI_task_graph_create();
 
-static void drw_task_graph_deinit()
-{
-  DRWContext &draw_ctx = drw_get();
-  BLI_task_graph_work_and_wait(draw_ctx.task_graph);
+ private:
+  /* WORKAROUND: BLI_gset_free is not allowing to pass a data pointer to the free function. */
+  static thread_local TaskGraph *task_graph_ptr_;
 
-  BLI_gset_free(draw_ctx.delayed_extraction,
-                (void (*)(void *key))drw_batch_cache_generate_requested_evaluated_mesh_or_curve);
-  draw_ctx.delayed_extraction = nullptr;
-  BLI_task_graph_work_and_wait(draw_ctx.task_graph);
+ public:
+  ~ExtractionGraph()
+  {
+    BLI_assert_msg(graph == nullptr, "Missing call to work_and_wait");
+  }
 
-  BLI_task_graph_free(draw_ctx.task_graph);
-  draw_ctx.task_graph = nullptr;
-}
+  /* `delayed_extraction` is a set of object to add to the graph before running.
+   * The non-null, the set is consumed and freed after use. */
+  void work_and_wait(GSet *&delayed_extraction)
+  {
+    BLI_assert_msg(graph, "Trying to submit more than once");
+
+    if (delayed_extraction) {
+      task_graph_ptr_ = graph;
+      BLI_gset_free(delayed_extraction, delayed_extraction_free_callback);
+      task_graph_ptr_ = nullptr;
+      delayed_extraction = nullptr;
+    }
+
+    BLI_task_graph_work_and_wait(graph);
+    BLI_task_graph_free(graph);
+    graph = nullptr;
+  }
+
+ private:
+  static void delayed_extraction_free_callback(void *object)
+  {
+    drw_batch_cache_generate_requested_evaluated_mesh_or_curve(reinterpret_cast<Object *>(object),
+                                                               *task_graph_ptr_);
+  }
+};
+
+thread_local TaskGraph *ExtractionGraph::task_graph_ptr_ = nullptr;
 
 /** \} */
 
@@ -535,7 +555,7 @@ struct DupliCacheManager {
 
  public:
   void try_add(blender::draw::ObjectRef &ob_ref);
-  void extract_all();
+  void extract_all(ExtractionGraph &extraction);
 };
 
 void DupliCacheManager::try_add(blender::draw::ObjectRef &ob_ref)
@@ -567,7 +587,7 @@ void DupliCacheManager::try_add(blender::draw::ObjectRef &ob_ref)
   }
 }
 
-void DupliCacheManager::extract_all()
+void DupliCacheManager::extract_all(ExtractionGraph &extraction)
 {
   /* Reset for next iter. */
   last_key_ = {};
@@ -601,7 +621,7 @@ void DupliCacheManager::extract_all()
       ob = &tmp_object;
     }
 
-    drw_batch_cache_generate_requested(ob);
+    drw_batch_cache_generate_requested(ob, *extraction.graph);
   }
 
   /* TODO(fclem): Could eventually keep the set allocated. */
@@ -901,7 +921,7 @@ static void drw_engines_cache_init()
       });
 }
 
-static void drw_engines_cache_populate(blender::draw::ObjectRef &ref)
+static void drw_engines_cache_populate(blender::draw::ObjectRef &ref, ExtractionGraph &extraction)
 {
   /* HACK: DrawData is copied by copy-on-eval from the duplicated object.
    * This is valid for IDs that cannot be instantiated but this
@@ -925,7 +945,7 @@ static void drw_engines_cache_populate(blender::draw::ObjectRef &ref)
   /* TODO: in the future it would be nice to generate once for all viewports.
    * But we need threaded DRW manager first. */
   if (ref.is_dupli() == false) {
-    drw_batch_cache_generate_requested(ref.object);
+    drw_batch_cache_generate_requested(ref.object, *extraction.graph);
   }
 
   /* ... and clearing it here too because this draw data is
@@ -1082,9 +1102,9 @@ void DRWContext::enable_engines(bool gpencil_engine_needed, RenderEngineType *re
   }
 }
 
-static void drw_engines_data_validate()
+void DRWContext::engines_data_validate()
 {
-  DRW_view_data_free_unused(drw_get().view_data_active);
+  DRW_view_data_free_unused(this->view_data_active);
 }
 
 /* Fast check to see if gpencil drawing engine is needed.
@@ -1365,9 +1385,8 @@ static void drw_draw_render_loop_3d(DRWContext &draw_ctx, RenderEngineType *engi
                                 gpencil_engine_needed;
 
   draw_ctx.enable_engines(gpencil_engine_needed, engine_type);
-  drw_engines_data_validate();
+  draw_ctx.engines_data_validate();
 
-  drw_task_graph_init();
   DRW_viewport_colormanagement_set(viewport);
 
   drw_debug_init();
@@ -1383,6 +1402,7 @@ static void drw_draw_render_loop_3d(DRWContext &draw_ctx, RenderEngineType *engi
   {
     drw_engines_cache_init();
     DupliCacheManager dupli_handler;
+    ExtractionGraph extraction;
 
     /* Only iterate over objects for internal engines or when overlays are enabled */
     if (do_populate_loop) {
@@ -1401,15 +1421,15 @@ static void drw_draw_render_loop_3d(DRWContext &draw_ctx, RenderEngineType *engi
         }
         blender::draw::ObjectRef ob_ref(data_, ob);
         dupli_handler.try_add(ob_ref);
-        drw_engines_cache_populate(ob_ref);
+        drw_engines_cache_populate(ob_ref, extraction);
       }
       DEG_OBJECT_ITER_END;
     }
 
     drw_engines_cache_finish();
 
-    dupli_handler.extract_all();
-    drw_task_graph_deinit();
+    dupli_handler.extract_all(extraction);
+    extraction.work_and_wait(draw_ctx.delayed_extraction);
   }
 
   GPU_framebuffer_bind(draw_ctx.default_framebuffer());
@@ -1458,7 +1478,7 @@ static void drw_draw_render_loop_2d(DRWContext &draw_ctx)
   const bool do_populate_loop = (draw_ctx.space_data->spacetype == SPACE_IMAGE);
 
   draw_ctx.enable_engines();
-  drw_engines_data_validate();
+  draw_ctx.engines_data_validate();
 
   drw_debug_init();
 
@@ -1469,11 +1489,11 @@ static void drw_draw_render_loop_2d(DRWContext &draw_ctx)
 
   /* Init engines */
   drw_engines_init();
-  drw_task_graph_init();
 
   /* Cache filling */
   {
     drw_engines_cache_init();
+    ExtractionGraph extraction;
 
     /* Only iterate over objects when overlay uses object data. */
     if (do_populate_loop) {
@@ -1482,14 +1502,14 @@ static void drw_draw_render_loop_2d(DRWContext &draw_ctx)
       deg_iter_settings.flags = DEG_OBJECT_ITER_FOR_RENDER_ENGINE_FLAGS;
       DEG_OBJECT_ITER_BEGIN (&deg_iter_settings, ob) {
         blender::draw::ObjectRef ob_ref(ob);
-        drw_engines_cache_populate(ob_ref);
+        drw_engines_cache_populate(ob_ref, extraction);
       }
       DEG_OBJECT_ITER_END;
     }
 
     drw_engines_cache_finish();
+    extraction.work_and_wait(draw_ctx.delayed_extraction);
   }
-  drw_task_graph_deinit();
 
   GPU_framebuffer_bind(draw_ctx.default_framebuffer());
 
@@ -1782,14 +1802,14 @@ void DRW_render_object_iter(void *vedata,
                                              Depsgraph *depsgraph))
 {
   using namespace blender::draw;
-  const DRWContext *draw_ctx = DRW_context_get();
+  DRWContext &draw_ctx = drw_get();
   drw_get().data->modules_init();
 
   DupliCacheManager dupli_handler;
+  ExtractionGraph extraction;
 
-  drw_task_graph_init();
-  const int object_type_exclude_viewport = draw_ctx->v3d ?
-                                               draw_ctx->v3d->object_type_exclude_viewport :
+  const int object_type_exclude_viewport = draw_ctx.v3d ?
+                                               draw_ctx.v3d->object_type_exclude_viewport :
                                                0;
   DEGObjectIterSettings deg_iter_settings = {nullptr};
   deg_iter_settings.depsgraph = depsgraph;
@@ -1804,14 +1824,14 @@ void DRW_render_object_iter(void *vedata,
       }
       callback(vedata, ob_ref, engine, depsgraph);
       if (ob_ref.is_dupli() == false) {
-        drw_batch_cache_generate_requested(ob);
+        drw_batch_cache_generate_requested(ob, *extraction.graph);
       }
     }
   }
   DEG_OBJECT_ITER_END;
 
-  dupli_handler.extract_all();
-  drw_task_graph_deinit();
+  dupli_handler.extract_all(extraction);
+  extraction.work_and_wait(draw_ctx.delayed_extraction);
 }
 
 void DRW_custom_pipeline_begin(DRWContext &draw_ctx,
@@ -1960,10 +1980,7 @@ void DRW_draw_select_loop(Depsgraph *depsgraph,
   DRWContext draw_ctx(mode, depsgraph, viewport_size, nullptr, region, v3d);
   draw_ctx.acquire_data();
   draw_ctx.enable_engines(use_gpencil);
-
-  drw_task_graph_init();
-
-  drw_engines_data_validate();
+  draw_ctx.engines_data_validate();
 
   /* Init engines */
   drw_engines_init();
@@ -1972,11 +1989,12 @@ void DRW_draw_select_loop(Depsgraph *depsgraph,
   {
     drw_engines_cache_init();
     DupliCacheManager dupli_handler;
+    ExtractionGraph extraction;
 
     if (use_obedit) {
       FOREACH_OBJECT_IN_MODE_BEGIN (scene, view_layer, v3d, object_type, object_mode, ob_iter) {
         blender::draw::ObjectRef ob_ref(ob_iter);
-        drw_engines_cache_populate(ob_ref);
+        drw_engines_cache_populate(ob_ref, extraction);
       }
       FOREACH_OBJECT_IN_MODE_END;
     }
@@ -2025,15 +2043,16 @@ void DRW_draw_select_loop(Depsgraph *depsgraph,
 
           blender::draw::ObjectRef ob_ref(data_, ob);
           dupli_handler.try_add(ob_ref);
-          drw_engines_cache_populate(ob_ref);
+          drw_engines_cache_populate(ob_ref, extraction);
         }
       }
       DEG_OBJECT_ITER_END;
     }
 
-    dupli_handler.extract_all();
-    drw_task_graph_deinit();
     drw_engines_cache_finish();
+
+    dupli_handler.extract_all(extraction);
+    extraction.work_and_wait(draw_ctx.delayed_extraction);
   }
 
   /* Setup frame-buffer. */
@@ -2089,8 +2108,6 @@ void DRW_draw_depth_loop(Depsgraph *depsgraph,
   draw_ctx.acquire_data();
   draw_ctx.enable_engines(use_gpencil);
 
-  drw_task_graph_init();
-
   /* Setup frame-buffer. */
   GPUTexture *depth_tx = GPU_viewport_depth_texture(viewport);
 
@@ -2110,6 +2127,7 @@ void DRW_draw_depth_loop(Depsgraph *depsgraph,
 
   {
     drw_engines_cache_init();
+    ExtractionGraph extraction;
 
     const int object_type_exclude_viewport = v3d->object_type_exclude_viewport;
     DEGObjectIterSettings deg_iter_settings = {nullptr};
@@ -2120,7 +2138,7 @@ void DRW_draw_depth_loop(Depsgraph *depsgraph,
     }
     if (use_only_active_object) {
       blender::draw::ObjectRef ob_ref(draw_ctx.obact);
-      drw_engines_cache_populate(ob_ref);
+      drw_engines_cache_populate(ob_ref, extraction);
     }
     else {
       DupliCacheManager dupli_handler;
@@ -2139,15 +2157,15 @@ void DRW_draw_depth_loop(Depsgraph *depsgraph,
         }
         blender::draw::ObjectRef ob_ref(data_, ob);
         dupli_handler.try_add(ob_ref);
-        drw_engines_cache_populate(ob_ref);
+        drw_engines_cache_populate(ob_ref, extraction);
       }
       DEG_OBJECT_ITER_END;
-      dupli_handler.extract_all();
+      dupli_handler.extract_all(extraction);
     }
 
     drw_engines_cache_finish();
 
-    drw_task_graph_deinit();
+    extraction.work_and_wait(draw_ctx.delayed_extraction);
   }
 
   /* Start Drawing */
@@ -2182,18 +2200,17 @@ void DRW_draw_select_id(Depsgraph *depsgraph, ARegion *region, View3D *v3d)
   draw_ctx.acquire_data();
   draw_ctx.enable_engines();
 
-  drw_task_graph_init();
-
   /* Make sure select engine gets the correct vertex size. */
   UI_SetTheme(SPACE_VIEW3D, RGN_TYPE_WINDOW);
 
   drw_engines_init();
   {
     drw_engines_cache_init();
+    ExtractionGraph extraction;
 
     for (Object *obj_eval : sel_ctx->objects) {
       blender::draw::ObjectRef ob_ref(obj_eval);
-      drw_engines_cache_populate(ob_ref);
+      drw_engines_cache_populate(ob_ref, extraction);
     }
 
     if (RETOPOLOGY_ENABLED(v3d) && !XRAY_ENABLED(v3d)) {
@@ -2214,14 +2231,14 @@ void DRW_draw_select_id(Depsgraph *depsgraph, ARegion *region, View3D *v3d)
           continue;
         }
         blender::draw::ObjectRef ob_ref(data_, ob);
-        drw_engines_cache_populate(ob_ref);
+        drw_engines_cache_populate(ob_ref, extraction);
       }
       DEG_OBJECT_ITER_END;
     }
 
     drw_engines_cache_finish();
 
-    drw_task_graph_deinit();
+    extraction.work_and_wait(draw_ctx.delayed_extraction);
   }
 
   /* Start Drawing */

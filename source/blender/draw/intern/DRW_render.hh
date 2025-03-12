@@ -260,7 +260,6 @@ struct DRWContext {
   /* Convenience pointer to text_store owned by the viewport */
   DRWTextStore **text_store_p = nullptr;
 
-  TaskGraph *task_graph = nullptr;
   /* Contains list of objects that needs to be extracted from other objects. */
   GSet *delayed_extraction = nullptr;
 
@@ -338,6 +337,9 @@ struct DRWContext {
    */
   void enable_engines(bool gpencil_engine_needed = false,
                       RenderEngineType *render_engine_type = nullptr);
+
+  /* Free unused engine data. */
+  void engines_data_validate();
 
   static DRWContext &get_active()
   {
