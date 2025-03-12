@@ -112,13 +112,16 @@ DRWContext &drw_get()
 
 DRWContext::DRWContext(Mode mode_,
                        Depsgraph *depsgraph,
-                       GPUViewport *viewport,
+                       const int2 size,
                        const bContext *C,
                        ARegion *region,
                        View3D *v3d)
     : mode(mode_)
 {
-  this->viewport = viewport;
+  BLI_assert(size.x > 0 && size.y > 0);
+
+  this->size = float2(size);
+  this->inv_size = 1.0f / this->size;
 
   this->depsgraph = depsgraph;
   this->scene = DEG_get_evaluated_scene(depsgraph);
@@ -155,11 +158,33 @@ DRWContext::DRWContext(Mode mode_,
                                (this->v3d->overlay.flag & V3D_OVERLAY_HIDE_TEXT) == 0);
   }
 
-  /* View layer*/
+  /* View layer can be lazily synced. */
   BKE_view_layer_synced_ensure(this->scene, this->view_layer);
+
+  /* fclem: Is this still needed ? */
+  if (this->object_edit && rv3d) {
+    ED_view3d_init_mats_rv3d(this->object_edit, rv3d);
+  }
 
   BLI_assert(g_context == nullptr);
   g_context = this;
+}
+
+DRWContext::DRWContext(Mode mode_,
+                       Depsgraph *depsgraph,
+                       GPUViewport *viewport,
+                       const bContext *C,
+                       ARegion *region,
+                       View3D *v3d)
+    : DRWContext(mode_,
+                 depsgraph,
+                 int2(GPU_texture_width(GPU_viewport_color_texture(viewport, 0)),
+                      GPU_texture_height(GPU_viewport_color_texture(viewport, 0))),
+                 C,
+                 region,
+                 v3d)
+{
+  this->viewport = viewport;
 }
 
 DRWContext::~DRWContext()
@@ -172,16 +197,6 @@ GPUFrameBuffer *DRWContext::default_framebuffer()
 {
   DefaultFramebufferList *dfbl = DRW_view_data_default_framebuffer_list_get(view_data_active);
   return dfbl->default_fb;
-}
-
-void DRWContext::release_data()
-{
-  if (this->data != nullptr && this->viewport == nullptr) {
-    DRW_viewport_data_free(this->data);
-  }
-  this->data = nullptr;
-  this->viewport = nullptr;
-  this->in_progress = false;
 }
 
 static bool draw_show_annotation()
@@ -355,11 +370,6 @@ void DRWData::modules_exit()
   DRW_smoke_exit(this);
 }
 
-static void drw_viewport_data_reset(DRWData * /*drw_data*/)
-{
-  blender::gpu::TexturePool::get().reset();
-}
-
 void DRW_viewport_data_free(DRWData *drw_data)
 {
   for (int i = 0; i < 2; i++) {
@@ -374,108 +384,81 @@ void DRW_viewport_data_free(DRWData *drw_data)
 
 static DRWData *drw_viewport_data_ensure(GPUViewport *viewport)
 {
-  DRWData **vmempool_p = GPU_viewport_data_get(viewport);
-  DRWData *vmempool = *vmempool_p;
+  DRWData **data_p = GPU_viewport_data_get(viewport);
+  DRWData *data = *data_p;
 
-  if (vmempool == nullptr) {
-    *vmempool_p = vmempool = DRW_viewport_data_create();
+  if (data == nullptr) {
+    *data_p = data = DRW_viewport_data_create();
   }
-  return vmempool;
+  return data;
 }
 
-/**
- * Sets drw_get().viewport, drw_get().size and a lot of other important variables.
- * Needs to be called before enabling any draw engine.
- * - viewport can be nullptr. In this case the data will not be stored and will be free at
- *   drw_manager_exit().
- * - size can be nullptr to get it from viewport.
- * - if viewport and size are nullptr, size is set to (1, 1).
- *
- * IMPORTANT: #drw_manager_init can be called multiple times before #drw_manager_exit.
- */
-static void drw_manager_init(DRWContext *dst, GPUViewport *viewport, const int size[2])
+void DRWContext::acquire_data()
 {
-  RegionView3D *rv3d = dst->rv3d;
-  ARegion *region = dst->region;
+  BLI_assert(GPU_context_active_get() != nullptr);
 
-  dst->in_progress = true;
+  blender::gpu::TexturePool::get().reset();
 
-  int view = (viewport) ? GPU_viewport_active_view_get(viewport) : 0;
+  {
+    /* Acquire DRWData. */
+    if (!this->viewport && this->data) {
+      /* Manager was init first without a viewport, created DRWData, but is being re-init.
+       * In this case, keep the old data. */
+    }
+    else if (this->viewport) {
+      /* Use viewport's persistent DRWData. */
+      this->data = drw_viewport_data_ensure(this->viewport);
+    }
+    else {
+      /* Create temporary DRWData. Freed in drw_manager_exit(). */
+      this->data = DRW_viewport_data_create();
+    }
+    int view = (this->viewport) ? GPU_viewport_active_view_get(this->viewport) : 0;
+    this->view_data_active = this->data->view_data[view];
 
-  if (!dst->viewport && dst->data) {
-    /* Manager was init first without a viewport, created DRWData, but is being re-init.
-     * In this case, keep the old data. */
-    /* If it is being re-init with a valid viewport, it means there is something wrong. */
-    BLI_assert(viewport == nullptr);
+    this->view_data_active->texture_list_size_validate(int2(this->size));
+
+    if (this->viewport) {
+      DRW_view_data_default_lists_from_viewport(this->view_data_active, this->viewport);
+    }
   }
-  else if (viewport) {
-    /* Use viewport's persistent DRWData. */
-    dst->data = drw_viewport_data_ensure(viewport);
-  }
-  else {
-    /* Create temporary DRWData. Freed in drw_manager_exit(). */
-    dst->data = DRW_viewport_data_create();
-  }
+  {
+    /* Create the default view. */
+    if (this->rv3d != nullptr) {
+      blender::draw::View::default_set(float4x4(this->rv3d->viewmat),
+                                       float4x4(this->rv3d->winmat));
+    }
+    else if (this->region) {
+      /* Assume that if rv3d is nullptr, we are drawing for a 2D area. */
+      View2D *v2d = &this->region->v2d;
+      rctf region_space = {0.0f, 1.0f, 0.0f, 1.0f};
 
-  dst->viewport = viewport;
-  dst->view_data_active = dst->data->view_data[view];
+      float4x4 viewmat;
+      BLI_rctf_transform_calc_m4_pivot_min(&v2d->cur, &region_space, viewmat.ptr());
 
-  drw_viewport_data_reset(dst->data);
+      float4x4 winmat = float4x4::identity();
+      winmat[0][0] = winmat[1][1] = 2.0f;
+      winmat[3][0] = winmat[3][1] = -1.0f;
 
-  bool do_validation = true;
-  if (size == nullptr && viewport == nullptr) {
-    /* Avoid division by 0. Engines will either override this or not use it. */
-    dst->size[0] = 1.0f;
-    dst->size[1] = 1.0f;
+      blender::draw::View::default_set(viewmat, winmat);
+    }
+    else {
+      /* Assume that this is the render mode or custom mode and
+       * that the default view will be set appropriately or not used. */
+      BLI_assert(this->is_image_render() || this->mode == DRWContext::CUSTOM);
+    }
   }
-  else if (size == nullptr) {
-    BLI_assert(viewport);
-    GPUTexture *tex = GPU_viewport_color_texture(viewport, 0);
-    dst->size[0] = GPU_texture_width(tex);
-    dst->size[1] = GPU_texture_height(tex);
-  }
-  else {
-    BLI_assert(size);
-    dst->size[0] = size[0];
-    dst->size[1] = size[1];
-    /* Fix case when used in DRW_cache_restart(). */
-    do_validation = false;
-  }
-  dst->inv_size[0] = 1.0f / dst->size[0];
-  dst->inv_size[1] = 1.0f / dst->size[1];
+}
 
-  if (do_validation) {
-    dst->view_data_active->texture_list_size_validate(int2(dst->size));
+void DRWContext::release_data()
+{
+  BLI_assert(GPU_context_active_get() != nullptr);
+
+  if (this->data != nullptr && this->viewport == nullptr) {
+    DRW_viewport_data_free(this->data);
   }
-
-  if (viewport) {
-    DRW_view_data_default_lists_from_viewport(dst->view_data_active, viewport);
-  }
-
-  if (rv3d != nullptr) {
-    blender::draw::View::default_set(float4x4(rv3d->viewmat), float4x4(rv3d->winmat));
-  }
-  else if (region) {
-    View2D *v2d = &region->v2d;
-    float viewmat[4][4];
-    float winmat[4][4];
-
-    rctf region_space = {0.0f, 1.0f, 0.0f, 1.0f};
-    BLI_rctf_transform_calc_m4_pivot_min(&v2d->cur, &region_space, viewmat);
-
-    unit_m4(winmat);
-    winmat[0][0] = 2.0f;
-    winmat[1][1] = 2.0f;
-    winmat[3][0] = -1.0f;
-    winmat[3][1] = -1.0f;
-
-    blender::draw::View::default_set(float4x4(viewmat), float4x4(winmat));
-  }
-
-  /* fclem: Is this still needed ? */
-  if (dst->object_edit && rv3d) {
-    ED_view3d_init_mats_rv3d(dst->object_edit, rv3d);
-  }
+  this->data = nullptr;
+  this->viewport = nullptr;
 }
 
 DefaultFramebufferList *DRW_viewport_framebuffer_list_get()
@@ -1379,8 +1362,6 @@ static void drw_draw_render_loop_3d(DRWContext &draw_ctx, RenderEngineType *engi
   View3D *v3d = draw_ctx.v3d;
 
   drw_task_graph_init();
-
-  drw_manager_init(&draw_ctx, viewport, nullptr);
   DRW_viewport_colormanagement_set(viewport);
 
   const int object_type_exclude_viewport = v3d->object_type_exclude_viewport;
@@ -1481,7 +1462,6 @@ static void drw_draw_render_loop_2d(DRWContext &draw_ctx)
   Depsgraph *depsgraph = draw_ctx.depsgraph;
   ARegion *region = draw_ctx.region;
 
-  drw_manager_init(&draw_ctx, viewport, nullptr);
   DRW_viewport_colormanagement_set(viewport);
 
   /* TODO(jbakker): Only populate when editor needs to draw object.
@@ -1561,6 +1541,7 @@ void DRW_draw_view(const bContext *C)
   GPUViewport *viewport = WM_draw_region_get_bound_viewport(region);
 
   DRWContext draw_ctx(DRWContext::VIEWPORT, depsgraph, viewport, C);
+  draw_ctx.acquire_data();
 
   View3D *v3d = draw_ctx.v3d;
 
@@ -1609,6 +1590,7 @@ void DRW_draw_render_loop_offscreen(Depsgraph *depsgraph,
   DRWContext::Mode mode = is_xr_surface ? DRWContext::VIEWPORT_XR : DRWContext::VIEWPORT_RENDER;
 
   DRWContext draw_ctx(mode, depsgraph, viewport, nullptr, region, v3d);
+  draw_ctx.acquire_data();
   drw_get().options.draw_background = draw_background;
 
   drw_draw_render_loop_3d(draw_ctx, engine_type);
@@ -1698,19 +1680,16 @@ void DRW_render_gpencil(RenderEngine *engine, Depsgraph *depsgraph)
 
   DRW_render_context_enable(render);
 
-  DRWContext draw_ctx(DRWContext::RENDER, depsgraph);
+  DRWContext draw_ctx(DRWContext::RENDER, depsgraph, {engine->resolution_x, engine->resolution_y});
+  draw_ctx.acquire_data();
   drw_get().options.draw_background = scene->r.alphamode == R_ADDSKY;
-
-  const int size[2] = {engine->resolution_x, engine->resolution_y};
-
-  drw_manager_init(&draw_ctx, nullptr, size);
 
   /* Main rendering. */
   rctf view_rect;
   rcti render_rect;
   RE_GetViewPlane(render, &view_rect, &render_rect);
   if (BLI_rcti_is_empty(&render_rect)) {
-    BLI_rcti_init(&render_rect, 0, size[0], 0, size[1]);
+    BLI_rcti_init(&render_rect, 0, draw_ctx.size[0], 0, draw_ctx.size[1]);
   }
 
   for (RenderView *render_view = static_cast<RenderView *>(render_result->views.first);
@@ -1747,15 +1726,12 @@ void DRW_render_to_image(RenderEngine *engine, Depsgraph *depsgraph)
    * This shall remain in effect until immediate mode supports
    * multiple threads. */
 
-  DRWContext draw_ctx(DRWContext::RENDER, depsgraph);
-  drw_get().options.draw_background = scene->r.alphamode == R_ADDSKY;
-
   /* Begin GPU workload Boundary */
   GPU_render_begin();
 
-  const int size[2] = {engine->resolution_x, engine->resolution_y};
-
-  drw_manager_init(&draw_ctx, nullptr, size);
+  DRWContext draw_ctx(DRWContext::RENDER, depsgraph, {engine->resolution_x, engine->resolution_y});
+  draw_ctx.acquire_data();
+  drw_get().options.draw_background = scene->r.alphamode == R_ADDSKY;
 
   ViewportEngineData *data = DRW_view_data_engine_data_get_ensure(drw_get().view_data_active,
                                                                   draw_engine_type);
@@ -1765,21 +1741,21 @@ void DRW_render_to_image(RenderEngine *engine, Depsgraph *depsgraph)
   rcti render_rect;
   RE_GetViewPlane(render, &view_rect, &render_rect);
   if (BLI_rcti_is_empty(&render_rect)) {
-    BLI_rcti_init(&render_rect, 0, size[0], 0, size[1]);
+    BLI_rcti_init(&render_rect, 0, draw_ctx.size[0], 0, draw_ctx.size[1]);
   }
 
   /* Reset state before drawing */
   blender::draw::command::StateSet::set();
 
   /* set default viewport */
-  GPU_viewport(0, 0, size[0], size[1]);
+  GPU_viewport(0, 0, draw_ctx.size[0], draw_ctx.size[1]);
 
   /* Init render result. */
   RenderResult *render_result = RE_engine_begin_result(engine,
                                                        0,
                                                        0,
-                                                       size[0],
-                                                       size[1],
+                                                       draw_ctx.size[0],
+                                                       draw_ctx.size[1],
                                                        view_layer->name,
                                                        /*RR_ALL_VIEWS*/ nullptr);
   RenderLayer *render_layer = static_cast<RenderLayer *>(render_result->layers.first);
@@ -1861,7 +1837,7 @@ void DRW_custom_pipeline_begin(DRWContext & /*draw_ctx*/,
 {
   drw_get().options.draw_background = false;
 
-  drw_manager_init(&drw_get(), nullptr, nullptr);
+  drw_get().acquire_data();
 
   drw_get().data->modules_init();
 }
@@ -1890,9 +1866,7 @@ void DRW_cache_restart()
   using namespace blender::draw;
   drw_get().data->modules_exit();
 
-  drw_manager_init(&drw_get(),
-                   drw_get().viewport,
-                   blender::int2{int(drw_get().size[0]), int(drw_get().size[1])});
+  drw_get().acquire_data();
 
   drw_get().data->modules_init();
 }
@@ -1951,6 +1925,7 @@ void DRW_draw_select_loop(Depsgraph *depsgraph,
   using namespace blender::draw;
   Scene *scene = DEG_get_evaluated_scene(depsgraph);
   ViewLayer *view_layer = DEG_get_evaluated_view_layer(depsgraph);
+  const int viewport_size[2] = {BLI_rcti_size_x(rect), BLI_rcti_size_y(rect)};
 
   Object *obact = BKE_view_layer_active_object_get(view_layer);
   Object *obedit = use_obedit_skip ? nullptr : OBEDIT_FROM_OBACT(obact);
@@ -1958,7 +1933,8 @@ void DRW_draw_select_loop(Depsgraph *depsgraph,
   DRWContext::Mode mode = do_material_sub_selection ? DRWContext::SELECT_OBJECT_MATERIAL :
                                                       DRWContext::SELECT_OBJECT;
 
-  DRWContext draw_ctx(mode, depsgraph, nullptr, nullptr, region, v3d);
+  DRWContext draw_ctx(mode, depsgraph, viewport_size, nullptr, region, v3d);
+  draw_ctx.acquire_data();
 
   bool use_obedit = false;
   /* obedit_ctx_mode is used for selecting the right draw engines */
@@ -2001,9 +1977,6 @@ void DRW_draw_select_loop(Depsgraph *depsgraph,
       }
     }
   }
-
-  const int viewport_size[2] = {BLI_rcti_size_x(rect), BLI_rcti_size_y(rect)};
-  drw_manager_init(&draw_ctx, nullptr, viewport_size);
 
   drw_task_graph_init();
   /* Get list of enabled engines */
@@ -2144,8 +2117,7 @@ void DRW_draw_depth_loop(Depsgraph *depsgraph,
   using namespace blender::draw;
 
   DRWContext draw_ctx(DRWContext::DEPTH, depsgraph, viewport, nullptr, region, v3d);
-
-  drw_manager_init(&draw_ctx, viewport, nullptr);
+  draw_ctx.acquire_data();
 
   if (use_gpencil) {
     drw_use_engine(&draw_engine_gpencil_type);
@@ -2247,10 +2219,9 @@ void DRW_draw_select_id(Depsgraph *depsgraph, ARegion *region, View3D *v3d)
   }
 
   DRWContext draw_ctx(DRWContext::SELECT_EDIT_MESH, depsgraph, viewport, nullptr, region, v3d);
+  draw_ctx.acquire_data();
 
   drw_task_graph_init();
-
-  drw_manager_init(&draw_ctx, viewport, nullptr);
 
   /* Make sure select engine gets the correct vertex size. */
   UI_SetTheme(SPACE_VIEW3D, RGN_TYPE_WINDOW);
@@ -2306,7 +2277,7 @@ void DRW_draw_select_id(Depsgraph *depsgraph, ARegion *region, View3D *v3d)
 
 bool DRW_draw_in_progress()
 {
-  return drw_get().in_progress;
+  return DRWContext::is_active();
 }
 
 /** \} */

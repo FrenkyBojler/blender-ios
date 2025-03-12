@@ -265,9 +265,6 @@ struct DRWContext {
   /* Convenience pointer to text_store owned by the viewport */
   DRWTextStore **text_store_p = nullptr;
 
-  /** True, when drawing is in progress, see #DRW_draw_in_progress. */
-  bool in_progress = false;
-
   TaskGraph *task_graph = nullptr;
   /* Contains list of objects that needs to be extracted from other objects. */
   GSet *delayed_extraction = nullptr;
@@ -303,14 +300,20 @@ struct DRWContext {
 
  public:
   /**
-   * If `viewport` is nullptr, the DRWData will be considered temporary and discarded on exit.
+   * If `viewport` is not specified, `DRWData` will be considered temporary and discarded on exit.
    * If `C` is nullptr, it means that the context is **not** associated with any UI or operator.
    * If `region` is nullptr, it will be sourced from the context `C` or left as nullptr otherwise.
    * If `v3d` is nullptr, it will be sourced from the context `C` or left as nullptr otherwise.
    */
   DRWContext(Mode mode,
              Depsgraph *depsgraph,
-             GPUViewport *viewport = nullptr,
+             GPUViewport *viewport,
+             const bContext *C = nullptr,
+             ARegion *region = nullptr,
+             View3D *v3d = nullptr);
+  DRWContext(Mode mode,
+             Depsgraph *depsgraph,
+             const blender::int2 size = {1, 1},
              const bContext *C = nullptr,
              ARegion *region = nullptr,
              View3D *v3d = nullptr);
@@ -318,8 +321,15 @@ struct DRWContext {
   ~DRWContext();
 
   /**
+   * Needs to be called before enabling any draw engine.
+   * IMPORTANT: This can be called multiple times before release_data.
+   * IMPORTANT: This must be called with an active GPUContext.
+   */
+  void acquire_data();
+
+  /**
    * Make sure to release acquired DRWData. If created on the fly, make sure to destroy them.
-   * IMPORTANT: This needs to be called with the same active GPUContext the context was first used
+   * IMPORTANT: This needs to be called with the same active GPUContext `acquire_data()` was called
    * with.
    */
   void release_data();
@@ -327,6 +337,12 @@ struct DRWContext {
   static DRWContext &get_active()
   {
     return *g_context;
+  }
+
+  /* Return true if any DRWContext is active on this thread. */
+  static bool is_active()
+  {
+    return g_context != nullptr;
   }
 
   bool is_select() const
