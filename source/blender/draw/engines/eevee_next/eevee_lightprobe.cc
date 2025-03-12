@@ -75,33 +75,33 @@ void LightProbeModule::sync_volume(const Object *ob, ObjectHandle &handle)
   VolumeProbe &grid = volume_map_.lookup_or_add_default(handle.object_key);
   grid.used = true;
   if (handle.recalc != 0 || grid.initialized == false) {
-    const ::LightProbe *lightprobe = static_cast<const ::LightProbe *>(ob->data);
+    const ::LightProbe &lightprobe = DRW_object_get_data<const ::LightProbe>(*ob);
 
     grid.initialized = true;
     grid.updated = true;
-    grid.surfel_density = static_cast<const ::LightProbe *>(ob->data)->grid_surfel_density;
+    grid.surfel_density = lightprobe.grid_surfel_density;
     grid.object_to_world = ob->object_to_world();
     grid.cache = ob->lightprobe_cache;
 
     grid.world_to_object = float4x4(
         math::normalize(math::transpose(float3x3(grid.object_to_world))));
 
-    grid.normal_bias = lightprobe->grid_normal_bias;
-    grid.view_bias = lightprobe->grid_view_bias;
-    grid.facing_bias = lightprobe->grid_facing_bias;
+    grid.normal_bias = lightprobe.grid_normal_bias;
+    grid.view_bias = lightprobe.grid_view_bias;
+    grid.facing_bias = lightprobe.grid_facing_bias;
 
-    grid.validity_threshold = lightprobe->grid_validity_threshold;
-    grid.dilation_threshold = lightprobe->grid_dilation_threshold;
-    grid.dilation_radius = lightprobe->grid_dilation_radius;
-    grid.intensity = lightprobe->intensity;
+    grid.validity_threshold = lightprobe.grid_validity_threshold;
+    grid.dilation_threshold = lightprobe.grid_dilation_threshold;
+    grid.dilation_radius = lightprobe.grid_dilation_radius;
+    grid.intensity = lightprobe.intensity;
 
     const bool has_valid_cache = grid.cache && grid.cache->grid_static_cache;
-    grid.viewport_display = has_valid_cache && (lightprobe->flag & LIGHTPROBE_FLAG_SHOW_DATA);
+    grid.viewport_display = has_valid_cache && (lightprobe.flag & LIGHTPROBE_FLAG_SHOW_DATA);
     if (grid.viewport_display) {
       int3 cache_size = grid.cache->grid_static_cache->size;
       float3 scale = math::transform_direction(ob->object_to_world(),
                                                1.0f / float3(cache_size + 1));
-      grid.viewport_display_size = math::reduce_min(scale) * lightprobe->data_display_size;
+      grid.viewport_display_size = math::reduce_min(scale) * lightprobe.data_display_size;
     }
 
     /* Force reupload. */
@@ -183,8 +183,8 @@ void LightProbeModule::sync_planar(const Object *ob, ObjectHandle &handle)
 
 void LightProbeModule::sync_probe(const Object *ob, ObjectHandle &handle)
 {
-  const ::LightProbe *lightprobe = static_cast<const ::LightProbe *>(ob->data);
-  switch (lightprobe->type) {
+  const ::LightProbe &lightprobe = DRW_object_get_data<const ::LightProbe>(*ob);
+  switch (lightprobe.type) {
     case LIGHTPROBE_TYPE_SPHERE:
       sync_sphere(ob, handle);
       return;

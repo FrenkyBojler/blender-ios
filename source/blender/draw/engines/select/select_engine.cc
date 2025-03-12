@@ -15,6 +15,7 @@
 #include "BLT_translation.hh"
 
 #include "DEG_depsgraph_query.hh"
+#include "DRW_render.hh"
 #include "ED_view3d.hh"
 
 #include "RE_engine.h"
@@ -126,8 +127,8 @@ static short select_id_get_object_select_mode(Scene *scene, Object *ob)
      * Note this is not working correctly for vertex-paint (yet), but has been discussed
      * in #66645 and there is a solution by @mano-wii in P1032.
      * So OB_MODE_VERTEX_PAINT is already included here [required for P1032 I guess]. */
-    Mesh *me_orig = static_cast<Mesh *>(DEG_get_original_object(ob)->data);
-    if (me_orig->editflag & ME_EDIT_PAINT_VERT_SEL) {
+    Mesh &me_orig = DRW_object_get_data<Mesh>(*DEG_get_original_object(ob));
+    if (me_orig.editflag & ME_EDIT_PAINT_VERT_SEL) {
       r_select_mode = SCE_SELECT_VERTEX;
     }
     else {
@@ -270,7 +271,7 @@ static ElemIndexRanges select_id_edit_mesh_sync(SELECTID_Instance &inst,
 {
   using namespace blender::draw;
   using namespace blender;
-  Mesh &mesh = *static_cast<Mesh *>(ob->data);
+  Mesh &mesh = DRW_object_get_data<Mesh>(*ob);
   BMEditMesh *em = mesh.runtime->edit_mesh.get();
 
   ElemIndexRanges ranges{};
@@ -330,7 +331,7 @@ static ElemIndexRanges select_id_mesh_sync(SELECTID_Instance &inst,
 {
   using namespace blender::draw;
   using namespace blender;
-  Mesh &mesh = *static_cast<Mesh *>(ob->data);
+  Mesh &mesh = DRW_object_get_data<Mesh>(*ob);
 
   ElemIndexRanges ranges{};
   ranges.total = IndexRange::from_begin_size(initial_index, 0);
@@ -377,7 +378,7 @@ static ElemIndexRanges select_id_object_sync(SELECTID_Instance &inst,
 
   switch (ob->type) {
     case OB_MESH: {
-      const Mesh &mesh = *static_cast<const Mesh *>(ob->data);
+      const Mesh &mesh = DRW_object_get_data<Mesh>(*ob);
       if (mesh.runtime->edit_mesh) {
         bool draw_facedot = check_ob_drawface_dot(select_mode, v3d, eDrawType(ob->dt));
         return select_id_edit_mesh_sync(
@@ -406,7 +407,7 @@ static void select_cache_populate(void *vedata, blender::draw::ObjectRef &ob_ref
     /* This object is not selectable. It is here to participate in occlusion.
      * This is the case in retopology mode. */
     blender::gpu::Batch *geom_faces = DRW_mesh_batch_cache_get_surface(
-        *static_cast<Mesh *>(ob->data));
+        DRW_object_get_data<Mesh>(*ob));
 
     inst.depth_occlude->draw(geom_faces, manager.resource_handle(ob_ref));
     return;

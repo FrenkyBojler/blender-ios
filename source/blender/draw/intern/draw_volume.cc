@@ -212,7 +212,7 @@ PassType *drw_volume_object_mesh_init(PassType &ps,
     sub = &ps.sub("Volume Modifier SubPass");
 
     float3 location, scale;
-    BKE_mesh_texspace_get(static_cast<Mesh *>(ob->data), location, scale);
+    BKE_mesh_texspace_get(&DRW_object_get_data<Mesh>(*ob), location, scale);
     float3 orco_mul = math::safe_rcp(scale * 2.0);
     float3 orco_add = (location - scale) * -orco_mul;
     /* Replace OrcoTexCoFactors with a matrix multiplication. */

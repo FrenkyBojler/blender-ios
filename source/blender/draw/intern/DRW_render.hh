@@ -12,6 +12,7 @@
 
 #include "BLI_math_vector_types.hh"
 #include "DNA_object_enums.h"
+#include "DNA_object_types.h"
 
 #include "GPU_material.hh"
 
@@ -28,6 +29,7 @@ struct GPUMaterial;
 struct GPUShader;
 struct GPUTexture;
 struct GPUUniformBuf;
+struct Mesh;
 struct Object;
 struct ParticleSystem;
 struct rcti;
@@ -190,8 +192,13 @@ bool DRW_object_use_hide_faces(const Object *ob);
 bool DRW_object_is_visible_psys_in_active_context(const Object *object,
                                                   const ParticleSystem *psys);
 
-Object *DRW_object_get_dupli_parent(const Object *ob);
-DupliObject *DRW_object_get_dupli(const Object *ob);
+/**
+ * Convenient accessor for object data.
+ */
+template<typename T> T &DRW_object_get_data(const Object &object)
+{
+  return *static_cast<T *>(object.data);
+}
 
 /* Draw State. */
 

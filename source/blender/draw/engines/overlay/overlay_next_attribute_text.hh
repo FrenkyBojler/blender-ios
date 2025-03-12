@@ -71,26 +71,26 @@ class AttributeTexts : Overlay {
 
     switch (object.type) {
       case OB_MESH: {
-        const Mesh *mesh = static_cast<Mesh *>(object.data);
-        add_attributes_to_text_cache(dt, mesh->attributes(), object_to_world);
+        const Mesh &mesh = DRW_object_get_data<Mesh>(object);
+        add_attributes_to_text_cache(dt, mesh.attributes(), object_to_world);
         break;
       }
       case OB_POINTCLOUD: {
-        const PointCloud *pointcloud = static_cast<PointCloud *>(object.data);
-        add_attributes_to_text_cache(dt, pointcloud->attributes(), object_to_world);
+        const PointCloud &pointcloud = DRW_object_get_data<PointCloud>(object);
+        add_attributes_to_text_cache(dt, pointcloud.attributes(), object_to_world);
         break;
       }
       case OB_CURVES_LEGACY: {
-        const Curve *curve = static_cast<const Curve *>(object.data);
-        if (curve->curve_eval) {
-          const bke::CurvesGeometry &curves = curve->curve_eval->geometry.wrap();
+        const Curve &curve = DRW_object_get_data<Curve>(object);
+        if (curve.curve_eval) {
+          const bke::CurvesGeometry &curves = curve.curve_eval->geometry.wrap();
           add_attributes_to_text_cache(dt, curves.attributes(), object_to_world);
         }
         break;
       }
       case OB_CURVES: {
-        const Curves *curves_id = static_cast<Curves *>(object.data);
-        const bke::CurvesGeometry &curves = curves_id->geometry.wrap();
+        const Curves &curves_id = DRW_object_get_data<Curves>(object);
+        const bke::CurvesGeometry &curves = curves_id.geometry.wrap();
         add_attributes_to_text_cache(dt, curves.attributes(), object_to_world);
         break;
       }

@@ -295,7 +295,7 @@ GPENCIL_tLayer *grease_pencil_layer_cache_add(GPENCIL_Instance *inst,
 
 {
   using namespace blender::bke::greasepencil;
-  const GreasePencil &grease_pencil = *static_cast<GreasePencil *>(ob->data);
+  const GreasePencil &grease_pencil = DRW_object_get_data<GreasePencil>(*ob);
 
   const bool is_in_front = (ob->dtx & OB_DRAW_IN_FRONT);
 
