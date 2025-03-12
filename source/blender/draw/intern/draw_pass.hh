@@ -681,6 +681,10 @@ template<class T> inline PassBase<T> &PassBase<T>::sub(const char *name)
 
 template<class T> void PassBase<T>::submit(command::RecordingState &state) const
 {
+  if (is_empty()) {
+    return;
+  }
+
   GPU_debug_group_begin(debug_name);
 
   for (const command::Header &header : headers_) {
