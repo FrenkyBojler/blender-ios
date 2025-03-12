@@ -185,6 +185,8 @@ DRWContext::DRWContext(Mode mode_,
                  v3d)
 {
   this->viewport = viewport;
+
+  blender::draw::color_management::viewport_color_management_set(*viewport, *this);
 }
 
 DRWContext::~DRWContext()
@@ -1371,7 +1373,6 @@ DRWTextStore *DRW_text_cache_ensure()
 static void drw_draw_render_loop_3d(DRWContext &draw_ctx, RenderEngineType *engine_type)
 {
   using namespace blender::draw;
-  GPUViewport *viewport = draw_ctx.viewport;
   Depsgraph *depsgraph = draw_ctx.depsgraph;
   View3D *v3d = draw_ctx.v3d;
 
@@ -1386,8 +1387,6 @@ static void drw_draw_render_loop_3d(DRWContext &draw_ctx, RenderEngineType *engi
 
   draw_ctx.enable_engines(gpencil_engine_needed, engine_type);
   draw_ctx.engines_data_validate();
-
-  DRW_viewport_colormanagement_set(viewport);
 
   drw_debug_init();
   draw_ctx.data->modules_init();
@@ -1467,11 +1466,8 @@ static void drw_draw_render_loop_3d(DRWContext &draw_ctx, RenderEngineType *engi
 
 static void drw_draw_render_loop_2d(DRWContext &draw_ctx)
 {
-  GPUViewport *viewport = draw_ctx.viewport;
   Depsgraph *depsgraph = draw_ctx.depsgraph;
   ARegion *region = draw_ctx.region;
-
-  DRW_viewport_colormanagement_set(viewport);
 
   /* TODO(jbakker): Only populate when editor needs to draw object.
    * for the image editor this is when showing UVs. */
