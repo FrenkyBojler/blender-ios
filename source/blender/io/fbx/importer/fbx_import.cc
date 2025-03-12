@@ -21,6 +21,7 @@
 #include "BKE_modifier.hh"
 #include "BKE_object.hh"
 #include "BKE_object_deform.h"
+#include "BKE_object_types.hh"
 #include "BKE_report.hh"
 
 #include "BLI_color.hh"
@@ -111,13 +112,19 @@ static void matrix_to_m44(const ufbx_matrix &src, float dst[4][4])
   dst[3][3] = 1.0f;
 }
 
-static void node_matrix_to_obj(const ufbx_node *node, Object *obj)
+static void ufbx_matrix_to_obj(const ufbx_matrix &mtx, Object *obj, bool use_parent_matrix = false)
+{
+  float obmat[4][4];
+  matrix_to_m44(mtx, obmat);
+  BKE_object_apply_mat4(obj, obmat, true, use_parent_matrix);
+  BKE_object_to_mat4(obj, obj->runtime->object_to_world.ptr());
+}
+
+static void node_matrix_to_obj(const ufbx_node *node, Object *obj, bool use_parent_matrix = false)
 {
   ufbx_matrix mtx = ufbx_matrix_mul(node->is_root ? &node->node_to_world : &node->node_to_parent,
                                     &node->geometry_to_node);
-  float obmat[4][4];
-  matrix_to_m44(mtx, obmat);
-  BKE_object_apply_mat4(obj, obmat, true, false);
+  ufbx_matrix_to_obj(mtx, obj, use_parent_matrix);
 }
 
 static void read_custom_properties(const ufbx_props &props, ID &id)
@@ -498,6 +505,7 @@ void FbxImportContext::import_meshes()
       }
 
       /* Skinned mesh. */
+      bool use_parent_matrix = false;
       if (fmesh->skin_deformers.count > 0) {
         const ufbx_skin_deformer *skin = fmesh->skin_deformers[0];
         if (skin != nullptr && skin->clusters.count > 0) {
@@ -521,6 +529,7 @@ void FbxImportContext::import_meshes()
             ArmatureModifierData *ad = reinterpret_cast<ArmatureModifierData *>(md);
             ad->object = arm_obj;
             obj->parent = arm_obj;
+            use_parent_matrix = this->mapping.armatures_created_at_root.contains(arm_obj);
           }
         }
       }
@@ -573,7 +582,7 @@ void FbxImportContext::import_meshes()
       if (this->params.use_custom_props) {
         read_custom_properties(node->props, obj->id);
       }
-      node_matrix_to_obj(node, obj);
+      node_matrix_to_obj(node, obj, use_parent_matrix);
       this->mapping.el_to_object.add(&node->element, obj);
     }
   }
@@ -694,6 +703,18 @@ Object *FbxImportContext::create_armature_for_node(const ufbx_node *node)
       read_custom_properties(node->props, arm->id);
     }
     node_matrix_to_obj(node, obj);
+  }
+  else {
+    /* For armatures created at root, make them have the same rotation/scale
+     * as done by ufbx for all regular nodes. ufbx puts coordinate conversion
+     * rotation/scale info into metadata. */
+    ufbx_transform root_tr;
+    root_tr.translation = ufbx_zero_vec3;
+    root_tr.rotation = this->fbx.metadata.root_rotation;
+    root_tr.scale.x = root_tr.scale.y = root_tr.scale.z = this->fbx.metadata.root_scale;
+    ufbx_matrix root_mtx = ufbx_transform_to_matrix(&root_tr);
+    ufbx_matrix_to_obj(root_mtx, obj);
+    this->mapping.armatures_created_at_root.add(obj);
   }
   return obj;
 }

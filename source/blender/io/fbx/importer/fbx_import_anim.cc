@@ -113,6 +113,13 @@ static Vector<ElementAnimations> gather_animated_properties(const ufbx_scene &fb
           continue;
         }
 
+        /* Ignore animation of rigged meshes (very hard to handle; matches behavior of python fbx importer). */
+        if (target_obj && target_obj->type == OB_MESH && target_obj->parent &&
+            target_obj->parent->type == OB_ARMATURE)
+        {
+          continue;
+        }
+
         ElementAnimations &anims = elem_map.lookup_or_add(fprop.element, ElementAnimations());
         anims.fbx_elem = fprop.element;
         anims.order = order++;
