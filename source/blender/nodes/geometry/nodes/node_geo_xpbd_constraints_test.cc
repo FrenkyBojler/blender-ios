@@ -485,22 +485,18 @@ inline float4x4 quaternion_matrix(const math::Quaternion &q)
   return result;
 }
 
-// #define EXPECT_EIGEN_V3_NEAR(a, ofs, b, eps) \
-//   do { \
-//     Eigen::Vector3f a3 = a.block<3>(ofs); \
-//     EXPECT_NEAR(a4[0], b[0], eps); \
-//     EXPECT_NEAR(a4[1], b[1], eps); \
-//     EXPECT_NEAR(a4[2], b[2], eps); \
-//   } while (false);
-
-// #define EXPECT_EIGEN_V4_NEAR(a, ofs, b, eps) \
-//   do { \
-//     Eigen::Vector4f a4 = a.block<4>(ofs); \
-//     EXPECT_NEAR(a4[0], b[0], eps); \
-//     EXPECT_NEAR(a4[1], b[1], eps); \
-//     EXPECT_NEAR(a4[2], b[2], eps); \
-//     EXPECT_NEAR(a4[3], b[3], eps); \
-//   } while (false);
+#define EXPECT_EIGEN_M3_NEAR(a, b, eps) \
+  do { \
+    EXPECT_NEAR(a[0][0], b.coeff(0, 0), eps); \
+    EXPECT_NEAR(a[0][1], b.coeff(1, 0), eps); \
+    EXPECT_NEAR(a[0][2], b.coeff(2, 0), eps); \
+    EXPECT_NEAR(a[1][0], b.coeff(0, 1), eps); \
+    EXPECT_NEAR(a[1][1], b.coeff(1, 1), eps); \
+    EXPECT_NEAR(a[1][2], b.coeff(2, 1), eps); \
+    EXPECT_NEAR(a[2][0], b.coeff(0, 2), eps); \
+    EXPECT_NEAR(a[2][1], b.coeff(1, 2), eps); \
+    EXPECT_NEAR(a[2][2], b.coeff(2, 2), eps); \
+  } while (false);
 
 #define EXPECT_EIGEN_M4_NEAR(a, b, eps) \
   do { \
@@ -530,15 +526,12 @@ TEST(xpbd_constraints, GlobalSolverUnconstrained)
   Eigen::VectorXf b;
   xpbd_constraints::build_global_solve_system(params, data, vars, true, H, b);
 
-  EXPECT_EQ(params.masses[0], H.coeff(0, 0));
-  EXPECT_EQ(params.masses[0], H.coeff(1, 1));
-  EXPECT_EQ(params.masses[0], H.coeff(2, 2));
-  EXPECT_EQ(params.masses[1], H.coeff(3, 3));
-  EXPECT_EQ(params.masses[1], H.coeff(4, 4));
-  EXPECT_EQ(params.masses[1], H.coeff(5, 5));
-  EXPECT_EQ(params.masses[2], H.coeff(6, 6));
-  EXPECT_EQ(params.masses[2], H.coeff(7, 7));
-  EXPECT_EQ(params.masses[2], H.coeff(8, 8));
+  const float3x3 mass_diagonal0 = math::from_scale<float3x3>(float3(params.masses[0]));
+  const float3x3 mass_diagonal1 = math::from_scale<float3x3>(float3(params.masses[1]));
+  const float3x3 mass_diagonal2 = math::from_scale<float3x3>(float3(params.masses[2]));
+  EXPECT_EIGEN_M3_NEAR(mass_diagonal0, H.block(0, 0, 3, 3).toDense(), 1e-6f);
+  EXPECT_EIGEN_M3_NEAR(mass_diagonal1, H.block(3, 3, 3, 3).toDense(), 1e-6f);
+  EXPECT_EIGEN_M3_NEAR(mass_diagonal2, H.block(6, 6, 3, 3).toDense(), 1e-6f);
 
   const float4x4 inertia_tensor0 = quaternion_matrix(
       vars.rotations[0] * math::Quaternion(0.0f, params.local_inertia[0]));
