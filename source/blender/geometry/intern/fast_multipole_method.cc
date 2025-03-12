@@ -7,6 +7,8 @@
 
 #include "BLI_timeit.hh"
 
+#include "BLI_allocator.hh"
+
 #include "BLI_function_ref.hh"
 #include "BLI_generic_span.hh"
 #include "BLI_math_base.hh"
@@ -350,8 +352,7 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
   // std::cout << log_stream.str() << ";\n";
   
 
-  Vector<float, 0> buffer;
-  buffer.reserve(dst_buckets_data.size());
+  Vector<float, 0, GuardedAlignedAllocator<>> buffer;
 
   to_static_type(src_joints_value.type(), [&](auto dummy) {
     // SCOPED_TIMER_AVERAGED("  batch_to_joints");
@@ -391,22 +392,34 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
     //   // typed_dst_buckets_data[batch_i] += dot_product<T>(joints_buffer.as_span(), buffer.as_span());
     // }
 
+    buffer.resize(std::accumulate(joint_to_batch_samples.begin(), joint_to_batch_samples.end(), 0, [&](const int size, const auto &item) {
+      return size + item.second.size();
+    }));
+
+    int offset_iter = 0;
     for (const auto &[joint_index, batch_samples] : joint_to_batch_samples) {
-      buffer.resize(batch_samples.size());
+      MutableSpan<float> buffer_section = buffer.as_mutable_span().slice(offset_iter, batch_samples.size());
+      offset_iter += batch_samples.size();
+
       const float3 jooint_position = src_joints_centre[joint_index];
       for (const int sample_i : batch_samples.index_range()) {
         const int sample_index = batch_samples[sample_i];
-        const float sampler_to_joint_distance_squared = math::distance(
-            jooint_position, sample_position[sample_index]);
-        buffer[sample_i] = sampler_to_joint_distance_squared + offset_value;
+        const float sampler_to_joint_distance_squared = math::distance(jooint_position, sample_position[sample_index]);
+        buffer_section[sample_i] = sampler_to_joint_distance_squared + offset_value;
       }
-    
-      distance_invertion(power_value, buffer.as_mutable_span());
-      // scatter_mul_add(buffer.as_span(), typed_src_joints_value[joint_index], batch_samples.as_span(), typed_dst_buckets_data);
+    }
+
+    distance_invertion(power_value, buffer.as_mutable_span());
+
+    offset_iter = 0;
+    for (const auto &[joint_index, batch_samples] : joint_to_batch_samples) {
+      const Span<float> buffer_section = buffer.as_span().slice(offset_iter, batch_samples.size());
+      offset_iter += batch_samples.size();
+
+      // scatter_mul_add(buffer_section.as_span(), typed_src_joints_value[joint_index], batch_samples.as_span(), typed_dst_buckets_data);
       for (const int sample_i : batch_samples.index_range()) {
         const int sample_index = batch_samples[sample_i];
-        typed_dst_buckets_data[sample_index] += typed_src_joints_value[joint_index] *
-                                                buffer[sample_i];
+        typed_dst_buckets_data[sample_index] += typed_src_joints_value[joint_index] * buffer_section[sample_i];
       }
     }
   });
@@ -425,7 +438,7 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
         for (const int sample_index : batch_samples) {
           const float3 position = sample_position[sample_index];
   
-          ispc::distances(src_bucket_position.slice(bucket_range).cast<float [3]>().data(),
+          ispc::distances(const_cast<float (*)[3] >(src_bucket_position.slice(bucket_range).cast<float [3]>().data()),
                           position,
                           buffer.size(),
                           buffer.data(),
@@ -471,17 +484,41 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
     //   //typed_dst_buckets_data[batch_i] += dot_product<T>(joints_buffer.as_span(), buffer.as_span());
     // }
 
+    buffer.resize(std::accumulate(bucket_to_batch_samples.begin(), bucket_to_batch_samples.end(), 0, [&](const int size, const auto &item) {
+      return size + item.first.size() * item.second.size();
+    }));
+
+// int more_than_4 = 0;
+// int more_than_8 = 0;
+// int more_than_16 = 0;
+// int total_sum = 0;
+
+    int offset_iter = 0;
     for (const auto &[bucket_range, batch_samples] : bucket_to_batch_samples) {
-      buffer.resize(bucket_range.size());
+
       for (const int sample_index : batch_samples) {
+        MutableSpan<float> buffer_section = buffer.as_mutable_span().slice(offset_iter, bucket_range.size());
+        offset_iter += bucket_range.size();
+
+        // total_sum++;
+        // if (bucket_range.size() >= 4) {
+        //   more_than_4++;
+        // }
+        // if (bucket_range.size() >= 8) {
+        //   more_than_8++;
+        // }
+        // if (bucket_range.size() >= 16) {
+        //   more_than_16++;
+        // }
+
         const float3 position = sample_position[sample_index];
-    
-        ispc::distances(src_bucket_position.slice(bucket_range).cast<float [3]>().data(),
+
+        ispc::distances(const_cast<float (*)[3] >(src_bucket_position.slice(bucket_range).cast<float [3]>().data()),
                         position,
-                        buffer.size(),
-                        buffer.data(),
+                        buffer_section.size(),
+                        buffer_section.data(),
                         offset_value);
-    
+
         // for (const int bucket_i : bucket_range.index_range()) {
         //   const float sampler_to_point_distance = math::distance(
         //       position, src_bucket_position[bucket_range[bucket_i]]);
@@ -491,13 +528,21 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
         if (bucket_range.contains(sampler_to_bucket_range.value()[sample_index])) {
           const int sampler_in_bucket_index = sampler_to_bucket_range.value()[sample_index] -
                                               bucket_range.start();
-          buffer[sampler_in_bucket_index] = 0.0f;
+          buffer_section[sampler_in_bucket_index] = 0.0f;
         }
+      }
+    }
 
-        distance_invertion(power_value, buffer.as_mutable_span());
-    
-        typed_dst_buckets_data[sample_index] += dot_product<T>(
-            typed_src_bucket_value.slice(bucket_range), buffer);
+    // printf("Total: %d. 4: %d, 8: %d, 16: %d;\n", total_sum, more_than_4, more_than_8, more_than_16);
+
+    distance_invertion(power_value, buffer.as_mutable_span());
+
+    offset_iter = 0;
+    for (const auto &[bucket_range, batch_samples] : bucket_to_batch_samples) {
+      for (const int sample_index : batch_samples) {
+        const Span<float> buffer_section = buffer.as_span().slice(offset_iter, bucket_range.size());
+        offset_iter += bucket_range.size();
+        typed_dst_buckets_data[sample_index] += dot_product<T>(typed_src_bucket_value.slice(bucket_range), buffer_section);
       }
     }
   });
