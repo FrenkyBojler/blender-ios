@@ -121,8 +121,7 @@ using ConstraintLinearSolveSizeFunc =
  * Returns the variable indices used by a constraint.
  */
 using ConstraintPositionLinearSolveVariablesFunc =
-    std::function<void(const ConstraintEvalParams &params,
-                       const bke::AttributeAccessor &attributes,
+    std::function<void(const bke::AttributeAccessor &attributes,
                        const IndexMask &selection,
                        MutableSpan<int> r_position_indices[4],
                        MutableSpan<int> r_rotation_indices[4])>;

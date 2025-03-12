@@ -159,14 +159,13 @@ static void position_goal__linear_solve_size(int &r_num_components,
   r_num_rotation_vars = 0;
 }
 
-static void position_goal__linear_solve_variables(const ConstraintEvalParams &params,
-                                                  const bke::AttributeAccessor &attributes,
+static void position_goal__linear_solve_variables(const bke::AttributeAccessor &attributes,
                                                   const IndexMask &selection,
                                                   MutableSpan<int> r_position_indices[4],
                                                   MutableSpan<int> /*r_rotation_indices*/[4])
 {
-  const VArraySpan<int> points = *lookup_or_warn<int>(
-      attributes, ATTR_POINT1, AttrDomain::Point, 0, params.error_message_add);
+  const VArraySpan<int> points = *attributes.lookup_or_default<int>(
+      ATTR_POINT1, AttrDomain::Point, 0);
 
   MutableSpan<int> position_indices = r_position_indices[0];
   selection.foreach_index(constraint_grain_size, [&](const int index, const int pos) {

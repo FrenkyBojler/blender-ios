@@ -456,6 +456,8 @@ TEST(xpbd_constraints, VariableOverlapCheckerFail)
 static auto simple_solver_data(const bool use_velocities)
 {
   xpbd_constraints::ConstraintEvalParams params;
+  params.masses = VArray<float>::ForContainer(Array<float>{1.0f, 3.0f, 0.5f});
+
   MutableSpan<xpbd_constraints::ConstraintEvalData> data;
 
   xpbd_constraints::ConstraintVariables vars;
@@ -479,9 +481,9 @@ TEST(xpbd_constraints, GlobalSolverUnconstrained)
   Eigen::VectorXf b;
   xpbd_constraints::build_global_solve_system(params, data, vars, true, H, b);
 
-  H.coeff(0, 0) == params.masses[0];
-  H.coeff(1, 1) == params.masses[1];
-  H.coeff(2, 2) == params.masses[2];
+  EXPECT_EQ(H.coeff(0, 0), params.masses[0]);
+  EXPECT_EQ(H.coeff(1, 1), params.masses[1]);
+  EXPECT_EQ(H.coeff(2, 2), params.masses[2]);
 }
 
 }  // namespace blender::nodes::tests

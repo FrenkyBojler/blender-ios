@@ -490,6 +490,94 @@ inline float4x4 quaternion_matrix(const math::Quaternion &q)
 //   }
 // }
 
+static void read_constraint_topology(
+    const Span<ConstraintEvalData> constraint_data,
+    MutableSpan<std::array<Array<int>, 4>> position_indices_by_type,
+    MutableSpan<std::array<Array<int>, 4>> rotation_indices_by_type)
+{
+  for (const int constraint_i : constraint_data.index_range()) {
+    const ConstraintEvalData &data = constraint_data[constraint_i];
+    if (!data.type->linear_solve_size || !data.type->linear_solve_variables) {
+      continue;
+    }
+    if (!data.geometry || !data.geometry->has_component<PointCloudComponent>()) {
+      continue;
+    }
+
+    int num_components, num_position_vars, num_rotation_vars;
+    data.type->linear_solve_size(num_components, num_position_vars, num_rotation_vars);
+
+    const int num_constraints = data.constraints.size();
+    const GeometryComponent &component = *data.geometry->get_component<PointCloudComponent>();
+    const AttributeAccessor attributes = *component.attributes();
+    /* Only allocate data for variables that are actually needed by the constraint type. */
+    for (const int var_i : IndexRange(num_position_vars)) {
+      position_indices_by_type[constraint_i][var_i].reinitialize(num_constraints *
+                                                                 num_position_vars);
+    }
+    for (const int var_i : IndexRange(num_rotation_vars)) {
+      rotation_indices_by_type[constraint_i][var_i].reinitialize(num_constraints *
+                                                                 num_rotation_vars);
+    }
+    /* Arrays of spans to use as function arguments. */
+    MutableSpan<int> position_indices[4] = {position_indices_by_type[constraint_i][0],
+                                            position_indices_by_type[constraint_i][1],
+                                            position_indices_by_type[constraint_i][2],
+                                            position_indices_by_type[constraint_i][3]};
+    MutableSpan<int> rotation_indices[4] = {rotation_indices_by_type[constraint_i][0],
+                                            rotation_indices_by_type[constraint_i][1],
+                                            rotation_indices_by_type[constraint_i][2],
+                                            rotation_indices_by_type[constraint_i][3]};
+    /* Fill the index arrays */
+    data.type->linear_solve_variables(
+        attributes, data.constraints, position_indices, rotation_indices);
+  }
+}
+
+static void debug_check_constraint_topology(
+    const ConstraintEvalParams &params,
+    const Span<ConstraintEvalData> constraint_data,
+    const int num_positions,
+    const int num_rotations,
+    Span<std::array<Array<int>, 4>> position_indices_by_type,
+    Span<std::array<Array<int>, 4>> rotation_indices_by_type)
+{
+  for (const int constraint_i : constraint_data.index_range()) {
+    const ConstraintEvalData &data = constraint_data[constraint_i];
+    if (!data.geometry || !data.geometry->has_component<PointCloudComponent>()) {
+      continue;
+    }
+
+    int num_components, num_position_vars, num_rotation_vars;
+    data.type->linear_solve_size(num_components, num_position_vars, num_rotation_vars);
+
+    std::atomic_bool has_invalid_position_index = false;
+    std::atomic_bool has_invalid_rotation_index = false;
+    for (const int var_i : IndexRange(num_position_vars)) {
+      for (const int index : position_indices_by_type[constraint_i][var_i]) {
+        if (!IndexRange(num_positions).contains(index)) {
+          has_invalid_position_index.store(true, std::memory_order_relaxed);
+        }
+      }
+    }
+    for (const int var_i : IndexRange(num_rotation_vars)) {
+      for (const int index : rotation_indices_by_type[constraint_i][var_i]) {
+        if (!IndexRange(num_rotations).contains(index)) {
+          has_invalid_rotation_index.store(true, std::memory_order_relaxed);
+        }
+      }
+    }
+    if (has_invalid_position_index) {
+      params.error_message_add(
+          fmt::format("Constraint type \"{}\" uses invalid position index", data.type->ui_name));
+    }
+    if (has_invalid_rotation_index) {
+      params.error_message_add(
+          fmt::format("Constraint type \"{}\" uses invalid rotation index", data.type->ui_name));
+    }
+  }
+}
+
 template<bool debug_check>
 static void do_build_global_solve_system(const ConstraintEvalParams &params,
                                          MutableSpan<ConstraintEvalData> constraint_data,
@@ -534,8 +622,8 @@ static void do_build_global_solve_system(const ConstraintEvalParams &params,
   /* Matrix is square. */
   const int num_rows = num_columns;
 
-  const IndexRange position_columns = {0, num_positions * 3};
-  const IndexRange rotation_columns = position_columns.after(num_rotations * 4);
+  //   const IndexRange position_columns = {0, num_positions * 3};
+  //   const IndexRange rotation_columns = position_columns.after(num_rotations * 4);
 
   // Vector<Eigen::Triplet<float>> triplets;
   // triplets.reserve(num_non_zeroes);
@@ -617,75 +705,20 @@ static void do_build_global_solve_system(const ConstraintEvalParams &params,
   using VariableIndexArrays = std::array<Array<int>, 4>;
   Array<VariableIndexArrays> position_indices_by_type(constraint_data.size());
   Array<VariableIndexArrays> rotation_indices_by_type(constraint_data.size());
-  for (const int constraint_i : constraint_data.index_range()) {
-    const ConstraintEvalData &data = constraint_data[constraint_i];
-    if (!data.type->linear_solve_size || !data.type->linear_solve_variables) {
-      continue;
-    }
-    if (!data.geometry || !data.geometry->has_component<PointCloudComponent>()) {
-      continue;
-    }
-
-    int num_components, num_position_vars, num_rotation_vars;
-    data.type->linear_solve_size(num_components, num_position_vars, num_rotation_vars);
-
-    const int num_constraints = data.constraints.size();
-    const GeometryComponent &component = *data.geometry->get_component<PointCloudComponent>();
-    const AttributeAccessor attributes = *component.attributes();
-    /* Only allocate data for variables that are actually needed by the constraint type. */
-    for (const int var_i : IndexRange(num_position_vars)) {
-      position_indices_by_type[constraint_i][var_i].reinitialize(num_constraints *
-                                                                 num_position_vars);
-    }
-    for (const int var_i : IndexRange(num_rotation_vars)) {
-      rotation_indices_by_type[constraint_i][var_i].reinitialize(num_constraints *
-                                                                 num_rotation_vars);
-    }
-    /* Arrays of spans to use as function arguments. */
-    MutableSpan<int> position_indices[4] = {position_indices_by_type[constraint_i][0],
-                                            position_indices_by_type[constraint_i][1],
-                                            position_indices_by_type[constraint_i][2],
-                                            position_indices_by_type[constraint_i][3]};
-    MutableSpan<int> rotation_indices[4] = {rotation_indices_by_type[constraint_i][0],
-                                            rotation_indices_by_type[constraint_i][1],
-                                            rotation_indices_by_type[constraint_i][2],
-                                            rotation_indices_by_type[constraint_i][3]};
-    /* Fill the index arrays */
-    data.type->linear_solve_variables(
-        params, attributes, data.constraints, position_indices, rotation_indices);
-
-    if constexpr (debug_check) {
-      std::atomic_bool has_invalid_position_index = false;
-      std::atomic_bool has_invalid_rotation_index = false;
-      for (const int var_i : IndexRange(num_position_vars)) {
-        for (const int index : position_indices_by_type[constraint_i][var_i]) {
-          if (!IndexRange(num_positions).contains(index)) {
-            has_invalid_position_index.store(true, std::memory_order_relaxed);
-          }
-        }
-      }
-      for (const int var_i : IndexRange(num_rotation_vars)) {
-        for (const int index : rotation_indices_by_type[constraint_i][var_i]) {
-          if (!IndexRange(num_rotations).contains(index)) {
-            has_invalid_rotation_index.store(true, std::memory_order_relaxed);
-          }
-        }
-      }
-      if (has_invalid_position_index) {
-        params.error_message_add(
-            fmt::format("Constraint type \"{}\" uses invalid position index", data.type->ui_name));
-      }
-      if (has_invalid_rotation_index) {
-        params.error_message_add(
-            fmt::format("Constraint type \"{}\" uses invalid rotation index", data.type->ui_name));
-      }
-    }
+  read_constraint_topology(constraint_data, position_indices_by_type, rotation_indices_by_type);
+  if constexpr (debug_check) {
+    debug_check_constraint_topology(params,
+                                    constraint_data,
+                                    num_positions,
+                                    num_rotations,
+                                    position_indices_by_type,
+                                    rotation_indices_by_type);
   }
 
   /* LHS matrix describing equations of motion and constraint impulses. */
   Eigen::SparseMatrix<float> H(num_rows, num_columns);
   H.makeCompressed();
-  H.reserve(num_non_zeroes);
+  H.resizeNonZeros(num_non_zeroes);
   /* Should be defined as column-major storage. */
   static_assert(!H.IsRowMajor);
 
@@ -772,35 +805,19 @@ static void do_build_global_solve_system(const ConstraintEvalParams &params,
   }
 
   const OffsetIndices<int> column_offsets = {Span<int>(H.outerIndexPtr(), num_columns + 1)};
-  // /* Redundant for compressed matrix, non-zeros per column is the same as index range derived
-  //  * from offsets. */
-  // // const Span<int> column_nonzeros = {H.innerNonZeroPtr(), num_columns};
+  /* Redundant for compressed matrix, non-zeros per column is the same as index range derived
+   * from offsets. */
+  // const Span<int> column_nonzeros = {H.innerNonZeroPtr(), num_columns};
 
-  // {
-  //   MutableSpan<int> row_indices = {H.innerIndexPtr(), num_non_zeroes};
-  //   MutableSpan<float> values = {H.valuePtr(), num_non_zeroes};
-  //   for (ConstraintEvalData &data : constraint_data) {
-  //     if (!data.geometry) {
-  //       continue;
-  //     }
-
-  //     // /* Solve in consistent order by using the sorted index set. */
-  //     // for (const IndexMask &group_mask : data.group_masks) {
-  //     //   switch (target) {
-  //     //     case EvaluationTarget::Positions: {
-  //     //       apply_gauss_seidel_positions_group(
-  //     //           eval_params, *data.type, *data.geometry, group_mask, variables, memory);
-  //     //       break;
-  //     //     }
-  //     //     case EvaluationTarget::Velocities: {
-  //     //       apply_gauss_seidel_velocities_group(
-  //     //           eval_params, *data.type, *data.geometry, group_mask, variables, memory);
-  //     //       break;
-  //     //     }
-  //     //   }
-  //     // }
-  //   }
-  // }
+  {
+    MutableSpan<int> row_indices = {H.innerIndexPtr(), num_non_zeroes};
+    MutableSpan<float> values = {H.valuePtr(), num_non_zeroes};
+    for (ConstraintEvalData &data : constraint_data) {
+      if (!data.geometry) {
+        continue;
+      }
+    }
+  }
 
   Eigen::VectorXf b;
   b.resize(num_columns);
