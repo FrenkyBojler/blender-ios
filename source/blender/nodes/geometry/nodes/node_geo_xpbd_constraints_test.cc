@@ -10,6 +10,50 @@
 
 namespace blender::nodes::tests {
 
+/* Helper struct for checking that each variable is only written by one constraint.*/
+template<bool enable> struct VariableChecker;
+
+template<> struct VariableChecker<false> {
+  VariableChecker(const IndexRange /*range*/) {}
+
+  bool claim_variable(const int /*index*/)
+  {
+    return true;
+  }
+
+  bool has_overlap() const
+  {
+    return false;
+  }
+};
+
+template<> struct VariableChecker<true> {
+  Array<std::atomic_bool> variable_written;
+  std::atomic_bool variable_overlap = false;
+
+  VariableChecker(const IndexRange range)
+  {
+    variable_written.reinitialize(range.size());
+    for (const int i : variable_written.index_range()) {
+      variable_written[i].store(false, std::memory_order::memory_order_relaxed);
+    }
+  }
+
+  bool claim_variable(const int index)
+  {
+    if (variable_written[index].exchange(true, std::memory_order_relaxed)) {
+      variable_overlap.store(true, std::memory_order_relaxed);
+      return true;
+    }
+    return false;
+  }
+
+  bool has_overlap() const
+  {
+    return variable_overlap.load(std::memory_order_relaxed);
+  }
+};
+
 TEST(xpbd_constraints, PositionGoal)
 {
   float lambda = 0.0f;
@@ -378,8 +422,8 @@ TEST(xpbd_constraints, VariableOverlapCheckerPass)
 {
   const IndexRange range(10);
 
-  xpbd_constraints::error_check::VariableChecker<true> var_checker(range);
-  xpbd_constraints::error_check::VariableChecker<false> var_checker_disabled(range);
+  VariableChecker<true> var_checker(range);
+  VariableChecker<false> var_checker_disabled(range);
   EXPECT_FALSE(var_checker.has_overlap());
 
   Array<int> vars = {2, 7, 9, 0, 3, 1, 4};
@@ -395,8 +439,8 @@ TEST(xpbd_constraints, VariableOverlapCheckerFail)
 {
   const IndexRange range(10);
 
-  xpbd_constraints::error_check::VariableChecker<true> var_checker(range);
-  xpbd_constraints::error_check::VariableChecker<false> var_checker_disabled(range);
+  VariableChecker<true> var_checker(range);
+  VariableChecker<false> var_checker_disabled(range);
   EXPECT_FALSE(var_checker.has_overlap());
 
   Array<int> vars = {2, 7, 3, 5, 9, 0, 0, 3, 1, 7, 4};

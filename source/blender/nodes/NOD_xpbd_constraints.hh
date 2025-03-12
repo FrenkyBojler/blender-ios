@@ -17,29 +17,13 @@
 
 namespace blender::nodes::xpbd_constraints {
 
+struct ConstraintTypeInfo;
 struct ConstraintVariables;
+struct DebugRecorder;
 
-struct DebugRecorder {
- private:
-  bke::GeometrySet geometry_set_;
-  bke::GeometryComponent::Type component_type_;
-
-  bke::GeometrySet debug_steps_;
-
- public:
-  DebugRecorder(const bke::GeometrySet &debug_steps);
-
-  void set_geometry(const bke::GeometrySet &geometry_set,
-                    bke::GeometryComponent::Type component_type);
-
-  void record_step(const StringRef label,
-                   bke::GeometrySet *constraints,
-                   const int constraint_type_code,
-                   const IndexMask &group_mask,
-                   const ConstraintVariables &variables);
-
-  const bke::GeometrySet &debug_steps() const;
-};
+/* -------------------------------------------------------------------- */
+/** \name Solver Parameters
+ * \{ */
 
 struct ConstraintEvalParams {
   using ErrorFn = FunctionRef<void(const StringRef message)>;
@@ -92,10 +76,16 @@ struct ConstraintVariables {
   Array<float3> angular_velocities;
 };
 
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Constraint Functions
+ * \{ */
+
 /**
  * Evaluates position constraints based on current geometry state.
- * It should write the results to attributes in the constraints geometry, which are then applied to
- * the geometry by the solver using the constraint mapping.
+ * It should write the results to attributes in the constraints geometry, which are then
+ * applied to the geometry by the solver using the constraint mapping.
  */
 using ConstraintEvalPositionFunc = std::function<void(const ConstraintEvalParams &eval_params,
                                                       const ConstraintVariables &variables,
@@ -179,29 +169,11 @@ using ConstraintPositionLinearSolveElementsFunc =
                        const ConstraintVariables &variables,
                        const bke::AttributeAccessor &attributes,
                        const IndexMask &selection,
-                       GMutableSpan r_alphas,
-                       GMutableSpan r_betas,
-                       GMutableSpan r_residuals,
-                       GMutableSpan r_position_gradients[4],
-                       GMutableSpan r_rotation_gradients[4])>;
-
-// /**
-//  * Information to fill blocks in the sparse matrix for all constraints.
-//  */
-// struct LinearSolveConstructionInfo {
-//   /* Residual value in the current state ("C") after constraint projection. */
-//   Array<float> residuals;
-//   /* Constraint force ("lambda") of the previous iteration. */
-//   Array<float> lambdas;
-//   /* Compliance value ("alpha") for the constraint, inverse of the constraint stiffness. */
-//   Array<float> alphas;
-//   /* Damping factor ("beta"). */
-//   Array<float> betas;
-//   /* Jacobian entries: Derivative of the constraint impulse ("J") wrt. one or more position
-//   and/or
-//    * rotation variables. */
-//   Array<float> gradients;
-// };
+                       fn::GField &r_alphas,
+                       fn::GField &r_betas,
+                       fn::GField &r_residuals,
+                       fn::GField r_position_gradients[4],
+                       fn::GField r_rotation_gradients[4])>;
 
 /**
  * Returns up to 4 index attributes mapping constraints to geometry points.
@@ -210,6 +182,12 @@ using ConstraintMappingFunc =
     std::function<Vector<VArray<int>>(const bke::GeometrySet &constraints)>;
 
 using ConstraintInitStepFunc = std::function<void(bke::GeometrySet &constraints)>;
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Constraint Types
+ * \{ */
 
 struct ConstraintTypeInfo {
   using ErrorFn = ConstraintEvalParams::ErrorFn;
@@ -232,53 +210,11 @@ struct ConstraintTypeInfo {
 Span<ConstraintTypeInfo> get_constraint_info(bool debug_output);
 Span<ConstraintTypeInfo> get_constraint_info_ordered(bool debug_output);
 
-namespace error_check {
+/** \} */
 
-/* Helper struct for checking that each variable is only written by one constraint.*/
-template<bool enable> struct VariableChecker;
-
-template<> struct VariableChecker<false> {
-  VariableChecker(const IndexRange /*range*/) {}
-
-  bool claim_variable(const int /*index*/)
-  {
-    return true;
-  }
-
-  bool has_overlap() const
-  {
-    return false;
-  }
-};
-
-template<> struct VariableChecker<true> {
-  Array<std::atomic_bool> variable_written;
-  std::atomic_bool variable_overlap = false;
-
-  VariableChecker(const IndexRange range)
-  {
-    variable_written.reinitialize(range.size());
-    for (const int i : variable_written.index_range()) {
-      variable_written[i].store(false, std::memory_order::memory_order_relaxed);
-    }
-  }
-
-  bool claim_variable(const int index)
-  {
-    if (variable_written[index].exchange(true, std::memory_order_relaxed)) {
-      variable_overlap.store(true, std::memory_order_relaxed);
-      return true;
-    }
-    return false;
-  }
-
-  bool has_overlap() const
-  {
-    return variable_overlap.load(std::memory_order_relaxed);
-  }
-};
-
-}  // namespace error_check
+/* -------------------------------------------------------------------- */
+/** \name Low-level Constraint Functions
+ * \{ */
 
 /* Linearized quaternion arithmetic relies on consistent quaternion orientation (w component should
  * be positive). This is not guaranteed by all math operations, e.g. Euler-to-Quaternion
@@ -1123,5 +1059,7 @@ inline void apply_velocity_contact(const float3 &orig_velocity1,
   apply_angular_velocity_impulse(delta_angvel1, angular_velocity1);
   apply_angular_velocity_impulse(delta_angvel2, angular_velocity2);
 }
+
+/** \} */
 
 }  // namespace blender::nodes::xpbd_constraints

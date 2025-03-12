@@ -178,41 +178,36 @@ static void position_goal__linear_solve_elements(const ConstraintEvalParams &par
                                                  const ConstraintVariables &variables,
                                                  const bke::AttributeAccessor &attributes,
                                                  const IndexMask &selection,
-                                                 GMutableSpan r_alphas,
-                                                 GMutableSpan r_betas,
-                                                 GMutableSpan r_residuals,
-                                                 GMutableSpan r_position_gradients[4],
-                                                 GMutableSpan /*r_rotation_gradients*/[4])
+                                                 fn::GField &r_alphas,
+                                                 fn::GField &r_betas,
+                                                 fn::GField &r_residuals,
+                                                 fn::GField r_position_gradients[4],
+                                                 fn::GField /*r_rotation_gradients*/[4])
 {
-  const VArraySpan<int> points = *lookup_or_warn<int>(
-      attributes, ATTR_POINT1, AttrDomain::Point, 0, params.error_message_add);
-  const VArraySpan<float> alphas = *attributes.lookup_or_default<float>(
-      ATTR_ALPHA, AttrDomain::Point, 0.0f);
-  const VArraySpan<float> betas = *attributes.lookup_or_default<float>(
-      ATTR_BETA, AttrDomain::Point, 0.0f);
-  const VArraySpan<float3> goal_positions = *lookup_or_warn<float3>(
-      attributes, "goal_position", AttrDomain::Point, float3(0.0f), params.error_message_add);
+  // const VArraySpan<int> points = *lookup_or_warn<int>(
+  //     attributes, ATTR_POINT1, AttrDomain::Point, 0, params.error_message_add);
+  // const VArraySpan<float> alphas = *attributes.lookup_or_default<float>(
+  //     ATTR_ALPHA, AttrDomain::Point, 0.0f);
+  // const VArraySpan<float> betas = *attributes.lookup_or_default<float>(
+  //     ATTR_BETA, AttrDomain::Point, 0.0f);
+  // const VArraySpan<float3> goal_positions = *lookup_or_warn<float3>(
+  //     attributes, "goal_position", AttrDomain::Point, float3(0.0f), params.error_message_add);
 
-  const IndexRange points_range = variables.positions.index_range();
-  const Span<float3> positions = variables.positions;
+  // const IndexRange points_range = variables.positions.index_range();
+  // const Span<float3> positions = variables.positions;
 
-  MutableSpan<float> alpha_elements = r_alphas.typed<float>();
-  MutableSpan<float> beta_elements = r_betas.typed<float>();
-  MutableSpan<float> residual_elements = r_residuals.typed<float>();
-  MutableSpan<float3> position_gradient_elements = r_position_gradients[0].typed<float3>();
+  // selection.foreach_index(constraint_grain_size, [&](const int index, const int pos) {
+  //   const int point = points[index];
+  //   if (!points_range.contains(point)) {
+  //     return;
+  //   }
+  //   const float3 &goal = goal_positions[index];
 
-  selection.foreach_index(constraint_grain_size, [&](const int index, const int pos) {
-    const int point = points[index];
-    if (!points_range.contains(point)) {
-      return;
-    }
-    const float3 &goal = goal_positions[index];
-
-    alpha_elements[pos] = alphas[index];
-    beta_elements[pos] = betas[index];
-    xpbd_constraints::eval_position_goal_elements(
-        goal, positions[point], residual_elements[pos], position_gradient_elements[pos]);
-  });
+  //   alpha_elements[pos] = alphas[index];
+  //   beta_elements[pos] = betas[index];
+  //   xpbd_constraints::eval_position_goal_elements(
+  //       goal, positions[point], residual_elements[pos], position_gradient_elements[pos]);
+  // });
 }
 
 template<bool debug_output>
