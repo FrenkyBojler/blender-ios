@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include "GPU_capabilities.hh"
 #include "gpu_backend.hh"
 
 #include "BLI_vector.hh"
@@ -39,7 +40,8 @@ class GLBackend : public GPUBackend {
   renderdoc::api::Renderdoc renderdoc_;
 #endif
 
-  GLShaderCompiler compiler_;
+  std::unique_ptr<ShaderCompiler> compiler_;
+  std::once_flag compiler_once_flag;
 
  public:
   GLBackend()
@@ -66,9 +68,18 @@ class GLBackend : public GPUBackend {
     return static_cast<GLBackend *>(GPUBackend::get());
   }
 
-  GLShaderCompiler *get_compiler()
+  ShaderCompiler *get_compiler()
   {
-    return &compiler_;
+    std::call_once(compiler_once_flag, [&]() {
+      if (GPU_use_parallel_compilation()) {
+        compiler_ = std::make_unique<GLShaderCompiler>();
+      }
+      else {
+        compiler_ = std::make_unique<ShaderCompilerGeneric>();
+      }
+    });
+
+    return compiler_.get();
   }
 
   void samplers_update() override
