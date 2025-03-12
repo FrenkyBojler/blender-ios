@@ -11,18 +11,14 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_math_vector.h"
-#include "BLI_utildefines.h"
+#include "BLI_time.h"
 
-#include "BKE_context.h"
-
-#include "ED_screen.hh"
+#include "BKE_context.hh"
 
 #include "UI_interface.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
-
-#include "PIL_time.h"
 
 static double g_tooltip_time_closed;
 double WM_tooltip_time_closed()
@@ -37,8 +33,7 @@ void WM_tooltip_immediate_init(
 
   bScreen *screen = WM_window_get_active_screen(win);
   if (screen->tool_tip == nullptr) {
-    screen->tool_tip = static_cast<wmTooltipState *>(
-        MEM_callocN(sizeof(*screen->tool_tip), __func__));
+    screen->tool_tip = MEM_callocN<wmTooltipState>(__func__);
   }
   screen->tool_tip->area_from = area;
   screen->tool_tip->region_from = region;
@@ -54,8 +49,7 @@ void WM_tooltip_timer_init_ex(
   bScreen *screen = WM_window_get_active_screen(win);
   wmWindowManager *wm = CTX_wm_manager(C);
   if (screen->tool_tip == nullptr) {
-    screen->tool_tip = static_cast<wmTooltipState *>(
-        MEM_callocN(sizeof(*screen->tool_tip), __func__));
+    screen->tool_tip = MEM_callocN<wmTooltipState>(__func__);
   }
   screen->tool_tip->area_from = area;
   screen->tool_tip->region_from = region;
@@ -89,7 +83,7 @@ void WM_tooltip_clear(bContext *C, wmWindow *win)
     if (screen->tool_tip->region) {
       UI_tooltip_free(C, screen, screen->tool_tip->region);
       screen->tool_tip->region = nullptr;
-      g_tooltip_time_closed = PIL_check_seconds_timer();
+      g_tooltip_time_closed = BLI_time_now_seconds();
     }
     MEM_freeN(screen->tool_tip);
     screen->tool_tip = nullptr;

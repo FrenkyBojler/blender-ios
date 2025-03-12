@@ -13,8 +13,8 @@
 #include "BLI_task.h"
 #include "BLI_threads.h"
 
-#include "BKE_context.h"
-#include "BKE_global.h"
+#include "BKE_context.hh"
+#include "BKE_global.hh"
 #include "BKE_sound.h"
 
 #include "WM_api.hh"
@@ -25,6 +25,8 @@
 #include "MEM_guardedalloc.h"
 
 #include "sequencer_intern.hh"
+
+namespace blender::ed::vse {
 
 struct PreviewJob {
   ListBase previews;
@@ -104,7 +106,7 @@ static void push_preview_job_audio_task(TaskPool *__restrict task_pool,
                                         PreviewJobAudio *previewjb,
                                         bool *stop)
 {
-  ReadSoundWaveformTask *task = MEM_cnew<ReadSoundWaveformTask>("read sound waveform task");
+  ReadSoundWaveformTask *task = MEM_callocN<ReadSoundWaveformTask>("read sound waveform task");
   task->wm_job = pj;
   task->preview_job_audio = previewjb;
   task->stop = stop;
@@ -114,7 +116,7 @@ static void push_preview_job_audio_task(TaskPool *__restrict task_pool,
 }
 
 /* Only this runs inside thread. */
-static void preview_startjob(void *data, bool *stop, bool *do_update, float *progress)
+static void preview_startjob(void *data, wmJobWorkerStatus *worker_status)
 {
   TaskPool *task_pool = BLI_task_pool_create(nullptr, TASK_PRIORITY_LOW);
   PreviewJob *pj = static_cast<PreviewJob *>(data);
@@ -128,9 +130,9 @@ static void preview_startjob(void *data, bool *stop, bool *do_update, float *pro
 
       float current_progress = (pj->total > 0) ? float(pj->processed) / float(pj->total) : 1.0f;
 
-      if (current_progress != *progress) {
-        *progress = current_progress;
-        *do_update = true;
+      if (current_progress != worker_status->progress) {
+        worker_status->progress = current_progress;
+        worker_status->do_update = true;
       }
 
       BLI_condition_wait(&pj->preview_suspend_cond, pj->mutex);
@@ -142,7 +144,7 @@ static void preview_startjob(void *data, bool *stop, bool *do_update, float *pro
       break;
     }
 
-    if (*stop || G.is_break) {
+    if (worker_status->stop || G.is_break) {
       BLI_task_pool_cancel(task_pool);
 
       LISTBASE_FOREACH (PreviewJobAudio *, previewjb, &pj->previews) {
@@ -159,7 +161,7 @@ static void preview_startjob(void *data, bool *stop, bool *do_update, float *pro
     }
 
     LISTBASE_FOREACH_MUTABLE (PreviewJobAudio *, previewjb, &pj->previews) {
-      push_preview_job_audio_task(task_pool, pj, previewjb, stop);
+      push_preview_job_audio_task(task_pool, pj, previewjb, &worker_status->stop);
 
       BLI_remlink(&pj->previews, previewjb);
     }
@@ -178,12 +180,12 @@ static void preview_endjob(void *data)
   WM_main_add_notifier(NC_SCENE | ND_SEQUENCER, pj->scene);
 }
 
-void sequencer_preview_add_sound(const bContext *C, Sequence *seq)
+void sequencer_preview_add_sound(const bContext *C, const Strip *strip)
 {
   wmJob *wm_job;
   PreviewJob *pj;
   ScrArea *area = CTX_wm_area(C);
-  PreviewJobAudio *audiojob = MEM_cnew<PreviewJobAudio>("preview_audio");
+
   wm_job = WM_jobs_get(CTX_wm_manager(C),
                        CTX_wm_window(C),
                        CTX_data_scene(C),
@@ -202,13 +204,13 @@ void sequencer_preview_add_sound(const bContext *C, Sequence *seq)
       BLI_mutex_unlock(pj->mutex);
 
       /* Clear the sound loading tag to that it can be reattempted. */
-      clear_sound_waveform_loading_tag(seq->sound);
+      clear_sound_waveform_loading_tag(strip->sound);
       WM_event_add_notifier(C, NC_SCENE | ND_SPACE_SEQUENCER, CTX_data_scene(C));
       return;
     }
   }
   else { /* There's no existing preview job. */
-    pj = MEM_cnew<PreviewJob>("preview rebuild job");
+    pj = MEM_callocN<PreviewJob>("preview rebuild job");
 
     pj->mutex = BLI_mutex_alloc();
     BLI_condition_init(&pj->preview_suspend_cond);
@@ -221,8 +223,9 @@ void sequencer_preview_add_sound(const bContext *C, Sequence *seq)
     WM_jobs_callbacks(wm_job, preview_startjob, nullptr, nullptr, preview_endjob);
   }
 
+  PreviewJobAudio *audiojob = MEM_callocN<PreviewJobAudio>("preview_audio");
   audiojob->bmain = CTX_data_main(C);
-  audiojob->sound = seq->sound;
+  audiojob->sound = strip->sound;
 
   BLI_addtail(&pj->previews, audiojob);
   pj->total++;
@@ -237,3 +240,5 @@ void sequencer_preview_add_sound(const bContext *C, Sequence *seq)
 
   ED_area_tag_redraw(area);
 }
+
+}  // namespace blender::ed::vse

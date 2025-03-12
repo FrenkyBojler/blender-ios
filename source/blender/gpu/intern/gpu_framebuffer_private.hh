@@ -13,13 +13,11 @@
 #include "BLI_math_vector.h"
 #include "BLI_span.hh"
 
-#include "MEM_guardedalloc.h"
-
-#include "GPU_framebuffer.h"
+#include "GPU_framebuffer.hh"
 
 struct GPUTexture;
 
-typedef enum GPUAttachmentType : int {
+enum GPUAttachmentType : int {
   GPU_FB_DEPTH_ATTACHMENT = 0,
   GPU_FB_DEPTH_STENCIL_ATTACHMENT,
   GPU_FB_COLOR_ATTACHMENT0,
@@ -35,16 +33,16 @@ typedef enum GPUAttachmentType : int {
    * the maximum number of COLOR attachments specified by glDrawBuffers. */
   GPU_FB_MAX_ATTACHMENT,
 
-} GPUAttachmentType;
+};
 
 #define GPU_FB_MAX_COLOR_ATTACHMENT (GPU_FB_MAX_ATTACHMENT - GPU_FB_COLOR_ATTACHMENT0)
 
-inline constexpr GPUAttachmentType operator-(GPUAttachmentType a, int b)
+constexpr GPUAttachmentType operator-(GPUAttachmentType a, int b)
 {
   return static_cast<GPUAttachmentType>(int(a) - b);
 }
 
-inline constexpr GPUAttachmentType operator+(GPUAttachmentType a, int b)
+constexpr GPUAttachmentType operator+(GPUAttachmentType a, int b)
 {
   return static_cast<GPUAttachmentType>(int(a) + b);
 }
@@ -61,10 +59,9 @@ inline GPUAttachmentType &operator--(GPUAttachmentType &a)
   return a;
 }
 
-namespace blender {
-namespace gpu {
+namespace blender::gpu {
 
-#ifdef DEBUG
+#ifndef NDEBUG
 #  define DEBUG_NAME_LEN 64
 #else
 #  define DEBUG_NAME_LEN 16
@@ -86,9 +83,13 @@ class FrameBuffer {
   bool multi_viewport_ = false;
   bool scissor_test_ = false;
   bool dirty_state_ = true;
+  /* Flag specifying the current bind operation should use explicit load-store state. */
+  bool use_explicit_load_store_ = false;
+  /** Bit-set indicating the color attachments slots in use. */
+  uint16_t color_attachments_bits_ = 0;
 
-#ifndef GPU_NO_USE_PY_REFERENCES
  public:
+#ifndef GPU_NO_USE_PY_REFERENCES
   /**
    * Reference of a pointer that needs to be cleaned when deallocating the frame-buffer.
    * Points to #BPyGPUFrameBuffer.fb
@@ -96,7 +97,6 @@ class FrameBuffer {
   void **py_ref = nullptr;
 #endif
 
- public:
   FrameBuffer(const char *name);
   virtual ~FrameBuffer();
 
@@ -127,6 +127,22 @@ class FrameBuffer {
                        int dst_offset_x,
                        int dst_offset_y) = 0;
 
+ protected:
+  virtual void subpass_transition_impl(const GPUAttachmentState depth_attachment_state,
+                                       Span<GPUAttachmentState> color_attachment_states) = 0;
+
+  void set_color_attachment_bit(GPUAttachmentType type, bool value)
+  {
+    if (type >= GPU_FB_COLOR_ATTACHMENT0) {
+      int color_index = type - GPU_FB_COLOR_ATTACHMENT0;
+      SET_FLAG_FROM_TEST(color_attachments_bits_, value, 1u << color_index);
+    }
+  }
+
+ public:
+  void subpass_transition(const GPUAttachmentState depth_attachment_state,
+                          Span<GPUAttachmentState> color_attachment_states);
+
   void load_store_config_array(const GPULoadStore *load_store_actions, uint actions_len);
 
   void attachment_set(GPUAttachmentType type, const GPUAttachment &new_attachment);
@@ -138,7 +154,7 @@ class FrameBuffer {
   uint get_bits_per_pixel();
 
   /* Sets the size after creation. */
-  inline void size_set(int width, int height)
+  void size_set(int width, int height)
   {
     width_ = width;
     height_ = height;
@@ -146,7 +162,7 @@ class FrameBuffer {
   }
 
   /* Sets the size for frame-buffer with no attachments. */
-  inline void default_size_set(int width, int height)
+  void default_size_set(int width, int height)
   {
     width_ = width;
     height_ = height;
@@ -154,7 +170,7 @@ class FrameBuffer {
     dirty_state_ = true;
   }
 
-  inline void viewport_set(const int viewport[4])
+  void viewport_set(const int viewport[4])
   {
     if (!equals_v4v4_int(viewport_[0], viewport)) {
       copy_v4_v4_int(viewport_[0], viewport);
@@ -163,7 +179,7 @@ class FrameBuffer {
     multi_viewport_ = false;
   }
 
-  inline void viewport_multi_set(const int viewports[GPU_MAX_VIEWPORTS][4])
+  void viewport_multi_set(const int viewports[GPU_MAX_VIEWPORTS][4])
   {
     for (size_t i = 0; i < GPU_MAX_VIEWPORTS; i++) {
       if (!equals_v4v4_int(viewport_[i], viewports[i])) {
@@ -174,7 +190,7 @@ class FrameBuffer {
     multi_viewport_ = true;
   }
 
-  inline void scissor_set(const int scissor[4])
+  void scissor_set(const int scissor[4])
   {
     if (!equals_v4v4_int(scissor_, scissor)) {
       copy_v4_v4_int(scissor_, scissor);
@@ -182,39 +198,40 @@ class FrameBuffer {
     }
   }
 
-  inline void scissor_test_set(bool test)
+  void scissor_test_set(bool test)
   {
     scissor_test_ = test;
+    dirty_state_ = true;
   }
 
-  inline void viewport_get(int r_viewport[4]) const
+  void viewport_get(int r_viewport[4]) const
   {
     copy_v4_v4_int(r_viewport, viewport_[0]);
   }
 
-  inline void scissor_get(int r_scissor[4]) const
+  void scissor_get(int r_scissor[4]) const
   {
     copy_v4_v4_int(r_scissor, scissor_);
   }
 
-  inline bool scissor_test_get() const
+  bool scissor_test_get() const
   {
     return scissor_test_;
   }
 
-  inline void viewport_reset()
+  void viewport_reset()
   {
     int viewport_rect[4] = {0, 0, width_, height_};
     viewport_set(viewport_rect);
   }
 
-  inline void scissor_reset()
+  void scissor_reset()
   {
     int scissor_rect[4] = {0, 0, width_, height_};
     scissor_set(scissor_rect);
   }
 
-  inline GPUTexture *depth_tex() const
+  GPUTexture *depth_tex() const
   {
     if (attachments_[GPU_FB_DEPTH_ATTACHMENT].tex) {
       return attachments_[GPU_FB_DEPTH_ATTACHMENT].tex;
@@ -222,15 +239,30 @@ class FrameBuffer {
     return attachments_[GPU_FB_DEPTH_STENCIL_ATTACHMENT].tex;
   };
 
-  inline GPUTexture *color_tex(int slot) const
+  GPUTexture *color_tex(int slot) const
   {
     return attachments_[GPU_FB_COLOR_ATTACHMENT0 + slot].tex;
   };
 
-  inline const char *const name_get() const
+  const char *name_get() const
   {
     return name_;
   };
+
+  void set_use_explicit_loadstore(bool use_explicit_loadstore)
+  {
+    use_explicit_load_store_ = use_explicit_loadstore;
+  }
+
+  bool get_use_explicit_loadstore() const
+  {
+    return use_explicit_load_store_;
+  }
+
+  uint16_t get_color_attachments_bitset()
+  {
+    return color_attachments_bits_;
+  }
 };
 
 /* Syntactic sugar. */
@@ -249,5 +281,4 @@ static inline const FrameBuffer *unwrap(const GPUFrameBuffer *vert)
 
 #undef DEBUG_NAME_LEN
 
-}  // namespace gpu
-}  // namespace blender
+}  // namespace blender::gpu

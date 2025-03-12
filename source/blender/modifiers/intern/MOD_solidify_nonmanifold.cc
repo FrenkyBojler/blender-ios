@@ -6,6 +6,8 @@
  * \ingroup modifiers
  */
 
+#include <algorithm>
+
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
 #include "BLI_utildefines.h"
@@ -17,11 +19,10 @@
 #include "MEM_guardedalloc.h"
 
 #include "BKE_attribute.hh"
-#include "BKE_deform.h"
+#include "BKE_customdata.hh"
+#include "BKE_deform.hh"
 #include "BKE_mesh.hh"
-#include "BKE_particle.h"
 
-#include "MOD_modifiertypes.hh"
 #include "MOD_solidify_util.hh" /* Own include. */
 #include "MOD_util.hh"
 
@@ -77,10 +78,10 @@ static float clamp_nonzero(const float value, const float epsilon)
 struct NewEdgeRef;
 
 struct NewFaceRef {
-  blender::IndexRange face;
-  uint index;
-  bool reversed;
-  NewEdgeRef **link_edges;
+  blender::IndexRange face = {};
+  uint index = 0;
+  bool reversed = false;
+  NewEdgeRef **link_edges = nullptr;
 };
 
 struct OldEdgeFaceRef {
@@ -139,8 +140,8 @@ Mesh *MOD_solidify_nonmanifold_modifyMesh(ModifierData *md,
   Mesh *result;
   const SolidifyModifierData *smd = (SolidifyModifierData *)md;
 
-  const uint verts_num = uint(mesh->totvert);
-  const uint edges_num = uint(mesh->totedge);
+  const uint verts_num = uint(mesh->verts_num);
+  const uint edges_num = uint(mesh->edges_num);
   const uint faces_num = uint(mesh->faces_num);
 
   if (faces_num == 0 && verts_num != 0) {
@@ -210,8 +211,7 @@ Mesh *MOD_solidify_nonmanifold_modifyMesh(ModifierData *md,
   /* Calculate only face normals. Copied because they are modified directly below. */
   blender::Array<blender::float3> face_nors = mesh->face_normals();
 
-  NewFaceRef *face_sides_arr = static_cast<NewFaceRef *>(
-      MEM_malloc_arrayN(faces_num * 2, sizeof(*face_sides_arr), __func__));
+  blender::Array<NewFaceRef> face_sides_arr(faces_num * 2);
   bool *null_faces =
       (smd->nonmanifold_offset_mode == MOD_SOLIDIFY_NONMANIFOLD_OFFSET_MODE_CONSTRAINTS) ?
           static_cast<bool *>(MEM_calloc_arrayN(faces_num, sizeof(*null_faces), __func__)) :
@@ -245,7 +245,7 @@ Mesh *MOD_solidify_nonmanifold_modifyMesh(ModifierData *md,
       new_face_ref_a.index = uint(i);
       new_face_ref_a.reversed = false;
       new_face_ref_a.link_edges = link_edges;
-      face_sides_arr[i * 2] = new_face_ref_a;
+      face_sides_arr[i * 2] = std::move(new_face_ref_a);
 
       link_edges = static_cast<NewEdgeRef **>(
           MEM_calloc_arrayN(uint(face.size()), sizeof(*link_edges), __func__));
@@ -255,7 +255,7 @@ Mesh *MOD_solidify_nonmanifold_modifyMesh(ModifierData *md,
       new_face_ref_b.index = uint(i);
       new_face_ref_b.reversed = true;
       new_face_ref_b.link_edges = link_edges;
-      face_sides_arr[i * 2 + 1] = new_face_ref_b;
+      face_sides_arr[i * 2 + 1] = std::move(new_face_ref_b);
 
       if (face.size() > largest_ngon) {
         largest_ngon = uint(face.size());
@@ -379,7 +379,7 @@ Mesh *MOD_solidify_nonmanifold_modifyMesh(ModifierData *md,
           }
 
           if (v2 < v1) {
-            SWAP(uint, v1, v2);
+            std::swap(v1, v2);
           }
           sub_v3_v3v3(edgedir, orig_mvert_co[v2], orig_mvert_co[v1]);
           orig_edge_lengths[i] = len_squared_v3(edgedir);
@@ -667,7 +667,8 @@ Mesh *MOD_solidify_nonmanifold_modifyMesh(ModifierData *md,
                         /* Find index of e in #adj_faces. */
                         for (face_index = 0;
                              face_index < faces_len && e_adj_faces_faces[face_index] != face;
-                             face_index++) {
+                             face_index++)
+                        {
                           /* Pass. */
                         }
                         /* If not found. */
@@ -710,7 +711,7 @@ Mesh *MOD_solidify_nonmanifold_modifyMesh(ModifierData *md,
                   }
                   if (do_shell) {
                     new_faces_num -= 2;
-                    new_loops_num -= 2 * uint(del_loops);
+                    new_loops_num -= 2 * del_loops;
                   }
                   break;
                 }
@@ -814,8 +815,8 @@ Mesh *MOD_solidify_nonmanifold_modifyMesh(ModifierData *md,
                 float angle = angle_signed_on_axis_normalized_v3v3_v3(nor, ref_nor, edgedir);
                 sorted_faces[j].angle = -angle;
               }
-              sorted_faces[j].face = face_sides_arr + adj_faces_faces[j] * 2 +
-                                     (adj_faces_reversed[j] ? 1 : 0);
+              sorted_faces[j].face =
+                  &face_sides_arr[adj_faces_faces[j] * 2 + (adj_faces_reversed[j] ? 1 : 0)];
             }
             /* Sort faces by order around the edge (keep order in faces,
              * reversed and face_angles the same). */
@@ -823,8 +824,8 @@ Mesh *MOD_solidify_nonmanifold_modifyMesh(ModifierData *md,
           }
           else {
             new_edges_len = 2;
-            sorted_faces[0].face = face_sides_arr + adj_faces_faces[0] * 2 +
-                                   (adj_faces_reversed[0] ? 1 : 0);
+            sorted_faces[0].face =
+                &face_sides_arr[adj_faces_faces[0] * 2 + (adj_faces_reversed[0] ? 1 : 0)];
             if (do_rim) {
               /* Only add the loops parallel to the edge for now. */
               new_loops_num += 2;
@@ -1016,7 +1017,8 @@ Mesh *MOD_solidify_nonmanifold_modifyMesh(ModifierData *md,
             else if (eg_index >= 0) {
               NewEdgeRef **edge_ptr = unassigned_edges;
               for (found_edge_index = 0; found_edge_index < unassigned_edges_len;
-                   found_edge_index++, edge_ptr++) {
+                   found_edge_index++, edge_ptr++)
+              {
                 if (*edge_ptr) {
                   NewEdgeRef *edge = *edge_ptr;
                   if (edge->faces[0] == eg_track_faces[1]) {
@@ -1086,7 +1088,8 @@ Mesh *MOD_solidify_nonmanifold_modifyMesh(ModifierData *md,
                   found_edge;
               edge_groups[eg_index].edges_len++;
               if (edge_groups[eg_index].edges[edge_groups[eg_index].edges_len - 1]->faces[1] !=
-                  nullptr) {
+                  nullptr)
+              {
                 last_open_edge_track = nullptr;
               }
               if (edge_groups[eg_index].edges_len > 3) {
@@ -1597,9 +1600,7 @@ Mesh *MOD_solidify_nonmanifold_modifyMesh(ModifierData *md,
                   for (uint k = 0; k < 2; k++) {
                     for (uint m = 2; m < size; m++) {
                       float p = dot_v3v3(planes_queue[m], planes_queue[k]);
-                      if (p < greatest_angle_cos) {
-                        greatest_angle_cos = p;
-                      }
+                      greatest_angle_cos = std::min(p, greatest_angle_cos);
                     }
                   }
                   if (greatest_angle_cos > boundary_fix_threshold) {
@@ -1687,14 +1688,16 @@ Mesh *MOD_solidify_nonmanifold_modifyMesh(ModifierData *md,
                       }
 
                       if (smd->nonmanifold_offset_mode ==
-                          MOD_SOLIDIFY_NONMANIFOLD_OFFSET_MODE_EVEN) {
+                          MOD_SOLIDIFY_NONMANIFOLD_OFFSET_MODE_EVEN)
+                      {
                         int corner_next = face->face.start();
                         int corner = corner_next + (face->face.size() - 1);
                         int corner_prev = corner - 1;
 
                         for (int m = 0;
                              m < face->face.size() && vm[orig_corner_verts[corner]] != i;
-                             m++, corner_next++) {
+                             m++, corner_next++)
+                        {
                           corner_prev = corner;
                           corner = corner_next;
                         }
@@ -1886,9 +1889,7 @@ Mesh *MOD_solidify_nonmanifold_modifyMesh(ModifierData *md,
                   for (NewEdgeRef **p = g->edges; k < g->edges_len; k++, p++) {
                     float length = orig_edge_lengths[(*p)->old_edge];
                     float e_ang = (*p)->angle;
-                    if (e_ang > angle) {
-                      angle = e_ang;
-                    }
+                    angle = std::max(e_ang, angle);
                     if (length < min_length || k == 0) {
                       min_length = length;
                     }
@@ -1952,7 +1953,8 @@ Mesh *MOD_solidify_nonmanifold_modifyMesh(ModifierData *md,
       if (*new_edges && (do_shell || edge_adj_faces_len[i] == 1) && (**new_edges)->old_edge == i) {
         for (NewEdgeRef **l = *new_edges; *l; l++) {
           if ((*l)->link_edge_groups[0]->is_singularity &&
-              (*l)->link_edge_groups[1]->is_singularity) {
+              (*l)->link_edge_groups[1]->is_singularity)
+          {
             const uint v1 = (*l)->link_edge_groups[0]->new_vert;
             const uint v2 = (*l)->link_edge_groups[1]->new_vert;
             bool exists_already = false;
@@ -2000,21 +2002,24 @@ Mesh *MOD_solidify_nonmanifold_modifyMesh(ModifierData *md,
   blender::MutableSpan<int> corner_edges = result->corner_edges_for_write();
 
   int *origindex_edge = static_cast<int *>(
-      CustomData_get_layer_for_write(&result->edge_data, CD_ORIGINDEX, result->totedge));
+      CustomData_get_layer_for_write(&result->edge_data, CD_ORIGINDEX, result->edges_num));
   int *origindex_face = static_cast<int *>(
       CustomData_get_layer_for_write(&result->face_data, CD_ORIGINDEX, result->faces_num));
 
   float *result_edge_bweight = static_cast<float *>(CustomData_get_layer_named_for_write(
-      &result->edge_data, CD_PROP_FLOAT, "bevel_weight_edge", result->totedge));
-  if (bevel_convex != 0.0f || orig_vert_bweight != nullptr) {
-    result_edge_bweight = static_cast<float *>(CustomData_add_layer_named(
-        &result->edge_data, CD_PROP_FLOAT, CD_SET_DEFAULT, result->totedge, "bevel_weight_edge"));
+      &result->edge_data, CD_PROP_FLOAT, "bevel_weight_edge", result->edges_num));
+  if (!result_edge_bweight && (bevel_convex != 0.0f || orig_vert_bweight != nullptr)) {
+    result_edge_bweight = static_cast<float *>(CustomData_add_layer_named(&result->edge_data,
+                                                                          CD_PROP_FLOAT,
+                                                                          CD_SET_DEFAULT,
+                                                                          result->edges_num,
+                                                                          "bevel_weight_edge"));
   }
 
   /* Checks that result has dvert data. */
   MDeformVert *dst_dvert = nullptr;
   if (shell_defgrp_index != -1 || rim_defgrp_index != -1) {
-    dst_dvert = BKE_mesh_deform_verts_for_write(result);
+    dst_dvert = result->deform_verts_for_write().data();
   }
 
   /* Get vertex crease layer and ensure edge creases are active if vertex creases are found, since
@@ -2024,14 +2029,14 @@ Mesh *MOD_solidify_nonmanifold_modifyMesh(ModifierData *md,
   float *result_edge_crease = nullptr;
   if (vertex_crease || orig_edge_crease) {
     result_edge_crease = static_cast<float *>(CustomData_get_layer_named_for_write(
-        &result->edge_data, CD_PROP_FLOAT, "crease_edge", result->totedge));
+        &result->edge_data, CD_PROP_FLOAT, "crease_edge", result->edges_num));
     if (!result_edge_crease) {
       result_edge_crease = (float *)CustomData_add_layer_named(
-          &result->edge_data, CD_PROP_FLOAT, CD_SET_DEFAULT, result->totedge, "crease_edge");
+          &result->edge_data, CD_PROP_FLOAT, CD_SET_DEFAULT, result->edges_num, "crease_edge");
     }
     /* delete all vertex creases in the result if a rim is used. */
     if (do_rim) {
-      CustomData_free_layer_named(&result->vert_data, "crease_vert", result->totvert);
+      CustomData_free_layer_named(&result->vert_data, "crease_vert");
     }
   }
 
@@ -2148,9 +2153,12 @@ Mesh *MOD_solidify_nonmanifold_modifyMesh(ModifierData *md,
     }
   }
 #endif
-
-  const int *src_material_index = BKE_mesh_material_indices(mesh);
-  int *dst_material_index = BKE_mesh_material_indices_for_write(result);
+  const bke::AttributeAccessor src_attributes = mesh->attributes();
+  const VArraySpan src_material_index = *src_attributes.lookup<int>("material_index",
+                                                                    bke::AttrDomain::Face);
+  bke::MutableAttributeAccessor dst_attributes = result->attributes_for_write();
+  bke::SpanAttributeWriter dst_material_index = dst_attributes.lookup_or_add_for_write_span<int>(
+      "material_index", bke::AttrDomain::Face);
 
   /* Make boundary edges/faces. */
   {
@@ -2200,9 +2208,7 @@ Mesh *MOD_solidify_nonmanifold_modifyMesh(ModifierData *md,
                 if (g->edges[k]->new_edge != MOD_SOLIDIFY_EMPTY_TAG) {
                   if (result_edge_bweight) {
                     float bweight = result_edge_bweight[g->edges[k]->new_edge];
-                    if (bweight > max_bweight) {
-                      max_bweight = bweight;
-                    }
+                    max_bweight = std::max(bweight, max_bweight);
                   }
                 }
               }
@@ -2293,20 +2299,25 @@ Mesh *MOD_solidify_nonmanifold_modifyMesh(ModifierData *md,
                 for (EdgeGroup *g3 = g2; g3->valid && k < j; g3++) {
                   if ((do_rim && !g3->is_orig_closed) || (do_shell && g3->split)) {
                     /* Check both far ends in terms of faces of an edge group. */
-                    if ((src_material_index ? src_material_index[g3->edges[0]->faces[0]->index] :
-                                              0) == l) {
+                    if ((!src_material_index.is_empty() ?
+                             src_material_index[g3->edges[0]->faces[0]->index] :
+                             0) == l)
+                    {
                       face = g3->edges[0]->faces[0]->index;
                       count++;
                     }
                     NewEdgeRef *le = g3->edges[g3->edges_len - 1];
                     if (le->faces[1] &&
-                        (src_material_index ? src_material_index[le->faces[1]->index] : 0) == l) {
+                        (!src_material_index.is_empty() ? src_material_index[le->faces[1]->index] :
+                                                          0) == l)
+                    {
                       face = le->faces[1]->index;
                       count++;
                     }
-                    else if (!le->faces[1] &&
-                             (src_material_index ? src_material_index[le->faces[0]->index] : 0) ==
-                                 l) {
+                    else if (!le->faces[1] && (!src_material_index.is_empty() ?
+                                                   src_material_index[le->faces[0]->index] :
+                                                   0) == l)
+                    {
                       face = le->faces[0]->index;
                       count++;
                     }
@@ -2325,9 +2336,10 @@ Mesh *MOD_solidify_nonmanifold_modifyMesh(ModifierData *md,
                 origindex_face[face_index] = ORIGINDEX_NONE;
               }
               face_offsets[face_index] = int(loop_index);
-              dst_material_index[face_index] = most_mat_nr +
-                                               (g->is_orig_closed || !do_rim ? 0 : mat_ofs_rim);
-              CLAMP(dst_material_index[face_index], 0, mat_nr_max);
+              dst_material_index.span[face_index] = most_mat_nr + (g->is_orig_closed || !do_rim ?
+                                                                       0 :
+                                                                       mat_ofs_rim);
+              CLAMP(dst_material_index.span[face_index], 0, mat_nr_max);
               face_index++;
 
               for (uint k = 0; g2->valid && k < j; g2++) {
@@ -2347,15 +2359,18 @@ Mesh *MOD_solidify_nonmanifold_modifyMesh(ModifierData *md,
               if (!do_flip) {
                 for (uint k = 0; k < j; k++) {
                   CustomData_copy_data(
-                      &mesh->loop_data, &result->loop_data, loops_data[k], int(loop_index), 1);
+                      &mesh->corner_data, &result->corner_data, loops_data[k], int(loop_index), 1);
                   corner_verts[loop_index] = edges[edge_index - j + k][0];
                   corner_edges[loop_index++] = edge_index - j + k;
                 }
               }
               else {
                 for (uint k = 1; k <= j; k++) {
-                  CustomData_copy_data(
-                      &mesh->loop_data, &result->loop_data, loops_data[j - k], int(loop_index), 1);
+                  CustomData_copy_data(&mesh->corner_data,
+                                       &result->corner_data,
+                                       loops_data[j - k],
+                                       int(loop_index),
+                                       1);
                   corner_verts[loop_index] = edges[edge_index - k][1];
                   corner_edges[loop_index++] = edge_index - k;
                 }
@@ -2380,7 +2395,8 @@ Mesh *MOD_solidify_nonmanifold_modifyMesh(ModifierData *md,
   if (do_rim) {
     for (uint i = 0; i < edges_num; i++) {
       if (edge_adj_faces_len[i] == 1 && orig_edge_data_arr[i] &&
-          (*orig_edge_data_arr[i])->old_edge == i) {
+          (*orig_edge_data_arr[i])->old_edge == i)
+      {
         NewEdgeRef **new_edges = orig_edge_data_arr[i];
 
         NewEdgeRef *edge1 = new_edges[0];
@@ -2401,9 +2417,11 @@ Mesh *MOD_solidify_nonmanifold_modifyMesh(ModifierData *md,
                              int(face_index),
                              1);
         face_offsets[face_index] = int(loop_index);
-        dst_material_index[face_index] =
-            (src_material_index ? src_material_index[orig_face_index] : 0) + mat_ofs_rim;
-        CLAMP(dst_material_index[face_index], 0, mat_nr_max);
+        dst_material_index.span[face_index] = (!src_material_index.is_empty() ?
+                                                   src_material_index[orig_face_index] :
+                                                   0) +
+                                              mat_ofs_rim;
+        CLAMP(dst_material_index.span[face_index], 0, mat_nr_max);
         face_index++;
 
         int loop1 = -1;
@@ -2427,7 +2445,8 @@ Mesh *MOD_solidify_nonmanifold_modifyMesh(ModifierData *md,
             BKE_defvert_ensure_index(&dst_dvert[edges[edge1->new_edge][0]], rim_defgrp_index)
                 ->weight = 1.0f;
           }
-          CustomData_copy_data(&mesh->loop_data, &result->loop_data, loop1, int(loop_index), 1);
+          CustomData_copy_data(
+              &mesh->corner_data, &result->corner_data, loop1, int(loop_index), 1);
           corner_verts[loop_index] = edges[edge1->new_edge][0];
           corner_edges[loop_index++] = edge1->new_edge;
 
@@ -2437,7 +2456,8 @@ Mesh *MOD_solidify_nonmanifold_modifyMesh(ModifierData *md,
               BKE_defvert_ensure_index(&dst_dvert[edges[edge1->new_edge][1]], rim_defgrp_index)
                   ->weight = 1.0f;
             }
-            CustomData_copy_data(&mesh->loop_data, &result->loop_data, loop2, int(loop_index), 1);
+            CustomData_copy_data(
+                &mesh->corner_data, &result->corner_data, loop2, int(loop_index), 1);
             corner_verts[loop_index] = edges[edge1->new_edge][1];
             open_face_edge = edges[open_face_edge_index];
             if (ELEM(edges[edge2->new_edge][1], open_face_edge[0], open_face_edge[1])) {
@@ -2452,7 +2472,8 @@ Mesh *MOD_solidify_nonmanifold_modifyMesh(ModifierData *md,
             BKE_defvert_ensure_index(&dst_dvert[edges[edge2->new_edge][1]], rim_defgrp_index)
                 ->weight = 1.0f;
           }
-          CustomData_copy_data(&mesh->loop_data, &result->loop_data, loop2, int(loop_index), 1);
+          CustomData_copy_data(
+              &mesh->corner_data, &result->corner_data, loop2, int(loop_index), 1);
           corner_verts[loop_index] = edges[edge2->new_edge][1];
           corner_edges[loop_index++] = edge2->new_edge;
 
@@ -2462,7 +2483,8 @@ Mesh *MOD_solidify_nonmanifold_modifyMesh(ModifierData *md,
               BKE_defvert_ensure_index(&dst_dvert[edges[edge2->new_edge][0]], rim_defgrp_index)
                   ->weight = 1.0f;
             }
-            CustomData_copy_data(&mesh->loop_data, &result->loop_data, loop1, int(loop_index), 1);
+            CustomData_copy_data(
+                &mesh->corner_data, &result->corner_data, loop1, int(loop_index), 1);
             corner_verts[loop_index] = edges[edge2->new_edge][0];
             open_face_edge = edges[open_face_edge_index];
             if (ELEM(edges[edge1->new_edge][0], open_face_edge[0], open_face_edge[1])) {
@@ -2480,7 +2502,8 @@ Mesh *MOD_solidify_nonmanifold_modifyMesh(ModifierData *md,
               BKE_defvert_ensure_index(&dst_dvert[edges[edge1->new_edge][0]], rim_defgrp_index)
                   ->weight = 1.0f;
             }
-            CustomData_copy_data(&mesh->loop_data, &result->loop_data, loop1, int(loop_index), 1);
+            CustomData_copy_data(
+                &mesh->corner_data, &result->corner_data, loop1, int(loop_index), 1);
             corner_verts[loop_index] = edges[edge1->new_edge][0];
             open_face_edge = edges[open_face_edge_index];
             if (ELEM(edges[edge2->new_edge][0], open_face_edge[0], open_face_edge[1])) {
@@ -2495,7 +2518,8 @@ Mesh *MOD_solidify_nonmanifold_modifyMesh(ModifierData *md,
             BKE_defvert_ensure_index(&dst_dvert[edges[edge2->new_edge][0]], rim_defgrp_index)
                 ->weight = 1.0f;
           }
-          CustomData_copy_data(&mesh->loop_data, &result->loop_data, loop1, int(loop_index), 1);
+          CustomData_copy_data(
+              &mesh->corner_data, &result->corner_data, loop1, int(loop_index), 1);
           corner_verts[loop_index] = edges[edge2->new_edge][0];
           corner_edges[loop_index++] = edge2->new_edge;
 
@@ -2505,7 +2529,8 @@ Mesh *MOD_solidify_nonmanifold_modifyMesh(ModifierData *md,
               BKE_defvert_ensure_index(&dst_dvert[edges[edge2->new_edge][1]], rim_defgrp_index)
                   ->weight = 1.0f;
             }
-            CustomData_copy_data(&mesh->loop_data, &result->loop_data, loop2, int(loop_index), 1);
+            CustomData_copy_data(
+                &mesh->corner_data, &result->corner_data, loop2, int(loop_index), 1);
             corner_verts[loop_index] = edges[edge2->new_edge][1];
             open_face_edge = edges[open_face_edge_index];
             if (ELEM(edges[edge1->new_edge][1], open_face_edge[0], open_face_edge[1])) {
@@ -2520,7 +2545,8 @@ Mesh *MOD_solidify_nonmanifold_modifyMesh(ModifierData *md,
             BKE_defvert_ensure_index(&dst_dvert[edges[edge1->new_edge][1]], rim_defgrp_index)
                 ->weight = 1.0f;
           }
-          CustomData_copy_data(&mesh->loop_data, &result->loop_data, loop2, int(loop_index), 1);
+          CustomData_copy_data(
+              &mesh->corner_data, &result->corner_data, loop2, int(loop_index), 1);
           corner_verts[loop_index] = edges[edge1->new_edge][1];
           corner_edges[loop_index++] = edge1->new_edge;
         }
@@ -2530,29 +2556,29 @@ Mesh *MOD_solidify_nonmanifold_modifyMesh(ModifierData *md,
 
   /* Make faces. */
   if (do_shell) {
-    NewFaceRef *fr = face_sides_arr;
     uint *face_loops = static_cast<uint *>(
         MEM_malloc_arrayN(largest_ngon * 2, sizeof(*face_loops), __func__));
     uint *face_verts = static_cast<uint *>(
         MEM_malloc_arrayN(largest_ngon * 2, sizeof(*face_verts), __func__));
     uint *face_edges = static_cast<uint *>(
         MEM_malloc_arrayN(largest_ngon * 2, sizeof(*face_edges), __func__));
-    for (uint i = 0; i < faces_num * 2; i++, fr++) {
-      const uint loopstart = uint(fr->face.start());
-      uint totloop = uint(fr->face.size());
+    for (uint i = 0; i < faces_num * 2; i++) {
+      NewFaceRef &fr = face_sides_arr[i];
+      const uint loopstart = uint(fr.face.start());
+      uint totloop = uint(fr.face.size());
       uint valid_edges = 0;
       uint k = 0;
-      while (totloop > 0 && (!fr->link_edges[totloop - 1] ||
-                             fr->link_edges[totloop - 1]->new_edge == MOD_SOLIDIFY_EMPTY_TAG))
+      while (totloop > 0 && (!fr.link_edges[totloop - 1] ||
+                             fr.link_edges[totloop - 1]->new_edge == MOD_SOLIDIFY_EMPTY_TAG))
       {
         totloop--;
       }
       if (totloop > 0) {
-        NewEdgeRef *prior_edge = fr->link_edges[totloop - 1];
+        NewEdgeRef *prior_edge = fr.link_edges[totloop - 1];
         uint prior_flip = uint(vm[orig_edges[prior_edge->old_edge][0]] ==
                                vm[orig_corner_verts[loopstart + (totloop - 1)]]);
         for (uint j = 0; j < totloop; j++) {
-          NewEdgeRef *new_edge = fr->link_edges[j];
+          NewEdgeRef *new_edge = fr.link_edges[j];
           if (new_edge && new_edge->new_edge != MOD_SOLIDIFY_EMPTY_TAG) {
             valid_edges++;
             const uint flip = uint(vm[orig_edges[new_edge->old_edge][1]] ==
@@ -2565,7 +2591,7 @@ Mesh *MOD_solidify_nonmanifold_modifyMesh(ModifierData *md,
             const uint new_v2 = new_edge->link_edge_groups[1 - flip]->new_vert;
             if (k == 0 || face_verts[k - 1] != new_v1) {
               face_loops[k] = loopstart + j;
-              if (fr->reversed) {
+              if (fr.reversed) {
                 face_edges[k] = prior_edge->link_edge_groups[prior_flip]->open_face_edge;
               }
               else {
@@ -2593,18 +2619,22 @@ Mesh *MOD_solidify_nonmanifold_modifyMesh(ModifierData *md,
           CustomData_copy_data(
               &mesh->face_data, &result->face_data, int(i / 2), int(face_index), 1);
           face_offsets[face_index] = int(loop_index);
-          dst_material_index[face_index] = (src_material_index ? src_material_index[fr->index] :
-                                                                 0) +
-                                           (fr->reversed != do_flip ? mat_ofs : 0);
-          CLAMP(dst_material_index[face_index], 0, mat_nr_max);
-          if (fr->reversed != do_flip) {
+          dst_material_index.span[face_index] = (!src_material_index.is_empty() ?
+                                                     src_material_index[fr.index] :
+                                                     0) +
+                                                (fr.reversed != do_flip ? mat_ofs : 0);
+          CLAMP(dst_material_index.span[face_index], 0, mat_nr_max);
+          if (fr.reversed != do_flip) {
             for (int l = int(k) - 1; l >= 0; l--) {
               if (shell_defgrp_index != -1) {
                 BKE_defvert_ensure_index(&dst_dvert[face_verts[l]], shell_defgrp_index)->weight =
                     1.0f;
               }
-              CustomData_copy_data(
-                  &mesh->loop_data, &result->loop_data, int(face_loops[l]), int(loop_index), 1);
+              CustomData_copy_data(&mesh->corner_data,
+                                   &result->corner_data,
+                                   int(face_loops[l]),
+                                   int(loop_index),
+                                   1);
               corner_verts[loop_index] = face_verts[l];
               corner_edges[loop_index++] = face_edges[l];
             }
@@ -2612,8 +2642,11 @@ Mesh *MOD_solidify_nonmanifold_modifyMesh(ModifierData *md,
           else {
             uint l = k - 1;
             for (uint next_l = 0; next_l < k; next_l++) {
-              CustomData_copy_data(
-                  &mesh->loop_data, &result->loop_data, int(face_loops[l]), int(loop_index), 1);
+              CustomData_copy_data(&mesh->corner_data,
+                                   &result->corner_data,
+                                   int(face_loops[l]),
+                                   int(loop_index),
+                                   1);
               corner_verts[loop_index] = face_verts[l];
               corner_edges[loop_index++] = face_edges[next_l];
               l = next_l;
@@ -2678,13 +2711,14 @@ Mesh *MOD_solidify_nonmanifold_modifyMesh(ModifierData *md,
     MEM_freeN(orig_edge_data_arr);
     MEM_freeN(orig_edge_lengths);
     i = 0;
-    for (NewFaceRef *p = face_sides_arr; i < faces_num * 2; i++, p++) {
-      MEM_freeN(p->link_edges);
+    for (NewFaceRef &p : face_sides_arr) {
+      MEM_freeN(p.link_edges);
     }
-    MEM_freeN(face_sides_arr);
   }
 
 #undef MOD_SOLIDIFY_EMPTY_TAG
+
+  dst_material_index.finish();
 
   return result;
 }

@@ -6,22 +6,16 @@
  * \ingroup bmesh
  */
 
-#include "MEM_guardedalloc.h"
-
 #include "BLI_array.hh"
-#include "BLI_linklist.h"
 #include "BLI_math_geom.h"
 #include "BLI_math_vector.h"
 #include "BLI_math_vector_types.hh"
-#include "BLI_utildefines_stack.h"
+#include "BLI_string_ref.hh"
 
-#include "BKE_attribute.hh"
-#include "BKE_customdata.h"
+#include "BKE_attribute.h"
+#include "BKE_customdata.hh"
 
-#include "DNA_meshdata_types.h"
-
-#include "bmesh.h"
-#include "intern/bmesh_private.h"
+#include "bmesh.hh"
 
 BMUVOffsets BM_uv_map_get_offsets_from_layer(const BMesh *bm, const int layer)
 {
@@ -32,7 +26,7 @@ BMUVOffsets BM_uv_map_get_offsets_from_layer(const BMesh *bm, const int layer)
     return {-1, -1, -1, -1};
   }
 
-  char const *name = bm->ldata.layers[layer_index].name;
+  const StringRef name = bm->ldata.layers[layer_index].name;
   char buffer[MAX_CUSTOMDATA_LAYER_NAME];
 
   BMUVOffsets offsets;
@@ -102,7 +96,7 @@ void BM_face_uv_calc_center_median_weighted(const BMFace *f,
   } while ((l_iter = l_iter->next) != l_first);
 
   if (totw != 0.0f) {
-    mul_v2_fl(r_cent, 1.0f / float(totw));
+    mul_v2_fl(r_cent, 1.0f / totw);
   }
   /* Reverse aspect. */
   r_cent[0] /= aspect[0];
@@ -208,6 +202,5 @@ bool BM_face_uv_point_inside_test(const BMFace *f, const float co[2], const int 
     projverts[i] = BM_ELEM_CD_GET_FLOAT2_P(l_iter, cd_loop_uv_offset);
   }
 
-  return isect_point_poly_v2(
-      co, reinterpret_cast<const float(*)[2]>(projverts.data()), f->len, false);
+  return isect_point_poly_v2(co, reinterpret_cast<const float(*)[2]>(projverts.data()), f->len);
 }

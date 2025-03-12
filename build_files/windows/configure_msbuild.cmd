@@ -8,7 +8,22 @@ if "%BUILD_WITH_SCCACHE%"=="1" (
 )
 
 if "%WITH_CLANG%"=="1" (
-	set CLANG_CMAKE_ARGS=-T"llvm"
+	REM We want to use an external manifest with Clang
+	set CLANG_CMAKE_ARGS=-T"ClangCl" -DWITH_WINDOWS_EXTERNAL_MANIFEST=ON 
+
+	REM Create the build directory, so that we can create the Directory.build.props file
+	if NOT EXIST %BUILD_DIR%\nul (
+		mkdir %BUILD_DIR%
+	)
+
+	REM This is required as per https://learn.microsoft.com/en-us/cpp/build/clang-support-msbuild?view=msvc-170#custom_llvm_location
+	REM Which allows any copy of LLVM to be used, not just the one that ships with VS
+	echo ^<Project^> >> %BUILD_DIR%\Directory.build.props
+	echo   ^<PropertyGroup^> >> %BUILD_DIR%\Directory.build.props
+	echo     ^<LLVMInstallDir^>%LLVM_DIR%^</LLVMInstallDir^> >> %BUILD_DIR%\Directory.build.props
+	echo     ^<LLVMToolsVersion^>%CLANG_VERSION%^</LLVMToolsVersion^> >> %BUILD_DIR%\Directory.build.props
+	echo   ^</PropertyGroup^> >> %BUILD_DIR%\Directory.build.props
+	echo ^</Project^> >> %BUILD_DIR%\Directory.build.props
 )
 
 if "%WITH_ASAN%"=="1" (
@@ -17,6 +32,11 @@ if "%WITH_ASAN%"=="1" (
 
 if "%WITH_PYDEBUG%"=="1" (
 	set PYDEBUG_CMAKE_ARGS=-DWINDOWS_PYTHON_DEBUG=On
+)
+
+if "%BUILD_ARCH%"=="arm64" (
+	set MSBUILD_PLATFORM=arm64
+	set BUILD_PLATFORM_SELECT=-A ARM64
 )
 
 set BUILD_CMAKE_ARGS=%BUILD_CMAKE_ARGS% -G "Visual Studio %BUILD_VS_VER% %BUILD_VS_YEAR%%BUILD_GENERATOR_POST%" %BUILD_PLATFORM_SELECT% %TESTS_CMAKE_ARGS% %CLANG_CMAKE_ARGS% %ASAN_CMAKE_ARGS% %PYDEBUG_CMAKE_ARGS%

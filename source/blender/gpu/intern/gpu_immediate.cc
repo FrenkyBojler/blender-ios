@@ -12,14 +12,15 @@
 #  include "UI_resources.hh"
 #endif
 
-#include "GPU_immediate.h"
-#include "GPU_matrix.h"
-#include "GPU_texture.h"
+#include "GPU_immediate.hh"
+#include "GPU_matrix.hh"
+#include "GPU_texture.hh"
+#include "GPU_uniform_buffer.hh"
 
 #include "gpu_context_private.hh"
 #include "gpu_immediate_private.hh"
 #include "gpu_shader_private.hh"
-#include "gpu_vertex_format_private.h"
+#include "gpu_vertex_format_private.hh"
 
 using namespace blender::gpu;
 
@@ -214,7 +215,7 @@ void immBeginAtMost(GPUPrimType prim_type, uint vertex_len)
   immBegin(prim_type, vertex_len);
 }
 
-GPUBatch *immBeginBatch(GPUPrimType prim_type, uint vertex_len)
+blender::gpu::Batch *immBeginBatch(GPUPrimType prim_type, uint vertex_len)
 {
   BLI_assert(imm->prim_type == GPU_PRIM_NONE); /* Make sure we haven't already begun. */
   BLI_assert(vertex_count_makes_sense_for_primitive(vertex_len, prim_type));
@@ -224,10 +225,10 @@ GPUBatch *immBeginBatch(GPUPrimType prim_type, uint vertex_len)
   imm->vertex_idx = 0;
   imm->unassigned_attr_bits = imm->enabled_attr_bits;
 
-  GPUVertBuf *verts = GPU_vertbuf_create_with_format(&imm->vertex_format);
-  GPU_vertbuf_data_alloc(verts, vertex_len);
+  VertBuf *verts = GPU_vertbuf_create_with_format(imm->vertex_format);
+  GPU_vertbuf_data_alloc(*verts, vertex_len);
 
-  imm->vertex_data = (uchar *)GPU_vertbuf_get_data(verts);
+  imm->vertex_data = verts->data<uchar>().data();
 
   imm->batch = GPU_batch_create_ex(prim_type, verts, nullptr, GPU_BATCH_OWNS_VBO);
   imm->batch->flag |= GPU_BATCH_BUILDING;
@@ -235,7 +236,7 @@ GPUBatch *immBeginBatch(GPUPrimType prim_type, uint vertex_len)
   return imm->batch;
 }
 
-GPUBatch *immBeginBatchAtMost(GPUPrimType prim_type, uint vertex_len)
+blender::gpu::Batch *immBeginBatchAtMost(GPUPrimType prim_type, uint vertex_len)
 {
   BLI_assert(vertex_len > 0);
   imm->strict_vertex_len = false;
@@ -258,7 +259,7 @@ void immEnd()
 
   if (imm->batch) {
     if (imm->vertex_idx < imm->vertex_len) {
-      GPU_vertbuf_data_resize(imm->batch->verts[0], imm->vertex_idx);
+      GPU_vertbuf_data_resize(*imm->batch->verts[0], imm->vertex_idx);
       /* TODO: resize only if vertex count is much smaller */
     }
     GPU_batch_set_shader(imm->batch, imm->shader);
@@ -266,6 +267,7 @@ void immEnd()
     imm->batch = nullptr; /* don't free, batch belongs to caller */
   }
   else {
+    Context::get()->assert_framebuffer_shader_compatibility(unwrap(imm->shader));
     imm->end();
   }
 
@@ -275,6 +277,74 @@ void immEnd()
   imm->vertex_data = nullptr;
 
   wide_line_workaround_end();
+}
+
+void Immediate::polyline_draw_workaround(uint64_t offset)
+{
+  /* Check compatible input primitive. */
+  BLI_assert(ELEM(imm->prim_type, GPU_PRIM_LINES, GPU_PRIM_LINE_STRIP, GPU_PRIM_LINE_LOOP));
+
+  Batch *tri_batch = Context::get()->procedural_triangles_batch_get();
+  GPU_batch_set_shader(tri_batch, imm->shader);
+
+  BLI_assert(offset % 4 == 0);
+
+  /* Setup primitive and index buffer. */
+  int stride = (imm->prim_type == GPU_PRIM_LINES) ? 2 : 1;
+  int data[3] = {stride, int(imm->vertex_idx), int(offset / 4)};
+  GPU_shader_uniform_3iv(imm->shader, "gpu_vert_stride_count_offset", data);
+  GPU_shader_uniform_1b(imm->shader, "gpu_index_no_buffer", true);
+
+  {
+    /* Setup attributes metadata uniforms. */
+    const GPUVertFormat &format = imm->vertex_format;
+    /* Only support 4byte aligned formats. */
+    BLI_assert((format.stride % 4) == 0);
+    BLI_assert(format.attr_len > 0);
+
+    int pos_attr_id = -1;
+    int col_attr_id = -1;
+
+    for (uint a_idx = 0; a_idx < format.attr_len; a_idx++) {
+      const GPUVertAttr *a = &format.attrs[a_idx];
+      const char *name = GPU_vertformat_attr_name_get(&format, a, 0);
+      if (pos_attr_id == -1 && blender::StringRefNull(name) == "pos") {
+        int descriptor[2] = {int(format.stride) / 4, int(a->offset) / 4};
+        BLI_assert(ELEM(a->comp_type, GPU_COMP_F32, GPU_COMP_I32));
+        BLI_assert(ELEM(a->fetch_mode, GPU_FETCH_FLOAT, GPU_FETCH_INT_TO_FLOAT));
+        BLI_assert_msg((a->offset % 4) == 0, "Only support 4byte aligned attributes");
+        const bool fetch_int = a->fetch_mode == GPU_FETCH_INT_TO_FLOAT;
+        GPU_shader_uniform_2iv(imm->shader, "gpu_attr_0", descriptor);
+        GPU_shader_uniform_1i(imm->shader, "gpu_attr_0_len", a->comp_len);
+        GPU_shader_uniform_1b(imm->shader, "gpu_attr_0_fetch_int", fetch_int);
+        pos_attr_id = a_idx;
+      }
+      else if (col_attr_id == -1 && blender::StringRefNull(name) == "color") {
+        int descriptor[2] = {int(format.stride) / 4, int(a->offset) / 4};
+        /* Maybe we can relax this if needed. */
+        BLI_assert_msg((a->comp_type == GPU_COMP_F32) ||
+                           ((a->comp_type == GPU_COMP_U8) && (a->comp_len == 4)),
+                       "Only support float attributes or uchar4");
+        BLI_assert_msg((a->offset % 4) == 0, "Only support 4byte aligned attributes");
+        GPU_shader_uniform_2iv(imm->shader, "gpu_attr_1", descriptor);
+        GPU_shader_uniform_1i(imm->shader, "gpu_attr_1_len", a->comp_len);
+        GPU_shader_uniform_1i(imm->shader, "gpu_attr_1_fetch_unorm8", a->comp_type == GPU_COMP_U8);
+        col_attr_id = a_idx;
+      }
+      if (pos_attr_id != -1 && col_attr_id != -1) {
+        break;
+      }
+    }
+
+    BLI_assert(pos_attr_id != -1);
+    /* Could check for color attribute but we need to know which variant of the polyline shader is
+     * the one we are rendering with. */
+    // BLI_assert(pos_attr_id != -1);
+  }
+
+  blender::IndexRange range = GPU_batch_draw_expanded_parameter_get(
+      imm->prim_type, GPU_PRIM_TRIS, imm->vertex_idx, 0, 2);
+  GPU_batch_draw_advanced(tri_batch, range.start(), range.size(), 0, 0);
 }
 
 static void setAttrValueBit(uint attr_id)
@@ -738,4 +808,4 @@ void immThemeColorShadeAlpha(int colorid, int coloffset, int alphaoffset)
   immUniformColor4ub(col[0], col[1], col[2], col[3]);
 }
 
-#endif /* GPU_STANDALONE */
+#endif /* !GPU_STANDALONE */

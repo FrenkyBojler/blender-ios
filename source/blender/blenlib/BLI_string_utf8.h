@@ -11,15 +11,19 @@
 #include "BLI_compiler_attrs.h"
 #include "BLI_sys_types.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 char *BLI_strncpy_utf8(char *__restrict dst, const char *__restrict src, size_t dst_maxncpy)
     ATTR_NONNULL(1, 2);
 size_t BLI_strncpy_utf8_rlen(char *__restrict dst,
                              const char *__restrict src,
                              size_t dst_maxncpy) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL(1, 2);
+/**
+ * A version of #BLI_strncpy_utf8_rlen that doesn't null terminate the string.
+ * \note Useful for C++ APIs that don't null terminate strings.
+ */
+size_t BLI_strncpy_utf8_rlen_unterminated(char *__restrict dst,
+                                          const char *__restrict src,
+                                          size_t dst_maxncpy);
+
 /**
  * Find first UTF-8 invalid byte in given \a str, of \a length bytes.
  *
@@ -215,6 +219,12 @@ size_t BLI_str_partition_ex_utf8(const char *str,
 int BLI_str_utf8_offset_to_index(const char *str,
                                  size_t str_len,
                                  int offset_target) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL(1);
+/**
+ * Return the byte offset in `str` from `index_target`.
+ * \param index_target: The unicode index, where multi-byte characters are counted once.
+ * There is no need to clamp this value, the index is logically clamped to `BLI_strlen_utf8(str)`
+ * or below.
+ */
 int BLI_str_utf8_offset_from_index(const char *str,
                                    size_t str_len,
                                    int index_target) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL(1);
@@ -249,7 +259,3 @@ int BLI_str_utf8_offset_from_column_with_tabs(const char *str,
 #define STRNCPY_UTF8_RLEN(dst, src) BLI_strncpy_utf8_rlen(dst, src, ARRAY_SIZE(dst))
 
 /** \} */
-
-#ifdef __cplusplus
-}
-#endif

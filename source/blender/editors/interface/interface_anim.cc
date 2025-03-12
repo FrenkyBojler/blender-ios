@@ -10,10 +10,7 @@
 #include <cstdlib>
 #include <cstring>
 
-#include "MEM_guardedalloc.h"
-
 #include "DNA_anim_types.h"
-#include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 
 #include "BLI_listbase.h"
@@ -22,17 +19,18 @@
 #include "BLI_utildefines.h"
 
 #include "BKE_animsys.h"
-#include "BKE_context.h"
-#include "BKE_fcurve.h"
+#include "BKE_context.hh"
+#include "BKE_fcurve.hh"
 #include "BKE_fcurve_driver.h"
-#include "BKE_global.h"
-#include "BKE_main.h"
-#include "BKE_nla.h"
+#include "BKE_global.hh"
+#include "BKE_nla.hh"
 
-#include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_build.hh"
 
 #include "ED_keyframing.hh"
+
+#include "ANIM_fcurve.hh"
+#include "ANIM_keyframing.hh"
 
 #include "UI_interface.hh"
 
@@ -63,12 +61,7 @@ static FCurve *ui_but_get_fcurve(
 
 void ui_but_anim_flag(uiBut *but, const AnimationEvalContext *anim_eval_context)
 {
-  AnimData *adt;
-  bAction *act;
-  FCurve *fcu;
-  bool driven;
-  bool special;
-
+  /* Clear the flags that this function might set. */
   but->flag &= ~(UI_BUT_ANIMATED | UI_BUT_ANIMATED_KEY | UI_BUT_DRIVEN);
   but->drawflag &= ~UI_BUT_ANIMATED_CHANGED;
 
@@ -76,42 +69,57 @@ void ui_but_anim_flag(uiBut *but, const AnimationEvalContext *anim_eval_context)
    *        itself (which are used to animate properties of the animation data).
    *        We count those as "animated" too for now
    */
-  fcu = ui_but_get_fcurve(but, &adt, &act, &driven, &special);
+  AnimData *adt;
+  bAction *act;
+  bool driven;
+  bool special;
+  FCurve *fcu = ui_but_get_fcurve(but, &adt, &act, &driven, &special);
 
-  if (fcu) {
-    if (!driven) {
-      /* Empty curves are ignored by the animation evaluation system. */
-      if (BKE_fcurve_is_empty(fcu)) {
+  if (!fcu) {
+    return;
+  }
+  if (driven) {
+    but->flag |= UI_BUT_DRIVEN;
+    return;
+  }
+
+  /* Empty curves are ignored by the animation evaluation system. */
+  if (BKE_fcurve_is_empty(fcu)) {
+    return;
+  }
+
+  but->flag |= UI_BUT_ANIMATED;
+
+  /* #41525 - When the active action is a NLA strip being edited,
+   * we need to correct the frame number to "look inside" the
+   * remapped action
+   */
+  float cfra = anim_eval_context->eval_time;
+  if (adt) {
+    cfra = BKE_nla_tweakedit_remap(adt, cfra, NLATIME_CONVERT_UNMAP);
+  }
+
+  if (blender::animrig::fcurve_frame_has_keyframe(fcu, cfra)) {
+    but->flag |= UI_BUT_ANIMATED_KEY;
+  }
+
+  /* This feature is not implemented at all for the NLA. However, if the NLA just consists of
+   * stashed (i.e. deactivated) Actions, it doesn't do anything, and we can treat it as
+   * non-existent here. Note that this is mostly to play nice with stashed Actions, and doesn't
+   * fully look at all the track & strip flags. */
+  if (adt) {
+    LISTBASE_FOREACH (NlaTrack *, nla_track, &adt->nla_tracks) {
+      if (!(nla_track->flag & NLATRACK_MUTED)) {
+        /* Found a non-muted track, so this NLA is not purely for stashing Actions. */
         return;
       }
-
-      but->flag |= UI_BUT_ANIMATED;
-
-      /* #41525 - When the active action is a NLA strip being edited,
-       * we need to correct the frame number to "look inside" the
-       * remapped action
-       */
-      float cfra = anim_eval_context->eval_time;
-      if (adt) {
-        cfra = BKE_nla_tweakedit_remap(adt, cfra, NLATIME_CONVERT_UNMAP);
-      }
-
-      if (fcurve_frame_has_keyframe(fcu, cfra)) {
-        but->flag |= UI_BUT_ANIMATED_KEY;
-      }
-
-      /* XXX: this feature is totally broken and useless with NLA */
-      if (adt == nullptr || adt->nla_tracks.first == nullptr) {
-        const AnimationEvalContext remapped_context = BKE_animsys_eval_context_construct_at(
-            anim_eval_context, cfra);
-        if (fcurve_is_changed(but->rnapoin, but->rnaprop, fcu, &remapped_context)) {
-          but->drawflag |= UI_BUT_ANIMATED_CHANGED;
-        }
-      }
     }
-    else {
-      but->flag |= UI_BUT_DRIVEN;
-    }
+  }
+
+  const AnimationEvalContext remapped_context = BKE_animsys_eval_context_construct_at(
+      anim_eval_context, cfra);
+  if (fcurve_is_changed(but->rnapoin, but->rnaprop, fcu, &remapped_context)) {
+    but->drawflag |= UI_BUT_ANIMATED_CHANGED;
   }
 }
 
@@ -121,16 +129,22 @@ static uiBut *ui_but_anim_decorate_find_attached_button(uiButDecorator *but)
 
   BLI_assert(UI_but_is_decorator(but));
   BLI_assert(but->decorated_rnapoin.data && but->decorated_rnaprop);
-
-  LISTBASE_CIRCULAR_BACKWARD_BEGIN (uiBut *, &but->block->buttons, but_iter, but->prev) {
+  if (but->block->buttons.is_empty()) {
+    return nullptr;
+  }
+  int i = but->block->but_index(but);
+  i = i > 0 ? i - 1 : but->block->buttons.size() - 1;
+  const int start = i;
+  do {
+    but_iter = but->block->buttons[i].get();
     if (but_iter != but &&
         ui_but_rna_equals_ex(
             but_iter, &but->decorated_rnapoin, but->decorated_rnaprop, but->decorated_rnaindex))
     {
       return but_iter;
     }
-  }
-  LISTBASE_CIRCULAR_BACKWARD_END(uiBut *, &but->block->buttons, but_iter, but->prev);
+    i = i > 0 ? i - 1 : but->block->buttons.size() - 1;
+  } while (i != start);
 
   return nullptr;
 }
@@ -235,7 +249,6 @@ bool ui_but_anim_expression_create(uiBut *but, const char *str)
   bContext *C = static_cast<bContext *>(but->block->evil_C);
   ID *id;
   FCurve *fcu;
-  char *path;
   bool ok = false;
 
   /* button must have RNA-pointer to a numeric-capable property */
@@ -267,13 +280,14 @@ bool ui_but_anim_expression_create(uiBut *but, const char *str)
   }
 
   /* get path */
-  path = RNA_path_from_ID_to_property(&but->rnapoin, but->rnaprop);
-  if (path == nullptr) {
+  const std::optional<std::string> path = RNA_path_from_ID_to_property(&but->rnapoin,
+                                                                       but->rnaprop);
+  if (!path) {
     return false;
   }
 
   /* create driver */
-  fcu = verify_driver_fcurve(id, path, but->rnaindex, DRIVER_FCURVE_KEYFRAMES);
+  fcu = verify_driver_fcurve(id, path->c_str(), but->rnaindex, DRIVER_FCURVE_KEYFRAMES);
   if (fcu) {
     ChannelDriver *driver = fcu->driver;
 
@@ -293,14 +307,13 @@ bool ui_but_anim_expression_create(uiBut *but, const char *str)
     }
   }
 
-  MEM_freeN(path);
-
   return ok;
 }
 
 void ui_but_anim_autokey(bContext *C, uiBut *but, Scene *scene, float cfra)
 {
-  ED_autokeyframe_property(C, scene, &but->rnapoin, but->rnaprop, but->rnaindex, cfra, true);
+  blender::animrig::autokeyframe_property(
+      C, scene, &but->rnapoin, but->rnaprop, but->rnaindex, cfra, true);
 }
 
 void ui_but_anim_copy_driver(bContext *C)

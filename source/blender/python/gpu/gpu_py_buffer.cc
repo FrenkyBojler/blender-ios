@@ -13,17 +13,19 @@
 
 #include <Python.h>
 
+#include <algorithm>
+
 #include "BLI_utildefines.h"
 
 #include "MEM_guardedalloc.h"
 
-#include "GPU_texture.h"
+#include "GPU_texture.hh"
 
-#include "../generic/py_capi_utils.h"
+#include "../generic/py_capi_utils.hh"
 
-#include "gpu_py.h"
+#include "gpu_py.hh"
 
-#include "gpu_py_buffer.h"
+#include "gpu_py_buffer.hh"
 
 #define PYGPU_BUFFER_PROTOCOL
 #define MAX_DIMENSIONS 64
@@ -64,7 +66,7 @@ static bool pygpu_buffer_pyobj_as_shape(PyObject *shape_obj,
   Py_ssize_t shape_len = 0;
   if (PyLong_Check(shape_obj)) {
     shape_len = 1;
-    if ((r_shape[0] = PyLong_AsLong(shape_obj)) < 1) {
+    if ((r_shape[0] = PyLong_AsSsize_t(shape_obj)) < 1) {
       PyErr_SetString(PyExc_AttributeError, "dimension must be greater than or equal to 1");
       return false;
     }
@@ -92,7 +94,7 @@ static bool pygpu_buffer_pyobj_as_shape(PyObject *shape_obj,
         return false;
       }
 
-      r_shape[i] = PyLong_AsLong(ob);
+      r_shape[i] = PyLong_AsSsize_t(ob);
       Py_DECREF(ob);
 
       if (r_shape[i] < 1) {
@@ -327,15 +329,9 @@ static int pygpu_buffer_ass_slice(BPyGPUBuffer *self,
   PyObject *item;
   int count, err = 0;
 
-  if (begin < 0) {
-    begin = 0;
-  }
-  if (end > self->shape[0]) {
-    end = self->shape[0];
-  }
-  if (begin > end) {
-    begin = end;
-  }
+  begin = std::max<Py_ssize_t>(begin, 0);
+  end = std::min(end, self->shape[0]);
+  begin = std::min(begin, end);
 
   if (!PySequence_Check(seq)) {
     PyErr_Format(PyExc_TypeError,
@@ -373,6 +369,8 @@ static int pygpu_buffer_ass_slice(BPyGPUBuffer *self,
 
 static PyObject *pygpu_buffer__tp_new(PyTypeObject * /*type*/, PyObject *args, PyObject *kwds)
 {
+  BPYGPU_IS_INIT_OR_ERROR_OBJ;
+
   PyObject *length_ob, *init = nullptr;
   BPyGPUBuffer *buffer = nullptr;
   Py_ssize_t shape[MAX_DIMENSIONS];
@@ -384,7 +382,7 @@ static PyObject *pygpu_buffer__tp_new(PyTypeObject * /*type*/, PyObject *args, P
     return nullptr;
   }
 
-  const PyC_StringEnum pygpu_dataformat = {bpygpu_dataformat_items, GPU_DATA_FLOAT};
+  PyC_StringEnum pygpu_dataformat = {bpygpu_dataformat_items, GPU_DATA_FLOAT};
   if (!PyArg_ParseTuple(
           args, "O&O|O: Buffer", PyC_ParseStringEnum, &pygpu_dataformat, &length_ob, &init))
   {
@@ -445,15 +443,9 @@ static PyObject *pygpu_buffer_slice(BPyGPUBuffer *self, Py_ssize_t begin, Py_ssi
   PyObject *list;
   Py_ssize_t count;
 
-  if (begin < 0) {
-    begin = 0;
-  }
-  if (end > self->shape[0]) {
-    end = self->shape[0];
-  }
-  if (begin > end) {
-    begin = end;
-  }
+  begin = std::max<Py_ssize_t>(begin, 0);
+  end = std::min(end, self->shape[0]);
+  begin = std::min(begin, end);
 
   list = PyList_New(end - begin);
 
@@ -634,7 +626,7 @@ static int pygpu_buffer__bf_getbuffer(BPyGPUBuffer *self, Py_buffer *view, int f
   memset(view, 0, sizeof(*view));
 
   view->obj = (PyObject *)self;
-  view->buf = (void *)self->buf.as_void;
+  view->buf = self->buf.as_void;
   view->len = bpygpu_Buffer_size(self);
   view->readonly = 0;
   view->itemsize = GPU_texture_dataformat_size(eGPUDataFormat(self->format));
@@ -670,6 +662,7 @@ static PyBufferProcs pygpu_buffer__tp_as_buffer = {
 #endif
 
 PyDoc_STRVAR(
+    /* Wrap. */
     pygpu_buffer__tp_doc,
     ".. class:: Buffer(format, dimensions, data)\n"
     "\n"
@@ -681,7 +674,7 @@ PyDoc_STRVAR(
     "   :arg dimensions: Array describing the dimensions.\n"
     "   :type dimensions: int\n"
     "   :arg data: Optional data array.\n"
-    "   :type data: sequence\n");
+    "   :type data: Buffer | Sequence[float] | Sequence[int]\n");
 PyTypeObject BPyGPU_BufferType = {
     /*ob_base*/ PyVarObject_HEAD_INIT(nullptr, 0)
     /*tp_name*/ "Buffer",

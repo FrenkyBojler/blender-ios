@@ -46,7 +46,7 @@ AxisAngleBase<T, AngleT>::AxisAngleBase(const VecBase<T, 3> &from, const VecBase
   T cos = dot(from, to);
   axis_ = normalize_and_get_length(cross(from, to), sin);
 
-  if (sin <= FLT_EPSILON) {
+  if (sin <= std::numeric_limits<T>::epsilon()) {
     if (cos > T(0)) {
       /* Same vectors, zero rotation... */
       *this = identity();
@@ -101,10 +101,10 @@ EulerXYZBase<T> to_euler(const AxisAngleBase<T, AngleT> &axis_angle)
   if (axis.x == T(1)) {
     return EulerXYZBase<T>(T(axis_angle.angle()), T(0), T(0));
   }
-  else if (axis.y == T(1)) {
+  if (axis.y == T(1)) {
     return EulerXYZBase<T>(T(0), T(axis_angle.angle()), T(0));
   }
-  else if (axis.z == T(1)) {
+  if (axis.z == T(1)) {
     return EulerXYZBase<T>(T(0), T(0), T(axis_angle.angle()));
   }
   /* Use quaternions as intermediate representation for now... */

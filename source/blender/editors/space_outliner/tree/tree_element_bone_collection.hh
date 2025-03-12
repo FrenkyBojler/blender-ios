@@ -20,14 +20,16 @@ class TreeElementBoneCollectionBase final : public AbstractTreeElement {
 
  public:
   TreeElementBoneCollectionBase(TreeElement &legacy_te, bArmature &armature);
-  void expand(SpaceOutliner &) const override;
+  void expand(SpaceOutliner & /*soops*/) const override;
 };
 
 class TreeElementBoneCollection final : public AbstractTreeElement {
+  bArmature &armature_;
   BoneCollection &bcoll_;
 
  public:
-  TreeElementBoneCollection(TreeElement &legacy_te, BoneCollection &bcoll);
+  TreeElementBoneCollection(TreeElement &legacy_te, bArmature &armature, BoneCollection &bcoll);
+  void expand(SpaceOutliner & /*soops*/) const override;
 };
 
 }  // namespace blender::ed::outliner

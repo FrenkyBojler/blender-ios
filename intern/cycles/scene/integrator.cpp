@@ -18,7 +18,6 @@
 
 #include "kernel/types.h"
 
-#include "util/foreach.h"
 #include "util/hash.h"
 #include "util/log.h"
 #include "util/task.h"
@@ -109,7 +108,9 @@ NODE_DEFINE(Integrator)
   SOCKET_BOOLEAN(motion_blur, "Motion Blur", false);
 
   SOCKET_INT(aa_samples, "AA Samples", 0);
-  SOCKET_INT(start_sample, "Start Sample", 0);
+  SOCKET_BOOLEAN(use_sample_subset, "Use Sample Subset", false);
+  SOCKET_INT(sample_subset_offset, "Sample Subset Offset", 0);
+  SOCKET_INT(sample_subset_length, "Sample Subset Length", MAX_SAMPLES);
 
   SOCKET_BOOLEAN(use_adaptive_sampling, "Use Adaptive Sampling", true);
   SOCKET_FLOAT(adaptive_threshold, "Adaptive Threshold", 0.01f);
@@ -121,6 +122,9 @@ NODE_DEFINE(Integrator)
   static NodeEnum sampling_pattern_enum;
   sampling_pattern_enum.insert("sobol_burley", SAMPLING_PATTERN_SOBOL_BURLEY);
   sampling_pattern_enum.insert("tabulated_sobol", SAMPLING_PATTERN_TABULATED_SOBOL);
+  sampling_pattern_enum.insert("blue_noise_pure", SAMPLING_PATTERN_BLUE_NOISE_PURE);
+  sampling_pattern_enum.insert("blue_noise_round", SAMPLING_PATTERN_BLUE_NOISE_ROUND);
+  sampling_pattern_enum.insert("blue_noise_first", SAMPLING_PATTERN_BLUE_NOISE_FIRST);
   SOCKET_ENUM(sampling_pattern,
               "Sampling Pattern",
               sampling_pattern_enum,
@@ -128,6 +132,7 @@ NODE_DEFINE(Integrator)
   SOCKET_FLOAT(scrambling_distance, "Scrambling Distance", 1.0f);
 
   static NodeEnum denoiser_type_enum;
+  denoiser_type_enum.insert("none", DENOISER_NONE);
   denoiser_type_enum.insert("optix", DENOISER_OPTIX);
   denoiser_type_enum.insert("openimagedenoise", DENOISER_OPENIMAGEDENOISE);
 
@@ -135,6 +140,11 @@ NODE_DEFINE(Integrator)
   denoiser_prefilter_enum.insert("none", DENOISER_PREFILTER_NONE);
   denoiser_prefilter_enum.insert("fast", DENOISER_PREFILTER_FAST);
   denoiser_prefilter_enum.insert("accurate", DENOISER_PREFILTER_ACCURATE);
+
+  static NodeEnum denoiser_quality_enum;
+  denoiser_quality_enum.insert("high", DENOISER_QUALITY_HIGH);
+  denoiser_quality_enum.insert("balanced", DENOISER_QUALITY_BALANCED);
+  denoiser_quality_enum.insert("fast", DENOISER_QUALITY_FAST);
 
   /* Default to accurate denoising with OpenImageDenoise. For interactive viewport
    * it's best use OptiX and disable the normal pass since it does not always have
@@ -148,13 +158,15 @@ NODE_DEFINE(Integrator)
               "Denoiser Prefilter",
               denoiser_prefilter_enum,
               DENOISER_PREFILTER_ACCURATE);
+  SOCKET_BOOLEAN(denoise_use_gpu, "Denoise on GPU", true);
+  SOCKET_ENUM(denoiser_quality, "Denoiser Quality", denoiser_quality_enum, DENOISER_QUALITY_HIGH);
 
   return type;
 }
 
 Integrator::Integrator() : Node(get_node_type()) {}
 
-Integrator::~Integrator() {}
+Integrator::~Integrator() = default;
 
 void Integrator::device_update(Device *device, DeviceScene *dscene, Scene *scene)
 {
@@ -162,7 +174,7 @@ void Integrator::device_update(Device *device, DeviceScene *dscene, Scene *scene
     return;
   }
 
-  scoped_callback_timer timer([scene](double time) {
+  const scoped_callback_timer timer([scene](double time) {
     if (scene->update_stats) {
       scene->update_stats->integrator.times.add_entry({"device_update", time});
     }
@@ -200,7 +212,7 @@ void Integrator::device_update(Device *device, DeviceScene *dscene, Scene *scene
    * transparent shaders in the scene. Otherwise we can disable it
    * to improve performance a bit. */
   kintegrator->transparent_shadows = false;
-  foreach (Shader *shader, scene->shaders) {
+  for (Shader *shader : scene->shaders) {
     /* keep this in sync with SD_HAS_TRANSPARENT_SHADOW in shader.cpp */
     if ((shader->has_surface_transparent && shader->get_use_transparent_shadow()) ||
         shader->has_volume)
@@ -243,7 +255,7 @@ void Integrator::device_update(Device *device, DeviceScene *dscene, Scene *scene
     kintegrator->filter_closures |= FILTER_CLOSURE_TRANSPARENT;
   }
 
-  GuidingParams guiding_params = get_guiding_params(device);
+  const GuidingParams guiding_params = get_guiding_params(device);
   kintegrator->use_guiding = guiding_params.use;
   kintegrator->train_guiding = kintegrator->use_guiding;
   kintegrator->use_surface_guiding = guiding_params.use_surface_guiding;
@@ -256,17 +268,39 @@ void Integrator::device_update(Device *device, DeviceScene *dscene, Scene *scene
   kintegrator->guiding_directional_sampling_type = guiding_params.sampling_type;
   kintegrator->guiding_roughness_threshold = guiding_params.roughness_threshold;
 
-  kintegrator->seed = seed;
-
   kintegrator->sample_clamp_direct = (sample_clamp_direct == 0.0f) ? FLT_MAX :
                                                                      sample_clamp_direct * 3.0f;
   kintegrator->sample_clamp_indirect = (sample_clamp_indirect == 0.0f) ?
                                            FLT_MAX :
                                            sample_clamp_indirect * 3.0f;
 
+  const int clamped_aa_samples = min(aa_samples, MAX_SAMPLES);
+
   kintegrator->sampling_pattern = sampling_pattern;
   kintegrator->scrambling_distance = scrambling_distance;
-  kintegrator->sobol_index_mask = reverse_integer_bits(next_power_of_two(aa_samples - 1) - 1);
+  kintegrator->sobol_index_mask = reverse_integer_bits(next_power_of_two(clamped_aa_samples - 1) -
+                                                       1);
+  kintegrator->blue_noise_sequence_length = clamped_aa_samples;
+  if (kintegrator->sampling_pattern == SAMPLING_PATTERN_BLUE_NOISE_ROUND) {
+    if (!is_power_of_two(clamped_aa_samples)) {
+      kintegrator->blue_noise_sequence_length = next_power_of_two(clamped_aa_samples);
+    }
+    kintegrator->sampling_pattern = SAMPLING_PATTERN_BLUE_NOISE_PURE;
+  }
+  if (kintegrator->sampling_pattern == SAMPLING_PATTERN_BLUE_NOISE_FIRST) {
+    kintegrator->blue_noise_sequence_length -= 1;
+  }
+
+  /* The blue-noise sampler needs a randomized seed to scramble properly, providing e.g. 0 won't
+   * work properly. Therefore, hash the seed in those cases. */
+  if (kintegrator->sampling_pattern == SAMPLING_PATTERN_BLUE_NOISE_FIRST ||
+      kintegrator->sampling_pattern == SAMPLING_PATTERN_BLUE_NOISE_PURE)
+  {
+    kintegrator->seed = hash_uint(seed);
+  }
+  else {
+    kintegrator->seed = seed;
+  }
 
   /* NOTE: The kintegrator->use_light_tree is assigned to the efficient value in the light manager,
    * and the synchronization code is expected to tag the light manager for update when the
@@ -279,23 +313,24 @@ void Integrator::device_update(Device *device, DeviceScene *dscene, Scene *scene
   }
 
   /* Build pre-tabulated Sobol samples if needed. */
-  int sequence_size = clamp(
-      next_power_of_two(aa_samples - 1), MIN_TAB_SOBOL_SAMPLES, MAX_TAB_SOBOL_SAMPLES);
+  const int sequence_size = clamp(
+      next_power_of_two(clamped_aa_samples - 1), MIN_TAB_SOBOL_SAMPLES, MAX_TAB_SOBOL_SAMPLES);
+  const int table_size = sequence_size * NUM_TAB_SOBOL_PATTERNS * NUM_TAB_SOBOL_DIMENSIONS;
   if (kintegrator->sampling_pattern == SAMPLING_PATTERN_TABULATED_SOBOL &&
-      dscene->sample_pattern_lut.size() !=
-          (sequence_size * NUM_TAB_SOBOL_PATTERNS * NUM_TAB_SOBOL_DIMENSIONS))
+      dscene->sample_pattern_lut.size() != table_size)
   {
     kintegrator->tabulated_sobol_sequence_size = sequence_size;
 
     if (dscene->sample_pattern_lut.size() != 0) {
       dscene->sample_pattern_lut.free();
     }
-    float4 *directions = (float4 *)dscene->sample_pattern_lut.alloc(
-        sequence_size * NUM_TAB_SOBOL_PATTERNS * NUM_TAB_SOBOL_DIMENSIONS);
+    float4 *directions = (float4 *)dscene->sample_pattern_lut.alloc(table_size);
     TaskPool pool;
     for (int j = 0; j < NUM_TAB_SOBOL_PATTERNS; ++j) {
       float4 *sequence = directions + j * sequence_size;
-      pool.push(function_bind(&tabulated_sobol_generate_4D, sequence, sequence_size, j));
+      pool.push([sequence, sequence_size, j] {
+        tabulated_sobol_generate_4D(sequence, sequence_size, j);
+      });
     }
     pool.wait_work();
 
@@ -308,12 +343,12 @@ void Integrator::device_update(Device *device, DeviceScene *dscene, Scene *scene
   clear_modified();
 }
 
-void Integrator::device_free(Device *, DeviceScene *dscene, bool force_free)
+void Integrator::device_free(Device * /*unused*/, DeviceScene *dscene, bool force_free)
 {
   dscene->sample_pattern_lut.free_if_need_realloc(force_free);
 }
 
-void Integrator::tag_update(Scene *scene, uint32_t flag)
+void Integrator::tag_update(Scene *scene, const uint32_t flag)
 {
   if (flag & UPDATE_ALL) {
     tag_modified();
@@ -339,6 +374,10 @@ uint Integrator::get_kernel_features() const
     kernel_features |= KERNEL_FEATURE_AO_ADDITIVE;
   }
 
+  if (get_use_light_tree()) {
+    kernel_features |= KERNEL_FEATURE_LIGHT_TREE;
+  }
+
   return kernel_features;
 }
 
@@ -352,12 +391,23 @@ AdaptiveSampling Integrator::get_adaptive_sampling() const
     return adaptive_sampling;
   }
 
-  if (aa_samples > 0 && adaptive_threshold == 0.0f) {
+  const int clamped_aa_samples = min(aa_samples, MAX_SAMPLES);
+
+  if (clamped_aa_samples > 0 && adaptive_threshold == 0.0f) {
     adaptive_sampling.threshold = max(0.001f, 1.0f / (float)aa_samples);
     VLOG_INFO << "Cycles adaptive sampling: automatic threshold = " << adaptive_sampling.threshold;
   }
   else {
     adaptive_sampling.threshold = adaptive_threshold;
+  }
+
+  if (use_sample_subset && clamped_aa_samples > 0) {
+    const int subset_samples = max(
+        min(sample_subset_offset + sample_subset_length, clamped_aa_samples) -
+            sample_subset_offset,
+        0);
+
+    adaptive_sampling.threshold *= sqrtf((float)subset_samples / (float)clamped_aa_samples);
   }
 
   if (adaptive_sampling.threshold > 0 && adaptive_min_samples == 0) {
@@ -393,12 +443,15 @@ DenoiseParams Integrator::get_denoise_params() const
 
   denoise_params.type = denoiser_type;
 
+  denoise_params.use_gpu = denoise_use_gpu;
+
   denoise_params.start_sample = denoise_start_sample;
 
   denoise_params.use_pass_albedo = use_denoise_pass_albedo;
   denoise_params.use_pass_normal = use_denoise_pass_normal;
 
   denoise_params.prefilter = denoiser_prefilter;
+  denoise_params.quality = denoiser_quality;
 
   return denoise_params;
 }

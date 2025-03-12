@@ -8,8 +8,6 @@
  * Deform coordinates by a curve object (used by modifier).
  */
 
-#include <cmath>
-#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 
@@ -23,12 +21,12 @@
 #include "DNA_object_types.h"
 
 #include "BKE_anim_path.h"
-#include "BKE_curve.h"
-#include "BKE_editmesh.h"
-#include "BKE_lattice.h"
-#include "BKE_modifier.h"
+#include "BKE_curve.hh"
+#include "BKE_editmesh.hh"
+#include "BKE_modifier.hh"
+#include "BKE_object_types.hh"
 
-#include "BKE_deform.h"
+#include "BKE_deform.hh"
 
 /* -------------------------------------------------------------------- */
 /** \name Curve Deform Internal Utilities
@@ -47,8 +45,8 @@ struct CurveDeform {
 static void init_curve_deform(const Object *ob_curve, const Object *ob_target, CurveDeform *cd)
 {
   float imat[4][4];
-  invert_m4_m4(imat, ob_target->object_to_world);
-  mul_m4_m4m4(cd->objectspace, imat, ob_curve->object_to_world);
+  invert_m4_m4(imat, ob_target->object_to_world().ptr());
+  mul_m4_m4m4(cd->objectspace, imat, ob_curve->object_to_world().ptr());
   invert_m4_m4(cd->curvespace, cd->objectspace);
   copy_m3_m4(cd->objectspace3, cd->objectspace);
   cd->no_rot_axis = 0;
@@ -69,12 +67,12 @@ static bool calc_curve_deform(
   short index;
   const bool is_neg_axis = (axis > 2);
 
-  if (ob_curve->runtime.curve_cache == nullptr) {
+  if (ob_curve->runtime->curve_cache == nullptr) {
     /* Happens with a cyclic dependencies. */
     return false;
   }
 
-  if (ob_curve->runtime.curve_cache->anim_path_accum_length == nullptr) {
+  if (ob_curve->runtime->curve_cache->anim_path_accum_length == nullptr) {
     return false; /* happens on append, cyclic dependencies and empty curves */
   }
 
@@ -91,7 +89,7 @@ static bool calc_curve_deform(
       }
     }
     else {
-      const CurveCache *cc = ob_curve->runtime.curve_cache;
+      const CurveCache *cc = ob_curve->runtime->curve_cache;
       float totdist = BKE_anim_path_get_length(cc);
       if (LIKELY(totdist > FLT_EPSILON)) {
         fac = -(co[index] - cd->dmax[index]) / totdist;
@@ -113,7 +111,7 @@ static bool calc_curve_deform(
       }
     }
     else {
-      const CurveCache *cc = ob_curve->runtime.curve_cache;
+      const CurveCache *cc = ob_curve->runtime->curve_cache;
       float totdist = BKE_anim_path_get_length(cc);
       if (LIKELY(totdist > FLT_EPSILON)) {
         fac = +(co[index] - cd->dmin[index]) / totdist;
@@ -204,8 +202,9 @@ static void curve_deform_coords_impl(const Object *ob_curve,
                                      const int defgrp_index,
                                      const short flag,
                                      const short defaxis,
-                                     BMEditMesh *em_target)
+                                     const BMEditMesh *em_target)
 {
+  BLI_assert(ushort(defaxis) < 6);
   Curve *cu;
   int a;
   CurveDeform cd;
@@ -391,7 +390,7 @@ void BKE_curve_deform_coords_with_editmesh(const Object *ob_curve,
                                            const int defgrp_index,
                                            const short flag,
                                            const short defaxis,
-                                           BMEditMesh *em_target)
+                                           const BMEditMesh *em_target)
 {
   curve_deform_coords_impl(ob_curve,
                            ob_target,

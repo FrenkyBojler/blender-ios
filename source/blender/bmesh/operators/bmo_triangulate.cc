@@ -17,9 +17,9 @@
 #include "BLI_scanfill.h"
 #include "BLI_sort_utils.h"
 
-#include "bmesh.h"
-#include "bmesh_tools.h"
-#include "intern/bmesh_operators_private.h"
+#include "bmesh.hh"
+#include "bmesh_tools.hh"
+#include "intern/bmesh_operators_private.hh"
 
 #define ELE_NEW 1
 #define EDGE_MARK 4
@@ -54,7 +54,7 @@ void bmo_triangle_fill_exec(BMesh *bm, BMOperator *op)
   BMOIter siter;
   BMEdge *e;
   ScanFillContext sf_ctx;
-  /* ScanFillEdge *sf_edge; */ /* UNUSED */
+  // ScanFillEdge *sf_edge; /* UNUSED */
   GHash *sf_vert_map;
   float normal[3];
   const int scanfill_flag = BLI_SCANFILL_CALC_HOLES | BLI_SCANFILL_CALC_POLYS |
@@ -88,7 +88,7 @@ void bmo_triangle_fill_exec(BMesh *bm, BMOperator *op)
     }
 
     /* sf_edge = */ BLI_scanfill_edge_add(&sf_ctx, UNPACK2(sf_verts));
-    /* sf_edge->tmp.p = e; */ /* UNUSED */
+    // sf_edge->tmp.p = e; /* UNUSED */
   }
   nors_tot = BLI_ghash_len(sf_vert_map);
   BLI_ghash_free(sf_vert_map, nullptr, nullptr);
@@ -197,7 +197,7 @@ void bmo_triangle_fill_exec(BMesh *bm, BMOperator *op)
 
     if (winding_votes < 0) {
       LISTBASE_FOREACH (ScanFillFace *, sf_tri, &sf_ctx.fillfacebase) {
-        SWAP(ScanFillVert *, sf_tri->v2, sf_tri->v3);
+        std::swap(sf_tri->v2, sf_tri->v3);
       }
     }
   }

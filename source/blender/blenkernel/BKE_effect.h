@@ -7,15 +7,10 @@
  * \ingroup bke
  */
 
-#include "BLI_utildefines.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 struct Collection;
 struct Depsgraph;
 struct ListBase;
+struct RNG;
 struct Object;
 struct ParticleData;
 struct ParticleKey;
@@ -77,6 +72,9 @@ typedef struct EffectorCache {
   struct SurfaceModifierData *surmd;
 
   struct PartDeflect *pd;
+
+  /** Random noise generator for e.g. wind. */
+  struct RNG *rng;
 
   /* precalculated for guides */
   struct GuideEffectorData *guide_data;
@@ -274,7 +272,3 @@ void BKE_sim_debug_data_remove_element(unsigned int hash);
 
 void BKE_sim_debug_data_clear(void);
 void BKE_sim_debug_data_clear_category(const char *category);
-
-#ifdef __cplusplus
-}
-#endif

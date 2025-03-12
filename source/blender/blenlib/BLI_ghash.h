@@ -16,10 +16,6 @@
 #include "BLI_compiler_compat.h"
 #include "BLI_sys_types.h" /* for bool */
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #define _GHASH_INTERNAL_ATTR
 #ifndef GHASH_INTERNAL_API
 #  ifdef __GNUC__
@@ -394,7 +390,7 @@ bool BLI_gset_ensure_p_ex(GSet *gs, const void *key, void ***r_key);
  *
  * \returns true if a new key has been added.
  */
-bool BLI_gset_reinsert(GSet *gh, void *key, GSetKeyFreeFP keyfreefp);
+bool BLI_gset_reinsert(GSet *gs, void *key, GSetKeyFreeFP keyfreefp);
 /**
  * Replaces the key to the set if it's found.
  * Matching #BLI_ghash_replace_key
@@ -499,20 +495,20 @@ int BLI_gset_buckets_len(const GSet *gs);
  *
  * Smaller is better!
  */
-double BLI_ghash_calc_quality_ex(GHash *gh,
+double BLI_ghash_calc_quality_ex(const GHash *gh,
                                  double *r_load,
                                  double *r_variance,
                                  double *r_prop_empty_buckets,
                                  double *r_prop_overloaded_buckets,
                                  int *r_biggest_bucket);
-double BLI_gset_calc_quality_ex(GSet *gs,
+double BLI_gset_calc_quality_ex(const GSet *gs,
                                 double *r_load,
                                 double *r_variance,
                                 double *r_prop_empty_buckets,
                                 double *r_prop_overloaded_buckets,
                                 int *r_biggest_bucket);
-double BLI_ghash_calc_quality(GHash *gh);
-double BLI_gset_calc_quality(GSet *gs);
+double BLI_ghash_calc_quality(const GHash *gh);
+double BLI_gset_calc_quality(const GSet *gs);
 #endif /* GHASH_INTERNAL_API */
 
 /** \} */
@@ -548,7 +544,7 @@ double BLI_gset_calc_quality(GSet *gs);
 /* -------------------------------------------------------------------- */
 /** \name GHash/GSet Utils
  *
- * Defined in `BLI_ghash_utils.c`
+ * Defined in `BLI_ghash_utils.cc`
  * \{ */
 
 /**
@@ -642,7 +638,3 @@ GSet *BLI_gset_int_new_ex(const char *info,
 GSet *BLI_gset_int_new(const char *info) ATTR_MALLOC ATTR_WARN_UNUSED_RESULT;
 
 /** \} */
-
-#ifdef __cplusplus
-}
-#endif

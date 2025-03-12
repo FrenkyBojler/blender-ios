@@ -26,27 +26,23 @@
 
 #include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
-#include "DNA_meshdata_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
 #include "render_types.h"
 
-#include "BKE_customdata.h"
-#include "BKE_lib_id.h"
-#include "BKE_material.h"
+#include "BKE_lib_id.hh"
+#include "BKE_material.hh"
 #include "BKE_mesh.h"
-#include "BKE_scene.h"
+#include "BKE_scene.hh"
 
 #include "BLI_iterator.h"
 #include "BLI_listbase.h"
 
 #include "DEG_depsgraph_query.hh"
 
-#ifdef WITH_CXX_GUARDEDALLOC
-#  include "MEM_guardedalloc.h"
-#endif
+#include "MEM_guardedalloc.h"
 
 namespace Freestyle {
 
@@ -144,9 +140,7 @@ class BlenderFileLoader {
 
   RenderMonitor *_pRenderMonitor;
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("Freestyle:BlenderFileLoader")
-#endif
 };
 
 } /* namespace Freestyle */

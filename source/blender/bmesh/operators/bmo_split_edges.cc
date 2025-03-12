@@ -8,12 +8,10 @@
  * Just a wrapper around #BM_mesh_edgesplit
  */
 
-#include "BLI_utildefines.h"
+#include "bmesh.hh"
+#include "bmesh_tools.hh"
 
-#include "bmesh.h"
-#include "bmesh_tools.h"
-
-#include "intern/bmesh_operators_private.h" /* own include */
+#include "intern/bmesh_operators_private.hh" /* own include */
 
 void bmo_split_edges_exec(BMesh *bm, BMOperator *op)
 {

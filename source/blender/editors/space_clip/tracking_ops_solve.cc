@@ -13,14 +13,14 @@
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
 
+#include "BLI_listbase.h"
 #include "BLI_string.h"
-#include "BLI_utildefines.h"
 
-#include "BKE_context.h"
-#include "BKE_global.h"
-#include "BKE_lib_id.h"
+#include "BKE_context.hh"
+#include "BKE_global.hh"
+#include "BKE_lib_id.hh"
 #include "BKE_movieclip.h"
-#include "BKE_report.h"
+#include "BKE_report.hh"
 #include "BKE_tracking.h"
 
 #include "DEG_depsgraph.hh"
@@ -30,7 +30,7 @@
 
 #include "ED_clip.hh"
 
-#include "clip_intern.h"
+#include "clip_intern.hh"
 
 /********************** solve camera operator *********************/
 
@@ -77,7 +77,7 @@ static bool solve_camera_initjob(
                                                          width,
                                                          height);
 
-  tracking->stats = MEM_cnew<MovieTrackingStats>("solve camera stats");
+  tracking->stats = MEM_callocN<MovieTrackingStats>("solve camera stats");
 
   WM_set_locked_interface(scj->wm, true);
 
@@ -92,11 +92,15 @@ static void solve_camera_updatejob(void *scv)
   STRNCPY(tracking->stats->message, scj->stats_message);
 }
 
-static void solve_camera_startjob(void *scv, bool *stop, bool *do_update, float *progress)
+static void solve_camera_startjob(void *scv, wmJobWorkerStatus *worker_status)
 {
   SolveCameraJob *scj = (SolveCameraJob *)scv;
-  BKE_tracking_reconstruction_solve(
-      scj->context, stop, do_update, progress, scj->stats_message, sizeof(scj->stats_message));
+  BKE_tracking_reconstruction_solve(scj->context,
+                                    &worker_status->stop,
+                                    &worker_status->do_update,
+                                    &worker_status->progress,
+                                    scj->stats_message,
+                                    sizeof(scj->stats_message));
 }
 
 static void solve_camera_freejob(void *scv)
@@ -153,7 +157,7 @@ static void solve_camera_freejob(void *scv)
     int width, height;
     BKE_movieclip_get_size(clip, &scj->user, &width, &height);
     BKE_tracking_camera_to_blender(tracking, scene, camera, width, height);
-    DEG_id_tag_update(&camera->id, ID_RECALC_COPY_ON_WRITE);
+    DEG_id_tag_update(&camera->id, ID_RECALC_SYNC_TO_EVAL);
     WM_main_add_notifier(NC_OBJECT, camera);
   }
 
@@ -176,7 +180,7 @@ static int solve_camera_exec(bContext *C, wmOperator *op)
 {
   SolveCameraJob *scj;
   char error_msg[256] = "\0";
-  scj = MEM_cnew<SolveCameraJob>("SolveCameraJob data");
+  scj = MEM_callocN<SolveCameraJob>("SolveCameraJob data");
   if (!solve_camera_initjob(C, scj, op, error_msg, sizeof(error_msg))) {
     if (error_msg[0]) {
       BKE_report(op->reports, RPT_ERROR, error_msg);
@@ -184,7 +188,8 @@ static int solve_camera_exec(bContext *C, wmOperator *op)
     solve_camera_freejob(scj);
     return OPERATOR_CANCELLED;
   }
-  solve_camera_startjob(scj, nullptr, nullptr, nullptr);
+  wmJobWorkerStatus worker_status = {};
+  solve_camera_startjob(scj, &worker_status);
   solve_camera_freejob(scj);
   return OPERATOR_FINISHED;
 }
@@ -205,7 +210,7 @@ static int solve_camera_invoke(bContext *C, wmOperator *op, const wmEvent * /*ev
     return OPERATOR_CANCELLED;
   }
 
-  scj = MEM_cnew<SolveCameraJob>("SolveCameraJob data");
+  scj = MEM_callocN<SolveCameraJob>("SolveCameraJob data");
   if (!solve_camera_initjob(C, scj, op, error_msg, sizeof(error_msg))) {
     if (error_msg[0]) {
       BKE_report(op->reports, RPT_ERROR, error_msg);

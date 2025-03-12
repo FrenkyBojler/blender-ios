@@ -7,21 +7,17 @@
  * \ingroup bli
  */
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 struct Object;
 struct ProjCameraInfo;
 
 /**
  * Create UV info from the camera, needs to be freed.
  *
- * \param rotmat: can be `obedit->object_to_world` when uv project is used.
+ * \param rotmat: can be `obedit->object_to_world().ptr()` when uv project is used.
  * \param winx, winy: can be from `scene->r.xsch / ysch`.
  */
-struct ProjCameraInfo *BLI_uvproject_camera_info(struct Object *ob,
-                                                 float rotmat[4][4],
+struct ProjCameraInfo *BLI_uvproject_camera_info(const struct Object *ob,
+                                                 const float rotmat[4][4],
                                                  float winx,
                                                  float winy);
 
@@ -49,8 +45,8 @@ void BLI_uvproject_from_view_ortho(float target[2], float source[3], const float
 /**
  * So we can adjust scale with keeping the struct private.
  */
-void BLI_uvproject_camera_info_scale(struct ProjCameraInfo *uci, float scale_x, float scale_y);
+void BLI_uvproject_camera_info_scale(ProjCameraInfo *uci, float scale_x, float scale_y);
 
-#ifdef __cplusplus
-}
-#endif
+/*
+ * Free info. */
+void BLI_uvproject_camera_info_free(ProjCameraInfo *uci);

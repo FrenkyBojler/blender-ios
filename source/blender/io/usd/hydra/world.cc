@@ -2,7 +2,8 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "world.h"
+#include "world.hh"
+#include "usd_private.hh"
 
 #include <pxr/base/gf/rotation.h>
 #include <pxr/base/gf/vec2f.h>
@@ -14,18 +15,19 @@
 
 #include "DNA_node_types.h"
 #include "DNA_scene_types.h"
+#include "DNA_world_types.h"
 
 #include "BLI_math_rotation.h"
-#include "BLI_path_util.h"
 
-#include "BKE_node.h"
+#include "BKE_node.hh"
+#include "BKE_node_legacy_types.hh"
 #include "BKE_node_runtime.hh"
 #include "BKE_studiolight.h"
 
 #include "NOD_shader.h"
 
-#include "hydra_scene_delegate.h"
-#include "image.h"
+#include "hydra_scene_delegate.hh"
+#include "image.hh"
 
 /* TODO: add custom `tftoken` "transparency"? */
 
@@ -42,26 +44,26 @@ WorldData::WorldData(HydraSceneDelegate *scene_delegate, pxr::SdfPath const &pri
 void WorldData::init()
 {
   data_.clear();
-  data_[pxr::UsdLuxTokens->orientToStageUpAxis] = true;
 
   float intensity = 1.0f;
-  float exposure = 1.0f;
-  pxr::GfVec3f color(1.0f, 1.0f, 1.0f);
   pxr::SdfAssetPath texture_file;
 
   if (scene_delegate_->shading_settings.use_scene_world) {
     const World *world = scene_delegate_->scene->world;
+    pxr::GfVec3f color(1.0f, 1.0f, 1.0f);
     ID_LOG(1, "%s", world->id.name);
 
-    exposure = world->exposure;
     if (world->use_nodes) {
       /* TODO: Create nodes parsing system */
 
       bNode *output_node = ntreeShaderOutputNode(world->nodetree, SHD_OUTPUT_ALL);
+      if (!output_node) {
+        return;
+      }
       const Span<bNodeSocket *> input_sockets = output_node->input_sockets();
       bNodeSocket *input_socket = nullptr;
 
-      for (auto socket : input_sockets) {
+      for (auto *socket : input_sockets) {
         if (STREQ(socket->name, "Surface")) {
           input_socket = socket;
           break;
@@ -70,13 +72,13 @@ void WorldData::init()
       if (!input_socket) {
         return;
       }
-      bNodeLink const *link = input_socket->directly_linked_links()[0];
       if (input_socket->directly_linked_links().is_empty()) {
         return;
       }
+      bNodeLink const *link = input_socket->directly_linked_links()[0];
 
       bNode *input_node = link->fromnode;
-      if (input_node->type != SH_NODE_BACKGROUND) {
+      if (input_node->type_legacy != SH_NODE_BACKGROUND) {
         return;
       }
 
@@ -90,7 +92,7 @@ void WorldData::init()
 
       if (!color_input.directly_linked_links().is_empty()) {
         bNode *color_input_node = color_input.directly_linked_links()[0]->fromnode;
-        if (ELEM(color_input_node->type, SH_NODE_TEX_IMAGE, SH_NODE_TEX_ENVIRONMENT)) {
+        if (ELEM(color_input_node->type_legacy, SH_NODE_TEX_IMAGE, SH_NODE_TEX_ENVIRONMENT)) {
           NodeTexImage *tex = static_cast<NodeTexImage *>(color_input_node->storage);
           Image *image = (Image *)color_input_node->id;
           if (image) {
@@ -110,7 +112,7 @@ void WorldData::init()
 
     if (texture_file.GetAssetPath().empty()) {
       float fill_color[4] = {color[0], color[1], color[2], 1.0f};
-      std::string image_path = cache_image_color(fill_color);
+      std::string image_path = blender::io::usd::cache_image_color(fill_color);
       texture_file = pxr::SdfAssetPath(image_path, image_path);
     }
   }
@@ -127,9 +129,9 @@ void WorldData::init()
     }
   }
 
+  data_[pxr::UsdLuxTokens->orientToStageUpAxis] = true;
   data_[pxr::HdLightTokens->intensity] = intensity;
-  data_[pxr::HdLightTokens->exposure] = exposure;
-  data_[pxr::HdLightTokens->color] = color;
+  data_[pxr::HdLightTokens->color] = pxr::GfVec3f(1.0f, 1.0f, 1.0f);
   data_[pxr::HdLightTokens->textureFile] = texture_file;
 
   write_transform();
@@ -138,9 +140,22 @@ void WorldData::init()
 void WorldData::update()
 {
   ID_LOG(1, "");
-  init();
-  scene_delegate_->GetRenderIndex().GetChangeTracker().MarkSprimDirty(prim_id,
-                                                                      pxr::HdLight::AllDirty);
+
+  if (!scene_delegate_->shading_settings.use_scene_world ||
+      (scene_delegate_->shading_settings.use_scene_world && scene_delegate_->scene->world))
+  {
+    init();
+    if (data_.empty()) {
+      remove();
+      return;
+    }
+    insert();
+    scene_delegate_->GetRenderIndex().GetChangeTracker().MarkSprimDirty(prim_id,
+                                                                        pxr::HdLight::AllDirty);
+  }
+  else {
+    remove();
+  }
 }
 
 void WorldData::write_transform()

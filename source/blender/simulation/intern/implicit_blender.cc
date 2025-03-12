@@ -12,20 +12,11 @@
 
 #  include "MEM_guardedalloc.h"
 
-#  include "DNA_meshdata_types.h"
-#  include "DNA_object_force_types.h"
-#  include "DNA_object_types.h"
-#  include "DNA_scene_types.h"
-#  include "DNA_texture_types.h"
-
 #  include "BLI_math_geom.h"
 #  include "BLI_math_matrix.h"
 #  include "BLI_math_vector.h"
-#  include "BLI_utildefines.h"
 
 #  include "BKE_cloth.hh"
-#  include "BKE_collision.h"
-#  include "BKE_effect.h"
 
 #  include "SIM_mass_spring.h"
 
@@ -37,10 +28,10 @@
 #    define CLOTH_OPENMP_LIMIT 512
 #  endif
 
-//#define DEBUG_TIME
+// #define DEBUG_TIME
 
 #  ifdef DEBUG_TIME
-#    include "PIL_time.h"
+#    include "BLI_time.h"
 #  endif
 
 static float I[3][3] = {{1, 0, 0}, {0, 1, 0}, {0, 0, 1}};
@@ -60,7 +51,7 @@ static float ZERO[3][3] = {{0, 0, 0}, {0, 0, 0}, {0, 0, 0}};
 /////////////////////////////////////////
 
 /* DEFINITIONS */
-typedef float lfVector[3];
+using lfVector = float[3];
 struct fmatrix3x3 {
   float m[3][3]; /* 3x3 matrix */
   uint c, r;     /* column and row number */
@@ -124,7 +115,7 @@ DO_INLINE void print_lfvector(float (*fLongVector)[3], uint verts)
 DO_INLINE lfVector *create_lfvector(uint verts)
 {
   /* TODO: check if memory allocation was successful */
-  return (lfVector *)MEM_callocN(verts * sizeof(lfVector), "cloth_implicit_alloc_vector");
+  return MEM_calloc_arrayN<lfVector>(verts, "cloth_implicit_alloc_vector");
   // return (lfVector *)cloth_aligned_malloc(&MEMORY_BASE, verts * sizeof(lfVector));
 }
 /* delete long vector */
@@ -180,7 +171,7 @@ DO_INLINE float dot_lfvector(float (*fLongVectorA)[3], float (*fLongVectorB)[3],
    * due to non-commutative nature of floating point ops this makes the sim give
    * different results each time you run it!
    * schedule(guided, 2) */
-  //#pragma omp parallel for reduction(+: temp) if (verts > CLOTH_OPENMP_LIMIT)
+  // #pragma omp parallel for reduction(+: temp) if (verts > CLOTH_OPENMP_LIMIT)
   for (i = 0; i < long(verts); i++) {
     temp += dot_v3v3(fLongVectorA[i], fLongVectorB[i]);
   }
@@ -288,7 +279,7 @@ static void print_bfmatrix(fmatrix3x3 *m)
 {
   int tot = m[0].vcount + m[0].scount;
   int size = m[0].vcount * 3;
-  float *t = MEM_callocN(sizeof(float) * size * size, "bfmatrix");
+  float *t = MEM_calloc_array<float>N(size * size, "bfmatrix");
   int q, i, j;
 
   for (q = 0; q < tot; q++) {
@@ -528,8 +519,7 @@ BLI_INLINE void init_fmatrix(fmatrix3x3 *matrix, int r, int c)
 DO_INLINE fmatrix3x3 *create_bfmatrix(uint verts, uint springs)
 {
   /* TODO: check if memory allocation was successful */
-  fmatrix3x3 *temp = (fmatrix3x3 *)MEM_callocN(sizeof(fmatrix3x3) * (verts + springs),
-                                               "cloth_implicit_alloc_matrix");
+  fmatrix3x3 *temp = MEM_calloc_arrayN<fmatrix3x3>(verts + springs, "cloth_implicit_alloc_matrix");
   int i;
 
   temp[0].vcount = verts;
@@ -657,7 +647,7 @@ struct Implicit_Data {
 
 Implicit_Data *SIM_mass_spring_solver_create(int numverts, int numsprings)
 {
-  Implicit_Data *id = (Implicit_Data *)MEM_callocN(sizeof(Implicit_Data), "implicit vecmat");
+  Implicit_Data *id = MEM_callocN<Implicit_Data>("implicit vecmat");
 
   /* process diagonal elements */
   id->tfm = create_bfmatrix(numverts, 0);
@@ -965,7 +955,7 @@ static int cg_filtered_pre(lfVector *dv,
   delta0 = deltaNew * sqrt(conjgrad_epsilon);
 
 #      ifdef DEBUG_TIME
-  double start = PIL_check_seconds_timer();
+  double start = BLI_time_now_seconds();
 #      endif
 
   while ((deltaNew > delta0) && (iterations < conjgrad_looplimit)) {
@@ -993,7 +983,7 @@ static int cg_filtered_pre(lfVector *dv,
   }
 
 #      ifdef DEBUG_TIME
-  double end = PIL_check_seconds_timer();
+  double end = BLI_time_now_seconds();
   printf("cg_filtered_pre time: %f\n", float(end - start));
 #      endif
 
@@ -1074,7 +1064,7 @@ static int cg_filtered_pre(lfVector *dv,
 #    endif
 
 #    ifdef DEBUG_TIME
-  double start = PIL_check_seconds_timer();
+  double start = BLI_time_now_seconds();
 #    endif
 
   tol = (0.01 * 0.2);
@@ -1104,7 +1094,7 @@ static int cg_filtered_pre(lfVector *dv,
   }
 
 #    ifdef DEBUG_TIME
-  double end = PIL_check_seconds_timer();
+  double end = BLI_time_now_seconds();
   printf("cg_filtered_pre time: %f\n", float(end - start));
 #    endif
 
@@ -1137,7 +1127,7 @@ bool SIM_mass_spring_solve_velocities(Implicit_Data *data, float dt, ImplicitSol
   add_lfvectorS_lfvectorS(data->B, data->F, dt, dFdXmV, (dt * dt), numverts);
 
 #  ifdef DEBUG_TIME
-  double start = PIL_check_seconds_timer();
+  double start = BLI_time_now_seconds();
 #  endif
 
   /* Conjugate gradient algorithm to solve Ax=b. */
@@ -1146,7 +1136,7 @@ bool SIM_mass_spring_solve_velocities(Implicit_Data *data, float dt, ImplicitSol
   // cg_filtered_pre(id->dV, id->A, id->B, id->z, id->S, id->P, id->Pinv, id->bigI);
 
 #  ifdef DEBUG_TIME
-  double end = PIL_check_seconds_timer();
+  double end = BLI_time_now_seconds();
   printf("cg_filtered calc time: %f\n", float(end - start));
 #  endif
 
@@ -1577,8 +1567,8 @@ static void edge_wind_vertex(const float dir[3],
                              float radius,
                              const float wind[3],
                              float f[3],
-                             float[3][3] /*dfdx*/,
-                             float[3][3] /*dfdv*/)
+                             float /*dfdx*/[3][3],
+                             float /*dfdv*/[3][3])
 {
   const float density = 0.01f; /* XXX arbitrary value, corresponds to effect of air density */
   float cos_alpha, sin_alpha, cross_section;
@@ -1655,7 +1645,7 @@ BLI_INLINE void dfdx_damp(float to[3][3],
   // return (I - outerprod(dir, dir)) * (-damping * -(dot(dir, vel) / Max(length, rest)));
   mul_fvectorT_fvector(to, dir, dir);
   sub_fmatrix_fmatrix(to, I, to);
-  mul_fmatrix_S(to, (-damping * -(dot_v3v3(dir, vel) / MAX2(length, rest))));
+  mul_fmatrix_S(to, (-damping * -(dot_v3v3(dir, vel) / std::max(length, rest))));
 }
 #  endif
 

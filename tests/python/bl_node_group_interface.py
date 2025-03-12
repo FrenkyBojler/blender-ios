@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2021-2023 Blender Foundation
+# SPDX-FileCopyrightText: 2021-2023 Blender Authors
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
@@ -132,18 +132,13 @@ class NodeGroupInterfaceTests:
         out1 = tree.interface.new_socket("Output 1", socket_type=socket_type, in_out='OUTPUT')
         self.assertIsNotNone(out1, f"Could not create socket of type {socket_type}")
 
-        inout0 = tree.interface.new_socket("Input/Output 0", socket_type=socket_type, in_out='BOTH')
-        self.assertIsNotNone(inout0, f"Could not create socket of type {socket_type}")
-
         self.assertSequenceEqual([(s.name, s.bl_idname) for s in group_node.inputs], [
             ("Input 0", socket_type),
             ("Input 1", socket_type),
-            ("Input/Output 0", socket_type),
         ])
         self.assertSequenceEqual([(s.name, s.bl_idname) for s in group_node.outputs], [
             ("Output 0", socket_type),
             ("Output 1", socket_type),
-            ("Input/Output 0", socket_type),
         ])
 
     def do_test_user_count(self, value, expected_users):
@@ -223,10 +218,10 @@ class NodeGroupInterfaceTests:
 
         # Panels after sockets
         self.assertSequenceEqual([(s.name, s.item_type) for s in tree.interface.items_tree], [
-            ("Input 0", 'SOCKET'),
             ("Output 0", 'SOCKET'),
-            ("Input 1", 'SOCKET'),
             ("Output 1", 'SOCKET'),
+            ("Input 0", 'SOCKET'),
+            ("Input 1", 'SOCKET'),
             ("Panel 0", 'PANEL'),
             ("Panel 1", 'PANEL'),
             ("Panel 2", 'PANEL'),
@@ -257,30 +252,23 @@ class NodeGroupInterfaceTests:
         self.assertSequenceEqual([s.name for s in group_node.outputs], [])
 
         out0 = tree.interface.new_socket("Output 0", socket_type=socket_type, in_out='OUTPUT')
-        self.assertSequenceEqual(tree.interface.items_tree, [in0, out0])
+        self.assertSequenceEqual(tree.interface.items_tree, [out0, in0])
         self.assertSequenceEqual([s.name for s in group_node.inputs], ["Input 0"])
         self.assertSequenceEqual([s.name for s in group_node.outputs], ["Output 0"])
 
         panel0 = tree.interface.new_panel("Panel 0")
-        self.assertSequenceEqual(tree.interface.items_tree, [in0, out0, panel0])
+        self.assertSequenceEqual(tree.interface.items_tree, [out0, in0, panel0])
         self.assertSequenceEqual([s.name for s in group_node.inputs], ["Input 0"])
         self.assertSequenceEqual([s.name for s in group_node.outputs], ["Output 0"])
 
         # Add items to the panel.
         in1 = tree.interface.new_socket("Input 1", socket_type=socket_type, in_out='INPUT', parent=panel0)
-        self.assertSequenceEqual(tree.interface.items_tree, [in0, out0, panel0, in1])
+        self.assertSequenceEqual(tree.interface.items_tree, [out0, in0, panel0, in1])
         self.assertSequenceEqual([s.name for s in group_node.inputs], ["Input 0", "Input 1"])
         self.assertSequenceEqual([s.name for s in group_node.outputs], ["Output 0"])
 
         out1 = tree.interface.new_socket("Output 1", socket_type=socket_type, in_out='OUTPUT', parent=panel0)
-        self.assertSequenceEqual(tree.interface.items_tree, [in0, out0, panel0, in1, out1])
-        self.assertSequenceEqual([s.name for s in group_node.inputs], ["Input 0", "Input 1"])
-        self.assertSequenceEqual([s.name for s in group_node.outputs], ["Output 0", "Output 1"])
-
-        # Nested panel is not allowed and should return None.
-        panel1 = tree.interface.new_panel("Panel 1", parent=panel0)
-        self.assertIsNone(panel1)
-        self.assertSequenceEqual(tree.interface.items_tree, [in0, out0, panel0, in1, out1])
+        self.assertSequenceEqual(tree.interface.items_tree, [out0, in0, panel0, out1, in1])
         self.assertSequenceEqual([s.name for s in group_node.inputs], ["Input 0", "Input 1"])
         self.assertSequenceEqual([s.name for s in group_node.outputs], ["Output 0", "Output 1"])
 
@@ -297,42 +285,42 @@ class NodeGroupInterfaceTests:
         out2 = tree.interface.new_socket("Output 2", socket_type=socket_type, in_out='OUTPUT', parent=panel1)
         panel2 = tree.interface.new_panel("Panel 2")
 
-        self.assertSequenceEqual(tree.interface.items_tree, [in0, out0, panel0, in1, out1, panel1, in2, out2, panel2])
+        self.assertSequenceEqual(tree.interface.items_tree, [out0, in0, panel0, out1, in1, panel1, out2, in2, panel2])
         self.assertSequenceEqual([s.name for s in group_node.inputs], ["Input 0", "Input 1", "Input 2"])
         self.assertSequenceEqual([s.name for s in group_node.outputs], ["Output 0", "Output 1", "Output 2"])
 
         # Remove from root panel.
         tree.interface.remove(in0)
-        self.assertSequenceEqual(tree.interface.items_tree, [out0, panel0, in1, out1, panel1, in2, out2, panel2])
+        self.assertSequenceEqual(tree.interface.items_tree, [out0, panel0, out1, in1, panel1, out2, in2, panel2])
         self.assertSequenceEqual([s.name for s in group_node.inputs], ["Input 1", "Input 2"])
         self.assertSequenceEqual([s.name for s in group_node.outputs], ["Output 0", "Output 1", "Output 2"])
 
         # Removing a panel should move content to the parent.
         tree.interface.remove(panel0)
-        self.assertSequenceEqual(tree.interface.items_tree, [out0, in1, out1, panel1, in2, out2, panel2])
+        self.assertSequenceEqual(tree.interface.items_tree, [out0, out1, in1, panel1, out2, in2, panel2])
         self.assertSequenceEqual([s.name for s in group_node.inputs], ["Input 1", "Input 2"])
         self.assertSequenceEqual([s.name for s in group_node.outputs], ["Output 0", "Output 1", "Output 2"])
 
         tree.interface.remove(out0)
-        self.assertSequenceEqual(tree.interface.items_tree, [in1, out1, panel1, in2, out2, panel2])
+        self.assertSequenceEqual(tree.interface.items_tree, [out1, in1, panel1, out2, in2, panel2])
         self.assertSequenceEqual([s.name for s in group_node.inputs], ["Input 1", "Input 2"])
         self.assertSequenceEqual([s.name for s in group_node.outputs], ["Output 1", "Output 2"])
 
         # Remove content from panel
         tree.interface.remove(out2)
-        self.assertSequenceEqual(tree.interface.items_tree, [in1, out1, panel1, in2, panel2])
+        self.assertSequenceEqual(tree.interface.items_tree, [out1, in1, panel1, in2, panel2])
         self.assertSequenceEqual([s.name for s in group_node.inputs], ["Input 1", "Input 2"])
         self.assertSequenceEqual([s.name for s in group_node.outputs], ["Output 1"])
 
         # Remove a panel and its content
         tree.interface.remove(panel1, move_content_to_parent=False)
-        self.assertSequenceEqual(tree.interface.items_tree, [in1, out1, panel2])
+        self.assertSequenceEqual(tree.interface.items_tree, [out1, in1, panel2])
         self.assertSequenceEqual([s.name for s in group_node.inputs], ["Input 1"])
         self.assertSequenceEqual([s.name for s in group_node.outputs], ["Output 1"])
 
         # Remove empty panel
         tree.interface.remove(panel2)
-        self.assertSequenceEqual(tree.interface.items_tree, [in1, out1])
+        self.assertSequenceEqual(tree.interface.items_tree, [out1, in1])
         self.assertSequenceEqual([s.name for s in group_node.inputs], ["Input 1"])
         self.assertSequenceEqual([s.name for s in group_node.outputs], ["Output 1"])
 
@@ -406,13 +394,13 @@ class ShaderNodeGroupInterfaceTest(AbstractNodeGroupInterfaceTest, NodeGroupInte
         self.do_test_sockets_in_out("NodeSocketFloat")
 
     def test_all_socket_types(self):
-        self.do_test_invalid_socket_type("NodeSocketBool")
+        self.do_test_socket_type("NodeSocketBool")
         self.do_test_invalid_socket_type("NodeSocketCollection")
         self.do_test_socket_type("NodeSocketColor")
         self.do_test_socket_type("NodeSocketFloat")
         self.do_test_invalid_socket_type("NodeSocketGeometry")
         self.do_test_invalid_socket_type("NodeSocketImage")
-        self.do_test_invalid_socket_type("NodeSocketInt")
+        self.do_test_socket_type("NodeSocketInt")
         self.do_test_invalid_socket_type("NodeSocketMaterial")
         self.do_test_invalid_socket_type("NodeSocketObject")
         self.do_test_invalid_socket_type("NodeSocketRotation")
@@ -458,7 +446,7 @@ class CompositorNodeGroupInterfaceTest(AbstractNodeGroupInterfaceTest, NodeGroup
         self.do_test_socket_type("NodeSocketFloat")
         self.do_test_invalid_socket_type("NodeSocketGeometry")
         self.do_test_invalid_socket_type("NodeSocketImage")
-        self.do_test_invalid_socket_type("NodeSocketInt")
+        self.do_test_socket_type("NodeSocketInt")
         self.do_test_invalid_socket_type("NodeSocketMaterial")
         self.do_test_invalid_socket_type("NodeSocketObject")
         self.do_test_invalid_socket_type("NodeSocketRotation")

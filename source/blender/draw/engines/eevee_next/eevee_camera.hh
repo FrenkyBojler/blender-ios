@@ -8,6 +8,9 @@
  * \ingroup eevee
  */
 
+#include "BLI_math_geom.h"
+#include "BLI_math_matrix.h"
+
 #include "eevee_shader_shared.hh"
 
 namespace blender::eevee {
@@ -102,6 +105,11 @@ class Camera {
 
   float overscan_;
   bool overscan_changed_;
+  /** Whether or not the camera was synced from a camera object. */
+  bool is_camera_object_ = false;
+  /** Just for tracking camera changes, use Instance::camera_orig_object for data access. */
+  Object *last_camera_object_ = nullptr;
+  bool camera_changed_ = false;
 
  public:
   Camera(Instance &inst, CameraData &data) : inst_(inst), data_(data){};
@@ -112,7 +120,7 @@ class Camera {
 
   /**
    * Getters
-   **/
+   */
   const CameraData &data_get() const
   {
     BLI_assert(data_.initialized);
@@ -129,6 +137,10 @@ class Camera {
   bool is_perspective() const
   {
     return data_.type == CAMERA_PERSP;
+  }
+  bool is_camera_object() const
+  {
+    return is_camera_object_;
   }
   const float3 &position() const
   {
@@ -153,6 +165,10 @@ class Camera {
   bool overscan_changed() const
   {
     return overscan_changed_;
+  }
+  bool camera_changed() const
+  {
+    return camera_changed_;
   }
 
  private:

@@ -16,6 +16,10 @@ eg:
 
     ./tools/utils/blender_theme_as_c.py $(find ~/.config/blender -name "userpref.blend" | sort | tail -1)
 """
+__all__ = (
+    "main",
+)
+
 
 C_SOURCE_HEADER = r'''/* SPDX-FileCopyrightText: 2018 Blender Authors
  *
@@ -29,7 +33,7 @@ C_SOURCE_HEADER = r'''/* SPDX-FileCopyrightText: 2018 Blender Authors
 
 #include "DNA_userdef_types.h"
 
-#include "BLO_readfile.h"
+#include "BLO_userdef_default.h"
 
 /* clang-format off */
 
@@ -59,7 +63,7 @@ def repr_f32(f):
         f_test = round(f, i)
         f_test_round = round_float_32(f_test)
         if f_test_round == f_round:
-            return "%.*f" % (i, f_test)
+            return "{:.{:d}f}".format(f_test, i)
     return f_str
 
 
@@ -95,7 +99,7 @@ def dna_rename_defs(blend):
     )
 
     re_dna_struct_rename_elem = re.compile(
-        r'DNA_STRUCT_RENAME_ELEM+\('
+        r'DNA_STRUCT_RENAME_MEMBER+\('
         r'([a-zA-Z0-9_]+)' r',\s*'
         r'([a-zA-Z0-9_]+)' r',\s*'
         r'([a-zA-Z0-9_]+)' r'\)',
@@ -138,7 +142,7 @@ def dna_rename_defs(blend):
         for (member_storage, member_runtime) in members:
             struct_name_storage = struct_runtime_to_storage_map.get(struct_name_runtime, struct_name_runtime)
             struct_name_storage = struct_name_storage.encode('utf-8')
-            # The struct it's self may have been renamed.
+            # The struct itself may have been renamed.
             member_storage = member_storage.encode('utf-8')
             member_runtime = member_runtime.encode('utf-8')
             dna_struct = blend.structs[blend.sdna_index_from_id[struct_name_storage]]
@@ -174,7 +178,7 @@ def is_ignore_dna_name(name):
         return False
 
 
-def write_member(fw, indent, b, theme, ls):
+def write_member(fw, indent, _blend, _theme, ls):
     path_old = ()
 
     for key, value in ls:

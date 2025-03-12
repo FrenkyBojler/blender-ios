@@ -1,15 +1,23 @@
-diff -Naur openvdb-8.0.0/openvdb/openvdb/CMakeLists.txt openvdb/openvdb/openvdb/CMakeLists.txt
---- openvdb-8.0.0/openvdb/openvdb/CMakeLists.txt	2020-12-24 10:13:14 -0700
-+++ openvdb/openvdb/openvdb/CMakeLists.txt	2021-02-05 11:18:33 -0700
-@@ -146,6 +148,7 @@
-         Boost::disable_autolinking  # add -DBOOST_ALL_NO_LIB
-       )
+diff -Naur openvdb-12.0.0/openvdb/openvdb/CMakeLists.txt openvdb/openvdb/openvdb/CMakeLists.txt
+--- openvdb-12.0.0/openvdb/openvdb/CMakeLists.txt	2024-10-31 16:59:05.000000000 -0700
++++ openvdb/openvdb/openvdb/CMakeLists.txt	2024-12-11 08:47:05.635327200 -0800
+@@ -148,6 +148,15 @@
    endif()
-+  add_definitions(-D__TBB_NO_IMPLICIT_LINKAGE -DOPENVDB_OPENEXR_STATICLIB)
  endif()
  
- if(USE_EXR)
-@@ -379,7 +382,12 @@
++add_compile_definitions(
++  #Blender: prevent implicit TBB linkage 
++  __TBB_NO_IMPLICIT_LINKAGE 
++  #Blender: OpenEXR is static 
++  OPENVDB_OPENEXR_STATICLIB 
++  #Blender: Link the debug python libs rather than the release ones
++  $<$<CONFIG:Debug>:Py_DEBUG>
++)
++
+ if(USE_BLOSC)
+   # Find Blosc libraries
+   find_package(Blosc ${MINIMUM_BLOSC_VERSION} REQUIRED)
+@@ -608,7 +617,12 @@
  # imported targets.
  
  if(OPENVDB_CORE_SHARED)
@@ -23,9 +31,23 @@ diff -Naur openvdb-8.0.0/openvdb/openvdb/CMakeLists.txt openvdb/openvdb/openvdb/
  endif()
  
  if(OPENVDB_CORE_STATIC)
-diff -Naur openvdb-8.0.0/openvdb/openvdb/version.rc.in openvdb/openvdb/openvdb/version.rc.in
---- openvdb-8.0.0/openvdb/openvdb/version.rc.in	1969-12-31 17:00:00 -0700
-+++ openvdb/openvdb/openvdb/version.rc.in	2021-02-05 11:18:33 -0700
+diff -Naur openvdb-12.0.0/openvdb/openvdb/python/CMakeLists.txt openvdb/openvdb/openvdb/python/CMakeLists.txt
+--- openvdb-12.0.0/openvdb/openvdb/python/CMakeLists.txt	2024-10-31 16:59:05.000000000 -0700
++++ openvdb/openvdb/openvdb/python/CMakeLists.txt	2024-12-11 09:02:05.377733900 -0800
+@@ -22,7 +22,9 @@
+ option(OPENVDB_BUILD_PYTHON_UNITTESTS [=[
+ "Include the OpenVDB Python unit test. Requires a python interpreter]=]
+ ${OPENVDB_BUILD_UNITTESTS})
+-
++#blender: prevent double _d for the python module 
++set(CMAKE_DEBUG_POSTFIX "")
++add_compile_definitions($<$<CONFIG:Debug>:Py_DEBUG> __TBB_NO_IMPLICIT_LINKAGE)
+ #########################################################################
+ 
+ message(STATUS "----------------------------------------------------")
+diff -Naur openvdb-12.0.0/openvdb/openvdb/version.rc.in openvdb/openvdb/openvdb/version.rc.in
+--- openvdb-12.0.0/openvdb/openvdb/version.rc.in	1969-12-31 16:00:00.000000000 -0800
++++ openvdb/openvdb/openvdb/version.rc.in	2024-12-11 08:47:05.697536200 -0800
 @@ -0,0 +1,48 @@
 +#include <winver.h>
 +
@@ -75,40 +97,3 @@ diff -Naur openvdb-8.0.0/openvdb/openvdb/version.rc.in openvdb/openvdb/openvdb/v
 +
 +    END
 +END
-diff -Naur orig/openvdb/openvdb/tree/ValueAccessor.h openvdb/openvdb/openvdb/tree/ValueAccessor.h
---- orig/openvdb/openvdb/tree/ValueAccessor.h	2022-11-02 13:58:26 -0600
-+++ openvdb/openvdb/openvdb/tree/ValueAccessor.h	2022-11-02 18:55:09 -0600
-@@ -872,7 +872,10 @@
-     using LeafNodeType = typename NodeType::LeafNodeType;
-     using CoordLimits = std::numeric_limits<Int32>;
- 
--    static_assert(std::is_same<NodeType, LeafNodeType>::value);
-+    // Blender: Technically not an issue in OpenVDB, but USD 21.11 still builds 
-+    // as C++14 which does not support terse asserts yet. Add a message to 
-+    // explicitly select the C++14 supported static assert.
-+    static_assert(std::is_same<NodeType, LeafNodeType>::value, "cache item node type is not leaf node type");
- 
-     CacheItem(TreeCacheT& parent)
-         : mParent(&parent)
-diff --git a/nanovdb/nanovdb/NanoVDB.h b/nanovdb/nanovdb/NanoVDB.h
-index f7fc304..fde5c47 100644
---- a/nanovdb/nanovdb/NanoVDB.h
-+++ b/nanovdb/nanovdb/NanoVDB.h
-@@ -1877,7 +1877,7 @@ __hostdev__ static inline uint32_t FindLowestOn(uint64_t v)
- {
-     NANOVDB_ASSERT(v);
- #if (defined(__CUDA_ARCH__) || defined(__HIP__)) && defined(NANOVDB_USE_INTRINSICS)
--    return __ffsll(v);
-+    return __ffsll(static_cast<unsigned long long int>(v));
- #elif defined(_MSC_VER) && defined(NANOVDB_USE_INTRINSICS)
-     unsigned long index;
-     _BitScanForward64(&index, v);
-@@ -2592,7 +2592,7 @@ public:
-     ///
-     /// @note This method is only defined for IndexGrid = NanoGrid<ValueIndex>
-     template <typename T = BuildType>
--    __hostdev__ typename enable_if<is_same<T, ValueIndex>::value, uint64_t>::type valueCount() const {return DataType::mData1;}
-+    __hostdev__ typename enable_if<is_same<T, ValueIndex>::value, const uint64_t&>::type valueCount() const {return DataType::mData1;}
- 
-     /// @brief Return a const reference to the tree
-     __hostdev__ const TreeT& tree() const { return *reinterpret_cast<const TreeT*>(this->treePtr()); }

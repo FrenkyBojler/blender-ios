@@ -6,22 +6,25 @@
  * \ingroup bmesh
  */
 
+#include <algorithm>
+
 #include "MEM_guardedalloc.h"
 
 #include "BLI_math_geom.h"
 #include "BLI_math_vector.h"
 #include "BLI_sort.h"
 #include "BLI_stack.h"
+#include "BLI_vector.hh"
 
-#include "BKE_bvhutils.h"
+#include "BKE_bvhutils.hh"
 
 #include "atomic_ops.h"
 
-#include "bmesh.h"
+#include "bmesh.hh"
 
-#include "bmesh_intersect_edges.h" /* own include */
+#include "bmesh_intersect_edges.hh" /* own include */
 
-//#define INTERSECT_EDGES_DEBUG
+// #define INTERSECT_EDGES_DEBUG
 
 #define KDOP_TREE_TYPE 4
 #define KDOP_AXIS_LEN 14
@@ -59,7 +62,7 @@ static bool bm_vert_pair_share_best_splittable_face_cb(BMFace *f,
   float min = dot_v3v3(l_a->v->co, no);
   float max = dot_v3v3(l_b->v->co, no);
   if (min > max) {
-    SWAP(float, min, max);
+    std::swap(min, max);
   }
 
   BMEdge **e_iter = &data->edgenet[0];
@@ -74,12 +77,8 @@ static bool bm_vert_pair_share_best_splittable_face_cb(BMFace *f,
       return false;
     }
     float dot = dot_v3v3(v_test->co, no);
-    if (dot < min) {
-      min = dot;
-    }
-    if (dot > max) {
-      max = dot;
-    }
+    min = std::min(dot, min);
+    max = std::max(dot, max);
   }
 
   const float test_edgenet_range_on_face_normal = max - min;
@@ -156,12 +155,8 @@ static BMFace *bm_vert_pair_best_face_get(
       BMIter f_iter;
       BM_ITER_ELEM (v_test, &f_iter, data.r_best_face, BM_VERTS_OF_FACE) {
         float dot = dot_v3v3(v_test->co, no);
-        if (dot < min) {
-          min = dot;
-        }
-        if (dot > max) {
-          max = dot;
-        }
+        min = std::min(dot, min);
+        max = std::max(dot, max);
       }
       float face_range_on_normal = max - min + 2 * epsilon;
       if (face_range_on_normal < data.best_edgenet_range_on_face_normal) {
@@ -316,7 +311,8 @@ static bool bm_edgexvert_isect_cb(void *userdata, int index_a, int index_b, int 
 
   EDBMSplitElem pair_tmp[2];
   if (bm_edgexvert_isect_impl(
-          v, e, co, dir, lambda, data->dist_sq, &data->cut_edges_len, pair_tmp)) {
+          v, e, co, dir, lambda, data->dist_sq, &data->cut_edges_len, pair_tmp))
+  {
     EDBMSplitElem *pair = static_cast<EDBMSplitElem *>(BLI_stack_push_r(data->pair_stack[thread]));
     pair[0] = pair_tmp[0];
     pair[1] = pair_tmp[1];
@@ -718,7 +714,7 @@ bool BM_mesh_intersect_edges(
           int cuts_index[];
         };
         int as_int[0];
-      } * e_map_iter, *e_map;
+      } *e_map_iter, *e_map;
 
 #  ifdef INTERSECT_EDGES_DEBUG
       int cut_edges_len = 0;
@@ -890,7 +886,7 @@ bool BM_mesh_intersect_edges(
           BM_elem_flag_enable(e, BM_ELEM_TAG);
 
           if (v_cut == -1) {
-            SWAP(BMVert *, va, vb);
+            std::swap(va, vb);
             v_cut = v_cut_other;
             v_cut_other = -1;
           }
@@ -965,7 +961,8 @@ bool BM_mesh_intersect_edges(
                 edgenet[0] = BM_edge_create(bm, va_dest, vb, e_net, BM_CREATE_NOP);
               }
               if ((edgenet_len > 1) && (v_other_dest != v_other) &&
-                  !BM_edge_exists(v_other_dest, v_other)) {
+                  !BM_edge_exists(v_other_dest, v_other))
+              {
                 /**
                  * <pre>
                  *  ---v---v_other
@@ -987,7 +984,8 @@ bool BM_mesh_intersect_edges(
                   continue;
                 }
                 if (!BM_elem_flag_test(e_test->v1, BM_ELEM_TAG) &&
-                    !BM_elem_flag_test(e_test->v2, BM_ELEM_TAG)) {
+                    !BM_elem_flag_test(e_test->v2, BM_ELEM_TAG))
+                {
                   continue;
                 }
                 /* Avoids endless loop. */
@@ -1014,16 +1012,12 @@ bool BM_mesh_intersect_edges(
           }
 
           if (best_face) {
-            BMFace **face_arr = nullptr;
-            int face_arr_len = 0;
-            BM_face_split_edgenet(bm, best_face, edgenet, edgenet_len, &face_arr, &face_arr_len);
-            if (face_arr) {
-              /* Update the new faces normal.
-               * Normal is necessary to obtain the best face for edgenet */
-              while (face_arr_len--) {
-                BM_face_normal_update(face_arr[face_arr_len]);
-              }
-              MEM_freeN(face_arr);
+            blender::Vector<BMFace *> face_arr;
+            BM_face_split_edgenet(bm, best_face, edgenet, edgenet_len, &face_arr);
+            /* Update the new faces normal.
+             * Normal is necessary to obtain the best face for edgenet */
+            for (BMFace *face : face_arr) {
+              BM_face_normal_update(face);
             }
           }
         }

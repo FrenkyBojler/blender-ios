@@ -13,9 +13,13 @@
  * Dispatch 1 thread per surfel.
  */
 
-#pragma BLENDER_REQUIRE(gpu_shader_utildefines_lib.glsl)
-#pragma BLENDER_REQUIRE(gpu_shader_math_base_lib.glsl)
-#pragma BLENDER_REQUIRE(eevee_surfel_list_lib.glsl)
+#include "infos/eevee_lightprobe_volume_info.hh"
+
+COMPUTE_SHADER_CREATE_INFO(eevee_surfel_list_build)
+
+#include "eevee_surfel_list_lib.glsl"
+#include "gpu_shader_math_base_lib.glsl"
+#include "gpu_shader_utildefines_lib.glsl"
 
 void main()
 {
@@ -32,5 +36,5 @@ void main()
   surfel_buf[surfel_index].ray_distance = ray_distance;
   /* NOTE: We only need to init the `list_start_buf` to -1 for the whole list to be valid since
    * every surfel will load its `next` value from the list head. */
-  // surfel_buf[surfel_index].next = atomicExchange(list_start_buf[list_index], surfel_index);
+  surfel_buf[surfel_index].next = atomicExchange(list_start_buf[list_index], surfel_index);
 }

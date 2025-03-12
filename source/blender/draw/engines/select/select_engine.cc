@@ -8,33 +8,46 @@
  * Engine for drawing a selection map where the pixels indicate the selection indices.
  */
 
-#include "DNA_screen_types.h"
+#include "BKE_editmesh.hh"
+#include "BKE_mesh_types.hh"
+#include "BLI_math_matrix.h"
 
+#include "BLT_translation.hh"
+
+#include "DEG_depsgraph_query.hh"
 #include "ED_view3d.hh"
 
-#include "UI_resources.hh"
+#include "RE_engine.h"
 
-#include "DRW_engine.h"
-#include "DRW_select_buffer.h"
+#include "DRW_engine.hh"
+#include "DRW_select_buffer.hh"
 
 #include "draw_cache_impl.hh"
-#include "draw_manager.h"
+#include "draw_common_c.hh"
+#include "draw_manager_c.hh"
 
-#include "select_engine.h"
-#include "select_private.h"
+#include "../overlay/overlay_next_private.hh"
+
+#include "select_engine.hh"
+#include "select_private.hh"
 
 #define SELECT_ENGINE "SELECT_ENGINE"
 
 /* *********** STATIC *********** */
 
-static struct {
+struct SelectEngineData {
   GPUFrameBuffer *framebuffer_select_id;
   GPUTexture *texture_u32;
 
   SELECTID_Shaders sh_data[GPU_SHADER_CFG_LEN];
   SELECTID_Context context;
-  uint runtime_new_objects;
-} e_data = {nullptr}; /* Engine data */
+};
+
+static SelectEngineData &get_engine_data()
+{
+  static SelectEngineData data = {};
+  return data;
+}
 
 /* -------------------------------------------------------------------- */
 /** \name Utils
@@ -42,6 +55,7 @@ static struct {
 
 static void select_engine_framebuffer_setup()
 {
+  SelectEngineData &e_data = get_engine_data();
   DefaultTextureList *dtxl = DRW_viewport_texture_list_get();
   int size[2];
   size[0] = GPU_texture_width(dtxl->depth);
@@ -80,11 +94,16 @@ static void select_engine_framebuffer_setup()
 
 static void select_engine_init(void *vedata)
 {
+  SelectEngineData &e_data = get_engine_data();
   const DRWContextState *draw_ctx = DRW_context_state_get();
   eGPUShaderConfig sh_cfg = draw_ctx->sh_cfg;
 
-  SELECTID_StorageList *stl = ((SELECTID_Data *)vedata)->stl;
+  SELECTID_Data *ved = reinterpret_cast<SELECTID_Data *>(vedata);
   SELECTID_Shaders *sh_data = &e_data.sh_data[sh_cfg];
+
+  if (ved->instance == nullptr) {
+    ved->instance = new SELECTID_Instance();
+  }
 
   /* Prepass */
   if (!sh_data->select_id_flat) {
@@ -95,41 +114,37 @@ static void select_engine_init(void *vedata)
     sh_data->select_id_uniform = GPU_shader_create_from_info_name(
         sh_cfg == GPU_SHADER_CFG_CLIPPED ? "select_id_uniform_clipped" : "select_id_uniform");
   }
+}
 
-  if (!stl->g_data) {
-    /* Alloc transient pointers */
-    stl->g_data = static_cast<SELECTID_PrivateData *>(MEM_mallocN(sizeof(*stl->g_data), __func__));
+static short select_id_get_object_select_mode(Scene *scene, Object *ob)
+{
+  short r_select_mode = 0;
+  if (ob->mode & (OB_MODE_WEIGHT_PAINT | OB_MODE_VERTEX_PAINT | OB_MODE_TEXTURE_PAINT)) {
+    /* In order to sample flat colors for vertex weights / texture-paint / vertex-paint
+     * we need to be in SCE_SELECT_FACE mode so select_cache_init() correctly sets up
+     * a shgroup with select_id_flat.
+     * Note this is not working correctly for vertex-paint (yet), but has been discussed
+     * in #66645 and there is a solution by @mano-wii in P1032.
+     * So OB_MODE_VERTEX_PAINT is already included here [required for P1032 I guess]. */
+    Mesh *me_orig = static_cast<Mesh *>(DEG_get_original_object(ob)->data);
+    if (me_orig->editflag & ME_EDIT_PAINT_VERT_SEL) {
+      r_select_mode = SCE_SELECT_VERTEX;
+    }
+    else {
+      r_select_mode = SCE_SELECT_FACE;
+    }
+  }
+  else {
+    r_select_mode = scene->toolsettings->selectmode;
   }
 
-  {
-    /* Create view from a subregion */
-    const DRWView *view_default = DRW_view_default_get();
-    float viewmat[4][4], winmat[4][4], winmat_subregion[4][4];
-    DRW_view_viewmat_get(view_default, viewmat, false);
-    DRW_view_winmat_get(view_default, winmat, false);
-    projmat_from_subregion(winmat,
-                           blender::int2{draw_ctx->region->winx, draw_ctx->region->winy},
-                           e_data.context.last_rect.xmin,
-                           e_data.context.last_rect.xmax,
-                           e_data.context.last_rect.ymin,
-                           e_data.context.last_rect.ymax,
-                           winmat_subregion);
-
-    stl->g_data->view_subregion = DRW_view_create(
-        viewmat, winmat_subregion, nullptr, nullptr, nullptr);
-
-    /* Create view with depth offset */
-    stl->g_data->view_faces = (DRWView *)view_default;
-    stl->g_data->view_edges = DRW_view_create_with_zoffset(view_default, draw_ctx->rv3d, 1.0f);
-    stl->g_data->view_verts = DRW_view_create_with_zoffset(view_default, draw_ctx->rv3d, 1.1f);
-  }
+  return r_select_mode;
 }
 
 static void select_cache_init(void *vedata)
 {
-  SELECTID_PassList *psl = ((SELECTID_Data *)vedata)->psl;
-  SELECTID_StorageList *stl = ((SELECTID_Data *)vedata)->stl;
-  SELECTID_PrivateData *pd = stl->g_data;
+  SELECTID_Instance &inst = *reinterpret_cast<SELECTID_Data *>(vedata)->instance;
+  SelectEngineData &e_data = get_engine_data();
 
   const DRWContextState *draw_ctx = DRW_context_state_get();
   SELECTID_Shaders *sh = &e_data.sh_data[draw_ctx->sh_cfg];
@@ -141,208 +156,326 @@ static void select_cache_init(void *vedata)
   }
 
   DRWState state = DRW_STATE_DEFAULT;
-  state |= RV3D_CLIPPING_ENABLED(draw_ctx->v3d, draw_ctx->rv3d) ? DRW_STATE_CLIP_PLANES :
-                                                                  DRWState(0);
+  if (RV3D_CLIPPING_ENABLED(draw_ctx->v3d, draw_ctx->rv3d)) {
+    state |= DRW_STATE_CLIP_PLANES;
+  }
 
   bool retopology_occlusion = RETOPOLOGY_ENABLED(draw_ctx->v3d) && !XRAY_ENABLED(draw_ctx->v3d);
   float retopology_offset = RETOPOLOGY_OFFSET(draw_ctx->v3d);
 
-  {
-    DRW_PASS_CREATE(psl->depth_only_pass, state);
-    pd->shgrp_depth_only = DRW_shgroup_create(sh->select_id_uniform, psl->depth_only_pass);
-    /* Not setting ID because this pass only draws to the depth buffer. */
-    DRW_shgroup_uniform_float_copy(pd->shgrp_depth_only, "retopologyOffset", retopology_offset);
+  /* Note there might be less than 6 planes, but we always compute the 6 of them for simplicity. */
+  int clipping_plane_count = RV3D_CLIPPING_ENABLED(draw_ctx->v3d, draw_ctx->rv3d) ? 6 : 0;
 
+  {
+    inst.depth_only_ps.init();
+    inst.depth_only_ps.state_set(state, clipping_plane_count);
+    inst.depth_only = nullptr;
+    inst.depth_occlude = nullptr;
+    {
+      auto &sub = inst.depth_only_ps.sub("DepthOnly");
+      sub.shader_set(sh->select_id_uniform);
+      sub.push_constant("retopologyOffset", retopology_offset);
+      sub.push_constant("select_id", 0);
+      inst.depth_only = &sub;
+    }
     if (retopology_occlusion) {
-      pd->shgrp_occlude = DRW_shgroup_create(sh->select_id_uniform, psl->depth_only_pass);
-      /* Not setting ID because this pass only draws to the depth buffer. */
-      DRW_shgroup_uniform_float_copy(pd->shgrp_occlude, "retopologyOffset", 0.0f);
+      auto &sub = inst.depth_only_ps.sub("Occlusion");
+      sub.shader_set(sh->select_id_uniform);
+      sub.push_constant("retopologyOffset", 0.0f);
+      sub.push_constant("select_id", 0);
+      inst.depth_occlude = &sub;
     }
 
-    DRW_PASS_CREATE(psl->select_id_face_pass, state);
+    inst.select_face_ps.init();
+    inst.select_face_ps.state_set(state, clipping_plane_count);
+    inst.select_face_uniform = nullptr;
+    inst.select_face_flat = nullptr;
     if (e_data.context.select_mode & SCE_SELECT_FACE) {
-      pd->shgrp_face_flat = DRW_shgroup_create(sh->select_id_flat, psl->select_id_face_pass);
-      DRW_shgroup_uniform_float_copy(pd->shgrp_face_flat, "retopologyOffset", retopology_offset);
+      auto &sub = inst.select_face_ps.sub("Face");
+      sub.shader_set(sh->select_id_flat);
+      sub.push_constant("retopologyOffset", retopology_offset);
+      inst.select_face_flat = &sub;
     }
     else {
-      pd->shgrp_face_unif = DRW_shgroup_create(sh->select_id_uniform, psl->select_id_face_pass);
-      DRW_shgroup_uniform_int_copy(pd->shgrp_face_unif, "select_id", 0);
-      DRW_shgroup_uniform_float_copy(pd->shgrp_face_unif, "retopologyOffset", retopology_offset);
+      auto &sub = inst.select_face_ps.sub("FaceNoSelect");
+      sub.shader_set(sh->select_id_uniform);
+      sub.push_constant("select_id", 0);
+      sub.push_constant("retopologyOffset", retopology_offset);
+      inst.select_face_uniform = &sub;
     }
 
+    inst.select_edge_ps.init();
+    inst.select_edge = nullptr;
     if (e_data.context.select_mode & SCE_SELECT_EDGE) {
-      DRW_PASS_CREATE(psl->select_id_edge_pass, state | DRW_STATE_FIRST_VERTEX_CONVENTION);
-
-      pd->shgrp_edge = DRW_shgroup_create(sh->select_id_flat, psl->select_id_edge_pass);
-      DRW_shgroup_uniform_float_copy(pd->shgrp_edge, "retopologyOffset", retopology_offset);
+      auto &sub = inst.select_edge_ps.sub("Sub");
+      sub.state_set(state | DRW_STATE_FIRST_VERTEX_CONVENTION, clipping_plane_count);
+      sub.shader_set(sh->select_id_flat);
+      sub.push_constant("retopologyOffset", retopology_offset);
+      inst.select_edge = &sub;
     }
 
+    inst.select_id_vert_ps.init();
+    inst.select_vert = nullptr;
     if (e_data.context.select_mode & SCE_SELECT_VERTEX) {
-      DRW_PASS_CREATE(psl->select_id_vert_pass, state);
-      pd->shgrp_vert = DRW_shgroup_create(sh->select_id_flat, psl->select_id_vert_pass);
-      DRW_shgroup_uniform_float_copy(pd->shgrp_vert, "sizeVertex", 2 * G_draw.block.size_vertex);
-      DRW_shgroup_uniform_float_copy(pd->shgrp_vert, "retopologyOffset", retopology_offset);
+      const float vertex_size = blender::draw::overlay::Resources::vertex_size_get();
+      auto &sub = inst.select_id_vert_ps.sub("Sub");
+      sub.state_set(state, clipping_plane_count);
+      sub.shader_set(sh->select_id_flat);
+      sub.push_constant("vertex_size", float(2 * vertex_size));
+      sub.push_constant("retopologyOffset", retopology_offset);
+      inst.select_vert = &sub;
     }
   }
 
-  /* Check if the viewport has changed. */
-  float(*persmat)[4] = draw_ctx->rv3d->persmat;
-  e_data.context.is_dirty = !compare_m4m4(e_data.context.persmat, persmat, FLT_EPSILON);
+  e_data.context.elem_ranges.clear();
 
-  if (!e_data.context.is_dirty) {
-    /* Check if any of the drawn objects have been transformed. */
-    Object **ob = &e_data.context.objects_drawn[0];
-    for (uint i = e_data.context.objects_drawn_len; i--; ob++) {
-      DrawData *data = DRW_drawdata_get(&(*ob)->id, &draw_engine_select_type);
-      if (data && (data->recalc & ID_RECALC_TRANSFORM) != 0) {
-        data->recalc &= ~ID_RECALC_TRANSFORM;
-        e_data.context.is_dirty = true;
-      }
-    }
-  }
-
-  if (e_data.context.is_dirty) {
-    /* Remove all tags from drawn or culled objects. */
-    copy_m4_m4(e_data.context.persmat, persmat);
-    e_data.context.objects_drawn_len = 0;
-    e_data.context.index_drawn_len = 1;
-    select_engine_framebuffer_setup();
-    GPU_framebuffer_bind(e_data.framebuffer_select_id);
-    GPU_framebuffer_clear_color_depth(e_data.framebuffer_select_id, blender::float4{0.0f}, 1.0f);
-  }
-  e_data.runtime_new_objects = 0;
+  e_data.context.persmat = float4x4(draw_ctx->rv3d->persmat);
+  e_data.context.max_index_drawn_len = 1;
+  select_engine_framebuffer_setup();
+  GPU_framebuffer_bind(e_data.framebuffer_select_id);
+  GPU_framebuffer_clear_color_depth(e_data.framebuffer_select_id, blender::float4{0.0f}, 1.0f);
 }
 
-static void select_cache_populate(void *vedata, Object *ob)
+static bool check_ob_drawface_dot(short select_mode, const View3D *v3d, eDrawType dt)
 {
-  SELECTID_StorageList *stl = ((SELECTID_Data *)vedata)->stl;
+  if (select_mode & SCE_SELECT_FACE) {
+    if ((dt < OB_SOLID) || XRAY_FLAG_ENABLED(v3d)) {
+      return true;
+    }
+    if (v3d->overlay.edit_flag & V3D_OVERLAY_EDIT_FACE_DOT) {
+      return true;
+    }
+  }
+  return false;
+}
+
+namespace blender {
+
+/* Return a new range if size `n` after `total_range` and grow `total_range` by the same amount. */
+static IndexRange alloc_range(IndexRange &total_range, uint size)
+{
+  const IndexRange indices = total_range.after(size);
+  total_range = IndexRange::from_begin_size(total_range.start(), total_range.size() + size);
+  return indices;
+}
+
+}  // namespace blender
+
+static ElemIndexRanges select_id_edit_mesh_sync(SELECTID_Instance &inst,
+                                                Object *ob,
+                                                ResourceHandle res_handle,
+                                                short select_mode,
+                                                bool draw_facedot,
+                                                const uint initial_index)
+{
+  using namespace blender::draw;
+  using namespace blender;
+  Mesh &mesh = *static_cast<Mesh *>(ob->data);
+  BMEditMesh *em = mesh.runtime->edit_mesh.get();
+
+  ElemIndexRanges ranges{};
+  ranges.total = IndexRange::from_begin_size(initial_index, 0);
+
+  BM_mesh_elem_table_ensure(em->bm, BM_VERT | BM_EDGE | BM_FACE);
+
+  if (select_mode & SCE_SELECT_FACE) {
+    ranges.face = alloc_range(ranges.total, em->bm->totface);
+
+    gpu::Batch *geom_faces = DRW_mesh_batch_cache_get_triangles_with_select_id(mesh);
+    PassSimple::Sub *face_sub = inst.select_face_flat;
+    face_sub->push_constant("offset", int(ranges.face.start()));
+    face_sub->draw(geom_faces, res_handle);
+
+    if (draw_facedot) {
+      gpu::Batch *geom_facedots = DRW_mesh_batch_cache_get_facedots_with_select_id(mesh);
+      face_sub->draw(geom_facedots, res_handle);
+    }
+  }
+  else {
+    if (ob->dt >= OB_SOLID) {
+#ifdef USE_CAGE_OCCLUSION
+      gpu::Batch *geom_faces = DRW_mesh_batch_cache_get_triangles_with_select_id(mesh);
+#else
+      gpu::Batch *geom_faces = DRW_mesh_batch_cache_get_surface(mesh);
+#endif
+      inst.select_face_uniform->draw(geom_faces, res_handle);
+    }
+  }
+
+  /* Unlike faces, only draw edges if edge select mode. */
+  if (select_mode & SCE_SELECT_EDGE) {
+    ranges.edge = alloc_range(ranges.total, em->bm->totedge);
+
+    gpu::Batch *geom_edges = DRW_mesh_batch_cache_get_edges_with_select_id(mesh);
+    inst.select_edge->push_constant("offset", int(ranges.edge.start()));
+    inst.select_edge->draw(geom_edges, res_handle);
+  }
+
+  /* Unlike faces, only verts if vert select mode. */
+  if (select_mode & SCE_SELECT_VERTEX) {
+    ranges.vert = alloc_range(ranges.total, em->bm->totvert);
+
+    gpu::Batch *geom_verts = DRW_mesh_batch_cache_get_verts_with_select_id(mesh);
+    inst.select_vert->push_constant("offset", int(ranges.vert.start()));
+    inst.select_vert->draw(geom_verts, res_handle);
+  }
+  return ranges;
+}
+
+static ElemIndexRanges select_id_mesh_sync(SELECTID_Instance &inst,
+                                           Object *ob,
+                                           ResourceHandle res_handle,
+                                           short select_mode,
+                                           const uint initial_index)
+{
+  using namespace blender::draw;
+  using namespace blender;
+  Mesh &mesh = *static_cast<Mesh *>(ob->data);
+
+  ElemIndexRanges ranges{};
+  ranges.total = IndexRange::from_begin_size(initial_index, 0);
+
+  gpu::Batch *geom_faces = DRW_mesh_batch_cache_get_triangles_with_select_id(mesh);
+  if (select_mode & SCE_SELECT_FACE) {
+    ranges.face = alloc_range(ranges.total, mesh.faces_num);
+
+    inst.select_face_flat->push_constant("offset", int(ranges.face.start()));
+    inst.select_face_flat->draw(geom_faces, res_handle);
+  }
+  else {
+    /* Only draw faces to mask out verts, we don't want their selection ID's. */
+    inst.select_face_uniform->draw(geom_faces, res_handle);
+  }
+
+  if (select_mode & SCE_SELECT_EDGE) {
+    ranges.edge = alloc_range(ranges.total, mesh.edges_num);
+
+    gpu::Batch *geom_edges = DRW_mesh_batch_cache_get_edges_with_select_id(mesh);
+    inst.select_edge->push_constant("offset", int(ranges.edge.start()));
+    inst.select_edge->draw(geom_edges, res_handle);
+  }
+
+  if (select_mode & SCE_SELECT_VERTEX) {
+    ranges.vert = alloc_range(ranges.total, mesh.verts_num);
+
+    gpu::Batch *geom_verts = DRW_mesh_batch_cache_get_verts_with_select_id(mesh);
+    inst.select_vert->push_constant("offset", int(ranges.vert.start()));
+    inst.select_vert->draw(geom_verts, res_handle);
+  }
+
+  return ranges;
+}
+
+static ElemIndexRanges select_id_object_sync(SELECTID_Instance &inst,
+                                             View3D *v3d,
+                                             Object *ob,
+                                             ResourceHandle res_handle,
+                                             short select_mode,
+                                             uint index_start)
+{
+  BLI_assert_msg(index_start > 0, "Index 0 is reserved for no selection");
+
+  switch (ob->type) {
+    case OB_MESH: {
+      const Mesh &mesh = *static_cast<const Mesh *>(ob->data);
+      if (mesh.runtime->edit_mesh) {
+        bool draw_facedot = check_ob_drawface_dot(select_mode, v3d, eDrawType(ob->dt));
+        return select_id_edit_mesh_sync(
+            inst, ob, res_handle, select_mode, draw_facedot, index_start);
+      }
+      return select_id_mesh_sync(inst, ob, res_handle, select_mode, index_start);
+    }
+    case OB_CURVES_LEGACY:
+    case OB_SURF:
+      break;
+  }
+  BLI_assert_unreachable();
+  return ElemIndexRanges{};
+}
+
+static void select_cache_populate(void *vedata, blender::draw::ObjectRef &ob_ref)
+{
+  Manager &manager = *DRW_manager_get();
+  Object *ob = ob_ref.object;
+  SelectEngineData &e_data = get_engine_data();
+  SELECTID_Context &sel_ctx = e_data.context;
+  SELECTID_Instance &inst = *reinterpret_cast<SELECTID_Data *>(vedata)->instance;
   const DRWContextState *draw_ctx = DRW_context_state_get();
 
-  const bool retopology_occlusion = RETOPOLOGY_ENABLED(draw_ctx->v3d) &&
-                                    !XRAY_ENABLED(draw_ctx->v3d);
-  if (retopology_occlusion && !DRW_object_is_in_edit_mode(ob)) {
-    if (ob->dt >= OB_SOLID) {
-      GPUBatch *geom_faces = DRW_mesh_batch_cache_get_surface(static_cast<Mesh *>(ob->data));
-      DRW_shgroup_call_obmat(stl->g_data->shgrp_occlude, geom_faces, ob->object_to_world);
-    }
+  if (!sel_ctx.objects.contains(ob) && ob->dt >= OB_SOLID) {
+    /* This object is not selectable. It is here to participate in occlusion.
+     * This is the case in retopology mode. */
+    blender::gpu::Batch *geom_faces = DRW_mesh_batch_cache_get_surface(
+        *static_cast<Mesh *>(ob->data));
+
+    inst.depth_occlude->draw(geom_faces, manager.resource_handle(ob_ref));
     return;
   }
 
-  SELECTID_ObjectData *sel_data = (SELECTID_ObjectData *)DRW_drawdata_get(
-      &ob->id, &draw_engine_select_type);
-
-  if (!e_data.context.is_dirty && sel_data && sel_data->is_drawn) {
-    /* The object indices have already been drawn. Fill depth pass.
-     * Optimization: Most of the time this depth pass is not used. */
-    Mesh *me = static_cast<Mesh *>(ob->data);
-    if (e_data.context.select_mode & SCE_SELECT_FACE) {
-      GPUBatch *geom_faces = DRW_mesh_batch_cache_get_triangles_with_select_id(me);
-      DRW_shgroup_call_obmat(stl->g_data->shgrp_depth_only, geom_faces, ob->object_to_world);
-    }
-    else if (ob->dt >= OB_SOLID) {
-#ifdef USE_CAGE_OCCLUSION
-      GPUBatch *geom_faces = DRW_mesh_batch_cache_get_triangles_with_select_id(me);
-#else
-      struct GPUBatch *geom_faces = DRW_mesh_batch_cache_get_surface(me);
-#endif
-      DRW_shgroup_call_obmat(stl->g_data->shgrp_depth_only, geom_faces, ob->object_to_world);
-    }
-
-    if (e_data.context.select_mode & SCE_SELECT_EDGE) {
-      GPUBatch *geom_edges = DRW_mesh_batch_cache_get_edges_with_select_id(me);
-      DRW_shgroup_call_obmat(stl->g_data->shgrp_depth_only, geom_edges, ob->object_to_world);
-    }
-
-    if (e_data.context.select_mode & SCE_SELECT_VERTEX) {
-      GPUBatch *geom_verts = DRW_mesh_batch_cache_get_verts_with_select_id(me);
-      DRW_shgroup_call_obmat(stl->g_data->shgrp_depth_only, geom_verts, ob->object_to_world);
-    }
-    return;
-  }
-
-  float min[3], max[3];
-  select_id_object_min_max(ob, min, max);
-
-  if (DRW_culling_min_max_test(stl->g_data->view_subregion, ob->object_to_world, min, max)) {
-    if (sel_data == nullptr) {
-      sel_data = (SELECTID_ObjectData *)DRW_drawdata_ensure(
-          &ob->id, &draw_engine_select_type, sizeof(SELECTID_ObjectData), nullptr, nullptr);
-    }
-    sel_data->dd.recalc = 0;
-    sel_data->drawn_index = e_data.context.objects_drawn_len;
-    sel_data->is_drawn = true;
-
-    ObjectOffsets *ob_offsets = &e_data.context.index_offsets[e_data.context.objects_drawn_len];
-
-    uint offset = e_data.context.index_drawn_len;
-    select_id_draw_object(vedata,
-                          draw_ctx->v3d,
-                          ob,
-                          e_data.context.select_mode,
-                          offset,
-                          &ob_offsets->vert,
-                          &ob_offsets->edge,
-                          &ob_offsets->face);
-
-    ob_offsets->offset = offset;
-    e_data.context.index_drawn_len = ob_offsets->vert;
-    e_data.context.objects_drawn[e_data.context.objects_drawn_len] = ob;
-    e_data.context.objects_drawn_len++;
-    e_data.runtime_new_objects++;
-  }
-  else if (sel_data) {
-    sel_data->is_drawn = false;
-  }
+  /* Only sync selectable object once.
+   * This can happen in retopology mode where there is two sync loop. */
+  sel_ctx.elem_ranges.lookup_or_add_cb(ob, [&]() {
+    ResourceHandle res_handle = manager.resource_handle(ob_ref);
+    ElemIndexRanges elem_ranges = select_id_object_sync(
+        inst, draw_ctx->v3d, ob, res_handle, sel_ctx.select_mode, sel_ctx.max_index_drawn_len);
+    sel_ctx.max_index_drawn_len = elem_ranges.total.one_after_last();
+    return elem_ranges;
+  });
 }
 
 static void select_draw_scene(void *vedata)
 {
-  SELECTID_StorageList *stl = ((SELECTID_Data *)vedata)->stl;
-  SELECTID_PassList *psl = ((SELECTID_Data *)vedata)->psl;
+  Manager &manager = *DRW_manager_get();
+  SelectEngineData &e_data = get_engine_data();
+  SELECTID_Instance &inst = *reinterpret_cast<SELECTID_Data *>(vedata)->instance;
 
-  if (!e_data.runtime_new_objects) {
-    /* Nothing new needs to be drawn. */
-    return;
+  {
+    const DRWContextState *draw_ctx = DRW_context_state_get();
+    View::OffsetData offset_data(*draw_ctx->rv3d);
+    /* Create view with depth offset */
+    const View &view = View::default_get();
+    inst.view_faces.sync(view.viewmat(), view.winmat());
+    inst.view_edges.sync(view.viewmat(), offset_data.winmat_polygon_offset(view.winmat(), 1.0f));
+    inst.view_verts.sync(view.viewmat(), offset_data.winmat_polygon_offset(view.winmat(), 1.1f));
   }
 
-  DRW_view_set_active(stl->g_data->view_faces);
-
-  if (!DRW_pass_is_empty(psl->depth_only_pass)) {
+  {
     DefaultFramebufferList *dfbl = DRW_viewport_framebuffer_list_get();
     GPU_framebuffer_bind(dfbl->depth_only_fb);
     GPU_framebuffer_clear_depth(dfbl->depth_only_fb, 1.0f);
-    DRW_draw_pass(psl->depth_only_pass);
+    manager.submit(inst.depth_only_ps, inst.view_faces);
   }
 
   /* Setup framebuffer */
   GPU_framebuffer_bind(e_data.framebuffer_select_id);
 
-  DRW_draw_pass(psl->select_id_face_pass);
+  manager.submit(inst.select_face_ps, inst.view_faces);
 
   if (e_data.context.select_mode & SCE_SELECT_EDGE) {
-    DRW_view_set_active(stl->g_data->view_edges);
-    DRW_draw_pass(psl->select_id_edge_pass);
+    manager.submit(inst.select_edge_ps, inst.view_edges);
   }
 
   if (e_data.context.select_mode & SCE_SELECT_VERTEX) {
-    DRW_view_set_active(stl->g_data->view_verts);
-    DRW_draw_pass(psl->select_id_vert_pass);
+    manager.submit(inst.select_id_vert_ps, inst.view_verts);
   }
 }
 
 static void select_engine_free()
 {
+  SelectEngineData &e_data = get_engine_data();
   for (int sh_data_index = 0; sh_data_index < ARRAY_SIZE(e_data.sh_data); sh_data_index++) {
     SELECTID_Shaders *sh_data = &e_data.sh_data[sh_data_index];
-    DRW_SHADER_FREE_SAFE(sh_data->select_id_flat);
-    DRW_SHADER_FREE_SAFE(sh_data->select_id_uniform);
+    GPU_SHADER_FREE_SAFE(sh_data->select_id_flat);
+    GPU_SHADER_FREE_SAFE(sh_data->select_id_uniform);
   }
 
-  DRW_TEXTURE_FREE_SAFE(e_data.texture_u32);
+  GPU_TEXTURE_FREE_SAFE(e_data.texture_u32);
   GPU_FRAMEBUFFER_FREE_SAFE(e_data.framebuffer_select_id);
-  MEM_SAFE_FREE(e_data.context.objects);
-  MEM_SAFE_FREE(e_data.context.index_offsets);
-  MEM_SAFE_FREE(e_data.context.objects_drawn);
+}
+
+static void select_instance_free(void *instance)
+{
+  delete reinterpret_cast<SELECTID_Instance *>(instance);
 }
 
 /** \} */
@@ -351,16 +484,13 @@ static void select_engine_free()
 /** \name Engine Type
  * \{ */
 
-static const DrawEngineDataSize select_data_size = DRW_VIEWPORT_DATA_SIZE(SELECTID_Data);
-
 DrawEngineType draw_engine_select_type = {
     /*next*/ nullptr,
     /*prev*/ nullptr,
     /*idname*/ N_("Select ID"),
-    /*vedata_size*/ &select_data_size,
     /*engine_init*/ &select_engine_init,
     /*engine_free*/ &select_engine_free,
-    /*instance_free*/ nullptr,
+    /*instance_free*/ select_instance_free,
     /*cache_init*/ &select_cache_init,
     /*cache_populate*/ &select_cache_populate,
     /*cache_finish*/ nullptr,
@@ -405,16 +535,19 @@ RenderEngineType DRW_engine_viewport_select_type = {
 
 SELECTID_Context *DRW_select_engine_context_get()
 {
+  SelectEngineData &e_data = get_engine_data();
   return &e_data.context;
 }
 
 GPUFrameBuffer *DRW_engine_select_framebuffer_get()
 {
+  SelectEngineData &e_data = get_engine_data();
   return e_data.framebuffer_select_id;
 }
 
 GPUTexture *DRW_engine_select_texture_get()
 {
+  SelectEngineData &e_data = get_engine_data();
   return e_data.texture_u32;
 }
 

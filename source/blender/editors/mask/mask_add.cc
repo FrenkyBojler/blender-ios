@@ -6,10 +6,12 @@
  * \ingroup edmask
  */
 
+#include <algorithm>
+
 #include "MEM_guardedalloc.h"
 
-#include "BKE_context.h"
-#include "BKE_curve.h"
+#include "BKE_context.hh"
+#include "BKE_curve.hh"
 #include "BKE_mask.h"
 
 #include "BLI_math_matrix.h"
@@ -25,13 +27,12 @@
 #include "WM_types.hh"
 
 #include "ED_mask.hh" /* own include */
-#include "ED_screen.hh"
 #include "ED_select_utils.hh"
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
 
-#include "mask_intern.h" /* own include */
+#include "mask_intern.hh" /* own include */
 
 /* -------------------------------------------------------------------- */
 /** \name Add Vertex
@@ -85,13 +86,13 @@ static void setup_vertex_point(Mask *mask,
 
         current_point = &spline->points[point_index];
         if (current_point->bezt.h1 != HD_VECT || current_point->bezt.h2 != HD_VECT) {
-          bezt->h1 = bezt->h2 = MAX2(current_point->bezt.h2, current_point->bezt.h1);
+          bezt->h1 = bezt->h2 = std::max(current_point->bezt.h2, current_point->bezt.h1);
           break;
         }
       }
     }
     else {
-      bezt->h1 = bezt->h2 = MAX2(reference_point->bezt.h2, reference_point->bezt.h1);
+      bezt->h1 = bezt->h2 = std::max(reference_point->bezt.h2, reference_point->bezt.h1);
     }
 
     reference_parent_point = reference_point;
@@ -121,12 +122,12 @@ static void setup_vertex_point(Mask *mask,
       }
 
       /* handle type */
-      char handle_type = 0;
+      uint8_t handle_type = 0;
       if (prev_point) {
         handle_type = prev_point->bezt.h2;
       }
       if (next_point) {
-        handle_type = MAX2(next_point->bezt.h2, handle_type);
+        handle_type = std::max(next_point->bezt.h2, handle_type);
       }
       bezt->h1 = bezt->h2 = handle_type;
 
@@ -183,7 +184,8 @@ static void finSelectedSplinePoint(MaskLayer *mask_layer,
   if (check_active) {
     /* TODO: having an active point but no active spline is possible, why? */
     if (mask_layer->act_spline && mask_layer->act_point &&
-        MASKPOINT_ISSEL_ANY(mask_layer->act_point)) {
+        MASKPOINT_ISSEL_ANY(mask_layer->act_point))
+    {
       *spline = mask_layer->act_spline;
       *point = mask_layer->act_point;
       return;
@@ -224,7 +226,8 @@ static void mask_spline_add_point_at_index(MaskSpline *spline, int point_index)
 {
   MaskSplinePoint *new_point_array;
 
-  new_point_array = MEM_cnew_array<MaskSplinePoint>(spline->tot_point + 1, "add mask vert points");
+  new_point_array = MEM_calloc_arrayN<MaskSplinePoint>(spline->tot_point + 1,
+                                                       "add mask vert points");
 
   memcpy(new_point_array, spline->points, sizeof(MaskSplinePoint) * (point_index + 1));
   memcpy(new_point_array + point_index + 2,
@@ -714,7 +717,7 @@ static BezTriple *points_to_bezier(const float (*points)[2],
                                    const float scale,
                                    const float location[2])
 {
-  BezTriple *bezier_points = MEM_cnew_array<BezTriple>(num_points, __func__);
+  BezTriple *bezier_points = MEM_calloc_arrayN<BezTriple>(num_points, __func__);
   for (int i = 0; i < num_points; i++) {
     copy_v2_v2(bezier_points[i].vec[1], points[i]);
     mul_v2_fl(bezier_points[i].vec[1], scale);

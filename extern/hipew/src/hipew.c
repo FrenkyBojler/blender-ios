@@ -35,9 +35,14 @@ thipGetErrorString *hipGetErrorString;
 thipGetLastError *hipGetLastError;
 thipInit *hipInit;
 thipDriverGetVersion *hipDriverGetVersion;
+thipRuntimeGetVersion *hipRuntimeGetVersion;
 thipGetDevice *hipGetDevice;
 thipGetDeviceCount *hipGetDeviceCount;
-thipGetDeviceProperties *hipGetDeviceProperties;
+#ifdef WITH_HIP_SDK_5
+  thipGetDeviceProperties *hipGetDeviceProperties;
+#else
+  thipGetDevicePropertiesR0600 *hipGetDevicePropertiesR0600;
+#endif
 thipDeviceGet* hipDeviceGet;
 thipDeviceGetName *hipDeviceGetName;
 thipDeviceGetAttribute *hipDeviceGetAttribute;
@@ -232,16 +237,25 @@ static int hipewHipInit(void) {
   /* Library paths. */
 #ifdef _WIN32
   /* Expected in C:/Windows/System32 or similar, no path needed. */
-  const char *hip_paths[] = {"amdhip64.dll", NULL};
-
+  const char *hip_paths[] = {WIN_DRIVER, NULL};
 #elif defined(__APPLE__)
   /* Default installation path. */
   const char *hip_paths[] = {"", NULL};
 #else
-  const char *hip_paths[] = {"libamdhip64.so.5",
-                             "/opt/rocm/hip/lib/libamdhip64.so.5",
-                             "libamdhip64.so",
-                             "/opt/rocm/hip/lib/libamdhip64.so", NULL};
+  /* ROCm 6 changes paths from /opt/rocm/hip/lib to /opt/rocm/lib, so
+   * search for libraries there. It still includes .so.5. */
+  #ifdef WITH_HIP_SDK_5
+      const char *hip_paths[] = {"libamdhip64.so.5",
+                               "/opt/rocm/lib/libamdhip64.so.5",
+                               "/opt/rocm/hip/lib/libamdhip64.so.5",
+                                NULL};
+  #else
+  const char *hip_paths[] = {"libamdhip64.so.6",
+                              "/opt/rocm/lib/libamdhip64.so.6",
+                              "/opt/rocm/hip/lib/libamdhip64.so.6",
+                               NULL};
+
+  #endif
 #endif
   static int initialized = 0;
   static int result = 0;
@@ -276,14 +290,19 @@ static int hipewHipInit(void) {
   }
 
   /* Fetch all function pointers. */
+#ifdef WITH_HIP_SDK_5
+  HIP_LIBRARY_FIND_CHECKED(hipGetDeviceProperties);
+#else
+  HIP_LIBRARY_FIND_CHECKED(hipGetDevicePropertiesR0600);
+#endif
   HIP_LIBRARY_FIND_CHECKED(hipGetErrorName);
   HIP_LIBRARY_FIND_CHECKED(hipGetErrorString);
   HIP_LIBRARY_FIND_CHECKED(hipGetLastError);
   HIP_LIBRARY_FIND_CHECKED(hipInit);
   HIP_LIBRARY_FIND_CHECKED(hipDriverGetVersion);
+  HIP_LIBRARY_FIND_CHECKED(hipRuntimeGetVersion);
   HIP_LIBRARY_FIND_CHECKED(hipGetDevice);
   HIP_LIBRARY_FIND_CHECKED(hipGetDeviceCount);
-  HIP_LIBRARY_FIND_CHECKED(hipGetDeviceProperties);
   HIP_LIBRARY_FIND_CHECKED(hipDeviceGet);
   HIP_LIBRARY_FIND_CHECKED(hipDeviceGetName);
   HIP_LIBRARY_FIND_CHECKED(hipDeviceGetAttribute);
@@ -405,7 +424,6 @@ static int hipewHipInit(void) {
   result = HIPEW_SUCCESS;
   return result;
 }
-
 
 
 int hipewInit(hipuint32_t flags) {

@@ -8,13 +8,13 @@
 
 #pragma once
 
-/* Struct members on own line. */
 /* clang-format off */
 
 /* -------------------------------------------------------------------- */
 /** \name Material Struct
  * \{ */
 
+/* Keep RGBA diffuse defaults in sync with #rna_def_material_display in rna_material.cc */
 #define _DNA_DEFAULT_Material \
   { \
     .r = 0.8, \
@@ -33,6 +33,8 @@
     .alpha_threshold = 0.5f, \
  \
     .blend_shadow = MA_BS_SOLID, \
+ \
+    .blend_flag = MA_BL_TRANSPARENT_SHADOW,\
     \
     .lineart.mat_occlusion = 1, \
   }

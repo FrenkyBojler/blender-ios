@@ -12,17 +12,15 @@
 #include "../../BPy_Convert.h"
 #include "../../BPy_IntegrationType.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 using namespace Freestyle;
 
 ///////////////////////////////////////////////////////////////////////////////////////////
 
 //------------------------INSTANCE METHODS ----------------------------------
 
-static char DensityF1D___doc__[] =
+PyDoc_STRVAR(
+    /* Wrap. */
+    DensityF1D___doc__,
     "Class hierarchy: :class:`freestyle.types.UnaryFunction1D` > "
     ":class:`freestyle.types.UnaryFunction1DDouble` > :class:`DensityF1D`\n"
     "\n"
@@ -53,7 +51,7 @@ static char DensityF1D___doc__[] =
     "   :arg inter: An Interface1D object.\n"
     "   :type inter: :class:`freestyle.types.Interface1D`\n"
     "   :return: The density evaluated for an Interface1D.\n"
-    "   :rtype: float\n";
+    "   :rtype: float\n");
 
 static int DensityF1D___init__(BPy_DensityF1D *self, PyObject *args, PyObject *kwds)
 {
@@ -116,7 +114,3 @@ PyTypeObject DensityF1D_Type = {
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////
-
-#ifdef __cplusplus
-}
-#endif

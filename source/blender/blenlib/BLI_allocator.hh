@@ -26,11 +26,10 @@
  */
 
 #include <algorithm>
-#include <stdlib.h>
+#include <cstdlib>
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_math_base.h"
 #include "BLI_utildefines.h"
 
 namespace blender {
@@ -54,6 +53,26 @@ class GuardedAllocator {
 };
 
 /**
+ * Like #GuardedAllocator, but makes sure each allocation has a minimum alignment. One use case is
+ * reusing an allocation between multiple types that have different alignment requirements. The
+ * default alignment template parameter should be large enough for any type in practice.
+ */
+template<size_t Alignment = 64ul> class GuardedAlignedAllocator {
+ public:
+  static constexpr size_t min_alignment = Alignment;
+
+  void *allocate(size_t size, size_t alignment, const char *name)
+  {
+    return MEM_mallocN_aligned(size, std::max(alignment, min_alignment), name);
+  }
+
+  void deallocate(void *ptr)
+  {
+    MEM_freeN(ptr);
+  }
+};
+
+/**
  * This is a wrapper around malloc/free. Only use this when the GuardedAllocator cannot be
  * used. This can be the case when the allocated memory might live longer than Blender's
  * allocator. For example, when the memory is owned by a static variable.
@@ -67,7 +86,7 @@ class RawAllocator {
  public:
   void *allocate(size_t size, size_t alignment, const char * /*name*/)
   {
-    BLI_assert(is_power_of_2_i(int(alignment)));
+    BLI_assert(is_power_of_2(int(alignment)));
     void *ptr = malloc(size + alignment + sizeof(MemHead));
     void *used_ptr = reinterpret_cast<void *>(
         uintptr_t(POINTER_OFFSET(ptr, alignment + sizeof(MemHead))) & ~(uintptr_t(alignment) - 1));

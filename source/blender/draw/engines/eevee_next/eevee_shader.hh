@@ -15,31 +15,47 @@
 #include <string>
 
 #include "BLI_string_ref.hh"
-#include "DRW_render.h"
-#include "GPU_material.h"
-#include "GPU_shader.h"
+#include "DRW_render.hh"
+#include "GPU_material.hh"
+#include "GPU_shader.hh"
 
 #include "eevee_material.hh"
 #include "eevee_sync.hh"
 
 namespace blender::eevee {
 
+using StaticShader = gpu::StaticShader;
+
 /* Keep alphabetical order and clean prefix. */
 enum eShaderType {
   AMBIENT_OCCLUSION_PASS = 0,
 
-  FILM_FRAG,
+  FILM_COPY,
   FILM_COMP,
   FILM_CRYPTOMATTE_POST,
+  FILM_FRAG,
+  FILM_PASS_CONVERT_COMBINED,
+  FILM_PASS_CONVERT_DEPTH,
+  FILM_PASS_CONVERT_VALUE,
+  FILM_PASS_CONVERT_COLOR,
+  FILM_PASS_CONVERT_CRYPTOMATTE,
 
-  DEFERRED_COMBINE,
-  DEFERRED_LIGHT,
   DEFERRED_CAPTURE_EVAL,
+  DEFERRED_COMBINE,
+  DEFERRED_LIGHT_SINGLE,
+  DEFERRED_LIGHT_DOUBLE,
+  DEFERRED_LIGHT_TRIPLE,
+  DEFERRED_PLANAR_EVAL,
+  DEFERRED_THICKNESS_AMEND,
+  DEFERRED_TILE_CLASSIFY,
 
+  DEBUG_GBUFFER,
   DEBUG_SURFELS,
   DEBUG_IRRADIANCE_GRID,
 
-  DISPLAY_PROBE_GRID,
+  DISPLAY_PROBE_VOLUME,
+  DISPLAY_PROBE_SPHERE,
+  DISPLAY_PROBE_PLANAR,
 
   DOF_BOKEH_LUT,
   DOF_DOWNSAMPLE,
@@ -60,43 +76,51 @@ enum eShaderType {
   DOF_TILES_FLATTEN,
 
   HIZ_UPDATE,
+  HIZ_UPDATE_LAYER,
   HIZ_DEBUG,
+
+  HORIZON_DENOISE,
+  HORIZON_RESOLVE,
+  HORIZON_SCAN,
+  HORIZON_SETUP,
 
   LIGHT_CULLING_DEBUG,
   LIGHT_CULLING_SELECT,
   LIGHT_CULLING_SORT,
   LIGHT_CULLING_TILE,
   LIGHT_CULLING_ZBIN,
+  LIGHT_SHADOW_SETUP,
 
   LIGHTPROBE_IRRADIANCE_BOUNDS,
   LIGHTPROBE_IRRADIANCE_OFFSET,
   LIGHTPROBE_IRRADIANCE_RAY,
   LIGHTPROBE_IRRADIANCE_LOAD,
+  LIGHTPROBE_IRRADIANCE_WORLD,
+
+  LOOKDEV_DISPLAY,
 
   MOTION_BLUR_GATHER,
   MOTION_BLUR_TILE_DILATE,
   MOTION_BLUR_TILE_FLATTEN_RGBA,
   MOTION_BLUR_TILE_FLATTEN_RG,
 
-  RAY_DENOISE_BILATERAL_DIFFUSE,
-  RAY_DENOISE_BILATERAL_REFLECT,
-  RAY_DENOISE_BILATERAL_REFRACT,
-  RAY_DENOISE_SPATIAL_DIFFUSE,
-  RAY_DENOISE_SPATIAL_REFLECT,
-  RAY_DENOISE_SPATIAL_REFRACT,
+  RAY_DENOISE_BILATERAL,
+  RAY_DENOISE_SPATIAL,
   RAY_DENOISE_TEMPORAL,
-  RAY_GENERATE_DIFFUSE,
-  RAY_GENERATE_REFLECT,
-  RAY_GENERATE_REFRACT,
+  RAY_GENERATE,
   RAY_TILE_CLASSIFY,
   RAY_TILE_COMPACT,
   RAY_TRACE_FALLBACK,
-  RAY_TRACE_SCREEN_DIFFUSE,
-  RAY_TRACE_SCREEN_REFLECT,
-  RAY_TRACE_SCREEN_REFRACT,
+  RAY_TRACE_PLANAR,
+  RAY_TRACE_SCREEN,
 
-  REFLECTION_PROBE_REMAP,
-  REFLECTION_PROBE_UPDATE_IRRADIANCE,
+  RENDERPASS_CLEAR,
+
+  SPHERE_PROBE_CONVOLVE,
+  SPHERE_PROBE_IRRADIANCE,
+  SPHERE_PROBE_REMAP,
+  SPHERE_PROBE_SELECT,
+  SPHERE_PROBE_SUNLIGHT,
 
   SHADOW_CLIPMAP_CLEAR,
   SHADOW_DEBUG,
@@ -105,16 +129,22 @@ enum eShaderType {
   SHADOW_PAGE_DEFRAG,
   SHADOW_PAGE_FREE,
   SHADOW_PAGE_MASK,
+  SHADOW_PAGE_TILE_CLEAR,
+  SHADOW_PAGE_TILE_STORE,
+  SHADOW_TILEMAP_AMEND,
   SHADOW_TILEMAP_BOUNDS,
   SHADOW_TILEMAP_FINALIZE,
+  SHADOW_TILEMAP_RENDERMAP,
   SHADOW_TILEMAP_INIT,
   SHADOW_TILEMAP_TAG_UPDATE,
   SHADOW_TILEMAP_TAG_USAGE_OPAQUE,
   SHADOW_TILEMAP_TAG_USAGE_SURFELS,
   SHADOW_TILEMAP_TAG_USAGE_TRANSPARENT,
   SHADOW_TILEMAP_TAG_USAGE_VOLUME,
+  SHADOW_VIEW_VISIBILITY,
 
-  SUBSURFACE_EVAL,
+  SUBSURFACE_CONVOLVE,
+  SUBSURFACE_SETUP,
 
   SURFEL_CLUSTER_BUILD,
   SURFEL_LIGHT,
@@ -122,7 +152,10 @@ enum eShaderType {
   SURFEL_LIST_SORT,
   SURFEL_RAY,
 
+  VERTEX_COPY,
+
   VOLUME_INTEGRATION,
+  VOLUME_OCCUPANCY_CONVERT,
   VOLUME_RESOLVE,
   VOLUME_SCATTER,
   VOLUME_SCATTER_WITH_LIGHTS,
@@ -135,16 +168,65 @@ enum eShaderType {
  */
 class ShaderModule {
  private:
-  std::array<GPUShader *, MAX_SHADER_TYPE> shaders_;
+  std::array<StaticShader, MAX_SHADER_TYPE> shaders_;
+  BatchHandle compilation_handle_ = 0;
+  std::mutex mutex_;
 
-  /** Shared shader module across all engine instances. */
-  static ShaderModule *g_shader_module;
+  class SpecializationsKey {
+   private:
+    uint64_t hash_value_;
+
+   public:
+    SpecializationsKey(int render_buffers_shadow_id,
+                       int shadow_ray_count,
+                       int shadow_ray_step_count)
+    {
+      BLI_assert(render_buffers_shadow_id >= -1);
+      BLI_assert(shadow_ray_count >= 1 || shadow_ray_count <= 4);
+      BLI_assert(shadow_ray_step_count >= 1 || shadow_ray_step_count <= 16);
+      hash_value_ = render_buffers_shadow_id + 1;
+      hash_value_ = (hash_value_ << 2) | (shadow_ray_count - 1);
+      hash_value_ = (hash_value_ << 4) | (shadow_ray_step_count - 1);
+    }
+
+    uint64_t hash() const
+    {
+      return hash_value_;
+    }
+
+    bool operator==(const SpecializationsKey &k) const
+    {
+      return hash_value_ == k.hash_value_;
+    }
+
+    bool operator<(const SpecializationsKey &k) const
+    {
+      return hash_value_ < k.hash_value_;
+    }
+  };
+
+  Map<SpecializationsKey, SpecializationBatchHandle> specialization_handles_;
+
+  static gpu::StaticShaderCache<ShaderModule> &get_static_cache()
+  {
+    /** Shared shader module across all engine instances. */
+    static gpu::StaticShaderCache<ShaderModule> static_cache;
+    return static_cache;
+  }
 
  public:
   ShaderModule();
   ~ShaderModule();
 
+  bool static_shaders_are_ready(bool block_until_ready);
+  bool request_specializations(bool block_until_ready,
+                               int render_buffers_shadow_id,
+                               int shadow_ray_count,
+                               int shadow_ray_step_count);
+
   GPUShader *static_shader_get(eShaderType shader_type);
+  GPUMaterial *material_default_shader_get(eMaterialPipeline pipeline_type,
+                                           eMaterialGeometry geometry_type);
   GPUMaterial *material_shader_get(::Material *blender_mat,
                                    bNodeTree *nodetree,
                                    eMaterialPipeline pipeline_type,
@@ -153,14 +235,18 @@ class ShaderModule {
   GPUMaterial *world_shader_get(::World *blender_world,
                                 bNodeTree *nodetree,
                                 eMaterialPipeline pipeline_type);
+
+  /**
+   * Variation to compile a material only with a `nodetree`. Caller needs to maintain the list of
+   * materials and call GPU_material_free on it to update the material.
+   */
   GPUMaterial *material_shader_get(const char *name,
                                    ListBase &materials,
                                    bNodeTree *nodetree,
                                    eMaterialPipeline pipeline_type,
-                                   eMaterialGeometry geometry_type,
-                                   bool is_lookdev);
+                                   eMaterialGeometry geometry_type);
 
-  void material_create_info_ammend(GPUMaterial *mat, GPUCodegenOutput *codegen);
+  void material_create_info_amend(GPUMaterial *mat, GPUCodegenOutput *codegen);
 
   /** Only to be used by Instance constructor. */
   static ShaderModule *module_get();

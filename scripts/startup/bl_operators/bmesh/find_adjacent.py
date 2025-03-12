@@ -89,15 +89,18 @@ def elems_depth_search(ele_init, depths, other_edges_over_cb, results_init=None)
     if type(ele_init) is bmesh.types.BMFace:
         test_ele = {
             l.face for v, depth in vert_depths.items()
-            if depth >= depth_min for l in v.link_loops}
+            if depth >= depth_min for l in v.link_loops
+        }
     elif type(ele_init) is bmesh.types.BMEdge:
         test_ele = {
             e for v, depth in vert_depths.items()
-            if depth >= depth_min for e in v.link_edges if not e.is_wire}
+            if depth >= depth_min for e in v.link_edges if not e.is_wire
+        }
     else:
         test_ele = {
             v for v, depth in vert_depths.items()
-            if depth >= depth_min}
+            if depth >= depth_min
+        }
 
     result_ele = set()
 
@@ -205,8 +208,10 @@ def find_next(ele_dst, ele_src):
             continue
         depth_test = tuple(zip(depth_test_a, depth_test_b))
         # square so a few high values win over many small ones
-        diff_test = sum((abs(a[0] - b[0]) ** 2) +
-                        (abs(a[1] - b[1]) ** 2) for a, b in zip(depth_src, depth_test))
+        diff_test = sum(
+            (abs(a[0] - b[0]) ** 2) +
+            (abs(a[1] - b[1]) ** 2) for a, b in zip(depth_src, depth_test)
+        )
         if diff_test > diff_best:
             diff_best = diff_test
             ele_best = ele_test

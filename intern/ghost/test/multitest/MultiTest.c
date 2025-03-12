@@ -30,7 +30,7 @@
 
 #include "GHOST_C-api.h"
 
-#include "BLF_api.h"
+#include "BLF_api.hh"
 
 #include "Basic.h"
 #include "EventToBuf.h"
@@ -40,9 +40,9 @@
 #include "WindowData.h"
 
 /* GPU API. */
-#include "GPU_context.h"
-#include "GPU_immediate.h"
-#include "GPU_init_exit.h"
+#include "GPU_context.hh"
+#include "GPU_immediate.hh"
+#include "GPU_init_exit.hh"
 
 extern int datatoc_bfont_ttf_size;
 extern char const datatoc_bfont_ttf[];
@@ -566,12 +566,17 @@ LoggerWindow *loggerwindow_new(MultiTestApp *app)
   uint32_t screensize[2];
   GHOST_WindowHandle win;
 
-  GHOST_GetMainDisplayDimensions(sys, &screensize[0], &screensize[1]);
+  int posx = 40;
+  int posy = 0;
+  if (GHOST_GetMainDisplayDimensions(sys, &screensize[0], &screensize[1]) == GHOST_kSuccess) {
+    posy = screensize[1] - 432;
+  }
+
   win = GHOST_CreateWindow(sys,
                            NULL,
                            "MultiTest:Logger",
-                           40,
-                           screensize[1] - 432,
+                           posx,
+                           posy,
                            800,
                            300,
                            GHOST_kWindowStateNormal,
@@ -869,6 +874,7 @@ MultiTestApp *multitestapp_new(void)
   if (!app->sys) {
     fatal("Unable to create ghost system");
   }
+  GPU_backend_ghost_system_set(app->sys);
 
   if (!GHOST_AddEventConsumer(app->sys, consumer)) {
     fatal("Unable to add multitest event consumer ");

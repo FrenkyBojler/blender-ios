@@ -10,7 +10,8 @@ void node_normal_map(vec4 tangent, float strength, vec3 texnormal, out vec3 outn
     return;
   }
   tangent *= (FrontFacing ? 1.0 : -1.0);
-  vec3 B = tangent.w * cross(g_data.Ni, tangent.xyz) * sign(ObjectInfo.w);
+  vec3 B = tangent.w * cross(g_data.Ni, tangent.xyz);
+  B *= (drw_object_infos().flag & OBJECT_NEGATIVE_SCALE) != 0 ? -1.0 : 1.0;
 
   /* Apply strength here instead of in node_normal_map_mix for tangent space. */
   texnormal.xy *= strength;

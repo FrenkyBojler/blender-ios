@@ -57,7 +57,7 @@ foreach(COMPONENT ${_opencolorio_FIND_COMPONENTS})
       ${_opencolorio_SEARCH_DIRS}
     PATH_SUFFIXES
       lib64 lib lib64/static lib/static
-    )
+  )
   if(OPENCOLORIO_${UPPERCOMPONENT}_LIBRARY)
     list(APPEND _opencolorio_LIBRARIES "${OPENCOLORIO_${UPPERCOMPONENT}_LIBRARY}")
   endif()
@@ -72,14 +72,15 @@ if(EXISTS "${OPENCOLORIO_INCLUDE_DIR}/OpenColorIO/OpenColorABI.h")
       REGEX "^#define OCIO_VERSION[ \t].*$")
   endif()
   string(REGEX MATCHALL "[0-9]+[.0-9]+" OPENCOLORIO_VERSION ${_opencolorio_version})
+  unset(_opencolorio_version)
 endif()
 
 # handle the QUIETLY and REQUIRED arguments and set OPENCOLORIO_FOUND to TRUE if
 # all listed variables are TRUE
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(OpenColorIO
-    REQUIRED_VARS _opencolorio_LIBRARIES OPENCOLORIO_INCLUDE_DIR
-    VERSION_VAR OPENCOLORIO_VERSION)
+  REQUIRED_VARS _opencolorio_LIBRARIES OPENCOLORIO_INCLUDE_DIR
+  VERSION_VAR OPENCOLORIO_VERSION)
 
 if(OPENCOLORIO_FOUND)
   set(OPENCOLORIO_LIBRARIES ${_opencolorio_LIBRARIES})

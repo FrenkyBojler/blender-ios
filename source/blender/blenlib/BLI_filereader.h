@@ -23,13 +23,9 @@
 typedef int64_t off64_t;
 #endif
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 struct FileReader;
 
-typedef ssize_t (*FileReaderReadFn)(struct FileReader *reader, void *buffer, size_t size);
+typedef int64_t (*FileReaderReadFn)(struct FileReader *reader, void *buffer, size_t size);
 typedef off64_t (*FileReaderSeekFn)(struct FileReader *reader, off64_t offset, int whence);
 typedef void (*FileReaderCloseFn)(struct FileReader *reader);
 
@@ -61,7 +57,3 @@ FileReader *BLI_filereader_new_memory(const void *data, size_t len) ATTR_WARN_UN
 FileReader *BLI_filereader_new_zstd(FileReader *base) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL();
 /** Create #FileReader from applying `Gzip` decompression on an underlying file. */
 FileReader *BLI_filereader_new_gzip(FileReader *base) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL();
-
-#ifdef __cplusplus
-}
-#endif

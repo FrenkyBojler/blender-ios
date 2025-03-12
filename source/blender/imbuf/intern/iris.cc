@@ -6,6 +6,7 @@
  * \ingroup imbuf
  */
 
+#include <algorithm>
 #include <cstring>
 
 #include "BLI_fileops.h"
@@ -13,13 +14,10 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "IMB_filetype.h"
-#include "IMB_imbuf.h"
-#include "IMB_imbuf_types.h"
-#include "imbuf.h"
-
-#include "IMB_colormanagement.h"
-#include "IMB_colormanagement_intern.h"
+#include "IMB_colormanagement.hh"
+#include "IMB_filetype.hh"
+#include "IMB_imbuf.hh"
+#include "IMB_imbuf_types.hh"
 
 #define IMAGIC 0732
 
@@ -59,9 +57,9 @@ BLI_STATIC_ASSERT(sizeof(IMAGE) == HEADER_SIZE, "Invalid header size");
 #define BPPMASK 0x00ff
 // #define ITYPE_VERBATIM      0x0000 /* UNUSED */
 #define ITYPE_RLE 0x0100
-#define ISRLE(type) (((type)&0xff00) == ITYPE_RLE)
+#define ISRLE(type) (((type) & 0xff00) == ITYPE_RLE)
 // #define ISVERBATIM(type)    (((type) & 0xff00) == ITYPE_VERBATIM)
-#define BPP(type) ((type)&BPPMASK)
+#define BPP(type) ((type) & BPPMASK)
 #define RLE(bpp) (ITYPE_RLE | (bpp))
 // #define VERBATIM(bpp)       (ITYPE_VERBATIM | (bpp)) /* UNUSED */
 // #define IBUFSIZE(pixels)    ((pixels + (pixels >> 6)) << 2) /* UNUSED */
@@ -91,13 +89,13 @@ struct MFileOffset {
 
 /* Functions. */
 static void readheader(MFileOffset *inf, IMAGE *image);
-static int writeheader(FILE *outf, IMAGE *image);
+static int writeheader(FILE *outf, const IMAGE *image);
 
 static ushort getshort(MFileOffset *inf);
 static uint getlong(MFileOffset *mofs);
 static void putshort(FILE *outf, ushort val);
 static int putlong(FILE *outf, uint val);
-static int writetab(FILE *outf, uint *tab, int len);
+static int writetab(FILE *outf, const uint *tab, int len);
 static void readtab(MFileOffset *inf, uint *tab, int len);
 
 static int expandrow(
@@ -164,7 +162,7 @@ static void readheader(MFileOffset *inf, IMAGE *image)
   image->zsize = getshort(inf);
 }
 
-static int writeheader(FILE *outf, IMAGE *image)
+static int writeheader(FILE *outf, const IMAGE *image)
 {
   IMAGE t = {0};
 
@@ -182,7 +180,7 @@ static int writeheader(FILE *outf, IMAGE *image)
   return fwrite("no name", 8, 1, outf);
 }
 
-static int writetab(FILE *outf, uint *tab, int len)
+static int writetab(FILE *outf, const uint *tab, int len)
 {
   int r = 0;
 
@@ -308,13 +306,11 @@ ImBuf *imb_loadiris(const uchar *mem, size_t size, int flags, char colorspace[IM
 
     if (bpp == 1) {
 
-      ibuf = IMB_allocImBuf(xsize, ysize, 8 * zsize_read, IB_rect);
+      ibuf = IMB_allocImBuf(xsize, ysize, 8 * zsize_read, IB_byte_data);
       if (!ibuf) {
         goto fail_rle;
       }
-      if (ibuf->planes > 32) {
-        ibuf->planes = 32;
-      }
+      ibuf->planes = std::min<int>(ibuf->planes, 32);
       base = (uint *)ibuf->byte_buffer.data;
 
       if (badorder) {
@@ -358,7 +354,7 @@ ImBuf *imb_loadiris(const uchar *mem, size_t size, int flags, char colorspace[IM
     }
     else { /* bpp == 2 */
 
-      ibuf = IMB_allocImBuf(xsize, ysize, 32, (flags & IB_rect) | IB_rectfloat);
+      ibuf = IMB_allocImBuf(xsize, ysize, 32, (flags & IB_byte_data) | IB_float_data);
       if (!ibuf) {
         goto fail_rle;
       }
@@ -418,13 +414,11 @@ ImBuf *imb_loadiris(const uchar *mem, size_t size, int flags, char colorspace[IM
 
     if (bpp == 1) {
 
-      ibuf = IMB_allocImBuf(xsize, ysize, 8 * zsize_read, IB_rect);
+      ibuf = IMB_allocImBuf(xsize, ysize, 8 * zsize_read, IB_byte_data);
       if (!ibuf) {
         goto fail_uncompressed;
       }
-      if (ibuf->planes > 32) {
-        ibuf->planes = 32;
-      }
+      ibuf->planes = std::min<int>(ibuf->planes, 32);
 
       base = (uint *)ibuf->byte_buffer.data;
 
@@ -452,7 +446,7 @@ ImBuf *imb_loadiris(const uchar *mem, size_t size, int flags, char colorspace[IM
     }
     else { /* bpp == 2 */
 
-      ibuf = IMB_allocImBuf(xsize, ysize, 32, (flags & IB_rect) | IB_rectfloat);
+      ibuf = IMB_allocImBuf(xsize, ysize, 32, (flags & IB_byte_data) | IB_float_data);
       if (!ibuf) {
         goto fail_uncompressed;
       }
@@ -540,8 +534,8 @@ ImBuf *imb_loadiris(const uchar *mem, size_t size, int flags, char colorspace[IM
       }
     }
 
-    if (flags & IB_rect) {
-      IMB_rect_from_float(ibuf);
+    if (flags & IB_byte_data) {
+      IMB_byte_from_float(ibuf);
     }
   }
 
@@ -928,7 +922,7 @@ static int compressrow(const uchar *lbuf, uchar *rlebuf, const int z, const int 
     }
   }
   *optr++ = 0;
-  return optr - (uchar *)rlebuf;
+  return optr - rlebuf;
 }
 
 bool imb_saveiris(ImBuf *ibuf, const char *filepath, int /*flags*/)
