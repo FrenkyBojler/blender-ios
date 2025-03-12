@@ -29,9 +29,10 @@
 
 #pragma once
 
-#include <cassert>
-#include <cstdio>
 #include <type_traits>
+
+#define assert(assertion)
+#define printf(...)
 
 /* Some compilers complain about lack of return values. Keep it short. */
 #define RET \
@@ -170,7 +171,7 @@ template<typename T, int Sz> struct SwizzleBase : VecOp<T, Sz> {
 
 #define SWIZZLE_RGB(T) \
   SWIZZLE_RG(T) \
-  SwizzleBase<T, 2> rb, gb, br, bg, bb, bw; \
+  SwizzleBase<T, 2> rb, gb, br, bg, bb; \
   SwizzleBase<T, 3> rrb, rgb, rbr, rbg, rbb, grb, ggb, gbr, gbg, gbb, brr, brg, brb, bgr, bgg, \
       bgb, bbr, bbg, bbb; \
   SwizzleBase<T, 4> rrrb, rrgb, rrbr, rrbg, rrbb, rgrb, rggb, rgbr, rgbg, rgbb, rbrr, rbrg, rbrb, \
@@ -200,7 +201,7 @@ template<typename T, int Sz> struct SwizzleBase : VecOp<T, Sz> {
 
 #define SWIZZLE_RGBA(T) \
   SWIZZLE_RGB(T) \
-  SwizzleBase<T, 2> ra, ga, ar, ag, ab, aa; \
+  SwizzleBase<T, 2> ra, ga, ba, ar, ag, ab, aa; \
   SwizzleBase<T, 3> rra, rga, rba, rar, rag, rab, raa, gra, gga, gba, gar, gag, gab, gaa, bra, \
       bga, bba, bar, bag, bab, baa, arr, arg, arb, ara, agr, agg, agb, aga, abr, abg, abb, aba, \
       aar, aag, aab, aaa; \
@@ -457,8 +458,8 @@ template<int C, int R> struct MatOp {
 
   MatT operator*(MatT) const RET;
 
-  friend ColT operator*(RowT, MatT) RET;
-  friend RowT operator*(MatT, ColT) RET;
+  friend RowT operator*(ColT, MatT) RET;
+  friend ColT operator*(MatT, RowT) RET;
 };
 
 template<int R> struct MatBase<2, R> : MatOp<2, R> {
@@ -665,6 +666,7 @@ IMG_TEMPLATE uint imageAtomicMin(T &, IntCoord, uint) RET;
 IMG_TEMPLATE uint imageAtomicMax(T &, IntCoord, uint) RET;
 IMG_TEMPLATE uint imageAtomicAnd(T &, IntCoord, uint) RET;
 IMG_TEMPLATE uint imageAtomicXor(T &, IntCoord, uint) RET;
+IMG_TEMPLATE uint imageAtomicOr(T &, IntCoord, uint) RET;
 IMG_TEMPLATE uint imageAtomicExchange(T &, IntCoord, uint) RET;
 IMG_TEMPLATE uint imageAtomicCompSwap(T &, IntCoord, uint, uint) RET;
 /* Cannot write to a read only image. */
@@ -673,6 +675,7 @@ IMG_TEMPLATE uint imageAtomicMin(const T &, IntCoord, uint) = delete;
 IMG_TEMPLATE uint imageAtomicMax(const T &, IntCoord, uint) = delete;
 IMG_TEMPLATE uint imageAtomicAnd(const T &, IntCoord, uint) = delete;
 IMG_TEMPLATE uint imageAtomicXor(const T &, IntCoord, uint) = delete;
+IMG_TEMPLATE uint imageAtomicOr(const T &, IntCoord, uint) = delete;
 IMG_TEMPLATE uint imageAtomicExchange(const T &, IntCoord, uint) = delete;
 IMG_TEMPLATE uint imageAtomicCompSwap(const T &, IntCoord, uint, uint) = delete;
 
@@ -709,10 +712,10 @@ template<typename T, int D> VecBase<bool, D> lessThanEqual(VecOp<T, D>, VecOp<T,
 template<typename T, int D> VecBase<bool, D> greaterThanEqual(VecOp<T, D>, VecOp<T, D>) RET;
 template<typename T, int D> VecBase<bool, D> equal(VecOp<T, D>, VecOp<T, D>) RET;
 template<typename T, int D> VecBase<bool, D> notEqual(VecOp<T, D>, VecOp<T, D>) RET;
-template<int D> bool any(VecBase<bool, D>) RET;
-template<int D> bool all(VecBase<bool, D>) RET;
+template<int D> bool any(VecOp<bool, D>) RET;
+template<int D> bool all(VecOp<bool, D>) RET;
 /* `not` is a C++ keyword that aliases the `!` operator. Simply overload it. */
-template<int D> VecBase<bool, D> operator!(VecBase<bool, D>) RET;
+template<int D> VecBase<bool, D> operator!(VecOp<bool, D>) RET;
 
 template<int D> VecBase<int, D> bitCount(VecOp<int, D>) RET;
 template<int D> VecBase<int, D> bitCount(VecOp<uint, D>) RET;
@@ -741,45 +744,31 @@ int findMSB(int) RET;
 int findMSB(uint) RET;
 
 /* Math Functions. */
+
+/* NOTE: Declared inside a namespace and exposed behind macros to prevent
+ * errors on VS2019 due to `corecrt_math` conflicting functions. */
+namespace glsl {
 template<typename T> T abs(T) RET;
-template<typename T> T max(T, T) RET;
-template<typename T> T min(T, T) RET;
-template<typename T> T sign(T) RET;
-template<typename T, typename U> T clamp(T, U, U) RET;
-template<typename T> T clamp(T, double, double) RET;
-template<typename T, typename U> T max(T, U) RET;
-template<typename T, typename U> T min(T, U) RET;
 /* TODO(fclem): These should be restricted to floats. */
 template<typename T> T ceil(T) RET;
 template<typename T> T exp(T) RET;
 template<typename T> T exp2(T) RET;
 template<typename T> T floor(T) RET;
 template<typename T> T fma(T, T, T) RET;
-#ifndef _MSC_VER /* Avoid function redefinition which triggers a compile time error. */
 double fma(double, double, double) RET;
-#endif
-template<typename T> T fract(T) RET;
 template<typename T> T frexp(T, T) RET;
-template<typename T> T inversesqrt(T) RET;
 bool isinf(double) RET;
 template<int D> VecBase<bool, D> isinf(VecOp<double, D>) RET;
 bool isnan(double) RET;
 template<int D> VecBase<bool, D> isnan(VecOp<double, D>) RET;
 template<typename T> T log(T) RET;
 template<typename T> T log2(T) RET;
-double mod(double, double) RET;
-template<int D> VecBase<double, D> mod(VecOp<double, D>, double) RET;
-template<int D> VecBase<double, D> mod(VecOp<double, D>, VecOp<double, D>) RET;
 template<typename T> T modf(T, T);
 template<typename T, typename U> T pow(T, U) RET;
 template<typename T> T round(T) RET;
-template<typename T> T smoothstep(T, T, T) RET;
 template<typename T> T sqrt(T) RET;
-template<int D> VecBase<double, D> step(VecOp<double, D>, VecOp<double, D>) RET;
-template<int D> VecBase<double, D> step(double, VecOp<double, D>) RET;
 template<typename T> T trunc(T) RET;
 template<typename T, typename U> T ldexp(T, U) RET;
-double smoothstep(double, double, double) RET;
 
 template<typename T> T acos(T) RET;
 template<typename T> T acosh(T) RET;
@@ -794,6 +783,57 @@ template<typename T> T sin(T) RET;
 template<typename T> T sinh(T) RET;
 template<typename T> T tan(T) RET;
 template<typename T> T tanh(T) RET;
+}  // namespace glsl
+
+#define abs glsl::abs
+#define ceil glsl::ceil
+#define exp glsl::exp
+#define exp2 glsl::exp2
+#define floor glsl::floor
+#define fma glsl::fma
+#define frexp glsl::frexp
+#define isinf glsl::isinf
+#define isnan glsl::isnan
+#define log glsl::log
+#define log2 glsl::log2
+#define modf glsl::modf
+#define pow glsl::pow
+#define round glsl::round
+#define sqrt glsl::sqrt
+#define trunc glsl::trunc
+#define ldexp glsl::ldexp
+#define acos glsl::acos
+#define acosh glsl::acosh
+#define asin glsl::asin
+#define asinh glsl::asinh
+#define atan glsl::atan
+#define atanh glsl::atanh
+#define cos glsl::cos
+#define cosh glsl::cosh
+#define sin glsl::sin
+#define sinh glsl::sinh
+#define tan glsl::tan
+#define tanh glsl::tanh
+
+template<typename T> T max(T, T) RET;
+template<typename T> T min(T, T) RET;
+template<typename T> T sign(T) RET;
+template<typename T, typename U> T clamp(T, U, U) RET;
+template<typename T> T clamp(T, double, double) RET;
+template<typename T, typename U> T max(T, U) RET;
+template<typename T, typename U> T min(T, U) RET;
+/* TODO(fclem): These should be restricted to floats. */
+template<typename T> T fract(T) RET;
+template<typename T> T inversesqrt(T) RET;
+double mod(double, double) RET;
+template<int D> VecBase<double, D> mod(VecOp<double, D>, double) RET;
+template<int D> VecBase<double, D> mod(VecOp<double, D>, VecOp<double, D>) RET;
+template<typename T> T smoothstep(T, T, T) RET;
+double step(double, double) RET;
+template<int D> VecBase<double, D> step(VecOp<double, D>, VecOp<double, D>) RET;
+template<int D> VecBase<double, D> step(double, VecOp<double, D>) RET;
+double smoothstep(double, double, double) RET;
+template<int D> VecBase<double, D> smoothstep(double, double, VecOp<double, D>) RET;
 
 template<typename T> T degrees(T) RET;
 template<typename T> T radians(T) RET;
@@ -867,11 +907,6 @@ float4 unpackSnorm4x8(uint) RET;
 template<int C, int R> float determinant(MatBase<C, R>) RET;
 template<int C, int R> MatBase<C, R> inverse(MatBase<C, R>) RET;
 template<int C, int R> MatBase<R, C> transpose(MatBase<C, R>) RET;
-
-/* TODO(@fclem): Should be in a lib instead of being implemented by each backend. */
-bool is_zero(vec2) RET;
-bool is_zero(vec3) RET;
-bool is_zero(vec4) RET;
 
 #undef RET
 
@@ -975,6 +1010,23 @@ void groupMemoryBarrier() {}
 #define bool3_array(...) { __VA_ARGS__ }
 #define bool4_array(...) { __VA_ARGS__ }
 /* clang-format on */
+
+#define METAL_CONSTRUCTOR_1(class_name, t1, m1) \
+  class_name() = default; \
+  class_name(t1 m1##_) : m1(m1##_){};
+
+#define METAL_CONSTRUCTOR_2(class_name, t1, m1, t2, m2) \
+  class_name() = default; \
+  class_name(t1 m1##_, t2 m2##_) : m1(m1##_), m2(m2##_){};
+
+#define METAL_CONSTRUCTOR_3(class_name, t1, m1, t2, m2, t3, m3) \
+  class_name() = default; \
+  class_name(t1 m1##_, t2 m2##_, t3 m3##_) : m1(m1##_), m2(m2##_), m3(m3##_){};
+
+#define METAL_CONSTRUCTOR_4(class_name, t1, m1, t2, m2, t3, m3, t4, m4) \
+  class_name() = default; \
+  class_name(t1 m1##_, t2 m2##_, t3 m3##_, t4 m4##_) \
+      : m1(m1##_), m2(m2##_), m3(m3##_), m4(m4##_){};
 
 /** \} */
 

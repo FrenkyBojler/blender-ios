@@ -4,26 +4,96 @@
 
 #include "workbench_private.hh"
 
+#include "DNA_userdef_types.h"
+
 #include "BKE_camera.h"
+#include "BKE_customdata.hh"
 #include "BKE_editmesh.hh"
 #include "BKE_mesh_types.hh"
-#include "BKE_modifier.hh"
-#include "BKE_object.hh"
 #include "BKE_paint.hh"
 #include "BKE_paint_bvh.hh"
-#include "BKE_particle.h"
 
 #include "DEG_depsgraph_query.hh"
-#include "DNA_fluid_types.h"
+
+#include "DNA_world_types.h"
+
 #include "ED_paint.hh"
 #include "ED_view3d.hh"
+
 #include "GPU_capabilities.hh"
 
 namespace blender::workbench {
 
-void SceneState::init(Object *camera_ob /*=nullptr*/)
+/* Used for update detection on the render settings. */
+static bool operator!=(const View3DShading &a, const View3DShading &b)
 {
-  bool reset_taa = reset_taa_next_sample;
+  /* Only checks the properties that are actually used by workbench. */
+  if (a.type != b.type) {
+    return true;
+  }
+  if (a.color_type != b.color_type) {
+    return true;
+  }
+  if (a.flag != b.flag) {
+    return true;
+  }
+  if (a.light != b.light) {
+    return true;
+  }
+  if (a.background_type != b.background_type) {
+    return true;
+  }
+  if (a.cavity_type != b.cavity_type) {
+    return true;
+  }
+  if (a.wire_color_type != b.wire_color_type) {
+    return true;
+  }
+  if (StringRefNull(a.studio_light) != StringRefNull(b.studio_light)) {
+    return true;
+  }
+  if (StringRefNull(a.matcap) != StringRefNull(b.matcap)) {
+    return true;
+  }
+  if (a.shadow_intensity != b.shadow_intensity) {
+    return true;
+  }
+  if (float3(a.single_color) != float3(b.single_color)) {
+    return true;
+  }
+  if (a.studiolight_rot_z != b.studiolight_rot_z) {
+    return true;
+  }
+  if (float3(a.object_outline_color) != float3(b.object_outline_color)) {
+    return true;
+  }
+  if (a.xray_alpha != b.xray_alpha) {
+    return true;
+  }
+  if (a.xray_alpha_wire != b.xray_alpha_wire) {
+    return true;
+  }
+  if (a.cavity_valley_factor != b.cavity_valley_factor) {
+    return true;
+  }
+  if (a.cavity_ridge_factor != b.cavity_ridge_factor) {
+    return true;
+  }
+  if (float3(a.background_color) != float3(b.background_color)) {
+    return true;
+  }
+  if (a.curvature_ridge_factor != b.curvature_ridge_factor) {
+    return true;
+  }
+  if (a.curvature_valley_factor != b.curvature_valley_factor) {
+    return true;
+  }
+  return false;
+}
+
+void SceneState::init(bool scene_updated, Object *camera_ob /*=nullptr*/)
+{
+  bool reset_taa = reset_taa_next_sample || scene_updated;
   reset_taa_next_sample = false;
 
   const DRWContextState *context = DRW_context_state_get();
@@ -32,7 +102,7 @@ void SceneState::init(Object *camera_ob /*=nullptr*/)
 
   scene = DEG_get_evaluated_scene(context->depsgraph);
 
-  if (assign_if_different(resolution, int2(float2(DRW_viewport_size_get())))) {
+  if (assign_if_different(resolution, int2(DRW_viewport_size_get()))) {
     /* In some cases, the viewport can change resolution without a call to `workbench_view_update`.
      * This is the case when dragging a window between two screen with different DPI settings.
      * (See #128712) */
@@ -92,9 +162,8 @@ void SceneState::init(Object *camera_ob /*=nullptr*/)
     /* Disable shading options that aren't supported in transparency mode. */
     shading.flag &= ~(V3D_SHADING_SHADOW | V3D_SHADING_CAVITY | V3D_SHADING_DEPTH_OF_FIELD);
   }
-  if (SHADING_XRAY_ENABLED(shading) != SHADING_XRAY_ENABLED(previous_shading) ||
-      shading.flag != previous_shading.flag)
-  {
+
+  if (shading != previous_shading) {
     reset_taa = true;
   }
 
@@ -115,9 +184,7 @@ void SceneState::init(Object *camera_ob /*=nullptr*/)
     rv3d->rflag &= ~RV3D_GPULIGHT_UPDATE;
   }
 
-  float4x4 matrix;
-  /* TODO(@pragma37): New API? */
-  DRW_view_persmat_get(nullptr, matrix.ptr(), false);
+  float4x4 matrix = View::default_get().persmat();
   if (matrix != view_projection_matrix) {
     view_projection_matrix = matrix;
     reset_taa = true;

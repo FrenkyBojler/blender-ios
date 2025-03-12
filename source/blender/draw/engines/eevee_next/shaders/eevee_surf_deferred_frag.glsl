@@ -9,6 +9,14 @@
  * Some render-pass are written during this pass.
  */
 
+#include "infos/eevee_material_info.hh"
+
+FRAGMENT_SHADER_CREATE_INFO(eevee_node_tree)
+FRAGMENT_SHADER_CREATE_INFO(eevee_geom_mesh)
+FRAGMENT_SHADER_CREATE_INFO(eevee_surf_deferred)
+FRAGMENT_SHADER_CREATE_INFO(eevee_render_pass_out)
+FRAGMENT_SHADER_CREATE_INFO(eevee_cryptomatte_out)
+
 #include "common_hair_lib.glsl"
 #include "draw_view_lib.glsl"
 #include "eevee_ambient_occlusion_lib.glsl"
@@ -54,7 +62,7 @@ void main()
   float alpha_rcp = safe_rcp(alpha);
 
   /* Object holdout. */
-  eObjectInfoFlag ob_flag = eObjectInfoFlag(floatBitsToUint(drw_infos[resource_id].infos.w));
+  eObjectInfoFlag ob_flag = drw_object_infos().flag;
   if (flag_test(ob_flag, OBJECT_HOLDOUT)) {
     /* alpha is set from rejected pixels / dithering. */
     g_holdout = 1.0;
@@ -73,7 +81,7 @@ void main()
   /* Some render pass can be written during the gbuffer pass. Light passes are written later. */
   if (imageSize(rp_cryptomatte_img).x > 1) {
     vec4 cryptomatte_output = vec4(
-        cryptomatte_object_buf[resource_id], node_tree.crypto_hash, 0.0);
+        cryptomatte_object_buf[drw_resource_id()], node_tree.crypto_hash, 0.0);
     imageStoreFast(rp_cryptomatte_img, out_texel, cryptomatte_output);
   }
   output_renderpass_color(uniform_buf.render_pass.position_id, vec4(g_data.P, 1.0));
@@ -90,10 +98,10 @@ void main()
 #if CLOSURE_BIN_COUNT > 2
   gbuf_data.closure[2] = g_closure_get_resolved(2, alpha_rcp);
 #endif
-  ObjectInfos object_infos = drw_infos[resource_id];
+  ObjectInfos object_infos = drw_infos[drw_resource_id()];
   gbuf_data.surface_N = g_data.N;
   gbuf_data.thickness = thickness;
-  gbuf_data.object_id = resource_id;
+  gbuf_data.object_id = drw_resource_id();
   gbuf_data.receiver_light_set = receiver_light_set_get(object_infos);
 
   GBufferWriter gbuf = gbuffer_pack(gbuf_data);

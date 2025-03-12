@@ -10,7 +10,6 @@
 
 #include <algorithm>
 #include <cfloat>
-#include <cmath>
 #include <cstdlib>
 #include <cstring>
 #include <functional>
@@ -19,9 +18,8 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_array.hh"
-#include "BLI_bounds.hh"
+#include "BLI_bounds_types.hh"
 #include "BLI_listbase.h"
-#include "BLI_range.h"
 #include "BLI_utildefines.h"
 
 #include "DNA_anim_types.h"
@@ -269,7 +267,7 @@ const ActKeyColumn *ED_keylist_find_prev(const AnimKeylist *keylist, const float
 }
 
 const ActKeyColumn *ED_keylist_find_any_between(const AnimKeylist *keylist,
-                                                const Range2f frame_range)
+                                                const Bounds<float> frame_range)
 {
   BLI_assert_msg(keylist->is_runtime_initialized,
                  "ED_keylist_prepare_for_direct_access needs to be called before searching.");
@@ -329,7 +327,7 @@ static void keylist_first_last(const AnimKeylist *keylist,
   }
 }
 
-bool ED_keylist_all_keys_frame_range(const AnimKeylist *keylist, Range2f *r_frame_range)
+bool ED_keylist_all_keys_frame_range(const AnimKeylist *keylist, Bounds<float> *r_frame_range)
 {
   BLI_assert(r_frame_range);
 
@@ -346,7 +344,7 @@ bool ED_keylist_all_keys_frame_range(const AnimKeylist *keylist, Range2f *r_fram
   return true;
 }
 
-bool ED_keylist_selected_keys_frame_range(const AnimKeylist *keylist, Range2f *r_frame_range)
+bool ED_keylist_selected_keys_frame_range(const AnimKeylist *keylist, Bounds<float> *r_frame_range)
 {
   BLI_assert(r_frame_range);
 
@@ -944,8 +942,7 @@ void summary_to_keylist(bAnimContext *ac,
 
   /* Get F-Curves to take keyframes from. */
   const eAnimFilter_Flags filter = ANIMFILTER_DATA_VISIBLE;
-  ANIM_animdata_filter(
-      ac, &anim_data, filter, ac->data, static_cast<eAnimCont_Types>(ac->datatype));
+  ANIM_animdata_filter(ac, &anim_data, filter, ac->data, ac->datatype);
 
   /* Loop through each F-Curve, grabbing the keyframes. */
   LISTBASE_FOREACH (const bAnimListElem *, ale, &anim_data) {
@@ -981,6 +978,50 @@ void summary_to_keylist(bAnimContext *ac,
   ANIM_animdata_freelist(&anim_data);
 }
 
+void action_slot_summary_to_keylist(bAnimContext *ac,
+                                    ID *animated_id,
+                                    animrig::Action &action,
+                                    const animrig::slot_handle_t slot_handle,
+                                    AnimKeylist *keylist,
+                                    const int /* eSAction_Flag */ saction_flag,
+                                    blender::float2 range)
+{
+  /* TODO: downstream code depends on this being non-null (see e.g.
+   * `ANIM_animfilter_action_slot()` and `animfilter_fcurves_span()`). Either
+   * change this parameter to be a reference, or modify the downstream code to
+   * not assume that it's non-null and do something reasonable when it is null. */
+  BLI_assert(animated_id);
+
+  if (!ac) {
+    return;
+  }
+
+  animrig::Slot *slot = action.slot_for_handle(slot_handle);
+  BLI_assert(slot);
+
+  ListBase anim_data = {nullptr, nullptr};
+
+  /* Get F-Curves to take keyframes from. */
+  const eAnimFilter_Flags filter = ANIMFILTER_DATA_VISIBLE;
+  ANIM_animfilter_action_slot(ac, &anim_data, action, *slot, filter, animated_id);
+
+  LISTBASE_FOREACH (const bAnimListElem *, ale, &anim_data) {
+    /* As of the writing of this code, Actions ultimately only contain FCurves.
+     * If/when that changes in the future, this may need to be updated. */
+    if (ale->datatype != ALE_FCURVE) {
+      continue;
+    }
+    fcurve_to_keylist(ale->adt,
+                      static_cast<FCurve *>(ale->data),
+                      keylist,
+                      saction_flag,
+                      range,
+                      ANIM_nla_mapping_allowed(ale));
+  }
+
+  ANIM_animdata_freelist(&anim_data);
+}
+
 void scene_to_keylist(bDopeSheet *ads,
                       Scene *sce,
                       AnimKeylist *keylist,
@@ -1009,8 +1050,7 @@ void scene_to_keylist(bDopeSheet *ads,
   /* Get F-Curves to take keyframes from. */
   const eAnimFilter_Flags filter = ANIMFILTER_DATA_VISIBLE | ANIMFILTER_FCURVESONLY;
 
-  ANIM_animdata_filter(
-      &ac, &anim_data, filter, ac.data, static_cast<eAnimCont_Types>(ac.datatype));
+  ANIM_animdata_filter(&ac, &anim_data, filter, ac.data, ac.datatype);
 
   /* Loop through each F-Curve, grabbing the keyframes. */
   LISTBASE_FOREACH (const bAnimListElem *, ale, &anim_data) {
@@ -1055,8 +1095,7 @@ void ob_to_keylist(bDopeSheet *ads,
 
   /* Get F-Curves to take keyframes from. */
   const eAnimFilter_Flags filter = ANIMFILTER_DATA_VISIBLE | ANIMFILTER_FCURVESONLY;
-  ANIM_animdata_filter(
-      &ac, &anim_data, filter, ac.data, static_cast<eAnimCont_Types>(ac.datatype));
+  ANIM_animdata_filter(&ac, &anim_data, filter, ac.data, ac.datatype);
 
   /* Loop through each F-Curve, grabbing the keyframes. */
   LISTBASE_FOREACH (const bAnimListElem *, ale, &anim_data) {
@@ -1095,8 +1134,7 @@ void cachefile_to_keylist(bDopeSheet *ads,
   /* Get F-Curves to take keyframes from. */
   ListBase anim_data = {nullptr, nullptr};
   const eAnimFilter_Flags filter = ANIMFILTER_DATA_VISIBLE | ANIMFILTER_FCURVESONLY;
-  ANIM_animdata_filter(
-      &ac, &anim_data, filter, ac.data, static_cast<eAnimCont_Types>(ac.datatype));
+  ANIM_animdata_filter(&ac, &anim_data, filter, ac.data, ac.datatype);
 
   /* Loop through each F-Curve, grabbing the keyframes. */
   LISTBASE_FOREACH (const bAnimListElem *, ale, &anim_data) {
@@ -1236,23 +1274,10 @@ void action_group_to_keylist(AnimData *adt,
   }
 
   /* Layered actions. */
-  animrig::ChannelBag &channel_bag = agrp->channel_bag->wrap();
-  Span<FCurve *> fcurves = channel_bag.fcurves().slice(agrp->fcurve_range_start,
-                                                       agrp->fcurve_range_length);
+  animrig::Channelbag &channelbag = agrp->channelbag->wrap();
+  Span<FCurve *> fcurves = channelbag.fcurves().slice(agrp->fcurve_range_start,
+                                                      agrp->fcurve_range_length);
   for (FCurve *fcurve : fcurves) {
-    fcurve_to_keylist(adt, fcurve, keylist, saction_flag, range, true);
-  }
-}
-
-void action_slot_to_keylist(AnimData *adt,
-                            animrig::Action &action,
-                            const animrig::slot_handle_t slot_handle,
-                            AnimKeylist *keylist,
-                            const int saction_flag,
-                            blender::float2 range)
-{
-  BLI_assert(GS(action.id.name) == ID_AC);
-  for (FCurve *fcurve : fcurves_for_action_slot(action, slot_handle)) {
     fcurve_to_keylist(adt, fcurve, keylist, saction_flag, range, true);
   }
 }
@@ -1282,7 +1307,9 @@ void action_to_keylist(AnimData *adt,
    * have things like reference strips, where the strip can reference another slot handle.
    */
   BLI_assert(adt);
-  action_slot_to_keylist(adt, action, adt->slot_handle, keylist, saction_flag, range);
+  for (FCurve *fcurve : fcurves_for_action_slot(action, adt->slot_handle)) {
+    fcurve_to_keylist(adt, fcurve, keylist, saction_flag, range, true);
+  }
 }
 
 void gpencil_to_keylist(bDopeSheet *ads, bGPdata *gpd, AnimKeylist *keylist, const bool active)

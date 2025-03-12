@@ -7,6 +7,10 @@
  * processing.
  */
 
+#include "infos/eevee_subsurface_info.hh"
+
+COMPUTE_SHADER_CREATE_INFO(eevee_subsurface_setup)
+
 #include "draw_view_lib.glsl"
 #include "eevee_gbuffer_lib.glsl"
 #include "gpu_shader_math_vector_lib.glsl"
@@ -36,12 +40,11 @@ void main()
     imageStoreFast(radiance_img, texel, vec4(radiance, 0.0));
     imageStoreFast(object_id_img, texel, uvec4(gbuf.object_id));
 
-    vec2 center_uv = (vec2(texel) + 0.5) / vec2(textureSize(gbuf_header_tx, 0));
     float depth = texelFetch(depth_tx, texel, 0).r;
     /* TODO(fclem): Check if this simplifies. */
     float vPz = drw_depth_screen_to_view(depth);
-    float homcoord = ProjectionMatrix[2][3] * vPz + ProjectionMatrix[3][3];
-    float sample_scale = ProjectionMatrix[0][0] * (0.5 * max_radius / homcoord);
+    float homcoord = drw_view().winmat[2][3] * vPz + drw_view().winmat[3][3];
+    float sample_scale = drw_view().winmat[0][0] * (0.5 * max_radius / homcoord);
     float pixel_footprint = sample_scale * float(textureSize(gbuf_header_tx, 0).x);
     if (pixel_footprint > 1.0) {
       /* Race condition doesn't matter here. */

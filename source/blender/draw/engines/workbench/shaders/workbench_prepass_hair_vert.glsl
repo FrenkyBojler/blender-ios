@@ -27,11 +27,11 @@ float integer_noise(int n)
   return (float(nn) / 1073741824.0);
 }
 
-vec3 workbench_hair_random_normal(vec3 tan, vec3 binor, float rand)
+vec3 workbench_hair_random_normal(vec3 tangent, vec3 binor, float rand)
 {
   /* To "simulate" anisotropic shading, randomize hair normal per strand. */
-  vec3 nor = cross(tan, binor);
-  nor = normalize(mix(nor, -tan, rand * 0.1));
+  vec3 nor = cross(tangent, binor);
+  nor = normalize(mix(nor, -tangent, rand * 0.1));
   float cos_theta = (rand * 2.0 - 1.0) * 0.2;
   float sin_theta = sqrt(max(0.0, 1.0 - cos_theta * cos_theta));
   nor = nor * sin_theta + binor * cos_theta;
@@ -55,15 +55,15 @@ void workbench_hair_random_material(float rand,
 
 void main()
 {
-  bool is_persp = (drw_view.winmat[3][3] == 0.0);
+  bool is_persp = (drw_view().winmat[3][3] == 0.0);
   float time = 0.0, thick_time = 0.0, thickness = 0.0;
-  vec3 world_pos, tan, binor;
+  vec3 world_pos, tangent, binor;
   hair_get_pos_tan_binor_time(is_persp,
                               drw_modelinv(),
-                              drw_view.viewinv[3].xyz,
-                              drw_view.viewinv[2].xyz,
+                              drw_view().viewinv[3].xyz,
+                              drw_view().viewinv[2].xyz,
                               world_pos,
-                              tan,
+                              tangent,
                               binor,
                               time,
                               thickness,
@@ -72,7 +72,7 @@ void main()
   gl_Position = drw_point_world_to_homogenous(world_pos);
 
   float hair_rand = integer_noise(hair_get_strand_id());
-  vec3 nor = workbench_hair_random_normal(tan, binor, hair_rand);
+  vec3 nor = workbench_hair_random_normal(tangent, binor, hair_rand);
 
   view_clipping_distances(world_pos);
 
@@ -80,7 +80,7 @@ void main()
 
   normal_interp = normalize(drw_normal_world_to_view(nor));
 
-  workbench_material_data_get(int(drw_CustomID),
+  workbench_material_data_get(int(drw_custom_id()),
                               hair_get_customdata_vec3(ac),
                               color_interp,
                               alpha_interp,
@@ -93,7 +93,7 @@ void main()
 
   workbench_hair_random_material(hair_rand, color_interp, _roughness, metallic);
 
-  object_id = int(uint(resource_handle) & 0xFFFFu) + 1;
+  object_id = int(uint(drw_resource_id()) & 0xFFFFu) + 1;
 
   if (emitter_object_id != 0) {
     object_id = int(uint(emitter_object_id) & 0xFFFFu) + 1;

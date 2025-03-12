@@ -12,6 +12,7 @@
 #include "DNA_volume_types.h"
 
 #include "draw_common.hh"
+#include "draw_sculpt.hh"
 
 #include "overlay_next_base.hh"
 #include "overlay_next_mesh.hh"
@@ -72,6 +73,7 @@ class Wireframe : Overlay {
       auto &pass = wireframe_ps_;
       pass.init();
       pass.bind_ubo(OVERLAY_GLOBALS_SLOT, &res.globals_buf);
+      pass.bind_ubo(DRW_CLIPPING_UBO_SLOT, &res.clip_planes_buf);
       pass.state_set(DRW_STATE_FIRST_VERTEX_CONVENTION | DRW_STATE_WRITE_COLOR |
                          DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_LESS_EQUAL,
                      state.clipping_plane_count);
@@ -90,6 +92,7 @@ class Wireframe : Overlay {
             sub.push_constant("colorType", state.v3d->shading.wire_color_type);
             sub.push_constant("useColoring", use_coloring);
             sub.push_constant("wireStepParam", wire_threshold);
+            sub.push_constant("ndc_offset_factor", &state.ndc_offset_factor);
             sub.push_constant("isHair", false);
             return &sub;
           };
@@ -159,7 +162,17 @@ class Wireframe : Overlay {
         break;
       }
       case OB_MESH: {
-        bool has_edit_cage = Meshes::mesh_has_edit_cage(ob_ref.object);
+        /* Force display in edit mode when overlay is off in wireframe mode (see #78484). */
+        const bool wireframe_no_overlay = state.hide_overlays && state.is_wireframe_mode;
+
+        /* In some cases the edit mode wireframe overlay is already drawn for the same edges.
+         * We want to avoid this redundant work and avoid Z-fighting, but detecting this case is
+         * relatively complicated. Whether edit mode draws edges on the evaluated mesh depends on
+         * whether there is a separate cage and whether there is a valid mapping between the
+         * evaluated and original edit mesh. */
+        const bool edit_wires_overlap_all = mesh_edit_wires_overlap(ob_ref, in_edit_mode);
+
+        const bool bypass_mode_check = wireframe_no_overlay || !edit_wires_overlap_all;
 
         if (show_surface_wire) {
           if (BKE_sculptsession_use_pbvh_draw(ob_ref.object, state.rv3d)) {
@@ -169,7 +182,7 @@ class Wireframe : Overlay {
               coloring.mesh_all_edges_ps_->draw(batch.batch, handle);
             }
           }
-          else if (!in_edit_mode || has_edit_cage) {
+          else if (!in_edit_mode || bypass_mode_check) {
             /* Only draw the wireframe in edit mode if object has edit cage.
              * Otherwise the wireframe will conflict with the edit cage drawing and produce
              * unpleasant aliasing. */
@@ -180,7 +193,7 @@ class Wireframe : Overlay {
         }
 
         /* Draw loose geometry. */
-        if (!in_edit_paint_mode || has_edit_cage) {
+        if (!in_edit_paint_mode || bypass_mode_check) {
           const Mesh *mesh = static_cast<const Mesh *>(ob_ref.object->data);
           gpu::Batch *geom;
           if ((mesh->edges_num == 0) && (mesh->verts_num > 0)) {
@@ -204,19 +217,21 @@ class Wireframe : Overlay {
         break;
       }
       case OB_VOLUME: {
-        gpu::Batch *geom = DRW_cache_volume_face_wireframe_get(ob_ref.object);
-        if (geom == nullptr) {
-          break;
-        }
-        if (static_cast<Volume *>(ob_ref.object->data)->display.wireframe_type ==
-            VOLUME_WIREFRAME_POINTS)
-        {
-          coloring.pointcloud_ps_->draw(
-              geom, manager.unique_handle(ob_ref), res.select_id(ob_ref).get());
-        }
-        else {
-          coloring.mesh_ps_->draw(
-              geom, manager.unique_handle(ob_ref), res.select_id(ob_ref).get());
+        if (show_surface_wire) {
+          gpu::Batch *geom = DRW_cache_volume_face_wireframe_get(ob_ref.object);
+          if (geom == nullptr) {
+            break;
+          }
+          if (static_cast<Volume *>(ob_ref.object->data)->display.wireframe_type ==
+              VOLUME_WIREFRAME_POINTS)
+          {
+            coloring.pointcloud_ps_->draw(
+                geom, manager.unique_handle(ob_ref), res.select_id(ob_ref).get());
+          }
+          else {
+            coloring.mesh_ps_->draw(
+                geom, manager.unique_handle(ob_ref), res.select_id(ob_ref).get());
+          }
         }
         break;
       }
@@ -271,6 +286,29 @@ class Wireframe : Overlay {
     threshold = sqrt(abs(threshold));
     /* The maximum value (255 in the VBO) is used to force hide the edge. */
     return math::interpolate(0.0f, 1.0f - (1.0f / 255.0f), threshold);
+  }
+
+  static bool mesh_edit_wires_overlap(const ObjectRef &ob_ref, const bool in_edit_mode)
+  {
+    if (!in_edit_mode) {
+      return false;
+    }
+    const Mesh &mesh = *static_cast<const Mesh *>(ob_ref.object->data);
+    const Mesh *orig_edit_mesh = BKE_object_get_pre_modified_mesh(ob_ref.object);
+    const bool edit_mapping_valid = BKE_editmesh_eval_orig_map_available(mesh, orig_edit_mesh);
+    if (!edit_mapping_valid) {
+      /* The mesh edit mode overlay doesn't include wireframe for the evaluated mesh when it
+       * doesn't correspond with the original edit mesh. So the main wireframe overlay should draw
+       * wires for the evaluated mesh instead. */
+      return false;
+    }
+    if (Meshes::mesh_has_edit_cage(ob_ref.object)) {
+      /* If a cage exists, the edit overlay might not display every edge. */
+      return false;
+    }
+    /* The edit mode overlay displays all of the edges of the evaluated mesh; drawing the edges
+     * again would be redundant. */
+    return true;
   }
 };
 

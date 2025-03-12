@@ -6,7 +6,7 @@
  * \ingroup edsculpt
  */
 
-#include <cstddef>
+#include <algorithm>
 #include <cstdlib>
 #include <cstring>
 
@@ -15,20 +15,18 @@
 #include "BLI_ghash.h"
 #include "BLI_listbase.h"
 #include "BLI_math_vector.h"
-#include "BLI_string.h"
 #include "BLI_utildefines.h"
 
 #include "IMB_interp.hh"
 
 #include "DNA_brush_types.h"
-#include "DNA_customdata_types.h"
-#include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
 #include "BKE_brush.hh"
 #include "BKE_context.hh"
 #include "BKE_image.hh"
 #include "BKE_lib_id.hh"
+#include "BKE_library.hh"
 #include "BKE_main.hh"
 #include "BKE_paint.hh"
 #include "BKE_report.hh"
@@ -91,9 +89,7 @@ static int brush_scale_size_exec(bContext *C, wmOperator *op)
                                                BKE_brush_unprojected_radius_get(scene, brush) :
                                                brush->unprojected_radius);
 
-      if (unprojected_radius < 0.001f) { /* XXX magic number */
-        unprojected_radius = 0.001f;
-      }
+      unprojected_radius = std::max(unprojected_radius, 0.001f);
 
       if (use_unified_size) {
         BKE_brush_unprojected_radius_set(scene, brush, unprojected_radius);
@@ -344,7 +340,7 @@ static int palette_sort_exec(bContext *C, wmOperator *op)
   const int totcol = BLI_listbase_count(&palette->colors);
 
   if (totcol > 0) {
-    color_array = MEM_cnew_array<tPaletteColorHSV>(totcol, __func__);
+    color_array = MEM_calloc_arrayN<tPaletteColorHSV>(totcol, __func__);
     /* Put all colors in an array. */
     int t = 0;
     LISTBASE_FOREACH (PaletteColor *, color, &palette->colors) {

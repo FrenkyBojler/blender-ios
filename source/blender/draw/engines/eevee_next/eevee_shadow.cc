@@ -8,14 +8,16 @@
  * The shadow module manages shadow update tagging & shadow rendering.
  */
 
-#include "BKE_global.hh"
 #include "BLI_math_matrix.hh"
+#include "GPU_batch_utils.hh"
 #include "GPU_compute.hh"
 
+#include "GPU_context.hh"
 #include "eevee_instance.hh"
 
+#include "GPU_debug.hh"
+#include "draw_cache.hh"
 #include "draw_debug.hh"
-#include <iostream>
 
 namespace blender::eevee {
 
@@ -118,6 +120,7 @@ void ShadowTileMap::sync_cubeface(eLightType light_type_,
 
 void ShadowTileMap::debug_draw() const
 {
+#ifdef WITH_DRAW_DEBUG
   /** Used for debug drawing. */
   const float4 debug_color[6] = {
       {1.0f, 0.1f, 0.1f, 1.0f},
@@ -132,6 +135,7 @@ void ShadowTileMap::debug_draw() const
 
   float4x4 persinv = winmat * viewmat;
   drw_debug_matrix_as_bbox(math::invert(persinv), color);
+#endif
 }
 
 /** \} */
@@ -676,6 +680,10 @@ void ShadowModule::begin_sync()
   jittered_transparent_casters_.clear();
   update_casters_ = true;
 
+  if (box_batch_ == nullptr) {
+    box_batch_ = GPU_batch_unit_cube();
+  }
+
   {
     Manager &manager = *inst_.manager;
 
@@ -737,7 +745,6 @@ void ShadowModule::begin_sync()
       sub.bind_resources(inst_.hiz_buffer.front);
       sub.bind_resources(inst_.lights);
 
-      box_batch_ = DRW_cache_cube_get();
       tilemap_usage_transparent_ps_ = &sub;
     }
   }
@@ -1309,7 +1316,7 @@ void ShadowModule::set_view(View &view, int2 extent)
 
   int loop_count = 0;
   do {
-    DRW_stats_group_start("Shadow");
+    GPU_debug_group_begin("Shadow");
     {
       GPU_uniformbuf_clear_to_zero(shadow_multi_view_.matrices_ubo_get());
 
@@ -1376,7 +1383,7 @@ void ShadowModule::set_view(View &view, int2 extent)
 
       GPU_memory_barrier(GPU_BARRIER_SHADER_IMAGE_ACCESS | GPU_BARRIER_TEXTURE_FETCH);
     }
-    DRW_stats_group_end();
+    GPU_debug_group_end();
 
     loop_count++;
 

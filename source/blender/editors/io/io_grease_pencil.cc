@@ -192,8 +192,8 @@ static void grease_pencil_import_svg_draw(bContext * /*C*/, wmOperator *op)
   uiLayoutSetPropDecorate(layout, false);
   uiLayout *box = uiLayoutBox(layout);
   uiLayout *col = uiLayoutColumn(box, false);
-  uiItemR(col, op->ptr, "resolution", UI_ITEM_NONE, nullptr, ICON_NONE);
-  uiItemR(col, op->ptr, "scale", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(col, op->ptr, "resolution", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  uiItemR(col, op->ptr, "scale", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 static bool grease_pencil_import_svg_poll(bContext *C)
@@ -363,7 +363,7 @@ static void ui_gpencil_export_settings(uiLayout *layout,
   uiItemL(row, IFACE_("Scene Options"), ICON_NONE);
 
   row = uiLayoutRow(box, false);
-  uiItemR(row, imfptr, "selected_object_type", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(row, imfptr, "selected_object_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   box = uiLayoutBox(layout);
   row = uiLayoutRow(box, false);
@@ -376,11 +376,11 @@ static void ui_gpencil_export_settings(uiLayout *layout,
   uiLayoutSetPropSep(box, true);
 
   sub = uiLayoutColumn(col, true);
-  uiItemR(sub, imfptr, "stroke_sample", UI_ITEM_NONE, nullptr, ICON_NONE);
-  uiItemR(sub, imfptr, "use_fill", UI_ITEM_NONE, nullptr, ICON_NONE);
-  uiItemR(sub, imfptr, "use_uniform_width", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(sub, imfptr, "stroke_sample", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  uiItemR(sub, imfptr, "use_fill", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  uiItemR(sub, imfptr, "use_uniform_width", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   if (file_type == GreasePencilExportFiletype::SVG) {
-    uiItemR(col, imfptr, "use_clip_camera", UI_ITEM_NONE, nullptr, ICON_NONE);
+    uiItemR(col, imfptr, "use_clip_camera", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 }
 

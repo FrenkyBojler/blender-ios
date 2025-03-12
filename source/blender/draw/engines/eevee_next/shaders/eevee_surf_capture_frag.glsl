@@ -9,6 +9,11 @@
  * into other surface shaders.
  */
 
+#include "infos/eevee_material_info.hh"
+
+FRAGMENT_SHADER_CREATE_INFO(eevee_geom_mesh)
+FRAGMENT_SHADER_CREATE_INFO(eevee_surf_capture)
+
 #include "common_hair_lib.glsl"
 #include "draw_view_lib.glsl"
 #include "eevee_gbuffer_lib.glsl"
@@ -54,7 +59,7 @@ void main()
     if (is_surface_view_aligned) {
       uint surfel_id = atomicAdd(capture_info_buf.surfel_len, 1u);
       if (capture_info_buf.do_surfel_output) {
-        ObjectInfos object_infos = drw_infos[resource_id];
+        ObjectInfos object_infos = drw_infos[drw_resource_id()];
         surfel_buf[surfel_id].position = g_data.P;
         surfel_buf[surfel_id].normal = gl_FrontFacing ? g_data.Ng : -g_data.Ng;
         surfel_buf[surfel_id].albedo_front = albedo;

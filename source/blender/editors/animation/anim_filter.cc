@@ -29,7 +29,6 @@
 
 #include "DNA_anim_types.h"
 #include "DNA_armature_types.h"
-#include "DNA_brush_types.h"
 #include "DNA_cachefile_types.h"
 #include "DNA_camera_types.h"
 #include "DNA_curves_types.h"
@@ -63,6 +62,7 @@
 
 #include "BLI_alloca.h"
 #include "BLI_ghash.h"
+#include "BLI_listbase.h"
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
@@ -76,11 +76,13 @@
 #include "BKE_grease_pencil.hh"
 #include "BKE_key.hh"
 #include "BKE_layer.hh"
+#include "BKE_library.hh"
 #include "BKE_main.hh"
 #include "BKE_mask.h"
-#include "BKE_material.h"
+#include "BKE_material.hh"
 #include "BKE_modifier.hh"
 #include "BKE_node.hh"
+#include "BKE_node_runtime.hh"
 
 #include "ED_anim_api.hh"
 #include "ED_markers.hh"
@@ -183,9 +185,9 @@ static bool actedit_get_context(bAnimContext *ac, SpaceAction *saction)
     {
       /* TODO: other methods to get the mask. */
 #if 0
-      Sequence *seq = SEQ_select_active_get(ac->scene);
+      Strip *strip = SEQ_select_active_get(ac->scene);
       MovieClip *clip = ac->scene->clip;
-      struct Mask *mask = seq ? seq->mask : nullptr;
+      struct Mask *mask = strip ? strip->mask : nullptr;
 #endif
 
       /* update scene-pointer (no need to check for pinning yet, as not implemented) */
@@ -452,9 +454,7 @@ bool ANIM_animdata_can_have_greasepencil(const eAnimCont_Types type)
 #define ANIMDATA_HAS_DRIVERS(id) ((id)->adt && (id)->adt->drivers.first)
 
 /* quick macro to test if AnimData is usable for NLA */
-#define ANIMDATA_HAS_NLA(id) \
-  ((id)->adt && (id)->adt->nla_tracks.first && \
-   (!(id)->adt->action || (id)->adt->action->wrap().is_action_legacy()))
+#define ANIMDATA_HAS_NLA(id) ((id)->adt && (id)->adt->nla_tracks.first)
 
 /**
  * Quick macro to test for all three above usability tests, performing the appropriate provided
@@ -507,7 +507,8 @@ bool ANIM_animdata_can_have_greasepencil(const eAnimCont_Types type)
             nlaOk \
           } \
           else if (!(ac->ads->filterflag & ADS_FILTER_NLA_NOACT) || \
-                   ANIMDATA_HAS_ACTION_LEGACY(id)) { \
+                   ANIMDATA_HAS_ACTION_LAYERED(id)) \
+          { \
             nlaOk \
           } \
         } \
@@ -941,7 +942,6 @@ static bAnimListElem *make_new_animlistelem(
     case ANIMTYPE_ANIMDATA:
     case ANIMTYPE_SPECIALDATA__UNUSED:
     case ANIMTYPE_DSMBALL:
-    case ANIMTYPE_GPDATABLOCK:
     case ANIMTYPE_MASKDATABLOCK:
     case ANIMTYPE_PALETTE:
     case ANIMTYPE_NUM_TYPES:
@@ -1009,23 +1009,23 @@ static bool skip_fcurve_selected_data(bAnimContext *ac,
   }
   else if (GS(owner_id->name) == ID_SCE) {
     Scene *scene = (Scene *)owner_id;
-    Sequence *seq = nullptr;
-    char seq_name[sizeof(seq->name)];
+    Strip *strip = nullptr;
+    char strip_name[sizeof(strip->name)];
 
-    /* Only consider if F-Curve involves `sequence_editor.sequences`. */
+    /* Only consider if F-Curve involves `sequence_editor.strips`. */
     if (fcu->rna_path &&
-        BLI_str_quoted_substr(fcu->rna_path, "sequences_all[", seq_name, sizeof(seq_name)))
+        BLI_str_quoted_substr(fcu->rna_path, "strips_all[", strip_name, sizeof(strip_name)))
     {
       /* Get strip name, and check if this strip is selected. */
-      Editing *ed = SEQ_editing_get(scene);
+      Editing *ed = blender::seq::editing_get(scene);
       if (ed) {
-        seq = SEQ_get_sequence_by_name(ed->seqbasep, seq_name, false);
+        strip = blender::seq::get_sequence_by_name(ed->seqbasep, strip_name, false);
       }
 
       /* Can only add this F-Curve if it is selected. */
       if (ac->ads->filterflag & ADS_FILTER_ONLYSEL) {
 
-        /* NOTE(@ideasman42): The `seq == nullptr` check doesn't look right
+        /* NOTE(@ideasman42): The `strip == nullptr` check doesn't look right
          * (compared to other checks in this function which skip data that can't be found).
          *
          * This is done since the search for sequence strips doesn't use a global lookup:
@@ -1040,11 +1040,11 @@ static bool skip_fcurve_selected_data(bAnimContext *ac,
          * If this is an important difference, the nullptr case could perform a global lookup,
          * only returning `true` if the sequence strip exists elsewhere
          * (ignoring its selection state). */
-        if (seq == nullptr) {
+        if (strip == nullptr) {
           return true;
         }
 
-        if ((seq->flag & SELECT) == 0) {
+        if ((strip->flag & SELECT) == 0) {
           return true;
         }
       }
@@ -1060,7 +1060,7 @@ static bool skip_fcurve_selected_data(bAnimContext *ac,
         BLI_str_quoted_substr(fcu->rna_path, "nodes[", node_name, sizeof(node_name)))
     {
       /* Get strip name, and check if this strip is selected. */
-      node = bke::node_find_node_by_name(ntree, node_name);
+      node = bke::node_find_node_by_name(*ntree, node_name);
 
       /* Can only add this F-Curve if it is selected. */
       if (node) {
@@ -1512,7 +1512,7 @@ static size_t animfilter_act_group(bAnimContext *ac,
                 ac, &tmp_data, first_fcu, ANIMTYPE_FCURVE, filter_mode, agrp, owner_id, &act->id);
           }
           else {
-            BLI_assert(agrp->channel_bag != nullptr);
+            BLI_assert(agrp->channelbag != nullptr);
             Span<FCurve *> fcurves = agrp->wrap().fcurves();
             tmp_items += animfilter_fcurves_span(
                 ac, &tmp_data, fcurves, slot_handle, filter_mode, owner_id, &act->id);
@@ -1551,16 +1551,37 @@ static size_t animfilter_act_group(bAnimContext *ac,
   return items;
 }
 
-/**
- * Add a channel for each Slot, with their FCurves when the Slot is expanded.
- */
-static size_t animfilter_action_slot(bAnimContext *ac,
-                                     ListBase *anim_data,
-                                     animrig::Action &action,
-                                     animrig::Slot &slot,
-                                     const eAnimFilter_Flags filter_mode,
-                                     ID *animated_id)
+size_t ANIM_animfilter_action_slot(bAnimContext *ac,
+                                   ListBase * /* bAnimListElem */ anim_data,
+                                   animrig::Action &action,
+                                   animrig::Slot &slot,
+                                   const eAnimFilter_Flags filter_mode,
+                                   ID *animated_id)
 {
+  BLI_assert(ac);
+
+  /* In some cases (see `ob_to_keylist()` and friends) fake bDopeSheet and fake bAnimContext are
+   * created. These are mostly null-initialized, and so do not have a bmain. This means that
+   * lookup of the animated ID is not possible, which can result in failure to look up the proper
+   * F-Curve display name. For the `..._to_keylist` functions that doesn't matter, as those are
+   * only interested in the key data anyway. So rather than trying to get a reliable `bmain`
+   * through the maze, this code just treats it as optional (even though ideally it should always
+   * be known). */
+  ID *slot_user_id = nullptr;
+  if (ac->bmain) {
+    slot_user_id = animrig::action_slot_get_id_best_guess(*ac->bmain, slot, animated_id);
+  }
+  if (!slot_user_id) {
+    BLI_assert(animated_id);
+    /* At the time of writing this (PR #134922), downstream code (see e.g.
+     * `animfilter_fcurves_span()`) assumes this is non-null, so we need to set
+     * it to *something*. If it's not an actual user of the slot then channels
+     * might not resolve to an actual property and thus be displayed oddly in
+     * the channel list, but that's not technically a problem, it's just a
+     * little strange for the end user. */
+    slot_user_id = animated_id;
+  }
+
   /* Don't include anything from this animation if it is linked in from another
    * file, and we're getting stuff for editing... */
   if ((filter_mode & ANIMFILTER_FOREDIT) &&
@@ -1585,7 +1606,7 @@ static size_t animfilter_action_slot(bAnimContext *ac,
   const bool show_slot_channel = (is_action_mode && selection_ok_for_slot &&
                                   include_summary_channels);
   if (show_slot_channel) {
-    ANIMCHANNEL_NEW_CHANNEL(ac->bmain, &slot, ANIMTYPE_ACTION_SLOT, animated_id, &action.id);
+    ANIMCHANNEL_NEW_CHANNEL(ac->bmain, &slot, ANIMTYPE_ACTION_SLOT, slot_user_id, &action.id);
     items++;
   }
 
@@ -1594,8 +1615,8 @@ static size_t animfilter_action_slot(bAnimContext *ac,
   const bool visible_only = (filter_mode & ANIMFILTER_LIST_VISIBLE);
   const bool expansion_is_ok = !visible_only || !show_slot_channel || slot.is_expanded();
 
-  animrig::ChannelBag *channel_bag = animrig::channelbag_for_action_slot(action, slot.handle);
-  if (channel_bag == nullptr) {
+  animrig::Channelbag *channelbag = animrig::channelbag_for_action_slot(action, slot.handle);
+  if (channelbag == nullptr) {
     return items;
   }
 
@@ -1604,23 +1625,23 @@ static size_t animfilter_action_slot(bAnimContext *ac,
   }
 
   /* Add channel groups and their member channels. */
-  for (bActionGroup *group : channel_bag->channel_groups()) {
+  for (bActionGroup *group : channelbag->channel_groups()) {
     items += animfilter_act_group(
-        ac, anim_data, &action, slot.handle, group, filter_mode, animated_id);
+        ac, anim_data, &action, slot.handle, group, filter_mode, slot_user_id);
   }
 
   /* Add ungrouped channels. */
   if (!show_active_group_only) {
     int first_ungrouped_fcurve_index = 0;
-    if (!channel_bag->channel_groups().is_empty()) {
-      const bActionGroup *last_group = channel_bag->channel_groups().last();
+    if (!channelbag->channel_groups().is_empty()) {
+      const bActionGroup *last_group = channelbag->channel_groups().last();
       first_ungrouped_fcurve_index = last_group->fcurve_range_start +
                                      last_group->fcurve_range_length;
     }
 
-    Span<FCurve *> fcurves = channel_bag->fcurves().drop_front(first_ungrouped_fcurve_index);
+    Span<FCurve *> fcurves = channelbag->fcurves().drop_front(first_ungrouped_fcurve_index);
     items += animfilter_fcurves_span(
-        ac, anim_data, fcurves, slot.handle, filter_mode, animated_id, &action.id);
+        ac, anim_data, fcurves, slot.handle, filter_mode, slot_user_id, &action.id);
   }
 
   return items;
@@ -1644,22 +1665,7 @@ static size_t animfilter_action_slots(bAnimContext *ac,
   for (animrig::Slot *slot : action.slots()) {
     BLI_assert(slot);
 
-    /* In some cases (see `ob_to_keylist()` and friends) fake bDopeSheet and fake bAnimContext are
-     * created. These are mostly null-initialized, and so do not have a bmain. This means that
-     * lookup of the animated ID is not possible, which can result in failure to look up the proper
-     * F-Curve display name. For the `..._to_keylist` functions that doesn't matter, as those are
-     * only interested in the key data anyway. So rather than trying to get a reliable `bmain`
-     * through the maze, this code just treats it as optional (even though ideally it should always
-     * be known). */
-    ID *animated_id = nullptr;
-    if (ac->bmain) {
-      animated_id = animrig::action_slot_get_id_best_guess(*ac->bmain, *slot, owner_id);
-    }
-    if (!animated_id) {
-      /* This is not necessarily correct, but at least it prevents nullptr dereference. */
-      animated_id = owner_id;
-    }
-    num_items += animfilter_action_slot(ac, anim_data, action, *slot, filter_mode, animated_id);
+    num_items += ANIM_animfilter_action_slot(ac, anim_data, action, *slot, filter_mode, owner_id);
   }
 
   return num_items;
@@ -1727,7 +1733,7 @@ static size_t animfilter_action(bAnimContext *ac,
     /* Can happen when an Action is assigned, but not a Slot. */
     return 0;
   }
-  return animfilter_action_slot(ac, anim_data, action, *slot, filter_mode, owner_id);
+  return ANIM_animfilter_action_slot(ac, anim_data, action, *slot, filter_mode, owner_id);
 }
 
 /* Include NLA-Data for NLA-Editor:
@@ -1952,6 +1958,8 @@ static size_t animdata_filter_shapekey(bAnimContext *ac,
                                        Key *key,
                                        const eAnimFilter_Flags filter_mode)
 {
+  using namespace blender::animrig;
+
   size_t items = 0;
 
   /* check if channels or only F-Curves */
@@ -1994,19 +2002,19 @@ static size_t animdata_filter_shapekey(bAnimContext *ac,
       if (!key->adt || !key->adt->action) {
         return 0;
       }
-      bAction *action = key->adt->action;
-      FCurve *first_fcu = static_cast<FCurve *>(action->curves.first);
-      for (FCurve *fcu = first_fcu;
-           (fcu =
-                animfilter_fcurve_next(ac, fcu, ANIMTYPE_FCURVE, filter_mode, nullptr, (ID *)key));
-           fcu = fcu->next)
-      {
-        /* Check if this is a "KEY_NORMAL" type keyframe */
-        if (STREQ(fcu->rna_path, "eval_time") || BLI_str_endswith(fcu->rna_path, ".interpolation"))
+      Action &action = key->adt->action->wrap();
+
+      Vector<FCurve *> key_fcurves;
+      for (FCurve *fcurve : fcurves_for_action_slot(action, key->adt->slot_handle)) {
+        if (STREQ(fcurve->rna_path, "eval_time") ||
+            BLI_str_endswith(fcurve->rna_path, ".interpolation"))
         {
-          ANIMCHANNEL_NEW_CHANNEL(ac->bmain, fcu, ANIMTYPE_FCURVE, (ID *)key, &action->id);
+          key_fcurves.append(fcurve);
         }
       }
+
+      items += animfilter_fcurves_span(
+          ac, anim_data, key_fcurves, key->adt->slot_handle, filter_mode, &key->id, &action.id);
     }
   }
   else {
@@ -2100,7 +2108,7 @@ static size_t animdata_filter_grease_pencil_layer_node_recursive(
     size_t tmp_items = 0;
 
     /* Add grease pencil layer channels. */
-    BEGIN_ANIMFILTER_SUBCHANNELS (layer_group.base.flag &GP_LAYER_TREE_NODE_EXPANDED) {
+    BEGIN_ANIMFILTER_SUBCHANNELS (layer_group.is_expanded()) {
       LISTBASE_FOREACH_BACKWARD (GreasePencilLayerTreeNode *, node_, &layer_group.children) {
         tmp_items += animdata_filter_grease_pencil_layer_node_recursive(
             ac, &tmp_data, grease_pencil, node_->wrap(), filter_mode);
@@ -2214,8 +2222,6 @@ static size_t animdata_filter_grease_pencil_data(bAnimContext *ac,
   if (filter_mode & ANIMFILTER_ANIMDATA) {
     if (show_animdata) {
       items += animfilter_block_data(ac, anim_data, (ID *)grease_pencil, filter_mode);
-      ANIMCHANNEL_NEW_CHANNEL(
-          ac->bmain, grease_pencil, ANIMTYPE_GREASE_PENCIL_DATABLOCK, grease_pencil, nullptr);
     }
   }
   else {
@@ -2261,7 +2267,7 @@ static size_t animdata_filter_grease_pencil(bAnimContext *ac,
 {
   size_t items = 0;
   Scene *scene = ac->scene;
-  ViewLayer *view_layer = (ViewLayer *)ac->view_layer;
+  ViewLayer *view_layer = ac->view_layer;
   bDopeSheet *ads = ac->ads;
 
   BKE_view_layer_synced_ensure(scene, view_layer);
@@ -2516,8 +2522,8 @@ static size_t animdata_filter_ds_nodetree(bAnimContext *ac,
 
   items += animdata_filter_ds_nodetree_group(ac, anim_data, owner_id, ntree, filter_mode);
 
-  LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
-    if (node->type == NODE_GROUP) {
+  for (bNode *node : ntree->all_nodes()) {
+    if (node->is_group()) {
       if (node->id) {
         if ((ac->ads->filterflag & ADS_FILTER_ONLYSEL) && (node->flag & NODE_SELECT) == 0) {
           continue;
@@ -2770,7 +2776,10 @@ struct tAnimFilterModifiersContext {
 };
 
 /* dependency walker callback for modifier dependencies */
-static void animfilter_modifier_idpoin_cb(void *afm_ptr, Object *ob, ID **idpoin, int /*cb_flag*/)
+static void animfilter_modifier_idpoin_cb(void *afm_ptr,
+                                          Object *ob,
+                                          ID **idpoin,
+                                          LibraryForeachIDCallbackFlag /*cb_flag*/)
 {
   tAnimFilterModifiersContext *afm = (tAnimFilterModifiersContext *)afm_ptr;
   ID *owner_id = &ob->id;
@@ -3390,7 +3399,6 @@ static size_t animdata_filter_dopesheet_scene(bAnimContext *ac,
   /* filter data contained under object first */
   BEGIN_ANIMFILTER_SUBCHANNELS (EXPANDED_SCEC(sce)) {
     bNodeTree *ntree = sce->nodetree;
-    bGPdata *gpd = sce->gpd;
     World *wo = sce->world;
 
     /* Action, Drivers, or NLA for Scene */
@@ -3411,11 +3419,6 @@ static size_t animdata_filter_dopesheet_scene(bAnimContext *ac,
     /* line styles */
     if ((ac->ads->filterflag & ADS_FILTER_NOLINESTYLE) == 0) {
       tmp_items += animdata_filter_ds_linestyle(ac, &tmp_data, sce, filter_mode);
-    }
-
-    /* grease pencil */
-    if ((gpd) && !(ac->ads->filterflag & ADS_FILTER_NOGPENCIL)) {
-      tmp_items += animdata_filter_ds_gpencil(ac, &tmp_data, gpd, filter_mode);
     }
 
     /* TODO: one day, when sequencer becomes its own datatype,
@@ -3608,7 +3611,7 @@ static Base **animdata_filter_ds_sorted_bases(bAnimContext *ac,
   size_t tot_bases = BLI_listbase_count(object_bases);
   size_t num_bases = 0;
 
-  Base **sorted_bases = MEM_cnew_array<Base *>(tot_bases, "Dopesheet Usable Sorted Bases");
+  Base **sorted_bases = MEM_calloc_arrayN<Base *>(tot_bases, "Dopesheet Usable Sorted Bases");
   LISTBASE_FOREACH (Base *, base, object_bases) {
     if (animdata_filter_base_is_ok(ac, base, OB_MODE_OBJECT, filter_mode)) {
       sorted_bases[num_bases++] = base;
@@ -3632,7 +3635,7 @@ static size_t animdata_filter_dopesheet(bAnimContext *ac,
 {
   bDopeSheet *ads = ac->ads;
   Scene *scene = (Scene *)ads->source;
-  ViewLayer *view_layer = (ViewLayer *)ac->view_layer;
+  ViewLayer *view_layer = ac->view_layer;
   size_t items = 0;
 
   /* check that we do indeed have a scene */
@@ -3660,6 +3663,15 @@ static size_t animdata_filter_dopesheet(bAnimContext *ac,
   {
     LISTBASE_FOREACH (CacheFile *, cache_file, &ac->bmain->cachefiles) {
       items += animdata_filter_ds_cachefile(ac, anim_data, cache_file, filter_mode);
+    }
+  }
+
+  /* Annotations are always shown if "Only Show Selected" is disabled. This works in the Timeline
+   * as well as in the Dope Sheet.*/
+  if (!(ac->ads->filterflag & ADS_FILTER_ONLYSEL) && !(ac->ads->filterflag & ADS_FILTER_NOGPENCIL))
+  {
+    LISTBASE_FOREACH (bGPdata *, gp_data, &ac->bmain->gpencils) {
+      items += animdata_filter_ds_gpencil(ac, anim_data, gp_data, filter_mode);
     }
   }
 

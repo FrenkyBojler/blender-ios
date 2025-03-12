@@ -4,6 +4,10 @@
 
 #pragma once
 
+#include "infos/eevee_material_info.hh"
+
+SHADER_LIBRARY_CREATE_INFO(eevee_geom_mesh)
+
 #include "draw_model_lib.glsl"
 #include "eevee_nodetree_lib.glsl"
 #include "eevee_sampling_lib.glsl"
@@ -121,7 +125,7 @@ void init_interface()
 #ifdef GPU_VERTEX_SHADER
   interp.P = vec3(0.0);
   interp.N = vec3(0.0);
-  drw_ResourceID_iface.resource_index = resource_id;
+  drw_ResourceID_iface.resource_index = drw_resource_id();
 #endif
 }
 

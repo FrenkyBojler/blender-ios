@@ -21,8 +21,9 @@
 #include "DNA_space_types.h"
 #include "DNA_windowmanager_types.h"
 
-#include "BLI_blenlib.h"
+#include "BLI_listbase.h"
 #include "BLI_set.hh"
+#include "BLI_string.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_action.hh"
@@ -182,23 +183,28 @@ static void animchan_sync_fcurve_scene(bAnimListElem *ale)
   BLI_assert(GS(owner_id->name) == ID_SCE);
   Scene *scene = (Scene *)owner_id;
   FCurve *fcu = (FCurve *)ale->data;
-  Sequence *seq = nullptr;
+  Strip *strip = nullptr;
 
-  /* Only affect if F-Curve involves sequence_editor.sequences. */
-  char seq_name[sizeof(seq->name)];
-  if (!BLI_str_quoted_substr(fcu->rna_path, "sequences_all[", seq_name, sizeof(seq_name))) {
+  /* Only affect if F-Curve involves sequence_editor.strips. */
+  char strip_name[sizeof(strip->name)];
+  if (!BLI_str_quoted_substr(fcu->rna_path, "strips_all[", strip_name, sizeof(strip_name))) {
     return;
   }
 
   /* Check if this strip is selected. */
-  Editing *ed = SEQ_editing_get(scene);
-  seq = SEQ_get_sequence_by_name(ed->seqbasep, seq_name, false);
-  if (seq == nullptr) {
+  Editing *ed = blender::seq::editing_get(scene);
+  if (ed == nullptr) {
+    /* The existence of the F-Curve doesn't imply the existence of the sequencer
+     * strip, or even the sequencer itself. */
+    return;
+  }
+  strip = blender::seq::get_sequence_by_name(ed->seqbasep, strip_name, false);
+  if (strip == nullptr) {
     return;
   }
 
   /* update selection status */
-  if (seq->flag & SELECT) {
+  if (strip->flag & SELECT) {
     fcu->flag |= FCURVE_SELECTED;
   }
   else {
@@ -331,7 +337,6 @@ void ANIM_sync_animchannels_to_data(const bContext *C)
       case ANIMTYPE_DSPOINTCLOUD:
       case ANIMTYPE_DSVOLUME:
       case ANIMTYPE_SHAPEKEY:
-      case ANIMTYPE_GPDATABLOCK:
       case ANIMTYPE_GREASE_PENCIL_DATABLOCK:
       case ANIMTYPE_GREASE_PENCIL_LAYER_GROUP:
       case ANIMTYPE_MASKDATABLOCK:

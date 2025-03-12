@@ -6,6 +6,10 @@
  * Custom full-screen triangle with placeholders varyings.
  */
 
+#include "infos/eevee_material_info.hh"
+
+VERTEX_SHADER_CREATE_INFO(eevee_geom_world)
+
 #include "draw_view_lib.glsl"
 #include "eevee_nodetree_lib.glsl"
 #include "eevee_surf_lib.glsl"
@@ -13,7 +17,7 @@
 void main()
 {
   /* (W)Intel drivers require all varying iface to be written to inside the Vertex shader. */
-  drw_ResourceID_iface.resource_index = 0;
+  drw_ResourceID_iface.resource_index = 0u;
 
   /* Full-screen triangle. */
   int v = gl_VertexID % 3;

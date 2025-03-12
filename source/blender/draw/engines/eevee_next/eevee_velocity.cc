@@ -19,6 +19,8 @@
 #include "DNA_particle_types.h"
 #include "DNA_rigidbody_types.h"
 
+#include "DRW_engine.hh"
+#include "draw_cache.hh"
 #include "draw_cache_impl.hh"
 
 #include "eevee_instance.hh"
@@ -59,11 +61,13 @@ void VelocityModule::init()
 
 /* Similar to Instance::object_sync, but only syncs velocity. */
 static void step_object_sync_render(void *instance,
-                                    Object *ob,
+                                    ObjectRef &ob_ref,
                                     RenderEngine * /*engine*/,
                                     Depsgraph * /*depsgraph*/)
 {
   Instance &inst = *reinterpret_cast<Instance *>(instance);
+
+  Object *ob = ob_ref.object;
 
   const bool is_velocity_type = ELEM(ob->type, OB_CURVES, OB_MESH, OB_POINTCLOUD);
   const int ob_visibility = DRW_object_visibility_in_active_context(ob);
@@ -78,7 +82,6 @@ static void step_object_sync_render(void *instance,
 
   /* NOTE: Dummy resource handle since this won't be used for drawing. */
   ResourceHandle resource_handle(0);
-  ObjectRef ob_ref = DRW_object_ref_get(ob);
   ObjectHandle &ob_handle = inst.sync.sync_object(ob_ref);
 
   if (partsys_is_visible) {
@@ -88,7 +91,7 @@ static void step_object_sync_render(void *instance,
       inst.velocity.step_object_sync(
           hair_handle.object_key, ob_ref, hair_handle.recalc, resource_handle, &md, &particle_sys);
     };
-    foreach_hair_particle_handle(ob, ob_handle, sync_hair);
+    foreach_hair_particle_handle(ob_ref.object, ob_handle, sync_hair);
   };
 
   if (object_is_visible) {
@@ -104,15 +107,11 @@ void VelocityModule::step_sync(eVelocityStep step, float time)
   object_steps_usage[step_] = 0;
   step_camera_sync();
 
-  draw::hair_init();
-  draw::curves_init();
+  DRW_curves_init();
 
   DRW_render_object_iter(&inst_, inst_.render, inst_.depsgraph, step_object_sync_render);
 
-  draw::hair_update(*inst_.manager);
-  draw::curves_update(*inst_.manager);
-  draw::hair_free();
-  draw::curves_free();
+  DRW_curves_update(*inst_.manager);
 
   geometry_steps_fill();
 }
@@ -168,8 +167,14 @@ bool VelocityModule::step_object_sync(ObjectKey &object_key,
           vel.obj.ofs[STEP_PREVIOUS]) = ob->object_to_world();
     }
     if (vel.obj.ofs[STEP_NEXT] == -1) {
-      vel.obj.ofs[STEP_NEXT] = object_steps_usage[STEP_NEXT]++;
-      object_steps[STEP_NEXT]->get_or_resize(vel.obj.ofs[STEP_NEXT]) = ob->object_to_world();
+      if (inst_.is_viewport()) {
+        /* Just set it to 0. motion.next is not meant to be valid in the viewport. */
+        vel.obj.ofs[STEP_NEXT] = 0;
+      }
+      else {
+        vel.obj.ofs[STEP_NEXT] = object_steps_usage[STEP_NEXT]++;
+        object_steps[STEP_NEXT]->get_or_resize(vel.obj.ofs[STEP_NEXT]) = ob->object_to_world();
+      }
     }
   }
 
@@ -216,11 +221,11 @@ bool VelocityModule::step_object_sync(ObjectKey &object_key,
   if (step_ == STEP_CURRENT && has_motion == true && has_deform == false) {
     const float4x4 &obmat_curr = (*object_steps[STEP_CURRENT])[vel.obj.ofs[STEP_CURRENT]];
     const float4x4 &obmat_prev = (*object_steps[STEP_PREVIOUS])[vel.obj.ofs[STEP_PREVIOUS]];
-    const float4x4 &obmat_next = (*object_steps[STEP_NEXT])[vel.obj.ofs[STEP_NEXT]];
     if (inst_.is_viewport()) {
       has_motion = (obmat_curr != obmat_prev);
     }
     else {
+      const float4x4 &obmat_next = (*object_steps[STEP_NEXT])[vel.obj.ofs[STEP_NEXT]];
       has_motion = (obmat_curr != obmat_prev || obmat_curr != obmat_next);
     }
   }
@@ -260,6 +265,8 @@ void VelocityModule::geometry_steps_fill()
    * `tot_len * sizeof(float4)` is greater than max SSBO size. */
   geometry_steps[step_]->resize(max_ii(16, dst_ofs));
 
+  DRW_submission_start();
+
   PassSimple copy_ps("Velocity Copy Pass");
   copy_ps.init();
   copy_ps.state_set(DRW_STATE_NO_DRAW);
@@ -293,6 +300,8 @@ void VelocityModule::geometry_steps_fill()
   copy_ps.barrier(GPU_BARRIER_SHADER_STORAGE);
   inst_.manager->submit(copy_ps);
 
+  DRW_submission_end();
+
   /* Copy back the #VelocityGeometryIndex into #VelocityObjectData which are
    * indexed using persistent keys (unlike geometries which are indexed by volatile ID). */
   for (VelocityObjectData &vel : velocity_map.values()) {
@@ -313,6 +322,7 @@ void VelocityModule::step_swap()
     std::swap(geometry_steps[step_a], geometry_steps[step_b]);
     std::swap(camera_steps[step_a], camera_steps[step_b]);
     std::swap(step_time[step_a], step_time[step_b]);
+    std::swap(object_steps_usage[step_a], object_steps_usage[step_b]);
 
     for (VelocityObjectData &vel : velocity_map.values()) {
       vel.obj.ofs[step_a] = vel.obj.ofs[step_b];
@@ -343,6 +353,9 @@ void VelocityModule::begin_sync()
   step_ = STEP_CURRENT;
   step_camera_sync();
   object_steps_usage[step_] = 0;
+
+  /* STEP_NEXT is not used for viewport. (See #131134) */
+  BLI_assert(!inst_.is_viewport() || object_steps_usage[STEP_NEXT] == 0);
 }
 
 void VelocityModule::end_sync()

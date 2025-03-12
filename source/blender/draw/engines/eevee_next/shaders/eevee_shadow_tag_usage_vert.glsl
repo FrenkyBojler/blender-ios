@@ -9,6 +9,10 @@
  * This renders the bounding boxes for transparent objects in order to tag the correct shadows.
  */
 
+#include "infos/eevee_shadow_info.hh"
+
+VERTEX_SHADER_CREATE_INFO(eevee_shadow_tag_usage_transparent)
+
 #include "common_shape_lib.glsl"
 #include "draw_model_lib.glsl"
 #include "gpu_shader_math_vector_lib.glsl"
@@ -40,9 +44,9 @@ void inflate_bounds(vec3 ls_center, inout vec3 P, inout vec3 lP)
 
 void main()
 {
-  DRW_RESOURCE_ID_VARYING_SET
+  drw_ResourceID_iface.resource_index = drw_resource_id();
 
-  ObjectBounds bounds = bounds_buf[resource_id];
+  ObjectBounds bounds = bounds_buf[drw_resource_id()];
   if (!drw_bounds_are_valid(bounds)) {
     /* Discard. */
     gl_Position = vec4(NAN_FLT);

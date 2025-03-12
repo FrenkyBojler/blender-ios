@@ -6,16 +6,13 @@
  * \ingroup edphys
  */
 
-#include <cmath>
-#include <cstdio>
 #include <cstring>
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_blenlib.h"
+#include "BLI_path_utils.hh"
 #include "BLI_string.h"
 #include "BLI_time.h"
-#include "BLI_utildefines.h"
 
 #include "BLT_translation.hh"
 
@@ -327,15 +324,15 @@ static void dpaint_bake_endjob(void *customdata)
    * Report for ended bake and how long it took */
   if (job->success) {
     /* Show bake info */
-    WM_reportf(
+    WM_global_reportf(
         RPT_INFO, "DynamicPaint: Bake complete! (%.2f)", BLI_time_now_seconds() - job->start);
   }
   else {
     if (strlen(canvas->error)) { /* If an error occurred */
-      WM_reportf(RPT_ERROR, "DynamicPaint: Bake failed: %s", canvas->error);
+      WM_global_reportf(RPT_ERROR, "DynamicPaint: Bake failed: %s", canvas->error);
     }
     else { /* User canceled the bake */
-      WM_report(RPT_WARNING, "Baking canceled!");
+      WM_global_report(RPT_WARNING, "Baking canceled!");
     }
   }
 }
@@ -366,7 +363,7 @@ static void dynamicPaint_bakeImageSequence(DynamicPaintBakeJob *job)
   /* Set frame to start point (also initializes modifier data). */
   frame = surface->start_frame;
   orig_frame = input_scene->r.cfra;
-  input_scene->r.cfra = int(frame);
+  input_scene->r.cfra = frame;
   ED_update_for_newframe(job->bmain, job->depsgraph);
 
   /* Init surface */
@@ -392,7 +389,7 @@ static void dynamicPaint_bakeImageSequence(DynamicPaintBakeJob *job)
     *(job->progress) = progress;
 
     /* calculate a frame */
-    input_scene->r.cfra = int(frame);
+    input_scene->r.cfra = frame;
     ED_update_for_newframe(job->bmain, job->depsgraph);
     if (!dynamicPaint_calculateFrame(surface, job->depsgraph, scene, cObject, frame)) {
       job->success = 0;
