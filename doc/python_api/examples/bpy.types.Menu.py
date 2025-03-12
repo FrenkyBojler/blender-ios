@@ -18,6 +18,8 @@ convention for menus.
    'EXEC_REGION_WIN' rather than 'INVOKE_DEFAULT' (see :ref:`Execution Context <operator-execution_context>`).
    If the operator context needs to initialize inputs from the
    :class:`Operator.invoke` function, then this needs to be explicitly set.
+   But if menu is added to other element (e.g. :class:`Panel`)
+   then it will inherit 'INVOKE_REGION_WIN' context from it.
 """
 import bpy
 
