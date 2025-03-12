@@ -289,8 +289,6 @@ DrawEngineType draw_engine_compositor_type = {
     /*cache_populate*/ nullptr,
     /*cache_finish*/ nullptr,
     /*draw_scene*/ &compositor_engine_draw,
-    /*view_update*/ nullptr,
-    /*id_update*/ nullptr,
     /*render_to_image*/ nullptr,
     /*store_metadata*/ nullptr,
 };

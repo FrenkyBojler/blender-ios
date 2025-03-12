@@ -79,11 +79,6 @@ struct DrawEngineType {
 
   void (*draw_scene)(void *vedata);
 
-  /* TODO(fclem): Remove. */
-  void (*view_update)(void *vedata);
-  /* TODO(fclem): Remove. */
-  void (*id_update)(void *vedata, ID *id);
-
   void (*render_to_image)(void *vedata,
                           RenderEngine *engine,
                           RenderLayer *layer,

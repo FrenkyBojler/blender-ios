@@ -186,8 +186,6 @@ DrawEngineType draw_engine_eevee_next_type = {
     /*cache_populate*/ &eevee_cache_populate,
     /*cache_finish*/ &eevee_cache_finish,
     /*draw_scene*/ &eevee_draw_scene,
-    /*view_update*/ nullptr,
-    /*id_update*/ nullptr,
     /*render_to_image*/ &eevee_render_to_image,
     /*store_metadata*/ &eevee_store_metadata,
 };

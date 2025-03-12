@@ -188,15 +188,6 @@ void DRW_view_data_free_unused(DRWViewData *view_data)
   });
 }
 
-void DRW_view_data_engines_view_update(DRWViewData *view_data)
-{
-  view_data->foreach_enabled_engine([&](ViewportEngineData *data, DrawEngineType *engine) {
-    if (engine->view_update) {
-      engine->view_update(data);
-    }
-  });
-}
-
 DefaultFramebufferList *DRW_view_data_default_framebuffer_list_get(DRWViewData *view_data)
 {
   return &view_data->dfbl;

@@ -950,8 +950,6 @@ DrawEngineType draw_engine_gpencil_type = {
     /*cache_populate*/ &GPENCIL_cache_populate,
     /*cache_finish*/ &GPENCIL_cache_finish,
     /*draw_scene*/ &GPENCIL_draw_scene,
-    /*view_update*/ nullptr,
-    /*id_update*/ nullptr,
     /*render_to_image*/ &GPENCIL_render_to_image,
     /*store_metadata*/ nullptr,
 };

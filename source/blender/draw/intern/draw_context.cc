@@ -901,21 +901,6 @@ static void drw_engines_cache_init()
       });
 }
 
-static void drw_engines_world_update(Scene *scene)
-{
-  if (scene->world == nullptr) {
-    return;
-  }
-
-  DRWContext &ctx = drw_get();
-  ctx.view_data_active->foreach_enabled_engine(
-      [&](ViewportEngineData *data, DrawEngineType *engine) {
-        if (engine->id_update) {
-          engine->id_update(data, &scene->world->id);
-        }
-      });
-}
-
 static void drw_engines_cache_populate(blender::draw::ObjectRef &ref)
 {
   /* HACK: DrawData is copied by copy-on-eval from the duplicated object.
@@ -1368,7 +1353,6 @@ static void drw_draw_render_loop_3d(DRWContext &draw_ctx, RenderEngineType *engi
   using namespace blender::draw;
   GPUViewport *viewport = draw_ctx.viewport;
   Depsgraph *depsgraph = draw_ctx.depsgraph;
-  Scene *scene = draw_ctx.scene;
   View3D *v3d = draw_ctx.v3d;
 
   const int object_type_exclude_viewport = v3d->object_type_exclude_viewport;
@@ -1398,7 +1382,6 @@ static void drw_draw_render_loop_3d(DRWContext &draw_ctx, RenderEngineType *engi
   /* Cache filling */
   {
     drw_engines_cache_init();
-    drw_engines_world_update(scene);
     DupliCacheManager dupli_handler;
 
     /* Only iterate over objects for internal engines or when overlays are enabled */
@@ -1988,7 +1971,6 @@ void DRW_draw_select_loop(Depsgraph *depsgraph,
 
   {
     drw_engines_cache_init();
-    drw_engines_world_update(scene);
     DupliCacheManager dupli_handler;
 
     if (use_obedit) {
@@ -2128,7 +2110,6 @@ void DRW_draw_depth_loop(Depsgraph *depsgraph,
 
   {
     drw_engines_cache_init();
-    drw_engines_world_update(draw_ctx.scene);
 
     const int object_type_exclude_viewport = v3d->object_type_exclude_viewport;
     DEGObjectIterSettings deg_iter_settings = {nullptr};

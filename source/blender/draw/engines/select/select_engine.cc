@@ -502,8 +502,6 @@ DrawEngineType draw_engine_select_type = {
     /*cache_populate*/ &select_cache_populate,
     /*cache_finish*/ nullptr,
     /*draw_scene*/ &select_draw_scene,
-    /*view_update*/ nullptr,
-    /*id_update*/ nullptr,
     /*render_to_image*/ nullptr,
     /*store_metadata*/ nullptr,
 };

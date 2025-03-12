@@ -85,8 +85,6 @@ DrawEngineType draw_engine_select_next_type = {
     /*cache_populate*/ &SELECT_next_cache_populate,
     /*cache_finish*/ &SELECT_next_cache_finish,
     /*draw_scene*/ &SELECT_next_draw_scene,
-    /*view_update*/ nullptr,
-    /*id_update*/ nullptr,
     /*render_to_image*/ nullptr,
     /*store_metadata*/ nullptr,
 };

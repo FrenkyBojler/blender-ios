@@ -98,8 +98,6 @@ DrawEngineType draw_engine_image_type = {
     /*cache_populate*/ &IMAGE_cache_populate,
     /*cache_finish*/ nullptr,
     /*draw_scene*/ &IMAGE_draw_scene,
-    /*view_update*/ nullptr,
-    /*id_update*/ nullptr,
     /*render_to_image*/ nullptr,
     /*store_metadata*/ nullptr,
 };

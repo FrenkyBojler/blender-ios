@@ -795,8 +795,6 @@ DrawEngineType draw_engine_workbench = {
     /*cache_populate*/ &workbench_cache_populate,
     /*cache_finish*/ &workbench_cache_finish,
     /*draw_scene*/ &workbench_draw_scene,
-    /*view_update*/ nullptr,
-    /*id_update*/ nullptr,
     /*render_to_image*/ &workbench_render_to_image,
     /*store_metadata*/ nullptr,
 };
