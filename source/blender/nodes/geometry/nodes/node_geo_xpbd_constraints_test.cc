@@ -5,6 +5,7 @@
 #include "BLI_math_rotation.hh"
 
 #include "NOD_xpbd_constraints.hh"
+#include "NOD_xpbd_solver.hh"
 
 #include "testing/testing.h"
 
@@ -450,6 +451,37 @@ TEST(xpbd_constraints, VariableOverlapCheckerFail)
   }
   EXPECT_TRUE(var_checker.has_overlap());
   EXPECT_FALSE(var_checker_disabled.has_overlap());
+}
+
+static auto simple_solver_data(const bool use_velocities)
+{
+  xpbd_constraints::ConstraintEvalParams params;
+  MutableSpan<xpbd_constraints::ConstraintEvalData> data;
+
+  xpbd_constraints::ConstraintVariables vars;
+  vars.positions = {float3(0, 1, 0), float3(1, 0, 0), float3(0, 0, -2)};
+  vars.rotations = {math::to_quaternion(math::EulerXYZ(0, 0, 0)),
+                    math::to_quaternion(math::EulerXYZ(90, 0, 0)),
+                    math::to_quaternion(math::EulerXYZ(0, -20, 0))};
+  if (use_velocities) {
+    vars.velocities = {float3(-1, -1, 0), float3(0, 0, 0), float3(0, 0, 4)};
+    vars.angular_velocities = {float3(0, 0, 0), float3(3, 0, -1), float3(2, 2, 0)};
+  }
+
+  return std::make_tuple(std::move(params), std::move(data), std::move(vars));
+}
+
+TEST(xpbd_constraints, GlobalSolverUnconstrained)
+{
+  auto [params, data, vars] = simple_solver_data(false);
+
+  Eigen::SparseMatrix<float> H;
+  Eigen::VectorXf b;
+  xpbd_constraints::build_global_solve_system(params, data, vars, true, H, b);
+
+  H.coeff(0, 0) == params.masses[0];
+  H.coeff(1, 1) == params.masses[1];
+  H.coeff(2, 2) == params.masses[2];
 }
 
 }  // namespace blender::nodes::tests
