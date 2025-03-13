@@ -95,14 +95,6 @@ static bool change_frame_poll(bContext *C)
   return false;
 }
 
-static int seq_snap_threshold_get_frame_distance(bContext *C)
-{
-  const int snap_distance = blender::seq::tool_settings_snap_distance_get(CTX_data_scene(C));
-  const ARegion *region = CTX_wm_region(C);
-  return round_fl_to_int(UI_view2d_region_to_view_x(&region->v2d, snap_distance) -
-                         UI_view2d_region_to_view_x(&region->v2d, 0));
-}
-
 static void seq_frame_snap_update_best(const int position,
                                        const int timeline_frame,
                                        int *r_best_frame,
@@ -142,8 +134,23 @@ static int get_marker_snap_target(Scene *scene, const int frame)
   return ED_markers_find_nearest_marker_time(&scene->markers, frame);
 }
 
-static int seq_frame_apply_snap(bContext *C, Scene *scene, const int timeline_frame)
+static int seq_snap_threshold_get_frame_distance(bContext *C)
 {
+  const int snap_distance = blender::seq::tool_settings_snap_distance_get(CTX_data_scene(C));
+  const ARegion *region = CTX_wm_region(C);
+  return round_fl_to_int(UI_view2d_region_to_view_x(&region->v2d, snap_distance) -
+                         UI_view2d_region_to_view_x(&region->v2d, 0));
+}
+
+static int get_snap_threshold(const ARegion *region)
+{
+  return UI_view2d_region_to_view_x(&region->v2d, 30) -
+         UI_view2d_region_to_view_x(&region->v2d, 0);
+}
+
+static int seq_frame_apply_snap(bContext *C, const int timeline_frame)
+{
+  Scene *scene = CTX_data_scene(C);
   ToolSettings *tool_settings = scene->toolsettings;
   int snap_frame = MAXFRAME;
 
@@ -163,10 +170,93 @@ static int seq_frame_apply_snap(bContext *C, Scene *scene, const int timeline_fr
     }
   }
 
+  if (tool_settings->snap_playhead_mode & SCE_SNAP_TO_SECOND) {
+    const int snap_target = BKE_scene_frame_snap_by_seconds(scene, 1.0, timeline_frame);
+    if (abs(snap_target - timeline_frame) < abs(snap_frame - timeline_frame)) {
+      snap_frame = snap_target;
+    }
+  }
+
   if (abs(snap_frame - timeline_frame) < seq_snap_threshold_get_frame_distance(C)) {
     return snap_frame;
   }
 
+  return timeline_frame;
+}
+
+static int action_frame_apply_snap(bContext *C, const int timeline_frame)
+{
+  Scene *scene = CTX_data_scene(C);
+  ToolSettings *tool_settings = scene->toolsettings;
+
+  int snap_frame = MAXFRAME;
+  if (tool_settings->snap_playhead_mode & SCE_SNAP_TO_MARKERS) {
+    const int snap_target = get_marker_snap_target(scene, timeline_frame);
+    if (abs(snap_target - timeline_frame) < abs(snap_frame - timeline_frame)) {
+      snap_frame = snap_target;
+    }
+  }
+  if (tool_settings->snap_playhead_mode & SCE_SNAP_TO_SECOND) {
+    const int snap_target = BKE_scene_frame_snap_by_seconds(scene, 1.0, timeline_frame);
+    if (abs(snap_target - timeline_frame) < abs(snap_frame - timeline_frame)) {
+      snap_frame = snap_target;
+    }
+  }
+
+  const ARegion *region = CTX_wm_region(C);
+  if (abs(snap_frame - timeline_frame) < get_snap_threshold(region)) {
+    return snap_frame;
+  }
+
+  return timeline_frame;
+}
+
+static int graph_frame_apply_snap(bContext *C, const int timeline_frame)
+{
+  Scene *scene = CTX_data_scene(C);
+  ToolSettings *tool_settings = scene->toolsettings;
+  int snap_frame = MAXFRAME;
+  if (tool_settings->snap_playhead_mode & SCE_SNAP_TO_MARKERS) {
+    const int snap_target = get_marker_snap_target(scene, timeline_frame);
+    if (abs(snap_target - timeline_frame) < abs(snap_frame - timeline_frame)) {
+      snap_frame = snap_target;
+    }
+  }
+  if (tool_settings->snap_playhead_mode & SCE_SNAP_TO_SECOND) {
+    const int snap_target = BKE_scene_frame_snap_by_seconds(scene, 1.0, timeline_frame);
+    if (abs(snap_target - timeline_frame) < abs(snap_frame - timeline_frame)) {
+      snap_frame = snap_target;
+    }
+  }
+  const ARegion *region = CTX_wm_region(C);
+  if (abs(snap_frame - timeline_frame) < get_snap_threshold(region)) {
+    return snap_frame;
+  }
+
+  return timeline_frame;
+}
+
+static int nla_frame_apply_snap(bContext *C, const int timeline_frame)
+{
+  Scene *scene = CTX_data_scene(C);
+  ToolSettings *tool_settings = scene->toolsettings;
+  int snap_frame = MAXFRAME;
+  if (tool_settings->snap_playhead_mode & SCE_SNAP_TO_MARKERS) {
+    const int snap_target = get_marker_snap_target(scene, timeline_frame);
+    if (abs(snap_target - timeline_frame) < abs(snap_frame - timeline_frame)) {
+      snap_frame = snap_target;
+    }
+  }
+  if (tool_settings->snap_playhead_mode & SCE_SNAP_TO_SECOND) {
+    const int snap_target = BKE_scene_frame_snap_by_seconds(scene, 1.0, timeline_frame);
+    if (abs(snap_target - timeline_frame) < abs(snap_frame - timeline_frame)) {
+      snap_frame = snap_target;
+    }
+  }
+  const ARegion *region = CTX_wm_region(C);
+  if (abs(snap_frame - timeline_frame) < get_snap_threshold(region)) {
+    return snap_frame;
+  }
   return timeline_frame;
 }
 
@@ -176,8 +266,13 @@ static float apply_frame_snap(bContext *C, const float frame)
   ScrArea *area = CTX_wm_area(C);
   switch (area->spacetype) {
     case SPACE_SEQ:
-      return seq_frame_apply_snap(C, scene, frame);
-
+      return seq_frame_apply_snap(C, frame);
+    case SPACE_ACTION:
+      return action_frame_apply_snap(C, frame);
+    case SPACE_GRAPH:
+      return graph_frame_apply_snap(C, frame);
+    case SPACE_NLA:
+      return nla_frame_apply_snap(C, frame);
     default:
       break;
   }
