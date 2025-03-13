@@ -337,12 +337,10 @@ static void file_draw_tooltip_custom_func(bContext & /*C*/, uiTooltipData &tip, 
   }
 }
 
-static std::string file_draw_asset_tooltip_func(bContext * /*C*/,
-                                                void *argN,
-                                                const blender::StringRef /*tip*/)
+static void file_draw_asset_tooltip_custom_func(bContext & /*C*/, uiTooltipData &tip, void *argN)
 {
   const auto *asset = static_cast<blender::asset_system::AssetRepresentation *>(argN);
-  return blender::ed::asset::asset_tooltip(*asset);
+  blender::ed::asset::asset_tooltip(*asset, tip);
 }
 
 static void draw_tile_background(const rcti *draw_rect, int colorid, int shade)
@@ -397,18 +395,22 @@ static uiBut *file_add_icon_but(const SpaceFile *sfile,
                                 int icon,
                                 int width,
                                 int height,
+                                int padx,
                                 bool dimmed)
 {
   uiBut *but;
 
-  const int x = tile_draw_rect->xmin;
+  const int x = tile_draw_rect->xmin + padx;
   const int y = tile_draw_rect->ymax - sfile->layout->tile_border_y - height;
 
+  /* Small built-in icon. Draw centered in given width. */
   but = uiDefIconBut(
       block, UI_BTYPE_LABEL, 0, icon, x, y, width, height, nullptr, 0.0f, 0.0f, std::nullopt);
+  /* Center the icon. */
+  UI_but_drawflag_disable(but, UI_BUT_ICON_LEFT);
   UI_but_label_alpha_factor_set(but, dimmed ? 0.3f : 1.0f);
   if (file->asset) {
-    UI_but_func_tooltip_set(but, file_draw_asset_tooltip_func, file->asset, nullptr);
+    UI_but_func_tooltip_custom_set(but, file_draw_asset_tooltip_custom_func, file->asset, nullptr);
   }
   else {
     UI_but_func_tooltip_custom_set(
@@ -584,7 +586,7 @@ static void file_add_preview_drag_but(const SpaceFile *sfile,
   file_but_enable_drag(but, sfile, file, path, drag_image, file_type_icon, scale);
 
   if (file->asset) {
-    UI_but_func_tooltip_set(but, file_draw_asset_tooltip_func, file->asset, nullptr);
+    UI_but_func_tooltip_custom_set(but, file_draw_asset_tooltip_custom_func, file->asset, nullptr);
   }
   else {
     UI_but_func_tooltip_custom_set(
@@ -874,7 +876,8 @@ static void renamebutton_cb(bContext *C, void * /*arg1*/, char *oldname)
   if (!STREQ(orgname, newname)) {
     errno = 0;
     if ((BLI_rename(orgname, newname) != 0) || !BLI_exists(newname)) {
-      WM_reportf(RPT_ERROR, "Could not rename: %s", errno ? strerror(errno) : "unknown error");
+      WM_global_reportf(
+          RPT_ERROR, "Could not rename: %s", errno ? strerror(errno) : "unknown error");
       WM_report_banner_show(wm, win);
       /* Renaming failed, reset the name for further renaming handling. */
       STRNCPY(params->renamefile, oldname);
@@ -1118,7 +1121,7 @@ static void draw_details_columns(const FileSelectParams *params,
 {
   const bool compact = FILE_LAYOUT_COMPACT(layout);
   const bool update_stat_strings = layout->width != layout->curr_size;
-  int sx = tile_draw_rect->xmin - layout->tile_border_x - (UI_UNIT_X * 0.1f);
+  int sx = tile_draw_rect->xmin - layout->tile_border_x;
 
   for (int column_type = 0; column_type < ATTRIBUTE_COLUMN_MAX; column_type++) {
     const FileAttributeColumn *column = &layout->attribute_columns[column_type];
@@ -1150,11 +1153,7 @@ static void draw_details_columns(const FileSelectParams *params,
   }
 }
 
-static rcti tile_draw_rect_get(const View2D *v2d,
-                               const FileLayout *layout,
-                               const eFileDisplayType display,
-                               const int file_idx,
-                               const int padx)
+static rcti tile_draw_rect_get(const View2D *v2d, const FileLayout *layout, const int file_idx)
 {
   int tile_pos_x, tile_pos_y;
   ED_fileselect_layout_tilepos(layout, file_idx, &tile_pos_x, &tile_pos_y);
@@ -1162,10 +1161,8 @@ static rcti tile_draw_rect_get(const View2D *v2d,
   tile_pos_y = int(v2d->tot.ymax - tile_pos_y);
 
   rcti rect;
-  rect.xmin = tile_pos_x + padx;
-  rect.xmax = rect.xmin + (ELEM(display, FILE_VERTICALDISPLAY, FILE_HORIZONTALDISPLAY) ?
-                               layout->tile_w - (2 * padx) :
-                               layout->tile_w);
+  rect.xmin = tile_pos_x;
+  rect.xmax = rect.xmin + layout->tile_w;
   rect.ymax = tile_pos_y;
   rect.ymin = rect.ymax - layout->tile_h - layout->tile_border_y;
 
@@ -1261,8 +1258,7 @@ void file_draw_list(const bContext *C, ARegion *region)
     const int padx = 0.1f * UI_UNIT_X;
     int icon_ofs = 0;
 
-    const rcti tile_draw_rect = tile_draw_rect_get(
-        v2d, layout, eFileDisplayType(params->display), i, padx);
+    const rcti tile_draw_rect = tile_draw_rect_get(v2d, layout, i);
 
     file = filelist_file(files, i);
     file_selflag = filelist_entry_select_get(sfile->files, file, CHECK_ALL);
@@ -1322,7 +1318,7 @@ void file_draw_list(const bContext *C, ARegion *region)
     else {
       const int icon = filelist_geticon_file_type(files, i, true);
 
-      icon_ofs += ICON_DEFAULT_WIDTH_SCALE + 0.2f * UI_UNIT_X;
+      icon_ofs += ICON_DEFAULT_WIDTH_SCALE + 2 * padx;
 
       /* Add dummy draggable button covering the icon and the label. */
       if (do_drag) {
@@ -1361,6 +1357,7 @@ void file_draw_list(const bContext *C, ARegion *region)
                                           icon,
                                           ICON_DEFAULT_WIDTH_SCALE,
                                           ICON_DEFAULT_HEIGHT_SCALE,
+                                          padx,
                                           is_hidden);
       if (do_drag) {
         /* For some reason the dragging is unreliable for the icon button if we don't explicitly
@@ -1426,8 +1423,7 @@ void file_draw_list(const bContext *C, ARegion *region)
   }
 
   if (numfiles < 1) {
-    const rcti tile_draw_rect = tile_draw_rect_get(
-        v2d, layout, eFileDisplayType(params->display), 0, 0);
+    const rcti tile_draw_rect = tile_draw_rect_get(v2d, layout, 0);
     const uiStyle *style = UI_style_get();
 
     const bool is_filtered = params->filter_search[0] != '\0';

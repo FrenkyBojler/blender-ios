@@ -34,7 +34,8 @@ struct rcti;
 void DRW_engines_register();
 void DRW_engines_free();
 
-bool DRW_engine_render_support(DrawEngineType *draw_engine_type);
+void DRW_module_init();
+void DRW_module_exit();
 
 void DRW_engine_external_free(RegionView3D *rv3d);
 
@@ -91,16 +92,9 @@ void DRW_draw_depth_loop(Depsgraph *depsgraph,
                          View3D *v3d,
                          GPUViewport *viewport,
                          const bool use_gpencil,
-                         const bool use_only_selected);
-/**
- * Clears the Depth Buffer and draws only the specified object.
- */
-void DRW_draw_depth_object(
-    Scene *scene, ARegion *region, View3D *v3d, GPUViewport *viewport, Object *object);
+                         const bool use_only_selected,
+                         const bool use_only_active_object);
 
-/**
- * Edit mesh mode selection.
- */
 void DRW_draw_select_id(Depsgraph *depsgraph, ARegion *region, View3D *v3d);
 
 /**
@@ -125,9 +119,22 @@ void DRW_render_gpencil(RenderEngine *engine, Depsgraph *depsgraph);
 void DRW_render_context_enable(Render *render);
 void DRW_render_context_disable(Render *render);
 
+/* Critical section for GPUShader usage. Can be removed when we have threadsafe GPUShader class. */
+void DRW_submission_start();
+void DRW_submission_end();
+
 void DRW_gpu_context_create();
 void DRW_gpu_context_destroy();
+/**
+ * Binds the draw GPU context to the active thread.
+ * In background mode, this will create the draw GPU context on first call.
+ */
 void DRW_gpu_context_enable();
+/**
+ * Tries to bind the draw GPU context to the active thread.
+ * Returns true on success, false if the draw GPU context does not exists.
+ */
+bool DRW_gpu_context_try_enable();
 void DRW_gpu_context_disable();
 
 #ifdef WITH_XR_OPENXR
