@@ -460,7 +460,8 @@ static uiBut *file_add_overlay_icon_but(uiBlock *block, int pos_x, int pos_y, in
   /* Otherwise a left hand padding will be added. */
   UI_but_drawflag_disable(but, UI_BUT_ICON_LEFT);
   UI_but_label_alpha_factor_set(but, 0.6f);
-  UI_but_color_set(but, (uchar[]){255, 255, 255, 255});
+  const uchar light[4] = {255, 255, 255, 255};
+  UI_but_color_set(but, light);
 
   return but;
 }
