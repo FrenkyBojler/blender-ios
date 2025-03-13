@@ -1022,11 +1022,11 @@ GHOST_TSuccess GHOST_WindowWin32::getPointerInfo(
     }
 
     if (pointerPenInfo[i].penMask & PEN_MASK_TILT_X) {
-      outPointerInfo[i].tabletData.Xtilt = fmin(fabs(pointerPenInfo[i].tiltX / 90.0f), 1.0f);
+      outPointerInfo[i].tabletData.Xtilt = fmin(pointerPenInfo[i].tiltX / 90.0f, 1.0f);
     }
 
     if (pointerPenInfo[i].penMask & PEN_MASK_TILT_Y) {
-      outPointerInfo[i].tabletData.Ytilt = fmin(fabs(pointerPenInfo[i].tiltY / 90.0f), 1.0f);
+      outPointerInfo[i].tabletData.Ytilt = fmin(pointerPenInfo[i].tiltY / -90.0f, 1.0f);
     }
   }
 

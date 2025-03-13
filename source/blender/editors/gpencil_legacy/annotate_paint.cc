@@ -11,6 +11,8 @@
 #include <cstdlib>
 #include <cstring>
 
+#include <fmt/format.h>
+
 #include "MEM_guardedalloc.h"
 
 #include "BLI_listbase.h"
@@ -1936,7 +1938,7 @@ static void annotation_draw_cursor_set(tGPsdata *p)
 }
 
 /* update UI indicators of status, including cursor and header prints */
-static void annotation_draw_status_indicators(bContext *C, tGPsdata *p)
+static void annotation_draw_status_indicators(bContext *C, tGPsdata *p, const wmEvent *event)
 {
   WorkspaceStatus status(C);
 
@@ -1972,6 +1974,18 @@ static void annotation_draw_status_indicators(bContext *C, tGPsdata *p)
     case GP_STATUS_DONE:
     case GP_STATUS_CAPTURE:
       break;
+  }
+
+  if (event->tablet.active) {
+    status.item(fmt::format("Pressure: {:.0f}%",
+                            event->tablet.active ? event->tablet.pressure * 100.0f : 0.0f),
+                ICON_EVENT_TABLET_STYLUS);
+
+    const int icon_x = event->tablet.x_tilt > 0.0f ? ICON_EVENT_RIGHT_ARROW :
+                                                     ICON_EVENT_LEFT_ARROW;
+    const int icon_y = event->tablet.y_tilt > 0.0f ? ICON_EVENT_UP_ARROW : ICON_EVENT_DOWN_ARROW;
+    status.item(fmt::format("{:+03.0f}°", event->tablet.x_tilt * 90.0f), icon_x);
+    status.item(fmt::format("{:+03.0f}°", event->tablet.y_tilt * 90.0f), icon_y);
   }
 }
 
@@ -2691,7 +2705,7 @@ static int annotation_draw_modal(bContext *C, wmOperator *op, const wmEvent *eve
   }
   else {
     /* update status indicators - cursor, header, etc. */
-    annotation_draw_status_indicators(C, p);
+    annotation_draw_status_indicators(C, p, event);
     /* cursor may have changed outside our control - #44084 */
     annotation_draw_cursor_set(p);
   }
