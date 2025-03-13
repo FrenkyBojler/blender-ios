@@ -1721,8 +1721,19 @@ void do_versions_after_linking_400(FileData *fd, Main *bmain)
     convert_grease_pencil_material_stroke_fill_toggle_to_attributes(*bmain);
     LISTBASE_FOREACH (Brush *, brush, &bmain->brushes) {
       if (BrushGpencilSettings *settings = brush->gpencil_settings) {
-        settings->flag2 |= GP_BRUSH_USE_STROKE;
-        settings->flag2 &= ~GP_BRUSH_USE_FILL;
+        if (Material *material = settings->material) {
+          BLI_assert(material->gp_style != nullptr);
+          SET_FLAG_FROM_TEST(settings->flag2,
+                             (material->gp_style->flag & GP_MATERIAL_STROKE_SHOW) != 0,
+                             GP_BRUSH_USE_STROKE);
+          SET_FLAG_FROM_TEST(settings->flag2,
+                             (material->gp_style->flag & GP_MATERIAL_FILL_SHOW) != 0,
+                             GP_BRUSH_USE_FILL);
+        }
+        else {
+          settings->flag2 |= GP_BRUSH_USE_STROKE;
+          settings->flag2 &= ~GP_BRUSH_USE_FILL;
+        }
       }
     }
   }
