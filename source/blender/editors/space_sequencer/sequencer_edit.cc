@@ -896,7 +896,7 @@ static int sequencer_unmute_exec(bContext *C, wmOperator *op)
   Editing *ed = seq::editing_get(scene);
 
   LISTBASE_FOREACH (Strip *, strip, ed->seqbasep) {
-    if (RNA_boolean_get(op->ptr, "unselected")) {
+    if (!RNA_boolean_get(op->ptr, "unselected")) {
       if (strip->flag & SELECT) {
         strip->flag &= ~SEQ_MUTE;
         seq::relations_invalidate_dependent(scene, strip);
