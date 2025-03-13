@@ -652,7 +652,6 @@ class MeshUVs : Overlay {
       pass.shader_set(res.shaders.uv_wireframe.get());
       pass.bind_ubo(OVERLAY_GLOBALS_SLOT, &res.globals_buf);
       pass.bind_ubo(DRW_CLIPPING_UBO_SLOT, &res.clip_planes_buf);
-      pass.push_constant("alpha", space_image->uv_opacity);
       pass.push_constant("doSmoothWire", do_smooth_wire);
     }
 
@@ -747,7 +746,7 @@ class MeshUVs : Overlay {
     ResourceHandle res_handle = manager.unique_handle(ob_ref);
 
     if (show_wireframe_) {
-      /* Overwrite the alpha value in the UV Wireframe shader so that selected object UVs appear
+      /* Set the alpha value in the UV Wireframe shader so that selected object UVs appear
        * less opaque than the active object UVs in the Image Editor. */
       if (ob.data != state.view_layer->basact->object->data) {
         wireframe_ps_.push_constant("alpha", space_image->uv_opacity * 0.25f);
@@ -764,7 +763,7 @@ class MeshUVs : Overlay {
   void edit_object_sync(Manager &manager,
                         const ObjectRef &ob_ref,
                         Resources & /*res*/,
-                        const State & /*state*/) final
+                        const State &state) final
   {
     if (!enabled_ || ob_ref.object->type != OB_MESH) {
       return;
@@ -773,6 +772,7 @@ class MeshUVs : Overlay {
     Object &ob = *ob_ref.object;
     Mesh &mesh = *static_cast<Mesh *>(ob.data);
 
+    const SpaceImage *space_image = reinterpret_cast<const SpaceImage *>(state.space_data);
     const bool is_edit_object = DRW_object_is_in_edit_mode(&ob);
     const bool has_active_object_uvmap = CustomData_get_active_layer(&mesh.corner_data,
                                                                      CD_PROP_FLOAT2) != -1;
@@ -818,6 +818,10 @@ class MeshUVs : Overlay {
     }
 
     if (show_wireframe_ && (has_active_object_uvmap || has_active_edit_uvmap)) {
+      /* When an object is actively being modified in an edit mode, don't modify the opactiy to be
+       * less opaque. */
+      wireframe_ps_.push_constant("alpha", space_image->uv_opacity);
+
       gpu::Batch *geom = DRW_mesh_batch_cache_get_uv_edges(ob, mesh);
       wireframe_ps_.draw_expand(geom, GPU_PRIM_TRIS, 2, 1, res_handle);
     }
