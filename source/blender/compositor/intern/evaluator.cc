@@ -26,9 +26,9 @@ using namespace nodes::derived_node_tree_types;
 
 Evaluator::Evaluator(Context &context) : context_(context) {}
 
-void Evaluator::evaluate(const Depsgraph *depsgraph)
+void Evaluator::evaluate()
 {
-  context_.reset(depsgraph);
+  context_.reset();
 
   BLI_SCOPED_DEFER([&]() {
     if (context_.profiler()) {

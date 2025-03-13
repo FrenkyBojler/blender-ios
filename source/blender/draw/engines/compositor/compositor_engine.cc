@@ -207,7 +207,7 @@ class Engine {
   void draw()
   {
     compositor::Evaluator evaluator(context_);
-    evaluator.evaluate(DRW_context_state_get()->depsgraph);
+    evaluator.evaluate();
   }
 };
 

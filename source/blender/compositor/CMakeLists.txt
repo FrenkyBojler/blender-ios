@@ -8,7 +8,6 @@ set(INC
   cached_resources
   derived_resources
   utilities
-  ../depsgraph
   ../gpu/intern
   ../makesrna
   ../render/intern

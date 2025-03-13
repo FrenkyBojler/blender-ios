@@ -99,10 +99,8 @@ class Evaluator {
   Evaluator(Context &context);
 
   /* Evaluates the compositor node tree by compiling it into an operations stream and evaluating
-   * it.
-   * The given dependency graph is used to detect copy-on-eval resource updates (i.e. Masks,
-   * Movie-Clips). If null, every copy-on-eval ID resource will be considered updated. */
-  void evaluate(const Depsgraph *depsgraph = nullptr);
+   * it. */
+  void evaluate();
 
  private:
   /* Check if the compositor node tree is valid by checking if it has things like cyclic links and

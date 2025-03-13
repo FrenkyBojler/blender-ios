@@ -9,7 +9,6 @@
 #include "BLI_math_vector_types.hh"
 #include "BLI_string_ref.hh"
 
-#include "DNA_ID.h"
 #include "DNA_scene_types.h"
 #include "DNA_vec_types.h"
 
@@ -47,12 +46,6 @@ class Context {
   /* A static cache manager that can be used to acquire cached resources for the compositor
    * efficiently. */
   StaticCacheManager cache_manager_;
-
-  /* Depsgraph update cycle count used to detect updates on IDs.
-   * `depsgraph_last_update_` is the previous value of `depsgraph_current_update_`.
-   * These values gets updated at the start of the evaluation. */
-  uint64_t depsgraph_last_update_ = 0;
-  uint64_t depsgraph_current_update_ = 0;
 
  public:
   /* Get the compositing scene. */
@@ -111,16 +104,6 @@ class Context {
    * appropriate place, which can be directly in the UI or just logged to the output stream. */
   virtual void set_info_message(StringRef message) const = 0;
 
-  /* Returns the ID recalculate flag of the given ID and reset it to zero. The given ID is assumed
-   * to be one that has a DrawDataList and conforms to the IdDdtTemplate.
-   *
-   * The ID recalculate flag is a mechanism through which one can identify if an ID has changed
-   * since the last time the flag was reset, hence why the method reset the flag after querying it,
-   * that is, to ready it to track the next change. */
-  IDRecalcFlag query_id_recalc_flag(Tex *texture) const;
-  IDRecalcFlag query_id_recalc_flag(MovieClip *movie_clip) const;
-  IDRecalcFlag query_id_recalc_flag(Mask *mask) const;
-
   /* True if the compositor should treat viewers as composite outputs because it has no concept of
    * or support for viewers. */
   virtual bool treat_viewer_as_composite_output() const;
@@ -149,10 +132,8 @@ class Context {
   virtual bool is_canceled() const;
 
   /* Resets the context's internal structures like the cache manager. This should be called before
-   * every evaluation.
-   * The given dependency graph is used to detect resource updates (i.e. Images, Mask...).
-   * If null, every resource will be considered updated. */
-  void reset(const Depsgraph *depsgraph = nullptr);
+   * every evaluation. */
+  void reset();
 
   /* Get the size of the compositing region. See get_compositing_region(). The output size is
    * sanitized such that it is at least 1 in both dimensions. However, the developer is expected to

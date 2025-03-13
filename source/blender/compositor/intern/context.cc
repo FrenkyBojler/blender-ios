@@ -5,8 +5,6 @@
 #include "BLI_math_vector.hh"
 #include "BLI_rect.h"
 
-#include "DEG_depsgraph.hh"
-
 #include "DNA_node_types.h"
 #include "DNA_vec_types.h"
 
@@ -54,29 +52,9 @@ bool Context::is_canceled() const
   return this->get_node_tree().runtime->test_break(get_node_tree().runtime->tbh);
 }
 
-void Context::reset(const Depsgraph *depsgraph)
+void Context::reset()
 {
-  depsgraph_last_update_ = depsgraph_current_update_;
-  if (depsgraph != nullptr) {
-    depsgraph_current_update_ = DEG_get_update_count(depsgraph);
-  }
   cache_manager_.reset();
-}
-
-IDRecalcFlag Context::query_id_recalc_flag(Tex *texture) const
-{
-  return IDRecalcFlag(texture->runtime.last_update > depsgraph_last_update_ ? ID_RECALC_ALL : 0);
-}
-
-IDRecalcFlag Context::query_id_recalc_flag(MovieClip *movie_clip) const
-{
-  return IDRecalcFlag(movie_clip->runtime.last_update > depsgraph_last_update_ ? ID_RECALC_ALL :
-                                                                                 0);
-}
-
-IDRecalcFlag Context::query_id_recalc_flag(Mask *mask) const
-{
-  return IDRecalcFlag(mask->runtime.last_update > depsgraph_last_update_ ? ID_RECALC_ALL : 0);
 }
 
 int2 Context::get_compositing_region_size() const
