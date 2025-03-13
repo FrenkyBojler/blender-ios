@@ -62,7 +62,7 @@ class InstanceBoundsField final : public bke::InstancesFieldInput {
     }
 
     for (int i = 0; i < instance_count; ++i) {
-      output_bounds[i] = return_max_ ? bounds_max[handles[i]] : bounds_min[handles[i]];
+      output_bounds[i] = return_max_ ? bounds_min[handles[i]] : bounds_max[handles[i]];
     }
 
     return VArray<float3>::ForContainer(std::move(output_bounds));
