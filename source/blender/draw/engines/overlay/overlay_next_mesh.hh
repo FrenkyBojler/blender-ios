@@ -615,8 +615,15 @@ class MeshUVs : Overlay {
     }
     {
       /* Wireframe UV Overlay. */
-      show_wireframe_ = (!(space_image->flag & SI_NO_DRAW_UV_GUIDE) ||
-                         (space_mode_is_uv && (space_image->flag & SI_DRAWSHADOW)));
+      const bool show_wireframe_uv_edit = space_image->flag & SI_DRAWSHADOW;
+      const bool show_wireframe_uv_guide = !(space_image->flag & SI_NO_DRAW_UV_GUIDE);
+
+      if (space_mode_is_uv && object_mode_is_edit) {
+        show_wireframe_ = show_wireframe_uv_edit;
+      }
+      else {
+        show_wireframe_ = show_wireframe_uv_guide;
+      }
     }
     {
       /* Brush Stencil Overlay. */
@@ -734,16 +741,14 @@ class MeshUVs : Overlay {
       return;
     }
 
+    const SpaceImage *space_image = reinterpret_cast<const SpaceImage *>(state.space_data);
     Object &ob = *ob_ref.object;
     Mesh &mesh = *static_cast<Mesh *>(ob.data);
-
     ResourceHandle res_handle = manager.unique_handle(ob_ref);
 
-    const SpaceImage *space_image = reinterpret_cast<const SpaceImage *>(state.space_data);
-
     if (show_wireframe_) {
-      // Overwrite the alpha value on the UV Wireframe shader so that selected objects appear less
-      // opaque than the active object in the Image Editor.
+      /* Overwrite the alpha value in the UV Wireframe shader so that selected object UVs appear
+       * less opaque than the active object UVs in the Image Editor. */
       if (ob.data != state.view_layer->basact->object->data) {
         wireframe_ps_.push_constant("alpha", space_image->uv_opacity * 0.25f);
       }

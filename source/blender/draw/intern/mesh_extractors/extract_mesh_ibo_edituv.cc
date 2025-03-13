@@ -201,35 +201,23 @@ static void extract_edituv_lines_mesh(const MeshRenderData &mr,
       }
     }
   }
-  else if (!mr.use_hide) {
-    // When use_hide is false on MeshRenderData, it means the Object the mesh belongs to is in
-    // Object mode since that boolean is only true when using edit modes. In this case, draw all
-    // the faces belonging to the mesh.
-    IndexMask all_faces = faces.index_range();
-    all_faces.foreach_index([&](const int face_index) {
-      const IndexRange face = faces[face_index];
-      for (const int corner : face) {
-        const int edge = corner_edges[corner];
-        if (!orig_index_edge.is_empty() && orig_index_edge[edge] == ORIGINDEX_NONE) {
-          continue;
-        }
-        const int corner_next = bke::mesh::face_corner_next(face, corner);
-        GPU_indexbuf_add_line_verts(&builder, corner, corner_next);
-      }
-    });
-  }
   else {
     IndexMaskMemory memory;
     IndexMask visible = faces.index_range();
-    if (!mr.hide_poly.is_empty()) {
-      visible = IndexMask::from_bools_inverse(visible, mr.hide_poly, memory);
-    }
-    if (!sync_selection) {
-      if (mr.select_poly.is_empty()) {
-        visible = {};
+
+    /* use_hide refers to whether the active Object's Mode displays UVs based on Edit
+     * Mode selection. Only filter which UVs should be drawn when use_hide is true. */
+    if (mr.use_hide) {
+      if (!mr.hide_poly.is_empty()) {
+        visible = IndexMask::from_bools_inverse(visible, mr.hide_poly, memory);
       }
-      else {
-        visible = IndexMask::from_bools(visible, mr.select_poly, memory);
+      if (!sync_selection) {
+        if (mr.select_poly.is_empty()) {
+          visible = {};
+        }
+        else {
+          visible = IndexMask::from_bools(visible, mr.select_poly, memory);
+        }
       }
     }
     visible.foreach_index([&](const int face_index) {
