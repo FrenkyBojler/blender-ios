@@ -200,7 +200,7 @@ ColorGeometry4f randomize_color(const BrushGpencilSettings &settings,
                                     math::exp(random_value * settings.random_value / base_value);
 
   /* Use the fourth power. */
-  const float blend_factor = math::square(math::square(settings.random_value));
+  const float blend_factor = math::pow(settings.random_value, 4.0f);
   /* Use relative brightness at low randomness, and switch to absolute at high. */
   hsv[2] = math::interpolate(relative_brightness, absolute_brightness, blend_factor);
 
