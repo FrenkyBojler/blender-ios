@@ -72,9 +72,6 @@ bool GHOST_XrGraphicsBindingVulkan::checkVersionRequirements(GHOST_Context &ghos
     return false;
   }
 
-  // TODO: Should we check if physical devices match? Otherwise it will be hard to blit blender
-  // generated images to an openxr swapchain.
-
   return true;
 }
 
@@ -170,19 +167,79 @@ void GHOST_XrGraphicsBindingVulkan::initFromGhostContext(GHOST_Context & /*ghost
   oxr_binding.vk.queueIndex = 0;
 }
 
-std::optional<int64_t> GHOST_XrGraphicsBindingVulkan::chooseSwapchainFormat(
-    const std::vector<int64_t> & /*runtime_formats*/,
-    GHOST_TXrSwapchainFormat & /*r_format*/,
-    bool & /*r_is_srgb_format*/) const
+static std::optional<int64_t> choose_swapchain_format_from_candidates(
+    const std::vector<int64_t> &gpu_binding_formats, const std::vector<int64_t> &runtime_formats)
 {
-  return std::nullopt;
+  if (gpu_binding_formats.empty()) {
+    return std::nullopt;
+  }
+
+  auto res = std::find_first_of(gpu_binding_formats.begin(),
+                                gpu_binding_formats.end(),
+                                runtime_formats.begin(),
+                                runtime_formats.end());
+  if (res == gpu_binding_formats.end()) {
+    return std::nullopt;
+  }
+
+  return *res;
+}
+
+std::optional<int64_t> GHOST_XrGraphicsBindingVulkan::chooseSwapchainFormat(
+    const std::vector<int64_t> &runtime_formats,
+    GHOST_TXrSwapchainFormat &r_format,
+    bool &r_is_srgb_format) const
+{
+  std::vector<int64_t> gpu_binding_formats = {
+      VK_FORMAT_R16G16B16A16_SFLOAT,
+      VK_FORMAT_R8G8B8A8_UNORM,
+      VK_FORMAT_B8G8R8A8_UNORM,
+      VK_FORMAT_R8G8B8A8_SRGB,
+      VK_FORMAT_B8G8R8A8_SRGB,
+  };
+
+  r_format = GHOST_kXrSwapchainFormatRGBA8;
+  r_is_srgb_format = false;
+  std::optional result = choose_swapchain_format_from_candidates(gpu_binding_formats,
+                                                                 runtime_formats);
+  if (result) {
+    switch (*result) {
+      case VK_FORMAT_R16G16B16A16_SFLOAT:
+        r_format = GHOST_kXrSwapchainFormatRGBA16F;
+        break;
+      case VK_FORMAT_R8G8B8A8_UNORM:
+      case VK_FORMAT_B8G8R8A8_UNORM:
+      case VK_FORMAT_R8G8B8A8_SRGB:
+      case VK_FORMAT_B8G8R8A8_SRGB:
+        r_format = GHOST_kXrSwapchainFormatRGBA8;
+        break;
+    }
+
+    switch (*result) {
+      case VK_FORMAT_R16G16B16A16_SFLOAT:
+      case VK_FORMAT_R8G8B8A8_UNORM:
+      case VK_FORMAT_B8G8R8A8_UNORM:
+        r_is_srgb_format = false;
+        break;
+      case VK_FORMAT_R8G8B8A8_SRGB:
+      case VK_FORMAT_B8G8R8A8_SRGB:
+        r_is_srgb_format = true;
+        break;
+    }
+  }
+  return result;
 }
 
 std::vector<XrSwapchainImageBaseHeader *> GHOST_XrGraphicsBindingVulkan::createSwapchainImages(
-    uint32_t /*image_count*/)
+    uint32_t image_count)
 {
   std::vector<XrSwapchainImageBaseHeader *> base_images;
-
+  std::vector<XrSwapchainImageVulkan2KHR> vulkan_images(
+      image_count, {XR_TYPE_SWAPCHAIN_IMAGE_VULKAN2_KHR, nullptr, VK_NULL_HANDLE});
+  for (XrSwapchainImageVulkan2KHR &image : vulkan_images) {
+    base_images.push_back(reinterpret_cast<XrSwapchainImageBaseHeader *>(&image));
+  }
+  m_image_cache.push_back(std::move(vulkan_images));
   return base_images;
 }
 
