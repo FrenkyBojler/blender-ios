@@ -1136,8 +1136,10 @@ void ED_fileselect_init_layout(SpaceFile *sfile, ARegion *region)
       layout->rows = 1;
       layout->flow_columns = numfiles;
     }
-    layout->width = sfile->layout->flow_columns * (layout->tile_w + 2 * layout->tile_border_x) +
-                    layout->tile_border_x * 2;
+    layout->width = (numfiles > 0) ? (sfile->layout->flow_columns *
+                                          (layout->tile_w + 2 * layout->tile_border_x) +
+                                      layout->tile_border_x * 2) :
+                                     int(BLI_rctf_size_x(&v2d->cur) - 2 * layout->tile_border_x);
     layout->flag = FILE_LAYOUT_HOR;
   }
   layout->dirty = false;
