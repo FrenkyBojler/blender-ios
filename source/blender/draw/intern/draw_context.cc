@@ -908,11 +908,7 @@ static void drw_engines_cache_populate(blender::draw::ObjectRef &ref, Extraction
 
   DRWContext &ctx = drw_get();
   ctx.view_data_active->foreach_enabled_engine(
-      [&](ViewportEngineData *data, DrawEngineType *engine) {
-        if (engine->cache_populate) {
-          engine->cache_populate(data, ref);
-        }
-      });
+      [&](DrawEngine &instance) { instance.object_sync(ref, *DRW_manager_get()); });
 
   /* TODO: in the future it would be nice to generate once for all viewports.
    * But we need threaded DRW manager first. */
@@ -947,34 +943,24 @@ void DRWContext::sync(iter_callback_t iter_callback)
 
 void DRWContext::engines_init_and_sync(iter_callback_t iter_callback)
 {
-  view_data_active->foreach_enabled_engine([&](ViewportEngineData *data, DrawEngineType *engine) {
-    if (engine->engine_init) {
-      engine->engine_init(data);
-    }
-  });
+  view_data_active->foreach_enabled_engine([&](DrawEngine &instance) { instance.init(); });
 
-  view_data_active->foreach_enabled_engine([&](ViewportEngineData *data, DrawEngineType *engine) {
+  view_data_active->foreach_enabled_engine([&](DrawEngine &instance) {
     /* TODO(fclem): Remove. Only there for overlay engine. */
-    if (data->text_draw_cache) {
-      DRW_text_cache_destroy(data->text_draw_cache);
-      data->text_draw_cache = nullptr;
+    if (instance.text_draw_cache) {
+      DRW_text_cache_destroy(instance.text_draw_cache);
+      instance.text_draw_cache = nullptr;
     }
     if (drw_get().text_store_p == nullptr) {
-      drw_get().text_store_p = &data->text_draw_cache;
+      drw_get().text_store_p = &instance.text_draw_cache;
     }
 
-    if (engine->cache_init) {
-      engine->cache_init(data);
-    }
+    instance.begin_sync();
   });
 
   sync(iter_callback);
 
-  view_data_active->foreach_enabled_engine([&](ViewportEngineData *data, DrawEngineType *engine) {
-    if (engine->cache_finish) {
-      engine->cache_finish(data);
-    }
-  });
+  view_data_active->foreach_enabled_engine([&](DrawEngine &instance) { instance.end_sync(); });
 }
 
 void DRWContext::engines_draw_scene()
@@ -982,12 +968,10 @@ void DRWContext::engines_draw_scene()
   /* Start Drawing */
   blender::draw::command::StateSet::set();
 
-  view_data_active->foreach_enabled_engine([&](ViewportEngineData *data, DrawEngineType *engine) {
-    if (engine->draw_scene) {
-      GPU_debug_group_begin(engine->idname);
-      engine->draw_scene(data);
-      GPU_debug_group_end();
-    }
+  view_data_active->foreach_enabled_engine([&](DrawEngine &instance) {
+    GPU_debug_group_begin(instance.name_get().c_str());
+    instance.draw(*DRW_manager_get());
+    GPU_debug_group_end();
   });
 
   /* Reset state after drawing */
@@ -1002,30 +986,28 @@ void DRWContext::engines_draw_scene()
 static void drw_engines_draw_text()
 {
   DRWContext &ctx = drw_get();
-  ctx.view_data_active->foreach_enabled_engine(
-      [&](ViewportEngineData *data, DrawEngineType * /*engine*/) {
-        if (data->text_draw_cache) {
-          DRW_text_cache_draw(data->text_draw_cache, ctx.region, ctx.v3d);
-        }
-      });
+  ctx.view_data_active->foreach_enabled_engine([&](DrawEngine &instance) {
+    if (instance.text_draw_cache) {
+      DRW_text_cache_draw(instance.text_draw_cache, ctx.region, ctx.v3d);
+    }
+  });
 }
 
 void DRW_draw_region_engine_info(int xoffset, int *yoffset, int line_height)
 {
   DRWContext &ctx = drw_get();
-  ctx.view_data_active->foreach_enabled_engine(
-      [&](ViewportEngineData *data, DrawEngineType * /*engine*/) {
-        if (data->info[0] != '\0') {
-          const char *buf_step = IFACE_(data->info);
-          do {
-            const char *buf = buf_step;
-            buf_step = BLI_strchr_or_end(buf, '\n');
-            const int buf_len = buf_step - buf;
-            *yoffset -= line_height;
-            BLF_draw_default(xoffset, *yoffset, 0.0f, buf, buf_len);
-          } while (*buf_step ? ((void)buf_step++, true) : false);
-        }
-      });
+  ctx.view_data_active->foreach_enabled_engine([&](DrawEngine &instance) {
+    if (instance.info[0] != '\0') {
+      const char *buf_step = IFACE_(instance.info);
+      do {
+        const char *buf = buf_step;
+        buf_step = BLI_strchr_or_end(buf, '\n');
+        const int buf_len = buf_step - buf;
+        *yoffset -= line_height;
+        BLF_draw_default(xoffset, *yoffset, 0.0f, buf, buf_len);
+      } while (*buf_step ? ((void)buf_step++, true) : false);
+    }
+  });
 }
 
 void DRWContext::enable_engines(bool gpencil_engine_needed, RenderEngineType *render_engine_type)

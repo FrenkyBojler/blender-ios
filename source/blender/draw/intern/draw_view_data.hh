@@ -124,32 +124,32 @@ struct DRWViewData {
     /* IMPORTANT: Order here defines the draw order. */
 
     /* Render engines. Output to the render result framebuffer. Mutually exclusive. */
-    callback(&eevee, eevee.draw_engine);
-    callback(&workbench, workbench.draw_engine);
-    callback(&external, external.draw_engine);
-    callback(&image, image.draw_engine);
+    // callback(&eevee, eevee.draw_engine);
+    // callback(&workbench, workbench.draw_engine);
+    // callback(&external, external.draw_engine);
+    // callback(&image, image.draw_engine);
 #ifdef WITH_DRAW_DEBUG
-    callback(&edit_select_debug, edit_select_debug.draw_engine);
+    // callback(&edit_select_debug, edit_select_debug.draw_engine);
 #endif
     /* Grease pencil. Merge its output to the render result framebuffer. */
-    callback(&grease_pencil, grease_pencil.draw_engine);
+    // callback(&grease_pencil, grease_pencil.draw_engine);
     /* GPU compositor. Processes render result and output to the render result framebuffer. */
-    callback(&compositor, compositor.draw_engine);
+    // callback(&compositor, compositor.draw_engine);
     /* Overlays. Draw on a separate overlay framebuffer. Can read render result. */
-    // callback(&overlay, overlay.draw_engine);
+    callback(overlay);
 
     /* Selection. Are always enabled alone and have no interaction with other engines. */
-    // callback(&object_select, object_select.draw_engine);
-    callback(&edit_select, edit_select.draw_engine);
+    callback(object_select);
+    // callback(&edit_select, edit_select.draw_engine);
   }
 
   template<typename CallbackT> void foreach_enabled_engine(CallbackT callback)
   {
-    foreach_engine([&](ViewportEngineData *data, DrawEngineType *engine) {
-      if (!data->used) {
+    foreach_engine([&](DrawEngine::Pointer &ptr) {
+      if (ptr.instance == nullptr || ptr.instance->used == false) {
         return;
       }
-      callback(data, engine);
+      callback(*ptr.instance);
     });
   }
 
