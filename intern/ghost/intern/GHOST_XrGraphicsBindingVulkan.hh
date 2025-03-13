@@ -6,6 +6,7 @@
  * \ingroup GHOST
  */
 
+#include "GHOST_ContextVK.hh"
 #include "GHOST_IXrGraphicsBinding.hh"
 #include "GHOST_Types.h"
 
@@ -38,6 +39,14 @@ class GHOST_XrGraphicsBindingVulkan : public GHOST_IXrGraphicsBinding {
   bool needsUpsideDownDrawing(GHOST_Context &ghost_ctx) const override;
 
  private:
+  VkInstance m_vk_instance = VK_NULL_HANDLE;
+  VkPhysicalDevice m_vk_physical_device = VK_NULL_HANDLE;
+  uint32_t m_graphics_queue_family = 0;
+  VkQueue m_vk_queue = VK_NULL_HANDLE;
+  VkDevice m_vk_device = VK_NULL_HANDLE;
+
   static PFN_xrGetVulkanGraphicsRequirements2KHR s_xrGetVulkanGraphicsRequirements2KHR_fn;
   static PFN_xrGetVulkanGraphicsDevice2KHR s_xrGetVulkanGraphicsDevice2KHR_fn;
+  static PFN_xrCreateVulkanInstanceKHR s_xrCreateVulkanInstanceKHR_fn;
+  static PFN_xrCreateVulkanDeviceKHR s_xrCreateVulkanDeviceKHR_fn;
 };
