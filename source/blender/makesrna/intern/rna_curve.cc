@@ -387,6 +387,7 @@ static void rna_BPoint_array_begin(CollectionPropertyIterator *iter, PointerRNA 
 {
   Nurb *nu = static_cast<Nurb *>(ptr->data);
   rna_iterator_array_begin(iter,
+                           ptr,
                            static_cast<void *>(nu->bp),
                            sizeof(BPoint),
                            nu->pntsv > 0 ? nu->pntsu * nu->pntsv : nu->pntsu,
@@ -683,15 +684,15 @@ static void rna_Curve_spline_bezpoints_add(ID *id, Nurb *nu, ReportList *reports
 
 static Nurb *rna_Curve_spline_new(Curve *cu, int type)
 {
-  Nurb *nu = static_cast<Nurb *>(MEM_callocN(sizeof(Nurb), "spline.new"));
+  Nurb *nu = MEM_callocN<Nurb>("spline.new");
 
   if (type == CU_BEZIER) {
-    BezTriple *bezt = static_cast<BezTriple *>(MEM_callocN(sizeof(BezTriple), "spline.new.bezt"));
+    BezTriple *bezt = MEM_callocN<BezTriple>("spline.new.bezt");
     bezt->radius = 1.0;
     nu->bezt = bezt;
   }
   else {
-    BPoint *bp = static_cast<BPoint *>(MEM_callocN(sizeof(BPoint), "spline.new.bp"));
+    BPoint *bp = MEM_callocN<BPoint>("spline.new.bp");
     bp->radius = 1.0f;
     nu->bp = bp;
   }
@@ -721,7 +722,7 @@ static void rna_Curve_spline_remove(Curve *cu, ReportList *reports, PointerRNA *
   }
 
   BKE_nurb_free(nu);
-  RNA_POINTER_INVALIDATE(nu_ptr);
+  nu_ptr->invalidate();
 
   DEG_id_tag_update(&cu->id, ID_RECALC_GEOMETRY);
   WM_main_add_notifier(NC_GEOM | ND_DATA, nullptr);
@@ -748,7 +749,7 @@ static PointerRNA rna_Curve_active_spline_get(PointerRNA *ptr)
   nu = static_cast<Nurb *>(BLI_findlink(nurbs, cu->actnu));
 
   if (nu) {
-    return rna_pointer_inherit_refine(ptr, &RNA_Spline, nu);
+    return RNA_pointer_create_with_parent(*ptr, &RNA_Spline, nu);
   }
 
   return PointerRNA_NULL;
@@ -818,7 +819,7 @@ static std::optional<std::string> rna_TextBox_path(const PointerRNA *ptr)
 static void rna_Curve_splines_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
 {
   Curve *cu = reinterpret_cast<Curve *>(ptr->owner_id);
-  rna_iterator_listbase_begin(iter, BKE_curve_nurbs_get(cu), nullptr);
+  rna_iterator_listbase_begin(iter, ptr, BKE_curve_nurbs_get(cu), nullptr);
 }
 
 static bool rna_Curve_is_editmode_get(PointerRNA *ptr)

@@ -23,10 +23,6 @@ using namespace blender;
 
 struct EEVEE_Data {
   DrawEngineType *engine_type;
-  DRWViewportEmptyList *fbl;
-  DRWViewportEmptyList *txl;
-  DRWViewportEmptyList *psl;
-  DRWViewportEmptyList *stl;
   eevee::Instance *instance;
 
   char info[GPU_INFO_SIZE];
@@ -86,7 +82,7 @@ static void eevee_engine_init(void *vedata)
     }
 
     if (DRW_state_is_viewport_image_render()) {
-      const float *vp_size = DRW_viewport_size_get();
+      const float2 vp_size = DRW_viewport_size_get();
       visible_rect.xmax = vp_size[0];
       visible_rect.ymax = vp_size[1];
       visible_rect.xmin = visible_rect.ymin = 0;
@@ -119,22 +115,14 @@ static void eevee_cache_init(void *vedata)
   reinterpret_cast<EEVEE_Data *>(vedata)->instance->begin_sync();
 }
 
-static void eevee_cache_populate(void *vedata, Object *object)
+static void eevee_cache_populate(void *vedata, draw::ObjectRef &ob_ref)
 {
-  draw::ObjectRef ob_ref = DRW_object_ref_get(object);
   reinterpret_cast<EEVEE_Data *>(vedata)->instance->object_sync(ob_ref);
 }
 
 static void eevee_cache_finish(void *vedata)
 {
   reinterpret_cast<EEVEE_Data *>(vedata)->instance->end_sync();
-}
-
-static void eevee_view_update(void *vedata)
-{
-  if (eevee::Instance *instance = reinterpret_cast<EEVEE_Data *>(vedata)->instance) {
-    instance->view_update();
-  }
 }
 
 static void eevee_engine_free()
@@ -187,15 +175,10 @@ static void eevee_render_update_passes(RenderEngine *engine, Scene *scene, ViewL
   eevee::Instance::update_passes(engine, scene, view_layer);
 }
 
-static const DrawEngineDataSize eevee_data_size = DRW_VIEWPORT_DATA_SIZE(EEVEE_Data);
-
-extern "C" {
-
 DrawEngineType draw_engine_eevee_next_type = {
     /*next*/ nullptr,
     /*prev*/ nullptr,
     /*idname*/ N_("EEVEE"),
-    /*vedata_size*/ &eevee_data_size,
     /*engine_init*/ &eevee_engine_init,
     /*engine_free*/ &eevee_engine_free,
     /*instance_free*/ &eevee_instance_free,
@@ -203,7 +186,7 @@ DrawEngineType draw_engine_eevee_next_type = {
     /*cache_populate*/ &eevee_cache_populate,
     /*cache_finish*/ &eevee_cache_finish,
     /*draw_scene*/ &eevee_draw_scene,
-    /*view_update*/ &eevee_view_update,
+    /*view_update*/ nullptr,
     /*id_update*/ nullptr,
     /*render_to_image*/ &eevee_render_to_image,
     /*store_metadata*/ &eevee_store_metadata,
@@ -232,4 +215,3 @@ RenderEngineType DRW_engine_viewport_eevee_next_type = {
         /*call*/ nullptr,
     },
 };
-}

@@ -50,7 +50,7 @@ void NodeOperation::evaluate()
 
 void NodeOperation::compute_preview()
 {
-  if (context().should_compute_node_previews() && is_node_preview_needed(node())) {
+  if (bool(context().needed_outputs() & OutputTypes::Previews) && is_node_preview_needed(node())) {
     compositor::compute_preview(context(), node(), *get_preview_result());
   }
 }
@@ -85,7 +85,7 @@ void NodeOperation::compute_results_reference_counts(const Schedule &schedule)
     const int reference_count = number_of_inputs_linked_to_output_conditioned(
         doutput, [&](DInputSocket input) { return schedule.contains(input.node()); });
 
-    get_result(doutput->identifier).set_initial_reference_count(reference_count);
+    get_result(doutput->identifier).set_reference_count(reference_count);
   }
 }
 

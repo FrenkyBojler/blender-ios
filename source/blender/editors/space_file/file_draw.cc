@@ -19,7 +19,9 @@
 
 #include "BLI_fileops.h"
 #include "BLI_fileops_types.h"
+#include "BLI_listbase.h"
 #include "BLI_math_color.h"
+#include "BLI_math_vector.h"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
@@ -335,10 +337,10 @@ static void file_draw_tooltip_custom_func(bContext & /*C*/, uiTooltipData &tip, 
   }
 }
 
-static std::string file_draw_asset_tooltip_func(bContext * /*C*/, void *argN, const char * /*tip*/)
+static void file_draw_asset_tooltip_custom_func(bContext & /*C*/, uiTooltipData &tip, void *argN)
 {
   const auto *asset = static_cast<blender::asset_system::AssetRepresentation *>(argN);
-  return blender::ed::asset::asset_tooltip(*asset);
+  blender::ed::asset::asset_tooltip(*asset, tip);
 }
 
 static void draw_tile_background(const rcti *draw_rect, int colorid, int shade)
@@ -401,10 +403,10 @@ static uiBut *file_add_icon_but(const SpaceFile *sfile,
   const int y = tile_draw_rect->ymax - sfile->layout->tile_border_y - height;
 
   but = uiDefIconBut(
-      block, UI_BTYPE_LABEL, 0, icon, x, y, width, height, nullptr, 0.0f, 0.0f, nullptr);
+      block, UI_BTYPE_LABEL, 0, icon, x, y, width, height, nullptr, 0.0f, 0.0f, std::nullopt);
   UI_but_label_alpha_factor_set(but, dimmed ? 0.3f : 1.0f);
   if (file->asset) {
-    UI_but_func_tooltip_set(but, file_draw_asset_tooltip_func, file->asset, nullptr);
+    UI_but_func_tooltip_custom_set(but, file_draw_asset_tooltip_custom_func, file->asset, nullptr);
   }
   else {
     UI_but_func_tooltip_custom_set(
@@ -570,7 +572,7 @@ static void file_add_preview_drag_but(const SpaceFile *sfile,
                         nullptr,
                         0.0,
                         0.0,
-                        nullptr);
+                        std::nullopt);
 
   const ImBuf *drag_image = preview_image ? preview_image :
                                             /* Larger directory or document icon. */
@@ -580,7 +582,7 @@ static void file_add_preview_drag_but(const SpaceFile *sfile,
   file_but_enable_drag(but, sfile, file, path, drag_image, file_type_icon, scale);
 
   if (file->asset) {
-    UI_but_func_tooltip_set(but, file_draw_asset_tooltip_func, file->asset, nullptr);
+    UI_but_func_tooltip_custom_set(but, file_draw_asset_tooltip_custom_func, file->asset, nullptr);
   }
   else {
     UI_but_func_tooltip_custom_set(
@@ -749,8 +751,6 @@ static void file_draw_loading_icon(const rcti *tile_draw_rect,
                                    const float preview_icon_aspect,
                                    const FileLayout *layout)
 {
-  const float opacity = 0.4f;
-
   uchar icon_color[4] = {0, 0, 0, 255};
   /* Contrast with background since we are not showing the large document image. */
   UI_GetThemeColor4ubv(TH_TEXT, icon_color);
@@ -761,9 +761,9 @@ static void file_draw_loading_icon(const rcti *tile_draw_rect,
 
   UI_icon_draw_ex(cent_x - (ICON_DEFAULT_WIDTH / aspect / 2.0f),
                   cent_y - (ICON_DEFAULT_HEIGHT / aspect / 2.0f),
-                  ICON_TEMP,
+                  ICON_PREVIEW_LOADING,
                   aspect,
-                  opacity,
+                  1.0f,
                   0.0f,
                   icon_color,
                   false,
@@ -872,7 +872,8 @@ static void renamebutton_cb(bContext *C, void * /*arg1*/, char *oldname)
   if (!STREQ(orgname, newname)) {
     errno = 0;
     if ((BLI_rename(orgname, newname) != 0) || !BLI_exists(newname)) {
-      WM_reportf(RPT_ERROR, "Could not rename: %s", errno ? strerror(errno) : "unknown error");
+      WM_global_reportf(
+          RPT_ERROR, "Could not rename: %s", errno ? strerror(errno) : "unknown error");
       WM_report_banner_show(wm, win);
       /* Renaming failed, reset the name for further renaming handling. */
       STRNCPY(params->renamefile, oldname);
@@ -1340,7 +1341,7 @@ void file_draw_list(const bContext *C, ARegion *region)
                                      nullptr,
                                      0,
                                      0,
-                                     nullptr);
+                                     std::nullopt);
           UI_but_dragflag_enable(drag_but, UI_BUT_DRAG_FULL_BUT);
           file_but_enable_drag(drag_but, sfile, file, path, nullptr, icon, UI_SCALE_FAC);
           UI_but_func_tooltip_custom_set(drag_but,
@@ -1521,7 +1522,7 @@ static void file_draw_invalid_asset_library_hint(const bContext *C,
                                        sy - line_height - UI_UNIT_Y * 1.2f,
                                        UI_UNIT_X * 8,
                                        UI_UNIT_Y,
-                                       nullptr);
+                                       std::nullopt);
     PointerRNA *but_opptr = UI_but_operator_ptr_ensure(but);
     RNA_enum_set(but_opptr, "section", USER_SECTION_FILE_PATHS);
 

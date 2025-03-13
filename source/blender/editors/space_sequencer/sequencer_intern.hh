@@ -26,7 +26,6 @@
 
 /* Internal exports only. */
 
-class SeqQuadsBatch;
 struct ARegion;
 struct ARegionType;
 struct Scene;
@@ -44,23 +43,22 @@ struct ScrArea;
 struct Editing;
 struct ListBase;
 
-#define DEFAULT_IMG_STRIP_LENGTH 25 /* XXX arbitrary but ok for now. */
+namespace blender::ed::vse {
 
-namespace blender::ed::seq {
-
+class SeqQuadsBatch;
 class StripsDrawBatch;
+
+#define DEFAULT_IMG_STRIP_LENGTH 25 /* XXX arbitrary but ok for now. */
 
 struct SpaceSeq_Runtime : public NonCopyable {
   int rename_channel_index = 0;
   float timeline_clamp_custom_range = 0;
 
-  blender::ed::seq::SeqScopes scopes;
+  SeqScopes scopes;
 
   SpaceSeq_Runtime() = default;
   ~SpaceSeq_Runtime();
 };
-
-}  // namespace blender::ed::seq
 
 struct SeqChannelDrawContext {
   const bContext *C;
@@ -141,13 +139,13 @@ int sequencer_draw_get_transform_preview_frame(Scene *scene);
 
 void sequencer_special_update_set(Strip *strip);
 /* Get handle width in 2d-View space. */
-float sequence_handle_size_get_clamped(const Scene *scene, Strip *strip, float pixelx);
+float strip_handle_draw_size_get(const Scene *scene, Strip *strip, float pixelx);
 
 /* UNUSED */
 /* void seq_reset_imageofs(SpaceSeq *sseq); */
 
 /**
- * Rendering using opengl will change the current viewport/context.
+ * Rendering using the GPU will change the current viewport/context.
  * This is why we need the \a region, to set back the render area.
  *
  * TODO: do not rely on such hack and just update the \a ibuf outside of
@@ -161,7 +159,7 @@ ImBuf *sequencer_ibuf_get(const bContext *C,
 /* `sequencer_thumbnails.cc` */
 
 void draw_strip_thumbnails(TimelineDrawContext *ctx,
-                           blender::ed::seq::StripsDrawBatch &strips_batch,
+                           StripsDrawBatch &strips_batch,
                            const blender::Vector<StripDrawContext> &strips);
 
 /* sequencer_draw_channels.c */
@@ -400,3 +398,5 @@ blender::Vector<Strip *> sequencer_visible_strips_get(const Scene *scene, const 
 /* `sequencer_clipboard.cc` */
 int sequencer_clipboard_copy_exec(bContext *C, wmOperator *op);
 int sequencer_clipboard_paste_exec(bContext *C, wmOperator *op);
+
+}  // namespace blender::ed::vse

@@ -354,6 +354,10 @@ PreviewImage *BKE_previewimg_cached_thumbnail_read(const char *name,
 void BKE_previewimg_cached_release(const char *name)
 {
   BLI_assert(BLI_thread_is_main());
+  if (!gCachedPreviews) {
+    /* Static cache was already freed including all contained previews. Can happen on shutdown. */
+    return;
+  }
 
   PreviewImage *prv = (PreviewImage *)BLI_ghash_popkey(gCachedPreviews, name, MEM_freeN);
 
@@ -442,7 +446,7 @@ ImBuf *BKE_previewimg_to_imbuf(const PreviewImage *prv, const int size)
 
   if (w > 0 && h > 0 && rect) {
     /* first allocate imbuf for copying preview into it */
-    ima = IMB_allocImBuf(w, h, 32, IB_rect);
+    ima = IMB_allocImBuf(w, h, 32, IB_byte_data);
     memcpy(ima->byte_buffer.data, rect, w * h * sizeof(uint8_t) * 4);
   }
 

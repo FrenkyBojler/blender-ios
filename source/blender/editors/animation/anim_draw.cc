@@ -15,7 +15,9 @@
 #include "DNA_space_types.h"
 #include "DNA_userdef_types.h"
 
+#include "BLI_listbase.h"
 #include "BLI_math_rotation.h"
+#include "BLI_math_vector.h"
 #include "BLI_rect.h"
 #include "BLI_utildefines.h"
 
@@ -237,7 +239,6 @@ bool ANIM_nla_mapping_allowed(const bAnimListElem *ale)
       return !fcurve->driver;
     }
     case ANIMTYPE_DSGPENCIL:
-    case ANIMTYPE_GPDATABLOCK:
     case ANIMTYPE_GPLAYER:
     case ANIMTYPE_GREASE_PENCIL_DATABLOCK:
     case ANIMTYPE_GREASE_PENCIL_LAYER_GROUP:

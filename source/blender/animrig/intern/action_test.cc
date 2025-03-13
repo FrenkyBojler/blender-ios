@@ -464,77 +464,77 @@ TEST_F(ActionLayersTest, slot_move_to_index)
   const slot_handle_t handle_suzanne = slot_suzanne.handle;
 
   ASSERT_EQ(action->slot(0)->handle, handle_a);
-  ASSERT_EQ(action->slot(0)->identifier_prefix_for_idtype(), "ME");
+  ASSERT_EQ(action->slot(0)->idtype_string(), "ME");
   ASSERT_EQ(action->slot(1)->handle, handle_b);
-  ASSERT_EQ(action->slot(1)->identifier_prefix_for_idtype(), "CA");
+  ASSERT_EQ(action->slot(1)->idtype_string(), "CA");
   ASSERT_EQ(action->slot(2)->handle, handle_cube);
-  ASSERT_EQ(action->slot(2)->identifier_prefix_for_idtype(), "OB");
+  ASSERT_EQ(action->slot(2)->idtype_string(), "OB");
   ASSERT_EQ(action->slot(2)->users(*bmain)[0], &cube->id);
   ASSERT_EQ(action->slot(3)->handle, handle_suzanne);
-  ASSERT_EQ(action->slot(3)->identifier_prefix_for_idtype(), "OB");
+  ASSERT_EQ(action->slot(3)->idtype_string(), "OB");
   ASSERT_EQ(action->slot(3)->users(*bmain)[0], &suzanne->id);
 
   /* First "move" a slot to its own location, which should do nothing. */
   action->slot_move_to_index(slot_b, 1);
   EXPECT_EQ(action->slot(0)->handle, handle_a);
-  EXPECT_EQ(action->slot(0)->identifier_prefix_for_idtype(), "ME");
+  EXPECT_EQ(action->slot(0)->idtype_string(), "ME");
   EXPECT_EQ(action->slot(1)->handle, handle_b);
-  EXPECT_EQ(action->slot(1)->identifier_prefix_for_idtype(), "CA");
+  EXPECT_EQ(action->slot(1)->idtype_string(), "CA");
   EXPECT_EQ(action->slot(2)->handle, handle_cube);
-  EXPECT_EQ(action->slot(2)->identifier_prefix_for_idtype(), "OB");
+  EXPECT_EQ(action->slot(2)->idtype_string(), "OB");
   EXPECT_EQ(action->slot(2)->users(*bmain)[0], &cube->id);
   EXPECT_EQ(action->slot(3)->handle, handle_suzanne);
-  EXPECT_EQ(action->slot(3)->identifier_prefix_for_idtype(), "OB");
+  EXPECT_EQ(action->slot(3)->idtype_string(), "OB");
   EXPECT_EQ(action->slot(3)->users(*bmain)[0], &suzanne->id);
 
   /* Then move slots around in various ways. */
 
   action->slot_move_to_index(slot_a, 2);
   EXPECT_EQ(action->slot(0)->handle, handle_b);
-  EXPECT_EQ(action->slot(0)->identifier_prefix_for_idtype(), "CA");
+  EXPECT_EQ(action->slot(0)->idtype_string(), "CA");
   EXPECT_EQ(action->slot(1)->handle, handle_cube);
-  EXPECT_EQ(action->slot(1)->identifier_prefix_for_idtype(), "OB");
+  EXPECT_EQ(action->slot(1)->idtype_string(), "OB");
   EXPECT_EQ(action->slot(1)->users(*bmain)[0], &cube->id);
   EXPECT_EQ(action->slot(2)->handle, handle_a);
-  EXPECT_EQ(action->slot(2)->identifier_prefix_for_idtype(), "ME");
+  EXPECT_EQ(action->slot(2)->idtype_string(), "ME");
   EXPECT_EQ(action->slot(3)->handle, handle_suzanne);
-  EXPECT_EQ(action->slot(3)->identifier_prefix_for_idtype(), "OB");
+  EXPECT_EQ(action->slot(3)->idtype_string(), "OB");
   EXPECT_EQ(action->slot(3)->users(*bmain)[0], &suzanne->id);
 
   action->slot_move_to_index(slot_suzanne, 1);
   EXPECT_EQ(action->slot(0)->handle, handle_b);
-  EXPECT_EQ(action->slot(0)->identifier_prefix_for_idtype(), "CA");
+  EXPECT_EQ(action->slot(0)->idtype_string(), "CA");
   EXPECT_EQ(action->slot(1)->handle, handle_suzanne);
-  EXPECT_EQ(action->slot(1)->identifier_prefix_for_idtype(), "OB");
+  EXPECT_EQ(action->slot(1)->idtype_string(), "OB");
   EXPECT_EQ(action->slot(1)->users(*bmain)[0], &suzanne->id);
   EXPECT_EQ(action->slot(2)->handle, handle_cube);
-  EXPECT_EQ(action->slot(2)->identifier_prefix_for_idtype(), "OB");
+  EXPECT_EQ(action->slot(2)->idtype_string(), "OB");
   EXPECT_EQ(action->slot(2)->users(*bmain)[0], &cube->id);
   EXPECT_EQ(action->slot(3)->handle, handle_a);
-  EXPECT_EQ(action->slot(3)->identifier_prefix_for_idtype(), "ME");
+  EXPECT_EQ(action->slot(3)->idtype_string(), "ME");
 
   action->slot_move_to_index(slot_cube, 3);
   EXPECT_EQ(action->slot(0)->handle, handle_b);
-  EXPECT_EQ(action->slot(0)->identifier_prefix_for_idtype(), "CA");
+  EXPECT_EQ(action->slot(0)->idtype_string(), "CA");
   EXPECT_EQ(action->slot(1)->handle, handle_suzanne);
-  EXPECT_EQ(action->slot(1)->identifier_prefix_for_idtype(), "OB");
+  EXPECT_EQ(action->slot(1)->idtype_string(), "OB");
   EXPECT_EQ(action->slot(1)->users(*bmain)[0], &suzanne->id);
   EXPECT_EQ(action->slot(2)->handle, handle_a);
-  EXPECT_EQ(action->slot(2)->identifier_prefix_for_idtype(), "ME");
+  EXPECT_EQ(action->slot(2)->idtype_string(), "ME");
   EXPECT_EQ(action->slot(3)->handle, handle_cube);
-  EXPECT_EQ(action->slot(3)->identifier_prefix_for_idtype(), "OB");
+  EXPECT_EQ(action->slot(3)->idtype_string(), "OB");
   EXPECT_EQ(action->slot(3)->users(*bmain)[0], &cube->id);
 
   action->slot_move_to_index(slot_suzanne, 0);
   EXPECT_EQ(action->slot(0)->handle, handle_suzanne);
-  EXPECT_EQ(action->slot(0)->identifier_prefix_for_idtype(), "OB");
+  EXPECT_EQ(action->slot(0)->idtype_string(), "OB");
   EXPECT_EQ(action->slot(0)->users(*bmain)[0], &suzanne->id);
   EXPECT_EQ(action->slot(1)->handle, handle_b);
-  EXPECT_EQ(action->slot(1)->identifier_prefix_for_idtype(), "CA");
+  EXPECT_EQ(action->slot(1)->idtype_string(), "CA");
   EXPECT_EQ(action->slot(2)->handle, handle_a);
-  EXPECT_EQ(action->slot(2)->identifier_prefix_for_idtype(), "ME");
+  EXPECT_EQ(action->slot(2)->idtype_string(), "ME");
   EXPECT_EQ(action->slot(3)->handle, handle_cube);
-  EXPECT_EQ(action->slot(3)->identifier_prefix_for_idtype(), "OB");
+  EXPECT_EQ(action->slot(3)->idtype_string(), "OB");
   EXPECT_EQ(action->slot(3)->users(*bmain)[0], &cube->id);
 }
 
@@ -697,10 +697,16 @@ TEST_F(ActionLayersTest, slot_identifier_ensure_prefix)
 TEST_F(ActionLayersTest, slot_identifier_prefix)
 {
   Slot &slot = action->slot_add();
-  EXPECT_EQ("XX", slot.identifier_prefix_for_idtype());
+  EXPECT_EQ("XX", slot.idtype_string());
+  EXPECT_EQ("XX", slot.identifier_prefix());
 
   slot.idtype = ID_CA;
-  EXPECT_EQ("CA", slot.identifier_prefix_for_idtype());
+  EXPECT_EQ("CA", slot.idtype_string());
+  EXPECT_EQ("XX", slot.identifier_prefix());
+
+  slot.identifier_ensure_prefix();
+  EXPECT_EQ("CA", slot.idtype_string());
+  EXPECT_EQ("CA", slot.identifier_prefix());
 }
 
 TEST_F(ActionLayersTest, rename_slot_identifier_collision)
@@ -1202,11 +1208,11 @@ TEST_F(ActionLayersTest, action_move_slot)
   PointerRNA cube_rna_pointer = RNA_id_pointer_create(&cube->id);
   PointerRNA suzanne_rna_pointer = RNA_id_pointer_create(&suzanne->id);
 
-  action_fcurve_ensure(bmain, action, "Test", &cube_rna_pointer, {"location", 0});
-  action_fcurve_ensure(bmain, action, "Test", &cube_rna_pointer, {"rotation_euler", 1});
+  action_fcurve_ensure_ex(bmain, action, "Test", &cube_rna_pointer, {"location", 0});
+  action_fcurve_ensure_ex(bmain, action, "Test", &cube_rna_pointer, {"rotation_euler", 1});
 
-  action_fcurve_ensure(bmain, action_2, "Test_2", &suzanne_rna_pointer, {"location", 0});
-  action_fcurve_ensure(bmain, action_2, "Test_2", &suzanne_rna_pointer, {"rotation_euler", 1});
+  action_fcurve_ensure_ex(bmain, action_2, "Test_2", &suzanne_rna_pointer, {"location", 0});
+  action_fcurve_ensure_ex(bmain, action_2, "Test_2", &suzanne_rna_pointer, {"rotation_euler", 1});
 
   ASSERT_EQ(action->layer_array_num, 1);
   ASSERT_EQ(action_2->layer_array_num, 1);
@@ -1247,7 +1253,7 @@ TEST_F(ActionLayersTest, action_move_slot)
 /* Allocate fcu->bezt, and also return a unique_ptr to it for easily freeing the memory. */
 static void allocate_keyframes(FCurve &fcu, const size_t num_keyframes)
 {
-  fcu.bezt = MEM_cnew_array<BezTriple>(num_keyframes, __func__);
+  fcu.bezt = MEM_calloc_arrayN<BezTriple>(num_keyframes, __func__);
 }
 
 /* Append keyframe, assumes that fcu->bezt is allocated and has enough space. */
@@ -1322,7 +1328,7 @@ TEST_F(ActionQueryTest, BKE_action_frame_range_calc)
 
   /* One curve with one key. */
   {
-    FCurve &fcu = *MEM_cnew<FCurve>(__func__);
+    FCurve &fcu = *MEM_callocN<FCurve>(__func__);
     allocate_keyframes(fcu, 1);
     add_keyframe(fcu, 1.0f, 2.0f);
 
@@ -1336,8 +1342,8 @@ TEST_F(ActionQueryTest, BKE_action_frame_range_calc)
 
   /* Two curves with one key each on different frames. */
   {
-    FCurve &fcu1 = *MEM_cnew<FCurve>(__func__);
-    FCurve &fcu2 = *MEM_cnew<FCurve>(__func__);
+    FCurve &fcu1 = *MEM_callocN<FCurve>(__func__);
+    FCurve &fcu2 = *MEM_callocN<FCurve>(__func__);
     allocate_keyframes(fcu1, 1);
     allocate_keyframes(fcu2, 1);
     add_keyframe(fcu1, 1.0f, 2.0f);
@@ -1354,7 +1360,7 @@ TEST_F(ActionQueryTest, BKE_action_frame_range_calc)
 
   /* One curve with two keys. */
   {
-    FCurve &fcu = *MEM_cnew<FCurve>(__func__);
+    FCurve &fcu = *MEM_callocN<FCurve>(__func__);
     allocate_keyframes(fcu, 2);
     add_keyframe(fcu, 1.0f, 2.0f);
     add_keyframe(fcu, 1.5f, 2.0f);

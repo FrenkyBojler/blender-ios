@@ -41,10 +41,6 @@
 
 struct EXTERNAL_Data {
   void *engine_type;
-  DRWViewportEmptyList *fbl;
-  DRWViewportEmptyList *txl;
-  DRWViewportEmptyList *psl;
-  DRWViewportEmptyList *stl;
   void *instance_data;
 
   char info[GPU_INFO_SIZE];
@@ -232,17 +228,16 @@ static void external_draw_scene(void *vedata)
     GPU_framebuffer_bind(dfbl->default_fb);
     GPU_framebuffer_clear_color(dfbl->default_fb, clear_col);
 
+    DRW_submission_start();
     external_draw_scene_do(vedata);
+    DRW_submission_end();
   }
 }
-
-static const DrawEngineDataSize external_data_size = DRW_VIEWPORT_DATA_SIZE(EXTERNAL_Data);
 
 DrawEngineType draw_engine_external_type = {
     /*next*/ nullptr,
     /*prev*/ nullptr,
     /*idname*/ N_("External"),
-    /*vedata_size*/ &external_data_size,
     /*engine_init*/ nullptr,
     /*engine_free*/ nullptr,
     /*instance_free*/ nullptr,

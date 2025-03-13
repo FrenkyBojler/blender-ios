@@ -784,7 +784,7 @@ class USDExportTest(AbstractUSDTest):
         self.assertEqual(len(usd_vert_sharpness), 7)
         # A 1.0 crease is INFINITE (10) in USD
         self.assertAlmostEqual(min(usd_vert_sharpness), 0.1, 5)
-        self.assertEqual(len([sharp for sharp in usd_vert_sharpness if sharp < 1]), 6)
+        self.assertEqual(len([sharp for sharp in usd_vert_sharpness if sharp < 10]), 6)
         self.assertEqual(len([sharp for sharp in usd_vert_sharpness if sharp == 10]), 1)
 
         mesh = UsdGeom.Mesh(stage.GetPrimAtPath("/root/crease_edge/crease_edge"))
@@ -799,7 +799,7 @@ class USDExportTest(AbstractUSDTest):
         self.assertEqual(len(usd_crease_sharpness), 10)
         # A 1.0 crease is INFINITE (10) in USD
         self.assertAlmostEqual(min(usd_crease_sharpness), 0.1, 5)
-        self.assertEqual(len([sharp for sharp in usd_crease_sharpness if sharp < 1]), 9)
+        self.assertEqual(len([sharp for sharp in usd_crease_sharpness if sharp < 10]), 9)
         self.assertEqual(len([sharp for sharp in usd_crease_sharpness if sharp == 10]), 1)
 
     def test_export_mesh_triangulate(self):
@@ -898,23 +898,23 @@ class USDExportTest(AbstractUSDTest):
         # Contains 3 CatmullRom curves
         curve = UsdGeom.BasisCurves(stage.GetPrimAtPath("/root/Cube/Curves/Curves"))
         check_basis_curve(
-            curve, "catmullRom", "cubic", "pinned", [8, 8, 8], [[-0.3784, -0.0866, 1], [0.2714, -0.0488, 1.3]])
+            curve, "catmullRom", "cubic", "pinned", [8, 8, 8], [[-0.3884, -0.0966, 0.99], [0.2814, -0.0388, 1.31]])
 
         # Contains 1 Bezier curve
         curve = UsdGeom.BasisCurves(stage.GetPrimAtPath("/root/BezierCurve/BezierCurve"))
-        check_basis_curve(curve, "bezier", "cubic", "nonperiodic", [7], [[-2.644, -0.0777, 0], [1, 0.9815, 0]])
+        check_basis_curve(curve, "bezier", "cubic", "nonperiodic", [7], [[-3.644, -1.0777, -1.0], [2.0, 1.9815, 1.0]])
 
         # Contains 1 Bezier curve
         curve = UsdGeom.BasisCurves(stage.GetPrimAtPath("/root/BezierCircle/BezierCircle"))
-        check_basis_curve(curve, "bezier", "cubic", "periodic", [12], [[-1, -1, 0], [1, 1, 0]])
+        check_basis_curve(curve, "bezier", "cubic", "periodic", [12], [[-2.0, -2.0, -1.0], [2.0, 2.0, 1.0]])
 
         # Contains 2 NURBS curves
         curve = UsdGeom.NurbsCurves(stage.GetPrimAtPath("/root/NurbsCurve/NurbsCurve"))
-        check_nurbs_curve(curve, False, [4, 4], [6, 6], 10, [[-0.75, -1.6898, -0.0117], [2.0896, 0.9583, 0.0293]])
+        check_nurbs_curve(curve, False, [4, 4], [6, 6], 10, [[-1.75, -2.6898, -1.0117], [3.0896, 1.9583, 1.0293]])
 
         # Contains 1 NURBS curve
         curve = UsdGeom.NurbsCurves(stage.GetPrimAtPath("/root/NurbsCircle/NurbsCircle"))
-        check_nurbs_curve(curve, True, [3], [8], 13, [[-1, -1, 0], [1, 1, 0]])
+        check_nurbs_curve(curve, True, [3], [8], 13, [[-2.0, -2.0, -1.0], [2.0, 2.0, 1.0]])
 
     def test_export_animation(self):
         bpy.ops.wm.open_mainfile(filepath=str(self.testdir / "usd_anim_test.blend"))
@@ -1491,7 +1491,7 @@ class USDExportTest(AbstractUSDTest):
                             f"Exported texture {tex_path} doesn't exist")
 
 
-class USDHookBase():
+class USDHookBase:
     instructions = {}
     responses = {}
 

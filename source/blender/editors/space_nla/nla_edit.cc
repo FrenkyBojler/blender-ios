@@ -16,6 +16,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_listbase.h"
 #include "BLI_utildefines.h"
 
 #include "BLT_translation.hh"
@@ -23,6 +24,7 @@
 #include "BKE_context.hh"
 #include "BKE_fcurve.hh"
 #include "BKE_lib_id.hh"
+#include "BKE_library.hh"
 #include "BKE_main.hh"
 #include "BKE_nla.hh"
 #include "BKE_report.hh"
@@ -836,7 +838,7 @@ static int nlaedit_add_transition_exec(bContext *C, wmOperator *op)
       }
 
       /* allocate new strip */
-      strip = MEM_cnew<NlaStrip>("NlaStrip");
+      strip = MEM_callocN<NlaStrip>("NlaStrip");
       BLI_insertlinkafter(&nlt->strips, s1, strip);
 
       /* set the type */

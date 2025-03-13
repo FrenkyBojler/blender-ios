@@ -126,8 +126,8 @@ static void apply_fcu_segment_function(bAnimContext *ac,
 static void common_draw_status_header(bContext *C, tGraphSliderOp *gso)
 {
   WorkspaceStatus status(C);
-  status.item(IFACE_("Cancel"), ICON_EVENT_ESC);
   status.item(IFACE_("Confirm"), ICON_MOUSE_LMB);
+  status.item(IFACE_("Cancel"), ICON_EVENT_ESC);
   status.item(IFACE_("Adjust"), ICON_MOUSE_MOVE);
   if (hasNumInput(&gso->num)) {
     char str_ofs[NUM_STR_REP_LEN];
@@ -411,7 +411,7 @@ static int graph_slider_invoke(bContext *C, wmOperator *op, const wmEvent *event
   ED_slider_init(gso->slider, event);
 
   if (gso->bezt_arr_list.first == nullptr) {
-    WM_report(RPT_ERROR, "Cannot find keys to operate on");
+    WM_global_report(RPT_ERROR, "Cannot find keys to operate on");
     graph_slider_exit(C, op);
     return OPERATOR_CANCELLED;
   }
@@ -443,7 +443,7 @@ static void decimate_graph_keys(bAnimContext *ac, float factor, float error_sq_m
   LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
     if (!decimate_fcurve(ale, factor, error_sq_max)) {
       /* The selection contains unsupported keyframe types! */
-      WM_report(RPT_WARNING, "Decimate: Skipping non linear/Bézier keyframes!");
+      WM_global_report(RPT_WARNING, "Decimate: Skipping non linear/Bézier keyframes!");
     }
 
     ale->update |= ANIM_UPDATE_DEFAULT;
@@ -457,8 +457,8 @@ static void decimate_graph_keys(bAnimContext *ac, float factor, float error_sq_m
 static void decimate_draw_status(bContext *C, tGraphSliderOp *gso)
 {
   WorkspaceStatus status(C);
-  status.item(IFACE_("Cancel"), ICON_EVENT_ESC);
   status.item(IFACE_("Confirm"), ICON_MOUSE_LMB);
+  status.item(IFACE_("Cancel"), ICON_EVENT_ESC);
   status.item(IFACE_("Adjust"), ICON_MOUSE_MOVE);
   if (hasNumInput(&gso->num)) {
     char str_ofs[NUM_STR_REP_LEN];
@@ -949,8 +949,8 @@ static void ease_draw_status_header(bContext *C, wmOperator *op)
 {
   tGraphSliderOp *gso = static_cast<tGraphSliderOp *>(op->customdata);
   WorkspaceStatus status(C);
-  status.item(IFACE_("Cancel"), ICON_EVENT_ESC);
   status.item(IFACE_("Confirm"), ICON_MOUSE_LMB);
+  status.item(IFACE_("Cancel"), ICON_EVENT_ESC);
   status.item(IFACE_("Adjust"), ICON_MOUSE_MOVE);
   if (hasNumInput(&gso->num)) {
     char str_ofs[NUM_STR_REP_LEN];
@@ -1319,10 +1319,10 @@ static void match_slope_graph_keys(bAnimContext *ac, const float factor)
 
   if (!all_segments_valid) {
     if (factor >= 0) {
-      WM_report(RPT_WARNING, "You need at least 2 keys to the right side of the selection");
+      WM_global_report(RPT_WARNING, "You need at least 2 keys to the right side of the selection");
     }
     else {
-      WM_report(RPT_WARNING, "You need at least 2 keys to the left side of the selection");
+      WM_global_report(RPT_WARNING, "You need at least 2 keys to the left side of the selection");
     }
   }
 
@@ -1552,8 +1552,8 @@ static void shear_graph_keys(bAnimContext *ac, const float factor, tShearDirecti
 static void shear_draw_status_header(bContext *C, tGraphSliderOp *gso, tShearDirection direction)
 {
   WorkspaceStatus status(C);
-  status.item(IFACE_("Cancel"), ICON_EVENT_ESC);
   status.item(IFACE_("Confirm"), ICON_MOUSE_LMB);
+  status.item(IFACE_("Cancel"), ICON_EVENT_ESC);
   status.item(IFACE_("Adjust"), ICON_MOUSE_MOVE);
   if (hasNumInput(&gso->num)) {
     char str_ofs[NUM_STR_REP_LEN];
@@ -2427,8 +2427,8 @@ static void scale_from_neighbor_draw_status_header(bContext *C, wmOperator *op)
 {
   tGraphSliderOp *gso = static_cast<tGraphSliderOp *>(op->customdata);
   WorkspaceStatus status(C);
-  status.item(IFACE_("Cancel"), ICON_EVENT_ESC);
   status.item(IFACE_("Confirm"), ICON_MOUSE_LMB);
+  status.item(IFACE_("Cancel"), ICON_EVENT_ESC);
   status.item(IFACE_("Adjust"), ICON_MOUSE_MOVE);
 
   if (hasNumInput(&gso->num)) {

@@ -15,6 +15,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_listbase.h"
 #include "BLI_map.hh"
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
@@ -305,7 +306,7 @@ static void pre_edit_bone_duplicate(ListBase *editbones)
  */
 static bPoseChannel *pchan_duplicate_map(
     const bPose *pose,
-    blender::Map<blender::StringRefNull, blender::StringRefNull> &name_map,
+    const blender::Map<blender::StringRefNull, blender::StringRefNull> &name_map,
     bPoseChannel *pchan_src)
 {
   bPoseChannel *pchan_dst = nullptr;
@@ -1796,7 +1797,8 @@ static int armature_bone_primitive_add_exec(bContext *C, wmOperator *op)
     BLI_assert_msg(bcoll_ref,
                    "Bone that is not visible due to its bone collections MUST be assigned to at "
                    "least one of them.");
-    WM_reportf(RPT_WARNING, "Bone was added to a hidden collection '%s'", bcoll_ref->bcoll->name);
+    WM_global_reportf(
+        RPT_WARNING, "Bone was added to a hidden collection '%s'", bcoll_ref->bcoll->name);
   }
 
   copy_v3_v3(bone->head, curs);

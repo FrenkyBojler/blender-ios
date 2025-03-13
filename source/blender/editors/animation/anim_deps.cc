@@ -21,6 +21,7 @@
 #include "DNA_space_types.h"
 #include "DNA_windowmanager_types.h"
 
+#include "BLI_listbase.h"
 #include "BLI_set.hh"
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
@@ -191,8 +192,13 @@ static void animchan_sync_fcurve_scene(bAnimListElem *ale)
   }
 
   /* Check if this strip is selected. */
-  Editing *ed = SEQ_editing_get(scene);
-  strip = SEQ_get_sequence_by_name(ed->seqbasep, strip_name, false);
+  Editing *ed = blender::seq::editing_get(scene);
+  if (ed == nullptr) {
+    /* The existence of the F-Curve doesn't imply the existence of the sequencer
+     * strip, or even the sequencer itself. */
+    return;
+  }
+  strip = blender::seq::get_sequence_by_name(ed->seqbasep, strip_name, false);
   if (strip == nullptr) {
     return;
   }
@@ -331,7 +337,6 @@ void ANIM_sync_animchannels_to_data(const bContext *C)
       case ANIMTYPE_DSPOINTCLOUD:
       case ANIMTYPE_DSVOLUME:
       case ANIMTYPE_SHAPEKEY:
-      case ANIMTYPE_GPDATABLOCK:
       case ANIMTYPE_GREASE_PENCIL_DATABLOCK:
       case ANIMTYPE_GREASE_PENCIL_LAYER_GROUP:
       case ANIMTYPE_MASKDATABLOCK:

@@ -8,6 +8,8 @@
 
 #pragma once
 
+#include "DNA_userdef_types.h"
+
 #include "ED_view3d.hh"
 
 #include "overlay_next_base.hh"
@@ -161,6 +163,7 @@ class Armatures : Overlay {
 
     armature_ps_.init();
     armature_ps_.bind_ubo(OVERLAY_GLOBALS_SLOT, &res.globals_buf);
+    armature_ps_.bind_ubo(DRW_CLIPPING_UBO_SLOT, &res.clip_planes_buf);
     res.select_bind(armature_ps_);
 
     /* Envelope distances and degrees of freedom need to be drawn first as they use additive
@@ -606,7 +609,7 @@ class Armatures : Overlay {
       }
       for (CustomShapeBuf item : bb.custom_shape_wire.items()) {
         /* WORKAROUND: This shape needs a special vertex shader path that should be triggered by
-         * its vclass attribute. However, to avoid many changes in the primitive expansion API,
+         * its `vclass` attribute. However, to avoid many changes in the primitive expansion API,
          * we create a specific path inside the shader only for this shape batch and infer the
          * value of the `vclass` attribute based on the vertex index. */
         if (item.key == arrow_batch) {

@@ -200,7 +200,7 @@ static void gesture_apply_for_symmetry_pass(bContext &C, gesture::GestureData &g
       break;
   }
   pbvh.tag_positions_changed(node_mask);
-  bke::pbvh::flush_bounds_to_parents(pbvh);
+  pbvh.flush_bounds_to_parents();
 }
 
 static void gesture_end(bContext &C, gesture::GestureData &gesture_data)
@@ -213,7 +213,7 @@ static void gesture_end(bContext &C, gesture::GestureData &gesture_data)
 static void init_operation(gesture::GestureData &gesture_data, wmOperator & /*op*/)
 {
   gesture_data.operation = reinterpret_cast<gesture::Operation *>(
-      MEM_cnew<ProjectOperation>(__func__));
+      MEM_callocN<ProjectOperation>(__func__));
 
   ProjectOperation *project_operation = (ProjectOperation *)gesture_data.operation;
 

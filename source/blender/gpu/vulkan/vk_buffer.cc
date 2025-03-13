@@ -79,8 +79,15 @@ bool VKBuffer::create(size_t size_in_bytes,
 
 void VKBuffer::update_immediately(const void *data) const
 {
+  update_sub_immediately(0, size_in_bytes_, data);
+}
+
+void VKBuffer::update_sub_immediately(size_t start_offset,
+                                      size_t data_size,
+                                      const void *data) const
+{
   BLI_assert_msg(is_mapped(), "Cannot update a non-mapped buffer.");
-  memcpy(mapped_memory_, data, size_in_bytes_);
+  memcpy(static_cast<uint8_t *>(mapped_memory_) + start_offset, data, data_size);
 }
 
 void VKBuffer::update_render_graph(VKContext &context, void *data) const
@@ -109,9 +116,32 @@ void VKBuffer::clear(VKContext &context, uint32_t clear_value)
   context.render_graph().add_node(fill_buffer);
 }
 
-void VKBuffer::read(VKContext &context, void *data) const
+void VKBuffer::async_flush_to_host(VKContext &context)
+{
+  BLI_assert(async_timeline_ == 0);
+  context.rendering_end();
+  context.descriptor_set_get().upload_descriptor_sets();
+  async_timeline_ = context.flush_render_graph(RenderGraphFlushFlags::SUBMIT |
+                                               RenderGraphFlushFlags::RENEW_RENDER_GRAPH);
+}
+
+void VKBuffer::read_async(VKContext &context, void *data)
 {
   BLI_assert_msg(is_mapped(), "Cannot read a non-mapped buffer.");
+  if (async_timeline_ == 0) {
+    async_flush_to_host(context);
+  }
+  VKDevice &device = VKBackend::get().device;
+  device.wait_for_timeline(async_timeline_);
+  async_timeline_ = 0;
+  memcpy(data, mapped_memory_, size_in_bytes_);
+}
+
+void VKBuffer::read(VKContext &context, void *data) const
+{
+
+  BLI_assert_msg(is_mapped(), "Cannot read a non-mapped buffer.");
+  BLI_assert(async_timeline_ == 0);
   context.rendering_end();
   context.descriptor_set_get().upload_descriptor_sets();
   context.flush_render_graph(RenderGraphFlushFlags::SUBMIT |

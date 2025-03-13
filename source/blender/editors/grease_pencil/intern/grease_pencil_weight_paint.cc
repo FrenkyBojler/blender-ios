@@ -17,6 +17,7 @@
 #include "BKE_paint.hh"
 #include "BKE_report.hh"
 
+#include "BLI_listbase.h"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
 
@@ -299,7 +300,7 @@ static int lookup_or_add_deform_group_index(CurvesGeometry &curves, const String
 
   /* Lazily add the vertex group. */
   if (def_nr == -1) {
-    bDeformGroup *defgroup = MEM_cnew<bDeformGroup>(__func__);
+    bDeformGroup *defgroup = MEM_callocN<bDeformGroup>(__func__);
     name.copy_utf8_truncated(defgroup->name);
     BLI_addtail(&curves.vertex_group_names, defgroup);
     def_nr = BLI_listbase_count(&curves.vertex_group_names) - 1;
@@ -447,8 +448,8 @@ void add_armature_automatic_weights(Scene &scene, Object &object, const Object &
 
 struct ClosestGreasePencilDrawing {
   const bke::greasepencil::Drawing *drawing = nullptr;
-  int active_defgroup_index;
-  ed::curves::FindClosestData elem = {};
+  int active_defgroup_index = -1;
+  ed::curves::FindClosestData elem;
 };
 
 static int weight_sample_invoke(bContext *C, wmOperator * /*op*/, const wmEvent *event)
