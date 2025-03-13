@@ -56,6 +56,43 @@
 #include "CLG_log.h"
 static CLG_LogRef LOG = {"io.fbx"};
 
+//@TODO remove debug file print once things are working properly
+#define DO_DEBUG_PRINT
+
+#ifdef DO_DEBUG_PRINT
+static FILE *g_debug_file;
+
+static double adjf(double f)
+{
+  if (fabs(f) < 0.0005) {
+    return 0.0;
+  }
+  return f;
+}
+
+static void print_matrix(const ufbx_matrix &m)
+{
+  fprintf(g_debug_file,
+          "    (%.3f %.3f %.3f %.3f)\n",
+          adjf(m.cols[0].x),
+          adjf(m.cols[1].x),
+          adjf(m.cols[2].x),
+          adjf(m.cols[3].x));
+  fprintf(g_debug_file,
+          "    (%.3f %.3f %.3f %.3f)\n",
+          adjf(m.cols[0].y),
+          adjf(m.cols[1].y),
+          adjf(m.cols[2].y),
+          adjf(m.cols[3].y));
+  fprintf(g_debug_file,
+          "    (%.3f %.3f %.3f %.3f)\n",
+          adjf(m.cols[0].z),
+          adjf(m.cols[1].z),
+          adjf(m.cols[2].z),
+          adjf(m.cols[3].z));
+}
+#endif
+
 namespace blender::io::fbx {
 
 struct FbxImportContext {
@@ -71,6 +108,26 @@ struct FbxImportContext {
     char basedir[FILE_MAX];
     BLI_path_split_dir_part(params.filepath, basedir, sizeof(basedir));
     base_dir = basedir;
+
+    ufbx_transform root_tr;
+    root_tr.translation = ufbx_zero_vec3;
+    root_tr.rotation = this->fbx.metadata.root_rotation;
+    root_tr.scale.x = root_tr.scale.y = root_tr.scale.z = this->fbx.metadata.root_scale;
+    this->mapping.global_conv_matrix = ufbx_transform_to_matrix(&root_tr);
+
+#ifdef DO_DEBUG_PRINT
+    std::string debug_file_path = params.filepath;
+    debug_file_path = debug_file_path.substr(0, debug_file_path.size() - 4) + "-dbg-b.txt";
+    g_debug_file = BLI_fopen(debug_file_path.c_str(), "wb");
+#endif
+  }
+
+  ~FbxImportContext()
+  {
+#ifdef DO_DEBUG_PRINT
+    if (g_debug_file)
+      fclose(g_debug_file);
+#endif
   }
 
   void import_globals(Scene *scene);
@@ -85,10 +142,11 @@ struct FbxImportContext {
   void setup_hierarchy();
   Object *create_armature_for_node(const ufbx_node *node);
   void find_armatures(const ufbx_node *node);
+  void calc_bone_bind_matrices();
   void create_armature_bones(const ufbx_node *node,
                              Object *arm_obj,
                              EditBone *parent_bone,
-                             const ufbx_matrix &parent_bind_mtx,
+                             const ufbx_matrix &parent_mtx,
                              const ufbx_matrix &world_to_arm,
                              const float parent_bone_size);
 };
@@ -131,6 +189,14 @@ static void m44_to_matrix(const float src[4][4], ufbx_matrix &dst)
 
 static void ufbx_matrix_to_obj(const ufbx_matrix &mtx, Object *obj, bool use_parent_matrix = false)
 {
+#ifdef DO_DEBUG_PRINT
+  fprintf(g_debug_file,
+          "ufbx: set matrix of %s to (use parent = %i):\n",
+          obj->id.name,
+          use_parent_matrix);
+  print_matrix(mtx);
+#endif
+
   float obmat[4][4];
   matrix_to_m44(mtx, obmat);
   BKE_object_apply_mat4(obj, obmat, true, use_parent_matrix);
@@ -733,6 +799,9 @@ Object *FbxImportContext::create_armature_for_node(const ufbx_node *node)
 
   const char *arm_name = node ? get_fbx_name(node->name, "Armature") : "Armature";
   const char *obj_name = node ? get_fbx_name(node->name, "Armature") : "Armature";
+#ifdef DO_DEBUG_PRINT
+  fprintf(g_debug_file, "create ARMATURE %s\n", arm_name);
+#endif
 
   bArmature *arm = BKE_armature_add(this->bmain, arm_name);
   obj = BKE_object_add_only_object(this->bmain, OB_ARMATURE, obj_name);
@@ -746,14 +815,8 @@ Object *FbxImportContext::create_armature_for_node(const ufbx_node *node)
   }
   else {
     /* For armatures created at root, make them have the same rotation/scale
-     * as done by ufbx for all regular nodes. ufbx puts coordinate conversion
-     * rotation/scale info into metadata. */
-    ufbx_transform root_tr;
-    root_tr.translation = ufbx_zero_vec3;
-    root_tr.rotation = this->fbx.metadata.root_rotation;
-    root_tr.scale.x = root_tr.scale.y = root_tr.scale.z = this->fbx.metadata.root_scale;
-    ufbx_matrix root_mtx = ufbx_transform_to_matrix(&root_tr);
-    ufbx_matrix_to_obj(root_mtx, obj);
+     * as done by ufbx for all regular nodes. */
+    ufbx_matrix_to_obj(this->mapping.global_conv_matrix, obj);
     this->mapping.armatures_created_at_root.add(obj);
   }
   return obj;
@@ -762,7 +825,7 @@ Object *FbxImportContext::create_armature_for_node(const ufbx_node *node)
 void FbxImportContext::create_armature_bones(const ufbx_node *node,
                                              Object *arm_obj,
                                              EditBone *parent_bone,
-                                             const ufbx_matrix &parent_bind_mtx,
+                                             const ufbx_matrix &parent_mtx,
                                              const ufbx_matrix &world_to_arm,
                                              const float parent_bone_size)
 {
@@ -777,24 +840,26 @@ void FbxImportContext::create_armature_bones(const ufbx_node *node,
 
   this->mapping.bone_to_armature.add(node, arm_obj);
 
-  ufbx_matrix bind_mtx = parent_bind_mtx;
-  const ufbx_matrix *bone_bind_mtx = this->mapping.bone_to_bind_matrix.lookup_ptr(node);
-  if (bone_bind_mtx) {
-    bind_mtx = *bone_bind_mtx;
-  }
-  else {
-    /* We might not have a bind matrix for leaf bones, or ones that are not skinned to any
-     * vertices. Derive it from parent, offseting by bone tail. */
-    if (parent_bone) {
-      ufbx_matrix offset_mat = ufbx_identity_matrix;
-      offset_mat.cols[3].x = parent_bone->tail[0];
-      offset_mat.cols[3].y = parent_bone->tail[1];
-      offset_mat.cols[3].z = parent_bone->tail[2];
-      bind_mtx = ufbx_matrix_mul(&offset_mat, &bind_mtx);
-    }
-    this->mapping.bone_to_bind_matrix.add(node, bind_mtx);
-  }
-  ufbx_matrix bone_mtx = ufbx_matrix_mul(&world_to_arm, &bind_mtx);
+#ifdef DO_DEBUG_PRINT
+  fprintf(g_debug_file,
+          "create BONE %s (parent %s) parent_mtx:\n",
+          node->name.data,
+          parent_bone ? parent_bone->name : "");
+  print_matrix(parent_mtx);
+#endif
+
+  const ufbx_matrix *bind_mtx = this->mapping.bone_to_bind_matrix.lookup_ptr(node);
+  BLI_assert_msg(bind_mtx, "fbx: did not find bind matrix for bone");
+  ufbx_matrix bone_mtx = bind_mtx ? *bind_mtx : ufbx_identity_matrix;
+
+  bone_mtx = ufbx_matrix_mul(&world_to_arm, &bone_mtx);
+  bone_mtx.cols[0] = ufbx_vec3_normalize(bone_mtx.cols[0]);
+  bone_mtx.cols[1] = ufbx_vec3_normalize(bone_mtx.cols[1]);
+  bone_mtx.cols[2] = ufbx_vec3_normalize(bone_mtx.cols[2]);
+#ifdef DO_DEBUG_PRINT
+  fprintf(g_debug_file, "  bone_mtx:\n");
+  print_matrix(bone_mtx);
+#endif
 
   /* Calculate bone tail position. */
   float bone_size = 0.0f;
@@ -811,7 +876,14 @@ void FbxImportContext::create_armature_bones(const ufbx_node *node,
     bone_size /= child_bone_count;
   }
   else {
+    /* This is leaf bone, set length to parent bone length. */
     bone_size = parent_bone_size;
+    /* If we do not have actual pose/skin matrix for it, use parent at tail position. */
+    if (!this->mapping.bone_has_pose_or_skin_matrix.contains(node)) {
+      ufbx_matrix offset_mtx = ufbx_identity_matrix;
+      offset_mtx.cols[3].y = parent_bone_size;
+      bone_mtx = ufbx_matrix_mul(&parent_mtx, &offset_mtx);
+    }
   }
   /* Zero length bones are automatically collapsed into their parent when you leave edit mode,
    * so enforce a minimum length. */
@@ -823,8 +895,18 @@ void FbxImportContext::create_armature_bones(const ufbx_node *node,
   /* Set bone matrix. */
   float bone_matrix[4][4];
   matrix_to_m44(bone_mtx, bone_matrix);
-  normalize_m4(bone_matrix);
   ED_armature_ebone_from_mat4(bone, bone_matrix);
+#ifdef DO_DEBUG_PRINT
+  fprintf(g_debug_file,
+          "  length %.3f head (%.3f %.3f %.3f) tail (%.3f %.3f %.3f)\n",
+          adjf(bone_size),
+          adjf(bone->head[0]),
+          adjf(bone->head[1]),
+          adjf(bone->head[2]),
+          adjf(bone->tail[0]),
+          adjf(bone->tail[1]),
+          adjf(bone->tail[2]));
+#endif
 
   /* Recurse into child bones. */
   for (const ufbx_node *fchild : node->children) {
@@ -838,7 +920,7 @@ void FbxImportContext::create_armature_bones(const ufbx_node *node,
       }
     }
     if (!skip_child) {
-      create_armature_bones(fchild, arm_obj, bone, bind_mtx, world_to_arm, bone_size);
+      create_armature_bones(fchild, arm_obj, bone, bone_mtx, world_to_arm, bone_size);
     }
   }
 }
@@ -891,12 +973,13 @@ void FbxImportContext::find_armatures(const ufbx_node *node)
   }
 }
 
-void FbxImportContext::import_armatures()
+void FbxImportContext::calc_bone_bind_matrices()
 {
-/* Figure out bind matrices for bone nodes:
- * - From "pose" objects in FBX that are marked as "bind pose",
- * - From all "skin deformer" objects in FBX; matrix from them overrides data from poses. */
-#if 0
+  /* Figure out bind matrices for bone nodes:
+   * - Get them from "pose" objects in FBX that are marked as "bind pose",
+   * - From all "skin deformer" objects in FBX; these override the ones from "poses".
+   * - For all the bone nodes that do not have a matrix yet, record their world matrix
+   *   as bind matrix. */
   for (const ufbx_pose *fpose : this->fbx.poses) {
     if (!fpose->is_bind_pose) {
       continue;
@@ -904,15 +987,43 @@ void FbxImportContext::import_armatures()
     for (const ufbx_bone_pose &bone_pose : fpose->bone_poses) {
       const ufbx_matrix &bind_matrix = bone_pose.bone_to_world;
       this->mapping.bone_to_bind_matrix.add_overwrite(bone_pose.bone_node, bind_matrix);
+      this->mapping.bone_has_pose_or_skin_matrix.add(bone_pose.bone_node);
+#ifdef DO_DEBUG_PRINT
+      fprintf(g_debug_file, "bone POSE matrix %s\n", bone_pose.bone_node->name.data);
+      print_matrix(bind_matrix);
+#endif
     }
   }
-#endif
+
   for (const ufbx_skin_deformer *fskin : this->fbx.skin_deformers) {
     for (const ufbx_skin_cluster *fbone : fskin->clusters) {
       const ufbx_matrix &bind_matrix = fbone->bind_to_world;
       this->mapping.bone_to_bind_matrix.add_overwrite(fbone->bone_node, bind_matrix);
+      this->mapping.bone_has_pose_or_skin_matrix.add(fbone->bone_node);
+#ifdef DO_DEBUG_PRINT
+      fprintf(g_debug_file, "bone SKIN matrix %s\n", fbone->bone_node->name.data);
+      print_matrix(bind_matrix);
+#endif
     }
   }
+
+  for (const ufbx_bone *fbone : this->fbx.bones) {
+    if (fbone->instances.count != 0) {
+      const ufbx_node *bone_node = fbone->instances[0];
+      const ufbx_matrix &bind_matrix = bone_node->node_to_world;
+      if (this->mapping.bone_to_bind_matrix.add(bone_node, bind_matrix)) {
+#ifdef DO_DEBUG_PRINT
+        fprintf(g_debug_file, "bone NODE matrix %s\n", bone_node->name.data);
+        print_matrix(bind_matrix);
+#endif
+      }
+    }
+  }
+}
+
+void FbxImportContext::import_armatures()
+{
+  calc_bone_bind_matrices();
 
   /* Create blender armatures at:
    * - "Root" bones,

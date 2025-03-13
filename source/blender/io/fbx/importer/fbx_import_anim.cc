@@ -96,7 +96,7 @@ static Vector<ElementAnimations> gather_animated_properties(const ufbx_scene &fb
         //@TODO: "Visibility"?
         const bool is_position = STREQ(fprop.prop_name.data, "Lcl Translation");
         const bool is_rotation = STREQ(fprop.prop_name.data, "Lcl Rotation");
-        const bool is_scale = STREQ(fprop.prop_name.data, "Lcl Scale");
+        const bool is_scale = STREQ(fprop.prop_name.data, "Lcl Scaling");
         const bool is_blend_shape = STREQ(fprop.prop_name.data, "DeformPercent");
         if (is_position || is_rotation || is_scale || is_blend_shape) {
           supported_prop = true;
@@ -217,19 +217,10 @@ static void create_transform_curves(const FbxElementMapping &mapping,
      * in joint-local space:
      * - Calculate local space bind matrix: inv(parent_bind) * bind
      * - Invert the result; this will be used to transform loc/rot/scale curves. */
-    const ufbx_matrix *bind_mtx = mapping.bone_to_bind_matrix.lookup_ptr(fnode);
-    BLI_assert_msg(bind_mtx != nullptr, "fbx: did not find bind matrix for bone");
-    if (bind_mtx) {
-      bone_xform = *bind_mtx;
-      if (fnode->parent != nullptr) {
-        const ufbx_matrix *parent_bind_mtx = mapping.bone_to_bind_matrix.lookup_ptr(fnode->parent);
-        if (parent_bind_mtx) {
-          ufbx_matrix parent_inv_bind_mtx = ufbx_matrix_invert(parent_bind_mtx);
-          bone_xform = ufbx_matrix_mul(&parent_inv_bind_mtx, bind_mtx);
-        }
-      }
-      bone_xform = ufbx_matrix_invert(&bone_xform);
-    }
+    bool found = false;
+    bone_xform = mapping.calc_local_bind_matrix(fnode, ufbx_identity_matrix, found);
+    bone_xform = ufbx_matrix_invert(&bone_xform);
+    BLI_assert_msg(found, "fbx: did not find bind matrix for bone curve");
   }
 
   std::string rna_position = rna_prefix + "location";
