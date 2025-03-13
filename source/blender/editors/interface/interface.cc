@@ -299,6 +299,14 @@ uiBut *uiBlock::last_but() const
   return !this->buttons.is_empty() ? this->buttons.last().get() : nullptr;
 }
 
+static rctf ui_to_pixel_rctf(const ARegion *region, const uiBlock *block, const rctf &src_rect)
+{
+  rctf rectf;
+  ui_block_to_window_rctf(region, block, &rectf, &src_rect);
+  BLI_rctf_translate(&rectf, -region->winrct.xmin, -region->winrct.ymin);
+  return rectf;
+}
+
 static void ui_update_flexible_spacing(const ARegion *region, uiBlock *block)
 {
   int sepr_flex_len = 0;
@@ -312,8 +320,7 @@ static void ui_update_flexible_spacing(const ARegion *region, uiBlock *block)
     return;
   }
 
-  rcti rect;
-  ui_but_to_pixelrect(&rect, region, block, block->buttons.last().get());
+  rctf rect = ui_to_pixel_rctf(region, block, block->buttons.last()->rect);
   const float buttons_width = float(rect.xmax) + UI_HEADER_OFFSET;
   const float region_width = float(region->sizex) * UI_SCALE_FAC;
 
@@ -322,10 +329,10 @@ static void ui_update_flexible_spacing(const ARegion *region, uiBlock *block)
   }
 
   /* We could get rid of this loop if we agree on a max number of spacer */
-  Vector<int, 8> spacers_pos;
+  Vector<float, 8> spacers_pos;
   for (const std::unique_ptr<uiBut> &but : block->buttons) {
     if (but->type == UI_BTYPE_SEPR_SPACER) {
-      ui_but_to_pixelrect(&rect, region, block, but.get());
+      rect = ui_to_pixel_rctf(region, block, but->rect);
       spacers_pos.append(rect.xmax + UI_HEADER_OFFSET);
     }
   }
@@ -335,14 +342,14 @@ static void ui_update_flexible_spacing(const ARegion *region, uiBlock *block)
   float offset = 0, remaining_space = region_width - buttons_width;
   int i = 0;
   for (const std::unique_ptr<uiBut> &but : block->buttons) {
-    BLI_rctf_translate(&but->rect, offset / view_scale_x, 0);
+    BLI_rctf_translate(&but->rect, std::floor(offset / view_scale_x), 0);
     if (but->type == UI_BTYPE_SEPR_SPACER) {
       /* How much the next block overlap with the current segment */
-      int overlap = ((i == sepr_flex_len - 1) ? buttons_width - spacers_pos[i] :
-                                                (spacers_pos[i + 1] - spacers_pos[i]) / 2);
-      const int segment_end = segment_width * (i + 1);
-      const int spacer_end = segment_end - overlap;
-      const int spacer_sta = spacers_pos[i] + offset;
+      float overlap = ((i == sepr_flex_len - 1) ? buttons_width - spacers_pos[i] :
+                                                  (spacers_pos[i + 1] - spacers_pos[i]) / 2);
+      const float segment_end = segment_width * float(i + 1);
+      const float spacer_end = segment_end - overlap;
+      const float spacer_sta = spacers_pos[i] + offset;
       if (spacer_end > spacer_sta) {
         const float step = min_ff(remaining_space, spacer_end - spacer_sta);
         remaining_space -= step;
