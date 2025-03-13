@@ -114,7 +114,7 @@ static void rna_ShapeKey_value_set(PointerRNA *ptr, float value)
   if (data->slidermax < value) {
     rna_ShapeKey_slider_max_set(ptr, value);
   }
-  else if (data->slidermin > value) {
+  if (data->slidermin > value) {
     rna_ShapeKey_slider_min_set(ptr, value);
   }
 
@@ -979,7 +979,8 @@ static void rna_def_keyblock(BlenderRNA *brna)
   RNA_def_property_float_sdna(prop, nullptr, "curval");
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_range(prop, -FLT_MAX, FLT_MAX);
-  /* The soft limit is changed dynamically, but it needs an initial range. */
+  /* The soft limit is changed dynamically on rna_ShapeKey_value_set,
+   * but it needs an initial range. */
   RNA_def_property_ui_range(prop, 0.0f, 1.0f, 10, 3);
   RNA_def_property_float_funcs(prop, nullptr, "rna_ShapeKey_value_set", nullptr);
   RNA_def_property_ui_text(prop, "Value", "Value of shape key at the current frame");
