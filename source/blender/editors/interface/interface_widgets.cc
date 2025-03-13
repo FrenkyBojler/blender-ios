@@ -1374,7 +1374,8 @@ static void widget_draw_icon(
     /* Get theme color. */
     uchar color[4] = {mono_color[0], mono_color[1], mono_color[2], mono_color[3]};
     const bTheme *btheme = UI_GetTheme();
-    const bool has_theme = UI_icon_get_theme_color(int(icon), color);
+    /* Only use theme colors if the button doesn't override the color. */
+    const bool has_theme = !but->col[3] && UI_icon_get_theme_color(int(icon), color);
     const bool outline = btheme->tui.icon_border_intensity > 0.0f && has_theme;
 
     /* to indicate draggable */

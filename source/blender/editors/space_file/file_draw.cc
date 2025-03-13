@@ -443,6 +443,28 @@ static uiBut *file_add_icon_but(const SpaceFile *sfile,
   return but;
 }
 
+static uiBut *file_add_overlay_icon_but(uiBlock *block, int pos_x, int pos_y, int icon)
+{
+  uiBut *but = uiDefIconBut(block,
+                            UI_BTYPE_LABEL,
+                            0,
+                            icon,
+                            pos_x,
+                            pos_y,
+                            ICON_DEFAULT_WIDTH_SCALE,
+                            ICON_DEFAULT_HEIGHT_SCALE,
+                            nullptr,
+                            0.0f,
+                            0.0f,
+                            std::nullopt);
+  /* Otherwise a left hand padding will be added. */
+  UI_but_drawflag_disable(but, UI_BUT_ICON_LEFT);
+  UI_but_label_alpha_factor_set(but, 0.6f);
+  UI_but_color_set(but, (uchar[]){255, 255, 255, 255});
+
+  return but;
+}
+
 static void file_draw_string(int sx,
                              int sy,
                              const char *string,
@@ -1332,11 +1354,12 @@ void file_draw_list(const bContext *C, ARegion *region)
       }
     }
     else {
+      const bool filelist_loading = !filelist_is_ready(files);
       const BIFIconID icon = [&]() {
         if (file->asset) {
           file->asset->ensure_previewable();
 
-          if (!filelist_is_ready(files)) {
+          if (filelist_loading) {
             return BIFIconID(ICON_PREVIEW_LOADING);
           }
           return blender::ed::asset::asset_preview_or_icon(*file->asset);
@@ -1386,6 +1409,14 @@ void file_draw_list(const bContext *C, ARegion *region)
         /* For some reason the dragging is unreliable for the icon button if we don't explicitly
          * enable dragging, even though the dummy drag button above covers the same area. */
         file_but_enable_drag(icon_but, sfile, file, path, nullptr, icon, UI_SCALE_FAC);
+      }
+
+      if (layout->prv_w >= round_fl_to_int(ICON_DEFAULT_WIDTH_SCALE * 2) &&
+          (filelist_loading || icon >= BIFICONID_LAST_STATIC))
+      {
+        const BIFIconID type_icon = filelist_geticon_file_type(files, i, true);
+        file_add_overlay_icon_but(
+            block, tile_draw_rect.xmin + padx - 2, tile_draw_rect.ymin - 1, type_icon);
       }
     }
 
