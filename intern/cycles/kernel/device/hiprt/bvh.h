@@ -99,6 +99,11 @@ ccl_device_intersect bool scene_intersect_local(KernelGlobals kg,
     local_isect->num_hits = 0;
   }
 
+  int type = kernel_data_fetch(objects, local_object).primitive_type;
+  if (!(type & PRIMITIVE_MOTION_TRIANGLE)) {
+    return false;
+  }
+
   const int object_flag = kernel_data_fetch(object_flag, local_object);
   if (!(object_flag & SD_OBJECT_TRANSFORM_APPLIED)) {
 
