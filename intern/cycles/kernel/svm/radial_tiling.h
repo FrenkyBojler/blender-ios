@@ -12,6 +12,7 @@ struct RoundedPolygonStackOffsets {
   uint r_gon_roundness;
   uint irregular_r_gon_corner_shape;
   uint segment_coordinates;
+  uint segment_id;
   uint max_unit_parameter;
   uint x_axis_A_angle_bisector;
 };
@@ -31,44 +32,57 @@ ccl_device_noinline int svm_node_radial_tiling(
 {
   RoundedPolygonStackOffsets so;
 
-  uint normalize_r_gon_parameter;
+  uint normalize_r_gon_parameter = node.y;
 
-  svm_unpack_node_uchar4(node.y,
-                         &(normalize_r_gon_parameter),
+  svm_unpack_node_uchar4(node.z,
                          &(so.vector),
                          &(so.r_gon_sides),
-                         &(so.r_gon_roundness));
-  svm_unpack_node_uchar4(node.z,
-                         &(so.irregular_r_gon_corner_shape),
+                         &(so.r_gon_roundness),
+                         &(so.irregular_r_gon_corner_shape));
+  svm_unpack_node_uchar4(node.w,
                          &(so.segment_coordinates),
+                         &(so.segment_id),
                          &(so.max_unit_parameter),
                          &(so.x_axis_A_angle_bisector));
 
   bool calculate_r_gon_parameter_field = stack_valid(so.segment_coordinates);
+  bool calculate_segment_id = stack_valid(so.segment_id);
   bool calculate_max_unit_parameter = stack_valid(so.max_unit_parameter);
+  bool calculate_x_axis_A_angle_bisector = stack_valid(so.x_axis_A_angle_bisector);
 
   float3 coord = stack_load_float3(stack, so.vector);
   float r_gon_sides = stack_load_float(stack, so.r_gon_sides);
   float r_gon_roundness = stack_load_float(stack, so.r_gon_roundness);
   float irregular_r_gon_corner_shape = stack_load_float(stack, so.irregular_r_gon_corner_shape);
 
-  float4 out_variables = calculate_out_variables(calculate_r_gon_parameter_field,
-                                                 calculate_max_unit_parameter,
-                                                 normalize_r_gon_parameter,
-                                                 fmaxf(r_gon_sides, 2.0f),
-                                                 clamp(r_gon_roundness, 0.0f, 1.0f),
-                                                 clamp(irregular_r_gon_corner_shape, 0.0f, 1.0f),
-                                                 make_float2(coord.x, coord.y));
+  if (calculate_r_gon_parameter_field || calculate_max_unit_parameter ||
+      calculate_x_axis_A_angle_bisector)
+  {
+    float4 out_variables = calculate_out_variables(calculate_r_gon_parameter_field,
+                                                   calculate_max_unit_parameter,
+                                                   normalize_r_gon_parameter,
+                                                   fmaxf(r_gon_sides, 2.0f),
+                                                   clamp(r_gon_roundness, 0.0f, 1.0f),
+                                                   clamp(irregular_r_gon_corner_shape, 0.0f, 1.0f),
+                                                   make_float2(coord.x, coord.y));
 
-  if (stack_valid(so.segment_coordinates)) {
-    stack_store_float3(
-        stack, so.segment_coordinates, make_float3(out_variables.y, out_variables.x, 0.0));
+    if (calculate_r_gon_parameter_field) {
+      stack_store_float3(
+          stack, so.segment_coordinates, make_float3(out_variables.y, out_variables.x, 0.0f));
+    }
+    if (calculate_max_unit_parameter) {
+      stack_store_float(stack, so.max_unit_parameter, out_variables.z);
+    }
+    if (calculate_x_axis_A_angle_bisector) {
+      stack_store_float(stack, so.x_axis_A_angle_bisector, out_variables.w);
+    }
   }
-  if (stack_valid(so.max_unit_parameter)) {
-    stack_store_float(stack, so.max_unit_parameter, out_variables.z);
-  }
-  if (stack_valid(so.x_axis_A_angle_bisector)) {
-    stack_store_float(stack, so.x_axis_A_angle_bisector, out_variables.w);
+
+  if (calculate_segment_id) {
+    stack_store_float(
+        stack,
+        so.max_unit_parameter,
+        calculate_out_segment_id(fmaxf(r_gon_sides, 2.0f), make_float2(coord.x, coord.y)));
   }
 
   return offset;

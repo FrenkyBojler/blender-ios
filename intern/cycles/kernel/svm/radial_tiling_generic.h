@@ -1504,12 +1504,20 @@ ccl_device float4 calculate_out_variables(bool calculate_r_gon_parameter_field,
     }
   }
 
-  out_variables.x -= float(1.0);
   if (normalize_r_gon_parameter) {
     out_variables.y = float(0.5) * out_variables.y + float(0.5);
   }
+  else {
+    out_variables.x -= float(1.0);
+  }
 
   return out_variables;
+}
+
+ccl_device float calculate_out_segment_id(float r_gon_sides, float2 coord)
+{
+  return floorf(r_gon_sides *
+                ((atan2f(coord.y, coord.x) / M_TAU_F) + float(coord.y < float(0.0))));
 }
 
 /* Undefine macros used for code translation. */

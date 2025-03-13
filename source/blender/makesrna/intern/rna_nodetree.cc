@@ -6529,7 +6529,8 @@ static void def_sh_radial_tiling(BlenderRNA * /*brna*/, StructRNA *srna)
   RNA_def_property_ui_text(
       prop,
       "Normalize",
-      "Normalize the X-coordinate of the Segment Coordinates output to a [0, 1] interval");
+      "Normalize the X-coordinate of the Segment Coordinates output to a [0, 1] interval and "
+      "offset the Y-coordinate into a [0, infinity) interval");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 }
 

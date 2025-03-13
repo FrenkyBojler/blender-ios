@@ -7555,6 +7555,7 @@ NODE_DEFINE(RadialTilingNode)
   SOCKET_IN_FLOAT(irregular_r_gon_corner_shape, "Irregular R_gon Corner Shape", 0.0f);
 
   SOCKET_OUT_POINT(segment_coordinates, "Segment Coordinates");
+  SOCKET_OUT_FLOAT(segment_id, "Segment ID");
   SOCKET_OUT_FLOAT(max_unit_parameter, "Max Unit Parameter");
   SOCKET_OUT_FLOAT(x_axis_A_angle_bisector, "X_axis To Angle Bisector Angle");
 
@@ -7570,19 +7571,20 @@ void RadialTilingNode::compile(SVMCompiler &compiler)
   ShaderInput *r_gon_roundness_in = input("R_gon Roundness");
   ShaderInput *irregular_r_gon_corner_shape_in = input("Irregular R_gon Corner Shape");
   ShaderOutput *segment_coordinates_out = output("Segment Coordinates");
+  ShaderOutput *segment_id_out = output("Segment ID");
   ShaderOutput *max_unit_parameter_out = output("Max Unit Parameter");
   ShaderOutput *x_axis_A_angle_bisector_out = output("X_axis To Angle Bisector Angle");
 
   compiler.add_node(NODE_RADIAL_TILING,
-                    compiler.encode_uchar4(normalize_r_gon_parameter,
-                                           compiler.stack_assign(vector_in),
+                    normalize_r_gon_parameter,
+                    compiler.encode_uchar4(compiler.stack_assign(vector_in),
                                            compiler.stack_assign(r_gon_sides_in),
-                                           compiler.stack_assign(r_gon_roundness_in)),
-                    compiler.encode_uchar4(compiler.stack_assign(irregular_r_gon_corner_shape_in),
-                                           compiler.stack_assign(segment_coordinates_out),
+                                           compiler.stack_assign(r_gon_roundness_in),
+                                           compiler.stack_assign(irregular_r_gon_corner_shape_in)),
+                    compiler.encode_uchar4(compiler.stack_assign(segment_coordinates_out),
+                                           compiler.stack_assign(segment_id_out),
                                            compiler.stack_assign(max_unit_parameter_out),
-                                           compiler.stack_assign(x_axis_A_angle_bisector_out)),
-                    SVM_STACK_INVALID);
+                                           compiler.stack_assign(x_axis_A_angle_bisector_out)));
 }
 
 void RadialTilingNode::compile(OSLCompiler &compiler)

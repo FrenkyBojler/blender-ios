@@ -25,6 +25,7 @@ static void sh_node_radial_tiling_declare(NodeDeclarationBuilder &b)
   b.is_function_node();
 
   b.add_output<decl::Vector>("Segment Coordinates").no_muted_links();
+  b.add_output<decl::Float>("Segment ID").no_muted_links();
   b.add_output<decl::Float>("Max Unit Parameter").no_muted_links();
   b.add_output<decl::Float>("X_axis To Angle Bisector Angle").no_muted_links();
 
@@ -35,7 +36,9 @@ static void sh_node_radial_tiling_declare(NodeDeclarationBuilder &b)
       .min(2.0f)
       .max(1000.0f)
       .default_value(5.0f)
-      .description("Number of rounded polygon sides");
+      .description(
+          "Number of angular segments for tiling. A non-integer value results in an irregular "
+          "segment with an irregular corner");
   b.add_input<decl::Float>("R_gon Roundness")
       .min(0.0f)
       .max(1.0f)
@@ -48,7 +51,8 @@ static void sh_node_radial_tiling_declare(NodeDeclarationBuilder &b)
       .default_value(0.0f)
       .subtype(PROP_FACTOR)
       .description(
-          "Shape of the irregular rounded corner, if existent. A value of 0 results in a circular "
+          "Shape of the irregular rounded corner, if the Segments input is not an integer. A "
+          "value of 0 results in a circular "
           "corner while a value of 1 results in an elliptical corner");
 }
 
@@ -84,7 +88,9 @@ static int node_shader_gpu_radial_tiling(GPUMaterial *mat,
   const NodeRadialTiling &storage = node_storage(*node);
   float normalize_r_gon_parameter = storage.normalize_r_gon_parameter;
   float calculate_r_gon_parameter_field = out[0].hasoutput;
-  float calculate_max_unit_parameter = out[1].hasoutput;
+  float calculate_segment_id = out[1].hasoutput;
+  float calculate_max_unit_parameter = out[2].hasoutput;
+  float calculate_x_axis_A_angle_bisector = out[3].hasoutput;
 
   const char *name = gpu_shader_get_name();
 
@@ -95,7 +101,9 @@ static int node_shader_gpu_radial_tiling(GPUMaterial *mat,
                         out,
                         GPU_constant(&normalize_r_gon_parameter),
                         GPU_constant(&calculate_r_gon_parameter_field),
-                        GPU_constant(&calculate_max_unit_parameter));
+                        GPU_constant(&calculate_segment_id),
+                        GPU_constant(&calculate_max_unit_parameter),
+                        GPU_constant(&calculate_x_axis_A_angle_bisector));
 }
 
 static void node_shader_update_radial_tiling(bNodeTree *ntree, bNode *node)
@@ -114,7 +122,7 @@ static void node_shader_update_radial_tiling(bNodeTree *ntree, bNode *node)
       *node, SOCK_OUT, "X_axis To Angle Bisector Angle");
 
   node_sock_label(inVectorSock, "Vector 2D");
-  node_sock_label(inR_gonSidesSock, "Sides");
+  node_sock_label(inR_gonSidesSock, "Segments");
   node_sock_label(inR_gonRoundnessSock, "Roundness");
   node_sock_label(inIrregularR_gonCornerShapeSock, "Irregular Corner Shape");
 
@@ -157,6 +165,7 @@ class RoundedPolygonFunction : public mf::MultiFunction {
     builder.single_input<float>("Irregular R_gon Corner Shape");
 
     builder.single_output<float3>("Segment Coordinates", mf::ParamFlag::SupportsUnusedOutput);
+    builder.single_output<float>("Segment ID", mf::ParamFlag::SupportsUnusedOutput);
     builder.single_output<float>("Max Unit Parameter", mf::ParamFlag::SupportsUnusedOutput);
     builder.single_output<float>("X_axis To Angle Bisector Angle",
                                  mf::ParamFlag::SupportsUnusedOutput);
@@ -178,34 +187,46 @@ class RoundedPolygonFunction : public mf::MultiFunction {
 
     MutableSpan<float3> r_segment_coordinates =
         params.uninitialized_single_output_if_required<float3>(param++, "Segment Coordinates");
+    MutableSpan<float> r_segment_id = params.uninitialized_single_output_if_required<float>(
+        param++, "Segment ID");
     MutableSpan<float> r_max_unit_parameter =
         params.uninitialized_single_output_if_required<float>(param++, "Max Unit Parameter");
     MutableSpan<float> r_x_axis_A_angle_bisector =
         params.uninitialized_single_output_if_required<float>(param++,
                                                               "X_axis To Angle Bisector Angle");
 
-    const bool calc_r_gon_parameter_field = !r_segment_coordinates.is_empty();
-    const bool calc_max_unit_parameter = !r_max_unit_parameter.is_empty();
-    const bool calc_x_axis_A_angle_bisector = !r_x_axis_A_angle_bisector.is_empty();
+    const bool calculate_r_gon_parameter_field = !r_segment_coordinates.is_empty();
+    const bool calculate_segment_id = !r_segment_id.is_empty();
+    const bool calculate_max_unit_parameter = !r_max_unit_parameter.is_empty();
+    const bool calculate_x_axis_A_angle_bisector = !r_x_axis_A_angle_bisector.is_empty();
 
     mask.foreach_index([&](const int64_t i) {
-      float4 out_variables = calculate_out_variables(
-          calc_r_gon_parameter_field,
-          calc_max_unit_parameter,
-          normalize_r_gon_parameter_,
-          math::max(r_gon_sides[i], 2.0f),
-          math::clamp(r_gon_roundness[i], 0.0f, 1.0f),
-          math::clamp(irregular_r_gon_corner_shape[i], 0.0f, 1.0f),
-          float2(coord[i].x, coord[i].y));
+      if (calculate_r_gon_parameter_field || calculate_max_unit_parameter ||
+          calculate_x_axis_A_angle_bisector)
+      {
+        float4 out_variables = calculate_out_variables(
+            calculate_r_gon_parameter_field,
+            calculate_max_unit_parameter,
+            normalize_r_gon_parameter_,
+            math::max(r_gon_sides[i], 2.0f),
+            math::clamp(r_gon_roundness[i], 0.0f, 1.0f),
+            math::clamp(irregular_r_gon_corner_shape[i], 0.0f, 1.0f),
+            float2(coord[i].x, coord[i].y));
 
-      if (calc_r_gon_parameter_field) {
-        r_segment_coordinates[i] = float3(out_variables.y, out_variables.x, 0.0);
+        if (calculate_r_gon_parameter_field) {
+          r_segment_coordinates[i] = float3(out_variables.y, out_variables.x, 0.0f);
+        }
+        if (calculate_max_unit_parameter) {
+          r_max_unit_parameter[i] = out_variables.z;
+        }
+        if (calculate_x_axis_A_angle_bisector) {
+          r_x_axis_A_angle_bisector[i] = out_variables.w;
+        }
       }
-      if (calc_max_unit_parameter) {
-        r_max_unit_parameter[i] = out_variables.z;
-      }
-      if (calc_x_axis_A_angle_bisector) {
-        r_x_axis_A_angle_bisector[i] = out_variables.w;
+
+      if (calculate_segment_id) {
+        r_segment_id[i] = calculate_out_segment_id(math::max(r_gon_sides[i], 2.0f),
+                                                   float2(coord[i].x, coord[i].y));
       }
     });
   }
