@@ -411,7 +411,7 @@ static uiBut *file_add_icon_but(const SpaceFile *sfile,
 {
   uiBut *but;
 
-  const int x = tile_draw_rect->xmin + 2 * padx;
+  const int x = tile_draw_rect->xmin + padx;
   const int y = tile_draw_rect->ymax - sfile->layout->tile_border_y -
                 round_fl_to_int((sfile->layout->tile_h + height) / 2.0f);
 
@@ -1169,10 +1169,7 @@ static void draw_details_columns(const FileSelectParams *params,
   }
 }
 
-static rcti tile_draw_rect_get(const View2D *v2d,
-                               const FileLayout *layout,
-                               const eFileDisplayType display,
-                               const int file_idx)
+static rcti tile_draw_rect_get(const View2D *v2d, const FileLayout *layout, const int file_idx)
 {
   int tile_pos_x, tile_pos_y;
   ED_fileselect_layout_tilepos(layout, file_idx, &tile_pos_x, &tile_pos_y);
@@ -1181,9 +1178,7 @@ static rcti tile_draw_rect_get(const View2D *v2d,
 
   rcti rect;
   rect.xmin = tile_pos_x;
-  rect.xmax = rect.xmin + (ELEM(display, FILE_VERTICALDISPLAY, FILE_HORIZONTALDISPLAY) ?
-                               layout->tile_w :
-                               layout->tile_w);
+  rect.xmax = rect.xmin + layout->tile_w;
   rect.ymax = tile_pos_y;
   rect.ymin = rect.ymax - layout->tile_h - layout->tile_border_y;
 
@@ -1279,8 +1274,7 @@ void file_draw_list(const bContext *C, ARegion *region)
     const int padx = 0.1f * UI_UNIT_X;
     int icon_ofs = 0;
 
-    const rcti tile_draw_rect = tile_draw_rect_get(
-        v2d, layout, eFileDisplayType(params->display), i);
+    const rcti tile_draw_rect = tile_draw_rect_get(v2d, layout, i);
 
     file = filelist_file(files, i);
     file_selflag = filelist_entry_select_get(sfile->files, file, CHECK_ALL);
@@ -1350,7 +1344,7 @@ void file_draw_list(const bContext *C, ARegion *region)
         return filelist_geticon_file_type(files, i, true);
       }();
 
-      icon_ofs += layout->prv_w + 3 * padx;
+      icon_ofs += layout->prv_w + 2 * padx;
 
       /* Add dummy draggable button covering the icon and the label. */
       if (do_drag) {
@@ -1455,8 +1449,7 @@ void file_draw_list(const bContext *C, ARegion *region)
   }
 
   if (numfiles < 1) {
-    const rcti tile_draw_rect = tile_draw_rect_get(
-        v2d, layout, eFileDisplayType(params->display), 0);
+    const rcti tile_draw_rect = tile_draw_rect_get(v2d, layout, 0);
     const uiStyle *style = UI_style_get();
 
     const bool is_filtered = params->filter_search[0] != '\0';
