@@ -230,7 +230,7 @@ static void rna_KeyBlock_normals_vert_calc(ID *id,
     return;
   }
 
-  *normals = static_cast<float *>(MEM_mallocN(sizeof(**normals) * size_t(*normals_num), __func__));
+  *normals = MEM_malloc_arrayN<float>(size_t(*normals_num), __func__);
 
   BKE_keyblock_mesh_calc_normals(data, mesh, (float(*)[3])(*normals), nullptr, nullptr);
 }
@@ -260,7 +260,7 @@ static void rna_KeyBlock_normals_poly_calc(ID *id,
     return;
   }
 
-  *normals = static_cast<float *>(MEM_mallocN(sizeof(**normals) * size_t(*normals_num), __func__));
+  *normals = MEM_malloc_arrayN<float>(size_t(*normals_num), __func__);
 
   BKE_keyblock_mesh_calc_normals(data, mesh, nullptr, (float(*)[3])(*normals), nullptr);
 }
@@ -290,7 +290,7 @@ static void rna_KeyBlock_normals_loop_calc(ID *id,
     return;
   }
 
-  *normals = static_cast<float *>(MEM_mallocN(sizeof(**normals) * size_t(*normals_num), __func__));
+  *normals = MEM_malloc_arrayN<float>(size_t(*normals_num), __func__);
 
   BKE_keyblock_mesh_calc_normals(data, mesh, nullptr, nullptr, (float(*)[3])(*normals));
 }
@@ -546,8 +546,8 @@ static void rna_ShapeKey_data_begin_mixed(
 {
   int point_count = rna_ShapeKey_curve_find_index(key, kb->totelem);
 
-  ShapeKeyCurvePoint *points = static_cast<ShapeKeyCurvePoint *>(
-      MEM_malloc_arrayN(point_count, sizeof(ShapeKeyCurvePoint), __func__));
+  ShapeKeyCurvePoint *points = MEM_malloc_arrayN<ShapeKeyCurvePoint>(size_t(point_count),
+                                                                     __func__);
 
   char *databuf = static_cast<char *>(kb->data);
   int items_left = point_count;
