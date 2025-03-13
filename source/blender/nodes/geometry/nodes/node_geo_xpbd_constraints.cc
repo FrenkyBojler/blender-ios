@@ -177,36 +177,52 @@ static void position_goal__linear_solve_elements(const ConstraintEvalParams &par
                                                  const ConstraintVariables &variables,
                                                  const bke::AttributeAccessor &attributes,
                                                  const IndexMask &selection,
-                                                 fn::GField &r_alphas,
-                                                 fn::GField &r_betas,
-                                                 fn::GField &r_residuals,
-                                                 fn::GField r_position_gradients[4],
-                                                 fn::GField /*r_rotation_gradients*/[4])
+                                                 GMutableSpan r_alphas,
+                                                 GMutableSpan r_betas,
+                                                 GMutableSpan r_residuals,
+                                                 GMutableSpan r_position_gradients[4],
+                                                 GMutableSpan /*r_rotation_gradients*/[4])
 {
-  // const VArraySpan<int> points = *lookup_or_warn<int>(
-  //     attributes, ATTR_POINT1, AttrDomain::Point, 0, params.error_message_add);
-  // const VArraySpan<float> alphas = *attributes.lookup_or_default<float>(
-  //     ATTR_ALPHA, AttrDomain::Point, 0.0f);
-  // const VArraySpan<float> betas = *attributes.lookup_or_default<float>(
-  //     ATTR_BETA, AttrDomain::Point, 0.0f);
-  // const VArraySpan<float3> goal_positions = *lookup_or_warn<float3>(
-  //     attributes, "goal_position", AttrDomain::Point, float3(0.0f), params.error_message_add);
+  // r_alphas = GField(AttributeFieldInput::Create(ATTR_ALPHA, CPPType::get<float>()));
+  // r_betas = GField(AttributeFieldInput::Create(ATTR_BETA, CPPType::get<float>()));
 
-  // const IndexRange points_range = variables.positions.index_range();
-  // const Span<float3> positions = variables.positions;
+  // GField goal_positions = AttributeFieldInput::Create(ATTR_BETA, CPPType::get<float>());
 
-  // selection.foreach_index(constraint_grain_size, [&](const int index, const int pos) {
-  //   const int point = points[index];
-  //   if (!points_range.contains(point)) {
-  //     return;
-  //   }
-  //   const float3 &goal = goal_positions[index];
+  // static auto elements_fn = mf::build::SI2_SO2<float3, float3, float, float3>(
+  //     "XPBD Position Goal Elements",
+  //     eval_position_goal_elements,
+  //     mf::build::exec_presets::Materialized());
+  // r_residuals = GField(
+  //     FieldOperation::Create(elements_fn, {std::move(goal_positions), variables.positions}));
 
-  //   alpha_elements[pos] = alphas[index];
-  //   beta_elements[pos] = betas[index];
-  //   xpbd_constraints::eval_position_goal_elements(
-  //       goal, positions[point], residual_elements[pos], position_gradient_elements[pos]);
-  // });
+  const VArraySpan<int> points = *lookup_or_warn<int>(
+      attributes, ATTR_POINT1, AttrDomain::Point, 0, params.error_message_add);
+  const VArraySpan<float> alphas_attr = *attributes.lookup_or_default<float>(
+      ATTR_ALPHA, AttrDomain::Point, 0.0f);
+  const VArraySpan<float> betas_attr = *attributes.lookup_or_default<float>(
+      ATTR_BETA, AttrDomain::Point, 0.0f);
+  const VArraySpan<float3> goal_positions = *lookup_or_warn<float3>(
+      attributes, "goal_position", AttrDomain::Point, float3(0.0f), params.error_message_add);
+
+  const IndexRange points_range = variables.positions.index_range();
+  const Span<float3> positions = variables.positions;
+  MutableSpan<float> alphas = r_alphas.typed<float>();
+  MutableSpan<float> betas = r_betas.typed<float>();
+  MutableSpan<float> residuals = r_residuals.typed<float>();
+  MutableSpan<float3> position_gradients = r_position_gradients[0].typed<float3>();
+
+  selection.foreach_index(constraint_grain_size, [&](const int index, const int pos) {
+    const int point = points[index];
+    if (!points_range.contains(point)) {
+      return;
+    }
+    const float3 &goal = goal_positions[index];
+
+    alphas[pos] = alphas_attr[index];
+    betas[pos] = betas_attr[index];
+    xpbd_constraints::eval_position_goal_elements(
+        goal, positions[point], residuals[pos], position_gradients[pos]);
+  });
 }
 
 template<bool debug_output>
@@ -1052,31 +1068,39 @@ static void contact__init_velocity_step(bke::GeometrySet &constraints)
   friction_lambda_writer.finish();
 }
 
-template<bool debug_output> static Array<ConstraintTypeInfo> create_constraint_info()
+template<bool debug_output> static ConstraintTypeInfo create_info__position_goal()
 {
-  ConstraintTypeInfo position_goal_info = {"Position Goal Constraints",
-                                           "Set position of a point to a target vector",
-                                           0,
-                                           position_goal__init_position_step,
-                                           {},
-                                           position_goal__eval_positions<debug_output>,
-                                           {},
-                                           position_goal__get_mapping,
-                                           position_goal__linear_solve_size,
-                                           position_goal__linear_solve_variables,
-                                           position_goal__linear_solve_elements};
-  ConstraintTypeInfo rotation_goal_info = {"Rotation Goal Constraints",
-                                           "Set orientation of an edge to a target rotation",
-                                           1,
-                                           rotation_goal__init_position_step,
-                                           {},
-                                           rotation_goal__eval_positions<debug_output>,
-                                           {},
-                                           rotation_goal__get_mapping,
-                                           {},
-                                           {},
-                                           {}};
-  ConstraintTypeInfo stretch_shear_info = {
+  return ConstraintTypeInfo{"Position Goal Constraints",
+                            "Set position of a point to a target vector",
+                            0,
+                            position_goal__init_position_step,
+                            {},
+                            position_goal__eval_positions<debug_output>,
+                            {},
+                            position_goal__get_mapping,
+                            position_goal__linear_solve_size,
+                            position_goal__linear_solve_variables,
+                            position_goal__linear_solve_elements};
+}
+
+template<bool debug_output> static ConstraintTypeInfo create_info__rotation_goal()
+{
+  return ConstraintTypeInfo{"Rotation Goal Constraints",
+                            "Set orientation of an edge to a target rotation",
+                            1,
+                            rotation_goal__init_position_step,
+                            {},
+                            rotation_goal__eval_positions<debug_output>,
+                            {},
+                            rotation_goal__get_mapping,
+                            {},
+                            {},
+                            {}};
+}
+
+template<bool debug_output> static ConstraintTypeInfo create_info__stretch_shear()
+{
+  return ConstraintTypeInfo{
       "Stretch/Shear Constraints",
       "Enforces edge length and aligns forward direction with the edge vector",
       2,
@@ -1088,7 +1112,11 @@ template<bool debug_output> static Array<ConstraintTypeInfo> create_constraint_i
       {},
       {},
       {}};
-  ConstraintTypeInfo bend_twist_info = {
+}
+
+template<bool debug_output> static ConstraintTypeInfo create_info__bend_twist()
+{
+  return ConstraintTypeInfo{
       "Bend/Twist Constraints",
       "Enforces angles between neighboring edges to their relative rest orientation",
       3,
@@ -1100,36 +1128,77 @@ template<bool debug_output> static Array<ConstraintTypeInfo> create_constraint_i
       {},
       {},
       {}};
-  ConstraintTypeInfo contact_info = {"Contact Constraints",
-                                     "Keep contact points from penetrating",
-                                     4,
-                                     contact__init_position_step,
-                                     contact__init_velocity_step,
-                                     contact__eval_positions<debug_output>,
-                                     contact__eval_velocities<debug_output>,
-                                     contact__get_mapping,
-                                     {},
-                                     {},
-                                     {}};
+}
 
-  /* Order of constraint passes is chosen by increasing "importance":
-   * Later constraints have less residual error, and the last constraint type is solved exactly.
-   */
-  Array<ConstraintTypeInfo> constraint_info = {
-      std::move(bend_twist_info),
-      std::move(stretch_shear_info),
-      std::move(rotation_goal_info),
-      std::move(position_goal_info),
-      std::move(contact_info),
-  };
+template<bool debug_output> static ConstraintTypeInfo create_info__contact()
+{
+  return ConstraintTypeInfo{"Contact Constraints",
+                            "Keep contact points from penetrating",
+                            4,
+                            contact__init_position_step,
+                            contact__init_velocity_step,
+                            contact__eval_positions<debug_output>,
+                            contact__eval_velocities<debug_output>,
+                            contact__get_mapping,
+                            {},
+                            {},
+                            {}};
+}
 
-  return constraint_info;
+const ConstraintTypeInfo &get_info__position_goal(const bool debug_check)
+{
+  static ConstraintTypeInfo info = create_info__position_goal<false>();
+  static ConstraintTypeInfo info_debug = create_info__position_goal<true>();
+  return debug_check ? info_debug : info;
+}
+
+const ConstraintTypeInfo &get_info__rotation_goal(const bool debug_check)
+{
+  static ConstraintTypeInfo info = create_info__rotation_goal<false>();
+  static ConstraintTypeInfo info_debug = create_info__rotation_goal<true>();
+  return debug_check ? info_debug : info;
+}
+
+const ConstraintTypeInfo &get_info__stretch_shear(const bool debug_check)
+{
+  static ConstraintTypeInfo info = create_info__stretch_shear<false>();
+  static ConstraintTypeInfo info_debug = create_info__stretch_shear<true>();
+  return debug_check ? info_debug : info;
+}
+
+const ConstraintTypeInfo &get_info__bend_twist(const bool debug_check)
+{
+  static ConstraintTypeInfo info = create_info__bend_twist<false>();
+  static ConstraintTypeInfo info_debug = create_info__bend_twist<true>();
+  return debug_check ? info_debug : info;
+}
+
+const ConstraintTypeInfo &get_info__contact(const bool debug_check)
+{
+  static ConstraintTypeInfo info = create_info__contact<false>();
+  static ConstraintTypeInfo info_debug = create_info__contact<true>();
+  return debug_check ? info_debug : info;
 }
 
 Span<ConstraintTypeInfo> get_constraint_info(const bool debug_output)
 {
-  static const Array<ConstraintTypeInfo> constraint_info = create_constraint_info<false>();
-  static const Array<ConstraintTypeInfo> constraint_info_debug = create_constraint_info<true>();
+  /* Order of constraint passes is chosen by increasing "importance":
+   * Later constraints have less residual error, and the last constraint type is solved exactly.
+   */
+  static Array<ConstraintTypeInfo> constraint_info = {
+      get_info__bend_twist(true),
+      get_info__stretch_shear(true),
+      get_info__rotation_goal(true),
+      get_info__position_goal(true),
+      get_info__contact(true),
+  };
+  static Array<ConstraintTypeInfo> constraint_info_debug = {
+      get_info__bend_twist(false),
+      get_info__stretch_shear(false),
+      get_info__rotation_goal(false),
+      get_info__position_goal(false),
+      get_info__contact(false),
+  };
   return debug_output ? constraint_info_debug : constraint_info;
 }
 

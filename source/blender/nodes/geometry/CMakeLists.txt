@@ -384,6 +384,8 @@ if(WITH_GTESTS)
     ../../../../intern/guardedalloc
   )
   set(TEST_LIB
+    PRIVATE bf::intern::clog
+    PRIVATE bf::functions
   )
   blender_add_test_suite_lib(nodes_geometry "${TEST_SRC}" "${INC};${TEST_INC}" "${INC_SYS}" "${TEST_LIB}")
 endif()

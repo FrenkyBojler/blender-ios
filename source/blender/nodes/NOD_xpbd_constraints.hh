@@ -6,7 +6,6 @@
 
 #include <atomic>
 
-#include "BKE_geometry_set.hh"
 #include "BLI_function_ref.hh"
 #include "BLI_math_axis_angle.hh"
 #include "BLI_math_quaternion.hh"
@@ -168,11 +167,11 @@ using ConstraintPositionLinearSolveElementsFunc =
                        const ConstraintVariables &variables,
                        const bke::AttributeAccessor &attributes,
                        const IndexMask &selection,
-                       fn::GField &r_alphas,
-                       fn::GField &r_betas,
-                       fn::GField &r_residuals,
-                       fn::GField r_position_gradients[4],
-                       fn::GField r_rotation_gradients[4])>;
+                       GMutableSpan r_alphas,
+                       GMutableSpan r_betas,
+                       GMutableSpan r_residuals,
+                       GMutableSpan r_position_gradients[4],
+                       GMutableSpan r_rotation_gradients[4])>;
 
 /**
  * Returns up to 4 index attributes mapping constraints to geometry points.
@@ -205,6 +204,12 @@ struct ConstraintTypeInfo {
   ConstraintPositionLinearSolveVariablesFunc linear_solve_variables;
   ConstraintPositionLinearSolveElementsFunc linear_solve_elements;
 };
+
+const ConstraintTypeInfo &get_info__position_goal(bool debug_check);
+const ConstraintTypeInfo &get_info__rotation_goal(bool debug_check);
+const ConstraintTypeInfo &get_info__stretch_shear(bool debug_check);
+const ConstraintTypeInfo &get_info__bend_twist(bool debug_check);
+const ConstraintTypeInfo &get_info__contact(bool debug_check);
 
 Span<ConstraintTypeInfo> get_constraint_info(bool debug_output);
 Span<ConstraintTypeInfo> get_constraint_info_ordered(bool debug_output);

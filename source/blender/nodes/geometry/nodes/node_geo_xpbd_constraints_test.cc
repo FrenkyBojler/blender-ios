@@ -4,12 +4,36 @@
 
 #include "BLI_math_rotation.hh"
 
+#include "BKE_idtype.hh"
+#include "BKE_lib_id.hh"
+#include "BKE_pointcloud.hh"
+
 #include "NOD_xpbd_constraints.hh"
 #include "NOD_xpbd_solver.hh"
+
+#include "CLG_log.h"
 
 #include "testing/testing.h"
 
 namespace blender::nodes::tests {
+
+class XPBDSolverTest : public testing::Test {
+ public:
+  static void SetUpTestSuite()
+  {
+    CLG_init();
+    BKE_idtype_init();
+  }
+
+  static void TearDownTestSuite()
+  {
+    CLG_exit();
+  }
+
+  void SetUp() override {}
+
+  void TearDown() override {}
+};
 
 /* Helper struct for checking that each variable is only written by one constraint.*/
 template<bool enable> struct VariableChecker;
@@ -460,8 +484,6 @@ static auto simple_solver_data(const bool use_velocities)
   params.local_inertia = VArray<float3>::ForContainer(
       Array<float3>{float3(1.0f), float3(1, 2, 1), float3(0.2f, 10.f, 0.5f)});
 
-  MutableSpan<xpbd_constraints::ConstraintEvalData> data;
-
   xpbd_constraints::ConstraintVariables vars;
   vars.positions = {float3(0, 1, 0), float3(1, 0, 0), float3(0, 0, -2)};
   vars.rotations = {math::to_quaternion(math::EulerXYZ(0, 0, 0)),
@@ -471,6 +493,29 @@ static auto simple_solver_data(const bool use_velocities)
     vars.velocities = {float3(-1, -1, 0), float3(0, 0, 0), float3(0, 0, 4)};
     vars.angular_velocities = {float3(0, 0, 0), float3(3, 0, -1), float3(2, 2, 0)};
   }
+
+  Array<xpbd_constraints::ConstraintEvalData> data(1);
+
+  data[0].type = &xpbd_constraints::get_info__position_goal(true);
+  PointCloud *constraints = BKE_pointcloud_new_nomain(2);
+  bke::MutableAttributeAccessor attributes = constraints->attributes_for_write();
+
+  const Array<int> point1 = {0, 2};
+  const Array<float3> goal_position = {float3(0.0f), float3(1, -1, 2)};
+  const Array<float> alphas = {1.5f, 0.1f};
+  const Array<float> betas = {0.3f, 0.0f};
+  attributes.add<int>(
+      "point1", bke::AttrDomain::Point, bke::AttributeInitVArray(VArray<int>::ForSpan(point1)));
+  attributes.add<float3>("goal_position",
+                         bke::AttrDomain::Point,
+                         bke::AttributeInitVArray(VArray<float3>::ForSpan(goal_position)));
+  attributes.add<float>(
+      "alpha", bke::AttrDomain::Point, bke::AttributeInitVArray(VArray<float>::ForSpan(alphas)));
+  attributes.add<float>(
+      "beta", bke::AttrDomain::Point, bke::AttributeInitVArray(VArray<float>::ForSpan(betas)));
+
+  data[0].geometry = bke::GeometrySet::from_pointcloud(std::move(constraints));
+  data[0].constraints = IndexRange(attributes.domain_size(bke::AttrDomain::Point));
 
   return std::make_tuple(std::move(params), std::move(data), std::move(vars));
 }
@@ -518,20 +563,27 @@ inline float4x4 quaternion_matrix(const math::Quaternion &q)
     EXPECT_NEAR(a[3][3], b.coeff(3, 3), eps); \
   } while (false);
 
-TEST(xpbd_constraints, GlobalSolverUnconstrained)
+TEST_F(XPBDSolverTest, GlobalSolverUnconstrained)
 {
+  constexpr float eps = 1e-6f;
+
   auto [params, data, vars] = simple_solver_data(false);
 
   Eigen::SparseMatrix<float> H;
   Eigen::VectorXf b;
   xpbd_constraints::build_global_solve_system(params, data, vars, true, H, b);
+  EXPECT_EQ(H.rows(), 23);
+  EXPECT_EQ(H.cols(), 23);
+  // XXX only counting compliance values atm
+  EXPECT_EQ(H.nonZeros(), 59);
+  // EXPECT_EQ(H.nonZeros(), 71);
 
   const float3x3 mass_diagonal0 = math::from_scale<float3x3>(float3(params.masses[0]));
   const float3x3 mass_diagonal1 = math::from_scale<float3x3>(float3(params.masses[1]));
   const float3x3 mass_diagonal2 = math::from_scale<float3x3>(float3(params.masses[2]));
-  EXPECT_EIGEN_M3_NEAR(mass_diagonal0, H.block(0, 0, 3, 3).toDense(), 1e-6f);
-  EXPECT_EIGEN_M3_NEAR(mass_diagonal1, H.block(3, 3, 3, 3).toDense(), 1e-6f);
-  EXPECT_EIGEN_M3_NEAR(mass_diagonal2, H.block(6, 6, 3, 3).toDense(), 1e-6f);
+  EXPECT_EIGEN_M3_NEAR(mass_diagonal0, H.block(0, 0, 3, 3).toDense(), eps);
+  EXPECT_EIGEN_M3_NEAR(mass_diagonal1, H.block(3, 3, 3, 3).toDense(), eps);
+  EXPECT_EIGEN_M3_NEAR(mass_diagonal2, H.block(6, 6, 3, 3).toDense(), eps);
 
   const float4x4 inertia_tensor0 = quaternion_matrix(
       vars.rotations[0] * math::Quaternion(0.0f, params.local_inertia[0]));
@@ -539,9 +591,13 @@ TEST(xpbd_constraints, GlobalSolverUnconstrained)
       vars.rotations[1] * math::Quaternion(0.0f, params.local_inertia[1]));
   const float4x4 inertia_tensor2 = quaternion_matrix(
       vars.rotations[2] * math::Quaternion(0.0f, params.local_inertia[2]));
-  EXPECT_EIGEN_M4_NEAR(inertia_tensor0, H.block(9, 9, 4, 4).toDense(), 1e-6f);
-  EXPECT_EIGEN_M4_NEAR(inertia_tensor1, H.block(13, 13, 4, 4).toDense(), 1e-6f);
-  EXPECT_EIGEN_M4_NEAR(inertia_tensor2, H.block(17, 17, 4, 4).toDense(), 1e-6f);
+  EXPECT_EIGEN_M4_NEAR(inertia_tensor0, H.block(9, 9, 4, 4).toDense(), eps);
+  EXPECT_EIGEN_M4_NEAR(inertia_tensor1, H.block(13, 13, 4, 4).toDense(), eps);
+  EXPECT_EIGEN_M4_NEAR(inertia_tensor2, H.block(17, 17, 4, 4).toDense(), eps);
+
+  const Array<float> alphas = {1.5f, 0.1f};
+  const Array<float> betas = {0.3f, 0.0f};
+  EXPECT_NEAR(1.0f + alphas[0], H.coeff(21, 21), eps);
 }
 
 }  // namespace blender::nodes::tests
