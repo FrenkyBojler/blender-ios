@@ -85,8 +85,7 @@ class Prepass : Overlay {
 
     use_material_slot_selection_ = state.is_material_select;
 
-    const View3DShading &shading = state.v3d->shading;
-    bool use_cull = ((shading.type == OB_SOLID) && (shading.flag & V3D_SHADING_BACKFACE_CULLING));
+    bool use_cull = res.theme_settings.backface_culling;
     DRWState backface_cull_state = use_cull ? DRW_STATE_CULL_BACK : DRWState(0);
 
     ps_.init();
@@ -98,31 +97,26 @@ class Prepass : Overlay {
       auto &sub = ps_.sub("Mesh");
       sub.shader_set(res.is_selection() ? res.shaders.depth_mesh_conservative.get() :
                                           res.shaders.depth_mesh.get());
-      sub.push_constant("use_backface_culling", use_cull);
       mesh_ps_ = &sub;
     }
     {
       auto &sub = ps_.sub("MeshFlat");
       sub.shader_set(res.shaders.depth_mesh.get());
-      sub.push_constant("use_backface_culling", use_cull);
       mesh_flat_ps_ = &sub;
     }
     {
       auto &sub = ps_.sub("Hair");
       sub.shader_set(res.shaders.depth_mesh.get());
-      sub.push_constant("use_backface_culling", use_cull);
       hair_ps_ = &sub;
     }
     {
       auto &sub = ps_.sub("Curves");
       sub.shader_set(res.shaders.depth_curves.get());
-      sub.push_constant("use_backface_culling", use_cull);
       curves_ps_ = &sub;
     }
     {
       auto &sub = ps_.sub("PointCloud");
       sub.shader_set(res.shaders.depth_point_cloud.get());
-      sub.push_constant("use_backface_culling", use_cull);
       point_cloud_ps_ = &sub;
     }
     {

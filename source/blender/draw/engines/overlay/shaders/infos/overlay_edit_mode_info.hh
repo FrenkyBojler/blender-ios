@@ -745,18 +745,13 @@ GPU_SHADER_CREATE_END()
  * Used to occlude edit geometry which might not be rendered by the render engine.
  * \{ */
 
-GPU_SHADER_CREATE_INFO(overlay_depth_geometry_prepass)
-ADDITIONAL_INFO(draw_globals)
-ADDITIONAL_INFO(draw_view)
-ADDITIONAL_INFO(draw_resource_handle_new)
-PUSH_CONSTANT(BOOL, use_backface_culling)
-GPU_SHADER_CREATE_END()
-
 GPU_SHADER_CREATE_INFO(overlay_depth_mesh_base)
 VERTEX_IN(0, VEC3, pos)
 VERTEX_SOURCE("overlay_depth_only_vert.glsl")
 FRAGMENT_SOURCE("overlay_depth_only_frag.glsl")
-ADDITIONAL_INFO(overlay_depth_geometry_prepass)
+ADDITIONAL_INFO(draw_globals)
+ADDITIONAL_INFO(draw_view)
+ADDITIONAL_INFO(draw_resource_handle_new)
 GPU_SHADER_CREATE_END()
 
 OVERLAY_INFO_VARIATIONS_MODELMAT(overlay_depth_mesh, overlay_depth_mesh_base)
@@ -766,8 +761,10 @@ STORAGE_BUF_FREQ(0, READ, float, pos[], GEOMETRY)
 PUSH_CONSTANT(IVEC2, gpu_attr_0)
 VERTEX_SOURCE("overlay_depth_only_mesh_conservative_vert.glsl")
 FRAGMENT_SOURCE("overlay_depth_only_frag.glsl")
-ADDITIONAL_INFO(overlay_depth_geometry_prepass)
+ADDITIONAL_INFO(draw_globals)
+ADDITIONAL_INFO(draw_view)
 ADDITIONAL_INFO(gpu_index_buffer_load)
+ADDITIONAL_INFO(draw_resource_handle_new)
 GPU_SHADER_CREATE_END()
 
 OVERLAY_INFO_VARIATIONS_MODELMAT(overlay_depth_mesh_conservative,
@@ -804,8 +801,10 @@ OVERLAY_INFO_VARIATIONS_MODELMAT(overlay_depth_gpencil, overlay_depth_gpencil_ba
 GPU_SHADER_CREATE_INFO(overlay_depth_pointcloud_base)
 VERTEX_SOURCE("overlay_depth_only_pointcloud_vert.glsl")
 FRAGMENT_SOURCE("overlay_depth_only_frag.glsl")
-ADDITIONAL_INFO(overlay_depth_geometry_prepass)
 ADDITIONAL_INFO(draw_pointcloud_new)
+ADDITIONAL_INFO(draw_globals)
+ADDITIONAL_INFO(draw_view)
+ADDITIONAL_INFO(draw_resource_handle_new)
 GPU_SHADER_CREATE_END()
 
 OVERLAY_INFO_VARIATIONS_MODELMAT(overlay_depth_pointcloud, overlay_depth_pointcloud_base)
@@ -813,8 +812,10 @@ OVERLAY_INFO_VARIATIONS_MODELMAT(overlay_depth_pointcloud, overlay_depth_pointcl
 GPU_SHADER_CREATE_INFO(overlay_depth_curves_base)
 VERTEX_SOURCE("overlay_depth_only_curves_vert.glsl")
 FRAGMENT_SOURCE("overlay_depth_only_frag.glsl")
-ADDITIONAL_INFO(overlay_depth_geometry_prepass)
 ADDITIONAL_INFO(draw_hair_new)
+ADDITIONAL_INFO(draw_globals)
+ADDITIONAL_INFO(draw_view)
+ADDITIONAL_INFO(draw_resource_handle_new)
 GPU_SHADER_CREATE_END()
 
 OVERLAY_INFO_VARIATIONS_MODELMAT(overlay_depth_curves, overlay_depth_curves_base)

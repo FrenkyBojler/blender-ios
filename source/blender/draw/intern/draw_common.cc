@@ -226,6 +226,10 @@ void DRW_globals_update()
         sizeof(GlobalsUboStorage), gb, "GlobalsUboStorage");
   }
 
+  const View3DShading &shading = ctx->v3d->shading;
+  gb->backface_culling = (shading.type == OB_SOLID) &&
+                         (shading.flag & V3D_SHADING_BACKFACE_CULLING);
+
   GPU_uniformbuf_update(G_draw.block_ubo, gb);
 
   if (!G_draw.ramp) {

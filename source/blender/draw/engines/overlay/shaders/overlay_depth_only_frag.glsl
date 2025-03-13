@@ -7,7 +7,7 @@
 void main()
 {
 #ifdef SELECT_ENABLE
-  if (use_backface_culling && !gl_FrontFacing) {
+  if (globalsBlock.backface_culling && !gl_FrontFacing) {
     /* Return early since we are not using early depth testing. */
     return;
   }
