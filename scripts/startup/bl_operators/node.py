@@ -565,7 +565,7 @@ class NODE_OT_viewer_shortcut_set(Operator):
             (space is not None) and
             space.type == 'NODE_EDITOR' and
             space.node_tree is not None and
-            (space.tree_type == 'CompositorNodeTree' or space.tree_type == 'GeometryNodeTree')
+            space.tree_type in {'CompositorNodeTree', 'GeometryNodeTree'}
         )
 
     def execute(self, context):
@@ -626,7 +626,7 @@ class NODE_OT_viewer_shortcut_get(Operator):
             (space is not None) and
             space.type == 'NODE_EDITOR' and
             space.node_tree is not None and
-            (space.tree_type == 'CompositorNodeTree' or space.tree_type == 'GeometryNodeTree')
+            space.tree_type in {'CompositorNodeTree', 'GeometryNodeTree'}
         )
 
     def execute(self, context):
