@@ -1040,7 +1040,7 @@ void DRWContext::enable_engines(bool gpencil_engine_needed, RenderEngineType *re
     else {
       view_data.image.used = true;
     }
-    view_data.overlay.used = true;
+    view_data.overlay.set_used(true);
     return;
   }
 
@@ -1049,14 +1049,14 @@ void DRWContext::enable_engines(bool gpencil_engine_needed, RenderEngineType *re
     SpaceNode *snode = (SpaceNode *)space_data;
     if ((snode->flag & SNODE_BACKDRAW) != 0) {
       view_data.image.used = true;
-      view_data.overlay.used = true;
+      view_data.overlay.set_used(true);
     }
     return;
   }
 
   if (ELEM(this->mode, DRWContext::SELECT_OBJECT, DRWContext::SELECT_OBJECT_MATERIAL)) {
     this->view_data_active->grease_pencil.used = gpencil_engine_needed;
-    this->view_data_active->object_select.used = true;
+    this->view_data_active->object_select.set_used(true);
     return;
   }
 
@@ -1067,7 +1067,7 @@ void DRWContext::enable_engines(bool gpencil_engine_needed, RenderEngineType *re
 
   if (ELEM(this->mode, DRWContext::DEPTH)) {
     this->view_data_active->grease_pencil.used = gpencil_engine_needed;
-    this->view_data_active->overlay.used = true;
+    this->view_data_active->overlay.set_used(true);
     return;
   }
 
@@ -1110,7 +1110,7 @@ void DRWContext::enable_engines(bool gpencil_engine_needed, RenderEngineType *re
       view_data.compositor.used = true;
     }
 
-    view_data.overlay.used = true;
+    view_data.overlay.set_used(true);
 
 #ifdef WITH_DRAW_DEBUG
     if (G.debug_value == 31) {
@@ -2249,7 +2249,7 @@ void DRW_engines_free()
   DRW_engine_viewport_workbench_type.draw_engine->engine_free();
   draw_engine_gpencil_type.engine_free();
   draw_engine_image_type.engine_free();
-  draw_engine_overlay_next_type.engine_free();
+  blender::draw::overlay::Engine::free_static();
 #ifdef WITH_DRAW_DEBUG
   draw_engine_debug_select_type.engine_free();
 #endif

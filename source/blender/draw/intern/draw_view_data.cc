@@ -28,8 +28,6 @@
 #include "engines/external/external_engine.h"
 #include "engines/gpencil/gpencil_engine.h"
 #include "engines/image/image_engine.h"
-#include "engines/overlay/overlay_engine.h"
-#include "engines/select/select_engine.hh"
 #include "engines/workbench/workbench_engine.h"
 
 using namespace blender;
@@ -40,8 +38,6 @@ DRWViewData::DRWViewData()
       external(&draw_engine_external_type),
       image(&draw_engine_image_type),
       grease_pencil(&draw_engine_gpencil_type),
-      overlay(&draw_engine_overlay_next_type),
-      object_select(&draw_engine_select_next_type),
       edit_select(&draw_engine_select_type),
 #ifdef WITH_DRAW_DEBUG
       edit_select_debug(DRW_engine_viewport_select_type.draw_engine),

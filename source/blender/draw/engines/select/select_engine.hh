@@ -8,6 +8,8 @@
 
 #pragma once
 
+#include "DRW_render.hh"
+
 /* `select_engine.cc` */
 
 extern DrawEngineType draw_engine_select_type;
@@ -25,4 +27,10 @@ struct GPUTexture *DRW_engine_select_texture_get();
 
 /* select_instance.cc */
 
-extern DrawEngineType draw_engine_select_next_type;
+namespace blender::draw::select {
+
+struct Engine : public DrawEngine::Pointer {
+  DrawEngine *create_instance() final;
+};
+
+}  // namespace blender::draw::select

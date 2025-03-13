@@ -54,6 +54,7 @@ struct GPUViewport;
 namespace blender::draw {
 class TextureFromPool;
 struct ObjectRef;
+class Manager;
 }  // namespace blender::draw
 
 typedef struct DRWPass DRWPass;
@@ -86,6 +87,65 @@ struct DrawEngineType {
                           RenderLayer *layer,
                           const rcti *rect);
   void (*store_metadata)(void *vedata, RenderResult *render_result);
+};
+
+struct DrawEngine {
+  static constexpr int GPU_INFO_SIZE = 512; /* IMA_MAX_RENDER_TEXT_SIZE */
+
+  char info[GPU_INFO_SIZE] = {'\0'};
+  DRWTextStore *text_draw_cache = nullptr;
+
+  bool used = false;
+
+  virtual ~DrawEngine() = default;
+
+  virtual blender::StringRefNull name_get() = 0;
+
+  /* Functions called for viewport. */
+
+  /* Init engine. Run first and for every redraw. */
+  virtual void init() = 0;
+  /* Scene synchronization. Command buffers building. */
+  virtual void begin_sync() = 0;
+  virtual void object_sync(blender::draw::ObjectRef &ob_ref, blender::draw::Manager &manager) = 0;
+  virtual void end_sync() = 0;
+  /* Command Submission. */
+  virtual void draw(blender::draw::Manager &manager) = 0;
+
+  /* Called when closing blender.
+   * Cleanup all lazily initialized static members that have GPU resources.
+   * Implemented on a case by case basis and called directly. */
+  //  static void exit(){};
+
+  struct Pointer {
+    DrawEngine *instance = nullptr;
+
+    ~Pointer()
+    {
+      free_instance();
+    }
+
+    void free_instance()
+    {
+      delete instance;
+      instance = nullptr;
+    }
+
+    void set_used(bool used)
+    {
+      if (used) {
+        if (instance == nullptr) {
+          instance = create_instance();
+        }
+        instance->used = true;
+      }
+      else if (instance) {
+        instance->used = false;
+      }
+    }
+
+    virtual DrawEngine *create_instance() = 0;
+  };
 };
 
 /* Shaders */

@@ -17,6 +17,9 @@
 #include "DRW_render.hh"
 #include "draw_context_private.hh"
 
+#include "engines/overlay/overlay_engine.h"
+#include "engines/select/select_engine.hh"
+
 #define GPU_INFO_SIZE 512 /* IMA_MAX_RENDER_TEXT_SIZE */
 
 namespace blender::draw {
@@ -92,8 +95,8 @@ struct DRWViewData {
   ViewportEngineData external;
   ViewportEngineData image;
   ViewportEngineData grease_pencil;
-  ViewportEngineData overlay;
-  ViewportEngineData object_select;
+  blender::draw::overlay::Engine overlay;
+  blender::draw::select::Engine object_select;
   ViewportEngineData edit_select;
 #ifdef WITH_DRAW_DEBUG
   ViewportEngineData edit_select_debug;
@@ -133,10 +136,10 @@ struct DRWViewData {
     /* GPU compositor. Processes render result and output to the render result framebuffer. */
     callback(&compositor, compositor.draw_engine);
     /* Overlays. Draw on a separate overlay framebuffer. Can read render result. */
-    callback(&overlay, overlay.draw_engine);
+    // callback(&overlay, overlay.draw_engine);
 
     /* Selection. Are always enabled alone and have no interaction with other engines. */
-    callback(&object_select, object_select.draw_engine);
+    // callback(&object_select, object_select.draw_engine);
     callback(&edit_select, edit_select.draw_engine);
   }
 
