@@ -63,7 +63,7 @@ function(add_blender_test_io testname)
 endfunction()
 
 if(WITH_UI_TESTS)
-  if (WITH_UI_TESTS_HEADLESS)
+  if(WITH_UI_TESTS_HEADLESS)
     set(_blender_headless_env_vars "BLENDER_BIN=${TEST_BLENDER_EXE}")
 
     # Currently only WAYLAND is supported, support for others may be added later.
