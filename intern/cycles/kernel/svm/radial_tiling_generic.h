@@ -1192,7 +1192,7 @@ ccl_device float4 calculate_out_variables_irregular_circular(bool calculate_r_go
   }
 }
 
-ccl_device float inverse_mix(float value, float from_min, float from_max)
+ccl_device float inverse_mix(float from_min, float from_max, float value)
 {
   return (value - from_min) / (from_max - from_min);
 }
@@ -1441,9 +1441,9 @@ ccl_device float4 calculate_out_variables(bool calculate_r_gon_parameter_field,
     else if (r_gon_roundness == float(1.0)) {
       if (irregular_r_gon_corner_shape == float(1.0)) {
         float min_r_gon_sides_fract = fminf(r_gon_sides / float(100.0), float(1.0));
-        float r_gon_sides_numerically_stabilized = floorf(r_gon_sides) + mix(fractf(r_gon_sides),
-                                                                             min_r_gon_sides_fract,
-                                                                             float(1.0));
+        float r_gon_sides_numerically_stabilized = floorf(r_gon_sides) + mix(min_r_gon_sides_fract,
+                                                                             float(1.0),
+                                                                             fractf(r_gon_sides));
 
         out_variables = calculate_out_variables_full_roundness_irregular_elliptical(
             calculate_r_gon_parameter_field,
@@ -1454,9 +1454,9 @@ ccl_device float4 calculate_out_variables(bool calculate_r_gon_parameter_field,
       }
       else if (irregular_r_gon_corner_shape == float(0.0)) {
         float min_r_gon_sides_fract = fminf(r_gon_sides / float(10000.0), float(1.0));
-        float r_gon_sides_numerically_stabilized = floorf(r_gon_sides) + mix(fractf(r_gon_sides),
-                                                                             min_r_gon_sides_fract,
-                                                                             float(1.0));
+        float r_gon_sides_numerically_stabilized = floorf(r_gon_sides) + mix(min_r_gon_sides_fract,
+                                                                             float(1.0),
+                                                                             fractf(r_gon_sides));
 
         out_variables = calculate_out_variables_full_roundness_irregular_circular(
             calculate_r_gon_parameter_field,
@@ -1467,9 +1467,9 @@ ccl_device float4 calculate_out_variables(bool calculate_r_gon_parameter_field,
       }
       else {
         float min_r_gon_sides_fract = fminf(r_gon_sides / float(100.0), float(1.0));
-        float r_gon_sides_numerically_stabilized = floorf(r_gon_sides) + mix(fractf(r_gon_sides),
-                                                                             min_r_gon_sides_fract,
-                                                                             float(1.0));
+        float r_gon_sides_numerically_stabilized = floorf(r_gon_sides) + mix(min_r_gon_sides_fract,
+                                                                             float(1.0),
+                                                                             fractf(r_gon_sides));
 
         out_variables = mix(calculate_out_variables_full_roundness_irregular_circular(
                                 calculate_r_gon_parameter_field,
@@ -1489,14 +1489,14 @@ ccl_device float4 calculate_out_variables(bool calculate_r_gon_parameter_field,
     else {
       if (irregular_r_gon_corner_shape == float(1.0)) {
         float min_r_gon_sides_fract = fminf(r_gon_sides / float(50.0), float(1.0));
-        float r_gon_sides_numerically_stabilized = floorf(r_gon_sides) + mix(fractf(r_gon_sides),
-                                                                             min_r_gon_sides_fract,
-                                                                             float(1.0));
+        float r_gon_sides_numerically_stabilized = floorf(r_gon_sides) + mix(min_r_gon_sides_fract,
+                                                                             float(1.0),
+                                                                             fractf(r_gon_sides));
 
         float min_r_gon_roundness = float(0.1) *
-                                    inverse_mix(fractf(r_gon_sides_numerically_stabilized),
-                                                float(1.0),
-                                                min_r_gon_sides_fract);
+                                    inverse_mix(float(1.0),
+                                                min_r_gon_sides_fract,
+                                                fractf(r_gon_sides_numerically_stabilized));
         float r_gon_roundness_numerically_stabilized = mix(
             r_gon_roundness, min_r_gon_roundness, float(1.0));
 
@@ -1511,14 +1511,14 @@ ccl_device float4 calculate_out_variables(bool calculate_r_gon_parameter_field,
       }
       else if (irregular_r_gon_corner_shape == float(0.0)) {
         float min_r_gon_sides_fract = fminf(r_gon_sides / float(5000.0), float(1.0));
-        float r_gon_sides_numerically_stabilized = floorf(r_gon_sides) + mix(fractf(r_gon_sides),
-                                                                             min_r_gon_sides_fract,
-                                                                             float(1.0));
+        float r_gon_sides_numerically_stabilized = floorf(r_gon_sides) + mix(min_r_gon_sides_fract,
+                                                                             float(1.0),
+                                                                             fractf(r_gon_sides));
 
         float min_r_gon_roundness = float(0.1) *
-                                    inverse_mix(fractf(r_gon_sides_numerically_stabilized),
-                                                float(1.0),
-                                                min_r_gon_sides_fract);
+                                    inverse_mix(float(1.0),
+                                                min_r_gon_sides_fract,
+                                                fractf(r_gon_sides_numerically_stabilized));
         float r_gon_roundness_numerically_stabilized = mix(
             r_gon_roundness, min_r_gon_roundness, float(1.0));
 
@@ -1533,14 +1533,14 @@ ccl_device float4 calculate_out_variables(bool calculate_r_gon_parameter_field,
       }
       else {
         float min_r_gon_sides_fract = fminf(r_gon_sides / float(50.0), float(1.0));
-        float r_gon_sides_numerically_stabilized = floorf(r_gon_sides) + mix(fractf(r_gon_sides),
-                                                                             min_r_gon_sides_fract,
-                                                                             float(1.0));
+        float r_gon_sides_numerically_stabilized = floorf(r_gon_sides) + mix(min_r_gon_sides_fract,
+                                                                             float(1.0),
+                                                                             fractf(r_gon_sides));
 
         float min_r_gon_roundness = float(0.1) *
-                                    inverse_mix(fractf(r_gon_sides_numerically_stabilized),
-                                                float(1.0),
-                                                min_r_gon_sides_fract);
+                                    inverse_mix(float(1.0),
+                                                min_r_gon_sides_fract,
+                                                fractf(r_gon_sides_numerically_stabilized));
         float r_gon_roundness_numerically_stabilized = mix(
             r_gon_roundness, min_r_gon_roundness, float(1.0));
 
