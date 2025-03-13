@@ -12,6 +12,8 @@
 
 #include "UI_interface_c.hh"
 
+#include "RNA_enum_types.hh"
+
 #include "node_geometry_util.hh"
 
 namespace blender::nodes::node_geo_curves_to_grease_pencil_cc {
@@ -205,7 +207,8 @@ static void node_geo_exec(GeoNodeExecParams params)
   const Field<bool> selection_field = params.extract_input<Field<bool>>("Selection");
   const bool instances_as_layers = params.extract_input<bool>("Instances as Layers");
   const NodeAttributeFilter &attribute_filter = params.get_attribute_filter("Grease Pencil");
-  const DepthOrder depth_order = DepthOrder(params.node().custom1);
+  const DepthOrder depth_order = params.node().custom1 == 0 ? DepthOrder::Layers :
+                                                              DepthOrder::Location;
 
   GreasePencil *grease_pencil = nullptr;
   if (instances_as_layers) {
@@ -240,27 +243,13 @@ static void node_geo_exec(GeoNodeExecParams params)
 
 static void node_rna(StructRNA *srna)
 {
-  static const EnumPropertyItem depth_order_items[] = {
-      {int(DepthOrder::Layers),
-       "LAYERS",
-       0,
-       "2D Layers",
-       "Use the layer order to determine the stroke depth"},
-      {int(DepthOrder::Location),
-       "LOCATION",
-       0,
-       "3D Location",
-       "Use the 3D position of the stroke points to determine the stroke depth"},
-      {0, nullptr, 0, nullptr, nullptr},
-  };
-
   RNA_def_node_enum(srna,
                     "depth_order",
                     "Depth Order",
                     "",
-                    depth_order_items,
+                    rna_enum_stroke_depth_order_items,
                     NOD_inline_enum_accessors(custom1),
-                    int(DepthOrder::Layers));
+                    0);
 }
 
 static void node_register()
