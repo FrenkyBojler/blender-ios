@@ -14,6 +14,8 @@
 
 class GHOST_XrGraphicsBindingVulkan : public GHOST_IXrGraphicsBinding {
  public:
+  ~GHOST_XrGraphicsBindingVulkan() override;
+
   /**
    * Check the version requirements to use OpenXR with the Vulkan backend.
    *

@@ -22,6 +22,19 @@ PFN_xrCreateVulkanInstanceKHR GHOST_XrGraphicsBindingVulkan::s_xrCreateVulkanIns
     nullptr;
 PFN_xrCreateVulkanDeviceKHR GHOST_XrGraphicsBindingVulkan::s_xrCreateVulkanDeviceKHR_fn = nullptr;
 
+GHOST_XrGraphicsBindingVulkan::~GHOST_XrGraphicsBindingVulkan()
+{
+  if (m_vk_device != VK_NULL_HANDLE) {
+    vkDestroyDevice(m_vk_device, nullptr);
+    m_vk_device = VK_NULL_HANDLE;
+  }
+
+  if (m_vk_instance != VK_NULL_HANDLE) {
+    vkDestroyInstance(m_vk_instance, nullptr);
+    m_vk_instance = VK_NULL_HANDLE;
+  }
+}
+
 bool GHOST_XrGraphicsBindingVulkan::checkVersionRequirements(GHOST_Context &ghost_ctx,
                                                              XrInstance instance,
                                                              XrSystemId system_id,
