@@ -2,9 +2,9 @@
  *
  * SPDX-License-Identifier: Apache-2.0 */
 
-#include "testing/testing.h"
-#include "BLI_path_utils.hh"
 #include "BLF_api.hh"
+#include "BLI_path_utils.hh"
+#include "testing/testing.h"
 
 namespace blender::tests {
 
@@ -201,7 +201,9 @@ TEST(blf_dimensions, advance)
 TEST(blf_wrapping_minimal, wrap_overflow_ascii)
 {
   /* Do not break, even though over the wrap limit. */
-  const char sample[] = "xxxxxxxxxxxxxxxxxxx!\"#$%&\'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~";
+  const char sample[] =
+      "xxxxxxxxxxxxxxxxxxx!\"#$%&\'()*+,-./"
+      "0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~";
   /* Ahem does not contain all the characters included in above string. */
   int id = open_font("Roboto.ttf");
   BLF_size(id, 10.0f);
@@ -214,7 +216,7 @@ TEST(blf_wrapping_minimal, wrap_overflow_ascii)
 
 TEST(blf_wrapping_minimal, wrap_space)
 {
-  /* Must break on the center space into two, one space trailing, one leading. */
+  /* Must break at the center spaces into two, one space trailing, one leading. */
   const char sample[] = "x xxxxxxxxxxxxxxxx  xxxxxxxxxxxxxxxxxxx ";
   int id = open_font("Ahem.ttf");
   BLF_size(id, 10.0f);
