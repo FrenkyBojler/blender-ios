@@ -24,7 +24,7 @@
 /** \name Submission critical section
  *
  * The usage of GPUShader objects is currently not thread safe. Since they are shared resources
- * between render engine instances, we cannot allow pass submissions in a concurent manner.
+ * between render engine instances, we cannot allow pass submissions in a concurrent manner.
  * \{ */
 
 static TicketMutex *submission_mutex = nullptr;
@@ -99,10 +99,7 @@ void DRW_gpu_context_destroy()
 /** \} */
 
 /* -------------------------------------------------------------------- */
-/** \name Submission critical
- *
- * The usage of GPUShader objects is currently not thread safe. Since they are shared resources
- * between render engine instances, we cannot allow pass submissions in a concurent manner.
+/** \name Draw GPU Context
  * \{ */
 
 void DRW_gpu_context_enable_ex(bool /*restore*/)
