@@ -44,7 +44,7 @@ TEST(blf_load, load)
   close_font(id);
 }
 
-TEST(blf_load, is_loaded)
+TEST(blf_load, font_is_loaded)
 {
   const char *font_path = font_file_path("Ahem.ttf");
   const int id = open_font("Ahem.ttf");
@@ -52,7 +52,7 @@ TEST(blf_load, is_loaded)
   close_font(id);
 }
 
-TEST(blf_load, is_loaded_id)
+TEST(blf_load, font_is_loaded_id)
 {
   const int id = open_font("Ahem.ttf");
   EXPECT_TRUE(BLF_is_loaded_id(id));
