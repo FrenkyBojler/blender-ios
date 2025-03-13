@@ -2,6 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BLI_array_utils.hh"
 #include "BLI_stack.hh"
 
 #include "BKE_node.hh"
@@ -39,15 +40,28 @@ static nodes::StructureTypeInterface calc_node_interface(const bNode &node)
 
   for (const int output : output_sockets.index_range()) {
     const nodes::SocketDeclaration &decl = *output_sockets[output]->runtime->declaration;
-    interface.outputs[output].type = decl.structure_type;
-    if (interface.outputs[output].type != StructureType::Dynamic) {
+    nodes::StructureTypeInterface::OutputDependency &dependency = interface.outputs[output];
+    dependency.type = decl.structure_type;
+    if (dependency.type != StructureType::Dynamic) {
       continue;
     }
 
     /* Currently the input sockets that influence the field status of an output are the same as the
      * sockets that influence its structure type. Reuse that for the propagation of structure type
      * until there is a more generic format of intra-node dependencies. */
-    interface.outputs[output].linked_inputs = decl.output_field_dependency.linked_input_indices();
+    switch (decl.output_field_dependency.field_type()) {
+      case nodes::OutputSocketFieldType::None:
+        break;
+      case nodes::OutputSocketFieldType::FieldSource:
+        break;
+      case nodes::OutputSocketFieldType::DependentField:
+        dependency.linked_inputs.reinitialize(input_sockets.size());
+        array_utils::fill_index_range(dependency.linked_inputs.as_mutable_span());
+        break;
+      case nodes::OutputSocketFieldType::PartiallyDependent:
+        dependency.linked_inputs = decl.output_field_dependency.linked_input_indices();
+        break;
+    }
   }
 
   return interface;
