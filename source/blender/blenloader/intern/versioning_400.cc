@@ -3864,6 +3864,27 @@ static void version_sequencer_update_overdrop(Main *bmain)
   }
 }
 
+static void version_show_texpaint_to_show_uv(FileData *fd, Main *bmain)
+{
+  if (!DNA_struct_member_exists(fd->filesdna, "SpaceImage", "bool", "show_uv")) {
+    LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
+      LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+        LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
+          if (sl->spacetype == SPACE_IMAGE) {
+            SpaceImage *sima = reinterpret_cast<SpaceImage *>(sl);
+            if (sima->flag & SI_NO_DRAW_TEXPAINT) {
+              sima->flag |= SI_NO_DRAW_UV_GUIDE;
+            }
+            else {
+              sima->flag &= SI_NO_DRAW_UV_GUIDE;
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
 void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
 {
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 1)) {
@@ -5993,6 +6014,10 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
       SequencerToolSettings *sequencer_tool_settings = blender::seq::tool_settings_ensure(scene);
       sequencer_tool_settings->snap_mode |= SEQ_SNAP_TO_FRAME_RANGE;
     }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 6)) {
+    version_show_texpaint_to_show_uv(fd, bmain);
   }
 
   /* Always run this versioning; meshes are written with the legacy format which always needs to
