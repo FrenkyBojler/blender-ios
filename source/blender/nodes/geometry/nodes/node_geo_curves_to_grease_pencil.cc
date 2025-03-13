@@ -8,9 +8,18 @@
 #include "BKE_grease_pencil.hh"
 #include "BKE_instances.hh"
 
+#include "NOD_rna_define.hh"
+
+#include "UI_interface_c.hh"
+
 #include "node_geometry_util.hh"
 
 namespace blender::nodes::node_geo_curves_to_grease_pencil_cc {
+
+enum class DepthOrder : int8_t {
+  Layers = 0,
+  Location = 1,
+};
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
@@ -26,10 +35,16 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Geometry>("Grease Pencil").propagate_all();
 }
 
+static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+{
+  uiItemR(layout, ptr, "depth_order", UI_ITEM_NONE, "", 0);
+}
+
 static GreasePencil *curves_to_grease_pencil_with_one_layer(
     const Curves &curves_id,
     const Field<bool> &selection_field,
     const StringRefNull layer_name,
+    const DepthOrder depth_order,
     const AttributeFilter &attribute_filter)
 {
   bke::CurvesGeometry curves = curves_id.geometry.wrap();
@@ -44,6 +59,8 @@ static GreasePencil *curves_to_grease_pencil_with_one_layer(
   curves.remove_curves(curves_to_delete, attribute_filter);
 
   GreasePencil *grease_pencil = BKE_grease_pencil_new_nomain();
+  SET_FLAG_FROM_TEST(
+      grease_pencil->flag, depth_order == DepthOrder::Location, GREASE_PENCIL_STROKE_ORDER_3D);
   grease_pencil->add_layers_with_empty_drawings_for_eval(1);
   bke::greasepencil::Layer &layer = grease_pencil->layer(0);
   layer.set_name(layer_name);
@@ -62,6 +79,7 @@ static GreasePencil *curves_to_grease_pencil_with_one_layer(
 static GreasePencil *curve_instances_to_grease_pencil_layers(
     const bke::Instances &instances,
     const Field<bool> &selection_field,
+    const DepthOrder depth_order,
     const AttributeFilter &attribute_filter)
 {
   const Span<int> reference_handles = instances.reference_handles();
@@ -85,6 +103,8 @@ static GreasePencil *curve_instances_to_grease_pencil_layers(
   }
 
   GreasePencil *grease_pencil = BKE_grease_pencil_new_nomain();
+  SET_FLAG_FROM_TEST(
+      grease_pencil->flag, depth_order == DepthOrder::Location, GREASE_PENCIL_STROKE_ORDER_3D);
 
   VectorSet<Material *> all_materials;
   grease_pencil->add_layers_with_empty_drawings_for_eval(layer_num);
@@ -185,6 +205,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   const Field<bool> selection_field = params.extract_input<Field<bool>>("Selection");
   const bool instances_as_layers = params.extract_input<bool>("Instances as Layers");
   const NodeAttributeFilter &attribute_filter = params.get_attribute_filter("Grease Pencil");
+  const DepthOrder depth_order = DepthOrder(params.node().custom1);
 
   GreasePencil *grease_pencil = nullptr;
   if (instances_as_layers) {
@@ -197,7 +218,7 @@ static void node_geo_exec(GeoNodeExecParams params)
       return;
     }
     grease_pencil = curve_instances_to_grease_pencil_layers(
-        *instances, selection_field, attribute_filter);
+        *instances, selection_field, depth_order, attribute_filter);
   }
   else {
     if (curves_geometry.has_instances()) {
@@ -209,12 +230,37 @@ static void node_geo_exec(GeoNodeExecParams params)
       return;
     }
     grease_pencil = curves_to_grease_pencil_with_one_layer(
-        *curves_id, selection_field, curves_geometry.name, attribute_filter);
+        *curves_id, selection_field, curves_geometry.name, depth_order, attribute_filter);
   }
 
   GeometrySet grease_pencil_geometry = GeometrySet::from_grease_pencil(grease_pencil);
   grease_pencil_geometry.name = std::move(curves_geometry.name);
   params.set_output("Grease Pencil", std::move(grease_pencil_geometry));
+}
+
+static void node_rna(StructRNA *srna)
+{
+  static const EnumPropertyItem depth_order_items[] = {
+      {int(DepthOrder::Layers),
+       "LAYERS",
+       0,
+       "2D Layers",
+       "Use the layer order to determine the stroke depth"},
+      {int(DepthOrder::Location),
+       "LOCATION",
+       0,
+       "3D Location",
+       "Use the 3D position of the stroke points to determine the stroke depth"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  RNA_def_node_enum(srna,
+                    "depth_order",
+                    "Depth Order",
+                    "",
+                    depth_order_items,
+                    NOD_inline_enum_accessors(custom1),
+                    int(DepthOrder::Layers));
 }
 
 static void node_register()
@@ -225,11 +271,13 @@ static void node_register()
   ntype.ui_description = "Convert the curves in each top-level instance into Grease Pencil layer";
   ntype.enum_name_legacy = "CURVES_TO_GREASE_PENCIL";
   ntype.nclass = NODE_CLASS_GEOMETRY;
+  ntype.draw_buttons = node_layout;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
   bke::node_type_size(ntype, 160, 100, 320);
 
   bke::node_register_type(ntype);
+  node_rna(ntype.rna_ext.srna);
 }
 NOD_REGISTER_NODE(node_register)
 
