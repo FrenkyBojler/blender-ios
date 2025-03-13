@@ -10,6 +10,8 @@
 
 #pragma once
 
+#include <functional>
+
 #include "BLI_math_vector_types.hh"
 #include "DNA_object_enums.h"
 
