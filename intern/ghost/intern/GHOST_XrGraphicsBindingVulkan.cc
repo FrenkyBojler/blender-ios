@@ -22,8 +22,22 @@ PFN_xrCreateVulkanInstanceKHR GHOST_XrGraphicsBindingVulkan::s_xrCreateVulkanIns
     nullptr;
 PFN_xrCreateVulkanDeviceKHR GHOST_XrGraphicsBindingVulkan::s_xrCreateVulkanDeviceKHR_fn = nullptr;
 
+/* -------------------------------------------------------------------- */
+/** \name Destroying resources.
+ * \{ */
+
 GHOST_XrGraphicsBindingVulkan::~GHOST_XrGraphicsBindingVulkan()
 {
+  for (VkCommandBuffer vk_command_buffer : vk_command_buffers) {
+    vkFreeCommandBuffers(m_vk_device, m_vk_command_pool, 1, &vk_command_buffer);
+  }
+  vk_command_buffers.clear();
+
+  if (m_vk_command_pool != VK_NULL_HANDLE) {
+    vkDestroyCommandPool(m_vk_device, m_vk_command_pool, nullptr);
+    m_vk_command_pool = VK_NULL_HANDLE;
+  }
+
   if (m_vk_device != VK_NULL_HANDLE) {
     vkDestroyDevice(m_vk_device, nullptr);
     m_vk_device = VK_NULL_HANDLE;
@@ -34,6 +48,8 @@ GHOST_XrGraphicsBindingVulkan::~GHOST_XrGraphicsBindingVulkan()
     m_vk_instance = VK_NULL_HANDLE;
   }
 }
+
+/* \} */
 
 bool GHOST_XrGraphicsBindingVulkan::checkVersionRequirements(GHOST_Context &ghost_ctx,
                                                              XrInstance instance,
@@ -170,6 +186,14 @@ void GHOST_XrGraphicsBindingVulkan::initFromGhostContext(GHOST_Context & /*ghost
       s_xrCreateVulkanDeviceKHR_fn(instance, &xr_device_create_info, &m_vk_device, &vk_result),
       "Unable to create an OpenXR compatible Vulkan device.");
 
+  /* Command buffer pool */
+  VkCommandPoolCreateInfo vk_command_pool_create_info = {
+      VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+      nullptr,
+      VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
+      m_graphics_queue_family};
+  vkCreateCommandPool(m_vk_device, &vk_command_pool_create_info, nullptr, &m_vk_command_pool);
+
   /* Update the binding struct */
   oxr_binding.vk.type = XR_TYPE_GRAPHICS_BINDING_VULKAN_KHR;
   oxr_binding.vk.next = nullptr;
@@ -253,12 +277,75 @@ std::vector<XrSwapchainImageBaseHeader *> GHOST_XrGraphicsBindingVulkan::createS
     base_images.push_back(reinterpret_cast<XrSwapchainImageBaseHeader *>(&image));
   }
   m_image_cache.push_back(std::move(vulkan_images));
+
+  /* Allocate command buffer per image. */
+  vk_command_buffers.resize(image_count);
+  VkCommandBufferAllocateInfo vk_command_buffer_allocate_info = {
+      VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+      nullptr,
+      m_vk_command_pool,
+      VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+      image_count};
+  vkAllocateCommandBuffers(
+      m_vk_device, &vk_command_buffer_allocate_info, vk_command_buffers.data());
+
   return base_images;
 }
 
 void GHOST_XrGraphicsBindingVulkan::submitToSwapchainImage(
-    XrSwapchainImageBaseHeader & /*swapchain_image*/, const GHOST_XrDrawViewInfo & /*draw_info*/)
+    XrSwapchainImageBaseHeader &swapchain_image, const GHOST_XrDrawViewInfo &draw_info)
 {
+  XrSwapchainImageVulkan2KHR &vulkan_image = *reinterpret_cast<XrSwapchainImageVulkan2KHR *>(
+      &swapchain_image);
+  size_t swapchain_image_index = &vulkan_image - &m_image_cache.back().front();
+  VkCommandBuffer vk_command_buffer = vk_command_buffers[swapchain_image_index];
+
+  VkCommandBufferBeginInfo vk_command_buffer_begin_info = {
+      VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+      nullptr,
+      VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
+      nullptr};
+  vkBeginCommandBuffer(vk_command_buffer, &vk_command_buffer_begin_info);
+
+  /* Transfer to VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL */
+  VkImageMemoryBarrier vk_image_memory_barrier = {VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+                                                  nullptr,
+                                                  0,
+                                                  VK_ACCESS_TRANSFER_WRITE_BIT,
+                                                  VK_IMAGE_LAYOUT_UNDEFINED,
+                                                  VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                                                  VK_QUEUE_FAMILY_IGNORED,
+                                                  VK_QUEUE_FAMILY_IGNORED,
+                                                  vulkan_image.image,
+                                                  {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1}};
+  vkCmdPipelineBarrier(vk_command_buffer,
+                       VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+                       VK_PIPELINE_STAGE_TRANSFER_BIT,
+                       0,
+                       0,
+                       nullptr,
+                       0,
+                       nullptr,
+                       1,
+                       &vk_image_memory_barrier);
+
+  /* Clear image */
+  VkClearColorValue vk_clear_color = {{0.0f, 0.0f, 0.0f, 1.0f}};
+  VkImageSubresourceRange vk_image_subresource_range = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
+  vkCmdClearColorImage(vk_command_buffer,
+                       vulkan_image.image,
+                       VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                       &vk_clear_color,
+                       1,
+                       &vk_image_subresource_range);
+
+  /* Transfer to generic */
+
+  vkEndCommandBuffer(vk_command_buffer);
+
+  VkSubmitInfo vk_submit_info = {
+      VK_STRUCTURE_TYPE_SUBMIT_INFO, nullptr, 0, nullptr, nullptr, 1, &vk_command_buffer};
+  vkQueueSubmit(m_vk_queue, 1, &vk_submit_info, VK_NULL_HANDLE);
 }
 
 bool GHOST_XrGraphicsBindingVulkan::needsUpsideDownDrawing(GHOST_Context &ghost_ctx) const

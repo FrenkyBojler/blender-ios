@@ -49,8 +49,10 @@ class GHOST_XrGraphicsBindingVulkan : public GHOST_IXrGraphicsBinding {
   uint32_t m_graphics_queue_family = 0;
   VkQueue m_vk_queue = VK_NULL_HANDLE;
   VkDevice m_vk_device = VK_NULL_HANDLE;
+  VkCommandPool m_vk_command_pool = VK_NULL_HANDLE;
 
   std::list<std::vector<XrSwapchainImageVulkan2KHR>> m_image_cache;
+  std::vector<VkCommandBuffer> vk_command_buffers;
 
   static PFN_xrGetVulkanGraphicsRequirements2KHR s_xrGetVulkanGraphicsRequirements2KHR_fn;
   static PFN_xrGetVulkanGraphicsDevice2KHR s_xrGetVulkanGraphicsDevice2KHR_fn;
