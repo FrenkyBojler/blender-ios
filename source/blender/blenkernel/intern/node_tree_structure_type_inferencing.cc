@@ -81,15 +81,7 @@ struct SocketStatus {
   bool is_single = false;
   bool is_grid = false;
   bool is_field = false;
-
-  void merge(const SocketStatus &other, const bool do_grid = true)
-  {
-    this->is_single |= other.is_single;
-    if (do_grid) {
-      this->is_grid |= other.is_grid;
-    }
-    this->is_field |= other.is_field;
-  }
+  bool requires_single = false;
 };
 
 static void initialize_socket_states(const bNodeTree &tree,
@@ -109,7 +101,7 @@ static void initialize_socket_states(const bNodeTree &tree,
         break;
       }
       case StructureType::Single: {
-        socket_usages[index].is_single = true;
+        socket_usages[index].requires_single = true;
         break;
       }
       case StructureType::Grid: {
@@ -124,6 +116,14 @@ static void initialize_socket_states(const bNodeTree &tree,
   }
 }
 
+static void merge_status_right_to_left(SocketStatus &a, const SocketStatus &b)
+{
+  a.is_field |= b.is_field;
+  a.is_grid |= b.is_grid;
+  a.requires_single |= b.requires_single;
+  a.is_single |= a.requires_single;
+}
+
 static void store_group_input_structure_types(const bNodeTree &tree,
                                               const Span<SocketStatus> socket_usages,
                                               nodes::StructureTypeInterface &derived_interface)
@@ -132,7 +132,8 @@ static void store_group_input_structure_types(const bNodeTree &tree,
   Array<SocketStatus> group_input_usages(tree.interface_inputs().size());
   for (const bNode *node : tree.group_input_nodes()) {
     for (const bNodeSocket *socket : node->output_sockets().drop_back(1)) {
-      group_input_usages[socket->index()].merge(socket_usages[socket->index_in_tree()]);
+      merge_status_right_to_left(group_input_usages[socket->index()],
+                                 socket_usages[socket->index_in_tree()]);
     }
   }
 
@@ -145,7 +146,7 @@ static void store_group_input_structure_types(const bNodeTree &tree,
     }
 
     const SocketStatus &usage = group_input_usages[input_i];
-    if (usage.is_single) {
+    if (usage.requires_single) {
       derived_interface.inputs[input_i] = StructureType::Single;
     }
     else if (usage.is_grid) {
@@ -178,16 +179,19 @@ ENUM_OPERATORS(StateSyncResult, StateSyncResult::CHANGED_B)
  */
 static StateSyncResult sync_states(SocketStatus &a, SocketStatus &b)
 {
-  const bool is_single = a.is_single || b.is_single;
+  const bool requires_single = a.requires_single || b.requires_single;
+  const bool is_single = a.is_single && b.is_single;
 
   StateSyncResult res = StateSyncResult::NONE;
-  if (a.is_single != is_single) {
+  if (a.requires_single != requires_single || a.is_single != is_single) {
     res |= StateSyncResult::CHANGED_A;
   }
-  if (b.is_single != is_single) {
+  if (b.requires_single != requires_single || b.is_single != is_single) {
     res |= StateSyncResult::CHANGED_B;
   }
 
+  a.requires_single = requires_single;
+  b.requires_single = requires_single;
   a.is_single = is_single;
   b.is_single = is_single;
 
@@ -314,7 +318,7 @@ static void propagate_right_to_left(const bNodeTree &tree,
             continue;
           }
           const bNodeSocket &target_socket = *link->tosock;
-          output_usage.merge(socket_usages[target_socket.index_in_tree()]);
+          merge_status_right_to_left(output_usage, socket_usages[target_socket.index_in_tree()]);
         }
       }
 
@@ -338,7 +342,8 @@ static void propagate_right_to_left(const bNodeTree &tree,
           if (!input.is_available() || !output.is_available()) {
             continue;
           }
-          socket_usages[input.index_in_tree()].merge(socket_usages[output.index_in_tree()]);
+          merge_status_right_to_left(socket_usages[input.index_in_tree()],
+                                     socket_usages[output.index_in_tree()]);
         }
       }
 
@@ -351,6 +356,16 @@ static void propagate_right_to_left(const bNodeTree &tree,
     if (!need_update) {
       break;
     }
+  }
+}
+
+static void merge_status_left_to_right(SocketStatus &a, const SocketStatus &b)
+{
+  a.is_field |= b.is_field;
+  a.is_grid |= b.is_grid;
+  a.is_single |= b.is_single;
+  if (a.is_field) {
+    a.is_single = false;
   }
 }
 
@@ -405,7 +420,8 @@ static void propagate_left_to_right(const bNodeTree &tree,
           if (!input.is_available()) {
             continue;
           }
-          socket_usages[output.index_in_tree()].merge(socket_usages[input.index_in_tree()]);
+          merge_status_left_to_right(socket_usages[output.index_in_tree()],
+                                     socket_usages[input.index_in_tree()]);
         }
       }
 
