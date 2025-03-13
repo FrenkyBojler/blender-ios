@@ -16,6 +16,9 @@
 #include "RE_pipeline.h"
 
 #include "DRW_render.hh"
+#ifdef WITH_XR_OPENXR
+#  include "DRW_engine.hh"
+#endif
 
 #include "WM_api.hh"
 #include "wm_window.hh"
