@@ -1239,6 +1239,23 @@ def _keymap_from_item(context, item):
     return None
 
 
+class PlayheadSnappingPanel:
+    bl_region_type = 'HEADER'
+    bl_label = "Playhead Snapping"
+
+    @classmethod
+    def poll(cls, context):
+        return True
+
+    def draw(self, context):
+        tool_settings = context.tool_settings
+        layout = self.layout
+        layout.use_property_split = True
+        col = layout.column(align=True)
+        col.prop(tool_settings, "use_snap_playhead")
+        col.prop(tool_settings, "snap_playhead_element", expand=True)
+
+
 classes = (
     WM_MT_toolsystem_submenu,
 )

@@ -36,6 +36,7 @@
 #include "WM_types.hh"
 
 #include "ED_anim_api.hh"
+#include "ED_markers.hh"
 #include "ED_screen.hh"
 #include "ED_sequencer.hh"
 #include "ED_time_scrub_ui.hh"
@@ -113,29 +114,75 @@ static void seq_frame_snap_update_best(const int position,
   }
 }
 
-static int seq_frame_apply_snap(bContext *C, Scene *scene, const int timeline_frame)
+static int get_strip_snap_target(blender::Span<Strip *> strips,
+                                 const Scene *scene,
+                                 const int current_frame)
 {
-
-  ListBase *seqbase = blender::seq::active_seqbase_get(blender::seq::editing_get(scene));
-
   int best_frame = 0;
   int best_distance = MAXFRAME;
-  for (Strip *strip : blender::seq::query_all_strips(seqbase)) {
+  for (Strip *strip : strips) {
     seq_frame_snap_update_best(blender::seq::time_left_handle_frame_get(scene, strip),
-                               timeline_frame,
+                               current_frame,
                                &best_frame,
                                &best_distance);
     seq_frame_snap_update_best(blender::seq::time_right_handle_frame_get(scene, strip),
-                               timeline_frame,
+                               current_frame,
                                &best_frame,
                                &best_distance);
   }
+  if (best_distance == MAXFRAME) {
+    /* No snap target was found. */
+    return current_frame;
+  }
+  return best_frame;
+}
 
-  if (best_distance < seq_snap_threshold_get_frame_distance(C)) {
-    return best_frame;
+static int get_marker_snap_target(Scene *scene, const int frame)
+{
+  return ED_markers_find_nearest_marker_time(&scene->markers, frame);
+}
+
+static int seq_frame_apply_snap(bContext *C, Scene *scene, const int timeline_frame)
+{
+  ToolSettings *tool_settings = scene->toolsettings;
+  int snap_frame = MAXFRAME;
+
+  if (tool_settings->snap_playhead_mode & SCE_SNAP_TO_STRIPS) {
+    ListBase *seqbase = blender::seq::active_seqbase_get(blender::seq::editing_get(scene));
+    const int snap_target = get_strip_snap_target(
+        blender::seq::query_all_strips(seqbase), scene, timeline_frame);
+    if (abs(snap_target - timeline_frame) < abs(snap_frame - timeline_frame)) {
+      snap_frame = snap_target;
+    }
+  }
+
+  if (tool_settings->snap_playhead_mode & SCE_SNAP_TO_MARKERS) {
+    const int snap_target = get_marker_snap_target(scene, timeline_frame);
+    if (abs(snap_target - timeline_frame) < abs(snap_frame - timeline_frame)) {
+      snap_frame = snap_target;
+    }
+  }
+
+  if (abs(snap_frame - timeline_frame) < seq_snap_threshold_get_frame_distance(C)) {
+    return snap_frame;
   }
 
   return timeline_frame;
+}
+
+static float apply_frame_snap(bContext *C, const float frame)
+{
+  Scene *scene = CTX_data_scene(C);
+  ScrArea *area = CTX_wm_area(C);
+  switch (area->spacetype) {
+    case SPACE_SEQ:
+      return seq_frame_apply_snap(C, scene, frame);
+
+    default:
+      break;
+  }
+
+  return BKE_scene_frame_snap_by_seconds(scene, 1.0, frame);
 }
 
 /* Set the new frame number */
@@ -149,12 +196,7 @@ static void change_frame_apply(bContext *C, wmOperator *op, const bool always_up
   const float old_subframe = scene->r.subframe;
 
   if (do_snap) {
-    if (CTX_wm_space_seq(C) && blender::seq::editing_get(scene) != nullptr) {
-      frame = seq_frame_apply_snap(C, scene, frame);
-    }
-    else {
-      frame = BKE_scene_frame_snap_by_seconds(scene, 1.0, frame);
-    }
+    frame = apply_frame_snap(C, frame);
   }
 
   /* set the new frame number */
@@ -224,16 +266,10 @@ static void change_frame_seq_preview_end(SpaceSeq *sseq)
   }
 }
 
-static bool use_sequencer_snapping(bContext *C)
+static bool use_snapping(bContext *C)
 {
-  if (!CTX_wm_space_seq(C)) {
-    return false;
-  }
-
   Scene *scene = CTX_data_scene(C);
-  short snap_flag = blender::seq::tool_settings_snap_flag_get(scene);
-  return (scene->toolsettings->snap_flag_seq & SCE_SNAP) &&
-         (snap_flag & SEQ_SNAP_CURRENT_FRAME_TO_STRIPS);
+  return scene->toolsettings->snap_flag_playhead & SCE_SNAP;
 }
 
 static bool sequencer_skip_for_handle_tweak(const bContext *C, const wmEvent *event)
@@ -276,7 +312,7 @@ static int change_frame_invoke(bContext *C, wmOperator *op, const wmEvent *event
    */
   RNA_float_set(op->ptr, "frame", frame_from_event(C, event));
 
-  if (use_sequencer_snapping(C)) {
+  if (use_snapping(C)) {
     RNA_boolean_set(op->ptr, "snap", true);
   }
 
@@ -356,7 +392,7 @@ static int change_frame_modal(bContext *C, wmOperator *op, const wmEvent *event)
     case EVT_LEFTCTRLKEY:
     case EVT_RIGHTCTRLKEY:
       /* Use Ctrl key to invert snapping in sequencer. */
-      if (use_sequencer_snapping(C)) {
+      if (use_snapping(C)) {
         if (event->val == KM_RELEASE) {
           RNA_boolean_set(op->ptr, "snap", true);
         }
