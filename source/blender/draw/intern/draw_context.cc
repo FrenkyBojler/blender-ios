@@ -1638,6 +1638,8 @@ void DRW_render_gpencil(RenderEngine *engine, Depsgraph *depsgraph)
   DRWContext draw_ctx(DRWContext::RENDER, depsgraph, {engine->resolution_x, engine->resolution_y});
   draw_ctx.acquire_data();
   draw_ctx.options.draw_background = scene->r.alphamode == R_ADDSKY;
+  /* Init modules ahead of time because the begin_sync happens before DRW_render_object_iter. */
+  draw_ctx.data->modules_init();
 
   /* Main rendering. */
   rctf view_rect;
@@ -1688,6 +1690,8 @@ void DRW_render_to_image(RenderEngine *engine, Depsgraph *depsgraph)
   DRWContext draw_ctx(DRWContext::RENDER, depsgraph, {engine->resolution_x, engine->resolution_y});
   draw_ctx.acquire_data();
   draw_ctx.options.draw_background = scene->r.alphamode == R_ADDSKY;
+  /* Init modules ahead of time because the begin_sync happens before DRW_render_object_iter. */
+  draw_ctx.data->modules_init();
 
   ViewportEngineData *data = DRW_view_data_engine_data_get_ensure(drw_get().view_data_active,
                                                                   draw_engine_type);
