@@ -260,21 +260,22 @@ static void import_startjob(void *customdata, wmJobWorkerStatus *worker_status)
   *data->progress = 0.25f;
 
   /* Create blender objects. */
-  size_t i = 0;
+  size_t progress_count = 0;
   for (USDPrimReader *reader : archive->readers()) {
     if (!reader) {
       continue;
     }
     reader->create_object(data->bmain, 0.0);
-    if ((++i & 1023) == 0) {
+    if ((++progress_count & 1023) == 0) {
       *data->do_update = true;
-      *data->progress = 0.25f + 0.25f * (i / size);
+      *data->progress = 0.25f + 0.25f * (progress_count / size);
     }
   }
 
   /* Setup parenthood and read actual object data. */
-  std::atomic<int> progress_count;
-  const Vector<USDPrimReader *> &readers = archive->readers();
+  std::mutex progress_mutex;
+  progress_count = 0;
+  const Span<USDPrimReader *> readers = archive->readers();
   blender::threading::parallel_for(readers.index_range(), 1, [&](const IndexRange range) {
     /* Quickly drain the parallel loop if cancelation was requested. */
     if (G.is_break) {
@@ -299,8 +300,11 @@ static void import_startjob(void *customdata, wmJobWorkerStatus *worker_status)
         ob->parent = parent->object();
       }
 
-      *data->progress = 0.5f + 0.5f * (progress_count.fetch_add(1) / size);
-      *data->do_update = true;
+      {
+        std::scoped_lock lock{progress_mutex};
+        *data->progress = 0.5f + 0.5f * (++progress_count / size);
+        *data->do_update = true;
+      }
 
       if (G.is_break) {
         data->was_canceled = true;
