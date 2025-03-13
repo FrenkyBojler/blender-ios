@@ -92,28 +92,32 @@ struct SocketStatus {
   }
 };
 
-static void initialize_usages_from_socket_declarations(const bNodeTree &tree,
-                                                       MutableSpan<SocketStatus> socket_usages)
+static void initialize_socket_states(const bNodeTree &tree,
+                                     MutableSpan<SocketStatus> socket_usages)
 {
   for (const bNodeSocket *socket : tree.all_sockets()) {
     const nodes::SocketDeclaration *declaration = socket->runtime->declaration;
     if (!socket->runtime->declaration) {
       continue;
     }
+    const int index = socket->index_in_tree();
     switch (declaration->structure_type) {
       case StructureType::Dynamic: {
+        if (socket->is_input() && !socket->is_directly_linked()) {
+          socket_usages[index].is_single = true;
+        }
         break;
       }
       case StructureType::Single: {
-        socket_usages[socket->index_in_tree()].is_single = true;
+        socket_usages[index].is_single = true;
         break;
       }
       case StructureType::Grid: {
-        socket_usages[socket->index_in_tree()].is_grid = true;
+        socket_usages[index].is_grid = true;
         break;
       }
       case StructureType::Field: {
-        socket_usages[socket->index_in_tree()].is_field = true;
+        socket_usages[index].is_field = true;
         break;
       }
     }
@@ -513,7 +517,7 @@ static std::unique_ptr<nodes::StructureTypeInterface> calc_structure_type_interf
 
   Array<SocketStatus> socket_usages(tree.all_sockets().size());
 
-  initialize_usages_from_socket_declarations(tree, socket_usages);
+  initialize_socket_states(tree, socket_usages);
   propagate_right_to_left(tree, node_interfaces, socket_usages);
   store_group_input_structure_types(tree, socket_usages, *derived_interface);
   propagate_left_to_right(tree, node_interfaces, socket_usages);
