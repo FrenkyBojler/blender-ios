@@ -869,7 +869,7 @@ class NodeTreeMainUpdater {
     }
   }
 
-  static bool socket_type_always_circle(const SocketDeclaration &decl)
+  static bool socket_type_always_single(const SocketDeclaration &decl)
   {
     switch (decl.socket_type) {
       case SOCK_OBJECT:
@@ -890,8 +890,8 @@ class NodeTreeMainUpdater {
     if (decl.identifier == "__extend__") {
       return SOCK_DISPLAY_SHAPE_CIRCLE;
     }
-    if (socket_type_always_circle(decl)) {
-      return SOCK_DISPLAY_SHAPE_CIRCLE;
+    if (socket_type_always_single(decl)) {
+      return SOCK_DISPLAY_SHAPE_LINE;
     }
     switch (structure_type) {
       case StructureType::Single:
@@ -914,8 +914,8 @@ class NodeTreeMainUpdater {
     if (decl.identifier == "__extend__") {
       return SOCK_DISPLAY_SHAPE_CIRCLE;
     }
-    if (socket_type_always_circle(decl)) {
-      return SOCK_DISPLAY_SHAPE_CIRCLE;
+    if (socket_type_always_single(decl)) {
+      return SOCK_DISPLAY_SHAPE_LINE;
     }
     switch (structure_type) {
       case StructureType::Single: {
