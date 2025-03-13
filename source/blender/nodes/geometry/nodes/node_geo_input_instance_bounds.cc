@@ -70,7 +70,7 @@ class InstanceBoundsField final : public bke::InstancesFieldInput {
 
   uint64_t hash() const override
   {
-    return 22374372;
+    return get_default_hash(return_max_);
   }
 
   bool is_equal_to(const fn::FieldNode &other) const override
