@@ -532,7 +532,7 @@ void BLF_color3f(int fontid, float r, float g, float b)
 void BLF_batch_draw_begin()
 {
   BLI_assert(g_batch.enabled == false);
-  g_batch.enabled = true;
+  g_batch.enabled = false;
 }
 
 void BLF_batch_draw_flush()
