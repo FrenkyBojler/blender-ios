@@ -109,6 +109,14 @@ static bool check_double_press(wmEvent *event, bool test_only)
   static time_point<steady_clock> last_pressed_time{};
 
   if (!event) {
+    /* If event is explicitly set to nullptr, it means to reset the double press tracker. */
+    last_pressed_button = EVENT_NONE;
+    return false;
+  }
+
+  if (ISTABLET(last_pressed_button) && !event->tablet.active) {
+    /* If a tablet event is supposed to trigger double press but tablet is no longer active,
+     * reset the double press tracker. */
     last_pressed_button = EVENT_NONE;
     return false;
   }
@@ -284,6 +292,13 @@ static bool emulate_rmbmmb(wmEvent *event, bool test_only, bool is_double_press)
     }
 
     kill_event = true;
+  }
+  else if (ISTABLET(upcoming_event_source) && !event->tablet.active) {
+    /* If tablet event is supposed to trigger the next mouse button emulation but tablet pen goes
+     * out of range, then reset the state. */
+    if (!test_only) {
+      upcoming_event_source = EVENT_NONE;
+    }
   }
 
   return kill_event;
