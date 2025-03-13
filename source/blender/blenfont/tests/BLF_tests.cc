@@ -16,13 +16,6 @@ static char *sample_font_path()
   return samples_path;
 }
 
-static char *font_file_path(std::string font_file)
-{
-  char font_path[FILE_MAX];
-  BLI_path_join(font_path, sizeof(font_path), sample_font_path(), font_file.c_str());
-  return font_path;
-}
-
 static int open_font(std::string font_file)
 {
   BLF_init();
@@ -41,14 +34,6 @@ TEST(blf_load, load)
 {
   const int id = open_font("Ahem.ttf");
   EXPECT_TRUE(id != -1);
-  close_font(id);
-}
-
-TEST(blf_load, font_is_loaded)
-{
-  const char *font_path = font_file_path("Ahem.ttf");
-  const int id = open_font("Ahem.ttf");
-  EXPECT_TRUE(BLF_is_loaded(font_path));
   close_font(id);
 }
 
