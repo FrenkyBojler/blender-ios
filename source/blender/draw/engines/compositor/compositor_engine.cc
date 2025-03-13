@@ -49,12 +49,12 @@ class Context : public compositor::Context {
 
   const Scene &get_scene() const override
   {
-    return *DRW_context_state_get()->scene;
+    return *DRW_context_get()->scene;
   }
 
   const bNodeTree &get_node_tree() const override
   {
-    return *DRW_context_state_get()->scene->nodetree;
+    return *DRW_context_get()->scene->nodetree;
   }
 
   bool use_gpu() const override
@@ -82,7 +82,7 @@ class Context : public compositor::Context {
 
   const RenderData &get_render_data() const override
   {
-    return DRW_context_state_get()->scene->r;
+    return DRW_context_get()->scene->r;
   }
 
   int2 get_render_size() const override
@@ -98,17 +98,16 @@ class Context : public compositor::Context {
     const int2 viewport_size = int2(DRW_viewport_size_get());
     const rcti render_region = rcti{0, viewport_size.x, 0, viewport_size.y};
 
-    if (DRW_context_state_get()->rv3d->persp != RV3D_CAMOB || DRW_state_is_viewport_image_render())
-    {
+    if (DRW_context_get()->rv3d->persp != RV3D_CAMOB || DRW_state_is_viewport_image_render()) {
       return render_region;
     }
 
     rctf camera_border;
-    ED_view3d_calc_camera_border(DRW_context_state_get()->scene,
-                                 DRW_context_state_get()->depsgraph,
-                                 DRW_context_state_get()->region,
-                                 DRW_context_state_get()->v3d,
-                                 DRW_context_state_get()->rv3d,
+    ED_view3d_calc_camera_border(DRW_context_get()->scene,
+                                 DRW_context_get()->depsgraph,
+                                 DRW_context_get()->region,
+                                 DRW_context_get()->v3d,
+                                 DRW_context_get()->rv3d,
                                  false,
                                  &camera_border);
 
@@ -142,7 +141,7 @@ class Context : public compositor::Context {
   compositor::Result get_pass(const Scene *scene, int view_layer, const char *pass_name) override
   {
     if (DEG_get_original_id(const_cast<ID *>(&scene->id)) !=
-        DEG_get_original_id(&DRW_context_state_get()->scene->id))
+        DEG_get_original_id(&DRW_context_get()->scene->id))
     {
       return compositor::Result(*this);
     }
@@ -174,7 +173,7 @@ class Context : public compositor::Context {
   StringRef get_view_name() const override
   {
     const SceneRenderView *view = static_cast<SceneRenderView *>(
-        BLI_findlink(&get_render_data().views, DRW_context_state_get()->v3d->multiview_eye));
+        BLI_findlink(&get_render_data().views, DRW_context_get()->v3d->multiview_eye));
     return view->name;
   }
 
@@ -209,51 +208,14 @@ class Context : public compositor::Context {
 class Engine {
  private:
   Context context_;
-  compositor::Evaluator evaluator_;
-  /* Stores the compositing region size at the time the last compositor evaluation happened. See
-   * the update_compositing_region_size method for more information. */
-  int2 last_compositing_region_size_;
 
  public:
-  Engine(char *info_message)
-      : context_(info_message),
-        evaluator_(context_),
-        last_compositing_region_size_(context_.get_compositing_region_size())
-  {
-  }
+  Engine(char *info_message) : context_(info_message) {}
 
-  /* Update the compositing region size and evaluate the compositor. */
   void draw()
   {
-    update_compositing_region_size();
-    /* We temporally disable caching of node tree compilation by always resting the evaluator for
-     * now. See pull request #134394 for more information. TODO: This should be cleaned up in the
-     * future. */
-    evaluator_.reset();
-    evaluator_.evaluate();
-  }
-
-  /* If the size of the compositing region changed from the last time the compositor was evaluated,
-   * update the last compositor region size and reset the evaluator. That's because the evaluator
-   * compiles the node tree in a manner that is specifically optimized for the size of the
-   * compositing region. This should be called before evaluating the compositor. */
-  void update_compositing_region_size()
-  {
-    if (last_compositing_region_size_ == context_.get_compositing_region_size()) {
-      return;
-    }
-
-    last_compositing_region_size_ = context_.get_compositing_region_size();
-
-    evaluator_.reset();
-  }
-
-  /* If the compositor node tree changed, reset the evaluator. */
-  void update(const Depsgraph *depsgraph)
-  {
-    if (DEG_id_type_updated(depsgraph, ID_NT)) {
-      evaluator_.reset();
-    }
+    compositor::Evaluator evaluator(context_);
+    evaluator.evaluate();
   }
 };
 
@@ -286,6 +248,8 @@ static void compositor_engine_draw(void *data)
 {
   COMPOSITOR_Data *compositor_data = static_cast<COMPOSITOR_Data *>(data);
 
+  DRW_submission_start();
+
 #if defined(__APPLE__)
   if (GPU_backend_get_type() == GPU_BACKEND_METAL) {
     /* NOTE(Metal): Isolate Compositor compute work in individual command buffer to improve
@@ -311,18 +275,7 @@ static void compositor_engine_draw(void *data)
     GPU_finish();
   }
 #endif
-}
-
-static void compositor_engine_update(void *data)
-{
-  COMPOSITOR_Data *compositor_data = static_cast<COMPOSITOR_Data *>(data);
-
-  /* Clear any info message that was set in a previous update. */
-  compositor_data->info[0] = '\0';
-
-  if (compositor_data->instance_data) {
-    compositor_data->instance_data->update(DRW_context_state_get()->depsgraph);
-  }
+  DRW_submission_end();
 }
 
 DrawEngineType draw_engine_compositor_type = {
@@ -336,8 +289,6 @@ DrawEngineType draw_engine_compositor_type = {
     /*cache_populate*/ nullptr,
     /*cache_finish*/ nullptr,
     /*draw_scene*/ &compositor_engine_draw,
-    /*view_update*/ &compositor_engine_update,
-    /*id_update*/ nullptr,
     /*render_to_image*/ nullptr,
     /*store_metadata*/ nullptr,
 };

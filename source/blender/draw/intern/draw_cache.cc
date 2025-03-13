@@ -34,7 +34,7 @@
 
 #include "draw_cache.hh"
 #include "draw_cache_impl.hh"
-#include "draw_manager_c.hh"
+#include "draw_context_private.hh"
 
 using blender::Span;
 
@@ -245,7 +245,7 @@ blender::gpu::Batch *DRW_cache_mesh_surface_edges_get(Object *ob)
 {
   using namespace blender::draw;
   BLI_assert(ob->type == OB_MESH);
-  return DRW_mesh_batch_cache_get_surface_edges(*ob, *static_cast<Mesh *>(ob->data));
+  return DRW_mesh_batch_cache_get_surface_edges(*static_cast<Mesh *>(ob->data));
 }
 
 Span<blender::gpu::Batch *> DRW_cache_mesh_surface_shaded_get(
@@ -433,6 +433,15 @@ blender::gpu::Batch *DRW_cache_lattice_vert_overlay_get(Object *ob)
 /** \name PointCloud
  * \{ */
 
+blender::gpu::Batch *DRW_cache_pointcloud_vert_overlay_get(Object *ob)
+{
+  using namespace blender::draw;
+  BLI_assert(ob->type == OB_POINTCLOUD);
+
+  PointCloud *pointcloud = static_cast<PointCloud *>(ob->data);
+  return DRW_pointcloud_batch_cache_get_edit_dots(pointcloud);
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -537,10 +546,10 @@ void drw_batch_cache_validate(Object *ob)
   }
 }
 
-void drw_batch_cache_generate_requested(Object *ob)
+void drw_batch_cache_generate_requested(Object *ob, TaskGraph &task_graph)
 {
   using namespace blender::draw;
-  const DRWContextState *draw_ctx = DRW_context_state_get();
+  const DRWContext *draw_ctx = DRW_context_get();
   const Scene *scene = draw_ctx->scene;
   const enum eContextObjectMode mode = CTX_data_mode_enum_ex(
       draw_ctx->object_edit, draw_ctx->obact, draw_ctx->object_mode);
@@ -555,7 +564,7 @@ void drw_batch_cache_generate_requested(Object *ob)
   switch (ob->type) {
     case OB_MESH:
       DRW_mesh_batch_cache_create_requested(
-          *DST.task_graph, *ob, *(Mesh *)ob->data, *scene, is_paint_mode, use_hide);
+          task_graph, *ob, *(Mesh *)ob->data, *scene, is_paint_mode, use_hide);
       break;
     case OB_CURVES_LEGACY:
     case OB_FONT:
@@ -574,12 +583,12 @@ void drw_batch_cache_generate_requested(Object *ob)
   }
 }
 
-void drw_batch_cache_generate_requested_evaluated_mesh_or_curve(Object *ob)
+void drw_batch_cache_generate_requested_evaluated_mesh_or_curve(Object *ob, TaskGraph &task_graph)
 {
   using namespace blender::draw;
   /* NOTE: Logic here is duplicated from #drw_batch_cache_generate_requested. */
 
-  const DRWContextState *draw_ctx = DRW_context_state_get();
+  const DRWContext *draw_ctx = DRW_context_get();
   const Scene *scene = draw_ctx->scene;
   const enum eContextObjectMode mode = CTX_data_mode_enum_ex(
       draw_ctx->object_edit, draw_ctx->obact, draw_ctx->object_mode);
@@ -597,8 +606,7 @@ void drw_batch_cache_generate_requested_evaluated_mesh_or_curve(Object *ob)
    * of the final result.
    */
   if (mesh != nullptr) {
-    DRW_mesh_batch_cache_create_requested(
-        *DST.task_graph, *ob, *mesh, *scene, is_paint_mode, use_hide);
+    DRW_mesh_batch_cache_create_requested(task_graph, *ob, *mesh, *scene, is_paint_mode, use_hide);
   }
   else if (ELEM(ob->type, OB_CURVES_LEGACY, OB_FONT, OB_SURF)) {
     DRW_curve_batch_cache_create_requested(ob, scene);
@@ -607,7 +615,11 @@ void drw_batch_cache_generate_requested_evaluated_mesh_or_curve(Object *ob)
 
 void drw_batch_cache_generate_requested_delayed(Object *ob)
 {
-  BLI_gset_add(DST.delayed_extraction, ob);
+  DRWContext &draw_ctx = drw_get();
+  if (draw_ctx.delayed_extraction == nullptr) {
+    draw_ctx.delayed_extraction = BLI_gset_ptr_new(__func__);
+  }
+  BLI_gset_add(draw_ctx.delayed_extraction, ob);
 }
 
 namespace blender::draw {

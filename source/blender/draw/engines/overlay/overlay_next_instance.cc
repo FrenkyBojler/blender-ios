@@ -20,7 +20,7 @@ namespace blender::draw::overlay {
 void Instance::init()
 {
   /* TODO(fclem): Remove DRW global usage. */
-  const DRWContextState *ctx = DRW_context_state_get();
+  const DRWContext *ctx = DRW_context_get();
   /* Was needed by `object_wire_theme_id()` when doing the port. Not sure if needed nowadays. */
   BKE_view_layer_synced_ensure(ctx->scene, ctx->view_layer);
 
@@ -66,6 +66,10 @@ void Instance::init()
     state.is_render_depth_available = state.v3d->shading.type <= OB_SOLID ||
                                       (BKE_scene_uses_blender_eevee(state.scene) &&
                                        BKE_render_preview_pixel_size(&state.scene->r) == 1);
+
+    /* For depth only drawing, no other render engine is expected. Except for Grease Pencil which
+     * outputs valid depth. Otherwise depth is cleared and is valid. */
+    state.is_render_depth_available |= state.is_depth_only_drawing;
 
     if (!state.hide_overlays) {
       state.overlay = state.v3d->overlay;
@@ -200,7 +204,7 @@ void Instance::ensure_weight_ramp_texture()
 void Resources::update_clip_planes(const State &state)
 {
   if (!state.is_space_v3d() || state.clipping_plane_count == 0) {
-    /* Unused, do not care about content but still fullfil the bindings. */
+    /* Unused, do not care about content but still fulfill the bindings. */
     clip_planes_buf.push_update();
     return;
   }
@@ -425,6 +429,7 @@ void Instance::begin_sync()
     layer.names.begin_sync(resources, state);
     layer.paints.begin_sync(resources, state);
     layer.particles.begin_sync(resources, state);
+    layer.pointclouds.begin_sync(resources, state);
     layer.prepass.begin_sync(resources, state);
     layer.relations.begin_sync(resources, state);
     layer.speakers.begin_sync(resources, state);
@@ -529,6 +534,9 @@ void Instance::object_sync(ObjectRef &ob_ref, Manager &manager)
         break;
       case OB_MBALL:
         layer.metaballs.edit_object_sync(manager, ob_ref, resources, state);
+        break;
+      case OB_POINTCLOUD:
+        layer.pointclouds.edit_object_sync(manager, ob_ref, resources, state);
         break;
       case OB_FONT:
         layer.edit_text.edit_object_sync(manager, ob_ref, resources, state);
@@ -657,8 +665,12 @@ void Instance::draw(Manager &manager)
 
   static gpu::DebugScope select_scope = {"Selection"};
   static gpu::DebugScope draw_scope = {"Overlay"};
+  static gpu::DebugScope depth_scope = {"DepthOnly"};
 
-  if (resources.is_selection()) {
+  if (state.is_depth_only_drawing) {
+    depth_scope.begin_capture();
+  }
+  else if (resources.is_selection()) {
     select_scope.begin_capture();
   }
   else {
@@ -687,6 +699,7 @@ void Instance::draw(Manager &manager)
       layer.lattices.pre_draw(manager, view);
       layer.light_probes.pre_draw(manager, view);
       layer.particles.pre_draw(manager, view);
+      layer.pointclouds.pre_draw(manager, view);
       layer.prepass.pre_draw(manager, view);
       layer.wireframe.pre_draw(manager, view);
     };
@@ -718,7 +731,10 @@ void Instance::draw(Manager &manager)
 
   resources.read_result();
 
-  if (resources.is_selection()) {
+  if (state.is_depth_only_drawing) {
+    depth_scope.end_capture();
+  }
+  else if (resources.is_selection()) {
     select_scope.end_capture();
   }
   else {
@@ -774,6 +790,7 @@ void Instance::draw_v3d(Manager &manager, View &view)
     layer.speakers.draw_line(framebuffer, manager, view);
     layer.lattices.draw_line(framebuffer, manager, view);
     layer.metaballs.draw_line(framebuffer, manager, view);
+    layer.pointclouds.draw_line(framebuffer, manager, view);
     layer.relations.draw_line(framebuffer, manager, view);
     layer.fluids.draw_line(framebuffer, manager, view);
     layer.particles.draw_line(framebuffer, manager, view);
@@ -1012,12 +1029,16 @@ bool Instance::object_needs_prepass(const ObjectRef &ob_ref, bool in_paint_mode)
 
   if (in_paint_mode) {
     /* Allow paint overlays to draw with depth equal test. */
-    return object_is_rendered_transparent(ob_ref.object, state);
+    if (object_is_rendered_transparent(ob_ref.object, state)) {
+      return true;
+    }
   }
 
   if (!state.xray_enabled) {
     /* Force depth prepass if depth buffer form render engine is not available. */
-    return !state.is_render_depth_available && (ob_ref.object->dt >= OB_SOLID);
+    if (!state.is_render_depth_available && (ob_ref.object->dt >= OB_SOLID)) {
+      return true;
+    }
   }
 
   return false;
