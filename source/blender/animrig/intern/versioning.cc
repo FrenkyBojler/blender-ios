@@ -205,11 +205,9 @@ void convert_legacy_action_assignments(Main &bmain, ReportList *reports)
        * because versioned legacy Actions always have a single slot called "Legacy Slot", and so
        * this Action must have been opened in some Blender and had its slot removed. */
 
-      /* Another reason that there is no slot is that it was a _really_ old (pre-2.50)
-       * Action that should have been upgraded already. */
-      BLI_assert_msg(BLI_listbase_is_empty(&action.chanbase),
-                     "Did not expect pre-2.5 Action at this stage of the versioning code");
-
+      /* Another reason for having no slot is that it is a _really_ old (pre-2.50) Action. Those
+       * are upgraded in do_versions_after_setup(), but this function can be called earlier than
+       * that. So better gracefully skip those. */
       return true;
     }
 
