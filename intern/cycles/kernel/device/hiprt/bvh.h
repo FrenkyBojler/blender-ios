@@ -131,15 +131,30 @@ ccl_device_intersect bool scene_intersect_local(KernelGlobals kg,
   GET_TRAVERSAL_STACK()
 
   void *local_geom = (void *)(kernel_data_fetch(blas_ptr, local_object));
-  /* TODO(sergey): Use custom traversal for motion triangles. */
-  hiprtGeomTraversalAnyHitCustomStack<Stack> traversal((hiprtGeometry)local_geom,
-                                                       ray_hip,
-                                                       stack,
-                                                       hiprtTraversalHintDefault,
-                                                       &payload,
-                                                       kernel_params.table_local_intersect,
-                                                       2);
-  hiprtHit hit = traversal.getNextHit();
+
+  hiprtHit hit;
+  if (primitive_type == PRIMITIVE_MOTION_TRIANGLE) {
+    /* Motion triangle BVH uses custom primitives which requires custom traversal. */
+    hiprtGeomCustomTraversalAnyHitCustomStack<Stack> traversal((hiprtGeometry)local_geom,
+                                                               ray_hip,
+                                                               stack,
+                                                               hiprtTraversalHintDefault,
+                                                               &payload,
+                                                               kernel_params.table_local_intersect,
+                                                               2);
+    hit = traversal.getNextHit();
+  }
+  else {
+    hiprtGeomTraversalAnyHitCustomStack<Stack> traversal((hiprtGeometry)local_geom,
+                                                         ray_hip,
+                                                         stack,
+                                                         hiprtTraversalHintDefault,
+                                                         &payload,
+                                                         kernel_params.table_local_intersect,
+                                                         2);
+    hit = traversal.getNextHit();
+  }
+
   return hit.hasHit();
 }
 #endif  //__BVH_LOCAL__
