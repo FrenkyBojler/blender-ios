@@ -344,6 +344,9 @@ void BLF_shadow_offset(int fontid, int x, int y);
 void BLF_buffer(
     int fontid, float *fbuf, unsigned char *cbuf, int w, int h, ColorManagedDisplay *display);
 
+/**
+ * Opaque structure used to push/pop values set by the #BLF_buffer function.
+ */
 struct BLFBufferState;
 /**
  * Store the current buffer state.

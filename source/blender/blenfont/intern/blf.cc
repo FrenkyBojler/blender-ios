@@ -989,9 +989,16 @@ void BLF_buffer_state_pop(BLFBufferState *buffer_state)
   FontBLF *font = blf_get(buffer_state->fontid);
   /* It's possible the font has been removed as this is called from Python. */
   if (font == buffer_state->font) {
+    /* From the callers perspective, don't consider the color part of the buffer info.
+     *
+     * NOTE(@ideasman42) This is done because the color is not logically part of the image binding.
+     * It looks like we can refactor color out of #FontBufInfoBLF::col_init,
+     * and use #FontBLF::color instead. */
+    copy_v4_v4(buffer_state->buf_info.col_init, font->buf_info.col_init);
+
     font->buf_info = buffer_state->buf_info;
   }
-  MEM_delete(buffer_state);
+  BLF_buffer_state_free(buffer_state);
 }
 
 void BLF_buffer_state_free(BLFBufferState *buffer_state)
