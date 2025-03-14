@@ -275,32 +275,35 @@ static void file_ensure_inside_viewbounds(ARegion *region, SpaceFile *sfile, con
   rctf *cur = &region->v2d.cur;
   rcti rect;
   bool changed = true;
+  const bool can_scroll_x = (region->v2d.keepofs & V2D_LOCKOFS_X) == 0;
+  const bool can_scroll_y = (region->v2d.keepofs & V2D_LOCKOFS_Y) == 0;
 
   file_tile_boundbox(region, layout, file, &rect);
 
   /* down - also use if tile is higher than viewbounds so view is aligned to file name */
-  if (cur->ymin > rect.ymin || layout->tile_h > region->winy) {
+  if (can_scroll_y && (cur->ymin > rect.ymin || layout->tile_h > region->winy)) {
     cur->ymin = rect.ymin - (2 * layout->tile_border_y);
     cur->ymax = cur->ymin + region->winy;
   }
   /* up */
-  else if ((cur->ymax - layout->offset_top) < rect.ymax) {
+  else if (can_scroll_y && ((cur->ymax - layout->offset_top) < rect.ymax)) {
     cur->ymax = rect.ymax + layout->tile_border_y + layout->offset_top;
     cur->ymin = cur->ymax - region->winy;
   }
   /* left - also use if tile is wider than viewbounds so view is aligned to file name */
-  else if (cur->xmin > rect.xmin || layout->tile_w > region->winx) {
+  else if (can_scroll_x && (cur->xmin > rect.xmin || layout->tile_w > region->winx)) {
     cur->xmin = rect.xmin - layout->tile_border_x;
     cur->xmax = cur->xmin + region->winx;
   }
   /* right */
-  else if (cur->xmax < rect.xmax) {
+  else if (can_scroll_x && (cur->xmax < rect.xmax)) {
     cur->xmax = rect.xmax + (2 * layout->tile_border_x);
     cur->xmin = cur->xmax - region->winx;
   }
   else {
-    BLI_assert(cur->xmin <= rect.xmin && cur->xmax >= rect.xmax && cur->ymin <= rect.ymin &&
-               (cur->ymax - layout->offset_top) >= rect.ymax);
+    BLI_assert(!can_scroll_x || (cur->xmin <= rect.xmin && cur->xmax >= rect.xmax));
+    BLI_assert(!can_scroll_y ||
+               (cur->ymin <= rect.ymin && (cur->ymax - layout->offset_top) >= rect.ymax));
     changed = false;
   }
 

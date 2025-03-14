@@ -986,6 +986,7 @@ enum eFileDisplayType {
   FILE_VERTICALDISPLAY = 1,
   FILE_HORIZONTALDISPLAY = 2,
   FILE_IMGDISPLAY = 3,
+  FILE_VERTICAL_COLUMNDISPLAY = 4,
 };
 
 /** #FileSelectParams.sort */

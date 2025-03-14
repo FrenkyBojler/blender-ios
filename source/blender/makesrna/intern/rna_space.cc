@@ -517,6 +517,11 @@ static const EnumPropertyItem fileselectparams_display_type_items[] = {
      ICON_LONGDISPLAY,
      "Vertical List",
      "Display files as a vertical list"},
+    {FILE_VERTICAL_COLUMNDISPLAY,
+     "LIST_VERTICAL_COLUMNS",
+     ICON_SHORTDISPLAY,
+     "Vertical Columns",
+     "Display files in a vertical list, split across multiple columns"},
     {FILE_HORIZONTALDISPLAY,
      "LIST_HORIZONTAL",
      ICON_SHORTDISPLAY,
@@ -2914,6 +2919,8 @@ static const EnumPropertyItem *rna_FileSelectParams_display_type_itemf(bContext 
     /* Only expose preview and column view for asset browsing. */
     RNA_enum_items_add_value(
         &items, &totitem, fileselectparams_display_type_items, FILE_HORIZONTALDISPLAY);
+    RNA_enum_items_add_value(
+        &items, &totitem, fileselectparams_display_type_items, FILE_VERTICAL_COLUMNDISPLAY);
     RNA_enum_items_add_value(
         &items, &totitem, fileselectparams_display_type_items, FILE_IMGDISPLAY);
 

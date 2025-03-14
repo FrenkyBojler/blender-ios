@@ -614,7 +614,7 @@ class ASSETBROWSER_PT_display(asset_utils.AssetBrowserPanel, Panel):
             col.prop(params, "display_size", text="Size")
         else:
             col.prop(params, "list_display_size", text="Preview Size")
-        if params.display_type == 'LIST_HORIZONTAL':
+        if params.display_type in {'LIST_HORIZONTAL', 'LIST_VERTICAL_COLUMNS'}:
             col.prop(params, "list_column_size", text="Column Size")
 
         col.separator()

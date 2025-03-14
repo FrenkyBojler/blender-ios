@@ -1142,6 +1142,33 @@ void ED_fileselect_init_layout(SpaceFile *sfile, ARegion *region)
                                      int(BLI_rctf_size_x(&v2d->cur) - 2 * layout->tile_border_x);
     layout->flag = FILE_LAYOUT_HOR;
   }
+  else if (params->display == FILE_VERTICAL_COLUMNDISPLAY) {
+    layout->prv_w = params->list_thumbnail_size * UI_SCALE_FAC;
+    layout->prv_h = params->list_thumbnail_size * UI_SCALE_FAC;
+    layout->tile_border_x = 0.4f * UI_UNIT_X;
+    layout->tile_border_y = 0.1f * UI_UNIT_Y;
+    layout->tile_h = std::max(textheight * 3 / 2, layout->prv_h);
+    layout->tile_w = params->list_column_size * UI_SCALE_FAC;
+    layout->attribute_column_header_h = 0;
+    layout->offset_top = 0;
+    /* Allow the layout to overflow a bit horizontally. */
+    layout->flow_columns = (BLI_rctf_size_x(&v2d->cur) + 0.2f * layout->tile_w) /
+                           (layout->tile_w + 2 * layout->tile_border_x);
+    layout->width = layout->flow_columns * (layout->tile_w + 2 * layout->tile_border_x);
+    if (layout->flow_columns > 0) {
+      layout->rows = divide_ceil_u(numfiles, layout->flow_columns);
+    }
+    else {
+      layout->flow_columns = 1;
+      layout->rows = numfiles;
+    }
+    layout->height = sfile->layout->rows * (layout->tile_h + 2 * layout->tile_border_y) +
+                     layout->tile_border_y * 2 - layout->offset_top;
+
+    file_attribute_columns_init(params, layout);
+
+    layout->flag = FILE_LAYOUT_VER;
+  }
   layout->dirty = false;
 }
 

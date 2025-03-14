@@ -558,6 +558,21 @@ static void file_main_region_draw(const bContext *C, ARegion *region)
     v2d->keepofs &= ~V2D_LOCKOFS_Y;
     v2d->keepofs |= V2D_LOCKOFS_X;
   }
+  /* Allow scrolling in both directions. Major scroll axis is vertical, but layout may overflow
+   * horizontally a bit too. */
+  else if (params->display == FILE_VERTICAL_COLUMNDISPLAY) {
+    // #define USE_BIDIRECTIONAL_SCROLL
+
+#ifdef USE_BIDIRECTIONAL_SCROLL
+    v2d->scroll = (V2D_SCROLL_RIGHT | V2D_SCROLL_BOTTOM);
+    v2d->keepofs &= ~(V2D_LOCKOFS_X | V2D_LOCKOFS_Y);
+#else
+    v2d->scroll = V2D_SCROLL_RIGHT;
+    v2d->keepofs &= ~V2D_LOCKOFS_Y;
+    v2d->keepofs |= V2D_LOCKOFS_X;
+#endif
+#undef USE_BIDIRECTIONAL_SCROLL
+  }
   else {
     v2d->scroll = V2D_SCROLL_BOTTOM;
     v2d->keepofs &= ~V2D_LOCKOFS_X;
