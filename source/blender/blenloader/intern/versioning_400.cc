@@ -3878,7 +3878,7 @@ static void asset_browser_add_list_view(Main *bmain)
             sfile->params->list_thumbnail_size = 16;
           }
           if (sfile->params->list_column_size == 0) {
-            sfile->params->list_thumbnail_size = 500;
+            sfile->params->list_column_size = 500;
           }
         }
         if (sfile->asset_params) {
