@@ -1084,9 +1084,6 @@ static void read_blender_header(FileData *fd)
   if (header.endian != ENDIAN_ORDER) {
     fd->flags |= FD_FLAGS_SWITCH_ENDIAN;
   }
-  if (header.file_format_version == 0) {
-    fd->flags |= FD_FLAGS_IS_SMALL_BHEAD;
-  }
   fd->fileversion = header.file_version;
   fd->blender_header = header;
 }
