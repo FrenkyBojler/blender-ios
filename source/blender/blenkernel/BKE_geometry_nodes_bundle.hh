@@ -19,8 +19,8 @@ namespace blender::bke {
 /**
  * A key that identifies values in a bundle or inputs/outputs of a closure.
  * Note that this key does not have a hash and thus can't be used in a hash table. This wouldn't
- * work well if something has multiple identifiers for compatibility reasons. While that's not used
- * currently, it's good to not make that impossible yet.
+ * work well if these items have multiple identifiers for compatibility reasons. While that's not
+ * used currently, it's good to keep it possible.
  */
 class SocketInterfaceKey {
  private:
