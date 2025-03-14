@@ -134,15 +134,6 @@ struct DRWViewData {
   void clear(bool free_instance_data);
 };
 
-/* Returns a TextureFromPool stored in the given view data for the pass identified by the given
- * pass name. Engines should call this function for each of the passes needed by the viewport
- * compositor in every redraw, then it should allocate the texture and write the pass data to it.
- * The texture should cover the entire viewport. */
-blender::draw::TextureFromPool &DRW_view_data_pass_texture_get(DRWViewData *view_data,
-                                                               const char *pass_name);
-
 void DRW_view_data_default_lists_from_viewport(DRWViewData *view_data, GPUViewport *viewport);
 void DRW_view_data_reset(DRWViewData *view_data);
 void DRW_view_data_free_unused(DRWViewData *view_data);
-DefaultFramebufferList *DRW_view_data_default_framebuffer_list_get(DRWViewData *view_data);
-DefaultTextureList *DRW_view_data_default_texture_list_get(DRWViewData *view_data);

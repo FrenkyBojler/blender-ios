@@ -157,7 +157,10 @@ blender::float2 DRW_viewport_size_get();
 DefaultFramebufferList *DRW_viewport_framebuffer_list_get();
 DefaultTextureList *DRW_viewport_texture_list_get();
 
-/* See DRW_viewport_pass_texture_get. */
+/* Returns a TextureFromPool stored in the given view data for the pass identified by the given
+ * pass name. Engines should call this function for each of the passes needed by the viewport
+ * compositor in every redraw, then it should allocate the texture and write the pass data to it.
+ * The texture should cover the entire viewport. */
 blender::draw::TextureFromPool &DRW_viewport_pass_texture_get(const char *pass_name);
 
 void DRW_viewport_request_redraw();

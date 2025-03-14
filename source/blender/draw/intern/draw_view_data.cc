@@ -36,13 +36,6 @@ DRWViewData::~DRWViewData()
   delete manager;
 };
 
-draw::TextureFromPool &DRW_view_data_pass_texture_get(DRWViewData *view_data,
-                                                      const char *pass_name)
-{
-  return *view_data->viewport_compositor_passes.lookup_or_add_cb(
-      pass_name, [&]() { return std::make_unique<draw::TextureFromPool>(pass_name); });
-}
-
 void DRW_view_data_default_lists_from_viewport(DRWViewData *view_data, GPUViewport *viewport)
 {
   int active_view = GPU_viewport_active_view_get(viewport);
@@ -138,16 +131,6 @@ void DRW_view_data_free_unused(DRWViewData *view_data)
       ptr.free_instance();
     }
   });
-}
-
-DefaultFramebufferList *DRW_view_data_default_framebuffer_list_get(DRWViewData *view_data)
-{
-  return &view_data->dfbl;
-}
-
-DefaultTextureList *DRW_view_data_default_texture_list_get(DRWViewData *view_data)
-{
-  return &view_data->dtxl;
 }
 
 draw::Manager *DRW_manager_get()

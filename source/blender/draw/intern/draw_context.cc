@@ -197,8 +197,7 @@ DRWContext::~DRWContext()
 
 GPUFrameBuffer *DRWContext::default_framebuffer()
 {
-  DefaultFramebufferList *dfbl = DRW_view_data_default_framebuffer_list_get(view_data_active);
-  return dfbl->default_fb;
+  return view_data_active->dfbl.default_fb;
 }
 
 static bool draw_show_annotation()
@@ -496,17 +495,18 @@ void DRWContext::release_data()
 
 DefaultFramebufferList *DRW_viewport_framebuffer_list_get()
 {
-  return DRW_view_data_default_framebuffer_list_get(drw_get().view_data_active);
+  return &drw_get().view_data_active->dfbl;
 }
 
 DefaultTextureList *DRW_viewport_texture_list_get()
 {
-  return DRW_view_data_default_texture_list_get(drw_get().view_data_active);
+  return &drw_get().view_data_active->dtxl;
 }
 
 blender::draw::TextureFromPool &DRW_viewport_pass_texture_get(const char *pass_name)
 {
-  return DRW_view_data_pass_texture_get(drw_get().view_data_active, pass_name);
+  return *drw_get().view_data_active->viewport_compositor_passes.lookup_or_add_cb(
+      pass_name, [&]() { return std::make_unique<blender::draw::TextureFromPool>(pass_name); });
 }
 
 void DRW_viewport_request_redraw()
