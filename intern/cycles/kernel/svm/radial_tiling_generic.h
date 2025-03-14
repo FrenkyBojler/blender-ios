@@ -10,9 +10,11 @@
 #ifdef TRANSLATE_TO_GEOMETRY_NODES
 #  define atanf atan
 #  define atan2f atan2
+#  define ceilf ceil
 #  define cosf cos
 #  define fabsf abs
 #  define floorf floor
+#  define fmaxf max
 #  define fminf min
 #  define fractf fract
 #  define sinf sin
@@ -31,9 +33,11 @@ using namespace math;
 #  ifdef TRANSLATE_TO_OSL
 #    define atanf atan
 #    define atan2f atan2
+#    define ceilf ceil
 #    define cosf cos
 #    define fabsf abs
 #    define floorf floor
+#    define fmaxf max
 #    define fminf min
 #    define fractf fract
 #    define sinf sin
@@ -49,6 +53,9 @@ using namespace math;
 #    define M_PI_F M_PI
 #    define M_TAU_F M_TAU
 #    define ccl_device
+
+#    define false 0
+#    define true 1
 #  else
 #    ifdef TRANSLATE_TO_SVM
 /* No code translation necessary for the SVM implementation as it is the base generic version. */
@@ -56,9 +63,11 @@ using namespace math;
 /* Translate code to GLSL by default. */
 #      define atanf atan
 #      define atan2f atan2
+#      define ceilf ceil
 #      define cosf cos
 #      define fabsf abs
 #      define floorf floor
+#      define fmaxf max
 #      define fminf min
 #      define fractf fract
 #      define sinf sin
@@ -1192,11 +1201,6 @@ ccl_device float4 calculate_out_variables_irregular_circular(bool calculate_r_go
   }
 }
 
-ccl_device float inverse_mix(float from_min, float from_max, float value)
-{
-  return (value - from_min) / (from_max - from_min);
-}
-
 ccl_device float4 calculate_out_variables(bool calculate_r_gon_parameter_field,
                                           bool calculate_max_unit_parameter,
                                           bool normalize_r_gon_parameter,
@@ -1206,181 +1210,19 @@ ccl_device float4 calculate_out_variables(bool calculate_r_gon_parameter_field,
                                           float2 coord)
 {
   float4 out_variables;
+  float r_gon_sides_numerically_stabilized = r_gon_sides;
   float l_coord = sqrtf(squaref(coord.x) + squaref(coord.y));
+  bool loop_for_numerical_stability = true;
 
-  if (fractf(r_gon_sides) == float(0.0)) {
-    float x_axis_A_coord = atan2f(coord.y, coord.x) + float(coord.y < float(0.0)) * M_TAU_F;
-    float ref_A_angle_bisector = M_PI_F / r_gon_sides;
-    float ref_A_next_ref = float(2.0) * ref_A_angle_bisector;
-    float segment_id = floorf(x_axis_A_coord / ref_A_next_ref);
-    float ref_A_coord = x_axis_A_coord - segment_id * ref_A_next_ref;
-
-    if (r_gon_roundness == float(0.0)) {
-      /* Regular straight part. */
-
-      float l_angle_bisector = float(0.0);
-      float r_gon_parameter = float(0.0);
-      float max_unit_parameter = float(0.0);
-
-      l_angle_bisector = l_coord * cosf(ref_A_angle_bisector - ref_A_coord);
-
-      if (calculate_r_gon_parameter_field) {
-        r_gon_parameter = l_angle_bisector * tanf(fabsf(ref_A_angle_bisector - ref_A_coord));
-        if (ref_A_coord < ref_A_angle_bisector) {
-          r_gon_parameter *= -float(1.0);
-        }
-        if (normalize_r_gon_parameter && (r_gon_sides != float(2.0))) {
-          r_gon_parameter /= l_angle_bisector * tanf(ref_A_angle_bisector);
-        }
-      }
-      if (calculate_max_unit_parameter) {
-        max_unit_parameter = (r_gon_sides != float(2.0)) ? tanf(ref_A_angle_bisector) : float(0.0);
-      }
-      out_variables = make_float4(l_angle_bisector,
-                                  r_gon_parameter,
-                                  max_unit_parameter,
-                                  segment_id * ref_A_next_ref + ref_A_angle_bisector);
-    }
-    else if (r_gon_roundness == float(1.0)) {
-      /* Regular rounded part. */
-
-      float r_gon_parameter = float(0.0);
-      if (calculate_r_gon_parameter_field) {
-        r_gon_parameter = fabsf(ref_A_angle_bisector - ref_A_coord);
-        if (ref_A_coord < ref_A_angle_bisector) {
-          r_gon_parameter *= -float(1.0);
-        }
-        if (normalize_r_gon_parameter) {
-          r_gon_parameter /= ref_A_angle_bisector;
-        }
-      }
-      out_variables = make_float4(l_coord,
-                                  r_gon_parameter,
-                                  ref_A_angle_bisector,
-                                  segment_id * ref_A_next_ref + ref_A_angle_bisector);
-    }
-    else {
-      float ref_A_bevel_start = ref_A_angle_bisector -
-                                atanf((float(1.0) - r_gon_roundness) * tanf(ref_A_angle_bisector));
-      float bevel_start_A_angle_bisector = ref_A_angle_bisector - ref_A_bevel_start;
-
-      if ((ref_A_coord >= ref_A_next_ref - ref_A_bevel_start) || (ref_A_coord < ref_A_bevel_start))
-      {
-        /* Regular rounded part. */
-
-        /* SA == Signed Angle in [-M_PI, M_PI]. Counterclockwise angles are positive, clockwise
-         * angles are negative.*/
-        float nearest_ref_SA_coord = ref_A_coord -
-                                     float(ref_A_coord > ref_A_angle_bisector) * ref_A_next_ref;
-        float l_angle_bisector = float(0.0);
-        float r_gon_parameter = float(0.0);
-        float max_unit_parameter = float(0.0);
-
-        float l_circle_radius = sinf(ref_A_bevel_start) / sinf(ref_A_angle_bisector);
-        float l_circle_center = sinf(bevel_start_A_angle_bisector) / sinf(ref_A_angle_bisector);
-        float l_coord_R_l_bevel_start = cosf(nearest_ref_SA_coord) * l_circle_center +
-                                        sqrtf(
-                                            squaref(cosf(nearest_ref_SA_coord) * l_circle_center) +
-                                            squaref(l_circle_radius) - squaref(l_circle_center));
-
-        l_angle_bisector = l_coord * cosf(bevel_start_A_angle_bisector) / l_coord_R_l_bevel_start;
-
-        float spline_start_bevel_start = (float(1.0) - r_gon_roundness) * ref_A_bevel_start;
-
-        if (calculate_r_gon_parameter_field) {
-          float coord_A_bevel_start = ref_A_bevel_start - fabsf(nearest_ref_SA_coord);
-          r_gon_parameter = l_coord * sinf(bevel_start_A_angle_bisector);
-
-          if (coord_A_bevel_start < spline_start_bevel_start) {
-            r_gon_parameter += l_coord * cosf(bevel_start_A_angle_bisector) * coord_A_bevel_start +
-                               float(0.5) *
-                                   (float(1.0) - l_coord * cosf(bevel_start_A_angle_bisector)) *
-                                   squaref(coord_A_bevel_start) / spline_start_bevel_start;
-          }
-          else {
-            r_gon_parameter += spline_start_bevel_start *
-                                   (float(0.5) * l_coord * cosf(bevel_start_A_angle_bisector) -
-                                    float(0.5)) +
-                               coord_A_bevel_start;
-          }
-          if (ref_A_coord < ref_A_angle_bisector) {
-            r_gon_parameter *= -float(1.0);
-          }
-          if (normalize_r_gon_parameter) {
-            float normalize_based_on_l_angle_bisector =
-                l_angle_bisector * tanf(bevel_start_A_angle_bisector) +
-                spline_start_bevel_start * (float(0.5) * l_angle_bisector + float(0.5)) +
-                r_gon_roundness * ref_A_bevel_start;
-            float normalize_based_on_l_coord =
-                l_coord * sinf(bevel_start_A_angle_bisector) +
-                spline_start_bevel_start *
-                    (float(0.5) * l_coord * cosf(bevel_start_A_angle_bisector) + float(0.5)) +
-                r_gon_roundness * ref_A_bevel_start;
-
-            /* For r_gon_roundness -> 1.0 the normalize_based_on_l_angle_bisector field and
-             * normalize_based_on_l_coord field converge against the same scalar field. */
-            r_gon_parameter /= mix(normalize_based_on_l_angle_bisector,
-                                   normalize_based_on_l_coord,
-                                   coord_A_bevel_start / ref_A_bevel_start);
-          }
-        }
-        if (calculate_max_unit_parameter) {
-          max_unit_parameter = tanf(bevel_start_A_angle_bisector) + spline_start_bevel_start +
-                               r_gon_roundness * ref_A_bevel_start;
-        }
-        out_variables = make_float4(l_angle_bisector,
-                                    r_gon_parameter,
-                                    max_unit_parameter,
-                                    segment_id * ref_A_next_ref + ref_A_angle_bisector);
-      }
-      else {
-        /* Regular straight part. */
-
-        float l_angle_bisector = float(0.0);
-        float r_gon_parameter = float(0.0);
-        float max_unit_parameter = float(0.0);
-
-        l_angle_bisector = l_coord * cosf(ref_A_angle_bisector - ref_A_coord);
-
-        float spline_start_bevel_start = (float(1.0) - r_gon_roundness) * ref_A_bevel_start;
-
-        if (calculate_r_gon_parameter_field) {
-          r_gon_parameter = l_angle_bisector * tanf(fabsf(ref_A_angle_bisector - ref_A_coord));
-          if (ref_A_coord < ref_A_angle_bisector) {
-            r_gon_parameter *= -float(1.0);
-          }
-          if (normalize_r_gon_parameter) {
-            float normalize_based_on_l_angle_bisector =
-                l_angle_bisector * tanf(bevel_start_A_angle_bisector) +
-                spline_start_bevel_start * (float(0.5) * l_angle_bisector + float(0.5)) +
-                r_gon_roundness * ref_A_bevel_start;
-
-            r_gon_parameter /= normalize_based_on_l_angle_bisector;
-          }
-        }
-        if (calculate_max_unit_parameter) {
-          max_unit_parameter = tanf(bevel_start_A_angle_bisector) + spline_start_bevel_start +
-                               r_gon_roundness * ref_A_bevel_start;
-        }
-        out_variables = make_float4(l_angle_bisector,
-                                    r_gon_parameter,
-                                    max_unit_parameter,
-                                    segment_id * ref_A_next_ref + ref_A_angle_bisector);
-      }
-    }
-  }
-  else {
-    if (r_gon_roundness == float(0.0)) {
+  while (loop_for_numerical_stability) {
+    if (fractf(r_gon_sides_numerically_stabilized) == float(0.0)) {
       float x_axis_A_coord = atan2f(coord.y, coord.x) + float(coord.y < float(0.0)) * M_TAU_F;
-      float ref_A_angle_bisector = M_PI_F / r_gon_sides;
+      float ref_A_angle_bisector = M_PI_F / r_gon_sides_numerically_stabilized;
       float ref_A_next_ref = float(2.0) * ref_A_angle_bisector;
       float segment_id = floorf(x_axis_A_coord / ref_A_next_ref);
       float ref_A_coord = x_axis_A_coord - segment_id * ref_A_next_ref;
 
-      float last_angle_bisector_A_x_axis = M_PI_F - floorf(r_gon_sides) * ref_A_angle_bisector;
-      float last_ref_A_x_axis = float(2.0) * last_angle_bisector_A_x_axis;
-
-      if (x_axis_A_coord < M_TAU_F - last_ref_A_x_axis) {
+      if (r_gon_roundness == float(0.0)) {
         /* Regular straight part. */
 
         float l_angle_bisector = float(0.0);
@@ -1388,178 +1230,414 @@ ccl_device float4 calculate_out_variables(bool calculate_r_gon_parameter_field,
         float max_unit_parameter = float(0.0);
 
         l_angle_bisector = l_coord * cosf(ref_A_angle_bisector - ref_A_coord);
+
         if (calculate_r_gon_parameter_field) {
           r_gon_parameter = l_angle_bisector * tanf(fabsf(ref_A_angle_bisector - ref_A_coord));
           if (ref_A_coord < ref_A_angle_bisector) {
             r_gon_parameter *= -float(1.0);
           }
-          if (normalize_r_gon_parameter) {
+          if (normalize_r_gon_parameter && (r_gon_sides_numerically_stabilized != float(2.0))) {
             r_gon_parameter /= l_angle_bisector * tanf(ref_A_angle_bisector);
           }
         }
         if (calculate_max_unit_parameter) {
-          max_unit_parameter = tanf(ref_A_angle_bisector);
+          max_unit_parameter = (r_gon_sides_numerically_stabilized != float(2.0)) ?
+                                   tanf(ref_A_angle_bisector) :
+                                   float(0.0);
         }
         out_variables = make_float4(l_angle_bisector,
                                     r_gon_parameter,
                                     max_unit_parameter,
                                     segment_id * ref_A_next_ref + ref_A_angle_bisector);
+
+        loop_for_numerical_stability = false;
       }
-      else {
-        /* Irregular straight part. */
+      else if (r_gon_roundness == float(1.0)) {
+        /* Regular rounded part. */
 
-        float l_angle_bisector = float(0.0);
         float r_gon_parameter = float(0.0);
-        float max_unit_parameter = float(0.0);
-
-        float l_angle_bisector_R_l_last_angle_bisector = cosf(ref_A_angle_bisector) /
-                                                         cosf(last_angle_bisector_A_x_axis);
-        float l_last_angle_bisector = l_coord * cosf(last_angle_bisector_A_x_axis - ref_A_coord);
-
-        l_angle_bisector = l_angle_bisector_R_l_last_angle_bisector * l_last_angle_bisector;
-
         if (calculate_r_gon_parameter_field) {
-          r_gon_parameter = l_angle_bisector_R_l_last_angle_bisector * l_last_angle_bisector *
-                            tanf(fabsf(last_angle_bisector_A_x_axis - ref_A_coord));
-          if (ref_A_coord < last_angle_bisector_A_x_axis) {
+          r_gon_parameter = fabsf(ref_A_angle_bisector - ref_A_coord);
+          if (ref_A_coord < ref_A_angle_bisector) {
             r_gon_parameter *= -float(1.0);
           }
           if (normalize_r_gon_parameter) {
-            r_gon_parameter /= l_angle_bisector_R_l_last_angle_bisector * l_last_angle_bisector *
-                               tanf(last_angle_bisector_A_x_axis);
+            r_gon_parameter /= ref_A_angle_bisector;
           }
         }
-        if (calculate_max_unit_parameter) {
-          max_unit_parameter = tanf(last_angle_bisector_A_x_axis);
-        }
-        out_variables = make_float4(l_angle_bisector,
+        out_variables = make_float4(l_coord,
                                     r_gon_parameter,
-                                    max_unit_parameter,
-                                    segment_id * ref_A_next_ref + last_angle_bisector_A_x_axis);
-      }
-    }
-    else if (r_gon_roundness == float(1.0)) {
-      if (irregular_r_gon_corner_shape == float(1.0)) {
-        float min_r_gon_sides_fract = fminf(r_gon_sides / float(100.0), float(1.0));
-        float r_gon_sides_numerically_stabilized = floorf(r_gon_sides) + mix(min_r_gon_sides_fract,
-                                                                             float(1.0),
-                                                                             fractf(r_gon_sides));
+                                    ref_A_angle_bisector,
+                                    segment_id * ref_A_next_ref + ref_A_angle_bisector);
 
-        out_variables = calculate_out_variables_full_roundness_irregular_elliptical(
-            calculate_r_gon_parameter_field,
-            normalize_r_gon_parameter,
-            r_gon_sides_numerically_stabilized,
-            coord,
-            l_coord);
-      }
-      else if (irregular_r_gon_corner_shape == float(0.0)) {
-        float min_r_gon_sides_fract = fminf(r_gon_sides / float(10000.0), float(1.0));
-        float r_gon_sides_numerically_stabilized = floorf(r_gon_sides) + mix(min_r_gon_sides_fract,
-                                                                             float(1.0),
-                                                                             fractf(r_gon_sides));
-
-        out_variables = calculate_out_variables_full_roundness_irregular_circular(
-            calculate_r_gon_parameter_field,
-            normalize_r_gon_parameter,
-            r_gon_sides_numerically_stabilized,
-            coord,
-            l_coord);
+        loop_for_numerical_stability = false;
       }
       else {
-        float min_r_gon_sides_fract = fminf(r_gon_sides / float(100.0), float(1.0));
-        float r_gon_sides_numerically_stabilized = floorf(r_gon_sides) + mix(min_r_gon_sides_fract,
-                                                                             float(1.0),
-                                                                             fractf(r_gon_sides));
+        float ref_A_bevel_start = ref_A_angle_bisector - atanf((float(1.0) - r_gon_roundness) *
+                                                               tanf(ref_A_angle_bisector));
+        float bevel_start_A_angle_bisector = ref_A_angle_bisector - ref_A_bevel_start;
 
-        out_variables = mix(calculate_out_variables_full_roundness_irregular_circular(
-                                calculate_r_gon_parameter_field,
-                                normalize_r_gon_parameter,
-                                r_gon_sides_numerically_stabilized,
-                                coord,
-                                l_coord),
-                            calculate_out_variables_full_roundness_irregular_elliptical(
-                                calculate_r_gon_parameter_field,
-                                normalize_r_gon_parameter,
-                                r_gon_sides_numerically_stabilized,
-                                coord,
-                                l_coord),
-                            irregular_r_gon_corner_shape);
+        if ((ref_A_coord >= ref_A_next_ref - ref_A_bevel_start) ||
+            (ref_A_coord < ref_A_bevel_start))
+        {
+          /* Regular rounded part. */
+
+          /* SA == Signed Angle in [-M_PI, M_PI]. Counterclockwise angles are positive, clockwise
+           * angles are negative.*/
+          float nearest_ref_SA_coord = ref_A_coord -
+                                       float(ref_A_coord > ref_A_angle_bisector) * ref_A_next_ref;
+          float l_angle_bisector = float(0.0);
+          float r_gon_parameter = float(0.0);
+          float max_unit_parameter = float(0.0);
+
+          float l_circle_radius = sinf(ref_A_bevel_start) / sinf(ref_A_angle_bisector);
+          float l_circle_center = sinf(bevel_start_A_angle_bisector) / sinf(ref_A_angle_bisector);
+          float l_coord_R_l_bevel_start =
+              cosf(nearest_ref_SA_coord) * l_circle_center +
+              sqrtf(squaref(cosf(nearest_ref_SA_coord) * l_circle_center) +
+                    squaref(l_circle_radius) - squaref(l_circle_center));
+
+          l_angle_bisector = l_coord * cosf(bevel_start_A_angle_bisector) /
+                             l_coord_R_l_bevel_start;
+
+          float spline_start_bevel_start = (float(1.0) - r_gon_roundness) * ref_A_bevel_start;
+
+          if (calculate_r_gon_parameter_field) {
+            float coord_A_bevel_start = ref_A_bevel_start - fabsf(nearest_ref_SA_coord);
+            r_gon_parameter = l_coord * sinf(bevel_start_A_angle_bisector);
+
+            if (coord_A_bevel_start < spline_start_bevel_start) {
+              r_gon_parameter += l_coord * cosf(bevel_start_A_angle_bisector) *
+                                     coord_A_bevel_start +
+                                 float(0.5) *
+                                     (float(1.0) - l_coord * cosf(bevel_start_A_angle_bisector)) *
+                                     squaref(coord_A_bevel_start) / spline_start_bevel_start;
+            }
+            else {
+              r_gon_parameter += spline_start_bevel_start *
+                                     (float(0.5) * l_coord * cosf(bevel_start_A_angle_bisector) -
+                                      float(0.5)) +
+                                 coord_A_bevel_start;
+            }
+            if (ref_A_coord < ref_A_angle_bisector) {
+              r_gon_parameter *= -float(1.0);
+            }
+            if (normalize_r_gon_parameter) {
+              float normalize_based_on_l_angle_bisector =
+                  l_angle_bisector * tanf(bevel_start_A_angle_bisector) +
+                  spline_start_bevel_start * (float(0.5) * l_angle_bisector + float(0.5)) +
+                  r_gon_roundness * ref_A_bevel_start;
+              float normalize_based_on_l_coord =
+                  l_coord * sinf(bevel_start_A_angle_bisector) +
+                  spline_start_bevel_start *
+                      (float(0.5) * l_coord * cosf(bevel_start_A_angle_bisector) + float(0.5)) +
+                  r_gon_roundness * ref_A_bevel_start;
+
+              /* For r_gon_roundness -> 1.0 the normalize_based_on_l_angle_bisector field and
+               * normalize_based_on_l_coord field converge against the same scalar field. */
+              r_gon_parameter /= mix(normalize_based_on_l_angle_bisector,
+                                     normalize_based_on_l_coord,
+                                     coord_A_bevel_start / ref_A_bevel_start);
+            }
+          }
+          if (calculate_max_unit_parameter) {
+            max_unit_parameter = tanf(bevel_start_A_angle_bisector) + spline_start_bevel_start +
+                                 r_gon_roundness * ref_A_bevel_start;
+          }
+          out_variables = make_float4(l_angle_bisector,
+                                      r_gon_parameter,
+                                      max_unit_parameter,
+                                      segment_id * ref_A_next_ref + ref_A_angle_bisector);
+
+          loop_for_numerical_stability = false;
+        }
+        else {
+          /* Regular straight part. */
+
+          float l_angle_bisector = float(0.0);
+          float r_gon_parameter = float(0.0);
+          float max_unit_parameter = float(0.0);
+
+          l_angle_bisector = l_coord * cosf(ref_A_angle_bisector - ref_A_coord);
+
+          float spline_start_bevel_start = (float(1.0) - r_gon_roundness) * ref_A_bevel_start;
+
+          if (calculate_r_gon_parameter_field) {
+            r_gon_parameter = l_angle_bisector * tanf(fabsf(ref_A_angle_bisector - ref_A_coord));
+            if (ref_A_coord < ref_A_angle_bisector) {
+              r_gon_parameter *= -float(1.0);
+            }
+            if (normalize_r_gon_parameter) {
+              float normalize_based_on_l_angle_bisector =
+                  l_angle_bisector * tanf(bevel_start_A_angle_bisector) +
+                  spline_start_bevel_start * (float(0.5) * l_angle_bisector + float(0.5)) +
+                  r_gon_roundness * ref_A_bevel_start;
+
+              r_gon_parameter /= normalize_based_on_l_angle_bisector;
+            }
+          }
+          if (calculate_max_unit_parameter) {
+            max_unit_parameter = tanf(bevel_start_A_angle_bisector) + spline_start_bevel_start +
+                                 r_gon_roundness * ref_A_bevel_start;
+          }
+          out_variables = make_float4(l_angle_bisector,
+                                      r_gon_parameter,
+                                      max_unit_parameter,
+                                      segment_id * ref_A_next_ref + ref_A_angle_bisector);
+
+          loop_for_numerical_stability = false;
+        }
       }
     }
     else {
-      if (irregular_r_gon_corner_shape == float(1.0)) {
-        float min_r_gon_sides_fract = fminf(r_gon_sides / float(50.0), float(1.0));
-        float r_gon_sides_numerically_stabilized = floorf(r_gon_sides) + mix(min_r_gon_sides_fract,
-                                                                             float(1.0),
-                                                                             fractf(r_gon_sides));
+      if (r_gon_roundness == float(0.0)) {
+        float x_axis_A_coord = atan2f(coord.y, coord.x) + float(coord.y < float(0.0)) * M_TAU_F;
+        float ref_A_angle_bisector = M_PI_F / r_gon_sides_numerically_stabilized;
+        float ref_A_next_ref = float(2.0) * ref_A_angle_bisector;
+        float segment_id = floorf(x_axis_A_coord / ref_A_next_ref);
+        float ref_A_coord = x_axis_A_coord - segment_id * ref_A_next_ref;
 
-        float min_r_gon_roundness = float(0.1) *
-                                    inverse_mix(float(1.0),
-                                                min_r_gon_sides_fract,
-                                                fractf(r_gon_sides_numerically_stabilized));
-        float r_gon_roundness_numerically_stabilized = mix(
-            min_r_gon_roundness, float(1.0), r_gon_roundness);
+        float last_angle_bisector_A_x_axis = M_PI_F - floorf(r_gon_sides_numerically_stabilized) *
+                                                          ref_A_angle_bisector;
+        float last_ref_A_x_axis = float(2.0) * last_angle_bisector_A_x_axis;
 
-        out_variables = calculate_out_variables_irregular_elliptical(
-            calculate_r_gon_parameter_field,
-            calculate_max_unit_parameter,
-            normalize_r_gon_parameter,
-            r_gon_sides_numerically_stabilized,
-            r_gon_roundness_numerically_stabilized,
-            coord,
-            l_coord);
+        if (x_axis_A_coord < M_TAU_F - last_ref_A_x_axis) {
+          /* Regular straight part. */
+
+          float l_angle_bisector = float(0.0);
+          float r_gon_parameter = float(0.0);
+          float max_unit_parameter = float(0.0);
+
+          l_angle_bisector = l_coord * cosf(ref_A_angle_bisector - ref_A_coord);
+          if (calculate_r_gon_parameter_field) {
+            r_gon_parameter = l_angle_bisector * tanf(fabsf(ref_A_angle_bisector - ref_A_coord));
+            if (ref_A_coord < ref_A_angle_bisector) {
+              r_gon_parameter *= -float(1.0);
+            }
+            if (normalize_r_gon_parameter) {
+              r_gon_parameter /= l_angle_bisector * tanf(ref_A_angle_bisector);
+            }
+          }
+          if (calculate_max_unit_parameter) {
+            max_unit_parameter = tanf(ref_A_angle_bisector);
+          }
+          out_variables = make_float4(l_angle_bisector,
+                                      r_gon_parameter,
+                                      max_unit_parameter,
+                                      segment_id * ref_A_next_ref + ref_A_angle_bisector);
+
+          loop_for_numerical_stability = false;
+        }
+        else {
+          /* Irregular straight part. */
+
+          float l_angle_bisector = float(0.0);
+          float r_gon_parameter = float(0.0);
+          float max_unit_parameter = float(0.0);
+
+          float l_angle_bisector_R_l_last_angle_bisector = cosf(ref_A_angle_bisector) /
+                                                           cosf(last_angle_bisector_A_x_axis);
+          float l_last_angle_bisector = l_coord * cosf(last_angle_bisector_A_x_axis - ref_A_coord);
+
+          l_angle_bisector = l_angle_bisector_R_l_last_angle_bisector * l_last_angle_bisector;
+
+          if (calculate_r_gon_parameter_field) {
+            r_gon_parameter = l_angle_bisector_R_l_last_angle_bisector * l_last_angle_bisector *
+                              tanf(fabsf(last_angle_bisector_A_x_axis - ref_A_coord));
+            if (ref_A_coord < last_angle_bisector_A_x_axis) {
+              r_gon_parameter *= -float(1.0);
+            }
+            if (normalize_r_gon_parameter) {
+              r_gon_parameter /= l_angle_bisector_R_l_last_angle_bisector * l_last_angle_bisector *
+                                 tanf(last_angle_bisector_A_x_axis);
+            }
+          }
+          if (calculate_max_unit_parameter) {
+            max_unit_parameter = tanf(last_angle_bisector_A_x_axis);
+          }
+          out_variables = make_float4(l_angle_bisector,
+                                      r_gon_parameter,
+                                      max_unit_parameter,
+                                      segment_id * ref_A_next_ref + last_angle_bisector_A_x_axis);
+
+          loop_for_numerical_stability = false;
+        }
       }
-      else if (irregular_r_gon_corner_shape == float(0.0)) {
-        float min_r_gon_sides_fract = fminf(r_gon_sides / float(5000.0), float(1.0));
-        float r_gon_sides_numerically_stabilized = floorf(r_gon_sides) + mix(min_r_gon_sides_fract,
-                                                                             float(1.0),
-                                                                             fractf(r_gon_sides));
+      else if (r_gon_roundness == float(1.0)) {
+        if (irregular_r_gon_corner_shape == float(1.0)) {
+          float numerical_stabilization_threshold = float(100.0);
+          if (r_gon_sides > numerical_stabilization_threshold) {
+            r_gon_sides_numerically_stabilized = ceilf(r_gon_sides);
 
-        float min_r_gon_roundness = float(0.1) *
-                                    inverse_mix(float(1.0),
-                                                min_r_gon_sides_fract,
-                                                fractf(r_gon_sides_numerically_stabilized));
-        float r_gon_roundness_numerically_stabilized = mix(
-            min_r_gon_roundness, float(1.0), r_gon_roundness);
+            loop_for_numerical_stability = true;
+          }
+          else {
+            float min_r_gon_sides_fract = r_gon_sides / numerical_stabilization_threshold;
+            r_gon_sides_numerically_stabilized = floorf(r_gon_sides) +
+                                                 fmaxf(fractf(r_gon_sides), min_r_gon_sides_fract);
 
-        out_variables = calculate_out_variables_irregular_circular(
-            calculate_r_gon_parameter_field,
-            calculate_max_unit_parameter,
-            normalize_r_gon_parameter,
-            r_gon_sides_numerically_stabilized,
-            r_gon_roundness_numerically_stabilized,
-            coord,
-            l_coord);
+            out_variables = calculate_out_variables_full_roundness_irregular_elliptical(
+                calculate_r_gon_parameter_field,
+                normalize_r_gon_parameter,
+                r_gon_sides_numerically_stabilized,
+                coord,
+                l_coord);
+
+            loop_for_numerical_stability = false;
+          }
+        }
+        else if (irregular_r_gon_corner_shape == float(0.0)) {
+          float numerical_stabilization_threshold = float(10000.0);
+          if (r_gon_sides > numerical_stabilization_threshold) {
+            r_gon_sides_numerically_stabilized = ceilf(r_gon_sides);
+
+            loop_for_numerical_stability = true;
+          }
+          else {
+            float min_r_gon_sides_fract = r_gon_sides / numerical_stabilization_threshold;
+            r_gon_sides_numerically_stabilized = floorf(r_gon_sides) +
+                                                 fmaxf(fractf(r_gon_sides), min_r_gon_sides_fract);
+
+            out_variables = calculate_out_variables_full_roundness_irregular_circular(
+                calculate_r_gon_parameter_field,
+                normalize_r_gon_parameter,
+                r_gon_sides_numerically_stabilized,
+                coord,
+                l_coord);
+
+            loop_for_numerical_stability = false;
+          }
+        }
+        else {
+          float numerical_stabilization_threshold = float(100.0);
+          if (r_gon_sides > numerical_stabilization_threshold) {
+            r_gon_sides_numerically_stabilized = ceilf(r_gon_sides);
+
+            loop_for_numerical_stability = true;
+          }
+          else {
+            float min_r_gon_sides_fract = r_gon_sides / numerical_stabilization_threshold;
+            r_gon_sides_numerically_stabilized = floorf(r_gon_sides) +
+                                                 fmaxf(fractf(r_gon_sides), min_r_gon_sides_fract);
+
+            out_variables = mix(calculate_out_variables_full_roundness_irregular_circular(
+                                    calculate_r_gon_parameter_field,
+                                    normalize_r_gon_parameter,
+                                    r_gon_sides_numerically_stabilized,
+                                    coord,
+                                    l_coord),
+                                calculate_out_variables_full_roundness_irregular_elliptical(
+                                    calculate_r_gon_parameter_field,
+                                    normalize_r_gon_parameter,
+                                    r_gon_sides_numerically_stabilized,
+                                    coord,
+                                    l_coord),
+                                irregular_r_gon_corner_shape);
+
+            loop_for_numerical_stability = false;
+          }
+        }
       }
       else {
-        float min_r_gon_sides_fract = fminf(r_gon_sides / float(50.0), float(1.0));
-        float r_gon_sides_numerically_stabilized = floorf(r_gon_sides) + mix(min_r_gon_sides_fract,
-                                                                             float(1.0),
-                                                                             fractf(r_gon_sides));
+        if (irregular_r_gon_corner_shape == float(1.0)) {
+          float numerical_stabilization_threshold = float(50.0);
+          if (r_gon_sides > numerical_stabilization_threshold) {
+            r_gon_sides_numerically_stabilized = ceilf(r_gon_sides);
 
-        float min_r_gon_roundness = float(0.1) *
-                                    inverse_mix(float(1.0),
-                                                min_r_gon_sides_fract,
-                                                fractf(r_gon_sides_numerically_stabilized));
-        float r_gon_roundness_numerically_stabilized = mix(
-            min_r_gon_roundness, float(1.0), r_gon_roundness);
+            loop_for_numerical_stability = true;
+          }
+          else {
+            float min_r_gon_sides_fract = r_gon_sides / numerical_stabilization_threshold;
+            r_gon_sides_numerically_stabilized = floorf(r_gon_sides) +
+                                                 fmaxf(fractf(r_gon_sides), min_r_gon_sides_fract);
 
-        out_variables = mix(
-            calculate_out_variables_irregular_circular(calculate_r_gon_parameter_field,
-                                                       calculate_max_unit_parameter,
-                                                       normalize_r_gon_parameter,
-                                                       r_gon_sides_numerically_stabilized,
-                                                       r_gon_roundness_numerically_stabilized,
-                                                       coord,
-                                                       l_coord),
-            calculate_out_variables_irregular_elliptical(calculate_r_gon_parameter_field,
-                                                         calculate_max_unit_parameter,
-                                                         normalize_r_gon_parameter,
-                                                         r_gon_sides_numerically_stabilized,
-                                                         r_gon_roundness_numerically_stabilized,
-                                                         coord,
-                                                         l_coord),
-            irregular_r_gon_corner_shape);
+            float r_gon_roundness_numerically_stabilized = fmaxf(
+                r_gon_roundness,
+                float(0.1) * inverse_mix(float(1.0),
+                                         min_r_gon_sides_fract,
+                                         fractf(r_gon_sides_numerically_stabilized)));
+
+            out_variables = calculate_out_variables_irregular_elliptical(
+                calculate_r_gon_parameter_field,
+                calculate_max_unit_parameter,
+                normalize_r_gon_parameter,
+                r_gon_sides_numerically_stabilized,
+                r_gon_roundness_numerically_stabilized,
+                coord,
+                l_coord);
+
+            loop_for_numerical_stability = false;
+          }
+        }
+        else if (irregular_r_gon_corner_shape == float(0.0)) {
+          float numerical_stabilization_threshold = float(5000.0);
+          if (r_gon_sides > numerical_stabilization_threshold) {
+            r_gon_sides_numerically_stabilized = ceilf(r_gon_sides);
+
+            loop_for_numerical_stability = true;
+          }
+          else {
+            float min_r_gon_sides_fract = r_gon_sides / numerical_stabilization_threshold;
+            r_gon_sides_numerically_stabilized = floorf(r_gon_sides) +
+                                                 fmaxf(fractf(r_gon_sides), min_r_gon_sides_fract);
+
+            float r_gon_roundness_numerically_stabilized = fmaxf(
+                r_gon_roundness,
+                float(0.1) * inverse_mix(float(1.0),
+                                         min_r_gon_sides_fract,
+                                         fractf(r_gon_sides_numerically_stabilized)));
+
+            out_variables = calculate_out_variables_irregular_circular(
+                calculate_r_gon_parameter_field,
+                calculate_max_unit_parameter,
+                normalize_r_gon_parameter,
+                r_gon_sides_numerically_stabilized,
+                r_gon_roundness_numerically_stabilized,
+                coord,
+                l_coord);
+
+            loop_for_numerical_stability = false;
+          }
+        }
+        else {
+          float numerical_stabilization_threshold = float(50.0);
+          if (r_gon_sides > numerical_stabilization_threshold) {
+            r_gon_sides_numerically_stabilized = ceilf(r_gon_sides);
+
+            loop_for_numerical_stability = true;
+          }
+          else {
+            float min_r_gon_sides_fract = r_gon_sides / numerical_stabilization_threshold;
+            r_gon_sides_numerically_stabilized = floorf(r_gon_sides) +
+                                                 fmaxf(fractf(r_gon_sides), min_r_gon_sides_fract);
+
+            float r_gon_roundness_numerically_stabilized = fmaxf(
+                r_gon_roundness,
+                float(0.1) * inverse_mix(float(1.0),
+                                         min_r_gon_sides_fract,
+                                         fractf(r_gon_sides_numerically_stabilized)));
+
+            out_variables = mix(
+                calculate_out_variables_irregular_circular(calculate_r_gon_parameter_field,
+                                                           calculate_max_unit_parameter,
+                                                           normalize_r_gon_parameter,
+                                                           r_gon_sides_numerically_stabilized,
+                                                           r_gon_roundness_numerically_stabilized,
+                                                           coord,
+                                                           l_coord),
+                calculate_out_variables_irregular_elliptical(
+                    calculate_r_gon_parameter_field,
+                    calculate_max_unit_parameter,
+                    normalize_r_gon_parameter,
+                    r_gon_sides_numerically_stabilized,
+                    r_gon_roundness_numerically_stabilized,
+                    coord,
+                    l_coord),
+                irregular_r_gon_corner_shape);
+
+            loop_for_numerical_stability = false;
+          }
+        }
       }
     }
   }
@@ -1584,9 +1662,11 @@ ccl_device float calculate_out_segment_id(float r_gon_sides, float2 coord)
 #ifdef TRANSLATE_TO_GEOMETRY_NODES
 #  undef atanf
 #  undef atan2f
+#  undef ceilf
 #  undef cosf
 #  undef fabsf
 #  undef floorf
+#  undef fmaxf
 #  undef fminf
 #  undef fractf
 #  undef sinf
@@ -1597,15 +1677,15 @@ ccl_device float calculate_out_segment_id(float r_gon_sides, float2 coord)
 #  undef make_float2
 #  undef make_float4
 #  undef ccl_device
-
-using namespace math;
 #else
 #  ifdef TRANSLATE_TO_OSL
 #    undef atanf
 #    undef atan2f
+#    undef ceilf
 #    undef cosf
 #    undef fabsf
 #    undef floorf
+#    undef fmaxf
 #    undef fminf
 #    undef fractf
 #    undef sinf
@@ -1621,6 +1701,9 @@ using namespace math;
 #    undef M_PI_F
 #    undef M_TAU_F
 #    undef ccl_device
+
+#    undef false
+#    undef true
 #  else
 #    ifdef TRANSLATE_TO_SVM
 /* No code translation necessary for the SVM implementation as it is the base generic version. */
@@ -1628,9 +1711,11 @@ using namespace math;
 /* Translate code to GLSL by default. */
 #      undef atanf
 #      undef atan2f
+#      undef ceilf
 #      undef cosf
 #      undef fabsf
 #      undef floorf
+#      undef fmaxf
 #      undef fminf
 #      undef fractf
 #      undef sinf

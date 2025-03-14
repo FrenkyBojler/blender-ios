@@ -382,6 +382,11 @@ ccl_device_inline float mix(const float a, const float b, float t)
   return a + t * (b - a);
 }
 
+ccl_device_inline float inverse_mix(float from_min, float from_max, float value)
+{
+  return (value - from_min) / (from_max - from_min);
+}
+
 ccl_device_inline float smoothstep(const float edge0, const float edge1, const float x)
 {
   float result;

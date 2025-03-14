@@ -276,6 +276,11 @@ float wrap(float a, float b, float c)
   return (range != 0.0) ? a - range * s : c;
 }
 
+float inverse_mix(float from_min, float from_max, float value)
+{
+  return (value - from_min) / (from_max - from_min);
+}
+
 /** \} */
 
 #endif /* GPU_SHADER_MATH_BASE_LIB_GLSL */

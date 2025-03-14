@@ -96,6 +96,12 @@ template<typename T1, typename T2> inline T1 mix(const T1 &a, const T1 &b, const
   return (1 - factor) * a + factor * b;
 }
 
+template<typename T1, typename T2>
+inline T1 inverse_mix(const T1 &from_min, const T1 &from_max, const T2 &value)
+{
+  return (value - from_min) / (from_max - from_min);
+}
+
 template<typename T> inline void min_max(const T &value, T &min, T &max)
 {
   static_assert(std::is_arithmetic_v<T>,
