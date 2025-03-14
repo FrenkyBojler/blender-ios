@@ -4112,8 +4112,9 @@ static int grease_pencil_stroke_split_exec(bContext *C, wmOperator * /*op*/)
   const Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(scene, grease_pencil);
   threading::parallel_for_each(drawings, [&](const MutableDrawingInfo &info) {
     IndexMaskMemory memory;
-    IndexMask selected_points = blender::ed::greasepencil::retrieve_editable_and_selected_points(
-        object, info.drawing, info.layer_index, memory);
+    const IndexMask selected_points =
+        blender::ed::greasepencil::retrieve_editable_and_selected_points(
+            object, info.drawing, info.layer_index, memory);
 
     if (selected_points.is_empty()) {
       return;
