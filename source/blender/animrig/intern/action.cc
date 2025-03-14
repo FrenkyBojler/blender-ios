@@ -3090,6 +3090,7 @@ void move_slot(Main &bmain, Slot &source_slot, Action &from_action, Action &to_a
   if (!from_action.layers().is_empty() && !from_action.layer(0)->strips().is_empty()) {
     StripKeyframeData &from_strip_data = from_action.layer(0)->strip(0)->data<StripKeyframeData>(
         from_action);
+    to_action.layer_keystrip_ensure();
     StripKeyframeData &to_strip_data = to_action.layer(0)->strip(0)->data<StripKeyframeData>(
         to_action);
     Channelbag *channelbag = from_strip_data.channelbag_for_slot(source_slot.handle);
