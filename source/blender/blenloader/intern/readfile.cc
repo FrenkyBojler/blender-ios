@@ -978,12 +978,12 @@ struct InvalidHeader {};
 
 using BlenderHeaderVariant = std::variant<InvalidHeader, UnknownBlenderHeader, BlenderHeader>;
 
-static BlenderHeaderVariant decode_blender_header(FileData *fd)
+static BlenderHeaderVariant decode_blender_header(FileReader *file)
 {
   char header_bytes[MAX_SIZEOFBLENDERHEADER];
   /* We read the minimal number of header bytes first. If necessary, the remaining bytes are read
    * below. */
-  int64_t readsize = fd->file->read(fd->file, header_bytes, MIN_SIZEOFBLENDERHEADER);
+  int64_t readsize = file->read(file, header_bytes, MIN_SIZEOFBLENDERHEADER);
   if (readsize != MIN_SIZEOFBLENDERHEADER) {
     return InvalidHeader{};
   }
@@ -1044,8 +1044,7 @@ static BlenderHeaderVariant decode_blender_header(FileData *fd)
 
   /* Read remaining header bytes. */
   const int64_t remaining_bytes_to_read = header_size - MIN_SIZEOFBLENDERHEADER;
-  readsize = fd->file->read(
-      fd->file, header_bytes + MIN_SIZEOFBLENDERHEADER, remaining_bytes_to_read);
+  readsize = file->read(file, header_bytes + MIN_SIZEOFBLENDERHEADER, remaining_bytes_to_read);
   if (readsize != remaining_bytes_to_read) {
     return UnknownBlenderHeader{};
   }
@@ -1081,7 +1080,7 @@ static BlenderHeaderVariant decode_blender_header(FileData *fd)
 
 static void read_blender_header(FileData *fd)
 {
-  const BlenderHeaderVariant header_variant = decode_blender_header(fd);
+  const BlenderHeaderVariant header_variant = decode_blender_header(fd->file);
   if (std::holds_alternative<InvalidHeader>(header_variant)) {
     return;
   }
