@@ -252,8 +252,8 @@ class NODE_MT_geometry_node_GEO_INPUT(Menu):
         if context.space_data.geometry_nodes_type != 'TOOL':
             layout.menu("NODE_MT_geometry_node_GEO_INPUT_GIZMO")
         layout.menu("NODE_MT_geometry_node_GEO_INPUT_GROUP")
-        layout.menu("NODE_MT_geometry_node_GEO_INPUT_SCENE")
         layout.menu("NODE_MT_category_import")
+        layout.menu("NODE_MT_geometry_node_GEO_INPUT_SCENE")
         node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
 
 
