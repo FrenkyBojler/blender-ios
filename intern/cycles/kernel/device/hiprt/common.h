@@ -28,7 +28,6 @@ struct ShadowPayload {
 struct LocalPayload {
   KernelGlobals kg;
   RaySelfPrimitives self;
-  int prim_type;
   float ray_time;
   int local_object;
   uint max_hits;
@@ -222,23 +221,19 @@ ccl_device_inline bool motion_triangle_custom_local_intersect(const hiprtRay &ra
 
   LocalIntersection *local_isect = local_payload->local_isect;
 
-  bool b_hit = motion_triangle_intersect_local(kg,
-                                               local_isect,
-                                               ray.origin,
-                                               ray.direction,
-                                               local_payload->ray_time,
-                                               object_id,
-                                               prim_id_global,
-                                               prim_id_local,
-                                               ray.minT,
-                                               ray.maxT,
-                                               local_payload->lcg_state,
-                                               local_payload->max_hits);
+  return motion_triangle_intersect_local(kg,
+                                         local_isect,
+                                         ray.origin,
+                                         ray.direction,
+                                         local_payload->ray_time,
+                                         object_id,
+                                         prim_id_global,
+                                         prim_id_local,
+                                         ray.minT,
+                                         ray.maxT,
+                                         local_payload->lcg_state,
+                                         local_payload->max_hits);
 
-  if (b_hit) {
-    local_payload->prim_type = PRIMITIVE_MOTION_TRIANGLE;
-  }
-  return b_hit;
 #  else
   return false;
 #  endif
