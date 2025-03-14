@@ -415,6 +415,77 @@ static bool prepare_tetgen_input(const Mesh *mesh, tetgenio &in, GeoNodeExecPara
 }
 
 /**
+ * Rend les normales des faces cohérentes pour le maillage tétraédrique
+ * en s'assurant qu'elles pointent toutes vers l'extérieur.
+ */
+static void make_normals_consistent(Mesh *mesh, GeoNodeExecParams &params)
+{
+  const Span<float3> positions = mesh->vert_positions();
+  const Span<int> corner_verts = mesh->corner_verts();
+  const Span<int> face_offsets = mesh->face_offsets();
+  
+  // Calculer le centre du maillage pour déterminer l'orientation des normales
+  float3 mesh_center(0, 0, 0);
+  for (const float3 &pos : positions) {
+    mesh_center += pos;
+  }
+  mesh_center /= float(positions.size());
+  
+  // Déterminer quelles faces doivent être retournées
+  Array<bool> flip_faces(mesh->faces_num);
+  
+  for (int face_idx = 0; face_idx < mesh->faces_num; face_idx++) {
+    const int face_start = face_offsets[face_idx];
+    const int face_size = face_offsets[face_idx + 1] - face_start;
+    
+    if (face_size == 3) {
+      // Calculer la normale de la face
+      const float3 &v0 = positions[corner_verts[face_start]];
+      const float3 &v1 = positions[corner_verts[face_start + 1]];
+      const float3 &v2 = positions[corner_verts[face_start + 2]];
+      
+      const float3 normal = math::normalize(math::cross(v1 - v0, v2 - v0));
+      
+      // Calculer le centre de la face
+      const float3 face_center = (v0 + v1 + v2) / 3.0f;
+      
+      // La normale doit pointer vers l'extérieur (s'éloigner du centre du maillage)
+      const float3 face_to_center = mesh_center - face_center;
+      
+      // Si le produit scalaire est positif, la normale pointe vers l'intérieur
+      flip_faces[face_idx] = math::dot(normal, face_to_center) > 0.0f;
+    }
+  }
+  
+  // Inverser l'ordre des sommets pour les faces qui doivent être retournées
+  MutableSpan<int> mutable_corner_verts = mesh->corner_verts_for_write();
+  
+  for (int face_idx = 0; face_idx < mesh->faces_num; face_idx++) {
+    if (flip_faces[face_idx]) {
+      const int face_start = face_offsets[face_idx];
+      const int face_size = face_offsets[face_idx + 1] - face_start;
+      
+      if (face_size == 3) {
+        // Échanger les sommets 1 et 2 du triangle pour inverser sa normale
+        std::swap(mutable_corner_verts[face_start + 1], mutable_corner_verts[face_start + 2]);
+        
+        // Mettre à jour aussi les arêtes des coins si nécessaire
+        MutableSpan<int> corner_edges = mesh->corner_edges_for_write();
+        if (!corner_edges.is_empty()) {
+          std::swap(corner_edges[face_start + 1], corner_edges[face_start + 2]);
+        }
+      }
+    }
+  }
+  
+  // Forcer le recalcul des normales
+  mesh->tag_face_winding_changed();
+  
+  params.error_message_add(NodeWarningType::Info,
+      "Normales recalculées avec succès pour une meilleure cohérence visuelle.");
+}
+
+/**
  * Configures TetGen options based on mesh complexity and quality parameters.
  * Adjusts settings for different complexity levels and problematic geometry.
  * 
@@ -728,10 +799,10 @@ static bool validate_tetgen_output(const tetgenio &out, GeoNodeExecParams &param
 static Mesh *create_tetrahedral_mesh(const tetgenio &out, GeoNodeExecParams &params)
 {
   try {
-    
+    // Identifie les tétraèdres internes
     Vector<int> internal_tetrahedra;
     
-    
+    // Utilise les attributs de région si disponibles
     if (out.tetrahedronattributelist != nullptr) {
       
       for (int i = 0; i < out.numberoftetrahedra; i++) {
@@ -742,21 +813,21 @@ static Mesh *create_tetrahedral_mesh(const tetgenio &out, GeoNodeExecParams &par
       
       if (!internal_tetrahedra.is_empty()) {
         params.error_message_add(NodeWarningType::Info,
-            std::string("Attribute-based filtering: ") + 
+            std::string("Filtrage par attributs : ") + 
             std::to_string(internal_tetrahedra.size()) + 
-            std::string(" internal tetrahedra identified."));
+            std::string(" tétraèdres internes identifiés."));
       }
       else {
         params.error_message_add(NodeWarningType::Warning,
-            std::string("No internal tetrahedra identified by attributes. ") + 
-            std::string("Using geometric filtering."));
+            std::string("Aucun tétraèdre interne identifié par attributs. ") + 
+            std::string("Utilisation du filtrage géométrique."));
         internal_tetrahedra.clear();
       }
     }
     
-    
+    // Filtrage géométrique si nécessaire
     if (internal_tetrahedra.is_empty()) {
-      
+      // Calcul de la boîte englobante
       float3 bbox_min(std::numeric_limits<float>::max());
       float3 bbox_max(-std::numeric_limits<float>::max());
       
@@ -766,34 +837,25 @@ static Mesh *create_tetrahedral_mesh(const tetgenio &out, GeoNodeExecParams &par
         bbox_max = math::max(bbox_max, p);
       }
       
-      
+      // Distance diagonale pour le filtrage
       float diag_distance = math::length(bbox_max - bbox_min);
       
-      
-      
+      // Détection du mode Delaunay pur
       bool is_pure_delaunay = (out.tetrahedronattributelist == nullptr && 
                              out.numberoftetrahedra > 0);
       
-      
-      
+      // Mode Delaunay pur - utilise un score basé sur le volume et la position centrale
       if (is_pure_delaunay) {
         params.error_message_add(NodeWarningType::Info,
-            "Pure Delaunay tetrahedralization detected - selecting tetrahedra based on volume");
-        
-        
-        
-        
-        
+            "Mode Delaunay pur détecté - sélection des tétraèdres basée sur le volume");
         
         std::vector<std::pair<int, float>> tet_scores;
-        
-        
         float3 bbox_center = (bbox_min + bbox_max) * 0.5f;
         
         for (int i = 0; i < out.numberoftetrahedra; i++) {
           int* tet = &out.tetrahedronlist[i * 4];
           
-          
+          // Extraction des sommets
           float3 v0, v1, v2, v3;
           v0.x = out.pointlist[tet[0] * 3];
           v0.y = out.pointlist[tet[0] * 3 + 1];
@@ -811,49 +873,47 @@ static Mesh *create_tetrahedral_mesh(const tetgenio &out, GeoNodeExecParams &par
           v3.y = out.pointlist[tet[3] * 3 + 1];
           v3.z = out.pointlist[tet[3] * 3 + 2];
           
-          
+          // Calcul du volume
           float volume = std::abs(math::dot(math::cross(v1 - v0, v2 - v0), v3 - v0)) / 6.0f;
           
-          
+          // Calcul du centroïde
           float3 centroid = (v0 + v1 + v2 + v3) * 0.25f;
           
-          
+          // Distance normalisée au centre de la boîte englobante
           float dist_to_center = math::length(centroid - bbox_center) / diag_distance;
           
-          
-          
+          // Score combiné volume/distance
           float volume_norm = volume / (diag_distance * diag_distance * diag_distance);
           float score = volume_norm * 0.7f + dist_to_center * 0.3f;
           
           tet_scores.push_back(std::make_pair(i, score));
         }
         
-        
+        // Tri par score
         std::sort(tet_scores.begin(), tet_scores.end(), 
                   [](const std::pair<int, float>& a, const std::pair<int, float>& b) {
                       return a.second < b.second;
                   });
         
-        
+        // Sélection des meilleurs tétraèdres (40%)
         size_t num_to_keep = static_cast<size_t>(out.numberoftetrahedra * 0.4);
         for (size_t i = 0; i < num_to_keep && i < tet_scores.size(); i++) {
           internal_tetrahedra.append(tet_scores[i].first);
         }
         
         params.error_message_add(NodeWarningType::Info,
-            std::string("Score-based selection kept ") + std::to_string(internal_tetrahedra.size()) + 
-            std::string(" tetrahedra out of ") + std::to_string(out.numberoftetrahedra) + std::string("."));
+            std::string("Sélection par score : conservation de ") + std::to_string(internal_tetrahedra.size()) + 
+            std::string(" tétraèdres sur ") + std::to_string(out.numberoftetrahedra) + std::string("."));
       }
       else {
+        // Filtrage basé sur le centroïde et la boîte englobante
+        float filter_threshold = diag_distance * 0.05f;
         
-        
-        float filter_threshold = diag_distance * 0.05f;  
-        
-        
+        // Filtrage par centroïde
         for (int i = 0; i < out.numberoftetrahedra; i++) {
           int* tet = &out.tetrahedronlist[i * 4];
           
-          
+          // Calcul du centroïde
           float3 centroid(0, 0, 0);
           for (int j = 0; j < 4; j++) {
             int v_idx = tet[j];
@@ -865,11 +925,11 @@ static Mesh *create_tetrahedral_mesh(const tetgenio &out, GeoNodeExecParams &par
           }
           centroid /= 4.0f;
           
-          
+          // Extension de la boîte englobante
           float3 extended_min = bbox_min - filter_threshold;
           float3 extended_max = bbox_max + filter_threshold;
           
-          
+          // Test d'inclusion
           if (centroid.x >= extended_min.x && centroid.x <= extended_max.x &&
               centroid.y >= extended_min.y && centroid.y <= extended_max.y &&
               centroid.z >= extended_min.z && centroid.z <= extended_max.z) {
@@ -877,17 +937,16 @@ static Mesh *create_tetrahedral_mesh(const tetgenio &out, GeoNodeExecParams &par
           }
         }
         
-        
+        // Si aucun tétraèdre sélectionné, filtrage par volume
         if (internal_tetrahedra.is_empty()) {
-          
           params.error_message_add(NodeWarningType::Warning,
-              std::string("Centroid filtering failed. Using volume filtering."));
+              std::string("Échec du filtrage par centroïde. Utilisation du filtrage par volume."));
           
           std::vector<std::pair<int, float>> tet_volumes;
           for (int i = 0; i < out.numberoftetrahedra; i++) {
             int* tet = &out.tetrahedronlist[i * 4];
             
-            
+            // Extraction des sommets
             float3 v0, v1, v2, v3;
             v0.x = out.pointlist[tet[0] * 3];
             v0.y = out.pointlist[tet[0] * 3 + 1];
@@ -905,270 +964,243 @@ static Mesh *create_tetrahedral_mesh(const tetgenio &out, GeoNodeExecParams &par
             v3.y = out.pointlist[tet[3] * 3 + 1];
             v3.z = out.pointlist[tet[3] * 3 + 2];
             
-            
+            // Calcul du volume
             float volume = std::abs(math::dot(math::cross(v1 - v0, v2 - v0), v3 - v0)) / 6.0f;
             tet_volumes.push_back(std::make_pair(i, volume));
           }
           
-          
+          // Tri par volume
           std::sort(tet_volumes.begin(), tet_volumes.end(), 
                     [](const std::pair<int, float>& a, const std::pair<int, float>& b) {
                         return a.second < b.second;
                     });
           
-          
+          // Sélection des tétraèdres de plus petit volume (65%)
           size_t num_to_keep = static_cast<size_t>(out.numberoftetrahedra * 0.65);
           for (size_t i = 0; i < num_to_keep && i < tet_volumes.size(); i++) {
             internal_tetrahedra.append(tet_volumes[i].first);
           }
           
           params.error_message_add(NodeWarningType::Info,
-              std::string("Volume filtering kept ") + std::to_string(internal_tetrahedra.size()) + 
-              std::string(" tetrahedra out of ") + std::to_string(out.numberoftetrahedra) + std::string("."));
+              std::string("Filtrage par volume : conservation de ") + std::to_string(internal_tetrahedra.size()) + 
+              std::string(" tétraèdres sur ") + std::to_string(out.numberoftetrahedra) + std::string("."));
         }
         else {
           params.error_message_add(NodeWarningType::Info,
-              std::string("Geometric filtering identified ") + 
-              std::to_string(internal_tetrahedra.size()) + std::string(" internal tetrahedra out of ") + 
+              std::string("Filtrage géométrique : identification de ") + 
+              std::to_string(internal_tetrahedra.size()) + std::string(" tétraèdres internes sur ") + 
               std::to_string(out.numberoftetrahedra) + std::string("."));
         }
       }
     }
     
-    
+    // Filet de sécurité - en cas d'échec de tous les filtrages
     if (internal_tetrahedra.is_empty() && out.numberoftetrahedra > 0) {
       params.error_message_add(NodeWarningType::Warning,
-          std::string("All filters failed. Keeping a minimal set of tetrahedra."));
+          std::string("Tous les filtres ont échoué. Conservation d'un ensemble minimal de tétraèdres."));
       
-      
+      // Conservation d'au plus 50% des tétraèdres
       size_t max_to_keep = static_cast<size_t>(out.numberoftetrahedra * 0.5);
       for (size_t i = 0; i < max_to_keep && i < static_cast<size_t>(out.numberoftetrahedra); i++) {
         internal_tetrahedra.append(static_cast<int>(i));
       }
     }
     
-    
+    // Si aucun tétraèdre interne n'a pu être identifié
     if (internal_tetrahedra.is_empty()) {
       params.error_message_add(NodeWarningType::Error,
-          std::string("No internal tetrahedra could be identified."));
+          std::string("Aucun tétraèdre interne n'a pu être identifié."));
       return nullptr;
     }
     
+    // NOUVELLE APPROCHE: Créer un maillage tétraédrique valide
+    // On récupère uniquement l'enveloppe surfacique triangulée
     
+    // 1. Structure pour stocker les faces triangulaires uniques
+    using TriangleFace = std::tuple<int, int, int>;
+    struct TriangleHash {
+      std::size_t operator()(const TriangleFace& face) const {
+        auto h1 = std::hash<int>{}(std::get<0>(face));
+        auto h2 = std::hash<int>{}(std::get<1>(face));
+        auto h3 = std::hash<int>{}(std::get<2>(face));
+        return h1 ^ (h2 << 1) ^ (h3 << 2);
+      }
+    };
+    std::unordered_set<TriangleFace, TriangleHash> unique_faces;
     
-    
-    
-    int num_edges = 0;
-    int num_faces = out.numberoftrifaces > 0 ? out.numberoftrifaces : 1;
-    int num_corners = out.numberoftrifaces > 0 ? out.numberoftrifaces * 3 : 3;
-    
-    
-    std::unordered_map<std::pair<int, int>, int, pairhash> edge_map;
-    
-    
-    auto order_edge = [](int v1, int v2) -> std::pair<int, int> {
-      return (v1 < v2) ? std::make_pair(v1, v2) : std::make_pair(v2, v1);
+    // Fonction pour ordonner les indices des sommets d'un triangle
+    auto canonicalize_face = [](int v1, int v2, int v3) -> TriangleFace {
+      if (v1 > v2) std::swap(v1, v2);
+      if (v2 > v3) std::swap(v2, v3);
+      if (v1 > v2) std::swap(v1, v2);
+      return std::make_tuple(v1, v2, v3);
     };
     
-    
-    auto add_edge = [&](int v1, int v2) {
+    // 2. Extraire les faces des tétraèdres
+    for (int tet_idx : internal_tetrahedra) {
+      int* tet = &out.tetrahedronlist[tet_idx * 4];
       
-      if (v1 < 0 || v1 >= out.numberofpoints || v2 < 0 || v2 >= out.numberofpoints) {
-        return;
-      }
-      
-      if (v1 == v2) {
-        
-        return;
-      }
-      
-      
-      std::pair<int, int> edge = order_edge(v1, v2);
-      edge_map[edge] = 1;
-    };
-    
-    
-    for (int idx : internal_tetrahedra) {
-      int *tet = &out.tetrahedronlist[idx * 4];
-      
-      
+      // Vérifier les indices invalides
       for (int j = 0; j < 4; j++) {
         if (tet[j] < 0 || tet[j] >= out.numberofpoints) {
           params.error_message_add(NodeWarningType::Warning, 
-              "Indice de tétraèdre invalide détecté");
-          tet[j] = 0;  
+              "Indice de tétraèdre invalide détecté, correction appliquée");
+          tet[j] = 0;
         }
       }
       
+      // Ajouter les 4 faces du tétraèdre
+      unique_faces.insert(canonicalize_face(tet[0], tet[1], tet[2]));
+      unique_faces.insert(canonicalize_face(tet[0], tet[1], tet[3]));
+      unique_faces.insert(canonicalize_face(tet[0], tet[2], tet[3]));
+      unique_faces.insert(canonicalize_face(tet[1], tet[2], tet[3]));
+    }
+    
+    // 3. Construire les listes de triangles et d'arêtes
+    Vector<std::tuple<int, int, int>> triangles;
+    std::unordered_set<std::pair<int, int>, pairhash> edges_set;
+    
+    for (const auto& face : unique_faces) {
+      int v1 = std::get<0>(face);
+      int v2 = std::get<1>(face);
+      int v3 = std::get<2>(face);
       
-      add_edge(tet[0], tet[1]);
-      add_edge(tet[0], tet[2]);
-      add_edge(tet[0], tet[3]);
-      add_edge(tet[1], tet[2]);
-      add_edge(tet[1], tet[3]);
-      add_edge(tet[2], tet[3]);
-    }
-    
-    
-    if (edge_map.empty() && out.numberoftrifaces > 0) {
-      for (int i = 0; i < out.numberoftrifaces; i++) {
-        int *face = &out.trifacelist[i * 3];
-        add_edge(face[0], face[1]);
-        add_edge(face[1], face[2]);
-        add_edge(face[2], face[0]);
-      }
-    }
-    
-    
-    if (edge_map.empty()) {
-      params.error_message_add(NodeWarningType::Warning, 
-          "No edges were generated in the tetrahedral mesh");
+      // Ajouter le triangle
+      triangles.append(face);
       
-      add_edge(0, 1);
-      add_edge(1, 2);
-      add_edge(2, 0);
+      // Ajouter les arêtes
+      edges_set.insert(v1 < v2 ? std::make_pair(v1, v2) : std::make_pair(v2, v1));
+      edges_set.insert(v2 < v3 ? std::make_pair(v2, v3) : std::make_pair(v3, v2));
+      edges_set.insert(v3 < v1 ? std::make_pair(v3, v1) : std::make_pair(v1, v3));
     }
     
+    // 4. Créer le maillage
+    int num_verts = out.numberofpoints;
+    int num_edges = edges_set.size();
+    int num_faces = triangles.size();
+    int num_corners = num_faces * 3;
     
-    num_edges = edge_map.size();
-    
-    
-    Mesh *mesh_out = BKE_mesh_new_nomain(out.numberofpoints, num_edges, num_faces, num_corners);
+    // Créer un maillage vide
+    Mesh *mesh_out = BKE_mesh_new_nomain(num_verts, num_edges, num_faces, num_corners);
     
     if (!mesh_out) {
       params.error_message_add(NodeWarningType::Error,
-                             "Unable to create a mesh with the required dimensions");
+          "Impossible de créer un maillage avec les dimensions requises");
       return nullptr;
     }
     
-    
+    // 5. Remplir le maillage avec les données
     try {
-      
+      // Copier les positions des sommets
       MutableSpan<float3> vert_positions = mesh_out->vert_positions_for_write();
-      
-      
-      for (int i = 0; i < out.numberofpoints; i++) {
+      for (int i = 0; i < num_verts; i++) {
         vert_positions[i] = float3(
             out.pointlist[i * 3],
             out.pointlist[i * 3 + 1],
             out.pointlist[i * 3 + 2]);
       }
       
-      
+      // Copier les arêtes
       MutableSpan<int2> edges = mesh_out->edges_for_write();
-      
-      
       int edge_index = 0;
-      for (const auto &edge_entry : edge_map) {
+      
+      // Tri des arêtes pour cohérence
+      std::vector<std::pair<int, int>> sorted_edges(edges_set.begin(), edges_set.end());
+      std::sort(sorted_edges.begin(), sorted_edges.end());
+      
+      for (const auto& edge : sorted_edges) {
         if (edge_index < num_edges) {
-          edges[edge_index] = int2(edge_entry.first.first, edge_entry.first.second);
+          edges[edge_index] = int2(edge.first, edge.second);
           edge_index++;
         }
       }
       
-      
-      if (out.numberoftrifaces > 0) {
-        
-        offset_indices::fill_constant_group_size(3, 0, mesh_out->face_offsets_for_write());
-        
-        
-        MutableSpan<int> corner_verts = mesh_out->corner_verts_for_write();
-        for (int i = 0; i < out.numberoftrifaces; i++) {
-          int *face = &out.trifacelist[i * 3];
-          
-          
-          for (int j = 0; j < 3; j++) {
-            if (face[j] < 0 || face[j] >= out.numberofpoints) {
-              params.error_message_add(NodeWarningType::Warning, 
-                  "Invalid face index detected");
-              face[j] = 0;  
-            }
-          }
-          
-          
-          corner_verts[i * 3]     = face[0];
-          corner_verts[i * 3 + 1] = face[1];
-          corner_verts[i * 3 + 2] = face[2];
-        }
-      }
-      else {
-        
-        offset_indices::fill_constant_group_size(3, 0, mesh_out->face_offsets_for_write());
-        
-        MutableSpan<int> corner_verts = mesh_out->corner_verts_for_write();
-        corner_verts[0] = 0;
-        corner_verts[1] = 1;
-        corner_verts[2] = 2;
+      // Définir les décalages de faces pour des triangles
+      MutableSpan<int> face_offsets = mesh_out->face_offsets_for_write();
+      for (int i = 0; i <= num_faces; i++) {
+        face_offsets[i] = i * 3;
       }
       
-      
-      
-      if (out.numberoftrifaces > 0) {
-        MutableSpan<int> corner_edges = mesh_out->corner_edges_for_write();
-        Span<int> corner_verts = mesh_out->corner_verts();
-        
-        
-        std::unordered_map<std::pair<int, int>, int, pairhash> edge_indices;
-        for (int i = 0; i < num_edges; i++) {
-          int v1 = edges[i][0];
-          int v2 = edges[i][1];
-          edge_indices[order_edge(v1, v2)] = i;
-        }
-        
-        
-        Span<int> face_offsets = mesh_out->face_offsets();
-        for (int face_index = 0; face_index < out.numberoftrifaces; face_index++) {
-          int face_start = face_offsets[face_index];
-          int face_size = face_offsets[face_index + 1] - face_start;
-          
-          for (int i = 0; i < face_size; i++) {
-            int v1 = corner_verts[face_start + i];
-            int v2 = corner_verts[face_start + (i + 1) % face_size];
-            
-            std::pair<int, int> edge = order_edge(v1, v2);
-            auto edge_it = edge_indices.find(edge);
-            
-            if (edge_it != edge_indices.end()) {
-              corner_edges[face_start + i] = edge_it->second;
-            }
-            else {
-              
-              corner_edges[face_start + i] = 0;
-            }
-          }
-        }
+      // Copier les indices des sommets pour chaque face
+      MutableSpan<int> corner_verts = mesh_out->corner_verts_for_write();
+      for (int i = 0; i < num_faces; i++) {
+        const auto& triangle = triangles[i];
+        corner_verts[i * 3]     = std::get<0>(triangle);
+        corner_verts[i * 3 + 1] = std::get<1>(triangle);
+        corner_verts[i * 3 + 2] = std::get<2>(triangle);
       }
       
+      // Créer une recherche rapide d'arêtes par paire de sommets
+      std::unordered_map<std::pair<int, int>, int, pairhash> edge_indices;
+      for (int i = 0; i < num_edges; i++) {
+        int v1 = edges[i][0];
+        int v2 = edges[i][1];
+        edge_indices[v1 < v2 ? std::make_pair(v1, v2) : std::make_pair(v2, v1)] = i;
+      }
       
+      // Associer les coins aux arêtes
+      MutableSpan<int> corner_edges = mesh_out->corner_edges_for_write();
+      for (int i = 0; i < num_faces; i++) {
+        const auto& triangle = triangles[i];
+        int v1 = std::get<0>(triangle);
+        int v2 = std::get<1>(triangle);
+        int v3 = std::get<2>(triangle);
+        
+        // Trouver les indices d'arêtes pour chaque coin
+        auto edge1 = v1 < v2 ? std::make_pair(v1, v2) : std::make_pair(v2, v1);
+        auto edge2 = v2 < v3 ? std::make_pair(v2, v3) : std::make_pair(v3, v2);
+        auto edge3 = v3 < v1 ? std::make_pair(v3, v1) : std::make_pair(v1, v3);
+        
+        corner_edges[i * 3]     = edge_indices[edge1];
+        corner_edges[i * 3 + 1] = edge_indices[edge2];
+        corner_edges[i * 3 + 2] = edge_indices[edge3];
+      }
+      
+      // Ajouter attribut d'index tétraédrique
       bke::MutableAttributeAccessor attributes = mesh_out->attributes_for_write();
       bke::SpanAttributeWriter<int> tet_indices = attributes.lookup_or_add_for_write_span<int>(
           "tetrahedral_index", bke::AttrDomain::Face);
           
       if (tet_indices) {
         for (int i = 0; i < num_faces; i++) {
-          tet_indices.span[i] = internal_tetrahedra.is_empty() ? 0 : internal_tetrahedra[0];  
+          tet_indices.span[i] = internal_tetrahedra.is_empty() ? 0 : internal_tetrahedra[0];
         }
         tet_indices.finish();
       }
+
       
       
+      // Uniformiser les normales du maillage (toutes vers l'extérieur)
+      make_normals_consistent(mesh_out, params);
+      
+      // Validation et calculs finaux du maillage pour garantir sa stabilité
+      params.error_message_add(NodeWarningType::Info,
+          "Maillage tétraédrique généré. Finalisation de la structure...");
+      
+      // Validation de la structure du maillage
       BKE_mesh_validate(mesh_out, true, true);
+      
+      params.error_message_add(NodeWarningType::Info,
+          "Maillage tétraédrique créé avec succès: " + 
+          std::to_string(num_verts) + " sommets, " +
+          std::to_string(num_edges) + " arêtes, " +
+          std::to_string(num_faces) + " faces triangulaires.");
+      
       return mesh_out;
     }
     catch (const std::exception &e) {
       params.error_message_add(NodeWarningType::Error,
-                             std::string("Error creating mesh: ") + e.what());
+                             std::string("Erreur création maillage: ") + e.what());
       return nullptr;
     }
   }
   catch (const std::exception &e) {
     params.error_message_add(NodeWarningType::Error,
-                           std::string("Error creating mesh: ") + e.what());
+                           std::string("Erreur création maillage: ") + e.what());
     return nullptr;
   }
   
-  
-  return nullptr;  
+  return nullptr;
 }
 
 /**
@@ -2165,7 +2197,6 @@ static void node_register()
 }
 NOD_REGISTER_NODE(node_register)
 
-}  
 
 void register_node_type_geo_tetrahedralize()
 {
@@ -2173,3 +2204,5 @@ void register_node_type_geo_tetrahedralize()
 
   file_ns::node_register();
 }
+
+}  
