@@ -2725,7 +2725,7 @@ static int vertex_group_assign_exec(bContext *C, wmOperator *op)
   if (ts->auto_normalize) {
     int subset_count, vgroup_tot;
     const bool *vgroup_validmap = BKE_object_defgroup_subset_from_select_type(
-        ob, WT_VGROUP_ALL, &vgroup_tot, &subset_count);
+        ob, WT_VGROUP_BONE_DEFORM, &vgroup_tot, &subset_count);
 
     vgroup_normalize_all(ob, vgroup_validmap, vgroup_tot, subset_count, true, op->reports);
   }
@@ -2831,7 +2831,7 @@ static wmOperatorStatus vertex_group_remove_from_exec(bContext *C, wmOperator *o
   if (ts->auto_normalize) {
     int subset_count, vgroup_tot;
     const bool *vgroup_validmap = BKE_object_defgroup_subset_from_select_type(
-        ob, WT_VGROUP_ALL, &vgroup_tot, &subset_count);
+        ob, WT_VGROUP_BONE_DEFORM, &vgroup_tot, &subset_count);
 
     vgroup_normalize_all(ob, vgroup_validmap, vgroup_tot, subset_count, false, op->reports);
   }
