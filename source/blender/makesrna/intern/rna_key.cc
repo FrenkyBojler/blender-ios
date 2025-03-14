@@ -121,16 +121,17 @@ static void rna_ShapeKey_value_set(PointerRNA *ptr, float value)
   data->curval = value;
 }
 
-/* epsilon for how close one end of shapekey range can get to the other */
-#  define SHAPEKEY_SLIDER_TOL 0.001f
-
-static void rna_ShapeKey_slider_ui_range_update(PointerRNA *ptr)
+static void rna_ShapeKey_value_range(
+    PointerRNA *ptr, float * /*min*/, float * /*max*/, float *softmin, float *softmax)
 {
   KeyBlock *kb = static_cast<KeyBlock *>(ptr->data);
-  PropertyRNA *prop = RNA_struct_find_property(ptr, "value");
-  BLI_assert(prop);
-  RNA_def_property_ui_range(prop, kb->slidermin, kb->slidermax, 10, 3);
+
+  *softmin = kb->slidermin;
+  *softmax = kb->slidermax;
 }
+
+/* epsilon for how close one end of shapekey range can get to the other */
+#  define SHAPEKEY_SLIDER_TOL 0.001f
 
 static void rna_ShapeKey_slider_min_range(
     PointerRNA *ptr, float *min, float *max, float * /*softmin*/, float * /*softmax*/)
@@ -149,8 +150,6 @@ static void rna_ShapeKey_slider_min_set(PointerRNA *ptr, float value)
   rna_ShapeKey_slider_min_range(ptr, &min, &max, &softmin, &softmax);
   CLAMP(value, min, max);
   data->slidermin = value;
-
-  rna_ShapeKey_slider_ui_range_update(ptr);
 }
 
 static void rna_ShapeKey_slider_max_range(
@@ -170,8 +169,6 @@ static void rna_ShapeKey_slider_max_set(PointerRNA *ptr, float value)
   rna_ShapeKey_slider_max_range(ptr, &min, &max, &softmin, &softmax);
   CLAMP(value, min, max);
   data->slidermax = value;
-
-  rna_ShapeKey_slider_ui_range_update(ptr);
 }
 
 #  undef SHAPEKEY_SLIDER_TOL
@@ -982,7 +979,8 @@ static void rna_def_keyblock(BlenderRNA *brna)
   /* The soft limit is changed dynamically on rna_ShapeKey_value_set,
    * but it needs an initial range. */
   RNA_def_property_ui_range(prop, 0.0f, 1.0f, 10, 3);
-  RNA_def_property_float_funcs(prop, nullptr, "rna_ShapeKey_value_set", nullptr);
+  RNA_def_property_float_funcs(
+      prop, nullptr, "rna_ShapeKey_value_set", "rna_ShapeKey_value_range");
   RNA_def_property_ui_text(prop, "Value", "Value of shape key at the current frame");
   RNA_def_property_update(prop, 0, "rna_Key_update_data");
 
