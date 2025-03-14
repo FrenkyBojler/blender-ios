@@ -18,6 +18,7 @@
 #include "draw_context_private.hh"
 
 #include "engines/eevee_next/eevee_engine.h"
+#include "engines/external/external_engine.h"
 #include "engines/overlay/overlay_engine.h"
 #include "engines/select/select_engine.hh"
 #include "engines/workbench/workbench_engine.h"
@@ -94,7 +95,7 @@ struct DRWViewData {
   /* TODO(fclem): Directly use each engine class. */
   blender::eevee::Engine eevee;
   blender::workbench::Engine workbench;
-  ViewportEngineData external;
+  blender::external::Engine external;
   ViewportEngineData image;
   ViewportEngineData grease_pencil;
   blender::draw::overlay::Engine overlay;
@@ -128,7 +129,7 @@ struct DRWViewData {
     /* Render engines. Output to the render result framebuffer. Mutually exclusive. */
     callback(eevee);
     callback(workbench);
-    // callback(&external, external.draw_engine);
+    callback(external);
     // callback(&image, image.draw_engine);
 #ifdef WITH_DRAW_DEBUG
     // callback(&edit_select_debug, edit_select_debug.draw_engine);

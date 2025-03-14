@@ -1017,7 +1017,7 @@ void DRWContext::enable_engines(bool gpencil_engine_needed, RenderEngineType *re
   SpaceLink *space_data = this->space_data;
   if (space_data && space_data->spacetype == SPACE_IMAGE) {
     if (DRW_engine_external_acquire_for_image_editor()) {
-      view_data.external.used = true;
+      view_data.external.set_used(true);
     }
     else {
       view_data.image.used = true;
@@ -1074,7 +1074,7 @@ void DRWContext::enable_engines(bool gpencil_engine_needed, RenderEngineType *re
           view_data.workbench.set_used(true);
         }
         else if ((render_engine_type->flag & RE_INTERNAL) == 0) {
-          view_data.external.used = true;
+          view_data.external.set_used(true);
         }
         else {
           BLI_assert_unreachable();
