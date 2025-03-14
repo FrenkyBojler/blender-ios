@@ -23,9 +23,6 @@
 #include "../../imbuf/IMB_imbuf.hh"
 #include "../../imbuf/IMB_imbuf_types.hh"
 
-#include "BLI_listbase.h"
-#include "BLI_utildefines.h"
-
 #include "python_compat.hh"
 #include "python_utildefines.hh"
 
