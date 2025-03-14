@@ -1031,23 +1031,25 @@ Vector<Shader *> ShaderCompilerGeneric::batch_finalize(BatchHandle &handle)
 
 void ShaderCompilerGeneric::run_thread()
 {
-  Batch *batch = nullptr;
-  {
-    std::unique_lock<std::mutex> lock(mutex_);
+  while (true) {
+    Batch *batch = nullptr;
+    {
+      std::unique_lock<std::mutex> lock(mutex_);
 
-    if (compilation_queue_.empty()) {
-      return;
+      if (compilation_queue_.empty()) {
+        return;
+      }
+
+      batch = compilation_queue_.front();
+      compilation_queue_.pop_front();
     }
 
-    batch = compilation_queue_.front();
-    compilation_queue_.pop_front();
+    /* Compile */
+    for (const shader::ShaderCreateInfo *info : batch->infos) {
+      batch->shaders.append(compile(*info, false));
+    }
+    batch->is_ready = true;
   }
-
-  /* Compile */
-  for (const shader::ShaderCreateInfo *info : batch->infos) {
-    batch->shaders.append(compile(*info, false));
-  }
-  batch->is_ready = true;
 }
 
 /** \} */

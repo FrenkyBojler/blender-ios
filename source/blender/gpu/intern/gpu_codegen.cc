@@ -305,7 +305,9 @@ class GPUPassCache {
     for (auto &engine_passes : passes_) {
       for (std::unique_ptr<GPUPass> &pass : engine_passes[false].values()) {
         pass->update();
-        base_passes_ready |= pass->status == GPU_PASS_QUEUED;
+        if (pass->status == GPU_PASS_QUEUED) {
+          base_passes_ready = false;
+        }
       }
 
       engine_passes[false].remove_if(
