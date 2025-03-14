@@ -3866,18 +3866,13 @@ static void version_sequencer_update_overdrop(Main *bmain)
 
 static void version_show_texpaint_to_show_uv(FileData *fd, Main *bmain)
 {
-  if (!DNA_struct_member_exists(fd->filesdna, "SpaceImage", "bool", "show_uv")) {
-    LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
-      LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
-        LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
-          if (sl->spacetype == SPACE_IMAGE) {
-            SpaceImage *sima = reinterpret_cast<SpaceImage *>(sl);
-            if (sima->flag & SI_NO_DRAW_TEXPAINT) {
-              sima->flag |= SI_NO_DRAW_UV_GUIDE;
-            }
-            else {
-              sima->flag &= SI_NO_DRAW_UV_GUIDE;
-            }
+  LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
+    LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+      LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
+        if (sl->spacetype == SPACE_IMAGE) {
+          SpaceImage *sima = reinterpret_cast<SpaceImage *>(sl);
+          if (sima->flag & SI_NO_DRAW_TEXPAINT) {
+            sima->flag |= SI_NO_DRAW_UV_GUIDE;
           }
         }
       }

@@ -1371,7 +1371,9 @@ typedef enum eSpaceImage_Flag {
 
   SI_FLAG_UNUSED_24 = (1 << 24),
 
-  SI_NO_DRAW_TEXPAINT = (1 << 25), /* deprecated - use SI_NO_DRAW_UV_GUIDE instead */
+#ifdef DNA_DEPRECATED_ALLOW
+  SI_NO_DRAW_TEXPAINT = (1 << 25), /* deprecated - use SI_NO_DRAW_UV_GUIDE instead, see #135102 */
+#endif
   SI_DRAW_METADATA = (1 << 26),
 
   SI_SHOW_R = (1 << 27),

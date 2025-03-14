@@ -1681,7 +1681,7 @@ class IMAGE_PT_overlay_uv_edit_geometry(Panel):
         row.prop(uvedit, "show_faces", text="Faces")
 
 
-class IMAGE_PT_overlay_texture_paint(Panel):
+class IMAGE_PT_overlay_uv_display(Panel):
     bl_space_type = 'IMAGE_EDITOR'
     bl_region_type = 'HEADER'
     bl_label = "Geometry"
@@ -1690,7 +1690,7 @@ class IMAGE_PT_overlay_texture_paint(Panel):
     @classmethod
     def poll(cls, context):
         sima = context.space_data
-        return (sima)
+        return (sima and not (sima.show_uvedit))
 
     def draw(self, context):
         layout = self.layout
@@ -1701,8 +1701,6 @@ class IMAGE_PT_overlay_texture_paint(Panel):
 
         layout.active = overlay.show_overlays
         layout.prop(uvedit, "show_uv")
-        if sima and sima.show_paint:
-            layout.prop(uvedit, "show_texpaint") # deprecated, use show_uv instead
 
 
 class IMAGE_PT_overlay_image(Panel):
@@ -1815,7 +1813,7 @@ classes = (
     IMAGE_PT_overlay_guides,
     IMAGE_PT_overlay_uv_stretch,
     IMAGE_PT_overlay_uv_edit_geometry,
-    IMAGE_PT_overlay_texture_paint,
+    IMAGE_PT_overlay_uv_display,
     IMAGE_PT_overlay_image,
     IMAGE_AST_brush_paint,
 )
