@@ -2677,7 +2677,10 @@ bool BKE_imbuf_write(ImBuf *ibuf, const char *filepath, const ImageFormatData *i
 
   BLI_file_ensure_parent_dir_exists(filepath);
 
-  const bool ok = IMB_saveiff(ibuf, filepath, IB_byte_data);
+  int flags = BKE_imtype_requires_linear_float(imf->imtype) ? IB_float_data : IB_byte_data;
+  flags |= ibuf->foptions.flag & OPENEXR_HALF ? IB_halffloat : 0;
+
+  const bool ok = IMB_saveiff(ibuf, filepath, flags);
   if (ok == 0) {
     perror(filepath);
   }
