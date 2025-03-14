@@ -71,7 +71,7 @@ static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  node->custom1 = SOCK_FLOAT;
+  node->custom1 = VOLUME_GRID_FLOAT;
 }
 
 #ifdef WITH_OPENVDB
@@ -124,7 +124,7 @@ static void node_rna(StructRNA *srna)
                     "Type of grid data",
                     rna_enum_volume_grid_data_type_items,
                     NOD_inline_enum_accessors(custom1),
-                    SOCK_FLOAT,
+                    VOLUME_GRID_FLOAT,
                     grid_data_type_socket_items_filter_fn);
 }
 
