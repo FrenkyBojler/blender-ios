@@ -36,7 +36,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
   const double frame_rate = double(scene->r.frs_sec) / double(scene->r.frs_sec_base);
-
+  float res_scale = scene->r.size * 0.01f;
   int sim_start = scene->r.sfra;
   int sim_end = scene->r.efra;
   if ((scene->flag & SCE_CUSTOM_SIMULATION_RANGE)) {
@@ -48,8 +48,8 @@ static void node_geo_exec(GeoNodeExecParams params)
   params.set_output("End Frame", scene->r.efra);
   params.set_output("Frame Rate", float(frame_rate));
 
-  params.set_output("Resolution X", scene->r.xsch);
-  params.set_output("Resolution Y", scene->r.ysch);
+  params.set_output("Resolution X", int(scene->r.xsch * res_scale));
+  params.set_output("Resolution Y", int(scene->r.ysch * res_scale));
   params.set_output("Aspect", float3{scene->r.xasp, scene->r.yasp, 0.0f});
 
   params.set_output("Gravity", float3(scene->physics_settings.gravity));
