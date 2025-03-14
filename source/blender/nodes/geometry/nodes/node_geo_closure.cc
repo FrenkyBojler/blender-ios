@@ -91,8 +91,6 @@ static void node_label(const bNodeTree * /*ntree*/,
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
   NodeGeometryClosureInput *data = MEM_callocN<NodeGeometryClosureInput>(__func__);
-  /* Needs to be initialized for the node to work. */
-  data->output_node_id = 0;
   node->storage = data;
 }
 
