@@ -474,11 +474,11 @@ class NODE_MT_category_import(Menu):
 
     def draw(self, _context):
         layout = self.layout
-        node_add_menu.add_node_type(layout, "GeometryNodeImportCSV")
-        node_add_menu.add_node_type(layout, "GeometryNodeImportOBJ")
-        node_add_menu.add_node_type(layout, "GeometryNodeImportPLY")
-        node_add_menu.add_node_type(layout, "GeometryNodeImportSTL")
-        node_add_menu.add_node_type(layout, "GeometryNodeImportText")
+        node_add_menu.add_node_type(layout, "GeometryNodeImportCSV", label="CSV (.csv)")
+        node_add_menu.add_node_type(layout, "GeometryNodeImportOBJ", label="Wavefront (.obj)")
+        node_add_menu.add_node_type(layout, "GeometryNodeImportPLY", label="Stanford PLY (.ply)")
+        node_add_menu.add_node_type(layout, "GeometryNodeImportSTL", label="STL (.stl)")
+        node_add_menu.add_node_type(layout, "GeometryNodeImportText", label="Text (.txt)")
         node_add_menu.draw_assets_for_catalog(layout, "Input/Import")
 
 
