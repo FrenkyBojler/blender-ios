@@ -6,6 +6,7 @@
 #include "BLI_stack.hh"
 
 #include "BKE_node.hh"
+#include "BKE_node_legacy_types.hh"
 #include "BKE_node_runtime.hh"
 
 #include "DNA_node_tree_interface_types.h"
@@ -191,142 +192,95 @@ static void store_group_input_structure_types(const bNodeTree &tree,
   }
 }
 
-/** Result of syncing two structure type states. */
-enum class StateSyncResult : int8_t {
-  /* Nothing changed. */
-  NONE = 0,
-  /* State A has been modified. */
-  CHANGED_A = (1 << 0),
-  /* State B has been modified. */
-  CHANGED_B = (1 << 1),
-};
-ENUM_OPERATORS(StateSyncResult, StateSyncResult::CHANGED_B)
+static bool simulation_zone_requirements_propagate(const bNode &input_node,
+                                                   const bNode &output_node,
+                                                   MutableSpan<DataRequirement> input_requirements)
+{
+  bool changed = false;
+  for (const int i : output_node.output_sockets().index_range()) {
+    /* First input node output is Delta Time which does not appear in the output node outputs. */
+    const bNodeSocket &socket_input = input_node.input_socket(i);
+    const bNodeSocket &socket_output = output_node.output_socket(i);
+    const DataRequirement new_value = merge(
+        input_requirements[socket_input.index_in_all_inputs()],
+        calc_output_socket_requirement(socket_output, input_requirements));
+    if (input_requirements[socket_input.index_in_all_inputs()] != new_value) {
+      input_requirements[socket_input.index_in_all_inputs()] = new_value;
+      changed = true;
+    }
+  }
+  return changed;
+}
 
-/**
- * Compare both states and select the most compatible.
- * Afterwards both states will be the same.
- * \return StateSyncResult flags indicating which states have changed.
- */
-// static StateSyncResult sync_states(DataRequirement &a, DataRequirement &b)
-// {
-//   const bool requires_single = a.requires_single || b.requires_single;
-//   const bool is_single = a.is_single && b.is_single;
+static bool repeat_zone_requirements_propagate(const bNode &input_node,
+                                               const bNode &output_node,
+                                               MutableSpan<DataRequirement> input_requirements)
+{
+  bool changed = false;
+  for (const int i : output_node.output_sockets().index_range()) {
+    const bNodeSocket &socket_input = input_node.input_socket(i + 1);
+    const bNodeSocket &socket_output = output_node.output_socket(i);
+    const DataRequirement new_value = merge(
+        input_requirements[socket_input.index_in_all_inputs()],
+        calc_output_socket_requirement(socket_output, input_requirements));
+    if (input_requirements[socket_input.index_in_all_inputs()] != new_value) {
+      input_requirements[socket_input.index_in_all_inputs()] = new_value;
+      changed = true;
+    }
+  }
+  return changed;
+}
 
-//   StateSyncResult res = StateSyncResult::NONE;
-//   if (a.requires_single != requires_single || a.is_single != is_single) {
-//     res |= StateSyncResult::CHANGED_A;
-//   }
-//   if (b.requires_single != requires_single || b.is_single != is_single) {
-//     res |= StateSyncResult::CHANGED_B;
-//   }
+static bool propagate_zone_data_requirements(const bNodeTree &tree,
+                                             const bNode &node,
+                                             MutableSpan<DataRequirement> input_requirements)
+{
+  /* Sync field state between zone nodes and schedule another pass if necessary. */
+  switch (node.type_legacy) {
+    case GEO_NODE_SIMULATION_INPUT: {
+      const auto &data = *static_cast<const NodeGeometrySimulationInput *>(node.storage);
+      if (const bNode *output_node = tree.node_by_id(data.output_node_id)) {
+        if (simulation_zone_requirements_propagate(node, *output_node, input_requirements)) {
+          return true;
+        }
+      }
+      return false;
+    }
+    case GEO_NODE_SIMULATION_OUTPUT: {
+      for (const bNode *input_node : tree.nodes_by_type("GeometryNodeSimulationInput")) {
+        const auto &data = *static_cast<const NodeGeometrySimulationInput *>(input_node->storage);
+        if (node.identifier == data.output_node_id) {
+          if (simulation_zone_requirements_propagate(node, *input_node, input_requirements)) {
+            return true;
+          }
+        }
+      }
+      return false;
+    }
+    case GEO_NODE_REPEAT_INPUT: {
+      const auto &data = *static_cast<const NodeGeometryRepeatInput *>(node.storage);
+      if (const bNode *output_node = tree.node_by_id(data.output_node_id)) {
+        if (repeat_zone_requirements_propagate(node, *output_node, input_requirements)) {
+          return true;
+        }
+      }
+      return false;
+    }
+    case GEO_NODE_REPEAT_OUTPUT: {
+      for (const bNode *input_node : tree.nodes_by_type("GeometryNodeRepeatInput")) {
+        const auto &data = *static_cast<const NodeGeometryRepeatInput *>(input_node->storage);
+        if (node.identifier == data.output_node_id) {
+          if (repeat_zone_requirements_propagate(*input_node, node, input_requirements)) {
+            return true;
+          }
+        }
+      }
+      return false;
+    }
+  }
 
-//   a.requires_single = requires_single;
-//   b.requires_single = requires_single;
-//   a.is_single = is_single;
-//   b.is_single = is_single;
-
-//   return res;
-// }
-
-/**
- * Compare states of simulation nodes sockets and select the most compatible.
- * Afterwards all states will be the same.
- * \return StateSyncResult flags indicating which states have changed.
- */
-// static StateSyncResult simulation_nodes_state_sync(
-//     const bNode &input_node,
-//     const bNode &output_node,
-//     const MutableSpan<DataRequirement> state_by_socket_id)
-// {
-//   StateSyncResult res = StateSyncResult::NONE;
-//   for (const int i : output_node.output_sockets().index_range()) {
-//     /* First input node output is Delta Time which does not appear in the output node outputs.
-//     */ const bNodeSocket &input_socket = input_node.output_socket(i + 1); const bNodeSocket
-//     &output_socket = output_node.output_socket(i); DataRequirement &input_state =
-//     state_by_socket_id[input_socket.index_in_tree()]; DataRequirement &output_state =
-//     state_by_socket_id[output_socket.index_in_tree()]; res |= sync_states(input_state,
-//     output_state);
-//   }
-//   return res;
-// }
-
-// static StateSyncResult repeat_state_sync(const bNode &input_node,
-//                                          const bNode &output_node,
-//                                          const MutableSpan<DataRequirement> state_by_socket_id)
-// {
-//   StateSyncResult res = StateSyncResult::NONE;
-//   const auto &storage = *static_cast<const NodeGeometryRepeatOutput *>(output_node.storage);
-//   for (const int i : IndexRange(storage.items_num)) {
-//     const bNodeSocket &input_socket = input_node.output_socket(i + 1);
-//     const bNodeSocket &output_socket = output_node.output_socket(i);
-//     DataRequirement &input_state = state_by_socket_id[input_socket.index_in_tree()];
-//     DataRequirement &output_state = state_by_socket_id[output_socket.index_in_tree()];
-//     res |= sync_states(input_state, output_state);
-//   }
-//   return res;
-// }
-
-// static bool propagate_special_data_requirements(const bNodeTree &tree,
-//                                                 const bNode &node,
-//                                                 const MutableSpan<DataRequirement>
-//                                                 state_by_socket_id)
-// {
-//   bool need_update = false;
-
-//   /* Sync field state between zone nodes and schedule another pass if necessary. */
-//   switch (node.type_legacy) {
-//     case GEO_NODE_SIMULATION_INPUT: {
-//       const auto &data = *static_cast<const NodeGeometrySimulationInput *>(node.storage);
-//       if (const bNode *output_node = tree.node_by_id(data.output_node_id)) {
-//         const StateSyncResult sync_result = simulation_nodes_state_sync(
-//             node, *output_node, state_by_socket_id);
-//         if (bool(sync_result & StateSyncResult::CHANGED_B)) {
-//           need_update = true;
-//         }
-//       }
-//       break;
-//     }
-//     case GEO_NODE_SIMULATION_OUTPUT: {
-//       for (const bNode *input_node : tree.nodes_by_type("GeometryNodeSimulationInput")) {
-//         const auto &data = *static_cast<const NodeGeometrySimulationInput
-//         *>(input_node->storage); if (node.identifier == data.output_node_id) {
-//           const StateSyncResult sync_result = simulation_nodes_state_sync(
-//               *input_node, node, state_by_socket_id);
-//           if (bool(sync_result & StateSyncResult::CHANGED_A)) {
-//             need_update = true;
-//           }
-//         }
-//       }
-//       break;
-//     }
-//     case GEO_NODE_REPEAT_INPUT: {
-//       const auto &data = *static_cast<const NodeGeometryRepeatInput *>(node.storage);
-//       if (const bNode *output_node = tree.node_by_id(data.output_node_id)) {
-//         const StateSyncResult sync_result = repeat_state_sync(
-//             node, *output_node, state_by_socket_id);
-//         if (bool(sync_result & StateSyncResult::CHANGED_B)) {
-//           need_update = true;
-//         }
-//       }
-//       break;
-//     }
-//     case GEO_NODE_REPEAT_OUTPUT: {
-//       for (const bNode *input_node : tree.nodes_by_type("GeometryNodeRepeatInput")) {
-//         const auto &data = *static_cast<const NodeGeometryRepeatInput *>(input_node->storage);
-//         if (node.identifier == data.output_node_id) {
-//           const StateSyncResult sync_result = repeat_state_sync(
-//               *input_node, node, state_by_socket_id);
-//           if (bool(sync_result & StateSyncResult::CHANGED_A)) {
-//             need_update = true;
-//           }
-//         }
-//       }
-//       break;
-//     }
-//   }
-
-//   return need_update;
-// }
+  return false;
+}
 
 static void propagate_right_to_left(const bNodeTree &tree,
                                     const Span<nodes::StructureTypeInterface> node_interfaces,
@@ -340,7 +294,7 @@ static void propagate_right_to_left(const bNodeTree &tree,
       const Span<const bNodeSocket *> output_sockets = node->output_sockets();
       const nodes::StructureTypeInterface &interface = node_interfaces[node->index()];
 
-      Array<Vector<int>> linked_outputs(node->input_sockets().size());
+      Array<Vector<int>> linked_outputs(input_sockets.size());
       for (const int output : interface.outputs.index_range()) {
         for (const int input : interface.outputs[output].linked_inputs) {
           linked_outputs[input].append(output);
@@ -353,7 +307,7 @@ static void propagate_right_to_left(const bNodeTree &tree,
           continue;
         }
         DataRequirement &requirement = input_requirements[input_socket.index_in_all_inputs()];
-        for (const int output_index : interface.outputs.index_range()) {
+        for (const int output_index : linked_outputs[input_index]) {
           const bNodeSocket &output_socket = *output_sockets[output_index];
           if (!output_socket.is_available()) {
             continue;
@@ -368,9 +322,9 @@ static void propagate_right_to_left(const bNodeTree &tree,
       }
 
       /* Find reverse dependencies and resolve conflicts, which may require another pass. */
-      // if (propagate_special_data_requirements(tree, *node, input_requirements)) {
-      //   need_update = true;
-      // }
+      if (propagate_zone_data_requirements(tree, *node, input_requirements)) {
+        need_update = true;
+      }
     }
 
     if (!need_update) {
@@ -402,6 +356,96 @@ static StructureType merge_status_left_to_right(const StructureType a, const Str
   }
   /* Invalid combination. */
   return a;
+}
+
+static bool simulation_zone_status_propagate(const bNode &input_node,
+                                             const bNode &output_node,
+                                             MutableSpan<StructureType> structure_types)
+{
+  bool changed = false;
+  for (const int i : output_node.output_sockets().index_range()) {
+    /* First input node output is Delta Time which does not appear in the output node outputs. */
+    const bNodeSocket &input_socket = input_node.output_socket(i + 1);
+    const bNodeSocket &output_socket = output_node.output_socket(i);
+    const StructureType new_value = merge_status_left_to_right(
+        structure_types[input_socket.index_in_tree()],
+        structure_types[output_socket.index_in_tree()]);
+    if (structure_types[input_socket.index_in_tree()] != new_value) {
+      structure_types[input_socket.index_in_tree()] = new_value;
+      changed = true;
+    }
+  }
+  return changed;
+}
+
+static bool repeat_zone_status_propagate(const bNode &input_node,
+                                         const bNode &output_node,
+                                         MutableSpan<StructureType> structure_types)
+{
+  bool changed = false;
+  for (const int i : output_node.output_sockets().index_range()) {
+    const bNodeSocket &input_socket = input_node.output_socket(i + 1);
+    const bNodeSocket &output_socket = output_node.output_socket(i);
+    const StructureType new_value = merge_status_left_to_right(
+        structure_types[input_socket.index_in_tree()],
+        structure_types[output_socket.index_in_tree()]);
+    if (structure_types[input_socket.index_in_tree()] != new_value) {
+      structure_types[input_socket.index_in_tree()] = new_value;
+      changed = true;
+    }
+  }
+  return changed;
+}
+
+static bool propagate_zone_status(const bNodeTree &tree,
+                                  const bNode &node,
+                                  MutableSpan<StructureType> structure_types)
+{
+  /* Sync field state between zone nodes and schedule another pass if necessary. */
+  switch (node.type_legacy) {
+    case GEO_NODE_SIMULATION_INPUT: {
+      const auto &data = *static_cast<const NodeGeometrySimulationInput *>(node.storage);
+      if (const bNode *output_node = tree.node_by_id(data.output_node_id)) {
+        if (simulation_zone_status_propagate(node, *output_node, structure_types)) {
+          return true;
+        }
+      }
+      return false;
+    }
+    case GEO_NODE_SIMULATION_OUTPUT: {
+      for (const bNode *input_node : tree.nodes_by_type("GeometryNodeSimulationInput")) {
+        const auto &data = *static_cast<const NodeGeometrySimulationInput *>(input_node->storage);
+        if (node.identifier == data.output_node_id) {
+          if (simulation_zone_status_propagate(node, *input_node, structure_types)) {
+            return true;
+          }
+        }
+      }
+      return false;
+    }
+    case GEO_NODE_REPEAT_INPUT: {
+      const auto &data = *static_cast<const NodeGeometryRepeatInput *>(node.storage);
+      if (const bNode *output_node = tree.node_by_id(data.output_node_id)) {
+        if (repeat_zone_status_propagate(node, *output_node, structure_types)) {
+          return true;
+        }
+      }
+      return false;
+    }
+    case GEO_NODE_REPEAT_OUTPUT: {
+      for (const bNode *input_node : tree.nodes_by_type("GeometryNodeRepeatInput")) {
+        const auto &data = *static_cast<const NodeGeometryRepeatInput *>(input_node->storage);
+        if (node.identifier == data.output_node_id) {
+          if (repeat_zone_status_propagate(*input_node, node, structure_types)) {
+            return true;
+          }
+        }
+      }
+      return false;
+    }
+  }
+
+  return false;
 }
 
 static void propagate_left_to_right(const bNodeTree &tree,
@@ -466,10 +510,9 @@ static void propagate_left_to_right(const bNodeTree &tree,
         }
       }
 
-      /* Find reverse dependencies and resolve conflicts, which may require another pass. */
-      // if (propagate_special_data_requirements(tree, *node, socket_usages)) {
-      //   need_update = true;
-      // }
+      if (propagate_zone_status(tree, *node, structure_types)) {
+        need_update = true;
+      }
     }
 
     if (!need_update) {
