@@ -68,12 +68,13 @@ set(SRC
   intern/draw_cache_impl_volume.cc
   intern/draw_color_management.cc
   intern/draw_command.cc
+  intern/draw_context.cc
   intern/draw_curves.cc
   intern/draw_debug.cc
   intern/draw_fluid.cc
+  intern/draw_gpu_context.cc
   intern/draw_hair.cc
   intern/draw_manager.cc
-  intern/draw_manager_c.cc
   intern/draw_manager_shader.cc
   intern/draw_manager_text.cc
   intern/draw_pbvh.cc
@@ -165,14 +166,12 @@ set(SRC
   intern/draw_common.hh
   intern/draw_common_c.hh
   intern/draw_common_shader_shared.hh
+  intern/draw_context_private.hh
   intern/draw_curves_private.hh
   intern/draw_debug.hh
-  intern/draw_debug_c.hh
   intern/draw_hair_private.hh
   intern/draw_handle.hh
   intern/draw_manager.hh
-  intern/draw_manager_c.hh
-  intern/draw_manager_testing.hh
   intern/draw_manager_text.hh
   intern/draw_pass.hh
   intern/draw_resource.hh
@@ -180,12 +179,12 @@ set(SRC
   intern/draw_shader.hh
   intern/draw_shader_shared.hh
   intern/draw_state.hh
+  intern/draw_subdiv_defines.hh
+  intern/draw_subdiv_shader_shared.hh
   intern/draw_subdivision.hh
   intern/draw_view.hh
   intern/draw_view_c.hh
   intern/draw_view_data.hh
-  intern/draw_subdiv_defines.hh
-  intern/draw_subdiv_shader_shared.hh
   intern/mesh_extractors/extract_mesh.hh
   engines/compositor/compositor_engine.h
   engines/eevee_next/eevee_ambient_occlusion.hh
@@ -544,7 +543,6 @@ set(GLSL_SRC
   intern/shaders/common_fxaa_lib.glsl
   intern/shaders/common_hair_lib.glsl
   intern/shaders/common_hair_refine_comp.glsl
-  intern/shaders/common_intersect_lib.glsl
   intern/shaders/common_shape_lib.glsl
   intern/shaders/subdiv_custom_data_interp_comp.glsl
   intern/shaders/subdiv_ibo_lines_comp.glsl
@@ -565,6 +563,7 @@ set(GLSL_SRC
   intern/shaders/draw_intersect_lib.glsl
   intern/shaders/draw_math_geom_lib.glsl
   intern/shaders/draw_model_lib.glsl
+  intern/shaders/draw_object_infos_lib.glsl
   intern/shaders/draw_pointcloud_lib.glsl
   intern/shaders/draw_resource_finalize_comp.glsl
   intern/shaders/draw_view_clipping_lib.glsl
