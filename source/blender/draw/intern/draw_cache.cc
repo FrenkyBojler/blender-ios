@@ -34,7 +34,7 @@
 
 #include "draw_cache.hh"
 #include "draw_cache_impl.hh"
-#include "draw_manager_c.hh"
+#include "draw_context_private.hh"
 
 using blender::Span;
 
@@ -534,7 +534,7 @@ void drw_batch_cache_validate(Object *ob)
 void drw_batch_cache_generate_requested(Object *ob)
 {
   using namespace blender::draw;
-  const DRWContextState *draw_ctx = DRW_context_state_get();
+  const DRWContext *draw_ctx = DRW_context_get();
   const Scene *scene = draw_ctx->scene;
   const enum eContextObjectMode mode = CTX_data_mode_enum_ex(
       draw_ctx->object_edit, draw_ctx->obact, draw_ctx->object_mode);
@@ -573,7 +573,7 @@ void drw_batch_cache_generate_requested_evaluated_mesh_or_curve(Object *ob)
   using namespace blender::draw;
   /* NOTE: Logic here is duplicated from #drw_batch_cache_generate_requested. */
 
-  const DRWContextState *draw_ctx = DRW_context_state_get();
+  const DRWContext *draw_ctx = DRW_context_get();
   const Scene *scene = draw_ctx->scene;
   const enum eContextObjectMode mode = CTX_data_mode_enum_ex(
       draw_ctx->object_edit, draw_ctx->obact, draw_ctx->object_mode);
@@ -600,7 +600,11 @@ void drw_batch_cache_generate_requested_evaluated_mesh_or_curve(Object *ob)
 
 void drw_batch_cache_generate_requested_delayed(Object *ob)
 {
-  BLI_gset_add(drw_get().delayed_extraction, ob);
+  DRWContext &draw_ctx = drw_get();
+  if (draw_ctx.delayed_extraction == nullptr) {
+    draw_ctx.delayed_extraction = BLI_gset_ptr_new(__func__);
+  }
+  BLI_gset_add(draw_ctx.delayed_extraction, ob);
 }
 
 namespace blender::draw {
