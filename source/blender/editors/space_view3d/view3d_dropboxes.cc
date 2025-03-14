@@ -439,6 +439,7 @@ static void view3d_collection_drop_copy_external_asset(bContext *C, wmDrag *drag
   WM_event_add_notifier(C, NC_SCENE | ND_LAYER_CONTENT, scene);
 
   RNA_int_set(drop->ptr, "session_uid", int(id->session_uid));
+  RNA_boolean_set(drop->ptr, "use_instance", asset_drag->import_settings.use_instance_collections);
 
   /* Make an object active, just use the first one in the collection. */
   CollectionObject *cobject = static_cast<CollectionObject *>(collection->gobject.first);

@@ -7367,6 +7367,15 @@ static void rna_def_fileselect_asset_params(BlenderRNA *brna)
   /* Asset drag info saved by buttons stores the import method, so the space must redraw when
    * import method changes. */
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_FILE_LIST, nullptr);
+
+  prop = RNA_def_property(srna, "instance_collections", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(
+      prop, nullptr, "import_flags", FILE_ASSET_IMPORT_INSTANCE_COLLECTIONS);
+  RNA_def_property_ui_text(
+      prop,
+      "Instance Collections",
+      "Create instances for collections, rather than adding them directly to the scene");
+  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_FILE_PARAMS, nullptr);
 }
 
 static void rna_def_filemenu_entry(BlenderRNA *brna)
