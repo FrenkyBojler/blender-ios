@@ -19,6 +19,7 @@
 
 #include "engines/overlay/overlay_engine.h"
 #include "engines/select/select_engine.hh"
+#include "engines/workbench/workbench_engine.h"
 
 #define GPU_INFO_SIZE 512 /* IMA_MAX_RENDER_TEXT_SIZE */
 
@@ -91,7 +92,7 @@ struct DRWViewData {
   /* Engines running for this viewport. nullptr if not enabled. */
   /* TODO(fclem): Directly use each engine class. */
   ViewportEngineData eevee;
-  ViewportEngineData workbench;
+  blender::workbench::Engine workbench;
   ViewportEngineData external;
   ViewportEngineData image;
   ViewportEngineData grease_pencil;
@@ -125,7 +126,7 @@ struct DRWViewData {
 
     /* Render engines. Output to the render result framebuffer. Mutually exclusive. */
     // callback(&eevee, eevee.draw_engine);
-    // callback(&workbench, workbench.draw_engine);
+    callback(workbench);
     // callback(&external, external.draw_engine);
     // callback(&image, image.draw_engine);
 #ifdef WITH_DRAW_DEBUG

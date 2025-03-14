@@ -1062,7 +1062,7 @@ void DRWContext::enable_engines(bool gpencil_engine_needed, RenderEngineType *re
     switch (drawtype) {
       case OB_WIRE:
       case OB_SOLID:
-        view_data.workbench.used = true;
+        view_data.workbench.set_used(true);
         break;
       case OB_MATERIAL:
       case OB_RENDER:
@@ -1072,7 +1072,7 @@ void DRWContext::enable_engines(bool gpencil_engine_needed, RenderEngineType *re
             view_data.eevee.used = true;
           }
           else if (render_engine_type == &DRW_engine_viewport_workbench_type) {
-            view_data.workbench.used = true;
+            view_data.workbench.set_used(true);
           }
           else {
             BLI_assert_unreachable();
@@ -2228,7 +2228,7 @@ void DRW_engines_register()
 void DRW_engines_free()
 {
   DRW_engine_viewport_eevee_next_type.draw_engine->engine_free();
-  DRW_engine_viewport_workbench_type.draw_engine->engine_free();
+  blender::workbench::Engine::free_static();
   draw_engine_gpencil_type.engine_free();
   draw_engine_image_type.engine_free();
   blender::draw::overlay::Engine::free_static();

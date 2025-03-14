@@ -34,7 +34,6 @@ using namespace blender;
 
 DRWViewData::DRWViewData()
     : eevee(DRW_engine_viewport_eevee_next_type.draw_engine),
-      workbench(DRW_engine_viewport_workbench_type.draw_engine),
       external(&draw_engine_external_type),
       image(&draw_engine_image_type),
       grease_pencil(&draw_engine_gpencil_type),
