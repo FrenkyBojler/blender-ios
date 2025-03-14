@@ -12,6 +12,11 @@
 #include "BLI_offset_indices.hh"
 #include "BLI_task_size_hints.hh"
 
+#include "BLI_bit_group_vector.hh"
+#include "BLI_bit_span.hh"
+#include "BLI_bit_span_ops.hh"
+#include "BLI_bit_vector.hh"
+
 namespace blender::geometry::akdbh {
 
 template<typename Func> inline void to_static_type(const CPPType &type, const Func &func)
@@ -141,6 +146,8 @@ inline void batch_for_each_to_bottom_skip(const OffsetIndices<int> buckets_offse
         prefix_to_visit);
     const IndexRange joints_range = akdbh::joints_range_at_depth(depth_i);
 
+    // std::sort(batch_to_visit.begin(), batch_to_visit.end());
+
     const auto end_of_batch_prefix = std::stable_partition(
         batch_to_visit.begin(), batch_to_visit.end(), [&](const int batch_i) -> bool {
           return joint_predicate(int(joints_range[joint_i]), batch_i);
@@ -163,6 +170,57 @@ inline void batch_for_each_to_bottom_skip(const OffsetIndices<int> buckets_offse
     depth_stack.extend_unchecked({depth_i + 1, depth_i + 1});
     joint_stack.extend_unchecked({joint_i * 2 + 1, joint_i * 2 + 0});
     prefix_to_visit_stack.extend_unchecked({num_to_visit_next, num_to_visit_next});
+  }
+}
+
+template<typename LeafFuncT, typename JointPredicateT, typename JointFuncT>
+inline void batch_for_each_to_bottom_skip_(const OffsetIndices<int> buckets_offsets,
+                                          const int total_depth,
+                                          const IndexRange batch_range,
+                                          const JointPredicateT &joint_predicate,
+                                          const JointFuncT &joint_func,
+                                          const LeafFuncT &leaf_func)
+{
+  using namespace blender::bits;
+  
+  BitGroupVector masks_stack(batch_range.size(), 33, false);
+  masks_stack[0].fill(true);
+
+  BitVector<0> buffer(batch_range.size());
+
+  Vector<int, 32> depth_stack({0});
+  Vector<int, 32> joint_stack({0});
+
+  while (!depth_stack.is_empty()) {
+    const int depth_i = depth_stack.pop_last();
+    const int joint_i = joint_stack.pop_last();
+
+    const MutableBoundedBitSpan batch_mask = masks_stack[depth_i];
+    const IndexRange joints_range = akdbh::joints_range_at_depth(depth_i);
+
+    buffer.fill(false);
+    foreach_1_index(batch_mask, [&](const int i) {
+      if (joint_predicate(int(joints_range[joint_i]), batch_range[i])) {
+        buffer[i].set();
+      }
+    }).has_value();
+
+    joint_func(int(joints_range[joint_i]), buffer);
+
+    mix_into_first_expr([](const BitInt parent, const BitInt current_ended) { return parent & (~current_ended); }, batch_mask, buffer);
+    if (!any_bit_set(batch_mask)) {
+      continue;
+    }
+
+    if (depth_i == total_depth - 1) {
+      leaf_func(buckets_offsets[joint_i], batch_mask);
+      continue;
+    }
+
+    copy_from_or(masks_stack[depth_i + 1], batch_mask);
+
+    depth_stack.extend_unchecked({depth_i + 1, depth_i + 1});
+    joint_stack.extend_unchecked({joint_i * 2 + 1, joint_i * 2 + 0});
   }
 }
 

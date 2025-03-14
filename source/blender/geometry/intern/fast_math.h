@@ -40,7 +40,7 @@ namespace ispc { /* namespace */
 #if defined(__cplusplus) && (! defined(__ISPC_NO_EXTERN_C) || !__ISPC_NO_EXTERN_C )
 extern "C" {
 #endif // __cplusplus
-    extern void distances(float positions[][3], const float * target, const int32_t count, float * distances, const float offset);
+    extern void distances(const float positions[][3], const float * target, const int32_t count, float * distances, const float offset);
     extern float fixed_safe_0_rpow_n(float * values, const int32_t count);
     extern float fixed_safe_10_rpow_n(float * values, const int32_t count);
     extern float fixed_safe_11_rpow_n(float * values, const int32_t count);
