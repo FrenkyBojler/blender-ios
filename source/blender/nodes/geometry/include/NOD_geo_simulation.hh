@@ -68,6 +68,7 @@ struct SimulationItemsAccessor {
 
   static bool supports_socket_type(const eNodeSocketDatatype socket_type)
   {
+    /* Data-block types and closures are not supported. */
     return ELEM(socket_type,
                 SOCK_FLOAT,
                 SOCK_VECTOR,
