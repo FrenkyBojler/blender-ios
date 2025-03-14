@@ -1829,7 +1829,7 @@ static void create_inspection_string_for_bundle(const geo_log::BundleValueLog &v
     fmt::format_to(fmt::appender(buf),
                    fmt::runtime("\u2022 \"{}\" ({})\n"),
                    item.key.identifiers().first(),
-                   IFACE_(item.type->label));
+                   TIP_(item.type->label));
   }
 }
 
