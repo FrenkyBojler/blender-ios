@@ -936,23 +936,45 @@ bke::CurvesGeometry curve_boolean(const CurveBooleanOpParameters op_params,
   }
 
   if (op_params.output_rule == FillRule::NoHoles) {
-    /* TODO. */
-    const IndexMask mask = IndexRange::from_single(0);
+    const VArray<float2> dst_positions_2d_attribute = *dst_attributes.lookup<float2>(
+        ".positions_2d", bke::AttrDomain::Point);
 
-    // const VArray<float2> dst_positions_2d_attribute = *src_attributes.lookup<float2>(
-    //     ".positions_2d", bke::AttrDomain::Point);
+    BLI_assert(dst_positions_2d_attribute.is_span());
+    const Span<float2> dst_positions_2d = dst_positions_2d_attribute.get_internal_span();
 
-    // BLI_assert(dst_positions_2d_attribute.is_span());
-    // const Span<float2> dst_positions_2d = dst_positions_2d_attribute.get_internal_span();
+    Vector<int> keep;
 
-    // // dst_points_by_curve
-    // // dst_positions_2d
+    IndexMaskMemory memory;
+    VectorSet<int> dst_shape_indexing;
+    const Vector<IndexMask> dst_shapes = IndexMask::from_group_ids(
+        VArray<int>::ForSpan(result.shape_ids), memory, dst_shape_indexing);
 
-    // curve_i =
-    // bool in = inside(dst_positions_2d.first(), );
+    for (const int shape_i : dst_shapes.index_range()) {
+      const IndexMask shape = dst_shapes[shape_i];
+      shape.foreach_index([&](const int curve_i) {
+        bool is_inside = false;
+        const float2 &point_i = dst_positions_2d[dst_points_by_curve[curve_i].first()];
 
-    // dst_curves.remove_curves(mask, {});
-    dst_curves = curves_copy_curve_selection(dst_curves, mask, {});
+        shape.foreach_index([&](const int curve_j) {
+          if (curve_j == curve_i) {
+            return;
+          }
+          const IndexRange points_j = dst_points_by_curve[curve_j];
+
+          if (inside(point_i, dst_positions_2d.slice(points_j))) {
+            is_inside = true;
+          }
+        });
+
+        if (!is_inside) {
+          keep.append(curve_i);
+        }
+      });
+    }
+
+    const IndexMask to_keep = IndexMask::from_indices(keep.as_span(), memory);
+
+    dst_curves = curves_copy_curve_selection(dst_curves, to_keep, {});
   }
 
   return dst_curves;
