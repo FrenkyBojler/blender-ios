@@ -1,3 +1,4 @@
 Referenced by commit 0dc3ffb5af0, Fix: windows compile error
 Referenced by commit b2ef92361fd, Fix: windows compile error
 Referenced by pull request #135871, Fix #135863: Grease Pencil Tint Modifier ignores custom curve influence
+Referenced by commit fdd402c3d856cd4f4c912288e08376173821964d, Fix #135863: Grease Pencil Tint Modifier ignores custom curve influence
