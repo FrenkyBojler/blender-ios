@@ -953,9 +953,11 @@ static void setup_app_data(bContext *C,
     mode = LOAD_UI;
   }
 
-  /* Free all render results, without this stale data gets displayed after loading files */
+  /* Free all render results and interactive compositor renders, without this stale data gets
+   * displayed after loading files */
   if (mode != LOAD_UNDO) {
     RE_FreeAllRenderResults();
+    RE_FreeInteractiveCompositorRenders();
   }
 
   /* Only make file-paths compatible when loading for real (not undo). */
@@ -1511,7 +1513,7 @@ UserDef *BKE_blendfile_userdef_from_defaults()
 
   /* Theme. */
   {
-    bTheme *btheme = static_cast<bTheme *>(MEM_mallocN(sizeof(*btheme), __func__));
+    bTheme *btheme = MEM_mallocN<bTheme>(__func__);
     memcpy(btheme, &U_theme_default, sizeof(*btheme));
 
     BLI_addtail(&userdef->themes, btheme);
@@ -1574,7 +1576,7 @@ UserDef *BKE_blendfile_userdef_from_defaults()
 
 bool BKE_blendfile_userdef_write(const char *filepath, ReportList *reports)
 {
-  Main *mainb = MEM_cnew<Main>("empty main");
+  Main *mainb = MEM_callocN<Main>("empty main");
   bool ok = false;
 
   BlendFileWriteParams params{};
@@ -1705,7 +1707,7 @@ WorkspaceConfigFileData *BKE_blendfile_workspace_config_read(const char *filepat
   }
 
   if (bfd) {
-    workspace_config = MEM_cnew<WorkspaceConfigFileData>(__func__);
+    workspace_config = MEM_callocN<WorkspaceConfigFileData>(__func__);
     workspace_config->main = bfd->main;
 
     /* Only 2.80+ files have actual workspaces, don't try to use screens

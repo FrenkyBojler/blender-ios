@@ -3897,6 +3897,8 @@ class VIEW3D_MT_mask(Menu):
         props.settings_source = 'OPERATOR'
         props.boundary_mode = 'FACE_SETS'
 
+        props = layout.operator("sculpt.mask_by_color", text="Mask by Color")
+
         layout.separator()
 
         layout.menu("VIEW3D_MT_random_mask", text="Random Mask")
@@ -5752,6 +5754,7 @@ class VIEW3D_MT_edit_greasepencil(Menu):
 
         layout.separator()
 
+        layout.operator("grease_pencil.stroke_split", text="Split")
         layout.operator("grease_pencil.copy", text="Copy", icon='COPYDOWN')
         layout.operator("grease_pencil.paste", text="Paste", icon='PASTEDOWN').type = 'ACTIVE'
         layout.operator("grease_pencil.paste", text="Paste by Layer").type = 'LAYER'
@@ -6750,14 +6753,14 @@ class VIEW3D_PT_shading_options(Panel):
             row.prop(shading, "use_dof", text="Depth of Field")
 
         if shading.type in {'WIREFRAME', 'SOLID'}:
-            row = layout.split()
+            row = col.split()
             row.prop(shading, "show_object_outline")
             sub = row.row()
             sub.active = shading.show_object_outline
             sub.prop(shading, "object_outline_color", text="")
 
         if shading.type == 'SOLID':
-            col = layout.column()
+            col = col.column()
             if shading.light in {'STUDIO', 'MATCAP'}:
                 studio_light = shading.selected_studio_light
                 col.active = (studio_light is not None) and studio_light.has_specular_highlight_pass
@@ -8266,6 +8269,7 @@ class VIEW3D_MT_greasepencil_edit_context_menu(Menu):
 
             col.separator()
 
+            col.operator("grease_pencil.stroke_split", text="Split")
             col.operator("grease_pencil.separate", text="Separate").mode = 'SELECTED'
 
             # Removal Operators

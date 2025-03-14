@@ -1005,21 +1005,21 @@ static void area_azone_init(const wmWindow *win, const bScreen *screen, ScrArea 
       /* Bottom-left. */
       {area->totrct.xmin - U.pixelsize,
        area->totrct.ymin - U.pixelsize,
-       area->totrct.xmin + AZONESPOTW,
-       area->totrct.ymin + AZONESPOTH},
+       area->totrct.xmin + UI_AZONESPOTW,
+       area->totrct.ymin + UI_AZONESPOTH},
       /* Bottom-right. */
-      {area->totrct.xmax - AZONESPOTW,
+      {area->totrct.xmax - UI_AZONESPOTW,
        area->totrct.ymin - U.pixelsize,
        area->totrct.xmax + U.pixelsize,
-       area->totrct.ymin + AZONESPOTH},
+       area->totrct.ymin + UI_AZONESPOTH},
       /* Top-left. */
       {area->totrct.xmin - U.pixelsize,
-       area->totrct.ymax - AZONESPOTH,
-       area->totrct.xmin + AZONESPOTW,
+       area->totrct.ymax - UI_AZONESPOTH,
+       area->totrct.xmin + UI_AZONESPOTW,
        area->totrct.ymax + U.pixelsize},
       /* Top-right. */
-      {area->totrct.xmax - AZONESPOTW,
-       area->totrct.ymax - AZONESPOTH,
+      {area->totrct.xmax - UI_AZONESPOTW,
+       area->totrct.ymax - UI_AZONESPOTH,
        area->totrct.xmax + U.pixelsize,
        area->totrct.ymax + U.pixelsize},
   };
@@ -2719,9 +2719,11 @@ void ED_area_newspace(bContext *C, ScrArea *area, int type, const bool skip_regi
     }
     st->space_subtype_set(area, area->butspacetype_subtype);
   }
-  else {
-    area->butspacetype_subtype = 0;
-  }
+
+  /* Whether setting a subtype or not we need to clear this value. Not just unneeded
+   * but can interfere with the next change. Operations can change the type without
+   * specifying a subtype (assumed zero) and we don't want to use the old subtype. */
+  area->butspacetype_subtype = 0;
 
   if (BLI_listbase_is_single(&CTX_wm_screen(C)->areabase)) {
     /* If there is only one area update the window title. */
