@@ -22,7 +22,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
   b.add_output<decl::Vector>("Texture Coordinates");
   b.add_output<decl::Vector>("Pixel Coordinates");
-  b.add_output<decl::Vector>("Size");
+  b.add_output<decl::Vector>("Resolution");
   b.add_output<decl::Vector>("Location");
   b.add_output<decl::Float>("Rotation");
   b.add_output<decl::Vector>("Scale");
@@ -64,10 +64,10 @@ class ImageInfoOperation : public NodeOperation {
       pixel_coordinates_result.transform(domain.transformation);
     }
 
-    Result &size_result = this->get_result("Size");
-    if (size_result.should_compute()) {
-      size_result.allocate_single_value();
-      size_result.set_single_value(float3(domain.size, 0.0f));
+    Result &resolution_result = this->get_result("Resolution");
+    if (resolution_result.should_compute()) {
+      resolution_result.allocate_single_value();
+      resolution_result.set_single_value(float3(domain.size, 0.0f));
     }
 
     math::AngleRadian rotation;
@@ -105,9 +105,9 @@ class ImageInfoOperation : public NodeOperation {
       pixel_coordinates_result.allocate_invalid();
     }
 
-    Result &size_result = this->get_result("Size");
-    if (size_result.should_compute()) {
-      size_result.allocate_invalid();
+    Result &resolution_result = this->get_result("Resolution");
+    if (resolution_result.should_compute()) {
+      resolution_result.allocate_invalid();
     }
 
     Result &location_result = this->get_result("Location");
