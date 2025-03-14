@@ -9,6 +9,7 @@
 
 #include "BLI_assert.h"
 #include "BLI_cpp_type.hh"
+#include "BLI_generic_pointer.hh"
 #include "BLI_generic_span.hh"
 #include "BLI_math_matrix_types.hh"
 #include "BLI_math_vector_types.hh"
@@ -244,6 +245,29 @@ const CPPType &Result::cpp_type(const ResultType type)
   return CPPType::get<float>();
 }
 
+const char *Result::type_name(const ResultType type)
+{
+  switch (type) {
+    case ResultType::Float:
+      return "float";
+    case ResultType::Float2:
+      return "float2";
+    case ResultType::Float3:
+      return "float3";
+    case ResultType::Float4:
+      return "float4";
+    case ResultType::Color:
+      return "color";
+    case ResultType::Int2:
+      return "int2";
+    case ResultType::Int:
+      return "int";
+  }
+
+  BLI_assert_unreachable();
+  return "";
+}
+
 Result::operator GPUTexture *() const
 {
   return this->gpu_texture();
@@ -348,19 +372,22 @@ void Result::unbind_as_image() const
   GPU_texture_image_unbind(this->gpu_texture());
 }
 
-void Result::pass_through(Result &target)
+void Result::share_data(const Result &source)
 {
-  /* Increment the reference count of the master by the original reference count of the target. */
-  increment_reference_count(target.reference_count());
+  BLI_assert(type_ == source.type_);
+  BLI_assert(precision_ == source.precision_);
+  BLI_assert(!this->is_allocated() && source.is_allocated());
 
-  /* Make the target an exact copy of this result, but keep the initial reference count, as this is
-   * a property of the original result and is needed for correctly resetting the result before the
-   * next evaluation. */
-  const int initial_reference_count = target.initial_reference_count_;
-  target = *this;
-  target.initial_reference_count_ = initial_reference_count;
+  /* Overwrite everything except reference count. */
+  const int reference_count = reference_count_;
+  *this = source;
+  reference_count_ = reference_count;
 
-  target.master_ = this;
+  /* External data is intrinsically shared, and data_reference_count_ is nullptr in this case since
+   * it is not needed. */
+  if (!is_external_) {
+    (*data_reference_count_)++;
+  }
 }
 
 void Result::steal_data(Result &source)
@@ -368,16 +395,13 @@ void Result::steal_data(Result &source)
   BLI_assert(type_ == source.type_);
   BLI_assert(precision_ == source.precision_);
   BLI_assert(!this->is_allocated() && source.is_allocated());
-  BLI_assert(master_ == nullptr && source.master_ == nullptr);
 
   /* Overwrite everything except reference counts. */
   const int reference_count = reference_count_;
-  const int initial_reference_count = initial_reference_count_;
   *this = source;
   reference_count_ = reference_count;
-  initial_reference_count_ = initial_reference_count;
 
-  source.reset();
+  source = Result(*context_, type_, precision_);
 }
 
 /* Returns true if the given GPU texture is compatible with the type and precision of the given
@@ -400,7 +424,6 @@ void Result::wrap_external(GPUTexture *texture)
 {
   BLI_assert(is_compatible_texture(texture, *this));
   BLI_assert(!this->is_allocated());
-  BLI_assert(!master_);
 
   gpu_texture_ = texture;
   storage_type_ = ResultStorageType::GPU;
@@ -412,7 +435,6 @@ void Result::wrap_external(GPUTexture *texture)
 void Result::wrap_external(void *data, int2 size)
 {
   BLI_assert(!this->is_allocated());
-  BLI_assert(!master_);
 
   const int64_t array_size = int64_t(size.x) * int64_t(size.y);
   cpu_data_ = GMutableSpan(this->get_cpp_type(), data, array_size);
@@ -426,7 +448,6 @@ void Result::wrap_external(const Result &result)
   BLI_assert(type_ == result.type());
   BLI_assert(precision_ == result.precision());
   BLI_assert(!this->is_allocated());
-  BLI_assert(!master_);
 
   /* Steal the data of the given result and mark it as wrapping external data, but create a
    * temporary copy of the result first, since steal_data will reset it. */
@@ -450,49 +471,28 @@ RealizationOptions &Result::get_realization_options()
   return domain_.realization_options;
 }
 
-void Result::set_initial_reference_count(int count)
+const RealizationOptions &Result::get_realization_options() const
 {
-  initial_reference_count_ = count;
+  return domain_.realization_options;
 }
 
-void Result::reset()
+void Result::set_reference_count(int count)
 {
-  const int initial_reference_count = initial_reference_count_;
-  *this = Result(*context_, type_, precision_);
-  initial_reference_count_ = initial_reference_count;
-  reference_count_ = initial_reference_count;
+  reference_count_ = count;
 }
 
 void Result::increment_reference_count(int count)
 {
-  /* If there is a master result, increment its reference count instead. */
-  if (master_) {
-    master_->increment_reference_count(count);
-    return;
-  }
-
   reference_count_ += count;
 }
 
 void Result::decrement_reference_count(int count)
 {
-  /* If there is a master result, decrement its reference count instead. */
-  if (master_) {
-    master_->decrement_reference_count(count);
-    return;
-  }
-
   reference_count_ -= count;
 }
 
 void Result::release()
 {
-  /* If there is a master result, release it instead. */
-  if (master_) {
-    master_->release();
-    return;
-  }
-
   /* Decrement the reference count, and if it is not yet zero, return and do not free. */
   reference_count_--;
   BLI_assert(reference_count_ >= 0);
@@ -505,17 +505,19 @@ void Result::release()
 
 void Result::free()
 {
-  /* If there is a master result, free it instead. */
-  if (master_) {
-    master_->free();
-    return;
-  }
-
   if (is_external_) {
     return;
   }
 
   if (!this->is_allocated()) {
+    return;
+  }
+
+  /* Data is still shared with some other result, so decrement data reference count and do not free
+   * anything. */
+  BLI_assert(*data_reference_count_ >= 1);
+  if (*data_reference_count_ != 1) {
+    (*data_reference_count_)--;
     return;
   }
 
@@ -535,13 +537,16 @@ void Result::free()
       break;
   }
 
+  delete data_reference_count_;
+  data_reference_count_ = nullptr;
+
   delete derived_resources_;
   derived_resources_ = nullptr;
 }
 
 bool Result::should_compute()
 {
-  return initial_reference_count_ != 0;
+  return reference_count_ != 0;
 }
 
 DerivedResources &Result::derived_resources()
@@ -595,15 +600,23 @@ bool Result::is_allocated() const
 
 int Result::reference_count() const
 {
-  /* If there is a master result, return its reference count instead. */
-  if (master_) {
-    return master_->reference_count();
-  }
   return reference_count_;
+}
+
+GPointer Result::single_value() const
+{
+  return std::visit([](const auto &value) { return GPointer(&value); }, single_value_);
+}
+
+GMutablePointer Result::single_value()
+{
+  return std::visit([](auto &value) { return GMutablePointer(&value); }, single_value_);
 }
 
 void Result::allocate_data(int2 size, bool from_pool)
 {
+  BLI_assert(!this->is_allocated());
+
   if (context_->use_gpu()) {
     storage_type_ = ResultStorageType::GPU;
     is_from_pool_ = from_pool;
@@ -631,6 +644,8 @@ void Result::allocate_data(int2 size, bool from_pool)
 
     cpu_data_ = GMutableSpan(cpp_type, data, array_size);
   }
+
+  data_reference_count_ = new int(1);
 }
 
 }  // namespace blender::compositor
