@@ -19,8 +19,8 @@ namespace detail {
  */
 template<typename ExprFn, typename FirstBitSpanT, typename... BitSpanT>
 inline void mix_into_first_expr(ExprFn &&expr,
-                                const FirstBitSpanT &first_arg,
-                                const BitSpanT &...args)
+                                const FirstBitSpanT first_arg,
+                                const BitSpanT... args)
 {
   const int64_t size = first_arg.size();
   BLI_assert(((size == args.size()) && ...));
@@ -64,7 +64,7 @@ inline void mix_into_first_expr(ExprFn &&expr,
  *   (BitInt ...one_or_more_args) -> BitInt
  */
 template<typename ExprFn, typename FirstBitSpanT, typename... BitSpanT>
-inline bool any_set_expr(ExprFn &&expr, const FirstBitSpanT &first_arg, const BitSpanT &...args)
+inline bool any_set_expr(ExprFn &&expr, const FirstBitSpanT first_arg, const BitSpanT... args)
 {
   const int64_t size = first_arg.size();
   BLI_assert(((size == args.size()) && ...));
@@ -116,8 +116,8 @@ inline bool any_set_expr(ExprFn &&expr, const FirstBitSpanT &first_arg, const Bi
 template<typename ExprFn, typename HandleFn, typename FirstBitSpanT, typename... BitSpanT>
 inline void foreach_1_index_expr(ExprFn &&expr,
                                  HandleFn &&handle,
-                                 const FirstBitSpanT &first_arg,
-                                 const BitSpanT &...args)
+                                 const FirstBitSpanT first_arg,
+                                 const BitSpanT... args)
 {
   static_assert(std::is_invocable_v<HandleFn, int64_t>);
   constexpr bool is_cancellable = std::is_invocable_r_v<bool, HandleFn, int64_t>;
@@ -193,8 +193,8 @@ inline void foreach_1_index_expr(ExprFn &&expr,
 
 template<typename ExprFn, typename FirstBitSpanT, typename... BitSpanT>
 inline std::optional<int64_t> find_first_1_index_expr(ExprFn &&expr,
-                                                      const FirstBitSpanT &first_arg,
-                                                      const BitSpanT &...args)
+                                                      const FirstBitSpanT first_arg,
+                                                      const BitSpanT... args)
 {
   std::optional<int64_t> result;
   detail::foreach_1_index_expr(
@@ -211,13 +211,13 @@ inline std::optional<int64_t> find_first_1_index_expr(ExprFn &&expr,
 }  // namespace detail
 
 template<typename ExprFn, typename FirstBitSpanT, typename... BitSpanT>
-inline void mix_into_first_expr(ExprFn &&expr, FirstBitSpanT &&first_arg, const BitSpanT &...args)
+inline void mix_into_first_expr(ExprFn &&expr, FirstBitSpanT first_arg, const BitSpanT... args)
 {
   detail::mix_into_first_expr(expr, to_best_bit_span(first_arg), to_best_bit_span(args)...);
 }
 
 template<typename ExprFn, typename FirstBitSpanT, typename... BitSpanT>
-inline bool any_set_expr(ExprFn &&expr, const FirstBitSpanT &first_arg, const BitSpanT &...args)
+inline bool any_set_expr(ExprFn &&expr, const FirstBitSpanT first_arg, const BitSpanT... args)
 {
   return detail::any_set_expr(expr, to_best_bit_span(first_arg), to_best_bit_span(args)...);
 }
@@ -232,21 +232,21 @@ inline void foreach_1_index_expr(ExprFn &&expr,
       expr, handle, to_best_bit_span(first_arg), to_best_bit_span(args)...);
 }
 
-template<typename BitSpanT> inline void invert(BitSpanT &&data)
+template<typename BitSpanT> inline void invert(BitSpanT data)
 {
   mix_into_first_expr([](const BitInt x) { return ~x; }, data);
 }
 
 template<typename FirstBitSpanT, typename... BitSpanT>
-inline void inplace_or(FirstBitSpanT &first_arg, const BitSpanT &...args)
+inline void inplace_or(FirstBitSpanT first_arg, const BitSpanT... args)
 {
   mix_into_first_expr([](const auto... x) { return (x | ...); }, first_arg, args...);
 }
 
 template<typename FirstBitSpanT, typename MaskBitSpanT, typename... BitSpanT>
 inline void inplace_or_masked(FirstBitSpanT &&first_arg,
-                              const MaskBitSpanT &mask,
-                              const BitSpanT &...args)
+                              const MaskBitSpanT mask,
+                              const BitSpanT... args)
 {
   mix_into_first_expr(
       [](const BitInt a, const BitInt mask, const auto... x) { return a | ((x | ...) & mask); },
@@ -256,93 +256,93 @@ inline void inplace_or_masked(FirstBitSpanT &&first_arg,
 }
 
 template<typename FirstBitSpanT, typename... BitSpanT>
-inline void copy_from_or(FirstBitSpanT &first_arg, const BitSpanT &...args)
+inline void copy_from_or(FirstBitSpanT first_arg, const BitSpanT... args)
 {
   mix_into_first_expr(
       [](auto /*first*/, auto... rest) { return (rest | ...); }, first_arg, args...);
 }
 
 template<typename FirstBitSpanT, typename... BitSpanT>
-inline void inplace_and(FirstBitSpanT &first_arg, const BitSpanT &...args)
+inline void inplace_and(FirstBitSpanT first_arg, const BitSpanT... args)
 {
   mix_into_first_expr([](const auto... x) { return (x & ...); }, first_arg, args...);
 }
 
 template<typename... BitSpanT>
-inline void operator|=(MutableBitSpan first_arg, const BitSpanT &...args)
+inline void operator|=(MutableBitSpan first_arg, const BitSpanT... args)
 {
   inplace_or(first_arg, args...);
 }
 
 template<typename... BitSpanT>
-inline void operator|=(MutableBoundedBitSpan first_arg, const BitSpanT &...args)
+inline void operator|=(MutableBoundedBitSpan first_arg, const BitSpanT... args)
 {
   inplace_or(first_arg, args...);
 }
 
 template<typename... BitSpanT>
-inline void operator&=(MutableBitSpan first_arg, const BitSpanT &...args)
+inline void operator&=(MutableBitSpan first_arg, const BitSpanT... args)
 {
   inplace_and(first_arg, args...);
 }
 
 template<typename... BitSpanT>
-inline void operator&=(MutableBoundedBitSpan first_arg, const BitSpanT &...args)
+inline void operator&=(MutableBoundedBitSpan first_arg, const BitSpanT... args)
 {
   inplace_and(first_arg, args...);
 }
 
-template<typename... BitSpanT> inline bool has_common_set_bits(const BitSpanT &...args)
+template<typename... BitSpanT> inline bool has_common_set_bits(const BitSpanT... args)
 {
   return any_set_expr([](const auto... x) { return (x & ...); }, args...);
 }
 
-template<typename BitSpanT> inline bool any_bit_set(const BitSpanT &arg)
+template<typename BitSpanT> inline bool any_bit_set(const BitSpanT arg)
 {
   return has_common_set_bits(arg);
 }
 
-template<typename... BitSpanT> inline bool has_common_unset_bits(const BitSpanT &...args)
+template<typename... BitSpanT> inline bool has_common_unset_bits(const BitSpanT... args)
 {
   return any_set_expr([](const auto... x) { return ~(x | ...); }, args...);
 }
 
-template<typename BitSpanT> inline bool any_bit_unset(const BitSpanT &arg)
+template<typename BitSpanT> inline bool any_bit_unset(const BitSpanT arg)
 {
   return has_common_unset_bits(arg);
 }
 
-template<typename BitSpanT, typename Fn> inline void foreach_1_index(const BitSpanT &data, Fn &&fn)
+template<typename BitSpanT, typename Fn> inline void foreach_1_index(const BitSpanT data, Fn &&fn)
 {
   foreach_1_index_expr([](const BitInt x) { return x; }, fn, data);
 }
 
-template<typename BitSpanT, typename Fn> inline void foreach_0_index(const BitSpanT &data, Fn &&fn)
+template<typename BitSpanT, typename Fn> inline void foreach_0_index(const BitSpanT data, Fn &&fn)
 {
   foreach_1_index_expr([](const BitInt x) { return ~x; }, fn, data);
 }
 
 template<typename ExprFn, typename FirstBitSpanT, typename... BitSpanT>
 inline std::optional<int64_t> find_first_1_index_expr(ExprFn &&Expr,
-                                                      const FirstBitSpanT &first_arg,
-                                                      const BitSpanT &...args)
+                                                      const FirstBitSpanT first_arg,
+                                                      const BitSpanT... args)
 {
   return detail::find_first_1_index_expr(
       Expr, to_best_bit_span(first_arg), to_best_bit_span(args)...);
 }
 
-template<typename BitSpanT> inline std::optional<int64_t> find_first_1_index(const BitSpanT &data)
+template<typename BitSpanT> inline std::optional<int64_t> find_first_1_index(const BitSpanT data)
 {
   return find_first_1_index_expr([](const BitInt x) { return x; }, data);
 }
 
-template<typename BitSpanT> inline std::optional<int64_t> find_first_0_index(const BitSpanT &data)
+template<typename BitSpanT> inline std::optional<int64_t> find_first_0_index(const BitSpanT data)
 {
   return find_first_1_index_expr([](const BitInt x) { return ~x; }, data);
 }
 
 template<typename BitSpanT1, typename BitSpanT2>
-inline bool spans_equal(const BitSpanT1 &a, const BitSpanT2 &b)
+inline bool spans_equal(const BitSpanT1 a, const BitSpanT2 b)
 {
   if (a.size() != b.size()) {
     return false;
@@ -351,7 +351,7 @@ inline bool spans_equal(const BitSpanT1 &a, const BitSpanT2 &b)
 }
 
 template<typename BitSpanT1, typename BitSpanT2, typename BitSpanT3>
-inline bool spans_equal_masked(const BitSpanT1 &a, const BitSpanT2 &b, const BitSpanT3 &mask)
+inline bool spans_equal_masked(const BitSpanT1 a, const BitSpanT2 b, const BitSpanT3 mask)
 {
   BLI_assert(mask.size() == a.size());
   BLI_assert(mask.size() == b.size());
