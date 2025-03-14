@@ -1044,7 +1044,7 @@ void DRWContext::enable_engines(bool gpencil_engine_needed, RenderEngineType *re
     }
 
     if (DRW_state_viewport_compositor_enabled()) {
-      view_data.compositor.used = true;
+      view_data.compositor.set_used(true);
     }
 
     view_data.overlay.set_used(true);

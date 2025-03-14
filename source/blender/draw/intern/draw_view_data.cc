@@ -23,11 +23,9 @@
 #include "draw_manager.hh"
 #include "draw_view_data.hh"
 
-#include "engines/compositor/compositor_engine.h"
-
 using namespace blender;
 
-DRWViewData::DRWViewData() : compositor(&draw_engine_compositor_type)
+DRWViewData::DRWViewData()
 {
   manager = new draw::Manager();
 };
