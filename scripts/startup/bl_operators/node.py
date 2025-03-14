@@ -576,7 +576,7 @@ class NODE_OT_viewer_shortcut_set(Operator):
             (space is not None) and
             space.type == 'NODE_EDITOR' and
             space.node_tree is not None and
-            space.tree_type == 'CompositorNodeTree'
+            space.tree_type in {'CompositorNodeTree', 'GeometryNodeTree'}
         )
 
     def execute(self, context):
@@ -591,7 +591,6 @@ class NODE_OT_viewer_shortcut_set(Operator):
 
         # Only viewer nodes can be set to favorites. However, the user can
         # create a new favorite viewer by selecting any node and pressing ctrl+1.
-        old_active = nodes.active
         if fav_node.type == 'VIEWER':
             viewer_node = fav_node
         else:
@@ -611,10 +610,8 @@ class NODE_OT_viewer_shortcut_set(Operator):
             )
             return {'CANCELLED'}
 
-        # Use the node active status to enable this viewer node and disable others.
-        nodes.active = viewer_node
-        if old_active.type != 'VIEWER':
-            nodes.active = old_active
+        with bpy.context.temp_override(node=viewer_node):
+            bpy.ops.node.activate_viewer()
 
         viewer_node.ui_shortcut = self.viewer_index
         self.report({'INFO'}, "Assigned shortcut {:d} to {:s}".format(self.viewer_index, viewer_node.name))
@@ -640,7 +637,7 @@ class NODE_OT_viewer_shortcut_get(Operator):
             (space is not None) and
             space.type == 'NODE_EDITOR' and
             space.node_tree is not None and
-            space.tree_type == 'CompositorNodeTree'
+            space.tree_type in {'CompositorNodeTree', 'GeometryNodeTree'}
         )
 
     def execute(self, context):
@@ -656,11 +653,8 @@ class NODE_OT_viewer_shortcut_get(Operator):
             self.report({'INFO'}, "Shortcut {:d} is not assigned to a Viewer node yet".format(self.viewer_index))
             return {'CANCELLED'}
 
-        # Use the node active status to enable this viewer node and disable others.
-        old_active = nodes.active
-        nodes.active = viewer_node
-        if old_active.type != "VIEWER":
-            nodes.active = old_active
+        with bpy.context.temp_override(node=viewer_node):
+            bpy.ops.node.activate_viewer()
 
         return {'FINISHED'}
 
