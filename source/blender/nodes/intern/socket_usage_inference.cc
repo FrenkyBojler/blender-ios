@@ -494,6 +494,10 @@ struct SocketUsageInferencer {
       this->push_usage_task(next_unknown_output);
       return;
     }
+    if (!any_output_used) {
+      all_socket_usages_.add_new(socket, false);
+      return;
+    }
     bool all_condition_inputs_true = true;
     for (const bNodeSocket *condition_input_ptr : condition_inputs) {
       const SocketInContext condition_input{dependent_socket_context, condition_input_ptr};
@@ -509,8 +513,7 @@ struct SocketUsageInferencer {
         break;
       }
     }
-    const bool is_used = all_condition_inputs_true && any_output_used;
-    all_socket_usages_.add_new(socket, is_used);
+    all_socket_usages_.add_new(socket, all_condition_inputs_true);
   }
 
   void value_task(const SocketInContext &socket)
