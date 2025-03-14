@@ -103,7 +103,7 @@ struct DRWViewData {
   blender::draw::select::Engine object_select;
   blender::draw::edit_select::Engine edit_select;
 #ifdef WITH_DRAW_DEBUG
-  ViewportEngineData edit_select_debug;
+  blender::draw::edit_select_debug::Engine edit_select_debug;
 #endif
   ViewportEngineData compositor;
 
@@ -133,7 +133,7 @@ struct DRWViewData {
     callback(external);
     callback(image);
 #ifdef WITH_DRAW_DEBUG
-    // callback(edit_select_debug);
+    callback(edit_select_debug);
 #endif
     /* Grease pencil. Merge its output to the render result framebuffer. */
     callback(grease_pencil);

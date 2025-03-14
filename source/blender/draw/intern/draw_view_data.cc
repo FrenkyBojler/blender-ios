@@ -24,16 +24,10 @@
 #include "draw_view_data.hh"
 
 #include "engines/compositor/compositor_engine.h"
-#include "engines/image/image_engine.h"
 
 using namespace blender;
 
-DRWViewData::DRWViewData()
-    :
-#ifdef WITH_DRAW_DEBUG
-      edit_select_debug(DRW_engine_viewport_select_type.draw_engine),
-#endif
-      compositor(&draw_engine_compositor_type)
+DRWViewData::DRWViewData() : compositor(&draw_engine_compositor_type)
 {
   manager = new draw::Manager();
 };

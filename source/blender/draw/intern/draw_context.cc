@@ -994,19 +994,19 @@ void DRWContext::enable_engines(bool gpencil_engine_needed, RenderEngineType *re
   }
 
   if (ELEM(this->mode, DRWContext::SELECT_OBJECT, DRWContext::SELECT_OBJECT_MATERIAL)) {
-    this->view_data_active->grease_pencil.set_used(gpencil_engine_needed);
-    this->view_data_active->object_select.set_used(true);
+    view_data.grease_pencil.set_used(gpencil_engine_needed);
+    view_data.object_select.set_used(true);
     return;
   }
 
   if (ELEM(this->mode, DRWContext::SELECT_EDIT_MESH)) {
-    this->view_data_active->edit_select.set_used(true);
+    view_data.edit_select.set_used(true);
     return;
   }
 
   if (ELEM(this->mode, DRWContext::DEPTH)) {
-    this->view_data_active->grease_pencil.set_used(gpencil_engine_needed);
-    this->view_data_active->overlay.set_used(true);
+    view_data.grease_pencil.set_used(gpencil_engine_needed);
+    view_data.overlay.set_used(true);
     return;
   }
 
@@ -1051,7 +1051,7 @@ void DRWContext::enable_engines(bool gpencil_engine_needed, RenderEngineType *re
 
 #ifdef WITH_DRAW_DEBUG
     if (G.debug_value == 31) {
-      view_data_active.edit_select_debug.used = true;
+      view_data.edit_select_debug.set_used(true);
     }
 #endif
   }
@@ -2185,10 +2185,10 @@ void DRW_engines_free()
   blender::draw::gpencil::Engine::free_static();
   blender::image_engine::Engine::free_static();
   blender::draw::overlay::Engine::free_static();
-#ifdef WITH_DRAW_DEBUG
-  draw_engine_debug_select_type.engine_free();
-#endif
   blender::draw::edit_select::Engine::free_static();
+#ifdef WITH_DRAW_DEBUG
+  blender::draw::edit_select_debug::Engine::free_static();
+#endif
 }
 
 /** \} */
