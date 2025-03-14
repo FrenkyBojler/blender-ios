@@ -3888,6 +3888,7 @@ static void asset_browser_add_list_view(Main *bmain)
           if (sfile->asset_params->base_params.list_column_size == 0) {
             sfile->asset_params->base_params.list_column_size = 220;
           }
+          sfile->asset_params->base_params.details_flags = 0;
         }
       }
     }
