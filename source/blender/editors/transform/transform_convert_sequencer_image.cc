@@ -28,7 +28,6 @@
 
 #include "transform.hh"
 #include "transform_convert.hh"
-#include <cstdio>
 
 namespace blender::ed::transform {
 
