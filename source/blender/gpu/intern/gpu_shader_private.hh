@@ -14,6 +14,7 @@
 #include "GHOST_C-api.h"
 
 #include "GPU_shader.hh"
+#include "GPU_worker.hh"
 #include "gpu_shader_create_info.hh"
 #include "gpu_shader_interface.hh"
 
@@ -204,13 +205,10 @@ class ShaderCompilerGeneric : public ShaderCompiler {
   Map<BatchHandle, std::unique_ptr<Batch>> batches_;
   std::mutex mutex_;
 
-  std::deque<Batch *> compilation_queue;
+  std::deque<Batch *> compilation_queue_;
+  std::unique_ptr<GPUWorker> compilation_thread_;
 
-  std::atomic_bool terminate_compile_threads_ = false;
-  std::condition_variable condition_var;
-  std::unique_ptr<std::thread> compilation_thread_;
-
-  void run_thread(struct GPUContext *blender_gpu_context, GHOST_ContextHandle ghost_gpu_context);
+  void run_thread();
 
  public:
   ShaderCompilerGeneric();

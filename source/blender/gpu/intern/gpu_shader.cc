@@ -8,9 +8,7 @@
 
 #include "BLI_math_matrix.h"
 #include "BLI_string.h"
-#include "BLI_threads.h"
 #include "BLI_time.h"
-#include "DNA_userdef_types.h"
 
 #include "GPU_capabilities.hh"
 #include "GPU_debug.hh"
@@ -971,52 +969,14 @@ Shader *ShaderCompiler::compile(const shader::ShaderCreateInfo &info, bool is_ba
 
 ShaderCompilerGeneric::ShaderCompilerGeneric()
 {
-  if (GPU_use_main_context_workaround()) {
-    return;
+  if (!GPU_use_main_context_workaround()) {
+    compilation_thread_ = std::make_unique<GPUWorker>([this]() { this->run_thread(); });
   }
-
-  BLI_assert(BLI_thread_is_main());
-
-  GPUContext *main_thread_context = GPU_context_active_get();
-
-  /* GPU settings for context creation. */
-  GHOST_GPUSettings gpu_settings = {0};
-  gpu_settings.context_type = GHOST_kDrawingContextTypeOpenGL;  // TODO
-  if (G.debug & G_DEBUG_GPU) {
-    gpu_settings.flags |= GHOST_gpuDebugContext;
-  }
-  gpu_settings.preferred_device.index = U.gpu_preferred_index;
-  gpu_settings.preferred_device.vendor_id = U.gpu_preferred_vendor_id;
-  gpu_settings.preferred_device.device_id = U.gpu_preferred_device_id;
-
-  /* Grab the system handle.  */
-  GHOST_SystemHandle ghost_system = reinterpret_cast<GHOST_SystemHandle>(
-      GPU_backend_ghost_system_get());
-  BLI_assert(ghost_system);
-
-  /* Create a Ghost GPU Context using the system handle. */
-  GHOST_ContextHandle ghost_gpu_context = GHOST_CreateGPUContext(ghost_system, gpu_settings);
-  BLI_assert(ghost_gpu_context);
-
-  /* Create a GPU context for the compile thread to use. */
-  GPUContext *thread_context = GPU_context_create(nullptr, ghost_gpu_context);
-  BLI_assert(thread_context);
-
-  /* Create a new thread */
-  compilation_thread_ = std::make_unique<std::thread>([this, thread_context, ghost_gpu_context]() {
-    this->run_thread(thread_context, ghost_gpu_context);
-  });
-
-  /* Restore the main thread context.
-   * (required as the above context creation also makes it active). */
-  GPU_context_active_set(main_thread_context);
 }
 
 ShaderCompilerGeneric::~ShaderCompilerGeneric()
 {
-  terminate_compile_threads_ = true;
-  condition_var.notify_one();
-  compilation_thread_->join();
+  compilation_thread_.reset();
 
   /* Ensure all the requested batches have been retrieved. */
   BLI_assert(batches_.is_empty());
@@ -1032,16 +992,16 @@ BatchHandle ShaderCompilerGeneric::batch_compile(Span<const shader::ShaderCreate
   batch->infos = infos;
   batch->shaders.reserve(infos.size());
 
-  if (GPU_use_main_context_workaround()) {
+  if (compilation_thread_) {
+    compilation_queue_.push_back(batch);
+    lock.unlock();
+    compilation_thread_->wake_up();
+  }
+  else {
     for (const shader::ShaderCreateInfo *info : infos) {
       batch->shaders.append(compile(*info, false));
     }
     batch->is_ready = true;
-  }
-  else {
-    compilation_queue.push_back(batch);
-    lock.unlock();
-    condition_var.notify_one();
   }
 
   return handle;
@@ -1069,45 +1029,25 @@ Vector<Shader *> ShaderCompilerGeneric::batch_finalize(BatchHandle &handle)
   return shaders;
 }
 
-void ShaderCompilerGeneric::run_thread(GPUContext *blender_gpu_context,
-                                       GHOST_ContextHandle ghost_gpu_context)
+void ShaderCompilerGeneric::run_thread()
 {
-  /* Contexts can only be created on the main thread so we have to
-   * pass one in and make it active here  */
-  GHOST_ActivateGPUContext(ghost_gpu_context);
+  Batch *batch = nullptr;
+  {
+    std::unique_lock<std::mutex> lock(mutex_);
 
-  GPU_context_active_set(blender_gpu_context);
-
-  /* Loop until we get the terminate signal */
-  while (!terminate_compile_threads_) {
-    Batch *batch = nullptr;
-    {
-      /* Grab the next shader off of the queue or wait... */
-      std::unique_lock<std::mutex> lock(mutex_);
-      condition_var.wait(lock,
-                         [&] { return terminate_compile_threads_ || !compilation_queue.empty(); });
-      if (terminate_compile_threads_ || compilation_queue.empty()) {
-        continue;
-      }
-      batch = compilation_queue.front();
-      compilation_queue.pop_front();
+    if (compilation_queue_.empty()) {
+      return;
     }
 
-    /* Compile */
-    for (const shader::ShaderCreateInfo *info : batch->infos) {
-      batch->shaders.append(compile(*info, false));
-    }
-    batch->is_ready = true;
+    batch = compilation_queue_.front();
+    compilation_queue_.pop_front();
   }
 
-  GPU_context_discard(blender_gpu_context);
-
-  GHOST_ReleaseGPUContext(ghost_gpu_context);
-
-  GHOST_SystemHandle ghost_system = reinterpret_cast<GHOST_SystemHandle>(
-      GPU_backend_ghost_system_get());
-  BLI_assert(ghost_system);
-  GHOST_DisposeGPUContext(ghost_system, ghost_gpu_context);
+  /* Compile */
+  for (const shader::ShaderCreateInfo *info : batch->infos) {
+    batch->shaders.append(compile(*info, false));
+  }
+  batch->is_ready = true;
 }
 
 /** \} */
