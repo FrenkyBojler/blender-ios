@@ -19,6 +19,7 @@
 
 #include "engines/eevee_next/eevee_engine.h"
 #include "engines/external/external_engine.h"
+#include "engines/image/image_engine.h"
 #include "engines/overlay/overlay_engine.h"
 #include "engines/select/select_engine.hh"
 #include "engines/workbench/workbench_engine.h"
@@ -96,7 +97,7 @@ struct DRWViewData {
   blender::eevee::Engine eevee;
   blender::workbench::Engine workbench;
   blender::external::Engine external;
-  ViewportEngineData image;
+  blender::image_engine::Engine image;
   ViewportEngineData grease_pencil;
   blender::draw::overlay::Engine overlay;
   blender::draw::select::Engine object_select;
@@ -130,20 +131,20 @@ struct DRWViewData {
     callback(eevee);
     callback(workbench);
     callback(external);
-    // callback(&image, image.draw_engine);
+    callback(image);
 #ifdef WITH_DRAW_DEBUG
-    // callback(&edit_select_debug, edit_select_debug.draw_engine);
+    // callback(edit_select_debug);
 #endif
     /* Grease pencil. Merge its output to the render result framebuffer. */
-    // callback(&grease_pencil, grease_pencil.draw_engine);
+    // callback(grease_pencil);
     /* GPU compositor. Processes render result and output to the render result framebuffer. */
-    // callback(&compositor, compositor.draw_engine);
+    // callback(compositor);
     /* Overlays. Draw on a separate overlay framebuffer. Can read render result. */
     callback(overlay);
 
     /* Selection. Are always enabled alone and have no interaction with other engines. */
     callback(object_select);
-    // callback(&edit_select, edit_select.draw_engine);
+    // callback(edit_select);
   }
 
   template<typename CallbackT> void foreach_enabled_engine(CallbackT callback)

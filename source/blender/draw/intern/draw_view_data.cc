@@ -30,8 +30,7 @@
 using namespace blender;
 
 DRWViewData::DRWViewData()
-    : image(&draw_engine_image_type),
-      grease_pencil(&draw_engine_gpencil_type),
+    : grease_pencil(&draw_engine_gpencil_type),
       edit_select(&draw_engine_select_type),
 #ifdef WITH_DRAW_DEBUG
       edit_select_debug(DRW_engine_viewport_select_type.draw_engine),

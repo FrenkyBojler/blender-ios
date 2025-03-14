@@ -1020,7 +1020,7 @@ void DRWContext::enable_engines(bool gpencil_engine_needed, RenderEngineType *re
       view_data.external.set_used(true);
     }
     else {
-      view_data.image.used = true;
+      view_data.image.set_used(true);
     }
     view_data.overlay.set_used(true);
     return;
@@ -1030,7 +1030,7 @@ void DRWContext::enable_engines(bool gpencil_engine_needed, RenderEngineType *re
     /* Only enable when drawing the space image backdrop. */
     SpaceNode *snode = (SpaceNode *)space_data;
     if ((snode->flag & SNODE_BACKDRAW) != 0) {
-      view_data.image.used = true;
+      view_data.image.set_used(true);
       view_data.overlay.set_used(true);
     }
     return;
@@ -2228,7 +2228,7 @@ void DRW_engines_free()
   blender::eevee::Engine::free_static();
   blender::workbench::Engine::free_static();
   draw_engine_gpencil_type.engine_free();
-  draw_engine_image_type.engine_free();
+  blender::image_engine::Engine::free_static();
   blender::draw::overlay::Engine::free_static();
 #ifdef WITH_DRAW_DEBUG
   draw_engine_debug_select_type.engine_free();
