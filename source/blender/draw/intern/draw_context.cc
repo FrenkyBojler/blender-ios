@@ -1000,7 +1000,7 @@ void DRWContext::enable_engines(bool gpencil_engine_needed, RenderEngineType *re
   }
 
   if (ELEM(this->mode, DRWContext::SELECT_EDIT_MESH)) {
-    this->view_data_active->edit_select.used = true;
+    this->view_data_active->edit_select.set_used(true);
     return;
   }
 
@@ -2188,7 +2188,7 @@ void DRW_engines_free()
 #ifdef WITH_DRAW_DEBUG
   draw_engine_debug_select_type.engine_free();
 #endif
-  draw_engine_select_type.engine_free();
+  blender::draw::edit_select::Engine::free_static();
 }
 
 /** \} */

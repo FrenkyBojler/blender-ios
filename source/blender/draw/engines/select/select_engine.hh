@@ -12,7 +12,6 @@
 
 /* `select_engine.cc` */
 
-extern DrawEngineType draw_engine_select_type;
 extern RenderEngineType DRW_engine_viewport_select_type;
 
 #ifdef WITH_DRAW_DEBUG
@@ -34,3 +33,13 @@ struct Engine : public DrawEngine::Pointer {
 };
 
 }  // namespace blender::draw::select
+
+namespace blender::draw::edit_select {
+
+struct Engine : public DrawEngine::Pointer {
+  DrawEngine *create_instance() final;
+
+  static void free_static();
+};
+
+}  // namespace blender::draw::edit_select

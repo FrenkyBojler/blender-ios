@@ -282,7 +282,6 @@ set(SRC
   engines/select/select_defines.hh
   engines/select/select_engine.hh
   engines/select/select_instance.hh
-  engines/select/select_private.hh
   engines/workbench/workbench_defines.hh
   engines/workbench/workbench_engine.h
   engines/workbench/workbench_enums.hh

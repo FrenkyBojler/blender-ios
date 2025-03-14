@@ -29,7 +29,7 @@
 using namespace blender;
 
 DRWViewData::DRWViewData()
-    : edit_select(&draw_engine_select_type),
+    :
 #ifdef WITH_DRAW_DEBUG
       edit_select_debug(DRW_engine_viewport_select_type.draw_engine),
 #endif

@@ -101,7 +101,7 @@ struct DRWViewData {
   blender::draw::gpencil::Engine grease_pencil;
   blender::draw::overlay::Engine overlay;
   blender::draw::select::Engine object_select;
-  ViewportEngineData edit_select;
+  blender::draw::edit_select::Engine edit_select;
 #ifdef WITH_DRAW_DEBUG
   ViewportEngineData edit_select_debug;
 #endif
@@ -144,7 +144,7 @@ struct DRWViewData {
 
     /* Selection. Are always enabled alone and have no interaction with other engines. */
     callback(object_select);
-    // callback(edit_select);
+    callback(edit_select);
   }
 
   template<typename CallbackT> void foreach_enabled_engine(CallbackT callback)
