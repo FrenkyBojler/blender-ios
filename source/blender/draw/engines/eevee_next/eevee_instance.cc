@@ -780,7 +780,7 @@ void Instance::light_bake_irradiance(
 
   auto custom_pipeline_wrapper = [&](FunctionRef<void()> callback) {
     context_enable();
-    DRW_custom_pipeline_begin(draw_ctx, nullptr, depsgraph);
+    DRW_custom_pipeline_begin(draw_ctx, depsgraph);
     callback();
     DRW_custom_pipeline_end(draw_ctx);
     context_disable();

@@ -66,29 +66,6 @@ struct BoundSphere {
   float center[3], radius;
 };
 
-struct DrawEngineType {
-  DrawEngineType *next, *prev;
-
-  char idname[32];
-
-  void (*engine_init)(void *vedata);
-  void (*engine_free)();
-
-  void (*instance_free)(void *instance_data);
-
-  void (*cache_init)(void *vedata);
-  void (*cache_populate)(void *vedata, blender::draw::ObjectRef &ob_ref);
-  void (*cache_finish)(void *vedata);
-
-  void (*draw_scene)(void *vedata);
-
-  void (*render_to_image)(void *vedata,
-                          RenderEngine *engine,
-                          RenderLayer *layer,
-                          const rcti *rect);
-  void (*store_metadata)(void *vedata, RenderResult *render_result);
-};
-
 struct DrawEngine {
   static constexpr int GPU_INFO_SIZE = 512; /* IMA_MAX_RENDER_TEXT_SIZE */
 
@@ -206,9 +183,7 @@ void DRW_render_set_time(RenderEngine *engine, Depsgraph *depsgraph, int frame, 
  * This function only setup DST and execute the given function.
  * \warning similar to DRW_render_to_image you cannot use default lists (`dfbl` & `dtxl`).
  */
-void DRW_custom_pipeline_begin(DRWContext &draw_ctx,
-                               DrawEngineType *draw_engine_type,
-                               Depsgraph *depsgraph);
+void DRW_custom_pipeline_begin(DRWContext &draw_ctx, Depsgraph *depsgraph);
 void DRW_custom_pipeline_end(DRWContext &draw_ctx);
 
 /**
@@ -216,15 +191,6 @@ void DRW_custom_pipeline_end(DRWContext &draw_ctx);
  * Assumes it is called between `DRW_custom_pipeline_begin/end()`.
  */
 void DRW_cache_restart();
-
-/* DrawData */
-
-DrawData *DRW_drawdata_get(ID *id, DrawEngineType *engine_type);
-DrawData *DRW_drawdata_ensure(ID *id,
-                              DrawEngineType *engine_type,
-                              size_t size,
-                              DrawDataInitCb init_cb,
-                              DrawDataFreeCb free_cb);
 
 /* Settings. */
 

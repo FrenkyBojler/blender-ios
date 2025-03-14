@@ -694,56 +694,6 @@ DrawDataList *DRW_drawdatalist_from_id(ID *id)
   return nullptr;
 }
 
-DrawData *DRW_drawdata_get(ID *id, DrawEngineType *engine_type)
-{
-  DrawDataList *drawdata = DRW_drawdatalist_from_id(id);
-
-  if (drawdata == nullptr) {
-    return nullptr;
-  }
-
-  LISTBASE_FOREACH (DrawData *, dd, drawdata) {
-    if (dd->engine_type == engine_type) {
-      return dd;
-    }
-  }
-  return nullptr;
-}
-
-DrawData *DRW_drawdata_ensure(ID *id,
-                              DrawEngineType *engine_type,
-                              size_t size,
-                              DrawDataInitCb init_cb,
-                              DrawDataFreeCb free_cb)
-{
-  BLI_assert(size >= sizeof(DrawData));
-  BLI_assert(id_can_have_drawdata(id));
-  BLI_assert_msg(
-      GS(id->name) != ID_OB,
-      "Objects should not use DrawData anymore. Use last_update instead for update detection");
-  /* Try to re-use existing data. */
-  DrawData *dd = DRW_drawdata_get(id, engine_type);
-  if (dd != nullptr) {
-    return dd;
-  }
-
-  DrawDataList *drawdata = DRW_drawdatalist_from_id(id);
-
-  /* Allocate new data. */
-  {
-    dd = static_cast<DrawData *>(MEM_callocN(size, "DrawData"));
-  }
-  dd->engine_type = engine_type;
-  dd->free = free_cb;
-  /* Perform user-side initialization, if needed. */
-  if (init_cb != nullptr) {
-    init_cb(dd);
-  }
-  /* Register in the list. */
-  BLI_addtail((ListBase *)drawdata, dd);
-  return dd;
-}
-
 void DRW_drawdata_free(ID *id)
 {
   DrawDataList *drawdata = DRW_drawdatalist_from_id(id);
@@ -1700,9 +1650,7 @@ void DRW_render_object_iter(
   });
 }
 
-void DRW_custom_pipeline_begin(DRWContext &draw_ctx,
-                               DrawEngineType * /*draw_engine_type*/,
-                               Depsgraph * /*depsgraph*/)
+void DRW_custom_pipeline_begin(DRWContext &draw_ctx, Depsgraph * /*depsgraph*/)
 {
   draw_ctx.acquire_data();
   draw_ctx.data->modules_init();

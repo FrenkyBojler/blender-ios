@@ -33,39 +33,11 @@ class TextureFromPool;
 class Manager;
 }  // namespace blender::draw
 
-struct DrawEngineType;
 struct DRWTextStore;
 struct GPUFrameBuffer;
 struct GPUTexture;
 struct GPUViewport;
 struct ListBase;
-
-struct ViewportEngineData {
-  /* Not owning pointer to the draw engine. */
-  DrawEngineType *draw_engine;
-
-  /**
-   * \brief Memory block that can be freely used by the draw engine.
-   * When used the draw engine must implement #DrawEngineType.instance_free callback.
-   */
-  void *instance_data = nullptr;
-
-  char info[GPU_INFO_SIZE] = {'\0'};
-
-  /* we may want to put this elsewhere */
-  DRWTextStore *text_draw_cache = nullptr;
-
-  bool used = false;
-
-  ViewportEngineData(DrawEngineType *engine_type) : draw_engine(engine_type) {}
-};
-
-struct ViewportEngineData_Info {
-  int fbl_len;
-  int txl_len;
-  int psl_len;
-  int stl_len;
-};
 
 /* Buffer and textures used by the viewport by default */
 struct DefaultFramebufferList {
