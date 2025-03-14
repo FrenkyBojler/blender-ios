@@ -5986,6 +5986,16 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 5)) {
+    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+      ToolSettings *tool_settings = scene->toolsettings;
+      tool_settings->snap_flag_seq |= SCE_SNAP;
+
+      SequencerToolSettings *sequencer_tool_settings = blender::seq::tool_settings_ensure(scene);
+      sequencer_tool_settings->snap_mode |= SEQ_SNAP_TO_FRAME_RANGE;
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 6)) {
     LISTBASE_FOREACH (bNodeTree *, ntree, &bmain->nodetrees) {
       if (ntree->type == NTREE_GEOMETRY) {
         LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
