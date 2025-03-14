@@ -685,6 +685,7 @@ const VKImageView &VKTexture::image_view_get(VKImageViewArrayed arrayed, VKImage
  * \{ */
 int64_t VKTexture::export_memory(VKDevice &device)
 {
+#if 0
   VmaAllocationInfo alloc_info;
   vmaGetAllocationInfo(VKBackend::get().device.mem_allocator_get(), allocation_, &alloc_info);
   VkDeviceMemory vk_device_memory = alloc_info.deviceMemory;
@@ -697,6 +698,8 @@ int64_t VKTexture::export_memory(VKDevice &device)
   int fd;
   device.functions.vkGetMemoryFdKHR(device.vk_handle(), &vk_memory_get_fd_info, &fd);
   return fd;
+#endif
+  return 0;
 }
 
 void VKTexture::import_memory(VKDevice &device, int64_t handle)
