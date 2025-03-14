@@ -2115,11 +2115,15 @@ def extensions_repo_active_draw(self, _context):
     from . import repo_active_or_none
     layout = self.layout
 
-    # Allow the poll functions to only check against the active repository.
-    if (repo := repo_active_or_none()) is not None:
+    repo = repo_active_or_none()
+
+    if repo is not None:
         layout.context_pointer_set("extension_repo", repo)
 
-    layout.operator("extensions.repo_sync_all", text="", icon='FILE_REFRESH').use_active_only = True
+    if repo.use_remote_url:
+        layout.operator("extensions.repo_sync_all", text="", icon='FILE_REFRESH').use_active_only = True
+    else:
+        layout.operator("extensions.repo_refresh_all", text="", icon='FILE_REFRESH').use_active_only = True
 
     layout.separator()
 

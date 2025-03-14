@@ -1729,6 +1729,17 @@ class EXTENSIONS_OT_repo_refresh_all(Operator):
     bl_idname = "extensions.repo_refresh_all"
     bl_label = "Refresh Local"
 
+    use_active_only: BoolProperty(
+        name="Active Only",
+        description="Only refresh the active repository",
+    )
+
+    @classmethod
+    def description(cls, _context, props):
+        if props.use_active_only:
+            return tip_("Refresh the list of extensions for the active repository")
+        return ""  # Default.
+
     def _exceptions_as_report(self, repo_name, ex):
         self.report({'WARNING'}, "{:s}: {:s}".format(repo_name, str(ex)))
 
@@ -1736,8 +1747,16 @@ class EXTENSIONS_OT_repo_refresh_all(Operator):
         import importlib
         import addon_utils
 
-        repos_all = extension_repos_read()
+        use_active_only = self.use_active_only
+        repos_all = extension_repos_read(use_active_only=use_active_only)
         repo_cache_store = repo_cache_store_ensure()
+
+        if not repos_all:
+            if use_active_only:
+                self.report({'INFO'}, "The active repository has invalid settings")
+            else:
+                assert False, "unreachable"  # Poll prevents this.
+            return None
 
         for repo_item in repos_all:
             # Re-generate JSON meta-data from TOML files (needed for offline repository).
