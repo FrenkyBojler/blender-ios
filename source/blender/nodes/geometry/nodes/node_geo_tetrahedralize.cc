@@ -1077,7 +1077,7 @@ static Mesh *create_tetrahedral_mesh(const tetgenio &out, GeoNodeExecParams &par
       int v2 = std::get<1>(face);
       int v3 = std::get<2>(face);
       
-      // Validation des indices de sommets
+      // Validation of the vertex indices
       if (v1 < 0 || v1 >= out.numberofpoints || 
           v2 < 0 || v2 >= out.numberofpoints || 
           v3 < 0 || v3 >= out.numberofpoints) {
@@ -1086,12 +1086,12 @@ static Mesh *create_tetrahedral_mesh(const tetgenio &out, GeoNodeExecParams &par
         continue;
       }
       
-      // Vérifier que la face n'est pas dégénérée (tous les sommets différents)
+      // Check that the face is not degenerate (all different vertices)
       if (v1 == v2 || v2 == v3 || v3 == v1) {
         continue;
       }
       
-      // Add the triangle - en tant que triangle strict
+      // Add the triangle - as a strictly triangular face
       triangles.append(face);
       
       // Add the edges
@@ -1100,11 +1100,11 @@ static Mesh *create_tetrahedral_mesh(const tetgenio &out, GeoNodeExecParams &par
       edges_set.insert(v3 < v1 ? std::make_pair(v3, v1) : std::make_pair(v1, v3));
     }
     
-    // 4. Create the mesh - STRICTEMENT TRIANGULAIRE
+    // 4. Create the mesh - STRICTLY TRIANGULAR
     int num_verts = out.numberofpoints;
     int num_edges = edges_set.size();
     int num_faces = triangles.size();
-    int num_corners = num_faces * 3;  // Strictement 3 coins par face (triangles)
+    int num_corners = num_faces * 3;  // Strictly 3 corners per face (triangles)
     
     // Create an empty mesh
     Mesh *mesh_out = BKE_mesh_new_nomain(num_verts, num_edges, num_faces, num_corners);
@@ -1141,7 +1141,7 @@ static Mesh *create_tetrahedral_mesh(const tetgenio &out, GeoNodeExecParams &par
         }
       }
       
-      // Définir les décalages de faces pour des triangles
+      // Define the face offsets for triangles
       MutableSpan<int> face_offsets = mesh_out->face_offsets_for_write();
       for (int i = 0; i <= num_faces; i++) {
         face_offsets[i] = i * 3;
@@ -1164,7 +1164,7 @@ static Mesh *create_tetrahedral_mesh(const tetgenio &out, GeoNodeExecParams &par
         edge_indices[v1 < v2 ? std::make_pair(v1, v2) : std::make_pair(v2, v1)] = i;
       }
       
-      // Associer les coins aux arêtes
+      // Associate the corners to the edges
       MutableSpan<int> corner_edges = mesh_out->corner_edges_for_write();
       for (int i = 0; i < num_faces; i++) {
         const auto& triangle = triangles[i];
@@ -1172,7 +1172,7 @@ static Mesh *create_tetrahedral_mesh(const tetgenio &out, GeoNodeExecParams &par
         int v2 = std::get<1>(triangle);
         int v3 = std::get<2>(triangle);
         
-        // Trouver les indices d'arêtes pour chaque coin
+        // Find the edge indices for each corner
         auto edge1 = v1 < v2 ? std::make_pair(v1, v2) : std::make_pair(v2, v1);
         auto edge2 = v2 < v3 ? std::make_pair(v2, v3) : std::make_pair(v3, v2);
         auto edge3 = v3 < v1 ? std::make_pair(v3, v1) : std::make_pair(v1, v3);
@@ -1182,7 +1182,7 @@ static Mesh *create_tetrahedral_mesh(const tetgenio &out, GeoNodeExecParams &par
         corner_edges[i * 3 + 2] = edge_indices[edge3];
       }
       
-      // Ajouter attribut d'index tétraédrique
+      // Add tetrahedral index attribute
       bke::MutableAttributeAccessor attributes = mesh_out->attributes_for_write();
       bke::SpanAttributeWriter<int> tet_indices = attributes.lookup_or_add_for_write_span<int>(
           "tetrahedral_index", bke::AttrDomain::Face);
@@ -1199,10 +1199,10 @@ static Mesh *create_tetrahedral_mesh(const tetgenio &out, GeoNodeExecParams &par
       // Uniformize the normals of the mesh (all pointing outward)
       make_normals_consistent(mesh_out, params);
       
-      // Validation finale
+      // final Validation 
       silent_mesh_validate(mesh_out, false, true);
       
-      // Vérifier que toutes les faces sont des triangles
+      // Check all faces are triangles
       const Span<int> final_face_offsets = mesh_out->face_offsets();
       bool all_triangles = true;
       
@@ -1216,14 +1216,14 @@ static Mesh *create_tetrahedral_mesh(const tetgenio &out, GeoNodeExecParams &par
       
       if (!all_triangles) {
         params.error_message_add(NodeWarningType::Warning,
-            "Des n-gons détectés dans le maillage tétraédrique. Forçage de la triangulation...");
+            "Some N-gons detected. Force to triangulation...");
             
-        // Créer un maillage BMesh temporaire pour la triangulation
+        // Create a temporary BMesh for triangulation
         BMeshCreateParams bmesh_create_params;
         BMeshFromMeshParams bmesh_from_mesh_params;
         BMesh *bm = BKE_mesh_to_bmesh_ex(mesh_out, &bmesh_create_params, &bmesh_from_mesh_params);
         
-        // Triangulation de toutes les faces
+        // Triangulation of all faces
         BMIter iter;
         BMFace *f;
         BM_ITER_MESH(f, &iter, bm, BM_FACES_OF_MESH) {
@@ -1234,29 +1234,29 @@ static Mesh *create_tetrahedral_mesh(const tetgenio &out, GeoNodeExecParams &par
           }
         }
         
-        // Convertir en maillage standard
+        // Convert to standard mesh
         BMeshToMeshParams bmesh_to_mesh_params;
         Mesh *triangulated_mesh = BKE_mesh_from_bmesh_nomain(bm, &bmesh_to_mesh_params, mesh_out);
         BM_mesh_free(bm);
         
-        // Remplacer l'ancien maillage par le nouveau triangulé
+        // Replace the old mesh with the new triangulated one
         if (triangulated_mesh) {
           BKE_id_free(nullptr, mesh_out);
           mesh_out = triangulated_mesh;
           
           params.error_message_add(NodeWarningType::Info,
-              "Triangulation du maillage réussie. Toutes les faces sont maintenant des triangles.");
+              "Triangulation of the mesh successful. All faces are now triangles.");
         }
       } else {
         params.error_message_add(NodeWarningType::Info,
-            "Validation réussie: toutes les faces sont des triangles.");
+            "Validation successful: all faces are triangles.");
       }
       
       params.error_message_add(NodeWarningType::Info,
-          "Maillage tétraédrique créé avec succès: " + 
-          std::to_string(num_verts) + " sommets, " +
-          std::to_string(mesh_out->edges_num) + " arêtes, " +
-          std::to_string(num_faces) + " faces triangulaires.");
+          "Tetrahedral mesh created successfully: " + 
+          std::to_string(num_verts) + " vertices, " +
+          std::to_string(mesh_out->edges_num) + " edges, " +
+          std::to_string(num_faces) + " triangular faces.");
       
       return mesh_out;
     }
