@@ -1353,6 +1353,94 @@ static bool detect_flipping_prone_geometry(const Mesh *mesh, GeoNodeExecParams &
 }
 
 /**
+ * Checks if a mesh is manifold (watertight, no open boundaries)
+ * Returns true if manifold, false otherwise and adds error messages
+ */
+static bool check_manifold_mesh(const Mesh *mesh, GeoNodeExecParams &params)
+{
+  // No mesh to check
+  if (!mesh || mesh->verts_num == 0) {
+    params.error_message_add(NodeWarningType::Error, 
+        "Cannot tetrahedralize: input mesh is empty");
+    return false;
+  }
+  
+  // Count vertices, faces, and corners
+  Span<float3> vert_positions = mesh->vert_positions();
+  Span<int> face_offsets = mesh->face_offsets();
+  Span<int> corner_verts = mesh->corner_verts();
+  
+  // Create edge to face map to check manifoldness
+  std::unordered_map<std::pair<int, int>, std::vector<int>, pairhash> edge_to_faces;
+  
+  // Function to add an edge and its associated face to the map
+  auto add_edge = [&](int v1, int v2, int face_idx) {
+    // Store the edge with the smaller vertex index first
+    std::pair<int, int> edge = v1 < v2 ? std::make_pair(v1, v2) : std::make_pair(v2, v1);
+    edge_to_faces[edge].push_back(face_idx);
+  };
+  
+  // Process each face and add its edges to the map
+  for (int i = 0; i < mesh->faces_num; i++) {
+    int face_start = face_offsets[i];
+    int face_size = face_offsets[i + 1] - face_start;
+    
+    // Skip faces with less than 3 vertices
+    if (face_size < 3) {
+      continue;
+    }
+    
+    // Add all edges of this face
+    for (int j = 0; j < face_size; j++) {
+      int v1 = corner_verts[face_start + j];
+      int v2 = corner_verts[face_start + ((j + 1) % face_size)];
+      
+      // Skip invalid indices
+      if (v1 < 0 || v2 < 0 || v1 >= mesh->verts_num || v2 >= mesh->verts_num) {
+        continue;
+      }
+      
+      add_edge(v1, v2, i);
+    }
+  }
+  
+  // Check manifoldness by looking for edges with only one adjacent face (boundary edges)
+  int boundary_edges = 0;
+  int non_manifold_edges = 0;
+  
+  for (const auto &edge_entry : edge_to_faces) {
+    int face_count = edge_entry.second.size();
+    
+    if (face_count == 1) {
+      // This is a boundary edge
+      boundary_edges++;
+    } else if (face_count > 2) {
+      // This is a non-manifold edge (more than 2 faces sharing an edge)
+      non_manifold_edges++;
+    }
+  }
+  
+  // Check if the mesh has boundaries or non-manifold edges
+  if (boundary_edges > 0 || non_manifold_edges > 0) {
+    std::string error_message = "Cannot tetrahedralize: non-manifold mesh detected. ";
+    
+    if (boundary_edges > 0) {
+      error_message += std::to_string(boundary_edges) + " open boundary edges found. ";
+    }
+    
+    if (non_manifold_edges > 0) {
+      error_message += std::to_string(non_manifold_edges) + " non-manifold edges found. ";
+    }
+    
+    error_message += "The mesh must be watertight (no holes or open boundaries).";
+    params.error_message_add(NodeWarningType::Error, error_message);
+    return false;
+  }
+  
+  return true;
+}
+
+/**
  * Main node execution function
  */
 static void node_geo_exec(GeoNodeExecParams params)
@@ -1369,6 +1457,13 @@ static void node_geo_exec(GeoNodeExecParams params)
   
   // Retrieve input mesh and parameters
   const Mesh *mesh_in = geometry_set.get_mesh();
+  
+  // Check if mesh is manifold (watertight) before proceeding
+  if (!check_manifold_mesh(mesh_in, params)) {
+    // Return the input mesh unchanged if not manifold
+    params.set_output("Tetrahedral Mesh", std::move(geometry_set));
+    return;
+  }
   
   // Pour les maillages complexes, préparer sans remplacer
   Mesh *prepared_mesh = prepare_complex_mesh_for_tetgen(mesh_in, params);
