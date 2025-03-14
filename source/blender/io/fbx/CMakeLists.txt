@@ -17,12 +17,14 @@ set(SRC
   IO_fbx.cc
   importer/fbx_import.cc
   importer/fbx_import_anim.cc
+  importer/fbx_import_armature.cc
   importer/fbx_import_material.cc
   importer/fbx_import_util.cc
 
   IO_fbx.hh
   importer/fbx_import.hh
   importer/fbx_import_anim.hh
+  importer/fbx_import_armature.hh
   importer/fbx_import_material.hh
   importer/fbx_import_util.hh
 )

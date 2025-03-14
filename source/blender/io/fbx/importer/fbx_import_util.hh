@@ -13,6 +13,7 @@
 
 #include "ufbx.h"
 
+struct ID;
 struct Object;
 struct Key;
 struct Material;
@@ -64,5 +65,11 @@ struct FbxElementMapping {
     return res;
   }
 };
+
+void matrix_to_m44(const ufbx_matrix &src, float dst[4][4]);
+void m44_to_matrix(const float src[4][4], ufbx_matrix &dst);
+void ufbx_matrix_to_obj(const ufbx_matrix &mtx, Object *obj, bool use_parent_matrix = false);
+void node_matrix_to_obj(const ufbx_node *node, Object *obj, bool use_parent_matrix = false);
+void read_custom_properties(const ufbx_props &props, ID &id);
 
 }  // namespace blender::io::fbx

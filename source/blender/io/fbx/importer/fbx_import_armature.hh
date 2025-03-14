@@ -10,14 +10,14 @@
 
 #include "fbx_import_util.hh"
 
+struct FBXImportParams;
 struct Main;
 
 namespace blender::io::fbx {
 
-void import_animations(Main &bmain,
-                       const ufbx_scene &fbx,
-                       const FbxElementMapping &mapping,
-                       const double fps,
-                       const float anim_offset);
+void import_armatures(Main &bmain,
+                      const ufbx_scene &fbx,
+                      FbxElementMapping &mapping,
+                      const FBXImportParams &params);
 
 }  // namespace blender::io::fbx
