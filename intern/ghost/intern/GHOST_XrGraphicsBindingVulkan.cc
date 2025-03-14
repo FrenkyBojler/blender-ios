@@ -55,6 +55,11 @@ GHOST_XrGraphicsBindingVulkan::~GHOST_XrGraphicsBindingVulkan()
     vkDestroyInstance(m_vk_instance, nullptr);
     m_vk_instance = VK_NULL_HANDLE;
   }
+
+  s_xrGetVulkanGraphicsRequirements2KHR_fn = nullptr;
+  s_xrGetVulkanGraphicsDevice2KHR_fn = nullptr;
+  s_xrCreateVulkanInstanceKHR_fn = nullptr;
+  s_xrCreateVulkanDeviceKHR_fn = nullptr;
 }
 
 /* \} */

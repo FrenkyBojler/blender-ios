@@ -67,9 +67,8 @@ GHOST_XrSwapchain::GHOST_XrSwapchain(GHOST_IXrGraphicsBinding &gpu_binding,
                            XR_SWAPCHAIN_USAGE_COLOR_ATTACHMENT_BIT;
   create_info.format = m_xr_swapchain_format;
   create_info.sampleCount = view_config.recommendedSwapchainSampleCount;
-  /* TODO: renderdoc doesn't allow allocating irregular image resolutions. */
-  create_info.width = view_config.maxImageRectWidth;
-  create_info.height = view_config.maxImageRectHeight;
+  create_info.width = view_config.recommendedImageRectWidth;
+  create_info.height = view_config.recommendedImageRectHeight;
   create_info.faceCount = 1;
   create_info.arraySize = 1;
   create_info.mipCount = 1;
