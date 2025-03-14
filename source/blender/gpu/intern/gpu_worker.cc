@@ -7,6 +7,7 @@
 #include "GPU_worker.hh"
 
 #include "BKE_global.hh"
+#include "BLI_assert.h"
 #include "BLI_threads.h"
 #include "DNA_userdef_types.h"
 
