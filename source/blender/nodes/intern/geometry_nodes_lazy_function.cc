@@ -2124,7 +2124,8 @@ struct GeometryNodesLazyFunctionBuilder {
   {
     ZoneBuildInfo &zone_info = zone_build_infos_[zone.index];
     /* Build a function for the loop body. */
-    ZoneBodyFunction &body_fn = this->build_zone_body_function(zone, "Repeat Body");
+    ZoneBodyFunction &body_fn = this->build_zone_body_function(
+        zone, "Repeat Body", &scope_.construct<GeometryNodesLazyFunctionSideEffectProvider>());
     /* Wrap the loop body by another function that implements the repeat behavior. */
     auto &zone_fn = build_repeat_zone_lazy_function(scope_, btree_, zone, zone_info, body_fn);
     zone_info.lazy_function = &zone_fn;
@@ -2134,7 +2135,8 @@ struct GeometryNodesLazyFunctionBuilder {
   {
     ZoneBuildInfo &zone_info = zone_build_infos_[zone.index];
     /* Build a function for the loop body. */
-    ZoneBodyFunction &body_fn = this->build_zone_body_function(zone, "Foreach Body");
+    ZoneBodyFunction &body_fn = this->build_zone_body_function(
+        zone, "Foreach Body", &scope_.construct<GeometryNodesLazyFunctionSideEffectProvider>());
     /* Wrap the loop body in another function that implements the foreach behavior. */
     auto &zone_fn = build_foreach_geometry_element_zone_lazy_function(
         scope_, btree_, zone, zone_info, body_fn);
@@ -2145,7 +2147,7 @@ struct GeometryNodesLazyFunctionBuilder {
   {
     ZoneBuildInfo &zone_info = zone_build_infos_[zone.index];
     /* Build a function for the closure body. */
-    ZoneBodyFunction &body_fn = this->build_zone_body_function(zone, "Closure Body");
+    ZoneBodyFunction &body_fn = this->build_zone_body_function(zone, "Closure Body", nullptr);
     auto &zone_fn = build_closure_zone_lazy_function(scope_, btree_, zone, zone_info, body_fn);
     zone_info.lazy_function = &zone_fn;
   }
@@ -2153,7 +2155,10 @@ struct GeometryNodesLazyFunctionBuilder {
   /**
    * Build a lazy-function for the "body" of a zone, i.e. for all the nodes within the zone.
    */
-  ZoneBodyFunction &build_zone_body_function(const bNodeTreeZone &zone, const StringRef name)
+  ZoneBodyFunction &build_zone_body_function(
+      const bNodeTreeZone &zone,
+      const StringRef name,
+      const lf::GraphExecutorSideEffectProvider *side_effect_provider)
   {
     lf::Graph &lf_body_graph = scope_.construct<lf::Graph>(name);
 
@@ -2250,13 +2255,12 @@ struct GeometryNodesLazyFunctionBuilder {
     lf_body_graph.update_node_indices();
 
     auto &logger = scope_.construct<GeometryNodesLazyFunctionLogger>(*lf_graph_info_);
-    auto &side_effect_provider = scope_.construct<GeometryNodesLazyFunctionSideEffectProvider>();
 
     body_fn.function = &scope_.construct<lf::GraphExecutor>(lf_body_graph,
                                                             lf_body_inputs.as_span(),
                                                             lf_body_outputs.as_span(),
                                                             &logger,
-                                                            &side_effect_provider,
+                                                            side_effect_provider,
                                                             nullptr);
 
     lf_graph_info_->debug_zone_body_graphs.add(zone.output_node->identifier, &lf_body_graph);
