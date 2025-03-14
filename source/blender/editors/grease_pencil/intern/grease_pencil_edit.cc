@@ -4107,7 +4107,7 @@ static int grease_pencil_stroke_split_exec(bContext *C, wmOperator * /*op*/)
   const Scene &scene = *CTX_data_scene(C);
   Object &object = *CTX_data_active_object(C);
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object.data);
-  bool changed = false;
+  std::atomic<bool> changed = false;
 
   const Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(scene, grease_pencil);
   threading::parallel_for_each(drawings, [&](const MutableDrawingInfo &info) {
@@ -4122,7 +4122,7 @@ static int grease_pencil_stroke_split_exec(bContext *C, wmOperator * /*op*/)
     info.drawing.strokes_for_write() = ed::curves::split_points(info.drawing.strokes(),
                                                                 selected_points);
     info.drawing.tag_topology_changed();
-    changed = true;
+    changed.store(true, std::memory_order_relaxed);
   });
 
   if (changed) {
@@ -4137,7 +4137,7 @@ static int grease_pencil_stroke_split_exec(bContext *C, wmOperator * /*op*/)
 static void GREASE_PENCIL_OT_stroke_split(wmOperatorType *ot)
 {
   /* Identifiers. */
-  ot->name = "Split strokes";
+  ot->name = "Split stroke";
   ot->idname = "GREASE_PENCIL_OT_stroke_split";
   ot->description = "Split selected points to a new stroke";
 
