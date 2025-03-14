@@ -189,6 +189,8 @@ class SocketDeclaration : public ItemDeclaration {
   bool is_default_link_socket = false;
   /** Puts this socket on the same line as the previous one in the UI. */
   bool align_with_previous_socket = false;
+  /** This socket is used as a toggle for the parent panel. */
+  bool is_panel_toggle = false;
 
   /** Index in the list of inputs or outputs of the node. */
   int index = -1;
@@ -350,6 +352,8 @@ class BaseSocketDeclarationBuilder {
 
   /** Attributes from the all geometry inputs can be propagated. */
   BaseSocketDeclarationBuilder &propagate_all();
+  /** Instance attributes from all geometry inputs can be propagated. */
+  BaseSocketDeclarationBuilder &propagate_all_instance_attributes();
 
   BaseSocketDeclarationBuilder &compositor_realization_mode(CompositorInputRealizationMode value);
 
@@ -388,6 +392,10 @@ class BaseSocketDeclarationBuilder {
                                                 const StructRNA *srna,
                                                 const void *data,
                                                 StringRef property_name);
+  /**
+   * Use the socket as a toggle in its panel.
+   */
+  BaseSocketDeclarationBuilder &panel_toggle(bool value = true);
 
   /** Index in the list of inputs or outputs. */
   int index() const;
@@ -455,6 +463,9 @@ class PanelDeclaration : public ItemDeclaration {
   void update_or_build(const bNodePanelState &old_panel, bNodePanelState &new_panel) const;
 
   int depth() const;
+
+  /** Get the declaration for a child item that should be drawn as part of the panel header. */
+  const SocketDeclaration *panel_input_decl() const;
 };
 
 /**
