@@ -140,6 +140,14 @@ class VKTexture : public Texture {
    */
   const VKImageView &image_view_get(VKImageViewArrayed arrayed, VKImageViewFlags flags);
 
+  /**
+   * Retrieve the device memory and its offset of the texture.
+   *
+   * It is used by OpenXR to transfer the image to a different instance/device.
+   */
+  void vk_device_memory_and_offset(VkDeviceMemory &r_device_memory,
+                                   VkDeviceSize &r_device_memory_offset) const;
+
  protected:
   bool init_internal() override;
   bool init_internal(VertBuf *vbo) override;

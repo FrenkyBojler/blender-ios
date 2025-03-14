@@ -25,6 +25,7 @@
 #include "GHOST_C-api.h"
 
 #include "GPU_batch_presets.hh"
+#include "GPU_debug.hh"
 #include "GPU_immediate.hh"
 #include "GPU_matrix.hh"
 #include "GPU_state.hh"
@@ -163,6 +164,7 @@ void wm_xr_draw_view(const GHOST_XrDrawViewInfo *draw_view, void *customdata)
 
   /* In case a framebuffer is still bound from drawing the last eye. */
   GPU_framebuffer_restore();
+  GPU_debug_group_begin("XR.View");
   /* Some systems have drawing glitches without this. */
   GPU_clear_depth(1.0f);
 
@@ -199,6 +201,7 @@ void wm_xr_draw_view(const GHOST_XrDrawViewInfo *draw_view, void *customdata)
   GPU_offscreen_bind(vp->offscreen, false);
 
   wm_xr_draw_viewport_buffers_to_active_framebuffer(xr_data->runtime, surface_data, draw_view);
+  GPU_debug_group_end();
 }
 
 bool wm_xr_passthrough_enabled(void *customdata)

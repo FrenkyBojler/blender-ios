@@ -83,10 +83,13 @@ class GHOST_IContext {
    * \param swap_buffers_post_callback: Function to be called at th end of swapBuffers. swapBuffers
    *     can recreate the swap chain. When this is done the application should be informed by those
    *     changes.
+   * TODO: document new parameters
    */
   virtual GHOST_TSuccess setVulkanSwapBuffersCallbacks(
       std::function<void(const GHOST_VulkanSwapChainData *)> swap_buffers_pre_callback,
-      std::function<void(void)> swap_buffers_post_callback) = 0;
+      std::function<void(void)> swap_buffers_post_callback,
+      std::function<void(GHOST_VulkanOpenXRData *)> openxr_acquire_framebuffer_image_callback,
+      std::function<void(GHOST_VulkanOpenXRData *)> openxr_release_framebuffer_image_callback) = 0;
 #endif
 
   MEM_CXX_CLASS_ALLOC_FUNCS("GHOST:GHOST_IContext")

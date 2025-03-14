@@ -680,4 +680,17 @@ const VKImageView &VKTexture::image_view_get(VKImageViewArrayed arrayed, VKImage
 
 /** \} */
 
+/* -------------------------------------------------------------------- */
+/** \name Image Views
+ * \{ */
+void VKTexture::vk_device_memory_and_offset(VkDeviceMemory &r_device_memory,
+                                            VkDeviceSize &r_device_memory_offset) const
+{
+  VmaAllocationInfo alloc_info;
+  vmaGetAllocationInfo(VKBackend::get().device.mem_allocator_get(), allocation_, &alloc_info);
+  r_device_memory = alloc_info.deviceMemory;
+  r_device_memory_offset = alloc_info.offset;
+}
+/** \} */
+
 }  // namespace blender::gpu

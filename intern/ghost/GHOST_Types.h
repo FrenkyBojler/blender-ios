@@ -758,6 +758,22 @@ typedef struct {
 } GHOST_VulkanSwapChainData;
 
 typedef struct {
+  /** Framebuffer image (Owned by Blender) that will need to be copied to the OpenXR Swapchain. */
+  VkImage image;
+  /** Format of the framebuffer image. */
+  VkFormat image_format;
+  /** Image aspect of the framebuffer image. */
+  VkImageAspectFlags image_aspect;
+  /** Image layout of the framebuffer image. */
+  VkImageLayout image_layout;
+  /** Resolution of the framebuffer image. */
+  VkExtent2D extent;
+  /** Device memory of the framebuffer image. */
+  VkDeviceMemory memory;
+  VkDeviceSize offset;
+} GHOST_VulkanOpenXRData;
+
+typedef struct {
   VkInstance instance;
   VkPhysicalDevice physical_device;
   VkDevice device;
@@ -894,6 +910,7 @@ typedef struct GHOST_XrDrawViewInfo {
   } fov;
 
   GHOST_TXrSwapchainFormat swapchain_format;
+  int64_t xr_swapchain_format;
   /** Set if the buffer should be submitted with a SRGB transfer applied. */
   char expects_srgb_buffer;
 

@@ -401,4 +401,55 @@ void VKContext::swap_buffers_post_handler()
 
 /** \} */
 
+/* -------------------------------------------------------------------- */
+/** \name OpenXR
+ * \{ */
+
+void VKContext::openxr_acquire_framebuffer_image_callback(GHOST_VulkanOpenXRData *openxr_data)
+{
+  VKContext *context = VKContext::get();
+  BLI_assert(context);
+  context->openxr_acquire_framebuffer_image_handler(*openxr_data);
+}
+
+void VKContext::openxr_release_framebuffer_image_callback(GHOST_VulkanOpenXRData *openxr_data)
+{
+  VKContext *context = VKContext::get();
+  BLI_assert(context);
+  context->openxr_release_framebuffer_image_handler(*openxr_data);
+}
+
+void VKContext::openxr_acquire_framebuffer_image_handler(GHOST_VulkanOpenXRData &openxr_data)
+{
+  /** Prepare the framebuffer image to be transferred to the OpenXR swapchain. */
+  VKFrameBuffer &framebuffer = *unwrap(active_fb);
+  VKTexture *color_attachment = unwrap(unwrap(framebuffer.color_tex(0)));
+
+  framebuffer.rendering_end(*this);
+  render_graph::VKRenderGraph &render_graph = this->render_graph();
+  descriptor_set_get().upload_descriptor_sets();
+  render_graph::VKSynchronizationNode::CreateInfo synchronization = {};
+  synchronization.vk_image = color_attachment->vk_image_handle();
+  synchronization.vk_image_layout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+  synchronization.vk_image_aspect = VK_IMAGE_ASPECT_COLOR_BIT;
+  render_graph.add_node(synchronization);
+  flush_render_graph(RenderGraphFlushFlags::SUBMIT | RenderGraphFlushFlags::WAIT_FOR_COMPLETION |
+                     RenderGraphFlushFlags::RENEW_RENDER_GRAPH);
+
+  openxr_data.image = color_attachment->vk_image_handle();
+  openxr_data.image_format = to_vk_format(color_attachment->device_format_get());
+  openxr_data.image_aspect = VK_IMAGE_ASPECT_COLOR_BIT;
+  openxr_data.image_layout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+  openxr_data.extent.width = color_attachment->width_get();
+  openxr_data.extent.height = color_attachment->height_get();
+  color_attachment->vk_device_memory_and_offset(openxr_data.memory, openxr_data.offset);
+}
+
+void VKContext::openxr_release_framebuffer_image_handler(GHOST_VulkanOpenXRData & /*openxr_data*/)
+{
+  // From here on we can use the framebuffer image again.
+}
+
+/** \} */
+
 }  // namespace blender::gpu
