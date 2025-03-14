@@ -509,10 +509,11 @@ static auto simple_solver_data(const bool use_velocities)
   attributes.add<float3>("goal_position",
                          bke::AttrDomain::Point,
                          bke::AttributeInitVArray(VArray<float3>::ForSpan(goal_position)));
+  attributes.add<float>("compliance",
+                        bke::AttrDomain::Point,
+                        bke::AttributeInitVArray(VArray<float>::ForSpan(alphas)));
   attributes.add<float>(
-      "alpha", bke::AttrDomain::Point, bke::AttributeInitVArray(VArray<float>::ForSpan(alphas)));
-  attributes.add<float>(
-      "beta", bke::AttrDomain::Point, bke::AttributeInitVArray(VArray<float>::ForSpan(betas)));
+      "damping", bke::AttrDomain::Point, bke::AttributeInitVArray(VArray<float>::ForSpan(betas)));
 
   data[0].geometry = bke::GeometrySet::from_pointcloud(std::move(constraints));
   data[0].constraints = IndexRange(attributes.domain_size(bke::AttrDomain::Point));

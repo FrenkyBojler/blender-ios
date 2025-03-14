@@ -718,15 +718,31 @@ static Eigen::SparseMatrix<float> build_global_solve_matrix_from_spans(
       // };
 
       /* Compliance values in the lower-right corner. */
-      for (const int index : IndexRange(num_constraints)) {
-        // add_component_uses(index, 1);
-      }
+      // for (const int index : IndexRange(num_constraints)) {
+      //   // add_component_uses(index, 1);
+      // }
 
       prev_range = components_range;
     }
   }
 
   return H;
+}
+
+inline float get_component(const float v, const int i)
+{
+  BLI_assert(i == 0);
+  return v;
+}
+
+inline float get_component(const float2 &v, const int i)
+{
+  return v[i];
+}
+
+inline float get_component(const float3 &v, const int i)
+{
+  return v[i];
 }
 
 /* Set matrix elements for a type of constraint.
@@ -797,8 +813,9 @@ static void set_global_solve_elements(const ConstraintEvalParams &params,
     const IndexRange component_columns = components_range.slice(index * num_components,
                                                                 num_components);
     for (const int u : component_columns.index_range()) {
-      triplets.append_unchecked_as(
-          int(component_columns[u]), int(component_columns[u]), compliance_damping[u]);
+      triplets.append_unchecked_as(int(component_columns[u]),
+                                   int(component_columns[u]),
+                                   get_component(compliance_damping, u));
     }
   }
 }
@@ -887,8 +904,8 @@ static Eigen::SparseMatrix<float> build_global_solve_matrix_from_triplets(
     int num_components, num_position_vars, num_rotation_vars;
     data.type->linear_solve_size(num_components, num_position_vars, num_rotation_vars);
 
-    const GeometryComponent &component = *data.geometry->get_component<PointCloudComponent>();
-    const AttributeAccessor attributes = *component.attributes();
+    // const GeometryComponent &component = *data.geometry->get_component<PointCloudComponent>();
+    // const AttributeAccessor attributes = *component.attributes();
 
     // TODO Eventually these callbacks should be based around Fields instead of arrays, so that
     // node closures can be used directly. For now mapping and mask evaluation takes place
