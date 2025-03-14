@@ -63,6 +63,12 @@ struct ClosureFunctionIndices {
 class Closure : public ImplicitSharingMixin {
  private:
   std::shared_ptr<ClosureSignature> signature_;
+  /**
+   * When building complex lazy-functions, e.g. from Geometry Nodes, one often has to allocate
+   * various additional resources (e.g. the lazy-functions for the individual nodes). Using
+   * #ResourceScope provides a simple way to pass ownership of all these additional resources to
+   * the Closure.
+   */
   std::unique_ptr<ResourceScope> scope_;
   const fn::lazy_function::LazyFunction &function_;
   ClosureFunctionIndices indices_;
