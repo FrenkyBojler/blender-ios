@@ -117,8 +117,11 @@ static void curve_offsets_from_selection(const Span<IndexRange> selected_points,
 void duplicate_points(bke::CurvesGeometry &curves, const IndexMask &mask)
 {
   const OffsetIndices<int> points_by_curve = curves.points_by_curve();
-  const VArray<bool> src_cyclic = curves.cyclic();
+  if (points_by_curve.is_empty()) {
+    return;
+  }
 
+  const VArray<bool> src_cyclic = curves.cyclic();
   Vector<int> dst_to_src_curve;
   Vector<int> new_curve_offsets({points_by_curve.data().last()});
   Vector<IndexRange> src_ranges;
