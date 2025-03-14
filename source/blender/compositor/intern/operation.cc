@@ -27,15 +27,11 @@ void Operation::evaluate()
 {
   evaluate_input_processors();
 
-  reset_results();
-
   execute();
 
   compute_preview();
 
   release_inputs();
-
-  release_unneeded_results();
 
   context().evaluate_operation_post();
 }
@@ -164,15 +160,6 @@ InputDescriptor &Operation::get_input_descriptor(StringRef identifier)
   return input_descriptors_.lookup(identifier);
 }
 
-void Operation::release_unneeded_results()
-{
-  for (Result &result : results_.values()) {
-    if (!result.should_compute() && result.is_allocated()) {
-      result.release();
-    }
-  }
-}
-
 Context &Operation::context() const
 {
   return context_;
@@ -190,13 +177,6 @@ void Operation::evaluate_input_processors()
     for (const std::unique_ptr<SimpleOperation> &processor : processors) {
       processor->evaluate();
     }
-  }
-}
-
-void Operation::reset_results()
-{
-  for (Result &result : results_.values()) {
-    result.reset();
   }
 }
 
