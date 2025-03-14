@@ -104,6 +104,7 @@ class NODE_MT_geometry_node_GEO_CURVE_WRITE(Menu):
         node_add_menu.add_node_type(layout, "GeometryNodeSetSplineCyclic")
         node_add_menu.add_node_type(layout, "GeometryNodeSetSplineResolution")
         node_add_menu.add_node_type(layout, "GeometryNodeCurveSplineType")
+        node_add_menu.add_node_type(layout, "GeometryNodeSetGreasePencilColor")
         node_add_menu.draw_assets_for_catalog(layout, "Curve/Write")
 
 
