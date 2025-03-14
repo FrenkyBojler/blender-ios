@@ -215,15 +215,6 @@ void DRW_custom_pipeline_end(DRWContext &draw_ctx);
  */
 void DRW_cache_restart();
 
-/* ViewLayers */
-
-void *DRW_view_layer_engine_data_get(DrawEngineType *engine_type);
-void **DRW_view_layer_engine_data_ensure_ex(ViewLayer *view_layer,
-                                            DrawEngineType *engine_type,
-                                            void (*callback)(void *storage));
-void **DRW_view_layer_engine_data_ensure(DrawEngineType *engine_type,
-                                         void (*callback)(void *storage));
-
 /* DrawData */
 
 DrawData *DRW_drawdata_get(ID *id, DrawEngineType *engine_type);

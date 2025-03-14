@@ -88,7 +88,7 @@
 #include "engines/compositor/compositor_engine.h"
 #include "engines/eevee_next/eevee_engine.h"
 #include "engines/external/external_engine.h"
-#include "engines/gpencil/gpencil_engine.h"
+#include "engines/gpencil/gpencil_engine.hh"
 #include "engines/image/image_engine.h"
 #include "engines/overlay/overlay_engine.h"
 #include "engines/select/select_engine.hh"
@@ -635,49 +635,6 @@ void DupliCacheManager::extract_all(ExtractionGraph &extraction)
 /** \} */
 
 /* -------------------------------------------------------------------- */
-/** \name ViewLayers (DRW_scenelayer)
- * \{ */
-
-void *DRW_view_layer_engine_data_get(DrawEngineType *engine_type)
-{
-  LISTBASE_FOREACH (ViewLayerEngineData *, sled, &drw_get().view_layer->drawdata) {
-    if (sled->engine_type == engine_type) {
-      return sled->storage;
-    }
-  }
-  return nullptr;
-}
-
-void **DRW_view_layer_engine_data_ensure_ex(ViewLayer *view_layer,
-                                            DrawEngineType *engine_type,
-                                            void (*callback)(void *storage))
-{
-  ViewLayerEngineData *sled;
-
-  LISTBASE_FOREACH (ViewLayerEngineData *, sled, &view_layer->drawdata) {
-    if (sled->engine_type == engine_type) {
-      return &sled->storage;
-    }
-  }
-
-  sled = static_cast<ViewLayerEngineData *>(
-      MEM_callocN(sizeof(ViewLayerEngineData), "ViewLayerEngineData"));
-  sled->engine_type = engine_type;
-  sled->free = callback;
-  BLI_addtail(&view_layer->drawdata, sled);
-
-  return &sled->storage;
-}
-
-void **DRW_view_layer_engine_data_ensure(DrawEngineType *engine_type,
-                                         void (*callback)(void *storage))
-{
-  return DRW_view_layer_engine_data_ensure_ex(drw_get().view_layer, engine_type, callback);
-}
-
-/** \} */
-
-/* -------------------------------------------------------------------- */
 /** \name Draw Data (DRW_drawdata)
  * \{ */
 
@@ -1037,7 +994,7 @@ void DRWContext::enable_engines(bool gpencil_engine_needed, RenderEngineType *re
   }
 
   if (ELEM(this->mode, DRWContext::SELECT_OBJECT, DRWContext::SELECT_OBJECT_MATERIAL)) {
-    this->view_data_active->grease_pencil.used = gpencil_engine_needed;
+    this->view_data_active->grease_pencil.set_used(gpencil_engine_needed);
     this->view_data_active->object_select.set_used(true);
     return;
   }
@@ -1048,7 +1005,7 @@ void DRWContext::enable_engines(bool gpencil_engine_needed, RenderEngineType *re
   }
 
   if (ELEM(this->mode, DRWContext::DEPTH)) {
-    this->view_data_active->grease_pencil.used = gpencil_engine_needed;
+    this->view_data_active->grease_pencil.set_used(gpencil_engine_needed);
     this->view_data_active->overlay.set_used(true);
     return;
   }
@@ -1082,8 +1039,8 @@ void DRWContext::enable_engines(bool gpencil_engine_needed, RenderEngineType *re
         break;
     }
 
-    if (gpencil_engine_needed && ((drawtype >= OB_SOLID) || !use_xray)) {
-      view_data.grease_pencil.used = true;
+    if ((drawtype >= OB_SOLID) || !use_xray) {
+      view_data.grease_pencil.set_used(gpencil_engine_needed);
     }
 
     if (DRW_state_viewport_compositor_enabled()) {
@@ -1589,13 +1546,11 @@ static void drw_render_gpencil_to_image(RenderEngine *engine,
                                         RenderLayer *render_layer,
                                         const rcti *rect)
 {
-  DrawEngineType *draw_engine = &draw_engine_gpencil_type;
-
+#if 0 /* TODO */
   if (draw_engine->render_to_image) {
-    ViewportEngineData *gpdata = DRW_view_data_engine_data_get_ensure(drw_get().view_data_active,
-                                                                      draw_engine);
-    draw_engine->render_to_image(gpdata, engine, render_layer, rect);
+    draw_engine->render_to_image(nullptr, engine, render_layer, rect);
   }
+#endif
 }
 
 void DRW_render_gpencil(RenderEngine *engine, Depsgraph *depsgraph)
@@ -2227,7 +2182,7 @@ void DRW_engines_free()
 {
   blender::eevee::Engine::free_static();
   blender::workbench::Engine::free_static();
-  draw_engine_gpencil_type.engine_free();
+  blender::draw::gpencil::Engine::free_static();
   blender::image_engine::Engine::free_static();
   blender::draw::overlay::Engine::free_static();
 #ifdef WITH_DRAW_DEBUG

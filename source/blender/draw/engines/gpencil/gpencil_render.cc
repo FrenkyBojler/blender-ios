@@ -19,18 +19,15 @@
 
 #include "IMB_imbuf_types.hh"
 
-#include "gpencil_engine.h"
+#include "gpencil_engine_private.hh"
 
-void GPENCIL_render_init(GPENCIL_Data *vedata,
+void GPENCIL_render_init(GPENCIL_Data * /* vedata*/,
                          RenderEngine *engine,
                          RenderLayer *render_layer,
                          const Depsgraph *depsgraph,
                          const rcti *rect)
 {
-  if (vedata->instance == nullptr) {
-    vedata->instance = new GPENCIL_Instance();
-  }
-  GPENCIL_Instance &inst = *vedata->instance;
+  blender::draw::gpencil::Instance inst;
 
   Scene *scene = DEG_get_evaluated_scene(depsgraph);
   const int2 size = int2(DRW_viewport_size_get());
@@ -152,7 +149,7 @@ static void GPENCIL_render_cache(void *vedata,
   if (!(DRW_object_visibility_in_active_context(ob_ref.object) & OB_VISIBLE_SELF)) {
     return;
   }
-  GPENCIL_cache_populate(vedata, ob_ref);
+  // GPENCIL_cache_populate(vedata, ob_ref);
 }
 
 static void GPENCIL_render_result_z(RenderLayer *rl,
@@ -170,7 +167,8 @@ static void GPENCIL_render_result_z(RenderLayer *rl,
     return;
   }
 
-  float *ro_buffer_data = rp->ibuf->float_buffer.data;
+#if 0 /* TODO */
+float *ro_buffer_data = rp->ibuf->float_buffer.data;
 
   GPU_framebuffer_read_depth(vedata->instance->render_fb,
                              rect->xmin,
@@ -211,6 +209,7 @@ static void GPENCIL_render_result_z(RenderLayer *rl,
       }
     }
   }
+#endif
 }
 
 static void GPENCIL_render_result_combined(RenderLayer *rl,
@@ -218,9 +217,10 @@ static void GPENCIL_render_result_combined(RenderLayer *rl,
                                            GPENCIL_Data *vedata,
                                            const rcti *rect)
 {
-  RenderPass *rp = RE_pass_find_by_name(rl, RE_PASSNAME_COMBINED, viewname);
+#if 0 /* TODO */
+RenderPass *rp = RE_pass_find_by_name(rl, RE_PASSNAME_COMBINED, viewname);
 
-  GPU_framebuffer_bind(vedata->instance->render_fb);
+GPU_framebuffer_bind(vedata->instance->render_fb);
   GPU_framebuffer_read_color(vedata->instance->render_fb,
                              rect->xmin,
                              rect->ymin,
@@ -230,6 +230,7 @@ static void GPENCIL_render_result_combined(RenderLayer *rl,
                              0,
                              GPU_DATA_FLOAT,
                              rp->ibuf->float_buffer.data);
+#endif
 }
 
 void GPENCIL_render_to_image(void *ved,
@@ -239,6 +240,7 @@ void GPENCIL_render_to_image(void *ved,
 {
   GPENCIL_Data *vedata = (GPENCIL_Data *)ved;
   const char *viewname = RE_GetActiveRenderView(engine->re);
+#if 0 /* TODO */
   const DRWContext *draw_ctx = DRW_context_get();
   Depsgraph *depsgraph = draw_ctx->depsgraph;
 
@@ -258,7 +260,7 @@ void GPENCIL_render_to_image(void *ved,
 
   /* Render the gpencil object and merge the result to the underlying render. */
   GPENCIL_draw_scene(vedata);
-
+#endif
   GPENCIL_render_result_combined(render_layer, viewname, vedata, rect);
   GPENCIL_render_result_z(render_layer, viewname, vedata, rect);
 }

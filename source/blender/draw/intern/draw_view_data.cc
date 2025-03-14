@@ -24,14 +24,12 @@
 #include "draw_view_data.hh"
 
 #include "engines/compositor/compositor_engine.h"
-#include "engines/gpencil/gpencil_engine.h"
 #include "engines/image/image_engine.h"
 
 using namespace blender;
 
 DRWViewData::DRWViewData()
-    : grease_pencil(&draw_engine_gpencil_type),
-      edit_select(&draw_engine_select_type),
+    : edit_select(&draw_engine_select_type),
 #ifdef WITH_DRAW_DEBUG
       edit_select_debug(DRW_engine_viewport_select_type.draw_engine),
 #endif

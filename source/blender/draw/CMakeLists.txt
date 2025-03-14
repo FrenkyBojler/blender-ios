@@ -140,7 +140,6 @@ set(SRC
   engines/gpencil/gpencil_draw_data.cc
   engines/gpencil/gpencil_engine_c.cc
   engines/gpencil/gpencil_render.cc
-  engines/gpencil/gpencil_shader_c.cc
   engines/gpencil/gpencil_shader_fx.cc
   engines/select/select_engine.cc
   engines/select/select_instance.cc
@@ -220,7 +219,9 @@ set(SRC
   engines/eevee_next/eevee_volume.hh
   engines/eevee_next/eevee_world.hh
   engines/external/external_engine.h
-  engines/gpencil/gpencil_engine.h
+  engines/gpencil/gpencil_engine_private.hh
+  engines/gpencil/gpencil_engine.hh
+  engines/gpencil/gpencil_shader.hh
   engines/image/image_batches.hh
   engines/image/image_buffer_cache.hh
   engines/image/image_drawing_mode.hh

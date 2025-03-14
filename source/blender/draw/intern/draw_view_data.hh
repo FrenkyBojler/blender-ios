@@ -19,6 +19,7 @@
 
 #include "engines/eevee_next/eevee_engine.h"
 #include "engines/external/external_engine.h"
+#include "engines/gpencil/gpencil_engine.hh"
 #include "engines/image/image_engine.h"
 #include "engines/overlay/overlay_engine.h"
 #include "engines/select/select_engine.hh"
@@ -93,12 +94,11 @@ struct DRWViewData {
   blender::int2 texture_list_size = {0, 0};
 
   /* Engines running for this viewport. nullptr if not enabled. */
-  /* TODO(fclem): Directly use each engine class. */
   blender::eevee::Engine eevee;
   blender::workbench::Engine workbench;
   blender::external::Engine external;
   blender::image_engine::Engine image;
-  ViewportEngineData grease_pencil;
+  blender::draw::gpencil::Engine grease_pencil;
   blender::draw::overlay::Engine overlay;
   blender::draw::select::Engine object_select;
   ViewportEngineData edit_select;
@@ -136,7 +136,7 @@ struct DRWViewData {
     // callback(edit_select_debug);
 #endif
     /* Grease pencil. Merge its output to the render result framebuffer. */
-    // callback(grease_pencil);
+    callback(grease_pencil);
     /* GPU compositor. Processes render result and output to the render result framebuffer. */
     // callback(compositor);
     /* Overlays. Draw on a separate overlay framebuffer. Can read render result. */
