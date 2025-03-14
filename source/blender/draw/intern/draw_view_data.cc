@@ -117,13 +117,6 @@ void DRWViewData::texture_list_size_validate(const blender::int2 &size)
   }
 }
 
-ViewportEngineData *DRW_view_data_engine_data_get_ensure(DRWViewData * /*view_data*/,
-                                                         DrawEngineType * /*engine_type*/)
-{
-  ViewportEngineData *result = nullptr;
-  return result;
-}
-
 void DRW_view_data_reset(DRWViewData *view_data)
 {
   view_data->foreach_enabled_engine([&](DrawEngine &instance) { instance.used = false; });

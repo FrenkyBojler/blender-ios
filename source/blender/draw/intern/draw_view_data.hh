@@ -97,7 +97,7 @@ struct DRWViewData {
   /* Engines running for this viewport. nullptr if not enabled. */
   blender::eevee::Engine eevee;
   blender::workbench::Engine workbench;
-  blender::external::Engine external;
+  blender::draw::external::Engine external;
   blender::image_engine::Engine image;
   blender::draw::gpencil::Engine grease_pencil;
   blender::draw::overlay::Engine overlay;
@@ -170,9 +170,6 @@ blender::draw::TextureFromPool &DRW_view_data_pass_texture_get(DRWViewData *view
                                                                const char *pass_name);
 
 void DRW_view_data_default_lists_from_viewport(DRWViewData *view_data, GPUViewport *viewport);
-ViewportEngineData *DRW_view_data_engine_data_get_ensure(DRWViewData *view_data,
-                                                         DrawEngineType *engine_type);
-void DRW_view_data_use_engine(DRWViewData *view_data, DrawEngineType *engine_type);
 void DRW_view_data_reset(DRWViewData *view_data);
 void DRW_view_data_free_unused(DRWViewData *view_data);
 DefaultFramebufferList *DRW_view_data_default_framebuffer_list_get(DRWViewData *view_data);

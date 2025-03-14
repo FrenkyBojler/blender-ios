@@ -15,6 +15,7 @@ namespace blender::draw::gpencil {
 struct Engine : public DrawEngine::Pointer {
   DrawEngine *create_instance() final;
 
+  static void render_to_image(RenderEngine *engine, RenderLayer *render_layer, const rcti rect);
   static void free_static();
 };
 

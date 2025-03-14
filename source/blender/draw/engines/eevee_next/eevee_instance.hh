@@ -379,11 +379,6 @@ class Instance : public DrawEngine {
   }
 
  private:
-  /** Wrapper to use with #DRW_render_object_iter. */
-  static void object_sync_render(void *instance_,
-                                 ObjectRef &ob_ref,
-                                 RenderEngine *engine,
-                                 Depsgraph *depsgraph);
   /**
    * Conceptually renders one sample per pixel.
    * Everything based on random sampling should be done here (i.e: DRWViews jitter)

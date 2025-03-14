@@ -678,10 +678,7 @@ static void write_render_z_output(RenderLayer *layer,
   }
 }
 
-static void workbench_render_to_image(void *vedata,
-                                      RenderEngine *engine,
-                                      RenderLayer *layer,
-                                      const rcti *rect)
+static void workbench_render_to_image(RenderEngine *engine, RenderLayer *layer, const rcti rect)
 {
   using namespace blender::draw;
   if (!workbench_render_framebuffers_init()) {
@@ -716,14 +713,12 @@ static void workbench_render_to_image(void *vedata,
   manager.begin_sync();
 
   instance.begin_sync();
-  auto workbench_render_cache = [](void *vedata,
-                                   blender::draw::ObjectRef &ob_ref,
-                                   RenderEngine * /*engine*/,
-                                   Depsgraph * /*depsgraph*/) {
-    /* TODO. */
-    // instance.object_sync(ob_ref, manager);
-  };
-  DRW_render_object_iter(vedata, engine, depsgraph, workbench_render_cache);
+  DRW_render_object_iter(
+      engine,
+      depsgraph,
+      [&](blender::draw::ObjectRef &ob_ref, RenderEngine * /*engine*/, Depsgraph * /*depsgraph*/) {
+        instance.object_sync(ob_ref, manager);
+      });
   instance.end_sync();
 
   manager.end_sync();
@@ -737,8 +732,8 @@ static void workbench_render_to_image(void *vedata,
 
   /* Write image */
   const char *viewname = RE_GetActiveRenderView(engine->re);
-  write_render_color_output(layer, viewname, dfbl->default_fb, rect);
-  write_render_z_output(layer, viewname, dfbl->default_fb, rect, winmat);
+  write_render_color_output(layer, viewname, dfbl->default_fb, &rect);
+  write_render_z_output(layer, viewname, dfbl->default_fb, &rect, winmat);
 }
 
 static void workbench_render_update_passes(RenderEngine *engine,
@@ -753,6 +748,11 @@ static void workbench_render_update_passes(RenderEngine *engine,
   }
 }
 
+void workbench_render(RenderEngine *engine, Depsgraph *depsgraph)
+{
+  DRW_render_to_image(engine, depsgraph, workbench_render_to_image, [](RenderResult *) {});
+}
+
 RenderEngineType DRW_engine_viewport_workbench_type = {
     /*next*/ nullptr,
     /*prev*/ nullptr,
@@ -760,7 +760,7 @@ RenderEngineType DRW_engine_viewport_workbench_type = {
     /*name*/ N_("Workbench"),
     /*flag*/ RE_INTERNAL | RE_USE_STEREO_VIEWPORT | RE_USE_GPU_CONTEXT,
     /*update*/ nullptr,
-    /*render*/ &DRW_render_to_image,
+    /*render*/ &workbench_render,
     /*render_frame_finish*/ nullptr,
     /*draw*/ nullptr,
     /*bake*/ nullptr,

@@ -405,31 +405,6 @@ void gpencil_vfx_cache_populate(Instance *inst,
 void GPENCIL_antialiasing_init(Instance *inst);
 void GPENCIL_antialiasing_draw(Instance *inst);
 
-/* main functions */
-void GPENCIL_engine_init(void *vedata);
-void GPENCIL_cache_init(void *vedata);
-void GPENCIL_cache_populate(void *vedata, blender::draw::ObjectRef &ob_ref);
-void GPENCIL_cache_finish(void *vedata);
-void GPENCIL_draw_scene(void *vedata);
-
 /* render */
 
 }  // namespace blender::draw::gpencil
-
-/**
- * Initialize render data.
- */
-void GPENCIL_render_init(struct GPENCIL_Data *ved,
-                         struct RenderEngine *engine,
-                         struct RenderLayer *render_layer,
-                         const struct Depsgraph *depsgraph,
-                         const rcti *rect);
-void GPENCIL_render_to_image(void *vedata,
-                             struct RenderEngine *engine,
-                             struct RenderLayer *render_layer,
-                             const rcti *rect);
-
-/* Draw Data. */
-void gpencil_light_pool_free(void *storage);
-void gpencil_material_pool_free(void *storage);
-blender::draw::gpencil::ViewLayerData *GPENCIL_view_layer_data_ensure(void);

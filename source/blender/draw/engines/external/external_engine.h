@@ -21,10 +21,10 @@ extern RenderEngineType DRW_engine_viewport_external_type;
  * NOTE: Released by the draw engine when it is done drawing. */
 bool DRW_engine_external_acquire_for_image_editor(void);
 
-namespace blender::external {
+namespace blender::draw::external {
 
 struct Engine : public DrawEngine::Pointer {
   DrawEngine *create_instance() final;
 };
 
-}  // namespace blender::external
+}  // namespace blender::draw::external

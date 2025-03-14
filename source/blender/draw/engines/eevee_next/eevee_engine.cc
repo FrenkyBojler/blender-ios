@@ -35,32 +35,38 @@ void Engine::free_static()
 
 using namespace blender::eevee;
 
-static void eevee_render_to_image(void *vedata,
-                                  RenderEngine *engine,
-                                  RenderLayer *layer,
-                                  const rcti * /*rect*/)
+void eevee_render(RenderEngine *engine, Depsgraph *depsgraph)
 {
-  Instance instance;
+  Instance *instance = nullptr;
 
-  Render *render = engine->re;
-  Depsgraph *depsgraph = DRW_context_get()->depsgraph;
-  Object *camera_original_ob = RE_GetCamera(engine->re);
-  const char *viewname = RE_GetActiveRenderView(engine->re);
-  int size[2] = {engine->resolution_x, engine->resolution_y};
+  auto eevee_render_to_image = [&](RenderEngine *engine, RenderLayer *layer, const rcti /*rect*/) {
+    Render *render = engine->re;
+    Depsgraph *depsgraph = DRW_context_get()->depsgraph;
+    Object *camera_original_ob = RE_GetCamera(engine->re);
+    const char *viewname = RE_GetActiveRenderView(engine->re);
+    int size[2] = {engine->resolution_x, engine->resolution_y};
 
-  rctf view_rect;
-  rcti rect;
-  RE_GetViewPlane(render, &view_rect, &rect);
-  rcti visible_rect = rect;
+    /* WORKAROUND: Fails if created in the parent scope. Must be because of lack of active
+     * `DRWContext`. To be revisited. */
+    instance = new Instance();
 
-  instance.init(size, &rect, &visible_rect, engine, depsgraph, camera_original_ob, layer);
-  instance.render_frame(engine, layer, viewname);
+    rctf view_rect;
+    rcti rect;
+    RE_GetViewPlane(render, &view_rect, &rect);
+    rcti visible_rect = rect;
 
-  /* TODO */
-  // instance.store_metadata(render_result);
+    instance->init(size, &rect, &visible_rect, engine, depsgraph, camera_original_ob, layer);
+    instance->render_frame(engine, layer, viewname);
+  };
+
+  auto eevee_store_metadata = [&](RenderResult *render_result) {
+    instance->store_metadata(render_result);
+  };
+
+  DRW_render_to_image(engine, depsgraph, eevee_render_to_image, eevee_store_metadata);
+
+  delete instance;
 }
-
-static void eevee_store_metadata(void *vedata, RenderResult *render_result) {}
 
 static void eevee_render_update_passes(RenderEngine *engine, Scene *scene, ViewLayer *view_layer)
 {
@@ -74,7 +80,7 @@ RenderEngineType DRW_engine_viewport_eevee_next_type = {
     /*name*/ N_("EEVEE"),
     /*flag*/ RE_INTERNAL | RE_USE_PREVIEW | RE_USE_STEREO_VIEWPORT | RE_USE_GPU_CONTEXT,
     /*update*/ nullptr,
-    /*render*/ &DRW_render_to_image,
+    /*render*/ &eevee_render,
     /*render_frame_finish*/ nullptr,
     /*draw*/ nullptr,
     /*bake*/ nullptr,

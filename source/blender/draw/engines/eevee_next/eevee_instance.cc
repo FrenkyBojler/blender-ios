@@ -378,16 +378,6 @@ void Instance::object_sync(ObjectRef &ob_ref, Manager & /*manager*/)
   }
 }
 
-void Instance::object_sync_render(void *instance_,
-                                  ObjectRef &ob_ref,
-                                  RenderEngine *engine,
-                                  Depsgraph *depsgraph)
-{
-  UNUSED_VARS(engine, depsgraph);
-  Instance &inst = *reinterpret_cast<Instance *>(instance_);
-  inst.object_sync(ob_ref, *inst.manager);
-}
-
 void Instance::end_sync()
 {
   if (skip_render_) {
@@ -418,7 +408,10 @@ void Instance::render_sync()
 
   begin_sync();
 
-  DRW_render_object_iter(this, render, depsgraph, object_sync_render);
+  DRW_render_object_iter(
+      render, depsgraph, [this](blender::draw::ObjectRef &ob_ref, RenderEngine *, Depsgraph *) {
+        this->object_sync(ob_ref, *this->manager);
+      });
 
   velocity.geometry_steps_fill();
 

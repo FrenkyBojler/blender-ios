@@ -1542,19 +1542,9 @@ bool DRW_render_check_grease_pencil(Depsgraph *depsgraph)
   return false;
 }
 
-static void drw_render_gpencil_to_image(RenderEngine *engine,
-                                        RenderLayer *render_layer,
-                                        const rcti *rect)
-{
-#if 0 /* TODO */
-  if (draw_engine->render_to_image) {
-    draw_engine->render_to_image(nullptr, engine, render_layer, rect);
-  }
-#endif
-}
-
 void DRW_render_gpencil(RenderEngine *engine, Depsgraph *depsgraph)
 {
+  using namespace blender::draw;
   /* This function should only be called if there are grease pencil objects,
    * especially important to avoid failing in background renders without GPU context. */
   BLI_assert(DRW_render_check_grease_pencil(depsgraph));
@@ -1590,10 +1580,10 @@ void DRW_render_gpencil(RenderEngine *engine, Depsgraph *depsgraph)
        render_view = render_view->next)
   {
     RE_SetActiveRenderView(render, render_view->name);
-    drw_render_gpencil_to_image(engine, render_layer, &render_rect);
+    gpencil::Engine::render_to_image(engine, render_layer, render_rect);
   }
 
-  blender::draw::command::StateSet::set();
+  command::StateSet::set();
 
   GPU_depth_test(GPU_DEPTH_NONE);
 
@@ -1607,13 +1597,15 @@ void DRW_render_gpencil(RenderEngine *engine, Depsgraph *depsgraph)
   DRW_render_context_disable(render);
 }
 
-void DRW_render_to_image(RenderEngine *engine, Depsgraph *depsgraph)
+void DRW_render_to_image(
+    RenderEngine *engine,
+    Depsgraph *depsgraph,
+    std::function<void(RenderEngine *, RenderLayer *, const rcti)> render_view_cb,
+    std::function<void(RenderResult *)> store_metadata_cb)
 {
   using namespace blender::draw;
   Scene *scene = DEG_get_evaluated_scene(depsgraph);
   ViewLayer *view_layer = DEG_get_evaluated_view_layer(depsgraph);
-  RenderEngineType *engine_type = engine->type;
-  DrawEngineType *draw_engine_type = engine_type->draw_engine;
   Render *render = engine->re;
 
   /* IMPORTANT: We don't support immediate mode in render mode!
@@ -1629,9 +1621,6 @@ void DRW_render_to_image(RenderEngine *engine, Depsgraph *depsgraph)
   /* Init modules ahead of time because the begin_sync happens before DRW_render_object_iter. */
   draw_ctx.data->modules_init();
 
-  ViewportEngineData *data = DRW_view_data_engine_data_get_ensure(drw_get().view_data_active,
-                                                                  draw_engine_type);
-
   /* Main rendering. */
   rctf view_rect;
   rcti render_rect;
@@ -1641,7 +1630,7 @@ void DRW_render_to_image(RenderEngine *engine, Depsgraph *depsgraph)
   }
 
   /* Reset state before drawing */
-  blender::draw::command::StateSet::set();
+  command::StateSet::set();
 
   /* set default viewport */
   GPU_viewport(0, 0, draw_ctx.size[0], draw_ctx.size[1]);
@@ -1660,15 +1649,12 @@ void DRW_render_to_image(RenderEngine *engine, Depsgraph *depsgraph)
        render_view = render_view->next)
   {
     RE_SetActiveRenderView(render, render_view->name);
-    engine_type->draw_engine->render_to_image(data, engine, render_layer, &render_rect);
+    render_view_cb(engine, render_layer, render_rect);
   }
 
   RE_engine_end_result(engine, render_result, false, false, false);
 
-  if (engine_type->draw_engine->store_metadata) {
-    RenderResult *final_render_result = RE_engine_get_result(engine);
-    engine_type->draw_engine->store_metadata(data, final_render_result);
-  }
+  store_metadata_cb(RE_engine_get_result(engine));
 
   GPU_framebuffer_restore();
 
@@ -1681,13 +1667,10 @@ void DRW_render_to_image(RenderEngine *engine, Depsgraph *depsgraph)
   GPU_render_end();
 }
 
-void DRW_render_object_iter(void *vedata,
-                            RenderEngine *engine,
-                            Depsgraph *depsgraph,
-                            void (*callback)(void *vedata,
-                                             blender::draw::ObjectRef &ob_ref,
-                                             RenderEngine *engine,
-                                             Depsgraph *depsgraph))
+void DRW_render_object_iter(
+    RenderEngine *engine,
+    Depsgraph *depsgraph,
+    std::function<void(blender::draw::ObjectRef &, RenderEngine *, Depsgraph *)> callback)
 {
   DRWContext &draw_ctx = drw_get();
 
@@ -1707,7 +1690,7 @@ void DRW_render_object_iter(void *vedata,
         if (ob_ref.is_dupli() == false) {
           drw_batch_cache_validate(ob);
         }
-        callback(vedata, ob_ref, engine, depsgraph);
+        callback(ob_ref, engine, depsgraph);
         if (ob_ref.is_dupli() == false) {
           drw_batch_cache_generate_requested(ob, *extraction.graph);
         }

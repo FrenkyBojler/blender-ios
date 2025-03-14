@@ -38,7 +38,7 @@
 
 /* Shaders */
 
-namespace blender::external {
+namespace blender::draw::external {
 class Instance : public DrawEngine {
   blender::StringRefNull name_get() final
   {
@@ -248,7 +248,7 @@ DrawEngine *Engine::create_instance()
   return new Instance();
 }
 
-}  // namespace blender::external
+}  // namespace blender::draw::external
 
 /* Functions */
 
