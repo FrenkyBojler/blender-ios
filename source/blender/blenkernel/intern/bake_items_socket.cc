@@ -192,6 +192,9 @@ Array<std::unique_ptr<BakeItem>> move_socket_values_to_bake_items(const Span<voi
   return bake_items;
 }
 
+/**
+ * \return True if #r_value has been constructed.
+ */
 [[nodiscard]] static bool copy_bake_item_to_socket_value(
     const BakeItem &bake_item,
     const eNodeSocketDatatype socket_type,
