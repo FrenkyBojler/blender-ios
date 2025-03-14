@@ -22,6 +22,8 @@ PFN_xrCreateVulkanInstanceKHR GHOST_XrGraphicsBindingVulkan::s_xrCreateVulkanIns
     nullptr;
 PFN_xrCreateVulkanDeviceKHR GHOST_XrGraphicsBindingVulkan::s_xrCreateVulkanDeviceKHR_fn = nullptr;
 
+PFN_vkGetMemoryFdKHR GHOST_XrGraphicsBindingVulkan::s_vkGetMemoryFdKHR_fn = nullptr;
+
 /* -------------------------------------------------------------------- */
 /** \name Destroying resources.
  * \{ */
@@ -149,6 +151,10 @@ void GHOST_XrGraphicsBindingVulkan::initFromGhostContext(GHOST_Context &ghost_ct
   CHECK_XR(s_xrCreateVulkanInstanceKHR_fn(
                instance, &xr_instance_create_info, &m_vk_instance, &vk_result),
            "Unable to create an OpenXR compatible Vulkan instance.");
+
+  /* Load extensions */
+  s_vkGetMemoryFdKHR_fn = PFN_vkGetMemoryFdKHR(
+      vkGetInstanceProcAddr(m_vk_instance, "vkGetMemoryFdKHR"));
 
   /* Physical device selection */
   XrVulkanGraphicsDeviceGetInfoKHR xr_device_get_info = {
@@ -309,6 +315,7 @@ std::vector<XrSwapchainImageBaseHeader *> GHOST_XrGraphicsBindingVulkan::createS
 void GHOST_XrGraphicsBindingVulkan::submitToSwapchainImage(
     XrSwapchainImageBaseHeader &swapchain_image, const GHOST_XrDrawViewInfo &draw_info)
 {
+
   XrSwapchainImageVulkan2KHR &vulkan_image = *reinterpret_cast<XrSwapchainImageVulkan2KHR *>(
       &swapchain_image);
   /* Acquire frame buffer image. */

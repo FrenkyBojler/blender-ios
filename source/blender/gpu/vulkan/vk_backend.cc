@@ -147,7 +147,10 @@ static Vector<StringRefNull> missing_capabilities_get(VkPhysicalDevice vk_physic
   for (VkExtensionProperties &vk_extension : vk_extensions) {
     extensions.add(vk_extension.extensionName);
   }
-
+  /* TODO: this is platform specific. Windows + mac should be added as well. */
+  if (!extensions.contains(VK_KHR_EXTERNAL_MEMORY_FD_EXTENSION_NAME)) {
+    missing_capabilities.append(VK_KHR_EXTERNAL_MEMORY_FD_EXTENSION_NAME);
+  }
   if (!extensions.contains(VK_KHR_SWAPCHAIN_EXTENSION_NAME)) {
     missing_capabilities.append(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
   }

@@ -421,6 +421,7 @@ void VKContext::openxr_release_framebuffer_image_callback(GHOST_VulkanOpenXRData
 
 void VKContext::openxr_acquire_framebuffer_image_handler(GHOST_VulkanOpenXRData &openxr_data)
 {
+  VKDevice &device = VKBackend::get().device;
   /** Prepare the framebuffer image to be transferred to the OpenXR swapchain. */
   VKFrameBuffer &framebuffer = *unwrap(active_fb);
   VKTexture *color_attachment = unwrap(unwrap(framebuffer.color_tex(0)));
@@ -442,12 +443,16 @@ void VKContext::openxr_acquire_framebuffer_image_handler(GHOST_VulkanOpenXRData 
   openxr_data.image_layout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
   openxr_data.extent.width = color_attachment->width_get();
   openxr_data.extent.height = color_attachment->height_get();
-  color_attachment->vk_device_memory_and_offset(openxr_data.memory, openxr_data.offset);
+  openxr_data.handle = color_attachment->export_memory(device);
 }
 
-void VKContext::openxr_release_framebuffer_image_handler(GHOST_VulkanOpenXRData & /*openxr_data*/)
+void VKContext::openxr_release_framebuffer_image_handler(GHOST_VulkanOpenXRData &openxr_data)
 {
-  // From here on we can use the framebuffer image again.
+  /* Get the ownership of the framebuffer back.*/
+  VKDevice &device = VKBackend::get().device;
+  VKFrameBuffer &framebuffer = *unwrap(active_fb);
+  VKTexture *color_attachment = unwrap(unwrap(framebuffer.color_tex(0)));
+  color_attachment->import_memory(device, openxr_data.handle);
 }
 
 /** \} */

@@ -768,9 +768,9 @@ typedef struct {
   VkImageLayout image_layout;
   /** Resolution of the framebuffer image. */
   VkExtent2D extent;
-  /** Device memory of the framebuffer image. */
-  VkDeviceMemory memory;
-  VkDeviceSize offset;
+
+  /** Exported memory handle. */
+  int64_t handle;
 } GHOST_VulkanOpenXRData;
 
 typedef struct {

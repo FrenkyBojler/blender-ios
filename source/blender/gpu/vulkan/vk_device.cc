@@ -133,6 +133,9 @@ void VKDevice::init_functions()
   functions.vkSetDebugUtilsObjectName = LOAD_FUNCTION(vkSetDebugUtilsObjectNameEXT);
   functions.vkCreateDebugUtilsMessenger = LOAD_FUNCTION(vkCreateDebugUtilsMessengerEXT);
   functions.vkDestroyDebugUtilsMessenger = LOAD_FUNCTION(vkDestroyDebugUtilsMessengerEXT);
+
+  /* VK_KHR_external_memory_fd */
+  functions.vkGetMemoryFdKHR = LOAD_FUNCTION(vkGetMemoryFdKHR);
 #undef LOAD_FUNCTION
 }
 

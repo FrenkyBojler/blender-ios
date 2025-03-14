@@ -681,15 +681,27 @@ const VKImageView &VKTexture::image_view_get(VKImageViewArrayed arrayed, VKImage
 /** \} */
 
 /* -------------------------------------------------------------------- */
-/** \name Image Views
+/** \name External memory
  * \{ */
-void VKTexture::vk_device_memory_and_offset(VkDeviceMemory &r_device_memory,
-                                            VkDeviceSize &r_device_memory_offset) const
+int64_t VKTexture::export_memory(VKDevice &device)
 {
   VmaAllocationInfo alloc_info;
   vmaGetAllocationInfo(VKBackend::get().device.mem_allocator_get(), allocation_, &alloc_info);
-  r_device_memory = alloc_info.deviceMemory;
-  r_device_memory_offset = alloc_info.offset;
+  VkDeviceMemory vk_device_memory = alloc_info.deviceMemory;
+  VkDeviceSize vk_memory_offset = alloc_info.offset;
+
+  VkMemoryGetFdInfoKHR vk_memory_get_fd_info = {VK_STRUCTURE_TYPE_MEMORY_GET_FD_INFO_KHR,
+                                                nullptr,
+                                                vk_device_memory,
+                                                VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT};
+  int fd;
+  device.functions.vkGetMemoryFdKHR(device.vk_handle(), &vk_memory_get_fd_info, &fd);
+  return fd;
+}
+
+void VKTexture::import_memory(VKDevice &device, int64_t handle)
+{
+  NOT_YET_IMPLEMENTED
 }
 /** \} */
 

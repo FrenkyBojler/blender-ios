@@ -66,4 +66,5 @@ class GHOST_XrGraphicsBindingVulkan : public GHOST_IXrGraphicsBinding {
   static PFN_xrGetVulkanGraphicsDevice2KHR s_xrGetVulkanGraphicsDevice2KHR_fn;
   static PFN_xrCreateVulkanInstanceKHR s_xrCreateVulkanInstanceKHR_fn;
   static PFN_xrCreateVulkanDeviceKHR s_xrCreateVulkanDeviceKHR_fn;
+  static PFN_vkGetMemoryFdKHR s_vkGetMemoryFdKHR_fn;
 };
