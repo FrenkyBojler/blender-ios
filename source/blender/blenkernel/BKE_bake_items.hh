@@ -140,6 +140,11 @@ class StringBakeItem : public BakeItem {
   void count_memory(MemoryCounter &memory) const override;
 };
 
+/**
+ * \note It's not possible to use #PrimitiveBakeItem for bundles in general, because the items in
+ * the bundle also have to be converted to their bakeable form. This is especially important when
+ * serializing the bake.
+ */
 class BundleBakeItem : public BakeItem {
  public:
   struct Item {
