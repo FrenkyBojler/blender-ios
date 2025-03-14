@@ -66,6 +66,10 @@ bool generic_attribute_type_supported(const EnumPropertyItem &item);
 
 }  // namespace enums
 
+const EnumPropertyItem *grid_data_type_socket_items_filter_fn(bContext *C,
+                                                              PointerRNA *ptr,
+                                                              PropertyRNA *prop,
+                                                              bool *r_free);
 const EnumPropertyItem *grid_socket_type_items_filter_fn(bContext *C,
                                                          PointerRNA *ptr,
                                                          PropertyRNA *prop,

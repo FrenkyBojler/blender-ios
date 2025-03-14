@@ -84,6 +84,18 @@ bool generic_attribute_type_supported(const EnumPropertyItem &item)
 
 }  // namespace enums
 
+const EnumPropertyItem *grid_data_type_socket_items_filter_fn(bContext * /*C*/,
+                                                              PointerRNA * /*ptr*/,
+                                                              PropertyRNA * /*prop*/,
+                                                              bool *r_free)
+{
+  *r_free = true;
+  return enum_items_filter(
+      rna_enum_volume_grid_data_type_items, [](const EnumPropertyItem &item) -> bool {
+        return bke::grid_type_to_socket_type(VolumeGridType(item.value)).has_value();
+      });
+}
+
 const EnumPropertyItem *grid_socket_type_items_filter_fn(bContext * /*C*/,
                                                          PointerRNA * /*ptr*/,
                                                          PropertyRNA * /*prop*/,

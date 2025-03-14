@@ -6002,13 +6002,14 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
           if (STREQ(node->idname, "GeometryNodeStoreNamedGrid")) {
             switch (node->custom1) {
               case CD_PROP_FLOAT:
-                node->custom1 = SOCK_FLOAT;
+                node->custom1 = VOLUME_GRID_FLOAT;
                 break;
+              case CD_PROP_FLOAT2:
               case CD_PROP_FLOAT3:
-                node->custom1 = SOCK_VECTOR;
+                node->custom1 = VOLUME_GRID_VECTOR_FLOAT;
                 break;
               default:
-                node->custom1 = SOCK_FLOAT;
+                node->custom1 = VOLUME_GRID_FLOAT;
                 break;
             }
           }

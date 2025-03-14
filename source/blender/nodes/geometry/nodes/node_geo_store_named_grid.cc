@@ -11,7 +11,6 @@
 #include "RNA_enum_types.hh"
 
 #include "NOD_rna_define.hh"
-#include "NOD_socket.hh"
 #include "NOD_socket_search_link.hh"
 
 #include "UI_interface.hh"
@@ -30,7 +29,7 @@ static void node_declare(NodeDeclarationBuilder &b)
     return;
   }
 
-  b.add_input(eNodeSocketDatatype(node->custom1), "Grid").hide_value();
+  b.add_input(*bke::grid_type_to_socket_type(VolumeGridType(node->custom1)), "Grid").hide_value();
 }
 
 static void search_link_ops(GatherLinkSearchOpParams &params)
@@ -51,11 +50,12 @@ static void search_link_ops(GatherLinkSearchOpParams &params)
         params.update_and_connect_available_socket(node, "Name");
       });
     }
-    const eNodeSocketDatatype data_type = eNodeSocketDatatype(params.other_socket().type);
-    if (socket_type_supports_grids(data_type)) {
+    if (const std::optional<VolumeGridType> data_type = bke::socket_type_to_grid_type(
+            eNodeSocketDatatype(params.other_socket().type)))
+    {
       params.add_item(IFACE_("Grid"), [data_type](LinkSearchOpParams &params) {
         bNode &node = params.add_node("GeometryNodeStoreNamedGrid");
-        node.custom1 = data_type;
+        node.custom1 = *data_type;
         params.update_and_connect_available_socket(node, "Grid");
       });
     }
@@ -122,10 +122,10 @@ static void node_rna(StructRNA *srna)
                     "data_type",
                     "Data Type",
                     "Type of grid data",
-                    rna_enum_node_socket_data_type_items,
+                    rna_enum_volume_grid_data_type_items,
                     NOD_inline_enum_accessors(custom1),
                     SOCK_FLOAT,
-                    grid_socket_type_items_filter_fn);
+                    grid_data_type_socket_items_filter_fn);
 }
 
 static void node_register()
