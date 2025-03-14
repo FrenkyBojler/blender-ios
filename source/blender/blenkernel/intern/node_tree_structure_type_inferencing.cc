@@ -77,86 +77,116 @@ static Array<nodes::StructureTypeInterface> calc_node_interfaces(const bNodeTree
   return interfaces;
 }
 
-struct SocketStatus {
-  bool is_single = false;
-  bool is_grid = false;
-  bool is_field = false;
-  bool requires_single = false;
-};
+enum class DataRequirement : int8_t { None, Field, Single, Grid, Invalid };
 
-static void initialize_socket_states(const bNodeTree &tree,
-                                     MutableSpan<SocketStatus> socket_usages)
+static DataRequirement merge(const DataRequirement a, const DataRequirement b)
 {
-  for (const bNodeSocket *socket : tree.all_sockets()) {
-    const nodes::SocketDeclaration *declaration = socket->runtime->declaration;
-    if (!socket->runtime->declaration) {
+  if (a == b) {
+    return a;
+  }
+  if (a == DataRequirement::None) {
+    return b;
+  }
+  if (b == DataRequirement::None) {
+    return a;
+  }
+  if ((a == DataRequirement::Field && b == DataRequirement::Single) ||
+      (a == DataRequirement::Single && b == DataRequirement::Field))
+  {
+    /* Single beats field, becasuse fields can accept single values too. */
+    return DataRequirement::Single;
+  }
+  return DataRequirement::Invalid;
+}
+
+static void init_input_requirements(const bNodeTree &tree,
+                                    MutableSpan<DataRequirement> input_requirements)
+{
+  const Span<const bNodeSocket *> input_sockets = tree.all_input_sockets();
+  for (const int i : input_sockets.index_range()) {
+    const bNodeSocket &socket = *input_sockets[i];
+    const nodes::SocketDeclaration *declaration = socket.runtime->declaration;
+    if (!socket.runtime->declaration) {
+      input_requirements[i] = DataRequirement::None;
       continue;
     }
-    const int index = socket->index_in_tree();
     switch (declaration->structure_type) {
       case StructureType::Dynamic: {
-        if (socket->is_input() && !socket->is_directly_linked()) {
-          socket_usages[index].is_single = true;
-        }
+        input_requirements[i] = DataRequirement::None;
         break;
       }
       case StructureType::Single: {
-        socket_usages[index].requires_single = true;
+        input_requirements[i] = DataRequirement::Single;
         break;
       }
       case StructureType::Grid: {
-        socket_usages[index].is_grid = true;
+        input_requirements[i] = DataRequirement::Grid;
         break;
       }
       case StructureType::Field: {
-        socket_usages[index].is_field = true;
+        input_requirements[i] = DataRequirement::Field;
         break;
       }
     }
   }
 }
 
-static void merge_status_right_to_left(SocketStatus &a, const SocketStatus &b)
+static DataRequirement calc_output_socket_requirement(
+    const bNodeSocket &output_socket, const Span<DataRequirement> input_requirements)
 {
-  a.is_field |= b.is_field;
-  a.is_grid |= b.is_grid;
-  a.requires_single |= b.requires_single;
-  a.is_single |= a.requires_single;
+  DataRequirement requirement = DataRequirement::None;
+  if (!output_socket.is_available()) {
+    return requirement;
+  }
+  for (const bNodeSocket *socket : output_socket.directly_linked_sockets()) {
+    if (!socket->is_available()) {
+      continue;
+    }
+    requirement = merge(requirement, input_requirements[socket->index_in_all_inputs()]);
+  }
+  return requirement;
 }
 
 static void store_group_input_structure_types(const bNodeTree &tree,
-                                              const Span<SocketStatus> socket_usages,
+                                              const Span<DataRequirement> input_requirements,
                                               nodes::StructureTypeInterface &derived_interface)
 {
   /* Merge usages from all group input nodes. */
-  Array<SocketStatus> group_input_usages(tree.interface_inputs().size());
+  Array<DataRequirement> interface_requirements(tree.interface_inputs().size());
   for (const bNode *node : tree.group_input_nodes()) {
-    for (const bNodeSocket *socket : node->output_sockets().drop_back(1)) {
-      merge_status_right_to_left(group_input_usages[socket->index()],
-                                 socket_usages[socket->index_in_tree()]);
+    const Span<const bNodeSocket *> output_sockets = node->output_sockets();
+    for (const int i : output_sockets.index_range().drop_back(1)) {
+      const bNodeSocket &output = *output_sockets[i];
+      interface_requirements[i] = merge(
+          interface_requirements[i], calc_output_socket_requirement(output, input_requirements));
     }
   }
 
   /* Build derived interface structure types from group input nodes. */
-  for (const int input_i : tree.interface_inputs().index_range()) {
-    const bNodeTreeInterfaceSocket &io_socket = *tree.interface_inputs()[input_i];
+  for (const int i : tree.interface_inputs().index_range()) {
+    const bNodeTreeInterfaceSocket &io_socket = *tree.interface_inputs()[i];
     if (io_socket.structure_type != NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO) {
-      derived_interface.inputs[input_i] = StructureType(io_socket.structure_type);
+      derived_interface.inputs[i] = StructureType(io_socket.structure_type);
       continue;
     }
 
-    const SocketStatus &usage = group_input_usages[input_i];
-    if (usage.requires_single) {
-      derived_interface.inputs[input_i] = StructureType::Single;
-    }
-    else if (usage.is_grid) {
-      derived_interface.inputs[input_i] = StructureType::Grid;
-    }
-    else if (usage.is_field) {
-      derived_interface.inputs[input_i] = StructureType::Field;
-    }
-    else {
-      derived_interface.inputs[input_i] = StructureType::Dynamic;
+    const DataRequirement requirement = interface_requirements[i];
+    switch (requirement) {
+      case DataRequirement::None:
+        derived_interface.inputs[i] = StructureType::Dynamic;
+        break;
+      case DataRequirement::Field:
+        derived_interface.inputs[i] = StructureType::Field;
+        break;
+      case DataRequirement::Single:
+        derived_interface.inputs[i] = StructureType::Single;
+        break;
+      case DataRequirement::Grid:
+        derived_interface.inputs[i] = StructureType::Grid;
+        break;
+      case DataRequirement::Invalid:
+        derived_interface.inputs[i] = StructureType::Dynamic;
+        break;
     }
   }
 }
@@ -177,180 +207,171 @@ ENUM_OPERATORS(StateSyncResult, StateSyncResult::CHANGED_B)
  * Afterwards both states will be the same.
  * \return StateSyncResult flags indicating which states have changed.
  */
-static StateSyncResult sync_states(SocketStatus &a, SocketStatus &b)
-{
-  const bool requires_single = a.requires_single || b.requires_single;
-  const bool is_single = a.is_single && b.is_single;
+// static StateSyncResult sync_states(DataRequirement &a, DataRequirement &b)
+// {
+//   const bool requires_single = a.requires_single || b.requires_single;
+//   const bool is_single = a.is_single && b.is_single;
 
-  StateSyncResult res = StateSyncResult::NONE;
-  if (a.requires_single != requires_single || a.is_single != is_single) {
-    res |= StateSyncResult::CHANGED_A;
-  }
-  if (b.requires_single != requires_single || b.is_single != is_single) {
-    res |= StateSyncResult::CHANGED_B;
-  }
+//   StateSyncResult res = StateSyncResult::NONE;
+//   if (a.requires_single != requires_single || a.is_single != is_single) {
+//     res |= StateSyncResult::CHANGED_A;
+//   }
+//   if (b.requires_single != requires_single || b.is_single != is_single) {
+//     res |= StateSyncResult::CHANGED_B;
+//   }
 
-  a.requires_single = requires_single;
-  b.requires_single = requires_single;
-  a.is_single = is_single;
-  b.is_single = is_single;
+//   a.requires_single = requires_single;
+//   b.requires_single = requires_single;
+//   a.is_single = is_single;
+//   b.is_single = is_single;
 
-  return res;
-}
+//   return res;
+// }
 
 /**
  * Compare states of simulation nodes sockets and select the most compatible.
  * Afterwards all states will be the same.
  * \return StateSyncResult flags indicating which states have changed.
  */
-static StateSyncResult simulation_nodes_state_sync(
-    const bNode &input_node,
-    const bNode &output_node,
-    const MutableSpan<SocketStatus> state_by_socket_id)
-{
-  StateSyncResult res = StateSyncResult::NONE;
-  for (const int i : output_node.output_sockets().index_range()) {
-    /* First input node output is Delta Time which does not appear in the output node outputs. */
-    const bNodeSocket &input_socket = input_node.output_socket(i + 1);
-    const bNodeSocket &output_socket = output_node.output_socket(i);
-    SocketStatus &input_state = state_by_socket_id[input_socket.index_in_tree()];
-    SocketStatus &output_state = state_by_socket_id[output_socket.index_in_tree()];
-    res |= sync_states(input_state, output_state);
-  }
-  return res;
-}
+// static StateSyncResult simulation_nodes_state_sync(
+//     const bNode &input_node,
+//     const bNode &output_node,
+//     const MutableSpan<DataRequirement> state_by_socket_id)
+// {
+//   StateSyncResult res = StateSyncResult::NONE;
+//   for (const int i : output_node.output_sockets().index_range()) {
+//     /* First input node output is Delta Time which does not appear in the output node outputs.
+//     */ const bNodeSocket &input_socket = input_node.output_socket(i + 1); const bNodeSocket
+//     &output_socket = output_node.output_socket(i); DataRequirement &input_state =
+//     state_by_socket_id[input_socket.index_in_tree()]; DataRequirement &output_state =
+//     state_by_socket_id[output_socket.index_in_tree()]; res |= sync_states(input_state,
+//     output_state);
+//   }
+//   return res;
+// }
 
-static StateSyncResult repeat_state_sync(const bNode &input_node,
-                                         const bNode &output_node,
-                                         const MutableSpan<SocketStatus> state_by_socket_id)
-{
-  StateSyncResult res = StateSyncResult::NONE;
-  const auto &storage = *static_cast<const NodeGeometryRepeatOutput *>(output_node.storage);
-  for (const int i : IndexRange(storage.items_num)) {
-    const bNodeSocket &input_socket = input_node.output_socket(i + 1);
-    const bNodeSocket &output_socket = output_node.output_socket(i);
-    SocketStatus &input_state = state_by_socket_id[input_socket.index_in_tree()];
-    SocketStatus &output_state = state_by_socket_id[output_socket.index_in_tree()];
-    res |= sync_states(input_state, output_state);
-  }
-  return res;
-}
+// static StateSyncResult repeat_state_sync(const bNode &input_node,
+//                                          const bNode &output_node,
+//                                          const MutableSpan<DataRequirement> state_by_socket_id)
+// {
+//   StateSyncResult res = StateSyncResult::NONE;
+//   const auto &storage = *static_cast<const NodeGeometryRepeatOutput *>(output_node.storage);
+//   for (const int i : IndexRange(storage.items_num)) {
+//     const bNodeSocket &input_socket = input_node.output_socket(i + 1);
+//     const bNodeSocket &output_socket = output_node.output_socket(i);
+//     DataRequirement &input_state = state_by_socket_id[input_socket.index_in_tree()];
+//     DataRequirement &output_state = state_by_socket_id[output_socket.index_in_tree()];
+//     res |= sync_states(input_state, output_state);
+//   }
+//   return res;
+// }
 
-static bool propagate_special_data_requirements(const bNodeTree &tree,
-                                                const bNode &node,
-                                                const MutableSpan<SocketStatus> state_by_socket_id)
-{
-  bool need_update = false;
+// static bool propagate_special_data_requirements(const bNodeTree &tree,
+//                                                 const bNode &node,
+//                                                 const MutableSpan<DataRequirement>
+//                                                 state_by_socket_id)
+// {
+//   bool need_update = false;
 
-  /* Sync field state between zone nodes and schedule another pass if necessary. */
-  switch (node.type_legacy) {
-    case GEO_NODE_SIMULATION_INPUT: {
-      const auto &data = *static_cast<const NodeGeometrySimulationInput *>(node.storage);
-      if (const bNode *output_node = tree.node_by_id(data.output_node_id)) {
-        const StateSyncResult sync_result = simulation_nodes_state_sync(
-            node, *output_node, state_by_socket_id);
-        if (bool(sync_result & StateSyncResult::CHANGED_B)) {
-          need_update = true;
-        }
-      }
-      break;
-    }
-    case GEO_NODE_SIMULATION_OUTPUT: {
-      for (const bNode *input_node : tree.nodes_by_type("GeometryNodeSimulationInput")) {
-        const auto &data = *static_cast<const NodeGeometrySimulationInput *>(input_node->storage);
-        if (node.identifier == data.output_node_id) {
-          const StateSyncResult sync_result = simulation_nodes_state_sync(
-              *input_node, node, state_by_socket_id);
-          if (bool(sync_result & StateSyncResult::CHANGED_A)) {
-            need_update = true;
-          }
-        }
-      }
-      break;
-    }
-    case GEO_NODE_REPEAT_INPUT: {
-      const auto &data = *static_cast<const NodeGeometryRepeatInput *>(node.storage);
-      if (const bNode *output_node = tree.node_by_id(data.output_node_id)) {
-        const StateSyncResult sync_result = repeat_state_sync(
-            node, *output_node, state_by_socket_id);
-        if (bool(sync_result & StateSyncResult::CHANGED_B)) {
-          need_update = true;
-        }
-      }
-      break;
-    }
-    case GEO_NODE_REPEAT_OUTPUT: {
-      for (const bNode *input_node : tree.nodes_by_type("GeometryNodeRepeatInput")) {
-        const auto &data = *static_cast<const NodeGeometryRepeatInput *>(input_node->storage);
-        if (node.identifier == data.output_node_id) {
-          const StateSyncResult sync_result = repeat_state_sync(
-              *input_node, node, state_by_socket_id);
-          if (bool(sync_result & StateSyncResult::CHANGED_A)) {
-            need_update = true;
-          }
-        }
-      }
-      break;
-    }
-  }
+//   /* Sync field state between zone nodes and schedule another pass if necessary. */
+//   switch (node.type_legacy) {
+//     case GEO_NODE_SIMULATION_INPUT: {
+//       const auto &data = *static_cast<const NodeGeometrySimulationInput *>(node.storage);
+//       if (const bNode *output_node = tree.node_by_id(data.output_node_id)) {
+//         const StateSyncResult sync_result = simulation_nodes_state_sync(
+//             node, *output_node, state_by_socket_id);
+//         if (bool(sync_result & StateSyncResult::CHANGED_B)) {
+//           need_update = true;
+//         }
+//       }
+//       break;
+//     }
+//     case GEO_NODE_SIMULATION_OUTPUT: {
+//       for (const bNode *input_node : tree.nodes_by_type("GeometryNodeSimulationInput")) {
+//         const auto &data = *static_cast<const NodeGeometrySimulationInput
+//         *>(input_node->storage); if (node.identifier == data.output_node_id) {
+//           const StateSyncResult sync_result = simulation_nodes_state_sync(
+//               *input_node, node, state_by_socket_id);
+//           if (bool(sync_result & StateSyncResult::CHANGED_A)) {
+//             need_update = true;
+//           }
+//         }
+//       }
+//       break;
+//     }
+//     case GEO_NODE_REPEAT_INPUT: {
+//       const auto &data = *static_cast<const NodeGeometryRepeatInput *>(node.storage);
+//       if (const bNode *output_node = tree.node_by_id(data.output_node_id)) {
+//         const StateSyncResult sync_result = repeat_state_sync(
+//             node, *output_node, state_by_socket_id);
+//         if (bool(sync_result & StateSyncResult::CHANGED_B)) {
+//           need_update = true;
+//         }
+//       }
+//       break;
+//     }
+//     case GEO_NODE_REPEAT_OUTPUT: {
+//       for (const bNode *input_node : tree.nodes_by_type("GeometryNodeRepeatInput")) {
+//         const auto &data = *static_cast<const NodeGeometryRepeatInput *>(input_node->storage);
+//         if (node.identifier == data.output_node_id) {
+//           const StateSyncResult sync_result = repeat_state_sync(
+//               *input_node, node, state_by_socket_id);
+//           if (bool(sync_result & StateSyncResult::CHANGED_A)) {
+//             need_update = true;
+//           }
+//         }
+//       }
+//       break;
+//     }
+//   }
 
-  return need_update;
-}
+//   return need_update;
+// }
 
 static void propagate_right_to_left(const bNodeTree &tree,
                                     const Span<nodes::StructureTypeInterface> node_interfaces,
-                                    MutableSpan<SocketStatus> socket_usages)
+                                    MutableSpan<DataRequirement> input_requirements)
 {
   while (true) {
     bool need_update = false;
 
     for (const bNode *node : tree.toposort_right_to_left()) {
-      if (node->is_group_output()) {
-        /* The output is not constrained. */
-        continue;
-      }
+      const Span<const bNodeSocket *> input_sockets = node->input_sockets();
+      const Span<const bNodeSocket *> output_sockets = node->output_sockets();
+      const nodes::StructureTypeInterface &interface = node_interfaces[node->index()];
 
-      /* Constraint outputs based on where they are connected. */
-      for (const bNodeSocket *output_socket : node->output_sockets()) {
-        SocketStatus &output_usage = socket_usages[output_socket->index_in_tree()];
-        for (const bNodeLink *link : output_socket->directly_linked_links()) {
-          if (!link->is_used()) {
-            continue;
-          }
-          const bNodeSocket &target_socket = *link->tosock;
-          merge_status_right_to_left(output_usage, socket_usages[target_socket.index_in_tree()]);
+      Array<Vector<int>> linked_outputs(node->input_sockets().size());
+      for (const int output : interface.outputs.index_range()) {
+        for (const int input : interface.outputs[output].linked_inputs) {
+          linked_outputs[input].append(output);
         }
       }
 
-      /* Propagate contraints from node outputs to inputs. */
-
-      if (node->is_reroute()) {
-        const int input = node->input_socket(0).index_in_tree();
-        const int output = node->output_socket(0).index_in_tree();
-        socket_usages[input] = socket_usages[output];
-        continue;
-      }
-
-      const nodes::StructureTypeInterface &interface = node_interfaces[node->index()];
-      for (const int output_index : interface.outputs.index_range()) {
-        const bNodeSocket &output = node->output_socket(output_index);
-        if (!output.is_available()) {
+      for (const int input_index : input_sockets.index_range()) {
+        const bNodeSocket &input_socket = *input_sockets[input_index];
+        if (!input_socket.is_available()) {
           continue;
         }
-        for (const int input_index : interface.outputs[output_index].linked_inputs) {
-          const bNodeSocket &input = node->input_socket(input_index);
-          if (!input.is_available() || !output.is_available()) {
+        DataRequirement &requirement = input_requirements[input_socket.index_in_all_inputs()];
+        requirement = DataRequirement::None;
+        for (const int output_index : interface.outputs.index_range()) {
+          const bNodeSocket &output_socket = *output_sockets[output_index];
+          if (!output_socket.is_available()) {
             continue;
           }
-          merge_status_right_to_left(socket_usages[input.index_in_tree()],
-                                     socket_usages[output.index_in_tree()]);
+          for (const bNodeSocket *socket : output_socket.directly_linked_sockets()) {
+            if (!socket->is_available()) {
+              continue;
+            }
+            requirement = merge(requirement, input_requirements[socket->index_in_all_inputs()]);
+          }
         }
       }
 
       /* Find reverse dependencies and resolve conflicts, which may require another pass. */
-      if (propagate_special_data_requirements(tree, *node, socket_usages)) {
-        need_update = true;
-      }
+      // if (propagate_special_data_requirements(tree, *node, input_requirements)) {
+      //   need_update = true;
+      // }
     }
 
     if (!need_update) {
@@ -359,60 +380,80 @@ static void propagate_right_to_left(const bNodeTree &tree,
   }
 }
 
-static void merge_status_left_to_right(SocketStatus &a, const SocketStatus &b)
+static StructureType merge_status_left_to_right(const StructureType a, const StructureType b)
 {
-  a.is_field |= b.is_field;
-  a.is_grid |= b.is_grid;
-  a.is_single |= b.is_single;
-  if (a.is_field) {
-    a.is_single = false;
+  if (a == b) {
+    return a;
   }
+  if (a == StructureType::Dynamic) {
+    return b;
+  }
+  if (b == StructureType::Dynamic) {
+    return a;
+  }
+  if ((a == StructureType::Single && b == StructureType::Field) ||
+      (a == StructureType::Field && b == StructureType::Single))
+  {
+    return StructureType::Field;
+  }
+  if ((a == StructureType::Single && b == StructureType::Grid) ||
+      (a == StructureType::Grid && b == StructureType::Single))
+  {
+    return StructureType::Grid;
+  }
+  /* Invalid combination. */
+  return a;
 }
 
 static void propagate_left_to_right(const bNodeTree &tree,
                                     const Span<nodes::StructureTypeInterface> node_interfaces,
-                                    MutableSpan<SocketStatus> socket_usages)
+                                    const Span<StructureType> group_input_structure_types,
+                                    MutableSpan<StructureType> structure_types)
 {
   while (true) {
     bool need_update = false;
     for (const bNode *node : tree.toposort_left_to_right()) {
-      for (const bNodeSocket *input_socket : node->input_sockets()) {
-        if (!input_socket->is_available()) {
-          continue;
-        }
-        SocketStatus &socket_structure_type = socket_usages[input_socket->index_in_tree()];
-        if (input_socket->is_directly_linked()) {
-          const bNodeLink &link = *input_socket->directly_linked_links()[0];
-          if (link.is_used()) {
-            socket_structure_type = socket_usages[link.fromsock->index_in_tree()];
-            continue;
-          }
-        }
-      }
-
-      if (node->is_group_input()) {
-        continue;
-      }
-
       if (node->is_undefined()) {
         continue;
       }
-
-      if (node->is_reroute()) {
-        const int input = node->input_socket(0).index_in_tree();
-        const int output = node->output_socket(0).index_in_tree();
-        socket_usages[output] = socket_usages[input];
+      const Span<const bNodeSocket *> input_sockets = node->input_sockets();
+      const Span<const bNodeSocket *> output_sockets = node->output_sockets();
+      if (node->is_group_input()) {
+        for (const int i : output_sockets.index_range().drop_back(1)) {
+          structure_types[output_sockets[i]->index_in_tree()] = group_input_structure_types[i];
+        }
         continue;
+      }
+
+      for (const bNodeSocket *input : input_sockets) {
+        if (!input->is_available()) {
+          continue;
+        }
+        const nodes::SocketDeclaration &declaration = *input->runtime->declaration;
+        if (declaration.structure_type != StructureType::Dynamic) {
+          structure_types[input->index_in_tree()] = declaration.structure_type;
+          continue;
+        }
+        if (!input->is_directly_linked()) {
+          continue;
+        }
+        const bNodeLink &link = *input->directly_linked_links().first();
+        if (!link.is_used()) {
+          continue;
+        }
+        structure_types[input->index_in_tree()] = structure_types[link.fromsock->index_in_tree()];
       }
 
       const nodes::StructureTypeInterface &interface = node_interfaces[node->index()];
 
       for (const int output_index : interface.outputs.index_range()) {
-        const bNodeSocket &output = node->output_socket(output_index);
+        const bNodeSocket &output = *output_sockets[output_index];
         if (!output.is_available()) {
           continue;
         }
-        if (output.runtime->declaration->structure_type != StructureType::Dynamic) {
+        const nodes::SocketDeclaration &declaration = *output.runtime->declaration;
+        if (declaration.structure_type != StructureType::Dynamic) {
+          structure_types[output.index_in_tree()] = declaration.structure_type;
           continue;
         }
         for (const int input_index : interface.outputs[output_index].linked_inputs) {
@@ -420,15 +461,15 @@ static void propagate_left_to_right(const bNodeTree &tree,
           if (!input.is_available()) {
             continue;
           }
-          merge_status_left_to_right(socket_usages[output.index_in_tree()],
-                                     socket_usages[input.index_in_tree()]);
+          structure_types[output.index_in_tree()] = merge_status_left_to_right(
+              structure_types[output.index_in_tree()], structure_types[input.index_in_tree()]);
         }
       }
 
       /* Find reverse dependencies and resolve conflicts, which may require another pass. */
-      if (propagate_special_data_requirements(tree, *node, socket_usages)) {
-        need_update = true;
-      }
+      // if (propagate_special_data_requirements(tree, *node, socket_usages)) {
+      //   need_update = true;
+      // }
     }
 
     if (!need_update) {
@@ -481,7 +522,7 @@ static Vector<int> find_dynamic_output_linked_inputs(
 static void store_group_output_structure_types(
     const bNodeTree &tree,
     const Span<nodes::StructureTypeInterface> interface_by_node,
-    const Span<SocketStatus> socket_usages,
+    const Span<StructureType> structure_types,
     nodes::StructureTypeInterface &interface)
 {
   const bNode *group_output_node = tree.group_output_node();
@@ -497,22 +538,12 @@ static void store_group_output_structure_types(
       continue;
     }
     /* Update derived interface output structure types from output node socket usages. */
-    const SocketStatus usage = socket_usages[sockets[i]->index_in_tree()];
-    if (usage.is_grid) {
-      interface.outputs[i] = {StructureType::Grid, {}};
-      continue;
+    interface.outputs[i].type = structure_types[sockets[i]->index_in_tree()];
+    if (interface.outputs[i].type == StructureType::Dynamic) {
+      const Vector<int> linked_inputs = find_dynamic_output_linked_inputs(*sockets[i],
+                                                                          interface_by_node);
+      interface.outputs[i] = {StructureType::Dynamic, linked_inputs.as_span()};
     }
-    if (usage.is_single) {
-      interface.outputs[i] = {StructureType::Single, {}};
-      continue;
-    }
-    if (usage.is_field) {
-      interface.outputs[i] = {StructureType::Field, {}};
-      continue;
-    }
-    const Vector<int> linked_inputs = find_dynamic_output_linked_inputs(*sockets[i],
-                                                                        interface_by_node);
-    interface.outputs[i] = {StructureType::Dynamic, linked_inputs.as_span()};
   }
 }
 
@@ -531,13 +562,14 @@ static std::unique_ptr<nodes::StructureTypeInterface> calc_structure_type_interf
   derived_interface->inputs.reinitialize(tree.interface_inputs().size());
   derived_interface->outputs.reinitialize(tree.interface_outputs().size());
 
-  Array<SocketStatus> socket_usages(tree.all_sockets().size());
+  Array<DataRequirement> data_requirements(tree.all_input_sockets().size());
+  Array<StructureType> structure_types(tree.all_sockets().size(), StructureType::Dynamic);
 
-  initialize_socket_states(tree, socket_usages);
-  propagate_right_to_left(tree, node_interfaces, socket_usages);
-  store_group_input_structure_types(tree, socket_usages, *derived_interface);
-  propagate_left_to_right(tree, node_interfaces, socket_usages);
-  store_group_output_structure_types(tree, node_interfaces, socket_usages, *derived_interface);
+  init_input_requirements(tree, data_requirements);
+  propagate_right_to_left(tree, node_interfaces, data_requirements);
+  store_group_input_structure_types(tree, data_requirements, *derived_interface);
+  propagate_left_to_right(tree, node_interfaces, derived_interface->inputs, structure_types);
+  store_group_output_structure_types(tree, node_interfaces, structure_types, *derived_interface);
 
   return derived_interface;
 }
