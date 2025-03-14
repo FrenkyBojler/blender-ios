@@ -100,11 +100,6 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *ptr)
   }
 }
 
-static void node_geo_exec(GeoNodeExecParams params)
-{
-  params.set_default_remaining_outputs();
-}
-
 static void node_operators()
 {
   socket_items::ops::make_common_operators<EvaluateClosureInputItemsAccessor>();
@@ -120,7 +115,6 @@ static void node_register()
   ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.declare = node_declare;
   ntype.initfunc = node_init;
-  ntype.geometry_node_execute = node_geo_exec;
   ntype.insert_link = node_insert_link;
   ntype.draw_buttons_ex = node_layout_ex;
   ntype.register_operators = node_operators;
