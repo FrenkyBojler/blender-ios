@@ -26,5 +26,4 @@ blf.word_wrap(font_id, image_size[0])
 with blf.bind_imbuf(font_id, ibuf, display_name="sRGB"):
     blf.draw_buffer(font_id, "Lots of wrapped text. " * 50)
 
-ibuf.filepath = "/path/to/image.png"
-imbuf.write(ibuf)
+imbuf.write(ibuf, filepath="/path/to/image.png")
