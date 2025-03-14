@@ -6,7 +6,6 @@
 #include "BLI_stack.hh"
 
 #include "BKE_node.hh"
-#include "BKE_node_legacy_types.hh"
 #include "BKE_node_runtime.hh"
 
 #include "DNA_node_tree_interface_types.h"
@@ -106,7 +105,7 @@ static void init_input_requirements(const bNodeTree &tree,
   for (const int i : input_sockets.index_range()) {
     const bNodeSocket &socket = *input_sockets[i];
     const nodes::SocketDeclaration *declaration = socket.runtime->declaration;
-    if (!socket.runtime->declaration) {
+    if (!declaration) {
       input_requirements[i] = DataRequirement::None;
       continue;
     }
