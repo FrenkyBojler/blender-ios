@@ -477,48 +477,65 @@ TEST(xpbd_constraints, VariableOverlapCheckerFail)
   EXPECT_FALSE(var_checker_disabled.has_overlap());
 }
 
-static auto simple_solver_data(const bool use_velocities)
-{
+struct SolverTestData {
   xpbd_constraints::ConstraintEvalParams params;
-  params.masses = VArray<float>::ForContainer(Array<float>{1.0f, 3.0f, 0.5f});
-  params.local_inertia = VArray<float3>::ForContainer(
+  xpbd_constraints::ConstraintVariables vars;
+  Array<xpbd_constraints::ConstraintEvalData> data;
+
+  /* These are the same arrays stored in point cloud attributes,
+   * put here directly for convenient testing. */
+  Array<float> alphas = {1.5f, 0.1f};
+  Array<float> betas = {0.3f, 0.0f};
+  Array<int> point1 = {0, 2};
+  Array<float3> goal_position = {float3(0.0f), float3(1, -1, 2)};
+};
+
+static SolverTestData simple_solver_data(const bool use_velocities)
+{
+  SolverTestData solver_test;
+
+  solver_test.params.masses = VArray<float>::ForContainer(Array<float>{1.0f, 3.0f, 0.5f});
+  solver_test.params.local_inertia = VArray<float3>::ForContainer(
       Array<float3>{float3(1.0f), float3(1, 2, 1), float3(0.2f, 10.f, 0.5f)});
 
-  xpbd_constraints::ConstraintVariables vars;
-  vars.positions = {float3(0, 1, 0), float3(1, 0, 0), float3(0, 0, -2)};
-  vars.rotations = {math::to_quaternion(math::EulerXYZ(0, 0, 0)),
-                    math::to_quaternion(math::EulerXYZ(90, 0, 0)),
-                    math::to_quaternion(math::EulerXYZ(0, -20, 0))};
+  solver_test.vars.positions = {float3(0, 1, 0), float3(1, 0, 0), float3(0, 0, -2)};
+  solver_test.vars.rotations = {math::to_quaternion(math::EulerXYZ(0, 0, 0)),
+                                math::to_quaternion(math::EulerXYZ(90, 0, 0)),
+                                math::to_quaternion(math::EulerXYZ(0, -20, 0))};
   if (use_velocities) {
-    vars.velocities = {float3(-1, -1, 0), float3(0, 0, 0), float3(0, 0, 4)};
-    vars.angular_velocities = {float3(0, 0, 0), float3(3, 0, -1), float3(2, 2, 0)};
+    solver_test.vars.velocities = {float3(-1, -1, 0), float3(0, 0, 0), float3(0, 0, 4)};
+    solver_test.vars.angular_velocities = {float3(0, 0, 0), float3(3, 0, -1), float3(2, 2, 0)};
   }
 
-  Array<xpbd_constraints::ConstraintEvalData> data(1);
+  solver_test.data.reinitialize(1);
 
-  data[0].type = &xpbd_constraints::get_info__position_goal(true);
+  solver_test.data[0].type = &xpbd_constraints::get_info__position_goal(true);
   PointCloud *constraints = BKE_pointcloud_new_nomain(2);
   bke::MutableAttributeAccessor attributes = constraints->attributes_for_write();
 
-  const Array<int> point1 = {0, 2};
-  const Array<float3> goal_position = {float3(0.0f), float3(1, -1, 2)};
-  const Array<float> alphas = {1.5f, 0.1f};
-  const Array<float> betas = {0.3f, 0.0f};
-  attributes.add<int>(
-      "point1", bke::AttrDomain::Point, bke::AttributeInitVArray(VArray<int>::ForSpan(point1)));
-  attributes.add<float3>("goal_position",
-                         bke::AttrDomain::Point,
-                         bke::AttributeInitVArray(VArray<float3>::ForSpan(goal_position)));
+  solver_test.alphas = {1.5f, 0.1f};
+  solver_test.betas = {0.3f, 0.0f};
+  solver_test.point1 = {0, 2};
+  solver_test.goal_position = {float3(0.0f), float3(1, -1, 2)};
+
+  attributes.add<int>("point1",
+                      bke::AttrDomain::Point,
+                      bke::AttributeInitVArray(VArray<int>::ForSpan(solver_test.point1)));
+  attributes.add<float3>(
+      "goal_position",
+      bke::AttrDomain::Point,
+      bke::AttributeInitVArray(VArray<float3>::ForSpan(solver_test.goal_position)));
   attributes.add<float>("compliance",
                         bke::AttrDomain::Point,
-                        bke::AttributeInitVArray(VArray<float>::ForSpan(alphas)));
-  attributes.add<float>(
-      "damping", bke::AttrDomain::Point, bke::AttributeInitVArray(VArray<float>::ForSpan(betas)));
+                        bke::AttributeInitVArray(VArray<float>::ForSpan(solver_test.alphas)));
+  attributes.add<float>("damping",
+                        bke::AttrDomain::Point,
+                        bke::AttributeInitVArray(VArray<float>::ForSpan(solver_test.betas)));
 
-  data[0].geometry = bke::GeometrySet::from_pointcloud(std::move(constraints));
-  data[0].constraints = IndexRange(attributes.domain_size(bke::AttrDomain::Point));
+  solver_test.data[0].geometry = bke::GeometrySet::from_pointcloud(std::move(constraints));
+  solver_test.data[0].constraints = IndexRange(attributes.domain_size(bke::AttrDomain::Point));
 
-  return std::make_tuple(std::move(params), std::move(data), std::move(vars));
+  return solver_test;
 }
 
 inline float4x4 quaternion_matrix(const math::Quaternion &q)
@@ -533,72 +550,97 @@ inline float4x4 quaternion_matrix(const math::Quaternion &q)
 
 #define EXPECT_EIGEN_M3_NEAR(a, b, eps) \
   do { \
-    EXPECT_NEAR(a[0][0], b.coeff(0, 0), eps); \
-    EXPECT_NEAR(a[0][1], b.coeff(1, 0), eps); \
-    EXPECT_NEAR(a[0][2], b.coeff(2, 0), eps); \
-    EXPECT_NEAR(a[1][0], b.coeff(0, 1), eps); \
-    EXPECT_NEAR(a[1][1], b.coeff(1, 1), eps); \
-    EXPECT_NEAR(a[1][2], b.coeff(2, 1), eps); \
-    EXPECT_NEAR(a[2][0], b.coeff(0, 2), eps); \
-    EXPECT_NEAR(a[2][1], b.coeff(1, 2), eps); \
-    EXPECT_NEAR(a[2][2], b.coeff(2, 2), eps); \
+    EXPECT_NEAR((a)[0][0], (b).coeff(0, 0), eps); \
+    EXPECT_NEAR((a)[0][1], (b).coeff(1, 0), eps); \
+    EXPECT_NEAR((a)[0][2], (b).coeff(2, 0), eps); \
+    EXPECT_NEAR((a)[1][0], (b).coeff(0, 1), eps); \
+    EXPECT_NEAR((a)[1][1], (b).coeff(1, 1), eps); \
+    EXPECT_NEAR((a)[1][2], (b).coeff(2, 1), eps); \
+    EXPECT_NEAR((a)[2][0], (b).coeff(0, 2), eps); \
+    EXPECT_NEAR((a)[2][1], (b).coeff(1, 2), eps); \
+    EXPECT_NEAR((a)[2][2], (b).coeff(2, 2), eps); \
   } while (false);
 
 #define EXPECT_EIGEN_M4_NEAR(a, b, eps) \
   do { \
-    EXPECT_NEAR(a[0][0], b.coeff(0, 0), eps); \
-    EXPECT_NEAR(a[0][1], b.coeff(1, 0), eps); \
-    EXPECT_NEAR(a[0][2], b.coeff(2, 0), eps); \
-    EXPECT_NEAR(a[0][3], b.coeff(3, 0), eps); \
-    EXPECT_NEAR(a[1][0], b.coeff(0, 1), eps); \
-    EXPECT_NEAR(a[1][1], b.coeff(1, 1), eps); \
-    EXPECT_NEAR(a[1][2], b.coeff(2, 1), eps); \
-    EXPECT_NEAR(a[1][3], b.coeff(3, 1), eps); \
-    EXPECT_NEAR(a[2][0], b.coeff(0, 2), eps); \
-    EXPECT_NEAR(a[2][1], b.coeff(1, 2), eps); \
-    EXPECT_NEAR(a[2][2], b.coeff(2, 2), eps); \
-    EXPECT_NEAR(a[2][3], b.coeff(3, 2), eps); \
-    EXPECT_NEAR(a[3][0], b.coeff(0, 3), eps); \
-    EXPECT_NEAR(a[3][1], b.coeff(1, 3), eps); \
-    EXPECT_NEAR(a[3][2], b.coeff(2, 3), eps); \
-    EXPECT_NEAR(a[3][3], b.coeff(3, 3), eps); \
+    EXPECT_NEAR((a)[0][0], (b).coeff(0, 0), eps); \
+    EXPECT_NEAR((a)[0][1], (b).coeff(1, 0), eps); \
+    EXPECT_NEAR((a)[0][2], (b).coeff(2, 0), eps); \
+    EXPECT_NEAR((a)[0][3], (b).coeff(3, 0), eps); \
+    EXPECT_NEAR((a)[1][0], (b).coeff(0, 1), eps); \
+    EXPECT_NEAR((a)[1][1], (b).coeff(1, 1), eps); \
+    EXPECT_NEAR((a)[1][2], (b).coeff(2, 1), eps); \
+    EXPECT_NEAR((a)[1][3], (b).coeff(3, 1), eps); \
+    EXPECT_NEAR((a)[2][0], (b).coeff(0, 2), eps); \
+    EXPECT_NEAR((a)[2][1], (b).coeff(1, 2), eps); \
+    EXPECT_NEAR((a)[2][2], (b).coeff(2, 2), eps); \
+    EXPECT_NEAR((a)[2][3], (b).coeff(3, 2), eps); \
+    EXPECT_NEAR((a)[3][0], (b).coeff(0, 3), eps); \
+    EXPECT_NEAR((a)[3][1], (b).coeff(1, 3), eps); \
+    EXPECT_NEAR((a)[3][2], (b).coeff(2, 3), eps); \
+    EXPECT_NEAR((a)[3][3], (b).coeff(3, 3), eps); \
+  } while (false);
+
+#define EXPECT_EIGEN_V3_COL_NEAR(a, b, eps) \
+  do { \
+    EXPECT_NEAR((a)[0], (b).coeff(0, 0), eps); \
+    EXPECT_NEAR((a)[1], (b).coeff(1, 0), eps); \
+    EXPECT_NEAR((a)[2], (b).coeff(2, 0), eps); \
+  } while (false);
+
+#define EXPECT_EIGEN_V3_ROW_NEAR(a, b, eps) \
+  do { \
+    EXPECT_NEAR((a)[0], (b).coeff(0, 0), eps); \
+    EXPECT_NEAR((a)[1], (b).coeff(0, 1), eps); \
+    EXPECT_NEAR((a)[2], (b).coeff(0, 2), eps); \
   } while (false);
 
 TEST_F(XPBDSolverTest, GlobalSolverUnconstrained)
 {
   constexpr float eps = 1e-6f;
 
-  auto [params, data, vars] = simple_solver_data(false);
+  SolverTestData solver_test = simple_solver_data(false);
 
   Eigen::SparseMatrix<float> H;
   Eigen::VectorXf b;
-  xpbd_constraints::build_global_solve_system(params, data, vars, true, H, b);
+  xpbd_constraints::build_global_solve_system(
+      solver_test.params, solver_test.data, solver_test.vars, true, H, b);
   EXPECT_EQ(H.rows(), 23);
   EXPECT_EQ(H.cols(), 23);
-  // XXX only counting compliance values atm
-  EXPECT_EQ(H.nonZeros(), 59);
+  // XXX replace when matrix is complete
+  EXPECT_EQ(H.nonZeros(), 65);
   // EXPECT_EQ(H.nonZeros(), 71);
 
-  const float3x3 mass_diagonal0 = math::from_scale<float3x3>(float3(params.masses[0]));
-  const float3x3 mass_diagonal1 = math::from_scale<float3x3>(float3(params.masses[1]));
-  const float3x3 mass_diagonal2 = math::from_scale<float3x3>(float3(params.masses[2]));
-  EXPECT_EIGEN_M3_NEAR(mass_diagonal0, H.block(0, 0, 3, 3).toDense(), eps);
-  EXPECT_EIGEN_M3_NEAR(mass_diagonal1, H.block(3, 3, 3, 3).toDense(), eps);
-  EXPECT_EIGEN_M3_NEAR(mass_diagonal2, H.block(6, 6, 3, 3).toDense(), eps);
+  const float3x3 mass_diagonal0 = math::from_scale<float3x3>(float3(solver_test.params.masses[0]));
+  const float3x3 mass_diagonal1 = math::from_scale<float3x3>(float3(solver_test.params.masses[1]));
+  const float3x3 mass_diagonal2 = math::from_scale<float3x3>(float3(solver_test.params.masses[2]));
+  EXPECT_EIGEN_M3_NEAR(mass_diagonal0, H.block(0, 0, 3, 3), eps);
+  EXPECT_EIGEN_M3_NEAR(mass_diagonal1, H.block(3, 3, 3, 3), eps);
+  EXPECT_EIGEN_M3_NEAR(mass_diagonal2, H.block(6, 6, 3, 3), eps);
 
   const float4x4 inertia_tensor0 = quaternion_matrix(
-      vars.rotations[0] * math::Quaternion(0.0f, params.local_inertia[0]));
+      solver_test.vars.rotations[0] * math::Quaternion(0.0f, solver_test.params.local_inertia[0]));
   const float4x4 inertia_tensor1 = quaternion_matrix(
-      vars.rotations[1] * math::Quaternion(0.0f, params.local_inertia[1]));
+      solver_test.vars.rotations[1] * math::Quaternion(0.0f, solver_test.params.local_inertia[1]));
   const float4x4 inertia_tensor2 = quaternion_matrix(
-      vars.rotations[2] * math::Quaternion(0.0f, params.local_inertia[2]));
-  EXPECT_EIGEN_M4_NEAR(inertia_tensor0, H.block(9, 9, 4, 4).toDense(), eps);
-  EXPECT_EIGEN_M4_NEAR(inertia_tensor1, H.block(13, 13, 4, 4).toDense(), eps);
-  EXPECT_EIGEN_M4_NEAR(inertia_tensor2, H.block(17, 17, 4, 4).toDense(), eps);
+      solver_test.vars.rotations[2] * math::Quaternion(0.0f, solver_test.params.local_inertia[2]));
+  EXPECT_EIGEN_M4_NEAR(inertia_tensor0, H.block(9, 9, 4, 4), eps);
+  EXPECT_EIGEN_M4_NEAR(inertia_tensor1, H.block(13, 13, 4, 4), eps);
+  EXPECT_EIGEN_M4_NEAR(inertia_tensor2, H.block(17, 17, 4, 4), eps);
 
-  const Array<float> alphas = {1.5f, 0.1f};
-  const Array<float> betas = {0.3f, 0.0f};
-  EXPECT_NEAR(1.0f + alphas[0], H.coeff(21, 21), eps);
+  EXPECT_NEAR(1.0f + solver_test.alphas[0], H.coeff(21, 21), eps);
+  EXPECT_NEAR(1.0f + solver_test.alphas[1], H.coeff(22, 22), eps);
+
+  /* Damping factor for displacement terms in constraint equations. */
+  const float damping_factor0 = 1.0f + solver_test.betas[0] * solver_test.params.inv_delta_time;
+  const float damping_factor1 = 1.0f + solver_test.betas[0] * solver_test.params.inv_delta_time;
+
+  const float3 pos_gradient0 = math::normalize(solver_test.goal_position[0] -
+                                               solver_test.vars.positions[0]);
+  const float3 pos_gradient1 = math::normalize(solver_test.goal_position[1] -
+                                               solver_test.vars.positions[1]);
+  EXPECT_EIGEN_V3_ROW_NEAR(pos_gradient0 * damping_factor0, H.block(21, 0, 1, 3), eps);
+  EXPECT_EIGEN_V3_ROW_NEAR(pos_gradient1 * damping_factor1, H.block(22, 2, 1, 3), eps);
 }
 
 }  // namespace blender::nodes::tests
