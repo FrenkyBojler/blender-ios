@@ -1734,12 +1734,6 @@ class EXTENSIONS_OT_repo_refresh_all(Operator):
         description="Only refresh the active repository",
     )
 
-    @classmethod
-    def description(cls, _context, props):
-        if props.use_active_only:
-            return tip_("Refresh the list of extensions for the active repository")
-        return ""  # Default.
-
     def _exceptions_as_report(self, repo_name, ex):
         self.report({'WARNING'}, "{:s}: {:s}".format(repo_name, str(ex)))
 
