@@ -170,8 +170,12 @@ class GeoNodeExecParams {
     }
   }
 
-  /** Low level access to the parameters. */
-  lf::Params &lazy_function_params()
+  /**
+   * Low level access to the parameters. Usually, it's better to use #get_input, #extract_input and
+   * #set_output instead because they are easier to use and more safe. Sometimes it can be
+   * beneficial to have more direct access to the raw values though and avoid the indirection.
+   */
+  lf::Params &low_level_lazy_function_params()
   {
     return params_;
   }

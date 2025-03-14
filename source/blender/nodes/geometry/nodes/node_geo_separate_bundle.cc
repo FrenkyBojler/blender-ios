@@ -100,7 +100,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   const bNode &node = params.node();
   const NodeGeometrySeparateBundle &storage = node_storage(node);
 
-  lf::Params &lf_params = params.lazy_function_params();
+  lf::Params &lf_params = params.low_level_lazy_function_params();
 
   for (const int i : IndexRange(storage.items_num)) {
     const NodeGeometrySeparateBundleItem &item = storage.items[i];
