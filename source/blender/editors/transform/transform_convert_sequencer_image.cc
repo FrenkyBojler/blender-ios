@@ -28,6 +28,7 @@
 
 #include "transform.hh"
 #include "transform_convert.hh"
+#include <cstdio>
 
 namespace blender::ed::transform {
 
@@ -242,7 +243,7 @@ static void recalcData_sequencer_image(TransInfo *t)
 
     /* Rotation. Scaling can cause negative rotation. */
     if (t->mode == TFM_ROTATION) {
-      transform->rotation = (tdseq->orig_rotation - t->values_final[0]) * (mirror[0] * mirror[1]);
+      transform->rotation = tdseq->orig_rotation - (t->values_final[0] * mirror[0] * mirror[1]);
     }
 
     if ((t->animtimer) && animrig::is_autokey_on(t->scene)) {
