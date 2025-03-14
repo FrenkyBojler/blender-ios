@@ -1138,7 +1138,7 @@ void importer_main(Main *bmain, Scene *scene, ViewLayer *view_layer, const FBXIm
   opts.target_axes.right = UFBX_COORDINATE_AXIS_POSITIVE_X;
   opts.target_axes.up = UFBX_COORDINATE_AXIS_POSITIVE_Z;
   opts.target_axes.front = UFBX_COORDINATE_AXIS_NEGATIVE_Y;
-  opts.target_unit_meters = 1.0f;
+  opts.target_unit_meters = 1.0f / params.global_scale;
 
   opts.target_camera_axes.right = UFBX_COORDINATE_AXIS_POSITIVE_X;
   opts.target_camera_axes.up = UFBX_COORDINATE_AXIS_POSITIVE_Y;
