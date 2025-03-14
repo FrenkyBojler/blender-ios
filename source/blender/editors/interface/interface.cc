@@ -3092,10 +3092,10 @@ void ui_but_string_get_ex(uiBut *but,
         prec = 0;
       }
       else if (float_precision > UI_PRECISION_FLOAT_MAX) {
-        // Try to use as many digits as necessary to not lose precision.
-        // 9 digits are guaranteed to round trip to and from decimals,
-        // but in practice 8 are often enough.
-        // See https://en.wikipedia.org/wiki/Single-precision_floating-point_format
+        /* Try to use as many digits as necessary to not lose precision.
+         * 9 digits are guaranteed to round trip to and from decimals,
+         * but in practice 8 are often enough.
+         * See https://en.wikipedia.org/wiki/Single-precision_floating-point_format */
         prec = 8;
       }
 
