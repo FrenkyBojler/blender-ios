@@ -68,7 +68,7 @@ static void node_shader_buts_radial_tiling(uiLayout *layout, bContext * /*C*/, P
 
 static void node_shader_init_radial_tiling(bNodeTree * /*ntree*/, bNode *node)
 {
-  NodeRadialTiling *storage = MEM_cnew<NodeRadialTiling>(__func__);
+  NodeRadialTiling *storage = MEM_callocN<NodeRadialTiling>(__func__);
   storage->normalize_r_gon_parameter = false;
 
   node->storage = storage;
