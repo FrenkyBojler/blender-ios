@@ -3864,6 +3864,37 @@ static void version_sequencer_update_overdrop(Main *bmain)
   }
 }
 
+static void asset_browser_add_list_view(Main *bmain)
+{
+  LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
+    LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+      LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
+        if (sl->spacetype != SPACE_FILE) {
+          continue;
+        }
+        SpaceFile *sfile = reinterpret_cast<SpaceFile *>(sl);
+        if (sfile->params) {
+          if (sfile->params->list_thumbnail_size == 0) {
+            sfile->params->list_thumbnail_size = 16;
+          }
+          if (sfile->params->list_column_size == 0) {
+            sfile->params->list_column_size = 500;
+          }
+        }
+        if (sfile->asset_params) {
+          if (sfile->asset_params->base_params.list_thumbnail_size == 0) {
+            sfile->asset_params->base_params.list_thumbnail_size = 32;
+          }
+          if (sfile->asset_params->base_params.list_column_size == 0) {
+            sfile->asset_params->base_params.list_column_size = 220;
+          }
+          sfile->asset_params->base_params.details_flags = 0;
+        }
+      }
+    }
+  }
+}
+
 void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
 {
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 1)) {
@@ -5993,6 +6024,10 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
       SequencerToolSettings *sequencer_tool_settings = blender::seq::tool_settings_ensure(scene);
       sequencer_tool_settings->snap_mode |= SEQ_SNAP_TO_FRAME_RANGE;
     }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 6)) {
+    asset_browser_add_list_view(bmain);
   }
 
   /* Always run this versioning; meshes are written with the legacy format which always needs to
