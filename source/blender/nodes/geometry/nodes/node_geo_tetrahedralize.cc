@@ -1,4 +1,6 @@
-/**
+	/* SPDX-FileCopyrightText: 2025 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later 
  * Tetrahedral Mesh Generation Node
  * --------------------------------
  * This node creates a tetrahedral volume mesh from a manifold surface mesh.
