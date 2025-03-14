@@ -1528,6 +1528,7 @@ void do_versions_after_linking_400(FileData *fd, Main *bmain)
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 2)) {
     blender::animrig::versioning::convert_legacy_animato_actions(*bmain);
     blender::animrig::versioning::tag_action_users_for_slotted_actions_conversion(*bmain);
+    blender::animrig::versioning::convert_legacy_action_assignments(*bmain, fd->reports->reports);
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 7)) {
@@ -6052,6 +6053,30 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 7)) {
+    LISTBASE_FOREACH (bNodeTree *, ntree, &bmain->nodetrees) {
+      if (ntree->type == NTREE_GEOMETRY) {
+        node_interface_single_value_to_structure_type(ntree->tree_interface.root_panel.item);
+        LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
+          if (STREQ(node->idname, "GeometryNodeStoreNamedGrid")) {
+            switch (node->custom1) {
+              case CD_PROP_FLOAT:
+                node->custom1 = VOLUME_GRID_FLOAT;
+                break;
+              case CD_PROP_FLOAT2:
+              case CD_PROP_FLOAT3:
+                node->custom1 = VOLUME_GRID_VECTOR_FLOAT;
+                break;
+              default:
+                node->custom1 = VOLUME_GRID_FLOAT;
+                break;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 8)) {
     LISTBASE_FOREACH (bNodeTree *, ntree, &bmain->nodetrees) {
       if (ntree->type == NTREE_GEOMETRY) {
         node_interface_single_value_to_structure_type(ntree->tree_interface.root_panel.item);
