@@ -531,7 +531,7 @@ void drw_batch_cache_validate(Object *ob)
   }
 }
 
-void drw_batch_cache_generate_requested(Object *ob)
+void drw_batch_cache_generate_requested(Object *ob, TaskGraph &task_graph)
 {
   using namespace blender::draw;
   const DRWContext *draw_ctx = DRW_context_get();
@@ -549,7 +549,7 @@ void drw_batch_cache_generate_requested(Object *ob)
   switch (ob->type) {
     case OB_MESH:
       DRW_mesh_batch_cache_create_requested(
-          *ob, *(Mesh *)ob->data, *scene, is_paint_mode, use_hide);
+          task_graph, *ob, *(Mesh *)ob->data, *scene, is_paint_mode, use_hide);
       break;
     case OB_CURVES_LEGACY:
     case OB_FONT:
@@ -568,7 +568,7 @@ void drw_batch_cache_generate_requested(Object *ob)
   }
 }
 
-void drw_batch_cache_generate_requested_evaluated_mesh_or_curve(Object *ob)
+void drw_batch_cache_generate_requested_evaluated_mesh_or_curve(Object *ob, TaskGraph &task_graph)
 {
   using namespace blender::draw;
   /* NOTE: Logic here is duplicated from #drw_batch_cache_generate_requested. */
@@ -591,7 +591,7 @@ void drw_batch_cache_generate_requested_evaluated_mesh_or_curve(Object *ob)
    * of the final result.
    */
   if (mesh != nullptr) {
-    DRW_mesh_batch_cache_create_requested(*ob, *mesh, *scene, is_paint_mode, use_hide);
+    DRW_mesh_batch_cache_create_requested(task_graph, *ob, *mesh, *scene, is_paint_mode, use_hide);
   }
   else if (ELEM(ob->type, OB_CURVES_LEGACY, OB_FONT, OB_SURF)) {
     DRW_curve_batch_cache_create_requested(ob, scene);

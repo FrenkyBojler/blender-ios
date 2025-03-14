@@ -72,7 +72,8 @@ static void ensure_dependency_data(MeshRenderData &mr,
 /** \name Extract Loop
  * \{ */
 
-void mesh_buffer_cache_create_requested(const Scene &scene,
+void mesh_buffer_cache_create_requested(TaskGraph & /*task_graph*/,
+                                        const Scene &scene,
                                         MeshBatchCache &cache,
                                         MeshBufferCache &mbc,
                                         const Span<IBOType> ibo_requests,

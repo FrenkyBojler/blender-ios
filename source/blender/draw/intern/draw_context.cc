@@ -264,7 +264,8 @@ struct ExtractionGraph {
  private:
   static void delayed_extraction_free_callback(void *object)
   {
-    drw_batch_cache_generate_requested_evaluated_mesh_or_curve(reinterpret_cast<Object *>(object));
+    drw_batch_cache_generate_requested_evaluated_mesh_or_curve(reinterpret_cast<Object *>(object),
+                                                               *task_graph_ptr_);
   }
 };
 
@@ -590,7 +591,7 @@ void DupliCacheManager::try_add(blender::draw::ObjectRef &ob_ref)
   }
 }
 
-void DupliCacheManager::extract_all(ExtractionGraph & /*extraction*/)
+void DupliCacheManager::extract_all(ExtractionGraph &extraction)
 {
   /* Reset for next iter. */
   last_key_ = {};
@@ -624,7 +625,7 @@ void DupliCacheManager::extract_all(ExtractionGraph & /*extraction*/)
       ob = &tmp_object;
     }
 
-    drw_batch_cache_generate_requested(ob);
+    drw_batch_cache_generate_requested(ob, *extraction.graph);
   }
 
   /* TODO(fclem): Could eventually keep the set allocated. */
@@ -892,8 +893,7 @@ void DRW_cache_free_old_batches(Main *bmain)
 /** \name Rendering (DRW_engines)
  * \{ */
 
-static void drw_engines_cache_populate(blender::draw::ObjectRef &ref,
-                                       ExtractionGraph & /*extraction*/)
+static void drw_engines_cache_populate(blender::draw::ObjectRef &ref, ExtractionGraph &extraction)
 {
   /* HACK: DrawData is copied by copy-on-eval from the duplicated object.
    * This is valid for IDs that cannot be instantiated but this
@@ -917,7 +917,7 @@ static void drw_engines_cache_populate(blender::draw::ObjectRef &ref,
   /* TODO: in the future it would be nice to generate once for all viewports.
    * But we need threaded DRW manager first. */
   if (ref.is_dupli() == false) {
-    drw_batch_cache_generate_requested(ref.object);
+    drw_batch_cache_generate_requested(ref.object, *extraction.graph);
   }
 
   /* ... and clearing it here too because this draw data is
@@ -1760,7 +1760,7 @@ void DRW_render_object_iter(void *vedata,
                                                draw_ctx.v3d->object_type_exclude_viewport :
                                                0;
 
-  draw_ctx.sync([&](DupliCacheManager &duplis, ExtractionGraph & /*extraction*/) {
+  draw_ctx.sync([&](DupliCacheManager &duplis, ExtractionGraph &extraction) {
     DEGObjectIterSettings deg_iter_settings = {nullptr};
     deg_iter_settings.depsgraph = depsgraph;
     deg_iter_settings.flags = DEG_OBJECT_ITER_FOR_RENDER_ENGINE_FLAGS;
@@ -1774,7 +1774,7 @@ void DRW_render_object_iter(void *vedata,
         }
         callback(vedata, ob_ref, engine, depsgraph);
         if (ob_ref.is_dupli() == false) {
-          drw_batch_cache_generate_requested(ob);
+          drw_batch_cache_generate_requested(ob, *extraction.graph);
         }
       }
     }

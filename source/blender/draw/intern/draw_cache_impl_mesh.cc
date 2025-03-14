@@ -1110,8 +1110,12 @@ static void init_empty_dummy_batch(gpu::Batch &batch)
   GPU_batch_vertbuf_add(&batch, vbo, true);
 }
 
-void DRW_mesh_batch_cache_create_requested(
-    Object &ob, Mesh &mesh, const Scene &scene, const bool is_paint_mode, const bool use_hide)
+void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
+                                           Object &ob,
+                                           Mesh &mesh,
+                                           const Scene &scene,
+                                           const bool is_paint_mode,
+                                           const bool use_hide)
 {
   const ToolSettings *ts = scene.toolsettings;
 
@@ -1645,7 +1649,8 @@ void DRW_mesh_batch_cache_create_requested(
   }
 
   if (do_uvcage) {
-    mesh_buffer_cache_create_requested(scene,
+    mesh_buffer_cache_create_requested(task_graph,
+                                       scene,
                                        cache,
                                        cache.uv_cage,
                                        ibo_requests[int(BufferList::UVCage)],
@@ -1660,7 +1665,8 @@ void DRW_mesh_batch_cache_create_requested(
   }
 
   if (do_cage) {
-    mesh_buffer_cache_create_requested(scene,
+    mesh_buffer_cache_create_requested(task_graph,
+                                       scene,
                                        cache,
                                        cache.cage,
                                        ibo_requests[int(BufferList::Cage)],
@@ -1697,7 +1703,8 @@ void DRW_mesh_batch_cache_create_requested(
   }
 
   // TODO: Check if this should be in the "else" case for the "if (is_subdiv)" block above.
-  mesh_buffer_cache_create_requested(scene,
+  mesh_buffer_cache_create_requested(task_graph,
+                                     scene,
                                      cache,
                                      cache.final,
                                      ibo_requests[int(BufferList::Final)],

@@ -314,7 +314,8 @@ struct MeshBatchCache {
   (MBC_EDITUV_FACES_STRETCH_AREA | MBC_EDITUV_FACES_STRETCH_ANGLE | MBC_EDITUV_FACES | \
    MBC_EDITUV_EDGES | MBC_EDITUV_VERTS | MBC_EDITUV_FACEDOTS | MBC_WIRE_LOOPS_UVS)
 
-void mesh_buffer_cache_create_requested(const Scene &scene,
+void mesh_buffer_cache_create_requested(TaskGraph &task_graph,
+                                        const Scene &scene,
                                         MeshBatchCache &cache,
                                         MeshBufferCache &mbc,
                                         Span<IBOType> ibo_requests,
