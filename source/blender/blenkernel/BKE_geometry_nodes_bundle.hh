@@ -77,7 +77,10 @@ class Bundle : public ImplicitSharingMixin {
 
   std::optional<Item> lookup(const SocketInterfaceKey &key) const;
 
-  Span<StoredItem> items() const;
+  Span<StoredItem> items() const
+  {
+    return items_;
+  }
 
   void delete_self() override;
 };
