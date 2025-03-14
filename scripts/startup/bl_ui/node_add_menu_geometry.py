@@ -253,8 +253,7 @@ class NODE_MT_geometry_node_GEO_INPUT(Menu):
             layout.menu("NODE_MT_geometry_node_GEO_INPUT_GIZMO")
         layout.menu("NODE_MT_geometry_node_GEO_INPUT_GROUP")
         layout.menu("NODE_MT_geometry_node_GEO_INPUT_SCENE")
-        if context.preferences.experimental.use_new_file_import_nodes:
-            layout.menu("NODE_MT_category_import")
+        layout.menu("NODE_MT_category_import")
         node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
 
 
