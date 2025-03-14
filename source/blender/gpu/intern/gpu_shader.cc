@@ -9,6 +9,7 @@
 #include "BLI_math_matrix.h"
 #include "BLI_string.h"
 #include "BLI_threads.h"
+#include "BLI_time.h"
 #include "DNA_userdef_types.h"
 
 #include "GPU_capabilities.hh"
@@ -1056,6 +1057,10 @@ bool ShaderCompilerGeneric::batch_is_ready(BatchHandle handle)
 
 Vector<Shader *> ShaderCompilerGeneric::batch_finalize(BatchHandle &handle)
 {
+  while (!batch_is_ready(handle)) {
+    BLI_time_sleep_ms(1);
+  }
+
   std::lock_guard lock(mutex_);
 
   Vector<Shader *> shaders = batches_.lookup(handle)->shaders;
@@ -1075,15 +1080,18 @@ void ShaderCompilerGeneric::run_thread(GPUContext *blender_gpu_context,
 
   /* Loop until we get the terminate signal */
   while (!terminate_compile_threads_) {
-    /* Grab the next shader off of the queue or wait... */
-    std::unique_lock<std::mutex> lock(mutex_);
-    condition_var.wait(lock,
-                       [&] { return terminate_compile_threads_ || !compilation_queue.empty(); });
-    if (terminate_compile_threads_ || compilation_queue.empty()) {
-      continue;
+    Batch *batch = nullptr;
+    {
+      /* Grab the next shader off of the queue or wait... */
+      std::unique_lock<std::mutex> lock(mutex_);
+      condition_var.wait(lock,
+                         [&] { return terminate_compile_threads_ || !compilation_queue.empty(); });
+      if (terminate_compile_threads_ || compilation_queue.empty()) {
+        continue;
+      }
+      batch = compilation_queue.front();
+      compilation_queue.pop_front();
     }
-    Batch *batch = compilation_queue.front();
-    compilation_queue.pop_front();
 
     /* Compile */
     for (const shader::ShaderCreateInfo *info : batch->infos) {

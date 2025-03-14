@@ -40,7 +40,7 @@ class GLBackend : public GPUBackend {
   renderdoc::api::Renderdoc renderdoc_;
 #endif
 
-  std::unique_ptr<ShaderCompiler> compiler_;
+  ShaderCompiler *compiler_;
   std::once_flag compiler_once_flag;
 
  public:
@@ -54,6 +54,7 @@ class GLBackend : public GPUBackend {
   }
   ~GLBackend()
   {
+    delete compiler_;
     GLBackend::platform_exit();
   }
 
@@ -72,14 +73,14 @@ class GLBackend : public GPUBackend {
   {
     std::call_once(compiler_once_flag, [&]() {
       if (GPU_use_parallel_compilation()) {
-        compiler_ = std::make_unique<GLShaderCompiler>();
+        compiler_ = new GLShaderCompiler();
       }
       else {
-        compiler_ = std::make_unique<ShaderCompilerGeneric>();
+        compiler_ = new ShaderCompilerGeneric();
       }
     });
 
-    return compiler_.get();
+    return compiler_;
   }
 
   void samplers_update() override
