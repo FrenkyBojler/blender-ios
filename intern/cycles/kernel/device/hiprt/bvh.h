@@ -84,10 +84,19 @@ ccl_device_intersect bool scene_intersect_local(KernelGlobals kg,
                                                 ccl_private uint *lcg_state,
                                                 const int max_hits)
 {
+  if (local_isect != nullptr) {
+    local_isect->num_hits = 0;
+  }
+
   if (!scene_intersect_valid(ray)) {
-    if (local_isect) {
-      local_isect->num_hits = 0;
-    }
+    return false;
+  }
+
+  const int primitive_type = kernel_data_fetch(objects, local_object).primitive_type;
+  if (!(primitive_type & PRIMITIVE_TRIANGLE)) {
+    /* Local intersection functions are only considering triangle and motion triangle orimitives.
+     * If the local intersection is requested from other primitives (curve or point cloud) perform
+     * an early return to avoid tree travsersal with no primitive intersection. */
     return false;
   }
 
@@ -95,18 +104,8 @@ ccl_device_intersect bool scene_intersect_local(KernelGlobals kg,
   float3 dir = bvh_clamp_direction(ray->D);
   float3 idir = bvh_inverse_direction(dir);
 
-  if (local_isect != nullptr) {
-    local_isect->num_hits = 0;
-  }
-
-  int type = kernel_data_fetch(objects, local_object).primitive_type;
-  if (!(type & PRIMITIVE_MOTION_TRIANGLE)) {
-    return false;
-  }
-
   const int object_flag = kernel_data_fetch(object_flag, local_object);
   if (!(object_flag & SD_OBJECT_TRANSFORM_APPLIED)) {
-
 #  if BVH_FEATURE(BVH_MOTION)
     bvh_instance_motion_push(kg, local_object, ray, &P, &dir, &idir);
 #  else
@@ -132,8 +131,8 @@ ccl_device_intersect bool scene_intersect_local(KernelGlobals kg,
   GET_TRAVERSAL_STACK()
 
   void *local_geom = (void *)(kernel_data_fetch(blas_ptr, local_object));
-  // we don't need custom intersection functions for SSR
 #  ifdef HIPRT_SHARED_STACK
+  /* TODO(sergey): Use custom traversal for motion triangles. */
   hiprtGeomTraversalAnyHitCustomStack<Stack> traversal((hiprtGeometry)local_geom,
                                                        ray_hip,
                                                        stack,
