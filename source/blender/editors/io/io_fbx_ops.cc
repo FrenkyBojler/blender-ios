@@ -27,7 +27,6 @@
 #  include "UI_interface.hh"
 
 #  include "IO_fbx.hh"
-#  include "IO_orientation.hh"
 #  include "io_fbx_ops.hh"
 #  include "io_utils.hh"
 
@@ -48,8 +47,6 @@ static const EnumPropertyItem fbx_vertex_colors_mode[] = {
 static int wm_fbx_import_exec(bContext *C, wmOperator *op)
 {
   FBXImportParams params;
-  params.forward_axis = eIOAxis(RNA_enum_get(op->ptr, "forward_axis"));
-  params.up_axis = eIOAxis(RNA_enum_get(op->ptr, "up_axis"));
   params.global_scale = RNA_float_get(op->ptr, "global_scale");
   params.use_custom_normals = RNA_boolean_get(op->ptr, "use_custom_normals");
   params.use_custom_props = RNA_boolean_get(op->ptr, "use_custom_props");
@@ -84,14 +81,6 @@ static int wm_fbx_import_exec(bContext *C, wmOperator *op)
 
 static bool wm_fbx_import_check(bContext * /*C*/, wmOperator *op)
 {
-  const int num_axes = 3;
-  /* Both forward and up axes cannot be the same (or same except opposite sign). */
-  if (RNA_enum_get(op->ptr, "forward_axis") % num_axes ==
-      (RNA_enum_get(op->ptr, "up_axis") % num_axes))
-  {
-    RNA_enum_set(op->ptr, "up_axis", RNA_enum_get(op->ptr, "up_axis") % num_axes + 1);
-    return true;
-  }
   return false;
 }
 
@@ -103,8 +92,6 @@ static void ui_fbx_import_settings(const bContext *C, uiLayout *layout, PointerR
   if (uiLayout *panel = uiLayoutPanel(C, layout, "FBX_import_general", false, IFACE_("General"))) {
     uiLayout *col = uiLayoutColumn(panel, false);
     uiItemR(col, ptr, "global_scale", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-    uiItemR(col, ptr, "forward_axis", UI_ITEM_NONE, IFACE_("Forward Axis"), ICON_NONE);
-    uiItemR(col, ptr, "up_axis", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     uiItemR(col, ptr, "use_custom_props", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 
@@ -114,6 +101,7 @@ static void ui_fbx_import_settings(const bContext *C, uiLayout *layout, PointerR
     uiItemR(col, ptr, "use_custom_normals", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     uiItemR(col, ptr, "use_subsurf", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     uiItemR(col, ptr, "import_colors", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    uiItemR(col, ptr, "validate_meshes", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 
   {
@@ -131,11 +119,6 @@ static void ui_fbx_import_settings(const bContext *C, uiLayout *layout, PointerR
   {
     uiLayout *col = uiLayoutColumn(panel, false);
     uiItemR(col, ptr, "ignore_leaf_bones", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  }
-
-  if (uiLayout *panel = uiLayoutPanel(C, layout, "FBX_import_options", false, IFACE_("Options"))) {
-    uiLayout *col = uiLayoutColumn(panel, false);
-    uiItemR(col, ptr, "validate_meshes", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 }
 
@@ -169,8 +152,6 @@ void WM_OT_fbx_import(wmOperatorType *ot)
                                  FILE_SORT_DEFAULT);
 
   RNA_def_float(ot->srna, "global_scale", 1.0f, 1e-6f, 1e6f, "Scale", "", 0.001f, 1000.0f);
-  RNA_def_enum(ot->srna, "forward_axis", io_transform_axis, IO_AXIS_Y, "Forward Axis", "");
-  RNA_def_enum(ot->srna, "up_axis", io_transform_axis, IO_AXIS_Z, "Up Axis", "");
   RNA_def_enum(ot->srna,
                "import_colors",
                fbx_vertex_colors_mode,
@@ -208,15 +189,16 @@ void WM_OT_fbx_import(wmOperatorType *ot)
       "(when disabled, data may be imported which causes crashes displaying or editing)");
 
   RNA_def_boolean(ot->srna, "use_anim", true, "Import Animation", "Import FBX animation");
-  RNA_def_float(ot->srna,
-                "anim_offset",
-                1.0f,
-                -1e6f,
-                1e6f,
-                "Animation Offset",
-                "Offset to apply to animation during import, in frames",
-                -1e4f,
-                1e4f);
+  prop = RNA_def_float(ot->srna,
+                       "anim_offset",
+                       1.0f,
+                       -1e6f,
+                       1e6f,
+                       "Offset",
+                       "Offset to apply to animation timestamps, in frames",
+                       -1e4f,
+                       1e4f);
+  RNA_def_property_ui_range(prop, -1e4f, 1e4f, 100, 1);
 
   /* Only show `.fbx` files by default. */
   prop = RNA_def_string(ot->srna, "filter_glob", "*.fbx", 0, "Extension Filter", "");

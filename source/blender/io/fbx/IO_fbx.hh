@@ -26,8 +26,6 @@ enum class eFBXVertexColorMode {
 
 struct FBXImportParams {
   char filepath[FILE_MAX] = "";
-  eIOAxis forward_axis = IO_AXIS_Y;
-  eIOAxis up_axis = IO_AXIS_Z;
   float global_scale = 1.0f;
   eFBXVertexColorMode vertex_colors = eFBXVertexColorMode::sRGB;
   bool validate_meshes = true;
