@@ -2,8 +2,8 @@
 Drawing Text to an Image
 ++++++++++++++++++++++++
 
-Example of using the blf module. For this module to work we
-need to use the image buffer module :mod:`imbuf` as well.
+Example showing how text can be draw into an image.
+This can be done by binding an image buffer (:mod:`imbuf`) to the font's ID.
 """
 
 import blf
