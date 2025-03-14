@@ -131,7 +131,6 @@ ccl_device_intersect bool scene_intersect_local(KernelGlobals kg,
   GET_TRAVERSAL_STACK()
 
   void *local_geom = (void *)(kernel_data_fetch(blas_ptr, local_object));
-#  ifdef HIPRT_SHARED_STACK
   /* TODO(sergey): Use custom traversal for motion triangles. */
   hiprtGeomTraversalAnyHitCustomStack<Stack> traversal((hiprtGeometry)local_geom,
                                                        ray_hip,
@@ -140,10 +139,6 @@ ccl_device_intersect bool scene_intersect_local(KernelGlobals kg,
                                                        &payload,
                                                        kernel_params.table_local_intersect,
                                                        2);
-#  else
-  hiprtGeomTraversalAnyHit traversal(
-      local_geom, ray_hip, table, hiprtTraversalHintDefault, &payload);
-#  endif
   hiprtHit hit = traversal.getNextHit();
   return hit.hasHit();
 }
