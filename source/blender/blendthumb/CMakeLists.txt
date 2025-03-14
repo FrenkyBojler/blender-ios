@@ -8,6 +8,7 @@
 include_directories(
   ../blenlib
   ../makesdna
+  ../blenloader
   ../../../intern/guardedalloc
 )
 
@@ -37,7 +38,7 @@ if(WIN32)
 
   add_library(BlendThumb SHARED ${SRC} ${SRC_WIN32})
 
-  target_link_libraries(BlendThumb bf_blenlib dbghelp.lib Version.lib)
+  target_link_libraries(BlendThumb bf_blenlib bf_blenloader dbghelp.lib Version.lib)
   set_target_properties(BlendThumb PROPERTIES LINK_FLAGS_DEBUG "/NODEFAULTLIB:msvcrt")
   set_target_properties(BlendThumb PROPERTIES VS_GLOBAL_VcpkgEnabled "false")
 
@@ -54,6 +55,7 @@ elseif(APPLE)
   setup_platform_linker_libs(blender-thumbnailer)
   target_link_libraries(blender-thumbnailer
     bf_blenlib
+    bf_blenloader
     # Avoid linker error about undefined _main symbol.
     "-e _NSExtensionMain"
     "-framework QuickLookThumbnailing"
@@ -84,7 +86,7 @@ elseif(UNIX)
 
   add_executable(blender-thumbnailer ${SRC} ${SRC_CMD})
   setup_platform_linker_flags(blender-thumbnailer)
-  target_link_libraries(blender-thumbnailer bf_blenlib)
+  target_link_libraries(blender-thumbnailer bf_blenlib bf_blenloader)
   if(DEFINED PTHREADS_LIBRARIES)
     target_link_libraries(blender-thumbnailer ${PTHREADS_LIBRARIES})
   endif()

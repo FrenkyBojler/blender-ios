@@ -70,6 +70,7 @@ struct FileData {
   ListBase bhead_list = {};
   enum eFileDataFlag flags = eFileDataFlag(0);
   bool is_eof = false;
+  BlenderHeader blender_header = {};
 
   FileReader *file = nullptr;
 

@@ -184,3 +184,11 @@ typedef struct LargeBHead8 {
   int64_t len;
   int64_t nr;
 } LargeBHead8;
+
+#ifdef __cplusplus
+enum class BHeadType {
+  BHead4,
+  SmallBHead8,
+  LargeBHead8,
+};
+#endif
