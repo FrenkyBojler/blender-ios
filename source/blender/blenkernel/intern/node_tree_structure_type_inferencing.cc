@@ -151,7 +151,8 @@ static void store_group_input_structure_types(const bNodeTree &tree,
                                               nodes::StructureTypeInterface &derived_interface)
 {
   /* Merge usages from all group input nodes. */
-  Array<DataRequirement> interface_requirements(tree.interface_inputs().size());
+  Array<DataRequirement> interface_requirements(tree.interface_inputs().size(),
+                                                DataRequirement::None);
   for (const bNode *node : tree.group_input_nodes()) {
     const Span<const bNodeSocket *> output_sockets = node->output_sockets();
     for (const int i : output_sockets.index_range().drop_back(1)) {
@@ -352,7 +353,6 @@ static void propagate_right_to_left(const bNodeTree &tree,
           continue;
         }
         DataRequirement &requirement = input_requirements[input_socket.index_in_all_inputs()];
-        requirement = DataRequirement::None;
         for (const int output_index : interface.outputs.index_range()) {
           const bNodeSocket &output_socket = *output_sockets[output_index];
           if (!output_socket.is_available()) {
@@ -434,6 +434,7 @@ static void propagate_left_to_right(const bNodeTree &tree,
           continue;
         }
         if (!input->is_directly_linked()) {
+          structure_types[input->index_in_tree()] = StructureType::Single;
           continue;
         }
         const bNodeLink &link = *input->directly_linked_links().first();
