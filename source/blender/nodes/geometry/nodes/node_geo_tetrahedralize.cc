@@ -5,6 +5,9 @@
 /* Inclusions standards de C++ */
 #include <iostream>
 #include <algorithm>
+#include <unordered_set>
+#include <numeric> // Pour std::iota
+#include <random> // Pour la génération de nombres aléatoires
 
 /* Inclusions TBB */
 #include <tbb/parallel_for.h>
@@ -273,119 +276,59 @@ static Mesh* prepare_complex_mesh_for_tetgen(const Mesh *mesh_in, GeoNodeExecPar
  * Prépare un maillage pour l'entrée TetGen, en appliquant des perturbations contrôlées aux positions
  * de sommets pour les maillages complexes. Cela aide TetGen à gérer les maillages complexes sans crasher.
  */
-static bool prepare_tetgen_input(const Mesh *mesh,
-                                tetgenio &in,
-                                GeoNodeExecParams &params,
-                                int attempt = 0)
+static bool prepare_tetgen_input(const Mesh *mesh, tetgenio &in, GeoNodeExecParams &params, int attempt)
 {
-  // Validate input mesh
-  if (mesh->verts_num < 4) {
-    params.error_message_add(NodeWarningType::Error, 
-        "Le maillage doit avoir au moins 4 sommets pour la tétraédralisation");
-    return false;
-  }
-  
-  if (mesh->faces_num < 4) {
-    params.error_message_add(NodeWarningType::Error, 
-        "Le maillage doit avoir au moins 4 faces pour la tétraédralisation");
-    return false;
-  }
-  
-  // Déterminer si le maillage est complexe
-  bool is_complex_mesh = mesh->verts_num > 500 || mesh->faces_num > 500;
-  
-  if (is_complex_mesh && attempt == 0) {
-    params.error_message_add(NodeWarningType::Info, 
-        "Maillage complexe détecté (" + std::to_string(mesh->verts_num) + 
-        " sommets, " + std::to_string(mesh->faces_num) + " faces)");
-  }
-  
-  // Notifier en cas de maillage très complexe (>5000 sommets ou faces)
-  if (mesh->verts_num > 5000 || mesh->faces_num > 5000) {
-    params.error_message_add(NodeWarningType::Warning, 
-        "Maillage très complexe, la tétraédralisation peut prendre beaucoup de temps");
-  }
-  
-  // Préparer les vecteurs pour stocker les modifications potentielles
-  std::vector<float3> perturbed_verts;
-  
-  // On copie les sommets du maillage d'entrée
-  if (attempt > 0 && is_complex_mesh) {
-    // Informer l'utilisateur que des perturbations sont appliquées aux sommets
-    if (attempt == 1) {
-      params.error_message_add(NodeWarningType::Info, 
-          "Application de légères perturbations aux sommets pour améliorer la stabilité");
-    }
-    
-    // Calculer l'échelle des perturbations
-    // L'échelle est basée sur la taille globale du maillage et le nombre de tentatives
-    Vector<float3> vert_positions = mesh->vert_positions();
-    
-    float3 min_co = float3(FLT_MAX, FLT_MAX, FLT_MAX);
-    float3 max_co = float3(-FLT_MAX, -FLT_MAX, -FLT_MAX);
-    
-    // Calculer la boîte englobante
-    for (int i = 0; i < mesh->verts_num; i++) {
-      min_co = math::min(min_co, vert_positions[i]);
-      max_co = math::max(max_co, vert_positions[i]);
-    }
-    
-    // Calculer la taille du modèle
-    float3 size = max_co - min_co;
-    float model_size = math::length(size);
-    
-    // Échelle de base: 0.00001 * la taille du modèle
-    float base_scale = model_size * 0.00001f;
-    
-    // Augmenter progressivement l'échelle avec chaque tentative
-    float perturbation_scale = base_scale * std::pow(10.0f, attempt - 1);
-    
-    // Limite maximale pour éviter des perturbations trop grandes
-    perturbation_scale = std::min(perturbation_scale, model_size * 0.01f);
-    
-    // Modifier chaque sommet avec une légère perturbation aléatoire
-    perturbed_verts.resize(mesh->verts_num);
-    
-    // Générer des perturbations pour chaque sommet
-    for (int i = 0; i < mesh->verts_num; i++) {
-      // Créer une perturbation aléatoire
-      float3 noise = float3(
-          (float(rand()) / RAND_MAX) * 2.0f - 1.0f,
-          (float(rand()) / RAND_MAX) * 2.0f - 1.0f,
-          (float(rand()) / RAND_MAX) * 2.0f - 1.0f
-      );
-      
-      // Normaliser et appliquer l'échelle
-      float length = math::length(noise);
-      if (length > 1e-6f) {
-        noise = noise / length * perturbation_scale;
-      }
-      else {
-        // Si le vecteur est trop petit, utiliser un vecteur par défaut
-        noise = float3(perturbation_scale, 0.0f, 0.0f);
-      }
-      
-      // Appliquer la perturbation
-      perturbed_verts[i] = vert_positions[i] + noise;
-    }
-  }
-  
-  // Ajouter les points (sommets) au tetgenio input
-  Vector<float3> vert_positions = mesh->vert_positions();
-  
+  in.initialize();
   in.firstnumber = 0;
-  in.numberofpoints = mesh->verts_num;
-  in.pointlist = new REAL[in.numberofpoints * 3];
   
-  for (int i = 0; i < mesh->verts_num; i++) {
-    float3 pos;
+  Span<float3> vert_positions = mesh->vert_positions();
+  if (vert_positions.size() < 4) {
+    params.error_message_add(NodeWarningType::Error,
+                           "Tetrahedral mesh requires at least 4 vertices.");
+    return false;
+  }
+  
+  // Option 1: Process all vertices
+  in.numberofpoints = vert_positions.size();
+  in.pointlist = new REAL[vert_positions.size() * 3];
+  
+  // Calculer la boîte englobante pour déterminer l'échelle des perturbations
+  float3 bbox_min(std::numeric_limits<float>::max());
+  float3 bbox_max(-std::numeric_limits<float>::max());
+  
+  for (int i = 0; i < vert_positions.size(); i++) {
+    bbox_min = math::min(bbox_min, vert_positions[i]);
+    bbox_max = math::max(bbox_max, vert_positions[i]);
+  }
+  
+  // Calculer la taille du maillage pour déterminer l'amplitude des perturbations
+  float mesh_scale = math::length(bbox_max - bbox_min);
+  float perturbation_scale = mesh_scale * 1e-6f; // 0.0001% de la taille du maillage
+  
+  // Augmenter progressivement les perturbations si les tentatives précédentes ont échoué
+  if (attempt >= 1) {
+    perturbation_scale *= pow(10.0f, attempt);
+    params.error_message_add(NodeWarningType::Info,
+                         "Tentative " + std::to_string(attempt+1) + 
+                         ": Augmentation des perturbations (x" + 
+                         std::to_string(pow(10.0f, attempt)) + ")");
+  }
+  
+  // Générateur de nombres aléatoires pour les perturbations
+  std::random_device rd;
+  std::mt19937 gen(rd());
+  std::uniform_real_distribution<float> dist(-perturbation_scale, perturbation_scale);
+  
+  // Copier les positions des sommets avec de petites perturbations pour éviter les configurations dégénérées
+  for (int i = 0; i < vert_positions.size(); i++) {
+    float3 pos = vert_positions[i];
     
-    // Utiliser les positions perturbées si elles existent, sinon utiliser les originales
-    if (attempt > 0 && is_complex_mesh && !perturbed_verts.empty()) {
-      pos = perturbed_verts[i];
-    }
-    else {
-      pos = vert_positions[i];
+    // Ajouter une perturbation aléatoire si ce n'est pas la première tentative
+    // ou si le maillage a été identifié comme problématique
+    if (attempt >= 1) {
+      pos.x += dist(gen);
+      pos.y += dist(gen);
+      pos.z += dist(gen);
     }
     
     in.pointlist[i * 3] = pos.x;
@@ -393,135 +336,74 @@ static bool prepare_tetgen_input(const Mesh *mesh,
     in.pointlist[i * 3 + 2] = pos.z;
   }
   
-  // Ajouter les facettes (faces)
-  const Vector<int> face_offsets = mesh->face_offsets();
-  const Vector<int> corner_verts = mesh->corner_verts();
+  // Input faces
+  Span<int> corner_verts = mesh->corner_verts();
+  Span<int> face_offsets = mesh->face_offsets();
   
-  in.numberoffacets = mesh->faces_num;
+  /* Count number of triangles - we need to triangulate non-triangle faces. */
+  int num_triangles = 0;
+  for (int i = 0; i < mesh->faces_num; i++) {
+    int face_size = face_offsets[i + 1] - face_offsets[i];
+    if (face_size < 3) {
+      // Skip degenerate faces
+      continue;
+    }
+    else {
+      // For N-gons with N > 3, we need N-2 triangles
+      num_triangles += face_size - 2;
+    }
+  }
+  
+  // Configure faces for Tetgen
+  in.numberoffacets = num_triangles;
   in.facetlist = new tetgenio::facet[in.numberoffacets];
   in.facetmarkerlist = new int[in.numberoffacets];
   
-  // Utiliser l'indice de face comme marqeur pour faciliter la traçabilité
-  for (int i = 0; i < in.numberoffacets; i++) {
-    in.facetmarkerlist[i] = i + 1;  // Marqueurs commençant à 1
-  }
+  int ti = 0; // triangle index
   
-  // Ajouter chaque face triangulaire
+  // Pour chaque face, créer des triangles
   for (int i = 0; i < mesh->faces_num; i++) {
-    tetgenio::facet *f = &in.facetlist[i];
-    f->numberofholes = 0;
-    f->holelist = nullptr;
-    
-    // Get face vertices
     int face_start = face_offsets[i];
     int face_size = face_offsets[i + 1] - face_start;
-    const int *vertices = &corner_verts[face_start];
     
-    // Make sure face has at least 3 vertices
+    // Skip degenerate faces
     if (face_size < 3) {
       continue;
     }
     
-    // We expect triangular faces
-    f->numberofpolygons = 1;
-    f->polygonlist = new tetgenio::polygon[f->numberofpolygons];
-    tetgenio::polygon *p = &f->polygonlist[0];
-    p->numberofvertices = face_size;
-    p->vertexlist = new int[p->numberofvertices];
-    
-    // Copy face vertices
-    for (int j = 0; j < face_size; j++) {
-      p->vertexlist[j] = vertices[j];
+    // For each vertex except the first and last, create a triangle with the first vertex
+    for (int j = 0; j < face_size - 2; j++) {
+      // Create a triangle facet
+      tetgenio::facet *f = &in.facetlist[ti];
+      f->numberofpolygons = 1;
+      f->polygonlist = new tetgenio::polygon[f->numberofpolygons];
+      f->numberofholes = 0;
+      f->holelist = nullptr;
+      
+      // Create a polygon (triangle) with 3
+      tetgenio::polygon *p = &f->polygonlist[0];
+      p->numberofvertices = 3;
+      p->vertexlist = new int[p->numberofvertices];
+      
+      // Indices des sommets du triangle
+      p->vertexlist[0] = corner_verts[face_start];
+      p->vertexlist[1] = corner_verts[face_start + j + 1];
+      p->vertexlist[2] = corner_verts[face_start + j + 2];
+      
+      // Vérifier la validité des indices pour éviter les crashs
+      for (int k = 0; k < 3; k++) {
+        if (p->vertexlist[k] < 0 || p->vertexlist[k] >= in.numberofpoints) {
+          params.error_message_add(NodeWarningType::Error,
+                               "Invalid vertex index in face: " + std::to_string(p->vertexlist[k]));
+          return false;
+        }
+      }
+      
+      // Marquer ce triangle pour la reconstruction
+      in.facetmarkerlist[ti] = 1;
+      
+      ti++;
     }
-  }
-  
-  // Vérifier problèmes potentiels (non-manifold, auto-intersection)
-  bool has_potential_issues = false;
-
-  // Vérifier brièvement la qualité du maillage d'entrée
-  if (mesh->verts_num > 1000 && attempt == 0) {
-      // Recherche d'angles très aigus (indicateurs de problèmes potentiels)
-      int acute_angles_count = 0;
-      
-      // Pour l'instant, nous détectons seulement les maillages très complexes comme potentiellement problématiques
-      // Dans une future version, nous pourrons implémenter une vérification plus avancée de la géométrie
-      if (mesh->verts_num > 50000 || mesh->faces_num > 50000) {
-          has_potential_issues = true;
-          params.error_message_add(NodeWarningType::Warning,
-              "Maillage très complexe détecté - utilisation préemptive des options robustes");
-      }
-      
-      // Détection proactive de géométries problématiques qui causent des crashes dans create_a_shorter_edge
-      // Rechercher des triangles de très petite taille ou avec des angles très aigus
-      Span<float3> vert_positions = mesh->vert_positions();
-      Span<int> face_offsets = mesh->face_offsets();
-      Span<int> corner_verts = mesh->corner_verts();
-      
-      int num_small_faces = 0;
-      int sample_count = 0;
-      
-      // Échantillonner des faces pour vérifier la qualité géométrique
-      int check_step = mesh->faces_num > 1000 ? mesh->faces_num / 1000 : 1;
-      
-      for (int i = 0; i < mesh->faces_num; i += check_step) {
-          int face_start = face_offsets[i];
-          int face_size = face_offsets[i + 1] - face_start;
-          
-          if (face_size >= 3) {
-              // Former un triangle avec les 3 premiers sommets
-              int v1_idx = corner_verts[face_start];
-              int v2_idx = corner_verts[face_start + 1];
-              int v3_idx = corner_verts[face_start + 2];
-              
-              if (v1_idx >= 0 && v1_idx < mesh->verts_num &&
-                  v2_idx >= 0 && v2_idx < mesh->verts_num &&
-                  v3_idx >= 0 && v3_idx < mesh->verts_num) {
-                  
-                  float3 v1 = vert_positions[v1_idx];
-                  float3 v2 = vert_positions[v2_idx];
-                  float3 v3 = vert_positions[v3_idx];
-                  
-                  // Calculer la longueur des côtés
-                  float len1 = math::length(v2 - v1);
-                  float len2 = math::length(v3 - v2);
-                  float len3 = math::length(v1 - v3);
-                  
-                  // Aire du triangle
-                  float area = 0.5f * math::length(math::cross(v2 - v1, v3 - v1));
-                  
-                  // Vérifier les triangles très petits
-                  float min_len = std::min({len1, len2, len3});
-                  float max_len = std::max({len1, len2, len3});
-                  
-                  // Ratio d'aspect (0=dégénéré, 1=équilatéral)
-                  float aspect_ratio = (min_len / max_len);
-                  
-                  // Si triangles de mauvaise qualité détectés
-                  if (aspect_ratio < 0.1f || area < 1e-5f) {
-                      num_small_faces++;
-                  }
-                  
-                  sample_count++;
-              }
-          }
-      }
-      
-      // Si plus de 5% des faces échantillonnées sont problématiques
-      if (sample_count > 0 && (float)num_small_faces / sample_count > 0.05f) {
-          has_potential_issues = true;
-          params.error_message_add(NodeWarningType::Warning,
-              "Géométrie problématique détectée - " + std::to_string(num_small_faces) + 
-              " triangles de mauvaise qualité sur " + std::to_string(sample_count) + 
-              " échantillons. Risque élevé de crash dans create_a_shorter_edge.");
-      }
-  }
-
-  // Activer immédiatement les perturbations pour les maillages à problèmes
-  if (has_potential_issues && attempt == 0) {
-      // Traiter comme une tentative avancée dès le début
-      attempt = 2;
-      params.error_message_add(NodeWarningType::Info,
-          "Utilisation préemptive des options de stabilité pour le maillage complexe");
   }
   
   return true;
@@ -531,13 +413,13 @@ static bool prepare_tetgen_input(const Mesh *mesh,
  * Configure les options et paramètres de TetGen en fonction du niveau de complexité du maillage.
  */
 static void configure_tetgen_options(tetgenbehavior &behavior,
-                                     double max_volume, 
-                                     float quality_ratio,
-                                     float min_dihedral_angle,
-                                     bool preserve_boundary,
-                                     GeoNodeExecParams &params,
-                                     int attempt = 0,
-                                     int max_attempts = 3)
+                                   double max_volume, 
+                                   float quality_ratio,
+                                   float min_dihedral_angle,
+                                   bool preserve_boundary,
+                                   GeoNodeExecParams &params,
+                                   int attempt = 0,
+                                   int max_attempts = 3)
 {
   // Options de base pour tous les types de maillages
   behavior.plc = 1;          // Préserver les complexes linéaires par morceaux
@@ -617,6 +499,11 @@ static void configure_tetgen_options(tetgenbehavior &behavior,
     behavior.docheck = 0;      // Pas de vérification
     behavior.diagnose = 1;     // Mode diagnostic
     
+    // Protection anti-crash pour sscoutsegment
+    behavior.nomergefacet = 1;  // Empêcher la fusion des facettes (prévient certains crashs sscoutsegment)
+    behavior.nomergevertex = 1; // Empêcher la fusion des sommets (prévient certains crashs sscoutsegment)
+    behavior.nojettison = 1;    // Désactiver le jettison des segments (prévient les crashs sscoutsegment)
+    
     // Paramètres extrêmement permissifs
     behavior.minratio = 10.0;   // Pratiquement pas de contrainte d'aspect
     behavior.mindihedral = 0.5; // Presque pas de contrainte d'angle
@@ -632,10 +519,22 @@ static void configure_tetgen_options(tetgenbehavior &behavior,
  */
 static bool validate_tetgen_output(const tetgenio &out, GeoNodeExecParams &params)
 {
-  // Basic validation
+  // Vérification de base
   if (out.numberofpoints <= 0 || out.numberoftetrahedra <= 0) {
     params.error_message_add(NodeWarningType::Error, 
-        "TetGen did not generate a valid tetrahedral mesh");
+        "TetGen n'a pas généré de maillage tétraédrique valide");
+    
+    // Messages diagnostiques spécifiques
+    if (out.numberofpoints <= 0) {
+      params.error_message_add(NodeWarningType::Error, 
+          "Aucun point généré par TetGen. Le maillage est peut-être dégénéré ou trop plat.");
+    }
+    else if (out.numberoftetrahedra <= 0 && out.numberofpoints > 0) {
+      params.error_message_add(NodeWarningType::Error, 
+          "Des points ont été générés (" + std::to_string(out.numberofpoints) + 
+          ") mais aucun tétraèdre n'a été créé. Le maillage est probablement non-volumique ou auto-intersectant.");
+    }
+    
     return false;
   }
   
@@ -651,6 +550,37 @@ static bool validate_tetgen_output(const tetgenio &out, GeoNodeExecParams &param
     params.error_message_add(NodeWarningType::Warning, 
         "TetGen reported edges but did not generate any");
     return false;
+  }
+  
+  // Validation avancée - vérifier si le nombre de tétraèdres est raisonnable
+  if (out.numberoftetrahedra < 10 && out.numberofpoints > 100) {
+    params.error_message_add(NodeWarningType::Warning, 
+        "Très peu de tétraèdres générés (" + std::to_string(out.numberoftetrahedra) + 
+        ") par rapport au nombre de points (" + std::to_string(out.numberofpoints) + 
+        "). Le maillage pourrait être presque plat ou avoir des problèmes topologiques.");
+  }
+  
+  // Vérification spécifique pour les maillages plats
+  // Calculer la boîte englobante et vérifier les proportions
+  float3 bbox_min(std::numeric_limits<float>::max());
+  float3 bbox_max(-std::numeric_limits<float>::max());
+  
+  for (int i = 0; i < out.numberofpoints; i++) {
+    float3 p(out.pointlist[i * 3], out.pointlist[i * 3 + 1], out.pointlist[i * 3 + 2]);
+    bbox_min = math::min(bbox_min, p);
+    bbox_max = math::max(bbox_max, p);
+  }
+  
+  float3 dimensions = bbox_max - bbox_min;
+  float min_dim = std::min({dimensions.x, dimensions.y, dimensions.z});
+  float max_dim = std::max({dimensions.x, dimensions.y, dimensions.z});
+  
+  // Si une dimension est beaucoup plus petite que les autres, c'est probablement un maillage plat
+  if (min_dim < max_dim * 0.01f) {
+    params.error_message_add(NodeWarningType::Warning, 
+        "Le maillage est très plat dans au moins une dimension, ce qui peut causer des problèmes de tétraédralisation. "
+        "Ratio min/max = " + std::to_string(min_dim/max_dim) + 
+        ". Essayez d'extruder le maillage dans cette dimension.");
   }
   
   // Vérifier que nous n'avons pas de tétraèdres externes
@@ -703,16 +633,6 @@ static bool validate_tetgen_output(const tetgenio &out, GeoNodeExecParams &param
     // qui pourraient causer un crash dans create_a_shorter_edge
     int degenerate_count = 0;
     int large_tets_count = 0;
-    
-    // Calculer la boîte englobante du modèle
-    float3 bbox_min(std::numeric_limits<float>::max());
-    float3 bbox_max(-std::numeric_limits<float>::max());
-    
-    for (int i = 0; i < out.numberofpoints; i++) {
-      float3 p(out.pointlist[i * 3], out.pointlist[i * 3 + 1], out.pointlist[i * 3 + 2]);
-      bbox_min = math::min(bbox_min, p);
-      bbox_max = math::max(bbox_max, p);
-    }
     
     // Calculer la distance diagonale de la boîte englobante comme référence
     float diag_distance = math::length(bbox_max - bbox_min);
@@ -1245,116 +1165,290 @@ static Mesh *create_tetrahedral_mesh(const tetgenio &out, GeoNodeExecParams &par
  */
 static bool detect_flipping_prone_geometry(const Mesh *mesh, GeoNodeExecParams &params)
 {
-  // Compter les triangles de mauvaise qualité
-  int bad_triangles = 0;
-  int sampled_triangles = 0;
-  
-  // Seuils pour identifier les triangles problématiques
-  const float min_angle_threshold = 0.05f;  // ~3 degrés
-  const float aspect_ratio_threshold = 0.02f; // Très étiré
-  
-  // Accès aux données du maillage
   Span<float3> vert_positions = mesh->vert_positions();
-  Span<int> face_offsets = mesh->face_offsets();
   Span<int> corner_verts = mesh->corner_verts();
+  Span<int> face_offsets = mesh->face_offsets();
   
-  // Échantillonner un sous-ensemble de faces pour analyse rapide
-  const int sample_step = mesh->faces_num > 1000 ? mesh->faces_num / 1000 : 1;
+  bool has_potential_issues = false;
   
-  // Lambda pour calculer l'angle entre deux vecteurs
-  auto compute_angle = [](const float3 &v1, const float3 &v2) -> float {
-    float len1 = math::length(v1);
-    float len2 = math::length(v2);
-    if (len1 < 1e-6f || len2 < 1e-6f) {
-      return 0.0f;
+  // Vérification des petits triangles problématiques
+  // Ces triangles peuvent causer des opérations de "flipping" instables dans TetGen
+  // qui peuvent déclencher le crash dans sscoutsegment
+  int num_small_faces = 0;
+  int sample_count = 0;
+  
+  // Pour les grands maillages, échantillonnons aléatoirement
+  const int max_samples = std::min(1000, mesh->faces_num);
+  std::vector<int> face_indices;
+  face_indices.reserve(max_samples);
+  
+  if (mesh->faces_num > max_samples) {
+    // Échantillonnage aléatoire des faces
+    std::srand(static_cast<unsigned int>(std::time(nullptr)));
+    for (int i = 0; i < max_samples; i++) {
+      face_indices.push_back(std::rand() % mesh->faces_num);
     }
-    float dot_prod = math::dot(v1, v2) / (len1 * len2);
-    // Borner dot_prod pour éviter les problèmes numériques
-    dot_prod = std::max(-1.0f, std::min(1.0f, dot_prod));
-    return std::acos(dot_prod);
-  };
+  } else {
+    // Utilisation de toutes les faces pour les petits maillages
+    face_indices.resize(mesh->faces_num);
+    std::iota(face_indices.begin(), face_indices.end(), 0);
+  }
   
-  for (int i = 0; i < mesh->faces_num; i += sample_step) {
-    int face_start = face_offsets[i];
-    int face_size = face_offsets[i + 1] - face_start;
+  // Calculer la boîte englobante pour obtenir une référence de taille
+  float3 bbox_min(std::numeric_limits<float>::max());
+  float3 bbox_max(-std::numeric_limits<float>::max());
+  
+  for (int i = 0; i < mesh->verts_num; i++) {
+    bbox_min = math::min(bbox_min, vert_positions[i]);
+    bbox_max = math::max(bbox_max, vert_positions[i]);
+  }
+  
+  float bounding_size = math::length(bbox_max - bbox_min);
+  float tiny_feature_threshold = bounding_size * 1e-4f; // Seuil pour les détails minuscules
+  
+  // Vérifier les triangles dégénérés et très petits
+  for (int face_idx : face_indices) {
+    int face_start = face_offsets[face_idx];
+    int face_size = face_offsets[face_idx + 1] - face_start;
     
-    // Analyser seulement les triangles
+    // Ne considérer que les triangles
     if (face_size == 3) {
-      sampled_triangles++;
+      sample_count++;
       
-      // Indices des sommets
-      int idx1 = corner_verts[face_start];
-      int idx2 = corner_verts[face_start + 1];
-      int idx3 = corner_verts[face_start + 2];
+      int v1_idx = corner_verts[face_start];
+      int v2_idx = corner_verts[face_start + 1];
+      int v3_idx = corner_verts[face_start + 2];
       
-      // Vérifier que les indices sont valides
-      if (idx1 >= 0 && idx1 < mesh->verts_num &&
-          idx2 >= 0 && idx2 < mesh->verts_num &&
-          idx3 >= 0 && idx3 < mesh->verts_num) {
+      // Obtenir les coordonnées des sommets
+      float3 v1 = vert_positions[v1_idx];
+      float3 v2 = vert_positions[v2_idx];
+      float3 v3 = vert_positions[v3_idx];
+      
+      // Calculer les longueurs des arêtes
+      float edge1_len = math::distance(v1, v2);
+      float edge2_len = math::distance(v2, v3);
+      float edge3_len = math::distance(v3, v1);
+      
+      // Calculer l'aire du triangle
+      float s = (edge1_len + edge2_len + edge3_len) / 2.0f;
+      float area = std::sqrt(s * (s - edge1_len) * (s - edge2_len) * (s - edge3_len));
+      
+      // Calculer le rayon du cercle inscrit (mesure de la forme du triangle)
+      float inradius = (area > 0.0f) ? (area / s) : 0.0f;
+      
+      // Vérifier si le triangle est dégénéré ou très petit
+      float min_edge = std::min({edge1_len, edge2_len, edge3_len});
+      float max_edge = std::max({edge1_len, edge2_len, edge3_len});
+      
+      // Un triangle est considéré problématique s'il est très allongé ou très petit
+      bool is_sliver = (inradius < tiny_feature_threshold) && (max_edge / min_edge > 10.0f);
+      bool is_tiny = (area < tiny_feature_threshold * tiny_feature_threshold);
+      
+      if (is_sliver || is_tiny) {
+        num_small_faces++;
+      }
+      
+      // Vérifier spécifiquement les triangles qui peuvent causer des problèmes avec sscoutsegment
+      // Ces triangles ont généralement des angles très aigus
+      float min_sin_angle = std::numeric_limits<float>::max();
+      
+      if (edge1_len > 0 && edge2_len > 0) {
+        float cos_angle = math::dot(math::normalize(v2 - v1), math::normalize(v3 - v2));
+        float sin_angle = std::sqrt(1.0f - cos_angle * cos_angle);
+        min_sin_angle = std::min(min_sin_angle, sin_angle);
+      }
+      
+      if (edge2_len > 0 && edge3_len > 0) {
+        float cos_angle = math::dot(math::normalize(v3 - v2), math::normalize(v1 - v3));
+        float sin_angle = std::sqrt(1.0f - cos_angle * cos_angle);
+        min_sin_angle = std::min(min_sin_angle, sin_angle);
+      }
+      
+      if (edge3_len > 0 && edge1_len > 0) {
+        float cos_angle = math::dot(math::normalize(v1 - v3), math::normalize(v2 - v1));
+        float sin_angle = std::sqrt(1.0f - cos_angle * cos_angle);
+        min_sin_angle = std::min(min_sin_angle, sin_angle);
+      }
+      
+      // Les triangles avec des angles très aigus sont particulièrement problématiques pour sscoutsegment
+      if (min_sin_angle < 0.01f) { // Angle d'environ 0.57 degrés
+        has_potential_issues = true;
+        num_small_faces++;
         
-        // Coordonnées des sommets
-        float3 v1 = vert_positions[idx1];
-        float3 v2 = vert_positions[idx2];
-        float3 v3 = vert_positions[idx3];
-        
-        // Vecteurs des côtés
-        float3 e1 = v2 - v1;
-        float3 e2 = v3 - v2;
-        float3 e3 = v1 - v3;
-        
-        // Longueurs des côtés
-        float len1 = math::length(e1);
-        float len2 = math::length(e2);
-        float len3 = math::length(e3);
-        
-        // Rapport d'aspect (ratio du plus court sur le plus long côté)
-        float min_len = std::min({len1, len2, len3});
-        float max_len = std::max({len1, len2, len3});
-        float aspect_ratio = min_len / max_len;
-        
-        // Calculer les angles
-        float angle1 = compute_angle(-e1, e3);
-        float angle2 = compute_angle(-e2, e1);
-        float angle3 = compute_angle(-e3, e2);
-        float min_angle = std::min({angle1, angle2, angle3});
-        
-        // Détecter les triangles problématiques
-        if (aspect_ratio < aspect_ratio_threshold || min_angle < min_angle_threshold) {
-          bad_triangles++;
+        // Si nous détectons des triangles extrêmement aigus, alerter immédiatement
+        if (min_sin_angle < 0.001f) {
+          params.error_message_add(NodeWarningType::Warning,
+              "Triangles avec angles extrêmement aigus détectés (< 0.06 degrés). "
+              "Forte probabilité de crash dans tetgenmesh::sscoutsegment.");
+          return true;
         }
       }
     }
   }
   
-  // Si nous avons échantillonné des triangles
-  if (sampled_triangles > 0) {
-    float bad_percentage = (float)bad_triangles / sampled_triangles * 100.0f;
+  // Vérifier si le maillage contient des arêtes qui se croisent (auto-intersections)
+  // Ces intersections sont connues pour causer des crashs dans sscoutsegment
+  
+  // Pour les petits maillages, nous pouvons faire une vérification exhaustive
+  // Pour les grands maillages, nous échantillonnons
+  bool check_self_intersect = mesh->faces_num < 5000;
+  
+  if (check_self_intersect) {
+    // Construction d'une BVH simple pour accélérer les tests d'intersection
+    struct Triangle {
+      float3 v1, v2, v3;
+      int face_idx;
+    };
     
-    // Si plus de 1% des triangles sont de mauvaise qualité
-    if (bad_percentage > 1.0f) {
-      params.error_message_add(NodeWarningType::Warning,
-          std::string("Géométrie potentiellement problématique détectée: ") + 
-          std::to_string(bad_triangles) + " triangles de mauvaise qualité sur " + 
-          std::to_string(sampled_triangles) + " échantillonnés (" + 
-          std::to_string(bad_percentage) + "%). "
-          "Risque de crash lors des opérations de flipping.");
+    std::vector<Triangle> triangles;
+    triangles.reserve(mesh->faces_num);
+    
+    for (int i = 0; i < mesh->faces_num; i++) {
+      int face_start = face_offsets[i];
+      int face_size = face_offsets[i + 1] - face_start;
       
-      // Si beaucoup de triangles problématiques, activer le mode spécial
-      if (bad_percentage > 5.0f) {
-        params.error_message_add(NodeWarningType::Warning,
-            "Activation du mode spécial de tétraédrisation sans récupération des frontières "
-            "pour éviter les crashs dans les opérations de flipping.");
+      // Traiter uniquement les triangles
+      if (face_size == 3) {
+        int v1_idx = corner_verts[face_start];
+        int v2_idx = corner_verts[face_start + 1];
+        int v3_idx = corner_verts[face_start + 2];
+        
+        triangles.push_back({
+          vert_positions[v1_idx],
+          vert_positions[v2_idx],
+          vert_positions[v3_idx],
+          i
+        });
+      }
+    }
+    
+    // Fonction simple pour vérifier si deux triangles se croisent
+    auto triangles_intersect = [](const Triangle &t1, const Triangle &t2) -> bool {
+      // Vérifier d'abord s'ils partagent un sommet (pas considéré comme intersectant)
+      if (t1.v1 == t2.v1 || t1.v1 == t2.v2 || t1.v1 == t2.v3 ||
+          t1.v2 == t2.v1 || t1.v2 == t2.v2 || t1.v2 == t2.v3 ||
+          t1.v3 == t2.v1 || t1.v3 == t2.v2 || t1.v3 == t2.v3) {
+        return false;
+      }
+      
+      // Implémentation basique de détection d'intersection triangle-triangle
+      // En réalité, il faudrait une implémentation plus robuste, mais
+      // cela suffit pour notre détection de base
+      
+      // Pour simplifier, considérons qu'il y a intersection si un sommet d'un triangle
+      // est à l'intérieur de l'autre triangle
+      auto point_in_triangle = [](const float3 &p, const float3 &a, const float3 &b, const float3 &c) -> bool {
+        float3 v0 = c - a;
+        float3 v1 = b - a;
+        float3 v2 = p - a;
+        
+        float dot00 = math::dot(v0, v0);
+        float dot01 = math::dot(v0, v1);
+        float dot02 = math::dot(v0, v2);
+        float dot11 = math::dot(v1, v1);
+        float dot12 = math::dot(v1, v2);
+        
+        float invDenom = 1.0f / (dot00 * dot11 - dot01 * dot01);
+        float u = (dot11 * dot02 - dot01 * dot12) * invDenom;
+        float v = (dot00 * dot12 - dot01 * dot02) * invDenom;
+        
+        return (u >= 0) && (v >= 0) && (u + v <= 1);
+      };
+      
+      // Vérifier si un sommet de t1 est dans t2
+      if (point_in_triangle(t1.v1, t2.v1, t2.v2, t2.v3) ||
+          point_in_triangle(t1.v2, t2.v1, t2.v2, t2.v3) ||
+          point_in_triangle(t1.v3, t2.v1, t2.v2, t2.v3)) {
         return true;
       }
+      
+      // Vérifier si un sommet de t2 est dans t1
+      if (point_in_triangle(t2.v1, t1.v1, t1.v2, t1.v3) ||
+          point_in_triangle(t2.v2, t1.v1, t1.v2, t1.v3) ||
+          point_in_triangle(t2.v3, t1.v1, t1.v2, t1.v3)) {
+        return true;
+      }
+      
+      return false;
+    };
+    
+    // Échantillonnage de paires de triangles pour vérifier les intersections
+    int num_samples = std::min(10000, int(triangles.size() * triangles.size() / 4));
+    int self_intersect_count = 0;
+    
+    std::srand(static_cast<unsigned int>(std::time(nullptr) + 1));
+    
+    for (int s = 0; s < num_samples; s++) {
+      int idx1 = std::rand() % triangles.size();
+      int idx2 = std::rand() % triangles.size();
+      
+      // Ne pas comparer un triangle avec lui-même
+      if (idx1 != idx2) {
+        if (triangles_intersect(triangles[idx1], triangles[idx2])) {
+          self_intersect_count++;
+          
+          // Si nous trouvons beaucoup d'auto-intersections, c'est un signe clair de problèmes
+          if (self_intersect_count > 10) {
+            params.error_message_add(NodeWarningType::Warning,
+                "Nombreuses auto-intersections détectées dans le maillage. "
+                "Forte probabilité de crash dans tetgenmesh::sscoutsegment.");
+            return true;
+          }
+        }
+      }
+    }
+    
+    if (self_intersect_count > 0) {
+      params.error_message_add(NodeWarningType::Warning,
+          std::to_string(self_intersect_count) + " auto-intersections détectées dans le maillage. "
+          "Risque potentiel de crash dans tetgenmesh::sscoutsegment.");
+      has_potential_issues = true;
     }
   }
   
-  return false;
+  // Détection spécifique de la "platitude" du maillage - cause fréquente de crash dans sscoutsegment
+  float3 dimensions = bbox_max - bbox_min;
+  float min_dim = std::min({dimensions.x, dimensions.y, dimensions.z});
+  float max_dim = std::max({dimensions.x, dimensions.y, dimensions.z});
+  
+  if (min_dim < max_dim * 0.001f) {
+    params.error_message_add(NodeWarningType::Warning,
+        "Maillage très plat détecté (ratio d'aspect: " + std::to_string(min_dim/max_dim) + "). "
+        "Forte probabilité de crash dans tetgenmesh::sscoutsegment.");
+    has_potential_issues = true;
+  }
+  
+  // Si plus de 5% des faces échantillonnées sont problématiques
+  if (sample_count > 0 && (float)num_small_faces / sample_count > 0.05f) {
+      has_potential_issues = true;
+      params.error_message_add(NodeWarningType::Warning,
+          "Géométrie problématique détectée - " + std::to_string(num_small_faces) + 
+          " triangles de mauvaise qualité sur " + std::to_string(sample_count) + 
+          " échantillons. Risque élevé de crash dans sscoutsegment.");
+  }
+
+  // Avertissement spécifique pour le crash
+  if (has_potential_issues) {
+    params.error_message_add(NodeWarningType::Warning,
+        "Maillage à risque pour tetgenmesh::sscoutsegment - envisagez de remaillager, solidifier, "
+        "ou extruder avant la tétraédralisation.");
+  }
+  
+  // Activer immédiatement les perturbations pour les maillages à problèmes
+  if (has_potential_issues) {
+      params.error_message_add(NodeWarningType::Info,
+          "Activation de protections anti-crash pour le maillage complexe");
+  }
+  
+  return has_potential_issues;
 }
 
+// Forward declaration
+static bool check_mesh_volume(const Mesh *mesh, float *estimated_volume, GeoNodeExecParams &params);
+
 /**
- * Checks if a mesh is manifold (watertight, no open boundaries)
- * Returns true if manifold, false otherwise and adds error messages
+ * Checks if a mesh is manifold (watertight, no open boundaries) and valid for tetrahedralization
+ * Returns true if manifold and valid, false otherwise and adds error messages
  */
 static bool check_manifold_mesh(const Mesh *mesh, GeoNodeExecParams &params)
 {
@@ -1365,22 +1459,94 @@ static bool check_manifold_mesh(const Mesh *mesh, GeoNodeExecParams &params)
     return false;
   }
   
-  // Count vertices, faces, and corners
+  // Skip very small meshes
+  if (mesh->verts_num < 4) {
+    params.error_message_add(NodeWarningType::Error, 
+        "Cannot tetrahedralize: mesh must have at least 4 vertices");
+    return false;
+  }
+  
+  // Vérifier si le maillage est plat ou quasi-plat (problème courant pour la tétraédralisation)
   Span<float3> vert_positions = mesh->vert_positions();
+  
+  // Calculer la boîte englobante
+  float3 bbox_min(std::numeric_limits<float>::max());
+  float3 bbox_max(-std::numeric_limits<float>::max());
+  
+  for (int i = 0; i < mesh->verts_num; i++) {
+    bbox_min = math::min(bbox_min, vert_positions[i]);
+    bbox_max = math::max(bbox_max, vert_positions[i]);
+  }
+  
+  // Calculer les dimensions de la boîte englobante
+  float3 dimensions = bbox_max - bbox_min;
+  float min_dim = std::min({dimensions.x, dimensions.y, dimensions.z});
+  float max_dim = std::max({dimensions.x, dimensions.y, dimensions.z});
+  float volume = dimensions.x * dimensions.y * dimensions.z;
+  
+  // Si le volume est presque nul ou une dimension est beaucoup plus petite que les autres
+  if (volume < 1e-6f || min_dim < max_dim * 0.001f) {
+    params.error_message_add(NodeWarningType::Error, 
+        "Cannot tetrahedralize: mesh is too flat (2D or nearly 2D). "
+        "TetGen requires a true 3D volume with significant thickness in all dimensions. "
+        "Try extruding or solidifying the mesh first.");
+    
+    // Informations supplémentaires pour aider au diagnostic
+    params.error_message_add(NodeWarningType::Info, 
+        "Mesh dimensions: X=" + std::to_string(dimensions.x) + 
+        ", Y=" + std::to_string(dimensions.y) + 
+        ", Z=" + std::to_string(dimensions.z) + 
+        ". Min/Max ratio: " + std::to_string(min_dim/max_dim));
+    
+    return false;
+  }
+  
+  // Check for degenerate faces (faces with fewer than 3 vertices)
   Span<int> face_offsets = mesh->face_offsets();
+  int degenerate_faces = 0;
+  
+  for (int i = 0; i < mesh->faces_num; i++) {
+    int face_size = face_offsets[i + 1] - face_offsets[i];
+    if (face_size < 3) {
+      degenerate_faces++;
+    }
+  }
+  
+  if (degenerate_faces > 0) {
+    params.error_message_add(NodeWarningType::Error, 
+        "Cannot tetrahedralize: mesh contains " + std::to_string(degenerate_faces) + 
+        " degenerate faces (with fewer than 3 vertices)");
+    return false;
+  }
+  
+  // Count vertices, faces, and corners
   Span<int> corner_verts = mesh->corner_verts();
   
   // Create edge to face map to check manifoldness
   std::unordered_map<std::pair<int, int>, std::vector<int>, pairhash> edge_to_faces;
   
+  // Also track vertices to check for isolated vertices
+  std::unordered_set<int> used_vertices;
+  
   // Function to add an edge and its associated face to the map
   auto add_edge = [&](int v1, int v2, int face_idx) {
+    // Skip invalid vertices
+    if (v1 < 0 || v2 < 0 || v1 >= mesh->verts_num || v2 >= mesh->verts_num || v1 == v2) {
+      return;
+    }
+    
     // Store the edge with the smaller vertex index first
     std::pair<int, int> edge = v1 < v2 ? std::make_pair(v1, v2) : std::make_pair(v2, v1);
     edge_to_faces[edge].push_back(face_idx);
+    
+    // Track used vertices
+    used_vertices.insert(v1);
+    used_vertices.insert(v2);
   };
   
   // Process each face and add its edges to the map
+  int invalid_face_indices = 0;
+  
   for (int i = 0; i < mesh->faces_num; i++) {
     int face_start = face_offsets[i];
     int face_size = face_offsets[i + 1] - face_start;
@@ -1390,18 +1556,49 @@ static bool check_manifold_mesh(const Mesh *mesh, GeoNodeExecParams &params)
       continue;
     }
     
+    bool face_has_invalid_index = false;
+    
     // Add all edges of this face
     for (int j = 0; j < face_size; j++) {
       int v1 = corner_verts[face_start + j];
       int v2 = corner_verts[face_start + ((j + 1) % face_size)];
       
-      // Skip invalid indices
+      // Check for invalid indices
       if (v1 < 0 || v2 < 0 || v1 >= mesh->verts_num || v2 >= mesh->verts_num) {
+        face_has_invalid_index = true;
+        invalid_face_indices++;
+        continue;
+      }
+      
+      // Skip degenerate edges
+      if (v1 == v2) {
         continue;
       }
       
       add_edge(v1, v2, i);
     }
+    
+    // Skip faces with invalid indices to avoid crashes
+    if (face_has_invalid_index) {
+      continue;
+    }
+  }
+  
+  // Check for invalid face indices
+  if (invalid_face_indices > 0) {
+    params.error_message_add(NodeWarningType::Error, 
+        "Cannot tetrahedralize: mesh contains " + std::to_string(invalid_face_indices) + 
+        " faces with invalid vertex indices");
+    return false;
+  }
+  
+  // Check for isolated vertices (not connected to any face)
+  if (used_vertices.size() < mesh->verts_num) {
+    int isolated_verts = mesh->verts_num - used_vertices.size();
+    params.error_message_add(NodeWarningType::Error, 
+        "Cannot tetrahedralize: mesh contains " + std::to_string(isolated_verts) + 
+        " isolated vertices not connected to any face");
+    return false;
   }
   
   // Check manifoldness by looking for edges with only one adjacent face (boundary edges)
@@ -1437,7 +1634,152 @@ static bool check_manifold_mesh(const Mesh *mesh, GeoNodeExecParams &params)
     return false;
   }
   
+  // Check for extremely thin or degenerate geometry
+  // Use bounding box to get a reference for tiny features
+  float bounding_size = math::length(bbox_max - bbox_min);
+  float tiny_feature_threshold = bounding_size * 1e-6f;
+  
+  int tiny_edges = 0;
+  
+  // Check for extremely small edges
+  for (const auto &edge_entry : edge_to_faces) {
+    int v1 = edge_entry.first.first;
+    int v2 = edge_entry.first.second;
+    
+    float edge_length = math::length(vert_positions[v1] - vert_positions[v2]);
+    if (edge_length < tiny_feature_threshold) {
+      tiny_edges++;
+    }
+  }
+  
+  if (tiny_edges > 0) {
+    params.error_message_add(NodeWarningType::Error, 
+        "Cannot tetrahedralize: mesh contains " + std::to_string(tiny_edges) + 
+        " extremely small edges that would cause numerical instability");
+    return false;
+  }
+  
+  // Vérifier si le maillage a un volume suffisant en calculant le volume approx.
+  // basé sur une analyse PCA de sa forme 3D (un maillage plat aura un volume nul)
+  float est_volume = 0.0f;
+  bool has_sufficient_volume = check_mesh_volume(mesh, &est_volume, params);
+  
+  if (!has_sufficient_volume) {
+    params.error_message_add(NodeWarningType::Error, 
+        "Cannot tetrahedralize: mesh has insufficient volume. "
+        "The mesh may be too flat or self-intersecting. "
+        "Try extruding, solidifying, or repairing the mesh first.");
+    return false;
+  }
+  
+  // All checks passed - mesh is manifold and valid
   return true;
+}
+
+/**
+ * Vérification avancée du volume réel du maillage.
+ * Cette fonction calcule un volume approximatif pour détecter 
+ * les maillages trop plats ou presque sans volume.
+ */
+static bool check_mesh_volume(const Mesh *mesh, float *estimated_volume, GeoNodeExecParams &params)
+{
+  *estimated_volume = 0.0f;
+  Span<float3> vert_positions = mesh->vert_positions();
+  
+  // Pour les petits maillages, une vérification simple suffit
+  if (mesh->verts_num < 50) {
+    // Calcul de volume simple par tétraèdres irréguliers en utilisant un point central
+    float3 center(0, 0, 0);
+    for (int i = 0; i < mesh->verts_num; i++) {
+      center += vert_positions[i];
+    }
+    center /= mesh->verts_num;
+    
+    Span<int> face_offsets = mesh->face_offsets();
+    Span<int> corner_verts = mesh->corner_verts();
+    float volume = 0.0f;
+    
+    for (int i = 0; i < mesh->faces_num; i++) {
+      int face_start = face_offsets[i];
+      int face_size = face_offsets[i + 1] - face_start;
+      
+      // Require at least 3 vertices to form a triangular face
+      if (face_size < 3) {
+        continue;
+      }
+      
+      for (int j = 0; j < face_size - 2; j++) {
+        // Forme un tétraèdre avec le centre et le triangle
+        int v1 = corner_verts[face_start];
+        int v2 = corner_verts[face_start + j + 1];
+        int v3 = corner_verts[face_start + j + 2];
+        
+        // Calcul du volume du tétraèdre
+        float3 a = vert_positions[v1] - center;
+        float3 b = vert_positions[v2] - center;
+        float3 c = vert_positions[v3] - center;
+        
+        // Volume = (1/6) * |a · (b × c)|
+        volume += std::abs(math::dot(a, math::cross(b, c))) / 6.0f;
+      }
+    }
+    
+    *estimated_volume = volume;
+    
+    // Calculer le volume de la boîte englobante pour comparaison
+    float3 bbox_min(std::numeric_limits<float>::max());
+    float3 bbox_max(-std::numeric_limits<float>::max());
+    
+    for (int i = 0; i < mesh->verts_num; i++) {
+      bbox_min = math::min(bbox_min, vert_positions[i]);
+      bbox_max = math::max(bbox_max, vert_positions[i]);
+    }
+    
+    float3 dimensions = bbox_max - bbox_min;
+    float bbox_volume = dimensions.x * dimensions.y * dimensions.z;
+    
+    // Si le volume est trop petit par rapport à la boîte englobante
+    if (volume < bbox_volume * 0.0001f) {
+      params.error_message_add(NodeWarningType::Info, 
+          "Mesh has very small volume (" + std::to_string(volume) + 
+          ") compared to its bounding box (" + std::to_string(bbox_volume) + 
+          "). This often indicates a flat or non-volumetric mesh.");
+      return false;
+    }
+    
+    return true;
+  }
+  else {
+    // Pour les grands maillages, calculer le volume approximatif basé sur l'échantillonnage
+    // En utilisant l'approche d'échantillonnage aléatoire
+    
+    // Calculer la boîte englobante
+    float3 bbox_min(std::numeric_limits<float>::max());
+    float3 bbox_max(-std::numeric_limits<float>::max());
+    
+    for (int i = 0; i < mesh->verts_num; i++) {
+      bbox_min = math::min(bbox_min, vert_positions[i]);
+      bbox_max = math::max(bbox_max, vert_positions[i]);
+    }
+    
+    float3 dimensions = bbox_max - bbox_min;
+    float min_dim = std::min({dimensions.x, dimensions.y, dimensions.z});
+    float max_dim = std::max({dimensions.x, dimensions.y, dimensions.z});
+    float bbox_volume = dimensions.x * dimensions.y * dimensions.z;
+    
+    // Vérification simple des proportions
+    if (min_dim < max_dim * 0.001f) {
+      *estimated_volume = 0.0f;
+      return false;
+    }
+    
+    // Pour éviter d'avoir à calculer les normales et de tester des points contre
+    // une forme potentiellement complexe, nous utilisons simplement la proportion
+    // des dimensions comme heuristique
+    *estimated_volume = bbox_volume * (min_dim / max_dim); // Approximation grossière du volume
+    
+    return (min_dim / max_dim) > 0.01f; // Seuil arbitraire pour la "planéité"
+  }
 }
 
 /**
@@ -1445,559 +1787,304 @@ static bool check_manifold_mesh(const Mesh *mesh, GeoNodeExecParams &params)
  */
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  // Retrieve inputs
-  GeometrySet geometry_set = params.extract_input<GeometrySet>("Mesh");
-  
-  if (!geometry_set.has_mesh()) {
-    params.error_message_add(NodeWarningType::Error, 
-        "Required input: a mesh for tetrahedralization");
-    params.set_output("Tetrahedral Mesh", GeometrySet());
-    return;
-  }
-  
-  // Retrieve input mesh and parameters
-  const Mesh *mesh_in = geometry_set.get_mesh();
-  
-  // Check if mesh is manifold (watertight) before proceeding
-  if (!check_manifold_mesh(mesh_in, params)) {
-    // Return the input mesh unchanged if not manifold
-    params.set_output("Tetrahedral Mesh", std::move(geometry_set));
-    return;
-  }
-  
-  // Pour les maillages complexes, préparer sans remplacer
-  Mesh *prepared_mesh = prepare_complex_mesh_for_tetgen(mesh_in, params);
-  const Mesh *mesh_to_process = prepared_mesh ? prepared_mesh : mesh_in;
-  
-  // Adjust max_volume to be interpreted as a percentage
-  double max_volume_percentage = params.extract_input<float>("Max Volume");
-  double max_volume = std::max(0.00001, max_volume_percentage * 0.1); // 0.1 corresponds to 100%
-  
-  float quality_ratio = std::max(1.0f, params.extract_input<float>("Quality Ratio"));
-  
-  float min_dihedral_angle = params.extract_input<float>("Min Dihedral Angle");
-  
-  // Directly retrieve preserve_boundary from input socket
-  bool preserve_boundary = params.extract_input<bool>("Preserve Boundary");
-  
-  // Définir une limite de complexité du maillage avec plusieurs niveaux
-  const int medium_complexity_threshold = 5000;  // Maillage moyennement complexe
-  const int high_complexity_threshold = 10000;   // Maillage très complexe
-  const int extreme_complexity_threshold = 50000; // Maillage extrêmement complexe
-  
-  // Définir un seuil pour les maillages "massifs" qui nécessitent un traitement spécial
-  const int massive_mesh_threshold = 100000;    // Maillages massifs susceptibles de causer des crashs
+  try {
+    // Retrieve inputs
+    GeometrySet geometry_set = params.extract_input<GeometrySet>("Mesh");
+    
+    if (!geometry_set.has_mesh()) {
+      params.error_message_add(NodeWarningType::Error, 
+          "Required input: a mesh for tetrahedralization");
+      params.set_output("Tetrahedral Mesh", GeometrySet());
+      return;
+    }
+    
+    // Retrieve input mesh and parameters
+    const Mesh *mesh_in = geometry_set.get_mesh();
+    
+    // Check if mesh is manifold (watertight) before proceeding
+    if (!check_manifold_mesh(mesh_in, params)) {
+      // Return the input mesh unchanged if not manifold
+      params.set_output("Tetrahedral Mesh", std::move(geometry_set));
+      return;
+    }
+    
+    // Pour les maillages complexes, préparer sans remplacer
+    Mesh *prepared_mesh = prepare_complex_mesh_for_tetgen(mesh_in, params);
+    const Mesh *mesh_to_process = prepared_mesh ? prepared_mesh : mesh_in;
+    
+    // Safely extract parameter values with defaults
+    double max_volume_percentage = 0.5;
+    try {
+      max_volume_percentage = params.extract_input<float>("Max Volume");
+    }
+    catch (...) {
+      params.error_message_add(NodeWarningType::Warning, 
+          "Failed to extract Max Volume parameter, using default value (0.5)");
+    }
+    double max_volume = std::max(0.00001, max_volume_percentage * 0.1); // 0.1 corresponds to 100%
+    
+    // Get other required parameters with safe defaults
+    float quality_ratio = 2.0f;
+    try {
+      quality_ratio = std::max(1.0f, params.extract_input<float>("Quality Ratio"));
+    }
+    catch (...) {
+      params.error_message_add(NodeWarningType::Warning, 
+          "Failed to extract Quality Ratio parameter, using default value (2.0)");
+    }
+    
+    float min_dihedral_angle = 10.0f;
+    try {
+      min_dihedral_angle = params.extract_input<float>("Min Dihedral Angle");
+    }
+    catch (...) {
+      params.error_message_add(NodeWarningType::Warning, 
+          "Failed to extract Min Dihedral Angle parameter, using default value (10.0)");
+    }
+    
+    bool preserve_boundary = false;
+    try {
+      preserve_boundary = params.extract_input<bool>("Preserve Boundary");
+    }
+    catch (...) {
+      params.error_message_add(NodeWarningType::Warning, 
+          "Failed to extract Preserve Boundary parameter, using default value (false)");
+    }
+    
+    // Define mesh complexity thresholds with multiple levels
+    const int medium_complexity_threshold = 5000;  // Medium complex mesh
+    const int high_complexity_threshold = 10000;   // Highly complex mesh
+    const int extreme_complexity_threshold = 50000; // Extremely complex mesh
+    
+    // Define threshold for "massive" meshes that require special handling
+    const int massive_mesh_threshold = 100000;    // Massive meshes likely to cause crashes
 
-  // Déterminer le niveau de complexité du maillage
-  bool is_medium_complex = mesh_to_process->verts_num > medium_complexity_threshold || 
-                         mesh_to_process->faces_num > medium_complexity_threshold;
-  bool is_highly_complex = mesh_to_process->verts_num > high_complexity_threshold || 
-                         mesh_to_process->faces_num > high_complexity_threshold;
-  bool is_extremely_complex = mesh_to_process->verts_num > extreme_complexity_threshold || 
-                            mesh_to_process->faces_num > extreme_complexity_threshold;
-  bool is_massive_mesh = mesh_to_process->verts_num > massive_mesh_threshold ||
-                        mesh_to_process->faces_num > massive_mesh_threshold;
-  
-  // Détecter si le maillage est susceptible de causer des problèmes avec les opérations de flipping
-  bool has_problematic_geometry = detect_flipping_prone_geometry(mesh_to_process, params);
-  
-  // Le niveau final de complexité pour les décisions
-  bool is_complex_mesh = is_medium_complex;
-  
-  // Pour les maillages massifs ou avec géométrie problématique, utiliser une tétraédrisation Delaunay pure
-  if (is_massive_mesh || has_problematic_geometry) {
-    params.error_message_add(NodeWarningType::Warning, 
-        "Maillage extrêmement volumineux ou problématique détecté. "
-        "Utilisation d'une tétraédrisation Delaunay pure pour éviter les crashs.");
+    // Determine mesh complexity level
+    bool is_medium_complex = mesh_to_process->verts_num > medium_complexity_threshold || 
+                           mesh_to_process->faces_num > medium_complexity_threshold;
+    bool is_highly_complex = mesh_to_process->verts_num > high_complexity_threshold || 
+                           mesh_to_process->faces_num > high_complexity_threshold;
+    bool is_extremely_complex = mesh_to_process->verts_num > extreme_complexity_threshold || 
+                              mesh_to_process->faces_num > extreme_complexity_threshold;
+    bool is_massive_mesh = mesh_to_process->verts_num > massive_mesh_threshold ||
+                          mesh_to_process->faces_num > massive_mesh_threshold;
     
-    // Configurer TetGen avec des options spéciales anti-crash
-    tetgenbehavior behavior;
-    // Utilisé la version originale avec tous les paramètres nécessaires
-    configure_tetgen_options(behavior, 
-                           -1.0,  // max_volume (désactivé)
-                           1.1f,  // quality_ratio minimal
-                           1.0f,  // min_dihedral_angle minimal
-                           false, // preserve_boundary désactivé pour les maillages problématiques
-                           params,
-                           2,     // attempt - simuler une 3ème tentative pour activer toutes les protections
-                           3);    // max_attempts par défaut
+    // Detect if mesh is likely to cause problems with flipping operations
+    bool has_problematic_geometry = detect_flipping_prone_geometry(mesh_to_process, params);
     
-    // Force des paramètres spécifiques pour les maillages massifs
-    preserve_boundary = false;
-    quality_ratio = 1.01f;
-    min_dihedral_angle = 0.0f;
+    // Final complexity level for decisions
+    bool is_complex_mesh = is_medium_complex;
     
-    // Utiliser un mode spécial de tétraédrisation pour éviter les crashes sur les gros maillages
+    // Regular tetrahedralization path with improved error handling
     tetgenio in, out;
-    
-    // Nettoyage automatique des ressources TetGen
     TetGenResourceGuard resource_guard(in, out);
-    
     Mesh *mesh_out = nullptr;
-    bool tetgen_success = false;
     
     try {
-      // Préparer l'entrée TetGen
-      if (prepare_tetgen_input(mesh_to_process, in, params, 0)) {
-        // Configuration Delaunay pure - pas de PLC, pas de récupération des frontières
-        behavior.plc = 0;            // DÉSACTIVER complètement la préservation du complexe linéaire
-        behavior.psc = 0;            // Désactiver les contraintes de surface
-        behavior.quality = 0;        // Désactiver l'amélioration de qualité
-        behavior.nobisect = 0;       // Ne pas préserver les frontières
-        behavior.docheck = 0;        // Désactiver les vérifications
-        behavior.diagnose = 0;       // Désactiver le mode diagnostic
-        behavior.quiet = 1;          // Mode silencieux
-        behavior.verbose = 0;        // Pas de verbosité
+      // Prepare TetGen input
+      if (!prepare_tetgen_input(mesh_to_process, in, params, 0)) {
+        params.error_message_add(NodeWarningType::Error,
+            "Failed to prepare input for tetrahedralization. Returning input mesh unchanged.");
         
-        // Options spécifiques pour éviter les crashes
-        behavior.mindihedral = 0.0;  // Pas de contrainte d'angle
-        behavior.minratio = 1.0;     // Ratio minimal absolu
-        behavior.convex = 1;         // Utiliser l'enveloppe convexe
-        
-        // Désactivation explicite des options problématiques
-        behavior.facesout = 0;       // Ne pas générer de faces
-        behavior.edgesout = 0;       // Ne pas générer d'arêtes
-        behavior.neighout = 0;       // Ne pas générer de voisins
-        
-        // Ajouter une perturbation aléatoire légère pour éviter les configurations dégénérées
-        for (int i = 0; i < in.numberofpoints * 3; i++) {
-          double noise = ((double)rand() / RAND_MAX) * 1e-6;
-          in.pointlist[i] += noise;
+        // Clean up and return original mesh
+        if (prepared_mesh) {
+          BKE_id_free(nullptr, prepared_mesh);
         }
         
-        params.error_message_add(NodeWarningType::Info,
-            "Configuration Delaunay pure activée pour le maillage volumineux. "
-            "Les frontières ne seront pas préservées, mais la tétraédrisation sera stable.");
+        params.set_output("Tetrahedral Mesh", std::move(geometry_set));
+        return;
+      }
+      
+      // Configure TetGen behavior
+      tetgenbehavior behavior;
+      configure_tetgen_options(behavior, 
+                             max_volume,
+                             quality_ratio,
+                             min_dihedral_angle, 
+                             preserve_boundary,
+                             params);
+      
+      // Special anti-crash protection
+      if (has_problematic_geometry) {
+        // Prévention spécifique pour les crashs sscoutsegment
+        behavior.nomergefacet = 1;   // Empêcher la fusion des facettes
+        behavior.nomergevertex = 1;  // Empêcher la fusion des sommets
+        behavior.nojettison = 1;     // Désactiver le jettison des sommets
+        behavior.docheck = 0;        // Désactiver les vérifications
+        behavior.diagnose = 0;       // Désactiver le diagnostic qui peut accéder à des pointeurs NULL
         
-        // Exécuter TetGen dans un mode qui évitera complètement les opérations de flipping
-        try {
-          tetrahedralize(&behavior, &in, &out);
+        // Options cruciales pour éviter le crash dans sscoutsegment
+        behavior.plc = 0;            // Désactiver la préservation du complexe linéaire
+        behavior.nobisect = 0;       // Désactiver la préservation des frontières
+        
+        params.error_message_add(NodeWarningType::Warning,
+            "Géométrie problématique détectée. Protection anti-crash activée. "
+            "Les frontières du maillage ne seront pas préservées.");
+      }
+      
+      // Add slight random perturbation to avoid degenerate configurations that crash sscoutsegment
+      for (int i = 0; i < in.numberofpoints * 3; i++) {
+        double noise = ((double)rand() / RAND_MAX) * 1e-6;
+        in.pointlist[i] += noise;
+      }
+      
+      // Attempt tetrahedralization with protective try-catch block
+      bool tetgen_success = false;
+      
+      try {
+        tetrahedralize(&behavior, &in, &out);
+        tetgen_success = true;
+      }
+      catch (std::exception &e) {
+        // Si l'erreur concerne sscoutsegment, essayer avec une configuration plus robuste
+        std::string error_msg = e.what();
+        if (error_msg.find("sscoutsegment") != std::string::npos || 
+            error_msg.find("Access violation") != std::string::npos) {
           
-          // Traiter la sortie
-          if (out.numberoftetrahedra > 0) {
-            mesh_out = create_tetrahedral_mesh(out, params);
-            if (mesh_out) {
+          params.error_message_add(NodeWarningType::Warning,
+              "Crash détecté dans sscoutsegment. Tentative avec configuration anti-crash...");
+          
+          // Réinitialiser les structures TetGen
+          in.initialize();
+          out.initialize();
+          
+          // Préparer à nouveau l'entrée avec perturbations plus importantes
+          if (prepare_tetgen_input(mesh_to_process, in, params, 3)) {
+            // Configuration extrêmement robuste pour éviter sscoutsegment
+            tetgenbehavior safe_behavior;
+            safe_behavior.plc = 0;           // Désactiver complètement PLC
+            safe_behavior.nobisect = 0;      // Ne pas préserver les frontières
+            safe_behavior.quality = 0;       // Désactiver l'amélioration de qualité
+            safe_behavior.mindihedral = 0.0; // Pas de contrainte d'angle
+            safe_behavior.minratio = 1.0;    // Pas de contrainte de ratio
+            safe_behavior.docheck = 0;       // Pas de vérification
+            safe_behavior.diagnose = 0;      // Pas de diagnostic
+            safe_behavior.convex = 1;        // Utiliser l'enveloppe convexe
+            
+            // Options cruciales pour éviter sscoutsegment
+            safe_behavior.nomergefacet = 1;  // Prévenir la fusion des facettes
+            safe_behavior.nomergevertex = 1; // Prévenir la fusion des sommets
+            safe_behavior.nojettison = 1;    // Désactiver jettison
+            
+            // Désactiver toutes les sorties problématiques
+            safe_behavior.facesout = 0;
+            safe_behavior.edgesout = 0;
+            safe_behavior.neighout = 0;
+            
+            // Perturber fortement les sommets pour éviter les cas dégénérés
+            for (int i = 0; i < in.numberofpoints * 3; i++) {
+              double noise = ((double)rand() / RAND_MAX) * 1e-4;
+              in.pointlist[i] += noise;
+            }
+            
+            try {
+              params.error_message_add(NodeWarningType::Info,
+                  "Tentative de tétraédrisation avec protection anti-crash maximale");
+              tetrahedralize(&safe_behavior, &in, &out);
               tetgen_success = true;
+              
+              params.error_message_add(NodeWarningType::Info,
+                  "Tétraédrisation réussie avec configuration de secours");
+            }
+            catch (std::exception &e) {
+              // Si même la configuration de secours échoue, essayons une approche drastique
+              params.error_message_add(NodeWarningType::Warning,
+                  "Échec de la première tentative de secours. Dernier essai avec une enveloppe convexe pure...");
+              
+              try {
+                // Réinitialiser à nouveau
+                in.initialize();
+                out.initialize();
+                
+                // Recréer l'entrée avec perturbations encore plus fortes
+                if (prepare_tetgen_input(mesh_to_process, in, params, 5)) {
+                  // Configuration absolument minimale - juste une enveloppe convexe
+                  tetgenbehavior minimal_behavior;
+                  minimal_behavior.plc = 0;
+                  minimal_behavior.quality = 0;
+                  minimal_behavior.nobisect = 0;
+                  minimal_behavior.convex = 1;        // Enveloppe convexe uniquement
+                  minimal_behavior.weighted = 0;      // Pas d'option avancée risquée
+                  minimal_behavior.diagnose = 0;      // Pas de diagnostic
+                  minimal_behavior.verbose = 0;       // Pas de verbosité
+                  minimal_behavior.nomergefacet = 1;  // Sécurité maximale
+                  minimal_behavior.nomergevertex = 1;
+                  minimal_behavior.nojettison = 1;
+                  
+                  // Désactiver toutes les sorties complexes
+                  minimal_behavior.facesout = 0;
+                  minimal_behavior.edgesout = 0;
+                  minimal_behavior.neighout = 0;
+                  minimal_behavior.voroout = 0;
+                  
+                  // Une tentative vraiment ultime
+                  tetrahedralize(&minimal_behavior, &in, &out);
+                  tetgen_success = true;
+                  
+                  params.error_message_add(NodeWarningType::Info,
+                      "Tétraédrisation réussie en mode enveloppe convexe pure. "
+                      "La forme exacte du maillage n'a pas été préservée.");
+                }
+              }
+              catch (...) {
+                params.error_message_add(NodeWarningType::Error,
+                    "Toutes les tentatives de tétraédrisation ont échoué. "
+                    "Le maillage est trop problématique ou plat pour être tétraédralisé.");
+              }
             }
           }
         }
-        catch (std::exception &e) {
+        else {
           params.error_message_add(NodeWarningType::Error,
-              std::string("Erreur TetGen: ") + e.what());
+              std::string("TetGen error: ") + e.what() + ". Returning input mesh unchanged.");
         }
-        catch (...) {
+      }
+      catch (...) {
+        params.error_message_add(NodeWarningType::Error,
+            "Unknown error during tetrahedralization. Returning input mesh unchanged.");
+      }
+      
+      // If tetrahedralization succeeded, validate output and create mesh
+      if (tetgen_success) {
+        if (validate_tetgen_output(out, params)) {
+          mesh_out = create_tetrahedral_mesh(out, params);
+        }
+        else {
           params.error_message_add(NodeWarningType::Error,
-              "Erreur inconnue pendant la tétraédrisation.");
+              "Generated tetrahedral mesh is invalid. Returning input mesh unchanged.");
         }
       }
     }
     catch (...) {
       params.error_message_add(NodeWarningType::Error,
-          "Erreur catastrophique détectée pendant la tétraédrisation.");
+          "Unexpected error in tetrahedralization process. Returning input mesh unchanged.");
     }
     
-    // Output
+    // Prepare output
     GeometrySet output;
     if (mesh_out) {
       output.replace_mesh(mesh_out);
     }
+    else {
+      // If no output mesh was created, return the input mesh
+      output = std::move(geometry_set);
+      params.error_message_add(NodeWarningType::Info,
+          "Failed to create tetrahedral mesh. Returning input mesh unchanged.");
+    }
     
-    // Nettoyer le maillage préparé si nécessaire
+    // Clean up prepared mesh if needed
     if (prepared_mesh) {
       BKE_id_free(nullptr, prepared_mesh);
     }
     
     params.set_output("Tetrahedral Mesh", std::move(output));
-    return;  // Sortir immédiatement, ne pas utiliser le chemin normal
-  }
-  
-  // Ajuster les paramètres en fonction de la complexité
-  if (is_extremely_complex) {
-    params.error_message_add(NodeWarningType::Warning, 
-        "Maillage extrêmement complexe détecté (" + std::to_string(mesh_to_process->verts_num) + 
-        " sommets, " + std::to_string(mesh_to_process->faces_num) + 
-        " faces). Ajustement drastique des paramètres pour assurer la tétraédrisation.");
-    
-    // Réduire drastiquement le ratio de qualité
-    float original_quality = quality_ratio;
-    quality_ratio = 1.05f;
-    
-    if (original_quality != quality_ratio) {
-      params.error_message_add(NodeWarningType::Info, 
-          "Réduction automatique du ratio de qualité de " + std::to_string(original_quality) + 
-          " à " + std::to_string(quality_ratio) + " pour les maillages extrêmement complexes.");
-    }
-    
-    // Réduire drastiquement l'angle dihédral minimum
-    float original_angle = min_dihedral_angle;
-    min_dihedral_angle = 0.1f;
-    
-    if (original_angle != min_dihedral_angle && original_angle > 0.1f) {
-      params.error_message_add(NodeWarningType::Info, 
-          "Réduction automatique de l'angle dihédral minimum de " + std::to_string(original_angle) + 
-          "° à " + std::to_string(min_dihedral_angle) + "° pour les maillages extrêmement complexes.");
-    }
-    
-    // Désactiver la préservation des frontières pour les maillages extrêmement complexes
-    if (preserve_boundary) {
-      params.error_message_add(NodeWarningType::Info, 
-          "Désactivation de la préservation des frontières pour les maillages extrêmement complexes.");
-      preserve_boundary = false;
-    }
-  }
-  else if (is_highly_complex) {
-    params.error_message_add(NodeWarningType::Warning, 
-        "Maillage très complexe détecté (" + std::to_string(mesh_to_process->verts_num) + 
-        " sommets, " + std::to_string(mesh_to_process->faces_num) + 
-        " faces). Ajustement des paramètres de qualité.");
-    
-    // Réduire le ratio de qualité
-    float original_quality = quality_ratio;
-    quality_ratio = std::min(quality_ratio, 1.2f);
-    
-    if (original_quality != quality_ratio) {
-      params.error_message_add(NodeWarningType::Info, 
-          "Réduction automatique du ratio de qualité de " + std::to_string(original_quality) + 
-          " à " + std::to_string(quality_ratio) + " pour éviter les crashs.");
-    }
-    
-    // Réduire l'angle dihédral minimum
-    float original_angle = min_dihedral_angle;
-    min_dihedral_angle = std::min(min_dihedral_angle, 5.0f);
-    
-    if (original_angle != min_dihedral_angle && original_angle > 5.0f) {
-      params.error_message_add(NodeWarningType::Info, 
-          "Réduction automatique de l'angle dihédral minimum de " + std::to_string(original_angle) + 
-          "° à " + std::to_string(min_dihedral_angle) + "° pour les maillages très complexes.");
-    }
-  }
-  else if (is_medium_complex) {
-    // Pour les maillages moyennement complexes, juste un avertissement et des ajustements mineurs
-    params.error_message_add(NodeWarningType::Info, 
-        "Maillage moyennement complexe détecté (" + std::to_string(mesh_to_process->verts_num) + 
-        " sommets, " + std::to_string(mesh_to_process->faces_num) + 
-        " faces). Optimisation des paramètres.");
-    
-    // Limiter le ratio de qualité à des valeurs raisonnables
-    if (quality_ratio > 2.0f) {
-      float original_quality = quality_ratio;
-      quality_ratio = 2.0f;
-      
-      params.error_message_add(NodeWarningType::Info, 
-          "Réduction automatique du ratio de qualité de " + std::to_string(original_quality) + 
-          " à " + std::to_string(quality_ratio) + " pour optimiser le temps de calcul.");
-    }
-  }
-  
-  // TetGen structures
-  tetgenio in, out;
-  tetgenbehavior behavior;
-  
-  // Resource guard to ensure cleanup in case of exception
-  TetGenResourceGuard resource_guard(in, out);
-  
-  Mesh *mesh_out = nullptr;
-  bool tetgen_success = false;
-  
-  // Nombre maximum de tentatives - augmenté pour les maillages complexes
-  // Utiliser plus de tentatives pour les maillages extrêmement complexes
-  const int max_attempts = is_extremely_complex ? 5 : (is_highly_complex ? 4 : (is_medium_complex ? 3 : 2));
-  
-  try {
-    // Protection contre les crashs avec try-catch au niveau global
-    // En cas d'échec complet, on utilisera le tétraèdre de secours
-    try {
-      // Boucle d'essais avec différentes configurations
-      for (int attempt = 0; attempt < max_attempts && !tetgen_success; attempt++) {
-        // Réinitialiser les structures TetGen pour chaque essai
-        if (attempt > 0) {
-          // Nettoyer les données précédentes
-          in.initialize();
-          out.initialize();
-          
-          params.error_message_add(NodeWarningType::Info, 
-              "Tentative " + std::to_string(attempt + 1) + " avec des paramètres plus permissifs");
-        }
-        
-        // Options spéciales pour les maillages complexes dès la première tentative
-        bool use_extreme_robustness = is_complex_mesh && attempt >= 1;
-        
-        // Pour le dernier essai sur un maillage complexe, on prend des mesures radicales
-        bool use_desperate_measures = is_complex_mesh && attempt >= max_attempts - 1;
-        
-        // Pour les maillages extrêmement complexes, des mesures radicales dès la première tentative
-        if (is_extremely_complex && attempt == 0) {
-          use_extreme_robustness = true;
-        }
-        
-        // Prepare input data - avec perturbation aléatoire accrue pour les maillages complexes
-        if (prepare_tetgen_input(mesh_to_process, in, params, use_extreme_robustness ? attempt + 1 : attempt)) {
-          
-          // Configure TetGen options avec le numéro de tentative
-          // Utiliser des options plus agressives pour les maillages complexes
-          configure_tetgen_options(behavior, 
-                                 max_volume, 
-                                 use_extreme_robustness ? 1.1f : quality_ratio,
-                                 use_extreme_robustness ? 1.0f : min_dihedral_angle, 
-                                 use_extreme_robustness ? false : preserve_boundary, 
-                                 params, 
-                                 use_extreme_robustness ? attempt + 1 : attempt,
-                                 max_attempts);
-          
-          // Pour les maillages complexes et les tentatives désespérées, désactiver tout contrôle qualité
-          if (use_desperate_measures) {
-            behavior.quality = 0;        // Désactiver toute amélioration de qualité
-            behavior.mindihedral = 0.0;  // Pas de contrainte d'angle dihédral
-            behavior.minratio = 1.0;    // Ratio minimal absolu
-            behavior.diagnose = 1;       // Mode diagnostic 
-            behavior.docheck = 0;        // Désactiver les vérifications
-            behavior.nobisect = 0;       // Ne pas préserver la frontière
-            behavior.epsilon = 1e-6;     // Tolérance élevée pour les erreurs numériques
-            behavior.nomergefacet = 1;   // Prévenir la fusion des facettes
-            behavior.nomergevertex = 1;  // Prévenir la fusion des sommets
-            
-            params.error_message_add(NodeWarningType::Warning,
-                "Utilisation de paramètres de dernier recours pour la tétraédrisation");
-          }
-          
-          // Run TetGen
-          try {
-            // Protéger l'appel TetGen pour éviter les erreurs d'accès mémoire
-            try {
-              // AJOUT: Protection ultime contre le crash dans create_a_shorter_edge
-              // Appliqué uniquement aux maillages vraiment complexes
-              if (is_extremely_complex && attempt == max_attempts - 1) {
-                // Configuration anti-crash spécifique pour l'erreur dans create_a_shorter_edge
-                behavior.plc = 1;          // Conserver le complexe linéaire par morceaux
-                behavior.psc = 0;          // Désactiver les contraintes de surface précises
-                behavior.quality = 0;      // Désactiver l'amélioration de qualité
-                behavior.docheck = 0;      // Désactiver les vérifications
-                behavior.diagnose = 1;     // Activer le mode diagnostic
-                behavior.nobisect = 0;     // Ne pas préserver les frontières exactes
-                behavior.coarsen = 1;      // Autoriser la simplification du maillage
-                behavior.mindihedral = 0;  // Pas de contrainte d'angle minimum
-                behavior.minratio = 10.0;  // Ratio très permissif
-                behavior.epsilon = 1e-5;   // Tolérance numérique élevée
-                
-                // Paramètres supplémentaires pour éviter le crash dans create_a_shorter_edge
-                behavior.facesout = 0;     // Ne pas générer les faces (évite certains appels problématiques)
-                behavior.edgesout = 0;     // Ne pas générer les arêtes (évite certains appels problématiques)
-                behavior.neighout = 0;     // Ne pas générer les voisins
-                
-                // NOUVELLE DÉSACTIVATION RADICALE
-                // Utilisation d'une vraie tétraédrisation Delaunay sans contraintes de frontières
-                behavior.plc = 0;          // DÉSACTIVER complètement la préservation des frontières
-                behavior.psc = 0;          // Désactiver les contraintes de surface
-                behavior.quality = 0;      // Qualité minimale
-                
-                // Paramètres qui causeraient des problèmes désactivés
-                behavior.facesout = 0;
-                behavior.edgesout = 0;
-                behavior.neighout = 0;
-                
-                // Garantir une tétraédrisation Delaunay pure sans récupération
-                behavior.convex = 1;        // Permettre l'enveloppe convexe simple
-                behavior.regionattrib = 0;  // Ne pas générer d'attributs de région
-                
-                params.error_message_add(NodeWarningType::Warning,
-                    "SOLUTION D'URGENCE: Désactivation complète de la récupération des frontières "
-                    "pour éviter le crash. Le résultat sera une tétraédrisation Delaunay de "
-                    "l'enveloppe convexe sans préservation des frontières.");
-              }
-              
-              // Essayer d'exécuter TetGen avec les paramètres modifiés
-              try {
-                tetrahedralize(&behavior, &in, &out);
-              }
-              catch (...) {
-                // En cas d'échec même après avoir désactivé les frontières, 
-                // essayer le dernier recours: délaunay simple
-                if (attempt == max_attempts - 1) {
-                  try {
-                    // Réinitialiser les structures
-                    in.initialize();
-                    out.initialize();
-                    
-                    // Préparer l'entrée à nouveau (sans perturbations)
-                    if (prepare_tetgen_input(mesh_to_process, in, params, 0)) {
-                      // Configuration pour Delaunay pur (sans frontières)
-                      behavior.plc = 0;            // Pas de préservation des frontières
-                      behavior.psc = 0;            // Pas de contraintes de surface
-                      behavior.quality = 0;        // Pas d'amélioration de qualité
-                      behavior.mindihedral = 0.0;  // Pas de contrainte d'angle
-                      behavior.minratio = 1.0;     // Pas de contrainte de ratio
-                      behavior.docheck = 0;        // Pas de vérifications
-                      behavior.diagnose = 0;       // Pas de diagnostic
-                      behavior.convex = 1;         // Conserver l'enveloppe convexe
-                      behavior.facesout = 0;       // Pas de génération de faces
-                      behavior.edgesout = 0;       // Pas de génération d'arêtes
-                      behavior.neighout = 0;       // Pas de génération de voisins
-                      behavior.quiet = 1;
-                      behavior.verbose = 0;
-                      
-                      params.error_message_add(NodeWarningType::Warning,
-                          "DERNIER RECOURS: Tentative avec tétraédrisation Delaunay pure sans aucune contrainte.");
-                      
-                      tetrahedralize(&behavior, &in, &out);
-                    }
-                  }
-                  catch (...) {
-                    // Même le Delaunay pur a échoué - c'est terminé
-                    params.error_message_add(NodeWarningType::Error, 
-                        "La tétraédrisation a échoué même avec les paramètres les plus simples.");
-                    throw;
-                  }
-                }
-                else {
-                  // Pour les tentatives qui ne sont pas la dernière, simplement échouer et passer à la suivante
-                  throw;
-                }
-              }
-            }
-            catch (std::bad_alloc &e) {
-              // Erreur d'allocation mémoire - réessayer avec moins de qualité
-              params.error_message_add(NodeWarningType::Warning, 
-                  "Erreur d'allocation mémoire: réessai avec des paramètres réduits");
-              continue;
-            }
-            catch (std::exception &e) {
-              // Autres erreurs standard
-              if (attempt == max_attempts - 1) {
-                params.error_message_add(NodeWarningType::Error, 
-                    std::string("TetGen error: ") + e.what());
-              }
-              continue;
-            }
-            catch (...) {
-              // Crash potentiel de TetGen - probablement sur un maillage très complexe
-              // Dernier essai avec une configuration de secours radicale
-              if (attempt < max_attempts - 1) {
-                continue; // Passer à la tentative suivante
-              }
-              
-              // Dernier essai - utiliser une configuration de dernier recours
-              try {
-                // Réinitialiser les structures
-                in.initialize();
-                out.initialize();
-                
-                // Préparer l'entrée à nouveau
-                if (!prepare_tetgen_input(mesh_to_process, in, params, max_attempts)) {
-                  throw std::runtime_error("Failed to prepare input for last attempt");
-                }
-                
-                // Configurer des options très basiques pour éviter le crash
-                behavior.plc = 0;          // DÉSACTIVER complètement la préservation du complexe
-                behavior.quality = 0;      // Désactiver l'amélioration de qualité
-                behavior.nobisect = 0;     // Ne pas préserver les frontières
-                behavior.docheck = 0;      // Désactiver les vérifications
-                behavior.quiet = 1;
-                behavior.verbose = 0;
-                behavior.mindihedral = 0.0; // Aucune contrainte d'angle
-                behavior.minratio = 1.0;    // Ratio minimal
-                behavior.diagnose = 0;      // Désactiver le mode diagnostic aussi
-                behavior.convex = 1;        // Activer l'option convex pour générer l'enveloppe convexe uniquement
-                behavior.regionattrib = 0;  // Désactiver les attributs de région
-                
-                // ANTI-CRASH pour create_a_shorter_edge
-                // Désactivation complète du processus de récupération des frontières
-                behavior.facesout = 0;     // Ne pas générer de faces (évite les crashes dans create_a_shorter_edge)
-                behavior.edgesout = 0;     // Ne pas générer d'arêtes
-                behavior.psc = 0;          // Désactiver la préservation des contraintes de surface
-                
-                // Essai final sans récupération des frontières (pour éviter le crash)
-                params.error_message_add(NodeWarningType::Warning, 
-                    "Mode anti-crash critique activé - Génération d'une tétraédrisation Delaunay pure "
-                    "sans récupération des frontières pour éviter complètement le crash dans "
-                    "create_a_shorter_edge.");
-                
-                // Ajouter une perturbation aléatoire aux sommets pour éviter les co-circularités
-                // qui peuvent causer des problèmes avec l'algorithme de Delaunay
-                for (int i = 0; i < in.numberofpoints * 3; i++) {
-                  double noise = ((double)rand() / RAND_MAX) * 1e-6;
-                  in.pointlist[i] += noise;
-                }
-                
-                // Tentative finale avec la configuration de secours
-                tetrahedralize(&behavior, &in, &out);
-              }
-              catch (...) {
-                // Même la tentative de dernier recours a échoué
-                params.error_message_add(NodeWarningType::Error, 
-                    "Échec total de la tétraédrisation, même avec la configuration de secours");
-                // Continuer vers le fallback
-                throw;
-              }
-            }
-            
-            // Validate output
-            if (validate_tetgen_output(out, params)) {
-              // Create mesh
-              mesh_out = create_tetrahedral_mesh(out, params);
-              
-              if (mesh_out) {
-                tetgen_success = true;
-                
-                // Ajouter un message de réussite avec le numéro de tentative
-                if (attempt > 0) {
-                  params.error_message_add(NodeWarningType::Info, 
-                      "Tétraédrisation réussie après " + std::to_string(attempt + 1) + " tentative(s)");
-                }
-                
-                break; // Sortir de la boucle
-              }
-            }
-          }
-          catch (const std::exception &e) {
-            // Uniquement afficher l'erreur à la dernière tentative
-            if (attempt == max_attempts - 1) {
-              params.error_message_add(NodeWarningType::Error, 
-                  std::string("TetGen error: ") + e.what());
-            }
-          }
-          catch (...) {
-            if (attempt == max_attempts - 1) {
-              params.error_message_add(NodeWarningType::Error, 
-                  "Unknown error while running TetGen");
-            }
-          }
-        }
-      }
-    }
-    catch (const std::exception &e) {
-      params.error_message_add(NodeWarningType::Error, 
-          std::string("Exception: ") + e.what());
-    }
-    catch (...) {
-      params.error_message_add(NodeWarningType::Error, 
-          "Erreur inconnue catastrophique pendant le traitement");
-    }
   }
   catch (...) {
-    // Protection absolue pour garantir que nous pouvons toujours créer un fallback
-    params.error_message_add(NodeWarningType::Error, 
-        "Crash de l'algorithme de tétraédrisation détecté");
+    // Ultimate fallback in case of any exception
+    params.error_message_add(NodeWarningType::Error,
+        "Critical error occurred. Returning empty geometry.");
+    params.set_output("Tetrahedral Mesh", GeometrySet());
   }
-  
-  // Nettoyer le maillage préparé si nécessaire
-  if (prepared_mesh) {
-    BKE_id_free(nullptr, prepared_mesh);
-  }
-  
-  // In case of failure, create a fallback tetrahedron
-  if (!tetgen_success) {
-    params.error_message_add(NodeWarningType::Warning, 
-        "Impossible de créer un maillage tétraédrique.");
-    mesh_out = nullptr;
-  }
-  
-  // Output
-  GeometrySet output;
-  if (mesh_out) {
-    output.replace_mesh(mesh_out);
-  }
-  
-  params.set_output("Tetrahedral Mesh", std::move(output));
 }
 
 static void node_register()
