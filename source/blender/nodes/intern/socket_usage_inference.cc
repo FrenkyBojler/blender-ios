@@ -509,7 +509,7 @@ struct SocketUsageInferencer {
         break;
       }
     }
-    const bool is_used = all_condition_inputs_true || any_output_used;
+    const bool is_used = all_condition_inputs_true && any_output_used;
     all_socket_usages_.add_new(socket, is_used);
   }
 
