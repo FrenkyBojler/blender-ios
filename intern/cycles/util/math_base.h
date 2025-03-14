@@ -95,14 +95,19 @@ ccl_device_inline float squaref(float a)
   return a * a;
 }
 
+ccl_device_inline float inverse_mix(float from_min, float from_max, float value)
+{
+  return (value - from_min) / (from_max - from_min);
+}
+
 #if !defined(__HIP__) && !defined(__KERNEL_ONEAPI__)
 #  ifdef _WIN32
-ccl_device_inline float fmaxf(float a, float b)
+ccl_device_inline float fmaxf(const float a, const float b)
 {
   return (a > b) ? a : b;
 }
 
-ccl_device_inline float fminf(float a, float b)
+ccl_device_inline float fminf(const float a, const float b)
 {
   return (a < b) ? a : b;
 }
@@ -380,11 +385,6 @@ ccl_device_inline float clamp(const float a, const float mn, const float mx)
 ccl_device_inline float mix(const float a, const float b, float t)
 {
   return a + t * (b - a);
-}
-
-ccl_device_inline float inverse_mix(float from_min, float from_max, float value)
-{
-  return (value - from_min) / (from_max - from_min);
 }
 
 ccl_device_inline float smoothstep(const float edge0, const float edge1, const float x)
