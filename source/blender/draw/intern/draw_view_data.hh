@@ -17,6 +17,7 @@
 #include "DRW_render.hh"
 #include "draw_context_private.hh"
 
+#include "engines/eevee_next/eevee_engine.h"
 #include "engines/overlay/overlay_engine.h"
 #include "engines/select/select_engine.hh"
 #include "engines/workbench/workbench_engine.h"
@@ -91,7 +92,7 @@ struct DRWViewData {
 
   /* Engines running for this viewport. nullptr if not enabled. */
   /* TODO(fclem): Directly use each engine class. */
-  ViewportEngineData eevee;
+  blender::eevee::Engine eevee;
   blender::workbench::Engine workbench;
   ViewportEngineData external;
   ViewportEngineData image;
@@ -125,7 +126,7 @@ struct DRWViewData {
     /* IMPORTANT: Order here defines the draw order. */
 
     /* Render engines. Output to the render result framebuffer. Mutually exclusive. */
-    // callback(&eevee, eevee.draw_engine);
+    callback(eevee);
     callback(workbench);
     // callback(&external, external.draw_engine);
     // callback(&image, image.draw_engine);

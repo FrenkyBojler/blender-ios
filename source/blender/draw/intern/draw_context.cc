@@ -1067,19 +1067,17 @@ void DRWContext::enable_engines(bool gpencil_engine_needed, RenderEngineType *re
       case OB_MATERIAL:
       case OB_RENDER:
       default:
-        if (render_engine_type->draw_engine != nullptr) {
-          if (render_engine_type == &DRW_engine_viewport_eevee_next_type) {
-            view_data.eevee.used = true;
-          }
-          else if (render_engine_type == &DRW_engine_viewport_workbench_type) {
-            view_data.workbench.set_used(true);
-          }
-          else {
-            BLI_assert_unreachable();
-          }
+        if (render_engine_type == &DRW_engine_viewport_eevee_next_type) {
+          view_data.eevee.set_used(true);
+        }
+        else if (render_engine_type == &DRW_engine_viewport_workbench_type) {
+          view_data.workbench.set_used(true);
         }
         else if ((render_engine_type->flag & RE_INTERNAL) == 0) {
           view_data.external.used = true;
+        }
+        else {
+          BLI_assert_unreachable();
         }
         break;
     }
@@ -2227,7 +2225,7 @@ void DRW_engines_register()
 
 void DRW_engines_free()
 {
-  DRW_engine_viewport_eevee_next_type.draw_engine->engine_free();
+  blender::eevee::Engine::free_static();
   blender::workbench::Engine::free_static();
   draw_engine_gpencil_type.engine_free();
   draw_engine_image_type.engine_free();
