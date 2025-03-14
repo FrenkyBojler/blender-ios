@@ -464,7 +464,6 @@ void GreasePencilExporter::foreach_stroke_in_layer(const Object &object,
 
     const bool is_cyclic = cyclic[i_curve];
     const int material_index = material_indices[i_curve];
-
     const Material *material = [&]() {
       const Material *material = BKE_object_material_get(const_cast<Object *>(&object),
                                                          material_index + 1);
