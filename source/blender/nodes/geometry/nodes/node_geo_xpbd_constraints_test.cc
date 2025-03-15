@@ -494,6 +494,11 @@ static SolverTestData simple_solver_data(const bool use_velocities)
 {
   SolverTestData solver_test;
 
+  solver_test.params.delta_time = 0.2f;
+  solver_test.params.delta_time_squared = 0.2f * 0.2f;
+  solver_test.params.inv_delta_time = 1.0f / 0.2f;
+  solver_test.params.inv_delta_time_squared = 1.0f / (0.2f * 0.2f);
+
   solver_test.params.masses = VArray<float>::ForContainer(Array<float>{1.0f, 3.0f, 0.5f});
   solver_test.params.local_inertia = VArray<float3>::ForContainer(
       Array<float3>{float3(1.0f), float3(1, 2, 1), float3(0.2f, 10.f, 0.5f)});
@@ -600,6 +605,7 @@ TEST_F(XPBDSolverTest, GlobalSolverUnconstrained)
   constexpr float eps = 1e-6f;
 
   SolverTestData solver_test = simple_solver_data(false);
+  const float inv_dt = solver_test.params.inv_delta_time;
 
   Eigen::SparseMatrix<float> H;
   Eigen::VectorXf b;
@@ -607,9 +613,7 @@ TEST_F(XPBDSolverTest, GlobalSolverUnconstrained)
       solver_test.params, solver_test.data, solver_test.vars, true, H, b);
   EXPECT_EQ(H.rows(), 23);
   EXPECT_EQ(H.cols(), 23);
-  // XXX replace when matrix is complete
-  EXPECT_EQ(H.nonZeros(), 65);
-  // EXPECT_EQ(H.nonZeros(), 71);
+  EXPECT_EQ(H.nonZeros(), 71);
 
   const float3x3 mass_diagonal0 = math::from_scale<float3x3>(float3(solver_test.params.masses[0]));
   const float3x3 mass_diagonal1 = math::from_scale<float3x3>(float3(solver_test.params.masses[1]));
@@ -628,19 +632,26 @@ TEST_F(XPBDSolverTest, GlobalSolverUnconstrained)
   EXPECT_EIGEN_M4_NEAR(inertia_tensor1, H.block(13, 13, 4, 4), eps);
   EXPECT_EIGEN_M4_NEAR(inertia_tensor2, H.block(17, 17, 4, 4), eps);
 
-  EXPECT_NEAR(1.0f + solver_test.alphas[0], H.coeff(21, 21), eps);
-  EXPECT_NEAR(1.0f + solver_test.alphas[1], H.coeff(22, 22), eps);
+  /* Damping factors. */
+  EXPECT_NEAR((1.0f + solver_test.alphas[0]) / (1.0f + solver_test.betas[0] * inv_dt),
+              H.coeff(21, 21),
+              eps);
+  EXPECT_NEAR((1.0f + solver_test.alphas[1]) / (1.0f + solver_test.betas[1] * inv_dt),
+              H.coeff(22, 22),
+              eps);
 
-  /* Damping factor for displacement terms in constraint equations. */
-  const float damping_factor0 = 1.0f + solver_test.betas[0] * solver_test.params.inv_delta_time;
-  const float damping_factor1 = 1.0f + solver_test.betas[0] * solver_test.params.inv_delta_time;
-
-  const float3 pos_gradient0 = math::normalize(solver_test.goal_position[0] -
-                                               solver_test.vars.positions[0]);
-  const float3 pos_gradient1 = math::normalize(solver_test.goal_position[1] -
-                                               solver_test.vars.positions[1]);
-  EXPECT_EIGEN_V3_ROW_NEAR(pos_gradient0 * damping_factor0, H.block(21, 0, 1, 3), eps);
-  EXPECT_EIGEN_V3_ROW_NEAR(pos_gradient1 * damping_factor1, H.block(22, 2, 1, 3), eps);
+  const int point0 = 0;
+  const int point1 = 2;
+  BLI_assert(solver_test.point1[0] == point0);
+  BLI_assert(solver_test.point1[1] == point1);
+  const float3 pos_gradient0 = math::normalize(solver_test.vars.positions[point0] -
+                                               solver_test.goal_position[0]);
+  const float3 pos_gradient1 = math::normalize(solver_test.vars.positions[point1] -
+                                               solver_test.goal_position[1]);
+  EXPECT_EIGEN_V3_ROW_NEAR(pos_gradient0, H.block(21, 0, 1, 3), eps);
+  EXPECT_EIGEN_V3_ROW_NEAR(pos_gradient1, H.block(22, 6, 1, 3), eps);
+  EXPECT_EIGEN_V3_COL_NEAR(pos_gradient0, H.block(0, 21, 3, 1), eps);
+  EXPECT_EIGEN_V3_COL_NEAR(pos_gradient1, H.block(6, 22, 3, 1), eps);
 }
 
 }  // namespace blender::nodes::tests

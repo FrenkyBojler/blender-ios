@@ -545,7 +545,7 @@ static void count_global_solve_matrix_entries(const Span<ConstraintEvalData> con
     /* Lower-right sub-matrix has a row/column for each constraint component. */
     r_num_columns += num_constraints * num_components;
     /* Each component adds a compliance entry and derivatives for each variable. */
-    const int entries_per_component = 1 + num_position_vars * 3 + num_rotation_vars * 4;
+    const int entries_per_component = 1 + 2 * (num_position_vars * 3 + num_rotation_vars * 4);
     r_num_non_zeroes += num_constraints * num_components * entries_per_component;
   }
   /* Matrix is square. */
@@ -745,6 +745,45 @@ inline float get_component(const float3 &v, const int i)
   return v[i];
 }
 
+inline float get_component(const float3 &g, const int i, const int j)
+{
+  BLI_assert(i == 0);
+  return g[j];
+}
+
+inline float get_component(const float4 &g, const int i, const int j)
+{
+  BLI_assert(i == 0);
+  return g[j];
+}
+
+inline float get_component(const float4x4 &g, const int i, const int j)
+{
+  return g[i][j];
+}
+
+template<typename GradientT>
+void append_gradient(const IndexRange component_columns,
+                     const IndexRange variable_columns,
+                     const GradientT &gradient,
+                     Vector<Eigen::Triplet<float>> &triplets)
+{
+  for (const int v : variable_columns.index_range()) {
+    for (const int u : component_columns.index_range()) {
+      /* Lower-left corner contains gradient row vectors (Jacobian transpose matrix blocks). */
+      triplets.append_unchecked_as(
+          int(component_columns[u]), int(variable_columns[v]), get_component(gradient, u, v));
+    }
+  }
+  /* Upper-right corner contains gradient column vectors (Jacobian matrix blocks). */
+  for (const int u : component_columns.index_range()) {
+    for (const int v : variable_columns.index_range()) {
+      triplets.append_unchecked_as(
+          int(variable_columns[v]), int(component_columns[u]), get_component(gradient, u, v));
+    }
+  }
+}
+
 /* Set matrix elements for a type of constraint.
  * Template of the component number so that vector types can be defined statically. */
 template<typename ValueT, typename PosGradT, typename RotGradT>
@@ -779,6 +818,7 @@ static void set_global_solve_elements(const ConstraintEvalParams &params,
   BLI_assert(num_position_vars <= 4);
   BLI_assert(num_rotation_vars <= 4);
 
+  const float inv_dt = params.inv_delta_time;
   Array<ValueT> alphas(num_constraints * num_components);
   Array<ValueT> betas(num_constraints);
   Array<ValueT> residuals(num_constraints);
@@ -812,7 +852,8 @@ static void set_global_solve_elements(const ConstraintEvalParams &params,
                                    rotation_gradient_spans);
 
   for (const int index : IndexRange(num_constraints)) {
-    const ValueT compliance = ValueT(1.0f) + alphas[index];
+    const ValueT compliance = (ValueT(1.0f) + alphas[index]) /
+                              (ValueT(1.0f) + betas[index] * inv_dt);
 
     const IndexRange component_columns = components_range.slice(index * num_components,
                                                                 num_components);
@@ -826,281 +867,314 @@ static void set_global_solve_elements(const ConstraintEvalParams &params,
   /* Gradient entries. */
   for (const int var_i : IndexRange(num_position_vars)) {
     const Span<int> indices = position_index_arrays[var_i];
-    const Span<PosGradT> gradients = position_gradient_spans[var_i].typed<PosGradT>();
+    const Span<PosGradT> pos_gradients = position_gradient_spans[var_i].typed<PosGradT>();
 
     for (const int index : IndexRange(num_constraints)) {
       const int point_index = indices[index];
       if (!IndexRange(num_positions).contains(point_index)) {
         continue;
       }
-      const PosGradT gradient = gradients[index];
+      const PosGradT gradient = pos_gradients[index];
 
       const IndexRange component_columns = components_range.slice(index * num_components,
                                                                   num_components);
       const IndexRange position_columns = positions_range.slice(point_index * 3, 3);
-      /* Upper-right corner contains gradients. */
-      for (const int u : component_columns.index_range()) {
-        for (const int v : position_columns.index_range()) {
-          triplets.append_unchecked_as(
-              int(component_columns[u]), int(position_columns[v]), get_component(compliance, u));
-        }
-      }
-      /* Lower-left corner contains gradients with the damping factor applied. */
-      for (const int u : component_columns.index_range()) {
-        for (const int v : position_columns.index_range()) {
-          triplets.append_unchecked_as(
-              int(component_columns[u]), int(position_columns[v]), get_component(compliance, u));
-        }
-      }
+      append_gradient<PosGradT>(component_columns, position_columns, gradient, triplets);
     }
   }
+  for (const int var_i : IndexRange(num_rotation_vars)) {
+    const Span<int> indices = rotation_index_arrays[var_i];
+    const Span<RotGradT> rot_gradients = rotation_gradient_spans[var_i].typed<RotGradT>();
 
-  static void set_global_solve_elements(const ConstraintEvalParams &params,
-                                        const ConstraintVariables &variables,
-                                        const IndexRange positions_range,
-                                        const IndexRange rotations_range,
-                                        const IndexRange components_range,
-                                        const ConstraintEvalData &data,
-                                        const int num_components,
-                                        Vector<Eigen::Triplet<float>> &triplets)
-  {
-    /* XXX Matrix types float2x3, float3x3, float2x4, float 3x4 have no registered CPPType, so a
-     * larger type is used for output arrays. */
-    switch (num_components) {
-      case 1:
-        set_global_solve_elements<float, float3, float4>(
-            params, variables, positions_range, rotations_range, components_range, data, triplets);
-        break;
-      case 2:
-        set_global_solve_elements<float2, float4x4, float4x4>(
-            params, variables, positions_range, rotations_range, components_range, data, triplets);
-        break;
-      case 3:
-        set_global_solve_elements<float3, float4x4, float4x4>(
-            params, variables, positions_range, rotations_range, components_range, data, triplets);
-        break;
-      default:
-        BLI_assert_unreachable();
-        break;
-    }
-  }
-
-  static Eigen::SparseMatrix<float> build_global_solve_matrix_from_triplets(
-      const ConstraintEvalParams &params,
-      const Span<ConstraintEvalData> constraint_data,
-      const ConstraintVariables &variables,
-      const Span<VariableIndexArrays> position_indices_by_type,
-      const Span<VariableIndexArrays> rotation_indices_by_type,
-      const int num_non_zeroes,
-      const int num_rows,
-      const int num_columns)
-  {
-    const int num_positions = variables.positions.size();
-    const int num_rotations = variables.rotations.size();
-
-    Eigen::SparseMatrix<float> H(num_rows, num_columns);
-
-    const IndexRange positions_range = {0, num_positions * 3};
-    const IndexRange rotations_range = positions_range.after(num_rotations * 4);
-
-    Vector<Eigen::Triplet<float>> triplets;
-    triplets.reserve(num_non_zeroes);
-
-    /* Mass entries. */
-    for (const int index : IndexRange(num_positions)) {
-      const float mass = params.masses[index];
-
-      const IndexRange columns = positions_range.slice(index * 3, 3);
-      for (const int u : columns.index_range()) {
-        triplets.append_unchecked_as(int(columns[u]), int(columns[u]), mass);
-      }
-    }
-    for (const int index : IndexRange(num_rotations)) {
-      const float3 local_inertia = params.local_inertia[index];
-      const math::Quaternion global_inertia = variables.rotations[index] *
-                                              math::Quaternion(0.0f, local_inertia);
-      const float4x4 inertia_tensor = quaternion_matrix(global_inertia);
-
-      const IndexRange columns = rotations_range.slice(index * 4, 4);
-      for (const int u : columns.index_range()) {
-        for (const int v : columns.index_range()) {
-          triplets.append_unchecked_as(int(columns[v]), int(columns[u]), inertia_tensor[u][v]);
-        }
-      }
-    }
-
-    IndexRange prev_range = rotations_range;
-    for (const ConstraintEvalData &data : constraint_data) {
-      if (!data.type->linear_solve_size || !data.type->linear_solve_elements) {
+    for (const int index : IndexRange(num_constraints)) {
+      const int point_index = indices[index];
+      if (!IndexRange(num_rotations).contains(point_index)) {
         continue;
       }
-      const int num_constraints = data.constraints.size();
+      const RotGradT gradient = rot_gradients[index];
 
-      int num_components, num_position_vars, num_rotation_vars;
-      data.type->linear_solve_size(num_components, num_position_vars, num_rotation_vars);
-
-      // const GeometryComponent &component =
-      // *data.geometry->get_component<PointCloudComponent>(); const AttributeAccessor attributes
-      // = *component.attributes();
-
-      // TODO Eventually these callbacks should be based around Fields instead of arrays, so that
-      // node closures can be used directly. For now mapping and mask evaluation takes place
-      // inside the callback.
-
-      // struct {
-      //   GField alpha, beta, residual;
-      //   GField position_gradient[4];
-      //   GField rotation_gradient[4];
-      // } result_fields;
-      // data.type->linear_solve_elements(params,
-      //                                  variables,
-      //                                  attributes,
-      //                                  data.constraints,
-      //                                  result_fields.alpha,
-      //                                  result_fields.beta,
-      //                                  result_fields.residual,
-      //                                  result_fields.position_gradient,
-      //                                  result_fields.rotation_gradient);
-
-      // bke::GeometryFieldContext field_context(component, AttrDomain::Point);
-      // FieldEvaluator field_evaluator(field_context, &data.constraints);
-      // field_evaluator.add(result_fields.alpha);
-      // field_evaluator.add(result_fields.beta);
-      // field_evaluator.add(result_fields.residual);
-      // for (const int var_i : IndexRange(num_position_vars)) {
-      //   field_evaluator.add(result_fields.position_gradient[var_i]);
-      // }
-      // for (const int var_i : IndexRange(num_rotation_vars)) {
-      //   field_evaluator.add(result_fields.rotation_gradient[var_i]);
-      // }
-      // field_evaluator.evaluate();
-      // VArray<float> alphas = field_evaluator.get_evaluated<float>(0);
-      // VArray<float> betas = field_evaluator.get_evaluated<float>(1);
-      // VArray<float> residuals = field_evaluator.get_evaluated<float>(2);
-      // GVArray position_gradients[4];
-      // GVArray rotation_gradients[4];
-      // for (const int var_i : IndexRange(num_position_vars)) {
-      //   position_gradients[var_i] = field_evaluator.get_evaluated<float>(3 + var_i);
-      // }
-      // for (const int var_i : IndexRange(num_rotation_vars)) {
-      //   rotation_gradients[var_i] = field_evaluator.get_evaluated<float>(3 + num_position_vars
-      //   +
-      //                                                                    var_i);
-      // }
-
-      // /* Convert constraint elements to Eigen triplets for matrix construction. */
-      const IndexRange components_range = prev_range.after(num_constraints * num_components);
-
-      set_global_solve_elements(params,
-                                variables,
-                                positions_range,
-                                rotations_range,
-                                components_range,
-                                data,
-                                num_components,
-                                triplets);
-
-      // for (const int index : IndexRange(num_constraints)) {
-      //   const float compliance_damping = 1.0f + alphas[index];
-
-      //   const IndexRange component_columns = components_range.slice(index * num_components,
-      //                                                               num_components);
-      //   for (const int u : component_columns.index_range()) {
-      //     triplets.append_unchecked_as(
-      //         int(component_columns[u]), int(component_columns[u]), compliance_damping);
-      //   }
-
-      //   // for (const int u : columns.index_range()) {
-      //   //   for (const int v : columns.index_range()) {
-      //   //     triplets.append_unchecked_as(int(columns[v]), int(columns[u]),
-      //   inertia_tensor[u][v]);
-      //   //   }
-      //   // }
-      //   // triplets.append_unchecked_as();
-      // }
-
-      prev_range = components_range;
+      const IndexRange component_columns = components_range.slice(index * num_components,
+                                                                  num_components);
+      const IndexRange rotation_columns = rotations_range.slice(point_index * 4, 4);
+      append_gradient<RotGradT>(component_columns, rotation_columns, gradient, triplets);
     }
-
-    H.setFromTriplets(triplets.begin(), triplets.end());
-
-    return H;
   }
+}
 
-  template<bool debug_check>
-  static void do_build_global_solve_system(const ConstraintEvalParams &params,
-                                           MutableSpan<ConstraintEvalData> constraint_data,
-                                           ConstraintVariables &variables,
-                                           Eigen::SparseMatrix<float> &r_H,
-                                           Eigen::VectorXf &r_b)
-  {
-    const int num_positions = variables.positions.size();
-    const int num_rotations = variables.rotations.size();
-
-    int num_non_zeroes, num_rows, num_columns;
-    count_global_solve_matrix_entries(
-        constraint_data, variables, num_non_zeroes, num_rows, num_columns);
-
-    /* Read constraint topology.
-     * Constraints can use up to 4 variables, any extra arrays remain empty. */
-    Array<VariableIndexArrays> position_indices_by_type(constraint_data.size());
-    Array<VariableIndexArrays> rotation_indices_by_type(constraint_data.size());
-    read_constraint_topology(constraint_data, position_indices_by_type, rotation_indices_by_type);
-    if constexpr (debug_check) {
-      debug_check_constraint_topology(params,
-                                      constraint_data,
-                                      num_positions,
-                                      num_rotations,
-                                      position_indices_by_type,
-                                      rotation_indices_by_type);
-    }
-
-    /* LHS matrix describing equations of motion and constraint impulses. */
-    Eigen::SparseMatrix<float> H;
-    if (false) {
-      H = build_global_solve_matrix_from_spans(params,
-                                               constraint_data,
-                                               variables,
-                                               position_indices_by_type,
-                                               rotation_indices_by_type,
-                                               num_non_zeroes,
-                                               num_rows,
-                                               num_columns);
-    }
-    else {
-      H = build_global_solve_matrix_from_triplets(params,
-                                                  constraint_data,
-                                                  variables,
-                                                  position_indices_by_type,
-                                                  rotation_indices_by_type,
-                                                  num_non_zeroes,
-                                                  num_rows,
-                                                  num_columns);
-    }
-
-    Eigen::VectorXf b;
-    b.resize(num_columns);
-    // TODO set b entries
-
-    r_H = std::move(H);
-    r_b = std::move(b);
+static void set_global_solve_elements(const ConstraintEvalParams &params,
+                                      const ConstraintVariables &variables,
+                                      const IndexRange positions_range,
+                                      const IndexRange rotations_range,
+                                      const IndexRange components_range,
+                                      const ConstraintEvalData &data,
+                                      const VariableIndexArrays &position_index_arrays,
+                                      const VariableIndexArrays &rotation_index_arrays,
+                                      const int num_components,
+                                      Vector<Eigen::Triplet<float>> &triplets)
+{
+  /* XXX Matrix types float2x3, float3x3, float2x4, float 3x4 have no registered CPPType, so a
+   * larger type is used for output arrays. */
+  switch (num_components) {
+    case 1:
+      set_global_solve_elements<float, float3, float4>(params,
+                                                       variables,
+                                                       positions_range,
+                                                       rotations_range,
+                                                       components_range,
+                                                       data,
+                                                       position_index_arrays,
+                                                       rotation_index_arrays,
+                                                       triplets);
+      break;
+    case 2:
+      set_global_solve_elements<float2, float4x4, float4x4>(params,
+                                                            variables,
+                                                            positions_range,
+                                                            rotations_range,
+                                                            components_range,
+                                                            data,
+                                                            position_index_arrays,
+                                                            rotation_index_arrays,
+                                                            triplets);
+      break;
+    case 3:
+      set_global_solve_elements<float3, float4x4, float4x4>(params,
+                                                            variables,
+                                                            positions_range,
+                                                            rotations_range,
+                                                            components_range,
+                                                            data,
+                                                            position_index_arrays,
+                                                            rotation_index_arrays,
+                                                            triplets);
+      break;
+    default:
+      BLI_assert_unreachable();
+      break;
   }
+}
 
-  void build_global_solve_system(const ConstraintEvalParams &params,
-                                 MutableSpan<ConstraintEvalData> constraint_data,
-                                 ConstraintVariables &variables,
-                                 const bool debug_check,
-                                 Eigen::SparseMatrix<float> &r_H,
-                                 Eigen::VectorXf &r_b)
-  {
-    if (debug_check) {
-      do_build_global_solve_system<true>(params, constraint_data, variables, r_H, r_b);
+static Eigen::SparseMatrix<float> build_global_solve_matrix_from_triplets(
+    const ConstraintEvalParams &params,
+    const Span<ConstraintEvalData> constraint_data,
+    const ConstraintVariables &variables,
+    const Span<VariableIndexArrays> position_indices_by_type,
+    const Span<VariableIndexArrays> rotation_indices_by_type,
+    const int num_non_zeroes,
+    const int num_rows,
+    const int num_columns)
+{
+  const int num_positions = variables.positions.size();
+  const int num_rotations = variables.rotations.size();
+
+  Eigen::SparseMatrix<float> H(num_rows, num_columns);
+
+  const IndexRange positions_range = {0, num_positions * 3};
+  const IndexRange rotations_range = positions_range.after(num_rotations * 4);
+
+  Vector<Eigen::Triplet<float>> triplets;
+  triplets.reserve(num_non_zeroes);
+
+  /* Mass entries. */
+  for (const int index : IndexRange(num_positions)) {
+    const float mass = params.masses[index];
+
+    const IndexRange columns = positions_range.slice(index * 3, 3);
+    for (const int u : columns.index_range()) {
+      triplets.append_unchecked_as(int(columns[u]), int(columns[u]), mass);
     }
-    else {
-      do_build_global_solve_system<false>(params, constraint_data, variables, r_H, r_b);
+  }
+  for (const int index : IndexRange(num_rotations)) {
+    const float3 local_inertia = params.local_inertia[index];
+    const math::Quaternion global_inertia = variables.rotations[index] *
+                                            math::Quaternion(0.0f, local_inertia);
+    const float4x4 inertia_tensor = quaternion_matrix(global_inertia);
+
+    const IndexRange columns = rotations_range.slice(index * 4, 4);
+    for (const int u : columns.index_range()) {
+      for (const int v : columns.index_range()) {
+        triplets.append_unchecked_as(int(columns[v]), int(columns[u]), inertia_tensor[u][v]);
+      }
     }
   }
 
-  /** \} */
+  IndexRange prev_range = rotations_range;
+  for (const int constraint_i : constraint_data.index_range()) {
+    const ConstraintEvalData &data = constraint_data[constraint_i];
+    if (!data.type->linear_solve_size || !data.type->linear_solve_elements) {
+      continue;
+    }
+    const int num_constraints = data.constraints.size();
+
+    int num_components, num_position_vars, num_rotation_vars;
+    data.type->linear_solve_size(num_components, num_position_vars, num_rotation_vars);
+
+    // const GeometryComponent &component =
+    // *data.geometry->get_component<PointCloudComponent>(); const AttributeAccessor attributes
+    // = *component.attributes();
+
+    // TODO Eventually these callbacks should be based around Fields instead of arrays, so that
+    // node closures can be used directly. For now mapping and mask evaluation takes place
+    // inside the callback.
+
+    // struct {
+    //   GField alpha, beta, residual;
+    //   GField position_gradient[4];
+    //   GField rotation_gradient[4];
+    // } result_fields;
+    // data.type->linear_solve_elements(params,
+    //                                  variables,
+    //                                  attributes,
+    //                                  data.constraints,
+    //                                  result_fields.alpha,
+    //                                  result_fields.beta,
+    //                                  result_fields.residual,
+    //                                  result_fields.position_gradient,
+    //                                  result_fields.rotation_gradient);
+
+    // bke::GeometryFieldContext field_context(component, AttrDomain::Point);
+    // FieldEvaluator field_evaluator(field_context, &data.constraints);
+    // field_evaluator.add(result_fields.alpha);
+    // field_evaluator.add(result_fields.beta);
+    // field_evaluator.add(result_fields.residual);
+    // for (const int var_i : IndexRange(num_position_vars)) {
+    //   field_evaluator.add(result_fields.position_gradient[var_i]);
+    // }
+    // for (const int var_i : IndexRange(num_rotation_vars)) {
+    //   field_evaluator.add(result_fields.rotation_gradient[var_i]);
+    // }
+    // field_evaluator.evaluate();
+    // VArray<float> alphas = field_evaluator.get_evaluated<float>(0);
+    // VArray<float> betas = field_evaluator.get_evaluated<float>(1);
+    // VArray<float> residuals = field_evaluator.get_evaluated<float>(2);
+    // GVArray position_gradients[4];
+    // GVArray rotation_gradients[4];
+    // for (const int var_i : IndexRange(num_position_vars)) {
+    //   position_gradients[var_i] = field_evaluator.get_evaluated<float>(3 + var_i);
+    // }
+    // for (const int var_i : IndexRange(num_rotation_vars)) {
+    //   rotation_gradients[var_i] = field_evaluator.get_evaluated<float>(3 + num_position_vars
+    //   +
+    //                                                                    var_i);
+    // }
+
+    // /* Convert constraint elements to Eigen triplets for matrix construction. */
+    const IndexRange components_range = prev_range.after(num_constraints * num_components);
+
+    const VariableIndexArrays &position_index_arrays = position_indices_by_type[constraint_i];
+    const VariableIndexArrays &rotation_index_arrays = rotation_indices_by_type[constraint_i];
+    set_global_solve_elements(params,
+                              variables,
+                              positions_range,
+                              rotations_range,
+                              components_range,
+                              data,
+                              position_index_arrays,
+                              rotation_index_arrays,
+                              num_components,
+                              triplets);
+
+    // for (const int index : IndexRange(num_constraints)) {
+    //   const float compliance_damping = 1.0f + alphas[index];
+
+    //   const IndexRange component_columns = components_range.slice(index * num_components,
+    //                                                               num_components);
+    //   for (const int u : component_columns.index_range()) {
+    //     triplets.append_unchecked_as(
+    //         int(component_columns[u]), int(component_columns[u]), compliance_damping);
+    //   }
+
+    //   // for (const int u : columns.index_range()) {
+    //   //   for (const int v : columns.index_range()) {
+    //   //     triplets.append_unchecked_as(int(columns[v]), int(columns[u]),
+    //   inertia_tensor[u][v]);
+    //   //   }
+    //   // }
+    //   // triplets.append_unchecked_as();
+    // }
+
+    prev_range = components_range;
+  }
+
+  H.setFromTriplets(triplets.begin(), triplets.end());
+
+  return H;
+}
+
+template<bool debug_check>
+static void do_build_global_solve_system(const ConstraintEvalParams &params,
+                                         MutableSpan<ConstraintEvalData> constraint_data,
+                                         ConstraintVariables &variables,
+                                         Eigen::SparseMatrix<float> &r_H,
+                                         Eigen::VectorXf &r_b)
+{
+  const int num_positions = variables.positions.size();
+  const int num_rotations = variables.rotations.size();
+
+  int num_non_zeroes, num_rows, num_columns;
+  count_global_solve_matrix_entries(
+      constraint_data, variables, num_non_zeroes, num_rows, num_columns);
+
+  /* Read constraint topology.
+   * Constraints can use up to 4 variables, any extra arrays remain empty. */
+  Array<VariableIndexArrays> position_indices_by_type(constraint_data.size());
+  Array<VariableIndexArrays> rotation_indices_by_type(constraint_data.size());
+  read_constraint_topology(constraint_data, position_indices_by_type, rotation_indices_by_type);
+  if constexpr (debug_check) {
+    debug_check_constraint_topology(params,
+                                    constraint_data,
+                                    num_positions,
+                                    num_rotations,
+                                    position_indices_by_type,
+                                    rotation_indices_by_type);
+  }
+
+  /* LHS matrix describing equations of motion and constraint impulses. */
+  Eigen::SparseMatrix<float> H;
+  if (false) {
+    H = build_global_solve_matrix_from_spans(params,
+                                             constraint_data,
+                                             variables,
+                                             position_indices_by_type,
+                                             rotation_indices_by_type,
+                                             num_non_zeroes,
+                                             num_rows,
+                                             num_columns);
+  }
+  else {
+    H = build_global_solve_matrix_from_triplets(params,
+                                                constraint_data,
+                                                variables,
+                                                position_indices_by_type,
+                                                rotation_indices_by_type,
+                                                num_non_zeroes,
+                                                num_rows,
+                                                num_columns);
+  }
+
+  Eigen::VectorXf b;
+  b.resize(num_columns);
+  // TODO set b entries
+
+  r_H = std::move(H);
+  r_b = std::move(b);
+}
+
+void build_global_solve_system(const ConstraintEvalParams &params,
+                               MutableSpan<ConstraintEvalData> constraint_data,
+                               ConstraintVariables &variables,
+                               const bool debug_check,
+                               Eigen::SparseMatrix<float> &r_H,
+                               Eigen::VectorXf &r_b)
+{
+  if (debug_check) {
+    do_build_global_solve_system<true>(params, constraint_data, variables, r_H, r_b);
+  }
+  else {
+    do_build_global_solve_system<false>(params, constraint_data, variables, r_H, r_b);
+  }
+}
+
+/** \} */
 
 }  // namespace blender::nodes::xpbd_constraints
