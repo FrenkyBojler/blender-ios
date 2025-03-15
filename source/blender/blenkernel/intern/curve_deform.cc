@@ -39,7 +39,6 @@
 struct CurveDeform {
   float dmin[3], dmax[3];
   float curvespace[4][4], objectspace[4][4], objectspace3[3][3];
-  int no_rot_axis;
 };
 
 static void init_curve_deform(const Object *ob_curve, const Object *ob_target, CurveDeform *cd)
@@ -49,15 +48,13 @@ static void init_curve_deform(const Object *ob_curve, const Object *ob_target, C
   mul_m4_m4m4(cd->objectspace, imat, ob_curve->object_to_world().ptr());
   invert_m4_m4(cd->curvespace, cd->objectspace);
   copy_m3_m4(cd->objectspace3, cd->objectspace);
-  cd->no_rot_axis = 0;
 }
 
 /**
  * For each point, rotate & translate to curve.
  *
  * \param co: local coord, result local too.
- * \param r_quat: returns quaternion for rotation,
- * using #CurveDeform.no_rot_axis axis is using another define.
+ * \param r_quat: returns quaternion for rotation.
  */
 static bool calc_curve_deform(
     const Object *ob_curve, float co[3], const short axis, const CurveDeform *cd, float r_quat[4])
@@ -124,22 +121,6 @@ static bool calc_curve_deform(
 
   if (BKE_where_on_path(ob_curve, fac, loc, dir, new_quat, &radius, nullptr)) { /* returns OK */
     float quat[4], cent[3];
-
-    if (cd->no_rot_axis) { /* set by caller */
-
-      /* This is not exactly the same as 2.4x, since the axis is having rotation removed rather
-       * than changing the axis before calculating the tilt but serves much the same purpose. */
-      float dir_flat[3] = {0, 0, 0}, q[4];
-      copy_v3_v3(dir_flat, dir);
-      dir_flat[cd->no_rot_axis - 1] = 0.0f;
-
-      normalize_v3(dir);
-      normalize_v3(dir_flat);
-
-      rotation_between_vecs_to_quat(q, dir, dir_flat); /* Could this be done faster? */
-
-      mul_qt_qtqt(new_quat, q, new_quat);
-    }
 
     /* Logic for 'cent' orientation *
      *
