@@ -105,7 +105,7 @@ class SVGExporter : public GreasePencilExporter {
                                   const bke::greasepencil::Drawing &drawing);
 
   void write_document_header();
-  pugi::xml_node write_main_node();
+  pugi::xml_node write_main_node(Scene &scene);
   pugi::xml_node write_polygon(pugi::xml_node node,
                                const float4x4 &transform,
                                Span<float3> positions);
@@ -124,13 +124,26 @@ class SVGExporter : public GreasePencilExporter {
 
 bool SVGExporter::export_scene(Scene &scene, StringRefNull filepath)
 {
-  const int frame_number = scene.r.cfra;
+  const int start_frame = scene.r.sfra;
+  const int end_frame = scene.r.efra;
 
-  this->prepare_render_params(scene, frame_number);
-
+  this->prepare_render_params(scene, start_frame);
   this->write_document_header();
-  pugi::xml_node main_node = this->write_main_node();
-  this->export_grease_pencil_objects(main_node, frame_number);
+  pugi::xml_node main_node = this->write_main_node(scene);
+
+  // Iterate through all frames
+  for (int frame_number = start_frame; frame_number <= end_frame; ++frame_number) {
+    scene.r.cfra = frame_number;
+
+
+    // Create a group node for the current frame
+    pugi::xml_node frame_node = main_node.append_child("g");
+    std::string frametxt = "blender_frame_" + std::to_string(frame_number);
+    frame_node.append_attribute("id").set_value(frametxt.c_str());
+    frame_node.append_attribute("style").set_value("display:none;"); // Start with frames hidden
+
+    this->export_grease_pencil_objects(frame_node, frame_number);
+  }
 
   return this->write_to_file(filepath);
 }
@@ -140,8 +153,11 @@ void SVGExporter::export_grease_pencil_objects(pugi::xml_node node, const int fr
   using bke::greasepencil::Drawing;
 
   const bool is_clipping = camera_persmat_ && params_.use_clip_camera;
-
   Vector<ObjectInfo> objects = retrieve_objects();
+
+  // pugi::xml_node frame_node = node.append_child("g");
+  // std::string frametxt = "blender_frame_" + std::to_string(frame_number);
+  // frame_node.append_attribute("id").set_value(frametxt.c_str());
 
   for (const ObjectInfo &info : objects) {
     const Object *ob = info.object;
@@ -155,21 +171,9 @@ void SVGExporter::export_grease_pencil_objects(pugi::xml_node node, const int fr
       write_rect(clip_node, 0, 0, render_rect_.size().x, render_rect_.size().y, 0.0f, "#000000");
     }
 
-    pugi::xml_node frame_node = node.append_child("g");
-    std::string frametxt = "blender_frame_" + std::to_string(frame_number);
-    frame_node.append_attribute("id").set_value(frametxt.c_str());
-
-    /* Clip area. */
-    if (is_clipping) {
-      frame_node.append_attribute("clip-path")
-          .set_value(("url(#clip-path" + std::to_string(frame_number) + ")").c_str());
-    }
-
-    pugi::xml_node ob_node = frame_node.append_child("g");
-
-    char obtxt[96];
-    SNPRINTF(obtxt, "blender_object_%s", ob->id.name + 2);
-    ob_node.append_attribute("id").set_value(obtxt);
+    // std::string object_id = "blender_object_" + std::string(ob->id.name + 2) + "_frame_" + std::to_string(frame_number);
+    // pugi::xml_node ob_node = frame_node.append_child("g");
+    // ob_node.append_attribute("id").set_value(object_id.c_str());
 
     /* Use evaluated version to get strokes with modifiers. */
     Object *ob_eval = DEG_get_evaluated_object(context_.depsgraph, const_cast<Object *>(ob));
@@ -186,13 +190,14 @@ void SVGExporter::export_grease_pencil_objects(pugi::xml_node node, const int fr
       }
 
       /* Layer node. */
-      const std::string txt = "Layer: " + layer->name();
-      ob_node.append_child(pugi::node_comment).set_value(txt.c_str());
+      // const std::string txt = "Layer: " + layer->name();
+      // ob_node.append_child(pugi::node_comment).set_value(txt.c_str());
 
-      pugi::xml_node layer_node = ob_node.append_child("g");
-      layer_node.append_attribute("id").set_value(layer->name().c_str());
+      // std::string layer_id = layer->name() + "_frame_" + std::to_string(frame_number);
+      // pugi::xml_node layer_node = ob_node.append_child("g");
+      // layer_node.append_attribute("id").set_value(layer_id.c_str());
 
-      export_grease_pencil_layer(layer_node, *ob_eval, *layer, *drawing);
+      export_grease_pencil_layer(node, *ob_eval, *layer, *drawing);
     }
   }
 }
@@ -253,7 +258,7 @@ void SVGExporter::write_document_header()
       "\"http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd\"");
 }
 
-pugi::xml_node SVGExporter::write_main_node()
+pugi::xml_node SVGExporter::write_main_node(Scene &scene)
 {
   pugi::xml_node main_node = main_doc_.append_child("svg");
   main_node.append_attribute("version").set_value("1.0");
@@ -268,6 +273,30 @@ pugi::xml_node SVGExporter::write_main_node()
   main_node.append_attribute("height").set_value((height + "px").c_str());
   std::string viewbox = "0 0 " + width + " " + height;
   main_node.append_attribute("viewBox").set_value(viewbox.c_str());
+
+  int framerate = scene.r.frs_sec;
+
+ // Embed JavaScript for frame animation
+ pugi::xml_node script_node = main_node.append_child("script");
+ script_node.append_attribute("type").set_value("text/javascript");
+
+ std::string script_content = R"(
+   document.addEventListener("DOMContentLoaded", function () {
+     const frames = document.querySelectorAll("svg > g");
+     let currentFrame = 0;
+     const frameDuration = 1000 / )" + std::to_string(framerate) + R"(; // Set based on Blender framerate
+
+     function showNextFrame() {
+       frames.forEach(frame => frame.style.display = "none");
+       frames[currentFrame].style.display = "block";
+       currentFrame = (currentFrame + 1) % frames.length;
+     }
+
+     setInterval(showNextFrame, frameDuration);
+   });
+ )";
+
+ script_node.text().set(script_content.c_str());
 
   return main_node;
 }
