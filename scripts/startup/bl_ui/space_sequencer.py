@@ -2251,7 +2251,8 @@ class SEQUENCER_PT_time(SequencerButtonsPanel, Panel):
             split.prop(strip, "animation_offset_end", text=smpte_from_frame(strip.animation_offset_end))
 
             if strip.type == 'SOUND':
-                split = sub.split(factor=factor + max_factor, align=True)
+                sub2 = layout.column(align=True)
+                split = sub2.split(factor=factor + max_factor, align=True)
                 split.alignment = 'RIGHT'
                 split.label(text="Subframe Offset", text_ctxt=i18n_contexts.id_sound)
                 split.prop(strip, "sound_offset", text="")
