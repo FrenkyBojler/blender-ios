@@ -1645,12 +1645,15 @@ std::string BKE_unit_format_display_float(float value, int max_precision)
   const int PRECISION_FLOAT_MAX = 7; /* keep in sync with UI_PRECISION_FLOAT_MAX */
 
   /* If the requested precision is greater than UI_PRECISION_FLOAT_MAX, assume we want to
-   * preserve as much precision as necessary to round-trip to and from decimals. */
-  if (max_precision > PRECISION_FLOAT_MAX) {
+   * preserve as much precision as necessary to round-trip to and from decimals.
+   * If the value is greater than 16777216, it cannot accurately represent integers anymore.
+   * Using "{}" as a format gives a representation for these large values, that does not imply
+   * precision that is not there. */
+  if (max_precision > PRECISION_FLOAT_MAX || value > 16777216.0f) {
     std::string short_repr = fmt::format("{}", value);
-    /* fmt::format defaults to scientific notation early, shift the cutoff, because
-     * units should be able to help represent the range of values. */
-    if (value < 1e-6f || value > 1e10f || short_repr.find('e') == std::string::npos) {
+    /* fmt::format defaults to scientific notation early. Shift the cutoff a bit, because
+     * units should be able to help represent large ranges of values. */
+    if (value < 1e-6f || value > 16777216.0f || short_repr.find('e') == std::string::npos) {
       return short_repr;
     }
     max_precision = std::max(0, PRECISION_FLOAT_MAX - integer_digits_f(value) + 1);
