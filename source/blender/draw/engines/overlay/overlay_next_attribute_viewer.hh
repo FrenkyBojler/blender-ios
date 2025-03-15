@@ -53,11 +53,11 @@ class AttributeViewer : Overlay {
       return &sub;
     };
 
-    mesh_sub_ = create_sub("mesh", res.shaders.attribute_viewer_mesh.get());
-    pointcloud_sub_ = create_sub("pointcloud", res.shaders.attribute_viewer_pointcloud.get());
-    curve_sub_ = create_sub("curve", res.shaders.attribute_viewer_curve.get());
-    curves_sub_ = create_sub("curves", res.shaders.attribute_viewer_curves.get());
-    instance_sub_ = create_sub("instance", res.shaders.uniform_color.get());
+    mesh_sub_ = create_sub("mesh", res.shaders->attribute_viewer_mesh.get());
+    pointcloud_sub_ = create_sub("pointcloud", res.shaders->attribute_viewer_pointcloud.get());
+    curve_sub_ = create_sub("curve", res.shaders->attribute_viewer_curve.get());
+    curves_sub_ = create_sub("curves", res.shaders->attribute_viewer_curves.get());
+    instance_sub_ = create_sub("instance", res.shaders->uniform_color.get());
   }
 
   void object_sync(Manager &manager,
@@ -65,7 +65,7 @@ class AttributeViewer : Overlay {
                    Resources & /*res*/,
                    const State &state) final
   {
-    const DupliObject *dupli_object = DRW_object_get_dupli(ob_ref.object);
+    const DupliObject *dupli_object = ob_ref.dupli_object;
     const bool is_preview = dupli_object != nullptr &&
                             dupli_object->preview_base_geometry != nullptr;
     if (!enabled_ || !is_preview) {
