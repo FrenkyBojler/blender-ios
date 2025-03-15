@@ -491,6 +491,7 @@ static void rna_Strip_frame_offset_start_set(PointerRNA *ptr, float value)
   Scene *scene = (Scene *)ptr->owner_id;
 
   blender::seq::relations_invalidate_cache_composite(scene, strip);
+
   strip->startofs = value;
 }
 
@@ -547,7 +548,7 @@ static void rna_Strip_frame_offset_start_range(
     PointerRNA *ptr, float *min, float *max, float * /*softmin*/, float * /*softmax*/)
 {
   Strip *strip = (Strip *)ptr->data;
-  *min = (strip->type == STRIP_TYPE_SOUND_RAM) ? 0 : INT_MIN;
+  *min = INT_MIN;
   *max = strip->len - strip->endofs - 1;
 }
 
@@ -555,7 +556,7 @@ static void rna_Strip_frame_offset_end_range(
     PointerRNA *ptr, float *min, float *max, float * /*softmin*/, float * /*softmax*/)
 {
   Strip *strip = (Strip *)ptr->data;
-  *min = (strip->type == STRIP_TYPE_SOUND_RAM) ? 0 : INT_MIN;
+  *min = INT_MIN;
   *max = strip->len - strip->startofs - 1;
 }
 
