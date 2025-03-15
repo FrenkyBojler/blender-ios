@@ -491,7 +491,6 @@ static void rna_Strip_frame_offset_start_set(PointerRNA *ptr, float value)
   Scene *scene = (Scene *)ptr->owner_id;
 
   blender::seq::relations_invalidate_cache_composite(scene, strip);
-
   strip->startofs = value;
 }
 
