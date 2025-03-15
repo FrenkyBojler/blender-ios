@@ -12,6 +12,8 @@
 #include <cstdlib>
 #include <cstring>
 
+#include <fmt/format.h>
+
 #include "BLI_math_base.h"
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
@@ -1638,6 +1640,28 @@ static void unit_dual_convert(double value,
   *r_unit_b = unit_best_fit(*r_value_b, usys, *r_unit_a, 1);
 }
 
+std::string BKE_unit_format_display_float(float value, int max_precision)
+{
+  const int PRECISION_FLOAT_MAX = 7; /* keep in sync with UI_PRECISION_FLOAT_MAX */
+
+  /* If the requested precision is greater than UI_PRECISION_FLOAT_MAX, assume we want to
+   * preserve as much precision as necessary to round-trip to and from decimals. */
+  if (max_precision > PRECISION_FLOAT_MAX) {
+    std::string short_repr = fmt::format("{}", value);
+    /* fmt::format defaults to scientific notation early, shift the cutoff, because
+     * units should be able to help represent the range of values. */
+    if (value < 1e-6f || value > 1e10f || short_repr.find('e') == std::string::npos) {
+      return short_repr;
+    }
+    max_precision = std::max(0, PRECISION_FLOAT_MAX - integer_digits_f(value) + 1);
+  }
+  else {
+    max_precision -= integer_digits_d(value);
+    CLAMP(max_precision, 0, PRECISION_FLOAT_MAX);
+  }
+  return fmt::format("{:#.{}f}", value, max_precision);
+}
+
 static size_t unit_as_string(char *str,
                              int str_maxncpy,
                              double value,
@@ -1667,17 +1691,8 @@ static size_t unit_as_string(char *str,
     prec *= -1;
   }
 
-  /* Adjust precision to expected number of significant digits.
-   * Note that here, we shall not have to worry about very big/small numbers, units are expected
-   * to replace 'scientific notation' in those cases.
-   * If the requested precision is greater than 6 (UI_PRECISION_FLOAT_MAX), assume we want to
-   * preserve as much precision as possible. */
-  int prec_max = prec > 6 ? 14 : 6;
-  prec -= integer_digits_d(value_conv);
-  CLAMP(prec, 0, prec_max);
-
-  /* Convert to a string. */
-  size_t len = BLI_snprintf_rlen(str, str_maxncpy, "%.*f", prec, value_conv);
+  std::string tmp = BKE_unit_format_display_float(value_conv, prec);
+  size_t len = BLI_strncpy_rlen(str, tmp.c_str(), str_maxncpy);
 
   /* Add unit prefix and strip zeros. */
 

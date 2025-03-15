@@ -2668,6 +2668,31 @@ bool ui_but_is_unit(const uiBut *but)
   return true;
 }
 
+/* Similar to ui_but_is_unit(), but return value is only dependent on button, not on the currently
+ * selected unit system. */
+static bool ui_but_declared_as_unit(const uiBut *but)
+{
+  const UnitSettings *unit = but->block->unit;
+  const int unit_type = UI_but_unit_type_get(but);
+
+  if (unit_type == PROP_UNIT_NONE) {
+    return false;
+  }
+
+#if 1 /* removed so angle buttons get correct snapping */
+  if (ui_but_is_unit_radians_ex(unit, unit_type)) {
+    return false;
+  }
+#endif
+
+  /* for now disable time unit conversion */
+  if (unit_type == PROP_UNIT_TIME) {
+    return false;
+  }
+
+  return true;
+}
+
 bool ui_but_is_compatible(const uiBut *but_a, const uiBut *but_b)
 {
   if (but_a->type != but_b->type) {
@@ -3091,13 +3116,6 @@ void ui_but_string_get_ex(uiBut *but,
       else if (!use_exp_float && ui_but_hide_fraction(but, value)) {
         prec = 0;
       }
-      else if (float_precision > UI_PRECISION_FLOAT_MAX) {
-        /* Try to use as many digits as necessary to not lose precision.
-         * 9 digits are guaranteed to round trip to and from decimals,
-         * but in practice 8 are often enough.
-         * See https://en.wikipedia.org/wiki/Single-precision_floating-point_format */
-        prec = 8;
-      }
 
       if (ui_but_is_unit(but)) {
         ui_get_but_string_unit(but, str, str_maxncpy, value, false, prec);
@@ -3111,25 +3129,10 @@ void ui_but_string_get_ex(uiBut *but,
         }
       }
       else {
-        const int int_digits_num = integer_digits_f(value);
-        if (use_exp_float) {
-          if (int_digits_num < -6 || int_digits_num > 12) {
-            BLI_snprintf(str, str_maxncpy, "%.*g", prec, value);
-            if (r_use_exp_float) {
-              *r_use_exp_float = true;
-            }
-          }
-          else {
-            prec -= int_digits_num;
-            // up to 14 digits are possible for 8 significant digits + 6 leading zeros
-            CLAMP(prec, 0, 14);
-            BLI_snprintf(str, str_maxncpy, "%.*f", prec, value);
-          }
-        }
-        else {
-          prec -= int_digits_num;
-          CLAMP(prec, 0, UI_PRECISION_FLOAT_MAX);
-          BLI_snprintf(str, str_maxncpy, "%.*f", prec, value);
+        std::string tmp = BKE_unit_format_display_float(value, prec);
+        BLI_strncpy(str, tmp.c_str(), str_maxncpy);
+        if (r_use_exp_float) {
+          *r_use_exp_float = tmp.find('e') != std::string::npos;
         }
       }
     }
@@ -3947,7 +3950,7 @@ static void ui_but_build_drawstr_float(uiBut *but, double value)
       but->drawstr = fmt::format("{}{:.{}f}", but->str, value * 100, std::max(0, precision - 2));
     }
   }
-  else if (ui_but_is_unit(but)) {
+  else if (ui_but_declared_as_unit(but)) {
     char new_str[UI_MAX_DRAW_STR];
     ui_get_but_string_unit(but, new_str, sizeof(new_str), value, true, -1);
     but->drawstr = but->str + new_str;

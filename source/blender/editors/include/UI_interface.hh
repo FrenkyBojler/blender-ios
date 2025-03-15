@@ -284,3 +284,5 @@ blender::ui::AbstractTreeView *UI_block_add_view(
     uiBlock &block,
     blender::StringRef idname,
     std::unique_ptr<blender::ui::AbstractTreeView> tree_view);
+
+std::string UI_format_display_float(float value, int max_precision);

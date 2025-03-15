@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <string>
+
 #include "BLI_sys_types.h"
 
 /** \file
@@ -117,6 +119,7 @@ const char *BKE_unit_display_name_get(const void *usys_pt, int index);
 const char *BKE_unit_identifier_get(const void *usys_pt, int index);
 double BKE_unit_scalar_get(const void *usys_pt, int index);
 bool BKE_unit_is_suppressed(const void *usys_pt, int index);
+std::string BKE_unit_format_display_float(float value, int max_precision);
 
 /** Aligned with #PropertyUnit and `bpyunits_ucategories_items` in `bpy_utils_units.cc`. */
 enum {
