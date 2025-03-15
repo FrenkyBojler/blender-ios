@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Authors
+/* SPDX-FileCopyrightText: 2025 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -13,6 +13,32 @@
 #include "NOD_rna_define.hh"
 
 namespace blender::nodes::node_fn_match_string_cc {
+
+typedef enum NodeMatchStringOperation {
+  NODE_MATCH_STR_STARTS_WITH = 0,
+  NODE_MATCH_STR_ENDS_WITH = 1,
+  NODE_MATCH_STR_CONTAINS = 2,
+} NodeMatchStringOperation;
+
+const EnumPropertyItem rna_enum_node_match_string_items[] = {
+    {NODE_MATCH_STR_STARTS_WITH,
+     "STARTS_WITH",
+     0,
+     "Starts With",
+     "True when the first input starts with the second"},
+    {NODE_MATCH_STR_ENDS_WITH,
+     "ENDS_WITH",
+     0,
+     "Ends With",
+     "True when the first input ends with the second"},
+    {NODE_MATCH_STR_CONTAINS,
+     "CONTAINS",
+     0,
+     "Contains",
+     "True when the first input contains the second as a substring"},
+    {0, nullptr, 0, nullptr, nullptr},
+};
+
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::String>("A").hide_label();
@@ -22,7 +48,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static const mf::MultiFunction *get_multi_function(const bNode &bnode)
 {
-  NodeMatchStringOperation operation = NodeMatchStringOperation(bnode.custom1);
+  const NodeMatchStringOperation operation = NodeMatchStringOperation(bnode.custom1);
 
   switch (operation) {
     case NODE_MATCH_STR_STARTS_WITH: {

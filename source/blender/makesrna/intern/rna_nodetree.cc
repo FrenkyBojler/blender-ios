@@ -407,25 +407,6 @@ const EnumPropertyItem rna_enum_node_compare_operation_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-const EnumPropertyItem rna_enum_node_match_string_items[] = {
-    {NODE_MATCH_STR_STARTS_WITH,
-     "STARTS_WITH",
-     0,
-     "Starts With",
-     "True when the first input starts with the second"},
-    {NODE_MATCH_STR_ENDS_WITH,
-     "ENDS_WITH",
-     0,
-     "Ends With",
-     "True when the first input ends with the second"},
-    {NODE_MATCH_STR_CONTAINS,
-     "CONTAINS",
-     0,
-     "Contains",
-     "True when the first input contains the second as a substring"},
-    {0, nullptr, 0, nullptr, nullptr},
-};
-
 const EnumPropertyItem rna_enum_node_float_to_int_items[] = {
     {FN_NODE_FLOAT_TO_INT_ROUND,
      "ROUND",
