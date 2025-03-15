@@ -1640,7 +1640,7 @@ static void unit_dual_convert(double value,
   *r_unit_b = unit_best_fit(*r_value_b, usys, *r_unit_a, 1);
 }
 
-std::string BKE_unit_format_display_float(float value, int max_precision)
+std::string BKE_unit_format_display_float(float value, int precision)
 {
   const int PRECISION_FLOAT_MAX = 7; /* keep in sync with UI_PRECISION_FLOAT_MAX */
   float abs_value = fabsf(value);
@@ -1650,20 +1650,20 @@ std::string BKE_unit_format_display_float(float value, int max_precision)
    * If the value is greater than 16777216, it cannot accurately represent integers anymore.
    * Using "{}" as a format gives a representation for these large values, that does not imply
    * precision that is not there. */
-  if (max_precision > PRECISION_FLOAT_MAX || abs_value > 16777216.0f) {
+  if (precision > PRECISION_FLOAT_MAX || abs_value > 16777216.0f) {
     std::string short_repr = fmt::format("{}", value);
     /* fmt::format defaults to scientific notation early. Shift the cutoff a bit, because
      * units should be able to help represent large ranges of values. */
     if (abs_value < 1e-6f || abs_value > 16777216.0f || short_repr.find('e') == std::string::npos) {
       return short_repr;
     }
-    max_precision = std::max(0, PRECISION_FLOAT_MAX - integer_digits_f(value));
+    precision = std::max(0, PRECISION_FLOAT_MAX - integer_digits_f(value));
   }
   else {
-    max_precision -= integer_digits_d(value);
-    CLAMP(max_precision, 0, PRECISION_FLOAT_MAX);
+    precision -= integer_digits_d(value);
+    CLAMP(precision, 0, PRECISION_FLOAT_MAX);
   }
-  return fmt::format("{:.{}f}", value, max_precision);
+  return fmt::format("{:.{}f}", value, precision);
 }
 
 static size_t unit_as_string(char *str,
