@@ -274,6 +274,7 @@ bool selection_update(const ViewContext *vc,
             const IndexMask not_in_mask = changed_element_mask.complement(
                 selection.span.index_range(), memory);
             ed::curves::fill_selection_false(selection.span, not_in_mask);
+            changed = true;
             selection.finish();
           }
         }
@@ -715,8 +716,6 @@ static int select_similar_exec(bContext *C, wmOperator *op)
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
   bke::AttrDomain selection_domain = ED_grease_pencil_selection_domain_get(scene->toolsettings,
                                                                            object);
-
-  const Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(*scene, grease_pencil);
 
   switch (mode) {
     case SelectSimilarMode::LAYER:

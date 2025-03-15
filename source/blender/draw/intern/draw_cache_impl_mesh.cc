@@ -46,7 +46,7 @@
 #include "draw_subdivision.hh"
 
 #include "draw_cache_impl.hh" /* own include */
-#include "draw_manager_c.hh"
+#include "draw_context_private.hh"
 
 #include "mesh_extractors/extract_mesh.hh"
 
@@ -1476,9 +1476,8 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
    * Normal updates should be part of the brush loop and only run during the stroke when the
    * brush needs to sample the surface. The drawing code should only update the normals
    * per redraw when smooth shading is enabled. */
-  const bool do_update_sculpt_normals = ob.sculpt && bke::object::pbvh_get(ob);
-  if (do_update_sculpt_normals) {
-    bke::pbvh::update_normals_from_eval(ob, *bke::object::pbvh_get(ob));
+  if (bke::pbvh::Tree *pbvh = bke::object::pbvh_get(ob)) {
+    bke::pbvh::update_normals_from_eval(ob, *pbvh);
   }
 
   cache.batch_ready |= batch_requested;

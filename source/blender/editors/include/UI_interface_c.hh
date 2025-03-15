@@ -338,6 +338,8 @@ enum {
   UI_BUT_HAS_TOOLTIP_LABEL = 1 << 5,
   /** Do not add the usual horizontal padding for text drawing. */
   UI_BUT_NO_TEXT_PADDING = 1 << 6,
+  /** Do not add the usual padding around preview image drawing, use the size of the button. */
+  UI_BUT_NO_PREVIEW_PADDING = 1 << 7,
 
   /* Button align flag, for drawing groups together.
    * Used in 'uiBlock.flag', take care! */
@@ -1360,6 +1362,18 @@ uiBut *uiDefIconButO_ptr(uiBlock *block,
                          short width,
                          short height,
                          std::optional<blender::StringRef> tip);
+uiBut *uiDefIconPreviewBut(uiBlock *block,
+                           int type,
+                           int retval,
+                           int icon,
+                           int x,
+                           int y,
+                           short width,
+                           short height,
+                           void *poin,
+                           float min,
+                           float max,
+                           std::optional<blender::StringRef> tip);
 uiBut *uiDefButImage(
     uiBlock *block, void *imbuf, int x, int y, short width, short height, const uchar color[4]);
 uiBut *uiDefButAlert(uiBlock *block, int icon, int x, int y, short width, short height);
@@ -2226,6 +2240,9 @@ ENUM_OPERATORS(eUI_Item_Flag, UI_ITEM_R_TEXT_BUT_FORCE_SEMI_MODAL_ACTIVE)
 
 #define UI_HEADER_OFFSET ((void)0, 0.4f * UI_UNIT_X)
 
+#define UI_AZONESPOTW UI_HEADER_OFFSET       /* Width of corner action zone #AZone. */
+#define UI_AZONESPOTH (0.6f * U.widget_unit) /* Height of corner action zone #AZone. */
+
 /* uiLayoutOperatorButs flags */
 enum {
   UI_TEMPLATE_OP_PROPS_SHOW_TITLE = 1 << 0,
@@ -2408,7 +2425,14 @@ struct PanelLayout {
 PanelLayout uiLayoutPanelProp(const bContext *C,
                               uiLayout *layout,
                               PointerRNA *open_prop_owner,
-                              const char *open_prop_name);
+                              blender::StringRefNull open_prop_name);
+PanelLayout uiLayoutPanelPropWithBoolHeader(const bContext *C,
+                                            uiLayout *layout,
+                                            PointerRNA *open_prop_owner,
+                                            blender::StringRefNull open_prop_name,
+                                            PointerRNA *bool_prop_owner,
+                                            blender::StringRefNull bool_prop_name,
+                                            std::optional<blender::StringRefNull> label);
 
 /**
  * Variant of #uiLayoutPanelProp that automatically creates the header row with the
@@ -2422,15 +2446,8 @@ PanelLayout uiLayoutPanelProp(const bContext *C,
 uiLayout *uiLayoutPanelProp(const bContext *C,
                             uiLayout *layout,
                             PointerRNA *open_prop_owner,
-                            const char *open_prop_name,
-                            const char *label);
-
-uiLayout *uiLayoutPanelPropWithBoolHeader(const bContext *C,
-                                          uiLayout *layout,
-                                          PointerRNA *open_prop_owner,
-                                          blender::StringRefNull open_prop_name,
-                                          blender::StringRefNull bool_prop_name,
-                                          const std::optional<blender::StringRefNull> label);
+                            blender::StringRefNull open_prop_name,
+                            blender::StringRef label);
 
 /**
  * Variant of #uiLayoutPanelProp that automatically stores the open-close-state in the root
@@ -2441,7 +2458,7 @@ uiLayout *uiLayoutPanelPropWithBoolHeader(const bContext *C,
  */
 PanelLayout uiLayoutPanel(const bContext *C,
                           uiLayout *layout,
-                          const char *idname,
+                          blender::StringRef idname,
                           bool default_closed);
 
 /**
@@ -2455,9 +2472,9 @@ PanelLayout uiLayoutPanel(const bContext *C,
  */
 uiLayout *uiLayoutPanel(const bContext *C,
                         uiLayout *layout,
-                        const char *idname,
+                        blender::StringRef idname,
                         bool default_closed,
-                        const char *label);
+                        blender::StringRef label);
 
 bool uiLayoutEndsWithPanelHeader(const uiLayout &layout);
 
@@ -3535,7 +3552,20 @@ ARegion *UI_tooltip_create_from_search_item_generic(bContext *C,
 #define UI_TOOLTIP_DELAY_LABEL 0.2
 
 /* Float precision helpers */
+
+/* Maximum number of digits of precision (not number of decimal places)
+ * to display for float values. Note that the UI_FLOAT_VALUE_DISPLAY_*
+ * defines that follow depend on this. */
 #define UI_PRECISION_FLOAT_MAX 6
+
+/* Values exceeding this range are displayed as "inf" / "-inf".
+ * This range is almost FLT_MAX to -FLT_MAX, but each is truncated
+ * to our display precision, set by UI_PRECISION_FLOAT_MAX. Each
+ * is approximately `FLT_MAX / 1.000001` but that calculation does
+ * not give us the explicit zeros needed for this exact range. */
+#define UI_FLOAT_VALUE_DISPLAY_MAX 3.402820000e+38F
+#define UI_FLOAT_VALUE_DISPLAY_MIN -3.402820000e+38F
+
 /* For float buttons the 'step', is scaled */
 #define UI_PRECISION_FLOAT_SCALE 0.01f
 
