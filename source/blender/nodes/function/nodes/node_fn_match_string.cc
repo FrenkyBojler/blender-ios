@@ -79,6 +79,36 @@ static void node_build_multi_function(NodeMultiFunctionBuilder &builder)
   builder.set_matching_fn(fn);
 }
 
+static void node_gather_link_searches(GatherLinkSearchOpParams &params)
+{
+  if (params.in_out() == SOCK_IN) {
+    if (params.node_tree().typeinfo->validate_link(
+            static_cast<eNodeSocketDatatype>(params.other_socket().type), SOCK_STRING))
+    {
+      for (const EnumPropertyItem *item = rna_enum_node_match_string_items;
+           item->identifier != nullptr;
+           item++)
+      {
+        if (item->name != nullptr && item->identifier[0] != '\0') {
+          NodeMatchStringOperation operation = static_cast<NodeMatchStringOperation>(item->value);
+          params.add_item(IFACE_(item->name), [operation](LinkSearchOpParams &params) {
+            bNode &node = params.add_node("FunctionNodeMatchString");
+            node.custom1 = operation;
+            params.update_and_connect_available_socket(node, "A");
+          });
+        }
+      }
+    }
+  }
+
+  else {
+    params.add_item(IFACE_("Result"), [](LinkSearchOpParams &params) {
+      bNode &node = params.add_node("FunctionNodeMatchString");
+      params.update_and_connect_available_socket(node, "Result");
+    });
+  }
+}
+
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
   uiItemR(layout, ptr, "operation", UI_ITEM_NONE, "", ICON_NONE);
@@ -123,6 +153,7 @@ static void node_register()
   ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.declare = node_declare;
   ntype.labelfunc = node_label;
+  ntype.gather_link_search_ops = node_gather_link_searches;
   ntype.initfunc = node_init;
   ntype.draw_buttons = node_layout;
   ntype.build_multi_function = node_build_multi_function;
