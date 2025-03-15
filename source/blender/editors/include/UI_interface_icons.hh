@@ -80,6 +80,11 @@ void UI_icon_render_id_ex(const bContext *C,
 int UI_icon_preview_to_render_size(enum eIconSizes size);
 
 /**
+ * Utf-8 representation of an icon that we can show with BLF.
+ */
+std::string UI_icon_as_string(int icon_id);
+
+/**
  * Draws icon with DPI scale factor.
  */
 void UI_icon_draw(float x, float y, int icon_id);

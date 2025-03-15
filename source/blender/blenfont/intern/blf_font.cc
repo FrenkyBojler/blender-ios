@@ -470,8 +470,12 @@ static void blf_font_draw_ex(FontBLF *font,
     if (UNLIKELY(g == nullptr)) {
       continue;
     }
+
+    /* Move icons in a text string a little below the baseline. */
+    const int v_offset = BLF_IS_ICON(g->c) ? -int(font->size * 0.15f) : 0;
+
     /* Do not return this loop if clipped, we want every character tested. */
-    blf_glyph_draw(font, gc, g, ft_pix_to_int_floor(pen_x), ft_pix_to_int_floor(pen_y));
+    blf_glyph_draw(font, gc, g, ft_pix_to_int_floor(pen_x), ft_pix_to_int_floor(pen_y) + v_offset);
     pen_x += g->advance_x;
   }
 

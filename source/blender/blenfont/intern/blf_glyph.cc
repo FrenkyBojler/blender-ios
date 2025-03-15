@@ -1366,6 +1366,12 @@ GlyphBLF *blf_glyph_ensure(FontBLF *font, GlyphCacheBLF *gc, const uint charcode
     return g;
   }
 
+  if (BLF_IS_ICON(charcode)) {
+    /* One of our icons in a text string. */
+    g = blf_glyph_ensure_icon(gc, charcode - BLF_ICON_OFFSET, false, nullptr);
+    return g;
+  }
+
   /* Glyph might not come from the initial font. */
   FontBLF *font_with_glyph = font;
   FT_UInt glyph_index = blf_glyph_index_from_charcode(&font_with_glyph, charcode);

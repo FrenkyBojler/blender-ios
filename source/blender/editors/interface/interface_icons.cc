@@ -15,6 +15,7 @@
 
 #include "BLI_math_vector.h"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 
 #include "DNA_collection_types.h"
 #include "DNA_dynamicpaint_types.h"
@@ -2041,6 +2042,13 @@ void UI_icon_draw_ex(float x,
                  mono_border,
                  text_overlay,
                  inverted);
+}
+
+std::string UI_icon_as_string(int icon_id)
+{
+  char utf8[5] = {0};
+  BLI_str_utf8_from_unicode(icon_id + 0x100000L, utf8, sizeof(utf8));
+  return std::string(utf8);
 }
 
 ImBuf *UI_svg_icon_bitmap(uint icon_id, float size, bool multicolor)

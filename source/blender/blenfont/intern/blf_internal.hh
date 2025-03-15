@@ -49,6 +49,10 @@ struct rcti;
  * added with Unicode 2.0. 65,536 code-points at U+100000..U+10FFFF.
  */
 #define BLF_ICON_OFFSET 0x100000L
+/* Last codepoint in the range. */
+#define BLF_ICON_MAX 0x10FFFDL
+
+#define BLF_IS_ICON(charcode) (charcode > BLF_ICON_OFFSET && charcode <= BLF_ICON_MAX)
 
 /**
  * We assume square pixels at a fixed DPI of 72, scaling only the size. Therefore
