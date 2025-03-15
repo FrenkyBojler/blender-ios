@@ -1659,7 +1659,7 @@ std::string BKE_unit_format_display_float(float value, int max_precision)
     max_precision -= integer_digits_d(value);
     CLAMP(max_precision, 0, PRECISION_FLOAT_MAX);
   }
-  return fmt::format("{:#.{}f}", value, max_precision);
+  return fmt::format("{:.{}f}", value, max_precision);
 }
 
 static size_t unit_as_string(char *str,
@@ -1693,6 +1693,7 @@ static size_t unit_as_string(char *str,
 
   std::string tmp = BKE_unit_format_display_float(value_conv, prec);
   size_t len = BLI_strncpy_rlen(str, tmp.c_str(), str_maxncpy);
+  strip_skip = strip_skip || tmp.find('.') == std::string::npos;
 
   /* Add unit prefix and strip zeros. */
 
