@@ -280,7 +280,10 @@ pugi::xml_node SVGExporter::write_main_node(Scene &scene)
  pugi::xml_node script_node = main_node.append_child("script");
  script_node.append_attribute("type").set_value("text/javascript");
 
- std::string script_content = R"(
+// Use CDATA to prevent XML escaping issues
+pugi::xml_node cdata_node = script_node.append_child(pugi::node_cdata);
+
+std::string script_content = R"(
    document.addEventListener("DOMContentLoaded", function () {
      const frames = document.querySelectorAll("svg > g");
      let currentFrame = 0;
@@ -296,7 +299,7 @@ pugi::xml_node SVGExporter::write_main_node(Scene &scene)
    });
  )";
 
- script_node.text().set(script_content.c_str());
+ cdata_node.set_value(script_content.c_str());
 
   return main_node;
 }
