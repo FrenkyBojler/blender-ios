@@ -403,40 +403,4 @@ void BKE_curve_deform_coords_with_editmesh(const Object *ob_curve,
                            em_target);
 }
 
-void BKE_curve_deform_co(const Object *ob_curve,
-                         const Object *ob_target,
-                         const float orco[3],
-                         float vec[3],
-                         const int no_rot_axis,
-                         float r_mat[3][3])
-{
-  CurveDeform cd;
-  float quat[4];
-
-  if (ob_curve->type != OB_CURVES_LEGACY) {
-    unit_m3(r_mat);
-    return;
-  }
-
-  init_curve_deform(ob_curve, ob_target, &cd);
-  cd.no_rot_axis = no_rot_axis; /* option to only rotate for XY, for example */
-
-  copy_v3_v3(cd.dmin, orco);
-  copy_v3_v3(cd.dmax, orco);
-
-  mul_m4_v3(cd.curvespace, vec);
-
-  if (calc_curve_deform(ob_curve, vec, ob_target->trackflag, &cd, quat)) {
-    float qmat[3][3];
-
-    quat_to_mat3(qmat, quat);
-    mul_m3_m3m3(r_mat, qmat, cd.objectspace3);
-  }
-  else {
-    unit_m3(r_mat);
-  }
-
-  mul_m4_v3(cd.objectspace, vec);
-}
-
 /** \} */

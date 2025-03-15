@@ -430,19 +430,6 @@ void BKE_curve_deform_coords_with_editmesh(const Object *ob_curve,
                                            short defaxis,
                                            const BMEditMesh *em_target);
 
-/**
- * \param orco: Input vec and orco = local coord in curve space
- * orco is original not-animated or deformed reference point.
- *
- * The result written to `vec` and `r_mat`.
- */
-void BKE_curve_deform_co(const Object *ob_curve,
-                         const Object *ob_target,
-                         const float orco[3],
-                         float vec[3],
-                         int no_rot_axis,
-                         float r_mat[3][3]);
-
 /** \} */
 
 /* `curve_convert.cc` */
