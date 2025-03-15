@@ -712,3 +712,15 @@ void BKE_object_replace_data_on_shallow_copy(Object *ob, ID *new_data);
 PartEff *BKE_object_do_version_give_parteff_245(Object *ob);
 
 bool BKE_object_supports_material_slots(Object *ob);
+
+/**
+ * Sets the rotation of the object, respecting protectflag.
+ */
+void BKE_object_set_rotation_quaternion(Object *ob, float rotation_quaternion[4]);
+void BKE_object_set_rotation_euler(Object *ob, float rotation_euler[3]);
+void BKE_object_set_rotation_axisangle(Object *ob, float axis[3], float angle);
+
+/**
+ * Sets the location of the object, respecting protectflag.
+ */
+void BKE_object_set_location(Object *ob, float location[3]);
