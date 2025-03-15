@@ -467,7 +467,8 @@ class RENDER_PT_encoding_video(RenderOutputButtonsPanel, Panel):
             layout.prop(ffmpeg, "constant_rate_factor")
 
         use_encoding_speed = needs_codec and ffmpeg.codec not in {'DNXHD', 'FFV1', 'HUFFYUV', 'PNG', 'QTRLE'}
-        use_bitrate = needs_codec and ffmpeg.codec not in {'DNXHD', 'FFV1', 'HUFFYUV', 'PNG', 'QTRLE'}
+        use_bitrate = needs_codec and ffmpeg.codec not in {'FFV1', 'HUFFYUV', 'PNG', 'QTRLE'}
+        use_min_max_bitrate = ffmpeg.codec not in {'DNXHD'}
         use_gop = needs_codec and ffmpeg.codec not in {'DNXHD', 'HUFFYUV', 'PNG'}
         use_b_frames = needs_codec and use_gop and ffmpeg.codec not in {'FFV1', 'QTRLE'}
 
@@ -490,15 +491,16 @@ class RENDER_PT_encoding_video(RenderOutputButtonsPanel, Panel):
 
             sub = col.column(align=True)
             sub.prop(ffmpeg, "video_bitrate")
-            sub.prop(ffmpeg, "minrate", text="Minimum")
-            sub.prop(ffmpeg, "maxrate", text="Maximum")
+            if use_min_max_bitrate:
+                sub.prop(ffmpeg, "minrate", text="Minimum")
+                sub.prop(ffmpeg, "maxrate", text="Maximum")
 
-            col.prop(ffmpeg, "buffersize", text="Buffer")
+                col.prop(ffmpeg, "buffersize", text="Buffer")
 
-            col.separator()
+                col.separator()
 
-            col.prop(ffmpeg, "muxrate", text="Mux Rate")
-            col.prop(ffmpeg, "packetsize", text="Mux Packet Size")
+                col.prop(ffmpeg, "muxrate", text="Mux Rate")
+                col.prop(ffmpeg, "packetsize", text="Mux Packet Size")
 
 
 class RENDER_PT_encoding_audio(RenderOutputButtonsPanel, Panel):
