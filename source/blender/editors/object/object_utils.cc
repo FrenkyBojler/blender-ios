@@ -149,7 +149,7 @@ bool ED_object_calc_active_world_rot_for_editmode(Object *obedit,
         BM_editselection_normal(&ese, _axis);
         m3_from_single_axis(r_rot, _axis, 2);
         mul_m3_m4m3(r_rot, obedit->object_to_world().ptr(), r_rot);
-        remove_skew_m3_m3(r_rot, r_rot, 0);
+        orthogonalize_m3_stable(r_rot, 0, true);
         return true;
       }
       break;
@@ -157,11 +157,11 @@ bool ED_object_calc_active_world_rot_for_editmode(Object *obedit,
     case OB_ARMATURE: {
       bArmature *arm = static_cast<bArmature *>(obedit->data);
       EditBone *ebo = arm->act_edbone;
-
+      
       if (ebo && (!select_only || (ebo->flag & (BONE_SELECTED | BONE_ROOTSEL)))) {
         copy_m3_m4(r_rot, ebo->disp_mat);
         mul_m3_m4m3(r_rot, obedit->object_to_world().ptr(), r_rot);
-        remove_skew_m3_m3(r_rot, r_rot, 1);
+        orthogonalize_m3_stable(r_rot, 1, true);
         return true;
       }
 
@@ -173,7 +173,7 @@ bool ED_object_calc_active_world_rot_for_editmode(Object *obedit,
 
       if (ED_curve_active_rot(cu, r_rot)) {
         mul_m3_m4m3(r_rot, obedit->object_to_world().ptr(), r_rot);
-        remove_skew_m3_m3(r_rot, r_rot, 1);
+        orthogonalize_m3_stable(r_rot, 1, true);
         return true;
       }
       break;
@@ -184,7 +184,7 @@ bool ED_object_calc_active_world_rot_for_editmode(Object *obedit,
 
       if (ml_act && (!select_only || (ml_act->flag & SELECT))) {
         copy_m3_m4(r_rot, obedit->object_to_world().ptr());
-        remove_skew_m3_m3(r_rot, r_rot, 2);
+        orthogonalize_m3_stable(r_rot, 2, true);
         return true;
       }
       break;
@@ -194,7 +194,7 @@ bool ED_object_calc_active_world_rot_for_editmode(Object *obedit,
 
       if (actbp) {
         copy_m3_m4(r_rot, obedit->object_to_world().ptr());
-        remove_skew_m3_m3(r_rot, r_rot, 2);
+        orthogonalize_m3_stable(r_rot, 2, true);
         return true;
       }
       break;
@@ -225,14 +225,14 @@ bool ED_object_calc_active_rot(Object *ob, const bool select_only, float r_rot[3
   if (ob->mode & OB_MODE_POSE) {
     if (ED_object_calc_active_rot_for_posemode(ob, select_only, r_rot)) {
       mul_m3_m4m3(r_rot, ob->object_to_world().ptr(), r_rot);
-      remove_skew_m3_m3(r_rot, r_rot, 1);
+      orthogonalize_m3_stable(r_rot, 1, true);
       return true;
     }
     return false;
   }
   if (!select_only || (ob->base_flag & BASE_SELECTED)) {
     copy_m3_m4(r_rot, ob->object_to_world().ptr());
-    remove_skew_m3_m3(r_rot, r_rot, 2);
+    orthogonalize_m3_stable(r_rot, 2, true);
     return true;
   }
   return false;

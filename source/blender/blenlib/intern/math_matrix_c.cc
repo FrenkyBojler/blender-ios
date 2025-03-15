@@ -1539,6 +1539,24 @@ static void orthogonalize_stable(float v1[3], float v2[3], float v3[3], bool nor
   }
 }
 
+void orthogonalize_m3_stable(float R[3][3], int axis, bool normalize)
+{
+  switch (axis) {
+    case 0:
+      orthogonalize_stable(R[0], R[1], R[2], normalize);
+      break;
+    case 1:
+      orthogonalize_stable(R[1], R[0], R[2], normalize);
+      break;
+    case 2:
+      orthogonalize_stable(R[2], R[0], R[1], normalize);
+      break;
+    default:
+      BLI_assert_unreachable();
+      break;
+  }
+}
+
 void orthogonalize_m4_stable(float R[4][4], int axis, bool normalize)
 {
   switch (axis) {
@@ -2014,39 +2032,6 @@ void mat3_to_rot_size(float rot[3][3], float size[3], const float mat3[3][3])
   if (UNLIKELY(is_negative_m3(rot))) {
     negate_m3(rot);
     negate_v3(size);
-  }
-}
-
-/* Makes a skewed rotation matrices, keeps an axis fixed,
- * and orthogonalizes the other two with respect to fixed axis
- */
-void remove_skew_m3_m3(float mat3[3][3], const float wmat[3][3], const int fixed_axis)
-{
-  int cur_axis, prev_axis, f_axis = mod_i(fixed_axis, 3);
-  float proj[3];
-  normalize_v3_v3(mat3[f_axis], wmat[f_axis]);  // Keep fixed axis as is
-  for (int i = 1; i <= 2; i++) {                // For the two remaining axes do orthogonalization
-    cur_axis = mod_i((f_axis + i), 3);
-    copy_v3_v3(mat3[cur_axis], wmat[cur_axis]);
-    for (int j = f_axis; j < f_axis + i; j++) {  // Make it perpendicular to previous axes
-      prev_axis = mod_i(j, 3);
-      project_v3_v3v3(proj, mat3[cur_axis], mat3[prev_axis]);
-      sub_v3_v3(mat3[cur_axis], proj);
-    }
-    normalize_v3(mat3[cur_axis]);
-  }
-  if (UNLIKELY(is_negative_m3(mat3))) {
-    negate_m3(mat3);
-  }
-}
-
-void mat4_to_rot(float rot[3][3], const float wmat[4][4])
-{
-  normalize_v3_v3(rot[0], wmat[0]);
-  normalize_v3_v3(rot[1], wmat[1]);
-  normalize_v3_v3(rot[2], wmat[2]);
-  if (UNLIKELY(is_negative_m3(rot))) {
-    negate_m3(rot);
   }
 }
 

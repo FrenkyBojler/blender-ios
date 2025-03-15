@@ -288,6 +288,7 @@ void orthogonalize_m4(float R[4][4], int axis);
  * \param axis: Axis to build the orthonormal basis around.
  * \param normalize: Normalize the matrix instead of preserving volume.
  */
+void orthogonalize_m3_stable(float R[3][3], int axis, bool normalize);
 void orthogonalize_m4_stable(float R[4][4], int axis, bool normalize);
 
 bool orthogonalize_m3_zero_axes(float m[3][3], float unit_length);
@@ -409,12 +410,6 @@ void rescale_m4(float mat[4][4], const float scale[3]);
  * Typical use case is to make 3x3 matrix, copy to 4x4, then pass to this function.
  */
 void transform_pivot_set_m4(float mat[4][4], const float pivot[3]);
-
-/**
- * \param rot: A 3x3 rotation matrix, skewness considered,
- * one primary axis is conserved, normalized never negative.
- */
-void remove_skew_m3_m3(float mat3[3][3], const float wmat[3][3], const int fixed_axis);
 
 /**
  * \param rot: A 3x3 rotation matrix, normalized never negative.
