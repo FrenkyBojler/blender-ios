@@ -6513,10 +6513,6 @@ void RNA_parameter_list_free(ParameterList *parms)
     PropertyRNA *parm = parm_layout.prop;
     void *data = ((char *)parms->data) + parm_layout.offset;
     if (parm->type == PROP_COLLECTION) {
-<<<<<<< HEAD
-      if (parm->type == PROP_COLLECTION) {
-        BLI_freelistN(static_cast<ListBase *>(data));
-=======
       CollectionVector *vector = static_cast<CollectionVector *>(data);
       vector->~CollectionVector();
     }
@@ -6532,23 +6528,21 @@ void RNA_parameter_list_free(ParameterList *parms)
       ParameterDynAlloc *data_alloc = static_cast<ParameterDynAlloc *>(data);
       if (data_alloc->array) {
         MEM_freeN(data_alloc->array);
->>>>>>> origin/main
       }
-      else if ((parm->flag_parameter & PARM_RNAPTR) && (parm->flag & PROP_THICK_WRAP)) {
-        BLI_assert(parm->type == PROP_POINTER);
-        PointerRNA *ptr = static_cast<PointerRNA *>(data);
-        /* #RNA_parameter_list_create ensures that 'thick wrap' PointerRNA parameters are
-         * constructed. */
-        ptr->~PointerRNA();
+    }
+    else if ((parm->flag_parameter & PARM_RNAPTR) && (parm->flag & PROP_THICK_WRAP)) {
+      BLI_assert(parm->type == PROP_POINTER);
+      PointerRNA *ptr = static_cast<PointerRNA *>(data);
+      /* #RNA_parameter_list_create ensures that 'thick wrap' PointerRNA parameters are
+       * constructed. */
+      ptr->~PointerRNA();
+    }
+    else if (parm->flag & PROP_DYNAMIC) {
+      /* for dynamic arrays and strings, data is a pointer to an array */
+      ParameterDynAlloc *data_alloc = static_cast<ParameterDynAlloc *>(data);
+      if (data_alloc->array) {
+        MEM_freeN(data_alloc->array);
       }
-      else if (parm->flag & PROP_DYNAMIC) {
-        /* for dynamic arrays and strings, data is a pointer to an array */
-        ParameterDynAlloc *data_alloc = static_cast<ParameterDynAlloc *>(data);
-        if (data_alloc->array) {
-          MEM_freeN(data_alloc->array);
-        }
-      }
-      data = static_cast<char *>(data) + rna_parameter_size_pad(rna_parameter_size(parm));
     }
   }
   if (!runtime->reusable_data_alloc) {
