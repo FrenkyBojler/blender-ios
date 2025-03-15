@@ -8,20 +8,21 @@
 
 namespace blender::tests {
 
-static char *sample_font_path()
+static std::string font_path(std::string font_name)
 {
-  const std::string &test_assets_dir = blender::tests::flags_test_asset_dir();
-  char samples_path[FILE_MAX];
-  BLI_path_join(samples_path, sizeof(samples_path), test_assets_dir.c_str(), "blenfont");
-  return samples_path;
+  char path[FILE_MAX];
+  BLI_path_join(path,
+                sizeof(path),
+                blender::tests::flags_test_asset_dir().c_str(),
+                "blenfont",
+                font_name.c_str());
+  return std::string(path);
 }
 
-static int open_font(std::string font_file)
+static int open_font(std::string font_name)
 {
   BLF_init();
-  char font_path[FILE_MAX];
-  BLI_path_join(font_path, sizeof(font_path), sample_font_path(), font_file.c_str());
-  return BLF_load(font_path);
+  return BLF_load(font_path(font_name).c_str());
 }
 
 static void close_font(int id)
@@ -37,11 +38,29 @@ TEST(blf_load, load)
   close_font(id);
 }
 
+TEST(blf_load, font_is_loaded_path)
+{
+  BLF_init();
+  std::string path = font_path("Ahem.ttf");
+  const int id = BLF_load(path.c_str());
+  EXPECT_TRUE(BLF_is_loaded(path.c_str()));
+  close_font(id);
+}
+
 TEST(blf_load, font_is_loaded_id)
 {
   const int id = open_font("Ahem.ttf");
   EXPECT_TRUE(BLF_is_loaded_id(id));
   close_font(id);
+}
+
+TEST(blf_load, display_name_from_file)
+{
+  std::string path = font_path("Ahem.ttf");
+  const char *name = BLF_display_name_from_file(path.c_str());
+  EXPECT_TRUE(STREQ(name, "Ahem Regular"));
+  /* BLF_display_name result must be freed. */
+  MEM_freeN(name);
 }
 
 TEST(blf_load, display_name_from_id)
@@ -69,6 +88,7 @@ TEST(blf_metrics, get_vfont_metrics)
   float em_ratio = 0.0f;
   float scale = 0.0f;
   const bool has_metrics = BLF_get_vfont_metrics(id, &ascend_ratio, &em_ratio, &scale);
+  EXPECT_TRUE(has_metrics);
   EXPECT_TRUE(ascend_ratio == 0.8f);
   EXPECT_TRUE(em_ratio == 1.0f);
   EXPECT_TRUE(scale == 0.001f);
