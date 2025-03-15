@@ -6379,7 +6379,7 @@ static void rna_init_fuction_parameter_cache(FunctionRNA *func)
 {
   func->runtime = MEM_new<FunctionRNARuntime>(__func__);
   FunctionRNARuntime *runtime = func->runtime;
-  ParameterList *parms_cache = &runtime->params_cache;
+  ParameterList *parms_cache = &runtime->parms_cache;
   parms_cache->arg_count = 0;
   parms_cache->ret_count = 0;
 
@@ -6404,9 +6404,9 @@ static void rna_init_fuction_parameter_cache(FunctionRNA *func)
   PointerRNA null_ptr = PointerRNA_NULL;
 
   for (ParameterDataLayout &parm_layout : runtime->parms_layout) {
-    void *data = ((char *)parms_cache->data) + parm_layout.offset;
+    void *data = parms_cache->get_param_data_ptr(parm_layout);
 
-    PropertyRNA *parm = parm_layout.prop;
+    PropertyRNA *parm = parm_layout.parm_prop;
     int size = rna_parameter_size(parm);
 
     /* set length to 0, these need to be set later, see bpy_array.c's py_to_array */
@@ -6482,20 +6482,20 @@ ParameterList *RNA_parameter_list_create(ParameterList *parms,
     rna_init_fuction_parameter_cache(func);
   }
   FunctionRNARuntime *runtime = static_cast<FunctionRNARuntime *>(func->runtime);
-  *parms = runtime->params_cache;
+  *parms = runtime->parms_cache;
   if (runtime->reusable_data_alloc) {
     parms->data = runtime->reusable_data_alloc;
     runtime->reusable_data_alloc = nullptr;
-    memcpy(parms->data, runtime->params_cache.data, parms->alloc_size);
+    memcpy(parms->data, runtime->parms_cache.data, parms->alloc_size);
   }
   else {
-    parms->data = MEM_dupallocN(runtime->params_cache.data);
+    parms->data = MEM_dupallocN(runtime->parms_cache.data);
   }
 
   for (ParameterDataLayout &parm_layout : runtime->parms_layout) {
-    PropertyRNA *parm = parm_layout.prop;
+    PropertyRNA *parm = parm_layout.parm_prop;
     if ((parm->flag_parameter & PARM_RNAPTR) && (parm->flag & PROP_THICK_WRAP)) {
-      void *data = ((char *)parms->data) + parm_layout.offset;
+      void *data = parms->get_param_data_ptr(parm_layout);
       BLI_assert(parm->type == PROP_POINTER);
       new (static_cast<PointerRNA *>(data)) PointerRNA();
     }
@@ -6510,8 +6510,8 @@ void RNA_parameter_list_free(ParameterList *parms)
   parm = static_cast<PropertyRNA *>(parms->func->cont.properties.first);
   FunctionRNARuntime *runtime = static_cast<FunctionRNARuntime *>(parms->func->runtime);
   for (ParameterDataLayout &parm_layout : runtime->parms_layout) {
-    PropertyRNA *parm = parm_layout.prop;
-    void *data = ((char *)parms->data) + parm_layout.offset;
+    PropertyRNA *parm = parm_layout.parm_prop;
+    void *data = parms->get_param_data_ptr(parm_layout);
     if (parm->type == PROP_COLLECTION) {
       CollectionVector *vector = static_cast<CollectionVector *>(data);
       vector->~CollectionVector();
@@ -6569,7 +6569,7 @@ static const ParameterDataLayout *rna_find_parameter_layout(ParameterList *parms
                                                             PropertyRNA *parm)
 {
   for (const ParameterDataLayout &parm_layout : RNA_parameters_layout(parms)) {
-    if (parm_layout.prop == parm) {
+    if (parm_layout.parm_prop == parm) {
       return &parm_layout;
     }
   }

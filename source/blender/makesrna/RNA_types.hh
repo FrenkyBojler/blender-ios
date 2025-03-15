@@ -695,8 +695,8 @@ using EnumPropertyItemFunc = const EnumPropertyItem *(*)(bContext *C,
 struct PropertyRNA;
 
 struct ParameterDataLayout {
-  PropertyRNA *prop;
-  int offset;
+  PropertyRNA *parm_prop;
+  int data_offset;
   int size;
 };
 
@@ -716,7 +716,7 @@ struct ParameterList {
 
   void *get_param_data_ptr(const ParameterDataLayout &param)
   {
-    return static_cast<char *>(data) + param.offset;
+    return static_cast<char *>(data) + param.data_offset;
   }
 };
 

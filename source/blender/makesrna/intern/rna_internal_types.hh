@@ -303,7 +303,7 @@ struct ContainerRNA {
 
 /** RNA Function runtime cache. */
 struct FunctionRNARuntime {
-  ParameterList params_cache;
+  ParameterList parms_cache;
   void *reusable_data_alloc = nullptr;
   blender::Vector<ParameterDataLayout> parms_layout;
 
@@ -312,7 +312,7 @@ struct FunctionRNARuntime {
     if (this->reusable_data_alloc) {
       MEM_freeN(this->reusable_data_alloc);
     }
-    MEM_freeN(this->params_cache.data);
+    MEM_freeN(this->parms_cache.data);
   }
 };
 

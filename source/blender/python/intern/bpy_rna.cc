@@ -6615,7 +6615,7 @@ static PyObject *pyrna_func_call(BPy_FunctionRNA *self, PyObject *args, PyObject
   /* Parse function parameters. */
   i = 0;
   for (const ParameterDataLayout &parm_layout : RNA_parameters_layout(&parms)) {
-    PropertyRNA *parm = parm_layout.prop;
+    PropertyRNA *parm = parm_layout.parm_prop;
     flag_parameter = RNA_parameter_flag(parm);
 
     /* Only useful for single argument returns, we'll need another list loop for multiple. */
@@ -6732,7 +6732,7 @@ static PyObject *pyrna_func_call(BPy_FunctionRNA *self, PyObject *args, PyObject
       else {
         /* Search for arg_name. */
         for (const ParameterDataLayout &parm_layout : RNA_parameters_layout(&parms)) {
-          PropertyRNA *parm = parm_layout.prop;
+          PropertyRNA *parm = parm_layout.parm_prop;
           if (STREQ(arg_name, RNA_property_identifier(parm))) {
             found = true;
             break;
@@ -6750,7 +6750,7 @@ static PyObject *pyrna_func_call(BPy_FunctionRNA *self, PyObject *args, PyObject
     first = true;
 
     for (const ParameterDataLayout &parm_layout : RNA_parameters_layout(&parms)) {
-      PropertyRNA *parm = parm_layout.prop;
+      PropertyRNA *parm = parm_layout.parm_prop;
       if (RNA_parameter_flag(parm) & PARM_OUTPUT) {
         continue;
       }
@@ -6796,7 +6796,7 @@ static PyObject *pyrna_func_call(BPy_FunctionRNA *self, PyObject *args, PyObject
           i = 0; /* Arg index. */
 
           for (const ParameterDataLayout &parm_layout : RNA_parameters_layout(&parms)) {
-            PropertyRNA *parm = parm_layout.prop;
+            PropertyRNA *parm = parm_layout.parm_prop;
 
             if (RNA_parameter_flag(parm) & PARM_OUTPUT) {
               PyTuple_SET_ITEM(
@@ -9544,7 +9544,7 @@ static int bpy_class_call(bContext *C, PointerRNA *ptr, FunctionRNA *func, Param
 
       /* Parse function parameters. */
       for (const ParameterDataLayout &parm_layout : RNA_parameters_layout(parms)) {
-        PropertyRNA *parm = parm_layout.prop;
+        PropertyRNA *parm = parm_layout.parm_prop;
         /* Only useful for single argument returns, we'll need another list loop for multiple. */
         if (RNA_parameter_flag(parm) & PARM_OUTPUT) {
           ret_len++;
@@ -9654,7 +9654,7 @@ static int bpy_class_call(bContext *C, PointerRNA *ptr, FunctionRNA *func, Param
         /* Parse function parameters. */
         i = 0;
         for (const ParameterDataLayout &parm_layout : RNA_parameters_layout(parms)) {
-          PropertyRNA *parm = parm_layout.prop;
+          PropertyRNA *parm = parm_layout.parm_prop;
 
           /* Only useful for single argument returns, we'll need another list loop for multiple. */
           if (RNA_parameter_flag(parm) & PARM_OUTPUT) {
