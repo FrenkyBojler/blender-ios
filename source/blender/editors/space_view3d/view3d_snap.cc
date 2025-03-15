@@ -549,6 +549,7 @@ static bool snap_selected_to_location(bContext *C,
         mul_m3_m4m4(originmat, parentmat, ob->parentinv);
         invert_m3_m3(imat, originmat);
         mul_m3_v3(imat, cursor_parent);
+        mul_m3_m3m3(cursor_rotmat.ptr(), imat, cursor_rotmat.ptr());
       }
       if (use_toolsettings) {
         if ((ob->protectflag & OB_LOCK_LOCX) == 0) {
