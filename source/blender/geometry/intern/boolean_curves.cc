@@ -881,7 +881,7 @@ bke::CurvesGeometry curve_boolean(const CurveBooleanOpParameters op_params,
     for (const int segment_i : segment_range) {
       if (!clipping_shapes.contains(segment_i)) {
         old_by_new_map[i] = result.segments[segment_i].curve;
-        continue;
+        break;
       }
     }
   }
