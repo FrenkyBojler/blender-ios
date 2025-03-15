@@ -67,7 +67,7 @@ class UnitsTesting(unittest.TestCase):
         ('METRIC', 'LENGTH', 3, True, False, 1000 * 2 + 0.001 * 15, "2 km 2 cm"),
         ('METRIC', 'LENGTH', 5, True, False, 1234.56789, "1 km 234.6 m"),
         ('METRIC', 'LENGTH', 6, True, False, 1234.56789, "1 km 234.57 m"),
-        ('METRIC', 'LENGTH', 9, False, False, 1234.56789, "1.234568 km"),
+        ('METRIC', 'LENGTH', 9, False, False, 1234.56789, "1.2345679 km"),
         ('METRIC', 'LENGTH', 9, True, False, 1000.000123456789, "1 km 0.123 mm"),
     )
 
