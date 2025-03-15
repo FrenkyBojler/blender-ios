@@ -33,6 +33,7 @@
 #include "BLI_math_vector.hh"
 #include "BLI_task.hh"
 #include "BLI_vector.hh"
+#include "BLI_rand.h"
 
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
@@ -55,9 +56,8 @@ namespace blender::nodes::node_geo_tetrahedralize_cc {
 
 
 struct NodeGeometryTetrahedralize {
-  double max_volume;          
+  float max_volume;          
   float quality_ratio;       
-  float min_dihedral_angle;  
   bool preserve_boundary;    
   char _pad[3];              
 };
@@ -96,10 +96,6 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Float>("Quality Ratio").default_value(2.0).min(1.0f).max(4.0f)
       .description("Direct control of TetGen quality (1=basic quality, 4=highest quality with longer calculation times)");
   
-  b.add_input<decl::Float>("Min Dihedral Angle").default_value(10.0f).min(0.0f).max(30.0f)
-      .subtype(PROP_ANGLE)
-      .description("Minimum dihedral angle between tetrahedra faces. Higher values create better shaped elements but slower calculation");
-  
   b.add_input<decl::Bool>("Preserve Boundary").default_value(false)
       .description("Preserve input mesh boundaries");
       
@@ -118,10 +114,9 @@ static void node_init(bNodeTree *, bNode *node)
   NodeGeometryTetrahedralize *storage = (NodeGeometryTetrahedralize *)MEM_callocN(
       sizeof(NodeGeometryTetrahedralize), "NodeGeometryTetrahedralize");
   
-  storage->max_volume = 0.8;
+  storage->max_volume = 0.8f;
   storage->quality_ratio = 2.0f;
-  storage->min_dihedral_angle = 10.0f;
-  storage->preserve_boundary = true;
+  storage->preserve_boundary = false;
   
   node->storage = storage;
   node->custom2 = 0;                
@@ -331,21 +326,20 @@ static bool prepare_tetgen_input(const Mesh *mesh, tetgenio &in, GeoNodeExecPara
                          std::to_string(pow(10.0f, attempt)) + ")");
   }
   
+  // Utiliser le générateur aléatoire de Blender avec un seed déterministe basé sur le mesh
+  RNG *rng = BLI_rng_new(0);
   
-  std::random_device rd;
-  std::mt19937 gen(rd());
-  std::uniform_real_distribution<float> dist(-perturbation_scale, perturbation_scale);
-  
+  // Ajout d'un seed unique mais déterministe basé sur le nombre de vertices et faces
+  BLI_rng_srandom(rng, vert_positions.size() + mesh->faces_num + attempt * 1000);
   
   for (int i = 0; i < vert_positions.size(); i++) {
     float3 pos = vert_positions[i];
     
-    
-    
+    // Appliquer une perturbation contrôlée si nécessaire
     if (attempt >= 1) {
-      pos.x += dist(gen);
-      pos.y += dist(gen);
-      pos.z += dist(gen);
+      pos.x += (BLI_rng_get_float(rng) * 2.0f - 1.0f) * perturbation_scale;
+      pos.y += (BLI_rng_get_float(rng) * 2.0f - 1.0f) * perturbation_scale;
+      pos.z += (BLI_rng_get_float(rng) * 2.0f - 1.0f) * perturbation_scale;
     }
     
     in.pointlist[i * 3] = pos.x;
@@ -353,6 +347,8 @@ static bool prepare_tetgen_input(const Mesh *mesh, tetgenio &in, GeoNodeExecPara
     in.pointlist[i * 3 + 2] = pos.z;
   }
   
+  // Libérer le générateur aléatoire
+  BLI_rng_free(rng);
   
   Span<int> corner_verts = mesh->corner_verts();
   Span<int> face_offsets = mesh->face_offsets();
@@ -504,16 +500,14 @@ static void make_normals_consistent(Mesh *mesh, GeoNodeExecParams &params)
  * @param behavior TetGen behavior structure to configure
  * @param max_volume Maximum volume constraint for tetrahedra
  * @param quality_ratio Quality ratio for shape control
- * @param min_dihedral_angle Minimum dihedral angle between tetrahedra faces
  * @param preserve_boundary Whether to preserve the input mesh boundary
  * @param params Node execution parameters for error reporting
  * @param attempt Current attempt number (for fallback strategies)
  * @param max_attempts Maximum number of attempts allowed
  */
 static void configure_tetgen_options(tetgenbehavior &behavior,
-                                     double max_volume, 
+                                     float max_volume, 
                                      float quality_ratio,
-                                     float min_dihedral_angle,
                                      bool preserve_boundary,
                                      GeoNodeExecParams &params,
                                      int attempt = 0,
@@ -535,7 +529,7 @@ static void configure_tetgen_options(tetgenbehavior &behavior,
     behavior.nobisect = 0;
     if (preserve_boundary) {
       params.error_message_add(NodeWarningType::Info,
-          "Disabling boundary preservation for stability (attempt " + 
+          "Désactivation de la préservation des limites pour la stabilité (tentative " + 
           std::to_string(attempt + 1) + ")");
     }
   } else {
@@ -544,11 +538,12 @@ static void configure_tetgen_options(tetgenbehavior &behavior,
   
   // Direct quality control for TetGen
   behavior.minratio = quality_ratio;   
-  behavior.mindihedral = min_dihedral_angle; 
+  // L'angle dièdre minimal est géré automatiquement par TetGen
+  // behavior.mindihedral = min_dihedral_angle; 
   
   // Volume constraint - TOUJOURS activer pour forcer la contrainte de volume
   behavior.fixedvolume = 1;  // Toujours activer la contrainte de volume
-  behavior.maxvolume = max_volume;
+  behavior.maxvolume = static_cast<double>(max_volume);
   
   // Adjust parameters for complex meshes
   bool is_complex_mesh = attempt > 0;
@@ -558,9 +553,9 @@ static void configure_tetgen_options(tetgenbehavior &behavior,
   // First fallback for complex meshes
   if (is_complex_mesh) {
     params.error_message_add(NodeWarningType::Warning,
-                         "Complex mesh detected. Adjusting tetrahedralization parameters.");
+                         "Maillage complexe détecté. Ajustement des paramètres de tétraédralisation.");
     behavior.minratio = std::min(quality_ratio, 2.0f);    // Reduce quality for speed
-    behavior.mindihedral = std::min(min_dihedral_angle, 5.0f);  // Reduce angle constraint
+    // Suppression de l'ajustement de l'angle dièdre
     behavior.docheck = 0;       
     behavior.diagnose = 1;      
   }
@@ -568,20 +563,20 @@ static void configure_tetgen_options(tetgenbehavior &behavior,
   // Second fallback for massive meshes
   if (is_massive_mesh) {
     params.error_message_add(NodeWarningType::Warning,
-                         "Massive mesh detected. Disabling boundary recovery.");
+                         "Maillage massif détecté. Désactivation de la récupération des limites.");
     behavior.nobisect = 0;     
     behavior.docheck = 0;      
     behavior.diagnose = 1;     
     
     // Reduce quality further for massive meshes
     behavior.minratio = std::min(quality_ratio, 1.5f);    
-    behavior.mindihedral = std::min(min_dihedral_angle, 1.0f); 
+    // Suppression de l'ajustement de l'angle dièdre
   }
   
   // Final fallback for problematic geometry
   if (has_flipping_issues) {
     params.error_message_add(NodeWarningType::Warning,
-                         "Mesh with problematic geometry. Disabling flipping operations.");
+                         "Maillage avec géométrie problématique. Désactivation des opérations de retournement.");
     
     // Disable PLC for maximum robustness
     behavior.plc = 0;          
@@ -596,7 +591,7 @@ static void configure_tetgen_options(tetgenbehavior &behavior,
     
     // Use minimal quality constraints
     behavior.minratio = 1.0;   
-    behavior.mindihedral = 0.5; 
+    // Suppression de l'ajustement de l'angle dièdre
     
     // Reduce output complexity
     behavior.facesout = 0;      
@@ -1301,13 +1296,17 @@ static bool detect_flipping_prone_geometry(const Mesh *mesh, GeoNodeExecParams &
   face_indices.reserve(max_samples);
   
   if (mesh->faces_num > max_samples) {
+    // Utiliser le générateur aléatoire de Blender avec un seed déterministe
+    RNG *rng = BLI_rng_new(0);
+    // Seed basé sur le nombre de vertices et faces pour assurer un résultat déterministe
+    BLI_rng_srandom(rng, mesh->verts_num + mesh->faces_num);
     
-    std::srand(static_cast<unsigned int>(std::time(nullptr)));
     for (int i = 0; i < max_samples; i++) {
-      face_indices.push_back(std::rand() % mesh->faces_num);
+      face_indices.push_back(BLI_rng_get_int(rng) % mesh->faces_num);
     }
-  } else {
     
+    BLI_rng_free(rng);
+  } else {
     face_indices.resize(mesh->faces_num);
     std::iota(face_indices.begin(), face_indices.end(), 0);
   }
@@ -1494,11 +1493,14 @@ static bool detect_flipping_prone_geometry(const Mesh *mesh, GeoNodeExecParams &
     int num_samples = std::min(10000, int(triangles.size() * triangles.size() / 4));
     int self_intersect_count = 0;
     
-    std::srand(static_cast<unsigned int>(std::time(nullptr) + 1));
+    // Utiliser le générateur aléatoire de Blender
+    RNG *rng = BLI_rng_new(0);
+    // Seed déterministe basé sur les dimensions du mesh
+    BLI_rng_srandom(rng, mesh->verts_num + mesh->faces_num + mesh->edges_num);
     
     for (int s = 0; s < num_samples; s++) {
-      int idx1 = std::rand() % triangles.size();
-      int idx2 = std::rand() % triangles.size();
+      int idx1 = BLI_rng_get_int(rng) % triangles.size();
+      int idx2 = BLI_rng_get_int(rng) % triangles.size();
       
       
       if (idx1 != idx2) {
@@ -1515,6 +1517,9 @@ static bool detect_flipping_prone_geometry(const Mesh *mesh, GeoNodeExecParams &
         }
       }
     }
+    
+    // Libérer le générateur aléatoire
+    BLI_rng_free(rng);
     
     if (self_intersect_count > 0) {
       params.error_message_add(NodeWarningType::Warning,
@@ -1938,13 +1943,13 @@ static void node_geo_exec(GeoNodeExecParams params)
     
     
     // Extract and validate node parameters with error handling
-    double max_volume_percentage = 0.8;
+    float max_volume_percentage = 0.8f;
     try {
       max_volume_percentage = params.extract_input<float>("Max Volume");
     }
     catch (...) {
       params.error_message_add(NodeWarningType::Warning, 
-          "Failed to extract Max Volume parameter, using default value (0.8)");
+          "Échec de l'extraction du paramètre Max Volume, utilisation de la valeur par défaut (0.8)");
     }
     
     // Calculate mesh bounding box to scale max_volume appropriately
@@ -1960,29 +1965,29 @@ static void node_geo_exec(GeoNodeExecParams params)
     float3 dimensions = bbox_max - bbox_min;
     float mesh_volume = dimensions.x * dimensions.y * dimensions.z;
     
-  
-    double tetgen_unit_volume = mesh_volume / 1000.0;  // Base ~ 1000 tétraèdres
+    // Calcul du volume unitaire pour TetGen (base pour environ 1000 tétraèdres)
+    float tetgen_unit_volume = mesh_volume / 1000.0f;
     
-    double density_power;
-    double max_volume;
+    float density_power;
+    float max_volume;
     
-    if (max_volume_percentage < 0.1) {
-
-        density_power = 12.0 * (1.0 - max_volume_percentage/0.1);
-        max_volume = tetgen_unit_volume * pow(10.0, -density_power);
+    if (max_volume_percentage < 0.1f) {
+        // Très haute densité pour les valeurs < 0.1
+        density_power = 12.0f * (1.0f - max_volume_percentage/0.1f);
+        max_volume = tetgen_unit_volume * powf(10.0f, -density_power);
     }
-    else if (max_volume_percentage < 0.5) {
-
-        density_power = 6.0 * (1.0 - (max_volume_percentage-0.1)/0.4);
-        max_volume = tetgen_unit_volume * pow(10.0, -density_power);
+    else if (max_volume_percentage < 0.5f) {
+        // Densité moyenne pour les valeurs entre 0.1 et 0.5
+        density_power = 6.0f * (1.0f - (max_volume_percentage-0.1f)/0.4f);
+        max_volume = tetgen_unit_volume * powf(10.0f, -density_power);
     }
     else {
-
-        density_power = 1.0 * (max_volume_percentage - 0.5) / 0.5;
-        max_volume = tetgen_unit_volume * pow(10.0, density_power);
+        // Densité plus faible pour les valeurs > 0.5
+        density_power = 1.0f * (max_volume_percentage - 0.5f) / 0.5f;
+        max_volume = tetgen_unit_volume * powf(10.0f, density_power);
     }
     
-    double min_safe_volume = 1e-20;
+    float min_safe_volume = 1e-20f;
     if (max_volume < min_safe_volume) {
         max_volume = min_safe_volume;
     }
@@ -1993,16 +1998,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     }
     catch (...) {
       params.error_message_add(NodeWarningType::Warning, 
-          "Failed to extract Quality Ratio parameter, using default value (2.0)");
-    }
-    
-    float min_dihedral_angle = 10.0f;
-    try {
-      min_dihedral_angle = params.extract_input<float>("Min Dihedral Angle");
-    }
-    catch (...) {
-      params.error_message_add(NodeWarningType::Warning, 
-          "Failed to extract Min Dihedral Angle parameter, using default value (10.0)");
+          "Échec de l'extraction du paramètre Quality Ratio, utilisation de la valeur par défaut (2.0)");
     }
     
     bool preserve_boundary = false;
@@ -2011,7 +2007,7 @@ static void node_geo_exec(GeoNodeExecParams params)
             }
             catch (...) {
       params.error_message_add(NodeWarningType::Warning, 
-          "Failed to extract Preserve Boundary parameter, using default value (false)");
+          "Échec de l'extraction du paramètre Preserve Boundary, utilisation de la valeur par défaut (false)");
     }
     
     // Complexity thresholds for adaptive processing
@@ -2061,7 +2057,6 @@ static void node_geo_exec(GeoNodeExecParams params)
       configure_tetgen_options(behavior, 
                              max_volume,
                              quality_ratio,
-                             min_dihedral_angle, 
                              preserve_boundary,
                              params);
       
@@ -2084,10 +2079,16 @@ static void node_geo_exec(GeoNodeExecParams params)
       }
       
       
+                // Utiliser le générateur aléatoire de Blender pour ajouter du bruit aux points
+                RNG *rng = BLI_rng_new(0);
+                BLI_rng_srandom(rng, in.numberofpoints + 42); // Seed déterministe
+                
                 for (int i = 0; i < in.numberofpoints * 3; i++) {
-                  double noise = ((double)rand() / RAND_MAX) * 1e-6;
+                  double noise = BLI_rng_get_double(rng) * 1e-6;
                   in.pointlist[i] += noise;
                 }
+                
+                BLI_rng_free(rng);
                 
       
       bool tetgen_success = false;
@@ -2244,7 +2245,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   catch (...) {
     
     params.error_message_add(NodeWarningType::Error,
-        "Critical error occurred. Returning empty geometry.");
+        "Erreur critique survenue. Retour à la géométrie vide.");
     params.set_output("Tetrahedral Mesh", GeometrySet());
   }
 }
