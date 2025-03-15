@@ -1654,7 +1654,8 @@ std::string BKE_unit_format_display_float(float value, int precision)
     std::string short_repr = fmt::format("{}", value);
     /* fmt::format defaults to scientific notation early. Shift the cutoff a bit, because
      * units should be able to help represent large ranges of values. */
-    if (abs_value < 1e-6f || abs_value > 16777216.0f || short_repr.find('e') == std::string::npos) {
+    if (abs_value < 1e-6f || abs_value > 16777216.0f || short_repr.find('e') == std::string::npos)
+    {
       return short_repr;
     }
     precision = std::max(0, PRECISION_FLOAT_MAX - integer_digits_f(value));
@@ -1697,7 +1698,10 @@ static size_t unit_as_string(char *str,
 
   std::string tmp = BKE_unit_format_display_float(value_conv, prec);
   size_t len = BLI_strncpy_rlen(str, tmp.c_str(), str_maxncpy);
-  strip_skip = strip_skip || tmp.find('.') == std::string::npos;
+
+  /* Don't strip if there is no decimal point or if the string is in scientific notation. */
+  strip_skip = strip_skip || tmp.find('.') == std::string::npos ||
+               tmp.find('e') != std::string::npos;
 
   /* Add unit prefix and strip zeros. */
 
