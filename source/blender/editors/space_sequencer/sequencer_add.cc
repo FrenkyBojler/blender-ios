@@ -30,6 +30,7 @@
 
 #include "IMB_imbuf_enums.h"
 
+#include "SEQ_channels.hh"
 #include "WM_api.hh"
 #include "WM_types.hh"
 
@@ -209,10 +210,20 @@ static int sequencer_generic_invoke_xy_guess_channel(bContext *C, int type)
     }
   }
 
+  int best_channel = 1;
   if (tgt) {
-    return (type == STRIP_TYPE_MOVIE) ? tgt->machine - 1 : tgt->machine;
+    best_channel = (type == STRIP_TYPE_MOVIE) ? tgt->machine - 1 : tgt->machine;
   }
-  return 1;
+
+  /* Find channel, that is neither locked or muted. */
+  const ListBase *channels = seq::channels_displayed_get(seq::editing_get(scene));
+  SeqTimelineChannel *channel = seq::channel_get_by_index(channels, best_channel);
+  while (seq::channel_is_muted(channel) || seq::channel_is_locked(channel)) {
+    best_channel++;
+    channel = seq::channel_get_by_index(channels, best_channel);
+  }
+
+  return best_channel;
 }
 
 /* Sets `channel` and `frame_start` properties when the operator is likely to have been invoked
