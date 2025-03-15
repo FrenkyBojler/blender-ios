@@ -221,11 +221,8 @@ std::ofstream get_file_stream()
 
   if (!draw_append) {
     f << "<!DOCTYPE html>\n";
-
     f << "<style>\n";
-
     CSS_setup_style(f);
-
     f << "</style>\n";
   }
 
