@@ -6564,72 +6564,36 @@ blender::Span<ParameterDataLayout> RNA_parameters_layout(ParameterList *parms)
   }
   return parms->func->runtime->parms_layout;
 }
-void RNA_parameter_list_begin(ParameterList *parms, ParameterIterator *iter)
-{
-  /* may be useful but unused now */
-  // RNA_pointer_create_discrete(nullptr, &RNA_Function, parms->func, &iter->funcptr); /* UNUSED */
-  BLI_assert(parms->func->runtime);
-  iter->index = 0;
-  ParameterDataLayout *parm_layout = parms->func->runtime->parms_layout.begin() + iter->index;
-  iter->parms = parms;
-  iter->parm = static_cast<PropertyRNA *>(parms->func->cont.properties.first);
-  iter->valid = parm_layout < parms->func->runtime->parms_layout.end();
-  iter->offset = 0;
 
-  if (iter->valid) {
-    iter->size = parm_layout->size;
-    iter->data = ((char *)iter->parms->data); /* +iter->offset, always 0 */
+static const ParameterDataLayout *rna_find_parameter_layout(ParameterList *parms,
+                                                            PropertyRNA *parm)
+{
+  for (const ParameterDataLayout &parm_layout : RNA_parameters_layout(parms)) {
+    if (parm_layout.prop == parm) {
+      return &parm_layout;
+    }
   }
-}
-
-void RNA_parameter_list_next(ParameterIterator *iter)
-{
-  iter->index++;
-  ParameterDataLayout *parm_layout = iter->parms->func->runtime->parms_layout.begin() +
-                                     iter->index;
-
-  iter->valid = parm_layout < iter->parms->func->runtime->parms_layout.end();
-
-  if (iter->valid) {
-    iter->parm = parm_layout->prop;
-    iter->size = parm_layout->size;
-    iter->offset = parm_layout->offset;
-    iter->data = ((char *)iter->parms->data) + parm_layout->offset;
-  }
-}
-
-void RNA_parameter_list_end(ParameterIterator * /*iter*/)
-{
-  /* nothing to do */
+  return nullptr;
 }
 
 void RNA_parameter_get(ParameterList *parms, PropertyRNA *parm, void **r_value)
 {
-  ParameterIterator iter;
+  const ParameterDataLayout *parm_layout = rna_find_parameter_layout(parms, parm);
 
-  RNA_parameter_list_begin(parms, &iter);
-
-  for (; iter.valid; RNA_parameter_list_next(&iter)) {
-    if (iter.parm == parm) {
-      break;
-    }
-  }
-
-  if (iter.valid) {
+  if (parm_layout) {
+    void *data = parms->get_param_data_ptr(*parm_layout);
     if (parm->flag & PROP_DYNAMIC) {
       /* for dynamic arrays and strings, data is a pointer to an array */
-      ParameterDynAlloc *data_alloc = static_cast<ParameterDynAlloc *>(iter.data);
+      ParameterDynAlloc *data_alloc = static_cast<ParameterDynAlloc *>(data);
       *r_value = data_alloc->array;
     }
     else {
-      *r_value = iter.data;
+      *r_value = data;
     }
   }
   else {
     *r_value = nullptr;
   }
-
-  RNA_parameter_list_end(&iter);
 }
 
 void RNA_parameter_get_lookup(ParameterList *parms, const char *identifier, void **r_value)
@@ -6650,20 +6614,13 @@ void RNA_parameter_get_lookup(ParameterList *parms, const char *identifier, void
 
 void RNA_parameter_set(ParameterList *parms, PropertyRNA *parm, const void *value)
 {
-  ParameterIterator iter;
+  const ParameterDataLayout *parm_layout = rna_find_parameter_layout(parms, parm);
 
-  RNA_parameter_list_begin(parms, &iter);
-
-  for (; iter.valid; RNA_parameter_list_next(&iter)) {
-    if (iter.parm == parm) {
-      break;
-    }
-  }
-
-  if (iter.valid) {
+  if (parm_layout) {
+    void *data = parms->get_param_data_ptr(*parm_layout);
     if (parm->flag & PROP_DYNAMIC) {
       /* for dynamic arrays and strings, data is a pointer to an array */
-      ParameterDynAlloc *data_alloc = static_cast<ParameterDynAlloc *>(iter.data);
+      ParameterDynAlloc *data_alloc = static_cast<ParameterDynAlloc *>(data);
       size_t size = 0;
       switch (parm->type) {
         case PROP_STRING:
@@ -6688,18 +6645,16 @@ void RNA_parameter_set(ParameterList *parms, PropertyRNA *parm, const void *valu
     }
     else if ((parm->flag_parameter & PARM_RNAPTR) && (parm->flag & PROP_THICK_WRAP)) {
       BLI_assert(parm->type == PROP_POINTER);
-      BLI_assert(iter.size == sizeof(PointerRNA));
-      PointerRNA *ptr = static_cast<PointerRNA *>(iter.data);
+      BLI_assert(parm_layout->size == sizeof(PointerRNA));
+      PointerRNA *ptr = static_cast<PointerRNA *>(data);
       /* #RNA_parameter_list_create ensures that 'thick wrap' PointerRNA parameters are
        * constructed. */
       *ptr = PointerRNA(*static_cast<const PointerRNA *>(value));
     }
     else {
-      memcpy(iter.data, value, iter.size);
+      memcpy(data, value, parm_layout->size);
     }
   }
-
-  RNA_parameter_list_end(&iter);
 }
 
 void RNA_parameter_set_lookup(ParameterList *parms, const char *identifier, const void *value)
@@ -6720,43 +6675,23 @@ void RNA_parameter_set_lookup(ParameterList *parms, const char *identifier, cons
 
 int RNA_parameter_dynamic_length_get(ParameterList *parms, PropertyRNA *parm)
 {
-  ParameterIterator iter;
-  int len = 0;
+  const ParameterDataLayout *parm_layout = rna_find_parameter_layout(parms, parm);
 
-  RNA_parameter_list_begin(parms, &iter);
-
-  for (; iter.valid; RNA_parameter_list_next(&iter)) {
-    if (iter.parm == parm) {
-      break;
-    }
+  if (parm_layout) {
+    void *data = parms->get_param_data_ptr(*parm_layout);
+    return RNA_parameter_dynamic_length_get_data(parms, parm, data);
   }
-
-  if (iter.valid) {
-    len = RNA_parameter_dynamic_length_get_data(parms, parm, iter.data);
-  }
-
-  RNA_parameter_list_end(&iter);
-
-  return len;
+  return 0;
 }
 
 void RNA_parameter_dynamic_length_set(ParameterList *parms, PropertyRNA *parm, int length)
 {
-  ParameterIterator iter;
+  const ParameterDataLayout *parm_layout = rna_find_parameter_layout(parms, parm);
 
-  RNA_parameter_list_begin(parms, &iter);
-
-  for (; iter.valid; RNA_parameter_list_next(&iter)) {
-    if (iter.parm == parm) {
-      break;
-    }
+  if (parm_layout) {
+    void *data = parms->get_param_data_ptr(*parm_layout);
+    RNA_parameter_dynamic_length_set_data(parms, parm, data, length);
   }
-
-  if (iter.valid) {
-    RNA_parameter_dynamic_length_set_data(parms, parm, iter.data, length);
-  }
-
-  RNA_parameter_list_end(&iter);
 }
 
 int RNA_parameter_dynamic_length_get_data(ParameterList * /*parms*/, PropertyRNA *parm, void *data)
