@@ -552,62 +552,45 @@ static bool snap_selected_to_location(bContext *C,
         mul_m3_m3m3(cursor_rotmat.ptr(), imat, cursor_rotmat.ptr());
       }
       if (use_toolsettings) {
-        if ((ob->protectflag & OB_LOCK_LOCX) == 0) {
-          ob->loc[0] += cursor_parent[0];
-        }
-        if ((ob->protectflag & OB_LOCK_LOCY) == 0) {
-          ob->loc[1] += cursor_parent[1];
-        }
-        if ((ob->protectflag & OB_LOCK_LOCZ) == 0) {
-          ob->loc[2] += cursor_parent[2];
-        }
+        BKE_object_set_location(ob, cursor_parent);
 
         if (use_rotation) {
+          bool assign_rotation_directly = (ob->rotmode == scene->cursor.rotation_mode &&
+                                           ob->parent == nullptr);
+
           if (ob->rotmode == ROT_MODE_QUAT) {
             float quat[4];
-            mat3_normalized_to_quat(quat, cursor_rotmat.ptr());
-            if ((ob->protectflag & OB_LOCK_ROTX) == 0) {
-              ob->quat[0] = quat[0];
+            if (assign_rotation_directly) {
+              copy_v4_v4(quat, scene->cursor.rotation_quaternion);
             }
-            if ((ob->protectflag & OB_LOCK_ROTY) == 0) {
-              ob->quat[1] = quat[1];
+            else {
+              mat3_normalized_to_quat(quat, cursor_rotmat.ptr());
             }
-            if ((ob->protectflag & OB_LOCK_ROTZ) == 0) {
-              ob->quat[2] = quat[2];
-            }
-            if ((ob->protectflag & OB_LOCK_ROTW) == 0) {
-              ob->quat[3] = quat[3];
-            }
+
+            BKE_object_set_rotation_quaternion(ob, quat);
           }
           else if (ob->rotmode == ROT_MODE_AXISANGLE) {
-            float rotAxis[3];
-            float rotAngle;
-            mat3_to_axis_angle(rotAxis, &rotAngle, cursor_rotmat.ptr());
-
-            if ((ob->protectflag & OB_LOCK_ROTX) == 0) {
-              ob->rotAxis[0] = rotAxis[0];
+            float rot_axis[3];
+            float rot_angle;
+            if (assign_rotation_directly) {
+              copy_v3_v3(rot_axis, scene->cursor.rotation_axis);
+              rot_angle = scene->cursor.rotation_angle;
             }
-            if ((ob->protectflag & OB_LOCK_ROTY) == 0) {
-              ob->rotAxis[1] = rotAxis[1];
+            else {
+              mat3_to_axis_angle(rot_axis, &rot_angle, cursor_rotmat.ptr());
             }
-            if ((ob->protectflag & OB_LOCK_ROTZ) == 0) {
-              ob->rotAxis[2] = rotAxis[2];
-            }
-            ob->rotAngle = rotAngle;
+            BKE_object_set_rotation_axisangle(ob, rot_axis, rot_angle);
           }
           else {
-            float rotEuler[3];
-            mat3_to_eulO(rotEuler, EULER_ORDER_DEFAULT, cursor_rotmat.ptr());
+            float rot_euler[3];
+            if (assign_rotation_directly) {
+              copy_v3_v3(rot_euler, scene->cursor.rotation_euler);
+            }
+            else {
+              mat3_to_eulO(rot_euler, EULER_ORDER_DEFAULT, cursor_rotmat.ptr());
+            }
 
-            if ((ob->protectflag & OB_LOCK_ROTX) == 0) {
-              ob->rot[0] = rotEuler[0];
-            }
-            if ((ob->protectflag & OB_LOCK_ROTY) == 0) {
-              ob->rot[1] = rotEuler[1];
-            }
-            if ((ob->protectflag & OB_LOCK_ROTZ) == 0) {
-              ob->rot[2] = rotEuler[2];
-            }
+            BKE_object_set_rotation_euler(ob, rot_euler);
           }
         }
 

@@ -5357,18 +5357,19 @@ void BKE_object_set_rotation_axisangle(Object *ob, float axis[3], float angle)
   if ((ob->protectflag & OB_LOCK_ROTZ) == 0) {
     ob->rotAxis[2] = axis[2];
   }
-  ob->rotAngle = angle;
-}
+  if ((ob->protectflag & OB_LOCK_ROTW) == 0) {
+    ob->rotAngle = angle;
+  }
 
-void BKE_object_set_location(Object *ob, float location[3])
-{
-  if ((ob->protectflag & OB_LOCK_LOCX) == 0) {
-    ob->loc[0] += location[0];
+  void BKE_object_set_location(Object * ob, float location[3])
+  {
+    if ((ob->protectflag & OB_LOCK_LOCX) == 0) {
+      ob->loc[0] += location[0];
+    }
+    if ((ob->protectflag & OB_LOCK_LOCY) == 0) {
+      ob->loc[1] += location[1];
+    }
+    if ((ob->protectflag & OB_LOCK_LOCZ) == 0) {
+      ob->loc[2] += location[2];
+    }
   }
-  if ((ob->protectflag & OB_LOCK_LOCY) == 0) {
-    ob->loc[1] += location[1];
-  }
-  if ((ob->protectflag & OB_LOCK_LOCZ) == 0) {
-    ob->loc[2] += location[2];
-  }
-}
