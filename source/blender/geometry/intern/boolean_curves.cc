@@ -240,21 +240,21 @@ class WindingState {
     }
   }
 
-  bool is_in_shape(const int shape_id) const
+  bool is_in_shape(const int shape_id, const FillRule fill_rule) const
   {
     if (!orders_.contains(shape_id)) {
       return false;
     }
 
-    if (true) { /* TODO. */
+    if (fill_rule == FillRule::EvenOdd) {
       return orders_.lookup(shape_id) % 2 != 0;
     }
-    else {
+    else { /* Both `NonZero` and `NoHoles`. */
       return orders_.lookup(shape_id) != 0;
     }
   }
 
-  bool is_in_shapes(const IndexMask &shapes) const
+  bool is_in_shapes(const IndexMask &shapes, const FillRule fill_rule) const
   {
     if (orders_.is_empty() || shapes.is_empty()) {
       return false;
@@ -269,7 +269,7 @@ class WindingState {
             return value;
           }
           shapes.slice(range).foreach_index([&](const int shape_id) {
-            if (this->is_in_shape(shape_id)) {
+            if (this->is_in_shape(shape_id, fill_rule)) {
               value = true;
               return;
             }
@@ -279,14 +279,14 @@ class WindingState {
         std::logical_or());
   }
 
-  bool is_contributing(const Operation boolean_mode,
+  bool is_contributing(const CurveBooleanOpParameters op_params,
                        const int subject_shape,
                        const IndexMask &clipping_shapes) const
   {
-    const bool subj = this->is_in_shape(subject_shape);
-    const bool clip = this->is_in_shapes(clipping_shapes);
+    const bool subj = this->is_in_shape(subject_shape, op_params.subject_rule);
+    const bool clip = this->is_in_shapes(clipping_shapes, op_params.clipping_rule);
 
-    switch (boolean_mode) {
+    switch (op_params.boolean_mode) {
       case Operation::Intersect: {
         return subj && clip;
       }
@@ -512,7 +512,7 @@ struct BooleanResult {
   Vector<int> shape_ids;
 };
 
-static BooleanResult execute_boolean(const Operation boolean_mode,
+static BooleanResult execute_boolean(const CurveBooleanOpParameters op_params,
                                      const Span<float2> points,
                                      const OffsetIndices<int> points_by_curve,
                                      const IndexMask &clipping_shapes,
@@ -743,9 +743,11 @@ static BooleanResult execute_boolean(const Operation boolean_mode,
 
       for (const int seg_i : segments) {
         const Segment &this_segment = segments_k[seg_i];
-        if (state_L.is_contributing(boolean_mode, subj_shape_id, clipping_shapes) ^
-            state_R.is_contributing(boolean_mode, subj_shape_id, clipping_shapes))
-        {
+
+        const bool is_in_L = state_L.is_contributing(op_params, subj_shape_id, clipping_shapes);
+        const bool is_in_R = state_R.is_contributing(op_params, subj_shape_id, clipping_shapes);
+
+        if (is_in_L ^ is_in_R) {
           unsorted_segments.append(this_segment);
         }
 
@@ -855,7 +857,7 @@ bke::CurvesGeometry curve_boolean(const CurveBooleanOpParameters op_params,
 
   const VArray<bool> is_fills = *src_attributes.lookup<bool>("is_fill", bke::AttrDomain::Curve);
   const VArray<int> shape_ids = *src_attributes.lookup<int>("shape_id", bke::AttrDomain::Curve);
-  const BooleanResult result = execute_boolean(op_params.boolean_mode,
+  const BooleanResult result = execute_boolean(op_params,
                                                src_positions_2d,
                                                curves.points_by_curve(),
                                                clipping_shapes,
