@@ -140,8 +140,9 @@ bool SVGExporter::export_scene(Scene &scene, StringRefNull filepath)
     pugi::xml_node frame_node = main_node.append_child("g");
     std::string frametxt = "blender_frame_" + std::to_string(frame_number);
     frame_node.append_attribute("id").set_value(frametxt.c_str());
-    frame_node.append_attribute("style").set_value("display:none;"); // Start with frames hidden
-
+    if (frame_number != start_frame) {
+      frame_node.append_attribute("style").set_value("display:none;"); // Start with frames hidden
+    }
     this->export_grease_pencil_objects(frame_node, frame_number);
   }
 
