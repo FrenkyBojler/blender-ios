@@ -395,25 +395,6 @@ void add_jacobi_velocity_deltas(const ConstraintEvalParams &eval_params,
 /** \name Global Linear Solver
  * \{ */
 
-// static void read_constraint_topology(const ConstraintEvalParams &params,
-//                                      const ConstraintEvalData &data,
-//                                      const IndexMask &selection,
-//                                      MutableSpan<int> position_indices,
-//                                      MutableSpan<int> rotation_indices)
-// {
-//   if (!data.type->linear_solve_variables) {
-//     return;
-//   }
-//   if (!data.geometry || !data.geometry->has_component<PointCloudComponent>()) {
-//     return;
-//   }
-//   const GeometryComponent &component = *data.geometry->get_component<PointCloudComponent>();
-//   AttributeAccessor attributes = *component.attributes();
-
-//   data.type->linear_solve_variables(params, attributes, selection, position_indices,
-//   rotation_indices);
-// }
-
 inline float4x4 quaternion_matrix(const math::Quaternion &q)
 {
   float4x4 result;
@@ -425,6 +406,40 @@ inline float4x4 quaternion_matrix(const math::Quaternion &q)
 }
 
 using VariableIndexArrays = std::array<Array<int>, 4>;
+
+static void read_constraint_attributes(const Span<ConstraintEvalData> constraint_data,
+                                       MutableSpan<GVArray> lambdas_by_type)
+{
+  for (const int constraint_i : constraint_data.index_range()) {
+    const ConstraintEvalData &data = constraint_data[constraint_i];
+    if (!data.geometry || !data.geometry->has_component<PointCloudComponent>()) {
+      continue;
+    }
+
+    int num_components, num_position_vars, num_rotation_vars;
+    data.type->linear_solve_size(num_components, num_position_vars, num_rotation_vars);
+
+    const GeometryComponent &component = *data.geometry->get_component<PointCloudComponent>();
+    const AttributeAccessor attributes = *component.attributes();
+    switch (num_components) {
+      case 1:
+        lambdas_by_type[constraint_i] = *attributes.lookup_or_default<float>(
+            "lambda", AttrDomain::Point, 0.0f);
+        break;
+      case 2:
+        lambdas_by_type[constraint_i] = *attributes.lookup_or_default<float2>(
+            "lambda", AttrDomain::Point, float2(0.0f));
+        break;
+      case 3:
+        lambdas_by_type[constraint_i] = *attributes.lookup_or_default<float3>(
+            "lambda", AttrDomain::Point, float3(0.0f));
+        break;
+      default:
+        BLI_assert_unreachable();
+        break;
+    }
+  }
+}
 
 static void read_constraint_topology(const Span<ConstraintEvalData> constraint_data,
                                      MutableSpan<VariableIndexArrays> position_indices_by_type,
@@ -552,12 +567,18 @@ static void count_global_solve_matrix_entries(const Span<ConstraintEvalData> con
   r_num_rows = r_num_columns;
 }
 
-static Eigen::SparseMatrix<float> build_global_solve_matrix_from_spans(
+struct GlobalSolverData {
+  Eigen::SparseMatrix<float> H;
+  Eigen::VectorXf b;
+};
+
+static GlobalSolverData build_global_solve_matrix_from_spans(
     const ConstraintEvalParams &params,
     const Span<ConstraintEvalData> constraint_data,
     const ConstraintVariables &variables,
     const Span<VariableIndexArrays> position_indices_by_type,
     const Span<VariableIndexArrays> rotation_indices_by_type,
+    const Span<GVArray> lambdas_by_type,
     const int num_non_zeroes,
     const int num_rows,
     const int num_columns)
@@ -570,6 +591,9 @@ static Eigen::SparseMatrix<float> build_global_solve_matrix_from_spans(
   H.resizeNonZeros(num_non_zeroes);
   /* Should be defined as column-major storage. */
   static_assert(!H.IsRowMajor);
+
+  Eigen::VectorXf b;
+  b.resize(num_columns);
 
   const IndexRange positions_range = {0, num_positions * 3};
   const IndexRange rotations_range = positions_range.after(num_rotations * 4);
@@ -726,7 +750,7 @@ static Eigen::SparseMatrix<float> build_global_solve_matrix_from_spans(
     }
   }
 
-  return H;
+  return {std::move(H), std::move(b)};
 }
 
 inline float get_component(const float v, const int i)
@@ -795,7 +819,9 @@ static void set_global_solve_elements(const ConstraintEvalParams &params,
                                       const ConstraintEvalData &data,
                                       const VariableIndexArrays &position_index_arrays,
                                       const VariableIndexArrays &rotation_index_arrays,
-                                      Vector<Eigen::Triplet<float>> &triplets)
+                                      const GVArray &lambdas,
+                                      Vector<Eigen::Triplet<float>> &triplets,
+                                      Eigen::VectorXf &b)
 {
   const int num_positions = variables.positions.size();
   const int num_rotations = variables.rotations.size();
@@ -852,8 +878,10 @@ static void set_global_solve_elements(const ConstraintEvalParams &params,
                                    rotation_gradient_spans);
 
   for (const int index : IndexRange(num_constraints)) {
-    const ValueT compliance = (ValueT(1.0f) + alphas[index]) /
-                              (ValueT(1.0f) + betas[index] * inv_dt);
+    const ValueT alpha = math::max(alphas[index], ValueT(0.0f));
+    const ValueT beta = math::max(betas[index], ValueT(0.0f));
+    const ValueT compliance = alpha * params.inv_delta_time_squared /
+                              (ValueT(1.0f) + alpha * beta);
 
     const IndexRange component_columns = components_range.slice(index * num_components,
                                                                 num_components);
@@ -899,6 +927,43 @@ static void set_global_solve_elements(const ConstraintEvalParams &params,
       append_gradient<RotGradT>(component_columns, rotation_columns, gradient, triplets);
     }
   }
+
+  /* RHS target vector includes the residual, compliance offset, and damping offset.
+   * This is based on the minimization problem described in the XPBD paper
+   * "XPBD: Position-Based Simulation of Compliant Constrained Dynamics" (Macklin et al.).
+   *
+   * The original XPBD paper only implements the Gauss-Seidel method, and uses the Schur complement
+   * to solve for the Lagrance multipliers separately. By contrast the global solver retains the
+   * full system of equations, as described in: "Direct Position-Based Solver for Stiff Rods"
+   * (Kugelstadt et al.). Adding the damping potential "beta" modifies the constraint equations:
+   *
+   *         M * dx - grad(C)^T * dLambda = 0
+   *   grad(C) * dx     + alpha/dt^2 * dLambda =
+   *       (C + alpha/dt^2 * lambda + alpha * beta * grad(C) * (x-x0) / dt) / (1 + alpha * beta)
+   *
+   * The damping factor (1 + alpha * beta) is moved to the RHS to keep the matrix symmetric and
+   * allow solving it using Cholesky decomposition or Conjugate Gradient methods.
+   */
+  VArraySpan<ValueT> lambdas_span = lambdas.typed<ValueT>();
+  for (const int index : IndexRange(num_constraints)) {
+    const ValueT lambda = lambdas_span[index];
+    const ValueT alpha = math::max(alphas[index], ValueT(0.0f));
+    const ValueT beta = math::max(betas[index], ValueT(0.0f));
+
+    const ValueT residual = residuals[index];
+    ValueT target = residual + alpha * lambdas_span[index] * params.inv_delta_time_squared;
+    if (!math::is_zero(beta)) {
+      target += alpha * beta *
+    }
+    /* Damping factor. */
+    target *= math::rcp(ValueT(1.0f) + alpha * beta);
+
+    const IndexRange component_columns = components_range.slice(index * num_components,
+                                                                num_components);
+    for (const int u : component_columns.index_range()) {
+      b[component_columns[u]] = get_component(target, u);
+    }
+  }
 }
 
 static void set_global_solve_elements(const ConstraintEvalParams &params,
@@ -909,8 +974,10 @@ static void set_global_solve_elements(const ConstraintEvalParams &params,
                                       const ConstraintEvalData &data,
                                       const VariableIndexArrays &position_index_arrays,
                                       const VariableIndexArrays &rotation_index_arrays,
+                                      const GVArray &lambdas,
                                       const int num_components,
-                                      Vector<Eigen::Triplet<float>> &triplets)
+                                      Vector<Eigen::Triplet<float>> &triplets,
+                                      Eigen::VectorXf &b)
 {
   /* XXX Matrix types float2x3, float3x3, float2x4, float 3x4 have no registered CPPType, so a
    * larger type is used for output arrays. */
@@ -924,7 +991,9 @@ static void set_global_solve_elements(const ConstraintEvalParams &params,
                                                        data,
                                                        position_index_arrays,
                                                        rotation_index_arrays,
-                                                       triplets);
+                                                       lambdas,
+                                                       triplets,
+                                                       b);
       break;
     case 2:
       set_global_solve_elements<float2, float4x4, float4x4>(params,
@@ -935,7 +1004,9 @@ static void set_global_solve_elements(const ConstraintEvalParams &params,
                                                             data,
                                                             position_index_arrays,
                                                             rotation_index_arrays,
-                                                            triplets);
+                                                            lambdas,
+                                                            triplets,
+                                                            b);
       break;
     case 3:
       set_global_solve_elements<float3, float4x4, float4x4>(params,
@@ -946,7 +1017,9 @@ static void set_global_solve_elements(const ConstraintEvalParams &params,
                                                             data,
                                                             position_index_arrays,
                                                             rotation_index_arrays,
-                                                            triplets);
+                                                            lambdas,
+                                                            triplets,
+                                                            b);
       break;
     default:
       BLI_assert_unreachable();
@@ -954,12 +1027,13 @@ static void set_global_solve_elements(const ConstraintEvalParams &params,
   }
 }
 
-static Eigen::SparseMatrix<float> build_global_solve_matrix_from_triplets(
+static GlobalSolverData build_global_solve_matrix_from_triplets(
     const ConstraintEvalParams &params,
     const Span<ConstraintEvalData> constraint_data,
     const ConstraintVariables &variables,
     const Span<VariableIndexArrays> position_indices_by_type,
     const Span<VariableIndexArrays> rotation_indices_by_type,
+    const Span<GVArray> lambdas_by_type,
     const int num_non_zeroes,
     const int num_rows,
     const int num_columns)
@@ -968,6 +1042,8 @@ static Eigen::SparseMatrix<float> build_global_solve_matrix_from_triplets(
   const int num_rotations = variables.rotations.size();
 
   Eigen::SparseMatrix<float> H(num_rows, num_columns);
+  Eigen::VectorXf b;
+  b.resize(num_columns);
 
   const IndexRange positions_range = {0, num_positions * 3};
   const IndexRange rotations_range = positions_range.after(num_rotations * 4);
@@ -982,6 +1058,7 @@ static Eigen::SparseMatrix<float> build_global_solve_matrix_from_triplets(
     const IndexRange columns = positions_range.slice(index * 3, 3);
     for (const int u : columns.index_range()) {
       triplets.append_unchecked_as(int(columns[u]), int(columns[u]), mass);
+      b[columns[u]] = 0.0f;
     }
   }
   for (const int index : IndexRange(num_rotations)) {
@@ -995,6 +1072,7 @@ static Eigen::SparseMatrix<float> build_global_solve_matrix_from_triplets(
       for (const int v : columns.index_range()) {
         triplets.append_unchecked_as(int(columns[v]), int(columns[u]), inertia_tensor[u][v]);
       }
+      b[columns[u]] = 0.0f;
     }
   }
 
@@ -1008,10 +1086,6 @@ static Eigen::SparseMatrix<float> build_global_solve_matrix_from_triplets(
 
     int num_components, num_position_vars, num_rotation_vars;
     data.type->linear_solve_size(num_components, num_position_vars, num_rotation_vars);
-
-    // const GeometryComponent &component =
-    // *data.geometry->get_component<PointCloudComponent>(); const AttributeAccessor attributes
-    // = *component.attributes();
 
     // TODO Eventually these callbacks should be based around Fields instead of arrays, so that
     // node closures can be used directly. For now mapping and mask evaluation takes place
@@ -1063,6 +1137,7 @@ static Eigen::SparseMatrix<float> build_global_solve_matrix_from_triplets(
 
     const VariableIndexArrays &position_index_arrays = position_indices_by_type[constraint_i];
     const VariableIndexArrays &rotation_index_arrays = rotation_indices_by_type[constraint_i];
+    const GVArray &lambdas = lambdas_by_type[constraint_i];
     set_global_solve_elements(params,
                               variables,
                               positions_range,
@@ -1071,8 +1146,10 @@ static Eigen::SparseMatrix<float> build_global_solve_matrix_from_triplets(
                               data,
                               position_index_arrays,
                               rotation_index_arrays,
+                              lambdas,
                               num_components,
-                              triplets);
+                              triplets,
+                              b);
 
     // for (const int index : IndexRange(num_constraints)) {
     //   const float compliance_damping = 1.0f + alphas[index];
@@ -1098,7 +1175,7 @@ static Eigen::SparseMatrix<float> build_global_solve_matrix_from_triplets(
 
   H.setFromTriplets(triplets.begin(), triplets.end());
 
-  return H;
+  return {std::move(H), std::move(b)};
 }
 
 template<bool debug_check>
@@ -1115,6 +1192,8 @@ static void do_build_global_solve_system(const ConstraintEvalParams &params,
   count_global_solve_matrix_entries(
       constraint_data, variables, num_non_zeroes, num_rows, num_columns);
 
+  Array<GVArray> lambdas_by_type(constraint_data.size());
+  read_constraint_attributes(constraint_data, lambdas_by_type);
   /* Read constraint topology.
    * Constraints can use up to 4 variables, any extra arrays remain empty. */
   Array<VariableIndexArrays> position_indices_by_type(constraint_data.size());
@@ -1130,34 +1209,32 @@ static void do_build_global_solve_system(const ConstraintEvalParams &params,
   }
 
   /* LHS matrix describing equations of motion and constraint impulses. */
-  Eigen::SparseMatrix<float> H;
   if (false) {
-    H = build_global_solve_matrix_from_spans(params,
-                                             constraint_data,
-                                             variables,
-                                             position_indices_by_type,
-                                             rotation_indices_by_type,
-                                             num_non_zeroes,
-                                             num_rows,
-                                             num_columns);
+    auto [H, b] = build_global_solve_matrix_from_spans(params,
+                                                       constraint_data,
+                                                       variables,
+                                                       position_indices_by_type,
+                                                       rotation_indices_by_type,
+                                                       lambdas_by_type,
+                                                       num_non_zeroes,
+                                                       num_rows,
+                                                       num_columns);
+    r_H = std::move(H);
+    r_b = std::move(b);
   }
   else {
-    H = build_global_solve_matrix_from_triplets(params,
-                                                constraint_data,
-                                                variables,
-                                                position_indices_by_type,
-                                                rotation_indices_by_type,
-                                                num_non_zeroes,
-                                                num_rows,
-                                                num_columns);
+    auto [H, b] = build_global_solve_matrix_from_triplets(params,
+                                                          constraint_data,
+                                                          variables,
+                                                          position_indices_by_type,
+                                                          rotation_indices_by_type,
+                                                          lambdas_by_type,
+                                                          num_non_zeroes,
+                                                          num_rows,
+                                                          num_columns);
+    r_H = std::move(H);
+    r_b = std::move(b);
   }
-
-  Eigen::VectorXf b;
-  b.resize(num_columns);
-  // TODO set b entries
-
-  r_H = std::move(H);
-  r_b = std::move(b);
 }
 
 void build_global_solve_system(const ConstraintEvalParams &params,

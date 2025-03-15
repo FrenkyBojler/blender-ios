@@ -484,6 +484,7 @@ struct SolverTestData {
 
   /* These are the same arrays stored in point cloud attributes,
    * put here directly for convenient testing. */
+  Array<float> lambdas = {0.0f, 2.2f};
   Array<float> alphas = {1.5f, 0.1f};
   Array<float> betas = {0.3f, 0.0f};
   Array<int> point1 = {0, 2};
@@ -502,6 +503,9 @@ static SolverTestData simple_solver_data(const bool use_velocities)
   solver_test.params.masses = VArray<float>::ForContainer(Array<float>{1.0f, 3.0f, 0.5f});
   solver_test.params.local_inertia = VArray<float3>::ForContainer(
       Array<float3>{float3(1.0f), float3(1, 2, 1), float3(0.2f, 10.f, 0.5f)});
+
+  solver_test.params.old_positions = VArray<float3>::ForContainer(
+      Array<float3>{float3(-1, 0, 2), float3(1, 1, 1), float3(0, 0, -2)});
 
   solver_test.vars.positions = {float3(0, 1, 0), float3(1, 0, 0), float3(0, 0, -2)};
   solver_test.vars.rotations = {math::to_quaternion(math::EulerXYZ(0, 0, 0)),
@@ -526,6 +530,9 @@ static SolverTestData simple_solver_data(const bool use_velocities)
   attributes.add<int>("point1",
                       bke::AttrDomain::Point,
                       bke::AttributeInitVArray(VArray<int>::ForSpan(solver_test.point1)));
+  attributes.add<float>("lambda",
+                        bke::AttrDomain::Point,
+                        bke::AttributeInitVArray(VArray<float>::ForSpan(solver_test.lambdas)));
   attributes.add<float3>(
       "goal_position",
       bke::AttrDomain::Point,
@@ -606,14 +613,16 @@ TEST_F(XPBDSolverTest, GlobalSolverUnconstrained)
 
   SolverTestData solver_test = simple_solver_data(false);
   const float inv_dt = solver_test.params.inv_delta_time;
+  const float inv_dt_sq = solver_test.params.inv_delta_time_squared;
 
   Eigen::SparseMatrix<float> H;
   Eigen::VectorXf b;
   xpbd_constraints::build_global_solve_system(
       solver_test.params, solver_test.data, solver_test.vars, true, H, b);
-  EXPECT_EQ(H.rows(), 23);
-  EXPECT_EQ(H.cols(), 23);
-  EXPECT_EQ(H.nonZeros(), 71);
+  EXPECT_EQ(23, H.rows());
+  EXPECT_EQ(23, H.cols());
+  EXPECT_EQ(71, H.nonZeros());
+  EXPECT_EQ(23, b.rows());
 
   const float3x3 mass_diagonal0 = math::from_scale<float3x3>(float3(solver_test.params.masses[0]));
   const float3x3 mass_diagonal1 = math::from_scale<float3x3>(float3(solver_test.params.masses[1]));
@@ -632,13 +641,17 @@ TEST_F(XPBDSolverTest, GlobalSolverUnconstrained)
   EXPECT_EIGEN_M4_NEAR(inertia_tensor1, H.block(13, 13, 4, 4), eps);
   EXPECT_EIGEN_M4_NEAR(inertia_tensor2, H.block(17, 17, 4, 4), eps);
 
-  /* Damping factors. */
-  EXPECT_NEAR((1.0f + solver_test.alphas[0]) / (1.0f + solver_test.betas[0] * inv_dt),
-              H.coeff(21, 21),
-              eps);
-  EXPECT_NEAR((1.0f + solver_test.alphas[1]) / (1.0f + solver_test.betas[1] * inv_dt),
-              H.coeff(22, 22),
-              eps);
+  /* Residual for motion equations should be zero. */
+  for (const int i : IndexRange(21)) {
+    EXPECT_EQ(0.0f, b[i]);
+  }
+
+  const float alpha0 = solver_test.alphas[0];
+  const float alpha1 = solver_test.alphas[1];
+  const float beta0 = solver_test.betas[0];
+  const float beta1 = solver_test.betas[1];
+  EXPECT_NEAR(alpha0 * inv_dt_sq / (1.0f + alpha0 * beta0), H.coeff(21, 21), eps);
+  EXPECT_NEAR(alpha1 * inv_dt_sq / (1.0f + alpha1 * beta1), H.coeff(22, 22), eps);
 
   const int point0 = 0;
   const int point1 = 2;
@@ -652,6 +665,28 @@ TEST_F(XPBDSolverTest, GlobalSolverUnconstrained)
   EXPECT_EIGEN_V3_ROW_NEAR(pos_gradient1, H.block(22, 6, 1, 3), eps);
   EXPECT_EIGEN_V3_COL_NEAR(pos_gradient0, H.block(0, 21, 3, 1), eps);
   EXPECT_EIGEN_V3_COL_NEAR(pos_gradient1, H.block(6, 22, 3, 1), eps);
+
+  /* Constraint lambda residuals. */
+  const float residual0 = math::length(solver_test.vars.positions[point0] -
+                                       solver_test.goal_position[0]);
+  const float residual1 = math::length(solver_test.vars.positions[point1] -
+                                       solver_test.goal_position[1]);
+  const float3 velocity_p0 = (solver_test.vars.positions[0] -
+                              solver_test.params.old_positions[0]) *
+                             inv_dt;
+  const float3 velocity_p2 = (solver_test.vars.positions[2] -
+                              solver_test.params.old_positions[2]) *
+                             inv_dt;
+  const float damping_factor0 = 1.0f / (1.0f + alpha0 * beta0);
+  const float damping_factor1 = 1.0f / (1.0f + alpha1 * beta1);
+  const float target0 = (residual0 + alpha0 * solver_test.lambdas[0] * inv_dt_sq +
+                         alpha0 * beta0 * math::dot(pos_gradient0, velocity_p0)) *
+                        damping_factor0;
+  const float target1 = (residual1 + alpha1 * solver_test.lambdas[1] * inv_dt_sq +
+                         alpha0 * beta1 * math::dot(pos_gradient1, velocity_p2)) *
+                        damping_factor1;
+  EXPECT_NEAR(target0, b[21], eps);
+  EXPECT_NEAR(target1, b[22], eps);
 }
 
 }  // namespace blender::nodes::tests
