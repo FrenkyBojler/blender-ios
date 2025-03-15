@@ -57,17 +57,21 @@ def _call_menu(e, text: str):
 
 
 def _cursor_motion_data_x(window):
-    size = window.width, window.height
+    import bpy
+    pixel_size = bpy.context.preferences.system.pixel_size
+    size = window.width * pixel_size, window.height * pixel_size,
     return [
-        (x, size[1] // 2) for x in
+        (x, int(size[1] // 2)) for x in
         range(int(size[0] * 0.2), int(size[0] * 0.8), 80)
     ]
 
 
 def _cursor_motion_data_y(window):
-    size = window.width, window.height
+    import bpy
+    pixel_size = bpy.context.preferences.system.pixel_size
+    size = window.width * pixel_size, window.height * pixel_size,
     return [
-        (size[0] // 2, y) for y in
+        (int(size[0] // 2), y) for y in
         range(int(size[1] * 0.2), int(size[1] * 0.8), 80)
     ]
 
