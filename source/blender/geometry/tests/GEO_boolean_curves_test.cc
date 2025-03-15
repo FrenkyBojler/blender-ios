@@ -380,10 +380,6 @@ static bke::CurvesGeometry create_test_curves(const Span<int> offsets,
 void expect_boolean_result_coord(const bke::CurvesGeometry &dst_curves,
                                  const Array<Vector<float2>> &expected_points)
 {
-  /* TODO */
-
-  // const OffsetIndices<int> points_by_polygon = OffsetIndices<int>((*result).point_offsets);
-
   EXPECT_EQ(dst_curves.curves_num(), expected_points.size());
   if (dst_curves.curves_num() != expected_points.size()) {
     return;
@@ -394,26 +390,38 @@ void expect_boolean_result_coord(const bke::CurvesGeometry &dst_curves,
     total_size += expected_points[i].size();
   }
 
-  const VArray<float2> points = *dst_curves.attributes().lookup<float2>(".positions_2d",
-                                                                        bke::AttrDomain::Point);
+  const VArray<float2> dst_points = *dst_curves.attributes().lookup<float2>(
+      ".positions_2d", bke::AttrDomain::Point);
 
-  EXPECT_EQ(points.size(), total_size);
-  if (points.size() != total_size) {
+  EXPECT_EQ(dst_points.size(), total_size);
+  if (dst_points.size() != total_size) {
     return;
   }
 
-  // for (const int polygon_id : points_by_polygon.index_range()) {
-  //   const IndexRange vert_ids = points_by_polygon[polygon_id];
+  Array<float2> src_points(total_size);
+  int i = 0;
+  for (const int j : expected_points.index_range()) {
+    for (const int k : expected_points[j].index_range()) {
+      src_points[i] = expected_points[j][k];
+      i++;
+    }
+  }
 
-  //   for (const int i : vert_ids) {
-  //     const float2 &point = points[i];
-  //     const int j = i - vert_ids.first();
-  //     const float2 &expected_point = expected_points[polygon_id][j];
+  Array<int> dst_to_src_points(total_size, -1);
+  /* Loop thought all points trying to find the matching expected point. */
+  for (const int point_i : dst_points.index_range()) {
+    for (const int point_j : src_points.index_range()) {
+      if (math::is_equal(dst_points[point_i], src_points[point_j], 1e-4f)) {
+        /* This should only . */
+        EXPECT_EQ(dst_to_src_points[point_i], -1);
 
-  //     EXPECT_NEAR(point[0], expected_point[0], 1e-4);
-  //     EXPECT_NEAR(point[1], expected_point[1], 1e-4);
-  //   }
-  // }
+        dst_to_src_points[point_i] = point_j;
+      }
+    }
+
+    /* All points should be found. */
+    EXPECT_NE(dst_to_src_points[point_i], -1);
+  }
 }
 
 TEST(boolean_curves, Squares)
