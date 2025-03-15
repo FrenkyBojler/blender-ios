@@ -423,7 +423,7 @@ static void threaded_fill(const GPointer value, GMutableSpan dst)
 
 static float transform_to_radius_factor(const float4x4 &transform)
 {
-  return math::average<float, 3>(math::to_scale(transform));
+  return math::pow(math::abs(math::determinant(float3x3(transform))), 1.0f/3.0f);
 }
 
 static bool transform_is_unit_scale(const float4x4 &transform)
