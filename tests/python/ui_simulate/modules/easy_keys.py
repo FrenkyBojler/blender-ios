@@ -288,15 +288,11 @@ def run(
 ):
     import bpy
 
-    TICKS = 4  # 3 works, 4  to be on the safe side.
+    # Each step in a script will wait at least this long before executing further
+    # Going lower, to 1/120, causes some tests to fail.
+    EXECUTION_WAIT = 1.0 / 60.0
 
     def event_step():
-        # Run once 'TICKS' is reached.
-        if event_step._ticks < TICKS:
-            event_step._ticks += 1
-            return 0.0
-        event_step._ticks = 0
-
         if on_step_command_pre:
             if event_step.run_events.gi_frame is not None:
                 import shlex
@@ -336,7 +332,7 @@ def run(
                 )
 
         if isinstance(val, EventGenerate) or val is None:
-            return 0.0
+            return EXECUTION_WAIT
         elif val is Ellipsis:
             if on_exit is not None:
                 on_exit()
