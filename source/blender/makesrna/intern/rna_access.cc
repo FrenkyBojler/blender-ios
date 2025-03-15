@@ -1739,8 +1739,7 @@ static void property_enum_translate(PropertyRNA *prop,
         }
       }
 
-      nitem = static_cast<EnumPropertyItem *>(
-          MEM_mallocN(sizeof(EnumPropertyItem) * (tot + 1), __func__));
+      nitem = MEM_malloc_arrayN<EnumPropertyItem>(size_t(tot) + 1, __func__);
       memcpy(nitem, item, sizeof(EnumPropertyItem) * (tot + 1));
 
       *r_free = true;
@@ -1784,10 +1783,10 @@ void RNA_property_enum_items_gettexted_all(bContext *C,
                                            bool *r_free)
 {
   EnumPropertyRNA *eprop = (EnumPropertyRNA *)rna_ensure_property(prop);
-  int mem_size = sizeof(EnumPropertyItem) * (eprop->totitem + 1);
+  size_t mem_size = sizeof(EnumPropertyItem) * (size_t(eprop->totitem) + 1);
   /* first return all items */
-  EnumPropertyItem *item_array = static_cast<EnumPropertyItem *>(
-      MEM_mallocN(mem_size, "enum_gettext_all"));
+  EnumPropertyItem *item_array = MEM_malloc_arrayN<EnumPropertyItem>(size_t(eprop->totitem) + 1,
+                                                                     "enum_gettext_all");
   *r_free = true;
   memcpy(item_array, eprop->item, mem_size);
 
@@ -2621,7 +2620,7 @@ bool RNA_property_boolean_get_index(PointerRNA *ptr, PropertyRNA *prop, int inde
   else {
     bool *tmparray;
 
-    tmparray = static_cast<bool *>(MEM_mallocN(sizeof(bool) * len, __func__));
+    tmparray = MEM_malloc_arrayN<bool>(size_t(len), __func__);
     RNA_property_boolean_get_array(ptr, prop, tmparray);
     value = tmparray[index];
     MEM_freeN(tmparray);
@@ -2726,7 +2725,7 @@ void RNA_property_boolean_set_index(PointerRNA *ptr, PropertyRNA *prop, int inde
   else {
     bool *tmparray;
 
-    tmparray = static_cast<bool *>(MEM_mallocN(sizeof(bool) * len, __func__));
+    tmparray = MEM_malloc_arrayN<bool>(size_t(len), __func__);
     RNA_property_boolean_get_array(ptr, prop, tmparray);
     tmparray[index] = value;
     RNA_property_boolean_set_array(ptr, prop, tmparray);
@@ -2840,7 +2839,7 @@ bool RNA_property_boolean_get_default_index(PointerRNA *ptr, PropertyRNA *prop, 
   }
   bool *tmparray, value;
 
-  tmparray = static_cast<bool *>(MEM_mallocN(sizeof(bool) * len, __func__));
+  tmparray = MEM_malloc_arrayN<bool>(size_t(len), __func__);
   RNA_property_boolean_get_default_array(ptr, prop, tmparray);
   value = tmparray[index];
   MEM_freeN(tmparray);
@@ -2997,7 +2996,7 @@ void RNA_property_int_get_array_range(PointerRNA *ptr, PropertyRNA *prop, int va
     int i;
 
     if (array_len > 32) {
-      arr = static_cast<int *>(MEM_mallocN(sizeof(int) * array_len, __func__));
+      arr = MEM_malloc_arrayN<int>(size_t(array_len), __func__);
     }
     else {
       arr = arr_stack;
@@ -3032,7 +3031,7 @@ int RNA_property_int_get_index(PointerRNA *ptr, PropertyRNA *prop, int index)
   }
   int *tmparray, value;
 
-  tmparray = static_cast<int *>(MEM_mallocN(sizeof(int) * len, __func__));
+  tmparray = MEM_malloc_arrayN<int>(size_t(len), __func__);
   RNA_property_int_get_array(ptr, prop, tmparray);
   value = tmparray[index];
   MEM_freeN(tmparray);
@@ -3117,7 +3116,7 @@ void RNA_property_int_set_index(PointerRNA *ptr, PropertyRNA *prop, int index, i
   else {
     int *tmparray;
 
-    tmparray = static_cast<int *>(MEM_mallocN(sizeof(int) * len, __func__));
+    tmparray = MEM_malloc_arrayN<int>(size_t(len), __func__);
     RNA_property_int_get_array(ptr, prop, tmparray);
     tmparray[index] = value;
     RNA_property_int_set_array(ptr, prop, tmparray);
@@ -3209,7 +3208,7 @@ int RNA_property_int_get_default_index(PointerRNA *ptr, PropertyRNA *prop, int i
   }
   int *tmparray, value;
 
-  tmparray = static_cast<int *>(MEM_mallocN(sizeof(int) * len, __func__));
+  tmparray = MEM_malloc_arrayN<int>(size_t(len), __func__);
   RNA_property_int_get_default_array(ptr, prop, tmparray);
   value = tmparray[index];
   MEM_freeN(tmparray);
@@ -3401,7 +3400,7 @@ void RNA_property_float_get_array_range(PointerRNA *ptr, PropertyRNA *prop, floa
     int i;
 
     if (array_len > 32) {
-      arr = static_cast<float *>(MEM_mallocN(sizeof(float) * array_len, __func__));
+      arr = MEM_malloc_arrayN<float>(size_t(array_len), __func__);
     }
     else {
       arr = arr_stack;
@@ -3436,7 +3435,7 @@ float RNA_property_float_get_index(PointerRNA *ptr, PropertyRNA *prop, int index
   }
   float *tmparray, value;
 
-  tmparray = static_cast<float *>(MEM_mallocN(sizeof(float) * len, __func__));
+  tmparray = MEM_malloc_arrayN<float>(size_t(len), __func__);
   RNA_property_float_get_array(ptr, prop, tmparray);
   value = tmparray[index];
   MEM_freeN(tmparray);
@@ -3531,7 +3530,7 @@ void RNA_property_float_set_index(PointerRNA *ptr, PropertyRNA *prop, int index,
   else {
     float *tmparray;
 
-    tmparray = static_cast<float *>(MEM_mallocN(sizeof(float) * len, __func__));
+    tmparray = MEM_malloc_arrayN<float>(size_t(len), __func__);
     RNA_property_float_get_array(ptr, prop, tmparray);
     tmparray[index] = value;
     RNA_property_float_set_array(ptr, prop, tmparray);
@@ -3621,7 +3620,7 @@ float RNA_property_float_get_default_index(PointerRNA *ptr, PropertyRNA *prop, i
   }
   float *tmparray, value;
 
-  tmparray = static_cast<float *>(MEM_mallocN(sizeof(float) * len, __func__));
+  tmparray = MEM_malloc_arrayN<float>(size_t(len), __func__);
   RNA_property_float_get_default_array(ptr, prop, tmparray);
   value = tmparray[index];
   MEM_freeN(tmparray);
@@ -3706,7 +3705,7 @@ char *RNA_property_string_get_alloc(
     buf = fixedbuf;
   }
   else {
-    buf = static_cast<char *>(MEM_mallocN(sizeof(char) * (length + 1), __func__));
+    buf = MEM_malloc_arrayN<char>(size_t(length) + 1, __func__);
   }
 
 #ifndef NDEBUG
@@ -3856,7 +3855,7 @@ char *RNA_property_string_get_default_alloc(
     buf = fixedbuf;
   }
   else {
-    buf = static_cast<char *>(MEM_callocN(sizeof(char) * (length + 1), __func__));
+    buf = MEM_calloc_arrayN<char>(size_t(length) + 1, __func__);
   }
 
   RNA_property_string_get_default(prop, buf, length + 1);
@@ -5123,7 +5122,7 @@ static int rna_raw_access(ReportList *reports,
               tmparray = nullptr;
             }
             if (!tmparray) {
-              tmparray = MEM_callocN(sizeof(float) * itemlen, "RNA tmparray");
+              tmparray = MEM_calloc_arrayN<float>(size_t(itemlen), "RNA tmparray");
               tmplen = itemlen;
             }
 
@@ -6079,19 +6078,19 @@ static void *rna_array_as_string_alloc(
 {
   switch (type) {
     case PROP_BOOLEAN: {
-      bool *buf = static_cast<bool *>(MEM_mallocN(sizeof(*buf) * len, __func__));
+      bool *buf = MEM_malloc_arrayN<bool>(size_t(len), __func__);
       RNA_property_boolean_get_array(ptr, prop, buf);
       *r_buf_end = buf + len;
       return buf;
     }
     case PROP_INT: {
-      int *buf = static_cast<int *>(MEM_mallocN(sizeof(*buf) * len, __func__));
+      int *buf = MEM_malloc_arrayN<int>(size_t(len), __func__);
       RNA_property_int_get_array(ptr, prop, buf);
       *r_buf_end = buf + len;
       return buf;
     }
     case PROP_FLOAT: {
-      float *buf = static_cast<float *>(MEM_mallocN(sizeof(*buf) * len, __func__));
+      float *buf = MEM_malloc_arrayN<float>(size_t(len), __func__);
       RNA_property_float_get_array(ptr, prop, buf);
       *r_buf_end = buf + len;
       return buf;
@@ -6228,10 +6227,8 @@ std::string RNA_property_as_string(
       int length;
 
       length = RNA_property_string_length(ptr, prop);
-      buf = static_cast<char *>(
-          MEM_mallocN(sizeof(char) * (length + 1), "RNA_property_as_string"));
-      buf_esc = static_cast<char *>(
-          MEM_mallocN(sizeof(char) * (length * 2 + 1), "RNA_property_as_string esc"));
+      buf = MEM_malloc_arrayN<char>(size_t(length) + 1, "RNA_property_as_string");
+      buf_esc = MEM_malloc_arrayN<char>(size_t(length) * 2 + 1, "RNA_property_as_string esc");
       RNA_property_string_get(ptr, prop, buf);
       BLI_str_escape(buf_esc, buf, length * 2 + 1);
       MEM_freeN(buf);
@@ -6516,8 +6513,26 @@ void RNA_parameter_list_free(ParameterList *parms)
     PropertyRNA *parm = parm_layout.prop;
     void *data = ((char *)parms->data) + parm_layout.offset;
     if (parm->type == PROP_COLLECTION) {
+<<<<<<< HEAD
       if (parm->type == PROP_COLLECTION) {
         BLI_freelistN(static_cast<ListBase *>(data));
+=======
+      CollectionVector *vector = static_cast<CollectionVector *>(data);
+      vector->~CollectionVector();
+    }
+    else if ((parm->flag_parameter & PARM_RNAPTR) && (parm->flag & PROP_THICK_WRAP)) {
+      BLI_assert(parm->type == PROP_POINTER);
+      PointerRNA *ptr = static_cast<PointerRNA *>(data);
+      /* #RNA_parameter_list_create ensures that 'thick wrap' PointerRNA parameters are
+       * constructed. */
+      ptr->~PointerRNA();
+    }
+    else if (parm->flag & PROP_DYNAMIC) {
+      /* for dynamic arrays and strings, data is a pointer to an array */
+      ParameterDynAlloc *data_alloc = static_cast<ParameterDynAlloc *>(data);
+      if (data_alloc->array) {
+        MEM_freeN(data_alloc->array);
+>>>>>>> origin/main
       }
       else if ((parm->flag_parameter & PARM_RNAPTR) && (parm->flag & PROP_THICK_WRAP)) {
         BLI_assert(parm->type == PROP_POINTER);
@@ -6812,7 +6827,7 @@ bool RNA_property_reset(PointerRNA *ptr, PropertyRNA *prop, int index)
     case PROP_BOOLEAN:
       if (len) {
         if (index == -1) {
-          bool *tmparray = static_cast<bool *>(MEM_callocN(sizeof(bool) * len, __func__));
+          bool *tmparray = MEM_calloc_arrayN<bool>(size_t(len), __func__);
 
           RNA_property_boolean_get_default_array(ptr, prop, tmparray);
           RNA_property_boolean_set_array(ptr, prop, tmparray);
@@ -6832,7 +6847,7 @@ bool RNA_property_reset(PointerRNA *ptr, PropertyRNA *prop, int index)
     case PROP_INT:
       if (len) {
         if (index == -1) {
-          int *tmparray = static_cast<int *>(MEM_callocN(sizeof(int) * len, __func__));
+          int *tmparray = MEM_calloc_arrayN<int>(size_t(len), __func__);
 
           RNA_property_int_get_default_array(ptr, prop, tmparray);
           RNA_property_int_set_array(ptr, prop, tmparray);
@@ -6852,7 +6867,7 @@ bool RNA_property_reset(PointerRNA *ptr, PropertyRNA *prop, int index)
     case PROP_FLOAT:
       if (len) {
         if (index == -1) {
-          float *tmparray = static_cast<float *>(MEM_callocN(sizeof(float) * len, __func__));
+          float *tmparray = MEM_calloc_arrayN<float>(size_t(len), __func__);
 
           RNA_property_float_get_default_array(ptr, prop, tmparray);
           RNA_property_float_set_array(ptr, prop, tmparray);
