@@ -525,11 +525,9 @@ TEST(boolean_curves, Simple)
     op_params.boolean_mode = Operation::Difference;
     const bke::CurvesGeometry dst_curves = curve_boolean(op_params, src_curves, clipping_shapes);
 
-    /* TODO. */
-    // const Array<Vector<float2>> expected_points = {
-    //     {{8, 3}, {8, 6}, {0, 6}, {0, 3}, {2, 3}, {2, 0}, {6, 0}, {6, 3}},
-    //     {{3, 3}, {4, 2}, {5, 3}}};
-    // expect_boolean_result_coord(dst_curves, expected_points);
+    const Array<Vector<float2>> expected_points = {
+        {{2, 3}, {0, 3}, {0, 6}, {8, 6}, {8, 3}, {6, 3}, {6, 4}, {5, 3}, {3, 3}, {2, 4}}};
+    expect_boolean_result_coord(dst_curves, expected_points);
 
     draw_results("Difference", "polygon", src_curves, dst_curves, clipping_shapes, op_params);
   }
@@ -649,31 +647,24 @@ TEST(boolean_curves, Complex)
     op_params.output_rule = FillRule::NoHoles;
     const bke::CurvesGeometry dst_curves = curve_boolean(op_params, src_curves, clipping_shapes);
 
-    /* TODO. */
-    // const Array<Vector<float2>> expected_points = {
-    //     {{14, 1},
-    //      {12.4851, 1.67327},
-    //      {11.2479, 5.69421},
-    //      {14, 6},
-    //      {11.1538, 6},
-    //      {10.4135, 8.40602},
-    //      {14, 10},
-    //      {10.3267, 8.68812},
-    //      {9, 13},
-    //      {7.79641, 7.78443},
-    //      {0, 5},
-    //      {6.71134, 3.08247},
-    //      {6, 0},
-    //      {7, 3},
-    //      {12.3455, 1.47273},
-    //      {13, 0},
-    //      {12.5663, 1.40964}},
-    //     {{8.7027, 8.10811}, {9, 9}, {9.30137, 8.32192}},
-    //     {{8.52174, 7.56522}, {8, 6}, {10.3333, 6}, {9.45361, 7.97938}},
-    //     {{5, 6}, {7.38462, 6}, {7.65714, 7.18095}},
-    //     {{7.76923, 5.30769}, {7.32258, 3.96774}, {12.2, 1.8}, {10.5059, 5.61176}},
-    //     {{5, 5}, {6.95349, 4.13178}, {7.21053, 5.24561}}};
-    // expect_boolean_result_coord(dst_curves, expected_points);
+    const Array<Vector<float2>> expected_points = {{{14, 1},
+                                                    {12.4851, 1.67327},
+                                                    {11.2479, 5.69421},
+                                                    {14, 6},
+                                                    {11.1538, 6},
+                                                    {10.4135, 8.40602},
+                                                    {14, 10},
+                                                    {10.3267, 8.68812},
+                                                    {9, 13},
+                                                    {7.79641, 7.78443},
+                                                    {0, 5},
+                                                    {6.71134, 3.08247},
+                                                    {6, 0},
+                                                    {7, 3},
+                                                    {12.3455, 1.47273},
+                                                    {13, 0},
+                                                    {12.5663, 1.40964}}};
+    expect_boolean_result_coord(dst_curves, expected_points);
 
     draw_results(
         "Union Without Holes", "polygon", src_curves, dst_curves, clipping_shapes, op_params);
@@ -713,21 +704,10 @@ TEST(boolean_curves, Last_Edge_Loop)
     op_params.boolean_mode = Operation::Intersect;
     const bke::CurvesGeometry dst_curves = curve_boolean(op_params, src_curves, clipping_shapes);
 
-    /* TODO. */
-    // const Array<Vector<float2>> expected_points = {{{0, 5},
-    //                                                 {0, 0},
-    //                                                 {7, 0},
-    //                                                 {7, 5},
-    //                                                 {5.5, 5},
-    //                                                 {5, 4},
-    //                                                 {4.33333, 5},
-    //                                                 {4.5, 5},
-    //                                                 {3, 4},
-    //                                                 {2.5, 5},
-    //                                                 {2, 5},
-    //                                                 {2, 3},
-    //                                                 {1, 5}}};
-    // expect_boolean_result_coord(dst_curves, expected_points);
+    const Array<Vector<float2>> expected_points = {
+        {{6.66667, 5}, {5.66667, 5}, {3, 3}, {2.33333, 5}, {4.5, 5}, {6, 3}},
+        {{2, 5}, {1, 5}, {2, 3}}};
+    expect_boolean_result_coord(dst_curves, expected_points);
 
     draw_results("Intersection", "polygon", src_curves, dst_curves, clipping_shapes, op_params);
   }
@@ -735,21 +715,19 @@ TEST(boolean_curves, Last_Edge_Loop)
     op_params.boolean_mode = Operation::Union;
     const bke::CurvesGeometry dst_curves = curve_boolean(op_params, src_curves, clipping_shapes);
 
-    /* TODO. */
-    // const Array<Vector<float2>> expected_points = {{{0, 5},
-    //                                                 {0, 0},
-    //                                                 {7, 0},
-    //                                                 {7, 5},
-    //                                                 {5.5, 5},
-    //                                                 {5, 4},
-    //                                                 {4.33333, 5},
-    //                                                 {4.5, 5},
-    //                                                 {3, 4},
-    //                                                 {2.5, 5},
-    //                                                 {2, 5},
-    //                                                 {2, 3},
-    //                                                 {1, 5}}};
-    // expect_boolean_result_coord(dst_curves, expected_points);
+    const Array<Vector<float2>> expected_points = {{{1, 5},
+                                                    {0, 5},
+                                                    {0, 0},
+                                                    {7, 0},
+                                                    {7, 5},
+                                                    {6.66667, 5},
+                                                    {7, 6},
+                                                    {5.66667, 5},
+                                                    {4.5, 5},
+                                                    {3, 7},
+                                                    {0, 7}},
+                                                   {{2.33333, 5}, {2, 5}, {2, 6}}};
+    expect_boolean_result_coord(dst_curves, expected_points);
 
     draw_results("Union", "polygon", src_curves, dst_curves, clipping_shapes, op_params);
   }
@@ -757,20 +735,20 @@ TEST(boolean_curves, Last_Edge_Loop)
     op_params.boolean_mode = Operation::Difference;
     const bke::CurvesGeometry dst_curves = curve_boolean(op_params, src_curves, clipping_shapes);
 
-    // const Array<Vector<float2>> expected_points = {{{0, 5},
-    //                                                 {0, 0},
-    //                                                 {7, 0},
-    //                                                 {7, 5},
-    //                                                 {5.5, 5},
-    //                                                 {5, 4},
-    //                                                 {4.33333, 5},
-    //                                                 {4.5, 5},
-    //                                                 {3, 4},
-    //                                                 {2.5, 5},
-    //                                                 {2, 5},
-    //                                                 {2, 3},
-    //                                                 {1, 5}}};
-    // expect_boolean_result_coord(dst_curves, expected_points);
+    const Array<Vector<float2>> expected_points = {{{1, 5},
+                                                    {0, 5},
+                                                    {0, 0},
+                                                    {7, 0},
+                                                    {7, 5},
+                                                    {6.66667, 5},
+                                                    {6, 3},
+                                                    {4.5, 5},
+                                                    {5.66667, 5},
+                                                    {3, 3},
+                                                    {2.33333, 5},
+                                                    {2, 5},
+                                                    {2, 3}}};
+    expect_boolean_result_coord(dst_curves, expected_points);
 
     draw_results("Difference", "polygon", src_curves, dst_curves, clipping_shapes, op_params);
   }
@@ -1061,10 +1039,9 @@ TEST(boolean_curves, Multiple_Shapes)
     const IndexRange clipping_shapes = IndexRange::from_begin_end(0, 2);
     const bke::CurvesGeometry dst_curves = curve_boolean(op_params, src_curves, clipping_shapes);
 
-    /* TODO. */
-    // const Array<Vector<float2>> expected_points = {
-    //     {{2, 0}, {0, 0}, {0, 2}, {1, 2}, {1, 1}, {2, 1}}};
-    // expect_boolean_result_coord(dst_curves, expected_points);
+    const Array<Vector<float2>> expected_points = {
+        {{5, 3}, {3, 3}, {3, 5}, {3, 7}, {5, 7}, {5, 5}, {7, 5}, {7, 3}}};
+    expect_boolean_result_coord(dst_curves, expected_points);
 
     draw_results(
         "2 Clipping Intersection", "polygon", src_curves, dst_curves, clipping_shapes, op_params);
@@ -1074,10 +1051,9 @@ TEST(boolean_curves, Multiple_Shapes)
     const IndexRange clipping_shapes = IndexRange::from_begin_end(0, 2);
     const bke::CurvesGeometry dst_curves = curve_boolean(op_params, src_curves, clipping_shapes);
 
-    /* TODO. */
-    // const Array<Vector<float2>> expected_points = {
-    //     {{2, 0}, {0, 0}, {0, 2}, {1, 2}, {1, 1}, {2, 1}}};
-    // expect_boolean_result_coord(dst_curves, expected_points);
+    const Array<Vector<float2>> expected_points = {
+        {{3, 7}, {3, 8}, {8, 8}, {8, 3}, {7, 3}, {7, 5}, {5, 5}, {5, 7}}};
+    expect_boolean_result_coord(dst_curves, expected_points);
 
     draw_results(
         "2 Clipping Difference", "polygon", src_curves, dst_curves, clipping_shapes, op_params);
@@ -1128,9 +1104,10 @@ TEST(boolean_curves, Four_Shapes)
     op_params.boolean_mode = Operation::Intersect;
     const bke::CurvesGeometry dst_curves = curve_boolean(op_params, src_curves, clipping_shapes);
 
-    /* TODO. */
+    /* TODO: Remove the unneeded clipping/clipping points. */
     // const Array<Vector<float2>> expected_points = {
-    //     {{2, 0}, {0, 0}, {0, 2}, {1, 2}, {1, 1}, {2, 1}}};
+    //     {{1, 7}, {5, 7}, {5, 6}, {5, 3}, {5, 2}, {3, 2}, {3, 3}, {1, 3}},
+    //     {{2, 3}, {2, 5}, {3, 5}, {6, 5}, {7, 5}, {7, 1}, {3, 1}, {3, 3}}};
     // expect_boolean_result_coord(dst_curves, expected_points);
 
     draw_results("Intersection", "polygon", src_curves, dst_curves, clipping_shapes, op_params);
@@ -1141,7 +1118,8 @@ TEST(boolean_curves, Four_Shapes)
 
     /* TODO. */
     // const Array<Vector<float2>> expected_points = {
-    //     {{2, 0}, {0, 0}, {0, 2}, {1, 2}, {1, 1}, {2, 1}}};
+    //     {{3, 2}, {0, 2}, {0, 7}, {1, 7}, {1, 3}, {3, 3}},
+    //     {{7, 1}, {7, 0}, {2, 0}, {2, 3}, {3, 3}, {3, 1}}};
     // expect_boolean_result_coord(dst_curves, expected_points);
 
     draw_results("Difference", "polygon", src_curves, dst_curves, clipping_shapes, op_params);
