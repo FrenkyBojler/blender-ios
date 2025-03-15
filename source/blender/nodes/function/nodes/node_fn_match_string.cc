@@ -41,8 +41,9 @@ const EnumPropertyItem rna_enum_node_match_string_items[] = {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::String>("A").hide_label();
-  b.add_input<decl::String>("B").hide_label();
+  b.add_input<decl::String>("String").hide_label();
+  b.add_input<decl::String>("Key").hide_label().description(
+      "The string to find in the input string");
   b.add_output<decl::Bool>("Result");
 }
 
@@ -94,7 +95,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
           params.add_item(IFACE_(item->name), [operation](LinkSearchOpParams &params) {
             bNode &node = params.add_node("FunctionNodeMatchString");
             node.custom1 = operation;
-            params.update_and_connect_available_socket(node, "A");
+            params.update_and_connect_available_socket(node, "String");
           });
         }
       }
