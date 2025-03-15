@@ -15,13 +15,19 @@
  * loops.
  *
  * The original algorithm was only ever designed to work with one `subject` and one `clipping`
- * polygon.
+ * polygon, and with `OddEven` fill rule.
  *
- * This implementation also works in three phases:
- *  1: Break all polygons into segments.
+ * This implementation adds the following:
+ *  1: Groups of curves, called `shapes`. This allows for input geometry with holes.
+ *  2: Curves can have no fill, so they will get cut.
+ *  3: Multiple `clipping` shapes acting one `subject` shape.
+ *  4: Separate fill rules for the `subject`, `clipping` and output geometry.
+ *
+ * This implementation works by:
+ *  1: Break one subject shape and all clipping shapes into segments and store their intersections.
  *  2: Remove all segments that are not contributing.
- *  3: Create polygons by following each segment until it loops or ends.
- *
+ *  3: Follow each segment until it loops or terminates.
+ *  4: Repeat for every `subject` shape.
  */
 
 #include <algorithm>

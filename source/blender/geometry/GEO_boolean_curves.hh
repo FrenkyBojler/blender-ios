@@ -12,23 +12,8 @@
 #include "BKE_curves.hh"
 
 /**
- *
- * TODO: Rewrite all of this.
- *
- * This header file contains a C++ interface to the 2D Greiner-Hormann clipping algorithm.
- *
- *
- * Interface for Polygon Clipping in 2D use the Greiner-Hormann clipping algorithm.
- *
- * The input is two lists of positions describing the point in each polygon.
- *
- * Will return `std::nullopt` if the algorithm can not generate valid polygons (i.e has an
- * degeneracies)
- *
- * The output is the following:
- *  1: List of Vertex describing how to interpolate any attribute.
- *  2: Offsets to determent the start and end of each polygon of the output.
- *  3: List of Intersection points.
+ * This header file contains a C++ interface to the 2D boolean clipping, using a modified version
+ * of the Greiner-Hormann clipping algorithm.
  */
 
 namespace blender::geometry::boolean {
