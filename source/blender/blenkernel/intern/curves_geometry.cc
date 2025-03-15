@@ -535,10 +535,12 @@ MutableSpan<float> CurvesGeometry::nurbs_custom_knots_for_write()
 
 IndexMask CurvesGeometry::nurbs_custom_knot_curves(IndexMaskMemory &memory) const
 {
+  const VArray<int8_t> curve_types = this->curve_types();
   const VArray<int8_t> knot_modes = this->nurbs_knots_modes();
   return IndexMask::from_predicate(
       this->curves_range(), GrainSize(4096), memory, [&](const int64_t curve) {
-        return knot_modes[curve] == NURBS_KNOT_MODE_CUSTOM;
+        return curve_types[curve] == CURVE_TYPE_NURBS &&
+               knot_modes[curve] == NURBS_KNOT_MODE_CUSTOM;
       });
 }
 
