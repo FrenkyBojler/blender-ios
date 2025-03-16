@@ -1,2 +1,3 @@
 Referenced by commit 6fc6bcdb826, Cleanup: Unused function
 Referenced by issue #120682, Cleanup: Unused function
+Referenced by pull request #136046, Fix: Geometry Nodes: Non-deterministic result of Scale Elements node
