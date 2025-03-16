@@ -338,11 +338,10 @@ static StructureType merge_status_left_to_right(const StructureType a, const Str
   if (a == b) {
     return a;
   }
-  if (a == StructureType::Dynamic) {
-    return b;
-  }
-  if (b == StructureType::Dynamic) {
-    return a;
+  if ((a == StructureType::Dynamic && b == StructureType::Field) ||
+      (a == StructureType::Field && b == StructureType::Dynamic))
+  {
+    return StructureType::Field;
   }
   if ((a == StructureType::Single && b == StructureType::Field) ||
       (a == StructureType::Field && b == StructureType::Single))
