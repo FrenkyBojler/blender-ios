@@ -1830,6 +1830,11 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
       DRW_vbo_request(cache.batch.edituv_faces, &mbuflist->vbo.uv);
       DRW_vbo_request(cache.batch.edituv_faces, &mbuflist->vbo.edituv_data);
     }
+    /* Object Mode UV Faces*/
+    else if (!is_editmode) {
+      DRW_ibo_request(cache.batch.edituv_faces, &mbuflist->ibo.tris);
+      DRW_vbo_request(cache.batch.edituv_faces, &mbuflist->vbo.uv);
+    }
     else {
       init_empty_dummy_batch(*cache.batch.edituv_faces);
     }

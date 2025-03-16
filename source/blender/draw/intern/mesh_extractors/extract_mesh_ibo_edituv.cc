@@ -312,21 +312,25 @@ static void extract_edituv_lines_subdiv_mesh(const MeshRenderData &mr,
   /* TODO: Replace subdiv quad iteration with coarse face iteration. */
   for (const int subdiv_quad : IndexRange(subdiv_cache.num_subdiv_quads)) {
     const int coarse_face = subdiv_loop_face_index[subdiv_quad * 4];
-    if (const BMesh *bm = mr.bm) {
-      const int orig_coarse_face = mr.orig_index_face ? mr.orig_index_face[coarse_face] :
-                                                        coarse_face;
-      const BMFace &face_orig = *BM_face_at_index(const_cast<BMesh *>(bm), orig_coarse_face);
-      if (skip_bm_face(face_orig, sync_selection)) {
-        continue;
-      }
-    }
-    else {
-      if (!mr.hide_poly.is_empty() && mr.hide_poly[coarse_face]) {
-        continue;
-      }
-      if (!sync_selection) {
-        if (mr.select_poly.is_empty() || !mr.select_poly[coarse_face]) {
+    /* use_hide refers to whether the active Object's Mode displays UVs based on Edit Mode
+     * selection. Only filter which UVs should be drawn when use_hide is true. */
+    if (mr.use_hide) {
+      if (const BMesh *bm = mr.bm) {
+        const int orig_coarse_face = mr.orig_index_face ? mr.orig_index_face[coarse_face] :
+                                                          coarse_face;
+        const BMFace &face_orig = *BM_face_at_index(const_cast<BMesh *>(bm), orig_coarse_face);
+        if (skip_bm_face(face_orig, sync_selection)) {
           continue;
+        }
+      }
+      else {
+        if (!mr.hide_poly.is_empty() && mr.hide_poly[coarse_face]) {
+          continue;
+        }
+        if (!sync_selection) {
+          if (mr.select_poly.is_empty() || !mr.select_poly[coarse_face]) {
+            continue;
+          }
         }
       }
     }

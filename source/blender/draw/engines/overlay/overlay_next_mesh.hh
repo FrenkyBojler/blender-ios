@@ -617,12 +617,16 @@ class MeshUVs : Overlay {
       /* Wireframe UV Overlay. */
       const bool show_wireframe_uv_edit = space_image->flag & SI_DRAWSHADOW;
       const bool show_wireframe_uv_guide = !(space_image->flag & SI_NO_DRAW_UV_GUIDE);
+      const bool hide_faces = space_image->flag & SI_NO_DRAWFACES;
 
       if (space_mode_is_uv && object_mode_is_edit) {
         show_wireframe_ = show_wireframe_uv_edit;
       }
       else {
         show_wireframe_ = show_wireframe_uv_guide;
+        if (!show_face_) {
+          show_face_ = show_wireframe_ && !hide_faces;
+        }
       }
     }
     {
@@ -741,22 +745,25 @@ class MeshUVs : Overlay {
     }
 
     const SpaceImage *space_image = reinterpret_cast<const SpaceImage *>(state.space_data);
+    const bool is_active_object = ob.data != state.view_layer->basact->object->data;
     Object &ob = *ob_ref.object;
     Mesh &mesh = *static_cast<Mesh *>(ob.data);
     ResourceHandle res_handle = manager.unique_handle(ob_ref);
 
     if (show_wireframe_) {
-      /* Set the alpha value in the UV Wireframe shader so that selected object UVs appear
-       * less opaque than the active object UVs in the Image Editor. */
-      if (ob.data != state.view_layer->basact->object->data) {
-        wireframe_ps_.push_constant("alpha", space_image->uv_opacity * 0.25f);
-      }
-      else {
-        wireframe_ps_.push_constant("alpha", space_image->uv_opacity);
-      }
+      /* Set the opacity of the UV preview shader so that selected object UVs
+       * appear less opaque than the active object UVs in the Image Editor. */
+      float opacity = is_active_object ? space_image->uv_opacity : space_image->uv_opacity * 0.25f;
 
+      wireframe_ps_.push_constant("alpha", opacity);
       gpu::Batch *geom = DRW_mesh_batch_cache_get_uv_edges(ob, mesh);
       wireframe_ps_.draw_expand(geom, GPU_PRIM_TRIS, 2, 1, res_handle);
+
+      if (show_face_) {
+        faces_ps_.push_constant("uvOpacity", opacity);
+        gpu::Batch *geom = DRW_mesh_batch_cache_get_edituv_faces(ob, mesh);
+        faces_ps_.draw(geom, res_handle);
+      }
     }
   }
 
@@ -821,9 +828,14 @@ class MeshUVs : Overlay {
       /* When an object is actively being modified in an edit mode, don't modify the opactiy to be
        * less opaque. */
       wireframe_ps_.push_constant("alpha", space_image->uv_opacity);
-
       gpu::Batch *geom = DRW_mesh_batch_cache_get_uv_edges(ob, mesh);
       wireframe_ps_.draw_expand(geom, GPU_PRIM_TRIS, 2, 1, res_handle);
+
+      if (show_face_ && !is_edit_object) {
+        faces_ps_.push_constant("uvOpacity", space_image->uv_opacity);
+        gpu::Batch *geom = DRW_mesh_batch_cache_get_edituv_faces(ob, mesh);
+        faces_ps_.draw(geom, res_handle);
+      }
     }
   }
 
