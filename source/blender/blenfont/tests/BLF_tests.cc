@@ -245,4 +245,90 @@ TEST(blf_wrapping_minimal, wrap_linefeed)
   close_font(id);
 }
 
+TEST(blf_wrapping_minimal, wrap_hardlimit)
+{
+  /* Must break at limit. */
+  const char sample[] = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx";
+  int id = open_font("Ahem.ttf");
+  BLF_size(id, 10.0f);
+  const float width = BLF_width(id, sample, sizeof(sample));
+  blender::Vector<blender::StringRef> wrapped = BLF_string_wrap(
+      id, sample, int(float(width) * 0.7f), BLFWrapMode::HardLimit);
+  EXPECT_TRUE(wrapped.size() == 2);
+  close_font(id);
+}
+
+TEST(blf_wrapping_path, wrap_path_overflow_ascii)
+{
+  /* Do not break, even though over the wrap limit. */
+  const char sample[] =
+      "xxxxxxxxxxxxxxxxxxx!\"#$%&\'()*+,-."
+      "0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^`abcdefghijklmnopqrstuvwxyz{|}~";
+  /* Ahem does not contain all the characters included in above string. */
+  int id = open_font("Roboto.ttf");
+  BLF_size(id, 10.0f);
+  const float width = BLF_width(id, sample, sizeof(sample));
+  blender::Vector<blender::StringRef> wrapped = BLF_string_wrap(
+      id, sample, int(float(width) * 0.05f), BLFWrapMode::Path);
+  EXPECT_TRUE(wrapped.size() == 1);
+  close_font(id);
+}
+
+TEST(blf_wrapping_path, wrap_path_space)
+{
+  /* Must break at the center space. */
+  const char sample[] = "x xxxxxxxxxxxxxxxx xxxxxxxxxxxxxxxxxxx ";
+  int id = open_font("Ahem.ttf");
+  BLF_size(id, 10.0f);
+  const float width = BLF_width(id, sample, sizeof(sample));
+  blender::Vector<blender::StringRef> wrapped = BLF_string_wrap(
+      id, sample, int(float(width) * 0.7f), BLFWrapMode::Path);
+  EXPECT_TRUE(wrapped.size() == 2);
+  close_font(id);
+}
+
+TEST(blf_wrapping_path, wrap_path_separators_underscore)
+{
+  /* Must break at middle underscore. */
+  int id = open_font("Roboto.ttf");
+  /* Ahem does not contain all the characters included in tested string. */
+  BLF_size(id, 10.0f);
+  const char sample[] = "x_xx_xxxxxxxxxxxxx_xxxxxxxxxxxxxxxxxxx_";
+  float width = BLF_width(id, sample, sizeof(sample));
+  blender::Vector<blender::StringRef> wrapped = BLF_string_wrap(
+      id, sample, int(float(width) * 0.7f), BLFWrapMode::Path);
+  EXPECT_TRUE(wrapped.size() == 2);
+  close_font(id);
+}
+
+TEST(blf_wrapping_path, wrap_path_separators_slash)
+{
+  /* Wrap at backslash path separators. */
+  int id = open_font("Roboto.ttf");
+  /* Ahem does not contain all the characters included in tested string. */
+  BLF_size(id, 10.0f);
+  const char sample[] = "xxxxxxxxxx" SEP_STR "xxxxxxxxxxxxxxxxxxxxxx";
+  float width = BLF_width(id, sample, sizeof(sample));
+  blender::Vector<blender::StringRef> wrapped = BLF_string_wrap(
+      id, sample, int(float(width) * 0.7f), BLFWrapMode::Path);
+  EXPECT_TRUE(wrapped.size() == 2);
+  close_font(id);
+}
+
+TEST(blf_wrapping_path, wrap_path_hardlimit)
+{
+  /* Must break at limit. */
+  const char sample[] = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx";
+  int id = open_font("Ahem.ttf");
+  BLF_size(id, 10.0f);
+  const float width = BLF_width(id, sample, sizeof(sample));
+  blender::Vector<blender::StringRef> wrapped = BLF_string_wrap(
+      id,
+      sample,
+      int(float(width) * 0.7f),
+      BLFWrapMode(int(BLFWrapMode::Path) | int(BLFWrapMode::HardLimit)));
+  EXPECT_TRUE(wrapped.size() == 2);
+  close_font(id);
+}
+
 }  // namespace blender::tests
