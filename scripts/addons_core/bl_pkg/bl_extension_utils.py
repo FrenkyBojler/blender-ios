@@ -1337,8 +1337,9 @@ class PkgManifest_Normalized(NamedTuple):
             tagline=field_tagline,
             version=field_version,
             type=field_type,
-            # Sanitize emails.
-            maintainer=re.sub(r'<.*?>', "", field_maintainer),
+            # Remove the maintainers email while it's not private, showing prominently
+            # could cause maintainers to get direct emails instead of issue tracking systems.
+            maintainer=re.sub(r"\s*<.*?>", "", field_maintainer),
             license=license_info_to_text(field_license),
 
             # Optional.

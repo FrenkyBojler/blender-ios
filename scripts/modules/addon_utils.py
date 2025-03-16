@@ -716,7 +716,7 @@ def module_bl_info(mod, *, info_basis=None):
     # could cause maintainers to get direct emails instead of issue tracking systems.
     import re
     if "author" in addon_info:
-        addon_info["author"] = re.sub(r'<.*?>', "", addon_info["author"])
+        addon_info["author"] = re.sub(r"\s*<.*?>", "", addon_info["author"])
 
     addon_info["_init"] = None
     return addon_info
