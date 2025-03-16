@@ -1331,12 +1331,14 @@ class PkgManifest_Normalized(NamedTuple):
             error_fn(ex)
             return None
 
+        import re
         return PkgManifest_Normalized(
             name=field_name,
             tagline=field_tagline,
             version=field_version,
             type=field_type,
-            maintainer=field_maintainer,
+            # Sanitize emails.
+            maintainer=re.sub(r'<.*?>', "", field_maintainer),
             license=license_info_to_text(field_license),
 
             # Optional.
