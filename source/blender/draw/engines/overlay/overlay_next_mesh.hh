@@ -833,8 +833,8 @@ class MeshUVs : Overlay {
 
       if (show_face_ && !is_edit_object) {
         faces_ps_.push_constant("uvOpacity", space_image->uv_opacity);
-        gpu::Batch *geom = DRW_mesh_batch_cache_get_edituv_faces(ob, mesh);
-        faces_ps_.draw(geom, res_handle);
+        gpu::Batch *face_geom = DRW_mesh_batch_cache_get_uv_faces(ob, mesh);
+        faces_ps_.draw(face_geom, res_handle);
       }
     }
   }
