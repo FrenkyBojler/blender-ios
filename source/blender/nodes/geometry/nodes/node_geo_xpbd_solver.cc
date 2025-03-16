@@ -462,12 +462,10 @@ static void read_constraint_topology(const Span<ConstraintEvalData> constraint_d
     const AttributeAccessor attributes = *component.attributes();
     /* Only allocate data for variables that are actually needed by the constraint type. */
     for (const int var_i : IndexRange(num_position_vars)) {
-      position_indices_by_type[constraint_i][var_i].reinitialize(num_constraints *
-                                                                 num_position_vars);
+      position_indices_by_type[constraint_i][var_i].reinitialize(num_constraints);
     }
     for (const int var_i : IndexRange(num_rotation_vars)) {
-      rotation_indices_by_type[constraint_i][var_i].reinitialize(num_constraints *
-                                                                 num_rotation_vars);
+      rotation_indices_by_type[constraint_i][var_i].reinitialize(num_constraints);
     }
     /* Arrays of spans to use as function arguments. */
     MutableSpan<int> position_indices[4] = {position_indices_by_type[constraint_i][0],
@@ -980,16 +978,16 @@ static void set_global_solve_elements(const ConstraintEvalParams &params,
       ValueT velocity = ValueT(0.0f);
       for (const int var_i : IndexRange(num_position_vars)) {
         const Span<PosGradT> pos_gradients = position_gradient_spans[var_i].typed<PosGradT>();
+        const PosGradT &gradient = pos_gradients[index];
         const int point_index = position_index_arrays[var_i][index];
-        const PosGradT &gradient = pos_gradients[point_index];
         const float3 delta_pos = variables.positions[point_index] -
                                  params.old_positions[point_index];
         velocity += ValueT(mul_position_gradient(gradient, delta_pos)) * inv_dt;
       }
       for (const int var_i : IndexRange(num_rotation_vars)) {
         const Span<RotGradT> rot_gradients = rotation_gradient_spans[var_i].typed<RotGradT>();
+        const RotGradT &gradient = rot_gradients[index];
         const int point_index = rotation_index_arrays[var_i][index];
-        const RotGradT &gradient = rot_gradients[point_index];
         // XXX should this be angular velocity? i.e. (0, 2*Im(old_rot^T * rot)/dt)
         const float4 delta_rot = float4(variables.rotations[point_index]) -
                                  float4(params.old_rotations[point_index]);
@@ -1174,7 +1172,6 @@ static GlobalSolverData build_global_solve_matrix_from_triplets(
     //                                                                    var_i);
     // }
 
-    // /* Convert constraint elements to Eigen triplets for matrix construction. */
     const IndexRange components_range = prev_range.after(num_constraints * num_components);
 
     const VariableIndexArrays &position_index_arrays = position_indices_by_type[constraint_i];
@@ -1192,25 +1189,6 @@ static GlobalSolverData build_global_solve_matrix_from_triplets(
                               num_components,
                               triplets,
                               b);
-
-    // for (const int index : IndexRange(num_constraints)) {
-    //   const float compliance_damping = 1.0f + alphas[index];
-
-    //   const IndexRange component_columns = components_range.slice(index * num_components,
-    //                                                               num_components);
-    //   for (const int u : component_columns.index_range()) {
-    //     triplets.append_unchecked_as(
-    //         int(component_columns[u]), int(component_columns[u]), compliance_damping);
-    //   }
-
-    //   // for (const int u : columns.index_range()) {
-    //   //   for (const int v : columns.index_range()) {
-    //   //     triplets.append_unchecked_as(int(columns[v]), int(columns[u]),
-    //   inertia_tensor[u][v]);
-    //   //   }
-    //   // }
-    //   // triplets.append_unchecked_as();
-    // }
 
     prev_range = components_range;
   }

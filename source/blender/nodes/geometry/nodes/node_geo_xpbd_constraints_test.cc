@@ -413,31 +413,31 @@ TEST(xpbd_constraints, BendTwist)
       math::AxisAngle(math::AxisSigned::X_POS, math::AngleRadian::from_degree(90.0f)));
   EXPECT_V4_NEAR(float4(1, 0, 0, 0), float4(target_rotation1), 1e-5f);
   EXPECT_V4_NEAR(float4(x, x, 0, 0), float4(target_rotation2), 1e-5f);
-  const math::Quaternion darboux_vector = math::Quaternion(
-      float4(math::invert(target_rotation1) * target_rotation2));
-  EXPECT_V4_NEAR(float4(x, x, 0, 0), float4(darboux_vector), 1.e-5f);
+  const float3 darboux_vector =
+      (math::invert(target_rotation1) * target_rotation2).imaginary_part();
+  EXPECT_V3_NEAR(float3(x, 0, 0), darboux_vector, 1.e-5f);
 
   const float alpha = 0.0f;
 
   /* Rotation 1 only. */
   {
-    float4 lambda = float4(0.0f);
+    float3 lambda = float3(0.0f);
     math::Quaternion rotation1 = math::Quaternion::identity();
     math::Quaternion rotation2 = math::Quaternion::identity();
     xpbd_constraints::apply_position_bend_twist<true>(
         1, 0, darboux_vector, alpha, lambda, rotation1, rotation2);
-    EXPECT_V4_NEAR(float4(0.0f, x, 0, 0), lambda, 1e-5f);
+    EXPECT_V3_NEAR(float3(x, 0, 0), lambda, 1e-5f);
     EXPECT_V4_NEAR(math::normalize(float4(1.0f, -x, 0, 0)), float4(rotation1), 1e-5f);
     EXPECT_V4_NEAR(float4(1, 0, 0, 0), float4(rotation2), 1e-5f);
   }
   /* Rotation 2 only. */
   {
-    float4 lambda = float4(0.0f);
+    float3 lambda = float3(0.0f);
     math::Quaternion rotation1 = math::Quaternion::identity();
     math::Quaternion rotation2 = math::Quaternion::identity();
     xpbd_constraints::apply_position_bend_twist<true>(
         0, 1, darboux_vector, alpha, lambda, rotation1, rotation2);
-    EXPECT_V4_NEAR(float4(0.0f, x, 0, 0), lambda, 1e-5f);
+    EXPECT_V3_NEAR(float3(x, 0, 0), lambda, 1e-5f);
     EXPECT_V4_NEAR(float4(1, 0, 0, 0), float4(rotation1), 1e-5f);
     EXPECT_V4_NEAR(math::normalize(float4(1.0f, x, 0, 0)), float4(rotation2), 1e-5f);
   }
@@ -480,15 +480,18 @@ TEST(xpbd_constraints, VariableOverlapCheckerFail)
 struct SolverTestData {
   xpbd_constraints::ConstraintEvalParams params;
   xpbd_constraints::ConstraintVariables vars;
-  Array<xpbd_constraints::ConstraintEvalData> data;
+  Vector<xpbd_constraints::ConstraintEvalData> data;
 
   /* These are the same arrays stored in point cloud attributes,
    * put here directly for convenient testing. */
-  Array<float> lambdas = {0.0f, 2.2f};
-  Array<float> alphas = {1.5f, 0.1f};
-  Array<float> betas = {0.3f, 0.0f};
-  Array<int> point1 = {0, 2};
-  Array<float3> goal_position = {float3(0.0f), float3(1, -1, 2)};
+  Array<float> lambdas1d;
+  Array<float3> lambdas3d;
+  Array<float> alphas;
+  Array<float> betas;
+  Array<int> point1;
+  Array<int> point2;
+  Array<float3> goal_position;
+  Array<float3> darboux_vector;
 };
 
 static SolverTestData simple_solver_data(const bool use_velocities)
@@ -506,6 +509,10 @@ static SolverTestData simple_solver_data(const bool use_velocities)
 
   solver_test.params.old_positions = VArray<float3>::ForContainer(
       Array<float3>{float3(-1, 0, 2), float3(1, 1, 1), float3(0, 0, -2)});
+  solver_test.params.old_rotations = VArray<math::Quaternion>::ForContainer(
+      Array<math::Quaternion>{math::to_quaternion(math::EulerXYZ(0, -10, 0)),
+                              math::to_quaternion(math::EulerXYZ(90, 0, 0)),
+                              math::to_quaternion(math::EulerXYZ(100, 0, -80))});
 
   solver_test.vars.positions = {float3(0, 1, 0), float3(1, 0, 0), float3(0, 0, -2)};
   solver_test.vars.rotations = {math::to_quaternion(math::EulerXYZ(0, 0, 0)),
@@ -516,36 +523,50 @@ static SolverTestData simple_solver_data(const bool use_velocities)
     solver_test.vars.angular_velocities = {float3(0, 0, 0), float3(3, 0, -1), float3(2, 2, 0)};
   }
 
-  solver_test.data.reinitialize(1);
+  solver_test.lambdas1d = {0.2f, 3.0f, 0.0f, 0.0f};
+  solver_test.lambdas3d = {{}, {}, float3(-1.0f, 0.0f, 0.0f), float3(4.0f, -4.0f, 1.0f)};
+  solver_test.alphas = {1.5f, 0.1f, 0.6f, 1.1f};
+  solver_test.betas = {0.3f, 0.0f, 1.0f, 0.5f};
+  solver_test.point1 = {0, 2, 1, 2};
+  solver_test.point2 = {-1, -1, 0, 1};
+  solver_test.goal_position = {float3(0.0f), float3(1, -1, 2), {}, {}};
+  solver_test.darboux_vector = {{}, {}, float3(0.2f, 0.8f, 1.1f), float3(-0.5f, -0.5f, 2.2f)};
 
-  solver_test.data[0].type = &xpbd_constraints::get_info__position_goal(true);
-  PointCloud *constraints = BKE_pointcloud_new_nomain(2);
-  bke::MutableAttributeAccessor attributes = constraints->attributes_for_write();
+  using AttributeInfo = std::pair<StringRef, GSpan>;
+  auto add_constraint_data = [&](const xpbd_constraints::ConstraintTypeInfo &type,
+                                 const Span<AttributeInfo> attribute_info,
+                                 const IndexRange range) {
+    PointCloud *constraints = BKE_pointcloud_new_nomain(range.size());
+    bke::MutableAttributeAccessor attributes = constraints->attributes_for_write();
 
-  solver_test.alphas = {1.5f, 0.1f};
-  solver_test.betas = {0.3f, 0.0f};
-  solver_test.point1 = {0, 2};
-  solver_test.goal_position = {float3(0.0f), float3(1, -1, 2)};
+    for (const AttributeInfo &info : attribute_info) {
+      attributes.add(info.first,
+                     bke::AttrDomain::Point,
+                     bke::cpp_type_to_custom_data_type(info.second.type()),
+                     bke::AttributeInitVArray(GVArray::ForSpan(info.second.slice(range))));
+    }
 
-  attributes.add<int>("point1",
-                      bke::AttrDomain::Point,
-                      bke::AttributeInitVArray(VArray<int>::ForSpan(solver_test.point1)));
-  attributes.add<float>("lambda",
-                        bke::AttrDomain::Point,
-                        bke::AttributeInitVArray(VArray<float>::ForSpan(solver_test.lambdas)));
-  attributes.add<float3>(
-      "goal_position",
-      bke::AttrDomain::Point,
-      bke::AttributeInitVArray(VArray<float3>::ForSpan(solver_test.goal_position)));
-  attributes.add<float>("compliance",
-                        bke::AttrDomain::Point,
-                        bke::AttributeInitVArray(VArray<float>::ForSpan(solver_test.alphas)));
-  attributes.add<float>("damping",
-                        bke::AttrDomain::Point,
-                        bke::AttributeInitVArray(VArray<float>::ForSpan(solver_test.betas)));
-
-  solver_test.data[0].geometry = bke::GeometrySet::from_pointcloud(std::move(constraints));
-  solver_test.data[0].constraints = IndexRange(attributes.domain_size(bke::AttrDomain::Point));
+    solver_test.data.append({});
+    solver_test.data.last().type = &type;
+    solver_test.data.last().geometry = bke::GeometrySet::from_pointcloud(std::move(constraints));
+    solver_test.data.last().constraints = IndexRange(
+        attributes.domain_size(bke::AttrDomain::Point));
+  };
+  add_constraint_data(xpbd_constraints::get_info__position_goal(true),
+                      {AttributeInfo{"point1", solver_test.point1.as_span()},
+                       AttributeInfo{"lambda", solver_test.lambdas1d.as_span()},
+                       AttributeInfo{"goal_position", solver_test.goal_position.as_span()},
+                       AttributeInfo{"compliance", solver_test.alphas.as_span()},
+                       AttributeInfo{"damping", solver_test.betas.as_span()}},
+                      IndexRange(0, 2));
+  add_constraint_data(xpbd_constraints::get_info__bend_twist(true),
+                      {AttributeInfo{"point1", solver_test.point1.as_span()},
+                       AttributeInfo{"point2", solver_test.point2.as_span()},
+                       AttributeInfo{"lambda", solver_test.lambdas3d.as_span()},
+                       AttributeInfo{"darboux_vector", solver_test.darboux_vector.as_span()},
+                       AttributeInfo{"compliance", solver_test.alphas.as_span()},
+                       AttributeInfo{"damping", solver_test.betas.as_span()}},
+                      IndexRange(2, 2));
 
   return solver_test;
 }
@@ -619,10 +640,10 @@ TEST_F(XPBDSolverTest, GlobalSolverUnconstrained)
   Eigen::VectorXf b;
   xpbd_constraints::build_global_solve_system(
       solver_test.params, solver_test.data, solver_test.vars, true, H, b);
-  EXPECT_EQ(23, H.rows());
-  EXPECT_EQ(23, H.cols());
-  EXPECT_EQ(71, H.nonZeros());
-  EXPECT_EQ(23, b.rows());
+  EXPECT_EQ(29, H.rows());
+  EXPECT_EQ(29, H.cols());
+  EXPECT_EQ(173, H.nonZeros());
+  EXPECT_EQ(29, b.rows());
 
   const float3x3 mass_diagonal0 = math::from_scale<float3x3>(float3(solver_test.params.masses[0]));
   const float3x3 mass_diagonal1 = math::from_scale<float3x3>(float3(solver_test.params.masses[1]));
@@ -679,10 +700,10 @@ TEST_F(XPBDSolverTest, GlobalSolverUnconstrained)
                              inv_dt;
   const float damping_factor0 = 1.0f / (1.0f + alpha0 * beta0);
   const float damping_factor1 = 1.0f / (1.0f + alpha1 * beta1);
-  const float target0 = (residual0 + alpha0 * solver_test.lambdas[0] * inv_dt_sq +
+  const float target0 = (residual0 + alpha0 * solver_test.lambdas1d[0] * inv_dt_sq +
                          alpha0 * beta0 * math::dot(pos_gradient0, velocity_p0)) *
                         damping_factor0;
-  const float target1 = (residual1 + alpha1 * solver_test.lambdas[1] * inv_dt_sq +
+  const float target1 = (residual1 + alpha1 * solver_test.lambdas1d[1] * inv_dt_sq +
                          alpha0 * beta1 * math::dot(pos_gradient1, velocity_p2)) *
                         damping_factor1;
   EXPECT_NEAR(target0, b[21], eps);

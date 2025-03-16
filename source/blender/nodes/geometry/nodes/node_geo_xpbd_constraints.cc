@@ -252,24 +252,19 @@ static void rotation_goal__eval_positions(const ConstraintEvalParams &params,
       AttrDomain::Point,
       math::Quaternion::identity(),
       params.error_message_add);
-  SpanAttributeWriter<float> lambda_w_writer = attributes->lookup_or_add_for_write_span<float>(
-      "lambda_w", AttrDomain::Point);
-  SpanAttributeWriter<float3> lambda_xyz_writer = attributes->lookup_or_add_for_write_span<float3>(
-      "lambda_xyz", AttrDomain::Point);
+  SpanAttributeWriter<float3> lambda_writer = attributes->lookup_or_add_for_write_span<float3>(
+      "lambda", AttrDomain::Point);
   SpanAttributeWriter<float> delta_rotation_w_writer =
       attributes->lookup_or_add_for_write_span<float>("delta_rotation_w", AttrDomain::Point);
   SpanAttributeWriter<float3> delta_rotation_xyz_writer =
       attributes->lookup_or_add_for_write_span<float3>("delta_rotation_xyz", AttrDomain::Point);
-  SpanAttributeWriter<float> residual_w_writer;
-  SpanAttributeWriter<float3> residual_xyz_writer;
+  SpanAttributeWriter<float3> residual_writer;
   if constexpr (debug_output) {
-    residual_w_writer = attributes->lookup_or_add_for_write_span<float>("residual_w",
-                                                                        AttrDomain::Point);
-    residual_xyz_writer = attributes->lookup_or_add_for_write_span<float3>("residual_xyz",
-                                                                           AttrDomain::Point);
+    residual_writer = attributes->lookup_or_add_for_write_span<float3>("residual",
+                                                                       AttrDomain::Point);
   }
   else {
-    UNUSED_VARS(residual_w_writer, residual_xyz_writer);
+    UNUSED_VARS(residual_writer);
   }
 
   const IndexRange points_range = variables.positions.index_range();
@@ -282,14 +277,12 @@ static void rotation_goal__eval_positions(const ConstraintEvalParams &params,
       return;
     }
     const math::Quaternion &goal = goal_rotations[index];
-    float &lambda_w = lambda_w_writer.span[index];
-    float3 &lambda_xyz = lambda_xyz_writer.span[index];
+    float3 &lambda = lambda_writer.span[index];
     float &delta_rotation_w = delta_rotation_w_writer.span[index];
     float3 &delta_rotation_xyz = delta_rotation_xyz_writer.span[index];
 
-    const float4 lambda = float4(lambda_w, lambda_xyz);
-    float4 residual;
-    float4 delta_lambda;
+    float3 residual;
+    float3 delta_lambda;
     float4 delta_rotation;
     if constexpr (use_damping) {
       const float alpha = alphas[index] * params.inv_delta_time_squared;
@@ -317,23 +310,19 @@ static void rotation_goal__eval_positions(const ConstraintEvalParams &params,
                                                                    delta_rotation);
     }
 
-    lambda_w += delta_lambda.x;
-    lambda_xyz += delta_lambda.yzw();
+    lambda += delta_lambda;
     delta_rotation_w = delta_rotation.x;
     delta_rotation_xyz = delta_rotation.yzw();
     if constexpr (debug_output) {
-      residual_w_writer.span[index] = residual.w;
-      residual_xyz_writer.span[index] = residual.xyz();
+      residual_writer.span[index] = residual;
     }
   });
 
-  lambda_w_writer.finish();
-  lambda_xyz_writer.finish();
+  lambda_writer.finish();
   delta_rotation_w_writer.finish();
   delta_rotation_xyz_writer.finish();
   if constexpr (debug_output) {
-    residual_w_writer.finish();
-    residual_xyz_writer.finish();
+    residual_writer.finish();
   }
 
   r_active = VArray<bool>::ForSingle(true, attributes->domain_size(AttrDomain::Point));
@@ -362,16 +351,12 @@ static void rotation_goal__init_position_step(bke::GeometrySet &constraints)
   PointCloudComponent &component = constraints.get_component_for_write<PointCloudComponent>();
   std::optional<bke::MutableAttributeAccessor> attributes = component.attributes_for_write();
 
-  SpanAttributeWriter<float> lambda_w_writer = attributes->lookup_or_add_for_write_span<float>(
-      "lambda_w", AttrDomain::Point);
-  SpanAttributeWriter<float3> lambda_xyz_writer = attributes->lookup_or_add_for_write_span<float3>(
-      "lambda_xyz", AttrDomain::Point);
+  SpanAttributeWriter<float3> lambda_writer = attributes->lookup_or_add_for_write_span<float3>(
+      "lambda", AttrDomain::Point);
 
-  lambda_w_writer.span.fill(0.0f);
-  lambda_xyz_writer.span.fill(float3(0.0f));
+  lambda_writer.span.fill(float3(0.0f));
 
-  lambda_w_writer.finish();
-  lambda_xyz_writer.finish();
+  lambda_writer.finish();
 }
 
 template<bool debug_output>
@@ -565,14 +550,10 @@ static void bend_twist__eval_positions(const ConstraintEvalParams &params,
   VArraySpan<float> betas = *attributes->lookup_or_default<float>(
       ATTR_BETA, AttrDomain::Point, 0.0f);
   /* XXX plain float4 attribute is not supported, have to store it as float + float3. */
-  VArraySpan<float> darboux_w = *lookup_or_warn<float>(
-      *attributes, "darboux_w", AttrDomain::Point, float(0.0f), params.error_message_add);
-  VArraySpan<float3> darboux_xyz = *lookup_or_warn<float3>(
-      *attributes, "darboux_xyz", AttrDomain::Point, float3(0.0f), params.error_message_add);
-  SpanAttributeWriter<float> lambda_w_writer = attributes->lookup_or_add_for_write_span<float>(
-      "lambda_w", AttrDomain::Point);
-  SpanAttributeWriter<float3> lambda_xyz_writer = attributes->lookup_or_add_for_write_span<float3>(
-      "lambda_xyz", AttrDomain::Point);
+  VArraySpan<float3> darboux = *lookup_or_warn<float3>(
+      *attributes, "darboux", AttrDomain::Point, float3(0.0f), params.error_message_add);
+  SpanAttributeWriter<float3> lambda_writer = attributes->lookup_or_add_for_write_span<float3>(
+      "lambda", AttrDomain::Point);
   SpanAttributeWriter<float> delta_rotation1_w_writer =
       attributes->lookup_or_add_for_write_span<float>("delta_rotation1_w", AttrDomain::Point);
   SpanAttributeWriter<float3> delta_rotation1_xyz_writer =
@@ -582,16 +563,13 @@ static void bend_twist__eval_positions(const ConstraintEvalParams &params,
   SpanAttributeWriter<float3> delta_rotation2_xyz_writer =
       attributes->lookup_or_add_for_write_span<float3>("delta_rotation2_xyz", AttrDomain::Point);
 
-  SpanAttributeWriter<float> residual_w_writer;
-  SpanAttributeWriter<float3> residual_xyz_writer;
+  SpanAttributeWriter<float3> residual_writer;
   if constexpr (debug_output) {
-    residual_w_writer = attributes->lookup_or_add_for_write_span<float>("residual_w",
-                                                                        AttrDomain::Point);
-    residual_xyz_writer = attributes->lookup_or_add_for_write_span<float3>("residual_xyz",
-                                                                           AttrDomain::Point);
+    residual_writer = attributes->lookup_or_add_for_write_span<float3>("residual",
+                                                                       AttrDomain::Point);
   }
   else {
-    UNUSED_VARS(residual_w_writer, residual_xyz_writer);
+    UNUSED_VARS(residual_writer);
   }
 
   const IndexRange points_range = variables.positions.index_range();
@@ -606,17 +584,15 @@ static void bend_twist__eval_positions(const ConstraintEvalParams &params,
     }
     const float weight_rot1 = params.rotation_weights[point1];
     const float weight_rot2 = params.rotation_weights[point2];
-    const math::Quaternion darboux_vector = math::Quaternion(darboux_w[index], darboux_xyz[index]);
-    float &lambda_w = lambda_w_writer.span[index];
-    float3 &lambda_xyz = lambda_xyz_writer.span[index];
+    const float3 &darboux_vector = darboux[index];
+    float3 &lambda = lambda_writer.span[index];
     float &delta_rotation1_w = delta_rotation1_w_writer.span[index];
     float3 &delta_rotation1_xyz = delta_rotation1_xyz_writer.span[index];
     float &delta_rotation2_w = delta_rotation2_w_writer.span[index];
     float3 &delta_rotation2_xyz = delta_rotation2_xyz_writer.span[index];
 
-    const float4 lambda = float4(lambda_w, lambda_xyz);
-    float4 residual;
-    float4 delta_lambda;
+    float3 residual;
+    float3 delta_lambda;
     float4 delta_rotation1, delta_rotation2;
     if constexpr (use_damping) {
       const float alpha = alphas[index] * params.inv_delta_time_squared;
@@ -655,27 +631,23 @@ static void bend_twist__eval_positions(const ConstraintEvalParams &params,
           delta_rotation2);
     }
 
-    lambda_w += delta_lambda.x;
-    lambda_xyz += delta_lambda.yzw();
+    lambda += delta_lambda;
     delta_rotation1_w = delta_rotation1.x;
     delta_rotation1_xyz = delta_rotation1.yzw();
     delta_rotation2_w = delta_rotation2.x;
     delta_rotation2_xyz = delta_rotation2.yzw();
     if constexpr (debug_output) {
-      residual_w_writer.span[index] = residual.w;
-      residual_xyz_writer.span[index] = residual.xyz();
+      residual_writer.span[index] = residual;
     }
   });
 
-  lambda_w_writer.finish();
-  lambda_xyz_writer.finish();
+  lambda_writer.finish();
   delta_rotation1_w_writer.finish();
   delta_rotation1_xyz_writer.finish();
   delta_rotation2_w_writer.finish();
   delta_rotation2_xyz_writer.finish();
   if constexpr (debug_output) {
-    residual_w_writer.finish();
-    residual_xyz_writer.finish();
+    residual_writer.finish();
   }
 
   r_active = VArray<bool>::ForSingle(true, attributes->domain_size(AttrDomain::Point));
@@ -705,6 +677,81 @@ static Vector<VArray<int>> bend_twist__get_mapping(const bke::GeometrySet &const
 
   return {*attributes.lookup_or_default<int>(ATTR_POINT1, AttrDomain::Point, 0),
           *attributes.lookup_or_default<int>(ATTR_POINT2, AttrDomain::Point, 0)};
+}
+
+static void bend_twist__linear_solve_size(int &r_num_components,
+                                          int &r_num_position_vars,
+                                          int &r_num_rotation_vars)
+{
+  r_num_components = 3;
+  r_num_position_vars = 0;
+  r_num_rotation_vars = 2;
+}
+
+static void bend_twist__linear_solve_variables(const bke::AttributeAccessor &attributes,
+                                               const IndexMask &selection,
+                                               MutableSpan<int> /*r_position_indices*/[4],
+                                               MutableSpan<int> r_rotation_indices[4])
+{
+  const VArraySpan<int> points1 = *attributes.lookup_or_default<int>(
+      ATTR_POINT1, AttrDomain::Point, 0);
+  const VArraySpan<int> points2 = *attributes.lookup_or_default<int>(
+      ATTR_POINT2, AttrDomain::Point, 0);
+
+  MutableSpan<int> rotation_indices1 = r_rotation_indices[0];
+  MutableSpan<int> rotation_indices2 = r_rotation_indices[1];
+  selection.foreach_index(constraint_grain_size, [&](const int index, const int pos) {
+    rotation_indices1[pos] = points1[index];
+    rotation_indices2[pos] = points2[index];
+  });
+}
+
+static void bend_twist__linear_solve_elements(const ConstraintEvalParams &params,
+                                              const ConstraintVariables &variables,
+                                              const bke::AttributeAccessor &attributes,
+                                              const IndexMask &selection,
+                                              GMutableSpan r_alphas,
+                                              GMutableSpan r_betas,
+                                              GMutableSpan r_residuals,
+                                              GMutableSpan /*r_position_gradients*/[4],
+                                              GMutableSpan r_rotation_gradients[4])
+{
+  const VArraySpan<int> points1 = *lookup_or_warn<int>(
+      attributes, ATTR_POINT1, AttrDomain::Point, 0, params.error_message_add);
+  const VArraySpan<int> points2 = *lookup_or_warn<int>(
+      attributes, ATTR_POINT2, AttrDomain::Point, 0, params.error_message_add);
+  const VArraySpan<float3> alphas_attr = *attributes.lookup_or_default<float3>(
+      ATTR_ALPHA, AttrDomain::Point, float3(0.0f));
+  const VArraySpan<float3> betas_attr = *attributes.lookup_or_default<float3>(
+      ATTR_BETA, AttrDomain::Point, float3(0.0f));
+  const VArraySpan<float3> darboux_vectors = *lookup_or_warn<float3>(
+      attributes, "darboux_vector", AttrDomain::Point, float3(0.0f), params.error_message_add);
+
+  const IndexRange points_range = variables.rotations.index_range();
+  const Span<math::Quaternion> rotations = variables.rotations;
+  MutableSpan<float3> alphas = r_alphas.typed<float3>();
+  MutableSpan<float3> betas = r_betas.typed<float3>();
+  MutableSpan<float3> residuals = r_residuals.typed<float3>();
+  MutableSpan<float4x4> rotation_gradients1 = r_rotation_gradients[0].typed<float4x4>();
+  MutableSpan<float4x4> rotation_gradients2 = r_rotation_gradients[1].typed<float4x4>();
+
+  selection.foreach_index(constraint_grain_size, [&](const int index, const int pos) {
+    const int point1 = points1[index];
+    const int point2 = points2[index];
+    if (!points_range.contains(point1) || !points_range.contains(point2)) {
+      return;
+    }
+    const float3 &darboux_vector = darboux_vectors[index];
+
+    alphas[pos] = alphas_attr[index];
+    betas[pos] = betas_attr[index];
+    xpbd_constraints::eval_bend_twist_elements(darboux_vector,
+                                               rotations[point1],
+                                               rotations[point2],
+                                               residuals[pos],
+                                               rotation_gradients1[pos],
+                                               rotation_gradients2[pos]);
+  });
 }
 
 static void bend_twist__init_position_step(bke::GeometrySet &constraints)
@@ -1125,9 +1172,9 @@ template<bool debug_output> static ConstraintTypeInfo create_info__bend_twist()
       bend_twist__eval_positions<debug_output>,
       {},
       bend_twist__get_mapping,
-      {},
-      {},
-      {}};
+      bend_twist__linear_solve_size,
+      bend_twist__linear_solve_variables,
+      bend_twist__linear_solve_elements};
 }
 
 template<bool debug_output> static ConstraintTypeInfo create_info__contact()
