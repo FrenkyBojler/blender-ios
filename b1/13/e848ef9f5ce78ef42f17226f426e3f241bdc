@@ -1,1 +1,2 @@
 Referenced by commit dccdca2a2280f6c682c1098861b4e3aa3e3135da, Fix #134730: incorrect pan-speed with NDOF auto-center enabled
+Referenced by issue #134730, NDOF translation speed in perspective view
