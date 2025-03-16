@@ -140,6 +140,7 @@ struct MeshBatchList {
   gpu::Batch *edit_selection_faces;
   gpu::Batch *edit_selection_fdots;
   /* Common display / Other */
+  gpu::Batch *uv_faces;
   gpu::Batch *all_verts;
   gpu::Batch *all_edges;
   gpu::Batch *loose_edges;
@@ -171,6 +172,7 @@ enum DRWBatchFlag {
   MBC_EDIT_FACEDOTS = (1u << MBC_BATCH_INDEX(edit_fdots)),
   MBC_EDIT_MESH_ANALYSIS = (1u << MBC_BATCH_INDEX(edit_mesh_analysis)),
   MBC_SKIN_ROOTS = (1u << MBC_BATCH_INDEX(edit_skin_roots)),
+  MBC_UV_FACES = (1u << MBC_BATCH_INDEX(uv_faces)),
   MBC_EDITUV_FACES_STRETCH_AREA = (1u << MBC_BATCH_INDEX(edituv_faces_stretch_area)),
   MBC_EDITUV_FACES_STRETCH_ANGLE = (1u << MBC_BATCH_INDEX(edituv_faces_stretch_angle)),
   MBC_EDITUV_FACES = (1u << MBC_BATCH_INDEX(edituv_faces)),

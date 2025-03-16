@@ -746,7 +746,7 @@ class MeshUVs : Overlay {
 
     const SpaceImage *space_image = reinterpret_cast<const SpaceImage *>(state.space_data);
     Object &ob = *ob_ref.object;
-    const bool is_active_object = ob.data == state.view_layer->basact->object->data;
+    const bool is_active_object = ob.data == state.object_active->data;
     Mesh &mesh = *static_cast<Mesh *>(ob.data);
     ResourceHandle res_handle = manager.unique_handle(ob_ref);
 
@@ -761,7 +761,7 @@ class MeshUVs : Overlay {
 
       if (show_face_) {
         faces_ps_.push_constant("uvOpacity", opacity);
-        gpu::Batch *geom = DRW_mesh_batch_cache_get_edituv_faces(ob, mesh);
+        gpu::Batch *geom = DRW_mesh_batch_cache_get_uv_faces(ob, mesh);
         faces_ps_.draw(geom, res_handle);
       }
     }

@@ -96,9 +96,9 @@ static constexpr DRWBatchFlag batches_that_use_buffer(const int buffer_index)
     case BUFFER_INDEX(vbo.weights):
       return MBC_SURFACE_WEIGHTS;
     case BUFFER_INDEX(vbo.uv):
-      return MBC_SURFACE | MBC_EDITUV_FACES_STRETCH_AREA | MBC_EDITUV_FACES_STRETCH_ANGLE |
-             MBC_EDITUV_FACES | MBC_EDITUV_EDGES | MBC_EDITUV_VERTS | MBC_WIRE_LOOPS_UVS |
-             MBC_SURFACE_PER_MAT;
+      return MBC_SURFACE | MBC_UV_FACES | MBC_EDITUV_FACES_STRETCH_AREA |
+             MBC_EDITUV_FACES_STRETCH_ANGLE | MBC_EDITUV_FACES | MBC_EDITUV_EDGES |
+             MBC_EDITUV_VERTS | MBC_WIRE_LOOPS_UVS | MBC_SURFACE_PER_MAT;
     case BUFFER_INDEX(vbo.tan):
       return MBC_SURFACE_PER_MAT;
     case BUFFER_INDEX(vbo.sculpt_data):
@@ -155,9 +155,9 @@ static constexpr DRWBatchFlag batches_that_use_buffer(const int buffer_index)
     case BUFFER_INDEX(vbo.vnor):
       return MBC_EDIT_VNOR;
     case BUFFER_INDEX(ibo.tris):
-      return MBC_SURFACE | MBC_SURFACE_WEIGHTS | MBC_EDIT_TRIANGLES | MBC_EDIT_LNOR |
-             MBC_EDIT_MESH_ANALYSIS | MBC_EDIT_SELECTION_FACES | MBC_SCULPT_OVERLAYS |
-             MBC_VIEWER_ATTRIBUTE_OVERLAY;
+      return MBC_SURFACE | MBC_UV_FACES | MBC_SURFACE_WEIGHTS | MBC_EDIT_TRIANGLES |
+             MBC_EDIT_LNOR | MBC_EDIT_MESH_ANALYSIS | MBC_EDIT_SELECTION_FACES |
+             MBC_SCULPT_OVERLAYS | MBC_VIEWER_ATTRIBUTE_OVERLAY;
     case BUFFER_INDEX(ibo.lines):
       return MBC_EDIT_EDGES | MBC_EDIT_SELECTION_EDGES | MBC_ALL_EDGES | MBC_WIRE_EDGES;
     case BUFFER_INDEX(ibo.lines_loose):
@@ -1211,6 +1211,14 @@ gpu::Batch *DRW_mesh_batch_cache_get_edituv_facedots(Object &object, Mesh &mesh)
   return DRW_batch_request(&cache.batch.edituv_fdots);
 }
 
+gpu::Batch *DRW_mesh_batch_cache_get_uv_faces(Object &object, Mesh &mesh)
+{
+  MeshBatchCache &cache = *mesh_batch_cache_get(mesh);
+  edituv_request_active_uv(cache, object, mesh);
+  mesh_batch_cache_add_request(cache, MBC_UV_FACES);
+  return DRW_batch_request(&cache.batch.uv_faces);
+}
+
 gpu::Batch *DRW_mesh_batch_cache_get_uv_edges(Object &object, Mesh &mesh)
 {
   MeshBatchCache &cache = *mesh_batch_cache_get(mesh);
@@ -1374,7 +1382,7 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
   }
 
   if (batch_requested &
-      (MBC_SURFACE | MBC_WIRE_LOOPS_UVS | MBC_EDITUV_FACES_STRETCH_AREA |
+      (MBC_SURFACE | MBC_WIRE_LOOPS_UVS | MBC_UV_FACES | MBC_EDITUV_FACES_STRETCH_AREA |
        MBC_EDITUV_FACES_STRETCH_ANGLE | MBC_EDITUV_FACES | MBC_EDITUV_EDGES | MBC_EDITUV_VERTS))
   {
     /* Modifiers will only generate an orco layer if the mesh is deformed. */
@@ -1820,6 +1828,13 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
    */
   mbuflist = (do_uvcage) ? &cache.uv_cage.buff : &cache.final.buff;
 
+  /* Object UV */
+  assert_deps_valid(MBC_UV_FACES, {BUFFER_INDEX(ibo.tris), BUFFER_INDEX(vbo.uv)});
+  if (DRW_batch_requested(cache.batch.uv_faces, GPU_PRIM_TRIS)) {
+    DRW_ibo_request(cache.batch.uv_faces, &mbuflist->ibo.tris);
+    DRW_vbo_request(cache.batch.uv_faces, &mbuflist->vbo.uv);
+  }
+
   /* Edit UV */
   assert_deps_valid(
       MBC_EDITUV_FACES,
@@ -1829,11 +1844,6 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
       DRW_ibo_request(cache.batch.edituv_faces, &mbuflist->ibo.edituv_tris);
       DRW_vbo_request(cache.batch.edituv_faces, &mbuflist->vbo.uv);
       DRW_vbo_request(cache.batch.edituv_faces, &mbuflist->vbo.edituv_data);
-    }
-    /* Object Mode UV Faces*/
-    else if (!is_editmode) {
-      DRW_ibo_request(cache.batch.edituv_faces, &mbuflist->ibo.tris);
-      DRW_vbo_request(cache.batch.edituv_faces, &mbuflist->vbo.uv);
     }
     else {
       init_empty_dummy_batch(*cache.batch.edituv_faces);
