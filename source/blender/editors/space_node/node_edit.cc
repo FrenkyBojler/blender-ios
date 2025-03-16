@@ -116,24 +116,18 @@ struct CompoJob {
 
 float node_socket_calculate_height(const bNodeSocket &socket)
 {
-  float sock_height = NODE_SOCKSIZE;
   if (socket.flag & SOCK_MULTI_INPUT) {
-    const float multi_input_gap = NODE_MULTI_INPUT_LINK_GAP;
-
-    sock_height += max_ii(multi_input_gap * 0.5f * socket.runtime->total_inputs - NODE_SOCKSIZE,
-                          NODE_SOCKSIZE);
+    return max_ii(socket.runtime->total_inputs, 1) * NODE_GRID_STEP_SIZE * 0.5f;
   }
-  return sock_height;
+  return NODE_SOCKSIZE;
 }
 
 float2 node_link_calculate_multi_input_position(const float2 &socket_position,
                                                 const int index,
                                                 const int total_inputs)
 {
-  const float multi_input_gap = NODE_MULTI_INPUT_LINK_GAP;
-
-  const float offset = (total_inputs - 1.0f) * multi_input_gap * 0.5f;
-  return {socket_position.x, socket_position.y - offset + index * multi_input_gap};
+  const float offset = (total_inputs - 1.0f) * 0.5f;
+  return {socket_position.x, socket_position.y + (index - offset) * NODE_GRID_STEP_SIZE};
 }
 
 static void compo_tag_output_nodes(bNodeTree *nodetree, int recalc_flags)
