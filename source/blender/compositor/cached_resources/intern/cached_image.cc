@@ -6,10 +6,9 @@
 #include <memory>
 #include <string>
 
-#include "BLI_array.hh"
-#include "BLI_assert.h"
 #include "BLI_hash.hh"
 #include "BLI_listbase.h"
+#include "BLI_string.h"
 #include "BLI_string_ref.hh"
 
 #include "RE_pipeline.h"
@@ -59,19 +58,21 @@ bool operator==(const CachedImageKey &a, const CachedImageKey &b)
  * Cached Image.
  */
 
-/* Get the render layer in the given image specified by the given image user assuming the image is
- * a multilayer image. */
-static RenderLayer *get_render_layer(const Image *image, const ImageUser &image_user)
+/* Get the render layer in the given render result specified by the given image user. */
+static RenderLayer *get_render_layer(const RenderResult *render_result,
+                                     const ImageUser &image_user)
 {
-  const ListBase *layers = &image->rr->layers;
+  const ListBase *layers = &render_result->layers;
   return static_cast<RenderLayer *>(BLI_findlink(layers, image_user.layer));
 }
 
 /* Get the index of the pass with the given name in the render layer specified by the given image
- * user assuming the image is a multilayer image. */
-static int get_pass_index(Image *image, ImageUser &image_user, const char *name)
+ * user in the given render result. */
+static int get_pass_index(const RenderResult *render_result,
+                          const ImageUser &image_user,
+                          const char *name)
 {
-  const RenderLayer *render_layer = get_render_layer(image, image_user);
+  const RenderLayer *render_layer = get_render_layer(render_result, image_user);
   return BLI_findstringindex(&render_layer->passes, name, offsetof(RenderPass, name));
 }
 
@@ -89,14 +90,16 @@ static RenderPass *get_render_pass(const RenderLayer *render_layer, const ImageU
  * whose name matches the view currently being rendered. It follows that the views are then
  * indexed starting from 1. So for non zero view values, the actual index of the view is the
  * value of the view member of the image user minus 1. */
-static int get_view_index(Context &context, Image *image, ImageUser &image_user)
+static int get_view_index(const Context &context,
+                          const RenderResult *render_result,
+                          const ImageUser &image_user)
 {
   /* The image is not a multi-view image, so just return zero. */
-  if (!BKE_image_is_multiview(image)) {
+  if (!render_result) {
     return 0;
   }
 
-  const ListBase *views = &image->rr->views;
+  const ListBase *views = &render_result->views;
   /* There is only one view and its index is 0. */
   if (BLI_listbase_count_at_most(views, 2) < 2) {
     return 0;
@@ -124,21 +127,23 @@ static int get_view_index(Context &context, Image *image, ImageUser &image_user)
 
 /* Get a copy of the image user that is appropriate to retrieve the needed image buffer from the
  * image. This essentially sets the appropriate frame, pass, and view that corresponds to the
- * given context and pass name. */
-static ImageUser compute_image_user_for_pass(Context &context,
-                                             Image *image,
+ * given context and pass name. If the image is a multi-layer image, then the render_result
+ * argument should be set, otherwise, it is ignored. */
+static ImageUser compute_image_user_for_pass(const Context &context,
+                                             const Image *image,
+                                             const RenderResult *render_result,
                                              const ImageUser *image_user,
                                              const char *pass_name)
 {
   ImageUser image_user_for_pass = *image_user;
 
   /* Set the needed view. */
-  image_user_for_pass.view = get_view_index(context, image, image_user_for_pass);
+  image_user_for_pass.view = get_view_index(context, render_result, image_user_for_pass);
 
   /* Set the needed pass. */
   if (BKE_image_is_multilayer(image)) {
-    image_user_for_pass.pass = get_pass_index(image, image_user_for_pass, pass_name);
-    BKE_image_multilayer_index(image->rr, &image_user_for_pass);
+    image_user_for_pass.pass = get_pass_index(render_result, image_user_for_pass, pass_name);
+    BKE_image_multilayer_index(const_cast<RenderResult *>(render_result), &image_user_for_pass);
   }
   else {
     BKE_image_multiview_index(image, &image_user_for_pass);
@@ -179,7 +184,7 @@ static ImBuf *compute_linear_buffer(ImBuf *image_buffer)
   if (!linear_image_buffer->float_buffer.data) {
     IMB_assign_byte_buffer(
         linear_image_buffer, image_buffer->byte_buffer, IB_DO_NOT_TAKE_OWNERSHIP);
-    IMB_float_from_rect(linear_image_buffer);
+    IMB_float_from_byte(linear_image_buffer);
   }
 
   /* If the image buffer contained compressed data, assign them as well, but only if the color
@@ -195,6 +200,56 @@ static ImBuf *compute_linear_buffer(ImBuf *image_buffer)
   }
 
   return linear_image_buffer;
+}
+
+/* Returns the appropriate result type for the given image buffer, which represents the pass in the
+ * given render result with the given image user. The type is determined based on the channels
+ * count of the buffer for simple images, while channel IDs are also considered for multi-layer
+ * images since 3-channel passes can be RGB without alpha and 4-channel passes can be XYZW 4D
+ * vectors. */
+static ResultType get_result_type(const RenderResult *render_result,
+                                  const ImageUser &image_user,
+                                  const ImBuf *image_buffer)
+{
+  if (!render_result) {
+    return Result::float_type(image_buffer->channels);
+  }
+
+  const RenderLayer *render_layer = get_render_layer(render_result, image_user);
+  if (!render_layer) {
+    return Result::float_type(image_buffer->channels);
+  }
+
+  const RenderPass *render_pass = get_render_pass(render_layer, image_user);
+  if (!render_pass) {
+    return Result::float_type(image_buffer->channels);
+  }
+
+  switch (render_pass->channels) {
+    case 1:
+      return ResultType::Float;
+    case 2:
+      return ResultType::Float2;
+    case 3:
+      if (STR_ELEM(render_pass->chan_id, "RGB", "rgb")) {
+        return ResultType::Color;
+      }
+      else {
+        return ResultType::Float3;
+      }
+    case 4:
+      if (STR_ELEM(render_pass->chan_id, "RGBA", "rgba")) {
+        return ResultType::Color;
+      }
+      else {
+        return ResultType::Float4;
+      }
+    default:
+      break;
+  }
+
+  BLI_assert_unreachable();
+  return ResultType::Float;
 }
 
 CachedImage::CachedImage(Context &context,
@@ -216,8 +271,14 @@ CachedImage::CachedImage(Context &context,
     return;
   }
 
+  RenderResult *render_result = BKE_image_acquire_renderresult(nullptr, image);
+
   ImageUser image_user_for_pass = compute_image_user_for_pass(
-      context, image, image_user, pass_name);
+      context, image, render_result, image_user, pass_name);
+
+  this->populate_meta_data(render_result, image_user_for_pass);
+
+  BKE_image_release_renderresult(nullptr, image, render_result);
 
   ImBuf *image_buffer = BKE_image_acquire_ibuf(image, &image_user_for_pass, nullptr);
   ImBuf *linear_image_buffer = compute_linear_buffer(image_buffer);
@@ -225,11 +286,7 @@ CachedImage::CachedImage(Context &context,
   const bool use_half_float = linear_image_buffer->flags & IB_halffloat;
   this->result.set_precision(use_half_float ? ResultPrecision::Half : ResultPrecision::Full);
 
-  /* At the user level, vector images are always treated as color, so there are only two possible
-   * options, float images and color images. 3-channel images should then be converted to 4-channel
-   * images below. */
-  const bool is_single_channel = linear_image_buffer->channels == 1;
-  this->result.set_type(is_single_channel ? ResultType::Float : ResultType::Color);
+  this->result.set_type(get_result_type(render_result, image_user_for_pass, linear_image_buffer));
 
   /* For GPU, we wrap the texture returned by IMB module and free it ourselves in destructor. For
    * CPU, we allocate the result and copy to it from the image buffer. */
@@ -240,8 +297,8 @@ CachedImage::CachedImage(Context &context,
   }
   else {
     const int2 size = int2(image_buffer->x, image_buffer->y);
-    const int channels_count = linear_image_buffer->channels;
-    Result buffer_result(context, Result::float_type(channels_count), ResultPrecision::Full);
+    Result buffer_result(
+        context, Result::float_type(image_buffer->channels), ResultPrecision::Full);
     buffer_result.wrap_external(linear_image_buffer->float_buffer.data, size);
     this->result.allocate_texture(size, false);
     parallel_for(size, [&](const int2 texel) {
@@ -251,21 +308,16 @@ CachedImage::CachedImage(Context &context,
 
   IMB_freeImBuf(linear_image_buffer);
   BKE_image_release_ibuf(image, image_buffer, nullptr);
-
-  this->populate_meta_data(image, image_user_for_pass);
 }
 
-void CachedImage::populate_meta_data(const Image *image, const ImageUser &image_user)
+void CachedImage::populate_meta_data(const RenderResult *render_result,
+                                     const ImageUser &image_user)
 {
-  if (!image) {
+  if (!render_result) {
     return;
   }
 
-  if (!BKE_image_is_multilayer(image)) {
-    return;
-  }
-
-  const RenderLayer *render_layer = get_render_layer(image, image_user);
+  const RenderLayer *render_layer = get_render_layer(render_result, image_user);
   if (!render_layer) {
     return;
   }
@@ -275,9 +327,11 @@ void CachedImage::populate_meta_data(const Image *image, const ImageUser &image_
     return;
   }
 
-  /* We assume the given pass is a Cryptomatte pass and retrieve its layer name. If it wasn't a
+  /* We assume the given pass is a Cryptomatte pass and retrieve its full name. If it wasn't a
    * Cryptomatte pass, the checks below will fail anyways. */
-  const std::string combined_pass_name = std::string(render_layer->name) + "." + render_pass->name;
+  const bool is_named_layer = render_layer->name[0] != '\0';
+  const std::string layer_prefix = is_named_layer ? std::string(render_layer->name) + "." : "";
+  const std::string combined_pass_name = layer_prefix + render_pass->name;
   StringRef cryptomatte_layer_name = bke::cryptomatte::BKE_cryptomatte_extract_layer_name(
       combined_pass_name);
 
@@ -288,9 +342,9 @@ void CachedImage::populate_meta_data(const Image *image, const ImageUser &image_
 
   /* Go over the stamp data and add any Cryptomatte related meta data. */
   StampCallbackData callback_data = {cryptomatte_layer_name, &this->result.meta_data};
-  BKE_image_multilayer_stamp_info_callback(
+  BKE_stamp_info_callback(
       &callback_data,
-      *image,
+      render_result->stamp_data,
       [](void *user_data, const char *key, char *value, int /*value_length*/) {
         StampCallbackData *data = static_cast<StampCallbackData *>(user_data);
 
@@ -313,10 +367,6 @@ void CachedImage::populate_meta_data(const Image *image, const ImageUser &image_
         }
       },
       false);
-
-  if (StringRef(render_pass->chan_id) == "XYZW") {
-    this->result.meta_data.is_4d_vector = true;
-  }
 }
 
 CachedImage::~CachedImage()
@@ -336,6 +386,7 @@ void CachedImageContainer::reset()
     cached_images_for_id.remove_if([](auto item) { return !item.value->needed; });
   }
   map_.remove_if([](auto item) { return item.value.is_empty(); });
+  update_counts_.remove_if([&](auto item) { return !map_.contains(item.key); });
 
   /* Second, reset the needed status of the remaining cached images to false to ready them to
    * track their needed status for the next evaluation. */
@@ -365,14 +416,19 @@ Result CachedImageContainer::get(Context &context,
   const std::string id_key = std::string(image->id.name) + library_key;
   auto &cached_images_for_id = map_.lookup_or_add_default(id_key);
 
-  /* Invalidate the cache for that image ID if it was changed and reset the recalculate flag. */
-  if (context.query_id_recalc_flag(reinterpret_cast<ID *>(image)) & ID_RECALC_ALL) {
+  /* Invalidate the cache for that image if it was changed since it was cached. */
+  if (!cached_images_for_id.is_empty() &&
+      image->runtime.update_count != update_counts_.lookup(id_key))
+  {
     cached_images_for_id.clear();
   }
 
   auto &cached_image = *cached_images_for_id.lookup_or_add_cb(key, [&]() {
     return std::make_unique<CachedImage>(context, image, &image_user_for_frame, pass_name);
   });
+
+  /* Store the current update count to later compare to and check if the image changed. */
+  update_counts_.add_overwrite(id_key, image->runtime.update_count);
 
   cached_image.needed = true;
   return cached_image.result;

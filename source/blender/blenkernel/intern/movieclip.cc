@@ -25,22 +25,20 @@
 #define DNA_DEPRECATED_ALLOW
 
 #include "DNA_defaults.h"
-
 #include "DNA_gpencil_legacy_types.h"
+
 #include "DNA_movieclip_types.h"
 #include "DNA_node_types.h"
-#include "DNA_object_types.h"
 #include "DNA_scene_types.h"
-#include "DNA_screen_types.h"
 #include "DNA_space_types.h"
-#include "DNA_view3d_types.h"
 
-#include "BLI_utildefines.h"
-
-#include "BLI_blenlib.h"
-#include "BLI_ghash.h"
+#include "BLI_fileops.h"
+#include "BLI_listbase.h"
 #include "BLI_math_vector.h"
+#include "BLI_path_utils.hh"
+#include "BLI_string.h"
 #include "BLI_threads.h"
+#include "BLI_utildefines.h"
 
 #include "BLT_translation.hh"
 
@@ -50,6 +48,7 @@
 #include "BKE_image.hh" /* openanim */
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
+#include "BKE_library.hh"
 #include "BKE_main.hh"
 #include "BKE_movieclip.h"
 #include "BKE_node_tree_update.hh"
@@ -61,6 +60,8 @@
 #include "IMB_moviecache.hh"
 #include "IMB_openexr.hh"
 
+#include "MOV_read.hh"
+
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_query.hh"
 
@@ -71,6 +72,16 @@
 #include "BLO_read_write.hh"
 
 static void free_buffers(MovieClip *clip);
+
+/** Reset runtime mask fields when data-block is being initialized. */
+static void movie_clip_runtime_reset(MovieClip *clip)
+{
+  /* TODO: we could store those in undo cache storage as well, and preserve them instead of
+   * re-creating them... */
+  BLI_listbase_clear(&clip->runtime.gputextures);
+
+  clip->runtime.last_update = 0;
+}
 
 static void movie_clip_init_data(ID *id)
 {
@@ -146,7 +157,7 @@ static void movie_clip_foreach_cache(ID *id,
   function_callback(id, &key, (void **)&movie_clip->cache, 0, user_data);
 
   key.identifier = offsetof(MovieClip, tracking.camera.intrinsics);
-  function_callback(id, &key, (void **)&movie_clip->tracking.camera.intrinsics, 0, user_data);
+  function_callback(id, &key, (&movie_clip->tracking.camera.intrinsics), 0, user_data);
 }
 
 static void movie_clip_foreach_path(ID *id, BPathForeachPathData *bpath_data)
@@ -262,10 +273,6 @@ static void movieclip_blend_read_data(BlendDataReader *reader, ID *id)
   clip->tracking_context = nullptr;
   clip->tracking.stats = nullptr;
 
-  /* TODO: we could store those in undo cache storage as well, and preserve them instead of
-   * re-creating them... */
-  BLI_listbase_clear(&clip->runtime.gputextures);
-
   /* Needed for proper versioning, will be nullptr for all newer files anyway. */
   BLO_read_struct(reader, MovieTrackingTrack, &clip->tracking.stabilization.rot_track_legacy);
 
@@ -283,6 +290,8 @@ static void movieclip_blend_read_data(BlendDataReader *reader, ID *id)
     BLO_read_struct(reader, MovieTrackingTrack, &object->active_track);
     BLO_read_struct(reader, MovieTrackingPlaneTrack, &object->active_plane_track);
   }
+
+  movie_clip_runtime_reset(clip);
 }
 
 IDTypeInfo IDType_ID_MC = {
@@ -563,7 +572,7 @@ static ImBuf *movieclip_load_sequence_file(MovieClip *clip,
     colorspace = clip->colorspace_settings.name;
   }
 
-  loadflag = IB_rect | IB_multilayer | IB_alphamode_detect | IB_metadata;
+  loadflag = IB_byte_data | IB_multilayer | IB_alphamode_detect | IB_metadata;
 
   /* read ibuf */
   ibuf = IMB_loadiffname(filepath, loadflag, colorspace);
@@ -581,14 +590,14 @@ static void movieclip_open_anim_file(MovieClip *clip)
     BLI_path_abs(filepath_abs, ID_BLEND_PATH_FROM_GLOBAL(&clip->id));
 
     /* FIXME: make several stream accessible in image editor, too */
-    clip->anim = openanim(filepath_abs, IB_rect, 0, clip->colorspace_settings.name);
+    clip->anim = openanim(filepath_abs, IB_byte_data, 0, clip->colorspace_settings.name);
 
     if (clip->anim) {
       if (clip->flag & MCLIP_USE_PROXY_CUSTOM_DIR) {
         char dir[FILE_MAX];
         STRNCPY(dir, clip->proxy.dir);
         BLI_path_abs(dir, BKE_main_blendfile_path_from_global());
-        IMB_anim_set_index_dir(clip->anim, dir);
+        MOV_set_custom_proxy_dir(clip->anim, dir);
       }
     }
   }
@@ -608,7 +617,7 @@ static ImBuf *movieclip_load_movie_file(MovieClip *clip,
   if (clip->anim) {
     int fra = framenr - clip->start_frame + clip->frame_offset;
 
-    ibuf = IMB_anim_absolute(clip->anim, fra, IMB_Timecode_Type(tc), IMB_Proxy_Size(proxy));
+    ibuf = MOV_decode_frame(clip->anim, fra, IMB_Timecode_Type(tc), IMB_Proxy_Size(proxy));
     if (ibuf) {
       colormanage_imbuf_make_linear(ibuf, clip->colorspace_settings.name);
     }
@@ -623,7 +632,7 @@ static void movieclip_calc_length(MovieClip *clip)
     movieclip_open_anim_file(clip);
 
     if (clip->anim) {
-      clip->len = IMB_anim_get_duration(clip->anim, IMB_Timecode_Type(clip->proxy.tc));
+      clip->len = MOV_get_duration_frames(clip->anim, IMB_Timecode_Type(clip->proxy.tc));
     }
   }
   else if (clip->source == MCLIP_SRC_SEQUENCE) {
@@ -932,7 +941,7 @@ static void detect_clip_source(Main *bmain, MovieClip *clip)
   STRNCPY(filepath, clip->filepath);
   BLI_path_abs(filepath, BKE_main_blendfile_path(bmain));
 
-  ibuf = IMB_testiffname(filepath, IB_rect | IB_multilayer);
+  ibuf = IMB_testiffname(filepath, IB_byte_data | IB_multilayer);
   if (ibuf) {
     clip->source = MCLIP_SRC_SEQUENCE;
     IMB_freeImBuf(ibuf);
@@ -1558,12 +1567,7 @@ float BKE_movieclip_get_fps(MovieClip *clip)
   if (clip->anim == nullptr) {
     return 0.0f;
   }
-  short frs_sec;
-  float frs_sec_base;
-  if (IMB_anim_get_fps(clip->anim, true, &frs_sec, &frs_sec_base)) {
-    return float(frs_sec) / frs_sec_base;
-  }
-  return 0.0f;
+  return MOV_get_fps(clip->anim);
 }
 
 void BKE_movieclip_get_aspect(MovieClip *clip, float *aspx, float *aspy)
@@ -1617,7 +1621,7 @@ static void free_buffers(MovieClip *clip)
   }
 
   if (clip->anim) {
-    IMB_free_anim(clip->anim);
+    MOV_close(clip->anim);
     clip->anim = nullptr;
   }
 
@@ -1794,7 +1798,7 @@ static void movieclip_build_proxy_ibuf(const MovieClip *clip,
   BLI_thread_lock(LOCK_MOVIECLIP);
 
   BLI_file_ensure_parent_dir_exists(filepath);
-  if (IMB_saveiff(scaleibuf, filepath, IB_rect) == 0) {
+  if (IMB_saveiff(scaleibuf, filepath, IB_byte_data) == 0) {
     perror(filepath);
   }
 
@@ -1971,6 +1975,7 @@ void BKE_movieclip_eval_update(Depsgraph *depsgraph, Main *bmain, MovieClip *cli
   else {
     movieclip_eval_update_generic(depsgraph, clip);
   }
+  clip->runtime.last_update = DEG_get_update_count(depsgraph);
 }
 
 /* -------------------------------------------------------------------- */

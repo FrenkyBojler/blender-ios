@@ -8,17 +8,23 @@
  * An instance contains all structures needed to do a complete render.
  */
 
-#include <sstream>
-
 #include "BKE_global.hh"
 #include "BKE_object.hh"
+
 #include "BLI_rect.h"
+#include "BLI_time.h"
+
 #include "BLT_translation.hh"
+
 #include "DEG_depsgraph_query.hh"
+
 #include "DNA_ID.h"
 #include "DNA_lightprobe_types.h"
 #include "DNA_modifier_types.h"
+
+#include "GPU_context.hh"
 #include "IMB_imbuf_types.hh"
+
 #include "RE_pipeline.h"
 
 #include "eevee_engine.h"
@@ -27,6 +33,8 @@
 #include "DNA_particle_types.h"
 
 #include "draw_common.hh"
+#include "draw_context_private.hh"
+#include "draw_view_data.hh"
 
 namespace blender::eevee {
 
@@ -67,12 +75,17 @@ void Instance::init(const int2 &output_res,
 
   info_ = "";
 
-  shaders_are_ready_ = shaders.is_ready(is_image_render());
+  shaders_are_ready_ = shaders.static_shaders_are_ready(is_image_render());
   if (!shaders_are_ready_) {
+    skip_render_ = true;
     return;
   }
 
   if (is_viewport()) {
+    /* Note: Do not update the value here as we use it during sync for checking ID updates. */
+    if (depsgraph_last_update_ != DEG_get_update_count(depsgraph)) {
+      sampling.reset();
+    }
     if (assign_if_different(debug_mode, (eDebugMode)G.debug_value)) {
       sampling.reset();
     }
@@ -116,10 +129,12 @@ void Instance::init(const int2 &output_res,
   volume.init();
   lookdev.init(visible_rect);
 
-  /* Pre-compile specialization constants in parallel (if supported). */
-  shaders.precompile_specializations(
-      render_buffers.data.shadow_id, shadows.get_data().ray_count, shadows.get_data().step_count);
-  shaders_are_ready_ = shaders.is_ready(is_image_render());
+  shaders_are_ready_ = shaders.static_shaders_are_ready(is_image_render()) &&
+                       shaders.request_specializations(is_image_render(),
+                                                       render_buffers.data.shadow_id,
+                                                       shadows.get_data().ray_count,
+                                                       shadows.get_data().step_count);
+  skip_render_ = !shaders_are_ready_ || !film.is_valid_render_extent();
 }
 
 void Instance::init_light_bake(Depsgraph *depsgraph, draw::Manager *manager)
@@ -138,7 +153,7 @@ void Instance::init_light_bake(Depsgraph *depsgraph, draw::Manager *manager)
   debug_mode = (eDebugMode)G.debug_value;
   info_ = "";
 
-  shaders.is_ready(true);
+  shaders.static_shaders_are_ready(true);
 
   sampling.init(scene);
   camera.init();
@@ -157,6 +172,11 @@ void Instance::init_light_bake(Depsgraph *depsgraph, draw::Manager *manager)
   volume_probes.init();
   volume.init();
   lookdev.init(&empty_rect);
+
+  shaders.request_specializations(true,
+                                  render_buffers.data.shadow_id,
+                                  shadows.get_data().ray_count,
+                                  shadows.get_data().step_count);
 }
 
 void Instance::set_time(float time)
@@ -175,13 +195,6 @@ void Instance::update_eval_members()
                            nullptr;
 }
 
-void Instance::view_update()
-{
-  if (is_viewport()) {
-    sampling.reset();
-  }
-}
-
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -194,7 +207,7 @@ void Instance::view_update()
 
 void Instance::begin_sync()
 {
-  if (!shaders_are_ready_) {
+  if (skip_render_) {
     return;
   }
 
@@ -238,7 +251,7 @@ void Instance::begin_sync()
 
 void Instance::object_sync(ObjectRef &ob_ref)
 {
-  if (!shaders_are_ready_) {
+  if (skip_render_) {
     return;
   }
 
@@ -263,7 +276,7 @@ void Instance::object_sync(ObjectRef &ob_ref)
 
   ObjectHandle &ob_handle = sync.sync_object(ob_ref);
 
-  if (partsys_is_visible && ob != DRW_context_state_get()->object_edit) {
+  if (partsys_is_visible && ob != DRW_context_get()->object_edit) {
     auto sync_hair =
         [&](ObjectHandle hair_handle, ModifierData &md, ParticleSystem &particle_sys) {
           ResourceHandle _res_handle = manager->resource_handle_for_psys(ob_ref,
@@ -284,7 +297,7 @@ void Instance::object_sync(ObjectRef &ob_ref)
         }
         break;
       case OB_POINTCLOUD:
-        sync.sync_point_cloud(ob, ob_handle, ob_ref);
+        sync.sync_pointcloud(ob, ob_handle, ob_ref);
         break;
       case OB_VOLUME:
         sync.sync_volume(ob, ob_handle, ob_ref);
@@ -302,19 +315,18 @@ void Instance::object_sync(ObjectRef &ob_ref)
 }
 
 void Instance::object_sync_render(void *instance_,
-                                  Object *ob,
+                                  ObjectRef &ob_ref,
                                   RenderEngine *engine,
                                   Depsgraph *depsgraph)
 {
   UNUSED_VARS(engine, depsgraph);
   Instance &inst = *reinterpret_cast<Instance *>(instance_);
-  ObjectRef ob_ref = DRW_object_ref_get(ob);
   inst.object_sync(ob_ref);
 }
 
 void Instance::end_sync()
 {
-  if (!shaders_are_ready_) {
+  if (skip_render_) {
     return;
   }
 
@@ -338,31 +350,17 @@ void Instance::end_sync()
 
 void Instance::render_sync()
 {
-  /* TODO: Remove old draw manager calls. */
-  DRW_cache_restart();
-
   manager->begin_sync();
-
-  draw::hair_init();
-  draw::curves_init();
 
   begin_sync();
 
   DRW_render_object_iter(this, render, depsgraph, object_sync_render);
-
-  draw::hair_update(*manager);
-  draw::curves_update(*manager);
-  draw::hair_free();
-  draw::curves_free();
 
   velocity.geometry_steps_fill();
 
   end_sync();
 
   manager->end_sync();
-
-  /* TODO: Remove old draw manager calls. */
-  DRW_curves_update(*manager);
 }
 
 bool Instance::needs_lightprobe_sphere_passes() const
@@ -394,8 +392,10 @@ bool Instance::do_planar_probe_sync() const
 void Instance::render_sample()
 {
   if (sampling.finished_viewport()) {
+    DRW_submission_start();
     film.display();
     lookdev.display();
+    DRW_submission_end();
     return;
   }
 
@@ -412,15 +412,21 @@ void Instance::render_sample()
 
   DebugScope debug_scope(debug_scope_render_sample, "EEVEE.render_sample");
 
-  sampling.step();
+  {
+    /* Critical section. Potential GPUShader concurrent usage. */
+    DRW_submission_start();
 
-  capture_view.render_world();
-  capture_view.render_probes();
+    sampling.step();
 
-  main_view.render();
+    capture_view.render_world();
+    capture_view.render_probes();
 
-  lookdev_view.render();
+    main_view.render();
 
+    lookdev_view.render();
+
+    DRW_submission_end();
+  }
   motion_blur.step();
 }
 
@@ -501,6 +507,13 @@ void Instance::render_read_result(RenderLayer *render_layer, const char *view_na
 
 void Instance::render_frame(RenderEngine *engine, RenderLayer *render_layer, const char *view_name)
 {
+  if (skip_render_) {
+    if (!info_.empty()) {
+      RE_engine_set_error_message(engine, info_.c_str());
+      info_ = "";
+    }
+    return;
+  }
   /* TODO: Break on RE_engine_test_break(engine) */
   while (!sampling.finished()) {
     this->render_sample();
@@ -552,11 +565,13 @@ void Instance::render_frame(RenderEngine *engine, RenderLayer *render_layer, con
 
 void Instance::draw_viewport()
 {
-  if (!shaders_are_ready_) {
+  if (skip_render_) {
     DefaultFramebufferList *dfbl = DRW_viewport_framebuffer_list_get();
     GPU_framebuffer_clear_color_depth(dfbl->default_fb, float4(0.0f), 1.0f);
-    info_append_i18n("Compiling EEVEE engine shaders");
-    DRW_viewport_request_redraw();
+    if (!shaders_are_ready_) {
+      info_append_i18n("Compiling EEVEE engine shaders");
+      DRW_viewport_request_redraw();
+    }
     return;
   }
 
@@ -593,6 +608,9 @@ void Instance::draw_viewport()
 
 void Instance::draw_viewport_image_render()
 {
+  if (skip_render_) {
+    return;
+  }
   while (!sampling.finished_viewport()) {
     this->render_sample();
   }
@@ -605,6 +623,9 @@ void Instance::draw_viewport_image_render()
 
 void Instance::store_metadata(RenderResult *render_result)
 {
+  if (skip_render_) {
+    return;
+  }
   cryptomatte.store_metadata(render_result);
 }
 
@@ -685,11 +706,13 @@ void Instance::light_bake_irradiance(
 {
   BLI_assert(is_baking());
 
+  DRWContext draw_ctx(DRWContext::CUSTOM, depsgraph);
+
   auto custom_pipeline_wrapper = [&](FunctionRef<void()> callback) {
     context_enable();
-    DRW_custom_pipeline_begin(&draw_engine_eevee_next_type, depsgraph);
+    DRW_custom_pipeline_begin(draw_ctx, &draw_engine_eevee_next_type, depsgraph);
     callback();
-    DRW_custom_pipeline_end();
+    DRW_custom_pipeline_end(draw_ctx);
     context_disable();
   };
 
@@ -713,20 +736,28 @@ void Instance::light_bake_irradiance(
     sampling.init(probe);
     sampling.step();
 
-    DebugScope debug_scope(debug_scope_irradiance_setup, "EEVEE.irradiance_setup");
+    {
+      /* Critical section. Potential GPUShader concurrent usage. */
+      DRW_submission_start();
 
-    capture_view.render_world();
+      DebugScope debug_scope(debug_scope_irradiance_setup, "EEVEE.irradiance_setup");
 
-    volume_probes.bake.surfels_create(probe);
+      capture_view.render_world();
 
-    if (volume_probes.bake.should_break()) {
-      return;
+      volume_probes.bake.surfels_create(probe);
+
+      if (volume_probes.bake.should_break()) {
+        DRW_submission_end();
+        return;
+      }
+
+      volume_probes.bake.surfels_lights_eval();
+
+      volume_probes.bake.clusters_build();
+      volume_probes.bake.irradiance_offset();
+
+      DRW_submission_end();
     }
-
-    volume_probes.bake.surfels_lights_eval();
-
-    volume_probes.bake.clusters_build();
-    volume_probes.bake.irradiance_offset();
   });
 
   if (volume_probes.bake.should_break()) {
@@ -743,10 +774,16 @@ void Instance::light_bake_irradiance(
       /* TODO(fclem): Could make the number of iteration depend on the computation time. */
       for (int i = 0; i < 16 && !sampling.finished(); i++) {
         sampling.step();
+        {
+          /* Critical section. Potential GPUShader concurrent usage. */
+          DRW_submission_start();
 
-        volume_probes.bake.raylists_build();
-        volume_probes.bake.propagate_light();
-        volume_probes.bake.irradiance_capture();
+          volume_probes.bake.raylists_build();
+          volume_probes.bake.propagate_light();
+          volume_probes.bake.irradiance_capture();
+
+          DRW_submission_end();
+        }
       }
 
       LightProbeGridCacheFrame *cache_frame;

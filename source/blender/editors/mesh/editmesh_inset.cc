@@ -80,7 +80,7 @@ static void edbm_inset_update_header(wmOperator *op, bContext *C)
     char msg[UI_MAX_DRAW_STR];
     char flts_str[NUM_STR_REP_LEN * 2];
     if (hasNumInput(&opdata->num_input)) {
-      outputNumInput(&opdata->num_input, flts_str, &sce->unit);
+      outputNumInput(&opdata->num_input, flts_str, sce->unit);
     }
     else {
       BKE_unit_value_as_string(flts_str,
@@ -88,14 +88,14 @@ static void edbm_inset_update_header(wmOperator *op, bContext *C)
                                RNA_float_get(op->ptr, "thickness"),
                                4,
                                B_UNIT_LENGTH,
-                               &sce->unit,
+                               sce->unit,
                                true);
       BKE_unit_value_as_string(flts_str + NUM_STR_REP_LEN,
                                NUM_STR_REP_LEN,
                                RNA_float_get(op->ptr, "depth"),
                                4,
                                B_UNIT_LENGTH,
-                               &sce->unit,
+                               sce->unit,
                                true);
     }
     SNPRINTF(msg, IFACE_("Thickness: %s, Depth: %s"), flts_str, flts_str + NUM_STR_REP_LEN);
@@ -105,7 +105,7 @@ static void edbm_inset_update_header(wmOperator *op, bContext *C)
   WorkspaceStatus status(C);
   status.item(IFACE_("Confirm"), ICON_EVENT_RETURN, ICON_MOUSE_LMB);
   status.item(IFACE_("Cancel"), ICON_EVENT_ESC, ICON_MOUSE_RMB);
-  status.item_bool(IFACE_("Tweak"), opdata->modify_depth, ICON_EVENT_CTRL);
+  status.item_bool(IFACE_("Depth"), opdata->modify_depth, ICON_EVENT_CTRL);
   status.item_bool(IFACE_("Outset"), RNA_boolean_get(op->ptr, "use_outset"), ICON_EVENT_O);
   status.item_bool(IFACE_("Boundary"), RNA_boolean_get(op->ptr, "use_boundary"), ICON_EVENT_B);
   status.item_bool(IFACE_("Individual"), RNA_boolean_get(op->ptr, "use_individual"), ICON_EVENT_I);
@@ -349,7 +349,9 @@ static int edbm_inset_invoke(bContext *C, wmOperator *op, const wmEvent *event)
   opdata->launch_event = WM_userdef_event_type_from_keymap_type(event->type);
 
   /* initialize mouse values */
-  if (!calculateTransformCenter(C, V3D_AROUND_CENTER_MEDIAN, center_3d, opdata->mcenter)) {
+  if (!blender::ed::transform::calculateTransformCenter(
+          C, V3D_AROUND_CENTER_MEDIAN, center_3d, opdata->mcenter))
+  {
     /* in this case the tool will likely do nothing,
      * ideally this will never happen and should be checked for above */
     opdata->mcenter[0] = opdata->mcenter[1] = 0;

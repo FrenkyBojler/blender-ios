@@ -15,8 +15,9 @@
  * its type. Passes are shared between views.
  */
 
-#include "BKE_global.hh"
 #include "DRW_render.hh"
+
+#include "GPU_debug.hh"
 
 #include "eevee_instance.hh"
 
@@ -80,7 +81,7 @@ void ShadingView::render()
 
   update_view();
 
-  DRW_stats_group_start(name_);
+  GPU_debug_group_begin(name_);
 
   /* Needs to be before planar_probes because it needs correct crypto-matte & render-pass buffers
    * to reuse the same deferred shaders. */
@@ -136,7 +137,7 @@ void ShadingView::render()
                                   rt_buffer_opaque_,
                                   rt_buffer_refract_);
 
-  inst_.pipelines.background.render(render_view_);
+  inst_.pipelines.background.render(render_view_, combined_fb_);
 
   inst_.gbuffer.release();
 
@@ -161,7 +162,7 @@ void ShadingView::render()
   rbufs.release();
   postfx_tx_.release();
 
-  DRW_stats_group_end();
+  GPU_debug_group_end();
 }
 
 void ShadingView::render_transparent_pass(RenderBuffers &rbufs)
@@ -211,8 +212,8 @@ void ShadingView::update_view()
   float4x4 winmat = main_view_.winmat();
 
   if (film.scaling_factor_get() > 1) {
-    /* This whole section ensures that the render target pixel grid will match the film pixel pixel
-     * grid. Otherwise the weight computation inside the film accumulation will be wrong. */
+    /* This whole section ensures that the render target pixel grid will match the film pixel grid.
+     * Otherwise the weight computation inside the film accumulation will be wrong. */
 
     float left, right, bottom, top, near, far;
     projmat_dimensions(winmat.ptr(), &left, &right, &bottom, &top, &near, &far);

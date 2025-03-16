@@ -11,7 +11,6 @@
 #include <variant>
 
 #include "BLI_string_ref.hh"
-#include "BLI_utildefines.h"
 #include "BLI_vector.hh"
 
 #include "DNA_listBase.h"
@@ -126,7 +125,7 @@ enum eContextObjectMode {
   CTX_MODE_EDIT_LATTICE,
   CTX_MODE_EDIT_CURVES,
   CTX_MODE_EDIT_GREASE_PENCIL,
-  CTX_MODE_EDIT_POINT_CLOUD,
+  CTX_MODE_EDIT_POINTCLOUD,
   CTX_MODE_POSE,
   CTX_MODE_SCULPT,
   CTX_MODE_PAINT_WEIGHT,

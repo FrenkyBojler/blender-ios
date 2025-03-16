@@ -71,7 +71,7 @@ class RENDER_PT_format(RenderOutputButtonsPanel, Panel):
             fps_rate = round(fps / fps_base, 2)
 
         # TODO: Change the following to iterate over existing presets
-        custom_framerate = (fps_rate not in {23.98, 24, 25, 29.97, 30, 50, 59.94, 60, 120, 240})
+        custom_framerate = (fps_rate not in {6, 8, 12, 23.98, 24, 25, 29.97, 30, 50, 59.94, 60, 120, 240})
 
         if custom_framerate is True:
             fps_label_text = iface_("Custom ({:.4g} fps)").format(fps_rate)
@@ -446,7 +446,7 @@ class RENDER_PT_encoding_video(RenderOutputButtonsPanel, Panel):
             return
 
         # Color depth. List of codecs needs to be in sync with
-        # `BKE_ffmpeg_valid_bit_depths` in source code.
+        # `IMB_ffmpeg_valid_bit_depths` in source code.
         use_bpp = needs_codec and ffmpeg.codec in {'H264', 'H265', 'AV1'}
         if use_bpp:
             image_settings = context.scene.render.image_settings

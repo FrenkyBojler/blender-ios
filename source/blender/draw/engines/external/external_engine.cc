@@ -12,29 +12,28 @@
 #include "DRW_engine.hh"
 #include "DRW_render.hh"
 
-#include "DNA_modifier_types.h"
+#include "BLI_string.h"
+
+#include "BLT_translation.hh"
+
 #include "DNA_screen_types.h"
 #include "DNA_view3d_types.h"
 
-#include "BKE_object.hh"
-#include "BKE_particle.h"
-#include "BKE_screen.hh"
-
 #include "ED_image.hh"
 #include "ED_screen.hh"
+#include "ED_view3d.hh"
 
-#include "GPU_batch.hh"
 #include "GPU_debug.hh"
 #include "GPU_matrix.hh"
-#include "GPU_shader.hh"
 #include "GPU_state.hh"
-#include "GPU_viewport.hh"
 
 #include "RE_engine.h"
 #include "RE_pipeline.h"
 
 #include "draw_command.hh"
 #include "draw_view.hh"
+#include "draw_view_data.hh"
+
 #include "external_engine.h" /* own include */
 
 /* Shaders */
@@ -43,10 +42,6 @@
 
 struct EXTERNAL_Data {
   void *engine_type;
-  DRWViewportEmptyList *fbl;
-  DRWViewportEmptyList *txl;
-  DRWViewportEmptyList *psl;
-  DRWViewportEmptyList *stl;
   void *instance_data;
 
   char info[GPU_INFO_SIZE];
@@ -56,7 +51,7 @@ struct EXTERNAL_Data {
 
 static void external_draw_scene_do_v3d(void *vedata)
 {
-  const DRWContextState *draw_ctx = DRW_context_state_get();
+  const DRWContext *draw_ctx = DRW_context_get();
   RegionView3D *rv3d = draw_ctx->rv3d;
   ARegion *region = draw_ctx->region;
 
@@ -69,7 +64,8 @@ static void external_draw_scene_do_v3d(void *vedata)
   /* Create render engine. */
   RenderEngine *render_engine = nullptr;
   if (!rv3d->view_render) {
-    RenderEngineType *engine_type = draw_ctx->engine_type;
+    RenderEngineType *engine_type = ED_view3d_engine_type(draw_ctx->scene,
+                                                          draw_ctx->v3d->shading.type);
 
     if (!(engine_type->view_update && engine_type->view_draw)) {
       return;
@@ -116,7 +112,7 @@ static void external_image_space_matrix_set(const RenderEngine *engine)
 {
   BLI_assert(engine != nullptr);
 
-  const DRWContextState *draw_ctx = DRW_context_state_get();
+  const DRWContext *draw_ctx = DRW_context_get();
   SpaceImage *space_image = (SpaceImage *)draw_ctx->space_data;
 
   /* Apply current view as transformation matrix.
@@ -151,7 +147,7 @@ static void external_image_space_matrix_set(const RenderEngine *engine)
 
 static void external_draw_scene_do_image(void * /*vedata*/)
 {
-  const DRWContextState *draw_ctx = DRW_context_state_get();
+  const DRWContext *draw_ctx = DRW_context_get();
   Scene *scene = draw_ctx->scene;
   Render *re = RE_GetSceneRender(scene);
   RenderEngine *engine = RE_engine_get(re);
@@ -201,7 +197,7 @@ static void external_draw_scene_do_image(void * /*vedata*/)
 
 static void external_draw_scene_do(void *vedata)
 {
-  const DRWContextState *draw_ctx = DRW_context_state_get();
+  const DRWContext *draw_ctx = DRW_context_get();
 
   if (draw_ctx->v3d != nullptr) {
     external_draw_scene_do_v3d(vedata);
@@ -221,7 +217,7 @@ static void external_draw_scene_do(void *vedata)
 
 static void external_draw_scene(void *vedata)
 {
-  const DRWContextState *draw_ctx = DRW_context_state_get();
+  const DRWContext *draw_ctx = DRW_context_get();
   const DefaultFramebufferList *dfbl = DRW_viewport_framebuffer_list_get();
 
   /* Will be nullptr during OpenGL render.
@@ -234,17 +230,16 @@ static void external_draw_scene(void *vedata)
     GPU_framebuffer_bind(dfbl->default_fb);
     GPU_framebuffer_clear_color(dfbl->default_fb, clear_col);
 
+    DRW_submission_start();
     external_draw_scene_do(vedata);
+    DRW_submission_end();
   }
 }
-
-static const DrawEngineDataSize external_data_size = DRW_VIEWPORT_DATA_SIZE(EXTERNAL_Data);
 
 DrawEngineType draw_engine_external_type = {
     /*next*/ nullptr,
     /*prev*/ nullptr,
     /*idname*/ N_("External"),
-    /*vedata_size*/ &external_data_size,
     /*engine_init*/ nullptr,
     /*engine_free*/ nullptr,
     /*instance_free*/ nullptr,
@@ -252,8 +247,6 @@ DrawEngineType draw_engine_external_type = {
     /*cache_populate*/ nullptr,
     /*cache_finish*/ nullptr,
     /*draw_scene*/ &external_draw_scene,
-    /*view_update*/ nullptr,
-    /*id_update*/ nullptr,
     /*render_to_image*/ nullptr,
     /*store_metadata*/ nullptr,
 };
@@ -287,7 +280,7 @@ RenderEngineType DRW_engine_viewport_external_type = {
 
 bool DRW_engine_external_acquire_for_image_editor()
 {
-  const DRWContextState *draw_ctx = DRW_context_state_get();
+  const DRWContext *draw_ctx = DRW_context_get();
   const SpaceLink *space_data = draw_ctx->space_data;
   Scene *scene = draw_ctx->scene;
 

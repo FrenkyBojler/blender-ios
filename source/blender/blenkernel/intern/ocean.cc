@@ -9,6 +9,7 @@
  * OpenMP hints by Christian Schnellhammer
  */
 
+#include <algorithm>
 #include <cmath>
 #include <cstdlib>
 
@@ -56,8 +57,8 @@ static float gaussRand(RNG *rng)
   float length2;
 
   do {
-    x = float(nextfr(rng, -1, 1));
-    y = float(nextfr(rng, -1, 1));
+    x = nextfr(rng, -1, 1);
+    y = nextfr(rng, -1, 1);
     length2 = x * x + y * y;
   } while (length2 >= 1 || length2 == 0);
 
@@ -715,9 +716,7 @@ static void set_height_normalize_factor(Ocean *oc)
 
   for (i = 0; i < oc->_M; i++) {
     for (j = 0; j < oc->_N; j++) {
-      if (max_h < fabs(oc->_disp_y[i * oc->_N + j])) {
-        max_h = fabs(oc->_disp_y[i * oc->_N + j]);
-      }
+      max_h = std::max<double>(max_h, fabs(oc->_disp_y[i * oc->_N + j]));
     }
   }
 
@@ -930,37 +929,34 @@ bool BKE_ocean_init(Ocean *o,
         case MOD_OCEAN_SPECTRUM_JONSWAP:
           mul_complex_f(o->_h0[i * o->_N + j],
                         r1r2,
-                        float(sqrt(BLI_ocean_spectrum_jonswap(o, o->_kx[i], o->_kz[j]) / 2.0f)));
+                        sqrt(BLI_ocean_spectrum_jonswap(o, o->_kx[i], o->_kz[j]) / 2.0f));
           mul_complex_f(o->_h0_minus[i * o->_N + j],
                         r1r2,
-                        float(sqrt(BLI_ocean_spectrum_jonswap(o, -o->_kx[i], -o->_kz[j]) / 2.0f)));
+                        sqrt(BLI_ocean_spectrum_jonswap(o, -o->_kx[i], -o->_kz[j]) / 2.0f));
           break;
         case MOD_OCEAN_SPECTRUM_TEXEL_MARSEN_ARSLOE:
           mul_complex_f(
               o->_h0[i * o->_N + j],
               r1r2,
-              float(sqrt(BLI_ocean_spectrum_texelmarsenarsloe(o, o->_kx[i], o->_kz[j]) / 2.0f)));
+              sqrt(BLI_ocean_spectrum_texelmarsenarsloe(o, o->_kx[i], o->_kz[j]) / 2.0f));
           mul_complex_f(
               o->_h0_minus[i * o->_N + j],
               r1r2,
-              float(sqrt(BLI_ocean_spectrum_texelmarsenarsloe(o, -o->_kx[i], -o->_kz[j]) / 2.0f)));
+              sqrt(BLI_ocean_spectrum_texelmarsenarsloe(o, -o->_kx[i], -o->_kz[j]) / 2.0f));
           break;
         case MOD_OCEAN_SPECTRUM_PIERSON_MOSKOWITZ:
-          mul_complex_f(
-              o->_h0[i * o->_N + j],
-              r1r2,
-              float(sqrt(BLI_ocean_spectrum_piersonmoskowitz(o, o->_kx[i], o->_kz[j]) / 2.0f)));
+          mul_complex_f(o->_h0[i * o->_N + j],
+                        r1r2,
+                        sqrt(BLI_ocean_spectrum_piersonmoskowitz(o, o->_kx[i], o->_kz[j]) / 2.0f));
           mul_complex_f(
               o->_h0_minus[i * o->_N + j],
               r1r2,
-              float(sqrt(BLI_ocean_spectrum_piersonmoskowitz(o, -o->_kx[i], -o->_kz[j]) / 2.0f)));
+              sqrt(BLI_ocean_spectrum_piersonmoskowitz(o, -o->_kx[i], -o->_kz[j]) / 2.0f));
           break;
         default:
+          mul_complex_f(o->_h0[i * o->_N + j], r1r2, sqrt(Ph(o, o->_kx[i], o->_kz[j]) / 2.0f));
           mul_complex_f(
-              o->_h0[i * o->_N + j], r1r2, float(sqrt(Ph(o, o->_kx[i], o->_kz[j]) / 2.0f)));
-          mul_complex_f(o->_h0_minus[i * o->_N + j],
-                        r1r2,
-                        float(sqrt(Ph(o, -o->_kx[i], -o->_kz[j]) / 2.0f)));
+              o->_h0_minus[i * o->_N + j], r1r2, sqrt(Ph(o, -o->_kx[i], -o->_kz[j]) / 2.0f));
           break;
       }
     }
@@ -1421,11 +1417,11 @@ void BKE_ocean_bake(Ocean *o,
   for (f = och->start, i = 0; f <= och->end; f++, i++) {
 
     /* create a new imbuf to store image for this frame */
-    ibuf_foam = IMB_allocImBuf(res_x, res_y, 32, IB_rectfloat);
-    ibuf_disp = IMB_allocImBuf(res_x, res_y, 32, IB_rectfloat);
-    ibuf_normal = IMB_allocImBuf(res_x, res_y, 32, IB_rectfloat);
-    ibuf_spray = IMB_allocImBuf(res_x, res_y, 32, IB_rectfloat);
-    ibuf_spray_inverse = IMB_allocImBuf(res_x, res_y, 32, IB_rectfloat);
+    ibuf_foam = IMB_allocImBuf(res_x, res_y, 32, IB_float_data);
+    ibuf_disp = IMB_allocImBuf(res_x, res_y, 32, IB_float_data);
+    ibuf_normal = IMB_allocImBuf(res_x, res_y, 32, IB_float_data);
+    ibuf_spray = IMB_allocImBuf(res_x, res_y, 32, IB_float_data);
+    ibuf_spray_inverse = IMB_allocImBuf(res_x, res_y, 32, IB_float_data);
 
     BKE_ocean_simulate(o, och->time[i], och->wave_scale, och->chop_amount);
 

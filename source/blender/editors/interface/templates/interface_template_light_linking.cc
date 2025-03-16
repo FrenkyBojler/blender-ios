@@ -6,12 +6,12 @@
  * \ingroup edinterface
  */
 
-#include "UI_interface.hh"
-
 #include <cstdio>
 #include <memory>
 
 #include <fmt/format.h>
+
+#include "BLI_listbase.h"
 
 #include "BLT_translation.hh"
 
@@ -292,7 +292,7 @@ class CollectionViewItem : public BasicTreeViewItem {
     uiBlock *block = uiLayoutGetBlock(&row);
     const int icon = get_state_icon();
 
-    PointerRNA collection_light_linking_ptr = RNA_pointer_create(
+    PointerRNA collection_light_linking_ptr = RNA_pointer_create_discrete(
         &collection_.id, &RNA_CollectionLightLinking, &collection_light_linking_);
 
     uiBut *button = uiDefIconButR(block,
@@ -308,7 +308,7 @@ class CollectionViewItem : public BasicTreeViewItem {
                                   0,
                                   0.0f,
                                   0.0f,
-                                  nullptr);
+                                  std::nullopt);
 
     UI_but_func_set(button, [&collection_light_linking = collection_light_linking_](bContext &) {
       link_state_toggle(collection_light_linking);
@@ -405,7 +405,7 @@ void uiTemplateLightLinkingCollection(uiLayout *layout,
       "Light Linking Collection Tree View",
       std::make_unique<blender::ui::light_linking::CollectionView>(*context_layout, *collection));
   tree_view->set_context_menu_title("Light Linking");
-  tree_view->set_default_rows(3);
+  tree_view->set_default_rows(5);
 
   blender::ui::TreeViewBuilder::build_tree_view(*C, *tree_view, *layout);
 }

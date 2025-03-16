@@ -8,14 +8,21 @@
 
 #include "draw_sculpt.hh"
 
+#include "DNA_mesh_types.h"
+#include "DNA_scene_types.h"
 #include "draw_attributes.hh"
+#include "draw_context_private.hh"
+#include "draw_view.hh"
 
 #include "BKE_attribute.hh"
 #include "BKE_customdata.hh"
-#include "BKE_mesh_types.hh"
+#include "BKE_object.hh"
 #include "BKE_paint.hh"
 
+#include "BLI_math_matrix.hh"
+
 #include "DRW_pbvh.hh"
+#include "DRW_render.hh"
 
 namespace blender::draw {
 
@@ -48,7 +55,7 @@ static Vector<SculptBatch> sculpt_batches_get_ex(const Object *ob,
   }
 
   /* TODO(Miguel Pozo): Don't use global context. */
-  const DRWContextState *drwctx = DRW_context_state_get();
+  const DRWContext *drwctx = DRW_context_get();
   RegionView3D *rv3d = drwctx->rv3d;
   const bool navigating = rv3d && (rv3d->rflag & RV3D_NAVIGATING);
 
@@ -159,7 +166,7 @@ Vector<SculptBatch> sculpt_batches_per_material_get(const Object *ob,
 
   DRW_Attributes draw_attrs;
   DRW_MeshCDMask cd_needed;
-  DRW_mesh_get_attributes(*ob, *mesh, materials.data(), materials.size(), &draw_attrs, &cd_needed);
+  DRW_mesh_get_attributes(*ob, *mesh, materials, &draw_attrs, &cd_needed);
 
   Vector<pbvh::AttributeRequest, 16> attrs;
 

@@ -27,6 +27,7 @@
 #include "BKE_cachefile.hh"
 #include "BKE_idtype.hh"
 #include "BKE_lib_id.hh"
+#include "BKE_library.hh"
 #include "BKE_main.hh"
 #include "BKE_scene.hh"
 
@@ -352,7 +353,7 @@ void BKE_cachefile_eval(Main *bmain, Depsgraph *depsgraph, CacheFile *cache_file
   BLI_freelistN(&cache_file->object_paths);
 
 #ifdef WITH_ALEMBIC
-  if (BLI_path_extension_check_glob(filepath, "*abc")) {
+  if (BLI_path_extension_check_glob(filepath, "*.abc")) {
     cache_file->type = CACHEFILE_TYPE_ALEMBIC;
     cache_file->handle = ABC_create_handle(
         bmain,

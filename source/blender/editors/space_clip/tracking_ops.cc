@@ -11,6 +11,7 @@
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
 
+#include "BLI_listbase.h"
 #include "BLI_math_geom.h"
 #include "BLI_math_vector.h"
 #include "BLI_set.hh"
@@ -25,6 +26,7 @@
 #include "DEG_depsgraph.hh"
 
 #include "UI_interface_icons.hh"
+#include "UI_resources.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -147,7 +149,9 @@ void CLIP_OT_add_marker(wmOperatorType *ot)
 
 static int add_marker_at_click_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
-  ED_workspace_status_text(C, IFACE_("Use LMB click to define location where place the marker"));
+  WorkspaceStatus status(C);
+  status.item(IFACE_("Cancel"), ICON_EVENT_ESC);
+  status.item(IFACE_("Place Marker"), ICON_MOUSE_LMB);
 
   /* Add modal handler for ESC. */
   WM_event_add_modal_handler(C, op);
@@ -404,7 +408,7 @@ static SlideMarkerData *create_slide_marker_data(SpaceClip *sc,
                                                  int width,
                                                  int height)
 {
-  SlideMarkerData *data = MEM_cnew<SlideMarkerData>("slide marker data");
+  SlideMarkerData *data = MEM_callocN<SlideMarkerData>("slide marker data");
   int framenr = ED_space_clip_get_clip_frame_number(sc);
 
   marker = BKE_tracking_marker_ensure(track, framenr);
@@ -1580,7 +1584,7 @@ static bool is_track_clean(MovieTrackingTrack *track, int frames, int del)
   int markersnr = track->markersnr;
 
   if (del) {
-    new_markers = MEM_cnew_array<MovieTrackingMarker>(markersnr, "track cleaned markers");
+    new_markers = MEM_calloc_arrayN<MovieTrackingMarker>(markersnr, "track cleaned markers");
   }
 
   for (int a = 0; a < markersnr; a++) {

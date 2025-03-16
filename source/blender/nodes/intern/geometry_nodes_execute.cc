@@ -6,9 +6,7 @@
  * \ingroup nodes
  */
 
-#include "BLI_math_color.hh"
 #include "BLI_math_euler.hh"
-#include "BLI_math_quaternion.hh"
 #include "BLI_string.h"
 
 #include "NOD_geometry.hh"
@@ -17,7 +15,6 @@
 #include "NOD_node_declaration.hh"
 #include "NOD_socket.hh"
 
-#include "BKE_compute_contexts.hh"
 #include "BKE_geometry_fields.hh"
 #include "BKE_geometry_nodes_reference_set.hh"
 #include "BKE_geometry_set.hh"
@@ -26,7 +23,6 @@
 #include "BKE_node_enum.hh"
 #include "BKE_node_runtime.hh"
 #include "BKE_node_socket_value.hh"
-#include "BKE_type_conversions.hh"
 
 #include "FN_lazy_function_execute.hh"
 
@@ -66,7 +62,7 @@ static void id_property_int_update_enum_items(const bNodeSocketValueMenu *value,
   if (value->enum_items && !value->enum_items->items.is_empty()) {
     const Span<bke::RuntimeNodeEnumItem> items = value->enum_items->items;
     idprop_items_num = items.size();
-    idprop_items = MEM_cnew_array<IDPropertyUIDataEnumItem>(items.size(), __func__);
+    idprop_items = MEM_calloc_arrayN<IDPropertyUIDataEnumItem>(items.size(), __func__);
     for (const int i : items.index_range()) {
       const bke::RuntimeNodeEnumItem &item = items[i];
       IDPropertyUIDataEnumItem &idprop_item = idprop_items[i];
@@ -85,7 +81,7 @@ static void id_property_int_update_enum_items(const bNodeSocketValueMenu *value,
    * int value. */
   if (idprop_items_num == 0) {
     idprop_items_num = 1;
-    idprop_items = MEM_cnew_array<IDPropertyUIDataEnumItem>(1, __func__);
+    idprop_items = MEM_calloc_arrayN<IDPropertyUIDataEnumItem>(1, __func__);
     idprop_items->value = 0;
     idprop_items->identifier = BLI_strdup("DUMMY");
     idprop_items->name = BLI_strdup("");
@@ -100,19 +96,14 @@ static void id_property_int_update_enum_items(const bNodeSocketValueMenu *value,
 }
 
 static std::unique_ptr<IDProperty, bke::idprop::IDPropertyDeleter> id_name_or_value_prop(
-    const StringRefNull identifier,
-    ID *id,
-    const std::optional<ID_Type> id_type,
-    const bool use_name_for_ids)
+    const StringRefNull identifier, ID *id, const ID_Type id_type, const bool use_name_for_ids)
 {
   if (use_name_for_ids) {
     return bke::idprop::create(identifier, id ? id->name + 2 : "");
   }
   auto prop = bke::idprop::create(identifier, id);
-  if (id_type) {
-    IDPropertyUIDataID *ui_data = (IDPropertyUIDataID *)IDP_ui_data_ensure(prop.get());
-    ui_data->id_type = *id_type;
-  }
+  IDPropertyUIDataID *ui_data = (IDPropertyUIDataID *)IDP_ui_data_ensure(prop.get());
+  ui_data->id_type = id_type;
   return prop;
 }
 
@@ -154,7 +145,7 @@ std::unique_ptr<IDProperty, bke::idprop::IDPropertyDeleter> id_property_create_f
       ui_data->base.rna_subtype = value->subtype;
       ui_data->soft_min = double(value->min);
       ui_data->soft_max = double(value->max);
-      ui_data->default_array = (double *)MEM_mallocN(sizeof(double[3]), "mod_prop_default");
+      ui_data->default_array = MEM_malloc_arrayN<double>(3, "mod_prop_default");
       ui_data->default_array_len = 3;
       for (const int i : IndexRange(3)) {
         ui_data->default_array[i] = double(value->value[i]);
@@ -169,7 +160,7 @@ std::unique_ptr<IDProperty, bke::idprop::IDPropertyDeleter> id_property_create_f
           Span<float>{value->value[0], value->value[1], value->value[2], value->value[3]});
       IDPropertyUIDataFloat *ui_data = (IDPropertyUIDataFloat *)IDP_ui_data_ensure(property.get());
       ui_data->base.rna_subtype = PROP_COLOR;
-      ui_data->default_array = (double *)MEM_mallocN(sizeof(double[4]), __func__);
+      ui_data->default_array = MEM_malloc_arrayN<double>(4, __func__);
       ui_data->default_array_len = 4;
       ui_data->min = 0.0;
       ui_data->max = FLT_MAX;
@@ -219,6 +210,7 @@ std::unique_ptr<IDProperty, bke::idprop::IDPropertyDeleter> id_property_create_f
       auto property = bke::idprop::create(identifier, value->value);
       IDPropertyUIDataInt *ui_data = (IDPropertyUIDataInt *)IDP_ui_data_ensure(property.get());
       id_property_int_update_enum_items(value, ui_data);
+      ui_data->default_value = value->value;
       return property;
     }
     case SOCK_OBJECT: {
@@ -232,25 +224,25 @@ std::unique_ptr<IDProperty, bke::idprop::IDPropertyDeleter> id_property_create_f
       const bNodeSocketValueCollection *value = static_cast<const bNodeSocketValueCollection *>(
           socket.socket_data);
       ID *id = reinterpret_cast<ID *>(value->value);
-      return id_name_or_value_prop(identifier, id, std::nullopt, use_name_for_ids);
+      return id_name_or_value_prop(identifier, id, ID_GR, use_name_for_ids);
     }
     case SOCK_TEXTURE: {
       const bNodeSocketValueTexture *value = static_cast<const bNodeSocketValueTexture *>(
           socket.socket_data);
       ID *id = reinterpret_cast<ID *>(value->value);
-      return id_name_or_value_prop(identifier, id, std::nullopt, use_name_for_ids);
+      return id_name_or_value_prop(identifier, id, ID_TE, use_name_for_ids);
     }
     case SOCK_IMAGE: {
       const bNodeSocketValueImage *value = static_cast<const bNodeSocketValueImage *>(
           socket.socket_data);
       ID *id = reinterpret_cast<ID *>(value->value);
-      return id_name_or_value_prop(identifier, id, std::nullopt, use_name_for_ids);
+      return id_name_or_value_prop(identifier, id, ID_IM, use_name_for_ids);
     }
     case SOCK_MATERIAL: {
       const bNodeSocketValueMaterial *value = static_cast<const bNodeSocketValueMaterial *>(
           socket.socket_data);
       ID *id = reinterpret_cast<ID *>(value->value);
-      return id_name_or_value_prop(identifier, id, std::nullopt, use_name_for_ids);
+      return id_name_or_value_prop(identifier, id, ID_MA, use_name_for_ids);
     }
     case SOCK_MATRIX:
     case SOCK_CUSTOM:
@@ -1036,6 +1028,71 @@ void update_output_properties_from_node_tree(const bNodeTree &tree,
         }
         new_prop->ui_data = ui_data;
       }
+    }
+  }
+}
+
+void get_geometry_nodes_input_base_values(const bNodeTree &btree,
+                                          const IDProperty *properties,
+                                          ResourceScope &scope,
+                                          MutableSpan<GPointer> r_values)
+{
+  if (!properties) {
+    return;
+  }
+
+  /* Assume that all inputs have unknown values by default. */
+  r_values.fill(nullptr);
+
+  btree.ensure_interface_cache();
+  for (const int input_i : btree.interface_inputs().index_range()) {
+    const bNodeTreeInterfaceSocket &io_input = *btree.interface_inputs()[input_i];
+    const bke::bNodeSocketType *stype = io_input.socket_typeinfo();
+    if (!stype) {
+      continue;
+    }
+    const eNodeSocketDatatype socket_type = eNodeSocketDatatype(stype->type);
+    if (!stype->base_cpp_type || !stype->geometry_nodes_cpp_type) {
+      continue;
+    }
+    const IDProperty *property = IDP_GetPropertyFromGroup(properties, io_input.identifier);
+    if (!property) {
+      continue;
+    }
+    if (!id_property_type_matches_socket(io_input, *property)) {
+      continue;
+    }
+    if (input_attribute_name_get(*properties, io_input).has_value()) {
+      /* Attributes don't have a single base value, so ignore them here.*/
+      continue;
+    }
+    if (is_layer_selection_field(io_input)) {
+      /* Can't get a single value for layer selections. */
+      continue;
+    }
+
+    void *value_buffer = scope.linear_allocator().allocate(
+        stype->geometry_nodes_cpp_type->size(), stype->geometry_nodes_cpp_type->alignment());
+    init_socket_cpp_value_from_property(*property, socket_type, value_buffer);
+    if (!stype->geometry_nodes_cpp_type->is_trivially_destructible()) {
+      scope.add_destruct_call([type = stype->geometry_nodes_cpp_type, value_buffer]() {
+        type->destruct(value_buffer);
+      });
+    }
+    if (stype->geometry_nodes_cpp_type == stype->base_cpp_type) {
+      r_values[input_i] = {stype->base_cpp_type, value_buffer};
+      continue;
+    }
+    if (stype->geometry_nodes_cpp_type == &CPPType::get<bke::SocketValueVariant>()) {
+      const bke::SocketValueVariant &socket_value = *static_cast<const bke::SocketValueVariant *>(
+          value_buffer);
+      if (!socket_value.is_single()) {
+        continue;
+      }
+      const GPointer single_value = socket_value.get_single_ptr();
+      BLI_assert(single_value.type() == stype->base_cpp_type);
+      r_values[input_i] = single_value;
+      continue;
     }
   }
 }

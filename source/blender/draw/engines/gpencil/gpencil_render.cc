@@ -5,16 +5,16 @@
 /** \file
  * \ingroup draw
  */
+#include "BLI_math_matrix.h"
 #include "BLI_rect.h"
 
 #include "DRW_render.hh"
 
 #include "BKE_object.hh"
 
-#include "DNA_gpencil_legacy_types.h"
-
 #include "DEG_depsgraph_query.hh"
 
+#include "RE_engine.h"
 #include "RE_pipeline.h"
 
 #include "IMB_imbuf_types.hh"
@@ -33,8 +33,7 @@ void GPENCIL_render_init(GPENCIL_Data *vedata,
   GPENCIL_Instance &inst = *vedata->instance;
 
   Scene *scene = DEG_get_evaluated_scene(depsgraph);
-  const float *viewport_size = DRW_viewport_size_get();
-  const int size[2] = {int(viewport_size[0]), int(viewport_size[1])};
+  const int2 size = int2(DRW_viewport_size_get());
 
   /* Set the perspective & view matrix. */
   float winmat[4][4], viewmat[4][4], viewinv[4][4];
@@ -143,15 +142,17 @@ void GPENCIL_render_init(GPENCIL_Data *vedata,
 
 /* render all objects and select only grease pencil */
 static void GPENCIL_render_cache(void *vedata,
-                                 Object *ob,
+                                 blender::draw::ObjectRef &ob_ref,
                                  RenderEngine * /*engine*/,
                                  Depsgraph * /*depsgraph*/)
 {
-  if (ob && ELEM(ob->type, OB_GREASE_PENCIL, OB_LAMP)) {
-    if (DRW_object_visibility_in_active_context(ob) & OB_VISIBLE_SELF) {
-      GPENCIL_cache_populate(vedata, ob);
-    }
+  if (!ELEM(ob_ref.object->type, OB_GREASE_PENCIL, OB_LAMP)) {
+    return;
   }
+  if (!(DRW_object_visibility_in_active_context(ob_ref.object) & OB_VISIBLE_SELF)) {
+    return;
+  }
+  GPENCIL_cache_populate(vedata, ob_ref);
 }
 
 static void GPENCIL_render_result_z(RenderLayer *rl,
@@ -159,7 +160,7 @@ static void GPENCIL_render_result_z(RenderLayer *rl,
                                     GPENCIL_Data *vedata,
                                     const rcti *rect)
 {
-  const DRWContextState *draw_ctx = DRW_context_state_get();
+  const DRWContext *draw_ctx = DRW_context_get();
   ViewLayer *view_layer = draw_ctx->view_layer;
   if ((view_layer->passflag & SCE_PASS_Z) == 0) {
     return;
@@ -238,7 +239,7 @@ void GPENCIL_render_to_image(void *ved,
 {
   GPENCIL_Data *vedata = (GPENCIL_Data *)ved;
   const char *viewname = RE_GetActiveRenderView(engine->re);
-  const DRWContextState *draw_ctx = DRW_context_state_get();
+  const DRWContext *draw_ctx = DRW_context_get();
   Depsgraph *depsgraph = draw_ctx->depsgraph;
 
   DRW_manager_get()->begin_sync();
@@ -246,7 +247,7 @@ void GPENCIL_render_to_image(void *ved,
   GPENCIL_render_init(vedata, engine, render_layer, depsgraph, rect);
   GPENCIL_engine_init(vedata);
 
-  vedata->stl->pd->camera = DEG_get_evaluated_object(depsgraph, RE_GetCamera(engine->re));
+  vedata->instance->camera = DEG_get_evaluated_object(depsgraph, RE_GetCamera(engine->re));
 
   /* Loop over all objects and create draw structure. */
   GPENCIL_cache_init(vedata);

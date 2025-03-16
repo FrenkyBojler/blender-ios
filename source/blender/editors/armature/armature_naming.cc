@@ -11,18 +11,14 @@
 
 #include <cstring>
 
-#include "MEM_guardedalloc.h"
-
 #include "DNA_armature_types.h"
 #include "DNA_camera_types.h"
 #include "DNA_constraint_types.h"
-#include "DNA_gpencil_legacy_types.h"
-#include "DNA_gpencil_modifier_types.h"
 #include "DNA_object_types.h"
 
-#include "BLI_blenlib.h"
 #include "BLI_ghash.h"
 #include "BLI_listbase_wrapper.hh"
+#include "BLI_string.h"
 #include "BLI_string_utils.hh"
 #include "BLI_utildefines.h"
 
@@ -259,8 +255,19 @@ void ED_armature_bone_rename(Main *bmain,
       }
 
       if (BKE_modifiers_uses_armature(ob, arm) && BKE_object_supports_vertex_groups(ob)) {
-        bDeformGroup *dg = BKE_object_defgroup_find_name(ob, oldname);
-        if (dg) {
+        if (BKE_object_defgroup_find_name(ob, newname)) {
+          WM_global_reportf(
+              eReportType::RPT_WARNING,
+              "%s (%s::%s)",
+              RPT_("New bone name collides with an existing vertex group name, vertex group "
+                   "names are unchanged."),
+              &ob->id.name[2],
+              newname);
+          /* Not renaming vertex group could cause bone to bind to other vertex group, in this case
+           * deformation could change, so we tag this object for depsgraph update. */
+          DEG_id_tag_update(static_cast<ID *>(ob->data), ID_RECALC_GEOMETRY);
+        }
+        else if (bDeformGroup *dg = BKE_object_defgroup_find_name(ob, oldname)) {
           STRNCPY(dg->name, newname);
 
           if (ob->type == OB_GREASE_PENCIL) {

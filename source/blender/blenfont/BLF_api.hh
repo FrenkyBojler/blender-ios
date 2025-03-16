@@ -191,10 +191,10 @@ blender::Array<uchar> BLF_svg_icon_bitmap(
     bool multicolor = false,
     blender::FunctionRef<void(std::string &)> edit_source_cb = nullptr);
 
-typedef bool (*BLF_GlyphBoundsFn)(const char *str,
-                                  size_t str_step_ofs,
-                                  const rcti *bounds,
-                                  void *user_data);
+using BLF_GlyphBoundsFn = bool (*)(const char *str,
+                                   size_t str_step_ofs,
+                                   const rcti *bounds,
+                                   void *user_dataconst);
 
 /**
  * Run \a user_fn for each character, with the bound-box that would be used for drawing.
@@ -319,6 +319,11 @@ void BLF_enable(int fontid, int option);
 void BLF_disable(int fontid, int option);
 
 /**
+ * Is this font part of the default fonts in the fallback stack?
+ */
+bool BLF_is_builtin(int fontid);
+
+/**
  * Note that shadow needs to be enabled with #BLF_enable.
  */
 void BLF_shadow(int fontid, FontShadowType type, const float rgba[4] = nullptr);
@@ -338,6 +343,25 @@ void BLF_shadow_offset(int fontid, int x, int y);
  */
 void BLF_buffer(
     int fontid, float *fbuf, unsigned char *cbuf, int w, int h, ColorManagedDisplay *display);
+
+/**
+ * Opaque structure used to push/pop values set by the #BLF_buffer function.
+ */
+struct BLFBufferState;
+/**
+ * Store the current buffer state.
+ * This state *must* be popped with #BLF_buffer_state_pop.
+ */
+BLFBufferState *BLF_buffer_state_push(int fontid);
+/**
+ * Pop the state (restoring the state when #BLF_buffer_state_push was called).
+ */
+void BLF_buffer_state_pop(BLFBufferState *buffer_state);
+/**
+ * Free the state, only use in the rare case pop is not called
+ * (if the font itself is unloaded after pushing for example).
+ */
+void BLF_buffer_state_free(BLFBufferState *buffer_state);
 
 /**
  * Set the color to be used for text.
@@ -420,6 +444,9 @@ enum {
    * \note Can be checked without checking #BLF_MONOSPACED which can be assumed to be disabled.
    */
   BLF_RENDER_SUBPIXELAA = 1 << 18,
+
+  /* Do not look in other fonts when a glyph is not found in this font. */
+  BLF_NO_FALLBACK = 1 << 19,
 };
 
 #define BLF_DRAW_STR_DUMMY_MAX 1024

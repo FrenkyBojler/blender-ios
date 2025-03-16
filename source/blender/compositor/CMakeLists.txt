@@ -6,16 +6,10 @@ set(INC
   .
   algorithms
   cached_resources
+  derived_resources
   utilities
-  ../blenkernel
-  ../blentranslation
-  ../functions
-  ../gpu
   ../gpu/intern
-  ../imbuf
   ../makesrna
-  ../nodes
-  ../render
   ../render/intern
 )
 
@@ -28,6 +22,7 @@ set(SRC
   COM_compositor.hh
   COM_context.hh
   COM_conversion_operation.hh
+  COM_derived_resources.hh
   COM_domain.hh
   COM_evaluator.hh
   COM_input_descriptor.hh
@@ -39,7 +34,6 @@ set(SRC
   COM_pixel_operation.hh
   COM_profiler.hh
   COM_realize_on_domain_operation.hh
-  COM_reduce_to_single_value_operation.hh
   COM_render_context.hh
   COM_result.hh
   COM_scheduler.hh
@@ -47,8 +41,7 @@ set(SRC
   COM_shader_operation.hh
   COM_simple_operation.hh
   COM_static_cache_manager.hh
-  COM_texture_pool.hh
-  COM_utilities.hh  
+  COM_utilities.hh
 
   intern/COM_compositor.cc
   intern/compile_state.cc
@@ -64,7 +57,6 @@ set(SRC
   intern/pixel_operation.cc
   intern/profiler.cc
   intern/realize_on_domain_operation.cc
-  intern/reduce_to_single_value_operation.cc
   intern/render_context.cc
   intern/result.cc
   intern/scheduler.cc
@@ -72,7 +64,6 @@ set(SRC
   intern/shader_operation.cc
   intern/simple_operation.cc
   intern/static_cache_manager.cc
-  intern/texture_pool.cc
   intern/utilities.cc
 
   algorithms/intern/compute_preview.cc
@@ -84,13 +75,11 @@ set(SRC
   algorithms/intern/morphological_distance.cc
   algorithms/intern/morphological_distance_feather.cc
   algorithms/intern/parallel_reduction.cc
-  algorithms/intern/realize_on_domain.cc
   algorithms/intern/recursive_gaussian_blur.cc
   algorithms/intern/smaa.cc
   algorithms/intern/summed_area_table.cc
   algorithms/intern/symmetric_separable_blur.cc
   algorithms/intern/symmetric_separable_blur_variable_size.cc
-  algorithms/intern/transform.cc
   algorithms/intern/van_vliet_gaussian_blur.cc
 
   algorithms/COM_algorithm_compute_preview.hh
@@ -102,13 +91,11 @@ set(SRC
   algorithms/COM_algorithm_morphological_distance.hh
   algorithms/COM_algorithm_morphological_distance_feather.hh
   algorithms/COM_algorithm_parallel_reduction.hh
-  algorithms/COM_algorithm_realize_on_domain.hh
   algorithms/COM_algorithm_recursive_gaussian_blur.hh
   algorithms/COM_algorithm_smaa.hh
   algorithms/COM_algorithm_summed_area_table.hh
   algorithms/COM_algorithm_symmetric_separable_blur.hh
   algorithms/COM_algorithm_symmetric_separable_blur_variable_size.hh
-  algorithms/COM_algorithm_transform.hh
   algorithms/COM_algorithm_van_vliet_gaussian_blur.hh
 
   cached_resources/intern/bokeh_kernel.cc
@@ -144,15 +131,26 @@ set(SRC
   cached_resources/COM_symmetric_separable_blur_weights.hh
   cached_resources/COM_van_vliet_gaussian_coefficients.hh
 
-  utilities/COM_utilities_diagonals.hh  
+  derived_resources/intern/denoised_auxiliary_pass.cc
+
+  derived_resources/COM_denoised_auxiliary_pass.hh
+
+  utilities/intern/gpu_material.cc
+
+  utilities/COM_utilities_diagonals.hh
+  utilities/COM_utilities_gpu_material.hh
+  utilities/COM_utilities_type_conversion.hh
 )
 
 set(LIB
-  bf_blenkernel
-  bf_functions
-  bf_gpu
-  bf_imbuf
-  bf_render
+  PRIVATE bf::blenkernel
+  PRIVATE bf::blentranslation
+  PRIVATE bf::extern::fmtlib
+  PRIVATE bf::functions
+  PRIVATE bf::gpu
+  PRIVATE bf::imbuf
+  PRIVATE bf::nodes
+  PRIVATE bf::render
   PRIVATE bf::blenlib
   PRIVATE bf::dna
   PRIVATE bf::intern::guardedalloc
@@ -197,6 +195,8 @@ set(GLSL_SRC
   shaders/compositor_glare_simple_star_vertical_pass.glsl
   shaders/compositor_glare_streaks_accumulate.glsl
   shaders/compositor_glare_streaks_filter.glsl
+  shaders/compositor_glare_write_glare_output.glsl
+  shaders/compositor_glare_write_highlights_output.glsl
   shaders/compositor_id_mask.glsl
   shaders/compositor_image_crop.glsl
   shaders/compositor_inpaint_compute_boundary.glsl
@@ -250,12 +250,15 @@ set(GLSL_SRC
   shaders/compositor_symmetric_separable_blur_variable_size.glsl
   shaders/compositor_tone_map_photoreceptor.glsl
   shaders/compositor_tone_map_simple.glsl
+  shaders/compositor_translate_wrapped.glsl
   shaders/compositor_van_vliet_gaussian_blur.glsl
   shaders/compositor_van_vliet_gaussian_blur_sum.glsl
   shaders/compositor_write_output.glsl
   shaders/compositor_z_combine_compute_mask.glsl
-  shaders/compositor_z_combine_from_mask.glsl
-  shaders/compositor_z_combine_simple.glsl
+  shaders/compositor_z_combine_from_mask_depth.glsl
+  shaders/compositor_z_combine_from_mask_image.glsl
+  shaders/compositor_z_combine_simple_depth.glsl
+  shaders/compositor_z_combine_simple_image.glsl
 
   shaders/library/gpu_shader_compositor_alpha_over.glsl
   shaders/library/gpu_shader_compositor_bright_contrast.glsl

@@ -21,8 +21,6 @@
 #include FT_FREETYPE_H
 #include FT_GLYPH_H
 
-#include "MEM_guardedalloc.h"
-
 #include "BLI_fileops.h"
 #include "BLI_math_rotation.h"
 #include "BLI_path_utils.hh"
@@ -33,7 +31,7 @@
 #include "IMB_colormanagement.hh"
 
 #include "GPU_matrix.hh"
-#include "GPU_shader.hh"
+#include "GPU_state.hh"
 
 #include "blf_internal.hh"
 #include "blf_internal_types.hh"
@@ -336,6 +334,12 @@ void BLF_disable(int fontid, int option)
   if (font) {
     font->flags &= ~option;
   }
+}
+
+bool BLF_is_builtin(int fontid)
+{
+  FontBLF *font = blf_get(fontid);
+  return font ? (font->flags & BLF_DEFAULT) : false;
 }
 
 void BLF_character_weight(int fontid, int weight)
@@ -954,6 +958,52 @@ void BLF_buffer(int fontid, float *fbuf, uchar *cbuf, int w, int h, ColorManaged
     font->buf_info.dims[1] = h;
     font->buf_info.display = display;
   }
+}
+
+struct BLFBufferState {
+  int fontid;
+  /**
+   * This only exists to validate the font has not been freed since the state was created.
+   * Needed because the state can be used from Python.
+   */
+  const FontBLF *font;
+
+  FontBufInfoBLF buf_info;
+};
+
+BLFBufferState *BLF_buffer_state_push(int fontid)
+{
+  FontBLF *font = blf_get(fontid);
+  if (font) {
+    BLFBufferState *buffer_state = MEM_new<BLFBufferState>(__func__);
+    buffer_state->fontid = fontid;
+    buffer_state->font = font;
+    buffer_state->buf_info = font->buf_info;
+    return buffer_state;
+  }
+  return nullptr;
+}
+
+void BLF_buffer_state_pop(BLFBufferState *buffer_state)
+{
+  FontBLF *font = blf_get(buffer_state->fontid);
+  /* It's possible the font has been removed as this is called from Python. */
+  if (font == buffer_state->font) {
+    /* From the callers perspective, don't consider the color part of the buffer info.
+     *
+     * NOTE(@ideasman42) This is done because the color is not logically part of the image binding.
+     * It looks like we can refactor color out of #FontBufInfoBLF::col_init,
+     * and use #FontBLF::color instead. */
+    copy_v4_v4(buffer_state->buf_info.col_init, font->buf_info.col_init);
+
+    font->buf_info = buffer_state->buf_info;
+  }
+  BLF_buffer_state_free(buffer_state);
+}
+
+void BLF_buffer_state_free(BLFBufferState *buffer_state)
+{
+  MEM_delete(buffer_state);
 }
 
 void BLF_buffer_col(int fontid, const float rgba[4])

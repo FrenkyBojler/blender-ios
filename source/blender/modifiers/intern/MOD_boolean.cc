@@ -6,8 +6,6 @@
  * \ingroup modifiers
  */
 
-#include <cstdio>
-
 #include "BLI_utildefines.h"
 
 #include "BLI_array.hh"
@@ -29,7 +27,7 @@
 #include "BKE_global.hh" /* only to check G.debug */
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
-#include "BKE_material.h"
+#include "BKE_material.hh"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_wrapper.hh"
 #include "BKE_modifier.hh"
@@ -492,7 +490,7 @@ static Mesh *exact_boolean_mesh(BooleanModifierData *bmd,
 
   if (material_mode == eBooleanModifierMaterialMode_Transfer) {
     MEM_SAFE_FREE(result->mat);
-    result->mat = (Material **)MEM_malloc_arrayN(materials.size(), sizeof(Material *), __func__);
+    result->mat = MEM_malloc_arrayN<Material *>(size_t(materials.size()), __func__);
     result->totcol = materials.size();
     MutableSpan(result->mat, result->totcol).copy_from(materials);
   }
@@ -671,7 +669,7 @@ ModifierTypeInfo modifierType_Boolean = {
     /*srna*/ &RNA_BooleanModifier,
     /*type*/ ModifierTypeType::Nonconstructive,
     /*flags*/
-    (ModifierTypeFlag)(eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_SupportsEditmode),
+    (eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_SupportsEditmode),
     /*icon*/ ICON_MOD_BOOLEAN,
 
     /*copy_data*/ BKE_modifier_copydata_generic,

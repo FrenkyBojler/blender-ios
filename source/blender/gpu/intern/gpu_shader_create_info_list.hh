@@ -107,6 +107,7 @@
 #include "compositor_symmetric_separable_blur_variable_size_info.hh"
 #include "compositor_tone_map_photoreceptor_info.hh"
 #include "compositor_tone_map_simple_info.hh"
+#include "compositor_translate_wrapped_info.hh"
 #include "compositor_van_vliet_gaussian_blur_info.hh"
 #include "compositor_write_output_info.hh"
 #include "compositor_z_combine_info.hh"
@@ -117,6 +118,9 @@
 #include "draw_hair_refine_info.hh"
 #include "draw_object_infos_info.hh"
 #include "draw_view_info.hh"
+#ifdef WITH_OPENSUBDIV
+#  include "subdiv_info.hh"
+#endif
 
 /* EEVEE engine. */
 #include "eevee_ambient_occlusion_info.hh"
@@ -149,6 +153,7 @@
 #include "overlay_antialiasing_info.hh"
 #include "overlay_armature_info.hh"
 #include "overlay_background_info.hh"
+#include "overlay_common_info.hh"
 #include "overlay_edit_mode_info.hh"
 #include "overlay_extra_info.hh"
 #include "overlay_facing_info.hh"

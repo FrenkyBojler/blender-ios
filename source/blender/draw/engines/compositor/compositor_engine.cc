@@ -12,8 +12,6 @@
 
 #include "DNA_ID.h"
 #include "DNA_ID_enums.h"
-#include "DNA_camera_types.h"
-#include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_vec_types.h"
 #include "DNA_view3d_types.h"
@@ -29,24 +27,16 @@
 #include "COM_domain.hh"
 #include "COM_evaluator.hh"
 #include "COM_result.hh"
-#include "COM_texture_pool.hh"
 
 #include "GPU_context.hh"
+#include "GPU_state.hh"
 #include "GPU_texture.hh"
+
+#include "draw_view_data.hh"
 
 #include "compositor_engine.h" /* Own include. */
 
 namespace blender::draw::compositor_engine {
-
-class TexturePool : public compositor::TexturePool {
- public:
-  GPUTexture *allocate_texture(int2 size, eGPUTextureFormat format) override
-  {
-    DrawEngineType *owner = (DrawEngineType *)this;
-    return DRW_texture_pool_query(
-        DST.vmempool->texture_pool, size.x, size.y, format, GPU_TEXTURE_USAGE_GENERAL, owner);
-  }
-};
 
 class Context : public compositor::Context {
  private:
@@ -55,19 +45,16 @@ class Context : public compositor::Context {
   char *info_message_;
 
  public:
-  Context(compositor::TexturePool &texture_pool, char *info_message)
-      : compositor::Context(texture_pool), info_message_(info_message)
-  {
-  }
+  Context(char *info_message) : compositor::Context(), info_message_(info_message) {}
 
   const Scene &get_scene() const override
   {
-    return *DRW_context_state_get()->scene;
+    return *DRW_context_get()->scene;
   }
 
   const bNodeTree &get_node_tree() const override
   {
-    return *DRW_context_state_get()->scene->nodetree;
+    return *DRW_context_get()->scene->nodetree;
   }
 
   bool use_gpu() const override
@@ -75,32 +62,32 @@ class Context : public compositor::Context {
     return true;
   }
 
-  bool use_file_output() const override
+  eCompositorDenoiseQaulity get_denoise_quality() const override
   {
-    return false;
+    return static_cast<eCompositorDenoiseQaulity>(
+        this->get_render_data().compositor_denoise_preview_quality);
   }
 
-  bool should_compute_node_previews() const override
+  compositor::OutputTypes needed_outputs() const override
   {
-    return false;
+    return compositor::OutputTypes::Composite | compositor::OutputTypes::Viewer;
   }
 
-  /* The viewport compositor doesn't really support the composite output, it only displays the
-   * viewer output in the viewport. Settings this to false will make the compositor use the
-   * composite output as fallback viewer if no other viewer exists. */
-  bool use_composite_output() const override
+  /* The viewport compositor does not support viewer outputs, so treat viewers as composite
+   * outputs. */
+  bool treat_viewer_as_composite_output() const override
   {
-    return false;
+    return true;
   }
 
   const RenderData &get_render_data() const override
   {
-    return DRW_context_state_get()->scene->r;
+    return DRW_context_get()->scene->r;
   }
 
   int2 get_render_size() const override
   {
-    return int2(float2(DRW_viewport_size_get()));
+    return int2(DRW_viewport_size_get());
   }
 
   /* We limit the compositing region to the camera region if in camera view, while we use the
@@ -108,20 +95,19 @@ class Context : public compositor::Context {
    * the viewport is already the camera region in that case. */
   rcti get_compositing_region() const override
   {
-    const int2 viewport_size = int2(float2(DRW_viewport_size_get()));
+    const int2 viewport_size = int2(DRW_viewport_size_get());
     const rcti render_region = rcti{0, viewport_size.x, 0, viewport_size.y};
 
-    if (DRW_context_state_get()->rv3d->persp != RV3D_CAMOB || DRW_state_is_viewport_image_render())
-    {
+    if (DRW_context_get()->rv3d->persp != RV3D_CAMOB || DRW_state_is_viewport_image_render()) {
       return render_region;
     }
 
     rctf camera_border;
-    ED_view3d_calc_camera_border(DRW_context_state_get()->scene,
-                                 DRW_context_state_get()->depsgraph,
-                                 DRW_context_state_get()->region,
-                                 DRW_context_state_get()->v3d,
-                                 DRW_context_state_get()->rv3d,
+    ED_view3d_calc_camera_border(DRW_context_get()->scene,
+                                 DRW_context_get()->depsgraph,
+                                 DRW_context_get()->region,
+                                 DRW_context_get()->v3d,
+                                 DRW_context_get()->rv3d,
                                  false,
                                  &camera_border);
 
@@ -155,7 +141,7 @@ class Context : public compositor::Context {
   compositor::Result get_pass(const Scene *scene, int view_layer, const char *pass_name) override
   {
     if (DEG_get_original_id(const_cast<ID *>(&scene->id)) !=
-        DEG_get_original_id(&DRW_context_state_get()->scene->id))
+        DEG_get_original_id(&DRW_context_get()->scene->id))
     {
       return compositor::Result(*this);
     }
@@ -187,7 +173,7 @@ class Context : public compositor::Context {
   StringRef get_view_name() const override
   {
     const SceneRenderView *view = static_cast<SceneRenderView *>(
-        BLI_findlink(&get_render_data().views, DRW_context_state_get()->v3d->multiview_eye));
+        BLI_findlink(&get_render_data().views, DRW_context_get()->v3d->multiview_eye));
     return view->name;
   }
 
@@ -206,64 +192,21 @@ class Context : public compositor::Context {
 
   void set_info_message(StringRef message) const override
   {
-    message.copy(info_message_, GPU_INFO_SIZE);
-  }
-
-  IDRecalcFlag query_id_recalc_flag(ID *id) const override
-  {
-    DrawEngineType *owner = &draw_engine_compositor_type;
-    DrawData *draw_data = DRW_drawdata_ensure(id, owner, sizeof(DrawData), nullptr, nullptr);
-    IDRecalcFlag recalc_flag = IDRecalcFlag(draw_data->recalc);
-    draw_data->recalc = IDRecalcFlag(0);
-    return recalc_flag;
+    message.copy_utf8_truncated(info_message_, GPU_INFO_SIZE);
   }
 };
 
 class Engine {
  private:
-  TexturePool texture_pool_;
   Context context_;
-  compositor::Evaluator evaluator_;
-  /* Stores the compositing region size at the time the last compositor evaluation happened. See
-   * the update_compositing_region_size method for more information. */
-  int2 last_compositing_region_size_;
 
  public:
-  Engine(char *info_message)
-      : context_(texture_pool_, info_message),
-        evaluator_(context_),
-        last_compositing_region_size_(context_.get_compositing_region_size())
-  {
-  }
+  Engine(char *info_message) : context_(info_message) {}
 
-  /* Update the compositing region size and evaluate the compositor. */
   void draw()
   {
-    update_compositing_region_size();
-    evaluator_.evaluate();
-  }
-
-  /* If the size of the compositing region changed from the last time the compositor was evaluated,
-   * update the last compositor region size and reset the evaluator. That's because the evaluator
-   * compiles the node tree in a manner that is specifically optimized for the size of the
-   * compositing region. This should be called before evaluating the compositor. */
-  void update_compositing_region_size()
-  {
-    if (last_compositing_region_size_ == context_.get_compositing_region_size()) {
-      return;
-    }
-
-    last_compositing_region_size_ = context_.get_compositing_region_size();
-
-    evaluator_.reset();
-  }
-
-  /* If the compositor node tree changed, reset the evaluator. */
-  void update(const Depsgraph *depsgraph)
-  {
-    if (DEG_id_type_updated(depsgraph, ID_NT)) {
-      evaluator_.reset();
-    }
+    compositor::Evaluator evaluator(context_);
+    evaluator.evaluate();
   }
 };
 
@@ -273,10 +216,6 @@ using namespace blender::draw::compositor_engine;
 
 struct COMPOSITOR_Data {
   DrawEngineType *engine_type;
-  DRWViewportEmptyList *fbl;
-  DRWViewportEmptyList *txl;
-  DRWViewportEmptyList *psl;
-  DRWViewportEmptyList *stl;
   Engine *instance_data;
   char info[GPU_INFO_SIZE];
 };
@@ -299,6 +238,8 @@ static void compositor_engine_free(void *instance_data)
 static void compositor_engine_draw(void *data)
 {
   COMPOSITOR_Data *compositor_data = static_cast<COMPOSITOR_Data *>(data);
+
+  DRW_submission_start();
 
 #if defined(__APPLE__)
   if (GPU_backend_get_type() == GPU_BACKEND_METAL) {
@@ -325,29 +266,13 @@ static void compositor_engine_draw(void *data)
     GPU_finish();
   }
 #endif
+  DRW_submission_end();
 }
-
-static void compositor_engine_update(void *data)
-{
-  COMPOSITOR_Data *compositor_data = static_cast<COMPOSITOR_Data *>(data);
-
-  /* Clear any info message that was set in a previous update. */
-  compositor_data->info[0] = '\0';
-
-  if (compositor_data->instance_data) {
-    compositor_data->instance_data->update(DRW_context_state_get()->depsgraph);
-  }
-}
-
-extern "C" {
-
-static const DrawEngineDataSize compositor_data_size = DRW_VIEWPORT_DATA_SIZE(COMPOSITOR_Data);
 
 DrawEngineType draw_engine_compositor_type = {
     /*next*/ nullptr,
     /*prev*/ nullptr,
     /*idname*/ N_("Compositor"),
-    /*vedata_size*/ &compositor_data_size,
     /*engine_init*/ &compositor_engine_init,
     /*engine_free*/ nullptr,
     /*instance_free*/ &compositor_engine_free,
@@ -355,9 +280,6 @@ DrawEngineType draw_engine_compositor_type = {
     /*cache_populate*/ nullptr,
     /*cache_finish*/ nullptr,
     /*draw_scene*/ &compositor_engine_draw,
-    /*view_update*/ &compositor_engine_update,
-    /*id_update*/ nullptr,
     /*render_to_image*/ nullptr,
     /*store_metadata*/ nullptr,
 };
-}

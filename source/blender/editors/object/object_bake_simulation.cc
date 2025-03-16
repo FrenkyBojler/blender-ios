@@ -2,14 +2,11 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include <fstream>
-#include <iomanip>
-#include <random>
 #include <sstream>
 
 #include "BLI_fileops.hh"
+#include "BLI_listbase.h"
 #include "BLI_path_utils.hh"
-#include "BLI_serialize.hh"
 #include "BLI_string.h"
 #include "BLI_vector.hh"
 
@@ -30,8 +27,10 @@
 #include "BKE_context.hh"
 #include "BKE_global.hh"
 #include "BKE_lib_id.hh"
+#include "BKE_library.hh"
 #include "BKE_main.hh"
 #include "BKE_modifier.hh"
+#include "BKE_node_legacy_types.hh"
 #include "BKE_node_runtime.hh"
 #include "BKE_packedFile.hh"
 #include "BKE_report.hh"
@@ -45,8 +44,6 @@
 #include "MOD_nodes.hh"
 
 #include "object_intern.hh"
-
-#include "WM_api.hh"
 
 #include "UI_interface.hh"
 
@@ -374,15 +371,15 @@ static void bake_geometry_nodes_startjob(void *customdata, wmJobWorkerStatus *wo
       continue;
     }
 
-    NodesModifierPackedBake *packed_bake = MEM_cnew<NodesModifierPackedBake>(__func__);
+    NodesModifierPackedBake *packed_bake = MEM_callocN<NodesModifierPackedBake>(__func__);
 
     packed_bake->meta_files_num = packed_data->meta_files.size();
     packed_bake->blob_files_num = packed_data->blob_files.size();
 
-    packed_bake->meta_files = MEM_cnew_array<NodesModifierBakeFile>(packed_bake->meta_files_num,
-                                                                    __func__);
-    packed_bake->blob_files = MEM_cnew_array<NodesModifierBakeFile>(packed_bake->blob_files_num,
-                                                                    __func__);
+    packed_bake->meta_files = MEM_calloc_arrayN<NodesModifierBakeFile>(packed_bake->meta_files_num,
+                                                                       __func__);
+    packed_bake->blob_files = MEM_calloc_arrayN<NodesModifierBakeFile>(packed_bake->blob_files_num,
+                                                                       __func__);
 
     auto transfer_to_bake =
         [&](NodesModifierBakeFile *bake_files, MemoryBakeFile *memory_bake_files, const int num) {
@@ -617,14 +614,14 @@ static Vector<NodeBakeRequest> collect_simulations_to_bake(Main &bmain,
       for (const bNestedNodeRef &nested_node_ref : nmd->node_group->nested_node_refs_span()) {
         const int id = nested_node_ref.id;
         const bNode *node = nmd->node_group->find_nested_node(id);
-        if (node->type != GEO_NODE_SIMULATION_OUTPUT) {
+        if (node->type_legacy != GEO_NODE_SIMULATION_OUTPUT) {
           continue;
         }
         NodeBakeRequest request;
         request.object = object;
         request.nmd = nmd;
         request.bake_id = id;
-        request.node_type = node->type;
+        request.node_type = node->type_legacy;
         request.blob_sharing = std::make_unique<bake::BlobWriteSharing>();
         if (bake::get_node_bake_target(*object, *nmd, id) == NODES_MODIFIER_BAKE_TARGET_DISK) {
           request.path = bake::get_node_bake_path(bmain, *object, *nmd, id);
@@ -940,7 +937,7 @@ static Vector<NodeBakeRequest> bake_single_node_gather_bake_request(bContext *C,
   if (node == nullptr) {
     return {};
   }
-  if (!ELEM(node->type, GEO_NODE_SIMULATION_OUTPUT, GEO_NODE_BAKE)) {
+  if (!ELEM(node->type_legacy, GEO_NODE_SIMULATION_OUTPUT, GEO_NODE_BAKE)) {
     return {};
   }
 
@@ -948,7 +945,7 @@ static Vector<NodeBakeRequest> bake_single_node_gather_bake_request(bContext *C,
   request.object = object;
   request.nmd = &nmd;
   request.bake_id = bake_id;
-  request.node_type = node->type;
+  request.node_type = node->type_legacy;
   request.blob_sharing = std::make_unique<bake::BlobWriteSharing>();
 
   const NodesModifierBake *bake = nmd.find_bake(bake_id);
@@ -964,7 +961,7 @@ static Vector<NodeBakeRequest> bake_single_node_gather_bake_request(bContext *C,
     }
   }
 
-  if (node->type == GEO_NODE_BAKE && bake->bake_mode == NODES_MODIFIER_BAKE_MODE_STILL) {
+  if (node->type_legacy == GEO_NODE_BAKE && bake->bake_mode == NODES_MODIFIER_BAKE_MODE_STILL) {
     const int current_frame = scene->r.cfra;
     request.frame_start = current_frame;
     request.frame_end = current_frame;

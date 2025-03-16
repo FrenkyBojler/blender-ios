@@ -8,50 +8,30 @@
  * Operators for dealing with GP data-blocks and layers.
  */
 
-#include <algorithm>
-#include <cmath>
-#include <cstddef>
-#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 
-#include "MEM_guardedalloc.h"
-
-#include "BLI_blenlib.h"
-#include "BLI_ghash.h"
-#include "BLI_math_geom.h"
-#include "BLI_math_matrix.h"
-#include "BLI_math_vector.h"
-#include "BLI_string_utils.hh"
+#include "BLI_listbase.h"
 #include "BLI_utildefines.h"
 
 #include "BLT_translation.hh"
 
-#include "DNA_anim_types.h"
-#include "DNA_brush_types.h"
 #include "DNA_gpencil_legacy_types.h"
-#include "DNA_material_types.h"
-#include "DNA_meshdata_types.h"
-#include "DNA_object_types.h"
-#include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
-#include "DNA_view3d_types.h"
 
 #include "BKE_anim_data.hh"
 #include "BKE_animsys.h"
 #include "BKE_brush.hh"
 #include "BKE_context.hh"
-#include "BKE_deform.hh"
 #include "BKE_fcurve_driver.h"
 #include "BKE_gpencil_legacy.h"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
-#include "BKE_material.h"
+#include "BKE_material.hh"
 #include "BKE_paint.hh"
 #include "BKE_report.hh"
 
 #include "UI_interface.hh"
-#include "UI_resources.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -62,6 +42,7 @@
 
 #include "ED_gpencil_legacy.hh"
 #include "ED_object.hh"
+#include "ED_view3d.hh"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_build.hh"
@@ -265,6 +246,10 @@ static int gpencil_layer_remove_exec(bContext *C, wmOperator *op)
   }
   else {
     BKE_gpencil_layer_active_set(gpd, gpl->next);
+  }
+
+  if (gpl->flag & GP_LAYER_IS_RULER) {
+    ED_view3d_gizmo_ruler_remove_by_gpencil_layer(C, gpl);
   }
 
   /* delete the layer now... */

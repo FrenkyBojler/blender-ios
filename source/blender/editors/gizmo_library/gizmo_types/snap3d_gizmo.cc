@@ -12,9 +12,6 @@
  * \brief Snap gizmo which exposes the location, normal and index in the props.
  */
 
-#include "MEM_guardedalloc.h"
-
-#include "BLI_math_color.h"
 #include "BLI_math_vector.h"
 
 #include "BKE_context.hh"
@@ -43,7 +40,8 @@ struct SnapGizmo3D {
 /** \name ED_gizmo_library specific API
  * \{ */
 
-SnapObjectContext *ED_gizmotypes_snap_3d_context_ensure(Scene *scene, wmGizmo * /*gz*/)
+blender::ed::transform::SnapObjectContext *ED_gizmotypes_snap_3d_context_ensure(Scene *scene,
+                                                                                wmGizmo * /*gz*/)
 {
   return ED_view3d_cursor_snap_context_ensure(scene);
 }
@@ -317,7 +315,7 @@ static void GIZMO_GT_snap_3d(wmGizmoType *gzt)
   {
     /* Get Snap Element Items enum. */
     bool free;
-    PointerRNA toolsettings_ptr = RNA_pointer_create(nullptr, &RNA_ToolSettings, nullptr);
+    PointerRNA toolsettings_ptr = RNA_pointer_create_discrete(nullptr, &RNA_ToolSettings, nullptr);
     PropertyRNA *prop = RNA_struct_find_property(&toolsettings_ptr, "snap_elements");
     RNA_property_enum_items(
         nullptr, &toolsettings_ptr, prop, &rna_enum_snap_element_items, nullptr, &free);

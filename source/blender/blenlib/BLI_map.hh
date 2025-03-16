@@ -524,6 +524,21 @@ class Map {
   }
 
   /**
+   * Returns a copy of the value that corresponds to the given key, or std::nullopt if the key is
+   * not in the map. In some cases, one may not want a copy but an actual reference to the value.
+   * In that case it's better to use #lookup_ptr instead.
+   */
+  std::optional<Value> lookup_try(const Key &key) const
+  {
+    return this->lookup_try_as(key);
+  }
+  template<typename ForwardKey> std::optional<Value> lookup_try_as(const ForwardKey &key) const
+  {
+    const Slot *slot = this->lookup_slot_ptr(key, hash_(key));
+    return (slot != nullptr) ? std::optional<Value>(*slot->value()) : std::nullopt;
+  }
+
+  /**
    * Returns a reference to the value that corresponds to the given key. This invokes undefined
    * behavior when the key is not in the map.
    */
@@ -563,9 +578,7 @@ class Map {
     if (ptr != nullptr) {
       return *ptr;
     }
-    else {
-      return Value(std::forward<ForwardValue>(default_value)...);
-    }
+    return Value(std::forward<ForwardValue>(default_value)...);
   }
 
   /**
@@ -600,7 +613,8 @@ class Map {
    * the map, it will be newly added.
    *
    * The create_value callback is only called when the key did not exist yet. It is expected to
-   * take no parameters and return the value to be inserted.
+   * take no parameters and return the value to be inserted. The callback is called before the key
+   * is copied/moved into the map.
    */
   template<typename CreateValueF>
   Value &lookup_or_add_cb(const Key &key, const CreateValueF &create_value)
