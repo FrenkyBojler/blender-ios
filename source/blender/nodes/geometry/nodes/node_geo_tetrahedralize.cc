@@ -12,7 +12,6 @@
 #include <algorithm>
 #include <unordered_set>
 #include <numeric> 
-#include <random> 
 
 
 #include <tbb/parallel_for.h>
@@ -286,8 +285,8 @@ static Mesh* prepare_complex_mesh_for_tetgen(const Mesh *mesh_in, GeoNodeExecPar
 }
 
 /**
- * Prepares a mesh for TetGen input, applying controlled perturbations to vertex positions
- * for complex meshes. This helps TetGen handle complex meshes without crashing.
+ * Prepares a mesh for TetGen input.
+ * Converts Blender mesh data to the format expected by TetGen.
  */
 static bool prepare_tetgen_input(const Mesh *mesh, tetgenio &in, GeoNodeExecParams &params, int attempt)
 {
@@ -314,107 +313,80 @@ static bool prepare_tetgen_input(const Mesh *mesh, tetgenio &in, GeoNodeExecPara
     bbox_max = math::max(bbox_max, vert_positions[i]);
   }
   
-  
+  // Calculer l'échelle du maillage sans appliquer de perturbation
   float mesh_scale = math::length(bbox_max - bbox_min);
-  float perturbation_scale = mesh_scale * 1e-6f; 
-  
   
   if (attempt >= 1) {
-    perturbation_scale *= pow(10.0f, attempt);
     params.error_message_add(NodeWarningType::Info,
                          "Attempt " + std::to_string(attempt+1) + 
-                         ": Increasing perturbations (x" + 
-                         std::to_string(pow(10.0f, attempt)) + ")");
+                         ": Trying different algorithm parameters");
   }
   
-  
-  std::random_device rd;
-  std::mt19937 gen(rd());
-  std::uniform_real_distribution<float> dist(-perturbation_scale, perturbation_scale);
-  
-  
+  // Copier les positions des sommets sans perturbation
   for (int i = 0; i < vert_positions.size(); i++) {
     float3 pos = vert_positions[i];
-    
-    
-    
-    if (attempt >= 1) {
-      pos.x += dist(gen);
-      pos.y += dist(gen);
-      pos.z += dist(gen);
-    }
     
     in.pointlist[i * 3] = pos.x;
     in.pointlist[i * 3 + 1] = pos.y;
     in.pointlist[i * 3 + 2] = pos.z;
   }
   
-  
   Span<int> corner_verts = mesh->corner_verts();
   Span<int> face_offsets = mesh->face_offsets();
   
- 
+  // Compter le nombre de triangles nécessaires
   int num_triangles = 0;
   for (int i = 0; i < mesh->faces_num; i++) {
     int face_size = face_offsets[i + 1] - face_offsets[i];
     if (face_size < 3) {
-      
       continue;
     }
     else {
-    
       num_triangles += face_size - 2;
     }
   }
   
-  
+  // Allouer les structures pour les facettes
   in.numberoffacets = num_triangles;
   in.facetlist = new tetgenio::facet[in.numberoffacets];
   in.facetmarkerlist = new int[in.numberoffacets];
   
-  int ti = 0; 
+  int ti = 0;
   
-    
+  // Créer les facettes triangulaires
   for (int i = 0; i < mesh->faces_num; i++) {
     int face_start = face_offsets[i];
     int face_size = face_offsets[i + 1] - face_start;
-    
     
     if (face_size < 3) {
       continue;
     }
     
-    
     for (int j = 0; j < face_size - 2; j++) {
-      
       tetgenio::facet *f = &in.facetlist[ti];
-    f->numberofpolygons = 1;
-    f->polygonlist = new tetgenio::polygon[f->numberofpolygons];
+      f->numberofpolygons = 1;
+      f->polygonlist = new tetgenio::polygon[f->numberofpolygons];
       f->numberofholes = 0;
       f->holelist = nullptr;
       
-      
-    tetgenio::polygon *p = &f->polygonlist[0];
+      tetgenio::polygon *p = &f->polygonlist[0];
       p->numberofvertices = 3;
-    p->vertexlist = new int[p->numberofvertices];
-    
+      p->vertexlist = new int[p->numberofvertices];
       
       p->vertexlist[0] = corner_verts[face_start];
       p->vertexlist[1] = corner_verts[face_start + j + 1];
       p->vertexlist[2] = corner_verts[face_start + j + 2];
       
-      
+      // Vérifier la validité des indices
       for (int k = 0; k < 3; k++) {
         if (p->vertexlist[k] < 0 || p->vertexlist[k] >= in.numberofpoints) {
           params.error_message_add(NodeWarningType::Error,
-                               "Invalid vertex index in face: " + std::to_string(p->vertexlist[k]));
+                                "Invalid vertex index in face: " + std::to_string(p->vertexlist[k]));
           return false;
         }
       }
       
-      
       in.facetmarkerlist[ti] = 1;
-      
       ti++;
     }
   }
@@ -2079,18 +2051,13 @@ static void node_geo_exec(GeoNodeExecParams params)
             "Mesh boundaries will not be preserved.");
       }
       
-      
-                for (int i = 0; i < in.numberofpoints * 3; i++) {
-                  double noise = ((double)rand() / RAND_MAX) * 1e-6;
-                  in.pointlist[i] += noise;
-                }
-                
+      // Ne plus ajouter de perturbations
       
       bool tetgen_success = false;
       
       try {
         // First attempt at tetrahedralization with standard settings
-                tetrahedralize(&behavior, &in, &out);
+        tetrahedralize(&behavior, &in, &out);
         tetgen_success = true;
       }
       catch (std::exception &e) {
@@ -2106,7 +2073,7 @@ static void node_geo_exec(GeoNodeExecParams params)
           in.initialize();
           out.initialize();
           
-          // Second attempt: Use stronger perturbations and safer settings
+          // Second attempt: Use safer settings without perturbations
           if (prepare_tetgen_input(mesh_to_process, in, params, 3)) {
             // Ultra-safe configuration to avoid crashes in problematic cases
             tetgenbehavior safe_behavior;
@@ -2128,12 +2095,6 @@ static void node_geo_exec(GeoNodeExecParams params)
             safe_behavior.facesout = 0;
             safe_behavior.edgesout = 0;
             safe_behavior.neighout = 0;
-            
-            // Apply stronger random perturbation to break degeneracies
-            for (int i = 0; i < in.numberofpoints * 3; i++) {
-              double noise = ((double)rand() / RAND_MAX) * 1e-4;
-              in.pointlist[i] += noise;
-            }
             
             try {
               params.error_message_add(NodeWarningType::Info,
