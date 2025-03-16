@@ -493,7 +493,8 @@ def addons_panel_draw_items(
                 item_description = item_local.tagline
                 item_tags = item_local.tags
                 if show_expanded:
-                    item_maintainer = item_local.maintainer
+                    import re
+                    item_maintainer = re.sub(r'<.*?>', "", item_local.maintainer)
                     item_version = item_local.version
                     item_doc_url = item_local.website
                     item_tracker_url = ""
@@ -533,6 +534,7 @@ def addons_panel_draw_items(
 
             if show_expanded:
                 item_maintainer = value if (value := bl_info["author"]) else ""
+                print(item_maintainer)
                 item_version = ".".join(str(x) for x in value) if (value := bl_info["version"]) else ""
                 item_doc_url = bl_info["doc_url"]
                 item_tracker_url = bl_info.get("tracker_url")
