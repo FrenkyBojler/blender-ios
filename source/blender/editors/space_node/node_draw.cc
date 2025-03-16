@@ -1087,6 +1087,8 @@ static void node_update_basis_from_declaration(
   BLI_assert(is_node_panels_supported(node));
   BLI_assert(node.runtime->panels.size() == node.num_panel_states);
 
+  const int topy = locy;
+
   /* Reset states. */
   for (bke::bNodePanelRuntime &panel_runtime : node.runtime->panels) {
     panel_runtime.header_center_y.reset();
@@ -1105,21 +1107,11 @@ static void node_update_basis_from_declaration(
   if (flat_items.is_empty()) {
     const float margin = get_margin_empty();
     locy -= margin;
+    locy = grid_snap_floor(locy, topy + NODE_DYS);
     return;
   }
 
   for (const int item_i : flat_items.index_range()) {
-    /* Apply margins. This should be the only place that applies margins between elements so that
-     * it is easy change later on. */
-    if (item_i == 0) {
-      const float margin = get_margin_from_top(flat_items);
-      locy -= margin;
-    }
-    else {
-      const float margin = get_margin_between_elements(flat_items, item_i);
-      locy -= margin;
-    }
-
     const FlatNodeItem &item_variant = flat_items[item_i];
     std::visit(
         [&](const auto &item) {
@@ -1129,6 +1121,7 @@ static void node_update_basis_from_declaration(
             bNodeSocket *output_socket = item.output;
             const nodes::PanelDeclaration *panel_decl = item.panel_decl;
             const char *parent_label = panel_decl ? panel_decl->name.c_str() : "";
+            locy = grid_snap_floor(locy, topy + NODE_DYS);
             node_update_basis_socket(
                 C, ntree, node, parent_label, input_socket, output_socket, block, locx, locy);
           }
@@ -1136,6 +1129,7 @@ static void node_update_basis_from_declaration(
             const nodes::LayoutDeclaration &decl = *item.decl;
             /* Round the node origin because text contents are always pixel-aligned. */
             const float2 loc = math::round(node_to_view(node.location));
+            locy = grid_snap_floor(locy, topy + NODE_DYS);
             uiLayout *layout = UI_block_layout(&block,
                                                UI_LAYOUT_VERTICAL,
                                                UI_LAYOUT_PANEL,
@@ -1155,6 +1149,7 @@ static void node_update_basis_from_declaration(
             int buty;
             UI_block_layout_resolve(&block, nullptr, &buty);
             locy = buty;
+            locy = grid_snap_floor(locy, topy + NODE_DYS);
           }
           else if constexpr (std::is_same_v<ItemT, flat_item::Separator>) {
             uiLayout *layout = UI_block_layout(&block,
@@ -1172,10 +1167,10 @@ static void node_update_basis_from_declaration(
           else if constexpr (std::is_same_v<ItemT, flat_item::PanelHeader>) {
             const nodes::PanelDeclaration &node_decl = *item.decl;
             bke::bNodePanelRuntime &panel_runtime = node.runtime->panels[node_decl.index];
-            const float panel_header_height = NODE_DYS;
-            locy -= panel_header_height / 2;
+            locy = grid_snap_floor(locy, topy);
             panel_runtime.header_center_y = locy;
-            locy -= panel_header_height / 2;
+            locy -= NODE_DYS;
+
             bNodeSocket *input_socket = item.input;
             if (input_socket) {
               panel_runtime.input_socket = input_socket;
@@ -1197,8 +1192,7 @@ static void node_update_basis_from_declaration(
         item_variant.item);
   }
 
-  const float bottom_margin = get_margin_to_bottom(flat_items);
-  locy -= bottom_margin;
+  locy = grid_snap_floor(locy, topy);
 
   update_collapsed_sockets(node, locx);
   tag_final_panel(node, flat_items);
