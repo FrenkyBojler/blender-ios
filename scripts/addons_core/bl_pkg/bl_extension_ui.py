@@ -534,7 +534,6 @@ def addons_panel_draw_items(
 
             if show_expanded:
                 item_maintainer = value if (value := bl_info["author"]) else ""
-                print(item_maintainer)
                 item_version = ".".join(str(x) for x in value) if (value := bl_info["version"]) else ""
                 item_doc_url = bl_info["doc_url"]
                 item_tracker_url = bl_info.get("tracker_url")
