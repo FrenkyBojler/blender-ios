@@ -391,7 +391,7 @@ float2 node_from_view(const float2 &co)
 
 float grid_snap_floor(const float x, const float offset)
 {
-  const float grid_size = ED_node_grid_size();
+  const float grid_size = NODE_GRID_STEP_SIZE;
   return floor((x - offset) / grid_size) * grid_size + offset;
 }
 
@@ -500,7 +500,7 @@ static bool node_update_basis_socket(const bContext &C,
 
   if (is_multi_input) {
     if (input_socket->runtime->total_inputs > 1) {
-      multi_input_socket_offset = (input_socket->runtime->total_inputs - 1) * ED_node_grid_size();
+      multi_input_socket_offset = (input_socket->runtime->total_inputs - 1) * NODE_GRID_STEP_SIZE;
     }
   }
 
