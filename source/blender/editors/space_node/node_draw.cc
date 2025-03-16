@@ -1037,9 +1037,6 @@ static void node_update_basis_from_socket_lists(
 
   locy = grid_snap_floor(locy, topy + NODE_DYS);
 
-  /* Output sockets. */
-  bool add_output_space = false;
-
   for (bNodeSocket *socket : node.output_sockets()) {
     /* Clear flag, conventional drawing does not support panels. */
     socket->flag &= ~SOCK_PANEL_COLLAPSED;
@@ -1050,14 +1047,10 @@ static void node_update_basis_from_socket_lists(
       if (socket->next) {
         locy -= NODE_ITEM_SPACING_Y;
       }
-      add_output_space = true;
     }
   }
 
-  const bool add_button_space = node_update_basis_buttons(
-      C, ntree, node, node.typeinfo->draw_buttons, block, locy);
-
-  bool add_input_space = false;
+  node_update_basis_buttons(C, ntree, node, node.typeinfo->draw_buttons, block, locy);
 
   /* Input sockets. */
   for (bNodeSocket *socket : node.input_sockets()) {
@@ -1070,13 +1063,7 @@ static void node_update_basis_from_socket_lists(
       if (socket->next) {
         locy -= NODE_ITEM_SPACING_Y;
       }
-      add_input_space = true;
     }
-  }
-
-  /* Little bit of padding at the bottom. */
-  if (add_input_space || add_button_space) {
-    locy -= NODE_DYS / 2;
   }
 
   locy = grid_snap_floor(locy, topy);
