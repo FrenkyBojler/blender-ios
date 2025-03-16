@@ -493,8 +493,7 @@ def addons_panel_draw_items(
                 item_description = item_local.tagline
                 item_tags = item_local.tags
                 if show_expanded:
-                    import re
-                    item_maintainer = re.sub(r'<.*?>', "", item_local.maintainer)
+                    item_maintainer = item_local.maintainer
                     item_version = item_local.version
                     item_doc_url = item_local.website
                     item_tracker_url = ""

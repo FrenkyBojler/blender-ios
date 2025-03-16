@@ -712,6 +712,12 @@ def module_bl_info(mod, *, info_basis=None):
                 _blender_manual_url_prefix(),
             )
 
+    # Remove the maintainers email while it's not private, showing prominently
+    # could cause maintainers to get direct emails instead of issue tracking systems.
+    if addon_info["author"]:
+        import re
+        addon_info["author"] =  re.sub(r'<.*?>', "", addon_info["author"])
+
     addon_info["_init"] = None
     return addon_info
 

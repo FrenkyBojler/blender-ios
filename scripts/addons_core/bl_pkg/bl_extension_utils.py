@@ -1331,15 +1331,12 @@ class PkgManifest_Normalized(NamedTuple):
             error_fn(ex)
             return None
 
-        import re
         return PkgManifest_Normalized(
             name=field_name,
             tagline=field_tagline,
             version=field_version,
             type=field_type,
-            # Remove the maintainers email while it's not private, showing prominently
-            # could cause maintainers to get direct emails instead of issue tracking systems.
-            maintainer=re.sub(r'<.*?>', "", field_maintainer),
+            maintainer=field_maintainer,
             license=license_info_to_text(field_license),
 
             # Optional.
