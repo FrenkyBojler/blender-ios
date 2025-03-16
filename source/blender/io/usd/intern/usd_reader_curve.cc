@@ -234,21 +234,17 @@ bool USDBasisCurvesReader::is_animated() const
 void USDBasisCurvesReader::read_curve_sample(Curves *curves_id, const double motionSampleTime)
 {
   pxr::VtIntArray usd_counts;
-  curve_prim_.GetCurveVertexCountsAttr().Get(&usd_counts, motionSampleTime);
-
   pxr::VtVec3fArray usd_points;
-  curve_prim_.GetPointsAttr().Get(&usd_points, motionSampleTime);
-
   pxr::VtFloatArray usd_widths;
-  curve_prim_.GetWidthsAttr().Get(&usd_widths, motionSampleTime);
-
   pxr::TfToken basis;
-  curve_prim_.GetBasisAttr().Get(&basis, motionSampleTime);
-
   pxr::TfToken type;
-  curve_prim_.GetTypeAttr().Get(&type, motionSampleTime);
-
   pxr::TfToken wrap;
+
+  curve_prim_.GetCurveVertexCountsAttr().Get(&usd_counts, motionSampleTime);
+  curve_prim_.GetPointsAttr().Get(&usd_points, motionSampleTime);
+  curve_prim_.GetWidthsAttr().Get(&usd_widths, motionSampleTime);
+  curve_prim_.GetBasisAttr().Get(&basis, motionSampleTime);
+  curve_prim_.GetTypeAttr().Get(&type, motionSampleTime);
   curve_prim_.GetWrapAttr().Get(&wrap, motionSampleTime);
 
   const CurveType curve_type = get_curve_type(type, basis);
