@@ -750,6 +750,8 @@ static GlobalSolverData build_global_solve_matrix_from_spans(
     }
   }
 
+  UNUSED_VARS(lambdas_by_type);
+
   return {std::move(H), std::move(b)};
 }
 
@@ -786,6 +788,26 @@ inline float get_component(const float4x4 &g, const int i, const int j)
   return g[i][j];
 }
 
+inline float mul_position_gradient(const float3 &gradient, const float3 &vec)
+{
+  return math::dot(gradient, vec);
+}
+
+inline float3 mul_position_gradient(const float4x4 &gradient, const float3 &vec)
+{
+  return math::transform_direction(gradient, vec);
+}
+
+inline float mul_rotation_gradient(const float4 &gradient, const float4 &vec)
+{
+  return math::dot(gradient, vec);
+}
+
+inline float4 mul_rotation_gradient(const float4x4 &gradient, const float4 &vec)
+{
+  return gradient * vec;
+}
+
 template<typename GradientT>
 void append_gradient(const IndexRange component_columns,
                      const IndexRange variable_columns,
@@ -810,7 +832,7 @@ void append_gradient(const IndexRange component_columns,
 
 /* Set matrix elements for a type of constraint.
  * Template of the component number so that vector types can be defined statically. */
-template<typename ValueT, typename PosGradT, typename RotGradT>
+template<int num_components, typename ValueT, typename PosGradT, typename RotGradT>
 static void set_global_solve_elements(const ConstraintEvalParams &params,
                                       const ConstraintVariables &variables,
                                       const IndexRange positions_range,
@@ -839,13 +861,14 @@ static void set_global_solve_elements(const ConstraintEvalParams &params,
   const int num_constraints = data.constraints.size();
   const IndexMask constraint_mask = data.constraints;
 
-  int num_components, num_position_vars, num_rotation_vars;
-  data.type->linear_solve_size(num_components, num_position_vars, num_rotation_vars);
+  int num_components_rt, num_position_vars, num_rotation_vars;
+  data.type->linear_solve_size(num_components_rt, num_position_vars, num_rotation_vars);
+  BLI_assert(num_components_rt == num_components);
   BLI_assert(num_position_vars <= 4);
   BLI_assert(num_rotation_vars <= 4);
 
   const float inv_dt = params.inv_delta_time;
-  Array<ValueT> alphas(num_constraints * num_components);
+  Array<ValueT> alphas(num_constraints);
   Array<ValueT> betas(num_constraints);
   Array<ValueT> residuals(num_constraints);
   Array<PosGradT> position_gradients[4];
@@ -937,8 +960,8 @@ static void set_global_solve_elements(const ConstraintEvalParams &params,
    * full system of equations, as described in: "Direct Position-Based Solver for Stiff Rods"
    * (Kugelstadt et al.). Adding the damping potential "beta" modifies the constraint equations:
    *
-   *         M * dx - grad(C)^T * dLambda = 0
-   *   grad(C) * dx     + alpha/dt^2 * dLambda =
+   *         M * dx  - grad(C)^T * dLambda = 0
+   *   grad(C) * dx + alpha/dt^2 * dLambda =
    *       (C + alpha/dt^2 * lambda + alpha * beta * grad(C) * (x-x0) / dt) / (1 + alpha * beta)
    *
    * The damping factor (1 + alpha * beta) is moved to the RHS to keep the matrix symmetric and
@@ -951,9 +974,28 @@ static void set_global_solve_elements(const ConstraintEvalParams &params,
     const ValueT beta = math::max(betas[index], ValueT(0.0f));
 
     const ValueT residual = residuals[index];
-    ValueT target = residual + alpha * lambdas_span[index] * params.inv_delta_time_squared;
+    ValueT target = residual + alpha * lambda * params.inv_delta_time_squared;
     if (!math::is_zero(beta)) {
-      target += alpha * beta *
+      /* Add velocity damping terms for all dependent variables. */
+      ValueT velocity = ValueT(0.0f);
+      for (const int var_i : IndexRange(num_position_vars)) {
+        const Span<PosGradT> pos_gradients = position_gradient_spans[var_i].typed<PosGradT>();
+        const int point_index = position_index_arrays[var_i][index];
+        const PosGradT &gradient = pos_gradients[point_index];
+        const float3 delta_pos = variables.positions[point_index] -
+                                 params.old_positions[point_index];
+        velocity += ValueT(mul_position_gradient(gradient, delta_pos)) * inv_dt;
+      }
+      for (const int var_i : IndexRange(num_rotation_vars)) {
+        const Span<RotGradT> rot_gradients = rotation_gradient_spans[var_i].typed<RotGradT>();
+        const int point_index = rotation_index_arrays[var_i][index];
+        const RotGradT &gradient = rot_gradients[point_index];
+        // XXX should this be angular velocity? i.e. (0, 2*Im(old_rot^T * rot)/dt)
+        const float4 delta_rot = float4(variables.rotations[point_index]) -
+                                 float4(params.old_rotations[point_index]);
+        velocity += ValueT(mul_rotation_gradient(gradient, delta_rot)) * inv_dt;
+      }
+      target += alpha * beta * velocity;
     }
     /* Damping factor. */
     target *= math::rcp(ValueT(1.0f) + alpha * beta);
@@ -983,43 +1025,43 @@ static void set_global_solve_elements(const ConstraintEvalParams &params,
    * larger type is used for output arrays. */
   switch (num_components) {
     case 1:
-      set_global_solve_elements<float, float3, float4>(params,
-                                                       variables,
-                                                       positions_range,
-                                                       rotations_range,
-                                                       components_range,
-                                                       data,
-                                                       position_index_arrays,
-                                                       rotation_index_arrays,
-                                                       lambdas,
-                                                       triplets,
-                                                       b);
+      set_global_solve_elements<1, float, float3, float4>(params,
+                                                          variables,
+                                                          positions_range,
+                                                          rotations_range,
+                                                          components_range,
+                                                          data,
+                                                          position_index_arrays,
+                                                          rotation_index_arrays,
+                                                          lambdas,
+                                                          triplets,
+                                                          b);
       break;
     case 2:
-      set_global_solve_elements<float2, float4x4, float4x4>(params,
-                                                            variables,
-                                                            positions_range,
-                                                            rotations_range,
-                                                            components_range,
-                                                            data,
-                                                            position_index_arrays,
-                                                            rotation_index_arrays,
-                                                            lambdas,
-                                                            triplets,
-                                                            b);
+      set_global_solve_elements<2, float2, float4x4, float4x4>(params,
+                                                               variables,
+                                                               positions_range,
+                                                               rotations_range,
+                                                               components_range,
+                                                               data,
+                                                               position_index_arrays,
+                                                               rotation_index_arrays,
+                                                               lambdas,
+                                                               triplets,
+                                                               b);
       break;
     case 3:
-      set_global_solve_elements<float3, float4x4, float4x4>(params,
-                                                            variables,
-                                                            positions_range,
-                                                            rotations_range,
-                                                            components_range,
-                                                            data,
-                                                            position_index_arrays,
-                                                            rotation_index_arrays,
-                                                            lambdas,
-                                                            triplets,
-                                                            b);
+      set_global_solve_elements<3, float3, float4x4, float4x4>(params,
+                                                               variables,
+                                                               positions_range,
+                                                               rotations_range,
+                                                               components_range,
+                                                               data,
+                                                               position_index_arrays,
+                                                               rotation_index_arrays,
+                                                               lambdas,
+                                                               triplets,
+                                                               b);
       break;
     default:
       BLI_assert_unreachable();
