@@ -81,7 +81,7 @@ ccl_device_noinline int svm_node_radial_tiling(
   if (calculate_segment_id) {
     stack_store_float(
         stack,
-        so.max_unit_parameter,
+        so.segment_id,
         calculate_out_segment_id(fmaxf(r_gon_sides, 2.0f), make_float2(coord.x, coord.y)));
   }
 
