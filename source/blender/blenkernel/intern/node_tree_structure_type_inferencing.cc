@@ -22,25 +22,25 @@ static nodes::StructureTypeInterface calc_node_interface(const bNode &node)
   const Span<const bNodeSocket *> input_sockets = node.input_sockets();
   const Span<const bNodeSocket *> output_sockets = node.output_sockets();
 
-  nodes::StructureTypeInterface interface;
-  interface.inputs.reinitialize(input_sockets.size());
-  interface.outputs.reinitialize(output_sockets.size());
+  nodes::StructureTypeInterface node_interface;
+  node_interface.inputs.reinitialize(input_sockets.size());
+  node_interface.outputs.reinitialize(output_sockets.size());
 
   if (node.is_undefined()) {
-    interface.inputs.fill(StructureType::Dynamic);
-    interface.outputs.fill(
+    node_interface.inputs.fill(StructureType::Dynamic);
+    node_interface.outputs.fill(
         nodes::StructureTypeInterface::OutputDependency{StructureType::Dynamic});
-    return interface;
+    return node_interface;
   }
 
   for (const int i : input_sockets.index_range()) {
     const nodes::SocketDeclaration &decl = *input_sockets[i]->runtime->declaration;
-    interface.inputs[i] = decl.structure_type;
+    node_interface.inputs[i] = decl.structure_type;
   }
 
   for (const int output : output_sockets.index_range()) {
     const nodes::SocketDeclaration &decl = *output_sockets[output]->runtime->declaration;
-    nodes::StructureTypeInterface::OutputDependency &dependency = interface.outputs[output];
+    nodes::StructureTypeInterface::OutputDependency &dependency = node_interface.outputs[output];
     dependency.type = decl.structure_type;
     if (dependency.type != StructureType::Dynamic) {
       continue;
@@ -64,7 +64,7 @@ static nodes::StructureTypeInterface calc_node_interface(const bNode &node)
     }
   }
 
-  return interface;
+  return node_interface;
 }
 
 static Array<nodes::StructureTypeInterface> calc_node_interfaces(const bNodeTree &tree)
