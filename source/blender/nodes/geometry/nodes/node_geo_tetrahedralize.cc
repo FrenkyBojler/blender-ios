@@ -45,14 +45,10 @@
 
 #include "UI_interface.hh"
 #include "UI_resources.hh"
-
 #include "node_geometry_util.hh"
-
-
 #include "tetgen.h"
 
 namespace blender::nodes::node_geo_tetrahedralize_cc {
-
 
 struct NodeGeometryTetrahedralize {
   double max_volume;          
