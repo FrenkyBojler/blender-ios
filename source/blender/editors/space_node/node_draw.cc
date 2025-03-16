@@ -1057,7 +1057,9 @@ static void node_update_basis_from_socket_lists(
     /* Clear flag, conventional drawing does not support panels. */
     socket->flag &= ~SOCK_PANEL_COLLAPSED;
 
-    locy = grid_snap_floor(locy, topy + NODE_DYS);
+    if (socket->is_visible()) {
+      locy = grid_snap_floor(locy, topy + NODE_DYS);
+    }
 
     if (node_update_basis_socket(C, ntree, node, nullptr, socket, nullptr, block, locx, locy)) {
       if (socket->next) {
