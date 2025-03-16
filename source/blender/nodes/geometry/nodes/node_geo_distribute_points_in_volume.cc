@@ -75,7 +75,7 @@ static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeGeometryDistributePointsInVolume *data = MEM_cnew<NodeGeometryDistributePointsInVolume>(
+  NodeGeometryDistributePointsInVolume *data = MEM_callocN<NodeGeometryDistributePointsInVolume>(
       __func__);
   data->mode = GEO_NODE_DISTRIBUTE_POINTS_IN_VOLUME_DENSITY_RANDOM;
   node->storage = data;
@@ -284,7 +284,7 @@ static void node_register()
   static blender::bke::bNodeType ntype;
   geo_node_type_base(
       &ntype, "GeometryNodeDistributePointsInVolume", GEO_NODE_DISTRIBUTE_POINTS_IN_VOLUME);
-  ntype.ui_name = "Distribute Points in Volume",
+  ntype.ui_name = "Distribute Points in Volume";
   ntype.ui_description = "Generate points inside a volume";
   ntype.enum_name_legacy = "DISTRIBUTE_POINTS_IN_VOLUME";
   ntype.nclass = NODE_CLASS_GEOMETRY;
