@@ -15,6 +15,7 @@
 #include "DEG_depsgraph_query.hh"
 
 #include "grease_pencil_io_intern.hh"
+#include "../modifiers/intern/MOD_grease_pencil_util.hh"
 
 #include <fmt/core.h>
 #include <fmt/format.h>
@@ -180,7 +181,8 @@ void SVGExporter::export_grease_pencil_objects(pugi::xml_node node, const int fr
       if (!layer->is_visible()) {
         continue;
       }
-      const Drawing *drawing = grease_pencil_eval->get_drawing_at(*layer, frame_number);
+      Drawing *drawing = const_cast<Drawing *>(grease_pencil_eval->get_drawing_at(*layer, frame_number));
+      modifier::greasepencil::ensure_no_bezier_curves(*drawing);
       if (drawing == nullptr) {
         continue;
       }
