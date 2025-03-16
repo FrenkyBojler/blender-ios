@@ -745,8 +745,8 @@ class MeshUVs : Overlay {
     }
 
     const SpaceImage *space_image = reinterpret_cast<const SpaceImage *>(state.space_data);
-    const bool is_active_object = ob.data != state.view_layer->basact->object->data;
     Object &ob = *ob_ref.object;
+    const bool is_active_object = ob.data == state.view_layer->basact->object->data;
     Mesh &mesh = *static_cast<Mesh *>(ob.data);
     ResourceHandle res_handle = manager.unique_handle(ob_ref);
 

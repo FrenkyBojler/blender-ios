@@ -3896,7 +3896,7 @@ static void asset_browser_add_list_view(Main *bmain)
   }
 }
 
-static void version_show_texpaint_to_show_uv(FileData *fd, Main *bmain)
+static void version_show_texpaint_to_show_uv(Main *bmain)
 {
   LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
     LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
@@ -6071,7 +6071,7 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 8)) {
-    version_show_texpaint_to_show_uv(fd, bmain);
+    version_show_texpaint_to_show_uv(bmain);
   }
 
   /* Always run this versioning; meshes are written with the legacy format which always needs to
