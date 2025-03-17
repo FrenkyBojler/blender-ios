@@ -350,7 +350,7 @@ void VKBackend::detect_workarounds(VKDevice &device)
     printf("    Vendor: %s\n", device.vendor_name().c_str());
     printf("    Device: %s\n", device.physical_device_properties_get().deviceName);
     printf("    Driver: %s\n", device.driver_version().c_str());
-    /* Force workarounds and disable workarounds. */
+    /* Force workarounds and disable extensions. */
     workarounds.not_aligned_pixel_formats = true;
     workarounds.vertex_formats.r8g8b8 = true;
     extensions.shader_output_layer = false;
