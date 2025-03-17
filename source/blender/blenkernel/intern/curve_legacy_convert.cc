@@ -194,7 +194,7 @@ Curves *curve_legacy_to_curves(const Curve &curve_legacy, const ListBase &nurbs_
     });
 
     curves.nurbs_custom_knots_update_size();
-    if (curves.nurbs_custom_knots_num() == 0) {
+    if (!curves.nurbs_has_custom_knots()) {
       return;
     }
 

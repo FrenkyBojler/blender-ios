@@ -303,7 +303,7 @@ static bke::CurvesGeometry extrude_curves(const bke::CurvesGeometry &curves,
     dst_selections[selection_i].finish();
   }
 
-  if (curves.nurbs_custom_knots_num() > 0) {
+  if (curves.nurbs_has_custom_knots()) {
     extrude_knots(curves, intervals_by_curve, copy_intervals, is_first_selected, new_curves);
   }
 

@@ -1819,7 +1819,7 @@ static void execute_realize_curve_task(const RealizeInstancesOptions &options,
   const IndexRange dst_point_range{task.start_indices.point, curves.points_num()};
   const IndexRange dst_curve_range{task.start_indices.curve, curves.curves_num()};
   const IndexRange dst_custom_knot_range{task.start_indices.custom_knot,
-                                         curves.nurbs_custom_knots_num()};
+                                         curves.nurbs_custom_knots_by_curve().total_size()};
 
   copy_transformed_positions(
       curves.positions(), task.transform, dst_curves.positions_for_write().slice(dst_point_range));

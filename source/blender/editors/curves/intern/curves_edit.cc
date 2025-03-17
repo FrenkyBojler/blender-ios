@@ -213,7 +213,7 @@ void duplicate_points(bke::CurvesGeometry &curves, const IndexMask &mask)
   curves.update_curve_types();
   curves.tag_topology_changed();
 
-  if (curves.nurbs_custom_knots_num() > 0) {
+  if (curves.nurbs_has_custom_knots()) {
     append_point_knots(src_ranges, dst_offsets.as_span(), dst_to_src_curve, curves);
   }
 
@@ -285,7 +285,7 @@ void duplicate_curves(bke::CurvesGeometry &curves, const IndexMask &mask)
   curves.update_curve_types();
   curves.tag_topology_changed();
 
-  if (curves.nurbs_custom_knots_num() > 0) {
+  if (curves.nurbs_has_custom_knots()) {
     append_curve_knots(mask, curves);
   }
 

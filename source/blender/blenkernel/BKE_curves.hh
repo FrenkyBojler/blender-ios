@@ -321,11 +321,6 @@ class CurvesGeometry : public ::CurvesGeometry {
    */
   IndexMask nurbs_custom_knot_curves(IndexMaskMemory &memory) const;
 
-  /**
-   * Returns number of curves with knot mode #NURBS_KNOT_MODE_CUSTOM.
-   */
-  int nurbs_custom_knots_num() const;
-
   bool nurbs_has_custom_knots() const;
 
   /**
@@ -953,10 +948,6 @@ inline int CurvesGeometry::points_num() const
 inline int CurvesGeometry::curves_num() const
 {
   return this->curve_num;
-}
-inline int CurvesGeometry::nurbs_custom_knots_num() const
-{
-  return this->custom_knot_num;
 }
 inline bool CurvesGeometry::nurbs_has_custom_knots() const
 {
