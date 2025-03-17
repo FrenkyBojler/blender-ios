@@ -316,6 +316,15 @@ static void stats_object_edit(Object *obedit, SceneStats *stats)
       bp++;
     }
   }
+  else if (obedit->type == OB_CURVES) {
+    using namespace blender;
+    Curves *curves = static_cast<Curves *>(obedit->data);
+    const bke::CurvesGeometry &geometry = curves->geometry.wrap();
+    const VArraySpan<bool> selection = *geometry.attributes().lookup_or_default<bool>(
+        ".selection", bke::AttrDomain::Point, true);
+    stats->totvertsel += selection.count(true);
+    stats->totvert += geometry.point_num;
+  }
 }
 
 static void stats_object_pose(const Object *ob, SceneStats *stats)
@@ -342,26 +351,38 @@ static bool stats_is_object_dynamic_topology_sculpt(const Object *ob)
 
 static void stats_object_sculpt(const Object *ob, SceneStats *stats)
 {
-  const SculptSession *ss = ob->sculpt;
-  const blender::bke::pbvh::Tree *pbvh = blender::bke::object::pbvh_get(*ob);
-  if (ss == nullptr || pbvh == nullptr) {
-    return;
-  }
+  switch (ob->type) {
+    case OB_MESH: {
+      const SculptSession *ss = ob->sculpt;
+      const blender::bke::pbvh::Tree *pbvh = blender::bke::object::pbvh_get(*ob);
+      if (ss == nullptr || pbvh == nullptr) {
+        return;
+      }
 
-  switch (pbvh->type()) {
-    case blender::bke::pbvh::Type::Mesh: {
-      const Mesh &mesh = *static_cast<const Mesh *>(ob->data);
-      stats->totvertsculpt = mesh.verts_num;
-      stats->totfacesculpt = mesh.faces_num;
+      switch (pbvh->type()) {
+        case blender::bke::pbvh::Type::Mesh: {
+          const Mesh &mesh = *static_cast<const Mesh *>(ob->data);
+          stats->totvertsculpt = mesh.verts_num;
+          stats->totfacesculpt = mesh.faces_num;
+          break;
+        }
+        case blender::bke::pbvh::Type::BMesh:
+          stats->totvertsculpt = ob->sculpt->bm->totvert;
+          stats->tottri = ob->sculpt->bm->totface;
+          break;
+        case blender::bke::pbvh::Type::Grids:
+          stats->totvertsculpt = BKE_pbvh_get_grid_num_verts(*ob);
+          stats->totfacesculpt = BKE_pbvh_get_grid_num_faces(*ob);
+          break;
+      }
       break;
     }
-    case blender::bke::pbvh::Type::BMesh:
-      stats->totvertsculpt = ob->sculpt->bm->totvert;
-      stats->tottri = ob->sculpt->bm->totface;
-      break;
-    case blender::bke::pbvh::Type::Grids:
-      stats->totvertsculpt = BKE_pbvh_get_grid_num_verts(*ob);
-      stats->totfacesculpt = BKE_pbvh_get_grid_num_faces(*ob);
+    case OB_CURVES: {
+      Curves *curves = static_cast<Curves *>(ob->data);
+      const CurvesGeometry geometry = curves->geometry;
+      stats->totvertsculpt += geometry.point_num;
+    }
+    default:
       break;
   }
 }
@@ -418,7 +439,7 @@ static void stats_update(Depsgraph *depsgraph,
     }
     FOREACH_OBJECT_END;
   }
-  else if (ob && (ob->mode & OB_MODE_SCULPT)) {
+  else if (ob && ELEM(ob->mode, OB_MODE_SCULPT, OB_MODE_SCULPT_CURVES)) {
     /* Sculpt Mode. */
     stats_object_sculpt(ob, stats);
   }
@@ -811,7 +832,7 @@ void ED_info_draw_stats(
     stats_row(col1, labels[TRIS], col2, stats_fmt.tottri, nullptr, y, height);
     return;
   }
-  else if (!(object_mode & OB_MODE_SCULPT)) {
+  else if (!ELEM(object_mode, OB_MODE_SCULPT, OB_MODE_SCULPT_CURVES)) {
     /* No objects in scene. */
     stats_row(col1, labels[OBJ], col2, stats_fmt.totobj, nullptr, y, height);
     return;
@@ -847,6 +868,9 @@ void ED_info_draw_stats(
       stats_row(col1, labels[VERTS], col2, stats_fmt.totvertsculpt, nullptr, y, height);
       stats_row(col1, labels[FACES], col2, stats_fmt.totfacesculpt, nullptr, y, height);
     }
+  }
+  else if (ob && (object_mode & OB_MODE_SCULPT_CURVES)) {
+    stats_row(col1, labels[VERTS], col2, stats_fmt.totvertsculpt, nullptr, y, height);
   }
   else if (ob && (object_mode & OB_MODE_POSE)) {
     stats_row(col1, labels[BONES], col2, stats_fmt.totbonesel, stats_fmt.totbone, y, height);
