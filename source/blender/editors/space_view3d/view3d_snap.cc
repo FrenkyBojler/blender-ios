@@ -360,6 +360,8 @@ static bool snap_selected_to_location(bContext *C,
     sub_v3_v3v3(offset_global, snap_target_global, center_global);
   }
 
+  blender::float3x3 cursor_rotmat = scene->cursor.matrix<blender::float3x3>();
+
   if (obedit) {
     float snap_target_local[3];
     ViewLayer *view_layer = CTX_data_view_layer(C);
@@ -417,6 +419,9 @@ static bool snap_selected_to_location(bContext *C,
     KeyingSet *ks = blender::animrig::get_keyingset_for_autokeying(scene, ANIM_KS_LOCATION_ID);
     ViewLayer *view_layer = CTX_data_view_layer(C);
     Vector<Object *> objects = BKE_object_pose_array_get(scene, view_layer, v3d);
+    Main *bmain = CTX_data_main(C);
+    Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
+    BKE_scene_graph_evaluated_ensure(depsgraph, bmain);
 
     for (Object *ob : objects) {
       bArmature *arm = static_cast<bArmature *>(ob->data);
@@ -457,6 +462,60 @@ static bool snap_selected_to_location(bContext *C,
           }
           else {
             BKE_armature_loc_pose_to_bone(pchan, snap_target_local, cursor_pose);
+          }
+
+          if (use_rotation) {
+            bool assign_rotation_directly = (pchan->rotmode == scene->cursor.rotation_mode);
+            BKE_pchan_mat3_to_rot(pchan, cursor_rotmat.ptr(), false);
+
+            if (pchan->rotmode == ROT_MODE_QUAT) {
+              float quat[4];
+              if (assign_rotation_directly) {
+                copy_v4_v4(quat, scene->cursor.rotation_quaternion);
+              }
+              else {
+                mat3_normalized_to_quat(quat, cursor_rotmat.ptr());
+              }
+              if (use_toolsettings) {
+                BKE_armature_set_rotation_quaternion(pchan, quat);
+              }
+              else {
+                copy_v4_v4(pchan->quat, quat);
+              }
+            }
+            else if (pchan->rotmode == ROT_MODE_AXISANGLE) {
+              float rot_axis[3];
+              float rot_angle;
+              if (assign_rotation_directly) {
+                copy_v3_v3(rot_axis, scene->cursor.rotation_axis);
+                rot_angle = scene->cursor.rotation_angle;
+              }
+              else {
+                mat3_to_axis_angle(rot_axis, &rot_angle, cursor_rotmat.ptr());
+              }
+              if (use_toolsettings) {
+                BKE_armature_set_rotation_axisangle(pchan, rot_axis, rot_angle);
+              }
+              else {
+                copy_v3_v3(pchan->rotAxis, rot_axis);
+                pchan->rotAngle = rot_angle;
+              }
+            }
+            else {
+              float rot_euler[3];
+              if (assign_rotation_directly) {
+                copy_v3_v3(rot_euler, scene->cursor.rotation_euler);
+              }
+              else {
+                mat3_to_eulO(rot_euler, EULER_ORDER_DEFAULT, cursor_rotmat.ptr());
+              }
+              if (use_toolsettings) {
+                BKE_armature_set_rotation_euler(pchan, rot_euler);
+              }
+              else {
+                copy_v3_v3(pchan->eul, rot_euler);
+              }
+            }
           }
 
           /* copy new position */
@@ -540,8 +599,6 @@ static bool snap_selected_to_location(bContext *C,
     if (blender::animrig::is_autokey_on(scene)) {
       ANIM_deselect_keys_in_animation_editors(C);
     }
-
-    blender::float3x3 cursor_rotmat = scene->cursor.matrix<blender::float3x3>();
 
     for (Object *ob : objects) {
       if (ob->parent && BKE_object_flag_test_recursive(ob->parent, OB_DONE)) {
