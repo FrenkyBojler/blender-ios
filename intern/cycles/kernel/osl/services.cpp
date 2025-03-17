@@ -982,8 +982,7 @@ bool OSLRenderServices::get_attribute(OSL::ShaderGlobals *sg,
   }
 
   /* find attribute on object */
-  const AttributeDescriptor desc = find_attribute(
-      kg, object, sd->prim, object == sd->object ? sd->type : PRIMITIVE_NONE, name.hash());
+  const AttributeDescriptor desc = find_attribute(kg, object, sd->prim, name.hash());
   if (desc.offset != ATTR_STD_NOT_FOUND) {
     return get_object_attribute(kg, sd, desc, type, derivatives, val);
   }
@@ -1456,19 +1455,26 @@ bool OSLRenderServices::get_texture_info(OSLUStringHash filename,
                                          OSLUStringHash * /*errormessage*/)
 {
   OSLTextureHandle *handle = (OSLTextureHandle *)texture_handle;
-
-  /* No texture info for other texture types. */
-  if (handle && handle->type != OSLTextureHandle::OIIO) {
-    return false;
-  }
-
-  /* Get texture info from OpenImageIO. */
   OSL::TextureSystem *ts = m_texturesys;
-  if (handle->oiio_handle) {
-    return ts->get_texture_info(
-        handle->oiio_handle, texture_thread_info, subimage, to_ustring(dataname), datatype, data);
+
+  if (handle) {
+    /* No texture info for other texture types. */
+    if (handle->type != OSLTextureHandle::OIIO) {
+      return false;
+    }
+
+    if (handle->oiio_handle) {
+      /* Get texture info from OpenImageIO. */
+      return ts->get_texture_info(handle->oiio_handle,
+                                  texture_thread_info,
+                                  subimage,
+                                  to_ustring(dataname),
+                                  datatype,
+                                  data);
+    }
   }
 
+  /* Get texture info from OpenImageIO, slower using filename. */
   return ts->get_texture_info(
       to_ustring(filename), subimage, to_ustring(dataname), datatype, data);
 }
