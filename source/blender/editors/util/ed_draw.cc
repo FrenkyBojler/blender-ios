@@ -914,11 +914,26 @@ void ED_region_image_overlay_text_draw(const char *title,
                                        const int render_size_y)
 {
   char text[32];
-  SNPRINTF(text, "%s: %d x %d", title, render_size_x, render_size_y);
-
+  SNPRINTF(text, "%s: %d x %d", IFACE_(title), render_size_x, render_size_y);
   int overlay_lineheight = (UI_style_get()->widget.points * UI_SCALE_FAC * 1.6f);
 
-  BLF_draw_default(xoffset, yoffset - overlay_lineheight * line_pos, 0.0f, text, sizeof(text));
+  BLF_set_default();
+  const int font_id = BLF_default();
+  float text_color[4];
+
+  UI_GetThemeColor4fv(TH_TEXT_HI, text_color);
+  BLF_color4fv(font_id, text_color);
+  BLF_position(font_id, xoffset, yoffset - overlay_lineheight * line_pos, 0.0f);
+
+  /* Ensure text is visible against bright background. */
+  const float shadow_color[4] = {0.0f, 0.0f, 0.0f, 0.8f};
+  BLF_enable(font_id, BLF_SHADOW);
+  BLF_shadow_offset(font_id, 0, 0);
+  BLF_shadow(font_id, FontShadowType::Outline, shadow_color);
+
+  BLF_draw(font_id, text, sizeof(text));
+
+  BLF_disable(font_id, BLF_SHADOW);
 }
 
 void ED_region_image_render_region_draw(

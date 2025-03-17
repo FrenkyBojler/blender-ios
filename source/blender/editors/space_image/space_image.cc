@@ -703,7 +703,7 @@ static void image_main_region_draw(const bContext *C, ARegion *region)
     /* Use same positioning convention as in 3D View. */
     const rcti *rect = ED_region_visible_rect(region);
     int xoffset = rect->xmin + (0.5f * U.widget_unit);
-    int yoffset = rect->ymax - (0.1f * U.widget_unit);
+    int yoffset = rect->ymax - (0.7f * U.widget_unit);
 
     ED_region_image_overlay_text_draw(
         render_size_name, xoffset, yoffset, 1, render_size_x, render_size_y);
