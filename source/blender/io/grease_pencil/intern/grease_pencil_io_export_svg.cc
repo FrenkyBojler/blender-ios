@@ -177,16 +177,23 @@ void SVGExporter::export_grease_pencil_objects(pugi::xml_node node, const int fr
     /* Use evaluated version to get strokes with modifiers. */
     Object *ob_eval = DEG_get_evaluated_object(context_.depsgraph, const_cast<Object *>(ob));
     BLI_assert(ob_eval->type == OB_GREASE_PENCIL);
-    GreasePencil *grease_pencil_eval = static_cast<GreasePencil *>(ob_eval->data);
+    const GreasePencil *grease_pencil_eval = static_cast<GreasePencil *>(ob_eval->data);
 
     for (const bke::greasepencil::Layer *layer : grease_pencil_eval->layers()) {
       if (!layer->is_visible()) {
         continue;
       }
-      Drawing *drawing = grease_pencil_eval->get_drawing_at(*layer, frame_number);
+      const Drawing *drawing = grease_pencil_eval->get_drawing_at(*layer, frame_number);
       if (drawing == nullptr) {
         continue;
       }
+
+      /* Layer node. */
+      const std::string txt = "Layer: " + layer->name();
+      ob_node.append_child(pugi::node_comment).set_value(txt.c_str());
+
+      pugi::xml_node layer_node = ob_node.append_child("g");
+      layer_node.append_attribute("id").set_value(layer->name().c_str());
 
       const bke::CurvesGeometry &curves = drawing->strokes();
       /* TODO: Instead of converting all the other curve types to poly curves, export them directly
@@ -197,17 +204,17 @@ void SVGExporter::export_grease_pencil_objects(pugi::xml_node node, const int fr
         IndexMaskMemory memory;
         const IndexMask non_poly_selection = curves.indices_for_curve_type(CURVE_TYPE_POLY, memory)
                                                  .complement(curves.curves_range(), memory);
-        drawing->strokes_for_write() = geometry::resample_to_evaluated(curves, non_poly_selection);
+
+        Drawing export_drawing;
+        export_drawing.strokes_for_write() = geometry::resample_to_evaluated(curves,
+                                                                             non_poly_selection);
+        export_drawing.tag_topology_changed();
+
+        export_grease_pencil_layer(layer_node, *ob_eval, *layer, export_drawing);
       }
-
-      /* Layer node. */
-      const std::string txt = "Layer: " + layer->name();
-      ob_node.append_child(pugi::node_comment).set_value(txt.c_str());
-
-      pugi::xml_node layer_node = ob_node.append_child("g");
-      layer_node.append_attribute("id").set_value(layer->name().c_str());
-
-      export_grease_pencil_layer(layer_node, *ob_eval, *layer, *drawing);
+      else {
+        export_grease_pencil_layer(layer_node, *ob_eval, *layer, *drawing);
+      }
     }
   }
 }
