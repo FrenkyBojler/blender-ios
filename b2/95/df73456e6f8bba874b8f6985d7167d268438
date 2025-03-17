@@ -1,2 +1,3 @@
 Referenced by commit 9ec5a0cb02f, Fix #131846: Overlay: Wireframe missing
 Referenced by issue #131846, Wireframe and Face Orientation Overlay missing
+Referenced by commit e31bfce08a4755aea2eacbd20c81ad4f15b2300f, Fix: Overlay: Broken Shading on Armature envelope
