@@ -16,6 +16,8 @@
 
 #include "BKE_tracking.h"
 
+#include "UI_interface.hh"
+
 #include "COM_algorithm_smaa.hh"
 #include "COM_node_operation.hh"
 #include "COM_utilities.hh"
@@ -23,6 +25,8 @@
 #include "node_composite_util.hh"
 
 namespace blender::nodes::node_composite_cornerpin_cc {
+
+NODE_STORAGE_FUNCS(NodeCornerPinData)
 
 static void cmp_node_cornerpin_declare(NodeDeclarationBuilder &b)
 {
@@ -51,6 +55,17 @@ static void cmp_node_cornerpin_declare(NodeDeclarationBuilder &b)
       .compositor_expects_single_value();
   b.add_output<decl::Color>("Image");
   b.add_output<decl::Float>("Plane");
+}
+
+static void node_composit_init_cornerpin(bNodeTree * /*ntree*/, bNode *node)
+{
+  NodeCornerPinData *data = MEM_callocN<NodeCornerPinData>(__func__);
+  node->storage = data;
+}
+
+static void node_composit_buts_cornerpin(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+{
+  uiItemR(layout, ptr, "interpolation", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
 }
 
 using namespace blender::compositor;
@@ -139,6 +154,9 @@ class CornerPinOperation : public NodeOperation {
     const Domain domain = compute_domain();
     Result &output = get_result("Image");
     output.allocate_texture(domain);
+    output.get_realization_options().interpolation = this->get_interpolation();
+
+    const RealizationOptions realization_options = output.get_realization_options();
 
     const int2 size = domain.size;
     parallel_for(size, [&](const int2 texel) {
@@ -159,8 +177,18 @@ class CornerPinOperation : public NodeOperation {
       float2 x_gradient = (homography_matrix[0].xy() / transformed_coordinates.z) / size.x;
       float2 y_gradient = (homography_matrix[1].xy() / transformed_coordinates.z) / size.y;
 
-      float4 sampled_color = input.sample_ewa_extended(
-          projected_coordinates, x_gradient, y_gradient);
+      float4 sampled_color; 
+      switch (realization_options.interpolation) {
+        case Interpolation::Bicubic:
+          sampled_color = input.sample_cubic_wrap(projected_coordinates, false, false);
+          break;
+        case Interpolation::Bilinear:
+          sampled_color = input.sample_bilinear_wrap(projected_coordinates, false, false);
+          break;
+        case Interpolation::Nearest:
+          sampled_color = input.sample_nearest_wrap(projected_coordinates, false, false);
+          break;
+      }
 
       /* Premultiply the mask value as an alpha. */
       float4 plane_color = sampled_color * plane_mask.load_pixel<float>(texel);
@@ -250,6 +278,21 @@ class CornerPinOperation : public NodeOperation {
     BKE_tracking_homography_between_two_quads(corners, identity_corners, homography_matrix.ptr());
     return homography_matrix;
   }
+
+  Interpolation get_interpolation() const
+  {
+    switch (node_storage(bnode()).interpolation) {
+      case CMP_NODE_INTERPOLATION_NEAREST:
+        return Interpolation::Nearest;
+      case CMP_NODE_INTERPOLATION_BILINEAR:
+        return Interpolation::Bilinear;
+      case CMP_NODE_INTERPOLATION_BICUBIC:
+        return Interpolation::Bicubic;
+    }
+
+    BLI_assert_unreachable();
+    return Interpolation::Nearest;
+  }
 };
 
 static NodeOperation *get_compositor_operation(Context &context, DNode node)
@@ -271,7 +314,11 @@ void register_node_type_cmp_cornerpin()
   ntype.enum_name_legacy = "CORNERPIN";
   ntype.nclass = NODE_CLASS_DISTORT;
   ntype.declare = file_ns::cmp_node_cornerpin_declare;
+  ntype.initfunc = file_ns::node_composit_init_cornerpin;
+  ntype.draw_buttons = file_ns::node_composit_buts_cornerpin;
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
 
+  blender::bke::node_type_storage(
+    ntype, "NodeCornerPinData", node_free_standard_storage, node_copy_standard_storage);
   blender::bke::node_register_type(ntype);
 }
