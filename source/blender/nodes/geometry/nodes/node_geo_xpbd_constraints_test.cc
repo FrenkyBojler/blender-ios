@@ -17,6 +17,60 @@
 
 namespace blender::nodes::tests {
 
+#define EXPECT_EIGEN_MATRIX_NEAR(a, b, eps) \
+  do { \
+    for (const int col : IndexRange((b).cols())) { \
+      for (const int row : IndexRange((b).rows())) { \
+        EXPECT_NEAR((a)[col][row], (b).coeff(row, col), eps); \
+      } \
+    } \
+  } while (false);
+
+#define EXPECT_EIGEN_V3_DIAG_NEAR(a, b, eps) \
+  do { \
+    EXPECT_NEAR((a)[0], (b).coeff(0, 0), eps); \
+    EXPECT_NEAR((a)[1], (b).coeff(1, 1), eps); \
+    EXPECT_NEAR((a)[2], (b).coeff(2, 2), eps); \
+  } while (false);
+
+#define EXPECT_EIGEN_V4_DIAG_NEAR(a, b, eps) \
+  do { \
+    EXPECT_NEAR((a)[0], (b).coeff(0, 0), eps); \
+    EXPECT_NEAR((a)[1], (b).coeff(1, 1), eps); \
+    EXPECT_NEAR((a)[2], (b).coeff(2, 2), eps); \
+    EXPECT_NEAR((a)[3], (b).coeff(3, 3), eps); \
+  } while (false);
+
+#define EXPECT_EIGEN_V3_COL_NEAR(a, b, eps) \
+  do { \
+    EXPECT_NEAR((a)[0], (b).coeff(0, 0), eps); \
+    EXPECT_NEAR((a)[1], (b).coeff(1, 0), eps); \
+    EXPECT_NEAR((a)[2], (b).coeff(2, 0), eps); \
+  } while (false);
+
+#define EXPECT_EIGEN_V4_COL_NEAR(a, b, eps) \
+  do { \
+    EXPECT_NEAR((a)[0], (b).coeff(0, 0), eps); \
+    EXPECT_NEAR((a)[1], (b).coeff(1, 0), eps); \
+    EXPECT_NEAR((a)[2], (b).coeff(2, 0), eps); \
+    EXPECT_NEAR((a)[3], (b).coeff(3, 0), eps); \
+  } while (false);
+
+#define EXPECT_EIGEN_V3_ROW_NEAR(a, b, eps) \
+  do { \
+    EXPECT_NEAR((a)[0], (b).coeff(0, 0), eps); \
+    EXPECT_NEAR((a)[1], (b).coeff(0, 1), eps); \
+    EXPECT_NEAR((a)[2], (b).coeff(0, 2), eps); \
+  } while (false);
+
+#define EXPECT_EIGEN_V4_ROW_NEAR(a, b, eps) \
+  do { \
+    EXPECT_NEAR((a)[0], (b).coeff(0, 0), eps); \
+    EXPECT_NEAR((a)[1], (b).coeff(0, 1), eps); \
+    EXPECT_NEAR((a)[2], (b).coeff(0, 2), eps); \
+    EXPECT_NEAR((a)[3], (b).coeff(0, 3), eps); \
+  } while (false);
+
 class XPBDSolverTest : public testing::Test {
  public:
   static void SetUpTestSuite()
@@ -593,84 +647,6 @@ inline float4x4 quaternion_matrix(const math::Quaternion &q)
   return result;
 }
 
-#define EXPECT_EIGEN_M3_NEAR(a, b, eps) \
-  do { \
-    EXPECT_NEAR((a)[0][0], (b).coeff(0, 0), eps); \
-    EXPECT_NEAR((a)[0][1], (b).coeff(1, 0), eps); \
-    EXPECT_NEAR((a)[0][2], (b).coeff(2, 0), eps); \
-    EXPECT_NEAR((a)[1][0], (b).coeff(0, 1), eps); \
-    EXPECT_NEAR((a)[1][1], (b).coeff(1, 1), eps); \
-    EXPECT_NEAR((a)[1][2], (b).coeff(2, 1), eps); \
-    EXPECT_NEAR((a)[2][0], (b).coeff(0, 2), eps); \
-    EXPECT_NEAR((a)[2][1], (b).coeff(1, 2), eps); \
-    EXPECT_NEAR((a)[2][2], (b).coeff(2, 2), eps); \
-  } while (false);
-
-#define EXPECT_EIGEN_M4_NEAR(a, b, eps) \
-  do { \
-    EXPECT_NEAR((a)[0][0], (b).coeff(0, 0), eps); \
-    EXPECT_NEAR((a)[0][1], (b).coeff(1, 0), eps); \
-    EXPECT_NEAR((a)[0][2], (b).coeff(2, 0), eps); \
-    EXPECT_NEAR((a)[0][3], (b).coeff(3, 0), eps); \
-    EXPECT_NEAR((a)[1][0], (b).coeff(0, 1), eps); \
-    EXPECT_NEAR((a)[1][1], (b).coeff(1, 1), eps); \
-    EXPECT_NEAR((a)[1][2], (b).coeff(2, 1), eps); \
-    EXPECT_NEAR((a)[1][3], (b).coeff(3, 1), eps); \
-    EXPECT_NEAR((a)[2][0], (b).coeff(0, 2), eps); \
-    EXPECT_NEAR((a)[2][1], (b).coeff(1, 2), eps); \
-    EXPECT_NEAR((a)[2][2], (b).coeff(2, 2), eps); \
-    EXPECT_NEAR((a)[2][3], (b).coeff(3, 2), eps); \
-    EXPECT_NEAR((a)[3][0], (b).coeff(0, 3), eps); \
-    EXPECT_NEAR((a)[3][1], (b).coeff(1, 3), eps); \
-    EXPECT_NEAR((a)[3][2], (b).coeff(2, 3), eps); \
-    EXPECT_NEAR((a)[3][3], (b).coeff(3, 3), eps); \
-  } while (false);
-
-#define EXPECT_EIGEN_V3_DIAG_NEAR(a, b, eps) \
-  do { \
-    EXPECT_NEAR((a)[0], (b).coeff(0, 0), eps); \
-    EXPECT_NEAR((a)[1], (b).coeff(1, 1), eps); \
-    EXPECT_NEAR((a)[2], (b).coeff(2, 2), eps); \
-  } while (false);
-
-#define EXPECT_EIGEN_V4_DIAG_NEAR(a, b, eps) \
-  do { \
-    EXPECT_NEAR((a)[0], (b).coeff(0, 0), eps); \
-    EXPECT_NEAR((a)[1], (b).coeff(1, 1), eps); \
-    EXPECT_NEAR((a)[2], (b).coeff(2, 2), eps); \
-    EXPECT_NEAR((a)[3], (b).coeff(3, 3), eps); \
-  } while (false);
-
-#define EXPECT_EIGEN_V3_COL_NEAR(a, b, eps) \
-  do { \
-    EXPECT_NEAR((a)[0], (b).coeff(0, 0), eps); \
-    EXPECT_NEAR((a)[1], (b).coeff(1, 0), eps); \
-    EXPECT_NEAR((a)[2], (b).coeff(2, 0), eps); \
-  } while (false);
-
-#define EXPECT_EIGEN_V4_COL_NEAR(a, b, eps) \
-  do { \
-    EXPECT_NEAR((a)[0], (b).coeff(0, 0), eps); \
-    EXPECT_NEAR((a)[1], (b).coeff(1, 0), eps); \
-    EXPECT_NEAR((a)[2], (b).coeff(2, 0), eps); \
-    EXPECT_NEAR((a)[3], (b).coeff(3, 0), eps); \
-  } while (false);
-
-#define EXPECT_EIGEN_V3_ROW_NEAR(a, b, eps) \
-  do { \
-    EXPECT_NEAR((a)[0], (b).coeff(0, 0), eps); \
-    EXPECT_NEAR((a)[1], (b).coeff(0, 1), eps); \
-    EXPECT_NEAR((a)[2], (b).coeff(0, 2), eps); \
-  } while (false);
-
-#define EXPECT_EIGEN_V4_ROW_NEAR(a, b, eps) \
-  do { \
-    EXPECT_NEAR((a)[0], (b).coeff(0, 0), eps); \
-    EXPECT_NEAR((a)[1], (b).coeff(0, 1), eps); \
-    EXPECT_NEAR((a)[2], (b).coeff(0, 2), eps); \
-    EXPECT_NEAR((a)[3], (b).coeff(0, 3), eps); \
-  } while (false);
-
 TEST_F(XPBDSolverTest, GlobalSolverUnconstrained)
 {
   constexpr float eps = 1e-6f;
@@ -698,9 +674,9 @@ TEST_F(XPBDSolverTest, GlobalSolverUnconstrained)
       solver_test.vars.rotations[1] * math::Quaternion(0.0f, solver_test.params.local_inertia[1]));
   const float4x4 inertia_tensor2 = quaternion_matrix(
       solver_test.vars.rotations[2] * math::Quaternion(0.0f, solver_test.params.local_inertia[2]));
-  EXPECT_EIGEN_M4_NEAR(inertia_tensor0, H.block(9, 9, 4, 4), eps);
-  EXPECT_EIGEN_M4_NEAR(inertia_tensor1, H.block(13, 13, 4, 4), eps);
-  EXPECT_EIGEN_M4_NEAR(inertia_tensor2, H.block(17, 17, 4, 4), eps);
+  EXPECT_EIGEN_MATRIX_NEAR(inertia_tensor0, H.block(9, 9, 4, 4), eps);
+  EXPECT_EIGEN_MATRIX_NEAR(inertia_tensor1, H.block(13, 13, 4, 4), eps);
+  EXPECT_EIGEN_MATRIX_NEAR(inertia_tensor2, H.block(17, 17, 4, 4), eps);
 
   /* Residual for motion equations should be zero. */
   for (const int i : IndexRange(21)) {
@@ -714,24 +690,59 @@ TEST_F(XPBDSolverTest, GlobalSolverUnconstrained)
   auto compliance_v = [&](const float3 &alpha, const float3 &beta) {
     return alpha * inv_dt_sq / (float3(1.0f) + alpha * beta);
   };
+
   auto target_residual_f =
-      [&](const float residual, const float alpha, const float beta, const float lambda) {
-        return (residual + alpha * lambda * inv_dt_sq) / (1.0f + alpha * beta);
-      };
-  auto target_velocity_f =
-      [&](const float alpha, const float beta, const int point_index, const float3 &gradient) {
-        const float3 velocity = (solver_test.vars.positions[point_index] -
-                                 solver_test.params.old_positions[point_index]) *
-                                inv_dt;
-        return (alpha * beta * math::dot(gradient, velocity)) / (1.0f + alpha * beta);
-      };
-  auto target_angular_velocity_f =
-      [&](const float alpha, const float beta, const int point_index, const float4x4 &gradient) {
-        const float4 velocity = (solver_test.vars.positions[point_index] -
-                                 solver_test.params.old_positions[point_index]) *
-                                inv_dt;
-        return (alpha * beta * math::dot(gradient, velocity)) / (1.0f + alpha * beta);
-      };
+      [&](const float residual, const float alpha, const float beta, const float lambda) -> float {
+    return (residual + alpha * lambda * inv_dt_sq) / (1.0f + alpha * beta);
+  };
+  auto target_residual_v = [&](const float3 &residual,
+                               const float3 &alpha,
+                               const float3 &beta,
+                               const float3 &lambda) -> float3 {
+    return (residual + alpha * lambda * inv_dt_sq) / (float3(1.0f) + alpha * beta);
+  };
+
+  auto target_velocity_f = [&](const float alpha,
+                               const float beta,
+                               const int point_index,
+                               const float3 &gradient) -> float {
+    const float3 velocity = (solver_test.vars.positions[point_index] -
+                             solver_test.params.old_positions[point_index]) *
+                            inv_dt;
+    return (alpha * beta * math::dot(gradient, velocity)) / (1.0f + alpha * beta);
+  };
+  auto target_velocity_v = [&](const float3 &alpha,
+                               const float3 &beta,
+                               const int point_index,
+                               const float4x4 &gradient) -> float3 {
+    const float3 velocity = (solver_test.vars.positions[point_index] -
+                             solver_test.params.old_positions[point_index]) *
+                            inv_dt;
+    return (alpha * beta * (velocity * gradient.view<3, 3>())) / (1.0f + alpha * beta);
+  };
+
+  auto target_angular_velocity_f = [&](const float alpha,
+                                       const float beta,
+                                       const int point_index,
+                                       const float4x4 &gradient) -> float {
+    const float4 velocity = (float4(solver_test.vars.rotations[point_index]) -
+                             float4(solver_test.params.old_rotations[point_index])) *
+                            inv_dt;
+    /* Note: gradient is actually transpose of the Jacobian, each column is the derivative of
+     * one constraint variable. */
+    return (alpha * beta * math::dot(gradient[0], velocity)) / (1.0f + alpha * beta);
+  };
+  auto target_angular_velocity_v = [&](const float3 &alpha,
+                                       const float3 &beta,
+                                       const int point_index,
+                                       const float4x4 &gradient) -> float3 {
+    const float4 velocity = (float4(solver_test.vars.rotations[point_index]) -
+                             float4(solver_test.params.old_rotations[point_index])) *
+                            inv_dt;
+    /* Note: gradient is actually transpose of the Jacobian, each column is the derivative of
+     * one constraint variable. */
+    return (alpha * beta * (velocity * gradient.view<3, 4>())) / (float3(1.0f) + alpha * beta);
+  };
 
   {
     const auto &test_data = solver_test.position_goal;
@@ -739,36 +750,38 @@ TEST_F(XPBDSolverTest, GlobalSolverUnconstrained)
     EXPECT_NEAR(compliance_f(test_data.alphas[0], test_data.betas[0]), H.coeff(21, 21), eps);
     EXPECT_NEAR(compliance_f(test_data.alphas[1], test_data.betas[1]), H.coeff(22, 22), eps);
 
-    float residual0, residual1;
-    float3 pos_gradient0, pos_gradient1;
+    float residual[2];
+    float3 pos_gradient[2];
     xpbd_constraints::eval_position_goal_elements(test_data.goal_position[0],
                                                   solver_test.vars.positions[test_data.point1[0]],
-                                                  residual0,
-                                                  pos_gradient0);
-    xpbd_constraints::eval_position_goal_elements(test_data.goal_position[0],
+                                                  residual[0],
+                                                  pos_gradient[0]);
+    xpbd_constraints::eval_position_goal_elements(test_data.goal_position[1],
                                                   solver_test.vars.positions[test_data.point1[1]],
-                                                  residual1,
-                                                  pos_gradient1);
-    EXPECT_EIGEN_V3_ROW_NEAR(pos_gradient0, H.block(21, 0, 1, 3), eps);
-    EXPECT_EIGEN_V3_ROW_NEAR(pos_gradient1, H.block(22, 6, 1, 3), eps);
-    EXPECT_EIGEN_V3_COL_NEAR(pos_gradient0, H.block(0, 21, 3, 1), eps);
-    EXPECT_EIGEN_V3_COL_NEAR(pos_gradient1, H.block(6, 22, 3, 1), eps);
+                                                  residual[1],
+                                                  pos_gradient[1]);
+    EXPECT_EIGEN_V3_ROW_NEAR(pos_gradient[0], H.block(21, 0, 1, 3), eps);
+    EXPECT_EIGEN_V3_COL_NEAR(pos_gradient[0], H.block(0, 21, 3, 1), eps);
+    EXPECT_EIGEN_V3_ROW_NEAR(pos_gradient[1], H.block(22, 6, 1, 3), eps);
+    EXPECT_EIGEN_V3_COL_NEAR(pos_gradient[1], H.block(6, 22, 3, 1), eps);
 
     /* Constraint lambda residuals. */
-    const float3 velocity_p0 = (solver_test.vars.positions[0] -
-                                solver_test.params.old_positions[0]) *
-                               inv_dt;
-    const float3 velocity_p2 = (solver_test.vars.positions[2] -
-                                solver_test.params.old_positions[2]) *
-                               inv_dt;
-    const float damping_factor0 = 1.0f / (1.0f + alpha0 * beta0);
-    const float damping_factor1 = 1.0f / (1.0f + alpha1 * beta1);
-    const float target0 = (residual0 + alpha0 * test_data.lambdas[0] * inv_dt_sq +
-                           alpha0 * beta0 * math::dot(pos_gradient0, velocity_p0)) *
-                          damping_factor0;
-    const float target1 = (residual1 + alpha1 * test_data.lambdas[1] * inv_dt_sq +
-                           alpha0 * beta1 * math::dot(pos_gradient1, velocity_p2)) *
-                          damping_factor1;
+    const float target0 = target_residual_f(residual[0],
+                                            test_data.alphas[0],
+                                            test_data.betas[0],
+                                            test_data.lambdas[0]) +
+                          target_velocity_f(test_data.alphas[0],
+                                            test_data.betas[0],
+                                            test_data.point1[0],
+                                            pos_gradient[0]);
+    const float target1 = target_residual_f(residual[1],
+                                            test_data.alphas[1],
+                                            test_data.betas[1],
+                                            test_data.lambdas[1]) +
+                          target_velocity_f(test_data.alphas[1],
+                                            test_data.betas[1],
+                                            test_data.point1[1],
+                                            pos_gradient[1]);
     EXPECT_NEAR(target0, b[21], eps);
     EXPECT_NEAR(target1, b[22], eps);
   }
@@ -779,7 +792,7 @@ TEST_F(XPBDSolverTest, GlobalSolverUnconstrained)
     EXPECT_EIGEN_V3_DIAG_NEAR(
         compliance_v(test_data.alphas[0], test_data.betas[0]), H.block(23, 23, 3, 3), eps);
     EXPECT_EIGEN_V3_DIAG_NEAR(
-        compliance_v(test_data.alphas[0], test_data.betas[0]), H.block(26, 26, 3, 3), eps);
+        compliance_v(test_data.alphas[1], test_data.betas[1]), H.block(26, 26, 3, 3), eps);
 
     float3 residual[2];
     float4x4 rot_gradient1[2], rot_gradient2[2];
@@ -789,36 +802,42 @@ TEST_F(XPBDSolverTest, GlobalSolverUnconstrained)
                                                residual[0],
                                                rot_gradient1[0],
                                                rot_gradient2[0]);
-    xpbd_constraints::eval_bend_twist_elements(test_data.darboux_vector[0],
-                                               solver_test.vars.rotations[test_data.point1[0]],
-                                               solver_test.vars.rotations[test_data.point2[0]],
-                                               residual[0],
-                                               rot_gradient1[0],
-                                               rot_gradient2[0]);
-    xpbd_constraints::eval_bend_twist_elements(
-        test_data.darboux_vector[0], solver_test.vars.positions[point1], residual1, pos_gradient1);
-    EXPECT_EIGEN_V3_ROW_NEAR(pos_gradient0, H.block(21, 0, 1, 3), eps);
-    EXPECT_EIGEN_V3_ROW_NEAR(pos_gradient1, H.block(22, 6, 1, 3), eps);
-    EXPECT_EIGEN_V3_COL_NEAR(pos_gradient0, H.block(0, 21, 3, 1), eps);
-    EXPECT_EIGEN_V3_COL_NEAR(pos_gradient1, H.block(6, 22, 3, 1), eps);
+    xpbd_constraints::eval_bend_twist_elements(test_data.darboux_vector[1],
+                                               solver_test.vars.rotations[test_data.point1[1]],
+                                               solver_test.vars.rotations[test_data.point2[1]],
+                                               residual[1],
+                                               rot_gradient1[1],
+                                               rot_gradient2[1]);
+    EXPECT_EIGEN_MATRIX_NEAR(rot_gradient1[0], H.block(23, 13, 3, 4), eps);
+    EXPECT_EIGEN_MATRIX_NEAR(rot_gradient1[0], H.block(13, 23, 4, 3), eps);
+    EXPECT_EIGEN_MATRIX_NEAR(rot_gradient2[0], H.block(23, 17, 3, 4), eps);
+    EXPECT_EIGEN_MATRIX_NEAR(rot_gradient2[0], H.block(17, 23, 4, 3), eps);
+    EXPECT_EIGEN_MATRIX_NEAR(rot_gradient1[1], H.block(26, 9, 3, 4), eps);
+    EXPECT_EIGEN_MATRIX_NEAR(rot_gradient1[1], H.block(9, 26, 4, 3), eps);
+    EXPECT_EIGEN_MATRIX_NEAR(rot_gradient2[1], H.block(26, 13, 3, 4), eps);
+    EXPECT_EIGEN_MATRIX_NEAR(rot_gradient2[1], H.block(13, 26, 4, 3), eps);
 
     /* Constraint lambda residuals. */
-    const float3 velocity_p0 = (solver_test.vars.positions[0] -
-                                solver_test.params.old_positions[0]) *
-                               inv_dt;
-    const float3 velocity_p2 = (solver_test.vars.positions[2] -
-                                solver_test.params.old_positions[2]) *
-                               inv_dt;
-    const float damping_factor0 = 1.0f / (1.0f + alpha0 * beta0);
-    const float damping_factor1 = 1.0f / (1.0f + alpha1 * beta1);
-    const float target0 = (residual0 + alpha0 * test_data.lambdas[0] * inv_dt_sq +
-                           alpha0 * beta0 * math::dot(pos_gradient0, velocity_p0)) *
-                          damping_factor0;
-    const float target1 = (residual1 + alpha1 * test_data.lambdas[1] * inv_dt_sq +
-                           alpha0 * beta1 * math::dot(pos_gradient1, velocity_p2)) *
-                          damping_factor1;
-    EXPECT_NEAR(target0, b[21], eps);
-    EXPECT_NEAR(target1, b[22], eps);
+    const float3 target0 =
+        target_residual_v(
+            residual[0], test_data.alphas[0], test_data.betas[0], test_data.lambdas[0]) +
+        target_angular_velocity_v(
+            test_data.alphas[0], test_data.betas[0], test_data.point1[0], rot_gradient1[0]) +
+        target_angular_velocity_v(
+            test_data.alphas[0], test_data.betas[0], test_data.point2[0], rot_gradient2[0]);
+    const float3 target1 =
+        target_residual_v(
+            residual[1], test_data.alphas[1], test_data.betas[1], test_data.lambdas[1]) +
+        target_angular_velocity_v(
+            test_data.alphas[1], test_data.betas[1], test_data.point1[1], rot_gradient1[1]) +
+        target_angular_velocity_v(
+            test_data.alphas[1], test_data.betas[1], test_data.point2[1], rot_gradient2[1]);
+    EXPECT_NEAR(target0.x, b[23], eps);
+    EXPECT_NEAR(target0.y, b[24], eps);
+    EXPECT_NEAR(target0.z, b[25], eps);
+    EXPECT_NEAR(target1.x, b[26], eps);
+    EXPECT_NEAR(target1.y, b[27], eps);
+    EXPECT_NEAR(target1.z, b[28], eps);
   }
 }
 
