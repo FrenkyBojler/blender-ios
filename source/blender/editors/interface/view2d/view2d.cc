@@ -1357,12 +1357,14 @@ void UI_view2d_dot_grid_draw(const View2D *v2d,
     immUniform4fv("color", color);
     immBegin(GPU_PRIM_POINTS, count_x * count_y);
 
+    /* Offset by half so that sockets don't directly overlap the grid. */
+    const float offset = 0.5f * min_step;
     /* Theoretically drawing on top of lower grid levels could be avoided, but it would also
      * increase the complexity of this loop, which isn't worth the time at the moment. */
     for (int i_y = 0; i_y < count_y; i_y++) {
-      const float y = start_y + step * i_y;
+      const float y = start_y + step * i_y + offset;
       for (int i_x = 0; i_x < count_x; i_x++) {
-        const float x = start_x + step * i_x;
+        const float x = start_x + step * i_x + offset;
         immVertex2f(pos, x + point_size_offset, y + point_size_offset);
       }
     }

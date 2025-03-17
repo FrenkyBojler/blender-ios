@@ -1019,7 +1019,7 @@ static float nearest_node_grid_coord(float co)
 {
   /* Size and location of nodes are independent of UI scale, so grid size should be independent of
    * UI scale as well. */
-  float grid_size = grid_size_get() / UI_SCALE_FAC;
+  float grid_size = grid_size_get() / NODE_VIEW_SCALE_FAC;
   float rest = fmod(co, grid_size);
   float offset = rest - grid_size / 2 >= 0 ? grid_size : 0;
 
@@ -1057,8 +1057,8 @@ static int node_resize_modal(bContext *C, wmOperator *op, const wmEvent *event)
       WM_event_drag_start_mval(event, region, mval);
       float mx, my;
       UI_view2d_region_to_view(&region->v2d, mval.x, mval.y, &mx, &my);
-      float dx = (mx - nsw->mxstart) / UI_SCALE_FAC;
-      const float dy = (my - nsw->mystart) / UI_SCALE_FAC;
+      float dx = (mx - nsw->mxstart) / NODE_VIEW_SCALE_FAC;
+      const float dy = (my - nsw->mystart) / NODE_VIEW_SCALE_FAC;
 
       if (node) {
         float *pwidth = &node->width;
@@ -1089,8 +1089,8 @@ static int node_resize_modal(bContext *C, wmOperator *op, const wmEvent *event)
 
         /* Height works the other way round. */
         {
-          float heightmin = UI_SCALE_FAC * node->typeinfo->minheight;
-          float heightmax = UI_SCALE_FAC * node->typeinfo->maxheight;
+          float heightmin = NODE_VIEW_SCALE_FAC * node->typeinfo->minheight;
+          float heightmax = NODE_VIEW_SCALE_FAC * node->typeinfo->maxheight;
           if (nsw->directions & NODE_RESIZE_TOP) {
             float locmin = nsw->oldlocy - nsw->oldheight;
 

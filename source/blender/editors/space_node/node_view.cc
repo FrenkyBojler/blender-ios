@@ -397,7 +397,7 @@ static int backimage_fit_exec(bContext *C, wmOperator * /*op*/)
 
   BKE_image_release_ibuf(ima, ibuf, lock);
 
-  snode->zoom *= min_ff(facx, facy) * UI_SCALE_FAC;
+  snode->zoom *= min_ff(facx, facy) * NODE_VIEW_SCALE_FAC;
 
   snode->xof = 0;
   snode->yof = 0;

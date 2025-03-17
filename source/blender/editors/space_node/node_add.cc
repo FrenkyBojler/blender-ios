@@ -69,8 +69,8 @@ namespace blender::ed::space_node {
 
 static void position_node_based_on_mouse(bNode &node, const float2 &location)
 {
-  node.location[0] = location.x - NODE_DY * 1.5f / UI_SCALE_FAC;
-  node.location[1] = location.y + NODE_DY * 0.5f / UI_SCALE_FAC;
+  node.location[0] = location.x - NODE_DY * 1.5f / NODE_VIEW_SCALE_FAC;
+  node.location[1] = location.y + NODE_DY * 0.5f / NODE_VIEW_SCALE_FAC;
 }
 
 bNode *add_node(const bContext &C, const StringRef idname, const float2 &location)
@@ -215,8 +215,8 @@ static int add_reroute_exec(bContext *C, wmOperator *op)
     const float2 insert_point = std::accumulate(
                                     cuts.values().begin(), cuts.values().end(), float2(0)) /
                                 cuts.size();
-    reroute->location[0] = insert_point.x / UI_SCALE_FAC;
-    reroute->location[1] = insert_point.y / UI_SCALE_FAC;
+    reroute->location[0] = insert_point.x / NODE_VIEW_SCALE_FAC;
+    reroute->location[1] = insert_point.y / NODE_VIEW_SCALE_FAC;
 
     /* Attach the reroute node to frame nodes behind it. */
     for (const int i : frame_nodes.index_range()) {
@@ -366,8 +366,8 @@ static int node_add_group_invoke(bContext *C, wmOperator *op, const wmEvent *eve
                            &snode->runtime->cursor[0],
                            &snode->runtime->cursor[1]);
 
-  snode->runtime->cursor[0] /= UI_SCALE_FAC;
-  snode->runtime->cursor[1] /= UI_SCALE_FAC;
+  snode->runtime->cursor[0] /= NODE_VIEW_SCALE_FAC;
+  snode->runtime->cursor[1] /= NODE_VIEW_SCALE_FAC;
 
   return node_add_group_exec(C, op);
 }
@@ -462,7 +462,7 @@ static int node_add_group_asset_invoke(bContext *C, wmOperator *op, const wmEven
                            &snode.runtime->cursor[0],
                            &snode.runtime->cursor[1]);
 
-  snode.runtime->cursor /= UI_SCALE_FAC;
+  snode.runtime->cursor /= NODE_VIEW_SCALE_FAC;
 
   if (!add_node_group_asset(*C, *asset, *op->reports)) {
     return OPERATOR_CANCELLED;
@@ -566,8 +566,8 @@ static int node_add_object_invoke(bContext *C, wmOperator *op, const wmEvent *ev
                            &snode->runtime->cursor[0],
                            &snode->runtime->cursor[1]);
 
-  snode->runtime->cursor[0] /= UI_SCALE_FAC;
-  snode->runtime->cursor[1] /= UI_SCALE_FAC;
+  snode->runtime->cursor[0] /= NODE_VIEW_SCALE_FAC;
+  snode->runtime->cursor[1] /= NODE_VIEW_SCALE_FAC;
 
   return node_add_object_exec(C, op);
 }
@@ -653,8 +653,8 @@ static int node_add_collection_invoke(bContext *C, wmOperator *op, const wmEvent
                            &snode->runtime->cursor[0],
                            &snode->runtime->cursor[1]);
 
-  snode->runtime->cursor[0] /= UI_SCALE_FAC;
-  snode->runtime->cursor[1] /= UI_SCALE_FAC;
+  snode->runtime->cursor[0] /= NODE_VIEW_SCALE_FAC;
+  snode->runtime->cursor[1] /= NODE_VIEW_SCALE_FAC;
 
   return node_add_collection_exec(C, op);
 }
@@ -858,8 +858,8 @@ static int node_add_file_invoke(bContext *C, wmOperator *op, const wmEvent *even
                            &snode->runtime->cursor[0],
                            &snode->runtime->cursor[1]);
 
-  snode->runtime->cursor[0] /= UI_SCALE_FAC;
-  snode->runtime->cursor[1] /= UI_SCALE_FAC;
+  snode->runtime->cursor[0] /= NODE_VIEW_SCALE_FAC;
+  snode->runtime->cursor[1] /= NODE_VIEW_SCALE_FAC;
 
   if (WM_operator_properties_id_lookup_is_set(op->ptr) ||
       RNA_struct_property_is_set(op->ptr, "filepath"))
@@ -1002,8 +1002,8 @@ static int node_add_material_invoke(bContext *C, wmOperator *op, const wmEvent *
                            &snode->runtime->cursor[0],
                            &snode->runtime->cursor[1]);
 
-  snode->runtime->cursor[0] /= UI_SCALE_FAC;
-  snode->runtime->cursor[1] /= UI_SCALE_FAC;
+  snode->runtime->cursor[0] /= NODE_VIEW_SCALE_FAC;
+  snode->runtime->cursor[1] /= NODE_VIEW_SCALE_FAC;
 
   return node_add_material_exec(C, op);
 }
@@ -1109,8 +1109,8 @@ static int node_add_import_node_invoke(bContext *C, wmOperator *op, const wmEven
                            &snode->runtime->cursor[0],
                            &snode->runtime->cursor[1]);
 
-  snode->runtime->cursor[0] /= UI_SCALE_FAC;
-  snode->runtime->cursor[1] /= UI_SCALE_FAC;
+  snode->runtime->cursor[0] /= NODE_VIEW_SCALE_FAC;
+  snode->runtime->cursor[1] /= NODE_VIEW_SCALE_FAC;
 
   return node_add_import_node_exec(C, op);
 }
@@ -1225,8 +1225,8 @@ static int node_add_color_invoke(bContext *C, wmOperator *op, const wmEvent *eve
                            &snode->runtime->cursor[0],
                            &snode->runtime->cursor[1]);
 
-  snode->runtime->cursor[0] /= UI_SCALE_FAC;
-  snode->runtime->cursor[1] /= UI_SCALE_FAC;
+  snode->runtime->cursor[0] /= NODE_VIEW_SCALE_FAC;
+  snode->runtime->cursor[1] /= NODE_VIEW_SCALE_FAC;
 
   return node_add_color_exec(C, op);
 }

@@ -1978,7 +1978,7 @@ void node_draw_nodesocket(const rctf *rect,
 #define NODELINK_GROUP_SIZE 256
 #define LINK_RESOL 24
 #define LINK_WIDTH 2.5f
-#define ARROW_SIZE (7 * UI_SCALE_FAC)
+#define ARROW_SIZE (7 * NODE_VIEW_SCALE_FAC)
 
 /* Reroute arrow shape and mute bar. These are expanded here and shrunk in the GLSL code.
  * See: `gpu_shader_2D_nodelink_vert.glsl`. */
@@ -2370,11 +2370,11 @@ static NodeLinkDrawConfig nodelink_get_draw_config(const bContext &C,
   const bool gizmo_link = node_link_is_gizmo_link(snode, link);
 
   draw_config.dash_factor = field_link ? 0.75f : 1.0f;
-  draw_config.dash_length = 10.0f * UI_SCALE_FAC;
+  draw_config.dash_length = 10.0f * NODE_VIEW_SCALE_FAC;
 
   const float scale = UI_view2d_scale_get_x(&v2d);
   /* Clamp the thickness to make the links more readable when zooming out. */
-  draw_config.thickness = LINK_WIDTH * max_ff(UI_SCALE_FAC * scale, 1.0f) *
+  draw_config.thickness = LINK_WIDTH * max_ff(NODE_VIEW_SCALE_FAC * scale, 1.0f) *
                           (field_link ? 0.7f : 1.0f);
   draw_config.has_back_link = gizmo_link;
   draw_config.highlighted = link.flag & NODE_LINK_TEMP_HIGHLIGHT;
@@ -2544,7 +2544,7 @@ void node_draw_link(const bContext &C,
 std::array<float2, 4> node_link_bezier_points_dragged(const SpaceNode &snode,
                                                       const bNodeLink &link)
 {
-  const float2 cursor = snode.runtime->cursor * UI_SCALE_FAC;
+  const float2 cursor = snode.runtime->cursor * NODE_VIEW_SCALE_FAC;
   std::array<float2, 4> points;
   points[0] = link.fromsock ?
                   socket_link_connection_location(*link.fromnode, *link.fromsock, link) :

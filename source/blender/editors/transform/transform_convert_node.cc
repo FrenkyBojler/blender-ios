@@ -137,7 +137,7 @@ static void createTransNodeData(bContext * /*C*/, TransInfo *t)
   tc->data_2d = MEM_calloc_arrayN<TransData2D>(tc->data_len, __func__);
 
   for (const int i : nodes.index_range()) {
-    create_transform_data_for_node(tc->data[i], tc->data_2d[i], *nodes[i], UI_SCALE_FAC);
+    create_transform_data_for_node(tc->data[i], tc->data_2d[i], *nodes[i], NODE_VIEW_SCALE_FAC);
   }
 }
 
@@ -201,7 +201,7 @@ static void move_child_nodes(bNode &node, const float2 &delta)
 
 static void flushTransNodes(TransInfo *t)
 {
-  const float dpi_fac = UI_SCALE_FAC;
+  const float dpi_fac = NODE_VIEW_SCALE_FAC;
   SpaceNode *snode = static_cast<SpaceNode *>(t->area->spacedata.first);
 
   TransCustomDataNode *customdata = (TransCustomDataNode *)t->custom.type.data;

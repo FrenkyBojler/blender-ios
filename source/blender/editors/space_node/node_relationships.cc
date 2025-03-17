@@ -120,7 +120,7 @@ static void pick_input_link_by_link_intersect(const bContext &C,
   bNode &node = socket->owner_node();
 
   /* Distance to test overlapping of cursor on link. */
-  const float cursor_link_touch_distance = 12.5f * UI_SCALE_FAC;
+  const float cursor_link_touch_distance = 12.5f * NODE_VIEW_SCALE_FAC;
 
   bNodeLink *link_to_pick = nullptr;
   clear_picking_highlight(&node_tree.links);
@@ -672,7 +672,7 @@ static void position_viewer_node(bNodeTree &tree,
   std::optional<float2> new_viewer_position;
 
   const Vector<float2> position_candidates = get_viewer_node_position_candidates(
-      main_candidate, 50 * UI_SCALE_FAC, 800 * UI_SCALE_FAC);
+      main_candidate, 50 * NODE_VIEW_SCALE_FAC, 800 * NODE_VIEW_SCALE_FAC);
   for (const float2 &candidate_pos : position_candidates) {
     rctf candidate;
     candidate.xmin = candidate_pos.x;
@@ -700,7 +700,7 @@ static void position_viewer_node(bNodeTree &tree,
     new_viewer_position = main_candidate;
   }
 
-  const float2 old_position = float2(viewer_node.location) * UI_SCALE_FAC;
+  const float2 old_position = float2(viewer_node.location) * NODE_VIEW_SCALE_FAC;
   if (old_position.x > node_to_view.runtime->draw_bounds.xmax) {
     if (BLI_rctf_inside_rctf(&region_bounds, &viewer_node.runtime->draw_bounds)) {
       /* Measure distance from right edge of the node to view and the left edge of the
@@ -723,8 +723,8 @@ static void position_viewer_node(bNodeTree &tree,
     }
   }
 
-  viewer_node.location[0] = new_viewer_position->x / UI_SCALE_FAC;
-  viewer_node.location[1] = new_viewer_position->y / UI_SCALE_FAC;
+  viewer_node.location[0] = new_viewer_position->x / NODE_VIEW_SCALE_FAC;
+  viewer_node.location[1] = new_viewer_position->y / NODE_VIEW_SCALE_FAC;
   viewer_node.parent = nullptr;
 }
 
@@ -769,8 +769,8 @@ static int view_socket(const bContext &C,
   if (viewer_node == nullptr) {
     const float2 socket_location = bsocket_to_view.runtime->location;
     const int viewer_type = get_default_viewer_type(&C);
-    const float2 location{socket_location.x / UI_SCALE_FAC + 100,
-                          socket_location.y / UI_SCALE_FAC};
+    const float2 location{socket_location.x / NODE_VIEW_SCALE_FAC + 100,
+                          socket_location.y / NODE_VIEW_SCALE_FAC};
     viewer_node = add_static_node(C, viewer_type, location);
   }
 
@@ -959,10 +959,10 @@ static void draw_draglink_tooltip(const bContext * /*C*/, ARegion * /*region*/, 
   uchar text_col[4];
   UI_GetThemeColor4ubv(TH_TEXT, text_col);
 
-  const int padding = 4 * UI_SCALE_FAC;
+  const int padding = 4 * NODE_VIEW_SCALE_FAC;
   const float x = nldrag->in_out == SOCK_IN ? nldrag->cursor[0] - 3.3f * padding :
                                               nldrag->cursor[0];
-  const float y = nldrag->cursor[1] - 2.0f * UI_SCALE_FAC;
+  const float y = nldrag->cursor[1] - 2.0f * NODE_VIEW_SCALE_FAC;
 
   const bool new_link = nldrag->in_out == nldrag->start_socket->in_out;
   const bool swap_links = nldrag->swap_links;
@@ -2585,7 +2585,7 @@ static void node_offset_apply(bNode &node, const float offset_x)
 {
   /* NODE_TEST is used to flag nodes that shouldn't be offset (again) */
   if ((node.flag & NODE_TEST) == 0) {
-    node.runtime->anim_ofsx = (offset_x / UI_SCALE_FAC);
+    node.runtime->anim_ofsx = (offset_x / NODE_VIEW_SCALE_FAC);
     node.flag |= NODE_TEST;
   }
 }
@@ -2690,7 +2690,7 @@ static void node_link_insert_offset_ntree(NodeInsertOfsData *iofsd,
   bNode *prev = iofsd->prev, *next = iofsd->next;
   bNode *init_parent = insert.parent; /* store old insert.parent for restoring later */
 
-  const float min_margin = U.node_margin * UI_SCALE_FAC;
+  const float min_margin = U.node_margin * NODE_VIEW_SCALE_FAC;
   const float width = NODE_WIDTH(insert);
   const bool needs_alignment = (next->runtime->draw_bounds.xmin -
                                 prev->runtime->draw_bounds.xmax) < (width + (min_margin * 2.0f));

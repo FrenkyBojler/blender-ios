@@ -757,8 +757,8 @@ static void node_cursor(wmWindow *win, ScrArea *area, ARegion *region)
   node_set_cursor(*win, *region, *snode, snode->runtime->cursor);
 
   /* XXX snode->runtime->cursor is in placing new nodes space */
-  snode->runtime->cursor[0] /= UI_SCALE_FAC;
-  snode->runtime->cursor[1] /= UI_SCALE_FAC;
+  snode->runtime->cursor[0] /= NODE_VIEW_SCALE_FAC;
+  snode->runtime->cursor[1] /= NODE_VIEW_SCALE_FAC;
 }
 
 /* Initialize main region, setting handlers. */

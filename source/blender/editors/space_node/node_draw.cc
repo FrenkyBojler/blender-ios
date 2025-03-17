@@ -365,7 +365,7 @@ static Array<uiBlock *> node_uiblocks_init(const bContext &C, const Span<bNode *
 
 float2 node_to_view(const float2 &co)
 {
-  return co * UI_SCALE_FAC;
+  return co * NODE_VIEW_SCALE_FAC;
 }
 
 static rctf node_to_rect(const bNode &node)
@@ -381,18 +381,18 @@ static rctf node_to_rect(const bNode &node)
 void node_to_updated_rect(const bNode &node, rctf &r_rect)
 {
   r_rect = node_to_rect(node);
-  BLI_rctf_mul(&r_rect, UI_SCALE_FAC);
+  BLI_rctf_mul(&r_rect, NODE_VIEW_SCALE_FAC);
 }
 
 float2 node_from_view(const float2 &co)
 {
-  return co / UI_SCALE_FAC;
+  return co / NODE_VIEW_SCALE_FAC;
 }
 
-float grid_snap_floor(const float x, const float offset)
+static int grid_snap_floor(const float x, const float offset)
 {
   const float grid_size = NODE_GRID_STEP_SIZE;
-  return floor((x - offset) / grid_size) * grid_size + offset;
+  return int(floor((x - offset) / grid_size) * grid_size + offset);
 }
 
 static bool is_node_panels_supported(const bNode &node)
@@ -429,13 +429,19 @@ static bool node_update_basis_buttons(const bContext &C,
                                      0,
                                      UI_style_get_dpi());
 
+  /* TODO(@casey-bianco-davis): Check if there are button groups (e.g. enums) where an explicit row
+   * layout needs to be set in the node's layout function. */
+  /* Use a column layout since the vertical spacing of the buttons is a little tighter than with
+   * the default panel layout. */
+  uiLayout *button_column = uiLayoutColumn(layout, false);
+
   if (node.is_muted()) {
-    uiLayoutSetActive(layout, false);
+    uiLayoutSetActive(button_column, false);
   }
 
-  uiLayoutSetContextPointer(layout, "node", &nodeptr);
+  uiLayoutSetContextPointer(button_column, "node", &nodeptr);
 
-  draw_buttons(layout, (bContext *)&C, &nodeptr);
+  draw_buttons(button_column, (bContext *)&C, &nodeptr);
 
   UI_block_align_end(&block);
   int buty;
@@ -1032,9 +1038,6 @@ static void node_update_basis_from_socket_lists(
 {
   const int topy = locy;
 
-  /* Space at the top. */
-  locy -= NODE_DYS / 2;
-
   locy = grid_snap_floor(locy, topy + NODE_DYS);
 
   for (bNodeSocket *socket : node.output_sockets()) {
@@ -1043,11 +1046,7 @@ static void node_update_basis_from_socket_lists(
 
     locy = grid_snap_floor(locy, topy + NODE_DYS);
 
-    if (node_update_basis_socket(C, ntree, node, nullptr, nullptr, socket, block, locx, locy)) {
-      if (socket->next) {
-        locy -= NODE_ITEM_SPACING_Y;
-      }
-    }
+    node_update_basis_socket(C, ntree, node, nullptr, nullptr, socket, block, locx, locy);
   }
 
   node_update_basis_buttons(C, ntree, node, node.typeinfo->draw_buttons, block, locy);
@@ -1061,14 +1060,13 @@ static void node_update_basis_from_socket_lists(
       locy = grid_snap_floor(locy, topy + NODE_DYS);
     }
 
-    if (node_update_basis_socket(C, ntree, node, nullptr, socket, nullptr, block, locx, locy)) {
-      if (socket->next) {
-        locy -= NODE_ITEM_SPACING_Y;
-      }
-    }
+    node_update_basis_socket(C, ntree, node, nullptr, socket, nullptr, block, locx, locy);
   }
 
   locy = grid_snap_floor(locy, topy);
+
+  /* Add a gap between nodes. */
+  locy += NODE_DYS / 2.0f;
 }
 
 /**
@@ -1087,8 +1085,6 @@ static void node_update_basis(const bContext &C,
 
   /* Header. */
   dy -= NODE_DY;
-
-  dy -= NODE_ITEM_SPACING_Y;
 
   if (is_node_panels_supported(node)) {
     node_update_basis_from_declaration(C, ntree, node, block, loc.x, dy);
@@ -2046,7 +2042,7 @@ void node_socket_draw(bNodeSocket *sock, const rcti *rect, const float color[4],
 /** The node tree scales both with the view and with the UI. */
 static float node_tree_view_scale(const SpaceNode &snode)
 {
-  return (1.0f / snode.runtime->aspect) * UI_SCALE_FAC;
+  return (1.0f / snode.runtime->aspect) * NODE_VIEW_SCALE_FAC;
 }
 
 /* Some elements of the node tree like labels or node sockets are hardly visible when zoomed
@@ -2417,7 +2413,7 @@ static void node_draw_panels(bNodeTree &ntree, const bNode &node, uiBlock &block
         IFACE_(panel_decl.name),
         offsetx,
         int(*panel_runtime.header_center_y - NODE_DYS),
-        short(draw_bounds.xmax - draw_bounds.xmin - (30.0f * UI_SCALE_FAC)),
+        short(draw_bounds.xmax - draw_bounds.xmin - (30.0f * NODE_VIEW_SCALE_FAC)),
         NODE_DY,
         nullptr,
         0,
@@ -2981,7 +2977,7 @@ static void node_draw_extra_info_row(const bNode &node,
                                      const int row,
                                      const NodeExtraInfoRow &extra_info_row)
 {
-  const float but_icon_left = rect.xmin + 6.0f * UI_SCALE_FAC;
+  const float but_icon_left = rect.xmin + 6.0f * NODE_VIEW_SCALE_FAC;
   const float but_icon_width = NODE_HEADER_ICON_SIZE * 0.8f;
   const float but_icon_right = but_icon_left + but_icon_width;
 
@@ -2991,7 +2987,7 @@ static void node_draw_extra_info_row(const bNode &node,
                                  0,
                                  extra_info_row.icon,
                                  int(but_icon_left),
-                                 int(rect.ymin + row * (20.0f * UI_SCALE_FAC)),
+                                 int(rect.ymin + row * (20.0f * NODE_VIEW_SCALE_FAC)),
                                  but_icon_width,
                                  UI_UNIT_Y,
                                  nullptr,
@@ -3006,7 +3002,7 @@ static void node_draw_extra_info_row(const bNode &node,
   }
   UI_block_emboss_set(&block, UI_EMBOSS);
 
-  const float but_text_left = but_icon_right + 6.0f * UI_SCALE_FAC;
+  const float but_text_left = but_icon_right + 6.0f * NODE_VIEW_SCALE_FAC;
   const float but_text_right = rect.xmax;
   const float but_text_width = but_text_right - but_text_left;
 
@@ -3015,7 +3011,7 @@ static void node_draw_extra_info_row(const bNode &node,
                              0,
                              extra_info_row.text.c_str(),
                              int(but_text_left),
-                             int(rect.ymin + row * (20.0f * UI_SCALE_FAC)),
+                             int(rect.ymin + row * (20.0f * NODE_VIEW_SCALE_FAC)),
                              short(but_text_width),
                              NODE_DY,
                              nullptr,
@@ -3089,17 +3085,17 @@ static void node_draw_extra_info_panel(const bContext &C,
 
   if (node.is_frame()) {
     extra_info_rect.xmin = rct.xmin;
-    extra_info_rect.xmax = rct.xmin + 95.0f * UI_SCALE_FAC;
-    extra_info_rect.ymin = rct.ymin + 2.0f * UI_SCALE_FAC;
-    extra_info_rect.ymax = rct.ymin + 2.0f * UI_SCALE_FAC;
+    extra_info_rect.xmax = rct.xmin + 95.0f * NODE_VIEW_SCALE_FAC;
+    extra_info_rect.ymin = rct.ymin + 2.0f * NODE_VIEW_SCALE_FAC;
+    extra_info_rect.ymax = rct.ymin + 2.0f * NODE_VIEW_SCALE_FAC;
   }
   else {
-    const float padding = 3.0f * UI_SCALE_FAC;
+    const float padding = 3.0f * NODE_VIEW_SCALE_FAC;
 
     extra_info_rect.xmin = rct.xmin + padding;
     extra_info_rect.xmax = rct.xmax - padding;
     extra_info_rect.ymin = rct.ymax;
-    extra_info_rect.ymax = rct.ymax + extra_info_rows.size() * (20.0f * UI_SCALE_FAC);
+    extra_info_rect.ymax = rct.ymax + extra_info_rows.size() * (20.0f * NODE_VIEW_SCALE_FAC);
 
     float preview_height = 0.0f;
     rctf preview_rect;
@@ -3851,7 +3847,7 @@ static void count_multi_input_socket_links(bNodeTree &ntree, SpaceNode &snode)
 
 static float frame_node_label_height(const NodeFrame &frame_data)
 {
-  return frame_data.label_size * UI_SCALE_FAC;
+  return frame_data.label_size * NODE_VIEW_SCALE_FAC;
 }
 
 #define NODE_FRAME_MARGIN (1.5f * U.widget_unit)
@@ -3987,7 +3983,7 @@ static void frame_node_draw_label(TreeDrawContext &tree_draw_ctx,
 
   BLF_enable(fontid, BLF_ASPECT);
   BLF_aspect(fontid, aspect, aspect, 1.0f);
-  BLF_size(fontid, font_size * UI_SCALE_FAC);
+  BLF_size(fontid, font_size * NODE_VIEW_SCALE_FAC);
 
   /* Title color. */
   int color_id = node_get_colorid(tree_draw_ctx, node);
@@ -4676,7 +4672,7 @@ static void draw_tree_path(const bContext &C, ARegion &region)
   const rcti *rect = ED_region_visible_rect(&region);
 
   const uiStyle *style = UI_style_get_dpi();
-  const float padding_x = 16 * UI_SCALE_FAC;
+  const float padding_x = 16 * NODE_VIEW_SCALE_FAC;
   const int x = rect->xmin + padding_x;
   const int y = region.winy - UI_UNIT_Y * 0.6f;
   const int width = BLI_rcti_size_x(rect) - 2 * padding_x;
@@ -4841,8 +4837,8 @@ void node_draw_space(const bContext &C, ARegion &region)
                            win->eventstate->xy[1] - region.winrct.ymin,
                            &snode.runtime->cursor[0],
                            &snode.runtime->cursor[1]);
-  snode.runtime->cursor[0] /= UI_SCALE_FAC;
-  snode.runtime->cursor[1] /= UI_SCALE_FAC;
+  snode.runtime->cursor[0] /= NODE_VIEW_SCALE_FAC;
+  snode.runtime->cursor[1] /= NODE_VIEW_SCALE_FAC;
 
   ED_region_draw_cb_draw(&C, &region, REGION_DRAW_PRE_VIEW);
 
