@@ -17,7 +17,7 @@
 #define _DNA_DEFAULT_MetaBall \
   { \
     .texspace_size = {1, 1, 1}, \
-    .texspace_flag = MB_TEXSPACE_FLAG_AUTO, \
+    .texspace_flag = 0, \
     .wiresize = 0.4f, \
     .rendersize = 0.2f, \
     .thresh = 0.6f, \

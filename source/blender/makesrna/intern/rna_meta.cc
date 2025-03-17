@@ -360,10 +360,10 @@ static void rna_def_metaball(BlenderRNA *brna)
   /* texture space */
   prop = RNA_def_property(srna, "use_auto_texspace", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "texspace_flag", MB_TEXSPACE_FLAG_AUTO);
-  RNA_def_property_ui_text(
-      prop,
-      "Auto Texture Space",
-      "Adjust active object's texture space automatically when transforming object");
+  RNA_def_property_ui_text(prop,
+                           "Auto Texture Space",
+                           "Adjust active object's texture space automatically when transforming "
+                           "object, so generated texture coordinates range from 0 to 1");
 
   prop = RNA_def_property(srna, "texspace_location", PROP_FLOAT, PROP_TRANSLATION);
   RNA_def_property_array(prop, 3);

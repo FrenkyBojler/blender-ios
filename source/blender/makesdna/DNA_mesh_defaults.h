@@ -17,7 +17,7 @@
 #define _DNA_DEFAULT_Mesh \
   { \
     .texspace_size = {1.0f, 1.0f, 1.0f}, \
-    .texspace_flag = ME_TEXSPACE_FLAG_AUTO, \
+    .texspace_flag = 0, \
     .remesh_voxel_size = 0.1f, \
     .remesh_voxel_adaptivity = 0.0f, \
     .face_sets_color_seed = 0, \

@@ -27,7 +27,7 @@
     .linedist = 1.0, \
     .fsize = 1.0, \
     .ulheight = 0.05, \
-    .texspace_flag = CU_TEXSPACE_FLAG_AUTO, \
+    .texspace_flag = 0, \
     .smallcaps_scale = 0.75f, \
     /* This one seems to be the best one in most cases, at least for curve deform. */ \
     .twist_mode = CU_TWIST_MINIMUM, \

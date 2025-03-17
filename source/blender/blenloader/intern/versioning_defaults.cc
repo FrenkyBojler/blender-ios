@@ -632,6 +632,9 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
       CustomData_free_layers(&mesh->corner_data, CD_GRID_PAINT_MASK);
     }
     mesh->attributes_for_write().remove(".sculpt_face_set");
+
+    /* Disable by default now. */
+    mesh->texspace_flag &= ~ME_TEXSPACE_FLAG_AUTO;
   }
 
   LISTBASE_FOREACH (Camera *, camera, &bmain->cameras) {
