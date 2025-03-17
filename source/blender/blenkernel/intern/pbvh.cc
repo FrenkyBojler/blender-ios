@@ -1650,25 +1650,24 @@ bool ray_update_depth_and_hit_count(const float depth_test,
                                     float *r_back_depth,
                                     bool *r_back_hit)
 {
-  // If this is the first hit, we need to handle it.
+  /* If this is the first hit, we need to handle it. */
   if (abs(*r_depth - *r_back_depth) < FLT_EPSILON) {
     if (depth_test < *r_depth) {
-      // This is the first hit and it's closer than any previous hit
-      *r_back_depth = FLT_MAX;  // Reset back depth to maximum
+      *r_back_depth = FLT_MAX;
       *r_depth = depth_test;
-      *r_back_hit = false;  // No back hit yet
+      *r_back_hit = false;
       return true;
     }
   }
+  /*This is hit which we can use for back*/
   else if (depth_test < *r_depth) {
-    // This is a new closest hit, so the old front hit becomes the new back hit
     *r_back_depth = *r_depth;
     *r_depth = depth_test;
     *r_back_hit = true;
     return true;
   }
   else if (depth_test > *r_depth && depth_test < *r_back_depth) {
-    // This is a hit between front and back, so it's a new back hit
+    /* This is a hit between front and back, so it's a new back hit */
     *r_back_depth = depth_test;
     *r_back_hit = true;
     return false;

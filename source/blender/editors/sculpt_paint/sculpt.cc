@@ -5148,9 +5148,9 @@ static void restore_from_undo_step_if_necessary(const Depsgraph &depsgraph,
   SculptSession &ss = *ob.sculpt;
   const Brush *brush = BKE_paint_brush_for_read(&sd.paint);
 
-  /* Brushes that use original coordinates and need a "restore" step. This has to happen
-   * separately rather than in the brush deformation calculation because that is called once
-   * for each symmetry pass, potentially within the same BVH node.
+  /* Brushes that use original coordinates and need a "restore" step. This has to happen separately
+   * rather than in the brush deformation calculation because that is called once for each symmetry
+   * pass, potentially within the same BVH node.
    *
    * NOTE: Despite the Cloth and Boundary brush using original coordinates, the brushes do not
    * expect this restoration to happen on every stroke step. Performing this restoration causes
