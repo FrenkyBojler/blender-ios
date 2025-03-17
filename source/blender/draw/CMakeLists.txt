@@ -68,12 +68,13 @@ set(SRC
   intern/draw_cache_impl_volume.cc
   intern/draw_color_management.cc
   intern/draw_command.cc
+  intern/draw_context.cc
   intern/draw_curves.cc
   intern/draw_debug.cc
   intern/draw_fluid.cc
+  intern/draw_gpu_context.cc
   intern/draw_hair.cc
   intern/draw_manager.cc
-  intern/draw_manager_c.cc
   intern/draw_manager_shader.cc
   intern/draw_manager_text.cc
   intern/draw_pbvh.cc
@@ -139,7 +140,6 @@ set(SRC
   engines/gpencil/gpencil_draw_data.cc
   engines/gpencil/gpencil_engine_c.cc
   engines/gpencil/gpencil_render.cc
-  engines/gpencil/gpencil_shader_c.cc
   engines/gpencil/gpencil_shader_fx.cc
   engines/select/select_engine.cc
   engines/select/select_instance.cc
@@ -165,13 +165,12 @@ set(SRC
   intern/draw_common.hh
   intern/draw_common_c.hh
   intern/draw_common_shader_shared.hh
+  intern/draw_context_private.hh
   intern/draw_curves_private.hh
   intern/draw_debug.hh
   intern/draw_hair_private.hh
   intern/draw_handle.hh
   intern/draw_manager.hh
-  intern/draw_manager_c.hh
-  intern/draw_manager_testing.hh
   intern/draw_manager_text.hh
   intern/draw_pass.hh
   intern/draw_resource.hh
@@ -220,7 +219,9 @@ set(SRC
   engines/eevee_next/eevee_volume.hh
   engines/eevee_next/eevee_world.hh
   engines/external/external_engine.h
-  engines/gpencil/gpencil_engine.h
+  engines/gpencil/gpencil_engine_private.hh
+  engines/gpencil/gpencil_engine.hh
+  engines/gpencil/gpencil_shader.hh
   engines/image/image_batches.hh
   engines/image/image_buffer_cache.hh
   engines/image/image_drawing_mode.hh
@@ -281,7 +282,6 @@ set(SRC
   engines/select/select_defines.hh
   engines/select/select_engine.hh
   engines/select/select_instance.hh
-  engines/select/select_private.hh
   engines/workbench/workbench_defines.hh
   engines/workbench/workbench_engine.h
   engines/workbench/workbench_enums.hh
