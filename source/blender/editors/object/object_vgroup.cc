@@ -2728,6 +2728,7 @@ static int vertex_group_assign_exec(bContext *C, wmOperator *op)
         ob, WT_VGROUP_BONE_DEFORM, &vgroup_tot, &subset_count);
 
     vgroup_normalize_all(ob, vgroup_validmap, vgroup_tot, subset_count, true, op->reports);
+    MEM_SAFE_FREE(vgroup_validmap);
   }
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
@@ -2834,6 +2835,7 @@ static wmOperatorStatus vertex_group_remove_from_exec(bContext *C, wmOperator *o
         ob, WT_VGROUP_BONE_DEFORM, &vgroup_tot, &subset_count);
 
     vgroup_normalize_all(ob, vgroup_validmap, vgroup_tot, subset_count, false, op->reports);
+    MEM_SAFE_FREE(vgroup_validmap);
   }
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
