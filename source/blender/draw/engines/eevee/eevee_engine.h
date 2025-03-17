@@ -1,16 +1,19 @@
-/* SPDX-FileCopyrightText: 2019 Blender Authors
+/* SPDX-FileCopyrightText: 2016 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
- * \ingroup draw_engine
+ * \ingroup DNA
  */
 
 #pragma once
 
 #include "DRW_render.hh"
+#include "RE_engine.h"
 
-namespace blender::draw::overlay {
+extern RenderEngineType DRW_engine_viewport_eevee_type;
+
+namespace blender::eevee {
 
 struct Engine : public DrawEngine::Pointer {
   DrawEngine *create_instance() final;
@@ -18,4 +21,4 @@ struct Engine : public DrawEngine::Pointer {
   static void free_static();
 };
 
-}  // namespace blender::draw::overlay
+}  // namespace blender::eevee
