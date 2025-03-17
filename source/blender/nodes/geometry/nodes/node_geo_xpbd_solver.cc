@@ -12,7 +12,7 @@
 
 #include <fmt/format.h>
 
-#include <Eigen/Sparse>
+#include <Eigen/SparseCholesky>
 
 namespace blender::nodes::xpbd_constraints {
 
@@ -433,6 +433,40 @@ static void read_constraint_attributes(const Span<ConstraintEvalData> constraint
       case 3:
         lambdas_by_type[constraint_i] = *attributes.lookup_or_default<float3>(
             "lambda", AttrDomain::Point, float3(0.0f));
+        break;
+      default:
+        BLI_assert_unreachable();
+        break;
+    }
+  }
+}
+
+static void write_constraint_attributes(MutableSpan<ConstraintEvalData> constraint_data,
+                                        MutableSpan<GSpanAttributeWriter> lambda_writers_by_type)
+{
+  for (const int constraint_i : constraint_data.index_range()) {
+    ConstraintEvalData &data = constraint_data[constraint_i];
+    if (!data.geometry || !data.geometry->has_component<PointCloudComponent>()) {
+      continue;
+    }
+
+    int num_components, num_position_vars, num_rotation_vars;
+    data.type->linear_solve_size(num_components, num_position_vars, num_rotation_vars);
+
+    GeometryComponent &component = data.geometry->get_component_for_write<PointCloudComponent>();
+    MutableAttributeAccessor attributes = *component.attributes_for_write();
+    switch (num_components) {
+      case 1:
+        lambda_writers_by_type[constraint_i] = attributes.lookup_or_add_for_write_span(
+            "lambda", AttrDomain::Point, CD_PROP_FLOAT);
+        break;
+      case 2:
+        lambda_writers_by_type[constraint_i] = attributes.lookup_or_add_for_write_span(
+            "lambda", AttrDomain::Point, CD_PROP_FLOAT2);
+        break;
+      case 3:
+        lambda_writers_by_type[constraint_i] = attributes.lookup_or_add_for_write_span(
+            "lambda", AttrDomain::Point, CD_PROP_FLOAT3);
         break;
       default:
         BLI_assert_unreachable();
@@ -1202,8 +1236,8 @@ static GlobalSolverData build_global_solve_matrix_from_triplets(
 
 template<bool debug_check>
 static void do_build_global_solve_system(const ConstraintEvalParams &params,
-                                         MutableSpan<ConstraintEvalData> constraint_data,
-                                         ConstraintVariables &variables,
+                                         const Span<ConstraintEvalData> constraint_data,
+                                         const ConstraintVariables &variables,
                                          Eigen::SparseMatrix<float> &r_H,
                                          Eigen::VectorXf &r_b)
 {
@@ -1260,8 +1294,8 @@ static void do_build_global_solve_system(const ConstraintEvalParams &params,
 }
 
 void build_global_solve_system(const ConstraintEvalParams &params,
-                               MutableSpan<ConstraintEvalData> constraint_data,
-                               ConstraintVariables &variables,
+                               const Span<ConstraintEvalData> constraint_data,
+                               const ConstraintVariables &variables,
                                const bool debug_check,
                                Eigen::SparseMatrix<float> &r_H,
                                Eigen::VectorXf &r_b)
@@ -1271,6 +1305,77 @@ void build_global_solve_system(const ConstraintEvalParams &params,
   }
   else {
     do_build_global_solve_system<false>(params, constraint_data, variables, r_H, r_b);
+  }
+}
+
+void solve_global_system(const Eigen::SparseMatrix<float> &H,
+                         const Eigen::VectorXf &b,
+                         ConstraintVariables &variables,
+                         MutableSpan<ConstraintEvalData> constraint_data)
+{
+  constexpr bool linearized_quaternion = true;
+
+  Eigen::SimplicialLDLT<Eigen::SparseMatrix<float>> eigen_solver(H);
+  Eigen::VectorXf x = eigen_solver.solve(b);
+
+  const IndexRange position_rows = {0, variables.positions.size() * 3};
+  const IndexRange rotation_rows = position_rows.after(variables.rotations.size() * 4);
+
+  for (const int point_index : variables.positions.index_range()) {
+    const IndexRange rows = position_rows.slice(point_index * 3, 3);
+    const float3 delta_pos = {x[rows[0]], x[rows[1]], x[rows[2]]};
+    xpbd_constraints::apply_position_impulse(delta_pos, variables.positions[point_index]);
+  }
+  for (const int point_index : variables.rotations.index_range()) {
+    const IndexRange rows = rotation_rows.slice(point_index * 4, 4);
+    const float4 delta_rot = {x[rows[0]], x[rows[1]], x[rows[2]], x[rows[3]]};
+    xpbd_constraints::apply_rotation_impulse<linearized_quaternion>(
+        delta_rot, variables.rotations[point_index]);
+  }
+
+  Array<GSpanAttributeWriter> lambda_writers_by_type(constraint_data.size());
+  write_constraint_attributes(constraint_data, lambda_writers_by_type);
+
+  IndexRange prev_rows = rotation_rows;
+  for (const int constraint_i : constraint_data.index_range()) {
+    const ConstraintEvalData &data = constraint_data[constraint_i];
+    int num_components, num_position_vars, num_rotation_vars;
+    data.type->linear_solve_size(num_components, num_position_vars, num_rotation_vars);
+
+    const int num_constraints = data.constraints.size();
+    const IndexRange lambda_rows = prev_rows.after(num_constraints * num_components);
+    switch (num_components) {
+      case 1: {
+        MutableSpan<float> lambdas = lambda_writers_by_type[constraint_i].span.typed<float>();
+        data.constraints.foreach_index(GrainSize(1024), [&](const int index, const int pos) {
+          lambdas[index] = x[lambda_rows[pos]];
+        });
+        break;
+      }
+      case 2: {
+        MutableSpan<float2> lambdas = lambda_writers_by_type[constraint_i].span.typed<float2>();
+        data.constraints.foreach_index(GrainSize(1024), [&](const int index, const int pos) {
+          const IndexRange rows = lambda_rows.slice(pos * 2, 2);
+          lambdas[index] = {x[rows[0]], x[rows[1]]};
+        });
+        break;
+      }
+      case 3: {
+        MutableSpan<float3> lambdas = lambda_writers_by_type[constraint_i].span.typed<float3>();
+        data.constraints.foreach_index(GrainSize(1024), [&](const int index, const int pos) {
+          const IndexRange rows = lambda_rows.slice(pos * 3, 3);
+          lambdas[index] = {x[rows[0]], x[rows[1]], x[rows[2]]};
+        });
+        break;
+      }
+      default:
+        BLI_assert_unreachable();
+        break;
+    }
+
+    lambda_writers_by_type[constraint_i].finish();
+
+    prev_rows = lambda_rows;
   }
 }
 

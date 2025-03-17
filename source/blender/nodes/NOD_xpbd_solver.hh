@@ -57,11 +57,16 @@ struct ConstraintEvalData {
  * \{ */
 
 void build_global_solve_system(const ConstraintEvalParams &params,
-                               MutableSpan<ConstraintEvalData> constraint_data,
-                               ConstraintVariables &variables,
+                               const Span<ConstraintEvalData> constraint_data,
+                               const ConstraintVariables &variables,
                                const bool debug_check,
                                Eigen::SparseMatrix<float> &r_H,
                                Eigen::VectorXf &r_b);
+
+void solve_global_system(const Eigen::SparseMatrix<float> &H,
+                         const Eigen::VectorXf &b,
+                         ConstraintVariables &variables,
+                         MutableSpan<ConstraintEvalData> constraint_data);
 
 void apply_gauss_seidel_positions_group(const ConstraintEvalParams &eval_params,
                                         const ConstraintTypeInfo &constraint_info,

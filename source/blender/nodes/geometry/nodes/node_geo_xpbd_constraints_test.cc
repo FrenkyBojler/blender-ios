@@ -649,7 +649,7 @@ inline float4x4 quaternion_matrix(const math::Quaternion &q)
   return result;
 }
 
-TEST_F(XPBDSolverTest, GlobalSolverUnconstrained)
+TEST_F(XPBDSolverTest, GlobalSolverConstruct)
 {
   constexpr float eps = 1e-6f;
 
@@ -846,6 +846,20 @@ TEST_F(XPBDSolverTest, GlobalSolverUnconstrained)
     EXPECT_NEAR(target1.y, b[27], eps);
     EXPECT_NEAR(target1.z, b[28], eps);
   }
+}
+
+TEST_F(XPBDSolverTest, GlobalSolverExecute)
+{
+  constexpr float eps = 1e-6f;
+
+  SolverTestData solver_test = simple_solver_data(false);
+
+  Eigen::SparseMatrix<float> H;
+  Eigen::VectorXf b;
+  xpbd_constraints::build_global_solve_system(
+      solver_test.params, solver_test.data, solver_test.vars, true, H, b);
+
+  xpbd_constraints::solve_global_system(H, b, solver_test.vars, solver_test.data);
 }
 
 }  // namespace blender::nodes::tests
