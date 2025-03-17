@@ -522,7 +522,7 @@ static int rna_userdef_use_online_access_editable(const PointerRNA * /*ptr*/, co
   if ((G.f & G_FLAG_INTERNET_ALLOW) == 0) {
     /* Return 0 when blender was invoked with `--offline-mode` "forced". */
     if (G.f & G_FLAG_INTERNET_OVERRIDE_PREF_OFFLINE) {
-      *r_info = "Launched with \"--offline-mode\", cannot be changed";
+      *r_info = N_("Launched with \"--offline-mode\", cannot be changed");
       return 0;
     }
   }
@@ -7611,10 +7611,6 @@ static void rna_def_userdef_experimental(BlenderRNA *brna)
   prop = RNA_def_property(srna, "use_new_volume_nodes", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_ui_text(
       prop, "New Volume Nodes", "Enables visibility of the new Volume nodes in the UI");
-
-  prop = RNA_def_property(srna, "use_new_file_import_nodes", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_ui_text(
-      prop, "New File Import Nodes", "Enables visibility of the new File Import nodes in the UI");
 
   prop = RNA_def_property(srna, "use_shader_node_previews", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_ui_text(
