@@ -19,6 +19,7 @@
 #include "DNA_particle_types.h"
 #include "DNA_rigidbody_types.h"
 
+#include "DRW_engine.hh"
 #include "draw_cache.hh"
 #include "draw_cache_impl.hh"
 
@@ -59,13 +60,8 @@ void VelocityModule::init()
 }
 
 /* Similar to Instance::object_sync, but only syncs velocity. */
-static void step_object_sync_render(void *instance,
-                                    ObjectRef &ob_ref,
-                                    RenderEngine * /*engine*/,
-                                    Depsgraph * /*depsgraph*/)
+static void step_object_sync_render(Instance &inst, ObjectRef &ob_ref)
 {
-  Instance &inst = *reinterpret_cast<Instance *>(instance);
-
   Object *ob = ob_ref.object;
 
   const bool is_velocity_type = ELEM(ob->type, OB_CURVES, OB_MESH, OB_POINTCLOUD);
@@ -106,11 +102,11 @@ void VelocityModule::step_sync(eVelocityStep step, float time)
   object_steps_usage[step_] = 0;
   step_camera_sync();
 
-  DRW_curves_init();
-
-  DRW_render_object_iter(&inst_, inst_.render, inst_.depsgraph, step_object_sync_render);
-
-  DRW_curves_update(*inst_.manager);
+  DRW_render_object_iter(inst_.render,
+                         inst_.depsgraph,
+                         [&](blender::draw::ObjectRef &ob_ref, RenderEngine *, Depsgraph *) {
+                           step_object_sync_render(inst_, ob_ref);
+                         });
 
   geometry_steps_fill();
 }
@@ -264,6 +260,8 @@ void VelocityModule::geometry_steps_fill()
    * `tot_len * sizeof(float4)` is greater than max SSBO size. */
   geometry_steps[step_]->resize(max_ii(16, dst_ofs));
 
+  DRW_submission_start();
+
   PassSimple copy_ps("Velocity Copy Pass");
   copy_ps.init();
   copy_ps.state_set(DRW_STATE_NO_DRAW);
@@ -296,6 +294,8 @@ void VelocityModule::geometry_steps_fill()
 
   copy_ps.barrier(GPU_BARRIER_SHADER_STORAGE);
   inst_.manager->submit(copy_ps);
+
+  DRW_submission_end();
 
   /* Copy back the #VelocityGeometryIndex into #VelocityObjectData which are
    * indexed using persistent keys (unlike geometries which are indexed by volatile ID). */
