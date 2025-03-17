@@ -8,9 +8,14 @@
  * Dispatch one thread per word.
  */
 
-#pragma BLENDER_REQUIRE(draw_view_lib.glsl)
-#pragma BLENDER_REQUIRE(common_intersect_lib.glsl)
-#pragma BLENDER_REQUIRE(eevee_light_iter_lib.glsl)
+#include "infos/eevee_light_culling_info.hh"
+
+COMPUTE_SHADER_CREATE_INFO(eevee_light_culling_tile)
+
+#include "draw_intersect_lib.glsl"
+#include "draw_view_lib.glsl"
+#include "eevee_light_iter_lib.glsl"
+#include "gpu_shader_math_matrix_lib.glsl"
 
 /* ---------------------------------------------------------------------- */
 /** \name Culling shapes extraction
@@ -42,7 +47,6 @@ vec4 tile_bound_cone(vec3 v00, vec3 v01, vec3 v10, vec3 v11)
 vec4 tile_bound_cylinder(vec3 v00, vec3 v01, vec3 v10, vec3 v11)
 {
   vec3 center = (v00 + v01 + v10 + v11) * 0.25;
-  vec4 corners_dist;
   float dist_sqr = distance_squared(center, v00);
   dist_sqr = max(dist_sqr, distance_squared(center, v01));
   dist_sqr = max(dist_sqr, distance_squared(center, v10));
@@ -76,10 +80,10 @@ CullingTile tile_culling_get(uvec2 tile_co)
 
   for (int i = 0; i < 8; i++) {
     /* Culling in view space for precision. */
-    corners[i] = project_point(drw_view.wininv, corners[i]);
+    corners[i] = project_point(drw_view().wininv, corners[i]);
   }
 
-  bool is_persp = ProjectionMatrix[3][3] == 0.0;
+  bool is_persp = drw_view().winmat[3][3] == 0.0;
   CullingTile tile;
   tile.bounds = (is_persp) ? tile_bound_cone(corners[0], corners[4], corners[7], corners[3]) :
                              tile_bound_cylinder(corners[0], corners[4], corners[7], corners[3]);
@@ -99,7 +103,7 @@ bool intersect(CullingTile tile, Sphere sphere)
   bool isect = true;
   /* Test tile intersection using bounding cone or bounding cylinder.
    * This has less false positive cases when the sphere is large. */
-  if (ProjectionMatrix[3][3] == 0.0) {
+  if (drw_view().winmat[3][3] == 0.0) {
     isect = intersect(shape_cone(tile.bounds.xyz, tile.bounds.w), sphere);
   }
   else {

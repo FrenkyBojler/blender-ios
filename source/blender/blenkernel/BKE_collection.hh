@@ -8,7 +8,6 @@
  * \ingroup bke
  */
 
-#include "BLI_compiler_compat.h"
 #include "BLI_ghash.h"
 #include "BLI_iterator.h"
 #include "BLI_sys_types.h"
@@ -23,6 +22,7 @@ struct BlendDataReader;
 struct BlendWriter;
 struct Collection;
 struct ID;
+struct CollectionChild;
 struct CollectionExport;
 struct Main;
 struct Object;
@@ -96,6 +96,7 @@ bool BKE_collection_delete(Main *bmain, Collection *collection, bool hierarchy);
  */
 Collection *BKE_collection_duplicate(Main *bmain,
                                      Collection *parent,
+                                     CollectionChild *child_old,
                                      Collection *collection,
                                      uint duplicate_flags,
                                      uint duplicate_options);
@@ -120,6 +121,9 @@ Collection *BKE_collection_object_find(Main *bmain,
                                        Scene *scene,
                                        Collection *collection,
                                        Object *ob);
+
+CollectionChild *BKE_collection_child_find(Collection *parent, Collection *collection);
+
 bool BKE_collection_is_empty(const Collection *collection);
 
 /**
@@ -153,12 +157,9 @@ bool BKE_collection_object_add_notest(Main *bmain, Collection *collection, Objec
  */
 void BKE_collection_object_add_from(Main *bmain, Scene *scene, Object *ob_src, Object *ob_dst);
 /**
- * Remove object from collection.
+ * Remove ob from collection.
  */
-bool BKE_collection_object_remove(Main *bmain,
-                                  Collection *collection,
-                                  Object *object,
-                                  bool free_us);
+bool BKE_collection_object_remove(Main *bmain, Collection *collection, Object *ob, bool free_us);
 /**
  * Replace one object with another in a collection (managing user counts).
  */
@@ -421,7 +422,7 @@ GSet *BKE_scene_objects_as_gset(Scene *scene, GSet *objects_gset);
     bool is_scene_collection = (_scene) != NULL; \
 \
     if (_scene) { \
-      _instance_next = _scene->master_collection; \
+      _instance_next = (_scene)->master_collection; \
     } \
     else { \
       _instance_next = static_cast<Collection *>((_bmain)->collections.first); \

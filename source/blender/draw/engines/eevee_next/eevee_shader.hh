@@ -24,6 +24,8 @@
 
 namespace blender::eevee {
 
+using StaticShader = gpu::StaticShader;
+
 /* Keep alphabetical order and clean prefix. */
 enum eShaderType {
   AMBIENT_OCCLUSION_PASS = 0,
@@ -139,6 +141,7 @@ enum eShaderType {
   SHADOW_TILEMAP_TAG_USAGE_SURFELS,
   SHADOW_TILEMAP_TAG_USAGE_TRANSPARENT,
   SHADOW_TILEMAP_TAG_USAGE_VOLUME,
+  SHADOW_VIEW_VISIBILITY,
 
   SUBSURFACE_CONVOLVE,
   SUBSURFACE_SETUP,
@@ -165,22 +168,61 @@ enum eShaderType {
  */
 class ShaderModule {
  private:
-  std::array<GPUShader *, MAX_SHADER_TYPE> shaders_;
+  std::array<StaticShader, MAX_SHADER_TYPE> shaders_;
   BatchHandle compilation_handle_ = 0;
-  SpecializationBatchHandle specialization_handle_ = 0;
+  std::mutex mutex_;
 
-  /** Shared shader module across all engine instances. */
-  static ShaderModule *g_shader_module;
+  class SpecializationsKey {
+   private:
+    uint64_t hash_value_;
+
+   public:
+    SpecializationsKey(int render_buffers_shadow_id,
+                       int shadow_ray_count,
+                       int shadow_ray_step_count)
+    {
+      BLI_assert(render_buffers_shadow_id >= -1);
+      BLI_assert(shadow_ray_count >= 1 || shadow_ray_count <= 4);
+      BLI_assert(shadow_ray_step_count >= 1 || shadow_ray_step_count <= 16);
+      hash_value_ = render_buffers_shadow_id + 1;
+      hash_value_ = (hash_value_ << 2) | (shadow_ray_count - 1);
+      hash_value_ = (hash_value_ << 4) | (shadow_ray_step_count - 1);
+    }
+
+    uint64_t hash() const
+    {
+      return hash_value_;
+    }
+
+    bool operator==(const SpecializationsKey &k) const
+    {
+      return hash_value_ == k.hash_value_;
+    }
+
+    bool operator<(const SpecializationsKey &k) const
+    {
+      return hash_value_ < k.hash_value_;
+    }
+  };
+
+  Map<SpecializationsKey, SpecializationBatchHandle> specialization_handles_;
+
+  static gpu::StaticShaderCache<ShaderModule> &get_static_cache()
+  {
+    /** Shared shader module across all engine instances. */
+    static gpu::StaticShaderCache<ShaderModule> static_cache;
+    return static_cache;
+  }
 
  public:
   ShaderModule();
   ~ShaderModule();
 
-  bool is_ready(bool block = false);
-
-  void precompile_specializations(int render_buffers_shadow_id,
-                                  int shadow_ray_count,
-                                  int shadow_ray_step_count);
+  bool static_shaders_are_ready(bool block_until_ready);
+  bool request_specializations(bool block_until_ready,
+                               int render_buffers_shadow_id,
+                               int shadow_ray_count,
+                               int shadow_ray_step_count);
 
   GPUShader *static_shader_get(eShaderType shader_type);
   GPUMaterial *material_default_shader_get(eMaterialPipeline pipeline_type,
@@ -193,6 +235,11 @@ class ShaderModule {
   GPUMaterial *world_shader_get(::World *blender_world,
                                 bNodeTree *nodetree,
                                 eMaterialPipeline pipeline_type);
+
+  /**
+   * Variation to compile a material only with a `nodetree`. Caller needs to maintain the list of
+   * materials and call GPU_material_free on it to update the material.
+   */
   GPUMaterial *material_shader_get(const char *name,
                                    ListBase &materials,
                                    bNodeTree *nodetree,

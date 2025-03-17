@@ -10,9 +10,18 @@
 
 #pragma once
 
+#include <fmt/format.h>
+
+#include "BLI_string.h"
+
+#include "BLT_translation.hh"
+
 #include "BKE_object.hh"
+
 #include "DEG_depsgraph.hh"
+
 #include "DNA_lightprobe_types.h"
+
 #include "DRW_render.hh"
 
 #include "eevee_ambient_occlusion.hh"
@@ -63,7 +72,7 @@ struct UniformDataModule {
  * \class Instance
  * \brief A running instance of the engine.
  */
-class Instance {
+class Instance : public DrawEngine {
   friend VelocityModule;
   friend MotionBlurModule;
 
@@ -74,8 +83,11 @@ class Instance {
 
   uint64_t depsgraph_last_update_ = 0;
   bool overlays_enabled_ = false;
-
   bool shaders_are_ready_ = true;
+  bool skip_render_ = false;
+
+  /** Info string displayed at the top of the render / viewport, or the console when baking. */
+  std::string info_ = "";
 
  public:
   ShaderModule &shaders;
@@ -122,12 +134,10 @@ class Instance {
   const RenderLayer *render_layer;
   RenderEngine *render;
   /** Only available when rendering for viewport. */
-  const DRWView *drw_view;
+  const View *drw_view = nullptr;
   const View3D *v3d;
   const RegionView3D *rv3d;
 
-  /** True if the grease pencil engine might be running. */
-  bool gpencil_engine_enabled;
   /** True if the instance is created for light baking. */
   bool is_light_bake = false;
   /** View-layer overrides. */
@@ -135,8 +145,6 @@ class Instance {
   bool use_curves = true;
   bool use_volumes = true;
 
-  /** Info string displayed at the top of the render / viewport. */
-  std::string info = "";
   /** Debug mode from debug value. */
   eDebugMode debug_mode = eDebugMode::DEBUG_NONE;
 
@@ -172,6 +180,11 @@ class Instance {
         volume(*this, uniform_data.data.volumes){};
   ~Instance(){};
 
+  blender::StringRefNull name_get() final
+  {
+    return "EEVEE";
+  }
+
   /* Render & Viewport. */
   /* TODO(fclem): Split for clarity. */
   void init(const int2 &output_res,
@@ -181,15 +194,15 @@ class Instance {
             Depsgraph *depsgraph,
             Object *camera_object = nullptr,
             const RenderLayer *render_layer = nullptr,
-            const DRWView *drw_view = nullptr,
+            View *drw_view_ = nullptr,
             const View3D *v3d = nullptr,
             const RegionView3D *rv3d = nullptr);
 
-  void view_update();
+  void init() final;
 
-  void begin_sync();
-  void object_sync(Object *ob);
-  void end_sync();
+  void begin_sync() final;
+  void object_sync(ObjectRef &ob_ref, Manager &manager) final;
+  void end_sync() final;
 
   /**
    * Return true when probe pipeline is used during this sample.
@@ -215,6 +228,8 @@ class Instance {
   void draw_viewport();
   void draw_viewport_image_render();
 
+  void draw(Manager &manager) final;
+
   /* Light bake. */
 
   void init_light_bake(Depsgraph *depsgraph, draw::Manager *manager);
@@ -227,6 +242,29 @@ class Instance {
 
   static void update_passes(RenderEngine *engine, Scene *scene, ViewLayer *view_layer);
 
+  /* Append a new line to the info string. */
+  template<typename... Args> void info_append(const char *msg, Args &&...args)
+  {
+    info_ += fmt::format(fmt::runtime(msg), args...);
+    info_ += "\n";
+  }
+
+  /* The same as `info_append`, but `msg` will be translated.
+   * NOTE: When calling this function, `msg` should be a string literal. */
+  template<typename... Args> void info_append_i18n(const char *msg, Args &&...args)
+  {
+    std::string fmt_msg = fmt::format(fmt::runtime(RPT_(msg)), args...) + "\n";
+    /* Don't print the same error twice. */
+    if (info_ != fmt_msg && !BLI_str_endswith(info_.c_str(), fmt_msg.c_str())) {
+      info_ += fmt_msg;
+    }
+  }
+
+  const char *info_get()
+  {
+    return info_.c_str();
+  }
+
   bool is_viewport() const
   {
     return render == nullptr && !is_baking();
@@ -234,12 +272,14 @@ class Instance {
 
   bool is_image_render() const
   {
-    return DRW_state_is_image_render();
+    /* WORKAROUND: During light baking, this may be called before a DRWContext is bound. */
+    return !is_light_bake && DRW_state_is_image_render();
   }
 
   bool is_viewport_image_render() const
   {
-    return DRW_state_is_viewport_image_render();
+    /* WORKAROUND: During light baking, this may be called before a DRWContext is bound. */
+    return !is_light_bake && DRW_state_is_viewport_image_render();
   }
 
   bool is_baking() const
@@ -252,9 +292,16 @@ class Instance {
     return overlays_enabled_;
   }
 
+  /** True if the grease pencil engine might be running. */
+  bool gpencil_engine_enabled() const
+  {
+    return DEG_id_type_any_exists(depsgraph, ID_GP);
+  }
+
   bool is_playback() const
   {
-    return DRW_state_is_playback();
+    /* WORKAROUND: During light baking, this may be called before a DRWContext is bound. */
+    return !is_light_bake && DRW_state_is_playback();
   }
 
   bool is_transforming() const
@@ -265,12 +312,20 @@ class Instance {
 
   bool is_navigating() const
   {
-    return DRW_state_is_navigating();
+    /* WORKAROUND: During light baking, this may be called before a DRWContext is bound. */
+    return !is_light_bake && DRW_state_is_navigating();
   }
 
   bool is_painting() const
   {
-    return DRW_state_is_painting();
+    /* WORKAROUND: During light baking, this may be called before a DRWContext is bound. */
+    return !is_light_bake && DRW_state_is_painting();
+  }
+
+  bool do_display_support() const
+  {
+    /* WORKAROUND: During light baking, this may be called before a DRWContext is bound. */
+    return !is_light_bake && DRW_state_draw_support();
   }
 
   bool use_scene_lights() const
@@ -324,10 +379,10 @@ class Instance {
   }
 
  private:
-  static void object_sync_render(void *instance_,
-                                 Object *ob,
-                                 RenderEngine *engine,
-                                 Depsgraph *depsgraph);
+  /**
+   * Conceptually renders one sample per pixel.
+   * Everything based on random sampling should be done here (i.e: DRWViews jitter)
+   */
   void render_sample();
   void render_read_result(RenderLayer *render_layer, const char *view_name);
 

@@ -24,15 +24,19 @@ using std_mutex_type = std::mutex;
 /** Workaround to forward-declare C++ type in C header. */
 #ifdef __cplusplus
 namespace blender::bke {
-class WindowManagerRuntime;
-}
+struct WindowManagerRuntime;
+struct WindowRuntime;
+}  // namespace blender::bke
 using WindowManagerRuntimeHandle = blender::bke::WindowManagerRuntime;
+using WindowRuntimeHandle = blender::bke::WindowRuntime;
 #else   // __cplusplus
 typedef struct WindowManagerRuntimeHandle WindowManagerRuntimeHandle;
+typedef struct WindowRuntimeHandle WindowRuntimeHandle;
 #endif  // __cplusplus
 
 /* Defined here: */
 
+struct wmNotifier;
 struct wmWindow;
 struct wmWindowManager;
 
@@ -170,20 +174,6 @@ typedef struct wmWindowManager {
   /** Operator registry. */
   ListBase operators;
 
-  /**
-   * Refresh/redraw #wmNotifier structs.
-   * \note Once in the queue, notifiers should be considered read-only.
-   * With the exception of clearing notifiers for data which has been removed,
-   * see: #NOTE_CATEGORY_TAG_CLEARED.
-   */
-  ListBase notifier_queue;
-  /**
-   * For duplicate detection.
-   * \note keep in sync with `notifier_queue` adding/removing elements must also update this set.
-   */
-  struct GSet *notifier_queue_set;
-  void *_pad1;
-
   /** Available/pending extensions updates. */
   int extensions_updates;
   /** Number of blocked & installed extensions. */
@@ -308,7 +298,7 @@ typedef struct wmWindow {
    * \note Loading a window typically uses the size & position saved in the blend-file,
    * there is an exception for startup files which works as follows:
    * Setting the window size to zero before `ghostwin` has been set has a special meaning,
-   * it causes the window size to be initialized to `wm_init_state.size_x` (& `size_y`).
+   * it causes the window size to be initialized to `wm_init_state.size`.
    * These default to the main screen size but can be overridden by the `--window-geometry`
    * command line argument.
    */
@@ -392,8 +382,6 @@ typedef struct wmWindow {
   char ime_data_is_composing;
   char _pad1[7];
 
-  /** All events #wmEvent (ghost level events were handled). */
-  ListBase event_queue;
   /** Window+screen handlers, handled last. */
   ListBase handlers;
   /** Priority handlers, handled first. */
@@ -417,6 +405,8 @@ typedef struct wmWindow {
    */
   uint64_t eventstate_prev_press_time_ms;
 
+  void *_pad2;
+  WindowRuntimeHandle *runtime;
 } wmWindow;
 
 #ifdef ime_data

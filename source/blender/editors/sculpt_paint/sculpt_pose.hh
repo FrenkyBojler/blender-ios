@@ -8,8 +8,13 @@
 
 #pragma once
 
-#include "BLI_math_vector.hh"
-#include "BLI_span.hh"
+#include <array>
+
+#include "BLI_array.hh"
+#include "BLI_index_mask.hh"
+#include "BLI_math_matrix_types.hh"
+
+#include "BKE_paint.hh"
 
 struct Brush;
 struct Depsgraph;
@@ -61,14 +66,6 @@ void do_pose_brush(const Depsgraph &depsgraph,
  * \param r_pose_origin: Must be a valid pointer.
  * \param r_pose_factor: Optional, when set to NULL it won't be calculated.
  */
-void calc_pose_data(const Depsgraph &depsgraph,
-                    Object &ob,
-                    SculptSession &ss,
-                    const float3 &initial_location,
-                    float radius,
-                    float pose_offset,
-                    float3 &r_pose_origin,
-                    MutableSpan<float> r_pose_factor);
 void pose_brush_init(const Depsgraph &depsgraph,
                      Object &ob,
                      SculptSession &ss,

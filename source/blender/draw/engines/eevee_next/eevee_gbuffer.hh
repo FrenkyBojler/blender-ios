@@ -13,6 +13,7 @@
 #include "DRW_render.hh"
 #include "GPU_capabilities.hh"
 
+#include "GPU_platform.hh"
 #include "eevee_material.hh"
 #include "eevee_shader_shared.hh"
 
@@ -141,7 +142,7 @@ struct GBuffer {
 
     eGPUTextureUsage usage = GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_SHADER_WRITE |
                              GPU_TEXTURE_USAGE_ATTACHMENT;
-    header_tx.ensure_2d(GPU_R16UI, extent, usage);
+    header_tx.ensure_2d(GPU_R32UI, extent, usage);
     closure_tx.ensure_2d_array(GPU_RGB10_A2, extent, data_count, usage);
     normal_tx.ensure_2d_array(GPU_RG16, extent, normal_count, usage);
     /* Ensure layer view for frame-buffer attachment. */
@@ -173,12 +174,12 @@ struct GBuffer {
     GPU_framebuffer_bind_ex(
         gbuffer_fb,
         {
-            {GPU_LOADACTION_LOAD, GPU_STOREACTION_STORE},       /* Depth */
-            {GPU_LOADACTION_LOAD, GPU_STOREACTION_STORE},       /* Combined */
-            {GPU_LOADACTION_CLEAR, GPU_STOREACTION_STORE, {0}}, /* GBuf Header */
-            {GPU_LOADACTION_DONT_CARE, GPU_STOREACTION_STORE},  /* GBuf Normal */
-            {GPU_LOADACTION_DONT_CARE, GPU_STOREACTION_STORE},  /* GBuf Closure */
-            {GPU_LOADACTION_DONT_CARE, GPU_STOREACTION_STORE},  /* GBuf Closure 2*/
+            {GPU_LOADACTION_LOAD, GPU_STOREACTION_STORE},       /* Depth. */
+            {GPU_LOADACTION_LOAD, GPU_STOREACTION_STORE},       /* Combined. */
+            {GPU_LOADACTION_CLEAR, GPU_STOREACTION_STORE, {0}}, /* GBuf Header. */
+            {GPU_LOADACTION_DONT_CARE, GPU_STOREACTION_STORE},  /* GBuf Normal. */
+            {GPU_LOADACTION_DONT_CARE, GPU_STOREACTION_STORE},  /* GBuf Closure. */
+            {GPU_LOADACTION_DONT_CARE, GPU_STOREACTION_STORE},  /* GBuf Closure 2. */
         });
   }
 

@@ -21,6 +21,9 @@ struct Object;
 
 namespace blender::io::usd {
 
+/* Custom Blender Primvar name used for storing armature bone lengths. */
+inline const pxr::TfToken BlenderBoneLengths("blender:bone_lengths", pxr::TfToken::Immortal);
+
 /**
  * Recursively invoke the given function on the given armature object's bones.
  * This function is a no-op if the object isn't an armature.
@@ -102,7 +105,7 @@ const Object *get_armature_modifier_obj(const Object &obj, const Depsgraph *deps
  *         bone name is found or if the object does not have an armature modifier
  */
 bool is_armature_modifier_bone_name(const Object &obj,
-                                    const StringRefNull name,
+                                    StringRefNull name,
                                     const Depsgraph *depsgraph);
 
 /**

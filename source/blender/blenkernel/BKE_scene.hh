@@ -24,7 +24,6 @@ struct ToolSettings;
 struct TransformOrientation;
 struct TransformOrientationSlot;
 struct UnitSettings;
-struct View3DCursor;
 struct ViewLayer;
 
 enum eSceneCopyMethod {
@@ -241,12 +240,6 @@ void BKE_render_resolution(const RenderData *r, const bool use_crop, int *r_widt
 int BKE_render_preview_pixel_size(const RenderData *r);
 
 /**********************************/
-
-/**
- * Apply the needed correction factor to value, based on unit_type
- * (only length-related are affected currently) and `unit->scale_length`.
- */
-double BKE_scene_unit_scale(const UnitSettings *unit, int unit_type, double value);
 
 /* Multi-view. */
 

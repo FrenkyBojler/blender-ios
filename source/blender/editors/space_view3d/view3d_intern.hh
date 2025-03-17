@@ -18,8 +18,6 @@ struct BoundBox;
 struct Depsgraph;
 struct Object;
 struct Scene;
-struct ViewContext;
-struct ViewLayer;
 struct bContext;
 struct bContextDataResult;
 struct View3DCameraControl;
@@ -73,6 +71,10 @@ void view3d_depths_rect_create(ARegion *region, rcti *rect, ViewDepths *r_d);
  */
 float view3d_depth_near(ViewDepths *d);
 
+/* view3d_dropboxes.cc */
+
+void view3d_dropboxes();
+
 /* view3d_select.cc */
 
 void VIEW3D_OT_select(wmOperatorType *ot);
@@ -107,7 +109,7 @@ void VIEW3D_OT_localview_remove_from(wmOperatorType *ot);
 /**
  * \param rect: optional for picking (can be NULL).
  */
-void view3d_winmatrix_set(Depsgraph *depsgraph,
+void view3d_winmatrix_set(const Depsgraph *depsgraph,
                           ARegion *region,
                           const View3D *v3d,
                           const rcti *rect);
@@ -123,7 +125,7 @@ void view3d_winmatrix_set(Depsgraph *depsgraph,
  *
  * \note don't set windows active in here, is used by renderwin too.
  */
-void view3d_viewmatrix_set(Depsgraph *depsgraph,
+void view3d_viewmatrix_set(const Depsgraph *depsgraph,
                            const Scene *scene,
                            const View3D *v3d,
                            RegionView3D *rv3d,
@@ -173,7 +175,7 @@ Object *ED_view3d_cameracontrol_object_get(View3DCameraControl *vctrl);
  * Calculates the bounding box corners (min and max) for \a obedit.
  * The returned values are in global space.
  */
-bool ED_view3d_minmax_verts(Object *obedit, float min[3], float max[3]);
+bool ED_view3d_minmax_verts(const Scene *scene, Object *obedit, float min[3], float max[3]);
 
 void VIEW3D_OT_snap_selected_to_grid(wmOperatorType *ot);
 void VIEW3D_OT_snap_selected_to_cursor(wmOperatorType *ot);

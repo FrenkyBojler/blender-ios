@@ -6,6 +6,8 @@
  * \ingroup edmask
  */
 
+#include <algorithm>
+
 #include "MEM_guardedalloc.h"
 
 #include "BLI_listbase.h"
@@ -486,7 +488,7 @@ static SlidePointData *slide_point_customdata(bContext *C, wmOperator *op, const
   }
 
   if (action != SLIDE_ACTION_NONE) {
-    customdata = MEM_cnew<SlidePointData>("mask slide point data");
+    customdata = MEM_callocN<SlidePointData>("mask slide point data");
     customdata->event_invoke_type = event->type;
     customdata->mask = mask;
     customdata->mask_layer = mask_layer;
@@ -590,9 +592,7 @@ static void slide_point_delta_all_feather(SlidePointData *data, float delta)
     MaskSplinePoint *orig_point = &data->orig_spline->points[i];
 
     point->bezt.weight = orig_point->bezt.weight + delta;
-    if (point->bezt.weight < 0.0f) {
-      point->bezt.weight = 0.0f;
-    }
+    point->bezt.weight = std::max(point->bezt.weight, 0.0f);
   }
 }
 
@@ -671,7 +671,7 @@ static int slide_point_modal(bContext *C, wmOperator *op, const wmEvent *event)
     case MOUSEMOVE: {
       ScrArea *area = CTX_wm_area(C);
       ARegion *region = CTX_wm_region(C);
-      float delta[2];
+      blender::float2 delta;
 
       ED_mask_mouse_pos(area, region, event->mval, co);
       sub_v2_v2v2(delta, co, data->prev_mouse_coord);
@@ -708,7 +708,7 @@ static int slide_point_modal(bContext *C, wmOperator *op, const wmEvent *event)
 
             /* flip last point */
             if (data->point != &data->spline->points[0]) {
-              negate_v2(delta);
+              delta *= -1.0f;
             }
           }
         }
@@ -1032,7 +1032,7 @@ static SlideSplineCurvatureData *slide_spline_curvature_customdata(bContext *C,
     return nullptr;
   }
 
-  slide_data = MEM_cnew<SlideSplineCurvatureData>("slide curvature slide");
+  slide_data = MEM_callocN<SlideSplineCurvatureData>("slide curvature slide");
   slide_data->event_invoke_type = event->type;
   slide_data->mask = mask;
   slide_data->mask_layer = mask_layer;
@@ -1386,7 +1386,7 @@ static void delete_feather_points(MaskSplinePoint *point)
     MaskSplinePointUW *new_uw;
     int j = 0;
 
-    new_uw = MEM_cnew_array<MaskSplinePointUW>(count, "new mask uw points");
+    new_uw = MEM_calloc_arrayN<MaskSplinePointUW>(count, "new mask uw points");
 
     for (int i = 0; i < point->tot_uw; i++) {
       if ((point->uw[i].flag & SELECT) == 0) {
@@ -1431,21 +1431,27 @@ static int delete_exec(bContext *C, wmOperator * /*op*/)
       }
 
       if (count == 0) {
+
+        /* Update active. */
+        if (mask_layer->act_point) {
+          if (ARRAY_HAS_ITEM(mask_layer->act_point, spline->points, spline->tot_point)) {
+            mask_layer->act_point = nullptr;
+          }
+        }
+        if (spline == mask_layer->act_spline) {
+          mask_layer->act_spline = nullptr;
+        }
+
         /* delete the whole spline */
         BLI_remlink(&mask_layer->splines, spline);
         BKE_mask_spline_free(spline);
-
-        if (spline == mask_layer->act_spline) {
-          mask_layer->act_spline = nullptr;
-          mask_layer->act_point = nullptr;
-        }
 
         BKE_mask_layer_shape_changed_remove(mask_layer, mask_layer_shape_ofs, tot_point_orig);
       }
       else {
         MaskSplinePoint *new_points;
 
-        new_points = MEM_cnew_array<MaskSplinePoint>(count, "deleteMaskPoints");
+        new_points = MEM_calloc_arrayN<MaskSplinePoint>(count, "deleteMaskPoints");
 
         for (int i = 0, j = 0; i < tot_point_orig; i++) {
           MaskSplinePoint *point = &spline->points[i];
@@ -1980,6 +1986,12 @@ static int mask_duplicate_exec(bContext *C, wmOperator * /*op*/)
 
   LISTBASE_FOREACH (MaskLayer *, mask_layer, &mask->masklayers) {
     LISTBASE_FOREACH_BACKWARD (MaskSpline *, spline, &mask_layer->splines) {
+      const bool act_point_in_spline = mask_layer->act_point &&
+                                       ARRAY_HAS_ITEM(mask_layer->act_point,
+                                                      spline->points,
+                                                      spline->tot_point);
+      const void *act_point_prev = mask_layer->act_point;
+
       MaskSplinePoint *point = spline->points;
       int i = 0;
       while (i < spline->tot_point) {
@@ -2015,14 +2027,27 @@ static int mask_duplicate_exec(bContext *C, wmOperator * /*op*/)
 
           /* Allocate new points and copy them from old spline. */
           new_spline->tot_point = end - start + 1;
-          new_spline->points = MEM_cnew_array<MaskSplinePoint>(new_spline->tot_point,
-                                                               "duplicated mask points");
+          new_spline->points = MEM_calloc_arrayN<MaskSplinePoint>(new_spline->tot_point,
+                                                                  "duplicated mask points");
 
           memcpy(new_spline->points,
                  spline->points + start,
                  new_spline->tot_point * sizeof(MaskSplinePoint));
 
           tot_point = new_spline->tot_point;
+
+          /* Update the active. */
+          if (mask_layer->act_point) {
+            ptrdiff_t act_index = mask_layer->act_point - &spline->points[start];
+            if (size_t(act_index) < new_spline->tot_point) {
+              mask_layer->act_point = &new_spline->points[act_index];
+            }
+          }
+          if (mask_layer->act_spline) {
+            if (mask_layer->act_spline == spline) {
+              mask_layer->act_spline = new_spline;
+            }
+          }
 
           /* animation requires points added one by one */
           if (mask_layer->splines_shapes.first) {
@@ -2053,11 +2078,15 @@ static int mask_duplicate_exec(bContext *C, wmOperator * /*op*/)
           /* Flush selection to splines. */
           new_spline->flag |= SELECT;
           spline->flag &= ~SELECT;
-
-          mask_layer->act_spline = new_spline;
         }
         i++;
         point++;
+      }
+
+      if (act_point_in_spline && (mask_layer->act_point == act_point_prev)) {
+        /* The active point was part of this spline but not copied,
+         * clear it to avoid confusion with the active spline & point getting out of sync. */
+        mask_layer->act_point = nullptr;
       }
     }
   }

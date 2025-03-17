@@ -14,15 +14,15 @@
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
-#include "DNA_space_types.h"
 
+#include "BLI_listbase.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_attribute.hh"
 #include "BKE_context.hh"
 #include "BKE_customdata.hh"
 #include "BKE_global.hh"
-#include "BKE_image.h"
+#include "BKE_image.hh"
 #include "BKE_mesh_legacy_derived_mesh.hh"
 #include "BKE_modifier.hh"
 #include "BKE_multires.hh"
@@ -229,7 +229,8 @@ static DerivedMesh *multiresbake_create_loresdm(Scene *scene, Object *ob, int *l
   DM_set_only_copy(cddm, &CD_MASK_BAREMESH);
   tmp_mmd.lvl = mmd->lvl;
   tmp_mmd.sculptlvl = mmd->lvl;
-  dm = multires_make_derived_from_derived(cddm, &tmp_mmd, scene, ob, MULTIRES_IGNORE_SIMPLIFY);
+  dm = multires_make_derived_from_derived(
+      cddm, &tmp_mmd, scene, ob, MultiresFlags::IgnoreSimplify);
 
   cddm->release(cddm);
 
@@ -256,7 +257,8 @@ static DerivedMesh *multiresbake_create_hiresdm(Scene *scene, Object *ob, int *l
 
   tmp_mmd.lvl = mmd->totlvl;
   tmp_mmd.sculptlvl = mmd->totlvl;
-  dm = multires_make_derived_from_derived(cddm, &tmp_mmd, scene, ob, MULTIRES_IGNORE_SIMPLIFY);
+  dm = multires_make_derived_from_derived(
+      cddm, &tmp_mmd, scene, ob, MultiresFlags::IgnoreSimplify);
   cddm->release(cddm);
 
   return dm;
@@ -442,7 +444,7 @@ static void init_multiresbake_job(bContext *C, MultiresBakeJob *bkj)
 
     multires_flush_sculpt_updates(ob);
 
-    MultiresBakerJobData *data = MEM_cnew<MultiresBakerJobData>(__func__);
+    MultiresBakerJobData *data = MEM_callocN<MultiresBakerJobData>(__func__);
 
     data->ob_image.array = bake_object_image_get_array(ob);
     data->ob_image.len = ob->totcol;
@@ -555,7 +557,7 @@ static int multiresbake_image_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  MultiresBakeJob *bkr = MEM_cnew<MultiresBakeJob>(__func__);
+  MultiresBakeJob *bkr = MEM_callocN<MultiresBakeJob>(__func__);
   init_multiresbake_job(C, bkr);
 
   if (!bkr->data.first) {

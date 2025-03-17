@@ -9,10 +9,12 @@
 #include "MEM_guardedalloc.h"
 
 #include "GPU_immediate.hh"
+#include "GPU_state.hh"
 
 #include "BLF_api.hh"
 
-#include "BLI_blenlib.h"
+#include "BLI_math_vector.h"
+#include "BLI_string.h"
 
 #include "DNA_collection_types.h"
 #include "DNA_dynamicpaint_types.h"
@@ -37,7 +39,6 @@
 
 #include "BIF_glutil.hh"
 
-#include "ED_datafiles.h"
 #include "ED_keyframes_draw.hh"
 #include "ED_keyframes_keylist.hh"
 #include "ED_render.hh"
@@ -49,7 +50,7 @@
 
 #include "interface_intern.hh"
 
-#include "fmt/format.h"
+#include <fmt/format.h>
 
 struct IconImage {
   int w;
@@ -129,19 +130,19 @@ static const IconType icontypes[] = {
 static DrawInfo *def_internal_icon(
     ImBuf *bbuf, int icon_id, int xofs, int yofs, int size, int type, int theme_color)
 {
-  Icon *new_icon = MEM_cnew<Icon>(__func__);
+  Icon *new_icon = MEM_callocN<Icon>(__func__);
 
   new_icon->obj = nullptr; /* icon is not for library object */
   new_icon->id_type = 0;
 
-  DrawInfo *di = MEM_cnew<DrawInfo>(__func__);
+  DrawInfo *di = MEM_callocN<DrawInfo>(__func__);
   di->type = type;
 
   if (type == ICON_TYPE_SVG_MONO) {
     di->data.texture.theme_color = theme_color;
   }
   else if (type == ICON_TYPE_BUFFER) {
-    IconImage *iimg = MEM_cnew<IconImage>(__func__);
+    IconImage *iimg = MEM_callocN<IconImage>(__func__);
     iimg->w = size;
     iimg->h = size;
 
@@ -178,12 +179,12 @@ static DrawInfo *def_internal_icon(
 
 static void def_internal_vicon(int icon_id, VectorDrawFunc drawFunc)
 {
-  Icon *new_icon = MEM_cnew<Icon>("texicon");
+  Icon *new_icon = MEM_callocN<Icon>("texicon");
 
   new_icon->obj = nullptr; /* icon is not for library object */
   new_icon->id_type = 0;
 
-  DrawInfo *di = MEM_cnew<DrawInfo>("drawinfo");
+  DrawInfo *di = MEM_callocN<DrawInfo>("drawinfo");
   di->type = ICON_TYPE_VECTOR;
   di->data.vector.func = drawFunc;
 
@@ -436,15 +437,15 @@ static void vicon_strip_color_draw(
       vicon_strip_color_draw(color, x, y, w, h, alpha); \
     }
 
-DEF_ICON_STRIP_COLOR_DRAW(01, SEQUENCE_COLOR_01);
-DEF_ICON_STRIP_COLOR_DRAW(02, SEQUENCE_COLOR_02);
-DEF_ICON_STRIP_COLOR_DRAW(03, SEQUENCE_COLOR_03);
-DEF_ICON_STRIP_COLOR_DRAW(04, SEQUENCE_COLOR_04);
-DEF_ICON_STRIP_COLOR_DRAW(05, SEQUENCE_COLOR_05);
-DEF_ICON_STRIP_COLOR_DRAW(06, SEQUENCE_COLOR_06);
-DEF_ICON_STRIP_COLOR_DRAW(07, SEQUENCE_COLOR_07);
-DEF_ICON_STRIP_COLOR_DRAW(08, SEQUENCE_COLOR_08);
-DEF_ICON_STRIP_COLOR_DRAW(09, SEQUENCE_COLOR_09);
+DEF_ICON_STRIP_COLOR_DRAW(01, STRIP_COLOR_01);
+DEF_ICON_STRIP_COLOR_DRAW(02, STRIP_COLOR_02);
+DEF_ICON_STRIP_COLOR_DRAW(03, STRIP_COLOR_03);
+DEF_ICON_STRIP_COLOR_DRAW(04, STRIP_COLOR_04);
+DEF_ICON_STRIP_COLOR_DRAW(05, STRIP_COLOR_05);
+DEF_ICON_STRIP_COLOR_DRAW(06, STRIP_COLOR_06);
+DEF_ICON_STRIP_COLOR_DRAW(07, STRIP_COLOR_07);
+DEF_ICON_STRIP_COLOR_DRAW(08, STRIP_COLOR_08);
+DEF_ICON_STRIP_COLOR_DRAW(09, STRIP_COLOR_09);
 
 #  undef DEF_ICON_STRIP_COLOR_DRAW
 
@@ -492,7 +493,7 @@ static void vicon_layergroup_color_draw(
 
   UI_icon_draw_ex(x,
                   y,
-                  ICON_FILE_FOLDER,
+                  ICON_GREASEPENCIL_LAYER_GROUP,
                   aspect,
                   1.0f,
                   0.0f,
@@ -796,7 +797,7 @@ static void icon_verify_datatoc(IconImage *iimg)
 
   if (iimg->datatoc_rect) {
     ImBuf *bbuf = IMB_ibImageFromMemory(
-        iimg->datatoc_rect, iimg->datatoc_size, IB_rect, nullptr, "<matcap icon>");
+        iimg->datatoc_rect, iimg->datatoc_size, IB_byte_data, nullptr, "<matcap icon>");
     /* w and h were set on initialize */
     if (bbuf->x != iimg->h && bbuf->y != iimg->w) {
       IMB_scale(bbuf, iimg->w, iimg->h, IMBScaleFilter::Box, false);
@@ -861,15 +862,15 @@ static void init_internal_icons()
   def_internal_vicon(ICON_COLLECTION_COLOR_07, vicon_collection_color_draw_07);
   def_internal_vicon(ICON_COLLECTION_COLOR_08, vicon_collection_color_draw_08);
 
-  def_internal_vicon(ICON_SEQUENCE_COLOR_01, vicon_strip_color_draw_01);
-  def_internal_vicon(ICON_SEQUENCE_COLOR_02, vicon_strip_color_draw_02);
-  def_internal_vicon(ICON_SEQUENCE_COLOR_03, vicon_strip_color_draw_03);
-  def_internal_vicon(ICON_SEQUENCE_COLOR_04, vicon_strip_color_draw_04);
-  def_internal_vicon(ICON_SEQUENCE_COLOR_05, vicon_strip_color_draw_05);
-  def_internal_vicon(ICON_SEQUENCE_COLOR_06, vicon_strip_color_draw_06);
-  def_internal_vicon(ICON_SEQUENCE_COLOR_07, vicon_strip_color_draw_07);
-  def_internal_vicon(ICON_SEQUENCE_COLOR_08, vicon_strip_color_draw_08);
-  def_internal_vicon(ICON_SEQUENCE_COLOR_09, vicon_strip_color_draw_09);
+  def_internal_vicon(ICON_STRIP_COLOR_01, vicon_strip_color_draw_01);
+  def_internal_vicon(ICON_STRIP_COLOR_02, vicon_strip_color_draw_02);
+  def_internal_vicon(ICON_STRIP_COLOR_03, vicon_strip_color_draw_03);
+  def_internal_vicon(ICON_STRIP_COLOR_04, vicon_strip_color_draw_04);
+  def_internal_vicon(ICON_STRIP_COLOR_05, vicon_strip_color_draw_05);
+  def_internal_vicon(ICON_STRIP_COLOR_06, vicon_strip_color_draw_06);
+  def_internal_vicon(ICON_STRIP_COLOR_07, vicon_strip_color_draw_07);
+  def_internal_vicon(ICON_STRIP_COLOR_08, vicon_strip_color_draw_08);
+  def_internal_vicon(ICON_STRIP_COLOR_09, vicon_strip_color_draw_09);
 
   def_internal_vicon(ICON_LIBRARY_DATA_INDIRECT, vicon_strip_color_draw_library_data_indirect);
   def_internal_vicon(ICON_LIBRARY_DATA_OVERRIDE_NONEDITABLE,
@@ -927,7 +928,7 @@ static DrawInfo *icon_create_drawinfo(Icon *icon)
 {
   const int icon_data_type = icon->obj_type;
 
-  DrawInfo *di = MEM_cnew<DrawInfo>("di_icon");
+  DrawInfo *di = MEM_callocN<DrawInfo>("di_icon");
 
   if (ELEM(icon_data_type, ICON_DATA_ID, ICON_DATA_PREVIEW)) {
     di->type = ICON_TYPE_PREVIEW;
@@ -1005,12 +1006,14 @@ static void icon_create_rect(PreviewImage *prv_img, enum eIconSizes size)
     }
   }
   else if (!prv_img->rect[size]) {
-    prv_img->w[size] = render_size;
-    prv_img->h[size] = render_size;
     prv_img->flag[size] |= PRV_CHANGED;
     prv_img->changed_timestamp[size] = 0;
-    prv_img->rect[size] = static_cast<uint *>(
-        MEM_callocN(render_size * render_size * sizeof(uint), "prv_rect"));
+    if (!ED_preview_use_image_size(prv_img, size)) {
+      prv_img->w[size] = render_size;
+      prv_img->h[size] = render_size;
+      prv_img->rect[size] = static_cast<uint *>(
+          MEM_callocN(render_size * render_size * sizeof(uint), "prv_rect"));
+    }
   }
 }
 
@@ -1104,7 +1107,7 @@ void ui_icon_ensure_deferred(const bContext *C, const int icon_id, const bool bi
           wmWindowManager *wm = CTX_wm_manager(C);
           StudioLight *sl = static_cast<StudioLight *>(icon->obj);
           BKE_studiolight_set_free_function(sl, &ui_studiolight_free_function, wm);
-          IconImage *img = MEM_cnew<IconImage>(__func__);
+          IconImage *img = MEM_callocN<IconImage>(__func__);
 
           img->w = STUDIOLIGHT_ICON_SIZE;
           img->h = STUDIOLIGHT_ICON_SIZE;
@@ -1119,7 +1122,7 @@ void ui_icon_ensure_deferred(const bContext *C, const int icon_id, const bool bi
                                       "StudioLight Icon",
                                       eWM_JobFlag(0),
                                       WM_JOB_TYPE_STUDIOLIGHT);
-          Icon **tmp = MEM_cnew<Icon *>(__func__);
+          Icon **tmp = MEM_callocN<Icon *>(__func__);
           *tmp = icon;
           WM_jobs_customdata_set(wm_job, tmp, MEM_freeN);
           WM_jobs_timer(wm_job, 0.01, 0, NC_WINDOW);
@@ -1131,6 +1134,32 @@ void ui_icon_ensure_deferred(const bContext *C, const int icon_id, const bool bi
       break;
     }
   }
+}
+
+bool ui_icon_is_preview_deferred_loading(const int icon_id, const bool big)
+{
+  const Icon *icon = BKE_icon_get(icon_id);
+  if (icon == nullptr) {
+    return false;
+  }
+
+  const DrawInfo *di = static_cast<DrawInfo *>(icon->drawinfo);
+  if (icon->drawinfo == nullptr) {
+    return false;
+  }
+
+  if (di->type == ICON_TYPE_PREVIEW) {
+    const ID *id = (icon->id_type != 0) ? static_cast<ID *>(icon->obj) : nullptr;
+    const PreviewImage *prv = id ? BKE_previewimg_id_get(id) :
+                                   static_cast<PreviewImage *>(icon->obj);
+
+    if (prv) {
+      const int size = big ? ICON_SIZE_PREVIEW : ICON_SIZE_ICON;
+      return (prv->flag[size] & PRV_RENDERING) != 0;
+    }
+  }
+
+  return false;
 }
 
 /**
@@ -1201,7 +1230,7 @@ PreviewImage *UI_icon_to_preview(int icon_id)
 
     bbuf = IMB_ibImageFromMemory(di->data.buffer.image->datatoc_rect,
                                  di->data.buffer.image->datatoc_size,
-                                 IB_rect,
+                                 IB_byte_data,
                                  nullptr,
                                  __func__);
     if (bbuf) {
@@ -1317,7 +1346,7 @@ static void svg_replace_color_attributes(std::string &svg,
   uchar tool_white[] = {255, 255, 255, 255};
   uchar tool_red[] = {214, 45, 48, 255};
 
-  struct ColorItem {
+  const struct ColorItem {
     const char *name;
     uchar *col = nullptr;
     int colorid = TH_UNDEFINED;
@@ -1332,10 +1361,10 @@ static void svg_replace_color_attributes(std::string &svg,
       {"blender_back", nullptr, TH_BACK},
       {"blender_text", nullptr, TH_TEXT},
       {"blender_text_hi", nullptr, TH_TEXT_HI},
-      {"blender_red_alert", nullptr, TH_REDALERT},
-      {"blender_error", nullptr, TH_INFO_ERROR, SPACE_INFO},
-      {"blender_warning", nullptr, TH_INFO_WARNING, SPACE_INFO},
-      {"blender_info", nullptr, TH_INFO_INFO, SPACE_INFO},
+      {"blender_red_alert", nullptr, TH_ERROR},
+      {"blender_error", nullptr, TH_ERROR},
+      {"blender_warning", nullptr, TH_WARNING},
+      {"blender_info", nullptr, TH_INFO},
       {"blender_scene", nullptr, TH_ICON_SCENE},
       {"blender_collection", nullptr, TH_ICON_COLLECTION},
       {"blender_object", nullptr, TH_ICON_OBJECT},
@@ -1468,13 +1497,18 @@ static void icon_draw_size(float x,
   const float fdraw_size = float(draw_size);
 
   Icon *icon = BKE_icon_get(icon_id);
-  alpha *= btheme->tui.icon_alpha;
 
   if (icon == nullptr) {
     if (G.debug & G_DEBUG) {
       printf("%s: Internal error, no icon for icon ID: %d\n", __func__, icon_id);
     }
-    return;
+    icon_id = ICON_NOT_FOUND;
+    icon = BKE_icon_get(icon_id);
+  }
+
+  if (icon->obj_type != ICON_DATA_STUDIOLIGHT) {
+    /* Icon alpha should not apply to MatCap/Studio lighting. #80356. */
+    alpha *= btheme->tui.icon_alpha;
   }
 
   /* scale width and height according to aspect */
@@ -1511,7 +1545,7 @@ static void icon_draw_size(float x,
 #endif
 
     /* If the theme is light, we will adjust the icon colors. */
-    const bool invert = (rgb_to_grayscale_byte(btheme->tui.wcol_toolbar_item.inner) > 128);
+    const bool invert = (srgb_to_grayscale_byte(btheme->tui.wcol_toolbar_item.inner) > 128);
     const bool geom_inverted = di->data.geom.inverted;
 
     /* This could re-generate often if rendered at different sizes in the one interface.
@@ -1542,8 +1576,11 @@ static void icon_draw_size(float x,
                                                  0.3f) :
                                             0.0f;
     float color[4];
-    if (mono_rgba) {
-      rgba_uchar_to_float(color, (const uchar *)mono_rgba);
+    if (icon_id == ICON_NOT_FOUND) {
+      UI_GetThemeColor4fv(TH_ERROR, color);
+    }
+    else if (mono_rgba) {
+      rgba_uchar_to_float(color, mono_rgba);
     }
     else {
       UI_GetThemeColor4fv(TH_TEXT, color);
@@ -1581,7 +1618,7 @@ static void icon_draw_size(float x,
       else {
         UI_GetThemeColor4ubv(TH_TEXT, text_color);
       }
-      const bool is_light = rgb_to_grayscale_byte(text_color) > 96;
+      const bool is_light = srgb_to_grayscale_byte(text_color) > 96;
       const float zoom_factor = w / UI_ICON_SIZE;
       uiFontStyle fstyle_small = *UI_FSTYLE_WIDGET;
       fstyle_small.points *= zoom_factor * 0.8f;
@@ -1651,7 +1688,7 @@ static void ui_id_preview_image_render_size(
     const bContext *C, Scene *scene, ID *id, PreviewImage *pi, int size, const bool use_job)
 {
   /* changed only ever set by dynamic icons */
-  if ((pi->flag[size] & PRV_CHANGED) || !pi->rect[size]) {
+  if ((pi->flag[size] & PRV_CHANGED) || (!pi->rect[size] && !BKE_previewimg_is_invalid(pi))) {
     /* create the rect if necessary */
     icon_set_image(C, scene, id, pi, eIconSizes(size), use_job);
 
@@ -1921,14 +1958,14 @@ int UI_icon_from_object_mode(const int mode)
     case OB_MODE_EDIT_GPENCIL_LEGACY:
       return ICON_EDITMODE_HLT;
     case OB_MODE_SCULPT:
-    case OB_MODE_SCULPT_GPENCIL_LEGACY:
+    case OB_MODE_SCULPT_GREASE_PENCIL:
     case OB_MODE_SCULPT_CURVES:
       return ICON_SCULPTMODE_HLT;
     case OB_MODE_VERTEX_PAINT:
-    case OB_MODE_VERTEX_GPENCIL_LEGACY:
+    case OB_MODE_VERTEX_GREASE_PENCIL:
       return ICON_VPAINT_HLT;
     case OB_MODE_WEIGHT_PAINT:
-    case OB_MODE_WEIGHT_GPENCIL_LEGACY:
+    case OB_MODE_WEIGHT_GREASE_PENCIL:
       return ICON_WPAINT_HLT;
     case OB_MODE_TEXTURE_PAINT:
       return ICON_TPAINT_HLT;
@@ -1936,7 +1973,7 @@ int UI_icon_from_object_mode(const int mode)
       return ICON_PARTICLEMODE;
     case OB_MODE_POSE:
       return ICON_POSE_HLT;
-    case OB_MODE_PAINT_GPENCIL_LEGACY:
+    case OB_MODE_PAINT_GREASE_PENCIL:
       return ICON_GREASEPENCIL;
   }
   return ICON_NONE;

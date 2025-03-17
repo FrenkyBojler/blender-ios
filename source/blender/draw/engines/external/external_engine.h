@@ -8,11 +8,10 @@
 
 #pragma once
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include "DRW_render.hh"
 
-extern DrawEngineType draw_engine_external_type;
+struct RenderEngineType;
+
 extern RenderEngineType DRW_engine_viewport_external_type;
 
 /* Check whether an external engine is to be used to draw content of an image editor.
@@ -22,6 +21,10 @@ extern RenderEngineType DRW_engine_viewport_external_type;
  * NOTE: Released by the draw engine when it is done drawing. */
 bool DRW_engine_external_acquire_for_image_editor(void);
 
-#ifdef __cplusplus
-}
-#endif
+namespace blender::draw::external {
+
+struct Engine : public DrawEngine::Pointer {
+  DrawEngine *create_instance() final;
+};
+
+}  // namespace blender::draw::external

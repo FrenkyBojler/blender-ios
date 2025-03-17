@@ -9,12 +9,12 @@
 #include "DNA_node_types.h"
 
 #include "BLI_rect.h"
-#include "BLI_string_ref.hh"
 #include "BLI_utildefines.h"
 
 #include "BKE_context.hh"
-#include "BKE_image.h"
+#include "BKE_image.hh"
 #include "BKE_node_runtime.hh"
+#include "BKE_screen.hh"
 
 #include "ED_image.hh"
 #include "ED_node.hh" /* own include */
@@ -89,10 +89,10 @@ bool space_node_view_flag(
   if (snode.edittree) {
     for (const bNode *node : snode.edittree->all_nodes()) {
       if ((node->flag & node_flag) == node_flag) {
-        BLI_rctf_union(&cur_new, &node->runtime->totr);
+        BLI_rctf_union(&cur_new, &node->runtime->draw_bounds);
         tot++;
 
-        if (node->type == NODE_FRAME) {
+        if (node->is_frame()) {
           has_frame = true;
         }
       }
@@ -280,7 +280,7 @@ static int snode_bg_viewmove_invoke(bContext *C, wmOperator *op, const wmEvent *
     return OPERATOR_CANCELLED;
   }
 
-  nvm = MEM_cnew<NodeViewMove>(__func__);
+  nvm = MEM_callocN<NodeViewMove>(__func__);
   op->customdata = nvm;
   nvm->mvalo.x = event->mval[0];
   nvm->mvalo.y = event->mval[1];
@@ -569,7 +569,7 @@ static void sample_apply(bContext *C, wmOperator *op, const wmEvent *event)
   }
 
   if (!ibuf->byte_buffer.data) {
-    IMB_rect_from_float(ibuf);
+    IMB_byte_from_float(ibuf);
   }
 
   /* map the mouse coords to the backdrop image space */
@@ -661,10 +661,10 @@ static int sample_invoke(bContext *C, wmOperator *op, const wmEvent *event)
     return OPERATOR_CANCELLED;
   }
 
-  info = MEM_cnew<ImageSampleInfo>("ImageSampleInfo");
-  info->art = region->type;
+  info = MEM_callocN<ImageSampleInfo>("ImageSampleInfo");
+  info->art = region->runtime->type;
   info->draw_handle = ED_region_draw_cb_activate(
-      region->type, sample_draw, info, REGION_DRAW_POST_PIXEL);
+      region->runtime->type, sample_draw, info, REGION_DRAW_POST_PIXEL);
   op->customdata = info;
 
   sample_apply(C, op, event);

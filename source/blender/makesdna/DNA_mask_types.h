@@ -16,6 +16,11 @@
 #include "DNA_defs.h"
 #include "DNA_listBase.h"
 
+typedef struct Mask_Runtime {
+  /* The Depsgraph::update_count when this ID was last updated. Covers any IDRecalcFlag. */
+  uint64_t last_update;
+} Mask_Runtime;
+
 typedef struct Mask {
   ID id;
   struct AnimData *adt;
@@ -37,6 +42,10 @@ typedef struct Mask {
   /** For anim info. */
   int flag;
   char _pad[4];
+
+  void *_pad1;
+
+  Mask_Runtime runtime;
 } Mask;
 
 typedef struct MaskParent {
@@ -147,7 +156,12 @@ typedef struct MaskLayer {
 
   /** Active spline. */
   struct MaskSpline *act_spline;
-  /** Active point. */
+  /**
+   * Active point.
+   *
+   * \note By convention the active-point will be a point in `act_spline` however this isn't
+   * guaranteed and cannot be assumed by logic that validates memory.
+   */
   struct MaskSplinePoint *act_point;
 
   /* blending options */

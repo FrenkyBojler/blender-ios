@@ -13,11 +13,14 @@
 
 #include "BKE_modifier.hh"
 
-#include "overlay_next_private.hh"
+#include "overlay_next_base.hh"
 
 namespace blender::draw::overlay {
 
-class Fluids {
+/**
+ * Draw fluid simulation overlays (water, smoke).
+ */
+class Fluids : Overlay {
  private:
   const SelectionType selection_type_;
 
@@ -36,49 +39,52 @@ class Fluids {
  public:
   Fluids(const SelectionType selection_type) : selection_type_(selection_type){};
 
-  void begin_sync(Resources &res, const State &state)
+  void begin_sync(Resources &res, const State &state) final
   {
     /* Against design. Should not sync depending on view. */
-    float3 camera_direction = View("WorkaroundView", DRW_view_default_get()).viewinv().z_axis();
+    float3 camera_direction = blender::draw::View::default_get().viewinv().z_axis();
     dominant_axis = math::dominant_axis(camera_direction);
 
     {
       auto &pass = fluid_ps_;
       pass.init();
-      pass.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_LESS_EQUAL |
-                     state.clipping_state);
+      pass.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_LESS_EQUAL,
+                     state.clipping_plane_count);
       res.select_bind(pass);
 
       /* TODO(fclem): Use either specialization constants or push constants to reduce the amount of
        * shader variants. */
       velocity_needle_ps_ = &fluid_ps_.sub("Velocity Needles");
-      velocity_needle_ps_->shader_set(res.shaders.fluid_velocity_needle.get());
+      velocity_needle_ps_->shader_set(res.shaders->fluid_velocity_needle.get());
 
       velocity_mac_ps_ = &fluid_ps_.sub("Velocity Mac");
-      velocity_mac_ps_->shader_set(res.shaders.fluid_velocity_mac.get());
+      velocity_mac_ps_->shader_set(res.shaders->fluid_velocity_mac.get());
 
       velocity_streamline_ps_ = &fluid_ps_.sub("Velocity Line");
-      velocity_streamline_ps_->shader_set(res.shaders.fluid_velocity_streamline.get());
+      velocity_streamline_ps_->shader_set(res.shaders->fluid_velocity_streamline.get());
 
       grid_lines_flags_ps_ = &fluid_ps_.sub("Velocity Mac");
-      grid_lines_flags_ps_->shader_set(res.shaders.fluid_grid_lines_flags.get());
+      grid_lines_flags_ps_->shader_set(res.shaders->fluid_grid_lines_flags.get());
 
       grid_lines_flat_ps_ = &fluid_ps_.sub("Velocity Needles");
-      grid_lines_flat_ps_->shader_set(res.shaders.fluid_grid_lines_flat.get());
+      grid_lines_flat_ps_->shader_set(res.shaders->fluid_grid_lines_flat.get());
 
       grid_lines_range_ps_ = &fluid_ps_.sub("Velocity Line");
-      grid_lines_range_ps_->shader_set(res.shaders.fluid_grid_lines_range.get());
+      grid_lines_range_ps_->shader_set(res.shaders->fluid_grid_lines_range.get());
     }
 
     cube_buf_.clear();
   }
 
-  void object_sync(Manager &manager, const ObjectRef &ob_ref, Resources &res, const State &state)
+  void object_sync(Manager &manager,
+                   const ObjectRef &ob_ref,
+                   Resources &res,
+                   const State &state) final
   {
     Object *ob = ob_ref.object;
 
     /* Do not show for dupli objects as the fluid is baked for the original object. */
-    if (ob->base_flag & (BASE_FROM_SET | BASE_FROM_DUPLI)) {
+    if (is_from_dupli_or_set(ob)) {
       return;
     }
 
@@ -104,7 +110,7 @@ class Fluids {
       return;
     }
 
-    ResourceHandle res_handle = manager.resource_handle(ob_ref);
+    ResourceHandle res_handle = manager.unique_handle(ob_ref);
     select::ID sel_id = res.select_id(ob_ref);
 
     /* Small cube showing voxel size. */
@@ -227,15 +233,16 @@ class Fluids {
     }
   }
 
-  void end_sync(Resources &res, ShapeCache &shapes, const State & /*state*/)
+  void end_sync(Resources &res, const State & /*state*/) final
   {
-    fluid_ps_.shader_set(res.shaders.extra_shape.get());
-    fluid_ps_.bind_ubo("globalsBlock", &res.globals_buf);
+    fluid_ps_.shader_set(res.shaders->extra_shape.get());
+    fluid_ps_.bind_ubo(OVERLAY_GLOBALS_SLOT, &res.globals_buf);
+    fluid_ps_.bind_ubo(DRW_CLIPPING_UBO_SLOT, &res.clip_planes_buf);
 
-    cube_buf_.end_sync(fluid_ps_, shapes.cube.get());
+    cube_buf_.end_sync(fluid_ps_, res.shapes.cube.get());
   }
 
-  void draw(Framebuffer &framebuffer, Manager &manager, View &view)
+  void draw_line(Framebuffer &framebuffer, Manager &manager, View &view) final
   {
     GPU_framebuffer_bind(framebuffer);
     manager.submit(fluid_ps_, view);

@@ -13,7 +13,6 @@
 #include "DNA_curve_types.h"
 #include "DNA_key_types.h"
 #include "DNA_material_types.h"
-#include "DNA_meta_types.h"
 #include "DNA_object_types.h"
 #include "DNA_pointcloud_types.h"
 #include "DNA_scene_types.h"
@@ -36,7 +35,7 @@
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
 #include "BKE_main.hh"
-#include "BKE_material.h"
+#include "BKE_material.hh"
 #include "BKE_mball.hh"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_runtime.hh"
@@ -359,14 +358,14 @@ struct VertLink {
 
 static void prependPolyLineVert(ListBase *lb, uint index)
 {
-  VertLink *vl = MEM_cnew<VertLink>("VertLink");
+  VertLink *vl = MEM_callocN<VertLink>("VertLink");
   vl->index = index;
   BLI_addhead(lb, vl);
 }
 
 static void appendPolyLineVert(ListBase *lb, uint index)
 {
-  VertLink *vl = MEM_cnew<VertLink>("VertLink");
+  VertLink *vl = MEM_callocN<VertLink>("VertLink");
   vl->index = index;
   BLI_addtail(lb, vl);
 }
@@ -394,7 +393,7 @@ void BKE_mesh_to_curve_nurblist(const Mesh *mesh, ListBase *nurblist, const int 
   /* create edges from all faces (so as to find edges not in any faces) */
   for (const int i : mesh_edges.index_range()) {
     if (edge_users[i] == edge_users_test) {
-      EdgeLink *edl = MEM_cnew<EdgeLink>("EdgeLink");
+      EdgeLink *edl = MEM_callocN<EdgeLink>("EdgeLink");
       edl->edge = &mesh_edges[i];
 
       BLI_addtail(&edges, edl);
@@ -545,9 +544,9 @@ void BKE_mesh_to_pointcloud(Main *bmain, Depsgraph *depsgraph, Scene * /*scene*/
     return;
   }
 
-  PointCloud *pointcloud = (PointCloud *)BKE_pointcloud_add(bmain, ob->id.name + 2);
+  PointCloud *pointcloud = BKE_pointcloud_add(bmain, ob->id.name + 2);
 
-  CustomData_free(&pointcloud->pdata, pointcloud->totpoint);
+  CustomData_free(&pointcloud->pdata);
   pointcloud->totpoint = mesh_eval->verts_num;
   CustomData_merge(
       &mesh_eval->vert_data, &pointcloud->pdata, CD_MASK_PROP_ALL, mesh_eval->verts_num);
@@ -709,8 +708,7 @@ static Mesh *mesh_new_from_evaluated_curve_type_object(const Object *evaluated_o
     return BKE_mesh_copy_for_eval(*mesh);
   }
   if (const Curves *curves = get_evaluated_curves_from_object(evaluated_object)) {
-    const blender::bke::AnonymousAttributePropagationInfo propagation_info;
-    return blender::bke::curve_to_wire_mesh(curves->geometry.wrap(), propagation_info);
+    return blender::bke::curve_to_wire_mesh(curves->geometry.wrap());
   }
   return nullptr;
 }
@@ -906,7 +904,7 @@ static int foreach_libblock_make_usercounts_callback(LibraryIDLinkCallbackData *
     return IDWALK_RET_NOP;
   }
 
-  const int cb_flag = cb_data->cb_flag;
+  const LibraryForeachIDCallbackFlag cb_flag = cb_data->cb_flag;
   if (cb_flag & IDWALK_CB_USER) {
     id_us_plus(*id_p);
   }
@@ -1047,7 +1045,7 @@ static void move_shapekey_layers_to_keyblocks(const Mesh &mesh,
     if (kb->totelem != mesh.verts_num) {
       MEM_SAFE_FREE(kb->data);
       kb->totelem = mesh.verts_num;
-      kb->data = MEM_cnew_array<float3>(kb->totelem, __func__);
+      kb->data = MEM_calloc_arrayN<float3>(kb->totelem, __func__);
       CLOG_ERROR(&LOG, "Data for shape key '%s' on mesh missing from evaluated mesh ", kb->name);
     }
   }
@@ -1061,9 +1059,10 @@ void BKE_mesh_nomain_to_mesh(Mesh *mesh_src, Mesh *mesh_dst, Object *ob)
     BLI_assert(mesh_dst == ob->data);
   }
 
+  const bool verts_num_changed = mesh_dst->verts_num != mesh_src->verts_num;
+
   BKE_mesh_clear_geometry_and_metadata(mesh_dst);
 
-  const bool verts_num_changed = mesh_dst->verts_num != mesh_src->verts_num;
   mesh_dst->verts_num = mesh_src->verts_num;
   mesh_dst->edges_num = mesh_src->edges_num;
   mesh_dst->faces_num = mesh_src->faces_num;

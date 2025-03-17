@@ -2,9 +2,14 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#pragma BLENDER_REQUIRE(draw_model_lib.glsl)
-#pragma BLENDER_REQUIRE(eevee_surf_lib.glsl)
-#pragma BLENDER_REQUIRE(common_pointcloud_lib.glsl)
+#include "infos/eevee_material_info.hh"
+
+VERTEX_SHADER_CREATE_INFO(eevee_clip_plane)
+VERTEX_SHADER_CREATE_INFO(eevee_geom_volume)
+
+#include "draw_model_lib.glsl"
+#include "draw_object_infos_lib.glsl"
+#include "eevee_surf_lib.glsl"
 
 void main()
 {
@@ -13,8 +18,9 @@ void main()
   init_interface();
 
   /* TODO(fclem): Find a better way? This is reverting what draw_resource_finalize does. */
-  vec3 size = safe_rcp(OrcoTexCoFactors[1].xyz * 2.0);                    /* Box half-extent. */
-  vec3 loc = size + (OrcoTexCoFactors[0].xyz / -OrcoTexCoFactors[1].xyz); /* Box center. */
+  ObjectInfos info = drw_object_infos();
+  vec3 size = safe_rcp(info.orco_mul * 2.0);          /* Box half-extent. */
+  vec3 loc = size + (info.orco_add / -info.orco_mul); /* Box center. */
 
   /* Use bounding box geometry for now. */
   vec3 lP = loc + pos * size;

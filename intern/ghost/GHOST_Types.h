@@ -21,17 +21,9 @@
 /* This is used by `GHOST_C-api.h` too, cannot use C++ conventions. */
 // NOLINTBEGIN: modernize-use-using
 
-#ifdef WITH_CXX_GUARDEDALLOC
-#  include "MEM_guardedalloc.h"
-#else
-/* Convenience unsigned abbreviations (#WITH_CXX_GUARDEDALLOC defines these). */
-typedef unsigned int uint;
-typedef unsigned short ushort;
-typedef unsigned long ulong;
-typedef unsigned char uchar;
-#endif
+#include "MEM_guardedalloc.h"
 
-#if defined(WITH_CXX_GUARDEDALLOC) && defined(__cplusplus)
+#if defined(__cplusplus)
 #  define GHOST_DECLARE_HANDLE(name) \
     typedef struct name##__ { \
       int unused; \
@@ -127,6 +119,10 @@ typedef enum {
    * Support detecting the physical trackpad direction.
    */
   GHOST_kCapabilityTrackpadPhysicalDirection = (1 << 7),
+  /**
+   * Support for window decoration styles.
+   */
+  GHOST_kCapabilityWindowDecorationStyles = (1 << 8),
 } GHOST_TCapabilityFlag;
 
 /**
@@ -137,7 +133,8 @@ typedef enum {
   (GHOST_kCapabilityCursorWarp | GHOST_kCapabilityWindowPosition | \
    GHOST_kCapabilityPrimaryClipboard | GHOST_kCapabilityGPUReadFrontBuffer | \
    GHOST_kCapabilityClipboardImages | GHOST_kCapabilityDesktopSample | \
-   GHOST_kCapabilityInputIME | GHOST_kCapabilityTrackpadPhysicalDirection)
+   GHOST_kCapabilityInputIME | GHOST_kCapabilityTrackpadPhysicalDirection | \
+   GHOST_kCapabilityWindowDecorationStyles)
 
 /* Xtilt and Ytilt represent how much the pen is tilted away from
  * vertically upright in either the X or Y direction, with X and Y the
@@ -239,7 +236,8 @@ typedef enum {
   /* Trackballs and programmable buttons. */
   GHOST_kButtonMaskButton6,
   GHOST_kButtonMaskButton7,
-  GHOST_kButtonNum
+
+#define GHOST_kButtonNum (int(GHOST_kButtonMaskButton7) + 1)
 } GHOST_TButton;
 
 typedef enum {
@@ -363,6 +361,9 @@ typedef enum {
   GHOST_kStandardCursorLeftHandle,
   GHOST_kStandardCursorRightHandle,
   GHOST_kStandardCursorBothHandles,
+  GHOST_kStandardCursorHandOpen,
+  GHOST_kStandardCursorHandClosed,
+  GHOST_kStandardCursorHandPoint,
   GHOST_kStandardCursorCustom,
 
 #define GHOST_kStandardCursorNumCursors (int(GHOST_kStandardCursorCustom) + 1)
@@ -636,6 +637,9 @@ typedef struct {
   uint8_t **strings;
 } GHOST_TStringArray;
 
+/**
+ * Keep in sync with #wmProgress.
+ */
 typedef enum {
   GHOST_kNotStarted = 0,
   GHOST_kStarting,
@@ -698,6 +702,11 @@ typedef enum {
   /* Can be extended as needed. */
 } GHOST_TUserSpecialDirTypes;
 
+typedef enum {
+  GHOST_kDecorationNone = 0,
+  GHOST_kDecorationColoredTitleBar = (1 << 0),
+} GHOST_TWindowDecorationStyleFlags;
+
 typedef struct {
   /** Number of pixels on a line. */
   uint32_t xPixels;
@@ -710,21 +719,44 @@ typedef struct {
 } GHOST_DisplaySetting;
 
 typedef struct {
+  /** Index of the GPU device in the list provided by the platform. */
+  int index;
+  /** (PCI) Vendor ID of the GPU. */
+  uint vendor_id;
+  /** Device ID of the GPU provided by the vendor. */
+  uint device_id;
+} GHOST_GPUDevice;
+
+typedef struct {
   int flags;
   GHOST_TDrawingContextType context_type;
+  GHOST_GPUDevice preferred_device;
 } GHOST_GPUSettings;
+
+typedef struct {
+  float colored_titlebar_bg_color[3];
+  float colored_titlebar_fg_color[3];
+} GHOST_WindowDecorationStyleSettings;
 
 #ifdef WITH_VULKAN_BACKEND
 typedef struct {
-  /** Identifier of the swap chain image in the swap chain. */
-  uint32_t swap_chain_index;
   /** Image handle to the image that will be presented to the user. */
   VkImage image;
-  /** Format of the image. */
-  VkFormat format;
+  /** Format of the swap chain. */
+  VkSurfaceFormatKHR surface_format;
   /** Resolution of the image. */
   VkExtent2D extent;
 } GHOST_VulkanSwapChainData;
+
+typedef struct {
+  VkInstance instance;
+  VkPhysicalDevice physical_device;
+  VkDevice device;
+  uint32_t graphic_queue_family;
+  VkQueue queue;
+  void *queue_mutex;
+} GHOST_VulkanHandles;
+
 #endif
 
 typedef enum {
