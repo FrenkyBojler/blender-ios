@@ -142,8 +142,7 @@ static void button2d_draw_intern(const bContext *C,
     PropertyRNA *shape_prop = RNA_struct_find_property(gz->ptr, "shape");
 
     /* Same logic as in the RNA UI API, use icon_value only if icon is not defined. */
-    if (RNA_property_is_set(gz->ptr, icon_prop))
-    {
+    if (RNA_property_is_set(gz->ptr, icon_prop)) {
       button->icon = RNA_property_enum_get(gz->ptr, icon_prop);
     }
     else if (RNA_property_is_set(gz->ptr, icon_value_prop)) {
