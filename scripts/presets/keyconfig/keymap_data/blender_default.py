@@ -7026,6 +7026,28 @@ def km_image_editor_tool_mask_scale(params):
     )
 
 
+def km_image_editor_tool_mask_primitive_square(params):
+    return (
+        "Image Editor Tool: Mask, Box",
+        {"space_type": 'IMAGE_EDITOR', "region_type": 'WINDOW'},
+        {"items": [
+            ("mask.primitive_square_add", {"type": 'LEFTMOUSE', "value": 'PRESS'},
+             {"properties": []}),
+        ]},
+    )
+
+
+def km_image_editor_tool_mask_primitive_circle(params):
+    return (
+        "Image Editor Tool: Mask, Circle",
+        {"space_type": 'IMAGE_EDITOR', "region_type": 'WINDOW'},
+        {"items": [
+            ("mask.primitive_circle_add", {"type": 'LEFTMOUSE', "value": 'PRESS'},
+             {"properties": []}),
+        ]},
+    )
+
+
 # ------------------------------------------------------------------------------
 # Tool System (Node Editor)
 
@@ -8612,6 +8634,8 @@ def generate_keymaps(params=None):
         km_image_editor_tool_mask_move(params),
         km_image_editor_tool_mask_rotate(params),
         km_image_editor_tool_mask_scale(params),
+        km_image_editor_tool_mask_primitive_circle(params),
+        km_image_editor_tool_mask_primitive_square(params),
         *(km_node_editor_tool_select(params, fallback=fallback) for fallback in (False, True)),
         *(km_node_editor_tool_select_box(params, fallback=fallback) for fallback in (False, True)),
         *(km_node_editor_tool_select_lasso(params, fallback=fallback) for fallback in (False, True)),

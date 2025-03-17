@@ -2574,6 +2574,43 @@ class _defs_image_mask_select:
         )
 
 
+class _defs_image_mask_primitive:
+
+    @ToolDef.from_fn
+    def box():
+        def draw_settings(_context, layout, tool):
+            props = tool.operator_properties("mask.primitive_square_add")
+            layout.prop(props, "size")
+            layout.prop(props, "location")
+
+        return dict(
+            idname="builtin.box",
+            label="Box",
+            icon="ops.gpencil.primitive_box",
+            cursor='CROSSHAIR',
+            draw_settings=draw_settings,
+            widget=None,
+            keymap="Image Editor Tool: Mask, Box",
+        )
+
+    @ToolDef.from_fn
+    def circle():
+        def draw_settings(_context, layout, tool):
+            props = tool.operator_properties("mask.primitive_circle_add")
+            layout.prop(props, "size")
+            layout.prop(props, "location")
+
+        return dict(
+            idname="builtin.circle",
+            label="Circle",
+            icon="ops.gpencil.primitive_circle",
+            cursor='CROSSHAIR',
+            draw_settings=draw_settings,
+            widget=None,
+            keymap="Image Editor Tool: Mask, Circle",
+        )
+
+
 class _defs_image_uv_transform:
 
     @ToolDef.from_fn
@@ -3243,6 +3280,13 @@ class IMAGE_PT_tools_active(ToolSelectPanelHelper, Panel):
         ),
     )
 
+    _tools_mask_primitive = (
+        (
+            _defs_image_mask_primitive.circle,
+            _defs_image_mask_primitive.box,
+        ),
+    )
+
     _tools_annotate = (
         (
             _defs_annotate.scribble,
@@ -3284,6 +3328,8 @@ class IMAGE_PT_tools_active(ToolSelectPanelHelper, Panel):
             *_tools_mask_transform,
             None,
             *_tools_annotate,
+            None,
+            *_tools_mask_primitive,
         ],
         'PAINT': [
             _brush_tool,
