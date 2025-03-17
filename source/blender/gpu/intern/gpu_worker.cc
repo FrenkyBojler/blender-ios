@@ -119,9 +119,11 @@ void GPUWorker::run(std::shared_ptr<GPUSecondaryContext> context, std::function<
 
   /* Loop until we get the terminate signal. */
   while (!terminate_) {
-    /* Wait until wake_up() */
-    std::unique_lock<std::mutex> lock(mutex_);
-    condition_var_.wait(lock);
+    {
+      /* Wait until wake_up() */
+      std::unique_lock<std::mutex> lock(mutex_);
+      condition_var_.wait(lock);
+    }
     if (terminate_) {
       continue;
     }
