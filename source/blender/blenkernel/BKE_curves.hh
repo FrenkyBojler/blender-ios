@@ -326,6 +326,7 @@ class CurvesGeometry : public ::CurvesGeometry {
   /**
    * Resizes custom knots array depending on topological data.
    * Depends on curve offsets, knot modes, orders and cyclic data.
+   * Used to resize internal knots array before writing knots.
    */
   void nurbs_custom_knots_update_size();
 
