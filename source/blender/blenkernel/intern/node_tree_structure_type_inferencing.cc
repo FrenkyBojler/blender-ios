@@ -594,15 +594,17 @@ static std::unique_ptr<nodes::StructureTypeInterface> calc_structure_type_interf
 {
   tree.ensure_topology_cache();
   tree.ensure_interface_cache();
-  if (tree.has_available_link_cycle()) {
-    return {};
-  }
-
-  Array<nodes::StructureTypeInterface> node_interfaces = calc_node_interfaces(tree);
 
   auto derived_interface = std::make_unique<nodes::StructureTypeInterface>();
   derived_interface->inputs.reinitialize(tree.interface_inputs().size());
   derived_interface->outputs.reinitialize(tree.interface_outputs().size());
+  if (tree.has_available_link_cycle()) {
+    derived_interface->inputs.fill(StructureType::Dynamic);
+    derived_interface->outputs.fill({StructureType::Dynamic, {}});
+    return derived_interface;
+  }
+
+  Array<nodes::StructureTypeInterface> node_interfaces = calc_node_interfaces(tree);
 
   Array<DataRequirement> data_requirements(tree.all_input_sockets().size());
   Array<StructureType> structure_types(tree.all_sockets().size(), StructureType::Dynamic);
