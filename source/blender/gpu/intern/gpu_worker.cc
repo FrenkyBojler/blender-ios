@@ -60,7 +60,7 @@ GPUSecondaryContext::GPUSecondaryContext()
   ghost_context_ = GHOST_CreateGPUContext(ghost_system, gpu_settings);
   BLI_assert(ghost_context_);
 
-  /* Create a GPU context for the compile thread to use. */
+  /* Create a GPU context for the secondary thread to use. */
   gpu_context_ = GPU_context_create(nullptr, ghost_context_);
   BLI_assert(gpu_context_);
 
@@ -83,6 +83,7 @@ GPUSecondaryContext::~GPUSecondaryContext()
 
 void GPUSecondaryContext::activate()
 {
+  /* Contexts need to be activated in the thread they're going to be used. */
   BLI_assert(!BLI_thread_is_main());
 
   GHOST_ActivateGPUContext(ghost_context_);
