@@ -75,6 +75,11 @@ if(WITH_COMPILER_CODE_COVERAGE)
     set(COVERAGE_SCRIPT_PATH ${CMAKE_CURRENT_SOURCE_DIR}/coverage/coverage.py)
 
     add_custom_target(coverage-report
+      ${PYTHON_EXECUTABLE} ${COVERAGE_SCRIPT_PATH} report --build-directory ${CMAKE_BINARY_DIR} --no-browser
+      USES_TERMINAL
+    )
+
+    add_custom_target(coverage-show
       ${PYTHON_EXECUTABLE} ${COVERAGE_SCRIPT_PATH} report --build-directory ${CMAKE_BINARY_DIR}
       USES_TERMINAL
     )
@@ -89,7 +94,7 @@ if(WITH_COMPILER_CODE_COVERAGE)
         remove_directory ${COMPILER_CODE_COVERAGE_DATA_DIR}
       USES_TERMINAL
     )
-    add_custom_target(merge-coverage-data
+    add_custom_target(coverage-merge
       COMMENT "Merging code-coverage data."
       BYPRODUCTS "${COMPILER_CODE_COVERAGE_DATA_DIR}/blender.profdata"
       COMMAND "${LLVM_PROFDATA}"
@@ -112,7 +117,7 @@ if(WITH_COMPILER_CODE_COVERAGE)
         $<TARGET_FILE:blender>
       USES_TERMINAL
     )
-    add_custom_target(show-coverage-report
+    add_custom_target(coverage-show
       COMMENT "Starting browser for ${COMPILER_CODE_COVERAGE_DATA_DIR}/report/index.html"
       COMMAND "${COMPILER_CODE_COVERAGE_DATA_DIR}/report/index.html"
       SOURCES "${COMPILER_CODE_COVERAGE_DATA_DIR}/report/index.html"
