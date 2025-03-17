@@ -155,9 +155,6 @@ id<MTLBuffer> MetalBufferPool::get_buffer(id<MTLDevice> device,
   /* Copy over data */
   if (pointer) {
     memcpy(buffer.contents, pointer, length);
-    if (buffer.storageMode == MTLStorageModeManaged) {
-      [buffer didModifyRange:NSMakeRange(0, length)];
-    }
   }
 
   return buffer;

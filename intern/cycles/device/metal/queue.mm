@@ -398,11 +398,7 @@ bool MetalDeviceQueue::enqueue(DeviceKernel kernel,
            plain_old_launch_data_size);
 
     /* Allocate an argument buffer. */
-    MTLResourceOptions arg_buffer_options = MTLResourceStorageModeManaged;
-    if ([mtlDevice_ hasUnifiedMemory]) {
-      arg_buffer_options = MTLResourceStorageModeShared;
-    }
-
+    MTLResourceOptions arg_buffer_options = MTLResourceStorageModeShared;
     id<MTLBuffer> arg_buffer = temp_buffer_pool_.get_buffer(mtlDevice_,
                                                             mtlCommandBuffer_,
                                                             arg_buffer_length,
@@ -514,10 +510,6 @@ bool MetalDeviceQueue::enqueue(DeviceKernel kernel,
         }
       }
       bytes_written = metal_offsets + metal_device_->mtlAncillaryArgEncoder.encodedLength;
-    }
-
-    if (arg_buffer.storageMode == MTLStorageModeManaged) {
-      [arg_buffer didModifyRange:NSMakeRange(0, bytes_written)];
     }
 
     [mtlComputeCommandEncoder setBuffer:arg_buffer offset:0 atIndex:0];
@@ -820,10 +812,6 @@ void MetalDeviceQueue::copy_from_device(device_memory &mem)
       const size_t size = mem.memory_size();
 
       if (mem.device_pointer) {
-        if ([mmem.mtlBuffer storageMode] == MTLStorageModeManaged) {
-          id<MTLBlitCommandEncoder> blitEncoder = get_blit_encoder();
-          [blitEncoder synchronizeResource:mmem.mtlBuffer];
-        }
         if (mem.host_pointer != mmem.hostPtr) {
           if (mtlCommandBuffer_) {
             copy_back_mem_.push_back({mem.host_pointer, mmem.hostPtr, size});
