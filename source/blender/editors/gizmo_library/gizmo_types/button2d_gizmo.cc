@@ -150,7 +150,7 @@ static void button2d_draw_intern(const bContext *C,
     else if (RNA_property_is_set(gz->ptr, icon_prop)) {
       button->icon = RNA_property_enum_get(gz->ptr, icon_prop);
     }
-    else {
+    else if (RNA_property_is_set(gz->ptr, shape_prop)) {
       const uint polys_len = RNA_property_string_length(gz->ptr, shape_prop);
       /* We shouldn't need the +1, but a nullptr char is set. */
       char *polys = static_cast<char *>(MEM_mallocN(polys_len + 1, __func__));
