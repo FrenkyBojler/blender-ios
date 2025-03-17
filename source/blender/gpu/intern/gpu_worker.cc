@@ -34,8 +34,9 @@ static GHOST_TDrawingContextType ghost_context_type()
   }
 }
 
-GPUWorker::GPUWorker(std::function<void()> run_cb)
+GPUSecondaryContext::GPUSecondaryContext()
 {
+  /* Contexts can only be created on the main thread. */
   BLI_assert(BLI_thread_is_main());
 
   GPUContext *main_thread_context = GPU_context_active_get();
@@ -56,39 +57,65 @@ GPUWorker::GPUWorker(std::function<void()> run_cb)
   BLI_assert(ghost_system);
 
   /* Create a Ghost GPU Context using the system handle. */
-  GHOST_ContextHandle ghost_gpu_context = GHOST_CreateGPUContext(ghost_system, gpu_settings);
-  BLI_assert(ghost_gpu_context);
+  ghost_context_ = GHOST_CreateGPUContext(ghost_system, gpu_settings);
+  BLI_assert(ghost_context_);
 
   /* Create a GPU context for the compile thread to use. */
-  GPUContext *thread_context = GPU_context_create(nullptr, ghost_gpu_context);
-  BLI_assert(thread_context);
-
-  /* Create a new thread */
-  thread_ = std::make_unique<std::thread>([this, thread_context, ghost_gpu_context, run_cb]() {
-    this->run(thread_context, ghost_gpu_context, run_cb);
-  });
+  gpu_context_ = GPU_context_create(nullptr, ghost_context_);
+  BLI_assert(gpu_context_);
 
   /* Restore the main thread context.
    * (required as the above context creation also makes it active). */
   GPU_context_active_set(main_thread_context);
 }
 
+GPUSecondaryContext::~GPUSecondaryContext()
+{
+  GPU_context_discard(gpu_context_);
+
+  GHOST_ReleaseGPUContext(ghost_context_);
+
+  GHOST_SystemHandle ghost_system = reinterpret_cast<GHOST_SystemHandle>(
+      GPU_backend_ghost_system_get());
+  BLI_assert(ghost_system);
+  GHOST_DisposeGPUContext(ghost_system, ghost_context_);
+}
+
+void GPUSecondaryContext::activate()
+{
+  BLI_assert(!BLI_thread_is_main());
+
+  GHOST_ActivateGPUContext(ghost_context_);
+  GPU_context_active_set(gpu_context_);
+}
+
+GPUWorker::GPUWorker(uint32_t threads_count, bool share_context, std::function<void()> run_cb)
+{
+  std::shared_ptr<GPUSecondaryContext> shared_context = nullptr;
+  if (share_context) {
+    shared_context = std::make_shared<GPUSecondaryContext>();
+  }
+
+  for (int i : IndexRange(threads_count)) {
+    UNUSED_VARS(i);
+    std::shared_ptr<GPUSecondaryContext> thread_context =
+        share_context ? shared_context : std::make_shared<GPUSecondaryContext>();
+    threads_.append(std::make_unique<std::thread>([=]() { this->run(thread_context, run_cb); }));
+  }
+}
+
 GPUWorker::~GPUWorker()
 {
   terminate_ = true;
-  condition_var_.notify_one();
-  thread_->join();
+  condition_var_.notify_all();
+  for (std::unique_ptr<std::thread> &thread : threads_) {
+    thread->join();
+  }
 }
 
-void GPUWorker::run(GPUContext *blender_gpu_context,
-                    GHOST_ContextHandle ghost_gpu_context,
-                    std::function<void()> run_cb)
+void GPUWorker::run(std::shared_ptr<GPUSecondaryContext> context, std::function<void()> run_cb)
 {
-  /* Contexts can only be created on the main thread so we have to
-   * pass one in and make it active here. */
-  GHOST_ActivateGPUContext(ghost_gpu_context);
-
-  GPU_context_active_set(blender_gpu_context);
+  context->activate();
 
   /* Loop until we get the terminate signal. */
   while (!terminate_) {
@@ -101,15 +128,6 @@ void GPUWorker::run(GPUContext *blender_gpu_context,
 
     run_cb();
   }
-
-  GPU_context_discard(blender_gpu_context);
-
-  GHOST_ReleaseGPUContext(ghost_gpu_context);
-
-  GHOST_SystemHandle ghost_system = reinterpret_cast<GHOST_SystemHandle>(
-      GPU_backend_ghost_system_get());
-  BLI_assert(ghost_system);
-  GHOST_DisposeGPUContext(ghost_system, ghost_gpu_context);
 }
 
 }  // namespace blender::gpu
