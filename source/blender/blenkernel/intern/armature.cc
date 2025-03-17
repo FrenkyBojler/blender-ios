@@ -2421,6 +2421,64 @@ void BKE_rotMode_change_values(
   }
 }
 
+void BKE_armature_set_rotation_quaternion(bPoseChannel *pchan, float rotation_quaternion[4])
+{
+  if ((pchan->protectflag & OB_LOCK_ROTX) == 0) {
+    pchan->quat[0] = rotation_quaternion[0];
+  }
+  if ((pchan->protectflag & OB_LOCK_ROTY) == 0) {
+    pchan->quat[1] = rotation_quaternion[1];
+  }
+  if ((pchan->protectflag & OB_LOCK_ROTZ) == 0) {
+    pchan->quat[2] = rotation_quaternion[2];
+  }
+  if ((pchan->protectflag & OB_LOCK_ROTW) == 0) {
+    pchan->quat[3] = rotation_quaternion[3];
+  }
+}
+
+void BKE_armature_set_rotation_euler(bPoseChannel *pchan, float rotation_euler[3])
+{
+  if ((pchan->protectflag & OB_LOCK_ROTX) == 0) {
+    pchan->eul[0] = rotation_euler[0];
+  }
+  if ((pchan->protectflag & OB_LOCK_ROTY) == 0) {
+    pchan->eul[1] = rotation_euler[1];
+  }
+  if ((pchan->protectflag & OB_LOCK_ROTZ) == 0) {
+    pchan->eul[2] = rotation_euler[2];
+  }
+}
+
+void BKE_armature_set_rotation_axisangle(bPoseChannel *pchan, float axis[3], float angle)
+{
+  if ((pchan->protectflag & OB_LOCK_ROTX) == 0) {
+    pchan->rotAxis[0] = axis[0];
+  }
+  if ((pchan->protectflag & OB_LOCK_ROTY) == 0) {
+    pchan->rotAxis[1] = axis[1];
+  }
+  if ((pchan->protectflag & OB_LOCK_ROTZ) == 0) {
+    pchan->rotAxis[2] = axis[2];
+  }
+  if ((pchan->protectflag & OB_LOCK_ROTW) == 0) {
+    pchan->rotAngle = angle;
+  }
+}
+
+void BKE_armature_set_location(bPoseChannel *pchan, float location[3])
+{
+  if ((pchan->protectflag & OB_LOCK_LOCX) == 0) {
+    pchan->loc[0] += location[0];
+  }
+  if ((pchan->protectflag & OB_LOCK_LOCY) == 0) {
+    pchan->loc[1] += location[1];
+  }
+  if ((pchan->protectflag & OB_LOCK_LOCZ) == 0) {
+    pchan->loc[2] += location[2];
+  }
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
