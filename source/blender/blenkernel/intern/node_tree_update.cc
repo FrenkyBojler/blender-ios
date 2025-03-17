@@ -965,8 +965,10 @@ class NodeTreeMainUpdater {
       if (node->is_group_output()) {
         const Span<bNodeSocket *> sockets = node->input_sockets();
         for (const int i : interface.outputs.index_range()) {
-          sockets[i]->display_shape = get_input_socket_shape(*sockets[i]->runtime->declaration,
-                                                             interface.outputs[i].type);
+          sockets[i]->display_shape = get_output_socket_shape(
+              *sockets[i]->runtime->declaration,
+              field_states[sockets[i]->index_in_tree()],
+              interface.outputs[i].type);
         }
         continue;
       }
