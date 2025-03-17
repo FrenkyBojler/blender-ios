@@ -1366,6 +1366,62 @@ void CurvesGeometry::count_memory(MemoryCounter &memory) const
   CustomData_count_memory(this->curve_data, this->curve_num, memory);
 }
 
+void curves_copy_point_selection_custom_knots(const CurvesGeometry &curves,
+                                              const IndexMask &points_to_copy,
+                                              const Span<int> curve_point_counts,
+                                              CurvesGeometry &dst_curves)
+{
+  const OffsetIndices points_by_curve = curves.points_by_curve();
+  const VArray<int8_t> orders = curves.nurbs_orders();
+  const VArray<bool> cyclic = curves.cyclic();
+
+  IndexMaskMemory memory;
+  const IndexMask custom_knot_curves = curves.nurbs_custom_knot_curves(memory);
+  const IndexMask custom_knot_points = bke::curves::curve_to_point_selection(
+      points_by_curve, custom_knot_curves, memory);
+  const IndexMask custom_knot_points_to_copy = IndexMask::from_intersection(
+      points_to_copy, custom_knot_points, memory);
+
+  int dst_knot_count = 0;
+  custom_knot_curves.foreach_index([&](const int64_t curve) {
+    dst_knot_count += curves::nurbs::knots_num(
+        curve_point_counts[curve], orders[curve], cyclic[curve]);
+  });
+  const OffsetIndices<int> src_knots_by_curve = curves.nurbs_custom_knots_by_curve();
+  const Span<float> src_knots = curves.nurbs_custom_knots();
+
+  Vector<float> new_knots;
+  new_knots.reserve(dst_knot_count);
+
+  curves::foreach_selected_point_ranges_per_curve(
+      custom_knot_points_to_copy,
+      points_by_curve,
+      [&](int curve, IndexRange points, Span<IndexRange> ranges_to_copy) {
+        const IndexRange src_range = src_knots_by_curve[curve];
+        const int order = orders[curve];
+        const int leading_spans = order / 2;
+        const int point_to_knot = -points.start() + src_range.start();
+        const int point_to_span = point_to_knot + leading_spans;
+
+        const int first_knot = ranges_to_copy.first().start() + point_to_knot;
+        for (const int knot : IndexRange::from_begin_size(first_knot, leading_spans + 1)) {
+          new_knots.append(src_knots[knot]);
+        }
+        float last_knot = new_knots.last();
+        for (IndexRange range : ranges_to_copy) {
+          for (const int spans_left_knot : range.shift(point_to_span)) {
+            last_knot += src_knots[spans_left_knot + 1] - src_knots[spans_left_knot];
+            new_knots.append(last_knot);
+          }
+        }
+        const int last_spans_left_knot = ranges_to_copy.last().last() + point_to_span + 1;
+        last_knot += src_knots[last_spans_left_knot + 1] - src_knots[last_spans_left_knot];
+        new_knots.append(last_knot);
+      });
+  dst_curves.nurbs_custom_knots_update_size();
+  dst_curves.nurbs_custom_knots_for_write().copy_from(new_knots);
+}
+
 CurvesGeometry curves_copy_point_selection(const CurvesGeometry &curves,
                                            const IndexMask &points_to_copy,
                                            const AttributeFilter &attribute_filter)
@@ -1412,54 +1468,8 @@ CurvesGeometry curves_copy_point_selection(const CurvesGeometry &curves,
       });
 
   if (curves.nurbs_has_custom_knots()) {
-    const OffsetIndices points_by_curve = curves.points_by_curve();
-    const VArray<int8_t> orders = curves.nurbs_orders();
-    const VArray<bool> cyclic = curves.cyclic();
-
-    const IndexMask custom_knot_curves = curves.nurbs_custom_knot_curves(memory);
-    const IndexMask custom_knot_points = bke::curves::curve_to_point_selection(
-        points_by_curve, custom_knot_curves, memory);
-    const IndexMask custom_knot_points_to_copy = IndexMask::from_intersection(
-        points_to_copy, custom_knot_points, memory);
-
-    int dst_knot_count = 0;
-    custom_knot_curves.foreach_index([&](const int64_t curve) {
-      dst_knot_count += curves::nurbs::knots_num(
-          curve_point_counts[curve], orders[curve], cyclic[curve]);
-    });
-    const OffsetIndices<int> src_knots_by_curve = curves.nurbs_custom_knots_by_curve();
-    const Span<float> src_knots = curves.nurbs_custom_knots();
-
-    Vector<float> new_knots;
-    new_knots.reserve(dst_knot_count);
-
-    curves::foreach_selected_point_ranges_per_curve(
-        custom_knot_points_to_copy,
-        points_by_curve,
-        [&](int curve, IndexRange points, Span<IndexRange> ranges_to_copy) {
-          const IndexRange src_range = src_knots_by_curve[curve];
-          const int order = orders[curve];
-          const int leading_spans = order / 2;
-          const int point_to_knot = -points.start() + src_range.start();
-          const int point_to_span = point_to_knot + leading_spans;
-
-          const int first_knot = ranges_to_copy.first().start() + point_to_knot;
-          for (const int knot : IndexRange::from_begin_size(first_knot, leading_spans + 1)) {
-            new_knots.append(src_knots[knot]);
-          }
-          float last_knot = new_knots.last();
-          for (IndexRange range : ranges_to_copy) {
-            for (const int spans_left_knot : range.shift(point_to_span)) {
-              last_knot += src_knots[spans_left_knot + 1] - src_knots[spans_left_knot];
-              new_knots.append(last_knot);
-            }
-          }
-          const int last_spans_left_knot = ranges_to_copy.last().last() + point_to_span + 1;
-          last_knot += src_knots[last_spans_left_knot + 1] - src_knots[last_spans_left_knot];
-          new_knots.append(last_knot);
-        });
-    dst_curves.nurbs_custom_knots_update_size();
-    dst_curves.nurbs_custom_knots_for_write().copy_from(new_knots);
+    curves_copy_point_selection_custom_knots(
+        curves, points_to_copy, curve_point_counts, dst_curves);
   }
 
   if (dst_curves.curves_num() == curves.curves_num()) {
@@ -1485,6 +1495,29 @@ void CurvesGeometry::remove_points(const IndexMask &points_to_delete,
   IndexMaskMemory memory;
   const IndexMask points_to_copy = points_to_delete.complement(this->points_range(), memory);
   *this = curves_copy_point_selection(*this, points_to_copy, attribute_filter);
+}
+
+void curves_copy_curve_selection_custom_knots(const CurvesGeometry &curves,
+                                              const IndexMask &curves_to_copy,
+                                              CurvesGeometry &dst_curves)
+{
+  IndexMaskMemory memory;
+  const IndexMask custom_knot_curves = curves.nurbs_custom_knot_curves(memory);
+  const IndexMask custom_knot_curves_to_copy = IndexMask::from_intersection(
+      curves_to_copy, custom_knot_curves, memory);
+
+  Array<int> dst_knot_offsets_data(custom_knot_curves_to_copy.size() + 1, 0);
+
+  const OffsetIndices<int> src_knots_by_curve = curves.nurbs_custom_knots_by_curve();
+  const OffsetIndices<int> dst_knots_by_curve = offset_indices::gather_selected_offsets(
+      src_knots_by_curve, custom_knot_curves_to_copy, dst_knot_offsets_data);
+
+  dst_curves.nurbs_custom_knots_update_size();
+  array_utils::gather_group_to_group(src_knots_by_curve,
+                                     dst_knots_by_curve,
+                                     custom_knot_curves_to_copy,
+                                     curves.nurbs_custom_knots(),
+                                     dst_curves.nurbs_custom_knots_for_write());
 }
 
 CurvesGeometry curves_copy_curve_selection(const CurvesGeometry &curves,
@@ -1519,25 +1552,7 @@ CurvesGeometry curves_copy_curve_selection(const CurvesGeometry &curves,
                     dst_attributes);
 
   if (curves.nurbs_has_custom_knots()) {
-    IndexMaskMemory memory;
-    const IndexMask custom_knot_curves = curves.nurbs_custom_knot_curves(memory);
-    const IndexMask custom_knot_curves_to_copy = IndexMask::from_intersection(
-        curves_to_copy, custom_knot_curves, memory);
-
-    Array<int> dst_knot_offsets_data(custom_knot_curves_to_copy.size() + 1, 0);
-
-    const OffsetIndices<int> src_knots_by_curve = curves.nurbs_custom_knots_by_curve();
-    const OffsetIndices<int> dst_knots_by_curve = offset_indices::gather_selected_offsets(
-        src_knots_by_curve, custom_knot_curves_to_copy, dst_knot_offsets_data);
-
-    const int dst_knot_num = offset_indices::sum_group_sizes(src_knots_by_curve,
-                                                             custom_knot_curves_to_copy);
-    dst_curves.nurbs_custom_knots_update_size();
-    array_utils::gather_group_to_group(src_knots_by_curve,
-                                       dst_knots_by_curve,
-                                       custom_knot_curves_to_copy,
-                                       curves.nurbs_custom_knots(),
-                                       dst_curves.nurbs_custom_knots_for_write());
+    curves_copy_curve_selection_custom_knots(curves, curves_to_copy, dst_curves);
   }
 
   dst_curves.update_curve_types();
