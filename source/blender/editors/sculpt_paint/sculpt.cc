@@ -5183,8 +5183,8 @@ static void restore_from_undo_step_if_necessary(const Depsgraph &depsgraph,
 
     if (ss.cache) {
       /* Temporary data within the StrokeCache that is usually cleared at the end of the stroke
-       * needs to be invalidated here so that the brushes do not accumulate and apply extra
-       * data. See #129069. */
+       * needs to be invalidated here so that the brushes do not accumulate and apply extra data.
+       * See #129069. */
       ss.cache->layer_displacement_factor = {};
       ss.cache->paint_brush.mix_colors = {};
     }
@@ -5259,8 +5259,8 @@ void flush_update_step(const bContext *C, const UpdateType update_type)
   if (update_type == UpdateType::Image) {
     ED_region_tag_redraw(&region);
     if (update_type == UpdateType::Image) {
-      /* Early exit when only need to update the images. We don't want to tag any geometry
-       * updates that would rebuild the bke::pbvh::Tree. */
+      /* Early exit when only need to update the images. We don't want to tag any geometry updates
+       * that would rebuild the bke::pbvh::Tree. */
       return;
     }
   }
@@ -5479,9 +5479,8 @@ void store_mesh_from_eval(const wmOperator &op,
       }
     });
 
-    /* Try to use the few specialized sculpt undo types that result in better performance,
-     * mainly because redo avoids clearing the BVH, but also because some other updates can be
-     * skipped. */
+    /* Try to use the few specialized sculpt undo types that result in better performance, mainly
+     * because redo avoids clearing the BVH, but also because some other updates can be skipped. */
     bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
     IndexMaskMemory memory;
     const IndexMask leaf_nodes = bke::pbvh::all_leaf_nodes(pbvh, memory);
@@ -5494,8 +5493,8 @@ void store_mesh_from_eval(const wmOperator &op,
       const bke::AttributeReader position = new_mesh->attributes().lookup<float3>("position");
       if (position.sharing_info) {
         /* Use lower level API to add the position attribute to avoid copying the array and to
-         * allow using #tag_positions_changed_no_normals instead of #tag_positions_changed
-         * (which would be called by the attribute API). */
+         * allow using #tag_positions_changed_no_normals instead of #tag_positions_changed (which
+         * would be called by the attribute API). */
         CustomData_add_layer_named_with_data(
             &mesh.vert_data,
             CD_PROP_FLOAT3,
@@ -5542,8 +5541,8 @@ void store_mesh_from_eval(const wmOperator &op,
     }
     else {
       /* Non-geometry-type sculpt undo steps can only handle a single change at a time. When
-       * multiple attributes or attributes that don't have their own undo type are changed,
-       * we're forced to fall back to the slower geometry undo type. */
+       * multiple attributes or attributes that don't have their own undo type are changed, we're
+       * forced to fall back to the slower geometry undo type. */
       store_sculpt_entire_mesh(op, scene, object, new_mesh);
       entire_mesh_changed = true;
     }
@@ -5635,8 +5634,8 @@ static bool stroke_test_start(bContext *C, wmOperator *op, const float mval[2])
     Brush *brush = BKE_paint_brush(&sd.paint);
     ToolSettings *tool_settings = CTX_data_tool_settings(C);
 
-    /* NOTE: This should be removed when paint mode is available. Paint mode can force based on
-     * the canvas it is painting on. (ref. use_sculpt_texture_paint). */
+    /* NOTE: This should be removed when paint mode is available. Paint mode can force based on the
+     * canvas it is painting on. (ref. use_sculpt_texture_paint). */
     if (brush && brush_type_is_paint(brush->sculpt_brush_type) &&
         !SCULPT_use_image_paint_brush(tool_settings->paint_mode, ob))
     {
@@ -6061,8 +6060,8 @@ static void fake_neighbor_search(const Depsgraph &depsgraph,
                                  const float max_distance_sq,
                                  MutableSpan<int> fake_neighbors)
 {
-  /* NOTE: This algorithm is extremely slow, it has O(n^2) runtime for the entire mesh. This
-   * looks like the "closest pair of points" problem which should have far better solutions. */
+  /* NOTE: This algorithm is extremely slow, it has O(n^2) runtime for the entire mesh. This looks
+   * like the "closest pair of points" problem which should have far better solutions. */
   SculptSession &ss = *ob.sculpt;
   const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(ob);
 
@@ -7502,8 +7501,7 @@ void clip_and_lock_translations(const Sculpt &sd,
     for (const int i : verts.index_range()) {
       const int vert = verts[i];
 
-      /* Transform into the space of the mirror plane, check translations, then transform back.
-       */
+      /* Transform into the space of the mirror plane, check translations, then transform back. */
       float3 co_mirror = math::transform_point(mirror, positions[vert]);
       if (math::abs(co_mirror[axis]) > cache->mirror_modifier_clip.tolerance[axis]) {
         continue;
@@ -7542,8 +7540,7 @@ void clip_and_lock_translations(const Sculpt &sd,
     const float4x4 mirror(cache->mirror_modifier_clip.mat);
     const float4x4 mirror_inverse(cache->mirror_modifier_clip.mat_inv);
     for (const int i : positions.index_range()) {
-      /* Transform into the space of the mirror plane, check translations, then transform back.
-       */
+      /* Transform into the space of the mirror plane, check translations, then transform back. */
       float3 co_mirror = math::transform_point(mirror, positions[i]);
       if (math::abs(co_mirror[axis]) > cache->mirror_modifier_clip.tolerance[axis]) {
         continue;
@@ -7612,8 +7609,8 @@ void PositionDeformData::deform(MutableSpan<float3> translations, const Span<int
   }
 
   if (deform_imats_) {
-    /* Apply the reverse procedural deformation, since subsequent translation happens to the
-     * state from "before" deforming modifiers. */
+    /* Apply the reverse procedural deformation, since subsequent translation happens to the state
+     * from "before" deforming modifiers. */
     apply_crazyspace_to_translations(*deform_imats_, verts, translations);
   }
 
