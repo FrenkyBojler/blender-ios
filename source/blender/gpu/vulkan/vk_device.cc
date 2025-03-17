@@ -56,6 +56,7 @@ void VKDevice::deinit()
   pipelines.free_data();
   descriptor_set_layouts_.deinit();
   orphaned_data.deinit(*this);
+  vmaDestroyPool(mem_allocator_, external_memory_pool_);
   vmaDestroyAllocator(mem_allocator_);
   mem_allocator_ = VK_NULL_HANDLE;
 
@@ -209,6 +210,42 @@ void VKDevice::init_memory_allocator()
   info.device = vk_device_;
   info.instance = vk_instance_;
   vmaCreateAllocator(&info, &mem_allocator_);
+
+  /* Create a memory pool for external images. */
+  // TODO: should be made platform independent
+  // TODO: should be made dedicated allocation. device offsets are not transferable.
+  VkExternalMemoryImageCreateInfo external_image_create_info = {
+      VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO,
+      nullptr,
+      VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT};
+  VkImageCreateInfo image_create_info = {VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
+                                         &external_image_create_info,
+                                         0,
+                                         VK_IMAGE_TYPE_2D,
+                                         VK_FORMAT_R8G8B8A8_UNORM,
+                                         {1024, 1024, 1},
+                                         1,
+                                         1,
+                                         VK_SAMPLE_COUNT_1_BIT,
+                                         VK_IMAGE_TILING_OPTIMAL,
+                                         VK_IMAGE_USAGE_TRANSFER_SRC_BIT |
+                                             VK_IMAGE_USAGE_TRANSFER_DST_BIT |
+                                             VK_IMAGE_USAGE_SAMPLED_BIT,
+                                         VK_SHARING_MODE_EXCLUSIVE,
+                                         0,
+                                         nullptr,
+                                         VK_IMAGE_LAYOUT_UNDEFINED};
+  VmaAllocationCreateInfo allocation_create_info = {};
+  allocation_create_info.usage = VMA_MEMORY_USAGE_AUTO;
+  uint32_t memory_type_index;
+  vmaFindMemoryTypeIndexForImageInfo(
+      mem_allocator_, &image_create_info, &allocation_create_info, &memory_type_index);
+
+  export_allocation_create_info_.handleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT;
+  VmaPoolCreateInfo pool_create_info = {};
+  pool_create_info.memoryTypeIndex = memory_type_index;
+  pool_create_info.pMemoryAllocateNext = &export_allocation_create_info_;
+  vmaCreatePool(mem_allocator_, &pool_create_info, &external_memory_pool_);
 }
 
 void VKDevice::init_dummy_buffer()

@@ -564,9 +564,19 @@ bool VKTexture::allocate()
     }
   }
 
+  VkExternalMemoryImageCreateInfo external_memory_create_info = {
+      VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO,
+      nullptr,
+      VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT};
+
   VmaAllocationCreateInfo allocCreateInfo = {};
   allocCreateInfo.usage = VMA_MEMORY_USAGE_AUTO;
   allocCreateInfo.priority = 1.0f;
+
+  if (gpu_image_usage_flags_ & GPU_TEXTURE_USAGE_EXTERNAL) {
+    image_info.pNext = &external_memory_create_info;
+    allocCreateInfo.pool = VKBackend::get().device.external_memory_pool_get();
+  }
   result = vmaCreateImage(device.mem_allocator_get(),
                           &image_info,
                           &allocCreateInfo,
@@ -685,25 +695,47 @@ const VKImageView &VKTexture::image_view_get(VKImageViewArrayed arrayed, VKImage
  * \{ */
 int64_t VKTexture::export_memory(VKDevice &device)
 {
-#if 0
+  BLI_assert_msg(
+      bool(gpu_image_usage_flags_ & GPU_TEXTURE_USAGE_EXTERNAL),
+      "Can only import external memory when usage flag contains GPU_TEXTURE_USAGE_EXTERNAL.");
+  BLI_assert_msg(allocation_ != nullptr,
+                 "Cannot export memory when the texture is not backed by any device memory.");
   VmaAllocationInfo alloc_info;
   vmaGetAllocationInfo(VKBackend::get().device.mem_allocator_get(), allocation_, &alloc_info);
-  VkDeviceMemory vk_device_memory = alloc_info.deviceMemory;
-  VkDeviceSize vk_memory_offset = alloc_info.offset;
 
+  // TODO: Add support for other external memory types.
   VkMemoryGetFdInfoKHR vk_memory_get_fd_info = {VK_STRUCTURE_TYPE_MEMORY_GET_FD_INFO_KHR,
                                                 nullptr,
-                                                vk_device_memory,
+                                                alloc_info.deviceMemory,
                                                 VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT};
   int fd;
   device.functions.vkGetMemoryFdKHR(device.vk_handle(), &vk_memory_get_fd_info, &fd);
+
+  allocation_ = nullptr;
+
   return fd;
-#endif
-  return 0;
 }
 
 void VKTexture::import_memory(VKDevice &device, int64_t handle)
 {
+  BLI_assert_msg(
+      bool(gpu_image_usage_flags_ & GPU_TEXTURE_USAGE_EXTERNAL),
+      "Can only import external memory when usage flag contains GPU_TEXTURE_USAGE_EXTERNAL.");
+  BLI_assert_msg(allocation_ == nullptr,
+                 "Cannot import memory when the texture is already backed by device memory.");
+  VkImportMemoryFdInfoKHR vk_import_memory_fd_info = {VK_STRUCTURE_TYPE_IMPORT_MEMORY_FD_INFO_KHR,
+                                                      nullptr,
+                                                      VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT,
+                                                      int(handle)};
+  VkMemoryAllocateInfo vk_memory_allocate_info = {
+      VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO, &vk_import_memory_fd_info, 0, 0};
+  VmaAllocationCreateInfo vma_allocation_create_info = {
+
+  };
+  vma_allocation_create_info.pool = device.external_memory_pool_get();
+  vmaAllocateMemoryForImage(
+      device.mem_allocator_get(), vk_image_, &vma_allocation_create_info, &allocation_, nullptr);
+  vmaBindImageMemory(device.mem_allocator_get(), allocation_, vk_image_);
   NOT_YET_IMPLEMENTED
 }
 /** \} */

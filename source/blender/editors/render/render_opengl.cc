@@ -753,7 +753,8 @@ static bool screen_opengl_render_init(bContext *C, wmOperator *op)
                              sizey,
                              true,
                              GPU_RGBA16F,
-                             GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_HOST_READ,
+                             GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_HOST_READ |
+                                 GPU_TEXTURE_USAGE_EXTERNAL,
                              err_out);
   DRW_gpu_context_disable();
 
