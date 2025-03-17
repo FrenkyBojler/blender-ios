@@ -147,7 +147,7 @@ static eRedrawFlag handleEventShear(TransInfo *t, const wmEvent *event)
     status = TREDRAW_HARD;
   }
 
-  bool is_event_handled = (event->type != MOUSEMOVE) && (status || t->redraw);
+  bool is_event_handled = (status || t->redraw);
   bool update_status_bar = t->custom.mode.data || is_event_handled;
   t->custom.mode.data = POINTER_FROM_INT(update_status_bar);
 
