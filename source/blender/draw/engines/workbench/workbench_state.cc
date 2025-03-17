@@ -96,13 +96,13 @@ void SceneState::init(bool scene_updated, Object *camera_ob /*=nullptr*/)
   bool reset_taa = reset_taa_next_sample || scene_updated;
   reset_taa_next_sample = false;
 
-  const DRWContextState *context = DRW_context_state_get();
+  const DRWContext *context = DRW_context_get();
   View3D *v3d = context->v3d;
   RegionView3D *rv3d = context->rv3d;
 
   scene = DEG_get_evaluated_scene(context->depsgraph);
 
-  if (assign_if_different(resolution, int2(DRW_viewport_size_get()))) {
+  if (assign_if_different(resolution, int2(DRW_context_get()->viewport_size_get()))) {
     /* In some cases, the viewport can change resolution without a call to `workbench_view_update`.
      * This is the case when dragging a window between two screen with different DPI settings.
      * (See #128712) */
@@ -190,8 +190,8 @@ void SceneState::init(bool scene_updated, Object *camera_ob /*=nullptr*/)
     reset_taa = true;
   }
 
-  bool is_playback = DRW_state_is_playback();
-  bool is_navigating = DRW_state_is_navigating();
+  bool is_playback = context->is_playback();
+  bool is_navigating = context->is_navigating();
 
   /* Reset complete drawing when navigating or during viewport playback or when
    * leaving one of those states. In case of multires modifier the navigation
@@ -280,7 +280,7 @@ ObjectState::ObjectState(const SceneState &scene_state,
                          const SceneResources &resources,
                          Object *ob)
 {
-  const DRWContextState *draw_ctx = DRW_context_state_get();
+  const DRWContext *draw_ctx = DRW_context_get();
   const bool is_active = (ob == draw_ctx->obact);
 
   sculpt_pbvh = BKE_sculptsession_use_pbvh_draw(ob, draw_ctx->rv3d) &&
@@ -323,7 +323,7 @@ ObjectState::ObjectState(const SceneState &scene_state,
 
     /* Bad call C is required to access the tool system that is context aware. Cast to non-const
      * due to current API. */
-    bContext *C = (bContext *)DRW_context_state_get()->evil_C;
+    bContext *C = (bContext *)DRW_context_get()->evil_C;
     if (C != nullptr) {
       color_type = ED_paint_shading_color_override(
           C, &scene_state.scene->toolsettings->paint_mode, *ob, color_type);

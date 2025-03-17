@@ -20,9 +20,13 @@ namespace blender::draw::overlay {
 void Instance::init()
 {
   /* TODO(fclem): Remove DRW global usage. */
-  const DRWContextState *ctx = DRW_context_state_get();
+  const DRWContext *ctx = DRW_context_get();
   /* Was needed by `object_wire_theme_id()` when doing the port. Not sure if needed nowadays. */
   BKE_view_layer_synced_ensure(ctx->scene, ctx->view_layer);
+
+  clipping_enabled_ = RV3D_CLIPPING_ENABLED(ctx->v3d, ctx->rv3d);
+
+  resources.init(clipping_enabled_);
 
   state.depsgraph = ctx->depsgraph;
   state.view_layer = ctx->view_layer;
@@ -36,10 +40,10 @@ void Instance::init()
   state.cfra = DEG_get_ctime(state.depsgraph);
   state.is_viewport_image_render = DRW_state_is_viewport_image_render();
   state.is_image_render = DRW_state_is_image_render();
-  state.is_depth_only_drawing = DRW_state_is_depth();
-  state.is_material_select = DRW_state_is_material_select();
-  state.draw_background = DRW_state_draw_background();
-  state.show_text = DRW_state_show_text();
+  state.is_depth_only_drawing = ctx->is_depth();
+  state.is_material_select = ctx->is_material_select();
+  state.draw_background = ctx->options.draw_background;
+  state.show_text = ctx->options.draw_text;
 
   /* Note there might be less than 6 planes, but we always compute the 6 of them for simplicity. */
   state.clipping_plane_count = clipping_enabled_ ? 6 : 0;
@@ -372,7 +376,8 @@ void Resources::update_theme_settings(const State &state)
 
   gb->pixel_fac = (state.rv3d) ? state.rv3d->pixsize : 1.0f;
 
-  gb->size_viewport = float4(DRW_viewport_size_get(), 1.0f / DRW_viewport_size_get());
+  gb->size_viewport = float4(DRW_context_get()->viewport_size_get(),
+                             1.0f / DRW_context_get()->viewport_size_get());
 
   /* Color management. */
   {
@@ -382,6 +387,15 @@ void Resources::update_theme_settings(const State &state)
       srgb_to_linearrgb_v4(color, color);
       color += 4;
     } while (color <= gb->UBO_LAST_COLOR);
+  }
+
+  if (state.v3d) {
+    const View3DShading &shading = state.v3d->shading;
+    gb->backface_culling = (shading.type == OB_SOLID) &&
+                           (shading.flag & V3D_SHADING_BACKFACE_CULLING);
+  }
+  else {
+    gb->backface_culling = false;
   }
 
   globals_buf.push_update();
@@ -627,7 +641,7 @@ void Instance::end_sync()
     DefaultTextureList *dtxl = DRW_viewport_texture_list_get();
 
     if (dtxl->depth_in_front == nullptr) {
-      int2 size = int2(DRW_viewport_size_get());
+      int2 size = int2(DRW_context_get()->viewport_size_get());
 
       dtxl->depth_in_front = GPU_texture_create_2d("txl.depth_in_front",
                                                    size.x,
