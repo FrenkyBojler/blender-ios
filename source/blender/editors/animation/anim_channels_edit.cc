@@ -5476,7 +5476,11 @@ static int separate_slots_exec(bContext *C, wmOperator *op)
     DEG_id_tag_update(&target_action.id, ID_RECALC_ANIMATION_NO_FLUSH);
   }
 
-  BKE_reportf(op->reports, RPT_INFO, "Separated animation into %i new actions", created_actions);
+  BKE_reportf(op->reports,
+              RPT_INFO,
+              "Separated %s into %i new actions",
+              action->id.name + 2,
+              created_actions);
 
   DEG_id_tag_update(&action->id, ID_RECALC_ANIMATION_NO_FLUSH);
   DEG_relations_tag_update(CTX_data_main(C));
