@@ -175,13 +175,13 @@ void SVGExporter::export_grease_pencil_objects(pugi::xml_node node, const int fr
     /* Use evaluated version to get strokes with modifiers. */
     Object *ob_eval = DEG_get_evaluated_object(context_.depsgraph, const_cast<Object *>(ob));
     BLI_assert(ob_eval->type == OB_GREASE_PENCIL);
-    const GreasePencil *grease_pencil_eval = static_cast<const GreasePencil *>(ob_eval->data);
+    GreasePencil *grease_pencil_eval = static_cast<GreasePencil *>(ob_eval->data);
 
     for (const bke::greasepencil::Layer *layer : grease_pencil_eval->layers()) {
       if (!layer->is_visible()) {
         continue;
       }
-      Drawing *drawing = const_cast<Drawing *>(grease_pencil_eval->get_drawing_at(*layer, frame_number));
+      Drawing *drawing = grease_pencil_eval->get_drawing_at(*layer, frame_number);
       modifier::greasepencil::ensure_no_bezier_curves(*drawing);
       if (drawing == nullptr) {
         continue;
