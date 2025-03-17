@@ -49,6 +49,12 @@
 
 static CLG_LogRef LOG = {"bke.mask"};
 
+/** Reset runtime mask fields when data-block is being initialized. */
+static void mask_runtime_reset(Mask *mask)
+{
+  mask->runtime.last_update = 0;
+}
+
 static void mask_copy_data(Main * /*bmain*/,
                            std::optional<Library *> /*owner_library*/,
                            ID *id_dst,
@@ -63,8 +69,6 @@ static void mask_copy_data(Main * /*bmain*/,
   /* TODO: add unused flag to those as well. */
   BKE_mask_layer_copy_list(&mask_dst->masklayers, &mask_src->masklayers);
 
-  BLI_listbase_clear((ListBase *)&mask_dst->drawdata);
-
   /* enable fake user by default */
   id_fake_user_set(&mask_dst->id);
 }
@@ -75,8 +79,6 @@ static void mask_free_data(ID *id)
 
   /* free mask data */
   BKE_mask_layer_free_list(&mask->masklayers);
-
-  DRW_drawdata_free(id);
 }
 
 static void mask_foreach_id(ID *id, LibraryForeachIDData *data)
@@ -175,6 +177,8 @@ static void mask_blend_read_data(BlendDataReader *reader, ID *id)
     BLO_read_struct(reader, MaskSpline, &masklay->act_spline);
     masklay->act_point = act_point_search;
   }
+
+  mask_runtime_reset(mask);
 }
 
 IDTypeInfo IDType_ID_MSK = {
