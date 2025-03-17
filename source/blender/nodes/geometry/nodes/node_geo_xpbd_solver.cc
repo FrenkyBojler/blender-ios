@@ -417,7 +417,9 @@ static void read_constraint_attributes(const Span<ConstraintEvalData> constraint
     }
 
     int num_components, num_position_vars, num_rotation_vars;
-    data.type->linear_solve_size(num_components, num_position_vars, num_rotation_vars);
+    bool use_active_mask;
+    data.type->linear_solve_size(
+        num_components, num_position_vars, num_rotation_vars, use_active_mask);
 
     const GeometryComponent &component = *data.geometry->get_component<PointCloudComponent>();
     const AttributeAccessor attributes = *component.attributes();
@@ -451,7 +453,9 @@ static void write_constraint_attributes(MutableSpan<ConstraintEvalData> constrai
     }
 
     int num_components, num_position_vars, num_rotation_vars;
-    data.type->linear_solve_size(num_components, num_position_vars, num_rotation_vars);
+    bool use_active_mask;
+    data.type->linear_solve_size(
+        num_components, num_position_vars, num_rotation_vars, use_active_mask);
 
     GeometryComponent &component = data.geometry->get_component_for_write<PointCloudComponent>();
     MutableAttributeAccessor attributes = *component.attributes_for_write();
@@ -489,7 +493,9 @@ static void read_constraint_topology(const Span<ConstraintEvalData> constraint_d
     }
 
     int num_components, num_position_vars, num_rotation_vars;
-    data.type->linear_solve_size(num_components, num_position_vars, num_rotation_vars);
+    bool use_active_mask;
+    data.type->linear_solve_size(
+        num_components, num_position_vars, num_rotation_vars, use_active_mask);
 
     const int num_constraints = data.constraints.size();
     const GeometryComponent &component = *data.geometry->get_component<PointCloudComponent>();
@@ -530,7 +536,9 @@ static void debug_check_constraint_topology(const ConstraintEvalParams &params,
     }
 
     int num_components, num_position_vars, num_rotation_vars;
-    data.type->linear_solve_size(num_components, num_position_vars, num_rotation_vars);
+    bool use_active_mask;
+    data.type->linear_solve_size(
+        num_components, num_position_vars, num_rotation_vars, use_active_mask);
 
     std::atomic_bool has_invalid_position_index = false;
     std::atomic_bool has_invalid_rotation_index = false;
@@ -563,40 +571,39 @@ static void debug_check_constraint_topology(const ConstraintEvalParams &params,
  * which determines the size of the global solver matrix. */
 static void count_global_solve_matrix_entries(const Span<ConstraintEvalData> constraint_data,
                                               const ConstraintVariables &variables,
-                                              int &r_num_non_zeroes,
-                                              int &r_num_rows,
-                                              int &r_num_columns)
+                                              int &r_non_zeroes_capacity,
+                                              int &r_max_columns)
 {
   const int num_positions = variables.positions.size();
   const int num_rotations = variables.rotations.size();
 
-  /* Number of rows/columns of the sparse solver matrix. */
-  r_num_columns = 0;
-  /* Total number of non-zero entries in the sparse solver matrix. */
-  r_num_non_zeroes = 0;
+  /* Maximal number of rows/columns of the sparse matrix (if all constraints are active). */
+  r_max_columns = 0;
+  /* Maximal number of non-zero entries in the sparse matrix (if all constraints are active). */
+  r_non_zeroes_capacity = 0;
   /* Upper-left sub-matrix has 3 rows/columns for each position
    * and 4 rows/columns for each rotation. */
-  r_num_columns += num_positions * 3 + num_rotations * 4;
+  r_max_columns += num_positions * 3 + num_rotations * 4;
   /* Each position adds 3 mass entries on the diagonal.
    * Each rotation adds 4x4 moment-of-inertia block-diagonal entries. */
-  r_num_non_zeroes += num_positions * 3 + num_rotations * 16;
+  r_non_zeroes_capacity += num_positions * 3 + num_rotations * 16;
   for (const ConstraintEvalData &data : constraint_data) {
     if (!data.type->linear_solve_size) {
       continue;
     }
 
     int num_components, num_position_vars, num_rotation_vars;
-    data.type->linear_solve_size(num_components, num_position_vars, num_rotation_vars);
+    bool use_active_mask;
+    data.type->linear_solve_size(
+        num_components, num_position_vars, num_rotation_vars, use_active_mask);
 
     const int num_constraints = data.constraints.size();
     /* Lower-right sub-matrix has a row/column for each constraint component. */
-    r_num_columns += num_constraints * num_components;
+    r_max_columns += num_constraints * num_components;
     /* Each component adds a compliance entry and derivatives for each variable. */
     const int entries_per_component = 1 + 2 * (num_position_vars * 3 + num_rotation_vars * 4);
-    r_num_non_zeroes += num_constraints * num_components * entries_per_component;
+    r_non_zeroes_capacity += num_constraints * num_components * entries_per_component;
   }
-  /* Matrix is square. */
-  r_num_rows = r_num_columns;
 }
 
 struct GlobalSolverData {
@@ -604,6 +611,7 @@ struct GlobalSolverData {
   Eigen::VectorXf b;
 };
 
+#if 0
 static GlobalSolverData build_global_solve_matrix_from_spans(
     const ConstraintEvalParams &params,
     const Span<ConstraintEvalData> constraint_data,
@@ -665,7 +673,9 @@ static GlobalSolverData build_global_solve_matrix_from_spans(
       }
 
       int num_components, num_position_vars, num_rotation_vars;
-      data.type->linear_solve_size(num_components, num_position_vars, num_rotation_vars);
+      bool use_active_mask;
+      data.type->linear_solve_size(
+          num_components, num_position_vars, num_rotation_vars, use_active_mask);
 
       const int num_constraints = data.constraints.size();
       const IndexRange components_range = prev_range.after(num_constraints * num_components);
@@ -762,7 +772,9 @@ static GlobalSolverData build_global_solve_matrix_from_spans(
       }
 
       int num_components, num_position_vars, num_rotation_vars;
-      data.type->linear_solve_size(num_components, num_position_vars, num_rotation_vars);
+      bool use_active_mask;
+      data.type->linear_solve_size(
+          num_components, num_position_vars, num_rotation_vars, use_active_mask);
 
       const int num_constraints = data.constraints.size();
       const IndexRange components_range = prev_range.after(num_constraints * num_components);
@@ -786,6 +798,7 @@ static GlobalSolverData build_global_solve_matrix_from_spans(
 
   return {std::move(H), std::move(b)};
 }
+#endif
 
 inline float get_component(const float v, const int i)
 {
@@ -871,13 +884,14 @@ static void set_global_solve_elements(const ConstraintEvalParams &params,
                                       const ConstraintVariables &variables,
                                       const IndexRange positions_range,
                                       const IndexRange rotations_range,
-                                      const IndexRange components_range,
                                       const ConstraintEvalData &data,
                                       const VariableIndexArrays &position_index_arrays,
                                       const VariableIndexArrays &rotation_index_arrays,
                                       const GVArray &lambdas,
                                       Vector<Eigen::Triplet<float>> &triplets,
-                                      Eigen::VectorXf &b)
+                                      Vector<float> &rhs_values,
+                                      IndexMaskMemory &memory,
+                                      int &r_num_columns)
 {
   const int num_positions = variables.positions.size();
   const int num_rotations = variables.rotations.size();
@@ -894,9 +908,12 @@ static void set_global_solve_elements(const ConstraintEvalParams &params,
   }
   const int num_constraints = data.constraints.size();
   const IndexMask constraint_mask = data.constraints;
+  const IndexRange components_range = {rhs_values.size(), num_constraints * num_components};
 
   int num_components_rt, num_position_vars, num_rotation_vars;
-  data.type->linear_solve_size(num_components_rt, num_position_vars, num_rotation_vars);
+  bool use_active_mask;
+  data.type->linear_solve_size(
+      num_components_rt, num_position_vars, num_rotation_vars, use_active_mask);
   BLI_assert(num_components_rt == num_components);
   BLI_assert(num_position_vars <= 4);
   BLI_assert(num_rotation_vars <= 4);
@@ -912,6 +929,10 @@ static void set_global_solve_elements(const ConstraintEvalParams &params,
   Array<RotGradT> rotation_gradients[4];
   for (const int i : IndexRange(num_rotation_vars)) {
     rotation_gradients[i].reinitialize(num_constraints);
+  }
+  Array<bool> active_mask;
+  if (use_active_mask) {
+    active_mask.reinitialize(num_constraints);
   }
   GMutableSpan position_gradient_spans[4] = {position_gradients[0].as_mutable_span(),
                                              position_gradients[1].as_mutable_span(),
@@ -932,57 +953,64 @@ static void set_global_solve_elements(const ConstraintEvalParams &params,
                                    betas.as_mutable_span(),
                                    residuals.as_mutable_span(),
                                    position_gradient_spans,
-                                   rotation_gradient_spans);
+                                   rotation_gradient_spans,
+                                   active_mask);
 
-  for (const int index : IndexRange(num_constraints)) {
+  const IndexMask active_constraints = use_active_mask ? IndexMask::from_bools(data.constraints,
+                                                                               active_mask,
+                                                                               memory) :
+                                                         data.constraints;
+  r_num_columns = active_constraints.size() * num_components;
+
+  active_constraints.foreach_index([&](const int index, const int pos) {
     const ValueT alpha = math::max(alphas[index], ValueT(0.0f));
     const ValueT beta = math::max(betas[index], ValueT(0.0f));
     const ValueT compliance = alpha * params.inv_delta_time_squared /
                               (ValueT(1.0f) + alpha * beta);
 
-    const IndexRange component_columns = components_range.slice(index * num_components,
+    const IndexRange component_columns = components_range.slice(pos * num_components,
                                                                 num_components);
     /* Compliance entries. */
     for (const int u : component_columns.index_range()) {
       triplets.append_unchecked_as(
           int(component_columns[u]), int(component_columns[u]), get_component(compliance, u));
     }
-  }
+  });
 
   /* Gradient entries. */
   for (const int var_i : IndexRange(num_position_vars)) {
     const Span<int> indices = position_index_arrays[var_i];
     const Span<PosGradT> pos_gradients = position_gradient_spans[var_i].typed<PosGradT>();
 
-    for (const int index : IndexRange(num_constraints)) {
+    active_constraints.foreach_index([&](const int index, const int pos) {
       const int point_index = indices[index];
       if (!IndexRange(num_positions).contains(point_index)) {
-        continue;
+        return;
       }
       const PosGradT gradient = pos_gradients[index];
 
-      const IndexRange component_columns = components_range.slice(index * num_components,
+      const IndexRange component_columns = components_range.slice(pos * num_components,
                                                                   num_components);
       const IndexRange position_columns = positions_range.slice(point_index * 3, 3);
       append_gradient<PosGradT>(component_columns, position_columns, gradient, triplets);
-    }
+    });
   }
   for (const int var_i : IndexRange(num_rotation_vars)) {
     const Span<int> indices = rotation_index_arrays[var_i];
     const Span<RotGradT> rot_gradients = rotation_gradient_spans[var_i].typed<RotGradT>();
 
-    for (const int index : IndexRange(num_constraints)) {
+    active_constraints.foreach_index([&](const int index, const int pos) {
       const int point_index = indices[index];
       if (!IndexRange(num_rotations).contains(point_index)) {
-        continue;
+        return;
       }
       const RotGradT gradient = rot_gradients[index];
 
-      const IndexRange component_columns = components_range.slice(index * num_components,
+      const IndexRange component_columns = components_range.slice(pos * num_components,
                                                                   num_components);
       const IndexRange rotation_columns = rotations_range.slice(point_index * 4, 4);
       append_gradient<RotGradT>(component_columns, rotation_columns, gradient, triplets);
-    }
+    });
   }
 
   /* RHS target vector includes the residual, compliance offset, and damping offset.
@@ -1002,7 +1030,7 @@ static void set_global_solve_elements(const ConstraintEvalParams &params,
    * allow solving it using Cholesky decomposition or Conjugate Gradient methods.
    */
   VArraySpan<ValueT> lambdas_span = lambdas.typed<ValueT>();
-  for (const int index : IndexRange(num_constraints)) {
+  active_constraints.foreach_index([&](const int index) {
     const ValueT lambda = lambdas_span[index];
     const ValueT alpha = math::max(alphas[index], ValueT(0.0f));
     const ValueT beta = math::max(betas[index], ValueT(0.0f));
@@ -1034,26 +1062,25 @@ static void set_global_solve_elements(const ConstraintEvalParams &params,
     /* Damping factor. */
     target *= math::rcp(ValueT(1.0f) + alpha * beta);
 
-    const IndexRange component_columns = components_range.slice(index * num_components,
-                                                                num_components);
-    for (const int u : component_columns.index_range()) {
-      b[component_columns[u]] = get_component(target, u);
+    for (const int u : IndexRange(num_components)) {
+      rhs_values.append_unchecked(get_component(target, u));
     }
-  }
+  });
 }
 
 static void set_global_solve_elements(const ConstraintEvalParams &params,
                                       const ConstraintVariables &variables,
                                       const IndexRange positions_range,
                                       const IndexRange rotations_range,
-                                      const IndexRange components_range,
                                       const ConstraintEvalData &data,
                                       const VariableIndexArrays &position_index_arrays,
                                       const VariableIndexArrays &rotation_index_arrays,
                                       const GVArray &lambdas,
                                       const int num_components,
                                       Vector<Eigen::Triplet<float>> &triplets,
-                                      Eigen::VectorXf &b)
+                                      Vector<float> &rhs_values,
+                                      IndexMaskMemory &memory,
+                                      int &r_num_columns)
 {
   /* XXX Matrix types float2x3, float3x3, float2x4, float 3x4 have no registered CPPType, so a
    * larger type is used for output arrays. */
@@ -1063,39 +1090,42 @@ static void set_global_solve_elements(const ConstraintEvalParams &params,
                                                           variables,
                                                           positions_range,
                                                           rotations_range,
-                                                          components_range,
                                                           data,
                                                           position_index_arrays,
                                                           rotation_index_arrays,
                                                           lambdas,
                                                           triplets,
-                                                          b);
+                                                          rhs_values,
+                                                          memory,
+                                                          r_num_columns);
       break;
     case 2:
       set_global_solve_elements<2, float2, float4x4, float4x4>(params,
                                                                variables,
                                                                positions_range,
                                                                rotations_range,
-                                                               components_range,
                                                                data,
                                                                position_index_arrays,
                                                                rotation_index_arrays,
                                                                lambdas,
                                                                triplets,
-                                                               b);
+                                                               rhs_values,
+                                                               memory,
+                                                               r_num_columns);
       break;
     case 3:
       set_global_solve_elements<3, float3, float4x4, float4x4>(params,
                                                                variables,
                                                                positions_range,
                                                                rotations_range,
-                                                               components_range,
                                                                data,
                                                                position_index_arrays,
                                                                rotation_index_arrays,
                                                                lambdas,
                                                                triplets,
-                                                               b);
+                                                               rhs_values,
+                                                               memory,
+                                                               r_num_columns);
       break;
     default:
       BLI_assert_unreachable();
@@ -1110,22 +1140,20 @@ static GlobalSolverData build_global_solve_matrix_from_triplets(
     const Span<VariableIndexArrays> position_indices_by_type,
     const Span<VariableIndexArrays> rotation_indices_by_type,
     const Span<GVArray> lambdas_by_type,
-    const int num_non_zeroes,
-    const int num_rows,
-    const int num_columns)
+    const int non_zeroes_capacity,
+    const int max_columns,
+    IndexMaskMemory &memory)
 {
   const int num_positions = variables.positions.size();
   const int num_rotations = variables.rotations.size();
-
-  Eigen::SparseMatrix<float> H(num_rows, num_columns);
-  Eigen::VectorXf b;
-  b.resize(num_columns);
 
   const IndexRange positions_range = {0, num_positions * 3};
   const IndexRange rotations_range = positions_range.after(num_rotations * 4);
 
   Vector<Eigen::Triplet<float>> triplets;
-  triplets.reserve(num_non_zeroes);
+  triplets.reserve(non_zeroes_capacity);
+  Vector<float> rhs_values;
+  rhs_values.reserve(max_columns);
 
   /* Mass entries. */
   for (const int index : IndexRange(num_positions)) {
@@ -1134,7 +1162,7 @@ static GlobalSolverData build_global_solve_matrix_from_triplets(
     const IndexRange columns = positions_range.slice(index * 3, 3);
     for (const int u : columns.index_range()) {
       triplets.append_unchecked_as(int(columns[u]), int(columns[u]), mass);
-      b[columns[u]] = 0.0f;
+      rhs_values.append_unchecked(0.0f);
     }
   }
   for (const int index : IndexRange(num_rotations)) {
@@ -1148,20 +1176,21 @@ static GlobalSolverData build_global_solve_matrix_from_triplets(
       for (const int v : columns.index_range()) {
         triplets.append_unchecked_as(int(columns[v]), int(columns[u]), inertia_tensor[u][v]);
       }
-      b[columns[u]] = 0.0f;
+      rhs_values.append_unchecked(0.0f);
     }
   }
 
-  IndexRange prev_range = rotations_range;
+  int tot_columns = rhs_values.size();
   for (const int constraint_i : constraint_data.index_range()) {
     const ConstraintEvalData &data = constraint_data[constraint_i];
     if (!data.type->linear_solve_size || !data.type->linear_solve_elements) {
       continue;
     }
-    const int num_constraints = data.constraints.size();
 
     int num_components, num_position_vars, num_rotation_vars;
-    data.type->linear_solve_size(num_components, num_position_vars, num_rotation_vars);
+    bool use_active_mask;
+    data.type->linear_solve_size(
+        num_components, num_position_vars, num_rotation_vars, use_active_mask);
 
     // TODO Eventually these callbacks should be based around Fields instead of arrays, so that
     // node closures can be used directly. For now mapping and mask evaluation takes place
@@ -1208,25 +1237,32 @@ static GlobalSolverData build_global_solve_matrix_from_triplets(
     //                                                                    var_i);
     // }
 
-    const IndexRange components_range = prev_range.after(num_constraints * num_components);
-
     const VariableIndexArrays &position_index_arrays = position_indices_by_type[constraint_i];
     const VariableIndexArrays &rotation_index_arrays = rotation_indices_by_type[constraint_i];
     const GVArray &lambdas = lambdas_by_type[constraint_i];
+    int num_columns = 0;
     set_global_solve_elements(params,
                               variables,
                               positions_range,
                               rotations_range,
-                              components_range,
                               data,
                               position_index_arrays,
                               rotation_index_arrays,
                               lambdas,
                               num_components,
                               triplets,
-                              b);
+                              rhs_values,
+                              memory,
+                              num_columns);
+    tot_columns += num_columns;
+  }
 
-    prev_range = components_range;
+  Eigen::SparseMatrix<float> H(tot_columns, tot_columns);
+  Eigen::VectorXf b;
+  b.resize(tot_columns);
+  /* TODO any way to avoid this copy? Resizing a Eigen::VectorX destroys all values. */
+  for (const int i : IndexRange(tot_columns)) {
+    b[i] = rhs_values[i];
   }
 
   H.setFromTriplets(triplets.begin(), triplets.end());
@@ -1244,9 +1280,8 @@ static void do_build_global_solve_system(const ConstraintEvalParams &params,
   const int num_positions = variables.positions.size();
   const int num_rotations = variables.rotations.size();
 
-  int num_non_zeroes, num_rows, num_columns;
-  count_global_solve_matrix_entries(
-      constraint_data, variables, num_non_zeroes, num_rows, num_columns);
+  int non_zeroes_capacity, max_columns;
+  count_global_solve_matrix_entries(constraint_data, variables, non_zeroes_capacity, max_columns);
 
   Array<GVArray> lambdas_by_type(constraint_data.size());
   read_constraint_attributes(constraint_data, lambdas_by_type);
@@ -1264,33 +1299,32 @@ static void do_build_global_solve_system(const ConstraintEvalParams &params,
                                     rotation_indices_by_type);
   }
 
-  /* LHS matrix describing equations of motion and constraint impulses. */
-  if (false) {
+/* LHS matrix describing equations of motion and constraint impulses. */
+#if 0
     auto [H, b] = build_global_solve_matrix_from_spans(params,
                                                        constraint_data,
                                                        variables,
                                                        position_indices_by_type,
                                                        rotation_indices_by_type,
                                                        lambdas_by_type,
-                                                       num_non_zeroes,
-                                                       num_rows,
-                                                       num_columns);
+                                                       non_zeroes_capacity,
+                                                       max_columns);
     r_H = std::move(H);
     r_b = std::move(b);
-  }
-  else {
-    auto [H, b] = build_global_solve_matrix_from_triplets(params,
-                                                          constraint_data,
-                                                          variables,
-                                                          position_indices_by_type,
-                                                          rotation_indices_by_type,
-                                                          lambdas_by_type,
-                                                          num_non_zeroes,
-                                                          num_rows,
-                                                          num_columns);
-    r_H = std::move(H);
-    r_b = std::move(b);
-  }
+#else
+  IndexMaskMemory memory;
+  auto [H, b] = build_global_solve_matrix_from_triplets(params,
+                                                        constraint_data,
+                                                        variables,
+                                                        position_indices_by_type,
+                                                        rotation_indices_by_type,
+                                                        lambdas_by_type,
+                                                        non_zeroes_capacity,
+                                                        max_columns,
+                                                        memory);
+  r_H = std::move(H);
+  r_b = std::move(b);
+#endif
 }
 
 void build_global_solve_system(const ConstraintEvalParams &params,
@@ -1340,7 +1374,9 @@ void solve_global_system(const Eigen::SparseMatrix<float> &H,
   for (const int constraint_i : constraint_data.index_range()) {
     const ConstraintEvalData &data = constraint_data[constraint_i];
     int num_components, num_position_vars, num_rotation_vars;
-    data.type->linear_solve_size(num_components, num_position_vars, num_rotation_vars);
+    bool use_active_mask;
+    data.type->linear_solve_size(
+        num_components, num_position_vars, num_rotation_vars, use_active_mask);
 
     const int num_constraints = data.constraints.size();
     const IndexRange lambda_rows = prev_rows.after(num_constraints * num_components);

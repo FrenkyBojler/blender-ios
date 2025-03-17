@@ -113,8 +113,10 @@ using ConstraintEvalVelocityFunc =
  * \param r_num_position_vars Number of position variables used by a single constraint, up to 4.
  * \param r_num_rotation_vars Number of rotation variables used by a single constraint, up to 4.
  */
-using ConstraintLinearSolveSizeFunc =
-    std::function<void(int &r_num_components, int &r_num_position_vars, int &r_num_rotation_vars)>;
+using ConstraintLinearSolveSizeFunc = std::function<void(int &r_num_components,
+                                                         int &r_num_position_vars,
+                                                         int &r_num_rotation_vars,
+                                                         bool &r_use_active_mask)>;
 
 /**
  * Returns the variable indices used by a constraint.
@@ -171,7 +173,8 @@ using ConstraintPositionLinearSolveElementsFunc =
                        GMutableSpan r_betas,
                        GMutableSpan r_residuals,
                        GMutableSpan r_position_gradients[4],
-                       GMutableSpan r_rotation_gradients[4])>;
+                       GMutableSpan r_rotation_gradients[4],
+                       MutableSpan<bool> r_active_mask)>;
 
 /**
  * Returns up to 4 index attributes mapping constraints to geometry points.
@@ -890,6 +893,41 @@ inline bool eval_position_contact(const float weight_pos1,
   return true;
 }
 
+inline bool eval_contact_position_elements(const float3 &local_position1,
+                                           const float3 &local_position2,
+                                           const float3 &normal,
+                                           const float3 &position1,
+                                           const float3 &position2,
+                                           const math::Quaternion &rotation1,
+                                           const math::Quaternion &rotation2,
+                                           float &r_residual,
+                                           float3 &r_position_gradient1,
+                                           float3 &r_position_gradient2,
+                                           float4 &r_rotation_gradient1,
+                                           float4 &r_rotation_gradient2)
+{
+  /* Local positions are relative to colliders.
+   * Normal is a fixed shared direction for both participants. */
+
+  /* Contact points are computed by applying the transforms to relative local positions. */
+  const float3 contact_point1 = math::transform_point(rotation1, local_position1) + position1;
+  const float3 contact_point2 = math::transform_point(rotation2, local_position2) + position2;
+
+  /* Positional constraint for penetration depth along the normal. */
+  r_residual = math::dot(contact_point1 - contact_point2, normal);
+  /* Only act on contact. */
+  const bool active = r_residual < 0.0f;
+  if (!active) {
+    return false;
+  }
+
+  r_position_gradient1 = normal;
+  r_position_gradient2 = -r_position_gradient1;
+  r_rotation_gradient1 = float4(0.0f, math::cross(local_position1, normal));
+  r_rotation_gradient2 = -r_rotation_gradient1;
+  return true;
+}
+
 inline bool apply_position_contact(const float weight_pos1,
                                    const float weight_pos2,
                                    const float weight_rot1,
@@ -1008,6 +1046,55 @@ inline void eval_velocity_contact(const float3 &orig_velocity1,
   r_delta_velocity2 = -impulse;
   r_delta_angular_velocity1 = math::cross(local_position1, impulse);
   r_delta_angular_velocity2 = -math::cross(local_position2, impulse);
+}
+
+inline void eval_contact_velocity_elements(const float3 &local_position1,
+                                           const float3 &local_position2,
+                                           const float3 &normal,
+                                           const float3 &velocity1,
+                                           const float3 &velocity2,
+                                           const float3 &angular_velocity1,
+                                           const float3 &angular_velocity2,
+                                           const float3 &orig_velocity1,
+                                           const float3 &orig_velocity2,
+                                           const float3 &orig_angular_velocity1,
+                                           const float3 &orig_angular_velocity2,
+                                           float2 &r_residual,
+                                           float4x4 &r_velocity_gradient1,
+                                           float4x4 &r_velocity_gradient2,
+                                           float4x4 &r_angular_velocity_gradient1,
+                                           float4x4 &r_angular_velocity_gradient2)
+{
+  /* Compute velocity of the collider contact point. */
+  const float3 contact_velocity1 = velocity1 + math::cross(angular_velocity1, local_position1);
+  const float3 contact_velocity2 = velocity2 + math::cross(angular_velocity2, local_position2);
+  const float3 orig_contact_velocity1 = orig_velocity1 +
+                                        math::cross(orig_angular_velocity1, local_position1);
+  const float3 orig_contact_velocity2 = orig_velocity2 -
+                                        math::cross(orig_angular_velocity2, local_position2);
+
+  /* Relative contact velocity before and after position corrections. */
+  const float3 relative_velocity = contact_velocity1 - contact_velocity2;
+  const float3 orig_relative_velocity = orig_contact_velocity1 - orig_contact_velocity2;
+
+  /* Decompose into normal and tangential velocity. */
+  const float normal_velocity = math::dot(relative_velocity, normal);
+  const float orig_normal_velocity = math::dot(orig_relative_velocity, normal);
+  /* If normal velocity after update is below jitter threshold avoid any restitution. */
+  // const bool is_jitter_velocity = (math::abs(normal_velocity) < threshold_normal_velocity);
+  float surface_velocity;
+  const float3 surface_direction = math::normalize_and_get_length(
+      relative_velocity - normal * normal_velocity, surface_velocity);
+
+  r_residual = {orig_normal_velocity, surface_velocity};
+
+  r_velocity_gradient1[0] = float4(normal, 0.0f);
+  r_velocity_gradient1[1] = float4(surface_direction, 0.0f);
+  r_velocity_gradient2 = -r_velocity_gradient1;
+  r_angular_velocity_gradient1[0] = float4(0.0f, math::cross(local_position1, normal));
+  r_angular_velocity_gradient1[1] = float4(0.0f, math::cross(local_position1, surface_direction));
+  r_angular_velocity_gradient2[0] = -float4(0.0f, math::cross(local_position2, normal));
+  r_angular_velocity_gradient2[1] = -float4(0.0f, math::cross(local_position2, surface_direction));
 }
 
 inline void apply_velocity_contact(const float3 &orig_velocity1,

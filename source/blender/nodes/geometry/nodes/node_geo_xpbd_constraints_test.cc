@@ -555,6 +555,16 @@ struct SolverTestData {
     Array<float3> betas;
     Array<float3> darboux_vector;
   } bend_twist;
+  struct {
+    Array<int> point1;
+    Array<int> collider_index;
+    Array<float> lambdas;
+    Array<float> alphas;
+    Array<float> betas;
+    Array<float3> local_position1;
+    Array<float3> local_position2;
+    Array<float3> normal;
+  } contact;
 };
 
 static SolverTestData simple_solver_data(const bool use_velocities)
@@ -601,6 +611,19 @@ static SolverTestData simple_solver_data(const bool use_velocities)
   solver_test.bend_twist.betas = {float3(0.5f, 0.001f, 0.5f), float3(1.0f, 1.0f, 1.0f)};
   solver_test.bend_twist.darboux_vector = {float3(0.2f, 0.8f, 1.1f), float3(-0.5f, -0.5f, 2.2f)};
 
+  solver_test.contact.point1 = {1, 1, 0};
+  solver_test.contact.collider_index = {1, 0, 1};
+  solver_test.contact.lambdas = {0.0f, 0.2f, 1.0f};
+  /* Compliance and damping are ignored by contact constraints. */
+  solver_test.contact.alphas = {0, 0, 0};
+  solver_test.contact.betas = {0, 0, 0};
+  solver_test.contact.local_position1 = {
+      float3(0, 0, 0), float3(0.5f, 1.0f, 0.0f), float3(-2.0f, 0.0f, 0.1f)};
+  solver_test.contact.local_position2 = {
+      float3(1.0f, -0.5f, 0.0f), float3(0.3f, 0.4f, -1.0f), float3(-2.0f, 0.0f, 0.1f)};
+  solver_test.contact.normal = {
+      float3(1.0f, 0.0f, 0.0f), float3(0.3f, 0.4f, -1.0f), float3(0.0f, 0.0f, -1.0f)};
+
   using AttributeInfo = std::pair<StringRef, GSpan>;
   auto add_constraint_data = [&](const xpbd_constraints::ConstraintTypeInfo &type,
                                  const Span<AttributeInfo> attribute_info) {
@@ -635,6 +658,16 @@ static SolverTestData simple_solver_data(const bool use_velocities)
        AttributeInfo{"darboux_vector", solver_test.bend_twist.darboux_vector.as_span()},
        AttributeInfo{"compliance", solver_test.bend_twist.alphas.as_span()},
        AttributeInfo{"damping", solver_test.bend_twist.betas.as_span()}});
+  add_constraint_data(
+      xpbd_constraints::get_info__contact(true),
+      {AttributeInfo{"point1", solver_test.contact.point1.as_span()},
+       AttributeInfo{"collider_index", solver_test.contact.collider_index.as_span()},
+       AttributeInfo{"lambda", solver_test.contact.lambdas.as_span()},
+       AttributeInfo{"compliance", solver_test.contact.alphas.as_span()},
+       AttributeInfo{"damping", solver_test.contact.betas.as_span()},
+       AttributeInfo{"local_position1", solver_test.contact.local_position1.as_span()},
+       AttributeInfo{"local_position2", solver_test.contact.local_position2.as_span()},
+       AttributeInfo{"normal", solver_test.contact.normal.as_span()}});
 
   return solver_test;
 }

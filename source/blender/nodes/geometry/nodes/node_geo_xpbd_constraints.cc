@@ -152,11 +152,13 @@ static void position_goal__init_position_step(bke::GeometrySet &constraints)
 
 static void position_goal__linear_solve_size(int &r_num_components,
                                              int &r_num_position_vars,
-                                             int &r_num_rotation_vars)
+                                             int &r_num_rotation_vars,
+                                             bool &r_use_active_mask)
 {
   r_num_components = 1;
   r_num_position_vars = 1;
   r_num_rotation_vars = 0;
+  r_use_active_mask = false;
 }
 
 static void position_goal__linear_solve_variables(const bke::AttributeAccessor &attributes,
@@ -181,7 +183,8 @@ static void position_goal__linear_solve_elements(const ConstraintEvalParams &par
                                                  GMutableSpan r_betas,
                                                  GMutableSpan r_residuals,
                                                  GMutableSpan r_position_gradients[4],
-                                                 GMutableSpan /*r_rotation_gradients*/[4])
+                                                 GMutableSpan /*r_rotation_gradients*/[4],
+                                                 MutableSpan<bool> /*r_active*/)
 {
   // r_alphas = GField(AttributeFieldInput::Create(ATTR_ALPHA, CPPType::get<float>()));
   // r_betas = GField(AttributeFieldInput::Create(ATTR_BETA, CPPType::get<float>()));
@@ -681,11 +684,13 @@ static Vector<VArray<int>> bend_twist__get_mapping(const bke::GeometrySet &const
 
 static void bend_twist__linear_solve_size(int &r_num_components,
                                           int &r_num_position_vars,
-                                          int &r_num_rotation_vars)
+                                          int &r_num_rotation_vars,
+                                          bool &r_use_active_mask)
 {
   r_num_components = 3;
   r_num_position_vars = 0;
   r_num_rotation_vars = 2;
+  r_use_active_mask = false;
 }
 
 static void bend_twist__linear_solve_variables(const bke::AttributeAccessor &attributes,
@@ -714,7 +719,8 @@ static void bend_twist__linear_solve_elements(const ConstraintEvalParams &params
                                               GMutableSpan r_betas,
                                               GMutableSpan r_residuals,
                                               GMutableSpan /*r_position_gradients*/[4],
-                                              GMutableSpan r_rotation_gradients[4])
+                                              GMutableSpan r_rotation_gradients[4],
+                                              MutableSpan<bool> /*r_active*/)
 {
   const VArraySpan<int> points1 = *lookup_or_warn<int>(
       attributes, ATTR_POINT1, AttrDomain::Point, 0, params.error_message_add);
@@ -1085,6 +1091,103 @@ static Vector<VArray<int>> contact__get_mapping(const bke::GeometrySet &constrai
   return {*attributes.lookup_or_default<int>(ATTR_POINT1, AttrDomain::Point, 0)};
 }
 
+static void contact__linear_solve_size(int &r_num_components,
+                                       int &r_num_position_vars,
+                                       int &r_num_rotation_vars,
+                                       bool &r_use_active_mask)
+{
+  r_num_components = 1;
+  r_num_position_vars = 1;
+  r_num_rotation_vars = 1;
+  r_use_active_mask = true;
+}
+
+static void contact__linear_solve_variables(const bke::AttributeAccessor &attributes,
+                                            const IndexMask &selection,
+                                            MutableSpan<int> r_position_indices[4],
+                                            MutableSpan<int> r_rotation_indices[4])
+{
+  const VArraySpan<int> points1 = *attributes.lookup_or_default<int>(
+      ATTR_POINT1, AttrDomain::Point, 0);
+
+  MutableSpan<int> position_indices1 = r_position_indices[0];
+  MutableSpan<int> rotation_indices1 = r_rotation_indices[0];
+  selection.foreach_index(constraint_grain_size, [&](const int index, const int pos) {
+    position_indices1[pos] = points1[index];
+    rotation_indices1[pos] = points1[index];
+  });
+}
+
+static void contact__linear_solve_elements(const ConstraintEvalParams &params,
+                                           const ConstraintVariables &variables,
+                                           const bke::AttributeAccessor &attributes,
+                                           const IndexMask &selection,
+                                           GMutableSpan r_alphas,
+                                           GMutableSpan r_betas,
+                                           GMutableSpan r_residuals,
+                                           GMutableSpan r_position_gradients[4],
+                                           GMutableSpan r_rotation_gradients[4],
+                                           MutableSpan<bool> r_active)
+{
+  VArraySpan<int> points1 = *lookup_or_warn<int>(
+      attributes, ATTR_POINT1, AttrDomain::Point, 0, params.error_message_add);
+  VArraySpan<int> collider_indices = *lookup_or_warn<int>(
+      attributes, "collider_index", AttrDomain::Point, 0, params.error_message_add);
+  VArraySpan<float3> local_positions1 = *lookup_or_warn<float3>(
+      attributes, "local_position1", AttrDomain::Point, float3(0.0f), params.error_message_add);
+  VArraySpan<float3> local_positions2 = *lookup_or_warn<float3>(
+      attributes, "local_position2", AttrDomain::Point, float3(0.0f), params.error_message_add);
+  VArraySpan<float3> normals = *lookup_or_warn<float3>(
+      attributes, "normal", AttrDomain::Point, float3(0.0f), params.error_message_add);
+
+  const IndexRange points_range = variables.rotations.index_range();
+  const Span<float3> positions = variables.positions;
+  const Span<math::Quaternion> rotations = variables.rotations;
+  MutableSpan<float> alphas = r_alphas.typed<float>();
+  MutableSpan<float> betas = r_betas.typed<float>();
+  MutableSpan<float> residuals = r_residuals.typed<float>();
+  MutableSpan<float3> position_gradients1 = r_position_gradients[0].typed<float3>();
+  MutableSpan<float4> rotation_gradients1 = r_rotation_gradients[0].typed<float4>();
+
+  selection.foreach_index(constraint_grain_size, [&](const int index, const int pos) {
+    const int point1 = points1[index];
+    const int collider_index = collider_indices[index];
+    if (!points_range.contains(point1) ||
+        !params.collider_transforms.index_range().contains(collider_index))
+    {
+      return;
+    }
+
+    /* Compliance and damping ignored for collisions. */
+    alphas[pos] = 0.0f;
+    betas[pos] = 0.0f;
+
+    const float4x4 collider_transform = params.collider_transforms[collider_index];
+    float3 collider_position;
+    math::Quaternion collider_rotation;
+    float3 collider_scale;
+    math::to_loc_rot_scale(
+        collider_transform, collider_position, collider_rotation, collider_scale);
+
+    float3 collider_position_gradient;
+    float4 collider_rotation_gradient;
+    const bool active = xpbd_constraints::eval_contact_position_elements(
+        local_positions1[point1],
+        local_positions2[point1],
+        normals[point1],
+        positions[point1],
+        collider_position,
+        rotations[point1],
+        collider_rotation,
+        residuals[pos],
+        position_gradients1[pos],
+        collider_position_gradient,
+        rotation_gradients1[pos],
+        collider_rotation_gradient);
+    r_active[pos] = active;
+  });
+}
+
 static void contact__init_position_step(bke::GeometrySet &constraints)
 {
   PointCloudComponent &component = constraints.get_component_for_write<PointCloudComponent>();
@@ -1187,9 +1290,9 @@ template<bool debug_output> static ConstraintTypeInfo create_info__contact()
                             contact__eval_positions<debug_output>,
                             contact__eval_velocities<debug_output>,
                             contact__get_mapping,
-                            {},
-                            {},
-                            {}};
+                            contact__linear_solve_size,
+                            contact__linear_solve_variables,
+                            contact__linear_solve_elements};
 }
 
 const ConstraintTypeInfo &get_info__position_goal(const bool debug_check)
