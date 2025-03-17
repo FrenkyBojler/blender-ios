@@ -54,14 +54,24 @@ class GLBackend : public GPUBackend {
   }
   ~GLBackend()
   {
-    delete compiler_;
     GLBackend::platform_exit();
   }
+
+  void init_resources() override
+  {
+    if (GPU_use_parallel_compilation()) {
+      compiler_ = new GLShaderCompiler();
+    }
+    else {
+      compiler_ = new ShaderCompilerGeneric();
+    }
+  };
 
   void delete_resources() override
   {
     /* Delete any resources with context active. */
     GLTexture::samplers_free();
+    delete compiler_;
   }
 
   static GLBackend *get()
@@ -71,15 +81,6 @@ class GLBackend : public GPUBackend {
 
   ShaderCompiler *get_compiler()
   {
-    std::call_once(compiler_once_flag, [&]() {
-      if (GPU_use_parallel_compilation()) {
-        compiler_ = new GLShaderCompiler();
-      }
-      else {
-        compiler_ = new ShaderCompilerGeneric();
-      }
-    });
-
     return compiler_;
   }
 
