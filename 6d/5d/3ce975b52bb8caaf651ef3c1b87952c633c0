@@ -1,3 +1,3 @@
 Referenced by issue #129571, EEVEE Lights Disappear with Shadows on Apple Silicon M1/macOS 13
 Referenced by issue #136061, UI: Edge slide and Mesh Shear Status Bars Incorrectly Overridden
-Referenced by pull request #136063, Fix #136061: Modelling: Always update status bar on shear/edge slide.
+Referenced by pull request #136063, Fix #136061: Modeling: Always update status bar on shear/edge slide.
