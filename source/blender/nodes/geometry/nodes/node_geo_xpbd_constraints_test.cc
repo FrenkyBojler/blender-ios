@@ -690,10 +690,11 @@ TEST_F(XPBDSolverTest, GlobalSolverConstruct)
   const float inv_dt = solver_test.params.inv_delta_time;
   const float inv_dt_sq = solver_test.params.inv_delta_time_squared;
 
-  Eigen::SparseMatrix<float> H;
-  Eigen::VectorXf b;
-  xpbd_constraints::build_global_solve_system(
-      solver_test.params, solver_test.data, solver_test.vars, true, H, b);
+  IndexMaskMemory memory;
+  xpbd_constraints::GlobalSolverSystem system = xpbd_constraints::build_global_solve_system(
+      solver_test.params, solver_test.data, solver_test.vars, true, memory);
+  const Eigen::SparseMatrix<float> &H = system.matrix;
+  const Eigen::VectorXf &b = system.target;
   /* Print matrix for debugging purposes if necessary. */
   if (false) {
     const Eigen::IOFormat format;
@@ -751,27 +752,27 @@ TEST_F(XPBDSolverTest, GlobalSolverConstruct)
                             inv_dt;
     return (alpha * beta * math::dot(gradient, velocity)) / (1.0f + alpha * beta);
   };
-  auto target_velocity_v = [&](const float3 &alpha,
-                               const float3 &beta,
-                               const int point_index,
-                               const float4x4 &gradient) -> float3 {
-    const float3 velocity = (solver_test.vars.positions[point_index] -
-                             solver_test.params.old_positions[point_index]) *
-                            inv_dt;
-    return (alpha * beta * (velocity * gradient.view<3, 3>())) / (1.0f + alpha * beta);
-  };
+  // auto target_velocity_v = [&](const float3 &alpha,
+  //                              const float3 &beta,
+  //                              const int point_index,
+  //                              const float4x4 &gradient) -> float3 {
+  //   const float3 velocity = (solver_test.vars.positions[point_index] -
+  //                            solver_test.params.old_positions[point_index]) *
+  //                           inv_dt;
+  //   return (alpha * beta * (velocity * gradient.view<3, 3>())) / (1.0f + alpha * beta);
+  // };
 
-  auto target_angular_velocity_f = [&](const float alpha,
-                                       const float beta,
-                                       const int point_index,
-                                       const float4x4 &gradient) -> float {
-    const float4 velocity = (float4(solver_test.vars.rotations[point_index]) -
-                             float4(solver_test.params.old_rotations[point_index])) *
-                            inv_dt;
-    /* Note: gradient is actually transpose of the Jacobian, each column is the derivative of
-     * one constraint variable. */
-    return (alpha * beta * math::dot(gradient[0], velocity)) / (1.0f + alpha * beta);
-  };
+  // auto target_angular_velocity_f = [&](const float alpha,
+  //                                      const float beta,
+  //                                      const int point_index,
+  //                                      const float4x4 &gradient) -> float {
+  //   const float4 velocity = (float4(solver_test.vars.rotations[point_index]) -
+  //                            float4(solver_test.params.old_rotations[point_index])) *
+  //                           inv_dt;
+  //   /* Note: gradient is actually transpose of the Jacobian, each column is the derivative of
+  //    * one constraint variable. */
+  //   return (alpha * beta * math::dot(gradient[0], velocity)) / (1.0f + alpha * beta);
+  // };
   auto target_angular_velocity_v = [&](const float3 &alpha,
                                        const float3 &beta,
                                        const int point_index,
@@ -883,16 +884,15 @@ TEST_F(XPBDSolverTest, GlobalSolverConstruct)
 
 TEST_F(XPBDSolverTest, GlobalSolverExecute)
 {
-  constexpr float eps = 1e-6f;
+  // constexpr float eps = 1e-6f;
 
   SolverTestData solver_test = simple_solver_data(false);
 
-  Eigen::SparseMatrix<float> H;
-  Eigen::VectorXf b;
-  xpbd_constraints::build_global_solve_system(
-      solver_test.params, solver_test.data, solver_test.vars, true, H, b);
+  IndexMaskMemory memory;
+  xpbd_constraints::GlobalSolverSystem system = xpbd_constraints::build_global_solve_system(
+      solver_test.params, solver_test.data, solver_test.vars, true, memory);
 
-  xpbd_constraints::solve_global_system(H, b, solver_test.vars, solver_test.data);
+  xpbd_constraints::solve_global_system(system, solver_test.vars, solver_test.data);
 }
 
 }  // namespace blender::nodes::tests

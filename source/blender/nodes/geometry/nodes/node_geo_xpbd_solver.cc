@@ -606,13 +606,8 @@ static void count_global_solve_matrix_entries(const Span<ConstraintEvalData> con
   }
 }
 
-struct GlobalSolverData {
-  Eigen::SparseMatrix<float> H;
-  Eigen::VectorXf b;
-};
-
 #if 0
-static GlobalSolverData build_global_solve_matrix_from_spans(
+static GlobalSolverSystem build_global_solve_matrix_from_spans(
     const ConstraintEvalParams &params,
     const Span<ConstraintEvalData> constraint_data,
     const ConstraintVariables &variables,
@@ -891,7 +886,8 @@ static void set_global_solve_elements(const ConstraintEvalParams &params,
                                       Vector<Eigen::Triplet<float>> &triplets,
                                       Vector<float> &rhs_values,
                                       IndexMaskMemory &memory,
-                                      int &r_num_columns)
+                                      int &r_num_columns,
+                                      IndexMask &r_active_constraints)
 {
   const int num_positions = variables.positions.size();
   const int num_rotations = variables.rotations.size();
@@ -1066,6 +1062,8 @@ static void set_global_solve_elements(const ConstraintEvalParams &params,
       rhs_values.append_unchecked(get_component(target, u));
     }
   });
+
+  r_active_constraints = std::move(active_constraints);
 }
 
 static void set_global_solve_elements(const ConstraintEvalParams &params,
@@ -1080,7 +1078,8 @@ static void set_global_solve_elements(const ConstraintEvalParams &params,
                                       Vector<Eigen::Triplet<float>> &triplets,
                                       Vector<float> &rhs_values,
                                       IndexMaskMemory &memory,
-                                      int &r_num_columns)
+                                      int &r_num_columns,
+                                      IndexMask &r_active_constraints)
 {
   /* XXX Matrix types float2x3, float3x3, float2x4, float 3x4 have no registered CPPType, so a
    * larger type is used for output arrays. */
@@ -1097,7 +1096,8 @@ static void set_global_solve_elements(const ConstraintEvalParams &params,
                                                           triplets,
                                                           rhs_values,
                                                           memory,
-                                                          r_num_columns);
+                                                          r_num_columns,
+                                                          r_active_constraints);
       break;
     case 2:
       set_global_solve_elements<2, float2, float4x4, float4x4>(params,
@@ -1111,7 +1111,8 @@ static void set_global_solve_elements(const ConstraintEvalParams &params,
                                                                triplets,
                                                                rhs_values,
                                                                memory,
-                                                               r_num_columns);
+                                                               r_num_columns,
+                                                               r_active_constraints);
       break;
     case 3:
       set_global_solve_elements<3, float3, float4x4, float4x4>(params,
@@ -1125,7 +1126,8 @@ static void set_global_solve_elements(const ConstraintEvalParams &params,
                                                                triplets,
                                                                rhs_values,
                                                                memory,
-                                                               r_num_columns);
+                                                               r_num_columns,
+                                                               r_active_constraints);
       break;
     default:
       BLI_assert_unreachable();
@@ -1133,7 +1135,7 @@ static void set_global_solve_elements(const ConstraintEvalParams &params,
   }
 }
 
-static GlobalSolverData build_global_solve_matrix_from_triplets(
+static GlobalSolverSystem build_global_solve_matrix_from_triplets(
     const ConstraintEvalParams &params,
     const Span<ConstraintEvalData> constraint_data,
     const ConstraintVariables &variables,
@@ -1181,6 +1183,7 @@ static GlobalSolverData build_global_solve_matrix_from_triplets(
   }
 
   int tot_columns = rhs_values.size();
+  Array<IndexMask> constraint_mapping(constraint_data.size());
   for (const int constraint_i : constraint_data.index_range()) {
     const ConstraintEvalData &data = constraint_data[constraint_i];
     if (!data.type->linear_solve_size || !data.type->linear_solve_elements) {
@@ -1241,6 +1244,7 @@ static GlobalSolverData build_global_solve_matrix_from_triplets(
     const VariableIndexArrays &rotation_index_arrays = rotation_indices_by_type[constraint_i];
     const GVArray &lambdas = lambdas_by_type[constraint_i];
     int num_columns = 0;
+    IndexMask &active_constraints = constraint_mapping[constraint_i];
     set_global_solve_elements(params,
                               variables,
                               positions_range,
@@ -1253,7 +1257,8 @@ static GlobalSolverData build_global_solve_matrix_from_triplets(
                               triplets,
                               rhs_values,
                               memory,
-                              num_columns);
+                              num_columns,
+                              active_constraints);
     tot_columns += num_columns;
   }
 
@@ -1267,15 +1272,15 @@ static GlobalSolverData build_global_solve_matrix_from_triplets(
 
   H.setFromTriplets(triplets.begin(), triplets.end());
 
-  return {std::move(H), std::move(b)};
+  return {std::move(H), std::move(b), std::move(constraint_mapping)};
 }
 
 template<bool debug_check>
-static void do_build_global_solve_system(const ConstraintEvalParams &params,
-                                         const Span<ConstraintEvalData> constraint_data,
-                                         const ConstraintVariables &variables,
-                                         Eigen::SparseMatrix<float> &r_H,
-                                         Eigen::VectorXf &r_b)
+static GlobalSolverSystem do_build_global_solve_system(
+    const ConstraintEvalParams &params,
+    const Span<ConstraintEvalData> constraint_data,
+    const ConstraintVariables &variables,
+    IndexMaskMemory &memory)
 {
   const int num_positions = variables.positions.size();
   const int num_rotations = variables.rotations.size();
@@ -1301,7 +1306,7 @@ static void do_build_global_solve_system(const ConstraintEvalParams &params,
 
 /* LHS matrix describing equations of motion and constraint impulses. */
 #if 0
-    auto [H, b] = build_global_solve_matrix_from_spans(params,
+    return build_global_solve_matrix_from_spans(params,
                                                        constraint_data,
                                                        variables,
                                                        position_indices_by_type,
@@ -1309,48 +1314,41 @@ static void do_build_global_solve_system(const ConstraintEvalParams &params,
                                                        lambdas_by_type,
                                                        non_zeroes_capacity,
                                                        max_columns);
-    r_H = std::move(H);
-    r_b = std::move(b);
 #else
-  IndexMaskMemory memory;
-  auto [H, b] = build_global_solve_matrix_from_triplets(params,
-                                                        constraint_data,
-                                                        variables,
-                                                        position_indices_by_type,
-                                                        rotation_indices_by_type,
-                                                        lambdas_by_type,
-                                                        non_zeroes_capacity,
-                                                        max_columns,
-                                                        memory);
-  r_H = std::move(H);
-  r_b = std::move(b);
+  return build_global_solve_matrix_from_triplets(params,
+                                                 constraint_data,
+                                                 variables,
+                                                 position_indices_by_type,
+                                                 rotation_indices_by_type,
+                                                 lambdas_by_type,
+                                                 non_zeroes_capacity,
+                                                 max_columns,
+                                                 memory);
 #endif
 }
 
-void build_global_solve_system(const ConstraintEvalParams &params,
-                               const Span<ConstraintEvalData> constraint_data,
-                               const ConstraintVariables &variables,
-                               const bool debug_check,
-                               Eigen::SparseMatrix<float> &r_H,
-                               Eigen::VectorXf &r_b)
+GlobalSolverSystem build_global_solve_system(const ConstraintEvalParams &params,
+                                             const Span<ConstraintEvalData> constraint_data,
+                                             const ConstraintVariables &variables,
+                                             const bool debug_check,
+                                             IndexMaskMemory &memory)
 {
   if (debug_check) {
-    do_build_global_solve_system<true>(params, constraint_data, variables, r_H, r_b);
+    return do_build_global_solve_system<true>(params, constraint_data, variables, memory);
   }
   else {
-    do_build_global_solve_system<false>(params, constraint_data, variables, r_H, r_b);
+    return do_build_global_solve_system<false>(params, constraint_data, variables, memory);
   }
 }
 
-void solve_global_system(const Eigen::SparseMatrix<float> &H,
-                         const Eigen::VectorXf &b,
+void solve_global_system(const GlobalSolverSystem &system,
                          ConstraintVariables &variables,
                          MutableSpan<ConstraintEvalData> constraint_data)
 {
   constexpr bool linearized_quaternion = true;
 
-  Eigen::SimplicialLDLT<Eigen::SparseMatrix<float>> eigen_solver(H);
-  Eigen::VectorXf x = eigen_solver.solve(b);
+  Eigen::SimplicialLDLT<Eigen::SparseMatrix<float>> eigen_solver(system.matrix);
+  Eigen::VectorXf x = eigen_solver.solve(system.target);
 
   const IndexRange position_rows = {0, variables.positions.size() * 3};
   const IndexRange rotation_rows = position_rows.after(variables.rotations.size() * 4);
@@ -1378,19 +1376,19 @@ void solve_global_system(const Eigen::SparseMatrix<float> &H,
     data.type->linear_solve_size(
         num_components, num_position_vars, num_rotation_vars, use_active_mask);
 
-    const int num_constraints = data.constraints.size();
-    const IndexRange lambda_rows = prev_rows.after(num_constraints * num_components);
+    const IndexMask &constraints = system.constraint_mapping[constraint_i];
+    const IndexRange lambda_rows = prev_rows.after(constraints.size() * num_components);
     switch (num_components) {
       case 1: {
         MutableSpan<float> lambdas = lambda_writers_by_type[constraint_i].span.typed<float>();
-        data.constraints.foreach_index(GrainSize(1024), [&](const int index, const int pos) {
+        constraints.foreach_index(GrainSize(1024), [&](const int index, const int pos) {
           lambdas[index] = x[lambda_rows[pos]];
         });
         break;
       }
       case 2: {
         MutableSpan<float2> lambdas = lambda_writers_by_type[constraint_i].span.typed<float2>();
-        data.constraints.foreach_index(GrainSize(1024), [&](const int index, const int pos) {
+        constraints.foreach_index(GrainSize(1024), [&](const int index, const int pos) {
           const IndexRange rows = lambda_rows.slice(pos * 2, 2);
           lambdas[index] = {x[rows[0]], x[rows[1]]};
         });
@@ -1398,7 +1396,7 @@ void solve_global_system(const Eigen::SparseMatrix<float> &H,
       }
       case 3: {
         MutableSpan<float3> lambdas = lambda_writers_by_type[constraint_i].span.typed<float3>();
-        data.constraints.foreach_index(GrainSize(1024), [&](const int index, const int pos) {
+        constraints.foreach_index(GrainSize(1024), [&](const int index, const int pos) {
           const IndexRange rows = lambda_rows.slice(pos * 3, 3);
           lambdas[index] = {x[rows[0]], x[rows[1]], x[rows[2]]};
         });

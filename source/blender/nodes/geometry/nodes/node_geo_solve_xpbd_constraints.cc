@@ -156,15 +156,14 @@ static void node_declare_velocities(NodeDeclarationBuilder &b)
       .align_with_previous();
 }
 
-static void do_global_solve(const EvaluationTarget target,
+static void do_global_solve(const EvaluationTarget /*target*/,
                             const ConstraintEvalParams &eval_params,
                             MutableSpan<ConstraintEvalData> constraint_data,
                             ConstraintVariables &variables)
 {
-  Eigen::SparseMatrix<float> H;
-  Eigen::VectorXf b;
-  build_global_solve_system(
-      eval_params, constraint_data, variables, eval_params.debug_check, H, b);
+  IndexMaskMemory memory;
+  xpbd_constraints::GlobalSolverSystem system = build_global_solve_system(
+      eval_params, constraint_data, variables, eval_params.debug_check, memory);
 }
 
 static void do_gauss_seidel_step(const EvaluationTarget target,

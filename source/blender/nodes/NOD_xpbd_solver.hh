@@ -56,15 +56,22 @@ struct ConstraintEvalData {
 /** \name Solver Methods
  * \{ */
 
-void build_global_solve_system(const ConstraintEvalParams &params,
-                               const Span<ConstraintEvalData> constraint_data,
-                               const ConstraintVariables &variables,
-                               const bool debug_check,
-                               Eigen::SparseMatrix<float> &r_H,
-                               Eigen::VectorXf &r_b);
+struct GlobalSolverSystem {
+  /* Linear system of equations for constrained motion. */
+  Eigen::SparseMatrix<float> matrix;
+  /* Vector of constraint residuals in the current configuration. */
+  Eigen::VectorXf target;
+  /* Index mapping for active constraints. */
+  Array<IndexMask> constraint_mapping;
+};
 
-void solve_global_system(const Eigen::SparseMatrix<float> &H,
-                         const Eigen::VectorXf &b,
+GlobalSolverSystem build_global_solve_system(const ConstraintEvalParams &params,
+                                             const Span<ConstraintEvalData> constraint_data,
+                                             const ConstraintVariables &variables,
+                                             const bool debug_check,
+                                             IndexMaskMemory &memory);
+
+void solve_global_system(const GlobalSolverSystem &system,
                          ConstraintVariables &variables,
                          MutableSpan<ConstraintEvalData> constraint_data);
 
