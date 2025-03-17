@@ -2466,6 +2466,114 @@ class _defs_image_generic:
         )
 
 
+class _defs_image_mask_transform:
+
+    @ToolDef.from_fn
+    def translate():
+        return dict(
+            idname="builtin.move",
+            label="Move",
+            icon="ops.transform.translate",
+            widget="IMAGE_GGT_gizmo2d_translate",
+            operator="transform.translate",
+            keymap="Image Editor Tool: Mask, Move"
+        )
+
+    @ToolDef.from_fn
+    def rotate():
+        return dict(
+            idname="builtin.rotate",
+            label="Rotate",
+            icon="ops.transform.rotate",
+            widget="IMAGE_GGT_gizmo2d_rotate",
+            operator="transform.rotate",
+            keymap="Image Editor Tool: Mask, Rotate",
+        )
+
+    @ToolDef.from_fn
+    def scale():
+        return dict(
+            idname="builtin.scale",
+            label="Scale",
+            icon="ops.transform.resize",
+            widget="IMAGE_GGT_gizmo2d_resize",
+            operator="transform.resize",
+            keymap="Image Editor Tool: Mask, Scale",
+        )
+
+
+class _defs_image_mask_select:
+
+    @ToolDef.from_fn
+    def select():
+        return dict(
+            idname="builtin.select",
+            label="Tweak",
+            icon="ops.generic.select",
+            widget=None,
+            keymap=(),
+        )
+
+    @ToolDef.from_fn
+    def box():
+        def draw_settings(_context, layout, tool):
+            props = tool.operator_properties("mask.select_box")
+            row = layout.row()
+            row.use_property_split = False
+            row.prop(props, "mode", text="", expand=True, icon_only=True)
+
+        return dict(
+            idname="builtin.select_box",
+            label="Select Box",
+            icon="ops.generic.select_box",
+            widget=None,
+            keymap=(),
+            draw_settings=draw_settings,
+        )
+
+    @ToolDef.from_fn
+    def lasso():
+        def draw_settings(_context, layout, tool):
+            props = tool.operator_properties("mask.select_lasso")
+            row = layout.row()
+            row.use_property_split = False
+            row.prop(props, "mode", text="", expand=True, icon_only=True)
+
+        return dict(
+            idname="builtin.select_lasso",
+            label="Select Lasso",
+            icon="ops.generic.select_lasso",
+            widget=None,
+            keymap=(),
+            draw_settings=draw_settings,
+        )
+
+    @ToolDef.from_fn
+    def circle():
+        def draw_settings(_context, layout, tool):
+            props = tool.operator_properties("mask.select_circle")
+            row = layout.row()
+            row.use_property_split = False
+            row.prop(props, "mode", text="", expand=True, icon_only=True)
+            layout.prop(props, "radius")
+
+        def draw_cursor(_context, tool, xy):
+            from gpu_extras.presets import draw_circle_2d
+            props = tool.operator_properties("mask.select_circle")
+            radius = props.radius
+            draw_circle_2d(xy, (1.0,) * 4, radius, segments=32)
+
+        return dict(
+            idname="builtin.select_circle",
+            label="Select Circle",
+            icon="ops.generic.select_circle",
+            widget=None,
+            keymap=(),
+            draw_settings=draw_settings,
+            draw_cursor=draw_cursor,
+        )
+
+
 class _defs_image_uv_transform:
 
     @ToolDef.from_fn
@@ -3104,19 +3212,34 @@ class IMAGE_PT_tools_active(ToolSelectPanelHelper, Panel):
 
     # Private tool lists for convenient reuse in `_tools`.
 
-    _tools_transform = (
+    _tools_uv_transform = (
         _defs_image_uv_transform.translate,
         _defs_image_uv_transform.rotate,
         _defs_image_uv_transform.scale,
         _defs_image_uv_transform.transform,
     )
 
-    _tools_select = (
+    _tools_uv_select = (
         (
             _defs_image_uv_select.select,
             _defs_image_uv_select.box,
             _defs_image_uv_select.circle,
             _defs_image_uv_select.lasso,
+        ),
+    )
+
+    _tools_mask_transform = (
+        _defs_image_mask_transform.translate,
+        _defs_image_mask_transform.rotate,
+        _defs_image_mask_transform.scale,
+    )
+
+    _tools_mask_select = (
+        (
+            _defs_image_mask_select.select,
+            _defs_image_mask_select.box,
+            _defs_image_mask_select.lasso,
+            _defs_image_mask_select.circle,
         ),
     )
 
@@ -3141,10 +3264,10 @@ class IMAGE_PT_tools_active(ToolSelectPanelHelper, Panel):
             *_tools_annotate,
         ],
         'UV': [
-            *_tools_select,
+            *_tools_uv_select,
             _defs_image_generic.cursor,
             None,
-            *_tools_transform,
+            *_tools_uv_transform,
             None,
             *_tools_annotate,
             None,
@@ -3155,7 +3278,12 @@ class IMAGE_PT_tools_active(ToolSelectPanelHelper, Panel):
             _defs_image_uv_sculpt.pinch,
         ],
         'MASK': [
+            *_tools_mask_select,
+            _defs_image_generic.cursor,
             None,
+            *_tools_mask_transform,
+            None,
+            *_tools_annotate,
         ],
         'PAINT': [
             _brush_tool,

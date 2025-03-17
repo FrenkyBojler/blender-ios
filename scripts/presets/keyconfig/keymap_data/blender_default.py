@@ -6918,6 +6918,115 @@ def km_image_editor_tool_uv_scale(params):
 
 
 # ------------------------------------------------------------------------------
+# Tool System (Mask Editor)
+
+def km_image_editor_tool_mask_cursor(params):
+    return (
+        "Image Editor Tool: Mask, Cursor",
+        {"space_type": 'IMAGE_EDITOR', "region_type": 'WINDOW'},
+        {"items": [
+            ("mask.cursor_set", {"type": params.tool_mouse, "value": 'PRESS'}, None),
+            # Don't use `tool_maybe_tweak_event` since it conflicts with `PRESS` that places the cursor.
+            ("transform.translate", params.tool_tweak_event,
+             {"properties": [("release_confirm", True), ("cursor_transform", True)]}),
+        ]},
+    )
+
+
+def km_image_editor_tool_mask_select(params, *, fallback):
+    return (
+        _fallback_id("Image Editor Tool: Mask, Tweak", fallback),
+        {"space_type": 'IMAGE_EDITOR', "region_type": 'WINDOW'},
+        {"items": [
+            *([] if (fallback and (params.select_mouse == 'RIGHTMOUSE')) else _template_items_tool_select(
+                params, "mask.select", "mask.cursor_set", fallback=fallback)),
+            *([] if params.use_fallback_tool_select_handled else
+              _template_uv_select(
+                  type=params.select_mouse,
+                  value=params.select_mouse_value,
+                  select_passthrough=params.use_tweak_select_passthrough,
+                  legacy=params.legacy,
+            )),
+        ]},
+    )
+
+
+def km_image_editor_tool_mask_select_box(params, *, fallback):
+    return (
+        _fallback_id("Image Editor Tool: Mask, Select Box", fallback),
+        {"space_type": 'IMAGE_EDITOR', "region_type": 'WINDOW'},
+        {"items": [
+            *([] if (fallback and not params.use_fallback_tool) else _template_items_tool_select_actions_simple(
+                "mask.select_box",
+                # Don't use `tool_maybe_tweak_event`, see comment for this slot.
+                **(params.select_tweak_event if (fallback and params.use_fallback_tool_select_mouse) else
+                   params.tool_tweak_event))),
+        ]},
+    )
+
+
+def km_image_editor_tool_mask_select_circle(params, *, fallback):
+    return (
+        _fallback_id("Image Editor Tool: Mask, Select Circle", fallback),
+        {"space_type": 'IMAGE_EDITOR', "region_type": 'WINDOW'},
+        {"items": [
+            *([] if (fallback and not params.use_fallback_tool) else _template_items_tool_select_actions_simple(
+                "mask.select_circle",
+                **(params.select_tweak_event if (fallback and params.use_fallback_tool_select_mouse) else
+                   {"type": params.tool_mouse, "value": 'PRESS'}),
+                properties=[("wait_for_input", False)])),
+            # No selection fallback since this operates on press.
+        ]},
+    )
+
+
+def km_image_editor_tool_mask_select_lasso(params, *, fallback):
+    return (
+        _fallback_id("Image Editor Tool: Mask, Select Lasso", fallback),
+        {"space_type": 'IMAGE_EDITOR', "region_type": 'WINDOW'},
+
+        {"items": [
+            *([] if (fallback and not params.use_fallback_tool) else _template_items_tool_select_actions_simple(
+                "mask.select_lasso",
+                **(params.select_tweak_event if (fallback and params.use_fallback_tool_select_mouse) else
+                   params.tool_tweak_event))),
+        ]},
+    )
+
+def km_image_editor_tool_mask_move(params):
+    return (
+        "Image Editor Tool: Mask, Move",
+        {"space_type": 'IMAGE_EDITOR', "region_type": 'WINDOW'},
+        {"items": [
+            ("transform.translate", {**params.tool_maybe_tweak_event, **params.tool_modifier},
+             {"properties": [("release_confirm", True)]}),
+        ]},
+    )
+
+
+def km_image_editor_tool_mask_rotate(params):
+    return (
+        "Image Editor Tool: Mask, Rotate",
+        {"space_type": 'IMAGE_EDITOR', "region_type": 'WINDOW'},
+        {"items": [
+            ("transform.rotate", {**params.tool_maybe_tweak_event, **params.tool_modifier},
+             {"properties": [("release_confirm", True)]}),
+        ]},
+    )
+
+
+def km_image_editor_tool_mask_scale(params):
+    return (
+        "Image Editor Tool: Mask, Scale",
+        {"space_type": 'IMAGE_EDITOR', "region_type": 'WINDOW'},
+        {"items": [
+            ("transform.resize", {**params.tool_maybe_tweak_event, **params.tool_modifier},
+             {"properties": [("release_confirm", True)]}),
+        ]},
+    )
+
+
+# ------------------------------------------------------------------------------
 # Tool System (Node Editor)
 
 def km_node_editor_tool_select(params, *, fallback):
@@ -8494,6 +8603,15 @@ def generate_keymaps(params=None):
         km_image_editor_tool_uv_move(params),
         km_image_editor_tool_uv_rotate(params),
         km_image_editor_tool_uv_scale(params),
+        km_image_editor_tool_uv_pinch(params),
+        km_image_editor_tool_mask_cursor(params),
+        *(km_image_editor_tool_mask_select(params, fallback=fallback) for fallback in (False, True)),
+        *(km_image_editor_tool_mask_select_box(params, fallback=fallback) for fallback in (False, True)),
+        *(km_image_editor_tool_mask_select_circle(params, fallback=fallback) for fallback in (False, True)),
+        *(km_image_editor_tool_mask_select_lasso(params, fallback=fallback) for fallback in (False, True)),
+        km_image_editor_tool_mask_move(params),
+        km_image_editor_tool_mask_rotate(params),
+        km_image_editor_tool_mask_scale(params),
         *(km_node_editor_tool_select(params, fallback=fallback) for fallback in (False, True)),
         *(km_node_editor_tool_select_box(params, fallback=fallback) for fallback in (False, True)),
         *(km_node_editor_tool_select_lasso(params, fallback=fallback) for fallback in (False, True)),
