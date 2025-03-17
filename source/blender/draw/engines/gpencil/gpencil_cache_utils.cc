@@ -23,20 +23,23 @@
 #include "BLI_link_utils.h"
 #include "BLI_math_color.h"
 #include "BLI_math_matrix.h"
+#include "BLI_math_vector.h"
 #include "BLI_math_vector.hh"
 #include "BLI_memblock.h"
 
-#include "gpencil_engine.h"
+#include "gpencil_engine_private.hh"
 
 #include "DEG_depsgraph.hh"
 
 #include "UI_resources.hh"
 
+namespace blender::draw::gpencil {
+
 /* -------------------------------------------------------------------- */
 /** \name Object
  * \{ */
 
-GPENCIL_tObject *gpencil_object_cache_add(GPENCIL_Instance *inst,
+GPENCIL_tObject *gpencil_object_cache_add(Instance *inst,
                                           Object *ob,
                                           const bool is_stroke_order_3d,
                                           const blender::Bounds<float3> bounds)
@@ -49,7 +52,6 @@ GPENCIL_tObject *gpencil_object_cache_add(GPENCIL_Instance *inst,
   tgp_ob->vfx.first = tgp_ob->vfx.last = nullptr;
   tgp_ob->camera_z = dot_v3v3(inst->camera_z_axis, ob->object_to_world().location());
   tgp_ob->is_drawmode3d = is_stroke_order_3d;
-  tgp_ob->object_scale = mat4_to_scale(ob->object_to_world().ptr());
 
   /* Check if any material with holdout flag enabled. */
   tgp_ob->do_mat_holdout = false;
@@ -144,7 +146,7 @@ static int gpencil_tobject_dist_sort(const void *a, const void *b)
   return 0;
 }
 
-void gpencil_object_cache_sort(GPENCIL_Instance *inst)
+void gpencil_object_cache_sort(Instance *inst)
 {
   /* Sort object by distance to the camera. */
   if (inst->tobjects.first) {
@@ -184,7 +186,7 @@ void gpencil_object_cache_sort(GPENCIL_Instance *inst)
 /** \name Layer
  * \{ */
 
-static float grease_pencil_layer_final_opacity_get(const GPENCIL_Instance *inst,
+static float grease_pencil_layer_final_opacity_get(const Instance *inst,
                                                    const Object *ob,
                                                    const GreasePencil &grease_pencil,
                                                    const blender::bke::greasepencil::Layer &layer)
@@ -206,7 +208,7 @@ static float grease_pencil_layer_final_opacity_get(const GPENCIL_Instance *inst,
   return layer.opacity;
 }
 
-static float4 grease_pencil_layer_final_tint_and_alpha_get(const GPENCIL_Instance *inst,
+static float4 grease_pencil_layer_final_tint_and_alpha_get(const Instance *inst,
                                                            const GreasePencil &grease_pencil,
                                                            const int onion_id,
                                                            float *r_alpha)
@@ -286,7 +288,7 @@ GPENCIL_tLayer *grease_pencil_layer_cache_get(GPENCIL_tObject *tgp_ob,
   return nullptr;
 }
 
-GPENCIL_tLayer *grease_pencil_layer_cache_add(GPENCIL_Instance *inst,
+GPENCIL_tLayer *grease_pencil_layer_cache_add(Instance *inst,
                                               const Object *ob,
                                               const blender::bke::greasepencil::Layer &layer,
                                               const int onion_id,
@@ -316,9 +318,6 @@ GPENCIL_tLayer *grease_pencil_layer_cache_add(GPENCIL_Instance *inst,
   const float vert_col_opacity = (override_vertcol) ?
                                      (is_vert_col_mode ? inst->vertex_paint_opacity : 0.0f) :
                                      (inst->is_render ? 1.0f : inst->vertex_paint_opacity);
-  /* Negate thickness sign to tag that strokes are in screen space (this is no longer used in
-   * GPv3). Convert to world units (by default, 1 meter = 1000 pixels). */
-  const float thickness_scale = blender::bke::greasepencil::LEGACY_RADIUS_CONVERSION_FACTOR;
   /* If the layer is used as a mask (but is otherwise not visible in the render), render it with a
    * opacity of 0 so that it can still mask other layers. */
   const float layer_opacity = !is_used_as_mask ? grease_pencil_layer_final_opacity_get(
@@ -410,7 +409,7 @@ GPENCIL_tLayer *grease_pencil_layer_cache_add(GPENCIL_Instance *inst,
     PassSimple &pass = *tgp_layer->blend_ps;
     pass.init();
     pass.state_set(state);
-    pass.shader_set(GPENCIL_shader_layer_blend_get());
+    pass.shader_set(ShaderCache::get().layer_blend.get());
     pass.push_constant("blendMode", int(layer.blend_mode));
     pass.push_constant("blendOpacity", layer_opacity);
     pass.bind_texture("colorBuf", &inst->color_layer_tx);
@@ -448,15 +447,11 @@ GPENCIL_tLayer *grease_pencil_layer_cache_add(GPENCIL_Instance *inst,
     state |= DRW_STATE_WRITE_STENCIL | DRW_STATE_STENCIL_ALWAYS;
 
     pass.state_set(state);
-    pass.shader_set(GPENCIL_shader_geometry_get());
+    pass.shader_set(ShaderCache::get().geometry.get());
     pass.bind_texture("gpSceneDepthTexture", depth_tex);
     pass.bind_texture("gpMaskTexture", mask_tex);
     pass.push_constant("gpNormal", tgp_ob->plane_normal);
     pass.push_constant("gpStrokeOrder3d", tgp_ob->is_drawmode3d);
-    pass.push_constant("gpThicknessScale", tgp_ob->object_scale);
-    /* Replaced by a modifier in GPv3. */
-    pass.push_constant("gpThicknessOffset", 0.0f);
-    pass.push_constant("gpThicknessWorldScale", thickness_scale);
     pass.push_constant("gpVertexColorOpacity", vert_col_opacity);
 
     pass.bind_texture("gpFillTexture", inst->dummy_tx);
@@ -478,3 +473,5 @@ GPENCIL_tLayer *grease_pencil_layer_cache_add(GPENCIL_Instance *inst,
   return tgp_layer;
 }
 /** \} */
+
+}  // namespace blender::draw::gpencil

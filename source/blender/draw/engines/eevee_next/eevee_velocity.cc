@@ -19,6 +19,7 @@
 #include "DNA_particle_types.h"
 #include "DNA_rigidbody_types.h"
 
+#include "DRW_engine.hh"
 #include "draw_cache.hh"
 #include "draw_cache_impl.hh"
 
@@ -59,12 +60,9 @@ void VelocityModule::init()
 }
 
 /* Similar to Instance::object_sync, but only syncs velocity. */
-static void step_object_sync_render(void *instance,
-                                    Object *ob,
-                                    RenderEngine * /*engine*/,
-                                    Depsgraph * /*depsgraph*/)
+static void step_object_sync_render(Instance &inst, ObjectRef &ob_ref)
 {
-  Instance &inst = *reinterpret_cast<Instance *>(instance);
+  Object *ob = ob_ref.object;
 
   const bool is_velocity_type = ELEM(ob->type, OB_CURVES, OB_MESH, OB_POINTCLOUD);
   const int ob_visibility = DRW_object_visibility_in_active_context(ob);
@@ -79,7 +77,6 @@ static void step_object_sync_render(void *instance,
 
   /* NOTE: Dummy resource handle since this won't be used for drawing. */
   ResourceHandle resource_handle(0);
-  ObjectRef ob_ref = DRW_object_ref_get(ob);
   ObjectHandle &ob_handle = inst.sync.sync_object(ob_ref);
 
   if (partsys_is_visible) {
@@ -89,7 +86,7 @@ static void step_object_sync_render(void *instance,
       inst.velocity.step_object_sync(
           hair_handle.object_key, ob_ref, hair_handle.recalc, resource_handle, &md, &particle_sys);
     };
-    foreach_hair_particle_handle(ob, ob_handle, sync_hair);
+    foreach_hair_particle_handle(ob_ref.object, ob_handle, sync_hair);
   };
 
   if (object_is_visible) {
@@ -105,11 +102,11 @@ void VelocityModule::step_sync(eVelocityStep step, float time)
   object_steps_usage[step_] = 0;
   step_camera_sync();
 
-  DRW_curves_init();
-
-  DRW_render_object_iter(&inst_, inst_.render, inst_.depsgraph, step_object_sync_render);
-
-  DRW_curves_update(*inst_.manager);
+  DRW_render_object_iter(inst_.render,
+                         inst_.depsgraph,
+                         [&](blender::draw::ObjectRef &ob_ref, RenderEngine *, Depsgraph *) {
+                           step_object_sync_render(inst_, ob_ref);
+                         });
 
   geometry_steps_fill();
 }
@@ -263,6 +260,8 @@ void VelocityModule::geometry_steps_fill()
    * `tot_len * sizeof(float4)` is greater than max SSBO size. */
   geometry_steps[step_]->resize(max_ii(16, dst_ofs));
 
+  DRW_submission_start();
+
   PassSimple copy_ps("Velocity Copy Pass");
   copy_ps.init();
   copy_ps.state_set(DRW_STATE_NO_DRAW);
@@ -295,6 +294,8 @@ void VelocityModule::geometry_steps_fill()
 
   copy_ps.barrier(GPU_BARRIER_SHADER_STORAGE);
   inst_.manager->submit(copy_ps);
+
+  DRW_submission_end();
 
   /* Copy back the #VelocityGeometryIndex into #VelocityObjectData which are
    * indexed using persistent keys (unlike geometries which are indexed by volatile ID). */

@@ -14,6 +14,7 @@
 #include "DNA_scene_types.h"
 
 #include "BLI_listbase.h"
+#include "BLI_math_vector.h"
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
@@ -144,13 +145,14 @@ int ED_markers_post_apply_transform(
 TimeMarker *ED_markers_find_nearest_marker(ListBase *markers, float x)
 {
   TimeMarker *nearest = nullptr;
-  float dist, min_dist = 1000000;
 
   if (markers) {
+    /* Don't initialize with a large/infinite value since a non-finite `x` could
+     * fail to return a marker which can crash in some cases, see: #136059. */
+    float min_dist;
     LISTBASE_FOREACH (TimeMarker *, marker, markers) {
-      dist = fabsf(float(marker->frame) - x);
-
-      if (dist < min_dist) {
+      const float dist = fabsf(float(marker->frame) - x);
+      if (!nearest || (dist < min_dist)) {
         min_dist = dist;
         nearest = marker;
       }

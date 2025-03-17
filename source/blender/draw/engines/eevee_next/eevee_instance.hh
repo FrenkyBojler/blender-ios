@@ -72,7 +72,7 @@ struct UniformDataModule {
  * \class Instance
  * \brief A running instance of the engine.
  */
-class Instance {
+class Instance : public DrawEngine {
   friend VelocityModule;
   friend MotionBlurModule;
 
@@ -180,6 +180,11 @@ class Instance {
         volume(*this, uniform_data.data.volumes){};
   ~Instance(){};
 
+  blender::StringRefNull name_get() final
+  {
+    return "EEVEE";
+  }
+
   /* Render & Viewport. */
   /* TODO(fclem): Split for clarity. */
   void init(const int2 &output_res,
@@ -193,11 +198,11 @@ class Instance {
             const View3D *v3d = nullptr,
             const RegionView3D *rv3d = nullptr);
 
-  void view_update();
+  void init() final;
 
-  void begin_sync();
-  void object_sync(ObjectRef &ob_ref);
-  void end_sync();
+  void begin_sync() final;
+  void object_sync(ObjectRef &ob_ref, Manager &manager) final;
+  void end_sync() final;
 
   /**
    * Return true when probe pipeline is used during this sample.
@@ -222,6 +227,8 @@ class Instance {
 
   void draw_viewport();
   void draw_viewport_image_render();
+
+  void draw(Manager &manager) final;
 
   /* Light bake. */
 
@@ -265,12 +272,14 @@ class Instance {
 
   bool is_image_render() const
   {
-    return DRW_state_is_image_render();
+    /* WORKAROUND: During light baking, this may be called before a DRWContext is bound. */
+    return !is_light_bake && DRW_state_is_image_render();
   }
 
   bool is_viewport_image_render() const
   {
-    return DRW_state_is_viewport_image_render();
+    /* WORKAROUND: During light baking, this may be called before a DRWContext is bound. */
+    return !is_light_bake && DRW_state_is_viewport_image_render();
   }
 
   bool is_baking() const
@@ -291,7 +300,8 @@ class Instance {
 
   bool is_playback() const
   {
-    return DRW_state_is_playback();
+    /* WORKAROUND: During light baking, this may be called before a DRWContext is bound. */
+    return !is_light_bake && DRW_state_is_playback();
   }
 
   bool is_transforming() const
@@ -302,12 +312,20 @@ class Instance {
 
   bool is_navigating() const
   {
-    return DRW_state_is_navigating();
+    /* WORKAROUND: During light baking, this may be called before a DRWContext is bound. */
+    return !is_light_bake && DRW_state_is_navigating();
   }
 
   bool is_painting() const
   {
-    return DRW_state_is_painting();
+    /* WORKAROUND: During light baking, this may be called before a DRWContext is bound. */
+    return !is_light_bake && DRW_state_is_painting();
+  }
+
+  bool do_display_support() const
+  {
+    /* WORKAROUND: During light baking, this may be called before a DRWContext is bound. */
+    return !is_light_bake && DRW_state_draw_support();
   }
 
   bool use_scene_lights() const
@@ -361,11 +379,6 @@ class Instance {
   }
 
  private:
-  /** Wrapper to use with #DRW_render_object_iter. */
-  static void object_sync_render(void *instance_,
-                                 Object *ob,
-                                 RenderEngine *engine,
-                                 Depsgraph *depsgraph);
   /**
    * Conceptually renders one sample per pixel.
    * Everything based on random sampling should be done here (i.e: DRWViews jitter)
