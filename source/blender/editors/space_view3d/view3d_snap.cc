@@ -457,6 +457,10 @@ static bool snap_selected_to_location(bContext *C,
             mul_v3_m4v3(cursor_pose, ob->object_to_world().ptr(), pchan->pose_mat[3]);
             add_v3_v3(cursor_pose, offset_global);
 
+            if (use_rotation) {
+              rotate_around_pivot(cursor_rotmat, snap_target_global, cursor_pose, cursor_pose);
+            }
+
             mul_m4_v3(ob->world_to_object().ptr(), cursor_pose);
             BKE_armature_loc_pose_to_bone(pchan, cursor_pose, cursor_pose);
           }
