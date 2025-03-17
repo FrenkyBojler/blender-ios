@@ -399,9 +399,9 @@ inline float4x4 quaternion_matrix(const math::Quaternion &q)
 {
   float4x4 result;
   result[0] = float4{q.w, q.x, q.y, q.z};
-  result[1] = float4{-q.x, q.x, -q.z, q.y};
-  result[1] = float4{-q.y, q.z, q.y, -q.x};
-  result[1] = float4{-q.z, -q.y, q.x, q.z};
+  result[1] = float4{-q.x, q.w, -q.z, q.y};
+  result[2] = float4{-q.y, q.z, q.w, -q.x};
+  result[3] = float4{-q.z, -q.y, q.x, q.w};
   return result;
 }
 
@@ -791,9 +791,10 @@ inline float mul_position_gradient(const float3 &gradient, const float3 &vec)
   return math::dot(gradient, vec);
 }
 
-inline float3 mul_position_gradient(const float4x4 &gradient, const float3 &vec)
+inline float4 mul_position_gradient(const float4x4 &gradient, const float3 &vec)
 {
-  return math::transform_direction(gradient, vec);
+  /* Gradient matrix is transpose of the Jacobian, multiply from the left. */
+  return vec * gradient.view<4, 3>();
 }
 
 inline float mul_rotation_gradient(const float4 &gradient, const float4 &vec)
@@ -803,7 +804,8 @@ inline float mul_rotation_gradient(const float4 &gradient, const float4 &vec)
 
 inline float4 mul_rotation_gradient(const float4x4 &gradient, const float4 &vec)
 {
-  return gradient * vec;
+  /* Gradient matrix is transpose of the Jacobian, multiply from the left. */
+  return vec * gradient;
 }
 
 template<typename GradientT>

@@ -15,6 +15,8 @@
 
 #include "testing/testing.h"
 
+#include <iostream>
+
 namespace blender::nodes::tests {
 
 #define EXPECT_EIGEN_MATRIX_NEAR(a, b, eps) \
@@ -592,8 +594,8 @@ static SolverTestData simple_solver_data(const bool use_velocities)
   solver_test.position_goal.betas = {0.3f, 0.0f};
   solver_test.position_goal.goal_position = {float3(0.0f), float3(1, -1, 2)};
 
-  solver_test.bend_twist.point1 = {1, 2};
-  solver_test.bend_twist.point2 = {0, 1};
+  solver_test.bend_twist.point1 = {1, 0};
+  solver_test.bend_twist.point2 = {2, 1};
   solver_test.bend_twist.lambdas = {float3(-1.0f, 0.0f, 0.0f), float3(4.0f, -4.0f, 1.0f)};
   solver_test.bend_twist.alphas = {float3(0.6f, 1.1f, 0.0f), float3(0.0f, 0.0f, 3.0f)};
   solver_test.bend_twist.betas = {float3(0.5f, 0.001f, 0.5f), float3(1.0f, 1.0f, 1.0f)};
@@ -641,9 +643,9 @@ inline float4x4 quaternion_matrix(const math::Quaternion &q)
 {
   float4x4 result;
   result[0] = float4{q.w, q.x, q.y, q.z};
-  result[1] = float4{-q.x, q.x, -q.z, q.y};
-  result[1] = float4{-q.y, q.z, q.y, -q.x};
-  result[1] = float4{-q.z, -q.y, q.x, q.z};
+  result[1] = float4{-q.x, q.w, -q.z, q.y};
+  result[2] = float4{-q.y, q.z, q.w, -q.x};
+  result[3] = float4{-q.z, -q.y, q.x, q.w};
   return result;
 }
 
@@ -659,6 +661,11 @@ TEST_F(XPBDSolverTest, GlobalSolverUnconstrained)
   Eigen::VectorXf b;
   xpbd_constraints::build_global_solve_system(
       solver_test.params, solver_test.data, solver_test.vars, true, H, b);
+  /* Print matrix for debugging purposes if necessary. */
+  if (false) {
+    const Eigen::IOFormat format;
+    std::cout << H.toDense().format(format) << std::endl;
+  }
   EXPECT_EQ(29, H.rows());
   EXPECT_EQ(29, H.cols());
   EXPECT_EQ(173, H.nonZeros());
@@ -808,13 +815,13 @@ TEST_F(XPBDSolverTest, GlobalSolverUnconstrained)
                                                residual[1],
                                                rot_gradient1[1],
                                                rot_gradient2[1]);
-    EXPECT_EIGEN_MATRIX_NEAR(rot_gradient1[0], H.block(23, 13, 3, 4), eps);
+    EXPECT_EIGEN_MATRIX_NEAR(math::transpose(rot_gradient1[0]), H.block(23, 13, 3, 4), eps);
     EXPECT_EIGEN_MATRIX_NEAR(rot_gradient1[0], H.block(13, 23, 4, 3), eps);
-    EXPECT_EIGEN_MATRIX_NEAR(rot_gradient2[0], H.block(23, 17, 3, 4), eps);
+    EXPECT_EIGEN_MATRIX_NEAR(math::transpose(rot_gradient2[0]), H.block(23, 17, 3, 4), eps);
     EXPECT_EIGEN_MATRIX_NEAR(rot_gradient2[0], H.block(17, 23, 4, 3), eps);
-    EXPECT_EIGEN_MATRIX_NEAR(rot_gradient1[1], H.block(26, 9, 3, 4), eps);
+    EXPECT_EIGEN_MATRIX_NEAR(math::transpose(rot_gradient1[1]), H.block(26, 9, 3, 4), eps);
     EXPECT_EIGEN_MATRIX_NEAR(rot_gradient1[1], H.block(9, 26, 4, 3), eps);
-    EXPECT_EIGEN_MATRIX_NEAR(rot_gradient2[1], H.block(26, 13, 3, 4), eps);
+    EXPECT_EIGEN_MATRIX_NEAR(math::transpose(rot_gradient2[1]), H.block(26, 13, 3, 4), eps);
     EXPECT_EIGEN_MATRIX_NEAR(rot_gradient2[1], H.block(13, 26, 4, 3), eps);
 
     /* Constraint lambda residuals. */
