@@ -178,7 +178,7 @@ class CornerPinOperation : public NodeOperation {
           sampled_color = input.sample_bilinear_wrap(projected_coordinates, false, false);
           break;
         case Interpolation::Nearest:
-          sampled_color = input.sample_nearest_wrap(projected_coordinates, false, false);
+          sampled_color = input.sample_ewa_extended(projected_coordinates, x_gradient, y_gradient);
           break;
       }
 
