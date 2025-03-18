@@ -59,7 +59,7 @@ void Film::init_aovs(const Set<std::string> &passes_used_by_viewport_compositor)
       }
     }
 
-    if (this->is_viewport_compositor_enabled()) {
+    if (inst_.is_viewport_compositor_enabled) {
       LISTBASE_FOREACH (ViewLayerAOV *, aov, &inst_.view_layer->aovs) {
         /* Already added as a display pass. No need to add again. */
         if (!aovs.is_empty() && aovs.last() == aov) {
@@ -272,7 +272,7 @@ void Film::init(const int2 &extent, const rcti *output_rect)
 
   /* Compute the passes needed by the viewport compositor. */
   Set<std::string> passes_used_by_viewport_compositor;
-  if (this->is_viewport_compositor_enabled()) {
+  if (inst_.is_viewport_compositor_enabled) {
     passes_used_by_viewport_compositor = bke::compositor::get_used_passes(scene, inst_.view_layer);
     viewport_compositor_enabled_passes_ = get_viewport_compositor_enabled_passes(
         passes_used_by_viewport_compositor, inst_.view_layer);
@@ -550,8 +550,7 @@ void Film::sync()
 
   const int cryptomatte_layer_count = cryptomatte_layer_len_get();
   const bool is_cryptomatte_pass_enabled = cryptomatte_layer_count > 0;
-  const bool do_cryptomatte_sorting = !inst_.is_viewport() ||
-                                      this->is_viewport_compositor_enabled();
+  const bool do_cryptomatte_sorting = !inst_.is_viewport() || inst_.is_viewport_compositor_enabled;
   cryptomatte_post_ps_.init();
   if (is_cryptomatte_pass_enabled && do_cryptomatte_sorting) {
     cryptomatte_post_ps_.state_set(DRW_STATE_NO_DRAW);
@@ -793,8 +792,8 @@ void Film::update_sample_table()
 void Film::accumulate(View &view, GPUTexture *combined_final_tx)
 {
   if (inst_.is_viewport()) {
-    DefaultFramebufferList *dfbl = DRW_viewport_framebuffer_list_get();
-    DefaultTextureList *dtxl = DRW_viewport_texture_list_get();
+    DefaultFramebufferList *dfbl = inst_.draw_ctx->viewport_framebuffer_list_get();
+    DefaultTextureList *dtxl = inst_.draw_ctx->viewport_texture_list_get();
     GPU_framebuffer_bind(dfbl->default_fb);
     /* Clear when using render borders. */
     if (data_.extent != int2(GPU_texture_width(dtxl->color), GPU_texture_height(dtxl->color))) {
@@ -830,7 +829,7 @@ void Film::display()
   /* Acquire dummy render buffers for correct binding. They will not be used. */
   inst_.render_buffers.acquire(int2(1));
 
-  DefaultFramebufferList *dfbl = DRW_viewport_framebuffer_list_get();
+  DefaultFramebufferList *dfbl = inst_.draw_ctx->viewport_framebuffer_list_get();
   GPU_framebuffer_bind(dfbl->default_fb);
   GPU_framebuffer_viewport_set(dfbl->default_fb, UNPACK2(data_.offset), UNPACK2(data_.extent));
 
@@ -892,11 +891,6 @@ GPUTexture *Film::get_pass_texture(eViewLayerEEVEEPassType pass_type, int layer_
 
   accum_tx.ensure_layer_views();
   return accum_tx.layer_view(index + layer_offset);
-}
-
-bool Film::is_viewport_compositor_enabled() const
-{
-  return inst_.is_viewport() && DRW_state_viewport_compositor_enabled();
 }
 
 /* Gets the appropriate shader to write the given pass type. This is because passes of different
