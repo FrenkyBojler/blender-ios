@@ -1,2 +1,2 @@
 Referenced by issue #136131, Calling valid_socket_type callback in bpy.types.NodeTree crashes Blender
-Referenced by issue #136128, Calling socket.is_linked from within the insert_link() callback of Node crashes Blender
+Referenced by issue #136128, Regression: Calling socket.is_linked from within the insert_link() callback of Node crashes Blender
