@@ -25,8 +25,10 @@ class VKBuffer : public NonCopyable {
   size_t alloc_size_in_bytes_ = 0;
   VkBuffer vk_buffer_ = VK_NULL_HANDLE;
   VmaAllocation allocation_ = VK_NULL_HANDLE;
+  VmaAllocationInfo allocation_info_ = {};
   VkMemoryPropertyFlags vk_memory_property_flags_;
   TimelineValue async_timeline_ = 0;
+  VkDeviceMemory vk_device_memory = VK_NULL_HANDLE;
 
   /* Pointer to the virtually mapped memory. */
   void *mapped_memory_ = nullptr;
@@ -37,6 +39,18 @@ class VKBuffer : public NonCopyable {
 
   /** Has this buffer been allocated? */
   bool is_allocated() const;
+
+  /**
+   * Import existing allocated memory into the buffer.
+   *
+   * The host pointer will be shared between host and device.
+   */
+  void import_host_pointer(size_t size, VkBufferUsageFlags buffer_usage, void *host_pointer);
+  /** Test if the backed memory of this buffer is imported host memory. */
+  bool is_imported_memory() const
+  {
+    return vk_device_memory != VK_NULL_HANDLE;
+  }
 
   /**
    * Allocate the buffer.

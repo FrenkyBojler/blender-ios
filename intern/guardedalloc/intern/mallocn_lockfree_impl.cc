@@ -394,7 +394,7 @@ void *MEM_lockfree_mallocN_aligned(size_t len,
 {
   /* Huge alignment values doesn't make sense and they wouldn't fit into 'short' used in the
    * MemHead. */
-  assert(alignment < 1024);
+  assert(alignment < 16384);
 
   /* We only support alignments that are a power of two. */
   assert(IS_POW2(alignment));

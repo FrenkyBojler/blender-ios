@@ -38,6 +38,7 @@ void VKDiscardPool::move_data(VKDiscardPool &src_pool, TimelineValue timeline)
   std::scoped_lock mutex(mutex_);
   src_pool.buffer_views_.update_timeline(timeline);
   src_pool.buffers_.update_timeline(timeline);
+  src_pool.imported_buffers_.update_timeline(timeline);
   src_pool.image_views_.update_timeline(timeline);
   src_pool.images_.update_timeline(timeline);
   src_pool.shader_modules_.update_timeline(timeline);
@@ -46,6 +47,7 @@ void VKDiscardPool::move_data(VKDiscardPool &src_pool, TimelineValue timeline)
   src_pool.render_passes_.update_timeline(timeline);
   buffer_views_.extend(std::move(src_pool.buffer_views_));
   buffers_.extend(std::move(src_pool.buffers_));
+  imported_buffers_.extend(std::move(src_pool.imported_buffers_));
   image_views_.extend(std::move(src_pool.image_views_));
   images_.extend(std::move(src_pool.images_));
   shader_modules_.extend(std::move(src_pool.shader_modules_));
@@ -70,6 +72,12 @@ void VKDiscardPool::discard_buffer(VkBuffer vk_buffer, VmaAllocation vma_allocat
 {
   std::scoped_lock mutex(mutex_);
   buffers_.append_timeline(timeline_, std::pair(vk_buffer, vma_allocation));
+}
+
+void VKDiscardPool::discard_imported_buffer(VkBuffer vk_buffer, void *host_pointer)
+{
+  std::scoped_lock mutex(mutex_);
+  imported_buffers_.append_timeline(timeline_, std::pair(vk_buffer, host_pointer));
 }
 
 void VKDiscardPool::discard_buffer_view(VkBufferView vk_buffer_view)
@@ -123,6 +131,12 @@ void VKDiscardPool::destroy_discarded_resources(VKDevice &device, bool force)
     vmaDestroyBuffer(
         device.mem_allocator_get(), buffer_allocation.first, buffer_allocation.second);
   });
+  imported_buffers_.remove_old(
+      current_timeline, [&](std::pair<VkBuffer, void *> imported_buffer_allocation) {
+        device.resources.remove_buffer(imported_buffer_allocation.first);
+        vkDestroyBuffer(device.vk_handle(), imported_buffer_allocation.first, nullptr);
+        MEM_freeN(imported_buffer_allocation.second);
+      });
 
   pipeline_layouts_.remove_old(current_timeline, [&](VkPipelineLayout vk_pipeline_layout) {
     vkDestroyPipelineLayout(device.vk_handle(), vk_pipeline_layout, nullptr);

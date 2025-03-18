@@ -106,10 +106,12 @@ void VKVertexBuffer::acquire_data()
     return;
   }
 
-  /* Discard previous data if any. */
-  /* TODO: Use mapped memory. */
-  MEM_SAFE_FREE(data_);
-  data_ = (uchar *)MEM_mallocN(sizeof(uchar) * this->size_alloc_get(), __func__);
+  BLI_assert(data_ == nullptr);
+  VKDevice &device = VKBackend::get().device;
+  VkDeviceSize alignment =
+      device.physical_device_external_memory_host_properties_get().minImportedHostPointerAlignment;
+  data_ = (uchar *)MEM_mallocN_aligned(
+      ceil_to_multiple_ul(size_alloc_get(), alignment), alignment, __func__);
 }
 
 void VKVertexBuffer::resize_data()
@@ -117,7 +119,7 @@ void VKVertexBuffer::resize_data()
   if (usage_ == GPU_USAGE_DEVICE_ONLY) {
     return;
   }
-
+  BLI_assert(false);
   data_ = (uchar *)MEM_reallocN(data_, sizeof(uchar) * this->size_alloc_get());
 }
 
@@ -155,27 +157,49 @@ void VKVertexBuffer::upload_data_via_staging_buffer(VKContext &context)
 
 void VKVertexBuffer::upload_data()
 {
-  if (!buffer_.is_allocated()) {
-    allocate();
-  }
-  if (!ELEM(usage_, GPU_USAGE_STATIC, GPU_USAGE_STREAM, GPU_USAGE_DYNAMIC)) {
+  device_format_ensure();
+  const bool allocated = buffer_.is_allocated();
+  const bool upload_required = (usage_ != GPU_USAGE_DEVICE_ONLY) &&
+                               bool(flag & GPU_VERTBUF_DATA_DIRTY);
+  const bool conversion_needed = vertex_format_converter.needs_conversion();
+  BLI_assert(!conversion_needed);
+
+  VKDevice &device = VKBackend::get().device;
+
+  VkBufferUsageFlags vk_buffer_usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT |
+                                       VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
+                                       VK_BUFFER_USAGE_VERTEX_BUFFER_BIT |
+                                       VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT |
+                                       VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+
+  if (!allocated && upload_required) {
+    VkDeviceSize alignment = device.physical_device_external_memory_host_properties_get()
+                                 .minImportedHostPointerAlignment;
+
+    buffer_.import_host_pointer(
+        ceil_to_multiple_ul(size_alloc_get(), alignment), vk_buffer_usage, data_);
+    debug::object_label(buffer_.vk_handle(), "VertexBufferHostMemory");
+
+    flag &= ~GPU_VERTBUF_DATA_DIRTY;
+    flag |= GPU_VERTBUF_DATA_UPLOADED;
+
+    if (usage_ == GPU_USAGE_STATIC) {
+      /* data_ is used as backed memory of the VkBuffer. */
+      data_ = nullptr;
+    }
     return;
   }
-
-  if (flag & GPU_VERTBUF_DATA_DIRTY) {
-    device_format_ensure();
-    if (buffer_.is_mapped() && !data_uploaded_) {
-      upload_data_direct(buffer_);
-    }
-    else {
-      VKContext &context = *VKContext::get();
-      upload_data_via_staging_buffer(context);
-    }
-    if (usage_ == GPU_USAGE_STATIC) {
-      MEM_SAFE_FREE(data_);
-    }
-    data_uploaded_ = true;
-
+  else if (!allocated && !upload_required) {
+    /* Device only allocation. */
+    buffer_.create(size_alloc_get(),
+                   vk_buffer_usage,
+                   VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+                   0,
+                   VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT);
+    debug::object_label(buffer_.vk_handle(), "VertexBufferDeviceOnly");
+  }
+  else if (allocated && upload_required) {
+    // Nothing to do data_ the same as the backed memory of the buffer.
     flag &= ~GPU_VERTBUF_DATA_DIRTY;
     flag |= GPU_VERTBUF_DATA_UPLOADED;
   }
@@ -206,12 +230,11 @@ void VKVertexBuffer::allocate()
                                        VK_BUFFER_USAGE_VERTEX_BUFFER_BIT |
                                        VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT |
                                        VK_BUFFER_USAGE_TRANSFER_DST_BIT;
-
   buffer_.create(size_alloc_get(),
                  vk_buffer_usage,
-                 VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
                  VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
-                 VmaAllocationCreateFlags(0));
+                 VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+                 VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT);
   debug::object_label(buffer_.vk_handle(), "VertexBuffer");
 }
 

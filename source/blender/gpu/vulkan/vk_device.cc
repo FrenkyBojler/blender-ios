@@ -133,6 +133,9 @@ void VKDevice::init_functions()
   functions.vkSetDebugUtilsObjectName = LOAD_FUNCTION(vkSetDebugUtilsObjectNameEXT);
   functions.vkCreateDebugUtilsMessenger = LOAD_FUNCTION(vkCreateDebugUtilsMessengerEXT);
   functions.vkDestroyDebugUtilsMessenger = LOAD_FUNCTION(vkDestroyDebugUtilsMessengerEXT);
+
+  /* VK_EXT_external_memory_host */
+  functions.vkGetMemoryHostPointerProperties = LOAD_FUNCTION(vkGetMemoryHostPointerPropertiesEXT);
 #undef LOAD_FUNCTION
 }
 
@@ -149,7 +152,11 @@ void VKDevice::init_physical_device_properties()
   vk_physical_device_properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
   vk_physical_device_driver_properties_.sType =
       VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DRIVER_PROPERTIES;
+  vk_physical_device_external_memory_host_properties_.sType =
+      VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTERNAL_MEMORY_HOST_PROPERTIES_EXT;
   vk_physical_device_properties.pNext = &vk_physical_device_driver_properties_;
+  vk_physical_device_driver_properties_.pNext =
+      &vk_physical_device_external_memory_host_properties_;
 
   vkGetPhysicalDeviceProperties2(vk_physical_device_, &vk_physical_device_properties);
   vk_physical_device_properties_ = vk_physical_device_properties.properties;

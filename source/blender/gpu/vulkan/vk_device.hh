@@ -198,6 +198,8 @@ class VKDevice : public NonCopyable {
   VkPhysicalDeviceFeatures vk_physical_device_features_ = {};
   VkPhysicalDeviceVulkan11Features vk_physical_device_vulkan_11_features_ = {};
   VkPhysicalDeviceVulkan12Features vk_physical_device_vulkan_12_features_ = {};
+  VkPhysicalDeviceExternalMemoryHostPropertiesEXT
+      vk_physical_device_external_memory_host_properties_ = {};
   Array<VkExtensionProperties> device_extensions_;
 
   /** Functions of vk_ext_debugutils for this device/instance. */
@@ -231,6 +233,9 @@ class VKDevice : public NonCopyable {
     PFN_vkSetDebugUtilsObjectNameEXT vkSetDebugUtilsObjectName = nullptr;
     PFN_vkCreateDebugUtilsMessengerEXT vkCreateDebugUtilsMessenger = nullptr;
     PFN_vkDestroyDebugUtilsMessengerEXT vkDestroyDebugUtilsMessenger = nullptr;
+
+    /* Extension: VK_EXT_external_memory_host */
+    PFN_vkGetMemoryHostPointerPropertiesEXT vkGetMemoryHostPointerProperties = nullptr;
   } functions;
 
   const char *extension_name_get(int index) const
@@ -261,6 +266,15 @@ class VKDevice : public NonCopyable {
   const VkPhysicalDeviceVulkan12Features &physical_device_vulkan_12_features_get() const
   {
     return vk_physical_device_vulkan_12_features_;
+  }
+  const VkPhysicalDeviceMemoryProperties &physical_device_memory_properties_get() const
+  {
+    return vk_physical_device_memory_properties_;
+  }
+  const VkPhysicalDeviceExternalMemoryHostPropertiesEXT &
+  physical_device_external_memory_host_properties_get() const
+  {
+    return vk_physical_device_external_memory_host_properties_;
   }
 
   VkInstance instance_get() const
