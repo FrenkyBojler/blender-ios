@@ -6,6 +6,7 @@
  * \ingroup spseq
  */
 
+#include <algorithm>
 #include <cctype>
 #include <cstdlib>
 #include <cstring>
@@ -223,7 +224,7 @@ static int sequencer_generic_invoke_xy_guess_channel(bContext *C, int type)
     channel = seq::channel_get_by_index(channels, best_channel);
   }
 
-  return best_channel;
+  return std::clamp(best_channel, 0, seq::MAX_CHANNELS);
 }
 
 /* Sets `channel` and `frame_start` properties when the operator is likely to have been invoked
