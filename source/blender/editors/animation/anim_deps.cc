@@ -193,6 +193,11 @@ static void animchan_sync_fcurve_scene(bAnimListElem *ale)
 
   /* Check if this strip is selected. */
   Editing *ed = blender::seq::editing_get(scene);
+  if (ed == nullptr) {
+    /* The existence of the F-Curve doesn't imply the existence of the sequencer
+     * strip, or even the sequencer itself. */
+    return;
+  }
   strip = blender::seq::get_sequence_by_name(ed->seqbasep, strip_name, false);
   if (strip == nullptr) {
     return;
@@ -332,7 +337,6 @@ void ANIM_sync_animchannels_to_data(const bContext *C)
       case ANIMTYPE_DSPOINTCLOUD:
       case ANIMTYPE_DSVOLUME:
       case ANIMTYPE_SHAPEKEY:
-      case ANIMTYPE_GPDATABLOCK:
       case ANIMTYPE_GREASE_PENCIL_DATABLOCK:
       case ANIMTYPE_GREASE_PENCIL_LAYER_GROUP:
       case ANIMTYPE_MASKDATABLOCK:
