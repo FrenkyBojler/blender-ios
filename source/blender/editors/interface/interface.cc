@@ -335,7 +335,7 @@ static void ui_update_flexible_spacing(const ARegion *region, uiBlock *block)
   float offset = 0, remaining_space = region_width - buttons_width;
   int i = 0;
   for (const std::unique_ptr<uiBut> &but : block->buttons) {
-    BLI_rctf_translate(&but->rect, std::floor(offset / view_scale_x), 0);
+    BLI_rctf_translate(&but->rect, std::floor(offset / view_scale_x), 0.0f);
     if (but->type == UI_BTYPE_SEPR_SPACER) {
       /* How much the next block overlap with the current segment */
       int overlap = ((i == sepr_flex_len - 1) ? buttons_width - spacers_pos[i] :
