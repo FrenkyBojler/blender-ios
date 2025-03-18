@@ -157,15 +157,7 @@ static int snap_sel_to_grid_exec(bContext *C, wmOperator *op)
 
               /* Adjust location on the original pchan. */
               bPoseChannel *pchan = BKE_pose_channel_find_name(ob->pose, pchan_eval->name);
-              if ((pchan->protectflag & OB_LOCK_LOCX) == 0) {
-                pchan->loc[0] = vec[0];
-              }
-              if ((pchan->protectflag & OB_LOCK_LOCY) == 0) {
-                pchan->loc[1] = vec[1];
-              }
-              if ((pchan->protectflag & OB_LOCK_LOCZ) == 0) {
-                pchan->loc[2] = vec[2];
-              }
+              BKE_pchan_protected_location_set(pchan, vec);
 
               /* auto-keyframing */
               blender::animrig::autokeyframe_pchan(C, scene, ob, pchan, ks);
@@ -242,15 +234,9 @@ static int snap_sel_to_grid_exec(bContext *C, wmOperator *op)
         invert_m3_m3(imat, originmat);
         mul_m3_v3(imat, vec);
       }
-      if ((ob->protectflag & OB_LOCK_LOCX) == 0) {
-        ob->loc[0] = ob_eval->loc[0] + vec[0];
-      }
-      if ((ob->protectflag & OB_LOCK_LOCY) == 0) {
-        ob->loc[1] = ob_eval->loc[1] + vec[1];
-      }
-      if ((ob->protectflag & OB_LOCK_LOCZ) == 0) {
-        ob->loc[2] = ob_eval->loc[2] + vec[2];
-      }
+
+      const blender::float3 loc_final = blender::float3(ob_eval->loc) + blender::float3(vec);
+      BKE_object_protected_location_set(ob, loc_final);
 
       /* auto-keyframing */
       blender::animrig::autokeyframe_object(C, scene, ob, ks);
@@ -524,15 +510,7 @@ static bool snap_selected_to_location(bContext *C,
 
           /* copy new position */
           if (use_toolsettings) {
-            if ((pchan->protectflag & OB_LOCK_LOCX) == 0) {
-              pchan->loc[0] = cursor_pose[0];
-            }
-            if ((pchan->protectflag & OB_LOCK_LOCY) == 0) {
-              pchan->loc[1] = cursor_pose[1];
-            }
-            if ((pchan->protectflag & OB_LOCK_LOCZ) == 0) {
-              pchan->loc[2] = cursor_pose[2];
-            }
+            BKE_pchan_protected_location_set(pchan, cursor_pose);
 
             /* auto-keyframing */
             blender::animrig::autokeyframe_pchan(C, scene, ob, pchan, ks);
@@ -639,7 +617,12 @@ static bool snap_selected_to_location(bContext *C,
       }
 
       if (use_toolsettings) {
-        BKE_object_set_location(ob, cursor_parent);
+        const blender::float3 loc_final = blender::float3(ob->loc) +
+                                          blender::float3(cursor_parent);
+        BKE_object_protected_location_set(ob, loc_final);
+
+        /* auto-keyframing */
+        blender::animrig::autokeyframe_object(C, scene, ob, ks);
       }
       else {
         add_v3_v3(ob->loc, cursor_parent);
@@ -658,7 +641,7 @@ static bool snap_selected_to_location(bContext *C,
             mat3_normalized_to_quat(quat, cursor_rotmat.ptr());
           }
           if (use_toolsettings) {
-            BKE_object_set_rotation_quaternion(ob, quat);
+            BKE_object_protected_rotation_quaternion_set(ob, quat);
           }
           else {
             copy_v4_v4(ob->quat, quat);
@@ -675,7 +658,7 @@ static bool snap_selected_to_location(bContext *C,
             mat3_to_axis_angle(rot_axis, &rot_angle, cursor_rotmat.ptr());
           }
           if (use_toolsettings) {
-            BKE_object_set_rotation_axisangle(ob, rot_axis, rot_angle);
+            BKE_object_protected_rotation_axisangle_set(ob, rot_axis, rot_angle);
           }
           else {
             copy_v3_v3(ob->rotAxis, rot_axis);
@@ -691,7 +674,7 @@ static bool snap_selected_to_location(bContext *C,
             mat3_to_eulO(rot_euler, EULER_ORDER_DEFAULT, cursor_rotmat.ptr());
           }
           if (use_toolsettings) {
-            BKE_object_set_rotation_euler(ob, rot_euler);
+            BKE_object_protected_rotation_euler_set(ob, rot_euler);
           }
           else {
             copy_v3_v3(ob->rot, rot_euler);
