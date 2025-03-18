@@ -28,7 +28,9 @@ class GHOST_IXrGraphicsBinding {
 #if defined(WITH_GHOST_WAYLAND)
     XrGraphicsBindingOpenGLWaylandKHR wl;
 #endif
+#ifdef WITH_VULKAN_BACKEND
     XrGraphicsBindingVulkanKHR vk;
+#endif
   } oxr_binding;
 
   virtual ~GHOST_IXrGraphicsBinding() = default;

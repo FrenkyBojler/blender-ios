@@ -572,7 +572,6 @@ if(WITH_XR_OPENXR)
     intern/GHOST_XrControllerModel.cc
     intern/GHOST_XrEvent.cc
     intern/GHOST_XrGraphicsBinding.cc
-    intern/GHOST_XrGraphicsBindingVulkan.cc
     intern/GHOST_XrSession.cc
     intern/GHOST_XrSwapchain.cc
 
@@ -582,7 +581,6 @@ if(WITH_XR_OPENXR)
     intern/GHOST_XrContext.hh
     intern/GHOST_XrControllerModel.hh
     intern/GHOST_XrException.hh
-    intern/GHOST_XrGraphicsBindingVulkan.hh
     intern/GHOST_XrSession.hh
     intern/GHOST_XrSwapchain.hh
     intern/GHOST_Xr_intern.hh
@@ -604,9 +602,18 @@ if(WITH_XR_OPENXR)
   )
 
   set(XR_PLATFORM_DEFINES
-    -DXR_USE_GRAPHICS_API_OPENGL
-    -DXR_USE_GRAPHICS_API_VULKAN
   )
+  if(WITH_OPENGL_BACKEND)
+    list(APPEND XR_PLATFORM_DEFINES -DXR_USE_GRAPHICS_API_OPENGL)
+  endif()
+  if(WITH_VULKAN_BACKEND)
+    list(APPEND XR_PLATFORM_DEFINES -DXR_USE_GRAPHICS_API_VULKAN)
+    list(APPEND SRC
+      intern/GHOST_XrGraphicsBindingVulkan.cc
+
+      intern/GHOST_XrGraphicsBindingVulkan.hh
+    )
+  endif()
 
   # Add compiler defines as required by the OpenXR specification.
   if(WIN32)
