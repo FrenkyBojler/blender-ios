@@ -2101,32 +2101,84 @@ bool IMB_exr_has_multilayer(void *handle)
   return imb_exr_is_multi(*data->ifile);
 }
 
-static bool imb_exr_is_xyz_colorspace(const Header &header)
+static bool imb_check_chromaticity_val(float test_v, float ref_v)
 {
-  // https://openexr.com/en/latest/TechnicalIntroduction.html#recommendations
-  const ChromaticitiesAttribute *header_chromaticities =
-      header.findTypedAttribute<ChromaticitiesAttribute>("chromaticities");
-  if (header_chromaticities) {
-    const Chromaticities &val = header_chromaticities->value();
+  const float tolerance_v = 0.000001f;
+  return (test_v < (ref_v + tolerance_v)) && (test_v > (ref_v - tolerance_v));
+}
 
-    const float tolerance_white_p = 0.000001f;  // arbitrary tolerance
-    const float upper_w = 1.f / 3.f + tolerance_white_p;
-    const float lower_w = 1.f / 3.f - tolerance_white_p;
+// https://openexr.com/en/latest/TechnicalIntroduction.html#recommendations
+static bool imb_is_chromaticities_xyz_d65(float red_x,
+                                          float red_y,
+                                          float green_x,
+                                          float green_y,
+                                          float blue_x,
+                                          float blue_y,
+                                          float white_x,
+                                          float white_y)
+{
+  if (imb_check_chromaticity_val(red_x, 1.f) && (red_y == 0.f) && (green_x == 0.f) &&
+      imb_check_chromaticity_val(green_y, 1.f) && (blue_x == 0.f) && (blue_y == 0.f) &&
+      imb_check_chromaticity_val(white_x, 1.f / 3.f) &&
+      imb_check_chromaticity_val(white_y, 1.f / 3.f))
+  {
+    return true;
+  }
+  return false;
+}
 
-    if ((val.red.x == 1.f) && (val.red.y == 0.f) && (val.green.x == 0.f) && (val.green.y == 1.f) &&
-        (val.blue.x == 0.f) && (val.blue.y == 0.f))
-    {
+static bool imb_is_chromaticities_aces_2065_1(float red_x,
+                                              float red_y,
+                                              float green_x,
+                                              float green_y,
+                                              float blue_x,
+                                              float blue_y,
+                                              float white_x,
+                                              float white_y)
+{
+  // Values based on sample https://openexr.com/en/latest/test_images/ScanLines/Carrots.html
+  if (imb_check_chromaticity_val(red_x, 0.7347f) && imb_check_chromaticity_val(red_y, 0.2653f) &&
+      (green_x == 0.f) && imb_check_chromaticity_val(green_y, 1.f) &&
+      imb_check_chromaticity_val(blue_x, 0.0001f) && imb_check_chromaticity_val(blue_y, -0.077f) &&
+      imb_check_chromaticity_val(white_x, 0.32168f) &&
+      imb_check_chromaticity_val(white_y, 0.33767f))
+  {
+    return true;
+  }
+  return false;
+}
 
-      // Official docs, use 1/3 as X/Y white point. Use some tolerance to test it
-      float white_x = val.white.x;
-      float white_y = val.white.y;
-      if ((white_x > lower_w) && (white_x < upper_w) && (white_y > lower_w) && (white_y < upper_w))
+static void imb_exr_set_known_colorspace(const Header &header, char colorspace[])
+{
+  if (colorspace) {
+    const ChromaticitiesAttribute *header_chromaticities =
+        header.findTypedAttribute<ChromaticitiesAttribute>("chromaticities");
+    if (header_chromaticities) {
+      const Chromaticities &val = header_chromaticities->value();
+      if (imb_is_chromaticities_xyz_d65(val.red.x,
+                                        val.red.y,
+                                        val.green.x,
+                                        val.green.y,
+                                        val.blue.x,
+                                        val.blue.y,
+                                        val.white.x,
+                                        val.white.y))
       {
-        return true;
+        IMB_set_colorspace_name_if_exists(colorspace, "Linear CIE-XYZ D65");
+      }
+      else if (imb_is_chromaticities_aces_2065_1(val.red.x,
+                                                 val.red.y,
+                                                 val.green.x,
+                                                 val.green.y,
+                                                 val.blue.x,
+                                                 val.blue.y,
+                                                 val.white.x,
+                                                 val.white.y))
+      {
+        IMB_set_colorspace_name_if_exists(colorspace, "ACES2065-1");
       }
     }
   }
-  return false;
 }
 
 ImBuf *imb_load_openexr(const uchar *mem, size_t size, int flags, char colorspace[IM_MAX_SPACE])
@@ -2176,11 +2228,7 @@ ImBuf *imb_load_openexr(const uchar *mem, size_t size, int flags, char colorspac
         ibuf->ppm[1] = ibuf->ppm[0] * double(file->header(0).pixelAspectRatio());
       }
 
-      if (imb_exr_is_xyz_colorspace(file->header(0))) {
-        if (colorspace) {
-          BLI_strncpy(colorspace, "Linear CIE-XYZ D65", IM_MAX_SPACE);
-        }
-      }
+      imb_exr_set_known_colorspace(file->header(0), colorspace);
 
       ibuf->ftype = IMB_FTYPE_OPENEXR;
 
@@ -2374,7 +2422,7 @@ ImBuf *imb_load_filepath_thumbnail_openexr(const char *filepath,
     *r_width = source_w;
     *r_height = source_h;
 
-    const Header file_header = file->header();
+    const Header &file_header = file->header();
 
     /* If there is an embedded thumbnail, return that instead of making a new one. */
     if (file_header.hasPreviewImage()) {
@@ -2397,11 +2445,7 @@ ImBuf *imb_load_filepath_thumbnail_openexr(const char *filepath,
     // with colorspace == nullptr
     // But will let having correct colorspace for thumbnail if colorspace thumbnail management is
     // added in the future
-    if (imb_exr_is_xyz_colorspace(file_header)) {
-      if (colorspace) {
-        BLI_strncpy(colorspace, "Linear CIE-XYZ D65", IM_MAX_SPACE);
-      }
-    }
+    imb_exr_set_known_colorspace(file_header, colorspace);
 
     float scale_factor = std::min(float(max_thumb_size) / float(source_w),
                                   float(max_thumb_size) / float(source_h));
