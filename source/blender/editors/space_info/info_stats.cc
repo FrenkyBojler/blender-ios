@@ -24,6 +24,7 @@
 
 #include "BLF_api.hh"
 
+#include "BLI_array_utils.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_geom.h"
 #include "BLI_span.hh"
@@ -320,9 +321,9 @@ static void stats_object_edit(Object *obedit, SceneStats *stats)
     using namespace blender;
     const Curves &curves = *static_cast<Curves *>(obedit->data);
     const bke::CurvesGeometry &geometry = curves.geometry.wrap();
-    const VArraySpan<bool> selection = *geometry.attributes().lookup_or_default<bool>(
+    const VArray<bool> selection = *geometry.attributes().lookup_or_default<bool>(
         ".selection", bke::AttrDomain::Point, true);
-    stats->totvertsel += selection.count(true);
+    stats->totvertsel += array_utils::count_booleans(selection);
     stats->totvert += geometry.point_num;
   }
 }
