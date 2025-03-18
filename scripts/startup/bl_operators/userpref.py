@@ -946,8 +946,13 @@ class PREFERENCES_OT_addon_show(Operator):
             context.preferences.view.show_addons_enabled_only = False
             context.window_manager.addon_filter = 'All'
             context.window_manager.addon_search = bl_info["name"]
-            bpy.ops.screen.userpref_show('INVOKE_DEFAULT')
 
+        # Return if preferences editor already exists in the main window.
+        for area in context.screen.areas:
+            if area.spaces[0].type == 'PREFERENCES':
+                return {'FINISHED'}
+
+        bpy.ops.screen.userpref_show('INVOKE_DEFAULT')
         return {'FINISHED'}
 
 
