@@ -231,9 +231,6 @@ class VKDevice : public NonCopyable {
     PFN_vkSetDebugUtilsObjectNameEXT vkSetDebugUtilsObjectName = nullptr;
     PFN_vkCreateDebugUtilsMessengerEXT vkCreateDebugUtilsMessenger = nullptr;
     PFN_vkDestroyDebugUtilsMessengerEXT vkDestroyDebugUtilsMessenger = nullptr;
-
-    /* Extension: VK_KHR_external_memory_fd */
-    PFN_vkGetMemoryFdKHR vkGetMemoryFdKHR = nullptr;
   } functions;
 
   const char *extension_name_get(int index) const
@@ -290,7 +287,7 @@ class VKDevice : public NonCopyable {
     return vk_queue_family_;
   }
 
-  inline VmaAllocator mem_allocator_get() const
+  VmaAllocator mem_allocator_get() const
   {
     return mem_allocator_;
   }

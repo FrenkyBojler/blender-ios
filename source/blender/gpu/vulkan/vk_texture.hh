@@ -140,14 +140,6 @@ class VKTexture : public Texture {
    */
   const VKImageView &image_view_get(VKImageViewArrayed arrayed, VKImageViewFlags flags);
 
-  /**
-   * Export the memory of this image to a handle.
-   *
-   * It is used by OpenXR to transfer the image to a different instance/device.
-   */
-  int64_t export_memory(VKDevice &device);
-  void import_memory(VKDevice &device, int64_t fd);
-
  protected:
   bool init_internal() override;
   bool init_internal(VertBuf *vbo) override;

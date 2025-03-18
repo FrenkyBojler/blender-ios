@@ -79,11 +79,15 @@ class GHOST_IContext {
    * \param context: GHOST context handle of a vulkan context to
    *     get the Vulkan handles from.
    * \param swap_buffers_pre_callback: Function pointer to be called at the beginning of
-   * swapBuffers. Inside this callback the next swap chain image needs to be acquired and filled.
-   * \param swap_buffers_post_callback: Function to be called at th end of swapBuffers. swapBuffers
-   *     can recreate the swap chain. When this is done the application should be informed by those
-   *     changes.
-   * TODO: document new parameters
+   *     swapBuffers. Inside this callback the next swap chain image needs to be acquired and
+   *     filled.
+   * \param swap_buffers_post_callback: Function to be called at th end of swapBuffers.
+   *     swapBuffers can recreate the swap chain. When this is done the application should be
+   *     informed by those changes.
+   * \param openxr_acquire_image_callback: Function to be called when an
+   *     image needs to be acquired to be drawn to an OpenXR swap chain.
+   * \param openxr_release_image_callback: Function to be called after an image has been drawn to
+   *     the OpenXR swap chain.
    */
   virtual GHOST_TSuccess setVulkanSwapBuffersCallbacks(
       std::function<void(const GHOST_VulkanSwapChainData *)> swap_buffers_pre_callback,

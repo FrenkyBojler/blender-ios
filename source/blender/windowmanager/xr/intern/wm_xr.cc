@@ -65,7 +65,6 @@ bool wm_xr_init(wmWindowManager *wm)
   GHOST_XrErrorHandler(wm_xr_error_handler, &error_customdata);
 
   {
-    // TODO(jbakker): Only add the ones that are compatible with the active GPU backend.
     blender::Vector<GHOST_TXrGraphicsBinding> gpu_bindings_candidates;
     switch (GPU_backend_get_type()) {
 #ifdef WITH_OPENGL_BACKEND

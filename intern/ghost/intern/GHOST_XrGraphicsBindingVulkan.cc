@@ -24,8 +24,6 @@ PFN_xrCreateVulkanInstanceKHR GHOST_XrGraphicsBindingVulkan::s_xrCreateVulkanIns
     nullptr;
 PFN_xrCreateVulkanDeviceKHR GHOST_XrGraphicsBindingVulkan::s_xrCreateVulkanDeviceKHR_fn = nullptr;
 
-PFN_vkGetMemoryFdKHR GHOST_XrGraphicsBindingVulkan::s_vkGetMemoryFdKHR_fn = nullptr;
-
 /* -------------------------------------------------------------------- */
 /** \name Destroying resources.
  * \{ */
@@ -168,10 +166,6 @@ void GHOST_XrGraphicsBindingVulkan::initFromGhostContext(GHOST_Context &ghost_ct
                instance, &xr_instance_create_info, &m_vk_instance, &vk_result),
            "Unable to create an OpenXR compatible Vulkan instance.");
 
-  /* Load extensions */
-  s_vkGetMemoryFdKHR_fn = PFN_vkGetMemoryFdKHR(
-      vkGetInstanceProcAddr(m_vk_instance, "vkGetMemoryFdKHR"));
-
   /* Physical device selection */
   XrVulkanGraphicsDeviceGetInfoKHR xr_device_get_info = {
       XR_TYPE_VULKAN_GRAPHICS_DEVICE_GET_INFO_KHR, nullptr, system_id, m_vk_instance};
@@ -257,7 +251,6 @@ void GHOST_XrGraphicsBindingVulkan::initFromGhostContext(GHOST_Context &ghost_ct
   allocator_create_info.physicalDevice = m_vk_physical_device;
   allocator_create_info.device = m_vk_device;
   allocator_create_info.instance = m_vk_instance;
-
   vmaCreateAllocator(&allocator_create_info, &m_vma_allocator);
 }
 
@@ -420,16 +413,6 @@ void GHOST_XrGraphicsBindingVulkan::submitToSwapchainImage(
                        nullptr,
                        1,
                        &vk_image_memory_barrier);
-
-  /* Clear image */
-  VkClearColorValue vk_clear_color = {{0.2f, 0.8f, 0.4f, 1.0f}};
-  VkImageSubresourceRange vk_image_subresource_range = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
-  vkCmdClearColorImage(vk_command_buffer,
-                       vulkan_image.image,
-                       VK_IMAGE_LAYOUT_GENERAL,
-                       &vk_clear_color,
-                       1,
-                       &vk_image_subresource_range);
 
   /* Copy buffer to image */
   VkBufferImageCopy vk_buffer_image_copy = {

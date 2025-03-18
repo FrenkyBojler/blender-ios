@@ -8,7 +8,6 @@
 
 #include <algorithm>
 #include <list>
-#include <mutex>
 #include <sstream>
 
 #if defined(WITH_GHOST_X11)
@@ -26,7 +25,6 @@
 #  include "GHOST_SystemWin32.hh"
 #endif
 #ifdef WITH_VULKAN_BACKEND
-#  include "GHOST_ContextVK.hh"
 #  include "GHOST_XrGraphicsBindingVulkan.hh"
 #endif
 

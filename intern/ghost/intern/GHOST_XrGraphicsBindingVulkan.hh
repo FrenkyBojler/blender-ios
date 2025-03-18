@@ -21,11 +21,6 @@ class GHOST_XrGraphicsBindingVulkan : public GHOST_IXrGraphicsBinding {
 
   /**
    * Check the version requirements to use OpenXR with the Vulkan backend.
-   *https://gpuopen-librariesandsdks.github.io/VulkanMemoryAllocator/html/struct_vma_allocator_create_info.html
-   * - Physical device should match. GHOST assumes that there is only one device active. When they
-   * don't match user is reported with the device that would work. User can select the device from
-   * the preferences.
-   * - API version is compatible.
    */
   bool checkVersionRequirements(GHOST_Context &ghost_ctx,
                                 XrInstance instance,
@@ -48,7 +43,6 @@ class GHOST_XrGraphicsBindingVulkan : public GHOST_IXrGraphicsBinding {
  private:
   GHOST_ContextVK *m_ghost_ctx = nullptr;
 
-  // TODO: store in oxr_binding.
   VkInstance m_vk_instance = VK_NULL_HANDLE;
   VkPhysicalDevice m_vk_physical_device = VK_NULL_HANDLE;
   uint32_t m_graphics_queue_family = 0;
@@ -73,5 +67,4 @@ class GHOST_XrGraphicsBindingVulkan : public GHOST_IXrGraphicsBinding {
   static PFN_xrGetVulkanGraphicsDevice2KHR s_xrGetVulkanGraphicsDevice2KHR_fn;
   static PFN_xrCreateVulkanInstanceKHR s_xrCreateVulkanInstanceKHR_fn;
   static PFN_xrCreateVulkanDeviceKHR s_xrCreateVulkanDeviceKHR_fn;
-  static PFN_vkGetMemoryFdKHR s_vkGetMemoryFdKHR_fn;
 };
