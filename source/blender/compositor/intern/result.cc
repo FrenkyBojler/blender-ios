@@ -9,6 +9,7 @@
 
 #include "BLI_assert.h"
 #include "BLI_cpp_type.hh"
+#include "BLI_generic_pointer.hh"
 #include "BLI_generic_span.hh"
 #include "BLI_math_matrix_types.hh"
 #include "BLI_math_vector_types.hh"
@@ -512,11 +513,24 @@ void Result::free()
     return;
   }
 
-  /* Data is still shared with some other result, so decrement data reference count and do not free
-   * anything. */
+  /* Data is still shared with some other result, so decrement data reference count and reset data
+   * members without actually freeing the data itself. */
   BLI_assert(*data_reference_count_ >= 1);
   if (*data_reference_count_ != 1) {
     (*data_reference_count_)--;
+
+    switch (storage_type_) {
+      case ResultStorageType::GPU:
+        gpu_texture_ = nullptr;
+        break;
+      case ResultStorageType::CPU:
+        cpu_data_ = GMutableSpan();
+        break;
+    }
+
+    data_reference_count_ = nullptr;
+    derived_resources_ = nullptr;
+
     return;
   }
 
@@ -600,6 +614,16 @@ bool Result::is_allocated() const
 int Result::reference_count() const
 {
   return reference_count_;
+}
+
+GPointer Result::single_value() const
+{
+  return std::visit([](const auto &value) { return GPointer(&value); }, single_value_);
+}
+
+GMutablePointer Result::single_value()
+{
+  return std::visit([](auto &value) { return GMutablePointer(&value); }, single_value_);
 }
 
 void Result::allocate_data(int2 size, bool from_pool)
