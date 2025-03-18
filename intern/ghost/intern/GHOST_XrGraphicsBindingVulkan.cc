@@ -348,13 +348,27 @@ void GHOST_XrGraphicsBindingVulkan::submitToSwapchainImage(
   m_ghost_ctx->openxr_acquire_framebuffer_image_callback_(&openxr_data);
 
   /* Import render result. */
+  VkDeviceSize component_size = 4 * sizeof(uint8_t);
+  if (draw_info.swapchain_format == GHOST_kXrSwapchainFormatRGBA16F ||
+      draw_info.swapchain_format == GHOST_kXrSwapchainFormatRGBA16)
+  {
+    component_size = 4 * sizeof(uint16_t);
+  }
+  VkDeviceSize image_data_size = openxr_data.extent.width * openxr_data.extent.height *
+                                 component_size;
+
+  if (m_vk_buffer != VK_NULL_HANDLE && m_vk_buffer_allocation_info.size < image_data_size) {
+    vmaUnmapMemory(m_vma_allocator, m_vk_buffer_allocation);
+    vmaDestroyBuffer(m_vma_allocator, m_vk_buffer, m_vk_buffer_allocation);
+    m_vk_buffer = VK_NULL_HANDLE;
+    m_vk_buffer_allocation = VK_NULL_HANDLE;
+  }
+
   if (m_vk_buffer == VK_NULL_HANDLE) {
-    VkDeviceSize size = openxr_data.extent.width * openxr_data.extent.height * 4 *
-                        sizeof(uint16_t);  // RGBA16F
     VkBufferCreateInfo vk_buffer_create_info = {VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
                                                 nullptr,
                                                 0,
-                                                size,
+                                                image_data_size,
                                                 VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                                                 VK_SHARING_MODE_EXCLUSIVE,
                                                 0,
@@ -372,9 +386,7 @@ void GHOST_XrGraphicsBindingVulkan::submitToSwapchainImage(
     vmaMapMemory(
         m_vma_allocator, m_vk_buffer_allocation, &m_vk_buffer_allocation_info.pMappedData);
   }
-  std::memcpy(m_vk_buffer_allocation_info.pMappedData,
-              openxr_data.image_data,
-              openxr_data.extent.width * openxr_data.extent.height * 4 * sizeof(uint16_t));
+  std::memcpy(m_vk_buffer_allocation_info.pMappedData, openxr_data.image_data, image_data_size);
 
   /* Copy frame buffer image to swapchain image. */
   VkCommandBuffer vk_command_buffer = m_vk_command_buffer;

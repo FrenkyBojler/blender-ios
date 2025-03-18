@@ -61,11 +61,10 @@ GHOST_XrSwapchain::GHOST_XrSwapchain(GHOST_IXrGraphicsBinding &gpu_binding,
     throw GHOST_XrException(
         "Error: No format matching OpenXR runtime supported swapchain formats found.");
   }
-  m_xr_swapchain_format = *chosen_format;
 
   create_info.usageFlags = XR_SWAPCHAIN_USAGE_TRANSFER_DST_BIT |
                            XR_SWAPCHAIN_USAGE_COLOR_ATTACHMENT_BIT;
-  create_info.format = m_xr_swapchain_format;
+  create_info.format = *chosen_format;
   create_info.sampleCount = view_config.recommendedSwapchainSampleCount;
   create_info.width = view_config.recommendedImageRectWidth;
   create_info.height = view_config.recommendedImageRectHeight;
@@ -87,7 +86,6 @@ GHOST_XrSwapchain::GHOST_XrSwapchain(GHOST_XrSwapchain &&other)
       m_image_width(other.m_image_width),
       m_image_height(other.m_image_height),
       m_format(other.m_format),
-      m_xr_swapchain_format(other.m_xr_swapchain_format),
       m_is_srgb_buffer(other.m_is_srgb_buffer)
 {
   /* Prevent xrDestroySwapchain call for the moved out item. */
@@ -128,11 +126,6 @@ void GHOST_XrSwapchain::updateCompositionLayerProjectViewSubImage(XrSwapchainSub
 GHOST_TXrSwapchainFormat GHOST_XrSwapchain::getFormat() const
 {
   return m_format;
-}
-
-int64_t GHOST_XrSwapchain::getXrFormat() const
-{
-  return m_xr_swapchain_format;
 }
 
 bool GHOST_XrSwapchain::isBufferSRGB() const

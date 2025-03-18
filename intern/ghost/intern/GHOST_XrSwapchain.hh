@@ -26,14 +26,11 @@ class GHOST_XrSwapchain {
   void updateCompositionLayerProjectViewSubImage(XrSwapchainSubImage &r_sub_image);
 
   GHOST_TXrSwapchainFormat getFormat() const;
-  int64_t getXrFormat() const;
   bool isBufferSRGB() const;
 
  private:
   std::unique_ptr<OpenXRSwapchainData> m_oxr; /* Could use stack, but PImpl is preferable. */
   int32_t m_image_width, m_image_height;
   GHOST_TXrSwapchainFormat m_format;
-  /** Swapchain format chosen by the graphics binding. */
-  int64_t m_xr_swapchain_format = 0;
   bool m_is_srgb_buffer = false;
 };
