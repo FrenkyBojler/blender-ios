@@ -5,4 +5,4 @@ Referenced by issue #98884, Regression: Crash when switched to vertex paint mode
 Referenced by issue #97597, Regression: Crash in weight painting
 Referenced by issue #97489, Unify Interpolation In Vertex Paint And Sculpt Mode
 Referenced by issue #97183, Regression: Vertex paint mode (old style) work only with 1st attribute layer, no matter what selected is
-Referenced by issue #69760, Undo/Adjust Last Operation: vertex and weightpaint operators/strokes undo more then they should (change back any setting changed prior to execution)
+Referenced by issue #69760, Undo/Adjust Last Operation: Weight Paint operators/strokes undo more then they should (change back any setting changed prior to execution)
