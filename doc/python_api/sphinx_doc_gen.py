@@ -1926,9 +1926,9 @@ def pyrna2sphinx(basepath):
                 location = op.get_location()
                 if location != (None, None):
                     if location[0].startswith("addons_core" + os.sep):
-                        url_base = API_BASEURL_ADDON
-                    else:
                         url_base = API_BASEURL
+                    else:
+                        url_base = API_BASEURL_ADDON
 
                     fw("   :File: `{:s}\\:{:d} <{:s}/{:s}#L{:d}>`__\n\n".format(
                         location[0], location[1], url_base, location[0], location[1]
