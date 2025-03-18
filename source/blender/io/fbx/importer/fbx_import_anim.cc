@@ -54,7 +54,6 @@ static FCurve *create_fcurve(animrig::Channelbag &channelbag,
   FCurve *cu = channelbag.fcurve_create_unique(nullptr, descriptor);
   BLI_assert_msg(cu, "The same F-Curve is being created twice, this is unexpected.");
   BKE_fcurve_bezt_resize(cu, key_count);
-  memset(cu->bezt, 0, key_count * sizeof(cu->bezt[0])); /* @TODO: remove once #135448 lands */
   return cu;
 }
 
@@ -82,6 +81,7 @@ struct ElementAnimations {
   const ufbx_anim_prop *prop_blend_shape = nullptr;
   const ufbx_anim_prop *prop_focal_length = nullptr;
   const ufbx_anim_prop *prop_focus_dist = nullptr;
+  const ufbx_anim_prop *prop_mat_diffuse = nullptr;
 };
 
 static Vector<ElementAnimations> gather_animated_properties(const ufbx_scene &fbx,
@@ -93,7 +93,6 @@ static Vector<ElementAnimations> gather_animated_properties(const ufbx_scene &fb
     for (const ufbx_anim_layer *flayer : fstack->layers) {
       for (const ufbx_anim_prop &fprop : flayer->anim_props) {
         bool supported_prop = false;
-        //@TODO: "DiffuseColor" - element is material
         //@TODO: "Visibility"?
         const bool is_position = STREQ(fprop.prop_name.data, "Lcl Translation");
         const bool is_rotation = STREQ(fprop.prop_name.data, "Lcl Rotation");
@@ -101,8 +100,9 @@ static Vector<ElementAnimations> gather_animated_properties(const ufbx_scene &fb
         const bool is_blend_shape = STREQ(fprop.prop_name.data, "DeformPercent");
         const bool is_focal_length = STREQ(fprop.prop_name.data, "FocalLength");
         const bool is_focus_dist = STREQ(fprop.prop_name.data, "FocusDistance");
+        const bool is_diffuse = STREQ(fprop.prop_name.data, "DiffuseColor");
         if (is_position || is_rotation || is_scale || is_blend_shape || is_focal_length ||
-            is_focus_dist)
+            is_focus_dist || is_diffuse)
         {
           supported_prop = true;
         }
@@ -111,31 +111,51 @@ static Vector<ElementAnimations> gather_animated_properties(const ufbx_scene &fb
           continue;
         }
 
-        //@TODO: make this handle non-Object animation (e.g. Materials)
-        Object *target_obj = mapping.el_to_object.lookup_default(fprop.element, nullptr);
-
-        /* For camera animations, the target Object is the first instance of the fbx element. */
         const bool is_anim_camera = is_focal_length || is_focus_dist;
-        if (is_anim_camera) {
+        const bool is_anim_mat = is_diffuse;
+
+        ID *target_id = nullptr;
+        Object *target_obj = nullptr;
+
+        if (is_blend_shape) {
+          /* Animating blend shape weight. */
+          Key *target_key = mapping.el_to_shape_key.lookup_default(fprop.element, nullptr);
+          if (target_key != nullptr) {
+            target_id = &target_key->id;
+          }
+        }
+        else if (is_anim_camera) {
+          /* Animating camera property. */
           if (fprop.element->instances.count > 0) {
-            target_obj = mapping.el_to_object.lookup_default(&fprop.element->instances[0]->element,
-                                                             nullptr);
-            if (target_obj != nullptr && target_obj->type != OB_CAMERA) {
-              target_obj = nullptr;
+            Object *obj = mapping.el_to_object.lookup_default(
+                &fprop.element->instances[0]->element, nullptr);
+            if (obj != nullptr && obj->type == OB_CAMERA) {
+              target_id = (ID *)obj->data;
+              target_obj = obj;
             }
           }
         }
-
-        Key *target_key = mapping.el_to_shape_key.lookup_default(fprop.element, nullptr);
-        if (target_obj == nullptr && target_key == nullptr) {
-          continue;
+        else if (is_anim_mat) {
+          /* Animating material property. */
+          Material *mat = mapping.mat_to_material.lookup_default((ufbx_material *)fprop.element,
+                                                                 nullptr);
+          if (mat != nullptr) {
+            target_id = (ID *)mat;
+          }
+        }
+        else {
+          /* Animating Object property. */
+          Object *obj = mapping.el_to_object.lookup_default(fprop.element, nullptr);
+          /* Ignore animation of rigged meshes (very hard to handle; matches behavior of python fbx
+           * importer). */
+          if (obj && obj->type == OB_MESH && obj->parent && obj->parent->type == OB_ARMATURE) {
+            continue;
+          }
+          target_id = &obj->id;
+          target_obj = obj;
         }
 
-        /* Ignore animation of rigged meshes (very hard to handle; matches behavior of python fbx
-         * importer). */
-        if (target_obj && target_obj->type == OB_MESH && target_obj->parent &&
-            target_obj->parent->type == OB_ARMATURE)
-        {
+        if (target_id == nullptr) {
           continue;
         }
 
@@ -148,17 +168,8 @@ static Vector<ElementAnimations> gather_animated_properties(const ufbx_scene &fb
         if (anims.fbx_layer == nullptr) {
           anims.fbx_layer = flayer;
         }
-
-        if (target_obj != nullptr) {
-          anims.target_id = &target_obj->id;
-          if (is_anim_camera) {
-            anims.target_id = (ID *)target_obj->data;
-          }
-          anims.target_object = target_obj;
-        }
-        else if (target_key != nullptr) {
-          anims.target_id = &target_key->id;
-        }
+        anims.target_id = target_id;
+        anims.target_object = target_obj;
 
         if (is_position) {
           anims.prop_position = &fprop;
@@ -177,6 +188,9 @@ static Vector<ElementAnimations> gather_animated_properties(const ufbx_scene &fb
         }
         if (is_focus_dist) {
           anims.prop_focus_dist = &fprop;
+        }
+        if (is_diffuse) {
+          anims.prop_mat_diffuse = &fprop;
         }
       }
     }
@@ -393,7 +407,7 @@ static void create_camera_curves(const ufbx_metadata &metadata,
                                  const double fps,
                                  const float anim_offset)
 {
-  if (anim.target_object == nullptr || anim.target_object->type != OB_CAMERA) {
+  if (anim.target_id == nullptr || GS(anim.target_id->name) != ID_CA) {
     return;
   }
 
@@ -420,6 +434,33 @@ static void create_camera_curves(const ufbx_metadata &metadata,
       set_curve_sample(curve, i, tf, val);
     }
     finalize_curve(action, anim, curve);
+  }
+}
+
+static void create_material_curves(const FbxElementMapping &mapping,
+                                   const ElementAnimations &anim,
+                                   bAction *action,
+                                   animrig::Channelbag &channelbag,
+                                   const double fps,
+                                   const float anim_offset)
+{
+  if (anim.target_id == nullptr || GS(anim.target_id->name) != ID_MA) {
+    return;
+  }
+
+  if (anim.prop_mat_diffuse != nullptr) {
+    for (int ch = 0; ch < 3; ch++) {
+      const ufbx_anim_curve *input_curve = anim.prop_mat_diffuse->anim_value->curves[ch];
+      FCurve *curve = create_fcurve(
+          channelbag, {"diffuse_color", ch}, input_curve->keyframes.count);
+      for (int i = 0; i < input_curve->keyframes.count; i++) {
+        const ufbx_keyframe &fkey = input_curve->keyframes[i];
+        float tf = float(fkey.time * fps + anim_offset);
+        float val = float(fkey.value);
+        set_curve_sample(curve, i, tf, val);
+      }
+      finalize_curve(action, anim, curve);
+    }
   }
 }
 
@@ -467,6 +508,9 @@ void import_animations(Main &bmain,
     }
     if (anim.prop_focal_length || anim.prop_focus_dist) {
       create_camera_curves(fbx.metadata, mapping, anim, action, channelbag, fps, anim_offset);
+    }
+    if (anim.prop_mat_diffuse) {
+      create_material_curves(mapping, anim, action, channelbag, fps, anim_offset);
     }
     if (anim.prop_blend_shape) {
       create_blend_shape_curves(anim, action, channelbag, fps, anim_offset);
