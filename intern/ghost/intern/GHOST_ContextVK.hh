@@ -157,6 +157,16 @@ class GHOST_ContextVK : public GHOST_Context {
     return GHOST_kFailure;
   };
 
+  /**
+   * Returns if the context is rendered upside down compared to OpenGL.
+   *
+   * Vulkan is always rendered upside down.
+   */
+  bool isUpsideDown() const override
+  {
+    return true;
+  }
+
  private:
 #ifdef _WIN32
   HWND m_hwnd;
