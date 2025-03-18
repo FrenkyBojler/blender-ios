@@ -16,8 +16,8 @@ set(INC
 
   # For `*_info.hh` includes.
   ../compositor/shaders/infos
-  ../draw/engines/eevee_next
-  ../draw/engines/eevee_next/shaders/infos
+  ../draw/engines/eevee
+  ../draw/engines/eevee/shaders/infos
   ../draw/engines/gpencil
   ../draw/engines/gpencil/shaders/infos
   ../draw/engines/image/shaders/infos
@@ -768,6 +768,10 @@ endif()
 
 if(WITH_OPENCOLORIO)
   target_link_libraries(bf_gpu PUBLIC bf_ocio_shaders)
+endif()
+
+if(WITH_OPENSUBDIV)
+  target_link_libraries(bf_gpu PUBLIC bf_osd_shaders)
 endif()
 
 if(WITH_RENDERDOC)

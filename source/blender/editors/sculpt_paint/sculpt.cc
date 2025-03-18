@@ -3523,11 +3523,7 @@ static void do_brush_action(const Depsgraph &depsgraph,
   }
 
   /* The cloth brush adds the gravity as a regular force and it is processed in the solver. */
-  if (ss.cache->supports_gravity && !ELEM(brush.sculpt_brush_type,
-                                          SCULPT_BRUSH_TYPE_CLOTH,
-                                          SCULPT_BRUSH_TYPE_DRAW_FACE_SETS,
-                                          SCULPT_BRUSH_TYPE_BOUNDARY))
-  {
+  if (ss.cache->supports_gravity && brush.sculpt_brush_type != SCULPT_BRUSH_TYPE_CLOTH) {
     do_gravity_brush(depsgraph, sd, ob, node_mask);
   }
 
@@ -3772,7 +3768,7 @@ bool SCULPT_mode_poll(bContext *C)
 bool SCULPT_mode_poll_view3d(bContext *C)
 {
   using namespace blender::ed::sculpt_paint;
-  return (SCULPT_mode_poll(C) && CTX_wm_region_view3d(C) && !ED_gpencil_session_active());
+  return (SCULPT_mode_poll(C) && CTX_wm_region_view3d(C));
 }
 
 bool SCULPT_poll(bContext *C)
@@ -4126,13 +4122,8 @@ static void sculpt_update_cache_invariants(
   mul_m3_v3(mat, viewDir);
   normalize_v3_v3(cache->view_normal, viewDir);
 
-  cache->supports_gravity = (!ELEM(brush->sculpt_brush_type,
-                                   SCULPT_BRUSH_TYPE_MASK,
-                                   SCULPT_BRUSH_TYPE_SMOOTH,
-                                   SCULPT_BRUSH_TYPE_SIMPLIFY,
-                                   SCULPT_BRUSH_TYPE_DISPLACEMENT_SMEAR,
-                                   SCULPT_BRUSH_TYPE_DISPLACEMENT_ERASER) &&
-                             (sd.gravity_factor > 0.0f));
+  cache->supports_gravity = brush_type_supports_gravity(brush->sculpt_brush_type) &&
+                            (sd.gravity_factor > 0.0f);
   /* Get gravity vector in world space. */
   if (cache->supports_gravity) {
     if (sd.gravity_object) {
