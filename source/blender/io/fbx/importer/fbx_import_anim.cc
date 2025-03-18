@@ -80,6 +80,8 @@ struct ElementAnimations {
   const ufbx_anim_prop *prop_rotation = nullptr;
   const ufbx_anim_prop *prop_scale = nullptr;
   const ufbx_anim_prop *prop_blend_shape = nullptr;
+  const ufbx_anim_prop *prop_focal_length = nullptr;
+  const ufbx_anim_prop *prop_focus_dist = nullptr;
 };
 
 static Vector<ElementAnimations> gather_animated_properties(const ufbx_scene &fbx,
@@ -91,14 +93,17 @@ static Vector<ElementAnimations> gather_animated_properties(const ufbx_scene &fb
     for (const ufbx_anim_layer *flayer : fstack->layers) {
       for (const ufbx_anim_prop &fprop : flayer->anim_props) {
         bool supported_prop = false;
-        //@TODO: "FocalLength", "FocusDistance" - element is camera
         //@TODO: "DiffuseColor" - element is material
         //@TODO: "Visibility"?
         const bool is_position = STREQ(fprop.prop_name.data, "Lcl Translation");
         const bool is_rotation = STREQ(fprop.prop_name.data, "Lcl Rotation");
         const bool is_scale = STREQ(fprop.prop_name.data, "Lcl Scaling");
         const bool is_blend_shape = STREQ(fprop.prop_name.data, "DeformPercent");
-        if (is_position || is_rotation || is_scale || is_blend_shape) {
+        const bool is_focal_length = STREQ(fprop.prop_name.data, "FocalLength");
+        const bool is_focus_dist = STREQ(fprop.prop_name.data, "FocusDistance");
+        if (is_position || is_rotation || is_scale || is_blend_shape || is_focal_length ||
+            is_focus_dist)
+        {
           supported_prop = true;
         }
 
@@ -108,6 +113,19 @@ static Vector<ElementAnimations> gather_animated_properties(const ufbx_scene &fb
 
         //@TODO: make this handle non-Object animation (e.g. Materials)
         Object *target_obj = mapping.el_to_object.lookup_default(fprop.element, nullptr);
+
+        /* For camera animations, the target Object is the first instance of the fbx element. */
+        const bool is_anim_camera = is_focal_length || is_focus_dist;
+        if (is_anim_camera) {
+          if (fprop.element->instances.count > 0) {
+            target_obj = mapping.el_to_object.lookup_default(&fprop.element->instances[0]->element,
+                                                             nullptr);
+            if (target_obj != nullptr && target_obj->type != OB_CAMERA) {
+              target_obj = nullptr;
+            }
+          }
+        }
+
         Key *target_key = mapping.el_to_shape_key.lookup_default(fprop.element, nullptr);
         if (target_obj == nullptr && target_key == nullptr) {
           continue;
@@ -133,11 +151,15 @@ static Vector<ElementAnimations> gather_animated_properties(const ufbx_scene &fb
 
         if (target_obj != nullptr) {
           anims.target_id = &target_obj->id;
+          if (is_anim_camera) {
+            anims.target_id = (ID *)target_obj->data;
+          }
           anims.target_object = target_obj;
         }
         else if (target_key != nullptr) {
           anims.target_id = &target_key->id;
         }
+
         if (is_position) {
           anims.prop_position = &fprop;
         }
@@ -149,6 +171,12 @@ static Vector<ElementAnimations> gather_animated_properties(const ufbx_scene &fb
         }
         if (is_blend_shape) {
           anims.prop_blend_shape = &fprop;
+        }
+        if (is_focal_length) {
+          anims.prop_focal_length = &fprop;
+        }
+        if (is_focus_dist) {
+          anims.prop_focus_dist = &fprop;
         }
       }
     }
@@ -163,9 +191,7 @@ static Vector<ElementAnimations> gather_animated_properties(const ufbx_scene &fb
   return animations;
 }
 
-static bAction *create_action(Main &bmain,
-                              const ElementAnimations &anim,
-                              Map<std::string, bAction *> &action_name_map)
+static bAction *create_action(Main &bmain, const ElementAnimations &anim)
 {
   /* Construct action name. */
   BLI_assert(anim.target_id != nullptr);
@@ -177,12 +203,8 @@ static bAction *create_action(Main &bmain,
     action_name += anim.fbx_layer->name.data;
   }
 
-  /* Lookup or create an action. */
-  bAction *action = action_name_map.lookup_default(action_name, nullptr);
-  if (action == nullptr) {
-    action = ensure_action_and_slot_for_id(bmain, *anim.target_id, action_name);
-    action_name_map.add_new(action_name, action);
-  }
+  /* Create an action. */
+  bAction *action = ensure_action_and_slot_for_id(bmain, *anim.target_id, action_name);
   BLI_assert(BKE_animdata_from_id(anim.target_id) != nullptr);
 
   return action;
@@ -363,6 +385,44 @@ static void create_transform_curves(const FbxElementMapping &mapping,
   }
 }
 
+static void create_camera_curves(const ufbx_metadata &metadata,
+                                 const FbxElementMapping &mapping,
+                                 const ElementAnimations &anim,
+                                 bAction *action,
+                                 animrig::Channelbag &channelbag,
+                                 const double fps,
+                                 const float anim_offset)
+{
+  if (anim.target_object == nullptr || anim.target_object->type != OB_CAMERA) {
+    return;
+  }
+
+  if (anim.prop_focal_length != nullptr) {
+    const ufbx_anim_curve *input_curve = anim.prop_focal_length->anim_value->curves[0];
+    FCurve *curve = create_fcurve(channelbag, {"lens", 0}, input_curve->keyframes.count);
+    for (int i = 0; i < input_curve->keyframes.count; i++) {
+      const ufbx_keyframe &fkey = input_curve->keyframes[i];
+      float tf = float(fkey.time * fps + anim_offset);
+      float val = float(fkey.value);
+      set_curve_sample(curve, i, tf, val);
+    }
+    finalize_curve(action, anim, curve);
+  }
+
+  if (anim.prop_focus_dist != nullptr) {
+    const ufbx_anim_curve *input_curve = anim.prop_focus_dist->anim_value->curves[0];
+    FCurve *curve = create_fcurve(
+        channelbag, {"dof.focus_distance", 0}, input_curve->keyframes.count);
+    for (int i = 0; i < input_curve->keyframes.count; i++) {
+      const ufbx_keyframe &fkey = input_curve->keyframes[i];
+      float tf = float(fkey.time * fps + anim_offset);
+      float val = float(fkey.value / 1000.0 * metadata.geometry_scale * metadata.root_scale);
+      set_curve_sample(curve, i, tf, val);
+    }
+    finalize_curve(action, anim, curve);
+  }
+}
+
 static void create_blend_shape_curves(const ElementAnimations &anim,
                                       bAction *action,
                                       animrig::Channelbag &channelbag,
@@ -398,13 +458,15 @@ void import_animations(Main &bmain,
 
   Vector<ElementAnimations> animations = gather_animated_properties(fbx, mapping);
 
-  Map<std::string, bAction *> action_name_map;
   for (const ElementAnimations &anim : animations) {
-    bAction *action = create_action(bmain, anim, action_name_map);
+    bAction *action = create_action(bmain, anim);
     animrig::Channelbag &channelbag = animrig::action_channelbag_ensure(*action, *anim.target_id);
 
     if (anim.prop_position || anim.prop_rotation || anim.prop_scale) {
       create_transform_curves(mapping, anim, action, channelbag, fps, anim_offset);
+    }
+    if (anim.prop_focal_length || anim.prop_focus_dist) {
+      create_camera_curves(fbx.metadata, mapping, anim, action, channelbag, fps, anim_offset);
     }
     if (anim.prop_blend_shape) {
       create_blend_shape_curves(anim, action, channelbag, fps, anim_offset);
