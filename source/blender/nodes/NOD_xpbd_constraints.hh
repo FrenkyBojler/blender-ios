@@ -25,7 +25,7 @@ struct DebugRecorder;
  * \{ */
 
 struct ConstraintEvalParams {
-  using ErrorFn = FunctionRef<void(const StringRef message)>;
+  using ErrorFn = std::function<void(const StringRef message)>;
 
   ErrorFn error_message_add;
   /* Perform debug checks on user inputs at runtime. This helps avoid common errors but has a
