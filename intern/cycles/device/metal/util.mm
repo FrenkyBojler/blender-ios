@@ -127,8 +127,7 @@ id<MTLBuffer> MetalBufferPool::get_buffer(id<MTLDevice> device,
     thread_scoped_lock lock(buffer_mutex);
     /* Find an unused buffer with matching size and storage mode. */
     for (MetalBufferListEntry &bufferEntry : temp_buffers) {
-      if (bufferEntry.buffer.length == length && bufferEntry.command_buffer == nil)
-      {
+      if (bufferEntry.buffer.length == length && bufferEntry.command_buffer == nil) {
         buffer = bufferEntry.buffer;
         bufferEntry.command_buffer = command_buffer;
         break;

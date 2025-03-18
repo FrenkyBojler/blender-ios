@@ -135,8 +135,10 @@ MetalDevice::MetalDevice(const DeviceInfo &info, Stats &stats, Profiler &profile
     mtlBufferArgEncoder = [mtlDevice newArgumentEncoderWithArguments:@[ arg_desc_buffer ]];
 
     buffer_bindings_1d = [mtlDevice newBufferWithLength:8192 options:MTLResourceStorageModeShared];
-    texture_bindings_2d = [mtlDevice newBufferWithLength:8192 options:MTLResourceStorageModeShared];
-    texture_bindings_3d = [mtlDevice newBufferWithLength:8192 options:MTLResourceStorageModeShared];
+    texture_bindings_2d = [mtlDevice newBufferWithLength:8192
+                                                 options:MTLResourceStorageModeShared];
+    texture_bindings_3d = [mtlDevice newBufferWithLength:8192
+                                                 options:MTLResourceStorageModeShared];
     stats.mem_alloc(buffer_bindings_1d.allocatedSize + texture_bindings_2d.allocatedSize +
                     texture_bindings_3d.allocatedSize);
 

@@ -398,11 +398,8 @@ bool MetalDeviceQueue::enqueue(DeviceKernel kernel,
            plain_old_launch_data_size);
 
     /* Allocate an argument buffer. */
-    id<MTLBuffer> arg_buffer = temp_buffer_pool_.get_buffer(mtlDevice_,
-                                                            mtlCommandBuffer_,
-                                                            arg_buffer_length,
-                                                            init_arg_buffer,
-                                                            stats_);
+    id<MTLBuffer> arg_buffer = temp_buffer_pool_.get_buffer(
+        mtlDevice_, mtlCommandBuffer_, arg_buffer_length, init_arg_buffer, stats_);
 
     /* Encode the pointer "enqueue" arguments */
     bytes_written = 0;

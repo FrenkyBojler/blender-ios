@@ -945,7 +945,8 @@ bool BVHMetal::build_TLAS(Progress &progress,
     /* Defined inside available check, for return type to be available. */
     auto make_null_BLAS = [](id<MTLDevice> mtl_device,
                              id<MTLCommandQueue> queue) -> id<MTLAccelerationStructure> {
-      id<MTLBuffer> nullBuf = [mtl_device newBufferWithLength:sizeof(float3) options:MTLResourceStorageModeShared];
+      id<MTLBuffer> nullBuf = [mtl_device newBufferWithLength:sizeof(float3)
+                                                      options:MTLResourceStorageModeShared];
 
       /* Create an acceleration structure. */
       MTLAccelerationStructureTriangleGeometryDescriptor *geomDesc =
