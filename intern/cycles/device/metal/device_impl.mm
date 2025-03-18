@@ -735,15 +735,7 @@ MetalDevice::MetalMem *MetalDevice::generic_alloc(device_memory &mem)
 
 void MetalDevice::generic_copy_to(device_memory &mem)
 {
-  if (!mem.host_pointer || !mem.device_pointer) {
-    return;
-  }
-
-  std::lock_guard<std::recursive_mutex> lock(metal_mem_map_mutex);
-  if (mem.host_pointer != mem.shared_pointer) {
-    MetalMem &mmem = *metal_mem_map.at(&mem);
-    memcpy(mmem.hostPtr, mem.host_pointer, mem.memory_size());
-  }
+  /* No need to copy - Apple Silicon has Unified Memory Architecture. */
 }
 
 void MetalDevice::generic_free(device_memory &mem)
@@ -842,26 +834,7 @@ void MetalDevice::mem_move_to_host(device_memory & /*mem*/)
 void MetalDevice::mem_copy_from(
     device_memory &mem, const size_t y, size_t w, const size_t h, size_t elem)
 {
-  @autoreleasepool {
-    if (mem.host_pointer) {
-
-      bool subcopy = (w >= 0 && h >= 0);
-      const size_t size = subcopy ? (elem * w * h) : mem.memory_size();
-      const size_t offset = subcopy ? (elem * y * w) : 0;
-
-      if (mem.device_pointer) {
-        std::lock_guard<std::recursive_mutex> lock(metal_mem_map_mutex);
-        MetalMem &mmem = *metal_mem_map.at(&mem);
-
-        if (mem.host_pointer != mmem.hostPtr) {
-          memcpy((uchar *)mem.host_pointer + offset, (uchar *)mmem.hostPtr + offset, size);
-        }
-      }
-      else {
-        memset((char *)mem.host_pointer + offset, 0, size);
-      }
-    }
-  }
+  /* No need to copy - Apple Silicon has Unified Memory Architecture. */
 }
 
 void MetalDevice::mem_zero(device_memory &mem)
@@ -869,14 +842,8 @@ void MetalDevice::mem_zero(device_memory &mem)
   if (!mem.device_pointer) {
     mem_alloc(mem);
   }
-  if (!mem.device_pointer) {
-    return;
-  }
-
-  size_t size = mem.memory_size();
-  std::lock_guard<std::recursive_mutex> lock(metal_mem_map_mutex);
-  MetalMem &mmem = *metal_mem_map.at(&mem);
-  memset(mmem.hostPtr, 0, size);
+  assert(mem.shared_pointer);
+  memset(mem.shared_pointer, 0, mem.memory_size());
 }
 
 void MetalDevice::mem_free(device_memory &mem)
