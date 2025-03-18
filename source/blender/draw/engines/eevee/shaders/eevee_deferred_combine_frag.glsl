@@ -139,10 +139,11 @@ void main()
     output_renderpass_color(uniform_buf.render_pass.specular_light_id, vec4(specular_light, 1.0));
   }
   if (render_pass_normal_enabled) {
+    vec3 Ng = gbuffer_geometry_normal_unpack(gbuf.header, gbuf.surface_N);
     float normal_len = length(average_normal);
     /* Normalize or fallback to default normal. */
     average_normal = (normal_len < 1e-5) ? gbuf.surface_N : (average_normal / normal_len);
-    output_renderpass_color(uniform_buf.render_pass.normal_id, vec4(average_normal, 1.0));
+    output_renderpass_color(uniform_buf.render_pass.normal_id, vec4(Ng, 1.0));
   }
 
   out_combined = vec4(out_direct + out_indirect, 0.0);

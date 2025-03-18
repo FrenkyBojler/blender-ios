@@ -327,6 +327,41 @@ uint gbuffer_light_link_receiver_unpack(uint data)
   return data >> 26u;
 }
 
+/* Quantize geometric normal to 6 bits. */
+uint gbuffer_geometry_normal_pack(vec3 Ng, vec3 N)
+{
+  const float threshold_noop = cos(M_PI / 8.0);
+  if (dot(N, Ng) > threshold_noop) {
+    /* If the error between the default shading normal and the geometric normal is small enough, we
+     * do not encode the geometric normal and use the shading normal for biasing the shadow rays.
+     * This avoid precision issues that comes with the quantization. */
+    return 0;
+  }
+  /* This is a threshold that makes roughly equal size discrete area. */
+  const float threshold = cos(M_PI * 3.1 / 8.0);
+  bvec3 neg = lessThan(Ng, vec3(-threshold));
+  bvec3 pos = greaterThan(Ng, vec3(threshold));
+  uint data;
+  data = pos.x ? 0u : (1u << 0u);
+  data |= pos.y ? 0u : (1u << 1u);
+  data |= pos.z ? 0u : (1u << 2u);
+  data |= neg.x ? 0u : (1u << 3u);
+  data |= neg.y ? 0u : (1u << 4u);
+  data |= neg.z ? 0u : (1u << 5u);
+  return data << 20u;
+}
+
+vec3 gbuffer_geometry_normal_unpack(uint data, vec3 N)
+{
+  /* If data is 0 it means the shading normal is representative enough. */
+  if ((data & (63u << 20u)) == 0u) {
+    return N;
+  }
+  vec3 Ng = vec3((uint3(data) >> (uint3(3, 4, 5) + 20u)) & 1u) -
+            vec3((uint3(data) >> (uint3(0, 1, 2) + 20u)) & 1u);
+  return normalize(Ng);
+}
+
 uint gbuffer_header_pack(GBufferMode mode, uint bin)
 {
   return (mode << (4u * bin));

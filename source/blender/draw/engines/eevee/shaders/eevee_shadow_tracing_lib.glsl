@@ -469,7 +469,7 @@ float shadow_eval(LightData light,
   /* Stochastic Percentage Closer Filtering. */
   P += (light.filter_radius * texel_radius) * shadow_pcf_offset(L, Ng, random_pcf_2d);
   /* Add normal bias to avoid aliasing artifacts. */
-  P += N_bias * (texel_radius * shadow_normal_offset(Ng, L));
+  P += N_bias * (texel_radius * shadow_normal_offset(Ng, L)) * 1.5;
 
   vec3 lP = is_directional ? light_world_to_local_direction(light, P) :
                              light_world_to_local_point(light, P);

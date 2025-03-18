@@ -106,6 +106,8 @@ void main()
 
   GBufferWriter gbuf = gbuffer_pack(gbuf_data);
 
+  gbuf.header |= gbuffer_geometry_normal_pack(g_data.Ng, g_data.N);
+
   /* Output header and first closure using frame-buffer attachment. */
   out_gbuf_header = gbuf.header;
   out_gbuf_closure1 = gbuf.data[0];

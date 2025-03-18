@@ -132,6 +132,7 @@ float light_attenuation_facing(LightData light,
                                const bool is_transmission,
                                bool is_translucent_with_thickness)
 {
+  return 1.0;
   if (is_translucent_with_thickness) {
     /* No attenuation in this case since we integrate the whole sphere. */
     return 1.0;
