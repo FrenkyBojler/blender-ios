@@ -1307,7 +1307,7 @@ void GHOST_GetVulkanHandles(GHOST_ContextHandle context, GHOST_VulkanHandles *r_
  *     the OpenXR swap chain.
  */
 void GHOST_SetVulkanSwapBuffersCallbacks(
-    GHOST_ContextHandle contexthandle,
+    GHOST_ContextHandle context,
     void (*swap_buffers_pre_callback)(const GHOST_VulkanSwapChainData *),
     void (*swap_buffers_post_callback)(void),
     void (*openxr_acquire_image_callback)(GHOST_VulkanOpenXRData *),
