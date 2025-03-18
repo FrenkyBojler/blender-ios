@@ -1,0 +1,1 @@
+Referenced by issue #136131, Calling valid_socket_type callback in bpy.types.NodeTree crashes Blender
