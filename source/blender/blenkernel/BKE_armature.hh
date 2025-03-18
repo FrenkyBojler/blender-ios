@@ -441,18 +441,6 @@ void BKE_bone_parent_transform_calc_from_matrices(int bone_flag,
 void BKE_rotMode_change_values(
     float quat[4], float eul[3], float axis[3], float *angle, short oldMode, short newMode);
 
-/**
- * Sets the rotation of the pose channel, respecting protectflag.
- */
-void BKE_armature_set_rotation_quaternion(bPoseChannel *pchan, float rotation_quaternion[4]);
-void BKE_armature_set_rotation_euler(bPoseChannel *pchan, float rotation_euler[3]);
-void BKE_armature_set_rotation_axisangle(bPoseChannel *pchan, float axis[3], float angle);
-
-/**
- * Sets the location of the pose channel, respecting protectflag.
- */
-void BKE_armature_set_location(bPoseChannel *pchan, float location[3]);
-
 /* B-Bone support */
 #define MAX_BBONE_SUBDIV 32
 

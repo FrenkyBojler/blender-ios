@@ -467,7 +467,7 @@ static bool snap_selected_to_location(bContext *C,
                 mat3_normalized_to_quat(quat, cursor_rotmat.ptr());
               }
               if (use_toolsettings) {
-                BKE_armature_set_rotation_quaternion(pchan, quat);
+                BKE_pchan_protected_rotation_quaternion_set(pchan, quat);
               }
               else {
                 copy_v4_v4(pchan->quat, quat);
@@ -484,7 +484,7 @@ static bool snap_selected_to_location(bContext *C,
                 mat3_to_axis_angle(rot_axis, &rot_angle, cursor_rotmat.ptr());
               }
               if (use_toolsettings) {
-                BKE_armature_set_rotation_axisangle(pchan, rot_axis, rot_angle);
+                BKE_pchan_protected_rotation_axisangle_set(pchan, rot_axis, rot_angle);
               }
               else {
                 copy_v3_v3(pchan->rotAxis, rot_axis);
@@ -500,7 +500,7 @@ static bool snap_selected_to_location(bContext *C,
                 mat3_to_eulO(rot_euler, EULER_ORDER_DEFAULT, cursor_rotmat.ptr());
               }
               if (use_toolsettings) {
-                BKE_armature_set_rotation_euler(pchan, rot_euler);
+                BKE_pchan_protected_rotation_euler_set(pchan, rot_euler);
               }
               else {
                 copy_v3_v3(pchan->eul, rot_euler);
