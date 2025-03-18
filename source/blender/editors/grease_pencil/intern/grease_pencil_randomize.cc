@@ -180,10 +180,10 @@ ColorGeometry4f randomize_color(const BrushGpencilSettings &settings,
   }
 
   float3 hsv;
-  rgb_to_hsv_v(color, hsv);
+  linearrgb_to_srgb_v3_v3(hsv, color);
+  rgb_to_hsv_v(hsv, hsv);
 
   hsv[0] += random_hue * settings.random_hue;
-  hsv[1] += random_saturation * settings.random_saturation;
 
   const float absolute_brightness = hsv[2] + random_value * settings.random_value;
 
@@ -195,7 +195,7 @@ ColorGeometry4f randomize_color(const BrushGpencilSettings &settings,
    * of the Exponential we set slope to match addition for small random values at an arbitrary
    * Base Value.
    */
-  constexpr float base_value = 0.35f;
+  constexpr float base_value = 0.5f;
   const float relative_brightness = hsv[2] *
                                     math::exp(random_value * settings.random_value / base_value);
 
@@ -204,6 +204,9 @@ ColorGeometry4f randomize_color(const BrushGpencilSettings &settings,
   /* Use relative brightness at low randomness, and switch to absolute at high. */
   hsv[2] = math::interpolate(relative_brightness, absolute_brightness, blend_factor);
 
+  /* Multiply by the current saturation to prevent grays from becoming red. */
+  hsv[1] += random_saturation * settings.random_saturation * 2.0f * hsv[1];
+
   /* Wrap hue, clamp saturation and value. */
   hsv[0] = math::fract(hsv[0]);
   hsv[1] = math::clamp(hsv[1], 0.0f, 1.0f);
@@ -211,6 +214,7 @@ ColorGeometry4f randomize_color(const BrushGpencilSettings &settings,
 
   ColorGeometry4f random_color;
   hsv_to_rgb_v(hsv, random_color);
+  srgb_to_linearrgb_v3_v3(random_color, random_color);
   random_color.a = color.a;
   return random_color;
 }
