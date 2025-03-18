@@ -9,119 +9,15 @@
 #include "BKE_instances.hh"
 
 #include "NOD_xpbd_constraints.hh"
+#include "NOD_xpbd_solver.hh"
 
 #include "node_geometry_util.hh"
 
 #include <fmt/format.h>
 
-namespace blender::nodes::xpbd_constraints {
-
-static void append_instance_item(GeometrySet &container,
-                                 GeometrySet item,
-                                 const StringRef name,
-                                 const float4x4 &transform = float4x4::identity())
-{
-  if (!container.has_instances()) {
-    container.replace_instances(new bke::Instances);
-  }
-  bke::Instances &instances =
-      *container.get_component_for_write<InstancesComponent>().get_for_write();
-
-  item.name = name;
-  const int handle = instances.add_new_reference(std::move(item));
-  instances.add_instance(handle, transform);
-}
-
-DebugRecorder::DebugRecorder(const bke::GeometrySet &debug_steps)
-    : component_type_(GeometryComponent::Type::PointCloud), debug_steps_(debug_steps)
-{
-}
-
-void DebugRecorder::set_geometry(const GeometrySet &geometry_set,
-                                 GeometryComponent::Type component_type)
-{
-  geometry_set_ = geometry_set;
-  component_type_ = component_type;
-}
-
-void DebugRecorder::record_step(const StringRef label,
-                                GeometrySet *constraints,
-                                const int constraint_type_code,
-                                const IndexMask &group_mask,
-                                const ConstraintVariables &variables)
-{
-  GeometrySet step_geometry;
-
-  {
-    GeometrySet updated_geometry = geometry_set_;
-    GeometryComponent &component = updated_geometry.get_component_for_write(component_type_);
-    MutableAttributeAccessor attributes = *component.attributes_for_write();
-    if (!variables.positions.is_empty()) {
-      AttributeWriter<float3> positions_writer = attributes.lookup_or_add_for_write<float3>(
-          "position", AttrDomain::Point);
-      positions_writer.varray.set_all(variables.positions);
-      positions_writer.finish();
-    }
-    if (!variables.rotations.is_empty()) {
-      AttributeWriter<math::Quaternion> rotations_writer =
-          attributes.lookup_or_add_for_write<math::Quaternion>("rotation", AttrDomain::Point);
-      rotations_writer.varray.set_all(variables.rotations);
-      rotations_writer.finish();
-    }
-    if (!variables.velocities.is_empty()) {
-      AttributeWriter<float3> velocities_writer = attributes.lookup_or_add_for_write<float3>(
-          "velocity", AttrDomain::Point);
-      velocities_writer.varray.set_all(variables.velocities);
-      velocities_writer.finish();
-    }
-    if (!variables.angular_velocities.is_empty()) {
-      AttributeWriter<float3> angular_velocities_writer =
-          attributes.lookup_or_add_for_write<float3>("angular_velocity", AttrDomain::Point);
-      angular_velocities_writer.varray.set_all(variables.angular_velocities);
-      angular_velocities_writer.finish();
-    }
-
-    append_instance_item(step_geometry, updated_geometry, "Geometry");
-  }
-
-  if (constraints) {
-    PointCloudComponent &constraint_component =
-        constraints->get_component_for_write<PointCloudComponent>();
-    MutableAttributeAccessor attributes = *constraint_component.attributes_for_write();
-    attributes.remove("group_active");
-    SpanAttributeWriter<bool> group_active_writer = attributes.lookup_or_add_for_write_span<bool>(
-        "group_active", AttrDomain::Point);
-    group_mask.foreach_index(GrainSize(4096),
-                             [&](const int index) { group_active_writer.span[index] = true; });
-    group_active_writer.finish();
-
-    append_instance_item(step_geometry, *constraints, "Constraints");
-  }
-
-  MutableAttributeAccessor instance_attributes = step_geometry
-                                                     .get_component_for_write<InstancesComponent>()
-                                                     .get_for_write()
-                                                     ->attributes_for_write();
-  AttributeWriter<int> type_code_writer = instance_attributes.lookup_or_add_for_write<int>(
-      "type_code", AttrDomain::Instance);
-  type_code_writer.varray.set(0, -1);
-  if (constraints) {
-    type_code_writer.varray.set(1, constraint_type_code);
-  }
-  type_code_writer.finish();
-
-  append_instance_item(debug_steps_, step_geometry, label);
-}
-
-const bke::GeometrySet &DebugRecorder::debug_steps() const
-{
-  return debug_steps_;
-}
-
-}  // namespace blender::nodes::xpbd_constraints
-
 namespace blender::nodes::node_geo_solve_xpbd_constraints_cc {
 
+using xpbd_constraints::ConstraintEvalData;
 using xpbd_constraints::ConstraintEvalParams;
 using xpbd_constraints::ConstraintTypeInfo;
 using xpbd_constraints::ConstraintVariables;
@@ -134,6 +30,7 @@ enum class EvaluationTarget {
 };
 
 enum class SolverMethod {
+  Global,
   GaussSeidel,
   Jacobi,
 };
@@ -151,8 +48,9 @@ static void node_declare_positions(NodeDeclarationBuilder &b)
   b.allow_any_socket_order();
 
   b.add_input<decl::Float>("Delta Time").default_value(default_fps).min(0.0f).hide_value();
-  b.add_input<decl::Int>("Gauss-Seidel Steps").default_value(1).min(0);
-  b.add_input<decl::Int>("Jacobi Steps").default_value(0).min(0);
+  b.add_input<decl::Bool>("Use Global Solve").default_value(true);
+  b.add_input<decl::Int>("Gauss-Seidel Iterations").default_value(1).min(0);
+  b.add_input<decl::Int>("Jacobi Iterations").default_value(0).min(0);
   b.add_input<decl::Bool>("Warm Start")
       .default_value(false)
       .description("Use previous lambda value when initializing instead of starting from zero");
@@ -206,8 +104,9 @@ static void node_declare_velocities(NodeDeclarationBuilder &b)
   b.allow_any_socket_order();
 
   b.add_input<decl::Float>("Delta Time").default_value(default_fps).min(0.0f).hide_value();
-  b.add_input<decl::Int>("Gauss-Seidel Steps").default_value(1).min(0);
-  b.add_input<decl::Int>("Jacobi Steps").default_value(0).min(0);
+  b.add_input<decl::Bool>("Use Global Solve").default_value(true);
+  b.add_input<decl::Int>("Gauss-Seidel Iterations").default_value(1).min(0);
+  b.add_input<decl::Int>("Jacobi Iterations").default_value(0).min(0);
   b.add_input<decl::Bool>("Warm Start")
       .default_value(true)
       .description("Use previous lambda value when initializing instead of starting from zero");
@@ -257,268 +156,15 @@ static void node_declare_velocities(NodeDeclarationBuilder &b)
       .align_with_previous();
 }
 
-static void apply_gauss_seidel_positions_group(const ConstraintEvalParams &eval_params,
-                                               const ConstraintTypeInfo &constraint_info,
-                                               GeometrySet &constraints,
-                                               const IndexMask &group_mask,
-                                               ConstraintVariables &variables,
-                                               IndexMaskMemory &memory)
+static void do_global_solve(const EvaluationTarget /*target*/,
+                            const ConstraintEvalParams &eval_params,
+                            MutableSpan<ConstraintEvalData> constraint_data,
+                            ConstraintVariables &variables)
 {
-  constexpr bool linearized_quaternion = true;
-
-  if (!constraint_info.evaluate_position) {
-    return;
-  }
-
-  VArray<bool> active;
-  Vector<VArray<float3>> delta_positions;
-  Vector<VArray<float4>> delta_rotations;
-  constraint_info.evaluate_position(
-      eval_params, variables, group_mask, constraints, active, delta_positions, delta_rotations);
-  IndexMask group_and_active_mask = IndexMask::from_bools(group_mask, active, memory);
-
-  Vector<VArray<int>> mapping = constraint_info.get_mapping(constraints);
-  BLI_assert(delta_positions.size() == mapping.size());
-  BLI_assert(delta_rotations.size() == mapping.size());
-  /* TODO optimize: constraints should have at most 4 point maps and associated deltas.
-   * It should be possible to unroll the mapping loop and use only a single group mask iteration.
-   */
-  const IndexRange points_range = variables.positions.index_range();
-  for (const int map_i : mapping.index_range()) {
-    const VArraySpan<int> map = mapping[map_i];
-    /* Gauss-Seidel solver has a unique source for each point and can just write to it. */
-    if (delta_positions[map_i]) {
-      const VArraySpan<float3> delta_pos = delta_positions[map_i];
-      group_and_active_mask.foreach_index(GrainSize(4096), [&](const int index) {
-        const int point = map[index];
-        if (points_range.contains(point)) {
-          xpbd_constraints::apply_position_impulse(delta_pos[index], variables.positions[point]);
-        }
-      });
-    }
-    if (delta_rotations[map_i]) {
-      const VArraySpan<float4> delta_rot = delta_rotations[map_i];
-      group_and_active_mask.foreach_index(GrainSize(4096), [&](const int index) {
-        const int point = map[index];
-        if (points_range.contains(point)) {
-          xpbd_constraints::apply_rotation_impulse<linearized_quaternion>(
-              delta_rot[index], variables.rotations[point]);
-        }
-      });
-    }
-  }
-
-  if (eval_params.debug_recorder) {
-    const std::string label = fmt::format("Evaluate: {}", constraint_info.ui_name);
-    eval_params.debug_recorder->record_step(
-        label, &constraints, constraint_info.type_code, group_and_active_mask, variables);
-  }
+  IndexMaskMemory memory;
+  xpbd_constraints::GlobalSolverSystem system = build_global_solve_system(
+      eval_params, constraint_data, variables, eval_params.debug_check, memory);
 }
-
-static void apply_gauss_seidel_velocities_group(const ConstraintEvalParams &eval_params,
-                                                const ConstraintTypeInfo &constraint_info,
-                                                GeometrySet &constraints,
-                                                const IndexMask &group_mask,
-                                                ConstraintVariables &variables,
-                                                IndexMaskMemory &memory)
-{
-  if (!constraint_info.evaluate_velocity) {
-    return;
-  }
-
-  VArray<bool> active;
-  Vector<VArray<float3>> delta_velocities;
-  Vector<VArray<float3>> delta_angular_velocities;
-  constraint_info.evaluate_velocity(eval_params,
-                                    variables,
-                                    group_mask,
-                                    constraints,
-                                    active,
-                                    delta_velocities,
-                                    delta_angular_velocities);
-  IndexMask group_and_active_mask = IndexMask::from_bools(group_mask, active, memory);
-
-  Vector<VArray<int>> mapping = constraint_info.get_mapping(constraints);
-  BLI_assert(mapping.size() == delta_velocities.size());
-  BLI_assert(mapping.size() == delta_angular_velocities.size());
-  /* TODO optimize: constraints should have at most 4 point maps and associated deltas.
-   * It should be possible to unroll the mapping loop and use only a single group mask iteration.
-   */
-  const IndexRange points_range = variables.positions.index_range();
-  for (const int map_i : mapping.index_range()) {
-    const VArraySpan<int> map = mapping[map_i];
-    /* Gauss-Seidel solver has a unique source for each point and can just write to it. */
-    if (delta_velocities[map_i]) {
-      const VArraySpan<float3> delta_vel = delta_velocities[map_i];
-      group_and_active_mask.foreach_index(GrainSize(4096), [&](const int index) {
-        const int point = map[index];
-        if (points_range.contains(point)) {
-          xpbd_constraints::apply_velocity_impulse(delta_vel[index], variables.velocities[point]);
-        }
-      });
-    }
-    if (delta_angular_velocities[map_i]) {
-      const VArraySpan<float3> delta_angvel = delta_angular_velocities[map_i];
-      group_and_active_mask.foreach_index(GrainSize(4096), [&](const int index) {
-        const int point = map[index];
-        if (points_range.contains(point)) {
-          xpbd_constraints::apply_angular_velocity_impulse(delta_angvel[index],
-                                                           variables.angular_velocities[point]);
-        }
-      });
-    }
-  }
-
-  if (eval_params.debug_recorder) {
-    const std::string label = fmt::format("Evaluate: {}", constraint_info.ui_name);
-    eval_params.debug_recorder->record_step(
-        label, &constraints, constraint_info.type_code, group_and_active_mask, variables);
-  }
-}
-
-static void add_jacobi_position_deltas(const ConstraintEvalParams &eval_params,
-                                       const ConstraintTypeInfo &constraint_info,
-                                       GeometrySet &constraints,
-                                       const IndexRange constraints_range,
-                                       ConstraintVariables &variables,
-                                       MutableSpan<float3> point_delta_positions,
-                                       MutableSpan<float4> point_delta_rotations,
-                                       MutableSpan<int> point_weights,
-                                       IndexMaskMemory &memory)
-{
-  if (!constraint_info.evaluate_position) {
-    return;
-  }
-
-  VArray<bool> active;
-  Vector<VArray<float3>> delta_positions;
-  Vector<VArray<float4>> delta_rotations;
-  constraint_info.evaluate_position(eval_params,
-                                    variables,
-                                    constraints_range,
-                                    constraints,
-                                    active,
-                                    delta_positions,
-                                    delta_rotations);
-  IndexMask active_mask = IndexMask::from_bools(constraints_range, active, memory);
-
-  Vector<VArray<int>> mapping = constraint_info.get_mapping(constraints);
-  BLI_assert(delta_positions.size() == mapping.size());
-  BLI_assert(delta_rotations.size() == mapping.size());
-  /* TODO optimize: constraints should have at most 4 point maps and associated deltas.
-   * It should be possible to unroll the mapping loop and use only a single group mask iteration.
-   */
-  const IndexRange points_range = variables.positions.index_range();
-  for (const int map_i : mapping.index_range()) {
-    const VArraySpan<int> map = mapping[map_i];
-    active_mask.foreach_index(GrainSize(4096), [&](const int index) {
-      const int point = map[index];
-      if (points_range.contains(point)) {
-        ++point_weights[point];
-      }
-    });
-    if (delta_positions[map_i]) {
-      const VArraySpan<float3> delta_pos = delta_positions[map_i];
-      active_mask.foreach_index(GrainSize(4096), [&](const int index) {
-        const int point = map[index];
-        if (points_range.contains(point)) {
-          point_delta_positions[point] += delta_pos[index];
-        }
-      });
-    }
-    if (delta_rotations[map_i]) {
-      const VArraySpan<float4> delta_rot = delta_rotations[map_i];
-      active_mask.foreach_index(GrainSize(4096), [&](const int index) {
-        const int point = map[index];
-        if (points_range.contains(point)) {
-          point_delta_rotations[point] += delta_rot[index];
-        }
-      });
-    }
-  }
-
-  if (eval_params.debug_recorder) {
-    const std::string label = fmt::format("Evaluate: {}", constraint_info.ui_name);
-    eval_params.debug_recorder->record_step(
-        label, &constraints, constraint_info.type_code, active_mask, variables);
-  }
-}
-
-static void add_jacobi_velocity_deltas(const ConstraintEvalParams &eval_params,
-                                       const ConstraintTypeInfo &constraint_info,
-                                       GeometrySet &constraints,
-                                       const IndexRange constraints_range,
-                                       ConstraintVariables &variables,
-                                       MutableSpan<float3> point_delta_velocities,
-                                       MutableSpan<float3> point_delta_angular_velocities,
-                                       MutableSpan<int> point_weights,
-                                       IndexMaskMemory &memory)
-{
-  if (!constraint_info.evaluate_velocity) {
-    return;
-  }
-
-  VArray<bool> active;
-  Vector<VArray<float3>> delta_velocities;
-  Vector<VArray<float3>> delta_angular_velocities;
-  constraint_info.evaluate_velocity(eval_params,
-                                    variables,
-                                    constraints_range,
-                                    constraints,
-                                    active,
-                                    delta_velocities,
-                                    delta_angular_velocities);
-  IndexMask active_mask = IndexMask::from_bools(constraints_range, active, memory);
-
-  Vector<VArray<int>> mapping = constraint_info.get_mapping(constraints);
-  BLI_assert(delta_velocities.size() == mapping.size());
-  BLI_assert(delta_angular_velocities.size() == mapping.size());
-  /* TODO optimize: constraints should have at most 4 point maps and associated deltas.
-   * It should be possible to unroll the mapping loop and use only a single group mask iteration.
-   */
-  const IndexRange points_range = variables.positions.index_range();
-  for (const int map_i : mapping.index_range()) {
-    const VArraySpan<int> map = mapping[map_i];
-    active_mask.foreach_index(GrainSize(4096), [&](const int index) {
-      const int point = map[index];
-      if (points_range.contains(point)) {
-        ++point_weights[point];
-      }
-    });
-    if (delta_velocities[map_i]) {
-      const VArraySpan<float3> delta_vel = delta_velocities[map_i];
-      active_mask.foreach_index(GrainSize(4096), [&](const int index) {
-        const int point = map[index];
-        if (points_range.contains(point)) {
-          point_delta_velocities[point] += delta_vel[index];
-        }
-      });
-    }
-    if (delta_angular_velocities[map_i]) {
-      const VArraySpan<float3> delta_angvel = delta_angular_velocities[map_i];
-      active_mask.foreach_index(GrainSize(4096), [&](const int index) {
-        const int point = map[index];
-        if (points_range.contains(point)) {
-          point_delta_angular_velocities[point] += delta_angvel[index];
-        }
-      });
-    }
-  }
-
-  if (eval_params.debug_recorder) {
-    const std::string label = fmt::format("Evaluate: {}", constraint_info.ui_name);
-    eval_params.debug_recorder->record_step(
-        label, &constraints, constraint_info.type_code, active_mask, variables);
-  }
-}
-
-/* A closure and associated solver group masks. */
-struct ConstraintEvalData {
-  const ConstraintTypeInfo *type;
-  std::optional<GeometrySet> geometry;
-  IndexRange constraints;
-  Vector<IndexMask> group_masks;
-};
 
 static void do_gauss_seidel_step(const EvaluationTarget target,
                                  const ConstraintEvalParams &eval_params,
@@ -676,13 +322,13 @@ static void warm_start_solver(EvaluationTarget target,
   }
 }
 
-static void do_solver_steps(const SolverMethod method,
-                            const int steps,
-                            const EvaluationTarget target,
-                            const ConstraintInit init_mode,
-                            const ConstraintEvalParams &eval_params,
-                            MutableSpan<ConstraintEvalData> constraint_data,
-                            ConstraintVariables &variables)
+static void do_solver_iterations(const SolverMethod method,
+                                 const int iterations,
+                                 const EvaluationTarget target,
+                                 const ConstraintInit init_mode,
+                                 const ConstraintEvalParams &eval_params,
+                                 MutableSpan<ConstraintEvalData> constraint_data,
+                                 ConstraintVariables &variables)
 {
   switch (init_mode) {
     case ConstraintInit::ZeroInit:
@@ -693,29 +339,35 @@ static void do_solver_steps(const SolverMethod method,
       break;
   }
 
-  std::string label;
-  switch (target) {
-    case EvaluationTarget::Positions:
-      label = fmt::format("Init position target, ");
-      break;
-    case EvaluationTarget::Velocities:
-      label = fmt::format("Init velocity target, ");
-      break;
-  }
-  switch (method) {
-    case SolverMethod::GaussSeidel:
-      label = fmt::format("{}, Gauss-Seidel steps", label);
-      break;
-    case SolverMethod::Jacobi:
-      label = fmt::format("{}, Jacobi steps", label);
-      break;
-  }
   if (eval_params.debug_recorder) {
+    std::string label;
+    switch (target) {
+      case EvaluationTarget::Positions:
+        label = fmt::format("Init position target, ");
+        break;
+      case EvaluationTarget::Velocities:
+        label = fmt::format("Init velocity target, ");
+        break;
+    }
+    switch (method) {
+      case SolverMethod::Global:
+        label = fmt::format("{}, Global steps", label);
+        break;
+      case SolverMethod::GaussSeidel:
+        label = fmt::format("{}, Gauss-Seidel steps", label);
+        break;
+      case SolverMethod::Jacobi:
+        label = fmt::format("{}, Jacobi steps", label);
+        break;
+    }
     eval_params.debug_recorder->record_step(label, nullptr, -1, {}, variables);
   }
 
-  for ([[maybe_unused]] const int step : IndexRange(steps)) {
+  for ([[maybe_unused]] const int i : IndexRange(iterations)) {
     switch (method) {
+      case SolverMethod::Global:
+        do_global_solve(target, eval_params, constraint_data, variables);
+        break;
       case SolverMethod::GaussSeidel:
         do_gauss_seidel_step(target, eval_params, constraint_data, variables);
         break;
@@ -752,14 +404,14 @@ static ConstraintEvalParams extract_eval_params(GeoNodeExecParams params)
   return eval_params;
 }
 
-static Vector<IndexMask> build_group_masks(const VArray<int> &solver_groups,
+static Vector<IndexMask> build_group_masks(const IndexMask &constraints,
+                                           const VArray<int> &solver_groups,
                                            IndexMaskMemory &memory)
 {
   if (solver_groups.is_empty()) {
     return {};
   }
 
-  const IndexRange constraints = solver_groups.index_range();
   VectorSet<int> unique_group_ids;
   Vector<IndexMask> group_index_masks = IndexMask::from_group_ids(
       constraints, solver_groups, memory, unique_group_ids);
@@ -809,9 +461,11 @@ static void get_constraint_data(GeoNodeExecParams params,
       const VArray<int> solver_groups = *attributes.lookup_or_default<int>(
           "solver_group", AttrDomain::Point, 0);
 
-      Vector<IndexMask> group_masks = build_group_masks(std::move(solver_groups), memory);
+      IndexMask constraints_mask = IndexRange(attributes.domain_size(AttrDomain::Point));
+      Vector<IndexMask> group_masks = build_group_masks(
+          constraints_mask, std::move(solver_groups), memory);
       constraint_data[i].geometry = std::move(geometry_set);
-      constraint_data[i].constraints = IndexRange(attributes.domain_size(AttrDomain::Point));
+      constraint_data[i].constraints = std::move(constraints_mask);
       constraint_data[i].group_masks = std::move(group_masks);
     }
     else {
@@ -839,8 +493,10 @@ static void node_geo_exec_positions(GeoNodeExecParams params)
 {
   ConstraintInit init_mode = params.extract_input<bool>("Warm Start") ? ConstraintInit::WarmStart :
                                                                         ConstraintInit::ZeroInit;
-  const int gauss_seidel_steps = std::max(params.extract_input<int>("Gauss-Seidel Steps"), 0);
-  const int jacobi_steps = std::max(params.extract_input<int>("Jacobi Steps"), 0);
+  const int global_iterations = (params.extract_input<bool>("Use Global Solve") ? 1 : 0);
+  const int gauss_seidel_iterations = std::max(
+      params.extract_input<int>("Gauss-Seidel Iterations"), 0);
+  const int jacobi_iterations = std::max(params.extract_input<int>("Jacobi Iterations"), 0);
   GeometrySet geometry_set = params.extract_input<GeometrySet>("Geometry");
   Field<float3> position_field = params.extract_input<Field<float3>>("Position");
   Field<math::Quaternion> rotation_field = params.extract_input<Field<math::Quaternion>>(
@@ -866,7 +522,6 @@ static void node_geo_exec_positions(GeoNodeExecParams params)
   Vector<ConstraintEvalData> constraint_data;
   IndexMaskMemory memory;
   get_constraint_data(params, debug_output, constraint_data, memory);
-
 
   static const Array<GeometryComponent::Type> types = {bke::GeometryComponent::Type::Mesh,
                                                        bke::GeometryComponent::Type::PointCloud,
@@ -910,20 +565,27 @@ static void node_geo_exec_positions(GeoNodeExecParams params)
          * colliders. */
         eval_params.old_collider_transforms = eval_params.collider_transforms;
 
-        do_solver_steps(SolverMethod::GaussSeidel,
-                        gauss_seidel_steps,
-                        EvaluationTarget::Positions,
-                        init_mode,
-                        eval_params,
-                        constraint_data,
-                        vars);
-        do_solver_steps(SolverMethod::Jacobi,
-                        jacobi_steps,
-                        EvaluationTarget::Positions,
-                        init_mode,
-                        eval_params,
-                        constraint_data,
-                        vars);
+        do_solver_iterations(SolverMethod::Global,
+                             global_iterations,
+                             EvaluationTarget::Positions,
+                             init_mode,
+                             eval_params,
+                             constraint_data,
+                             vars);
+        do_solver_iterations(SolverMethod::GaussSeidel,
+                             gauss_seidel_iterations,
+                             EvaluationTarget::Positions,
+                             init_mode,
+                             eval_params,
+                             constraint_data,
+                             vars);
+        do_solver_iterations(SolverMethod::Jacobi,
+                             jacobi_iterations,
+                             EvaluationTarget::Positions,
+                             init_mode,
+                             eval_params,
+                             constraint_data,
+                             vars);
 
         if (position_output_id) {
           AttributeWriter<float3> positions_writer = attributes->lookup_or_add_for_write<float3>(
@@ -956,8 +618,10 @@ static void node_geo_exec_velocities(GeoNodeExecParams params)
   const ConstraintInit init_mode = params.extract_input<bool>("Warm Start") ?
                                        ConstraintInit::WarmStart :
                                        ConstraintInit::ZeroInit;
-  const int gauss_seidel_steps = std::max(params.extract_input<int>("Gauss-Seidel Steps"), 0);
-  const int jacobi_steps = std::max(params.extract_input<int>("Jacobi Steps"), 0);
+  const int global_iterations = (params.extract_input<bool>("Use Global Solve") ? 1 : 0);
+  const int gauss_seidel_iterations = std::max(
+      params.extract_input<int>("Gauss-Seidel Iterations"), 0);
+  const int jacobi_iterations = std::max(params.extract_input<int>("Jacobi Iterations"), 0);
   GeometrySet geometry_set = params.extract_input<GeometrySet>("Geometry");
   Field<float3> position_field = params.extract_input<Field<float3>>("Position");
   Field<math::Quaternion> rotation_field = params.extract_input<Field<math::Quaternion>>(
@@ -985,7 +649,6 @@ static void node_geo_exec_velocities(GeoNodeExecParams params)
   Vector<ConstraintEvalData> constraint_data;
   IndexMaskMemory memory;
   get_constraint_data(params, debug_output, constraint_data, memory);
-
 
   static const Array<GeometryComponent::Type> types = {bke::GeometryComponent::Type::Mesh,
                                                        bke::GeometryComponent::Type::PointCloud,
@@ -1034,20 +697,27 @@ static void node_geo_exec_velocities(GeoNodeExecParams params)
          * colliders. */
         eval_params.old_collider_transforms = eval_params.collider_transforms;
 
-        do_solver_steps(SolverMethod::GaussSeidel,
-                        gauss_seidel_steps,
-                        EvaluationTarget::Velocities,
-                        init_mode,
-                        eval_params,
-                        constraint_data,
-                        vars);
-        do_solver_steps(SolverMethod::Jacobi,
-                        jacobi_steps,
-                        EvaluationTarget::Velocities,
-                        init_mode,
-                        eval_params,
-                        constraint_data,
-                        vars);
+        do_solver_iterations(SolverMethod::Global,
+                             global_iterations,
+                             EvaluationTarget::Velocities,
+                             init_mode,
+                             eval_params,
+                             constraint_data,
+                             vars);
+        do_solver_iterations(SolverMethod::GaussSeidel,
+                             gauss_seidel_iterations,
+                             EvaluationTarget::Velocities,
+                             init_mode,
+                             eval_params,
+                             constraint_data,
+                             vars);
+        do_solver_iterations(SolverMethod::Jacobi,
+                             jacobi_iterations,
+                             EvaluationTarget::Velocities,
+                             init_mode,
+                             eval_params,
+                             constraint_data,
+                             vars);
 
         if (velocity_output_id) {
           AttributeWriter<float3> velocities_writer = attributes->lookup_or_add_for_write<float3>(

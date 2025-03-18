@@ -16,7 +16,7 @@ namespace blender::nodes::xpbd_constraints {
 constexpr GrainSize constraint_grain_size = GrainSize(1024);
 
 template<typename T>
-static AttributeReader<T> lookup_or_warn(AttributeAccessor &attributes,
+static AttributeReader<T> lookup_or_warn(const AttributeAccessor &attributes,
                                          const StringRef attribute_id,
                                          const AttrDomain domain,
                                          const T &default_value,
@@ -150,6 +150,84 @@ static void position_goal__init_position_step(bke::GeometrySet &constraints)
   lambda_writer.finish();
 }
 
+static void position_goal__linear_solve_size(int &r_num_components,
+                                             int &r_num_position_vars,
+                                             int &r_num_rotation_vars,
+                                             bool &r_use_active_mask)
+{
+  r_num_components = 1;
+  r_num_position_vars = 1;
+  r_num_rotation_vars = 0;
+  r_use_active_mask = false;
+}
+
+static void position_goal__linear_solve_variables(const bke::AttributeAccessor &attributes,
+                                                  const IndexMask &selection,
+                                                  MutableSpan<int> r_position_indices[4],
+                                                  MutableSpan<int> /*r_rotation_indices*/[4])
+{
+  const VArraySpan<int> points = *attributes.lookup_or_default<int>(
+      ATTR_POINT1, AttrDomain::Point, 0);
+
+  MutableSpan<int> position_indices = r_position_indices[0];
+  selection.foreach_index(constraint_grain_size, [&](const int index, const int pos) {
+    position_indices[pos] = points[index];
+  });
+}
+
+static void position_goal__linear_solve_elements(const ConstraintEvalParams &params,
+                                                 const ConstraintVariables &variables,
+                                                 const bke::AttributeAccessor &attributes,
+                                                 const IndexMask &selection,
+                                                 GMutableSpan r_alphas,
+                                                 GMutableSpan r_betas,
+                                                 GMutableSpan r_residuals,
+                                                 GMutableSpan r_position_gradients[4],
+                                                 GMutableSpan /*r_rotation_gradients*/[4],
+                                                 MutableSpan<bool> /*r_active*/)
+{
+  // r_alphas = GField(AttributeFieldInput::Create(ATTR_ALPHA, CPPType::get<float>()));
+  // r_betas = GField(AttributeFieldInput::Create(ATTR_BETA, CPPType::get<float>()));
+
+  // GField goal_positions = AttributeFieldInput::Create(ATTR_BETA, CPPType::get<float>());
+
+  // static auto elements_fn = mf::build::SI2_SO2<float3, float3, float, float3>(
+  //     "XPBD Position Goal Elements",
+  //     eval_position_goal_elements,
+  //     mf::build::exec_presets::Materialized());
+  // r_residuals = GField(
+  //     FieldOperation::Create(elements_fn, {std::move(goal_positions), variables.positions}));
+
+  const VArraySpan<int> points = *lookup_or_warn<int>(
+      attributes, ATTR_POINT1, AttrDomain::Point, 0, params.error_message_add);
+  const VArraySpan<float> alphas_attr = *attributes.lookup_or_default<float>(
+      ATTR_ALPHA, AttrDomain::Point, 0.0f);
+  const VArraySpan<float> betas_attr = *attributes.lookup_or_default<float>(
+      ATTR_BETA, AttrDomain::Point, 0.0f);
+  const VArraySpan<float3> goal_positions = *lookup_or_warn<float3>(
+      attributes, "goal_position", AttrDomain::Point, float3(0.0f), params.error_message_add);
+
+  const IndexRange points_range = variables.positions.index_range();
+  const Span<float3> positions = variables.positions;
+  MutableSpan<float> alphas = r_alphas.typed<float>();
+  MutableSpan<float> betas = r_betas.typed<float>();
+  MutableSpan<float> residuals = r_residuals.typed<float>();
+  MutableSpan<float3> position_gradients = r_position_gradients[0].typed<float3>();
+
+  selection.foreach_index(constraint_grain_size, [&](const int index, const int pos) {
+    const int point = points[index];
+    if (!points_range.contains(point)) {
+      return;
+    }
+    const float3 &goal = goal_positions[index];
+
+    alphas[pos] = alphas_attr[index];
+    betas[pos] = betas_attr[index];
+    xpbd_constraints::eval_position_goal_elements(
+        goal, positions[point], residuals[pos], position_gradients[pos]);
+  });
+}
+
 template<bool debug_output>
 static void rotation_goal__eval_positions(const ConstraintEvalParams &params,
                                           const ConstraintVariables &variables,
@@ -177,24 +255,19 @@ static void rotation_goal__eval_positions(const ConstraintEvalParams &params,
       AttrDomain::Point,
       math::Quaternion::identity(),
       params.error_message_add);
-  SpanAttributeWriter<float> lambda_w_writer = attributes->lookup_or_add_for_write_span<float>(
-      "lambda_w", AttrDomain::Point);
-  SpanAttributeWriter<float3> lambda_xyz_writer = attributes->lookup_or_add_for_write_span<float3>(
-      "lambda_xyz", AttrDomain::Point);
+  SpanAttributeWriter<float3> lambda_writer = attributes->lookup_or_add_for_write_span<float3>(
+      "lambda", AttrDomain::Point);
   SpanAttributeWriter<float> delta_rotation_w_writer =
       attributes->lookup_or_add_for_write_span<float>("delta_rotation_w", AttrDomain::Point);
   SpanAttributeWriter<float3> delta_rotation_xyz_writer =
       attributes->lookup_or_add_for_write_span<float3>("delta_rotation_xyz", AttrDomain::Point);
-  SpanAttributeWriter<float> residual_w_writer;
-  SpanAttributeWriter<float3> residual_xyz_writer;
+  SpanAttributeWriter<float3> residual_writer;
   if constexpr (debug_output) {
-    residual_w_writer = attributes->lookup_or_add_for_write_span<float>("residual_w",
-                                                                        AttrDomain::Point);
-    residual_xyz_writer = attributes->lookup_or_add_for_write_span<float3>("residual_xyz",
-                                                                           AttrDomain::Point);
+    residual_writer = attributes->lookup_or_add_for_write_span<float3>("residual",
+                                                                       AttrDomain::Point);
   }
   else {
-    UNUSED_VARS(residual_w_writer, residual_xyz_writer);
+    UNUSED_VARS(residual_writer);
   }
 
   const IndexRange points_range = variables.positions.index_range();
@@ -207,14 +280,12 @@ static void rotation_goal__eval_positions(const ConstraintEvalParams &params,
       return;
     }
     const math::Quaternion &goal = goal_rotations[index];
-    float &lambda_w = lambda_w_writer.span[index];
-    float3 &lambda_xyz = lambda_xyz_writer.span[index];
+    float3 &lambda = lambda_writer.span[index];
     float &delta_rotation_w = delta_rotation_w_writer.span[index];
     float3 &delta_rotation_xyz = delta_rotation_xyz_writer.span[index];
 
-    const float4 lambda = float4(lambda_w, lambda_xyz);
-    float4 residual;
-    float4 delta_lambda;
+    float3 residual;
+    float3 delta_lambda;
     float4 delta_rotation;
     if constexpr (use_damping) {
       const float alpha = alphas[index] * params.inv_delta_time_squared;
@@ -242,23 +313,19 @@ static void rotation_goal__eval_positions(const ConstraintEvalParams &params,
                                                                    delta_rotation);
     }
 
-    lambda_w += delta_lambda.x;
-    lambda_xyz += delta_lambda.yzw();
+    lambda += delta_lambda;
     delta_rotation_w = delta_rotation.x;
     delta_rotation_xyz = delta_rotation.yzw();
     if constexpr (debug_output) {
-      residual_w_writer.span[index] = residual.w;
-      residual_xyz_writer.span[index] = residual.xyz();
+      residual_writer.span[index] = residual;
     }
   });
 
-  lambda_w_writer.finish();
-  lambda_xyz_writer.finish();
+  lambda_writer.finish();
   delta_rotation_w_writer.finish();
   delta_rotation_xyz_writer.finish();
   if constexpr (debug_output) {
-    residual_w_writer.finish();
-    residual_xyz_writer.finish();
+    residual_writer.finish();
   }
 
   r_active = VArray<bool>::ForSingle(true, attributes->domain_size(AttrDomain::Point));
@@ -287,16 +354,12 @@ static void rotation_goal__init_position_step(bke::GeometrySet &constraints)
   PointCloudComponent &component = constraints.get_component_for_write<PointCloudComponent>();
   std::optional<bke::MutableAttributeAccessor> attributes = component.attributes_for_write();
 
-  SpanAttributeWriter<float> lambda_w_writer = attributes->lookup_or_add_for_write_span<float>(
-      "lambda_w", AttrDomain::Point);
-  SpanAttributeWriter<float3> lambda_xyz_writer = attributes->lookup_or_add_for_write_span<float3>(
-      "lambda_xyz", AttrDomain::Point);
+  SpanAttributeWriter<float3> lambda_writer = attributes->lookup_or_add_for_write_span<float3>(
+      "lambda", AttrDomain::Point);
 
-  lambda_w_writer.span.fill(0.0f);
-  lambda_xyz_writer.span.fill(float3(0.0f));
+  lambda_writer.span.fill(float3(0.0f));
 
-  lambda_w_writer.finish();
-  lambda_xyz_writer.finish();
+  lambda_writer.finish();
 }
 
 template<bool debug_output>
@@ -490,14 +553,10 @@ static void bend_twist__eval_positions(const ConstraintEvalParams &params,
   VArraySpan<float> betas = *attributes->lookup_or_default<float>(
       ATTR_BETA, AttrDomain::Point, 0.0f);
   /* XXX plain float4 attribute is not supported, have to store it as float + float3. */
-  VArraySpan<float> darboux_w = *lookup_or_warn<float>(
-      *attributes, "darboux_w", AttrDomain::Point, float(0.0f), params.error_message_add);
-  VArraySpan<float3> darboux_xyz = *lookup_or_warn<float3>(
-      *attributes, "darboux_xyz", AttrDomain::Point, float3(0.0f), params.error_message_add);
-  SpanAttributeWriter<float> lambda_w_writer = attributes->lookup_or_add_for_write_span<float>(
-      "lambda_w", AttrDomain::Point);
-  SpanAttributeWriter<float3> lambda_xyz_writer = attributes->lookup_or_add_for_write_span<float3>(
-      "lambda_xyz", AttrDomain::Point);
+  VArraySpan<float3> darboux = *lookup_or_warn<float3>(
+      *attributes, "darboux", AttrDomain::Point, float3(0.0f), params.error_message_add);
+  SpanAttributeWriter<float3> lambda_writer = attributes->lookup_or_add_for_write_span<float3>(
+      "lambda", AttrDomain::Point);
   SpanAttributeWriter<float> delta_rotation1_w_writer =
       attributes->lookup_or_add_for_write_span<float>("delta_rotation1_w", AttrDomain::Point);
   SpanAttributeWriter<float3> delta_rotation1_xyz_writer =
@@ -507,16 +566,13 @@ static void bend_twist__eval_positions(const ConstraintEvalParams &params,
   SpanAttributeWriter<float3> delta_rotation2_xyz_writer =
       attributes->lookup_or_add_for_write_span<float3>("delta_rotation2_xyz", AttrDomain::Point);
 
-  SpanAttributeWriter<float> residual_w_writer;
-  SpanAttributeWriter<float3> residual_xyz_writer;
+  SpanAttributeWriter<float3> residual_writer;
   if constexpr (debug_output) {
-    residual_w_writer = attributes->lookup_or_add_for_write_span<float>("residual_w",
-                                                                        AttrDomain::Point);
-    residual_xyz_writer = attributes->lookup_or_add_for_write_span<float3>("residual_xyz",
-                                                                           AttrDomain::Point);
+    residual_writer = attributes->lookup_or_add_for_write_span<float3>("residual",
+                                                                       AttrDomain::Point);
   }
   else {
-    UNUSED_VARS(residual_w_writer, residual_xyz_writer);
+    UNUSED_VARS(residual_writer);
   }
 
   const IndexRange points_range = variables.positions.index_range();
@@ -531,17 +587,15 @@ static void bend_twist__eval_positions(const ConstraintEvalParams &params,
     }
     const float weight_rot1 = params.rotation_weights[point1];
     const float weight_rot2 = params.rotation_weights[point2];
-    const math::Quaternion darboux_vector = math::Quaternion(darboux_w[index], darboux_xyz[index]);
-    float &lambda_w = lambda_w_writer.span[index];
-    float3 &lambda_xyz = lambda_xyz_writer.span[index];
+    const float3 &darboux_vector = darboux[index];
+    float3 &lambda = lambda_writer.span[index];
     float &delta_rotation1_w = delta_rotation1_w_writer.span[index];
     float3 &delta_rotation1_xyz = delta_rotation1_xyz_writer.span[index];
     float &delta_rotation2_w = delta_rotation2_w_writer.span[index];
     float3 &delta_rotation2_xyz = delta_rotation2_xyz_writer.span[index];
 
-    const float4 lambda = float4(lambda_w, lambda_xyz);
-    float4 residual;
-    float4 delta_lambda;
+    float3 residual;
+    float3 delta_lambda;
     float4 delta_rotation1, delta_rotation2;
     if constexpr (use_damping) {
       const float alpha = alphas[index] * params.inv_delta_time_squared;
@@ -580,27 +634,23 @@ static void bend_twist__eval_positions(const ConstraintEvalParams &params,
           delta_rotation2);
     }
 
-    lambda_w += delta_lambda.x;
-    lambda_xyz += delta_lambda.yzw();
+    lambda += delta_lambda;
     delta_rotation1_w = delta_rotation1.x;
     delta_rotation1_xyz = delta_rotation1.yzw();
     delta_rotation2_w = delta_rotation2.x;
     delta_rotation2_xyz = delta_rotation2.yzw();
     if constexpr (debug_output) {
-      residual_w_writer.span[index] = residual.w;
-      residual_xyz_writer.span[index] = residual.xyz();
+      residual_writer.span[index] = residual;
     }
   });
 
-  lambda_w_writer.finish();
-  lambda_xyz_writer.finish();
+  lambda_writer.finish();
   delta_rotation1_w_writer.finish();
   delta_rotation1_xyz_writer.finish();
   delta_rotation2_w_writer.finish();
   delta_rotation2_xyz_writer.finish();
   if constexpr (debug_output) {
-    residual_w_writer.finish();
-    residual_xyz_writer.finish();
+    residual_writer.finish();
   }
 
   r_active = VArray<bool>::ForSingle(true, attributes->domain_size(AttrDomain::Point));
@@ -630,6 +680,84 @@ static Vector<VArray<int>> bend_twist__get_mapping(const bke::GeometrySet &const
 
   return {*attributes.lookup_or_default<int>(ATTR_POINT1, AttrDomain::Point, 0),
           *attributes.lookup_or_default<int>(ATTR_POINT2, AttrDomain::Point, 0)};
+}
+
+static void bend_twist__linear_solve_size(int &r_num_components,
+                                          int &r_num_position_vars,
+                                          int &r_num_rotation_vars,
+                                          bool &r_use_active_mask)
+{
+  r_num_components = 3;
+  r_num_position_vars = 0;
+  r_num_rotation_vars = 2;
+  r_use_active_mask = false;
+}
+
+static void bend_twist__linear_solve_variables(const bke::AttributeAccessor &attributes,
+                                               const IndexMask &selection,
+                                               MutableSpan<int> /*r_position_indices*/[4],
+                                               MutableSpan<int> r_rotation_indices[4])
+{
+  const VArraySpan<int> points1 = *attributes.lookup_or_default<int>(
+      ATTR_POINT1, AttrDomain::Point, 0);
+  const VArraySpan<int> points2 = *attributes.lookup_or_default<int>(
+      ATTR_POINT2, AttrDomain::Point, 0);
+
+  MutableSpan<int> rotation_indices1 = r_rotation_indices[0];
+  MutableSpan<int> rotation_indices2 = r_rotation_indices[1];
+  selection.foreach_index(constraint_grain_size, [&](const int index, const int pos) {
+    rotation_indices1[pos] = points1[index];
+    rotation_indices2[pos] = points2[index];
+  });
+}
+
+static void bend_twist__linear_solve_elements(const ConstraintEvalParams &params,
+                                              const ConstraintVariables &variables,
+                                              const bke::AttributeAccessor &attributes,
+                                              const IndexMask &selection,
+                                              GMutableSpan r_alphas,
+                                              GMutableSpan r_betas,
+                                              GMutableSpan r_residuals,
+                                              GMutableSpan /*r_position_gradients*/[4],
+                                              GMutableSpan r_rotation_gradients[4],
+                                              MutableSpan<bool> /*r_active*/)
+{
+  const VArraySpan<int> points1 = *lookup_or_warn<int>(
+      attributes, ATTR_POINT1, AttrDomain::Point, 0, params.error_message_add);
+  const VArraySpan<int> points2 = *lookup_or_warn<int>(
+      attributes, ATTR_POINT2, AttrDomain::Point, 0, params.error_message_add);
+  const VArraySpan<float3> alphas_attr = *attributes.lookup_or_default<float3>(
+      ATTR_ALPHA, AttrDomain::Point, float3(0.0f));
+  const VArraySpan<float3> betas_attr = *attributes.lookup_or_default<float3>(
+      ATTR_BETA, AttrDomain::Point, float3(0.0f));
+  const VArraySpan<float3> darboux_vectors = *lookup_or_warn<float3>(
+      attributes, "darboux_vector", AttrDomain::Point, float3(0.0f), params.error_message_add);
+
+  const IndexRange points_range = variables.rotations.index_range();
+  const Span<math::Quaternion> rotations = variables.rotations;
+  MutableSpan<float3> alphas = r_alphas.typed<float3>();
+  MutableSpan<float3> betas = r_betas.typed<float3>();
+  MutableSpan<float3> residuals = r_residuals.typed<float3>();
+  MutableSpan<float4x4> rotation_gradients1 = r_rotation_gradients[0].typed<float4x4>();
+  MutableSpan<float4x4> rotation_gradients2 = r_rotation_gradients[1].typed<float4x4>();
+
+  selection.foreach_index(constraint_grain_size, [&](const int index, const int pos) {
+    const int point1 = points1[index];
+    const int point2 = points2[index];
+    if (!points_range.contains(point1) || !points_range.contains(point2)) {
+      return;
+    }
+    const float3 &darboux_vector = darboux_vectors[index];
+
+    alphas[pos] = alphas_attr[index];
+    betas[pos] = betas_attr[index];
+    xpbd_constraints::eval_bend_twist_elements(darboux_vector,
+                                               rotations[point1],
+                                               rotations[point2],
+                                               residuals[pos],
+                                               rotation_gradients1[pos],
+                                               rotation_gradients2[pos]);
+  });
 }
 
 static void bend_twist__init_position_step(bke::GeometrySet &constraints)
@@ -963,6 +1091,103 @@ static Vector<VArray<int>> contact__get_mapping(const bke::GeometrySet &constrai
   return {*attributes.lookup_or_default<int>(ATTR_POINT1, AttrDomain::Point, 0)};
 }
 
+static void contact__linear_solve_size(int &r_num_components,
+                                       int &r_num_position_vars,
+                                       int &r_num_rotation_vars,
+                                       bool &r_use_active_mask)
+{
+  r_num_components = 1;
+  r_num_position_vars = 1;
+  r_num_rotation_vars = 1;
+  r_use_active_mask = true;
+}
+
+static void contact__linear_solve_variables(const bke::AttributeAccessor &attributes,
+                                            const IndexMask &selection,
+                                            MutableSpan<int> r_position_indices[4],
+                                            MutableSpan<int> r_rotation_indices[4])
+{
+  const VArraySpan<int> points1 = *attributes.lookup_or_default<int>(
+      ATTR_POINT1, AttrDomain::Point, 0);
+
+  MutableSpan<int> position_indices1 = r_position_indices[0];
+  MutableSpan<int> rotation_indices1 = r_rotation_indices[0];
+  selection.foreach_index(constraint_grain_size, [&](const int index, const int pos) {
+    position_indices1[pos] = points1[index];
+    rotation_indices1[pos] = points1[index];
+  });
+}
+
+static void contact__linear_solve_elements(const ConstraintEvalParams &params,
+                                           const ConstraintVariables &variables,
+                                           const bke::AttributeAccessor &attributes,
+                                           const IndexMask &selection,
+                                           GMutableSpan r_alphas,
+                                           GMutableSpan r_betas,
+                                           GMutableSpan r_residuals,
+                                           GMutableSpan r_position_gradients[4],
+                                           GMutableSpan r_rotation_gradients[4],
+                                           MutableSpan<bool> r_active)
+{
+  VArraySpan<int> points1 = *lookup_or_warn<int>(
+      attributes, ATTR_POINT1, AttrDomain::Point, 0, params.error_message_add);
+  VArraySpan<int> collider_indices = *lookup_or_warn<int>(
+      attributes, "collider_index", AttrDomain::Point, 0, params.error_message_add);
+  VArraySpan<float3> local_positions1 = *lookup_or_warn<float3>(
+      attributes, "local_position1", AttrDomain::Point, float3(0.0f), params.error_message_add);
+  VArraySpan<float3> local_positions2 = *lookup_or_warn<float3>(
+      attributes, "local_position2", AttrDomain::Point, float3(0.0f), params.error_message_add);
+  VArraySpan<float3> normals = *lookup_or_warn<float3>(
+      attributes, "normal", AttrDomain::Point, float3(0.0f), params.error_message_add);
+
+  const IndexRange points_range = variables.rotations.index_range();
+  const Span<float3> positions = variables.positions;
+  const Span<math::Quaternion> rotations = variables.rotations;
+  MutableSpan<float> alphas = r_alphas.typed<float>();
+  MutableSpan<float> betas = r_betas.typed<float>();
+  MutableSpan<float> residuals = r_residuals.typed<float>();
+  MutableSpan<float3> position_gradients1 = r_position_gradients[0].typed<float3>();
+  MutableSpan<float4> rotation_gradients1 = r_rotation_gradients[0].typed<float4>();
+
+  selection.foreach_index(constraint_grain_size, [&](const int index, const int pos) {
+    const int point1 = points1[index];
+    const int collider_index = collider_indices[index];
+    if (!points_range.contains(point1) ||
+        !params.collider_transforms.index_range().contains(collider_index))
+    {
+      return;
+    }
+
+    /* Compliance and damping ignored for collisions. */
+    alphas[pos] = 0.0f;
+    betas[pos] = 0.0f;
+
+    const float4x4 collider_transform = params.collider_transforms[collider_index];
+    float3 collider_position;
+    math::Quaternion collider_rotation;
+    float3 collider_scale;
+    math::to_loc_rot_scale(
+        collider_transform, collider_position, collider_rotation, collider_scale);
+
+    float3 collider_position_gradient;
+    float4 collider_rotation_gradient;
+    const bool active = xpbd_constraints::eval_contact_position_elements(
+        local_positions1[point1],
+        local_positions2[point1],
+        normals[point1],
+        positions[point1],
+        collider_position,
+        rotations[point1],
+        collider_rotation,
+        residuals[pos],
+        position_gradients1[pos],
+        collider_position_gradient,
+        rotation_gradients1[pos],
+        collider_rotation_gradient);
+    r_active[pos] = active;
+  });
+}
+
 static void contact__init_position_step(bke::GeometrySet &constraints)
 {
   PointCloudComponent &component = constraints.get_component_for_write<PointCloudComponent>();
@@ -993,25 +1218,39 @@ static void contact__init_velocity_step(bke::GeometrySet &constraints)
   friction_lambda_writer.finish();
 }
 
-template<bool debug_output> static Array<ConstraintTypeInfo> create_constraint_info()
+template<bool debug_output> static ConstraintTypeInfo create_info__position_goal()
 {
-  ConstraintTypeInfo position_goal_info = {"Position Goal Constraints",
-                                           "Set position of a point to a target vector",
-                                           0,
-                                           position_goal__init_position_step,
-                                           {},
-                                           position_goal__eval_positions<debug_output>,
-                                           {},
-                                           position_goal__get_mapping};
-  ConstraintTypeInfo rotation_goal_info = {"Rotation Goal Constraints",
-                                           "Set orientation of an edge to a target rotation",
-                                           1,
-                                           rotation_goal__init_position_step,
-                                           {},
-                                           rotation_goal__eval_positions<debug_output>,
-                                           {},
-                                           rotation_goal__get_mapping};
-  ConstraintTypeInfo stretch_shear_info = {
+  return ConstraintTypeInfo{"Position Goal Constraints",
+                            "Set position of a point to a target vector",
+                            0,
+                            position_goal__init_position_step,
+                            {},
+                            position_goal__eval_positions<debug_output>,
+                            {},
+                            position_goal__get_mapping,
+                            position_goal__linear_solve_size,
+                            position_goal__linear_solve_variables,
+                            position_goal__linear_solve_elements};
+}
+
+template<bool debug_output> static ConstraintTypeInfo create_info__rotation_goal()
+{
+  return ConstraintTypeInfo{"Rotation Goal Constraints",
+                            "Set orientation of an edge to a target rotation",
+                            1,
+                            rotation_goal__init_position_step,
+                            {},
+                            rotation_goal__eval_positions<debug_output>,
+                            {},
+                            rotation_goal__get_mapping,
+                            {},
+                            {},
+                            {}};
+}
+
+template<bool debug_output> static ConstraintTypeInfo create_info__stretch_shear()
+{
+  return ConstraintTypeInfo{
       "Stretch/Shear Constraints",
       "Enforces edge length and aligns forward direction with the edge vector",
       2,
@@ -1019,8 +1258,15 @@ template<bool debug_output> static Array<ConstraintTypeInfo> create_constraint_i
       {},
       stretch_shear__eval_positions<debug_output>,
       {},
-      stretch_shear__get_mapping};
-  ConstraintTypeInfo bend_twist_info = {
+      stretch_shear__get_mapping,
+      {},
+      {},
+      {}};
+}
+
+template<bool debug_output> static ConstraintTypeInfo create_info__bend_twist()
+{
+  return ConstraintTypeInfo{
       "Bend/Twist Constraints",
       "Enforces angles between neighboring edges to their relative rest orientation",
       3,
@@ -1028,34 +1274,81 @@ template<bool debug_output> static Array<ConstraintTypeInfo> create_constraint_i
       {},
       bend_twist__eval_positions<debug_output>,
       {},
-      bend_twist__get_mapping};
-  ConstraintTypeInfo contact_info = {"Contact Constraints",
-                                     "Keep contact points from penetrating",
-                                     4,
-                                     contact__init_position_step,
-                                     contact__init_velocity_step,
-                                     contact__eval_positions<debug_output>,
-                                     contact__eval_velocities<debug_output>,
-                                     contact__get_mapping};
+      bend_twist__get_mapping,
+      bend_twist__linear_solve_size,
+      bend_twist__linear_solve_variables,
+      bend_twist__linear_solve_elements};
+}
 
-  /* Order of constraint passes is chosen by increasing "importance":
-   * Later constraints have less residual error, and the last constraint type is solved exactly.
-   */
-  Array<ConstraintTypeInfo> constraint_info = {
-      std::move(bend_twist_info),
-      std::move(stretch_shear_info),
-      std::move(rotation_goal_info),
-      std::move(position_goal_info),
-      std::move(contact_info),
-  };
+template<bool debug_output> static ConstraintTypeInfo create_info__contact()
+{
+  return ConstraintTypeInfo{"Contact Constraints",
+                            "Keep contact points from penetrating",
+                            4,
+                            contact__init_position_step,
+                            contact__init_velocity_step,
+                            contact__eval_positions<debug_output>,
+                            contact__eval_velocities<debug_output>,
+                            contact__get_mapping,
+                            contact__linear_solve_size,
+                            contact__linear_solve_variables,
+                            contact__linear_solve_elements};
+}
 
-  return constraint_info;
+const ConstraintTypeInfo &get_info__position_goal(const bool debug_check)
+{
+  static ConstraintTypeInfo info = create_info__position_goal<false>();
+  static ConstraintTypeInfo info_debug = create_info__position_goal<true>();
+  return debug_check ? info_debug : info;
+}
+
+const ConstraintTypeInfo &get_info__rotation_goal(const bool debug_check)
+{
+  static ConstraintTypeInfo info = create_info__rotation_goal<false>();
+  static ConstraintTypeInfo info_debug = create_info__rotation_goal<true>();
+  return debug_check ? info_debug : info;
+}
+
+const ConstraintTypeInfo &get_info__stretch_shear(const bool debug_check)
+{
+  static ConstraintTypeInfo info = create_info__stretch_shear<false>();
+  static ConstraintTypeInfo info_debug = create_info__stretch_shear<true>();
+  return debug_check ? info_debug : info;
+}
+
+const ConstraintTypeInfo &get_info__bend_twist(const bool debug_check)
+{
+  static ConstraintTypeInfo info = create_info__bend_twist<false>();
+  static ConstraintTypeInfo info_debug = create_info__bend_twist<true>();
+  return debug_check ? info_debug : info;
+}
+
+const ConstraintTypeInfo &get_info__contact(const bool debug_check)
+{
+  static ConstraintTypeInfo info = create_info__contact<false>();
+  static ConstraintTypeInfo info_debug = create_info__contact<true>();
+  return debug_check ? info_debug : info;
 }
 
 Span<ConstraintTypeInfo> get_constraint_info(const bool debug_output)
 {
-  static const Array<ConstraintTypeInfo> constraint_info = create_constraint_info<false>();
-  static const Array<ConstraintTypeInfo> constraint_info_debug = create_constraint_info<true>();
+  /* Order of constraint passes is chosen by increasing "importance":
+   * Later constraints have less residual error, and the last constraint type is solved exactly.
+   */
+  static Array<ConstraintTypeInfo> constraint_info = {
+      get_info__bend_twist(true),
+      get_info__stretch_shear(true),
+      get_info__rotation_goal(true),
+      get_info__position_goal(true),
+      get_info__contact(true),
+  };
+  static Array<ConstraintTypeInfo> constraint_info_debug = {
+      get_info__bend_twist(false),
+      get_info__stretch_shear(false),
+      get_info__rotation_goal(false),
+      get_info__position_goal(false),
+      get_info__contact(false),
+  };
   return debug_output ? constraint_info_debug : constraint_info;
 }
 

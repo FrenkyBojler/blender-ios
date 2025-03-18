@@ -6,7 +6,6 @@
 
 #include <atomic>
 
-#include "BKE_geometry_set.hh"
 #include "BLI_function_ref.hh"
 #include "BLI_math_axis_angle.hh"
 #include "BLI_math_quaternion.hh"
@@ -17,29 +16,13 @@
 
 namespace blender::nodes::xpbd_constraints {
 
+struct ConstraintTypeInfo;
 struct ConstraintVariables;
+struct DebugRecorder;
 
-struct DebugRecorder {
- private:
-  bke::GeometrySet geometry_set_;
-  bke::GeometryComponent::Type component_type_;
-
-  bke::GeometrySet debug_steps_;
-
- public:
-  DebugRecorder(const bke::GeometrySet &debug_steps);
-
-  void set_geometry(const bke::GeometrySet &geometry_set,
-                    bke::GeometryComponent::Type component_type);
-
-  void record_step(const StringRef label,
-                   bke::GeometrySet *constraints,
-                   const int constraint_type_code,
-                   const IndexMask &group_mask,
-                   const ConstraintVariables &variables);
-
-  const bke::GeometrySet &debug_steps() const;
-};
+/* -------------------------------------------------------------------- */
+/** \name Solver Parameters
+ * \{ */
 
 struct ConstraintEvalParams {
   using ErrorFn = FunctionRef<void(const StringRef message)>;
@@ -70,6 +53,11 @@ struct ConstraintEvalParams {
   /** Inverse moment of inertia for constraint influence. */
   VArraySpan<float> rotation_weights;
 
+  /* Linear point masses. */
+  VArraySpan<float> masses;
+  /* Moments of inertia in the local frame. */
+  VArraySpan<float3> local_inertia;
+
   /** Collider transform at the end of the current time. */
   Span<float4x4> collider_transforms;
   /** Collider transforms at the end of the previous frame. */
@@ -87,10 +75,16 @@ struct ConstraintVariables {
   Array<float3> angular_velocities;
 };
 
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Constraint Functions
+ * \{ */
+
 /**
  * Evaluates position constraints based on current geometry state.
- * It should write the results to attributes in the constraints geometry, which are then applied to
- * the geometry by the solver using the constraint mapping.
+ * It should write the results to attributes in the constraints geometry, which are then
+ * applied to the geometry by the solver using the constraint mapping.
  */
 using ConstraintEvalPositionFunc = std::function<void(const ConstraintEvalParams &eval_params,
                                                       const ConstraintVariables &variables,
@@ -112,6 +106,75 @@ using ConstraintEvalVelocityFunc =
                        VArray<bool> &r_active,
                        Vector<VArray<float3>> &r_delta_velocities,
                        Vector<VArray<float3>> &r_delta_angular_velocities)>;
+/**
+ * Returns the number of components used by a constraint.
+ * \param r_num_components Number of components, or Lagrange multipliers (lambda), used by a single
+ * constraint, typically up to 3.
+ * \param r_num_position_vars Number of position variables used by a single constraint, up to 4.
+ * \param r_num_rotation_vars Number of rotation variables used by a single constraint, up to 4.
+ */
+using ConstraintLinearSolveSizeFunc = std::function<void(int &r_num_components,
+                                                         int &r_num_position_vars,
+                                                         int &r_num_rotation_vars,
+                                                         bool &r_use_active_mask)>;
+
+/**
+ * Returns the variable indices used by a constraint.
+ */
+using ConstraintPositionLinearSolveVariablesFunc =
+    std::function<void(const bke::AttributeAccessor &attributes,
+                       const IndexMask &selection,
+                       MutableSpan<int> r_position_indices[4],
+                       MutableSpan<int> r_rotation_indices[4])>;
+
+/**
+ * Compute elements of the constraint matrix for a global linear constraint solve.
+ * The number of components and affected variables is defined by the separate size function.
+ * This also determines the data type of the fields expected from this function (float, float2,
+ * float3).
+ *
+ * Spans are compressed and contain only values for constraints in the index mask.
+ * They must be addressed by the position in the mask, not the index of the constraint.
+ *
+ * Gradients for positions and rotations expand the data type to 3 or 4 rows respectively
+ * (transposed Jacobian derivative matrix):
+ *
+ * | Residual Type | Position Gradient | Rotation Gradient |
+ * |   float       |   float3          |   float4          |
+ * |   float2      |   float2x3        |   float2x4        |
+ * |   float3      |   float3x3        |   float4x4        |
+ *
+ * The function receives up to 4 spans for gradients depending on the number of variables it uses,
+ * as defined by the size function
+ *
+ * The solver constructs a linear system that yields constraint impulses and variable offsets.
+ * For a detailed derivation see for example:
+ *   Kugelstadt, "Direct Position-Based Solver for Stiff Rods", 2018
+ *   Soler, "Cosserat Rods with Projective Dynamics", 2018
+ *
+ * \param params General parameters of the current evaluation.
+ * \param variables Current state of the simulated geometry.
+ * \param attributes Attributes of the constraint data.
+ * \param selection Selection of constraints evaluated by the solver.
+ * \param r_alphas Compliance values (softness).
+ * \param r_betas Damping values.
+ * \param r_residuals Residual values in the current configuration.
+ * \param r_position_gradients Gradients for affected position variables.
+ * \param r_rotation_gradients Gradients for affected rotation variables.
+ * \param r_position_indices Position variable indices.
+ * \param r_rotation_indices Rotation variable indices.
+ */
+using ConstraintPositionLinearSolveElementsFunc =
+    std::function<void(const ConstraintEvalParams &params,
+                       const ConstraintVariables &variables,
+                       const bke::AttributeAccessor &attributes,
+                       const IndexMask &selection,
+                       GMutableSpan r_alphas,
+                       GMutableSpan r_betas,
+                       GMutableSpan r_residuals,
+                       GMutableSpan r_position_gradients[4],
+                       GMutableSpan r_rotation_gradients[4],
+                       MutableSpan<bool> r_active_mask)>;
 
 /**
  * Returns up to 4 index attributes mapping constraints to geometry points.
@@ -120,6 +183,12 @@ using ConstraintMappingFunc =
     std::function<Vector<VArray<int>>(const bke::GeometrySet &constraints)>;
 
 using ConstraintInitStepFunc = std::function<void(bke::GeometrySet &constraints)>;
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Constraint Types
+ * \{ */
 
 struct ConstraintTypeInfo {
   using ErrorFn = ConstraintEvalParams::ErrorFn;
@@ -133,77 +202,26 @@ struct ConstraintTypeInfo {
   ConstraintEvalPositionFunc evaluate_position;
   ConstraintEvalVelocityFunc evaluate_velocity;
   ConstraintMappingFunc get_mapping;
+
+  ConstraintLinearSolveSizeFunc linear_solve_size;
+  ConstraintPositionLinearSolveVariablesFunc linear_solve_variables;
+  ConstraintPositionLinearSolveElementsFunc linear_solve_elements;
 };
+
+const ConstraintTypeInfo &get_info__position_goal(bool debug_check);
+const ConstraintTypeInfo &get_info__rotation_goal(bool debug_check);
+const ConstraintTypeInfo &get_info__stretch_shear(bool debug_check);
+const ConstraintTypeInfo &get_info__bend_twist(bool debug_check);
+const ConstraintTypeInfo &get_info__contact(bool debug_check);
 
 Span<ConstraintTypeInfo> get_constraint_info(bool debug_output);
 Span<ConstraintTypeInfo> get_constraint_info_ordered(bool debug_output);
 
-namespace error_check {
+/** \} */
 
-/* Helper struct for checking that each variable is only written by one constraint.*/
-template<bool enable> struct VariableChecker;
-
-template<> struct VariableChecker<false> {
-  VariableChecker(const IndexRange /*range*/) {}
-
-  bool claim_variable(const int /*index*/)
-  {
-    return true;
-  }
-
-  bool has_overlap() const
-  {
-    return false;
-  }
-};
-
-template<> struct VariableChecker<true> {
-  Array<std::atomic_bool> variable_written;
-  std::atomic_bool variable_overlap = false;
-
-  VariableChecker(const IndexRange range)
-  {
-    variable_written.reinitialize(range.size());
-    for (const int i : variable_written.index_range()) {
-      variable_written[i].store(false, std::memory_order::memory_order_relaxed);
-    }
-  }
-
-  bool claim_variable(const int index)
-  {
-    if (variable_written[index].exchange(true, std::memory_order_relaxed)) {
-      variable_overlap.store(true, std::memory_order_relaxed);
-      return true;
-    }
-    return false;
-  }
-
-  bool has_overlap() const
-  {
-    return variable_overlap.load(std::memory_order_relaxed);
-  }
-};
-
-}  // namespace error_check
-
-/* Linearized quaternion arithmetic relies on consistent quaternion orientation (w component should
- * be positive). This is not guaranteed by all math operations, e.g. Euler-to-Quaternion
- * conversion. These utility functions check the sign of q.w to ensure differences are applied
- * consistently and don't cause issues with flipping. */
-
-/**
- * Compute a consistent linear difference between quaternions regardless of their sign.
- * A quaternion with a negative w component is negated. This must be taken into account when
- * applying such deltas to quaternions, see \a quaternion_offset. */
-inline float4 quaternion_difference(const math::Quaternion &a, const math::Quaternion &b)
-{
-  // auto positive_quaternion = [](const math::Quaternion &q) {
-  //   return q.w >= 0.0f ? float4(q) : -float4(q);
-  // };
-  // return positive_quaternion(a) - positive_quaternion(b);
-  // return float4(a) - float4(b);
-  return float4(0.0f, a.imaginary_part() - b.imaginary_part());
-}
+/* -------------------------------------------------------------------- */
+/** \name Low-level Constraint Functions
+ * \{ */
 
 /** Add a positive or negative offset depending on the quaternion sign. */
 inline math::Quaternion quaternion_offset(const math::Quaternion &q, const float4 &offset)
@@ -245,17 +263,6 @@ inline void apply_angular_velocity_impulse(const float3 &delta_angular_velocity,
   angular_velocity += delta_angular_velocity;
 }
 
-enum class ConstraintType {
-  PositionGoal,
-  RotationGoal,
-  VelocityGoal,
-  AngularVelocityGoal,
-  StretchShear,
-  BendTwist,
-  ContactPosition,
-  ContactVelocity,
-};
-
 inline void eval_position_goal(const float3 &goal_position,
                                const float alpha,
                                const float gamma,
@@ -273,6 +280,14 @@ inline void eval_position_goal(const float3 &goal_position,
 
   r_delta_lambda = weight_norm * (-r_residual - alpha * lambda - gamma * velocity);
   r_delta_position = r_delta_lambda * gradient;
+}
+
+inline void eval_position_goal_elements(const float3 &goal_position,
+                                        const float3 &position,
+                                        float &r_residual,
+                                        float3 &r_gradient)
+{
+  r_gradient = math::normalize_and_get_length(position - goal_position, r_residual);
 }
 
 inline void apply_position_goal(const float3 &goal_position,
@@ -613,38 +628,37 @@ inline void apply_position_stretch_shear(const float weight_pos1,
 template<bool linearized_quaternion>
 inline void eval_position_bend_twist(const float weight_rot1,
                                      const float weight_rot2,
-                                     const math::Quaternion &darboux_vector,
+                                     const float3 &darboux_vector,
                                      const float alpha,
                                      const float gamma,
-                                     const float4 &lambda,
+                                     const float3 &lambda,
                                      const math::Quaternion &rotation1,
                                      const math::Quaternion &rotation2,
                                      const math::Quaternion &old_rotation1,
                                      const math::Quaternion &old_rotation2,
-                                     float4 &r_residual,
-                                     float4 &r_delta_lambda,
+                                     float3 &r_residual,
+                                     float3 &r_delta_lambda,
                                      float4 &r_delta_rotation1,
                                      float4 &r_delta_rotation2)
 {
   const float weight_norm = math::safe_rcp((weight_rot1 + weight_rot2) * (1.0f + gamma) + alpha);
 
-  const math::Quaternion current_darboux = math::Quaternion(
-      float4(math::invert_normalized(rotation1) * rotation2));
-  r_residual = quaternion_difference(current_darboux, darboux_vector);
+  const float3 current_darboux = (math::invert_normalized(rotation1) * rotation2).imaginary_part();
+  r_residual = current_darboux - darboux_vector;
 
   /* Constraint gradient applied to variable differences.
    * This extends the rod constraints from "Position and Orientation Based Cosserat Rods"
    * (Kugelstadt et al.), section 6, with the damping terms for lambda from the XPBD paper
    * ("XPBD: Position-Based Simulation of Compliant Constrained Dynamics", Macklin et al.). */
-  const float4 velocity = -quaternion_difference(math::conjugate(old_rotation1) * old_rotation2,
-                                                 math::conjugate(rotation1) * rotation2);
+  const float3 velocity = (math::conjugate(rotation1) * rotation2).imaginary_part() -
+                          (math::conjugate(old_rotation1) * old_rotation2).imaginary_part();
 
   r_delta_lambda = weight_norm * (-r_residual - alpha * lambda - gamma * velocity);
 
   if constexpr (linearized_quaternion) {
-    r_delta_rotation1 = weight_rot1 *
-                        float4(rotation2 * math::conjugate(math::Quaternion(r_delta_lambda)));
-    r_delta_rotation2 = weight_rot2 * float4(rotation1 * math::Quaternion(r_delta_lambda));
+    r_delta_rotation1 = weight_rot1 * float4(rotation2 * math::conjugate(math::Quaternion(
+                                                             0.0f, r_delta_lambda)));
+    r_delta_rotation2 = weight_rot2 * float4(rotation1 * math::Quaternion(0.0f, r_delta_lambda));
   }
   else {
     // TODO
@@ -652,17 +666,37 @@ inline void eval_position_bend_twist(const float weight_rot1,
   }
 }
 
+inline void eval_bend_twist_elements(const float3 &darboux_vector,
+                                     const math::Quaternion &rotation1,
+                                     const math::Quaternion &rotation2,
+                                     float3 &r_residual,
+                                     float4x4 &r_gradient1,
+                                     float4x4 &r_gradient2)
+{
+  const float3 current_darboux = (math::invert_normalized(rotation1) * rotation2).imaginary_part();
+  r_residual = current_darboux - darboux_vector;
+
+  r_gradient1[0] = float4(-rotation2.x, rotation2.w, rotation2.z, -rotation2.y);
+  r_gradient1[1] = float4(-rotation2.y, -rotation2.z, rotation2.w, rotation2.x);
+  r_gradient1[2] = float4(-rotation2.z, rotation2.y, -rotation2.x, rotation2.w);
+  /* Last column is unused. */
+  r_gradient2[0] = float4(-rotation1.x, rotation1.w, rotation1.z, -rotation1.y);
+  r_gradient2[1] = float4(-rotation1.y, -rotation1.z, rotation1.w, rotation1.x);
+  r_gradient2[2] = float4(-rotation1.z, rotation1.y, -rotation1.x, rotation1.w);
+  /* Last column is unused. */
+}
+
 template<bool linearized_quaternion>
 inline void apply_position_bend_twist(const float weight_rot1,
                                       const float weight_rot2,
-                                      const math::Quaternion &darboux_vector,
+                                      const float3 &darboux_vector,
                                       const float alpha,
-                                      float4 &lambda,
+                                      float3 &lambda,
                                       math::Quaternion &rotation1,
                                       math::Quaternion &rotation2)
 {
-  float4 residual;
-  float4 delta_lambda;
+  float3 residual;
+  float3 delta_lambda;
   float4 delta_rot1, delta_rot2;
   eval_position_bend_twist<linearized_quaternion>(weight_rot1,
                                                   weight_rot2,
@@ -687,17 +721,17 @@ inline void apply_position_bend_twist(const float weight_rot1,
 template<bool linearized_quaternion>
 inline void apply_position_bend_twist(const float weight_rot1,
                                       const float weight_rot2,
-                                      const math::Quaternion &darboux_vector,
+                                      const float3 &darboux_vector,
                                       const float alpha,
                                       const float gamma,
                                       const math::Quaternion &old_rotation1,
                                       const math::Quaternion &old_rotation2,
-                                      float4 &lambda,
+                                      float3 &lambda,
                                       math::Quaternion &rotation1,
                                       math::Quaternion &rotation2)
 {
-  float4 residual;
-  float4 delta_lambda;
+  float3 residual;
+  float3 delta_lambda;
   float4 delta_rot1, delta_rot2;
   eval_position_bend_twist<linearized_quaternion>(weight_rot1,
                                                   weight_rot2,
@@ -723,14 +757,14 @@ template<bool linearized_quaternion>
 inline void eval_rotation_goal2(const math::Quaternion &goal_rotation,
                                 const float alpha,
                                 const float gamma,
-                                const float4 &lambda,
+                                const float3 &lambda,
                                 const math::Quaternion &rotation,
                                 const math::Quaternion &old_rotation,
-                                float4 &r_residual,
-                                float4 &r_delta_lambda,
+                                float3 &r_residual,
+                                float3 &r_delta_lambda,
                                 float4 &r_delta_rotation)
 {
-  const math::Quaternion darboux_vector = math::Quaternion(float4(math::Quaternion::identity()));
+  const float3 darboux_vector = float3(0.0f);
   /* TODO account for root animation. */
   const math::Quaternion old_goal_rotation = goal_rotation;
   float4 delta_root_rotation;
@@ -778,11 +812,11 @@ inline void apply_rotation_goal2(const math::Quaternion &goal_rotation,
                                  const float alpha,
                                  const float gamma,
                                  const math::Quaternion &old_rotation,
-                                 float4 &lambda,
+                                 float3 &lambda,
                                  math::Quaternion &rotation)
 {
-  float4 residual;
-  float4 delta_lambda;
+  float3 residual;
+  float3 delta_lambda;
   float4 delta_rotation;
   eval_rotation_goal2<linearized_quaternion>(goal_rotation,
                                              alpha,
@@ -856,6 +890,41 @@ inline bool eval_position_contact(const float weight_pos1,
   r_delta_position2 = impulse2 * weight_pos2;
   r_delta_rotation1 = float4(0.0f, math::cross(local_position1, impulse1)) * weight_rot1;
   r_delta_rotation2 = float4(0.0f, math::cross(local_position2, impulse2)) * weight_rot2;
+  return true;
+}
+
+inline bool eval_contact_position_elements(const float3 &local_position1,
+                                           const float3 &local_position2,
+                                           const float3 &normal,
+                                           const float3 &position1,
+                                           const float3 &position2,
+                                           const math::Quaternion &rotation1,
+                                           const math::Quaternion &rotation2,
+                                           float &r_residual,
+                                           float3 &r_position_gradient1,
+                                           float3 &r_position_gradient2,
+                                           float4 &r_rotation_gradient1,
+                                           float4 &r_rotation_gradient2)
+{
+  /* Local positions are relative to colliders.
+   * Normal is a fixed shared direction for both participants. */
+
+  /* Contact points are computed by applying the transforms to relative local positions. */
+  const float3 contact_point1 = math::transform_point(rotation1, local_position1) + position1;
+  const float3 contact_point2 = math::transform_point(rotation2, local_position2) + position2;
+
+  /* Positional constraint for penetration depth along the normal. */
+  r_residual = math::dot(contact_point1 - contact_point2, normal);
+  /* Only act on contact. */
+  const bool active = r_residual < 0.0f;
+  if (!active) {
+    return false;
+  }
+
+  r_position_gradient1 = normal;
+  r_position_gradient2 = -r_position_gradient1;
+  r_rotation_gradient1 = float4(0.0f, math::cross(local_position1, normal));
+  r_rotation_gradient2 = -r_rotation_gradient1;
   return true;
 }
 
@@ -979,6 +1048,55 @@ inline void eval_velocity_contact(const float3 &orig_velocity1,
   r_delta_angular_velocity2 = -math::cross(local_position2, impulse);
 }
 
+inline void eval_contact_velocity_elements(const float3 &local_position1,
+                                           const float3 &local_position2,
+                                           const float3 &normal,
+                                           const float3 &velocity1,
+                                           const float3 &velocity2,
+                                           const float3 &angular_velocity1,
+                                           const float3 &angular_velocity2,
+                                           const float3 &orig_velocity1,
+                                           const float3 &orig_velocity2,
+                                           const float3 &orig_angular_velocity1,
+                                           const float3 &orig_angular_velocity2,
+                                           float2 &r_residual,
+                                           float4x4 &r_velocity_gradient1,
+                                           float4x4 &r_velocity_gradient2,
+                                           float4x4 &r_angular_velocity_gradient1,
+                                           float4x4 &r_angular_velocity_gradient2)
+{
+  /* Compute velocity of the collider contact point. */
+  const float3 contact_velocity1 = velocity1 + math::cross(angular_velocity1, local_position1);
+  const float3 contact_velocity2 = velocity2 + math::cross(angular_velocity2, local_position2);
+  const float3 orig_contact_velocity1 = orig_velocity1 +
+                                        math::cross(orig_angular_velocity1, local_position1);
+  const float3 orig_contact_velocity2 = orig_velocity2 -
+                                        math::cross(orig_angular_velocity2, local_position2);
+
+  /* Relative contact velocity before and after position corrections. */
+  const float3 relative_velocity = contact_velocity1 - contact_velocity2;
+  const float3 orig_relative_velocity = orig_contact_velocity1 - orig_contact_velocity2;
+
+  /* Decompose into normal and tangential velocity. */
+  const float normal_velocity = math::dot(relative_velocity, normal);
+  const float orig_normal_velocity = math::dot(orig_relative_velocity, normal);
+  /* If normal velocity after update is below jitter threshold avoid any restitution. */
+  // const bool is_jitter_velocity = (math::abs(normal_velocity) < threshold_normal_velocity);
+  float surface_velocity;
+  const float3 surface_direction = math::normalize_and_get_length(
+      relative_velocity - normal * normal_velocity, surface_velocity);
+
+  r_residual = {orig_normal_velocity, surface_velocity};
+
+  r_velocity_gradient1[0] = float4(normal, 0.0f);
+  r_velocity_gradient1[1] = float4(surface_direction, 0.0f);
+  r_velocity_gradient2 = -r_velocity_gradient1;
+  r_angular_velocity_gradient1[0] = float4(0.0f, math::cross(local_position1, normal));
+  r_angular_velocity_gradient1[1] = float4(0.0f, math::cross(local_position1, surface_direction));
+  r_angular_velocity_gradient2[0] = -float4(0.0f, math::cross(local_position2, normal));
+  r_angular_velocity_gradient2[1] = -float4(0.0f, math::cross(local_position2, surface_direction));
+}
+
 inline void apply_velocity_contact(const float3 &orig_velocity1,
                                    const float3 &orig_velocity2,
                                    const float3 &orig_angular_velocity1,
@@ -1032,5 +1150,7 @@ inline void apply_velocity_contact(const float3 &orig_velocity1,
   apply_angular_velocity_impulse(delta_angvel1, angular_velocity1);
   apply_angular_velocity_impulse(delta_angvel2, angular_velocity2);
 }
+
+/** \} */
 
 }  // namespace blender::nodes::xpbd_constraints
