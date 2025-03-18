@@ -792,7 +792,7 @@ bool BLI_str_utf32_char_is_breaking_space(char32_t codepoint)
               0x3000); /* Ideographic space. */
 }
 
-bool BLI_str_utf32_char_is_optional_break(char32_t codepoint, char32_t previous)
+bool BLI_str_utf32_char_is_optional_break(char32_t codepoint, char32_t codepoint_prev)
 {
   /* Subset of the characters that are line breaking opportunities
    * according to the Unicode Line Breaking Algorithm (Standard Annex #14).
@@ -804,12 +804,14 @@ bool BLI_str_utf32_char_is_optional_break(char32_t codepoint, char32_t previous)
   }
 
   /* Do not break on solidus if previous is a number. */
-  if (codepoint == '/' && !(previous >= '0' && previous <= '9')) {
+  if (codepoint == '/' && !(codepoint_prev >= '0' && codepoint_prev <= '9')) {
     return true;
   }
 
   /* Do not break on dash, hyphen, em dash if previous is space */
-  if (ELEM(codepoint, '-', 0x2010, 0x2014) && !BLI_str_utf32_char_is_breaking_space(previous)) {
+  if (ELEM(codepoint, '-', 0x2010, 0x2014) &&
+      !BLI_str_utf32_char_is_breaking_space(codepoint_prev))
+  {
     return true;
   }
 
