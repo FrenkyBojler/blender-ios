@@ -183,27 +183,29 @@ inline void batch_for_each_to_bottom_skip_(const OffsetIndices<int> buckets_offs
 {
   using namespace blender::bits;
   
-  BitGroupVector masks_stack(batch_range.size(), 33, false);
+  BitGroupVector masks_stack(33, batch_range.size(), false);
   masks_stack[0].fill(true);
 
   BitVector<0> buffer(batch_range.size());
 
   Vector<int, 32> depth_stack({0});
   Vector<int, 32> joint_stack({0});
+  Vector<int, 32> mask_index_stack({0});
 
   while (!depth_stack.is_empty()) {
     const int depth_i = depth_stack.pop_last();
     const int joint_i = joint_stack.pop_last();
+    const int mask_index = mask_index_stack.pop_last();
 
-    const MutableBoundedBitSpan batch_mask = masks_stack[depth_i];
+    const MutableBoundedBitSpan batch_mask = masks_stack[mask_index];
     const IndexRange joints_range = akdbh::joints_range_at_depth(depth_i);
 
     buffer.fill(false);
     foreach_1_index(batch_mask, [&](const int i) {
-      if (joint_predicate(int(joints_range[joint_i]), batch_range[i])) {
+      if (!joint_predicate(int(joints_range[joint_i]), batch_range[i])) {
         buffer[i].set();
       }
-    }).has_value();
+    });
 
     joint_func(int(joints_range[joint_i]), buffer);
 
@@ -217,8 +219,13 @@ inline void batch_for_each_to_bottom_skip_(const OffsetIndices<int> buckets_offs
       continue;
     }
 
-    copy_from_or(masks_stack[depth_i + 1], batch_mask);
+    MutableBoundedBitSpan other_child = masks_stack[mask_index + 1];
+    other_child.fill(false);
+    copy_from_or(other_child, batch_mask);
 
+    BLI_assert(!mask_index_stack.as_span().contains(mask_index + 0));
+    BLI_assert(!mask_index_stack.as_span().contains(mask_index + 1));
+    mask_index_stack.extend_unchecked({mask_index + 0, mask_index + 1});
     depth_stack.extend_unchecked({depth_i + 1, depth_i + 1});
     joint_stack.extend_unchecked({joint_i * 2 + 1, joint_i * 2 + 0});
   }

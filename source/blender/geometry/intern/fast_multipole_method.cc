@@ -565,11 +565,17 @@ void gather_distances_new(const Span<float3> positions, const Span<int> indices,
 
 inline int64_t popcount(const bits::BoundedBitSpan data)
 {
-  int64_t count = 0;
-  for (const int i : IndexRange(data.full_ints_num()).drop_back(1)) {
-    count += count_bits_uint64(data.data()[i]);
-  }
-  return count + data.data()[data.full_ints_num() - 1] & data.final_bits_num();
+  int count = 0;
+  bits::foreach_1_index(data, [&](const int /*i*/) {
+    count++;
+  });
+  return count;
+
+  // int64_t count = 0;
+  // for (const int i : IndexRange(data.full_ints_num()).drop_back(1)) {
+  //   count += count_bits_uint64(data.data()[i]);
+  // }
+  // return count + data.data()[data.full_ints_num() - 1] & data.final_bits_num();
 }
 
 void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
@@ -593,21 +599,13 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
   BLI_assert(src_bucket_position.size() == src_bucket_value.size());
 
   BLI_assert(dst_buckets_data.size() == sample_position.size());
-  BLI_assert(!sampler_to_bucket_range.has_value() ||
-             sampler_to_bucket_range->size() == dst_buckets_data.size());
-  BLI_assert(!sampler_to_bucket_range.has_value() ||
-             src_bucket_position.index_range().contains(*sampler_to_bucket_range));
+  BLI_assert(!sampler_to_bucket_range.has_value() || sampler_to_bucket_range->size() == dst_buckets_data.size());
+  BLI_assert(!sampler_to_bucket_range.has_value() || src_bucket_position.index_range().contains(*sampler_to_bucket_range));
 
-  const FunctionRef<void(int, MutableSpan<float>)> distance_invertion = powered_rcp_for_values(
-      power_value);
+  const FunctionRef<void(int, MutableSpan<float>)> distance_invertion = powered_rcp_for_values(power_value);
 
   Vector<std::pair<int, BitVector<0>>, 0> joint_to_batch_samples;
   Vector<std::pair<IndexRange, BitVector<0>>, 0> bucket_to_batch_samples;
-
-  // Array<Vector<int, 0>, 0> batch_to_joints(sample_position.size());
-  // Array<Vector<int, 0>, 0> batch_to_buckets(sample_position.size());
-
-  // BLI_assert(sample_position.size() < std::numeric_limits<int16_t>::max());
 
   std::stringstream log_stream;
 
@@ -632,34 +630,10 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
         });
   }
 
-  BLI_assert(std::all_of(bucket_to_batch_samples.begin(), bucket_to_batch_samples.end() - 1, [&](const auto &item) {
+  BLI_assert(bucket_to_batch_samples.is_empty() || std::all_of(bucket_to_batch_samples.begin(), bucket_to_batch_samples.end() - 1, [&](const auto &item) {
     const int index = std::distance(bucket_to_batch_samples.as_span().data(), &item);
     return item.first.last() < bucket_to_batch_samples[index + 1].first.start();
   }));
-
-  /*
-  log_stream << "batch_to_joints.size: " << batch_to_joints.size() << ";\n";
-  int64_t total = 0;
-  for (const auto &item : batch_to_joints) {
-    total += item.size();
-  }
-
-  log_stream << "total in batch_to_joints:" << total << ";\n";
-
-  log_stream << "bucket_to_batch_samples.size: " << bucket_to_batch_samples.size() << ";\n";
-
-  int64_t total_ranges = 0;
-  int64_t total_indices = 0;
-  for (const auto &item : bucket_to_batch_samples) {
-    total_ranges += item.first.size();
-    total_indices += item.second.size();
-  }
-
-  log_stream << "total_ranges in bucket_to_batch_samples:" << total_ranges << ";\n";
-  log_stream << "total_indices in bucket_to_batch_samples:" << total_indices << ";\n";
-
-  std::cout << log_stream.str() << ";\n";
-  */
 
   Vector<float, 0, GuardedAlignedAllocator<>> buffer;
 
@@ -671,17 +645,18 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
     const Span<T> typed_src_bucket_value = src_bucket_value.typed<T>();
     MutableSpan<T> typed_dst_buckets_data = dst_buckets_data.typed<T>();
 
-    Array<int> offsets(joint_to_batch_samples.size());
-    std::transform(std::accumulate(joint_to_batch_samples.begin(), joint_to_batch_samples.end(), offset.begin(), [&](const auto &item) {
+    Array<int> offsets_data(joint_to_batch_samples.size() + 1);
+    std::transform(joint_to_batch_samples.begin(), joint_to_batch_samples.end(), offsets_data.begin(), [&](const auto &item) {
       return popcount(bits::to_best_bit_span(item.second));
-    }));
+    });
 
-    buffer.resize(std::accumulate(offsets.begin(), offsets.end(), 0));
+    const OffsetIndices<int> offsets = offset_indices::accumulate_counts_to_offsets(offsets_data);
 
-    int offset_iter = 0;
-    for (const auto &[joint_index, batch_samples] : joint_to_batch_samples) {
-      MutableSpan<float> buffer_section = buffer.as_mutable_span().slice(offset_iter, offsets[offset_iter]);
-      offset_iter++;
+    buffer.resize(offsets.total_size());
+
+    for (const int index : joint_to_batch_samples.index_range()) {
+      const auto &[joint_index, batch_samples] = joint_to_batch_samples[index];
+      MutableSpan<float> buffer_section = buffer.as_mutable_span().slice(offsets[index]);
 
       const float3 jooint_position = src_joints_centre[joint_index];
 
@@ -695,14 +670,12 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
 
     distance_invertion(power_value, buffer.as_mutable_span());
 
-    offset_iter = 0;
-    for (const auto &[joint_index, batch_samples] : joint_to_batch_samples) {
-      const Span<float> buffer_section = buffer.as_span().slice(offset_iter, offsets[offset_iter]);
-      offset_iter++;
+    for (const int index : joint_to_batch_samples.index_range()) {
+      const auto &[joint_index, batch_samples] = joint_to_batch_samples[index];
+      const Span<float> buffer_section = buffer.as_span().slice(offsets[index]);
 
       int index_iter = 0;
       bits::foreach_1_index(bits::to_best_bit_span(batch_samples), [&](const int sample_index) {
-        const int sample_index = batch_samples[index_iter];
         typed_dst_buckets_data[sample_index] += typed_src_joints_value[joint_index] * buffer_section[index_iter];
         index_iter++;
       });
@@ -717,19 +690,23 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
     const Span<T> typed_src_bucket_value = src_bucket_value.typed<T>();
     MutableSpan<T> typed_dst_buckets_data = dst_buckets_data.typed<T>();
 
-    Array<int> offsets(bucket_to_batch_samples.size());
-    std::transform(std::accumulate(bucket_to_batch_samples.begin(), bucket_to_batch_samples.end(), offset.begin(), [&](const auto &item) {
+    Array<int> offsets_data(bucket_to_batch_samples.size() + 1);
+    std::transform(bucket_to_batch_samples.begin(), bucket_to_batch_samples.end(), offsets_data.begin(), [&](const auto &item) {
       return item.first.size() * popcount(bits::to_best_bit_span(item.second));
-    }));
+    });
 
-    buffer.resize(std::accumulate(offsets.begin(), offsets.end(), 0));
+    const OffsetIndices<int> offsets = offset_indices::accumulate_counts_to_offsets(offsets_data);
 
-    int offset_iter = 0;
-    for (const auto &[bucket_range, batch_samples] : bucket_to_batch_samples) {
+    buffer.resize(offsets.total_size());
 
-      int index_iter = 0;
+    for (const int index : bucket_to_batch_samples.index_range()) {
+      const auto &[bucket_range, batch_samples] = bucket_to_batch_samples[index];
+
+      const int buffer_step_size = bucket_range.size();
+      int offset_iter = 0;
       bits::foreach_1_index(bits::to_best_bit_span(batch_samples), [&](const int sample_index) {
-        MutableSpan<float> buffer_section = buffer.as_mutable_span().slice(offset_iter, offsets[offset_iter]);
+        MutableSpan<float> buffer_section = buffer.as_mutable_span().slice(offsets[index]).slice(offset_iter, buffer_step_size);
+        offset_iter += buffer_step_size;
 
         const float3 position = sample_position[sample_index];
 
@@ -739,38 +716,36 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
                         buffer_section.data(),
                         offset_value);
       });
-      offset_iter += 1;
     }
 
-    offset_iter = 0;
-    for (const auto &[bucket_range, batch_samples] : bucket_to_batch_samples) {
+    for (const int index : bucket_to_batch_samples.index_range()) {
+      const auto &[bucket_range, batch_samples] = bucket_to_batch_samples[index];
 
-      int index_iter = 0;
+      const int buffer_step_size = bucket_range.size();
+      int offset_iter = 0;
       bits::foreach_1_index(bits::to_best_bit_span(batch_samples), [&](const int sample_index) {
-        MutableSpan<float> buffer_section = buffer.as_mutable_span().slice(offset_iter, offsets[offset_iter]);
+        MutableSpan<float> buffer_section = buffer.as_mutable_span().slice(offsets[index]).slice(offset_iter, buffer_step_size);
+        offset_iter += buffer_step_size;
 
         if (bucket_range.contains(sampler_to_bucket_range.value()[sample_index])) {
-          const int sampler_in_bucket_index = sampler_to_bucket_range.value()[sample_index] -
-                                              bucket_range.start();
+          const int sampler_in_bucket_index = sampler_to_bucket_range.value()[sample_index] - bucket_range.start();
           buffer_section[sampler_in_bucket_index] = 0.0f;
         }
       });
-
-      offset_iter += 1;
     }
-
-    // printf("Total: %d. 4: %d, 8: %d, 16: %d;\n", total_sum, more_than_4, more_than_8, more_than_16);
 
     distance_invertion(power_value, buffer.as_mutable_span());
 
-    offset_iter = 0;
-    for (const auto &[bucket_range, batch_samples] : bucket_to_batch_samples) {
-      int index_iter = 0;
+    for (const int index : bucket_to_batch_samples.index_range()) {
+      const auto &[bucket_range, batch_samples] = bucket_to_batch_samples[index];
+
+      const int buffer_step_size = bucket_range.size();
+      int offset_iter = 0;
       bits::foreach_1_index(bits::to_best_bit_span(batch_samples), [&](const int sample_index) {
-        const Span<float> buffer_section = buffer.as_span().slice(offset_iter, bucket_range.size());
+        const Span<float> buffer_section = buffer.as_span().slice(offsets[index]).slice(offset_iter, buffer_step_size);
+        offset_iter += buffer_step_size;
         typed_dst_buckets_data[sample_index] += dot_product<T>(typed_src_bucket_value.slice(bucket_range), buffer_section);
       });
-      offset_iter += 1;
     }
   });
 }

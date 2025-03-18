@@ -212,8 +212,52 @@ class SpaceValueFieldInput final : public bke::GeometryFieldInput {
   }
 };
 
+template<class T, class Predicate>
+static int64_t trivial_stable_partition(MutableSpan<T> values, const Predicate &predicate)
+{
+  const int64_t prefix_size = std::count_if(values.begin(), values.end(), predicate);
+
+  int64_t false_iter = prefix_size;
+  for (T &value : values.take_front(prefix_size)) {
+    if (predicate(value)) {
+      continue;
+    }
+    false_iter = std::distance(values.begin(), std::find_if(values.begin() + false_iter, values.end(), predicate));
+    BLI_assert(false_iter < values.size());
+    std::swap(value, values[false_iter]);
+    false_iter++;
+  }
+
+  return prefix_size;
+}
+
 static void node_geo_exec(GeoNodeExecParams params)
 {
+  Array<int> values({1, 42, 43, 1, 44, 222, 0, 23});
+  Array<bool> predicates({false, true, false, true, true, true, false, true});
+
+  trivial_stable_partition(values.as_mutable_span(), [&](const int &value) {
+    return predicates[std::distance(values.as_span().data(), &value)];
+  });
+
+  for (const int a : values) {
+    printf("%d, ", a);
+  }
+  printf(";\n");
+
+  BLI_assert((values.as_span() == Span<int>{222, 42, 23, 1, 44, 1, 0, 43}));
+
+  trivial_stable_partition(values.as_mutable_span(), [&](const int &value) {
+    return predicates[std::distance(values.as_span().data(), &value)];
+  });
+  
+  for (const int a : values) {
+    printf("%d, ", a);
+  }
+  printf(";\n");
+  
+  BLI_assert((values.as_span() == Span<int>{1, 42, 43, 1, 44, 222, 0, 23})); // 1, 222, 23, 1, 43, 42, 0, 44
+
   Field<float3> position_field = params.extract_input<Field<float3>>("Position");
   GField value_field = params.extract_input<GField>("Value");
 
