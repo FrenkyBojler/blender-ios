@@ -64,6 +64,8 @@
 #include "BKE_modifier.hh"
 #include "BKE_multires.hh"
 #include "BKE_object.hh"
+#include "BKE_paint.hh"
+#include "BKE_paint_bvh.hh"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_query.hh"
@@ -594,57 +596,121 @@ void mesh_remove_invalid_attribute_strings(Mesh &mesh)
   }
 }
 
-void BKE_mesh_reorder_vertices_spatial(Mesh *mesh)
+void BKE_mesh_reorder_vertices_spatial(Object *object)
 {
-  MutableSpan positions = mesh->vert_positions_for_write();
-  Vector<int> new_order(positions.size());
+  using namespace blender::bke::pbvh;
+  using namespace blender::bke::object;
 
-  // Create a vector of indices
-  for (int i = 0; i < positions.size(); i++) {
-    new_order[i] = i;
+  Mesh *mesh = (Mesh *)object->data;
+
+  blender::bke::pbvh::Tree *pbvh = blender::bke::object::pbvh_get(*object);
+  if (pbvh->type() == blender::bke::pbvh::Type::Grids) {
+    return;
+  }
+  Vector<int> new_order;
+  new_order.reserve(mesh->verts_num);
+
+  BitVector<> added_verts(mesh->verts_num, false);
+
+  // Store offsets for unique vertices
+  Vector<int> node_unique_offsets;
+  node_unique_offsets.reserve(pbvh->nodes_num() + 1);
+  node_unique_offsets.append(0);
+
+  // Store offsets for all vertices
+  Vector<int> node_all_offsets;
+  node_all_offsets.reserve(pbvh->nodes_num() + 1);
+  node_all_offsets.append(0);
+  for (int i = 0; i < pbvh->nodes_num(); i++) {
+    MeshNode &node = pbvh->nodes<MeshNode>()[i];
+    node.node_idx_ = i;
+  }
+  for (int i = 0; i < pbvh->nodes_num(); i++) {
+    MeshNode &node = pbvh->nodes<MeshNode>()[i];
+    if (node.flag_ & Node::Leaf) {
+      // unique vertices
+      for (int j = 0; j < node.unique_verts_num_; j++) {
+        int vert_idx = node.vert_indices_[j];
+        if (!added_verts[vert_idx]) {
+          new_order.append(vert_idx);
+          added_verts[vert_idx].set();
+        }
+      }
+      node_unique_offsets.append(new_order.size());
+
+      // shared vertices
+      for (int j = node.unique_verts_num_; j < node.vert_indices_.size(); j++) {
+        int vert_idx = node.vert_indices_[j];
+        if (!added_verts[vert_idx]) {
+          new_order.append(vert_idx);
+          added_verts[vert_idx].set();
+        }
+      }
+      node_all_offsets.append(new_order.size());
+    }
   }
 
-  // Sort indices based on vertex positions
-  std::sort(new_order.begin(), new_order.end(), [&](int a, int b) {
-    const float3 &pa = positions[a];
-    const float3 &pb = positions[b];
+  // remaining vertices
+  for (int i = 0; i < mesh->verts_num; i++) {
+    if (!added_verts[i]) {
+      new_order.append(i);
+    }
+  }
 
-    // Compare x, then y, then z
-    if (pa.x != pb.x)
-      return pa.x < pb.x;
-    if (pa.y != pb.y)
-      return pa.y < pb.y;
-    return pa.z < pb.z;
-  });
+  Vector<int> reverse_map(mesh->verts_num);
+  for (int i = 0; i < mesh->verts_num; i++) {
+    reverse_map[new_order[i]] = i;
+  }
 
-  // Reorder vertex positions
+  // Reorder point domain attributes
+  MutableAttributeAccessor attributes_for_write = mesh->attributes_for_write();
+  if (auto mask_span_writer = attributes_for_write.lookup_or_add_for_write_only_span<float>(
+          ".sculpt_mask", bke::AttrDomain::Point))
+  {
+    auto &mask_span = mask_span_writer.span;
+    Array<float> new_mask(mesh->verts_num);
+    for (int i = 0; i < mesh->verts_num; i++) {
+      new_mask[i] = mask_span[new_order[i]];
+    }
+    mask_span.copy_from(new_mask);
+    mask_span_writer.finish();
+  }
+  if (auto hide_vert_span_writer = attributes_for_write.lookup_or_add_for_write_only_span<float>(
+          ".hide_vert", bke::AttrDomain::Point))
+  {
+    auto &hide_vert_span = hide_vert_span_writer.span;
+    Array<float> new_hide_vert(mesh->verts_num);
+    for (int i = 0; i < mesh->verts_num; i++) {
+      new_hide_vert[i] = hide_vert_span[new_order[i]];
+    }
+    hide_vert_span.copy_from(new_hide_vert);
+    hide_vert_span_writer.finish();
+  }
+
+  MutableSpan positions = mesh->vert_positions_for_write();
   Array<float3> new_positions(positions.size());
   for (int i = 0; i < positions.size(); i++) {
     new_positions[i] = positions[new_order[i]];
   }
   positions.copy_from(new_positions);
 
-  // Create a reverse mapping: old index -> new index
-  Vector<int> reverse_map(positions.size());
-  for (int i = 0; i < positions.size(); i++) {
-    reverse_map[new_order[i]] = i;
-  }
-
-  // Update face corner indices
   MutableSpan corner_verts = mesh->corner_verts_for_write();
   for (int &corner_vert : corner_verts) {
     corner_vert = reverse_map[corner_vert];
   }
 
-  // Update edge vertex indices
   MutableSpan edges = mesh->edges_for_write();
   for (int2 &edge : edges) {
     edge.x = reverse_map[edge.x];
     edge.y = reverse_map[edge.y];
   }
 
+  pbvh->node_unique_offset_indices = OffsetIndices<int>(node_unique_offsets);
+  pbvh->node_all_offset_indices = OffsetIndices<int>(node_all_offsets);
+
   mesh->tag_topology_changed();
 }
+
 }  // namespace blender::bke
 
 void BKE_mesh_free_data_for_undo(Mesh *mesh)

@@ -4,15 +4,15 @@
 
 #include "editors/sculpt_paint/brushes/types.hh"
 
-#include "DNA_brush_types.h"
-#include "DNA_mesh_types.h"
-#include "DNA_object_types.h"
-#include "DNA_scene_types.h"
-
 #include "BKE_mesh.hh"
 #include "BKE_paint.hh"
 #include "BKE_paint_bvh.hh"
 #include "BKE_subdiv_ccg.hh"
+#include "DNA_brush_types.h"
+#include "DNA_mesh_types.h"
+#include "DNA_object_types.h"
+#include "DNA_scene_types.h"
+#include <iostream>
 
 #include "BLI_enumerable_thread_specific.hh"
 #include "BLI_math_vector.hh"
@@ -35,6 +35,38 @@ struct LocalData {
   Vector<float3> translations;
 };
 
+// static void calc_faces(const Depsgraph &depsgraph,
+//                        const Sculpt &sd,
+//                        const Brush &brush,
+//                        const float3 &offset,
+//                        const MeshAttributeData &attribute_data,
+//                        const Span<float3> vert_normals,
+//                        const bke::pbvh::MeshNode &node,
+//                        Object &object,
+//                        LocalData &tls,
+//                        const PositionDeformData &position_data)
+// {
+//   const SculptSession &ss = *object.sculpt;
+
+//   const Span<int> verts = node.verts();
+
+//   calc_factors_common_mesh_indexed(depsgraph,
+//                                    brush,
+//                                    object,
+//                                    attribute_data,
+//                                    position_data.eval,
+//                                    vert_normals,
+//                                    node,
+//                                    tls.factors,
+//                                    tls.distances);
+
+//   tls.translations.resize(verts.size());
+//   const MutableSpan<float3> translations = tls.translations;
+//   translations_from_offset_and_factors(offset, tls.factors, translations);
+
+//   clip_and_lock_translations(sd, ss, position_data.eval, verts, translations);
+//   position_data.deform(translations, verts);
+// }
 static void calc_faces(const Depsgraph &depsgraph,
                        const Sculpt &sd,
                        const Brush &brush,
@@ -47,25 +79,36 @@ static void calc_faces(const Depsgraph &depsgraph,
                        const PositionDeformData &position_data)
 {
   const SculptSession &ss = *object.sculpt;
+  const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
 
-  const Span<int> verts = node.verts();
+  // get unique contiguous vertex range using IndexRange from offset indices
+  const int node_idx = node.node_idx_;
+  if (node_idx < 0 || node_idx >= pbvh.node_unique_offset_indices.size()) {
+    std::cout << "from calc_faces " << std::endl;
+    return;
+  }
+  const IndexRange vertex_range = pbvh.node_unique_offset_indices[node_idx];
+  const int start_offset = vertex_range.start();
+  const int num_verts = vertex_range.size();
 
-  calc_factors_common_mesh_indexed(depsgraph,
-                                   brush,
-                                   object,
-                                   attribute_data,
-                                   position_data.eval,
-                                   vert_normals,
-                                   node,
-                                   tls.factors,
-                                   tls.distances);
+  calc_factors_common_mesh_contiguous(depsgraph,
+                                      brush,
+                                      object,
+                                      attribute_data,
+                                      position_data.eval,
+                                      vert_normals,
+                                      start_offset,
+                                      num_verts,
+                                      node,
+                                      tls.factors,
+                                      tls.distances);
 
-  tls.translations.resize(verts.size());
+  tls.translations.resize(num_verts);
   const MutableSpan<float3> translations = tls.translations;
   translations_from_offset_and_factors(offset, tls.factors, translations);
 
-  clip_and_lock_translations(sd, ss, position_data.eval, verts, translations);
-  position_data.deform(translations, verts);
+  clip_and_lock_translations(sd, ss, position_data.eval, start_offset, num_verts, translations);
+  position_data.deform(translations, start_offset, num_verts);
 }
 
 static void calc_grids(const Depsgraph &depsgraph,
@@ -146,7 +189,7 @@ static void offset_positions(const Depsgraph &depsgraph,
                    object,
                    tls,
                    position_data);
-        bke::pbvh::update_node_bounds_mesh(position_data.eval, nodes[i]);
+        bke::pbvh::update_node_bounds_mesh(position_data.eval, nodes[i], pbvh);
       });
       break;
     }

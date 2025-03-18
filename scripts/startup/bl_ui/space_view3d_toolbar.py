@@ -1090,7 +1090,9 @@ class VIEW3D_PT_sculpt_options(Panel, View3DPaintPanel):
         layout = self.layout
         layout.use_property_split = True
         layout.use_property_decorate = False
-
+        layout.operator("sculpt.reorder_vertices_spatial", 
+                        text="Reorder Vertices Spatially", 
+                        icon='SCULPTMODE_HLT')
         tool_settings = context.tool_settings
         sculpt = tool_settings.sculpt
 
@@ -2936,9 +2938,23 @@ class VIEW3D_PT_tools_grease_pencil_v3_brush_gap_closure(View3DPanel, Panel):
         if gp_settings.fill_extend_mode == 'EXTEND':
             row = col.row(align=True)
             row.prop(gp_settings, "use_collide_strokes")
+class VIEW3D_PT_sculpt_mesh_reorder(bpy.types.Menu):
+    bl_label = "Mesh Operations"
+    bl_idname = "VIEW3D_PT_sculpt_mesh_reorder"
+    
+    def draw(self, context):
+        layout = self.layout
+        layout.operator("sculpt.reorder_vertices_spatial", 
+                        text="Reorder Vertices Spatially", 
+                        icon='SCULPTMODE_HLT')
 
+def draw_mesh_ops_menu(self, context):
+    layout = self.layout
+    layout.separator()
+    layout.menu(VIEW3D_PT_sculpt_mesh_reorder.bl_idname, icon="MESH_DATA")
 
 classes = (
+    VIEW3D_PT_sculpt_mesh_reorder,
     VIEW3D_MT_brush_context_menu,
     VIEW3D_MT_brush_gpencil_context_menu,
     VIEW3D_PT_tools_object_options,

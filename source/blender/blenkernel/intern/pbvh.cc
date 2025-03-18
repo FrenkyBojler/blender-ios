@@ -20,8 +20,8 @@
 #include "BLI_utildefines.h"
 #include "BLI_vector.hh"
 #include "BLI_vector_set.hh"
-
 #include "DNA_object_types.h"
+#include <iostream>
 
 #include "BKE_attribute.hh"
 #include "BKE_ccg.hh"
@@ -1067,6 +1067,24 @@ void update_node_bounds_mesh(const Span<float3> positions, MeshNode &node)
   for (const int vert : node.all_verts()) {
     math::min_max(positions[vert], bounds.min, bounds.max);
   }
+  node.bounds_ = bounds;
+}
+void update_node_bounds_mesh(const Span<float3> positions, MeshNode &node, Tree &pbvh)
+{
+  Bounds<float3> bounds = negative_bounds();
+  if (node.node_idx_ < 0 || node.node_idx_ >= pbvh.node_all_offset_indices.size()) {
+    std::cout << "from update_node_bounds_mesh " << std::endl;
+    return;
+  }
+  const IndexRange vertex_range = pbvh.node_all_offset_indices[node.node_idx_];
+  const int start_offset = vertex_range.start();
+  const int num_verts = vertex_range.size();
+
+  for (int i = 0; i < num_verts; i++) {
+    const int vert = start_offset + i;
+    math::min_max(positions[vert], bounds.min, bounds.max);
+  }
+
   node.bounds_ = bounds;
 }
 

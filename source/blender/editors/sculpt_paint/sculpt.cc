@@ -6654,6 +6654,49 @@ void calc_factors_common_mesh_indexed(const Depsgraph &depsgraph,
 
   calc_brush_texture_factors(ss, brush, vert_positions, verts, factors);
 }
+void calc_factors_common_mesh_contiguous(const Depsgraph &depsgraph,
+                                         const Brush &brush,
+                                         const Object &object,
+                                         const MeshAttributeData &attribute_data,
+                                         const Span<float3> vert_positions,
+                                         const Span<float3> vert_normals,
+                                         const int start_offset,
+                                         const int num_verts,
+                                         const bke::pbvh::MeshNode &node,
+                                         Vector<float> &r_factors,
+                                         Vector<float> &r_distances)
+{
+  const SculptSession &ss = *object.sculpt;
+  const StrokeCache &cache = *ss.cache;
+
+  // const Span<int> verts = node.verts();
+
+  r_factors.resize(num_verts);
+  const MutableSpan<float> factors = r_factors;
+  fill_factor_from_hide_and_mask(
+      attribute_data.hide_vert, attribute_data.mask, start_offset, num_verts, factors);
+  filter_region_clip_factors(ss, vert_positions, start_offset, num_verts, factors);
+  if (brush.flag & BRUSH_FRONTFACE) {
+    calc_front_face(cache.view_normal_symm, vert_normals, start_offset, num_verts, factors);
+  }
+
+  r_distances.resize(num_verts);
+  const MutableSpan<float> distances = r_distances;
+  calc_brush_distances(ss,
+                       vert_positions,
+                       start_offset,
+                       num_verts,
+                       eBrushFalloffShape(brush.falloff_shape),
+                       distances);
+  filter_distances_with_radius(cache.radius, distances, factors);
+  apply_hardness_to_distances(cache, distances);
+  calc_brush_strength_factors(cache, brush, distances, factors);
+
+  auto_mask::calc_vert_factors_contiguous(
+      depsgraph, object, cache.automasking.get(), start_offset, num_verts, node, factors);
+
+  calc_brush_texture_factors(ss, brush, vert_positions, start_offset, num_verts, factors);
+}
 
 void calc_factors_common_mesh(const Depsgraph &depsgraph,
                               const Brush &brush,
@@ -6909,7 +6952,6 @@ void fill_factor_from_hide(const Set<BMVert *, 0> &verts, const MutableSpan<floa
     i++;
   }
 }
-
 void fill_factor_from_hide_and_mask(const Span<bool> hide_vert,
                                     const Span<float> mask,
                                     const Span<int> verts,
@@ -6929,6 +6971,33 @@ void fill_factor_from_hide_and_mask(const Span<bool> hide_vert,
   if (!hide_vert.is_empty()) {
     for (const int i : verts.index_range()) {
       if (hide_vert[verts[i]]) {
+        r_factors[i] = 0.0f;
+      }
+    }
+  }
+}
+void fill_factor_from_hide_and_mask(const Span<bool> hide_vert,
+                                    const Span<float> mask,
+                                    const int start_offset,
+                                    const int num_verts,
+                                    const MutableSpan<float> r_factors)
+{
+  BLI_assert(num_verts == r_factors.size());
+
+  if (!mask.is_empty()) {
+    for (int i = 0; i < num_verts; i++) {
+      const int vert = start_offset + i;
+      r_factors[i] = 1.0f - mask[vert];
+    }
+  }
+  else {
+    r_factors.fill(1.0f);
+  }
+
+  if (!hide_vert.is_empty()) {
+    for (int i = 0; i < num_verts; i++) {
+      const int vert = start_offset + i;
+      if (hide_vert[vert]) {
         r_factors[i] = 0.0f;
       }
     }
@@ -7002,6 +7071,21 @@ void calc_front_face(const float3 &view_normal,
 }
 
 void calc_front_face(const float3 &view_normal,
+                     const Span<float3> vert_normals,
+                     const int start_offset,
+                     const int num_verts,
+                     const MutableSpan<float> factors)
+{
+  BLI_assert(num_verts == factors.size());
+
+  for (int i = 0; i < num_verts; i++) {
+    const int vert = start_offset + i;
+    const float dot = math::dot(view_normal, vert_normals[vert]);
+    factors[i] *= std::max(dot, 0.0f);
+  }
+}
+
+void calc_front_face(const float3 &view_normal,
                      const Span<float3> normals,
                      const MutableSpan<float> factors)
 {
@@ -7058,7 +7142,6 @@ void calc_front_face(const float3 &view_normal,
     i++;
   }
 }
-
 void filter_region_clip_factors(const SculptSession &ss,
                                 const Span<float3> positions,
                                 const Span<int> verts,
@@ -7078,6 +7161,36 @@ void filter_region_clip_factors(const SculptSession &ss,
   const float4x4 symm_rot_mat_inv = ss.cache ? ss.cache->symm_rot_mat_inv : float4x4::identity();
   for (const int i : verts.index_range()) {
     float3 symm_co = symmetry_flip(positions[verts[i]], mirror_symmetry_pass);
+    if (radial_symmetry_pass) {
+      symm_co = math::transform_point(symm_rot_mat_inv, symm_co);
+    }
+    if (ED_view3d_clipping_test(rv3d, symm_co, true)) {
+      factors[i] = 0.0f;
+    }
+  }
+}
+void filter_region_clip_factors(const SculptSession &ss,
+                                const Span<float3> positions,
+                                const int start_offset,
+                                const int num_verts,
+                                const MutableSpan<float> factors)
+{
+  BLI_assert(num_verts == factors.size());
+
+  const RegionView3D *rv3d = ss.cache ? ss.cache->vc->rv3d : ss.rv3d;
+  const View3D *v3d = ss.cache ? ss.cache->vc->v3d : ss.v3d;
+  if (!RV3D_CLIPPING_ENABLED(v3d, rv3d)) {
+    return;
+  }
+
+  const ePaintSymmetryFlags mirror_symmetry_pass = ss.cache ? ss.cache->mirror_symmetry_pass :
+                                                              ePaintSymmetryFlags(0);
+  const int radial_symmetry_pass = ss.cache ? ss.cache->radial_symmetry_pass : 0;
+  const float4x4 symm_rot_mat_inv = ss.cache ? ss.cache->symm_rot_mat_inv : float4x4::identity();
+
+  for (int i = 0; i < num_verts; i++) {
+    const int vert = start_offset + i;
+    float3 symm_co = symmetry_flip(positions[vert], mirror_symmetry_pass);
     if (radial_symmetry_pass) {
       symm_co = math::transform_point(symm_rot_mat_inv, symm_co);
     }
@@ -7142,6 +7255,36 @@ void calc_brush_distances_squared(const SculptSession &ss,
   }
 }
 
+void calc_brush_distances_squared(const SculptSession &ss,
+                                  const Span<float3> positions,
+                                  const int start_offset,
+                                  const int num_verts,
+                                  const eBrushFalloffShape falloff_shape,
+                                  const MutableSpan<float> r_distances)
+{
+  BLI_assert(num_verts == r_distances.size());
+
+  const float3 &test_location = ss.cache ? ss.cache->location_symm : ss.cursor_location;
+  if (falloff_shape == PAINT_FALLOFF_SHAPE_TUBE && (ss.cache || ss.filter_cache)) {
+    /* The tube falloff shape requires the cached view normal. */
+    const float3 &view_normal = ss.cache ? ss.cache->view_normal_symm :
+                                           ss.filter_cache->view_normal;
+    float4 test_plane;
+    plane_from_point_normal_v3(test_plane, test_location, view_normal);
+    for (int i = 0; i < num_verts; i++) {
+      const int vert = start_offset + i;
+      float3 projected;
+      closest_to_plane_normalized_v3(projected, test_plane, positions[vert]);
+      r_distances[i] = math::distance_squared(projected, test_location);
+    }
+  }
+  else {
+    for (int i = 0; i < num_verts; i++) {
+      const int vert = start_offset + i;
+      r_distances[i] = math::distance_squared(test_location, positions[vert]);
+    }
+  }
+}
 void calc_brush_distances(const SculptSession &ss,
                           const Span<float3> positions,
                           const Span<int> verts,
@@ -7149,6 +7292,18 @@ void calc_brush_distances(const SculptSession &ss,
                           const MutableSpan<float> r_distances)
 {
   calc_brush_distances_squared(ss, positions, verts, falloff_shape, r_distances);
+  for (float &value : r_distances) {
+    value = std::sqrt(value);
+  }
+}
+void calc_brush_distances(const SculptSession &ss,
+                          const Span<float3> positions,
+                          const int start_offset,
+                          const int num_verts,
+                          const eBrushFalloffShape falloff_shape,
+                          const MutableSpan<float> r_distances)
+{
+  calc_brush_distances_squared(ss, positions, start_offset, num_verts, falloff_shape, r_distances);
   for (float &value : r_distances) {
     value = std::sqrt(value);
   }
@@ -7348,6 +7503,35 @@ void calc_brush_texture_factors(const SculptSession &ss,
 
 void calc_brush_texture_factors(const SculptSession &ss,
                                 const Brush &brush,
+                                const Span<float3> vert_positions,
+                                const int start_offset,
+                                const int num_verts,
+                                const MutableSpan<float> factors)
+{
+  BLI_assert(num_verts == factors.size());
+
+  const int thread_id = BLI_task_parallel_thread_id(nullptr);
+  const MTex *mtex = BKE_brush_mask_texture_get(&brush, OB_MODE_SCULPT);
+  if (!mtex->tex) {
+    return;
+  }
+
+  for (int i = 0; i < num_verts; i++) {
+    if (factors[i] == 0.0f) {
+      continue;
+    }
+    const int vert = start_offset + i;
+    float texture_value;
+    float4 texture_rgba;
+    /* NOTE: This is not a thread-safe call. */
+    sculpt_apply_texture(ss, brush, vert_positions[vert], thread_id, &texture_value, texture_rgba);
+
+    factors[i] *= texture_value;
+  }
+}
+
+void calc_brush_texture_factors(const SculptSession &ss,
+                                const Brush &brush,
                                 const Span<float3> positions,
                                 const MutableSpan<float> factors)
 {
@@ -7383,7 +7567,6 @@ void reset_translations_to_original(const MutableSpan<float3> translations,
     translations[i] -= prev_translation;
   }
 }
-
 void apply_translations(const Span<float3> translations,
                         const Span<int> verts,
                         const MutableSpan<float3> positions)
@@ -7392,6 +7575,18 @@ void apply_translations(const Span<float3> translations,
 
   for (const int i : verts.index_range()) {
     const int vert = verts[i];
+    positions[vert] += translations[i];
+  }
+}
+void apply_translations(const Span<float3> translations,
+                        const int start_offset,
+                        const int num_verts,
+                        const MutableSpan<float3> positions)
+{
+  BLI_assert(num_verts == translations.size());
+
+  for (int i = 0; i < num_verts; i++) {
+    const int vert = start_offset + i;
     positions[vert] += translations[i];
   }
 }
@@ -7448,6 +7643,19 @@ void apply_crazyspace_to_translations(const Span<float3x3> deform_imats,
   }
 }
 
+void apply_crazyspace_to_translations(const Span<float3x3> deform_imats,
+                                      const int start_offset,
+                                      const int num_verts,
+                                      const MutableSpan<float3> translations)
+{
+  BLI_assert(num_verts == translations.size());
+
+  for (int i = 0; i < num_verts; i++) {
+    const int vert = start_offset + i;
+    translations[i] = math::transform_point(deform_imats[vert], translations[i]);
+  }
+}
+
 void clip_and_lock_translations(const Sculpt &sd,
                                 const SculptSession &ss,
                                 const Span<float3> positions,
@@ -7476,6 +7684,48 @@ void clip_and_lock_translations(const Sculpt &sd,
     const float4x4 mirror_inverse(cache->mirror_modifier_clip.mat_inv);
     for (const int i : verts.index_range()) {
       const int vert = verts[i];
+
+      /* Transform into the space of the mirror plane, check translations, then transform back. */
+      float3 co_mirror = math::transform_point(mirror, positions[vert]);
+      if (math::abs(co_mirror[axis]) > cache->mirror_modifier_clip.tolerance[axis]) {
+        continue;
+      }
+      /* Clear the translation in the local space of the mirror object. */
+      co_mirror[axis] = 0.0f;
+      const float3 co_local = math::transform_point(mirror_inverse, co_mirror);
+      translations[i][axis] = co_local[axis] - positions[vert][axis];
+    }
+  }
+}
+void clip_and_lock_translations(const Sculpt &sd,
+                                const SculptSession &ss,
+                                const Span<float3> positions,
+                                const int start_offset,
+                                const int num_verts,
+                                const MutableSpan<float3> translations)
+{
+  BLI_assert(num_verts == translations.size());
+
+  const StrokeCache *cache = ss.cache;
+  if (!cache) {
+    return;
+  }
+  for (const int axis : IndexRange(3)) {
+    if (sd.flags & (SCULPT_LOCK_X << axis)) {
+      for (float3 &translation : translations) {
+        translation[axis] = 0.0f;
+      }
+      continue;
+    }
+
+    if (!(cache->mirror_modifier_clip.flag & (uint8_t(StrokeFlags::ClipX) << axis))) {
+      continue;
+    }
+
+    const float4x4 mirror(cache->mirror_modifier_clip.mat);
+    const float4x4 mirror_inverse(cache->mirror_modifier_clip.mat_inv);
+    for (int i = 0; i < num_verts; i++) {
+      const int vert = start_offset + i;
 
       /* Transform into the space of the mirror plane, check translations, then transform back. */
       float3 co_mirror = math::transform_point(mirror, positions[vert]);
@@ -7574,7 +7824,6 @@ PositionDeformData::PositionDeformData(const Depsgraph &depsgraph, Object &objec
 
   shape_key_data_ = ShapeKeyData::from_object(object_orig);
 }
-
 void PositionDeformData::deform(MutableSpan<float3> translations, const Span<int> verts) const
 {
   if (eval_mut_) {
@@ -7605,6 +7854,40 @@ void PositionDeformData::deform(MutableSpan<float3> translations, const Span<int
   }
   else {
     apply_translations(translations, verts, orig_);
+  }
+}
+void PositionDeformData::deform(MutableSpan<float3> translations,
+                                const int start_offset,
+                                const int num_verts) const
+{
+  if (eval_mut_) {
+    /* Apply translations to the evaluated mesh. This is necessary because multiple brush
+     * evaluations can happen in between object reevaluations (otherwise just deforming the
+     * original positions would be enough). */
+    apply_translations(translations, start_offset, num_verts, *eval_mut_);
+  }
+
+  if (deform_imats_) {
+    /* Apply the reverse procedural deformation, since subsequent translation happens to the state
+     * from "before" deforming modifiers. */
+    apply_crazyspace_to_translations(*deform_imats_, start_offset, num_verts, translations);
+  }
+
+  if (shape_key_data_) {
+    if (!shape_key_data_->dependent_keys.is_empty()) {
+      for (MutableSpan<float3> data : shape_key_data_->dependent_keys) {
+        apply_translations(translations, start_offset, num_verts, data);
+      }
+    }
+
+    if (shape_key_data_->basis_key_active) {
+      /* The basis key positions and the mesh positions are always kept in sync. */
+      apply_translations(translations, start_offset, num_verts, orig_);
+    }
+    apply_translations(translations, start_offset, num_verts, shape_key_data_->active_key_data);
+  }
+  else {
+    apply_translations(translations, start_offset, num_verts, orig_);
   }
 }
 

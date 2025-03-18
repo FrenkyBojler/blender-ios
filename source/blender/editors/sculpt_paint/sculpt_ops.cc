@@ -79,10 +79,8 @@ namespace blender::ed::sculpt_paint {
 
 static int mesh_reorder_vertices_spatial_exec(bContext *C, wmOperator *op)
 {
-  /* Get active object from context */
   Object *ob = CTX_data_active_object(C);
 
-  /* Check if we have valid data */
   if (!ob || ob->type != OB_MESH) {
     BKE_report(op->reports, RPT_ERROR, "No active mesh object");
     return OPERATOR_CANCELLED;
@@ -90,14 +88,11 @@ static int mesh_reorder_vertices_spatial_exec(bContext *C, wmOperator *op)
 
   Mesh *mesh = (Mesh *)ob->data;
 
-  /* Call the mesh reordering function */
-  blender::bke::BKE_mesh_reorder_vertices_spatial(mesh);
+  blender::bke::BKE_mesh_reorder_vertices_spatial(ob);
 
-  /* Mark mesh as modified */
-  BKE_mesh_batch_cache_dirty_tag(mesh, BKE_MESH_BATCH_DIRTY_ALL);
+  // BKE_mesh_batch_cache_dirty_tag(mesh, BKE_MESH_BATCH_DIRTY_ALL);
   DEG_id_tag_update(&mesh->id, ID_RECALC_GEOMETRY);
 
-  /* Notify UI of changes */
   WM_event_add_notifier(C, NC_GEOM | ND_DATA, mesh);
 
   return OPERATOR_FINISHED;

@@ -189,6 +189,17 @@ void calc_factors_common_mesh_indexed(const Depsgraph &depsgraph,
                                       const bke::pbvh::MeshNode &node,
                                       Vector<float> &r_factors,
                                       Vector<float> &r_distances);
+void calc_factors_common_mesh_contiguous(const Depsgraph &depsgraph,
+                                         const Brush &brush,
+                                         const Object &object,
+                                         const MeshAttributeData &attribute_data,
+                                         Span<float3> vert_positions,
+                                         Span<float3> vert_normals,
+                                         const int start_offset,
+                                         const int num_vertices,
+                                         const bke::pbvh::MeshNode &node,
+                                         Vector<float> &r_factors,
+                                         Vector<float> &r_distances);
 void calc_factors_common_grids(const Depsgraph &depsgraph,
                                const Brush &brush,
                                const Object &object,
@@ -251,11 +262,21 @@ void fill_factor_from_hide_and_mask(const SubdivCCG &subdiv_ccg,
 void fill_factor_from_hide_and_mask(const BMesh &bm,
                                     const Set<BMVert *, 0> &verts,
                                     MutableSpan<float> r_factors);
+void fill_factor_from_hide_and_mask(Span<bool> hide_vert,
+                                    Span<float> mask,
+                                    int start_offset,
+                                    int num_verts,
+                                    MutableSpan<float> r_factors);
 
 /**
  * Disable brush influence when vertex normals point away from the view.
  */
 void calc_front_face(const float3 &view_normal, Span<float3> normals, MutableSpan<float> factors);
+void calc_front_face(const float3 &view_normal,
+                     Span<float3> vert_normals,
+                     int start_offset,
+                     int num_verts,
+                     MutableSpan<float> factors);
 void calc_front_face(const float3 &view_normal,
                      Span<float3> vert_normals,
                      Span<int> verts,
@@ -281,6 +302,11 @@ void filter_region_clip_factors(const SculptSession &ss,
                                 Span<int> verts,
                                 MutableSpan<float> factors);
 void filter_region_clip_factors(const SculptSession &ss,
+                                Span<float3> vert_positions,
+                                int start_offset,
+                                int num_verts,
+                                MutableSpan<float> factors);
+void filter_region_clip_factors(const SculptSession &ss,
                                 Span<float3> positions,
                                 MutableSpan<float> factors);
 
@@ -291,6 +317,12 @@ void filter_region_clip_factors(const SculptSession &ss,
 void calc_brush_distances(const SculptSession &ss,
                           Span<float3> vert_positions,
                           Span<int> vert,
+                          eBrushFalloffShape falloff_shape,
+                          MutableSpan<float> r_distances);
+void calc_brush_distances(const SculptSession &ss,
+                          Span<float3> vert_positions,
+                          int start_offset,
+                          int num_verts,
                           eBrushFalloffShape falloff_shape,
                           MutableSpan<float> r_distances);
 void calc_brush_distances(const SculptSession &ss,
@@ -306,7 +338,12 @@ void calc_brush_distances_squared(const SculptSession &ss,
                                   Span<float3> positions,
                                   eBrushFalloffShape falloff_shape,
                                   MutableSpan<float> r_distances);
-
+void calc_brush_distances_squared(const SculptSession &ss,
+                                  const Span<float3> positions,
+                                  const int start_offset,
+                                  const int num_verts,
+                                  const eBrushFalloffShape falloff_shape,
+                                  const MutableSpan<float> r_distances);
 /** Set the factor to zero for all distances greater than the radius. */
 void filter_distances_with_radius(float radius, Span<float> distances, MutableSpan<float> factors);
 
@@ -351,6 +388,12 @@ void calc_brush_strength_factors(const StrokeCache &cache,
 void calc_brush_texture_factors(const SculptSession &ss,
                                 const Brush &brush,
                                 Span<float3> vert_positions,
+                                int start_offset,
+                                int num_verts,
+                                MutableSpan<float> factors);
+void calc_brush_texture_factors(const SculptSession &ss,
+                                const Brush &brush,
+                                Span<float3> vert_positions,
                                 Span<int> vert,
                                 MutableSpan<float> factors);
 void calc_brush_texture_factors(const SculptSession &ss,
@@ -367,6 +410,10 @@ void calc_brush_texture_factors(const SculptSession &ss,
 void apply_translations(Span<float3> translations, Span<int> verts, MutableSpan<float3> positions);
 void apply_translations(Span<float3> translations, Span<int> grids, SubdivCCG &subdiv_ccg);
 void apply_translations(Span<float3> translations, const Set<BMVert *, 0> &verts);
+void apply_translations(Span<float3> translations,
+                        int start_offset,
+                        int num_verts,
+                        MutableSpan<float3> positions);
 
 /** Align the translations with plane normal. */
 void project_translations(MutableSpan<float3> translations, const float3 &plane);
@@ -392,6 +439,10 @@ void reset_translations_to_original(MutableSpan<float3> translations,
 void apply_crazyspace_to_translations(Span<float3x3> deform_imats,
                                       Span<int> verts,
                                       MutableSpan<float3> translations);
+void apply_crazyspace_to_translations(const Span<float3x3> deform_imats,
+                                      const int start_offset,
+                                      const int num_verts,
+                                      const MutableSpan<float3> translations);
 
 /**
  * Modify translations based on sculpt mode axis locking and mirroring clipping.
@@ -404,11 +455,17 @@ void clip_and_lock_translations(const Sculpt &sd,
 void clip_and_lock_translations(const Sculpt &sd,
                                 const SculptSession &ss,
                                 Span<float3> positions,
+                                int start_offset,
+                                int num_verts,
+                                MutableSpan<float3> translations);
+void clip_and_lock_translations(const Sculpt &sd,
+                                const SculptSession &ss,
+                                Span<float3> positions,
                                 MutableSpan<float3> translations);
 
 /**
- * Creates OffsetIndices based on each node's unique vertex count, allowing for easy slicing of a
- * new array.
+ * Creates OffsetIndices based on each node's unique vertex count, allowing for easy slicing of
+ * a new array.
  */
 OffsetIndices<int> create_node_vert_offsets(const Span<bke::pbvh::MeshNode> nodes,
                                             const IndexMask &node_mask,
