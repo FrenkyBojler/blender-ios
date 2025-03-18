@@ -421,11 +421,8 @@ void VKContext::openxr_release_framebuffer_image_callback(GHOST_VulkanOpenXRData
 
 void VKContext::openxr_acquire_framebuffer_image_handler(GHOST_VulkanOpenXRData &openxr_data)
 {
-  /** Prepare the framebuffer image to be transferred to the OpenXR swapchain. */
   VKFrameBuffer &framebuffer = *unwrap(active_fb);
   VKTexture *color_attachment = unwrap(unwrap(framebuffer.color_tex(0)));
-
-  framebuffer.rendering_end(*this);
   openxr_data.image_data = color_attachment->read(0, GPU_DATA_HALF_FLOAT);
   openxr_data.extent.width = color_attachment->width_get();
   openxr_data.extent.height = color_attachment->height_get();

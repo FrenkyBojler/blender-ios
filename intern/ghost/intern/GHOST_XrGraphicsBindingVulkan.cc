@@ -7,6 +7,7 @@
  */
 
 #include <algorithm>
+#include <cstring>
 #include <sstream>
 
 #include "GHOST_ContextVK.hh"
@@ -32,6 +33,20 @@ PFN_vkGetMemoryFdKHR GHOST_XrGraphicsBindingVulkan::s_vkGetMemoryFdKHR_fn = null
 GHOST_XrGraphicsBindingVulkan::~GHOST_XrGraphicsBindingVulkan()
 {
   m_ghost_ctx = nullptr;
+
+  /* Destroy buffer */
+  if (m_vk_buffer != VK_NULL_HANDLE) {
+    vmaUnmapMemory(m_vma_allocator, m_vk_buffer_allocation);
+    vmaDestroyBuffer(m_vma_allocator, m_vk_buffer, m_vk_buffer_allocation);
+    m_vk_buffer = VK_NULL_HANDLE;
+    m_vk_buffer_allocation = VK_NULL_HANDLE;
+  }
+
+  /* Destroy VMA */
+  if (m_vma_allocator != VK_NULL_HANDLE) {
+    vmaDestroyAllocator(m_vma_allocator);
+    m_vma_allocator = VK_NULL_HANDLE;
+  }
 
   /* Destroy command buffer */
   if (m_vk_command_buffer != VK_NULL_HANDLE) {
@@ -234,6 +249,16 @@ void GHOST_XrGraphicsBindingVulkan::initFromGhostContext(GHOST_Context &ghost_ct
   oxr_binding.vk.device = m_vk_device;
   oxr_binding.vk.queueFamilyIndex = m_graphics_queue_family;
   oxr_binding.vk.queueIndex = 0;
+
+  /* VMA */
+  VmaAllocatorCreateInfo allocator_create_info = {};
+  allocator_create_info.flags = VMA_ALLOCATOR_CREATE_EXT_MEMORY_BUDGET_BIT;
+  allocator_create_info.vulkanApiVersion = VK_API_VERSION_1_2;
+  allocator_create_info.physicalDevice = m_vk_physical_device;
+  allocator_create_info.device = m_vk_device;
+  allocator_create_info.instance = m_vk_instance;
+
+  vmaCreateAllocator(&allocator_create_info, &m_vma_allocator);
 }
 
 static std::optional<int64_t> choose_swapchain_format_from_candidates(
@@ -323,6 +348,33 @@ void GHOST_XrGraphicsBindingVulkan::submitToSwapchainImage(
   m_ghost_ctx->openxr_acquire_framebuffer_image_callback_(&openxr_data);
 
   /* Import render result. */
+  if (m_vk_buffer == VK_NULL_HANDLE) {
+    VkDeviceSize size = openxr_data.extent.width * openxr_data.extent.height * 4 *
+                        sizeof(uint16_t);  // RGBA16F
+    VkBufferCreateInfo vk_buffer_create_info = {VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+                                                nullptr,
+                                                0,
+                                                size,
+                                                VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                                                VK_SHARING_MODE_EXCLUSIVE,
+                                                0,
+                                                nullptr};
+    VmaAllocationCreateInfo allocation_create_info = {};
+    allocation_create_info.usage = VMA_MEMORY_USAGE_AUTO;
+    allocation_create_info.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
+    allocation_create_info.requiredFlags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
+    vmaCreateBuffer(m_vma_allocator,
+                    &vk_buffer_create_info,
+                    &allocation_create_info,
+                    &m_vk_buffer,
+                    &m_vk_buffer_allocation,
+                    &m_vk_buffer_allocation_info);
+    vmaMapMemory(
+        m_vma_allocator, m_vk_buffer_allocation, &m_vk_buffer_allocation_info.pMappedData);
+  }
+  std::memcpy(m_vk_buffer_allocation_info.pMappedData,
+              openxr_data.image_data,
+              openxr_data.extent.width * openxr_data.extent.height * 4 * sizeof(uint16_t));
 
   /* Copy frame buffer image to swapchain image. */
   VkCommandBuffer vk_command_buffer = m_vk_command_buffer;
@@ -366,6 +418,21 @@ void GHOST_XrGraphicsBindingVulkan::submitToSwapchainImage(
                        &vk_clear_color,
                        1,
                        &vk_image_subresource_range);
+
+  /* Copy buffer to image */
+  VkBufferImageCopy vk_buffer_image_copy = {
+      0,
+      0,
+      0,
+      {VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1},
+      {draw_info.ofsx, draw_info.ofsy, 0},
+      {openxr_data.extent.width, openxr_data.extent.height, 1}};
+  vkCmdCopyBufferToImage(vk_command_buffer,
+                         m_vk_buffer,
+                         vulkan_image.image,
+                         VK_IMAGE_LAYOUT_GENERAL,
+                         1,
+                         &vk_buffer_image_copy);
 
   /* - End command recording */
   vkEndCommandBuffer(vk_command_buffer);

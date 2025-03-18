@@ -8,6 +8,9 @@
 
 #include <list>
 
+#define VMA_VULKAN_VERSION 1002000  // Vulkan 1.2
+#include "vk_mem_alloc.h"
+
 #include "GHOST_ContextVK.hh"
 #include "GHOST_IXrGraphicsBinding.hh"
 #include "GHOST_Types.h"
@@ -18,7 +21,7 @@ class GHOST_XrGraphicsBindingVulkan : public GHOST_IXrGraphicsBinding {
 
   /**
    * Check the version requirements to use OpenXR with the Vulkan backend.
-   *
+   *https://gpuopen-librariesandsdks.github.io/VulkanMemoryAllocator/html/struct_vma_allocator_create_info.html
    * - Physical device should match. GHOST assumes that there is only one device active. When they
    * don't match user is reported with the device that would work. User can select the device from
    * the preferences.
@@ -51,6 +54,10 @@ class GHOST_XrGraphicsBindingVulkan : public GHOST_IXrGraphicsBinding {
   uint32_t m_graphics_queue_family = 0;
   VkQueue m_vk_queue = VK_NULL_HANDLE;
   VkDevice m_vk_device = VK_NULL_HANDLE;
+  VmaAllocator m_vma_allocator = VK_NULL_HANDLE;
+  VmaAllocation m_vk_buffer_allocation = VK_NULL_HANDLE;
+  VkBuffer m_vk_buffer = VK_NULL_HANDLE;
+  VmaAllocationInfo m_vk_buffer_allocation_info = {};
 
   std::list<std::vector<XrSwapchainImageVulkan2KHR>> m_image_cache;
   VkCommandPool m_vk_command_pool = VK_NULL_HANDLE;
