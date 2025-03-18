@@ -13,8 +13,11 @@
 
 #pragma once
 
+#include <variant>
+
 #include "BLI_map.hh"
 
+#include "GPU_batch.hh"
 #include "eevee_shader_shared.hh"
 #include "eevee_sync.hh"
 
@@ -34,20 +37,19 @@ class VelocityModule {
   };
   struct VelocityGeometryData {
     /** VertBuf not yet ready to be copied to the #VelocityGeometryBuf. */
-    gpu::Batch *batch_with_pos = nullptr;
-    gpu::VertBuf *pos_buf = nullptr;
+    std::variant<std::monostate, gpu::Batch *, gpu::VertBuf *> pos_buf;
     /* Offset in the #VelocityGeometryBuf to the start of the data. In vertex. */
     int ofs = 0;
     /* Length of the vertex buffer. In vertex. */
     int len = 0;
 
-    gpu::VertBuf *pos_buf_get()
+    gpu::VertBuf *pos_buf_get() const
     {
-      if (this->pos_buf) {
-        return this->pos_buf;
+      if (std::holds_alternative<gpu::VertBuf *>(this->pos_buf)) {
+        return std::get<gpu::VertBuf *>(this->pos_buf);
       }
-      if (this->batch_with_pos) {
-        return this->batch_with_pos->verts_(0);
+      if (std::holds_alternative<gpu::Batch *>(this->pos_buf)) {
+        return std::get<gpu::Batch *>(this->pos_buf)->verts_(0);
       }
       return nullptr;
     }
