@@ -151,6 +151,12 @@ typedef struct CurvesGeometry {
    */
   CurvesGeometryRuntimeHandle *runtime;
 
+  /**
+   * Knot values for NURBS curves with NURBS_KNOT_MODE_CUSTOM mode.
+   * Array is allocated with bke::CurvesGeometry::nurbs_custom_knots_update_size() or
+   * bke::CurvesGeometry::nurbs_custom_knots_resize().
+   * Indexed with bke::CurvesGeometry::nurbs_custom_knots_by_curve().
+   */
   float *custom_knots;
 
   int custom_knot_num;
