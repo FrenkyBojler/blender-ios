@@ -849,6 +849,7 @@ size_t blf_font_width_to_rstrlen(
   GlyphBLF *g, *g_prev;
   ft_pix pen_x, width_new;
   size_t i, i_prev, i_tmp;
+  std::optional<size_t> i_next = {};
   const char *s, *s_prev;
 
   GlyphCacheBLF *gc = blf_glyph_cache_acquire(font);
@@ -862,7 +863,7 @@ size_t blf_font_width_to_rstrlen(
   i_tmp = i;
   g = blf_glyph_from_utf8_and_step(font, gc, nullptr, str, str_len, &i_tmp, nullptr);
   for (width_new = pen_x = 0; (s != nullptr && i > 0);
-       i = i_prev, s = s_prev, g = g_prev, g_prev = nullptr, width_new = pen_x)
+       i_next = i, i = i_prev, s = s_prev, g = g_prev, g_prev = nullptr, width_new = pen_x)
   {
     s_prev = BLI_str_find_prev_char_utf8(s, str);
     i_prev = size_t(s_prev - str);
@@ -881,7 +882,7 @@ size_t blf_font_width_to_rstrlen(
   }
 
   blf_glyph_cache_release(font);
-  return i;
+  return i_next ? *i_next : i;
 }
 
 /** \} */
@@ -1287,7 +1288,7 @@ static void blf_font_wrap_apply(FontBLF *font,
     g = blf_glyph_from_utf8_and_step(font, gc, g_prev, str, str_len, &i, &pen_x);
 
     const ft_pix advance_x = g ? g->advance_x : 0;
-    const uint codepoint = g ? g->c : BLI_str_utf8_as_unicode_safe(&str[i_curr]);
+    const uint codepoint = BLI_str_utf8_as_unicode_safe(&str[i_curr]);
 
     /**
      * Implementation Detail (utf8).

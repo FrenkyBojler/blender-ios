@@ -22,6 +22,7 @@
 #include "ANIM_action.hh"
 #include "ANIM_action_iterators.hh"
 
+#include "BLI_listbase.h"
 #include "BLI_stack.hh"
 
 namespace blender::nodes::socket_usage_inference {
@@ -148,7 +149,8 @@ struct SocketUsageInferencer {
     if (all_socket_usages_.contains(socket)) {
       return;
     }
-    if (socket->owner_node().is_undefined()) {
+    const bNode &node = socket->owner_node();
+    if (node.is_undefined() && !node.is_custom_group()) {
       all_socket_usages_.add_new(socket, false);
       return;
     }
@@ -485,7 +487,8 @@ struct SocketUsageInferencer {
       /* Task is done already. */
       return;
     }
-    if (socket->owner_node().is_undefined()) {
+    const bNode &node = socket->owner_node();
+    if (node.is_undefined() && !node.is_custom_group()) {
       all_socket_values_.add_new(socket, nullptr);
       return;
     }

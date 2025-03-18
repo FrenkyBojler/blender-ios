@@ -12,6 +12,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BKE_context.hh"
+#include "BKE_library.hh"
 #include "BKE_screen.hh"
 #include "BKE_shader_fx.h"
 
@@ -219,7 +220,7 @@ static bool shaderfx_ui_poll(const bContext *C, PanelType * /*pt*/)
 
 PanelType *shaderfx_panel_register(ARegionType *region_type, ShaderFxType type, PanelDrawFn draw)
 {
-  PanelType *panel_type = static_cast<PanelType *>(MEM_callocN(sizeof(PanelType), __func__));
+  PanelType *panel_type = MEM_callocN<PanelType>(__func__);
 
   BKE_shaderfxType_panel_id(type, panel_type->idname);
   STRNCPY(panel_type->label, "");
@@ -249,7 +250,7 @@ PanelType *shaderfx_subpanel_register(ARegionType *region_type,
                                       PanelDrawFn draw,
                                       PanelType *parent)
 {
-  PanelType *panel_type = static_cast<PanelType *>(MEM_callocN(sizeof(PanelType), __func__));
+  PanelType *panel_type = MEM_callocN<PanelType>(__func__);
 
   BLI_assert(parent != nullptr);
   SNPRINTF(panel_type->idname, "%s_%s", parent->idname, name);

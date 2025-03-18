@@ -37,7 +37,7 @@
 #include "transform_mode.hh"
 #include "transform_snap.hh"
 
-using namespace blender;
+namespace blender::ed::transform {
 
 /* -------------------------------------------------------------------- */
 /** \name Transform (Edge Slide)
@@ -412,7 +412,7 @@ static eRedrawFlag handleEventEdgeSlide(TransInfo *t, const wmEvent *event)
   EdgeSlideParams *slp = static_cast<EdgeSlideParams *>(t->custom.mode.data);
 
   if (slp) {
-    bool is_event_handled = t->redraw && (event->type != MOUSEMOVE);
+    const bool is_event_handled = t->redraw;
     slp->update_status_bar |= is_event_handled;
     switch (event->type) {
       case EVT_EKEY:
@@ -625,8 +625,7 @@ static void edge_slide_snap_apply(TransInfo *t, float *value)
   }
   else {
     /* Could be pre-calculated. */
-    t_mid = line_point_factor_v3(
-        blender::float3{0.0f, 0.0f, 0.0f}, sv->dir_side[0], sv->dir_side[1]);
+    t_mid = line_point_factor_v3(float3{0.0f, 0.0f, 0.0f}, sv->dir_side[0], sv->dir_side[1]);
 
     float t_snap = line_point_factor_v3(snap_point, co_dest[0], co_dest[1]);
     side_index = t_snap >= t_mid;
@@ -992,3 +991,5 @@ TransModeInfo TransMode_edgeslide = {
     /*snap_apply_fn*/ edge_slide_snap_apply,
     /*draw_fn*/ drawEdgeSlide,
 };
+
+}  // namespace blender::ed::transform

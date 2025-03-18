@@ -47,6 +47,7 @@
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
 #include "BKE_lib_remap.hh"
+#include "BKE_library.hh"
 #include "BKE_lightprobe.h"
 #include "BKE_linestyle.h"
 #include "BKE_main.hh"
@@ -97,7 +98,7 @@
 #include "RE_engine.h"
 #include "RE_pipeline.h"
 
-#include "engines/eevee_next/eevee_lightcache.hh"
+#include "engines/eevee/eevee_lightcache.hh"
 
 #include "render_intern.hh" /* own include */
 
@@ -946,9 +947,17 @@ static int view_layer_add_exec(bContext *C, wmOperator *op)
 {
   wmWindow *win = CTX_wm_window(C);
   Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer_current = WM_window_get_active_view_layer(win);
+
+  ViewLayer *view_layer_current = win ? WM_window_get_active_view_layer(win) : nullptr;
+  int type = RNA_enum_get(op->ptr, "type");
+  /* Copy requires a source. */
+  if (type == VIEWLAYER_ADD_COPY) {
+    if (view_layer_current == nullptr) {
+      type = VIEWLAYER_ADD_NEW;
+    }
+  }
   ViewLayer *view_layer_new = BKE_view_layer_add(
-      scene, view_layer_current->name, view_layer_current, RNA_enum_get(op->ptr, "type"));
+      scene, view_layer_current ? view_layer_current->name : nullptr, view_layer_current, type);
 
   if (win) {
     WM_window_set_active_view_layer(win, view_layer_new);
@@ -1439,7 +1448,7 @@ static int lightprobe_cache_bake_invoke(bContext *C, wmOperator *op, const wmEve
   data->scene = scene;
   data->report = "";
 
-  wmJob *wm_job = EEVEE_NEXT_lightbake_job_create(
+  wmJob *wm_job = EEVEE_lightbake_job_create(
       wm, win, bmain, view_layer, scene, probes, data->report, scene->r.cfra, 0);
   if (wm_job == nullptr) {
     MEM_delete(data);
@@ -1506,14 +1515,14 @@ static int lightprobe_cache_bake_exec(bContext *C, wmOperator *op)
   blender::Vector<Object *> probes = lightprobe_cache_irradiance_volume_subset_get(C, op);
 
   std::string report;
-  void *rj = EEVEE_NEXT_lightbake_job_data_alloc(
+  void *rj = EEVEE_lightbake_job_data_alloc(
       bmain, view_layer, scene, probes, report, scene->r.cfra);
   /* Do the job. */
   wmJobWorkerStatus worker_status = {};
-  EEVEE_NEXT_lightbake_job(rj, &worker_status);
+  EEVEE_lightbake_job(rj, &worker_status);
   /* Move baking data to original object and then free it. */
-  EEVEE_NEXT_lightbake_update(rj);
-  EEVEE_NEXT_lightbake_job_data_free(rj);
+  EEVEE_lightbake_update(rj);
+  EEVEE_lightbake_job_data_free(rj);
 
   if (!report.empty()) {
     BKE_report(op->reports, RPT_ERROR, report.c_str());

@@ -16,6 +16,7 @@
 #include "DNA_scene_types.h"
 
 #include "BLI_ghash.h"
+#include "BLI_listbase.h"
 #include "BLI_map.hh"
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
@@ -607,7 +608,7 @@ static void separated_armature_fix_links(Main *bmain, Object *origArm, Object *n
  */
 static void separate_armature_bones(Main *bmain, Object *ob, const bool is_select)
 {
-  bArmature *arm = (bArmature *)ob->data;
+  bArmature *arm = static_cast<bArmature *>(ob->data);
   bPoseChannel *pchan, *pchann;
   EditBone *curbone;
 
@@ -860,7 +861,7 @@ static const EnumPropertyItem prop_editarm_make_parent_types[] = {
 static int armature_parent_set_exec(bContext *C, wmOperator *op)
 {
   Object *ob = CTX_data_edit_object(C);
-  bArmature *arm = (bArmature *)ob->data;
+  bArmature *arm = static_cast<bArmature *>(ob->data);
   EditBone *actbone = CTX_data_active_bone(C);
   EditBone *actmirb = nullptr;
   short val = RNA_enum_get(op->ptr, "type");

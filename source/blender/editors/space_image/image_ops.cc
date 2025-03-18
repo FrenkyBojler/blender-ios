@@ -21,6 +21,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_fileops.h"
+#include "BLI_listbase.h"
 #include "BLI_path_utils.hh"
 #include "BLI_set.hh"
 #include "BLI_string.h"
@@ -44,7 +45,9 @@
 #include "BKE_image_save.hh"
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
+#include "BKE_library.hh"
 #include "BKE_main.hh"
+#include "BKE_mask.h"
 #include "BKE_packedFile.hh"
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
@@ -970,6 +973,8 @@ static int image_view_selected_exec(bContext *C, wmOperator * /*op*/)
     if (!ED_mask_selected_minmax(C, min, max, false)) {
       return OPERATOR_CANCELLED;
     }
+    BKE_mask_coord_to_image(sima->image, &sima->iuser, min, min);
+    BKE_mask_coord_to_image(sima->image, &sima->iuser, max, max);
   }
   rctf bounds{};
   bounds.xmin = min[0];
@@ -1352,7 +1357,7 @@ static int image_open_exec(bContext *C, wmOperator *op)
   ImageOpenData *iod = static_cast<ImageOpenData *>(op->customdata);
   ID *owner_id = iod->pprop.ptr.owner_id;
   Library *owner_library = owner_id ? owner_id->lib : nullptr;
-  blender::StringRefNull root_path = owner_library ? owner_library->runtime.filepath_abs :
+  blender::StringRefNull root_path = owner_library ? owner_library->runtime->filepath_abs :
                                                      BKE_main_blendfile_path(bmain);
 
   ListBase ranges = ED_image_filesel_detect_sequences(root_path, op, use_udim);
@@ -1606,7 +1611,7 @@ static int image_file_browse_exec(bContext *C, wmOperator *op)
     /* TODO: make this a BKE_lib_id helper (already a static function in BKE_image too), we likely
      * need this in more places in the future. ~~mont29 */
     BLI_path_rel(filepath,
-                 ID_IS_LINKED(&ima->id) ? ima->id.lib->runtime.filepath_abs :
+                 ID_IS_LINKED(&ima->id) ? ima->id.lib->runtime->filepath_abs :
                                           BKE_main_blendfile_path(CTX_data_main(C)));
   }
 
@@ -1635,7 +1640,7 @@ static int image_file_browse_invoke(bContext *C, wmOperator *op, const wmEvent *
   char filepath[FILE_MAX];
   STRNCPY(filepath, ima->filepath);
   BLI_path_abs(filepath,
-               ID_IS_LINKED(&ima->id) ? ima->id.lib->runtime.filepath_abs :
+               ID_IS_LINKED(&ima->id) ? ima->id.lib->runtime->filepath_abs :
                                         BKE_main_blendfile_path(CTX_data_main(C)));
 
   /* Shift+Click to open the file, Alt+Click to browse a folder in the OS's browser. */
@@ -2292,7 +2297,7 @@ static int image_save_sequence_exec(bContext *C, wmOperator *op)
     ibuf = IMB_moviecacheIter_getImBuf(iter);
 
     if (ibuf != nullptr && ibuf->userflags & IB_BITMAPDIRTY) {
-      if (0 == IMB_saveiff(ibuf, ibuf->filepath, IB_rect)) {
+      if (0 == IMB_saveiff(ibuf, ibuf->filepath, IB_byte_data)) {
         BKE_reportf(op->reports, RPT_ERROR, "Could not write image: %s", strerror(errno));
         break;
       }
@@ -2810,7 +2815,7 @@ static int image_flip_exec(bContext *C, wmOperator *op)
     MEM_freeN(orig_float_pixels);
 
     if (ibuf->byte_buffer.data) {
-      IMB_rect_from_float(ibuf);
+      IMB_byte_from_float(ibuf);
     }
   }
   else if (ibuf->byte_buffer.data) {
@@ -3150,7 +3155,7 @@ static int image_invert_exec(bContext *C, wmOperator *op)
     }
 
     if (ibuf->byte_buffer.data) {
-      IMB_rect_from_float(ibuf);
+      IMB_byte_from_float(ibuf);
     }
   }
   else if (ibuf->byte_buffer.data) {

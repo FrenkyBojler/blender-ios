@@ -10,13 +10,14 @@
 #include "BLI_math_geom.h"
 #include "BLI_math_vector.h"
 #include "BLI_math_vector_types.hh"
+#include "BLI_string_ref.hh"
 
 #include "BKE_attribute.h"
 #include "BKE_customdata.hh"
 
 #include "bmesh.hh"
 
-BMUVOffsets BM_uv_map_get_offsets_from_layer(const BMesh *bm, const int layer)
+BMUVOffsets BM_uv_map_offsets_from_layer(const BMesh *bm, const int layer)
 {
   using namespace blender;
   using namespace blender::bke;
@@ -25,7 +26,7 @@ BMUVOffsets BM_uv_map_get_offsets_from_layer(const BMesh *bm, const int layer)
     return {-1, -1, -1, -1};
   }
 
-  char const *name = bm->ldata.layers[layer_index].name;
+  const StringRef name = bm->ldata.layers[layer_index].name;
   char buffer[MAX_CUSTOMDATA_LAYER_NAME];
 
   BMUVOffsets offsets;
@@ -40,13 +41,13 @@ BMUVOffsets BM_uv_map_get_offsets_from_layer(const BMesh *bm, const int layer)
   return offsets;
 }
 
-BMUVOffsets BM_uv_map_get_offsets(const BMesh *bm)
+BMUVOffsets BM_uv_map_offsets_get(const BMesh *bm)
 {
   const int layer = CustomData_get_active_layer(&bm->ldata, CD_PROP_FLOAT2);
   if (layer == -1) {
     return {-1, -1, -1, -1};
   }
-  return BM_uv_map_get_offsets_from_layer(bm, layer);
+  return BM_uv_map_offsets_from_layer(bm, layer);
 }
 
 static void uv_aspect(const BMLoop *l,

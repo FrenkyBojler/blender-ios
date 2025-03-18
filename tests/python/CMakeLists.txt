@@ -63,56 +63,74 @@ function(add_blender_test_io testname)
 endfunction()
 
 if(WITH_UI_TESTS)
-  set(_blender_headless_env_vars "BLENDER_BIN=${TEST_BLENDER_EXE}")
+  if(WITH_UI_TESTS_HEADLESS)
+    set(_blender_headless_env_vars "BLENDER_BIN=${TEST_BLENDER_EXE}")
 
-  # Currently only WAYLAND is supported, support for others may be added later.
-  # In this case none of the WESTON environment variables will be used.
-  if(WITH_GHOST_WAYLAND)
-    set(_weston_bin_in_libdir OFF)
-    if(DEFINED LIBDIR)
-      set(_weston_bin_default "${LIBDIR}/wayland_weston/bin/weston")
-    else()
-      set(_weston_bin_default "weston")
-    endif()
-    set(WESTON_BIN "${_weston_bin_default}" CACHE STRING "\
-The location of weston, leave blank for the default location."
-    )
-    mark_as_advanced(WESTON_BIN)
-    if((DEFINED LIBDIR) AND ("${WESTON_BIN}" STREQUAL "${_weston_bin_default}"))
-      set(_weston_bin_in_libdir ON)
-    endif()
-
-    list(APPEND _blender_headless_env_vars
-      "WESTON_BIN=${WESTON_BIN}"
-    )
-
-    if(_weston_bin_in_libdir)
-      list(APPEND _blender_headless_env_vars
-        "WAYLAND_ROOT_DIR=${LIBDIR}/wayland"
-        "WESTON_ROOT_DIR=${LIBDIR}/wayland_weston"
+    # Currently only WAYLAND is supported, support for others may be added later.
+    # In this case none of the WESTON environment variables will be used.
+    if(WITH_GHOST_WAYLAND)
+      set(_weston_bin_in_libdir OFF)
+      if(DEFINED LIBDIR)
+        set(_weston_bin_default "${LIBDIR}/wayland_weston/bin/weston")
+      else()
+        set(_weston_bin_default "weston")
+      endif()
+      set(WESTON_BIN "${_weston_bin_default}" CACHE STRING "\
+  The location of weston, leave blank for the default location."
       )
-    endif()
-  endif()
+      mark_as_advanced(WESTON_BIN)
+      if((DEFINED LIBDIR) AND ("${WESTON_BIN}" STREQUAL "${_weston_bin_default}"))
+        set(_weston_bin_in_libdir ON)
+      endif()
 
-  function(add_blender_test_headless testname)
-    # Remove `--background` so headless execution uses a GUI
-    # (within a headless graphical environment).
-    set(EXE_PARAMS ${TEST_BLENDER_EXE_PARAMS})
-    list(REMOVE_ITEM EXE_PARAMS --background)
-    add_blender_test_impl(
-      "${testname}"
-      "${_blender_headless_env_vars}"
-      "${TEST_PYTHON_EXE}"
-      "${CMAKE_SOURCE_DIR}/tests/utils/blender_headless.py"
-      # NOTE: attempting to maximize the window causes problems with a headless `weston`,
-      # while this could be investigated, use windowed mode instead.
-      # Use a window size that balances software GPU rendering with enough room to use the UI.
-      --factory-startup
-      -p 0 0 800 600
-      "${EXE_PARAMS}"
-      "${ARGN}"
-    )
-  endfunction()
+      list(APPEND _blender_headless_env_vars
+        "WESTON_BIN=${WESTON_BIN}"
+      )
+
+      if(_weston_bin_in_libdir)
+        list(APPEND _blender_headless_env_vars
+          "WAYLAND_ROOT_DIR=${LIBDIR}/wayland"
+          "WESTON_ROOT_DIR=${LIBDIR}/wayland_weston"
+        )
+      endif()
+    endif()
+
+    function(add_blender_test_ui testname)
+      # Remove `--background` so headless execution uses a GUI
+      # (within a headless graphical environment).
+      set(EXE_PARAMS ${TEST_BLENDER_EXE_PARAMS})
+      list(REMOVE_ITEM EXE_PARAMS --background)
+      add_blender_test_impl(
+        "${testname}"
+        "${_blender_headless_env_vars}"
+        "${TEST_PYTHON_EXE}"
+        "${CMAKE_SOURCE_DIR}/tests/utils/blender_headless.py"
+        # NOTE: attempting to maximize the window causes problems with a headless `weston`,
+        # while this could be investigated, use windowed mode instead.
+        # Use a window size that balances software GPU rendering with enough room to use the UI.
+        --factory-startup
+        -p 0 0 800 600
+        "${EXE_PARAMS}"
+        "${ARGN}"
+      )
+    endfunction()
+  else()
+    function(add_blender_test_ui testname)
+      # Remove `--background`
+      set(EXE_PARAMS ${TEST_BLENDER_EXE_PARAMS})
+      list(REMOVE_ITEM EXE_PARAMS --background)
+
+      add_blender_test_impl(
+        "${testname}"
+        ""
+        "${TEST_BLENDER_EXE}"
+        --factory-startup
+        -p 0 0 800 600
+        ${EXE_PARAMS}
+        ${ARGN}
+      )
+    endfunction()
+  endif()
 endif()
 
 # Run Python script outside Blender.
@@ -564,6 +582,7 @@ if(WITH_CYCLES OR WITH_GPU_RENDER_TESTS)
     message(WARNING "Disabling render tests because WITH_OPENCOLORIO is disabled")
   else()
     set(render_tests
+      attributes
       camera
       bsdf
       hair
@@ -688,10 +707,10 @@ if(WITH_CYCLES OR WITH_GPU_RENDER_TESTS)
       if(WITH_OPENGL_BACKEND)
         foreach(render_test ${gpu_render_tests})
           add_render_test(
-            eevee_next_${render_test}_opengl
+            eevee_next_opengl_${render_test}
             ${CMAKE_CURRENT_LIST_DIR}/eevee_next_render_tests.py
             --testdir "${TEST_SRC_DIR}/render/${render_test}"
-            --outdir "${TEST_OUT_DIR}/eevee_next"
+            --outdir "${TEST_OUT_DIR}/eevee_next_opengl"
             --gpu-backend opengl
             ${_gpu_render_tests_arguments}
           )
@@ -701,10 +720,10 @@ if(WITH_CYCLES OR WITH_GPU_RENDER_TESTS)
       if(WITH_METAL_BACKEND)
         foreach(render_test ${gpu_render_tests})
           add_render_test(
-            eevee_next_${render_test}_metal
+            eevee_next_metal_${render_test}
             ${CMAKE_CURRENT_LIST_DIR}/eevee_next_render_tests.py
             --testdir "${TEST_SRC_DIR}/render/${render_test}"
-            --outdir "${TEST_OUT_DIR}/eevee_next"
+            --outdir "${TEST_OUT_DIR}/eevee_next_metal"
             --gpu-backend metal
             ${_gpu_render_tests_arguments}
           )
@@ -714,10 +733,10 @@ if(WITH_CYCLES OR WITH_GPU_RENDER_TESTS)
       if(WITH_VULKAN_BACKEND AND WITH_GPU_RENDER_TESTS_VULKAN)
         foreach(render_test ${gpu_render_tests})
           add_render_test(
-            eevee_next_${render_test}_vulkan
+            eevee_next_vulkan_${render_test}
             ${CMAKE_CURRENT_LIST_DIR}/eevee_next_render_tests.py
             --testdir "${TEST_SRC_DIR}/render/${render_test}"
-            --outdir "${TEST_OUT_DIR}/eevee_next"
+            --outdir "${TEST_OUT_DIR}/eevee_next_vulkan"
             --gpu-backend vulkan
             ${_gpu_render_tests_arguments}
           )
@@ -728,10 +747,10 @@ if(WITH_CYCLES OR WITH_GPU_RENDER_TESTS)
       if(WITH_OPENGL_BACKEND)
         foreach(render_test ${gpu_render_tests})
           add_render_test(
-            workbench_${render_test}_opengl
+            workbench_opengl_${render_test}
             ${CMAKE_CURRENT_LIST_DIR}/workbench_render_tests.py
             --testdir "${TEST_SRC_DIR}/render/${render_test}"
-            --outdir "${TEST_OUT_DIR}/workbench"
+            --outdir "${TEST_OUT_DIR}/workbench_opengl"
             --gpu-backend opengl
             ${_gpu_render_tests_arguments}
           )
@@ -741,10 +760,10 @@ if(WITH_CYCLES OR WITH_GPU_RENDER_TESTS)
       if(WITH_METAL_BACKEND)
         foreach(render_test ${gpu_render_tests})
           add_render_test(
-            workbench_${render_test}_metal
+            workbench_metal_${render_test}
             ${CMAKE_CURRENT_LIST_DIR}/workbench_render_tests.py
             --testdir "${TEST_SRC_DIR}/render/${render_test}"
-            --outdir "${TEST_OUT_DIR}/workbench"
+            --outdir "${TEST_OUT_DIR}/workbench_metal"
             --gpu-backend metal
             ${_gpu_render_tests_arguments}
           )
@@ -754,10 +773,10 @@ if(WITH_CYCLES OR WITH_GPU_RENDER_TESTS)
       if(WITH_VULKAN_BACKEND AND WITH_GPU_RENDER_TESTS_VULKAN)
         foreach(render_test ${gpu_render_tests})
           add_render_test(
-            workbench_${render_test}_vulkan
+            workbench_vulkan_${render_test}
             ${CMAKE_CURRENT_LIST_DIR}/workbench_render_tests.py
             --testdir "${TEST_SRC_DIR}/render/${render_test}"
-            --outdir "${TEST_OUT_DIR}/workbench"
+            --outdir "${TEST_OUT_DIR}/workbench/vulkan"
             --gpu-backend vulkan
             ${_gpu_render_tests_arguments}
           )
@@ -840,6 +859,7 @@ else()
     output
     vector
 
+    pixel_nodes
     multiple_node_setups
   )
 
@@ -856,6 +876,14 @@ else()
     )
   endforeach()
 
+  add_blender_test(
+    compositor_cpu_file_output
+    --python ${CMAKE_CURRENT_LIST_DIR}/compositor_file_output_tests.py
+    --
+    --testdir "${TEST_SRC_DIR}/compositor/file_output/"
+    --outdir "${TEST_OUT_DIR}/compositor_cpu/file_output"
+  )
+
 endif()
 
 if(WITH_GPU_COMPOSITOR_TESTS)
@@ -870,6 +898,7 @@ if(WITH_GPU_COMPOSITOR_TESTS)
       output
       vector
 
+      pixel_nodes
       multiple_node_setups
     )
 
@@ -877,15 +906,63 @@ if(WITH_GPU_COMPOSITOR_TESTS)
       list(APPEND compositor_tests distort matte)
     endif()
 
-    foreach(comp_test ${compositor_tests})
-      add_render_test(
-        compositor_gpu_${comp_test}
-        ${CMAKE_CURRENT_LIST_DIR}/compositor_render_tests.py
-        --testdir "${TEST_SRC_DIR}/compositor/${comp_test}"
-        --outdir "${TEST_OUT_DIR}/compositor_gpu"
-        --gpu
+    if(WITH_OPENGL_BACKEND)
+      foreach(comp_test ${compositor_tests})
+        add_render_test(
+          compositor_opengl_${comp_test}
+          ${CMAKE_CURRENT_LIST_DIR}/compositor_render_tests.py
+          --testdir "${TEST_SRC_DIR}/compositor/${comp_test}"
+          --outdir "${TEST_OUT_DIR}/compositor_opengl"
+          --gpu-backend opengl
+        )
+      endforeach()
+      add_blender_test(
+        compositor_opengl_file_output
+        --python ${CMAKE_CURRENT_LIST_DIR}/compositor_file_output_tests.py
+        --
+        --testdir "${TEST_SRC_DIR}/compositor/file_output/"
+        --outdir "${TEST_OUT_DIR}/compositor_opengl/file_output"
+        --gpu-backend opengl
       )
-    endforeach()
+    endif()
+    if(WITH_METAL_BACKEND)
+      foreach(comp_test ${compositor_tests})
+        add_render_test(
+          compositor_metal_${comp_test}
+          ${CMAKE_CURRENT_LIST_DIR}/compositor_render_tests.py
+          --testdir "${TEST_SRC_DIR}/compositor/${comp_test}"
+          --outdir "${TEST_OUT_DIR}/compositor_metal"
+          --gpu-backend metal
+        )
+      endforeach()
+      add_blender_test(
+        compositor_metal_file_output
+        --python ${CMAKE_CURRENT_LIST_DIR}/compositor_file_output_tests.py
+        --
+        --testdir "${TEST_SRC_DIR}/compositor/file_output/"
+        --outdir "${TEST_OUT_DIR}/compositor_metal/file_output"
+        --gpu-backend metal
+      )
+    endif()
+    if(WITH_VULKAN_BACKEND)
+      foreach(comp_test ${compositor_tests})
+        add_render_test(
+          compositor_vulkan_${comp_test}
+          ${CMAKE_CURRENT_LIST_DIR}/compositor_render_tests.py
+          --testdir "${TEST_SRC_DIR}/compositor/${comp_test}"
+          --outdir "${TEST_OUT_DIR}/compositor_vulkan"
+          --gpu-backend vulkan
+        )
+      endforeach()
+      add_blender_test(
+        compositor_vulkan_file_output
+        --python ${CMAKE_CURRENT_LIST_DIR}/compositor_file_output_tests.py
+        --
+        --testdir "${TEST_SRC_DIR}/compositor/file_output/"
+        --outdir "${TEST_OUT_DIR}/compositor_vulkan/file_output"
+        --gpu-backend vulkan
+      )
+    endif()
   endif()
 endif()
 
@@ -1130,6 +1207,35 @@ else()
   endforeach()
 endif()
 
+# ------------------------------------------------------------------------------
+# SCULPTING TESTS
+
+add_blender_test(
+  bl_sculpt_operators
+  --python ${CMAKE_CURRENT_LIST_DIR}/bl_sculpt.py
+  --
+  --testdir "${TEST_SRC_DIR}/sculpting"
+)
+
+if(WITH_GPU_MESH_PAINT_TESTS)
+  if(NOT OPENIMAGEIO_TOOL)
+    message(STATUS "Disabling sculpting render tests because OIIO oiiotool does not exist")
+  else()
+    set(render_tests
+      brushes
+    )
+
+    foreach(render_test ${render_tests})
+      add_render_test(
+        sculpt_render_${render_test}
+        ${CMAKE_CURRENT_LIST_DIR}/sculpt_brush_render_tests.py
+        --testdir "${TEST_SRC_DIR}/sculpting/${render_test}"
+        --outdir "${TEST_OUT_DIR}/sculpting"
+      )
+    endforeach()
+  endif()
+endif()
+
 
 # ------------------------------------------------------------------------------
 # Headless GUI Tests
@@ -1155,7 +1261,7 @@ if(WITH_UI_TESTS)
     test_undo.view3d_texture_paint_simple
   )
   foreach(ui_test ${_undo_tests})
-    add_blender_test_headless(
+    add_blender_test_ui(
       "ui_${ui_test}"
       --enable-event-simulate
       --python "${CMAKE_CURRENT_LIST_DIR}/ui_simulate/run_blender_setup.py"

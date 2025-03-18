@@ -391,6 +391,10 @@ std::optional<std::string> rna_Node_ImageUser_path(const PointerRNA *ptr);
 std::optional<std::string> rna_CameraBackgroundImage_image_or_movieclip_user_path(
     const PointerRNA *ptr);
 
+std::optional<std::string> rna_ColorManagedDisplaySettings_path(const PointerRNA *ptr);
+std::optional<std::string> rna_ColorManagedViewSettings_path(const PointerRNA *ptr);
+std::optional<std::string> rna_ColorManagedInputColorspaceSettings_path(const PointerRNA *ptr);
+
 /* Node socket subtypes for group interface. */
 void rna_def_node_socket_interface_subtypes(BlenderRNA *brna);
 
@@ -558,6 +562,7 @@ bool rna_builtin_properties_lookup_string(PointerRNA *ptr, const char *key, Poin
 /* Iterators */
 
 void rna_iterator_listbase_begin(CollectionPropertyIterator *iter,
+                                 PointerRNA *ptr,
                                  ListBase *lb,
                                  IteratorSkipFunc skip);
 void rna_iterator_listbase_next(CollectionPropertyIterator *iter);
@@ -566,7 +571,8 @@ void rna_iterator_listbase_end(CollectionPropertyIterator *iter);
 PointerRNA rna_listbase_lookup_int(PointerRNA *ptr, StructRNA *type, ListBase *lb, int index);
 
 void rna_iterator_array_begin(CollectionPropertyIterator *iter,
-                              void *ptr,
+                              PointerRNA *ptr,
+                              void *data,
                               int itemsize,
                               int length,
                               bool free_ptr,
@@ -597,7 +603,16 @@ PropertyDefRNA *rna_find_struct_property_def(StructRNA *srna, PropertyRNA *prop)
 
 /* Pointer Handling */
 
-PointerRNA rna_pointer_inherit_refine(const PointerRNA *ptr, StructRNA *type, void *data);
+/**
+ * Internal implementation for #RNA_pointer_create_with_parent.
+ *
+ * Only exposed to RNA code because custom collection lookup functions get an existing PointerRNA
+ * data to modify, instead of returning a new one.
+ */
+void rna_pointer_create_with_ancestors(const PointerRNA &parent,
+                                       StructRNA *type,
+                                       void *data,
+                                       PointerRNA &r_ptr);
 
 /* Functions */
 

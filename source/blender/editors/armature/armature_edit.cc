@@ -16,6 +16,7 @@
 #include "BLT_translation.hh"
 
 #include "BLI_ghash.h"
+#include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
@@ -759,7 +760,7 @@ static int armature_fill_bones_exec(bContext *C, wmOperator *op)
     short headtail = 0;
 
     /* check that the points don't belong to the same bone */
-    ebp_a = (EditBonePoint *)points.first;
+    ebp_a = static_cast<EditBonePoint *>(points.first);
     ebp_b = ebp_a->next;
 
     if (((ebp_a->head_owner == ebp_b->tail_owner) && (ebp_a->head_owner != nullptr)) ||
@@ -1070,7 +1071,7 @@ static void bone_align_to_bone(ListBase *edbo, EditBone *selbone, EditBone *actb
 static int armature_align_bones_exec(bContext *C, wmOperator *op)
 {
   Object *ob = CTX_data_edit_object(C);
-  bArmature *arm = (bArmature *)ob->data;
+  bArmature *arm = static_cast<bArmature *>(ob->data);
   EditBone *actbone = CTX_data_active_bone(C);
   EditBone *actmirb = nullptr;
   int num_selected_bones;

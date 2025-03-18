@@ -13,6 +13,7 @@
 #include "BKE_object.hh"
 
 #include "BLI_enumerable_thread_specific.hh"
+#include "BLI_index_mask.hh"
 #include "BLI_offset_indices.hh"
 #include "BLI_task.hh"
 
@@ -273,6 +274,7 @@ bool selection_update(const ViewContext *vc,
             const IndexMask not_in_mask = changed_element_mask.complement(
                 selection.span.index_range(), memory);
             ed::curves::fill_selection_false(selection.span, not_in_mask);
+            changed = true;
             selection.finish();
           }
         }
@@ -501,12 +503,11 @@ static int select_random_exec(bContext *C, wmOperator *op)
         if (selectable_elements.is_empty()) {
           return {};
         }
-        return ed::curves::random_mask(info.drawing.strokes(),
-                                       selectable_elements,
-                                       selection_domain,
-                                       blender::get_default_hash<int>(seed, info.layer_index),
-                                       ratio,
-                                       memory);
+        return random_mask(selectable_elements,
+                           info.drawing.strokes().points_num(),
+                           blender::get_default_hash<int>(seed, info.layer_index),
+                           ratio,
+                           memory);
       });
 
   /* Use #ID_RECALC_GEOMETRY instead of #ID_RECALC_SELECT because it is handled as a generic

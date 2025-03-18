@@ -15,7 +15,9 @@
 #include "DNA_space_types.h"
 #include "DNA_userdef_types.h"
 
+#include "BLI_listbase.h"
 #include "BLI_math_rotation.h"
+#include "BLI_math_vector.h"
 #include "BLI_rect.h"
 #include "BLI_utildefines.h"
 
@@ -237,7 +239,6 @@ bool ANIM_nla_mapping_allowed(const bAnimListElem *ale)
       return !fcurve->driver;
     }
     case ANIMTYPE_DSGPENCIL:
-    case ANIMTYPE_GPDATABLOCK:
     case ANIMTYPE_GPLAYER:
     case ANIMTYPE_GREASE_PENCIL_DATABLOCK:
     case ANIMTYPE_GREASE_PENCIL_LAYER_GROUP:
@@ -272,7 +273,7 @@ float ANIM_nla_tweakedit_remap(bAnimListElem *ale,
 static short bezt_nlamapping_restore(KeyframeEditData *ked, BezTriple *bezt)
 {
   /* AnimData block providing scaling is stored in 'data', only_keys option is stored in i1 */
-  AnimData *adt = (AnimData *)ked->data;
+  AnimData *adt = static_cast<AnimData *>(ked->data);
   short only_keys = short(ked->i1);
 
   /* adjust BezTriple handles only if allowed to */
@@ -291,7 +292,7 @@ static short bezt_nlamapping_restore(KeyframeEditData *ked, BezTriple *bezt)
 static short bezt_nlamapping_apply(KeyframeEditData *ked, BezTriple *bezt)
 {
   /* AnimData block providing scaling is stored in 'data', only_keys option is stored in i1 */
-  AnimData *adt = (AnimData *)ked->data;
+  AnimData *adt = static_cast<AnimData *>(ked->data);
   short only_keys = short(ked->i1);
 
   /* adjust BezTriple handles only if allowed to */
@@ -349,7 +350,7 @@ void ANIM_nla_mapping_apply_if_needed_fcurve(bAnimListElem *ale,
 short ANIM_get_normalization_flags(SpaceLink *space_link)
 {
   if (space_link->spacetype == SPACE_GRAPH) {
-    SpaceGraph *sipo = (SpaceGraph *)space_link;
+    SpaceGraph *sipo = reinterpret_cast<SpaceGraph *>(space_link);
     bool use_normalization = (sipo->flag & SIPO_NORMALIZE) != 0;
     bool freeze_normalization = (sipo->flag & SIPO_NORMALIZE_FREEZE) != 0;
     return use_normalization ? (ANIM_UNITCONV_NORMALIZE |

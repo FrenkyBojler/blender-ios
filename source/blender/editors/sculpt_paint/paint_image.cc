@@ -14,6 +14,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_listbase.h"
 #include "BLI_math_vector.hh"
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
@@ -36,6 +37,7 @@
 #include "BKE_curves.hh"
 #include "BKE_grease_pencil.hh"
 #include "BKE_image.hh"
+#include "BKE_library.hh"
 #include "BKE_main.hh"
 #include "BKE_material.hh"
 #include "BKE_mesh.hh"
@@ -541,7 +543,7 @@ static int grab_clone_invoke(bContext *C, wmOperator *op, const wmEvent *event)
   const ImagePaintSettings &image_paint_settings = settings->imapaint;
   GrabClone *cmv;
 
-  cmv = MEM_cnew<GrabClone>("GrabClone");
+  cmv = MEM_callocN<GrabClone>("GrabClone");
   copy_v2_v2(cmv->startoffset, image_paint_settings.clone_offset);
   cmv->startx = event->xy[0];
   cmv->starty = event->xy[1];

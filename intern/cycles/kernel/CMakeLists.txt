@@ -248,12 +248,10 @@ set(SRC_KERNEL_GEOM_HEADERS
   geom/motion_triangle_intersect.h
   geom/motion_triangle_shader.h
   geom/object.h
-  geom/patch.h
   geom/point.h
   geom/point_intersect.h
   geom/primitive.h
   geom/shader_data.h
-  geom/subd_triangle.h
   geom/triangle.h
   geom/triangle_intersect.h
   geom/volume.h
@@ -942,8 +940,6 @@ if(WITH_CYCLES_DEVICE_ONEAPI)
     -fsycl
     -fsycl-unnamed-lambda
     -fdelayed-template-parsing
-    -mllvm -inlinedefault-threshold=250
-    -mllvm -inlinehint-threshold=350
     -fsycl-device-code-split=per_kernel
     -fsycl-max-parallel-link-jobs=${SYCL_OFFLINE_COMPILER_PARALLEL_JOBS}
     --offload-compress
@@ -969,7 +965,7 @@ if(WITH_CYCLES_DEVICE_ONEAPI)
 
   # Set defaults for spir64 and spir64_gen options
   if(NOT DEFINED CYCLES_ONEAPI_SYCL_OPTIONS_spir64)
-    set(CYCLES_ONEAPI_SYCL_OPTIONS_spir64 "-options '-cl-fast-relaxed-math -ze-opt-large-register-file -ze-opt-regular-grf-kernel integrator_intersect -ze-opt-large-grf-kernel shade -ze-opt-no-local-to-generic'")
+    set(CYCLES_ONEAPI_SYCL_OPTIONS_spir64 "-options '-cl-fast-relaxed-math -ze-intel-enable-auto-large-GRF-mode -ze-opt-regular-grf-kernel integrator_intersect -ze-opt-large-grf-kernel shade_surface -ze-opt-no-local-to-generic'")
   endif()
   if(NOT DEFINED CYCLES_ONEAPI_SYCL_OPTIONS_spir64_gen)
     set(CYCLES_ONEAPI_SYCL_OPTIONS_spir64_gen "${CYCLES_ONEAPI_SYCL_OPTIONS_spir64}" CACHE STRING "Extra build options for spir64_gen target")
@@ -1295,9 +1291,9 @@ source_group("util" FILES ${SRC_KERNEL_UTIL_HEADERS})
 
 set(_cycles_prev_gpu_kernel_target)
 macro(cycles_add_gpu_kernel_dependencies GPU_KERNEL_TARGET)
-  if (TARGET ${GPU_KERNEL_TARGET})
+  if(TARGET ${GPU_KERNEL_TARGET})
     add_dependencies(cycles_kernel ${GPU_KERNEL_TARGET})
-    if (_cycles_prev_gpu_kernel_target)
+    if(_cycles_prev_gpu_kernel_target)
       add_dependencies(${GPU_KERNEL_TARGET} ${_cycles_prev_gpu_kernel_target})
     endif()
     set(_cycles_prev_gpu_kernel_target ${GPU_KERNEL_TARGET})

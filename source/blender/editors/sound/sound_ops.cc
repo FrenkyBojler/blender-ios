@@ -12,6 +12,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_listbase.h"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
@@ -25,6 +26,7 @@
 #include "BKE_fcurve.hh"
 #include "BKE_global.hh"
 #include "BKE_lib_id.hh"
+#include "BKE_library.hh"
 #include "BKE_main.hh"
 #include "BKE_packedFile.hh"
 #include "BKE_report.hh"
@@ -64,7 +66,7 @@ static void sound_open_init(bContext *C, wmOperator *op)
 {
   PropertyPointerRNA *pprop;
 
-  op->customdata = pprop = MEM_new<PropertyPointerRNA>("OpenPropertyPointerRNA");
+  op->customdata = pprop = MEM_new<PropertyPointerRNA>(__func__);
   UI_context_active_but_prop_get_templateID(C, &pprop->ptr, &pprop->prop);
 }
 
@@ -106,7 +108,7 @@ static int sound_open_exec(bContext *C, wmOperator *op)
 
   DEG_relations_tag_update(bmain);
 
-  MEM_delete(static_cast<PropertyPointerRNA *>(op->customdata));
+  MEM_delete(pprop);
   return OPERATOR_FINISHED;
 }
 
@@ -241,7 +243,7 @@ static void sound_update_animation_flags(Scene *scene)
   scene->id.tag |= ID_TAG_DOIT;
 
   if (scene->ed != nullptr) {
-    SEQ_for_each_callback(&scene->ed->seqbase, sound_update_animation_flags_fn, scene);
+    blender::seq::for_each_callback(&scene->ed->seqbase, sound_update_animation_flags_fn, scene);
   }
 
   fcu = id_data_find_fcurve(&scene->id, scene, &RNA_Scene, "audio_volume", 0, &driven);

@@ -17,6 +17,7 @@
 #include "DNA_space_types.h"
 
 #include "BLI_bounds_types.hh"
+#include "BLI_listbase.h"
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
@@ -946,7 +947,6 @@ void draw_nla_main_data(bAnimContext *ac, SpaceNla *snla, ARegion *region)
         case ANIMTYPE_DSPOINTCLOUD:
         case ANIMTYPE_DSVOLUME:
         case ANIMTYPE_SHAPEKEY:
-        case ANIMTYPE_GPDATABLOCK:
         case ANIMTYPE_GPLAYER:
         case ANIMTYPE_GREASE_PENCIL_DATABLOCK:
         case ANIMTYPE_GREASE_PENCIL_LAYER_GROUP:

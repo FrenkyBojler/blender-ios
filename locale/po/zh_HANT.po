@@ -1,18 +1,18 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.4.0 Beta (b'63c460d93d55')\n"
+"Project-Id-Version: Blender 4.4.0 Release Candidate (b'f896f7ffc32a')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-02-24 09:56+0000\n"
-"PO-Revision-Date: 2025-02-05 18:51+0000\n"
-"Last-Translator: Cheng-Chia Tseng <pswo10680@gmail.com>\n"
+"POT-Creation-Date: 2025-03-17 16:18+0000\n"
+"PO-Revision-Date: 2025-02-25 15:56+0000\n"
+"Last-Translator: Ye Gui <ziweidao@foxmail.com>\n"
 "Language-Team: Chinese (Traditional Han script) <https://translate.blender.org/projects/blender-ui/ui/zh_Hant/>\n"
 "Language: zh_HANT\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=1; plural=0;\n"
-"X-Generator: Weblate 5.9.2"
+"X-Generator: Weblate 5.10.1"
 
 
 msgid "Shader AOV"
@@ -632,14 +632,6 @@ msgstr "分散記憶體到各個裝置"
 
 msgid "Make more room for large scenes to fit by distributing memory across interconnected devices (e.g. via NVLink) rather than duplicating it"
 msgstr "以互連裝置間的共享記憶體 (例如: 透過 NVLink分發) 方式分發記憶體，以保留更多空間給大型場景"
-
-
-msgid "HIP RT (Experimental)"
-msgstr "HIP RT (實驗中)"
-
-
-msgid "HIP RT enables AMD hardware ray tracing on RDNA2 and above, with shader fallback on older cards. This feature is experimental and some scenes may render incorrectly"
-msgstr "HIP RT 能為 RDNA2 以後版本的 AMD 硬體上啟用光線追蹤，並在較舊的顯示卡上使用著色器後備機制。這個功能仍屬於實驗性質，有些場景可能算繪不正確"
 
 
 msgid "Embree on GPU"
@@ -19544,11 +19536,6 @@ msgid "Grids"
 msgstr "格線"
 
 
-msgctxt "Sequence"
-msgid "Clip"
-msgstr "剪輯"
-
-
 msgid "Window Manager"
 msgstr "視窗管理器"
 
@@ -22632,12 +22619,28 @@ msgid "Material slot name"
 msgstr "材質槽名稱"
 
 
-msgid "Mirror"
-msgstr "鏡像"
+msgid "Pivot Point"
+msgstr "樞紐點"
 
 
 msgid "Snap"
 msgstr "吸附"
+
+
+msgid "Proportional Editing Falloff"
+msgstr "比例化編輯衰落"
+
+
+msgid "Automasking"
+msgstr "自動遮罩"
+
+
+msgid "Face Sets Edit"
+msgstr "面集編輯"
+
+
+msgid "Mirror"
+msgstr "鏡像"
 
 
 msgid "UV Mapping"
@@ -22806,22 +22809,6 @@ msgstr "文字"
 
 msgid "Bone Roll"
 msgstr "骨骼滾動"
-
-
-msgid "Pivot Point"
-msgstr "樞紐點"
-
-
-msgid "Proportional Editing Falloff"
-msgstr "比例化編輯衰落"
-
-
-msgid "Automasking"
-msgstr "自動遮罩"
-
-
-msgid "Face Sets Edit"
-msgstr "面集編輯"
 
 
 msgid "Basic"
@@ -29057,6 +29044,10 @@ msgstr "翻轉 Y"
 
 msgid "Flip X & Y"
 msgstr "翻轉 X 與 Y"
+
+
+msgid "Glare "
+msgstr "耀光 "
 
 
 msgid "Angle Offset"
@@ -37796,6 +37787,10 @@ msgstr "依材質"
 msgctxt "Operator"
 msgid "Select Mode"
 msgstr "選取模式"
+
+
+msgid "Fill Opacity"
+msgstr "填入不透明"
 
 
 msgctxt "Operator"
@@ -47767,10 +47762,6 @@ msgstr "已修改"
 
 msgid "Exports UVs from the modified mesh"
 msgstr "從修改的網格匯出 UV"
-
-
-msgid "Fill Opacity"
-msgstr "填入不透明"
 
 
 msgid "Dimensions of the exported file"
@@ -58209,6 +58200,11 @@ msgstr "影片"
 
 
 msgctxt "Sequence"
+msgid "Clip"
+msgstr "剪輯"
+
+
+msgctxt "Sequence"
 msgid "Mask"
 msgstr "遮罩"
 
@@ -65625,6 +65621,10 @@ msgid "Show Locations"
 msgstr "顯示位置"
 
 
+msgid " Preferences"
+msgstr " 偏好設定"
+
+
 msgid "No custom MatCaps configured"
 msgstr "無自訂材質捕捉球組態"
 
@@ -68187,6 +68187,10 @@ msgid "Property from path '%s' is not a float"
 msgstr "來自路徑「%s」的屬性不是浮點"
 
 
+msgid "Current: "
+msgstr "目前： "
+
+
 msgctxt "WindowManager"
 msgid "Search"
 msgstr "搜尋"
@@ -68305,10 +68309,6 @@ msgstr "線上 Python 參照"
 
 msgid "OS"
 msgstr "OS"
-
-
-msgid "Home"
-msgstr "主目錄"
 
 
 msgid "Esc"
@@ -70209,6 +70209,10 @@ msgid "Asset Catalogs"
 msgstr "素材編目"
 
 
+msgid "Home"
+msgstr "主目錄"
+
+
 msgid "Desktop"
 msgstr "桌面"
 
@@ -70580,6 +70584,10 @@ msgstr "{} (字串)"
 
 msgid "{} (Integer)"
 msgstr "{} (整數)"
+
+
+msgid "{:.10} (Float)"
+msgstr "{:.10} (浮點)"
 
 
 msgid "{} (Float)"
@@ -72517,6 +72525,10 @@ msgstr "散景類型："
 
 msgid "Prefilter:"
 msgstr "前期濾鏡:"
+
+
+msgid "Quality:"
+msgstr "品質："
 
 
 msgid "Image 1"

@@ -96,6 +96,7 @@
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
 #include "BKE_lib_remap.hh"
+#include "BKE_library.hh"
 #include "BKE_light.h"
 #include "BKE_lightprobe.h"
 #include "BKE_linestyle.h"
@@ -248,7 +249,6 @@ static void object_copy_data(Main *bmain,
   BKE_object_modifier_stack_copy(ob_dst, ob_src, true, flag_subdata);
   BLI_assert(BKE_modifiers_persistent_uids_are_valid(*ob_dst));
 
-  BLI_listbase_clear((ListBase *)&ob_dst->drawdata);
   BLI_listbase_clear(&ob_dst->pc_ids);
 
   ob_dst->avs = ob_src->avs;
@@ -287,8 +287,6 @@ static void object_copy_data(Main *bmain,
 static void object_free_data(ID *id)
 {
   Object *ob = (Object *)id;
-
-  DRW_drawdata_free((ID *)ob);
 
   /* BKE_<id>_free shall never touch to ID->us. Never ever. */
   BKE_object_free_modifiers(ob, LIB_ID_CREATE_NO_USER_REFCOUNT);
@@ -1498,7 +1496,7 @@ static void copy_ccg_data(Mesh *mesh_destination,
     return;
   }
   const int layer_index = CustomData_get_layer_index(data_destination, layer_type);
-  CustomData_free_layer(data_destination, layer_type, num_elements, layer_index);
+  CustomData_free_layer(data_destination, layer_type, layer_index);
   BLI_assert(!CustomData_has_layer(data_destination, layer_type));
   CustomData_add_layer(
       data_destination, eCustomDataType(layer_type), CD_SET_DEFAULT, num_elements);
@@ -2379,7 +2377,7 @@ Object *BKE_object_pose_armature_get_with_wpaint_check(Object *ob)
         }
         break;
       }
-      case OB_GPENCIL_LEGACY: {
+      case OB_GREASE_PENCIL: {
         if ((ob->mode & OB_MODE_WEIGHT_GREASE_PENCIL) == 0) {
           return nullptr;
         }
@@ -3643,7 +3641,7 @@ void BKE_object_empty_draw_type_set(Object *ob, const int value)
 
   if (ob->type == OB_EMPTY && ob->empty_drawtype == OB_EMPTY_IMAGE) {
     if (!ob->iuser) {
-      ob->iuser = MEM_cnew<ImageUser>("image user");
+      ob->iuser = MEM_callocN<ImageUser>("image user");
       ob->iuser->flag |= IMA_ANIM_ALWAYS;
       ob->iuser->frames = 100;
       ob->iuser->sfra = 1;
@@ -3952,6 +3950,85 @@ void BKE_object_tfm_restore(Object *ob, void *obtfm_pt)
 /** \} */
 
 /* -------------------------------------------------------------------- */
+/** \name Protected Transform Channel Assignment
+ * \{ */
+
+void BKE_object_protected_location_set(Object *ob, const float location[3])
+{
+  if ((ob->protectflag & OB_LOCK_LOCX) == 0) {
+    ob->loc[0] = location[0];
+  }
+  if ((ob->protectflag & OB_LOCK_LOCY) == 0) {
+    ob->loc[1] = location[1];
+  }
+  if ((ob->protectflag & OB_LOCK_LOCZ) == 0) {
+    ob->loc[2] = location[2];
+  }
+}
+
+void BKE_object_protected_scale_set(Object *ob, const float scale[3])
+{
+  if ((ob->protectflag & OB_LOCK_SCALEX) == 0) {
+    ob->scale[0] = scale[0];
+  }
+  if ((ob->protectflag & OB_LOCK_SCALEY) == 0) {
+    ob->scale[1] = scale[1];
+  }
+  if ((ob->protectflag & OB_LOCK_SCALEZ) == 0) {
+    ob->scale[2] = scale[2];
+  }
+}
+
+void BKE_object_protected_rotation_quaternion_set(Object *ob, const float quat[4])
+{
+  if ((ob->protectflag & OB_LOCK_ROTX) == 0) {
+    ob->quat[0] = quat[0];
+  }
+  if ((ob->protectflag & OB_LOCK_ROTY) == 0) {
+    ob->quat[1] = quat[1];
+  }
+  if ((ob->protectflag & OB_LOCK_ROTZ) == 0) {
+    ob->quat[2] = quat[2];
+  }
+  if ((ob->protectflag & OB_LOCK_ROTW) == 0) {
+    ob->quat[3] = quat[3];
+  }
+}
+
+void BKE_object_protected_rotation_euler_set(Object *ob, const float euler[3])
+{
+  if ((ob->protectflag & OB_LOCK_ROTX) == 0) {
+    ob->rot[0] = euler[0];
+  }
+  if ((ob->protectflag & OB_LOCK_ROTY) == 0) {
+    ob->rot[1] = euler[1];
+  }
+  if ((ob->protectflag & OB_LOCK_ROTZ) == 0) {
+    ob->rot[2] = euler[2];
+  }
+}
+
+void BKE_object_protected_rotation_axisangle_set(Object *ob,
+                                                 const float axis[3],
+                                                 const float angle)
+{
+  if ((ob->protectflag & OB_LOCK_ROTX) == 0) {
+    ob->rotAxis[0] = axis[0];
+  }
+  if ((ob->protectflag & OB_LOCK_ROTY) == 0) {
+    ob->rotAxis[1] = axis[1];
+  }
+  if ((ob->protectflag & OB_LOCK_ROTZ) == 0) {
+    ob->rotAxis[2] = axis[2];
+  }
+  if ((ob->protectflag & OB_LOCK_ROTW) == 0) {
+    ob->rotAngle = angle;
+  }
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
 /** \name Object Evaluation/Update API
  * \{ */
 
@@ -4245,7 +4322,7 @@ int BKE_object_insert_ptcache(Object *ob)
     }
   }
 
-  link = MEM_cnew<LinkData>("PCLink");
+  link = MEM_callocN<LinkData>("PCLink");
   link->data = POINTER_FROM_INT(i);
   BLI_addtail(&ob->pc_ids, link);
 

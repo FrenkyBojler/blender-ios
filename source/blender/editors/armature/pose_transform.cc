@@ -14,6 +14,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
@@ -352,7 +353,7 @@ static void applyarmature_reset_bone_constraint(const bConstraint *constraint)
    * bConstraintTypeInfo callback function. */
   switch (constraint->type) {
     case CONSTRAINT_TYPE_STRETCHTO: {
-      bStretchToConstraint *stretch_to = (bStretchToConstraint *)constraint->data;
+      bStretchToConstraint *stretch_to = static_cast<bStretchToConstraint *>(constraint->data);
       stretch_to->orglength = 0.0f; /* Force recalculation on next evaluation. */
       break;
     }
