@@ -678,7 +678,7 @@ void ED_spacetype_outliner()
   /* regions: main window */
   art = MEM_callocN<ARegionType>("spacetype outliner region");
   art->regionid = RGN_TYPE_WINDOW;
-  art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_VIEW2D;
+  art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_VIEW2D | ED_KEYMAP_FRAMES;
 
   art->init = outliner_main_region_init;
   art->draw = outliner_main_region_draw;
@@ -692,7 +692,7 @@ void ED_spacetype_outliner()
   art = MEM_callocN<ARegionType>("spacetype outliner header region");
   art->regionid = RGN_TYPE_HEADER;
   art->prefsizey = HEADERY;
-  art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_VIEW2D | ED_KEYMAP_HEADER;
+  art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_VIEW2D | ED_KEYMAP_HEADER | ED_KEYMAP_FRAMES;
 
   art->init = outliner_header_region_init;
   art->draw = outliner_header_region_draw;
