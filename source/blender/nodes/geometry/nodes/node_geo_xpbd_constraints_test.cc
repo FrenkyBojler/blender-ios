@@ -891,8 +891,16 @@ TEST_F(XPBDSolverTest, GlobalSolverExecute)
   IndexMaskMemory memory;
   xpbd_constraints::GlobalSolverSystem system = xpbd_constraints::build_global_solve_system(
       solver_test.params, solver_test.data, solver_test.vars, true, memory);
+  /* Print matrix for debugging purposes if necessary. */
+  if (true) {
+    const Eigen::IOFormat format;
+    std::cout << system.matrix.toDense().format(format) << std::endl;
+    std::cout << system.target.format(format) << std::endl;
+  }
 
-  xpbd_constraints::solve_global_system(system, solver_test.vars, solver_test.data);
+  xpbd_constraints::SolverResult result = xpbd_constraints::solve_global_system(
+      system, solver_test.vars, solver_test.data);
+  EXPECT_EQ(result, xpbd_constraints::SolverResult::Success);
 }
 
 }  // namespace blender::nodes::tests

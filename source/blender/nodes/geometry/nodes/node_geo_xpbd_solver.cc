@@ -1341,14 +1341,34 @@ GlobalSolverSystem build_global_solve_system(const ConstraintEvalParams &params,
   }
 }
 
-void solve_global_system(const GlobalSolverSystem &system,
-                         ConstraintVariables &variables,
-                         MutableSpan<ConstraintEvalData> constraint_data)
+static SolverResult solver_result_from_eigen(const Eigen::ComputationInfo computation_info)
+{
+  switch (computation_info) {
+    case Eigen::ComputationInfo::Success:
+      return SolverResult::Success;
+    case Eigen::ComputationInfo::NumericalIssue:
+      return SolverResult::NumericalIssue;
+    case Eigen::ComputationInfo::NoConvergence:
+      return SolverResult::NoConvergence;
+    case Eigen::ComputationInfo::InvalidInput:
+      return SolverResult::InvalidInput;
+  }
+  BLI_assert_unreachable();
+  return SolverResult::Success;
+}
+
+SolverResult solve_global_system(const GlobalSolverSystem &system,
+                                 ConstraintVariables &variables,
+                                 MutableSpan<ConstraintEvalData> constraint_data)
 {
   constexpr bool linearized_quaternion = true;
 
   Eigen::SimplicialLDLT<Eigen::SparseMatrix<float>> eigen_solver(system.matrix);
   Eigen::VectorXf x = eigen_solver.solve(system.target);
+  const SolverResult result = solver_result_from_eigen(eigen_solver.info());
+  if (result != SolverResult::Success) {
+    return result;
+  }
 
   const IndexRange position_rows = {0, variables.positions.size() * 3};
   const IndexRange rotation_rows = position_rows.after(variables.rotations.size() * 4);
@@ -1411,6 +1431,8 @@ void solve_global_system(const GlobalSolverSystem &system,
 
     prev_rows = lambda_rows;
   }
+
+  return result;
 }
 
 /** \} */

@@ -65,15 +65,27 @@ struct GlobalSolverSystem {
   Array<IndexMask> constraint_mapping;
 };
 
+enum class SolverResult {
+  /** Computation was successful. */
+  Success,
+  /** The provided data did not satisfy the prerequisites. */
+  NumericalIssue,
+  /** Iterative procedure did not converge. */
+  NoConvergence,
+  /** The inputs are invalid, or the algorithm has been improperly called.
+   * When assertions are enabled, such errors trigger an assert. */
+  InvalidInput,
+};
+
 GlobalSolverSystem build_global_solve_system(const ConstraintEvalParams &params,
                                              const Span<ConstraintEvalData> constraint_data,
                                              const ConstraintVariables &variables,
                                              const bool debug_check,
                                              IndexMaskMemory &memory);
 
-void solve_global_system(const GlobalSolverSystem &system,
-                         ConstraintVariables &variables,
-                         MutableSpan<ConstraintEvalData> constraint_data);
+SolverResult solve_global_system(const GlobalSolverSystem &system,
+                                 ConstraintVariables &variables,
+                                 MutableSpan<ConstraintEvalData> constraint_data);
 
 void apply_gauss_seidel_positions_group(const ConstraintEvalParams &eval_params,
                                         const ConstraintTypeInfo &constraint_info,
