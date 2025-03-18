@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2020-2023 Blender Authors
+/* SPDX-FileCopyrightText: 2025 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -6,6 +6,7 @@
  * \ingroup GHOST
  */
 
+#include <algorithm>
 #include <sstream>
 
 #include "GHOST_ContextVK.hh"
@@ -322,40 +323,6 @@ void GHOST_XrGraphicsBindingVulkan::submitToSwapchainImage(
   m_ghost_ctx->openxr_acquire_framebuffer_image_callback_(&openxr_data);
 
   /* Import render result. */
-  VkImage vk_image = VK_NULL_HANDLE;
-  VkImageCreateInfo vk_image_create_info = {
-      VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
-      nullptr,
-      0,
-      VK_IMAGE_TYPE_2D,
-      VK_FORMAT_R16G16B16A16_SFLOAT,
-      {static_cast<uint32_t>(draw_info.width), static_cast<uint32_t>(draw_info.height), 1},
-      1,
-      1,
-      VK_SAMPLE_COUNT_1_BIT,
-      VK_IMAGE_TILING_OPTIMAL,
-      VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
-      VK_SHARING_MODE_EXCLUSIVE,
-      0,
-      nullptr,
-      VK_IMAGE_LAYOUT_UNDEFINED,
-  };
-  vkCreateImage(m_vk_device, &vk_image_create_info, nullptr, &vk_image);
-
-  VkImportMemoryFdInfoKHR vk_import_memory_fd_info = {
-      VK_STRUCTURE_TYPE_IMPORT_MEMORY_FD_INFO_KHR,
-      nullptr,
-      VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT,
-      int(openxr_data.handle),
-  };
-  VkMemoryAllocateInfo vk_memory_allocate_info = {
-      VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
-      &vk_import_memory_fd_info,
-  };
-  VkDeviceMemory device_memory;
-  vkAllocateMemory(m_vk_device, &vk_memory_allocate_info, nullptr, &device_memory);
-
-  vkBindImageMemory(m_vk_device, vk_image, device_memory, 0);
 
   /* Copy frame buffer image to swapchain image. */
   VkCommandBuffer vk_command_buffer = m_vk_command_buffer;
@@ -369,26 +336,16 @@ void GHOST_XrGraphicsBindingVulkan::submitToSwapchainImage(
   vkBeginCommandBuffer(vk_command_buffer, &vk_command_buffer_begin_info);
 
   /* Transfer imported render result & swap chain image (UNDEFINED -> GENERAL) */
-  VkImageMemoryBarrier vk_image_memory_barrier[2] = {{VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
-                                                      nullptr,
-                                                      0,
-                                                      VK_ACCESS_TRANSFER_WRITE_BIT,
-                                                      VK_IMAGE_LAYOUT_UNDEFINED,
-                                                      VK_IMAGE_LAYOUT_GENERAL,
-                                                      VK_QUEUE_FAMILY_IGNORED,
-                                                      VK_QUEUE_FAMILY_IGNORED,
-                                                      vulkan_image.image,
-                                                      {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1}},
-                                                     {VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
-                                                      nullptr,
-                                                      0,
-                                                      VK_ACCESS_TRANSFER_READ_BIT,
-                                                      VK_IMAGE_LAYOUT_UNDEFINED,
-                                                      VK_IMAGE_LAYOUT_GENERAL,
-                                                      VK_QUEUE_FAMILY_IGNORED,
-                                                      VK_QUEUE_FAMILY_IGNORED,
-                                                      vk_image,
-                                                      {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1}}};
+  VkImageMemoryBarrier vk_image_memory_barrier = {VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+                                                  nullptr,
+                                                  0,
+                                                  VK_ACCESS_TRANSFER_WRITE_BIT,
+                                                  VK_IMAGE_LAYOUT_UNDEFINED,
+                                                  VK_IMAGE_LAYOUT_GENERAL,
+                                                  VK_QUEUE_FAMILY_IGNORED,
+                                                  VK_QUEUE_FAMILY_IGNORED,
+                                                  vulkan_image.image,
+                                                  {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1}};
   vkCmdPipelineBarrier(vk_command_buffer,
                        VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
                        VK_PIPELINE_STAGE_TRANSFER_BIT,
@@ -397,8 +354,8 @@ void GHOST_XrGraphicsBindingVulkan::submitToSwapchainImage(
                        nullptr,
                        0,
                        nullptr,
-                       2,
-                       vk_image_memory_barrier);
+                       1,
+                       &vk_image_memory_barrier);
 
   /* Clear image */
   VkClearColorValue vk_clear_color = {{0.2f, 0.8f, 0.4f, 1.0f}};

@@ -758,19 +758,10 @@ typedef struct {
 } GHOST_VulkanSwapChainData;
 
 typedef struct {
-  /** Framebuffer image (Owned by Blender) that will need to be copied to the OpenXR Swapchain. */
-  VkImage image;
-  /** Format of the framebuffer image. */
-  VkFormat image_format;
-  /** Image aspect of the framebuffer image. */
-  VkImageAspectFlags image_aspect;
-  /** Image layout of the framebuffer image. */
-  VkImageLayout image_layout;
   /** Resolution of the framebuffer image. */
   VkExtent2D extent;
-
-  /** Exported memory handle. */
-  int64_t handle;
+  /** Image data on Host in R1G16B16A16F. */
+  void *image_data;
 } GHOST_VulkanOpenXRData;
 
 typedef struct {

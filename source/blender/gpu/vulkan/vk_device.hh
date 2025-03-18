@@ -189,16 +189,6 @@ class VKDevice : public NonCopyable {
 
   /** Allocator used for texture and buffers and other resources. */
   VmaAllocator mem_allocator_ = VK_NULL_HANDLE;
-  /**
-   * Pool for allocating images that can be shared with other VKInstances.
-   *
-   * Used for OpenXR as it requires a second VKInstance.
-   */
-  VmaPool external_memory_pool_ = VK_NULL_HANDLE;
-  /* NOTE: This attribute needs to be kept alive as it will be used when allocating from
-   * `external_memory_pool_`. */
-  VkExportMemoryAllocateInfoKHR export_allocation_create_info_ = {
-      VK_STRUCTURE_TYPE_EXPORT_MEMORY_ALLOCATE_INFO_KHR};
 
   /** Limits of the device linked to this context. */
   VkPhysicalDeviceProperties vk_physical_device_properties_ = {};
@@ -303,11 +293,6 @@ class VKDevice : public NonCopyable {
   inline VmaAllocator mem_allocator_get() const
   {
     return mem_allocator_;
-  }
-
-  inline VmaPool external_memory_pool_get() const
-  {
-    return external_memory_pool_;
   }
 
   VKDescriptorSetLayouts &descriptor_set_layouts_get()
