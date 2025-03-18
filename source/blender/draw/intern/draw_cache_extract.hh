@@ -261,6 +261,7 @@ struct MeshBatchCache {
   bool is_dirty;
   bool is_editmode;
   bool is_uvsyncsel;
+  bool use_hide;
 
   DRW_MeshWeightState weight_state;
 
@@ -286,7 +287,7 @@ struct MeshBatchCache {
 
 #define MBC_EDITUV \
   (MBC_EDITUV_FACES_STRETCH_AREA | MBC_EDITUV_FACES_STRETCH_ANGLE | MBC_EDITUV_FACES | \
-   MBC_EDITUV_EDGES | MBC_EDITUV_VERTS | MBC_EDITUV_FACEDOTS | MBC_WIRE_LOOPS_UVS)
+   MBC_EDITUV_EDGES | MBC_EDITUV_VERTS | MBC_EDITUV_FACEDOTS | MBC_UV_FACES | MBC_WIRE_LOOPS_UVS)
 
 void mesh_buffer_cache_create_requested(TaskGraph &task_graph,
                                         MeshBatchCache &cache,

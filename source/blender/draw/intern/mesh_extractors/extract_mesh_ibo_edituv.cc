@@ -40,7 +40,7 @@ static void extract_edituv_tris_bm(const MeshRenderData &mr,
   const Span<std::array<BMLoop *, 3>> looptris = mr.edit_bmesh->looptris;
   for (const int i : looptris.index_range()) {
     const std::array<BMLoop *, 3> &tri = looptris[i];
-    if (skip_bm_face(*tri[0]->f, sync_selection)) {
+    if (skip_bm_face(*tri[0]->f, sync_selection) && mr.use_hide) {
       continue;
     }
     GPU_indexbuf_add_tri_verts(
@@ -59,7 +59,7 @@ static void extract_edituv_tris_mesh(const MeshRenderData &mr,
     if (!face_orig) {
       continue;
     }
-    if (skip_bm_face(*face_orig, sync_selection)) {
+    if (skip_bm_face(*face_orig, sync_selection) && mr.use_hide) {
       continue;
     }
     const IndexRange tris = bke::mesh::face_triangles_range(faces, face);
@@ -166,7 +166,7 @@ static void extract_edituv_lines_bm(const MeshRenderData &mr,
   const BMFace *face;
   BMIter f_iter;
   BM_ITER_MESH (face, &f_iter, mr.bm, BM_FACES_OF_MESH) {
-    if (skip_bm_face(*face, sync_selection)) {
+    if (skip_bm_face(*face, sync_selection) && mr.use_hide) {
       continue;
     }
     const BMLoop *loop = BM_FACE_FIRST_LOOP(face);
@@ -201,7 +201,7 @@ static void extract_edituv_lines_mesh(const MeshRenderData &mr,
       if (!face_orig) {
         continue;
       }
-      if (skip_bm_face(*face_orig, sync_selection)) {
+      if (skip_bm_face(*face_orig, sync_selection) && mr.use_hide) {
         continue;
       }
       for (const int corner : face) {
@@ -217,21 +217,18 @@ static void extract_edituv_lines_mesh(const MeshRenderData &mr,
     IndexMaskMemory memory;
     IndexMask visible = faces.index_range();
 
-    /* use_hide refers to whether the active Object's Mode displays UVs based on Edit
-     * Mode selection. Only filter which UVs should be drawn when use_hide is true. */
-    if (mr.use_hide) {
-      if (!mr.hide_poly.is_empty()) {
-        visible = IndexMask::from_bools_inverse(visible, mr.hide_poly, memory);
+    if (!mr.hide_poly.is_empty()) {
+      visible = IndexMask::from_bools_inverse(visible, mr.hide_poly, memory);
+    }
+    if (!sync_selection && mr.use_hide) {
+      if (mr.select_poly.is_empty()) {
+        visible = {};
       }
-      if (!sync_selection) {
-        if (mr.select_poly.is_empty()) {
-          visible = {};
-        }
-        else {
-          visible = IndexMask::from_bools(visible, mr.select_poly, memory);
-        }
+      else {
+        visible = IndexMask::from_bools(visible, mr.select_poly, memory);
       }
     }
+
     visible.foreach_index([&](const int face_index) {
       const IndexRange face = faces[face_index];
       for (const int corner : face) {
@@ -312,25 +309,21 @@ static void extract_edituv_lines_subdiv_mesh(const MeshRenderData &mr,
   /* TODO: Replace subdiv quad iteration with coarse face iteration. */
   for (const int subdiv_quad : IndexRange(subdiv_cache.num_subdiv_quads)) {
     const int coarse_face = subdiv_loop_face_index[subdiv_quad * 4];
-    /* use_hide refers to whether the active Object's Mode displays UVs based on Edit Mode
-     * selection. Only filter which UVs should be drawn when use_hide is true. */
-    if (mr.use_hide) {
-      if (const BMesh *bm = mr.bm) {
-        const int orig_coarse_face = mr.orig_index_face ? mr.orig_index_face[coarse_face] :
-                                                          coarse_face;
-        const BMFace &face_orig = *BM_face_at_index(const_cast<BMesh *>(bm), orig_coarse_face);
-        if (skip_bm_face(face_orig, sync_selection)) {
-          continue;
-        }
+    if (const BMesh *bm = mr.bm) {
+      const int orig_coarse_face = mr.orig_index_face ? mr.orig_index_face[coarse_face] :
+                                                        coarse_face;
+      const BMFace &face_orig = *BM_face_at_index(const_cast<BMesh *>(bm), orig_coarse_face);
+      if (skip_bm_face(face_orig, sync_selection) && mr.use_hide) {
+        continue;
       }
-      else {
-        if (!mr.hide_poly.is_empty() && mr.hide_poly[coarse_face]) {
+    }
+    else {
+      if (!mr.hide_poly.is_empty() && mr.hide_poly[coarse_face]) {
+        continue;
+      }
+      if (!sync_selection && mr.use_hide) {
+        if (mr.select_poly.is_empty() || !mr.select_poly[coarse_face]) {
           continue;
-        }
-        if (!sync_selection) {
-          if (mr.select_poly.is_empty() || !mr.select_poly[coarse_face]) {
-            continue;
-          }
         }
       }
     }

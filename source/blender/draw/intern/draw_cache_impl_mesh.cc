@@ -1445,10 +1445,12 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
   }
 
   if (batch_requested & MBC_EDITUV) {
-    /* Discard UV batches if sync_selection changes */
+    /* Discard UV batches if sync_selection changes. Also discard if use_hide changes due to Image
+     * Editor type changing.*/
     const bool is_uvsyncsel = ts && (ts->uv_flag & UV_SYNC_SELECTION);
-    if (cd_uv_update || (cache.is_uvsyncsel != is_uvsyncsel)) {
+    if (cd_uv_update || (cache.is_uvsyncsel != is_uvsyncsel) || (cache.use_hide != use_hide)) {
       cache.is_uvsyncsel = is_uvsyncsel;
+      cache.use_hide = use_hide;
       FOREACH_MESH_BUFFER_CACHE (cache, mbc) {
         GPU_VERTBUF_DISCARD_SAFE(mbc->buff.vbo.edituv_data);
         GPU_VERTBUF_DISCARD_SAFE(mbc->buff.vbo.fdots_uv);
@@ -1828,7 +1830,7 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
    */
   mbuflist = (do_uvcage) ? &cache.uv_cage.buff : &cache.final.buff;
 
-  /* Object UV */
+  /* Object UV Faces*/
   assert_deps_valid(MBC_UV_FACES, {BUFFER_INDEX(ibo.tris), BUFFER_INDEX(vbo.uv)});
   if (DRW_batch_requested(cache.batch.uv_faces, GPU_PRIM_TRIS)) {
     DRW_ibo_request(cache.batch.uv_faces, &mbuflist->ibo.tris);
