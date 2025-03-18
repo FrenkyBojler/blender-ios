@@ -117,10 +117,14 @@ if(WITH_COMPILER_CODE_COVERAGE)
         $<TARGET_FILE:blender>
       USES_TERMINAL
     )
+    if(NOT WIN32)
+      set(_open_cmd "open")
+    endif()
     add_custom_target(coverage-show
       COMMENT "Starting browser for ${COMPILER_CODE_COVERAGE_DATA_DIR}/report/index.html"
-      COMMAND "${COMPILER_CODE_COVERAGE_DATA_DIR}/report/index.html"
+      COMMAND ${_open_cmd} "${COMPILER_CODE_COVERAGE_DATA_DIR}/report/index.html"
       SOURCES "${COMPILER_CODE_COVERAGE_DATA_DIR}/report/index.html"
     )
+    unset(_open_cmd)
   endif()
 endif()
