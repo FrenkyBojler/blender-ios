@@ -130,6 +130,7 @@ static void seq_frame_snap_update_best(const int position,
   }
 }
 
+/* Only for sequencer strips. */
 static int get_strip_snap_target(blender::Span<Strip *> strips,
                                  const Scene *scene,
                                  const int current_frame)
@@ -148,7 +149,46 @@ static int get_strip_snap_target(blender::Span<Strip *> strips,
   }
   if (best_distance == MAXFRAME) {
     /* No snap target was found. */
-    return current_frame;
+    return MAXFRAME;
+  }
+  return best_frame;
+}
+
+static int get_nla_strip_snap_target(bContext *C, const int frame)
+{
+  int best_frame = 0;
+  int best_distance = MAXFRAME;
+
+  bAnimContext ac;
+  if (!ANIM_animdata_get_context(C, &ac)) {
+    BLI_assert_unreachable();
+    return MAXFRAME;
+  }
+
+  ListBase anim_data = {nullptr, nullptr};
+  eAnimFilter_Flags filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE |
+                              ANIMFILTER_LIST_CHANNELS | ANIMFILTER_FCURVESONLY);
+  ANIM_animdata_filter(&ac, &anim_data, filter, ac.data, eAnimCont_Types(ac.datatype));
+  LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
+    if (ale->type != ANIMTYPE_NLATRACK) {
+      continue;
+    }
+    NlaTrack *nlt = static_cast<NlaTrack *>(ale->data);
+    LISTBASE_FOREACH (NlaStrip *, strip, &nlt->strips) {
+      if (abs(strip->start - frame) < best_distance) {
+        best_distance = abs(strip->start - frame);
+        best_frame = strip->start;
+      }
+      if (abs(strip->end - frame) < best_distance) {
+        best_distance = abs(strip->end - frame);
+        best_frame = strip->end;
+      }
+    }
+  }
+
+  if (best_distance == MAXFRAME) {
+    /* No snap target was found. */
+    return MAXFRAME;
   }
   return best_frame;
 }
@@ -321,11 +361,18 @@ static int graph_frame_apply_snap(bContext *C, ChangeFrameData &op_data, const i
   return timeline_frame;
 }
 
-static int nla_frame_apply_snap(bContext *C, ChangeFrameData &op_data, const int timeline_frame)
+static int nla_frame_apply_snap(bContext *C, const int timeline_frame)
 {
   Scene *scene = CTX_data_scene(C);
   ToolSettings *tool_settings = scene->toolsettings;
   int snap_frame = MAXFRAME;
+
+  if (tool_settings->snap_playhead_mode & SCE_SNAP_TO_STRIPS) {
+    const int snap_target = get_nla_strip_snap_target(C, timeline_frame);
+    if (abs(snap_target - timeline_frame) < abs(snap_frame - timeline_frame)) {
+      snap_frame = snap_target;
+    }
+  }
 
   if (tool_settings->snap_playhead_mode & SCE_SNAP_TO_MARKERS) {
     const int snap_target = get_marker_snap_target(scene, timeline_frame);
@@ -360,7 +407,7 @@ static float apply_frame_snap(bContext *C, ChangeFrameData &op_data, const float
     case SPACE_GRAPH:
       return graph_frame_apply_snap(C, op_data, frame);
     case SPACE_NLA:
-      return nla_frame_apply_snap(C, op_data, frame);
+      return nla_frame_apply_snap(C, frame);
     default:
       break;
   }
