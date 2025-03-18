@@ -1,0 +1,1 @@
+Referenced by issue #136130, MSVC build fails due to `math::invert`
