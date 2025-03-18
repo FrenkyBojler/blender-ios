@@ -95,7 +95,9 @@ const vector<id<MTLDevice>> &MetalInfo::get_usable_devices()
           strstr(device_name_char, "Apple"))
       {
         /* TODO: Implement a better way to identify device vendor instead of relying on name. */
-        usable = true;
+        /* We only support Apple Silicon GPUs which all have unified memory, but explicitly check
+         * just in case it ever changes. */
+        usable = [device hasUnifiedMemory];
       }
     }
 

@@ -86,9 +86,6 @@ MetalDevice::MetalDevice(const DeviceInfo &info, Stats &stats, Profiler &profile
     mtlDevice = usable_devices[mtlDevId];
     metal_printf("Creating new Cycles Metal device: %s\n", info.description.c_str());
 
-    /* We only support Apple Silicon which has unified memory. */
-    assert([mtlDevice hasUnifiedMemory]);
-
     max_threads_per_threadgroup = 512;
 
     use_metalrt = info.use_hardware_raytracing;
