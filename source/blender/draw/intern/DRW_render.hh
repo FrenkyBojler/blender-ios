@@ -57,10 +57,6 @@ struct ObjectRef;
 class Manager;
 }  // namespace blender::draw
 
-typedef struct DRWPass DRWPass;
-typedef struct DRWShadingGroup DRWShadingGroup;
-typedef struct DRWUniform DRWUniform;
-
 /* TODO: Put it somewhere else? */
 struct BoundSphere {
   float center[3], radius;
@@ -145,11 +141,6 @@ GPUMaterial *DRW_shader_from_material(
 
 /* Viewport. */
 
-blender::float2 DRW_viewport_size_get();
-
-DefaultFramebufferList *DRW_viewport_framebuffer_list_get();
-DefaultTextureList *DRW_viewport_texture_list_get();
-
 /* Returns a TextureFromPool stored in the given view data for the pass identified by the given
  * pass name. Engines should call this function for each of the passes needed by the viewport
  * compositor in every redraw, then it should allocate the texture and write the pass data to it.
@@ -169,9 +160,6 @@ void DRW_render_object_iter(
     Depsgraph *depsgraph,
     std::function<void(blender::draw::ObjectRef &, RenderEngine *, Depsgraph *)>);
 
-/**
- * \warning Changing frame might free the #ViewLayerEngineData.
- */
 void DRW_render_set_time(RenderEngine *engine, Depsgraph *depsgraph, int frame, float subframe);
 
 /**
@@ -209,9 +197,6 @@ bool DRW_object_use_hide_faces(const Object *ob);
 bool DRW_object_is_visible_psys_in_active_context(const Object *object,
                                                   const ParticleSystem *psys);
 
-Object *DRW_object_get_dupli_parent(const Object *ob);
-DupliObject *DRW_object_get_dupli(const Object *ob);
-
 /* Draw State. */
 
 /* -------------------------------------------------------------------- */
@@ -239,6 +224,10 @@ struct DRWContext {
 
   /* Returns the viewport's default framebuffer. */
   GPUFrameBuffer *default_framebuffer();
+  /* Returns the viewport's default framebuffer list. Not all of them might be available. */
+  DefaultFramebufferList *viewport_framebuffer_list_get() const;
+  /* Returns the viewport's default texture list. Not all of them might be available. */
+  DefaultTextureList *viewport_texture_list_get() const;
 
   const enum Mode {
     /* Render for display of 2D or 3D area. Runs on main thread. */
@@ -373,6 +362,11 @@ struct DRWContext {
     return *g_context;
   }
 
+  blender::float2 viewport_size_get() const
+  {
+    return size;
+  }
+
   /* Return true if any DRWContext is active on this thread. */
   static bool is_active()
   {
@@ -403,83 +397,19 @@ struct DRWContext {
   {
     return ELEM(mode, VIEWPORT_RENDER);
   }
+
+  /** True if current viewport is drawn during playback. */
+  bool is_playback() const;
+  /** True if current viewport is drawn during navigation operator. */
+  bool is_navigating() const;
+  /** True if current viewport is drawn during painting operator. */
+  bool is_painting() const;
+  /** True if current viewport is drawn during transforming operator. */
+  bool is_transforming() const;
+  /** True if viewport compositor is enabled when drawing with this context. */
+  bool is_viewport_compositor_enabled() const;
 };
 
 /** \} */
 
 const DRWContext *DRW_context_get();
-
-/**
- * For when engines need to know if this is drawing for selection or not.
- */
-static inline bool DRW_state_is_select()
-{
-  return DRWContext::get_active().is_select();
-}
-
-/**
- * For when engines need to know if this is drawing for selection or not.
- */
-static inline bool DRW_state_is_material_select()
-{
-  return DRWContext::get_active().is_material_select();
-}
-
-/**
- * For when engines need to know if this is drawing for depth picking.
- */
-static inline bool DRW_state_is_depth()
-{
-  return DRWContext::get_active().is_depth();
-}
-
-/**
- * Whether we are rendering for an image
- */
-static inline bool DRW_state_is_image_render()
-{
-  return DRWContext::get_active().is_image_render();
-  ;
-}
-
-/**
- * Whether we are rendering only the render engine,
- * or if we should also render the mode engines.
- */
-static inline bool DRW_state_is_scene_render()
-{
-  return DRWContext::get_active().is_scene_render();
-}
-
-/**
- * Whether we are rendering simple opengl render
- */
-static inline bool DRW_state_is_viewport_image_render()
-{
-  return DRWContext::get_active().is_viewport_image_render();
-}
-
-bool DRW_state_is_playback();
-/**
- * Is the user navigating or painting the region.
- */
-bool DRW_state_is_navigating();
-/**
- * Is the user painting?
- */
-bool DRW_state_is_painting();
-/**
- * Should text draw in this mode?
- */
-bool DRW_state_show_text();
-/**
- * Should draw support elements
- * Objects center, selection outline, probe data, ...
- */
-bool DRW_state_draw_support();
-/**
- * Whether we should render the background
- */
-bool DRW_state_draw_background();
-
-bool DRW_state_viewport_compositor_enabled();

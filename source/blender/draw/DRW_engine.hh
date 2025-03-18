@@ -12,7 +12,6 @@ struct ARegion;
 struct DRWData;
 struct DRWInstanceDataList;
 struct Depsgraph;
-struct DrawDataList;
 struct GPUMaterial;
 struct GPUOffScreen;
 struct GPUVertFormat;
@@ -163,13 +162,6 @@ void DRW_system_gpu_render_context_enable(void *re_system_gpu_context);
 void DRW_system_gpu_render_context_disable(void *re_system_gpu_context);
 void DRW_blender_gpu_render_context_enable(void *re_gpu_context);
 void DRW_blender_gpu_render_context_disable(void *re_gpu_context);
-
-/**
- * Get DrawData from the given ID-block. In order for this to work, we assume that
- * the DrawData pointer is stored in the  in the same fashion as in #IdDdtTemplate.
- */
-DrawDataList *DRW_drawdatalist_from_id(ID *id);
-void DRW_drawdata_free(ID *id);
 
 DRWData *DRW_viewport_data_create();
 void DRW_viewport_data_free(DRWData *drw_data);
