@@ -2254,7 +2254,7 @@ class SEQUENCER_PT_time(SequencerButtonsPanel, Panel):
                 sub2 = layout.column(align=True)
                 split = sub2.split(factor=factor + max_factor, align=True)
                 split.alignment = 'RIGHT'
-                split.label(text="Subframe Offset", text_ctxt=i18n_contexts.id_sound)
+                split.label(text="Sound Offset", text_ctxt=i18n_contexts.id_sound)
                 split.prop(strip, "sound_offset", text="")
 
         col = layout.column(align=True)
