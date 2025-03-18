@@ -217,8 +217,9 @@ static void rna_GreasePencilDrawing_vertex_group_remove(ID *id,
   for (const int i : indices) {
     if (i < dverts_size) {
       MDeformVert *dv = &dverts[i];
-      MDeformWeight *dw = BKE_defvert_find_index(dv, def_nr);
-      BKE_defvert_remove_group(dv, dw);
+      if (MDeformWeight *dw = BKE_defvert_find_index(dv, def_nr)) {
+        BKE_defvert_remove_group(dv, dw);
+      }
     }
   }
 
@@ -653,7 +654,7 @@ void RNA_api_grease_pencil_drawing(StructRNA *srna)
   RNA_def_function_ui_description(func, "Assign points to vertex group");
   RNA_def_function_flag(func, FUNC_USE_SELF_ID);
   parm = RNA_def_string(
-      func, "vgroup_name", "Group", MAX_NAME, "vgroupname", "Name of the vertex group");
+      func, "vgroup_name", "Group", MAX_NAME, "Vertex Group Name", "Name of the vertex group");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
   parm = RNA_def_int_array(func,
                            "indices_ptr",
@@ -674,7 +675,7 @@ void RNA_api_grease_pencil_drawing(StructRNA *srna)
   RNA_def_function_ui_description(func, "Remove points from vertex group");
   RNA_def_function_flag(func, FUNC_USE_SELF_ID);
   parm = RNA_def_string(
-      func, "vgroup_name", "Group", MAX_NAME, "vgroupname", "Name of the vertex group");
+      func, "vgroup_name", "Group", MAX_NAME, "Vertex Group Name", "Name of the vertex group");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
   parm = RNA_def_int_array(func,
                            "indices_ptr",
@@ -683,7 +684,7 @@ void RNA_api_grease_pencil_drawing(StructRNA *srna)
                            0,
                            0,
                            "Indices",
-                           "The point indices to remove from vertex group",
+                           "The point indices to remove from the vertex group",
                            0,
                            0);
   RNA_def_parameter_flags(parm, PROP_DYNAMIC, PARM_REQUIRED);
