@@ -2702,12 +2702,10 @@ void MESH_OT_normals_make_consistent(wmOperatorType *ot)
 static int edbm_do_smooth_vertex_exec(bContext *C, wmOperator *op)
 {
   const float fac = RNA_float_get(op->ptr, "factor");
-
   const bool xaxis = RNA_boolean_get(op->ptr, "xaxis");
   const bool yaxis = RNA_boolean_get(op->ptr, "yaxis");
   const bool zaxis = RNA_boolean_get(op->ptr, "zaxis");
   int repeat = RNA_int_get(op->ptr, "repeat");
-
   if (!repeat) {
     repeat = 1;
   }
@@ -2715,8 +2713,10 @@ static int edbm_do_smooth_vertex_exec(bContext *C, wmOperator *op)
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   int tot_selected = 0, tot_locked = 0;
+
   const Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
       scene, view_layer, CTX_wm_view3d(C));
+
   for (Object *obedit : objects) {
     Mesh *mesh = static_cast<Mesh *>(obedit->data);
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
@@ -2727,26 +2727,23 @@ static int edbm_do_smooth_vertex_exec(bContext *C, wmOperator *op)
     if (em->bm->totvertsel == 0) {
       continue;
     }
-
     if (blender::ed::object::shape_key_report_if_locked(obedit, op->reports)) {
       tot_locked++;
       continue;
     }
-
     tot_selected++;
 
-    /* mirror before smooth */
-    if (((Mesh *)obedit->data)->symmetry & ME_SYMMETRY_X) {
-      EDBM_verts_mirror_cache_begin(em, 0, false, true, false, use_topology);
+    const uint symm = ((Mesh *)obedit->data)->symmetry;
+
+    for (int axis = 0; axis < 3; axis++) {
+      if (symm & (ME_SYMMETRY_X << axis)) {
+        EDBM_verts_mirror_cache_begin(em, axis, false, true, false, use_topology);
+      }
     }
 
-    /* if there is a mirror modifier with clipping, flag the verts that
-     * are within tolerance of the plane(s) of reflection
-     */
     LISTBASE_FOREACH (ModifierData *, md, &obedit->modifiers) {
       if (md->type == eModifierType_Mirror && (md->mode & eModifierMode_Realtime)) {
         MirrorModifierData *mmd = (MirrorModifierData *)md;
-
         if (mmd->flag & MOD_MIR_CLIPPING) {
           if (mmd->flag & MOD_MIR_AXIS_X) {
             mirrx = true;
@@ -2757,40 +2754,38 @@ static int edbm_do_smooth_vertex_exec(bContext *C, wmOperator *op)
           if (mmd->flag & MOD_MIR_AXIS_Z) {
             mirrz = true;
           }
-
           clip_dist = mmd->tolerance;
         }
       }
     }
 
     for (int i = 0; i < repeat; i++) {
-      if (!EDBM_op_callf(
-              em,
-              op,
-              "smooth_vert verts=%hv factor=%f mirror_clip_x=%b mirror_clip_y=%b mirror_clip_z=%b "
-              "clip_dist=%f use_axis_x=%b use_axis_y=%b use_axis_z=%b",
-              BM_ELEM_SELECT,
-              fac,
-              mirrx,
-              mirry,
-              mirrz,
-              clip_dist,
-              xaxis,
-              yaxis,
-              zaxis))
+      if (!EDBM_op_callf(em,
+                         op,
+                         "smooth_vert verts=%hv factor=%f "
+                         "mirror_clip_x=%b mirror_clip_y=%b mirror_clip_z=%b "
+                         "clip_dist=%f use_axis_x=%b use_axis_y=%b use_axis_z=%b",
+                         BM_ELEM_SELECT,
+                         fac,
+                         mirrx,
+                         mirry,
+                         mirrz,
+                         clip_dist,
+                         xaxis,
+                         yaxis,
+                         zaxis))
       {
         continue;
       }
     }
 
-    /* NOTE: redundant calculation could be avoided if the EDBM API could skip calculation. */
     bool calc_normals = false;
-
-    /* apply mirror */
-    if (((Mesh *)obedit->data)->symmetry & ME_SYMMETRY_X) {
-      EDBM_verts_mirror_apply(em, BM_ELEM_SELECT, 0);
-      EDBM_verts_mirror_cache_end(em);
-      calc_normals = true;
+    for (int axis = 0; axis < 3; axis++) {
+      if (symm & (ME_SYMMETRY_X << axis)) {
+        EDBM_verts_mirror_apply(em, BM_ELEM_SELECT, 0, axis);
+        EDBM_verts_mirror_cache_end(em);
+        calc_normals = true;
+      }
     }
 
     EDBMUpdate_Params params{};
@@ -2910,7 +2905,7 @@ static int edbm_do_smooth_laplacian_vertex_exec(bContext *C, wmOperator *op)
 
     /* Apply mirror. */
     if (((Mesh *)obedit->data)->symmetry & ME_SYMMETRY_X) {
-      EDBM_verts_mirror_apply(em, BM_ELEM_SELECT, 0);
+      EDBM_verts_mirror_apply(em, BM_ELEM_SELECT, 0, 1);
       EDBM_verts_mirror_cache_end(em);
       calc_normals = true;
     }
@@ -3944,7 +3939,7 @@ static int edbm_blend_from_shape_exec(bContext *C, wmOperator *op)
       }
 
       if (use_symmetry) {
-        EDBM_verts_mirror_apply(em, BM_ELEM_SELECT, 0);
+        EDBM_verts_mirror_apply(em, BM_ELEM_SELECT, 0, 1);
         EDBM_verts_mirror_cache_end(em);
       }
 

@@ -1495,7 +1495,7 @@ void EDBM_verts_mirror_cache_end(BMEditMesh *em)
   em->mirror_cdlayer = -1;
 }
 
-void EDBM_verts_mirror_apply(BMEditMesh *em, const int sel_from, const int sel_to)
+void EDBM_verts_mirror_apply(BMEditMesh *em, const int sel_from, const int sel_to, const int axis)
 {
   BMIter iter;
   BMVert *v;
@@ -1508,7 +1508,7 @@ void EDBM_verts_mirror_apply(BMEditMesh *em, const int sel_from, const int sel_t
       if (mirr) {
         if (BM_elem_flag_test(mirr, BM_ELEM_SELECT) == sel_to) {
           copy_v3_v3(mirr->co, v->co);
-          mirr->co[0] *= -1.0f;
+          mirr->co[axis] *= -1.0f;
         }
       }
     }

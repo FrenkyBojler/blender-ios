@@ -65,7 +65,7 @@ void EDBM_verts_mirror_cache_begin_ex(BMEditMesh *em,
                                       int *r_index);
 void EDBM_verts_mirror_cache_begin(
     BMEditMesh *em, int axis, bool use_self, bool use_select, bool respecthide, bool use_topology);
-void EDBM_verts_mirror_apply(BMEditMesh *em, int sel_from, int sel_to);
+void EDBM_verts_mirror_apply(BMEditMesh *em, const int sel_from, const int sel_to, const int axis);
 BMVert *EDBM_verts_mirror_get(BMEditMesh *em, BMVert *v);
 BMEdge *EDBM_verts_mirror_get_edge(BMEditMesh *em, BMEdge *e);
 BMFace *EDBM_verts_mirror_get_face(BMEditMesh *em, BMFace *f);
