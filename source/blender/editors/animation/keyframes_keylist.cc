@@ -266,6 +266,31 @@ const ActKeyColumn *ED_keylist_find_prev(const AnimKeylist *keylist, const float
   return prev_column;
 }
 
+const ActKeyColumn *ED_keylist_find_closest(const AnimKeylist *keylist, float cfra)
+{
+  BLI_assert_msg(keylist->is_runtime_initialized,
+                 "ED_keylist_prepare_for_direct_access needs to be called before searching.");
+  if (ED_keylist_is_empty(keylist)) {
+    return nullptr;
+  }
+  const ActKeyColumn *prev = ED_keylist_find_prev(keylist, cfra);
+  const ActKeyColumn *next = ED_keylist_find_next(keylist, cfra);
+  if (!prev) {
+    return next;
+  }
+  if (!next) {
+    return prev;
+  }
+
+  const float prev_delta = cfra - prev->cfra;
+  const float next_delta = next->cfra - cfra;
+
+  if (prev_delta < next_delta) {
+    return prev;
+  }
+  return next;
+}
+
 const ActKeyColumn *ED_keylist_find_any_between(const AnimKeylist *keylist,
                                                 const Bounds<float> frame_range)
 {
@@ -1207,8 +1232,8 @@ void fcurve_to_keylist(AnimData *adt,
   int right_outside_key_index = -1;
   /* Loop through beztriples, making ActKeysColumns. */
   for (int v = 0; v < fcu->totvert; v++) {
-    /* Not using binary search to limit the range because the FCurve might not be sorted e.g. when
-     * transforming in the Dope Sheet. */
+    /* Not using binary search to limit the range because the FCurve might not be sorted e.g.
+     * when transforming in the Dope Sheet. */
     const float x = fcu->bezt[v].vec[1][0];
     if (x < range[0] && x > left_outside_key_x) {
       left_outside_key_x = x;
@@ -1240,8 +1265,8 @@ void fcurve_to_keylist(AnimData *adt,
     index_bounds.min = blender::math::min(index_bounds.min, right_outside_key_index);
     index_bounds.max = blender::math::max(index_bounds.max, right_outside_key_index);
   }
-  /* Not using index_bounds.is_empty() because that returns true if min and max are the same. That
-   * is a valid configuration in this case though. */
+  /* Not using index_bounds.is_empty() because that returns true if min and max are the same.
+   * That is a valid configuration in this case though. */
   if (index_bounds.min <= index_bounds.max) {
     update_keyblocks(
         keylist, &fcu->bezt[index_bounds.min], (index_bounds.max + 1) - index_bounds.min);

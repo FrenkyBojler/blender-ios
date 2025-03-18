@@ -19,6 +19,7 @@
 
 #include "BKE_anim_data.hh"
 #include "BKE_context.hh"
+#include "BKE_fcurve.hh"
 #include "BKE_global.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
@@ -36,6 +37,7 @@
 #include "WM_types.hh"
 
 #include "ED_anim_api.hh"
+#include "ED_keyframes_keylist.hh"
 #include "ED_markers.hh"
 #include "ED_screen.hh"
 #include "ED_sequencer.hh"
@@ -95,6 +97,28 @@ static bool change_frame_poll(bContext *C)
   return false;
 }
 
+/* Persistent data to re-use during frame change modal operations. */
+struct ChangeFrameData {
+  /* Used for keyframe snapping. Is populated when needed. */
+  AnimKeylist *keylist;
+};
+
+static ChangeFrameData *allocate_change_frame_data()
+{
+  ChangeFrameData *op_data = MEM_callocN<ChangeFrameData>("change frame data");
+  op_data->keylist = nullptr;
+  return op_data;
+}
+
+static void free_change_frame_data(ChangeFrameData *op_data)
+{
+  if (op_data->keylist) {
+    ED_keylist_free(op_data->keylist);
+  }
+
+  MEM_freeN(op_data);
+}
+
 static void seq_frame_snap_update_best(const int position,
                                        const int timeline_frame,
                                        int *r_best_frame,
@@ -148,6 +172,46 @@ static int get_snap_threshold(const ARegion *region)
          UI_view2d_region_to_view_x(&region->v2d, 0);
 }
 
+static void ensure_change_frame_anim_data(bContext *C, ChangeFrameData &op_data)
+{
+  /* Only populate data once. */
+  if (op_data.keylist != nullptr) {
+    return;
+  }
+  bAnimContext ac;
+  if (!ANIM_animdata_get_context(C, &ac)) {
+    BLI_assert_unreachable();
+    return;
+  }
+  ListBase anim_data = {nullptr, nullptr};
+  const eAnimFilter_Flags filter = ANIMFILTER_DATA_VISIBLE | ANIMFILTER_FCURVESONLY;
+  ANIM_animdata_filter(&ac, &anim_data, filter, ac.data, ac.datatype);
+
+  op_data.keylist = ED_keylist_create();
+
+  LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
+    if (ale->type != ANIMTYPE_FCURVE) {
+      continue;
+    }
+    FCurve *fcurve = static_cast<FCurve *>(ale->data);
+    fcurve_to_keylist(ale->adt, fcurve, op_data.keylist, 0, {-FLT_MAX, FLT_MAX}, true);
+  }
+  ED_keylist_prepare_for_direct_access(op_data.keylist);
+  ANIM_animdata_freelist(&anim_data);
+}
+
+static int get_keyframe_snap_target(bContext *C,
+                                    ChangeFrameData &op_data,
+                                    const int timeline_frame)
+{
+  ensure_change_frame_anim_data(C, op_data);
+  const ActKeyColumn *closest_column = ED_keylist_find_closest(op_data.keylist, timeline_frame);
+  if (!closest_column) {
+    return MAXFRAME;
+  }
+  return closest_column->cfra;
+}
+
 static int seq_frame_apply_snap(bContext *C, const int timeline_frame)
 {
   Scene *scene = CTX_data_scene(C);
@@ -184,20 +248,30 @@ static int seq_frame_apply_snap(bContext *C, const int timeline_frame)
   return timeline_frame;
 }
 
-static int action_frame_apply_snap(bContext *C, const int timeline_frame)
+static int action_frame_apply_snap(bContext *C, ChangeFrameData &op_data, const int timeline_frame)
 {
   Scene *scene = CTX_data_scene(C);
   ToolSettings *tool_settings = scene->toolsettings;
 
   int snap_frame = MAXFRAME;
+
   if (tool_settings->snap_playhead_mode & SCE_SNAP_TO_MARKERS) {
     const int snap_target = get_marker_snap_target(scene, timeline_frame);
     if (abs(snap_target - timeline_frame) < abs(snap_frame - timeline_frame)) {
       snap_frame = snap_target;
     }
   }
+
   if (tool_settings->snap_playhead_mode & SCE_SNAP_TO_SECOND) {
     const int snap_target = BKE_scene_frame_snap_by_seconds(scene, 1.0, timeline_frame);
+    if (abs(snap_target - timeline_frame) < abs(snap_frame - timeline_frame)) {
+      snap_frame = snap_target;
+    }
+  }
+
+  if (tool_settings->snap_playhead_mode & SCE_SNAP_TO_KEYS) {
+    const int snap_target = get_keyframe_snap_target(C, op_data, timeline_frame);
+    /* Snapping should probably happen in floats. */
     if (abs(snap_target - timeline_frame) < abs(snap_frame - timeline_frame)) {
       snap_frame = snap_target;
     }
@@ -211,23 +285,34 @@ static int action_frame_apply_snap(bContext *C, const int timeline_frame)
   return timeline_frame;
 }
 
-static int graph_frame_apply_snap(bContext *C, const int timeline_frame)
+static int graph_frame_apply_snap(bContext *C, ChangeFrameData &op_data, const int timeline_frame)
 {
   Scene *scene = CTX_data_scene(C);
   ToolSettings *tool_settings = scene->toolsettings;
   int snap_frame = MAXFRAME;
+
   if (tool_settings->snap_playhead_mode & SCE_SNAP_TO_MARKERS) {
     const int snap_target = get_marker_snap_target(scene, timeline_frame);
     if (abs(snap_target - timeline_frame) < abs(snap_frame - timeline_frame)) {
       snap_frame = snap_target;
     }
   }
+
   if (tool_settings->snap_playhead_mode & SCE_SNAP_TO_SECOND) {
     const int snap_target = BKE_scene_frame_snap_by_seconds(scene, 1.0, timeline_frame);
     if (abs(snap_target - timeline_frame) < abs(snap_frame - timeline_frame)) {
       snap_frame = snap_target;
     }
   }
+
+  if (tool_settings->snap_playhead_mode & SCE_SNAP_TO_KEYS) {
+    const int snap_target = get_keyframe_snap_target(C, op_data, timeline_frame);
+    /* Snapping should probably happen in floats. */
+    if (abs(snap_target - timeline_frame) < abs(snap_frame - timeline_frame)) {
+      snap_frame = snap_target;
+    }
+  }
+
   const ARegion *region = CTX_wm_region(C);
   if (abs(snap_frame - timeline_frame) < get_snap_threshold(region)) {
     return snap_frame;
@@ -236,23 +321,26 @@ static int graph_frame_apply_snap(bContext *C, const int timeline_frame)
   return timeline_frame;
 }
 
-static int nla_frame_apply_snap(bContext *C, const int timeline_frame)
+static int nla_frame_apply_snap(bContext *C, ChangeFrameData &op_data, const int timeline_frame)
 {
   Scene *scene = CTX_data_scene(C);
   ToolSettings *tool_settings = scene->toolsettings;
   int snap_frame = MAXFRAME;
+
   if (tool_settings->snap_playhead_mode & SCE_SNAP_TO_MARKERS) {
     const int snap_target = get_marker_snap_target(scene, timeline_frame);
     if (abs(snap_target - timeline_frame) < abs(snap_frame - timeline_frame)) {
       snap_frame = snap_target;
     }
   }
+
   if (tool_settings->snap_playhead_mode & SCE_SNAP_TO_SECOND) {
     const int snap_target = BKE_scene_frame_snap_by_seconds(scene, 1.0, timeline_frame);
     if (abs(snap_target - timeline_frame) < abs(snap_frame - timeline_frame)) {
       snap_frame = snap_target;
     }
   }
+
   const ARegion *region = CTX_wm_region(C);
   if (abs(snap_frame - timeline_frame) < get_snap_threshold(region)) {
     return snap_frame;
@@ -260,7 +348,7 @@ static int nla_frame_apply_snap(bContext *C, const int timeline_frame)
   return timeline_frame;
 }
 
-static float apply_frame_snap(bContext *C, const float frame)
+static float apply_frame_snap(bContext *C, ChangeFrameData &op_data, const float frame)
 {
   Scene *scene = CTX_data_scene(C);
   ScrArea *area = CTX_wm_area(C);
@@ -268,11 +356,11 @@ static float apply_frame_snap(bContext *C, const float frame)
     case SPACE_SEQ:
       return seq_frame_apply_snap(C, frame);
     case SPACE_ACTION:
-      return action_frame_apply_snap(C, frame);
+      return action_frame_apply_snap(C, op_data, frame);
     case SPACE_GRAPH:
-      return graph_frame_apply_snap(C, frame);
+      return graph_frame_apply_snap(C, op_data, frame);
     case SPACE_NLA:
-      return nla_frame_apply_snap(C, frame);
+      return nla_frame_apply_snap(C, op_data, frame);
     default:
       break;
   }
@@ -289,9 +377,9 @@ static void change_frame_apply(bContext *C, wmOperator *op, const bool always_up
 
   const int old_frame = scene->r.cfra;
   const float old_subframe = scene->r.subframe;
-
   if (do_snap) {
-    frame = apply_frame_snap(C, frame);
+    ChangeFrameData *op_data = static_cast<ChangeFrameData *>(op->customdata);
+    frame = apply_frame_snap(C, *op_data, frame);
   }
 
   /* set the new frame number */
@@ -318,7 +406,10 @@ static void change_frame_apply(bContext *C, wmOperator *op, const bool always_up
 /* Non-modal callback for running operator without user input */
 static int change_frame_exec(bContext *C, wmOperator *op)
 {
+  ChangeFrameData *op_data = allocate_change_frame_data();
+  op->customdata = op_data;
   change_frame_apply(C, op, true);
+  free_change_frame_data(op_data);
 
   return OPERATOR_FINISHED;
 }
@@ -393,6 +484,8 @@ static bool sequencer_skip_for_handle_tweak(const bContext *C, const wmEvent *ev
 static int change_frame_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   bScreen *screen = CTX_wm_screen(C);
+  ChangeFrameData *op_data = allocate_change_frame_data();
+  op->customdata = op_data;
 
   /* This check is done in case scrubbing and strip tweaking in the sequencer are bound to the same
    * event (e.g. RCS keymap where both are activated on left mouse press). Tweaking should take
@@ -509,6 +602,10 @@ static int change_frame_modal(bContext *C, wmOperator *op, const wmEvent *event)
   if (ret != OPERATOR_RUNNING_MODAL) {
     bScreen *screen = CTX_wm_screen(C);
     screen->scrubbing = false;
+
+    ChangeFrameData *op_data = static_cast<ChangeFrameData *>(op->customdata);
+    free_change_frame_data(op_data);
+    op->customdata = nullptr;
 
     if (RNA_boolean_get(op->ptr, "seq_solo_preview")) {
       SpaceSeq *sseq = CTX_wm_space_seq(C);
