@@ -852,16 +852,16 @@ static BooleanResult execute_boolean(const CurveBooleanOpParameters op_params,
 
   /* Calculate all intersections. */
   subject_shapes.foreach_index([&](const int subj_shape_id) {
-    BooleanResult result = execute_single_boolean(op_params,
-                                                  subj_shape_id,
-                                                  points,
-                                                  shapes,
-                                                  points_by_curve,
-                                                  clipping_shapes,
-                                                  self_clipping_inters_per_curves,
-                                                  intersections,
-                                                  is_fill,
-                                                  is_cyclic);
+    const BooleanResult result = execute_single_boolean(op_params,
+                                                        subj_shape_id,
+                                                        points,
+                                                        shapes,
+                                                        points_by_curve,
+                                                        clipping_shapes,
+                                                        self_clipping_inters_per_curves,
+                                                        intersections,
+                                                        is_fill,
+                                                        is_cyclic);
 
     for (const int i : result.segment_offsets.index_range().drop_front(1)) {
       results_all.segment_offsets.append(result.segment_offsets[i] + results_all.segments.size());
