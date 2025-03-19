@@ -1217,6 +1217,20 @@ add_blender_test(
   --testdir "${TEST_SRC_DIR}/sculpting"
 )
 
+set(_paint_test_arguments)
+if(WITH_GPU_MESH_PAINT_TESTS)
+  list(APPEND _paint_test_arguments --with_gpu_tests)
+endif()
+
+add_blender_test(
+  bl_paint_operators
+  --python ${cmake_current_list_dir}/bl_paint.py
+  --
+  --testdir "${test_src_dir}/sculpting"
+  ${_paint_test_arguments}
+)
+unset(_paint_test_arguments)
+
 if(WITH_GPU_MESH_PAINT_TESTS)
   if(NOT OPENIMAGEIO_TOOL)
     message(STATUS "Disabling sculpting render tests because OIIO oiiotool does not exist")
