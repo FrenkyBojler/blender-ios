@@ -1,1 +1,2 @@
 Referenced by issue #135652, Grid and Axis overlays displaying in front of mesh in Texture & Vertex Paint modes in EEVEE and Cycles
+Referenced by issue #136185, Blender 4.4.0 Reference images draw in front of meshes while render engine is set to Cycles
