@@ -1127,7 +1127,7 @@ namespace blender::ed::space_node {
 static const float virtual_node_socket_color[4] = {0.2, 0.2, 0.2, 1.0};
 
 /* maps standard socket integer type to a color */
-static const float std_node_socket_colors[][4] = {
+extern const float std_node_socket_colors[][4] = {
     {0.63, 0.63, 0.63, 1.0}, /* SOCK_FLOAT */
     {0.39, 0.39, 0.78, 1.0}, /* SOCK_VECTOR */
     {0.78, 0.78, 0.16, 1.0}, /* SOCK_RGBA */
