@@ -148,12 +148,16 @@ void ArmatureImportContext::create_armature_bones(const ufbx_node *node,
     if (fchild->attrib_type != UFBX_ELEMENT_BONE) {
       continue;
     }
+
     bool skip_child = false;
     if (this->params.ignore_leaf_bones) {
-      if (node->children.count == 1 && fchild->children.count == 0) {
+      if (node->children.count == 1 && fchild->children.count == 0 &&
+          !mapping.bone_is_skinned.contains(fchild))
+      {
         skip_child = true;
       }
     }
+
     if (!skip_child) {
       create_armature_bones(fchild, arm_obj, bone, bone_mtx, world_to_arm, bone_size);
     }
@@ -231,6 +235,7 @@ void ArmatureImportContext::calc_bone_bind_matrices()
       const ufbx_matrix &bind_matrix = fbone->bind_to_world;
       this->mapping.bone_to_bind_matrix.add_overwrite(fbone->bone_node, bind_matrix);
       this->mapping.bone_has_pose_or_skin_matrix.add(fbone->bone_node);
+      this->mapping.bone_is_skinned.add(fbone->bone_node);
     }
   }
 

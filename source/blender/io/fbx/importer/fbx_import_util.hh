@@ -30,9 +30,10 @@ struct FbxElementMapping {
   /** Bone node to "bind matrix", i.e. matrix that transforms from bone (in skin bind pose) local
    * space to world space. */
   Map<const ufbx_node *, ufbx_matrix> bone_to_bind_matrix;
-  /** Which bone actually have pose or skin cluster bind matrices in the FBX file (the others
+  /** Which bones actually have pose or skin cluster bind matrices in the FBX file (the others
    * would just use their world transform). */
   Set<const ufbx_node *> bone_has_pose_or_skin_matrix;
+  Set<const ufbx_node *> bone_is_skinned;
   ufbx_matrix global_conv_matrix;
 
   //@TODO: these could be precalculated once
