@@ -2315,7 +2315,7 @@ static float brush_strength(const Sculpt &sd,
       return alpha * flip * pressure * overlap * feather;
 
     case SCULPT_BRUSH_TYPE_PLANE:
-      if (flip > 0.0f) {
+      if (flip > 0.0f || brush.plane_inversion_mode == BRUSH_PLANE_SWAP_HEIGHT_AND_DEPTH) {
         overlap = (1.0f + overlap) / 2.0f;
         return alpha * pressure * overlap * feather;
       }
