@@ -76,7 +76,6 @@ Object *ArmatureImportContext::create_armature_for_node(const ufbx_node *node)
     /* For armatures created at root, make them have the same rotation/scale
      * as done by ufbx for all regular nodes. */
     ufbx_matrix_to_obj(this->mapping.global_conv_matrix, obj);
-    this->mapping.armatures_created_at_root.add(obj);
   }
   return obj;
 }

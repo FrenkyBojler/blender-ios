@@ -59,19 +59,19 @@ void m44_to_matrix(const float src[4][4], ufbx_matrix &dst)
   dst.m23 = src[3][2];
 }
 
-void ufbx_matrix_to_obj(const ufbx_matrix &mtx, Object *obj, bool use_parent_matrix)
+void ufbx_matrix_to_obj(const ufbx_matrix &mtx, Object *obj)
 {
   float obmat[4][4];
   matrix_to_m44(mtx, obmat);
-  BKE_object_apply_mat4(obj, obmat, true, use_parent_matrix);
+  BKE_object_apply_mat4(obj, obmat, true, false);
   BKE_object_to_mat4(obj, obj->runtime->object_to_world.ptr());
 }
 
-void node_matrix_to_obj(const ufbx_node *node, Object *obj, bool use_parent_matrix)
+void node_matrix_to_obj(const ufbx_node *node, Object *obj)
 {
   ufbx_matrix mtx = ufbx_matrix_mul(node->is_root ? &node->node_to_world : &node->node_to_parent,
                                     &node->geometry_to_node);
-  ufbx_matrix_to_obj(mtx, obj, use_parent_matrix);
+  ufbx_matrix_to_obj(mtx, obj);
 }
 
 void read_custom_properties(const ufbx_props &props, ID &id)

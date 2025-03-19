@@ -33,7 +33,6 @@ struct FbxElementMapping {
   /** Which bone actually have pose or skin cluster bind matrices in the FBX file (the others
    * would just use their world transform). */
   Set<const ufbx_node *> bone_has_pose_or_skin_matrix;
-  Set<const Object *> armatures_created_at_root;
   ufbx_matrix global_conv_matrix;
 
   //@TODO: these could be precalculated once
@@ -68,8 +67,8 @@ struct FbxElementMapping {
 
 void matrix_to_m44(const ufbx_matrix &src, float dst[4][4]);
 void m44_to_matrix(const float src[4][4], ufbx_matrix &dst);
-void ufbx_matrix_to_obj(const ufbx_matrix &mtx, Object *obj, bool use_parent_matrix = false);
-void node_matrix_to_obj(const ufbx_node *node, Object *obj, bool use_parent_matrix = false);
+void ufbx_matrix_to_obj(const ufbx_matrix &mtx, Object *obj);
+void node_matrix_to_obj(const ufbx_node *node, Object *obj);
 void read_custom_properties(const ufbx_props &props, ID &id);
 
 }  // namespace blender::io::fbx

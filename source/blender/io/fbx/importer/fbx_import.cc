@@ -386,7 +386,7 @@ void FbxImportContext::import_meshes()
       }
 
       /* Skinned mesh. */
-      bool use_parent_matrix = false;
+      bool matrix_already_set = false;
       if (fmesh->skin_deformers.count > 0) {
         const ufbx_skin_deformer *skin = fmesh->skin_deformers[0];
         if (skin != nullptr && skin->clusters.count > 0) {
@@ -410,7 +410,16 @@ void FbxImportContext::import_meshes()
             ArmatureModifierData *ad = reinterpret_cast<ArmatureModifierData *>(md);
             ad->object = arm_obj;
             obj->parent = arm_obj;
-            use_parent_matrix = this->mapping.armatures_created_at_root.contains(arm_obj);
+
+            /* We are setting mesh parent to the armature, so set the matrix that is
+             * armature-local. */
+            ufbx_matrix arm_to_world;
+            m44_to_matrix(arm_obj->runtime->object_to_world.ptr(), arm_to_world);
+            ufbx_matrix world_to_arm = ufbx_matrix_invert(&arm_to_world);
+            ufbx_matrix mtx = ufbx_matrix_mul(&node->node_to_world, &node->geometry_to_node);
+            mtx = ufbx_matrix_mul(&world_to_arm, &mtx);
+            ufbx_matrix_to_obj(mtx, obj);
+            matrix_already_set = true;
           }
         }
       }
@@ -463,7 +472,9 @@ void FbxImportContext::import_meshes()
       if (this->params.use_custom_props) {
         read_custom_properties(node->props, obj->id);
       }
-      node_matrix_to_obj(node, obj, use_parent_matrix);
+      if (!matrix_already_set) {
+        node_matrix_to_obj(node, obj);
+      }
       this->mapping.el_to_object.add(&node->element, obj);
     }
   }
