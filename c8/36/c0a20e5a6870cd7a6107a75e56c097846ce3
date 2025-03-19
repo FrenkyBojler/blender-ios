@@ -1,1 +1,2 @@
 Referenced by issue #129008, Fix #126541: Tooltip for dynamic custom enum properties broken
+Referenced by issue #136188, ASAN error (invalid read) when clicking Menu socket button in modifier
