@@ -84,15 +84,14 @@ bool VKDevice::is_initialized() const
 void VKDevice::init(void *ghost_context)
 {
   BLI_assert(!is_initialized());
-  void *queue_mutex = nullptr;
-  GHOST_GetVulkanHandles((GHOST_ContextHandle)ghost_context,
-                         &vk_instance_,
-                         &vk_physical_device_,
-                         &vk_device_,
-                         &vk_queue_family_,
-                         &vk_queue_,
-                         &queue_mutex);
-  queue_mutex_ = static_cast<std::mutex *>(queue_mutex);
+  GHOST_VulkanHandles handles = {};
+  GHOST_GetVulkanHandles((GHOST_ContextHandle)ghost_context, &handles);
+  vk_instance_ = handles.instance;
+  vk_physical_device_ = handles.physical_device;
+  vk_device_ = handles.device;
+  vk_queue_family_ = handles.graphic_queue_family;
+  vk_queue_ = handles.queue;
+  queue_mutex_ = static_cast<std::mutex *>(handles.queue_mutex);
 
   init_physical_device_properties();
   init_physical_device_memory_properties();
@@ -113,8 +112,8 @@ void VKDevice::init(void *ghost_context)
   debug::object_label(queue_get(), "GenericQueue");
   init_glsl_patch();
 
-  resources.use_dynamic_rendering = !workarounds_.dynamic_rendering;
-  resources.use_dynamic_rendering_local_read = !workarounds_.dynamic_rendering_local_read;
+  resources.use_dynamic_rendering = extensions_.dynamic_rendering;
+  resources.use_dynamic_rendering_local_read = extensions_.dynamic_rendering_local_read;
   orphaned_data.timeline_ = timeline_value_ + 1;
 
   init_submission_pool();
@@ -243,7 +242,7 @@ void VKDevice::init_glsl_patch()
     ss << "#extension GL_ARB_shader_stencil_export: enable\n";
     ss << "#define GPU_ARB_shader_stencil_export 1\n";
   }
-  if (!workarounds_.fragment_shader_barycentric) {
+  if (extensions_.fragment_shader_barycentric) {
     ss << "#extension GL_EXT_fragment_shader_barycentric : require\n";
     ss << "#define gpu_BaryCoord gl_BaryCoordEXT\n";
     ss << "#define gpu_BaryCoordNoPersp gl_BaryCoordNoPerspEXT\n";
@@ -476,7 +475,7 @@ void VKDevice::submission_runner(TaskPool *__restrict pool, void *task_data)
 
       vk_command_buffer = command_buffers_unused.pop_last();
       command_buffer = std::make_optional<render_graph::VKCommandBufferWrapper>(
-          vk_command_buffer, device->workarounds_);
+          vk_command_buffer, device->extensions_);
       command_buffer->begin_recording();
     }
 
