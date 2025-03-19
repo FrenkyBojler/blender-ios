@@ -325,7 +325,7 @@ static bool snap_selected_to_location(bContext *C,
     sub_v3_v3v3(offset_global, snap_target_global, center_global);
   }
 
-  blender::float3x3 cursor_rotmat = scene->cursor.matrix<blender::float3x3>();
+  const blender::float3x3 cursor_rotmat = scene->cursor.matrix<blender::float3x3>();
 
   if (obedit) {
     float snap_target_local[3];
@@ -731,7 +731,7 @@ void VIEW3D_OT_snap_selected_to_cursor(wmOperatorType *ot)
   RNA_def_boolean(ot->srna,
                   "use_offset",
                   true,
-                  "Offset Location",
+                  "Offset",
                   "If the selection should be snapped as a whole or by each object center");
 
   RNA_def_boolean(ot->srna,
