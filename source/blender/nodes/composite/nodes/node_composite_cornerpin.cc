@@ -172,10 +172,10 @@ class CornerPinOperation : public NodeOperation {
       float4 sampled_color;
       switch (realization_options.interpolation) {
         case Interpolation::Bicubic:
-          sampled_color = input.sample_cubic_wrap(projected_coordinates, false, false);
+          sampled_color = input.sample_cubic_extended(projected_coordinates);
           break;
         case Interpolation::Bilinear:
-          sampled_color = input.sample_bilinear_wrap(projected_coordinates, false, false);
+          sampled_color = input.sample_bilinear_extended(projected_coordinates);
           break;
         case Interpolation::Nearest:
           sampled_color = input.sample_nearest_extended(projected_coordinates);
