@@ -169,7 +169,7 @@ class CornerPinOperation : public NodeOperation {
       float2 x_gradient = (homography_matrix[0].xy() / transformed_coordinates.z) / size.x;
       float2 y_gradient = (homography_matrix[1].xy() / transformed_coordinates.z) / size.y;
 
-      float4 sampled_color; 
+      float4 sampled_color;
       switch (realization_options.interpolation) {
         case Interpolation::Bicubic:
           sampled_color = input.sample_cubic_wrap(projected_coordinates, false, false);
