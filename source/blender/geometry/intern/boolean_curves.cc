@@ -830,7 +830,6 @@ static BooleanResult execute_boolean(const CurveBooleanOpParameters op_params,
       }
       result.segment_offsets.append(result.segments.size());
       result.cyclic.append(PolygonClosed);
-      result.shape_ids.append(subj_shape_id);
 
       /* Get the next unprocessed segment. */
       start_segment = processed_segments.as_span().first_index_try(false);
@@ -839,17 +838,11 @@ static BooleanResult execute_boolean(const CurveBooleanOpParameters op_params,
     for (const int i : result.segment_offsets.index_range().drop_front(1)) {
       results_all.segment_offsets.append(result.segment_offsets[i] + results_all.segments.size());
     }
+    results_all.cyclic.extend(result.cyclic);
+    results_all.shape_ids.append_n_times(subj_shape_id, result.cyclic.size());
 
     for (const int i : result.segments.index_range()) {
       results_all.segments.append(std::move(result.segments[i]));
-    }
-
-    for (const int i : result.cyclic.index_range()) {
-      results_all.cyclic.append(result.cyclic[i]);
-    }
-
-    for (const int i : result.shape_ids.index_range()) {
-      results_all.shape_ids.append(result.shape_ids[i]);
     }
   });
 
