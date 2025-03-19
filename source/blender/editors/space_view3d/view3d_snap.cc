@@ -443,17 +443,12 @@ static bool snap_selected_to_location(bContext *C,
           }
 
           if (use_rotation) {
-            bool assign_rotation_directly = (pchan->rotmode == scene->cursor.rotation_mode);
             BKE_pchan_mat3_to_rot(pchan, cursor_rotmat.ptr(), false);
 
             if (pchan->rotmode == ROT_MODE_QUAT) {
               float quat[4];
-              if (assign_rotation_directly) {
-                copy_v4_v4(quat, scene->cursor.rotation_quaternion);
-              }
-              else {
-                mat3_normalized_to_quat(quat, cursor_rotmat.ptr());
-              }
+              mat3_normalized_to_quat(quat, cursor_rotmat.ptr());
+
               if (use_toolsettings) {
                 BKE_pchan_protected_rotation_quaternion_set(pchan, quat);
               }
@@ -464,13 +459,8 @@ static bool snap_selected_to_location(bContext *C,
             else if (pchan->rotmode == ROT_MODE_AXISANGLE) {
               float rot_axis[3];
               float rot_angle;
-              if (assign_rotation_directly) {
-                copy_v3_v3(rot_axis, scene->cursor.rotation_axis);
-                rot_angle = scene->cursor.rotation_angle;
-              }
-              else {
-                mat3_to_axis_angle(rot_axis, &rot_angle, cursor_rotmat.ptr());
-              }
+              mat3_to_axis_angle(rot_axis, &rot_angle, cursor_rotmat.ptr());
+
               if (use_toolsettings) {
                 BKE_pchan_protected_rotation_axisangle_set(pchan, rot_axis, rot_angle);
               }
@@ -481,12 +471,9 @@ static bool snap_selected_to_location(bContext *C,
             }
             else {
               float rot_euler[3];
-              if (assign_rotation_directly) {
-                copy_v3_v3(rot_euler, scene->cursor.rotation_euler);
-              }
-              else {
-                mat3_to_eulO(rot_euler, EULER_ORDER_DEFAULT, cursor_rotmat.ptr());
-              }
+
+              mat3_to_eulO(rot_euler, EULER_ORDER_DEFAULT, cursor_rotmat.ptr());
+
               if (use_toolsettings) {
                 BKE_pchan_protected_rotation_euler_set(pchan, rot_euler);
               }
