@@ -286,23 +286,11 @@ void VIEW3D_OT_snap_selected_to_grid(wmOperatorType *ot)
 
 static void rotate_around_pivot(const blender::float3x3 &rot_mat,
                                 const float pivot[3],
-                                const float loc[3],
-                                float rloc[3])
+                                float point[3])
 {
-  float translation_to_pivot[4][4], translation_back[4][4], transform_mat[4][4];
-
-  unit_m4(translation_to_pivot);
-  unit_m4(translation_back);
-  unit_m4(transform_mat);
-
-  translate_m4(translation_to_pivot, -pivot[0], -pivot[1], -pivot[2]);
-  translate_m4(translation_back, pivot[0], pivot[1], pivot[2]);
-
-  mul_m4_m3m4(transform_mat, rot_mat.ptr(), translation_to_pivot);
-  mul_m4_m4m4(transform_mat, translation_back, transform_mat);
-
-  copy_v3_v3(rloc, loc);
-  mul_m4_v3(transform_mat, rloc);
+  sub_v3_v3(point, pivot);
+  mul_v3_m3v3(point, rot_mat.ptr(), point);
+  add_v3_v3(point, pivot);
 }
 
 /**
@@ -444,7 +432,7 @@ static bool snap_selected_to_location(bContext *C,
             add_v3_v3(cursor_pose, offset_global);
 
             if (use_rotation) {
-              rotate_around_pivot(cursor_rotmat, snap_target_global, cursor_pose, cursor_pose);
+              rotate_around_pivot(cursor_rotmat, snap_target_global, cursor_pose);
             }
 
             mul_m4_v3(ob->world_to_object().ptr(), cursor_pose);
@@ -593,7 +581,7 @@ static bool snap_selected_to_location(bContext *C,
         add_v3_v3v3(cursor_parent, ob->object_to_world().location(), offset_global);
 
         if (use_rotation) {
-          rotate_around_pivot(cursor_rotmat, snap_target_global, cursor_parent, cursor_parent);
+          rotate_around_pivot(cursor_rotmat, snap_target_global, cursor_parent);
         }
       }
       else {
