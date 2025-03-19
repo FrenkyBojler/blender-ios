@@ -16,6 +16,8 @@
 #include "BLI_math_vector.h"
 #include "BLI_string.h"
 
+#include "BLT_translation.hh"
+
 #include "DNA_collection_types.h"
 #include "DNA_dynamicpaint_types.h"
 #include "DNA_gpencil_legacy_types.h"
@@ -195,6 +197,51 @@ static void def_internal_vicon(int icon_id, VectorDrawFunc drawFunc)
 }
 
 /* Vector Icon Drawing Routines */
+
+static void vicon_rgb_color_draw(int x, int y, int w, int h, const float color[4])
+{
+  rctf rect = {float(x), float(x + w), float(y), float(y + h)};
+  UI_draw_roundbox_corner_set(UI_CNR_ALL);
+  UI_draw_roundbox_4fv(&rect, true, 2 * UI_SCALE_FAC, color);
+}
+
+static void vicon_rgb_text_draw(int x, int y, int w, int h, const char *str)
+{
+  const int font_id = BLF_default();
+  const size_t len = strlen(str);
+  BLF_size(font_id, float(h - 3 * UI_SCALE_FAC));
+  float width, height;
+  BLF_width_and_height(font_id, str, len, &width, &height);
+  const float pos_x = float(x) + (float(w) - width) / 2.0f;
+  const float pos_y = float(y) + (float(h) - height) / 2.0f;
+  BLF_position(font_id, pos_x, pos_y, 0);
+  UI_FontThemeColor(font_id, TH_TEXT);
+  BLF_draw(font_id, str, len);
+}
+
+static void vicon_rgb_red_draw(int x, int y, int w, int h, float alpha)
+{
+  const float color[4] = {0.5f, 0.0f, 0.0f, 1.0f};
+  vicon_rgb_color_draw(x, y, w, h, color);
+  const char *text = TIP_("R");
+  vicon_rgb_text_draw(x, y, w, h, text);
+}
+
+static void vicon_rgb_green_draw(int x, int y, int w, int h, float alpha)
+{
+  const float color[4] = {0.0f, 0.4f, 0.0f, 1.0f};
+  vicon_rgb_color_draw(x, y, w, h, color);
+  const char *text = TIP_("G");
+  vicon_rgb_text_draw(x, y, w, h, text);
+}
+
+static void vicon_rgb_blue_draw(int x, int y, int w, int h, float alpha)
+{
+  const float color[4] = {0.0f, 0.0f, 1.0f, 1.0f};
+  vicon_rgb_color_draw(x, y, w, h, color);
+  const char *text = TIP_("B");
+  vicon_rgb_text_draw(x, y, w, h, text);
+}
 
 /* Utilities */
 
@@ -818,6 +865,10 @@ static void init_internal_icons()
     }
     def_internal_icon(nullptr, x, 0, 0, 0, icontype.type, icontype.theme_color);
   }
+
+  def_internal_vicon(ICON_RGB_RED, vicon_rgb_red_draw);
+  def_internal_vicon(ICON_RGB_GREEN, vicon_rgb_green_draw);
+  def_internal_vicon(ICON_RGB_BLUE, vicon_rgb_blue_draw);
 
   def_internal_vicon(ICON_KEYTYPE_KEYFRAME_VEC, vicon_keytype_keyframe_draw);
   def_internal_vicon(ICON_KEYTYPE_BREAKDOWN_VEC, vicon_keytype_breakdown_draw);
