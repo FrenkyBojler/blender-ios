@@ -161,9 +161,9 @@ static void do_global_solve(const EvaluationTarget /*target*/,
                             MutableSpan<ConstraintEvalData> constraint_data,
                             ConstraintVariables &variables)
 {
-  IndexMaskMemory memory;
-  xpbd_constraints::GlobalSolverSystem system = build_global_solve_system(
-      eval_params, constraint_data, variables, eval_params.debug_check, memory);
+  // IndexMaskMemory memory;
+  // xpbd_constraints::GlobalSolverSystem system = build_global_solve_system(
+  //     eval_params, constraint_data, variables, eval_params.debug_check, memory);
 }
 
 static void do_gauss_seidel_step(const EvaluationTarget target,

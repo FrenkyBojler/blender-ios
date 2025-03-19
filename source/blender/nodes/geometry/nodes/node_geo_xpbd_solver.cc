@@ -608,7 +608,11 @@ static void count_global_solve_matrix_entries(const Span<ConstraintEvalData> con
 
 inline float get_component(const float v, const int i)
 {
+#ifdef NDEBUG
+  UNUSED_VARS(i);
+#else
   BLI_assert(i == 0);
+#endif
   return v;
 }
 
@@ -624,13 +628,21 @@ inline float get_component(const float3 &v, const int i)
 
 inline float get_component(const float3 &g, const int i, const int j)
 {
+#ifdef NDEBUG
+  UNUSED_VARS(i);
+#else
   BLI_assert(i == 0);
+#endif
   return g[j];
 }
 
 inline float get_component(const float4 &g, const int i, const int j)
 {
+#ifdef NDEBUG
+  UNUSED_VARS(i);
+#else
   BLI_assert(i == 0);
+#endif
   return g[j];
 }
 
