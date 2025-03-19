@@ -276,7 +276,7 @@ class CornerPinOperation : public NodeOperation {
 
   Interpolation get_interpolation() const
   {
-    switch (bnode().custom1) {
+    switch (static_cast<CMPNodeInterpolation>(bnode().custom1)) {
       case CMP_NODE_INTERPOLATION_NEAREST:
         return Interpolation::Nearest;
       case CMP_NODE_INTERPOLATION_BILINEAR:

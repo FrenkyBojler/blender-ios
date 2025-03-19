@@ -569,7 +569,11 @@ static const EnumPropertyItem cmp_interpolation_items[] = {
     {CMP_NODE_INTERPOLATION_NEAREST, "NEAREST", 0, "Nearest", "Use Nearest interpolation"},
     {CMP_NODE_INTERPOLATION_BILINEAR, "BILINEAR", 0, "Bilinear", "Use Bilinear interpolation"},
     {CMP_NODE_INTERPOLATION_BICUBIC, "BICUBIC", 0, "Bicubic", "Use Cubic B-Spline interpolation"},
-    {CMP_NODE_INTERPOLATION_ANISOTROPIC, "ANISOTROPIC", 0, "Anisotropic", "Use Anisotropic interpolation"},
+    {CMP_NODE_INTERPOLATION_ANISOTROPIC,
+     "ANISOTROPIC",
+     0,
+     "Anisotropic",
+     "Use Anisotropic interpolation"},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -9180,6 +9184,7 @@ static void def_cmp_cornerpin(BlenderRNA * /*brna*/, StructRNA *srna)
   prop = RNA_def_property(srna, "interpolation", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, nullptr, "custom1");
   RNA_def_property_enum_items(prop, cmp_interpolation_items);
+  RNA_def_property_enum_default(prop, CMP_NODE_INTERPOLATION_ANISOTROPIC);
   RNA_def_property_ui_text(prop, "", "");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 }
