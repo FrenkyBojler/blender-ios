@@ -88,17 +88,11 @@ static bool view3d_drop_id_in_main_region_poll(bContext *C,
   return WM_drag_is_ID_type(drag, id_type);
 }
 
-static V3DSnapCursorState *view3d_drop_snap_init(wmDropBox *drop, wmDrag *drag)
+static V3DSnapCursorState *view3d_drop_snap_init(wmDropBox *drop)
 {
   V3DSnapCursorState *state = static_cast<V3DSnapCursorState *>(drop->draw_data);
   if (state) {
     return state;
-  }
-
-  /* Don't use the snap cursor when linking the object. Object transform isn't editable then and
-   * would be reset on reload. */
-  if (WM_drag_asset_will_import_linked(drag)) {
-    return nullptr;
   }
 
   state = ED_view3d_cursor_snap_state_create();
@@ -118,10 +112,13 @@ static void view3d_drop_snap_exit(wmDropBox *drop, wmDrag * /*drag*/)
 
 static void view3d_ob_drop_on_enter(wmDropBox *drop, wmDrag *drag)
 {
-  V3DSnapCursorState *state = view3d_drop_snap_init(drop, drag);
-  if (!state) {
+  /* Don't use the snap cursor when linking the object. Object transform isn't editable then and
+   * would be reset on reload. */
+  if (WM_drag_asset_will_import_linked(drag)) {
     return;
   }
+
+  V3DSnapCursorState *state = view3d_drop_snap_init(drop);
 
   float dimensions[3] = {0.0f};
   if (drag->type == WM_DRAG_ID) {
@@ -423,9 +420,9 @@ static void view3d_ob_drop_copy_external_asset(bContext *C, wmDrag *drag, wmDrop
   }
 }
 
-static void view3d_collection_drop_on_enter(wmDropBox *drop, wmDrag *drag)
+static void view3d_collection_drop_on_enter(wmDropBox *drop, wmDrag * /*drag*/)
 {
-  view3d_drop_snap_init(drop, drag);
+  view3d_drop_snap_init(drop);
 }
 
 static void view3d_collection_drop_matrix_from_snap(V3DSnapCursorState *snap_state,
