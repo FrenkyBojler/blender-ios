@@ -585,8 +585,8 @@ static void count_global_solve_matrix_entries(const Span<ConstraintEvalData> con
    * and 4 rows/columns for each rotation. */
   r_max_columns += num_positions * 3 + num_rotations * 4;
   /* Each position adds 3 mass entries on the diagonal.
-   * Each rotation adds 4x4 moment-of-inertia block-diagonal entries. */
-  r_non_zeroes_capacity += num_positions * 3 + num_rotations * 16;
+   * Each rotation adds 4 moment-of-inertia entries on the diagonal. */
+  r_non_zeroes_capacity += num_positions * 3 + num_rotations * 4;
   for (const ConstraintEvalData &data : constraint_data) {
     if (!data.type->linear_solve_size) {
       continue;
@@ -992,15 +992,18 @@ static GlobalSolverSystem build_global_solve_matrix_from_triplets(
   }
   for (const int index : IndexRange(num_rotations)) {
     const float3 local_inertia = params.local_inertia[index];
-    const math::Quaternion global_inertia = variables.rotations[index] *
-                                            math::Quaternion(0.0f, local_inertia);
-    const float4x4 inertia_tensor = quaternion_matrix(global_inertia);
+    /* Inertia tensor according to
+     * "Rigid body dynamics with a scalable body, quaternions and perfect constraints",
+     * Moeller et al., section 6, equation 64.
+     * The W component is half the trace of the local moment-of-inertia vector, which is
+     * not clearly explained in the Kugelstadt paper.
+     */
+    const float inertia_trace = local_inertia.x + local_inertia.y + local_inertia.z;
+    const float4 inertia_diag = {0.5f * inertia_trace, local_inertia};
 
     const IndexRange columns = rotations_range.slice(index * 4, 4);
     for (const int u : columns.index_range()) {
-      for (const int v : columns.index_range()) {
-        triplets.append_unchecked_as(int(columns[v]), int(columns[u]), inertia_tensor[u][v]);
-      }
+      triplets.append_unchecked_as(int(columns[u]), int(columns[u]), inertia_diag[u]);
       rhs_values.append_unchecked(0.0f);
     }
   }

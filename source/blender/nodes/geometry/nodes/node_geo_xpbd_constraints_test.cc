@@ -682,6 +682,11 @@ inline float4x4 quaternion_matrix(const math::Quaternion &q)
   return result;
 }
 
+inline float trace(const float3 &v)
+{
+  return v.x + v.y + v.z;
+}
+
 TEST_F(XPBDSolverTest, GlobalSolverConstruct)
 {
   constexpr float eps = 1e-6f;
@@ -702,22 +707,22 @@ TEST_F(XPBDSolverTest, GlobalSolverConstruct)
   }
   EXPECT_EQ(29, H.rows());
   EXPECT_EQ(29, H.cols());
-  EXPECT_EQ(173, H.nonZeros());
+  EXPECT_EQ(137, H.nonZeros());
   EXPECT_EQ(29, b.rows());
 
   EXPECT_EIGEN_V3_DIAG_NEAR(float3(solver_test.params.masses[0]), H.block(0, 0, 3, 3), eps);
   EXPECT_EIGEN_V3_DIAG_NEAR(float3(solver_test.params.masses[1]), H.block(3, 3, 3, 3), eps);
   EXPECT_EIGEN_V3_DIAG_NEAR(float3(solver_test.params.masses[2]), H.block(6, 6, 3, 3), eps);
 
-  const float4x4 inertia_tensor0 = quaternion_matrix(
-      solver_test.vars.rotations[0] * math::Quaternion(0.0f, solver_test.params.local_inertia[0]));
-  const float4x4 inertia_tensor1 = quaternion_matrix(
-      solver_test.vars.rotations[1] * math::Quaternion(0.0f, solver_test.params.local_inertia[1]));
-  const float4x4 inertia_tensor2 = quaternion_matrix(
-      solver_test.vars.rotations[2] * math::Quaternion(0.0f, solver_test.params.local_inertia[2]));
-  EXPECT_EIGEN_MATRIX_NEAR(inertia_tensor0, H.block(9, 9, 4, 4), eps);
-  EXPECT_EIGEN_MATRIX_NEAR(inertia_tensor1, H.block(13, 13, 4, 4), eps);
-  EXPECT_EIGEN_MATRIX_NEAR(inertia_tensor2, H.block(17, 17, 4, 4), eps);
+  const float4 inertia_diag0 = {0.5f * trace(solver_test.params.local_inertia[0]),
+                                solver_test.params.local_inertia[0]};
+  const float4 inertia_diag1 = {0.5f * trace(solver_test.params.local_inertia[1]),
+                                solver_test.params.local_inertia[1]};
+  const float4 inertia_diag2 = {0.5f * trace(solver_test.params.local_inertia[2]),
+                                solver_test.params.local_inertia[2]};
+  EXPECT_EIGEN_V4_DIAG_NEAR(inertia_diag0, H.block(9, 9, 4, 4), eps);
+  EXPECT_EIGEN_V4_DIAG_NEAR(inertia_diag1, H.block(13, 13, 4, 4), eps);
+  EXPECT_EIGEN_V4_DIAG_NEAR(inertia_diag2, H.block(17, 17, 4, 4), eps);
 
   /* Residual for motion equations should be zero. */
   for (const int i : IndexRange(21)) {
@@ -900,9 +905,7 @@ TEST_F(XPBDSolverTest, GlobalSolverExecute)
 
   xpbd_constraints::SolverResult result = xpbd_constraints::solve_global_system(
       system, solver_test.vars, solver_test.data);
-  // TODO the inertia part of the H matrix contains zeroes which makes it unsuitable for solving
-  // with Cholesky. How is this supposed to work?
-  // EXPECT_EQ(result, xpbd_constraints::SolverResult::Success);
+  EXPECT_EQ(result, xpbd_constraints::SolverResult::Success);
 }
 
 }  // namespace blender::nodes::tests
