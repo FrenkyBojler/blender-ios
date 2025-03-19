@@ -722,6 +722,7 @@ TEST_F(XPBDSolverTest, GlobalSolverConstruct)
   EXPECT_EQ(31, H.cols());
   EXPECT_EQ(167, H.nonZeros());
   EXPECT_EQ(31, b.rows());
+  EXPECT_EQ(system.constraint_mapping.size(), 3);
 
   EXPECT_EIGEN_V3_DIAG_NEAR(float3(solver_test.params.masses[0]), H.block(0, 0, 3, 3), eps);
   EXPECT_EIGEN_V3_DIAG_NEAR(float3(solver_test.params.masses[1]), H.block(3, 3, 3, 3), eps);
@@ -843,6 +844,10 @@ TEST_F(XPBDSolverTest, GlobalSolverConstruct)
                                             pos_gradient[1]);
     EXPECT_NEAR(target0, b[21], eps);
     EXPECT_NEAR(target1, b[22], eps);
+
+    EXPECT_EQ(system.constraint_mapping[0].size(), 2);
+    EXPECT_EQ(system.constraint_mapping[0][0], 0);
+    EXPECT_EQ(system.constraint_mapping[0][1], 1);
   }
 
   {
@@ -897,6 +902,10 @@ TEST_F(XPBDSolverTest, GlobalSolverConstruct)
     EXPECT_NEAR(target1.x, b[26], eps);
     EXPECT_NEAR(target1.y, b[27], eps);
     EXPECT_NEAR(target1.z, b[28], eps);
+
+    EXPECT_EQ(system.constraint_mapping[1].size(), 2);
+    EXPECT_EQ(system.constraint_mapping[1][0], 0);
+    EXPECT_EQ(system.constraint_mapping[1][1], 1);
   }
 
   {
@@ -988,6 +997,10 @@ TEST_F(XPBDSolverTest, GlobalSolverConstruct)
             test_data.alphas[2], test_data.betas[2], test_data.point1[2], rot_gradient1[2]);
     EXPECT_NEAR(target0, b[29], eps);
     EXPECT_NEAR(target2, b[30], eps);
+
+    EXPECT_EQ(system.constraint_mapping[2].size(), 2);
+    EXPECT_EQ(system.constraint_mapping[2][0], 0);
+    EXPECT_EQ(system.constraint_mapping[2][1], 2);
   }
 }
 
