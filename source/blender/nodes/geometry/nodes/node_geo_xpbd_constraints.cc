@@ -586,6 +586,90 @@ static Vector<VArray<int>> stretch_shear__get_mapping(const bke::GeometrySet &co
           *attributes.lookup_or_default<int>(ATTR_POINT2, AttrDomain::Point, 0)};
 }
 
+static void stretch_shear__linear_solve_size(int &r_num_components,
+                                             int &r_num_position_vars,
+                                             int &r_num_rotation_vars,
+                                             bool &r_use_active_mask)
+{
+  r_num_components = 3;
+  r_num_position_vars = 2;
+  r_num_rotation_vars = 1;
+  r_use_active_mask = false;
+}
+
+static void stretch_shear__linear_solve_variables(const bke::AttributeAccessor &attributes,
+                                                  const IndexMask &selection,
+                                                  MutableSpan<int> r_position_indices[4],
+                                                  MutableSpan<int> r_rotation_indices[4])
+{
+  const VArraySpan<int> points1 = *attributes.lookup_or_default<int>(
+      ATTR_POINT1, AttrDomain::Point, 0);
+  const VArraySpan<int> points2 = *attributes.lookup_or_default<int>(
+      ATTR_POINT2, AttrDomain::Point, 0);
+
+  MutableSpan<int> position_indices1 = r_position_indices[0];
+  MutableSpan<int> position_indices2 = r_position_indices[1];
+  MutableSpan<int> rotation_indices = r_rotation_indices[0];
+  selection.foreach_index(constraint_grain_size, [&](const int index, const int pos) {
+    position_indices1[pos] = points1[index];
+    position_indices2[pos] = points2[index];
+    rotation_indices[pos] = points1[index];
+  });
+}
+
+static void stretch_shear__linear_solve_elements(const ConstraintEvalParams &params,
+                                                 const ConstraintVariables &variables,
+                                                 const bke::AttributeAccessor &attributes,
+                                                 const IndexMask &selection,
+                                                 GMutableSpan r_alphas,
+                                                 GMutableSpan r_betas,
+                                                 GMutableSpan r_residuals,
+                                                 GMutableSpan r_position_gradients[4],
+                                                 GMutableSpan r_rotation_gradients[4],
+                                                 MutableSpan<bool> /*r_active*/)
+{
+  const VArraySpan<int> points1 = *lookup_or_warn<int>(
+      attributes, ATTR_POINT1, AttrDomain::Point, 0, params.error_message_add);
+  const VArraySpan<int> points2 = *lookup_or_warn<int>(
+      attributes, ATTR_POINT2, AttrDomain::Point, 0, params.error_message_add);
+  const VArraySpan<float3> alphas_attr = *attributes.lookup_or_default<float3>(
+      ATTR_ALPHA, AttrDomain::Point, float3(0.0f));
+  const VArraySpan<float3> betas_attr = *attributes.lookup_or_default<float3>(
+      ATTR_BETA, AttrDomain::Point, float3(0.0f));
+  VArraySpan<float> edge_lengths = *lookup_or_warn<float>(
+      attributes, "edge_length", AttrDomain::Point, 0.0f, params.error_message_add);
+
+  const IndexRange points_range = variables.positions.index_range();
+  const Span<float3> positions = variables.positions;
+  const Span<math::Quaternion> rotations = variables.rotations;
+  MutableSpan<float3> alphas = r_alphas.typed<float3>();
+  MutableSpan<float3> betas = r_betas.typed<float3>();
+  MutableSpan<float3> residuals = r_residuals.typed<float3>();
+  MutableSpan<float4x4> position_gradients1 = r_position_gradients[0].typed<float4x4>();
+  MutableSpan<float4x4> position_gradients2 = r_position_gradients[1].typed<float4x4>();
+  MutableSpan<float4x4> rotation_gradients = r_rotation_gradients[0].typed<float4x4>();
+
+  selection.foreach_index(constraint_grain_size, [&](const int index, const int pos) {
+    const int point1 = points1[index];
+    const int point2 = points2[index];
+    if (!points_range.contains(point1) || !points_range.contains(point2)) {
+      return;
+    }
+    const float edge_length = edge_lengths[index];
+
+    alphas[pos] = alphas_attr[index];
+    betas[pos] = betas_attr[index];
+    xpbd_constraints::eval_stretch_shear_elements(edge_length,
+                                                  positions[point1],
+                                                  positions[point2],
+                                                  rotations[point1],
+                                                  residuals[pos],
+                                                  position_gradients1[pos],
+                                                  position_gradients2[pos],
+                                                  rotation_gradients[pos]);
+  });
+}
+
 static void stretch_shear__init_position_step(bke::GeometrySet &constraints)
 {
   PointCloudComponent &component = constraints.get_component_for_write<PointCloudComponent>();
@@ -1329,9 +1413,9 @@ template<bool debug_output> static ConstraintTypeInfo create_info__stretch_shear
       stretch_shear__eval_positions<debug_output>,
       {},
       stretch_shear__get_mapping,
-      {},
-      {},
-      {}};
+      stretch_shear__linear_solve_size,
+      stretch_shear__linear_solve_variables,
+      stretch_shear__linear_solve_elements};
 }
 
 template<bool debug_output> static ConstraintTypeInfo create_info__bend_twist()

@@ -570,6 +570,14 @@ struct SolverTestData {
     Array<float3> lambdas;
     Array<float3> alphas;
     Array<float3> betas;
+    Array<float> edge_lengths;
+  } stretch_shear;
+  struct {
+    Array<int> point1;
+    Array<int> point2;
+    Array<float3> lambdas;
+    Array<float3> alphas;
+    Array<float3> betas;
     Array<float3> darboux_vector;
   } bend_twist;
   struct {
@@ -675,6 +683,23 @@ static SolverTestData simple_solver_data(const Span<ConstraintType> constraint_t
          AttributeInfo{"goal_rotation", solver_test.rotation_goal.goal_rotation.as_span()},
          AttributeInfo{"compliance", solver_test.rotation_goal.alphas.as_span()},
          AttributeInfo{"damping", solver_test.rotation_goal.betas.as_span()}});
+  }
+  if (constraint_types.contains(ConstraintType::StretchShear)) {
+    solver_test.stretch_shear.point1 = {1, 0};
+    solver_test.stretch_shear.point2 = {2, 1};
+    solver_test.stretch_shear.lambdas = {float3(-1.0f, 0.0f, 0.0f), float3(4.0f, -4.0f, 1.0f)};
+    solver_test.stretch_shear.alphas = {float3(0.6f, 1.1f, 0.0f), float3(0.0f, 0.0f, 3.0f)};
+    solver_test.stretch_shear.betas = {float3(0.5f, 0.001f, 0.5f), float3(1.0f, 1.0f, 1.0f)};
+    solver_test.stretch_shear.edge_lengths = {0.8f, 2.5f};
+
+    add_constraint_data(
+        xpbd_constraints::get_info__stretch_shear(true),
+        {AttributeInfo{"point1", solver_test.stretch_shear.point1.as_span()},
+         AttributeInfo{"point2", solver_test.stretch_shear.point2.as_span()},
+         AttributeInfo{"lambda", solver_test.stretch_shear.lambdas.as_span()},
+         AttributeInfo{"edge_length", solver_test.stretch_shear.edge_lengths.as_span()},
+         AttributeInfo{"compliance", solver_test.stretch_shear.alphas.as_span()},
+         AttributeInfo{"damping", solver_test.stretch_shear.betas.as_span()}});
   }
   if (constraint_types.contains(ConstraintType::BendTwist)) {
     solver_test.bend_twist.point1 = {1, 0};
@@ -981,6 +1006,115 @@ TEST_F(XPBDSolverTest, GlobalSolverConstraints_RotationGoal)
                                                  test_data.betas[1],
                                                  test_data.point1[1],
                                                  rot_gradient1[1]);
+  EXPECT_NEAR(target0.x, b[21], eps);
+  EXPECT_NEAR(target0.y, b[22], eps);
+  EXPECT_NEAR(target0.z, b[23], eps);
+  EXPECT_NEAR(target1.x, b[24], eps);
+  EXPECT_NEAR(target1.y, b[25], eps);
+  EXPECT_NEAR(target1.z, b[26], eps);
+
+  EXPECT_EQ(system.constraint_mapping[0].size(), 2);
+  EXPECT_EQ(system.constraint_mapping[0][0], 0);
+  EXPECT_EQ(system.constraint_mapping[0][1], 1);
+}
+
+TEST_F(XPBDSolverTest, GlobalSolverConstraints_StretchShear)
+{
+  constexpr float eps = 1e-6f;
+
+  SolverTestData solver_test = simple_solver_data({ConstraintType::StretchShear}, false);
+  const auto &test_data = solver_test.stretch_shear;
+
+  IndexMaskMemory memory;
+  xpbd_constraints::GlobalSolverSystem system = xpbd_constraints::build_global_solve_system(
+      solver_test.params, solver_test.data, solver_test.vars, true, memory);
+  const Eigen::SparseMatrix<float> &H = system.matrix;
+  const Eigen::VectorXf &b = system.target;
+  EXPECT_EQ(27, H.rows());
+  EXPECT_EQ(27, H.cols());
+  EXPECT_EQ(147, H.nonZeros());
+  EXPECT_EQ(27, b.rows());
+  EXPECT_EQ(system.constraint_mapping.size(), 1);
+
+  EXPECT_EIGEN_V3_DIAG_NEAR(compliance(solver_test, test_data.alphas[0], test_data.betas[0]),
+                            H.block(21, 21, 3, 3),
+                            eps);
+  EXPECT_EIGEN_V3_DIAG_NEAR(compliance(solver_test, test_data.alphas[1], test_data.betas[1]),
+                            H.block(24, 24, 3, 3),
+                            eps);
+
+  float3 residual[2];
+  float4x4 pos_gradient1[2], pos_gradient2[2], rot_gradient[2];
+  xpbd_constraints::eval_stretch_shear_elements(test_data.edge_lengths[0],
+                                                solver_test.vars.positions[test_data.point1[0]],
+                                                solver_test.vars.positions[test_data.point2[0]],
+                                                solver_test.vars.rotations[test_data.point1[0]],
+                                                residual[0],
+                                                pos_gradient1[0],
+                                                pos_gradient2[0],
+                                                rot_gradient[0]);
+  xpbd_constraints::eval_stretch_shear_elements(test_data.edge_lengths[1],
+                                                solver_test.vars.positions[test_data.point1[1]],
+                                                solver_test.vars.positions[test_data.point2[1]],
+                                                solver_test.vars.rotations[test_data.point1[1]],
+                                                residual[1],
+                                                pos_gradient1[1],
+                                                pos_gradient2[1],
+                                                rot_gradient[1]);
+  EXPECT_EIGEN_MATRIX_NEAR(math::transpose(pos_gradient1[0]), H.block(21, 3, 3, 3), eps);
+  EXPECT_EIGEN_MATRIX_NEAR(pos_gradient1[0], H.block(3, 21, 3, 3), eps);
+  EXPECT_EIGEN_MATRIX_NEAR(math::transpose(pos_gradient2[0]), H.block(21, 6, 3, 3), eps);
+  EXPECT_EIGEN_MATRIX_NEAR(pos_gradient2[0], H.block(6, 21, 3, 3), eps);
+  EXPECT_EIGEN_MATRIX_NEAR(math::transpose(rot_gradient[0]), H.block(21, 13, 3, 4), eps);
+  EXPECT_EIGEN_MATRIX_NEAR(rot_gradient[0], H.block(13, 21, 4, 3), eps);
+  EXPECT_EIGEN_MATRIX_NEAR(math::transpose(pos_gradient1[1]), H.block(24, 0, 3, 3), eps);
+  EXPECT_EIGEN_MATRIX_NEAR(pos_gradient1[1], H.block(0, 24, 3, 3), eps);
+  EXPECT_EIGEN_MATRIX_NEAR(math::transpose(pos_gradient2[1]), H.block(24, 3, 3, 3), eps);
+  EXPECT_EIGEN_MATRIX_NEAR(pos_gradient2[1], H.block(3, 24, 3, 3), eps);
+  EXPECT_EIGEN_MATRIX_NEAR(math::transpose(rot_gradient[1]), H.block(24, 9, 3, 4), eps);
+  EXPECT_EIGEN_MATRIX_NEAR(rot_gradient[1], H.block(9, 24, 4, 3), eps);
+
+  /* Constraint lambda residuals. */
+  const float3 target0 = target_residual(solver_test,
+                                         residual[0],
+                                         test_data.alphas[0],
+                                         test_data.betas[0],
+                                         test_data.lambdas[0]) +
+                         target_velocity(solver_test,
+                                         test_data.alphas[0],
+                                         test_data.betas[0],
+                                         test_data.point1[0],
+                                         pos_gradient1[0]) +
+                         target_velocity(solver_test,
+                                         test_data.alphas[0],
+                                         test_data.betas[0],
+                                         test_data.point2[0],
+                                         pos_gradient2[0]) +
+                         target_angular_velocity(solver_test,
+                                                 test_data.alphas[0],
+                                                 test_data.betas[0],
+                                                 test_data.point1[0],
+                                                 rot_gradient[0]);
+  const float3 target1 = target_residual(solver_test,
+                                         residual[1],
+                                         test_data.alphas[1],
+                                         test_data.betas[1],
+                                         test_data.lambdas[1]) +
+                         target_velocity(solver_test,
+                                         test_data.alphas[1],
+                                         test_data.betas[1],
+                                         test_data.point1[1],
+                                         pos_gradient1[1]) +
+                         target_velocity(solver_test,
+                                         test_data.alphas[1],
+                                         test_data.betas[1],
+                                         test_data.point2[1],
+                                         pos_gradient2[1]) +
+                         target_angular_velocity(solver_test,
+                                                 test_data.alphas[1],
+                                                 test_data.betas[1],
+                                                 test_data.point1[1],
+                                                 rot_gradient[1]);
   EXPECT_NEAR(target0.x, b[21], eps);
   EXPECT_NEAR(target0.y, b[22], eps);
   EXPECT_NEAR(target0.z, b[23], eps);

@@ -541,6 +541,30 @@ inline void eval_position_stretch_shear(const float weight_pos1,
   }
 }
 
+inline void eval_stretch_shear_elements(const float edge_length,
+                                        const float3 &position1,
+                                        const float3 &position2,
+                                        const math::Quaternion &rotation,
+                                        float3 &r_residual,
+                                        float4x4 &r_pos_gradient1,
+                                        float4x4 &r_pos_gradient2,
+                                        float4x4 &r_rot_gradient)
+{
+  const float inv_edge_length = math::safe_rcp(edge_length);
+
+  const float3 direction = math::transform_point(rotation, float3(0, 0, 1));
+  r_residual = inv_edge_length * (position2 - position1) - direction;
+
+  r_pos_gradient1 = -inv_edge_length * float4x4::identity();
+  r_pos_gradient2 = -r_pos_gradient1;
+
+  const math::Quaternion q = math::Quaternion(0, 0, 0, 1) * math::conjugate(rotation);
+  r_rot_gradient[0] = float4(-q.x, q.w, q.z, -q.y);
+  r_rot_gradient[1] = float4(-q.y, -q.z, q.w, q.x);
+  r_rot_gradient[2] = float4(-q.z, q.y, -q.x, q.w);
+  /* Last column is unused. */
+}
+
 template<bool linearized_quaternion>
 inline void apply_position_stretch_shear(const float weight_pos1,
                                          const float weight_pos2,
