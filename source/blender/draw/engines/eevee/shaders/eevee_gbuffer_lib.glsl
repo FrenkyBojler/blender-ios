@@ -330,24 +330,24 @@ uint gbuffer_light_link_receiver_unpack(uint data)
 /* Quantize geometric normal to 6 bits. */
 uint gbuffer_geometry_normal_pack(vec3 Ng, vec3 N)
 {
-  const float threshold_noop = cos(M_PI / 8.0);
-  if (dot(N, Ng) > threshold_noop) {
-    /* If the error between the default shading normal and the geometric normal is small enough, we
-     * do not encode the geometric normal and use the shading normal for biasing the shadow rays.
-     * This avoid precision issues that comes with the quantization. */
+  /* This is a threshold that minimizes the error over the sphere. */
+  const float quantization_multiplier = 1.360;
+  /* Normalize for comparison. */
+  vec3 Ng_quantize = normalize(round(quantization_multiplier * Ng));
+  /* Note: Comparing the error using cosines. The greater the cosine value, the lower the error. */
+  if (dot(N, Ng) > dot(Ng, Ng_quantize)) {
+    /* If the error between the default shading normal and the geometric normal is smaller than the
+     * compression error, we do not encode the geometric normal and use the shading normal for
+     * biasing the shadow rays. This avoid precision issues that comes with the quantization. */
     return 0;
   }
-  /* This is a threshold that makes roughly equal size discrete area. */
-  const float threshold = cos(M_PI * 3.1 / 8.0);
-  bvec3 neg = lessThan(Ng, vec3(-threshold));
-  bvec3 pos = greaterThan(Ng, vec3(threshold));
   uint data;
-  data = pos.x ? 0u : (1u << 0u);
-  data |= pos.y ? 0u : (1u << 1u);
-  data |= pos.z ? 0u : (1u << 2u);
-  data |= neg.x ? 0u : (1u << 3u);
-  data |= neg.y ? 0u : (1u << 4u);
-  data |= neg.z ? 0u : (1u << 5u);
+  data = (Ng_quantize.x > 0.0) ? (1u << 0u) : 0u;
+  data |= (Ng_quantize.y > 0.0) ? (1u << 1u) : 0u;
+  data |= (Ng_quantize.z > 0.0) ? (1u << 2u) : 0u;
+  data |= (Ng_quantize.x < 0.0) ? (1u << 3u) : 0u;
+  data |= (Ng_quantize.y < 0.0) ? (1u << 4u) : 0u;
+  data |= (Ng_quantize.z < 0.0) ? (1u << 5u) : 0u;
   return data << 20u;
 }
 
@@ -357,8 +357,8 @@ vec3 gbuffer_geometry_normal_unpack(uint data, vec3 N)
   if ((data & (63u << 20u)) == 0u) {
     return N;
   }
-  vec3 Ng = vec3((uint3(data) >> (uint3(3, 4, 5) + 20u)) & 1u) -
-            vec3((uint3(data) >> (uint3(0, 1, 2) + 20u)) & 1u);
+  vec3 Ng = vec3((uint3(data) >> (uint3(0, 1, 2) + 20u)) & 1u) -
+            vec3((uint3(data) >> (uint3(3, 4, 5) + 20u)) & 1u);
   return normalize(Ng);
 }
 

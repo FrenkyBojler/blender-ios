@@ -405,7 +405,11 @@ float shadow_normal_offset(vec3 Ng, vec3 L)
 {
   /* Attenuate depending on light angle. */
   float cos_theta = abs(dot(Ng, L));
-  return sin_from_cos(cos_theta);
+  /* Ng might have been quantized. Compensate the error by scaling the offset. */
+  const float max_angular_quantization_error = 0.534; /* Radians. */
+  const float max_error_cos = 1.0 / cos(max_angular_quantization_error);
+
+  return sin_from_cos(cos_theta) * max_error_cos;
 }
 
 /**
@@ -469,7 +473,7 @@ float shadow_eval(LightData light,
   /* Stochastic Percentage Closer Filtering. */
   P += (light.filter_radius * texel_radius) * shadow_pcf_offset(L, Ng, random_pcf_2d);
   /* Add normal bias to avoid aliasing artifacts. */
-  P += N_bias * (texel_radius * shadow_normal_offset(Ng, L)) * 1.5;
+  P += N_bias * (texel_radius * shadow_normal_offset(Ng, L));
 
   vec3 lP = is_directional ? light_world_to_local_direction(light, P) :
                              light_world_to_local_point(light, P);
