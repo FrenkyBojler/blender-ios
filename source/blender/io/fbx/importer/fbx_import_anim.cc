@@ -20,6 +20,7 @@
 #include "BLI_string.h"
 
 #include "DNA_key_types.h"
+#include "DNA_material_types.h"
 
 #include "fbx_import_anim.hh"
 #include "fbx_import_util.hh"
@@ -448,18 +449,32 @@ static void create_material_curves(const FbxElementMapping &mapping,
     return;
   }
 
+  const char *rna_path_1 = "diffuse_color";
+  const char *rna_path_2 = "nodes[\"Principled BSDF\"].inputs[0].default_value";
+
+  /* Also create animation curves for the node tree diffuse color input. */
+  Material *target_mat = (Material *)anim.target_id;
+  ID *target_ntree = (ID *)target_mat->nodetree;
+  animrig::Action &act = action->wrap();
+  animrig::Slot *slot = animrig::assign_action_ensure_slot_for_keying(act, *target_ntree);
+  BLI_assert(slot != nullptr);
+  UNUSED_VARS_NDEBUG(slot);
+  animrig::Channelbag &chbag_node = animrig::action_channelbag_ensure(*action, *target_ntree);
+
   if (anim.prop_mat_diffuse != nullptr) {
     for (int ch = 0; ch < 3; ch++) {
       const ufbx_anim_curve *input_curve = anim.prop_mat_diffuse->anim_value->curves[ch];
-      FCurve *curve = create_fcurve(
-          channelbag, {"diffuse_color", ch}, input_curve->keyframes.count);
+      FCurve *curve_1 = create_fcurve(channelbag, {rna_path_1, ch}, input_curve->keyframes.count);
+      FCurve *curve_2 = create_fcurve(chbag_node, {rna_path_2, ch}, input_curve->keyframes.count);
       for (int i = 0; i < input_curve->keyframes.count; i++) {
         const ufbx_keyframe &fkey = input_curve->keyframes[i];
         float tf = float(fkey.time * fps + anim_offset);
         float val = float(fkey.value);
-        set_curve_sample(curve, i, tf, val);
+        set_curve_sample(curve_1, i, tf, val);
+        set_curve_sample(curve_2, i, tf, val);
       }
-      finalize_curve(action, anim, curve);
+      finalize_curve(action, anim, curve_1);
+      finalize_curve(action, anim, curve_2);
     }
   }
 }
