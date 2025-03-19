@@ -571,8 +571,8 @@ static BooleanResult execute_boolean(const CurveBooleanOpParameters op_params,
     });
   });
 
-  BooleanResult result;
-  result.segment_offsets.append(0);
+  BooleanResult results_all;
+  results_all.segment_offsets.append(0);
 
   /* Calculate all intersections. */
   subject_shapes.foreach_index([&](const int subj_shape_id) {
@@ -790,6 +790,9 @@ static BooleanResult execute_boolean(const CurveBooleanOpParameters op_params,
 
     int start_segment = processed_segments.first();
 
+    BooleanResult result;
+    result.segment_offsets.append(0);
+
     while (start_segment != -1) {
       int current_segment = start_segment;
 
@@ -832,15 +835,31 @@ static BooleanResult execute_boolean(const CurveBooleanOpParameters op_params,
       /* Get the next unprocessed segment. */
       start_segment = processed_segments.as_span().first_index_try(false);
     }
+
+    for (const int i : result.segment_offsets.index_range().drop_front(1)) {
+      results_all.segment_offsets.append(result.segment_offsets[i] + results_all.segments.size());
+    }
+
+    for (const int i : result.segments.index_range()) {
+      results_all.segments.append(std::move(result.segments[i]));
+    }
+
+    for (const int i : result.cyclic.index_range()) {
+      results_all.cyclic.append(result.cyclic[i]);
+    }
+
+    for (const int i : result.shape_ids.index_range()) {
+      results_all.shape_ids.append(result.shape_ids[i]);
+    }
   });
 
-  result.point_offsets.resize(result.segment_offsets.size());
-  calculate_offsets_from_segments(result.segments,
-                                  OffsetIndices<int>(result.segment_offsets),
-                                  result.cyclic,
-                                  result.point_offsets.as_mutable_span());
+  results_all.point_offsets.resize(results_all.segment_offsets.size());
+  calculate_offsets_from_segments(results_all.segments,
+                                  OffsetIndices<int>(results_all.segment_offsets),
+                                  results_all.cyclic,
+                                  results_all.point_offsets.as_mutable_span());
 
-  return result;
+  return results_all;
 }
 
 bke::CurvesGeometry curve_boolean(const CurveBooleanOpParameters op_params,
