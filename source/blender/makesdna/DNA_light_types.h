@@ -87,8 +87,6 @@ typedef struct Light {
 
   /* Temperature color. */
   float temperature; /* Value in Kelvin */
-  float temperature_color; /* Read-Only property to read the corresponding color or the temperature */
-  float _pad3;
   short use_temperature;
   short color_mode; /* Memory alignment */
 

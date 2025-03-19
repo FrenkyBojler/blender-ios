@@ -18,6 +18,8 @@
 
 #include "DNA_light_types.h"
 
+#include "IMB_colormanagement.hh"
+
 #ifdef RNA_RUNTIME
 
 #  include "MEM_guardedalloc.h"
@@ -75,6 +77,18 @@ static void rna_Light_use_nodes_update(bContext *C, PointerRNA *ptr)
   }
 
   rna_Light_update(CTX_data_main(C), CTX_data_scene(C), ptr);
+}
+
+static void rna_Light_temperature_color_get(PointerRNA *ptr, float *color)
+{
+  Light *la = (Light *)ptr->data;
+
+  float rgb[3];
+  IMB_colormanagement_blackbody_temperature_to_rgb(rgb, la->temperature);
+
+  color[0] = rgb[0];
+  color[1] = rgb[1];
+  color[2] = rgb[2];
 }
 
 #else
@@ -136,10 +150,9 @@ static void rna_def_light(BlenderRNA *brna)
   RNA_def_property_update(prop, 0, "rna_Light_update");
 
   prop = RNA_def_property(srna, "temperature_color", PROP_FLOAT, PROP_COLOR);
-  RNA_def_property_float_sdna(prop, NULL, "temperature");
   RNA_def_property_array(prop, 3);
-  RNA_def_property_float_array_default(prop, default_color);
-  RNA_def_property_clear_flag(prop, PROP_EDITABLE);  /* 🔥 Read-only */
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_float_funcs(prop, "rna_Light_temperature_color_get", nullptr, nullptr);
   RNA_def_property_ui_text(prop, "Temperature Color", "Color from Temperature");
   RNA_def_property_update(prop, 0, "rna_Light_draw_update");
 
