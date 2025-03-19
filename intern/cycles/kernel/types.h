@@ -1169,13 +1169,6 @@ struct ccl_align(16) ShaderData
   float3 dPdv;
 #endif
 
-#ifdef __OBJECT_MOTION__
-  /* Object <-> world space transformations for motion blur, cached to avoid
-   * re-interpolating them constantly for shading. */
-  Transform ob_tfm_motion;
-  Transform ob_itfm_motion;
-#endif
-
   /* ray start position, only set for backgrounds */
   float3 ray_P;
   float ray_dP;
@@ -1187,6 +1180,13 @@ struct ccl_align(16) ShaderData
    * emission and shadow transparency with MAX_CLOSURE 0. */
   Spectrum closure_emission_background;
   Spectrum closure_transparent_extinction;
+
+#ifdef __OBJECT_MOTION__
+  /* Object <-> world space transformations for motion blur, cached to avoid
+   * re-interpolating them constantly for shading. */
+  Transform ob_tfm_motion;
+  Transform ob_itfm_motion;
+#endif
 
   /* At the end so we can adjust size in ShaderDataTinyStorage. */
   struct ShaderClosure closure[MAX_CLOSURE];
