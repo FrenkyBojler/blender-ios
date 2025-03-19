@@ -512,6 +512,282 @@ struct BooleanResult {
   Vector<int> shape_ids;
 };
 
+BooleanResult execute_single_boolean(const CurveBooleanOpParameters op_params,
+                                     const int subj_shape_id,
+                                     const Span<float2> points,
+                                     const Vector<IndexMask> &shapes,
+                                     const OffsetIndices<int> points_by_curve,
+                                     const IndexMask &clipping_shapes,
+                                     const Array<Vector<int>> &self_clipping_inters_per_curves,
+                                     const Span<IntersectionPoint> clipping_intersections,
+                                     const VArray<bool> &is_fill,
+                                     const VArray<bool> &is_cyclic)
+{
+  const IndexMask &curves_i = shapes[subj_shape_id];
+
+  Vector<IntersectionPoint> intersections;
+  intersections.extend(clipping_intersections);
+
+  Array<Vector<int>> inters_per_curves(points_by_curve.size());
+
+  curves_i.foreach_index([&](const int curve_i) {
+    const IndexRange points_i = points_by_curve[curve_i];
+    const bool is_cyclic_i = is_cyclic[curve_i] || is_fill[curve_i];
+
+    clipping_shapes.foreach_index([&](const int clip_shape_id) {
+      const IndexMask &curves_j = shapes[clip_shape_id];
+      curves_j.foreach_index([&](const int curve_j) {
+        const IndexRange points_j = points_by_curve[curve_j];
+        const bool is_cyclic_j = is_cyclic[curve_j] || is_fill[curve_j];
+
+        for (const int i : points_i.index_range().drop_back(is_cyclic_i ? 0 : 1)) {
+          for (const int j : points_j.index_range().drop_back(is_cyclic_j ? 0 : 1)) {
+            float alpha_a, alpha_b;
+            const int val = intersect(points[points_i[i]],
+                                      points[points_i[(i + 1) % points_i.size()]],
+                                      points[points_j[j]],
+                                      points[points_j[(j + 1) % points_j.size()]],
+                                      &alpha_a,
+                                      &alpha_b);
+            if (val == ISECT_LINE_LINE_CROSS) {
+              inters_per_curves[curve_i].append(intersections.size());
+              inters_per_curves[curve_j].append(intersections.size());
+              intersections.append(create_intersection(
+                  points_i[i], points_j[j], alpha_a, alpha_b, curve_i, curve_j));
+            }
+            else if (val == ISECT_LINE_LINE_EXACT) {
+              /* TODO */
+              // return std::nullopt;
+            }
+          }
+        }
+      });
+    });
+  });
+
+  Vector<Segment> unsorted_segments;
+
+  auto add_segments = [&](const int curve_k, const bool is_subj) {
+    const IndexRange points_k = points_by_curve[curve_k];
+    Vector<Segment> segments_k;
+    const Span<int> other_inter = inters_per_curves[curve_k];
+    const Span<int> self_inter = self_clipping_inters_per_curves[curve_k];
+
+    Array<int> new_inters(other_inter.size() + self_inter.size());
+    new_inters.as_mutable_span().take_back(other_inter.size()).copy_from(other_inter);
+    new_inters.as_mutable_span().take_front(self_inter.size()).copy_from(self_inter);
+
+    if (new_inters.is_empty()) {
+      if (is_cyclic[curve_k] || is_fill[curve_k]) {
+        segments_k.append(Segment::from_points_cyclical(curve_k, points_k));
+      }
+      else {
+        segments_k.append(Segment::from_points(curve_k, points_k));
+      }
+    }
+    else {
+      Array<int> inter_sorted_ids = Array<int>(new_inters.size());
+      array_utils::fill_index_range<int>(inter_sorted_ids);
+
+      parallel_sort(inter_sorted_ids.begin(), inter_sorted_ids.end(), [&](int i1, int i2) {
+        const IntersectionPoint &inter1 = intersections[new_inters[i1]];
+        const IntersectionPoint &inter2 = intersections[new_inters[i2]];
+        return inter1.parameter_for_curve(curve_k) < inter2.parameter_for_curve(curve_k);
+      });
+
+      if (is_cyclic[curve_k] || is_fill[curve_k]) {
+        const int int_p_1 = new_inters[inter_sorted_ids.first()];
+        const int int_p_2 = new_inters[inter_sorted_ids.last()];
+
+        IntersectionPoint &inter_first = intersections[int_p_1];
+        IntersectionPoint &inter_last = intersections[int_p_2];
+
+        if (curve_k == inter_first.curve_a) {
+          inter_first.start_a = SegmentEndPoint(segments_k.size(), true);
+        }
+        else {
+          inter_first.start_b = SegmentEndPoint(segments_k.size(), true);
+        }
+
+        if (curve_k == inter_last.curve_a) {
+          inter_last.end_a = SegmentEndPoint(segments_k.size(), false);
+        }
+        else {
+          inter_last.end_b = SegmentEndPoint(segments_k.size(), false);
+        }
+
+        segments_k.append(Segment::from_intersections(curve_k,
+                                                      points_k,
+                                                      inter_last.parameter_for_curve(curve_k),
+                                                      inter_first.parameter_for_curve(curve_k),
+                                                      int_p_2,
+                                                      int_p_1));
+      }
+      else {
+        const int int_p_1 = new_inters[inter_sorted_ids.first()];
+        IntersectionPoint &inter_first = intersections[int_p_1];
+
+        if (curve_k == inter_first.curve_a) {
+          inter_first.start_a = SegmentEndPoint(segments_k.size(), false);
+        }
+        else {
+          inter_first.start_b = SegmentEndPoint(segments_k.size(), false);
+        }
+
+        segments_k.append(Segment::from_start_to_intersection(
+            curve_k, points_k, inter_first.parameter_for_curve(curve_k), int_p_1));
+      }
+
+      for (const int inter_id : inter_sorted_ids.index_range().drop_back(1)) {
+        const int int_p_1 = new_inters[inter_sorted_ids[inter_id]];
+        const int int_p_2 = new_inters[inter_sorted_ids[inter_id + 1]];
+
+        IntersectionPoint &inter_first = intersections[int_p_1];
+        IntersectionPoint &inter_last = intersections[int_p_2];
+
+        if (curve_k == inter_first.curve_a) {
+          inter_first.start_a = SegmentEndPoint(segments_k.size(), false);
+        }
+        else {
+          inter_first.start_b = SegmentEndPoint(segments_k.size(), false);
+        }
+
+        if (curve_k == inter_last.curve_a) {
+          inter_last.end_a = SegmentEndPoint(segments_k.size(), true);
+        }
+        else {
+          inter_last.end_b = SegmentEndPoint(segments_k.size(), true);
+        }
+
+        segments_k.append(Segment::from_intersections(curve_k,
+                                                      points_k,
+                                                      inter_first.parameter_for_curve(curve_k),
+                                                      inter_last.parameter_for_curve(curve_k),
+                                                      int_p_1,
+                                                      int_p_2));
+      }
+
+      if (!(is_cyclic[curve_k] || is_fill[curve_k])) {
+        const int int_p_2 = new_inters[inter_sorted_ids.last()];
+        IntersectionPoint &inter_last = intersections[int_p_2];
+
+        if (curve_k == inter_last.curve_a) {
+          inter_last.end_a = SegmentEndPoint(segments_k.size(), true);
+        }
+        else {
+          inter_last.end_b = SegmentEndPoint(segments_k.size(), true);
+        }
+
+        segments_k.append(Segment::from_intersection_to_end(
+            curve_k, points_k, inter_last.parameter_for_curve(curve_k), int_p_2));
+      }
+    }
+
+    /* Only add segments that contribute. */
+    const IndexRange segments = segments_k.index_range();
+
+    const Segment &first_segment = segments_k[segments.first()];
+    const IndexMask &mask_shapes = is_subj ? clipping_shapes : shapes[subj_shape_id];
+    auto [state_L, state_R] = LR_states_from_segment(
+        first_segment, points, points_by_curve, shapes, mask_shapes, is_fill);
+
+    for (const int seg_i : segments) {
+      const Segment &this_segment = segments_k[seg_i];
+
+      const bool is_in_L = state_L.is_contributing(op_params, subj_shape_id, clipping_shapes);
+      const bool is_in_R = state_R.is_contributing(op_params, subj_shape_id, clipping_shapes);
+
+      if (is_in_L ^ is_in_R) {
+        unsorted_segments.append(this_segment);
+      }
+
+      if (!this_segment.has_end_intersection()) {
+        continue;
+      }
+      const int int_p_end = this_segment.end_intersection();
+      const IntersectionPoint &inter_end = intersections[int_p_end];
+
+      const int other_curve_k = inter_end.other_curve(curve_k);
+      const int other_shape = other_curve_k; /* TODO. */
+
+      if (is_fill[other_curve_k]) {
+        /* TODO */
+        state_L.add_to_shape(other_shape, 1);
+        state_R.add_to_shape(other_shape, 1);
+        // current_winding_order += seg_seg_winding(
+        //     curve_subj[inter_first.point_a],
+        //     curve_subj[(inter_first.point_a + 1) % curve_subj.size()],
+        //     curve_clip[inter_first.point_b],
+        //     curve_clip[(inter_first.point_b + 1) % curve_clip.size()]);
+      }
+    }
+  };
+
+  curves_i.foreach_index([&](const int curve_i) { add_segments(curve_i, true); });
+  clipping_shapes.foreach_index([&](const int clip_shape_id) {
+    const IndexMask &curves_j = shapes[clip_shape_id];
+    curves_j.foreach_index([&](const int curve_j) { add_segments(curve_j, false); });
+  });
+
+  /* -------------------- */
+
+  BooleanResult result;
+  result.segment_offsets.append(0);
+
+  if (unsorted_segments.is_empty()) {
+    return result;
+  }
+
+  /* Follow each segment until it loops or ends. */
+  Array<bool> processed_segments(unsorted_segments.size(), false);
+
+  int start_segment = processed_segments.first();
+
+  while (start_segment != -1) {
+    int current_segment = start_segment;
+
+    bool PolygonDone = false;
+    bool PolygonClosed = false;
+    bool last_reversed = false;
+    while (!PolygonDone) {
+      if (processed_segments[current_segment] == true) {
+        BLI_assert_unreachable();
+        break;
+      }
+
+      unsorted_segments[current_segment].reversed = last_reversed;
+      result.segments.append(unsorted_segments[current_segment]);
+      processed_segments[current_segment] = true;
+      result.segments.last().reversed = last_reversed;
+
+      bool next_reversed;
+      const int next_segment = get_next_segment(
+          unsorted_segments, current_segment, start_segment, processed_segments, &next_reversed);
+
+      if (next_segment == -1) {
+        PolygonDone = true;
+        PolygonClosed = unsorted_segments[current_segment].is_loop();
+        break;
+      }
+
+      if (next_segment == start_segment) {
+        PolygonDone = true;
+        PolygonClosed = true;
+      }
+
+      last_reversed = next_reversed;
+      current_segment = next_segment;
+    }
+    result.segment_offsets.append(result.segments.size());
+    result.cyclic.append(PolygonClosed);
+
+    /* Get the next unprocessed segment. */
+    start_segment = processed_segments.as_span().first_index_try(false);
+  }
+
+  return result;
+}
+
 static BooleanResult execute_boolean(const CurveBooleanOpParameters op_params,
                                      const Span<float2> points,
                                      const OffsetIndices<int> points_by_curve,
@@ -576,264 +852,16 @@ static BooleanResult execute_boolean(const CurveBooleanOpParameters op_params,
 
   /* Calculate all intersections. */
   subject_shapes.foreach_index([&](const int subj_shape_id) {
-    const IndexMask &curves_i = shapes[subj_shape_id];
-
-    Array<Vector<int>> inters_per_curves(points_by_curve.size());
-
-    curves_i.foreach_index([&](const int curve_i) {
-      const IndexRange points_i = points_by_curve[curve_i];
-      const bool is_cyclic_i = is_cyclic[curve_i] || is_fill[curve_i];
-
-      clipping_shapes.foreach_index([&](const int clip_shape_id) {
-        const IndexMask &curves_j = shapes[clip_shape_id];
-        curves_j.foreach_index([&](const int curve_j) {
-          const IndexRange points_j = points_by_curve[curve_j];
-          const bool is_cyclic_j = is_cyclic[curve_j] || is_fill[curve_j];
-
-          for (const int i : points_i.index_range().drop_back(is_cyclic_i ? 0 : 1)) {
-            for (const int j : points_j.index_range().drop_back(is_cyclic_j ? 0 : 1)) {
-              float alpha_a, alpha_b;
-              const int val = intersect(points[points_i[i]],
-                                        points[points_i[(i + 1) % points_i.size()]],
-                                        points[points_j[j]],
-                                        points[points_j[(j + 1) % points_j.size()]],
-                                        &alpha_a,
-                                        &alpha_b);
-              if (val == ISECT_LINE_LINE_CROSS) {
-                inters_per_curves[curve_i].append(intersections.size());
-                inters_per_curves[curve_j].append(intersections.size());
-                intersections.append(create_intersection(
-                    points_i[i], points_j[j], alpha_a, alpha_b, curve_i, curve_j));
-              }
-              else if (val == ISECT_LINE_LINE_EXACT) {
-                /* TODO */
-                // return std::nullopt;
-              }
-            }
-          }
-        });
-      });
-    });
-
-    Vector<Segment> unsorted_segments;
-
-    auto add_segments = [&](const int curve_k, const bool is_subj) {
-      const IndexRange points_k = points_by_curve[curve_k];
-      Vector<Segment> segments_k;
-      const Span<int> other_inter = inters_per_curves[curve_k];
-      const Span<int> self_inter = self_clipping_inters_per_curves[curve_k];
-
-      Array<int> new_inters(other_inter.size() + self_inter.size());
-      new_inters.as_mutable_span().take_back(other_inter.size()).copy_from(other_inter);
-      new_inters.as_mutable_span().take_front(self_inter.size()).copy_from(self_inter);
-
-      if (new_inters.is_empty()) {
-        if (is_cyclic[curve_k] || is_fill[curve_k]) {
-          segments_k.append(Segment::from_points_cyclical(curve_k, points_k));
-        }
-        else {
-          segments_k.append(Segment::from_points(curve_k, points_k));
-        }
-      }
-      else {
-        Array<int> inter_sorted_ids = Array<int>(new_inters.size());
-        array_utils::fill_index_range<int>(inter_sorted_ids);
-
-        parallel_sort(inter_sorted_ids.begin(), inter_sorted_ids.end(), [&](int i1, int i2) {
-          const IntersectionPoint &inter1 = intersections[new_inters[i1]];
-          const IntersectionPoint &inter2 = intersections[new_inters[i2]];
-          return inter1.parameter_for_curve(curve_k) < inter2.parameter_for_curve(curve_k);
-        });
-
-        if (is_cyclic[curve_k] || is_fill[curve_k]) {
-          const int int_p_1 = new_inters[inter_sorted_ids.first()];
-          const int int_p_2 = new_inters[inter_sorted_ids.last()];
-
-          IntersectionPoint &inter_first = intersections[int_p_1];
-          IntersectionPoint &inter_last = intersections[int_p_2];
-
-          if (curve_k == inter_first.curve_a) {
-            inter_first.start_a = SegmentEndPoint(segments_k.size(), true);
-          }
-          else {
-            inter_first.start_b = SegmentEndPoint(segments_k.size(), true);
-          }
-
-          if (curve_k == inter_last.curve_a) {
-            inter_last.end_a = SegmentEndPoint(segments_k.size(), false);
-          }
-          else {
-            inter_last.end_b = SegmentEndPoint(segments_k.size(), false);
-          }
-
-          segments_k.append(Segment::from_intersections(curve_k,
-                                                        points_k,
-                                                        inter_last.parameter_for_curve(curve_k),
-                                                        inter_first.parameter_for_curve(curve_k),
-                                                        int_p_2,
-                                                        int_p_1));
-        }
-        else {
-          const int int_p_1 = new_inters[inter_sorted_ids.first()];
-          IntersectionPoint &inter_first = intersections[int_p_1];
-
-          if (curve_k == inter_first.curve_a) {
-            inter_first.start_a = SegmentEndPoint(segments_k.size(), false);
-          }
-          else {
-            inter_first.start_b = SegmentEndPoint(segments_k.size(), false);
-          }
-
-          segments_k.append(Segment::from_start_to_intersection(
-              curve_k, points_k, inter_first.parameter_for_curve(curve_k), int_p_1));
-        }
-
-        for (const int inter_id : inter_sorted_ids.index_range().drop_back(1)) {
-          const int int_p_1 = new_inters[inter_sorted_ids[inter_id]];
-          const int int_p_2 = new_inters[inter_sorted_ids[inter_id + 1]];
-
-          IntersectionPoint &inter_first = intersections[int_p_1];
-          IntersectionPoint &inter_last = intersections[int_p_2];
-
-          if (curve_k == inter_first.curve_a) {
-            inter_first.start_a = SegmentEndPoint(segments_k.size(), false);
-          }
-          else {
-            inter_first.start_b = SegmentEndPoint(segments_k.size(), false);
-          }
-
-          if (curve_k == inter_last.curve_a) {
-            inter_last.end_a = SegmentEndPoint(segments_k.size(), true);
-          }
-          else {
-            inter_last.end_b = SegmentEndPoint(segments_k.size(), true);
-          }
-
-          segments_k.append(Segment::from_intersections(curve_k,
-                                                        points_k,
-                                                        inter_first.parameter_for_curve(curve_k),
-                                                        inter_last.parameter_for_curve(curve_k),
-                                                        int_p_1,
-                                                        int_p_2));
-        }
-
-        if (!(is_cyclic[curve_k] || is_fill[curve_k])) {
-          const int int_p_2 = new_inters[inter_sorted_ids.last()];
-          IntersectionPoint &inter_last = intersections[int_p_2];
-
-          if (curve_k == inter_last.curve_a) {
-            inter_last.end_a = SegmentEndPoint(segments_k.size(), true);
-          }
-          else {
-            inter_last.end_b = SegmentEndPoint(segments_k.size(), true);
-          }
-
-          segments_k.append(Segment::from_intersection_to_end(
-              curve_k, points_k, inter_last.parameter_for_curve(curve_k), int_p_2));
-        }
-      }
-
-      /* Only add segments that contribute. */
-      const IndexRange segments = segments_k.index_range();
-
-      const Segment &first_segment = segments_k[segments.first()];
-      const IndexMask &mask_shapes = is_subj ? clipping_shapes : subject_shapes;
-      auto [state_L, state_R] = LR_states_from_segment(
-          first_segment, points, points_by_curve, shapes, mask_shapes, is_fill);
-
-      for (const int seg_i : segments) {
-        const Segment &this_segment = segments_k[seg_i];
-
-        const bool is_in_L = state_L.is_contributing(op_params, subj_shape_id, clipping_shapes);
-        const bool is_in_R = state_R.is_contributing(op_params, subj_shape_id, clipping_shapes);
-
-        if (is_in_L ^ is_in_R) {
-          unsorted_segments.append(this_segment);
-        }
-
-        if (!this_segment.has_end_intersection()) {
-          continue;
-        }
-        const int int_p_end = this_segment.end_intersection();
-        const IntersectionPoint &inter_end = intersections[int_p_end];
-
-        const int other_curve_k = inter_end.other_curve(curve_k);
-        const int other_shape = other_curve_k; /* TODO. */
-
-        if (is_fill[other_curve_k]) {
-          /* TODO */
-          state_L.add_to_shape(other_shape, 1);
-          state_R.add_to_shape(other_shape, 1);
-          // current_winding_order += seg_seg_winding(
-          //     curve_subj[inter_first.point_a],
-          //     curve_subj[(inter_first.point_a + 1) % curve_subj.size()],
-          //     curve_clip[inter_first.point_b],
-          //     curve_clip[(inter_first.point_b + 1) % curve_clip.size()]);
-        }
-      }
-    };
-
-    curves_i.foreach_index([&](const int curve_i) { add_segments(curve_i, true); });
-    clipping_shapes.foreach_index([&](const int clip_shape_id) {
-      const IndexMask &curves_j = shapes[clip_shape_id];
-      curves_j.foreach_index([&](const int curve_j) { add_segments(curve_j, false); });
-    });
-
-    /* -------------------- */
-
-    if (unsorted_segments.is_empty()) {
-      return;
-    }
-
-    /* Follow each segment until it loops or ends. */
-    Array<bool> processed_segments(unsorted_segments.size(), false);
-
-    int start_segment = processed_segments.first();
-
-    BooleanResult result;
-    result.segment_offsets.append(0);
-
-    while (start_segment != -1) {
-      int current_segment = start_segment;
-
-      bool PolygonDone = false;
-      bool PolygonClosed = false;
-      bool last_reversed = false;
-      while (!PolygonDone) {
-        if (processed_segments[current_segment] == true) {
-          BLI_assert_unreachable();
-          break;
-        }
-
-        unsorted_segments[current_segment].reversed = last_reversed;
-        result.segments.append(unsorted_segments[current_segment]);
-        processed_segments[current_segment] = true;
-        result.segments.last().reversed = last_reversed;
-
-        bool next_reversed;
-        const int next_segment = get_next_segment(
-            unsorted_segments, current_segment, start_segment, processed_segments, &next_reversed);
-
-        if (next_segment == -1) {
-          PolygonDone = true;
-          PolygonClosed = unsorted_segments[current_segment].is_loop();
-          break;
-        }
-
-        if (next_segment == start_segment) {
-          PolygonDone = true;
-          PolygonClosed = true;
-        }
-
-        last_reversed = next_reversed;
-        current_segment = next_segment;
-      }
-      result.segment_offsets.append(result.segments.size());
-      result.cyclic.append(PolygonClosed);
-
-      /* Get the next unprocessed segment. */
-      start_segment = processed_segments.as_span().first_index_try(false);
-    }
+    BooleanResult result = execute_single_boolean(op_params,
+                                                  subj_shape_id,
+                                                  points,
+                                                  shapes,
+                                                  points_by_curve,
+                                                  clipping_shapes,
+                                                  self_clipping_inters_per_curves,
+                                                  intersections,
+                                                  is_fill,
+                                                  is_cyclic);
 
     for (const int i : result.segment_offsets.index_range().drop_front(1)) {
       results_all.segment_offsets.append(result.segment_offsets[i] + results_all.segments.size());
