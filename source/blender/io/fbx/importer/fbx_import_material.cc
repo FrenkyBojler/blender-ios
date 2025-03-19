@@ -200,12 +200,13 @@ static Image *load_texture_image(Main *bmain, const std::string &file_dir, const
     }
   }
 
+  /* Create dummy/placeholder image. */
+  if (image == nullptr) {
+    image = create_placeholder_image(bmain, tex.filename.data);
+  }
+
   /* Use embedded data for this image, if we haven't done that yet. */
   if (tex.content.size > 0 && (image == nullptr || !BKE_image_has_packedfile(image))) {
-    if (image == nullptr) {
-      image = create_placeholder_image(bmain, tex.filename.data);
-    }
-
     char *data_dup = static_cast<char *>(MEM_mallocN(tex.content.size, __func__));
     memcpy(data_dup, tex.content.data, tex.content.size);
     BKE_image_packfiles_from_mem(nullptr, image, data_dup, tex.content.size);
