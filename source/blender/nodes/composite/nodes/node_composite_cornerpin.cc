@@ -178,6 +178,9 @@ class CornerPinOperation : public NodeOperation {
           sampled_color = input.sample_bilinear_wrap(projected_coordinates, false, false);
           break;
         case Interpolation::Nearest:
+          sampled_color = input.sample_nearest_extended(projected_coordinates);
+          break;
+        case Interpolation::Anisotropic:
           sampled_color = input.sample_ewa_extended(projected_coordinates, x_gradient, y_gradient);
           break;
       }
@@ -280,10 +283,12 @@ class CornerPinOperation : public NodeOperation {
         return Interpolation::Bilinear;
       case CMP_NODE_INTERPOLATION_BICUBIC:
         return Interpolation::Bicubic;
+      case CMP_NODE_INTERPOLATION_ANISOTROPIC:
+        return Interpolation::Anisotropic;
     }
 
     BLI_assert_unreachable();
-    return Interpolation::Nearest;
+    return Interpolation::Anisotropic;
   }
 };
 
