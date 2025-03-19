@@ -349,6 +349,76 @@ static Vector<VArray<int>> rotation_goal__get_mapping(const bke::GeometrySet &co
   return {*attributes.lookup_or_default<int>(ATTR_POINT1, AttrDomain::Point, 0)};
 }
 
+static void rotation_goal__linear_solve_size(int &r_num_components,
+                                             int &r_num_position_vars,
+                                             int &r_num_rotation_vars,
+                                             bool &r_use_active_mask)
+{
+  r_num_components = 3;
+  r_num_position_vars = 0;
+  r_num_rotation_vars = 1;
+  r_use_active_mask = false;
+}
+
+static void rotation_goal__linear_solve_variables(const bke::AttributeAccessor &attributes,
+                                                  const IndexMask &selection,
+                                                  MutableSpan<int> /*r_position_indices*/[4],
+                                                  MutableSpan<int> r_rotation_indices[4])
+{
+  const VArraySpan<int> points = *attributes.lookup_or_default<int>(
+      ATTR_POINT1, AttrDomain::Point, 0);
+
+  MutableSpan<int> rotation_indices = r_rotation_indices[0];
+  selection.foreach_index(constraint_grain_size, [&](const int index, const int pos) {
+    rotation_indices[pos] = points[index];
+  });
+}
+
+static void rotation_goal__linear_solve_elements(const ConstraintEvalParams &params,
+                                                 const ConstraintVariables &variables,
+                                                 const bke::AttributeAccessor &attributes,
+                                                 const IndexMask &selection,
+                                                 GMutableSpan r_alphas,
+                                                 GMutableSpan r_betas,
+                                                 GMutableSpan r_residuals,
+                                                 GMutableSpan /*r_position_gradients*/[4],
+                                                 GMutableSpan r_rotation_gradients[4],
+                                                 MutableSpan<bool> /*r_active*/)
+{
+  const VArraySpan<int> points = *lookup_or_warn<int>(
+      attributes, ATTR_POINT1, AttrDomain::Point, 0, params.error_message_add);
+  const VArraySpan<float3> alphas_attr = *attributes.lookup_or_default<float3>(
+      ATTR_ALPHA, AttrDomain::Point, float3(0.0f));
+  const VArraySpan<float3> betas_attr = *attributes.lookup_or_default<float3>(
+      ATTR_BETA, AttrDomain::Point, float3(0.0f));
+  const VArraySpan<math::Quaternion> goal_rotations = *lookup_or_warn<math::Quaternion>(
+      attributes,
+      "goal_rotation",
+      AttrDomain::Point,
+      math::Quaternion::identity(),
+      params.error_message_add);
+
+  const IndexRange points_range = variables.positions.index_range();
+  const Span<math::Quaternion> rotations = variables.rotations;
+  MutableSpan<float3> alphas = r_alphas.typed<float3>();
+  MutableSpan<float3> betas = r_betas.typed<float3>();
+  MutableSpan<float3> residuals = r_residuals.typed<float3>();
+  MutableSpan<float4x4> rotation_gradients = r_rotation_gradients[0].typed<float4x4>();
+
+  selection.foreach_index(constraint_grain_size, [&](const int index, const int pos) {
+    const int point = points[index];
+    if (!points_range.contains(point)) {
+      return;
+    }
+    const math::Quaternion &goal = goal_rotations[index];
+
+    alphas[pos] = alphas_attr[index];
+    betas[pos] = betas_attr[index];
+    xpbd_constraints::eval_rotation_goal_elements(
+        goal, rotations[point], residuals[pos], rotation_gradients[pos]);
+  });
+}
+
 static void rotation_goal__init_position_step(bke::GeometrySet &constraints)
 {
   PointCloudComponent &component = constraints.get_component_for_write<PointCloudComponent>();
@@ -1243,9 +1313,9 @@ template<bool debug_output> static ConstraintTypeInfo create_info__rotation_goal
                             rotation_goal__eval_positions<debug_output>,
                             {},
                             rotation_goal__get_mapping,
-                            {},
-                            {},
-                            {}};
+                            rotation_goal__linear_solve_size,
+                            rotation_goal__linear_solve_variables,
+                            rotation_goal__linear_solve_elements};
 }
 
 template<bool debug_output> static ConstraintTypeInfo create_info__stretch_shear()

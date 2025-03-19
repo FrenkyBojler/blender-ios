@@ -559,6 +559,13 @@ struct SolverTestData {
   } position_goal;
   struct {
     Array<int> point1;
+    Array<float3> lambdas;
+    Array<float3> alphas;
+    Array<float3> betas;
+    Array<math::Quaternion> goal_rotation;
+  } rotation_goal;
+  struct {
+    Array<int> point1;
     Array<int> point2;
     Array<float3> lambdas;
     Array<float3> alphas;
@@ -618,34 +625,6 @@ static SolverTestData simple_solver_data(const Span<ConstraintType> constraint_t
     solver_test.vars.angular_velocities = {float3(0, 0, 0), float3(3, 0, -1), float3(2, 2, 0)};
   }
 
-  /* Note not all values in 1d/3d ranges are used, depending on component width of the constraint
-   * type. */
-  solver_test.position_goal.point1 = {0, 2};
-  solver_test.position_goal.lambdas = {0.2f, 3.0f};
-  solver_test.position_goal.alphas = {1.5f, 0.1f};
-  solver_test.position_goal.betas = {0.3f, 0.0f};
-  solver_test.position_goal.goal_position = {float3(0.0f), float3(1, -1, 2)};
-
-  solver_test.bend_twist.point1 = {1, 0};
-  solver_test.bend_twist.point2 = {2, 1};
-  solver_test.bend_twist.lambdas = {float3(-1.0f, 0.0f, 0.0f), float3(4.0f, -4.0f, 1.0f)};
-  solver_test.bend_twist.alphas = {float3(0.6f, 1.1f, 0.0f), float3(0.0f, 0.0f, 3.0f)};
-  solver_test.bend_twist.betas = {float3(0.5f, 0.001f, 0.5f), float3(1.0f, 1.0f, 1.0f)};
-  solver_test.bend_twist.darboux_vector = {float3(0.2f, 0.8f, 1.1f), float3(-0.5f, -0.5f, 2.2f)};
-
-  solver_test.contact.point1 = {1, 1, 0};
-  solver_test.contact.collider_index = {1, 0, 1};
-  solver_test.contact.lambdas = {0.0f, 0.2f, 1.0f};
-  /* Compliance and damping are ignored by contact constraints. */
-  solver_test.contact.alphas = {0, 0, 0};
-  solver_test.contact.betas = {0, 0, 0};
-  solver_test.contact.local_position1 = {
-      float3(0, 0, 0), float3(0.5f, 1.0f, 0.0f), float3(-2.0f, 0.0f, 0.1f)};
-  solver_test.contact.local_position2 = {
-      float3(1.0f, -0.5f, 0.0f), float3(0.3f, 0.4f, -1.0f), float3(-2.0f, 0.0f, 0.1f)};
-  solver_test.contact.normal = {
-      float3(0.0f, 0.0f, -1.0f), float3(0.3f, 0.4f, 1.0f), float3(0.0f, 0.0f, 1.0f)};
-
   using AttributeInfo = std::pair<StringRef, GSpan>;
   auto add_constraint_data = [&](const xpbd_constraints::ConstraintTypeInfo &type,
                                  const Span<AttributeInfo> attribute_info) {
@@ -667,6 +646,12 @@ static SolverTestData simple_solver_data(const Span<ConstraintType> constraint_t
   };
 
   if (constraint_types.contains(ConstraintType::PositionGoal)) {
+    solver_test.position_goal.point1 = {0, 2};
+    solver_test.position_goal.lambdas = {0.2f, 3.0f};
+    solver_test.position_goal.alphas = {1.5f, 0.1f};
+    solver_test.position_goal.betas = {0.3f, 0.0f};
+    solver_test.position_goal.goal_position = {float3(0.0f), float3(1, -1, 2)};
+
     add_constraint_data(
         xpbd_constraints::get_info__position_goal(true),
         {AttributeInfo{"point1", solver_test.position_goal.point1.as_span()},
@@ -675,7 +660,30 @@ static SolverTestData simple_solver_data(const Span<ConstraintType> constraint_t
          AttributeInfo{"compliance", solver_test.position_goal.alphas.as_span()},
          AttributeInfo{"damping", solver_test.position_goal.betas.as_span()}});
   }
+  if (constraint_types.contains(ConstraintType::RotationGoal)) {
+    solver_test.rotation_goal.point1 = {1, 2};
+    solver_test.rotation_goal.lambdas = {float3(0.0f, 0.5f, 1.0f), float3(0.01f, 0.0f, 0.9f)};
+    solver_test.rotation_goal.alphas = {float3(0.4f, 0.1f, 0.4f), float3(0.2f, 0.0f, 1.0f)};
+    solver_test.rotation_goal.betas = {float3(1.3f, 0.01f, 0.0f), float3(0.0f, 0.0f, 1.0f)};
+    solver_test.rotation_goal.goal_rotation = {math::to_quaternion(math::EulerXYZ(-140, 20, 0)),
+                                               math::to_quaternion(math::EulerXYZ(0, 10, 10))};
+
+    add_constraint_data(
+        xpbd_constraints::get_info__rotation_goal(true),
+        {AttributeInfo{"point1", solver_test.rotation_goal.point1.as_span()},
+         AttributeInfo{"lambda", solver_test.rotation_goal.lambdas.as_span()},
+         AttributeInfo{"goal_rotation", solver_test.rotation_goal.goal_rotation.as_span()},
+         AttributeInfo{"compliance", solver_test.rotation_goal.alphas.as_span()},
+         AttributeInfo{"damping", solver_test.rotation_goal.betas.as_span()}});
+  }
   if (constraint_types.contains(ConstraintType::BendTwist)) {
+    solver_test.bend_twist.point1 = {1, 0};
+    solver_test.bend_twist.point2 = {2, 1};
+    solver_test.bend_twist.lambdas = {float3(-1.0f, 0.0f, 0.0f), float3(4.0f, -4.0f, 1.0f)};
+    solver_test.bend_twist.alphas = {float3(0.6f, 1.1f, 0.0f), float3(0.0f, 0.0f, 3.0f)};
+    solver_test.bend_twist.betas = {float3(0.5f, 0.001f, 0.5f), float3(1.0f, 1.0f, 1.0f)};
+    solver_test.bend_twist.darboux_vector = {float3(0.2f, 0.8f, 1.1f), float3(-0.5f, -0.5f, 2.2f)};
+
     add_constraint_data(
         xpbd_constraints::get_info__bend_twist(true),
         {AttributeInfo{"point1", solver_test.bend_twist.point1.as_span()},
@@ -686,6 +694,19 @@ static SolverTestData simple_solver_data(const Span<ConstraintType> constraint_t
          AttributeInfo{"damping", solver_test.bend_twist.betas.as_span()}});
   }
   if (constraint_types.contains(ConstraintType::Contact)) {
+    solver_test.contact.point1 = {1, 1, 0};
+    solver_test.contact.collider_index = {1, 0, 1};
+    solver_test.contact.lambdas = {0.0f, 0.2f, 1.0f};
+    /* Compliance and damping are ignored by contact constraints. */
+    solver_test.contact.alphas = {0, 0, 0};
+    solver_test.contact.betas = {0, 0, 0};
+    solver_test.contact.local_position1 = {
+        float3(0, 0, 0), float3(0.5f, 1.0f, 0.0f), float3(-2.0f, 0.0f, 0.1f)};
+    solver_test.contact.local_position2 = {
+        float3(1.0f, -0.5f, 0.0f), float3(0.3f, 0.4f, -1.0f), float3(-2.0f, 0.0f, 0.1f)};
+    solver_test.contact.normal = {
+        float3(0.0f, 0.0f, -1.0f), float3(0.3f, 0.4f, 1.0f), float3(0.0f, 0.0f, 1.0f)};
+
     add_constraint_data(
         xpbd_constraints::get_info__contact(true),
         {AttributeInfo{"point1", solver_test.contact.point1.as_span()},
@@ -837,24 +858,18 @@ TEST_F(XPBDSolverTest, GlobalSolverConstraints_PositionGoal)
   constexpr float eps = 1e-6f;
 
   SolverTestData solver_test = simple_solver_data({ConstraintType::PositionGoal}, false);
+  const auto &test_data = solver_test.position_goal;
 
   IndexMaskMemory memory;
   xpbd_constraints::GlobalSolverSystem system = xpbd_constraints::build_global_solve_system(
       solver_test.params, solver_test.data, solver_test.vars, true, memory);
   const Eigen::SparseMatrix<float> &H = system.matrix;
   const Eigen::VectorXf &b = system.target;
-  /* Print matrix for debugging purposes if necessary. */
-  if (false) {
-    const Eigen::IOFormat format;
-    std::cout << H.toDense().format(format) << std::endl;
-  }
   EXPECT_EQ(23, H.rows());
   EXPECT_EQ(23, H.cols());
   EXPECT_EQ(35, H.nonZeros());
   EXPECT_EQ(23, b.rows());
   EXPECT_EQ(system.constraint_mapping.size(), 1);
-
-  const auto &test_data = solver_test.position_goal;
 
   EXPECT_NEAR(
       compliance(solver_test, test_data.alphas[0], test_data.betas[0]), H.coeff(21, 21), eps);
@@ -905,29 +920,96 @@ TEST_F(XPBDSolverTest, GlobalSolverConstraints_PositionGoal)
   EXPECT_EQ(system.constraint_mapping[0][1], 1);
 }
 
-TEST_F(XPBDSolverTest, GlobalSolverConstraints_BendTwist)
+TEST_F(XPBDSolverTest, GlobalSolverConstraints_RotationGoal)
 {
   constexpr float eps = 1e-6f;
 
-  SolverTestData solver_test = simple_solver_data({ConstraintType::BendTwist}, false);
+  SolverTestData solver_test = simple_solver_data({ConstraintType::RotationGoal}, false);
+  const auto &test_data = solver_test.rotation_goal;
 
   IndexMaskMemory memory;
   xpbd_constraints::GlobalSolverSystem system = xpbd_constraints::build_global_solve_system(
       solver_test.params, solver_test.data, solver_test.vars, true, memory);
   const Eigen::SparseMatrix<float> &H = system.matrix;
   const Eigen::VectorXf &b = system.target;
-  /* Print matrix for debugging purposes if necessary. */
-  if (false) {
-    const Eigen::IOFormat format;
-    std::cout << H.toDense().format(format) << std::endl;
-  }
+  EXPECT_EQ(27, H.rows());
+  EXPECT_EQ(27, H.cols());
+  EXPECT_EQ(75, H.nonZeros());
+  EXPECT_EQ(27, b.rows());
+  EXPECT_EQ(system.constraint_mapping.size(), 1);
+
+  EXPECT_EIGEN_V3_DIAG_NEAR(compliance(solver_test, test_data.alphas[0], test_data.betas[0]),
+                            H.block(21, 21, 3, 3),
+                            eps);
+  EXPECT_EIGEN_V3_DIAG_NEAR(compliance(solver_test, test_data.alphas[1], test_data.betas[1]),
+                            H.block(24, 24, 3, 3),
+                            eps);
+
+  float3 residual[2];
+  float4x4 rot_gradient1[2];
+  xpbd_constraints::eval_rotation_goal_elements(test_data.goal_rotation[0],
+                                                solver_test.vars.rotations[test_data.point1[0]],
+                                                residual[0],
+                                                rot_gradient1[0]);
+  xpbd_constraints::eval_rotation_goal_elements(test_data.goal_rotation[1],
+                                                solver_test.vars.rotations[test_data.point1[1]],
+                                                residual[1],
+                                                rot_gradient1[1]);
+  EXPECT_EIGEN_MATRIX_NEAR(math::transpose(rot_gradient1[0]), H.block(21, 13, 3, 4), eps);
+  EXPECT_EIGEN_MATRIX_NEAR(rot_gradient1[0], H.block(13, 21, 4, 3), eps);
+  EXPECT_EIGEN_MATRIX_NEAR(math::transpose(rot_gradient1[1]), H.block(24, 17, 3, 4), eps);
+  EXPECT_EIGEN_MATRIX_NEAR(rot_gradient1[1], H.block(17, 24, 4, 3), eps);
+
+  /* Constraint lambda residuals. */
+  const float3 target0 = target_residual(solver_test,
+                                         residual[0],
+                                         test_data.alphas[0],
+                                         test_data.betas[0],
+                                         test_data.lambdas[0]) +
+                         target_angular_velocity(solver_test,
+                                                 test_data.alphas[0],
+                                                 test_data.betas[0],
+                                                 test_data.point1[0],
+                                                 rot_gradient1[0]);
+  const float3 target1 = target_residual(solver_test,
+                                         residual[1],
+                                         test_data.alphas[1],
+                                         test_data.betas[1],
+                                         test_data.lambdas[1]) +
+                         target_angular_velocity(solver_test,
+                                                 test_data.alphas[1],
+                                                 test_data.betas[1],
+                                                 test_data.point1[1],
+                                                 rot_gradient1[1]);
+  EXPECT_NEAR(target0.x, b[21], eps);
+  EXPECT_NEAR(target0.y, b[22], eps);
+  EXPECT_NEAR(target0.z, b[23], eps);
+  EXPECT_NEAR(target1.x, b[24], eps);
+  EXPECT_NEAR(target1.y, b[25], eps);
+  EXPECT_NEAR(target1.z, b[26], eps);
+
+  EXPECT_EQ(system.constraint_mapping[0].size(), 2);
+  EXPECT_EQ(system.constraint_mapping[0][0], 0);
+  EXPECT_EQ(system.constraint_mapping[0][1], 1);
+}
+
+TEST_F(XPBDSolverTest, GlobalSolverConstraints_BendTwist)
+{
+  constexpr float eps = 1e-6f;
+
+  SolverTestData solver_test = simple_solver_data({ConstraintType::BendTwist}, false);
+  const auto &test_data = solver_test.bend_twist;
+
+  IndexMaskMemory memory;
+  xpbd_constraints::GlobalSolverSystem system = xpbd_constraints::build_global_solve_system(
+      solver_test.params, solver_test.data, solver_test.vars, true, memory);
+  const Eigen::SparseMatrix<float> &H = system.matrix;
+  const Eigen::VectorXf &b = system.target;
   EXPECT_EQ(27, H.rows());
   EXPECT_EQ(27, H.cols());
   EXPECT_EQ(123, H.nonZeros());
   EXPECT_EQ(27, b.rows());
   EXPECT_EQ(system.constraint_mapping.size(), 1);
-
-  const auto &test_data = solver_test.bend_twist;
 
   EXPECT_EIGEN_V3_DIAG_NEAR(compliance(solver_test, test_data.alphas[0], test_data.betas[0]),
                             H.block(21, 21, 3, 3),
@@ -1007,24 +1089,18 @@ TEST_F(XPBDSolverTest, GlobalSolverConstraints_Contact)
   constexpr float eps = 1e-6f;
 
   SolverTestData solver_test = simple_solver_data({ConstraintType::Contact}, false);
+  const auto &test_data = solver_test.contact;
 
   IndexMaskMemory memory;
   xpbd_constraints::GlobalSolverSystem system = xpbd_constraints::build_global_solve_system(
       solver_test.params, solver_test.data, solver_test.vars, true, memory);
   const Eigen::SparseMatrix<float> &H = system.matrix;
   const Eigen::VectorXf &b = system.target;
-  /* Print matrix for debugging purposes if necessary. */
-  if (false) {
-    const Eigen::IOFormat format;
-    std::cout << H.toDense().format(format) << std::endl;
-  }
   EXPECT_EQ(23, H.rows());
   EXPECT_EQ(23, H.cols());
   EXPECT_EQ(51, H.nonZeros());
   EXPECT_EQ(23, b.rows());
   EXPECT_EQ(system.constraint_mapping.size(), 1);
-
-  const auto &test_data = solver_test.contact;
 
   EXPECT_NEAR(compliance(solver_test, 0.0f, 0.0f), H.coeff(21, 21), eps);
   EXPECT_NEAR(compliance(solver_test, 0.0f, 0.0f), H.coeff(22, 22), eps);

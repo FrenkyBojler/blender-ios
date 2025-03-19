@@ -784,6 +784,17 @@ inline void eval_rotation_goal2(const math::Quaternion &goal_rotation,
                                                   r_delta_rotation);
 }
 
+inline void eval_rotation_goal_elements(const math::Quaternion &goal_rotation,
+                                        const math::Quaternion &rotation,
+                                        float3 &r_residual,
+                                        float4x4 &r_gradient)
+{
+  const float3 darboux_vector = float3(0.0f);
+  float4x4 root_gradient;
+  eval_bend_twist_elements(
+      darboux_vector, goal_rotation, rotation, r_residual, root_gradient, r_gradient);
+}
+
 template<bool linearized_quaternion>
 inline void apply_rotation_goal2(const math::Quaternion &goal_rotation,
                                  const float alpha,
