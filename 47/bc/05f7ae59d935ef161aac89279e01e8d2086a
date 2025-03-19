@@ -2,3 +2,4 @@ Referenced by issue #134293, heap-use-after-free crash or assert when interactin
 Referenced by issue #134784, Regression: Object 'bounds' & 'wire' behavior changed while in cycles render preview
 Referenced by issue #135163, Grease Pencil layer visibility animations don't work in NLA.
 Referenced by issue #135520, Crash in edit mesh > view > frame selected, if a GN modifier has a Curve to Mesh node
+Referenced by issue #136183, Blender 4.4.0: Performance Slowdown with Complex Geometry Nodes Setup
