@@ -1172,9 +1172,9 @@ static void contact__linear_solve_elements(const ConstraintEvalParams &params,
     float3 collider_position_gradient;
     float4 collider_rotation_gradient;
     const bool active = xpbd_constraints::eval_contact_position_elements(
-        local_positions1[point1],
-        local_positions2[point1],
-        normals[point1],
+        local_positions1[index],
+        local_positions2[index],
+        normals[index],
         positions[point1],
         collider_position,
         rotations[point1],

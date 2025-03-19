@@ -540,6 +540,8 @@ struct SolverTestData {
 
   /* These are the same arrays stored in point cloud attributes,
    * put here directly for convenient testing. */
+  Array<float4x4> collider_transforms;
+  Array<float4x4> old_collider_transforms;
   struct {
     Array<int> point1;
     Array<float> lambdas;
@@ -586,6 +588,17 @@ static SolverTestData simple_solver_data(const bool use_velocities)
       Array<math::Quaternion>{math::to_quaternion(math::EulerXYZ(0, -10, 0)),
                               math::to_quaternion(math::EulerXYZ(90, 0, 0)),
                               math::to_quaternion(math::EulerXYZ(100, 0, -80))});
+  solver_test.collider_transforms = {
+      math::from_loc_rot<float4x4>(float3(0, 0, 1), math::to_quaternion(math::EulerXYZ(0, 0, 0))),
+      math::from_loc_rot<float4x4>(float3(-3, -2, 0),
+                                   math::to_quaternion(math::EulerXYZ(0, -30, 75)))};
+  solver_test.old_collider_transforms = {
+      math::from_loc_rot<float4x4>(float3(0, 0, 1.5),
+                                   math::to_quaternion(math::EulerXYZ(0, 20, 0))),
+      math::from_loc_rot<float4x4>(float3(-3, -2, 0),
+                                   math::to_quaternion(math::EulerXYZ(20, -10, 50)))};
+  solver_test.params.collider_transforms = solver_test.collider_transforms;
+  solver_test.params.old_collider_transforms = solver_test.old_collider_transforms;
 
   solver_test.vars.positions = {float3(0, 1, 0), float3(1, 0, 0), float3(0, 0, -2)};
   solver_test.vars.rotations = {math::to_quaternion(math::EulerXYZ(0, 0, 0)),
@@ -622,7 +635,7 @@ static SolverTestData simple_solver_data(const bool use_velocities)
   solver_test.contact.local_position2 = {
       float3(1.0f, -0.5f, 0.0f), float3(0.3f, 0.4f, -1.0f), float3(-2.0f, 0.0f, 0.1f)};
   solver_test.contact.normal = {
-      float3(1.0f, 0.0f, 0.0f), float3(0.3f, 0.4f, -1.0f), float3(0.0f, 0.0f, -1.0f)};
+      float3(0.0f, 0.0f, -1.0f), float3(0.3f, 0.4f, 1.0f), float3(0.0f, 0.0f, 1.0f)};
 
   using AttributeInfo = std::pair<StringRef, GSpan>;
   auto add_constraint_data = [&](const xpbd_constraints::ConstraintTypeInfo &type,
@@ -705,10 +718,10 @@ TEST_F(XPBDSolverTest, GlobalSolverConstruct)
     const Eigen::IOFormat format;
     std::cout << H.toDense().format(format) << std::endl;
   }
-  EXPECT_EQ(29, H.rows());
-  EXPECT_EQ(29, H.cols());
-  EXPECT_EQ(137, H.nonZeros());
-  EXPECT_EQ(29, b.rows());
+  EXPECT_EQ(31, H.rows());
+  EXPECT_EQ(31, H.cols());
+  EXPECT_EQ(167, H.nonZeros());
+  EXPECT_EQ(31, b.rows());
 
   EXPECT_EIGEN_V3_DIAG_NEAR(float3(solver_test.params.masses[0]), H.block(0, 0, 3, 3), eps);
   EXPECT_EIGEN_V3_DIAG_NEAR(float3(solver_test.params.masses[1]), H.block(3, 3, 3, 3), eps);
@@ -767,17 +780,17 @@ TEST_F(XPBDSolverTest, GlobalSolverConstruct)
   //   return (alpha * beta * (velocity * gradient.view<3, 3>())) / (1.0f + alpha * beta);
   // };
 
-  // auto target_angular_velocity_f = [&](const float alpha,
-  //                                      const float beta,
-  //                                      const int point_index,
-  //                                      const float4x4 &gradient) -> float {
-  //   const float4 velocity = (float4(solver_test.vars.rotations[point_index]) -
-  //                            float4(solver_test.params.old_rotations[point_index])) *
-  //                           inv_dt;
-  //   /* Note: gradient is actually transpose of the Jacobian, each column is the derivative of
-  //    * one constraint variable. */
-  //   return (alpha * beta * math::dot(gradient[0], velocity)) / (1.0f + alpha * beta);
-  // };
+  auto target_angular_velocity_f = [&](const float alpha,
+                                       const float beta,
+                                       const int point_index,
+                                       const float4 &gradient) -> float {
+    const float4 velocity = (float4(solver_test.vars.rotations[point_index]) -
+                             float4(solver_test.params.old_rotations[point_index])) *
+                            inv_dt;
+    /* Note: gradient is actually transpose of the Jacobian, each column is the derivative of
+     * one constraint variable. */
+    return (alpha * beta * math::dot(gradient, velocity)) / (1.0f + alpha * beta);
+  };
   auto target_angular_velocity_v = [&](const float3 &alpha,
                                        const float3 &beta,
                                        const int point_index,
@@ -884,6 +897,97 @@ TEST_F(XPBDSolverTest, GlobalSolverConstruct)
     EXPECT_NEAR(target1.x, b[26], eps);
     EXPECT_NEAR(target1.y, b[27], eps);
     EXPECT_NEAR(target1.z, b[28], eps);
+  }
+
+  {
+    const auto &test_data = solver_test.contact;
+
+    EXPECT_NEAR(compliance_f(0.0f, 0.0f), H.coeff(29, 29), eps);
+    EXPECT_NEAR(compliance_f(0.0f, 0.0f), H.coeff(30, 30), eps);
+
+    float residual[3];
+    float3 pos_gradient1[3], pos_gradient_collider[3];
+    float4 rot_gradient1[3], rot_gradient_collider[3];
+    float3 collider_positions[2];
+    math::Quaternion collider_rotations[2];
+    float3 collider_scales[2];
+    math::to_loc_rot_scale(solver_test.params.collider_transforms[0],
+                           collider_positions[0],
+                           collider_rotations[0],
+                           collider_scales[0]);
+    math::to_loc_rot_scale(solver_test.params.collider_transforms[1],
+                           collider_positions[1],
+                           collider_rotations[1],
+                           collider_scales[1]);
+    const bool active0 = xpbd_constraints::eval_contact_position_elements(
+        test_data.local_position1[0],
+        test_data.local_position2[0],
+        test_data.normal[0],
+        solver_test.vars.positions[test_data.point1[0]],
+        collider_positions[test_data.collider_index[0]],
+        solver_test.vars.rotations[test_data.point1[0]],
+        collider_rotations[test_data.collider_index[0]],
+        residual[0],
+        pos_gradient1[0],
+        pos_gradient_collider[0],
+        rot_gradient1[0],
+        rot_gradient_collider[0]);
+    const bool active1 = xpbd_constraints::eval_contact_position_elements(
+        test_data.local_position1[1],
+        test_data.local_position2[1],
+        test_data.normal[1],
+        solver_test.vars.positions[test_data.point1[1]],
+        collider_positions[test_data.collider_index[1]],
+        solver_test.vars.rotations[test_data.point1[1]],
+        collider_rotations[test_data.collider_index[1]],
+        residual[1],
+        pos_gradient1[1],
+        pos_gradient_collider[1],
+        rot_gradient1[1],
+        rot_gradient_collider[1]);
+    const bool active2 = xpbd_constraints::eval_contact_position_elements(
+        test_data.local_position1[2],
+        test_data.local_position2[2],
+        test_data.normal[2],
+        solver_test.vars.positions[test_data.point1[2]],
+        collider_positions[test_data.collider_index[2]],
+        solver_test.vars.rotations[test_data.point1[2]],
+        collider_rotations[test_data.collider_index[2]],
+        residual[2],
+        pos_gradient1[2],
+        pos_gradient_collider[2],
+        rot_gradient1[2],
+        rot_gradient_collider[2]);
+    EXPECT_TRUE(active0);
+    EXPECT_FALSE(active1);
+    EXPECT_TRUE(active2);
+    /* Note: no entries for contact [1] because it is inactive. */
+    EXPECT_EIGEN_V3_ROW_NEAR(pos_gradient1[0], H.block(29, 3, 1, 3), eps);
+    EXPECT_EIGEN_V3_COL_NEAR(pos_gradient1[0], H.block(3, 29, 3, 1), eps);
+    EXPECT_EIGEN_V4_ROW_NEAR(rot_gradient1[0], H.block(29, 13, 1, 4), eps);
+    EXPECT_EIGEN_V4_COL_NEAR(rot_gradient1[0], H.block(13, 29, 4, 1), eps);
+    EXPECT_EIGEN_V3_ROW_NEAR(pos_gradient1[2], H.block(30, 0, 1, 3), eps);
+    EXPECT_EIGEN_V3_COL_NEAR(pos_gradient1[2], H.block(0, 30, 3, 1), eps);
+    EXPECT_EIGEN_V4_ROW_NEAR(rot_gradient1[2], H.block(30, 9, 1, 4), eps);
+    EXPECT_EIGEN_V4_COL_NEAR(rot_gradient1[2], H.block(9, 30, 4, 1), eps);
+
+    /* Constraint lambda residuals. */
+    const float target0 =
+        target_residual_f(
+            residual[0], test_data.alphas[0], test_data.betas[0], test_data.lambdas[0]) +
+        target_velocity_f(
+            test_data.alphas[0], test_data.betas[0], test_data.point1[0], pos_gradient1[0]) +
+        target_angular_velocity_f(
+            test_data.alphas[0], test_data.betas[0], test_data.point1[0], rot_gradient1[0]);
+    const float target2 =
+        target_residual_f(
+            residual[2], test_data.alphas[2], test_data.betas[2], test_data.lambdas[2]) +
+        target_velocity_f(
+            test_data.alphas[2], test_data.betas[2], test_data.point1[2], pos_gradient1[2]) +
+        target_angular_velocity_f(
+            test_data.alphas[2], test_data.betas[2], test_data.point1[2], rot_gradient1[2]);
+    EXPECT_NEAR(target0, b[29], eps);
+    EXPECT_NEAR(target2, b[30], eps);
   }
 }
 
