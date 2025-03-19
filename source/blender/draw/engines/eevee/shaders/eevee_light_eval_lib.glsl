@@ -107,7 +107,7 @@ void light_eval_single_closure(LightData light,
                                float shadow,
                                const bool is_transmission)
 {
-  attenuation = light_attenuation_facing(light, lv.L, lv.dist, cl.N, is_transmission);
+  attenuation *= light_attenuation_facing(light, lv.L, lv.dist, cl.N, is_transmission);
 
   attenuation *= light_power_get(light, cl.type);
   if (attenuation < 1e-30) {
