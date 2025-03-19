@@ -204,6 +204,7 @@ def fbx_template_def_light(scene, settings, override_defaults=None, nbr_users=0)
         b"CastLight": (True, "p_bool", False),
         b"Color": ((1.0, 1.0, 1.0), "p_color", True),
         b"Intensity": (100.0, "p_number", True),  # Times 100 compared to Blender values...
+        b"Exposure" : (0.0, "p_number", True ),
         b"DecayType": (2, "p_enum", False),  # Quadratic.
         b"DecayStart": (30.0 * gscale, "p_double", False),
         b"CastShadows": (True, "p_bool", False),
@@ -607,6 +608,7 @@ def fbx_data_light_elements(root, lamp, scene_data):
     elem_props_template_set(tmpl, props, "p_bool", b"CastLight", do_light)
     elem_props_template_set(tmpl, props, "p_color", b"Color", lamp.color)
     elem_props_template_set(tmpl, props, "p_number", b"Intensity", lamp.energy * 100.0)
+    elem_props_template_set(tmpl, props, "p_number", b"Exposure", lamp.exposure)
     elem_props_template_set(tmpl, props, "p_enum", b"DecayType", FBX_LIGHT_DECAY_TYPES['INVERSE_SQUARE'])
     elem_props_template_set(tmpl, props, "p_double", b"DecayStart", 25.0 * gscale)  # 25 is old Blender default
     elem_props_template_set(tmpl, props, "p_bool", b"CastShadows", do_shadow)
