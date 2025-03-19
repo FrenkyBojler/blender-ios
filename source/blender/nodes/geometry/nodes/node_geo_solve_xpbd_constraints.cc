@@ -66,14 +66,14 @@ static void node_declare_positions(NodeDeclarationBuilder &b)
   b.add_input<decl::Vector>("Old Position").field_on({geometry_in}).hide_value();
   b.add_input<decl::Rotation>("Old Rotation").field_on({geometry_in}).hide_value();
 
-  b.add_input<decl::Float>("Position Weight")
+  b.add_input<decl::Float>("Mass")
       .default_value(1.0f)
       .field_on({geometry_in})
-      .description("Influence weight of constraints for each point (inverse mass)");
-  b.add_input<decl::Float>("Rotation Weight")
-      .default_value(1.0f)
+      .description("Linear inertial mass");
+  b.add_input<decl::Vector>("Inertia")
+      .default_value(float3(1.0f))
       .field_on({geometry_in})
-      .description("Influence weight of constraints for each point (inverse moment of inertia)");
+      .description("Principal moments of inertia");
 
   for (const ConstraintTypeInfo &info : xpbd_constraints::get_constraint_info(false)) {
     b.add_input<decl::Geometry>(info.ui_name)
@@ -124,14 +124,14 @@ static void node_declare_velocities(NodeDeclarationBuilder &b)
   b.add_input<decl::Vector>("Original Velocity").field_on({geometry_in}).hide_value();
   b.add_input<decl::Vector>("Original Angular Velocity").field_on({geometry_in}).hide_value();
 
-  b.add_input<decl::Float>("Position Weight")
+  b.add_input<decl::Float>("Mass")
       .default_value(1.0f)
       .field_on({geometry_in})
-      .description("Influence weight of constraints for each point (inverse mass)");
-  b.add_input<decl::Float>("Rotation Weight")
-      .default_value(1.0f)
+      .description("Linear inertial mass");
+  b.add_input<decl::Vector>("Inertia")
+      .default_value(float3(1.0f))
       .field_on({geometry_in})
-      .description("Influence weight of constraints for each point (inverse moment of inertia)");
+      .description("Principal moments of inertia");
 
   for (const ConstraintTypeInfo &info : xpbd_constraints::get_constraint_info(false)) {
     b.add_input<decl::Geometry>(info.ui_name)
@@ -508,8 +508,8 @@ static void node_geo_exec_positions(GeoNodeExecParams params)
       params.get_output_anonymous_attribute_id_if_needed("Position");
   std::optional<std::string> rotation_output_id =
       params.get_output_anonymous_attribute_id_if_needed("Rotation");
-  Field<float> position_weight_field = params.extract_input<Field<float>>("Position Weight");
-  Field<float> rotation_weight_field = params.extract_input<Field<float>>("Rotation Weight");
+  Field<float> mass_field = params.extract_input<Field<float>>("Mass");
+  Field<float3> inertia_field = params.extract_input<Field<float3>>("Inertia");
 
   GeometrySet colliders_geometry_set = params.extract_input<GeometrySet>("Colliders");
   Span<float4x4> collider_transforms = colliders_geometry_set.has_instances() ?
@@ -551,13 +551,13 @@ static void node_geo_exec_positions(GeoNodeExecParams params)
         evaluator.add_with_destination(rotation_field, vars.rotations.as_mutable_span());
         evaluator.add(old_position_field);
         evaluator.add(old_rotation_field);
-        evaluator.add(position_weight_field);
-        evaluator.add(rotation_weight_field);
+        evaluator.add(mass_field);
+        evaluator.add(inertia_field);
         evaluator.evaluate();
         eval_params.old_positions = evaluator.get_evaluated<float3>(2);
         eval_params.old_rotations = evaluator.get_evaluated<math::Quaternion>(3);
-        eval_params.position_weights = evaluator.get_evaluated<float>(4);
-        eval_params.rotation_weights = evaluator.get_evaluated<float>(5);
+        eval_params.masses = evaluator.get_evaluated<float>(4);
+        eval_params.local_inertia = evaluator.get_evaluated<float3>(5);
 
         eval_params.collider_transforms = collider_transforms;
         /* XXX Transforms of the previous frame are not currently available, these are always the
@@ -635,8 +635,8 @@ static void node_geo_exec_velocities(GeoNodeExecParams params)
   Field<float3> orig_velocity_field = params.extract_input<Field<float3>>("Original Velocity");
   Field<float3> orig_angular_velocity_field = params.extract_input<Field<float3>>(
       "Original Angular Velocity");
-  Field<float> position_weight_field = params.extract_input<Field<float>>("Position Weight");
-  Field<float> rotation_weight_field = params.extract_input<Field<float>>("Rotation Weight");
+  Field<float> mass_field = params.extract_input<Field<float>>("Mass");
+  Field<float3> inertia_field = params.extract_input<Field<float3>>("Inertia");
 
   GeometrySet colliders_geometry_set = params.extract_input<GeometrySet>("Colliders");
   Span<float4x4> collider_transforms = colliders_geometry_set.has_instances() ?
@@ -683,13 +683,13 @@ static void node_geo_exec_velocities(GeoNodeExecParams params)
                                        vars.angular_velocities.as_mutable_span());
         evaluator.add(orig_velocity_field);
         evaluator.add(orig_angular_velocity_field);
-        evaluator.add(position_weight_field);
-        evaluator.add(rotation_weight_field);
+        evaluator.add(mass_field);
+        evaluator.add(inertia_field);
         evaluator.evaluate();
         eval_params.orig_velocities = evaluator.get_evaluated<float3>(4);
         eval_params.orig_angular_velocities = evaluator.get_evaluated<float3>(5);
-        eval_params.position_weights = evaluator.get_evaluated<float>(6);
-        eval_params.rotation_weights = evaluator.get_evaluated<float>(7);
+        eval_params.masses = evaluator.get_evaluated<float>(6);
+        eval_params.local_inertia = evaluator.get_evaluated<float3>(7);
 
         eval_params.collider_transforms = collider_transforms;
         /* XXX Transforms of the previous frame are not currently available, these are always the

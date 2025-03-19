@@ -48,11 +48,6 @@ struct ConstraintEvalParams {
   /** Angular velocities derived after positional constraints. */
   VArraySpan<float3> orig_angular_velocities;
 
-  /** Inverse mass of points for constraint influence. */
-  VArraySpan<float> position_weights;
-  /** Inverse moment of inertia for constraint influence. */
-  VArraySpan<float> rotation_weights;
-
   /* Linear point masses. */
   VArraySpan<float> masses;
   /* Moments of inertia in the local frame. */

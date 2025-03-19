@@ -432,6 +432,11 @@ static void rotation_goal__init_position_step(bke::GeometrySet &constraints)
   lambda_writer.finish();
 }
 
+inline float trace(const float3 &v)
+{
+  return v.x + v.y + v.z;
+}
+
 template<bool debug_output>
 static void stretch_shear__eval_positions(const ConstraintEvalParams &params,
                                           const ConstraintVariables &variables,
@@ -488,9 +493,9 @@ static void stretch_shear__eval_positions(const ConstraintEvalParams &params,
     if (!points_range.contains(point1) || !points_range.contains(point2)) {
       return;
     }
-    const float weight_pos1 = params.position_weights[point1];
-    const float weight_pos2 = params.position_weights[point2];
-    const float weight_rot = params.rotation_weights[point1];
+    const float weight_pos1 = math::safe_rcp(params.masses[point1]);
+    const float weight_pos2 = math::safe_rcp(params.masses[point2]);
+    const float weight_rot = math::safe_divide(2.0f, trace(params.local_inertia[point1]));
     const float edge_length = edge_lengths[index];
     float3 &lambda = lambda_writer.span[index];
     float3 &delta_pos1 = delta_position1_writer.span[index];
@@ -739,8 +744,8 @@ static void bend_twist__eval_positions(const ConstraintEvalParams &params,
     if (!points_range.contains(point1) || !points_range.contains(point2)) {
       return;
     }
-    const float weight_rot1 = params.rotation_weights[point1];
-    const float weight_rot2 = params.rotation_weights[point2];
+    const float weight_rot1 = math::safe_divide(2.0f, trace(params.local_inertia[point1]));
+    const float weight_rot2 = math::safe_divide(2.0f, trace(params.local_inertia[point2]));
     const float3 &darboux_vector = darboux[index];
     float3 &lambda = lambda_writer.span[index];
     float &delta_rotation1_w = delta_rotation1_w_writer.span[index];
