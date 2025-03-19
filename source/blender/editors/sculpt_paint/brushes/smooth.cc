@@ -56,15 +56,12 @@ struct LocalData {
   Vector<float3> translations;
 };
 
-BLI_NOINLINE static void apply_positions_faces(const Depsgraph &depsgraph,
-                                               const Sculpt &sd,
-                                               const Brush &brush,
-                                               const MeshAttributeData &attribute_data,
-                                               const Span<float3> vert_normals,
+BLI_NOINLINE static void apply_positions_faces(const Sculpt &sd,
                                                const bke::pbvh::MeshNode &node,
                                                const float strength,
                                                Object &object,
                                                LocalData &tls,
+                                               const MutableSpan<float> factors,
                                                const Span<float3> new_positions,
                                                const PositionDeformData &position_data)
 {
@@ -72,22 +69,12 @@ BLI_NOINLINE static void apply_positions_faces(const Depsgraph &depsgraph,
 
   const Span<int> verts = node.verts();
 
-  calc_factors_common_mesh_indexed(depsgraph,
-                                   brush,
-                                   object,
-                                   attribute_data,
-                                   position_data.eval,
-                                   vert_normals,
-                                   node,
-                                   tls.factors,
-                                   tls.distances);
-
-  scale_factors(tls.factors, strength);
+  scale_factors(factors, strength);
 
   tls.translations.resize(verts.size());
   const MutableSpan<float3> translations = tls.translations;
   translations_from_new_positions(new_positions, verts, position_data.eval, translations);
-  scale_translations(translations, tls.factors);
+  scale_translations(translations, factors);
 
   clip_and_lock_translations(sd, ss, position_data.eval, verts, translations);
   position_data.deform(translations, verts);
@@ -116,6 +103,7 @@ BLI_NOINLINE static void do_smooth_brush_mesh(const Depsgraph &depsgraph,
   const OffsetIndices<int> node_vert_offsets = create_node_vert_offsets(
       nodes, node_mask, node_offset_data);
   Array<float3> new_positions(node_vert_offsets.total_size());
+  Vector<Vector<float>> all_factors(node_mask.size());
 
   threading::EnumerableThreadSpecific<LocalData> all_tls;
 
@@ -126,12 +114,22 @@ BLI_NOINLINE static void do_smooth_brush_mesh(const Depsgraph &depsgraph,
     node_mask.foreach_index(GrainSize(1), [&](const int i, const int pos) {
       LocalData &tls = all_tls.local();
       const Span<int> verts = nodes[i].verts();
+      calc_factors_common_mesh_indexed(depsgraph,
+                                       brush,
+                                       object,
+                                       attribute_data,
+                                       position_data.eval,
+                                       vert_normals,
+                                       nodes[i],
+                                       all_factors[pos],
+                                       tls.distances);
       const GroupedSpan<int> neighbors = calc_vert_neighbors_interior(faces,
                                                                       corner_verts,
                                                                       vert_to_face_map,
                                                                       ss.vertex_info.boundary,
                                                                       attribute_data.hide_poly,
                                                                       verts,
+                                                                      all_factors[pos],
                                                                       tls.neighbor_offsets,
                                                                       tls.neighbor_data);
       smooth::neighbor_data_average_mesh_check_loose(
@@ -143,15 +141,13 @@ BLI_NOINLINE static void do_smooth_brush_mesh(const Depsgraph &depsgraph,
 
     node_mask.foreach_index(GrainSize(1), [&](const int i, const int pos) {
       LocalData &tls = all_tls.local();
-      apply_positions_faces(depsgraph,
+      apply_positions_faces(
                             sd,
-                            brush,
-                            attribute_data,
-                            vert_normals,
                             nodes[i],
                             strength,
                             object,
                             tls,
+                            all_factors[pos],
                             new_positions.as_span().slice(node_vert_offsets[pos]),
                             position_data);
     });
