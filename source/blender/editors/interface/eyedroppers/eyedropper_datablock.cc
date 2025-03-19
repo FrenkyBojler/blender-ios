@@ -237,21 +237,22 @@ static void datadropper_set_draw_callback_region(ScrArea *area, DataDropper *ddr
 {
   if (area) {
     /* If spacetype changed */
-    if (area->spacetype != ddr->cursor_area->spacetype) {
-      /* Remove old callback */
-      ED_region_draw_cb_exit(ddr->art, ddr->draw_handle_pixel);
-
+    if (area != ddr->cursor_area) {
       /* Redraw old area */
       ARegion *region = BKE_area_find_region_type(ddr->cursor_area, RGN_TYPE_WINDOW);
       ED_region_tag_redraw(region);
 
-      /* Set draw callback in new region */
-      ARegionType *art = BKE_regiontype_from_id(area->type, RGN_TYPE_WINDOW);
+      if (area->spacetype != ddr->cursor_area->spacetype) {
+        /* Remove old callback */
+        ED_region_draw_cb_exit(ddr->art, ddr->draw_handle_pixel);
+        /* Set draw callback in new region */
+        ARegionType *art = BKE_regiontype_from_id(area->type, RGN_TYPE_WINDOW);
 
-      ddr->cursor_area = area;
-      ddr->art = art;
-      ddr->draw_handle_pixel = ED_region_draw_cb_activate(
-          art, datadropper_draw_cb, ddr, REGION_DRAW_POST_PIXEL);
+        ddr->cursor_area = area;
+        ddr->art = art;
+        ddr->draw_handle_pixel = ED_region_draw_cb_activate(
+            art, datadropper_draw_cb, ddr, REGION_DRAW_POST_PIXEL);
+      }
     }
   }
 }
