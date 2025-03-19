@@ -697,13 +697,13 @@ static void node_geo_exec_velocities(GeoNodeExecParams params)
          * colliders. */
         eval_params.old_collider_transforms = eval_params.collider_transforms;
 
-        do_solver_iterations(SolverMethod::Global,
-                             global_iterations,
-                             EvaluationTarget::Velocities,
-                             init_mode,
-                             eval_params,
-                             constraint_data,
-                             vars);
+        // do_solver_iterations(SolverMethod::Global,
+        //                      global_iterations,
+        //                      EvaluationTarget::Velocities,
+        //                      init_mode,
+        //                      eval_params,
+        //                      constraint_data,
+        //                      vars);
         do_solver_iterations(SolverMethod::GaussSeidel,
                              gauss_seidel_iterations,
                              EvaluationTarget::Velocities,
