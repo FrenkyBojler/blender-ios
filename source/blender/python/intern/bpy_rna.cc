@@ -9901,17 +9901,17 @@ void BPY_free_srna_pytype(StructRNA *srna)
 
 #define BPY_TYPEDEF_REGISTERABLE_DOC \
   "type[" \
-  ":class:`bpy.types.Panel` | " \
-  ":class:`bpy.types.UIList` | " \
-  ":class:`bpy.types.Menu` | " \
-  ":class:`bpy.types.Header` | " \
-  ":class:`bpy.types.Operator` | " \
-  ":class:`bpy.types.KeyingSetInfo` | " \
-  ":class:`bpy.types.RenderEngine` | " \
-  ":class:`bpy.types.AssetShelf` | " \
-  ":class:`bpy.types.FileHandler` | " \
-  ":class:`bpy.types.PropertyGroup` | " \
-  ":class:`bpy.types.AddonPreferences`" \
+  ":class:`bpy.types.Panel`" \
+  " | :class:`bpy.types.UIList`" \
+  " | :class:`bpy.types.Menu`" \
+  " | :class:`bpy.types.Header`" \
+  " | :class:`bpy.types.Operator`" \
+  " | :class:`bpy.types.KeyingSetInfo`" \
+  " | :class:`bpy.types.RenderEngine`" \
+  " | :class:`bpy.types.AssetShelf`" \
+  " | :class:`bpy.types.FileHandler`" \
+  " | :class:`bpy.types.PropertyGroup`" \
+  " | :class:`bpy.types.AddonPreferences`" \
   "]"
 
 /**
