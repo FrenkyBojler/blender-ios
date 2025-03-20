@@ -9,6 +9,7 @@
  */
 
 #include "BLI_bounds.hh"
+#include "BLI_math_base.hh"
 #include "DNA_scene_types.h"
 #include "DNA_sequence_types.h"
 
@@ -102,19 +103,17 @@ bool transform_seqbase_shuffle_ex(ListBase *seqbasep,
   const int orig_machine = test->machine;
   BLI_assert(ELEM(channel_delta, -1, 1));
 
-  test->machine += channel_delta;
+  strip_channel_set(test, test->machine + channel_delta);
 
   const ListBase *channels = channels_displayed_get(editing_get(evil_scene));
   SeqTimelineChannel *channel = channel_get_by_index(channels, test->machine);
 
-  while (transform_test_overlap(evil_scene, seqbasep, test) || channel_is_muted(channel) ||
-         channel_is_locked(channel))
-  {
+  while (transform_test_overlap(evil_scene, seqbasep, test)) {
     if ((channel_delta > 0) ? (test->machine >= MAX_CHANNELS) : (test->machine < 1)) {
       break;
     }
 
-    test->machine += channel_delta;
+    strip_channel_set(test, test->machine + channel_delta);
     channel = channel_get_by_index(channels, test->machine);
   }
 
@@ -130,7 +129,8 @@ bool transform_seqbase_shuffle_ex(ListBase *seqbasep,
       }
     }
 
-    test->machine = orig_machine;
+    strip_channel_set(test, orig_machine);
+
     new_frame = new_frame + (test->start - time_left_handle_frame_get(
                                                evil_scene, test)); /* adjust by the startdisp */
     transform_translate_sequence(evil_scene, test, new_frame - test->start);
@@ -556,6 +556,11 @@ void transform_offset_after_frame(Scene *scene,
       }
     }
   }
+}
+
+void strip_channel_set(Strip *strip, int channel)
+{
+  strip->machine = math::clamp(channel, 1, MAX_CHANNELS);
 }
 
 bool transform_is_locked(ListBase *channels, const Strip *strip)
