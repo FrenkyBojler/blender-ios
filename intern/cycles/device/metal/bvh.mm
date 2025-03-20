@@ -178,11 +178,6 @@ bool BVHMetal::build_BLAS_mesh(Progress &progress,
       return false;
     }
 
-    /*------------------------------------------------*/
-    BVH_status(
-        "Building mesh BLAS | %7d tris | %s", (int)mesh->num_triangles(), geom->name.c_str());
-    /*------------------------------------------------*/
-
     const bool use_fast_trace_bvh = (params.bvh_type == BVH_TYPE_STATIC) || !support_refit_blas();
 
     const array<float3> &verts = mesh->get_verts();
@@ -249,6 +244,8 @@ bool BVHMetal::build_BLAS_mesh(Progress &progress,
       geomDescMotion.opaque = true;
 
       geomDesc = geomDescMotion;
+
+      BVH_status("Building motion mesh BLAS | %7d tris | %s | %7d motion keyframes", (int)mesh->num_triangles(), geom->name.c_str(), (int)num_motion_steps);
     }
     else {
       MTLAccelerationStructureTriangleGeometryDescriptor *geomDescNoMotion =
@@ -264,6 +261,8 @@ bool BVHMetal::build_BLAS_mesh(Progress &progress,
       geomDescNoMotion.opaque = true;
 
       geomDesc = geomDescNoMotion;
+
+      BVH_status("Building mesh BLAS | %7d tris | %s", (int)mesh->num_triangles(), geom->name.c_str());
     }
 
     /* Force a single any-hit call, so shadow record-all behavior works correctly */
@@ -388,11 +387,6 @@ bool BVHMetal::build_BLAS_hair(Progress &progress,
       return false;
     }
 
-    /*------------------------------------------------*/
-    BVH_status(
-        "Building hair BLAS | %7d curves | %s", (int)hair->num_curves(), geom->name.c_str());
-    /*------------------------------------------------*/
-
     const bool use_fast_trace_bvh = (params.bvh_type == BVH_TYPE_STATIC) || !support_refit_blas();
 
     size_t num_motion_steps = 1;
@@ -406,7 +400,7 @@ bool BVHMetal::build_BLAS_hair(Progress &progress,
     id<MTLBuffer> idxBuffer = nil;
 
     MTLAccelerationStructureGeometryDescriptor *geomDesc;
-    if (motion_blur) {
+    if (num_motion_steps > 1) {
       MTLAccelerationStructureMotionCurveGeometryDescriptor *geomDescCrv =
           [MTLAccelerationStructureMotionCurveGeometryDescriptor descriptor];
 
@@ -587,12 +581,17 @@ bool BVHMetal::build_BLAS_hair(Progress &progress,
         [MTLPrimitiveAccelerationStructureDescriptor descriptor];
     accelDesc.geometryDescriptors = @[ geomDesc ];
 
-    if (motion_blur) {
+    if (num_motion_steps > 1) {
       accelDesc.motionStartTime = 0.0f;
       accelDesc.motionEndTime = 1.0f;
       accelDesc.motionStartBorderMode = MTLMotionBorderModeVanish;
       accelDesc.motionEndBorderMode = MTLMotionBorderModeVanish;
       accelDesc.motionKeyframeCount = num_motion_steps;
+
+      BVH_status("Building motion hair BLAS | %7d curves | %s | %7d motion keyframes", (int)hair->num_curves(), geom->name.c_str(), (int)num_motion_steps);
+    }
+    else {
+      BVH_status("Building hair BLAS | %7d curves | %s", (int)hair->num_curves(), geom->name.c_str());
     }
 
     if (!use_fast_trace_bvh) {
@@ -708,12 +707,6 @@ bool BVHMetal::build_BLAS_pointcloud(Progress &progress,
       return false;
     }
 
-    /*------------------------------------------------*/
-    BVH_status("Building pointcloud BLAS | %7d points | %s",
-               (int)pointcloud->num_points(),
-               geom->name.c_str());
-    /*------------------------------------------------*/
-
     const size_t num_points = pointcloud->get_points().size();
     const float3 *points = pointcloud->get_points().data();
     const float *radius = pointcloud->get_radius().data();
@@ -766,7 +759,7 @@ bool BVHMetal::build_BLAS_pointcloud(Progress &progress,
     }
 
     MTLAccelerationStructureGeometryDescriptor *geomDesc;
-    if (motion_blur) {
+    if (num_motion_steps > 1) {
       std::vector<MTLMotionKeyframeData *> aabb_ptrs;
       aabb_ptrs.reserve(num_motion_steps);
       for (size_t step = 0; step < num_motion_steps; ++step) {
@@ -812,12 +805,17 @@ bool BVHMetal::build_BLAS_pointcloud(Progress &progress,
         [MTLPrimitiveAccelerationStructureDescriptor descriptor];
     accelDesc.geometryDescriptors = @[ geomDesc ];
 
-    if (motion_blur) {
+    if (num_motion_steps > 1) {
       accelDesc.motionStartTime = 0.0f;
       accelDesc.motionEndTime = 1.0f;
       //      accelDesc.motionStartBorderMode = MTLMotionBorderModeVanish;
       //      accelDesc.motionEndBorderMode = MTLMotionBorderModeVanish;
       accelDesc.motionKeyframeCount = num_motion_steps;
+
+      BVH_status("Building motion pointcloud BLAS | %7d points | %s | %7d motion keyframes", (int)pointcloud->num_points(), geom->name.c_str(), (int)num_motion_steps);
+    }
+    else {
+      BVH_status("Building pointcloud BLAS | %7d points | %s", (int)pointcloud->num_points(), geom->name.c_str());
     }
     accelDesc.usage |= MTLAccelerationStructureUsageExtendedLimits;
 
@@ -996,11 +994,13 @@ bool BVHMetal::build_TLAS(Progress &progress,
 
     uint32_t num_instances = 0;
     uint32_t num_motion_transforms = 0;
+    uint32_t num_motion_instances = 0;
     for (Object *ob : objects) {
       num_instances++;
 
       if (ob->use_motion()) {
         num_motion_transforms += max((size_t)1, ob->get_motion().size());
+        num_motion_instances++;
       }
       else {
         num_motion_transforms++;
@@ -1011,10 +1011,7 @@ bool BVHMetal::build_TLAS(Progress &progress,
       return false;
     }
 
-    /*------------------------------------------------*/
-    BVH_status("Building TLAS      | %7d instances", (int)num_instances);
-    /*------------------------------------------------*/
-
+    const bool use_instance_motion = motion_blur && num_motion_instances;
     const bool use_fast_trace_bvh = (params.bvh_type == BVH_TYPE_STATIC) || !support_refit_blas();
 
     NSMutableArray *all_blas = [NSMutableArray array];
@@ -1035,7 +1032,7 @@ bool BVHMetal::build_TLAS(Progress &progress,
     };
 
     size_t instance_size;
-    if (motion_blur) {
+    if (use_instance_motion) {
       instance_size = sizeof(MTLAccelerationStructureMotionInstanceDescriptor);
     }
     else {
@@ -1047,7 +1044,7 @@ bool BVHMetal::build_TLAS(Progress &progress,
                                                         options:MTLResourceStorageModeShared];
     id<MTLBuffer> motion_transforms_buf = nil;
     MTLPackedFloat4x3 *motion_transforms = nullptr;
-    if (motion_blur && num_motion_transforms) {
+    if (use_instance_motion && num_motion_transforms) {
       motion_transforms_buf = [mtl_device
           newBufferWithLength:num_motion_transforms * sizeof(MTLPackedFloat4x3)
                       options:MTLResourceStorageModeShared];
@@ -1115,7 +1112,7 @@ bool BVHMetal::build_TLAS(Progress &progress,
       }
 
       /* Bake into the appropriate descriptor */
-      if (motion_blur) {
+      if (use_instance_motion) {
         MTLAccelerationStructureMotionInstanceDescriptor *instances =
             (MTLAccelerationStructureMotionInstanceDescriptor *)[instanceBuf contents];
         MTLAccelerationStructureMotionInstanceDescriptor &desc = instances[currIndex];
@@ -1187,6 +1184,13 @@ bool BVHMetal::build_TLAS(Progress &progress,
       }
     }
 
+    if (use_instance_motion) {
+      BVH_status("Building motion TLAS      | %7d instances | %7d motion instances | %7d motion transforms", (int)num_instances, (int)num_motion_instances, (int)num_motion_transforms);
+    }
+    else {
+      BVH_status("Building TLAS      | %7d instances", (int)num_instances);
+    }
+
     MTLInstanceAccelerationStructureDescriptor *accelDesc =
         [MTLInstanceAccelerationStructureDescriptor descriptor];
     accelDesc.instanceCount = num_instances;
@@ -1196,7 +1200,7 @@ bool BVHMetal::build_TLAS(Progress &progress,
     accelDesc.instanceDescriptorStride = instance_size;
     accelDesc.instancedAccelerationStructures = all_blas;
 
-    if (motion_blur) {
+    if (use_instance_motion) {
       accelDesc.instanceDescriptorType = MTLAccelerationStructureInstanceDescriptorTypeMotion;
       accelDesc.motionTransformBuffer = motion_transforms_buf;
       accelDesc.motionTransformCount = num_motion_transforms;
