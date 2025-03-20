@@ -207,7 +207,7 @@ void average_data_grids(const SubdivCCG &subdiv_ccg,
 template<typename T>
 void average_data_bmesh(const Span<T> src, const Set<BMVert *, 0> &verts, const MutableSpan<T> dst)
 {
-  Vector<BMVert *, 64> neighbor_data;
+  Vector<BMVert *, default_bmesh_neighbor_size> neighbor_data;
 
   int i = 0;
   for (BMVert *vert : verts) {
@@ -250,7 +250,7 @@ void neighbor_position_average_bmesh(const Set<BMVert *, 0> &verts,
                                      const MutableSpan<float3> new_positions)
 {
   BLI_assert(verts.size() == new_positions.size());
-  Vector<BMVert *, 64> neighbor_data;
+  Vector<BMVert *, default_bmesh_neighbor_size> neighbor_data;
 
   int i = 0;
   for (BMVert *vert : verts) {
@@ -264,7 +264,7 @@ void neighbor_position_average_interior_bmesh(const Set<BMVert *, 0> &verts,
                                               const MutableSpan<float3> new_positions)
 {
   BLI_assert(verts.size() == new_positions.size());
-  Vector<BMVert *, 64> neighbor_data;
+  Vector<BMVert *, default_bmesh_neighbor_size> neighbor_data;
 
   int i = 0;
   for (BMVert *vert : verts) {
@@ -602,7 +602,7 @@ void calc_relaxed_translations_bmesh(const Set<BMVert *, 0> &verts,
   BLI_assert(verts.size() == factors.size());
   BLI_assert(verts.size() == translations.size());
 
-  Vector<BMVert *, 64> neighbors;
+  Vector<BMVert *, default_bmesh_neighbor_size> neighbors;
 
   int i = 0;
   for (BMVert *vert : verts) {

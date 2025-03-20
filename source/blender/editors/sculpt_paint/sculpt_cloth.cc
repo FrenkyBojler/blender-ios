@@ -158,7 +158,7 @@ static GroupedSpan<int> calc_vert_neighbor_indices_bmesh(const BMesh &bm,
                                                          Vector<int> &r_offset_data,
                                                          Vector<int> &r_data)
 {
-  Vector<BMVert *, 64> neighbors;
+  Vector<BMVert *, default_bmesh_neighbor_size> neighbors;
 
   r_offset_data.resize(verts.size() + 1);
   r_data.clear();
