@@ -565,7 +565,9 @@ BooleanResult execute_single_boolean(const CurveBooleanOpParameters op_params,
     });
   });
 
+  Vector<Segment> all_segments;
   Vector<Segment> unsorted_segments;
+  Vector<int> unsorted_to_all;
 
   auto add_segments = [&](const int curve_k, const bool is_subj) {
     const IndexRange points_k = points_by_curve[curve_k];
@@ -699,7 +701,9 @@ BooleanResult execute_single_boolean(const CurveBooleanOpParameters op_params,
 
       if (is_in_L ^ is_in_R) {
         unsorted_segments.append(this_segment);
+        unsorted_to_all.append(all_segments.size());
       }
+      all_segments.append(this_segment);
 
       if (!this_segment.has_end_intersection()) {
         continue;
@@ -734,39 +738,44 @@ BooleanResult execute_single_boolean(const CurveBooleanOpParameters op_params,
   BooleanResult result;
   result.segment_offsets.append(0);
 
-  if (unsorted_segments.is_empty()) {
+  if (unsorted_to_all.is_empty()) {
     return result;
   }
 
   /* Follow each segment until it loops or ends. */
-  Array<bool> processed_segments(unsorted_segments.size(), false);
+  Array<bool> processed_segments(unsorted_to_all.size(), false);
 
   int start_segment = processed_segments.first();
 
   while (start_segment != -1) {
-    int current_segment = start_segment;
+    int current_i = start_segment;
 
     bool PolygonDone = false;
     bool PolygonClosed = false;
     bool last_reversed = false;
     while (!PolygonDone) {
-      if (processed_segments[current_segment] == true) {
+      if (processed_segments[current_i] == true) {
         BLI_assert_unreachable();
         break;
       }
 
-      unsorted_segments[current_segment].reversed = last_reversed;
-      result.segments.append(unsorted_segments[current_segment]);
-      processed_segments[current_segment] = true;
+      const int all_current_i = unsorted_to_all[current_i];
+      all_segments[all_current_i].reversed = last_reversed;
+
+      const Segment &current_segment = all_segments[all_current_i];
+      result.segments.append(current_segment);
+
+      processed_segments[current_i] = true;
       result.segments.last().reversed = last_reversed;
+      unsorted_segments[current_i].reversed = last_reversed;
 
       bool next_reversed;
       const int next_segment = get_next_segment(
-          unsorted_segments, current_segment, start_segment, processed_segments, &next_reversed);
+          unsorted_segments, current_i, start_segment, processed_segments, &next_reversed);
 
       if (next_segment == -1) {
         PolygonDone = true;
-        PolygonClosed = unsorted_segments[current_segment].is_loop();
+        PolygonClosed = current_segment.is_loop();
         break;
       }
 
@@ -776,7 +785,7 @@ BooleanResult execute_single_boolean(const CurveBooleanOpParameters op_params,
       }
 
       last_reversed = next_reversed;
-      current_segment = next_segment;
+      current_i = next_segment;
     }
     result.segment_offsets.append(result.segments.size());
     result.cyclic.append(PolygonClosed);
