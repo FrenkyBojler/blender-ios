@@ -146,6 +146,13 @@ static void sequencer_generic_props__internal(wmOperatorType *ot, int flag)
       "Use the overlap_mode tool settings to determine how to shuffle overlapping strips");
   RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 
+  prop = RNA_def_boolean(ot->srna,
+                         "skip_locked_or_muted_channels",
+                         true,
+                         "Skip Locked or Muted Channels",
+                         "Add strips to muted or locked channels when adding movie strips");
+  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
+
   if (flag & SEQPROP_FIT_METHOD) {
     ot->prop = RNA_def_enum(ot->srna,
                             "fit_method",
@@ -195,7 +202,7 @@ static int find_unlocked_unmuted_channel(const Editing *ed, int channel_index)
 
   while (channel_index < seq::MAX_CHANNELS) {
     SeqTimelineChannel *channel = seq::channel_get_by_index(channels, channel_index);
-    if (seq::channel_is_muted(channel) || seq::channel_is_locked(channel)) {
+    if (!seq::channel_is_muted(channel) && !seq::channel_is_locked(channel)) {
       break;
     }
     channel_index++;
@@ -987,10 +994,16 @@ static bool sequencer_add_movie_single_strip(bContext *C,
 
     if (strip_sound) {
       added_strips.append(strip_sound);
+
       /* The video has sound, shift the video strip up a channel to make room for the sound
        * strip. */
-      seq::strip_channel_set(strip_movie,
-                             find_unlocked_unmuted_channel(ed, strip_movie->machine + 1));
+      int movie_channel = strip_movie->machine + 1;
+
+      if (RNA_boolean_get(op->ptr, "skip_locked_or_muted_channels")) {
+        movie_channel = find_unlocked_unmuted_channel(ed, strip_movie->machine + 1);
+      }
+
+      seq::strip_channel_set(strip_movie, movie_channel);
     }
   }
 
