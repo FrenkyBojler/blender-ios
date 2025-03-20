@@ -4,6 +4,8 @@
 
 set(INC
   ../asset
+  ../space_action
+  ../space_graph
   ../include
   ../../asset_system
   ../../makesrna

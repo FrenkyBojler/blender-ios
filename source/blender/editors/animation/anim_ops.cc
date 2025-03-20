@@ -41,6 +41,8 @@
 #include "ED_markers.hh"
 #include "ED_screen.hh"
 #include "ED_sequencer.hh"
+#include "ED_space_action.hh"
+#include "ED_space_graph.hh"
 #include "ED_time_scrub_ui.hh"
 
 #include "DEG_depsgraph.hh"
@@ -212,39 +214,48 @@ static int get_snap_threshold(const ARegion *region)
          UI_view2d_region_to_view_x(&region->v2d, 0);
 }
 
-static void ensure_change_frame_anim_data(bContext *C, ChangeFrameData &op_data)
+static void ensure_change_frame_keylist(bContext *C, ChangeFrameData &op_data)
 {
   /* Only populate data once. */
   if (op_data.keylist != nullptr) {
     return;
   }
-  bAnimContext ac;
-  if (!ANIM_animdata_get_context(C, &ac)) {
-    BLI_assert_unreachable();
-    return;
+
+  ScrArea *area = CTX_wm_area(C);
+
+  blender::Vector<bAnimListElem *> anim_elements;
+  switch (area->spacetype) {
+    case SPACE_ACTION:
+      anim_elements = blender::ed::action::get_editable_fcurves(C);
+      break;
+
+    case SPACE_GRAPH:
+      anim_elements = blender::ed::graph::get_editable_fcurves(C);
+      break;
+
+    default:
+      BLI_assert_unreachable();
+      break;
   }
-  ListBase anim_data = {nullptr, nullptr};
-  const eAnimFilter_Flags filter = ANIMFILTER_DATA_VISIBLE | ANIMFILTER_FCURVESONLY;
-  ANIM_animdata_filter(&ac, &anim_data, filter, ac.data, ac.datatype);
 
   op_data.keylist = ED_keylist_create();
 
-  LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
+  for (bAnimListElem *ale : anim_elements) {
     if (ale->type != ANIMTYPE_FCURVE) {
       continue;
     }
     FCurve *fcurve = static_cast<FCurve *>(ale->data);
     fcurve_to_keylist(ale->adt, fcurve, op_data.keylist, 0, {-FLT_MAX, FLT_MAX}, true);
   }
+
   ED_keylist_prepare_for_direct_access(op_data.keylist);
-  ANIM_animdata_freelist(&anim_data);
 }
 
 static int get_keyframe_snap_target(bContext *C,
                                     ChangeFrameData &op_data,
                                     const int timeline_frame)
 {
-  ensure_change_frame_anim_data(C, op_data);
+  ensure_change_frame_keylist(C, op_data);
   const ActKeyColumn *closest_column = ED_keylist_find_closest(op_data.keylist, timeline_frame);
   if (!closest_column) {
     return MAXFRAME;

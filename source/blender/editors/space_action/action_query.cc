@@ -2,14 +2,15 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
- #include "BLI_listbase.h"
- #include "ED_anim_api.hh"
- #include "ED_space_action.hh"
- 
- namespace blender::ed::action {
- 
- blender::Vector<bAnimListElem *> get_editable_fcurves(bContext *C){
-    bAnimContext ac;
+#include "BLI_listbase.h"
+#include "ED_anim_api.hh"
+#include "ED_space_action.hh"
+
+namespace blender::ed::action {
+
+blender::Vector<bAnimListElem *> get_editable_fcurves(bContext *C)
+{
+  bAnimContext ac;
   if (!ANIM_animdata_get_context(C, &ac)) {
     return {};
   }
@@ -24,7 +25,7 @@
   }
 
   ANIM_animdata_freelist(&anim_data);
-    return anim_elements;
- }
-
+  return anim_elements;
 }
+
+}  // namespace blender::ed::action
