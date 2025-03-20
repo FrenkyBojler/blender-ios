@@ -2264,9 +2264,10 @@ static int keyframe_jump_exec(bContext *C, wmOperator *op)
 
   bool next = RNA_boolean_get(op->ptr, "next");
 
-  blender::Vector<bAnimListElem *> fcurves = blender::ed::graph::get_editable_fcurves(C);
+  ListBase anim_data = {nullptr, nullptr};
+  blender::ed::graph::get_editable_fcurves(C, anim_data);
   /* Get editor data. */
-  if (fcurves.is_empty()) {
+  if (BLI_listbase_is_empty(&anim_data)) {
     return OPERATOR_CANCELLED;
   }
 
@@ -2274,7 +2275,7 @@ static int keyframe_jump_exec(bContext *C, wmOperator *op)
   bool found = false;
 
   const float current_frame = BKE_scene_frame_get(scene);
-  for (bAnimListElem *ale : fcurves) {
+  LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
     FCurve *fcu = static_cast<FCurve *>(ale->key_data);
     if (!fcu->bezt) {
       continue;
@@ -2296,6 +2297,7 @@ static int keyframe_jump_exec(bContext *C, wmOperator *op)
       found = true;
     }
   }
+  ANIM_animdata_freelist(&anim_data);
 
   if (!found) {
     BKE_report(op->reports, RPT_INFO, "No more keyframes to jump to in this direction");

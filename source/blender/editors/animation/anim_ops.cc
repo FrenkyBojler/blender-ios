@@ -224,14 +224,15 @@ static void ensure_change_frame_keylist(bContext *C, ChangeFrameData &op_data)
 
   ScrArea *area = CTX_wm_area(C);
 
-  blender::Vector<bAnimListElem *> anim_elements;
+  ListBase anim_data = {nullptr, nullptr};
+
   switch (area->spacetype) {
     case SPACE_ACTION:
-      anim_elements = blender::ed::action::get_visible_elements(C);
+      blender::ed::action::get_visible_elements(C, anim_data);
       break;
 
     case SPACE_GRAPH:
-      anim_elements = blender::ed::graph::get_editable_fcurves(C);
+      blender::ed::graph::get_editable_fcurves(C, anim_data);
       break;
 
     default:
@@ -241,7 +242,7 @@ static void ensure_change_frame_keylist(bContext *C, ChangeFrameData &op_data)
 
   op_data.keylist = ED_keylist_create();
 
-  for (bAnimListElem *ale : anim_elements) {
+  LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
     switch (ale->datatype) {
       case ALE_FCURVE: {
         FCurve *fcurve = static_cast<FCurve *>(ale->data);
@@ -264,6 +265,7 @@ static void ensure_change_frame_keylist(bContext *C, ChangeFrameData &op_data)
         break;
     }
   }
+  ANIM_animdata_freelist(&anim_data);
 
   ED_keylist_prepare_for_direct_access(op_data.keylist);
 }

@@ -8,24 +8,15 @@
 
 namespace blender::ed::action {
 
-blender::Vector<bAnimListElem *> get_visible_elements(bContext *C)
+void get_visible_elements(bContext *C, ListBase &r_anim_data)
 {
   bAnimContext ac;
   if (!ANIM_animdata_get_context(C, &ac)) {
-    return {};
+    return;
   }
-  ListBase anim_data = {nullptr, nullptr};
+
   const eAnimFilter_Flags filter = ANIMFILTER_DATA_VISIBLE;
-  size_t size = ANIM_animdata_filter(&ac, &anim_data, filter, ac.data, ac.datatype);
-
-  blender::Vector<bAnimListElem *> anim_elements(size);
-  int i;
-  LISTBASE_FOREACH_INDEX (bAnimListElem *, ale, &anim_data, i) {
-    anim_elements[i] = ale;
-  }
-
-  ANIM_animdata_freelist(&anim_data);
-  return anim_elements;
+  size_t size = ANIM_animdata_filter(&ac, &r_anim_data, filter, ac.data, ac.datatype);
 }
 
 }  // namespace blender::ed::action

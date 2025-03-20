@@ -6,12 +6,13 @@
 
 struct bAnimListElem;
 struct bContext;
+struct ListBase;
 
 namespace blender::ed::action {
 /**
  * Return all bAnimListElem for which the keyframes are visible in the
  * GUI.
  */
-blender::Vector<bAnimListElem *> get_visible_elements(bContext *C);
+void get_visible_elements(bContext *C, ListBase &r_anim_data);
 
 }  // namespace blender::ed::action
