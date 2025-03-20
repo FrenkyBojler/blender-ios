@@ -325,7 +325,7 @@ static bool snap_selected_to_location(bContext *C,
     sub_v3_v3v3(offset_global, snap_target_global, center_global);
   }
 
-  const blender::float3x3 cursor_rotmat = scene->cursor.matrix<blender::float3x3>();
+  blender::float3x3 cursor_rotmat = scene->cursor.matrix<blender::float3x3>();
 
   if (obedit) {
     float snap_target_local[3];
