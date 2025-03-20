@@ -654,6 +654,12 @@ static void spreadsheet_dataset_region_listener(const wmRegionListenerParams *pa
   spreadsheet_header_region_listener(params);
 }
 
+static void spreadsheet_dataset_region_init(wmWindowManager *wm, ARegion *region)
+{
+  region->v2d.scroll = V2D_SCROLL_LEFT | V2D_SCROLL_VERTICAL_HIDE;
+  ED_region_panels_init(wm, region);
+}
+
 static void spreadsheet_dataset_region_draw(const bContext *C, ARegion *region)
 {
   spreadsheet_update_context(C);
@@ -805,7 +811,7 @@ void register_spacetype()
   art->prefsizex = 150 + V2D_SCROLL_WIDTH;
   art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_FRAMES;
   art->lock = 1;
-  art->init = ED_region_panels_init;
+  art->init = spreadsheet_dataset_region_init;
   art->draw = spreadsheet_dataset_region_draw;
   art->listener = spreadsheet_dataset_region_listener;
   spreadsheet_data_set_region_panels_register(*art);

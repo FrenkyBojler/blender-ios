@@ -6475,6 +6475,35 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
     rename_mesh_uv_seam_attribute(*mesh);
   }
 
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 8)) {
+    LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
+      LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+        LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
+          if (ELEM(sl->spacetype,
+                   SPACE_FILE,
+                   SPACE_IMAGE,
+                   SPACE_NODE,
+                   SPACE_SEQ,
+                   SPACE_SPREADSHEET,
+                   SPACE_USERPREF,
+                   SPACE_VIEW3D))
+          {
+            ListBase *regionbase = (sl == area->spacedata.first) ? &area->regionbase :
+                                                                   &sl->regionbase;
+            LISTBASE_FOREACH (ARegion *, region, regionbase) {
+              if (region->regiontype == RGN_TYPE_TOOLS ||
+                  (sl->spacetype == SPACE_USERPREF && region->regiontype == RGN_TYPE_NAV_BAR))
+              {
+                region->v2d.scroll &= ~V2D_SCROLL_RIGHT;
+                region->v2d.scroll |= V2D_SCROLL_LEFT | V2D_SCROLL_VERTICAL_HIDE;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a MAIN_VERSION_FILE_ATLEAST check.
