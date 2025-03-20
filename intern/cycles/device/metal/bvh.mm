@@ -245,7 +245,10 @@ bool BVHMetal::build_BLAS_mesh(Progress &progress,
 
       geomDesc = geomDescMotion;
 
-      BVH_status("Building motion mesh BLAS | %7d tris | %s | %7d motion keyframes", (int)mesh->num_triangles(), geom->name.c_str(), (int)num_motion_steps);
+      BVH_status("Building motion mesh BLAS | %7d tris | %s | %7d motion keyframes",
+                 (int)mesh->num_triangles(),
+                 geom->name.c_str(),
+                 (int)num_motion_steps);
     }
     else {
       MTLAccelerationStructureTriangleGeometryDescriptor *geomDescNoMotion =
@@ -262,7 +265,8 @@ bool BVHMetal::build_BLAS_mesh(Progress &progress,
 
       geomDesc = geomDescNoMotion;
 
-      BVH_status("Building mesh BLAS | %7d tris | %s", (int)mesh->num_triangles(), geom->name.c_str());
+      BVH_status(
+          "Building mesh BLAS | %7d tris | %s", (int)mesh->num_triangles(), geom->name.c_str());
     }
 
     /* Force a single any-hit call, so shadow record-all behavior works correctly */
@@ -588,10 +592,14 @@ bool BVHMetal::build_BLAS_hair(Progress &progress,
       accelDesc.motionEndBorderMode = MTLMotionBorderModeVanish;
       accelDesc.motionKeyframeCount = num_motion_steps;
 
-      BVH_status("Building motion hair BLAS | %7d curves | %s | %7d motion keyframes", (int)hair->num_curves(), geom->name.c_str(), (int)num_motion_steps);
+      BVH_status("Building motion hair BLAS | %7d curves | %s | %7d motion keyframes",
+                 (int)hair->num_curves(),
+                 geom->name.c_str(),
+                 (int)num_motion_steps);
     }
     else {
-      BVH_status("Building hair BLAS | %7d curves | %s", (int)hair->num_curves(), geom->name.c_str());
+      BVH_status(
+          "Building hair BLAS | %7d curves | %s", (int)hair->num_curves(), geom->name.c_str());
     }
 
     if (!use_fast_trace_bvh) {
@@ -812,10 +820,15 @@ bool BVHMetal::build_BLAS_pointcloud(Progress &progress,
       //      accelDesc.motionEndBorderMode = MTLMotionBorderModeVanish;
       accelDesc.motionKeyframeCount = num_motion_steps;
 
-      BVH_status("Building motion pointcloud BLAS | %7d points | %s | %7d motion keyframes", (int)pointcloud->num_points(), geom->name.c_str(), (int)num_motion_steps);
+      BVH_status("Building motion pointcloud BLAS | %7d points | %s | %7d motion keyframes",
+                 (int)pointcloud->num_points(),
+                 geom->name.c_str(),
+                 (int)num_motion_steps);
     }
     else {
-      BVH_status("Building pointcloud BLAS | %7d points | %s", (int)pointcloud->num_points(), geom->name.c_str());
+      BVH_status("Building pointcloud BLAS | %7d points | %s",
+                 (int)pointcloud->num_points(),
+                 geom->name.c_str());
     }
     accelDesc.usage |= MTLAccelerationStructureUsageExtendedLimits;
 
@@ -1052,8 +1065,8 @@ bool BVHMetal::build_TLAS(Progress &progress,
       if (use_motion_srt_transforms) {
         if (@available(macos 15.0, *)) {
           motion_transforms_buf = [mtl_device
-                                  newBufferWithLength:num_motion_transforms * sizeof(MTLComponentTransform)
-                                  options:MTLResourceStorageModeShared];
+              newBufferWithLength:num_motion_transforms * sizeof(MTLComponentTransform)
+                          options:MTLResourceStorageModeShared];
           decomposed_motion_transforms = (MTLComponentTransform *)motion_transforms_buf.contents;
         }
       }
@@ -1061,8 +1074,8 @@ bool BVHMetal::build_TLAS(Progress &progress,
 #  endif
       {
         motion_transforms_buf = [mtl_device
-                                 newBufferWithLength:num_motion_transforms * sizeof(MTLPackedFloat4x3)
-                                 options:MTLResourceStorageModeShared];
+            newBufferWithLength:num_motion_transforms * sizeof(MTLPackedFloat4x3)
+                        options:MTLResourceStorageModeShared];
         matrix_motion_transforms = (MTLPackedFloat4x3 *)motion_transforms_buf.contents;
       }
     }
@@ -1144,19 +1157,21 @@ bool BVHMetal::build_TLAS(Progress &progress,
         desc.intersectionFunctionTableOffset = 0;
 
         array<DecomposedTransform> decomp(ob->get_motion().size());
-        transform_motion_decompose(decomp.data(), ob->get_motion().data(), ob->get_motion().size());
-        
+        transform_motion_decompose(
+            decomp.data(), ob->get_motion().data(), ob->get_motion().size());
+
 #  if defined(MAC_OS_VERSION_15_0)
         auto populateDecomposedTransforms = [&](int key_count) {
           if (@available(macos 15.0, *)) {
             for (int i = 0; i < key_count; i++) {
-              auto& srt_data = *(MTLComponentTransform*)&decomposed_motion_transforms[motion_transform_index++];
-              
+              auto &srt_data = *(
+                  MTLComponentTransform *)&decomposed_motion_transforms[motion_transform_index++];
+
               /* Scale. */
               srt_data.scale.x = decomp[i].y.w;
               srt_data.scale.y = decomp[i].z.w;
               srt_data.scale.z = decomp[i].w.w;
-              
+
               /* Shear. */
               srt_data.shear.x = decomp[i].z.x;
               srt_data.shear.y = decomp[i].z.y;
@@ -1175,7 +1190,7 @@ bool BVHMetal::build_TLAS(Progress &progress,
               srt_data.rotation.y = decomp[i].x.y;
               srt_data.rotation.z = decomp[i].x.z;
               srt_data.rotation.w = decomp[i].x.w;
-              
+
               /* Translation. */
               srt_data.translation.x = decomp[i].y.x;
               srt_data.translation.y = decomp[i].y.y;
@@ -1183,11 +1198,12 @@ bool BVHMetal::build_TLAS(Progress &progress,
             }
           }
         };
-        
+
         /* Sets a single transform to the identity matrix */
         auto populateIdentityDecomposedTransform = [&]() {
           if (@available(macos 15.0, *)) {
-            auto& srt_data = *(MTLComponentTransform*)&decomposed_motion_transforms[motion_transform_index++];
+            auto &srt_data = *(
+                MTLComponentTransform *)&decomposed_motion_transforms[motion_transform_index++];
 
             /* Scale. */
             srt_data.scale.x = 1;
@@ -1297,7 +1313,12 @@ bool BVHMetal::build_TLAS(Progress &progress,
     }
 
     if (use_instance_motion) {
-      BVH_status("Building motion TLAS      | %7d instances | %7d motion instances | %7d motion transforms", (int)num_instances, (int)num_motion_instances, (int)num_motion_transforms);
+      BVH_status(
+          "Building motion TLAS      | %7d instances | %7d motion instances | %7d motion "
+          "transforms",
+          (int)num_instances,
+          (int)num_motion_instances,
+          (int)num_motion_transforms);
     }
     else {
       BVH_status("Building TLAS      | %7d instances", (int)num_instances);
@@ -1318,7 +1339,8 @@ bool BVHMetal::build_TLAS(Progress &progress,
       accelDesc.motionTransformCount = num_motion_transforms;
       if (@available(macos 15.0, *)) {
         accelDesc.motionTransformStride = 0;
-        accelDesc.motionTransformType = use_motion_srt_transforms ? MTLTransformTypeComponent : MTLTransformTypePackedFloat4x3;
+        accelDesc.motionTransformType = use_motion_srt_transforms ? MTLTransformTypeComponent :
+                                                                    MTLTransformTypePackedFloat4x3;
       }
     }
 
