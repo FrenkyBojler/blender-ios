@@ -131,11 +131,10 @@ static GHOST_TStandardCursor convert_to_ghost_standard_cursor(WMCursorType curs)
 
 static CursorSize window_size_calc()
 {
-  /* MacOS always scales up this type of cursor for high-dpi displays, so there
-   * is no point in supplying a larger one since it will just become even bigger. */
-
 #if (OS_MAC)
-  return CURSOR_SIZE_16;
+  /* MacOS always scales up this type of cursor for high-dpi displays.
+   * The mid-sized 24x24 versions are a nice compromize size. */
+  return CURSOR_SIZE_24;
 #endif
 
   /* Use `U.dpi` without the `U.ui_scale` because the UI scale does not impact the
