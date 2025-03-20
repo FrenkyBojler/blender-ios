@@ -21,9 +21,11 @@ set(SRC
   action_edit.cc
   action_ops.cc
   action_select.cc
+  action_query.cc
   space_action.cc
 
   action_intern.hh
+  ED_space_action.hh
 )
 
 set(LIB
