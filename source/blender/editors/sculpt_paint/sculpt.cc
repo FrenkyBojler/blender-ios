@@ -826,7 +826,8 @@ static int sculpt_brush_needs_normal(const SculptSession &ss, const Sculpt &sd, 
                SCULPT_BRUSH_TYPE_NUDGE,
                SCULPT_BRUSH_TYPE_ROTATE,
                SCULPT_BRUSH_TYPE_ELASTIC_DEFORM,
-               SCULPT_BRUSH_TYPE_THUMB) ||
+               SCULPT_BRUSH_TYPE_THUMB,
+               SCULPT_BRUSH_TYPE_SCENE_PROJECT) ||
 
           (mask_tex->brush_map_mode == MTEX_MAP_MODE_AREA)) ||
          brush_uses_topology_rake(ss, brush) || BKE_brush_has_cube_tip(&brush, PaintMode::Sculpt);
@@ -2373,6 +2374,8 @@ static float brush_strength(const Sculpt &sd,
       /* The Dyntopo Density brush does not use a normal brush workflow to calculate the effect,
        * and this strength value is unused. */
       return 0.0f;
+    case SCULPT_BRUSH_TYPE_SCENE_PROJECT:
+      return alpha * pressure * overlap * feather;
   }
   BLI_assert_unreachable();
   return 0.0f;
@@ -3504,6 +3507,9 @@ static void do_brush_action(const Depsgraph &depsgraph,
     case SCULPT_BRUSH_TYPE_PLANE:
       do_plane_brush(depsgraph, sd, ob, node_mask, plane_normal, plane_center);
       break;
+    case SCULPT_BRUSH_TYPE_SCENE_PROJECT:
+      do_scene_project_brush(depsgraph, sd, ob, node_mask);
+      break;
   }
 
   if (!ELEM(brush.sculpt_brush_type, SCULPT_BRUSH_TYPE_SMOOTH, SCULPT_BRUSH_TYPE_MASK) &&
@@ -3893,6 +3899,8 @@ static const char *sculpt_brush_type_name(const Sculpt &sd)
       return "Smear Brush";
     case SCULPT_BRUSH_TYPE_PLANE:
       return "Plane Brush";
+    case SCULPT_BRUSH_TYPE_SCENE_PROJECT:
+      return "Scene Project Brush";
   }
 
   return "Sculpting";

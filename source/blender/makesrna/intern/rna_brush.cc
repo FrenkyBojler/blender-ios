@@ -174,6 +174,7 @@ const EnumPropertyItem rna_enum_brush_sculpt_brush_type_items[] = {
     {SCULPT_BRUSH_TYPE_ROTATE, "ROTATE", 0, "Rotate", ""},
     {SCULPT_BRUSH_TYPE_SLIDE_RELAX, "TOPOLOGY", 0, "Slide Relax", ""},
     {SCULPT_BRUSH_TYPE_BOUNDARY, "BOUNDARY", 0, "Boundary", ""},
+    {SCULPT_BRUSH_TYPE_SCENE_PROJECT, "SCENE_PROJECT", 0, "Scene Project", ""},
     RNA_ENUM_ITEM_SEPR,
     {SCULPT_BRUSH_TYPE_CLOTH, "CLOTH", 0, "Cloth", ""},
     {SCULPT_BRUSH_TYPE_SIMPLIFY, "SIMPLIFY", 0, "Simplify", ""},
@@ -630,7 +631,8 @@ static bool rna_BrushCapabilitiesSculpt_has_direction_get(PointerRNA *ptr)
                SCULPT_BRUSH_TYPE_SCRAPE,
                SCULPT_BRUSH_TYPE_CLAY,
                SCULPT_BRUSH_TYPE_PINCH,
-               SCULPT_BRUSH_TYPE_MASK);
+               SCULPT_BRUSH_TYPE_MASK,
+               SCULPT_BRUSH_TYPE_SCENE_PROJECT);
 }
 
 static bool rna_BrushCapabilitiesSculpt_has_gravity_get(PointerRNA *ptr)
@@ -919,6 +921,7 @@ static const EnumPropertyItem *rna_Brush_direction_itemf(bContext *C,
         case SCULPT_BRUSH_TYPE_CLAY:
         case SCULPT_BRUSH_TYPE_CLAY_STRIPS:
         case SCULPT_BRUSH_TYPE_PLANE:
+        case SCULPT_BRUSH_TYPE_SCENE_PROJECT:
           return prop_direction_items;
         case SCULPT_BRUSH_TYPE_SMOOTH:
           return prop_smooth_direction_items;
