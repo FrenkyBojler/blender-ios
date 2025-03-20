@@ -1413,6 +1413,17 @@ void blo_do_versions_userdef(UserDef *userdef)
     userdef->ndof_flag |= NDOF_SHOW_GUIDE_ORBIT_CENTER | NDOF_ORBIT_CENTER_AUTO;
   }
 
+  if (!USER_VERSION_ATLEAST(405, 9)) {
+    LISTBASE_FOREACH (wmKeyMap *, keymap, &userdef->user_keymaps) {
+      if (STREQ(keymap->idname, "SequencerCommon")) {
+        STRNCPY(keymap->idname, "Video Sequence Editor");
+      }
+      if (STREQ(keymap->idname, "SequencerPreview")) {
+        STRNCPY(keymap->idname, "Preview");
+      }
+    }
+  }
+
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a USER_VERSION_ATLEAST check.

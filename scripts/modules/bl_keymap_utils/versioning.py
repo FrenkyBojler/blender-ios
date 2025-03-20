@@ -189,4 +189,8 @@ def keyconfig_update(keyconfig_data, keyconfig_version):
     if keyconfig_version <= (4, 1, 21):
         rename_keymap({"NLA Channels": "NLA Tracks"})
 
+    if keyconfig_version <= (4, 5, 9):
+        rename_keymap({"SequencerCommon": "Video Sequence Editor"})
+        rename_keymap({"SequencerPreview": "Preview"})
+
     return keyconfig_data
