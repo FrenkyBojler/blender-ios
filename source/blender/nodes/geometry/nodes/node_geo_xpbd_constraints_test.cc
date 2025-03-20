@@ -897,9 +897,9 @@ TEST_F(XPBDSolverTest, GlobalSolverConstraints_PositionGoal)
   EXPECT_EQ(system.constraint_mapping.size(), 1);
 
   EXPECT_NEAR(
-      compliance(solver_test, test_data.alphas[0], test_data.betas[0]), H.coeff(21, 21), eps);
+      -compliance(solver_test, test_data.alphas[0], test_data.betas[0]), H.coeff(21, 21), eps);
   EXPECT_NEAR(
-      compliance(solver_test, test_data.alphas[1], test_data.betas[1]), H.coeff(22, 22), eps);
+      -compliance(solver_test, test_data.alphas[1], test_data.betas[1]), H.coeff(22, 22), eps);
 
   float residual[2];
   float3 pos_gradient[2];
@@ -911,10 +911,10 @@ TEST_F(XPBDSolverTest, GlobalSolverConstraints_PositionGoal)
                                                 solver_test.vars.positions[test_data.point1[1]],
                                                 residual[1],
                                                 pos_gradient[1]);
-  EXPECT_EIGEN_V3_ROW_NEAR(pos_gradient[0], H.block(21, 0, 1, 3), eps);
-  EXPECT_EIGEN_V3_COL_NEAR(pos_gradient[0], H.block(0, 21, 3, 1), eps);
-  EXPECT_EIGEN_V3_ROW_NEAR(pos_gradient[1], H.block(22, 6, 1, 3), eps);
-  EXPECT_EIGEN_V3_COL_NEAR(pos_gradient[1], H.block(6, 22, 3, 1), eps);
+  EXPECT_EIGEN_V3_ROW_NEAR(-pos_gradient[0], H.block(21, 0, 1, 3), eps);
+  EXPECT_EIGEN_V3_COL_NEAR(-pos_gradient[0], H.block(0, 21, 3, 1), eps);
+  EXPECT_EIGEN_V3_ROW_NEAR(-pos_gradient[1], H.block(22, 6, 1, 3), eps);
+  EXPECT_EIGEN_V3_COL_NEAR(-pos_gradient[1], H.block(6, 22, 3, 1), eps);
 
   /* Constraint lambda residuals. */
   const float target0 = target_residual(solver_test,
@@ -963,10 +963,10 @@ TEST_F(XPBDSolverTest, GlobalSolverConstraints_RotationGoal)
   EXPECT_EQ(27, b.rows());
   EXPECT_EQ(system.constraint_mapping.size(), 1);
 
-  EXPECT_EIGEN_V3_DIAG_NEAR(compliance(solver_test, test_data.alphas[0], test_data.betas[0]),
+  EXPECT_EIGEN_V3_DIAG_NEAR(-compliance(solver_test, test_data.alphas[0], test_data.betas[0]),
                             H.block(21, 21, 3, 3),
                             eps);
-  EXPECT_EIGEN_V3_DIAG_NEAR(compliance(solver_test, test_data.alphas[1], test_data.betas[1]),
+  EXPECT_EIGEN_V3_DIAG_NEAR(-compliance(solver_test, test_data.alphas[1], test_data.betas[1]),
                             H.block(24, 24, 3, 3),
                             eps);
 
@@ -980,10 +980,10 @@ TEST_F(XPBDSolverTest, GlobalSolverConstraints_RotationGoal)
                                                 solver_test.vars.rotations[test_data.point1[1]],
                                                 residual[1],
                                                 rot_gradient1[1]);
-  EXPECT_EIGEN_MATRIX_NEAR(math::transpose(rot_gradient1[0]), H.block(21, 13, 3, 4), eps);
-  EXPECT_EIGEN_MATRIX_NEAR(rot_gradient1[0], H.block(13, 21, 4, 3), eps);
-  EXPECT_EIGEN_MATRIX_NEAR(math::transpose(rot_gradient1[1]), H.block(24, 17, 3, 4), eps);
-  EXPECT_EIGEN_MATRIX_NEAR(rot_gradient1[1], H.block(17, 24, 4, 3), eps);
+  EXPECT_EIGEN_MATRIX_NEAR(-math::transpose(rot_gradient1[0]), H.block(21, 13, 3, 4), eps);
+  EXPECT_EIGEN_MATRIX_NEAR(-rot_gradient1[0], H.block(13, 21, 4, 3), eps);
+  EXPECT_EIGEN_MATRIX_NEAR(-math::transpose(rot_gradient1[1]), H.block(24, 17, 3, 4), eps);
+  EXPECT_EIGEN_MATRIX_NEAR(-rot_gradient1[1], H.block(17, 24, 4, 3), eps);
 
   /* Constraint lambda residuals. */
   const float3 target0 = target_residual(solver_test,
@@ -1036,10 +1036,10 @@ TEST_F(XPBDSolverTest, GlobalSolverConstraints_StretchShear)
   EXPECT_EQ(27, b.rows());
   EXPECT_EQ(system.constraint_mapping.size(), 1);
 
-  EXPECT_EIGEN_V3_DIAG_NEAR(compliance(solver_test, test_data.alphas[0], test_data.betas[0]),
+  EXPECT_EIGEN_V3_DIAG_NEAR(-compliance(solver_test, test_data.alphas[0], test_data.betas[0]),
                             H.block(21, 21, 3, 3),
                             eps);
-  EXPECT_EIGEN_V3_DIAG_NEAR(compliance(solver_test, test_data.alphas[1], test_data.betas[1]),
+  EXPECT_EIGEN_V3_DIAG_NEAR(-compliance(solver_test, test_data.alphas[1], test_data.betas[1]),
                             H.block(24, 24, 3, 3),
                             eps);
 
@@ -1061,18 +1061,18 @@ TEST_F(XPBDSolverTest, GlobalSolverConstraints_StretchShear)
                                                 pos_gradient1[1],
                                                 pos_gradient2[1],
                                                 rot_gradient[1]);
-  EXPECT_EIGEN_MATRIX_NEAR(math::transpose(pos_gradient1[0]), H.block(21, 3, 3, 3), eps);
-  EXPECT_EIGEN_MATRIX_NEAR(pos_gradient1[0], H.block(3, 21, 3, 3), eps);
-  EXPECT_EIGEN_MATRIX_NEAR(math::transpose(pos_gradient2[0]), H.block(21, 6, 3, 3), eps);
-  EXPECT_EIGEN_MATRIX_NEAR(pos_gradient2[0], H.block(6, 21, 3, 3), eps);
-  EXPECT_EIGEN_MATRIX_NEAR(math::transpose(rot_gradient[0]), H.block(21, 13, 3, 4), eps);
-  EXPECT_EIGEN_MATRIX_NEAR(rot_gradient[0], H.block(13, 21, 4, 3), eps);
-  EXPECT_EIGEN_MATRIX_NEAR(math::transpose(pos_gradient1[1]), H.block(24, 0, 3, 3), eps);
-  EXPECT_EIGEN_MATRIX_NEAR(pos_gradient1[1], H.block(0, 24, 3, 3), eps);
-  EXPECT_EIGEN_MATRIX_NEAR(math::transpose(pos_gradient2[1]), H.block(24, 3, 3, 3), eps);
-  EXPECT_EIGEN_MATRIX_NEAR(pos_gradient2[1], H.block(3, 24, 3, 3), eps);
-  EXPECT_EIGEN_MATRIX_NEAR(math::transpose(rot_gradient[1]), H.block(24, 9, 3, 4), eps);
-  EXPECT_EIGEN_MATRIX_NEAR(rot_gradient[1], H.block(9, 24, 4, 3), eps);
+  EXPECT_EIGEN_MATRIX_NEAR(-math::transpose(pos_gradient1[0]), H.block(21, 3, 3, 3), eps);
+  EXPECT_EIGEN_MATRIX_NEAR(-pos_gradient1[0], H.block(3, 21, 3, 3), eps);
+  EXPECT_EIGEN_MATRIX_NEAR(-math::transpose(pos_gradient2[0]), H.block(21, 6, 3, 3), eps);
+  EXPECT_EIGEN_MATRIX_NEAR(-pos_gradient2[0], H.block(6, 21, 3, 3), eps);
+  EXPECT_EIGEN_MATRIX_NEAR(-math::transpose(rot_gradient[0]), H.block(21, 13, 3, 4), eps);
+  EXPECT_EIGEN_MATRIX_NEAR(-rot_gradient[0], H.block(13, 21, 4, 3), eps);
+  EXPECT_EIGEN_MATRIX_NEAR(-math::transpose(pos_gradient1[1]), H.block(24, 0, 3, 3), eps);
+  EXPECT_EIGEN_MATRIX_NEAR(-pos_gradient1[1], H.block(0, 24, 3, 3), eps);
+  EXPECT_EIGEN_MATRIX_NEAR(-math::transpose(pos_gradient2[1]), H.block(24, 3, 3, 3), eps);
+  EXPECT_EIGEN_MATRIX_NEAR(-pos_gradient2[1], H.block(3, 24, 3, 3), eps);
+  EXPECT_EIGEN_MATRIX_NEAR(-math::transpose(rot_gradient[1]), H.block(24, 9, 3, 4), eps);
+  EXPECT_EIGEN_MATRIX_NEAR(-rot_gradient[1], H.block(9, 24, 4, 3), eps);
 
   /* Constraint lambda residuals. */
   const float3 target0 = target_residual(solver_test,
@@ -1145,10 +1145,10 @@ TEST_F(XPBDSolverTest, GlobalSolverConstraints_BendTwist)
   EXPECT_EQ(27, b.rows());
   EXPECT_EQ(system.constraint_mapping.size(), 1);
 
-  EXPECT_EIGEN_V3_DIAG_NEAR(compliance(solver_test, test_data.alphas[0], test_data.betas[0]),
+  EXPECT_EIGEN_V3_DIAG_NEAR(-compliance(solver_test, test_data.alphas[0], test_data.betas[0]),
                             H.block(21, 21, 3, 3),
                             eps);
-  EXPECT_EIGEN_V3_DIAG_NEAR(compliance(solver_test, test_data.alphas[1], test_data.betas[1]),
+  EXPECT_EIGEN_V3_DIAG_NEAR(-compliance(solver_test, test_data.alphas[1], test_data.betas[1]),
                             H.block(24, 24, 3, 3),
                             eps);
 
@@ -1166,14 +1166,14 @@ TEST_F(XPBDSolverTest, GlobalSolverConstraints_BendTwist)
                                              residual[1],
                                              rot_gradient1[1],
                                              rot_gradient2[1]);
-  EXPECT_EIGEN_MATRIX_NEAR(math::transpose(rot_gradient1[0]), H.block(21, 13, 3, 4), eps);
-  EXPECT_EIGEN_MATRIX_NEAR(rot_gradient1[0], H.block(13, 21, 4, 3), eps);
-  EXPECT_EIGEN_MATRIX_NEAR(math::transpose(rot_gradient2[0]), H.block(21, 17, 3, 4), eps);
-  EXPECT_EIGEN_MATRIX_NEAR(rot_gradient2[0], H.block(17, 21, 4, 3), eps);
-  EXPECT_EIGEN_MATRIX_NEAR(math::transpose(rot_gradient1[1]), H.block(24, 9, 3, 4), eps);
-  EXPECT_EIGEN_MATRIX_NEAR(rot_gradient1[1], H.block(9, 24, 4, 3), eps);
-  EXPECT_EIGEN_MATRIX_NEAR(math::transpose(rot_gradient2[1]), H.block(24, 13, 3, 4), eps);
-  EXPECT_EIGEN_MATRIX_NEAR(rot_gradient2[1], H.block(13, 24, 4, 3), eps);
+  EXPECT_EIGEN_MATRIX_NEAR(-math::transpose(rot_gradient1[0]), H.block(21, 13, 3, 4), eps);
+  EXPECT_EIGEN_MATRIX_NEAR(-rot_gradient1[0], H.block(13, 21, 4, 3), eps);
+  EXPECT_EIGEN_MATRIX_NEAR(-math::transpose(rot_gradient2[0]), H.block(21, 17, 3, 4), eps);
+  EXPECT_EIGEN_MATRIX_NEAR(-rot_gradient2[0], H.block(17, 21, 4, 3), eps);
+  EXPECT_EIGEN_MATRIX_NEAR(-math::transpose(rot_gradient1[1]), H.block(24, 9, 3, 4), eps);
+  EXPECT_EIGEN_MATRIX_NEAR(-rot_gradient1[1], H.block(9, 24, 4, 3), eps);
+  EXPECT_EIGEN_MATRIX_NEAR(-math::transpose(rot_gradient2[1]), H.block(24, 13, 3, 4), eps);
+  EXPECT_EIGEN_MATRIX_NEAR(-rot_gradient2[1], H.block(13, 24, 4, 3), eps);
 
   /* Constraint lambda residuals. */
   const float3 target0 = target_residual(solver_test,
@@ -1236,8 +1236,8 @@ TEST_F(XPBDSolverTest, GlobalSolverConstraints_Contact)
   EXPECT_EQ(23, b.rows());
   EXPECT_EQ(system.constraint_mapping.size(), 1);
 
-  EXPECT_NEAR(compliance(solver_test, 0.0f, 0.0f), H.coeff(21, 21), eps);
-  EXPECT_NEAR(compliance(solver_test, 0.0f, 0.0f), H.coeff(22, 22), eps);
+  EXPECT_NEAR(-compliance(solver_test, 0.0f, 0.0f), H.coeff(21, 21), eps);
+  EXPECT_NEAR(-compliance(solver_test, 0.0f, 0.0f), H.coeff(22, 22), eps);
 
   float residual[3];
   float3 pos_gradient1[3], pos_gradient_collider[3];
@@ -1296,14 +1296,14 @@ TEST_F(XPBDSolverTest, GlobalSolverConstraints_Contact)
   EXPECT_FALSE(active1);
   EXPECT_TRUE(active2);
   /* Note: no entries for contact [1] because it is inactive. */
-  EXPECT_EIGEN_V3_ROW_NEAR(pos_gradient1[0], H.block(21, 3, 1, 3), eps);
-  EXPECT_EIGEN_V3_COL_NEAR(pos_gradient1[0], H.block(3, 21, 3, 1), eps);
-  EXPECT_EIGEN_V4_ROW_NEAR(rot_gradient1[0], H.block(21, 13, 1, 4), eps);
-  EXPECT_EIGEN_V4_COL_NEAR(rot_gradient1[0], H.block(13, 21, 4, 1), eps);
-  EXPECT_EIGEN_V3_ROW_NEAR(pos_gradient1[2], H.block(22, 0, 1, 3), eps);
-  EXPECT_EIGEN_V3_COL_NEAR(pos_gradient1[2], H.block(0, 22, 3, 1), eps);
-  EXPECT_EIGEN_V4_ROW_NEAR(rot_gradient1[2], H.block(22, 9, 1, 4), eps);
-  EXPECT_EIGEN_V4_COL_NEAR(rot_gradient1[2], H.block(9, 22, 4, 1), eps);
+  EXPECT_EIGEN_V3_ROW_NEAR(-pos_gradient1[0], H.block(21, 3, 1, 3), eps);
+  EXPECT_EIGEN_V3_COL_NEAR(-pos_gradient1[0], H.block(3, 21, 3, 1), eps);
+  EXPECT_EIGEN_V4_ROW_NEAR(-rot_gradient1[0], H.block(21, 13, 1, 4), eps);
+  EXPECT_EIGEN_V4_COL_NEAR(-rot_gradient1[0], H.block(13, 21, 4, 1), eps);
+  EXPECT_EIGEN_V3_ROW_NEAR(-pos_gradient1[2], H.block(22, 0, 1, 3), eps);
+  EXPECT_EIGEN_V3_COL_NEAR(-pos_gradient1[2], H.block(0, 22, 3, 1), eps);
+  EXPECT_EIGEN_V4_ROW_NEAR(-rot_gradient1[2], H.block(22, 9, 1, 4), eps);
+  EXPECT_EIGEN_V4_COL_NEAR(-rot_gradient1[2], H.block(9, 22, 4, 1), eps);
 
   /* Constraint lambda residuals. */
   const float target0 = target_residual(solver_test,

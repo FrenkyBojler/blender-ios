@@ -792,7 +792,7 @@ static void set_global_solve_elements(const ConstraintEvalParams &params,
     /* Compliance entries. */
     for (const int u : component_columns.index_range()) {
       triplets.append_unchecked_as(
-          int(component_columns[u]), int(component_columns[u]), get_component(compliance, u));
+          int(component_columns[u]), int(component_columns[u]), -get_component(compliance, u));
     }
   });
 
@@ -811,7 +811,7 @@ static void set_global_solve_elements(const ConstraintEvalParams &params,
       const IndexRange component_columns = components_range.slice(pos * num_components,
                                                                   num_components);
       const IndexRange position_columns = positions_range.slice(point_index * 3, 3);
-      append_gradient<PosGradT>(component_columns, position_columns, gradient, triplets);
+      append_gradient<PosGradT>(component_columns, position_columns, -gradient, triplets);
     });
   }
   for (const int var_i : IndexRange(num_rotation_vars)) {
@@ -828,7 +828,7 @@ static void set_global_solve_elements(const ConstraintEvalParams &params,
       const IndexRange component_columns = components_range.slice(pos * num_components,
                                                                   num_components);
       const IndexRange rotation_columns = rotations_range.slice(point_index * 4, 4);
-      append_gradient<RotGradT>(component_columns, rotation_columns, gradient, triplets);
+      append_gradient<RotGradT>(component_columns, rotation_columns, -gradient, triplets);
     });
   }
 
