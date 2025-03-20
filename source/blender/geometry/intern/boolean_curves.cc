@@ -610,17 +610,17 @@ BooleanResult execute_single_boolean(const CurveBooleanOpParameters op_params,
         IntersectionPoint &inter_last = intersections[int_p_2];
 
         if (curve_k == inter_first.curve_a) {
-          inter_first.start_a = SegmentEndPoint(segments_k.size(), true);
+          inter_first.start_a = SegmentEndPoint(all_segments.size(), true);
         }
         else {
-          inter_first.start_b = SegmentEndPoint(segments_k.size(), true);
+          inter_first.start_b = SegmentEndPoint(all_segments.size(), true);
         }
 
         if (curve_k == inter_last.curve_a) {
-          inter_last.end_a = SegmentEndPoint(segments_k.size(), false);
+          inter_last.end_a = SegmentEndPoint(all_segments.size(), false);
         }
         else {
-          inter_last.end_b = SegmentEndPoint(segments_k.size(), false);
+          inter_last.end_b = SegmentEndPoint(all_segments.size(), false);
         }
 
         segments_k.append(Segment::from_intersections(curve_k,
@@ -635,10 +635,10 @@ BooleanResult execute_single_boolean(const CurveBooleanOpParameters op_params,
         IntersectionPoint &inter_first = intersections[int_p_1];
 
         if (curve_k == inter_first.curve_a) {
-          inter_first.start_a = SegmentEndPoint(segments_k.size(), false);
+          inter_first.start_a = SegmentEndPoint(all_segments.size(), false);
         }
         else {
-          inter_first.start_b = SegmentEndPoint(segments_k.size(), false);
+          inter_first.start_b = SegmentEndPoint(all_segments.size(), false);
         }
 
         segments_k.append(Segment::from_start_to_intersection(
@@ -653,17 +653,17 @@ BooleanResult execute_single_boolean(const CurveBooleanOpParameters op_params,
         IntersectionPoint &inter_last = intersections[int_p_2];
 
         if (curve_k == inter_first.curve_a) {
-          inter_first.start_a = SegmentEndPoint(segments_k.size(), false);
+          inter_first.start_a = SegmentEndPoint(all_segments.size(), false);
         }
         else {
-          inter_first.start_b = SegmentEndPoint(segments_k.size(), false);
+          inter_first.start_b = SegmentEndPoint(all_segments.size(), false);
         }
 
         if (curve_k == inter_last.curve_a) {
-          inter_last.end_a = SegmentEndPoint(segments_k.size(), true);
+          inter_last.end_a = SegmentEndPoint(all_segments.size(), true);
         }
         else {
-          inter_last.end_b = SegmentEndPoint(segments_k.size(), true);
+          inter_last.end_b = SegmentEndPoint(all_segments.size(), true);
         }
 
         segments_k.append(Segment::from_intersections(curve_k,
@@ -679,10 +679,10 @@ BooleanResult execute_single_boolean(const CurveBooleanOpParameters op_params,
         IntersectionPoint &inter_last = intersections[int_p_2];
 
         if (curve_k == inter_last.curve_a) {
-          inter_last.end_a = SegmentEndPoint(segments_k.size(), true);
+          inter_last.end_a = SegmentEndPoint(all_segments.size(), true);
         }
         else {
-          inter_last.end_b = SegmentEndPoint(segments_k.size(), true);
+          inter_last.end_b = SegmentEndPoint(all_segments.size(), true);
         }
 
         segments_k.append(Segment::from_intersection_to_end(
