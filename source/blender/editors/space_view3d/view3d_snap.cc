@@ -325,8 +325,6 @@ static bool snap_selected_to_location(bContext *C,
     sub_v3_v3v3(offset_global, snap_target_global, center_global);
   }
 
-  blender::float3x3 cursor_rotmat = scene->cursor.matrix<blender::float3x3>();
-
   if (obedit) {
     float snap_target_local[3];
     ViewLayer *view_layer = CTX_data_view_layer(C);
@@ -408,6 +406,8 @@ static bool snap_selected_to_location(bContext *C,
           pchan->bone->flag &= ~BONE_TRANSFORM;
         }
       }
+
+      const blender::float3x3 cursor_rotmat = scene->cursor.matrix<blender::float3x3>();
 
       LISTBASE_FOREACH (bPoseChannel *, pchan, &ob->pose->chanbase) {
         if ((pchan->bone->flag & BONE_TRANSFORM) &&
@@ -555,6 +555,7 @@ static bool snap_selected_to_location(bContext *C,
       }
 
       float cursor_parent[3]; /* parent-relative */
+      blender::float3x3 cursor_rotmat = scene->cursor.matrix<blender::float3x3>();
 
       if (use_offset) {
         add_v3_v3v3(cursor_parent, ob->object_to_world().location(), offset_global);
