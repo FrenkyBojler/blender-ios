@@ -10,6 +10,7 @@
 #include <cstdlib>
 #include <cstring>
 
+#include "DNA_sequence_types.h"
 #include "MEM_guardedalloc.h"
 
 #include "BLI_listbase.h"
@@ -188,6 +189,21 @@ static void sequencer_generic_invoke_path__internal(bContext *C,
   }
 }
 
+static int find_unlocked_unmuted_channel(const Editing *ed, int channel_index)
+{
+  const ListBase *channels = seq::channels_displayed_get(ed);
+
+  while (channel_index < seq::MAX_CHANNELS) {
+    SeqTimelineChannel *channel = seq::channel_get_by_index(channels, channel_index);
+    if (seq::channel_is_muted(channel) || seq::channel_is_locked(channel)) {
+      break;
+    }
+    channel_index++;
+  }
+
+  return channel_index;
+}
+
 static int sequencer_generic_invoke_xy_guess_channel(bContext *C, int type)
 {
   Strip *tgt = nullptr;
@@ -215,16 +231,7 @@ static int sequencer_generic_invoke_xy_guess_channel(bContext *C, int type)
     best_channel = (type == STRIP_TYPE_MOVIE) ? tgt->machine - 1 : tgt->machine;
   }
 
-  /* Find channel, that is neither locked or muted. */
-  const ListBase *channels = seq::channels_displayed_get(seq::editing_get(scene));
-  SeqTimelineChannel *channel = seq::channel_get_by_index(channels, best_channel);
-  while (seq::channel_is_muted(channel) || seq::channel_is_locked(channel)) {
-    best_channel++;
-    if (best_channel >= seq::MAX_CHANNELS) {
-      break;
-    }
-    channel = seq::channel_get_by_index(channels, best_channel);
-  }
+  best_channel = find_unlocked_unmuted_channel(ed, best_channel);
 
   return math::clamp(best_channel, 0, seq::MAX_CHANNELS);
 }
@@ -919,7 +926,8 @@ static void sequencer_add_movie_multiple_strips(bContext *C,
           /* The video has sound, shift the video strip up a channel to make room for the sound
            * strip. */
           added_strips.append(strip_sound);
-          seq::strip_channel_set(strip_movie, strip_movie->machine + 1);
+          seq::strip_channel_set(strip_movie,
+                                 find_unlocked_unmuted_channel(ed, strip_movie->machine + 1));
         }
       }
 
@@ -981,7 +989,8 @@ static bool sequencer_add_movie_single_strip(bContext *C,
       added_strips.append(strip_sound);
       /* The video has sound, shift the video strip up a channel to make room for the sound
        * strip. */
-      seq::strip_channel_set(strip_movie, strip_movie->machine + 1);
+      seq::strip_channel_set(strip_movie,
+                             find_unlocked_unmuted_channel(ed, strip_movie->machine + 1));
     }
   }
 

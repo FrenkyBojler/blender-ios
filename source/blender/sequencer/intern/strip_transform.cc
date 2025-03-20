@@ -108,7 +108,9 @@ bool transform_seqbase_shuffle_ex(ListBase *seqbasep,
   const ListBase *channels = channels_displayed_get(editing_get(evil_scene));
   SeqTimelineChannel *channel = channel_get_by_index(channels, test->machine);
 
-  while (transform_test_overlap(evil_scene, seqbasep, test)) {
+  while (transform_test_overlap(evil_scene, seqbasep, test) || channel_is_muted(channel) ||
+         channel_is_locked(channel))
+  {
     if ((channel_delta > 0) ? (test->machine >= MAX_CHANNELS) : (test->machine < 1)) {
       break;
     }
