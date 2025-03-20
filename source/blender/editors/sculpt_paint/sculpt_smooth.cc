@@ -108,6 +108,72 @@ void neighbor_position_average_interior_grids(const OffsetIndices<int> faces,
                                               const BitSpan boundary_verts,
                                               const SubdivCCG &subdiv_ccg,
                                               const Span<int> grids,
+                                              const Span<float> factors,
+                                              const MutableSpan<float3> new_positions)
+{
+  const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
+  const Span<float3> positions = subdiv_ccg.positions;
+
+  BLI_assert(grids.size() * key.grid_area == new_positions.size());
+
+  for (const int i : grids.index_range()) {
+    const int node_verts_start = i * key.grid_area;
+    const int grid = grids[i];
+    const IndexRange grid_range = bke::ccg::grid_range(key, grid);
+
+    /* TODO: This loop could be optimized in the future by skipping unnecessary logic for
+     * non-boundary grid vertices. */
+    for (const int y : IndexRange(key.grid_size)) {
+      for (const int x : IndexRange(key.grid_size)) {
+        const int offset = CCG_grid_xy_to_index(key.grid_size, x, y);
+        const int node_vert_index = node_verts_start + offset;
+        const int vert = grid_range[offset];
+
+        if (factors[node_vert_index] == 0.0f) {
+          new_positions[node_vert_index] = positions[vert];
+          continue;
+        }
+
+        SubdivCCGCoord coord{};
+        coord.grid_index = grid;
+        coord.x = x;
+        coord.y = y;
+
+        SubdivCCGNeighbors neighbors;
+        BKE_subdiv_ccg_neighbor_coords_get(subdiv_ccg, coord, false, neighbors);
+
+        if (BKE_subdiv_ccg_coord_is_mesh_boundary(
+                faces, corner_verts, boundary_verts, subdiv_ccg, coord))
+        {
+          if (neighbors.coords.size() == 2) {
+            /* Do not include neighbors of corner vertices. */
+            neighbors.coords.clear();
+          }
+          else {
+            /* Only include other boundary vertices as neighbors of boundary vertices. */
+            neighbors.coords.remove_if([&](const SubdivCCGCoord coord) {
+              return !BKE_subdiv_ccg_coord_is_mesh_boundary(
+                  faces, corner_verts, boundary_verts, subdiv_ccg, coord);
+            });
+          }
+        }
+
+        if (neighbors.coords.is_empty()) {
+          new_positions[node_vert_index] = positions[vert];
+        }
+        else {
+          new_positions[node_vert_index] = average_positions(key, positions, neighbors.coords);
+        }
+      }
+    }
+  }
+}
+
+void neighbor_position_average_interior_grids(const OffsetIndices<int> faces,
+                                              const Span<int> corner_verts,
+                                              const BitSpan boundary_verts,
+                                              const SubdivCCG &subdiv_ccg,
+                                              const Span<int> grids,
                                               const MutableSpan<float3> new_positions)
 {
   const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);

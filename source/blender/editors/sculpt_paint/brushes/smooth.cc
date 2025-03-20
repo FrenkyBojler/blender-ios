@@ -178,7 +178,7 @@ static void calc_grids(const Depsgraph &depsgraph,
   tls.new_positions.resize(positions.size());
   const MutableSpan<float3> new_positions = tls.new_positions;
   smooth::neighbor_position_average_interior_grids(
-      faces, corner_verts, boundary_verts, subdiv_ccg, grids, new_positions);
+      faces, corner_verts, boundary_verts, subdiv_ccg, grids, tls.factors, new_positions);
 
   tls.translations.resize(positions.size());
   const MutableSpan<float3> translations = tls.translations;
