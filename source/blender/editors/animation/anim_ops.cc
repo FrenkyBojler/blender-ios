@@ -241,11 +241,27 @@ static void ensure_change_frame_keylist(bContext *C, ChangeFrameData &op_data)
   op_data.keylist = ED_keylist_create();
 
   for (bAnimListElem *ale : anim_elements) {
-    if (ale->type != ANIMTYPE_FCURVE) {
-      continue;
+    switch (ale->datatype) {
+      case ALE_FCURVE: {
+        FCurve *fcurve = static_cast<FCurve *>(ale->data);
+        fcurve_to_keylist(ale->adt, fcurve, op_data.keylist, 0, {-FLT_MAX, FLT_MAX}, true);
+        break;
+      }
+
+      case ALE_GPFRAME: {
+        gpl_to_keylist(nullptr, static_cast<bGPDlayer *>(ale->data), op_data.keylist);
+        break;
+      }
+
+      case ALE_GREASE_PENCIL_CEL: {
+        grease_pencil_cels_to_keylist(
+            ale->adt, static_cast<const GreasePencilLayer *>(ale->data), op_data.keylist, 0);
+        break;
+      }
+
+      default:
+        break;
     }
-    FCurve *fcurve = static_cast<FCurve *>(ale->data);
-    fcurve_to_keylist(ale->adt, fcurve, op_data.keylist, 0, {-FLT_MAX, FLT_MAX}, true);
   }
 
   ED_keylist_prepare_for_direct_access(op_data.keylist);

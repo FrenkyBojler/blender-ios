@@ -15,7 +15,7 @@ blender::Vector<bAnimListElem *> get_visible_elements(bContext *C)
     return {};
   }
   ListBase anim_data = {nullptr, nullptr};
-  const eAnimFilter_Flags filter = ANIMFILTER_DATA_VISIBLE | ANIMFILTER_FCURVESONLY;
+  const eAnimFilter_Flags filter = ANIMFILTER_DATA_VISIBLE;
   size_t size = ANIM_animdata_filter(&ac, &anim_data, filter, ac.data, ac.datatype);
 
   blender::Vector<bAnimListElem *> anim_elements(size);
