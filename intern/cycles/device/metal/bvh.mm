@@ -1337,11 +1337,13 @@ bool BVHMetal::build_TLAS(Progress &progress,
       accelDesc.instanceDescriptorType = MTLAccelerationStructureInstanceDescriptorTypeMotion;
       accelDesc.motionTransformBuffer = motion_transforms_buf;
       accelDesc.motionTransformCount = num_motion_transforms;
+#  if defined(MAC_OS_VERSION_15_0)
       if (@available(macos 15.0, *)) {
         accelDesc.motionTransformStride = 0;
         accelDesc.motionTransformType = use_motion_srt_transforms ? MTLTransformTypeComponent :
                                                                     MTLTransformTypePackedFloat4x3;
       }
+#  endif
     }
 
     accelDesc.usage |= MTLAccelerationStructureUsageExtendedLimits;
