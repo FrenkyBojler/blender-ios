@@ -2264,7 +2264,7 @@ static int keyframe_jump_exec(bContext *C, wmOperator *op)
 
   bool next = RNA_boolean_get(op->ptr, "next");
 
-  blender::Vector<FCurve *> fcurves = blender::ed::graph::get_visible_fcurves(C);
+  blender::Vector<bAnimListElem *> fcurves = blender::ed::graph::get_editable_fcurves(C);
   /* Get editor data. */
   if (fcurves.is_empty()) {
     return OPERATOR_CANCELLED;
@@ -2274,15 +2274,16 @@ static int keyframe_jump_exec(bContext *C, wmOperator *op)
   bool found = false;
 
   const float current_frame = BKE_scene_frame_get(scene);
-  for (FCurve *fcu : fcurves) {
+  for (bAnimListElem *ale : fcurves) {
+    FCurve *fcu = static_cast<FCurve *>(ale->key_data);
     if (!fcu->bezt) {
       continue;
     }
 
     float closest_fcu_frame;
-    // ANIM_nla_mapping_apply_if_needed_fcurve(ale, fcu, false, true);
+    ANIM_nla_mapping_apply_if_needed_fcurve(ale, fcu, false, true);
     const bool success = find_closest_frame(fcu, current_frame, next, &closest_fcu_frame);
-    // ANIM_nla_mapping_apply_if_needed_fcurve(ale, fcu, true, true);
+    ANIM_nla_mapping_apply_if_needed_fcurve(ale, fcu, true, true);
 
     if (!success) {
       continue;

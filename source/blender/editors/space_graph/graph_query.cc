@@ -8,7 +8,7 @@
 
 namespace blender::ed::graph {
 
-blender::Vector<FCurve *> get_visible_fcurves(bContext *C)
+blender::Vector<bAnimListElem *> get_editable_fcurves(bContext *C)
 {
   bAnimContext ac;
   /* Get editor data. */
@@ -25,10 +25,11 @@ blender::Vector<FCurve *> get_visible_fcurves(bContext *C)
 
   size_t size = ANIM_animdata_filter(
       &ac, &anim_data, eAnimFilter_Flags(filter), ac.data, eAnimCont_Types(ac.datatype));
-  blender::Vector<FCurve *> fcurves(size);
+  blender::Vector<bAnimListElem *> fcurves(size);
   int i;
   LISTBASE_FOREACH_INDEX (bAnimListElem *, ale, &anim_data, i) {
-    fcurves[i] = static_cast<FCurve *>(ale->key_data);
+    BLI_assert(ale->type == ANIMTYPE_FCURVE);
+    fcurves[i] = ale;
   }
   ANIM_animdata_freelist(&anim_data);
 

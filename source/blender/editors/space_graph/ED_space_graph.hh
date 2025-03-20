@@ -8,7 +8,10 @@ struct FCurve;
 struct bContext;
 
 namespace blender::ed::graph {
-
-blender::Vector<FCurve *> get_visible_fcurves(bContext *C);
+/**
+ * Return all bAnimListElem (they contain only FCurves) for which the keyframes are visible in the
+ * GUI. This excludes FCurves that are drawn as curves but whose keyframes are NOT shown.
+ */
+blender::Vector<bAnimListElem *> get_editable_fcurves(bContext *C);
 
 }  // namespace blender::ed::graph
