@@ -5525,7 +5525,7 @@ void ED_object_particle_edit_mode_enter_ex(bContext *C,
   BKE_scene_graph_evaluated_ensure(depsgraph, G_MAIN);
 
   PTCacheEdit *edit;
-  
+
   ob->mode |= OB_MODE_PARTICLE_EDIT;
 
   edit = PE_create_current(depsgraph, scene, ob);
@@ -5534,7 +5534,7 @@ void ED_object_particle_edit_mode_enter_ex(bContext *C,
    * NOTE: this may have run before if the edit data was just created,
    * so could avoid this and speed up a little. */
   if (edit && edit->psys) {
-      /* Make sure pointer to the evaluated modifier data is up to date,
+    /* Make sure pointer to the evaluated modifier data is up to date,
      * with possible changes applied when object was outside of the
      * edit mode. */
     Object *object_eval = DEG_get_evaluated_object(depsgraph, ob);
