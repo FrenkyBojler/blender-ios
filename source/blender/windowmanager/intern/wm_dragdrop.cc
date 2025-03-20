@@ -24,6 +24,7 @@
 #include "BLI_linear_allocator.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_color.h"
+#include "BLI_path_utils.hh"
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
 
@@ -378,6 +379,9 @@ void WM_event_drag_space_file_paths(const bContext *C, wmDrag *drag)
     BLI_path_join(filepath, sizeof(filepath), dirpath, file->name);
 
     paths.append(allocator.copy_string(filepath).c_str());
+  }
+  if (paths.is_empty()) {
+    return;
   }
   WM_drag_data_free(drag->type, drag->poin);
   drag->poin = WM_drag_create_path_data(paths);
