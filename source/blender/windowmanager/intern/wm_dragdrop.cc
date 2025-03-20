@@ -1042,12 +1042,24 @@ static void wm_drag_draw_icon(bContext * /*C*/, wmWindow * /*win*/, wmDrag *drag
 {
   int x, y;
 
-  /* This could also get the preview image of an ID when dragging one. But the big preview icon may
-   * actually not always be wanted, for example when dragging objects in the Outliner it gets in
-   * the way). So make the drag user set an image buffer explicitly (e.g. through
-   * #UI_but_drag_attach_image()). */
+  if (const int64_t paths_size = WM_drag_get_paths(drag).size(); paths_size > 1) {
+    /* Slightly bigger to improve paths count readability. */
+    const float scale = UI_SCALE_FAC * 1.15f;
+    int padding = 4 * scale;
+    x = xy[0] - 6 * padding;
+    y = xy[1] - 4 * scale;
 
-  if (drag->imb) {
+    const uchar text_col[] = {255, 255, 255, 255};
+    IconTextOverlay text_overlay;
+    UI_icon_text_overlay_init_from_count(&text_overlay, paths_size);
+    UI_icon_draw_ex(x, y, ICON_DOCUMENTS, 1 / scale, 0.8, 0.0f, text_col, false, &text_overlay);
+  }
+  else if (drag->imb) {
+    /* This could also get the preview image of an ID when dragging one. But the big preview icon
+     * may actually not always be wanted, for example when dragging objects in the Outliner it gets
+     * in the way). So make the drag user set an image buffer explicitly (e.g. through
+     * #UI_but_drag_attach_image()). */
+
     x = xy[0] - (wm_drag_imbuf_icon_width_get(drag) / 2);
     y = xy[1] - (wm_drag_imbuf_icon_height_get(drag) / 2);
 
@@ -1119,7 +1131,7 @@ static void wm_drag_draw_tooltip(bContext *C, wmWindow *win, wmDrag *drag, const
 
   const int winsize_y = WM_window_native_pixel_y(win);
   int x, y;
-  if (drag->imb) {
+  if (drag->imb && WM_drag_get_paths(drag).size() < 2) {
     const int icon_width = wm_drag_imbuf_icon_width_get(drag);
     const int icon_height = wm_drag_imbuf_icon_height_get(drag);
 
@@ -1186,7 +1198,9 @@ static void wm_drag_draw_default(bContext *C, wmWindow *win, wmDrag *drag, const
     xy_tmp[0] = xy[0] + 10 * UI_SCALE_FAC;
     xy_tmp[1] = xy[1] + 1 * UI_SCALE_FAC;
   }
-  wm_drag_draw_item_name(drag, UNPACK2(xy_tmp));
+  if (WM_drag_get_paths(drag).size() < 2) {
+    wm_drag_draw_item_name(drag, UNPACK2(xy_tmp));
+  }
 
   /* Operator name with round-box. */
   wm_drag_draw_tooltip(C, win, drag, xy);
