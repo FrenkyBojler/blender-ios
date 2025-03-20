@@ -107,8 +107,6 @@ void light_eval_single_closure(LightData light,
                                float shadow,
                                const bool is_transmission)
 {
-  attenuation *= light_attenuation_facing(light, lv.L, lv.dist, cl.N, is_transmission);
-
   attenuation *= light_power_get(light, cl.type);
   if (attenuation < 1e-30) {
     return;
@@ -151,6 +149,13 @@ void light_eval_single(uint l_idx,
                                        (stack.cl[0].type == LIGHT_TRANSLUCENT_WITH_THICKNESS);
 
   float attenuation = light_attenuation_surface(light, is_directional, lv);
+
+  if (!is_translucent_with_thickness) {
+    /* Only do attenuation for this case, since we integrate the whole sphere for translucency.
+     * Moreover, stack.cl[0].N is overwritten for is_translucent_with_thickness. */
+    attenuation *= light_attenuation_facing(light, lv.L, lv.dist, stack.cl[0].N, is_transmission);
+  }
+
   if (attenuation < LIGHT_ATTENUATION_THRESHOLD) {
     return;
   }

@@ -131,7 +131,7 @@ float light_attenuation_facing(
   /* Sine of angle between light center and light edge. */
   float sin_solid_angle = light_shape_radius(light) / distance_to_light;
   /* Sine of angle between light center and shading plane. */
-  float sin_light_angle = dot(L, Ng);
+  float sin_light_angle = dot(L, is_transmission ? -Ng : Ng);
   /* Do attenuation after the horizon line to avoid harsh cut
    * or biasing of surfaces without light bleeding. */
   float dist = sin_solid_angle + (is_transmission ? -sin_light_angle : sin_light_angle);
