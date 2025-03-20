@@ -345,6 +345,9 @@ struct StrokeCache {
     bool first_time;
   } plane_brush;
 
+  /* Scene Project brush */
+  Vector<Object*> target_objects;
+
   /* Cloth brush */
   std::unique_ptr<cloth::SimulationData> cloth_sim;
   float3 initial_location_symm;
