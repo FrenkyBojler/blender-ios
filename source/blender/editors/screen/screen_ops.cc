@@ -1791,9 +1791,9 @@ static bool area_move_init(bContext *C, wmOperator *op)
   ScrEdge *actedge = screen_geom_find_active_scredge(win, screen, x, y);
 
   if (area) {
-    /* Favor scrollbars and action zones over expanded edge zone. */
-    int xy[2] = {x, y};
-    if (ED_area_actionzone_find_xy(CTX_wm_area(C), xy)) {
+    /* Favor scroll bars and action zones over expanded edge zone. */
+    const int xy[2] = {x, y};
+    if (ED_area_actionzone_find_xy(area, xy)) {
       return false;
     }
   }
