@@ -8309,7 +8309,8 @@ static void def_cmp_glare(BlenderRNA * /*brna*/, StructRNA *srna)
 
   prop = RNA_def_property(srna, "use_rotate_45", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "star_45", 0);
-  RNA_def_property_ui_text(prop, "Rotate 45", "Simple star filter: add 45 degree rotation offset");
+  RNA_def_property_ui_text(
+      prop, "Rotate 45°", "Simple star filter: add 45 degree rotation offset");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 
   prop = RNA_def_property(srna, "size", PROP_INT, PROP_NONE);
@@ -12315,6 +12316,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("CompositorNode", "CompositorNodeKeyingScreen", def_cmp_keyingscreen);
   define("CompositorNode", "CompositorNodeKuwahara", def_cmp_kuwahara);
   define("CompositorNode", "CompositorNodeLensdist", def_cmp_lensdist);
+  define("CompositorNode", "CompositorNodeImageInfo");
   define("CompositorNode", "CompositorNodeLevels", def_cmp_levels);
   define("CompositorNode", "CompositorNodeLumaMatte", def_cmp_luma_matte);
   define("CompositorNode", "CompositorNodeMapRange", def_cmp_map_range);
