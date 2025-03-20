@@ -464,7 +464,7 @@ static bool snap_selected_to_location(bContext *C,
             }
             else {
               float rot_euler[3];
-              mat3_to_eulO(rot_euler, EULER_ORDER_DEFAULT, cursor_rotmat.ptr());
+              mat3_to_eulO(rot_euler, pchan->rotmode, cursor_rotmat.ptr());
 
               if (use_toolsettings) {
                 BKE_pchan_protected_rotation_euler_set(pchan, rot_euler);
@@ -640,7 +640,7 @@ static bool snap_selected_to_location(bContext *C,
             copy_v3_v3(rot_euler, scene->cursor.rotation_euler);
           }
           else {
-            mat3_to_eulO(rot_euler, EULER_ORDER_DEFAULT, cursor_rotmat.ptr());
+            mat3_to_eulO(rot_euler, ob->rotmode, cursor_rotmat.ptr());
           }
           if (use_toolsettings) {
             BKE_object_protected_rotation_euler_set(ob, rot_euler);
