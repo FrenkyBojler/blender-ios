@@ -917,6 +917,7 @@ void discard_lattice_edit_mode_pointers(ID *id_cow)
 void discard_mesh_edit_mode_pointers(ID *id_cow)
 {
   Mesh *mesh_cow = (Mesh *)id_cow;
+  printf("Discard: %p\n", mesh_cow);
   mesh_cow->runtime->edit_mesh = nullptr;
 }
 
