@@ -947,12 +947,13 @@ class PREFERENCES_OT_addon_show(Operator):
             context.window_manager.addon_filter = 'All'
             context.window_manager.addon_search = bl_info["name"]
 
-        # Return if preferences editor already exists in the main window.
-        for area in context.screen.areas:
-            if area.spaces[0].type == 'PREFERENCES':
-                return {'FINISHED'}
+            # Just return when a prefs editor is already visible in the main window.
+            for area in context.screen.areas:
+                if area.spaces[0].type == 'PREFERENCES':
+                    return {'FINISHED'}
 
-        bpy.ops.screen.userpref_show('INVOKE_DEFAULT')
+            bpy.ops.screen.userpref_show('INVOKE_DEFAULT')
+
         return {'FINISHED'}
 
 
