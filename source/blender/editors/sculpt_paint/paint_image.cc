@@ -35,6 +35,7 @@
 #include "BKE_colorband.hh"
 #include "BKE_context.hh"
 #include "BKE_curves.hh"
+#include "BKE_global.hh"
 #include "BKE_grease_pencil.hh"
 #include "BKE_image.hh"
 #include "BKE_library.hh"
@@ -666,7 +667,9 @@ static int sample_color_exec(bContext *C, wmOperator *op)
 
   /* force redraw without cursor */
   WM_paint_cursor_tag_redraw(win, region);
-  WM_redraw_windows(C);
+  if (!G.background) {
+    WM_redraw_windows(C);
+  }
 
   RNA_int_get_array(op->ptr, "location", location);
   const bool use_palette = RNA_boolean_get(op->ptr, "palette");

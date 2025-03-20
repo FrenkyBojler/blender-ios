@@ -57,6 +57,8 @@
 #include "WM_types.hh"
 #include "wm.hh"
 #include "wm_draw.hh"
+
+#include "BKE_global.hh"
 #include "wm_event_system.hh"
 #include "wm_surface.hh"
 #include "wm_window.hh"
@@ -1419,9 +1421,11 @@ uint8_t *WM_window_pixels_read(bContext *C, wmWindow *win, int r_size[2])
 
 bool WM_window_pixels_read_sample(bContext *C, wmWindow *win, const int pos[2], float r_col[3])
 {
-  if (WM_capabilities_flag() & WM_CAPABILITY_GPU_FRONT_BUFFER_READ) {
-    WM_window_pixels_read_sample_from_frontbuffer(CTX_wm_manager(C), win, pos, r_col);
-    return true;
+  if (!G.background) {
+    if (WM_capabilities_flag() & WM_CAPABILITY_GPU_FRONT_BUFFER_READ) {
+      WM_window_pixels_read_sample_from_frontbuffer(CTX_wm_manager(C), win, pos, r_col);
+      return true;
+    }
   }
   return WM_window_pixels_read_sample_from_offscreen(C, win, pos, r_col);
 }

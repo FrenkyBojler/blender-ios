@@ -1224,9 +1224,9 @@ endif()
 
 add_blender_test(
   bl_paint_operators
-  --python ${cmake_current_list_dir}/bl_paint.py
+  --python ${CMAKE_CURRENT_LIST_DIR}/bl_paint.py
   --
-  --testdir "${test_src_dir}/sculpting"
+  --testdir "${TEST_SRC_DIR}/sculpting"
   ${_paint_test_arguments}
 )
 unset(_paint_test_arguments)
