@@ -217,59 +217,95 @@ static int point_in_polygon_winding_order(const float2 &point, const Span<float2
 
 class WindingState {
  private:
-  /* Winding order of each shape. */
-  Map<int, int> orders_;
+  /* Winding order of each curve. */
+  Map<int, int> orders_per_curve_;
 
  public:
-  void add_to_shape(const int shape_id, const int winding_i)
+  void add_to_curve(const int curve_id, const int winding_i)
   {
     if (winding_i == 0) {
       return;
     }
 
-    if (orders_.contains(shape_id)) {
-      orders_.lookup(shape_id) += winding_i;
+    if (orders_per_curve_.contains(curve_id)) {
+      orders_per_curve_.lookup(curve_id) += winding_i;
 
       /* Remove unneeded ids. */
-      if (orders_.lookup(shape_id) == 0) {
-        orders_.remove(shape_id);
+      if (orders_per_curve_.lookup(curve_id) == 0) {
+        orders_per_curve_.remove(curve_id);
       }
     }
     else {
-      orders_.add(shape_id, winding_i);
+      orders_per_curve_.add(curve_id, winding_i);
     }
   }
 
-  bool is_in_shape(const int shape_id, const FillRule fill_rule) const
+  bool is_in_shape(const int shape_id,
+                   const Vector<IndexMask> &shapes,
+                   const FillRule fill_rule) const
   {
-    if (!orders_.contains(shape_id)) {
-      return false;
+    const IndexMask &shape = shapes[shape_id];
+
+    if (fill_rule == FillRule::NoHoles) {
+      /* Each curve is checked individually. */
+      return threading::parallel_reduce(
+          shape.index_range(),
+          4096,
+          false,
+          [&](const IndexRange range, bool value) {
+            if (value) {
+              return value;
+            }
+            shape.slice(range).foreach_index([&](const int curve_i) {
+              if (orders_per_curve_.contains(curve_i)) {
+                if (orders_per_curve_.lookup(curve_i) != 0) {
+                  value = true;
+                  return;
+                }
+              }
+            });
+            return value;
+          },
+          std::logical_or());
     }
+
+    int winding = 0;
+
+    shape.foreach_index([&](const int curve_i) {
+      if (orders_per_curve_.contains(curve_i)) {
+        winding += orders_per_curve_.lookup(curve_i);
+      }
+    });
 
     if (fill_rule == FillRule::EvenOdd) {
-      return orders_.lookup(shape_id) % 2 != 0;
+      return winding % 2 != 0;
     }
-    else { /* Both `NonZero` and `NoHoles`. */
-      return orders_.lookup(shape_id) != 0;
+    else if (fill_rule == FillRule::NonZero) {
+      return winding != 0;
     }
+
+    BLI_assert_unreachable();
+    return false;
   }
 
-  bool is_in_shapes(const IndexMask &shapes, const FillRule fill_rule) const
+  bool is_in_shapes(const IndexMask &shapes_mask,
+                    const Vector<IndexMask> &shapes,
+                    const FillRule fill_rule) const
   {
-    if (orders_.is_empty() || shapes.is_empty()) {
+    if (orders_per_curve_.is_empty() || shapes_mask.is_empty()) {
       return false;
     }
 
     return threading::parallel_reduce(
-        shapes.index_range(),
+        shapes_mask.index_range(),
         4096,
         false,
         [&](const IndexRange range, bool value) {
           if (value) {
             return value;
           }
-          shapes.slice(range).foreach_index([&](const int shape_id) {
-            if (this->is_in_shape(shape_id, fill_rule)) {
+          shapes_mask.slice(range).foreach_index([&](const int shape_id) {
+            if (this->is_in_shape(shape_id, shapes, fill_rule)) {
               value = true;
               return;
             }
@@ -280,11 +316,12 @@ class WindingState {
   }
 
   bool is_contributing(const CurveBooleanOpParameters op_params,
+                       const Vector<IndexMask> &shapes,
                        const int subject_shape,
                        const IndexMask &clipping_shapes) const
   {
-    const bool subj = this->is_in_shape(subject_shape, op_params.subject_rule);
-    const bool clip = this->is_in_shapes(clipping_shapes, op_params.clipping_rule);
+    const bool subj = this->is_in_shape(subject_shape, shapes, op_params.subject_rule);
+    const bool clip = this->is_in_shapes(clipping_shapes, shapes, op_params.clipping_rule);
 
     switch (op_params.boolean_mode) {
       case Operation::Intersect: {
@@ -318,7 +355,7 @@ static std::pair<WindingState, WindingState> LR_states_from_segment(
 
   const int curve_i = segment.curve;
 
-  state_L.add_to_shape(curve_i, 1); /* TODO. */
+  state_L.add_to_curve(curve_i, 1); /* TODO. */
 
   /* TODO: This assumes that the segment size is not zero which is not always true. */
   const int first_point = segment.start_point();
@@ -333,8 +370,8 @@ static std::pair<WindingState, WindingState> LR_states_from_segment(
       if (is_fill[curve_j]) {
         const Span<float2> poly_j = points.slice(points_by_curve[curve_j]);
         int winding_j = point_in_polygon_winding_order(points[first_point], poly_j);
-        state_L.add_to_shape(shape_id, winding_j);
-        state_R.add_to_shape(shape_id, winding_j);
+        state_L.add_to_curve(curve_j, winding_j);
+        state_R.add_to_curve(curve_j, winding_j);
       }
     });
   });
@@ -701,8 +738,10 @@ BooleanResult execute_single_boolean(const CurveBooleanOpParameters op_params,
     for (const int seg_i : segments) {
       const Segment &this_segment = segments_k[seg_i];
 
-      const bool is_in_L = state_L.is_contributing(op_params, subj_shape_id, clipping_shapes);
-      const bool is_in_R = state_R.is_contributing(op_params, subj_shape_id, clipping_shapes);
+      const bool is_in_L = state_L.is_contributing(
+          op_params, shapes, subj_shape_id, clipping_shapes);
+      const bool is_in_R = state_R.is_contributing(
+          op_params, shapes, subj_shape_id, clipping_shapes);
 
       if (is_in_L ^ is_in_R) {
         unsorted_to_all.append(all_segments.size());
@@ -716,12 +755,11 @@ BooleanResult execute_single_boolean(const CurveBooleanOpParameters op_params,
       const IntersectionPoint &inter_end = intersections[int_p_end];
 
       const int other_curve_k = inter_end.other_curve(curve_k);
-      const int other_shape = other_curve_k; /* TODO. */
 
       if (is_fill[other_curve_k]) {
         /* TODO */
-        state_L.add_to_shape(other_shape, 1);
-        state_R.add_to_shape(other_shape, 1);
+        state_L.add_to_curve(other_curve_k, 1);
+        state_R.add_to_curve(other_curve_k, 1);
         // current_winding_order += seg_seg_winding(
         //     curve_subj[inter_first.point_a],
         //     curve_subj[(inter_first.point_a + 1) % curve_subj.size()],
