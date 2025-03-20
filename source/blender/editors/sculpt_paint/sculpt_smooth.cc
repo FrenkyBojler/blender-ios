@@ -538,7 +538,7 @@ void calc_relaxed_translations_grids(const SubdivCCG &subdiv_ccg,
 
         SubdivCCGNeighbors neighbor_storage;
         BKE_subdiv_ccg_neighbor_coords_get(subdiv_ccg, coord, false, neighbor_storage);
-        Vector<SubdivCCGCoord, 256> &neighbors = neighbor_storage.coords;
+        Vector<SubdivCCGCoord, 8> &neighbors = neighbor_storage.coords;
 
         /* Don't modify corner vertices */
         if (neighbors.size() <= 2) {
