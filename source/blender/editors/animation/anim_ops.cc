@@ -282,6 +282,16 @@ static int get_keyframe_snap_target(bContext *C,
   return closest_column->cfra;
 }
 
+static int get_second_snap_target(Scene *scene, const int timeline_frame, const int step)
+{
+  return BKE_scene_frame_snap_by_seconds(scene, step, timeline_frame);
+}
+
+static int get_frame_snap_target(const int timeline_frame, const int step)
+{
+  return round(timeline_frame / float(step)) * step;
+}
+
 static int seq_frame_apply_snap(bContext *C, const int timeline_frame)
 {
   Scene *scene = CTX_data_scene(C);
@@ -305,7 +315,8 @@ static int seq_frame_apply_snap(bContext *C, const int timeline_frame)
   }
 
   if (tool_settings->snap_playhead_mode & SCE_SNAP_TO_SECOND) {
-    const int snap_target = BKE_scene_frame_snap_by_seconds(scene, 1.0, timeline_frame);
+    const int snap_target = get_second_snap_target(
+        scene, timeline_frame, tool_settings->snap_step_seconds);
     if (abs(snap_target - timeline_frame) < abs(snap_frame - timeline_frame)) {
       snap_frame = snap_target;
     }
@@ -333,7 +344,15 @@ static int action_frame_apply_snap(bContext *C, ChangeFrameData &op_data, const 
   }
 
   if (tool_settings->snap_playhead_mode & SCE_SNAP_TO_SECOND) {
-    const int snap_target = BKE_scene_frame_snap_by_seconds(scene, 1.0, timeline_frame);
+    const int snap_target = get_second_snap_target(
+        scene, timeline_frame, tool_settings->snap_step_seconds);
+    if (abs(snap_target - timeline_frame) < abs(snap_frame - timeline_frame)) {
+      snap_frame = snap_target;
+    }
+  }
+
+  if (tool_settings->snap_playhead_mode & SCE_SNAP_TO_FRAME) {
+    const int snap_target = get_frame_snap_target(timeline_frame, tool_settings->snap_step_frames);
     if (abs(snap_target - timeline_frame) < abs(snap_frame - timeline_frame)) {
       snap_frame = snap_target;
     }
@@ -369,7 +388,15 @@ static int graph_frame_apply_snap(bContext *C, ChangeFrameData &op_data, const i
   }
 
   if (tool_settings->snap_playhead_mode & SCE_SNAP_TO_SECOND) {
-    const int snap_target = BKE_scene_frame_snap_by_seconds(scene, 1.0, timeline_frame);
+    const int snap_target = get_second_snap_target(
+        scene, timeline_frame, tool_settings->snap_step_seconds);
+    if (abs(snap_target - timeline_frame) < abs(snap_frame - timeline_frame)) {
+      snap_frame = snap_target;
+    }
+  }
+
+  if (tool_settings->snap_playhead_mode & SCE_SNAP_TO_FRAME) {
+    const int snap_target = get_frame_snap_target(timeline_frame, tool_settings->snap_step_frames);
     if (abs(snap_target - timeline_frame) < abs(snap_frame - timeline_frame)) {
       snap_frame = snap_target;
     }
@@ -412,7 +439,15 @@ static int nla_frame_apply_snap(bContext *C, const int timeline_frame)
   }
 
   if (tool_settings->snap_playhead_mode & SCE_SNAP_TO_SECOND) {
-    const int snap_target = BKE_scene_frame_snap_by_seconds(scene, 1.0, timeline_frame);
+    const int snap_target = get_second_snap_target(
+        scene, timeline_frame, tool_settings->snap_step_seconds);
+    if (abs(snap_target - timeline_frame) < abs(snap_frame - timeline_frame)) {
+      snap_frame = snap_target;
+    }
+  }
+
+  if (tool_settings->snap_playhead_mode & SCE_SNAP_TO_FRAME) {
+    const int snap_target = get_frame_snap_target(timeline_frame, tool_settings->snap_step_frames);
     if (abs(snap_target - timeline_frame) < abs(snap_frame - timeline_frame)) {
       snap_frame = snap_target;
     }

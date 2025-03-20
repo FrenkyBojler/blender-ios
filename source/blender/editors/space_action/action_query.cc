@@ -16,7 +16,7 @@ void get_visible_elements(bContext *C, ListBase &r_anim_data)
   }
 
   const eAnimFilter_Flags filter = ANIMFILTER_DATA_VISIBLE;
-  size_t size = ANIM_animdata_filter(&ac, &r_anim_data, filter, ac.data, ac.datatype);
+  ANIM_animdata_filter(&ac, &r_anim_data, filter, ac.data, ac.datatype);
 }
 
 }  // namespace blender::ed::action

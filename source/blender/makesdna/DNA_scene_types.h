@@ -1794,6 +1794,9 @@ typedef struct ToolSettings {
   float snap_angle_increment_3d;
   float snap_angle_increment_3d_precision;
 
+  int32_t snap_step_seconds;
+  int32_t snap_step_frames;
+
 } ToolSettings;
 
 /** \} */
