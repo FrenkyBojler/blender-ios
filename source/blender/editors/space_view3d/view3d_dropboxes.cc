@@ -431,8 +431,15 @@ static void view3d_collection_drop_copy_external_asset(bContext *C, wmDrag *drag
 
   BKE_view_layer_base_deselect_all(scene, view_layer);
 
+  const bool use_instance_collections = asset_drag->import_settings.use_instance_collections;
+  /* Temporarily disable instancing for the import, the drop operator handles that. */
+  asset_drag->import_settings.use_instance_collections = false;
+
   ID *id = WM_drag_asset_id_import(C, asset_drag, FILE_AUTOSELECT);
   Collection *collection = (Collection *)id;
+
+  /* Reset temporary override. */
+  asset_drag->import_settings.use_instance_collections = use_instance_collections;
 
   /* TODO(sergey): Only update relations for the current scene. */
   DEG_relations_tag_update(CTX_data_main(C));
