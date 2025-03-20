@@ -145,7 +145,9 @@ void VKContext::end_frame()
 
 void VKContext::flush() {}
 
-TimelineValue VKContext::flush_render_graph(RenderGraphFlushFlags flags)
+TimelineValue VKContext::flush_render_graph(RenderGraphFlushFlags flags,
+                                            VkSemaphore wait_semaphore,
+                                            VkSemaphore signal_semaphore)
 {
   if (has_active_framebuffer()) {
     VKFrameBuffer &framebuffer = *active_framebuffer_get();
@@ -159,7 +161,9 @@ TimelineValue VKContext::flush_render_graph(RenderGraphFlushFlags flags)
       &render_graph_.value().get(),
       discard_pool,
       bool(flags & RenderGraphFlushFlags::SUBMIT),
-      bool(flags & RenderGraphFlushFlags::WAIT_FOR_COMPLETION));
+      bool(flags & RenderGraphFlushFlags::WAIT_FOR_COMPLETION),
+      wait_semaphore,
+      signal_semaphore);
   render_graph_.reset();
   if (bool(flags & RenderGraphFlushFlags::RENEW_RENDER_GRAPH)) {
     render_graph_ = std::reference_wrapper<render_graph::VKRenderGraph>(
