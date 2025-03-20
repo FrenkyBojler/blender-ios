@@ -320,10 +320,10 @@ static void icon_node_socket_draw(int socket_type, int x, int y, int w, int h, f
   const float scale = 0.9f * float(w) / float(ICON_DEFAULT_WIDTH);
 
   /* Factor to account for the draw function of the node socket being based on the widget unit,
-   * which is 20 px by default, while icons are smaller. */
-  constexpr float size_factor = 0.25f * (20.0f / float(ICON_DEFAULT_WIDTH));
+   * which is 10 px by default, which differs from icons. */
+  constexpr float size_factor = 10.0f / float(ICON_DEFAULT_WIDTH);
 
-  const float socket_radius = size_factor * w;
+  const float socket_radius = w * 0.5f * size_factor;
   const blender::float2 center = {x + 0.5f * w, y + 0.5f * h};
   const rctf rect = {
       center.x - socket_radius,
