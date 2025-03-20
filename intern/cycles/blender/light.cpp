@@ -10,7 +10,7 @@
 
 CCL_NAMESPACE_BEGIN
 
-void BlenderSync::sync_light(BL::Depsgraph /*b_depsgraph*/, BObjectInfo &b_ob_info, Light *light)
+void BlenderSync::sync_light(BObjectInfo &b_ob_info, Light *light)
 {
   BL::Light b_light(b_ob_info.object_data);
 
@@ -120,6 +120,10 @@ void BlenderSync::sync_background_light(BL::SpaceView3D &b_v3d)
       Object *object;
       const ObjectKey object_key(b_world, nullptr, b_world, false);
       bool update = object_map.add_or_update(&object, b_world, b_world, object_key);
+      if (update) {
+        /* Lights should be shadow catchers by default. */
+        object->set_is_shadow_catcher(true);
+      }
 
       /* Create geometry. */
       const GeometryKey geom_key{b_world.ptr.data, Geometry::LIGHT};

@@ -16,12 +16,9 @@
 /**
  * Return true if all components is equal to zero.
  */
-#    pragma GCC diagnostic push
-#    pragma GCC diagnostic ignored "-Wredundant-decls"
 bool is_zero(vec2 vec);
 bool is_zero(vec3 vec);
 bool is_zero(vec4 vec);
-#    pragma GCC diagnostic pop * /
 
 /**
  * Return true if any component is equal to zero.
@@ -50,8 +47,8 @@ vec3 safe_mod(vec3 a, float b);
 vec4 safe_mod(vec4 a, float b);
 
 /**
- * A version of mod that behaves similar to C++ std::modf, and is safe such that it returns 0 when
- * b is also 0.
+ * A version of mod that behaves similar to C++ `std::modf`, and is safe such that it returns 0
+ * when b is also 0.
  */
 vec2 compatible_mod(vec2 a, vec2 b);
 vec3 compatible_mod(vec3 a, vec3 b);
@@ -269,7 +266,6 @@ float average(vec4 a);
 /** \name Implementation
  * \{ */
 
-#  ifdef GPU_METAL /* Already defined in shader_defines.msl/glsl to move here. */
 bool is_zero(vec2 vec)
 {
   return all(equal(vec, vec2(0.0)));
@@ -282,7 +278,6 @@ bool is_zero(vec4 vec)
 {
   return all(equal(vec, vec4(0.0)));
 }
-#  endif /* GPU_METAL */
 
 bool is_any_zero(vec2 vec)
 {

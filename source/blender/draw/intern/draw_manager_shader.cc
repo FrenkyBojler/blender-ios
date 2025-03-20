@@ -20,7 +20,7 @@
 
 #include "WM_api.hh"
 
-#include "draw_manager_c.hh"
+#include "draw_context_private.hh"
 
 #include <atomic>
 #include <condition_variable>
@@ -193,9 +193,10 @@ void DRW_shader_init()
   compiler_data().system_gpu_context = WM_system_gpu_context_create();
   compiler_data().blender_gpu_context = GPU_context_create(nullptr,
                                                            compiler_data().system_gpu_context);
+
+  /* Some part of the code assumes no context is left bound. */
   GPU_context_active_set(nullptr);
-  WM_system_gpu_context_activate(DST.system_gpu_context);
-  GPU_context_active_set(DST.blender_gpu_context);
+  WM_system_gpu_context_release(compiler_data().system_gpu_context);
 
   BLI_threadpool_init(&compilation_threadpool(), drw_deferred_shader_compilation_exec, 1);
   BLI_threadpool_insert(&compilation_threadpool(), nullptr);
@@ -338,7 +339,7 @@ GPUMaterial *DRW_shader_from_world(World *wo,
                                    GPUCodegenCallbackFn callback,
                                    void *thunk)
 {
-  Scene *scene = (Scene *)DEG_get_original_id(&DST.draw_ctx.scene->id);
+  Scene *scene = (Scene *)DEG_get_original_id(&drw_get().scene->id);
   GPUMaterial *mat = GPU_material_from_nodetree(scene,
                                                 nullptr,
                                                 ntree,
@@ -351,7 +352,7 @@ GPUMaterial *DRW_shader_from_world(World *wo,
                                                 callback,
                                                 thunk);
 
-  if (DRW_state_is_image_render()) {
+  if (DRW_context_get()->is_image_render()) {
     /* Do not deferred if doing render. */
     deferred = false;
   }
@@ -371,7 +372,7 @@ GPUMaterial *DRW_shader_from_material(Material *ma,
                                       void *thunk,
                                       GPUMaterialPassReplacementCallbackFn pass_replacement_cb)
 {
-  Scene *scene = (Scene *)DEG_get_original_id(&DST.draw_ctx.scene->id);
+  Scene *scene = (Scene *)DEG_get_original_id(&drw_get().scene->id);
   GPUMaterial *mat = GPU_material_from_nodetree(scene,
                                                 ma,
                                                 ntree,
@@ -394,7 +395,7 @@ void DRW_shader_queue_optimize_material(GPUMaterial *mat)
 {
   /* Do not perform deferred optimization if performing render.
    * De-queue any queued optimization jobs. */
-  if (DRW_state_is_image_render()) {
+  if (DRW_context_get()->is_image_render()) {
     if (GPU_material_optimization_status(mat) == GPU_MAT_OPTIMIZATION_QUEUED) {
       /* Remove from pending optimization job queue. */
       DRW_deferred_shader_optimize_remove(mat);

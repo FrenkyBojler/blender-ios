@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.4.0 Beta (b'63c460d93d55')\n"
+"Project-Id-Version: Blender 4.4.0 Release Candidate (b'f896f7ffc32a')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-02-24 09:56+0000\n"
+"POT-Creation-Date: 2025-03-17 16:18+0000\n"
 "PO-Revision-Date: 2024-09-26 13:56+0000\n"
 "Last-Translator: Sarfaraz Baig <iamsarfarazbaig@gmail.com>\n"
 "Language-Team: Urdu <https://translate.blender.org/projects/blender-ui/ui/ur/>\n"
@@ -576,14 +576,6 @@ msgstr "ﮟﯾﺮﮐ ﻢﯿﺴﻘﺗ ﯼﺭﻮﻤﯿﻣ ﺮﭘ ﺕﻻ﻿ﺁ ﻡ�
 
 msgid "Make more room for large scenes to fit by distributing memory across interconnected devices (e.g. via NVLink) rather than duplicating it"
 msgstr "ﮟﯿﺋﺎﻨﺑ ﮧﮕﺟ ﺪﯾﺰﻣ ﮯﯿﻟ ﮯﮐ ﮯﻧﻮﮨ ﭧﻓ ﮯﮐ ﺮﻇﺎﻨﻣ ﮮﮍﺑ ﮯﮐﺮﮐ ﻢﯿﺴﻘﺗ ﮯﺋﺎﺠﺑ ﯽﮐ ﮯﻧﺮﮐ ﻞﻘﻧ ﻮﮐ ﯼﺭﻮﻤﯿﻣ ﮟﯿﻣ (ﮯﻌﯾﺭﺫ ﮯﮐ NVLink ﻼً﻿ﺜﻣ) ﺕﻻ﻿ﺁ ﮯﺋﻮﮨ ﮮﮍﺟ ﮯﺳ ﮮﺮﺳﻭﺩ ﮏﯾﺍ"
-
-
-msgid "HIP RT (Experimental)"
-msgstr "HIP RT (ﯽﺗﺎﺑﺮﺠﺗ)"
-
-
-msgid "HIP RT enables AMD hardware ray tracing on RDNA2 and above, with shader fallback on older cards. This feature is experimental and some scenes may render incorrectly"
-msgstr "HIP RT ﮫﺗﺎﺳ ﮯﮐ ﮏﯿﺑ ﻝﺎﻔﺘﮕﻧﺭ ﺮﭘ ﺯﮈﺭﺎﮐ ﮯﻧﺍﺮﭘ RDNA2 ﺮﭘ ﺮﭘﻭﺍ ﮯﺳ ﺱﺍ ﺭﻭﺍ AMD ﮟﯿﮨ ﮯﺘﮑﺳ ﺮﮐ ﺶﯿﭘ ﮯﺳ ﮯﻘﯾﺮﻃ ﻂﻠﻏ ﺮﻇﺎﻨﻣ ﮫﭽﮐ ﺭﻭﺍ ﮯﮨ ﯽﺗﺎﺑﺮﺠﺗ ﺖﯿﺻﻮﺼﺧ ﮧﯾ ﮯﮨ ﺎﺗﺎﻨﺑ ﻞﺑﺎﻗ ﻮﮐ ﮓﻨﺴﯾﺮﭨ ﮮﺭ ﺮﺌﯾﻭﮈﺭﺎﮨ"
 
 
 msgid "Embree on GPU"
@@ -28253,11 +28245,6 @@ msgid "Sequence playback mode"
 msgstr "ﮈﻮﻣ ﮏﯿﺑ ﮯﻠﭘ ﺐﯿﺗﺮﺗ"
 
 
-msgctxt "Sequence"
-msgid "Clip"
-msgstr "ﭗﻠﮐ"
-
-
 msgid "Hide frames outside the specified frame range"
 msgstr "ﮟﯿﺋﺎﭙﮭﭼ ﺮﮨﺎﺑ ﮯﺳ ﺞﻨﯾﺭ ﻢﯾﺮﻓ ﺹﻮﺼﺨﻣ ﻮﮐ ﻢﯾﺮﻓ"
 
@@ -33174,12 +33161,36 @@ msgid "Editor menu containing buttons"
 msgstr "ﻮﻨﯿﻣ ﺮﭩﯾﮉﯾﺍ ﻞﻤﺘﺸﻣ ﺮﭘ ﮞﻮﻨﭩﺑ"
 
 
-msgid "Mirror"
-msgstr "ﮧﻨﯿﺋﺁ"
+msgid "Pivot Point"
+msgstr "ﭧﻨﺋﺍﻮﭘ ﭦﻮﯿﭘ"
 
 
 msgid "Snap"
 msgstr "ﭗﯿﻨﺳ"
+
+
+msgid "Proportional Editing Falloff"
+msgstr "ﻑﺁ ﻝﺎﻓ ﺮﺋﺎﻔﯾﮈﻮﻣ ﺐﺳﺎﻨﺘﻣ"
+
+
+msgid "Mask Edit"
+msgstr "ﮟﯾﺮﮐ ﺮﺋﺎﻔﯾﮈﻮﻣ ﮟﯿﻣ ﮏﺳﺎﻣ"
+
+
+msgid "Automasking"
+msgstr "ﮓﻨﮑﺳﺎﻣﻮﭨﺁ"
+
+
+msgid "Face Sets Edit"
+msgstr "ﮟﯾﺮﮐ ﺮﺋﺎﻔﯾﮈﻮﻣ ﮟﯿﻣ ﭧﯿﺳ ﮯﮐ ﮮﺮﮩﭼ"
+
+
+msgid "Vertex Group Locks"
+msgstr "ﮎﻻ﻿ ﮦﻭﺮﮔ ﺲﮑﯿﭨﺭﻭ"
+
+
+msgid "Mirror"
+msgstr "ﮧﻨﯿﺋﺁ"
 
 
 msgid "UV Mapping"
@@ -33298,10 +33309,6 @@ msgid "Hooks"
 msgstr "ﮯﭩﻧﺎﮐ"
 
 
-msgid "Vertex Group Locks"
-msgstr "ﮎﻻ﻿ ﮦﻭﺮﮔ ﺲﮑﯿﭨﺭﻭ"
-
-
 msgid "Trim/Add"
 msgstr "ﮟﯾﺮﮐ ﻞﻣﺎﺷ/ﻡﺮﭨ"
 
@@ -33384,26 +33391,6 @@ msgstr "ﻦﺘﻣ"
 
 msgid "Bone Roll"
 msgstr "ﻝﻭﺭ ﻥﻮﺑ"
-
-
-msgid "Pivot Point"
-msgstr "ﭧﻨﺋﺍﻮﭘ ﭦﻮﯿﭘ"
-
-
-msgid "Proportional Editing Falloff"
-msgstr "ﻑﺁ ﻝﺎﻓ ﺮﺋﺎﻔﯾﮈﻮﻣ ﺐﺳﺎﻨﺘﻣ"
-
-
-msgid "Mask Edit"
-msgstr "ﮟﯾﺮﮐ ﺮﺋﺎﻔﯾﮈﻮﻣ ﮟﯿﻣ ﮏﺳﺎﻣ"
-
-
-msgid "Automasking"
-msgstr "ﮓﻨﮑﺳﺎﻣﻮﭨﺁ"
-
-
-msgid "Face Sets Edit"
-msgstr "ﮟﯾﺮﮐ ﺮﺋﺎﻔﯾﮈﻮﻣ ﮟﯿﻣ ﭧﯿﺳ ﮯﮐ ﮮﺮﮩﭼ"
 
 
 msgid "Keyframe Insert Pie"
@@ -63945,6 +63932,10 @@ msgid "Set all stroke points to same opacity"
 msgstr "ﮟﯾﺮﮐ ﭧﯿﺳ ﺮﭘ ﻦﭘﻻ﻿ﺪﻨﮬﺩ ﯽﮨ ﮏﯾﺍ ﻮﮐ ﺲﭩﻨﺋﺍﻮﭘ ﮎﻭﺮﭩﺳﺍ ﻡﺎﻤﺗ"
 
 
+msgid "Fill Opacity"
+msgstr "ﮟﯾﺮﮭﺑ ﻮﮐ ﻦﭘﻻ﻿ﺪﻨﮬﺩ"
+
+
 msgctxt "Operator"
 msgid "Set Uniform Thickness"
 msgstr "ﮟﯾﺮﮐ ﭧﯿﺳ ﯽﺋﺎﭨﻮﻣ ﮞﺎﺴﮑﯾ"
@@ -82508,10 +82499,6 @@ msgid "Exports UVs from the modified mesh"
 msgstr "ﮯﮨ ﺎﺗﺮﮐ ﺪﻣﺁﺮﺑ s ﯼﻭﻮﯾ  ﮯﺳ ﻝﺎﺟ ﮦﺪﺷ ﻢﯿﻣﺮﺗ"
 
 
-msgid "Fill Opacity"
-msgstr "ﮟﯾﺮﮭﺑ ﻮﮐ ﻦﭘﻻ﻿ﺪﻨﮬﺩ"
-
-
 msgid "Set amount of opacity for exported UV layout"
 msgstr "ﮟﯾﺮﮐ ﺭﺮﻘﻣ ﺭﺍﺪﻘﻣ ﯽﮐ ﻦﭘﻻ﻿ﺪﻨﮬﺩ ﮯﯿﻟ ﮯﮐ ﭦﺅﺁ ﮯﻠﯾﻭ ﻮﯿﮨﺪﺷ ﺪﻣﺁﺮﺑ"
 
@@ -87829,6 +87816,10 @@ msgid "Transform Orientations"
 msgstr "ﮟﯾﺮﮐ ﻞﯾﺪﺒﺗ ﻮﮐ ﺖﯿﻔﻗﺍﻭ"
 
 
+msgid "glTF Material Variants"
+msgstr "glTF ﮟﯿﺘﻟﺎﺣ ﻒﻠﺘﺨﻣ ﯽﮐ ﺩﺍﻮﻣ"
+
+
 msgid "Stroke Placement"
 msgstr "ﭧﻨﻤﺴﯿﻠﭘ ﮎﻭﺮﭩﺳﺍ"
 
@@ -87853,8 +87844,8 @@ msgid "Multi Frame"
 msgstr "ﻢﯾﺮﻓ ﯽﭩﻠﻣ"
 
 
-msgid "glTF Material Variants"
-msgstr "glTF ﮟﯿﺘﻟﺎﺣ ﻒﻠﺘﺨﻣ ﯽﮐ ﺩﺍﻮﻣ"
+msgid "glTF Animations"
+msgstr "glTF ﺮﯾﻭﺎﺼﺗ ﮎﺮﺤﺘﻣ"
 
 
 msgid "Auto-Masking"
@@ -87875,10 +87866,6 @@ msgstr "ﺎﻧﮍﮑﺳ/ﺎﻨﮬﮍﺑ  ﮟﯿﻤﺧ"
 
 msgid "Viewport Debug"
 msgstr "ﮓﺒﯾﮈ ﭦﺭﻮﭘ ﻮﯾﻭ"
-
-
-msgid "glTF Animations"
-msgstr "glTF ﺮﯾﻭﺎﺼﺗ ﮎﺮﺤﺘﻣ"
 
 
 msgid "VR"
@@ -103193,6 +103180,11 @@ msgstr "ﻢﻠﻓ"
 
 
 msgctxt "Sequence"
+msgid "Clip"
+msgstr "ﭗﻠﮐ"
+
+
+msgctxt "Sequence"
 msgid "Mask"
 msgstr "ﮏﺳﺎﻣ"
 
@@ -113399,10 +113391,6 @@ msgid "and NVIDIA driver version %s or newer"
 msgstr "ﺮﺗ ﺪﯾﺪﺟ ﺎﯾ %s‬‪ ﻥﮊﺭﻭ ﺭﻮﯿﺋﺍﺭﮈ NVIDIA ﺭﻭﺍ"
 
 
-msgid "and AMD Radeon Pro %s driver or newer"
-msgstr "ﺮﺗ ﺪﯾﺪﺟ ﺎﯾ ﺭﻮﯿﺋﺍﺭﮈ AMD Radeon Pro ‪%s‬ ﺭﻭﺍ"
-
-
 msgid "Requires Intel GPU with Xe-HPG architecture"
 msgstr "Xe-HPG ﮫﺗﺎﺳ ﮯﮐ ﺮﯿﻤﻌﺗ ﻦﻓ Intel GPU ﮯﮨ ﺕﺭﻭﺮﺿ ﯽﮐ"
 
@@ -114993,10 +114981,6 @@ msgid "performance impact!"
 msgstr "!ﺮﺛﺍ ﺎﮐ ﯽﮔﺩﺮﮐﺭﺎﮐ"
 
 
-msgid "Built without VR/OpenXR features"
-msgstr "VR/OpenXR ﮯﮨ ﺎﯿﮔ ﺎﯾﺎﻨﺑ ﺮﯿﻐﺑ ﮯﮐ ﺕﺎﯿﺻﻮﺼﺧ"
-
-
 msgid "Start VR Session"
 msgstr "VR ﮟﯾﺮﮐ ﻉﻭﺮﺷ ﻦﺸﯿﺳ"
 
@@ -115544,10 +115528,6 @@ msgstr "؟ﮟﯾﺮﮐ ﭧﺋﺍﺭ ﺭﻭﻭﺍ ﻮﮐ ﻞﺋﺎﻓ ﮦﺩﻮ�
 
 msgid "Installing keymap failed: {:s}"
 msgstr "{s:} :ﺎﯿﮔ ﻮﮨ ﻡﺎﮐﺎﻧ ﺎﻧﺮﮐ ﻝﺎﭩﺴﻧﺍ ﻮﮐ ﭗﯿﻣ ﯽﮐ"
-
-
-msgid "This script was written Blender version {:d}.{:d}.{:d} and might not function (correctly), though it is enabled"
-msgstr "ﮯﮨ ﻝﺎﻌﻓ ﮧﯾ ﮧﮑﻧﻻ﻿ﺎﺣ ،ﮮﺮﮐ ﮧﻧ ﻡﺎﮐ (ﮯﺳ ﮯﻘﯾﺮﻃ ﺖﺳﺭﺩ) ﮯﮨ ﺎﺘﮑﺳ ﻮﮨ ﺭﻭﺍ ﺎﮭﺗ ﺎﯿﮔ ﺎﮭﮑﻟ {d} {:d} {:d:} ﻥﮊﺭﻭ ﺭﮉﻨﯿﻠﺑ ﭧﭘﺮﮑﺳﺍ ﮧﯾ"
 
 
 msgid "File already installed to {!r}"
@@ -126252,10 +126232,6 @@ msgid "OS"
 msgstr "OS"
 
 
-msgid "Home"
-msgstr "Home"
-
-
 msgid "Esc"
 msgstr "Esc"
 
@@ -126417,10 +126393,6 @@ msgstr "{} :ﺰﻨﯾﮉﯾﺭ"
 
 msgid "Expression: {}"
 msgstr "{} :ﺭﺎﮩﻇﺍ"
-
-
-msgid "Library: {}"
-msgstr "{} :ﯼﺮﯾﺮﺒﺋﻻ﻿"
 
 
 msgid "Disabled: {}"
@@ -129245,10 +129217,6 @@ msgid "Scene has no camera"
 msgstr "ﮯﮨ ﮟﯿﮩﻧ ﮦﺮﻤﯿﮐ ﯽﺋﻮﮐ ﮟﯿﻣ ﻦﯿﺳ"
 
 
-msgid "Movie format unsupported"
-msgstr "ﮯﮨ ﮧﺘﻓﺎﯾ ﻥﻭﺎﻌﺗ ﺮﯿﻏ ﭧﯿﻣﺭﺎﻓ ﯼﻭﻮﻣ"
-
-
 msgid "Failed to create OpenGL off-screen buffer, %s"
 msgstr "‬%s‪ ،ﻡﺎﮐﺎﻧ ﮟﯿﻣ ﮯﻧﺎﻨﺑ ﺮﻔﺑ ﻦﯾﺮﮑﺳﺍ ﻑﺁ ﻞﯾﺍ ﯽﺟ ﻦﭘﻭﺍ"
 
@@ -130407,6 +130375,10 @@ msgstr "ﮒﻼ﻿ﭩﯿﮐ ﮧﺛﺎﺛﺍ"
 
 msgid "Date Modified"
 msgstr "ﺦﯾﺭﺎﺗ ﯽﮐ ﻢﯿﻣﺮﺗ"
+
+
+msgid "Home"
+msgstr "Home"
 
 
 msgid "Desktop"

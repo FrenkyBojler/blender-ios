@@ -611,6 +611,7 @@ static const EnumPropertyItem node_cryptomatte_layer_name_items[] = {
 #  include "BKE_image.hh"
 #  include "BKE_main_invariants.hh"
 #  include "BKE_node_legacy_types.hh"
+#  include "BKE_node_runtime.hh"
 #  include "BKE_node_tree_update.hh"
 #  include "BKE_report.hh"
 #  include "BKE_scene.hh"
@@ -1328,7 +1329,7 @@ static void rna_NodeTree_active_node_set(PointerRNA *ptr,
     if (node->typeinfo->nclass == NODE_CLASS_OUTPUT && node->type_legacy != CMP_NODE_OUTPUT_FILE) {
       /* If this node becomes the active output, the others of the same type can't be the active
        * output anymore. */
-      LISTBASE_FOREACH (bNode *, other_node, &ntree->nodes) {
+      for (bNode *other_node : ntree->all_nodes()) {
         if (other_node->type_legacy == node->type_legacy) {
           other_node->flag &= ~NODE_DO_OUTPUT;
         }
@@ -1343,18 +1344,40 @@ static void rna_NodeTree_active_node_set(PointerRNA *ptr,
   }
 }
 
-static void rna_Node_shortcut_node_set(PointerRNA *ptr, int value)
+static void node_viewer_set_shortcut_fn(bNode *node, bNodeTree &ntree, int value)
+{
+  /* Avoid having two nodes with the same shortcut. */
+  for (bNode *other_node : ntree.all_nodes()) {
+    if ((other_node->is_type("CompositorNodeViewer") ||
+         other_node->is_type("GeometryNodeViewer")) &&
+        other_node->custom1 == value)
+    {
+      other_node->custom1 = NODE_VIEWER_SHORTCUT_NONE;
+    }
+  }
+  node->custom1 = value;
+}
+
+void rna_Node_Viewer_shortcut_node_set(PointerRNA *ptr, PropertyRNA * /*prop*/, int value)
 {
   bNode *curr_node = static_cast<bNode *>(ptr->data);
   bNodeTree &ntree = curr_node->owner_tree();
 
-  /* Avoid having two nodes with the same shortcut. */
-  for (bNode *node : ntree.all_nodes()) {
-    if (node->is_type("CompositorNodeViewer") && node->custom1 == value) {
-      node->custom1 = NODE_VIEWER_SHORTCUT_NONE;
-    }
-  }
-  curr_node->custom1 = value;
+  node_viewer_set_shortcut_fn(curr_node, ntree, value);
+}
+
+int rna_Node_Viewer_shortcut_node_get(PointerRNA *ptr, PropertyRNA * /*prop*/)
+{
+  bNode *curr_node = static_cast<bNode *>(ptr->data);
+  return curr_node->custom1;
+}
+
+void rna_Node_Viewer_shortcut_node_set(PointerRNA *ptr, int value)
+{
+  bNode *curr_node = static_cast<bNode *>(ptr->data);
+  bNodeTree &ntree = curr_node->owner_tree();
+
+  node_viewer_set_shortcut_fn(curr_node, ntree, value);
 }
 
 static bNodeLink *rna_NodeTree_link_new(bNodeTree *ntree,
@@ -2125,7 +2148,7 @@ static void geometry_node_asset_trait_flag_set(PointerRNA *ptr,
 {
   bNodeTree *ntree = static_cast<bNodeTree *>(ptr->data);
   if (!ntree->geometry_node_asset_traits) {
-    ntree->geometry_node_asset_traits = MEM_cnew<GeometryNodeAssetTraits>(__func__);
+    ntree->geometry_node_asset_traits = MEM_callocN<GeometryNodeAssetTraits>(__func__);
   }
   SET_FLAG_FROM_TEST(ntree->geometry_node_asset_traits->flag, value, flag);
 }
@@ -4371,7 +4394,7 @@ static void rna_ShaderNode_is_active_output_set(PointerRNA *ptr, bool value)
   if (value) {
     /* If this node becomes the active output, the others of the same type can't be the active
      * output anymore. */
-    LISTBASE_FOREACH (bNode *, other_node, &ntree->nodes) {
+    for (bNode *other_node : ntree->all_nodes()) {
       if (other_node->type_legacy == node->type_legacy) {
         other_node->flag &= ~NODE_DO_OUTPUT;
       }
@@ -4389,7 +4412,7 @@ static void rna_GroupOutput_is_active_output_set(PointerRNA *ptr, bool value)
   bNode *node = static_cast<bNode *>(ptr->data);
   if (value) {
     /* Make sure that no other group output is active at the same time. */
-    LISTBASE_FOREACH (bNode *, other_node, &ntree->nodes) {
+    for (bNode *other_node : ntree->all_nodes()) {
       if (other_node->is_group_output()) {
         other_node->flag &= ~NODE_DO_OUTPUT;
       }
@@ -4525,8 +4548,7 @@ void rna_ShaderNodePointDensity_density_calc(bNode *self,
   *values_num = 4 * resolution * resolution * resolution;
 
   if (*values == nullptr) {
-    *values = static_cast<float *>(
-        MEM_mallocN(sizeof(float) * (*values_num), "point density dynamic array"));
+    *values = MEM_malloc_arrayN<float>(size_t(*values_num), "point density dynamic array");
   }
 
   /* Single-threaded sampling of the voxel domain. */
@@ -8287,7 +8309,8 @@ static void def_cmp_glare(BlenderRNA * /*brna*/, StructRNA *srna)
 
   prop = RNA_def_property(srna, "use_rotate_45", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "star_45", 0);
-  RNA_def_property_ui_text(prop, "Rotate 45", "Simple star filter: add 45 degree rotation offset");
+  RNA_def_property_ui_text(
+      prop, "Rotate 45°", "Simple star filter: add 45 degree rotation offset");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 
   prop = RNA_def_property(srna, "size", PROP_INT, PROP_NONE);
@@ -9164,7 +9187,7 @@ static void def_cmp_viewer(BlenderRNA * /*brna*/, StructRNA *srna)
 
   prop = RNA_def_property(srna, "ui_shortcut", PROP_INT, PROP_NONE);
   RNA_def_property_int_sdna(prop, nullptr, "custom1");
-  RNA_def_property_int_funcs(prop, nullptr, "rna_Node_shortcut_node_set", nullptr);
+  RNA_def_property_int_funcs(prop, nullptr, "rna_Node_Viewer_shortcut_node_set", nullptr);
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_override_flag(prop, PROPOVERRIDE_IGNORE);
   RNA_def_property_int_default(prop, NODE_VIEWER_SHORTCUT_NONE);
@@ -11213,14 +11236,14 @@ static void rna_def_node(BlenderRNA *brna)
   prop = RNA_def_property(srna, "location", PROP_FLOAT, PROP_XYZ);
   RNA_def_property_array(prop, 2);
   RNA_def_property_float_funcs(prop, "rna_Node_location_get", "rna_Node_location_set", nullptr);
-  RNA_def_property_range(prop, -100000.0f, 100000.0f);
+  RNA_def_property_range(prop, -1000000.0f, 1000000.0f);
   RNA_def_property_ui_text(prop, "Location", "Location of the node within its parent frame");
   RNA_def_property_update(prop, NC_NODE, "rna_Node_update");
 
   prop = RNA_def_property(srna, "location_absolute", PROP_FLOAT, PROP_XYZ);
   RNA_def_property_float_sdna(prop, nullptr, "location");
   RNA_def_property_array(prop, 2);
-  RNA_def_property_range(prop, -100000.0f, 100000.0f);
+  RNA_def_property_range(prop, -1000000.0f, 1000000.0f);
   RNA_def_property_ui_text(prop, "Absolute Location", "Location of the node in the entire canvas");
   RNA_def_property_update(prop, NC_NODE, "rna_Node_update");
 
@@ -12293,6 +12316,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("CompositorNode", "CompositorNodeKeyingScreen", def_cmp_keyingscreen);
   define("CompositorNode", "CompositorNodeKuwahara", def_cmp_kuwahara);
   define("CompositorNode", "CompositorNodeLensdist", def_cmp_lensdist);
+  define("CompositorNode", "CompositorNodeImageInfo");
   define("CompositorNode", "CompositorNodeLevels", def_cmp_levels);
   define("CompositorNode", "CompositorNodeLumaMatte", def_cmp_luma_matte);
   define("CompositorNode", "CompositorNodeMapRange", def_cmp_map_range);
@@ -12484,6 +12508,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("GeometryNode", "GeometryNodeImportPLY");
   define("GeometryNode", "GeometryNodeImportSTL");
   define("GeometryNode", "GeometryNodeImportCSV");
+  define("GeometryNode", "GeometryNodeImportText");
   define("GeometryNode", "GeometryNodeIndexOfNearest");
   define("GeometryNode", "GeometryNodeIndexSwitch", def_geo_index_switch);
   define("GeometryNode", "GeometryNodeInputActiveCamera");

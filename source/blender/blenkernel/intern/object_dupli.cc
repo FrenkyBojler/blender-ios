@@ -258,7 +258,7 @@ static DupliObject *make_dupli(const DupliContext *ctx,
 
   /* Add a #DupliObject instance to the result container. */
   if (ctx->duplilist) {
-    dob = MEM_cnew<DupliObject>("dupli object");
+    dob = MEM_callocN<DupliObject>("dupli object");
     BLI_addtail(ctx->duplilist, dob);
   }
   else {
@@ -1494,8 +1494,7 @@ static void make_duplis_particle_system(const DupliContext *ctx, ParticleSystem 
         FOREACH_COLLECTION_VISIBLE_OBJECT_RECURSIVE_END;
       }
 
-      oblist = (Object **)MEM_callocN(size_t(totcollection) * sizeof(Object *),
-                                      "dupcollection object list");
+      oblist = MEM_calloc_arrayN<Object *>(size_t(totcollection), "dupcollection object list");
 
       if (use_collection_count) {
         a = 0;
@@ -1786,7 +1785,7 @@ static const DupliGenerator *get_dupli_generator(const DupliContext *ctx)
 
 ListBase *object_duplilist(Depsgraph *depsgraph, Scene *sce, Object *ob)
 {
-  ListBase *duplilist = MEM_cnew<ListBase>("duplilist");
+  ListBase *duplilist = MEM_callocN<ListBase>("duplilist");
   DupliContext ctx;
   Vector<Object *> instance_stack;
   Vector<short> dupli_gen_type_stack({0});
@@ -1805,7 +1804,7 @@ ListBase *object_duplilist_preview(Depsgraph *depsgraph,
                                    Object *ob_eval,
                                    const ViewerPath *viewer_path)
 {
-  ListBase *duplilist = MEM_cnew<ListBase>("duplilist");
+  ListBase *duplilist = MEM_callocN<ListBase>("duplilist");
   DupliContext ctx;
   Vector<Object *> instance_stack;
   Vector<short> dupli_gen_type_stack({0});

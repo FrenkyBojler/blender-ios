@@ -109,7 +109,10 @@ static void mesh_copy_data(Main *bmain,
 
   mesh_dst->runtime = new blender::bke::MeshRuntime();
   mesh_dst->runtime->deformed_only = mesh_src->runtime->deformed_only;
-  mesh_dst->runtime->wrapper_type = mesh_src->runtime->wrapper_type;
+  /* Subd runtime.mesh_eval is not copied, will need to be reevaluated. */
+  mesh_dst->runtime->wrapper_type = (mesh_src->runtime->wrapper_type == ME_WRAPPER_TYPE_SUBD) ?
+                                        ME_WRAPPER_TYPE_MDATA :
+                                        mesh_src->runtime->wrapper_type;
   mesh_dst->runtime->subsurf_runtime_data = mesh_src->runtime->subsurf_runtime_data;
   mesh_dst->runtime->cd_mask_extra = mesh_src->runtime->cd_mask_extra;
   /* Copy face dot tags and edge tags, since meshes may be duplicated after a subsurf modifier or
@@ -559,6 +562,39 @@ void mesh_ensure_required_data_layers(Mesh &mesh)
   attributes.add(".corner_edge", AttrDomain::Corner, CD_PROP_INT32, attribute_init);
 }
 
+static bool meta_data_matches(const std::optional<bke::AttributeMetaData> meta_data,
+                              const AttrDomainMask domains,
+                              const eCustomDataMask types)
+{
+  if (!meta_data) {
+    return false;
+  }
+  if (!(ATTR_DOMAIN_AS_MASK(meta_data->domain) & domains)) {
+    return false;
+  }
+  if (!(CD_TYPE_AS_MASK(meta_data->data_type) & types)) {
+    return false;
+  }
+  return true;
+}
+
+void mesh_remove_invalid_attribute_strings(Mesh &mesh)
+{
+  bke::AttributeAccessor attributes = mesh.attributes();
+  if (!meta_data_matches(attributes.lookup_meta_data(mesh.active_color_attribute),
+                         ATTR_DOMAIN_MASK_COLOR,
+                         CD_MASK_COLOR_ALL))
+  {
+    MEM_SAFE_FREE(mesh.active_color_attribute);
+  }
+  if (!meta_data_matches(attributes.lookup_meta_data(mesh.default_color_attribute),
+                         ATTR_DOMAIN_MASK_COLOR,
+                         CD_MASK_COLOR_ALL))
+  {
+    MEM_SAFE_FREE(mesh.default_color_attribute);
+  }
+}
+
 }  // namespace blender::bke
 
 void BKE_mesh_free_data_for_undo(Mesh *mesh)
@@ -644,8 +680,7 @@ void BKE_mesh_face_offsets_ensure_alloc(Mesh *mesh)
   if (mesh->faces_num == 0) {
     return;
   }
-  mesh->face_offset_indices = static_cast<int *>(
-      MEM_malloc_arrayN(mesh->faces_num + 1, sizeof(int), __func__));
+  mesh->face_offset_indices = MEM_malloc_arrayN<int>(size_t(mesh->faces_num) + 1, __func__);
   mesh->runtime->face_offsets_sharing_info = blender::implicit_sharing::info_for_mem_free(
       mesh->face_offset_indices);
 
@@ -1442,8 +1477,7 @@ void BKE_mesh_mselect_validate(Mesh *mesh)
   }
 
   mselect_src = mesh->mselect;
-  mselect_dst = (MSelect *)MEM_malloc_arrayN(
-      (mesh->totselect), sizeof(MSelect), "Mesh selection history");
+  mselect_dst = MEM_malloc_arrayN<MSelect>(size_t(mesh->totselect), "Mesh selection history");
 
   const AttributeAccessor attributes = mesh->attributes();
   const VArray<bool> select_vert = *attributes.lookup_or_default<bool>(

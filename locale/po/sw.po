@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.4.0 Beta (b'63c460d93d55')\n"
+"Project-Id-Version: Blender 4.4.0 Release Candidate (b'f896f7ffc32a')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-02-24 09:56+0000\n"
+"POT-Creation-Date: 2025-03-17 16:18+0000\n"
 "PO-Revision-Date: 2024-07-05 18:56+0000\n"
 "Last-Translator: Isaac Gicheha <shwaky3@gmail.com>\n"
 "Language-Team: Swahili <https://translate.blender.org/projects/blender-ui/ui/sw/>\n"
@@ -568,14 +568,6 @@ msgstr "Sambaza kumbukumbu kwenye vifaa"
 
 msgid "Make more room for large scenes to fit by distributing memory across interconnected devices (e.g. via NVLink) rather than duplicating it"
 msgstr "Tafuta nafasi zaidi ya matukio makubwa kutoshea kwa kusambaza kumbukumbu kwenye vifaa vilivyounganishwa (k.m. kupitia NVLink) badala ya kuiiga"
-
-
-msgid "HIP RT (Experimental)"
-msgstr "HIP RT (Majaribio)"
-
-
-msgid "HIP RT enables AMD hardware ray tracing on RDNA2 and above, with shader fallback on older cards. This feature is experimental and some scenes may render incorrectly"
-msgstr "HIP RT huwezesha ufuatiliaji wa miale ya maunzi ya AMD kwenye RDNA2 na hapo juu, na urejesho wa shader kwenye kadi za zamani. Kipengele hiki ni cha majaribio na baadhi ya matukio yanaweza kutoa kimakosa"
 
 
 msgid "Embree on GPU"
@@ -25109,11 +25101,6 @@ msgid "Global starting frame of the sequence, assuming first has a #1"
 msgstr "Fremu ya kuanzia ya kimataifa ya mfuatano, ikizingatiwa kwanza ina a"
 
 
-msgctxt "Sequence"
-msgid "Clip"
-msgstr "Klipu"
-
-
 msgid "Window Manager"
 msgstr "Meneja wa Dirisha"
 
@@ -28789,12 +28776,16 @@ msgid "Editor menu containing buttons"
 msgstr "Menyu ya mhariri iliyo na vitufe"
 
 
-msgid "Mirror"
-msgstr "Kioo"
+msgid "Pivot Point"
+msgstr "Egemeo"
 
 
 msgid "Snap"
 msgstr "Picha"
+
+
+msgid "Mirror"
+msgstr "Kioo"
 
 
 msgid "Navigation"
@@ -28843,10 +28834,6 @@ msgstr "Unganisha"
 
 msgid "Text"
 msgstr "Maandishi"
-
-
-msgid "Pivot Point"
-msgstr "Egemeo"
 
 
 msgid "Keyframe Insert Pie"
@@ -55135,6 +55122,10 @@ msgid "Set all stroke points to same opacity"
 msgstr "Weka alama zote za kiharusi kwa uwazi sawa"
 
 
+msgid "Fill Opacity"
+msgstr "Uwazi wa Kujaza"
+
+
 msgctxt "Operator"
 msgid "Set Uniform Thickness"
 msgstr "Weka Unene Sare"
@@ -71223,10 +71214,6 @@ msgstr "Iliyorekebishwa"
 
 msgid "Exports UVs from the modified mesh"
 msgstr "Husafirisha UV kutoka kwa matundu yaliyorekebishwa"
-
-
-msgid "Fill Opacity"
-msgstr "Uwazi wa Kujaza"
 
 
 msgid "Set amount of opacity for exported UV layout"
@@ -87876,6 +87863,11 @@ msgstr "Sinema"
 
 
 msgctxt "Sequence"
+msgid "Clip"
+msgstr "Klipu"
+
+
+msgctxt "Sequence"
 msgid "Sound"
 msgstr "Sauti"
 
@@ -96332,10 +96324,6 @@ msgid "and NVIDIA driver version %s or newer"
 msgstr "na toleo la kiendeshi la NVIDIA %s au jipya zaidi"
 
 
-msgid "and AMD Radeon Pro %s driver or newer"
-msgstr "na dereva wa AMD Radeon Pro %s au mpya zaidi"
-
-
 msgid "Requires Intel GPU with Xe-HPG architecture"
 msgstr "Inahitaji Intel GPU yenye usanifu wa Xe-HPG"
 
@@ -97020,10 +97008,6 @@ msgstr "Mipangilio hapa inaweza kuwa na umuhimu"
 
 msgid "performance impact!"
 msgstr "athari ya utendaji!"
-
-
-msgid "Built without VR/OpenXR features"
-msgstr "Imejengwa bila vipengele vya VR/OpenXR"
 
 
 msgid "Start VR Session"
@@ -106122,10 +106106,6 @@ msgid "Failed to find '%s'"
 msgstr "Imeshindwa kupata '%s'"
 
 
-msgid "Home"
-msgstr "Nyumbani"
-
-
 msgid "Animate property"
 msgstr "Huisha mali"
 
@@ -108614,10 +108594,6 @@ msgid "Scene has no camera"
 msgstr "Mandhari haina kamera"
 
 
-msgid "Movie format unsupported"
-msgstr "Muundo wa filamu hautumiki"
-
-
 msgid "Failed to create OpenGL off-screen buffer, %s"
 msgstr "Imeshindwa kuunda bafa ya OpenGL nje ya skrini, %s"
 
@@ -109564,6 +109540,10 @@ msgstr "Katalogi za Mali"
 
 msgid "Date Modified"
 msgstr "Tarehe Iliyorekebishwa"
+
+
+msgid "Home"
+msgstr "Nyumbani"
 
 
 msgid "Desktop"

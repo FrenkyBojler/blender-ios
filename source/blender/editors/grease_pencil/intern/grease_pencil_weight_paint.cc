@@ -300,7 +300,7 @@ static int lookup_or_add_deform_group_index(CurvesGeometry &curves, const String
 
   /* Lazily add the vertex group. */
   if (def_nr == -1) {
-    bDeformGroup *defgroup = MEM_cnew<bDeformGroup>(__func__);
+    bDeformGroup *defgroup = MEM_callocN<bDeformGroup>(__func__);
     name.copy_utf8_truncated(defgroup->name);
     BLI_addtail(&curves.vertex_group_names, defgroup);
     def_nr = BLI_listbase_count(&curves.vertex_group_names) - 1;
@@ -560,7 +560,7 @@ static void GREASE_PENCIL_OT_weight_sample(wmOperatorType *ot)
   ot->flag = OPTYPE_UNDO | OPTYPE_DEPENDS_ON_CURSOR;
 }
 
-static int toggle_weight_tool_direction(bContext *C, wmOperator * /*op*/)
+static int toggle_weight_tool_direction_exec(bContext *C, wmOperator * /*op*/)
 {
   Paint *paint = BKE_paint_get_active_from_context(C);
   Brush *brush = BKE_paint_brush(paint);
@@ -601,7 +601,7 @@ static void GREASE_PENCIL_OT_weight_toggle_direction(wmOperatorType *ot)
 
   /* Callbacks. */
   ot->poll = toggle_weight_tool_direction_poll;
-  ot->exec = toggle_weight_tool_direction;
+  ot->exec = toggle_weight_tool_direction_exec;
 
   /* Flags. */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;

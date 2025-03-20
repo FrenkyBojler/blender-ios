@@ -6,6 +6,7 @@
 
 #include "DNA_camera_types.h"
 #include "DRW_render.hh"
+#include "GPU_shader.hh"
 #include "draw_manager.hh"
 #include "draw_pass.hh"
 
@@ -15,43 +16,13 @@
 
 #include "GPU_capabilities.hh"
 
-extern "C" DrawEngineType draw_engine_workbench;
-
 namespace blender::workbench {
 
 using namespace draw;
-
-class StaticShader : NonCopyable {
- private:
-  std::string info_name_;
-  GPUShader *shader_ = nullptr;
-
- public:
-  StaticShader(std::string info_name) : info_name_(info_name) {}
-
-  StaticShader() = default;
-  StaticShader(StaticShader &&other) = default;
-  StaticShader &operator=(StaticShader &&other) = default;
-
-  ~StaticShader()
-  {
-    GPU_SHADER_FREE_SAFE(shader_);
-  }
-
-  GPUShader *get()
-  {
-    if (!shader_) {
-      BLI_assert(!info_name_.empty());
-      shader_ = GPU_shader_create_from_info_name(info_name_.c_str());
-    }
-    return shader_;
-  }
-};
+using StaticShader = gpu::StaticShader;
 
 class ShaderCache {
  private:
-  static ShaderCache *static_cache;
-
   StaticShader prepass_[geometry_type_len][pipeline_type_len][lighting_type_len][shader_type_len]
                        [2 /*clip*/];
   StaticShader resolve_[lighting_type_len][2 /*cavity*/][2 /*curvature*/][2 /*shadow*/];
@@ -60,9 +31,21 @@ class ShaderCache {
 
   StaticShader volume_[2 /*smoke*/][3 /*interpolation*/][2 /*coba*/][2 /*slice*/];
 
+  static gpu::StaticShaderCache<ShaderCache> &get_static_cache()
+  {
+    static gpu::StaticShaderCache<ShaderCache> static_cache;
+    return static_cache;
+  }
+
  public:
-  static ShaderCache &get();
-  static void release();
+  static ShaderCache &get()
+  {
+    return get_static_cache().get();
+  }
+  static void release()
+  {
+    get_static_cache().release();
+  }
 
   ShaderCache();
 
@@ -179,7 +162,7 @@ struct SceneState {
   /* When r == -1.0 the shader uses the vertex color */
   Material material_attribute_color = Material(float3(-1.0f));
 
-  void init(Object *camera_ob = nullptr);
+  void init(const DRWContext *context, bool scene_updated, Object *camera_ob = nullptr);
 };
 
 struct MaterialTexture {
@@ -204,7 +187,10 @@ struct ObjectState {
   bool use_per_material_batches = false;
   bool sculpt_pbvh = false;
 
-  ObjectState(const SceneState &scene_state, const SceneResources &resources, Object *ob);
+  ObjectState(const DRWContext *draw_ctx,
+              const SceneState &scene_state,
+              const SceneResources &resources,
+              Object *ob);
 };
 
 class CavityEffect {
@@ -309,7 +295,7 @@ struct SceneResources {
     GPU_BATCH_DISCARD_SAFE(volume_cube_batch);
   }
 
-  void init(const SceneState &scene_state);
+  void init(const SceneState &scene_state, const DRWContext *ctx);
   void load_jitter_tx(int total_samples);
 };
 
@@ -559,8 +545,8 @@ class DofPass {
   float ratio_ = 0;
 
  public:
-  void init(const SceneState &scene_state);
-  void sync(SceneResources &resources);
+  void init(const SceneState &scene_state, const DRWContext *draw_ctx);
+  void sync(SceneResources &resources, const DRWContext *draw_ctx);
   void draw(Manager &manager, View &view, SceneResources &resources, int2 resolution);
   bool is_enabled();
 
@@ -609,6 +595,7 @@ class AntiAliasingPass {
   void sync(const SceneState &scene_state, SceneResources &resources);
   void setup_view(View &view, const SceneState &scene_state);
   void draw(
+      const DRWContext *draw_ctx,
       Manager &manager,
       View &view,
       const SceneState &scene_state,

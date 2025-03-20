@@ -1372,7 +1372,7 @@ Palette *BKE_palette_add(Main *bmain, const char *name)
 
 PaletteColor *BKE_palette_color_add(Palette *palette)
 {
-  PaletteColor *color = MEM_cnew<PaletteColor>(__func__);
+  PaletteColor *color = MEM_callocN<PaletteColor>(__func__);
   BLI_addtail(&palette->colors, color);
   return color;
 }
@@ -1526,8 +1526,7 @@ bool BKE_palette_from_hash(Main *bmain, GHash *color_table, const char *name, co
   const int totpal = BLI_ghash_len(color_table);
 
   if (totpal > 0) {
-    color_array = static_cast<tPaletteColorHSV *>(
-        MEM_calloc_arrayN(totpal, sizeof(tPaletteColorHSV), __func__));
+    color_array = MEM_calloc_arrayN<tPaletteColorHSV>(size_t(totpal), __func__);
     /* Put all colors in an array. */
     GHashIterator gh_iter;
     int t = 0;
@@ -1690,34 +1689,34 @@ bool BKE_paint_ensure(ToolSettings *ts, Paint **r_paint)
   }
 
   if (((VPaint **)r_paint == &ts->vpaint) || ((VPaint **)r_paint == &ts->wpaint)) {
-    VPaint *data = MEM_cnew<VPaint>(__func__);
+    VPaint *data = MEM_callocN<VPaint>(__func__);
     paint = &data->paint;
   }
   else if ((Sculpt **)r_paint == &ts->sculpt) {
-    Sculpt *data = MEM_cnew<Sculpt>(__func__);
+    Sculpt *data = MEM_callocN<Sculpt>(__func__);
 
     *data = *DNA_struct_default_get(Sculpt);
 
     paint = &data->paint;
   }
   else if ((GpPaint **)r_paint == &ts->gp_paint) {
-    GpPaint *data = MEM_cnew<GpPaint>(__func__);
+    GpPaint *data = MEM_callocN<GpPaint>(__func__);
     paint = &data->paint;
   }
   else if ((GpVertexPaint **)r_paint == &ts->gp_vertexpaint) {
-    GpVertexPaint *data = MEM_cnew<GpVertexPaint>(__func__);
+    GpVertexPaint *data = MEM_callocN<GpVertexPaint>(__func__);
     paint = &data->paint;
   }
   else if ((GpSculptPaint **)r_paint == &ts->gp_sculptpaint) {
-    GpSculptPaint *data = MEM_cnew<GpSculptPaint>(__func__);
+    GpSculptPaint *data = MEM_callocN<GpSculptPaint>(__func__);
     paint = &data->paint;
   }
   else if ((GpWeightPaint **)r_paint == &ts->gp_weightpaint) {
-    GpWeightPaint *data = MEM_cnew<GpWeightPaint>(__func__);
+    GpWeightPaint *data = MEM_callocN<GpWeightPaint>(__func__);
     paint = &data->paint;
   }
   else if ((CurvesSculpt **)r_paint == &ts->curves_sculpt) {
-    CurvesSculpt *data = MEM_cnew<CurvesSculpt>(__func__);
+    CurvesSculpt *data = MEM_callocN<CurvesSculpt>(__func__);
     paint = &data->paint;
   }
   else if (*r_paint == &ts->imapaint.paint) {
@@ -2614,8 +2613,7 @@ void BKE_sculpt_mask_layers_ensure(Depsgraph *depsgraph,
       GridPaintMask *gpm = &gmask[i];
 
       gpm->level = level;
-      gpm->data = static_cast<float *>(
-          MEM_callocN(sizeof(float) * gridarea, "GridPaintMask.data"));
+      gpm->data = MEM_calloc_arrayN<float>(size_t(gridarea), "GridPaintMask.data");
     }
 
     /* If vertices already have mask, copy into multires data. */

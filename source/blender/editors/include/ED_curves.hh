@@ -119,7 +119,9 @@ void ensure_surface_deformation_node_exists(bContext &C, Object &curves_ob);
  * `ED_transverts_create_from_obedit` in `view3d_snap.cc`).
  * \note The `TransVert` elements in \a tvs are expected to write to the positions of \a curves.
  */
-void transverts_from_curves_positions_create(bke::CurvesGeometry &curves, TransVertStore *tvs);
+void transverts_from_curves_positions_create(bke::CurvesGeometry &curves,
+                                             TransVertStore *tvs,
+                                             const bool skip_handles);
 
 /* -------------------------------------------------------------------- */
 /** \name Poll Functions
@@ -451,7 +453,7 @@ void resize_curves(bke::CurvesGeometry &curves,
  */
 void reorder_curves(bke::CurvesGeometry &curves, Span<int> old_by_new_indices_map);
 
-int join_objects(bContext *C, wmOperator *op);
+int join_objects_exec(bContext *C, wmOperator *op);
 
 /** \} */
 

@@ -511,6 +511,21 @@ static const EnumPropertyItem fileselectparams_recursion_level_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
+static const EnumPropertyItem fileselectparams_display_type_items[] = {
+    {FILE_VERTICALDISPLAY,
+     "LIST_VERTICAL",
+     ICON_LONGDISPLAY,
+     "Vertical List",
+     "Display files as a vertical list"},
+    {FILE_HORIZONTALDISPLAY,
+     "LIST_HORIZONTAL",
+     ICON_SHORTDISPLAY,
+     "Horizontal List",
+     "Display files as a horizontal list"},
+    {FILE_IMGDISPLAY, "THUMBNAIL", ICON_IMGDISPLAY, "Thumbnails", "Display files as thumbnails"},
+    {0, nullptr, 0, nullptr, nullptr},
+};
+
 static const EnumPropertyItem rna_enum_curve_display_handle_items[] = {
     {CURVE_HANDLE_NONE, "NONE", 0, "None", ""},
     {CURVE_HANDLE_SELECTED, "SELECTED", 0, "Selected", ""},
@@ -1446,7 +1461,7 @@ static const EnumPropertyItem *rna_3DViewShading_render_pass_itemf(bContext *C,
   ViewLayer *view_layer = CTX_data_view_layer(C);
 
   const bool aov_available = BKE_view_layer_has_valid_aov(view_layer);
-  const bool eevee_next_active = STREQ(scene->r.engine, "BLENDER_EEVEE_NEXT");
+  const bool eevee_active = STREQ(scene->r.engine, "BLENDER_EEVEE_NEXT");
 
   int totitem = 0;
   EnumPropertyItem *result = nullptr;
@@ -1471,7 +1486,7 @@ static const EnumPropertyItem *rna_3DViewShading_render_pass_itemf(bContext *C,
                   EEVEE_RENDER_PASS_CRYPTOMATTE_OBJECT,
                   EEVEE_RENDER_PASS_CRYPTOMATTE_ASSET,
                   EEVEE_RENDER_PASS_CRYPTOMATTE_MATERIAL) &&
-             !eevee_next_active)
+             !eevee_active)
     {
     }
     else if (!aov_available && STREQ(item->name, "Shader AOV")) {
@@ -2177,19 +2192,20 @@ static int rna_ConsoleLine_body_length(PointerRNA *ptr)
 static void rna_ConsoleLine_body_set(PointerRNA *ptr, const char *value)
 {
   ConsoleLine *ci = (ConsoleLine *)ptr->data;
-  int len = strlen(value);
+  size_t len = strlen(value);
 
-  if ((len >= ci->len_alloc) || (len * 2 < ci->len_alloc)) { /* allocate a new string */
+  if ((len >= size_t(ci->len_alloc)) || (len * 2 < size_t(ci->len_alloc)))
+  { /* allocate a new string */
     MEM_freeN(ci->line);
-    ci->line = static_cast<char *>(MEM_mallocN((len + 1) * sizeof(char), "rna_consoleline"));
-    ci->len_alloc = len + 1;
+    ci->line = MEM_malloc_arrayN<char>(len + 1, "rna_consoleline");
+    ci->len_alloc = int(len + 1);
   }
   memcpy(ci->line, value, len + 1);
-  ci->len = len;
+  ci->len = int(len);
 
-  if (ci->cursor > len) {
+  if (size_t(ci->cursor) > len) {
     /* clamp the cursor */
-    ci->cursor = len;
+    ci->cursor = int(len);
   }
 }
 
@@ -2435,7 +2451,7 @@ static void rna_SpaceConsole_rect_update(Main * /*bmain*/, Scene * /*scene*/, Po
 
 static void rna_SequenceEditor_update_cache(Main * /*bmain*/, Scene *scene, PointerRNA * /*ptr*/)
 {
-  SEQ_cache_cleanup(scene);
+  blender::seq::cache_cleanup(scene);
 }
 
 static void seq_build_proxy(bContext *C, PointerRNA *ptr)
@@ -2446,11 +2462,11 @@ static void seq_build_proxy(bContext *C, PointerRNA *ptr)
 
   SpaceSeq *sseq = static_cast<SpaceSeq *>(ptr->data);
   Scene *scene = CTX_data_scene(C);
-  ListBase *seqbase = SEQ_active_seqbase_get(SEQ_editing_get(scene));
+  ListBase *seqbase = blender::seq::active_seqbase_get(blender::seq::editing_get(scene));
 
   blender::Set<std::string> processed_paths;
-  wmJob *wm_job = ED_seq_proxy_wm_job_get(C);
-  ProxyJob *pj = ED_seq_proxy_job_get(C, wm_job);
+  wmJob *wm_job = blender::seq::ED_seq_proxy_wm_job_get(C);
+  blender::seq::ProxyJob *pj = blender::seq::ED_seq_proxy_job_get(C, wm_job);
 
   LISTBASE_FOREACH (Strip *, strip, seqbase) {
     if (strip->type != STRIP_TYPE_MOVIE || strip->data == nullptr || strip->data->proxy == nullptr)
@@ -2459,10 +2475,11 @@ static void seq_build_proxy(bContext *C, PointerRNA *ptr)
     }
 
     /* Add new proxy size. */
-    strip->data->proxy->build_size_flags |= SEQ_rendersize_to_proxysize(sseq->render_size);
+    strip->data->proxy->build_size_flags |= blender::seq::rendersize_to_proxysize(
+        sseq->render_size);
 
     /* Build proxy. */
-    SEQ_proxy_rebuild_context(
+    blender::seq::proxy_rebuild_context(
         pj->main, pj->depsgraph, pj->scene, strip, &processed_paths, &pj->queue, true);
   }
 
@@ -2871,7 +2888,7 @@ int rna_FileSelectParams_filename_editable(const PointerRNA *ptr, const char **r
   FileSelectParams *params = static_cast<FileSelectParams *>(ptr->data);
 
   if (params && (params->flag & FILE_DIRSEL_ONLY)) {
-    *r_info = "Only directories can be chosen for the current operation.";
+    *r_info = N_("Only directories can be chosen for the current operation.");
     return 0;
   }
 
@@ -2883,6 +2900,31 @@ static bool rna_FileSelectParams_use_lib_get(PointerRNA *ptr)
   FileSelectParams *params = static_cast<FileSelectParams *>(ptr->data);
 
   return params && (params->type == FILE_LOADLIB);
+}
+
+static const EnumPropertyItem *rna_FileSelectParams_display_type_itemf(bContext * /*C*/,
+                                                                       PointerRNA *ptr,
+                                                                       PropertyRNA * /*prop*/,
+                                                                       bool *r_free)
+{
+  if (RNA_struct_is_a(ptr->type, &RNA_FileAssetSelectParams)) {
+    EnumPropertyItem *items = nullptr;
+    int totitem = 0;
+
+    /* Only expose preview and column view for asset browsing. */
+    RNA_enum_items_add_value(
+        &items, &totitem, fileselectparams_display_type_items, FILE_HORIZONTALDISPLAY);
+    RNA_enum_items_add_value(
+        &items, &totitem, fileselectparams_display_type_items, FILE_IMGDISPLAY);
+
+    RNA_enum_item_end(&items, &totitem);
+    *r_free = true;
+
+    return items;
+  }
+
+  *r_free = false;
+  return fileselectparams_display_type_items;
 }
 
 static const EnumPropertyItem *rna_FileSelectParams_recursion_level_itemf(bContext * /*C*/,
@@ -6173,7 +6215,7 @@ static void rna_def_space_sequencer(BlenderRNA *brna)
   RNA_def_property_enum_sdna(prop, nullptr, "view");
   RNA_def_property_enum_items(prop, rna_enum_space_sequencer_view_type_items);
   RNA_def_property_ui_text(
-      prop, "View Type", "Type of the Sequencer view (sequencer, preview or both)");
+      prop, "View Type", "Type of the Sequencer view (blender::seq::SEQuencer, preview or both)");
   RNA_def_property_update(prop, 0, "rna_Sequencer_view_type_update");
 
   /* display type, fairly important */
@@ -6214,7 +6256,7 @@ static void rna_def_space_sequencer(BlenderRNA *brna)
       prop,
       "Display Channel",
       "The channel number shown in the image preview. 0 is the result of all strips combined");
-  RNA_def_property_range(prop, -5, SEQ_MAX_CHANNELS);
+  RNA_def_property_range(prop, -5, blender::seq::MAX_CHANNELS);
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SEQUENCER, "rna_SequenceEditor_update_cache");
 
   prop = RNA_def_property(srna, "preview_channels", PROP_ENUM, PROP_NONE);
@@ -7046,21 +7088,6 @@ static void rna_def_fileselect_params(BlenderRNA *brna)
   StructRNA *srna;
   PropertyRNA *prop;
 
-  static const EnumPropertyItem file_display_items[] = {
-      {FILE_VERTICALDISPLAY,
-       "LIST_VERTICAL",
-       ICON_LONGDISPLAY,
-       "Vertical List",
-       "Display files as a vertical list"},
-      {FILE_HORIZONTALDISPLAY,
-       "LIST_HORIZONTAL",
-       ICON_SHORTDISPLAY,
-       "Horizontal List",
-       "Display files as a horizontal list"},
-      {FILE_IMGDISPLAY, "THUMBNAIL", ICON_IMGDISPLAY, "Thumbnails", "Display files as thumbnails"},
-      {0, nullptr, 0, nullptr, nullptr},
-  };
-
   static const EnumPropertyItem display_size_items[] = {
       {32, "TINY", 0, "Tiny", ""},
       {64, "SMALL", 0, "Small", ""},
@@ -7101,7 +7128,8 @@ static void rna_def_fileselect_params(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "display_type", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, nullptr, "display");
-  RNA_def_property_enum_items(prop, file_display_items);
+  RNA_def_property_enum_items(prop, fileselectparams_display_type_items);
+  RNA_def_property_enum_funcs(prop, nullptr, nullptr, "rna_FileSelectParams_display_type_itemf");
   RNA_def_property_ui_text(prop, "Display Mode", "Display mode for the file list");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_FILE_PARAMS, nullptr);
 
@@ -7260,6 +7288,21 @@ static void rna_def_fileselect_params(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop, "Display Size", "Change the size of thumbnails in discrete steps");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_FILE_LIST, nullptr);
+
+  prop = RNA_def_property(srna, "list_display_size", PROP_INT, PROP_NONE);
+  RNA_def_property_int_sdna(prop, nullptr, "list_thumbnail_size");
+  RNA_def_property_ui_text(prop, "Display Size", "Change the size of thumbnails in list views");
+  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_FILE_LIST, nullptr);
+  RNA_def_property_int_default(prop, 32);
+  RNA_def_property_range(prop, 16, 128);
+  RNA_def_property_ui_range(prop, 16, 128, 1, 0);
+
+  prop = RNA_def_property(srna, "list_column_size", PROP_INT, PROP_NONE);
+  RNA_def_property_ui_text(prop, "Columns Size", "The width of columns in horizontal list views");
+  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_FILE_LIST, nullptr);
+  RNA_def_property_int_default(prop, 32);
+  RNA_def_property_range(prop, 32, 750);
+  RNA_def_property_ui_range(prop, 32, 750, 1, 0);
 }
 
 static void rna_def_fileselect_asset_params(BlenderRNA *brna)
