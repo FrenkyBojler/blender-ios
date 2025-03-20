@@ -87,7 +87,9 @@ static bool wm_link_append_poll(bContext *C)
   return false;
 }
 
-static OperatorStatus wm_link_append_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+static wmOperatorStatus wm_link_append_invoke(bContext *C,
+                                              wmOperator *op,
+                                              const wmEvent * /*event*/)
 {
   if (!RNA_struct_property_is_set(op->ptr, "filepath")) {
     const char *blendfile_path = BKE_main_blendfile_path_from_global();
@@ -193,7 +195,7 @@ static bool wm_link_append_item_poll(ReportList *reports,
   return true;
 }
 
-static OperatorStatus wm_link_append_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus wm_link_append_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
@@ -598,9 +600,9 @@ ID *WM_file_append_datablock(Main *bmain,
 /** \name Library Relocate Operator & Library Reload API
  * \{ */
 
-static OperatorStatus wm_lib_relocate_invoke(bContext *C,
-                                             wmOperator *op,
-                                             const wmEvent * /*event*/)
+static wmOperatorStatus wm_lib_relocate_invoke(bContext *C,
+                                               wmOperator *op,
+                                               const wmEvent * /*event*/)
 {
   Library *lib;
   char lib_name[MAX_NAME];
@@ -675,7 +677,7 @@ void WM_lib_reload(Library *lib, bContext *C, ReportList *reports)
   WM_event_add_notifier(C, NC_WINDOW, nullptr);
 }
 
-static OperatorStatus wm_lib_relocate_exec_do(bContext *C, wmOperator *op, bool do_reload)
+static wmOperatorStatus wm_lib_relocate_exec_do(bContext *C, wmOperator *op, bool do_reload)
 {
   Main *bmain = CTX_data_main(C);
   char lib_name[MAX_NAME];
@@ -816,7 +818,7 @@ static OperatorStatus wm_lib_relocate_exec_do(bContext *C, wmOperator *op, bool 
   return OPERATOR_FINISHED;
 }
 
-static OperatorStatus wm_lib_relocate_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus wm_lib_relocate_exec(bContext *C, wmOperator *op)
 {
   return wm_lib_relocate_exec_do(C, op, false);
 }
@@ -847,7 +849,7 @@ void WM_OT_lib_relocate(wmOperatorType *ot)
                                  FILE_SORT_DEFAULT);
 }
 
-static OperatorStatus wm_lib_reload_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus wm_lib_reload_exec(bContext *C, wmOperator *op)
 {
   return wm_lib_relocate_exec_do(C, op, true);
 }

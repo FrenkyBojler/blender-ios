@@ -140,11 +140,11 @@ wmKeyMap *paint_stroke_modal_keymap(wmKeyConfig *keyconf);
  * 6. Return to step 3 while stroke is ongoing.
  * 7. Call `StrokeDone` when finished to perform any cleanup or finalization.
  */
-OperatorStatus paint_stroke_modal(bContext *C,
-                                  wmOperator *op,
-                                  const wmEvent *event,
-                                  PaintStroke **stroke_p);
-OperatorStatus paint_stroke_exec(bContext *C, wmOperator *op, PaintStroke *stroke);
+wmOperatorStatus paint_stroke_modal(bContext *C,
+                                    wmOperator *op,
+                                    const wmEvent *event,
+                                    PaintStroke **stroke_p);
+wmOperatorStatus paint_stroke_exec(bContext *C, wmOperator *op, PaintStroke *stroke);
 void paint_stroke_cancel(bContext *C, wmOperator *op, PaintStroke *stroke);
 bool paint_stroke_flipped(PaintStroke *stroke);
 bool paint_stroke_inverted(PaintStroke *stroke);

@@ -13,7 +13,7 @@
 /**
  * Operator type return flags: exec(), invoke() modal(), return values.
  */
-enum OperatorStatus {
+enum wmOperatorStatus {
   OPERATOR_RUNNING_MODAL = (1 << 0),
   OPERATOR_CANCELLED = (1 << 1),
   OPERATOR_FINISHED = (1 << 2),
@@ -35,7 +35,7 @@ enum OperatorStatus {
 #define OPERATOR_RETVAL_CHECK(ret) \
   (void)ret, BLI_assert(ret != 0 && (ret & OPERATOR_FLAGS_ALL) == ret)
 
-ENUM_OPERATORS(OperatorStatus, OPERATOR_INTERFACE);
+ENUM_OPERATORS(wmOperatorStatus, OPERATOR_INTERFACE);
 
 /** #wmOperator.flag */
 enum {

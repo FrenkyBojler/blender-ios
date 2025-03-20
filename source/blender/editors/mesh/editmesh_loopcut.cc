@@ -358,7 +358,7 @@ static void loopcut_mouse_move(RingSelOpData *lcd, const int previewlines)
 }
 
 /* called by both init() and exec() */
-static OperatorStatus loopcut_init(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus loopcut_init(bContext *C, wmOperator *op, const wmEvent *event)
 {
   /* Check whether both `rv3d` and `event` is present, this way we allow the loopcut operator to
    * run non-interactively no matter whether the graphical UI is present or not (e.g. from scripts
@@ -484,7 +484,7 @@ static OperatorStatus loopcut_init(bContext *C, wmOperator *op, const wmEvent *e
   return OPERATOR_FINISHED;
 }
 
-static OperatorStatus ringcut_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus ringcut_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   /* When accessed as a tool, get the active edge from the pre-selection gizmo. */
   {
@@ -510,12 +510,12 @@ static OperatorStatus ringcut_invoke(bContext *C, wmOperator *op, const wmEvent 
   return loopcut_init(C, op, event);
 }
 
-static OperatorStatus loopcut_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus loopcut_exec(bContext *C, wmOperator *op)
 {
   return loopcut_init(C, op, nullptr);
 }
 
-static OperatorStatus loopcut_finish(RingSelOpData *lcd, bContext *C, wmOperator *op)
+static wmOperatorStatus loopcut_finish(RingSelOpData *lcd, bContext *C, wmOperator *op)
 {
   /* finish */
   ED_region_tag_redraw(lcd->region);
@@ -540,7 +540,7 @@ static OperatorStatus loopcut_finish(RingSelOpData *lcd, bContext *C, wmOperator
   return OPERATOR_FINISHED;
 }
 
-static OperatorStatus loopcut_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus loopcut_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   if (event->type == NDOF_MOTION) {
     return OPERATOR_PASS_THROUGH;

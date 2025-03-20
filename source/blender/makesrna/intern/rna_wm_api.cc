@@ -120,7 +120,7 @@ static void rna_Operator_enum_search_invoke(bContext *C, wmOperator *op)
 
 static int rna_Operator_ui_popup(bContext *C, wmOperator *op, int width)
 {
-  return OperatorStatus(WM_operator_ui_popup(C, op, width));
+  return wmOperatorStatus(WM_operator_ui_popup(C, op, width));
 }
 
 static bool rna_event_modal_handler_add(bContext *C, ReportList *reports, wmOperator *op)

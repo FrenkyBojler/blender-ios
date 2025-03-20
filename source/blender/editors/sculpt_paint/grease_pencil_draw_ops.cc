@@ -236,9 +236,9 @@ static bool grease_pencil_brush_stroke_poll(bContext *C)
   return true;
 }
 
-static OperatorStatus grease_pencil_brush_stroke_invoke(bContext *C,
-                                                        wmOperator *op,
-                                                        const wmEvent *event)
+static wmOperatorStatus grease_pencil_brush_stroke_invoke(bContext *C,
+                                                          wmOperator *op,
+                                                          const wmEvent *event)
 {
   if (event->tablet.active == EVT_TABLET_ERASER) {
     RNA_enum_set(op->ptr, "mode", BRUSH_STROKE_ERASE);
@@ -268,7 +268,7 @@ static OperatorStatus grease_pencil_brush_stroke_invoke(bContext *C,
     }
     return false;
   }();
-  OperatorStatus return_value = ed::greasepencil::grease_pencil_draw_operator_invoke(
+  wmOperatorStatus return_value = ed::greasepencil::grease_pencil_draw_operator_invoke(
       C, op, use_duplicate_previous_key);
   if (return_value != OPERATOR_RUNNING_MODAL) {
     return return_value;
@@ -292,9 +292,9 @@ static OperatorStatus grease_pencil_brush_stroke_invoke(bContext *C,
   return OPERATOR_RUNNING_MODAL;
 }
 
-static OperatorStatus grease_pencil_brush_stroke_modal(bContext *C,
-                                                       wmOperator *op,
-                                                       const wmEvent *event)
+static wmOperatorStatus grease_pencil_brush_stroke_modal(bContext *C,
+                                                         wmOperator *op,
+                                                         const wmEvent *event)
 {
   return paint_stroke_modal(C, op, event, reinterpret_cast<PaintStroke **>(&op->customdata));
 }
@@ -337,9 +337,9 @@ static bool grease_pencil_sculpt_paint_poll(bContext *C)
   return true;
 }
 
-static OperatorStatus grease_pencil_sculpt_paint_invoke(bContext *C,
-                                                        wmOperator *op,
-                                                        const wmEvent *event)
+static wmOperatorStatus grease_pencil_sculpt_paint_invoke(bContext *C,
+                                                          wmOperator *op,
+                                                          const wmEvent *event)
 {
   const Scene *scene = CTX_data_scene(C);
   const Object *object = CTX_data_active_object(C);
@@ -402,9 +402,9 @@ static OperatorStatus grease_pencil_sculpt_paint_invoke(bContext *C,
   return OPERATOR_RUNNING_MODAL;
 }
 
-static OperatorStatus grease_pencil_sculpt_paint_modal(bContext *C,
-                                                       wmOperator *op,
-                                                       const wmEvent *event)
+static wmOperatorStatus grease_pencil_sculpt_paint_modal(bContext *C,
+                                                         wmOperator *op,
+                                                         const wmEvent *event)
 {
   return paint_stroke_modal(C, op, event, reinterpret_cast<PaintStroke **>(&op->customdata));
 }
@@ -447,9 +447,9 @@ static bool grease_pencil_weight_brush_stroke_poll(bContext *C)
   return true;
 }
 
-static OperatorStatus grease_pencil_weight_brush_stroke_invoke(bContext *C,
-                                                               wmOperator *op,
-                                                               const wmEvent *event)
+static wmOperatorStatus grease_pencil_weight_brush_stroke_invoke(bContext *C,
+                                                                 wmOperator *op,
+                                                                 const wmEvent *event)
 {
   const Scene *scene = CTX_data_scene(C);
   const Object *object = CTX_data_active_object(C);
@@ -495,9 +495,9 @@ static OperatorStatus grease_pencil_weight_brush_stroke_invoke(bContext *C,
   return OPERATOR_RUNNING_MODAL;
 }
 
-static OperatorStatus grease_pencil_weight_brush_stroke_modal(bContext *C,
-                                                              wmOperator *op,
-                                                              const wmEvent *event)
+static wmOperatorStatus grease_pencil_weight_brush_stroke_modal(bContext *C,
+                                                                wmOperator *op,
+                                                                const wmEvent *event)
 {
   return paint_stroke_modal(C, op, event, reinterpret_cast<PaintStroke **>(&op->customdata));
 }
@@ -540,9 +540,9 @@ static bool grease_pencil_vertex_brush_stroke_poll(bContext *C)
   return true;
 }
 
-static OperatorStatus grease_pencil_vertex_brush_stroke_invoke(bContext *C,
-                                                               wmOperator *op,
-                                                               const wmEvent *event)
+static wmOperatorStatus grease_pencil_vertex_brush_stroke_invoke(bContext *C,
+                                                                 wmOperator *op,
+                                                                 const wmEvent *event)
 {
   const Scene *scene = CTX_data_scene(C);
   const Object *object = CTX_data_active_object(C);
@@ -601,9 +601,9 @@ static OperatorStatus grease_pencil_vertex_brush_stroke_invoke(bContext *C,
   return OPERATOR_RUNNING_MODAL;
 }
 
-static OperatorStatus grease_pencil_vertex_brush_stroke_modal(bContext *C,
-                                                              wmOperator *op,
-                                                              const wmEvent *event)
+static wmOperatorStatus grease_pencil_vertex_brush_stroke_modal(bContext *C,
+                                                                wmOperator *op,
+                                                                const wmEvent *event)
 {
   return paint_stroke_modal(C, op, event, reinterpret_cast<PaintStroke **>(&op->customdata));
 }
@@ -1541,9 +1541,9 @@ static void grease_pencil_fill_exit(bContext &C, wmOperator &op)
   WM_event_add_notifier(&C, NC_GPENCIL | ND_DATA | NA_EDITED, nullptr);
 }
 
-static OperatorStatus grease_pencil_fill_invoke(bContext *C,
-                                                wmOperator *op,
-                                                const wmEvent * /*event*/)
+static wmOperatorStatus grease_pencil_fill_invoke(bContext *C,
+                                                  wmOperator *op,
+                                                  const wmEvent * /*event*/)
 {
   const ARegion &region = *CTX_wm_region(C);
   ToolSettings &ts = *CTX_data_tool_settings(C);
@@ -1593,9 +1593,9 @@ enum class FillToolModalKey : int8_t {
   Precision,
 };
 
-static OperatorStatus grease_pencil_fill_event_modal_map(bContext *C,
-                                                         wmOperator *op,
-                                                         const wmEvent *event)
+static wmOperatorStatus grease_pencil_fill_event_modal_map(bContext *C,
+                                                           wmOperator *op,
+                                                           const wmEvent *event)
 {
   auto &op_data = *static_cast<GreasePencilFillOpData *>(op->customdata);
   /* Extension line length increment, for normal and precise mode respectively. */
@@ -1683,13 +1683,13 @@ static OperatorStatus grease_pencil_fill_event_modal_map(bContext *C,
   return OPERATOR_RUNNING_MODAL;
 }
 
-static OperatorStatus grease_pencil_fill_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus grease_pencil_fill_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   const RegionView3D &rv3d = *CTX_wm_region_view3d(C);
 
   auto &op_data = *static_cast<GreasePencilFillOpData *>(op->customdata);
 
-  OperatorStatus estate = OPERATOR_CANCELLED;
+  wmOperatorStatus estate = OPERATOR_CANCELLED;
   if (!op_data.show_extension) {
     /* Apply fill immediately if "Visual Aids" (aka. extension lines) is disabled. */
     op_data.fill_mouse_pos = float2(event->mval);
@@ -1828,7 +1828,7 @@ static inline bool is_point_inside_lasso(const Array<int2> lasso, const int2 poi
       point, reinterpret_cast<const int(*)[2]>(lasso.data()), uint(lasso.size()));
 }
 
-static OperatorStatus grease_pencil_erase_lasso_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus grease_pencil_erase_lasso_exec(bContext *C, wmOperator *op)
 {
   using namespace bke::greasepencil;
   using namespace ed::greasepencil;
@@ -1947,7 +1947,7 @@ static inline bool is_point_inside_bounds(const Bounds<int2> bounds, const int2 
   return true;
 }
 
-static OperatorStatus grease_pencil_erase_box_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus grease_pencil_erase_box_exec(bContext *C, wmOperator *op)
 {
   using namespace bke::greasepencil;
   using namespace ed::greasepencil;

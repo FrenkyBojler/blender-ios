@@ -442,7 +442,7 @@ static int file_box_select_find_last_selected(SpaceFile *sfile,
   return (dist_first < dist_last) ? sel->first : sel->last;
 }
 
-static OperatorStatus file_box_select_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus file_box_select_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   ARegion *region = CTX_wm_region(C);
   SpaceFile *sfile = CTX_wm_space_file(C);
@@ -450,7 +450,7 @@ static OperatorStatus file_box_select_modal(bContext *C, wmOperator *op, const w
   FileSelection sel;
   rcti rect;
 
-  OperatorStatus result;
+  wmOperatorStatus result;
 
   result = WM_gesture_box_modal(C, op, event);
 
@@ -498,7 +498,7 @@ static OperatorStatus file_box_select_modal(bContext *C, wmOperator *op, const w
   return result;
 }
 
-static OperatorStatus file_box_select_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus file_box_select_exec(bContext *C, wmOperator *op)
 {
   ARegion *region = CTX_wm_region(C);
   SpaceFile *sfile = CTX_wm_space_file(C);
@@ -564,7 +564,7 @@ static rcti file_select_mval_to_select_rect(const int mval[2])
   return rect;
 }
 
-static OperatorStatus file_select_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus file_select_exec(bContext *C, wmOperator *op)
 {
   ARegion *region = CTX_wm_region(C);
   SpaceFile *sfile = CTX_wm_space_file(C);
@@ -596,7 +596,7 @@ static OperatorStatus file_select_exec(bContext *C, wmOperator *op)
     wait_to_deselect_others = false;
   }
 
-  OperatorStatus ret_val = OPERATOR_FINISHED;
+  wmOperatorStatus ret_val = OPERATOR_FINISHED;
 
   const FileSelectParams *params = ED_fileselect_get_active_params(sfile);
   if (params) {
@@ -916,9 +916,9 @@ static bool file_walk_select_do(bContext *C,
                                         fill);
 }
 
-static OperatorStatus file_walk_select_invoke(bContext *C,
-                                              wmOperator *op,
-                                              const wmEvent * /*event*/)
+static wmOperatorStatus file_walk_select_invoke(bContext *C,
+                                                wmOperator *op,
+                                                const wmEvent * /*event*/)
 {
   SpaceFile *sfile = (SpaceFile *)CTX_wm_space_data(C);
   FileSelectParams *params = ED_fileselect_get_active_params(sfile);
@@ -968,7 +968,7 @@ void FILE_OT_select_walk(wmOperatorType *ot)
 /** \name Select All Operator
  * \{ */
 
-static OperatorStatus file_select_all_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus file_select_all_exec(bContext *C, wmOperator *op)
 {
   ScrArea *area = CTX_wm_area(C);
   SpaceFile *sfile = CTX_wm_space_file(C);
@@ -1047,7 +1047,7 @@ void FILE_OT_select_all(wmOperatorType *ot)
 /** \name View Selected Operator
  * \{ */
 
-static OperatorStatus file_view_selected_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus file_view_selected_exec(bContext *C, wmOperator * /*op*/)
 {
   SpaceFile *sfile = CTX_wm_space_file(C);
   FileSelection sel = file_current_selection_range_get(sfile->files);
@@ -1099,7 +1099,7 @@ void FILE_OT_view_selected(wmOperatorType *ot)
 
 /* Note we could get rid of this one, but it's used by some addon so...
  * Does not hurt keeping it around for now. */
-static OperatorStatus bookmark_select_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus bookmark_select_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   SpaceFile *sfile = CTX_wm_space_file(C);
@@ -1144,7 +1144,7 @@ void FILE_OT_select_bookmark(wmOperatorType *ot)
 /** \name Add Bookmark Operator
  * \{ */
 
-static OperatorStatus bookmark_add_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus bookmark_add_exec(bContext *C, wmOperator *op)
 {
   ScrArea *area = CTX_wm_area(C);
   SpaceFile *sfile = CTX_wm_space_file(C);
@@ -1179,7 +1179,7 @@ void FILE_OT_bookmark_add(wmOperatorType *ot)
 /** \name Delete Bookmark Operator
  * \{ */
 
-static OperatorStatus bookmark_delete_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus bookmark_delete_exec(bContext *C, wmOperator *op)
 {
   ScrArea *area = CTX_wm_area(C);
   SpaceFile *sfile = CTX_wm_space_file(C);
@@ -1222,7 +1222,7 @@ void FILE_OT_bookmark_delete(wmOperatorType *ot)
 /** \name Cleanup Bookmark Operator
  * \{ */
 
-static OperatorStatus bookmark_cleanup_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus bookmark_cleanup_exec(bContext *C, wmOperator *op)
 {
   ScrArea *area = CTX_wm_area(C);
   FSMenu *fsmenu = ED_fsmenu_get();
@@ -1278,7 +1278,7 @@ enum {
   FILE_BOOKMARK_MOVE_BOTTOM = 2,
 };
 
-static OperatorStatus bookmark_move_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus bookmark_move_exec(bContext *C, wmOperator *op)
 {
   ScrArea *area = CTX_wm_area(C);
   SpaceFile *sfile = CTX_wm_space_file(C);
@@ -1373,7 +1373,7 @@ void FILE_OT_bookmark_move(wmOperatorType *ot)
 /** \name Reset Recent Blend Files Operator
  * \{ */
 
-static OperatorStatus reset_recent_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus reset_recent_exec(bContext *C, wmOperator *op)
 {
   ScrArea *area = CTX_wm_area(C);
   FSMenu *fsmenu = ED_fsmenu_get();
@@ -1454,7 +1454,9 @@ int file_highlight_set(SpaceFile *sfile, ARegion *region, int mx, int my)
   return (params->highlight_file != origfile);
 }
 
-static OperatorStatus file_highlight_invoke(bContext *C, wmOperator * /*op*/, const wmEvent *event)
+static wmOperatorStatus file_highlight_invoke(bContext *C,
+                                              wmOperator * /*op*/,
+                                              const wmEvent *event)
 {
   ARegion *region = CTX_wm_region(C);
   SpaceFile *sfile = CTX_wm_space_file(C);
@@ -1487,9 +1489,9 @@ void FILE_OT_highlight(wmOperatorType *ot)
 /** \name Sort from Column Operator
  * \{ */
 
-static OperatorStatus file_column_sort_ui_context_invoke(bContext *C,
-                                                         wmOperator * /*op*/,
-                                                         const wmEvent *event)
+static wmOperatorStatus file_column_sort_ui_context_invoke(bContext *C,
+                                                           wmOperator * /*op*/,
+                                                           const wmEvent *event)
 {
   const ARegion *region = CTX_wm_region(C);
   SpaceFile *sfile = CTX_wm_space_file(C);
@@ -1554,7 +1556,7 @@ static bool file_operator_poll(bContext *C)
   return poll;
 }
 
-static OperatorStatus file_cancel_exec(bContext *C, wmOperator * /*unused*/)
+static wmOperatorStatus file_cancel_exec(bContext *C, wmOperator * /*unused*/)
 {
   wmWindowManager *wm = CTX_wm_manager(C);
   SpaceFile *sfile = CTX_wm_space_file(C);
@@ -1821,7 +1823,7 @@ static const EnumPropertyItem file_external_operation[] = {
      "Open a command prompt here"},
     {0, nullptr, 0, nullptr, nullptr}};
 
-static OperatorStatus file_external_operation_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus file_external_operation_exec(bContext *C, wmOperator *op)
 {
   PropertyRNA *prop = RNA_struct_find_property(op->ptr, "filepath");
   char filepath[FILE_MAX];
@@ -2119,7 +2121,7 @@ static bool file_execute(bContext *C, SpaceFile *sfile)
   return true;
 }
 
-static OperatorStatus file_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus file_exec(bContext *C, wmOperator * /*op*/)
 {
   SpaceFile *sfile = CTX_wm_space_file(C);
 
@@ -2173,9 +2175,9 @@ static bool file_ensure_hovered_is_active(bContext *C, const wmEvent *event)
   return true;
 }
 
-static OperatorStatus file_execute_mouse_invoke(bContext *C,
-                                                wmOperator * /*op*/,
-                                                const wmEvent *event)
+static wmOperatorStatus file_execute_mouse_invoke(bContext *C,
+                                                  wmOperator * /*op*/,
+                                                  const wmEvent *event)
 {
   ARegion *region = CTX_wm_region(C);
   SpaceFile *sfile = CTX_wm_space_file(C);
@@ -2222,7 +2224,7 @@ void FILE_OT_mouse_execute(wmOperatorType *ot)
 /** \name Refresh File List Operator
  * \{ */
 
-static OperatorStatus file_refresh_exec(bContext *C, wmOperator * /*unused*/)
+static wmOperatorStatus file_refresh_exec(bContext *C, wmOperator * /*unused*/)
 {
   wmWindowManager *wm = CTX_wm_manager(C);
   SpaceFile *sfile = CTX_wm_space_file(C);
@@ -2259,7 +2261,7 @@ void FILE_OT_refresh(wmOperatorType *ot)
 /** \name Navigate Parent Operator
  * \{ */
 
-static OperatorStatus file_parent_exec(bContext *C, wmOperator * /*unused*/)
+static wmOperatorStatus file_parent_exec(bContext *C, wmOperator * /*unused*/)
 {
   Main *bmain = CTX_data_main(C);
   SpaceFile *sfile = CTX_wm_space_file(C);
@@ -2301,7 +2303,7 @@ void FILE_OT_parent(wmOperatorType *ot)
 /** \name Navigate Previous Operator
  * \{ */
 
-static OperatorStatus file_previous_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus file_previous_exec(bContext *C, wmOperator * /*op*/)
 {
   SpaceFile *sfile = CTX_wm_space_file(C);
   FileSelectParams *params = ED_fileselect_get_active_params(sfile);
@@ -2337,7 +2339,7 @@ void FILE_OT_previous(wmOperatorType *ot)
 /** \name Navigate Next Operator
  * \{ */
 
-static OperatorStatus file_next_exec(bContext *C, wmOperator * /*unused*/)
+static wmOperatorStatus file_next_exec(bContext *C, wmOperator * /*unused*/)
 {
   SpaceFile *sfile = CTX_wm_space_file(C);
   FileSelectParams *params = ED_fileselect_get_active_params(sfile);
@@ -2375,9 +2377,9 @@ void FILE_OT_next(wmOperatorType *ot)
  * \{ */
 
 /* only meant for timer usage */
-static OperatorStatus file_smoothscroll_invoke(bContext *C,
-                                               wmOperator * /*op*/,
-                                               const wmEvent *event)
+static wmOperatorStatus file_smoothscroll_invoke(bContext *C,
+                                                 wmOperator * /*op*/,
+                                                 const wmEvent *event)
 {
   ScrArea *area = CTX_wm_area(C);
   SpaceFile *sfile = CTX_wm_space_file(C);
@@ -2570,7 +2572,7 @@ void FILE_OT_smoothscroll(wmOperatorType *ot)
 /** \name File Selector Drop Operator
  * \{ */
 
-static OperatorStatus filepath_drop_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus filepath_drop_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   SpaceFile *sfile = CTX_wm_space_file(C);
@@ -2643,7 +2645,7 @@ static bool new_folder_path(const char *parent,
   return (len < FILE_MAXFILE);
 }
 
-static OperatorStatus file_directory_new_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus file_directory_new_exec(bContext *C, wmOperator *op)
 {
   char dirname[FILE_MAXFILE];
   char dirpath[FILE_MAX];
@@ -2730,9 +2732,9 @@ static OperatorStatus file_directory_new_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static OperatorStatus file_directory_new_invoke(bContext *C,
-                                                wmOperator *op,
-                                                const wmEvent * /*event*/)
+static wmOperatorStatus file_directory_new_invoke(bContext *C,
+                                                  wmOperator *op,
+                                                  const wmEvent * /*event*/)
 {
   /* NOTE: confirm is needed because this operator is invoked
    * when entering a path from the file selector. Without a confirmation,
@@ -3037,7 +3039,7 @@ void file_filename_enter_handle(bContext *C, void * /*arg_unused*/, void *arg_bu
 /** \name Toggle Show Hidden Files Operator
  * \{ */
 
-static OperatorStatus file_hidedot_exec(bContext *C, wmOperator * /*unused*/)
+static wmOperatorStatus file_hidedot_exec(bContext *C, wmOperator * /*unused*/)
 {
   wmWindowManager *wm = CTX_wm_manager(C);
   SpaceFile *sfile = CTX_wm_space_file(C);
@@ -3113,7 +3115,7 @@ static void filenum_newname(char *filename, size_t filename_maxncpy, int add)
   BLI_path_sequence_encode(filename, filename_maxncpy, head, tail, digits, pic);
 }
 
-static OperatorStatus file_filenum_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus file_filenum_exec(bContext *C, wmOperator *op)
 {
   SpaceFile *sfile = CTX_wm_space_file(C);
   FileSelectParams *params = ED_fileselect_get_active_params(sfile);
@@ -3173,7 +3175,7 @@ static void file_rename_state_activate(SpaceFile *sfile, int file_idx, bool requ
   }
 }
 
-static OperatorStatus file_rename_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus file_rename_exec(bContext *C, wmOperator * /*op*/)
 {
   ScrArea *area = CTX_wm_area(C);
   SpaceFile *sfile = (SpaceFile *)CTX_wm_space_data(C);
@@ -3247,7 +3249,7 @@ static bool file_delete_single(const FileList *files,
   return true;
 }
 
-static OperatorStatus file_delete_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus file_delete_exec(bContext *C, wmOperator *op)
 {
   wmWindowManager *wm = CTX_wm_manager(C);
   SpaceFile *sfile = CTX_wm_space_file(C);
@@ -3282,7 +3284,7 @@ static OperatorStatus file_delete_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static OperatorStatus file_delete_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+static wmOperatorStatus file_delete_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
   return WM_operator_confirm_ex(
       C, op, IFACE_("Delete selected files?"), nullptr, IFACE_("Delete"), ALERT_ICON_NONE, false);
@@ -3307,7 +3309,7 @@ void FILE_OT_delete(wmOperatorType *ot)
 /** \name Enter Filter Text Operator
  * \{ */
 
-static OperatorStatus file_start_filter_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus file_start_filter_exec(bContext *C, wmOperator * /*op*/)
 {
   const ScrArea *area = CTX_wm_area(C);
   const SpaceFile *sfile = CTX_wm_space_file(C);
@@ -3343,7 +3345,7 @@ void FILE_OT_start_filter(wmOperatorType *ot)
 /** \name Edit Directory Path Operator
  * \{ */
 
-static OperatorStatus file_edit_directory_path_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus file_edit_directory_path_exec(bContext *C, wmOperator * /*op*/)
 {
   const ScrArea *area = CTX_wm_area(C);
   const SpaceFile *sfile = CTX_wm_space_file(C);

@@ -327,7 +327,7 @@ static void clear_images_poly(Image **ob_image_array, int ob_image_array_len, Cl
   }
 }
 
-static OperatorStatus multiresbake_image_exec_locked(bContext *C, wmOperator *op)
+static wmOperatorStatus multiresbake_image_exec_locked(bContext *C, wmOperator *op)
 {
   Object *ob;
   Scene *scene = CTX_data_scene(C);
@@ -549,7 +549,7 @@ static void multiresbake_freejob(void *bkv)
   MEM_freeN(bkj);
 }
 
-static OperatorStatus multiresbake_image_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus multiresbake_image_exec(bContext *C, wmOperator *op)
 {
   Scene *scene = CTX_data_scene(C);
 
@@ -591,9 +591,9 @@ static OperatorStatus multiresbake_image_exec(bContext *C, wmOperator *op)
 /* ****************** render BAKING ********************** */
 
 /** Catch escape key to cancel. */
-static OperatorStatus objects_bake_render_modal(bContext *C,
-                                                wmOperator * /*op*/,
-                                                const wmEvent *event)
+static wmOperatorStatus objects_bake_render_modal(bContext *C,
+                                                  wmOperator * /*op*/,
+                                                  const wmEvent *event)
 {
   /* no running blender, remove handler and pass through */
   if (0 == WM_jobs_test(CTX_wm_manager(C), CTX_data_scene(C), WM_JOB_TYPE_OBJECT_BAKE_TEXTURE)) {
@@ -617,12 +617,12 @@ static bool is_multires_bake(Scene *scene)
   return false;
 }
 
-static OperatorStatus objects_bake_render_invoke(bContext *C,
-                                                 wmOperator *op,
-                                                 const wmEvent * /*event*/)
+static wmOperatorStatus objects_bake_render_invoke(bContext *C,
+                                                   wmOperator *op,
+                                                   const wmEvent * /*event*/)
 {
   Scene *scene = CTX_data_scene(C);
-  OperatorStatus result = OPERATOR_CANCELLED;
+  wmOperatorStatus result = OPERATOR_CANCELLED;
 
   result = multiresbake_image_exec(C, op);
 
@@ -631,10 +631,10 @@ static OperatorStatus objects_bake_render_invoke(bContext *C,
   return result;
 }
 
-static OperatorStatus bake_image_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus bake_image_exec(bContext *C, wmOperator *op)
 {
   Scene *scene = CTX_data_scene(C);
-  OperatorStatus result = OPERATOR_CANCELLED;
+  wmOperatorStatus result = OPERATOR_CANCELLED;
 
   if (!is_multires_bake(scene)) {
     BLI_assert(0);

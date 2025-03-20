@@ -97,7 +97,7 @@ void ED_nla_postop_refresh(bAnimContext *ac)
 /** \name Enable Tweak-Mode Operator
  * \{ */
 
-static OperatorStatus nlaedit_enable_tweakmode_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus nlaedit_enable_tweakmode_exec(bContext *C, wmOperator *op)
 {
   bAnimContext ac;
 
@@ -263,7 +263,7 @@ bool nlaedit_disable_tweakmode(bAnimContext *ac, bool do_solo)
 }
 
 /* Exit tweak-mode operator callback. */
-static OperatorStatus nlaedit_disable_tweakmode_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus nlaedit_disable_tweakmode_exec(bContext *C, wmOperator *op)
 {
   bAnimContext ac;
 
@@ -375,7 +375,7 @@ static void get_nlastrip_extents(bAnimContext *ac, float *min, float *max, const
 /** \name Automatic Preview-Range Operator
  * \{ */
 
-static OperatorStatus nlaedit_previewrange_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus nlaedit_previewrange_exec(bContext *C, wmOperator * /*op*/)
 {
   bAnimContext ac;
   Scene *scene;
@@ -480,7 +480,7 @@ static bool nla_tracks_get_selected_extents(bAnimContext *ac, float *r_min, floa
   return (found != 0);
 }
 
-static OperatorStatus nlaedit_viewall(bContext *C, const bool only_sel)
+static wmOperatorStatus nlaedit_viewall(bContext *C, const bool only_sel)
 {
   bAnimContext ac;
   View2D *v2d;
@@ -532,13 +532,13 @@ static OperatorStatus nlaedit_viewall(bContext *C, const bool only_sel)
 
 /* ......... */
 
-static OperatorStatus nlaedit_viewall_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus nlaedit_viewall_exec(bContext *C, wmOperator * /*op*/)
 {
   /* whole range */
   return nlaedit_viewall(C, false);
 }
 
-static OperatorStatus nlaedit_viewsel_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus nlaedit_viewsel_exec(bContext *C, wmOperator * /*op*/)
 {
   /* only selected */
   return nlaedit_viewall(C, true);
@@ -580,7 +580,7 @@ void NLA_OT_view_selected(wmOperatorType *ot)
 /** \name View-Frame Operator
  * \{ */
 
-static OperatorStatus nlaedit_viewframe_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus nlaedit_viewframe_exec(bContext *C, wmOperator *op)
 {
   const int smooth_viewtx = WM_operator_smooth_viewtx_get(op);
   ANIM_center_frame(C, smooth_viewtx);
@@ -621,9 +621,9 @@ static int nlaedit_get_editable_tracks(bAnimContext *ac, ListBase *anim_data)
   return ANIM_animdata_filter(ac, anim_data, filter, ac->data, eAnimCont_Types(ac->datatype));
 }
 
-static OperatorStatus nlaedit_add_actionclip_invoke(bContext *C,
-                                                    wmOperator *op,
-                                                    const wmEvent *event)
+static wmOperatorStatus nlaedit_add_actionclip_invoke(bContext *C,
+                                                      wmOperator *op,
+                                                      const wmEvent *event)
 {
   /* Get editor data. */
   bAnimContext ac;
@@ -646,7 +646,7 @@ static OperatorStatus nlaedit_add_actionclip_invoke(bContext *C,
 }
 
 /* add the specified action as new strip */
-static OperatorStatus nlaedit_add_actionclip_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus nlaedit_add_actionclip_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   bAnimContext ac;
@@ -784,7 +784,7 @@ void NLA_OT_actionclip_add(wmOperatorType *ot)
  * Add a new transition strip between selected strips.
  * \{ */
 
-static OperatorStatus nlaedit_add_transition_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus nlaedit_add_transition_exec(bContext *C, wmOperator *op)
 {
   bAnimContext ac;
 
@@ -911,7 +911,7 @@ void NLA_OT_transition_add(wmOperatorType *ot)
 /** \name Add Sound Clip Operator
  * \{ */
 
-static OperatorStatus nlaedit_add_sound_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus nlaedit_add_sound_exec(bContext *C, wmOperator * /*op*/)
 {
   Main *bmain = CTX_data_main(C);
   bAnimContext ac;
@@ -1004,7 +1004,7 @@ void NLA_OT_soundclip_add(wmOperatorType *ot)
  * \{ */
 
 /* add the specified action as new strip */
-static OperatorStatus nlaedit_add_meta_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus nlaedit_add_meta_exec(bContext *C, wmOperator * /*op*/)
 {
   bAnimContext ac;
 
@@ -1078,7 +1078,7 @@ void NLA_OT_meta_add(wmOperatorType *ot)
  * Separate out the strips held by the selected meta-strips.
  * \{ */
 
-static OperatorStatus nlaedit_remove_meta_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus nlaedit_remove_meta_exec(bContext *C, wmOperator * /*op*/)
 {
   bAnimContext ac;
 
@@ -1144,7 +1144,7 @@ void NLA_OT_meta_remove(wmOperatorType *ot)
  * putting them on new tracks above the one the originals were housed in.
  * \{ */
 
-static OperatorStatus nlaedit_duplicate_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus nlaedit_duplicate_exec(bContext *C, wmOperator *op)
 {
   bAnimContext ac;
 
@@ -1225,9 +1225,9 @@ static OperatorStatus nlaedit_duplicate_exec(bContext *C, wmOperator *op)
   return OPERATOR_CANCELLED;
 }
 
-static OperatorStatus nlaedit_duplicate_invoke(bContext *C,
-                                               wmOperator *op,
-                                               const wmEvent * /*event*/)
+static wmOperatorStatus nlaedit_duplicate_invoke(bContext *C,
+                                                 wmOperator *op,
+                                                 const wmEvent * /*event*/)
 {
   nlaedit_duplicate_exec(C, op);
 
@@ -1265,7 +1265,7 @@ void NLA_OT_duplicate(wmOperatorType *ot)
  * Deletes the selected NLA-Strips.
  * \{ */
 
-static OperatorStatus nlaedit_delete_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus nlaedit_delete_exec(bContext *C, wmOperator * /*op*/)
 {
   bAnimContext ac;
 
@@ -1433,7 +1433,7 @@ static void nlaedit_split_strip_meta(NlaTrack *nlt, NlaStrip *strip)
 
 /* ----- */
 
-static OperatorStatus nlaedit_split_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus nlaedit_split_exec(bContext *C, wmOperator * /*op*/)
 {
   bAnimContext ac;
 
@@ -1520,7 +1520,7 @@ void NLA_OT_split(wmOperatorType *ot)
  * Toggles whether strips are muted or not.
  * \{ */
 
-static OperatorStatus nlaedit_toggle_mute_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus nlaedit_toggle_mute_exec(bContext *C, wmOperator * /*op*/)
 {
   bAnimContext ac;
 
@@ -1587,7 +1587,7 @@ void NLA_OT_mute_toggle(wmOperatorType *ot)
  * Tries to exchange strips within their owner tracks.
  * \{ */
 
-static OperatorStatus nlaedit_swap_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus nlaedit_swap_exec(bContext *C, wmOperator *op)
 {
   bAnimContext ac;
 
@@ -1776,7 +1776,7 @@ void NLA_OT_swap(wmOperatorType *ot)
  * Tries to move the selected strips into the track above if possible.
  * \{ */
 
-static OperatorStatus nlaedit_move_up_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus nlaedit_move_up_exec(bContext *C, wmOperator * /*op*/)
 {
   bAnimContext ac;
 
@@ -1867,7 +1867,7 @@ void NLA_OT_move_up(wmOperatorType *ot)
  * Tries to move the selected strips into the track above if possible.
  * \{ */
 
-static OperatorStatus nlaedit_move_down_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus nlaedit_move_down_exec(bContext *C, wmOperator * /*op*/)
 {
   bAnimContext ac;
 
@@ -1958,7 +1958,7 @@ void NLA_OT_move_down(wmOperatorType *ot)
  * Recalculate the extents of the action ranges used for the selected strips.
  * \{ */
 
-static OperatorStatus nlaedit_sync_actlen_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus nlaedit_sync_actlen_exec(bContext *C, wmOperator *op)
 {
   bAnimContext ac;
 
@@ -2050,7 +2050,7 @@ void NLA_OT_action_sync_length(wmOperatorType *ot)
  * Ensure that each strip has its own action.
  * \{ */
 
-static OperatorStatus nlaedit_make_single_user_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus nlaedit_make_single_user_exec(bContext *C, wmOperator * /*op*/)
 {
   Main *bmain = CTX_data_main(C);
   bAnimContext ac;
@@ -2115,9 +2115,9 @@ static OperatorStatus nlaedit_make_single_user_exec(bContext *C, wmOperator * /*
   return OPERATOR_FINISHED;
 }
 
-static OperatorStatus nlaedit_make_single_user_invoke(bContext *C,
-                                                      wmOperator *op,
-                                                      const wmEvent * /*event*/)
+static wmOperatorStatus nlaedit_make_single_user_invoke(bContext *C,
+                                                        wmOperator *op,
+                                                        const wmEvent * /*event*/)
 {
   if (RNA_boolean_get(op->ptr, "confirm")) {
     return WM_operator_confirm_ex(
@@ -2172,7 +2172,7 @@ static short bezt_apply_nlamapping(KeyframeEditData *ked, BezTriple *bezt)
   return 0;
 }
 
-static OperatorStatus nlaedit_apply_scale_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus nlaedit_apply_scale_exec(bContext *C, wmOperator * /*op*/)
 {
   Main *bmain = CTX_data_main(C);
   bAnimContext ac;
@@ -2291,7 +2291,7 @@ void NLA_OT_apply_scale(wmOperatorType *ot)
  * Reset the scaling of the selected strips to 1.0f.
  * \{ */
 
-static OperatorStatus nlaedit_clear_scale_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus nlaedit_clear_scale_exec(bContext *C, wmOperator * /*op*/)
 {
   bAnimContext ac;
 
@@ -2368,7 +2368,7 @@ static const EnumPropertyItem prop_nlaedit_snap_types[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-static OperatorStatus nlaedit_snap_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus nlaedit_snap_exec(bContext *C, wmOperator *op)
 {
   bAnimContext ac;
 
@@ -2562,7 +2562,7 @@ static const EnumPropertyItem *nla_fmodifier_itemf(bContext *C,
   return item;
 }
 
-static OperatorStatus nla_fmodifier_add_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus nla_fmodifier_add_exec(bContext *C, wmOperator *op)
 {
   bAnimContext ac;
 
@@ -2675,7 +2675,7 @@ void NLA_OT_fmodifier_add(wmOperatorType *ot)
 /** \name Copy F-Modifiers Operator
  * \{ */
 
-static OperatorStatus nla_fmodifier_copy_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus nla_fmodifier_copy_exec(bContext *C, wmOperator *op)
 {
   bAnimContext ac;
   ListBase anim_data = {nullptr, nullptr};
@@ -2752,7 +2752,7 @@ void NLA_OT_fmodifier_copy(wmOperatorType *ot)
 /** \name Paste F-Modifiers Operator
  * \{ */
 
-static OperatorStatus nla_fmodifier_paste_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus nla_fmodifier_paste_exec(bContext *C, wmOperator *op)
 {
   bAnimContext ac;
   ListBase anim_data = {nullptr, nullptr};

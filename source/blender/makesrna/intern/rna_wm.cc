@@ -1437,7 +1437,7 @@ static bool rna_operator_poll_cb(bContext *C, wmOperatorType *ot)
   return visible;
 }
 
-static OperatorStatus rna_operator_exec_cb(bContext *C, wmOperator *op)
+static wmOperatorStatus rna_operator_exec_cb(bContext *C, wmOperator *op)
 {
   extern FunctionRNA rna_Operator_execute_func;
 
@@ -1465,7 +1465,7 @@ static OperatorStatus rna_operator_exec_cb(bContext *C, wmOperator *op)
   }
 
   OPERATOR_RETVAL_CHECK(result);
-  return OperatorStatus(result);
+  return wmOperatorStatus(result);
 }
 
 /* same as execute() but no return value */
@@ -1492,10 +1492,10 @@ static bool rna_operator_check_cb(bContext *C, wmOperator *op)
   RNA_parameter_list_free(&list);
 
   OPERATOR_RETVAL_CHECK(result);
-  return OperatorStatus(result);
+  return wmOperatorStatus(result);
 }
 
-static OperatorStatus rna_operator_invoke_cb(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus rna_operator_invoke_cb(bContext *C, wmOperator *op, const wmEvent *event)
 {
   extern FunctionRNA rna_Operator_invoke_func;
 
@@ -1524,11 +1524,11 @@ static OperatorStatus rna_operator_invoke_cb(bContext *C, wmOperator *op, const 
   }
 
   OPERATOR_RETVAL_CHECK(result);
-  return OperatorStatus(result);
+  return wmOperatorStatus(result);
 }
 
 /* same as invoke */
-static OperatorStatus rna_operator_modal_cb(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus rna_operator_modal_cb(bContext *C, wmOperator *op, const wmEvent *event)
 {
   extern FunctionRNA rna_Operator_modal_func;
 
@@ -1552,7 +1552,7 @@ static OperatorStatus rna_operator_modal_cb(bContext *C, wmOperator *op, const w
   RNA_parameter_list_free(&list);
 
   OPERATOR_RETVAL_CHECK(result);
-  return OperatorStatus(result);
+  return wmOperatorStatus(result);
 }
 
 static void rna_operator_draw_cb(bContext *C, wmOperator *op)

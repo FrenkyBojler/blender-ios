@@ -2276,7 +2276,7 @@ static void rearrange_gpencil_channels(bAnimContext *ac, eRearrangeAnimChan_Mode
 
 /* ------------------- */
 
-static OperatorStatus animchannels_rearrange_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus animchannels_rearrange_exec(bContext *C, wmOperator *op)
 {
   bAnimContext ac;
   eRearrangeAnimChan_Mode mode;
@@ -2530,7 +2530,7 @@ static void animchannels_group_channels(bAnimContext *ac,
   ANIM_animdata_freelist(&anim_data);
 }
 
-static OperatorStatus animchannels_group_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus animchannels_group_exec(bContext *C, wmOperator *op)
 {
   bAnimContext ac;
   char name[MAX_NAME];
@@ -2600,7 +2600,7 @@ static void ANIM_OT_channels_group(wmOperatorType *ot)
 /** \name Ungroup Channels Operator
  * \{ */
 
-static OperatorStatus animchannels_ungroup_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus animchannels_ungroup_exec(bContext *C, wmOperator * /*op*/)
 {
   bAnimContext ac;
 
@@ -2864,7 +2864,7 @@ static bool animchannels_delete_containers(const bContext *C, bAnimContext *ac)
   return has_skipped_group;
 }
 
-static OperatorStatus animchannels_delete_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus animchannels_delete_exec(bContext *C, wmOperator * /*op*/)
 {
   bAnimContext ac;
   ListBase anim_data = {nullptr, nullptr};
@@ -3157,7 +3157,7 @@ static void setflag_anim_channels(bAnimContext *ac,
 
 /* ------------------- */
 
-static OperatorStatus animchannels_setflag_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus animchannels_setflag_exec(bContext *C, wmOperator *op)
 {
   bAnimContext ac;
   eAnimChannel_Settings setting;
@@ -3300,7 +3300,7 @@ static void ANIM_OT_channels_editable_toggle(wmOperatorType *ot)
 /** \name Expand Channels Operator
  * \{ */
 
-static OperatorStatus animchannels_expand_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus animchannels_expand_exec(bContext *C, wmOperator *op)
 {
   bAnimContext ac;
   bool onlysel = true;
@@ -3349,7 +3349,7 @@ static void ANIM_OT_channels_expand(wmOperatorType *ot)
 /** \name Collapse Channels Operator
  * \{ */
 
-static OperatorStatus animchannels_collapse_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus animchannels_collapse_exec(bContext *C, wmOperator *op)
 {
   bAnimContext ac;
   bool onlysel = true;
@@ -3409,7 +3409,7 @@ static void ANIM_OT_channels_collapse(wmOperatorType *ot)
  * 3) No drivers
  * \{ */
 
-static OperatorStatus animchannels_clean_empty_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus animchannels_clean_empty_exec(bContext *C, wmOperator * /*op*/)
 {
   bAnimContext ac;
 
@@ -3533,7 +3533,7 @@ static bool animchannels_enable_poll(bContext *C)
   return true;
 }
 
-static OperatorStatus animchannels_enable_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus animchannels_enable_exec(bContext *C, wmOperator * /*op*/)
 {
   bAnimContext ac;
 
@@ -3609,9 +3609,9 @@ static bool animchannels_select_filter_poll(bContext *C)
   return ELEM(area->spacetype, SPACE_ACTION, SPACE_GRAPH, SPACE_NLA);
 }
 
-static OperatorStatus animchannels_select_filter_invoke(bContext *C,
-                                                        wmOperator *op,
-                                                        const wmEvent * /*event*/)
+static wmOperatorStatus animchannels_select_filter_invoke(bContext *C,
+                                                          wmOperator *op,
+                                                          const wmEvent * /*event*/)
 {
   ScrArea *area = CTX_wm_area(C);
   ARegion *region_ctx = CTX_wm_region(C);
@@ -3634,9 +3634,9 @@ static OperatorStatus animchannels_select_filter_invoke(bContext *C,
   return OPERATOR_RUNNING_MODAL;
 }
 
-static OperatorStatus animchannels_select_filter_modal(bContext *C,
-                                                       wmOperator * /*op*/,
-                                                       const wmEvent * /*event*/)
+static wmOperatorStatus animchannels_select_filter_modal(bContext *C,
+                                                         wmOperator * /*op*/,
+                                                         const wmEvent * /*event*/)
 {
   bAnimContext ac;
   if (ANIM_animdata_get_context(C, &ac) == 0) {
@@ -3673,7 +3673,7 @@ static void ANIM_OT_channels_select_filter(wmOperatorType *ot)
 /** \name Select All Operator
  * \{ */
 
-static OperatorStatus animchannels_selectall_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus animchannels_selectall_exec(bContext *C, wmOperator *op)
 {
   bAnimContext ac;
 
@@ -3855,7 +3855,7 @@ static void box_select_anim_channels(bAnimContext *ac, const rcti &rect, short s
   ANIM_animdata_freelist(&anim_data);
 }
 
-static OperatorStatus animchannels_box_select_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus animchannels_box_select_exec(bContext *C, wmOperator *op)
 {
   bAnimContext ac;
   rcti rect;
@@ -4047,9 +4047,9 @@ static int animchannels_channel_get(bAnimContext *ac, const int mval[2])
   return channel_index;
 }
 
-static OperatorStatus animchannels_rename_invoke(bContext *C,
-                                                 wmOperator * /*op*/,
-                                                 const wmEvent *event)
+static wmOperatorStatus animchannels_rename_invoke(bContext *C,
+                                                   wmOperator * /*op*/,
+                                                   const wmEvent *event)
 {
   bAnimContext ac;
   int channel_index;
@@ -4757,9 +4757,9 @@ static int mouse_anim_channels(bContext *C,
  * \{ */
 
 /** Handle picking logic. */
-static OperatorStatus animchannels_mouseclick_invoke(bContext *C,
-                                                     wmOperator *op,
-                                                     const wmEvent *event)
+static wmOperatorStatus animchannels_mouseclick_invoke(bContext *C,
+                                                       wmOperator *op,
+                                                       const wmEvent *event)
 {
   bAnimContext ac;
   ARegion *region;
@@ -4921,9 +4921,9 @@ static bool select_anim_channel_keys(bAnimContext *ac, int channel_index, bool e
   return success;
 }
 
-static OperatorStatus animchannels_channel_select_keys_invoke(bContext *C,
-                                                              wmOperator *op,
-                                                              const wmEvent *event)
+static wmOperatorStatus animchannels_channel_select_keys_invoke(bContext *C,
+                                                                wmOperator *op,
+                                                                const wmEvent *event)
 {
   bAnimContext ac;
   int channel_index;
@@ -4983,7 +4983,7 @@ static void get_view_range(Scene *scene, const bool use_preview_range, float r_r
   }
 }
 
-static OperatorStatus graphkeys_view_selected_channels_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus graphkeys_view_selected_channels_exec(bContext *C, wmOperator *op)
 {
   bAnimContext ac;
 
@@ -5083,9 +5083,9 @@ static void ANIM_OT_channels_view_selected(wmOperatorType *ot)
                              "Ignore frames outside of the preview range");
 }
 
-static OperatorStatus graphkeys_channel_view_pick_invoke(bContext *C,
-                                                         wmOperator *op,
-                                                         const wmEvent *event)
+static wmOperatorStatus graphkeys_channel_view_pick_invoke(bContext *C,
+                                                           wmOperator *op,
+                                                           const wmEvent *event)
 {
   bAnimContext ac;
 
@@ -5176,7 +5176,7 @@ static const EnumPropertyItem channel_bake_key_options[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-static OperatorStatus channels_bake_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus channels_bake_exec(bContext *C, wmOperator *op)
 {
   using namespace blender::animrig;
   bAnimContext ac;
@@ -5335,7 +5335,7 @@ static void ANIM_OT_channels_bake(wmOperatorType *ot)
                   "Bake Modifiers into keyframes and delete them after");
 }
 
-static OperatorStatus slot_channels_move_to_new_action_exec(bContext *C, wmOperator * /* op */)
+static wmOperatorStatus slot_channels_move_to_new_action_exec(bContext *C, wmOperator * /* op */)
 {
   using namespace blender::animrig;
   bAnimContext ac;
@@ -5430,7 +5430,7 @@ static void ANIM_OT_slot_channels_move_to_new_action(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-static OperatorStatus separate_slots_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus separate_slots_exec(bContext *C, wmOperator *op)
 {
   using namespace blender::animrig;
   Object *active_object = CTX_data_active_object(C);
@@ -5698,7 +5698,7 @@ static rctf calculate_selection_fcurve_bounds(bAnimContext *ac,
   return bounds;
 }
 
-static OperatorStatus view_curve_in_graph_editor_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus view_curve_in_graph_editor_exec(bContext *C, wmOperator *op)
 {
   PointerRNA button_ptr = {};
   PropertyRNA *button_prop = nullptr;
@@ -5710,7 +5710,7 @@ static OperatorStatus view_curve_in_graph_editor_exec(bContext *C, wmOperator *o
     return (OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH);
   }
 
-  OperatorStatus retval = OPERATOR_FINISHED;
+  wmOperatorStatus retval = OPERATOR_FINISHED;
 
   blender::Vector<PointerRNA> selection;
 

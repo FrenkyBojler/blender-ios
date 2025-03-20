@@ -1454,10 +1454,10 @@ static void paint_stroke_line_constrain(PaintStroke *stroke, float2 &mouse)
   }
 }
 
-OperatorStatus paint_stroke_modal(bContext *C,
-                                  wmOperator *op,
-                                  const wmEvent *event,
-                                  PaintStroke **stroke_p)
+wmOperatorStatus paint_stroke_modal(bContext *C,
+                                    wmOperator *op,
+                                    const wmEvent *event,
+                                    PaintStroke **stroke_p)
 {
   const Scene *scene = CTX_data_scene(C);
   Paint *paint = BKE_paint_get_active_from_context(C);
@@ -1683,7 +1683,7 @@ OperatorStatus paint_stroke_modal(bContext *C,
   return OPERATOR_RUNNING_MODAL;
 }
 
-OperatorStatus paint_stroke_exec(bContext *C, wmOperator *op, PaintStroke *stroke)
+wmOperatorStatus paint_stroke_exec(bContext *C, wmOperator *op, PaintStroke *stroke)
 {
   /* only when executed for the first time */
   if (!stroke->stroke_started) {

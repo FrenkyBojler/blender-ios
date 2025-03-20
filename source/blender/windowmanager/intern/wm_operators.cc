@@ -972,7 +972,7 @@ bool WM_operator_last_properties_store(wmOperator * /*op*/)
 /** \name Default Operator Callbacks
  * \{ */
 
-OperatorStatus WM_generic_select_modal(bContext *C, wmOperator *op, const wmEvent *event)
+wmOperatorStatus WM_generic_select_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   PropertyRNA *wait_to_deselect_prop = RNA_struct_find_property(op->ptr,
                                                                 "wait_to_deselect_others");
@@ -985,7 +985,7 @@ OperatorStatus WM_generic_select_modal(bContext *C, wmOperator *op, const wmEven
     if (event->val == KM_PRESS) {
       RNA_property_boolean_set(op->ptr, wait_to_deselect_prop, true);
 
-      OperatorStatus ret_value = op->type->exec(C, op);
+      wmOperatorStatus ret_value = op->type->exec(C, op);
       OPERATOR_RETVAL_CHECK(ret_value);
       op->customdata = POINTER_FROM_INT(int(event->type));
       if (ret_value & OPERATOR_RUNNING_MODAL) {
@@ -998,7 +998,7 @@ OperatorStatus WM_generic_select_modal(bContext *C, wmOperator *op, const wmEven
      */
     RNA_property_boolean_set(op->ptr, wait_to_deselect_prop, false);
 
-    OperatorStatus ret_value = op->type->exec(C, op);
+    wmOperatorStatus ret_value = op->type->exec(C, op);
     OPERATOR_RETVAL_CHECK(ret_value);
 
     return ret_value | OPERATOR_PASS_THROUGH;
@@ -1006,7 +1006,7 @@ OperatorStatus WM_generic_select_modal(bContext *C, wmOperator *op, const wmEven
   if (event->type == init_event_type && event->val == KM_RELEASE) {
     RNA_property_boolean_set(op->ptr, wait_to_deselect_prop, false);
 
-    OperatorStatus ret_value = op->type->exec(C, op);
+    wmOperatorStatus ret_value = op->type->exec(C, op);
     OPERATOR_RETVAL_CHECK(ret_value);
 
     return ret_value | OPERATOR_PASS_THROUGH;
@@ -1030,7 +1030,7 @@ OperatorStatus WM_generic_select_modal(bContext *C, wmOperator *op, const wmEven
   return OPERATOR_RUNNING_MODAL | OPERATOR_PASS_THROUGH;
 }
 
-OperatorStatus WM_generic_select_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+wmOperatorStatus WM_generic_select_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   ARegion *region = CTX_wm_region(C);
 
@@ -1079,7 +1079,7 @@ int WM_operator_smooth_viewtx_get(const wmOperator *op)
   return (op->flag & OP_IS_INVOKE) ? U.smooth_viewtx : 0;
 }
 
-OperatorStatus WM_menu_invoke_ex(bContext *C, wmOperator *op, wmOperatorCallContext opcontext)
+wmOperatorStatus WM_menu_invoke_ex(bContext *C, wmOperator *op, wmOperatorCallContext opcontext)
 {
   PropertyRNA *prop = op->type->prop;
 
@@ -1093,7 +1093,7 @@ OperatorStatus WM_menu_invoke_ex(bContext *C, wmOperator *op, wmOperatorCallCont
                RNA_property_identifier(prop));
   }
   else if (RNA_property_is_set(op->ptr, prop)) {
-    const OperatorStatus retval = op->type->exec(C, op);
+    const wmOperatorStatus retval = op->type->exec(C, op);
     OPERATOR_RETVAL_CHECK(retval);
     return retval;
   }
@@ -1116,7 +1116,7 @@ OperatorStatus WM_menu_invoke_ex(bContext *C, wmOperator *op, wmOperatorCallCont
   return OPERATOR_CANCELLED;
 }
 
-OperatorStatus WM_menu_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+wmOperatorStatus WM_menu_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
   return WM_menu_invoke_ex(C, op, WM_OP_INVOKE_REGION_WIN);
 }
@@ -1191,7 +1191,7 @@ static uiBlock *wm_enum_search_menu(bContext *C, ARegion *region, void *arg)
   return block;
 }
 
-OperatorStatus WM_enum_search_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+wmOperatorStatus WM_enum_search_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
   static EnumSearchMenu search_menu;
   search_menu.op = op;
@@ -1201,12 +1201,12 @@ OperatorStatus WM_enum_search_invoke(bContext *C, wmOperator *op, const wmEvent 
   return OPERATOR_INTERFACE;
 }
 
-OperatorStatus WM_operator_confirm_message_ex(bContext *C,
-                                              wmOperator *op,
-                                              const char *title,
-                                              const int icon,
-                                              const char *message,
-                                              const wmOperatorCallContext /*opcontext*/)
+wmOperatorStatus WM_operator_confirm_message_ex(bContext *C,
+                                                wmOperator *op,
+                                                const char *title,
+                                                const int icon,
+                                                const char *message,
+                                                const wmOperatorCallContext /*opcontext*/)
 {
   int alert_icon = ALERT_ICON_QUESTION;
   switch (icon) {
@@ -1229,19 +1229,21 @@ OperatorStatus WM_operator_confirm_message_ex(bContext *C,
   return WM_operator_confirm_ex(C, op, IFACE_(title), nullptr, IFACE_(message), alert_icon, false);
 }
 
-OperatorStatus WM_operator_confirm_message(bContext *C, wmOperator *op, const char *message)
+wmOperatorStatus WM_operator_confirm_message(bContext *C, wmOperator *op, const char *message)
 {
   return WM_operator_confirm_ex(
       C, op, IFACE_(message), nullptr, IFACE_("OK"), ALERT_ICON_NONE, false);
 }
 
-OperatorStatus WM_operator_confirm(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+wmOperatorStatus WM_operator_confirm(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
   return WM_operator_confirm_ex(
       C, op, IFACE_(op->type->name), nullptr, IFACE_("OK"), ALERT_ICON_NONE, false);
 }
 
-OperatorStatus WM_operator_confirm_or_exec(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+wmOperatorStatus WM_operator_confirm_or_exec(bContext *C,
+                                             wmOperator *op,
+                                             const wmEvent * /*event*/)
 {
   const bool confirm = RNA_boolean_get(op->ptr, "confirm");
   if (confirm) {
@@ -1251,7 +1253,7 @@ OperatorStatus WM_operator_confirm_or_exec(bContext *C, wmOperator *op, const wm
   return op->type->exec(C, op);
 }
 
-OperatorStatus WM_operator_filesel(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+wmOperatorStatus WM_operator_filesel(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
   if (RNA_struct_property_is_set(op->ptr, "filepath")) {
     return WM_operator_call_notest(C, op); /* Call exec direct. */
@@ -1731,13 +1733,13 @@ static void wm_operator_ui_popup_ok(bContext *C, void *arg, int retval)
   MEM_delete(data);
 }
 
-OperatorStatus WM_operator_confirm_ex(bContext *C,
-                                      wmOperator *op,
-                                      const char *title,
-                                      const char *message,
-                                      const char *confirm_text,
-                                      int icon,
-                                      bool cancel_default)
+wmOperatorStatus WM_operator_confirm_ex(bContext *C,
+                                        wmOperator *op,
+                                        const char *title,
+                                        const char *message,
+                                        const char *confirm_text,
+                                        int icon,
+                                        bool cancel_default)
 {
   wmOpPopUp *data = MEM_new<wmOpPopUp>(__func__);
   data->op = op;
@@ -1764,7 +1766,7 @@ OperatorStatus WM_operator_confirm_ex(bContext *C,
   return OPERATOR_RUNNING_MODAL;
 }
 
-OperatorStatus WM_operator_ui_popup(bContext *C, wmOperator *op, int width)
+wmOperatorStatus WM_operator_ui_popup(bContext *C, wmOperator *op, int width)
 {
   wmOpPopUp *data = MEM_new<wmOpPopUp>(__func__);
   data->op = op;
@@ -1779,7 +1781,7 @@ OperatorStatus WM_operator_ui_popup(bContext *C, wmOperator *op, int width)
  *
  * \note operator menu needs undo flag enabled, for redo callback.
  */
-static OperatorStatus wm_operator_props_popup_ex(
+static wmOperatorStatus wm_operator_props_popup_ex(
     bContext *C,
     wmOperator *op,
     const bool do_call,
@@ -1821,39 +1823,41 @@ static OperatorStatus wm_operator_props_popup_ex(
   return OPERATOR_RUNNING_MODAL;
 }
 
-OperatorStatus WM_operator_props_popup_confirm_ex(bContext *C,
-                                                  wmOperator *op,
-                                                  const wmEvent * /*event*/,
-                                                  std::optional<std::string> title,
-                                                  std::optional<std::string> confirm_text,
-                                                  const bool cancel_default)
+wmOperatorStatus WM_operator_props_popup_confirm_ex(bContext *C,
+                                                    wmOperator *op,
+                                                    const wmEvent * /*event*/,
+                                                    std::optional<std::string> title,
+                                                    std::optional<std::string> confirm_text,
+                                                    const bool cancel_default)
 {
   return wm_operator_props_popup_ex(C, op, false, false, title, confirm_text, cancel_default);
 }
 
-OperatorStatus WM_operator_props_popup_confirm(bContext *C,
-                                               wmOperator *op,
-                                               const wmEvent * /*event*/)
+wmOperatorStatus WM_operator_props_popup_confirm(bContext *C,
+                                                 wmOperator *op,
+                                                 const wmEvent * /*event*/)
 {
   return wm_operator_props_popup_ex(C, op, false, false, {}, {});
 }
 
-OperatorStatus WM_operator_props_popup_call(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+wmOperatorStatus WM_operator_props_popup_call(bContext *C,
+                                              wmOperator *op,
+                                              const wmEvent * /*event*/)
 {
   return wm_operator_props_popup_ex(C, op, true, true);
 }
 
-OperatorStatus WM_operator_props_popup(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+wmOperatorStatus WM_operator_props_popup(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
   return wm_operator_props_popup_ex(C, op, false, true);
 }
 
-OperatorStatus WM_operator_props_dialog_popup(bContext *C,
-                                              wmOperator *op,
-                                              int width,
-                                              std::optional<std::string> title,
-                                              std::optional<std::string> confirm_text,
-                                              const bool cancel_default)
+wmOperatorStatus WM_operator_props_dialog_popup(bContext *C,
+                                                wmOperator *op,
+                                                int width,
+                                                std::optional<std::string> title,
+                                                std::optional<std::string> confirm_text,
+                                                const bool cancel_default)
 {
   wmOpPopUp *data = MEM_new<wmOpPopUp>(__func__);
   data->op = op;
@@ -1876,7 +1880,7 @@ OperatorStatus WM_operator_props_dialog_popup(bContext *C,
   return OPERATOR_RUNNING_MODAL;
 }
 
-OperatorStatus WM_operator_redo_popup(bContext *C, wmOperator *op)
+wmOperatorStatus WM_operator_redo_popup(bContext *C, wmOperator *op)
 {
   /* `CTX_wm_reports(C)` because operator is on stack, not active in event system. */
   if ((op->type->flag & OPTYPE_REGISTER) == 0) {
@@ -1907,7 +1911,7 @@ OperatorStatus WM_operator_redo_popup(bContext *C, wmOperator *op)
  * Set internal debug value, mainly for developers.
  * \{ */
 
-static OperatorStatus wm_debug_menu_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus wm_debug_menu_exec(bContext *C, wmOperator *op)
 {
   G.debug_value = RNA_int_get(op->ptr, "debug_value");
   ED_screen_refresh(C, CTX_wm_manager(C), CTX_wm_window(C));
@@ -1916,7 +1920,9 @@ static OperatorStatus wm_debug_menu_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static OperatorStatus wm_debug_menu_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+static wmOperatorStatus wm_debug_menu_invoke(bContext *C,
+                                             wmOperator *op,
+                                             const wmEvent * /*event*/)
 {
   RNA_int_set(op->ptr, "debug_value", G.debug_value);
   return WM_operator_props_dialog_popup(C, op, 250, IFACE_("Set Debug Value"), IFACE_("Set"));
@@ -1942,7 +1948,7 @@ static void WM_OT_debug_menu(wmOperatorType *ot)
 /** \name Reset Defaults Operator
  * \{ */
 
-static OperatorStatus wm_operator_defaults_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus wm_operator_defaults_exec(bContext *C, wmOperator *op)
 {
   PointerRNA ptr = CTX_data_pointer_get_type(C, "active_operator", &RNA_Operator);
 
@@ -2042,12 +2048,12 @@ static uiBlock *wm_block_search_menu(bContext *C, ARegion *region, void *userdat
   return block;
 }
 
-static OperatorStatus wm_search_menu_exec(bContext * /*C*/, wmOperator * /*op*/)
+static wmOperatorStatus wm_search_menu_exec(bContext * /*C*/, wmOperator * /*op*/)
 {
   return OPERATOR_FINISHED;
 }
 
-static OperatorStatus wm_search_menu_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus wm_search_menu_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   /* Exception for launching via space-bar. */
   if (event->type == EVT_SPACEKEY) {
@@ -2154,7 +2160,7 @@ static void WM_OT_search_single_menu(wmOperatorType *ot)
                  "Query to insert into the search box");
 }
 
-static OperatorStatus wm_call_menu_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus wm_call_menu_exec(bContext *C, wmOperator *op)
 {
   char idname[BKE_ST_MAXNAME];
   RNA_string_get(op->ptr, "name", idname);
@@ -2193,7 +2199,7 @@ static void WM_OT_call_menu(wmOperatorType *ot)
       (PROP_STRING_SEARCH_SORT | PROP_STRING_SEARCH_SUGGESTION));
 }
 
-static OperatorStatus wm_call_pie_menu_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus wm_call_pie_menu_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   char idname[BKE_ST_MAXNAME];
   RNA_string_get(op->ptr, "name", idname);
@@ -2201,7 +2207,7 @@ static OperatorStatus wm_call_pie_menu_invoke(bContext *C, wmOperator *op, const
   return UI_pie_menu_invoke(C, idname, event);
 }
 
-static OperatorStatus wm_call_pie_menu_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus wm_call_pie_menu_exec(bContext *C, wmOperator *op)
 {
   char idname[BKE_ST_MAXNAME];
   RNA_string_get(op->ptr, "name", idname);
@@ -2232,7 +2238,7 @@ static void WM_OT_call_menu_pie(wmOperatorType *ot)
       (PROP_STRING_SEARCH_SORT | PROP_STRING_SEARCH_SUGGESTION));
 }
 
-static OperatorStatus wm_call_panel_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus wm_call_panel_exec(bContext *C, wmOperator *op)
 {
   char idname[BKE_ST_MAXNAME];
   RNA_string_get(op->ptr, "name", idname);
@@ -2275,9 +2281,9 @@ static void WM_OT_call_panel(wmOperatorType *ot)
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
-static OperatorStatus asset_shelf_popover_invoke(bContext *C,
-                                                 wmOperator *op,
-                                                 const wmEvent * /*event*/)
+static wmOperatorStatus asset_shelf_popover_invoke(bContext *C,
+                                                   wmOperator *op,
+                                                   const wmEvent * /*event*/)
 {
   char *asset_shelf_id = RNA_string_get_alloc(op->ptr, "name", nullptr, 0, nullptr);
   BLI_SCOPED_DEFER([&]() { MEM_freeN(asset_shelf_id); });
@@ -2397,15 +2403,15 @@ static void WM_OT_window_fullscreen_toggle(wmOperatorType *ot)
   ot->poll = WM_operator_winactive;
 }
 
-static OperatorStatus wm_exit_blender_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus wm_exit_blender_exec(bContext *C, wmOperator * /*op*/)
 {
   wm_exit_schedule_delayed(C);
   return OPERATOR_FINISHED;
 }
 
-static OperatorStatus wm_exit_blender_invoke(bContext *C,
-                                             wmOperator * /*op*/,
-                                             const wmEvent * /*event*/)
+static wmOperatorStatus wm_exit_blender_invoke(bContext *C,
+                                               wmOperator * /*op*/,
+                                               const wmEvent * /*event*/)
 {
   if (U.uiflag & USER_SAVE_PROMPT) {
     wm_quit_with_optional_confirmation_prompt(C, CTX_wm_window(C));
@@ -2434,7 +2440,7 @@ static void WM_OT_quit_blender(wmOperatorType *ot)
 
 #if defined(WIN32)
 
-static OperatorStatus wm_console_toggle_exec(bContext * /*C*/, wmOperator * /*op*/)
+static wmOperatorStatus wm_console_toggle_exec(bContext * /*C*/, wmOperator * /*op*/)
 {
   GHOST_setConsoleWindowState(GHOST_kConsoleWindowStateToggle);
   return OPERATOR_FINISHED;
@@ -3107,7 +3113,7 @@ static int radial_control_get_properties(bContext *C, wmOperator *op)
   return 1;
 }
 
-static OperatorStatus radial_control_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus radial_control_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   op->customdata = MEM_new<RadialControl>(__func__);
   if (!op->customdata) {
@@ -3238,12 +3244,12 @@ static void radial_control_cancel(bContext *C, wmOperator *op)
   MEM_delete(rc);
 }
 
-static OperatorStatus radial_control_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus radial_control_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   RadialControl *rc = static_cast<RadialControl *>(op->customdata);
   float new_value, dist = 0.0f, zoom[2];
   float delta[2];
-  OperatorStatus ret = OPERATOR_RUNNING_MODAL;
+  wmOperatorStatus ret = OPERATOR_RUNNING_MODAL;
   float angle_precision = 0.0f;
   const bool has_numInput = hasNumInput(&rc->num_input);
   bool handled = false;
@@ -3696,7 +3702,7 @@ static bool redraw_timer_poll(bContext *C)
   return !G.background && WM_operator_winactive(C);
 }
 
-static OperatorStatus redraw_timer_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus redraw_timer_exec(bContext *C, wmOperator *op)
 {
   Scene *scene = CTX_data_scene(C);
   wmWindow *win = CTX_wm_window(C);
@@ -3793,7 +3799,7 @@ static void WM_OT_redraw_timer(wmOperatorType *ot)
  * Use for testing/debugging.
  * \{ */
 
-static OperatorStatus memory_statistics_exec(bContext * /*C*/, wmOperator * /*op*/)
+static wmOperatorStatus memory_statistics_exec(bContext * /*C*/, wmOperator * /*op*/)
 {
   MEM_printmemlist_stats();
   return OPERATOR_FINISHED;
@@ -3853,7 +3859,7 @@ static int previews_id_ensure_callback(LibraryIDLinkCallbackData *cb_data)
   return IDWALK_RET_NOP;
 }
 
-static OperatorStatus previews_ensure_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus previews_ensure_exec(bContext *C, wmOperator * /*op*/)
 {
   Main *bmain = CTX_data_main(C);
   ListBase *lb[] = {&bmain->materials,
@@ -3982,7 +3988,7 @@ static uint preview_filter_to_idfilter(enum PreviewFilterID filter)
   return 0;
 }
 
-static OperatorStatus previews_clear_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus previews_clear_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   ListBase *lb[] = {
@@ -4052,10 +4058,10 @@ static void WM_OT_previews_clear(wmOperatorType *ot)
 /** \name Doc from UI Operator
  * \{ */
 
-static OperatorStatus doc_view_manual_ui_context_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus doc_view_manual_ui_context_exec(bContext *C, wmOperator * /*op*/)
 {
   PointerRNA ptr_props;
-  OperatorStatus retval = OPERATOR_CANCELLED;
+  wmOperatorStatus retval = OPERATOR_CANCELLED;
 
   if (std::optional<std::string> manual_id = UI_but_online_manual_id_from_active(C)) {
     WM_operator_properties_create(&ptr_props, "WM_OT_doc_view_manual");

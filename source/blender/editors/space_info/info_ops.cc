@@ -41,7 +41,7 @@
 /** \name Pack Blend File Libraries Operator
  * \{ */
 
-static OperatorStatus pack_libraries_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus pack_libraries_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
 
@@ -66,7 +66,7 @@ void FILE_OT_pack_libraries(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-static OperatorStatus unpack_libraries_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus unpack_libraries_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
 
@@ -83,9 +83,9 @@ static OperatorStatus unpack_libraries_exec(bContext *C, wmOperator *op)
 /** \name Unpack Blend File Libraries Operator
  * \{ */
 
-static OperatorStatus unpack_libraries_invoke(bContext *C,
-                                              wmOperator *op,
-                                              const wmEvent * /*event*/)
+static wmOperatorStatus unpack_libraries_invoke(bContext *C,
+                                                wmOperator *op,
+                                                const wmEvent * /*event*/)
 {
   return WM_operator_confirm_ex(C,
                                 op,
@@ -117,7 +117,7 @@ void FILE_OT_unpack_libraries(wmOperatorType *ot)
 /** \name Toggle Auto-Pack Operator
  * \{ */
 
-static OperatorStatus autopack_toggle_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus autopack_toggle_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
 
@@ -152,7 +152,7 @@ void FILE_OT_autopack_toggle(wmOperatorType *ot)
 /** \name Pack All Operator
  * \{ */
 
-static OperatorStatus pack_all_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus pack_all_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
 
@@ -163,7 +163,7 @@ static OperatorStatus pack_all_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static OperatorStatus pack_all_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+static wmOperatorStatus pack_all_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
   Main *bmain = CTX_data_main(C);
   Image *ima;
@@ -235,7 +235,7 @@ static const EnumPropertyItem unpack_all_method_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-static OperatorStatus unpack_all_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus unpack_all_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   ePF_FileStatus method = ePF_FileStatus(RNA_enum_get(op->ptr, "method"));
@@ -251,7 +251,7 @@ static OperatorStatus unpack_all_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static OperatorStatus unpack_all_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+static wmOperatorStatus unpack_all_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
   Main *bmain = CTX_data_main(C);
   uiPopupMenu *pup;
@@ -325,7 +325,7 @@ static const EnumPropertyItem unpack_item_method_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-static OperatorStatus unpack_item_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus unpack_item_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   ID *id;
@@ -357,7 +357,7 @@ static OperatorStatus unpack_item_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static OperatorStatus unpack_item_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+static wmOperatorStatus unpack_item_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
   uiPopupMenu *pup;
   uiLayout *layout;
@@ -414,7 +414,7 @@ void FILE_OT_unpack_item(wmOperatorType *ot)
 /** \name Make Paths Relative Operator
  * \{ */
 
-static OperatorStatus make_paths_relative_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus make_paths_relative_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   const char *blendfile_path = BKE_main_blendfile_path(bmain);
@@ -454,7 +454,7 @@ void FILE_OT_make_paths_relative(wmOperatorType *ot)
 /** \name Make Paths Absolute Operator
  * \{ */
 
-static OperatorStatus make_paths_absolute_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus make_paths_absolute_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   const char *blendfile_path = BKE_main_blendfile_path(bmain);
@@ -494,7 +494,7 @@ void FILE_OT_make_paths_absolute(wmOperatorType *ot)
 /** \name Report Missing Files Operator
  * \{ */
 
-static OperatorStatus report_missing_files_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus report_missing_files_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
 
@@ -526,7 +526,7 @@ void FILE_OT_report_missing_files(wmOperatorType *ot)
 /** \name Find Missing Files Operator
  * \{ */
 
-static OperatorStatus find_missing_files_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus find_missing_files_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   const char *searchpath = RNA_string_get_alloc(op->ptr, "directory", nullptr, 0, nullptr);
@@ -540,9 +540,9 @@ static OperatorStatus find_missing_files_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static OperatorStatus find_missing_files_invoke(bContext *C,
-                                                wmOperator *op,
-                                                const wmEvent * /*event*/)
+static wmOperatorStatus find_missing_files_invoke(bContext *C,
+                                                  wmOperator *op,
+                                                  const wmEvent * /*event*/)
 {
   /* XXX file open button text "Find Missing Files" */
   WM_event_add_fileselect(C, op);
@@ -596,9 +596,9 @@ void FILE_OT_find_missing_files(wmOperatorType *ot)
 #define FLASH_TIMEOUT 1.0f
 #define COLLAPSE_TIMEOUT 0.25f
 
-static OperatorStatus update_reports_display_invoke(bContext *C,
-                                                    wmOperator * /*op*/,
-                                                    const wmEvent *event)
+static wmOperatorStatus update_reports_display_invoke(bContext *C,
+                                                      wmOperator * /*op*/,
+                                                      const wmEvent *event)
 {
   ReportList *reports = CTX_wm_reports(C);
   Report *report;

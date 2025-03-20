@@ -154,9 +154,9 @@ void AssetMarkHelper::reportResults(ReportList &reports) const
   }
 }
 
-static OperatorStatus asset_mark_exec(const bContext *C,
-                                      const wmOperator *op,
-                                      const Span<PointerRNA> ids)
+static wmOperatorStatus asset_mark_exec(const bContext *C,
+                                        const wmOperator *op,
+                                        const Span<PointerRNA> ids)
 {
   AssetMarkHelper mark_helper;
   mark_helper(*C, ids);
@@ -192,7 +192,7 @@ static void ASSET_OT_mark(wmOperatorType *ot)
       "customizable metadata (like previews, descriptions and tags)";
   ot->idname = "ASSET_OT_mark";
 
-  ot->exec = [](bContext *C, wmOperator *op) -> OperatorStatus {
+  ot->exec = [](bContext *C, wmOperator *op) -> wmOperatorStatus {
     return asset_mark_exec(C, op, ED_operator_get_ids_from_context_as_vec(C));
   };
   ot->poll = [](bContext *C) -> bool {
@@ -213,7 +213,7 @@ static void ASSET_OT_mark_single(wmOperatorType *ot)
       "customizable metadata (like previews, descriptions and tags)";
   ot->idname = "ASSET_OT_mark_single";
 
-  ot->exec = [](bContext *C, wmOperator *op) -> OperatorStatus {
+  ot->exec = [](bContext *C, wmOperator *op) -> wmOperatorStatus {
     return asset_mark_exec(C, op, ED_operator_single_id_from_context_as_vec(C));
   };
   ot->poll = [](bContext *C) -> bool {
@@ -298,9 +298,9 @@ bool AssetClearHelper::wasSuccessful() const
   return stats.tot_cleared > 0;
 }
 
-static OperatorStatus asset_clear_exec(const bContext *C,
-                                       const wmOperator *op,
-                                       const Span<PointerRNA> ids)
+static wmOperatorStatus asset_clear_exec(const bContext *C,
+                                         const wmOperator *op,
+                                         const Span<PointerRNA> ids)
 {
   const bool set_fake_user = RNA_boolean_get(op->ptr, "set_fake_user");
   AssetClearHelper clear_helper(set_fake_user);
@@ -360,7 +360,7 @@ static void ASSET_OT_clear(wmOperatorType *ot)
   ot->get_description = asset_clear_get_description;
   ot->idname = "ASSET_OT_clear";
 
-  ot->exec = [](bContext *C, wmOperator *op) -> OperatorStatus {
+  ot->exec = [](bContext *C, wmOperator *op) -> wmOperatorStatus {
     return asset_clear_exec(C, op, ED_operator_get_ids_from_context_as_vec(C));
   };
   ot->poll = [](bContext *C) -> bool {
@@ -384,7 +384,7 @@ static void ASSET_OT_clear_single(wmOperatorType *ot)
   ot->get_description = asset_clear_get_description;
   ot->idname = "ASSET_OT_clear_single";
 
-  ot->exec = [](bContext *C, wmOperator *op) -> OperatorStatus {
+  ot->exec = [](bContext *C, wmOperator *op) -> wmOperatorStatus {
     return asset_clear_exec(C, op, ED_operator_single_id_from_context_as_vec(C));
   };
   ot->poll = [](bContext *C) -> bool {
@@ -418,7 +418,7 @@ static bool asset_library_refresh_poll(bContext *C)
   return list::storage_has_list_for_library(library);
 }
 
-static OperatorStatus asset_library_refresh_exec(bContext *C, wmOperator * /*unused*/)
+static wmOperatorStatus asset_library_refresh_exec(bContext *C, wmOperator * /*unused*/)
 {
   /* Execution mode #1: Inside the Asset Browser. */
   if (ED_operator_asset_browsing_active(C)) {
@@ -471,7 +471,7 @@ static bool asset_catalog_operator_poll(bContext *C)
   return true;
 }
 
-static OperatorStatus asset_catalog_new_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus asset_catalog_new_exec(bContext *C, wmOperator *op)
 {
   SpaceFile *sfile = CTX_wm_space_file(C);
   asset_system::AssetLibrary *asset_library = ED_fileselect_active_asset_library_get(sfile);
@@ -511,7 +511,7 @@ static void ASSET_OT_catalog_new(wmOperatorType *ot)
                  "Optional path defining the location to put the new catalog under");
 }
 
-static OperatorStatus asset_catalog_delete_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus asset_catalog_delete_exec(bContext *C, wmOperator *op)
 {
   SpaceFile *sfile = CTX_wm_space_file(C);
   asset_system::AssetLibrary *asset_library = ED_fileselect_active_asset_library_get(sfile);
@@ -562,7 +562,7 @@ static asset_system::AssetCatalogService *get_catalog_service(bContext *C)
   return nullptr;
 }
 
-static OperatorStatus asset_catalog_undo_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus asset_catalog_undo_exec(bContext *C, wmOperator * /*op*/)
 {
   asset_system::AssetCatalogService *catalog_service = get_catalog_service(C);
   if (!catalog_service) {
@@ -592,7 +592,7 @@ static void ASSET_OT_catalog_undo(wmOperatorType *ot)
   ot->poll = asset_catalog_undo_poll;
 }
 
-static OperatorStatus asset_catalog_redo_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus asset_catalog_redo_exec(bContext *C, wmOperator * /*op*/)
 {
   asset_system::AssetCatalogService *catalog_service = get_catalog_service(C);
   if (!catalog_service) {
@@ -622,7 +622,7 @@ static void ASSET_OT_catalog_redo(wmOperatorType *ot)
   ot->poll = asset_catalog_redo_poll;
 }
 
-static OperatorStatus asset_catalog_undo_push_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus asset_catalog_undo_push_exec(bContext *C, wmOperator * /*op*/)
 {
   asset_system::AssetCatalogService *catalog_service = get_catalog_service(C);
   if (!catalog_service) {
@@ -675,7 +675,7 @@ static bool asset_catalogs_save_poll(bContext *C)
   return true;
 }
 
-static OperatorStatus asset_catalogs_save_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus asset_catalogs_save_exec(bContext *C, wmOperator * /*op*/)
 {
   const SpaceFile *sfile = CTX_wm_space_file(C);
   asset_system::AssetLibrary *asset_library = ED_fileselect_active_asset_library_get(sfile);
@@ -736,9 +736,9 @@ static bool asset_bundle_install_poll(bContext *C)
   return true;
 }
 
-static OperatorStatus asset_bundle_install_invoke(bContext *C,
-                                                  wmOperator *op,
-                                                  const wmEvent * /*event*/)
+static wmOperatorStatus asset_bundle_install_invoke(bContext *C,
+                                                    wmOperator *op,
+                                                    const wmEvent * /*event*/)
 {
   Main *bmain = CTX_data_main(C);
   if (has_external_files(bmain, op->reports)) {
@@ -755,7 +755,7 @@ static OperatorStatus asset_bundle_install_invoke(bContext *C,
   return OPERATOR_RUNNING_MODAL;
 }
 
-static OperatorStatus asset_bundle_install_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus asset_bundle_install_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   if (has_external_files(bmain, op->reports)) {
@@ -790,7 +790,7 @@ static OperatorStatus asset_bundle_install_exec(bContext *C, wmOperator *op)
   cat_service->undo_push();
   cat_service->prepare_to_merge_on_write();
 
-  const OperatorStatus operator_result = WM_operator_name_call(
+  const wmOperatorStatus operator_result = WM_operator_name_call(
       C, "WM_OT_save_mainfile", WM_OP_EXEC_DEFAULT, op->ptr, nullptr);
   WM_cursor_wait(false);
 

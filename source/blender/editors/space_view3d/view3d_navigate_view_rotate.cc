@@ -295,13 +295,13 @@ static void viewrotate_apply(ViewOpsData *vod, const int event_xy[2])
   ED_region_tag_redraw(vod->region);
 }
 
-static OperatorStatus viewrotate_modal_impl(bContext *C,
-                                            ViewOpsData *vod,
-                                            const eV3D_OpEvent event_code,
-                                            const int xy[2])
+static wmOperatorStatus viewrotate_modal_impl(bContext *C,
+                                              ViewOpsData *vod,
+                                              const eV3D_OpEvent event_code,
+                                              const int xy[2])
 {
   bool use_autokey = false;
-  OperatorStatus ret = OPERATOR_RUNNING_MODAL;
+  wmOperatorStatus ret = OPERATOR_RUNNING_MODAL;
 
   switch (event_code) {
     case VIEW_APPLY: {
@@ -332,10 +332,10 @@ static OperatorStatus viewrotate_modal_impl(bContext *C,
   return ret;
 }
 
-static OperatorStatus viewrotate_invoke_impl(bContext * /*C*/,
-                                             ViewOpsData *vod,
-                                             const wmEvent *event,
-                                             PointerRNA * /*ptr*/)
+static wmOperatorStatus viewrotate_invoke_impl(bContext * /*C*/,
+                                               ViewOpsData *vod,
+                                               const wmEvent *event,
+                                               PointerRNA * /*ptr*/)
 {
   if (vod->use_dyn_ofs && (vod->rv3d->is_persp == false)) {
     vod->use_dyn_ofs_ortho_correction = true;
@@ -363,7 +363,7 @@ static OperatorStatus viewrotate_invoke_impl(bContext * /*C*/,
   return OPERATOR_RUNNING_MODAL;
 }
 
-static OperatorStatus viewrotate_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus viewrotate_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   return view3d_navigate_invoke_impl(C, op, event, &ViewOpsType_rotate);
 }

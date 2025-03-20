@@ -168,7 +168,7 @@ static bool gesture_box_apply(bContext *C, wmOperator *op)
   return (retval & OPERATOR_FINISHED) ? true : false;
 }
 
-OperatorStatus WM_gesture_box_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+wmOperatorStatus WM_gesture_box_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   wmWindow *win = CTX_wm_window(C);
   const ARegion *region = CTX_wm_region(C);
@@ -195,7 +195,7 @@ OperatorStatus WM_gesture_box_invoke(bContext *C, wmOperator *op, const wmEvent 
   return OPERATOR_RUNNING_MODAL;
 }
 
-OperatorStatus WM_gesture_box_modal(bContext *C, wmOperator *op, const wmEvent *event)
+wmOperatorStatus WM_gesture_box_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   wmWindow *win = CTX_wm_window(C);
   wmGesture *gesture = static_cast<wmGesture *>(op->customdata);
@@ -291,7 +291,7 @@ void WM_gesture_box_cancel(bContext *C, wmOperator *op)
 
 static void gesture_circle_apply(bContext *C, wmOperator *op);
 
-OperatorStatus WM_gesture_circle_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+wmOperatorStatus WM_gesture_circle_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   wmWindow *win = CTX_wm_window(C);
   const bool wait_for_input = !WM_event_is_mouse_drag_or_press(event) &&
@@ -350,7 +350,7 @@ static void gesture_circle_apply(bContext *C, wmOperator *op)
   }
 }
 
-OperatorStatus WM_gesture_circle_modal(bContext *C, wmOperator *op, const wmEvent *event)
+wmOperatorStatus WM_gesture_circle_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   wmWindow *win = CTX_wm_window(C);
   wmGesture *gesture = static_cast<wmGesture *>(op->customdata);
@@ -483,7 +483,7 @@ void WM_OT_circle_gesture(wmOperatorType *ot)
  * The operator stores data in the "path" property as a series of screen space positions.
  * \{ */
 
-OperatorStatus WM_gesture_lasso_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+wmOperatorStatus WM_gesture_lasso_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   wmWindow *win = CTX_wm_window(C);
   PropertyRNA *prop;
@@ -504,7 +504,7 @@ OperatorStatus WM_gesture_lasso_invoke(bContext *C, wmOperator *op, const wmEven
   return OPERATOR_RUNNING_MODAL;
 }
 
-OperatorStatus WM_gesture_lines_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+wmOperatorStatus WM_gesture_lines_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   wmWindow *win = CTX_wm_window(C);
   PropertyRNA *prop;
@@ -527,9 +527,9 @@ OperatorStatus WM_gesture_lines_invoke(bContext *C, wmOperator *op, const wmEven
   return OPERATOR_RUNNING_MODAL;
 }
 
-static OperatorStatus gesture_lasso_apply(bContext *C, wmOperator *op)
+static wmOperatorStatus gesture_lasso_apply(bContext *C, wmOperator *op)
 {
-  OperatorStatus retval = OPERATOR_FINISHED;
+  wmOperatorStatus retval = OPERATOR_FINISHED;
   wmGesture *gesture = static_cast<wmGesture *>(op->customdata);
   PointerRNA itemptr;
   float loc[2];
@@ -556,7 +556,7 @@ static OperatorStatus gesture_lasso_apply(bContext *C, wmOperator *op)
   return retval;
 }
 
-OperatorStatus WM_gesture_lasso_modal(bContext *C, wmOperator *op, const wmEvent *event)
+wmOperatorStatus WM_gesture_lasso_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   wmGesture *gesture = static_cast<wmGesture *>(op->customdata);
   const float factor = gesture->use_smooth ? RNA_float_get(op->ptr, "smooth_stroke_factor") : 0.0f;
@@ -638,7 +638,7 @@ OperatorStatus WM_gesture_lasso_modal(bContext *C, wmOperator *op, const wmEvent
   return OPERATOR_RUNNING_MODAL;
 }
 
-OperatorStatus WM_gesture_lines_modal(bContext *C, wmOperator *op, const wmEvent *event)
+wmOperatorStatus WM_gesture_lines_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   return WM_gesture_lasso_modal(C, op, event);
 }
@@ -682,7 +682,7 @@ Array<int2> WM_gesture_lasso_path_to_array(bContext * /*C*/, wmOperator *op)
 #if 0
 /* Template to copy from. */
 
-static OperatorStatus gesture_lasso_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus gesture_lasso_exec(bContext *C, wmOperator *op)
 {
   RNA_BEGIN (op->ptr, itemptr, "path") {
     float loc[2];
@@ -725,7 +725,7 @@ void WM_OT_lasso_gesture(wmOperatorType *ot)
  * Like the Lasso Gesture, the data passed onto other operators via the 'path' property is a
  * sequential array of mouse positions.
  * \{ */
-OperatorStatus WM_gesture_polyline_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+wmOperatorStatus WM_gesture_polyline_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   wmWindow *win = CTX_wm_window(C);
   PropertyRNA *prop;
@@ -785,9 +785,9 @@ static bool gesture_polyline_can_apply(const wmGesture &wmGesture, const bool is
   return true;
 }
 
-static OperatorStatus gesture_polyline_apply(bContext *C,
-                                             wmOperator *op,
-                                             const bool is_click_submitted)
+static wmOperatorStatus gesture_polyline_apply(bContext *C,
+                                               wmOperator *op,
+                                               const bool is_click_submitted)
 {
   wmGesture *gesture = static_cast<wmGesture *>(op->customdata);
   BLI_assert(gesture_polyline_can_apply(*gesture, is_click_submitted));
@@ -813,7 +813,7 @@ static OperatorStatus gesture_polyline_apply(bContext *C,
 
   gesture_modal_end(C, op);
 
-  OperatorStatus retval = OPERATOR_FINISHED;
+  wmOperatorStatus retval = OPERATOR_FINISHED;
   if (op->type->exec) {
     retval = op->type->exec(C, op);
     OPERATOR_RETVAL_CHECK(retval);
@@ -822,7 +822,7 @@ static OperatorStatus gesture_polyline_apply(bContext *C,
   return retval;
 }
 
-OperatorStatus WM_gesture_polyline_modal(bContext *C, wmOperator *op, const wmEvent *event)
+wmOperatorStatus WM_gesture_polyline_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   wmGesture *gesture = static_cast<wmGesture *>(op->customdata);
 
@@ -907,7 +907,7 @@ void WM_gesture_polyline_cancel(bContext *C, wmOperator *op)
 
 /* template to copy from */
 #if 0
-static OperatorStatus gesture_polyline_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus gesture_polyline_exec(bContext *C, wmOperator *op)
 {
   RNA_BEGIN (op->ptr, itemptr, "path") {
     float loc[2];
@@ -997,7 +997,7 @@ static bool gesture_straightline_apply(bContext *C, wmOperator *op)
   return true;
 }
 
-OperatorStatus WM_gesture_straightline_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+wmOperatorStatus WM_gesture_straightline_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   wmWindow *win = CTX_wm_window(C);
   PropertyRNA *prop;
@@ -1020,9 +1020,9 @@ OperatorStatus WM_gesture_straightline_invoke(bContext *C, wmOperator *op, const
 
   return OPERATOR_RUNNING_MODAL;
 }
-OperatorStatus WM_gesture_straightline_active_side_invoke(bContext *C,
-                                                          wmOperator *op,
-                                                          const wmEvent *event)
+wmOperatorStatus WM_gesture_straightline_active_side_invoke(bContext *C,
+                                                            wmOperator *op,
+                                                            const wmEvent *event)
 {
   WM_gesture_straightline_invoke(C, op, event);
   wmGesture *gesture = static_cast<wmGesture *>(op->customdata);
@@ -1070,7 +1070,7 @@ static void wm_gesture_straightline_do_angle_snap(rcti *rect, float snap_angle)
   }
 }
 
-OperatorStatus WM_gesture_straightline_modal(bContext *C, wmOperator *op, const wmEvent *event)
+wmOperatorStatus WM_gesture_straightline_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   const Scene *scene = CTX_data_scene(C);
   const ScrArea *area = CTX_wm_area(C);
@@ -1154,9 +1154,9 @@ OperatorStatus WM_gesture_straightline_modal(bContext *C, wmOperator *op, const 
   return OPERATOR_RUNNING_MODAL;
 }
 
-OperatorStatus WM_gesture_straightline_oneshot_modal(bContext *C,
-                                                     wmOperator *op,
-                                                     const wmEvent *event)
+wmOperatorStatus WM_gesture_straightline_oneshot_modal(bContext *C,
+                                                       wmOperator *op,
+                                                       const wmEvent *event)
 {
   const Scene *scene = CTX_data_scene(C);
   const ScrArea *area = CTX_wm_area(C);

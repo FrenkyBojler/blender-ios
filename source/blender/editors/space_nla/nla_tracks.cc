@@ -284,9 +284,9 @@ static int mouse_nla_tracks(bContext *C, bAnimContext *ac, int track_index, shor
 /* ------------------- */
 
 /* handle clicking */
-static OperatorStatus nlatracks_mouseclick_invoke(bContext *C,
-                                                  wmOperator *op,
-                                                  const wmEvent *event)
+static wmOperatorStatus nlatracks_mouseclick_invoke(bContext *C,
+                                                    wmOperator *op,
+                                                    const wmEvent *event)
 {
   bAnimContext ac;
   ARegion *region;
@@ -360,7 +360,7 @@ void NLA_OT_channels_click(wmOperatorType *ot)
 
 /* ******************** Action Push Down ******************************** */
 
-static OperatorStatus nlatracks_pushdown_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus nlatracks_pushdown_exec(bContext *C, wmOperator *op)
 {
   bAnimContext ac;
   ID *id = nullptr;
@@ -495,7 +495,7 @@ static bool nla_action_unlink_poll(bContext *C)
   return false;
 }
 
-static OperatorStatus nla_action_unlink_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus nla_action_unlink_exec(bContext *C, wmOperator *op)
 {
   PointerRNA adt_ptr;
 
@@ -519,7 +519,7 @@ static OperatorStatus nla_action_unlink_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static OperatorStatus nla_action_unlink_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus nla_action_unlink_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   /* NOTE: this is hardcoded to match the behavior for the unlink button
    * (in `interface_templates.cc`). */
@@ -641,7 +641,7 @@ bool nlaedit_add_tracks_empty(bAnimContext *ac)
 
 /* ----- */
 
-static OperatorStatus nlaedit_add_tracks_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus nlaedit_add_tracks_exec(bContext *C, wmOperator *op)
 {
   bAnimContext ac;
   bool above_sel = RNA_boolean_get(op->ptr, "above_selected");
@@ -700,7 +700,7 @@ void NLA_OT_tracks_add(wmOperatorType *ot)
 /* ******************** Delete Tracks Operator ***************************** */
 /* Delete selected NLA Tracks */
 
-static OperatorStatus nlaedit_delete_tracks_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus nlaedit_delete_tracks_exec(bContext *C, wmOperator * /*op*/)
 {
   bAnimContext ac;
 
@@ -779,7 +779,7 @@ void NLA_OT_tracks_delete(wmOperatorType *ot)
  *       common use case, we now have a nice shortcut again.
  */
 
-static OperatorStatus nlaedit_objects_add_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus nlaedit_objects_add_exec(bContext *C, wmOperator * /*op*/)
 {
   bAnimContext ac;
 

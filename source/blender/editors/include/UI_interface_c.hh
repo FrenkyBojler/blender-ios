@@ -737,7 +737,7 @@ bool UI_popup_menu_end_or_cancel(bContext *C, uiPopupMenu *pup);
 uiLayout *UI_popup_menu_layout(uiPopupMenu *pup);
 
 void UI_popup_menu_reports(bContext *C, ReportList *reports) ATTR_NONNULL();
-OperatorStatus UI_popup_menu_invoke(bContext *C, const char *idname, ReportList *reports)
+wmOperatorStatus UI_popup_menu_invoke(bContext *C, const char *idname, ReportList *reports)
     ATTR_NONNULL(1, 2);
 
 /**
@@ -771,10 +771,10 @@ void UI_popup_menu_but_set(uiPopupMenu *pup, ARegion *butregion, uiBut *but);
 
 struct uiPopover;
 
-OperatorStatus UI_popover_panel_invoke(bContext *C,
-                                       const char *idname,
-                                       bool keep_open,
-                                       ReportList *reports);
+wmOperatorStatus UI_popover_panel_invoke(bContext *C,
+                                         const char *idname,
+                                         bool keep_open,
+                                         ReportList *reports);
 
 /**
  * Only return handler, and set optional title.
@@ -796,7 +796,7 @@ void UI_popover_once_clear(uiPopover *pup);
 /* Pie menus */
 struct uiPieMenu;
 
-OperatorStatus UI_pie_menu_invoke(bContext *C, const char *idname, const wmEvent *event);
+wmOperatorStatus UI_pie_menu_invoke(bContext *C, const char *idname, const wmEvent *event);
 int UI_pie_menu_invoke_from_operator_enum(bContext *C,
                                           blender::StringRefNull title,
                                           blender::StringRefNull opname,

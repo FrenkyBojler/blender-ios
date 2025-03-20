@@ -5741,11 +5741,13 @@ static void stroke_done(const bContext *C, PaintStroke * /*stroke*/)
   brush_exit_tex(sd);
 }
 
-static OperatorStatus sculpt_brush_stroke_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus sculpt_brush_stroke_invoke(bContext *C,
+                                                   wmOperator *op,
+                                                   const wmEvent *event)
 {
   PaintStroke *stroke;
   int ignore_background_click;
-  OperatorStatus retval;
+  wmOperatorStatus retval;
   Object &ob = *CTX_data_active_object(C);
   Scene &scene = *CTX_data_scene(C);
   const View3D *v3d = CTX_wm_view3d(C);
@@ -5821,7 +5823,7 @@ static OperatorStatus sculpt_brush_stroke_invoke(bContext *C, wmOperator *op, co
   return OPERATOR_RUNNING_MODAL;
 }
 
-static OperatorStatus sculpt_brush_stroke_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus sculpt_brush_stroke_exec(bContext *C, wmOperator *op)
 {
   brush_stroke_init(C);
 
@@ -5863,7 +5865,7 @@ static void sculpt_brush_stroke_cancel(bContext *C, wmOperator *op)
   brush_exit_tex(sd);
 }
 
-static OperatorStatus brush_stroke_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus brush_stroke_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   return paint_stroke_modal(C, op, event, (PaintStroke **)&op->customdata);
 }

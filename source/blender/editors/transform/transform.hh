@@ -907,9 +907,9 @@ bool initTransform(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
  * \see #initTransform which reads values from the operator.
  */
 void saveTransform(bContext *C, TransInfo *t, wmOperator *op);
-OperatorStatus transformEvent(TransInfo *t, wmOperator *op, const wmEvent *event);
+wmOperatorStatus transformEvent(TransInfo *t, wmOperator *op, const wmEvent *event);
 void transformApply(bContext *C, TransInfo *t);
-OperatorStatus transformEnd(bContext *C, TransInfo *t);
+wmOperatorStatus transformEnd(bContext *C, TransInfo *t);
 
 void setTransformViewMatrices(TransInfo *t);
 void setTransformViewAspect(TransInfo *t, float r_aspect[3]);

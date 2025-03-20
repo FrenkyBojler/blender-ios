@@ -134,7 +134,7 @@ void ED_keymap_armature(wmKeyConfig *keyconf);
 /**
  * Join armature exec is exported for use in object->join objects operator.
  */
-OperatorStatus ED_armature_join_objects_exec(bContext *C, wmOperator *op);
+wmOperatorStatus ED_armature_join_objects_exec(bContext *C, wmOperator *op);
 
 /* `armature_select.cc` */
 

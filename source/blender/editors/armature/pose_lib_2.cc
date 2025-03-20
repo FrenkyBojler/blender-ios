@@ -228,9 +228,9 @@ static void poselib_toggle_flipped(PoseBlendData *pbd)
 }
 
 /* Return operator return value. */
-static OperatorStatus poselib_blend_handle_event(bContext * /*C*/,
-                                                 wmOperator *op,
-                                                 const wmEvent *event)
+static wmOperatorStatus poselib_blend_handle_event(bContext * /*C*/,
+                                                   wmOperator *op,
+                                                   const wmEvent *event)
 {
   PoseBlendData *pbd = static_cast<PoseBlendData *>(op->customdata);
 
@@ -502,7 +502,7 @@ static void poselib_blend_free(wmOperator *op)
   MEM_delete(pbd);
 }
 
-static OperatorStatus poselib_blend_exit(bContext *C, wmOperator *op)
+static wmOperatorStatus poselib_blend_exit(bContext *C, wmOperator *op)
 {
   PoseBlendData *pbd = static_cast<PoseBlendData *>(op->customdata);
   const ePoseBlendState exit_state = pbd->state;
@@ -528,9 +528,9 @@ static void poselib_blend_cancel(bContext *C, wmOperator *op)
 }
 
 /* Main modal status check. */
-static OperatorStatus poselib_blend_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus poselib_blend_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  const OperatorStatus operator_result = poselib_blend_handle_event(C, op, event);
+  const wmOperatorStatus operator_result = poselib_blend_handle_event(C, op, event);
 
   const PoseBlendData *pbd = static_cast<const PoseBlendData *>(op->customdata);
   if (ELEM(pbd->state, POSE_BLEND_CONFIRM, POSE_BLEND_CANCEL)) {
@@ -559,7 +559,7 @@ static OperatorStatus poselib_blend_modal(bContext *C, wmOperator *op, const wmE
 }
 
 /* Modal Operator init. */
-static OperatorStatus poselib_blend_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus poselib_blend_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   if (!poselib_blend_init_data(C, op, event)) {
     poselib_blend_free(op);
@@ -577,7 +577,7 @@ static OperatorStatus poselib_blend_invoke(bContext *C, wmOperator *op, const wm
 }
 
 /* Single-shot apply. */
-static OperatorStatus poselib_blend_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus poselib_blend_exec(bContext *C, wmOperator *op)
 {
   if (!poselib_blend_init_data(C, op, nullptr)) {
     poselib_blend_free(op);

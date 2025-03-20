@@ -127,7 +127,7 @@ static void driverdropper_cancel(bContext *C, wmOperator *op)
 }
 
 /* main modal status check */
-static OperatorStatus driverdropper_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus driverdropper_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   DriverDropper *ddr = static_cast<DriverDropper *>(op->customdata);
 
@@ -152,7 +152,9 @@ static OperatorStatus driverdropper_modal(bContext *C, wmOperator *op, const wmE
 }
 
 /* Modal Operator init */
-static OperatorStatus driverdropper_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+static wmOperatorStatus driverdropper_invoke(bContext *C,
+                                             wmOperator *op,
+                                             const wmEvent * /*event*/)
 {
   /* init */
   if (driverdropper_init(C, op)) {
@@ -170,7 +172,7 @@ static OperatorStatus driverdropper_invoke(bContext *C, wmOperator *op, const wm
 }
 
 /* Repeat operator */
-static OperatorStatus driverdropper_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus driverdropper_exec(bContext *C, wmOperator *op)
 {
   /* init */
   if (driverdropper_init(C, op)) {

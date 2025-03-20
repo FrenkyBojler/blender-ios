@@ -992,9 +992,9 @@ static bool grease_pencil_interpolate_poll(bContext *C)
 }
 
 /* Invoke handler: Initialize the operator */
-static OperatorStatus grease_pencil_interpolate_invoke(bContext *C,
-                                                       wmOperator *op,
-                                                       const wmEvent * /*event*/)
+static wmOperatorStatus grease_pencil_interpolate_invoke(bContext *C,
+                                                         wmOperator *op,
+                                                         const wmEvent * /*event*/)
 {
   wmWindow &win = *CTX_wm_window(C);
 
@@ -1024,9 +1024,9 @@ enum class InterpolateToolModalEvent : int8_t {
 };
 
 /* Modal handler: Events handling during interactive part */
-static OperatorStatus grease_pencil_interpolate_modal(bContext *C,
-                                                      wmOperator *op,
-                                                      const wmEvent *event)
+static wmOperatorStatus grease_pencil_interpolate_modal(bContext *C,
+                                                        wmOperator *op,
+                                                        const wmEvent *event)
 {
   wmWindow &win = *CTX_wm_window(C);
   const ARegion &region = *CTX_wm_region(C);
@@ -1352,7 +1352,7 @@ static float grease_pencil_interpolate_sequence_easing_calc(const eBezTriple_Eas
   return time;
 }
 
-static OperatorStatus grease_pencil_interpolate_sequence_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus grease_pencil_interpolate_sequence_exec(bContext *C, wmOperator *op)
 {
   using bke::greasepencil::Drawing;
   using bke::greasepencil::Layer;

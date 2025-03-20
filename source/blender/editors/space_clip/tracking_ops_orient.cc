@@ -158,7 +158,7 @@ static Object *object_solver_camera(Scene *scene, Object *ob)
   return nullptr;
 }
 
-static OperatorStatus set_origin_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus set_origin_exec(bContext *C, wmOperator *op)
 {
   SpaceClip *sc = CTX_wm_space_clip(C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
@@ -372,7 +372,7 @@ static void set_axis(Scene *scene,
   BKE_object_apply_mat4(ob, mat, false, false);
 }
 
-static OperatorStatus set_plane_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus set_plane_exec(bContext *C, wmOperator *op)
 {
   SpaceClip *sc = CTX_wm_space_clip(C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
@@ -515,7 +515,7 @@ void CLIP_OT_set_plane(wmOperatorType *ot)
 
 /********************** set axis operator *********************/
 
-static OperatorStatus set_axis_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus set_axis_exec(bContext *C, wmOperator *op)
 {
   SpaceClip *sc = CTX_wm_space_clip(C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
@@ -586,10 +586,10 @@ void CLIP_OT_set_axis(wmOperatorType *ot)
 
 /********************** set scale operator *********************/
 
-static OperatorStatus do_set_scale(bContext *C,
-                                   wmOperator *op,
-                                   bool scale_solution,
-                                   bool apply_scale)
+static wmOperatorStatus do_set_scale(bContext *C,
+                                     wmOperator *op,
+                                     bool scale_solution,
+                                     bool apply_scale)
 {
   SpaceClip *sc = CTX_wm_space_clip(C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
@@ -682,12 +682,12 @@ static OperatorStatus do_set_scale(bContext *C,
   return OPERATOR_FINISHED;
 }
 
-static OperatorStatus set_scale_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus set_scale_exec(bContext *C, wmOperator *op)
 {
   return do_set_scale(C, op, false, false);
 }
 
-static OperatorStatus set_scale_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+static wmOperatorStatus set_scale_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
   SpaceClip *sc = CTX_wm_space_clip(C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
@@ -742,14 +742,14 @@ static bool set_solution_scale_poll(bContext *C)
   return false;
 }
 
-static OperatorStatus set_solution_scale_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus set_solution_scale_exec(bContext *C, wmOperator *op)
 {
   return do_set_scale(C, op, true, false);
 }
 
-static OperatorStatus set_solution_scale_invoke(bContext *C,
-                                                wmOperator *op,
-                                                const wmEvent * /*event*/)
+static wmOperatorStatus set_solution_scale_invoke(bContext *C,
+                                                  wmOperator *op,
+                                                  const wmEvent * /*event*/)
 {
   SpaceClip *sc = CTX_wm_space_clip(C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
@@ -806,14 +806,14 @@ static bool apply_solution_scale_poll(bContext *C)
   return false;
 }
 
-static OperatorStatus apply_solution_scale_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus apply_solution_scale_exec(bContext *C, wmOperator *op)
 {
   return do_set_scale(C, op, false, true);
 }
 
-static OperatorStatus apply_solution_scale_invoke(bContext *C,
-                                                  wmOperator *op,
-                                                  const wmEvent * /*event*/)
+static wmOperatorStatus apply_solution_scale_invoke(bContext *C,
+                                                    wmOperator *op,
+                                                    const wmEvent * /*event*/)
 {
   SpaceClip *sc = CTX_wm_space_clip(C);
   MovieClip *clip = ED_space_clip_get_clip(sc);

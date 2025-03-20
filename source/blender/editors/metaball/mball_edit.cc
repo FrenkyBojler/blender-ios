@@ -146,7 +146,7 @@ MetaElem *ED_mball_add_primitive(
  * \{ */
 
 /* Select or deselect all MetaElements */
-static OperatorStatus mball_select_all_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus mball_select_all_exec(bContext *C, wmOperator *op)
 {
   int action = RNA_enum_get(op->ptr, "action");
 
@@ -325,7 +325,7 @@ static bool mball_select_similar_type(Object *obedit,
   return changed;
 }
 
-static OperatorStatus mball_select_similar_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus mball_select_similar_exec(bContext *C, wmOperator *op)
 {
   const int type = RNA_enum_get(op->ptr, "type");
   const float thresh = RNA_float_get(op->ptr, "threshold");
@@ -455,7 +455,7 @@ void MBALL_OT_select_similar(wmOperatorType *ot)
 /** \name Select Random Operator
  * \{ */
 
-static OperatorStatus select_random_metaelems_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus select_random_metaelems_exec(bContext *C, wmOperator *op)
 {
   const bool select = (RNA_enum_get(op->ptr, "action") == SEL_SELECT);
   const float randfac = RNA_float_get(op->ptr, "ratio");
@@ -524,7 +524,7 @@ void MBALL_OT_select_random_metaelems(wmOperatorType *ot)
  * \{ */
 
 /* Duplicate selected MetaElements */
-static OperatorStatus duplicate_metaelems_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus duplicate_metaelems_exec(bContext *C, wmOperator * /*op*/)
 {
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
@@ -579,7 +579,7 @@ void MBALL_OT_duplicate_metaelems(wmOperatorType *ot)
  * Delete all selected MetaElems (not MetaBall).
  * \{ */
 
-static OperatorStatus delete_metaelems_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus delete_metaelems_exec(bContext *C, wmOperator * /*op*/)
 {
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
@@ -613,9 +613,9 @@ static OperatorStatus delete_metaelems_exec(bContext *C, wmOperator * /*op*/)
   return OPERATOR_FINISHED;
 }
 
-static OperatorStatus delete_metaelems_invoke(bContext *C,
-                                              wmOperator *op,
-                                              const wmEvent * /*event*/)
+static wmOperatorStatus delete_metaelems_invoke(bContext *C,
+                                                wmOperator *op,
+                                                const wmEvent * /*event*/)
 {
   if (RNA_boolean_get(op->ptr, "confirm")) {
     return WM_operator_confirm_ex(C,
@@ -652,7 +652,7 @@ void MBALL_OT_delete_metaelems(wmOperatorType *ot)
 /** \name Hide Meta-Elements Operator
  * \{ */
 
-static OperatorStatus hide_metaelems_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus hide_metaelems_exec(bContext *C, wmOperator *op)
 {
   Object *obedit = CTX_data_edit_object(C);
   MetaBall *mb = (MetaBall *)obedit->data;
@@ -700,7 +700,7 @@ void MBALL_OT_hide_metaelems(wmOperatorType *ot)
 /** \name Un-Hide Meta-Elements Operator
  * \{ */
 
-static OperatorStatus reveal_metaelems_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus reveal_metaelems_exec(bContext *C, wmOperator *op)
 {
   Object *obedit = CTX_data_edit_object(C);
   MetaBall *mb = (MetaBall *)obedit->data;

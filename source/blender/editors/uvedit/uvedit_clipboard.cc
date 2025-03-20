@@ -272,7 +272,7 @@ bool UV_ClipboardBuffer::find_isomorphism(UvElementMap *dest_element_map,
   return false;
 }
 
-static OperatorStatus uv_copy_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus uv_copy_exec(bContext *C, wmOperator * /*op*/)
 {
   UV_clipboard_free();
   uv_clipboard = new UV_ClipboardBuffer();
@@ -301,7 +301,7 @@ static OperatorStatus uv_copy_exec(bContext *C, wmOperator * /*op*/)
   return OPERATOR_FINISHED;
 }
 
-static OperatorStatus uv_paste_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus uv_paste_exec(bContext *C, wmOperator *op)
 {
   /* TODO: Restore `UvClipboard` from system clipboard. */
   if (!uv_clipboard) {

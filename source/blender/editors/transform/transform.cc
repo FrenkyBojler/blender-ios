@@ -975,7 +975,7 @@ static bool transform_event_modal_constraint(TransInfo *t, short modal_type)
   return true;
 }
 
-OperatorStatus transformEvent(TransInfo *t, wmOperator *op, const wmEvent *event)
+wmOperatorStatus transformEvent(TransInfo *t, wmOperator *op, const wmEvent *event)
 {
   bool is_navigating = t->vod ? ((RegionView3D *)t->region->regiondata)->rflag & RV3D_NAVIGATING :
                                 false;
@@ -1401,7 +1401,7 @@ OperatorStatus transformEvent(TransInfo *t, wmOperator *op, const wmEvent *event
   }
 
   if (!is_navigating && t->redraw) {
-    return OperatorStatus(0);
+    return wmOperatorStatus(0);
   }
   return OPERATOR_PASS_THROUGH;
 }
@@ -2127,9 +2127,9 @@ void transformApply(bContext *C, TransInfo *t)
   t->context = nullptr;
 }
 
-OperatorStatus transformEnd(bContext *C, TransInfo *t)
+wmOperatorStatus transformEnd(bContext *C, TransInfo *t)
 {
-  OperatorStatus exit_code = OPERATOR_RUNNING_MODAL;
+  wmOperatorStatus exit_code = OPERATOR_RUNNING_MODAL;
 
   t->context = C;
 
