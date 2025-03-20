@@ -103,6 +103,10 @@ if(WITH_COMPILER_CODE_COVERAGE)
         ${COMPILER_CODE_COVERAGE_DATA_DIR}/raw/*.profraw
         -o ${COMPILER_CODE_COVERAGE_DATA_DIR}/blender.profdata
     )
+    if (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 18.1)
+      # available clang 18.1+ only
+      set(_cov_extra_args -show-directory-coverage)
+    endif()
     add_custom_target(coverage-report
       BYPRODUCTS "${COMPILER_CODE_COVERAGE_DATA_DIR}/report/index.html"
       SOURCES "${COMPILER_CODE_COVERAGE_DATA_DIR}/blender.profdata"
@@ -111,7 +115,7 @@ if(WITH_COMPILER_CODE_COVERAGE)
         -format=html
         -show-instantiations=true
         -show-line-counts-or-regions
-        -show-directory-coverage
+        ${_cov_extra_args}
         -instr-profile=${COMPILER_CODE_COVERAGE_DATA_DIR}/blender.profdata
         --output-dir=${COMPILER_CODE_COVERAGE_DATA_DIR}/report
         $<TARGET_FILE:blender>
@@ -125,6 +129,7 @@ if(WITH_COMPILER_CODE_COVERAGE)
       COMMAND ${_open_cmd} "${COMPILER_CODE_COVERAGE_DATA_DIR}/report/index.html"
       SOURCES "${COMPILER_CODE_COVERAGE_DATA_DIR}/report/index.html"
     )
+    unset(_cov_extra_args)
     unset(_open_cmd)
   endif()
 endif()
