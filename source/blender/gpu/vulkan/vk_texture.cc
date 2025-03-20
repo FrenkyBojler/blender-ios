@@ -197,7 +197,7 @@ void VKTexture::read_sub(
                         VK_BUFFER_USAGE_TRANSFER_DST_BIT,
                         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
                         VK_MEMORY_PROPERTY_HOST_CACHED_BIT,
-                        VMA_MEMORY_USAGE_AUTO_PREFER_HOST,
+                        VMA_MEMORY_USAGE_AUTO,
                         /* Although we are only reading, we need to set the host access random bit
                            to improve the performance on AMD GPUs. */
                         VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT |
@@ -320,7 +320,7 @@ void VKTexture::update_sub(int mip,
                           VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                           VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
                           VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-                          VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
+                          VMA_MEMORY_USAGE_AUTO,
                           VMA_ALLOCATION_CREATE_MAPPED_BIT |
                               VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT);
     vk_buffer = staging_buffer.vk_handle();

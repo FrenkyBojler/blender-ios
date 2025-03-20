@@ -130,11 +130,10 @@ void VKVertexBuffer::acquire_data()
     if (!buffer_.is_allocated()) {
       buffer_.create(size_alloc_get(),
                      VK_BUFFER_USAGE_FLAGS,
-                     VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT |
-                         VK_MEMORY_PROPERTY_HOST_CACHED_BIT,
+                     VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
                      0,
                      VMA_MEMORY_USAGE_AUTO_PREFER_HOST,
-                     VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT);
+                     0);
       debug::object_label(buffer_.vk_handle(), "VertexBuffer.Static");
       data_ = static_cast<uchar *>(buffer_.mapped_memory_get());
       is_mapped_data = true;
@@ -285,9 +284,9 @@ void VKVertexBuffer::allocate()
 
   buffer_.create(size_alloc_get(),
                  vk_buffer_usage,
-                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_CACHED_BIT,
                  VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-                 VMA_MEMORY_USAGE_AUTO_PREFER_HOST,
+                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
+                 VMA_MEMORY_USAGE_AUTO,
                  VmaAllocationCreateFlags(0));
   debug::object_label(buffer_.vk_handle(), "VertexBuffer");
 }
