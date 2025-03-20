@@ -5000,7 +5000,7 @@ static int graphkeys_view_selected_channels_exec(bContext *C, wmOperator *op)
       &ac, &anim_data, eAnimFilter_Flags(filter), ac.data, eAnimCont_Types(ac.datatype));
 
   if (anim_data_length == 0) {
-    WM_global_report(RPT_WARNING, "No channels to operate on");
+    BKE_report(op->reports, RPT_WARNING, "No channels to operate on");
     return OPERATOR_CANCELLED;
   }
 
@@ -5029,7 +5029,7 @@ static int graphkeys_view_selected_channels_exec(bContext *C, wmOperator *op)
 
   if (!valid_bounds) {
     ANIM_animdata_freelist(&anim_data);
-    WM_global_report(RPT_WARNING, "No keyframes to focus on");
+    BKE_report(op->reports, RPT_WARNING, "No keyframes to focus on");
     return OPERATOR_CANCELLED;
   }
 
@@ -5118,7 +5118,7 @@ static int graphkeys_channel_view_pick_invoke(bContext *C, wmOperator *op, const
 
   if (!found_bounds) {
     ANIM_animdata_freelist(&anim_data);
-    WM_global_report(RPT_WARNING, "No keyframes to focus on");
+    BKE_report(op->reports, RPT_WARNING, "No keyframes to focus on");
     return OPERATOR_CANCELLED;
   }
 
@@ -5187,7 +5187,7 @@ static int channels_bake_exec(bContext *C, wmOperator *op)
       &ac, &anim_data, eAnimFilter_Flags(filter), ac.data, eAnimCont_Types(ac.datatype));
 
   if (anim_data_length == 0) {
-    WM_global_report(RPT_WARNING, "No channels to operate on");
+    BKE_report(op->reports, RPT_WARNING, "No channels to operate on");
     return OPERATOR_CANCELLED;
   }
 
@@ -5329,7 +5329,7 @@ static void ANIM_OT_channels_bake(wmOperatorType *ot)
                   "Bake Modifiers into keyframes and delete them after");
 }
 
-static int slot_channels_move_to_new_action_exec(bContext *C, wmOperator * /* op */)
+static int slot_channels_move_to_new_action_exec(bContext *C, wmOperator *op)
 {
   using namespace blender::animrig;
   bAnimContext ac;
@@ -5346,7 +5346,7 @@ static int slot_channels_move_to_new_action_exec(bContext *C, wmOperator * /* op
   size_t anim_data_length = ANIM_animdata_filter(&ac, &anim_data, filter, ac.data, ac.datatype);
 
   if (anim_data_length == 0) {
-    WM_global_report(RPT_WARNING, "No channels to operate on");
+    BKE_report(op->reports, RPT_WARNING, "No channels to operate on");
     return OPERATOR_CANCELLED;
   }
 
@@ -5362,7 +5362,7 @@ static int slot_channels_move_to_new_action_exec(bContext *C, wmOperator * /* op
   ANIM_animdata_freelist(&anim_data);
 
   if (slots.size() == 0) {
-    WM_global_report(RPT_WARNING, "None of the selected channels is an Action Slot");
+    BKE_report(op->reports, RPT_WARNING, "None of the selected channels is an Action Slot");
     return OPERATOR_CANCELLED;
   }
 
@@ -5722,7 +5722,7 @@ static int view_curve_in_graph_editor_exec(bContext *C, wmOperator *op)
   if (!context_find_graph_editor(
           C, &wm_context_temp.win, &wm_context_temp.area, &wm_context_temp.region))
   {
-    WM_global_report(RPT_WARNING, "No open Graph Editor window found");
+    BKE_report(op->reports, RPT_WARNING, "No open Graph Editor window found");
     retval = OPERATOR_CANCELLED;
   }
   else {
@@ -5737,7 +5737,7 @@ static int view_curve_in_graph_editor_exec(bContext *C, wmOperator *op)
     bAnimContext ac;
     if (!ANIM_animdata_get_context(C, &ac)) {
       /* This might never be called since we are manually setting the Graph Editor just before. */
-      WM_global_report(RPT_ERROR, "Cannot create the Animation Context");
+      BKE_report(op->reports, RPT_ERROR, "Cannot create the Animation Context");
       retval = OPERATOR_CANCELLED;
     }
     else {
@@ -5777,12 +5777,13 @@ static int view_curve_in_graph_editor_exec(bContext *C, wmOperator *op)
       }
 
       if (filtered_fcurve_count > 0) {
-        WM_global_report(RPT_WARNING,
-                         "One or more F-Curves are not visible due to filter settings");
+        BKE_report(op->reports,
+                   RPT_WARNING,
+                   "One or more F-Curves are not visible due to filter settings");
       }
 
       if (!BLI_rctf_is_valid(&bounds)) {
-        WM_global_report(RPT_ERROR, "F-Curves have no valid size");
+        BKE_report(op->reports, RPT_ERROR, "F-Curves have no valid size");
         retval = OPERATOR_CANCELLED;
       }
       else {

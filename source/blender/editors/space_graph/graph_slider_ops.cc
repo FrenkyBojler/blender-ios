@@ -30,6 +30,7 @@
 #include "BLT_translation.hh"
 
 #include "BKE_context.hh"
+#include "BKE_report.hh"
 
 #include "UI_interface.hh"
 
@@ -411,7 +412,7 @@ static int graph_slider_invoke(bContext *C, wmOperator *op, const wmEvent *event
   ED_slider_init(gso->slider, event);
 
   if (gso->bezt_arr_list.first == nullptr) {
-    WM_global_report(RPT_ERROR, "Cannot find keys to operate on");
+    BKE_report(op->reports, RPT_ERROR, "Cannot find keys to operate on");
     graph_slider_exit(C, op);
     return OPERATOR_CANCELLED;
   }
@@ -443,7 +444,7 @@ static void decimate_graph_keys(bAnimContext *ac, float factor, float error_sq_m
   LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
     if (!decimate_fcurve(ale, factor, error_sq_max)) {
       /* The selection contains unsupported keyframe types! */
-      WM_global_report(RPT_WARNING, "Decimate: Skipping non linear/Bézier keyframes!");
+      BKE_report(ac->reports, RPT_WARNING, "Decimate: Skipping non linear/Bézier keyframes!");
     }
 
     ale->update |= ANIM_UPDATE_DEFAULT;
@@ -1316,13 +1317,16 @@ static void match_slope_graph_keys(bAnimContext *ac, const float factor)
     ale->update |= ANIM_UPDATE_DEFAULT;
     BLI_freelistN(&segments);
   }
-
+  BLI_assert(ac->reports);
+  BLI_assert(!"yay");
   if (!all_segments_valid) {
     if (factor >= 0) {
-      WM_global_report(RPT_WARNING, "You need at least 2 keys to the right side of the selection");
+      BKE_report(
+          ac->reports, RPT_WARNING, "You need at least 2 keys to the right side of the selection");
     }
     else {
-      WM_global_report(RPT_WARNING, "You need at least 2 keys to the left side of the selection");
+      BKE_report(
+          ac->reports, RPT_WARNING, "You need at least 2 keys to the left side of the selection");
     }
   }
 
