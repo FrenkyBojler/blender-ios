@@ -7002,7 +7002,6 @@ def km_image_editor_tool_mask_select_circle(params, *, fallback):
                 **(params.select_tweak_event if (fallback and params.use_fallback_tool_select_mouse) else
                    {"type": params.tool_mouse, "value": 'PRESS'}),
                 properties=[("wait_for_input", False)])),
-            # No selection fallback since this operates on press.
         ]},
     )
 
@@ -8652,7 +8651,6 @@ def generate_keymaps(params=None):
         km_image_editor_tool_uv_move(params),
         km_image_editor_tool_uv_rotate(params),
         km_image_editor_tool_uv_scale(params),
-        km_image_editor_tool_uv_pinch(params),
         km_image_editor_tool_mask_cursor(params),
         *(km_image_editor_tool_mask_select(params, fallback=fallback) for fallback in (False, True)),
         *(km_image_editor_tool_mask_select_box(params, fallback=fallback) for fallback in (False, True)),
