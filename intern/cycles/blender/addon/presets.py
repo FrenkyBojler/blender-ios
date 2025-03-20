@@ -102,9 +102,7 @@ class AddPresetPerformance(AddPresetBase, Operator):
     preset_values = [
         "render.threads_mode",
         "render.use_persistent_data",
-        "cycles.debug_use_spatial_splits",
         "cycles.debug_use_compact_bvh",
-        "cycles.debug_use_hair_bvh",
         "cycles.debug_bvh_time_steps",
         "cycles.use_auto_tile",
         "cycles.tile_size",

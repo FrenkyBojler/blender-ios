@@ -863,10 +863,11 @@ SceneParams BlenderSync::get_scene_params(BL::Scene &b_scene,
     params.bvh_type = BVH_TYPE_DYNAMIC;
   }
 
-  params.use_bvh_spatial_split = RNA_boolean_get(&cscene, "debug_use_spatial_splits");
   params.use_bvh_compact_structure = RNA_boolean_get(&cscene, "debug_use_compact_bvh");
-  params.use_bvh_unaligned_nodes = RNA_boolean_get(&cscene, "debug_use_hair_bvh");
   params.num_bvh_time_steps = RNA_int_get(&cscene, "debug_bvh_time_steps");
+
+  params.use_bvh_spatial_split = DebugFlags().bvh.use_spatial_splits;
+  params.use_bvh_unaligned_nodes = DebugFlags().bvh.use_hair_bvh;
 
   PointerRNA csscene = RNA_pointer_get(&b_scene.ptr, "cycles_curves");
   params.hair_subdivisions = get_int(csscene, "subdivisions");

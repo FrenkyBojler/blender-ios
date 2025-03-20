@@ -888,26 +888,16 @@ class CYCLES_RENDER_PT_performance_acceleration_structure(CyclesButtonsPanel, Pa
         use_embree = _cycles.with_embree
 
         if use_cpu(context):
-            col.prop(cscene, "debug_use_spatial_splits")
             if use_embree:
                 col.prop(cscene, "debug_use_compact_bvh")
             else:
-                sub = col.column()
-                sub.active = not cscene.debug_use_spatial_splits
-                sub.prop(cscene, "debug_bvh_time_steps")
-
-                col.prop(cscene, "debug_use_hair_bvh")
+                col.prop(cscene, "debug_bvh_time_steps")
 
                 sub = col.column(align=True)
                 sub.label(text="Cycles built without Embree support")
                 sub.label(text="CPU raytracing performance will be poor")
         else:
-            col.prop(cscene, "debug_use_spatial_splits")
-            sub = col.column()
-            sub.active = not cscene.debug_use_spatial_splits
-            sub.prop(cscene, "debug_bvh_time_steps")
-
-            col.prop(cscene, "debug_use_hair_bvh")
+            col.prop(cscene, "debug_bvh_time_steps")
 
             # CPU is used in addition to a GPU
             if use_multi_device(context) and use_embree:
@@ -2183,7 +2173,11 @@ class CYCLES_RENDER_PT_debug(CyclesDebugButtonsPanel, Panel):
         row = col.row(align=True)
         row.prop(cscene, "debug_use_cpu_sse42", toggle=True)
         row.prop(cscene, "debug_use_cpu_avx2", toggle=True)
+
+        col = layout.column(heading="BVH")
         col.prop(cscene, "debug_bvh_layout", text="BVH")
+        col.prop(cscene, "debug_use_spatial_splits")
+        col.prop(cscene, "debug_use_hair_bvh")
 
         import platform
         is_macos = platform.system() == 'Darwin'

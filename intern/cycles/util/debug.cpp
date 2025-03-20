@@ -92,12 +92,24 @@ void DebugFlags::OptiX::reset()
   use_debug = false;
 }
 
+DebugFlags::BVH::BVH()
+{
+  reset();
+}
+
+void DebugFlags::BVH::reset()
+{
+  use_spatial_splits = true;
+  use_hair_bvh = true;
+}
+
 void DebugFlags::reset()
 {
   cpu.reset();
   cuda.reset();
   optix.reset();
   metal.reset();
+  bvh.reset();
 }
 
 CCL_NAMESPACE_END

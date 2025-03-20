@@ -914,7 +914,7 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
     debug_use_spatial_splits: BoolProperty(
         name="Use Spatial Splits",
         description="Use BVH spatial splits: longer builder time, faster render",
-        default=False,
+        default=True,
     )
     debug_use_hair_bvh: BoolProperty(
         name="Use Curves BVH",

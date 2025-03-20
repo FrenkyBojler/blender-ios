@@ -102,6 +102,17 @@ class DebugFlags {
     bool use_async_pso_creation = true;
   };
 
+  /* Descriptor of BVH feature-set to be used. */
+  struct BVH {
+    BVH();
+
+    /* Reset flags to their defaults. */
+    void reset();
+
+    bool use_spatial_splits = true;
+    bool use_hair_bvh = true;
+  };
+
   /* Get instance of debug flags registry. */
   static DebugFlags &get()
   {
@@ -126,6 +137,9 @@ class DebugFlags {
 
   /* Requested Metal flags. */
   Metal metal;
+
+  /* Requested Metal flags. */
+  BVH bvh;
 
  private:
   DebugFlags() = default;

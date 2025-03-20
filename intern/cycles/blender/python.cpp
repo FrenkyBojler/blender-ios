@@ -70,6 +70,9 @@ void debug_flags_sync_from_scene(BL::Scene b_scene)
   flags.metal.adaptive_compile = get_boolean(cscene, "debug_use_metal_adaptive_compile");
   /* Synchronize OptiX flags. */
   flags.optix.use_debug = get_boolean(cscene, "debug_use_optix_debug");
+  /* Synchronize BVH flags. */
+  flags.bvh.use_spatial_splits = get_boolean(cscene, "debug_use_spatial_splits");
+  flags.bvh.use_hair_bvh = get_boolean(cscene, "debug_use_hair_bvh");
 }
 
 /* Reset debug flags to default values.
