@@ -295,10 +295,10 @@ static void object_clear_scale(Object *ob, const bool clear_delta)
 }
 
 /* generic exec for clear-transform operators */
-static int object_clear_transform_generic_exec(bContext *C,
-                                               wmOperator *op,
-                                               void (*clear_func)(Object *, const bool),
-                                               const char default_ksName[])
+static OperatorStatus object_clear_transform_generic_exec(bContext *C,
+                                                          wmOperator *op,
+                                                          void (*clear_func)(Object *, const bool),
+                                                          const char default_ksName[])
 {
   Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
   Main *bmain = CTX_data_main(C);
@@ -383,7 +383,7 @@ static int object_clear_transform_generic_exec(bContext *C,
 /** \name Clear Location Operator
  * \{ */
 
-static int object_location_clear_exec(bContext *C, wmOperator *op)
+static OperatorStatus object_location_clear_exec(bContext *C, wmOperator *op)
 {
   return object_clear_transform_generic_exec(C, op, object_clear_loc, ANIM_KS_LOCATION_ID);
 }
@@ -417,7 +417,7 @@ void OBJECT_OT_location_clear(wmOperatorType *ot)
 /** \name Clear Rotation Operator
  * \{ */
 
-static int object_rotation_clear_exec(bContext *C, wmOperator *op)
+static OperatorStatus object_rotation_clear_exec(bContext *C, wmOperator *op)
 {
   return object_clear_transform_generic_exec(C, op, object_clear_rot, ANIM_KS_ROTATION_ID);
 }
@@ -451,7 +451,7 @@ void OBJECT_OT_rotation_clear(wmOperatorType *ot)
 /** \name Clear Scale Operator
  * \{ */
 
-static int object_scale_clear_exec(bContext *C, wmOperator *op)
+static OperatorStatus object_scale_clear_exec(bContext *C, wmOperator *op)
 {
   return object_clear_transform_generic_exec(C, op, object_clear_scale, ANIM_KS_SCALING_ID);
 }
@@ -485,7 +485,7 @@ void OBJECT_OT_scale_clear(wmOperatorType *ot)
 /** \name Clear Origin Operator
  * \{ */
 
-static int object_origin_clear_exec(bContext *C, wmOperator * /*op*/)
+static OperatorStatus object_origin_clear_exec(bContext *C, wmOperator * /*op*/)
 {
   float *v1, *v3;
   float mat[3][3];
@@ -661,13 +661,13 @@ static void transform_positions(MutableSpan<float3> positions, const float4x4 &m
   });
 }
 
-static int apply_objects_internal(bContext *C,
-                                  ReportList *reports,
-                                  bool apply_loc,
-                                  bool apply_rot,
-                                  bool apply_scale,
-                                  bool do_props,
-                                  bool do_single_user)
+static OperatorStatus apply_objects_internal(bContext *C,
+                                             ReportList *reports,
+                                             bool apply_loc,
+                                             bool apply_rot,
+                                             bool apply_scale,
+                                             bool do_props,
+                                             bool do_single_user)
 {
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
@@ -1088,7 +1088,7 @@ static int apply_objects_internal(bContext *C,
   return OPERATOR_FINISHED;
 }
 
-static int visual_transform_apply_exec(bContext *C, wmOperator * /*op*/)
+static OperatorStatus visual_transform_apply_exec(bContext *C, wmOperator * /*op*/)
 {
   Scene *scene = CTX_data_scene(C);
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
@@ -1130,7 +1130,7 @@ void OBJECT_OT_visual_transform_apply(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-static int object_transform_apply_exec(bContext *C, wmOperator *op)
+static OperatorStatus object_transform_apply_exec(bContext *C, wmOperator *op)
 {
   const bool loc = RNA_boolean_get(op->ptr, "location");
   const bool rot = RNA_boolean_get(op->ptr, "rotation");
@@ -1145,7 +1145,9 @@ static int object_transform_apply_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static int object_transform_apply_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+static OperatorStatus object_transform_apply_invoke(bContext *C,
+                                                    wmOperator *op,
+                                                    const wmEvent * /*event*/)
 {
   Object *ob = context_active_object(C);
 
@@ -1209,7 +1211,7 @@ void OBJECT_OT_transform_apply(wmOperatorType *ot)
 /** \name Apply Parent Inverse Operator
  * \{ */
 
-static int object_parent_inverse_apply_exec(bContext *C, wmOperator * /*op*/)
+static OperatorStatus object_parent_inverse_apply_exec(bContext *C, wmOperator * /*op*/)
 {
   CTX_DATA_BEGIN (C, Object *, ob, selected_editable_objects) {
     if (ob->parent == nullptr) {
@@ -1273,7 +1275,7 @@ static void translate_positions(MutableSpan<float3> positions, const float3 &tra
   });
 }
 
-static int object_origin_set_exec(bContext *C, wmOperator *op)
+static OperatorStatus object_origin_set_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
@@ -2069,7 +2071,9 @@ static void object_transform_axis_target_cancel(bContext *C, wmOperator *op)
   object_transform_axis_target_free_data(op);
 }
 
-static int object_transform_axis_target_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static OperatorStatus object_transform_axis_target_invoke(bContext *C,
+                                                          wmOperator *op,
+                                                          const wmEvent *event)
 {
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   ViewContext vc = ED_view3d_viewcontext_init(C, depsgraph);
@@ -2141,7 +2145,9 @@ static int object_transform_axis_target_invoke(bContext *C, wmOperator *op, cons
   return OPERATOR_RUNNING_MODAL;
 }
 
-static int object_transform_axis_target_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static OperatorStatus object_transform_axis_target_modal(bContext *C,
+                                                         wmOperator *op,
+                                                         const wmEvent *event)
 {
   XFormAxisData *xfd = static_cast<XFormAxisData *>(op->customdata);
   ARegion *region = xfd->vc.region;

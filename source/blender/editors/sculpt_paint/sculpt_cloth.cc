@@ -2278,7 +2278,7 @@ static void apply_filter_forces_bmesh(const Depsgraph &depsgraph,
   }
 }
 
-static int sculpt_cloth_filter_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static OperatorStatus sculpt_cloth_filter_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   Object &object = *CTX_data_active_object(C);
   Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
@@ -2393,7 +2393,7 @@ static int sculpt_cloth_filter_modal(bContext *C, wmOperator *op, const wmEvent 
   return OPERATOR_RUNNING_MODAL;
 }
 
-static int sculpt_cloth_filter_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static OperatorStatus sculpt_cloth_filter_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   const Scene &scene = *CTX_data_scene(C);
   Object &ob = *CTX_data_active_object(C);

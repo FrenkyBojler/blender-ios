@@ -41,7 +41,7 @@ static const EnumPropertyItem prop_view_orbit_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-static int vieworbit_exec(bContext *C, wmOperator *op)
+static OperatorStatus vieworbit_exec(bContext *C, wmOperator *op)
 {
   float angle;
   {
