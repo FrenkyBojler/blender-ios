@@ -6475,7 +6475,7 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
           }
           SpaceFile *sfile = reinterpret_cast<SpaceFile *>(sl);
           if (sfile->asset_params) {
-            sfile->asset_params->import_flags |= FILE_ASSET_IMPORT_INSTANCE_COLLECTIONS;
+            sfile->asset_params->import_flags |= FILE_ASSET_IMPORT_INSTANCE_COLLECTIONS_ON_LINK;
           }
         }
       }
