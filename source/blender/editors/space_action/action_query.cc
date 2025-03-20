@@ -8,7 +8,7 @@
 
 namespace blender::ed::action {
 
-blender::Vector<bAnimListElem *> get_editable_fcurves(bContext *C)
+blender::Vector<bAnimListElem *> get_visible_elements(bContext *C)
 {
   bAnimContext ac;
   if (!ANIM_animdata_get_context(C, &ac)) {

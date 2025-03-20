@@ -226,7 +226,7 @@ static void ensure_change_frame_keylist(bContext *C, ChangeFrameData &op_data)
   blender::Vector<bAnimListElem *> anim_elements;
   switch (area->spacetype) {
     case SPACE_ACTION:
-      anim_elements = blender::ed::action::get_editable_fcurves(C);
+      anim_elements = blender::ed::action::get_visible_elements(C);
       break;
 
     case SPACE_GRAPH:

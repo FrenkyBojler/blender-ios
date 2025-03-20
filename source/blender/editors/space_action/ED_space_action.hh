@@ -12,6 +12,6 @@ namespace blender::ed::action {
  * Return all bAnimListElem for which the keyframes are visible in the
  * GUI.
  */
-blender::Vector<bAnimListElem *> get_editable_fcurves(bContext *C);
+blender::Vector<bAnimListElem *> get_visible_elements(bContext *C);
 
 }  // namespace blender::ed::action
