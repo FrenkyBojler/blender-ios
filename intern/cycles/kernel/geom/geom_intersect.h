@@ -15,6 +15,7 @@ CCL_NAMESPACE_BEGIN
  * of hits (when needed) and return an index within local_isect->hits where intersection is to
  * be stored. If the return value -1 then the intersection is to be ignored (nothing is to be
  * written to the local_isect->hits and intersection test function is to return false. */
+#ifdef __BVH_LOCAL__
 ccl_device_forceinline int local_intersect_get_record_index(
     ccl_private LocalIntersection *local_isect,
     const float isect_t,
@@ -53,5 +54,6 @@ ccl_device_forceinline int local_intersect_get_record_index(
   local_isect->num_hits = 1;
   return 0;
 }
+#endif /* __BVH_LOCAL__ */
 
 CCL_NAMESPACE_END
