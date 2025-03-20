@@ -65,6 +65,7 @@ static void datadropper_draw_cb(const bContext * /*C*/, ARegion * /*region*/, vo
 {
   DataDropper *ddr = static_cast<DataDropper *>(arg);
   eyedropper_draw_cursor_text_region(ddr->name_pos, ddr->name);
+  ddr->name[0] = '\0';
 }
 
 static int datadropper_init(bContext *C, wmOperator *op)
@@ -140,8 +141,6 @@ static void datadropper_id_sample_pt(
   wmWindow *win_prev = CTX_wm_window(C);
   ScrArea *area_prev = CTX_wm_area(C);
   ARegion *region_prev = CTX_wm_region(C);
-
-  ddr->name[0] = '\0';
 
   if (area) {
     if (ELEM(area->spacetype, SPACE_VIEW3D, SPACE_OUTLINER)) {
