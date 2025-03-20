@@ -55,6 +55,9 @@ void neighbor_position_average_interior_grids(OffsetIndices<int> faces,
 void neighbor_position_average_bmesh(const Set<BMVert *, 0> &verts,
                                      MutableSpan<float3> new_positions);
 void neighbor_position_average_interior_bmesh(const Set<BMVert *, 0> &verts,
+                                              Span<float> factors,
+                                              MutableSpan<float3> new_positions);
+void neighbor_position_average_interior_bmesh(const Set<BMVert *, 0> &verts,
                                               MutableSpan<float3> new_positions);
 
 template<typename T>

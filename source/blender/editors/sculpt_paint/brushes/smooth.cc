@@ -141,8 +141,7 @@ BLI_NOINLINE static void do_smooth_brush_mesh(const Depsgraph &depsgraph,
 
     node_mask.foreach_index(GrainSize(1), [&](const int i, const int pos) {
       LocalData &tls = all_tls.local();
-      apply_positions_faces(
-                            sd,
+      apply_positions_faces(sd,
                             nodes[i],
                             strength,
                             object,
@@ -208,7 +207,7 @@ static void calc_bmesh(const Depsgraph &depsgraph,
 
   tls.new_positions.resize(verts.size());
   const MutableSpan<float3> new_positions = tls.new_positions;
-  smooth::neighbor_position_average_interior_bmesh(verts, new_positions);
+  smooth::neighbor_position_average_interior_bmesh(verts, tls.factors, new_positions);
 
   tls.translations.resize(verts.size());
   const MutableSpan<float3> translations = tls.translations;
