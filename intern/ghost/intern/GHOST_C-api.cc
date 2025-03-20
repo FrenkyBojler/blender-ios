@@ -768,11 +768,8 @@ GHOST_TSuccess GHOST_ActivateGPUContext(GHOST_ContextHandle contexthandle)
 GHOST_TSuccess GHOST_ReleaseGPUContext(GHOST_ContextHandle contexthandle)
 {
   GHOST_IContext *context = (GHOST_IContext *)contexthandle;
-  if (context) {
-    return context->releaseDrawingContext();
-  }
-  GHOST_PRINTF("%s: Context not valid\n", __func__);
-  return GHOST_kFailure;
+
+  return context->releaseDrawingContext();
 }
 
 uint GHOST_GetContextDefaultGPUFramebuffer(GHOST_ContextHandle contexthandle)
