@@ -435,41 +435,47 @@ static IntersectionPoint create_intersection(const int point_a,
 
 /* TODO */
 /* Will return -1 if there is no next segment. */
-static int get_next_segment(const Span<Segment> unsorted_segments,
+static int get_next_segment(const Span<Segment> all_segments,
+                            const Span<int> unsorted_to_all,
                             const int current_segment,
                             const int start_segment,
                             const Span<bool> processed_segments,
                             bool *r_reverse_next)
 {
-  if (!unsorted_segments[current_segment].has_end_intersection()) {
+  const int all_current_segment_i = unsorted_to_all[current_segment];
+  if (!all_segments[unsorted_to_all[current_segment]].has_end_intersection()) {
     return -1;
   }
 
-  const int current_end_index = unsorted_segments[current_segment].end_intersection();
+  const int current_end_index = all_segments[all_current_segment_i].end_intersection();
 
-  for (const int segment : unsorted_segments.index_range()) {
+  for (const int segment : unsorted_to_all.index_range()) {
     if (segment == current_segment || processed_segments[segment]) {
       continue;
     }
 
-    if (unsorted_segments[segment].start_intersection() == current_end_index) {
-      *r_reverse_next = unsorted_segments[segment].reversed;
+    const Segment &seg = all_segments[unsorted_to_all[segment]];
+
+    if (seg.start_intersection() == current_end_index) {
+      *r_reverse_next = seg.reversed;
       return segment;
     }
 
-    if (unsorted_segments[segment].end_intersection() == current_end_index) {
-      *r_reverse_next = !unsorted_segments[segment].reversed;
+    if (seg.end_intersection() == current_end_index) {
+      *r_reverse_next = !seg.reversed;
       return segment;
     }
   }
 
   if (current_segment != start_segment) {
-    if (unsorted_segments[start_segment].start_intersection() == current_end_index) {
-      *r_reverse_next = unsorted_segments[start_segment].reversed;
+    const Segment &seg = all_segments[unsorted_to_all[start_segment]];
+
+    if (seg.start_intersection() == current_end_index) {
+      *r_reverse_next = seg.reversed;
       return start_segment;
     }
-    if (unsorted_segments[start_segment].end_intersection() == current_end_index) {
-      *r_reverse_next = !unsorted_segments[start_segment].reversed;
+    if (seg.end_intersection() == current_end_index) {
+      *r_reverse_next = !seg.reversed;
       return start_segment;
     }
   }
@@ -566,7 +572,6 @@ BooleanResult execute_single_boolean(const CurveBooleanOpParameters op_params,
   });
 
   Vector<Segment> all_segments;
-  Vector<Segment> unsorted_segments;
   Vector<int> unsorted_to_all;
 
   auto add_segments = [&](const int curve_k, const bool is_subj) {
@@ -700,7 +705,6 @@ BooleanResult execute_single_boolean(const CurveBooleanOpParameters op_params,
       const bool is_in_R = state_R.is_contributing(op_params, subj_shape_id, clipping_shapes);
 
       if (is_in_L ^ is_in_R) {
-        unsorted_segments.append(this_segment);
         unsorted_to_all.append(all_segments.size());
       }
       all_segments.append(this_segment);
@@ -767,11 +771,14 @@ BooleanResult execute_single_boolean(const CurveBooleanOpParameters op_params,
 
       processed_segments[current_i] = true;
       result.segments.last().reversed = last_reversed;
-      unsorted_segments[current_i].reversed = last_reversed;
 
       bool next_reversed;
-      const int next_segment = get_next_segment(
-          unsorted_segments, current_i, start_segment, processed_segments, &next_reversed);
+      const int next_segment = get_next_segment(all_segments,
+                                                unsorted_to_all,
+                                                current_i,
+                                                start_segment,
+                                                processed_segments,
+                                                &next_reversed);
 
       if (next_segment == -1) {
         PolygonDone = true;
