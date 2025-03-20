@@ -25,6 +25,7 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
+#include "ED_physics.hh"
 #include "bmesh.hh"
 
 const EnumPropertyItem rna_enum_particle_edit_hair_brush_items[] = {
@@ -316,6 +317,20 @@ static void rna_Sculpt_update(bContext *C, PointerRNA * /*ptr*/)
     DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
     WM_main_add_notifier(NC_OBJECT | ND_MODIFIER, ob);
   }
+}
+
+static int rna_ParticleBrush_size_get(PointerRNA *ptr)
+{
+  ParticleBrushData *brush = (ParticleBrushData *)ptr->data;
+  Scene *scene = (Scene *)ptr->owner_id;
+  return pe_brush_size_get(scene, brush);
+}
+
+static void rna_ParticleBrush_size_set(PointerRNA *ptr, int value)
+{
+  ParticleBrushData *brush = (ParticleBrushData *)ptr->data;
+  Scene *scene = (Scene *)ptr->owner_id;
+  pe_brush_size_set(scene, brush, value);
 }
 
 static std::optional<std::string> rna_Sculpt_path(const PointerRNA * /*ptr*/)
@@ -1399,7 +1414,10 @@ static void rna_def_particle_edit(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "size", PROP_INT, PROP_PIXEL);
   RNA_def_property_range(prop, 1, SHRT_MAX);
-  RNA_def_property_ui_range(prop, 1, MAX_BRUSH_PIXEL_RADIUS, 10, 3);
+  RNA_def_property_int_funcs(
+      prop, "rna_ParticleBrush_size_get", "rna_ParticleBrush_size_set", nullptr);
+  RNA_def_property_range(prop, 1, MAX_BRUSH_PIXEL_RADIUS * 10);
+  RNA_def_property_ui_range(prop, 1, MAX_BRUSH_PIXEL_RADIUS, 1, -1);
   RNA_def_property_ui_text(prop, "Radius", "Radius of the brush in pixels");
 
   prop = RNA_def_property(srna, "strength", PROP_FLOAT, PROP_FACTOR);

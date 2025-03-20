@@ -245,7 +245,7 @@ static void particle_undosys_step_decode(
       CTX_wm_manager(C), us->scene_ref.ptr, &scene, &view_layer);
 
   Object *ob = us->object_ref.ptr;
-  ED_object_particle_edit_mode_enter_ex(depsgraph, scene, ob);
+  ED_object_particle_edit_mode_enter_ex(C, depsgraph, scene, ob);
 
   PTCacheEdit *edit = PE_get_current(depsgraph, scene, ob);
 

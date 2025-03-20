@@ -44,10 +44,12 @@
 #include "BKE_mesh_runtime.hh"
 #include "BKE_modifier.hh"
 #include "BKE_object.hh"
+#include "BKE_paint.hh"
 #include "BKE_particle.h"
 #include "BKE_pointcache.h"
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
+#include "ED_paint.hh"
 
 #include "DEG_depsgraph.hh"
 
@@ -75,6 +77,7 @@
 
 #include "physics_intern.hh"
 
+#include "BKE_brush.hh"
 #include "particle_edit_utildefines.h"
 
 /* -------------------------------------------------------------------- */
@@ -242,14 +245,48 @@ ParticleEditSettings *PE_settings(Scene *scene)
   return scene->toolsettings ? &scene->toolsettings->particle : nullptr;
 }
 
-static float pe_brush_size_get(const Scene * /*scene*/, ParticleBrushData *brush)
-{
-#if 0 /* TODO: Here we can enable unified brush size, needs more work. */
-  UnifiedPaintSettings *ups = &scene->toolsettings->unified_paint_settings;
-  float size = (ups->flag & UNIFIED_PAINT_SIZE) ? ups->size : brush->size;
-#endif
+static Paint *particle_edit_paint = nullptr;
 
-  return brush->size;
+static void ensure_particle_edit_paint(bContext *C)
+{
+  Scene *scene = CTX_data_scene(C);
+  Main *bmain = CTX_data_main(C);
+  if (particle_edit_paint == nullptr) {
+
+    if (particle_edit_paint == nullptr) {
+      particle_edit_paint = static_cast<Paint *>(MEM_callocN(sizeof(Paint), "ParticleEditPaint"));
+      BKE_paint_init(bmain,
+                     scene,
+                     PaintMode::Texture3D,
+                     (const uchar *)"texture_paint_cursor",
+                     PAINT_CURSOR_TEXTURE_PAINT);
+
+      particle_edit_paint->brush = BKE_brush_first_search(bmain, OB_MODE_TEXTURE_PAINT);
+    }
+  }
+}
+
+int pe_brush_size_get(const Scene *scene, const ParticleBrushData *brush)
+{
+  const UnifiedPaintSettings *ups = &scene->toolsettings->unified_paint_settings;
+
+  if (ups->flag & UNIFIED_PAINT_SIZE) {
+    return ups->size;
+  }
+  else {
+    return brush->size;
+  }
+}
+
+void pe_brush_size_set(const Scene *scene, ParticleBrushData *brush, int value)
+{
+  UnifiedPaintSettings *ups = &scene->toolsettings->unified_paint_settings;
+  if (ups->flag & UNIFIED_PAINT_SIZE) {
+    ups->size = value;
+  }
+  else {
+    brush->size = value;
+  }
 }
 
 PTCacheEdit *PE_get_current_from_psys(ParticleSystem *psys)
@@ -5028,6 +5065,7 @@ static void brush_edit_apply_event(bContext *C, wmOperator *op, const wmEvent *e
 
 static int brush_edit_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
+
   if (!brush_edit_init(C, op)) {
     return OPERATOR_CANCELLED;
   }
@@ -5478,13 +5516,16 @@ bool ED_object_particle_edit_mode_supported(const Object *ob)
           BKE_modifiers_findby_type(ob, eModifierType_Softbody));
 }
 
-void ED_object_particle_edit_mode_enter_ex(Depsgraph *depsgraph, Scene *scene, Object *ob)
+void ED_object_particle_edit_mode_enter_ex(bContext *C,
+                                           Depsgraph *depsgraph,
+                                           Scene *scene,
+                                           Object *ob)
 {
   /* Needed so #ParticleSystemModifierData.mesh_final is set. */
   BKE_scene_graph_evaluated_ensure(depsgraph, G_MAIN);
 
   PTCacheEdit *edit;
-
+  
   ob->mode |= OB_MODE_PARTICLE_EDIT;
 
   edit = PE_create_current(depsgraph, scene, ob);
@@ -5493,7 +5534,7 @@ void ED_object_particle_edit_mode_enter_ex(Depsgraph *depsgraph, Scene *scene, O
    * NOTE: this may have run before if the edit data was just created,
    * so could avoid this and speed up a little. */
   if (edit && edit->psys) {
-    /* Make sure pointer to the evaluated modifier data is up to date,
+      /* Make sure pointer to the evaluated modifier data is up to date,
      * with possible changes applied when object was outside of the
      * edit mode. */
     Object *object_eval = DEG_get_evaluated_object(depsgraph, ob);
@@ -5502,6 +5543,7 @@ void ED_object_particle_edit_mode_enter_ex(Depsgraph *depsgraph, Scene *scene, O
     recalc_emitter_field(depsgraph, ob, edit->psys);
   }
 
+  ensure_particle_edit_paint(C);
   toggle_particle_cursor(scene, true);
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY | ID_RECALC_SYNC_TO_EVAL);
   WM_main_add_notifier(NC_SCENE | ND_MODE | NS_MODE_PARTICLE, nullptr);
@@ -5512,7 +5554,7 @@ void ED_object_particle_edit_mode_enter(bContext *C)
   Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
   Scene *scene = CTX_data_scene(C);
   Object *ob = CTX_data_active_object(C);
-  ED_object_particle_edit_mode_enter_ex(depsgraph, scene, ob);
+  ED_object_particle_edit_mode_enter_ex(C, depsgraph, scene, ob);
 }
 
 void ED_object_particle_edit_mode_exit_ex(Scene *scene, Object *ob)
@@ -5548,7 +5590,7 @@ static int particle_edit_toggle_exec(bContext *C, wmOperator *op)
 
   if (!is_mode_set) {
     Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
-    ED_object_particle_edit_mode_enter_ex(depsgraph, scene, ob);
+    ED_object_particle_edit_mode_enter_ex(C, depsgraph, scene, ob);
   }
   else {
     ED_object_particle_edit_mode_exit_ex(scene, ob);

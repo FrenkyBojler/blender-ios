@@ -5,7 +5,8 @@
 /** \file
  * \ingroup editors
  */
-
+#include "DNA_brush_types.h"
+#include "DNA_scene_types.h"
 #pragma once
 
 struct bContext;
@@ -19,7 +20,13 @@ struct wmKeyConfig;
 /* `particle_edit.cc` */
 
 bool ED_object_particle_edit_mode_supported(const Object *ob);
-void ED_object_particle_edit_mode_enter_ex(Depsgraph *depsgraph, Scene *scene, Object *ob);
+void ED_object_particle_edit_mode_enter_ex(bContext *C,
+                                           Depsgraph *depsgraph,
+                                           Scene *scene,
+                                           Object *ob);
+int pe_brush_size_get(const Scene *scene, const ParticleBrushData *brush);
+void pe_brush_size_set(const Scene *scene, ParticleBrushData *brush, int value);
+
 void ED_object_particle_edit_mode_enter(bContext *C);
 
 void ED_object_particle_edit_mode_exit_ex(Scene *scene, Object *ob);
