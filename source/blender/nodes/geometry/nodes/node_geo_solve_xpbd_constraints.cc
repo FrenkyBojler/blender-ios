@@ -88,12 +88,13 @@ static void node_declare_positions(NodeDeclarationBuilder &b)
       .only_instances()
       .description("Instances of colliders to evaluate contact transforms");
 
-  b.add_input<decl::Bool>("Debug Checks")
+  PanelDeclarationBuilder &debug_panel = b.add_panel("Debug").default_closed(true);
+  debug_panel.add_input<decl::Bool>("Debug Checks")
       .default_value(false)
       .description("Perform checks on input data, which can impact performance");
-  b.add_input<decl::Geometry>("Debug Steps")
+  debug_panel.add_input<decl::Geometry>("Debug Steps")
       .description("Complete constraint and geometry information for each solver iteration");
-  b.add_output<decl::Geometry>("Debug Steps")
+  debug_panel.add_output<decl::Geometry>("Debug Steps")
       .description("Complete constraint and geometry information for each solver iteration")
       .align_with_previous();
 }
@@ -146,12 +147,13 @@ static void node_declare_velocities(NodeDeclarationBuilder &b)
       .only_instances()
       .description("Instances of colliders to evaluate contact transforms");
 
-  b.add_input<decl::Bool>("Debug Checks")
+  PanelDeclarationBuilder &debug_panel = b.add_panel("Debug").default_closed(true);
+  debug_panel.add_input<decl::Bool>("Debug Checks")
       .default_value(false)
       .description("Perform checks on input data, which can impact performance");
-  b.add_input<decl::Geometry>("Debug Steps")
+  debug_panel.add_input<decl::Geometry>("Debug Steps")
       .description("Complete constraint and geometry information for each solver iteration");
-  b.add_output<decl::Geometry>("Debug Steps")
+  debug_panel.add_output<decl::Geometry>("Debug Steps")
       .description("Complete constraint and geometry information for each solver iteration")
       .align_with_previous();
 }
