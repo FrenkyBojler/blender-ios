@@ -91,7 +91,7 @@ void ArmatureImportContext::create_armature_bones(const ufbx_node *node,
 
   EditBone *bone = ED_armature_ebone_add(arm, get_fbx_name(node->name, "Bone"));
   /* For all bone nodes, record the whole armature as the owning object. */
-  this->mapping.el_to_object.add(&node->element, arm_obj);  //@TODO: is this needed?
+  this->mapping.el_to_object.add(&node->element, arm_obj);
   //@TODO: custom props
   bone->flag |= BONE_SELECTED;
   bone->parent = parent_bone;
@@ -155,6 +155,9 @@ void ArmatureImportContext::create_armature_bones(const ufbx_node *node,
           !mapping.bone_is_skinned.contains(fchild))
       {
         skip_child = true;
+        /* We are skipping this bone, but still record as it would be belonging to
+         * our armature -- so that later code does not try to create an empty for it. */
+        this->mapping.el_to_object.add(&fchild->element, arm_obj);
       }
     }
 

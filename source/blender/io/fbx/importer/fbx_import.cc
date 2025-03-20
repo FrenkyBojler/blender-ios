@@ -580,51 +580,19 @@ void FbxImportContext::import_armatures()
 
 void FbxImportContext::import_empties()
 {
-  /* Make sure that objects we have already created have their parent hierachy as empties. */
-  Map<const ufbx_node *, Object *> node_to_empty;
-  for (const auto &item : this->mapping.el_to_object.items()) {
-    const ufbx_node *node = ufbx_as_node(item.key);
-    if (node == nullptr) {
+  /* Create empties for fbx nodes. */
+  for (const ufbx_node *node : this->fbx.nodes) {
+    /* Ignore root, and bones and nodes for which we have created objects already. */
+    if (node->is_root || node->bone || this->mapping.el_to_object.contains(&node->element)) {
       continue;
     }
-    if (node->bone != nullptr) {
-      /* No need to create empty parents for bones. */
-      continue;
+    Object *obj = BKE_object_add_only_object(this->bmain, OB_EMPTY, get_fbx_name(node->name));
+    obj->data = nullptr;
+    if (this->params.use_custom_props) {
+      read_custom_properties(node->props, obj->id);
     }
-    while (node != nullptr && !node->is_root) {
-      if (!this->mapping.el_to_object.contains(&node->element) && !node_to_empty.contains(node)) {
-        Object *obj = BKE_object_add_only_object(this->bmain, OB_EMPTY, get_fbx_name(node->name));
-        obj->data = nullptr;
-        if (this->params.use_custom_props) {
-          read_custom_properties(node->props, obj->id);
-        }
-        node_matrix_to_obj(node, obj);
-        node_to_empty.add(node, obj);
-      }
-      node = node->parent;
-    }
-  }
-
-  /* Create all the empties. */
-  for (const ufbx_empty *fempty : this->fbx.empties) {
-    if (fempty->instances.count == 0) {
-      continue; /* Ignore if not used by any objects. */
-    }
-    const ufbx_node *node = fempty->instances[0];
-    if (!this->mapping.el_to_object.contains(&node->element) && !node_to_empty.contains(node)) {
-      Object *obj = BKE_object_add_only_object(this->bmain, OB_EMPTY, get_fbx_name(node->name));
-      obj->data = nullptr;
-      if (this->params.use_custom_props) {
-        read_custom_properties(node->props, obj->id);
-      }
-      node_matrix_to_obj(node, obj);
-      node_to_empty.add(node, obj);
-    }
-  }
-
-  /* Add all the created empties to the node->object map. */
-  for (const auto &item : node_to_empty.items()) {
-    this->mapping.el_to_object.add(&item.key->element, item.value);
+    node_matrix_to_obj(node, obj);
+    this->mapping.el_to_object.add(&node->element, obj);
   }
 }
 
