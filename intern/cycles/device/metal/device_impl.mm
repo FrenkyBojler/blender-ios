@@ -93,6 +93,18 @@ MetalDevice::MetalDevice(const DeviceInfo &info, Stats &stats, Profiler &profile
       use_metalrt = (atoi(metalrt) != 0);
     }
 
+#  if defined(MAC_OS_VERSION_15_0)
+    if (use_metalrt) {
+      /* Use decomposed SRT (Scale/Rotate/Translate) motion interpolation if available. */
+      if (@available(macos 15.0, *)) {
+        use_motion_srt_transforms = true;
+        if (auto motion_srt_transforms = getenv("CYCLES_METALRT_MOTION_SRT")) {
+          use_motion_srt_transforms = (atoi(motion_srt_transforms) != 0);
+        }
+      }
+    }
+#  endif
+
     if (getenv("CYCLES_DEBUG_METAL_CAPTURE_KERNEL")) {
       capture_enabled = true;
     }
@@ -1354,6 +1366,7 @@ void MetalDevice::build_bvh(BVH *bvh, Progress &progress, bool refit)
 
     BVHMetal *bvh_metal = static_cast<BVHMetal *>(bvh);
     bvh_metal->motion_blur = motion_blur;
+    bvh_metal->use_motion_srt_transforms = use_motion_srt_transforms;
     if (bvh_metal->build(progress, mtlDevice, mtlGeneralCommandQueue, refit)) {
 
       if (bvh->params.top_level) {
