@@ -284,7 +284,7 @@ void screen_draw_move_highlight(bScreen *screen, eScreenAxis dir_axis)
     BLI_rctf_pad(&rect, 5.0f * U.pixelsize, 0.0f);
   }
 
-  float inner[4] = {1.0f, 1.0f, 1.0f, 0.8f};
+  float inner[4] = {1.0f, 1.0f, 1.0f, 0.4f};
   float outline[4];
   UI_GetThemeColor4fv(TH_EDITOR_BORDER, outline);
 
