@@ -21,7 +21,11 @@
 #include "WM_api.hh"
 
 const EnumPropertyItem rna_enum_stroke_depth_order_items[] = {
-    {0, "2D", 0, "2D Layers", "Display strokes using Grease Pencil layers to define order"},
+    {0,
+     "2D",
+     0,
+     "2D Layers",
+     "Display strokes using Grease Pencil layer order and stroke order to define depth"},
     {GREASE_PENCIL_STROKE_ORDER_3D,
      "3D",
      0,
