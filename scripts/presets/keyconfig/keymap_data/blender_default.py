@@ -4764,6 +4764,33 @@ def _template_uv_select(*, type, value, select_passthrough, legacy):
 
     return items
 
+def _template_mask_select(*, type, value, select_passthrough, legacy):
+
+    # See: `use_tweak_select_passthrough` doc-string.
+    if select_passthrough and (value in {'CLICK', 'RELEASE'}):
+        select_passthrough = False
+
+    items = [
+        ("mask.select", {"type": type, "value": value},
+         {"properties": [
+             *((("deselect_all", True),) if not legacy else ()),
+             *((("select_passthrough", True),) if select_passthrough else ()),
+         ]}),
+        ("mask.select", {"type": type, "value": value, "shift": True},
+         {"properties": [("toggle", True)]}),
+    ]
+
+    if select_passthrough:
+        # Add an additional click item to de-select all other items,
+        # needed so pass-through is able to de-select other items.
+        items.append((
+            "mask.select",
+            {"type": type, "value": 'CLICK'},
+            {"properties": [("deselect_all", True)]},
+        ))
+
+    return items
+
 
 def _template_sequencer_generic_select(*, type, value, legacy):
     return [(
@@ -6941,7 +6968,7 @@ def km_image_editor_tool_mask_select(params, *, fallback):
             *([] if (fallback and (params.select_mouse == 'RIGHTMOUSE')) else _template_items_tool_select(
                 params, "mask.select", "mask.cursor_set", fallback=fallback)),
             *([] if params.use_fallback_tool_select_handled else
-              _template_uv_select(
+              _template_mask_select(
                   type=params.select_mouse,
                   value=params.select_mouse_value,
                   select_passthrough=params.use_tweak_select_passthrough,
