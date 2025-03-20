@@ -2044,35 +2044,13 @@ GHOST_WindowWayland::GHOST_WindowWayland(GHOST_SystemWayland *system,
      * Workaround this by using the underlying `xdg_toplevel` */
 
 #  ifdef WITH_VULKAN_BACKEND
-    /* A dummy buffer is needed for VULKAN & LIBDECOR,
+    /* A buffer is needed for VULKAN & LIBDECOR,
      * otherwise `decor.initial_configure_seen` and startup locks up. */
-    wl_buffer *dummy_buffer = nullptr;
     if (window_->ghost_context_type == GHOST_kDrawingContextTypeVulkan) {
-      const uint32_t format = WL_SHM_FORMAT_ARGB8888;
-      const int format_size = 4;
-      const int buffer_size = (window_->frame.size[0] * window_->frame.size[1]) * format_size;
-      const int fd = memfd_create_sealed_for_vulkan_hack("ghost-wl-dummy-buffer");
-
-      const int truncate_result = ftruncate(fd, buffer_size);
-      GHOST_ASSERT(truncate_result == 0, "expecting ftruncate of the dummy buffer to work");
-#    ifndef NDEBUG
-      (void)truncate_result;
-#    endif
-
-      wl_shm *shm = system_->wl_shm_get();
-      wl_shm_pool *pool = wl_shm_create_pool(shm, fd, buffer_size);
-      dummy_buffer = wl_shm_pool_create_buffer(pool,
-                                               0,
-                                               window_->frame.size[0],
-                                               window_->frame.size[1],
-                                               window_->frame.size[0] * format_size,
-                                               format);
-      wl_shm_pool_destroy(pool);
-
-      wl_surface_attach(window_->wl.surface, dummy_buffer, 0, 0);
-      wl_surface_damage(window_->wl.surface, 0, 0, window_->frame.size[0], window_->frame.size[1]);
-      wl_surface_commit(window_->wl.surface);
-      ::close(fd);
+      /* NOTE: `swapBuffers` isn't ideal but the alternative is to construct
+       * and allocate a DMA buffer because this is what some drivers require, see: #135039. */
+      setSwapInterval(0);
+      swapBuffers();
     }
 #  endif /* WITH_VULKAN_BACKEND */
 
@@ -2081,14 +2059,6 @@ GHOST_WindowWayland::GHOST_WindowWayland(GHOST_SystemWayland *system,
       wl_display_flush(display);
       wl_display_dispatch(display);
     }
-
-#  ifdef WITH_VULKAN_BACKEND
-    if (window_->ghost_context_type == GHOST_kDrawingContextTypeVulkan) {
-      wl_surface_attach(window_->wl.surface, nullptr, 0, 0);
-      wl_surface_commit(window_->wl.surface);
-      wl_buffer_destroy(dummy_buffer);
-    }
-#  endif /* WITH_GHOST_WAYLAND_LIBDECOR */
 
     xdg_toplevel *toplevel = libdecor_frame_get_xdg_toplevel(decor.frame);
     gwl_window_state_set_for_xdg(toplevel, state, gwl_window_state_get(window_));
