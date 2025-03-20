@@ -1160,6 +1160,10 @@ void HIPRTDevice::build_bvh(BVH *bvh, Progress &progress, bool refit)
   hiprtBuildOptions options;
   options.buildFlags = hiprtBuildFlagBitPreferHighQualityBuild;
 
+  if (!bvh->params.use_spatial_split) {
+    options.buildFlags |= hiprtBuildFlagBitDisableSpatialSplits;
+  }
+
   BVHHIPRT *bvh_rt = static_cast<BVHHIPRT *>(bvh);
   HIPContextScope scope(this);
 
