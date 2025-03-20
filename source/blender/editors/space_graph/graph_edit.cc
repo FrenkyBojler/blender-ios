@@ -56,6 +56,7 @@
 #include "ED_keyframing.hh"
 #include "ED_markers.hh"
 #include "ED_screen.hh"
+#include "ED_space_graph.hh"
 #include "ED_transform.hh"
 
 #include "WM_api.hh"
@@ -2259,40 +2260,29 @@ static bool find_closest_frame(const FCurve *fcu,
 
 static int keyframe_jump_exec(bContext *C, wmOperator *op)
 {
-  bAnimContext ac;
   Scene *scene = CTX_data_scene(C);
 
   bool next = RNA_boolean_get(op->ptr, "next");
 
+  blender::Vector<FCurve *> fcurves = blender::ed::graph::get_visible_fcurves(C);
   /* Get editor data. */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (fcurves.is_empty()) {
     return OPERATOR_CANCELLED;
   }
-
-  ListBase anim_data = {nullptr, nullptr};
-  int filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_CURVE_VISIBLE | ANIMFILTER_FCURVESONLY |
-                ANIMFILTER_NODUPLIS);
-  if (U.animation_flag & USER_ANIM_ONLY_SHOW_SELECTED_CURVE_KEYS) {
-    filter |= ANIMFILTER_SEL;
-  }
-
-  ANIM_animdata_filter(
-      &ac, &anim_data, eAnimFilter_Flags(filter), ac.data, eAnimCont_Types(ac.datatype));
 
   float closest_frame = next ? FLT_MAX : -FLT_MAX;
   bool found = false;
 
   const float current_frame = BKE_scene_frame_get(scene);
-  LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
-    FCurve *fcu = static_cast<FCurve *>(ale->key_data);
+  for (FCurve *fcu : fcurves) {
     if (!fcu->bezt) {
       continue;
     }
 
     float closest_fcu_frame;
-    ANIM_nla_mapping_apply_if_needed_fcurve(ale, fcu, false, true);
+    // ANIM_nla_mapping_apply_if_needed_fcurve(ale, fcu, false, true);
     const bool success = find_closest_frame(fcu, current_frame, next, &closest_fcu_frame);
-    ANIM_nla_mapping_apply_if_needed_fcurve(ale, fcu, true, true);
+    // ANIM_nla_mapping_apply_if_needed_fcurve(ale, fcu, true, true);
 
     if (!success) {
       continue;
@@ -2306,8 +2296,6 @@ static int keyframe_jump_exec(bContext *C, wmOperator *op)
     }
   }
 
-  ANIM_animdata_freelist(&anim_data);
-
   if (!found) {
     BKE_report(op->reports, RPT_INFO, "No more keyframes to jump to in this direction");
     return OPERATOR_CANCELLED;
@@ -2318,7 +2306,7 @@ static int keyframe_jump_exec(bContext *C, wmOperator *op)
   DEG_id_tag_update(&scene->id, ID_RECALC_FRAME_CHANGE);
 
   /* Set notifier that things have changed. */
-  WM_event_add_notifier(C, NC_SCENE | ND_FRAME, ac.scene);
+  WM_event_add_notifier(C, NC_SCENE | ND_FRAME, scene);
   return OPERATOR_FINISHED;
 }
 
