@@ -157,6 +157,7 @@ set(SRC
   brushes/plane_legacy.cc
   brushes/relax.cc
   brushes/rotate.cc
+  brushes/scene_project.cc
   brushes/smooth.cc
   brushes/smooth_mask.cc
   brushes/snake_hook.cc
