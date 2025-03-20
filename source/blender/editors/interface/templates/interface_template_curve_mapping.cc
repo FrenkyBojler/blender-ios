@@ -29,7 +29,8 @@ using blender::StringRefNull;
 
 static bool curvemap_can_zoom_out(CurveMapping *cumap)
 {
-  return BLI_rctf_size_x(&cumap->curr) < BLI_rctf_size_x(&cumap->clipr);
+  /* Add a little bias to avoid showing "zoom out" when the sizes are near identical. */
+  return BLI_rctf_size_x(&cumap->curr) + 1e-6F < BLI_rctf_size_x(&cumap->clipr);
 }
 
 static bool curvemap_can_zoom_in(CurveMapping *cumap)
@@ -40,10 +41,13 @@ static bool curvemap_can_zoom_in(CurveMapping *cumap)
 static void curvemap_buttons_zoom_in(bContext *C, CurveMapping *cumap)
 {
   if (curvemap_can_zoom_in(cumap)) {
-    const float dx = 0.1154f * BLI_rctf_size_x(&cumap->curr);
+    /* Zooming out components by 15% (see below) for a total of 30% size increase means that we
+     * need to zoom by a smaller percentage of the larger area to get back to where we were. We
+     * need some factor f where f + 0.3f = 0.15, which is exactly 3/26. */
+    const float dx = (3.0f / 26.0f) * BLI_rctf_size_x(&cumap->curr);
     cumap->curr.xmin += dx;
     cumap->curr.xmax -= dx;
-    const float dy = 0.1154f * BLI_rctf_size_y(&cumap->curr);
+    const float dy = (3.0f / 26.0f) * BLI_rctf_size_y(&cumap->curr);
     cumap->curr.ymin += dy;
     cumap->curr.ymax -= dy;
   }
