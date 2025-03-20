@@ -4657,7 +4657,7 @@ class VIEW3D_MT_edit_mesh_context_menu(Menu):
 
             props = col.operator("mesh.quads_convert_to_tris")
             props.quad_method = props.ngon_method = 'BEAUTY'
-            col.operator("mesh.tris_convert_to_quads")
+            col.operator("mesh.tris_convert_to_quads", text="Triangles to Quads")
 
             col.separator()
 
@@ -4885,7 +4885,7 @@ class VIEW3D_MT_edit_mesh_faces(Menu):
         layout.operator("mesh.poke")
         props = layout.operator("mesh.quads_convert_to_tris")
         props.quad_method = props.ngon_method = 'BEAUTY'
-        layout.operator("mesh.tris_convert_to_quads")
+        layout.operator("mesh.tris_convert_to_quads", text="Triangles to Quads")
         layout.operator("mesh.solidify", text="Solidify Faces")
         layout.operator("mesh.wireframe")
 
