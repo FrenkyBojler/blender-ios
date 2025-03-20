@@ -103,8 +103,13 @@ if(WITH_COMPILER_CODE_COVERAGE)
         ${COMPILER_CODE_COVERAGE_DATA_DIR}/raw/*.profraw
         -o ${COMPILER_CODE_COVERAGE_DATA_DIR}/blender.profdata
     )
-    if (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 18.1)
-      # available clang 18.1+ only
+    if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 18.1 OR
+       (APPLE AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 17.0)
+      )
+      # Available clang on 18.1+ only , Apple's compiler doesn't map 1:1 to clang
+      # versions so on apple we check for version 17+ which maps to clang
+      # version 19.1.4, given this is somewhat unintuitive there is a handy table on
+      # https://en.wikipedia.org/wiki/Xcode#Xcode_15.0_-_(since_visionOS_support)_2
       set(_cov_extra_args -show-directory-coverage)
     endif()
     add_custom_target(coverage-report
