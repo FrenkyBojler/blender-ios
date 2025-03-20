@@ -2092,7 +2092,7 @@ static int sequencer_meta_make_exec(bContext *C, wmOperator * /*op*/)
   }
 
   const int channel = active_strip ? active_strip->machine : channel_max;
-  seq::transform_channel_set(seqm, channel);
+  seq::strip_channel_set(seqm, channel);
   BLI_strncpy(seqm->name + 2, DATA_("MetaStrip"), sizeof(seqm->name) - 2);
   seq::sequence_base_unique_name_recursive(scene, &ed->seqbase, seqm);
   seqm->start = meta_start_frame;

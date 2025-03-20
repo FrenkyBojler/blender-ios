@@ -136,7 +136,7 @@ Strip *sequence_alloc(ListBase *lb, int timeline_frame, int machine, int type)
 
   strip->flag = SELECT;
   strip->start = timeline_frame;
-  transform_channel_set(strip, machine);
+  strip_channel_set(strip, machine);
   strip->sat = 1.0;
   strip->mul = 1.0;
   strip->blend_opacity = 100.0;

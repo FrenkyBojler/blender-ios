@@ -103,13 +103,13 @@ bool transform_seqbase_shuffle_ex(ListBase *seqbasep,
   const int orig_machine = test->machine;
   BLI_assert(ELEM(channel_delta, -1, 1));
 
-  transform_channel_set(test, test->machine + channel_delta);
+  strip_channel_set(test, test->machine + channel_delta);
   while (transform_test_overlap(evil_scene, seqbasep, test)) {
     if ((channel_delta > 0) ? (test->machine >= MAX_CHANNELS) : (test->machine < 1)) {
       break;
     }
 
-    transform_channel_set(test, test->machine + channel_delta);
+    strip_channel_set(test, test->machine + channel_delta);
   }
 
   if (!is_valid_strip_channel(test)) {
@@ -124,7 +124,7 @@ bool transform_seqbase_shuffle_ex(ListBase *seqbasep,
       }
     }
 
-    transform_channel_set(test, orig_machine);
+    strip_channel_set(test, orig_machine);
 
     new_frame = new_frame + (test->start - time_left_handle_frame_get(
                                                evil_scene, test)); /* adjust by the startdisp */
@@ -553,7 +553,7 @@ void transform_offset_after_frame(Scene *scene,
   }
 }
 
-void transform_channel_set(Strip *strip, int channel)
+void strip_channel_set(Strip *strip, int channel)
 {
   strip->machine = math::clamp(channel, 1, MAX_CHANNELS);
 }
