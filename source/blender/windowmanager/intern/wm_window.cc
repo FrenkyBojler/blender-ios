@@ -1542,6 +1542,7 @@ static void wm_start_drag(wmWindowManager *wm,
     WM_event_start_drag(C, ICON_NONE, WM_DRAG_STRING, str, WM_DRAG_FREE_DATA);
   }
 }
+
 /**
  * Called by ghost, here we handle events for windows themselves or send to event system.
  *
