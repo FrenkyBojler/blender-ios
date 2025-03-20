@@ -109,15 +109,6 @@ static void eyedropper_draw_cursor_text_ex(const int xy[2], const char *name)
   UI_fontstyle_draw_simple_backdrop(fstyle, xy[0], xy[1] + U.widget_unit, name, col_fg, col_bg);
 }
 
-void eyedropper_draw_cursor_text_window(const wmWindow *window, const char *name)
-{
-  if (name[0] == '\0') {
-    return;
-  }
-
-  eyedropper_draw_cursor_text_ex(window->eventstate->xy, name);
-}
-
 void eyedropper_draw_cursor_text_region(const int xy[2], const char *name)
 {
   if (name[0] == '\0') {
