@@ -786,16 +786,13 @@ static void set_global_solve_elements(const ConstraintEvalParams &params,
     const ValueT beta = math::max(betas[index], ValueT(0.0f));
     const ValueT compliance = alpha * params.inv_delta_time_squared /
                               (ValueT(1.0f) + alpha * beta);
-    /* TODO Is there a better way to construct the equations for infinitely stiff constraints? */
-    constexpr float min_compliance = 1e-6f;
 
     const IndexRange component_columns = components_range.slice(pos * num_components,
                                                                 num_components);
     /* Compliance entries. */
     for (const int u : component_columns.index_range()) {
-      triplets.append_unchecked_as(int(component_columns[u]),
-                                   int(component_columns[u]),
-                                   -std::max(get_component(compliance, u), min_compliance));
+      triplets.append_unchecked_as(
+          int(component_columns[u]), int(component_columns[u]), -get_component(compliance, u));
     }
   });
 
@@ -1181,7 +1178,6 @@ SolverResult solve_global_system(const GlobalSolverSystem &system,
 {
   constexpr bool linearized_quaternion = true;
 
-  /* Note: Cholesky LDLT decomposition only works when all compliance values are non-zero. */
   Eigen::SimplicialLDLT<Eigen::SparseMatrix<float>> eigen_solver(system.matrix);
   Eigen::VectorXf x = eigen_solver.solve(system.target);
   const SolverResult result = solver_result_from_eigen(eigen_solver.info());
