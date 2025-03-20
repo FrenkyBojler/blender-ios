@@ -67,6 +67,8 @@ struct GBufferWriter {
   uchar data_len;
   /* Number of normal written in the normal array. */
   uchar normal_len;
+  /* First world normal stored in the gbuffer (uncompressed). */
+  packed_float3 surface_N;
 };
 
 /* Result of loading the GBuffer. */
@@ -523,6 +525,7 @@ void gbuffer_append_normal(inout GBufferWriter gbuf, vec3 normal)
   switch (gbuf.normal_len) {
 #if GBUFFER_NORMAL_MAX > 0
     case 0:
+      gbuf.surface_N = normal;
       gbuf.N[0] = packed_N;
       break;
 #endif
@@ -851,7 +854,7 @@ void gbuffer_closure_metal_clear_coat_load(inout GBufferReader gbuf,
  *
  * \{ */
 
-GBufferWriter gbuffer_pack(GBufferData data_in)
+GBufferWriter gbuffer_pack(GBufferData data_in, vec3 Ng)
 {
   GBufferWriter gbuf;
   gbuf.header = 0u;
@@ -861,8 +864,6 @@ GBufferWriter gbuffer_pack(GBufferData data_in)
 
   /* Pack light linking data into header. */
   gbuf.header |= gbuffer_light_link_receiver_pack(data_in.receiver_light_set);
-
-  /* Check special configurations first. */
 
   bool has_additional_data = false;
   for (int i = 0; i < GBUFFER_LAYER_MAX; i++) {
@@ -913,6 +914,9 @@ GBufferWriter gbuffer_pack(GBufferData data_in)
     gbuf.bins_len = 0;
     gbuffer_closure_unlit_pack(gbuf, data_in.surface_N);
   }
+
+  /* Pack geometric normal into the header if needed. */
+  gbuf.header |= gbuffer_geometry_normal_pack(Ng, gbuf.surface_N);
 
   if (has_additional_data) {
     gbuffer_additional_info_pack(gbuf, data_in.thickness, data_in.object_id);
