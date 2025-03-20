@@ -161,9 +161,28 @@ static void do_global_solve(const EvaluationTarget /*target*/,
                             MutableSpan<ConstraintEvalData> constraint_data,
                             ConstraintVariables &variables)
 {
-  // IndexMaskMemory memory;
-  // xpbd_constraints::GlobalSolverSystem system = build_global_solve_system(
-  //     eval_params, constraint_data, variables, eval_params.debug_check, memory);
+  IndexMaskMemory memory;
+  xpbd_constraints::GlobalSolverSystem system = build_global_solve_system(
+      eval_params, constraint_data, variables, eval_params.debug_check, memory);
+
+  xpbd_constraints::SolverResult result = xpbd_constraints::solve_global_system(
+      system, variables, constraint_data);
+  // BLI_assert(result == xpbd_constraints::SolverResult::Success);
+  if (result != xpbd_constraints::SolverResult::Success) {
+    return;
+  }
+
+  // if (false) {
+  //   const int max_rows = 100;
+  //   const int max_cols = 100;
+
+  //   const Eigen::IOFormat format;
+  //   const auto matrix_view = system.matrix.block(0,
+  //                                                0,
+  //                                                std::min(int(system.matrix.rows()), max_rows),
+  //                                                std::min(int(system.matrix.cols()), max_cols));
+  //   std::cout << matrix_view.toDense().format(format) << std::endl;
+  // }
 }
 
 static void do_gauss_seidel_step(const EvaluationTarget target,
