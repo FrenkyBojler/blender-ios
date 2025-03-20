@@ -18,6 +18,7 @@ VKPixelBuffer::VKPixelBuffer(size_t size) : PixelBuffer(size)
                  VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
                  VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
                  VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+                 VMA_MEMORY_USAGE_AUTO,
                  VmaAllocationCreateFlags(0));
   debug::object_label(buffer_.vk_handle(), "PixelBuffer");
 }

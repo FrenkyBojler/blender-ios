@@ -17,6 +17,11 @@
 
 namespace blender::gpu {
 
+static constexpr VkBufferUsageFlags VK_BUFFER_USAGE_FLAGS =
+    VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
+    VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT |
+    VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+
 VKVertexBuffer::~VKVertexBuffer()
 {
   release_data();
@@ -68,6 +73,21 @@ void VKVertexBuffer::wrap_handle(uint64_t /*handle*/)
 void VKVertexBuffer::update_sub(uint start_offset, uint data_size_in_bytes, const void *data)
 {
   device_format_ensure();
+  if (is_mapped_data) {
+    BLI_assert_msg(usage_ == GPU_USAGE_STATIC,
+                   "Direct access to mapped data is only supported for GPU_USAGE_STATIC");
+    if (vertex_format_converter.needs_conversion()) {
+      if (G.debug & G_DEBUG_GPU) {
+        std::cout << "PERFORMANCE: Vertex buffer requires conversion.\n";
+      }
+      vertex_format_converter.convert(data_ + start_offset, data, data_size_in_bytes / vertex_len);
+    }
+    else {
+      memcpy(data_ + start_offset, data, data_size_in_bytes);
+    }
+    return;
+  }
+
   if (buffer_.is_mapped() && !vertex_format_converter.needs_conversion()) {
     buffer_.update_sub_immediately(start_offset, data_size_in_bytes, data);
   }
@@ -77,7 +97,7 @@ void VKVertexBuffer::update_sub(uint start_offset, uint data_size_in_bytes, cons
         buffer_, VKStagingBuffer::Direction::HostToDevice, start_offset, data_size_in_bytes);
     if (vertex_format_converter.needs_conversion()) {
       vertex_format_converter.convert(staging_buffer.host_buffer_get().mapped_memory_get(),
-                                      data_,
+                                      data,
                                       data_size_in_bytes / vertex_len);
     }
     else {
@@ -106,15 +126,49 @@ void VKVertexBuffer::acquire_data()
     return;
   }
 
+  if (usage_ == GPU_USAGE_STATIC) {
+    if (!buffer_.is_allocated()) {
+      buffer_.create(size_alloc_get(),
+                     VK_BUFFER_USAGE_FLAGS,
+                     VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT |
+                         VK_MEMORY_PROPERTY_HOST_CACHED_BIT,
+                     0,
+                     VMA_MEMORY_USAGE_AUTO_PREFER_HOST,
+                     VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT);
+      debug::object_label(buffer_.vk_handle(), "VertexBuffer.Static");
+      data_ = static_cast<uchar *>(buffer_.mapped_memory_get());
+      is_mapped_data = true;
+      return;
+    }
+  }
+
   /* Discard previous data if any. */
-  /* TODO: Use mapped memory. */
-  MEM_SAFE_FREE(data_);
+  if (is_mapped_data) {
+    data_ = nullptr;
+  }
+  else {
+    MEM_SAFE_FREE(data_);
+  }
+
   data_ = (uchar *)MEM_mallocN(sizeof(uchar) * this->size_alloc_get(), __func__);
+  is_mapped_data = false;
 }
 
 void VKVertexBuffer::resize_data()
 {
   if (usage_ == GPU_USAGE_DEVICE_ONLY) {
+    return;
+  }
+
+  /* Resizing for GPU_USAGE_STATIC isn't supported as it is already allocated. The usecase in
+   * Blender that does resizing would not free any space due to alignment rules. */
+  if (is_mapped_data) {
+    BLI_assert_msg(usage_ == GPU_USAGE_STATIC,
+                   "Direct mapped data access is only supported for GPU_USAGE_STATIC");
+    BLI_assert_msg(buffer_.is_allocated(),
+                   "Static buffers should already been allocated on device.");
+    BLI_assert_msg(buffer_.size_in_bytes() >= this->size_alloc_get(),
+                   "Larger size requested than currently allocated");
     return;
   }
 
@@ -128,7 +182,13 @@ void VKVertexBuffer::release_data()
     vk_buffer_view_ = VK_NULL_HANDLE;
   }
 
-  MEM_SAFE_FREE(data_);
+  if (!is_mapped_data) {
+    MEM_SAFE_FREE(data_);
+  }
+  else {
+    is_mapped_data = false;
+    data_ = nullptr;
+  }
 }
 
 void VKVertexBuffer::upload_data_direct(const VKBuffer &host_buffer)
@@ -158,12 +218,28 @@ void VKVertexBuffer::upload_data()
   if (!buffer_.is_allocated()) {
     allocate();
   }
-  if (!ELEM(usage_, GPU_USAGE_STATIC, GPU_USAGE_STREAM, GPU_USAGE_DYNAMIC)) {
+  if (usage_ == GPU_USAGE_DEVICE_ONLY) {
+    return;
+  }
+
+  device_format_ensure();
+  if (is_mapped_data) {
+    BLI_assert_msg(usage_ == GPU_USAGE_STATIC,
+                   "Direct access to mapped data is only supported for GPU_USAGE_STATIC");
+    if (vertex_format_converter.needs_conversion()) {
+      if (G.debug & G_DEBUG_GPU) {
+        std::cout << "PERFORMANCE: Vertex buffer requires conversion.\n";
+      }
+      vertex_format_converter.convert(data_, data_, vertex_len);
+    }
+    data_ = nullptr;
+    is_mapped_data = false;
+    flag &= ~GPU_VERTBUF_DATA_DIRTY;
+    flag |= GPU_VERTBUF_DATA_UPLOADED;
     return;
   }
 
   if (flag & GPU_VERTBUF_DATA_DIRTY) {
-    device_format_ensure();
     if (buffer_.is_mapped() && !data_uploaded_) {
       upload_data_direct(buffer_);
     }
@@ -209,8 +285,9 @@ void VKVertexBuffer::allocate()
 
   buffer_.create(size_alloc_get(),
                  vk_buffer_usage,
+                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_CACHED_BIT,
                  VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
+                 VMA_MEMORY_USAGE_AUTO_PREFER_HOST,
                  VmaAllocationCreateFlags(0));
   debug::object_label(buffer_.vk_handle(), "VertexBuffer");
 }

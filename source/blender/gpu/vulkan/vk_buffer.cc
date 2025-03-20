@@ -28,6 +28,7 @@ bool VKBuffer::create(size_t size_in_bytes,
                       VkBufferUsageFlags buffer_usage,
                       VkMemoryPropertyFlags required_flags,
                       VkMemoryPropertyFlags preferred_flags,
+                      VmaMemoryUsage vma_memory_usage,
                       VmaAllocationCreateFlags allocation_flags)
 {
   BLI_assert(!is_allocated());
@@ -60,7 +61,7 @@ bool VKBuffer::create(size_t size_in_bytes,
   vma_create_info.priority = 1.0f;
   vma_create_info.requiredFlags = required_flags;
   vma_create_info.preferredFlags = preferred_flags;
-  vma_create_info.usage = VMA_MEMORY_USAGE_AUTO;
+  vma_create_info.usage = vma_memory_usage;
 
   VkResult result = vmaCreateBuffer(
       allocator, &create_info, &vma_create_info, &vk_buffer_, &allocation_, nullptr);

@@ -35,8 +35,9 @@ void VKUniformBuffer::allocate()
   buffer_.create(size_in_bytes_,
                  VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
                      VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-                 VK_MEMORY_HEAP_DEVICE_LOCAL_BIT,
+                 VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
                  VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
+                 VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
                  VmaAllocationCreateFlags(0));
   debug::object_label(buffer_.vk_handle(), name_);
 }

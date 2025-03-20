@@ -23,6 +23,11 @@ class VKVertexBuffer : public VertBuf {
   VertexFormatConverter vertex_format_converter;
   bool data_uploaded_ = false;
 
+  /**
+   * data_ points to mapped memory of the buffer.
+   */
+  bool is_mapped_data = false;
+
  public:
   ~VKVertexBuffer();
 
