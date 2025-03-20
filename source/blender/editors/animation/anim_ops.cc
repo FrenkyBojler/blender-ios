@@ -187,6 +187,7 @@ static int get_nla_strip_snap_target(bContext *C, const int frame)
       }
     }
   }
+  ANIM_animdata_freelist(&anim_data);
 
   if (best_distance == MAXFRAME) {
     /* No snap target was found. */
@@ -529,6 +530,15 @@ static void change_frame_seq_preview_end(SpaceSeq *sseq)
 static bool use_snapping(bContext *C)
 {
   Scene *scene = CTX_data_scene(C);
+  ScrArea *area = CTX_wm_area(C);
+  if (area->spacetype == SPACE_GRAPH) {
+    SpaceGraph *graph_editor = reinterpret_cast<SpaceGraph *>(area->spacedata.first);
+    /* Snapping is disabled for driver mode. Need to evaluate if it makes sense there and what form
+     * it should take. */
+    if (graph_editor->mode == SIPO_MODE_DRIVERS) {
+      return false;
+    }
+  }
   return scene->toolsettings->snap_flag_playhead & SCE_SNAP;
 }
 
