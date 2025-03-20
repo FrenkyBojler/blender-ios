@@ -8,7 +8,6 @@
  */
 
 #include "DNA_armature_types.h"
-#include "DNA_constraint_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
@@ -16,15 +15,14 @@
 
 #include "BLT_translation.hh"
 
-#include "BLI_blenlib.h"
 #include "BLI_ghash.h"
+#include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
 
-#include "BKE_action.h"
+#include "BKE_action.hh"
 #include "BKE_armature.hh"
-#include "BKE_constraint.h"
 #include "BKE_context.hh"
 #include "BKE_global.hh"
 #include "BKE_layer.hh"
@@ -762,7 +760,7 @@ static int armature_fill_bones_exec(bContext *C, wmOperator *op)
     short headtail = 0;
 
     /* check that the points don't belong to the same bone */
-    ebp_a = (EditBonePoint *)points.first;
+    ebp_a = static_cast<EditBonePoint *>(points.first);
     ebp_b = ebp_a->next;
 
     if (((ebp_a->head_owner == ebp_b->tail_owner) && (ebp_a->head_owner != nullptr)) ||
@@ -1073,7 +1071,7 @@ static void bone_align_to_bone(ListBase *edbo, EditBone *selbone, EditBone *actb
 static int armature_align_bones_exec(bContext *C, wmOperator *op)
 {
   Object *ob = CTX_data_edit_object(C);
-  bArmature *arm = (bArmature *)ob->data;
+  bArmature *arm = static_cast<bArmature *>(ob->data);
   EditBone *actbone = CTX_data_active_bone(C);
   EditBone *actmirb = nullptr;
   int num_selected_bones;
@@ -1253,7 +1251,7 @@ static int armature_delete_selected_exec(bContext *C, wmOperator * /*op*/)
 
     for (curBone = static_cast<EditBone *>(arm->edbo->first); curBone; curBone = ebone_next) {
       ebone_next = curBone->next;
-      if (ANIM_bonecoll_is_visible_editbone(arm, curBone)) {
+      if (EBONE_VISIBLE(arm, curBone)) {
         if (curBone->flag & BONE_SELECTED) {
           if (curBone == arm->act_edbone) {
             arm->act_edbone = nullptr;
@@ -1395,13 +1393,13 @@ static int armature_dissolve_selected_exec(bContext *C, wmOperator * /*op*/)
 
     LISTBASE_FOREACH (EditBone *, ebone, arm->edbo) {
       /* break connections for unseen bones */
-      if ((ANIM_bonecoll_is_visible_editbone(arm, ebone) &&
+      if ((EBONE_VISIBLE(arm, ebone) &&
            (ED_armature_ebone_selectflag_get(ebone) & (BONE_TIPSEL | BONE_SELECTED))) == 0)
       {
         ebone->temp.ebone = nullptr;
       }
 
-      if ((ANIM_bonecoll_is_visible_editbone(arm, ebone) &&
+      if ((EBONE_VISIBLE(arm, ebone) &&
            (ED_armature_ebone_selectflag_get(ebone) & (BONE_ROOTSEL | BONE_SELECTED))) == 0)
       {
         if (ebone->parent && (ebone->flag & BONE_CONNECTED)) {

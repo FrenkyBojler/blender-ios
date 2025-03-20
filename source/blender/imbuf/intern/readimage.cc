@@ -14,9 +14,8 @@
 
 #include "BLI_fileops.h"
 #include "BLI_mmap.h"
-#include "BLI_path_util.h" /* For assertions. */
+#include "BLI_path_utils.hh" /* For assertions. */
 #include "BLI_string.h"
-#include "BLI_utildefines.h"
 #include <cstdlib>
 
 #include "IMB_allocimbuf.hh"
@@ -77,8 +76,6 @@ static void imb_handle_alpha(ImBuf *ibuf,
     }
   }
 
-  /* OCIO_TODO: in some cases it's faster to do threaded conversion,
-   *            but how to distinguish such cases */
   colormanage_imbuf_make_linear(ibuf, effective_colorspace);
 }
 
@@ -168,7 +165,8 @@ ImBuf *IMB_loadiffname(const char *filepath, int flags, char colorspace[IM_MAX_S
 
 ImBuf *IMB_thumb_load_image(const char *filepath,
                             size_t max_thumb_size,
-                            char colorspace[IM_MAX_SPACE])
+                            char colorspace[IM_MAX_SPACE],
+                            IMBThumbLoadFlags load_flags)
 {
   const ImFileType *type = IMB_file_type_from_ftype(IMB_ispic_type(filepath));
   if (type == nullptr) {
@@ -176,7 +174,7 @@ ImBuf *IMB_thumb_load_image(const char *filepath,
   }
 
   ImBuf *ibuf = nullptr;
-  int flags = IB_rect | IB_metadata;
+  int flags = IB_byte_data | IB_metadata;
   /* Size of the original image. */
   size_t width = 0;
   size_t height = 0;
@@ -192,9 +190,11 @@ ImBuf *IMB_thumb_load_image(const char *filepath,
   }
   else {
     /* Skip images of other types if over 100MB. */
-    const size_t file_size = BLI_file_size(filepath);
-    if (file_size != size_t(-1) && file_size > THUMB_SIZE_MAX) {
-      return nullptr;
+    if ((load_flags & IMBThumbLoadFlags::LoadLargeFiles) == IMBThumbLoadFlags::Zero) {
+      const size_t file_size = BLI_file_size(filepath);
+      if (file_size != size_t(-1) && file_size > THUMB_SIZE_MAX) {
+        return nullptr;
+      }
     }
     ibuf = IMB_loadiffname(filepath, flags, colorspace);
     if (ibuf) {

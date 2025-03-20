@@ -17,13 +17,14 @@
 #include "BKE_report.hh"
 
 #include "BLI_fnmatch.h"
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 #include "BLI_set.hh"
 
 #include "ED_asset.hh"
 #include "ED_screen.hh"
 /* XXX needs access to the file list, should all be done via the asset system in future. */
 #include "ED_fileselect.hh"
+#include "ED_util.hh"
 
 #include "BLT_translation.hh"
 
@@ -37,35 +38,6 @@
 
 namespace blender::ed::asset {
 /* -------------------------------------------------------------------- */
-
-static Vector<PointerRNA> get_single_id_vec_from_context(const bContext *C)
-{
-  Vector<PointerRNA> ids;
-  PointerRNA idptr = CTX_data_pointer_get_type(C, "id", &RNA_ID);
-  if (idptr.data) {
-    ids.append(idptr);
-  }
-  return ids;
-}
-
-/**
- * Return the IDs to operate on as PointerRNA vector. Prioritizes multiple selected ones
- * ("selected_ids" context member) over a single active one ("id" context member), since usually
- * batch operations are more useful.
- */
-static Vector<PointerRNA> asset_operation_get_ids_from_context(const bContext *C)
-{
-  Vector<PointerRNA> ids;
-
-  /* "selected_ids" context member. */
-  CTX_data_selected_ids(C, &ids);
-  if (!ids.is_empty()) {
-    return ids;
-  }
-
-  /* "id" context member. */
-  return get_single_id_vec_from_context(C);
-}
 
 /**
  * Information about what's contained in a #Vector<PointerRNA>, returned by
@@ -219,10 +191,10 @@ static void ASSET_OT_mark(wmOperatorType *ot)
   ot->idname = "ASSET_OT_mark";
 
   ot->exec = [](bContext *C, wmOperator *op) -> int {
-    return asset_mark_exec(C, op, asset_operation_get_ids_from_context(C));
+    return asset_mark_exec(C, op, ED_operator_get_ids_from_context_as_vec(C));
   };
   ot->poll = [](bContext *C) -> bool {
-    return asset_mark_poll(C, asset_operation_get_ids_from_context(C));
+    return asset_mark_poll(C, ED_operator_get_ids_from_context_as_vec(C));
   };
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -240,10 +212,10 @@ static void ASSET_OT_mark_single(wmOperatorType *ot)
   ot->idname = "ASSET_OT_mark_single";
 
   ot->exec = [](bContext *C, wmOperator *op) -> int {
-    return asset_mark_exec(C, op, get_single_id_vec_from_context(C));
+    return asset_mark_exec(C, op, ED_operator_single_id_from_context_as_vec(C));
   };
   ot->poll = [](bContext *C) -> bool {
-    return asset_mark_poll(C, get_single_id_vec_from_context(C));
+    return asset_mark_poll(C, ED_operator_single_id_from_context_as_vec(C));
   };
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -385,10 +357,10 @@ static void ASSET_OT_clear(wmOperatorType *ot)
   ot->idname = "ASSET_OT_clear";
 
   ot->exec = [](bContext *C, wmOperator *op) -> int {
-    return asset_clear_exec(C, op, asset_operation_get_ids_from_context(C));
+    return asset_clear_exec(C, op, ED_operator_get_ids_from_context_as_vec(C));
   };
   ot->poll = [](bContext *C) -> bool {
-    return asset_clear_poll(C, asset_operation_get_ids_from_context(C));
+    return asset_clear_poll(C, ED_operator_get_ids_from_context_as_vec(C));
   };
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -409,10 +381,10 @@ static void ASSET_OT_clear_single(wmOperatorType *ot)
   ot->idname = "ASSET_OT_clear_single";
 
   ot->exec = [](bContext *C, wmOperator *op) -> int {
-    return asset_clear_exec(C, op, get_single_id_vec_from_context(C));
+    return asset_clear_exec(C, op, ED_operator_single_id_from_context_as_vec(C));
   };
   ot->poll = [](bContext *C) -> bool {
-    return asset_clear_poll(C, get_single_id_vec_from_context(C));
+    return asset_clear_poll(C, ED_operator_single_id_from_context_as_vec(C));
   };
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -439,31 +411,20 @@ static bool asset_library_refresh_poll(bContext *C)
     return false;
   }
 
-  return list::storage_has_list_for_library(library);
+  return list::has_list_storage_for_library(library) ||
+         list::has_asset_browser_storage_for_library(library, C);
 }
 
 static int asset_library_refresh_exec(bContext *C, wmOperator * /*unused*/)
 {
-  /* Execution mode #1: Inside the Asset Browser. */
-  if (ED_operator_asset_browsing_active(C)) {
-    SpaceFile *sfile = CTX_wm_space_file(C);
-    ED_fileselect_clear(CTX_wm_manager(C), sfile);
-    WM_event_add_notifier(C, NC_SPACE | ND_SPACE_FILE_LIST, nullptr);
-  }
-  else {
-    /* Execution mode #2: Outside the Asset Browser, use the asset list. */
-    const AssetLibraryReference *library = CTX_wm_asset_library_ref(C);
-    list::clear(library, C);
-  }
+  const AssetLibraryReference *library = CTX_wm_asset_library_ref(C);
+  /* Handles both global asset list storage and asset browsers. */
+  list::clear(library, C);
+  WM_event_add_notifier(C, NC_ASSET | ND_ASSET_LIST_READING, nullptr);
 
   return OPERATOR_FINISHED;
 }
 
-/**
- * This operator currently covers both cases, the File/Asset Browser file list and the asset list
- * used for the asset-view template. Once the asset list design is used by the Asset Browser, this
- * can be simplified to just that case.
- */
 static void ASSET_OT_library_refresh(wmOperatorType *ot)
 {
   /* identifiers */
@@ -836,7 +797,7 @@ static const EnumPropertyItem *rna_asset_library_reference_itemf(bContext * /*C*
                                                                  PropertyRNA * /*prop*/,
                                                                  bool *r_free)
 {
-  const EnumPropertyItem *items = library_reference_to_rna_enum_itemf(false);
+  const EnumPropertyItem *items = custom_libraries_rna_enum_itemf();
   if (!items) {
     *r_free = false;
     return nullptr;
@@ -951,10 +912,10 @@ static bool has_external_files(Main *bmain, ReportList *reports)
 {
   FileCheckCallbackInfo callback_info = {reports, Set<std::string>()};
 
-  eBPathForeachFlag flag = static_cast<eBPathForeachFlag>(
-      BKE_BPATH_FOREACH_PATH_SKIP_PACKED          /* Packed files are fine. */
-      | BKE_BPATH_FOREACH_PATH_SKIP_MULTIFILE     /* Only report multi-files once, it's enough. */
-      | BKE_BPATH_TRAVERSE_SKIP_WEAK_REFERENCES); /* Only care about actually used files. */
+  eBPathForeachFlag flag =
+      (BKE_BPATH_FOREACH_PATH_SKIP_PACKED          /* Packed files are fine. */
+       | BKE_BPATH_FOREACH_PATH_SKIP_MULTIFILE     /* Only report multi-files once, it's enough. */
+       | BKE_BPATH_TRAVERSE_SKIP_WEAK_REFERENCES); /* Only care about actually used files. */
 
   BPathForeachPathData bpath_data = {
       /*bmain*/ bmain,

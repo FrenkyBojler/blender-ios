@@ -6,13 +6,10 @@
  * \ingroup sequencer
  */
 
-#include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_windowmanager_types.h"
 
 #include "BKE_context.hh"
-
-#include "BLI_utildefines.h"
 
 #include "ED_screen.hh"
 
@@ -22,6 +19,8 @@
 
 /* Own include. */
 #include "sequencer_intern.hh"
+
+namespace blender::ed::vse {
 
 static int sequencer_rename_channel_invoke(bContext *C, wmOperator * /*op*/, const wmEvent *event)
 {
@@ -48,3 +47,5 @@ void SEQUENCER_OT_rename_channel(wmOperatorType *ot)
   /* Flags. */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_INTERNAL;
 }
+
+}  // namespace blender::ed::vse

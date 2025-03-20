@@ -93,13 +93,15 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_assert.h"
 #include "BLI_listbase.h"
 #include "BLI_mempool.h"
+#include "BLI_utildefines.h"
 
 #include "BLI_array_store.h" /* Own include. */
 #include "BLI_ghash.h"       /* Only for #BLI_array_store_is_valid. */
 
-#include "BLI_strict_flags.h" /* Keep last. */
+#include "BLI_strict_flags.h" /* IWYU pragma: keep. Keep last. */
 
 struct BChunkList;
 
@@ -794,7 +796,7 @@ static void bchunk_list_fill_from_array(const BArrayInfo *info,
 
 BLI_INLINE hash_key hash_data_single(const uchar p)
 {
-  return ((HASH_INIT << 5) + HASH_INIT) + (hash_key)(*((signed char *)&p));
+  return ((HASH_INIT << 5) + HASH_INIT) + (hash_key) * ((signed char *)&p);
 }
 
 /* Hash bytes, from #BLI_ghashutil_strhash_n. */
@@ -1452,6 +1454,7 @@ static BChunkList *bchunk_list_from_data_merge(const BArrayInfo *info,
   }
 
   BLI_assert(i_prev == data_len);
+  UNUSED_VARS_NDEBUG(i_prev);
 
 #ifdef USE_FASTPATH_CHUNKS_LAST
   if (chunk_list_reference_last != nullptr) {
@@ -1472,6 +1475,7 @@ static BChunkList *bchunk_list_from_data_merge(const BArrayInfo *info,
 #undef data_len_original
 
   BLI_assert(i_prev == data_len_original);
+  UNUSED_VARS_NDEBUG(i_prev);
 
   /* Check we're the correct size and that we didn't accidentally modify the reference. */
   ASSERT_CHUNKLIST_SIZE(chunk_list, data_len_original);
@@ -1493,7 +1497,7 @@ BArrayStore *BLI_array_store_create(uint stride, uint chunk_count)
 {
   BLI_assert(stride > 0 && chunk_count > 0);
 
-  BArrayStore *bs = MEM_cnew<BArrayStore>(__func__);
+  BArrayStore *bs = MEM_callocN<BArrayStore>(__func__);
 
   bs->info.chunk_stride = stride;
   // bs->info.chunk_count = chunk_count;
@@ -1652,7 +1656,7 @@ BArrayState *BLI_array_store_state_add(BArrayStore *bs,
 
   chunk_list->users += 1;
 
-  BArrayState *state = MEM_cnew<BArrayState>(__func__);
+  BArrayState *state = MEM_callocN<BArrayState>(__func__);
   state->chunk_list = chunk_list;
 
   BLI_addtail(&bs->states, state);

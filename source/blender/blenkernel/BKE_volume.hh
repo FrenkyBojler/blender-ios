@@ -14,6 +14,8 @@
 
 #include "BLI_bounds_types.hh"
 #include "BLI_math_vector_types.hh"
+#include "BLI_memory_counter_fwd.hh"
+#include "BLI_string_ref.hh"
 
 #include "BKE_volume_grid_fwd.hh"
 
@@ -36,7 +38,7 @@ void BKE_volumes_init();
 /* Data-block Management */
 
 void BKE_volume_init_grids(Volume *volume);
-void *BKE_volume_add(Main *bmain, const char *name);
+Volume *BKE_volume_add(Main *bmain, const char *name);
 
 bool BKE_volume_is_y_up(const Volume *volume);
 bool BKE_volume_is_points_only(const Volume *volume);
@@ -79,13 +81,15 @@ const blender::bke::VolumeGridData *BKE_volume_grid_get(const Volume *volume, in
 blender::bke::VolumeGridData *BKE_volume_grid_get_for_write(Volume *volume, int grid_index);
 const blender::bke::VolumeGridData *BKE_volume_grid_active_get_for_read(const Volume *volume);
 /* Tries to find a grid with the given name. Make sure that the volume has been loaded. */
-const blender::bke::VolumeGridData *BKE_volume_grid_find(const Volume *volume, const char *name);
-blender::bke::VolumeGridData *BKE_volume_grid_find_for_write(Volume *volume, const char *name);
+const blender::bke::VolumeGridData *BKE_volume_grid_find(const Volume *volume,
+                                                         blender::StringRef name);
+blender::bke::VolumeGridData *BKE_volume_grid_find_for_write(Volume *volume,
+                                                             blender::StringRef name);
 
 /* Tries to set the name of the velocity field. If no such grid exists with the given base name,
  * this will try common post-fixes in order to detect velocity fields split into multiple grids.
  * Return false if neither finding with the base name nor with the post-fixes succeeded. */
-bool BKE_volume_set_velocity_grid_by_name(Volume *volume, const char *base_name);
+bool BKE_volume_set_velocity_grid_by_name(Volume *volume, blender::StringRef base_name);
 
 /* Volume Editing
  *
@@ -122,6 +126,8 @@ bool BKE_volume_save(const Volume *volume,
                      const Main *bmain,
                      ReportList *reports,
                      const char *filepath);
+
+void BKE_volume_count_memory(const Volume &volume, blender::MemoryCounter &memory);
 
 std::optional<blender::Bounds<blender::float3>> BKE_volume_min_max(const Volume *volume);
 

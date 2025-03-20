@@ -110,6 +110,10 @@ static void workspace_blend_read_data(BlendDataReader *reader, ID *id)
   LISTBASE_FOREACH (WorkSpaceDataRelation *, relation, &workspace->hook_layout_relations) {
     /* Parent pointer does not belong to workspace data and is therefore restored in lib_link step
      * of window manager. */
+    /* FIXME: Should not use that untyped #BLO_read_data_address call, especially since it's
+     * reference-counting the matching data in readfile code. Problem currently is that there is no
+     * type info available for this void pointer (_should_ be pointing to a #WorkSpaceLayout ?), so
+     * #BLO_read_get_new_data_address_no_us cannot be used here. */
     BLO_read_data_address(reader, &relation->value);
   }
 
@@ -235,7 +239,7 @@ static void workspace_relation_add(ListBase *relation_list,
                                    const int parentid,
                                    void *data)
 {
-  WorkSpaceDataRelation *relation = MEM_cnew<WorkSpaceDataRelation>(__func__);
+  WorkSpaceDataRelation *relation = MEM_callocN<WorkSpaceDataRelation>(__func__);
   relation->parent = parent;
   relation->parentid = parentid;
   relation->value = data;
@@ -332,7 +336,7 @@ void BKE_workspace_remove(Main *bmain, WorkSpace *workspace)
 
 WorkSpaceInstanceHook *BKE_workspace_instance_hook_create(const Main *bmain, const int winid)
 {
-  WorkSpaceInstanceHook *hook = MEM_cnew<WorkSpaceInstanceHook>(__func__);
+  WorkSpaceInstanceHook *hook = MEM_callocN<WorkSpaceInstanceHook>(__func__);
 
   /* set an active screen-layout for each possible window/workspace combination */
   for (WorkSpace *workspace = static_cast<WorkSpace *>(bmain->workspaces.first); workspace;
@@ -376,7 +380,7 @@ WorkSpaceLayout *BKE_workspace_layout_add(Main *bmain,
                                           bScreen *screen,
                                           const char *name)
 {
-  WorkSpaceLayout *layout = MEM_cnew<WorkSpaceLayout>(__func__);
+  WorkSpaceLayout *layout = MEM_callocN<WorkSpaceLayout>(__func__);
 
   BLI_assert(!workspaces_is_screen_used(bmain, screen));
 #ifdef NDEBUG
@@ -441,8 +445,6 @@ WorkSpaceLayout *BKE_workspace_layout_find_global(const Main *bmain,
                                                   const bScreen *screen,
                                                   WorkSpace **r_workspace)
 {
-  WorkSpaceLayout *layout;
-
   if (r_workspace) {
     *r_workspace = nullptr;
   }
@@ -450,7 +452,8 @@ WorkSpaceLayout *BKE_workspace_layout_find_global(const Main *bmain,
   for (WorkSpace *workspace = static_cast<WorkSpace *>(bmain->workspaces.first); workspace;
        workspace = static_cast<WorkSpace *>(workspace->id.next))
   {
-    if ((layout = workspace_layout_find_exec(workspace, screen))) {
+    WorkSpaceLayout *layout = workspace_layout_find_exec(workspace, screen);
+    if (layout) {
       if (r_workspace) {
         *r_workspace = workspace;
       }

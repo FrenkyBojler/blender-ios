@@ -2,7 +2,11 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#pragma BLENDER_REQUIRE(common_colormanagement_lib.glsl)
+#include "infos/overlay_paint_info.hh"
+
+FRAGMENT_SHADER_CREATE_INFO(overlay_paint_texture)
+
+#include "common_colormanagement_lib.glsl"
 
 void main()
 {

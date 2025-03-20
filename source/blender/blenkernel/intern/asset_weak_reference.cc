@@ -8,10 +8,10 @@
 
 #include <memory>
 
-#include "BLI_path_util.h"
+#include "BLI_listbase.h"
+#include "BLI_path_utils.hh"
 #include "BLI_string.h"
 
-#include "AS_asset_identifier.hh"
 #include "AS_asset_library.hh"
 
 #include "BKE_asset.hh"
@@ -93,9 +93,8 @@ bool operator==(const AssetWeakReference &a, const AssetWeakReference &b)
   return true;
 }
 
-AssetWeakReference AssetWeakReference::make_reference(
-    const asset_system::AssetLibrary &library,
-    const asset_system::AssetIdentifier &asset_identifier)
+AssetWeakReference AssetWeakReference::make_reference(const asset_system::AssetLibrary &library,
+                                                      const StringRef library_relative_identifier)
 {
   AssetWeakReference weak_ref{};
 
@@ -105,9 +104,8 @@ AssetWeakReference AssetWeakReference::make_reference(
     weak_ref.asset_library_identifier = BLI_strdupn(name.c_str(), name.size());
   }
 
-  StringRefNull relative_identifier = asset_identifier.library_relative_identifier();
-  weak_ref.relative_asset_identifier = BLI_strdupn(relative_identifier.c_str(),
-                                                   relative_identifier.size());
+  weak_ref.relative_asset_identifier = BLI_strdupn(library_relative_identifier.data(),
+                                                   library_relative_identifier.size());
 
   return weak_ref;
 }
@@ -139,7 +137,7 @@ ListBase BKE_asset_catalog_path_list_duplicate(const ListBase &catalog_path_list
   ListBase duplicated_list = {nullptr};
 
   LISTBASE_FOREACH (AssetCatalogPathLink *, catalog_path, &catalog_path_list) {
-    AssetCatalogPathLink *copied_path = MEM_cnew<AssetCatalogPathLink>(__func__);
+    AssetCatalogPathLink *copied_path = MEM_callocN<AssetCatalogPathLink>(__func__);
     copied_path->path = BLI_strdup(catalog_path->path);
 
     BLI_addtail(&duplicated_list, copied_path);
@@ -162,7 +160,7 @@ void BKE_asset_catalog_path_list_blend_read_data(BlendDataReader *reader,
 {
   BLO_read_struct_list(reader, AssetCatalogPathLink, &catalog_path_list);
   LISTBASE_FOREACH (AssetCatalogPathLink *, catalog_path, &catalog_path_list) {
-    BLO_read_data_address(reader, &catalog_path->path);
+    BLO_read_string(reader, &catalog_path->path);
   }
 }
 
@@ -175,7 +173,7 @@ bool BKE_asset_catalog_path_list_has_path(const ListBase &catalog_path_list,
 
 void BKE_asset_catalog_path_list_add_path(ListBase &catalog_path_list, const char *catalog_path)
 {
-  AssetCatalogPathLink *new_path = MEM_cnew<AssetCatalogPathLink>(__func__);
+  AssetCatalogPathLink *new_path = MEM_callocN<AssetCatalogPathLink>(__func__);
   new_path->path = BLI_strdup(catalog_path);
   BLI_addtail(&catalog_path_list, new_path);
 }

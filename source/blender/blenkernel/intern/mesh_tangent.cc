@@ -8,8 +8,6 @@
  * Functions to evaluate mesh tangents.
  */
 
-#include <climits>
-
 #include "MEM_guardedalloc.h"
 
 #include "BLI_math_geom.h"
@@ -26,7 +24,7 @@
 
 #include "mikktspace.hh"
 
-#include "BLI_strict_flags.h" /* Keep last. */
+#include "BLI_strict_flags.h" /* IWYU pragma: keep. Keep last. */
 
 using blender::float2;
 using blender::float3;
@@ -201,7 +199,19 @@ struct SGLSLMeshToTangent {
 #else
     tri = &corner_tris[face_num];
 #endif
+
+    /* Safe to suppress since the way `face_as_quad_map` is used
+     * prevents out-of-bounds reads on the 4th component of the `int3`. */
+#ifdef __GNUC__
+#  pragma GCC diagnostic push
+#  pragma GCC diagnostic ignored "-Warray-bounds"
+#endif
+
     return uint(tri[int(vert_num)]);
+
+#ifdef __GNUC__
+#  pragma GCC diagnostic pop
+#endif
   }
 
   mikk::float3 GetPosition(const uint face_num, const uint vert_num)
@@ -463,7 +473,7 @@ void BKE_mesh_calc_loop_tangent_ex(const Span<float3> vert_positions,
       /* Over allocate, since we don't know how many ngon or quads we have. */
 
       /* Map fake face index to corner_tris. */
-      face_as_quad_map = static_cast<int *>(MEM_mallocN(sizeof(int) * corner_tris_len, __func__));
+      face_as_quad_map = MEM_malloc_arrayN<int>(corner_tris_len, __func__);
       int k, j;
       for (k = 0, j = 0; j < int(corner_tris_len); k++, j++) {
         face_as_quad_map[k] = j;

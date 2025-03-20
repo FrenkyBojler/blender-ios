@@ -13,13 +13,13 @@
 
 #include "DNA_armature_types.h"
 #include "DNA_curve_types.h"
-#include "DNA_gpencil_legacy_types.h"
 #include "DNA_grease_pencil_types.h"
 #include "DNA_lattice_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meta_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_space_types.h"
+#include "DNA_userdef_types.h"
 #include "DNA_windowmanager_types.h"
 
 #include "BLF_api.hh"
@@ -34,7 +34,7 @@
 
 #include "BLT_translation.hh"
 
-#include "BKE_action.h"
+#include "BKE_action.hh"
 #include "BKE_armature.hh"
 #include "BKE_blender_version.h"
 #include "BKE_curve.hh"
@@ -48,7 +48,7 @@
 #include "BKE_mesh.hh"
 #include "BKE_object.hh"
 #include "BKE_paint.hh"
-#include "BKE_pbvh_api.hh"
+#include "BKE_paint_bvh.hh"
 #include "BKE_scene.hh"
 #include "BKE_subdiv_ccg.hh"
 #include "BKE_subdiv_modifier.hh"
@@ -58,8 +58,6 @@
 #include "ED_info.hh"
 
 #include "WM_api.hh"
-
-#include "UI_resources.hh"
 
 #include "GPU_capabilities.hh"
 
@@ -171,24 +169,6 @@ static void stats_object(Object *ob,
         stats->totlampsel++;
       }
       break;
-    case OB_GPENCIL_LEGACY: {
-      if (is_selected) {
-        bGPdata *gpd = (bGPdata *)ob->data;
-        if (!BLI_gset_add(objects_gset, gpd)) {
-          break;
-        }
-        /* GPXX Review if we can move to other place when object change
-         * maybe to depsgraph evaluation
-         */
-        BKE_gpencil_stats_update(gpd);
-
-        stats->totgplayer += gpd->totlayer;
-        stats->totgpframe += gpd->totframe;
-        stats->totgpstroke += gpd->totstroke;
-        stats->totgppoint += gpd->totpoint;
-      }
-      break;
-    }
     case OB_GREASE_PENCIL: {
       if (!is_selected) {
         break;
@@ -362,23 +342,26 @@ static bool stats_is_object_dynamic_topology_sculpt(const Object *ob)
 
 static void stats_object_sculpt(const Object *ob, SceneStats *stats)
 {
-  SculptSession *ss = ob->sculpt;
-  if (ss == nullptr || ss->pbvh == nullptr) {
+  const SculptSession *ss = ob->sculpt;
+  const blender::bke::pbvh::Tree *pbvh = blender::bke::object::pbvh_get(*ob);
+  if (ss == nullptr || pbvh == nullptr) {
     return;
   }
 
-  switch (BKE_pbvh_type(*ss->pbvh)) {
-    case PBVH_FACES:
-      stats->totvertsculpt = ss->totvert;
-      stats->totfacesculpt = ss->totfaces;
+  switch (pbvh->type()) {
+    case blender::bke::pbvh::Type::Mesh: {
+      const Mesh &mesh = *static_cast<const Mesh *>(ob->data);
+      stats->totvertsculpt = mesh.verts_num;
+      stats->totfacesculpt = mesh.faces_num;
       break;
-    case PBVH_BMESH:
+    }
+    case blender::bke::pbvh::Type::BMesh:
       stats->totvertsculpt = ob->sculpt->bm->totvert;
       stats->tottri = ob->sculpt->bm->totface;
       break;
-    case PBVH_GRIDS:
-      stats->totvertsculpt = BKE_pbvh_get_grid_num_verts(*ss->pbvh);
-      stats->totfacesculpt = BKE_pbvh_get_grid_num_faces(*ss->pbvh);
+    case blender::bke::pbvh::Type::Grids:
+      stats->totvertsculpt = BKE_pbvh_get_grid_num_verts(*ob);
+      stats->totfacesculpt = BKE_pbvh_get_grid_num_faces(*ob);
       break;
   }
 }
@@ -467,11 +450,16 @@ void ED_info_stats_clear(wmWindowManager *wm, ViewLayer *view_layer)
       if (area->spacetype == SPACE_VIEW3D) {
         View3D *v3d = (View3D *)area->spacedata.first;
         if (v3d->localvd) {
-          MEM_SAFE_FREE(v3d->runtime.local_stats);
+          ED_view3d_local_stats_free(v3d);
         }
       }
     }
   }
+}
+
+void ED_view3d_local_stats_free(View3D *v3d)
+{
+  MEM_SAFE_FREE(v3d->runtime.local_stats);
 }
 
 static bool format_stats(
@@ -536,7 +524,6 @@ static void get_stats_string(char *info,
 {
   BKE_view_layer_synced_ensure(scene, view_layer);
   Object *ob = BKE_view_layer_active_object_get(view_layer);
-  Object *obedit = OBEDIT_FROM_OBACT(ob);
   eObjectMode object_mode = ob ? (eObjectMode)ob->mode : OB_MODE_OBJECT;
   LayerCollection *layer_collection = BKE_view_layer_active_collection_get(view_layer);
 
@@ -551,12 +538,12 @@ static void get_stats_string(char *info,
     *ofs += BLI_snprintf_rlen(info + *ofs, len - *ofs, "%s | ", ob->id.name + 2);
   }
 
-  if (obedit) {
-    if (BKE_keyblock_from_object(obedit)) {
+  if (ob && ob->mode == OB_MODE_EDIT) {
+    if (BKE_keyblock_from_object(ob)) {
       *ofs += BLI_strncpy_rlen(info + *ofs, IFACE_("(Key) "), len - *ofs);
     }
 
-    if (obedit->type == OB_MESH) {
+    if (ob->type == OB_MESH) {
       *ofs += BLI_snprintf_rlen(info + *ofs,
                                 len - *ofs,
 
@@ -569,7 +556,7 @@ static void get_stats_string(char *info,
                                 stats_fmt->totface,
                                 stats_fmt->tottri);
     }
-    else if (obedit->type == OB_ARMATURE) {
+    else if (ob->type == OB_ARMATURE) {
       *ofs += BLI_snprintf_rlen(info + *ofs,
                                 len - *ofs,
 
@@ -591,7 +578,7 @@ static void get_stats_string(char *info,
     *ofs += BLI_snprintf_rlen(
         info + *ofs, len - *ofs, IFACE_("Bones:%s/%s"), stats_fmt->totbonesel, stats_fmt->totbone);
   }
-  else if ((ob) && (ob->type == OB_GPENCIL_LEGACY)) {
+  else if ((ob) && (ob->type == OB_GREASE_PENCIL)) {
     *ofs += BLI_snprintf_rlen(info + *ofs,
                               len - *ofs,
 
@@ -716,7 +703,8 @@ const char *ED_info_statusbar_string_ex(Main *bmain,
     if (info[0]) {
       ofs += BLI_snprintf_rlen(info + ofs, len - ofs, " | ");
     }
-    ofs += BLI_snprintf_rlen(info + ofs, len - ofs, IFACE_("%s"), BKE_blender_version_string());
+    ofs += BLI_snprintf_rlen(
+        info + ofs, len - ofs, IFACE_("%s"), BKE_blender_version_string_compact());
   }
 
   return info;
@@ -763,7 +751,6 @@ void ED_info_draw_stats(
 
   BKE_view_layer_synced_ensure(scene, view_layer);
   Object *ob = BKE_view_layer_active_object_get(view_layer);
-  Object *obedit = OBEDIT_FROM_OBACT(ob);
   eObjectMode object_mode = ob ? (eObjectMode)ob->mode : OB_MODE_OBJECT;
   const int font_id = BLF_default();
 
@@ -830,24 +817,24 @@ void ED_info_draw_stats(
     return;
   }
 
-  if ((ob) && ELEM(ob->type, OB_GPENCIL_LEGACY, OB_GREASE_PENCIL)) {
+  if ((ob) && ob->type == OB_GREASE_PENCIL) {
     stats_row(col1, labels[LAYERS], col2, stats_fmt.totgplayer, nullptr, y, height);
     stats_row(col1, labels[FRAMES], col2, stats_fmt.totgpframe, nullptr, y, height);
     stats_row(col1, labels[STROKES], col2, stats_fmt.totgpstroke, nullptr, y, height);
     stats_row(col1, labels[POINTS], col2, stats_fmt.totgppoint, nullptr, y, height);
   }
-  else if (obedit) {
-    if (obedit->type == OB_MESH) {
+  else if (ob && ob->mode == OB_MODE_EDIT) {
+    if (ob->type == OB_MESH) {
       stats_row(col1, labels[VERTS], col2, stats_fmt.totvertsel, stats_fmt.totvert, y, height);
       stats_row(col1, labels[EDGES], col2, stats_fmt.totedgesel, stats_fmt.totedge, y, height);
       stats_row(col1, labels[FACES], col2, stats_fmt.totfacesel, stats_fmt.totface, y, height);
       stats_row(col1, labels[TRIS], col2, stats_fmt.tottri, nullptr, y, height);
     }
-    else if (obedit->type == OB_ARMATURE) {
+    else if (ob->type == OB_ARMATURE) {
       stats_row(col1, labels[JOINTS], col2, stats_fmt.totvertsel, stats_fmt.totvert, y, height);
       stats_row(col1, labels[BONES], col2, stats_fmt.totbonesel, stats_fmt.totbone, y, height);
     }
-    else if (obedit->type != OB_FONT) {
+    else if (ob->type != OB_FONT) {
       stats_row(col1, labels[VERTS], col2, stats_fmt.totvertsel, stats_fmt.totvert, y, height);
     }
   }

@@ -23,6 +23,8 @@
 /* Own include. */
 #include "transform_convert.hh"
 
+namespace blender::ed::transform {
+
 /* -------------------------------------------------------------------- */
 /** \name Texture Space Transform Creation
  *
@@ -66,21 +68,21 @@ static void createTransTexspace(bContext * /*C*/, TransInfo *t)
   }
 
   td->flag = TD_SELECTED;
-  td->ob = ob;
+  td->extra = ob;
 
   copy_m3_m4(td->mtx, ob->object_to_world().ptr());
   copy_m3_m4(td->axismtx, ob->object_to_world().ptr());
   normalize_m3(td->axismtx);
   pseudoinverse_m3_m3(td->smtx, td->mtx, PSEUDOINVERSE_EPSILON);
 
-  if (BKE_object_obdata_texspace_get(ob, &texspace_flag, &td->loc, &td->ext->size)) {
+  if (BKE_object_obdata_texspace_get(ob, &texspace_flag, &td->loc, &td->ext->scale)) {
     ob->dtx |= OB_TEXSPACE;
     *texspace_flag &= ~ME_TEXSPACE_FLAG_AUTO;
   }
 
   copy_v3_v3(td->iloc, td->loc);
   copy_v3_v3(td->center, td->loc);
-  copy_v3_v3(td->ext->isize, td->ext->size);
+  copy_v3_v3(td->ext->iscale, td->ext->scale);
 }
 
 /** \} */
@@ -103,7 +105,8 @@ static void recalcData_texspace(TransInfo *t)
       if (td->flag & TD_SKIP) {
         continue;
       }
-      DEG_id_tag_update(&td->ob->id, ID_RECALC_GEOMETRY);
+      Object *ob = static_cast<Object *>(td->extra);
+      DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
     }
   }
 }
@@ -116,3 +119,5 @@ TransConvertTypeInfo TransConvertType_ObjectTexSpace = {
     /*recalc_data*/ recalcData_texspace,
     /*special_aftertrans_update*/ nullptr,
 };
+
+}  // namespace blender::ed::transform
