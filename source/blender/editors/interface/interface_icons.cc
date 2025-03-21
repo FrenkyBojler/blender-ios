@@ -1598,7 +1598,6 @@ static void icon_draw_size(float x,
   else if (di->type == ICON_TYPE_VECTOR) {
     /* vector icons use the uiBlock transformation, they are not drawn
      * with untransformed coordinates like the other icons */
-
     di->data.vector.func(int(x), int(y), w, h, alpha, mono_rgba);
   }
   else if (di->type == ICON_TYPE_GEOM) {
