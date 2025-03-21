@@ -3377,6 +3377,17 @@ void ED_region_panels_init(wmWindowManager *wm, ARegion *region)
 {
   UI_view2d_region_reinit(&region->v2d, V2D_COMMONVIEW_PANELS_UI, region->winx, region->winy);
 
+  if (ELEM(region->regiontype, RGN_TYPE_TOOLS, RGN_TYPE_NAV_BAR)) {
+    if (region->alignment & RGN_ALIGN_LEFT) {
+      region->v2d.scroll &= ~V2D_SCROLL_RIGHT;
+      region->v2d.scroll |= V2D_SCROLL_LEFT;
+    }
+    else if (region->alignment & RGN_ALIGN_RIGHT) {
+      region->v2d.scroll &= ~V2D_SCROLL_LEFT;
+      region->v2d.scroll |= V2D_SCROLL_RIGHT;
+    }
+  }
+
   wmKeyMap *keymap = WM_keymap_ensure(
       wm->defaultconf, "View2D Buttons List", SPACE_EMPTY, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler(&region->runtime->handlers, keymap);

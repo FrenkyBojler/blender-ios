@@ -1372,7 +1372,6 @@ static void view3d_tools_region_init(wmWindowManager *wm, ARegion *region)
 {
   wmKeyMap *keymap;
 
-  region->v2d.scroll = V2D_SCROLL_LEFT | V2D_SCROLL_VERTICAL_HIDE;
   ED_region_panels_init(wm, region);
 
   keymap = WM_keymap_ensure(wm->defaultconf, "3D View Generic", SPACE_VIEW3D, RGN_TYPE_WINDOW);

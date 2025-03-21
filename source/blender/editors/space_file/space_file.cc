@@ -668,7 +668,7 @@ static void file_tools_region_init(wmWindowManager *wm, ARegion *region)
 {
   wmKeyMap *keymap;
 
-  region->v2d.scroll = V2D_SCROLL_LEFT | V2D_SCROLL_VERTICAL_HIDE;
+  region->v2d.scroll = V2D_SCROLL_RIGHT | V2D_SCROLL_VERTICAL_HIDE;
   ED_region_panels_init(wm, region);
 
   /* own keymaps */

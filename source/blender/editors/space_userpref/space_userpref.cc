@@ -146,8 +146,7 @@ static void userpref_header_region_draw(const bContext *C, ARegion *region)
 /* add handlers, stuff you only do once or on area/region changes */
 static void userpref_navigation_region_init(wmWindowManager *wm, ARegion *region)
 {
-  region->v2d.scroll = V2D_SCROLL_LEFT | V2D_SCROLL_VERTICAL_HIDE;
-
+  region->v2d.scroll = V2D_SCROLL_RIGHT | V2D_SCROLL_VERTICAL_HIDE;
   ED_region_panels_init(wm, region);
 }
 

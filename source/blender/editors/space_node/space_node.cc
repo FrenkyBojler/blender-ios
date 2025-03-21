@@ -731,7 +731,6 @@ static void node_toolbar_region_init(wmWindowManager *wm, ARegion *region)
 {
   wmKeyMap *keymap;
 
-  region->v2d.scroll = V2D_SCROLL_LEFT | V2D_SCROLL_VERTICAL_HIDE;
   ED_region_panels_init(wm, region);
 
   keymap = WM_keymap_ensure(wm->defaultconf, "Node Generic", SPACE_NODE, RGN_TYPE_WINDOW);
