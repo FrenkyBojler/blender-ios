@@ -192,52 +192,7 @@ static bool view3d_mixed_drop_poll(bContext *C, wmDrag *drag, const wmEvent *eve
   return false;
 }
 
-static void view3d_mixed_drop_copy(bContext *C, wmDrag *drag, wmDropBox * /*drop*/)
-{
-  /* NOTE(@ideasman42): Selection is handled here, de-selecting objects before append,
-   * using auto-select to ensure the new objects are selected.
-   * This is done so #OBJECT_OT_transform_to_mouse (which runs after this drop handler)
-   * can use the context setup here to place the objects. */
-  BLI_assert(drag->type == WM_DRAG_ASSET_LIST);
-
-  Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
-
-  BKE_view_layer_base_deselect_all(scene, view_layer);
-
-  blender::Vector<ID *> dropped_ids = WM_drag_asset_list_id_import_all(C, drag, FILE_AUTOSELECT);
-  if (dropped_ids.is_empty()) {
-    return;
-  }
-
-  /* TODO(sergey): Only update relations for the current scene. */
-  DEG_relations_tag_update(CTX_data_main(C));
-  WM_event_add_notifier(C, NC_SCENE | ND_LAYER_CONTENT, scene);
-
-  // RNA_int_set(drop->ptr, "session_uid", id->session_uid);
-
-  BKE_view_layer_synced_ensure(scene, view_layer);
-  /* Select first object in the list. */
-  for (ID *id : dropped_ids) {
-    if (GS(id->name) != ID_OB) {
-      continue;
-    }
-    Base *base = BKE_view_layer_base_find(view_layer, (Object *)id);
-    if (base != nullptr) {
-      BKE_view_layer_base_select_and_set_active(view_layer, base);
-      WM_main_add_notifier(NC_SCENE | ND_OB_ACTIVE, scene);
-      break;
-    }
-  }
-
-  DEG_id_tag_update(&scene->id, ID_RECALC_SELECT);
-  ED_outliner_select_sync_from_object_tag(C);
-
-  /* Make sure the depsgraph is evaluated so the new object's transforms are up-to-date.
-   * The evaluated #Object::object_to_world() will be copied back to the original object
-   * and used below. */
-  CTX_data_ensure_evaluated_depsgraph(C);
-}
+static void view3d_mixed_drop_copy(bContext * /*C*/, wmDrag * /*drag*/, wmDropBox * /*drop*/) {}
 
 static bool view3d_collection_drop_poll(bContext *C, wmDrag *drag, const wmEvent *event)
 {
@@ -620,7 +575,7 @@ void view3d_dropboxes()
   wmDropBox *drop;
 
   drop = WM_dropbox_add(lb,
-                        "OBJECT_OT_add_mixed",
+                        "OBJECT_OT_drag_drop_mixed",
                         view3d_mixed_drop_poll,
                         view3d_mixed_drop_copy,
                         WM_drag_free_imported_drag_ID,

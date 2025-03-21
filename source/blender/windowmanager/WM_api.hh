@@ -1542,6 +1542,7 @@ wmDropBox *WM_dropbox_add(ListBase *lb,
                           void (*copy)(bContext *C, wmDrag *drag, wmDropBox *drop),
                           void (*cancel)(Main *bmain, wmDrag *drag, wmDropBox *drop),
                           WMDropboxTooltipFunc tooltip);
+const wmDrag *WM_drag_get_data_from_event(const wmEvent *event);
 /**
  * Ensure operator pointers & properties are valid after operators have been added/removed.
  */
@@ -1561,7 +1562,7 @@ ListBase *WM_dropboxmap_find(const char *idname, int spaceid, int regionid);
  */
 ID *WM_drag_asset_id_import(const bContext *C, wmDragAsset *asset_drag, int flag_extra);
 blender::Vector<ID *> WM_drag_asset_list_id_import_all(const bContext *C,
-                                                       wmDrag *drag,
+                                                       const wmDrag *drag,
                                                        const int flag_extra);
 bool WM_drag_asset_will_import_linked(const wmDrag *drag);
 void WM_drag_add_local_ID(wmDrag *drag, ID *id, ID *from_parent);

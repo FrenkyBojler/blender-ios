@@ -598,6 +598,16 @@ wmOperatorCallContext wm_drop_operator_context_get(const wmDropBox * /*drop*/)
   return WM_OP_INVOKE_DEFAULT;
 }
 
+const wmDrag *WM_drag_get_data_from_event(const wmEvent *event)
+{
+  if (event->custom != EVT_DATA_DRAGDROP) {
+    return nullptr;
+  }
+
+  ListBase *lb = static_cast<ListBase *>(event->customdata);
+  return static_cast<const wmDrag *>(lb->first);
+}
+
 /* ************** IDs ***************** */
 
 void WM_drag_add_local_ID(wmDrag *drag, ID *id, ID *from_parent)
@@ -776,7 +786,7 @@ ID *WM_drag_asset_id_import(const bContext *C, wmDragAsset *asset_drag, const in
 }
 
 blender::Vector<ID *> WM_drag_asset_list_id_import_all(const bContext *C,
-                                                       wmDrag *drag,
+                                                       const wmDrag *drag,
                                                        const int flag_extra)
 {
   BLI_assert(drag->type == WM_DRAG_ASSET_LIST);
