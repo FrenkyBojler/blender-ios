@@ -8,6 +8,8 @@
 
 #include "vk_device.hh"
 
+#include "BLI_threads.h"
+
 namespace blender::gpu {
 
 /* -------------------------------------------------------------------- */
@@ -18,14 +20,17 @@ struct VKRenderGraphSubmitTask {
   render_graph::VKRenderGraph *render_graph;
   uint64_t timeline;
   bool submit_to_device;
+  VkPipelineStageFlags wait_dst_stage_mask;
   VkSemaphore wait_semaphore;
   VkSemaphore signal_semaphore;
+  ThreadCondition *signal_submitted_condition;
 };
 
 TimelineValue VKDevice::render_graph_submit(render_graph::VKRenderGraph *render_graph,
                                             VKDiscardPool &context_discard_pool,
                                             bool submit_to_device,
                                             bool wait_for_completion,
+                                            VkPipelineStageFlags wait_dst_stage_mask,
                                             VkSemaphore wait_semaphore,
                                             VkSemaphore signal_semaphore)
 {
@@ -38,14 +43,33 @@ TimelineValue VKDevice::render_graph_submit(render_graph::VKRenderGraph *render_
   VKRenderGraphSubmitTask *submit_task = MEM_new<VKRenderGraphSubmitTask>(__func__);
   submit_task->render_graph = render_graph;
   submit_task->submit_to_device = submit_to_device;
+  submit_task->wait_dst_stage_mask = wait_dst_stage_mask;
   submit_task->wait_semaphore = wait_semaphore;
   submit_task->signal_semaphore = signal_semaphore;
+  submit_task->signal_submitted_condition = nullptr;
+  /* We need to wait for submission as otherwise the signal semaphore can still not be in an
+   * initial state. */
+  ThreadCondition signal_submitted;
+  ThreadMutex mutex;
+  const bool wait_for_submission = signal_semaphore != VK_NULL_HANDLE && !wait_for_completion;
+  if (wait_for_submission) {
+    BLI_mutex_init(&mutex);
+    BLI_condition_init(&signal_submitted);
+    submit_task->signal_submitted_condition = &signal_submitted;
+  }
   TimelineValue timeline = submit_task->timeline = submit_to_device ? ++timeline_value_ :
                                                                       timeline_value_ + 1;
   orphaned_data.timeline_ = timeline + 1;
   orphaned_data.move_data(context_discard_pool, timeline);
+
   BLI_thread_queue_push(submitted_render_graphs_, submit_task);
   submit_task = nullptr;
+
+  if (wait_for_submission) {
+    BLI_condition_wait(&signal_submitted, &mutex);
+    BLI_condition_end(&signal_submitted);
+    BLI_mutex_end(&mutex);
+  }
 
   if (wait_for_completion) {
     wait_for_timeline(timeline);
@@ -192,7 +216,7 @@ void VKDevice::submission_runner(TaskPool *__restrict pool, void *task_data)
                                      &vk_timeline_semaphore_submit_info,
                                      wait_semaphore_len,
                                      &submit_task->wait_semaphore,
-                                     nullptr,
+                                     &submit_task->wait_dst_stage_mask,
                                      1,
                                      &unsubmitted_command_buffers.last(),
                                      signal_semaphore_len,
@@ -202,6 +226,9 @@ void VKDevice::submission_runner(TaskPool *__restrict pool, void *task_data)
       {
         std::scoped_lock lock_queue(*device->queue_mutex_);
         vkQueueSubmit(device->vk_queue_, submit_infos.size(), submit_infos.data(), VK_NULL_HANDLE);
+      }
+      if (submit_task->signal_submitted_condition != nullptr) {
+        BLI_condition_notify_one(submit_task->signal_submitted_condition);
       }
       vk_command_buffer = VK_NULL_HANDLE;
       for (VkCommandBuffer vk_command_buffer : unsubmitted_command_buffers) {

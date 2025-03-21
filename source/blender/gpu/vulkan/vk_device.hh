@@ -352,6 +352,7 @@ class VKDevice : public NonCopyable {
                                     VKDiscardPool &context_discard_pool,
                                     bool submit_to_device,
                                     bool wait_for_completion,
+                                    VkPipelineStageFlags wait_dst_stage_mask,
                                     VkSemaphore wait_semaphore,
                                     VkSemaphore signal_semaphore);
   void wait_for_timeline(TimelineValue timeline);
