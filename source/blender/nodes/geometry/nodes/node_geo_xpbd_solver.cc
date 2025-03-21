@@ -1172,14 +1172,14 @@ static SolverResult solver_result_from_eigen(const Eigen::ComputationInfo comput
   return SolverResult::Success;
 }
 
-SolverResult solve_global_system(const GlobalSolverSystem &system,
+SolverResult solve_global_system(GlobalSolverSystem &&system,
                                  ConstraintVariables &variables,
                                  MutableSpan<ConstraintEvalData> constraint_data,
                                  Eigen::VectorXf *r_solution)
 {
   constexpr bool linearized_quaternion = true;
 
-  Eigen::SimplicialLDLT<Eigen::SparseMatrix<float>> eigen_solver(system.matrix);
+  Eigen::SimplicialLDLT<Eigen::Ref<Eigen::SparseMatrix<float>>> eigen_solver(system.matrix);
   Eigen::VectorXf x = eigen_solver.solve(system.target);
   const SolverResult result = solver_result_from_eigen(eigen_solver.info());
   if (result != SolverResult::Success) {

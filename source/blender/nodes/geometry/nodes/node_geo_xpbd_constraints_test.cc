@@ -1362,7 +1362,7 @@ TEST_F(XPBDSolverTest, GlobalSolverExecute)
   }
 
   xpbd_constraints::SolverResult result = xpbd_constraints::solve_global_system(
-      system, solver_test.vars, solver_test.data);
+      std::move(system), solver_test.vars, solver_test.data);
   EXPECT_EQ(result, xpbd_constraints::SolverResult::Success);
 }
 

@@ -208,7 +208,7 @@ static void do_global_solve(const EvaluationTarget /*target*/,
 
   Eigen::VectorXf solution;
   xpbd_constraints::SolverResult result = xpbd_constraints::solve_global_system(
-      system, variables, constraint_data, debug_output ? &solution : nullptr);
+      std::move(system), variables, constraint_data, debug_output ? &solution : nullptr);
   // BLI_assert(result == xpbd_constraints::SolverResult::Success);
   if (result != xpbd_constraints::SolverResult::Success) {
     switch (result) {

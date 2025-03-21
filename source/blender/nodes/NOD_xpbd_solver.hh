@@ -83,7 +83,7 @@ GlobalSolverSystem build_global_solve_system(const ConstraintEvalParams &params,
                                              const bool debug_check,
                                              IndexMaskMemory &memory);
 
-SolverResult solve_global_system(const GlobalSolverSystem &system,
+SolverResult solve_global_system(GlobalSolverSystem &&system,
                                  ConstraintVariables &variables,
                                  MutableSpan<ConstraintEvalData> constraint_data,
                                  Eigen::VectorXf *r_solution = nullptr);
