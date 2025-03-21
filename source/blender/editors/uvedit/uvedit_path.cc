@@ -158,7 +158,7 @@ static int mouse_mesh_uv_shortest_path_vert(Scene *scene,
                                             BMLoop *l_src,
                                             BMLoop *l_dst,
                                             const float aspect_y,
-                                            const BMUVOffsets offsets)
+                                            const BMUVOffsets &offsets)
 {
   BMEditMesh *em = BKE_editmesh_from_object(obedit);
   BMesh *bm = em->bm;
@@ -277,7 +277,7 @@ static int mouse_mesh_uv_shortest_path_edge(Scene *scene,
                                             BMLoop *l_src,
                                             BMLoop *l_dst,
                                             const float aspect_y,
-                                            const BMUVOffsets offsets)
+                                            const BMUVOffsets &offsets)
 {
   BMEditMesh *em = BKE_editmesh_from_object(obedit);
   BMesh *bm = em->bm;
@@ -392,7 +392,7 @@ static int mouse_mesh_uv_shortest_path_face(Scene *scene,
                                             BMFace *f_src,
                                             BMFace *f_dst,
                                             const float aspect_y,
-                                            const BMUVOffsets offsets)
+                                            const BMUVOffsets &offsets)
 {
   BMEditMesh *em = BKE_editmesh_from_object(obedit);
   BMesh *bm = em->bm;
@@ -474,7 +474,7 @@ static int mouse_mesh_uv_shortest_path_face(Scene *scene,
 /** \name Main Operator for vert/edge/face tag
  * \{ */
 
-static int uv_shortest_path_pick_exec(bContext *C, wmOperator *op);
+static wmOperatorStatus uv_shortest_path_pick_exec(bContext *C, wmOperator *op);
 
 static bool uv_shortest_path_pick_ex(Scene *scene,
                                      Depsgraph *depsgraph,
@@ -483,7 +483,7 @@ static bool uv_shortest_path_pick_ex(Scene *scene,
                                      BMElem *ele_src,
                                      BMElem *ele_dst,
                                      const float aspect_y,
-                                     const BMUVOffsets offsets)
+                                     const BMUVOffsets &offsets)
 {
   const ToolSettings *ts = scene->toolsettings;
   const char uv_selectmode = ED_uvedit_select_mode_get(scene);
@@ -537,7 +537,9 @@ static bool uv_shortest_path_pick_ex(Scene *scene,
   return ok;
 }
 
-static int uv_shortest_path_pick_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus uv_shortest_path_pick_invoke(bContext *C,
+                                                     wmOperator *op,
+                                                     const wmEvent *event)
 {
   Scene *scene = CTX_data_scene(C);
   const ToolSettings *ts = scene->toolsettings;
@@ -592,7 +594,7 @@ static int uv_shortest_path_pick_invoke(bContext *C, wmOperator *op, const wmEve
     Object *obedit = hit.ob;
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
     BMesh *bm = em->bm;
-    const BMUVOffsets offsets = BM_uv_map_get_offsets(bm);
+    const BMUVOffsets offsets = BM_uv_map_offsets_get(bm);
 
     /* Respond to the hit. */
     if (uv_selectmode == UV_SELECT_FACE) {
@@ -679,7 +681,7 @@ static int uv_shortest_path_pick_invoke(bContext *C, wmOperator *op, const wmEve
   return changed ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
 }
 
-static int uv_shortest_path_pick_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus uv_shortest_path_pick_exec(bContext *C, wmOperator *op)
 {
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   Scene *scene = CTX_data_scene(C);
@@ -700,7 +702,7 @@ static int uv_shortest_path_pick_exec(bContext *C, wmOperator *op)
 
   BMEditMesh *em = BKE_editmesh_from_object(obedit);
   BMesh *bm = em->bm;
-  const BMUVOffsets offsets = BM_uv_map_get_offsets(bm);
+  const BMUVOffsets offsets = BM_uv_map_offsets_get(bm);
 
   BMElem *ele_src, *ele_dst;
 
@@ -786,7 +788,7 @@ void UV_OT_shortest_path_pick(wmOperatorType *ot)
 /** \name Select Path Between Existing Selection
  * \{ */
 
-static int uv_shortest_path_select_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus uv_shortest_path_select_exec(bContext *C, wmOperator *op)
 {
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   Scene *scene = CTX_data_scene(C);
@@ -802,7 +804,7 @@ static int uv_shortest_path_select_exec(bContext *C, wmOperator *op)
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
     BMesh *bm = em->bm;
 
-    const BMUVOffsets offsets = BM_uv_map_get_offsets(bm);
+    const BMUVOffsets offsets = BM_uv_map_offsets_get(bm);
 
     BMElem *ele_src = nullptr, *ele_dst = nullptr;
 

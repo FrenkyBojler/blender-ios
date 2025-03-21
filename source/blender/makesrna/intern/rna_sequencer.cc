@@ -249,8 +249,7 @@ static void rna_SequenceEditor_strips_all_begin(CollectionPropertyIterator *iter
   strip_iter->index = 0;
   add_strips_from_seqbase(&ed->seqbase, strip_iter->strips);
 
-  BLI_Iterator *bli_iter = static_cast<BLI_Iterator *>(
-      MEM_callocN(sizeof(BLI_Iterator), __func__));
+  BLI_Iterator *bli_iter = MEM_callocN<BLI_Iterator>(__func__);
   iter->internal.custom = bli_iter;
   bli_iter->data = strip_iter;
 
@@ -548,7 +547,7 @@ static void rna_Strip_frame_offset_start_range(
     PointerRNA *ptr, float *min, float *max, float * /*softmin*/, float * /*softmax*/)
 {
   Strip *strip = (Strip *)ptr->data;
-  *min = (strip->type == STRIP_TYPE_SOUND_RAM) ? 0 : INT_MIN;
+  *min = INT_MIN;
   *max = strip->len - strip->endofs - 1;
 }
 
@@ -556,7 +555,7 @@ static void rna_Strip_frame_offset_end_range(
     PointerRNA *ptr, float *min, float *max, float * /*softmin*/, float * /*softmax*/)
 {
   Strip *strip = (Strip *)ptr->data;
-  *min = (strip->type == STRIP_TYPE_SOUND_RAM) ? 0 : INT_MIN;
+  *min = INT_MIN;
   *max = strip->len - strip->startofs - 1;
 }
 
@@ -601,7 +600,7 @@ static void rna_Strip_channel_set(PointerRNA *ptr, int value)
 
   /* check channel increment or decrement */
   const int channel_delta = (value >= strip->machine) ? 1 : -1;
-  strip->machine = value;
+  blender::seq::strip_channel_set(strip, value);
 
   if (blender::seq::transform_test_overlap(scene, seqbase, strip)) {
     blender::seq::transform_seqbase_shuffle_ex(seqbase, strip, scene, channel_delta);

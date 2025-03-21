@@ -974,7 +974,6 @@ static bool screen_opengl_render_anim_init(wmOperator *op)
                                             PRVRANGEON != 0,
                                             suffix);
       if (writer == nullptr) {
-        BKE_report(oglrender->reports, RPT_ERROR, "Movie format unsupported");
         screen_opengl_render_end(oglrender);
         MEM_delete(oglrender);
         return false;
@@ -1197,7 +1196,9 @@ finally: /* Step the frame and bail early if needed */
   return true;
 }
 
-static int screen_opengl_render_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus screen_opengl_render_modal(bContext *C,
+                                                   wmOperator *op,
+                                                   const wmEvent *event)
 {
   OGLRender *oglrender = static_cast<OGLRender *>(op->customdata);
 
@@ -1262,7 +1263,9 @@ static void opengl_render_freejob(void *customdata)
   screen_opengl_render_end(oglrender);
 }
 
-static int screen_opengl_render_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus screen_opengl_render_invoke(bContext *C,
+                                                    wmOperator *op,
+                                                    const wmEvent *event)
 {
   const bool anim = RNA_boolean_get(op->ptr, "animation");
 
@@ -1306,7 +1309,7 @@ static int screen_opengl_render_invoke(bContext *C, wmOperator *op, const wmEven
 }
 
 /* executes blocking render */
-static int screen_opengl_render_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus screen_opengl_render_exec(bContext *C, wmOperator *op)
 {
   if (!screen_opengl_render_init(C, op)) {
     return OPERATOR_CANCELLED;

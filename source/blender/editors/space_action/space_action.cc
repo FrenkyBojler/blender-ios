@@ -84,7 +84,7 @@ static SpaceLink *action_create(const ScrArea *area, const Scene *scene)
   region->regiontype = RGN_TYPE_CHANNELS;
   region->alignment = RGN_ALIGN_LEFT;
 
-  /* only need to set scroll settings, as this will use 'listview' v2d configuration */
+  /* Only need to set scroll settings, as this will use `listview` v2d configuration. */
   region->v2d.scroll = V2D_SCROLL_BOTTOM;
   region->v2d.flag = V2D_VIEWSYNC_AREA_VERTICAL;
 
@@ -418,14 +418,13 @@ static void saction_channel_region_message_subscribe(const wmRegionMessageSubscr
   msg_sub_value_region_tag_redraw.user_data = region;
   msg_sub_value_region_tag_redraw.notify = ED_region_do_msg_notify_tag_redraw;
 
-  /* All dopesheet filter settings, etc. affect the drawing of this editor,
+  /* All dope-sheet filter settings, etc. affect the drawing of this editor,
    * also same applies for all animation-related data-types that may appear here,
-   * so just whitelist the entire structs for updates
-   */
+   * so just whitelist the entire structs for updates. */
   {
     wmMsgParams_RNA msg_key_params = {{}};
     StructRNA *type_array[] = {
-        &RNA_DopeSheet, /* dopesheet filters */
+        &RNA_DopeSheet, /* Dope-sheet filters. */
 
         &RNA_ActionGroup, /* channel groups */
 

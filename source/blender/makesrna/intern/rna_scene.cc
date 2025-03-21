@@ -878,7 +878,7 @@ static void rna_all_grease_pencil_update(bContext *C, PointerRNA * /*ptr*/)
 static void rna_Scene_objects_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
 {
   Scene *scene = (Scene *)ptr->data;
-  iter->internal.custom = MEM_callocN(sizeof(BLI_Iterator), __func__);
+  iter->internal.custom = MEM_callocN<BLI_Iterator>(__func__);
 
   BKE_scene_objects_iterator_begin(static_cast<BLI_Iterator *>(iter->internal.custom),
                                    (void *)scene);
@@ -3096,7 +3096,11 @@ static void rna_def_view3d_cursor(BlenderRNA *brna)
   RNA_def_property_enum_sdna(prop, nullptr, "rotation_mode");
   RNA_def_property_enum_items(prop, rna_enum_object_rotation_mode_items);
   RNA_def_property_enum_funcs(prop, nullptr, "rna_View3DCursor_rotation_mode_set", nullptr);
-  RNA_def_property_ui_text(prop, "Rotation Mode", "");
+  RNA_def_property_ui_text(
+      prop,
+      "Rotation Mode",
+      /* This description is shared by other "rotation_mode" properties. */
+      "The kind of rotation to apply, values from other rotation modes aren't used");
   RNA_def_property_update(prop, NC_WINDOW, nullptr);
 
   /* Matrix access to avoid having to check current rotation mode. */
@@ -4225,6 +4229,11 @@ static void rna_def_sequencer_tool_settings(BlenderRNA *brna)
   prop = RNA_def_property(srna, "snap_to_retiming_keys", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "snap_mode", SEQ_SNAP_TO_RETIMING);
   RNA_def_property_ui_text(prop, "Retiming Keys", "Snap to retiming keys");
+  RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr); /* header redraw */
+
+  prop = RNA_def_property(srna, "snap_to_frame_range", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "snap_mode", SEQ_SNAP_TO_FRAME_RANGE);
+  RNA_def_property_ui_text(prop, "Frame Range", "Snap to preview or scene start and end frame");
   RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr); /* header redraw */
 
   prop = RNA_def_property(srna, "snap_to_borders", PROP_BOOLEAN, PROP_NONE);
