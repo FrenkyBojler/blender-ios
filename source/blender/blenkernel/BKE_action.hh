@@ -308,6 +308,13 @@ void BKE_pose_itasc_init(bItasc *itasc);
  */
 bool BKE_pose_channel_in_IK_chain(Object *ob, bPoseChannel *pchan);
 
+bool BKE_pose_channel_gizmo_use_custom_pivot(const bArmature *arm, const bPoseChannel *pchan);
+
+bool BKE_pose_channel_gizmo_use_localized_transform(const bArmature *arm,
+                                                    const bPoseChannel *pchan);
+
+void BKE_pose_channel_gizmo_calculate_localized_pose_orientation(bPoseChannel *pchan,
+                                                                 float r_pose_from_basis[3][3]);
 /* Bone Groups API --------------------- */
 
 /**

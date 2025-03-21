@@ -395,8 +395,19 @@ static void add_pose_transdata(TransInfo *t, bPoseChannel *pchan, Object *ob, Tr
   float cmat[3][3], tmat[3][3];
   float vec[3];
 
-  copy_v3_v3(vec, pchan->pose_mat[3]);
-  copy_v3_v3(td->center, vec);
+  bArmature *arm = static_cast<bArmature *>(ob->data);
+
+  const bool use_custom_pivot = BKE_pose_channel_gizmo_use_custom_pivot(arm, pchan);
+  const bool use_custom_localized_transform = BKE_pose_channel_gizmo_use_localized_transform(
+      arm, pchan);
+
+  if (use_custom_pivot) {
+    copy_v3_v3(td->center, pchan->custom_tx->pose_mat[3]);
+  }
+  else {
+    copy_v3_v3(vec, pchan->pose_mat[3]);
+    copy_v3_v3(td->center, vec);
+  }
 
   td->flag = TD_SELECTED;
   if (bone->flag & BONE_HINGE_CHILD_TRANSFORM) {
@@ -452,19 +463,30 @@ static void add_pose_transdata(TransInfo *t, bPoseChannel *pchan, Object *ob, Tr
     BoneParentTransform bpt;
     float rpmat[3][3];
 
-    BKE_bone_parent_transform_calc_from_pchan(pchan, &bpt);
+    bPoseChannel *pchan_space = pchan;
+    if (use_custom_localized_transform) {
+      pchan_space = pchan->custom_tx;
+    }
+    BKE_bone_parent_transform_calc_from_pchan(pchan_space, &bpt);
+    Bone *bone_space = pchan_space->bone;
+
+    float space_from_local[3][3];
+    copy_m3_m4(space_from_local, bone_space->arm_mat);
+    invert_m3(space_from_local);
+    mul_m3_m3m4(space_from_local, space_from_local, bone->arm_mat);
+
     if (t->mode == TFM_TRANSLATION) {
-      copy_m3_m4(pmat, bpt.loc_mat);
+      mul_m3_m4m3(pmat, bpt.loc_mat, space_from_local);
     }
     else {
-      copy_m3_m4(pmat, bpt.rotscale_mat);
+      mul_m3_m4m3(pmat, bpt.rotscale_mat, space_from_local);
     }
 
     /* Grrr! Exceptional case: When translating pose bones that are either Hinge or NoLocal,
      * and want align snapping, we just need both loc_mat and rotscale_mat.
      * So simply always store rotscale mat in td->ext, and always use it to apply rotations...
      * Ugly to need such hacks! :/ */
-    copy_m3_m4(rpmat, bpt.rotscale_mat);
+    mul_m3_m4m3(rpmat, bpt.rotscale_mat, space_from_local);
 
     if (constraints_list_needinv(t, &pchan->constraints)) {
       copy_m3_m4(tmat, pchan->constinv);
@@ -496,12 +518,17 @@ static void add_pose_transdata(TransInfo *t, bPoseChannel *pchan, Object *ob, Tr
   }
 
   /* For `axismtx` we use the bone's own transform. */
-  copy_m3_m4(pmat, pchan->pose_mat);
+  if (use_custom_localized_transform) {
+    BKE_pose_channel_gizmo_calculate_localized_pose_orientation(pchan, pmat);
+  }
+  else {
+    copy_m3_m4(pmat, pchan->pose_mat);
+  }
   mul_m3_m3m3(td->axismtx, omat, pmat);
   normalize_m3(td->axismtx);
 
   if (t->orient_type_mask & (1 << V3D_ORIENT_GIMBAL)) {
-    if (!gimbal_axis_pose(ob, pchan, td->ext->axismtx_gimbal)) {
+    if (!gimbal_axis_pose(ob, pchan, use_custom_localized_transform, td->ext->axismtx_gimbal)) {
       copy_m3_m3(td->ext->axismtx_gimbal, td->axismtx);
     }
   }

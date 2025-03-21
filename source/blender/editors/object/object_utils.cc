@@ -105,7 +105,16 @@ bool calc_active_center_for_posemode(Object *ob, const bool select_only, float r
 {
   bPoseChannel *pchan = BKE_pose_channel_active_if_bonecoll_visible(ob);
   if (pchan && (!select_only || (pchan->bone->flag & BONE_SELECTED))) {
-    copy_v3_v3(r_center, pchan->pose_head);
+
+    bArmature *arm = static_cast<bArmature *>(ob->data);
+    const bool use_custom_pivot = BKE_pose_channel_gizmo_use_custom_pivot(arm, pchan);
+
+    if (use_custom_pivot) {
+      copy_v3_v3(r_center, pchan->custom_tx->pose_mat[3]);
+    }
+    else {
+      copy_v3_v3(r_center, pchan->pose_head);
+    }
     return true;
   }
   return false;

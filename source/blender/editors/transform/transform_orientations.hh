@@ -19,7 +19,10 @@ struct ViewLayer;
 
 namespace blender::ed::transform {
 
-bool gimbal_axis_pose(Object *ob, const bPoseChannel *pchan, float gmat[3][3]);
+bool gimbal_axis_pose(Object *ob,
+                      const bPoseChannel *pchan,
+                      const bool use_custom_localized_transform,
+                      float gmat[3][3]);
 bool gimbal_axis_object(Object *ob, float gmat[3][3]);
 
 /**

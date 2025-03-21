@@ -1419,6 +1419,82 @@ bool BKE_pose_channel_in_IK_chain(Object *ob, bPoseChannel *pchan)
   return pose_channel_in_IK_chain(ob, pchan, 0);
 }
 
+static bool pose_channel_gizmo_use_effect(const bArmature *arm, const bPoseChannel *pchan)
+{
+  if ((arm->flag & ARM_NO_CUSTOM) != 0) {
+    return false;
+  }
+
+  if (pchan->custom == nullptr) {
+    return false;
+  }
+
+  if (pchan->custom_tx == nullptr) {
+    return false;
+  }
+
+  return true;
+}
+
+bool BKE_pose_channel_gizmo_use_custom_pivot(const bArmature *arm, const bPoseChannel *pchan)
+{
+  if (!pose_channel_gizmo_use_effect(arm, pchan)) {
+    return false;
+  }
+
+  const bool use_custom_pivot = (pchan->drawflag & (PCHAN_DRAW_GIZMO_USE_CUSTOM_LOCATION |
+                                                    PCHAN_DRAW_GIZMO_USE_LOCALIZED_TRANSFORM)) !=
+                                0;
+
+  return use_custom_pivot;
+}
+
+bool BKE_pose_channel_gizmo_use_localized_transform(const bArmature *arm,
+                                                    const bPoseChannel *pchan)
+{
+  if (!pose_channel_gizmo_use_effect(arm, pchan)) {
+    return false;
+  }
+
+  const bool use_custom_localized_transform = (pchan->drawflag &
+                                               PCHAN_DRAW_GIZMO_USE_LOCALIZED_TRANSFORM) != 0;
+  return use_custom_localized_transform;
+}
+
+void BKE_pose_channel_gizmo_calculate_localized_pose_orientation(bPoseChannel *pchan,
+                                                                 float r_pose_from_basis[3][3])
+{
+  BLI_assert(pchan->custom);
+  BLI_assert(pchan->custom_tx);
+
+  const bPoseChannel *pchan_custom = pchan->custom_tx;
+
+  float pose_from_custom[3][3];
+  {
+    BoneParentTransform bpt;
+    BKE_bone_parent_transform_calc_from_pchan(pchan_custom, &bpt);
+    copy_m3_m4(pose_from_custom, bpt.rotscale_mat);
+  }
+
+  float custom_from_pchan[3][3];
+  {
+    const Bone *bone_custom = pchan_custom->bone;
+    const Bone *bone = pchan->bone;
+    copy_m3_m4(custom_from_pchan, bone_custom->arm_mat);
+    invert_m3(custom_from_pchan);
+    mul_m3_m3m4(custom_from_pchan, custom_from_pchan, bone->arm_mat);
+  }
+
+  float pchan_basis[3][3];
+  {
+    float pchan_basis_m4[4][4];
+    BKE_armature_mat_pose_to_bone(pchan, pchan->pose_mat, pchan_basis_m4);
+    copy_m3_m4(pchan_basis, pchan_basis_m4);
+  }
+
+  mul_m3_series(r_pose_from_basis, pose_from_custom, custom_from_pchan, pchan_basis);
+}
+
 void BKE_pose_channels_hash_ensure(bPose *pose)
 {
   if (!pose->chanhash) {

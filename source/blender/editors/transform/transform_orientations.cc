@@ -274,7 +274,10 @@ static void axis_angle_to_gimbal_axis(float gmat[3][3], const float axis[3], con
   normalize_m3(gmat);
 }
 
-bool gimbal_axis_pose(Object *ob, const bPoseChannel *pchan, float gmat[3][3])
+bool gimbal_axis_pose(Object *ob,
+                      const bPoseChannel *pchan,
+                      const bool use_custom_localized_transform,
+                      float gmat[3][3])
 {
   float mat[3][3], tmat[3][3], obmat[3][3];
   if (test_rotmode_euler(pchan->rotmode)) {
@@ -285,6 +288,20 @@ bool gimbal_axis_pose(Object *ob, const bPoseChannel *pchan, float gmat[3][3])
   }
   else { /* Quaternion. */
     return false;
+  }
+  if (use_custom_localized_transform) {
+    BLI_assert(pchan->custom_tx);
+    float space_from_local[3][3];
+    {
+      Bone *bone = pchan->bone;
+      Bone *bone_space = pchan->custom_tx->bone;
+      copy_m3_m4(space_from_local, bone_space->arm_mat);
+      invert_m3(space_from_local);
+      mul_m3_m3m4(space_from_local, space_from_local, bone->arm_mat);
+
+      mul_m3_m3m3(mat, space_from_local, mat);
+    }
+    pchan = pchan->custom_tx;
   }
 
   /* Apply bone transformation. */
@@ -664,7 +681,11 @@ short calc_orientation_from_type_ex(const Scene *scene,
       if (ob) {
         if (ob->mode & OB_MODE_POSE) {
           const bPoseChannel *pchan = BKE_pose_channel_active_if_bonecoll_visible(ob);
-          if (pchan && gimbal_axis_pose(ob, pchan, r_mat)) {
+
+          bArmature *arm = static_cast<bArmature *>(ob->data);
+          const bool use_custom_localized_transform =
+              BKE_pose_channel_gizmo_use_localized_transform(arm, pchan);
+          if (pchan && gimbal_axis_pose(ob, pchan, use_custom_localized_transform, r_mat)) {
             break;
           }
         }
@@ -1425,8 +1446,20 @@ int getTransformOrientation_ex(const Scene *scene,
     bool ok = false;
 
     if (activeOnly && (pchan = BKE_pose_channel_active_if_bonecoll_visible(ob))) {
-      add_v3_v3(r_normal, pchan->pose_mat[2]);
-      add_v3_v3(r_plane, pchan->pose_mat[1]);
+
+      const bool use_custom_localized_transform = BKE_pose_channel_gizmo_use_localized_transform(
+          arm, pchan);
+
+      if (use_custom_localized_transform) {
+        float localized_pose_mat[3][3];
+        BKE_pose_channel_gizmo_calculate_localized_pose_orientation(pchan, localized_pose_mat);
+        add_v3_v3(r_normal, localized_pose_mat[2]);
+        add_v3_v3(r_plane, localized_pose_mat[1]);
+      }
+      else {
+        add_v3_v3(r_normal, pchan->pose_mat[2]);
+        add_v3_v3(r_plane, pchan->pose_mat[1]);
+      }
       ok = true;
     }
     else {
@@ -1436,8 +1469,21 @@ int getTransformOrientation_ex(const Scene *scene,
         /* Use channels to get stats. */
         LISTBASE_FOREACH (bPoseChannel *, pchan, &ob->pose->chanbase) {
           if (pchan->bone && pchan->bone->flag & BONE_TRANSFORM) {
-            add_v3_v3(r_normal, pchan->pose_mat[2]);
-            add_v3_v3(r_plane, pchan->pose_mat[1]);
+
+            const bool use_custom_localized_transform =
+                BKE_pose_channel_gizmo_use_localized_transform(arm, pchan);
+
+            if (use_custom_localized_transform) {
+              float localized_pose_mat[3][3];
+              BKE_pose_channel_gizmo_calculate_localized_pose_orientation(pchan,
+                                                                          localized_pose_mat);
+              add_v3_v3(r_normal, localized_pose_mat[2]);
+              add_v3_v3(r_plane, localized_pose_mat[1]);
+            }
+            else {
+              add_v3_v3(r_normal, pchan->pose_mat[2]);
+              add_v3_v3(r_plane, pchan->pose_mat[1]);
+            }
           }
         }
         ok = true;

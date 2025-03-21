@@ -431,6 +431,13 @@ class BONE_PT_display_custom_shape(BoneButtonsPanel, Panel):
             if is_darwin:
                 sub.label(text="Custom wire width not available on MacOS", icon='INFO')
 
+            col = layout.column()
+            col.label(text="Affect Transform Gizmo")
+            sub = col.column()
+            sub.active = bool(pchan and pchan.custom_shape and pchan.custom_shape_transform)
+            sub.prop(pchan, "do_custom_shape_gizmo_override_location")
+            sub.prop(pchan, "do_custom_shape_gizmo_localized")
+
 
 class BONE_PT_inverse_kinematics(BoneButtonsPanel, Panel):
     bl_label = "Inverse Kinematics"

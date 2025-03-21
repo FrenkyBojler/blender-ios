@@ -1130,6 +1130,26 @@ static void rna_def_pose_channel(BlenderRNA *brna)
       prop, "Scale to Bone Length", "Scale the custom object by the bone length");
   RNA_def_property_update(prop, NC_OBJECT | ND_POSE, "rna_Pose_update");
 
+  prop = RNA_def_property(
+      srna, "do_custom_shape_gizmo_override_location", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "drawflag", PCHAN_DRAW_GIZMO_USE_CUSTOM_LOCATION);
+  RNA_def_property_ui_text(prop,
+                           "Use Custom Location",
+                           "Draw the transform gizmo at the custom transform's location and treat "
+                           "it as the bone's center");
+  RNA_def_property_update(prop, NC_OBJECT | ND_POSE, "rna_Pose_update");
+
+  prop = RNA_def_property(srna, "do_custom_shape_gizmo_localized", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(
+      prop, nullptr, "drawflag", PCHAN_DRAW_GIZMO_USE_LOCALIZED_TRANSFORM);
+  RNA_def_property_ui_text(
+      prop,
+      "Use Localized Transform",
+      "For gizmo transform operations, to treat this bone as if it actually had "
+      "the same hierarchical parenting relations as the custom transform. "
+      "\n\nNOTE: [Use Custom Location] is implicitly enabled when this is enabled");
+  RNA_def_property_update(prop, NC_OBJECT | ND_POSE, "rna_Pose_update");
+
   prop = RNA_def_property(srna, "custom_shape_transform", PROP_POINTER, PROP_NONE);
   RNA_def_property_pointer_sdna(prop, nullptr, "custom_tx");
   RNA_def_property_struct_type(prop, "PoseBone");
