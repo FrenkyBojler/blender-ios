@@ -200,7 +200,7 @@ static void do_global_solve(const EvaluationTarget /*target*/,
                             MutableSpan<ConstraintEvalData> constraint_data,
                             ConstraintVariables &variables)
 {
-  constexpr bool debug_output = true;
+  constexpr bool debug_output = false;
 
   IndexMaskMemory memory;
   xpbd_constraints::GlobalSolverSystem system = build_global_solve_system(
