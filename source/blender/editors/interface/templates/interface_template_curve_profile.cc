@@ -143,16 +143,20 @@ static bool curve_profile_can_zoom_in(CurveProfile *profile)
 
 static bool curve_profile_can_zoom_out(CurveProfile *profile)
 {
-  return BLI_rctf_size_x(&profile->view_rect) < BLI_rctf_size_x(&profile->clip_rect);
+  /* Add a little bias to avoid showing "zoom out" when the sizes are near identical. */
+  return BLI_rctf_size_x(&profile->view_rect) + 1e-6F < BLI_rctf_size_x(&profile->clip_rect);
 }
 
 static void curve_profile_zoom_in(bContext *C, CurveProfile *profile)
 {
+  /* Zooming out components by 15% (see below) for a total of 30% size increase means that we
+   * need to zoom by a smaller percentage of the larger area to get back to where we were. We
+   * need some factor f where f + 0.3f = 0.15, which is exactly 3/26. */
   if (curve_profile_can_zoom_in(profile)) {
-    const float dx = 0.1154f * BLI_rctf_size_x(&profile->view_rect);
+    const float dx = (3.0f / 26.0f) * BLI_rctf_size_x(&profile->view_rect);
     profile->view_rect.xmin += dx;
     profile->view_rect.xmax -= dx;
-    const float dy = 0.1154f * BLI_rctf_size_y(&profile->view_rect);
+    const float dy = (3.0f / 26.0f) * BLI_rctf_size_y(&profile->view_rect);
     profile->view_rect.ymin += dy;
     profile->view_rect.ymax -= dy;
   }
