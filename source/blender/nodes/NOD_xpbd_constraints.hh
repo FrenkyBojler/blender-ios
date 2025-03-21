@@ -553,10 +553,11 @@ inline void eval_stretch_shear_elements(const float edge_length,
   r_pos_gradient1 = -inv_edge_length * float4x4::identity();
   r_pos_gradient2 = -r_pos_gradient1;
 
-  const math::Quaternion q = math::Quaternion(0, 0, 0, 1) * math::conjugate(rotation);
-  r_rot_gradient[0] = float4(-q.x, q.w, q.z, -q.y);
-  r_rot_gradient[1] = float4(-q.y, -q.z, q.w, q.x);
-  r_rot_gradient[2] = float4(-q.z, q.y, -q.x, q.w);
+  const math::Quaternion q = math::Quaternion(0, 0, 0, 1.0f) * math::invert_normalized(rotation);
+  r_rot_gradient = float4x4::zero();
+  r_rot_gradient[0] = -2.0f * float4(q.x, q.w, q.z, -q.y);
+  r_rot_gradient[1] = -2.0f * float4(q.y, -q.z, q.w, q.x);
+  r_rot_gradient[2] = -2.0f * float4(q.z, q.y, -q.x, q.w);
   /* Last column is unused. */
 }
 
