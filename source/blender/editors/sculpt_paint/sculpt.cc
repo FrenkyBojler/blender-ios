@@ -826,8 +826,7 @@ static int sculpt_brush_needs_normal(const SculptSession &ss, const Sculpt &sd, 
                SCULPT_BRUSH_TYPE_NUDGE,
                SCULPT_BRUSH_TYPE_ROTATE,
                SCULPT_BRUSH_TYPE_ELASTIC_DEFORM,
-               SCULPT_BRUSH_TYPE_THUMB,
-               SCULPT_BRUSH_TYPE_SCENE_PROJECT) ||
+               SCULPT_BRUSH_TYPE_THUMB) ||
 
           (brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_SCENE_PROJECT &&
            brush.project_direction_type == BRUSH_PROJECT_DIRECTION_PLANE_NORMAL) ||
