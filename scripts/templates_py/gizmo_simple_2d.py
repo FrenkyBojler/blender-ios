@@ -25,6 +25,7 @@ class MyTranslateWidgetGroup(GizmoGroup):
     def draw_prepare(self, context):
         region = context.region
 
+        # Place the Gizmo in the lower center of the 3D Viewport.
         self.translate_gizmo.matrix_basis[0][3] = region.width / 2
         self.translate_gizmo.matrix_basis[1][3] = region.height / 16
 
@@ -50,7 +51,7 @@ class MyTranslateWidgetGroup(GizmoGroup):
         gz.show_drag = True
 
         # Can also use gz.icon_value to use a custom/generated preview icon.
-        gz.icon = "EMPTY_ARROWS"
+        gz.icon = 'EMPTY_ARROWS'
 
         self.translate_gizmo = gz
 
