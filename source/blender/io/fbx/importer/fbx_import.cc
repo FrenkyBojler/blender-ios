@@ -73,6 +73,21 @@ struct FbxImportContext {
     root_tr.rotation = this->fbx.metadata.root_rotation;
     root_tr.scale.x = root_tr.scale.y = root_tr.scale.z = this->fbx.metadata.root_scale;
     this->mapping.global_conv_matrix = ufbx_transform_to_matrix(&root_tr);
+
+#ifdef FBX_DEBUG_PRINT
+    std::string debug_file_path = params.filepath;
+    debug_file_path = debug_file_path.substr(0, debug_file_path.size() - 4) + "-dbg-b.txt";
+    g_debug_file = BLI_fopen(debug_file_path.c_str(), "wb");
+#endif
+  }
+
+  ~FbxImportContext()
+  {
+#ifdef FBX_DEBUG_PRINT
+    if (g_debug_file) {
+      fclose(g_debug_file);
+    }
+  #endif
   }
 
   void import_globals(Scene *scene);
@@ -683,6 +698,33 @@ void importer_main(Main *bmain, Scene *scene, ViewLayer *view_layer, const FBXIm
 
   FbxImportContext ctx(bmain, fbx, params);
   ctx.import_globals(scene);
+
+#ifdef FBX_DEBUG_PRINT
+  {
+    fprintf(g_debug_file, "Initial NODE local matrices:\n");
+    Vector<const ufbx_node *> nodes;
+    for (const ufbx_node *node : ctx.fbx.nodes) {
+      if (node->is_root) {
+        continue;
+      }
+      nodes.append(node);
+    }
+    std::sort(nodes.begin(), nodes.end(), [](const ufbx_node *a, const ufbx_node *b) {
+      int ncmp = strcmp(a->name.data, b->name.data);
+      if (ncmp != 0)
+        return ncmp < 0;
+      return a->attrib_type > b->attrib_type;
+    });
+    for (const ufbx_node *node : nodes) {
+      ufbx_matrix mtx = ufbx_matrix_mul(
+          node->is_root ? &node->node_to_world : &node->node_to_parent, &node->geometry_to_node);
+      fprintf(g_debug_file, "init NODE %s self.matrix:\n", node->name.data);
+      print_matrix(mtx);
+    }
+    fprintf(g_debug_file, "\n");
+  }
+#endif
+
   ctx.import_materials();
   ctx.import_armatures();
   ctx.import_meshes();

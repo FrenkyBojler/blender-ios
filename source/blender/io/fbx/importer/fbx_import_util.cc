@@ -61,6 +61,11 @@ void m44_to_matrix(const float src[4][4], ufbx_matrix &dst)
 
 void ufbx_matrix_to_obj(const ufbx_matrix &mtx, Object *obj)
 {
+#ifdef FBX_DEBUG_PRINT
+  fprintf(g_debug_file, "init NODE %s self.matrix:\n", obj->id.name + 2);
+  print_matrix(mtx);
+#endif
+
   float obmat[4][4];
   matrix_to_m44(mtx, obmat);
   BKE_object_apply_mat4(obj, obmat, true, false);
@@ -175,5 +180,30 @@ void read_custom_properties(const ufbx_props &props, ID &id)
     }
   }
 }
+
+#ifdef FBX_DEBUG_PRINT
+FILE *g_debug_file;
+void print_matrix(const ufbx_matrix &m)
+{
+  fprintf(g_debug_file,
+          "    (%.3f %.3f %.3f %.3f)\n",
+          adjf(m.cols[0].x),
+          adjf(m.cols[1].x),
+          adjf(m.cols[2].x),
+          adjf(m.cols[3].x));
+  fprintf(g_debug_file,
+          "    (%.3f %.3f %.3f %.3f)\n",
+          adjf(m.cols[0].y),
+          adjf(m.cols[1].y),
+          adjf(m.cols[2].y),
+          adjf(m.cols[3].y));
+  fprintf(g_debug_file,
+          "    (%.3f %.3f %.3f %.3f)\n",
+          adjf(m.cols[0].z),
+          adjf(m.cols[1].z),
+          adjf(m.cols[2].z),
+          adjf(m.cols[3].z));
+}
+#endif
 
 }  // namespace blender::io::fbx

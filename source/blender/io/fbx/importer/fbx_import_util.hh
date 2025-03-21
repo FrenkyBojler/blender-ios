@@ -72,4 +72,21 @@ void ufbx_matrix_to_obj(const ufbx_matrix &mtx, Object *obj);
 void node_matrix_to_obj(const ufbx_node *node, Object *obj);
 void read_custom_properties(const ufbx_props &props, ID &id);
 
+//@TODO remove debug file print once things are working properly
+#define FBX_DEBUG_PRINT
+
+#ifdef FBX_DEBUG_PRINT
+extern FILE *g_debug_file;
+
+inline double adjf(double f)
+{
+  if (fabs(f) < 0.0005) {
+    return 0.0;
+  }
+  return f;
+}
+
+void print_matrix(const ufbx_matrix &m);
+#endif
+
 }  // namespace blender::io::fbx
