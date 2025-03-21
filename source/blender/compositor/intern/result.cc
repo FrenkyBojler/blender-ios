@@ -213,7 +213,7 @@ ResultType Result::type(eGPUTextureFormat format)
     case GPU_RG32I:
       return ResultType::Int2;
     case GPU_R8I:
-      return ResultType::Float;
+      return ResultType::Bool;
     default:
       break;
   }
