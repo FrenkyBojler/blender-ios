@@ -182,6 +182,8 @@ const EnumPropertyItem rna_enum_attribute_curves_domain_items[] = {
 
 #  include "WM_api.hh"
 
+using blender::StringRef;
+
 /* Attribute */
 
 static AttributeOwner owner_from_attribute_pointer_rna(PointerRNA *ptr)
@@ -523,7 +525,7 @@ static void rna_AttributeGroupID_remove(ID *id, ReportList *reports, PointerRNA 
   AttributeOwner owner = AttributeOwner::from_id(id);
   const CustomDataLayer *layer = (const CustomDataLayer *)attribute_ptr->data;
   BKE_attribute_remove(owner, layer->name, reports);
-  RNA_POINTER_INVALIDATE(attribute_ptr);
+  attribute_ptr->invalidate();
 
   DEG_id_tag_update(id, ID_RECALC_GEOMETRY);
   WM_main_add_notifier(NC_GEOM | ND_DATA, id);
@@ -740,7 +742,7 @@ static PointerRNA rna_AttributeGroupMesh_active_color_get(PointerRNA *ptr)
   AttributeOwner owner = AttributeOwner::from_id(ptr->owner_id);
   CustomDataLayer *layer = BKE_attribute_search_for_write(
       owner,
-      BKE_id_attributes_active_color_name(ptr->owner_id),
+      BKE_id_attributes_active_color_name(ptr->owner_id).value_or(""),
       CD_MASK_COLOR_ALL,
       ATTR_DOMAIN_MASK_COLOR);
 
@@ -767,7 +769,7 @@ static int rna_AttributeGroupMesh_active_color_index_get(PointerRNA *ptr)
   AttributeOwner owner = AttributeOwner::from_id(ptr->owner_id);
   const CustomDataLayer *layer = BKE_attribute_search(
       owner,
-      BKE_id_attributes_active_color_name(ptr->owner_id),
+      BKE_id_attributes_active_color_name(ptr->owner_id).value_or(""),
       CD_MASK_COLOR_ALL,
       ATTR_DOMAIN_MASK_COLOR);
 
@@ -803,7 +805,7 @@ static int rna_AttributeGroupMesh_render_color_index_get(PointerRNA *ptr)
 {
   AttributeOwner owner = AttributeOwner::from_id(ptr->owner_id);
   const CustomDataLayer *layer = BKE_id_attributes_color_find(
-      ptr->owner_id, BKE_id_attributes_default_color_name(ptr->owner_id));
+      ptr->owner_id, BKE_id_attributes_default_color_name(ptr->owner_id).value_or(""));
 
   return BKE_attribute_to_index(owner, layer, ATTR_DOMAIN_MASK_COLOR, CD_MASK_COLOR_ALL);
 }
@@ -836,19 +838,15 @@ static void rna_AttributeGroupMesh_render_color_index_range(
 static void rna_AttributeGroupMesh_default_color_name_get(PointerRNA *ptr, char *value)
 {
   const ID *id = ptr->owner_id;
-  const char *name = BKE_id_attributes_default_color_name(id);
-  if (!name) {
-    value[0] = '\0';
-    return;
-  }
-  strcpy(value, name);
+  const StringRef name = BKE_id_attributes_default_color_name(id).value_or("");
+  name.copy_unsafe(value);
 }
 
 static int rna_AttributeGroupMesh_default_color_name_length(PointerRNA *ptr)
 {
   const ID *id = ptr->owner_id;
-  const char *name = BKE_id_attributes_default_color_name(id);
-  return name ? strlen(name) : 0;
+  const StringRef name = BKE_id_attributes_default_color_name(id).value_or("");
+  return name.size();
 }
 
 static void rna_AttributeGroupMesh_default_color_name_set(PointerRNA *ptr, const char *value)
@@ -866,19 +864,15 @@ static void rna_AttributeGroupMesh_default_color_name_set(PointerRNA *ptr, const
 static void rna_AttributeGroupMesh_active_color_name_get(PointerRNA *ptr, char *value)
 {
   const ID *id = ptr->owner_id;
-  const char *name = BKE_id_attributes_active_color_name(id);
-  if (!name) {
-    value[0] = '\0';
-    return;
-  }
-  strcpy(value, name);
+  const StringRef name = BKE_id_attributes_active_color_name(id).value_or("");
+  name.copy_unsafe(value);
 }
 
 static int rna_AttributeGroupMesh_active_color_name_length(PointerRNA *ptr)
 {
   const ID *id = ptr->owner_id;
-  const char *name = BKE_id_attributes_active_color_name(id);
-  return name ? strlen(name) : 0;
+  const StringRef name = BKE_id_attributes_active_color_name(id).value_or("");
+  return name.size();
 }
 
 static void rna_AttributeGroupMesh_active_color_name_set(PointerRNA *ptr, const char *value)
@@ -923,7 +917,7 @@ static void rna_AttributeGroupGreasePencilDrawing_remove(ID *grease_pencil_id,
   AttributeOwner owner = AttributeOwner(AttributeOwnerType::GreasePencilDrawing, drawing);
   const CustomDataLayer *layer = (const CustomDataLayer *)attribute_ptr->data;
   BKE_attribute_remove(owner, layer->name, reports);
-  RNA_POINTER_INVALIDATE(attribute_ptr);
+  attribute_ptr->invalidate();
 
   DEG_id_tag_update(grease_pencil_id, ID_RECALC_GEOMETRY);
   WM_main_add_notifier(NC_GEOM | ND_DATA, grease_pencil_id);
@@ -1676,7 +1670,7 @@ static void rna_def_attribute_group_mesh(BlenderRNA *brna)
                            "The name of the active color attribute for display and editing");
 }
 
-static void rna_def_attribute_group_point_cloud(BlenderRNA *brna)
+static void rna_def_attribute_group_pointcloud(BlenderRNA *brna)
 {
   StructRNA *srna;
 
@@ -1858,7 +1852,7 @@ void RNA_def_attribute(BlenderRNA *brna)
 {
   rna_def_attribute(brna);
   rna_def_attribute_group_mesh(brna);
-  rna_def_attribute_group_point_cloud(brna);
+  rna_def_attribute_group_pointcloud(brna);
   rna_def_attribute_group_curves(brna);
   rna_def_attribute_group_grease_pencil(brna);
   rna_def_attribute_group_grease_pencil_drawing(brna);

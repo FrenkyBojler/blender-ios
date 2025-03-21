@@ -184,7 +184,7 @@ static void rna_Armature_edit_bone_remove(bArmature *arm,
   }
 
   ED_armature_ebone_remove(arm, ebone);
-  RNA_POINTER_INVALIDATE(ebone_ptr);
+  ebone_ptr->invalidate();
 }
 
 static void rna_iterator_bone_collections_all_begin(CollectionPropertyIterator *iter,
@@ -728,7 +728,7 @@ static void rna_Bone_update_renamed(Main * /*bmain*/, Scene * /*scene*/, Pointer
 {
   ID *id = ptr->owner_id;
 
-  /* Redraw Outliner / Dopesheet. */
+  /* Redraw Outliner / Dope-sheet. */
   WM_main_add_notifier(NC_GEOM | ND_DATA | NA_RENAME, id);
 
   /* update animation channels */

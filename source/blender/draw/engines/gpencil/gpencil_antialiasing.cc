@@ -6,29 +6,32 @@
  * \ingroup draw
  */
 
+#include "DNA_scene_types.h"
 #include "DRW_render.hh"
 
-#include "gpencil_engine.h"
+#include "gpencil_engine_private.hh"
 
 #include "BLI_smaa_textures.h"
 
-void GPENCIL_antialiasing_init(GPENCIL_Instance *inst, GPENCIL_PrivateData *pd)
+namespace blender::draw::gpencil {
+
+void GPENCIL_antialiasing_init(Instance *inst)
 {
-  const float *size_f = DRW_viewport_size_get();
+  const float2 size_f = inst->draw_ctx->viewport_size_get();
   const int2 size(size_f[0], size_f[1]);
   const float4 metrics = {1.0f / size[0], 1.0f / size[1], float(size[0]), float(size[1])};
 
-  if (pd->simplify_antialias) {
+  if (inst->simplify_antialias) {
     /* No AA fallback. */
     blender::draw::PassSimple &pass = inst->smaa_resolve_ps;
     pass.init();
     pass.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_BLEND_CUSTOM);
-    pass.shader_set(GPENCIL_shader_antialiasing(2));
+    pass.shader_set(ShaderCache::get().antialiasing[2].get());
     pass.bind_texture("blendTex", &inst->color_tx);
     pass.bind_texture("colorTex", &inst->color_tx);
     pass.bind_texture("revealTex", &inst->reveal_tx);
     pass.push_constant("doAntiAliasing", false);
-    pass.push_constant("onlyAlpha", pd->draw_wireframe);
+    pass.push_constant("onlyAlpha", inst->draw_wireframe);
     pass.push_constant("viewportMetrics", metrics);
     pass.draw_procedural(GPU_PRIM_TRIS, 1, 3);
     return;
@@ -60,11 +63,11 @@ void GPENCIL_antialiasing_init(GPENCIL_Instance *inst, GPENCIL_PrivateData *pd)
     blender::draw::PassSimple &pass = inst->smaa_edge_ps;
     pass.init();
     pass.state_set(DRW_STATE_WRITE_COLOR);
-    pass.shader_set(GPENCIL_shader_antialiasing(0));
+    pass.shader_set(ShaderCache::get().antialiasing[0].get());
     pass.bind_texture("colorTex", &inst->color_tx);
     pass.bind_texture("revealTex", &inst->reveal_tx);
     pass.push_constant("viewportMetrics", metrics);
-    pass.push_constant("lumaWeight", pd->scene->grease_pencil_settings.smaa_threshold);
+    pass.push_constant("lumaWeight", inst->scene->grease_pencil_settings.smaa_threshold);
     pass.clear_color(float4(0.0f));
     pass.draw_procedural(GPU_PRIM_TRIS, 1, 3);
   }
@@ -73,7 +76,7 @@ void GPENCIL_antialiasing_init(GPENCIL_Instance *inst, GPENCIL_PrivateData *pd)
     blender::draw::PassSimple &pass = inst->smaa_weight_ps;
     pass.init();
     pass.state_set(DRW_STATE_WRITE_COLOR);
-    pass.shader_set(GPENCIL_shader_antialiasing(1));
+    pass.shader_set(ShaderCache::get().antialiasing[1].get());
     pass.bind_texture("edgesTex", &inst->smaa_edge_tx);
     pass.bind_texture("areaTex", &inst->smaa_area_tx);
     pass.bind_texture("searchTex", &inst->smaa_search_tx);
@@ -86,26 +89,22 @@ void GPENCIL_antialiasing_init(GPENCIL_Instance *inst, GPENCIL_PrivateData *pd)
     blender::draw::PassSimple &pass = inst->smaa_resolve_ps;
     pass.init();
     pass.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_BLEND_CUSTOM);
-    pass.shader_set(GPENCIL_shader_antialiasing(2));
+    pass.shader_set(ShaderCache::get().antialiasing[2].get());
     pass.bind_texture("blendTex", &inst->smaa_weight_tx);
     pass.bind_texture("colorTex", &inst->color_tx);
     pass.bind_texture("revealTex", &inst->reveal_tx);
     pass.push_constant("doAntiAliasing", true);
-    pass.push_constant("onlyAlpha", pd->draw_wireframe);
+    pass.push_constant("onlyAlpha", inst->draw_wireframe);
     pass.push_constant("viewportMetrics", metrics);
     pass.draw_procedural(GPU_PRIM_TRIS, 1, 3);
   }
 }
 
-void GPENCIL_antialiasing_draw(GPENCIL_Data *vedata)
+void GPENCIL_antialiasing_draw(Instance *inst)
 {
-  GPENCIL_Instance *inst = vedata->instance;
-
   blender::draw::Manager *manager = DRW_manager_get();
 
-  GPENCIL_PrivateData *pd = vedata->stl->pd;
-
-  if (!pd->simplify_antialias) {
+  if (!inst->simplify_antialias) {
     GPU_framebuffer_bind(inst->smaa_edge_fb);
     manager->submit(inst->smaa_edge_ps);
 
@@ -113,6 +112,8 @@ void GPENCIL_antialiasing_draw(GPENCIL_Data *vedata)
     manager->submit(inst->smaa_weight_ps);
   }
 
-  GPU_framebuffer_bind(pd->scene_fb);
+  GPU_framebuffer_bind(inst->scene_fb);
   manager->submit(inst->smaa_resolve_ps);
 }
+
+}  // namespace blender::draw::gpencil

@@ -285,9 +285,9 @@ class IMAGE_MT_image_invert(Menu):
 
         layout.separator()
 
-        layout.operator("image.invert", text="Invert Red Channel", icon='COLOR_RED').invert_r = True
-        layout.operator("image.invert", text="Invert Green Channel", icon='COLOR_GREEN').invert_g = True
-        layout.operator("image.invert", text="Invert Blue Channel", icon='COLOR_BLUE').invert_b = True
+        layout.operator("image.invert", text="Invert Red Channel", icon='RGB_RED').invert_r = True
+        layout.operator("image.invert", text="Invert Green Channel", icon='RGB_GREEN').invert_g = True
+        layout.operator("image.invert", text="Invert Blue Channel", icon='RGB_BLUE').invert_b = True
         layout.operator("image.invert", text="Invert Alpha Channel", icon='IMAGE_ALPHA').invert_a = True
 
 
@@ -1255,7 +1255,7 @@ class IMAGE_PT_paint_settings_advanced(Panel, ImagePaintPanel):
         settings = context.tool_settings.image_paint
         brush = settings.brush
         if brush:
-            brush_settings_advanced(layout.column(), context, brush, self.is_popover)
+            brush_settings_advanced(layout.column(), context, settings, brush, self.is_popover)
 
 
 class IMAGE_PT_paint_color(Panel, ImagePaintPanel):

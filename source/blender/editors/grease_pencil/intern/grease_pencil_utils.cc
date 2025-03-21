@@ -1433,12 +1433,12 @@ Array<PointTransferData> compute_topology_change(
             dst_transfer_data[dst_curve_points.first()];
         const PointTransferData &end_point_transfer = dst_transfer_data[dst_curve_points.last()];
 
-        if (start_point_transfer.is_cut) {
+        if (dst_start_caps && start_point_transfer.is_cut) {
           dst_start_caps.span[dst_curve] = GP_STROKE_CAP_TYPE_FLAT;
         }
         /* The is_cut flag does not work for end points, but any end point that isn't the source
          * point must also be a cut. */
-        if (!end_point_transfer.is_src_end_point()) {
+        if (dst_end_caps && !end_point_transfer.is_src_end_point()) {
           dst_end_caps.span[dst_curve] = GP_STROKE_CAP_TYPE_FLAT;
         }
       }
@@ -1536,9 +1536,9 @@ float opacity_from_input_sample(const float pressure,
   return opacity;
 }
 
-int grease_pencil_draw_operator_invoke(bContext *C,
-                                       wmOperator *op,
-                                       const bool use_duplicate_previous_key)
+wmOperatorStatus grease_pencil_draw_operator_invoke(bContext *C,
+                                                    wmOperator *op,
+                                                    const bool use_duplicate_previous_key)
 {
   const Scene *scene = CTX_data_scene(C);
   const Object *object = CTX_data_active_object(C);

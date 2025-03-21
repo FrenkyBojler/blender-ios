@@ -13,6 +13,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
 #include "BLI_vector.hh"
 #include "BLI_virtual_array.hh"
@@ -335,7 +336,7 @@ static void mesh_join_offset_face_sets_ID(Mesh *mesh, int *face_set_offset)
   face_sets.finish();
 }
 
-int ED_mesh_join_objects_exec(bContext *C, wmOperator *op)
+wmOperatorStatus ED_mesh_join_objects_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
@@ -719,7 +720,7 @@ int ED_mesh_join_objects_exec(bContext *C, wmOperator *op)
  * Append selected meshes vertex locations as shapes of the active mesh.
  * \{ */
 
-int ED_mesh_shapes_join_objects_exec(bContext *C, wmOperator *op)
+wmOperatorStatus ED_mesh_shapes_join_objects_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
@@ -1270,7 +1271,7 @@ bool ED_mesh_pick_face_vert(
       }
     }
 
-    /* map 'dm -> mesh' r_index if possible */
+    /* Map the `dm` to `mesh`, setting the `r_index` if possible. */
     if (v_idx_best != ORIGINDEX_NONE) {
       const int *index_mv_to_orig = (const int *)CustomData_get_layer(&mesh_eval->vert_data,
                                                                       CD_ORIGINDEX);
@@ -1323,7 +1324,7 @@ bool ED_mesh_pick_edge(bContext *C, Object *ob, const int mval[2], uint dist_px,
 
   edge_idx_best--;
 
-  if ((edge_idx_best != ORIGINDEX_NONE)) {
+  if (edge_idx_best != ORIGINDEX_NONE) {
     *r_index = edge_idx_best;
     return true;
   }

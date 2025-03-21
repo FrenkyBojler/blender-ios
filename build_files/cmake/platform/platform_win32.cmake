@@ -58,6 +58,22 @@ else()
   endif()
 endif()
 
+set(WINDOWS_ARM64_MIN_VSCMD_VER 17.12.3)
+# We have a minimum version of VSCMD for ARM64 (ie, the version the libs were compiled against)
+# This checks for the version on initial run, and caches it, so users do not have to run the VS CMD window every time
+if(CMAKE_SYSTEM_PROCESSOR STREQUAL "ARM64")
+  set(VC_VSCMD_VER $ENV{VSCMD_VER} CACHE STRING "Version of the VSCMD initially run from")
+  mark_as_advanced(VC_VSCMD_VER)
+  set(VSCMD_VER ${VC_VSCMD_VER})
+  if(DEFINED VSCMD_VER)
+    if(VSCMD_VER VERSION_LESS WINDOWS_ARM64_MIN_VSCMD_VER)
+      message(FATAL_ERROR "Windows ARM64 requires VS2022 version ${WINDOWS_ARM64_MIN_VSCMD_VER} or greater - please update your VS2022 install!")
+    endif()
+  else()
+    message(FATAL_ERROR "Unable to detect the Visual Studio CMD version, try running from the visual studio developer prompt.")
+  endif()
+endif()
+
 if(WITH_BLENDER AND NOT WITH_PYTHON_MODULE)
   set_property(DIRECTORY PROPERTY VS_STARTUP_PROJECT blender)
 endif()
@@ -213,9 +229,8 @@ if(NOT MSVC_CLANG)
   string(APPEND CMAKE_CXX_FLAGS " /permissive- /Zc:__cplusplus /Zc:inline")
   string(APPEND CMAKE_C_FLAGS   " /Zc:inline")
 
-  # For ARM64 devices, we need to tell MSVC to use the new preprocessor
-  # This is because sse2neon requires it.
-  if(CMAKE_SYSTEM_PROCESSOR STREQUAL "ARM64")
+  # For VS2022+ we can enable the the new preprocessor
+  if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 19.30.30423)
     string(APPEND CMAKE_CXX_FLAGS " /Zc:preprocessor")
     string(APPEND CMAKE_C_FLAGS " /Zc:preprocessor")
   endif()
@@ -251,8 +266,8 @@ else()
   unset(CMAKE_C_COMPILER_LAUNCHER)
   unset(CMAKE_CXX_COMPILER_LAUNCHER)
   if(MSVC_ASAN)
-    set(SYMBOL_FORMAT /Z7)
-    set(SYMBOL_FORMAT_RELEASE /Z7)
+    set(SYMBOL_FORMAT /Zi)
+    set(SYMBOL_FORMAT_RELEASE /Zi)
   else()
     set(SYMBOL_FORMAT /ZI)
     set(SYMBOL_FORMAT_RELEASE /Zi)
@@ -282,7 +297,12 @@ endif()
 
 string(APPEND PLATFORM_LINKFLAGS " /SUBSYSTEM:CONSOLE /STACK:2097152")
 set(PLATFORM_LINKFLAGS_RELEASE "/NODEFAULTLIB:libcmt.lib /NODEFAULTLIB:libcmtd.lib /NODEFAULTLIB:msvcrtd.lib")
-string(APPEND PLATFORM_LINKFLAGS_DEBUG "/debug:fastlink /IGNORE:4099 /NODEFAULTLIB:libcmt.lib /NODEFAULTLIB:msvcrt.lib /NODEFAULTLIB:libcmtd.lib")
+
+if(NOT WITH_COMPILER_ASAN)
+  # Asan is incompatible with fastlink, it will appear to work, but will not resolve symbols which makes it somewhat useless
+  string(APPEND PLATFORM_LINKFLAGS_DEBUG "/debug:fastlink ")
+endif()
+string(APPEND PLATFORM_LINKFLAGS_DEBUG " /IGNORE:4099 /NODEFAULTLIB:libcmt.lib /NODEFAULTLIB:msvcrt.lib /NODEFAULTLIB:libcmtd.lib")
 
 # Ignore meaningless for us linker warnings.
 string(APPEND PLATFORM_LINKFLAGS " /ignore:4049 /ignore:4217 /ignore:4221")
@@ -515,13 +535,6 @@ if(WITH_OPENCOLLADA)
   endif()
 
   list(APPEND OPENCOLLADA_LIBRARIES ${OPENCOLLADA}/lib/opencollada/UTF.lib)
-  if(EXISTS ${OPENCOLLADA}/lib/opencollada/pcre.lib)
-    set(PCRE_LIBRARIES
-      optimized ${OPENCOLLADA}/lib/opencollada/pcre.lib
-
-      debug ${OPENCOLLADA}/lib/opencollada/pcre_d.lib
-    )
-  endif()
 endif()
 
 if(WITH_CODEC_FFMPEG)
@@ -1335,7 +1348,7 @@ endif()
 get_filename_component(_msvc_path ${CMAKE_C_COMPILER} DIRECTORY)
 # Environment variables to run precompiled executables that needed libraries.
 list(JOIN PLATFORM_BUNDLED_LIBRARY_DIRS ";" _library_paths)
-set(PLATFORM_ENV_BUILD_DIRS "${_msvc_path}\;${LIBDIR}/epoxy/bin\;${LIBDIR}/tbb/bin\;${LIBDIR}/OpenImageIO/bin\;${LIBDIR}/boost/lib\;${LIBDIR}/openexr/bin\;${LIBDIR}/imath/bin\;${LIBDIR}/shaderc/bin\;${PATH}")
+set(PLATFORM_ENV_BUILD_DIRS "${_msvc_path}\;${LIBDIR}/epoxy/bin\;${LIBDIR}/tbb/bin\;${LIBDIR}/OpenImageIO/bin\;${LIBDIR}/boost/lib\;${LIBDIR}/openexr/bin\;${LIBDIR}/imath/bin\;${LIBDIR}/shaderc/bin\;${LIBDIR}/opencolorio/bin\;${PATH}")
 set(PLATFORM_ENV_BUILD "PATH=${PLATFORM_ENV_BUILD_DIRS}")
 # Install needs the additional folders from PLATFORM_ENV_BUILD_DIRS as well, as tools like:
 # `idiff` and `abcls` use the release mode dlls.

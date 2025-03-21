@@ -10,12 +10,14 @@
 #include "BKE_context.hh"
 #include "BKE_gpencil_geom_legacy.h"
 #include "BKE_layer.hh"
+#include "BKE_library.hh"
 #include "BKE_object.hh"
 #include "BKE_paint.hh"
 #include "BKE_scene.hh"
 #include "BKE_screen.hh"
 
 #include "BLI_bounds.hh"
+#include "BLI_listbase.h"
 #include "BLI_math_matrix.hh"
 #include "BLI_math_vector.h"
 
@@ -413,7 +415,7 @@ bool view3d_calc_point_in_selected_bounds(Depsgraph *depsgraph,
  * Move & Zoom the view to fit all of its contents.
  * \{ */
 
-static int view3d_all_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus view3d_all_exec(bContext *C, wmOperator *op)
 {
   ScrArea *area = CTX_wm_area(C);
   ARegion *region = CTX_wm_region(C);
@@ -498,7 +500,7 @@ void VIEW3D_OT_view_all(wmOperatorType *ot)
  * Move & Zoom the view to fit selected contents.
  * \{ */
 
-static int viewselected_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus viewselected_exec(bContext *C, wmOperator *op)
 {
   ScrArea *area = CTX_wm_area(C);
   ARegion *region = CTX_wm_region(C);
