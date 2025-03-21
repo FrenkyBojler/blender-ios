@@ -695,9 +695,9 @@ inline void eval_bend_twist_elements(const float3 &darboux_vector,
   const float3 current_darboux = (math::invert_normalized(rotation1) * rotation2).imaginary_part();
   r_residual = current_darboux - darboux_vector;
 
-  r_gradient1[0] = float4(-rotation2.x, rotation2.w, rotation2.z, -rotation2.y);
-  r_gradient1[1] = float4(-rotation2.y, -rotation2.z, rotation2.w, rotation2.x);
-  r_gradient1[2] = float4(-rotation2.z, rotation2.y, -rotation2.x, rotation2.w);
+  r_gradient1[0] = float4(rotation2.x, -rotation2.w, -rotation2.z, rotation2.y);
+  r_gradient1[1] = float4(rotation2.y, rotation2.z, -rotation2.w, -rotation2.x);
+  r_gradient1[2] = float4(rotation2.z, -rotation2.y, rotation2.x, -rotation2.w);
   /* Last column is unused. */
   r_gradient2[0] = float4(-rotation1.x, rotation1.w, rotation1.z, -rotation1.y);
   r_gradient2[1] = float4(-rotation1.y, -rotation1.z, rotation1.w, rotation1.x);
