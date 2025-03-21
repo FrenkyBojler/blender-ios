@@ -169,6 +169,8 @@ typedef struct Brush {
   /** Falloff curve. */
   struct CurveMapping *curve;
   struct MTexAccessor mtex_accessor;
+  struct MTex mtex;      /* deprecated - use mtex_accessor.color instead, see #134834 */
+  struct MTex mask_mtex; /* deprecated - use mtex_accessor.mask instead, see #134834 */
 
   struct Brush *toggle_brush;
 

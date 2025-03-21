@@ -465,6 +465,10 @@ static bool rna_BrushCapabilities_has_overlay_get(PointerRNA *ptr)
   return ELEM(br->mtex_accessor.color.brush_map_mode,
               MTEX_MAP_MODE_VIEW,
               MTEX_MAP_MODE_TILED,
+              MTEX_MAP_MODE_STENCIL) ||
+         ELEM(br->mtex_accessor.mask.brush_map_mode,
+              MTEX_MAP_MODE_VIEW,
+              MTEX_MAP_MODE_TILED,
               MTEX_MAP_MODE_STENCIL);
 }
 

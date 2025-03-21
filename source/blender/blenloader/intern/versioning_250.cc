@@ -1266,8 +1266,8 @@ void blo_do_versions_250(FileData *fd, Library * /*lib*/, Main *bmain)
 
     /* brush texture changes */
     LISTBASE_FOREACH (Brush *, brush, &bmain->brushes) {
-      BKE_texture_mtex_default(&brush->mtex_accessor.color);
-      BKE_texture_mtex_default(&brush->mtex_accessor.mask);
+      BKE_texture_mtex_default(&brush->mtex);
+      BKE_texture_mtex_default(&brush->mask_mtex);
     }
   }
 
