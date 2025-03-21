@@ -95,6 +95,9 @@ void VKDevice::submission_runner(TaskPool *__restrict pool, void *task_data)
   Vector<VkCommandBuffer> command_buffers_unused;
   TimelineResources<VkCommandBuffer> command_buffers_in_use;
   VkCommandBuffer vk_command_buffer = VK_NULL_HANDLE;
+  Vector<VkCommandBuffer> unsubmitted_command_buffers;
+  Vector<VkSubmitInfo> submit_infos;
+  submit_infos.reserve(2);
   std::optional<render_graph::VKCommandBufferWrapper> command_buffer;
 
   while (device->lifetime < Lifetime::DEINITIALIZING) {
@@ -102,6 +105,15 @@ void VKDevice::submission_runner(TaskPool *__restrict pool, void *task_data)
         BLI_thread_queue_pop_timeout(device->submitted_render_graphs_, 1));
     if (submit_task == nullptr) {
       continue;
+    }
+
+    /* End current command buffer when we need to wait for a semaphore. In this case all previous
+     * recorded commands can run before the wait semaphores. The commands that must be guarded by
+     * the semaphores are part of the new submitted render graph. */
+    if (submit_task->wait_semaphore != VK_NULL_HANDLE && command_buffer.has_value()) {
+      command_buffer->end_recording();
+      unsubmitted_command_buffers.append(vk_command_buffer);
+      command_buffer.reset();
     }
 
     if (!command_buffer.has_value()) {
@@ -144,7 +156,25 @@ void VKDevice::submission_runner(TaskPool *__restrict pool, void *task_data)
     command_builder.record_commands(render_graph, *command_buffer, node_handles);
 
     if (submit_task->submit_to_device) {
+      /* Create submit infos for previous command buffers. */
+      submit_infos.clear();
+      if (!unsubmitted_command_buffers.is_empty()) {
+        VkSubmitInfo vk_submit_info = {VK_STRUCTURE_TYPE_SUBMIT_INFO,
+                                       nullptr,
+                                       0,
+                                       nullptr,
+                                       nullptr,
+                                       uint32_t(unsubmitted_command_buffers.size()),
+                                       unsubmitted_command_buffers.data(),
+                                       0,
+                                       nullptr};
+        submit_infos.append(vk_submit_info);
+      }
+
+      /* Finalize current command buffer. */
       command_buffer->end_recording();
+      unsubmitted_command_buffers.append(vk_command_buffer);
+
       uint32_t wait_semaphore_len = submit_task->wait_semaphore == VK_NULL_HANDLE ? 0 : 1;
       uint32_t signal_semaphore_len = submit_task->signal_semaphore == VK_NULL_HANDLE ? 1 : 2;
       VkSemaphore signal_semaphores[2] = {device->vk_timeline_semaphore_,
@@ -164,16 +194,20 @@ void VKDevice::submission_runner(TaskPool *__restrict pool, void *task_data)
                                      &submit_task->wait_semaphore,
                                      nullptr,
                                      1,
-                                     &vk_command_buffer,
+                                     &unsubmitted_command_buffers.last(),
                                      signal_semaphore_len,
                                      signal_semaphores};
+      submit_infos.append(vk_submit_info);
 
       {
         std::scoped_lock lock_queue(*device->queue_mutex_);
-        vkQueueSubmit(device->vk_queue_, 1, &vk_submit_info, VK_NULL_HANDLE);
+        vkQueueSubmit(device->vk_queue_, submit_infos.size(), submit_infos.data(), VK_NULL_HANDLE);
       }
-      command_buffers_in_use.append_timeline(submit_task->timeline, vk_command_buffer);
       vk_command_buffer = VK_NULL_HANDLE;
+      for (VkCommandBuffer vk_command_buffer : unsubmitted_command_buffers) {
+        command_buffers_in_use.append_timeline(submit_task->timeline, vk_command_buffer);
+      }
+      unsubmitted_command_buffers.clear();
       command_buffer.reset();
     }
 
