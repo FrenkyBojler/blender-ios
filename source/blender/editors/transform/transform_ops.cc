@@ -582,6 +582,13 @@ static bool transform_poll_property(const bContext *C, wmOperator *op, const Pro
 {
   const char *prop_id = RNA_property_identifier(prop);
 
+  if (STREQ(prop_id, "use_even_offset")) {
+    if (op->opm && STREQ(op->opm->idname, "MESH_OT_extrude_faces_move")) {
+      return false;
+    }
+    return true;
+  }
+
   /* Orientation/Constraints. */
   if (STRPREFIX(prop_id, "constraint")) {
     /* Hide orientation axis if no constraints are set, since it won't be used. */
@@ -1132,13 +1139,11 @@ static void TRANSFORM_OT_shrink_fatten(wmOperatorType *ot)
 
   RNA_def_float_distance(ot->srna, "value", 0, -FLT_MAX, FLT_MAX, "Offset", "", -FLT_MAX, FLT_MAX);
 
-  PropertyRNA *prop;
-  prop = RNA_def_boolean(ot->srna,
-                         "use_even_offset",
-                         false,
-                         "Offset Even",
-                         "Scale the offset to give more even thickness");
-  RNA_def_property_flag(prop, PROP_HIDDEN);
+  RNA_def_boolean(ot->srna,
+                  "use_even_offset",
+                  false,
+                  "Offset Even",
+                  "Scale the offset to give more even thickness");
 
   WM_operatortype_props_advanced_begin(ot);
 
