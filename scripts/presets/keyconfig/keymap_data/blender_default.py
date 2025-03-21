@@ -8122,7 +8122,7 @@ def km_3d_view_tool_edit_grease_pencil_texture_gradient(params):
 # ------------------------------------------------------------------------------
 # Tool System (Sequencer, Generic)
 
-def km_sequencer_editor_tool_generic_select_timeline_rcs(params):
+def km_sequencer_tool_generic_select_rcs(params):
     return [
         ("sequencer.select_handle", {"type": 'LEFTMOUSE', "value": 'PRESS'}, None),
         ("sequencer.select_handle", {"type": 'LEFTMOUSE', "value": 'PRESS',
@@ -8137,7 +8137,7 @@ def km_sequencer_editor_tool_generic_select_timeline_rcs(params):
     ]
 
 
-def km_sequencer_editor_tool_generic_select_timeline_lcs(params):
+def km_sequencer_tool_generic_select_lcs(params):
     return [
         ("sequencer.select", {"type": 'LEFTMOUSE', "value": 'PRESS'}, None),
         ("sequencer.select", {"type": 'LEFTMOUSE', "value": 'PRESS',
@@ -8147,16 +8147,16 @@ def km_sequencer_editor_tool_generic_select_timeline_lcs(params):
     ]
 
 
-def km_sequencer_editor_tool_generic_select_box_timeline(params, *, fallback):
+def km_sequencer_tool_generic_select_box(params, *, fallback):
     return (
         _fallback_id("Sequencer Tool: Select Box", fallback),
         {"space_type": 'SEQUENCE_EDITOR', "region_type": 'WINDOW'},
         {"items": [
             # Combine the tweak functionality into the select box tool.
             # This gives one standard tool for all selection and transform behavior.
-            *(km_sequencer_editor_tool_generic_select_timeline_rcs(params)
+            *(km_sequencer_tool_generic_select_rcs(params)
               if (params.select_mouse == 'RIGHTMOUSE') else
-              km_sequencer_editor_tool_generic_select_timeline_lcs(params)),
+              km_sequencer_tool_generic_select_lcs(params)),
             # Don't use `tool_maybe_tweak_event`, see comment for this slot.
             *([] if (fallback and not params.use_fallback_tool) else _template_items_tool_select_actions_simple(
                 "sequencer.select_box",
@@ -8167,7 +8167,7 @@ def km_sequencer_editor_tool_generic_select_box_timeline(params, *, fallback):
     )
 
 
-def km_sequencer_editor_tool_generic_select_preview(params, *, fallback):
+def km_sequencer_preview_tool_generic_select(params, *, fallback):
     return (
         _fallback_id("Preview Tool: Tweak", fallback),
         {"space_type": 'SEQUENCE_EDITOR', "region_type": 'WINDOW'},
@@ -8184,7 +8184,7 @@ def km_sequencer_editor_tool_generic_select_preview(params, *, fallback):
     )
 
 
-def km_sequencer_editor_tool_generic_select_box_preview(params, *, fallback):
+def km_sequencer_preview_tool_generic_select_box(params, *, fallback):
     return (
         _fallback_id("Preview Tool: Select Box", fallback),
         {"space_type": 'SEQUENCE_EDITOR', "region_type": 'WINDOW'},
@@ -8200,7 +8200,7 @@ def km_sequencer_editor_tool_generic_select_box_preview(params, *, fallback):
     )
 
 
-def km_sequencer_editor_tool_generic_cursor(params):
+def km_sequencer_preview_tool_generic_cursor(params):
     return (
         "Preview Tool: Cursor",
         {"space_type": 'SEQUENCE_EDITOR', "region_type": 'WINDOW'},
@@ -8216,7 +8216,7 @@ def km_sequencer_editor_tool_generic_cursor(params):
 # ------------------------------------------------------------------------------
 # Tool System (Sequencer, Timeline)
 
-def km_sequencer_editor_tool_blade(_params):
+def km_sequencer_tool_blade(_params):
     return (
         "Sequencer Tool: Blade",
         {"space_type": 'SEQUENCE_EDITOR', "region_type": 'WINDOW'},
@@ -8235,7 +8235,7 @@ def km_sequencer_editor_tool_blade(_params):
 # ------------------------------------------------------------------------------
 # Tool System (Sequencer, Preview)
 
-def km_sequencer_editor_tool_sample(params):
+def km_sequencer_preview_tool_sample(params):
     return (
         "Preview Tool: Sample",
         {"space_type": 'SEQUENCE_EDITOR', "region_type": 'WINDOW'},
@@ -8245,7 +8245,7 @@ def km_sequencer_editor_tool_sample(params):
     )
 
 
-def km_sequencer_editor_tool_move(params):
+def km_sequencer_preview_tool_move(params):
     return (
         "Preview Tool: Move",
         {"space_type": 'SEQUENCE_EDITOR', "region_type": 'WINDOW'},
@@ -8256,7 +8256,7 @@ def km_sequencer_editor_tool_move(params):
     )
 
 
-def km_sequencer_editor_tool_rotate(params):
+def km_sequencer_preview_tool_rotate(params):
     return (
         "Preview Tool: Rotate",
         {"space_type": 'SEQUENCE_EDITOR', "region_type": 'WINDOW'},
@@ -8267,7 +8267,7 @@ def km_sequencer_editor_tool_rotate(params):
     )
 
 
-def km_sequencer_editor_tool_scale(params):
+def km_sequencer_preview_tool_scale(params):
     return (
         "Preview Tool: Scale",
         {"space_type": 'SEQUENCE_EDITOR', "region_type": 'WINDOW'},
@@ -8546,20 +8546,20 @@ def generate_keymaps(params=None):
         km_3d_view_tool_paint_grease_pencil_primitive_circle(params),
         km_3d_view_tool_paint_grease_pencil_primitive_arc(params),
         km_3d_view_tool_paint_grease_pencil_primitive_curve(params),
-        *(km_sequencer_editor_tool_generic_select_box_timeline(params, fallback=fallback)
+        *(km_sequencer_tool_generic_select_box(params, fallback=fallback)
           for fallback in (False, True)),
-        *(km_sequencer_editor_tool_generic_select_preview(params, fallback=fallback)
+        *(km_sequencer_preview_tool_generic_select(params, fallback=fallback)
           for fallback in (False, True)),
-        *(km_sequencer_editor_tool_generic_select_box_preview(params, fallback=fallback)
+        *(km_sequencer_preview_tool_generic_select_box(params, fallback=fallback)
           for fallback in (False, True)),
         km_3d_view_tool_paint_grease_pencil_trim(params),
         km_3d_view_tool_edit_grease_pencil_texture_gradient(params),
-        km_sequencer_editor_tool_generic_cursor(params),
-        km_sequencer_editor_tool_blade(params),
-        km_sequencer_editor_tool_sample(params),
-        km_sequencer_editor_tool_move(params),
-        km_sequencer_editor_tool_rotate(params),
-        km_sequencer_editor_tool_scale(params),
+        km_sequencer_tool_blade(params),
+        km_sequencer_preview_tool_generic_cursor(params),
+        km_sequencer_preview_tool_sample(params),
+        km_sequencer_preview_tool_move(params),
+        km_sequencer_preview_tool_rotate(params),
+        km_sequencer_preview_tool_scale(params),
         km_3d_view_tool_edit_grease_pencil_interpolate(params),
         km_3d_view_tool_paint_grease_pencil_interpolate(params),
         km_3d_view_tool_paint_grease_pencil_eyedropper(params),
