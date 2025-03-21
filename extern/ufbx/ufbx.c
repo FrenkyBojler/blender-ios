@@ -5198,6 +5198,7 @@ static const char ufbxi_Edges[] = "Edges";
 static const char ufbxi_EmissiveColor[] = "EmissiveColor";
 static const char ufbxi_Entry[] = "Entry";
 static const char ufbxi_FBXHeaderExtension[] = "FBXHeaderExtension";
+static const char ufbxi_FBXHeaderVersion[] = "FBXHeaderVersion";
 static const char ufbxi_FBXVersion[] = "FBXVersion";
 static const char ufbxi_FKEffector[] = "FKEffector";
 static const char ufbxi_FarPlane[] = "FarPlane";
@@ -5307,6 +5308,7 @@ static const char ufbxi_OriginalUnitScaleFactor[] = "OriginalUnitScaleFactor";
 static const char ufbxi_OriginalUpAxis[] = "OriginalUpAxis";
 static const char ufbxi_OriginalUpAxisSign[] = "OriginalUpAxisSign";
 static const char ufbxi_OrthoZoom[] = "OrthoZoom";
+static const char ufbxi_OtherFlags[] = "OtherFlags";
 static const char ufbxi_OuterAngle[] = "OuterAngle";
 static const char ufbxi_PO[] = "PO\0";
 static const char ufbxi_PP[] = "PP\0";
@@ -5360,6 +5362,7 @@ static const char ufbxi_SpecularColor[] = "SpecularColor";
 static const char ufbxi_Step[] = "Step";
 static const char ufbxi_SubDeformer[] = "SubDeformer";
 static const char ufbxi_T[] = "T\0\0";
+static const char ufbxi_TCDefinition[] = "TCDefinition";
 static const char ufbxi_Take[] = "Take";
 static const char ufbxi_Takes[] = "Takes";
 static const char ufbxi_Tangents[] = "Tangents";
@@ -5493,6 +5496,7 @@ static const ufbx_string ufbxi_strings[] = {
 	{ ufbxi_EmissiveColor, 13 },
 	{ ufbxi_Entry, 5 },
 	{ ufbxi_FBXHeaderExtension, 18 },
+	{ ufbxi_FBXHeaderVersion, 16 },
 	{ ufbxi_FBXVersion, 10 },
 	{ ufbxi_FKEffector, 10 },
 	{ ufbxi_FarPlane, 8 },
@@ -5602,6 +5606,7 @@ static const ufbx_string ufbxi_strings[] = {
 	{ ufbxi_OriginalUpAxis, 14 },
 	{ ufbxi_OriginalUpAxisSign, 18 },
 	{ ufbxi_OrthoZoom, 9 },
+	{ ufbxi_OtherFlags, 10 },
 	{ ufbxi_OuterAngle, 10 },
 	{ ufbxi_PO, 2 },
 	{ ufbxi_PP, 2 },
@@ -5655,6 +5660,7 @@ static const ufbx_string ufbxi_strings[] = {
 	{ ufbxi_Step, 4 },
 	{ ufbxi_SubDeformer, 11 },
 	{ ufbxi_T, 1 },
+	{ ufbxi_TCDefinition, 12 },
 	{ ufbxi_Take, 4 },
 	{ ufbxi_Takes, 5 },
 	{ ufbxi_Tangents, 8 },
@@ -11742,9 +11748,9 @@ ufbxi_nodiscard static ufbxi_noinline int ufbxi_read_scene_info(ufbxi_context *u
 
 ufbxi_nodiscard static ufbxi_noinline int ufbxi_read_header_extension(ufbxi_context *uc)
 {
-	// TODO: Read TCDefinition and adjust timestamps
-	uc->ktime_sec = 46186158000;
-	uc->ktime_sec_double = (double)uc->ktime_sec;
+	bool has_tc_definition = false;
+	int32_t tc_definition = 0;
+	int32_t header_version = 0;
 
 	for (;;) {
 		ufbxi_node *child;
@@ -11764,11 +11770,32 @@ ufbxi_nodiscard static ufbxi_noinline int ufbxi_read_header_extension(ufbxi_cont
 			}
 		}
 
+		if (child->name == ufbxi_FBXHeaderVersion) {
+			ufbxi_ignore(ufbxi_get_val1(child, "I", &header_version));
+		}
+
+		if (child->name == ufbxi_OtherFlags) {
+			if (ufbxi_find_val1(child, ufbxi_TCDefinition, "I", &tc_definition)) {
+				has_tc_definition = true;
+			}
+		}
+
 		if (child->name == ufbxi_SceneInfo) {
 			ufbxi_check(ufbxi_read_scene_info(uc, child));
 		}
 
 	}
+
+	// FBX 8000 will change the KTime units and the new units are opt-in currently via `TCDefinition`.
+	// `TCDefinition` seems be accounted in all versions, as long as `FBXHeaderVersion >= 1004`.
+	// The old KTime units are specified as the value `127` and all other values seem to use the new definition.
+	bool use_v7_ktime = uc->version < 8000;
+	if (header_version >= 1004 && has_tc_definition) {
+		use_v7_ktime = tc_definition == 127;
+	}
+
+	uc->ktime_sec = use_v7_ktime ? 46186158000 : 141120000;
+	uc->ktime_sec_double = (double)uc->ktime_sec;
 
 	return 1;
 }
