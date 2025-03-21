@@ -1,3 +1,4 @@
 Referenced by commit bf072eeb08b, Fix: Grease Pencil: Mask icon for layer groups is not correct
 Referenced by pull request #135225, Fix: Grease Pencil: Add channel_color RNA prop to layer groups
 Referenced by commit 9d12ac29ea2589a57ac21faa91e985b0e3588705, Fix: Grease Pencil: Add channel_color RNA prop to layer groups
+Referenced by pull request #136297, Cleanup: Remove duplicated channel color RNA property
