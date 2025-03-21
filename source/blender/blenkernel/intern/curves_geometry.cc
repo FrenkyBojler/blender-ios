@@ -23,6 +23,7 @@
 #include "BLO_read_write.hh"
 
 #include "DNA_curves_types.h"
+#include "DNA_material_types.h"
 
 #include "BKE_attribute.hh"
 #include "BKE_attribute_math.hh"
@@ -1241,10 +1242,13 @@ std::optional<Bounds<float3>> CurvesGeometry::bounds_min_max(const bool use_radi
 std::optional<int> CurvesGeometry::material_index_max() const
 {
   this->runtime->max_material_index_cache.ensure([&](std::optional<int> &r_max_material_index) {
-    r_max_material_index = blender::bounds::max<int>(
-        this->attributes()
-            .lookup_or_default<int>("material_index", blender::bke::AttrDomain::Curve, 0)
-            .varray);
+    r_max_material_index = std::clamp(
+        *blender::bounds::max<int>(
+            this->attributes()
+                .lookup_or_default<int>("material_index", blender::bke::AttrDomain::Curve, 0)
+                .varray),
+        0,
+        MAXMAT);
   });
   return this->runtime->max_material_index_cache.data();
 }
