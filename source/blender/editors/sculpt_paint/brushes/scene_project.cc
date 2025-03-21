@@ -123,6 +123,10 @@ static float3 calc_world_normal(const float4x4 &mat, const Brush &brush, const S
       break;
   }
 
+  if (cache.initial_direction_flipped) {
+    object_normal *= -1.0f;
+  }
+
   return math::transform_direction(mat, object_normal);
 }
 
