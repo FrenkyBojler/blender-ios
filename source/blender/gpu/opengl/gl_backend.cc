@@ -311,8 +311,8 @@ static void detect_workarounds()
     GCaps.mip_render_workaround = true;
     GCaps.stencil_clasify_buffer_workaround = true;
     GCaps.node_link_instancing_workaround = true;
+    GCaps.line_directive_workaround = true;
     GLContext::debug_layer_workaround = true;
-    GLContext::line_directive_workaround = true;
     /* Turn off Blender features. */
     GCaps.hdr_viewport_support = false;
     /* Turn off OpenGL 4.4 features. */
@@ -410,7 +410,7 @@ static void detect_workarounds()
     if (strstr(version, " 22.6.1 ") || strstr(version, " 21.Q1.2 ") ||
         strstr(version, " 21.Q2.1 "))
     {
-      GLContext::line_directive_workaround = true;
+      GCaps.line_directive_workaround = true;
     }
   }
 
@@ -547,7 +547,6 @@ bool GLContext::texture_filter_anisotropic_support = false;
 bool GLContext::debug_layer_workaround = false;
 bool GLContext::unused_fb_slot_workaround = false;
 bool GLContext::generate_mipmap_workaround = false;
-bool GLContext::line_directive_workaround = false;
 
 void GLBackend::capabilities_init()
 {

@@ -1434,15 +1434,6 @@ std::string GLSources::to_string() const
       result.append(source.source);
     }
   }
-
-  if (GLContext::line_directive_workaround) {
-    size_t start_pos = 0;
-    while ((start_pos = result.find("#line ", start_pos)) != std::string::npos) {
-      result[start_pos] = '/';
-      result[start_pos + 1] = '/';
-    }
-  }
-
   return result;
 }
 
