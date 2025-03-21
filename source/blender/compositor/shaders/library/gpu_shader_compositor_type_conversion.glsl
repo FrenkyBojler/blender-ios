@@ -116,7 +116,7 @@ vec4 float2_to_float4(vec2 value)
 
 bool float2_to_bool(vec2 value)
 {
-  return value != vec2(0.0);
+  return !all(equal(value, vec2(0.0)));
 }
 
 /* --------------------------------------------------------------------
@@ -155,7 +155,7 @@ vec4 float3_to_float4(vec3 value)
 
 bool float3_to_bool(vec3 value)
 {
-  return value != vec3(0.0);
+  return !all(equal(value, vec3(0.0)));
 }
 
 /* --------------------------------------------------------------------
@@ -233,7 +233,7 @@ vec4 float4_to_color(vec4 value)
 
 bool float4_to_bool(vec4 value)
 {
-  return value != vec4(0.0);
+  return !all(equal(value, vec4(0.0)));
 }
 
 /* --------------------------------------------------------------------
@@ -272,7 +272,7 @@ vec4 int2_to_float4(ivec2 value)
 
 bool int2_to_bool(ivec2 value)
 {
-  return value != ivec2(0);
+  return !all(equal(value, ivec2(0)));
 }
 
 /* --------------------------------------------------------------------
