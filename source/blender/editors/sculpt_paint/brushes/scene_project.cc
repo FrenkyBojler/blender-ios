@@ -41,6 +41,7 @@ struct LocalData {
 static void raycast(const Span<Object *> target_objects,
                     const Span<float3> positions,
                     const float3 &normal,
+                    const Span<float> factors,
                     const MutableSpan<float> r_hit_distances)
 {
   r_hit_distances.fill(std::numeric_limits<float>::max());
@@ -54,6 +55,10 @@ static void raycast(const Span<Object *> target_objects,
     }
 
     for (const int j : positions.index_range()) {
+     if (factors[j] == 0.0f) {
+        continue;
+     }
+
       BVHTreeRayHit hit;
       hit.dist = std::numeric_limits<float>::max();
 
@@ -138,7 +143,7 @@ static void calc_faces(const Depsgraph &depsgraph,
 
   tls.hit_distances.resize(verts.size());
   const MutableSpan<float> hit_distances = tls.hit_distances;
-  raycast(ss.cache->target_objects, world_positions, world_normal, hit_distances);
+  raycast(ss.cache->target_objects, world_positions, world_normal, tls.factors, hit_distances);
 
   tls.translations.resize(verts.size());
   const MutableSpan<float3> world_translations = tls.translations;
