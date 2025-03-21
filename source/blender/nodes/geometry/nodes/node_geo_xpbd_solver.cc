@@ -1174,7 +1174,8 @@ static SolverResult solver_result_from_eigen(const Eigen::ComputationInfo comput
 
 SolverResult solve_global_system(const GlobalSolverSystem &system,
                                  ConstraintVariables &variables,
-                                 MutableSpan<ConstraintEvalData> constraint_data)
+                                 MutableSpan<ConstraintEvalData> constraint_data,
+                                 Eigen::VectorXf *r_solution)
 {
   constexpr bool linearized_quaternion = true;
 
@@ -1247,6 +1248,9 @@ SolverResult solve_global_system(const GlobalSolverSystem &system,
     prev_rows = lambda_rows;
   }
 
+  if (r_solution) {
+    *r_solution = std::move(x);
+  }
   return result;
 }
 

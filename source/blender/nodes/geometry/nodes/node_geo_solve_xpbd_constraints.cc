@@ -15,6 +15,14 @@
 
 #include <fmt/format.h>
 
+#if 1 /* Debug stuff */
+#  include "BKE_global.hh"
+#  include "BKE_main.hh"
+#  include "BLI_fileops.hh"
+#  include "BLI_path_utils.hh"
+#  include <iostream>
+#endif
+
 namespace blender::nodes::node_geo_solve_xpbd_constraints_cc {
 
 using xpbd_constraints::ConstraintEvalData;
@@ -158,33 +166,80 @@ static void node_declare_velocities(NodeDeclarationBuilder &b)
       .align_with_previous();
 }
 
+static void output_solver_matrix(const Eigen::SparseMatrix<float> &matrix,
+                                 const Eigen::VectorXf &target,
+                                 const Eigen::VectorXf &solution)
+{
+  FILE *fp;
+  char filepath[FILENAME_MAX] = "//system_matrix.txt";
+  BLI_path_abs(filepath, BKE_main_blendfile_path(G.main));
+
+  /* Check if file write permission is ok. */
+  if (BLI_exists(filepath) && !BLI_file_is_writable(filepath)) {
+    return;
+  }
+
+  fstream fs(filepath, std::ios_base::out);
+  if (!fs) {
+    return;
+  }
+
+  Eigen::IOFormat format;
+  fs << "---------------- MATRIX ----------------" << std::endl;
+  fs << matrix.toDense().format(format) << std::endl;
+  fs << "---------------- TARGET ----------------" << std::endl;
+  fs << target.format(format) << std::endl;
+  fs << "---------------- SOLUTION ----------------" << std::endl;
+  fs << solution.format(format) << std::endl;
+
+  fs.close();
+}
+
 static void do_global_solve(const EvaluationTarget /*target*/,
                             const ConstraintEvalParams &eval_params,
                             MutableSpan<ConstraintEvalData> constraint_data,
                             ConstraintVariables &variables)
 {
+  constexpr bool debug_output = true;
+
   IndexMaskMemory memory;
   xpbd_constraints::GlobalSolverSystem system = build_global_solve_system(
       eval_params, constraint_data, variables, eval_params.debug_check, memory);
 
+  Eigen::VectorXf solution;
   xpbd_constraints::SolverResult result = xpbd_constraints::solve_global_system(
-      system, variables, constraint_data);
+      system, variables, constraint_data, debug_output ? &solution : nullptr);
   // BLI_assert(result == xpbd_constraints::SolverResult::Success);
   if (result != xpbd_constraints::SolverResult::Success) {
+    switch (result) {
+      case xpbd_constraints::SolverResult::NumericalIssue:
+        eval_params.error_message_add("Global Solver: Numerical Issue");
+        break;
+      case xpbd_constraints::SolverResult::NoConvergence:
+        eval_params.error_message_add("Global Solver: No Convergence");
+        break;
+      case xpbd_constraints::SolverResult::InvalidInput:
+        eval_params.error_message_add("Global Solver: Invalid Input");
+        break;
+    }
     return;
   }
 
-  // if (false) {
-  //   const int max_rows = 100;
-  //   const int max_cols = 100;
+  if (debug_output) {
+    const int max_rows = 200;
+    const int max_cols = 200;
 
-  //   const Eigen::IOFormat format;
-  //   const auto matrix_view = system.matrix.block(0,
-  //                                                0,
-  //                                                std::min(int(system.matrix.rows()), max_rows),
-  //                                                std::min(int(system.matrix.cols()), max_cols));
-  //   std::cout << matrix_view.toDense().format(format) << std::endl;
-  // }
+    const auto matrix_view = system.matrix.block(0,
+                                                 0,
+                                                 std::min(int(system.matrix.rows()), max_rows),
+                                                 std::min(int(system.matrix.cols()), max_cols));
+    const auto target_view = system.target.block(
+        0, 0, std::min(int(system.target.rows()), max_cols), 1);
+    const auto solution_view = solution.block(
+        0, 0, std::min(int(system.target.rows()), max_cols), 1);
+    // std::cout << matrix_view.toDense().format(format) << std::endl;
+    output_solver_matrix(matrix_view, target_view, solution_view);
+  }
 }
 
 static void do_gauss_seidel_step(const EvaluationTarget target,

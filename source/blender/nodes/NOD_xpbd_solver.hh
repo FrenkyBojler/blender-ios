@@ -85,7 +85,8 @@ GlobalSolverSystem build_global_solve_system(const ConstraintEvalParams &params,
 
 SolverResult solve_global_system(const GlobalSolverSystem &system,
                                  ConstraintVariables &variables,
-                                 MutableSpan<ConstraintEvalData> constraint_data);
+                                 MutableSpan<ConstraintEvalData> constraint_data,
+                                 Eigen::VectorXf *r_solution = nullptr);
 
 void apply_gauss_seidel_positions_group(const ConstraintEvalParams &eval_params,
                                         const ConstraintTypeInfo &constraint_info,
