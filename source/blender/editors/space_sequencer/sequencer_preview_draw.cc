@@ -160,7 +160,7 @@ ImBuf *sequencer_ibuf_get(const bContext *C,
   rectx = roundf(render_size * scene->r.xsch);
   recty = roundf(render_size * scene->r.ysch);
 
-  seq::render_new_render_data(
+  seq::render_data_get_new(
       bmain, depsgraph, scene, rectx, recty, sseq->render_size, false, &context);
   context.view_id = BKE_scene_multiview_view_id_get(&scene->r, viewname);
   context.use_proxies = (sseq->flag & SEQ_USE_PROXIES) != 0;
@@ -183,8 +183,7 @@ ImBuf *sequencer_ibuf_get(const bContext *C,
   }
 
   if (special_preview_get()) {
-    ibuf = seq::render_give_ibuf_direct(
-        &context, timeline_frame + frame_ofs, special_preview_get());
+    ibuf = seq::render_strip_solo(&context, timeline_frame + frame_ofs, special_preview_get());
   }
   else {
     ibuf = seq::render_give_ibuf(&context, timeline_frame + frame_ofs, sseq->chanshown);

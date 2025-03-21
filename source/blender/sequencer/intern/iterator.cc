@@ -144,7 +144,7 @@ static bool must_render_strip(const VectorSet<Strip *> &strips, Strip *strip)
     }
 
     if ((strip_iter->type & STRIP_TYPE_EFFECT) != 0 &&
-        relation_is_effect_of_strip(strip_iter, strip))
+        relations_is_effect_of_strip(strip_iter, strip))
     {
       /* Strips in same channel or higher than its effect are rendered. */
       if (strip->machine >= strip_iter->machine) {

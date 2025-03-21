@@ -22,11 +22,11 @@ namespace blender::seq {
 /**
  * Check if one sequence is input to the other.
  */
-bool relation_is_effect_of_strip(const Strip *effect, const Strip *input);
+bool relations_is_effect_of_strip(const Strip *effect, const Strip *input);
 /**
  * Function to free imbuf and anim data on changes.
  */
-void relations_sequence_free_anim(Strip *strip);
+void free_strip_anim(Strip *strip);
 bool relations_check_scene_recursion(Scene *scene, ReportList *reports);
 /**
  * Check if "strip_main" (indirectly) uses strip "strip".
@@ -46,7 +46,7 @@ void relations_invalidate_cache_in_range(Scene *scene,
 /**
  * Release FFmpeg handles of strips that are not currently displayed to minimize memory usage.
  */
-void relations_free_all_anim_ibufs(Scene *scene, int timeline_frame);
+void relations_free_all_movie_buffers(Scene *scene, int timeline_frame);
 /**
  * A debug and development function which checks whether sequences have unique UIDs.
  * Errors will be reported to the console.
@@ -66,9 +66,9 @@ void cache_iterate(
 /**
  * Return immediate parent meta of sequence.
  */
-Strip *find_metastrip_by_sequence(ListBase *seqbase /* = ed->seqbase */,
-                                  Strip *meta /* = NULL */,
-                                  Strip *strip);
+Strip *find_metastrip_by_strip(ListBase *seqbase /* = ed->seqbase */,
+                               Strip *meta /* = NULL */,
+                               Strip *strip);
 bool exists_in_seqbase(const Strip *strip, const ListBase *seqbase);
 
 }  // namespace blender::seq

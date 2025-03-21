@@ -41,7 +41,7 @@ void timeline_boundbox(const Scene *scene, const ListBase *seqbase, rctf *r_rect
  * Get FPS rate of source media. Movie, scene and movie-clip strips are supported.
  * Returns 0 for unsupported strip or if media can't be loaded.
  */
-float time_sequence_get_fps(Scene *scene, Strip *strip);
+float strip_media_fps_get(Scene *scene, Strip *strip);
 /**
  * Find start or end position of next or previous strip.
  * \param scene: Video editing scene

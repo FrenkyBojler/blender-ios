@@ -20,13 +20,13 @@
 
 namespace blender::seq {
 
-void seq_anim_add_suffix(Scene *scene, MovieReader *anim, const int view_id)
+void multiview_add_suffix(Scene *scene, MovieReader *anim, const int view_id)
 {
   const char *suffix = BKE_scene_multiview_view_id_suffix_get(&scene->r, view_id);
   MOV_set_multiview_suffix(anim, suffix);
 }
 
-int seq_num_files(Scene *scene, char views_format, const bool is_multiview)
+int multiview_num_files(Scene *scene, char views_format, const bool is_multiview)
 {
   if (!is_multiview) {
     return 1;
@@ -39,12 +39,12 @@ int seq_num_files(Scene *scene, char views_format, const bool is_multiview)
   return BKE_scene_multiview_num_views_get(&scene->r);
 }
 
-void seq_multiview_name(Scene *scene,
-                        const int view_id,
-                        const char *prefix,
-                        const char *ext,
-                        char *r_path,
-                        size_t r_size)
+void multiview_filepath_get(Scene *scene,
+                            const int view_id,
+                            const char *prefix,
+                            const char *ext,
+                            char *r_path,
+                            size_t r_size)
 {
   const char *suffix = BKE_scene_multiview_view_id_suffix_get(&scene->r, view_id);
   BLI_assert(ext != nullptr && suffix != nullptr && prefix != nullptr);

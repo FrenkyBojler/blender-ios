@@ -466,14 +466,14 @@ static void screen_opengl_render_apply(OGLRender *oglrender)
     SpaceSeq *sseq = oglrender->sseq;
     int chanshown = sseq ? sseq->chanshown : 0;
 
-    blender::seq::render_new_render_data(oglrender->bmain,
-                                         oglrender->depsgraph,
-                                         scene,
-                                         oglrender->sizex,
-                                         oglrender->sizey,
-                                         SEQ_RENDER_SIZE_SCENE,
-                                         false,
-                                         &context);
+    blender::seq::render_data_get_new(oglrender->bmain,
+                                      oglrender->depsgraph,
+                                      scene,
+                                      oglrender->sizex,
+                                      oglrender->sizey,
+                                      SEQ_RENDER_SIZE_SCENE,
+                                      false,
+                                      &context);
 
     for (view_id = 0; view_id < oglrender->views_len; view_id++) {
       context.view_id = view_id;

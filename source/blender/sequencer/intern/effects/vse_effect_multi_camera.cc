@@ -47,14 +47,13 @@ static ImBuf *do_multicam(const RenderData *context,
   if (!ed) {
     return nullptr;
   }
-  ListBase *seqbasep = get_seqbase_by_seq(context->scene, strip);
+  ListBase *seqbasep = seqbase_by_strip_get(context->scene, strip);
   ListBase *channels = get_channels_by_seq(&ed->seqbase, &ed->channels, strip);
   if (!seqbasep) {
     return nullptr;
   }
 
-  out = seq_render_give_ibuf_seqbase(
-      context, timeline_frame, strip->multicam_source, channels, seqbasep);
+  out = render_seqbase(context, timeline_frame, strip->multicam_source, channels, seqbasep);
 
   return out;
 }

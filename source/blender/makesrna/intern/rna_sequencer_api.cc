@@ -62,19 +62,19 @@ static void rna_Strip_swap_internal(ID *id,
   const char *error_msg;
   Scene *scene = (Scene *)id;
 
-  if (blender::seq::edit_sequence_swap(scene, strip_self, strip_other, &error_msg) == false) {
+  if (blender::seq::strip_swap(scene, strip_self, strip_other, &error_msg) == false) {
     BKE_report(reports, RPT_ERROR, error_msg);
   }
 }
 
-static void rna_Strips_move_strip_to_meta(
+static void rna_Strips_strip_move_to_meta(
     ID *id, Strip *strip_self, Main *bmain, ReportList *reports, Strip *meta_dst)
 {
   Scene *scene = (Scene *)id;
   const char *error_msg;
 
   /* Move strip to meta. */
-  if (!blender::seq::edit_move_strip_to_meta(scene, strip_self, meta_dst, &error_msg)) {
+  if (!blender::seq::strip_move_to_meta(scene, strip_self, meta_dst, &error_msg)) {
     BKE_report(reports, RPT_ERROR, error_msg);
   }
 
@@ -91,10 +91,10 @@ static Strip *rna_Strip_split(
     ID *id, Strip *strip, Main *bmain, ReportList *reports, int frame, int split_method)
 {
   Scene *scene = (Scene *)id;
-  ListBase *seqbase = blender::seq::get_seqbase_by_seq(scene, strip);
+  ListBase *seqbase = blender::seq::seqbase_by_strip_get(scene, strip);
 
   const char *error_msg = nullptr;
-  Strip *r_seq = blender::seq::edit_strip_split(
+  Strip *r_seq = blender::seq::strip_split(
       bmain, scene, seqbase, strip, frame, blender::seq::eSplitMethod(split_method), &error_msg);
   if (error_msg != nullptr) {
     BKE_report(reports, RPT_ERROR, error_msg);
@@ -114,7 +114,7 @@ static Strip *rna_Strip_parent_meta(ID *id, Strip *strip_self)
   Scene *scene = (Scene *)id;
   Editing *ed = blender::seq::editing_get(scene);
 
-  return blender::seq::find_metastrip_by_sequence(&ed->seqbase, nullptr, strip_self);
+  return blender::seq::find_metastrip_by_strip(&ed->seqbase, nullptr, strip_self);
 }
 
 static Strip *rna_Strips_new_clip(ID *id,
@@ -267,9 +267,9 @@ static Strip *rna_Strips_new_image(ID *id,
 
   char dirpath[FILE_MAX], filename[FILE_MAXFILE];
   BLI_path_split_dir_file(file, dirpath, sizeof(dirpath), filename, sizeof(filename));
-  blender::seq::add_image_set_directory(strip, dirpath);
-  blender::seq::add_image_load_file(scene, strip, 0, filename);
-  blender::seq::add_image_init_alpha_mode(strip);
+  blender::seq::image_strip_directory_set(strip, dirpath);
+  blender::seq::image_strip_file_load(scene, strip, 0, filename);
+  blender::seq::image_strip_alpha_mode_init(strip);
 
   DEG_relations_tag_update(bmain);
   DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
@@ -571,8 +571,8 @@ static void rna_Strips_remove(
     return;
   }
 
-  blender::seq::edit_flag_for_removal(scene, seqbase, strip);
-  blender::seq::edit_remove_flagged_sequences(scene, seqbase);
+  blender::seq::flag_strips_for_removal(scene, seqbase, strip);
+  blender::seq::remove_flagged_strips(scene, seqbase);
   strip_ptr->invalidate();
 
   DEG_relations_tag_update(bmain);
@@ -731,7 +731,7 @@ void RNA_api_strip(StructRNA *srna)
   parm = RNA_def_pointer(func, "other", "Strip", "Other", "");
   RNA_def_parameter_flags(parm, PROP_NEVER_NULL, PARM_REQUIRED);
 
-  func = RNA_def_function(srna, "move_to_meta", "rna_Strips_move_strip_to_meta");
+  func = RNA_def_function(srna, "move_to_meta", "rna_Strips_strip_move_to_meta");
   RNA_def_function_flag(func, FUNC_USE_REPORTS | FUNC_USE_SELF_ID | FUNC_USE_MAIN);
   parm = RNA_def_pointer(
       func, "meta_sequence", "Strip", "Destination Meta Strip", "Meta to move the strip into");

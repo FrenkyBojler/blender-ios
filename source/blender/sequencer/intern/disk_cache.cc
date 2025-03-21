@@ -76,7 +76,7 @@ struct DiskCacheHeader {
   DiskCacheHeaderEntry entry[DCACHE_IMAGES_PER_FILE];
 };
 
-struct SeqDiskCache {
+struct DiskCache {
   Main *bmain;
   int64_t timestamp;
   ListBase files;
@@ -100,12 +100,12 @@ struct DiskCacheFile {
 
 static ThreadMutex cache_create_lock = BLI_MUTEX_INITIALIZER;
 
-static const char *seq_disk_cache_base_dir()
+static const char *disk_cache_base_dir()
 {
   return U.sequencer_disk_cache_dir;
 }
 
-static int seq_disk_cache_compression_level()
+static int disk_cache_compression_level()
 {
   switch (U.sequencer_disk_cache_compression) {
     case USER_SEQ_DISK_CACHE_COMPRESSION_NONE:
@@ -119,20 +119,19 @@ static int seq_disk_cache_compression_level()
   return U.sequencer_disk_cache_compression;
 }
 
-static size_t seq_disk_cache_size_limit()
+static size_t disk_cache_size_limit()
 {
   return size_t(U.sequencer_disk_cache_size_limit) * (1024 * 1024 * 1024);
 }
 
-bool seq_disk_cache_is_enabled(Main *bmain)
+bool disk_cache_is_enabled(Main *bmain)
 {
   return (U.sequencer_disk_cache_dir[0] != '\0' && U.sequencer_disk_cache_size_limit != 0 &&
           (U.sequencer_disk_cache_flag & SEQ_CACHE_DISK_CACHE_ENABLE) != 0 &&
           bmain->filepath[0] != '\0');
 }
 
-static DiskCacheFile *seq_disk_cache_add_file_to_list(SeqDiskCache *disk_cache,
-                                                      const char *filepath)
+static DiskCacheFile *disk_cache_add_file_to_list(DiskCache *disk_cache, const char *filepath)
 {
 
   DiskCacheFile *cache_file = MEM_callocN<DiskCacheFile>("SeqDiskCacheFile");
@@ -154,7 +153,7 @@ static DiskCacheFile *seq_disk_cache_add_file_to_list(SeqDiskCache *disk_cache,
   return cache_file;
 }
 
-static void seq_disk_cache_get_files(SeqDiskCache *disk_cache, const char *dirpath)
+static void disk_cache_get_files(DiskCache *disk_cache, const char *dirpath)
 {
   direntry *filelist, *fl;
   uint i;
@@ -179,13 +178,13 @@ static void seq_disk_cache_get_files(SeqDiskCache *disk_cache, const char *dirpa
       char subpath[FILE_MAX];
       STRNCPY(subpath, fl->path);
       BLI_path_slash_ensure(subpath, sizeof(subpath));
-      seq_disk_cache_get_files(disk_cache, subpath);
+      disk_cache_get_files(disk_cache, subpath);
     }
 
     if (!is_dir) {
       const char *ext = BLI_path_extension(fl->path);
       if (ext && ext[1] == 'd' && ext[2] == 'c' && ext[3] == 'f') {
-        DiskCacheFile *cache_file = seq_disk_cache_add_file_to_list(disk_cache, fl->path);
+        DiskCacheFile *cache_file = disk_cache_add_file_to_list(disk_cache, fl->path);
         cache_file->fstat = fl->s;
         disk_cache->size_total += cache_file->fstat.st_size;
       }
@@ -195,7 +194,7 @@ static void seq_disk_cache_get_files(SeqDiskCache *disk_cache, const char *dirpa
   BLI_filelist_free(filelist, filelist_num);
 }
 
-static DiskCacheFile *seq_disk_cache_get_oldest_file(SeqDiskCache *disk_cache)
+static DiskCacheFile *disk_cache_get_oldest_file(DiskCache *disk_cache)
 {
   DiskCacheFile *oldest_file = static_cast<DiskCacheFile *>(disk_cache->files.first);
   if (oldest_file == nullptr) {
@@ -210,7 +209,7 @@ static DiskCacheFile *seq_disk_cache_get_oldest_file(SeqDiskCache *disk_cache)
   return oldest_file;
 }
 
-static void seq_disk_cache_delete_file(SeqDiskCache *disk_cache, DiskCacheFile *file)
+static void disk_cache_delete_file(DiskCache *disk_cache, DiskCacheFile *file)
 {
   disk_cache->size_total -= file->fstat.st_size;
   BLI_delete(file->filepath, false, false);
@@ -218,34 +217,34 @@ static void seq_disk_cache_delete_file(SeqDiskCache *disk_cache, DiskCacheFile *
   MEM_freeN(file);
 }
 
-bool seq_disk_cache_enforce_limits(SeqDiskCache *disk_cache)
+bool disk_cache_enforce_limits(DiskCache *disk_cache)
 {
   BLI_mutex_lock(&disk_cache->read_write_mutex);
-  while (disk_cache->size_total > seq_disk_cache_size_limit()) {
-    DiskCacheFile *oldest_file = seq_disk_cache_get_oldest_file(disk_cache);
+  while (disk_cache->size_total > disk_cache_size_limit()) {
+    DiskCacheFile *oldest_file = disk_cache_get_oldest_file(disk_cache);
 
     if (!oldest_file) {
       /* We shouldn't enforce limits with no files, do re-scan. */
-      seq_disk_cache_get_files(disk_cache, seq_disk_cache_base_dir());
+      disk_cache_get_files(disk_cache, disk_cache_base_dir());
       continue;
     }
 
     if (BLI_exists(oldest_file->filepath) == 0) {
       /* File may have been manually deleted during runtime, do re-scan. */
       BLI_freelistN(&disk_cache->files);
-      seq_disk_cache_get_files(disk_cache, seq_disk_cache_base_dir());
+      disk_cache_get_files(disk_cache, disk_cache_base_dir());
       continue;
     }
 
-    seq_disk_cache_delete_file(disk_cache, oldest_file);
+    disk_cache_delete_file(disk_cache, oldest_file);
   }
   BLI_mutex_unlock(&disk_cache->read_write_mutex);
 
   return true;
 }
 
-static DiskCacheFile *seq_disk_cache_get_file_entry_by_path(SeqDiskCache *disk_cache,
-                                                            const char *filepath)
+static DiskCacheFile *disk_cache_get_file_entry_by_path(DiskCache *disk_cache,
+                                                        const char *filepath)
 {
   DiskCacheFile *cache_file = static_cast<DiskCacheFile *>(disk_cache->files.first);
 
@@ -259,13 +258,13 @@ static DiskCacheFile *seq_disk_cache_get_file_entry_by_path(SeqDiskCache *disk_c
 }
 
 /* Update file size and timestamp. */
-static void seq_disk_cache_update_file(SeqDiskCache *disk_cache, const char *filepath)
+static void disk_cache_update_file(DiskCache *disk_cache, const char *filepath)
 {
   DiskCacheFile *cache_file;
   int64_t size_before;
   int64_t size_after;
 
-  cache_file = seq_disk_cache_get_file_entry_by_path(disk_cache, filepath);
+  cache_file = disk_cache_get_file_entry_by_path(disk_cache, filepath);
   size_before = cache_file->fstat.st_size;
 
   if (BLI_stat(filepath, &cache_file->fstat) == -1) {
@@ -281,25 +280,25 @@ static void seq_disk_cache_update_file(SeqDiskCache *disk_cache, const char *fil
  * <cache dir>/<project name>_seq_cache/<scene name>-<timestamp>/<strip name>/DCACHE_FNAME_FORMAT
  */
 
-static void seq_disk_cache_get_project_dir(SeqDiskCache *disk_cache,
-                                           char *dirpath,
-                                           size_t dirpath_maxncpy)
+static void disk_cache_get_project_dir(DiskCache *disk_cache,
+                                       char *dirpath,
+                                       size_t dirpath_maxncpy)
 {
   char cache_dir[FILE_MAX];
   const char *blendfile_path = BKE_main_blendfile_path(disk_cache->bmain);
   /* Use suffix, so that the cache directory name does not conflict with the bmain's blend file. */
   SNPRINTF(cache_dir, "%s_seq_cache", BLI_path_basename(blendfile_path));
-  BLI_path_join(dirpath, dirpath_maxncpy, seq_disk_cache_base_dir(), cache_dir);
+  BLI_path_join(dirpath, dirpath_maxncpy, disk_cache_base_dir(), cache_dir);
 }
 
-static void seq_disk_cache_get_dir(
-    SeqDiskCache *disk_cache, Scene *scene, Strip *strip, char *dirpath, size_t dirpath_maxncpy)
+static void disk_cache_get_dir(
+    DiskCache *disk_cache, Scene *scene, Strip *strip, char *dirpath, size_t dirpath_maxncpy)
 {
   char scene_name[MAX_ID_NAME + 22]; /* + -%PRId64 */
   char strip_name[STRIP_NAME_MAXSTR];
   char project_dir[FILE_MAX];
 
-  seq_disk_cache_get_project_dir(disk_cache, project_dir, sizeof(project_dir));
+  disk_cache_get_project_dir(disk_cache, project_dir, sizeof(project_dir));
   SNPRINTF(scene_name, "%s-%" PRId64, scene->id.name, disk_cache->timestamp);
   STRNCPY(strip_name, strip->name);
   BLI_path_make_safe_filename(scene_name);
@@ -308,12 +307,12 @@ static void seq_disk_cache_get_dir(
   BLI_path_join(dirpath, dirpath_maxncpy, project_dir, scene_name, strip_name);
 }
 
-static void seq_disk_cache_get_file_path(SeqDiskCache *disk_cache,
-                                         SeqCacheKey *key,
-                                         char *filepath,
-                                         size_t filepath_maxncpy)
+static void disk_cache_get_file_path(DiskCache *disk_cache,
+                                     CacheKey *key,
+                                     char *filepath,
+                                     size_t filepath_maxncpy)
 {
-  seq_disk_cache_get_dir(disk_cache, key->context.scene, key->strip, filepath, filepath_maxncpy);
+  disk_cache_get_dir(disk_cache, key->context.scene, key->strip, filepath, filepath_maxncpy);
   int frameno = int(key->frame_index) / DCACHE_IMAGES_PER_FILE;
   char cache_filename[FILE_MAXFILE];
   SNPRINTF(cache_filename,
@@ -328,7 +327,7 @@ static void seq_disk_cache_get_file_path(SeqDiskCache *disk_cache,
   BLI_path_append(filepath, filepath_maxncpy, cache_filename);
 }
 
-static void seq_disk_cache_create_version_file(const char *filepath)
+static void disk_cache_create_version_file(const char *filepath)
 {
   BLI_file_ensure_parent_dir_exists(filepath);
 
@@ -339,13 +338,13 @@ static void seq_disk_cache_create_version_file(const char *filepath)
   }
 }
 
-static void seq_disk_cache_handle_versioning(SeqDiskCache *disk_cache)
+static void disk_cache_handle_versioning(DiskCache *disk_cache)
 {
   char dirpath[FILE_MAX];
   char path_version_file[FILE_MAX];
   int version = 0;
 
-  seq_disk_cache_get_project_dir(disk_cache, dirpath, sizeof(dirpath));
+  disk_cache_get_project_dir(disk_cache, dirpath, sizeof(dirpath));
   BLI_path_join(path_version_file, sizeof(path_version_file), dirpath, "cache_version");
 
   if (BLI_exists(dirpath) && BLI_is_dir(dirpath)) {
@@ -361,34 +360,34 @@ static void seq_disk_cache_handle_versioning(SeqDiskCache *disk_cache)
 
     if (version != DCACHE_CURRENT_VERSION) {
       BLI_delete(dirpath, true, true);
-      seq_disk_cache_create_version_file(path_version_file);
+      disk_cache_create_version_file(path_version_file);
     }
   }
   else {
-    seq_disk_cache_create_version_file(path_version_file);
+    disk_cache_create_version_file(path_version_file);
   }
 }
 
-static void seq_disk_cache_delete_invalid_files(SeqDiskCache *disk_cache,
-                                                Scene *scene,
-                                                Strip *strip,
-                                                int invalidate_types,
-                                                int range_start,
-                                                int range_end)
+static void disk_cache_delete_invalid_files(DiskCache *disk_cache,
+                                            Scene *scene,
+                                            Strip *strip,
+                                            int invalidate_types,
+                                            int range_start,
+                                            int range_end)
 {
   DiskCacheFile *next_file, *cache_file = static_cast<DiskCacheFile *>(disk_cache->files.first);
   char cache_dir[FILE_MAX];
-  seq_disk_cache_get_dir(disk_cache, scene, strip, cache_dir, sizeof(cache_dir));
+  disk_cache_get_dir(disk_cache, scene, strip, cache_dir, sizeof(cache_dir));
   BLI_path_slash_ensure(cache_dir, sizeof(cache_dir));
 
   while (cache_file) {
     next_file = cache_file->next;
     if (cache_file->cache_type & invalidate_types) {
       if (STREQ(cache_dir, cache_file->dir)) {
-        int timeline_frame_start = seq_cache_frame_index_to_timeline_frame(
-            strip, cache_file->start_frame);
+        int timeline_frame_start = cache_frame_index_to_timeline_frame(strip,
+                                                                       cache_file->start_frame);
         if (timeline_frame_start > range_start && timeline_frame_start <= range_end) {
-          seq_disk_cache_delete_file(disk_cache, cache_file);
+          disk_cache_delete_file(disk_cache, cache_file);
         }
       }
     }
@@ -396,11 +395,8 @@ static void seq_disk_cache_delete_invalid_files(SeqDiskCache *disk_cache,
   }
 }
 
-void seq_disk_cache_invalidate(SeqDiskCache *disk_cache,
-                               Scene *scene,
-                               Strip *strip,
-                               Strip *strip_changed,
-                               int invalidate_types)
+void disk_cache_invalidate(
+    DiskCache *disk_cache, Scene *scene, Strip *strip, Strip *strip_changed, int invalidate_types)
 {
   int start;
   int end;
@@ -410,7 +406,7 @@ void seq_disk_cache_invalidate(SeqDiskCache *disk_cache,
   start = time_left_handle_frame_get(scene, strip_changed) - DCACHE_IMAGES_PER_FILE;
   end = time_right_handle_frame_get(scene, strip_changed);
 
-  seq_disk_cache_delete_invalid_files(disk_cache, scene, strip, invalidate_types, start, end);
+  disk_cache_delete_invalid_files(disk_cache, scene, strip, invalidate_types, start, end);
 
   BLI_mutex_unlock(&disk_cache->read_write_mutex);
 }
@@ -452,7 +448,7 @@ static size_t inflate_file_to_imbuf(ImBuf *ibuf, FILE *file, DiskCacheHeaderEntr
   return fread(data, 1, header_entry->size_raw, file);
 }
 
-static bool seq_disk_cache_read_header(FILE *file, DiskCacheHeader *header)
+static bool disk_cache_read_header(FILE *file, DiskCacheHeader *header)
 {
   BLI_fseek(file, 0LL, SEEK_SET);
   const size_t num_items_read = fread(header, sizeof(*header), 1, file);
@@ -474,15 +470,13 @@ static bool seq_disk_cache_read_header(FILE *file, DiskCacheHeader *header)
   return true;
 }
 
-static size_t seq_disk_cache_write_header(FILE *file, const DiskCacheHeader *header)
+static size_t disk_cache_write_header(FILE *file, const DiskCacheHeader *header)
 {
   BLI_fseek(file, 0LL, SEEK_SET);
   return fwrite(header, sizeof(*header), 1, file);
 }
 
-static int seq_disk_cache_add_header_entry(const SeqCacheKey *key,
-                                           ImBuf *ibuf,
-                                           DiskCacheHeader *header)
+static int disk_cache_add_header_entry(const CacheKey *key, ImBuf *ibuf, DiskCacheHeader *header)
 {
   int i;
   uint64_t offset = sizeof(*header);
@@ -532,7 +526,7 @@ static int seq_disk_cache_add_header_entry(const SeqCacheKey *key,
   return i;
 }
 
-static int seq_disk_cache_get_header_entry(const SeqCacheKey *key, const DiskCacheHeader *header)
+static int disk_cache_get_header_entry(const CacheKey *key, const DiskCacheHeader *header)
 {
   for (int i = 0; i < DCACHE_IMAGES_PER_FILE; i++) {
     if (header->entry[i].frameno == key->frame_index) {
@@ -543,13 +537,13 @@ static int seq_disk_cache_get_header_entry(const SeqCacheKey *key, const DiskCac
   return -1;
 }
 
-bool seq_disk_cache_write_file(SeqDiskCache *disk_cache, SeqCacheKey *key, ImBuf *ibuf)
+bool disk_cache_write_file(DiskCache *disk_cache, CacheKey *key, ImBuf *ibuf)
 {
   BLI_mutex_lock(&disk_cache->read_write_mutex);
 
   char filepath[FILE_MAX];
 
-  seq_disk_cache_get_file_path(disk_cache, key, filepath, sizeof(filepath));
+  disk_cache_get_file_path(disk_cache, key, filepath, sizeof(filepath));
   BLI_file_ensure_parent_dir_exists(filepath);
 
   /* Touch the file. */
@@ -560,32 +554,32 @@ bool seq_disk_cache_write_file(SeqDiskCache *disk_cache, SeqCacheKey *key, ImBuf
       BLI_mutex_unlock(&disk_cache->read_write_mutex);
       return false;
     }
-    seq_disk_cache_add_file_to_list(disk_cache, filepath);
+    disk_cache_add_file_to_list(disk_cache, filepath);
   }
 
-  DiskCacheFile *cache_file = seq_disk_cache_get_file_entry_by_path(disk_cache, filepath);
+  DiskCacheFile *cache_file = disk_cache_get_file_entry_by_path(disk_cache, filepath);
   DiskCacheHeader header;
   memset(&header, 0, sizeof(header));
   /* The file may be empty when touched (above).
    * This is fine, don't attempt reading the header in that case. */
-  if (cache_file->fstat.st_size != 0 && !seq_disk_cache_read_header(file, &header)) {
+  if (cache_file->fstat.st_size != 0 && !disk_cache_read_header(file, &header)) {
     fclose(file);
-    seq_disk_cache_delete_file(disk_cache, cache_file);
+    disk_cache_delete_file(disk_cache, cache_file);
     BLI_mutex_unlock(&disk_cache->read_write_mutex);
     return false;
   }
-  int entry_index = seq_disk_cache_add_header_entry(key, ibuf, &header);
+  int entry_index = disk_cache_add_header_entry(key, ibuf, &header);
 
   size_t bytes_written = deflate_imbuf_to_file(
-      ibuf, file, seq_disk_cache_compression_level(), &header.entry[entry_index]);
+      ibuf, file, disk_cache_compression_level(), &header.entry[entry_index]);
 
   if (bytes_written != 0) {
     /* Last step is writing header, as image data can be overwritten,
      * but missing data would cause problems.
      */
     header.entry[entry_index].size_compressed = bytes_written;
-    seq_disk_cache_write_header(file, &header);
-    seq_disk_cache_update_file(disk_cache, filepath);
+    disk_cache_write_header(file, &header);
+    disk_cache_update_file(disk_cache, filepath);
     fclose(file);
 
     BLI_mutex_unlock(&disk_cache->read_write_mutex);
@@ -596,14 +590,14 @@ bool seq_disk_cache_write_file(SeqDiskCache *disk_cache, SeqCacheKey *key, ImBuf
   return false;
 }
 
-ImBuf *seq_disk_cache_read_file(SeqDiskCache *disk_cache, SeqCacheKey *key)
+ImBuf *disk_cache_read_file(DiskCache *disk_cache, CacheKey *key)
 {
   BLI_mutex_lock(&disk_cache->read_write_mutex);
 
   char filepath[FILE_MAX];
   DiskCacheHeader header;
 
-  seq_disk_cache_get_file_path(disk_cache, key, filepath, sizeof(filepath));
+  disk_cache_get_file_path(disk_cache, key, filepath, sizeof(filepath));
   BLI_file_ensure_parent_dir_exists(filepath);
 
   FILE *file = BLI_fopen(filepath, "rb");
@@ -612,12 +606,12 @@ ImBuf *seq_disk_cache_read_file(SeqDiskCache *disk_cache, SeqCacheKey *key)
     return nullptr;
   }
 
-  if (!seq_disk_cache_read_header(file, &header)) {
+  if (!disk_cache_read_header(file, &header)) {
     fclose(file);
     BLI_mutex_unlock(&disk_cache->read_write_mutex);
     return nullptr;
   }
-  int entry_index = seq_disk_cache_get_header_entry(key, &header);
+  int entry_index = disk_cache_get_header_entry(key, &header);
 
   /* Item not found. */
   if (entry_index < 0) {
@@ -659,26 +653,26 @@ ImBuf *seq_disk_cache_read_file(SeqDiskCache *disk_cache, SeqCacheKey *key)
     return nullptr;
   }
   BLI_file_touch(filepath);
-  seq_disk_cache_update_file(disk_cache, filepath);
+  disk_cache_update_file(disk_cache, filepath);
   fclose(file);
 
   BLI_mutex_unlock(&disk_cache->read_write_mutex);
   return ibuf;
 }
 
-SeqDiskCache *seq_disk_cache_create(Main *bmain, Scene *scene)
+DiskCache *disk_cache_create(Main *bmain, Scene *scene)
 {
-  SeqDiskCache *disk_cache = MEM_callocN<SeqDiskCache>("SeqDiskCache");
+  DiskCache *disk_cache = MEM_callocN<DiskCache>("SeqDiskCache");
   disk_cache->bmain = bmain;
   BLI_mutex_init(&disk_cache->read_write_mutex);
-  seq_disk_cache_handle_versioning(disk_cache);
-  seq_disk_cache_get_files(disk_cache, seq_disk_cache_base_dir());
+  disk_cache_handle_versioning(disk_cache);
+  disk_cache_get_files(disk_cache, disk_cache_base_dir());
   disk_cache->timestamp = scene->ed->disk_cache_timestamp;
   BLI_mutex_unlock(&cache_create_lock);
   return disk_cache;
 }
 
-void seq_disk_cache_free(SeqDiskCache *disk_cache)
+void disk_cache_free(DiskCache *disk_cache)
 {
   BLI_freelistN(&disk_cache->files);
   BLI_mutex_end(&disk_cache->read_write_mutex);

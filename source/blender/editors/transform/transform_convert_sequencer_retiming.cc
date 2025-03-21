@@ -80,13 +80,12 @@ static void freeSeqData(TransInfo *t, TransDataContainer *tc, TransCustomData * 
     transformed_strips.add(strip);
   }
 
-  ListBase *seqbasep = seq::active_seqbase_get(ed);
+  ListBase *seqbasep = seq::seqbase_active_get(ed);
   seq::iterator_set_expand(scene, seqbasep, transformed_strips, seq::query_strip_effect_chain);
 
   VectorSet<Strip *> dependant;
   dependant.add_multiple(transformed_strips);
-  dependant.remove_if(
-      [&](Strip *strip) { return seq::transform_sequence_can_be_translated(strip); });
+  dependant.remove_if([&](Strip *strip) { return seq::transform_strip_can_be_translated(strip); });
 
   if (seq_transform_check_overlap(transformed_strips)) {
     const bool use_sync_markers = (((SpaceSeq *)t->area->spacedata.first)->flag &
@@ -161,10 +160,10 @@ static void recalcData_sequencer_retiming(TransInfo *t)
   /* Test overlap, displays red outline. */
   Editing *ed = seq::editing_get(t->scene);
   seq::iterator_set_expand(
-      t->scene, seq::active_seqbase_get(ed), transformed_strips, seq::query_strip_effect_chain);
+      t->scene, seq::seqbase_active_get(ed), transformed_strips, seq::query_strip_effect_chain);
   for (Strip *strip : transformed_strips) {
     strip->flag &= ~SEQ_OVERLAP;
-    if (seq::transform_test_overlap(t->scene, seq::active_seqbase_get(ed), strip)) {
+    if (seq::transform_test_overlap(t->scene, seq::seqbase_active_get(ed), strip)) {
       strip->flag |= SEQ_OVERLAP;
     }
   }

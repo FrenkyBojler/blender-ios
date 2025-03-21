@@ -856,7 +856,7 @@ static void sequencer_add_movie_sync_sound_strip(
   }
 
   /* Make sure that the sound strip start time relative to the movie is taken into account. */
-  seq::add_sound_av_sync(bmain, scene, strip_sound, load_data);
+  seq::sound_av_sync_set(bmain, scene, strip_sound, load_data);
 
   /* Ensure that the sound strip start/end matches the movie strip even if the actual
    * length and true position of the sound doesn't match up exactly.
@@ -1359,7 +1359,7 @@ static void sequencer_add_image_strip_load_files(wmOperator *op,
   const bool use_placeholders = RNA_boolean_get(op->ptr, "use_placeholders");
   char dirpath[sizeof(strip->data->dirpath)];
   BLI_path_split_dir_part(load_data->path, dirpath, sizeof(dirpath));
-  seq::add_image_set_directory(strip, dirpath);
+  seq::image_strip_directory_set(strip, dirpath);
 
   if (use_placeholders) {
     sequencer_image_seq_reserve_frames(
@@ -1369,7 +1369,7 @@ static void sequencer_add_image_strip_load_files(wmOperator *op,
     size_t strip_frame = 0;
     RNA_BEGIN (op->ptr, itemptr, "files") {
       char *filename = RNA_string_get_alloc(&itemptr, "name", nullptr, 0, nullptr);
-      seq::add_image_load_file(scene, strip, strip_frame, filename);
+      seq::image_strip_file_load(scene, strip, strip_frame, filename);
       MEM_freeN(filename);
       strip_frame++;
     }
@@ -1413,7 +1413,7 @@ static int sequencer_add_image_strip_exec(bContext *C, wmOperator *op)
   }
 
   sequencer_add_image_strip_load_files(op, scene, strip, &load_data, minframe, numdigits);
-  seq::add_image_init_alpha_mode(strip);
+  seq::image_strip_alpha_mode_init(strip);
 
   /* Adjust length. */
   if (load_data.image.len == 1) {

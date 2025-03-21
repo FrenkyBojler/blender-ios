@@ -116,7 +116,7 @@ static void seq_frame_snap_update_best(const int position,
 static int seq_frame_apply_snap(bContext *C, Scene *scene, const int timeline_frame)
 {
 
-  ListBase *seqbase = blender::seq::active_seqbase_get(blender::seq::editing_get(scene));
+  ListBase *seqbase = blender::seq::seqbase_active_get(blender::seq::editing_get(scene));
 
   int best_frame = 0;
   int best_distance = MAXFRAME;

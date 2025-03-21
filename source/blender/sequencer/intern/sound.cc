@@ -43,13 +43,13 @@ const SoundModifierWorkerInfo workersSoundModifiers[] = {
     {seqModifierType_SoundEqualizer, sound_equalizermodifier_recreator}, {0, nullptr}};
 
 #ifdef WITH_CONVOLUTION
-static bool sequencer_refresh_sound_length_recursive(Main *bmain, Scene *scene, ListBase *seqbase)
+static bool refresh_sound_length_recursive(Main *bmain, Scene *scene, ListBase *seqbase)
 {
   bool changed = false;
 
   LISTBASE_FOREACH (Strip *, strip, seqbase) {
     if (strip->type == STRIP_TYPE_META) {
-      if (sequencer_refresh_sound_length_recursive(bmain, scene, &strip->seqbase)) {
+      if (refresh_sound_length_recursive(bmain, scene, &strip->seqbase)) {
         changed = true;
       }
     }
@@ -81,7 +81,7 @@ void sound_update_length(Main *bmain, Scene *scene)
 {
 #ifdef WITH_CONVOLUTION
   if (scene->ed) {
-    sequencer_refresh_sound_length_recursive(bmain, scene, &scene->ed->seqbase);
+    refresh_sound_length_recursive(bmain, scene, &scene->ed->seqbase);
   }
 #else
   UNUSED_VARS(bmain, scene);
@@ -148,7 +148,7 @@ void sound_update(Scene *scene, bSound *sound)
 
 float sound_pitch_get(const Scene *scene, const Strip *strip)
 {
-  const Strip *meta_parent = SEQ_lookup_meta_by_strip(scene->ed, strip);
+  const Strip *meta_parent = lookup_meta_by_strip(scene->ed, strip);
   if (meta_parent != nullptr) {
     return strip->speed_factor * sound_pitch_get(scene, meta_parent);
   }

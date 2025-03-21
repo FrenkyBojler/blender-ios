@@ -21,8 +21,8 @@ struct StripElem;
 namespace blender::seq {
 
 enum eTaskId {
-  SEQ_TASK_MAIN_RENDER,
-  SEQ_TASK_PREFETCH_RENDER,
+  TASK_MAIN_RENDER,
+  TASK_PREFETCH_RENDER,
 };
 
 struct RenderData {
@@ -44,7 +44,7 @@ struct RenderData {
   bool is_scrubbing = false;
   int view_id = 0;
   /* ID of task for assigning temp cache entries to particular task(thread, etc.) */
-  eTaskId task_id = SEQ_TASK_MAIN_RENDER;
+  eTaskId task_id = TASK_MAIN_RENDER;
 
   /* special case for OpenGL render */
   GPUOffScreen *gpu_offscreen = nullptr;
@@ -59,15 +59,15 @@ struct RenderData {
  * \note The returned #ImBuf has its reference increased, free after usage!
  */
 ImBuf *render_give_ibuf(const RenderData *context, float timeline_frame, int chanshown);
-ImBuf *render_give_ibuf_direct(const RenderData *context, float timeline_frame, Strip *strip);
-void render_new_render_data(Main *bmain,
-                            Depsgraph *depsgraph,
-                            Scene *scene,
-                            int rectx,
-                            int recty,
-                            int preview_render_size,
-                            int for_render,
-                            RenderData *r_context);
+ImBuf *render_strip_solo(const RenderData *context, float timeline_frame, Strip *strip);
+void render_data_get_new(Main *bmain,
+                         Depsgraph *depsgraph,
+                         Scene *scene,
+                         int rectx,
+                         int recty,
+                         int preview_render_size,
+                         int for_render,
+                         RenderData *r_context);
 StripElem *render_give_stripelem(const Scene *scene, const Strip *strip, int timeline_frame);
 
 void render_imbuf_from_sequencer_space(const Scene *scene, ImBuf *ibuf);

@@ -659,7 +659,7 @@ static int strip_speed_set_exec(bContext *C, const wmOperator *op)
     seq::retiming_key_speed_set(
         scene, strip, key, RNA_float_get(op->ptr, "speed") / 100.0f, false);
 
-    ListBase *seqbase = seq::active_seqbase_get(seq::editing_get(scene));
+    ListBase *seqbase = seq::seqbase_active_get(seq::editing_get(scene));
     if (seq::transform_test_overlap(scene, seqbase, strip)) {
       seq::transform_seqbase_shuffle(seqbase, strip, scene);
     }
@@ -676,7 +676,7 @@ static int segment_speed_set_exec(const bContext *C,
                                   blender::Map<SeqRetimingKey *, Strip *> selection)
 {
   Scene *scene = CTX_data_scene(C);
-  ListBase *seqbase = seq::active_seqbase_get(seq::editing_get(scene));
+  ListBase *seqbase = seq::seqbase_active_get(seq::editing_get(scene));
 
   for (auto item : selection.items()) {
     seq::retiming_key_speed_set(scene,

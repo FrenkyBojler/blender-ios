@@ -79,7 +79,7 @@ blender::VectorSet<Strip *> all_strips_from_context(bContext *C)
 {
   Scene *scene = CTX_data_scene(C);
   Editing *ed = seq::editing_get(scene);
-  ListBase *seqbase = seq::active_seqbase_get(ed);
+  ListBase *seqbase = seq::seqbase_active_get(ed);
   ListBase *channels = seq::channels_displayed_get(ed);
 
   const bool is_preview = sequencer_view_has_preview_poll(C);
@@ -94,7 +94,7 @@ blender::VectorSet<Strip *> selected_strips_from_context(bContext *C)
 {
   const Scene *scene = CTX_data_scene(C);
   Editing *ed = seq::editing_get(scene);
-  ListBase *seqbase = seq::active_seqbase_get(ed);
+  ListBase *seqbase = seq::seqbase_active_get(ed);
   ListBase *channels = seq::channels_displayed_get(ed);
 
   const bool is_preview = sequencer_view_has_preview_poll(C);
@@ -203,7 +203,7 @@ static void select_linked_time_seq(const Scene *scene,
                                    const Strip *strip_source,
                                    const eStripHandle handle_clicked)
 {
-  ListBase *seqbase = seq::active_seqbase_get(scene->ed);
+  ListBase *seqbase = seq::seqbase_active_get(scene->ed);
   int source_left = seq::time_left_handle_frame_get(scene, strip_source);
   int source_right = seq::time_right_handle_frame_get(scene, strip_source);
 
@@ -546,7 +546,7 @@ static void sequencer_select_side_of_frame(const bContext *C,
   Editing *ed = seq::editing_get(scene);
 
   const float x = UI_view2d_region_to_view_x(v2d, mval[0]);
-  LISTBASE_FOREACH (Strip *, strip_iter, seq::active_seqbase_get(ed)) {
+  LISTBASE_FOREACH (Strip *, strip_iter, seq::seqbase_active_get(ed)) {
     if (((x < scene->r.cfra) &&
          (seq::time_right_handle_frame_get(scene, strip_iter) <= scene->r.cfra)) ||
         ((x >= scene->r.cfra) &&
@@ -699,7 +699,7 @@ static Strip *strip_select_seq_from_preview(
 {
   Scene *scene = CTX_data_scene(C);
   Editing *ed = seq::editing_get(scene);
-  ListBase *seqbase = seq::active_seqbase_get(ed);
+  ListBase *seqbase = seq::seqbase_active_get(ed);
   ListBase *channels = seq::channels_displayed_get(ed);
   SpaceSeq *sseq = CTX_wm_space_seq(C);
   View2D *v2d = UI_view2d_fromcontext(C);
@@ -1485,7 +1485,7 @@ static bool select_linked_internal(Scene *scene)
 
   bool changed = false;
 
-  LISTBASE_FOREACH (Strip *, strip, seq::active_seqbase_get(ed)) {
+  LISTBASE_FOREACH (Strip *, strip, seq::seqbase_active_get(ed)) {
     if ((strip->flag & SELECT) == 0) {
       continue;
     }
@@ -1520,7 +1520,7 @@ static bool select_more_less_seq__internal(Scene *scene, bool select_more)
   const int neighbor_selection_filter = select_more ? 0 : SELECT;
   const int selection_filter = select_more ? SELECT : 0;
 
-  LISTBASE_FOREACH (Strip *, strip, seq::active_seqbase_get(ed)) {
+  LISTBASE_FOREACH (Strip *, strip, seq::seqbase_active_get(ed)) {
     if ((strip->flag & SELECT) != selection_filter) {
       continue;
     }
@@ -1856,7 +1856,7 @@ static int sequencer_select_side_of_frame_exec(bContext *C, wmOperator *op)
     deselect_all_strips(scene);
   }
   const int timeline_frame = scene->r.cfra;
-  LISTBASE_FOREACH (Strip *, strip, seq::active_seqbase_get(ed)) {
+  LISTBASE_FOREACH (Strip *, strip, seq::seqbase_active_get(ed)) {
     bool test = false;
     switch (side) {
       case -1:
@@ -2018,7 +2018,7 @@ static void seq_box_select_seq_from_preview(const bContext *C,
 {
   Scene *scene = CTX_data_scene(C);
   Editing *ed = seq::editing_get(scene);
-  ListBase *seqbase = seq::active_seqbase_get(ed);
+  ListBase *seqbase = seq::seqbase_active_get(ed);
   ListBase *channels = seq::channels_displayed_get(ed);
   SpaceSeq *sseq = CTX_wm_space_seq(C);
 
@@ -2398,7 +2398,7 @@ static bool select_grouped_effect(blender::Span<Strip *> strips,
 
   for (Strip *strip : strips) {
     if (STRIP_CHANNEL_CHECK(strip, channel) && (strip->type & STRIP_TYPE_EFFECT) &&
-        seq::relation_is_effect_of_strip(strip, actseq))
+        seq::relations_is_effect_of_strip(strip, actseq))
     {
       effects[strip->type] = true;
     }
@@ -2495,7 +2495,7 @@ static bool select_grouped_effect_link(const Scene *scene,
 static int sequencer_select_grouped_exec(bContext *C, wmOperator *op)
 {
   Scene *scene = CTX_data_scene(C);
-  ListBase *seqbase = seq::active_seqbase_get(seq::editing_get(scene));
+  ListBase *seqbase = seq::seqbase_active_get(seq::editing_get(scene));
   Strip *actseq = seq::select_active_get(scene);
 
   const bool is_preview = sequencer_view_has_preview_poll(C);

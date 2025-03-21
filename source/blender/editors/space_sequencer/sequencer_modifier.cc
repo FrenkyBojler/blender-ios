@@ -251,7 +251,7 @@ static int strip_modifier_copy_exec(bContext *C, wmOperator *op)
 
   int isSound = ELEM(strip->type, STRIP_TYPE_SOUND_RAM);
 
-  LISTBASE_FOREACH (Strip *, strip_iter, seq::active_seqbase_get(ed)) {
+  LISTBASE_FOREACH (Strip *, strip_iter, seq::seqbase_active_get(ed)) {
     if (strip_iter->flag & SELECT) {
       if (strip_iter == strip) {
         continue;

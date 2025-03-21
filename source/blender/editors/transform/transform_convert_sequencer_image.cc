@@ -118,7 +118,7 @@ static void createTransSeqImageData(bContext * /*C*/, TransInfo *t)
     return;
   }
 
-  ListBase *seqbase = seq::active_seqbase_get(ed);
+  ListBase *seqbase = seq::seqbase_active_get(ed);
   ListBase *channels = seq::channels_displayed_get(ed);
   VectorSet strips = seq::query_rendered_strips(t->scene, channels, seqbase, t->scene->r.cfra, 0);
   strips.remove_if([&](Strip *strip) { return (strip->flag & SELECT) == 0; });

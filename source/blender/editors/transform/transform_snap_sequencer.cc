@@ -58,7 +58,7 @@ static VectorSet<Strip *> query_snap_sources_timeline(
 {
   VectorSet<Strip *> snap_sources;
 
-  ListBase *seqbase = seq::active_seqbase_get(seq::editing_get(scene));
+  ListBase *seqbase = seq::seqbase_active_get(seq::editing_get(scene));
   snap_sources = seq::query_selected_strips(seqbase);
 
   /* Add strips owned by retiming keys to exclude these from targets */
@@ -167,7 +167,7 @@ static void query_strip_effects_fn(const Scene *scene,
 
   /* Find all strips connected to `strip_reference`. */
   LISTBASE_FOREACH (Strip *, strip_test, seqbase) {
-    if (seq::relation_is_effect_of_strip(strip_test, strip_reference)) {
+    if (seq::relations_is_effect_of_strip(strip_test, strip_reference)) {
       query_strip_effects_fn(scene, strip_test, seqbase, strips);
     }
   }
@@ -178,7 +178,7 @@ static VectorSet<Strip *> query_snap_targets_timeline(Scene *scene,
                                                       const bool exclude_selected)
 {
   Editing *ed = seq::editing_get(scene);
-  ListBase *seqbase = seq::active_seqbase_get(ed);
+  ListBase *seqbase = seq::seqbase_active_get(ed);
   ListBase *channels = seq::channels_displayed_get(ed);
   const short snap_flag = seq::tool_settings_snap_flag_get(scene);
 

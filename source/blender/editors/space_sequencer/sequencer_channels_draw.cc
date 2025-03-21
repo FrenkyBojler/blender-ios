@@ -311,7 +311,7 @@ void channel_draw_context_init(const bContext *C,
   r_context->v2d = &region->v2d;
   r_context->scene = CTX_data_scene(C);
   r_context->ed = seq::editing_get(r_context->scene);
-  r_context->seqbase = seq::active_seqbase_get(r_context->ed);
+  r_context->seqbase = seq::seqbase_active_get(r_context->ed);
   r_context->channels = seq::channels_displayed_get(r_context->ed);
   r_context->timeline_region = BKE_area_find_region_type(r_context->area, RGN_TYPE_WINDOW);
   BLI_assert(r_context->timeline_region != nullptr);

@@ -2462,7 +2462,7 @@ static void seq_build_proxy(bContext *C, PointerRNA *ptr)
 
   SpaceSeq *sseq = static_cast<SpaceSeq *>(ptr->data);
   Scene *scene = CTX_data_scene(C);
-  ListBase *seqbase = blender::seq::active_seqbase_get(blender::seq::editing_get(scene));
+  ListBase *seqbase = blender::seq::seqbase_active_get(blender::seq::editing_get(scene));
 
   blender::Set<std::string> processed_paths;
   wmJob *wm_job = blender::seq::ED_seq_proxy_wm_job_get(C);

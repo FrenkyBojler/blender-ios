@@ -266,7 +266,7 @@ static void sequencer_drop_copy(bContext *C, wmDrag *drag, wmDropBox *drop)
      * current displayed frame. */
     Scene *scene = CTX_data_scene(C);
     Editing *ed = seq::editing_ensure(scene);
-    ListBase *seqbase = seq::active_seqbase_get(ed);
+    ListBase *seqbase = seq::seqbase_active_get(ed);
     ListBase *channels = seq::channels_displayed_get(ed);
     SpaceSeq *sseq = CTX_wm_space_seq(C);
 

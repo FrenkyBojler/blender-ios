@@ -34,14 +34,14 @@ struct ThumbnailCache;
 struct TextVarsRuntime;
 struct PrefetchJob;
 struct StripLookup;
-struct SeqCache;
+struct Cache;
 }  // namespace blender::seq
 using MediaPresence = blender::seq::MediaPresence;
 using ThumbnailCache = blender::seq::ThumbnailCache;
 using TextVarsRuntime = blender::seq::TextVarsRuntime;
 using PrefetchJob = blender::seq::PrefetchJob;
 using StripLookup = blender::seq::StripLookup;
-using SeqCache = blender::seq::SeqCache;
+using SeqCache = blender::seq::Cache;
 #else
 typedef struct MediaPresence MediaPresence;
 typedef struct ThumbnailCache ThumbnailCache;

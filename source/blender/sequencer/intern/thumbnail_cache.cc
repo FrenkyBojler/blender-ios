@@ -51,7 +51,7 @@ static std::mutex thumb_cache_mutex;
  * to the "requests" set. The requests are processed in the background by a WM job. */
 struct ThumbnailCache {
   struct FrameEntry {
-    int frame_index = 0;  /* Frame index (for movies) or image index (for image sequences). */
+    int frame_index = 0;  /* Frame index (for movies) or image index (for image strips). */
     int stream_index = 0; /* Stream index (only for multi-stream movies). */
     ImBuf *thumb = nullptr;
     int64_t used_at = 0;
@@ -85,7 +85,7 @@ struct ThumbnailCache {
     }
     /* These determine request uniqueness (for equality/hash in a Set). */
     std::string file_path;
-    int frame_index = 0;  /* Frame index (for movies) or image index (for image sequences). */
+    int frame_index = 0;  /* Frame index (for movies) or image index (for image strips). */
     int stream_index = 0; /* Stream index (only for multi-stream movies). */
     StripType strip_type = STRIP_TYPE_IMAGE;
 
@@ -173,7 +173,7 @@ bool strip_can_have_thumbnail(const Scene *scene, const Strip *strip)
   return true;
 }
 
-static std::string get_path_from_seq(Scene *scene, const Strip *strip, float timeline_frame)
+static std::string get_path_from_strip(Scene *scene, const Strip *strip, float timeline_frame)
 {
   char filepath[FILE_MAX];
   filepath[0] = 0;
@@ -219,8 +219,8 @@ static ImBuf *make_thumb_for_image(const Scene *scene, const ThumbnailCache::Req
     IMB_free_byte_pixels(ibuf);
   }
 
-  seq_imbuf_to_sequencer_space(scene, ibuf, false);
-  seq_imbuf_assign_spaces(scene, ibuf);
+  imbuf_to_sequencer_space(scene, ibuf, false);
+  imbuf_assign_spaces(scene, ibuf);
   return ibuf;
 }
 
@@ -365,7 +365,7 @@ void ThumbGenerationJob::run_fn(void *customdata, wmJobWorkerStatus *worker_stat
           if (cur_anim != nullptr) {
             thumb = MOV_decode_frame(cur_anim, request.frame_index, IMB_TC_NONE, IMB_PROXY_NONE);
             if (thumb != nullptr) {
-              seq_imbuf_assign_spaces(job->scene_, thumb);
+              imbuf_assign_spaces(job->scene_, thumb);
             }
           }
         }
@@ -493,7 +493,7 @@ ImBuf *thumbnail_cache_get(const bContext *C,
 
   timeline_frame = math::round(timeline_frame);
 
-  const std::string key = get_path_from_seq(scene, strip, timeline_frame);
+  const std::string key = get_path_from_strip(scene, strip, timeline_frame);
   int frame_index = give_frame_index(scene, strip, timeline_frame);
   if (strip->type == STRIP_TYPE_MOVIE) {
     frame_index += strip->anim_startofs;

@@ -269,7 +269,7 @@ static void free_transform_custom_data(TransCustomData *custom_data)
 /* Canceled, need to update the strips display. */
 static void seq_transform_cancel(TransInfo *t, Span<Strip *> transformed_strips)
 {
-  ListBase *seqbase = seq::active_seqbase_get(seq::editing_get(t->scene));
+  ListBase *seqbase = seq::seqbase_active_get(seq::editing_get(t->scene));
 
   for (Strip *strip : transformed_strips) {
     /* Handle pre-existing overlapping strips even when operator is canceled.
@@ -283,7 +283,7 @@ static void seq_transform_cancel(TransInfo *t, Span<Strip *> transformed_strips)
 static ListBase *seqbase_active_get(const TransInfo *t)
 {
   Editing *ed = seq::editing_get(t->scene);
-  return seq::active_seqbase_get(ed);
+  return seq::seqbase_active_get(ed);
 }
 
 bool seq_transform_check_overlap(Span<Strip *> transformed_strips)
@@ -443,7 +443,7 @@ static void query_time_dependent_strips_strips(TransInfo *t,
 
   /* Remove all non-effects. */
   time_dependent_strips.remove_if(
-      [&](Strip *strip) { return seq::transform_sequence_can_be_translated(strip); });
+      [&](Strip *strip) { return seq::transform_strip_can_be_translated(strip); });
 }
 
 static void createTransSeqData(bContext * /*C*/, TransInfo *t)
@@ -507,7 +507,7 @@ static void createTransSeqData(bContext * /*C*/, TransInfo *t)
   SeqToTransData_build(t, ed->seqbasep, td, td2d, tdsq);
 
   ts->selection_channel_range_min = seq::MAX_CHANNELS + 1;
-  LISTBASE_FOREACH (Strip *, strip, seq::active_seqbase_get(ed)) {
+  LISTBASE_FOREACH (Strip *, strip, seq::seqbase_active_get(ed)) {
     if ((strip->flag & SELECT) != 0) {
       ts->selection_channel_range_min = min_ii(ts->selection_channel_range_min, strip->machine);
       ts->selection_channel_range_max = max_ii(ts->selection_channel_range_max, strip->machine);
@@ -589,9 +589,9 @@ static void flushTransSeq(TransInfo *t)
 
     switch (tdsq->sel_flag) {
       case SELECT: {
-        if (seq::transform_sequence_can_be_translated(strip)) {
+        if (seq::transform_strip_can_be_translated(strip)) {
           offset = new_frame - tdsq->start_offset - strip->start;
-          seq::transform_translate_sequence(scene, strip, offset);
+          seq::transform_translate_strip(scene, strip, offset);
           if (abs(offset) > abs(max_offset)) {
             max_offset = offset;
           }

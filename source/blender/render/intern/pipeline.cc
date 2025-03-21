@@ -1539,14 +1539,14 @@ static void do_render_sequencer(Render *re)
   tot_views = BKE_scene_multiview_num_views_get(&re->r);
   blender::Vector<ImBuf *> ibuf_arr(tot_views);
 
-  render_new_render_data(re->main,
-                         re->pipeline_depsgraph,
-                         re->scene,
-                         re_x,
-                         re_y,
-                         SEQ_RENDER_SIZE_SCENE,
-                         true,
-                         &context);
+  render_data_get_new(re->main,
+                      re->pipeline_depsgraph,
+                      re->scene,
+                      re_x,
+                      re_y,
+                      SEQ_RENDER_SIZE_SCENE,
+                      true,
+                      &context);
 
   /* The render-result gets destroyed during the rendering, so we first collect all ibufs
    * and then we populate the final render-result. */

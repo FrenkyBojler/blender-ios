@@ -19,20 +19,20 @@ struct StripElem;
 
 namespace blender::seq {
 
-void sequence_base_unique_name_recursive(Scene *scene, ListBase *seqbasep, Strip *strip);
-const char *sequence_give_name(const Strip *strip);
-ListBase *get_seqbase_from_sequence(Strip *strip, ListBase **r_channels, int *r_offset);
-const Strip *get_topmost_sequence(const Scene *scene, int frame);
+void strip_set_unique_name(Scene *scene, ListBase *seqbasep, Strip *strip);
+const char *strip_name_get(const Strip *strip);
+ListBase *strip_seqbase_get(Strip *strip, ListBase **r_channels, int *r_offset);
+const Strip *strip_topmost_get(const Scene *scene, int frame);
 /**
  * In cases where we don't know the sequence's listbase.
  */
-ListBase *get_seqbase_by_seq(const Scene *scene, Strip *strip);
+ListBase *seqbase_by_strip_get(const Scene *scene, Strip *strip);
 /**
  * Only use as last resort when the StripElem is available but no the Sequence.
  * (needed for RNA)
  */
-Strip *sequence_from_strip_elem(ListBase *seqbase, StripElem *se);
-Strip *get_sequence_by_name(ListBase *seqbase, const char *name, bool recursive);
+Strip *strip_by_strip_elem_get(ListBase *seqbase, StripElem *se);
+Strip *strip_by_name_get(ListBase *seqbase, const char *name, bool recursive);
 Mask *active_mask_get(Scene *scene);
 void alpha_mode_from_file_extension(Strip *strip);
 
@@ -41,7 +41,7 @@ void alpha_mode_from_file_extension(Strip *strip);
  * Note that this only checks data block references, for missing media referenced
  * by paths use #media_presence_is_missing.
  */
-bool sequence_has_valid_data(const Strip *strip);
+bool strip_has_valid_data(const Strip *strip);
 
 void set_scale_to_fit(const Strip *strip,
                       int image_width,

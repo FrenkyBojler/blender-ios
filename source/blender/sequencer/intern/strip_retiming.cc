@@ -130,7 +130,7 @@ void retiming_data_clear(Strip *strip)
 
 static void retiming_key_overlap(Scene *scene, Strip *strip)
 {
-  ListBase *seqbase = active_seqbase_get(editing_get(scene));
+  ListBase *seqbase = seqbase_active_get(editing_get(scene));
   blender::VectorSet<Strip *> strips;
   blender::VectorSet<Strip *> dependant;
   dependant.add(strip);
@@ -148,9 +148,9 @@ void retiming_reset(Scene *scene, Strip *strip)
 
   retiming_data_clear(strip);
 
-  blender::Span<Strip *> effects = SEQ_lookup_effects_by_strip(scene->ed, strip);
+  blender::Span<Strip *> effects = lookup_effects_by_strip(scene->ed, strip);
   strip_time_update_effects_strip_range(scene, effects);
-  time_update_meta_strip_range(scene, SEQ_lookup_meta_by_strip(scene->ed, strip));
+  time_update_meta_strip_range(scene, lookup_meta_by_strip(scene->ed, strip));
 
   retiming_key_overlap(scene, strip);
 }
@@ -774,9 +774,9 @@ void retiming_key_timeline_frame_set(const Scene *scene,
     strip_retiming_key_offset(scene, strip, key, offset);
   }
 
-  blender::Span<Strip *> effects = SEQ_lookup_effects_by_strip(scene->ed, strip);
+  blender::Span<Strip *> effects = lookup_effects_by_strip(scene->ed, strip);
   strip_time_update_effects_strip_range(scene, effects);
-  time_update_meta_strip_range(scene, SEQ_lookup_meta_by_strip(scene->ed, strip));
+  time_update_meta_strip_range(scene, lookup_meta_by_strip(scene->ed, strip));
 }
 
 float retiming_key_speed_get(const Strip *strip, const SeqRetimingKey *key)
@@ -1036,7 +1036,7 @@ static RetimingRangeData strip_retiming_range_data_get(const Scene *scene, const
 {
   RetimingRangeData strip_retiming_data = RetimingRangeData(strip);
 
-  const Strip *meta_parent = SEQ_lookup_meta_by_strip(scene->ed, strip);
+  const Strip *meta_parent = lookup_meta_by_strip(scene->ed, strip);
   if (meta_parent == nullptr) {
     return strip_retiming_data;
   }

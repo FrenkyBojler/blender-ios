@@ -198,7 +198,7 @@ static void animchan_sync_fcurve_scene(bAnimListElem *ale)
      * strip, or even the sequencer itself. */
     return;
   }
-  strip = blender::seq::get_sequence_by_name(ed->seqbasep, strip_name, false);
+  strip = blender::seq::strip_by_name_get(ed->seqbasep, strip_name, false);
   if (strip == nullptr) {
     return;
   }

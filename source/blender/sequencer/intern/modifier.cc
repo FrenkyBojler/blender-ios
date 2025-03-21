@@ -182,8 +182,8 @@ static ImBuf *modifier_render_mask_input(const RenderData *context,
 
   if (mask_input_type == SEQUENCE_MASK_INPUT_STRIP) {
     if (mask_sequence) {
-      SeqRenderState state;
-      mask_input = seq_render_strip(context, &state, mask_sequence, timeline_frame);
+      RenderState state;
+      mask_input = render_strip(context, &state, mask_sequence, timeline_frame);
     }
   }
   else if (mask_input_type == SEQUENCE_MASK_INPUT_ID) {
@@ -191,7 +191,7 @@ static ImBuf *modifier_render_mask_input(const RenderData *context,
      * fine, but if it is a byte image then we also just take that without
      * extra memory allocations or conversions. All modifiers are expected
      * to handle mask being either type. */
-    mask_input = seq_render_mask(context, mask_id, timeline_frame - fra_offset, false);
+    mask_input = render_mask(context, mask_id, timeline_frame - fra_offset, false);
   }
 
   return mask_input;
@@ -1287,7 +1287,7 @@ static bool skip_modifier(Scene *scene, const SequenceModifierData *smd, int tim
                                     smd->mask_time == SEQUENCE_MASK_TIME_RELATIVE &&
                                     !time_strip_intersects_frame(
                                         scene, smd->mask_sequence, timeline_frame);
-  const bool missing_data_skip = !sequence_has_valid_data(smd->mask_sequence) ||
+  const bool missing_data_skip = !strip_has_valid_data(smd->mask_sequence) ||
                                  media_presence_is_missing(scene, smd->mask_sequence);
 
   return strip_has_ended_skip || missing_data_skip;
@@ -1298,7 +1298,7 @@ void modifier_apply_stack(const RenderData *context,
                           ImBuf *ibuf,
                           int timeline_frame)
 {
-  const StripScreenQuad quad = get_strip_screen_quad(context, strip);
+  const StripScreenQuad quad = strip_screen_quad_get(context, strip);
 
   if (strip->modifiers.first && (strip->flag & SEQ_USE_LINEAR_MODIFIERS)) {
     render_imbuf_from_sequencer_space(context->scene, ibuf);
@@ -1335,7 +1335,7 @@ void modifier_apply_stack(const RenderData *context,
   }
 
   if (strip->modifiers.first && (strip->flag & SEQ_USE_LINEAR_MODIFIERS)) {
-    seq_imbuf_to_sequencer_space(context->scene, ibuf, false);
+    imbuf_to_sequencer_space(context->scene, ibuf, false);
   }
 }
 

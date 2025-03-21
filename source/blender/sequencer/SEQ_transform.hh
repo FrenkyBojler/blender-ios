@@ -19,15 +19,14 @@ struct Strip;
 
 namespace blender::seq {
 
-bool transform_sequence_can_be_translated(const Strip *strip);
+bool transform_strip_can_be_translated(const Strip *strip);
 /**
  * Used so we can do a quick check for single image seq
  * since they work a bit differently to normal image seq's (during transform).
  */
 bool transform_single_image_check(const Strip *strip);
 bool transform_test_overlap(const Scene *scene, ListBase *seqbasep, Strip *test);
-bool transform_test_overlap_seq_seq(const Scene *scene, Strip *seq1, Strip *seq2);
-void transform_translate_sequence(Scene *evil_scene, Strip *strip, int delta);
+void transform_translate_strip(Scene *evil_scene, Strip *strip, int delta);
 /**
  * \return 0 if there weren't enough space.
  */

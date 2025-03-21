@@ -129,7 +129,7 @@ Strip *lookup_strip_by_name(Editing *ed, const char *key)
   return lookup->strip_by_name.lookup_default(key, nullptr);
 }
 
-Strip *SEQ_lookup_meta_by_strip(Editing *ed, const Strip *key)
+Strip *lookup_meta_by_strip(Editing *ed, const Strip *key)
 {
   BLI_assert(ed != nullptr);
   std::lock_guard lock(lookup_lock);
@@ -138,7 +138,7 @@ Strip *SEQ_lookup_meta_by_strip(Editing *ed, const Strip *key)
   return lookup->meta_by_strip.lookup_default(key, nullptr);
 }
 
-blender::Span<Strip *> SEQ_lookup_effects_by_strip(Editing *ed, const Strip *key)
+blender::Span<Strip *> lookup_effects_by_strip(Editing *ed, const Strip *key)
 {
   BLI_assert(ed != nullptr);
   std::lock_guard lock(lookup_lock);

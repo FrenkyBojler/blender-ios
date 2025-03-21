@@ -3006,7 +3006,7 @@ void do_versions_after_linking_280(FileData *fd, Main *bmain)
 static void do_versions_seq_unique_name_all_strips(Scene *sce, ListBase *seqbasep)
 {
   LISTBASE_FOREACH (Strip *, seq, seqbasep) {
-    blender::seq::sequence_base_unique_name_recursive(sce, &sce->ed->seqbase, seq);
+    blender::seq::strip_set_unique_name(sce, &sce->ed->seqbase, seq);
     if (seq->seqbase.first != nullptr) {
       do_versions_seq_unique_name_all_strips(sce, &seq->seqbase);
     }

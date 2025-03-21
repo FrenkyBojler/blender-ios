@@ -17,9 +17,9 @@ struct anim;
 namespace blender::seq {
 
 #define PROXY_MAXFILE (2 * FILE_MAXDIR + FILE_MAXFILE)
-ImBuf *seq_proxy_fetch(const RenderData *context, Strip *strip, int timeline_frame);
-bool seq_proxy_get_custom_file_filepath(Strip *strip, char *filepath, int view_id);
-void free_proxy_seq(Strip *strip);
-void seq_proxy_index_dir_set(MovieReader *anim, const char *base_dir);
+ImBuf *proxy_fetch(const RenderData *context, Strip *strip, int timeline_frame);
+bool proxy_custom_file_filepath_get(Strip *strip, char *filepath, int view_id);
+void proxy_free(Strip *strip);
+void proxy_index_dir_set(MovieReader *anim, const char *base_dir);
 
 }  // namespace blender::seq

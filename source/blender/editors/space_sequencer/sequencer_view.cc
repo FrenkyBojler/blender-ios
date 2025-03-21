@@ -114,7 +114,7 @@ static int sequencer_view_all_exec(bContext *C, wmOperator *op)
     box.xmin = ms->disp_range[0] - 1;
     box.xmax = ms->disp_range[1] + 1;
   }
-  seq::timeline_expand_boundbox(scene, seq::active_seqbase_get(ed), &box);
+  seq::timeline_expand_boundbox(scene, seq::seqbase_active_get(ed), &box);
 
   SEQ_add_timeline_region_padding(C, &box);
 
@@ -355,7 +355,7 @@ static void seq_view_collection_rect_timeline(const bContext *C,
     /* Get the current max/min channel we can display. */
     const Editing *ed = seq::editing_get(scene);
     rctf box;
-    seq::timeline_boundbox(scene, seq::active_seqbase_get(ed), &box);
+    seq::timeline_boundbox(scene, seq::seqbase_active_get(ed), &box);
     SEQ_add_timeline_region_padding(C, &box);
     float timeline_ymin = box.ymin;
     float timeline_ymax = box.ymax;

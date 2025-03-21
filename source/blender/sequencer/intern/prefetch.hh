@@ -17,17 +17,17 @@ namespace blender::seq {
 /**
  * Start or resume prefetching.
  */
-void seq_prefetch_start(const RenderData *context, float timeline_frame);
-void seq_prefetch_free(Scene *scene);
-bool seq_prefetch_job_is_running(Scene *scene);
-void seq_prefetch_get_time_range(Scene *scene, int *r_start, int *r_end);
+void prefetch_start(const RenderData *context, float timeline_frame);
+void prefetch_free(Scene *scene);
+bool prefetch_job_is_running(Scene *scene);
+void prefetch_get_time_range(Scene *scene, int *r_start, int *r_end);
 /**
  * For cache context swapping.
  */
-RenderData *seq_prefetch_get_original_context(const RenderData *context);
+RenderData *prefetch_get_original_context(const RenderData *context);
 /**
  * For cache context swapping.
  */
-Strip *seq_prefetch_get_original_sequence(Strip *strip, Scene *scene);
+Strip *prefetch_get_original_sequence(Strip *strip, Scene *scene);
 
 }  // namespace blender::seq
