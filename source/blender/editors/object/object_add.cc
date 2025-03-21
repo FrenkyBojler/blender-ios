@@ -4596,6 +4596,34 @@ void OBJECT_OT_add_named(wmOperatorType *ot)
 /** \} */
 
 /* -------------------------------------------------------------------- */
+/** \name Add multiple objects and collections operator.
+ *
+ * Use for drag & drop.
+ * \{ */
+
+static wmOperatorStatus object_add_mixed_exec(bContext * /*C*/, wmOperator * /*op*/)
+{
+  return OPERATOR_FINISHED;
+}
+
+void OBJECT_OT_add_mixed(wmOperatorType *ot)
+{
+  /* identifiers */
+  ot->name = "Add Objects and Collections";
+  ot->description = "Instantiate dragged objects and collections in the active view layer";
+  ot->idname = "OBJECT_OT_add_mixed";
+
+  /* api callbacks */
+  ot->exec = object_add_mixed_exec;
+  ot->poll = ED_operator_objectmode_poll_msg;
+
+  /* flags */
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
 /** \name Transform Object to Mouse Operator
  * \{ */
 

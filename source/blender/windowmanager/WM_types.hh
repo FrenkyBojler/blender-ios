@@ -107,6 +107,7 @@ struct wmOperator;
 struct wmWindowManager;
 
 #include <memory>
+#include <optional>
 #include <string>
 
 #include "BLI_compiler_attrs.h"
@@ -1244,6 +1245,8 @@ struct wmDragAssetListItem {
   } asset_data;
 
   bool is_external;
+
+  std::optional<ID_Type> idtype() const;
 };
 
 struct wmDragPath {

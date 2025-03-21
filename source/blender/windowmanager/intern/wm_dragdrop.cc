@@ -698,6 +698,22 @@ AssetMetaData *WM_drag_get_asset_meta_data(const wmDrag *drag, int idcode)
   return nullptr;
 }
 
+std::optional<ID_Type> wmDragAssetListItem::idtype() const
+{
+  if (this->is_external) {
+    if (const wmDragAsset *asset_drag = this->asset_data.external_info) {
+      return asset_drag->asset->get_id_type();
+    }
+  }
+  else {
+    if (this->asset_data.local_id) {
+      return GS(this->asset_data.local_id->name);
+    }
+  }
+
+  return {};
+}
+
 ID *WM_drag_asset_id_import(const bContext *C, wmDragAsset *asset_drag, const int flag_extra)
 {
   /* Only support passing in limited flags. */
