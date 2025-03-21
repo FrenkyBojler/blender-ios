@@ -346,7 +346,7 @@ struct StrokeCache {
   } plane_brush;
 
   /* Scene Project brush */
-  Vector<Object*> target_objects;
+  Vector<Object *> target_objects;
 
   /* Cloth brush */
   std::unique_ptr<cloth::SimulationData> cloth_sim;

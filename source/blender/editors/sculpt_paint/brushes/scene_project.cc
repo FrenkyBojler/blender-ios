@@ -28,8 +28,7 @@ namespace blender::ed::sculpt_paint {
 
 inline namespace scene_project_cc {
 
-struct LocalData {
-};
+struct LocalData {};
 
 static void calc_faces(const Depsgraph &depsgraph,
                        const Sculpt &sd,
@@ -66,9 +65,9 @@ static void calc_bmesh(const Depsgraph &depsgraph,
 }  // namespace scene_project_cc
 
 void do_scene_project_brush(const Depsgraph &depsgraph,
-                             const Sculpt &sd,
-                             Object &object,
-                             const IndexMask &node_mask)
+                            const Sculpt &sd,
+                            Object &object,
+                            const IndexMask &node_mask)
 {
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   const Brush &brush = *BKE_paint_brush_for_read(&sd.paint);
@@ -94,7 +93,7 @@ void do_scene_project_brush(const Depsgraph &depsgraph,
       MutableSpan<bke::pbvh::GridsNode> nodes = pbvh.nodes<bke::pbvh::GridsNode>();
       node_mask.foreach_index(GrainSize(1), [&](const int i) {
         LocalData &tls = all_tls.local();
-        
+
         bke::pbvh::update_node_bounds_grids(subdiv_ccg.grid_area, positions, nodes[i]);
       });
       break;
@@ -103,7 +102,7 @@ void do_scene_project_brush(const Depsgraph &depsgraph,
       MutableSpan<bke::pbvh::BMeshNode> nodes = pbvh.nodes<bke::pbvh::BMeshNode>();
       node_mask.foreach_index(GrainSize(1), [&](const int i) {
         LocalData &tls = all_tls.local();
-        
+
         bke::pbvh::update_node_bounds_bmesh(nodes[i]);
       });
       break;

@@ -4034,15 +4034,17 @@ static void smooth_brush_toggle_off(const bContext *C, Paint *paint, StrokeCache
   }
 }
 
-static void init_scene_project_brush_target_objects(bContext* C, Object& active_object, StrokeCache& cache)
+static void init_scene_project_brush_target_objects(bContext *C,
+                                                    Object &active_object,
+                                                    StrokeCache &cache)
 {
-  ViewLayer* view_layer = CTX_data_view_layer(C);
-  View3D* v3d = CTX_wm_view3d(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  View3D *v3d = CTX_wm_view3d(C);
 
   cache.target_objects.clear();
 
-  LISTBASE_FOREACH(Base*, base, BKE_view_layer_object_bases_get(view_layer)) {
-    Object* object = base->object;
+  LISTBASE_FOREACH (Base *, base, BKE_view_layer_object_bases_get(view_layer)) {
+    Object *object = base->object;
 
     if (object != &active_object && object->type == OB_MESH && BKE_base_is_visible(v3d, base)) {
       cache.target_objects.append(object);
