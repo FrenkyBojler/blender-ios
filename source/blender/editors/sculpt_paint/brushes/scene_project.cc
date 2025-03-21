@@ -31,7 +31,7 @@ namespace blender::ed::sculpt_paint {
 inline namespace scene_project_cc {
 
 struct LocalData {
-  Vector<float3> world_positions;
+  Vector<float3> positions;
   Vector<float> hit_distances;
   Vector<float> factors;
   Vector<float> distances;
@@ -81,13 +81,22 @@ static void raycast(const Span<Object *> target_objects,
   }
 }
 
-static void calc_world_coordinates(const float4x4 mat,
-                                   const Span<int> verts,
-                                   const Span<float3> object_positions,
-                                   const MutableSpan<float3> r_world_positions)
+static void calc_world_positions(const float4x4 mat,
+                                 const Span<int> verts,
+                                 const Span<float3> object_positions,
+                                 const MutableSpan<float3> r_world_positions)
 {
   for (const int i : verts.index_range()) {
     r_world_positions[i] = math::transform_point(mat, object_positions[verts[i]]);
+  }
+}
+
+static void calc_world_positions(const float4x4 mat,
+                                 const Span<float3> object_positions,
+                                 const MutableSpan<float3> r_world_positions)
+{
+  for (const int i : object_positions.index_range()) {
+    r_world_positions[i] = math::transform_point(mat, object_positions[i]);
   }
 }
 
@@ -144,8 +153,6 @@ static void calc_faces(const Depsgraph &depsgraph,
   SculptSession &ss = *object.sculpt;
   const Span<int> verts = node.verts();
 
-  const float3 world_normal = calc_world_normal(object.object_to_world(), brush, *ss.cache);
-
   calc_factors_common_mesh_indexed(depsgraph,
                                    brush,
                                    object,
@@ -156,9 +163,11 @@ static void calc_faces(const Depsgraph &depsgraph,
                                    tls.factors,
                                    tls.distances);
 
-  tls.world_positions.resize(verts.size());
-  const MutableSpan<float3> world_positions = tls.world_positions;
-  calc_world_coordinates(object.object_to_world(), verts, position_data.eval, world_positions);
+  tls.positions.resize(verts.size());
+  const MutableSpan<float3> world_positions = tls.positions;
+  calc_world_positions(object.object_to_world(), verts, position_data.eval, world_positions);
+
+  const float3 world_normal = calc_world_normal(object.object_to_world(), brush, *ss.cache);
 
   tls.hit_distances.resize(verts.size());
   const MutableSpan<float> hit_distances = tls.hit_distances;
@@ -181,18 +190,75 @@ static void calc_grids(const Depsgraph &depsgraph,
                        const Sculpt &sd,
                        Object &object,
                        const Brush &brush,
+                       const float strength,
                        const bke::pbvh::GridsNode &node,
                        LocalData &tls)
 {
+  SculptSession &ss = *object.sculpt;
+  SubdivCCG &subdiv_ccg = *ss.subdiv_ccg;
+
+  const Span<int> grids = node.grids();
+  const MutableSpan<float3> positions = gather_grids_positions(subdiv_ccg, grids, tls.positions);
+
+  calc_factors_common_grids(depsgraph, brush, object, positions, node, tls.factors, tls.distances);
+
+  const MutableSpan<float3> world_positions = positions;
+  calc_world_positions(object.object_to_world(), positions, world_positions);
+
+  const float3 world_normal = calc_world_normal(object.object_to_world(), brush, *ss.cache);
+
+  tls.hit_distances.resize(positions.size());
+  const MutableSpan<float> hit_distances = tls.hit_distances;
+  raycast(ss.cache->target_objects, world_positions, world_normal, tls.factors, hit_distances);
+
+  tls.translations.resize(positions.size());
+  const MutableSpan<float3> world_translations = tls.translations;
+  calc_world_translations(world_normal, tls.factors, hit_distances, world_translations);
+
+  const MutableSpan<float3> object_translations = world_translations;
+  calc_object_translations(object.world_to_object(), world_translations, object_translations);
+
+  scale_translations(object_translations, strength);
+
+  clip_and_lock_translations(sd, ss, positions, object_translations);
+  apply_translations(object_translations, grids, subdiv_ccg);
 }
 
 static void calc_bmesh(const Depsgraph &depsgraph,
                        const Sculpt &sd,
                        Object &object,
                        const Brush &brush,
+                       const float strength,
                        bke::pbvh::BMeshNode &node,
                        LocalData &tls)
 {
+  SculptSession &ss = *object.sculpt;
+
+  const Set<BMVert *, 0> &verts = BKE_pbvh_bmesh_node_unique_verts(&node);
+  const MutableSpan positions = gather_bmesh_positions(verts, tls.positions);
+
+  calc_factors_common_bmesh(depsgraph, brush, object, positions, node, tls.factors, tls.distances);
+
+  const MutableSpan<float3> world_positions = positions;
+  calc_world_positions(object.object_to_world(), positions, world_positions);
+
+  const float3 world_normal = calc_world_normal(object.object_to_world(), brush, *ss.cache);
+
+  tls.hit_distances.resize(positions.size());
+  const MutableSpan<float> hit_distances = tls.hit_distances;
+  raycast(ss.cache->target_objects, world_positions, world_normal, tls.factors, hit_distances);
+
+  tls.translations.resize(positions.size());
+  const MutableSpan<float3> world_translations = tls.translations;
+  calc_world_translations(world_normal, tls.factors, hit_distances, world_translations);
+
+  const MutableSpan<float3> object_translations = world_translations;
+  calc_object_translations(object.world_to_object(), world_translations, object_translations);
+
+  scale_translations(object_translations, strength);
+
+  clip_and_lock_translations(sd, ss, positions, object_translations);
+  apply_translations(object_translations, verts);
 }
 
 }  // namespace scene_project_cc
@@ -239,7 +305,7 @@ void do_scene_project_brush(const Depsgraph &depsgraph,
       MutableSpan<bke::pbvh::GridsNode> nodes = pbvh.nodes<bke::pbvh::GridsNode>();
       node_mask.foreach_index(GrainSize(1), [&](const int i) {
         LocalData &tls = all_tls.local();
-
+        calc_grids(depsgraph, sd, object, brush, strength, nodes[i], tls);
         bke::pbvh::update_node_bounds_grids(subdiv_ccg.grid_area, positions, nodes[i]);
       });
       break;
@@ -248,7 +314,7 @@ void do_scene_project_brush(const Depsgraph &depsgraph,
       MutableSpan<bke::pbvh::BMeshNode> nodes = pbvh.nodes<bke::pbvh::BMeshNode>();
       node_mask.foreach_index(GrainSize(1), [&](const int i) {
         LocalData &tls = all_tls.local();
-
+        calc_bmesh(depsgraph, sd, object, brush, strength, nodes[i], tls);
         bke::pbvh::update_node_bounds_bmesh(nodes[i]);
       });
       break;
