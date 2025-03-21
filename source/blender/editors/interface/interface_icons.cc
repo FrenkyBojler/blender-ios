@@ -611,7 +611,8 @@ DEF_ICON_LAYERGROUP_COLOR_DRAW(08, LAYERGROUP_COLOR_08);
 #  undef DEF_ICON_LAYERGROUP_COLOR_DRAW
 
 #  define DEF_ICON_NODE_SOCKET_DRAW(name, socket_type) \
-    static void icon_node_socket_draw_##name(int x, int y, int w, int h, float alpha) \
+    static void icon_node_socket_draw_##name( \
+        int x, int y, int w, int h, float alpha, const uchar * /*mono_rgba[4]*/) \
     { \
       icon_node_socket_draw(socket_type, x, y, w, h, alpha); \
     }
