@@ -401,6 +401,7 @@ static wmOperatorStatus graph_slider_invoke(bContext *C, wmOperator *op, const w
     graph_slider_exit(C, op);
     return OPERATOR_CANCELLED;
   }
+  gso->ac.reports = op->reports;
 
   gso->scene = CTX_data_scene(C);
   gso->area = CTX_wm_area(C);
@@ -1378,6 +1379,7 @@ static wmOperatorStatus match_slope_exec(bContext *C, wmOperator *op)
   if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
+  ac.reports = op->reports;
 
   const float factor = RNA_float_get(op->ptr, "factor");
 
