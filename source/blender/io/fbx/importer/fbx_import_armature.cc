@@ -114,8 +114,8 @@ void ArmatureImportContext::create_armature_bones(const ufbx_node *node,
   ufbx_matrix bone_mtx = bind_mtx ? *bind_mtx : ufbx_identity_matrix;
 
 #ifdef FBX_DEBUG_PRINT
-  fprintf(g_debug_file, "  local_bind_mtx:\n");
-  print_matrix(bone_mtx);
+  // fprintf(g_debug_file, "  local_bind_mtx:\n");
+  // print_matrix(bone_mtx);
 #endif
 
   bone_mtx = ufbx_matrix_mul(&world_to_arm, &bone_mtx);
@@ -144,11 +144,18 @@ void ArmatureImportContext::create_armature_bones(const ufbx_node *node,
   else {
     /* This is leaf bone, set length to parent bone length. */
     bone_size = parent_bone_size;
-    /* If we do not have actual pose/skin matrix for it, use parent at tail position. */
+    /* If we do not have actual pose/skin matrix for this bone, apply local transform onto parent
+     * matrix. */
     if (!this->mapping.bone_has_pose_or_skin_matrix.contains(node)) {
-      ufbx_matrix offset_mtx = ufbx_identity_matrix;
-      offset_mtx.cols[3].y = parent_bone_size;
+      ufbx_matrix offset_mtx = ufbx_transform_to_matrix(&node->local_transform);
       bone_mtx = ufbx_matrix_mul(&parent_mtx, &offset_mtx);
+      bone_mtx.cols[0] = ufbx_vec3_normalize(bone_mtx.cols[0]);
+      bone_mtx.cols[1] = ufbx_vec3_normalize(bone_mtx.cols[1]);
+      bone_mtx.cols[2] = ufbx_vec3_normalize(bone_mtx.cols[2]);
+#ifdef FBX_DEBUG_PRINT
+      fprintf(g_debug_file, "  bone_mtx adj for non-posed bones:\n");
+      print_matrix(bone_mtx);
+#endif
     }
   }
   /* Zero length bones are automatically collapsed into their parent when you leave edit mode,
