@@ -55,9 +55,9 @@ static void raycast(const Span<Object *> target_objects,
     }
 
     for (const int j : positions.index_range()) {
-     if (factors[j] == 0.0f) {
+      if (factors[j] == 0.0f) {
         continue;
-     }
+      }
 
       BVHTreeRayHit hit;
       hit.dist = std::numeric_limits<float>::max();
@@ -110,6 +110,22 @@ static void calc_object_translations(const float4x4 &mat,
   }
 }
 
+static float3 calc_world_normal(const float4x4 &mat, const Brush &brush, const StrokeCache &cache)
+{
+  float3 object_normal;
+
+  switch (brush.project_direction_type) {
+    case BRUSH_PROJECT_DIRECTION_VIEW_NORMAL:
+      object_normal = -cache.view_normal_symm;
+      break;
+    case BRUSH_PROJECT_DIRECTION_PLANE_NORMAL:
+      object_normal = -cache.sculpt_normal_symm;
+      break;
+  }
+
+  return math::transform_direction(mat, object_normal);
+}
+
 static void calc_faces(const Depsgraph &depsgraph,
                        const Sculpt &sd,
                        const Brush &brush,
@@ -124,8 +140,7 @@ static void calc_faces(const Depsgraph &depsgraph,
   SculptSession &ss = *object.sculpt;
   const Span<int> verts = node.verts();
 
-  const float3 &object_normal = -ss.cache->view_normal_symm;
-  const float3 &world_normal = math::transform_direction(object.object_to_world(), object_normal);
+  const float3 world_normal = calc_world_normal(object.object_to_world(), brush, *ss.cache);
 
   calc_factors_common_mesh_indexed(depsgraph,
                                    brush,

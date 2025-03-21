@@ -2423,6 +2423,12 @@ static void rna_def_brush(BlenderRNA *brna)
       {0, nullptr, 0, nullptr, nullptr},
   };
 
+  static const EnumPropertyItem brush_project_direction_type_items[] = {
+      {BRUSH_PROJECT_DIRECTION_VIEW_NORMAL, "VIEW_NORMAL", 0, "View Normal", "View Normal."},
+      {BRUSH_PROJECT_DIRECTION_PLANE_NORMAL, "PLANE_NORMAL", 0, "Plane Normal", "Plane Normal."},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
   static const EnumPropertyItem brush_cloth_deform_type_items[] = {
       {BRUSH_CLOTH_DEFORM_DRAG, "DRAG", 0, "Drag", ""},
       {BRUSH_CLOTH_DEFORM_PUSH, "PUSH", 0, "Push", ""},
@@ -2692,6 +2698,11 @@ static void rna_def_brush(BlenderRNA *brna)
   prop = RNA_def_property(srna, "plane_inversion_mode", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_items(prop, brush_plane_inversion_mode_items);
   RNA_def_property_ui_text(prop, "Inversion Mode", "Inversion Mode");
+  RNA_def_property_update(prop, 0, "rna_Brush_update");
+
+  prop = RNA_def_property(srna, "project_direction_type", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, brush_project_direction_type_items);
+  RNA_def_property_ui_text(prop, "Project Direction", "Project Direction");
   RNA_def_property_update(prop, 0, "rna_Brush_update");
 
   prop = RNA_def_property(srna, "cloth_deform_type", PROP_ENUM, PROP_NONE);

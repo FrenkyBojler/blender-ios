@@ -268,6 +268,11 @@ typedef enum eBrushPlaneInversionMode {
   BRUSH_PLANE_SWAP_HEIGHT_AND_DEPTH = 1,
 } eBrushPlaneInversionMode;
 
+typedef enum eBrushProjectDirection {
+  BRUSH_PROJECT_DIRECTION_VIEW_NORMAL = 0,
+  BRUSH_PROJECT_DIRECTION_PLANE_NORMAL = 1,
+} eBrushProjectDirection;
+
 /** #Gpencilsettings.Vertex_mode */
 typedef enum eGp_Vertex_Mode {
   /* Affect to Stroke only. */
