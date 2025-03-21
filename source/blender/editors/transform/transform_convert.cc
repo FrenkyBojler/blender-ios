@@ -788,7 +788,7 @@ static void init_TransDataContainers(TransInfo *t, Object *obact, Span<Object *>
             &TransConvertType_Curve,
             &curves::TransConvertType_Curves,
             &greasepencil::TransConvertType_GreasePencil,
-            &point_cloud::TransConvertType_PointCloud,
+            &pointcloud::TransConvertType_PointCloud,
             &TransConvertType_Lattice,
             &TransConvertType_MBall,
             &TransConvertType_Mesh,
@@ -927,7 +927,7 @@ static TransConvertTypeInfo *convert_type_get(const TransInfo *t, Object **r_obj
     if (t->options & CTX_SEQUENCER_IMAGE) {
       return &TransConvertType_SequencerImage;
     }
-    if (sequencer_retiming_mode_is_active(t->context)) {
+    if (vse::sequencer_retiming_mode_is_active(t->context)) {
       return &TransConvertType_SequencerRetiming;
     }
     return &TransConvertType_Sequencer;
@@ -976,7 +976,7 @@ static TransConvertTypeInfo *convert_type_get(const TransInfo *t, Object **r_obj
       return &curves::TransConvertType_Curves;
     }
     if (t->obedit_type == OB_POINTCLOUD) {
-      return &point_cloud::TransConvertType_PointCloud;
+      return &pointcloud::TransConvertType_PointCloud;
     }
     return nullptr;
   }

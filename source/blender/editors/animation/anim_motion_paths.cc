@@ -13,6 +13,7 @@
 #include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_matrix.hh"
+#include "BLI_math_vector.h"
 
 #include "DNA_anim_types.h"
 #include "DNA_armature_types.h"
@@ -235,9 +236,10 @@ static void motionpath_get_global_framerange(blender::Span<MPathTarget *> target
   }
 }
 
-/* TODO(jbakker): Remove complexity, keylists are ordered. */
 static int motionpath_get_prev_keyframe(MPathTarget *mpt, AnimKeylist *keylist, int current_frame)
 {
+  /* TODO(jbakker): Remove complexity, key-lists are ordered. */
+
   if (current_frame <= mpt->mpath->start_frame) {
     return mpt->mpath->start_frame;
   }
@@ -364,7 +366,7 @@ void animviz_motionpath_compute_range(Object *ob, Scene *scene)
 
   const bool has_action = ob->adt && ob->adt->action;
   if (avs->path_range == MOTIONPATH_RANGE_SCENE || !has_action ||
-      BLI_listbase_is_empty(&ob->adt->action->curves))
+      !blender::animrig::legacy::assigned_action_has_keyframes(ob->adt))
   {
     /* Default to the scene (preview) range if there is no animation data to
      * find selected keys in. */

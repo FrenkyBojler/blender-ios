@@ -574,8 +574,10 @@ void ensure_nodes_constraints(const Sculpt &sd,
 
       Span<float3> init_positions;
       Span<float3> persistent_position;
-      if (brush != nullptr && brush->flag & BRUSH_PERSISTENT) {
-        persistent_position = ss.sculpt_persistent_co;
+      const std::optional<PersistentMultiresData> persistent_multires_data =
+          ss.persistent_multires_data();
+      if (brush != nullptr && brush->flag & BRUSH_PERSISTENT && persistent_multires_data) {
+        persistent_position = persistent_multires_data->positions;
       }
       if (persistent_position.is_empty()) {
         init_positions = cloth_sim.init_pos;
@@ -592,7 +594,7 @@ void ensure_nodes_constraints(const Sculpt &sd,
                                   brush,
                                   initial_location,
                                   radius,
-                                  cloth_sim.init_pos,
+                                  init_positions,
                                   cloth_sim.node_state_index.lookup(&nodes[i]),
                                   verts,
                                   neighbors,
@@ -2276,7 +2278,9 @@ static void apply_filter_forces_bmesh(const Depsgraph &depsgraph,
   }
 }
 
-static int sculpt_cloth_filter_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus sculpt_cloth_filter_modal(bContext *C,
+                                                  wmOperator *op,
+                                                  const wmEvent *event)
 {
   Object &object = *CTX_data_active_object(C);
   Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
@@ -2391,7 +2395,9 @@ static int sculpt_cloth_filter_modal(bContext *C, wmOperator *op, const wmEvent 
   return OPERATOR_RUNNING_MODAL;
 }
 
-static int sculpt_cloth_filter_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus sculpt_cloth_filter_invoke(bContext *C,
+                                                   wmOperator *op,
+                                                   const wmEvent *event)
 {
   const Scene &scene = *CTX_data_scene(C);
   Object &ob = *CTX_data_active_object(C);

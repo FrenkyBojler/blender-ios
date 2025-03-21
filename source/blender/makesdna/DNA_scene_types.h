@@ -1041,6 +1041,11 @@ typedef struct ImagePaintSettings {
   /** Display texture interpolation method. */
   int interp;
   char _pad[4];
+  /** Offset of clone image from canvas in Image editor. */
+  float clone_offset[2];
+  /** Transparency for drawing of clone image in Image editor. */
+  float clone_alpha;
+  char _pad2[4];
 } ImagePaintSettings;
 
 /** \} */
@@ -2000,11 +2005,6 @@ typedef struct Scene {
   ID id;
   /** Animation data (must be immediately after id for utilities to use it). */
   struct AnimData *adt;
-  /**
-   * Engines draw data, must be immediately after AnimData. See IdDdtTemplate and
-   * DRW_drawdatalist_from_id to understand this requirement.
-   */
-  DrawDataList drawdata;
 
   struct Object *camera;
   struct World *world;
@@ -2485,6 +2485,7 @@ enum {
   SEQ_SNAP_TO_STRIPS_PREVIEW = 1 << 6,
 
   SEQ_SNAP_TO_RETIMING = 1 << 7,
+  SEQ_SNAP_TO_FRAME_RANGE = 1 << 8,
 };
 
 /** #SequencerToolSettings::snap_flag */

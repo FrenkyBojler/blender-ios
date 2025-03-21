@@ -230,7 +230,7 @@ void normals_corner_custom_set_from_verts(Span<float3> vert_positions,
                                           MutableSpan<short2> r_clnors_data);
 
 /**
- * Define sharp edges as needed to mimic 'autosmooth' from angle threshold.
+ * Define sharp edges as needed to mimic "auto-smooth" from angle threshold.
  *
  * Used when defining an empty custom corner normals data layer,
  * to keep same shading as with auto-smooth!
@@ -409,6 +409,9 @@ void mesh_data_update(Depsgraph &depsgraph,
                       const Scene &scene,
                       Object &ob,
                       const CustomData_MeshMasks &dataMask);
+
+/** Remove strings referring to attributes if they no longer exist. */
+void mesh_remove_invalid_attribute_strings(Mesh &mesh);
 
 const AttributeAccessorFunctions &mesh_attribute_accessor_functions();
 

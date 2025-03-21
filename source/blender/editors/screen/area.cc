@@ -1001,25 +1001,30 @@ static void area_azone_init(const wmWindow *win, const bScreen *screen, ScrArea 
     return;
   }
 
+  /* Use a taller zone on the left side, the height of
+   * the header, to make them easier to hit. The others
+   * on the right are shorter to not interfere with
+   * scroll bars. */
+
   const float coords[4][4] = {
       /* Bottom-left. */
       {area->totrct.xmin - U.pixelsize,
        area->totrct.ymin - U.pixelsize,
-       area->totrct.xmin + AZONESPOTW,
-       area->totrct.ymin + AZONESPOTH},
+       area->totrct.xmin + UI_AZONESPOTW,
+       float(area->totrct.ymin + ED_area_headersize())},
       /* Bottom-right. */
-      {area->totrct.xmax - AZONESPOTW,
+      {area->totrct.xmax - UI_AZONESPOTW,
        area->totrct.ymin - U.pixelsize,
        area->totrct.xmax + U.pixelsize,
-       area->totrct.ymin + AZONESPOTH},
+       area->totrct.ymin + UI_AZONESPOTH},
       /* Top-left. */
       {area->totrct.xmin - U.pixelsize,
-       area->totrct.ymax - AZONESPOTH,
-       area->totrct.xmin + AZONESPOTW,
+       float(area->totrct.ymax - ED_area_headersize()),
+       area->totrct.xmin + UI_AZONESPOTW,
        area->totrct.ymax + U.pixelsize},
       /* Top-right. */
-      {area->totrct.xmax - AZONESPOTW,
-       area->totrct.ymax - AZONESPOTH,
+      {area->totrct.xmax - UI_AZONESPOTW,
+       area->totrct.ymax - UI_AZONESPOTH,
        area->totrct.xmax + U.pixelsize,
        area->totrct.ymax + U.pixelsize},
   };
@@ -1264,12 +1269,10 @@ static void region_azones_scrollbars_init(ScrArea *area, ARegion *region)
 {
   const View2D *v2d = &region->v2d;
 
-  if ((v2d->scroll & V2D_SCROLL_VERTICAL) && ((v2d->scroll & V2D_SCROLL_VERTICAL_HANDLES) == 0)) {
+  if (v2d->scroll & V2D_SCROLL_VERTICAL) {
     region_azone_scrollbar_init(area, region, AZ_SCROLL_VERT);
   }
-  if ((v2d->scroll & V2D_SCROLL_HORIZONTAL) &&
-      ((v2d->scroll & V2D_SCROLL_HORIZONTAL_HANDLES) == 0))
-  {
+  if (v2d->scroll & V2D_SCROLL_HORIZONTAL) {
     region_azone_scrollbar_init(area, region, AZ_SCROLL_HOR);
   }
 }
@@ -2713,9 +2716,18 @@ void ED_area_newspace(bContext *C, ScrArea *area, int type, const bool skip_regi
   }
 
   /* Set area space subtype if applicable. */
-  if (st->space_subtype_item_extend != nullptr) {
+  if (st && st->space_subtype_item_extend != nullptr) {
+    if (area->butspacetype_subtype == -1) {
+      /* Indication (probably from space_type_set_or_cycle) to ignore the
+       * area's current subtype and use last-used, as saved in the space. */
+      area->butspacetype_subtype = st->space_subtype_get(area);
+    }
     st->space_subtype_set(area, area->butspacetype_subtype);
   }
+
+  /* Whether setting a subtype or not we need to clear this value. Not just unneeded
+   * but can interfere with the next change. Operations can change the type without
+   * specifying a subtype (assumed zero) and we don't want to use the old subtype. */
   area->butspacetype_subtype = 0;
 
   if (BLI_listbase_is_single(&CTX_wm_screen(C)->areabase)) {

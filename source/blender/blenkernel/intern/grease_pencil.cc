@@ -17,6 +17,7 @@
 #include "BKE_curves.hh"
 #include "BKE_customdata.hh"
 #include "BKE_deform.hh"
+#include "BKE_fcurve.hh"
 #include "BKE_geometry_set.hh"
 #include "BKE_grease_pencil.h"
 #include "BKE_grease_pencil.hh"
@@ -67,6 +68,10 @@
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_query.hh"
 
+#include "RNA_access.hh"
+#include "RNA_path.hh"
+#include "RNA_prototypes.hh"
+
 #include "MEM_guardedalloc.h"
 
 using blender::float3;
@@ -99,6 +104,64 @@ static void grease_pencil_init_data(ID *id)
   CustomData_reset(&grease_pencil->layers_data);
 
   grease_pencil->runtime = MEM_new<GreasePencilRuntime>(__func__);
+}
+
+/* See if the layer visibility is animated. This is determined whenever a copy is made, so that
+ * this happens in the "create evaluation copy" node of the depsgraph. */
+static void grease_pencil_set_runtime_visibilities(ID &id_dst, GreasePencil &grease_pencil)
+{
+  using namespace blender::bke;
+
+  if (!DEG_is_evaluated_id(&id_dst) || !grease_pencil.adt) {
+    return;
+  }
+
+  PropertyRNA *layer_hide_prop = RNA_struct_type_find_property(&RNA_GreasePencilLayer, "hide");
+  BLI_assert_msg(layer_hide_prop,
+                 "RNA struct GreasePencilLayer is expected to have a 'hide' property.");
+  PropertyRNA *group_hide_prop = RNA_struct_type_find_property(&RNA_GreasePencilLayerGroup,
+                                                               "hide");
+  BLI_assert_msg(group_hide_prop,
+                 "RNA struct GreasePencilLayerGroup is expected to have a 'hide' property.");
+
+  for (greasepencil::LayerGroup *layer_group : grease_pencil.layer_groups_for_write()) {
+    PointerRNA layer_ptr = RNA_pointer_create_discrete(
+        &id_dst, &RNA_GreasePencilLayerGroup, layer_group);
+    std::optional<std::string> rna_path = RNA_path_from_ID_to_property(&layer_ptr,
+                                                                       group_hide_prop);
+    BLI_assert_msg(
+        rna_path,
+        "It should be possible to construct the RNA path of a grease pencil layer group.");
+
+    layer_group->runtime->is_visibility_animated_ = animdata::prop_is_animated(
+        grease_pencil.adt, rna_path->c_str(), 0);
+  }
+
+  std::function<bool(greasepencil::LayerGroup &)> parent_group_visibility_animated =
+      [&](greasepencil::LayerGroup &parent) {
+        if (parent.runtime->is_visibility_animated_) {
+          return true;
+        }
+        greasepencil::LayerGroup *parent_group = parent.as_node().parent_group();
+        if (parent_group) {
+          return parent_group_visibility_animated(*parent_group);
+        }
+        return false;
+      };
+
+  for (greasepencil::Layer *layer : grease_pencil.layers_for_write()) {
+    if (parent_group_visibility_animated(layer->parent_group())) {
+      layer->runtime->is_visibility_animated_ = true;
+      continue;
+    }
+    PointerRNA layer_ptr = RNA_pointer_create_discrete(&id_dst, &RNA_GreasePencilLayer, layer);
+    std::optional<std::string> rna_path = RNA_path_from_ID_to_property(&layer_ptr,
+                                                                       layer_hide_prop);
+    BLI_assert_msg(rna_path,
+                   "It should be possible to construct the RNA path of a grease pencil layer.");
+    layer->runtime->is_visibility_animated_ = animdata::prop_is_animated(
+        grease_pencil.adt, rna_path.value(), 0);
+  }
 }
 
 static void grease_pencil_copy_data(Main * /*bmain*/,
@@ -145,6 +208,8 @@ static void grease_pencil_copy_data(Main * /*bmain*/,
     grease_pencil_dst->runtime->bake_materials = std::make_unique<bke::bake::BakeMaterialsList>(
         *grease_pencil_src->runtime->bake_materials);
   }
+
+  grease_pencil_set_runtime_visibilities(*id_dst, *grease_pencil_dst);
 }
 
 static void grease_pencil_free_data(ID *id)
@@ -1409,8 +1474,8 @@ void Layer::prepare_for_dna_write()
 
   const size_t frames_num = size_t(frames().size());
   frames_storage.num = int(frames_num);
-  frames_storage.keys = MEM_cnew_array<int>(frames_num, __func__);
-  frames_storage.values = MEM_cnew_array<GreasePencilFrame>(frames_num, __func__);
+  frames_storage.keys = MEM_calloc_arrayN<int>(frames_num, __func__);
+  frames_storage.values = MEM_calloc_arrayN<GreasePencilFrame>(frames_num, __func__);
   const Span<int> sorted_keys_data = sorted_keys();
   for (const int64_t i : sorted_keys_data.index_range()) {
     frames_storage.keys[i] = sorted_keys_data[i];
@@ -2198,14 +2263,28 @@ static void grease_pencil_evaluate_layers(GreasePencil &grease_pencil)
   Array<Layer *> layers = grease_pencil.layers_for_write();
 
   for (Layer *layer : layers) {
-    if (!layer->is_visible()) {
-      /* Remove layer from evaluated data. */
-      grease_pencil.remove_layer(*layer);
+    /* When the visibility is animated, the layer should be retained even when it is invisible.
+     * Changing the visibility through the animation system does NOT create another evaluated copy,
+     * and thus the layer has to be kept for this future use. */
+    if (layer->is_visible() || layer->runtime->is_visibility_animated_) {
+      continue;
     }
+
+    /* Remove layer from evaluated data. */
+    grease_pencil.remove_layer(*layer);
   }
 }
 
-void BKE_grease_pencil_data_update(Depsgraph *depsgraph, Scene *scene, Object *object)
+void BKE_grease_pencil_eval_geometry(Depsgraph *depsgraph, GreasePencil *grease_pencil)
+{
+  using namespace blender;
+  /* Store the frame that this grease pencil is evaluated on. */
+  grease_pencil->runtime->eval_frame = int(DEG_get_ctime(depsgraph));
+  /* This will remove layers that aren't visible. */
+  grease_pencil_evaluate_layers(*grease_pencil);
+}
+
+void BKE_object_eval_grease_pencil(Depsgraph *depsgraph, Scene *scene, Object *object)
 {
   using namespace blender;
   using namespace blender::bke;
@@ -2213,11 +2292,6 @@ void BKE_grease_pencil_data_update(Depsgraph *depsgraph, Scene *scene, Object *o
   BKE_object_free_derived_caches(object);
 
   GreasePencil *grease_pencil = static_cast<GreasePencil *>(object->data);
-  /* Store the frame that this grease pencil is evaluated on. */
-  grease_pencil->runtime->eval_frame = int(DEG_get_ctime(depsgraph));
-  /* This will remove layers that aren't visible. */
-  grease_pencil_evaluate_layers(*grease_pencil);
-
   GeometrySet geometry_set = GeometrySet::from_grease_pencil(grease_pencil,
                                                              GeometryOwnershipType::ReadOnly);
   /* The layer adjustments for tinting and radii offsets are applied before modifier evaluation.
@@ -2268,7 +2342,7 @@ void BKE_grease_pencil_duplicate_drawing_array(const GreasePencil *grease_pencil
   using namespace blender;
   grease_pencil_dst->drawing_array_num = grease_pencil_src->drawing_array_num;
   if (grease_pencil_dst->drawing_array_num > 0) {
-    grease_pencil_dst->drawing_array = MEM_cnew_array<GreasePencilDrawingBase *>(
+    grease_pencil_dst->drawing_array = MEM_calloc_arrayN<GreasePencilDrawingBase *>(
         grease_pencil_src->drawing_array_num, __func__);
     bke::greasepencil::copy_drawing_array(grease_pencil_src->drawings(),
                                           grease_pencil_dst->drawings());
@@ -2365,6 +2439,9 @@ void BKE_grease_pencil_point_coords_apply(GreasePencil &grease_pencil,
         radii[i] = all_radii[index];
         index++;
       }
+
+      curves.tag_radii_changed();
+      drawing.tag_positions_changed();
     });
   }
 }
@@ -2398,6 +2475,9 @@ void BKE_grease_pencil_point_coords_apply_with_mat4(GreasePencil &grease_pencil,
         radii[i] = all_radii[index] * scalef;
         index++;
       }
+
+      curves.tag_radii_changed();
+      drawing.tag_positions_changed();
     });
   }
 }
@@ -2665,7 +2745,7 @@ template<typename T> static void grow_array(T **array, int *num, const int add_n
 {
   BLI_assert(add_num > 0);
   const int new_array_num = *num + add_num;
-  T *new_array = MEM_cnew_array<T>(new_array_num, __func__);
+  T *new_array = MEM_calloc_arrayN<T>(new_array_num, __func__);
 
   blender::uninitialized_relocate_n(*array, *num, new_array);
   if (*array != nullptr) {
@@ -2686,7 +2766,7 @@ template<typename T> static void shrink_array(T **array, int *num, const int shr
     return;
   }
 
-  T *new_array = MEM_cnew_array<T>(new_array_num, __func__);
+  T *new_array = MEM_calloc_arrayN<T>(new_array_num, __func__);
 
   blender::uninitialized_move_n(*array, new_array_num, new_array);
   MEM_freeN(*array);
@@ -3253,7 +3333,8 @@ static void transform_positions(const Span<blender::float3> src,
   });
 }
 
-std::optional<blender::Bounds<blender::float3>> GreasePencil::bounds_min_max(const int frame) const
+std::optional<blender::Bounds<blender::float3>> GreasePencil::bounds_min_max(
+    const int frame, const bool use_radius) const
 {
   using namespace blender;
   std::optional<Bounds<float3>> bounds;
@@ -3264,20 +3345,53 @@ std::optional<blender::Bounds<blender::float3>> GreasePencil::bounds_min_max(con
     if (!layer.is_visible()) {
       continue;
     }
-    if (const bke::greasepencil::Drawing *drawing = this->get_drawing_at(layer, frame)) {
-      const bke::CurvesGeometry &curves = drawing->strokes();
-
-      Array<float3> world_pos(curves.evaluated_positions().size());
-      transform_positions(curves.evaluated_positions(), layer_to_object, world_pos);
-      bounds = bounds::merge(bounds, bounds::min_max(world_pos.as_span()));
+    const bke::greasepencil::Drawing *drawing = this->get_drawing_at(layer, frame);
+    if (!drawing) {
+      continue;
     }
+    const bke::CurvesGeometry &curves = drawing->strokes();
+    if (curves.is_empty()) {
+      continue;
+    }
+    if (layer_to_object == float4x4::identity()) {
+      bounds = bounds::merge(bounds, curves.bounds_min_max(use_radius));
+      continue;
+    }
+    const VArray<float> radius = curves.radius();
+    Array<float3> positions_world(curves.evaluated_points_num());
+    transform_positions(curves.evaluated_positions(), layer_to_object, positions_world);
+    if (!use_radius) {
+      const Bounds<float3> drawing_bounds = *bounds::min_max(positions_world.as_span());
+      bounds = bounds::merge(bounds, drawing_bounds);
+      continue;
+    }
+    if (const std::optional radius_single = radius.get_if_single()) {
+      Bounds<float3> drawing_bounds = *curves.bounds_min_max(false);
+      drawing_bounds.pad(*radius_single);
+      bounds = bounds::merge(bounds, drawing_bounds);
+      continue;
+    }
+    const Span radius_span = radius.get_internal_span();
+    if (curves.is_single_type(CURVE_TYPE_POLY)) {
+      const Bounds<float3> drawing_bounds = *bounds::min_max_with_radii(positions_world.as_span(),
+                                                                        radius_span);
+      bounds = bounds::merge(bounds, drawing_bounds);
+      continue;
+    }
+    curves.ensure_can_interpolate_to_evaluated();
+    Array<float> radii_eval(curves.evaluated_points_num());
+    curves.interpolate_to_evaluated(radius_span, radii_eval.as_mutable_span());
+    const Bounds<float3> drawing_bounds = *bounds::min_max_with_radii(positions_world.as_span(),
+                                                                      radii_eval.as_span());
+    bounds = bounds::merge(bounds, drawing_bounds);
   }
   return bounds;
 }
 
-std::optional<blender::Bounds<blender::float3>> GreasePencil::bounds_min_max_eval() const
+std::optional<blender::Bounds<blender::float3>> GreasePencil::bounds_min_max_eval(
+    const bool use_radius) const
 {
-  return this->bounds_min_max(this->runtime->eval_frame);
+  return this->bounds_min_max(this->runtime->eval_frame, use_radius);
 }
 
 void GreasePencil::count_memory(blender::MemoryCounter &memory) const

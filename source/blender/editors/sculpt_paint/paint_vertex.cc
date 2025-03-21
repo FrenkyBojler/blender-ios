@@ -786,7 +786,7 @@ void ED_object_vpaintmode_exit(bContext *C)
 /**
  * \note Keep in sync with #wpaint_mode_toggle_exec
  */
-static int vpaint_mode_toggle_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus vpaint_mode_toggle_exec(bContext *C, wmOperator *op)
 {
   Main &bmain = *CTX_data_main(C);
   wmMsgBus *mbus = CTX_wm_message_bus(C);
@@ -1569,12 +1569,10 @@ static void calculate_average_color(VPaintData &vpd,
     using Blend = typename Traits::BlendType;
     const Span<Color> colors = attribute.typed<T>().template cast<Color>();
 
-    Array<VPaintAverageAccum<Blend>> accum(nodes.size());
+    Array<VPaintAverageAccum<Blend>> accum(nodes.size(), {0, {0, 0, 0}});
     node_mask.foreach_index(GrainSize(1), [&](const int i) {
-      LocalData &tls = all_tls.local();
       VPaintAverageAccum<Blend> &accum2 = accum[i];
-      accum2.len = 0;
-      memset(accum2.value, 0, sizeof(accum2.value));
+      LocalData &tls = all_tls.local();
 
       const Span<int> verts = nodes[i].verts();
       tls.factors.resize(verts.size());
@@ -1622,12 +1620,12 @@ static void calculate_average_color(VPaintData &vpd,
     Blend accum_value[3] = {0};
     Color blend(0, 0, 0, 0);
 
-    for (int i = 0; i < nodes.size(); i++) {
+    node_mask.foreach_index([&](const int i) {
       accum_len += accum[i].len;
       accum_value[0] += accum[i].value[0];
       accum_value[1] += accum[i].value[1];
       accum_value[2] += accum[i].value[2];
-    }
+    });
     if (accum_len != 0) {
       blend.r = Traits::round(sqrtf(Traits::divide_round(accum_value[0], accum_len)));
       blend.g = Traits::round(sqrtf(Traits::divide_round(accum_value[1], accum_len)));
@@ -2037,10 +2035,8 @@ static void vpaint_stroke_done(const bContext *C, PaintStroke *stroke)
   ob.sculpt->cache = nullptr;
 }
 
-static int vpaint_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus vpaint_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  int retval;
-
   op->customdata = paint_stroke_new(C,
                                     op,
                                     SCULPT_stroke_get_location,
@@ -2055,20 +2051,22 @@ static int vpaint_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 
   undo::push_begin_ex(scene, ob, "Vertex Paint");
 
-  if ((retval = op->type->modal(C, op, event)) == OPERATOR_FINISHED) {
+  const wmOperatorStatus retval = op->type->modal(C, op, event);
+  OPERATOR_RETVAL_CHECK(retval);
+
+  if (retval == OPERATOR_FINISHED) {
     paint_stroke_free(C, op, (PaintStroke *)op->customdata);
     return OPERATOR_FINISHED;
   }
 
   WM_event_add_modal_handler(C, op);
 
-  OPERATOR_RETVAL_CHECK(retval);
   BLI_assert(retval == OPERATOR_RUNNING_MODAL);
 
   return OPERATOR_RUNNING_MODAL;
 }
 
-static int vpaint_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus vpaint_exec(bContext *C, wmOperator *op)
 {
   op->customdata = paint_stroke_new(C,
                                     op,
@@ -2093,7 +2091,7 @@ static void vpaint_cancel(bContext *C, wmOperator *op)
   paint_stroke_cancel(C, op, (PaintStroke *)op->customdata);
 }
 
-static int vpaint_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus vpaint_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   return paint_stroke_modal(C, op, event, (PaintStroke **)&op->customdata);
 }
@@ -2277,7 +2275,7 @@ bool object_active_color_fill(Object &ob, const float fill_color[4], bool only_s
 
 }  // namespace blender::ed::sculpt_paint
 
-static int vertex_color_set_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus vertex_color_set_exec(bContext *C, wmOperator *op)
 {
   using namespace blender::ed::sculpt_paint;
   Scene &scene = *CTX_data_scene(C);

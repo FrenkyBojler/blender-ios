@@ -30,6 +30,7 @@ class Manager;
 struct CurvesModule;
 struct PointCloudModule;
 struct VolumeModule;
+struct ObjectRef;
 }  // namespace blender::draw
 
 /* draw_hair.cc */
@@ -40,7 +41,7 @@ struct VolumeModule;
 blender::gpu::VertBuf *DRW_hair_pos_buffer_get(Object *object,
                                                ParticleSystem *psys,
                                                ModifierData *md);
-void DRW_hair_duplimat_get(Object *object,
+void DRW_hair_duplimat_get(const blender::draw::ObjectRef &ob_ref,
                            ParticleSystem *psys,
                            ModifierData *md,
                            float (*dupli_mat)[4]);
@@ -62,8 +63,8 @@ void DRW_curves_update(draw::Manager &manager);
 /* draw_pointcloud.cc */
 
 /* If drw_data is nullptr, DST global is accessed to get it. */
-void DRW_point_cloud_init(DRWData *drw_data = nullptr);
-void DRW_point_cloud_module_free(draw::PointCloudModule *module);
+void DRW_pointcloud_init(DRWData *drw_data = nullptr);
+void DRW_pointcloud_module_free(draw::PointCloudModule *module);
 
 /* draw_volume.cc */
 
