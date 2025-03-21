@@ -1,3 +1,4 @@
 Referenced by issue #135552, EEVEE Next fails to bake light probes in the background
 Referenced by issue #135783, "No OpenGL vendor detected." when submitting Compositor jobs to farm / command line
 Referenced by pull request #136140, Fix: Renderdoc sessions crash on startup (WGL)
+Referenced by pull request #136270, Fix #135552, #135783: DRW: Crash when creating DRW context in background mode
