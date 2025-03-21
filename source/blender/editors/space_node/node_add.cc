@@ -876,7 +876,7 @@ static wmOperatorStatus node_add_image_invoke(bContext *C, wmOperator *op, const
 void NODE_OT_add_image(wmOperatorType *ot)
 {
   /* identifiers */
-  ot->name = "Add Image File Node";
+  ot->name = "Add Image as Node";
   ot->description = "Add a image/movie file as node to the current node editor";
   ot->idname = "NODE_OT_add_image";
 
