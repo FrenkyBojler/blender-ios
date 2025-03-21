@@ -128,10 +128,10 @@ class OBJECT_PT_relations(ObjectButtonsPanel, Panel):
             sub.prop_search(ob, "parent_bone", parent.data, "bones")
         elif ob.parent_type == 'VERTEX':
             col.prop(ob, "parent_vertices", text="Parent Vertex", index=0)
-            sub.prop(ob, "parent_use_final_geometry")
+            sub.prop(ob, "use_parent_final_indices")
         elif ob.parent_type == 'VERTEX_3':
             col.prop(ob, "parent_vertices", text="Parent Vertices")
-            sub.prop(ob, "parent_use_final_geometry")
+            sub.prop(ob, "use_parent_final_indices")
         sub.active = (parent is not None)
         sub.prop(ob, "use_camera_lock_parent")
 
