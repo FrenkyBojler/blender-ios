@@ -1317,8 +1317,7 @@ static void match_slope_graph_keys(bAnimContext *ac, const float factor)
     ale->update |= ANIM_UPDATE_DEFAULT;
     BLI_freelistN(&segments);
   }
-  BLI_assert(ac->reports);
-  BLI_assert(!"yay");
+
   if (!all_segments_valid) {
     if (factor >= 0) {
       BKE_report(
