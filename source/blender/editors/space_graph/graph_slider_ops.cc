@@ -296,7 +296,7 @@ static void update_depsgraph(tGraphSliderOp *gso)
   ANIM_animdata_freelist(&anim_data);
 }
 
-static int graph_slider_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus graph_slider_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   tGraphSliderOp *gso = static_cast<tGraphSliderOp *>(op->customdata);
 
@@ -386,7 +386,7 @@ static int graph_slider_modal(bContext *C, wmOperator *op, const wmEvent *event)
 }
 
 /* Allocate tGraphSliderOp and assign to op->customdata. */
-static int graph_slider_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus graph_slider_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   tGraphSliderOp *gso;
 
@@ -490,9 +490,9 @@ static void decimate_modal_update(bContext *C, wmOperator *op)
   WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 }
 
-static int decimate_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus decimate_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  const int invoke_result = graph_slider_invoke(C, op, event);
+  const wmOperatorStatus invoke_result = graph_slider_invoke(C, op, event);
 
   if (invoke_result == OPERATOR_CANCELLED) {
     return OPERATOR_CANCELLED;
@@ -506,7 +506,7 @@ static int decimate_invoke(bContext *C, wmOperator *op, const wmEvent *event)
   return invoke_result;
 }
 
-static int decimate_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus decimate_exec(bContext *C, wmOperator *op)
 {
   bAnimContext ac;
 
@@ -663,9 +663,9 @@ static void blend_to_neighbor_modal_update(bContext *C, wmOperator *op)
   WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 }
 
-static int blend_to_neighbor_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus blend_to_neighbor_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  const int invoke_result = graph_slider_invoke(C, op, event);
+  const wmOperatorStatus invoke_result = graph_slider_invoke(C, op, event);
 
   if (invoke_result == OPERATOR_CANCELLED) {
     return invoke_result;
@@ -681,7 +681,7 @@ static int blend_to_neighbor_invoke(bContext *C, wmOperator *op, const wmEvent *
   return invoke_result;
 }
 
-static int blend_to_neighbor_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus blend_to_neighbor_exec(bContext *C, wmOperator *op)
 {
   bAnimContext ac;
 
@@ -750,9 +750,9 @@ static void breakdown_modal_update(bContext *C, wmOperator *op)
   WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 }
 
-static int breakdown_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus breakdown_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  const int invoke_result = graph_slider_invoke(C, op, event);
+  const wmOperatorStatus invoke_result = graph_slider_invoke(C, op, event);
 
   if (invoke_result == OPERATOR_CANCELLED) {
     return invoke_result;
@@ -768,7 +768,7 @@ static int breakdown_invoke(bContext *C, wmOperator *op, const wmEvent *event)
   return invoke_result;
 }
 
-static int breakdown_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus breakdown_exec(bContext *C, wmOperator *op)
 {
   bAnimContext ac;
 
@@ -857,9 +857,9 @@ static void blend_to_default_modal_update(bContext *C, wmOperator *op)
   WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 }
 
-static int blend_to_default_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus blend_to_default_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  const int invoke_result = graph_slider_invoke(C, op, event);
+  const wmOperatorStatus invoke_result = graph_slider_invoke(C, op, event);
 
   if (invoke_result == OPERATOR_CANCELLED) {
     return invoke_result;
@@ -874,7 +874,7 @@ static int blend_to_default_invoke(bContext *C, wmOperator *op, const wmEvent *e
   return invoke_result;
 }
 
-static int blend_to_default_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus blend_to_default_exec(bContext *C, wmOperator *op)
 {
   bAnimContext ac;
 
@@ -993,7 +993,7 @@ static void ease_modal_update(bContext *C, wmOperator *op)
   WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 }
 
-static int ease_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus ease_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   if (event->val != KM_PRESS) {
     return graph_slider_modal(C, op, event);
@@ -1030,9 +1030,9 @@ static int ease_modal(bContext *C, wmOperator *op, const wmEvent *event)
   return OPERATOR_RUNNING_MODAL;
 }
 
-static int ease_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus ease_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  const int invoke_result = graph_slider_invoke(C, op, event);
+  const wmOperatorStatus invoke_result = graph_slider_invoke(C, op, event);
 
   if (invoke_result == OPERATOR_CANCELLED) {
     return invoke_result;
@@ -1050,7 +1050,7 @@ static int ease_invoke(bContext *C, wmOperator *op, const wmEvent *event)
   return invoke_result;
 }
 
-static int ease_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus ease_exec(bContext *C, wmOperator *op)
 {
   bAnimContext ac;
 
@@ -1134,9 +1134,9 @@ static void blend_offset_modal_update(bContext *C, wmOperator *op)
   WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 }
 
-static int blend_offset_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus blend_offset_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  const int invoke_result = graph_slider_invoke(C, op, event);
+  const wmOperatorStatus invoke_result = graph_slider_invoke(C, op, event);
 
   if (invoke_result == OPERATOR_CANCELLED) {
     return invoke_result;
@@ -1152,7 +1152,7 @@ static int blend_offset_invoke(bContext *C, wmOperator *op, const wmEvent *event
   return invoke_result;
 }
 
-static int blend_offset_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus blend_offset_exec(bContext *C, wmOperator *op)
 {
   bAnimContext ac;
 
@@ -1227,9 +1227,9 @@ static void blend_to_ease_modal_update(bContext *C, wmOperator *op)
   WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 }
 
-static int blend_to_ease_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus blend_to_ease_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  const int invoke_result = graph_slider_invoke(C, op, event);
+  const wmOperatorStatus invoke_result = graph_slider_invoke(C, op, event);
 
   if (invoke_result == OPERATOR_CANCELLED) {
     return invoke_result;
@@ -1246,7 +1246,7 @@ static int blend_to_ease_invoke(bContext *C, wmOperator *op, const wmEvent *even
   return invoke_result;
 }
 
-static int blend_to_ease_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus blend_to_ease_exec(bContext *C, wmOperator *op)
 {
   bAnimContext ac;
 
@@ -1352,9 +1352,9 @@ static void match_slope_modal_update(bContext *C, wmOperator *op)
   WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 }
 
-static int match_slope_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus match_slope_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  const int invoke_result = graph_slider_invoke(C, op, event);
+  const wmOperatorStatus invoke_result = graph_slider_invoke(C, op, event);
 
   if (invoke_result == OPERATOR_CANCELLED) {
     return invoke_result;
@@ -1371,7 +1371,7 @@ static int match_slope_invoke(bContext *C, wmOperator *op, const wmEvent *event)
   return invoke_result;
 }
 
-static int match_slope_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus match_slope_exec(bContext *C, wmOperator *op)
 {
   bAnimContext ac;
 
@@ -1444,9 +1444,9 @@ static void time_offset_modal_update(bContext *C, wmOperator *op)
   WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 }
 
-static int time_offset_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus time_offset_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  const int invoke_result = graph_slider_invoke(C, op, event);
+  const wmOperatorStatus invoke_result = graph_slider_invoke(C, op, event);
 
   if (invoke_result == OPERATOR_CANCELLED) {
     return invoke_result;
@@ -1465,7 +1465,7 @@ static int time_offset_invoke(bContext *C, wmOperator *op, const wmEvent *event)
   return invoke_result;
 }
 
-static int time_offset_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus time_offset_exec(bContext *C, wmOperator *op)
 {
   bAnimContext ac;
 
@@ -1589,7 +1589,7 @@ static void shear_modal_update(bContext *C, wmOperator *op)
   WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 }
 
-static int shear_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus shear_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   if (event->val != KM_PRESS) {
     return graph_slider_modal(C, op, event);
@@ -1612,9 +1612,9 @@ static int shear_modal(bContext *C, wmOperator *op, const wmEvent *event)
   return OPERATOR_RUNNING_MODAL;
 }
 
-static int shear_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus shear_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  const int invoke_result = graph_slider_invoke(C, op, event);
+  const wmOperatorStatus invoke_result = graph_slider_invoke(C, op, event);
 
   if (invoke_result == OPERATOR_CANCELLED) {
     return invoke_result;
@@ -1632,7 +1632,7 @@ static int shear_invoke(bContext *C, wmOperator *op, const wmEvent *event)
   return invoke_result;
 }
 
-static int shear_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus shear_exec(bContext *C, wmOperator *op)
 {
   bAnimContext ac;
 
@@ -1710,9 +1710,9 @@ static void scale_average_modal_update(bContext *C, wmOperator *op)
   WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 }
 
-static int scale_average_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus scale_average_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  const int invoke_result = graph_slider_invoke(C, op, event);
+  const wmOperatorStatus invoke_result = graph_slider_invoke(C, op, event);
 
   if (invoke_result == OPERATOR_CANCELLED) {
     return invoke_result;
@@ -1728,7 +1728,7 @@ static int scale_average_invoke(bContext *C, wmOperator *op, const wmEvent *even
   return invoke_result;
 }
 
-static int scale_average_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus scale_average_exec(bContext *C, wmOperator *op)
 {
   bAnimContext ac;
 
@@ -1886,9 +1886,9 @@ static void gaussian_smooth_modal_update(bContext *C, wmOperator *op)
   WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 }
 
-static int gaussian_smooth_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus gaussian_smooth_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  const int invoke_result = graph_slider_invoke(C, op, event);
+  const wmOperatorStatus invoke_result = graph_slider_invoke(C, op, event);
 
   if (invoke_result == OPERATOR_CANCELLED) {
     return invoke_result;
@@ -1945,7 +1945,7 @@ static void gaussian_smooth_graph_keys(bAnimContext *ac,
   ANIM_animdata_freelist(&anim_data);
 }
 
-static int gaussian_smooth_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus gaussian_smooth_exec(bContext *C, wmOperator *op)
 {
   bAnimContext ac;
 
@@ -2140,9 +2140,9 @@ static void btw_smooth_modal_update(bContext *C, wmOperator *op)
   WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 }
 
-static int btw_smooth_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus btw_smooth_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  const int invoke_result = graph_slider_invoke(C, op, event);
+  const wmOperatorStatus invoke_result = graph_slider_invoke(C, op, event);
 
   if (invoke_result == OPERATOR_CANCELLED) {
     return invoke_result;
@@ -2217,7 +2217,7 @@ static void btw_smooth_graph_keys(bAnimContext *ac,
   ANIM_animdata_freelist(&anim_data);
 }
 
-static int btw_smooth_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus btw_smooth_exec(bContext *C, wmOperator *op)
 {
   bAnimContext ac;
 
@@ -2328,9 +2328,9 @@ static void push_pull_modal_update(bContext *C, wmOperator *op)
   WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 }
 
-static int push_pull_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus push_pull_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  const int invoke_result = graph_slider_invoke(C, op, event);
+  const wmOperatorStatus invoke_result = graph_slider_invoke(C, op, event);
 
   if (invoke_result == OPERATOR_CANCELLED) {
     return invoke_result;
@@ -2346,7 +2346,7 @@ static int push_pull_invoke(bContext *C, wmOperator *op, const wmEvent *event)
   return invoke_result;
 }
 
-static int push_pull_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus push_pull_exec(bContext *C, wmOperator *op)
 {
   bAnimContext ac;
 
@@ -2467,7 +2467,9 @@ static void scale_from_neighbor_modal_update(bContext *C, wmOperator *op)
   WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 }
 
-static int scale_from_neighbor_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus scale_from_neighbor_modal(bContext *C,
+                                                  wmOperator *op,
+                                                  const wmEvent *event)
 {
   if (event->val != KM_PRESS) {
     return graph_slider_modal(C, op, event);
@@ -2495,9 +2497,11 @@ static int scale_from_neighbor_modal(bContext *C, wmOperator *op, const wmEvent 
   return OPERATOR_RUNNING_MODAL;
 }
 
-static int scale_from_neighbor_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus scale_from_neighbor_invoke(bContext *C,
+                                                   wmOperator *op,
+                                                   const wmEvent *event)
 {
-  const int invoke_result = graph_slider_invoke(C, op, event);
+  const wmOperatorStatus invoke_result = graph_slider_invoke(C, op, event);
 
   if (invoke_result == OPERATOR_CANCELLED) {
     return OPERATOR_CANCELLED;
@@ -2513,7 +2517,7 @@ static int scale_from_neighbor_invoke(bContext *C, wmOperator *op, const wmEvent
   return invoke_result;
 }
 
-static int scale_from_neighbor_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus scale_from_neighbor_exec(bContext *C, wmOperator *op)
 {
   bAnimContext ac;
 
