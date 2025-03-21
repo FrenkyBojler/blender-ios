@@ -138,7 +138,7 @@ static bool grease_pencil_import_svg_check(bContext * /*C*/, wmOperator *op)
   return false;
 }
 
-static int grease_pencil_import_svg_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus grease_pencil_import_svg_exec(bContext *C, wmOperator *op)
 {
   using blender::io::grease_pencil::ImportParams;
   using blender::io::grease_pencil::IOContext;
@@ -279,7 +279,9 @@ static bool grease_pencil_export_svg_check(bContext * /*C*/, wmOperator *op)
   return false;
 }
 
-static int grease_pencil_export_svg_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+static wmOperatorStatus grease_pencil_export_svg_invoke(bContext *C,
+                                                        wmOperator *op,
+                                                        const wmEvent * /*event*/)
 {
   ED_fileselect_ensure_default_filepath(C, op, ".svg");
 
@@ -288,7 +290,7 @@ static int grease_pencil_export_svg_invoke(bContext *C, wmOperator *op, const wm
   return OPERATOR_RUNNING_MODAL;
 }
 
-static int grease_pencil_export_svg_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus grease_pencil_export_svg_exec(bContext *C, wmOperator *op)
 {
   using blender::io::grease_pencil::ExportParams;
   using blender::io::grease_pencil::IOContext;
@@ -456,7 +458,9 @@ static bool grease_pencil_export_pdf_check(bContext * /*C*/, wmOperator *op)
   return false;
 }
 
-static int grease_pencil_export_pdf_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+static wmOperatorStatus grease_pencil_export_pdf_invoke(bContext *C,
+                                                        wmOperator *op,
+                                                        const wmEvent * /*event*/)
 {
   ED_fileselect_ensure_default_filepath(C, op, ".pdf");
 
@@ -465,7 +469,7 @@ static int grease_pencil_export_pdf_invoke(bContext *C, wmOperator *op, const wm
   return OPERATOR_RUNNING_MODAL;
 }
 
-static int grease_pencil_export_pdf_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus grease_pencil_export_pdf_exec(bContext *C, wmOperator *op)
 {
   using blender::io::grease_pencil::ExportParams;
   using blender::io::grease_pencil::IOContext;
