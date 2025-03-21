@@ -155,7 +155,7 @@ class ForceFields : Overlay {
   void end_sync(Resources &res, const State &state) final
   {
     ps_.init();
-    res.select_bind(ps_);
+    res.select_bind(ps_, state.clipping_plane_count);
     ps_.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_LESS_EQUAL,
                   state.clipping_plane_count);
     ps_.shader_set(res.shaders->extra_shape.get());

@@ -95,7 +95,7 @@ class Metaballs : Overlay {
     ps_.shader_set(res.shaders->armature_sphere_outline.get());
     ps_.bind_ubo(OVERLAY_GLOBALS_SLOT, &res.globals_buf);
     ps_.bind_ubo(DRW_CLIPPING_UBO_SLOT, &res.clip_planes_buf);
-    res.select_bind(ps_);
+    res.select_bind(ps_, state.clipping_plane_count);
 
     circle_buf_.end_sync(ps_, res.shapes.metaball_wire_circle.get());
   }

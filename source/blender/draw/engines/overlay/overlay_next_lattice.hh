@@ -48,7 +48,7 @@ class Lattices : Overlay {
                   state.clipping_plane_count);
     ps_.bind_ubo(OVERLAY_GLOBALS_SLOT, &res.globals_buf);
     ps_.bind_ubo(DRW_CLIPPING_UBO_SLOT, &res.clip_planes_buf);
-    res.select_bind(ps_);
+    res.select_bind(ps_, state.clipping_plane_count);
     edit_lattice_wire_ps_ = create_sub_pass(
         "edit_lattice_wire", res.shaders->lattice_wire.get(), true);
     edit_lattice_point_ps_ = create_sub_pass(

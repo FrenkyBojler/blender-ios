@@ -161,28 +161,26 @@ struct SelectMap {
   }
 
   /** IMPORTANT: Changes the draw state. Need to be called after the pass's own state_set. */
-  void select_bind(PassSimple &pass)
+  void select_bind(PassSimple &pass, int clipping_plane_count)
   {
     if (selection_type == SelectionType::DISABLED) {
       return;
     }
 
-    /* TODO: clipping state. */
-    pass.state_set(DRW_STATE_WRITE_COLOR);
+    pass.state_set(DRW_STATE_WRITE_COLOR, clipping_plane_count);
     pass.bind_ubo(SELECT_DATA, &info_buf);
     pass.bind_ssbo(SELECT_ID_OUT, &select_output_buf);
   }
 
   /** IMPORTANT: Changes the draw state. Need to be called after the pass's own state_set. */
-  void select_bind(PassMain &pass)
+  void select_bind(PassMain &pass, int clipping_plane_count)
   {
     if (selection_type == SelectionType::DISABLED) {
       return;
     }
 
     pass.use_custom_ids = true;
-    /* TODO: clipping state. */
-    pass.state_set(DRW_STATE_WRITE_COLOR);
+    pass.state_set(DRW_STATE_WRITE_COLOR, clipping_plane_count);
     pass.bind_ubo(SELECT_DATA, &info_buf);
     /* IMPORTANT: This binds a dummy buffer `in_select_buf` but it is not supposed to be used. */
     pass.bind_ssbo(SELECT_ID_IN, &dummy_select_buf);
@@ -191,15 +189,14 @@ struct SelectMap {
 
   /* TODO: Deduplicate. */
   /** IMPORTANT: Changes the draw state. Need to be called after the pass's own state_set. */
-  void select_bind(PassMain &pass, PassMain::Sub &sub)
+  void select_bind(PassMain &pass, PassMain::Sub &sub, int clipping_plane_count)
   {
     if (selection_type == SelectionType::DISABLED) {
       return;
     }
 
     pass.use_custom_ids = true;
-    /* TODO: clipping state. */
-    sub.state_set(DRW_STATE_WRITE_COLOR);
+    sub.state_set(DRW_STATE_WRITE_COLOR, clipping_plane_count);
     sub.bind_ubo(SELECT_DATA, &info_buf);
     /* IMPORTANT: This binds a dummy buffer `in_select_buf` but it is not supposed to be used. */
     sub.bind_ssbo(SELECT_ID_IN, &dummy_select_buf);

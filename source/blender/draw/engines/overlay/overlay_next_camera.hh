@@ -127,7 +127,7 @@ class Cameras : Overlay {
         pass.bind_ubo(OVERLAY_GLOBALS_SLOT, &res.globals_buf);
         pass.bind_ubo(DRW_CLIPPING_UBO_SLOT, &res.clip_planes_buf);
         pass.push_constant("depth_bias_winmat", &depth_bias_winmat_);
-        res.select_bind(pass);
+        res.select_bind(pass, state.clipping_plane_count);
       };
 
       DRWState draw_state;
@@ -170,7 +170,7 @@ class Cameras : Overlay {
     ps_.init();
     ps_.bind_ubo(OVERLAY_GLOBALS_SLOT, &res.globals_buf);
     ps_.bind_ubo(DRW_CLIPPING_UBO_SLOT, &res.clip_planes_buf);
-    res.select_bind(ps_);
+    res.select_bind(ps_, state.clipping_plane_count);
 
     {
       PassSimple::Sub &sub_pass = ps_.sub("volume");
