@@ -102,6 +102,8 @@ void screen_draw_split_preview(ScrArea *area, eScreenAxis dir_axis, float factor
 
 void screen_draw_move_highlight(bScreen *screen, eScreenAxis dir_axis);
 
+void screen_draw_region_scale_highlight(ARegion *region);
+
 /* `screen_edit.cc` */
 
 /**

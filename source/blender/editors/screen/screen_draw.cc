@@ -293,6 +293,30 @@ void screen_draw_move_highlight(bScreen *screen, eScreenAxis dir_axis)
       &rect, inner, nullptr, 1.0f, outline, 4.0f * U.pixelsize, 2.5f * UI_SCALE_FAC);
 }
 
+void screen_draw_region_scale_highlight(ARegion *region)
+{
+  const float hwidth = 4.0 * U.pixelsize;
+  rctf rect = {float(region->winrct.xmin),
+               float(region->winrct.xmax),
+               float(region->winrct.ymin),
+               float(region->winrct.ymax)};
+  UI_draw_roundbox_corner_set(UI_CNR_ALL);
+
+  if (region->alignment & RGN_ALIGN_RIGHT) {
+    rect.xmin -= hwidth;
+    rect.xmax = rect.xmin + hwidth;
+  }
+  else if (region->alignment & RGN_ALIGN_LEFT) {
+    rect.xmax += hwidth;
+    rect.xmin = rect.xmax - hwidth;
+  }
+
+  float inner[4] = {1.0f, 1.0f, 1.0f, 0.4f};
+  float outline[4] = {0.0f, 0.0f, 0.0f, 0.3f};
+  UI_draw_roundbox_4fv_ex(
+      &rect, inner, nullptr, 1.0f, outline, 1.0f * U.pixelsize, 2.5f * UI_SCALE_FAC);
+}
+
 static void screen_draw_area_drag_tip(
     const wmWindow *win, int x, int y, const ScrArea *source, const std::string &hint)
 {
