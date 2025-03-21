@@ -29,7 +29,6 @@
 
 #include "BKE_context.hh"
 #include "BKE_fcurve.hh"
-#include "BKE_report.hh"
 #include "BKE_screen.hh"
 
 #include "WM_api.hh"
@@ -107,7 +106,7 @@ static void fmodifier_reorder(bContext *C, Panel *panel, int new_index)
 
   /* Cycles modifier has to be the first, so make sure it's kept that way. */
   if (fmi->requires_flag & FMI_REQUIRES_ORIGINAL_DATA) {
-    BKE_report(CTX_wm_reports(C), RPT_ERROR, "Modifier requires original data");
+    WM_global_report(RPT_ERROR, "Modifier requires original data");
     return;
   }
 
@@ -117,7 +116,7 @@ static void fmodifier_reorder(bContext *C, Panel *panel, int new_index)
   FModifier *fcm_first = static_cast<FModifier *>(modifiers->first);
   const FModifierTypeInfo *fmi_first = get_fmodifier_typeinfo(fcm_first->type);
   if (fmi_first->requires_flag & FMI_REQUIRES_ORIGINAL_DATA && new_index == 0) {
-    BKE_report(CTX_wm_reports(C), RPT_ERROR, "Modifier requires original data");
+    WM_global_report(RPT_ERROR, "Modifier requires original data");
     return;
   }
 
