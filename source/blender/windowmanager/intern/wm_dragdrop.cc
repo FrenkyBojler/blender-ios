@@ -775,6 +775,32 @@ ID *WM_drag_asset_id_import(const bContext *C, wmDragAsset *asset_drag, const in
   return nullptr;
 }
 
+blender::Vector<ID *> WM_drag_asset_list_id_import_all(const bContext *C,
+                                                       wmDrag *drag,
+                                                       const int flag_extra)
+{
+  BLI_assert(drag->type == WM_DRAG_ASSET_LIST);
+  if (drag->type != WM_DRAG_ASSET_LIST) {
+    return {};
+  }
+
+  blender::Vector<ID *> dropped_ids;
+
+  /* TODO API to import multiple IDs. */
+  const ListBase *asset_drags = WM_drag_asset_list_get(drag);
+  LISTBASE_FOREACH (wmDragAssetListItem *, asset_item, asset_drags) {
+    if (asset_item->is_external) {
+      ID *id = WM_drag_asset_id_import(C, asset_item->asset_data.external_info, flag_extra);
+      dropped_ids.append(id);
+    }
+    else {
+      dropped_ids.append(asset_item->asset_data.local_id);
+    }
+  }
+
+  return dropped_ids;
+}
+
 bool WM_drag_asset_will_import_linked(const wmDrag *drag)
 {
   if (drag->type != WM_DRAG_ASSET) {

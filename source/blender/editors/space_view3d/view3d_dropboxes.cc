@@ -205,17 +205,9 @@ static void view3d_mixed_drop_copy(bContext *C, wmDrag *drag, wmDropBox * /*drop
 
   BKE_view_layer_base_deselect_all(scene, view_layer);
 
-  blender::Vector<ID *> dropped_ids;
-
-  const ListBase *asset_drags = WM_drag_asset_list_get(drag);
-  LISTBASE_FOREACH (wmDragAssetListItem *, asset_item, asset_drags) {
-    if (asset_item->is_external) {
-      ID *id = WM_drag_asset_id_import(C, asset_item->asset_data.external_info, FILE_AUTOSELECT);
-      dropped_ids.append(id);
-    }
-    else {
-      dropped_ids.append(asset_item->asset_data.local_id);
-    }
+  blender::Vector<ID *> dropped_ids = WM_drag_asset_list_id_import_all(C, drag, FILE_AUTOSELECT);
+  if (dropped_ids.is_empty()) {
+    return;
   }
 
   /* TODO(sergey): Only update relations for the current scene. */

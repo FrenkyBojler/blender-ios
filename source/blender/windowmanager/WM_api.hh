@@ -1560,6 +1560,9 @@ ListBase *WM_dropboxmap_find(const char *idname, int spaceid, int regionid);
  * \param flag_extra: Additional linking flags (from #eFileSel_Params_Flag).
  */
 ID *WM_drag_asset_id_import(const bContext *C, wmDragAsset *asset_drag, int flag_extra);
+blender::Vector<ID *> WM_drag_asset_list_id_import_all(const bContext *C,
+                                                       wmDrag *drag,
+                                                       const int flag_extra);
 bool WM_drag_asset_will_import_linked(const wmDrag *drag);
 void WM_drag_add_local_ID(wmDrag *drag, ID *id, ID *from_parent);
 ID *WM_drag_get_local_ID(const wmDrag *drag, short idcode);
