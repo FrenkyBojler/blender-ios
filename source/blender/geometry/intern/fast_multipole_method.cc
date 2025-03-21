@@ -563,19 +563,212 @@ void gather_distances_new(const Span<float3> positions, const Span<int> indices,
 //   });
 // }
 
-inline int64_t popcount(const bits::BoundedBitSpan data)
-{
-  int count = 0;
-  bits::foreach_1_index(data, [&](const int /*i*/) {
-    count++;
-  });
-  return count;
+// inline int64_t popcount(const bits::BoundedBitSpan data)
+// {
+//   int count = 0;
+//   bits::foreach_1_index(data, [&](const int /*i*/) {
+//     count++;
+//   });
+//   return count;
+// 
+//   // int64_t count = 0;
+//   // for (const int i : IndexRange(data.full_ints_num()).drop_back(1)) {
+//   //   count += count_bits_uint64(data.data()[i]);
+//   // }
+//   // return count + data.data()[data.full_ints_num() - 1] & data.final_bits_num();
+// }
+// 
+// void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
+//                          const int total_depth,
+//                          const Span<float> src_joints_min_distance,
+//                          const Span<float3> src_joints_centre,
+//                          const GSpan src_joints_value,
+//                          const Span<float3> src_bucket_position,
+//                          const GSpan src_bucket_value,
+//                          const int power_value,
+//                          const float offset_value,
+//                          const Span<float3> sample_position,
+//                          GMutableSpan dst_buckets_data,
+//                          const std::optional<IndexRange> sampler_to_bucket_range)
+// {
+//   BLI_assert(buckets_offsets.total_size() == src_bucket_position.size());
+// 
+//   BLI_assert(src_joints_min_distance.size() == src_joints_centre.size());
+//   BLI_assert(src_joints_min_distance.size() == src_joints_value.size());
+// 
+//   BLI_assert(src_bucket_position.size() == src_bucket_value.size());
+// 
+//   BLI_assert(dst_buckets_data.size() == sample_position.size());
+//   BLI_assert(!sampler_to_bucket_range.has_value() || sampler_to_bucket_range->size() == dst_buckets_data.size());
+//   BLI_assert(!sampler_to_bucket_range.has_value() || src_bucket_position.index_range().contains(*sampler_to_bucket_range));
+// 
+//   const FunctionRef<void(int, MutableSpan<float>)> distance_invertion = powered_rcp_for_values(power_value);
+// 
+//   Vector<std::pair<int, BitVector<0>>, 0> joint_to_batch_samples;
+//   Vector<std::pair<IndexRange, BitVector<0>>, 0> bucket_to_batch_samples;
+// 
+//   std::stringstream log_stream;
+// 
+//   {
+//     // SCOPED_TIMER_AVERAGED("  batch_for_each_to_bottom_skip");
+//     akdbh::batch_for_each_to_bottom_skip_(
+//         buckets_offsets,
+//         total_depth,
+//         sample_position.index_range(),
+//         [&](const int joint_index, const int batch_i) -> bool {
+//           const float joint_min_distance_squared = math::square(src_joints_min_distance[joint_index] - offset_value);
+//           const float sampler_to_joint_distance_squared = math::distance_squared(src_joints_centre[joint_index], sample_position[batch_i]);
+//           return sampler_to_joint_distance_squared <= joint_min_distance_squared;
+//         },
+//         [&](const int joint_index, const bits::BoundedBitSpan batch_bits) {
+//           if (bits::any_bit_set(batch_bits)) {
+//             joint_to_batch_samples.append_as(joint_index, batch_bits);
+//           }
+//         },
+//         [&](const IndexRange bucket_range, const bits::BoundedBitSpan batch_bits) {
+//           bucket_to_batch_samples.append_as(bucket_range, batch_bits);
+//         });
+//   }
+// 
+//   BLI_assert(bucket_to_batch_samples.is_empty() || std::all_of(bucket_to_batch_samples.begin(), bucket_to_batch_samples.end() - 1, [&](const auto &item) {
+//     const int index = std::distance(bucket_to_batch_samples.as_span().data(), &item);
+//     return item.first.last() < bucket_to_batch_samples[index + 1].first.start();
+//   }));
+// 
+//   Vector<float, 0, GuardedAlignedAllocator<>> buffer;
+// 
+//   to_static_type(src_joints_value.type(), [&](auto dummy) {
+//     // SCOPED_TIMER_AVERAGED("  batch_to_joints");
+//     using T = decltype(dummy);
+// 
+//     const Span<T> typed_src_joints_value = src_joints_value.typed<T>();
+//     const Span<T> typed_src_bucket_value = src_bucket_value.typed<T>();
+//     MutableSpan<T> typed_dst_buckets_data = dst_buckets_data.typed<T>();
+// 
+//     Array<int> offsets_data(joint_to_batch_samples.size() + 1);
+//     std::transform(joint_to_batch_samples.begin(), joint_to_batch_samples.end(), offsets_data.begin(), [&](const auto &item) {
+//       return popcount(bits::to_best_bit_span(item.second));
+//     });
+// 
+//     const OffsetIndices<int> offsets = offset_indices::accumulate_counts_to_offsets(offsets_data);
+// 
+//     buffer.resize(offsets.total_size());
+// 
+//     for (const int index : joint_to_batch_samples.index_range()) {
+//       const auto &[joint_index, batch_samples] = joint_to_batch_samples[index];
+//       MutableSpan<float> buffer_section = buffer.as_mutable_span().slice(offsets[index]);
+// 
+//       const float3 jooint_position = src_joints_centre[joint_index];
+// 
+//       int index_iter = 0;
+//       bits::foreach_1_index(bits::to_best_bit_span(batch_samples), [&](const int sample_index) {
+//         const float sampler_to_joint_distance_squared = math::distance(jooint_position, sample_position[sample_index]);
+//         buffer_section[index_iter] = sampler_to_joint_distance_squared + offset_value;
+//         index_iter++;
+//       });
+//     }
+// 
+//     distance_invertion(power_value, buffer.as_mutable_span());
+// 
+//     for (const int index : joint_to_batch_samples.index_range()) {
+//       const auto &[joint_index, batch_samples] = joint_to_batch_samples[index];
+//       const Span<float> buffer_section = buffer.as_span().slice(offsets[index]);
+// 
+//       int index_iter = 0;
+//       bits::foreach_1_index(bits::to_best_bit_span(batch_samples), [&](const int sample_index) {
+//         typed_dst_buckets_data[sample_index] += typed_src_joints_value[joint_index] * buffer_section[index_iter];
+//         index_iter++;
+//       });
+//     }
+//   });
+// 
+//   to_static_type(src_joints_value.type(), [&](auto dummy) {
+//     // SCOPED_TIMER_AVERAGED("  bucket_to_batch_samples");
+//     using T = decltype(dummy);
+// 
+//     const Span<T> typed_src_joints_value = src_joints_value.typed<T>();
+//     const Span<T> typed_src_bucket_value = src_bucket_value.typed<T>();
+//     MutableSpan<T> typed_dst_buckets_data = dst_buckets_data.typed<T>();
+// 
+//     Array<int> offsets_data(bucket_to_batch_samples.size() + 1);
+//     std::transform(bucket_to_batch_samples.begin(), bucket_to_batch_samples.end(), offsets_data.begin(), [&](const auto &item) {
+//       return item.first.size() * popcount(bits::to_best_bit_span(item.second));
+//     });
+// 
+//     const OffsetIndices<int> offsets = offset_indices::accumulate_counts_to_offsets(offsets_data);
+// 
+//     buffer.resize(offsets.total_size());
+// 
+//     for (const int index : bucket_to_batch_samples.index_range()) {
+//       const auto &[bucket_range, batch_samples] = bucket_to_batch_samples[index];
+// 
+//       const int buffer_step_size = bucket_range.size();
+//       int offset_iter = 0;
+//       bits::foreach_1_index(bits::to_best_bit_span(batch_samples), [&](const int sample_index) {
+//         MutableSpan<float> buffer_section = buffer.as_mutable_span().slice(offsets[index]).slice(offset_iter, buffer_step_size);
+//         offset_iter += buffer_step_size;
+// 
+//         const float3 position = sample_position[sample_index];
+// 
+//         ispc::distances(const_cast<float (*)[3] >(src_bucket_position.slice(bucket_range).cast<float [3]>().data()),
+//                         position,
+//                         buffer_section.size(),
+//                         buffer_section.data(),
+//                         offset_value);
+//       });
+//     }
+// 
+//     for (const int index : bucket_to_batch_samples.index_range()) {
+//       const auto &[bucket_range, batch_samples] = bucket_to_batch_samples[index];
+// 
+//       const int buffer_step_size = bucket_range.size();
+//       int offset_iter = 0;
+//       bits::foreach_1_index(bits::to_best_bit_span(batch_samples), [&](const int sample_index) {
+//         MutableSpan<float> buffer_section = buffer.as_mutable_span().slice(offsets[index]).slice(offset_iter, buffer_step_size);
+//         offset_iter += buffer_step_size;
+// 
+//         if (bucket_range.contains(sampler_to_bucket_range.value()[sample_index])) {
+//           const int sampler_in_bucket_index = sampler_to_bucket_range.value()[sample_index] - bucket_range.start();
+//           buffer_section[sampler_in_bucket_index] = 0.0f;
+//         }
+//       });
+//     }
+// 
+//     distance_invertion(power_value, buffer.as_mutable_span());
+// 
+//     for (const int index : bucket_to_batch_samples.index_range()) {
+//       const auto &[bucket_range, batch_samples] = bucket_to_batch_samples[index];
+// 
+//       const int buffer_step_size = bucket_range.size();
+//       int offset_iter = 0;
+//       bits::foreach_1_index(bits::to_best_bit_span(batch_samples), [&](const int sample_index) {
+//         const Span<float> buffer_section = buffer.as_span().slice(offsets[index]).slice(offset_iter, buffer_step_size);
+//         offset_iter += buffer_step_size;
+//         typed_dst_buckets_data[sample_index] += dot_product<T>(typed_src_bucket_value.slice(bucket_range), buffer_section);
+//       });
+//     }
+//   });
+// }
 
-  // int64_t count = 0;
-  // for (const int i : IndexRange(data.full_ints_num()).drop_back(1)) {
-  //   count += count_bits_uint64(data.data()[i]);
-  // }
-  // return count + data.data()[data.full_ints_num() - 1] & data.final_bits_num();
+template<class T, class TPredicate>
+static int64_t index_swap_partition(const MutableSpan<T> values, const TPredicate &predicate)
+{
+  const int64_t prefix_size = std::count_if(values.index_range().begin(), values.index_range().end(), predicate);
+
+  int64_t false_iter = prefix_size;
+  for (const int front_index : IndexRange(prefix_size)) {
+    if (predicate(front_index)) {
+      continue;
+    }
+    for (const int back_index : IndexRange::from_begin_end(false_iter, values.size())) {
+      if (predicate(back_index)) {
+        std::swap(values[front_index], values[back_index]);
+        false_iter = back_index + 1;
+      }
+    }
+  }
+
+  return prefix_size;
 }
 
 void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
@@ -604,150 +797,183 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
 
   const FunctionRef<void(int, MutableSpan<float>)> distance_invertion = powered_rcp_for_values(power_value);
 
-  Vector<std::pair<int, BitVector<0>>, 0> joint_to_batch_samples;
-  Vector<std::pair<IndexRange, BitVector<0>>, 0> bucket_to_batch_samples;
-
-  std::stringstream log_stream;
-
   {
-    // SCOPED_TIMER_AVERAGED("  batch_for_each_to_bottom_skip");
-    akdbh::batch_for_each_to_bottom_skip_(
-        buckets_offsets,
-        total_depth,
-        sample_position.index_range(),
-        [&](const int joint_index, const int batch_i) -> bool {
-          const float joint_min_distance_squared = math::square(src_joints_min_distance[joint_index] - offset_value);
-          const float sampler_to_joint_distance_squared = math::distance_squared(src_joints_centre[joint_index], sample_position[batch_i]);
-          return sampler_to_joint_distance_squared <= joint_min_distance_squared;
-        },
-        [&](const int joint_index, const bits::BoundedBitSpan batch_bits) {
-          if (bits::any_bit_set(batch_bits)) {
-            joint_to_batch_samples.append_as(joint_index, batch_bits);
-          }
-        },
-        [&](const IndexRange bucket_range, const bits::BoundedBitSpan batch_bits) {
-          bucket_to_batch_samples.append_as(bucket_range, batch_bits);
-        });
-  }
+    const int batch_size = sample_position.size();
 
-  BLI_assert(bucket_to_batch_samples.is_empty() || std::all_of(bucket_to_batch_samples.begin(), bucket_to_batch_samples.end() - 1, [&](const auto &item) {
-    const int index = std::distance(bucket_to_batch_samples.as_span().data(), &item);
-    return item.first.last() < bucket_to_batch_samples[index + 1].first.start();
-  }));
+    Array<float3, 0, GuardedAlignedAllocator<>> batch_positions(batch_size);
+    batch_positions.as_mutable_span().copy_from(sample_position);
+
+    std::variant<Array<float, 0, GuardedAlignedAllocator<>>,
+                 Array<float3, 0, GuardedAlignedAllocator<>>> batch_values;
+    to_static_type(src_joints_value.type(), [&](auto dummy) {
+      using T = decltype(dummy);
+      batch_values = Array<T, 0, GuardedAlignedAllocator<>>(batch_size);
+    });
+    std::visit([&](auto &values) {
+      using ArrayT = std::decay_t<decltype(values)>;
+      using T = typename ArrayT::value_type;
+      values.fill(T(0));
+    }, batch_values);
+
+    Vector<float, 0, GuardedAlignedAllocator<>> batch_distances_buffer(batch_size);
+
+    BitGroupVector predicate_mask_stack(33, batch_size, false);
+    predicate_mask_stack[0].fill(true);
+
+    Vector<int, 32> depth_stack({0});
+    Vector<int, 32> joint_stack({0});
+    Vector<int, 32> prefix_to_visit_stack({batch_size});
+    Vector<int, 32> predicate_mask_i_stack({0});
+
+    while (!depth_stack.is_empty()) {
+      const int prefix_to_visit = prefix_to_visit_stack.pop_last();
+      const int depth_i = depth_stack.pop_last();
+      const int joint_i = joint_stack.pop_last();
+      const int predicate_mask_i = predicate_mask_i_stack.pop_last();
+
+      index_swap_partition(batch_positions.as_mutable_span(), [&](const int i) {
+        return predicate_mask_stack[predicate_mask_i][i];
+      });
+
+      visit([&](auto &values) {
+        index_swap_partition(values.as_mutable_span(), [&](const int i) {
+          return predicate_mask_stack[predicate_mask_i][i];
+        });
+      }, batch_values);
+
+      const IndexRange joints_range = akdbh::joints_range_at_depth(depth_i);
+
+      const int joint_index = joints_range[joint_i];
+      const float joint_min_distance_squared = math::square(src_joints_min_distance[joint_index] - offset_value);
+      const float3 joint_position = src_joints_centre[joint_index];
+
+      batch_distances_buffer.resize(prefix_to_visit);
+      std::transform(batch_positions.begin(),
+                     batch_positions.begin() + prefix_to_visit,
+                     batch_distances_buffer.begin(),
+                     [&](const float3 &sample_position) {
+        return math::distance_squared(joint_position, sample_position);
+      });
+
+      for (const int i : IndexRange(prefix_to_visit)) {
+        predicate_mask_stack[predicate_mask_i + 1][i].set(batch_distances_buffer[i] < joint_min_distance_squared);
+      }
+
+      const int total_prefix = index_swap_partition(batch_positions.as_mutable_span().take_front(prefix_to_visit), [&](const int i) {
+        return predicate_mask_stack[predicate_mask_i + 1][i];
+      });
+
+      visit([&](auto &values) {
+        index_swap_partition(values.as_mutable_span().take_front(prefix_to_visit), [&](const int i) {
+          return predicate_mask_stack[predicate_mask_i + 1][i];
+        });
+      }, batch_values);
+
+      index_swap_partition(batch_distances_buffer.as_mutable_span(), [&](const int i) {
+        return !predicate_mask_stack[predicate_mask_i + 1][i];
+      });
+
+      const MutableSpan<float> squared_distances = batch_distances_buffer.as_mutable_span();
+      for (float &distance : squared_distances.take_front(total_prefix)) {
+        distance = math::sqrt(distance);
+      }
+
+      distance_invertion(power_value, squared_distances.take_front(total_prefix));
+
+      visit([&](auto &values) {
+        using ArrayT = std::decay_t<decltype(values)>;
+        using T = typename ArrayT::value_type;
+        const T jooint_value = src_joints_value.typed<T>()[joint_index];
+
+        for (const int i : IndexRange(total_prefix)) {
+          values[prefix_to_visit - total_prefix + i] += jooint_value * squared_distances[i];
+        }
+      }, batch_values);
+
+      if (total_prefix == 0) {
+        continue;
+      }
+
+      if (depth_i + 1 == total_depth) {
+        continue;
+      }
+
+      predicate_mask_stack[predicate_mask_i].fill(true);
+      /* nest mask in a stack being writen in place. */
+
+      BLI_assert(!predicate_mask_i_stack.contains(predicate_mask_i));
+      BLI_assert(!predicate_mask_i_stack.contains(predicate_mask_i + 1));
+      predicate_mask_i_stack.extend_unchecked({predicate_mask_i, predicate_mask_i + 1});
+
+      depth_stack.extend_unchecked({depth_i + 1, depth_i + 1});
+      joint_stack.extend_unchecked({joint_i * 2 + 1, joint_i * 2 + 0});
+      prefix_to_visit_stack.extend_unchecked({total_prefix, total_prefix});
+    }
+
+    std::visit([&](auto &values) {
+      using ArrayT = std::decay_t<decltype(values)>;
+      using T = typename ArrayT::value_type;
+      dst_buckets_data.typed<T>().copy_from(values.as_span());
+    }, batch_values);
+  }
 
   Vector<float, 0, GuardedAlignedAllocator<>> buffer;
 
-  to_static_type(src_joints_value.type(), [&](auto dummy) {
-    // SCOPED_TIMER_AVERAGED("  batch_to_joints");
-    using T = decltype(dummy);
-
-    const Span<T> typed_src_joints_value = src_joints_value.typed<T>();
-    const Span<T> typed_src_bucket_value = src_bucket_value.typed<T>();
-    MutableSpan<T> typed_dst_buckets_data = dst_buckets_data.typed<T>();
-
-    Array<int> offsets_data(joint_to_batch_samples.size() + 1);
-    std::transform(joint_to_batch_samples.begin(), joint_to_batch_samples.end(), offsets_data.begin(), [&](const auto &item) {
-      return popcount(bits::to_best_bit_span(item.second));
-    });
-
-    const OffsetIndices<int> offsets = offset_indices::accumulate_counts_to_offsets(offsets_data);
-
-    buffer.resize(offsets.total_size());
-
-    for (const int index : joint_to_batch_samples.index_range()) {
-      const auto &[joint_index, batch_samples] = joint_to_batch_samples[index];
-      MutableSpan<float> buffer_section = buffer.as_mutable_span().slice(offsets[index]);
-
-      const float3 jooint_position = src_joints_centre[joint_index];
-
-      int index_iter = 0;
-      bits::foreach_1_index(bits::to_best_bit_span(batch_samples), [&](const int sample_index) {
-        const float sampler_to_joint_distance_squared = math::distance(jooint_position, sample_position[sample_index]);
-        buffer_section[index_iter] = sampler_to_joint_distance_squared + offset_value;
-        index_iter++;
-      });
-    }
-
-    distance_invertion(power_value, buffer.as_mutable_span());
-
-    for (const int index : joint_to_batch_samples.index_range()) {
-      const auto &[joint_index, batch_samples] = joint_to_batch_samples[index];
-      const Span<float> buffer_section = buffer.as_span().slice(offsets[index]);
-
-      int index_iter = 0;
-      bits::foreach_1_index(bits::to_best_bit_span(batch_samples), [&](const int sample_index) {
-        typed_dst_buckets_data[sample_index] += typed_src_joints_value[joint_index] * buffer_section[index_iter];
-        index_iter++;
-      });
-    }
-  });
-
-  to_static_type(src_joints_value.type(), [&](auto dummy) {
-    // SCOPED_TIMER_AVERAGED("  bucket_to_batch_samples");
-    using T = decltype(dummy);
-
-    const Span<T> typed_src_joints_value = src_joints_value.typed<T>();
-    const Span<T> typed_src_bucket_value = src_bucket_value.typed<T>();
-    MutableSpan<T> typed_dst_buckets_data = dst_buckets_data.typed<T>();
-
-    Array<int> offsets_data(bucket_to_batch_samples.size() + 1);
-    std::transform(bucket_to_batch_samples.begin(), bucket_to_batch_samples.end(), offsets_data.begin(), [&](const auto &item) {
-      return item.first.size() * popcount(bits::to_best_bit_span(item.second));
-    });
-
-    const OffsetIndices<int> offsets = offset_indices::accumulate_counts_to_offsets(offsets_data);
-
-    buffer.resize(offsets.total_size());
-
-    for (const int index : bucket_to_batch_samples.index_range()) {
-      const auto &[bucket_range, batch_samples] = bucket_to_batch_samples[index];
-
-      const int buffer_step_size = bucket_range.size();
-      int offset_iter = 0;
-      bits::foreach_1_index(bits::to_best_bit_span(batch_samples), [&](const int sample_index) {
-        MutableSpan<float> buffer_section = buffer.as_mutable_span().slice(offsets[index]).slice(offset_iter, buffer_step_size);
-        offset_iter += buffer_step_size;
-
-        const float3 position = sample_position[sample_index];
-
-        ispc::distances(const_cast<float (*)[3] >(src_bucket_position.slice(bucket_range).cast<float [3]>().data()),
-                        position,
-                        buffer_section.size(),
-                        buffer_section.data(),
-                        offset_value);
-      });
-    }
-
-    for (const int index : bucket_to_batch_samples.index_range()) {
-      const auto &[bucket_range, batch_samples] = bucket_to_batch_samples[index];
-
-      const int buffer_step_size = bucket_range.size();
-      int offset_iter = 0;
-      bits::foreach_1_index(bits::to_best_bit_span(batch_samples), [&](const int sample_index) {
-        MutableSpan<float> buffer_section = buffer.as_mutable_span().slice(offsets[index]).slice(offset_iter, buffer_step_size);
-        offset_iter += buffer_step_size;
-
-        if (bucket_range.contains(sampler_to_bucket_range.value()[sample_index])) {
-          const int sampler_in_bucket_index = sampler_to_bucket_range.value()[sample_index] - bucket_range.start();
-          buffer_section[sampler_in_bucket_index] = 0.0f;
-        }
-      });
-    }
-
-    distance_invertion(power_value, buffer.as_mutable_span());
-
-    for (const int index : bucket_to_batch_samples.index_range()) {
-      const auto &[bucket_range, batch_samples] = bucket_to_batch_samples[index];
-
-      const int buffer_step_size = bucket_range.size();
-      int offset_iter = 0;
-      bits::foreach_1_index(bits::to_best_bit_span(batch_samples), [&](const int sample_index) {
-        const Span<float> buffer_section = buffer.as_span().slice(offsets[index]).slice(offset_iter, buffer_step_size);
-        offset_iter += buffer_step_size;
-        typed_dst_buckets_data[sample_index] += dot_product<T>(typed_src_bucket_value.slice(bucket_range), buffer_section);
-      });
-    }
-  });
+  // to_static_type(src_joints_value.type(), [&](auto dummy) {
+  //   // SCOPED_TIMER_AVERAGED("  bucket_to_batch_samples");
+  //   using T = decltype(dummy);
+  // 
+  //   const Span<T> typed_src_joints_value = src_joints_value.typed<T>();
+  //   const Span<T> typed_src_bucket_value = src_bucket_value.typed<T>();
+  //   MutableSpan<T> typed_dst_buckets_data = dst_buckets_data.typed<T>();
+  // 
+  //   buffer.resize(std::accumulate(bucket_to_batch_samples.begin(), bucket_to_batch_samples.end(), 0, [&](const int size, const auto &item) {
+  //     return size + item.first.size() * item.second.size();
+  //   }));
+  // 
+  //   int offset_iter = 0;
+  //   for (const auto &[bucket_range, batch_samples] : bucket_to_batch_samples) {
+  // 
+  //     for (const int sample_index : batch_samples) {
+  //       MutableSpan<float> buffer_section = buffer.as_mutable_span().slice(offset_iter, bucket_range.size());
+  //       offset_iter += bucket_range.size();
+  // 
+  //       const float3 position = sample_position[sample_index];
+  // 
+  //       ispc::distances(const_cast<float (*)[3] >(src_bucket_position.slice(bucket_range).cast<float [3]>().data()),
+  //                       position,
+  //                       buffer_section.size(),
+  //                       buffer_section.data(),
+  //                       offset_value);
+  //     }
+  //   }
+  // 
+  //   offset_iter = 0;
+  //   for (const auto &[bucket_range, batch_samples] : bucket_to_batch_samples) {
+  // 
+  //     for (const int sample_index : batch_samples) {
+  //       MutableSpan<float> buffer_section = buffer.as_mutable_span().slice(offset_iter, bucket_range.size());
+  //       offset_iter += bucket_range.size();
+  // 
+  //       if (bucket_range.contains(sampler_to_bucket_range.value()[sample_index])) {
+  //         const int sampler_in_bucket_index = sampler_to_bucket_range.value()[sample_index] -
+  //                                             bucket_range.start();
+  //         buffer_section[sampler_in_bucket_index] = 0.0f;
+  //       }
+  //     }
+  //   }
+  // 
+  //   distance_invertion(power_value, buffer.as_mutable_span());
+  // 
+  //   offset_iter = 0;
+  //   for (const auto &[bucket_range, batch_samples] : bucket_to_batch_samples) {
+  //     for (const int sample_index : batch_samples) {
+  //       const Span<float> buffer_section = buffer.as_span().slice(offset_iter, bucket_range.size());
+  //       offset_iter += bucket_range.size();
+  //       typed_dst_buckets_data[sample_index] += dot_product<T>(typed_src_bucket_value.slice(bucket_range), buffer_section);
+  //     }
+  //   }
+  // });
 }
 
 }  // namespace blender::geometry::fmm
