@@ -65,7 +65,7 @@ class Particles : Overlay {
       pass.bind_ubo(DRW_CLIPPING_UBO_SLOT, &res.clip_planes_buf);
       pass.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_LESS_EQUAL,
                      state.clipping_plane_count);
-      res.select_bind(pass, state.clipping_plane_count);
+      res.select_bind(pass);
       {
         auto &sub = pass.sub("Dots");
         sub.shader_set(res.shaders->particle_dot.get());
@@ -94,7 +94,7 @@ class Particles : Overlay {
       pass.bind_ubo(DRW_CLIPPING_UBO_SLOT, &res.clip_planes_buf);
       pass.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_LESS_EQUAL,
                      state.clipping_plane_count);
-      res.select_bind(pass, state.clipping_plane_count);
+      res.select_bind(pass);
       {
         auto &sub = pass.sub("Dots");
         sub.shader_set(res.shaders->particle_edit_vert.get());

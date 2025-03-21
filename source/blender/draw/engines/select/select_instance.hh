@@ -102,6 +102,8 @@ struct SelectMap {
   StorageArrayBuffer<uint, 4, true> dummy_select_buf = {"dummy_select_buf"};
   /** Uniform buffer to bind to all passes to pass information about the selection state. */
   UniformBuffer<SelectInfoData> info_buf;
+  /** If clipping is enabled, this is the number of clip planes to enable. */
+  int clipping_plane_count = 0;
 
   SelectMap(const SelectionType selection_type) : selection_type(selection_type){};
 
@@ -147,11 +149,13 @@ struct SelectMap {
     return {uint32_t(-1)};
   }
 
-  void begin_sync()
+  void begin_sync(int clipping_plane_count)
   {
     if (selection_type == SelectionType::DISABLED) {
       return;
     }
+
+    this->clipping_plane_count = clipping_plane_count;
 
     select_id_map.clear();
     in_front_map.clear();
@@ -161,7 +165,7 @@ struct SelectMap {
   }
 
   /** IMPORTANT: Changes the draw state. Need to be called after the pass's own state_set. */
-  void select_bind(PassSimple &pass, int clipping_plane_count)
+  void select_bind(PassSimple &pass)
   {
     if (selection_type == SelectionType::DISABLED) {
       return;
@@ -173,7 +177,7 @@ struct SelectMap {
   }
 
   /** IMPORTANT: Changes the draw state. Need to be called after the pass's own state_set. */
-  void select_bind(PassMain &pass, int clipping_plane_count)
+  void select_bind(PassMain &pass)
   {
     if (selection_type == SelectionType::DISABLED) {
       return;
@@ -189,7 +193,7 @@ struct SelectMap {
 
   /* TODO: Deduplicate. */
   /** IMPORTANT: Changes the draw state. Need to be called after the pass's own state_set. */
-  void select_bind(PassMain &pass, PassMain::Sub &sub, int clipping_plane_count)
+  void select_bind(PassMain &pass, PassMain::Sub &sub)
   {
     if (selection_type == SelectionType::DISABLED) {
       return;

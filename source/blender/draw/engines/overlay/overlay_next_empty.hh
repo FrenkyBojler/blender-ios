@@ -73,14 +73,14 @@ class Empties : Overlay {
       pass.push_constant("depth_bias_winmat", &depth_bias_winmat_);
       pass.bind_ubo(OVERLAY_GLOBALS_SLOT, &res.globals_buf);
       pass.bind_ubo(DRW_CLIPPING_UBO_SLOT, &res.clip_planes_buf);
-      res.select_bind(pass, state.clipping_plane_count);
+      res.select_bind(pass);
     };
 
     auto init_sortable = [&](PassSortable &pass, DRWState draw_state) {
       pass.init();
       PassMain::Sub &sub = pass.sub("ResourceBind", -FLT_MAX);
       sub.state_set(draw_state, state.clipping_plane_count);
-      res.select_bind(pass, sub, state.clipping_plane_count);
+      res.select_bind(pass, sub);
     };
 
     DRWState draw_state;
@@ -174,7 +174,7 @@ class Empties : Overlay {
     }
 
     ps_.init();
-    res.select_bind(ps_, state.clipping_plane_count);
+    res.select_bind(ps_);
     end_sync(res, state, ps_, call_buffers_);
   }
 

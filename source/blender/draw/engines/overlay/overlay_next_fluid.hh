@@ -50,7 +50,7 @@ class Fluids : Overlay {
       pass.init();
       pass.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_LESS_EQUAL,
                      state.clipping_plane_count);
-      res.select_bind(pass, state.clipping_plane_count);
+      res.select_bind(pass);
 
       /* TODO(fclem): Use either specialization constants or push constants to reduce the amount of
        * shader variants. */
