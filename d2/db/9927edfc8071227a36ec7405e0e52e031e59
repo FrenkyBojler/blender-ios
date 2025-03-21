@@ -1,1 +1,2 @@
 Referenced by issue #135841, Viewport render in 4.4 beta does not match the viewport render of 4.3.2
+Referenced by issue #136271, Blender 4.4.0 - Using a very low-resolution image with a linear interpolation displays a Moiré pattern in the `Bump` node with EEVEE
