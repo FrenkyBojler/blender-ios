@@ -562,7 +562,9 @@ static int get_next_segment(const Span<Segment> all_segments,
                             const Span<int> unsorted_to_all,
                             const int current_i,
                             const int start_segment,
-                            const Span<bool> processed_segments)
+                            const Span<bool> processed_segments,
+                            const Span<bool> all_inside_left,
+                            const Span<bool> all_inside_right)
 {
   const int all_current_segment_i = unsorted_to_all[current_i];
   const Segment current_segment = all_segments[all_current_segment_i];
@@ -577,6 +579,10 @@ static int get_next_segment(const Span<Segment> all_segments,
       continue;
     }
 
+    if (!all_inside_left[unsorted_to_all[segment]] ^ all_inside_right[unsorted_to_all[segment]]) {
+      continue;
+    }
+
     const Segment &seg = all_segments[unsorted_to_all[segment]];
 
     if (seg.start_intersection() == current_end_index ||
@@ -588,6 +594,12 @@ static int get_next_segment(const Span<Segment> all_segments,
 
   if (current_i != start_segment) {
     const Segment &seg = all_segments[unsorted_to_all[start_segment]];
+
+    if (!all_inside_left[unsorted_to_all[start_segment]] ^
+        all_inside_right[unsorted_to_all[start_segment]])
+    {
+      return -1;
+    }
 
     if (seg.start_intersection() == current_end_index ||
         seg.end_intersection() == current_end_index)
@@ -689,6 +701,8 @@ BooleanResult execute_single_boolean(const CurveBooleanOpParameters op_params,
 
   Vector<Segment> all_segments;
   Vector<int> unsorted_to_all;
+  Vector<bool> all_inside_left;
+  Vector<bool> all_inside_right;
 
   auto add_segments = [&](const int curve_k, const bool is_subj) {
     const IndexRange points_k = points_by_curve[curve_k];
@@ -826,6 +840,8 @@ BooleanResult execute_single_boolean(const CurveBooleanOpParameters op_params,
         unsorted_to_all.append(all_segments.size());
       }
       all_segments.append(this_segment);
+      all_inside_left.append(is_in_L);
+      all_inside_right.append(is_in_R);
 
       if (!this_segment.has_end_intersection()) {
         continue;
@@ -889,8 +905,13 @@ BooleanResult execute_single_boolean(const CurveBooleanOpParameters op_params,
       processed_segments[current_i] = true;
       result.segments.last().reversed = last_reversed;
 
-      const int next_segment = get_next_segment(
-          all_segments, unsorted_to_all, current_i, start_segment, processed_segments);
+      const int next_segment = get_next_segment(all_segments,
+                                                unsorted_to_all,
+                                                current_i,
+                                                start_segment,
+                                                processed_segments,
+                                                all_inside_left,
+                                                all_inside_right);
 
       if (next_segment == -1) {
         PolygonDone = true;
