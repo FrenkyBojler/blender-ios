@@ -65,6 +65,9 @@
 #  include "BLI_time_utildefines.h"
 #endif
 
+/* Prevent naming collision. */
+namespace {
+
 using eSign = int8_t;
 
 #ifdef USE_KDTREE
@@ -88,9 +91,6 @@ using eSign = int8_t;
  */
 
 using axis_t = bool;
-
-/* Prevent naming collision. */
-namespace {
 
 /* use for sorting */
 struct KDTreeNode2D_head {
