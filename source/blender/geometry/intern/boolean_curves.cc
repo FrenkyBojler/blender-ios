@@ -899,8 +899,7 @@ BooleanResult execute_single_boolean(const CurveBooleanOpParameters op_params,
 
       const int current_end_index = current_segment.end_intersection();
       const Segment &next_seg = all_segments[unsorted_to_all[next_segment]];
-      const bool next_reversed = next_seg.reversed ^
-                                 (next_seg.end_intersection() == current_end_index);
+      const bool next_reversed = next_seg.start_intersection() != current_end_index;
 
       if (next_segment == start_segment) {
         PolygonDone = true;
