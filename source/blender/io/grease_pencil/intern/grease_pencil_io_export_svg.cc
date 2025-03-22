@@ -354,7 +354,7 @@ void SVGExporter::write_document_header()
 pugi::xml_node SVGExporter::write_main_node()
 {
   pugi::xml_node main_node = main_doc_.append_child("svg");
-  main_node.append_attribute("version").set_value("1.0");
+  main_node.append_attribute("version").set_value("1.1");
   main_node.append_attribute("x").set_value("0px");
   main_node.append_attribute("y").set_value("0px");
   main_node.append_attribute("xmlns").set_value("http://www.w3.org/2000/svg");
