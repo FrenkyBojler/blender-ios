@@ -465,10 +465,15 @@ static void get_proxy_filepath(const MovieClip *clip,
 
 #ifdef WITH_OPENEXR
 
+/* Prevent naming collision. */
+namespace {
+
 struct MultilayerConvertContext {
   float *combined_pass;
   int num_combined_channels;
 };
+
+}  // namespace
 
 static void *movieclip_convert_multilayer_add_view(void * /*ctx_v*/, const char * /*view_name*/)
 {

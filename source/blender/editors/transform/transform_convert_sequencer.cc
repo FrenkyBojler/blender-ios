@@ -40,6 +40,9 @@ namespace blender::ed::transform {
 #define STRIP_EDGE_PAN_DELAY 1.0f
 #define STRIP_EDGE_PAN_ZOOM_INFLUENCE 0.5f
 
+/* Prevent naming collision. */
+namespace {
+
 /** Used for sequencer transform. */
 struct TransDataSeq {
   Strip *strip;
@@ -67,6 +70,8 @@ struct TransSeq {
   /* Strips that aren't selected, but their position entirely depends on transformed strips. */
   VectorSet<Strip *> time_dependent_strips;
 };
+
+}  // namespace
 
 /* -------------------------------------------------------------------- */
 /** \name Sequencer Transform Creation

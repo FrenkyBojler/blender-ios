@@ -31,11 +31,16 @@
 /** \name Undo Conversion
  * \{ */
 
+/* Prevent naming collision. */
+namespace {
+
 struct UndoCurve {
   PaintCurvePoint *points; /* points of curve */
   int tot_points;
   int add_index;
 };
+
+}  // namespace
 
 static void undocurve_from_paintcurve(UndoCurve *uc, const PaintCurve *pc)
 {

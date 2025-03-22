@@ -357,12 +357,17 @@ static bool space_image_main_area_not_uv_brush_poll(bContext *C)
 /** \name View Pan Operator
  * \{ */
 
+/* Prevent naming collision. */
+namespace {
+
 struct ViewPanData {
   float x, y;
   float xof, yof;
   int launch_event;
   bool own_cursor;
 };
+
+}  // namespace
 
 static void image_view_pan_init(bContext *C, wmOperator *op, const wmEvent *event)
 {
@@ -504,6 +509,9 @@ void IMAGE_OT_view_pan(wmOperatorType *ot)
 /** \name View Zoom Operator
  * \{ */
 
+/* Prevent naming collision. */
+namespace {
+
 struct ViewZoomData {
   float origx, origy;
   float zoom;
@@ -519,6 +527,8 @@ struct ViewZoomData {
   SpaceImage *sima;
   ARegion *region;
 };
+
+}  // namespace
 
 static void image_view_zoom_init(bContext *C, wmOperator *op, const wmEvent *event)
 {

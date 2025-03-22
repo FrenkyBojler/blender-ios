@@ -89,6 +89,9 @@ using eSign = int8_t;
 
 using axis_t = bool;
 
+/* Prevent naming collision. */
+namespace {
+
 /* use for sorting */
 struct KDTreeNode2D_head {
   uint32_t neg, pos;
@@ -146,6 +149,8 @@ struct PolyFill {
   KDTree2D kdtree;
 #endif
 };
+
+}  // namespace
 
 /* Based on LIBGDX 2013-11-28, APACHE 2.0 licensed. */
 

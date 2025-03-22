@@ -268,6 +268,10 @@ static void bm_edge_to_quad_verts(const BMEdge *e, const BMVert *r_v_quad[4])
  * \{ */
 
 /** Cache custom-data delimiters. */
+
+/* Prevent naming collision. */
+namespace {
+
 struct DelimitData_CD {
   int cd_type;
   int cd_size;
@@ -290,6 +294,8 @@ struct DelimitData {
   DelimitData_CD cdata[4];
   int cdata_len;
 };
+
+}  // namespace
 
 /** Determines if the loop custom-data is contiguous. */
 static bool bm_edge_is_contiguous_loop_cd_all(const BMEdge *e, const DelimitData_CD *delimit_data)

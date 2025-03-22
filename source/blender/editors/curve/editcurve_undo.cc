@@ -46,6 +46,9 @@ static CLG_LogRef LOG = {"ed.undo.curve"};
 /** \name Undo Conversion
  * \{ */
 
+/* Prevent naming collision. */
+namespace {
+
 struct UndoCurve {
   ListBase nubase;
   int actvert;
@@ -71,6 +74,8 @@ struct UndoCurve {
 
   size_t undo_size;
 };
+
+}  // namespace
 
 static void undocurve_to_editcurve(Main *bmain, UndoCurve *ucu, Curve *cu, short *r_shapenr)
 {

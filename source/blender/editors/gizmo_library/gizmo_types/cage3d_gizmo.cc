@@ -429,11 +429,16 @@ static int gizmo_cage3d_get_cursor(wmGizmo *gz)
   return WM_CURSOR_DEFAULT;
 }
 
+/* Prevent naming collision. */
+namespace {
+
 struct RectTransformInteraction {
   float orig_mouse[3];
   float orig_matrix_offset[4][4];
   float orig_matrix_final_no_offset[4][4];
 };
+
+}  // namespace
 
 static void gizmo_cage3d_setup(wmGizmo *gz)
 {

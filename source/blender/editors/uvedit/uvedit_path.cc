@@ -55,6 +55,9 @@ using blender::Vector;
 /** \name Path Select Struct & Properties
  * \{ */
 
+/* Prevent naming collision. */
+namespace {
+
 struct PathSelectParams {
   /** ensure the active element is the last selected item (handy for picking) */
   bool track_active;
@@ -69,6 +72,8 @@ struct UserData_UV {
   BMEditMesh *em;
   BMUVOffsets offsets;
 };
+
+}  // namespace
 
 static void path_select_properties(wmOperatorType *ot)
 {
