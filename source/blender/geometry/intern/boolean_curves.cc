@@ -560,19 +560,20 @@ static IntersectionPoint create_intersection(const int point_a,
 /* Will return -1 if there is no next segment. */
 static int get_next_segment(const Span<Segment> all_segments,
                             const Span<int> unsorted_to_all,
-                            const int current_segment,
+                            const int current_i,
                             const int start_segment,
                             const Span<bool> processed_segments)
 {
-  const int all_current_segment_i = unsorted_to_all[current_segment];
-  if (!all_segments[unsorted_to_all[current_segment]].has_end_intersection()) {
+  const int all_current_segment_i = unsorted_to_all[current_i];
+  const Segment current_segment = all_segments[all_current_segment_i];
+  if (!current_segment.has_end_intersection()) {
     return -1;
   }
 
-  const int current_end_index = all_segments[all_current_segment_i].end_intersection();
+  const int current_end_index = current_segment.end_intersection();
 
   for (const int segment : unsorted_to_all.index_range()) {
-    if (segment == current_segment || processed_segments[segment]) {
+    if (segment == current_i || processed_segments[segment]) {
       continue;
     }
 
@@ -585,7 +586,7 @@ static int get_next_segment(const Span<Segment> all_segments,
     }
   }
 
-  if (current_segment != start_segment) {
+  if (current_i != start_segment) {
     const Segment &seg = all_segments[unsorted_to_all[start_segment]];
 
     if (seg.start_intersection() == current_end_index ||
