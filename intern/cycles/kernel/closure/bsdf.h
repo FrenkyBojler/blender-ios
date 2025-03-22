@@ -67,6 +67,19 @@ ccl_device_inline float bump_shadowing_term(const int shader_flag,
                                             const float3 N,
                                             float3 I)
 {
+  /*TODO: Move "cosNI", "g", and the if statement. These terms and if clause eliminate
+  fireflies from extreme shading normals, but should be independent of bump correction.*/
+  const float cosNI = dot(N, I);
+  if (cosNI < 0.0f) {
+    Ng = -Ng;
+  }
+  const float g = safe_divide(dot(Ng, I), cosNI * dot(Ng, N));
+
+  /* If the incoming light points away from the surface, return black. */
+  if (g < 0.0f) {
+    return 0.0f;
+  }
+
   /* When bump map correction is not used do skip the smoothing. */
   if ((shader_flag & SD_USE_BUMP_MAP_CORRECTION) == 0) {
     return 1.0f;
