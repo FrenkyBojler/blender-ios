@@ -1522,7 +1522,7 @@ static bUnitDef buDecibelDef[] = {
     {
         /*name*/ "decibel",
         /*name_plural*/ "decibels",
-        /*name_short*/ "db",
+        /*name_short*/ "dB",
         /*name_alt*/ nullptr,
         /*name_display*/ "DECIBEL",
         /*identifier*/ "DECIBEL",
