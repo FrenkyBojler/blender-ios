@@ -852,7 +852,7 @@ static wmOperatorStatus new_texture_exec(bContext *C, wmOperator *op)
 
     if (ptr.owner_id) {
       BKE_id_move_to_same_lib(*bmain, tex->id, *ptr.owner_id);
-      linked_id_created = tex->id.tag & ID_TAG_INDIRECT;
+      linked_id_created = ID_IS_LINKED(&tex->id);
     }
 
     PointerRNA idptr = RNA_id_pointer_create(&tex->id);
