@@ -6,3 +6,4 @@ Referenced by issue #131237, Fix #120778: depth navigation ignores camera & ligh
 Referenced by issue #130221, 4.3: Candidates for corrective releases
 Referenced by issue #129162, High idle CPU usage with PulseAudio in Linux
 Referenced by issue #135497, "Center View to Mouse" Operation takes Retopology shading offset into account.
+Referenced by issue #136335, Orbit & Pan Auto Depth affected by transparent geometry when Viewport Shading is set to Material Preview or Rendered
