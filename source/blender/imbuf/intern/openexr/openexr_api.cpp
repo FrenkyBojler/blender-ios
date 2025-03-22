@@ -2108,7 +2108,7 @@ static bool imb_check_chromaticity_val(float test_v, float ref_v)
 }
 
 /* https://openexr.com/en/latest/TechnicalIntroduction.html#recommendations */
-static bool imb_is_chromaticities_xyz_d65(float red_x,
+static bool imb_is_chromaticities_xyz_e(float red_x,
                                           float red_y,
                                           float green_x,
                                           float green_y,
@@ -2157,7 +2157,7 @@ static void imb_exr_set_known_colorspace(const Header &header, char colorspace[I
       header.findTypedAttribute<ChromaticitiesAttribute>("chromaticities");
   if (header_chromaticities) {
     const Chromaticities &val = header_chromaticities->value();
-    if (imb_is_chromaticities_xyz_d65(val.red.x,
+    if (imb_is_chromaticities_xyz_e(val.red.x,
                                       val.red.y,
                                       val.green.x,
                                       val.green.y,
@@ -2166,7 +2166,7 @@ static void imb_exr_set_known_colorspace(const Header &header, char colorspace[I
                                       val.white.x,
                                       val.white.y))
     {
-      IMB_set_colorspace_name_if_exists(colorspace, "Linear CIE-XYZ D65");
+      IMB_set_colorspace_name_if_exists(colorspace, "Linear CIE-XYZ E");
     }
     else if (imb_is_chromaticities_aces_2065_1(val.red.x,
                                                val.red.y,
