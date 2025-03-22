@@ -407,21 +407,59 @@ void expect_boolean_result_coord(const bke::CurvesGeometry &dst_curves,
     }
   }
 
-  Array<int> dst_to_src_points(total_size, -1);
-  /* Loop thought all points trying to find the matching expected point. */
-  for (const int point_i : dst_points.index_range()) {
-    for (const int point_j : src_points.index_range()) {
-      if (math::is_equal(dst_points[point_i], src_points[point_j], 1e-4f)) {
-        /* This should only . */
-        EXPECT_EQ(dst_to_src_points[point_i], -1);
+  const OffsetIndices<int> dst_points_by_curve = dst_curves.points_by_curve();
 
-        dst_to_src_points[point_i] = point_j;
+  /* Check if the all the points match. */
+  auto do_points_match = [&](const IndexRange &points_i, const int curve_j) {
+    for (const int point_i : points_i) {
+      int src_point_i = -1;
+      for (const int point_j : expected_points[curve_j].index_range()) {
+        if (math::is_equal(dst_points[point_i], expected_points[curve_j][point_j], 1e-4f)) {
+          src_point_i = point_j;
+        }
+      }
+      /* No point could be found. */
+      if (src_point_i == -1) {
+        return false;
       }
     }
 
-    /* All points should be found. */
-    EXPECT_NE(dst_to_src_points[point_i], -1);
+    return true;
+  };
+
+  Array<int> dst_to_src_curves(dst_curves.curves_num(), -1);
+  /* Loop through all curves trying to find which other curve matches. */
+  for (const int curve_i : dst_curves.curves_range()) {
+    const IndexRange points_i = dst_points_by_curve[curve_i];
+    for (const int curve_j : expected_points.index_range()) {
+      if (do_points_match(points_i, curve_j)) {
+        /* Only one curve should match. */
+        EXPECT_EQ(dst_to_src_curves[curve_i], -1);
+
+        dst_to_src_curves[curve_i] = curve_j;
+      }
+    }
+
+    /* Some curve should always be found. */
+    EXPECT_NE(dst_to_src_curves[curve_i], -1);
   }
+
+  /* TODO. */
+  // Array<int> dst_to_src_points(total_size, -1);
+  // /* Loop through all points trying to find the matching expected point. */
+  // for (const int point_i : dst_points.index_range()) {
+  //   for (const int point_j : src_points.index_range()) {
+  //     if (math::is_equal(dst_points[point_i], src_points[point_j], 1e-4f)) {
+  //       /* This should only . */
+  //       EXPECT_EQ(dst_to_src_points[point_i], -1);
+
+  //       dst_to_src_points[point_i] = point_j;
+  //     }
+  //   }
+
+  //   /* All points should be found. */
+  //   EXPECT_NE(dst_to_src_points[point_i], -1);
+  // }
 }
 
 TEST(boolean_curves, Squares)
@@ -1009,10 +1047,9 @@ TEST(boolean_curves, Multiple_Shapes)
     const IndexRange clipping_shapes = IndexRange::from_begin_end(2, 3);
     const bke::CurvesGeometry dst_curves = curve_boolean(op_params, src_curves, clipping_shapes);
 
-    /* TODO. */
-    // const Array<Vector<float2>> expected_points = {
-    //     {{2, 0}, {0, 0}, {0, 2}, {1, 2}, {1, 1}, {2, 1}}};
-    // expect_boolean_result_coord(dst_curves, expected_points);
+    const Array<Vector<float2>> expected_points = {{{3, 7}, {5, 7}, {5, 3}, {3, 3}},
+                                                   {{3, 5}, {7, 5}, {7, 3}, {3, 3}}};
+    expect_boolean_result_coord(dst_curves, expected_points);
 
     draw_results(
         "2 Subjects Intersection", "polygon", src_curves, dst_curves, clipping_shapes, op_params);
@@ -1022,10 +1059,10 @@ TEST(boolean_curves, Multiple_Shapes)
     const IndexRange clipping_shapes = IndexRange::from_begin_end(2, 3);
     const bke::CurvesGeometry dst_curves = curve_boolean(op_params, src_curves, clipping_shapes);
 
-    /* TODO. */
-    // const Array<Vector<float2>> expected_points = {
-    //     {{2, 0}, {0, 0}, {0, 2}, {1, 2}, {1, 1}, {2, 1}}};
-    // expect_boolean_result_coord(dst_curves, expected_points);
+    const Array<Vector<float2>> expected_points = {
+        {{5, 3}, {5, 2}, {0, 2}, {0, 7}, {3, 7}, {3, 3}},
+        {{7, 3}, {7, 0}, {2, 0}, {2, 5}, {3, 5}, {3, 3}}};
+    expect_boolean_result_coord(dst_curves, expected_points);
 
     draw_results(
         "2 Subjects Difference", "polygon", src_curves, dst_curves, clipping_shapes, op_params);
@@ -1106,10 +1143,10 @@ TEST(boolean_curves, Four_Shapes)
     const bke::CurvesGeometry dst_curves = curve_boolean(op_params, src_curves, clipping_shapes);
 
     /* TODO: Remove the unneeded clipping/clipping points. */
-    // const Array<Vector<float2>> expected_points = {
-    //     {{1, 7}, {5, 7}, {5, 6}, {5, 3}, {5, 2}, {3, 2}, {3, 3}, {1, 3}},
-    //     {{2, 3}, {2, 5}, {3, 5}, {6, 5}, {7, 5}, {7, 1}, {3, 1}, {3, 3}}};
-    // expect_boolean_result_coord(dst_curves, expected_points);
+    const Array<Vector<float2>> expected_points = {
+        {{1, 7}, {5, 7}, {5, 6}, {5, 3}, {5, 2}, {3, 2}, {3, 3}, {1, 3}},
+        {{2, 3}, {2, 5}, {3, 5}, {6, 5}, {7, 5}, {7, 1}, {3, 1}, {3, 3}}};
+    expect_boolean_result_coord(dst_curves, expected_points);
 
     draw_results("Intersection", "polygon", src_curves, dst_curves, clipping_shapes, op_params);
   }
@@ -1117,11 +1154,10 @@ TEST(boolean_curves, Four_Shapes)
     op_params.boolean_mode = Operation::Difference;
     const bke::CurvesGeometry dst_curves = curve_boolean(op_params, src_curves, clipping_shapes);
 
-    /* TODO. */
-    // const Array<Vector<float2>> expected_points = {
-    //     {{3, 2}, {0, 2}, {0, 7}, {1, 7}, {1, 3}, {3, 3}},
-    //     {{7, 1}, {7, 0}, {2, 0}, {2, 3}, {3, 3}, {3, 1}}};
-    // expect_boolean_result_coord(dst_curves, expected_points);
+    const Array<Vector<float2>> expected_points = {
+        {{3, 2}, {0, 2}, {0, 7}, {1, 7}, {1, 3}, {3, 3}},
+        {{7, 1}, {7, 0}, {2, 0}, {2, 3}, {3, 3}, {3, 1}}};
+    expect_boolean_result_coord(dst_curves, expected_points);
 
     draw_results("Difference", "polygon", src_curves, dst_curves, clipping_shapes, op_params);
   }
