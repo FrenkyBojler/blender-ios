@@ -26,7 +26,7 @@
 
 namespace blender::geometry::fmm {
 
-static FunctionRef<void(int, MutableSpan<float>)> powered_rcp_for_values(const int power_value)
+static FunctionRef<void(int, MutableSpan<float>)> powered_rcp_for_values_old(const int power_value)
 {
   switch (power_value) {
     case 0:
@@ -129,7 +129,7 @@ static FunctionRef<void(int, MutableSpan<float>)> powered_rcp_for_values(const i
   }
 }
 
-static FunctionRef<void(int, MutableSpan<float>)> powered_rcp_for_values_new(const int power_value)
+static FunctionRef<void(int, MutableSpan<float>)> powered_rcp_for_values(const int power_value)
 {
   switch (power_value) {
     case 0:
@@ -771,6 +771,57 @@ static int64_t index_swap_partition(const MutableSpan<T> values, const TPredicat
   return prefix_size;
 }
 
+template<typename T, typename Func>
+static int64_t partition_i_buffer(const MutableSpan<T> buffer, const MutableSpan<T> data, const Func &func)
+{
+  
+  // return std::distance(data.data(), std::partition(data.begin(), data.end(), [&](const auto &item) {
+  //   return func(std::distance(data.as_span().data(), &item));
+  // }));
+  
+  BLI_assert(buffer.size() == data.size());
+  T *__restrict buffer_ptr = buffer.data();
+  const T *__restrict data_ptr = data.data();
+  
+  for (int64_t index = 0; index < data.size(); index++) {
+    *buffer_ptr = *data_ptr;
+    buffer_ptr += bool(func(index));
+    data_ptr++;
+  }
+
+  const int64_t total_front = std::distance(buffer.data(), buffer_ptr);
+
+  if (ELEM(total_front, 0, data.size())) {
+    return total_front;
+  }
+
+  data_ptr = data.data();
+  for (int64_t index = 0; index < data.size(); index++) {
+    *buffer_ptr = *data_ptr;
+    buffer_ptr += !bool(func(index));
+    data_ptr++;
+  }
+
+  std::copy(buffer.begin(), buffer.end(), data.begin());
+  
+  return total_front;
+}
+
+template<typename T, typename Func>
+static int64_t copy_if_i(const MutableSpan<T> data, const Func &func)
+{
+  T *src_ptr = data.data();
+  T *dst_ptr = data.data();
+  
+  for (int64_t index = 0; index < data.size(); index++) {
+    *dst_ptr = *src_ptr;
+    dst_ptr += bool(func(index));
+    src_ptr++;
+  }
+
+  return std::distance(data.data(), dst_ptr);
+}
+
 void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
                          const int total_depth,
                          const Span<float> src_joints_min_distance,
@@ -800,23 +851,38 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
   {
     const int batch_size = sample_position.size();
 
-    Array<float3, 0, GuardedAlignedAllocator<>> batch_positions_buffer(batch_size);
-    std::variant<Array<float, 0, GuardedAlignedAllocator<>>,
-                 Array<float3, 0, GuardedAlignedAllocator<>>> batch_values_buffer;
-    Vector<int, 0, GuardedAlignedAllocator<>> batch_indices_buffer(batch_size);
-    Vector<float, 0, GuardedAlignedAllocator<>> batch_distances_buffer(batch_size);
+    const int64_t min_alighment = std::max<int64_t>(std::hardware_destructive_interference_size, 64ul);
 
-    batch_positions_buffer.as_mutable_span().copy_from(sample_position);
+    Array<float, 0, GuardedAlignedAllocator<min_alighment>> batch_positions_x_buffer(batch_size);
+    Array<float, 0, GuardedAlignedAllocator<min_alighment>> batch_positions_y_buffer(batch_size);
+    Array<float, 0, GuardedAlignedAllocator<min_alighment>> batch_positions_z_buffer(batch_size);
+    Array<Array<float, 0, GuardedAlignedAllocator<>>, 3> batch_values_buffer;
+    Vector<int, 0, GuardedAlignedAllocator<min_alighment>> batch_indices_buffer(batch_size);
+    Vector<float, 0, GuardedAlignedAllocator<min_alighment>> batch_distances_buffer(batch_size);
 
-    to_static_type(src_joints_value.type(), [&](auto dummy) {
-      using T = decltype(dummy);
-      batch_values_buffer = Array<T, 0, GuardedAlignedAllocator<>>(batch_size);
-    });
-    std::visit([&](auto &values) {
-      using ArrayT = std::decay_t<decltype(values)>;
-      using T = typename ArrayT::value_type;
-      values.fill(T(0));
-    }, batch_values_buffer);
+    const CPPType &value_type = src_joints_value.type();
+
+    // batch_positions_buffer.as_mutable_span().copy_from(sample_position);
+    for (const int i : IndexRange(batch_size)) {
+      batch_positions_x_buffer[i] = sample_position[i].x;
+      batch_positions_y_buffer[i] = sample_position[i].y;
+      batch_positions_z_buffer[i] = sample_position[i].z;
+    }
+
+    if (value_type.is<float>()) {
+      batch_values_buffer.reinitialize(1);
+      batch_values_buffer[0].reinitialize(batch_size);
+      batch_values_buffer[0].as_mutable_span().fill(0.0f);
+    } else {
+      BLI_assert(value_type.is<float3>());
+      batch_values_buffer.reinitialize(3);
+      batch_values_buffer[0].reinitialize(batch_size);
+      batch_values_buffer[0].as_mutable_span().fill(0.0f);
+      batch_values_buffer[1].reinitialize(batch_size);
+      batch_values_buffer[1].as_mutable_span().fill(0.0f);
+      batch_values_buffer[2].reinitialize(batch_size);
+      batch_values_buffer[2].as_mutable_span().fill(0.0f);
+    }
 
     array_utils::fill_index_range<int>(batch_indices_buffer.as_mutable_span(), 0);
 
@@ -824,12 +890,25 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
     Vector<int, 32> joint_stack({0});
     Vector<int, 32> prefix_to_visit_stack({batch_size});
 
+    const int64_t mix_size = std::max<int64_t>({sizeof(float3), sizeof(int), sizeof(float), value_type.size()});
+    const int64_t mix_alignment = std::max<int64_t>({alignof(float3), alignof(int), alignof(float), value_type.alignment()});
+
+    LinearAllocator<GuardedAlignedAllocator<min_alighment>> buffer_allocator;
+    void *buffer = buffer_allocator.allocate(mix_size * batch_size * 10, mix_alignment);
+    const MutableSpan<float3> positions_buffer = MutableSpan<float3>(static_cast<float3 *>(buffer), batch_size);
+    const GMutableSpan values_buffer = GMutableSpan(value_type, buffer, batch_size);
+    const MutableSpan<int> indices_buffer = MutableSpan<int>(static_cast<int *>(buffer), batch_size);
+    const MutableSpan<float> distances_buffer = MutableSpan<float>(static_cast<float *>(buffer), batch_size);
+
     while (!depth_stack.is_empty()) {
       const int prefix_to_visit = prefix_to_visit_stack.pop_last();
       const int depth_i = depth_stack.pop_last();
       const int joint_i = joint_stack.pop_last();
 
-      const MutableSpan<float3> batch_positions = batch_positions_buffer.as_mutable_span().take_front(prefix_to_visit);
+      const MutableSpan<float> batch_positions_x = batch_positions_x_buffer.as_mutable_span().take_front(prefix_to_visit);
+      const MutableSpan<float> batch_positions_y = batch_positions_y_buffer.as_mutable_span().take_front(prefix_to_visit);
+      const MutableSpan<float> batch_positions_z = batch_positions_z_buffer.as_mutable_span().take_front(prefix_to_visit);
+
       const MutableSpan<float> batch_distances = batch_distances_buffer.as_mutable_span().take_front(prefix_to_visit);
       const MutableSpan<int> batch_indices = batch_indices_buffer.as_mutable_span().take_front(prefix_to_visit);
 
@@ -838,54 +917,113 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
       const int joint_index = joints_range[joint_i];
       const float3 joint_position = src_joints_centre[joint_index];
 
-      ispc::distances(batch_positions.cast<float [3]>().data(),
-                      joint_position,
-                      batch_distances.size(),
-                      batch_distances.data(),
-                      offset_value);
+      ispc::distances_split(batch_positions_x.data(),
+                            batch_positions_y.data(),
+                            batch_positions_z.data(),
+                            joint_position,
+                            batch_distances.size(),
+                            batch_distances.data(),
+                            offset_value);
+
+      // ispc::distances(batch_positions.cast<float [3]>().data(),
+      //                 joint_position,
+      //                 batch_distances.size(),
+      //                 batch_distances.data(),
+      //                 offset_value);
 
       const float joint_min_distance = src_joints_min_distance[joint_index];
 
-      std::partition(batch_positions.begin(), batch_positions.end(), [&](const auto &item) -> bool {
-        return batch_distances[std::distance(batch_positions.as_span().data(), &item)] < joint_min_distance;
-      });
+      const auto is_in_sphere = [joint_min_distance, &batch_distances](const int i) {
+        return batch_distances[i] < joint_min_distance;
+      };
 
-      std::partition(batch_indices.begin(), batch_indices.end(), [&](const auto &item) -> bool {
-        return batch_distances[std::distance(batch_indices.as_span().data(), &item)] < joint_min_distance;
-      });
+      // const int total_next = partition_i_buffer(indices_buffer.take_front(prefix_to_visit), batch_indices, is_in_sphere);
+      const int total_next = ispc::partition_int_compare_float(batch_indices.data(), indices_buffer.data(), batch_distances.data(), prefix_to_visit, joint_min_distance);
 
-      visit([&](auto &values) {
-        using ArrayT = std::decay_t<decltype(values)>;
-        using T = typename ArrayT::value_type;
-        const MutableSpan<T> batch_values = values.as_mutable_span().take_front(prefix_to_visit);
-        std::partition(batch_values.begin(), batch_values.end(), [&](const auto &item) -> bool {
-          return batch_distances[std::distance(batch_values.as_span().data(), &item)] < joint_min_distance;
-        });
-      }, batch_values_buffer);
-
-      const int total_next = std::distance(batch_distances.begin(), std::partition(batch_distances.begin(), batch_distances.end(), [&](const float item) -> bool {
-        return item < joint_min_distance;
-      }));
-
-      distance_invertion(power_value, batch_distances.drop_front(total_next));
-
-      visit([&](auto &values) {
-        using ArrayT = std::decay_t<decltype(values)>;
-        using T = typename ArrayT::value_type;
-        const MutableSpan<T> batch_values = values.as_mutable_span().take_front(prefix_to_visit);
-
-        const T joint_value = src_joints_value.typed<T>()[joint_index];
-
-        for (const int i : batch_values.index_range().drop_front(total_next)) {
-          batch_values[i] += joint_value * batch_distances[i];
+      if (UNLIKELY(total_next == prefix_to_visit)) {
+        if (depth_i == total_depth - 1) {
+          continue;
         }
-      }, batch_values_buffer);
-
-      if (total_next == 0) {
+        depth_stack.extend_unchecked({depth_i + 1, depth_i + 1});
+        joint_stack.extend_unchecked({joint_i * 2 + 1, joint_i * 2 + 0});
+        prefix_to_visit_stack.extend_unchecked({total_next, total_next});
         continue;
       }
 
-      if (depth_i == total_depth - 1) {
+      ispc::partition_int_compare_float(batch_positions_x.cast<int>().data(), distances_buffer.cast<int>().data(), batch_distances.data(), prefix_to_visit, joint_min_distance);
+      ispc::partition_int_compare_float(batch_positions_y.cast<int>().data(), distances_buffer.cast<int>().data(), batch_distances.data(), prefix_to_visit, joint_min_distance);
+      ispc::partition_int_compare_float(batch_positions_z.cast<int>().data(), distances_buffer.cast<int>().data(), batch_distances.data(), prefix_to_visit, joint_min_distance);
+      // partition_i_buffer(positions_buffer.take_front(prefix_to_visit), batch_positions, is_in_sphere);
+
+      if (value_type.is<float>()) {
+        const MutableSpan<float> batch_values = batch_values_buffer[0].as_mutable_span().take_front(prefix_to_visit);
+        ispc::partition_int_compare_float(batch_values.cast<int>().data(), distances_buffer.cast<int>().data(), batch_distances.data(), prefix_to_visit, joint_min_distance);
+      } else {
+        MutableSpan<float> batch_values = batch_values_buffer[0].as_mutable_span().take_front(prefix_to_visit);
+        ispc::partition_int_compare_float(batch_values.cast<int>().data(), distances_buffer.cast<int>().data(), batch_distances.data(), prefix_to_visit, joint_min_distance);
+        
+        batch_values = batch_values_buffer[1].as_mutable_span().take_front(prefix_to_visit);
+        ispc::partition_int_compare_float(batch_values.cast<int>().data(), distances_buffer.cast<int>().data(), batch_distances.data(), prefix_to_visit, joint_min_distance);
+        
+        batch_values = batch_values_buffer[2].as_mutable_span().take_front(prefix_to_visit);
+        ispc::partition_int_compare_float(batch_values.cast<int>().data(), distances_buffer.cast<int>().data(), batch_distances.data(), prefix_to_visit, joint_min_distance);
+      }
+
+      // visit([&](auto &values) {
+      //   using ArrayT = std::decay_t<decltype(values)>;
+      //   using T = typename ArrayT::value_type;
+      //   const MutableSpan<T> batch_values = values.as_mutable_span().take_front(prefix_to_visit);
+      // 
+      //   partition_i_buffer(values_buffer.typed<T>().take_front(prefix_to_visit), batch_values, is_in_sphere);
+      // }, batch_values_buffer);
+
+      // copy_if_i(batch_distances, [&](const int i) {
+      //   return !is_in_sphere(i);
+      // });
+
+      ispc::copy_int_if_compare_float_not(batch_distances.cast<int>().data(), batch_distances.data(), prefix_to_visit, joint_min_distance);
+
+      distance_invertion(power_value, batch_distances.drop_back(total_next));
+
+      if (value_type.is<float>()) {
+        const float joint_value = src_joints_value.typed<float>()[joint_index];
+
+        const MutableSpan<float> batch_values = batch_values_buffer[0].as_mutable_span().take_front(prefix_to_visit);
+        ispc::one_mul_add_n(batch_values.data() + total_next, batch_distances.data(), joint_value, prefix_to_visit - total_next);
+      } else {
+        const float3 joint_value = src_joints_value.typed<float3>()[joint_index];
+
+        MutableSpan<float> batch_values = batch_values_buffer[0].as_mutable_span().take_front(prefix_to_visit);
+        ispc::one_mul_add_n(batch_values.data() + total_next, batch_distances.data(), joint_value.x, prefix_to_visit - total_next);
+        
+        batch_values = batch_values_buffer[1].as_mutable_span().take_front(prefix_to_visit);
+        ispc::one_mul_add_n(batch_values.data() + total_next, batch_distances.data(), joint_value.y, prefix_to_visit - total_next);
+        
+        batch_values = batch_values_buffer[2].as_mutable_span().take_front(prefix_to_visit);
+        ispc::one_mul_add_n(batch_values.data() + total_next, batch_distances.data(), joint_value.z, prefix_to_visit - total_next);
+      }
+
+      // visit([&](auto &values) {
+      //   using ArrayT = std::decay_t<decltype(values)>;
+      //   using T = typename ArrayT::value_type;
+      //   const MutableSpan<T> batch_values = values.as_mutable_span().take_front(prefix_to_visit);
+      // 
+      //   const T joint_value = src_joints_value.typed<T>()[joint_index];
+      // 
+      //   if constexpr (std::is_same_v<T, float>) {
+      //     ispc::one_mul_add_n(batch_values.data() + total_next, batch_distances.data(), joint_value, prefix_to_visit - total_next);
+      //   } else {
+      //     for (const int i : batch_values.index_range().drop_back(total_next)) {
+      //       batch_values[total_next + i] += joint_value * batch_distances[i];
+      //     }
+      //   }
+      // }, batch_values_buffer);
+
+      if (UNLIKELY(total_next == 0)) {
+        continue;
+      }
+
+      if (UNLIKELY(depth_i == total_depth - 1)) {
         continue;
       }
 
@@ -894,11 +1032,22 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
       prefix_to_visit_stack.extend_unchecked({total_next, total_next});
     }
 
-    std::visit([&](auto &values) {
-      using ArrayT = std::decay_t<decltype(values)>;
-      using T = typename ArrayT::value_type;
-      array_utils::scatter<T, int>(values.as_span(), batch_indices_buffer.as_span(), dst_buckets_data.typed<T>());
-    }, batch_values_buffer);
+    if (value_type.is<float>()) {
+      array_utils::scatter<float, int>(batch_values_buffer[0].as_span(), batch_indices_buffer.as_span(), dst_buckets_data.typed<float>());
+    } else {
+      for (const int i : IndexRange(batch_size)) {
+        const int index = batch_indices_buffer[i];
+        dst_buckets_data.typed<float3>()[index].x = batch_values_buffer[0][i];
+        dst_buckets_data.typed<float3>()[index].y = batch_values_buffer[1][i];
+        dst_buckets_data.typed<float3>()[index].z = batch_values_buffer[2][i];
+      }
+    }
+      
+    // std::visit([&](auto &values) {
+    //   using ArrayT = std::decay_t<decltype(values)>;
+    //   using T = typename ArrayT::value_type;
+    //   array_utils::scatter<T, int>(values.as_span(), batch_indices_buffer.as_span(), dst_buckets_data.typed<T>());
+    // }, batch_values_buffer);
   }
 
   // Vector<float, 0, GuardedAlignedAllocator<>> buffer;

@@ -171,6 +171,141 @@ export void distances(const uniform float positions[][3],
     }
 }
 
+export void distances_split(const uniform float positions_x[],
+                            const uniform float positions_y[],
+                            const uniform float positions_z[],
+                            const uniform float target[3],
+                            const uniform int count,
+                            float uniform distances[],
+                            const uniform float offset)
+{
+    const uniform float<3> targets = {target[0], target[1], target[2]};
+    const uniform int batch_count = (count / programCount) * programCount;
+    for (uniform int index = 0; index < batch_count; index += programCount) {
+        varying float<3> batch = {positions_x[index + programIndex],
+                                  positions_y[index + programIndex],
+                                  positions_z[index + programIndex]};
+        batch -= targets;
+        batch *= batch;
+        distances[index + programIndex] = sqrt(batch.x + batch.y + batch.z) + offset;
+    }
+    for (uniform int index = batch_count; index < count; index++) {
+        uniform float<3> batch = {positions_x[index], positions_y[index], positions_z[index]};
+        batch -= targets;
+        batch *= batch;
+        distances[index] = sqrt(batch.x + batch.y + batch.z) + offset;
+    }
+}
+
+static uniform int packed_store_if(const varying bool mask, const varying int value, uniform int *dst)
+{
+    const varying int gathered = shuffle(value, 0);
+    const uniform int step_size = popcnt(packmask(mask));
+    for (uniform int i = 0; i < step_size; i++) {
+        dst[i] = extract(value, i);
+    }
+    return step_size;
+}
+
+export uniform int partition_int_compare_float(
+    uniform int values[],
+    uniform int buffer[],
+    const uniform float predicates[],
+    const uniform int count,
+    const uniform float min_predicate_value)
+{
+    uniform int buffer_index = 0;
+    const uniform int batch_count = (count / programCount) * programCount;
+    for (uniform int index = 0; index < batch_count; index += programCount) {
+        const varying int value = streaming_load(&values[index]);
+        const varying float predicate = streaming_load(&predicates[index]);
+        if (predicate < min_predicate_value) {
+             buffer_index += packed_store_active(&buffer[buffer_index], value);
+        }
+    }
+    for (uniform int index = batch_count; index < count; index++) {
+        const uniform int value = values[index];
+        const uniform float predicate = predicates[index];
+        if (predicate < min_predicate_value) {
+            buffer[buffer_index] = value;
+            buffer_index++;
+        }
+    }
+    const uniform int total_front = buffer_index;
+    if (total_front == 0 || total_front == count) {
+      return total_front;
+    }
+    
+    for (uniform int index = 0; index < batch_count; index += programCount) {
+        const varying int value = streaming_load(&values[index]);
+        const varying float predicate = streaming_load(&predicates[index]);
+        if (!(predicate < min_predicate_value)) {
+            buffer_index += packed_store_active(&buffer[buffer_index], value);
+        }
+    }
+    for (uniform int index = batch_count; index < count; index++) {
+        const uniform int value = values[index];
+        const uniform float predicate = predicates[index];
+        if (!(predicate < min_predicate_value)) {
+            buffer[buffer_index] = value;
+            buffer_index++;
+        }
+    }
+    foreach(index = 0...count) {
+        values[index] = buffer[index];
+    }
+    return total_front;
+}
+
+export uniform int copy_int_if_compare_float_not(
+    uniform int values[],
+    const uniform float predicates[],
+    const uniform int count,
+    const uniform float min_predicate_value)
+{
+    uniform int buffer_index = 0;
+    const uniform int batch_count = (count / programCount) * programCount;
+    for (uniform int index = 0; index < batch_count; index += programCount) {
+        const varying int value = streaming_load(&values[index]);
+        const varying float predicate = streaming_load(&predicates[index]);
+        if (!(predicate < min_predicate_value)) {
+             buffer_index += packed_store_active(&values[buffer_index], value);
+        }
+    }
+    for (uniform int index = batch_count; index < count; index++) {
+        const uniform int value = values[index];
+        const uniform float predicate = predicates[index];
+        if (!(predicate < min_predicate_value)) {
+            values[buffer_index] = value;
+            buffer_index++;
+        }
+    }
+
+    return buffer_index;
+}
+
+export uniform int one_mul_add_n(
+    uniform float values[],
+    uniform float factors[],
+    const uniform float other,
+    const uniform int count)
+{
+    uniform int buffer_index = 0;
+    const uniform int batch_count = (count / programCount) * programCount;
+    for (uniform int index = 0; index < batch_count; index += programCount) {
+        const varying float value = values[index + programIndex];
+        const varying float factor = streaming_load(&factors[index]);
+        values[index + programIndex] = value + factor * other;
+    }
+    for (uniform int index = batch_count; index < count; index++) {
+        const uniform float value = values[index];
+        const uniform float factor = factors[index];
+        values[index] = value + factor * other;
+    }
+
+    return buffer_index;
+}
+
 // export void distances(const uniform float positions[][3],
 //                       const uniform float target[3],
 //                       const uniform int count,
