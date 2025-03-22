@@ -26,7 +26,7 @@
 
 namespace blender::geometry::fmm {
 
-static FunctionRef<void(int, MutableSpan<float>)> powered_rcp_for_values_old(const int power_value)
+static FunctionRef<void(int, MutableSpan<float>)> powered_rcp_for_values(const int power_value)
 {
   switch (power_value) {
     case 0:
@@ -129,7 +129,7 @@ static FunctionRef<void(int, MutableSpan<float>)> powered_rcp_for_values_old(con
   }
 }
 
-static FunctionRef<void(int, MutableSpan<float>)> powered_rcp_for_values(const int power_value)
+static FunctionRef<void(int, MutableSpan<float>)> powered_rcp_for_values_new(const int power_value)
 {
   switch (power_value) {
     case 0:
@@ -800,125 +800,109 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
   {
     const int batch_size = sample_position.size();
 
-    Array<float3, 0, GuardedAlignedAllocator<>> batch_positions(batch_size);
-    batch_positions.as_mutable_span().copy_from(sample_position);
-
+    Array<float3, 0, GuardedAlignedAllocator<>> batch_positions_buffer(batch_size);
     std::variant<Array<float, 0, GuardedAlignedAllocator<>>,
-                 Array<float3, 0, GuardedAlignedAllocator<>>> batch_values;
+                 Array<float3, 0, GuardedAlignedAllocator<>>> batch_values_buffer;
+    Vector<int, 0, GuardedAlignedAllocator<>> batch_indices_buffer(batch_size);
+    Vector<float, 0, GuardedAlignedAllocator<>> batch_distances_buffer(batch_size);
+
+    batch_positions_buffer.as_mutable_span().copy_from(sample_position);
+
     to_static_type(src_joints_value.type(), [&](auto dummy) {
       using T = decltype(dummy);
-      batch_values = Array<T, 0, GuardedAlignedAllocator<>>(batch_size);
+      batch_values_buffer = Array<T, 0, GuardedAlignedAllocator<>>(batch_size);
     });
     std::visit([&](auto &values) {
       using ArrayT = std::decay_t<decltype(values)>;
       using T = typename ArrayT::value_type;
       values.fill(T(0));
-    }, batch_values);
+    }, batch_values_buffer);
 
-    Vector<float, 0, GuardedAlignedAllocator<>> batch_distances_buffer(batch_size);
-
-    BitGroupVector predicate_mask_stack(33, batch_size, false);
-    predicate_mask_stack[0].fill(true);
+    array_utils::fill_index_range<int>(batch_indices_buffer.as_mutable_span(), 0);
 
     Vector<int, 32> depth_stack({0});
     Vector<int, 32> joint_stack({0});
     Vector<int, 32> prefix_to_visit_stack({batch_size});
-    Vector<int, 32> predicate_mask_i_stack({0});
 
     while (!depth_stack.is_empty()) {
       const int prefix_to_visit = prefix_to_visit_stack.pop_last();
       const int depth_i = depth_stack.pop_last();
       const int joint_i = joint_stack.pop_last();
-      const int predicate_mask_i = predicate_mask_i_stack.pop_last();
 
-      index_swap_partition(batch_positions.as_mutable_span(), [&](const int i) {
-        return predicate_mask_stack[predicate_mask_i][i];
-      });
-
-      visit([&](auto &values) {
-        index_swap_partition(values.as_mutable_span(), [&](const int i) {
-          return predicate_mask_stack[predicate_mask_i][i];
-        });
-      }, batch_values);
+      const MutableSpan<float3> batch_positions = batch_positions_buffer.as_mutable_span().take_front(prefix_to_visit);
+      const MutableSpan<float> batch_distances = batch_distances_buffer.as_mutable_span().take_front(prefix_to_visit);
+      const MutableSpan<int> batch_indices = batch_indices_buffer.as_mutable_span().take_front(prefix_to_visit);
 
       const IndexRange joints_range = akdbh::joints_range_at_depth(depth_i);
 
       const int joint_index = joints_range[joint_i];
-      const float joint_min_distance_squared = math::square(src_joints_min_distance[joint_index] - offset_value);
       const float3 joint_position = src_joints_centre[joint_index];
 
-      batch_distances_buffer.resize(prefix_to_visit);
-      std::transform(batch_positions.begin(),
-                     batch_positions.begin() + prefix_to_visit,
-                     batch_distances_buffer.begin(),
-                     [&](const float3 &sample_position) {
-        return math::distance_squared(joint_position, sample_position);
+      ispc::distances(batch_positions.cast<float [3]>().data(),
+                      joint_position,
+                      batch_distances.size(),
+                      batch_distances.data(),
+                      offset_value);
+
+      const float joint_min_distance = src_joints_min_distance[joint_index];
+
+      std::partition(batch_positions.begin(), batch_positions.end(), [&](const auto &item) -> bool {
+        return batch_distances[std::distance(batch_positions.as_span().data(), &item)] < joint_min_distance;
       });
 
-      for (const int i : IndexRange(prefix_to_visit)) {
-        predicate_mask_stack[predicate_mask_i + 1][i].set(batch_distances_buffer[i] < joint_min_distance_squared);
-      }
-
-      const int total_prefix = index_swap_partition(batch_positions.as_mutable_span().take_front(prefix_to_visit), [&](const int i) {
-        return predicate_mask_stack[predicate_mask_i + 1][i];
+      std::partition(batch_indices.begin(), batch_indices.end(), [&](const auto &item) -> bool {
+        return batch_distances[std::distance(batch_indices.as_span().data(), &item)] < joint_min_distance;
       });
-
-      visit([&](auto &values) {
-        index_swap_partition(values.as_mutable_span().take_front(prefix_to_visit), [&](const int i) {
-          return predicate_mask_stack[predicate_mask_i + 1][i];
-        });
-      }, batch_values);
-
-      index_swap_partition(batch_distances_buffer.as_mutable_span(), [&](const int i) {
-        return !predicate_mask_stack[predicate_mask_i + 1][i];
-      });
-
-      const MutableSpan<float> squared_distances = batch_distances_buffer.as_mutable_span();
-      for (float &distance : squared_distances.take_front(total_prefix)) {
-        distance = math::sqrt(distance);
-      }
-
-      distance_invertion(power_value, squared_distances.take_front(total_prefix));
 
       visit([&](auto &values) {
         using ArrayT = std::decay_t<decltype(values)>;
         using T = typename ArrayT::value_type;
-        const T jooint_value = src_joints_value.typed<T>()[joint_index];
+        const MutableSpan<T> batch_values = values.as_mutable_span().take_front(prefix_to_visit);
+        std::partition(batch_values.begin(), batch_values.end(), [&](const auto &item) -> bool {
+          return batch_distances[std::distance(batch_values.as_span().data(), &item)] < joint_min_distance;
+        });
+      }, batch_values_buffer);
 
-        for (const int i : IndexRange(total_prefix)) {
-          values[prefix_to_visit - total_prefix + i] += jooint_value * squared_distances[i];
+      const int total_next = std::distance(batch_distances.begin(), std::partition(batch_distances.begin(), batch_distances.end(), [&](const float item) -> bool {
+        return item < joint_min_distance;
+      }));
+
+      distance_invertion(power_value, batch_distances.drop_front(total_next));
+
+      visit([&](auto &values) {
+        using ArrayT = std::decay_t<decltype(values)>;
+        using T = typename ArrayT::value_type;
+        const MutableSpan<T> batch_values = values.as_mutable_span().take_front(prefix_to_visit);
+
+        const T joint_value = src_joints_value.typed<T>()[joint_index];
+
+        for (const int i : batch_values.index_range().drop_front(total_next)) {
+          batch_values[i] += joint_value * batch_distances[i];
         }
-      }, batch_values);
+      }, batch_values_buffer);
 
-      if (total_prefix == 0) {
+      if (total_next == 0) {
         continue;
       }
 
-      if (depth_i + 1 == total_depth) {
+      if (depth_i == total_depth - 1) {
         continue;
       }
-
-      predicate_mask_stack[predicate_mask_i].fill(true);
-      /* nest mask in a stack being writen in place. */
-
-      BLI_assert(!predicate_mask_i_stack.contains(predicate_mask_i));
-      BLI_assert(!predicate_mask_i_stack.contains(predicate_mask_i + 1));
-      predicate_mask_i_stack.extend_unchecked({predicate_mask_i, predicate_mask_i + 1});
 
       depth_stack.extend_unchecked({depth_i + 1, depth_i + 1});
       joint_stack.extend_unchecked({joint_i * 2 + 1, joint_i * 2 + 0});
-      prefix_to_visit_stack.extend_unchecked({total_prefix, total_prefix});
+      prefix_to_visit_stack.extend_unchecked({total_next, total_next});
     }
 
     std::visit([&](auto &values) {
       using ArrayT = std::decay_t<decltype(values)>;
       using T = typename ArrayT::value_type;
-      dst_buckets_data.typed<T>().copy_from(values.as_span());
-    }, batch_values);
+      array_utils::scatter<T, int>(values.as_span(), batch_indices_buffer.as_span(), dst_buckets_data.typed<T>());
+    }, batch_values_buffer);
   }
 
-  Vector<float, 0, GuardedAlignedAllocator<>> buffer;
-
+  // Vector<float, 0, GuardedAlignedAllocator<>> buffer;
+  // 
   // to_static_type(src_joints_value.type(), [&](auto dummy) {
   //   // SCOPED_TIMER_AVERAGED("  bucket_to_batch_samples");
   //   using T = decltype(dummy);
