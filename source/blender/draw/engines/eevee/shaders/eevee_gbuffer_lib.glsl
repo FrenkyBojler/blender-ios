@@ -122,13 +122,13 @@ ClosureType gbuffer_mode_to_closure_type(uint mode)
 
 #if defined(GBUFFER_LOAD) || defined(GLSL_CPP_STUBS)
 /* Read only shader. Use correct types and functions. */
-#  define samplerGBufferHeader usampler2D
+#  define samplerGBufferHeader usampler2DArray
 #  define samplerGBufferClosure sampler2DArray
 #  define samplerGBufferNormal sampler2DArray
 
-uint fetchGBuffer(usampler2D tx, ivec2 texel)
+uint fetchGBuffer(usampler2DArray tx, ivec2 texel, uchar layer)
 {
-  return texelFetch(tx, texel, 0).r;
+  return texelFetch(tx, ivec3(texel, layer), 0).r;
 }
 vec4 fetchGBuffer(sampler2DArray tx, ivec2 texel, uchar layer)
 {
@@ -142,7 +142,7 @@ vec4 fetchGBuffer(sampler2DArray tx, ivec2 texel, uchar layer)
 
 #  ifdef GBUFFER_WRITE
 /* Write only shader. Use dummy load functions. */
-uint fetchGBuffer(samplerGBufferHeader tx, ivec2 texel)
+uint fetchGBuffer(samplerGBufferHeader tx, ivec2 texel, uchar layer)
 {
   return uint(0);
 }
@@ -159,7 +159,7 @@ vec4 fetchGBuffer(samplerGBufferNormal tx, ivec2 texel, uchar layer)
 /* Unit testing setup. Allow read and write in the same shader. */
 GBufferWriter g_data_packed;
 
-uint fetchGBuffer(samplerGBufferHeader tx, ivec2 texel)
+uint fetchGBuffer(samplerGBufferHeader tx, ivec2 texel, uchar layer)
 {
   return g_data_packed.header;
 }
@@ -1022,7 +1022,7 @@ GBufferReader gbuffer_read(samplerGBufferHeader header_tx,
     gbuffer_register_closure(gbuf, closure_new(CLOSURE_NONE_ID), bin);
   }
 
-  gbuf.header = fetchGBuffer(header_tx, texel);
+  gbuf.header = fetchGBuffer(header_tx, texel, 0);
 
   if (gbuf.header == 0u) {
     return gbuf;
@@ -1174,7 +1174,8 @@ ClosureUndetermined gbuffer_read_bin(samplerGBufferHeader header_tx,
                                      ivec2 texel,
                                      uchar bin_index)
 {
-  return gbuffer_read_bin(fetchGBuffer(header_tx, texel), closure_tx, normal_tx, texel, bin_index);
+  return gbuffer_read_bin(
+      fetchGBuffer(header_tx, texel, 0), closure_tx, normal_tx, texel, bin_index);
 }
 
 /* Load thickness data only if available. Return 0 otherwise. */

@@ -109,7 +109,7 @@ void PlanarProbeModule::set_view(const draw::View &main_view, int2 main_view_ext
 
     res.gbuffer_fb.ensure(GPU_ATTACHMENT_TEXTURE_LAYER(depth_tx_, resource_index),
                           GPU_ATTACHMENT_TEXTURE_LAYER(radiance_tx_, resource_index),
-                          GPU_ATTACHMENT_TEXTURE(gbuf.header_tx),
+                          GPU_ATTACHMENT_TEXTURE_LAYER(gbuf.header_tx.layer_view(0), 0),
                           GPU_ATTACHMENT_TEXTURE_LAYER(gbuf.normal_tx.layer_view(0), 0),
                           GPU_ATTACHMENT_TEXTURE_LAYER(gbuf.closure_tx.layer_view(0), 0),
                           GPU_ATTACHMENT_TEXTURE_LAYER(gbuf.closure_tx.layer_view(1), 0));

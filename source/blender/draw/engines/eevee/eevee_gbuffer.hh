@@ -133,6 +133,7 @@ struct GBuffer {
   /* References to the GBuffer layer range [1..max]. */
   GPUTexture *closure_img_tx = nullptr;
   GPUTexture *normal_img_tx = nullptr;
+  GPUTexture *header_img_tx = nullptr;
 
   void acquire(int2 extent, int data_count, int normal_count)
   {
@@ -142,13 +143,15 @@ struct GBuffer {
 
     eGPUTextureUsage usage = GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_SHADER_WRITE |
                              GPU_TEXTURE_USAGE_ATTACHMENT;
-    header_tx.ensure_2d(GPU_R32UI, extent, usage);
+    header_tx.ensure_2d_array(GPU_R32UI, extent, 2, usage);
     closure_tx.ensure_2d_array(GPU_RGB10_A2, extent, data_count, usage);
     normal_tx.ensure_2d_array(GPU_RG16, extent, normal_count, usage);
     /* Ensure layer view for frame-buffer attachment. */
+    header_tx.ensure_layer_views();
     closure_tx.ensure_layer_views();
     normal_tx.ensure_layer_views();
     /* Ensure layer view for image store. */
+    header_img_tx = header_tx.layer_range_view(1, 1);
     closure_img_tx = closure_tx.layer_range_view(2, data_count - 2);
     normal_img_tx = normal_tx.layer_range_view(1, normal_count - 1);
   }
@@ -190,6 +193,7 @@ struct GBuffer {
     // closure_tx.release();
     // normal_tx.release();
 
+    header_img_tx = nullptr;
     closure_img_tx = nullptr;
     normal_img_tx = nullptr;
   }

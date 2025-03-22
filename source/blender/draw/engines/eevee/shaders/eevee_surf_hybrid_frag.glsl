@@ -124,6 +124,10 @@ void main()
   for (int layer = 1; layer < GBUFFER_NORMAL_MAX && layer < gbuf.normal_len; layer++) {
     imageStoreFast(out_gbuf_normal_img, ivec3(out_texel, layer - 1), gbuf.N[layer].xyyy);
   }
+  /* NOTE: The image view start at layer 1 so all destination layer is `layer - 1`. */
+  if (true /* TODO(fclem): if light linking on, or sss on, or shadow terminator on. */) {
+    imageStoreFast(out_gbuf_header_img, ivec3(out_texel, 1 - 1), uvec4(drw_resource_id()));
+  }
 
   /* ----- Radiance output ----- */
 

@@ -30,7 +30,7 @@
 GPU_SHADER_CREATE_INFO(eevee_deferred_thickness_amend)
 DO_STATIC_COMPILATION()
 DEFINE("GBUFFER_LOAD")
-SAMPLER(0, UINT_2D, gbuf_header_tx)
+SAMPLER(0, UINT_2D_ARRAY, gbuf_header_tx)
 IMAGE(0, GPU_RG16, READ_WRITE, FLOAT_2D_ARRAY, gbuf_normal_img)
 /* Early fragment test is needed to discard fragment that do not need this processing. */
 EARLY_FRAGMENT_TEST(true)
