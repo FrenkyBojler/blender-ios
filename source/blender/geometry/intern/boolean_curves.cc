@@ -559,31 +559,29 @@ static IntersectionPoint create_intersection(const int point_a,
 /* TODO */
 /* Will return -1 if there is no next segment. */
 static int get_next_segment(const Span<Segment> all_segments,
-                            const Span<int> unsorted_to_all,
                             const int current_i,
                             const int start_segment,
                             const Span<bool> processed_segments,
                             const Span<bool> all_inside_left,
                             const Span<bool> all_inside_right)
 {
-  const int all_current_segment_i = unsorted_to_all[current_i];
-  const Segment current_segment = all_segments[all_current_segment_i];
+  const Segment current_segment = all_segments[current_i];
   if (!current_segment.has_end_intersection()) {
     return -1;
   }
 
   const int current_end_index = current_segment.end_intersection();
 
-  for (const int segment : unsorted_to_all.index_range()) {
+  for (const int segment : all_segments.index_range()) {
     if (segment == current_i || processed_segments[segment]) {
       continue;
     }
 
-    if (!all_inside_left[unsorted_to_all[segment]] ^ all_inside_right[unsorted_to_all[segment]]) {
+    if (!all_inside_left[segment] ^ all_inside_right[segment]) {
       continue;
     }
 
-    const Segment &seg = all_segments[unsorted_to_all[segment]];
+    const Segment &seg = all_segments[segment];
 
     if (seg.start_intersection() == current_end_index ||
         seg.end_intersection() == current_end_index)
@@ -593,11 +591,9 @@ static int get_next_segment(const Span<Segment> all_segments,
   }
 
   if (current_i != start_segment) {
-    const Segment &seg = all_segments[unsorted_to_all[start_segment]];
+    const Segment &seg = all_segments[start_segment];
 
-    if (!all_inside_left[unsorted_to_all[start_segment]] ^
-        all_inside_right[unsorted_to_all[start_segment]])
-    {
+    if (!all_inside_left[start_segment] ^ all_inside_right[start_segment]) {
       return -1;
     }
 
@@ -880,9 +876,16 @@ BooleanResult execute_single_boolean(const CurveBooleanOpParameters op_params,
   }
 
   /* Follow each segment until it loops or ends. */
-  Array<bool> processed_segments(unsorted_to_all.size(), false);
+  Array<bool> processed_segments(all_segments.size(), false);
 
-  int start_segment = processed_segments.first();
+  /* Remove all noncontributing segments. */
+  for (const int segment_i : all_segments.index_range()) {
+    if (!all_inside_left[segment_i] ^ all_inside_right[segment_i]) {
+      processed_segments[segment_i] = true;
+    }
+  }
+
+  int start_segment = processed_segments.as_span().first_index_try(false);
 
   while (start_segment != -1) {
     int current_i = start_segment;
@@ -896,17 +899,15 @@ BooleanResult execute_single_boolean(const CurveBooleanOpParameters op_params,
         break;
       }
 
-      const int all_current_i = unsorted_to_all[current_i];
-      all_segments[all_current_i].reversed = last_reversed;
+      all_segments[current_i].reversed = last_reversed;
 
-      const Segment &current_segment = all_segments[all_current_i];
+      const Segment &current_segment = all_segments[current_i];
       result.segments.append(current_segment);
 
       processed_segments[current_i] = true;
       result.segments.last().reversed = last_reversed;
 
       const int next_segment = get_next_segment(all_segments,
-                                                unsorted_to_all,
                                                 current_i,
                                                 start_segment,
                                                 processed_segments,
@@ -920,7 +921,7 @@ BooleanResult execute_single_boolean(const CurveBooleanOpParameters op_params,
       }
 
       const int current_end_index = current_segment.end_intersection();
-      const Segment &next_seg = all_segments[unsorted_to_all[next_segment]];
+      const Segment &next_seg = all_segments[next_segment];
       const bool next_reversed = next_seg.start_intersection() != current_end_index;
 
       if (next_segment == start_segment) {
