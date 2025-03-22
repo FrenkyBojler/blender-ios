@@ -2107,7 +2107,7 @@ static bool imb_check_chromaticity_val(float test_v, float ref_v)
   return (test_v < (ref_v + tolerance_v)) && (test_v > (ref_v - tolerance_v));
 }
 
-// https://openexr.com/en/latest/TechnicalIntroduction.html#recommendations
+/* https://openexr.com/en/latest/TechnicalIntroduction.html#recommendations */
 static bool imb_is_chromaticities_xyz_d65(float red_x,
                                           float red_y,
                                           float green_x,
@@ -2136,7 +2136,7 @@ static bool imb_is_chromaticities_aces_2065_1(float red_x,
                                               float white_x,
                                               float white_y)
 {
-  // Values based on sample https://openexr.com/en/latest/test_images/ScanLines/Carrots.html
+  /* Values matching ChromaticitiesForACES in https://github.com/ampas/aces_container */
   if (imb_check_chromaticity_val(red_x, 0.7347f) && imb_check_chromaticity_val(red_y, 0.2653f) &&
       (green_x == 0.f) && imb_check_chromaticity_val(green_y, 1.f) &&
       imb_check_chromaticity_val(blue_x, 0.0001f) && imb_check_chromaticity_val(blue_y, -0.077f) &&
@@ -2148,35 +2148,36 @@ static bool imb_is_chromaticities_aces_2065_1(float red_x,
   return false;
 }
 
-static void imb_exr_set_known_colorspace(const Header &header, char colorspace[])
+static void imb_exr_set_known_colorspace(const Header &header, char colorspace[IMA_MAX_SPACE])
 {
-  if (colorspace) {
-    const ChromaticitiesAttribute *header_chromaticities =
-        header.findTypedAttribute<ChromaticitiesAttribute>("chromaticities");
-    if (header_chromaticities) {
-      const Chromaticities &val = header_chromaticities->value();
-      if (imb_is_chromaticities_xyz_d65(val.red.x,
-                                        val.red.y,
-                                        val.green.x,
-                                        val.green.y,
-                                        val.blue.x,
-                                        val.blue.y,
-                                        val.white.x,
-                                        val.white.y))
-      {
-        IMB_set_colorspace_name_if_exists(colorspace, "Linear CIE-XYZ D65");
-      }
-      else if (imb_is_chromaticities_aces_2065_1(val.red.x,
-                                                 val.red.y,
-                                                 val.green.x,
-                                                 val.green.y,
-                                                 val.blue.x,
-                                                 val.blue.y,
-                                                 val.white.x,
-                                                 val.white.y))
-      {
-        IMB_set_colorspace_name_if_exists(colorspace, "ACES2065-1");
-      }
+  if (colorspace == nullptr) {
+    return;
+  }
+  const ChromaticitiesAttribute *header_chromaticities =
+      header.findTypedAttribute<ChromaticitiesAttribute>("chromaticities");
+  if (header_chromaticities) {
+    const Chromaticities &val = header_chromaticities->value();
+    if (imb_is_chromaticities_xyz_d65(val.red.x,
+                                      val.red.y,
+                                      val.green.x,
+                                      val.green.y,
+                                      val.blue.x,
+                                      val.blue.y,
+                                      val.white.x,
+                                      val.white.y))
+    {
+      IMB_set_colorspace_name_if_exists(colorspace, "Linear CIE-XYZ D65");
+    }
+    else if (imb_is_chromaticities_aces_2065_1(val.red.x,
+                                               val.red.y,
+                                               val.green.x,
+                                               val.green.y,
+                                               val.blue.x,
+                                               val.blue.y,
+                                               val.white.x,
+                                               val.white.y))
+    {
+      IMB_set_colorspace_name_if_exists(colorspace, "ACES2065-1");
     }
   }
 }
@@ -2441,10 +2442,10 @@ ImBuf *imb_load_filepath_thumbnail_openexr(const char *filepath,
       colorspace_set_default_role(colorspace, IM_MAX_SPACE, COLOR_ROLE_DEFAULT_FLOAT);
     }
 
-    // Mars 2025 : Have no effect, because imb_load_filepath_thumbnail is currently call
-    // with colorspace == nullptr
-    // But will let having correct colorspace for thumbnail if colorspace thumbnail management is
-    // added in the future
+    /* Mars 2025 : Have no effect, because imb_load_filepath_thumbnail is currently call
+     with colorspace == nullptr
+     But will let having correct colorspace for thumbnail if colorspace thumbnail management is
+     added in the future */
     imb_exr_set_known_colorspace(file_header, colorspace);
 
     float scale_factor = std::min(float(max_thumb_size) / float(source_w),
