@@ -96,6 +96,10 @@ static void write_rect(pugi::xml_node node,
 }
 
 class SVGExporter : public GreasePencilExporter {
+  uint64_t _node_uuid = 0;
+
+  std::string get_node_uuid_string();
+
  public:
   using GreasePencilExporter::GreasePencilExporter;
 
@@ -129,8 +133,16 @@ class SVGExporter : public GreasePencilExporter {
   bool write_to_file(StringRefNull filepath);
 };
 
+std::string SVGExporter::get_node_uuid_string()
+{
+  std::string id = fmt::format(".uuid_{:#x}", this->_node_uuid++);
+  return id;
+}
+
 bool SVGExporter::export_scene(Scene &scene, StringRefNull filepath)
 {
+  this->_node_uuid = 0;
+
   switch (params_.frame_mode) {
     case ExportParams::FrameMode::Active: {
       const int frame_number = scene.r.cfra;
@@ -217,7 +229,8 @@ void SVGExporter::export_grease_pencil_objects(pugi::xml_node node, const int fr
   /* Camera clipping. */
   if (is_clipping) {
     pugi::xml_node clip_node = frame_group_node.append_child("clipPath");
-    const std::string clip_node_id = "clip_path." + std::to_string(frame_number);
+    const std::string clip_node_id = "clip_path." + std::to_string(frame_number) +
+                                     this->get_node_uuid_string();
     clip_node.append_attribute("id").set_value(clip_node_id.c_str());
 
     write_rect(clip_node, 0, 0, render_rect_.size().x, render_rect_.size().y, 0.0f, "#000000");
@@ -233,7 +246,8 @@ void SVGExporter::export_grease_pencil_objects(pugi::xml_node node, const int fr
 
     char obtxt[96];
     SNPRINTF(obtxt, "blender_object.%s.%d", ob->id.name + 2, frame_number);
-    ob_node.append_attribute("id").set_value(obtxt);
+    std::string object_id = std::string(obtxt) + this->get_node_uuid_string();
+    ob_node.append_attribute("id").set_value(object_id.c_str());
 
     /* Use evaluated version to get strokes with modifiers. */
     Object *ob_eval = DEG_get_evaluated_object(context_.depsgraph, const_cast<Object *>(ob));
@@ -254,7 +268,8 @@ void SVGExporter::export_grease_pencil_objects(pugi::xml_node node, const int fr
       ob_node.append_child(pugi::node_comment).set_value(txt.c_str());
 
       pugi::xml_node layer_node = ob_node.append_child("g");
-      layer_node.append_attribute("id").set_value(layer->name().c_str());
+      std::string layer_node_id = "layer." + layer->name() + this->get_node_uuid_string();
+      layer_node.append_attribute("id").set_value(layer_node_id.c_str());
 
       const bke::CurvesGeometry &curves = drawing->strokes();
       /* TODO: Instead of converting all the other curve types to poly curves, export them directly
