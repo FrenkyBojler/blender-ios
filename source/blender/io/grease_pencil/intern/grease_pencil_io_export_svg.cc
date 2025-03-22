@@ -199,7 +199,7 @@ bool SVGExporter::export_scene(Scene &scene, StringRefNull filepath)
 
 static std::string frame_name(int frame_number)
 {
-  std::string frametxt = "blender_frame_" + std::to_string(frame_number);
+  std::string frametxt = "blender_frame." + std::to_string(frame_number);
   return frametxt;
 }
 
@@ -217,13 +217,13 @@ void SVGExporter::export_grease_pencil_objects(pugi::xml_node node, const int fr
   /* Camera clipping. */
   if (is_clipping) {
     pugi::xml_node clip_node = frame_group_node.append_child("clipPath");
-    clip_node.append_attribute("id").set_value(
-        ("clip-path" + std::to_string(frame_number)).c_str());
+    const std::string clip_node_id = "clip_path." + std::to_string(frame_number);
+    clip_node.append_attribute("id").set_value(clip_node_id.c_str());
 
     write_rect(clip_node, 0, 0, render_rect_.size().x, render_rect_.size().y, 0.0f, "#000000");
 
     frame_group_node.append_attribute("clip-path")
-        .set_value(("url(#clip-path" + std::to_string(frame_number) + ")").c_str());
+        .set_value(("url(" + clip_node_id + ")").c_str());
   }
 
   for (const ObjectInfo &info : objects) {
@@ -232,7 +232,7 @@ void SVGExporter::export_grease_pencil_objects(pugi::xml_node node, const int fr
     pugi::xml_node ob_node = frame_group_node.append_child("g");
 
     char obtxt[96];
-    SNPRINTF(obtxt, "blender_object_%s%d", ob->id.name + 2, frame_number);
+    SNPRINTF(obtxt, "blender_object.%s.%d", ob->id.name + 2, frame_number);
     ob_node.append_attribute("id").set_value(obtxt);
 
     /* Use evaluated version to get strokes with modifiers. */
