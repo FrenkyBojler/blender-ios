@@ -376,7 +376,7 @@ pugi::xml_node SVGExporter::write_animation_node(pugi::xml_node parent_node,
 {
   pugi::xml_node use_node = parent_node.append_child("use");
   use_node.append_attribute("id").set_value("blender_animation");
-  std::string href_text = "url(#" + frame_name(frames.first()) + ")";
+  std::string href_text = "#" + frame_name(frames.first());
   use_node.append_attribute("href").set_value(href_text.c_str());
 
   pugi::xml_node animate_node = use_node.append_child("animate");
