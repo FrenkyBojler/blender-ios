@@ -2942,23 +2942,12 @@ class SEQUENCER_PT_modifiers(SequencerButtonsPanel, Panel):
                         for sound_eq in mod.graphics:
                             col = flow.column()
                             box = col.box()
-                            split = box.split(factor=0.4)
-                            split.label(text="{:.2f}".format(sound_eq.curve_mapping.clip_min_x), translate=False)
-                            split.label(text="Hz")
-                            split.alignment = 'RIGHT'
-                            split.label(text="{:.2f}".format(sound_eq.curve_mapping.clip_max_x), translate=False)
-                            box.template_curve_mapping(
+                            box.template_sound_equalizer_mapping(
                                 sound_eq,
                                 "curve_mapping",
                                 type='NONE',
-                                levels=False,
-                                brush=True,
                                 use_negative_slope=True,
-                                show_tone=False,
                             )
-                            second_row = col.row()
-                            second_row.label(text="dB")
-                            second_row.alignment = 'CENTER'
 
 
 class SEQUENCER_PT_annotation(AnnotationDataPanel, SequencerButtonsPanel_Output, Panel):

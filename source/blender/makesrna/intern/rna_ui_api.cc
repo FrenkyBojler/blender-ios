@@ -1955,6 +1955,14 @@ void RNA_api_ui_layout(StructRNA *srna)
   RNA_def_boolean(func, "use_negative_slope", false, "", "Use a negative slope by default");
   RNA_def_boolean(func, "show_tone", false, "", "Show tone options");
 
+  func = RNA_def_function(
+      srna, "template_sound_equalizer_mapping", "uiTemplateSoundEqualizerMapping");
+  RNA_def_function_ui_description(func,
+                                  "Item. A curve mapping widget used for the Equalizer Graph.");
+  api_ui_item_rna_common(func);
+  RNA_def_enum(func, "type", curve_type_items, 0, "Type", "Type of curves to display");
+  RNA_def_boolean(func, "use_negative_slope", false, "", "Use a negative slope by default");
+
   func = RNA_def_function(srna, "template_curveprofile", "uiTemplateCurveProfile");
   RNA_def_function_ui_description(func, "A profile path editor used for custom profiles");
   api_ui_item_rna_common(func);

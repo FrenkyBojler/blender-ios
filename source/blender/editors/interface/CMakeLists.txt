@@ -65,6 +65,7 @@ set(SRC
   templates/interface_template_component_menu.cc
   templates/interface_template_constraint.cc
   templates/interface_template_curve_mapping.cc
+  templates/interface_template_equalizer_graph.cc
   templates/interface_template_curve_profile.cc
   templates/interface_template_event.cc
   templates/interface_template_grease_pencil_layer_tree.cc
