@@ -231,6 +231,25 @@ string HIPDevice::compile_kernel_get_common_cflags(const uint kernel_features)
   return cflags;
 }
 
+bool HIPDevice::is_rdna2(const std::string &arch)
+{
+#  ifdef _WIN32
+  std::string chip_number(arch);
+
+  chip_number.erase(std::remove_if(chip_number.begin(),
+                                   chip_number.end(),
+                                   [](char ch) { return !std::isdigit(ch); }),
+                    chip_number.end());
+
+  int chip_id = chip_number.empty() ? 0 : std::stoi(chip_number);
+
+  if (chip_id >= RDNA2_RANGE_START && chip_id <= RDNA2_RANGE_END) {
+    return true;
+  }
+#  endif
+
+  return false;
+}
 string HIPDevice::compile_kernel(const uint kernel_features, const char *name, const char *base)
 {
   /* Compute kernel name. */
@@ -260,7 +279,11 @@ string HIPDevice::compile_kernel(const uint kernel_features, const char *name, c
   const string kernel_md5 = util_md5_string(source_md5 + common_cflags);
 
   const char *const kernel_ext = "genco";
-  std::string options = "-Wno-parentheses-equality -Wno-unused-value -ffast-math";
+  std::string options = "-Wno-parentheses-equality -Wno-unused-value";
+  // Enable fast math option only for non-RDNA2 GPUs (compiler bug)
+  if (!is_rdna2(arch)) {
+    options.append(" -ffast-math");
+  }
 
 #  ifndef NDEBUG
   options.append(" -save-temps");

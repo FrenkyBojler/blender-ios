@@ -15,6 +15,9 @@
 #    include "hipew.h"
 #  endif
 
+#  define RDNA2_RANGE_START 1030
+#  define RDNA2_RANGE_END 1036
+
 CCL_NAMESPACE_BEGIN
 
 class DeviceQueue;
@@ -106,6 +109,7 @@ class HIPDevice : public GPUDevice {
  protected:
   bool get_device_attribute(hipDeviceAttribute_t attribute, int *value);
   int get_device_default_attribute(hipDeviceAttribute_t attribute, const int default_value);
+  bool is_rdna2(const std::string &arch);
 };
 
 CCL_NAMESPACE_END

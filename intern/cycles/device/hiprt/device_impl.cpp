@@ -222,9 +222,11 @@ string HIPRTDevice::compile_kernel(const uint kernel_features, const char *name,
 
   const char *const kernel_ext = "genco";
   string options;
-  options.append(
-      "-Wno-parentheses-equality -Wno-unused-value -ffast-math -O3 -std=c++17 -D __HIPRT__");
+  options.append("-Wno-parentheses-equality -Wno-unused-value -O3 -std=c++17 -D __HIPRT__");
   options.append(" --offload-arch=").append(arch.c_str());
+  if (!is_rdna2(arch)) {
+    options.append(" -ffast-math");
+  }
 #  ifdef WITH_NANOVDB
   options.append(" -D WITH_NANOVDB");
 #  endif
