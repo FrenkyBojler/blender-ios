@@ -646,11 +646,7 @@ endif()
 # Workaround for SDK 6.3.42560-881c2d702 compiler bug on RDNA2
 # Issue #136138
 function(get_hip_math_flag arch math_flag)
-  string(REGEX REPLACE "[^0-9]" "" num_part "${arch}")
-  math(EXPR chip_id "${num_part}")
-  set(rdna2_range_start 1030)
-  set(rdna2_range_end 1036)
-  if(WIN32 AND (chip_id GREATER_EQUAL ${rdna2_range_start} AND chip_id LESS_EQUAL ${rdna2_range_end}))
+  if(WIN32 AND (${arch} MATCHES "gfx1030|gfx1031|gfx1032|gfx1033|gfx1034|gfx1035|gfx1036"))
       set(result "")
   else()
       set(result "-ffast-math")

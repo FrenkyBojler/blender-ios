@@ -5,6 +5,7 @@
 #ifdef WITH_HIPRT
 
 #  include "device/hiprt/device_impl.h"
+#  include "device/hip/util.h"
 #  include "kernel/device/hiprt/globals.h"
 
 #  include "util/log.h"
@@ -224,7 +225,10 @@ string HIPRTDevice::compile_kernel(const uint kernel_features, const char *name,
   string options;
   options.append("-Wno-parentheses-equality -Wno-unused-value -O3 -std=c++17 -D __HIPRT__");
   options.append(" --offload-arch=").append(arch.c_str());
-  if (!is_rdna2(arch)) {
+#  ifdef _WIN32
+  if (!hipIsRDNA2(arch))
+#  endif
+  {
     options.append(" -ffast-math");
   }
 #  ifdef WITH_NANOVDB
