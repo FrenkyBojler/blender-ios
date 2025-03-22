@@ -442,24 +442,10 @@ void expect_boolean_result_coord(const bke::CurvesGeometry &dst_curves,
 
     /* Some curve should always be found. */
     EXPECT_NE(dst_to_src_curves[curve_i], -1);
+    if (dst_to_src_curves[curve_i] == -1) {
+      return;
+    }
   }
-
-  /* TODO. */
-  // Array<int> dst_to_src_points(total_size, -1);
-  // /* Loop through all points trying to find the matching expected point. */
-  // for (const int point_i : dst_points.index_range()) {
-  //   for (const int point_j : src_points.index_range()) {
-  //     if (math::is_equal(dst_points[point_i], src_points[point_j], 1e-4f)) {
-  //       /* This should only . */
-  //       EXPECT_EQ(dst_to_src_points[point_i], -1);
-
-  //       dst_to_src_points[point_i] = point_j;
-  //     }
-  //   }
-
-  //   /* All points should be found. */
-  //   EXPECT_NE(dst_to_src_points[point_i], -1);
-  // }
 }
 
 TEST(boolean_curves, Squares)
