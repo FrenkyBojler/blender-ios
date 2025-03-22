@@ -695,8 +695,9 @@ BooleanResult execute_single_boolean(const CurveBooleanOpParameters op_params,
     });
   });
 
+  /* -------------------- */
+
   Vector<Segment> all_segments;
-  Vector<int> unsorted_to_all;
   Vector<bool> all_inside_left;
   Vector<bool> all_inside_right;
 
@@ -832,9 +833,6 @@ BooleanResult execute_single_boolean(const CurveBooleanOpParameters op_params,
       const bool is_in_R = state_R.is_contributing(
           op_params, shapes, subj_shape_id, clipping_shapes);
 
-      if (is_in_L ^ is_in_R) {
-        unsorted_to_all.append(all_segments.size());
-      }
       all_segments.append(this_segment);
       all_inside_left.append(is_in_L);
       all_inside_right.append(is_in_R);
@@ -860,6 +858,8 @@ BooleanResult execute_single_boolean(const CurveBooleanOpParameters op_params,
     }
   };
 
+  /* -------------------- */
+
   curves_i.foreach_index([&](const int curve_i) { add_segments(curve_i, true); });
   clipping_shapes.foreach_index([&](const int clip_shape_id) {
     const IndexMask &curves_j = shapes[clip_shape_id];
@@ -867,13 +867,6 @@ BooleanResult execute_single_boolean(const CurveBooleanOpParameters op_params,
   });
 
   /* -------------------- */
-
-  BooleanResult result;
-  result.segment_offsets.append(0);
-
-  if (unsorted_to_all.is_empty()) {
-    return result;
-  }
 
   /* Follow each segment until it loops or ends. */
   Array<bool> processed_segments(all_segments.size(), false);
@@ -886,6 +879,9 @@ BooleanResult execute_single_boolean(const CurveBooleanOpParameters op_params,
   }
 
   int start_segment = processed_segments.as_span().first_index_try(false);
+
+  BooleanResult result;
+  result.segment_offsets.append(0);
 
   while (start_segment != -1) {
     int current_i = start_segment;
