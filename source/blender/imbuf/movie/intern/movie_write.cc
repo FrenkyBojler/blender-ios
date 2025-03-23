@@ -826,7 +826,6 @@ static AVStream *alloc_video_stream(MovieWriter *context,
     }
   }
   if (codec_id == AV_CODEC_ID_PRORES) {
-    printf("Prores codec id output\n");
     if ((context->ffmpeg_profile >= FFM_PRORES_PROFILE_422_PROXY) &&
         (context->ffmpeg_profile <= FFM_PRORES_PROFILE_422_HQ))
     {
@@ -839,8 +838,7 @@ static AVStream *alloc_video_stream(MovieWriter *context,
       c->profile = context->ffmpeg_profile;
       c->pix_fmt = AV_PIX_FMT_YUV444P10LE;
 
-      if (rd->im_format.planes == R_IMF_PLANES_RGBA) {  // OU FLOAT RGBA ??
-        printf("USE ALPHA OUTPUT\n");
+      if (rd->im_format.planes == R_IMF_PLANES_RGBA) {
         c->pix_fmt = AV_PIX_FMT_YUVA444P10LE;
       }
     }
