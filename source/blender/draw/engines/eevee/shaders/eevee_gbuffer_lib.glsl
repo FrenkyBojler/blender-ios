@@ -45,11 +45,8 @@ struct GBufferData {
   ClosureUndetermined closure[GBUFFER_LAYER_MAX];
   /* Additional object information if any closure needs it. */
   float thickness;
-  uint object_id;
   /* First world normal stored in the gbuffer. Only valid if `has_any_surface` is true. */
   packed_float3 surface_N;
-  /* Index into `light_set_membership` bitmask of Lights for light linking. */
-  uchar receiver_light_set;
 };
 
 /* Result of Packing the GBuffer. */
@@ -308,16 +305,6 @@ bool gbuffer_is_refraction(vec4 gbuffer)
   return gbuffer.w < 1.0;
 }
 
-uint gbuffer_light_link_receiver_pack(uchar receiver_light_set)
-{
-  return receiver_light_set << 26u;
-}
-
-uint gbuffer_light_link_receiver_unpack(uint data)
-{
-  return data >> 26u;
-}
-
 /* Quantize geometric normal to 6 bits. */
 uint gbuffer_geometry_normal_pack(vec3 Ng, vec3 N)
 {
@@ -544,7 +531,7 @@ void gbuffer_skip_normal(inout GBufferReader gbuf)
 }
 
 /* Pack geometry additional infos onto the normal stack. Needs to be run last. */
-void gbuffer_additional_info_pack(inout GBufferWriter gbuf, float thickness, uint object_id)
+void gbuffer_additional_info_pack(inout GBufferWriter gbuf, float thickness)
 {
   gbuf.N[gbuf.normal_len] = vec2(gbuffer_thickness_pack(thickness), 0.0 /* UNUSED */);
   gbuf.normal_len++;
@@ -849,9 +836,6 @@ GBufferWriter gbuffer_pack(GBufferData data_in, vec3 Ng)
   gbuf.data_len = 0;
   gbuf.normal_len = 0;
 
-  /* Pack light linking data into header. */
-  gbuf.header |= gbuffer_light_link_receiver_pack(data_in.receiver_light_set);
-
   bool has_additional_data = false;
   for (int i = 0; i < GBUFFER_LAYER_MAX; i++) {
     ClosureUndetermined cl = data_in.closure[i];
@@ -906,7 +890,7 @@ GBufferWriter gbuffer_pack(GBufferData data_in, vec3 Ng)
   gbuf.header |= gbuffer_geometry_normal_pack(Ng, gbuf.surface_N);
 
   if (has_additional_data) {
-    gbuffer_additional_info_pack(gbuf, data_in.thickness, data_in.object_id);
+    gbuffer_additional_info_pack(gbuf, data_in.thickness);
   }
 
   return gbuf;
