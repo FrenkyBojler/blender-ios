@@ -1926,6 +1926,11 @@ typedef struct NodeGeometryInputNamedAttribute {
   int8_t data_type;
 } NodeGeometryInputNamedAttribute;
 
+typedef struct NodeGeometrySingleValueField {
+  /** #eCustomDataType. */
+  int8_t data_type;
+} NodeGeometrySingleValueField;
+
 typedef struct NodeGeometryStringToCurves {
   /** #GeometryNodeStringToCurvesOverflowMode */
   uint8_t overflow;
