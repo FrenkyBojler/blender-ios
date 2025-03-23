@@ -746,22 +746,27 @@ class MeshUVs : Overlay {
     const SpaceImage *space_image = reinterpret_cast<const SpaceImage *>(state.space_data);
     Object *ob = ob_ref.object;
     Object *obact = const_cast<Object *>(state.object_active);
-    const bool is_active_object = ob == obact;
     Mesh &mesh = *static_cast<Mesh *>(ob->data);
+    const bool is_active_object = ob == obact;
+    const bool has_active_object_uvmap = CustomData_get_active_layer(&mesh.corner_data,
+                                                                     CD_PROP_FLOAT2) != -1;
+
     ResourceHandle res_handle = manager.unique_handle(ob_ref);
 
     /* Set the opacity of the UV preview shader so that selected object UVs
      * appear less opaque than the active object UVs in the Image Editor. */
     float opacity = is_active_object ? space_image->uv_opacity : space_image->uv_opacity * 0.25f;
+    float face_opacity = is_active_object ? space_image->uv_face_opacity :
+                                            space_image->uv_face_opacity * 0.25f;
 
-    if (show_wireframe_) {
+    if (show_wireframe_ && has_active_object_uvmap) {
       wireframe_ps_.push_constant("alpha", opacity);
       gpu::Batch *geom = DRW_mesh_batch_cache_get_uv_edges(*ob, mesh);
       wireframe_ps_.draw_expand(geom, GPU_PRIM_TRIS, 2, 1, res_handle);
     }
 
-    if (show_face_) {
-      faces_ps_.push_constant("uvOpacity", opacity);
+    if (show_face_ && has_active_object_uvmap) {
+      faces_ps_.push_constant("uvOpacity", face_opacity);
       gpu::Batch *geom = DRW_mesh_batch_cache_get_uv_faces(*ob, mesh);
       faces_ps_.draw(geom, res_handle);
     }
@@ -824,8 +829,8 @@ class MeshUVs : Overlay {
         analysis_ps_.draw(geom, res_handle);
       }
     }
-    else if (show_face_ && !is_uv_editable) {
-      faces_ps_.push_constant("uvOpacity", space_image->uv_opacity);
+    else if (show_face_ && (has_active_object_uvmap || has_active_edit_uvmap) && !is_uv_editable) {
+      faces_ps_.push_constant("uvOpacity", space_image->uv_face_opacity);
       gpu::Batch *face_geom = DRW_mesh_batch_cache_get_uv_faces(ob, mesh);
       faces_ps_.draw(face_geom, res_handle);
     }

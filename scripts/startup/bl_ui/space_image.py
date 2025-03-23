@@ -1701,6 +1701,7 @@ class IMAGE_PT_overlay_uv_display(Panel):
 
         layout.active = overlay.show_overlays
         layout.prop(uvedit, "show_uv")
+        layout.prop(uvedit, "uv_face_opacity")
 
 
 class IMAGE_PT_overlay_image(Panel):
