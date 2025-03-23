@@ -556,12 +556,10 @@ static IntersectionPoint create_intersection(const int point_a,
   return inter_point;
 }
 
-/* TODO */
 /* Will return -1 if there is no next segment. */
-static int get_next_segment(const Span<Segment> all_segments,
-                            const int current_i,
-                            const int start_segment,
-                            const Span<bool> processed_segments,
+static int get_next_segment(const int current_i,
+                            const Span<Segment> all_segments,
+                            const Span<IntersectionPoint> intersections,
                             const Span<bool> all_inside_left,
                             const Span<bool> all_inside_right)
 {
@@ -571,36 +569,22 @@ static int get_next_segment(const Span<Segment> all_segments,
   }
 
   const int current_end_index = current_segment.end_intersection();
+  const IntersectionPoint &end_int = intersections[current_end_index];
+  const SegmentEndPoint endpoint = SegmentEndPoint(current_i, current_segment.reversed);
 
-  for (const int segment : all_segments.index_range()) {
-    if (segment == current_i || processed_segments[segment]) {
+  const SegmentEndPoint all_ends[4] = {
+      end_int.start_a, end_int.end_a, end_int.start_b, end_int.end_b};
+
+  for (const int i : IndexRange(4)) {
+    const SegmentEndPoint &nex_end = all_ends[i];
+    const int seg_i = nex_end.segment_index();
+
+    if (nex_end == endpoint) {
       continue;
     }
 
-    if (!all_inside_left[segment] ^ all_inside_right[segment]) {
-      continue;
-    }
-
-    const Segment &seg = all_segments[segment];
-
-    if (seg.start_intersection() == current_end_index ||
-        seg.end_intersection() == current_end_index)
-    {
-      return segment;
-    }
-  }
-
-  if (current_i != start_segment) {
-    const Segment &seg = all_segments[start_segment];
-
-    if (!all_inside_left[start_segment] ^ all_inside_right[start_segment]) {
-      return -1;
-    }
-
-    if (seg.start_intersection() == current_end_index ||
-        seg.end_intersection() == current_end_index)
-    {
-      return start_segment;
+    if (all_inside_left[seg_i] ^ all_inside_right[seg_i]) {
+      return seg_i;
     }
   }
 
@@ -903,12 +887,8 @@ BooleanResult execute_single_boolean(const CurveBooleanOpParameters op_params,
       processed_segments[current_i] = true;
       result.segments.last().reversed = last_reversed;
 
-      const int next_segment = get_next_segment(all_segments,
-                                                current_i,
-                                                start_segment,
-                                                processed_segments,
-                                                all_inside_left,
-                                                all_inside_right);
+      const int next_segment = get_next_segment(
+          current_i, all_segments, intersections, all_inside_left, all_inside_right);
 
       if (next_segment == -1) {
         PolygonDone = true;
