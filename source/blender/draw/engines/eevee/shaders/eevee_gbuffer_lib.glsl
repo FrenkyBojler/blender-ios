@@ -77,7 +77,6 @@ struct GBufferReader {
   /* Texel of the gbuffer being read. */
   ivec2 texel;
 
-  uint object_id;
   uint header;
 
   /* First world normal stored in the gbuffer. Only valid if `has_any_surface` is true. */
@@ -290,16 +289,6 @@ float gbuffer_closure_intensity_unpack(vec2 value_packed)
 {
   float exponent = value_packed.g * 3.0;
   return value_packed.r * exp2(exponent);
-}
-
-float gbuffer_object_id_unorm16_pack(uint object_id)
-{
-  return float(object_id & 0xFFFFu) / float(0xFFFF);
-}
-
-uint gbuffer_object_id_unorm16_unpack(float object_id_packed)
-{
-  return uint(object_id_packed * float(0xFFFF));
 }
 
 float gbuffer_object_id_f16_pack(uint object_id)
@@ -557,8 +546,7 @@ void gbuffer_skip_normal(inout GBufferReader gbuf)
 /* Pack geometry additional infos onto the normal stack. Needs to be run last. */
 void gbuffer_additional_info_pack(inout GBufferWriter gbuf, float thickness, uint object_id)
 {
-  gbuf.N[gbuf.normal_len] = vec2(gbuffer_thickness_pack(thickness),
-                                 gbuffer_object_id_unorm16_pack(object_id));
+  gbuf.N[gbuf.normal_len] = vec2(gbuffer_thickness_pack(thickness), 0.0 /* UNUSED */);
   gbuf.normal_len++;
 }
 void gbuffer_additional_info_load(inout GBufferReader gbuf, samplerGBufferNormal normal_tx)
@@ -566,7 +554,6 @@ void gbuffer_additional_info_load(inout GBufferReader gbuf, samplerGBufferNormal
   vec2 data_packed = fetchGBuffer(normal_tx, gbuf.texel, int(gbuf.normal_len)).rg;
   gbuf.normal_len++;
   gbuf.thickness = gbuffer_thickness_unpack(data_packed.x);
-  gbuf.object_id = gbuffer_object_id_unorm16_unpack(data_packed.y);
 }
 
 /** \} */
@@ -1014,7 +1001,6 @@ GBufferReader gbuffer_read(samplerGBufferHeader header_tx,
   gbuf.texel = texel;
   gbuf.thickness = 0.0;
   gbuf.closure_count = 0;
-  gbuf.object_id = 0u;
   gbuf.data_len = 0;
   gbuf.normal_len = 0;
   gbuf.surface_N = vec3(0.0);

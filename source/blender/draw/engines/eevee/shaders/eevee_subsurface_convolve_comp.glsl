@@ -102,6 +102,8 @@ void main()
     return;
   }
 
+  uint object_id = texelFetch(gbuf_header_tx, ivec3(texel, 1), 0).x;
+
   ClosureSubsurface closure = to_closure_subsurface(gbuffer_closure_get(gbuf, 0));
   float max_radius = reduce_max(closure.sss_radius);
 
@@ -138,7 +140,7 @@ void main()
 
     SubSurfaceSample samp = sample_neighborhood(sample_uv);
     /* Reject radiance from other surfaces. Avoids light leak between objects. */
-    if (samp.sss_id != gbuf.object_id) {
+    if (samp.sss_id != object_id) {
       continue;
     }
     /* Slide 34. */
