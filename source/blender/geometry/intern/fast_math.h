@@ -40,7 +40,6 @@ namespace ispc { /* namespace */
 #if defined(__cplusplus) && (! defined(__ISPC_NO_EXTERN_C) || !__ISPC_NO_EXTERN_C )
 extern "C" {
 #endif // __cplusplus
-    extern int32_t copy_int_if_compare_float_not(int32_t * values, const float * predicates, const int32_t count, const float min_predicate_value);
     extern void distances(const float positions[][3], const float * target, const int32_t count, float * distances, const float offset);
     extern void distances_split(const float * positions_x, const float * positions_y, const float * positions_z, const float * target, const int32_t count, float * distances, const float offset);
     extern float fixed_safe_0_rpow_n(float * values, const int32_t count);
@@ -62,8 +61,12 @@ extern "C" {
     extern float float_dot_product(const float * values, const float * factors, const int32_t count);
     extern float float_gather_dot_product(const int32_t * indices, const float * values, const float * factors, const int32_t count);
     extern void gather_distances(const int32_t * indices, const float positions[][3], const float * target, const int32_t count, float * distances, const float offset);
+    extern int32_t gather_ints_buffer(int32_t * values, int32_t * indices, int32_t * buffer, int32_t count, int32_t front_self_range);
     extern int32_t one_mul_add_n(float * values, float * factors, const float other, const int32_t count);
     extern int32_t partition_int_compare_float(int32_t * values, int32_t * buffer, const float * predicates, const int32_t count, const float min_predicate_value);
+    extern int32_t predicate_indices_float_cmp(int32_t * indices, float * predicates, const int32_t count, const float min_predicate_value);
+    extern void split_float3_to_3_float(const float xyz_values[][3], float * x_components, float * y_components, float * z_components, int32_t count);
+    extern int32_t zip_if_larger_or_equal(int32_t * values, const float * predicates, const int32_t count, const float min_predicate_value);
 #if defined(__cplusplus) && (! defined(__ISPC_NO_EXTERN_C) || !__ISPC_NO_EXTERN_C )
 } /* end extern C */
 #endif // __cplusplus

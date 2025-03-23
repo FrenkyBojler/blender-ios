@@ -1,4 +1,24 @@
 
+static uniform float safe_rcp(uniform const float a)
+{
+  return a ? rcp_fast(a) : 0.0f;
+}
+
+float safe_rcp(const float a)
+{
+  return a ? rcp_fast(a) : 0.0f;
+}
+
+static uniform float square(const uniform float value)
+{
+    return value * value;
+}
+
+float square(const float value)
+{
+    return value * value;
+}
+
 export uniform float float_dot_product(const uniform float values[],
                                        const uniform float factors[],
                                        const uniform int count)
@@ -77,11 +97,6 @@ export void float3_gather_dot_product(const uniform int indices[],
 //     prefetchw_l1(&data[indices[min(i + 32, count - 1)]]);
 //   }
 // }
-
-float square(const float value)
-{
-    return value * value;
-}
 
 export void gather_distances(const uniform int indices[],
                              const uniform float positions[][3],
@@ -182,6 +197,9 @@ export void distances_split(const uniform float positions_x[],
     const uniform float<3> targets = {target[0], target[1], target[2]};
     const uniform int batch_count = (count / programCount) * programCount;
     for (uniform int index = 0; index < batch_count; index += programCount) {
+        prefetch_nt(&positions_x[index + 100]);
+        prefetch_nt(&positions_y[index + 100]);
+        prefetch_nt(&positions_z[index + 100]);
         varying float<3> batch = {positions_x[index + programIndex],
                                   positions_y[index + programIndex],
                                   positions_z[index + programIndex]};
@@ -197,14 +215,50 @@ export void distances_split(const uniform float positions_x[],
     }
 }
 
-static uniform int packed_store_if(const varying bool mask, const varying int value, uniform int *dst)
+export uniform int predicate_indices_float_cmp(
+    uniform int indices[],
+    uniform float predicates[],
+    const uniform int count,
+    const uniform float min_predicate_value)
 {
-    const varying int gathered = shuffle(value, 0);
-    const uniform int step_size = popcnt(packmask(mask));
-    for (uniform int i = 0; i < step_size; i++) {
-        dst[i] = extract(value, i);
+    uniform int buffer_index = 0;
+    const uniform int batch_count = (count / programCount) * programCount;
+    for (uniform int index = 0; index < batch_count; index += programCount) {
+        const varying float predicate = streaming_load(&predicates[index]);
+        if (predicate < min_predicate_value) {
+             buffer_index += packed_store_active(&indices[buffer_index], index + programIndex);
+        }
     }
-    return step_size;
+    for (uniform int index = batch_count; index < count; index++) {
+        const uniform float predicate = predicates[index];
+        if (predicate < min_predicate_value) {
+            indices[buffer_index] = index;
+            buffer_index++;
+        }
+    }
+    const uniform int total_front = buffer_index;
+    if (total_front == count) {
+      return total_front;
+    }
+    if (total_front == 0) {
+      return total_front;
+    }
+    
+    for (uniform int index = 0; index < batch_count; index += programCount) {
+        const varying float predicate = streaming_load(&predicates[index]);
+        if (!(predicate < min_predicate_value)) {
+             buffer_index += packed_store_active(&indices[buffer_index], index + programIndex);
+        }
+    }
+    for (uniform int index = batch_count; index < count; index++) {
+        const uniform float predicate = predicates[index];
+        if (!(predicate < min_predicate_value)) {
+            indices[buffer_index] = index;
+            buffer_index++;
+        }
+    }
+
+    return total_front;
 }
 
 export uniform int partition_int_compare_float(
@@ -217,6 +271,8 @@ export uniform int partition_int_compare_float(
     uniform int buffer_index = 0;
     const uniform int batch_count = (count / programCount) * programCount;
     for (uniform int index = 0; index < batch_count; index += programCount) {
+        prefetch_nt(&values[index + 100]);
+        prefetch_nt(&predicates[index + 100]);
         const varying int value = streaming_load(&values[index]);
         const varying float predicate = streaming_load(&predicates[index]);
         if (predicate < min_predicate_value) {
@@ -224,6 +280,8 @@ export uniform int partition_int_compare_float(
         }
     }
     for (uniform int index = batch_count; index < count; index++) {
+        prefetch_nt(&values[index + 100]);
+        prefetch_nt(&predicates[index + 100]);
         const uniform int value = values[index];
         const uniform float predicate = predicates[index];
         if (predicate < min_predicate_value) {
@@ -237,6 +295,8 @@ export uniform int partition_int_compare_float(
     }
     
     for (uniform int index = 0; index < batch_count; index += programCount) {
+        prefetch_nt(&values[index + 100]);
+        prefetch_nt(&predicates[index + 100]);
         const varying int value = streaming_load(&values[index]);
         const varying float predicate = streaming_load(&predicates[index]);
         if (!(predicate < min_predicate_value)) {
@@ -244,6 +304,8 @@ export uniform int partition_int_compare_float(
         }
     }
     for (uniform int index = batch_count; index < count; index++) {
+        prefetch_nt(&values[index + 100]);
+        prefetch_nt(&predicates[index + 100]);
         const uniform int value = values[index];
         const uniform float predicate = predicates[index];
         if (!(predicate < min_predicate_value)) {
@@ -251,13 +313,104 @@ export uniform int partition_int_compare_float(
             buffer_index++;
         }
     }
-    foreach(index = 0...count) {
-        values[index] = buffer[index];
-    }
+    
+    memcpy(&values[0], &buffer[0], sizeof(uniform int) * count);
     return total_front;
 }
 
-export uniform int copy_int_if_compare_float_not(
+// export uniform int gather_ints_buffer(
+//     uniform int values[],
+//     uniform int indices[],
+//     uniform int buffer[],
+//     uniform int count,
+//     uniform int front_self_range)
+// {
+//     foreach(i = front_self_range ... count) {
+//         buffer[i] = values[indices[i]];
+//     }
+// 
+//     foreach(i = 0 ... front_self_range) {
+//         values[i] = values[indices[i]];
+//     }
+// 
+//     memcpy(&values[0] + front_self_range, &buffer[0] + front_self_range, sizeof(uniform int) * (count - front_self_range));
+// }
+
+// export uniform int gather_ints_buffer(
+//     uniform int values[],
+//     uniform int indices[],
+//     uniform int buffer[],
+//     uniform int count,
+//     uniform int front_self_range)
+// {
+//     const uniform int front_self_range_count = max(0, (front_self_range / programCount) * programCount - programCount);
+//     const uniform int batch_count = (count / programCount) * programCount;
+// 
+//     for (uniform int index = front_self_range_count; index < batch_count; index += programCount) {
+//         const varying int index_value = streaming_load(&indices[index]);
+//         const varying int value_value = values[index_value];
+//         streaming_store(&buffer[index], value_value);
+//     }
+// 
+//     for (uniform int index = batch_count; index < count; index++) {
+//         buffer[index] = values[indices[index]];
+//     }
+// 
+//     for (uniform int index = 0; index < front_self_range_count; index += programCount) {
+//         const varying int index_value = streaming_load(&indices[index]);
+//         const varying int value_value = values[index_value];
+//         streaming_store(&values[index], value_value);
+//     }
+// 
+//     memcpy(&values[0] + front_self_range_count, &buffer[0] + front_self_range_count, sizeof(uniform int) * (count - front_self_range_count));
+// }
+
+// export uniform int gather_ints_buffer(
+//     uniform int values[],
+//     uniform int indices[],
+//     uniform int buffer[],
+//     uniform int count,
+//     uniform int front_self_range)
+// {
+//     const uniform int front_self_range_count = max(0, (front_self_range / programCount) * programCount - programCount);
+//     const uniform int batch_count = (count / programCount) * programCount;
+// 
+//     for (uniform int index = front_self_range_count; index < batch_count; index += programCount) {
+//         buffer[index + programIndex] = values[indices[index + programIndex]];
+//     }
+// 
+//     for (uniform int index = batch_count; index < count; index++) {
+//         buffer[index] = values[indices[index]];
+//     }
+// 
+//     for (uniform int index = 0; index < front_self_range_count; index += programCount) {
+//         values[index + programIndex] = values[indices[index + programIndex]];
+//     }
+// 
+//     memcpy(&values[0] + front_self_range_count, &buffer[0] + front_self_range_count, sizeof(uniform int) * (count - front_self_range_count));
+// }
+
+export uniform int gather_ints_buffer(
+    uniform int values[],
+    uniform int indices[],
+    uniform int buffer[],
+    uniform int count,
+    uniform int front_self_range)
+{
+    const uniform int batch_count = (count / programCount) * programCount;
+
+    for (uniform int index = 0; index < batch_count; index += programCount) {
+        buffer[index + programIndex] = values[indices[index + programIndex]];
+    }
+
+    for (uniform int index = batch_count; index < count; index++) {
+        buffer[index] = values[indices[index]];
+    }
+
+    memcpy(&values[0], &buffer[0], sizeof(uniform int) * count);
+}
+
+export uniform int zip_if_larger_or_equal(
     uniform int values[],
     const uniform float predicates[],
     const uniform int count,
@@ -266,16 +419,20 @@ export uniform int copy_int_if_compare_float_not(
     uniform int buffer_index = 0;
     const uniform int batch_count = (count / programCount) * programCount;
     for (uniform int index = 0; index < batch_count; index += programCount) {
+        prefetch_nt(&values[index + 100]);
+        prefetch_nt(&predicates[index + 100]);
         const varying int value = streaming_load(&values[index]);
         const varying float predicate = streaming_load(&predicates[index]);
-        if (!(predicate < min_predicate_value)) {
+        if (predicate >= min_predicate_value) {
              buffer_index += packed_store_active(&values[buffer_index], value);
         }
     }
     for (uniform int index = batch_count; index < count; index++) {
+        prefetch_nt(&values[index + 100]);
+        prefetch_nt(&predicates[index + 100]);
         const uniform int value = values[index];
         const uniform float predicate = predicates[index];
-        if (!(predicate < min_predicate_value)) {
+        if (predicate >= min_predicate_value) {
             values[buffer_index] = value;
             buffer_index++;
         }
@@ -293,17 +450,44 @@ export uniform int one_mul_add_n(
     uniform int buffer_index = 0;
     const uniform int batch_count = (count / programCount) * programCount;
     for (uniform int index = 0; index < batch_count; index += programCount) {
+        prefetch_nt(&values[index + 100]);
+        prefetch_nt(&factors[index + 100]);
         const varying float value = values[index + programIndex];
-        const varying float factor = streaming_load(&factors[index]);
+        const varying float factor = factors[index + programIndex];
         values[index + programIndex] = value + factor * other;
     }
     for (uniform int index = batch_count; index < count; index++) {
+        prefetch_nt(&values[index + 100]);
+        prefetch_nt(&factors[index + 100]);
         const uniform float value = values[index];
         const uniform float factor = factors[index];
         values[index] = value + factor * other;
     }
-
     return buffer_index;
+}
+
+export void split_float3_to_3_float(
+    const uniform float xyz_values[][3],
+    uniform float x_components[],
+    uniform float y_components[],
+    uniform float z_components[],
+    uniform int count)
+{
+    uniform int buffer_index = 0;
+    const uniform int batch_count = (count / programCount) * programCount;
+    for (uniform int index = 0; index < batch_count; index += programCount) {
+        prefetch_nt(&xyz_values[index + 100]);
+        varying float<3> value;
+        aos_to_soa3(&xyz_values[index][0], &value.x, &value.y, &value.z);
+        streaming_store(&x_components[index], value.x);
+        streaming_store(&y_components[index], value.y);
+        streaming_store(&z_components[index], value.z);
+    }
+    for (uniform int index = batch_count; index < count; index++) {
+        x_components[index] = xyz_values[index][0];
+        y_components[index] = xyz_values[index][1];
+        z_components[index] = xyz_values[index][2];
+    }
 }
 
 // export void distances(const uniform float positions[][3],
@@ -336,12 +520,6 @@ export uniform int one_mul_add_n(
 //   foreach (index = 0 ... count) {
 //     distances[index] = sqrt(distances[index]) + offset;
 //   }
-// }
-
-float safe_rcp(const float a)
-{
-  return a ? rcp_fast(a) : 0.0f;
-}
 
 export uniform float fixed_safe_0_rpow_n(uniform float values[],
                                    const uniform int count)
@@ -355,33 +533,28 @@ export uniform float fixed_safe_1_rpow_n(uniform float values[],
                                    const uniform int count)
 {
   foreach (i = 0 ... count) {
+    prefetch_nt(&values[i + 100]);
     values[i] = safe_rcp(values[i]);
   }
 }
 
-static uniform float safe_rcp(uniform const float a)
+/*
+export uniform float fixed_safe_2_rpow_n(uniform float values[],
+                                   const uniform int count)
 {
-  return a ? rcp_fast(a) : 0.0f;
+  foreach (i = 0 ... count) {
+    prefetch_nt(&values[i + 100]);
+    values[i] = safe_rcp(square(values[i]));
+  }
 }
-
-static uniform float square(const uniform float value)
-{
-    return value * value;
-}
-
-// export uniform float fixed_safe_2_rpow_n(uniform float values[],
-//                                    const uniform int count)
-// {
-//   foreach (i = 0 ... count) {
-//     values[i] = safe_rcp(square(values[i]));
-//   }
-// }
+*/
 
 export uniform float fixed_safe_2_rpow_n(uniform float values[],
                                          const uniform int count)
 {
     uniform int index = 0;
     for (; index < count - programCount; index += programCount) {
+        prefetch_nt(&values[index + 100]);
         streaming_store(&values[index], safe_rcp(square(streaming_load(&values[index]))));
     }
     for (; index < count; index++) {
@@ -393,6 +566,7 @@ export uniform float fixed_safe_3_rpow_n(uniform float values[],
                                    const uniform int count)
 {
   foreach (i = 0 ... count) {
+    prefetch_nt(&values[i + 100]);
     values[i] = safe_rcp(square(values[i]) * values[i]);
   }
 }
@@ -401,6 +575,7 @@ export uniform float fixed_safe_4_rpow_n(uniform float values[],
                                    const uniform int count)
 {
   foreach (i = 0 ... count) {
+    prefetch_nt(&values[i + 100]);
     values[i] = safe_rcp(square(square(values[i])));
   }
 }
@@ -409,6 +584,7 @@ export uniform float fixed_safe_5_rpow_n(uniform float values[],
                                    const uniform int count)
 {
   foreach (i = 0 ... count) {
+    prefetch_nt(&values[i + 100]);
     values[i] = safe_rcp(square(square(values[i])) * values[i]);
   }
 }
@@ -417,6 +593,7 @@ export uniform float fixed_safe_6_rpow_n(uniform float values[],
                                    const uniform int count)
 {
   foreach (i = 0 ... count) {
+    prefetch_nt(&values[i + 100]);
     const float squared = square(values[i]);
     values[i] = safe_rcp(square(squared) * squared);
   }
@@ -426,6 +603,7 @@ export uniform float fixed_safe_7_rpow_n(uniform float values[],
                                    const uniform int count)
 {
   foreach (i = 0 ... count) {
+    prefetch_nt(&values[i + 100]);
     const float squared = square(values[i]);
     values[i] = safe_rcp(square(squared) * squared * values[i]);
   }
@@ -435,6 +613,7 @@ export uniform float fixed_safe_8_rpow_n(uniform float values[],
                                    const uniform int count)
 {
   foreach (i = 0 ... count) {
+    prefetch_nt(&values[i + 100]);
     values[i] = safe_rcp(square(square(square(values[i]))));
   }
 }
@@ -443,6 +622,7 @@ export uniform float fixed_safe_9_rpow_n(uniform float values[],
                                    const uniform int count)
 {
   foreach (i = 0 ... count) {
+    prefetch_nt(&values[i + 100]);
     values[i] = safe_rcp(square(square(square(values[i]))) * values[i]);
   }
 }
@@ -451,6 +631,7 @@ export uniform float fixed_safe_10_rpow_n(uniform float values[],
                                    const uniform int count)
 {
   foreach (i = 0 ... count) {
+    prefetch_nt(&values[i + 100]);
     const float squared = square(values[i]);
     values[i] = safe_rcp(square(square(squared)) * squared);
   }
@@ -460,6 +641,7 @@ export uniform float fixed_safe_11_rpow_n(uniform float values[],
                                    const uniform int count)
 {
   foreach (i = 0 ... count) {
+    prefetch_nt(&values[i + 100]);
     const float squared = square(values[i]);
     values[i] = safe_rcp(square(square(squared)) * squared * values[i]);
   }
@@ -469,6 +651,7 @@ export uniform float fixed_safe_12_rpow_n(uniform float values[],
                                    const uniform int count)
 {
   foreach (i = 0 ... count) {
+    prefetch_nt(&values[i + 100]);
     const float fourth_degree = square(square(values[i]));
     values[i] = safe_rcp(square(fourth_degree) * fourth_degree);
   }
