@@ -160,6 +160,7 @@ enum PropertyUnit {
   PROP_UNIT_WAVELENGTH = (13 << 16),        /* `nm` (independent of scene). */
   PROP_UNIT_COLOR_TEMPERATURE = (14 << 16), /* K */
   PROP_UNIT_FREQUENCY = (15 << 16),         /* Hz */
+  PROP_UNIT_DECIBEL = (16 << 16),           /* dB */
 };
 ENUM_OPERATORS(PropertyUnit, PROP_UNIT_TEMPERATURE)
 
@@ -264,6 +265,7 @@ enum PropertySubType {
   PROP_COLOR_TEMPERATURE = 45 | PROP_UNIT_COLOR_TEMPERATURE,
 
   PROP_FREQUENCY = 46 | PROP_UNIT_FREQUENCY,
+  PROP_DECIBEL = 47 | PROP_UNIT_DECIBEL,
 };
 
 /* Make sure enums are updated with these */
@@ -593,16 +595,10 @@ struct EnumPropertyItem {
  * By convention the value should be a non-empty string or NULL when there is no description
  * (never an empty string).
  */
-#define RNA_ENUM_ITEM_HEADING(name, description) \
-  { \
-    0, "", 0, name, description \
-  }
+#define RNA_ENUM_ITEM_HEADING(name, description) {0, "", 0, name, description}
 
 /** Separator for RNA enum items (shown in the UI). */
-#define RNA_ENUM_ITEM_SEPR \
-  { \
-    0, "", 0, NULL, NULL \
-  }
+#define RNA_ENUM_ITEM_SEPR {0, "", 0, NULL, NULL}
 
 /** Separator for RNA enum that begins a new column in menus (shown in the UI). */
 #define RNA_ENUM_ITEM_SEPR_COLUMN RNA_ENUM_ITEM_HEADING("", NULL)

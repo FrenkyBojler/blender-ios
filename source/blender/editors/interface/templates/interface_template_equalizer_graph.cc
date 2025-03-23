@@ -152,7 +152,7 @@ static uiBlock *eq_graph_clipping_func(bContext *C, ARegion *region, void *cumap
   bt = uiDefButF(block,
                  UI_BTYPE_NUM,
                  0,
-                 IFACE_("Min Db:"),
+                 IFACE_("Min db:"),
                  0,
                  2 * UI_UNIT_Y,
                  width,
@@ -166,7 +166,7 @@ static uiBlock *eq_graph_clipping_func(bContext *C, ARegion *region, void *cumap
   bt = uiDefButF(block,
                  UI_BTYPE_NUM,
                  0,
-                 IFACE_("Max Db:"),
+                 IFACE_("Max db:"),
                  0,
                  UI_UNIT_Y,
                  width,
@@ -493,7 +493,7 @@ static void eq_graph_buttons_layout(
     bt = uiDefButF(block,
                    UI_BTYPE_NUM,
                    0,
-                   "Hz:",
+                   "X:",
                    0,
                    2 * UI_UNIT_Y,
                    UI_UNIT_X * 10,
@@ -502,7 +502,8 @@ static void eq_graph_buttons_layout(
                    bounds.xmin,
                    bounds.xmax,
                    "");
-    UI_but_number_step_size_set(bt, 20);
+    UI_but_unit_type_set(bt, PROP_UNIT_FREQUENCY);
+    UI_but_number_step_size_set(bt, 100);
     UI_but_number_precision_set(bt, 0);
     UI_but_func_set(bt, [cumap, cb](bContext &C) {
       BKE_curvemapping_changed(cumap, true);
@@ -512,7 +513,7 @@ static void eq_graph_buttons_layout(
     bt = uiDefButF(block,
                    UI_BTYPE_NUM,
                    0,
-                   "Db:",
+                   "Y:",
                    0,
                    1 * UI_UNIT_Y,
                    UI_UNIT_X * 10,
@@ -521,7 +522,9 @@ static void eq_graph_buttons_layout(
                    bounds.ymin,
                    bounds.ymax,
                    "");
-    UI_but_number_step_size_set(bt, 1);
+
+    UI_but_unit_type_set(bt, PROP_UNIT_DECIBEL);
+    UI_but_number_step_size_set(bt, 100);
     UI_but_number_precision_set(bt, 1);
     UI_but_func_set(bt, [cumap, cb](bContext &C) {
       BKE_curvemapping_changed(cumap, true);
