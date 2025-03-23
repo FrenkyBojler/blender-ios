@@ -28,6 +28,7 @@
 #include "BKE_main.hh"
 #include "BKE_report.hh"
 #include "BKE_sound.h"
+#include "BKE_unit.hh"
 
 #include "SEQ_add.hh"
 #include "SEQ_animation.hh"
@@ -634,7 +635,7 @@ static wmOperatorStatus sequencer_slip_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static void sequencer_slip_update_header(Scene *scene, ScrArea *area, SlipData *data, int offset)
+static void sequencer_slip_update_header(Scene *scene, ScrArea *area, SlipData *data, float offset)
 {
   if (area == nullptr) {
     return;
@@ -647,7 +648,10 @@ static void sequencer_slip_update_header(Scene *scene, ScrArea *area, SlipData *
     SNPRINTF(msg, IFACE_("Slip offset: %s"), num_str);
   }
   else {
-    SNPRINTF(msg, IFACE_("Slip offset: %d"), offset);
+    char value_str[NUM_STR_REP_LEN];
+    BKE_unit_value_as_string(
+        value_str, NUM_STR_REP_LEN, offset, 4, B_UNIT_NONE, scene->unit, true);
+    SNPRINTF(msg, IFACE_("Slip offset: %s"), value_str);
   }
 
   ED_area_status_text(area, msg);
@@ -661,7 +665,7 @@ static void handle_number_input(
   int offset = round_fl_to_int(offset_fl);
 
   const int delta_offset = sequencer_slip_apply_limits(scene, data, &offset);
-  sequencer_slip_update_header(scene, area, data, offset);
+  sequencer_slip_update_header(scene, area, data, offset_fl);
 
   RNA_float_set(op->ptr, "offset", offset_fl);
 
@@ -721,7 +725,6 @@ static wmOperatorStatus sequencer_slip_modal(bContext *C, wmOperator *op, const 
         offset = offset_fl;
 
         const int delta_offset = sequencer_slip_apply_limits(scene, data, &offset);
-        sequencer_slip_update_header(scene, area, data, offset);
 
         if (!data->slow) {
           RNA_float_set(op->ptr, "offset", offset);
@@ -739,6 +742,8 @@ static wmOperatorStatus sequencer_slip_modal(bContext *C, wmOperator *op, const 
         }
         data->previous_subframe_offset = offset_fl;
         sequencer_slip_strips(scene, data, delta_offset, subframe_delta);
+
+        sequencer_slip_update_header(scene, area, data, RNA_float_get(op->ptr, "offset"));
 
         WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
       }
