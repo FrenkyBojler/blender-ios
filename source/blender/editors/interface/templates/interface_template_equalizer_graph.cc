@@ -124,7 +124,7 @@ static uiBlock *eq_graph_clipping_func(bContext *C, ARegion *region, void *cumap
   bt = uiDefButF(block,
                  UI_BTYPE_NUM,
                  0,
-                 IFACE_("Min Hz:"),
+                 IFACE_("Min X:"),
                  0,
                  4 * UI_UNIT_Y,
                  width,
@@ -133,12 +133,13 @@ static uiBlock *eq_graph_clipping_func(bContext *C, ARegion *region, void *cumap
                  -10.0,
                  cumap->clipr.xmax,
                  "");
+  UI_but_unit_type_set(bt, PROP_UNIT_FREQUENCY);
   UI_but_number_step_size_set(bt, 10);
   UI_but_number_precision_set(bt, 2);
   bt = uiDefButF(block,
                  UI_BTYPE_NUM,
                  0,
-                 IFACE_("Max Hz:"),
+                 IFACE_("Max X:"),
                  0,
                  3 * UI_UNIT_Y,
                  width,
@@ -147,12 +148,13 @@ static uiBlock *eq_graph_clipping_func(bContext *C, ARegion *region, void *cumap
                  cumap->clipr.xmin,
                  20000.0,
                  "");
+  UI_but_unit_type_set(bt, PROP_UNIT_FREQUENCY);
   UI_but_number_step_size_set(bt, 10);
   UI_but_number_precision_set(bt, 2);
   bt = uiDefButF(block,
                  UI_BTYPE_NUM,
                  0,
-                 IFACE_("Min db:"),
+                 IFACE_("Min Y:"),
                  0,
                  2 * UI_UNIT_Y,
                  width,
@@ -161,12 +163,13 @@ static uiBlock *eq_graph_clipping_func(bContext *C, ARegion *region, void *cumap
                  -100.0,
                  cumap->clipr.ymax,
                  "");
+  UI_but_unit_type_set(bt, PROP_UNIT_DECIBEL);
   UI_but_number_step_size_set(bt, 10);
   UI_but_number_precision_set(bt, 2);
   bt = uiDefButF(block,
                  UI_BTYPE_NUM,
                  0,
-                 IFACE_("Max db:"),
+                 IFACE_("Max Y:"),
                  0,
                  UI_UNIT_Y,
                  width,
@@ -175,6 +178,7 @@ static uiBlock *eq_graph_clipping_func(bContext *C, ARegion *region, void *cumap
                  cumap->clipr.ymin,
                  100.0,
                  "");
+  UI_but_unit_type_set(bt, PROP_UNIT_DECIBEL);
   UI_but_number_step_size_set(bt, 10);
   UI_but_number_precision_set(bt, 2);
 
