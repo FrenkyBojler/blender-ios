@@ -537,6 +537,19 @@ static int remap_crf_to_h265_crf(int crf, bool is_10_or_12_bpp)
   return crf;
 }
 
+static const AVCodec *get_prores_encoder(RenderData *rd, int rectx, int recty)
+{
+  /* prores_aw currently (march 2025) have issue with around higher resolution than HD when
+   encoding alpha, but in all cases is faster for similar quality use it instead of prores_ks if
+   possible */
+  if (rd->im_format.planes == R_IMF_PLANES_RGBA) {
+    if ((rectx * recty) > (1920 * 1080)) {
+      return avcodec_find_encoder_by_name("prores_ks");
+    }
+  }
+  return avcodec_find_encoder_by_name("prores_aw");
+}
+
 /* 10bpp H264: remap 0..51 range to -12..51 range
  * https://trac.ffmpeg.org/wiki/Encode/H.264#a1.ChooseaCRFvalue */
 static int remap_crf_to_h264_10bpp_crf(int crf)
@@ -650,6 +663,9 @@ static AVStream *alloc_video_stream(MovieWriter *context,
     /* Use get_av1_encoder() to get the ideal (hopefully) encoder for AV1 based
      * on given parameters, and also set up opts. */
     codec = get_av1_encoder(context, rd, &opts, rectx, recty);
+  }
+  else if (codec_id == AV_CODEC_ID_PRORES) {
+    codec = get_prores_encoder(rd, rectx, recty);
   }
   else {
     codec = avcodec_find_encoder(codec_id);
@@ -809,6 +825,29 @@ static AVStream *alloc_video_stream(MovieWriter *context,
       c->pix_fmt = AV_PIX_FMT_RGBA;
     }
   }
+  if (codec_id == AV_CODEC_ID_PRORES) {
+    printf("Prores codec id output\n");
+    if ((context->ffmpeg_profile >= FFM_PRORES_PROFILE_422_PROXY) &&
+        (context->ffmpeg_profile <= FFM_PRORES_PROFILE_422_HQ))
+    {
+      c->profile = context->ffmpeg_profile;
+      c->pix_fmt = AV_PIX_FMT_YUV422P10LE;
+    }
+    else if ((context->ffmpeg_profile >= FFM_PRORES_PROFILE_4444) &&
+             (context->ffmpeg_profile <= FFM_PRORES_PROFILE_4444_XQ))
+    {
+      c->profile = context->ffmpeg_profile;
+      c->pix_fmt = AV_PIX_FMT_YUV444P10LE;
+
+      if (rd->im_format.planes == R_IMF_PLANES_RGBA) {  // OU FLOAT RGBA ??
+        printf("USE ALPHA OUTPUT\n");
+        c->pix_fmt = AV_PIX_FMT_YUVA444P10LE;
+      }
+    }
+    else {
+      fprintf(stderr, "ffmpeg: invalid profile %d\n", context->ffmpeg_profile);
+    }
+  }
 
   if (of->oformat->flags & AVFMT_GLOBALHEADER) {
     FF_DEBUG_PRINT("ffmpeg: using global video header\n");
@@ -937,6 +976,7 @@ static bool start_ffmpeg_impl(MovieWriter *context,
   context->ffmpeg_autosplit = (rd->ffcodecdata.flags & FFMPEG_AUTOSPLIT_OUTPUT) != 0;
   context->ffmpeg_crf = rd->ffcodecdata.constant_rate_factor;
   context->ffmpeg_preset = rd->ffcodecdata.ffmpeg_preset;
+  context->ffmpeg_profile = 0;  //
 
   if ((rd->ffcodecdata.flags & FFMPEG_USE_MAX_B_FRAMES) != 0) {
     context->ffmpeg_max_b_frames = rd->ffcodecdata.max_b_frames;
@@ -1049,6 +1089,10 @@ static bool start_ffmpeg_impl(MovieWriter *context,
       BKE_report(reports, RPT_ERROR, "FFmpeg only supports 48khz / stereo audio for DV!");
       goto fail;
     }
+  }
+
+  if (video_codec == AV_CODEC_ID_PRORES) {
+    context->ffmpeg_profile = rd->ffcodecdata.ffmpeg_prores_profile;
   }
 
   if (video_codec != AV_CODEC_ID_NONE) {

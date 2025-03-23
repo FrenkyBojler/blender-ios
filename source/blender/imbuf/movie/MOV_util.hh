@@ -27,7 +27,7 @@ void MOV_exit();
 bool MOV_is_movie_file(const char *filepath);
 
 /** Checks whether given FFMPEG video AVCodecID supports alpha channel (RGBA). */
-bool MOV_codec_supports_alpha(int av_codec_id);
+bool MOV_codec_supports_alpha(int av_codec_id, int prores_profile);
 
 /**
  * Checks whether given FFMPEG video AVCodecID supports CRF (i.e. "quality level")
