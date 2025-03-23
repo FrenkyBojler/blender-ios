@@ -114,4 +114,31 @@ void Instance::antialiasing_draw(Manager &manager)
   manager.submit(this->smaa_resolve_ps);
 }
 
+void Instance::antialiasing_accumulate(Manager &manager)
+{
+  BLI_assert_msg(this->render_color_tx.gpu_texture() != nullptr,
+                 "This should only be called during render");
+  int2 size = this->render_color_tx.size().xy();
+
+  eGPUTextureUsage usage = GPU_TEXTURE_USAGE_HOST_READ | GPU_TEXTURE_USAGE_SHADER_READ |
+                           GPU_TEXTURE_USAGE_SHADER_WRITE | GPU_TEXTURE_USAGE_ATTACHMENT;
+  accumulation_tx.ensure_2d(GPENCIL_ACCUM_FORMAT, size, usage);
+
+  {
+    PassSimple &pass = this->accumulate_ps;
+    pass.init();
+    pass.state_set(DRW_STATE_WRITE_DEPTH /* There is no depth, but avoid blank state. */);
+    pass.shader_set(ShaderCache::get().accumulation.get());
+    pass.bind_image("src_img", &this->render_color_tx);
+    pass.bind_image("dst_img", &this->accumulation_tx);
+    pass.push_constant("weight_src", 1.0f /* TODO */);
+    pass.push_constant("weight_dst", 0.0f /* TODO */);
+    pass.draw_procedural(GPU_PRIM_TRIS, 1, 3);
+  }
+
+  accumulation_fb.ensure(size);
+  GPU_framebuffer_bind(this->accumulation_fb);
+  manager.submit(this->accumulate_ps);
+}
+
 }  // namespace blender::draw::gpencil

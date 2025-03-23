@@ -203,8 +203,10 @@ static void render_result_combined(RenderLayer *rl,
 {
   RenderPass *rp = RE_pass_find_by_name(rl, RE_PASSNAME_COMBINED, viewname);
 
-  GPU_framebuffer_bind(instance.render_fb);
-  GPU_framebuffer_read_color(instance.render_fb,
+  Framebuffer read_fb;
+  read_fb.ensure(GPU_ATTACHMENT_NONE, GPU_ATTACHMENT_TEXTURE(instance.accumulation_tx));
+  GPU_framebuffer_bind(read_fb);
+  GPU_framebuffer_read_color(read_fb,
                              rect->xmin,
                              rect->ymin,
                              BLI_rcti_size_x(rect),
@@ -250,6 +252,8 @@ void Engine::render_to_image(RenderEngine *engine, RenderLayer *render_layer, co
 
   /* Render the gpencil object and merge the result to the underlying render. */
   inst.draw(manager);
+
+  inst.antialiasing_accumulate(manager);
 
   render_result_combined(render_layer, viewname, inst, &rect);
   render_result_z(draw_ctx, render_layer, viewname, inst, &rect);
