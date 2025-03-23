@@ -194,9 +194,23 @@ static void area_draw_azone_fullscreen(short /*x1*/, short /*y1*/, short x2, sho
 /**
  * \brief Corner widgets use for dragging and splitting the view.
  */
-static void area_draw_azone(short /*x1*/, short /*y1*/, short /*x2*/, short /*y2*/)
+static void area_draw_azone(ScrArea *area, ARegion *region, AZone *az)
 {
-  /* No drawing needed since all corners are action zone, and visually distinguishable. */
+  if (az->x1 < area->totrct.xmin + 1) {
+    if ((region->alignment == RGN_ALIGN_TOP && az->y2 > area->totrct.ymax - 1) ||
+        (region->alignment == RGN_ALIGN_BOTTOM && az->y1 < area->totrct.ymin + 1))
+    {
+      UI_icon_draw_ex(az->x1,
+                      az->y1 + (5 * UI_SCALE_FAC),
+                      ICON_GRIP_V,
+                      1.0 / UI_SCALE_FAC,
+                      0.3f,
+                      0.0f,
+                      nullptr,
+                      false,
+                      UI_NO_ICON_OVERLAY_TEXT);
+    }
+  }
 }
 
 /**
@@ -315,22 +329,7 @@ static void region_draw_azones(ScrArea *area, ARegion *region)
 
     if (BLI_rcti_isect(&region->runtime->drawrct, &azrct, nullptr)) {
       if (az->type == AZONE_AREA) {
-        area_draw_azone(az->x1, az->y1, az->x2, az->y2);
-        if (az->x1 < area->totrct.xmin + 1) {
-          if ((region->alignment == RGN_ALIGN_TOP && az->y2 > area->totrct.ymax - 1) ||
-              (region->alignment == RGN_ALIGN_BOTTOM && az->y1 < area->totrct.ymin + 1))
-          {
-            UI_icon_draw_ex(az->x1 - (1 * UI_SCALE_FAC),
-                            az->y1 + (5 * UI_SCALE_FAC),
-                            ICON_GRIP_V,
-                            1.0 / UI_SCALE_FAC,
-                            0.5f,
-                            0.0f,
-                            nullptr,
-                            false,
-                            UI_NO_ICON_OVERLAY_TEXT);
-          }
-        }
+        area_draw_azone(area, region, az);
       }
       else if (az->type == AZONE_REGION) {
         if (az->region && !(az->region->flag & RGN_FLAG_POLL_FAILED)) {
@@ -1016,27 +1015,32 @@ static void area_azone_init(const wmWindow *win, const bScreen *screen, ScrArea 
     return;
   }
 
+  /* Use a taller zone on the left side, the height of
+   * the header, to make them easier to hit. The others
+   * on the right are shorter to not interfere with
+   * scroll bars. */
+
   const float coords[4][4] = {
       /* Bottom-left. */
-      {area->totrct.xmin,
+      {area->totrct.xmin - U.pixelsize,
        area->totrct.ymin - U.pixelsize,
        area->totrct.xmin + UI_HEADER_OFFSET,
-       area->totrct.ymin + ED_area_headersize()},
+       float(area->totrct.ymin + ED_area_headersize())},
       /* Bottom-right. */
-      {area->totrct.xmax - AZONESPOTW,
-       area->totrct.ymin,
-       area->totrct.xmax,
-       area->totrct.ymin + AZONESPOTH},
+      {area->totrct.xmax - UI_AZONESPOTW,
+       area->totrct.ymin - U.pixelsize,
+       area->totrct.xmax + U.pixelsize,
+       area->totrct.ymin + UI_AZONESPOTH},
       /* Top-left. */
-      {area->totrct.xmin,
-       area->totrct.ymax - ED_area_headersize(),
+      {area->totrct.xmin - U.pixelsize,
+       float(area->totrct.ymax - ED_area_headersize()),
        area->totrct.xmin + UI_HEADER_OFFSET,
        area->totrct.ymax + U.pixelsize},
       /* Top-right. */
-      {area->totrct.xmax - AZONESPOTW,
-       area->totrct.ymax - AZONESPOTH,
-       area->totrct.xmax,
-       area->totrct.ymax},
+      {area->totrct.xmax - UI_AZONESPOTW,
+       area->totrct.ymax - UI_AZONESPOTH,
+       area->totrct.xmax + U.pixelsize,
+       area->totrct.ymax + U.pixelsize},
   };
 
   for (int i = 0; i < 4; i++) {
@@ -1279,12 +1283,10 @@ static void region_azones_scrollbars_init(ScrArea *area, ARegion *region)
 {
   const View2D *v2d = &region->v2d;
 
-  if ((v2d->scroll & V2D_SCROLL_VERTICAL) && ((v2d->scroll & V2D_SCROLL_VERTICAL_HANDLES) == 0)) {
+  if (v2d->scroll & V2D_SCROLL_VERTICAL) {
     region_azone_scrollbar_init(area, region, AZ_SCROLL_VERT);
   }
-  if ((v2d->scroll & V2D_SCROLL_HORIZONTAL) &&
-      ((v2d->scroll & V2D_SCROLL_HORIZONTAL_HANDLES) == 0))
-  {
+  if (v2d->scroll & V2D_SCROLL_HORIZONTAL) {
     region_azone_scrollbar_init(area, region, AZ_SCROLL_HOR);
   }
 }
@@ -2619,9 +2621,6 @@ void ED_area_newspace(bContext *C, ScrArea *area, int type, const bool skip_regi
   wmWindow *win = CTX_wm_window(C);
   SpaceType *st = BKE_spacetype_from_id(type);
 
-  /* Are we reusing a space already stored in this area? */
-  bool is_restored_space = false;
-
   if (area->spacetype != type) {
     SpaceLink *slold = static_cast<SpaceLink *>(area->spacedata.first);
     /* store area->type->exit callback */
@@ -2685,7 +2684,6 @@ void ED_area_newspace(bContext *C, ScrArea *area, int type, const bool skip_regi
 
     if (sl) {
       /* swap regions */
-      is_restored_space = true;
       slold->regionbase = area->regionbase;
       area->regionbase = sl->regionbase;
       BLI_listbase_clear(&sl->regionbase);
@@ -2731,10 +2729,20 @@ void ED_area_newspace(bContext *C, ScrArea *area, int type, const bool skip_regi
     ED_area_tag_refresh(area);
   }
 
-  /* Set area space subtype if applicable and newly created. */
-  if (!is_restored_space && st && st->space_subtype_item_extend != nullptr) {
+  /* Set area space subtype if applicable. */
+  if (st && st->space_subtype_item_extend != nullptr) {
+    if (area->butspacetype_subtype == -1) {
+      /* Indication (probably from space_type_set_or_cycle) to ignore the
+       * area's current subtype and use last-used, as saved in the space. */
+      area->butspacetype_subtype = st->space_subtype_get(area);
+    }
     st->space_subtype_set(area, area->butspacetype_subtype);
   }
+
+  /* Whether setting a subtype or not we need to clear this value. Not just unneeded
+   * but can interfere with the next change. Operations can change the type without
+   * specifying a subtype (assumed zero) and we don't want to use the old subtype. */
+  area->butspacetype_subtype = 0;
 
   if (BLI_listbase_is_single(&CTX_wm_screen(C)->areabase)) {
     /* If there is only one area update the window title. */

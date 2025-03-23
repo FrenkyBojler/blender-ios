@@ -21,7 +21,7 @@
 
 namespace blender::ed::curves {
 
-int join_objects(bContext *C, wmOperator *op)
+wmOperatorStatus join_objects_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
@@ -67,6 +67,11 @@ int join_objects(bContext *C, wmOperator *op)
   bke::GeometrySet realized_geometry = geometry::realize_instances(
       bke::GeometrySet::from_instances(&instances, bke::GeometryOwnershipType::ReadOnly),
       geometry::RealizeInstancesOptions());
+
+  if (!realized_geometry.has_curves()) {
+    BKE_report(op->reports, RPT_WARNING, "No curves data to join");
+    return OPERATOR_CANCELLED;
+  }
 
   Curves *realized_curves = realized_geometry.get_curves_for_write();
   active_curves.geometry.wrap() = std::move(realized_curves->geometry.wrap());

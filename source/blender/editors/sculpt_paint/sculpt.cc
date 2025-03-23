@@ -1109,7 +1109,7 @@ void restore_position_from_undo_step(const Depsgraph &depsgraph, Object &object)
     }
     case bke::pbvh::Type::BMesh: {
       MutableSpan<bke::pbvh::BMeshNode> nodes = pbvh.nodes<bke::pbvh::BMeshNode>();
-      if (!undo::get_bmesh_log_entry()) {
+      if (!undo::has_bmesh_log_entry()) {
         return;
       }
       const IndexMask node_mask = bke::pbvh::all_leaf_nodes(pbvh, memory);
@@ -1181,9 +1181,6 @@ static void restore_from_undo_step(const Depsgraph &depsgraph, const Sculpt &sd,
       bke::pbvh::update_normals(depsgraph, object, *bke::object::pbvh_get(object));
       break;
   }
-  /* Disable multi-threading when dynamic-topology is enabled. Otherwise,
-   * new entries might be inserted by #undo::push_node() into the #GHash
-   * used internally by #BM_log_original_vert_co() by a different thread. See #33787. */
 }
 
 }  // namespace undo
@@ -1630,7 +1627,7 @@ static void calc_area_normal_and_center_node_bmesh(const Object &object,
 
   bool use_original = false;
   if (ss.cache && !ss.cache->accum) {
-    use_original = undo::get_bmesh_log_entry() != nullptr;
+    use_original = undo::has_bmesh_log_entry();
   }
 
   /* When the mesh is edited we can't rely on original coords
@@ -2318,10 +2315,14 @@ static float brush_strength(const Sculpt &sd,
       return alpha * flip * pressure * overlap * feather;
 
     case SCULPT_BRUSH_TYPE_PLANE:
-      if (flip > 0.0f) {
+      if (flip > 0.0f || brush.plane_inversion_mode == BRUSH_PLANE_SWAP_HEIGHT_AND_DEPTH) {
         overlap = (1.0f + overlap) / 2.0f;
         return alpha * pressure * overlap * feather;
       }
+      /* When the brush is inverted with the Invert Displacement mode (i.e. when the brush adds
+       * contrast), use a different formula that results in a lower strength. This is done because,
+       * from an artistic point of view, the contrast would otherwise generally be too strong. Note
+       * that this behavior is coherent with the way Fill, Scrape and Flatten work. See #136211. */
       else {
         return 0.5f * alpha * pressure * overlap * feather;
       }
@@ -3044,6 +3045,7 @@ static IndexMask calc_plane_for_plane_brush(const Depsgraph &depsgraph,
                                             const StrokeCache &cache,
                                             const Brush &brush,
                                             Object &object,
+                                            IndexMaskMemory &memory,
                                             float3 &r_plane_normal,
                                             float3 &r_plane_center)
 {
@@ -3062,7 +3064,6 @@ static IndexMask calc_plane_for_plane_brush(const Depsgraph &depsgraph,
    * location. However, for the Plane brush, its effective center often deviates from the cursor
    * location. Calculating the affected nodes using the cursor location as the center can lead to
    * issues (see, for example, #123768). */
-  IndexMaskMemory memory;
   return bke::pbvh::search_nodes(pbvh, memory, [&](const bke::pbvh::Node &node) {
     if (node_fully_masked_or_hidden(node)) {
       return false;
@@ -3250,7 +3251,7 @@ static void do_brush_action(const Depsgraph &depsgraph,
   }
   else if (brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_PLANE) {
     node_mask = calc_plane_for_plane_brush(
-        depsgraph, *ss.cache, brush, ob, plane_normal, plane_center);
+        depsgraph, *ss.cache, brush, ob, memory, plane_normal, plane_center);
   }
   else if (brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_CLOTH) {
     node_mask = cloth::brush_affected_nodes_gather(ob, brush, memory);
@@ -3522,11 +3523,7 @@ static void do_brush_action(const Depsgraph &depsgraph,
   }
 
   /* The cloth brush adds the gravity as a regular force and it is processed in the solver. */
-  if (ss.cache->supports_gravity && !ELEM(brush.sculpt_brush_type,
-                                          SCULPT_BRUSH_TYPE_CLOTH,
-                                          SCULPT_BRUSH_TYPE_DRAW_FACE_SETS,
-                                          SCULPT_BRUSH_TYPE_BOUNDARY))
-  {
+  if (ss.cache->supports_gravity && brush.sculpt_brush_type != SCULPT_BRUSH_TYPE_CLOTH) {
     do_gravity_brush(depsgraph, sd, ob, node_mask);
   }
 
@@ -3771,7 +3768,7 @@ bool SCULPT_mode_poll(bContext *C)
 bool SCULPT_mode_poll_view3d(bContext *C)
 {
   using namespace blender::ed::sculpt_paint;
-  return (SCULPT_mode_poll(C) && CTX_wm_region_view3d(C) && !ED_gpencil_session_active());
+  return (SCULPT_mode_poll(C) && CTX_wm_region_view3d(C));
 }
 
 bool SCULPT_poll(bContext *C)
@@ -3905,7 +3902,9 @@ namespace blender::ed::sculpt_paint {
 
 StrokeCache::~StrokeCache()
 {
-  MEM_SAFE_FREE(this->dial);
+  if (this->dial) {
+    BLI_dial_free(this->dial);
+  }
 }
 
 }  // namespace blender::ed::sculpt_paint
@@ -4123,13 +4122,8 @@ static void sculpt_update_cache_invariants(
   mul_m3_v3(mat, viewDir);
   normalize_v3_v3(cache->view_normal, viewDir);
 
-  cache->supports_gravity = (!ELEM(brush->sculpt_brush_type,
-                                   SCULPT_BRUSH_TYPE_MASK,
-                                   SCULPT_BRUSH_TYPE_SMOOTH,
-                                   SCULPT_BRUSH_TYPE_SIMPLIFY,
-                                   SCULPT_BRUSH_TYPE_DISPLACEMENT_SMEAR,
-                                   SCULPT_BRUSH_TYPE_DISPLACEMENT_ERASER) &&
-                             (sd.gravity_factor > 0.0f));
+  cache->supports_gravity = brush_type_supports_gravity(brush->sculpt_brush_type) &&
+                            (sd.gravity_factor > 0.0f);
   /* Get gravity vector in world space. */
   if (cache->supports_gravity) {
     if (sd.gravity_object) {
@@ -5215,29 +5209,25 @@ static void tag_mesh_positions_changed(Object &object, const bool use_pbvh_draw)
   }
 }
 
-void flush_update_step(bContext *C, UpdateType update_type)
+void flush_update_step(const bContext *C, const UpdateType update_type)
 {
-  Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(C);
   Object &ob = *CTX_data_active_object(C);
-  SculptSession &ss = *ob.sculpt;
-  ARegion &region = *CTX_wm_region(C);
-  MultiresModifierData *mmd = ss.multires.modifier;
   RegionView3D *rv3d = CTX_wm_region_view3d(C);
-
-  bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(ob);
-
-  const bool use_pbvh_draw = BKE_sculptsession_use_pbvh_draw(&ob, rv3d);
 
   if (rv3d) {
     /* Mark for faster 3D viewport redraws. */
     rv3d->rflag |= RV3D_PAINTING;
   }
 
+  const SculptSession &ss = *ob.sculpt;
+  const MultiresModifierData *mmd = ss.multires.modifier;
   if (mmd != nullptr) {
+    Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(C);
     multires_mark_as_modified(&depsgraph, &ob, MULTIRES_COORDS_MODIFIED);
   }
 
-  if ((update_type == UpdateType::Image) != 0) {
+  ARegion &region = *CTX_wm_region(C);
+  if (update_type == UpdateType::Image) {
     ED_region_tag_redraw(&region);
     if (update_type == UpdateType::Image) {
       /* Early exit when only need to update the images. We don't want to tag any geometry updates
@@ -5248,6 +5238,7 @@ void flush_update_step(bContext *C, UpdateType update_type)
 
   DEG_id_tag_update(&ob.id, ID_RECALC_SHADING);
 
+  const bool use_pbvh_draw = BKE_sculptsession_use_pbvh_draw(&ob, rv3d);
   /* Only current viewport matters, slower update for all viewports will
    * be done in sculpt_flush_update_done. */
   if (!use_pbvh_draw) {
@@ -5261,7 +5252,6 @@ void flush_update_step(bContext *C, UpdateType update_type)
      * only the part of the 3D viewport where changes happened. */
     rcti r;
 
-    RegionView3D *rv3d = CTX_wm_region_view3d(C);
     if (rv3d && SCULPT_get_redraw_rect(region, *rv3d, ob, r)) {
       if (ss.cache) {
         ss.cache->current_r = r;
@@ -5279,6 +5269,7 @@ void flush_update_step(bContext *C, UpdateType update_type)
     }
   }
 
+  const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(ob);
   if (update_type == UpdateType::Position && !ss.shapekey_active) {
     if (pbvh.type() == bke::pbvh::Type::Mesh) {
       tag_mesh_positions_changed(ob, use_pbvh_draw);
@@ -5286,38 +5277,37 @@ void flush_update_step(bContext *C, UpdateType update_type)
   }
 }
 
-void flush_update_done(const bContext *C, Object &ob, UpdateType update_type)
+void flush_update_done(const bContext *C, Object &ob, const UpdateType update_type)
 {
   /* After we are done drawing the stroke, check if we need to do a more
    * expensive depsgraph tag to update geometry. */
-  wmWindowManager *wm = CTX_wm_manager(C);
-  RegionView3D *current_rv3d = CTX_wm_region_view3d(C);
-  SculptSession &ss = *ob.sculpt;
-  Mesh *mesh = static_cast<Mesh *>(ob.data);
+  const Mesh &mesh = *static_cast<Mesh *>(ob.data);
 
   /* Always needed for linked duplicates. */
-  bool need_tag = (ID_REAL_USERS(&mesh->id) > 1);
+  bool need_tag = ID_REAL_USERS(&mesh.id) > 1;
 
+  RegionView3D *current_rv3d = CTX_wm_region_view3d(C);
   if (current_rv3d) {
     current_rv3d->rflag &= ~RV3D_PAINTING;
   }
 
-  LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
-    bScreen *screen = WM_window_get_active_screen(win);
-    LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
-      SpaceLink *sl = static_cast<SpaceLink *>(area->spacedata.first);
-      if (sl->spacetype != SPACE_VIEW3D) {
+  const wmWindowManager &wm = *CTX_wm_manager(C);
+  LISTBASE_FOREACH (wmWindow *, win, &wm.windows) {
+    const bScreen &screen = *WM_window_get_active_screen(win);
+    LISTBASE_FOREACH (ScrArea *, area, &screen.areabase) {
+      const SpaceLink &sl = *static_cast<SpaceLink *>(area->spacedata.first);
+      if (sl.spacetype != SPACE_VIEW3D) {
         continue;
       }
 
-      /* Tag all 3D viewports for redraw now that we are done. Others
+      /* Tag all 3D viewports for redraw now that we are done. Other
        * viewports did not get a full redraw, and anti-aliasing for the
        * current viewport was deactivated. */
       LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
         if (region->regiontype == RGN_TYPE_WINDOW) {
-          RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
-          if (rv3d != current_rv3d) {
-            need_tag |= !BKE_sculptsession_use_pbvh_draw(&ob, rv3d);
+          const RegionView3D *other_rv3d = static_cast<RegionView3D *>(region->regiondata);
+          if (other_rv3d != current_rv3d) {
+            need_tag |= !BKE_sculptsession_use_pbvh_draw(&ob, other_rv3d);
           }
 
           ED_region_tag_redraw(region);
@@ -5326,9 +5316,9 @@ void flush_update_done(const bContext *C, Object &ob, UpdateType update_type)
     }
 
     if (update_type == UpdateType::Image) {
-      LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
-        SpaceLink *sl = static_cast<SpaceLink *>(area->spacedata.first);
-        if (sl->spacetype != SPACE_IMAGE) {
+      LISTBASE_FOREACH (ScrArea *, area, &screen.areabase) {
+        const SpaceLink &sl = *static_cast<SpaceLink *>(area->spacedata.first);
+        if (sl.spacetype != SPACE_IMAGE) {
           continue;
         }
         ED_area_tag_redraw_regiontype(area, RGN_TYPE_WINDOW);
@@ -5347,6 +5337,7 @@ void flush_update_done(const bContext *C, Object &ob, UpdateType update_type)
 
   if (update_type == UpdateType::Position) {
     if (pbvh.type() == bke::pbvh::Type::BMesh) {
+      SculptSession &ss = *ob.sculpt;
       BKE_pbvh_bmesh_after_stroke(*ss.bm, pbvh);
     }
   }
@@ -5750,11 +5741,12 @@ static void stroke_done(const bContext *C, PaintStroke * /*stroke*/)
   brush_exit_tex(sd);
 }
 
-static int sculpt_brush_stroke_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus sculpt_brush_stroke_invoke(bContext *C,
+                                                   wmOperator *op,
+                                                   const wmEvent *event)
 {
   PaintStroke *stroke;
   int ignore_background_click;
-  int retval;
   Object &ob = *CTX_data_active_object(C);
   Scene &scene = *CTX_data_scene(C);
   const View3D *v3d = CTX_wm_view3d(C);
@@ -5816,7 +5808,9 @@ static int sculpt_brush_stroke_invoke(bContext *C, wmOperator *op, const wmEvent
     return OPERATOR_PASS_THROUGH;
   }
 
-  retval = op->type->modal(C, op, event);
+  const wmOperatorStatus retval = op->type->modal(C, op, event);
+  OPERATOR_RETVAL_CHECK(retval);
+
   if (ELEM(retval, OPERATOR_FINISHED, OPERATOR_CANCELLED)) {
     paint_stroke_free(C, op, static_cast<PaintStroke *>(op->customdata));
     return retval;
@@ -5824,13 +5818,12 @@ static int sculpt_brush_stroke_invoke(bContext *C, wmOperator *op, const wmEvent
   /* Add modal handler. */
   WM_event_add_modal_handler(C, op);
 
-  OPERATOR_RETVAL_CHECK(retval);
   BLI_assert(retval == OPERATOR_RUNNING_MODAL);
 
   return OPERATOR_RUNNING_MODAL;
 }
 
-static int sculpt_brush_stroke_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus sculpt_brush_stroke_exec(bContext *C, wmOperator *op)
 {
   brush_stroke_init(C);
 
@@ -5872,7 +5865,7 @@ static void sculpt_brush_stroke_cancel(bContext *C, wmOperator *op)
   brush_exit_tex(sd);
 }
 
-static int brush_stroke_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus brush_stroke_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   return paint_stroke_modal(C, op, event, (PaintStroke **)&op->customdata);
 }

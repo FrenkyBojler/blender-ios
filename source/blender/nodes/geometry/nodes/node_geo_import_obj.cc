@@ -18,6 +18,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::String>("Path")
       .subtype(PROP_FILEPATH)
+      .path_filter("*.obj")
       .hide_label()
       .description("Path to a OBJ file");
 
@@ -88,7 +89,6 @@ static void node_register()
   ntype.nclass = NODE_CLASS_INPUT;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
-  ntype.gather_link_search_ops = search_link_ops_for_import_node;
 
   blender::bke::node_register_type(ntype);
 }

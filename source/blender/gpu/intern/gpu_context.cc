@@ -73,11 +73,12 @@ Context::Context()
 
 Context::~Context()
 {
-  /* Derived class should have called free_famebuffers already. */
+  /* Derived class should have called free_resources already. */
   BLI_assert(front_left == nullptr);
   BLI_assert(back_left == nullptr);
   BLI_assert(front_right == nullptr);
   BLI_assert(back_right == nullptr);
+  BLI_assert(texture_pool == nullptr);
 
   GPU_matrix_state_discard(matrix_state);
   GPU_BATCH_DISCARD_SAFE(procedural_points_batch);
@@ -85,22 +86,23 @@ Context::~Context()
   GPU_BATCH_DISCARD_SAFE(procedural_triangles_batch);
   GPU_BATCH_DISCARD_SAFE(procedural_triangle_strips_batch);
   GPU_VERTBUF_DISCARD_SAFE(dummy_vbo);
-  delete texture_pool;
   delete state_manager;
   delete imm;
 }
 
-void Context::free_framebuffers()
+void Context::free_resources()
 {
   delete front_left;
   delete back_left;
   delete front_right;
   delete back_right;
-
   front_left = nullptr;
   back_left = nullptr;
   front_right = nullptr;
   back_right = nullptr;
+
+  delete texture_pool;
+  texture_pool = nullptr;
 }
 
 bool Context::is_active_on_thread()
@@ -194,6 +196,14 @@ GPUContext *GPU_context_create(void *ghost_window, void *ghost_context)
 void GPU_context_discard(GPUContext *ctx_)
 {
   Context *ctx = unwrap(ctx_);
+  BLI_assert(active_ctx == ctx);
+
+  GPUBackend *backend = GPUBackend::get();
+  /* Flush any remaining printf while making sure we are inside render boundaries. */
+  backend->render_begin();
+  printf_end(ctx);
+  backend->render_end();
+
   delete ctx;
   active_ctx = nullptr;
 
@@ -355,6 +365,10 @@ bool GPU_backend_type_selection_detect()
   backends_to_check.add(GPU_BACKEND_OPENGL);
 #elif defined(WITH_METAL_BACKEND)
   backends_to_check.add(GPU_BACKEND_METAL);
+#endif
+
+#if defined(WITH_VULKAN_BACKEND)
+  backends_to_check.add(GPU_BACKEND_VULKAN);
 #endif
 
   for (const eGPUBackendType backend_type : backends_to_check) {

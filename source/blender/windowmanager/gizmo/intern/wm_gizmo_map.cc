@@ -180,7 +180,7 @@ static wmGizmoMap *wm_gizmomap_new_from_type_ex(wmGizmoMapType *gzmap_type, wmGi
 wmGizmoMap *WM_gizmomap_new_from_type(const wmGizmoMapType_Params *gzmap_params)
 {
   wmGizmoMapType *gzmap_type = WM_gizmomaptype_ensure(gzmap_params);
-  wmGizmoMap *gzmap = static_cast<wmGizmoMap *>(MEM_callocN(sizeof(wmGizmoMap), "GizmoMap"));
+  wmGizmoMap *gzmap = MEM_callocN<wmGizmoMap>("GizmoMap");
   wm_gizmomap_new_from_type_ex(gzmap_type, gzmap);
   return gzmap;
 }
@@ -816,8 +816,7 @@ void WM_gizmomap_add_handlers(ARegion *region, wmGizmoMap *gzmap)
     }
   }
 
-  wmEventHandler_Gizmo *handler = static_cast<wmEventHandler_Gizmo *>(
-      MEM_callocN(sizeof(*handler), __func__));
+  wmEventHandler_Gizmo *handler = MEM_callocN<wmEventHandler_Gizmo>(__func__);
   handler->head.type = WM_HANDLER_TYPE_GIZMO;
   BLI_assert(gzmap == region->runtime->gizmo_map);
   handler->gizmo_map = gzmap;
@@ -846,7 +845,8 @@ void wm_gizmomaps_handled_modal_update(bContext *C, wmEvent *event, wmEventHandl
     if (gz && gzop && (gzop->type != nullptr) && (gzop->type == handler->op->type)) {
       wmGizmoFnModal modal_fn = gz->custom_modal ? gz->custom_modal : gz->type->modal;
       if (modal_fn != nullptr) {
-        int retval = modal_fn(C, gz, event, eWM_GizmoFlagTweak(0));
+        const wmOperatorStatus retval = modal_fn(C, gz, event, eWM_GizmoFlagTweak(0));
+        OPERATOR_RETVAL_CHECK(retval);
         /* The gizmo is tried to the operator, we can't choose when to exit. */
         BLI_assert(retval & OPERATOR_RUNNING_MODAL);
         UNUSED_VARS_NDEBUG(retval);
@@ -1068,7 +1068,9 @@ void wm_gizmomap_modal_set(
     }
 
     if (gz->type->invoke && (gz->type->modal || gz->custom_modal)) {
-      const int retval = gz->type->invoke(C, gz, event);
+      const wmOperatorStatus retval = gz->type->invoke(C, gz, event);
+      OPERATOR_RETVAL_CHECK(retval);
+
       if ((retval & OPERATOR_RUNNING_MODAL) == 0) {
         return;
       }
@@ -1091,7 +1093,9 @@ void wm_gizmomap_modal_set(
 
     wmGizmoOpElem *gzop = WM_gizmo_operator_get(gz, gz->highlight_part);
     if (gzop && gzop->type) {
-      const int retval = WM_gizmo_operator_invoke(C, gz, gzop, event);
+      const wmOperatorStatus retval = WM_gizmo_operator_invoke(C, gz, gzop, event);
+      OPERATOR_RETVAL_CHECK(retval);
+
       if ((retval & OPERATOR_RUNNING_MODAL) == 0) {
         wm_gizmomap_modal_set(gzmap, C, gz, event, false);
       }
@@ -1255,8 +1259,7 @@ wmGizmoMapType *WM_gizmomaptype_ensure(const wmGizmoMapType_Params *gzmap_params
     return gzmap_type;
   }
 
-  gzmap_type = static_cast<wmGizmoMapType *>(
-      MEM_callocN(sizeof(wmGizmoMapType), "gizmotype list"));
+  gzmap_type = MEM_callocN<wmGizmoMapType>("gizmotype list");
   gzmap_type->spaceid = gzmap_params->spaceid;
   gzmap_type->regionid = gzmap_params->regionid;
   BLI_addhead(&gizmomaptypes, gzmap_type);

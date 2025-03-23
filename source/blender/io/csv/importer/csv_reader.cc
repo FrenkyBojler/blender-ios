@@ -11,6 +11,7 @@
 #include <optional>
 #include <variant>
 
+#include "BLI_array_utils.hh"
 #include "fast_float.h"
 
 #include "BKE_anonymous_attribute_id.hh"
@@ -62,7 +63,7 @@ static ParseFloatColumnResult parse_column_as_floats(const csv_parse::CsvRecords
     const Span<char> value_span = records.record(row_i).field(column_i);
     const char *value_begin = value_span.begin();
     const char *value_end = value_span.end();
-    /* Skip leading whitespace and plus sign. */
+    /* Skip leading white-space and plus sign. */
     while (value_begin < value_end && ELEM(*value_begin, ' ', '+')) {
       value_begin++;
     }
@@ -73,7 +74,7 @@ static ParseFloatColumnResult parse_column_as_floats(const csv_parse::CsvRecords
       return result;
     }
     if (res.ptr < value_end) {
-      /* Allow trailing whitespace in the value. */
+      /* Allow trailing white-space in the value. */
       while (res.ptr < value_end && res.ptr[0] == ' ') {
         res.ptr++;
       }
@@ -96,7 +97,7 @@ static ParseIntColumnResult parse_column_as_ints(const csv_parse::CsvRecords &re
     const Span<char> value_span = records.record(row_i).field(column_i);
     const char *value_begin = value_span.begin();
     const char *value_end = value_span.end();
-    /* Skip leading whitespace and plus sign. */
+    /* Skip leading white-space and plus sign. */
     while (value_begin < value_end && ELEM(*value_begin, ' ', '+')) {
       value_begin++;
     }
@@ -112,7 +113,7 @@ static ParseIntColumnResult parse_column_as_ints(const csv_parse::CsvRecords &re
         result.found_float = true;
         return result;
       }
-      /* Allow trailing whitespace in the value. */
+      /* Allow trailing white-space in the value. */
       while (res.ptr < value_end && res.ptr[0] == ' ') {
         res.ptr++;
       }
@@ -280,6 +281,7 @@ PointCloud *import_csv_as_pointcloud(const CSVImportParams &import_params)
   LinearAllocator<> allocator;
   Array<ColumnInfo> columns_info;
   csv_parse::CsvParseOptions parse_options;
+  parse_options.delimiter = import_params.delimiter;
 
   const auto parse_header = [&](const csv_parse::CsvRecord &record) {
     columns_info.reinitialize(record.size());
@@ -326,17 +328,21 @@ PointCloud *import_csv_as_pointcloud(const CSVImportParams &import_params)
 
   Array<std::optional<GArray<>>> flattened_attributes;
   threading::memory_bandwidth_bound_task(points_num * 16, [&]() {
-    threading::parallel_invoke([&]() { pointcloud->positions_for_write().fill(float3(0)); },
-                               [&]() {
-                                 flattened_attributes = flatten_valid_attribute_chunks(
-                                     columns_info, chunk_offsets, *parsed_chunks);
-                               });
+    threading::parallel_invoke(
+        [&]() {
+          array_utils::copy(VArray<float3>::ForSingle(float3(0), points_num),
+                            pointcloud->positions_for_write());
+        },
+        [&]() {
+          flattened_attributes = flatten_valid_attribute_chunks(
+              columns_info, chunk_offsets, *parsed_chunks);
+        });
   });
 
   /* Add all valid attributes to the pointcloud. */
   bke::MutableAttributeAccessor attributes = pointcloud->attributes_for_write();
   for (const int column_i : columns_info.index_range()) {
-    const std::optional<GArray<>> &attribute = flattened_attributes[column_i];
+    std::optional<GArray<>> &attribute = flattened_attributes[column_i];
     if (!attribute.has_value()) {
       continue;
     }
@@ -349,6 +355,13 @@ PointCloud *import_csv_as_pointcloud(const CSVImportParams &import_params)
                    bke::AttributeInitShared{data->data.data(), *data});
     data->remove_user_and_delete_if_last();
   }
+
+  /* Since all positions are set to zero, the bounding box can be updated eagerly to avoid
+   * computing it later. */
+  pointcloud->runtime->bounds_cache.ensure([](Bounds<float3> &r_bounds) {
+    r_bounds.min = float3(0);
+    r_bounds.max = float3(0);
+  });
 
   return pointcloud;
 }

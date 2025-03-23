@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.4.0 Beta (b'ed5b077f929a')\n"
+"Project-Id-Version: Blender 4.4.0 Release Candidate (b'f896f7ffc32a')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-02-17 14:06+0000\n"
+"POT-Creation-Date: 2025-03-17 16:18+0000\n"
 "PO-Revision-Date: 2024-04-14 09:42+0000\n"
 "Last-Translator: தமிழ்நேரம் <anishprabu.t@gmail.com>\n"
 "Language-Team: Tamil <https://translate.blender.org/projects/blender-ui/ui/ta/>\n"
@@ -69,10 +69,6 @@ msgstr "ச்லாட்"
 
 msgid "Action F-Curves"
 msgstr "செயல் f-வளைவுகள்"
-
-
-msgid "Collection of action F-Curves"
-msgstr "செயல் f-வளைவுகளின் சேகரிப்பு"
 
 
 msgid "Action Group"
@@ -580,14 +576,6 @@ msgstr "பல்வேறு சாதனங்கள் முழுதும�
 
 msgid "Make more room for large scenes to fit by distributing memory across interconnected devices (e.g. via NVLink) rather than duplicating it"
 msgstr "பெரிய காட்சிகள் பொருந்தக்கூடிய வகையில் அதிக இடத்தை உருவாக்குங்கள்"
-
-
-msgid "HIP RT (Experimental)"
-msgstr "hip rt (பரிசோதனைக்குரியது)"
-
-
-msgid "HIP RT enables AMD hardware ray tracing on RDNA2 and above, with shader fallback on older cards. This feature is experimental and some scenes may render incorrectly"
-msgstr "பழைய அட்டைகளில் சேடர் குறைவுடன், rdna2 மற்றும் அதற்கு மேற்பட்டவற்றில் amd வன்பொருள் கதிர் தடத்தை இப் ஆர்டி செயல்படுத்துகிறது. இந்த நற்பொருத்தம் சோதனை மற்றும் சில காட்சிகள் தவறாக வழங்கப்படலாம்"
 
 
 msgid "Embree on GPU"
@@ -16554,10 +16542,6 @@ msgid "The combined frame range of all F-Curves within this action"
 msgstr "இந்த செயலுக்குள் அனைத்து எஃப்-வளைவுகளின் ஒருங்கிணைந்த பிரேம் வரம்பு"
 
 
-msgid "The individual F-Curves that make up the action"
-msgstr "செயலை உருவாக்கும் தனிப்பட்ட எஃப்-வளைவுகள்"
-
-
 msgid "The end frame of the manually set intended playback range"
 msgstr "கைமுறையாக அமைக்கப்பட்ட நோக்கம் கொண்ட பிளேபேக் வரம்பின் இறுதி சட்டகம்"
 
@@ -16578,17 +16562,9 @@ msgid "Groups"
 msgstr "குழுக்கள்"
 
 
-msgid "Convenient groupings of F-Curves"
-msgstr "எஃப்-வளைவுகளின் வசதியான குழுக்கள்"
-
-
 msgctxt "ID"
 msgid "ID Root Type"
 msgstr "ஐடி வேர் வகை"
-
-
-msgid "Type of ID block that action can be used on - DO NOT CHANGE UNLESS YOU KNOW WHAT YOU ARE DOING"
-msgstr "ஐடி பிளாக் வகை அந்த செயலைப் பயன்படுத்தலாம் - நீங்கள் என்ன செய்கிறீர்கள் என்று உங்களுக்குத் தெரியாவிட்டால் மாற வேண்டாம்"
 
 
 msgid "Layers"
@@ -17087,22 +17063,6 @@ msgstr "தூரிகை ஆரம் தொடர்பாக எல்லை
 
 msgid "Brush's capabilities"
 msgstr "தூரிகையின் திறன்கள்"
-
-
-msgid "Clone Alpha"
-msgstr "நகலி ஆல்பா"
-
-
-msgid "Opacity of clone image display"
-msgstr "நகலி பட காட்சியின் ஒளிபுகாநிலை"
-
-
-msgid "Clone Image"
-msgstr "நகலி படம்"
-
-
-msgid "Clone Offset"
-msgstr "நகலி ஆஃப்செட்"
 
 
 msgid "Soft Body Plasticity"
@@ -26745,11 +26705,6 @@ msgid "Sequence playback mode"
 msgstr "வரிசை பிளேபேக் பயன்முறை"
 
 
-msgctxt "Sequence"
-msgid "Clip"
-msgstr "கிளிப்"
-
-
 msgid "Hide frames outside the specified frame range"
 msgstr "குறிப்பிட்ட பிரேம் வரம்பிற்கு வெளியே பிரேம்களை மறைக்கவும்"
 
@@ -31481,12 +31436,36 @@ msgid "Editor menu containing buttons"
 msgstr "பொத்தான்களைக் கொண்ட திருத்தி பட்டியல்"
 
 
-msgid "Mirror"
-msgstr "கண்ணாடி"
+msgid "Pivot Point"
+msgstr "பிவோட் புள்ளி"
 
 
 msgid "Snap"
 msgstr "ச்னாப்"
+
+
+msgid "Proportional Editing Falloff"
+msgstr "விகிதாசார திருத்துதல் வீழ்ச்சி"
+
+
+msgid "Mask Edit"
+msgstr "முகமூடி திருத்து"
+
+
+msgid "Automasking"
+msgstr "ஆட்டோமேச்கிங்"
+
+
+msgid "Face Sets Edit"
+msgstr "முகம் தொகுப்புகள் திருத்து"
+
+
+msgid "Vertex Group Locks"
+msgstr "வெர்டெக்ச் குழு பூட்டுகள்"
+
+
+msgid "Mirror"
+msgstr "கண்ணாடி"
 
 
 msgid "UV Mapping"
@@ -31605,10 +31584,6 @@ msgid "Hooks"
 msgstr "கொக்கிகள்"
 
 
-msgid "Vertex Group Locks"
-msgstr "வெர்டெக்ச் குழு பூட்டுகள்"
-
-
 msgid "Sculpt Set Pivot"
 msgstr "சிற்பம் செட் பிவோட்"
 
@@ -31687,26 +31662,6 @@ msgstr "உரை"
 
 msgid "Bone Roll"
 msgstr "எலும்பு ரோல்"
-
-
-msgid "Pivot Point"
-msgstr "பிவோட் புள்ளி"
-
-
-msgid "Proportional Editing Falloff"
-msgstr "விகிதாசார திருத்துதல் வீழ்ச்சி"
-
-
-msgid "Mask Edit"
-msgstr "முகமூடி திருத்து"
-
-
-msgid "Automasking"
-msgstr "ஆட்டோமேச்கிங்"
-
-
-msgid "Face Sets Edit"
-msgstr "முகம் தொகுப்புகள் திருத்து"
 
 
 msgid "Keyframe Insert Pie"
@@ -59295,6 +59250,10 @@ msgid "Set all stroke points to same opacity"
 msgstr "அனைத்து வீச்சு புள்ளிகளையும் ஒரே ஒளிபுகாநிலைக்கு அமைக்கவும்"
 
 
+msgid "Fill Opacity"
+msgstr "ஒளிபுகாநிலையை நிரப்பவும்"
+
+
 msgctxt "Operator"
 msgid "Set Uniform Thickness"
 msgstr "சீரான தடிமன் அமைக்கவும்"
@@ -76199,10 +76158,6 @@ msgid "Exports UVs from the modified mesh"
 msgstr "மாற்றியமைக்கப்பட்ட கண்ணி இருந்து uv களை ஏற்றுமதி செய்கிறது"
 
 
-msgid "Fill Opacity"
-msgstr "ஒளிபுகாநிலையை நிரப்பவும்"
-
-
 msgid "Set amount of opacity for exported UV layout"
 msgstr "ஏற்றுமதி செய்யப்பட்ட புறஊதா தளவமைப்புக்கான ஒளிபுகாநிலையை அமைக்கவும்"
 
@@ -80725,8 +80680,24 @@ msgid "Image used as canvas"
 msgstr "கேன்வாசாக பயன்படுத்தப்படும் படம்"
 
 
+msgid "Clone Alpha"
+msgstr "நகலி ஆல்பா"
+
+
+msgid "Opacity of clone image display"
+msgstr "நகலி பட காட்சியின் ஒளிபுகாநிலை"
+
+
+msgid "Clone Image"
+msgstr "நகலி படம்"
+
+
 msgid "Image used as clone source"
 msgstr "நகலி மூலமாகப் பயன்படுத்தப்படும் படம்"
+
+
+msgid "Clone Offset"
+msgstr "நகலி ஆஃப்செட்"
 
 
 msgid "Dither"
@@ -81065,6 +81036,10 @@ msgid "Panel containing UI elements"
 msgstr "இடைமுகம் கூறுகளைக் கொண்ட குழு"
 
 
+msgid "Active Tool"
+msgstr "செயலில் உள்ள கருவி"
+
+
 msgid "View Lock"
 msgstr "பூட்டைக் காண்க"
 
@@ -81175,10 +81150,6 @@ msgstr "வியூபோர்ட் பிழைத்திருத்த�
 
 msgid "VR"
 msgstr "வி.ஆர்"
-
-
-msgid "Active Tool"
-msgstr "செயலில் உள்ள கருவி"
 
 
 msgid "Chain Scaling"
@@ -94906,6 +94877,11 @@ msgstr "படம்"
 
 
 msgctxt "Sequence"
+msgid "Clip"
+msgstr "கிளிப்"
+
+
+msgctxt "Sequence"
 msgid "Mask"
 msgstr "முகமூடி"
 
@@ -104082,10 +104058,6 @@ msgid "and NVIDIA driver version %s or newer"
 msgstr "மற்றும் என்விடியா டிரைவர் பதிப்பு %s அல்லது புதியது"
 
 
-msgid "and AMD Radeon Pro %s driver or newer"
-msgstr "மற்றும் amd ரேடியான் புரோ %s டிரைவர் அல்லது புதியது"
-
-
 msgid "Requires Intel GPU with Xe-HPG architecture"
 msgstr "xe-hpg கட்டமைப்புடன் இன்டெல் சிபியு தேவைப்படுகிறது"
 
@@ -104846,10 +104818,6 @@ msgstr "இங்கே அமைப்புகள் குறிப்பி�
 
 msgid "performance impact!"
 msgstr "செயல்திறன் தாக்கம்!"
-
-
-msgid "Built without VR/OpenXR features"
-msgstr "வி.ஆர்/ஓபன்எக்ச்ஆர் நற்பொருத்தங்கள் இல்லாமல் கட்டப்பட்டது"
 
 
 msgid "Start VR Session"
@@ -114852,10 +114820,6 @@ msgid "OS"
 msgstr "os"
 
 
-msgid "Home"
-msgstr "வீடு"
-
-
 msgid "Esc"
 msgstr "எச்கே"
 
@@ -115004,10 +114968,6 @@ msgstr "ரேடியன்கள்: {}"
 
 msgid "Expression: {}"
 msgstr "வெளிப்பாடு: {}"
-
-
-msgid "Library: {}"
-msgstr "நூலகம்: {}"
 
 
 msgid "Disabled: {}"
@@ -117526,10 +117486,6 @@ msgid "Scene has no camera"
 msgstr "காட்சிக்கு கேமரா இல்லை"
 
 
-msgid "Movie format unsupported"
-msgstr "திரைப்பட வடிவம் ஆதரிக்கப்படவில்லை"
-
-
 msgid "Failed to create OpenGL off-screen buffer, %s"
 msgstr "ஓபன்சிஎல் ஆஃப்-ச்கிரீன் பஃப்பரை உருவாக்குவதில் தோல்வி, %s"
 
@@ -118536,6 +118492,10 @@ msgstr "சொத்து பட்டியல்கள்"
 
 msgid "Date Modified"
 msgstr "தேதி மாற்றியமைக்கப்பட்டது"
+
+
+msgid "Home"
+msgstr "வீடு"
 
 
 msgid "Desktop"

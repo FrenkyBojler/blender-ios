@@ -165,12 +165,17 @@ ProjCameraInfo *BLI_uvproject_camera_info(const Object *ob,
     uci.shiftx = 0.5f - (camera->shiftx * uci.xasp);
     uci.shifty = 0.5f - (camera->shifty * uci.yasp);
 
-    uci_pt = static_cast<ProjCameraInfo *>(MEM_mallocN(sizeof(ProjCameraInfo), __func__));
+    uci_pt = MEM_mallocN<ProjCameraInfo>(__func__);
     *uci_pt = uci;
     return uci_pt;
   }
 
   return nullptr;
+}
+
+void BLI_uvproject_camera_info_free(ProjCameraInfo *uci)
+{
+  MEM_freeN(uci);
 }
 
 void BLI_uvproject_from_view_ortho(float target[2], float source[3], const float rotmat[4][4])

@@ -21,6 +21,7 @@
 #include "BLI_kdopbvh.hh"
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
+#include "BLI_math_vector.h"
 #include "BLI_rect.h"
 #include "BLI_time.h" /* Smooth-view. */
 #include "BLI_utildefines.h"
@@ -643,7 +644,7 @@ static bool initWalkInfo(bContext *C, WalkInfo *walk, wmOperator *op, const int 
   return true;
 }
 
-static int walkEnd(bContext *C, WalkInfo *walk)
+static wmOperatorStatus walkEnd(bContext *C, WalkInfo *walk)
 {
   wmWindow *win;
   RegionView3D *rv3d;
@@ -1526,14 +1527,14 @@ static void walk_draw_status(bContext *C, wmOperator *op)
                  walk->zlock != WALK_AXISLOCK_STATE_OFF);
 }
 
-static int walk_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus walk_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   RegionView3D *rv3d = CTX_wm_region_view3d(C);
   if (RV3D_LOCK_FLAGS(rv3d) & RV3D_LOCK_ANY_TRANSFORM) {
     return OPERATOR_CANCELLED;
   }
 
-  WalkInfo *walk = MEM_cnew<WalkInfo>("NavigationWalkOperation");
+  WalkInfo *walk = MEM_callocN<WalkInfo>("NavigationWalkOperation");
 
   op->customdata = walk;
 
@@ -1560,7 +1561,7 @@ static void walk_cancel(bContext *C, wmOperator *op)
   op->customdata = nullptr;
 }
 
-static int walk_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus walk_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   bool do_draw = false;
   WalkInfo *walk = static_cast<WalkInfo *>(op->customdata);
@@ -1588,7 +1589,7 @@ static int walk_modal(bContext *C, wmOperator *op, const wmEvent *event)
 
   do_draw |= walk->redraw;
 
-  const int exit_code = walkEnd(C, walk);
+  const wmOperatorStatus exit_code = walkEnd(C, walk);
 
   if (exit_code != OPERATOR_RUNNING_MODAL) {
     do_draw = true;

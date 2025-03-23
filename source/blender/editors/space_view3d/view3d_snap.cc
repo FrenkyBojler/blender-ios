@@ -67,7 +67,7 @@ static bool snap_calc_active_center(bContext *C, const bool select_only, float r
  * \{ */
 
 /** Snaps every individual object center to its nearest point on the grid. */
-static int snap_sel_to_grid_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus snap_sel_to_grid_exec(bContext *C, wmOperator *op)
 {
   using namespace blender::ed;
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
@@ -156,15 +156,7 @@ static int snap_sel_to_grid_exec(bContext *C, wmOperator *op)
 
               /* Adjust location on the original pchan. */
               bPoseChannel *pchan = BKE_pose_channel_find_name(ob->pose, pchan_eval->name);
-              if ((pchan->protectflag & OB_LOCK_LOCX) == 0) {
-                pchan->loc[0] = vec[0];
-              }
-              if ((pchan->protectflag & OB_LOCK_LOCY) == 0) {
-                pchan->loc[1] = vec[1];
-              }
-              if ((pchan->protectflag & OB_LOCK_LOCZ) == 0) {
-                pchan->loc[2] = vec[2];
-              }
+              BKE_pchan_protected_location_set(pchan, vec);
 
               /* auto-keyframing */
               blender::animrig::autokeyframe_pchan(C, scene, ob, pchan, ks);
@@ -241,15 +233,9 @@ static int snap_sel_to_grid_exec(bContext *C, wmOperator *op)
         invert_m3_m3(imat, originmat);
         mul_m3_v3(imat, vec);
       }
-      if ((ob->protectflag & OB_LOCK_LOCX) == 0) {
-        ob->loc[0] = ob_eval->loc[0] + vec[0];
-      }
-      if ((ob->protectflag & OB_LOCK_LOCY) == 0) {
-        ob->loc[1] = ob_eval->loc[1] + vec[1];
-      }
-      if ((ob->protectflag & OB_LOCK_LOCZ) == 0) {
-        ob->loc[2] = ob_eval->loc[2] + vec[2];
-      }
+
+      const blender::float3 loc_final = blender::float3(ob_eval->loc) + blender::float3(vec);
+      BKE_object_protected_location_set(ob, loc_final);
 
       /* auto-keyframing */
       blender::animrig::autokeyframe_object(C, scene, ob, ks);
@@ -436,15 +422,7 @@ static bool snap_selected_to_location(bContext *C,
 
           /* copy new position */
           if (use_toolsettings) {
-            if ((pchan->protectflag & OB_LOCK_LOCX) == 0) {
-              pchan->loc[0] = cursor_pose[0];
-            }
-            if ((pchan->protectflag & OB_LOCK_LOCY) == 0) {
-              pchan->loc[1] = cursor_pose[1];
-            }
-            if ((pchan->protectflag & OB_LOCK_LOCZ) == 0) {
-              pchan->loc[2] = cursor_pose[2];
-            }
+            BKE_pchan_protected_location_set(pchan, cursor_pose);
 
             /* auto-keyframing */
             blender::animrig::autokeyframe_pchan(C, scene, ob, pchan, ks);
@@ -468,6 +446,7 @@ static bool snap_selected_to_location(bContext *C,
     KeyingSet *ks = blender::animrig::get_keyingset_for_autokeying(scene, ANIM_KS_LOCATION_ID);
     Main *bmain = CTX_data_main(C);
     Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
+    BKE_scene_graph_evaluated_ensure(depsgraph, bmain);
 
     /* Reset flags. */
     for (Object *ob = static_cast<Object *>(bmain->objects.first); ob;
@@ -497,13 +476,11 @@ static bool snap_selected_to_location(bContext *C,
     object::XFormObjectData_Container *xds = nullptr;
 
     if (use_transform_skip_children) {
-      BKE_scene_graph_evaluated_ensure(depsgraph, bmain);
       xcs = object::xform_skip_child_container_create();
       object::xform_skip_child_container_item_ensure_from_array(
           xcs, scene, view_layer, objects.data(), objects.size());
     }
     if (use_transform_data_origin) {
-      BKE_scene_graph_evaluated_ensure(depsgraph, bmain);
       xds = object::data_xform_container_create();
 
       /* Initialize the transform data in a separate loop because the depsgraph
@@ -546,15 +523,9 @@ static bool snap_selected_to_location(bContext *C,
         mul_m3_v3(imat, cursor_parent);
       }
       if (use_toolsettings) {
-        if ((ob->protectflag & OB_LOCK_LOCX) == 0) {
-          ob->loc[0] += cursor_parent[0];
-        }
-        if ((ob->protectflag & OB_LOCK_LOCY) == 0) {
-          ob->loc[1] += cursor_parent[1];
-        }
-        if ((ob->protectflag & OB_LOCK_LOCZ) == 0) {
-          ob->loc[2] += cursor_parent[2];
-        }
+        const blender::float3 loc_final = blender::float3(ob->loc) +
+                                          blender::float3(cursor_parent);
+        BKE_object_protected_location_set(ob, loc_final);
 
         /* auto-keyframing */
         blender::animrig::autokeyframe_object(C, scene, ob, ks);
@@ -602,7 +573,7 @@ bool ED_view3d_snap_selected_to_location(bContext *C,
 /** \name Snap Selection to Cursor Operator
  * \{ */
 
-static int snap_selected_to_cursor_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus snap_selected_to_cursor_exec(bContext *C, wmOperator *op)
 {
   const bool use_offset = RNA_boolean_get(op->ptr, "use_offset");
 
@@ -646,7 +617,7 @@ void VIEW3D_OT_snap_selected_to_cursor(wmOperatorType *ot)
  * \{ */
 
 /** Snaps each selected object to the location of the active selected object. */
-static int snap_selected_to_active_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus snap_selected_to_active_exec(bContext *C, wmOperator *op)
 {
   float snap_target_global[3];
 
@@ -683,7 +654,7 @@ void VIEW3D_OT_snap_selected_to_active(wmOperatorType *ot)
  * \{ */
 
 /** Snaps the 3D cursor location to its nearest point on the grid. */
-static int snap_curs_to_grid_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus snap_curs_to_grid_exec(bContext *C, wmOperator * /*op*/)
 {
   Scene *scene = CTX_data_scene(C);
   ARegion *region = CTX_wm_region(C);
@@ -881,7 +852,7 @@ static bool snap_curs_to_sel_ex(bContext *C, const int pivot_point, float r_curs
   return true;
 }
 
-static int snap_curs_to_sel_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus snap_curs_to_sel_exec(bContext *C, wmOperator * /*op*/)
 {
   Scene *scene = CTX_data_scene(C);
   const int pivot_point = scene->toolsettings->transform_pivot_point;
@@ -930,7 +901,7 @@ static bool snap_calc_active_center(bContext *C, const bool select_only, float r
   return blender::ed::object::calc_active_center(ob, select_only, r_center);
 }
 
-static int snap_curs_to_active_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus snap_curs_to_active_exec(bContext *C, wmOperator * /*op*/)
 {
   Scene *scene = CTX_data_scene(C);
 
@@ -965,7 +936,7 @@ void VIEW3D_OT_snap_cursor_to_active(wmOperatorType *ot)
  * \{ */
 
 /** Snaps the 3D cursor location to the origin and clears cursor rotation. */
-static int snap_curs_to_center_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus snap_curs_to_center_exec(bContext *C, wmOperator * /*op*/)
 {
   Scene *scene = CTX_data_scene(C);
 

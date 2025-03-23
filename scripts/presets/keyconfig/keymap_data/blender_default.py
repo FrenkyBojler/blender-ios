@@ -2759,8 +2759,18 @@ def km_nla_editor(params):
          {"properties": [("mode", 'TIME_SCALE')]}),
         ("marker.add", {"type": 'M', "value": 'PRESS'}, None),
         *_template_items_context_menu("NLA_MT_context_menu", params.context_menu_event),
-        *_template_items_change_frame(params),
     ])
+
+    if params.select_mouse == 'LEFTMOUSE' and not params.legacy:
+        items.extend([
+            ("anim.change_frame", {"type": 'RIGHTMOUSE', "value": 'PRESS', "shift": True},
+             {"properties": [("seq_solo_preview", True)]}),
+        ])
+    else:
+        items.extend([
+            ("anim.change_frame", {"type": params.action_mouse, "value": 'PRESS'},
+             {"properties": [("seq_solo_preview", True)]}),
+        ])
 
     return keymap
 
@@ -3106,7 +3116,8 @@ def km_sequencer(params):
 
 def _seq_preview_text_edit_cursor_move():
     items = []
-    map = [
+
+    for ty, mod, prop in (
         ('LEFT_ARROW', None, ("type", 'PREVIOUS_CHARACTER')),
         ('RIGHT_ARROW', None, ("type", 'NEXT_CHARACTER')),
         ('UP_ARROW', None, ("type", 'PREVIOUS_LINE')),
@@ -3117,22 +3128,24 @@ def _seq_preview_text_edit_cursor_move():
         ('RIGHT_ARROW', 'ctrl', ("type", 'NEXT_WORD')),
         ('PAGE_UP', None, ("type", 'TEXT_BEGIN')),
         ('PAGE_DOWN', None, ("type", 'TEXT_END')),
-    ]
-
-    for type, mod, prop in map:
-        if mod:
+    ):
+        if mod is not None:
             items.append(
-                ("sequencer.text_cursor_move", {"type": type, "value": 'PRESS', **{mod: True}, "repeat": True},
+                ("sequencer.text_cursor_move",
+                 {"type": ty, "value": 'PRESS', mod: True, "repeat": True},
                  {"properties": [prop]}))
             items.append(
-                ("sequencer.text_cursor_move", {"type": type, "value": 'PRESS', **{mod: True}, "shift": True, "repeat": True},
+                ("sequencer.text_cursor_move",
+                 {"type": ty, "value": 'PRESS', mod: True, "shift": True, "repeat": True},
                  {"properties": [prop, ('select_text', True)]}))
         else:
             items.append(
-                ("sequencer.text_cursor_move", {"type": type, "value": 'PRESS', "repeat": True},
+                ("sequencer.text_cursor_move",
+                 {"type": ty, "value": 'PRESS', "repeat": True},
                  {"properties": [prop]}))
             items.append(
-                ("sequencer.text_cursor_move", {"type": type, "value": 'PRESS', "shift": True, "repeat": True},
+                ("sequencer.text_cursor_move",
+                 {"type": ty, "value": 'PRESS', "shift": True, "repeat": True},
                  {"properties": [prop, ('select_text', True)]}))
     return items
 
@@ -3983,6 +3996,9 @@ def km_grease_pencil_edit_mode(params):
 
         ("grease_pencil.duplicate_move", {"type": 'D', "value": 'PRESS', "shift": True}, None),
 
+        # Split Stroke
+        ("grease_pencil.stroke_split", {"type": 'V', "value": 'PRESS'}, None),
+
         # Extrude and move selected points
         op_tool_optional(
             ("grease_pencil.extrude_move", {"type": 'E', "value": 'PRESS'}, None),
@@ -4793,8 +4809,12 @@ def km_image_paint(params):
          {"properties": [("mode", 'SMOOTH')]}),
         ("paint.brush_colors_flip", {"type": 'X', "value": 'PRESS'}, None),
         ("paint.grab_clone", {"type": 'RIGHTMOUSE', "value": 'PRESS'}, None),
-        ("paint.sample_color", {"type": 'X', "value": 'PRESS', "shift": True}, {"properties": [("merged", False)]}),
-        ("paint.sample_color", {"type": 'X', "value": 'PRESS', "shift": True, "ctrl": True}, {"properties": [("merged", True)]}),
+        ("paint.sample_color",
+         {"type": 'X', "value": 'PRESS', "shift": True},
+         {"properties": [("merged", False)]}),
+        ("paint.sample_color",
+         {"type": 'X', "value": 'PRESS', "shift": True, "ctrl": True},
+         {"properties": [("merged", True)]}),
         ("brush.scale_size", {"type": 'LEFT_BRACKET', "value": 'PRESS', "repeat": True},
          {"properties": [("scalar", 0.9)]}),
         ("brush.scale_size", {"type": 'RIGHT_BRACKET', "value": 'PRESS', "repeat": True},
@@ -5781,6 +5801,7 @@ def km_edit_curves(params):
         ("curves.separate", {"type": 'P', "value": 'PRESS'}, None),
         ("curves.select_more", {"type": 'NUMPAD_PLUS', "value": 'PRESS', "ctrl": True, "repeat": True}, None),
         ("curves.select_less", {"type": 'NUMPAD_MINUS', "value": 'PRESS', "ctrl": True, "repeat": True}, None),
+        ("curves.split", {"type": 'Y', "value": 'PRESS'}, None),
         *_template_items_proportional_editing(
             params, connected=True, toggle_data_path="tool_settings.use_proportional_edit"),
         ("curves.tilt_clear", {"type": 'T', "value": 'PRESS', "alt": True}, None),
@@ -8113,7 +8134,8 @@ def km_sequencer_editor_tool_generic_select_timeline_rcs(params):
         ("sequencer.select_handle", {"type": 'LEFTMOUSE', "value": 'PRESS'}, None),
         ("sequencer.select_handle", {"type": 'LEFTMOUSE', "value": 'PRESS',
          "alt": True}, {"properties": [("ignore_connections", True)]}),
-        *_template_items_change_frame(params),
+        ("anim.change_frame", {"type": params.action_mouse, "value": 'PRESS'},
+         {"properties": [("seq_solo_preview", True)]}),
         # Change frame takes precedence over the sequence slide operator. If a
         # mouse press happens on a strip handle, it is canceled, and the sequence
         # slide below activates instead.
@@ -8127,7 +8149,8 @@ def km_sequencer_editor_tool_generic_select_timeline_lcs(params):
         ("sequencer.select", {"type": 'LEFTMOUSE', "value": 'PRESS'}, None),
         ("sequencer.select", {"type": 'LEFTMOUSE', "value": 'PRESS',
          "shift": True}, {"properties": [("toggle", True)]}),
-        *_template_items_change_frame(params),
+        ("anim.change_frame", {"type": 'RIGHTMOUSE', "value": 'PRESS',
+         "shift": True}, {"properties": [("seq_solo_preview", True)]}),
     ]
 
 

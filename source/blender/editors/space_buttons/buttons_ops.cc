@@ -34,6 +34,7 @@
 #include "ED_undo.hh"
 
 #include "RNA_access.hh"
+#include "RNA_define.hh"
 #include "RNA_prototypes.hh"
 
 #include "UI_interface.hh"
@@ -47,7 +48,7 @@
  * \note Almost a duplicate of the file browser operator #FILE_OT_start_filter.
  * \{ */
 
-static int buttons_start_filter_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus buttons_start_filter_exec(bContext *C, wmOperator * /*op*/)
 {
   SpaceProperties *space = CTX_wm_space_properties(C);
   ScrArea *area = CTX_wm_area(C);
@@ -70,7 +71,7 @@ void BUTTONS_OT_start_filter(wmOperatorType *ot)
   ot->poll = ED_operator_buttons_active;
 }
 
-static int buttons_clear_filter_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus buttons_clear_filter_exec(bContext *C, wmOperator * /*op*/)
 {
   SpaceProperties *space = CTX_wm_space_properties(C);
 
@@ -101,7 +102,7 @@ void BUTTONS_OT_clear_filter(wmOperatorType *ot)
 /** \name Pin ID Operator
  * \{ */
 
-static int toggle_pin_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus toggle_pin_exec(bContext *C, wmOperator * /*op*/)
 {
   SpaceProperties *sbuts = CTX_wm_space_properties(C);
 
@@ -140,7 +141,9 @@ void BUTTONS_OT_toggle_pin(wmOperatorType *ot)
 /** \name Context Menu Operator
  * \{ */
 
-static int context_menu_invoke(bContext *C, wmOperator * /*op*/, const wmEvent * /*event*/)
+static wmOperatorStatus context_menu_invoke(bContext *C,
+                                            wmOperator * /*op*/,
+                                            const wmEvent * /*event*/)
 {
   uiPopupMenu *pup = UI_popup_menu_begin(C, IFACE_("Context Menu"), ICON_NONE);
   uiLayout *layout = UI_popup_menu_layout(pup);
@@ -176,7 +179,7 @@ struct FileBrowseOp {
   bool is_userdef = false;
 };
 
-static int file_browse_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus file_browse_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   FileBrowseOp *fbo = static_cast<FileBrowseOp *>(op->customdata);
@@ -263,7 +266,7 @@ static void file_browse_cancel(bContext * /*C*/, wmOperator *op)
   op->customdata = nullptr;
 }
 
-static int file_browse_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus file_browse_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   PointerRNA ptr;
   PropertyRNA *prop;
@@ -393,6 +396,9 @@ static int file_browse_invoke(bContext *C, wmOperator *op, const wmEvent *event)
     const bool is_output_path = (RNA_property_flag(prop) & PROP_PATH_OUTPUT) != 0;
     RNA_property_boolean_set(op->ptr, prop_check_existing, is_output_path);
   }
+  if (std::optional<std::string> filter = RNA_property_string_path_filter(C, &ptr, prop)) {
+    RNA_string_set(op->ptr, "filter_glob", filter->c_str());
+  }
 
   WM_event_add_fileselect(C, op);
 
@@ -423,6 +429,11 @@ void BUTTONS_OT_file_browse(wmOperatorType *ot)
                                  WM_FILESEL_FILEPATH | WM_FILESEL_RELPATH,
                                  FILE_DEFAULTDISPLAY,
                                  FILE_SORT_DEFAULT);
+
+  PropertyRNA *prop;
+
+  prop = RNA_def_string(ot->srna, "filter_glob", nullptr, 0, "Glob Filter", "Custom filter");
+  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 }
 
 void BUTTONS_OT_directory_browse(wmOperatorType *ot)
