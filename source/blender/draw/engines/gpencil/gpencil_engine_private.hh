@@ -317,7 +317,7 @@ struct Instance final : public DrawEngine {
 
   void draw(Manager &manager) final;
 
-  void antialiasing_accumulate(Manager &manager);
+  void antialiasing_accumulate(Manager &manager, float alpha);
 
  private:
   tObject *object_sync_do(Object *ob, ResourceHandle res_handle);

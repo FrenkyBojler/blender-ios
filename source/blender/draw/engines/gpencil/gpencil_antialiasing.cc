@@ -114,7 +114,7 @@ void Instance::antialiasing_draw(Manager &manager)
   manager.submit(this->smaa_resolve_ps);
 }
 
-void Instance::antialiasing_accumulate(Manager &manager)
+void Instance::antialiasing_accumulate(Manager &manager, float alpha)
 {
   BLI_assert_msg(this->render_color_tx.gpu_texture() != nullptr,
                  "This should only be called during render");
@@ -131,8 +131,8 @@ void Instance::antialiasing_accumulate(Manager &manager)
     pass.shader_set(ShaderCache::get().accumulation.get());
     pass.bind_image("src_img", &this->render_color_tx);
     pass.bind_image("dst_img", &this->accumulation_tx);
-    pass.push_constant("weight_src", 1.0f /* TODO */);
-    pass.push_constant("weight_dst", 0.0f /* TODO */);
+    pass.push_constant("weight_src", alpha);
+    pass.push_constant("weight_dst", 1.0f - alpha);
     pass.draw_procedural(GPU_PRIM_TRIS, 1, 3);
   }
 

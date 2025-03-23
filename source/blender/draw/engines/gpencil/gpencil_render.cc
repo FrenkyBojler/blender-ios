@@ -5,6 +5,7 @@
 /** \file
  * \ingroup draw
  */
+#include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
 #include "BLI_rect.h"
 
@@ -23,26 +24,52 @@
 
 namespace blender::draw::gpencil {
 
-static void render_init(const DRWContext *draw_ctx,
-                        Instance &inst,
-                        RenderEngine *engine,
-                        RenderLayer *render_layer,
-                        const Depsgraph *depsgraph,
-                        const rcti *rect)
+/* Remap depth from viewspace to [0..1] to be able to use it with as GPU depth buffer. */
+static void remap_depth(const View &view, MutableSpan<float> pix_z)
+{
+  if (view.is_persp()) {
+    const float4x4 &winmat = view.winmat();
+    for (auto &pix : pix_z) {
+      pix = (-winmat[3][2] / -pix) - winmat[2][2];
+      pix = clamp_f(pix * 0.5f + 0.5f, 0.0f, 1.0f);
+    }
+  }
+  else {
+    /* Keep in mind, near and far distance are negatives. */
+    float near = view.near_clip();
+    float far = view.far_clip();
+    float range_inv = 1.0f / fabsf(far - near);
+    for (auto &pix : pix_z) {
+      pix = (pix + near) * range_inv;
+      pix = clamp_f(pix, 0.0f, 1.0f);
+    }
+  }
+}
+
+static void render_set_view(RenderEngine *engine,
+                            const Depsgraph *depsgraph,
+                            float2 aa_offset = float2{0.0f})
+{
+  Object *camera = DEG_get_evaluated_object(depsgraph, RE_GetCamera(engine->re));
+
+  float4x4 winmat, viewinv;
+  RE_GetCameraWindow(engine->re, camera, winmat.ptr());
+  RE_GetCameraModelMatrix(engine->re, camera, viewinv.ptr());
+
+  window_translate_m4(winmat.ptr(), winmat.ptr(), UNPACK2(aa_offset));
+
+  View::default_set(math::invert(viewinv), winmat);
+}
+
+static void render_init_buffers(const DRWContext *draw_ctx,
+                                Instance &inst,
+                                RenderEngine *engine,
+                                RenderLayer *render_layer,
+                                const Depsgraph *depsgraph,
+                                const rcti *rect)
 {
   Scene *scene = DEG_get_evaluated_scene(depsgraph);
   const int2 size = int2(draw_ctx->viewport_size_get());
-
-  /* Set the perspective & view matrix. */
-  float winmat[4][4], viewmat[4][4], viewinv[4][4];
-
-  Object *camera = DEG_get_evaluated_object(depsgraph, RE_GetCamera(engine->re));
-  RE_GetCameraWindow(engine->re, camera, winmat);
-  RE_GetCameraModelMatrix(engine->re, camera, viewinv);
-
-  invert_m4_m4(viewmat, viewinv);
-
-  View::default_set(float4x4(viewmat), float4x4(winmat));
   View &view = View::default_get();
 
   /* Create depth texture & color texture from render result. */
@@ -61,25 +88,7 @@ static void render_init(const DRWContext *draw_ctx,
   if (pix_z) {
     /* Depth need to be remapped to [0..1] range. */
     pix_z = static_cast<float *>(MEM_dupallocN(pix_z));
-
-    int pix_num = rpass_z_src->rectx * rpass_z_src->recty;
-
-    if (view.is_persp()) {
-      for (int i = 0; i < pix_num; i++) {
-        pix_z[i] = (-winmat[3][2] / -pix_z[i]) - winmat[2][2];
-        pix_z[i] = clamp_f(pix_z[i] * 0.5f + 0.5f, 0.0f, 1.0f);
-      }
-    }
-    else {
-      /* Keep in mind, near and far distance are negatives. */
-      float near = view.near_clip();
-      float far = view.far_clip();
-      float range_inv = 1.0f / fabsf(far - near);
-      for (int i = 0; i < pix_num; i++) {
-        pix_z[i] = (pix_z[i] + near) * range_inv;
-        pix_z[i] = clamp_f(pix_z[i], 0.0f, 1.0f);
-      }
-    }
+    remap_depth(view, {pix_z, rpass_z_src->rectx * rpass_z_src->recty});
   }
 
   const bool do_region = (scene->r.mode & R_BORDER) != 0;
@@ -228,7 +237,8 @@ void Engine::render_to_image(RenderEngine *engine, RenderLayer *render_layer, co
 
   Manager &manager = *DRW_manager_get();
 
-  render_init(draw_ctx, inst, engine, render_layer, depsgraph, &rect);
+  render_set_view(engine, depsgraph);
+  render_init_buffers(draw_ctx, inst, engine, render_layer, depsgraph, &rect);
   inst.init();
 
   inst.camera = DEG_get_evaluated_object(depsgraph, RE_GetCamera(engine->re));
@@ -250,10 +260,17 @@ void Engine::render_to_image(RenderEngine *engine, RenderLayer *render_layer, co
 
   manager.end_sync();
 
-  /* Render the gpencil object and merge the result to the underlying render. */
-  inst.draw(manager);
+  for (auto i : IndexRange(25)) {
+    float2 aa_offset = (float2(i % 5, i / 5) - 3.0f) / 4.0f;
+    aa_offset = 2.0f * aa_offset / float2(inst.render_color_tx.size());
+    render_set_view(engine, depsgraph, aa_offset);
+    render_init_buffers(draw_ctx, inst, engine, render_layer, depsgraph, &rect);
 
-  inst.antialiasing_accumulate(manager);
+    /* Render the gpencil object and merge the result to the underlying render. */
+    inst.draw(manager);
+
+    inst.antialiasing_accumulate(manager, 1.0f / (1.0f + i));
+  }
 
   render_result_combined(render_layer, viewname, inst, &rect);
   render_result_z(draw_ctx, render_layer, viewname, inst, &rect);
