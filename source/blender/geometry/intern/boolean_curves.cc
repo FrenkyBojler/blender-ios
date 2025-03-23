@@ -688,12 +688,8 @@ BooleanResult execute_single_boolean(const CurveBooleanOpParameters op_params,
     new_inters.as_mutable_span().take_front(self_inter.size()).copy_from(self_inter);
 
     if (new_inters.is_empty()) {
-      if (is_cyclic[curve_k] || is_fill[curve_k]) {
-        segments_k.append(Segment::from_points_cyclical(curve_k, points_k));
-      }
-      else {
-        segments_k.append(Segment::from_points(curve_k, points_k));
-      }
+      segments_k.append(
+          Segment::from_curve(curve_k, points_k, is_cyclic[curve_k] || is_fill[curve_k]));
     }
     else {
       Array<int> inter_sorted_ids = Array<int>(new_inters.size());

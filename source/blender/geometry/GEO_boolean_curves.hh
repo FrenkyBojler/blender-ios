@@ -104,7 +104,9 @@ class Segment {
   template<typename Fn> inline void foreach_point(Fn &&fn) const;
   int points_num() const;
 
-  constexpr static Segment from_points(const int curve_i, const IndexRange points)
+  constexpr static Segment from_curve(const int curve_i,
+                                      const IndexRange points,
+                                      const bool cyclical)
   {
     Segment segment;
     segment.curve = curve_i;
@@ -113,20 +115,10 @@ class Segment {
     segment.point_1 = points.first();
     segment.point_2 = points.last();
 
-    return segment;
-  }
-
-  constexpr static Segment from_points_cyclical(const int curve_i, const IndexRange points)
-  {
-    Segment segment;
-    segment.curve = curve_i;
-    segment.points = points;
-
-    segment.point_1 = points.first();
-    segment.point_2 = points.last();
-
-    segment.inter_index_1 = LOOPING_INTERSECTION_ID;
-    segment.inter_index_2 = LOOPING_INTERSECTION_ID;
+    if (cyclical) {
+      segment.inter_index_1 = LOOPING_INTERSECTION_ID;
+      segment.inter_index_2 = LOOPING_INTERSECTION_ID;
+    }
 
     return segment;
   }
