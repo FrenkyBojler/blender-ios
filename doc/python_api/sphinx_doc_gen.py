@@ -1821,7 +1821,7 @@ def pyrna2sphinx(basepath):
                 continue
             write_struct(struct)
 
-        def fake_bpy_type(class_module_name, class_value, class_name, descr_str, use_subclasses=True):
+        def fake_bpy_type(class_module_name, class_value, class_name, descr_str, use_subclasses=True, base_class=None):
             filepath = os.path.join(basepath, "{:s}.{:s}.rst".format(class_module_name, class_name))
             file = open(filepath, "w", encoding="utf-8")
             fw = file.write
@@ -1829,6 +1829,9 @@ def pyrna2sphinx(basepath):
             fw(title_string(class_name, "="))
 
             fw(".. currentmodule:: {:s}\n\n".format(class_module_name))
+
+            if base_class:
+                fw("base classes --- :class:`{:s}`\n\n".format(base_class))
 
             if use_subclasses:
                 subclass_ids = [
@@ -1881,6 +1884,7 @@ def pyrna2sphinx(basepath):
             fake_bpy_type(
                 "bpy.types", class_value, _BPY_PROP_COLLECTION_IDPROP_FAKE,
                 "built-in class used for user defined collections.", use_subclasses=False,
+                base_class=_BPY_PROP_COLLECTION_FAKE,
             )
 
     # Operators.
