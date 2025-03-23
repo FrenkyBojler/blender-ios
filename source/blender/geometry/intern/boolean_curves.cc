@@ -1008,6 +1008,51 @@ static BooleanResult execute_boolean(const CurveBooleanOpParameters op_params,
   return results_all;
 }
 
+bke::CurvesGeometry remove_holes(const bke::CurvesGeometry &curves,
+                                 const Span<int> shape_ids,
+                                 const OffsetIndices<int> points_by_curve)
+{
+  const VArray<float2> positions_2d_attribute = *curves.attributes().lookup<float2>(
+      ".positions_2d", bke::AttrDomain::Point);
+
+  BLI_assert(positions_2d_attribute.is_span());
+  const Span<float2> positions_2d = positions_2d_attribute.get_internal_span();
+
+  Vector<int> keep;
+
+  IndexMaskMemory memory;
+  VectorSet<int> shape_indexing;
+  const Vector<IndexMask> shapes = IndexMask::from_group_ids(
+      VArray<int>::ForSpan(shape_ids), memory, shape_indexing);
+
+  for (const int shape_i : shapes.index_range()) {
+    const IndexMask shape = shapes[shape_i];
+    shape.foreach_index([&](const int curve_i) {
+      bool is_inside = false;
+      const float2 &point_i = positions_2d[points_by_curve[curve_i].first()];
+
+      shape.foreach_index([&](const int curve_j) {
+        if (curve_j == curve_i) {
+          return;
+        }
+        const IndexRange points_j = points_by_curve[curve_j];
+
+        if (inside(point_i, positions_2d.slice(points_j))) {
+          is_inside = true;
+        }
+      });
+
+      if (!is_inside) {
+        keep.append(curve_i);
+      }
+    });
+  }
+
+  const IndexMask to_keep = IndexMask::from_indices(keep.as_span(), memory);
+
+  return curves_copy_curve_selection(curves, to_keep, {});
+}
+
 bke::CurvesGeometry curve_boolean(const CurveBooleanOpParameters op_params,
                                   const bke::CurvesGeometry &curves,
                                   const IndexMask &clipping_shapes)
@@ -1109,45 +1154,7 @@ bke::CurvesGeometry curve_boolean(const CurveBooleanOpParameters op_params,
   }
 
   if (op_params.output_rule == FillRule::NoHoles) {
-    const VArray<float2> dst_positions_2d_attribute = *dst_attributes.lookup<float2>(
-        ".positions_2d", bke::AttrDomain::Point);
-
-    BLI_assert(dst_positions_2d_attribute.is_span());
-    const Span<float2> dst_positions_2d = dst_positions_2d_attribute.get_internal_span();
-
-    Vector<int> keep;
-
-    IndexMaskMemory memory;
-    VectorSet<int> dst_shape_indexing;
-    const Vector<IndexMask> dst_shapes = IndexMask::from_group_ids(
-        VArray<int>::ForSpan(result.shape_ids), memory, dst_shape_indexing);
-
-    for (const int shape_i : dst_shapes.index_range()) {
-      const IndexMask shape = dst_shapes[shape_i];
-      shape.foreach_index([&](const int curve_i) {
-        bool is_inside = false;
-        const float2 &point_i = dst_positions_2d[dst_points_by_curve[curve_i].first()];
-
-        shape.foreach_index([&](const int curve_j) {
-          if (curve_j == curve_i) {
-            return;
-          }
-          const IndexRange points_j = dst_points_by_curve[curve_j];
-
-          if (inside(point_i, dst_positions_2d.slice(points_j))) {
-            is_inside = true;
-          }
-        });
-
-        if (!is_inside) {
-          keep.append(curve_i);
-        }
-      });
-    }
-
-    const IndexMask to_keep = IndexMask::from_indices(keep.as_span(), memory);
-
-    dst_curves = curves_copy_curve_selection(dst_curves, to_keep, {});
+    dst_curves = remove_holes(dst_curves, result.shape_ids, dst_points_by_curve);
   }
 
   return dst_curves;
