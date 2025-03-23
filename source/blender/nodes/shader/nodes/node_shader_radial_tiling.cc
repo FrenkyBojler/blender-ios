@@ -225,8 +225,11 @@ class RoundedPolygonFunction : public mf::MultiFunction {
       }
 
       if (calculate_segment_id) {
-        r_segment_id[i] = calculate_out_segment_id(math::max(r_gon_sides[i], 2.0f),
-                                                   float2(coord[i].x, coord[i].y));
+        r_segment_id[i] = calculate_out_segment_id(
+            math::max(r_gon_sides[i], 2.0f),
+            math::clamp(r_gon_roundness[i], 0.0f, 1.0f),
+            math::clamp(irregular_r_gon_corner_shape[i], 0.0f, 1.0f),
+            float2(coord[i].x, coord[i].y));
       }
     });
   }

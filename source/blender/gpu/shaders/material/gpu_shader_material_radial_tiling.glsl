@@ -44,6 +44,9 @@ void node_radial_tiling(vec3 coord,
   }
 
   if (bool(calculate_segment_id)) {
-    out_segment_id = calculate_out_segment_id(max(r_gon_sides, 2.0), vec2(coord.x, coord.y));
+    out_segment_id = calculate_out_segment_id(max(r_gon_sides, 2.0),
+                                              clamp(r_gon_roundness, 0.0, 1.0),
+                                              clamp(irregular_r_gon_corner_shape, 0.0, 1.0),
+                                              vec2(coord.x, coord.y));
   }
 }

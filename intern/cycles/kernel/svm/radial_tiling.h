@@ -79,10 +79,12 @@ ccl_device_noinline int svm_node_radial_tiling(
   }
 
   if (calculate_segment_id) {
-    stack_store_float(
-        stack,
-        so.segment_id,
-        calculate_out_segment_id(fmaxf(r_gon_sides, 2.0f), make_float2(coord.x, coord.y)));
+    stack_store_float(stack,
+                      so.segment_id,
+                      calculate_out_segment_id(fmaxf(r_gon_sides, 2.0f),
+                                               clamp(r_gon_roundness, 0.0f, 1.0f),
+                                               clamp(irregular_r_gon_corner_shape, 0.0f, 1.0f),
+                                               make_float2(coord.x, coord.y)));
   }
 
   return offset;
