@@ -8,3 +8,4 @@ Referenced by issue #128758, Error Message when using old Shortcut for Crease Br
 Referenced by issue #128759, Wrong pop-up menu in Sculpt Mode on Curves Object
 Referenced by issue #128767, Regression: Batch Rename failed to rename bones
 Referenced by issue #128680, GPv3: Vertex color by default in paint mods
+Referenced by issue #136377, Transform modal map "Snap Toggle" causes scene snapping settings to toggle
