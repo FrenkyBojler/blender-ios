@@ -47,10 +47,6 @@ struct CurveBooleanOpParameters {
 };
 
 class Segment {
- private:
-  static constexpr int NULL_INTERSECTION_ID = -1;
-  static constexpr int LOOPING_INTERSECTION_ID = -2;
-
  public:
   int curve = -1;
   IndexRange points;
@@ -61,8 +57,8 @@ class Segment {
   float alpha_1 = 0.0;
   float alpha_2 = 0.0;
 
-  int inter_index_1 = NULL_INTERSECTION_ID;
-  int inter_index_2 = NULL_INTERSECTION_ID;
+  int inter_index_1 = -1;
+  int inter_index_2 = -1;
 
   bool reversed = false;
 
@@ -116,8 +112,8 @@ class Segment {
     segment.point_2 = points.last();
 
     if (cyclical) {
-      segment.inter_index_1 = LOOPING_INTERSECTION_ID;
-      segment.inter_index_2 = LOOPING_INTERSECTION_ID;
+      segment.alpha_1 = 1.0f;
+      segment.alpha_2 = 1.0f;
     }
 
     return segment;

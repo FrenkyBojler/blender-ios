@@ -53,7 +53,7 @@ namespace blender::geometry::boolean {
 
 bool Segment::is_loop() const
 {
-  return inter_index_1 == LOOPING_INTERSECTION_ID;
+  return this->end_alpha() == 1.0f;
 }
 
 int Segment::start_intersection() const
@@ -72,7 +72,7 @@ bool Segment::has_start_intersection() const
     return false;
   }
 
-  return this->start_intersection() != NULL_INTERSECTION_ID;
+  return this->start_alpha() != 0.0f;
 }
 
 bool Segment::has_end_intersection() const
@@ -81,7 +81,7 @@ bool Segment::has_end_intersection() const
     return false;
   }
 
-  return this->end_intersection() != NULL_INTERSECTION_ID;
+  return this->end_alpha() != 0.0f;
 }
 
 float Segment::start_alpha() const
