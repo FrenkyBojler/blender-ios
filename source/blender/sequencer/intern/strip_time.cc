@@ -563,7 +563,7 @@ static void strip_time_slip_strip_ex(const Scene *scene,
     strip->sound_offset += subframe_delta / FPS;
   }
 
-  if (delta == 0) {
+  if (delta == 0 && (!slip_keyframes || subframe_delta == 0.0f)) {
     return;
   }
 
