@@ -29,7 +29,6 @@
 #include "BKE_report.hh"
 #include "BKE_sound.h"
 
-#include "RNA_access.hh"
 #include "SEQ_add.hh"
 #include "SEQ_animation.hh"
 #include "SEQ_channels.hh"
@@ -616,8 +615,8 @@ static wmOperatorStatus sequencer_slip_exec(bContext *C, wmOperator *op)
 
   slip_add_sequences(ed->seqbasep, data->strip_array);
 
-  float offset_fl = RNA_float_get(op->ptr, "offset");
   bool slip_keyframes = RNA_boolean_get(op->ptr, "slip_keyframes");
+  float offset_fl = RNA_float_get(op->ptr, "offset");
   int offset = round_fl_to_int(offset_fl);
 
   float subframe_delta = 0.0f;

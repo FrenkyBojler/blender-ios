@@ -587,6 +587,7 @@ static void strip_time_slip_strip_ex(const Scene *scene,
     }
 
     LISTBASE_FOREACH (Strip *, strip_child, &strip->seqbase) {
+      /* The keyframes of strips inside meta strips should always be moved. */
       strip_time_slip_strip_ex(scene, strip_child, delta, subframe_delta, true, true);
     }
   }
