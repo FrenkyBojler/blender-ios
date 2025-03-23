@@ -379,14 +379,6 @@ static std::pair<WindingState, WindingState> LR_states_from_segment(
   return {state_L, state_R};
 }
 
-/* Crossing a line going left to right is incrementing. */
-// static bool seg_seg_winding(const float2 &P1, const float2 &P2, const float2 &Q1, const float2
-// &Q2)
-// {
-//   /* TODO */
-//   return 1;
-// }
-
 class SegmentEndPoint {
  private:
   int index_ = 0;
@@ -830,14 +822,17 @@ BooleanResult execute_single_boolean(const CurveBooleanOpParameters op_params,
       const int other_curve_k = inter_end.other_curve(curve_k);
 
       if (is_fill[other_curve_k]) {
-        /* TODO */
-        state_L.add_to_curve(other_curve_k, 1);
-        state_R.add_to_curve(other_curve_k, 1);
-        // current_winding_order += seg_seg_winding(
-        //     curve_subj[inter_first.point_a],
-        //     curve_subj[(inter_first.point_a + 1) % curve_subj.size()],
-        //     curve_clip[inter_first.point_b],
-        //     curve_clip[(inter_first.point_b + 1) % curve_clip.size()]);
+        const int point_k = curve_k == inter_end.curve_a ? inter_end.point_a : inter_end.point_b;
+        const int point_other = curve_k != inter_end.curve_a ? inter_end.point_a :
+                                                               inter_end.point_b;
+        const float2 &point1 = points[point_k];
+        const float2 &point_other1 = points[point_other];
+        const float2 &point_other2 = points[(point_other + 1) % points.size()];
+        const bool ccw = cross_tri_v2(point1, point_other1, point_other2) > 0.0;
+
+        /* Crossing a line going left to right is incrementing. */
+        state_L.add_to_curve(other_curve_k, ccw ? -1 : 1);
+        state_R.add_to_curve(other_curve_k, ccw ? -1 : 1);
       }
     }
   };
