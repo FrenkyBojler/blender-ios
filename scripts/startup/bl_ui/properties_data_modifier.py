@@ -187,7 +187,6 @@ class OBJECT_MT_modifier_add_deform(ModifierAddMenu, Menu):
         if ob_type in {'MESH', 'CURVE', 'FONT', 'SURFACE', 'LATTICE'}:
             self.operator_modifier_add(layout, 'ARMATURE')
             self.operator_modifier_add(layout, 'CAST')
-            self.operator_modifier_add(layout, 'CURVE')
         if ob_type == 'MESH':
             self.operator_modifier_add(layout, 'DISPLACE')
         if ob_type in {'MESH', 'CURVE', 'FONT', 'SURFACE', 'LATTICE'}:
