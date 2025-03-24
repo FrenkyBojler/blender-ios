@@ -39,6 +39,8 @@
 #include "ED_util.hh"
 #include "ED_view3d.hh"
 
+#include "BKE_mesh.h"
+#include "DNA_meshdata_types.h"
 #include "mesh_intern.hh" /* own include */
 
 using blender::Vector;
@@ -230,7 +232,7 @@ static void edbm_inset_cancel(bContext *C, wmOperator *op)
 
 static bool edbm_inset_calc(wmOperator *op)
 {
-  InsetData *opdata;
+  InsetData *opdata = static_cast<InsetData *>(op->customdata);
   BMOperator bmop;
   bool changed = false;
 
@@ -241,16 +243,14 @@ static bool edbm_inset_calc(wmOperator *op)
   const float thickness = RNA_float_get(op->ptr, "thickness");
   const float depth = RNA_float_get(op->ptr, "depth");
   const bool use_outset = RNA_boolean_get(op->ptr, "use_outset");
-  /* not passed onto the BMO */
   const bool use_select_inset = RNA_boolean_get(op->ptr, "use_select_inset");
   const bool use_individual = RNA_boolean_get(op->ptr, "use_individual");
   const bool use_interpolate = RNA_boolean_get(op->ptr, "use_interpolate");
 
-  opdata = static_cast<InsetData *>(op->customdata);
-
   for (uint ob_index = 0; ob_index < opdata->ob_store_len; ob_index++) {
     Object *obedit = opdata->ob_store[ob_index].ob;
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
+    BMesh *bm = em->bm;
 
     if (opdata->is_modal) {
       EDBM_redo_state_restore(&opdata->ob_store[ob_index].mesh_backup, em, false);
@@ -291,7 +291,20 @@ static bool edbm_inset_calc(wmOperator *op)
             em->bm, &bmop, bmop.slots_in, "faces_exclude", BM_FACE, BM_ELEM_HIDDEN);
       }
     }
+
     BMO_op_exec(em->bm, &bmop);
+
+    GSet *inset_faces = BLI_gset_ptr_new("inset_faces");
+    GSet *inset_verts = BLI_gset_ptr_new("inset_verts");
+    BMOIter siter;
+    BMFace *f;
+    BMO_ITER (f, &siter, bmop.slots_out, "faces.out", BM_FACE) {
+      BLI_gset_add(inset_faces, f);
+      BMLoop *l = f->l_first;
+      do {
+        BLI_gset_add(inset_verts, l->v);
+      } while ((l = l->next) != f->l_first);
+    }
 
     if (use_select_inset) {
       /* deselect original faces/verts */
@@ -303,6 +316,81 @@ static bool edbm_inset_calc(wmOperator *op)
       EDBM_flag_disable_all(em, BM_ELEM_SELECT);
       BMO_slot_buffer_hflag_enable(em->bm, bmop.slots_in, "faces", BM_FACE, BM_ELEM_SELECT, true);
     }
+
+    bool do_mirror = false;
+    bool mirror_axes[3] = {false, false, false};
+    Mesh *me = static_cast<Mesh *>(obedit->data);
+    if (obedit->type == OB_MESH && me->symmetry != 0) {
+      if (me->symmetry & ME_SYMMETRY_X) {
+        mirror_axes[0] = true;
+        do_mirror = true;
+      }
+      if (me->symmetry & ME_SYMMETRY_Y) {
+        mirror_axes[1] = true;
+        do_mirror = true;
+      }
+      if (me->symmetry & ME_SYMMETRY_Z) {
+        mirror_axes[2] = true;
+        do_mirror = true;
+      }
+    }
+
+    if (do_mirror) {
+      const bool use_topology = (me->editflag & ME_EDIT_MIRROR_TOPO) != 0;
+
+      for (int axis = 0; axis < 3; axis++) {
+        if (!mirror_axes[axis]) {
+          continue;
+        }
+
+        EDBM_verts_mirror_cache_begin(em, axis, false, true, true, use_topology);
+
+        GHash *vert_mirror_map = BLI_ghash_ptr_new("vert_mirror_map");
+        GSetIterator gs_iter;
+        GSET_ITER (gs_iter, inset_verts) {
+          BMVert *v = (BMVert *)BLI_gsetIterator_getKey(&gs_iter);
+          BMVert *v_mirr = EDBM_verts_mirror_get(em, v);
+          if (v_mirr) {
+            BLI_ghash_insert(vert_mirror_map, v, v_mirr);
+          }
+        }
+
+        GSET_ITER (gs_iter, inset_faces) {
+          BMFace *f = (BMFace *)BLI_gsetIterator_getKey(&gs_iter);
+          int len = f->len;
+          BMVert **new_verts = (BMVert **)MEM_callocN(sizeof(BMVert *) * len, "new_verts");
+
+          BMLoop *l = f->l_first;
+          int i = 0;
+          do {
+            BMVert *v_mirr = (BMVert *)BLI_ghash_lookup(vert_mirror_map, l->v);
+            if (v_mirr) {
+              new_verts[i] = v_mirr;
+            }
+            else {
+              new_verts[i] = BM_vert_create(bm, l->v->co, NULL, BM_CREATE_NOP);
+              float mirr_co[3];
+              copy_v3_v3(mirr_co, l->v->co);
+              mirr_co[axis] *= -1.0f;
+              copy_v3_v3(new_verts[i]->co, mirr_co);
+              BLI_ghash_insert(vert_mirror_map, l->v, new_verts[i]);
+            }
+            i++;
+          } while ((l = l->next) != f->l_first);
+
+          BMFace *new_face = BM_face_create_verts(bm, new_verts, len, f, BM_CREATE_NOP, true);
+          BM_elem_select_set(bm, (BMElem *)new_face, use_select_inset);
+
+          MEM_freeN(new_verts);
+        }
+
+        BLI_ghash_free(vert_mirror_map, NULL, NULL);
+        EDBM_verts_mirror_cache_end(em);
+      }
+    }
+
+    BLI_gset_free(inset_faces, NULL);
+    BLI_gset_free(inset_verts, NULL);
 
     if (!EDBM_op_finish(em, &bmop, op, true)) {
       continue;

@@ -31,8 +31,9 @@
 #include "ED_transform.hh"
 #include "ED_view3d.hh"
 
+#include "BKE_mesh.h"
+#include "DNA_meshdata_types.h"
 #include "mesh_intern.hh" /* own include */
-
 using blender::Vector;
 
 /* -------------------------------------------------------------------- */
@@ -234,9 +235,7 @@ static bool edbm_extrude_ex(Object *obedit,
   BMO_slot_buffer_from_enabled_hflag(bm, &extop, extop.slots_in, "geom", htype, hflag);
 
   if (use_mirror) {
-    BMOpSlot *slot_edges_exclude;
-    slot_edges_exclude = BMO_slot_get(extop.slots_in, "edges_exclude");
-
+    BMOpSlot *slot_edges_exclude = BMO_slot_get(extop.slots_in, "edges_exclude");
     edbm_extrude_edge_exclude_mirror(obedit, em, hflag, &extop, slot_edges_exclude);
   }
 
@@ -246,15 +245,205 @@ static bool edbm_extrude_ex(Object *obedit,
 
   BMO_op_exec(bm, &extop);
 
+  GSet *extruded_verts = BLI_gset_ptr_new("extruded_verts");
+  GSet *extruded_edges = BLI_gset_ptr_new("extruded_edges");
+  GSet *extruded_faces = BLI_gset_ptr_new("extruded_faces");
+
   BMO_ITER (ele, &siter, extop.slots_out, "geom.out", BM_ALL_NOLOOP) {
     BM_elem_select_set(bm, ele, true);
+    if (ele->head.htype == BM_VERT) {
+      BLI_gset_add(extruded_verts, ele);
+    }
+    else if (ele->head.htype == BM_EDGE) {
+      BLI_gset_add(extruded_edges, ele);
+    }
+    else if (ele->head.htype == BM_FACE) {
+      BLI_gset_add(extruded_faces, ele);
+    }
   }
 
-  BMO_op_finish(bm, &extop);
+  if (use_mirror) {
+    bool do_mirror = false;
+    bool mirror_axes[3] = {false, false, false};
+    Mesh *me = static_cast<Mesh *>(obedit->data);
+    if (obedit->type == OB_MESH && me->symmetry != 0) {
+      if (me->symmetry & ME_SYMMETRY_X) {
+        mirror_axes[0] = true;
+        do_mirror = true;
+      }
+      if (me->symmetry & ME_SYMMETRY_Y) {
+        mirror_axes[1] = true;
+        do_mirror = true;
+      }
+      if (me->symmetry & ME_SYMMETRY_Z) {
+        mirror_axes[2] = true;
+        do_mirror = true;
+      }
+    }
 
+    if (do_mirror) {
+      const bool use_topology = (me->editflag & ME_EDIT_MIRROR_TOPO) != 0;
+
+      GSet *orig_faces = BLI_gset_ptr_new("orig_faces");
+      BMIter fiter;
+      BMFace *f;
+      BM_ITER_MESH (f, &fiter, bm, BM_FACES_OF_MESH) {
+        if (BM_elem_flag_test(f, hflag)) {
+          BLI_gset_add(orig_faces, f);
+        }
+      }
+
+      for (int axis = 0; axis < 3; axis++) {
+        if (!mirror_axes[axis]) {
+          continue;
+        }
+
+        EDBM_verts_mirror_cache_begin(em, axis, false, true, true, use_topology);
+
+        GHash *vert_mirror_map = BLI_ghash_ptr_new("vert_mirror_map");
+        BMIter viter;
+        BMVert *v;
+        BM_ITER_MESH (v, &viter, bm, BM_VERTS_OF_MESH) {
+          BMVert *v_mirr = EDBM_verts_mirror_get(em, v);
+          if (v_mirr) {
+            BLI_ghash_insert(vert_mirror_map, v, v_mirr);
+          }
+        }
+
+        GSet *mirrored_faces = BLI_gset_ptr_new("mirrored_faces");
+        GSetIterator gs_iter;
+        GSET_ITER (gs_iter, orig_faces) {
+          BMFace *f = (BMFace *)BLI_gsetIterator_getKey(&gs_iter);
+          int len = f->len;
+          BMVert **mirrored_verts = (BMVert **)MEM_callocN(sizeof(BMVert *) * len,
+                                                           "mirrored_verts");
+
+          BMLoop *l = f->l_first;
+          int i = 0;
+          do {
+            mirrored_verts[i] = (BMVert *)BLI_ghash_lookup(vert_mirror_map, l->v);
+            if (!mirrored_verts[i]) {
+              mirrored_verts[i] = BM_vert_create(bm, l->v->co, NULL, BM_CREATE_NOP);
+              float mirr_co[3];
+              copy_v3_v3(mirr_co, l->v->co);
+              mirr_co[axis] *= -1.0f;
+              copy_v3_v3(mirrored_verts[i]->co, mirr_co);
+              BLI_ghash_insert(vert_mirror_map, l->v, mirrored_verts[i]);
+            }
+            i++;
+          } while ((l = l->next) != f->l_first);
+
+          BMFace *mirrored_face = BM_face_create_verts(
+              bm, mirrored_verts, len, f, BM_CREATE_NOP, true);
+          BLI_gset_add(mirrored_faces, mirrored_face);
+
+          MEM_freeN(mirrored_verts);
+        }
+
+        EDBM_flag_disable_all(em, BM_ELEM_SELECT);
+
+        GSET_ITER (gs_iter, mirrored_faces) {
+          BMFace *mirrored_face = (BMFace *)BLI_gsetIterator_getKey(&gs_iter);
+          BM_elem_flag_enable(mirrored_face, BM_ELEM_SELECT);
+        }
+
+        BMOperator mirror_extop;
+        BMO_op_init(bm, &mirror_extop, BMO_FLAG_DEFAULTS, "extrude_face_region");
+        BMO_slot_bool_set(mirror_extop.slots_in, "use_normal_flip", use_normal_flip);
+        BMO_slot_bool_set(
+            mirror_extop.slots_in, "use_dissolve_ortho_edges", use_dissolve_ortho_edges);
+        BMO_slot_bool_set(mirror_extop.slots_in, "use_select_history", use_select_history);
+        BMO_slot_buffer_from_enabled_hflag(
+            bm, &mirror_extop, mirror_extop.slots_in, "geom", htype, BM_ELEM_SELECT);
+
+        BMO_op_exec(bm, &mirror_extop);
+
+        GSet *mirrored_extruded_verts = BLI_gset_ptr_new("mirrored_extruded_verts");
+        GSet *mirrored_extruded_edges = BLI_gset_ptr_new("mirrored_extruded_edges");
+        GSet *mirrored_extruded_faces = BLI_gset_ptr_new("mirrored_extruded_faces");
+
+        BMO_ITER (ele, &siter, mirror_extop.slots_out, "geom.out", BM_ALL_NOLOOP) {
+          if (ele->head.htype == BM_VERT) {
+            BLI_gset_add(mirrored_extruded_verts, ele);
+          }
+          else if (ele->head.htype == BM_EDGE) {
+            BLI_gset_add(mirrored_extruded_edges, ele);
+          }
+          else if (ele->head.htype == BM_FACE) {
+            BLI_gset_add(mirrored_extruded_faces, ele);
+          }
+        }
+
+        GSet *mirrored_top_faces = BLI_gset_ptr_new("mirrored_top_faces");
+        GSET_ITER (gs_iter, mirrored_extruded_faces) {
+          BMFace *f = (BMFace *)BLI_gsetIterator_getKey(&gs_iter);
+          bool is_top_face = true;
+          BMLoop *l = f->l_first;
+          do {
+            if (!BLI_gset_haskey(mirrored_extruded_verts, l->v)) {
+              is_top_face = false;
+              break;
+            }
+          } while ((l = l->next) != f->l_first);
+          if (is_top_face) {
+            BLI_gset_add(mirrored_top_faces, f);
+          }
+        }
+
+        EDBM_flag_disable_all(em, BM_ELEM_SELECT);
+
+        GSET_ITER (gs_iter, mirrored_extruded_faces) {
+          BMFace *f = (BMFace *)BLI_gsetIterator_getKey(&gs_iter);
+          if (BLI_gset_haskey(mirrored_top_faces, f)) {
+            BM_elem_select_set(bm, (BMElem *)f, true);
+          }
+          else if (!BLI_gset_haskey(mirrored_faces, f)) {
+            BM_elem_select_set(bm, (BMElem *)f, true);
+          }
+        }
+        GSET_ITER (gs_iter, mirrored_extruded_edges) {
+          BMEdge *e = (BMEdge *)BLI_gsetIterator_getKey(&gs_iter);
+          BM_elem_select_set(bm, (BMElem *)e, true);
+        }
+        GSET_ITER (gs_iter, mirrored_extruded_verts) {
+          BMVert *v = (BMVert *)BLI_gsetIterator_getKey(&gs_iter);
+          BM_elem_select_set(bm, (BMElem *)v, true);
+        }
+
+        GSET_ITER (gs_iter, extruded_verts) {
+          BMVert *v = (BMVert *)BLI_gsetIterator_getKey(&gs_iter);
+          BM_elem_select_set(bm, (BMElem *)v, true);
+        }
+        GSET_ITER (gs_iter, extruded_edges) {
+          BMEdge *e = (BMEdge *)BLI_gsetIterator_getKey(&gs_iter);
+          BM_elem_select_set(bm, (BMElem *)e, true);
+        }
+        GSET_ITER (gs_iter, extruded_faces) {
+          BMFace *f = (BMFace *)BLI_gsetIterator_getKey(&gs_iter);
+          BM_elem_select_set(bm, (BMElem *)f, true);
+        }
+
+        BLI_gset_free(mirrored_extruded_verts, NULL);
+        BLI_gset_free(mirrored_extruded_edges, NULL);
+        BLI_gset_free(mirrored_extruded_faces, NULL);
+        BLI_gset_free(mirrored_top_faces, NULL);
+        BLI_gset_free(mirrored_faces, NULL);
+        BLI_ghash_free(vert_mirror_map, NULL, NULL);
+        BMO_op_finish(bm, &mirror_extop);
+        EDBM_verts_mirror_cache_end(em);
+      }
+
+      BLI_gset_free(orig_faces, NULL);
+    }
+  }
+
+  BLI_gset_free(extruded_verts, NULL);
+  BLI_gset_free(extruded_edges, NULL);
+  BLI_gset_free(extruded_faces, NULL);
+
+  BMO_op_finish(bm, &extop);
   return true;
 }
-
 /** \} */
 
 /* -------------------------------------------------------------------- */

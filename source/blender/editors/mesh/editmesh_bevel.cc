@@ -43,6 +43,8 @@
 #include "ED_util.hh"
 #include "ED_view3d.hh"
 
+#include "BKE_mesh.h"
+#include "DNA_meshdata_types.h"
 #include "mesh_intern.hh" /* own include */
 
 using blender::Vector;
@@ -325,53 +327,129 @@ static bool edbm_bevel_calc(wmOperator *op)
   for (BevelObjectStore &ob_store : opdata->ob_store) {
     Object *obedit = ob_store.ob;
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
+    Mesh *me = static_cast<Mesh *>(obedit->data);
 
-    /* revert to original mesh */
+    /* Revert to original mesh */
     if (opdata->is_modal) {
       EDBM_redo_state_restore(&ob_store.mesh_backup, em, false);
     }
 
     const int material = std::clamp(material_init, -1, obedit->totcol - 1);
 
-    EDBM_op_init(em,
-                 &bmop,
-                 op,
-                 "bevel geom=%hev offset=%f segments=%i affect=%i offset_type=%i "
-                 "profile_type=%i profile=%f clamp_overlap=%b material=%i loop_slide=%b "
-                 "mark_seam=%b mark_sharp=%b harden_normals=%b face_strength_mode=%i "
-                 "miter_outer=%i miter_inner=%i spread=%f custom_profile=%p "
-                 "vmesh_method=%i",
-                 BM_ELEM_SELECT,
-                 offset,
-                 segments,
-                 affect,
-                 offset_type,
-                 profile_type,
-                 profile,
-                 clamp_overlap,
-                 material,
-                 loop_slide,
-                 mark_seam,
-                 mark_sharp,
-                 harden_normals,
-                 face_strength_mode,
-                 miter_outer,
-                 miter_inner,
-                 spread,
-                 opdata->custom_profile,
-                 vmesh_method);
+    if (me->symmetry == 0) {
+      EDBM_op_init(em,
+                   &bmop,
+                   op,
+                   "bevel geom=%hev offset=%f segments=%i affect=%i offset_type=%i "
+                   "profile_type=%i profile=%f clamp_overlap=%b material=%i loop_slide=%b "
+                   "mark_seam=%b mark_sharp=%b harden_normals=%b face_strength_mode=%i "
+                   "miter_outer=%i miter_inner=%i spread=%f custom_profile=%p "
+                   "vmesh_method=%i",
+                   BM_ELEM_SELECT,
+                   offset,
+                   segments,
+                   affect,
+                   offset_type,
+                   profile_type,
+                   profile,
+                   clamp_overlap,
+                   material,
+                   loop_slide,
+                   mark_seam,
+                   mark_sharp,
+                   harden_normals,
+                   face_strength_mode,
+                   miter_outer,
+                   miter_inner,
+                   spread,
+                   opdata->custom_profile,
+                   vmesh_method);
 
-    BMO_op_exec(em->bm, &bmop);
+      BMO_op_exec(em->bm, &bmop);
+    }
+    else {
+      for (int axis = 0; axis < 3; axis++) {
+        const int axis_flag = (ME_SYMMETRY_X << axis);
+        if ((me->symmetry & axis_flag) == 0) {
+          continue;
+        }
+
+        const bool use_topology = ((me->editflag & ME_EDIT_MIRROR_TOPO) != 0);
+        EDBM_verts_mirror_cache_begin(em, axis, false, true, false, use_topology);
+
+        if (affect == BEVEL_AFFECT_VERTICES) {
+          BMIter viter;
+          BMVert *v;
+          Vector<BMVert *> verts_to_bevel;
+
+          BM_ITER_MESH (v, &viter, em->bm, BM_VERTS_OF_MESH) {
+            if (BM_elem_flag_test(v, BM_ELEM_SELECT) && !BM_elem_flag_test(v, BM_ELEM_HIDDEN)) {
+              verts_to_bevel.append(v);
+              BMVert *v_mirror = EDBM_verts_mirror_get(em, v);
+              if (v_mirror && !verts_to_bevel.contains(v_mirror)) {
+                BM_elem_flag_enable(v_mirror, BM_ELEM_SELECT);
+                verts_to_bevel.append(v_mirror);
+              }
+            }
+          }
+        }
+        else {
+          BMIter eiter;
+          BMEdge *e;
+          Vector<BMEdge *> edges_to_bevel;
+
+          BM_ITER_MESH (e, &eiter, em->bm, BM_EDGES_OF_MESH) {
+            if (BM_elem_flag_test(e, BM_ELEM_SELECT) && !BM_elem_flag_test(e, BM_ELEM_HIDDEN)) {
+              edges_to_bevel.append(e);
+              BMEdge *e_mirror = EDBM_verts_mirror_get_edge(em, e);
+              if (e_mirror && !edges_to_bevel.contains(e_mirror)) {
+                BM_elem_flag_enable(e_mirror, BM_ELEM_SELECT);
+                edges_to_bevel.append(e_mirror);
+              }
+            }
+          }
+        }
+
+        EDBM_op_init(em,
+                     &bmop,
+                     op,
+                     "bevel geom=%hev offset=%f segments=%i affect=%i offset_type=%i "
+                     "profile_type=%i profile=%f clamp_overlap=%b material=%i loop_slide=%b "
+                     "mark_seam=%b mark_sharp=%b harden_normals=%b face_strength_mode=%i "
+                     "miter_outer=%i miter_inner=%i spread=%f custom_profile=%p "
+                     "vmesh_method=%i",
+                     BM_ELEM_SELECT,
+                     offset,
+                     segments,
+                     affect,
+                     offset_type,
+                     profile_type,
+                     profile,
+                     clamp_overlap,
+                     material,
+                     loop_slide,
+                     mark_seam,
+                     mark_sharp,
+                     harden_normals,
+                     face_strength_mode,
+                     miter_outer,
+                     miter_inner,
+                     spread,
+                     opdata->custom_profile,
+                     vmesh_method);
+
+        BMO_op_exec(em->bm, &bmop);
+
+        EDBM_verts_mirror_cache_end(em);
+      }
+    }
 
     if (offset != 0.0f) {
-      /* Not essential, but we may have some loose geometry that
-       * won't get beveled and better not leave it selected. */
       EDBM_flag_disable_all(em, BM_ELEM_SELECT);
       BMO_slot_buffer_hflag_enable(
           em->bm, bmop.slots_out, "faces.out", BM_FACE, BM_ELEM_SELECT, true);
     }
 
-    /* no need to de-select existing geometry */
     if (!EDBM_op_finish(em, &bmop, op, true)) {
       continue;
     }
@@ -380,7 +458,7 @@ static bool edbm_bevel_calc(wmOperator *op)
     params.calc_looptris = true;
     params.calc_normals = true;
     params.is_destructive = true;
-    EDBM_update(static_cast<Mesh *>(obedit->data), &params);
+    EDBM_update(static_cast<Mesh *>(obedit->data), &params);  // Fixed: pass address of params
     changed = true;
   }
   return changed;

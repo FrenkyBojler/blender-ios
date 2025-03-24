@@ -109,21 +109,15 @@ static void apply_value_impl(TransInfo *t, const char *value_name)
   char str[UI_MAX_DRAW_STR];
 
   value = t->values[0] + t->values_modal_offset[0];
-
   CLAMP_MAX(value, 1.0f);
 
   transform_snap_increment(t, &value);
-
   applyNumInput(&t->num, &value);
-
   t->values_final[0] = value;
 
-  /* Header print for NumInput. */
   if (hasNumInput(&t->num)) {
     char c[NUM_STR_REP_LEN];
-
     outputNumInput(&(t->num), c, t->scene->unit);
-
     if (value >= 0.0f) {
       SNPRINTF(str, "%s: +%s %s", value_name, c, t->proptext);
     }
@@ -132,7 +126,6 @@ static void apply_value_impl(TransInfo *t, const char *value_name)
     }
   }
   else {
-    /* Default header print. */
     if (value >= 0.0f) {
       SNPRINTF(str, "%s: +%.3f %s", value_name, value, t->proptext);
     }
@@ -154,7 +147,6 @@ static void apply_value_impl(TransInfo *t, const char *value_name)
   }
 
   recalc_data(t);
-
   ED_area_status_text(t->area, str);
 }
 
@@ -173,48 +165,57 @@ static void apply_value_impl_with_mirror(TransInfo *t, const char *value_name)
   if (hasNumInput(&t->num)) {
     char c[NUM_STR_REP_LEN];
     outputNumInput(&(t->num), c, t->scene->unit);
-    if (value >= 0.0f)
+    if (value >= 0.0f) {
       SNPRINTF(str, "%s: +%s %s", value_name, c, t->proptext);
-    else
+    }
+    else {
       SNPRINTF(str, "%s: %s %s", value_name, c, t->proptext);
+    }
   }
   else {
-    if (value >= 0.0f)
+    if (value >= 0.0f) {
       SNPRINTF(str, "%s: +%.3f %s", value_name, value, t->proptext);
-    else
+    }
+    else {
       SNPRINTF(str, "%s: %.3f %s", value_name, value, t->proptext);
+    }
   }
 
   FOREACH_TRANS_DATA_CONTAINER (t, tc) {
     threading::parallel_for(IndexRange(tc->data_len), 1024, [&](const IndexRange range) {
       for (const int i : range) {
         TransData *td = &tc->data[i];
-        if (td->flag & TD_SKIP)
+        if (td->flag & TD_SKIP) {
           continue;
+        }
 
         transdata_elem_value(t, tc, td, value);
 
-        Mesh *me = (Mesh *)tc->obedit->data;
-        if (me && me->symmetry) {
+        Mesh *me = static_cast<Mesh *>(tc->obedit->data);
+        if (me && me->symmetry && td->extra) {
           BMEditMesh *em = BKE_editmesh_from_object(tc->obedit);
-          TransEdgeMirrorData *med = (TransEdgeMirrorData *)td->extra;
+          TransEdgeMirrorData *med = static_cast<TransEdgeMirrorData *>(td->extra);
           if (med && med->edge) {
             for (int axis = 0; axis < 3; axis++) {
               const int axis_flag = (ME_SYMMETRY_X << axis);
-              if (!(me->symmetry & axis_flag))
+              if (!(me->symmetry & axis_flag)) {
                 continue;
+              }
               const bool use_topology = ((me->editflag & ME_EDIT_MIRROR_TOPO) != 0);
               EDBM_verts_mirror_cache_begin(em, axis, false, true, false, use_topology);
               BMEdge *edge_mirror = EDBM_verts_mirror_get_edge(em, med->edge);
               if (edge_mirror) {
-                int cd_edge_float_offset = CustomData_get_offset_named(
-                    &em->bm->edata, CD_PROP_FLOAT, "crease_edge");
+                int cd_edge_float_offset = (t->mode == TFM_BWEIGHT) ?
+                                               CustomData_get_offset_named(&em->bm->edata,
+                                                                           CD_PROP_FLOAT,
+                                                                           "bevel_weight_edge") :
+                                               CustomData_get_offset_named(
+                                                   &em->bm->edata, CD_PROP_FLOAT, "crease_edge");
                 if (cd_edge_float_offset != -1) {
                   float *mirror_val = static_cast<float *>(
                       BM_ELEM_CD_GET_VOID_P(edge_mirror, cd_edge_float_offset));
                   if (mirror_val) {
-                    float mirror_ival = med->mirror_ival;
-                    *mirror_val = mirror_ival + value * td->factor;
+                    *mirror_val = med->mirror_ival + value * td->factor;
                     CLAMP(*mirror_val, 0.0f, 1.0f);
                   }
                 }
@@ -238,7 +239,7 @@ static void applyCrease(TransInfo *t)
 
 static void applyBevelWeight(TransInfo *t)
 {
-  apply_value_impl(t, IFACE_("Bevel Weight"));
+  apply_value_impl_with_mirror(t, IFACE_("Bevel Weight"));
 }
 
 static void init_mode_impl(TransInfo *t)
