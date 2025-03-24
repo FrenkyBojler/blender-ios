@@ -2813,7 +2813,32 @@ static int vertex_group_remove_from_exec(bContext *C, wmOperator *op)
       return OPERATOR_CANCELLED;
     }
 
-    if (ob->type == OB_GREASE_PENCIL) {
+    if (ob->type == OB_MESH && BKE_object_is_in_editmode(ob)) {
+      Mesh *mesh = static_cast<Mesh *>(ob->data);
+      BMEditMesh *em = mesh->runtime->edit_mesh.get();
+      int cd_dvert_offset = CustomData_get_offset(&em->bm->vdata, CD_MDEFORMVERT);
+      if (cd_dvert_offset == -1) {
+        return OPERATOR_CANCELLED;
+      }
+
+      const int def_nr = BKE_object_defgroup_active_index_get(ob) - 1;
+      BMIter iter;
+      BMVert *eve;
+      BM_ITER_MESH (eve, &iter, em->bm, BM_VERTS_OF_MESH) {
+        if (!use_all_verts && !BM_elem_flag_test(eve, BM_ELEM_SELECT)) {
+          continue;
+        }
+        MDeformVert *dv = static_cast<MDeformVert *>(BM_ELEM_CD_GET_VOID_P(eve, cd_dvert_offset));
+        MDeformWeight *dw = BKE_defvert_find_index(dv, def_nr);
+        if (dw) {
+          BKE_defvert_remove_group(dv, dw);
+          if (mesh->symmetry & ME_SYMMETRY_X) {
+            ED_mesh_defvert_mirror_update_em(ob, eve, def_nr, -1, cd_dvert_offset);
+          }
+        }
+      }
+    }
+    else if (ob->type == OB_GREASE_PENCIL) {
       grease_pencil_clear_from_vgroup(scene, *ob, dg, !use_all_verts);
     }
     else if (BKE_object_defgroup_clear(ob, dg, !use_all_verts) == false) {
