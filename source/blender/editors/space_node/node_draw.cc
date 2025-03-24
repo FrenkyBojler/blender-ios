@@ -1527,12 +1527,6 @@ static void create_inspection_string_for_generic_value(const bNodeSocket &socket
     id_to_inspection_string(*static_cast<const ID *const *>(buffer), ID_GR);
     return;
   }
-  if (value_type.is<std::string>()) {
-    fmt::format_to(fmt::appender(buf),
-                   fmt::runtime(TIP_("{} (String)")),
-                   *static_cast<const std::string *>(buffer));
-    return;
-  }
 
   const CPPType &socket_type = *socket.typeinfo->base_cpp_type;
 
@@ -1889,6 +1883,16 @@ static std::optional<std::string> create_log_inspection_string(geo_log::GeoTreeL
           dynamic_cast<const geo_log::GenericValueLog *>(value_log))
   {
     create_inspection_string_for_generic_value(socket, generic_value_log->value, buf);
+  }
+  else if (const geo_log::StringLog *string_log = dynamic_cast<const geo_log::StringLog *>(
+               value_log))
+  {
+    if (string_log->truncated) {
+      fmt::format_to(fmt::appender(buf), fmt::runtime(TIP_("{}... (String)")), string_log->value);
+    }
+    else {
+      fmt::format_to(fmt::appender(buf), fmt::runtime(TIP_("{} (String)")), string_log->value);
+    }
   }
   else if (const geo_log::FieldInfoLog *gfield_value_log =
                dynamic_cast<const geo_log::FieldInfoLog *>(value_log))
@@ -3313,7 +3317,7 @@ static void node_draw_extra_info_panel(const bContext &C,
 
 static short get_viewer_shortcut_icon(const bNode &node)
 {
-  BLI_assert(node.is_type("CompositorNodeViewer"));
+  BLI_assert(node.is_type("CompositorNodeViewer") || node.is_type("GeometryNodeViewer"));
   switch (node.custom1) {
     case NODE_VIEWER_SHORTCUT_NONE:
       /* No change by default. */
@@ -3528,9 +3532,24 @@ static void node_draw_basis(const bContext &C,
                               0,
                               "");
     /* Selection implicitly activates the node. */
-    const char *operator_idname = is_active ? "NODE_OT_deactivate_viewer" : "NODE_OT_select";
+    const char *operator_idname = is_active ? "NODE_OT_deactivate_viewer" :
+                                              "NODE_OT_activate_viewer";
     UI_but_func_set(
         but, node_toggle_button_cb, POINTER_FROM_INT(node.identifier), (void *)operator_idname);
+
+    short shortcut_icon = get_viewer_shortcut_icon(node);
+    uiDefIconBut(&block,
+                 UI_BTYPE_BUT,
+                 0,
+                 shortcut_icon,
+                 iconofs - 1.2 * iconbutw,
+                 rct.ymax - NODE_DY,
+                 iconbutw,
+                 UI_UNIT_Y,
+                 nullptr,
+                 0,
+                 0,
+                 "");
     UI_block_emboss_set(&block, UI_EMBOSS);
   }
   /* Viewer node shortcuts. */

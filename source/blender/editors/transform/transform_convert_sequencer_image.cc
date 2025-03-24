@@ -232,7 +232,7 @@ static TransformResult transform_result_get(TransInfo *t,
 
   return TransformResult{(orig_strip_origin_pixelspace - handle_origin) * mirror * aspect,
                          {math::length(handle_x), math::length(handle_y)},
-                         t->values_final[0]};
+                         t->values_final[0] * mirror[0] * mirror[1]};
 }
 
 static void image_transform_set(TransInfo *t)

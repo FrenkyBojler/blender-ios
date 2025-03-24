@@ -88,6 +88,8 @@
 #include "BKE_unit.hh"
 #include "BKE_workspace.hh"
 
+#include "ANIM_action.hh"
+
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_build.hh"
 #include "DEG_depsgraph_debug.hh"
@@ -395,8 +397,6 @@ static void scene_free_data(ID *id)
 {
   Scene *scene = (Scene *)id;
   const bool do_id_user = false;
-
-  DRW_drawdata_free(id);
 
   blender::seq::editing_free(scene, do_id_user);
 
@@ -1600,14 +1600,26 @@ const char *RE_engine_id_CYCLES = "CYCLES";
 
 static void remove_sequencer_fcurves(Scene *sce)
 {
-  AnimData *adt = BKE_animdata_from_id(&sce->id);
+  using namespace blender;
 
-  if (adt && adt->action) {
-    LISTBASE_FOREACH_MUTABLE (FCurve *, fcu, &adt->action->curves) {
-      if ((fcu->rna_path) && strstr(fcu->rna_path, "sequences_all")) {
-        action_groups_remove_channel(adt->action, fcu);
-        BKE_fcurve_free(fcu);
-      }
+  std::optional<std::pair<animrig::Action *, animrig::Slot *>> action_and_slot =
+      animrig::get_action_slot_pair(sce->id);
+  if (!action_and_slot) {
+    return;
+  }
+
+  animrig::Channelbag *channelbag = channelbag_for_action_slot(*action_and_slot->first,
+                                                               action_and_slot->second->handle);
+  if (!channelbag) {
+    return;
+  }
+
+  /* Create a copy of the F-Curve pointers, so iteration is safe while they are removed. */
+  Vector<FCurve *> fcurves = channelbag->fcurves();
+
+  for (FCurve *fcurve : fcurves) {
+    if ((fcurve->rna_path) && strstr(fcurve->rna_path, "sequence_editor.strips_all")) {
+      channelbag->fcurve_remove(*fcurve);
     }
   }
 }
@@ -2203,7 +2215,7 @@ bool BKE_scene_camera_switch_update(Scene *scene)
   Object *camera = BKE_scene_camera_switch_find(scene);
   if (camera && (camera != scene->camera)) {
     scene->camera = camera;
-    DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
+    DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL | ID_RECALC_PARAMETERS);
     return true;
   }
 #else
@@ -3344,7 +3356,7 @@ Depsgraph *BKE_scene_ensure_depsgraph(Main *bmain, Scene *scene, ViewLayer *view
 static char *scene_undo_depsgraph_gen_key(Scene *scene, ViewLayer *view_layer, char *key_full)
 {
   if (key_full == nullptr) {
-    key_full = static_cast<char *>(MEM_callocN(MAX_ID_NAME + FILE_MAX + MAX_NAME, __func__));
+    key_full = MEM_calloc_arrayN<char>(MAX_ID_NAME + FILE_MAX + MAX_NAME, __func__);
   }
 
   size_t key_full_offset = BLI_strncpy_rlen(key_full, scene->id.name, MAX_ID_NAME);

@@ -1560,8 +1560,7 @@ void wm_homefile_read_ex(bContext *C,
     }
     else {
       params_file_read_post.is_alloc = true;
-      *r_params_file_read_post = static_cast<wmFileReadPost_Params *>(
-          MEM_mallocN(sizeof(wmFileReadPost_Params), __func__));
+      *r_params_file_read_post = MEM_mallocN<wmFileReadPost_Params>(__func__);
       **r_params_file_read_post = params_file_read_post;
 
       /* Match #wm_file_read_post which leaves the window cleared too. */
@@ -1619,7 +1618,7 @@ void wm_history_file_read()
     const char *line = static_cast<const char *>(l->link);
     /* Don't check if files exist, causes slow startup for remote/external drives. */
     if (line[0]) {
-      RecentFile *recent = (RecentFile *)MEM_mallocN(sizeof(RecentFile), "RecentFile");
+      RecentFile *recent = MEM_mallocN<RecentFile>("RecentFile");
       BLI_addtail(&(G.recent_files), recent);
       recent->filepath = BLI_strdup(line);
       num++;
@@ -1631,7 +1630,7 @@ void wm_history_file_read()
 
 static RecentFile *wm_history_file_new(const char *filepath)
 {
-  RecentFile *recent = static_cast<RecentFile *>(MEM_mallocN(sizeof(RecentFile), "RecentFile"));
+  RecentFile *recent = MEM_mallocN<RecentFile>("RecentFile");
   recent->filepath = BLI_strdup(filepath);
   return recent;
 }
@@ -1771,13 +1770,11 @@ static uint8_t *blend_file_thumb_fast_downscale(const uint8_t *src_rect,
    * this isn't a concern. */
 
   BLI_assert(dst_size[0] <= src_size[0] && dst_size[1] <= src_size[1]);
-  uint8_t *dst_rect = static_cast<uint8_t *>(
-      MEM_mallocN(sizeof(uint8_t[4]) * dst_size[0] * dst_size[1], __func__));
+  uint8_t *dst_rect = MEM_malloc_arrayN<uint8_t>(size_t(4 * dst_size[0] * dst_size[1]), __func__);
 
   /* A row, the width of the destination to accumulate pixel values into
    * before writing into the image. */
-  uint32_t *accum_row = static_cast<uint32_t *>(
-      MEM_callocN(sizeof(uint32_t) * dst_size[0] * 4, __func__));
+  uint32_t *accum_row = MEM_calloc_arrayN<uint32_t>(size_t(dst_size[0] * 4), __func__);
 
 #  ifndef NDEBUG
   /* Assert that samples are calculated correctly. */
@@ -3654,7 +3651,9 @@ static int wm_save_as_mainfile_exec(bContext *C, wmOperator *op)
   char filepath[FILE_MAX];
   const bool is_save_as = (op->type->invoke == wm_save_as_mainfile_invoke);
   const bool use_save_as_copy = is_save_as && RNA_boolean_get(op->ptr, "copy");
-  const bool is_incremental = RNA_boolean_get(op->ptr, "incremental");
+
+  PropertyRNA *prop = RNA_struct_find_property(op->ptr, "incremental");
+  const bool is_incremental = prop ? RNA_property_boolean_get(op->ptr, prop) : false;
 
   /* We could expose all options to the users however in most cases remapping
    * existing relative paths is a good default.
@@ -4327,8 +4326,8 @@ static void save_file_overwrite_confirm(bContext *C, void *arg_block, void *arg_
 {
   wmWindow *win = CTX_wm_window(C);
 
-  /* Re-use operator properties as defined for the initial 'save' operator, which triggered this
-   * 'forward compat' popup. */
+  /* Re-use operator properties as defined for the initial "Save" operator,
+   * which triggered this "Forward Compatibility" popup. */
   wmGenericCallback *callback = WM_generic_callback_steal(
       static_cast<wmGenericCallback *>(arg_data));
 
