@@ -1306,9 +1306,7 @@ int transformEvent(TransInfo *t, wmOperator *op, const wmEvent *event)
         }
         break;
       case TFM_MODAL_ORIGIN:
-        if (t->flag & T_ORIGIN) {
-          t->flag ^= T_ORIGIN;
-        }
+        t->flag ^= T_ORIGIN;
         freeSnapping(t);
         initSnapping(t, nullptr);
         t->redraw |= TREDRAW_HARD;
