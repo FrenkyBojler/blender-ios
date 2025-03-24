@@ -82,6 +82,16 @@ bool Evaluator::validate_node_tree()
     return false;
   }
 
+  for (const bNodeTree *node_tree : derived_node_tree_->used_btrees()) {
+    for (const bNode *node : node_tree->all_nodes()) {
+      const char *disabled_hint = nullptr;
+      if (!node->typeinfo->poll(node->typeinfo, node_tree, &disabled_hint)) {
+        context_.set_info_message("Compositor node tree has unsupported nodes or sockets!");
+        return false;
+      }
+    }
+  }
+
   return true;
 }
 
