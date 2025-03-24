@@ -710,20 +710,6 @@ BooleanResult execute_single_boolean(const CurveBooleanOpParameters op_params,
       IntersectionPoint &inter_first = intersections[int_p_1];
       IntersectionPoint &inter_last = intersections[int_p_2];
 
-      if (curve_k == inter_last.curve_a) {
-        inter_last.end_a = SegmentEndPoint(all_segments.size(), true);
-      }
-      else {
-        inter_last.end_b = SegmentEndPoint(all_segments.size(), true);
-      }
-
-      if (curve_k == inter_first.curve_a) {
-        inter_first.start_a = SegmentEndPoint(all_segments.size(), false);
-      }
-      else {
-        inter_first.start_b = SegmentEndPoint(all_segments.size(), false);
-      }
-
       all_segments.append(Segment::from_intersections(curve_k,
                                                       points_k,
                                                       inter_last.parameter_for_curve(curve_k),
@@ -734,13 +720,6 @@ BooleanResult execute_single_boolean(const CurveBooleanOpParameters op_params,
     else {
       const int int_p_1 = new_inters[inter_sorted_ids.first()];
       IntersectionPoint &inter_first = intersections[int_p_1];
-
-      if (curve_k == inter_first.curve_a) {
-        inter_first.end_a = SegmentEndPoint(all_segments.size(), true);
-      }
-      else {
-        inter_first.end_b = SegmentEndPoint(all_segments.size(), true);
-      }
 
       all_segments.append(Segment::from_start_to_intersection(
           curve_k, points_k, inter_first.parameter_for_curve(curve_k), int_p_1));
@@ -753,20 +732,6 @@ BooleanResult execute_single_boolean(const CurveBooleanOpParameters op_params,
       IntersectionPoint &inter_first = intersections[int_p_1];
       IntersectionPoint &inter_last = intersections[int_p_2];
 
-      if (curve_k == inter_first.curve_a) {
-        inter_first.end_a = SegmentEndPoint(all_segments.size(), true);
-      }
-      else {
-        inter_first.end_b = SegmentEndPoint(all_segments.size(), true);
-      }
-
-      if (curve_k == inter_last.curve_a) {
-        inter_last.start_a = SegmentEndPoint(all_segments.size(), false);
-      }
-      else {
-        inter_last.start_b = SegmentEndPoint(all_segments.size(), false);
-      }
-
       all_segments.append(Segment::from_intersections(curve_k,
                                                       points_k,
                                                       inter_first.parameter_for_curve(curve_k),
@@ -778,13 +743,6 @@ BooleanResult execute_single_boolean(const CurveBooleanOpParameters op_params,
     if (!(is_cyclic[curve_k] || is_fill[curve_k])) {
       const int int_p_2 = new_inters[inter_sorted_ids.last()];
       IntersectionPoint &inter_last = intersections[int_p_2];
-
-      if (curve_k == inter_last.curve_a) {
-        inter_last.start_a = SegmentEndPoint(all_segments.size(), false);
-      }
-      else {
-        inter_last.start_b = SegmentEndPoint(all_segments.size(), false);
-      }
 
       all_segments.append(Segment::from_intersection_to_end(
           curve_k, points_k, inter_last.parameter_for_curve(curve_k), int_p_2));
@@ -849,6 +807,33 @@ BooleanResult execute_single_boolean(const CurveBooleanOpParameters op_params,
     const IndexMask &curves_j = shapes[clip_shape_id];
     curves_j.foreach_index([&](const int curve_j) { add_segments(curve_j); });
   });
+
+  /* -------------------- */
+
+  for (const int seg_i : all_segments.index_range()) {
+    const Segment &segment = all_segments[seg_i];
+    const int curve_i = segment.curve;
+
+    if (segment.has_start_intersection()) {
+      IntersectionPoint &inter_start = intersections[segment.start_intersection()];
+      if (curve_i == inter_start.curve_a) {
+        inter_start.end_a = SegmentEndPoint(seg_i, true);
+      }
+      else {
+        inter_start.end_b = SegmentEndPoint(seg_i, true);
+      }
+    }
+
+    if (segment.has_end_intersection()) {
+      IntersectionPoint &inter_end = intersections[segment.end_intersection()];
+      if (curve_i == inter_end.curve_a) {
+        inter_end.start_a = SegmentEndPoint(seg_i, false);
+      }
+      else {
+        inter_end.start_b = SegmentEndPoint(seg_i, false);
+      }
+    }
+  }
 
   /* -------------------- */
 
