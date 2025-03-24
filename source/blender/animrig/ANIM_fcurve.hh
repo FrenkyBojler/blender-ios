@@ -67,6 +67,11 @@ FCurve *fcurve_find(Span<FCurve *> fcurves, const FCurveDescriptor &fcurve_descr
  */
 FCurve *create_fcurve_for_channel(const FCurveDescriptor &fcurve_descriptor);
 
+/**
+ * Determine the F-Curve flags suitable for animating an RNA property of the given type.
+ */
+eFCurve_Flags fcurve_flags_for_property_type(PropertyType prop_type);
+
 /** Initialize the given BezTriple with default values. */
 void initialize_bezt(BezTriple *beztr,
                      float2 position,

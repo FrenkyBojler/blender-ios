@@ -1099,12 +1099,6 @@ class Channelbag : public ::ActionChannelbag {
    * previously-unanimated depsgraph component may become animated now. Can be
    * nullptr, in which case the tagging is skipped and is left as the
    * responsibility of the caller.
-   *
-   * NOTE: Since this function does not know which RNA property type is
-   * animated, it cannot set certain flags on the F-Curve. It is the
-   * responsibility of the caller to call `update_autoflags_fcurve_direct()`.
-   *
-   * \see blender::animrig::update_autoflags_fcurve_direct()
    */
   FCurve &fcurve_ensure(Main *bmain, const FCurveDescriptor &fcurve_descriptor);
 
@@ -1118,12 +1112,6 @@ class Channelbag : public ::ActionChannelbag {
    * previously-unanimated depsgraph component may become animated now. Can be
    * nullptr, in which case the tagging is skipped and is left as the
    * responsibility of the caller.
-   *
-   * NOTE: Since this function does not know which RNA property type is
-   * animated, it cannot set certain flags on the F-Curve. It is the
-   * responsibility of the caller to call `update_autoflags_fcurve_direct()`.
-   *
-   * \see blender::animrig::update_autoflags_fcurve_direct()
    */
   FCurve *fcurve_create_unique(Main *bmain, const FCurveDescriptor &fcurve_descriptor);
 
@@ -1318,12 +1306,6 @@ class Channelbag : public ::ActionChannelbag {
    * previously-unanimated depsgraph component may become animated now. Can be
    * nullptr, in which case the tagging is skipped and is left as the
    * responsibility of the caller.
-   *
-   * NOTE: Since this function does not know which RNA property type is
-   * animated, it cannot set certain flags on the F-Curve. It is the
-   * responsibility of the caller to call `update_autoflags_fcurve_direct()`.
-   *
-   * \see blender::animrig::update_autoflags_fcurve_direct()
    */
   FCurve &fcurve_create(Main *bmain, const FCurveDescriptor &fcurve_descriptor);
 

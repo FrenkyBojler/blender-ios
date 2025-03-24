@@ -221,24 +221,10 @@ std::optional<StringRefNull> default_channel_group_for_path(const PointerRNA *an
 
 void update_autoflags_fcurve_direct(FCurve *fcu, const PropertyType prop_type)
 {
-  /* Set additional flags for the F-Curve (i.e. only integer values). */
+  /* First clear out all the flags that should be updated by this function, before setting just the
+   * ones suitable for this property type. */
   fcu->flag &= ~(FCURVE_INT_VALUES | FCURVE_DISCRETE_VALUES);
-  switch (prop_type) {
-    case PROP_FLOAT:
-      /* Do nothing. */
-      break;
-    case PROP_INT:
-      /* Do integer (only 'whole' numbers) interpolation between all points. */
-      fcu->flag |= FCURVE_INT_VALUES;
-      break;
-    default:
-      /* Do 'discrete' (i.e. enum, boolean values which cannot take any intermediate
-       * values at all) interpolation between all points.
-       *    - however, we must also ensure that evaluated values are only integers still.
-       */
-      fcu->flag |= (FCURVE_DISCRETE_VALUES | FCURVE_INT_VALUES);
-      break;
-  }
+  fcu->flag |= fcurve_flags_for_property_type(prop_type);
 }
 
 bool is_keying_flag(const Scene *scene, const eKeying_Flag flag)
