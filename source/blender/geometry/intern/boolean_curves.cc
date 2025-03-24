@@ -789,23 +789,23 @@ BooleanResult execute_single_boolean(const CurveBooleanOpParameters op_params,
       }
     }
 
-    /* Only add segments that contribute. */
-    const IndexRange segments = segments_k.index_range();
+    all_segments.extend(segments_k);
 
-    const Segment &first_segment = segments_k[segments.first()];
+    const IndexRange segments = all_segments.index_range().take_back(segments_k.size());
+
+    const Segment &first_segment = all_segments[segments.first()];
     const IndexMask &mask_shapes = is_subj ? clipping_shapes : shapes[subj_shape_id];
     auto [state_L, state_R] = LR_states_from_segment(
         first_segment, points, points_by_curve, shapes, mask_shapes, is_fill);
 
     for (const int seg_i : segments) {
-      const Segment &this_segment = segments_k[seg_i];
+      const Segment &this_segment = all_segments[seg_i];
 
       const bool is_in_L = state_L.is_contributing(
           op_params, shapes, subj_shape_id, clipping_shapes);
       const bool is_in_R = state_R.is_contributing(
           op_params, shapes, subj_shape_id, clipping_shapes);
 
-      all_segments.append(this_segment);
       all_inside_left.append(is_in_L);
       all_inside_right.append(is_in_R);
 
