@@ -112,7 +112,7 @@ class Segment {
     segment.point_2 = points.last();
 
     if (cyclical) {
-      segment.alpha_1 = 1.0f;
+      segment.alpha_1 = 0.0f;
       segment.alpha_2 = 1.0f;
     }
 
