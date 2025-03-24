@@ -14,3 +14,4 @@ Referenced by issue #135820, Blender 4.3.2 Crashes When Switching To Wireframe V
 Referenced by issue #134604, Intel Arc: The text of the interface is displayed incorrectly
 Referenced by issue #135488, Intel Arc: Corrupted text/menu/input fields
 Referenced by issue #136047, OSL gettextureinfo crashes with sigsev
+Referenced by issue #136456, Sculpt mode not always working
