@@ -44,7 +44,7 @@ static const EnumPropertyItem fbx_vertex_colors_mode[] = {
      "Vertex colors in the file are in linear color space"},
     {0, nullptr, 0, nullptr, nullptr}};
 
-static int wm_fbx_import_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus wm_fbx_import_exec(bContext *C, wmOperator *op)
 {
   FBXImportParams params;
   params.global_scale = RNA_float_get(op->ptr, "global_scale");

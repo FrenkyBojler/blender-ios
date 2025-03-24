@@ -8,6 +8,7 @@
 
 #include <cstdio>
 
+#include "BKE_action.hh"
 #include "BKE_armature.hh"
 #include "BKE_object.hh"
 #include "BKE_object_types.hh"
@@ -41,6 +42,7 @@ struct ArmatureImportContext {
   Object *create_armature_for_node(const ufbx_node *node);
   void create_armature_bones(const ufbx_node *node,
                              Object *arm_obj,
+                             Set<const ufbx_node *> &arm_bones,
                              EditBone *parent_bone,
                              const ufbx_matrix &parent_mtx,
                              const ufbx_matrix &world_to_arm,
@@ -85,6 +87,7 @@ Object *ArmatureImportContext::create_armature_for_node(const ufbx_node *node)
 
 void ArmatureImportContext::create_armature_bones(const ufbx_node *node,
                                                   Object *arm_obj,
+                                                  Set<const ufbx_node *> &arm_bones,
                                                   EditBone *parent_bone,
                                                   const ufbx_matrix &parent_mtx,
                                                   const ufbx_matrix &world_to_arm,
@@ -93,9 +96,9 @@ void ArmatureImportContext::create_armature_bones(const ufbx_node *node,
   bArmature *arm = static_cast<bArmature *>(arm_obj->data);
 
   EditBone *bone = ED_armature_ebone_add(arm, get_fbx_name(node->name, "Bone"));
+  arm_bones.add(node);
   /* For all bone nodes, record the whole armature as the owning object. */
   this->mapping.el_to_object.add(&node->element, arm_obj);
-  //@TODO: custom props
   bone->flag |= BONE_SELECTED;
   bone->parent = parent_bone;
 
@@ -200,7 +203,7 @@ void ArmatureImportContext::create_armature_bones(const ufbx_node *node,
     }
 
     if (!skip_child) {
-      create_armature_bones(fchild, arm_obj, bone, bone_mtx, world_to_arm, bone_size);
+      create_armature_bones(fchild, arm_obj, arm_bones, bone, bone_mtx, world_to_arm, bone_size);
     }
   }
 }
@@ -229,7 +232,7 @@ void ArmatureImportContext::find_armatures(const ufbx_node *node)
       arm_obj = this->create_armature_for_node(nullptr);
     }
 
-    /* Create bones. */
+    /* Create bones in edit mode. */
     ufbx_matrix arm_to_world;
     m44_to_matrix(arm_obj->runtime->object_to_world.ptr(), arm_to_world);
     ufbx_matrix world_to_arm = ufbx_matrix_invert(&arm_to_world);
@@ -238,11 +241,22 @@ void ArmatureImportContext::find_armatures(const ufbx_node *node)
     ED_armature_to_edit(arm);
     for (const ufbx_node *fchild : node->children) {
       if (fchild->attrib_type == UFBX_ELEMENT_BONE) {
-        create_armature_bones(fchild, arm_obj, nullptr, ufbx_identity_matrix, world_to_arm, 1.0f);
+        create_armature_bones(fchild, arm_obj, arm_bones, nullptr, ufbx_identity_matrix, world_to_arm, 1.0f);
       }
     }
     ED_armature_from_edit(&this->bmain, arm);
     ED_armature_edit_free(arm);
+
+    /* Setup pose on the object, and custom properties on the pose bones. */
+    for (const ufbx_node *fbone : arm_bones) {
+      bPoseChannel *pchan = BKE_pose_channel_find_name(arm_obj->pose, fbone->name.data);
+      if (pchan == nullptr) {
+        continue;
+      }
+      read_custom_properties(fbone->props, *pchan);
+      //@TODO
+      // BKE_pchan_apply_mat4(pchan, (const float(*)[4])values, false);
+    }
   }
 
   /* Recurse into non-bone children. */

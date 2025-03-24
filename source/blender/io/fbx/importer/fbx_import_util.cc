@@ -79,105 +79,161 @@ void node_matrix_to_obj(const ufbx_node *node, Object *obj)
   ufbx_matrix_to_obj(mtx, obj);
 }
 
+static void read_ufbx_property(const ufbx_prop &prop, IDProperty *idgroup)
+{
+  IDProperty *idprop = nullptr;
+  IDPropertyTemplate val = {0};
+  //@TODO: validate_blend_names on the property name
+  const char *name = prop.name.data;
+
+  switch (prop.type) {
+    case UFBX_PROP_BOOLEAN:
+      val.i = prop.value_int;
+      idprop = IDP_New(IDP_BOOLEAN, &val, name);
+      break;
+    case UFBX_PROP_INTEGER: {
+      bool parsed_as_enum = false;
+      if ((prop.flags & UFBX_PROP_FLAG_VALUE_STR) && (prop.value_str.length > 0)) {
+        /* "Enum" property with integer value, and enum names as `~` separated string. */
+        const char *tilde = prop.value_str.data;
+        int enum_index = -1;
+        while (true) {
+          const char *tilde_start = tilde;
+          tilde = BLI_strchr_or_end(tilde_start, '~');
+          if (tilde == tilde_start) {
+            break;
+          }
+          /* We have an enum value string. */
+          enum_index++;
+          if (enum_index == prop.value_int) {
+            /* Found the needed one. */
+            parsed_as_enum = true;
+            std::string str_val = StringRef(tilde_start, tilde).trim();
+            val.string.str = str_val.c_str();
+            val.string.len = str_val.size() + 1; /* .len needs to include null terminator. */
+            val.string.subtype = IDP_STRING_SUB_UTF8;
+            idprop = IDP_New(IDP_STRING, &val, name);
+            break;
+          }
+          if (tilde[0] == 0) {
+            break;
+          }
+          tilde++;
+        }
+      }
+
+      if (!parsed_as_enum) {
+        val.i = prop.value_int;
+        idprop = IDP_New(IDP_INT, &val, name);
+      }
+
+    } break;
+    case UFBX_PROP_NUMBER:
+      val.d = prop.value_real;
+      idprop = IDP_New(IDP_DOUBLE, &val, name);
+      break;
+    case UFBX_PROP_STRING:
+      if (STREQ(name, "UDP3DSMAX")) {
+        /* 3dsmax user properties are coming as `UDP3DSMAX` property. Parse them
+         * as multi-line text, splitting across `=` within each line. */
+        const char *line = prop.value_str.data;
+        while (true) {
+          const char *line_start = line;
+          line = BLI_strchr_or_end(line_start, '\n');
+          if (line == line_start) {
+            break;
+          }
+
+          /* We have a line, split it by '=' and trim name/value. */
+          const char *eq_pos = line_start;
+          while (eq_pos != line && eq_pos[0] != '=') {
+            eq_pos++;
+          }
+          if (eq_pos[0] == '=') {
+            std::string str_name = StringRef(line_start, eq_pos).trim();
+            std::string str_val = StringRef(eq_pos + 1, line).trim();
+            //@TODO validate_blend_names on str_name
+            val.string.str = str_val.c_str();
+            val.string.len = str_val.size() + 1; /* .len needs to include null terminator. */
+            val.string.subtype = IDP_STRING_SUB_UTF8;
+            IDProperty *str_prop = IDP_New(IDP_STRING, &val, str_name.c_str());
+            IDP_AddToGroup(idgroup, str_prop);
+          }
+
+          if (line[0] == 0) {
+            break;
+          }
+          line++;
+        }
+      }
+      else {
+        val.string.str = prop.value_str.data;
+        val.string.len = prop.value_str.length + 1; /* .len needs to include null terminator. */
+        val.string.subtype = IDP_STRING_SUB_UTF8;
+        idprop = IDP_New(IDP_STRING, &val, name);
+      }
+      break;
+    case UFBX_PROP_VECTOR:
+    case UFBX_PROP_COLOR:
+      val.array.len = 3;
+      val.array.type = IDP_DOUBLE;
+      idprop = IDP_New(IDP_ARRAY, &val, name);
+      {
+        double *dst = static_cast<double *>(idprop->data.pointer);
+        dst[0] = prop.value_vec3.x;
+        dst[1] = prop.value_vec3.y;
+        dst[2] = prop.value_vec3.z;
+      }
+      break;
+    case UFBX_PROP_COLOR_WITH_ALPHA:
+      val.array.len = 4;
+      val.array.type = IDP_DOUBLE;
+      idprop = IDP_New(IDP_ARRAY, &val, name);
+      {
+        double *dst = static_cast<double *>(idprop->data.pointer);
+        dst[0] = prop.value_vec4.x;
+        dst[1] = prop.value_vec4.y;
+        dst[2] = prop.value_vec4.z;
+        dst[3] = prop.value_vec4.z;
+      }
+      break;
+    default:
+      break;
+  }
+
+  if (idprop != nullptr) {
+    IDP_AddToGroup(idgroup, idprop);
+  }
+}
+
 void read_custom_properties(const ufbx_props &props, ID &id)
 {
   for (const ufbx_prop &prop : props.props) {
     if ((prop.flags & UFBX_PROP_FLAG_USER_DEFINED) == 0) {
       continue;
     }
-
     IDProperty *idgroup = IDP_EnsureProperties(&id);
-    IDProperty *idprop = nullptr;
-    IDPropertyTemplate val = {0};
-    //@TODO: validate_blend_names on the property name
-    const char *name = prop.name.data;
+    read_ufbx_property(prop, idgroup);
+  }
+}
 
-    switch (prop.type) {
-      case UFBX_PROP_BOOLEAN:
-        val.i = prop.value_int;
-        idprop = IDP_New(IDP_BOOLEAN, &val, name);
-        break;
-      case UFBX_PROP_INTEGER:
-        val.i = prop.value_int;
-        idprop = IDP_New(IDP_INT, &val, name);
-        break;
-      case UFBX_PROP_NUMBER:
-        val.d = prop.value_real;
-        idprop = IDP_New(IDP_DOUBLE, &val, name);
-        break;
-      case UFBX_PROP_STRING:
-        if (STREQ(name, "UDP3DSMAX")) {
-          /* 3dsmax user properties are coming with UDP3DSMAX name, and a multi-line
-           * string split by '=' character. */
-          const char *line = prop.value_str.data;
-          while (true) {
-            const char *line_start = line;
-            line = BLI_strchr_or_end(line_start, '\n');
-            if (line == line_start) {
-              break;
-            }
+static IDProperty *pchan_EnsureProperties(bPoseChannel &pchan)
+{
+  if (pchan.prop == nullptr) {
+    pchan.prop = MEM_callocN<IDProperty>("IDProperty");
+    pchan.prop->type = IDP_GROUP;
+  }
+  return pchan.prop;
+}
 
-            /* We have a line, split it by '=' and trim name/value. */
-            const char *eq_pos = line_start;
-            while (eq_pos != line && eq_pos[0] != '=') {
-              eq_pos++;
-            }
-            if (eq_pos[0] == '=') {
-              std::string str_name = StringRef(line_start, eq_pos).trim();
-              std::string str_val = StringRef(eq_pos + 1, line).trim();
-              //@TODO validate_blend_names on str_name
-              if (!str_name.empty() && !str_val.empty()) {
-                val.string.str = str_val.c_str();
-                val.string.len = str_val.size() + 1; /* .len needs to include null terminator. */
-                val.string.subtype = IDP_STRING_SUB_UTF8;
-                IDProperty *str_prop = IDP_New(IDP_STRING, &val, str_name.c_str());
-                IDP_AddToGroup(idgroup, str_prop);
-              }
-            }
-
-            if (line[0] == 0) {
-              break;
-            }
-          }
-        }
-        else {
-          val.string.str = prop.value_str.data;
-          val.string.len = prop.value_str.length + 1; /* .len needs to include null terminator. */
-          val.string.subtype = IDP_STRING_SUB_UTF8;
-          idprop = IDP_New(IDP_STRING, &val, name);
-        }
-        break;
-      case UFBX_PROP_VECTOR:
-      case UFBX_PROP_COLOR:
-        val.array.len = 3;
-        val.array.type = IDP_DOUBLE;
-        idprop = IDP_New(IDP_ARRAY, &val, name);
-        {
-          double *dst = static_cast<double *>(idprop->data.pointer);
-          dst[0] = prop.value_vec3.x;
-          dst[1] = prop.value_vec3.y;
-          dst[2] = prop.value_vec3.z;
-        }
-        break;
-      case UFBX_PROP_COLOR_WITH_ALPHA:
-        val.array.len = 4;
-        val.array.type = IDP_DOUBLE;
-        idprop = IDP_New(IDP_ARRAY, &val, name);
-        {
-          double *dst = static_cast<double *>(idprop->data.pointer);
-          dst[0] = prop.value_vec4.x;
-          dst[1] = prop.value_vec4.y;
-          dst[2] = prop.value_vec4.z;
-          dst[3] = prop.value_vec4.z;
-        }
-        break;
-      default:
-        break;
+void read_custom_properties(const ufbx_props& props, bPoseChannel& pchan)
+{
+  for (const ufbx_prop &prop : props.props) {
+    if ((prop.flags & UFBX_PROP_FLAG_USER_DEFINED) == 0) {
+      continue;
     }
-
-    if (idprop != nullptr) {
-      IDP_AddToGroup(idgroup, idprop);
-    }
+    IDProperty *idgroup = pchan_EnsureProperties(pchan);
+    read_ufbx_property(prop, idgroup);
   }
 }
 
