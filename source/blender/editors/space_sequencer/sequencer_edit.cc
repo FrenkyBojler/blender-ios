@@ -843,7 +843,7 @@ void SEQUENCER_OT_slip(wmOperatorType *ot)
   RNA_def_property_ui_range(prop, -FLT_MAX, FLT_MAX, 100, 0);
   RNA_def_boolean(ot->srna,
                   "slip_keyframes",
-                  true,
+                  false,
                   "Slip Keyframes",
                   "Move the keyframes alongside the media");
 }
