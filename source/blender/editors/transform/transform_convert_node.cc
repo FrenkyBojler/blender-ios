@@ -104,7 +104,7 @@ static bool is_node_parent_select(const bNode *node)
 static bool transform_tied_to_other_node(bNode *node, VectorSet<bNode *> transformed_nodes)
 {
   if (node->is_frame()) {
-    const NodeFrame *data = (const NodeFrame *)node->storage;
+    const NodeFrame *data = static_cast<const NodeFrame *>(node->storage);
 
     const bool shrinking = data->flag & NODE_FRAME_SHRINK;
     const bool is_parent = !(node->direct_children_in_frame().is_empty());
