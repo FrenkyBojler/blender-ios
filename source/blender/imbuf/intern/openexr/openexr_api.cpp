@@ -38,7 +38,9 @@
 
 #include <OpenEXR/Iex.h>
 #include <OpenEXR/ImfArray.h>
+#include <OpenEXR/ImfAttribute.h>
 #include <OpenEXR/ImfChannelList.h>
+#include <OpenEXR/ImfChromaticities.h>
 #include <OpenEXR/ImfCompression.h>
 #include <OpenEXR/ImfCompressionAttribute.h>
 #include <OpenEXR/ImfIO.h>
@@ -107,6 +109,13 @@ static void imb_exr_type_by_channels(ChannelList &channels,
                                      bool *r_singlelayer,
                                      bool *r_multilayer,
                                      bool *r_multiview);
+
+/* XYZ with Illuminant E */
+static Imf::Chromaticities CHROMATICITIES_XYZ_E{
+    {1.0f, 0.0f}, {0.0f, 1.0f}, {0.0f, 0.0f}, {1.0f / 3.0f, 1.0f / 3.0f}};
+/* Values matching ChromaticitiesForACES in https://github.com/ampas/aces_container */
+static Imf::Chromaticities CHROMATICITIES_ACES_2065_1{
+    {0.7347f, 0.2653f}, {0.0f, 1.0f}, {0.0001f, -0.077f}, {0.32168f, 0.33767f}};
 
 /* Memory Input Stream */
 
@@ -2108,44 +2117,17 @@ static bool imb_check_chromaticity_val(float test_v, float ref_v)
 }
 
 /* https://openexr.com/en/latest/TechnicalIntroduction.html#recommendations */
-static bool imb_is_chromaticities_xyz_e(float red_x,
-                                        float red_y,
-                                        float green_x,
-                                        float green_y,
-                                        float blue_x,
-                                        float blue_y,
-                                        float white_x,
-                                        float white_y)
+static bool imb_check_chromaticity_matches(const Imf::Chromaticities &a,
+                                           const Imf::Chromaticities &b)
 {
-  if (imb_check_chromaticity_val(red_x, 1.f) && (red_y == 0.f) && (green_x == 0.f) &&
-      imb_check_chromaticity_val(green_y, 1.f) && (blue_x == 0.f) && (blue_y == 0.f) &&
-      imb_check_chromaticity_val(white_x, 1.f / 3.f) &&
-      imb_check_chromaticity_val(white_y, 1.f / 3.f))
-  {
-    return true;
-  }
-  return false;
-}
-
-static bool imb_is_chromaticities_aces_2065_1(float red_x,
-                                              float red_y,
-                                              float green_x,
-                                              float green_y,
-                                              float blue_x,
-                                              float blue_y,
-                                              float white_x,
-                                              float white_y)
-{
-  /* Values matching ChromaticitiesForACES in https://github.com/ampas/aces_container */
-  if (imb_check_chromaticity_val(red_x, 0.7347f) && imb_check_chromaticity_val(red_y, 0.2653f) &&
-      (green_x == 0.f) && imb_check_chromaticity_val(green_y, 1.f) &&
-      imb_check_chromaticity_val(blue_x, 0.0001f) && imb_check_chromaticity_val(blue_y, -0.077f) &&
-      imb_check_chromaticity_val(white_x, 0.32168f) &&
-      imb_check_chromaticity_val(white_y, 0.33767f))
-  {
-    return true;
-  }
-  return false;
+  return imb_check_chromaticity_val(a.red.x, b.red.x) &&
+         imb_check_chromaticity_val(a.red.y, b.red.y) &&
+         imb_check_chromaticity_val(a.green.x, b.green.x) &&
+         imb_check_chromaticity_val(a.green.y, b.green.y) &&
+         imb_check_chromaticity_val(a.blue.x, b.blue.x) &&
+         imb_check_chromaticity_val(a.blue.y, b.blue.y) &&
+         imb_check_chromaticity_val(a.white.x, b.white.x) &&
+         imb_check_chromaticity_val(a.white.y, b.white.y);
 }
 
 static void imb_exr_set_known_colorspace(const Header &header, char colorspace[IMA_MAX_SPACE])
@@ -2153,35 +2135,16 @@ static void imb_exr_set_known_colorspace(const Header &header, char colorspace[I
   if (colorspace == nullptr || colorspace[0] != '\0') {
     return;
   }
+
   const ChromaticitiesAttribute *header_chromaticities =
       header.findTypedAttribute<ChromaticitiesAttribute>("chromaticities");
   if (header_chromaticities) {
     const Chromaticities &val = header_chromaticities->value();
-    if (imb_is_chromaticities_xyz_e(val.red.x,
-                                    val.red.y,
-                                    val.green.x,
-                                    val.green.y,
-                                    val.blue.x,
-                                    val.blue.y,
-                                    val.white.x,
-                                    val.white.y))
-    {
-      if (IMB_set_colorspace_name_if_exists(colorspace, "Linear CIE-XYZ E")) {
-        return;
-      }
+    if (imb_check_chromaticity_matches(val, CHROMATICITIES_XYZ_E)) {
+      IMB_set_colorspace_name_if_exists(colorspace, "Linear CIE-XYZ E");
     }
-    else if (imb_is_chromaticities_aces_2065_1(val.red.x,
-                                               val.red.y,
-                                               val.green.x,
-                                               val.green.y,
-                                               val.blue.x,
-                                               val.blue.y,
-                                               val.white.x,
-                                               val.white.y))
-    {
-      if (IMB_set_colorspace_name_if_exists(colorspace, "ACES2065-1")) {
-        return;
-      }
+    else if (imb_check_chromaticity_matches(val, CHROMATICITIES_ACES_2065_1)) {
+      IMB_set_colorspace_name_if_exists(colorspace, "ACES2065-1");
     }
   }
 
