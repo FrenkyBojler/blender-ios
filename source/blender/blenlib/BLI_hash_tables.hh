@@ -75,21 +75,22 @@ class LoadFactor {
   uint8_t denominator_;
 
  public:
-  LoadFactor(uint8_t numerator, uint8_t denominator)
+  constexpr LoadFactor(uint8_t numerator, uint8_t denominator)
       : numerator_(numerator), denominator_(denominator)
   {
     BLI_assert(numerator > 0);
     BLI_assert(numerator < denominator);
   }
 
-  void compute_total_and_usable_slots(int64_t min_total_slots,
-                                      int64_t min_usable_slots,
-                                      int64_t *r_total_slots,
-                                      int64_t *r_usable_slots) const
+  constexpr void compute_total_and_usable_slots(int64_t min_total_slots,
+                                                int64_t min_usable_slots,
+                                                int64_t *r_total_slots,
+                                                int64_t *r_usable_slots) const
   {
     BLI_assert(is_power_of_2(int(min_total_slots)));
 
-    int64_t total_slots = this->compute_total_slots(min_usable_slots, numerator_, denominator_);
+    int64_t total_slots = LoadFactor::compute_total_slots(
+        min_usable_slots, numerator_, denominator_);
     total_slots = std::max(total_slots, min_total_slots);
     const int64_t usable_slots = floor_multiplication_with_fraction(
         total_slots, numerator_, denominator_);

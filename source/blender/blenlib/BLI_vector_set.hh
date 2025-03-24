@@ -63,6 +63,11 @@ template<
      */
     typename Key,
     /**
+     * The number of values that can be stored in the container without a heap allocation for the
+     * keys.
+     */
+    int64_t InlineBufferCapacity = 4,
+    /**
      * The strategy used to deal with collisions. They are defined in BLI_probing_strategies.hh.
      */
     typename ProbingStrategy = DefaultProbingStrategy,
@@ -125,10 +130,11 @@ class VectorSet {
   /** This is called to check equality of two keys. */
   BLI_NO_UNIQUE_ADDRESS IsEqual is_equal_;
 
-  /** The max load factor is 1/2 = 50% by default. */
+/** The max load factor is 1/2 = 50% by default. */
 #define LOAD_FACTOR 1, 2
-  LoadFactor max_load_factor_ = LoadFactor(LOAD_FACTOR);
-  using SlotArray = Array<Slot, LoadFactor::compute_total_slots(4, LOAD_FACTOR), Allocator>;
+  static constexpr LoadFactor max_load_factor_ = LoadFactor(LOAD_FACTOR);
+  using SlotArray =
+      Array<Slot, LoadFactor::compute_total_slots(InlineBufferCapacity, LOAD_FACTOR), Allocator>;
 #undef LOAD_FACTOR
 
   /**
@@ -971,7 +977,7 @@ template<typename Key,
          typename Hash = DefaultHash<Key>,
          typename IsEqual = DefaultEquality<Key>,
          typename Slot = typename DefaultVectorSetSlot<Key>::type>
-using RawVectorSet = VectorSet<Key, ProbingStrategy, Hash, IsEqual, Slot, RawAllocator>;
+using RawVectorSet = VectorSet<Key, 4, ProbingStrategy, Hash, IsEqual, Slot, RawAllocator>;
 
 template<typename T, typename GetIDFn> struct CustomIDHash {
   using CustomIDType = decltype(GetIDFn{}(std::declval<T>()));
@@ -1010,8 +1016,11 @@ template<typename T, typename GetIDFn> struct CustomIDEqual {
  * #GetIDFn should have an implementation that returns a hashable and equality comparable type,
  * i.e. `StringRef operator()(const bNode *value) { return value->idname; }`.
  */
-template<typename T, typename GetIDFn>
-using CustomIDVectorSet =
-    VectorSet<T, DefaultProbingStrategy, CustomIDHash<T, GetIDFn>, CustomIDEqual<T, GetIDFn>>;
+template<typename T, typename GetIDFn, int64_t InlineBufferCapacity = 4>
+using CustomIDVectorSet = VectorSet<T,
+                                    InlineBufferCapacity,
+                                    DefaultProbingStrategy,
+                                    CustomIDHash<T, GetIDFn>,
+                                    CustomIDEqual<T, GetIDFn>>;
 
 }  // namespace blender
