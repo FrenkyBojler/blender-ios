@@ -7,23 +7,10 @@
  */
 
 #include <cfloat>
-#include <cstdio>
 #include <cstdlib>
 
-#include "DNA_brush_types.h"
-#include "DNA_light_types.h"
-#include "DNA_material_types.h"
-#include "DNA_node_types.h"
-#include "DNA_object_types.h"
-#include "DNA_particle_types.h"
-#include "DNA_scene_types.h" /* MAXFRAME only */
 #include "DNA_texture_types.h"
-#include "DNA_world_types.h"
 
-#include "BLI_utildefines.h"
-
-#include "BKE_node.hh"
-#include "BKE_node_tree_update.hh"
 #include "BKE_paint.hh"
 
 #include "BLT_translation.hh"
@@ -130,6 +117,8 @@ static const EnumPropertyItem blend_type_items[] = {
 
 #  include <fmt/format.h>
 
+#  include "DNA_particle_types.h"
+
 #  include "MEM_guardedalloc.h"
 
 #  include "RNA_access.hh"
@@ -139,7 +128,10 @@ static const EnumPropertyItem blend_type_items[] = {
 #  include "BKE_context.hh"
 #  include "BKE_image.hh"
 #  include "BKE_main.hh"
+#  include "BKE_main_invariants.hh"
 #  include "BKE_node_legacy_types.hh"
+#  include "BKE_node_runtime.hh"
+#  include "BKE_node_tree_update.hh"
 #  include "BKE_texture.h"
 
 #  include "DEG_depsgraph.hh"
@@ -194,7 +186,7 @@ static void rna_Texture_update(Main *bmain, Scene * /*scene*/, PointerRNA *ptr)
   }
   else if (GS(id->name) == ID_NT) {
     bNodeTree *ntree = (bNodeTree *)ptr->owner_id;
-    ED_node_tree_propagate_change(*bmain, ntree);
+    BKE_main_ensure_invariants(*bmain, ntree->id);
   }
 }
 
@@ -207,7 +199,7 @@ static void rna_Texture_mapping_update(Main *bmain, Scene *scene, PointerRNA *pt
   if (GS(id->name) == ID_NT) {
     bNodeTree *ntree = (bNodeTree *)ptr->owner_id;
     /* Try to find and tag the node that this #TexMapping belongs to. */
-    LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
+    for (bNode *node : ntree->all_nodes()) {
       /* This assumes that the #TexMapping is stored at the beginning of the node storage. This is
        * generally true, see #NodeTexBase. If the assumption happens to be false, there might be a
        * missing update. */

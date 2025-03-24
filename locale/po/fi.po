@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.4.0 Alpha (b'52cb367a9b67')\n"
+"Project-Id-Version: Blender 4.5.0 Alpha (b'409ce2b976cf')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-01-13 11:47+0000\n"
+"POT-Creation-Date: 2025-03-24 09:38+0000\n"
 "PO-Revision-Date: 2024-10-16 00:56+0000\n"
 "Last-Translator: Leevi Oksanen <laavi.oksanen@gmail.com>\n"
 "Language-Team: Finnish <https://translate.blender.org/projects/blender-ui/ui/fi/>\n"
@@ -65,10 +65,6 @@ msgstr "F-Käyrät"
 
 msgid "Action F-Curves"
 msgstr "Toiminta F-käyrät"
-
-
-msgid "Collection of action F-Curves"
-msgstr "Toiminta F-käyrä -kokoelma"
 
 
 msgid "Action Group"
@@ -247,36 +243,16 @@ msgid "Collection of action groups"
 msgstr "Toimintaryhmäkokoelma"
 
 
-msgid "Mix Mode"
-msgstr "Sekoitustila"
-
-
-msgid "Replace"
-msgstr "Korvaa"
-
-
-msgid "Offset"
-msgstr "Siirros"
-
-
-msgid "Add"
-msgstr "Lisää"
-
-
-msgid "Subtract"
-msgstr "Vähennä"
-
-
-msgid "Multiply"
-msgstr "Kerro"
-
-
 msgid "Action Pose Markers"
 msgstr "Toiminto-asentomerkit"
 
 
 msgid "Active"
 msgstr "Aktiivinen"
+
+
+msgid "Show Expanded"
+msgstr "Näytä laajennettu"
 
 
 msgctxt "ID"
@@ -474,10 +450,6 @@ msgid "World"
 msgstr "Maailma"
 
 
-msgid "Show Expanded"
-msgstr "Näytä laajennettu"
-
-
 msgid "Add-on"
 msgstr "Lisäosa"
 
@@ -566,8 +538,24 @@ msgid "Active Action for this data-block"
 msgstr "Aktiiviset toiminnot tälle data-palikalle"
 
 
+msgid "Replace"
+msgstr "Korvaa"
+
+
 msgid "Combine"
 msgstr "Yhdistä"
+
+
+msgid "Add"
+msgstr "Lisää"
+
+
+msgid "Subtract"
+msgstr "Vähennä"
+
+
+msgid "Multiply"
+msgstr "Kerro"
 
 
 msgid "Nothing"
@@ -3189,6 +3177,10 @@ msgid "Override Background Image"
 msgstr "Ohita taustakuva"
 
 
+msgid "Offset"
+msgstr "Siirros"
+
+
 msgid "Rotation"
 msgstr "Kierto"
 
@@ -3648,6 +3640,10 @@ msgstr "Maksimi"
 
 msgid "Minimum"
 msgstr "Minimi"
+
+
+msgid "Mix Mode"
+msgstr "Sekoitustila"
 
 
 msgid "Target object"
@@ -5866,20 +5862,16 @@ msgid "Material Index"
 msgstr "Materiaali-indeksi"
 
 
-msgid "Use Masks"
-msgstr "Käytä maskeja"
-
-
-msgid "Group name"
-msgstr "Ryhmän nimi"
-
-
 msgid "Invert mask"
 msgstr "Käännä maski"
 
 
 msgid "Repeat"
 msgstr "Toista"
+
+
+msgid "Use Masks"
+msgstr "Käytä maskeja"
 
 
 msgid "Active Grease Pencil layer"
@@ -7340,34 +7332,6 @@ msgid "Mask"
 msgstr "Maski"
 
 
-msgid "Show/Hide"
-msgstr "Näytä/Piilota"
-
-
-msgid "Names"
-msgstr "Nimet"
-
-
-msgid "UV Mapping"
-msgstr "UV-kartoittaminen"
-
-
-msgid "Select More/Less"
-msgstr "Valitse enemmän/vähemmän"
-
-
-msgid "Select Similar"
-msgstr "Valitse samankaltainen"
-
-
-msgid "Select All by Trait"
-msgstr "Valitse kaikki piirteen mukaan"
-
-
-msgid "Select Loops"
-msgstr "Valitse silmukat"
-
-
 msgid "Metaball"
 msgstr "Metapallo"
 
@@ -7388,6 +7352,10 @@ msgid "Track"
 msgstr "Raide"
 
 
+msgid "Show/Hide"
+msgstr "Näytä/Piilota"
+
+
 msgid "Hooks"
 msgstr "Koukut"
 
@@ -7396,12 +7364,36 @@ msgid "Random Mask"
 msgstr "Satunnainen maski"
 
 
+msgid "Names"
+msgstr "Nimet"
+
+
 msgid "Mesh Select Mode"
 msgstr "Muodon valintatila"
 
 
 msgid "Text"
 msgstr "Teksti"
+
+
+msgid "UV Mapping"
+msgstr "UV-kartoittaminen"
+
+
+msgid "Select More/Less"
+msgstr "Valitse enemmän/vähemmän"
+
+
+msgid "Select Similar"
+msgstr "Valitse samankaltainen"
+
+
+msgid "Select All by Trait"
+msgstr "Valitse kaikki piirteen mukaan"
+
+
+msgid "Select Loops"
+msgstr "Valitse silmukat"
 
 
 msgid "Basic"
@@ -9141,6 +9133,22 @@ msgid "Store Named Grid"
 msgstr "Säilytä nimetty ruudukko"
 
 
+msgid "64-bit integer"
+msgstr "64-bittinen kokonaisluku"
+
+
+msgid "3D float vector"
+msgstr "3D-liukulukuvektori"
+
+
+msgid "3D integer vector"
+msgstr "3D-vektori, joka on kokonaisluku"
+
+
+msgid "Unknown"
+msgstr "Tuntematon"
+
+
 msgid "Join Strings"
 msgstr "Yhdistä merkkijonot"
 
@@ -10329,10 +10337,6 @@ msgid "Canvas"
 msgstr "Kangas"
 
 
-msgid "All Sequences"
-msgstr "Kaikki sekvenssit"
-
-
 msgid "Show Missing Media"
 msgstr "Näytä puuttuva media"
 
@@ -10343,22 +10347,6 @@ msgstr "Lukitse kanava"
 
 msgid "Mute channel"
 msgstr "Mykistä kanava"
-
-
-msgid "Move along X axis"
-msgstr "Liiku X-akselin mukaisesti"
-
-
-msgid "Move along Y axis"
-msgstr "Liiku Y-akselin mukaisesti"
-
-
-msgid "Scale along X axis"
-msgstr "Skaalaa X-akselin mukaisesti"
-
-
-msgid "Scale along Y axis"
-msgstr "Skaalaa Y-akselin mukaisesti"
 
 
 msgid "Show Cache"
@@ -11266,25 +11254,29 @@ msgid "Text Value"
 msgstr "Tekstiarvo"
 
 
-msgid "Movie Sequence"
-msgstr "Videosekvenssi"
-
-
-msgid "Scene Sequence"
-msgstr "Kohtausskvenssi"
-
-
 msgid "Use Annotations"
 msgstr "Käytä huomioita"
-
-
-msgid "Sound Sequence"
-msgstr "Äänisekvenssi"
 
 
 msgctxt "Sound"
 msgid "Pan"
 msgstr "Panoroi"
+
+
+msgid "Move along X axis"
+msgstr "Liiku X-akselin mukaisesti"
+
+
+msgid "Move along Y axis"
+msgstr "Liiku Y-akselin mukaisesti"
+
+
+msgid "Scale along X axis"
+msgstr "Skaalaa X-akselin mukaisesti"
+
+
+msgid "Scale along Y axis"
+msgstr "Skaalaa Y-akselin mukaisesti"
 
 
 msgid "Studio Light"
@@ -11855,10 +11847,6 @@ msgid "Scene World"
 msgstr "Kohtauksen Maailma"
 
 
-msgid "X-Ray Alpha"
-msgstr "Röntgensäde Alfa"
-
-
 msgid "Active AOV"
 msgstr "Aktiivinen AOV"
 
@@ -11915,10 +11903,6 @@ msgid "Integer"
 msgstr "Kokonaisluku"
 
 
-msgid "64-bit integer"
-msgstr "64-bittinen kokonaisluku"
-
-
 msgctxt "Volume"
 msgid "Mask"
 msgstr "Maski"
@@ -11929,17 +11913,9 @@ msgid "Float Vector"
 msgstr "Liukulukuvektori"
 
 
-msgid "3D float vector"
-msgstr "3D-liukulukuvektori"
-
-
 msgctxt "Volume"
 msgid "Integer Vector"
 msgstr "Kokonaislukuvektori"
-
-
-msgid "3D integer vector"
-msgstr "3D-vektori, joka on kokonaisluku"
 
 
 msgctxt "Volume"
@@ -12784,10 +12760,6 @@ msgid "Rotation"
 msgstr "Kierto"
 
 
-msgid "Unknown"
-msgstr "Tuntematon"
-
-
 msgid "Mix Vector"
 msgstr "Sekoita Vektori"
 
@@ -13030,10 +13002,6 @@ msgstr "Päivämäärä"
 
 msgid "Render Time"
 msgstr "Renderöintiaika"
-
-
-msgid "*Unsaved Changes"
-msgstr "*Tallentamattomia Muutoksia"
 
 
 msgid "Edge to Edge"
@@ -13995,12 +13963,12 @@ msgid "VFX"
 msgstr "VFX"
 
 
-msgid "UV/Image"
-msgstr "UV/kuva"
-
-
 msgid "Workbench"
 msgstr "Työtila"
+
+
+msgid "Create"
+msgstr "Luo"
 
 
 msgid "y = (Ax + B)"
@@ -14019,8 +13987,8 @@ msgid "Separated bones"
 msgstr "Erotetut luut"
 
 
-msgid "Create"
-msgstr "Luo"
+msgid "Cancel"
+msgstr "Peruuta"
 
 
 msgid "No pose to copy"
@@ -14170,10 +14138,6 @@ msgid "OS"
 msgstr "OS"
 
 
-msgid "Home"
-msgstr "Koti"
-
-
 msgid "Esc"
 msgstr "Esc"
 
@@ -14217,10 +14181,6 @@ msgstr "Alfa:"
 
 msgid "OK"
 msgstr "OK"
-
-
-msgid "Cancel"
-msgstr "Peruuta"
 
 
 msgid "Internal error!"
@@ -14850,14 +14810,6 @@ msgid "Missing surface mesh"
 msgstr "Pinnan muoto puuttuu"
 
 
-msgid "ON"
-msgstr "Päällä"
-
-
-msgid "OFF"
-msgstr "Pois päältä"
-
-
 msgid "Trace"
 msgstr "Jäljitä"
 
@@ -15032,6 +14984,10 @@ msgstr "Tiedostonimi"
 
 msgid "Date Modified"
 msgstr "Päiväämäärää muunnettu"
+
+
+msgid "Home"
+msgstr "Koti"
 
 
 msgid "Desktop"
@@ -16273,16 +16229,16 @@ msgid "Variance"
 msgstr "Varianssi"
 
 
+msgid "Bake Items"
+msgstr "Paista esineet"
+
+
 msgid "Bake to Disk"
 msgstr "Paista levylle"
 
 
 msgid "Bake Packed"
 msgstr "Paista pakatut"
-
-
-msgid "Bake Items"
-msgstr "Paista esineet"
 
 
 msgid "Mesh 1"
@@ -17214,6 +17170,14 @@ msgstr "Bksp"
 
 msgid "dbl-"
 msgstr "dbl-"
+
+
+msgid "ON"
+msgstr "Päällä"
+
+
+msgid "OFF"
+msgstr "Pois päältä"
 
 
 msgid "unsupported format"

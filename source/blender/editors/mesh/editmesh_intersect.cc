@@ -6,8 +6,6 @@
  * \ingroup edmesh
  */
 
-#include "MEM_guardedalloc.h"
-
 #include "DNA_object_types.h"
 
 #include "BLI_buffer.h"
@@ -136,7 +134,7 @@ enum {
   ISECT_SOLVER_EXACT = 1,
 };
 
-static int edbm_intersect_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus edbm_intersect_exec(bContext *C, wmOperator *op)
 {
   const int mode = RNA_enum_get(op->ptr, "mode");
   int (*test_fn)(BMFace *, void *);
@@ -331,7 +329,7 @@ void MESH_OT_intersect(wmOperatorType *ot)
  * however from a user perspective they are quite different, so expose as different tools.
  * \{ */
 
-static int edbm_intersect_boolean_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus edbm_intersect_boolean_exec(bContext *C, wmOperator *op)
 {
   const int boolean_operation = RNA_enum_get(op->ptr, "operation");
   bool use_swap = RNA_boolean_get(op->ptr, "use_swap");
@@ -788,7 +786,7 @@ static BMEdge *bm_face_split_edge_find(BMEdge *e_a,
 
 #endif /* USE_NET_ISLAND_CONNECT */
 
-static int edbm_face_split_by_edges_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus edbm_face_split_by_edges_exec(bContext *C, wmOperator * /*op*/)
 {
   const char hflag = BM_ELEM_TAG;
 

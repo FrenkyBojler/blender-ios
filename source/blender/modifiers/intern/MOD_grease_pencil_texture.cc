@@ -95,6 +95,9 @@ static void write_stroke_transforms(bke::greasepencil::Drawing &drawing,
       "u_scale",
       bke::AttrDomain::Curve,
       bke::AttributeInitVArray(VArray<float>::ForSingle(1.0f, curves.curves_num())));
+  if (!u_translations || !rotations || !u_scales) {
+    return;
+  }
 
   curves.ensure_evaluated_lengths();
 
@@ -335,7 +338,6 @@ static void panel_draw(const bContext *C, Panel *panel)
   {
     modifier::greasepencil::draw_layer_filter_settings(C, influence_panel, ptr);
     modifier::greasepencil::draw_material_filter_settings(C, influence_panel, ptr);
-    modifier::greasepencil::draw_vertex_group_settings(C, influence_panel, ptr);
   }
 
   modifier_panel_end(layout, ptr);

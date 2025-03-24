@@ -10,6 +10,7 @@
 
 #include <pxr/usd/usd/prim.h>
 #include <pxr/usd/usdGeom/basisCurves.h>
+#include <pxr/usd/usdGeom/curves.h>
 
 struct Curves;
 struct Main;
@@ -37,10 +38,13 @@ class USDCurvesReader : public USDGeomReader {
                      USDMeshReadParams params,
                      const char **r_err_str) override;
 
+  void read_velocities(bke::CurvesGeometry &curves,
+                       const pxr::UsdGeomCurves &usd_curves,
+                       const double motionSampleTime) const;
   void read_custom_data(bke::CurvesGeometry &curves, const double motionSampleTime) const;
 
-  virtual void read_curve_sample(Curves *curves_id, double motionSampleTime) = 0;
   virtual bool is_animated() const = 0;
+  virtual void read_curve_sample(Curves *curves_id, double motionSampleTime) = 0;
 };
 
 class USDBasisCurvesReader : public USDCurvesReader {
@@ -60,8 +64,8 @@ class USDBasisCurvesReader : public USDCurvesReader {
     return bool(curve_prim_);
   }
 
-  void read_curve_sample(Curves *curves_id, double motionSampleTime) override;
   bool is_animated() const override;
+  void read_curve_sample(Curves *curves_id, double motionSampleTime) override;
 };
 
 }  // namespace blender::io::usd

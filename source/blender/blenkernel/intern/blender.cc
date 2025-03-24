@@ -12,7 +12,11 @@
 #include <cstdlib>
 #include <cstring>
 
+#include "DNA_windowmanager_types.h"
+
 #include "MEM_guardedalloc.h"
+
+#include "DNA_windowmanager_types.h"
 
 #include "BLI_listbase.h"
 #include "BLI_string.h"
@@ -35,7 +39,6 @@
 #include "BKE_idprop.hh"
 #include "BKE_main.hh"
 #include "BKE_node.hh"
-#include "BKE_report.hh"
 #include "BKE_screen.hh"
 #include "BKE_studiolight.h"
 
@@ -79,7 +82,7 @@ void BKE_blender_free()
   BKE_callback_global_finalize();
 
   IMB_moviecache_destruct();
-  SEQ_fontmap_clear();
+  blender::seq::fontmap_clear();
   MOV_exit();
 
   blender::bke::node_system_exit();
@@ -204,6 +207,8 @@ void BKE_blender_globals_init()
 #endif
 
   G.log.level = 1;
+
+  G.profile_gpu = false;
 }
 
 void BKE_blender_globals_clear()

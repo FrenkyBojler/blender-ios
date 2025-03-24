@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.4.0 Alpha (b'52cb367a9b67')\n"
+"Project-Id-Version: Blender 4.5.0 Alpha (b'409ce2b976cf')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-01-13 11:47+0000\n"
+"POT-Creation-Date: 2025-03-24 09:38+0000\n"
 "PO-Revision-Date: 2024-07-05 18:56+0000\n"
 "Last-Translator: Isaac Gicheha <shwaky3@gmail.com>\n"
 "Language-Team: Swahili <https://translate.blender.org/projects/blender-ui/ui/sw/>\n"
@@ -61,10 +61,6 @@ msgstr "Makusanyo wa AOV"
 
 msgid "Action F-Curves"
 msgstr "F-Curves vya vitendo"
-
-
-msgid "Collection of action F-Curves"
-msgstr "Mkusanyiko wa F-Curves vya vitendo"
 
 
 msgid "Action Group"
@@ -243,34 +239,6 @@ msgid "Collection of action groups"
 msgstr "Mkusanyiko wa vikundi vya vitendo"
 
 
-msgid "Influence"
-msgstr "Ushawishi"
-
-
-msgid "Mix Mode"
-msgstr "Hali ya Mchanganyiko"
-
-
-msgid "Replace"
-msgstr "Badilisha"
-
-
-msgid "Offset"
-msgstr "Kupunguza"
-
-
-msgid "Add"
-msgstr "Ongeza"
-
-
-msgid "Subtract"
-msgstr "Ondoa"
-
-
-msgid "Multiply"
-msgstr "Zidisha"
-
-
 msgid "Strips"
 msgstr "Michirizi"
 
@@ -303,9 +271,8 @@ msgid "Active"
 msgstr "Inayotumika"
 
 
-msgctxt "ID"
-msgid "ID Root Type"
-msgstr "Aina ya Mizizi ya ID"
+msgid "Show Expanded"
+msgstr "Onyesho Limepanuliwa"
 
 
 msgctxt "ID"
@@ -503,10 +470,6 @@ msgid "World"
 msgstr "Ulimwengu"
 
 
-msgid "Show Expanded"
-msgstr "Onyesho Limepanuliwa"
-
-
 msgid "Keyframe"
 msgstr "Fremu kuu"
 
@@ -605,14 +568,6 @@ msgstr "Sambaza kumbukumbu kwenye vifaa"
 
 msgid "Make more room for large scenes to fit by distributing memory across interconnected devices (e.g. via NVLink) rather than duplicating it"
 msgstr "Tafuta nafasi zaidi ya matukio makubwa kutoshea kwa kusambaza kumbukumbu kwenye vifaa vilivyounganishwa (k.m. kupitia NVLink) badala ya kuiiga"
-
-
-msgid "HIP RT (Experimental)"
-msgstr "HIP RT (Majaribio)"
-
-
-msgid "HIP RT enables AMD hardware ray tracing on RDNA2 and above, with shader fallback on older cards. This feature is experimental and some scenes may render incorrectly"
-msgstr "HIP RT huwezesha ufuatiliaji wa miale ya maunzi ya AMD kwenye RDNA2 na hapo juu, na urejesho wa shader kwenye kadi za zamani. Kipengele hiki ni cha majaribio na baadhi ya matukio yanaweza kutoa kimakosa"
 
 
 msgid "Embree on GPU"
@@ -759,6 +714,10 @@ msgid "Method used for combining Active Action's result with result of NLA stack
 msgstr "Njia inayotumika kuchanganya matokeo ya Kitendo Amilifu na matokeo ya mrundikano wa NLA"
 
 
+msgid "Replace"
+msgstr "Badilisha"
+
+
 msgid "The strip values replace the accumulated results by amount specified by influence"
 msgstr "Thamani za ukanda huchukua nafasi ya matokeo yaliyokusanywa kwa kiasi kilichobainishwa na ushawishi"
 
@@ -771,12 +730,24 @@ msgid "The strip values are combined with accumulated results by appropriately u
 msgstr "Thamani za ukanda huunganishwa na matokeo yaliyokusanywa kwa kutumia ipasavyo kujumlisha, kuzidisha au hesabu ya quaternion, kulingana na aina ya kituo"
 
 
+msgid "Add"
+msgstr "Ongeza"
+
+
 msgid "Weighted result of strip is added to the accumulated results"
 msgstr "Tokeo la uzani la ukanda huongezwa kwa matokeo yaliyokusanywa"
 
 
+msgid "Subtract"
+msgstr "Ondoa"
+
+
 msgid "Weighted result of strip is removed from the accumulated results"
 msgstr "Matokeo ya uzani wa strip huondolewa kutoka kwa matokeo yaliyokusanywa"
+
+
+msgid "Multiply"
+msgstr "Zidisha"
 
 
 msgid "Weighted result of strip is multiplied with the accumulated results"
@@ -4815,6 +4786,10 @@ msgid "In a local override camera, whether this background image comes from the 
 msgstr "Katika kamera ya ndani ya kubatilisha, iwe picha hii ya usuli inatoka kwa kamera ya marejeleo iliyounganishwa, au ni ya ndani kwa ubatilishaji."
 
 
+msgid "Offset"
+msgstr "Kupunguza"
+
+
 msgid "Rotation"
 msgstr "Mzunguko"
 
@@ -5979,14 +5954,6 @@ msgid "Exposure"
 msgstr "Mfiduo"
 
 
-msgid "Exposure (stops) applied before display transform"
-msgstr "Mfiduo (vituo) vinatumika kabla ya mabadiliko ya onyesho"
-
-
-msgid "Amount of gamma modification applied after display transform"
-msgstr "Kiasi cha urekebishaji wa gamma kinachotumika baada ya ugeuzaji wa onyesho"
-
-
 msgid "Look"
 msgstr "Angalia"
 
@@ -6286,6 +6253,10 @@ msgstr "Hitilafu ya mzunguko"
 
 msgid "Amount of residual error in radians for constraints that work on orientation"
 msgstr "Kiasi cha makosa ya mabaki katika radiani kwa vizuizi vinavyofanya kazi kwenye mwelekeo"
+
+
+msgid "Influence"
+msgstr "Ushawishi"
 
 
 msgid "Amount of influence constraint will have on the final solution"
@@ -6654,6 +6625,10 @@ msgstr "Kima cha chini"
 
 msgid "Minimum value for target channel range"
 msgstr "Thamani ya chini zaidi kwa masafa lengwa ya kituo"
+
+
+msgid "Mix Mode"
+msgstr "Hali ya Mchanganyiko"
 
 
 msgid "Specify how existing transformations and the action channels are combined"
@@ -15102,90 +15077,6 @@ msgid "Grease Pencil Frames"
 msgstr "Fremu za Penseli za Mafuta"
 
 
-msgid "Grease Pencil Layer"
-msgstr "Tabaka la Penseli ya Grisi"
-
-
-msgid "Blend Mode"
-msgstr "Njia ya Mchanganyiko"
-
-
-msgid "Blend mode"
-msgstr "Njia ya mchanganyiko"
-
-
-msgid "Regular"
-msgstr "Kawaida"
-
-
-msgid "Hard Light"
-msgstr "Mwanga Mgumu"
-
-
-msgid "List of Masking Layers"
-msgstr "Orodha ya Tabaka za Kufunika"
-
-
-msgid "Local Matrix"
-msgstr "Matrix ya Ndani"
-
-
-msgid "Layer Opacity"
-msgstr "Uwazi wa Tabaka"
-
-
-msgid "Parent object"
-msgstr "Kitu cha mzazi"
-
-
-msgid "Parent Bone"
-msgstr "Mfupa wa Mzazi"
-
-
-msgid "Pass Index"
-msgstr "Kielezo cha Pasi"
-
-
-msgid "Index number for the \"Layer Index\" pass"
-msgstr "Nambari ya faharasa ya pasi ya \"Kielezo cha Tabaka\"."
-
-
-msgid "Translation"
-msgstr "Tafsiri"
-
-
-msgid "Use Lights"
-msgstr "Tumia Taa"
-
-
-msgid "Enable the use of lights on stroke and fill materials"
-msgstr "Washa matumizi ya taa kwenye vifaa vya kupooza na kujaza"
-
-
-msgid "The visibility of drawings on this layer is affected by the layers in its masks list"
-msgstr "Mwonekano wa michoro kwenye safu hii huathiriwa na tabaka katika orodha yake ya vinyago"
-
-
-msgid "Display onion skins before and after the current frame"
-msgstr "Onyesha ngozi za vitunguu kabla na baada ya fremu ya sasa"
-
-
-msgid "Use Masks in Render"
-msgstr "Tumia Vinyago katika Kutoa"
-
-
-msgid "Include the mask layers when rendering the view-layer"
-msgstr "Jumuisha tabaka za barakoa wakati wa kutoa safu ya kutazama"
-
-
-msgid "ViewLayer"
-msgstr "TazamaLayer"
-
-
-msgid "Only include Layer in this View Layer render output (leave blank to include always)"
-msgstr "Jumuisha tu Tabaka katika Tabaka hili la Mwonekano toa pato (acha wazi ili kujumuisha kila wakati)"
-
-
 msgid "Grease Pencil Masking Layers"
 msgstr "Tabaka za Kufunika Penseli ya Mafuta"
 
@@ -15238,6 +15129,10 @@ msgid "Last frame of the segment"
 msgstr "Fremu ya mwisho ya sehemu"
 
 
+msgid "Regular"
+msgstr "Kawaida"
+
+
 msgid "Apply offset in usual animation direction"
 msgstr "Omba kukabiliana katika mwelekeo wa kawaida wa uhuishaji"
 
@@ -15268,6 +15163,82 @@ msgstr "Fremu Anza"
 
 msgid "First frame of the segment"
 msgstr "Fremu ya kwanza ya sehemu"
+
+
+msgid "Display onion skins before and after the current frame"
+msgstr "Onyesha ngozi za vitunguu kabla na baada ya fremu ya sasa"
+
+
+msgid "Grease Pencil Layer"
+msgstr "Tabaka la Penseli ya Grisi"
+
+
+msgid "Blend Mode"
+msgstr "Njia ya Mchanganyiko"
+
+
+msgid "Blend mode"
+msgstr "Njia ya mchanganyiko"
+
+
+msgid "Hard Light"
+msgstr "Mwanga Mgumu"
+
+
+msgid "List of Masking Layers"
+msgstr "Orodha ya Tabaka za Kufunika"
+
+
+msgid "Local Matrix"
+msgstr "Matrix ya Ndani"
+
+
+msgid "Layer Opacity"
+msgstr "Uwazi wa Tabaka"
+
+
+msgid "Parent object"
+msgstr "Kitu cha mzazi"
+
+
+msgid "Parent Bone"
+msgstr "Mfupa wa Mzazi"
+
+
+msgid "Pass Index"
+msgstr "Kielezo cha Pasi"
+
+
+msgid "Index number for the \"Layer Index\" pass"
+msgstr "Nambari ya faharasa ya pasi ya \"Kielezo cha Tabaka\"."
+
+
+msgid "Translation"
+msgstr "Tafsiri"
+
+
+msgid "Use Lights"
+msgstr "Tumia Taa"
+
+
+msgid "Enable the use of lights on stroke and fill materials"
+msgstr "Washa matumizi ya taa kwenye vifaa vya kupooza na kujaza"
+
+
+msgid "Use Masks in Render"
+msgstr "Tumia Vinyago katika Kutoa"
+
+
+msgid "Include the mask layers when rendering the view-layer"
+msgstr "Jumuisha tabaka za barakoa wakati wa kutoa safu ya kutazama"
+
+
+msgid "ViewLayer"
+msgstr "TazamaLayer"
+
+
+msgid "Only include Layer in this View Layer render output (leave blank to include always)"
+msgstr "Jumuisha tu Tabaka katika Tabaka hili la Mwonekano toa pato (acha wazi ili kujumuisha kila wakati)"
 
 
 msgid "Grease Pencil Layers"
@@ -15467,10 +15438,6 @@ msgid "The combined frame range of all F-Curves within this action"
 msgstr "Msururu uliounganishwa wa fremu zote za F-Curves ndani ya kitendo hiki"
 
 
-msgid "The individual F-Curves that make up the action"
-msgstr "F-Curves za kibinafsi zinazounda kitendo"
-
-
 msgid "The end frame of the manually set intended playback range"
 msgstr "Fremu ya mwisho ya safu ya uchezaji iliyokusudiwa iliyowekwa mwenyewe"
 
@@ -15491,12 +15458,9 @@ msgid "Groups"
 msgstr "Vikundi"
 
 
-msgid "Convenient groupings of F-Curves"
-msgstr "Vikundi vinavyofaa vya F-Curves"
-
-
-msgid "Type of ID block that action can be used on - DO NOT CHANGE UNLESS YOU KNOW WHAT YOU ARE DOING"
-msgstr "Aina ya kitambulisho ambacho kitendo kinaweza kutumika - USIBADILISHE ISIPOKUWA UNAJUA UNACHOFANYA"
+msgctxt "ID"
+msgid "ID Root Type"
+msgstr "Aina ya Mizizi ya ID"
 
 
 msgid "Layers"
@@ -15966,14 +15930,6 @@ msgstr "Kukabiliana na asili ya mpaka kuhusiana na radius ya brashi"
 
 msgid "Brush's capabilities"
 msgstr "Uwezo wa Brashi"
-
-
-msgid "Opacity of clone image display"
-msgstr "Opacity ya onyesho la picha ya clone"
-
-
-msgid "Clone Image"
-msgstr "Picha ya Clone"
 
 
 msgid "Soft Body Plasticity"
@@ -22229,10 +22185,6 @@ msgid "Display the object's name"
 msgstr "Onyesha jina la kitu"
 
 
-msgid "Shape Key Lock"
-msgstr "Kufuli ya Ufunguo wa Umbo"
-
-
 msgid "Only show the active shape key at full value"
 msgstr "Onyesha tu kitufe amilifu cha umbo kwa thamani kamili"
 
@@ -25135,11 +25087,6 @@ msgstr "Ondoa nambari ya fremu ya kutumia katika uhuishaji"
 
 msgid "Global starting frame of the sequence, assuming first has a #1"
 msgstr "Fremu ya kuanzia ya kimataifa ya mfuatano, ikizingatiwa kwanza ina a"
-
-
-msgctxt "Sequence"
-msgid "Clip"
-msgstr "Klipu"
 
 
 msgid "Window Manager"
@@ -28817,12 +28764,44 @@ msgid "Editor menu containing buttons"
 msgstr "Menyu ya mhariri iliyo na vitufe"
 
 
+msgid "Metaball"
+msgstr "Mpira wa miguu"
+
+
+msgid "Light"
+msgstr "Mwanga"
+
+
+msgid "Light Probe"
+msgstr "Uchunguzi wa Mwanga"
+
+
+msgid "Apply"
+msgstr "Tumia"
+
+
 msgid "Show/Hide"
 msgstr "Onyesha/Ficha"
 
 
 msgid "Clean Up"
 msgstr "Safisha"
+
+
+msgid "Asset"
+msgstr "Mali"
+
+
+msgid "Bone Collections"
+msgstr "Mikusanyo ya Mifupa"
+
+
+msgid "Merge"
+msgstr "Unganisha"
+
+
+msgid "Text"
+msgstr "Maandishi"
 
 
 msgid "Pivot Point"
@@ -28843,38 +28822,6 @@ msgstr "Urambazaji"
 
 msgid "Select Linked"
 msgstr "Chagua Imeunganishwa"
-
-
-msgid "Metaball"
-msgstr "Mpira wa miguu"
-
-
-msgid "Light"
-msgstr "Mwanga"
-
-
-msgid "Light Probe"
-msgstr "Uchunguzi wa Mwanga"
-
-
-msgid "Apply"
-msgstr "Tumia"
-
-
-msgid "Asset"
-msgstr "Mali"
-
-
-msgid "Bone Collections"
-msgstr "Mikusanyo ya Mifupa"
-
-
-msgid "Merge"
-msgstr "Unganisha"
-
-
-msgid "Text"
-msgstr "Maandishi"
 
 
 msgid "Keyframe Insert Pie"
@@ -28967,6 +28914,10 @@ msgid "Add Attribute"
 msgstr "Ongeza Sifa"
 
 
+msgid "Attribute Specials"
+msgstr "Maalum ya Sifa"
+
+
 msgid "Channel"
 msgstr "Chaneli"
 
@@ -29031,10 +28982,6 @@ msgstr "Fungua"
 msgctxt "WindowManager"
 msgid "Area"
 msgstr "Eneo"
-
-
-msgid "Attribute Specials"
-msgstr "Maalum ya Sifa"
 
 
 msgid "Color Attribute Specials"
@@ -37758,22 +37705,6 @@ msgid "Channel Key"
 msgstr "Kitufe cha Chaneli"
 
 
-msgid "RGB color space"
-msgstr "Nafasi ya rangi ya RGB"
-
-
-msgid "HSV color space"
-msgstr "Nafasi ya rangi ya HSV"
-
-
-msgid "YUV color space"
-msgstr "Nafasi ya rangi ya YUV"
-
-
-msgid "YCbCr color space"
-msgstr "nafasi ya rangi ya YCbCr"
-
-
 msgid "Limit by this channel's value"
 msgstr "Kikomo kwa thamani ya kituo hiki"
 
@@ -38170,26 +38101,6 @@ msgid "Mode of color processing"
 msgstr "Njia ya usindikaji wa rangi"
 
 
-msgid "Use RGB color processing"
-msgstr "Tumia usindikaji wa rangi ya RGB"
-
-
-msgid "Use HSV color processing"
-msgstr "Tumia usindikaji wa rangi wa HSV"
-
-
-msgid "Use HSL color processing"
-msgstr "Tumia usindikaji wa rangi wa HSL"
-
-
-msgid "Use YCbCr color processing"
-msgstr "Tumia usindikaji wa rangi wa YCbCr"
-
-
-msgid "Use YUV color processing"
-msgstr "Tumia usindikaji wa rangi ya YUV"
-
-
 msgid "Color space used for YCbCrA processing"
 msgstr "Nafasi ya rangi inayotumika kwa usindikaji wa YCbCrA"
 
@@ -38503,6 +38414,10 @@ msgid "Distance Key"
 msgstr "Ufunguo wa Umbali"
 
 
+msgid "RGB color space"
+msgstr "Nafasi ya rangi ya RGB"
+
+
 msgid "YCbCr suppression"
 msgstr "Ukandamizaji wa YCbCr"
 
@@ -38641,6 +38556,10 @@ msgstr "Pato Sahihi la Alpha"
 
 msgid "Put node output buffer to straight alpha instead of premultiplied"
 msgstr "Weka bafa ya pato la nodi kwa alfa moja kwa moja badala ya kuzidishwa mapema"
+
+
+msgid "Image Info"
+msgstr "Maelezo ya Picha"
 
 
 msgid "Inpaint"
@@ -39470,40 +39389,16 @@ msgid "Use relative (fraction of input image size) values to define translation"
 msgstr "Tumia thamani zinazohusiana (sehemu ya saizi ya picha ingizo) ili kufafanua tafsiri"
 
 
-msgid "Wrapping"
-msgstr "Kufunga"
-
-
-msgid "Wrap image on a specific axis"
-msgstr "Funga picha kwenye mhimili maalum"
-
-
-msgid "No wrapping on X and Y"
-msgstr "Hakuna kufunga X na Y"
-
-
 msgid "X Axis"
 msgstr "Mhimili wa X"
-
-
-msgid "Wrap all pixels on the X axis"
-msgstr "Funga saizi zote kwenye mhimili wa X"
 
 
 msgid "Y Axis"
 msgstr "Mhimili wa Y"
 
 
-msgid "Wrap all pixels on the Y axis"
-msgstr "Funga saizi zote kwenye mhimili wa Y"
-
-
 msgid "Both Axes"
 msgstr "Shoka zote mbili"
-
-
-msgid "Wrap all pixels on both axes"
-msgstr "Funga saizi zote kwenye shoka zote mbili"
 
 
 msgid "Map values to colors with the use of a gradient"
@@ -40492,10 +40387,6 @@ msgid "Secondary"
 msgstr "Sekondari"
 
 
-msgid "Image Info"
-msgstr "Maelezo ya Picha"
-
-
 msgid "Retrieve information about an image"
 msgstr "Rejesha habari kuhusu picha"
 
@@ -41455,6 +41346,46 @@ msgstr "Hifadhi Inayoitwa Gridi"
 
 msgid "Store grid data in a volume geometry with the specified name"
 msgstr "Hifadhi data ya gridi ya taifa katika jiometri ya ujazo yenye jina maalum"
+
+
+msgid "Single precision float"
+msgstr "Kuelea kwa usahihi mmoja"
+
+
+msgid "Double precision"
+msgstr "Usahihi mara mbili"
+
+
+msgid "64-bit integer"
+msgstr "64-bit nambari kamili"
+
+
+msgid "No data, boolean mask of active voxels"
+msgstr "Hakuna data, kinyago cha boolean cha voxel amilifu"
+
+
+msgid "3D float vector"
+msgstr "3D vekta ya kuelea"
+
+
+msgid "3D double vector"
+msgstr "3D vekta mbili"
+
+
+msgid "3D integer vector"
+msgstr "3D vekta kamili"
+
+
+msgid "Points grid, currently unsupported by volume objects"
+msgstr "Gridi ya pointi, haitumiki kwa sasa na vitu vya sauti"
+
+
+msgid "Unknown"
+msgstr "Haijulikani"
+
+
+msgid "Unsupported data type"
+msgstr "Aina ya data isiyotumika"
 
 
 msgid "Join Strings"
@@ -45203,11 +45134,6 @@ msgstr "Badilisha Maktaba ya Uwekaji Urithi"
 msgctxt "Operator"
 msgid "Copy Pose as Asset"
 msgstr "Nakili Msimamo Kama Mali"
-
-
-msgctxt "Operator"
-msgid "Create Pose Asset"
-msgstr "Unda Mali ya Kuweka"
 
 
 msgctxt "Operator"
@@ -49648,15 +49574,6 @@ msgid "Export"
 msgstr "Hamisha"
 
 
-msgctxt "Operator"
-msgid "Add Selected to Active Collection"
-msgstr "Ongeza Uliochaguliwa kwa Mkusanyiko Unaotumika"
-
-
-msgid "Add the object to an object collection that contains the active object"
-msgstr "Ongeza kitu kwenye mkusanyiko wa kitu ambacho kina kitu amilifu"
-
-
 msgid "The collection to add other selected objects to"
 msgstr "Mkusanyiko wa kuongeza vitu vingine vilivyochaguliwa kwa"
 
@@ -50296,6 +50213,11 @@ msgstr "Chanzo cha kubahatisha"
 
 
 msgctxt "Operator"
+msgid "Separate"
+msgstr "Tenga"
+
+
+msgctxt "Operator"
 msgid "Set Select Mode"
 msgstr "Weka Hali ya Chagua"
 
@@ -50827,10 +50749,6 @@ msgid "Select Control Point Row"
 msgstr "Chagua Safu ya Pointi ya Kudhibiti"
 
 
-msgid "Select a row of control points including active one"
-msgstr "Chagua safu mlalo ya vidhibiti ikijumuisha inayotumika"
-
-
 msgid "Select similar curve points by property type"
 msgstr "Chagua sehemu za curve zinazofanana kulingana na aina ya mali"
 
@@ -50841,11 +50759,6 @@ msgstr "Kubwa zaidi"
 
 msgid "Less"
 msgstr "Chini"
-
-
-msgctxt "Operator"
-msgid "Separate"
-msgstr "Tenga"
 
 
 msgid "Separate selected points from connected unselected points into a new object"
@@ -51692,16 +51605,8 @@ msgid "Export all actions, bound to a single armature. WARNING: Option does not 
 msgstr "Hamisha vitendo vyote, vilivyofungwa kwa silaha moja."
 
 
-msgid "Set all glTF Animation starting at 0"
-msgstr "Weka Uhuishaji wote wa glTF kuanzia 0"
-
-
 msgid "Set all glTF animation starting at 0.0s. Can be useful for looping animations"
 msgstr "Weka uhuishaji wote wa glTF kuanzia 0.0s."
-
-
-msgid "Animation mode"
-msgstr "Njia ya uhuishaji"
 
 
 msgid "Export Animation mode"
@@ -51780,56 +51685,28 @@ msgid "Export Deformation bones only"
 msgstr "Hamisha mifupa ya Deformation pekee"
 
 
-msgid "Color quantization bits"
-msgstr "Biti za kuhesabu rangi"
-
-
 msgid "Quantization bits for color values (0 = no quantization)"
 msgstr "Vipimo vya kuhesabu kwa thamani za rangi (0 = hakuna quantization)"
-
-
-msgid "Generic quantization bits"
-msgstr "Biti za ujazo wa jumla"
 
 
 msgid "Quantization bits for generic values like weights or joints (0 = no quantization)"
 msgstr "Biti za kuhesabu thamani za jumla kama vile uzani au viungio (0 = hakuna hesabu)"
 
 
-msgid "Draco mesh compression"
-msgstr "Mfinyazo wa matundu ya Draco"
-
-
 msgid "Compress mesh using Draco"
 msgstr "Compress mesh kwa kutumia Draco"
-
-
-msgid "Compression level"
-msgstr "Kiwango cha mgandamizo"
 
 
 msgid "Compression level (0 = most speed, 6 = most compression, higher values currently not supported)"
 msgstr "Kiwango cha mbano (0 = kasi zaidi, 6 = mfinyazo mwingi, viwango vya juu zaidi havitumiki kwa sasa)"
 
 
-msgid "Normal quantization bits"
-msgstr "Biti za quantization za kawaida"
-
-
 msgid "Quantization bits for normal values (0 = no quantization)"
 msgstr "Biti za kuhesabu thamani za kawaida (0 = hakuna hesabu)"
 
 
-msgid "Position quantization bits"
-msgstr "Biti za quantization za nafasi"
-
-
 msgid "Quantization bits for position values (0 = no quantization)"
 msgstr "Biti za kuhesabu kwa thamani za nafasi (0 = hakuna quantization)"
-
-
-msgid "Texcoord quantization bits"
-msgstr "Biti za quantization za Texcoord"
 
 
 msgid "Quantization bits for texture coordinate values (0 = no quantization)"
@@ -52032,16 +51909,8 @@ msgid "Don't export images"
 msgstr "Usihamishe picha"
 
 
-msgid "Image quality"
-msgstr "Ubora wa picha"
-
-
 msgid "Quality of image export"
 msgstr "Ubora wa usafirishaji wa picha"
-
-
-msgid "WebP fallback"
-msgstr "Mrudisho wa WebP"
 
 
 msgid "For all WebP textures, create a PNG fallback texture"
@@ -52084,16 +51953,12 @@ msgid "Choose how many Bone influences to export"
 msgstr "Chagua ni athari ngapi za Bone za kusafirisha nje"
 
 
-msgid "JPEG quality"
-msgstr "Ubora wa JPEG"
-
-
 msgid "Quality of JPEG export"
 msgstr "Ubora wa usafirishaji wa JPEG"
 
 
-msgid "Keep original"
-msgstr "Weka asili"
+msgid "Keep Original"
+msgstr "Weka Asili"
 
 
 msgid "Keep original textures files if possible. WARNING: if you use more than one texture, where pbr standard requires only one, only one texture will be used. This can lead to unexpected results"
@@ -52152,10 +52017,6 @@ msgid "Export vertex normals with shape keys (morph targets)"
 msgstr "Hamisha kanuni za kipeo zilizo na vitufe vya umbo (lengo la morph)"
 
 
-msgid "Reset shape keys between actions"
-msgstr "Weka upya vitufe vya umbo kati ya vitendo"
-
-
 msgid "Reset shape keys between each action exported. This is needed when some SK channels are not keyed on some animations"
 msgstr "Weka upya vitufe vya umbo kati ya kila kitendo kinachosafirishwa."
 
@@ -52208,16 +52069,8 @@ msgid "Export vertex normals with meshes"
 msgstr "Hamisha viwango vya kawaida vya vertex na matundu"
 
 
-msgid "Force keeping channels for bones"
-msgstr "Lazimisha kuweka njia za mifupa"
-
-
 msgid "If all keyframes are identical in a rig, force keeping the minimal animation. When off, all possible channels for the bones will be exported, even if empty (minimal animation, 2 keyframes)"
 msgstr "Ikiwa fremu zote muhimu zinafanana katika kitenge, lazimisha kuweka uhuishaji mdogo."
-
-
-msgid "Force keeping channel for objects"
-msgstr "Lazimisha kuweka chaneli ya vitu"
 
 
 msgid "If all keyframes are identical for object transformations, force keeping the minimal animation"
@@ -52232,16 +52085,8 @@ msgid "Reduce exported file size by removing duplicate keyframes"
 msgstr "Punguza saizi ya faili iliyosafirishwa kwa kuondoa nakala za fremu muhimu"
 
 
-msgid "Export original PBR Specular"
-msgstr "Hamisha asili ya PBR Specular"
-
-
 msgid "Export original glTF PBR Specular, instead of Blender Principled Shader Specular"
 msgstr "Hamisha asili ya glTF PBR Specular, badala ya Blender Principled Shader Specular"
-
-
-msgid "Reset pose bones between actions"
-msgstr "Weka upya mifupa kati ya vitendo"
 
 
 msgid "Reset pose bones between each action exported. This is needed when some bones are not keyed on some animations"
@@ -52292,24 +52137,12 @@ msgid "Omitting Sparse Accessor if data is empty"
 msgstr "Kuacha Kifuasi cha Sparse ikiwa data ni tupu"
 
 
-msgid "Use Sparse Accessor if better"
-msgstr "Tumia Sparse Accessor ikiwa bora"
-
-
 msgid "Try using Sparse Accessor if it saves space"
 msgstr "Jaribu kutumia Sparse Accessor ikiwa inaokoa nafasi"
 
 
-msgid "Unused images"
-msgstr "Picha ambazo hazijatumika"
-
-
 msgid "Export images not assigned to any material"
 msgstr "Hamisha picha ambazo hazijakabidhiwa nyenzo yoyote"
-
-
-msgid "Prepare Unused textures"
-msgstr "Tayarisha maandishi ambayo hayajatumika"
 
 
 msgid "Export image texture nodes not assigned to any material. This feature is not standard and needs an external extension to be included in the glTF file"
@@ -55317,6 +55150,10 @@ msgid "Set all stroke points to same opacity"
 msgstr "Weka alama zote za kiharusi kwa uwazi sawa"
 
 
+msgid "Fill Opacity"
+msgstr "Uwazi wa Kujaza"
+
+
 msgctxt "Operator"
 msgid "Set Uniform Thickness"
 msgstr "Weka Unene Sare"
@@ -56420,10 +56257,6 @@ msgstr "Tumia Data ya Kawaida"
 
 msgid "Flat Shading"
 msgstr "Kuweka Kivuli Bapa"
-
-
-msgid "Import WebP textures"
-msgstr "Ingiza maandishi ya WebP"
 
 
 msgid "If a texture exists in WebP format, loads the WebP texture instead of the fallback PNG/JPEG one"
@@ -60183,13 +60016,20 @@ msgid "Add a collection info node to the current node editor"
 msgstr "Ongeza nodi ya maelezo ya mkusanyiko kwa kihariri cha nodi ya sasa"
 
 
-msgctxt "Operator"
-msgid "Add File Node"
-msgstr "Ongeza Nodi ya Faili"
+msgid "Source color"
+msgstr "Rangi ya chanzo"
 
 
-msgid "Add a file node to the current node editor"
-msgstr "Ongeza nodi ya faili kwa kihariri cha nodi ya sasa"
+msgid "Gamma Corrected"
+msgstr "Gamma Imesahihishwa"
+
+
+msgid "The source color is gamma corrected"
+msgstr "Rangi ya chanzo imerekebishwa kwa gamma"
+
+
+msgid "Has Alpha"
+msgstr "Ina Alfa"
 
 
 msgid "Offset of nodes from the cursor when added"
@@ -61214,14 +61054,6 @@ msgid "Convert selected objects to another type"
 msgstr "Badilisha vitu vilivyochaguliwa kuwa aina nyingine"
 
 
-msgid "Threshold Angle"
-msgstr "Angle ya kizingiti"
-
-
-msgid "Threshold to determine ends of the strokes"
-msgstr "Kizingiti cha kuamua ncha za mapigo"
-
-
 msgid "Export Faces"
 msgstr "Hamisha Nyuso"
 
@@ -61253,14 +61085,6 @@ msgstr "Kiharusi Offset"
 
 msgid "Offset strokes from fill"
 msgstr "Kupunguza viboko kutoka kwa kujaza"
-
-
-msgid "Only Seam Edges"
-msgstr "Pembe za Mshono Pekee"
-
-
-msgid "Convert only seam edges"
-msgstr "Badilisha kingo za mshono pekee"
 
 
 msgid "Type of object to convert to"
@@ -65862,10 +65686,6 @@ msgid "Create a new pose asset on the clipboard, to be pasted into an Asset Brow
 msgstr "Unda kipengee kipya kwenye ubao wa kunakili, ili kubandikwe kwenye Kivinjari cha Mali."
 
 
-msgid "Create a new Action that contains the pose of the selected bones, and mark it as Asset. The asset will be stored in the current blend file"
-msgstr "Unda Kitendo kipya ambacho kina mkao wa mifupa iliyochaguliwa, na uweke alama kama Kipengee."
-
-
 msgid "Activate New Action"
 msgstr "Amilisha Kitendo Kipya"
 
@@ -66430,10 +66250,6 @@ msgstr "Ondoa Hifadhi ya Kiendelezi"
 
 msgid "Remove an extension repository"
 msgstr "Ondoa hazina ya kiendelezi"
-
-
-msgid "Keep Original"
-msgstr "Weka Asili"
 
 
 msgid "Keep original file after copying to configuration folder"
@@ -68768,10 +68584,6 @@ msgid "Multiply effect strip type"
 msgstr "Kuzidisha aina ya ukanda wa athari"
 
 
-msgid "Alpha Over Drop effect strip type"
-msgstr "Aina ya ukanda wa athari ya Alpha Over Drop"
-
-
 msgctxt "Sequence"
 msgid "Wipe"
 msgstr "Futa"
@@ -70819,18 +70631,6 @@ msgid "Drop colors to buttons"
 msgstr "dondosha rangi kwenye vitufe"
 
 
-msgid "Source color"
-msgstr "Rangi ya chanzo"
-
-
-msgid "Gamma Corrected"
-msgstr "Gamma Imesahihishwa"
-
-
-msgid "The source color is gamma corrected"
-msgstr "Rangi ya chanzo imerekebishwa kwa gamma"
-
-
 msgctxt "Operator"
 msgid "Drop Material in Material slots"
 msgstr "Achia Nyenzo katika nafasi za Nyenzo"
@@ -71429,10 +71229,6 @@ msgstr "Iliyorekebishwa"
 
 msgid "Exports UVs from the modified mesh"
 msgstr "Husafirisha UV kutoka kwa matundu yaliyorekebishwa"
-
-
-msgid "Fill Opacity"
-msgstr "Uwazi wa Kujaza"
 
 
 msgid "Set amount of opacity for exported UV layout"
@@ -73986,10 +73782,6 @@ msgid "Export Normals"
 msgstr "Hamisha Kawaida"
 
 
-msgid "Export per-face normals if the face is flat-shaded, per-face-per-loop normals if smooth-shaded"
-msgstr "Hamisha kanuni za kawaida kwa kila uso ikiwa uso una kivuli-bapa, kanuni za kawaida za kila uso-kwa-kitanzi ikiwa ni laini"
-
-
 msgid "Export Object Groups"
 msgstr "Hamisha Vikundi vya Vitu"
 
@@ -74016,10 +73808,6 @@ msgstr "Hamisha vitu vilivyochaguliwa pekee badala ya vitu vyote vinavyotumika"
 
 msgid "Export Smooth Groups"
 msgstr "Hamisha Vikundi Smooth"
-
-
-msgid "Every smooth-shaded face is assigned group \"1\" and every flat-shaded face \"off\""
-msgstr "Kila uso wenye kivuli laini hupewa kikundi \"1\" na kila uso wenye kivuli bapa \"umezimwa\""
 
 
 msgid "Export Triangulated Mesh"
@@ -74076,10 +73864,6 @@ msgstr "Andika jina la faili pekee"
 
 msgid "Copy the file to the destination path"
 msgstr "Nakili faili kwenye njia lengwa"
-
-
-msgid "Generate Bitflags for Smooth Groups"
-msgstr "Tengeneza Bitflags kwa Vikundi Smooth"
 
 
 msgid "The first frame to be exported"
@@ -75680,6 +75464,14 @@ msgid "Image used as canvas"
 msgstr "Picha inayotumika kama turubai"
 
 
+msgid "Opacity of clone image display"
+msgstr "Opacity ya onyesho la picha ya clone"
+
+
+msgid "Clone Image"
+msgstr "Picha ya Clone"
+
+
 msgid "Image used as clone source"
 msgstr "Picha inayotumika kama chanzo cha kisanii"
 
@@ -75972,10 +75764,6 @@ msgid "Use only deformation modifiers (temporary disable all constructive modifi
 msgstr "Tumia virekebisha urekebishaji pekee (lemaza kwa muda virekebishaji vyote vya kujenga isipokuwa maazimio mengi)"
 
 
-msgid "UV Sculpting"
-msgstr "Uchongaji wa UV"
-
-
 msgid "Properties of vertex and weight paint mode"
 msgstr "Sifa za kipeo na hali ya rangi ya uzani"
 
@@ -76014,6 +75802,22 @@ msgstr "Rangi ya Palette Inayotumika"
 
 msgid "Panel containing UI elements"
 msgstr "Paneli iliyo na vipengele vya UI"
+
+
+msgid "Auto-Masking"
+msgstr "Kufunika Masking Kiotomatiki"
+
+
+msgid "Curves Sculpt Add Curve Options"
+msgstr "Mchoro wa Mikunjo Ongeza Chaguzi za Mviringo"
+
+
+msgid "Curves Sculpt Parameter Falloff"
+msgstr "Curves Sculpt Parameta Falloff"
+
+
+msgid "Viewport Debug"
+msgstr "Utatuzi wa kituo cha kutazama"
 
 
 msgid "View Lock"
@@ -76082,22 +75886,6 @@ msgstr "Mtazamo wa Quad"
 
 msgid "Multi Frame"
 msgstr "Fremu nyingi"
-
-
-msgid "Auto-Masking"
-msgstr "Kufunika Masking Kiotomatiki"
-
-
-msgid "Curves Sculpt Add Curve Options"
-msgstr "Mchoro wa Mikunjo Ongeza Chaguzi za Mviringo"
-
-
-msgid "Curves Sculpt Parameter Falloff"
-msgstr "Curves Sculpt Parameta Falloff"
-
-
-msgid "Viewport Debug"
-msgstr "Utatuzi wa kituo cha kutazama"
 
 
 msgid "Fast GI Approximation"
@@ -78811,10 +78599,6 @@ msgid "Overall sensitivity of the 3D Mouse for panning"
 msgstr "Unyeti wa jumla wa Kipanya cha 3D kwa kugeuza"
 
 
-msgid "Show Navigation Guide"
-msgstr "Onyesha Mwongozo wa Urambazaji"
-
-
 msgid "Display the center and axis during rotation"
 msgstr "Onyesha kituo na mhimili wakati wa mzunguko"
 
@@ -79857,10 +79641,6 @@ msgstr "Tumia mpangilio wa safu wima kwa kisanduku cha zana"
 
 msgid "Developer Extras"
 msgstr "Ziada za Wasanidi Programu"
-
-
-msgid "Show options for developers (edit source in context menu, geometry indices)"
-msgstr "Onyesha chaguo za wasanidi (hariri chanzo katika menyu ya muktadha, fahirisi za jiometri)"
 
 
 msgid "Use transform gizmos by default"
@@ -81339,14 +81119,6 @@ msgstr "Ikiwa si sifuri, thamani ya juu zaidi ya sampuli ya moja kwa moja, thama
 
 msgid "If non-zero, the maximum value for an indirect sample, higher values will be scaled down to avoid too much noise and slow convergence at the cost of accuracy"
 msgstr "Ikiwa si sifuri, thamani ya juu zaidi ya sampuli isiyo ya moja kwa moja, thamani za juu zitapunguzwa ili kuepuka kelele nyingi na muunganisho wa polepole kwa gharama ya usahihi."
-
-
-msgid "Sample Offset"
-msgstr "Sampuli ya Kupunguza"
-
-
-msgid "Number of samples to skip when starting render"
-msgstr "Idadi ya sampuli za kuruka wakati wa kuanza kutoa"
 
 
 msgid "Number of samples to render for each pixel"
@@ -84333,102 +84105,6 @@ msgid "Python Scripts Directories"
 msgstr "Saraka za Hati za Chatu"
 
 
-msgid "Sequence Color Balance Data"
-msgstr "Mfuatano wa Data ya Mizani ya Rangi"
-
-
-msgid "Color balance parameters for a sequence strip and its modifiers"
-msgstr "Vigezo vya usawa vya rangi kwa ukanda wa mfuatano na virekebishaji vyake"
-
-
-msgid "Correction Method"
-msgstr "Njia ya Kurekebisha"
-
-
-msgid "Color balance gain (highlights)"
-msgstr "Faida ya usawa wa rangi (mambo muhimu)"
-
-
-msgid "Color balance gamma (midtones)"
-msgstr "Mizani ya rangi gamma (tones)"
-
-
-msgid "Inverse Gain"
-msgstr "Faida Inverse"
-
-
-msgid "Invert the gain color"
-msgstr "Geuza rangi ya faida"
-
-
-msgid "Inverse Gamma"
-msgstr "Gamma Inverse"
-
-
-msgid "Invert the gamma color"
-msgstr "Geuza rangi ya gamma"
-
-
-msgid "Invert the lift color"
-msgstr "Geuza rangi ya kuinua"
-
-
-msgid "Invert the offset color"
-msgstr "Geuza rangi ya kukabiliana"
-
-
-msgid "Inverse Power"
-msgstr "Nguvu Inverse"
-
-
-msgid "Invert the power color"
-msgstr "Geuza rangi ya nguvu"
-
-
-msgid "Inverse Slope"
-msgstr "Mteremko Inverse"
-
-
-msgid "Invert the slope color"
-msgstr "Geuza rangi ya mteremko"
-
-
-msgid "Color balance lift (shadows)"
-msgstr "Kuinua mizani ya rangi (vivuli)"
-
-
-msgid "Sequence Color Balance"
-msgstr "Mizani ya Rangi ya Mfuatano"
-
-
-msgid "Color balance parameters for a sequence strip"
-msgstr "Vigezo vya usawa vya rangi kwa ukanda wa mfuatano"
-
-
-msgid "Sequence Crop"
-msgstr "Mazao ya Mfuatano"
-
-
-msgid "Cropping parameters for a sequence strip"
-msgstr "Kupunguza vigezo kwa ukanda wa mfuatano"
-
-
-msgid "Number of pixels to crop from the right side"
-msgstr "Idadi ya saizi za kupunguza kutoka upande wa kulia"
-
-
-msgid "Number of pixels to crop from the top"
-msgstr "Idadi ya saizi za kupunguza kutoka juu"
-
-
-msgid "Number of pixels to crop from the left side"
-msgstr "Idadi ya saizi za kupunguza kutoka upande wa kushoto"
-
-
-msgid "Number of pixels to crop from the bottom"
-msgstr "Idadi ya saizi za kupunguza kutoka chini"
-
-
 msgid "Sequence editing data for a Scene data-block"
 msgstr "Data ya uhariri wa mlolongo wa kizuizi cha data cha Onyesho"
 
@@ -84492,28 +84168,20 @@ msgid "Retiming Key Selection Status"
 msgstr "Kurekebisha Hali ya Uteuzi Muhimu"
 
 
-msgid "Sequences"
-msgstr "Mfuatano"
-
-
-msgid "Top-level strips only"
-msgstr "Mikanda ya kiwango cha juu pekee"
-
-
-msgid "All Sequences"
-msgstr "Mifuatano Yote"
-
-
-msgid "All strips, recursively including those inside metastrips"
-msgstr "Vipande vyote, kwa kujirudia pamoja na zile za ndani za metastrips"
-
-
 msgid "Show Overlay"
 msgstr "Onyesha Uwekeleaji"
 
 
 msgid "Partial overlay on top of the sequencer with a frame offset"
 msgstr "Uwekeleaji kiasi juu ya kifuatiliaji na mkato wa fremu"
+
+
+msgid "Top-level strips only"
+msgstr "Mikanda ya kiwango cha juu pekee"
+
+
+msgid "All strips, recursively including those inside metastrips"
+msgstr "Vipande vyote, kwa kujirudia pamoja na zile za ndani za metastrips"
 
 
 msgid "Cache Composite"
@@ -84556,308 +84224,12 @@ msgid "Render frames ahead of current frame in the background for faster playbac
 msgstr "Onyesha fremu mbele ya fremu ya sasa katika usuli kwa uchezaji wa haraka zaidi"
 
 
-msgid "Sequence Element"
-msgstr "Kipengele cha Mfuatano"
-
-
-msgid "Sequence strip data for a single frame"
-msgstr "Mfuatano wa data ya fremu moja"
-
-
-msgid "Name of the source file"
-msgstr "Jina la faili chanzo"
-
-
-msgid "Orig FPS"
-msgstr "FPS Asili"
-
-
-msgid "Original frames per second"
-msgstr "Fremu za asili kwa sekunde"
-
-
-msgid "Orig Height"
-msgstr "Urefu wa Orig"
-
-
-msgid "Original image height"
-msgstr "Urefu wa picha halisi"
-
-
-msgid "Orig Width"
-msgstr "Upana wa Orig"
-
-
-msgid "Original image width"
-msgstr "Upana wa picha halisi"
-
-
-msgid "Collection of SequenceElement"
-msgstr "Mkusanyiko wa Kipengele cha Mfuatano"
-
-
-msgid "Modifier for sequence strip"
-msgstr "Kirekebishaji cha ukanda wa mfuatano"
-
-
-msgid "Mask ID used as mask input for the modifier"
-msgstr "Kitambulisho cha barakoa kinatumika kama pembejeo ya barakoa kwa kirekebishaji"
-
-
-msgid "Mask Strip"
-msgstr "Ukanda wa Mask"
-
-
-msgid "Strip used as mask input for the modifier"
-msgstr "Sehemu inayotumika kama ingizo la barakoa kwa kirekebishaji"
-
-
-msgid "Mask Input Type"
-msgstr "Aina ya Ingizo la Kinyago"
-
-
-msgid "Type of input data used for mask"
-msgstr "Aina ya data ya ingizo inayotumika kwa barakoa"
-
-
-msgid "Use sequencer strip as mask input"
-msgstr "Tumia ukanda wa mpangilio kama uingizaji wa barakoa"
-
-
-msgid "Use mask ID as mask input"
-msgstr "Tumia Kitambulisho cha barakoa kama ingizo la barakoa"
-
-
-msgid "Mask Time"
-msgstr "Wakati wa Mask"
-
-
-msgid "Time to use for the Mask animation"
-msgstr "Wakati wa kutumia kwa uhuishaji wa Kinyago"
-
-
-msgid "Mask animation is offset to start of strip"
-msgstr "Uhuishaji wa barakoa umerekebishwa ili kuanza kwa ukanda"
-
-
-msgid "Mask animation is in sync with scene frame"
-msgstr "Uhuishaji wa barakoa unasawazishwa na fremu ya tukio"
-
-
-msgid "Mute this modifier"
-msgstr "Zimaza kirekebishaji hiki"
-
-
-msgid "Mute expanded settings for the modifier"
-msgstr "Komesha mipangilio iliyopanuliwa ya kirekebishaji"
-
-
-msgid "Tone Map"
-msgstr "Ramani ya Toni"
-
-
-msgid "Sound Equalizer"
-msgstr "Kisawazisha Sauti"
-
-
-msgid "Bright/contrast modifier data for sequence strip"
-msgstr "Data ya kirekebishaji angavu/kilinganishi kwa ukanda wa mfuatano"
-
-
-msgid "Adjust the luminosity of the colors"
-msgstr "Rekebisha mwangaza wa rangi"
-
-
-msgid "Adjust the difference in luminosity between pixels"
-msgstr "Rekebisha tofauti ya mwangaza kati ya saizi"
-
-
-msgid "Color balance modifier for sequence strip"
-msgstr "Kirekebisha usawa cha rangi kwa ukanda wa mfuatano"
-
-
-msgid "Multiply Colors"
-msgstr "Zidisha Rangi"
-
-
-msgid "Multiply the intensity of each pixel"
-msgstr "Zidisha ukubwa wa kila pikseli"
-
-
-msgid "RGB curves modifier for sequence strip"
-msgstr "Kirekebishaji cha mikondo ya RGB kwa ukanda wa mfuatano"
-
-
-msgid "Hue correction modifier for sequence strip"
-msgstr "Kirekebishaji cha kusahihisha hue kwa ukanda wa mfuatano"
-
-
-msgid "Tone mapping modifier"
-msgstr "Kirekebishaji cha ramani ya toni"
-
-
-msgid "Tone mapping algorithm"
-msgstr "Kanuni ya ramani ya toni"
-
-
-msgid "Equalize audio"
-msgstr "Sawazisha sauti"
-
-
-msgid "Graphical definition equalization"
-msgstr "Usawazishaji wa ufafanuzi wa picha"
-
-
-msgid "White balance modifier for sequence strip"
-msgstr "Kirekebisha usawa cheupe kwa ukanda wa mfuatano"
-
-
-msgid "White Value"
-msgstr "Thamani Nyeupe"
-
-
-msgid "This color defines white in the strip"
-msgstr "Rangi hii inafafanua nyeupe kwenye ukanda"
-
-
-msgid "Strip Modifiers"
-msgstr "Marekebisho ya Mikanda"
-
-
-msgid "Collection of strip modifiers"
-msgstr "Mkusanyiko wa marekebisho ya strip"
-
-
-msgid "Sequence Proxy"
-msgstr "Wakala wa Mfuatano"
-
-
-msgid "Proxy parameters for a sequence strip"
-msgstr "Vigezo vya wakala kwa ukanda wa mfuatano"
-
-
-msgid "Build 100% proxy resolution"
-msgstr "Jenga azimio la wakala 100%."
-
-
-msgid "Build 25% proxy resolution"
-msgstr "Jenga azimio la wakala 25%."
-
-
-msgid "Build 50% proxy resolution"
-msgstr "Jenga azimio la wakala 50%."
-
-
-msgid "Build 75% proxy resolution"
-msgstr "Jenga azimio la proksi la 75%."
-
-
-msgid "Location of custom proxy file"
-msgstr "Mahali pa faili maalum ya wakala"
-
-
-msgid "Quality of proxies to build"
-msgstr "Ubora wa proksi za kujenga"
-
-
-msgid "Method for reading the inputs timecode"
-msgstr "Njia ya kusoma nambari ya saa ya pembejeo"
-
-
-msgid "Overwrite existing proxy files when building"
-msgstr "Batilisha faili za proksi zilizopo wakati wa kujenga"
-
-
-msgid "Use a custom directory to store data"
-msgstr "Tumia saraka maalum kuhifadhi data"
-
-
-msgid "Proxy Custom File"
-msgstr "Faili Maalum ya Wakala"
-
-
-msgid "Use a custom file to read proxy data from"
-msgstr "Tumia faili maalum kusoma data ya seva mbadala kutoka"
-
-
 msgid "Lock channel"
 msgstr "Funga chaneli"
 
 
 msgid "Mute channel"
 msgstr "Nyamazisha chaneli"
-
-
-msgid "Sequence Transform"
-msgstr "Mabadiliko ya Mfuatano"
-
-
-msgid "Transform parameters for a sequence strip"
-msgstr "Badilisha vigezo vya ukanda wa mfuatano"
-
-
-msgid "Type of filter to use for image transformation"
-msgstr "Aina ya kichujio cha kutumia kubadilisha picha"
-
-
-msgid "Automatically choose filter based on scaling factor"
-msgstr "Chagua kichujio kiotomatiki kulingana na kipengele cha kuongeza alama"
-
-
-msgid "Use nearest sample"
-msgstr "Tumia sampuli iliyo karibu zaidi"
-
-
-msgid "Interpolate between 2×2 samples"
-msgstr "Tafanua kati ya sampuli 2×2"
-
-
-msgid "Cubic Mitchell"
-msgstr "Mitchell za ujazo"
-
-
-msgid "Cubic Mitchell filter on 4×4 samples"
-msgstr "Kichujio cha Cubic Mitchell kwenye sampuli za 4×4"
-
-
-msgid "Cubic B-Spline filter (blurry but no ringing) on 4×4 samples"
-msgstr "Kichujio cha ujazo cha B-Spline (haikuonekana wazi lakini hakuna mlio) kwenye sampuli 4×4"
-
-
-msgid "Averages source image samples that fall under destination pixel"
-msgstr "Wastani wa sampuli za picha za chanzo ambazo ziko chini ya pikseli lengwa"
-
-
-msgid "Translate X"
-msgstr "Tafsiri X"
-
-
-msgid "Move along X axis"
-msgstr "Sogeza kwenye mhimili wa X"
-
-
-msgid "Translate Y"
-msgstr "Tafsiri Y"
-
-
-msgid "Move along Y axis"
-msgstr "Sogea kwenye mhimili wa Y"
-
-
-msgid "Origin of image for transformation"
-msgstr "Asili ya taswira ya mabadiliko"
-
-
-msgid "Rotate around image center"
-msgstr "Zungusha katikati ya picha"
-
-
-msgid "Scale along X axis"
-msgstr "Pima kwenye mhimili wa X"
-
-
-msgid "Scale along Y axis"
-msgstr "Pima kwenye mhimili wa Y"
 
 
 msgid "Show Cache"
@@ -85122,10 +84494,6 @@ msgstr "Snap Fremu ya Sasa hadi Michirizi"
 
 msgid "Snap current frame to strip start or end"
 msgstr "Piga fremu ya sasa ili kuvua mwanzo au mwisho"
-
-
-msgid "Collection of Sequences"
-msgstr "Mkusanyiko wa Mifuatano"
 
 
 msgid "Effect name"
@@ -88402,10 +87770,6 @@ msgid "Gamma Cross"
 msgstr "Msalaba wa Gamma"
 
 
-msgid "Over Drop"
-msgstr "Kushuka Zaidi"
-
-
 msgid "Y position of the sequence strip"
 msgstr "Y nafasi ya ukanda wa mfuatano"
 
@@ -88494,6 +87858,11 @@ msgstr "Sinema"
 
 
 msgctxt "Sequence"
+msgid "Clip"
+msgstr "Klipu"
+
+
+msgctxt "Sequence"
 msgid "Sound"
 msgstr "Sauti"
 
@@ -88501,11 +87870,6 @@ msgstr "Sauti"
 msgctxt "Sequence"
 msgid "Cross"
 msgstr "Msalaba"
-
-
-msgctxt "Sequence"
-msgid "Over Drop"
-msgstr "Kushuka Zaidi"
 
 
 msgid "Use Default Fade"
@@ -88518,10 +87882,6 @@ msgstr "Tumia Virekebishaji Mistari"
 
 msgid "Calculate modifiers in linear space instead of sequencer's space"
 msgstr "Hesabu virekebishaji katika nafasi ya mstari badala ya nafasi ya mfuatano"
-
-
-msgid "Effect Sequence"
-msgstr "Mfuatano wa Athari"
 
 
 msgid "Sequence strip applying an effect on the images created by other strips"
@@ -88538,6 +87898,10 @@ msgstr "Njia za RGB katika pikseli za uwazi haziathiriwi na chaneli ya alpha"
 
 msgid "RGB channels in transparent pixels are multiplied by the alpha channel"
 msgstr "Njia za RGB katika pikseli za uwazi huzidishwa na chaneli ya alpha"
+
+
+msgid "Multiply Colors"
+msgstr "Zidisha Rangi"
 
 
 msgid "Adjust the intensity of the input's color"
@@ -88584,10 +87948,6 @@ msgid "Reverse frame order"
 msgstr "Mpangilio wa fremu wa nyuma"
 
 
-msgid "Add Sequence"
-msgstr "Ongeza Mfuatano"
-
-
 msgid "Input 1"
 msgstr "Ingizo 1"
 
@@ -88602,10 +87962,6 @@ msgstr "Ingizo 2"
 
 msgid "Second input for the effect strip"
 msgstr "Ingizo la pili la ukanda wa athari"
-
-
-msgid "Adjustment Layer Sequence"
-msgstr "Mfuatano wa Tabaka la Marekebisho"
 
 
 msgid "Sequence strip to perform filter adjustments to layers below"
@@ -88628,20 +87984,8 @@ msgid "Animation start offset (trim start)"
 msgstr "Kuanza kwa uhuishaji (punguza mwanzo)"
 
 
-msgid "Alpha Over Sequence"
-msgstr "Mfuatano wa Alpha Juu"
-
-
-msgid "Alpha Under Sequence"
-msgstr "Alpha Chini ya Mfuatano"
-
-
-msgid "Color Mix Sequence"
-msgstr "Mfuatano wa Mchanganyiko wa Rangi"
-
-
-msgid "Color Sequence"
-msgstr "Mfuatano wa Rangi"
+msgid "Color Strip"
+msgstr "Ukanda wa Rangi"
 
 
 msgid "Sequence strip creating an image filled with a single color"
@@ -88656,14 +88000,6 @@ msgid "Cross Sequence"
 msgstr "Mlolongo wa Msalaba"
 
 
-msgid "Gamma Cross Sequence"
-msgstr "Mfuatano wa Msalaba wa Gamma"
-
-
-msgid "Gaussian Blur Sequence"
-msgstr "Mfuatano wa Ukungu wa Gaussian"
-
-
 msgid "Sequence strip creating a gaussian blur"
 msgstr "Ukanda wa mlolongo kuunda ukungu wa gaussian"
 
@@ -88674,10 +88010,6 @@ msgstr "Ukubwa wa ukungu kwenye mhimili wa X"
 
 msgid "Size of the blur along Y axis"
 msgstr "Ukubwa wa ukungu kwenye mhimili wa Y"
-
-
-msgid "Glow Sequence"
-msgstr "Mfuatano wa Mwangaza"
 
 
 msgid "Sequence strip creating a glow effect"
@@ -88720,28 +88052,12 @@ msgid "Show the glow buffer only"
 msgstr "Onyesha bafa ya mwanga pekee"
 
 
-msgid "Multicam Select Sequence"
-msgstr "Mfuatano wa Chagua Multicam"
-
-
 msgid "Sequence strip to perform multicam editing"
 msgstr "Panda safu ili kufanya uhariri wa kamera nyingi"
 
 
 msgid "Multicam Source Channel"
 msgstr "Idhaa ya Chanzo cha Multicam"
-
-
-msgid "Multiply Sequence"
-msgstr "Msururu wa Kuzidisha"
-
-
-msgid "Over Drop Sequence"
-msgstr "Mlolongo wa Kushuka Zaidi"
-
-
-msgid "SpeedControl Sequence"
-msgstr "Mfuatano wa Udhibiti wa Kasi"
 
 
 msgid "Sequence strip to control the speed of other strips"
@@ -88796,12 +88112,8 @@ msgid "Do crossfade blending between current and next frame"
 msgstr "Fadisha uchanganyaji kati ya fremu ya sasa na inayofuata"
 
 
-msgid "Subtract Sequence"
-msgstr "Mfuatano wa Ondoa"
-
-
-msgid "Text Sequence"
-msgstr "Mfuatano wa Maandishi"
+msgid "Text Strip"
+msgstr "Ukanda wa maandishi"
 
 
 msgid "Sequence strip creating text"
@@ -88876,10 +88188,6 @@ msgid "Word wrap width as factor, zero disables"
 msgstr "Upana wa kukunja maneno kama kipengele, huzima sifuri"
 
 
-msgid "Transform Sequence"
-msgstr "Badilisha Mfuatano"
-
-
 msgid "Sequence strip applying affine transformations to other strips"
 msgstr "Ukanda wa mfuatano unaotumia mabadiliko ya ushirika kwa vipande vingine"
 
@@ -88908,8 +88216,16 @@ msgid "Amount to scale the input in the Y axis"
 msgstr "Kiasi cha kuongeza pembejeo katika mhimili wa Y"
 
 
+msgid "Translate X"
+msgstr "Tafsiri X"
+
+
 msgid "Amount to move the input on the X axis"
 msgstr "Kiasi cha kuhamisha ingizo kwenye mhimili wa X"
+
+
+msgid "Translate Y"
+msgstr "Tafsiri Y"
 
 
 msgid "Amount to move the input on the Y axis"
@@ -88926,10 +88242,6 @@ msgstr "Kipimo cha kutafsiri ingizo"
 
 msgid "Scale uniformly, preserving aspect ratio"
 msgstr "Pima kwa usawa, kuhifadhi uwiano wa kipengele"
-
-
-msgid "Wipe Sequence"
-msgstr "Futa Mfuatano"
 
 
 msgid "Sequence strip creating a wipe transition"
@@ -88987,12 +88299,16 @@ msgid "Clock"
 msgstr "Saa"
 
 
+msgid "Image Strip"
+msgstr "Ukanda wa Picha"
+
+
 msgid "Sequence strip to load one or more images"
 msgstr "Funga safu ili kupakia picha moja au zaidi"
 
 
-msgid "Mask Sequence"
-msgstr "Mfuatano wa Mask"
+msgid "Mask Strip"
+msgstr "Ukanda wa Mask"
 
 
 msgid "Sequence strip to load a video from a mask"
@@ -89003,20 +88319,12 @@ msgid "Mask that this sequence uses"
 msgstr "Mask ambayo mlolongo huu hutumia"
 
 
-msgid "Meta Sequence"
-msgstr "Mfuatano wa Meta"
+msgid "Meta Strip"
+msgstr "Ukanda wa Meta"
 
 
 msgid "Sequence strip to group other strips as a single sequence strip"
 msgstr "Panda ukanda ili kuweka vipande vingine kama ukanda mmoja wa mfuatano"
-
-
-msgid "Sequences nested in meta strip"
-msgstr "Mfuatano uliowekwa katika ukanda wa meta"
-
-
-msgid "MovieClip Sequence"
-msgstr "Mfuatano waMovieClip"
 
 
 msgid "Sequence strip to load a video from the clip editor"
@@ -89039,10 +88347,6 @@ msgid "Use the undistorted version of the clip"
 msgstr "Tumia toleo lisilopotoshwa la klipu"
 
 
-msgid "Movie Sequence"
-msgstr "Mfuatano wa Filamu"
-
-
 msgid "Sequence strip to load a video"
 msgstr "Panda safu ili kupakia video"
 
@@ -89059,8 +88363,8 @@ msgid "Mode to load movie views"
 msgstr "Modi ya kupakia mionekano ya filamu"
 
 
-msgid "Scene Sequence"
-msgstr "Mfuatano wa Mandhari"
+msgid "Scene Strip"
+msgstr "Ukanda wa Mandhari"
 
 
 msgid "Sequence strip using the rendered image of a scene"
@@ -89103,10 +88407,6 @@ msgid "Playback volume of the sound"
 msgstr "Kiasi cha uchezaji wa sauti"
 
 
-msgid "Sound Sequence"
-msgstr "Mfuatano wa Sauti"
-
-
 msgid "Sequence strip defining a sound to be played over a period of time"
 msgstr "Ukanda wa mfuatano unaofafanua sauti itakayochezwa kwa muda fulani"
 
@@ -89125,6 +88425,354 @@ msgstr "Onyesha muundo wa wimbi la sauti ndani ya ukanda"
 
 msgid "Sound data-block used by this sequence"
 msgstr "Kizuizi cha data cha sauti kinachotumiwa na mlolongo huu"
+
+
+msgid "Color balance parameters for a sequence strip and its modifiers"
+msgstr "Vigezo vya usawa vya rangi kwa ukanda wa mfuatano na virekebishaji vyake"
+
+
+msgid "Correction Method"
+msgstr "Njia ya Kurekebisha"
+
+
+msgid "Color balance gain (highlights)"
+msgstr "Faida ya usawa wa rangi (mambo muhimu)"
+
+
+msgid "Color balance gamma (midtones)"
+msgstr "Mizani ya rangi gamma (tones)"
+
+
+msgid "Inverse Gain"
+msgstr "Faida Inverse"
+
+
+msgid "Invert the gain color"
+msgstr "Geuza rangi ya faida"
+
+
+msgid "Inverse Gamma"
+msgstr "Gamma Inverse"
+
+
+msgid "Invert the gamma color"
+msgstr "Geuza rangi ya gamma"
+
+
+msgid "Invert the lift color"
+msgstr "Geuza rangi ya kuinua"
+
+
+msgid "Invert the offset color"
+msgstr "Geuza rangi ya kukabiliana"
+
+
+msgid "Inverse Power"
+msgstr "Nguvu Inverse"
+
+
+msgid "Invert the power color"
+msgstr "Geuza rangi ya nguvu"
+
+
+msgid "Inverse Slope"
+msgstr "Mteremko Inverse"
+
+
+msgid "Invert the slope color"
+msgstr "Geuza rangi ya mteremko"
+
+
+msgid "Color balance lift (shadows)"
+msgstr "Kuinua mizani ya rangi (vivuli)"
+
+
+msgid "Color balance parameters for a sequence strip"
+msgstr "Vigezo vya usawa vya rangi kwa ukanda wa mfuatano"
+
+
+msgid "Cropping parameters for a sequence strip"
+msgstr "Kupunguza vigezo kwa ukanda wa mfuatano"
+
+
+msgid "Number of pixels to crop from the right side"
+msgstr "Idadi ya saizi za kupunguza kutoka upande wa kulia"
+
+
+msgid "Number of pixels to crop from the top"
+msgstr "Idadi ya saizi za kupunguza kutoka juu"
+
+
+msgid "Number of pixels to crop from the left side"
+msgstr "Idadi ya saizi za kupunguza kutoka upande wa kushoto"
+
+
+msgid "Number of pixels to crop from the bottom"
+msgstr "Idadi ya saizi za kupunguza kutoka chini"
+
+
+msgid "Sequence strip data for a single frame"
+msgstr "Mfuatano wa data ya fremu moja"
+
+
+msgid "Name of the source file"
+msgstr "Jina la faili chanzo"
+
+
+msgid "Orig FPS"
+msgstr "FPS Asili"
+
+
+msgid "Original frames per second"
+msgstr "Fremu za asili kwa sekunde"
+
+
+msgid "Orig Height"
+msgstr "Urefu wa Orig"
+
+
+msgid "Original image height"
+msgstr "Urefu wa picha halisi"
+
+
+msgid "Orig Width"
+msgstr "Upana wa Orig"
+
+
+msgid "Original image width"
+msgstr "Upana wa picha halisi"
+
+
+msgid "Modifier for sequence strip"
+msgstr "Kirekebishaji cha ukanda wa mfuatano"
+
+
+msgid "Mask ID used as mask input for the modifier"
+msgstr "Kitambulisho cha barakoa kinatumika kama pembejeo ya barakoa kwa kirekebishaji"
+
+
+msgid "Strip used as mask input for the modifier"
+msgstr "Sehemu inayotumika kama ingizo la barakoa kwa kirekebishaji"
+
+
+msgid "Mask Input Type"
+msgstr "Aina ya Ingizo la Kinyago"
+
+
+msgid "Type of input data used for mask"
+msgstr "Aina ya data ya ingizo inayotumika kwa barakoa"
+
+
+msgid "Use sequencer strip as mask input"
+msgstr "Tumia ukanda wa mpangilio kama uingizaji wa barakoa"
+
+
+msgid "Use mask ID as mask input"
+msgstr "Tumia Kitambulisho cha barakoa kama ingizo la barakoa"
+
+
+msgid "Mask Time"
+msgstr "Wakati wa Mask"
+
+
+msgid "Time to use for the Mask animation"
+msgstr "Wakati wa kutumia kwa uhuishaji wa Kinyago"
+
+
+msgid "Mask animation is offset to start of strip"
+msgstr "Uhuishaji wa barakoa umerekebishwa ili kuanza kwa ukanda"
+
+
+msgid "Mask animation is in sync with scene frame"
+msgstr "Uhuishaji wa barakoa unasawazishwa na fremu ya tukio"
+
+
+msgid "Mute this modifier"
+msgstr "Zimaza kirekebishaji hiki"
+
+
+msgid "Mute expanded settings for the modifier"
+msgstr "Komesha mipangilio iliyopanuliwa ya kirekebishaji"
+
+
+msgid "Tone Map"
+msgstr "Ramani ya Toni"
+
+
+msgid "Sound Equalizer"
+msgstr "Kisawazisha Sauti"
+
+
+msgid "Bright/contrast modifier data for sequence strip"
+msgstr "Data ya kirekebishaji angavu/kilinganishi kwa ukanda wa mfuatano"
+
+
+msgid "Adjust the luminosity of the colors"
+msgstr "Rekebisha mwangaza wa rangi"
+
+
+msgid "Adjust the difference in luminosity between pixels"
+msgstr "Rekebisha tofauti ya mwangaza kati ya saizi"
+
+
+msgid "Color balance modifier for sequence strip"
+msgstr "Kirekebisha usawa cha rangi kwa ukanda wa mfuatano"
+
+
+msgid "Multiply the intensity of each pixel"
+msgstr "Zidisha ukubwa wa kila pikseli"
+
+
+msgid "RGB curves modifier for sequence strip"
+msgstr "Kirekebishaji cha mikondo ya RGB kwa ukanda wa mfuatano"
+
+
+msgid "Hue correction modifier for sequence strip"
+msgstr "Kirekebishaji cha kusahihisha hue kwa ukanda wa mfuatano"
+
+
+msgid "Tone mapping modifier"
+msgstr "Kirekebishaji cha ramani ya toni"
+
+
+msgid "Tone mapping algorithm"
+msgstr "Kanuni ya ramani ya toni"
+
+
+msgid "Equalize audio"
+msgstr "Sawazisha sauti"
+
+
+msgid "Graphical definition equalization"
+msgstr "Usawazishaji wa ufafanuzi wa picha"
+
+
+msgid "White balance modifier for sequence strip"
+msgstr "Kirekebisha usawa cheupe kwa ukanda wa mfuatano"
+
+
+msgid "White Value"
+msgstr "Thamani Nyeupe"
+
+
+msgid "This color defines white in the strip"
+msgstr "Rangi hii inafafanua nyeupe kwenye ukanda"
+
+
+msgid "Strip Modifiers"
+msgstr "Marekebisho ya Mikanda"
+
+
+msgid "Collection of strip modifiers"
+msgstr "Mkusanyiko wa marekebisho ya strip"
+
+
+msgid "Proxy parameters for a sequence strip"
+msgstr "Vigezo vya wakala kwa ukanda wa mfuatano"
+
+
+msgid "Build 100% proxy resolution"
+msgstr "Jenga azimio la wakala 100%."
+
+
+msgid "Build 25% proxy resolution"
+msgstr "Jenga azimio la wakala 25%."
+
+
+msgid "Build 50% proxy resolution"
+msgstr "Jenga azimio la wakala 50%."
+
+
+msgid "Build 75% proxy resolution"
+msgstr "Jenga azimio la proksi la 75%."
+
+
+msgid "Location of custom proxy file"
+msgstr "Mahali pa faili maalum ya wakala"
+
+
+msgid "Quality of proxies to build"
+msgstr "Ubora wa proksi za kujenga"
+
+
+msgid "Method for reading the inputs timecode"
+msgstr "Njia ya kusoma nambari ya saa ya pembejeo"
+
+
+msgid "Overwrite existing proxy files when building"
+msgstr "Batilisha faili za proksi zilizopo wakati wa kujenga"
+
+
+msgid "Use a custom directory to store data"
+msgstr "Tumia saraka maalum kuhifadhi data"
+
+
+msgid "Proxy Custom File"
+msgstr "Faili Maalum ya Wakala"
+
+
+msgid "Use a custom file to read proxy data from"
+msgstr "Tumia faili maalum kusoma data ya seva mbadala kutoka"
+
+
+msgid "Transform parameters for a sequence strip"
+msgstr "Badilisha vigezo vya ukanda wa mfuatano"
+
+
+msgid "Type of filter to use for image transformation"
+msgstr "Aina ya kichujio cha kutumia kubadilisha picha"
+
+
+msgid "Automatically choose filter based on scaling factor"
+msgstr "Chagua kichujio kiotomatiki kulingana na kipengele cha kuongeza alama"
+
+
+msgid "Use nearest sample"
+msgstr "Tumia sampuli iliyo karibu zaidi"
+
+
+msgid "Interpolate between 2×2 samples"
+msgstr "Tafanua kati ya sampuli 2×2"
+
+
+msgid "Cubic Mitchell"
+msgstr "Mitchell za ujazo"
+
+
+msgid "Cubic Mitchell filter on 4×4 samples"
+msgstr "Kichujio cha Cubic Mitchell kwenye sampuli za 4×4"
+
+
+msgid "Cubic B-Spline filter (blurry but no ringing) on 4×4 samples"
+msgstr "Kichujio cha ujazo cha B-Spline (haikuonekana wazi lakini hakuna mlio) kwenye sampuli 4×4"
+
+
+msgid "Averages source image samples that fall under destination pixel"
+msgstr "Wastani wa sampuli za picha za chanzo ambazo ziko chini ya pikseli lengwa"
+
+
+msgid "Move along X axis"
+msgstr "Sogeza kwenye mhimili wa X"
+
+
+msgid "Move along Y axis"
+msgstr "Sogea kwenye mhimili wa Y"
+
+
+msgid "Origin of image for transformation"
+msgstr "Asili ya taswira ya mabadiliko"
+
+
+msgid "Rotate around image center"
+msgstr "Zungusha katikati ya picha"
+
+
+msgid "Scale along X axis"
+msgstr "Pima kwenye mhimili wa X"
+
+
+msgid "Scale along Y axis"
+msgstr "Pima kwenye mhimili wa Y"
 
 
 msgid "Studio Light"
@@ -90262,28 +89910,12 @@ msgid "Foreground color of Debug icon"
 msgstr "Rangi ya mandharinyuma ya ikoni ya Utatuzi"
 
 
-msgid "Error Icon Background"
-msgstr "Mandharinyuma ya Ikoni ya Hitilafu"
-
-
-msgid "Background color of Error icon"
-msgstr "Rangi ya usuli ya ikoni ya Hitilafu"
-
-
 msgid "Error Icon Foreground"
 msgstr "Aikoni ya Kosa Mandhari ya mbele"
 
 
 msgid "Foreground color of Error icon"
 msgstr "Rangi ya mbele ya ikoni ya Hitilafu"
-
-
-msgid "Info Icon Background"
-msgstr "Mandharinyuma ya Ikoni ya Taarifa"
-
-
-msgid "Background color of Info icon"
-msgstr "Rangi ya usuli ya ikoni ya Maelezo"
 
 
 msgid "Info Icon Foreground"
@@ -90340,14 +89972,6 @@ msgstr "Rangi ya Maandishi ya Mstari Uliochaguliwa"
 
 msgid "Text color of selected line"
 msgstr "Rangi ya maandishi ya mstari uliochaguliwa"
-
-
-msgid "Warning Icon Background"
-msgstr "Mandharinyuma ya Ikoni ya Onyo"
-
-
-msgid "Background color of Warning icon"
-msgstr "Rangi ya usuli ya ikoni ya Onyo"
 
 
 msgid "Warning Icon Foreground"
@@ -90650,20 +90274,8 @@ msgid "Audio Strip"
 msgstr "Ukanda wa Sauti"
 
 
-msgid "Color Strip"
-msgstr "Ukanda wa Rangi"
-
-
 msgid "Draw Action"
 msgstr "Chora Kitendo"
-
-
-msgid "Image Strip"
-msgstr "Ukanda wa Picha"
-
-
-msgid "Meta Strip"
-msgstr "Ukanda wa Meta"
 
 
 msgid "Clip Strip"
@@ -90674,16 +90286,8 @@ msgid "Preview Background"
 msgstr "Hakiki Mandharinyuma"
 
 
-msgid "Scene Strip"
-msgstr "Ukanda wa Mandhari"
-
-
 msgid "Selected Strips"
 msgstr "Sehemu Zilizochaguliwa"
-
-
-msgid "Text Strip"
-msgstr "Ukanda wa maandishi"
 
 
 msgid "Transition Strip"
@@ -92236,6 +91840,10 @@ msgid "Enable this light in solid shading mode"
 msgstr "Washa mwangaza huu katika hali ya kivuli dhabiti"
 
 
+msgid "UV Sculpting"
+msgstr "Uchongaji wa UV"
+
+
 msgid "Group of vertices, used for armature deform and other purposes"
 msgstr "Kundi la vipeo, linalotumika kwa ulemavu wa silaha na madhumuni mengine"
 
@@ -93207,10 +92815,6 @@ msgid "Show random object color on wireframe"
 msgstr "Onyesha rangi ya kitu bila mpangilio kwenye fremu ya waya"
 
 
-msgid "Amount of alpha to use"
-msgstr "Kiasi cha alpha cha kutumia"
-
-
 msgid "View layer"
 msgstr "Tazama safu"
 
@@ -93477,17 +93081,9 @@ msgid "Float"
 msgstr "Elea"
 
 
-msgid "Single precision float"
-msgstr "Kuelea kwa usahihi mmoja"
-
-
 msgctxt "Volume"
 msgid "Double"
 msgstr "Mbili"
-
-
-msgid "Double precision"
-msgstr "Usahihi mara mbili"
 
 
 msgctxt "Volume"
@@ -93500,21 +93096,9 @@ msgid "Integer 64-bit"
 msgstr "Nambari kamili ya 64-bit"
 
 
-msgid "64-bit integer"
-msgstr "64-bit nambari kamili"
-
-
-msgid "No data, boolean mask of active voxels"
-msgstr "Hakuna data, kinyago cha boolean cha voxel amilifu"
-
-
 msgctxt "Volume"
 msgid "Float Vector"
 msgstr "Vekta ya kuelea"
-
-
-msgid "3D float vector"
-msgstr "3D vekta ya kuelea"
 
 
 msgctxt "Volume"
@@ -93522,17 +93106,9 @@ msgid "Double Vector"
 msgstr "Vector Mbili"
 
 
-msgid "3D double vector"
-msgstr "3D vekta mbili"
-
-
 msgctxt "Volume"
 msgid "Integer Vector"
 msgstr "Vector Nambari"
-
-
-msgid "3D integer vector"
-msgstr "3D vekta kamili"
 
 
 msgctxt "Volume"
@@ -93540,17 +93116,9 @@ msgid "Points (Unsupported)"
 msgstr "Pointi (Hazitumiki)"
 
 
-msgid "Points grid, currently unsupported by volume objects"
-msgstr "Gridi ya pointi, haitumiki kwa sasa na vitu vya sauti"
-
-
 msgctxt "Volume"
 msgid "Unknown"
 msgstr "Haijulikani"
-
-
-msgid "Unsupported data type"
-msgstr "Aina ya data isiyotumika"
 
 
 msgid "Is Loaded"
@@ -96686,10 +96254,6 @@ msgid "and NVIDIA driver version %s or newer"
 msgstr "na toleo la kiendeshi la NVIDIA %s au jipya zaidi"
 
 
-msgid "and AMD Radeon Pro %s driver or newer"
-msgstr "na dereva wa AMD Radeon Pro %s au mpya zaidi"
-
-
 msgid "Requires Intel GPU with Xe-HPG architecture"
 msgstr "Inahitaji Intel GPU yenye usanifu wa Xe-HPG"
 
@@ -97111,12 +96675,13 @@ msgstr "Weka Mkao Umepinduliwa"
 
 
 msgctxt "Operator"
+msgid "Remove Selected Bones"
+msgstr "Ondoa Mifupa Iliyochaguliwa"
+
+
+msgctxt "Operator"
 msgid "Blend Pose"
 msgstr "Pozi ya Mchanganyiko"
-
-
-msgid "Action %s marked Fake User to prevent loss"
-msgstr "Kitendo %s kimetiwa alama ya Mtumiaji Bandia ili kuzuia upotevu"
 
 
 msgid "Pose Asset copied, use Paste As New Asset in any Asset Browser to paste"
@@ -97131,18 +96696,6 @@ msgid "Converted %d poses to pose assets"
 msgstr "Mitindo %d iliyogeuzwa ili kuweka mali"
 
 
-msgid "An active armature object in pose mode is needed"
-msgstr "Kifaa kinachotumika katika hali ya mkao kinahitajika"
-
-
-msgid "Asset Browser must be set to the Current File library"
-msgstr "Kivinjari cha Mali lazima kiwekwe kwenye maktaba ya Faili ya Sasa"
-
-
-msgid "No keyframes were found for this pose"
-msgstr "Hakuna fremu muhimu zilizopatikana kwa pozi hili"
-
-
 msgid "No animation data found to create asset from"
 msgstr "Hakuna data ya uhuishaji iliyopatikana kuunda kipengee kutoka"
 
@@ -97153,6 +96706,10 @@ msgstr "Idadi isiyotarajiwa ya watumiaji wasio wa sifuri kwa kipengee, tafadhali
 
 msgid "Current editor is not an asset browser"
 msgstr "Kihariri cha sasa sio kivinjari cha mali"
+
+
+msgid "Asset Browser must be set to the Current File library"
+msgstr "Kivinjari cha Mali lazima kiwekwe kwenye maktaba ya Faili ya Sasa"
 
 
 msgid "Clipboard is empty"
@@ -97381,10 +96938,6 @@ msgstr "Mipangilio hapa inaweza kuwa na umuhimu"
 
 msgid "performance impact!"
 msgstr "athari ya utendaji!"
-
-
-msgid "Built without VR/OpenXR features"
-msgstr "Imejengwa bila vipengele vya VR/OpenXR"
 
 
 msgid "Start VR Session"
@@ -98029,10 +97582,6 @@ msgid "Rotation"
 msgstr "Mzunguko"
 
 
-msgid "Unknown"
-msgstr "Haijulikani"
-
-
 msgid "Switch Stereo View"
 msgstr "Badilisha Mwonekano wa Stereo"
 
@@ -98206,11 +97755,6 @@ msgstr "Ondoa Mikusanyiko Isiyotumika"
 msgctxt "Operator"
 msgid "Assign Selected Bones"
 msgstr "Teua Mifupa Iliyochaguliwa"
-
-
-msgctxt "Operator"
-msgid "Remove Selected Bones"
-msgstr "Ondoa Mifupa Iliyochaguliwa"
 
 
 msgctxt "Operator"
@@ -98417,14 +97961,6 @@ msgid "Only Axis Aligned"
 msgstr "Mhimili Pekee Uliopangwa"
 
 
-msgid "Keyframes Before"
-msgstr "Fremu Muhimu Kabla"
-
-
-msgid "Keyframes After"
-msgstr "Fremu Muhimu Baada ya"
-
-
 msgid "Stroke Thickness"
 msgstr "Unene wa Kiharusi"
 
@@ -98475,6 +98011,14 @@ msgstr "Nakili Safu hadi Iliyochaguliwa"
 msgctxt "Operator"
 msgid "Copy All Layers to Selected"
 msgstr "Nakili Tabaka Zote kwa Zilizochaguliwa"
+
+
+msgid "Keyframes Before"
+msgstr "Fremu Muhimu Kabla"
+
+
+msgid "Keyframes After"
+msgstr "Fremu Muhimu Baada ya"
 
 
 msgid "Interpolation U"
@@ -98912,12 +98456,12 @@ msgid "Saving"
 msgstr "Kuhifadhi"
 
 
-msgid "Max B-frames"
-msgstr "Upeo wa muafaka wa B"
-
-
 msgid "Strip Name"
 msgstr "Jina la Ukanda"
+
+
+msgid "Max B-frames"
+msgstr "Upeo wa muafaka wa B"
 
 
 msgid "Buffer"
@@ -100222,16 +99766,6 @@ msgstr "Kichujio cha Kuacha (Euler)."
 
 msgid "Grease Pencil Objects"
 msgstr "Vitu vya Penseli ya Mafuta"
-
-
-msgctxt "Operator"
-msgid "Push Down"
-msgstr "Sukuma Chini"
-
-
-msgctxt "Operator"
-msgid "Stash"
-msgstr "Hifadhi"
 
 
 msgctxt "Operator"
@@ -103498,10 +103032,6 @@ msgid "Marker Names"
 msgstr "Alama Majina"
 
 
-msgid "Developer"
-msgstr "Msanidi"
-
-
 msgid "Fade Geometry"
 msgstr "Fifisha Jiometri"
 
@@ -103666,6 +103196,14 @@ msgid "Specular Lighting"
 msgstr "Taa Maalum"
 
 
+msgid "Valley"
+msgstr "Bonde"
+
+
+msgid "Screen Space"
+msgstr "Nafasi ya Skrini"
+
+
 msgid "Include Active"
 msgstr "Jumuisha Active"
 
@@ -103776,14 +103314,6 @@ msgstr "Rekebisha Saizi Tupu ya Onyesho"
 
 msgid "Empty Display Size: %.3f"
 msgstr "Ukubwa Tupu wa Onyesho: %.3f"
-
-
-msgid "Valley"
-msgstr "Bonde"
-
-
-msgid "Screen Space"
-msgstr "Nafasi ya Skrini"
 
 
 msgid "No object selected, using cursor"
@@ -104359,6 +103889,10 @@ msgid "Surface"
 msgstr "Uso"
 
 
+msgid "Untitled"
+msgstr "Haina jina"
+
+
 msgid "Spline Length node"
 msgstr "Nodi ya Urefu wa Spline"
 
@@ -104389,10 +103923,6 @@ msgstr "Haiwezi kupakia picha nyingi kutoka kwa data mbichi kwa sasa..."
 
 msgid "Cannot pack tiled images from raw data currently..."
 msgstr "Haiwezi kupakia picha za vigae kutoka kwa data mbichi kwa sasa..."
-
-
-msgid "untitled"
-msgstr "isiyo na jina"
 
 
 msgid "Did not write, no Multilayer Image"
@@ -105152,10 +104682,6 @@ msgid "Video_Editing"
 msgstr "Kuhariri_Video"
 
 
-msgid "Untitled"
-msgstr "Haina jina"
-
-
 msgid "Unable to make version backup: filename too short"
 msgstr "Haiwezi kufanya nakala ya toleo: jina la faili fupi sana"
 
@@ -105248,24 +104774,12 @@ msgid "Compositor node tree has undefined nodes or sockets!"
 msgstr "Mti wa nodi za watunzi una vifundo au soketi zisizobainishwa!"
 
 
-msgid "UV/Image"
-msgstr "UV/Picha"
-
-
-msgid "Select ID Debug"
-msgstr "Chagua Utatuzi wa Kitambulisho"
-
-
-msgid "Select ID"
-msgstr "Chagua Kitambulisho"
-
-
-msgid "Select-Next"
-msgstr "Chagua-Inayofuata"
-
-
 msgid "Workbench"
 msgstr "benchi ya kazi"
+
+
+msgid "Create"
+msgstr "Unda"
 
 
 msgid "NLA Strip Controls"
@@ -105334,26 +104848,6 @@ msgstr "Haiwezi kuhariri mali hii kutoka kwa kizuizi cha data kilichounganishwa"
 
 msgid "No active object"
 msgstr "Hakuna kitu amilifu"
-
-
-msgid "No channels to operate on"
-msgstr "Hakuna chaneli za kufanya kazi"
-
-
-msgid "No keyframes to focus on"
-msgstr "Hakuna fremu muhimu za kuzingatia"
-
-
-msgid "No open Graph Editor window found"
-msgstr "Hakuna dirisha la Kihariri cha Grafu lililopatikana"
-
-
-msgid "Cannot create the Animation Context"
-msgstr "Haiwezi kuunda Muktadha wa Uhuishaji"
-
-
-msgid "F-Curves have no valid size"
-msgstr "F-Curves hazina saizi halali"
 
 
 msgid "<no path>"
@@ -105480,10 +104974,6 @@ msgid "Coefficient"
 msgstr "Mgawo"
 
 
-msgid "Modifier requires original data"
-msgstr "Kirekebishaji kinahitaji data asili"
-
-
 msgid "No RNA pointer available to retrieve values for this F-curve"
 msgstr "Hakuna kielekezi cha RNA kinachopatikana kupata thamani za safu hii ya F"
 
@@ -105608,10 +105098,6 @@ msgid "Property added to Keying Set: '%s'"
 msgstr "Sifa imeongezwa kwa Keying Set: '%s'"
 
 
-msgid "Bone was added to a hidden collection '%s'"
-msgstr "Bone iliongezwa kwenye mkusanyiko uliofichwa '%s'"
-
-
 msgid "No region view3d available"
 msgstr "Hakuna mtazamo wa eneo3d unaopatikana"
 
@@ -105660,10 +105146,6 @@ msgid "Unselectable bone in chain"
 msgstr "Mfupa usiochaguliwa katika mnyororo"
 
 
-msgid "Create"
-msgstr "Unda"
-
-
 msgid "Bone collection with index %d not found on Armature %s"
 msgstr "Mkusanyiko wa mifupa yenye index %d haipatikani kwenye Armature %s"
 
@@ -105704,46 +105186,6 @@ msgid "This needs a local Armature or an override"
 msgstr "Hii inahitaji Armature ya ndani au ubatilishaji"
 
 
-msgid "This operator only works in pose mode and armature edit mode"
-msgstr "Opereta huyu hufanya kazi tu katika hali ya pozi na hali ya kuhariri silaha"
-
-
-msgid "No bones selected, nothing to assign to bone collection"
-msgstr "Hakuna mifupa iliyochaguliwa, hakuna cha kugawa kwa mkusanyiko wa mifupa"
-
-
-msgid "All selected bones were already part of this collection"
-msgstr "Mifupa yote iliyochaguliwa tayari ilikuwa sehemu ya mkusanyiko huu"
-
-
-msgid "No bones selected, nothing to unassign from bone collection"
-msgstr "Hakuna mifupa iliyochaguliwa, hakuna cha kutengua kutoka kwa mkusanyiko wa mfupa"
-
-
-msgid "None of the selected bones were assigned to this collection"
-msgstr "Hakuna mfupa uliochaguliwa uliopewa mkusanyo huu"
-
-
-msgid "Missing bone name"
-msgstr "Jina la mfupa halipo"
-
-
-msgid "No bone collection named '%s'"
-msgstr "Hakuna mkusanyiko wa mfupa unaoitwa '%s'"
-
-
-msgid "Cannot assign to linked bone collection %s"
-msgstr "Haiwezi kukabidhi mkusanyiko wa mfupa uliounganishwa %s"
-
-
-msgid "Could not find bone '%s'"
-msgstr "Haikuweza kupata mfupa '%s'"
-
-
-msgid "Bone '%s' was not assigned to collection '%s'"
-msgstr "Mfupa '%s' haukutolewa kwa mkusanyiko '%s'"
-
-
 msgid "Bone Heat Weighting: failed to find solution for one or more bones"
 msgstr "Kupima Joto la Mfupa: haikuweza kupata suluhisho kwa mfupa mmoja au zaidi"
 
@@ -105766,14 +105208,6 @@ msgstr "Wazi wa njia za mwendo wa mifupa yote"
 
 msgid "Cannot pose libdata"
 msgstr "Haiwezi kuweka libdata"
-
-
-msgid "[Tab] - Show original pose"
-msgstr "[Tab] - Onyesha pozi asili"
-
-
-msgid "[Tab] - Show blended pose"
-msgstr "[Tab] - Onyesha pozi iliyochanganywa"
 
 
 msgid "Pose lib is only for armatures in pose mode"
@@ -105812,28 +105246,8 @@ msgid "Sliding-Tool"
 msgstr "Zana ya Kutelezesha"
 
 
-msgid "[X]/Y/Z axis only (X to clear)"
-msgstr "[X]/Y/Z mhimili pekee (X ili kufuta)"
-
-
-msgid "X/[Y]/Z axis only (Y to clear)"
-msgstr "Mhimili wa X/[Y]/Z pekee (Y kufuta)"
-
-
-msgid "X/Y/[Z] axis only (Z to clear)"
-msgstr "mhimili wa X/Y/[Z] pekee (Z kufuta)"
-
-
-msgid "X/Y/Z = Axis Constraint"
-msgstr "X/Y/Z = Kizuizi cha Mhimili"
-
-
-msgid "G/R/S/B/C - Limit to Transform/Property Set"
-msgstr "G/R/S/B/C - Kikomo cha Kubadilisha/Kuweka Mali"
-
-
-msgid "[H] - Toggle bone visibility"
-msgstr "[H] - Geuza mwonekano wa mfupa"
+msgid "Cancel"
+msgstr "Ghairi"
 
 
 msgid "No keyframes to slide between"
@@ -106171,36 +105585,12 @@ msgid "Node group's first output must be a geometry"
 msgstr "Pato la kwanza la kikundi cha nodi lazima liwe jiometri"
 
 
-msgid "Annotation Create Poly: LMB click to place next stroke vertex | ESC/Enter to end  (or click outside this area)"
-msgstr "Ufafanuzi Unda Aina nyingi: Bofya LMB ili kuweka kipeo kifuatacho cha kipeo |"
-
-
-msgid "Annotation Eraser: Hold and drag LMB or RMB to erase | ESC/Enter to end  (or click outside this area)"
-msgstr "Kifutio cha Ufafanuzi: Shikilia na uburute LMB au RMB ili kufuta |"
-
-
-msgid "Annotation Line Draw: Hold and drag LMB to draw | ESC/Enter to end  (or click outside this area)"
-msgstr "Mchoro wa Mstari wa Dokezo: Shikilia na uburute LMB ili kuchora |"
-
-
-msgid "Annotation Freehand Draw: Hold and drag LMB to draw | E/ESC/Enter to end  (or click outside this area)"
-msgstr "Ufafanuzi Mchoro Usio na Mkono: Shikilia na uburute LMB ili kuchora |"
-
-
-msgid "Annotation Session: ESC/Enter to end   (or click outside this area)"
-msgstr "Kipindi cha Ufafanuzi: ESC/Ingiza ili kumaliza (au bofya nje ya eneo hili)"
-
-
 msgid "Cannot paint stroke"
 msgstr "Haiwezi kupaka rangi kiharusi"
 
 
 msgid "Nothing to erase"
 msgstr "Hakuna cha kufuta"
-
-
-msgid "Annotation operator is already active"
-msgstr "Opereta ya ufafanuzi tayari inatumika"
 
 
 msgid "Failed to find Annotation data to draw into"
@@ -106255,14 +105645,6 @@ msgid "The object has only one layer"
 msgstr "Kitu kina tabaka moja tu"
 
 
-msgid "No active Grease Pencil layer"
-msgstr "Hakuna safu inayotumika ya Penseli ya Grisi"
-
-
-msgid "Active layer is locked or hidden"
-msgstr "Safu inayotumika imefungwa au kufichwa"
-
-
 msgid "No Grease Pencil frame to draw on"
 msgstr "Hakuna fremu ya Penseli ya Grisi ya kuchora"
 
@@ -106287,24 +105669,12 @@ msgid "Unable to find layer to add"
 msgstr "Haijaweza kupata safu ya kuongeza"
 
 
-msgid "Line: "
-msgstr "Mstari: "
+msgid "No active Grease Pencil layer"
+msgstr "Hakuna safu inayotumika ya Penseli ya Grisi"
 
 
-msgid "Rectangle: "
-msgstr "Mstatili: "
-
-
-msgid "Circle: "
-msgstr "Mduara: "
-
-
-msgid "Arc: "
-msgstr "Tao: "
-
-
-msgid "Curve: "
-msgstr "Mviringo: "
+msgid "Active layer is locked or hidden"
+msgstr "Safu inayotumika imefungwa au kufichwa"
 
 
 msgid "Could not resolve path '%s'"
@@ -106542,42 +105912,6 @@ msgid "Drop {} on slot {} of {}"
 msgstr "Dondosha {} kwenye nafasi {} ya {}"
 
 
-msgid "Expected an array of numbers: [n, n, ...]"
-msgstr "Ilitarajia safu ya nambari: [n, n, ...]"
-
-
-msgid "Expected a number"
-msgstr "Nambari inayotarajiwa"
-
-
-msgid "Paste expected 3 numbers, formatted: '[n, n, n]'"
-msgstr "Bandika nambari 3 zinazotarajiwa, zilizoumbizwa: '[n, n, n]'"
-
-
-msgid "Paste expected 4 numbers, formatted: '[n, n, n, n]'"
-msgstr "Bandika nambari 4 zinazotarajiwa, zilizoumbizwa: '[n, n, n, n]'"
-
-
-msgid "Unsupported key: Unknown"
-msgstr "Kitufe kisichotumika: Haijulikani"
-
-
-msgid "Unsupported key: CapsLock"
-msgstr "Kitufe kisichotumika: CapsLock"
-
-
-msgid "Can't edit driven number value, see driver editor for the driver setup"
-msgstr "Haiwezi kuhariri nambari ya nambari inayoendeshwa, angalia kihariri cha dereva kwa usanidi wa kiendeshaji"
-
-
-msgid "Failed to find '%s'"
-msgstr "Imeshindwa kupata '%s'"
-
-
-msgid "Home"
-msgstr "Nyumbani"
-
-
 msgid "Animate property"
 msgstr "Huisha mali"
 
@@ -106653,10 +105987,6 @@ msgstr "Thamani:"
 
 msgid "OK"
 msgstr "sawa"
-
-
-msgid "Cancel"
-msgstr "Ghairi"
 
 
 msgid "Movie"
@@ -106960,18 +106290,6 @@ msgid "Browse ID data to be linked"
 msgstr "Vinjari data ya kitambulisho ili kuunganishwa"
 
 
-msgid "The data-block %s is not overridable"
-msgstr "Kizuizi cha data %s hakiwezi kupita kiasi"
-
-
-msgid "The type of data-block %s is not yet implemented"
-msgstr "Aina ya kizuizi-data %s bado hakijatekelezwa"
-
-
-msgid "The data-block %s could not be overridden"
-msgstr "Kizuizi cha data %s hakikuweza kubatilishwa"
-
-
 msgctxt "Action"
 msgid "New"
 msgstr "Mpya"
@@ -107183,10 +106501,6 @@ msgid "Unable to determine ABC sequence length"
 msgstr "Imeshindwa kubainisha urefu wa mfuatano wa ABC"
 
 
-msgid "Could not add a layer to the cache file"
-msgstr "Haikuweza kuongeza safu kwenye faili ya kache"
-
-
 msgid "Global Orientation"
 msgstr "Mwelekeo wa Ulimwengu"
 
@@ -107363,16 +106677,8 @@ msgid "Outer"
 msgstr "Nje"
 
 
-msgid "Miter Shape"
-msgstr "Umbo la Kina"
-
-
 msgid "Intersection Type"
 msgstr "Aina ya Makutano"
-
-
-msgid "LMB: Click and drag to draw cut line"
-msgstr "LMB: Bofya na uburute ili kuchora mstari wa kukata"
 
 
 msgid "Selected edges/faces required"
@@ -108494,22 +107800,6 @@ msgid "Voxel remesher failed to create mesh"
 msgstr "Voxel remesher imeshindwa kuunda mesh"
 
 
-msgid "The remesher cannot work on linked or override data"
-msgstr "Remesher haiwezi kufanya kazi kwenye data iliyounganishwa au kubatilisha"
-
-
-msgid "The remesher cannot run from edit mode"
-msgstr "Remesher haiwezi kukimbia kutoka kwa hali ya kuhariri"
-
-
-msgid "The remesher cannot run with dyntopo activated"
-msgstr "Remesher haiwezi kukimbia na dyntopo iliyoamilishwa"
-
-
-msgid "The remesher cannot run with a Multires modifier in the modifier stack"
-msgstr "Kirekebishaji hakiwezi kufanya kazi na kirekebishaji cha Multires kwenye rafu ya kirekebishaji"
-
-
 msgid "QuadriFlow: Remeshing canceled"
 msgstr "QuadriFlow: Remeshing imeghairiwa"
 
@@ -108524,6 +107814,22 @@ msgstr "QuadriFlow: Urekebishaji umekamilika"
 
 msgid "QuadriFlow: Remeshing failed"
 msgstr "QuadriFlow: Remeshing imeshindwa"
+
+
+msgid "The remesher cannot work on linked or override data"
+msgstr "Remesher haiwezi kufanya kazi kwenye data iliyounganishwa au kubatilisha"
+
+
+msgid "The remesher cannot run from edit mode"
+msgstr "Remesher haiwezi kukimbia kutoka kwa hali ya kuhariri"
+
+
+msgid "The remesher cannot run with dyntopo activated"
+msgstr "Remesher haiwezi kukimbia na dyntopo iliyoamilishwa"
+
+
+msgid "The remesher cannot run with a Multires modifier in the modifier stack"
+msgstr "Kirekebishaji hakiwezi kufanya kazi na kirekebishaji cha Multires kwenye rafu ya kirekebishaji"
 
 
 msgid "Select Collection"
@@ -108758,14 +108064,6 @@ msgid "Bake failed: invalid canvas"
 msgstr "Imeshindwa kuoka: turubai batili"
 
 
-msgid "Baking canceled!"
-msgstr "Kuoka kumeghairiwa!"
-
-
-msgid "DynamicPaint: Bake failed: %s"
-msgstr "Rangi Inayobadilika: Imeshindwa kuoka: %s"
-
-
 msgid "Removed %d double particle(s)"
 msgstr "Imeondolewa %d chembe mbili"
 
@@ -108808,14 +108106,6 @@ msgstr "Fluid: Haikuweza kuunda saraka ya kache '%s', weka upya kwa chaguo-msing
 
 msgid "Fluid: Could not use default cache directory '%s', please define a valid cache path manually"
 msgstr "Kimiminiko: Haikuweza kutumia saraka ya akiba chaguo-msingi '%s', tafadhali fafanua njia halali ya akiba wewe mwenyewe."
-
-
-msgid "Fluid: %s failed: %s"
-msgstr "Kioevu: %s imeshindwa: %s"
-
-
-msgid "Fluid: %s canceled!"
-msgstr "Kioevu: %s imeghairiwa!"
 
 
 msgid "Library override data-blocks only support Disk Cache storage"
@@ -109078,10 +108368,6 @@ msgid "Scene has no camera"
 msgstr "Mandhari haina kamera"
 
 
-msgid "Movie format unsupported"
-msgstr "Muundo wa filamu hautumiki"
-
-
 msgid "Failed to create OpenGL off-screen buffer, %s"
 msgstr "Imeshindwa kuunda bafa ya OpenGL nje ya skrini, %s"
 
@@ -109092,14 +108378,6 @@ msgstr "Hitilafu ya kuandika: haiwezi kuhifadhi %s"
 
 msgid "Skipping existing frame \"%s\""
 msgstr "Kuruka fremu iliyopo \"%s\""
-
-
-msgid "No active object, unable to apply the Action before rendering"
-msgstr "Hakuna kitu amilifu, haiwezi kutekeleza Kitendo kabla ya kutoa"
-
-
-msgid "Object %s has no pose, unable to apply the Action before rendering"
-msgstr "Kitu %s hakina mkao, hakiwezi kutekeleza Kitendo kabla ya kutoa"
 
 
 msgid "Unable to remove material slot in edit mode"
@@ -109339,24 +108617,12 @@ msgid "Invalid UV map: UV islands must not overlap"
 msgstr "Ramani ya UV si sahihi: Visiwa vya UV lazima visiingiliane"
 
 
-msgid "Cursor must be over the surface mesh"
-msgstr "Kishale lazima kiwe juu ya matundu ya uso"
-
-
 msgid "Curves do not have surface attachment information"
 msgstr "Curve hazina maelezo ya kiambatisho cha uso"
 
 
 msgid "UV map or surface attachment is invalid"
 msgstr "Ramani ya UV au kiambatisho cha uso ni batili"
-
-
-msgid "ON"
-msgstr "ILIYO"
-
-
-msgid "OFF"
-msgstr "ZIMA"
 
 
 msgid "Active group is locked, aborting"
@@ -109618,10 +108884,6 @@ msgid "Action must have at least one keyframe or F-Modifier"
 msgstr "Kitendo lazima kiwe na angalau fremu moja muhimu au F-Modifier"
 
 
-msgid "Action has already been stashed"
-msgstr "Hatua tayari imefichwa"
-
-
 msgid "Could not find current NLA Track"
 msgstr "Haikuweza kupata Wimbo wa sasa wa NLA"
 
@@ -109814,10 +109076,6 @@ msgid "Cannot read '%s': %s"
 msgstr "Haiwezi kusoma '%s': %s"
 
 
-msgid "Use LMB click to define location where place the marker"
-msgstr "Tumia LMB kubofya ili kufafanua mahali ambapo weka alama"
-
-
 msgid "No active track to join to"
 msgstr "Hakuna wimbo unaoendelea wa kujiunga nao"
 
@@ -109986,10 +109244,6 @@ msgid "bytes"
 msgstr "baiti"
 
 
-msgid "Could not rename: %s"
-msgstr "Haikuweza kubadilisha jina: %s"
-
-
 msgid "Unable to create configuration directory to write bookmarks"
 msgstr "Haiwezi kuunda saraka ya usanidi ili kuandika alamisho"
 
@@ -110044,6 +109298,10 @@ msgstr "Katalogi za Mali"
 
 msgid "Date Modified"
 msgstr "Tarehe Iliyorekebishwa"
+
+
+msgid "Home"
+msgstr "Nyumbani"
 
 
 msgid "Desktop"
@@ -110335,56 +109593,8 @@ msgid "All %d rotation channels were filtered"
 msgstr "Njia zote %d za mzunguko zilichujwa"
 
 
-msgid "No drivers deleted"
-msgstr "Hakuna viendeshaji vilivyofutwa"
-
-
-msgid "Deleted %u drivers"
-msgstr "Viendeshaji %u vimefutwa"
-
-
-msgid "Decimate Keyframes"
-msgstr "Tambua Fremu Muhimu"
-
-
-msgid "Shear Keys"
-msgstr "Funguo za kunyoa"
-
-
-msgid "D - Toggle Direction"
-msgstr "D - Geuza Mwelekeo"
-
-
-msgid "[D] - Scale From Right End"
-msgstr "[D] - Mizani Kutoka Mwisho wa Kulia"
-
-
-msgid "[D] - Scale From Left End"
-msgstr "[D] - Mizani Kutoka Mwisho wa Kushoto"
-
-
-msgid "Scale from Neighbor Keys"
-msgstr "Mizani kutoka kwa Funguo za Jirani"
-
-
 msgid "Decimate F-Curves by specifying how much they can deviate from the original curve"
 msgstr "Tambua F-Curves kwa kubainisha ni kiasi gani zinaweza kupotoka kutoka kwenye mkunjo asili."
-
-
-msgid "Cannot find keys to operate on"
-msgstr "Haiwezi kupata funguo za kufanya kazi"
-
-
-msgid "Decimate: Skipping non linear/Bézier keyframes!"
-msgstr "Kamatisha: Kuruka fremu muhimu zisizo za mstari/Bézier!"
-
-
-msgid "You need at least 2 keys to the right side of the selection"
-msgstr "Unahitaji angalau funguo 2 kwa upande wa kulia wa uteuzi"
-
-
-msgid "You need at least 2 keys to the left side of the selection"
-msgstr "Unahitaji angalau funguo 2 kwa upande wa kushoto wa uteuzi"
 
 
 msgid "There is no animation data to operate on"
@@ -110473,10 +109683,6 @@ msgstr "Hakuna picha zilizobadilishwa"
 
 msgid "Images cannot be copied while rendering"
 msgstr "Picha haziwezi kunakiliwa wakati wa kutoa"
-
-
-msgid "Packing movies or image sequences not supported"
-msgstr "Kupakia filamu au mifuatano ya picha haitumiki"
 
 
 msgid "Unpacking movies or image sequences not supported"
@@ -110783,10 +109989,6 @@ msgid "Adding node groups isn't supported for custom (Python defined) node trees
 msgstr "Kuongeza vikundi vya nodi hakutumiki kwa miti maalum (Python defined) nodi"
 
 
-msgid "{} (String)"
-msgstr "{} (Kamba)"
-
-
 msgid "{} (Integer)"
 msgstr "{} (Nambari kamili)"
 
@@ -110875,6 +110077,10 @@ msgid "Supported: "
 msgstr "Inayotumika: "
 
 
+msgid "{} (String)"
+msgstr "{} (Kamba)"
+
+
 msgid "Unknown socket value. Either the socket was not used or its value was not logged during the last evaluation"
 msgstr "Thamani ya tundu isiyojulikana."
 
@@ -110913,10 +110119,6 @@ msgstr " Sifa Zilizotajwa"
 
 msgid "Text not used by any node, no update done"
 msgstr "Maandishi hayatumiwi na nodi yoyote, hakuna sasisho lililofanywa"
-
-
-msgid "Render size too large for GPU, use CPU compositor instead"
-msgstr "Saizi ya Toa ni kubwa sana kwa GPU, tumia mtunzi wa CPU badala yake"
 
 
 msgid "Not inside node group"
@@ -111299,56 +110501,8 @@ msgid "Can't reload with running modal operators"
 msgstr "Haiwezi kupakia upya kwa kuendesha waendeshaji modal"
 
 
-msgid "Add a crossfade transition to the sequencer"
-msgstr "Ongeza mpito wa njia mtambuka kwa mpangilio"
-
-
-msgid "Add an add effect strip to the sequencer"
-msgstr "Ongeza ukanda wa madoido kwenye mpangilio"
-
-
-msgid "Add a subtract effect strip to the sequencer"
-msgstr "Ongeza kipande cha madoido cha kuondoa kwenye mpangilio"
-
-
-msgid "Add an alpha over effect strip to the sequencer"
-msgstr "Ongeza ukanda wa madoido wa alfa juu ya kifuatiliaji"
-
-
-msgid "Add an alpha under effect strip to the sequencer"
-msgstr "Ongeza alfa chini ya ukanda wa athari kwenye mpangilio"
-
-
-msgid "Add a gamma cross transition to the sequencer"
-msgstr "Ongeza mpito wa msalaba wa gamma kwenye mpangilio"
-
-
-msgid "Add a multiply effect strip to the sequencer"
-msgstr "Ongeza ukanda wa madoido ya kuzidisha kwenye mpangilio"
-
-
-msgid "Add an alpha over drop effect strip to the sequencer"
-msgstr "Ongeza ukanda wa madoido ya alfa juu ya kifuatacho"
-
-
-msgid "Add a wipe transition to the sequencer"
-msgstr "Ongeza mpito wa kuifuta kwa mpangilio"
-
-
-msgid "Add a glow effect strip to the sequencer"
-msgstr "Ongeza ukanda wa athari ya mwanga kwenye mpangilio"
-
-
-msgid "Add a transform effect strip to the sequencer"
-msgstr "Ongeza ukanda wa athari ya kubadilisha kwenye mpangilio"
-
-
 msgid "Add a color strip to the sequencer"
 msgstr "Ongeza ukanda wa rangi kwenye mpangilio"
-
-
-msgid "Add a speed effect strip to the sequencer"
-msgstr "Ongeza ukanda wa athari ya kasi kwenye mpangilio"
 
 
 msgid "Add a multicam selector effect strip to the sequencer"
@@ -111357,10 +110511,6 @@ msgstr "Ongeza ukanda wa madoido wa kiteuzi cha kamera nyingi kwenye mpangilio"
 
 msgid "Add an adjustment layer effect strip to the sequencer"
 msgstr "Ongeza ukanda wa athari ya safu ya urekebishaji kwenye mpangilio"
-
-
-msgid "Add a gaussian blur effect strip to the sequencer"
-msgstr "Ongeza ukanda wa madoido wa ukungu wa gaussian kwenye mpangilio"
 
 
 msgid "Add a text strip to the sequencer"
@@ -111409,22 +110559,6 @@ msgstr "Kupunguza utelezi: %s"
 
 msgid "Slip offset: %d"
 msgstr "Kupunguza utelezi: %d"
-
-
-msgid "Cannot apply effects to audio sequence strips"
-msgstr "Haiwezi kutumia madoido kwa vipande vya mfuatano wa sauti"
-
-
-msgid "At least one selected sequence strip is needed"
-msgstr "Angalau mstari mmoja wa mfuatano uliochaguliwa unahitajika"
-
-
-msgid "2 selected sequence strips are needed"
-msgstr "2 vipande vya mfuatano vilivyochaguliwa vinahitajika"
-
-
-msgid "TODO: in what cases does this happen?"
-msgstr "TODO: katika hali gani hii hutokea?"
 
 
 msgid "Cannot reassign inputs: strip has no inputs"
@@ -111707,10 +110841,6 @@ msgid "Not available for Microsoft Store installations"
 msgstr "Haipatikani kwa usakinishaji wa Duka la Microsoft"
 
 
-msgid "Create object instance from object-data"
-msgstr "Unda mfano wa kitu kutoka kwa data ya kitu"
-
-
 msgid "Control Point:"
 msgstr "Mahali pa Kudhibiti:"
 
@@ -111933,6 +111063,10 @@ msgstr " (Imekatwa)"
 
 msgid " (Viewer)"
 msgstr " (Mtazamaji)"
+
+
+msgid "Create object instance from object-data"
+msgstr "Unda mfano wa kitu kutoka kwa data ya kitu"
 
 
 msgid "X-Ray not available in current mode"
@@ -112452,31 +111586,8 @@ msgid "Data-block type does not support fake user"
 msgstr "Aina ya kuzuia data haitumii mtumiaji bandia"
 
 
-msgid "Can't edit previews of overridden library data"
-msgstr "Haiwezi kuhariri onyesho la kukagua data ya maktaba iliyobatilishwa"
-
-
-msgid "Data-block does not support previews"
-msgstr "Uzuiaji wa data hauauni uhakiki"
-
-
 msgid "Numeric input evaluation"
 msgstr "Tathmini ya uingizaji wa nambari"
-
-
-msgctxt "Operator"
-msgid "Select (Extend)"
-msgstr "Chagua (Panua)"
-
-
-msgctxt "Operator"
-msgid "Select (Deselect)"
-msgstr "Chagua (Ondoa kuchagua)"
-
-
-msgctxt "Operator"
-msgid "Select (Toggle)"
-msgstr "Chagua (Geuza)"
 
 
 msgctxt "Operator"
@@ -112503,10 +111614,6 @@ msgstr "Haiwezi kugawanya uteuzi wakati uteuzi wa usawazishaji umewashwa"
 
 msgid "Pinned vertices can be selected in Vertex Mode only"
 msgstr "Vipeo vilivyobandikwa vinaweza kuchaguliwa katika Hali ya Kipeo pekee"
-
-
-msgid "Mode(TAB) %s, (S)nap %s, (M)idpoints %s, (L)imit %.2f (Alt Wheel adjust) %s, Switch (I)sland, shift select vertices"
-msgstr "Modi(TAB) %s, (S)nap %s, (M)idpoints %s, (L)imit %.2f (Alt Wheel rekebisheni) %s, Swichi (I)sland, shift chagua wima"
 
 
 msgid "Could not initialize stitching on any selected object"
@@ -112645,10 +111752,6 @@ msgid "Invalid object: verify object path"
 msgstr "Kitu batili: thibitisha njia ya kitu"
 
 
-msgid "Could not open Alembic archive for reading, see console for detail"
-msgstr "Haikuweza kufungua kumbukumbu ya Alembic ili isomwe, angalia kiweko kwa undani"
-
-
 msgid "PLY Export: Cannot open file '%s'"
 msgstr "PLY Hamisha: Haiwezi kufungua faili '%s'"
 
@@ -112751,18 +111854,6 @@ msgstr "Usafirishaji wa USD: Haikuweza kuhamisha faili mpya ya usdz kutoka eneo 
 
 msgid "USD Export: unable to find suitable USD plugin to write %s"
 msgstr "Usafirishaji wa USD: haiwezi kupata programu-jalizi inayofaa ya kuandika %s"
-
-
-msgid "USD Export: invalid path string '%s': %s"
-msgstr "USD Hamisha: mfuatano wa njia batili '%s': %s"
-
-
-msgid "USD Export: path '%s' is not an absolute path"
-msgstr "Usafirishaji wa USD: njia ya '%s' sio njia kamili"
-
-
-msgid "USD Export: path string '%s' is not a prim path"
-msgstr "USD Hamisha: mfuatano wa njia '%s' sio njia kuu"
 
 
 msgid "Could not open USD archive for reading, see console for detail"
@@ -112883,10 +111974,6 @@ msgstr "%s: Hitilafu katika kuunda data ya kikundi cha ulemavu kwa wavu %s"
 
 msgid "%s: Couldn't find a common Xform ancestor for skinned prim %s and skeleton %s to convert to a USD SkelRoot. This can be addressed by setting a root primitive in the export options"
 msgstr "%s: Haikuweza kupata kizazi cha kawaida cha Xform cha prim %s na mifupa %s ili kubadilisha hadi SkelRoot ya USD."
-
-
-msgid "USD Export: no bounds could be computed for %s"
-msgstr "Usafirishaji wa USD: hakuna mipaka inayoweza kukokotwa kwa %s"
 
 
 msgid "Curve width size not supported for USD interpolation"
@@ -114048,32 +113135,8 @@ msgid "Recursion detected, cannot use this strip"
 msgstr "Urudiaji umegunduliwa, hauwezi kutumia ukanda huu"
 
 
-msgid "Sequences.new_sound: unable to open sound file"
-msgstr "Sequences.mpya_sauti: haiwezi kufungua faili ya sauti"
-
-
 msgid "Blender compiled without Audaspace support"
 msgstr "Blender imeundwa bila usaidizi wa Audaspace"
-
-
-msgid "Sequences.new_effect: end frame not set"
-msgstr "Mfuatano.athari_mpya: fremu ya mwisho haijawekwa"
-
-
-msgid "Sequences.new_effect: effect takes 1 input sequence"
-msgstr "Sequences.new_effect: athari inachukua mlolongo 1 wa ingizo"
-
-
-msgid "Sequences.new_effect: effect takes 2 input sequences"
-msgstr "Sequences.new_effect: athari inachukua mifuatano 2 ya ingizo"
-
-
-msgid "SequenceElements.pop: cannot pop the last element"
-msgstr "SequenceElements.pop: haiwezi kuibua kipengele cha mwisho"
-
-
-msgid "SequenceElements.pop: index out of range"
-msgstr "SequenceElements.pop: index nje ya masafa"
 
 
 msgid "Sound not packed"
@@ -114158,10 +113221,6 @@ msgstr "Njia isiyojumuishwa haitumiki tena"
 
 msgid "Font not packed"
 msgstr "Fonti haijapakiwa"
-
-
-msgid "Could not find grid with name %s"
-msgstr "Haikuweza kupata gridi ya taifa yenye jina %s"
 
 
 msgid "No active window in context!"
@@ -114314,6 +113373,10 @@ msgstr "Kukabiliana ni ndogo sana, hatuwezi kutoa kiasi cha jiometri ambayo inge
 
 msgid "The amount of copies is too high, we cannot generate the amount of geometry it would require"
 msgstr "Kiasi cha nakala ni kikubwa sana, hatuwezi kutoa kiasi cha jiometri ambacho kingehitaji"
+
+
+msgid "Miter Shape"
+msgstr "Umbo la Kina"
 
 
 msgid "Cannot execute, intersect only available using exact solver"
@@ -114646,8 +113709,8 @@ msgid "Clipping"
 msgstr "Kunakili"
 
 
-msgid "Level Viewport"
-msgstr "Kiwango cha kutazama cha kiwango"
+msgid "Levels Viewport"
+msgstr "Mtazamo wa Viwango"
 
 
 msgid "Unsubdivide"
@@ -114840,14 +113903,6 @@ msgid "Adaptive Subdivision"
 msgstr "Ugawanyiko Unaobadilika"
 
 
-msgid "Levels Viewport"
-msgstr "Mtazamo wa Viwango"
-
-
-msgid "Final Scale: Render %.2f px, Viewport %.2f px"
-msgstr "Kiwango cha Mwisho: Toa %.2f px, Viewport %.2f px"
-
-
 msgid "Out of memory"
 msgstr "nje ya kumbukumbu"
 
@@ -115030,10 +114085,6 @@ msgid "Prefilter:"
 msgstr "Kichujio awali:"
 
 
-msgid "Disabled, built without OpenImageDenoise"
-msgstr "Imezimwa, imejengwa bila OpenImageDenoise"
-
-
 msgid "Image 1"
 msgstr "Picha ya 1"
 
@@ -115090,10 +114141,6 @@ msgid "ID value"
 msgstr "Thamani ya kitambulisho"
 
 
-msgid "Render passes not supported in the Viewport compositor"
-msgstr "Pasi za uwasilishaji hazitumiki katika mtunzi wa Viewport"
-
-
 msgid "Viewport compositor setup not fully supported"
 msgstr "Usanidi wa mtunzi wa Viewport hautumiki kikamilifu"
 
@@ -115124,10 +114171,6 @@ msgstr "Hadi Max"
 
 msgid "Offset Y"
 msgstr "Kupunguza Y"
-
-
-msgid "Undistortion"
-msgstr "Upotoshaji"
 
 
 msgid "Dot"
@@ -115819,10 +114862,6 @@ msgstr "Juu"
 
 msgid "Values larger than the threshold are inside the generated mesh"
 msgstr "Thamani kubwa kuliko kizingiti ziko ndani ya wavu uliozalishwa"
-
-
-msgid "Has Alpha"
-msgstr "Ina Alfa"
 
 
 msgid "Frame Count"
@@ -116847,10 +115886,6 @@ msgid "Not a shader node tree"
 msgstr "Sio mti wa nodi ya shader"
 
 
-msgid "Not a shader or geometry node tree"
-msgstr "Sio mti wa shader au nodi ya jiometri"
-
-
 msgid "RoughnessU"
 msgstr "UkaliU"
 
@@ -117015,14 +116050,6 @@ msgstr "Tint ya Kanzu"
 
 msgid "Blend between diffuse surface and subsurface scattering. Typically should be zero or one (either fully diffuse or subsurface)"
 msgstr "Mchanganyiko kati ya uso mtawanyiko na utawanyiko wa chini ya uso."
-
-
-msgid "Scattering radius to use for subsurface component (multiplied with Scale)"
-msgstr "Kipenyo cha kutawanya cha kutumia kwa sehemu ya chini ya uso (kilichozidishwa kwa Mizani)"
-
-
-msgid "Scale of the subsurface scattering (multiplied with Radius)"
-msgstr "Kipimo cha mtawanyiko wa sehemu ya chini ya ardhi (kilichozidishwa na Radius)"
 
 
 msgid "Tint dielectric reflection at normal incidence for artistic control, and metallic reflection at near-grazing incidence to simulate complex index of refraction"
@@ -117325,6 +116352,10 @@ msgid "Cannot render, no camera"
 msgstr "Haiwezi kutoa, hakuna kamera"
 
 
+msgid "Render size too large for GPU, use CPU compositor instead"
+msgstr "Saizi ya Toa ni kubwa sana kwa GPU, tumia mtunzi wa CPU badala yake"
+
+
 msgid "No border area selected"
 msgstr "Hakuna eneo la mpaka lililochaguliwa"
 
@@ -117500,10 +116531,6 @@ msgstr "wasimamizi_wa_dirisha"
 
 msgid "Dragging {} files"
 msgstr "Kuburuta {} faili"
-
-
-msgid "Region could not be drawn!"
-msgstr "Mkoa haukuweza kuchorwa!"
 
 
 msgid "Input pending "
@@ -117708,6 +116735,14 @@ msgstr "Shinda"
 
 msgid "drag-"
 msgstr "buruta-"
+
+
+msgid "ON"
+msgstr "ILIYO"
+
+
+msgid "OFF"
+msgstr "ZIMA"
 
 
 msgid "unsupported format"

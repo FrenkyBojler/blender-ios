@@ -2352,10 +2352,10 @@ class _defs_grease_pencil_paint:
             row.use_property_split = False
             row.prop(props, "mode", expand=True)
 
-            if props.mode == "MATERIAL":
+            if props.mode == 'MATERIAL':
                 col = layout.column()
                 col.prop(props, "material_mode")
-            elif props.mode == "PALETTE":
+            elif props.mode == 'PALETTE':
                 tool_settings = context.tool_settings
                 settings = tool_settings.gpencil_paint
 
@@ -3477,6 +3477,15 @@ class VIEW3D_PT_tools_active(ToolSelectPanelHelper, Panel):
             _defs_grease_pencil_edit.texture_gradient,
             None,
             *_tools_annotate,
+        ],
+        'EDIT_POINTCLOUD': [
+            *_tools_select,
+            _defs_view3d_generic.cursor,
+            None,
+            *_tools_transform,
+            None,
+            *_tools_annotate,
+            _defs_view3d_generic.ruler,
         ],
         'PARTICLE': [
             *_tools_select,

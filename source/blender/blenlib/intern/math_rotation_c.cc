@@ -13,7 +13,7 @@
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
 
-#include "BLI_strict_flags.h" /* Keep last. */
+#include "BLI_strict_flags.h" /* IWYU pragma: keep. Keep last. */
 
 /******************************** Quaternions ********************************/
 
@@ -2317,7 +2317,7 @@ float fov_to_focallength(float hfov, float sensor)
   return (sensor / 2.0f) / tanf(hfov * 0.5f);
 }
 
-/* 'mod_inline(-3, 4)= 1', 'fmod(-3, 4)= -3' */
+/* `mod_inline(-3, 4)= 1`, `fmod(-3, 4)= -3` */
 static float mod_inline(float a, float b)
 {
   return a - (b * floorf(a / b));

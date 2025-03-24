@@ -18,13 +18,13 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_blenlib.h"
 #include "BLI_kdopbvh.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
 #include "BLI_math_vector.hh"
+#include "BLI_string.h"
 #include "BLI_string_utils.hh"
 #include "BLI_utildefines.h"
 #include "BLT_translation.hh"
@@ -62,7 +62,7 @@
 #include "BKE_idprop.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
-#include "BKE_mesh.hh"
+#include "BKE_library.hh"
 #include "BKE_mesh_runtime.hh"
 #include "BKE_movieclip.h"
 #include "BKE_object.hh"
@@ -73,12 +73,12 @@
 
 #include "BIK_api.h"
 
+#include "RNA_prototypes.hh"
+
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_query.hh"
 
 #include "BLO_read_write.hh"
-
-#include "ANIM_action.hh"
 
 #include "CLG_log.h"
 
@@ -131,7 +131,7 @@ bConstraintOb *BKE_constraints_make_evalob(
   bConstraintOb *cob;
 
   /* create regardless of whether we have any data! */
-  cob = static_cast<bConstraintOb *>(MEM_callocN(sizeof(bConstraintOb), "bConstraintOb"));
+  cob = MEM_callocN<bConstraintOb>("bConstraintOb");
 
   /* NOTE(@ton): For system time, part of de-globalization, code nicer later with local time. */
   cob->scene = scene;
@@ -880,8 +880,7 @@ static bool default_get_tarmat_full_bbone(Depsgraph * /*depsgraph*/,
 /* TODO: cope with getting rotation order... */
 #define SINGLETARGET_GET_TARS(con, datatar, datasubtarget, ct, list) \
   { \
-    ct = static_cast<bConstraintTarget *>( \
-        MEM_callocN(sizeof(bConstraintTarget), "tempConstraintTarget")); \
+    ct = MEM_callocN<bConstraintTarget>("tempConstraintTarget"); \
 \
     ct->tar = datatar; \
     STRNCPY(ct->subtarget, datasubtarget); \
@@ -916,8 +915,7 @@ static bool default_get_tarmat_full_bbone(Depsgraph * /*depsgraph*/,
 /* TODO: cope with getting rotation order... */
 #define SINGLETARGETNS_GET_TARS(con, datatar, ct, list) \
   { \
-    ct = static_cast<bConstraintTarget *>( \
-        MEM_callocN(sizeof(bConstraintTarget), "tempConstraintTarget")); \
+    ct = MEM_callocN<bConstraintTarget>("tempConstraintTarget"); \
 \
     ct->tar = datatar; \
     ct->space = con->tarspace; \
@@ -1652,34 +1650,22 @@ static void loclimit_evaluate(bConstraint *con, bConstraintOb *cob, ListBase * /
   bLocLimitConstraint *data = static_cast<bLocLimitConstraint *>(con->data);
 
   if (data->flag & LIMIT_XMIN) {
-    if (cob->matrix[3][0] < data->xmin) {
-      cob->matrix[3][0] = data->xmin;
-    }
+    cob->matrix[3][0] = std::max(cob->matrix[3][0], data->xmin);
   }
   if (data->flag & LIMIT_XMAX) {
-    if (cob->matrix[3][0] > data->xmax) {
-      cob->matrix[3][0] = data->xmax;
-    }
+    cob->matrix[3][0] = std::min(cob->matrix[3][0], data->xmax);
   }
   if (data->flag & LIMIT_YMIN) {
-    if (cob->matrix[3][1] < data->ymin) {
-      cob->matrix[3][1] = data->ymin;
-    }
+    cob->matrix[3][1] = std::max(cob->matrix[3][1], data->ymin);
   }
   if (data->flag & LIMIT_YMAX) {
-    if (cob->matrix[3][1] > data->ymax) {
-      cob->matrix[3][1] = data->ymax;
-    }
+    cob->matrix[3][1] = std::min(cob->matrix[3][1], data->ymax);
   }
   if (data->flag & LIMIT_ZMIN) {
-    if (cob->matrix[3][2] < data->zmin) {
-      cob->matrix[3][2] = data->zmin;
-    }
+    cob->matrix[3][2] = std::max(cob->matrix[3][2], data->zmin);
   }
   if (data->flag & LIMIT_ZMAX) {
-    if (cob->matrix[3][2] > data->zmax) {
-      cob->matrix[3][2] = data->zmax;
-    }
+    cob->matrix[3][2] = std::min(cob->matrix[3][2], data->zmax);
   }
 }
 
@@ -1857,34 +1843,22 @@ static void sizelimit_evaluate(bConstraint *con, bConstraintOb *cob, ListBase * 
   copy_v3_v3(obsize, size);
 
   if (data->flag & LIMIT_XMIN) {
-    if (size[0] < data->xmin) {
-      size[0] = data->xmin;
-    }
+    size[0] = std::max(size[0], data->xmin);
   }
   if (data->flag & LIMIT_XMAX) {
-    if (size[0] > data->xmax) {
-      size[0] = data->xmax;
-    }
+    size[0] = std::min(size[0], data->xmax);
   }
   if (data->flag & LIMIT_YMIN) {
-    if (size[1] < data->ymin) {
-      size[1] = data->ymin;
-    }
+    size[1] = std::max(size[1], data->ymin);
   }
   if (data->flag & LIMIT_YMAX) {
-    if (size[1] > data->ymax) {
-      size[1] = data->ymax;
-    }
+    size[1] = std::min(size[1], data->ymax);
   }
   if (data->flag & LIMIT_ZMIN) {
-    if (size[2] < data->zmin) {
-      size[2] = data->zmin;
-    }
+    size[2] = std::max(size[2], data->zmin);
   }
   if (data->flag & LIMIT_ZMAX) {
-    if (size[2] > data->zmax) {
-      size[2] = data->zmax;
-    }
+    size[2] = std::min(size[2], data->zmax);
   }
 
   if (obsize[0]) {
@@ -2519,7 +2493,7 @@ static void pycon_new_data(void *cdata)
   bPythonConstraint *data = (bPythonConstraint *)cdata;
 
   /* Everything should be set correctly by calloc, except for the prop->type constant. */
-  data->prop = static_cast<IDProperty *>(MEM_callocN(sizeof(IDProperty), "PyConstraintProps"));
+  data->prop = MEM_callocN<IDProperty>("PyConstraintProps");
   data->prop->type = IDP_GROUP;
 }
 
@@ -3537,7 +3511,7 @@ static void distlimit_evaluate(bConstraint *con, bConstraintOb *cob, ListBase *t
       else if (data->flag & LIMITDIST_USESOFT) {
         /* FIXME: there's a problem with "jumping" when this kicks in */
         if (dist >= (data->dist - data->soft)) {
-          sfac = float(data->soft * (1.0f - expf(-(dist - data->dist) / data->soft)) + data->dist);
+          sfac = (data->soft * (1.0f - expf(-(dist - data->dist) / data->soft)) + data->dist);
           if (dist != 0.0f) {
             sfac /= dist;
           }
@@ -5755,7 +5729,7 @@ void BKE_constraints_free(ListBase *list)
   BKE_constraints_free_ex(list, true);
 }
 
-bool BKE_constraint_remove(ListBase *list, bConstraint *con)
+static bool constraint_remove(ListBase *list, bConstraint *con)
 {
   if (con) {
     BKE_constraint_free_data(con);
@@ -5768,8 +5742,10 @@ bool BKE_constraint_remove(ListBase *list, bConstraint *con)
 
 bool BKE_constraint_remove_ex(ListBase *list, Object *ob, bConstraint *con)
 {
+  BKE_animdata_drivers_remove_for_rna_struct(ob->id, RNA_Constraint, con);
+
   const short type = con->type;
-  if (BKE_constraint_remove(list, con)) {
+  if (constraint_remove(list, con)) {
     /* ITASC needs to be rebuilt once a constraint is removed #26920. */
     if (ELEM(type, CONSTRAINT_TYPE_KINEMATIC, CONSTRAINT_TYPE_SPLINEIK)) {
       BIK_clear_data(ob->pose);
@@ -5907,7 +5883,7 @@ void BKE_constraint_panel_expand(bConstraint *con)
 /* Creates a new constraint, initializes its data, and returns it */
 static bConstraint *add_new_constraint_internal(const char *name, short type)
 {
-  bConstraint *con = static_cast<bConstraint *>(MEM_callocN(sizeof(bConstraint), "Constraint"));
+  bConstraint *con = MEM_callocN<bConstraint>("Constraint");
   const bConstraintTypeInfo *cti = BKE_constraint_typeinfo_from_type(type);
   const char *newName;
 
@@ -6398,7 +6374,7 @@ void BKE_constraint_target_matrix_get(Depsgraph *depsgraph,
 
   if (cti && cti->get_constraint_targets) {
     /* make 'constraint-ob' */
-    cob = static_cast<bConstraintOb *>(MEM_callocN(sizeof(bConstraintOb), "tempConstraintOb"));
+    cob = MEM_callocN<bConstraintOb>("tempConstraintOb");
     cob->type = ownertype;
     cob->scene = scene;
     cob->depsgraph = depsgraph;

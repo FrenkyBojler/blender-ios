@@ -27,6 +27,8 @@ def get_gpu_device(args: None) -> list:
     import bpy
 
     prefs = bpy.context.preferences
+    if 'cycles' not in prefs.addons.keys():
+        return []
     cprefs = prefs.addons['cycles'].preferences
 
     result = []
@@ -38,6 +40,8 @@ def get_gpu_device(args: None) -> list:
         for device in devices:
             if device.type == device_type:
                 result.append({'type': device.type, 'name': device.name, 'index': index})
+                if device.type in {"HIP", "METAL", "ONEAPI"}:
+                    result.append({'type': f"{device.type}-RT", 'name': device.name, 'index': index})
                 index += 1
 
     return result

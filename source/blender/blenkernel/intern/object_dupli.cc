@@ -9,6 +9,7 @@
 #include <climits>
 #include <cstddef>
 #include <cstdlib>
+#include <iostream>
 
 #include <fmt/format.h>
 
@@ -257,7 +258,7 @@ static DupliObject *make_dupli(const DupliContext *ctx,
 
   /* Add a #DupliObject instance to the result container. */
   if (ctx->duplilist) {
-    dob = MEM_cnew<DupliObject>("dupli object");
+    dob = MEM_callocN<DupliObject>("dupli object");
     BLI_addtail(ctx->duplilist, dob);
   }
   else {
@@ -776,8 +777,8 @@ static Object *find_family_object(
 {
   void *ch_key = POINTER_FROM_UINT(ch);
 
-  Object **ob_pt;
-  if ((ob_pt = (Object **)BLI_ghash_lookup_p(family_gh, ch_key))) {
+  Object **ob_pt = (Object **)BLI_ghash_lookup_p(family_gh, ch_key);
+  if (ob_pt) {
     return *ob_pt;
   }
 
@@ -1493,8 +1494,7 @@ static void make_duplis_particle_system(const DupliContext *ctx, ParticleSystem 
         FOREACH_COLLECTION_VISIBLE_OBJECT_RECURSIVE_END;
       }
 
-      oblist = (Object **)MEM_callocN(size_t(totcollection) * sizeof(Object *),
-                                      "dupcollection object list");
+      oblist = MEM_calloc_arrayN<Object *>(size_t(totcollection), "dupcollection object list");
 
       if (use_collection_count) {
         a = 0;
@@ -1785,7 +1785,7 @@ static const DupliGenerator *get_dupli_generator(const DupliContext *ctx)
 
 ListBase *object_duplilist(Depsgraph *depsgraph, Scene *sce, Object *ob)
 {
-  ListBase *duplilist = MEM_cnew<ListBase>("duplilist");
+  ListBase *duplilist = MEM_callocN<ListBase>("duplilist");
   DupliContext ctx;
   Vector<Object *> instance_stack;
   Vector<short> dupli_gen_type_stack({0});
@@ -1804,7 +1804,7 @@ ListBase *object_duplilist_preview(Depsgraph *depsgraph,
                                    Object *ob_eval,
                                    const ViewerPath *viewer_path)
 {
-  ListBase *duplilist = MEM_cnew<ListBase>("duplilist");
+  ListBase *duplilist = MEM_callocN<ListBase>("duplilist");
   DupliContext ctx;
   Vector<Object *> instance_stack;
   Vector<short> dupli_gen_type_stack({0});
@@ -2008,7 +2008,7 @@ bool BKE_view_layer_find_rgba_attribute(const Scene *scene,
                                         float r_value[4])
 {
   if (layer) {
-    PointerRNA layer_ptr = RNA_pointer_create(
+    PointerRNA layer_ptr = RNA_pointer_create_discrete(
         &const_cast<ID &>(scene->id), &RNA_ViewLayer, const_cast<ViewLayer *>(layer));
 
     if (find_rna_property_rgba(&layer_ptr, name, r_value)) {

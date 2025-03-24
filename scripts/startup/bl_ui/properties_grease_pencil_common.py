@@ -94,9 +94,9 @@ class GreasePencilDisplayPanel:
             settings = tool_settings.gpencil_paint
         elif context.mode == 'SCULPT_GPENCIL':
             settings = tool_settings.gpencil_sculpt_paint
-        elif context.mode == 'WEIGHT_GPENCIL' or context.mode == 'WEIGHT_GREASE_PENCIL':
+        elif context.mode in {'WEIGHT_GPENCIL', 'WEIGHT_GREASE_PENCIL'}:
             settings = tool_settings.gpencil_weight_paint
-        elif context.mode == 'VERTEX_GPENCIL' or context.mode == 'VERTEX_GREASE_PENCIL':
+        elif context.mode in {'VERTEX_GPENCIL', 'VERTEX_GREASE_PENCIL'}:
             settings = tool_settings.gpencil_vertex_paint
         brush = settings.brush
         if brush:
@@ -108,13 +108,13 @@ class GreasePencilDisplayPanel:
         layout.use_property_decorate = False
 
         tool_settings = context.tool_settings
-        if context.mode == 'PAINT_GPENCIL' or context.mode == 'PAINT_GREASE_PENCIL':
+        if context.mode in {'PAINT_GPENCIL', 'PAINT_GREASE_PENCIL'}:
             settings = tool_settings.gpencil_paint
-        elif context.mode == 'SCULPT_GPENCIL' or context.mode == 'SCULPT_GREASE_PENCIL':
+        elif context.mode in {'SCULPT_GPENCIL', 'SCULPT_GREASE_PENCIL'}:
             settings = tool_settings.gpencil_sculpt_paint
-        elif context.mode == 'WEIGHT_GPENCIL' or context.mode == 'WEIGHT_GREASE_PENCIL':
+        elif context.mode in {'WEIGHT_GPENCIL', 'WEIGHT_GREASE_PENCIL'}:
             settings = tool_settings.gpencil_weight_paint
-        elif context.mode == 'VERTEX_GPENCIL' or context.mode == 'VERTEX_GREASE_PENCIL':
+        elif context.mode in {'VERTEX_GPENCIL', 'VERTEX_GREASE_PENCIL'}:
             settings = tool_settings.gpencil_vertex_paint
         brush = settings.brush
         gp_settings = brush.gpencil_settings
@@ -175,8 +175,11 @@ class GreasePencilBrushFalloff:
             brush = settings.brush
 
             col = layout.column(align=True)
-            row = col.row(align=True)
-            row.prop(brush, "curve_preset", text="")
+            if context.region.type == 'TOOL_HEADER':
+                col.prop(brush, "curve_preset", expand=True)
+            else:
+                row = col.row(align=True)
+                col.prop(brush, "curve_preset", text="")
 
             if brush.curve_preset == 'CUSTOM':
                 layout.template_curve_mapping(brush, "curve", brush=True)
@@ -791,10 +794,7 @@ class GREASE_PENCIL_MT_stroke_simplify(Menu):
 
     def draw(self, _context):
         layout = self.layout
-        layout.operator("grease_pencil.stroke_simplify", text="Fixed").mode = 'FIXED'
-        layout.operator("grease_pencil.stroke_simplify", text="Adaptive").mode = 'ADAPTIVE'
-        layout.operator("grease_pencil.stroke_simplify", text="Sample").mode = 'SAMPLE'
-        layout.operator("grease_pencil.stroke_simplify", text="Merge").mode = 'MERGE'
+        layout.operator_enum("grease_pencil.stroke_simplify", "mode")
 
 
 classes = (

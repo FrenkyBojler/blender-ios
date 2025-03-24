@@ -1,18 +1,18 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.4.0 Alpha (b'52cb367a9b67')\n"
+"Project-Id-Version: Blender 4.5.0 Alpha (b'409ce2b976cf')\n"
 "Report-Msgid-Bugs-To: Leandro Paganelli <leandrobp@fastmail.com>\n"
-"POT-Creation-Date: 2025-01-13 11:47+0000\n"
-"PO-Revision-Date: 2024-04-15 06:56+0000\n"
-"Last-Translator: Ruan da Silva Andrade <ruanandrade818@gmail.com>\n"
+"POT-Creation-Date: 2025-03-24 09:38+0000\n"
+"PO-Revision-Date: 2025-03-03 11:30+0000\n"
+"Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Portuguese (Brazil) <https://translate.blender.org/projects/blender-ui/ui/pt_BR/>\n"
 "Language: pt_BR\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=n > 1;\n"
-"X-Generator: Weblate 5.0.1\n"
+"X-Generator: Weblate 5.10.1\n"
 "X-Poedit-SourceCharset: utf-8"
 
 
@@ -60,16 +60,52 @@ msgid "Collection of AOVs"
 msgstr "Coleção de AOVs"
 
 
+msgid "Collection of animation channels, typically associated with an action slot"
+msgstr "Coleção de canais de animação, tipicamente associado a um Espaço de Ação"
+
+
 msgid "F-Curves"
 msgstr "Curvas-f"
 
 
+msgid "The individual F-Curves that animate the slot"
+msgstr "As Curvas-F individuais que animam a o Espaço de Ação"
+
+
+msgid "F-Curve Groups"
+msgstr "Grupos de Curvas-F"
+
+
+msgid "Groupings of F-Curves for display purposes, in e.g. the dopesheet and graph editor"
+msgstr "Agrupamento de Curvas-F para efeitos de exibição, por exemplo no Plano de Animação e no Editor de Gráficos"
+
+
+msgid "Slot"
+msgstr "Compartimentos"
+
+
+msgid "The Slot that the Channelbag's animation data is for"
+msgstr "O Espaço para o qual os dados de animação da Bolsa do canal são"
+
+
+msgid "Collection of F-Curves for a specific action slot, on a specific strip"
+msgstr "Coleção de Curvas-F para um espaço específico, numa faixa específica"
+
+
+msgid "Collection of f-curve groups"
+msgstr "Coleção de grupos de curvas-F"
+
+
+msgid "Animation Channels for Slots"
+msgstr "Canais de animação para espaços de ação"
+
+
+msgid "For each action slot, a list of animation channels that are meant for that slot"
+msgstr "A lista de canais de animação para cada espaço de ação"
+
+
 msgid "Action F-Curves"
 msgstr "Curvas-f das ações"
-
-
-msgid "Collection of action F-Curves"
-msgstr "Coleção de Curvas-F de ações"
 
 
 msgid "Action Group"
@@ -248,36 +284,24 @@ msgid "Collection of action groups"
 msgstr "Coleção de grupos de ação"
 
 
-msgid "Influence"
-msgstr "Influência"
-
-
-msgid "Mix Mode"
-msgstr "Modo de mistura"
-
-
-msgid "Replace"
-msgstr "Substituir"
-
-
-msgid "Offset"
-msgstr "Deslocamento"
-
-
-msgid "Add"
-msgstr "Adicionar"
-
-
-msgid "Subtract"
-msgstr "Subtrair"
-
-
-msgid "Multiply"
-msgstr "Multiplicar"
+msgid "Action Layer"
+msgstr "Camada de Ação"
 
 
 msgid "Strips"
 msgstr "Faixas"
+
+
+msgid "The list of strips that are on this animation layer"
+msgstr "A lista de faixas que estão nesta camada de animação"
+
+
+msgid "Action Layers"
+msgstr "Camadas de Ação"
+
+
+msgid "Collection of animation layers"
+msgstr "Colecção de camadas de animação"
 
 
 msgid "Action Pose Markers"
@@ -304,13 +328,28 @@ msgid "Index of active pose marker"
 msgstr "Índice do marcador de pose ativo"
 
 
+msgid "Action slot"
+msgstr "Espaço de ação"
+
+
+msgid "Identifier for a set of channels in this Action, that can be used by a data-block to specify what it gets animated by"
+msgstr "Identificador para um conjunto de canais nesta Ação, que podem ser usados por um bloco-de-dados para especificar pelo que será animado"
+
+
 msgid "Active"
 msgstr "Ativo(a)"
 
 
-msgctxt "ID"
-msgid "ID Root Type"
-msgstr "Tipo de identificador raiz"
+msgid "Whether this is the active slot, can be set by assigning to action.slots.active"
+msgstr "Quer seja este o espaço ativo, pode ser definido ao atribuir a action.slots.active"
+
+
+msgid "Slot Handle"
+msgstr "Identificador do Espaço"
+
+
+msgid "Show Expanded"
+msgstr "Mostrar expandida"
 
 
 msgctxt "ID"
@@ -498,12 +537,28 @@ msgid "World"
 msgstr "Ambiente"
 
 
-msgid "Show Expanded"
-msgstr "Mostrar expandida"
+msgid "Action Strip"
+msgstr "Faixa de Ação"
 
 
 msgid "Keyframe"
 msgstr "Quadro-chave"
+
+
+msgid "Strip with a set of F-Curves for each action slot"
+msgstr "Faixa com um conjunto de Curvas-F para cada compartimento de ação"
+
+
+msgid "Keyframe Animation Strip"
+msgstr "Inserir Fotograma na Faixa de Animação"
+
+
+msgid "Action Strips"
+msgstr "Faixas de Acção"
+
+
+msgid "Collection of animation strips"
+msgstr "Coleção de faixas de animação"
 
 
 msgid "Add-on"
@@ -602,14 +657,6 @@ msgid "Make more room for large scenes to fit by distributing memory across inte
 msgstr "Distribuir a cena na memória de múltiplos dispositivos interconectados, por exemplo via NVLink, em vez de duplicá-la para cada dispositivo"
 
 
-msgid "HIP RT (Experimental)"
-msgstr "HIP RT (experimental)"
-
-
-msgid "HIP RT enables AMD hardware ray tracing on RDNA2 and above, with shader fallback on older cards. This feature is experimental and some scenes may render incorrectly"
-msgstr "O recurso HIP RT permite raytracing por hardware em placas AMD de arquiteturas a partir da RDNA2, com recuo de shader em placas mais antigas. Este recurso é experimental e pode resultar em renderizações incorretas"
-
-
 msgid "Embree on GPU"
 msgstr "Embree na GPU"
 
@@ -646,20 +693,84 @@ msgid "Displays glTF Material Output node in Shader Editor (Menu Add > Output)"
 msgstr "Exibe o nó de saída de material glTF no Editor de Sombreamento (menu Adicionar > Saída)"
 
 
+msgid "        Filter by Name"
+msgstr "        Filtrar por nome"
+
+
+msgid "Show only hotkeys that have this text in their name"
+msgstr "Mostrar apenas atalhos de teclado que tenham este texto no nome"
+
+
+msgid "Hide Mix nodes"
+msgstr "Esconder os nós \"Misturar\""
+
+
+msgid "When merging nodes with the Ctrl+Numpad0 hotkey (and similar) specify whether to collapse them or show the full node with options expanded"
+msgstr "Durante a junção de nós com combinação de teclas Ctrl+Numpad0 (e similares) especificar se os nós devem ser colapsados ou expandidos mostrando todas as opções"
+
+
 msgid "Always"
 msgstr "Sempre"
+
+
+msgid "Always collapse the new merge nodes"
+msgstr "Sempre colapsar os novos nós mesclados"
+
+
+msgid "Non-Shader"
+msgstr "Não-Sombreador"
+
+
+msgid "Collapse in all cases except for shaders"
+msgstr "Colapsar em todos os casos, exceto sombreadores"
 
 
 msgid "Never"
 msgstr "Nunca"
 
 
+msgid "Never collapse the new merge nodes"
+msgstr "Nunca colapsar os novos nós fundidos"
+
+
+msgid "Mix Node Position"
+msgstr "Posição de Nó \"Misturar\""
+
+
+msgid "When merging nodes with the Ctrl+Numpad0 hotkey (and similar) specify the position of the new nodes"
+msgstr "Ao mesclar nós com a tecla de atalho Ctrl+Numpad0 (e similares), especifique a posição dos novos nós"
+
+
 msgid "Center"
 msgstr "Centralizar"
 
 
+msgid "Place the Mix node between the two nodes"
+msgstr "Coloque o nó de Mistura entre os dois nós"
+
+
 msgid "Bottom"
 msgstr "Base"
+
+
+msgid "Place the Mix node at the same height as the lowest node"
+msgstr "Coloque o nó de Mistura na mesma altura do nó mais baixo"
+
+
+msgid "Show Hotkey List"
+msgstr "Exibir lista de teclas de atalho"
+
+
+msgid "Expand this box into a list of all the hotkeys for functions in this addon"
+msgstr "Expanda essa caixa em uma lista de todas as teclas de atalho para funções neste addon"
+
+
+msgid "Show Principled naming tags"
+msgstr "Mostrar etiquetas de nomes Principled"
+
+
+msgid "Expand this box into a list of all naming tags for principled texture setup"
+msgstr "Expandir esta caixa numa lista de todas as etiquetas de nomes para configurações de texturas Principled"
 
 
 msgid "Fribidi Library"
@@ -750,6 +861,10 @@ msgid "Method used for combining Active Action's result with result of NLA stack
 msgstr "Método usado para combinar o resultado das ações ativas com os resultados da pilha de animação não linear"
 
 
+msgid "Replace"
+msgstr "Substituir"
+
+
 msgid "The strip values replace the accumulated results by amount specified by influence"
 msgstr "O resultado da faixa substitui os resultados acumulados pela quantidade especificada pela influência"
 
@@ -762,12 +877,24 @@ msgid "The strip values are combined with accumulated results by appropriately u
 msgstr "Os valores da faixa são combinados com resultados acumulados usando apropriadamente adição, multiplicação ou matemática de quatérnios, com base no tipo de canal"
 
 
+msgid "Add"
+msgstr "Adicionar"
+
+
 msgid "Weighted result of strip is added to the accumulated results"
 msgstr "O resultado após a aplicação de peso na faixa é adicionado aos resultados acumulados"
 
 
+msgid "Subtract"
+msgstr "Subtrair"
+
+
 msgid "Weighted result of strip is removed from the accumulated results"
 msgstr "O resultado após a aplicação do peso da faixa é removido dos resultados acumulados"
+
+
+msgid "Multiply"
+msgstr "Multiplicar"
 
 
 msgid "Weighted result of strip is multiplied with the accumulated results"
@@ -812,6 +939,10 @@ msgstr "Influência de ação"
 
 msgid "Amount the Active Action contributes to the result of the NLA stack"
 msgstr "O quanto a ação ativa contribui para o resultado da pilha de animação não linear"
+
+
+msgid "Action Slot"
+msgstr "Espaço de Ação"
 
 
 msgid "Slot to temporarily hold the main action while in tweak mode"
@@ -3937,6 +4068,10 @@ msgid "Parameters defining which layer, pass and frame of the image is displayed
 msgstr "Parâmetros definindo qual a camada, passo e quadro de imagem é exibido."
 
 
+msgid "Offset"
+msgstr "Deslocamento"
+
+
 msgid "Rotation"
 msgstr "Rotação"
 
@@ -4235,6 +4370,10 @@ msgstr "O ar normalmente tem alguma densidade que atrasa a queda dos objetos."
 
 msgid "Bending Spring Damping"
 msgstr "Amortecimento de conformação das molas"
+
+
+msgid "Angular"
+msgstr "Angular"
 
 
 msgid "Linear"
@@ -4701,16 +4840,8 @@ msgid "Exposure"
 msgstr "Exposição"
 
 
-msgid "Exposure (stops) applied before display transform"
-msgstr "Os pontos de exposição (intervalos) aplicados antes de transformar as exibições."
-
-
 msgid "Gamma"
 msgstr "Gama"
-
-
-msgid "Amount of gamma modification applied after display transform"
-msgstr "Quantidade de modificação de gama aplicada após transformar as exibições."
 
 
 msgid "Look"
@@ -5004,6 +5135,10 @@ msgstr "Quantidade de erro residual em unidades Blender para restrições que tr
 
 msgid "Amount of residual error in radians for constraints that work on orientation"
 msgstr "Quantidade de erro residual em radianos para restrições que funcionam em orientações."
+
+
+msgid "Influence"
+msgstr "Influência"
 
 
 msgid "Amount of influence constraint will have on the final solution"
@@ -5328,6 +5463,10 @@ msgstr "Mínimo"
 
 msgid "Minimum value for target channel range"
 msgstr "Valor mínimo para o campo do canal alvo."
+
+
+msgid "Mix Mode"
+msgstr "Modo de mistura"
 
 
 msgid "Target object"
@@ -6791,6 +6930,10 @@ msgid "Target object for multi-target constraints"
 msgstr "Objeto alvo para restrições com múltiplos alvos."
 
 
+msgid "Blend Weight"
+msgstr "Influência dos pesos"
+
+
 msgid "Curve in a curve mapping"
 msgstr "Curva dentro de um mapeamento de curva."
 
@@ -7101,6 +7244,10 @@ msgstr "Identificador persistente"
 
 msgid "Persistent identifier for inter-frame matching of objects with motion blur"
 msgstr "Identificador persistente para combinação de inter-quadros para objetos com desfoque de movimento."
+
+
+msgid "Show Particles"
+msgstr "Mostrar partículas"
 
 
 msgid "UV Coordinates"
@@ -10238,6 +10385,10 @@ msgid "Randomness"
 msgstr "Aleatorização"
 
 
+msgid "Vector Display"
+msgstr "Mostrar Vetores"
+
+
 msgid "Adjust slice direction according to the view direction"
 msgstr "Ajusta a direção do fatiamento de "
 
@@ -10454,6 +10605,10 @@ msgid "Number of additional samples to take between frames to improve quality of
 msgstr "Número de amostras adicionais para obter entre os quadros para melhorar a qualidade de fluxos de movimento rápido."
 
 
+msgid "Surface Emission"
+msgstr "Emissão da Superfície"
+
+
 msgid "Temperature difference to ambient temperature"
 msgstr "Diferença de temperatura para a temperatura ambiente."
 
@@ -10520,6 +10675,10 @@ msgstr "Quantidade de velocidade aleatória."
 
 msgid "Socket Type"
 msgstr "Tipo de conexão"
+
+
+msgid "Menu"
+msgstr "Menu"
 
 
 msgid "Collection"
@@ -11255,16 +11414,36 @@ msgid "Grease Pencil Frames"
 msgstr "Quadros de lápis de cera"
 
 
+msgid "Invert mask"
+msgstr "Inverter máscara"
+
+
+msgid "Active Layer Index"
+msgstr "Índice de camada ativa"
+
+
+msgid "Regular"
+msgstr "Regular"
+
+
+msgid "Reverse"
+msgstr "Reverso"
+
+
+msgid "Repeat"
+msgstr "Repetir"
+
+
+msgid "Frame Start"
+msgstr "Quadro inicial"
+
+
 msgid "Grease Pencil Layer"
 msgstr "Camada de lápis de cera"
 
 
 msgid "Blend Mode"
 msgstr "Modo de mesclagem"
-
-
-msgid "Regular"
-msgstr "Regular"
 
 
 msgid "Hard Light"
@@ -11289,26 +11468,6 @@ msgstr "Índice de passo"
 
 msgid "Translation"
 msgstr "Movimento"
-
-
-msgid "Invert mask"
-msgstr "Inverter máscara"
-
-
-msgid "Active Layer Index"
-msgstr "Índice de camada ativa"
-
-
-msgid "Reverse"
-msgstr "Reverso"
-
-
-msgid "Repeat"
-msgstr "Repetir"
-
-
-msgid "Frame Start"
-msgstr "Quadro inicial"
 
 
 msgid "Grease Pencil Layers"
@@ -11404,10 +11563,6 @@ msgid "A collection of F-Curves for animation"
 msgstr "Uma coleção de curvas-f para animação."
 
 
-msgid "The individual F-Curves that make up the action"
-msgstr "As curvas-f individuais que perfazem a ação."
-
-
 msgid "Frame Range"
 msgstr "Faixa de quadros"
 
@@ -11416,12 +11571,9 @@ msgid "Groups"
 msgstr "Grupos"
 
 
-msgid "Convenient groupings of F-Curves"
-msgstr "Agrupamentos convenientes de curvas-f."
-
-
-msgid "Type of ID block that action can be used on - DO NOT CHANGE UNLESS YOU KNOW WHAT YOU ARE DOING"
-msgstr "Tipo de identificador de bloco em que a ação pode ser usada - NÃO ALTERE A MENOS QUE SAIBA O QUE ESTÁ FAZENDO."
+msgctxt "ID"
+msgid "ID Root Type"
+msgstr "Tipo de identificador raiz"
 
 
 msgid "Layers"
@@ -11532,6 +11684,10 @@ msgid "Brush data-block for storing brush settings for painting and sculpting"
 msgstr "Bloco de dados de pincel para armazenar as configurações de pincel para pintura e escultura."
 
 
+msgid "Area Radius"
+msgstr "Raio da Área"
+
+
 msgid "Amount of smoothing to automatically apply to each stroke"
 msgstr "Quantidade de suavização para aplicar automaticamente para cada traço."
 
@@ -11600,20 +11756,8 @@ msgid "Brush's capabilities"
 msgstr "Capacidades do pincel."
 
 
-msgid "Clone Alpha"
-msgstr "Alfa para clone"
-
-
-msgid "Opacity of clone image display"
-msgstr "Opacidade na qual mostrar a imagem clone."
-
-
-msgid "Clone Image"
-msgstr "Imagem para clonar"
-
-
-msgid "Clone Offset"
-msgstr "Deslocamento para clone"
+msgid "Cloth Damping"
+msgstr "Amortecimento de Têxtil"
 
 
 msgid "Local"
@@ -13647,6 +13791,11 @@ msgid "Grease Pencil data-block"
 msgstr "Bloco de dados de lápis de cera."
 
 
+msgctxt "GPencil"
+msgid "Filter by Type"
+msgstr "Filtrar por Tipo"
+
+
 msgid "Selected"
 msgstr "Selecionados"
 
@@ -14231,6 +14380,10 @@ msgstr "Tipo de sonda de luz"
 
 msgid "Parallax Radius"
 msgstr "Raio de Paralaxe"
+
+
+msgid "Capture Emission"
+msgstr "Capturar Emissão"
 
 
 msgid "Clamp Direct"
@@ -15287,10 +15440,6 @@ msgstr "Mostra contornos extras nos limites do objeto."
 
 msgid "Display the object's name"
 msgstr "Mostra o nome do objeto."
-
-
-msgid "Shape Key Lock"
-msgstr "Travar as chaves de formato"
 
 
 msgid "Display the object's texture space"
@@ -17716,11 +17865,6 @@ msgstr "Desloca o número do quadro para usar dentro da animação."
 
 msgid "Volume render settings for 3D viewport"
 msgstr "Configurações de renderização de volume para a janela de exibição 3D"
-
-
-msgctxt "Sequence"
-msgid "Clip"
-msgstr "Clipe"
 
 
 msgid "Window Manager"
@@ -21336,8 +21480,40 @@ msgid "Material slot name"
 msgstr "Nome do compartimento do material."
 
 
-msgid "Bone Roll"
-msgstr "Rolagem dos ossos"
+msgid "Metaball"
+msgstr "Meta-esfera"
+
+
+msgid "Light"
+msgstr "Luz"
+
+
+msgid "Light Probe"
+msgstr "Sonda de Luz"
+
+
+msgid "Add Image"
+msgstr "Adicionar Imagem"
+
+
+msgid "Relations"
+msgstr "Relações"
+
+
+msgid "Rigid Body"
+msgstr "Corpo rígido"
+
+
+msgid "Apply"
+msgstr "Aplicar"
+
+
+msgid "Track"
+msgstr "Rastrear"
+
+
+msgid "Quick Effects"
+msgstr "Efeitos instantâneos"
 
 
 msgid "Show/Hide"
@@ -21346,6 +21522,74 @@ msgstr "Mostrar ou ocultar"
 
 msgid "Clean Up"
 msgstr "Limpeza"
+
+
+msgid "Make Single User"
+msgstr "Tornar usuário único"
+
+
+msgid "Convert"
+msgstr "Converter"
+
+
+msgid "Hooks"
+msgstr "Ganchos"
+
+
+msgid "Random Mask"
+msgstr "Máscara Aleatória"
+
+
+msgid "Clear Transform"
+msgstr "Limpar transformações"
+
+
+msgid "In-Betweens"
+msgstr "Entre as continuidades"
+
+
+msgid "Propagate"
+msgstr "Propagar"
+
+
+msgid "Names"
+msgstr "Nomes"
+
+
+msgid "Toggle Bone Options"
+msgstr "Alternar opções de ossos"
+
+
+msgid "Enable Bone Options"
+msgstr "Habilitar opções de ossos"
+
+
+msgid "Disable Bone Options"
+msgstr "Desabilitar as opções de ossos"
+
+
+msgid "Mesh Select Mode"
+msgstr "Modo de seleção de malhas"
+
+
+msgid "Face Data"
+msgstr "Dados das faces"
+
+
+msgid "Merge"
+msgstr "Fundir"
+
+
+msgid "Special Characters"
+msgstr "Caracteres especiais"
+
+
+msgid "Text"
+msgstr "Texto"
+
+
+msgid "Bone Roll"
+msgstr "Rolagem dos ossos"
 
 
 msgid "Pivot Point"
@@ -21358,10 +21602,6 @@ msgstr "Atrair"
 
 msgid "Proportional Editing Falloff"
 msgstr "Tipo de decaimento para edição proporcional"
-
-
-msgid "Names"
-msgstr "Nomes"
 
 
 msgid "Mirror"
@@ -21414,102 +21654,6 @@ msgstr "Selecionar vinculados(as)"
 
 msgid "Select Loops"
 msgstr "Selecionar anéis"
-
-
-msgid "Metaball"
-msgstr "Meta-esfera"
-
-
-msgid "Light"
-msgstr "Luz"
-
-
-msgid "Light Probe"
-msgstr "Sonda de Luz"
-
-
-msgid "Add Image"
-msgstr "Adicionar Imagem"
-
-
-msgid "Relations"
-msgstr "Relações"
-
-
-msgid "Rigid Body"
-msgstr "Corpo rígido"
-
-
-msgid "Apply"
-msgstr "Aplicar"
-
-
-msgid "Track"
-msgstr "Rastrear"
-
-
-msgid "Quick Effects"
-msgstr "Efeitos instantâneos"
-
-
-msgid "Make Single User"
-msgstr "Tornar usuário único"
-
-
-msgid "Convert"
-msgstr "Converter"
-
-
-msgid "Hooks"
-msgstr "Ganchos"
-
-
-msgid "Random Mask"
-msgstr "Máscara Aleatória"
-
-
-msgid "Clear Transform"
-msgstr "Limpar transformações"
-
-
-msgid "In-Betweens"
-msgstr "Entre as continuidades"
-
-
-msgid "Propagate"
-msgstr "Propagar"
-
-
-msgid "Toggle Bone Options"
-msgstr "Alternar opções de ossos"
-
-
-msgid "Enable Bone Options"
-msgstr "Habilitar opções de ossos"
-
-
-msgid "Disable Bone Options"
-msgstr "Desabilitar as opções de ossos"
-
-
-msgid "Mesh Select Mode"
-msgstr "Modo de seleção de malhas"
-
-
-msgid "Face Data"
-msgstr "Dados das faces"
-
-
-msgid "Merge"
-msgstr "Fundir"
-
-
-msgid "Special Characters"
-msgstr "Caracteres especiais"
-
-
-msgid "Text"
-msgstr "Texto"
 
 
 msgid "Basic"
@@ -25701,6 +25845,10 @@ msgid "Current frame number in movie or image sequence"
 msgstr "Número do quadro atual dentro do filme ou sequência de imagem."
 
 
+msgid "Proxy Render Size"
+msgstr "Tamanho da Renderização do Representante"
+
+
 msgid "Render Undistorted"
 msgstr "Renderizar sem distorções"
 
@@ -27109,10 +27257,6 @@ msgid "Channel Key"
 msgstr "Chave de canal"
 
 
-msgid "RGB color space"
-msgstr "Espaço de cores (RGB)"
-
-
 msgid "YCbCr"
 msgstr "YCbCr"
 
@@ -27713,6 +27857,10 @@ msgid "Distance Key"
 msgstr "Chave de distância"
 
 
+msgid "RGB color space"
+msgstr "Espaço de cores (RGB)"
+
+
 msgid "Double Edge Mask"
 msgstr "Máscara de aresta dupla"
 
@@ -27851,10 +27999,6 @@ msgstr "Estrelas simples"
 
 msgid "If not set to high quality, the effect will be applied to a low-res copy of the source image"
 msgstr "Caso não configurado para alta qualidade, o efeito será aplicado para uma cópia de baixa-resolução da imagem fonte."
-
-
-msgid "Rotate 45"
-msgstr "Rotacionar 45 graus"
 
 
 msgid "Simple star filter: add 45 degree rotation offset"
@@ -28386,40 +28530,16 @@ msgid "Use relative (fraction of input image size) values to define translation"
 msgstr "Usa valores relativos (em frações do tamanho da imagem de entrada) para definir o movimento."
 
 
-msgid "Wrapping"
-msgstr "Envolver"
-
-
-msgid "Wrap image on a specific axis"
-msgstr "Envolve a imagem em um eixo específico."
-
-
-msgid "No wrapping on X and Y"
-msgstr "Sem envolvimento em X e Y."
-
-
 msgid "X Axis"
 msgstr "Eixo X"
-
-
-msgid "Wrap all pixels on the X axis"
-msgstr "Envolve todos os pixeis no eixo X."
 
 
 msgid "Y Axis"
 msgstr "Eixo Y"
 
 
-msgid "Wrap all pixels on the Y axis"
-msgstr "Envolve todos os pixeis no eixo Y."
-
-
 msgid "Both Axes"
 msgstr "Ambos os eixos"
-
-
-msgid "Wrap all pixels on both axes"
-msgstr "Envolve todos os pixeis em ambos os eixos."
 
 
 msgid "Vector Blur"
@@ -28602,8 +28722,16 @@ msgid "Object Info"
 msgstr "Informações de objetos"
 
 
+msgid "Repeat Output"
+msgstr "Repetir Resultado"
+
+
 msgid "Z Up"
 msgstr "Z Para cima"
+
+
+msgid "Unknown"
+msgstr "Desconhecido"
 
 
 msgid "Align text to the center"
@@ -28659,7 +28787,7 @@ msgstr "Conformante"
 
 
 msgid "Warning"
-msgstr "Alertas:"
+msgstr "Alerta"
 
 
 msgctxt "NodeTree"
@@ -28805,6 +28933,10 @@ msgstr "Inverte a direção de cálculo do mapa de relevos, simulando afundament
 
 msgid "Camera Data"
 msgstr "Dados da câmera"
+
+
+msgid "Min Max"
+msgstr "Min Max"
 
 
 msgid "Space of the input height"
@@ -29060,7 +29192,7 @@ msgstr "Bi-cúbica durante a ampliação, caso contrário, bilinear (somente OSL
 
 
 msgid "Projection"
-msgstr "Tipo de projeção:"
+msgstr "Projeção"
 
 
 msgid "Projection of the input image"
@@ -29077,6 +29209,11 @@ msgstr "Projeção a partir de uma foto ortográfica em forma de esfera espelhad
 
 msgid "Gradient Texture"
 msgstr "Textura tipo gradiente"
+
+
+msgctxt "Image"
+msgid "Projection"
+msgstr "Projeção"
 
 
 msgid "Method to project 2D image on object with a 3D texture vector"
@@ -29433,6 +29570,14 @@ msgstr "Parâmetros definindo a duração da imagem, seu deslocamento e configur
 
 msgid "Value to Normal"
 msgstr "Valor para as normais"
+
+
+msgid "Enum Item"
+msgstr "Item de menu"
+
+
+msgid "Input Items"
+msgstr "Itens de Entrada"
 
 
 msgid "Node Inputs"
@@ -30357,11 +30502,6 @@ msgstr "Permite adicionar ou remover uma predefinição de dinâmicas para cabel
 msgctxt "Operator"
 msgid "Add Hair Dynamics Preset"
 msgstr "Adicionar predefinição de dinâmicas para cabelos"
-
-
-msgctxt "Operator"
-msgid "Create Pose Asset"
-msgstr "Criar Recurso de Pose"
 
 
 msgctxt "Operator"
@@ -33737,11 +33877,6 @@ msgstr "Exportar"
 
 
 msgctxt "Operator"
-msgid "Add Selected to Active Collection"
-msgstr "Adicionar Selecionado para a Coleção Ativa"
-
-
-msgctxt "Operator"
 msgid "Remove from Collection"
 msgstr "Remover da Coleção"
 
@@ -34149,6 +34284,11 @@ msgstr "Selecionar aleatoriamente"
 
 
 msgctxt "Operator"
+msgid "Separate"
+msgstr "Separar"
+
+
+msgctxt "Operator"
 msgid "Clear Tilt"
 msgstr "Limpar inclinação"
 
@@ -34431,10 +34571,6 @@ msgid "Select Control Point Row"
 msgstr "Selecionar linhas de pontos de controle"
 
 
-msgid "Select a row of control points including active one"
-msgstr "Seleciona uma linha de pontos de controle incluindo o que está ativo."
-
-
 msgid "Select similar curve points by property type"
 msgstr "Seleciona os pontos similares das curvas pelos tipos de propriedades."
 
@@ -34445,11 +34581,6 @@ msgstr "Maior"
 
 msgid "Less"
 msgstr "Menor"
-
-
-msgctxt "Operator"
-msgid "Separate"
-msgstr "Separar"
 
 
 msgid "Separate selected points from connected unselected points into a new object"
@@ -35146,6 +35277,10 @@ msgstr "Converte todas as faces para triângulos."
 
 msgid "Add binormal and tangent vectors, together with normal they form the tangent space (will only work correctly with tris/quads only meshes!)"
 msgstr "Adiciona vetores binormais e tangentes, juntamente com as normais que eles formam dentro do espaço tangente (só funciona corretamente com malhas formadas por triângulos ou quadriláteros !)."
+
+
+msgid "Keep Original"
+msgstr "Manter original"
 
 
 msgid "No export"
@@ -36704,6 +36839,10 @@ msgid "Select Mode"
 msgstr "Modo de seleção"
 
 
+msgid "Fill Opacity"
+msgstr "Preencher opacidade"
+
+
 msgctxt "Operator"
 msgid "Snap Cursor to Selected Points"
 msgstr "Atrair o cursor para os pontos selecionados"
@@ -36793,6 +36932,10 @@ msgstr "Final de Y"
 
 msgid "Y Start"
 msgstr "Início de Y"
+
+
+msgid "New Object"
+msgstr "Novo Objeto"
 
 
 msgid "Adjust vertex color brightness/contrast"
@@ -40124,13 +40267,12 @@ msgid "Add Node Collection"
 msgstr "Adicionar Coleção de Nós"
 
 
-msgctxt "Operator"
-msgid "Add File Node"
-msgstr "Adicionar nó de arquivo"
+msgid "Source color"
+msgstr "A cor fonte"
 
 
-msgid "Add a file node to the current node editor"
-msgstr "Adiciona um nó de arquivo ao editor de nó atual."
+msgid "Gamma Corrected"
+msgstr "Usar correção de gama"
 
 
 msgid "Settings to be applied on the newly created node"
@@ -40479,6 +40621,10 @@ msgid "Current"
 msgstr "Atual"
 
 
+msgid "Sign Mode"
+msgstr "Modo Sinal"
+
+
 msgctxt "Operator"
 msgid "Toggle Node Options"
 msgstr "Alternar visualização das opções dos nós"
@@ -40670,6 +40816,10 @@ msgid "Align to axis"
 msgstr "Alinhar para o eixo."
 
 
+msgid "Align Mode"
+msgstr "Modo de alinhamento"
+
+
 msgid "Side of object to use for alignment"
 msgstr "Lateral do objeto a ser usado para alinhamento."
 
@@ -40684,6 +40834,10 @@ msgstr "Centros"
 
 msgid "Positive Sides"
 msgstr "Lados positivos"
+
+
+msgid "Relative To"
+msgstr "Relativo a"
 
 
 msgid "Reference location to align to"
@@ -44457,10 +44611,6 @@ msgid "All Keymaps"
 msgstr "Todos os mapas de teclas"
 
 
-msgid "Keep Original"
-msgstr "Manter original"
-
-
 msgid "Keep original file after copying to configuration folder"
 msgstr "Mantém o arquivo original depois de copiar para a pasta de configuração."
 
@@ -45702,10 +45852,6 @@ msgstr "Multiplicar"
 
 msgid "Multiply effect strip type"
 msgstr "Faixa de efeito tipo multiplicar."
-
-
-msgid "Alpha Over Drop effect strip type"
-msgstr "Faixa de efeito tipo alfa por cima."
 
 
 msgctxt "Sequence"
@@ -47226,14 +47372,6 @@ msgid "Drop colors to buttons"
 msgstr "Permite o despejo de cores para os botões."
 
 
-msgid "Source color"
-msgstr "A cor fonte"
-
-
-msgid "Gamma Corrected"
-msgstr "Usar correção de gama"
-
-
 msgctxt "Operator"
 msgid "Drop Name"
 msgstr "Soltar Nome"
@@ -47589,10 +47727,6 @@ msgstr "Exporta o esquema UV para uma imagem de bitmap."
 
 msgid "Exports UVs from the modified mesh"
 msgstr "Exporta as UVs a partir da malha modificada."
-
-
-msgid "Fill Opacity"
-msgstr "Preencher opacidade"
 
 
 msgid "Set amount of opacity for exported UV layout"
@@ -49817,8 +49951,24 @@ msgid "Image used as canvas"
 msgstr "A imagem usada como lona"
 
 
+msgid "Clone Alpha"
+msgstr "Alfa para clone"
+
+
+msgid "Opacity of clone image display"
+msgstr "Opacidade na qual mostrar a imagem clone."
+
+
+msgid "Clone Image"
+msgstr "Imagem para clonar"
+
+
 msgid "Image used as clone source"
 msgstr "Imagem usada como fonte de clonagem"
+
+
+msgid "Clone Offset"
+msgstr "Deslocamento para clone"
 
 
 msgid "Dither"
@@ -50077,10 +50227,6 @@ msgid "Use only deformation modifiers (temporary disable all constructive modifi
 msgstr "Usa somente modificadores de deformação (desabilitar temporariamente todos os modificadores construtivos exceto multirresolução)."
 
 
-msgid "UV Sculpting"
-msgstr "Escultura de UVs"
-
-
 msgid "Properties of vertex and weight paint mode"
 msgstr "Propriedades de modo de pintura de vértices e pintura de pesos de influência."
 
@@ -50297,10 +50443,6 @@ msgid "Text Boxes"
 msgstr "Caixas de texto"
 
 
-msgid "Slot"
-msgstr "Compartimentos"
-
-
 msgid "Filters"
 msgstr "Filtros"
 
@@ -50489,6 +50631,10 @@ msgid "Border Collisions"
 msgstr "Margens de colisão"
 
 
+msgid "Softbody & Cloth"
+msgstr "Corpo maleável e tecido"
+
+
 msgid "Diffusion"
 msgstr "Difusão"
 
@@ -50501,8 +50647,16 @@ msgid "Paintmaps"
 msgstr "Mapas de pintura"
 
 
+msgid "Wetmaps"
+msgstr "Mapas de umidade"
+
+
 msgid "Force Fields"
 msgstr "Campos de força"
+
+
+msgid "Flow Source"
+msgstr "Fonte de fluxo"
 
 
 msgid "Sensitivity"
@@ -50581,13 +50735,29 @@ msgid "Note"
 msgstr "Nota"
 
 
+msgid "Keyframing Settings"
+msgstr "Configurações de quadros-chave"
+
+
 msgid "Cache Settings"
 msgstr "Configurações do Cache"
+
+
+msgid "Scene Strip Display"
+msgstr "Exibição de faixa de cena"
 
 
 msgctxt "Operator"
 msgid "Blade"
 msgstr "Lâminas"
+
+
+msgid "Feature Weights"
+msgstr "Pesos da funcionalidade"
+
+
+msgid "Auto Keyframing"
+msgstr "Inserção de chaves automática"
 
 
 msgid "Playback"
@@ -52561,10 +52731,6 @@ msgid "Overall sensitivity of the 3D Mouse for panning"
 msgstr "Sensibilidade geral do mouse 3D para movimentar em panorama."
 
 
-msgid "Show Navigation Guide"
-msgstr "Mostrar a guia de navegação"
-
-
 msgid "Display the center and axis during rotation"
 msgstr "Mostra o centro e o eixo durante a rotação."
 
@@ -53191,10 +53357,6 @@ msgstr "Usa um esquema em colunas para a caixa de ferramentas."
 
 msgid "Developer Extras"
 msgstr "Extras de Desenvolvedores"
-
-
-msgid "Show options for developers (edit source in context menu, geometry indices)"
-msgstr "Mostra opções para desenvolvedores (editar o código fonte no menu de contexto, índices de geometria)"
 
 
 msgid "Navigation Controls"
@@ -53915,10 +54077,6 @@ msgstr "Caso não zero, o valor máximo para uma amostra direta, valores mais al
 
 msgid "If non-zero, the maximum value for an indirect sample, higher values will be scaled down to avoid too much noise and slow convergence at the cost of accuracy"
 msgstr "Caso não zero, o valor máximo para uma amostra, valores mais altos serão reduzidos em sua escala para evitar muito ruído e uma baixa convergência ao custo da precisão."
-
-
-msgid "Sample Offset"
-msgstr "Deslocamento da Amostragem"
 
 
 msgid "Number of samples to render for each pixel"
@@ -55949,74 +56107,6 @@ msgid "YCbCr (ITU 709)"
 msgstr "YCbCr (ITU 709)"
 
 
-msgid "Sequence Color Balance Data"
-msgstr "Dados de balanço de cor de sequência"
-
-
-msgid "Color balance gain (highlights)"
-msgstr "Balanço de cor de ganho (realces)."
-
-
-msgid "Color balance gamma (midtones)"
-msgstr "Balanço de cor de gama (meios tons)."
-
-
-msgid "Inverse Gain"
-msgstr "Ganho inverso"
-
-
-msgid "Inverse Gamma"
-msgstr "Gama invertido"
-
-
-msgid "Invert the gamma color"
-msgstr "Inverte as cores da gama."
-
-
-msgid "Inverse Lift"
-msgstr "Realce inverso"
-
-
-msgid "Invert the lift color"
-msgstr "Inverte as cores dos realces."
-
-
-msgid "Color balance lift (shadows)"
-msgstr "Balanço de cor de realces (sombras)."
-
-
-msgid "Sequence Color Balance"
-msgstr "Balanço de cor de sequência"
-
-
-msgid "Color balance parameters for a sequence strip"
-msgstr "Parâmetros de balanço de cor para uma faixa de sequência."
-
-
-msgid "Sequence Crop"
-msgstr "Recorte de sequência"
-
-
-msgid "Cropping parameters for a sequence strip"
-msgstr "Parâmetros de recorte para uma faixa de sequência."
-
-
-msgid "Number of pixels to crop from the right side"
-msgstr "Número de pixeis que serão cortados no lado direito da imagem."
-
-
-msgid "Number of pixels to crop from the top"
-msgstr "Número de pixeis que serão cortados no lado superior da imagem."
-
-
-msgid "Number of pixels to crop from the left side"
-msgstr "Número de pixeis que serão cortados no lado esquerdo da imagem."
-
-
-msgid "Number of pixels to crop from the bottom"
-msgstr "Número de pixeis que serão cortados no lado inferior da imagem."
-
-
 msgid "Sequence editing data for a Scene data-block"
 msgstr "Dados de edição de sequências para os blocos de dados de cena."
 
@@ -56057,16 +56147,8 @@ msgid "Store proxies using project directory"
 msgstr "Armazena as aproximações usando o diretório do projeto."
 
 
-msgid "Sequences"
-msgstr "Sequências"
-
-
 msgid "Top-level strips only"
 msgstr "Somente as faixas de nível superior."
-
-
-msgid "All Sequences"
-msgstr "Todas as sequências"
 
 
 msgid "All strips, recursively including those inside metastrips"
@@ -56075,226 +56157,6 @@ msgstr "Todas as faixas, recursivamente incluindo aquelas que estão em faixas m
 
 msgid "Overlay Lock"
 msgstr "Trava de sobreposição"
-
-
-msgid "Sequence Element"
-msgstr "Elemento de sequência"
-
-
-msgid "Sequence strip data for a single frame"
-msgstr "Dados de faixa de sequência para um único quadro."
-
-
-msgid "Name of the source file"
-msgstr "Nome do arquivo de fonte"
-
-
-msgid "Orig Height"
-msgstr "Altura original"
-
-
-msgid "Original image height"
-msgstr "Altura original da imagem."
-
-
-msgid "Orig Width"
-msgstr "Largura original"
-
-
-msgid "Original image width"
-msgstr "Largura original da imagem."
-
-
-msgid "Collection of SequenceElement"
-msgstr "Coleção de elemento de sequências"
-
-
-msgid "Modifier for sequence strip"
-msgstr "Modificador para faixa de sequência."
-
-
-msgid "Mask ID used as mask input for the modifier"
-msgstr "Identificador da máscara usado como entrada de máscara para o modificador."
-
-
-msgid "Mask Strip"
-msgstr "Máscara de trilha"
-
-
-msgid "Strip used as mask input for the modifier"
-msgstr "Faixa usada como entrada de máscara para o modificador."
-
-
-msgid "Mask Input Type"
-msgstr "Tipo de entrada de máscara"
-
-
-msgid "Type of input data used for mask"
-msgstr "Tipo de dados de entrada usados para a máscara."
-
-
-msgid "Use sequencer strip as mask input"
-msgstr "Usa uma faixa do editor de sequências como entrada de máscara."
-
-
-msgid "Use mask ID as mask input"
-msgstr "Usa o identificador de máscara como entrada de máscara."
-
-
-msgid "Mask Time"
-msgstr "Tempo de máscara"
-
-
-msgid "Time to use for the Mask animation"
-msgstr "O tempo a ser usado para a animação da máscara."
-
-
-msgid "Mask animation is offset to start of strip"
-msgstr "A animação de máscara é um deslocamento para o início da faixa."
-
-
-msgid "Mask animation is in sync with scene frame"
-msgstr "A animação de máscara está em sincronismo com os quadros da cena."
-
-
-msgid "Mute this modifier"
-msgstr "Tornar mudo este modificador."
-
-
-msgid "Mute expanded settings for the modifier"
-msgstr "Torna mudas as configurações expandidas para o modificador."
-
-
-msgid "Tone Map"
-msgstr "Mapa de tonalidades"
-
-
-msgid "Bright/contrast modifier data for sequence strip"
-msgstr "Dados de modificador de brilho e contraste para faixa de sequência."
-
-
-msgid "Adjust the luminosity of the colors"
-msgstr "Ajusta a luminosidade das cores."
-
-
-msgid "Adjust the difference in luminosity between pixels"
-msgstr "Ajusta a diferença de luminosidade entre os pixeis."
-
-
-msgid "Color balance modifier for sequence strip"
-msgstr "Modificador de balanço de cor para faixa de sequência."
-
-
-msgid "Multiply Colors"
-msgstr "Multiplicar as cores"
-
-
-msgid "Multiply the intensity of each pixel"
-msgstr "Multiplica a intensidade de cada pixel."
-
-
-msgid "RGB curves modifier for sequence strip"
-msgstr "Modificador de curvas de cores (RGB) para a faixa de sequência."
-
-
-msgid "Hue correction modifier for sequence strip"
-msgstr "Modificador de correção de matiz para faixa de sequência."
-
-
-msgid "Tone mapping modifier"
-msgstr "Modificador de mapa de tonalidades."
-
-
-msgid "Tone mapping algorithm"
-msgstr "Algoritmo de mapeamento de tonalidade."
-
-
-msgid "White balance modifier for sequence strip"
-msgstr "Modificador de balanço de tons brancos para faixa de sequência."
-
-
-msgid "This color defines white in the strip"
-msgstr "Esta cor define a tonalidade do branco pleno na faixa."
-
-
-msgid "Strip Modifiers"
-msgstr "Modificadores de faixas"
-
-
-msgid "Collection of strip modifiers"
-msgstr "Coleção de modificadores de faixas"
-
-
-msgid "Sequence Proxy"
-msgstr "Aproximação de sequência"
-
-
-msgid "Proxy parameters for a sequence strip"
-msgstr "Parâmetros das aproximações para uma faixa de sequência."
-
-
-msgid "Build 100% proxy resolution"
-msgstr "Constrói uma aproximação com 100% da resolução."
-
-
-msgid "Build 25% proxy resolution"
-msgstr "Constrói uma aproximação com 25% da resolução."
-
-
-msgid "Build 50% proxy resolution"
-msgstr "Constrói uma aproximação com 50% de resolução."
-
-
-msgid "Build 75% proxy resolution"
-msgstr "Constrói uma aproximação com 75% da resolução."
-
-
-msgid "Location of custom proxy file"
-msgstr "Localização do arquivo de aproximação personalizado."
-
-
-msgid "Method for reading the inputs timecode"
-msgstr "O método para a leitura das entradas dos códigos de tempo."
-
-
-msgid "Overwrite existing proxy files when building"
-msgstr "Sobrescreve os arquivos existentes das aproximações durante as construções."
-
-
-msgid "Use a custom directory to store data"
-msgstr "Usa um diretório personalizado para guardar os dados."
-
-
-msgid "Proxy Custom File"
-msgstr "Arquivo personalizado de aproximação"
-
-
-msgid "Use a custom file to read proxy data from"
-msgstr "Usa um arquivo personalizado a partir do qual ler os dados das aproximações."
-
-
-msgid "Sequence Transform"
-msgstr "Sequência de transformações"
-
-
-msgid "Transform parameters for a sequence strip"
-msgstr "Transforma parâmetros para uma faixa de sequência."
-
-
-msgid "Translate X"
-msgstr "Mover em X"
-
-
-msgid "Move along X axis"
-msgstr "Mover pelo eixo X"
-
-
-msgid "Translate Y"
-msgstr "Mover em Y"
-
-
-msgid "Move along Y axis"
-msgstr "Mover pelo eixo Y"
 
 
 msgid "Show Cache"
@@ -56343,10 +56205,6 @@ msgstr "Pivô em torno do cursor 2D."
 
 msgid "Individual Origins"
 msgstr "Origens individuais"
-
-
-msgid "Collection of Sequences"
-msgstr "Coleção de sequências"
 
 
 msgid "Factor of Blur"
@@ -58301,10 +58159,6 @@ msgid "Gamma Cross"
 msgstr "Cruzar por gama"
 
 
-msgid "Over Drop"
-msgstr "Sobreposição"
-
-
 msgid "Y position of the sequence strip"
 msgstr "Posição Y da faixa de sequência "
 
@@ -58378,6 +58232,11 @@ msgstr "Filme"
 
 
 msgctxt "Sequence"
+msgid "Clip"
+msgstr "Clipe"
+
+
+msgctxt "Sequence"
 msgid "Mask"
 msgstr "Máscara"
 
@@ -58392,11 +58251,6 @@ msgid "Cross"
 msgstr "Cruzar"
 
 
-msgctxt "Sequence"
-msgid "Over Drop"
-msgstr "Sobreposição"
-
-
 msgid "Use Default Fade"
 msgstr "Usar esmaecimento padrão"
 
@@ -58407,10 +58261,6 @@ msgstr "Usar modificadores lineares"
 
 msgid "Calculate modifiers in linear space instead of sequencer's space"
 msgstr "Calcula os modificadores dentro do espaço linear invés do espaço do sequenciador."
-
-
-msgid "Effect Sequence"
-msgstr "Sequências de efeitos"
 
 
 msgid "Sequence strip applying an effect on the images created by other strips"
@@ -58427,6 +58277,10 @@ msgstr "Canais de cores (RGB) em pixeis transparentes não são afetados pelo ca
 
 msgid "RGB channels in transparent pixels are multiplied by the alpha channel"
 msgstr "Canais de cores (RGB) em pixeis transparentes são multiplicados pelo canal alfa."
+
+
+msgid "Multiply Colors"
+msgstr "Multiplicar as cores"
 
 
 msgid "Adjust the intensity of the input's color"
@@ -58465,10 +58319,6 @@ msgid "Reverse Frames"
 msgstr "Reverter quadros"
 
 
-msgid "Add Sequence"
-msgstr "Adicionar sequência"
-
-
 msgid "Input 1"
 msgstr "Entrada 1"
 
@@ -58483,10 +58333,6 @@ msgstr "Entrada 2"
 
 msgid "Second input for the effect strip"
 msgstr "Segunda entrada para a faixa de efeito."
-
-
-msgid "Adjustment Layer Sequence"
-msgstr "Sequências de ajuste de camadas"
 
 
 msgid "Sequence strip to perform filter adjustments to layers below"
@@ -58509,22 +58355,6 @@ msgid "Animation start offset (trim start)"
 msgstr "O deslocamento do início da animação (cortar o início)."
 
 
-msgid "Alpha Over Sequence"
-msgstr "Sequência tipo alfa por cima"
-
-
-msgid "Alpha Under Sequence"
-msgstr "Sequência tipo alfa por baixo"
-
-
-msgid "Color Mix Sequence"
-msgstr "Sequência de mistura de cor"
-
-
-msgid "Color Sequence"
-msgstr "Sequência tipo cor"
-
-
 msgid "Sequence strip creating an image filled with a single color"
 msgstr "Faixa de sequência criando uma imagem preenchida com uma cor única."
 
@@ -58537,14 +58367,6 @@ msgid "Cross Sequence"
 msgstr "Sequência tipo cruzar"
 
 
-msgid "Gamma Cross Sequence"
-msgstr "Sequência tipo cruzar por gama"
-
-
-msgid "Gaussian Blur Sequence"
-msgstr "Sequência de desfoque gaussiano"
-
-
 msgid "Sequence strip creating a gaussian blur"
 msgstr "Faixa de sequência criando um desfoque gaussiano."
 
@@ -58555,10 +58377,6 @@ msgstr "Tamanho do desfoque ao longo do eixo X."
 
 msgid "Size of the blur along Y axis"
 msgstr "Tamanho do desfoque ao longo do eixo Y."
-
-
-msgid "Glow Sequence"
-msgstr "Sequência tipo incandescência"
 
 
 msgid "Sequence strip creating a glow effect"
@@ -58601,28 +58419,12 @@ msgid "Show the glow buffer only"
 msgstr "Mostra somente o contingenciamento de incandescência."
 
 
-msgid "Multicam Select Sequence"
-msgstr "Sequência de seleção multi-câmeras"
-
-
 msgid "Sequence strip to perform multicam editing"
 msgstr "Faixa de sequência para executar uma edição de multi-câmeras."
 
 
 msgid "Multicam Source Channel"
 msgstr "Canal de fonte multi-câmeras"
-
-
-msgid "Multiply Sequence"
-msgstr "Multiplicar sequência"
-
-
-msgid "Over Drop Sequence"
-msgstr "Sequência tipo sobre despejo"
-
-
-msgid "SpeedControl Sequence"
-msgstr "Sequência tipo controle de velocidade"
 
 
 msgid "Sequence strip to control the speed of other strips"
@@ -58633,12 +58435,8 @@ msgid "Multiply the current speed of the sequence with this number or remap curr
 msgstr "Multiplica a velocidade atual da sequência com este número ou remapear o quadro atual para este quadro."
 
 
-msgid "Subtract Sequence"
-msgstr "Subtrair sequência"
-
-
-msgid "Text Sequence"
-msgstr "Sequência de textos"
+msgid "Text Strip"
+msgstr "Faixa de texto"
 
 
 msgid "Sequence strip creating text"
@@ -58677,10 +58475,6 @@ msgid "Word wrap width as factor, zero disables"
 msgstr "Permite envolver as palavras usando um fator. Use um valor zero para desabilitar a envoltura."
 
 
-msgid "Transform Sequence"
-msgstr "Sequência para transformações"
-
-
 msgid "Sequence strip applying affine transformations to other strips"
 msgstr "Faixa de sequência aplicando transformações por afinidade para outras faixas."
 
@@ -58709,8 +58503,16 @@ msgid "Amount to scale the input in the Y axis"
 msgstr "A quantidade para escalonar a entrada no eixo Y."
 
 
+msgid "Translate X"
+msgstr "Mover em X"
+
+
 msgid "Amount to move the input on the X axis"
 msgstr "A quantidade para mover a entrada no eixo X."
+
+
+msgid "Translate Y"
+msgstr "Mover em Y"
 
 
 msgid "Amount to move the input on the Y axis"
@@ -58727,10 +58529,6 @@ msgstr "Unidade de medida para deslocar a entrada."
 
 msgid "Scale uniformly, preserving aspect ratio"
 msgstr "Escalona uniformemente, preservando a proporção de aspecto."
-
-
-msgid "Wipe Sequence"
-msgstr "Sequência de varredura"
 
 
 msgid "Sequence strip creating a wipe transition"
@@ -58766,12 +58564,16 @@ msgid "Clock"
 msgstr "Relógio"
 
 
+msgid "Image Strip"
+msgstr "Faixa de imagem"
+
+
 msgid "Sequence strip to load one or more images"
 msgstr "Faixa de sequência para carregar uma ou mais imagens."
 
 
-msgid "Mask Sequence"
-msgstr "Sequência de máscara"
+msgid "Mask Strip"
+msgstr "Máscara de trilha"
 
 
 msgid "Sequence strip to load a video from a mask"
@@ -58782,16 +58584,12 @@ msgid "Mask that this sequence uses"
 msgstr "Máscara que esta sequência usa."
 
 
-msgid "Meta Sequence"
-msgstr "Sequência meta"
+msgid "Meta Strip"
+msgstr "Faixa meta"
 
 
 msgid "Sequence strip to group other strips as a single sequence strip"
 msgstr "Faixa de sequência para agrupar outras faixas como uma única faixa de sequência."
-
-
-msgid "MovieClip Sequence"
-msgstr "Sequência de clipe de filme"
 
 
 msgid "Sequence strip to load a video from the clip editor"
@@ -58814,10 +58612,6 @@ msgid "Use the undistorted version of the clip"
 msgstr "Usa a versão não distorcida do clipe."
 
 
-msgid "Movie Sequence"
-msgstr "Sequência de filme"
-
-
 msgid "Sequence strip to load a video"
 msgstr "Faixa de sequência para carregar um vídeo."
 
@@ -58834,8 +58628,8 @@ msgid "Mode to load movie views"
 msgstr "O modo para carregar as visualizações de filmes."
 
 
-msgid "Scene Sequence"
-msgstr "Sequência de cena"
+msgid "Scene Strip"
+msgstr "Faixa de cena"
 
 
 msgid "Scene that this sequence uses"
@@ -58850,10 +58644,6 @@ msgid "Playback volume of the sound"
 msgstr "Volume para reproduzir o som."
 
 
-msgid "Sound Sequence"
-msgstr "Sequência de som"
-
-
 msgid "Sequence strip defining a sound to be played over a period of time"
 msgstr "Faixa de sequência definindo um som para ser reproduzido sobre um período de tempo."
 
@@ -58864,6 +58654,250 @@ msgstr "Arrasto panorâmico ao reproduzir som (somente para fontes monaurais)."
 
 msgid "Sound data-block used by this sequence"
 msgstr "Blocos de dados de sons usados por esta sequência."
+
+
+msgid "Color balance gain (highlights)"
+msgstr "Balanço de cor de ganho (realces)."
+
+
+msgid "Color balance gamma (midtones)"
+msgstr "Balanço de cor de gama (meios tons)."
+
+
+msgid "Inverse Gain"
+msgstr "Ganho inverso"
+
+
+msgid "Inverse Gamma"
+msgstr "Gama invertido"
+
+
+msgid "Invert the gamma color"
+msgstr "Inverte as cores da gama."
+
+
+msgid "Inverse Lift"
+msgstr "Realce inverso"
+
+
+msgid "Invert the lift color"
+msgstr "Inverte as cores dos realces."
+
+
+msgid "Color balance lift (shadows)"
+msgstr "Balanço de cor de realces (sombras)."
+
+
+msgid "Color balance parameters for a sequence strip"
+msgstr "Parâmetros de balanço de cor para uma faixa de sequência."
+
+
+msgid "Cropping parameters for a sequence strip"
+msgstr "Parâmetros de recorte para uma faixa de sequência."
+
+
+msgid "Number of pixels to crop from the right side"
+msgstr "Número de pixeis que serão cortados no lado direito da imagem."
+
+
+msgid "Number of pixels to crop from the top"
+msgstr "Número de pixeis que serão cortados no lado superior da imagem."
+
+
+msgid "Number of pixels to crop from the left side"
+msgstr "Número de pixeis que serão cortados no lado esquerdo da imagem."
+
+
+msgid "Number of pixels to crop from the bottom"
+msgstr "Número de pixeis que serão cortados no lado inferior da imagem."
+
+
+msgid "Sequence strip data for a single frame"
+msgstr "Dados de faixa de sequência para um único quadro."
+
+
+msgid "Name of the source file"
+msgstr "Nome do arquivo de fonte"
+
+
+msgid "Orig Height"
+msgstr "Altura original"
+
+
+msgid "Original image height"
+msgstr "Altura original da imagem."
+
+
+msgid "Orig Width"
+msgstr "Largura original"
+
+
+msgid "Original image width"
+msgstr "Largura original da imagem."
+
+
+msgid "Modifier for sequence strip"
+msgstr "Modificador para faixa de sequência."
+
+
+msgid "Mask ID used as mask input for the modifier"
+msgstr "Identificador da máscara usado como entrada de máscara para o modificador."
+
+
+msgid "Strip used as mask input for the modifier"
+msgstr "Faixa usada como entrada de máscara para o modificador."
+
+
+msgid "Mask Input Type"
+msgstr "Tipo de entrada de máscara"
+
+
+msgid "Type of input data used for mask"
+msgstr "Tipo de dados de entrada usados para a máscara."
+
+
+msgid "Use sequencer strip as mask input"
+msgstr "Usa uma faixa do editor de sequências como entrada de máscara."
+
+
+msgid "Use mask ID as mask input"
+msgstr "Usa o identificador de máscara como entrada de máscara."
+
+
+msgid "Mask Time"
+msgstr "Tempo de máscara"
+
+
+msgid "Time to use for the Mask animation"
+msgstr "O tempo a ser usado para a animação da máscara."
+
+
+msgid "Mask animation is offset to start of strip"
+msgstr "A animação de máscara é um deslocamento para o início da faixa."
+
+
+msgid "Mask animation is in sync with scene frame"
+msgstr "A animação de máscara está em sincronismo com os quadros da cena."
+
+
+msgid "Mute this modifier"
+msgstr "Tornar mudo este modificador."
+
+
+msgid "Mute expanded settings for the modifier"
+msgstr "Torna mudas as configurações expandidas para o modificador."
+
+
+msgid "Tone Map"
+msgstr "Mapa de tonalidades"
+
+
+msgid "Bright/contrast modifier data for sequence strip"
+msgstr "Dados de modificador de brilho e contraste para faixa de sequência."
+
+
+msgid "Adjust the luminosity of the colors"
+msgstr "Ajusta a luminosidade das cores."
+
+
+msgid "Adjust the difference in luminosity between pixels"
+msgstr "Ajusta a diferença de luminosidade entre os pixeis."
+
+
+msgid "Color balance modifier for sequence strip"
+msgstr "Modificador de balanço de cor para faixa de sequência."
+
+
+msgid "Multiply the intensity of each pixel"
+msgstr "Multiplica a intensidade de cada pixel."
+
+
+msgid "RGB curves modifier for sequence strip"
+msgstr "Modificador de curvas de cores (RGB) para a faixa de sequência."
+
+
+msgid "Hue correction modifier for sequence strip"
+msgstr "Modificador de correção de matiz para faixa de sequência."
+
+
+msgid "Tone mapping modifier"
+msgstr "Modificador de mapa de tonalidades."
+
+
+msgid "Tone mapping algorithm"
+msgstr "Algoritmo de mapeamento de tonalidade."
+
+
+msgid "White balance modifier for sequence strip"
+msgstr "Modificador de balanço de tons brancos para faixa de sequência."
+
+
+msgid "This color defines white in the strip"
+msgstr "Esta cor define a tonalidade do branco pleno na faixa."
+
+
+msgid "Strip Modifiers"
+msgstr "Modificadores de faixas"
+
+
+msgid "Collection of strip modifiers"
+msgstr "Coleção de modificadores de faixas"
+
+
+msgid "Proxy parameters for a sequence strip"
+msgstr "Parâmetros das aproximações para uma faixa de sequência."
+
+
+msgid "Build 100% proxy resolution"
+msgstr "Constrói uma aproximação com 100% da resolução."
+
+
+msgid "Build 25% proxy resolution"
+msgstr "Constrói uma aproximação com 25% da resolução."
+
+
+msgid "Build 50% proxy resolution"
+msgstr "Constrói uma aproximação com 50% de resolução."
+
+
+msgid "Build 75% proxy resolution"
+msgstr "Constrói uma aproximação com 75% da resolução."
+
+
+msgid "Location of custom proxy file"
+msgstr "Localização do arquivo de aproximação personalizado."
+
+
+msgid "Method for reading the inputs timecode"
+msgstr "O método para a leitura das entradas dos códigos de tempo."
+
+
+msgid "Overwrite existing proxy files when building"
+msgstr "Sobrescreve os arquivos existentes das aproximações durante as construções."
+
+
+msgid "Use a custom directory to store data"
+msgstr "Usa um diretório personalizado para guardar os dados."
+
+
+msgid "Proxy Custom File"
+msgstr "Arquivo personalizado de aproximação"
+
+
+msgid "Use a custom file to read proxy data from"
+msgstr "Usa um arquivo personalizado a partir do qual ler os dados das aproximações."
+
+
+msgid "Transform parameters for a sequence strip"
+msgstr "Transforma parâmetros para uma faixa de sequência."
+
+
+msgid "Move along X axis"
+msgstr "Mover pelo eixo X"
+
+
+msgid "Move along Y axis"
+msgstr "Mover pelo eixo Y"
 
 
 msgid "Map X and Y coordinates directly"
@@ -59922,28 +59956,12 @@ msgid "Draw Action"
 msgstr "Desenhar ação"
 
 
-msgid "Image Strip"
-msgstr "Faixa de imagem"
-
-
-msgid "Meta Strip"
-msgstr "Faixa meta"
-
-
 msgid "Clip Strip"
 msgstr "Faixa de clipe"
 
 
 msgid "Preview Background"
 msgstr "Previsão de plano de fundo"
-
-
-msgid "Scene Strip"
-msgstr "Faixa de cena"
-
-
-msgid "Text Strip"
-msgstr "Faixa de texto"
 
 
 msgid "Theme Space Settings"
@@ -60857,6 +60875,10 @@ msgstr "Lâmpada para sólidos"
 
 msgid "Color of the light's specular highlight"
 msgstr "Cor do realce especular da lâmpada."
+
+
+msgid "UV Sculpting"
+msgstr "Escultura de UVs"
 
 
 msgid "Group of vertices, used for armature deform and other purposes"
@@ -62075,10 +62097,6 @@ msgid "Rotation"
 msgstr "Rotação"
 
 
-msgid "Unknown"
-msgstr "Desconhecido"
-
-
 msgctxt "Operator"
 msgid "Update All Paths"
 msgstr "Atualizar Todos os Caminhos"
@@ -62922,16 +62940,6 @@ msgstr "Modo de interpolação"
 msgctxt "Operator"
 msgid "Discontinuity (Euler) Filter"
 msgstr "Filtro de descontinuidade (Euler)"
-
-
-msgctxt "Operator"
-msgid "Push Down"
-msgstr "Empurrar para baixo"
-
-
-msgctxt "Operator"
-msgid "Stash"
-msgstr "Armazenar"
 
 
 msgctxt "Operator"
@@ -65127,10 +65135,6 @@ msgid "Strand Lengths"
 msgstr "Comprimento do fio"
 
 
-msgid "Path Steps"
-msgstr "Passos de caminho:"
-
-
 msgid "No Brushes currently available"
 msgstr "Não há pincéis disponíveis atualmente."
 
@@ -65234,10 +65238,6 @@ msgstr "Não é possível criar o caminho das preferências de usuário para os 
 
 msgid "File written by newer Blender binary (%d.%d), expect loss of data!"
 msgstr "Arquivo escrito por um executável Blender mais novo: (%d.%d), espere por perda de dados !"
-
-
-msgid "Loading failed: "
-msgstr "Falha durante o carregamento:"
 
 
 msgid "Linking or appending from a very old .blend file format (%d.%d), no animation conversion will be done! You may want to re-save your lib file with current Blender"
@@ -65352,6 +65352,10 @@ msgstr "Superfície"
 msgctxt "Action"
 msgid "var"
 msgstr "variável"
+
+
+msgid "Untitled"
+msgstr "Sem título"
 
 
 msgid "GP_Layer"
@@ -65587,10 +65591,6 @@ msgid "GP_Palette"
 msgstr "Paleta de lápis de cera"
 
 
-msgid "Untitled"
-msgstr "Sem título"
-
-
 msgid "Unable to make version backup: filename too short"
 msgstr "Não é possível fazer cópia de segurança de versão: nome de arquivo muito curto."
 
@@ -65657,10 +65657,6 @@ msgstr "Par de anéis de arestas não estão conectados."
 
 msgid "Edge-rings are not connected"
 msgstr "Anéis de arestas não estão conectados."
-
-
-msgid "UV/Image"
-msgstr "UV/Imagem"
 
 
 msgid "NLA Strip Controls"
@@ -65927,8 +65923,8 @@ msgid "Relax Pose"
 msgstr "Relaxar Pose"
 
 
-msgid "[H] - Toggle bone visibility"
-msgstr "[H] - Alterar visibilidade do osso"
+msgid "Cancel"
+msgstr "Cancelar"
 
 
 msgid "No keyframes to slide between"
@@ -66289,10 +66285,6 @@ msgstr "Luminosidade"
 
 msgid "OK"
 msgstr "OK"
-
-
-msgid "Cancel"
-msgstr "Cancelar"
 
 
 msgid "Menu \"%s\" not found"
@@ -66746,10 +66738,6 @@ msgstr "Parte externa"
 
 msgid "Intersection Type"
 msgstr "Tipo de intersecção"
-
-
-msgid "LMB: Click and drag to draw cut line"
-msgstr "BEM: Clique e arraste para desenhar uma linha de corte."
 
 
 msgid "Selected edges/faces required"
@@ -67707,10 +67695,6 @@ msgid "Scene has no camera"
 msgstr "A cena não possui uma câmera definida."
 
 
-msgid "Movie format unsupported"
-msgstr "Formato de filme não suportado."
-
-
 msgid "Failed to create OpenGL off-screen buffer, %s"
 msgstr "Falha ao criar buffer OpenGL fora-de-tela, %s"
 
@@ -67838,14 +67822,6 @@ msgstr "Duplicar Atual"
 
 msgid "File not found '%s'"
 msgstr "Arquivo não encontrado: '%s'"
-
-
-msgid "ON"
-msgstr "LIGADO"
-
-
-msgid "OFF"
-msgstr "DESLIGADO"
 
 
 msgid "Active group is locked, aborting"
@@ -68006,10 +67982,6 @@ msgstr "Quadros-chave ativos"
 
 msgid "Action must have at least one keyframe or F-Modifier"
 msgstr "A ação deve possuir ao menos um quadro-chave ou modificador-f."
-
-
-msgid "Action has already been stashed"
-msgstr "Ação já foi armazenada."
 
 
 msgid "Could not find current NLA Track"
@@ -68206,10 +68178,6 @@ msgstr "Sem arquivos selecionados a ser abertos."
 
 msgid "Cannot read '%s': %s"
 msgstr "Não é possível ler '%s': %s"
-
-
-msgid "Use LMB click to define location where place the marker"
-msgstr "Usar o clique com BEM para definir a localização onde posicionar o marcador."
 
 
 msgid "No active track to join to"
@@ -68657,10 +68625,6 @@ msgid "Undefined Socket Type"
 msgstr "Tipo de soquete indefinido"
 
 
-msgid "{} (String)"
-msgstr "{} (String)"
-
-
 msgid "{} (Integer)"
 msgstr "{} (Inteiro)"
 
@@ -68679,6 +68643,10 @@ msgstr "Verdadeiro"
 
 msgid "False"
 msgstr "Falso"
+
+
+msgid "{} (String)"
+msgstr "{} (String)"
 
 
 msgid " Named Attribute"
@@ -68747,22 +68715,6 @@ msgstr "Máscara não encontrada."
 
 msgid "File '%s' could not be loaded"
 msgstr "Arquivo '%s' não pode ser carregado."
-
-
-msgid "Cannot apply effects to audio sequence strips"
-msgstr "Não é possível aplicar efeitos para as faixas de sequência de áudio."
-
-
-msgid "At least one selected sequence strip is needed"
-msgstr "Pelo menos uma faixa de sequência selecionada é necessária."
-
-
-msgid "2 selected sequence strips are needed"
-msgstr "É necessário haver duas faixas de sequência selecionadas."
-
-
-msgid "TODO: in what cases does this happen?"
-msgstr "PARA FAZER: em quais situações isto ocorre ?"
 
 
 msgid "No valid inputs to swap"
@@ -68983,10 +68935,6 @@ msgstr "Sem osso ativo"
 
 msgid "Radius (Parent)"
 msgstr "Raio (parente)"
-
-
-msgid "Size:"
-msgstr "Tamanho"
 
 
 msgid "Displays global values"
@@ -69299,10 +69247,6 @@ msgstr "Encolher ou estufar: %s"
 
 msgid "Shrink/Fatten: %3f"
 msgstr "Encolher ou estufar: %3f"
-
-
-msgid "Edge Slide: "
-msgstr "Deslizar arestas:"
 
 
 msgid "Opacity: %s"
@@ -69975,32 +69919,8 @@ msgid "Modifier was not found in the stack"
 msgstr "Modificador não foi encontrado na pilha."
 
 
-msgid "Sequences.new_sound: unable to open sound file"
-msgstr "Sequences.new_sound: Não foi possível abrir arquivo(s) de som"
-
-
 msgid "Blender compiled without Audaspace support"
 msgstr "Blender compilado sem suporte a Audaspace "
-
-
-msgid "Sequences.new_effect: end frame not set"
-msgstr "Sequences.new_effect: Quadro final não definido"
-
-
-msgid "Sequences.new_effect: effect takes 1 input sequence"
-msgstr "Sequences.new_effect: Uma sequência de entrada é necessária"
-
-
-msgid "Sequences.new_effect: effect takes 2 input sequences"
-msgstr "Sequences.new_effect: São necessárias duas sequências de entrada para o efeito"
-
-
-msgid "SequenceElements.pop: cannot pop the last element"
-msgstr "SequenceElements.pop: Não foi possível retornar o último elemento"
-
-
-msgid "SequenceElements.pop: index out of range"
-msgstr "SequenceElements.pop:: Índice fora do escopo"
 
 
 msgid "Sound not packed"
@@ -70158,10 +70078,6 @@ msgstr "Ofuscar"
 
 msgid "Streak fade-out factor"
 msgstr "Fator de saída para o esmaecimento das listras."
-
-
-msgid "Undistortion"
-msgstr "Sem distorções"
 
 
 msgid "Dot"
@@ -70671,6 +70587,14 @@ msgstr "Win"
 
 msgid "dbl-"
 msgstr "dbl-"
+
+
+msgid "ON"
+msgstr "LIGADO"
+
+
+msgid "OFF"
+msgstr "DESLIGADO"
 
 
 msgid "unsupported format"

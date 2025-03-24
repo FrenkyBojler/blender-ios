@@ -29,8 +29,8 @@ static int gpu_shader_rgb(GPUMaterial *mat,
 NODE_SHADER_MATERIALX_BEGIN
 #ifdef WITH_MATERIALX
 {
-  NodeItem color = get_output_default("Color", NodeItem::Type::Color4);
-  return create_node("constant", NodeItem::Type::Color4, {{"value", color}});
+  NodeItem color = get_output_default("Color", NodeItem::Type::Color3);
+  return create_node("constant", NodeItem::Type::Color3, {{"value", color}});
 }
 #endif
 NODE_SHADER_MATERIALX_END
@@ -52,5 +52,5 @@ void register_node_type_sh_rgb()
   ntype.gpu_fn = file_ns::gpu_shader_rgb;
   ntype.materialx_fn = file_ns::node_shader_materialx;
 
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }

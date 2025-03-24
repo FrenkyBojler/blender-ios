@@ -13,8 +13,6 @@
 
 #include "BKE_unit.hh"
 
-#include "DNA_gpencil_legacy_types.h"
-
 #include "ED_screen.hh"
 
 #include "UI_interface.hh"
@@ -26,6 +24,8 @@
 #include "transform_snap.hh"
 
 #include "transform_mode.hh"
+
+namespace blender::ed::transform {
 
 /* -------------------------------------------------------------------- */
 /** \name Transform (GPencil Strokes Opacity)
@@ -115,3 +115,5 @@ TransModeInfo TransMode_gpopacity = {
     /*snap_apply_fn*/ nullptr,
     /*draw_fn*/ nullptr,
 };
+
+}  // namespace blender::ed::transform

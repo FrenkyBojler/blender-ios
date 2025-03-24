@@ -9,7 +9,6 @@
 #include "BLI_math_matrix.hh"
 #include "BLI_math_vector.hh"
 #include "BLI_offset_indices.hh"
-#include "BLI_rect.h"
 #include "BLI_stack.hh"
 #include "BLI_task.hh"
 
@@ -602,6 +601,7 @@ static bke::CurvesGeometry boundary_to_curves(const Scene &scene,
   curves.curve_types_for_write().fill(CURVE_TYPE_POLY);
   curves.update_curve_types();
 
+  /* Note: We can assume that the writers here will be valid since we created new curves. */
   bke::SpanAttributeWriter<int> materials = attributes.lookup_or_add_for_write_span<int>(
       "material_index", bke::AttrDomain::Curve);
   bke::SpanAttributeWriter<bool> cyclic = attributes.lookup_or_add_for_write_span<bool>(
@@ -1152,12 +1152,8 @@ bke::CurvesGeometry fill_strokes(const ViewContext &view_context,
                                                                                pixel_scale);
 
   ed::greasepencil::DrawingPlacement placement(scene, region, view3d, object_eval, &layer);
-  if (placement.use_project_to_surface()) {
+  if (placement.use_project_to_surface() || placement.use_project_to_stroke()) {
     placement.cache_viewport_depths(&depsgraph, &region, &view3d);
-  }
-  else if (placement.use_project_to_nearest_stroke()) {
-    placement.cache_viewport_depths(&depsgraph, &region, &view3d);
-    placement.set_origin_to_nearest_stroke(fill_point);
   }
 
   Image *ima = render_strokes(view_context,

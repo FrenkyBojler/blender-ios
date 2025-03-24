@@ -8,6 +8,8 @@
  * Array modifier: duplicates the object multiple times along an axis.
  */
 
+#include <algorithm>
+
 #include "MEM_guardedalloc.h"
 
 #include "BLI_utildefines.h"
@@ -164,10 +166,10 @@ static void dm_mvert_map_doubles(int *doubles_map,
   source_end = source_start + source_verts_num;
 
   /* build array of MVerts to be tested for merging */
-  SortVertsElem *sorted_verts_target = static_cast<SortVertsElem *>(
-      MEM_malloc_arrayN(target_verts_num, sizeof(SortVertsElem), __func__));
-  SortVertsElem *sorted_verts_source = static_cast<SortVertsElem *>(
-      MEM_malloc_arrayN(source_verts_num, sizeof(SortVertsElem), __func__));
+  SortVertsElem *sorted_verts_target = MEM_malloc_arrayN<SortVertsElem>(size_t(target_verts_num),
+                                                                        __func__);
+  SortVertsElem *sorted_verts_source = MEM_malloc_arrayN<SortVertsElem>(size_t(source_verts_num),
+                                                                        __func__);
 
   /* Copy target vertices index and cos into SortVertsElem array */
   svert_from_mvert(sorted_verts_target, vert_positions, target_start, target_end);
@@ -230,8 +232,8 @@ static void dm_mvert_map_doubles(int *doubles_map,
     while ((i_target < target_verts_num) && (sve_target->sum_co <= sve_source_sumco + dist3)) {
       /* Testing distance for candidate double in target */
       /* v_target is within dist3 of v_source in terms of sumco;  check real distance */
-      float dist_sq;
-      if ((dist_sq = len_squared_v3v3(sve_source->co, sve_target->co)) <= best_dist_sq) {
+      const float dist_sq = len_squared_v3v3(sve_source->co, sve_target->co);
+      if (dist_sq <= best_dist_sq) {
         /* Potential double found */
         best_dist_sq = dist_sq;
         best_target_vertex = sve_target->vertex_num;
@@ -546,9 +548,7 @@ static Mesh *arrayModifier_doArray(ArrayModifierData *amd,
                            "geometry it would require");
   }
 
-  if (count < 1) {
-    count = 1;
-  }
+  count = std::max(count, 1);
 
   /* The number of verts, edges, loops, faces, before eventually merging doubles */
   result_nverts = chunk_nverts * count + start_cap_nverts + end_cap_nverts;
@@ -567,7 +567,7 @@ static Mesh *arrayModifier_doArray(ArrayModifierData *amd,
 
   if (use_merge) {
     /* Will need full_doubles_map for handling merge */
-    full_doubles_map = static_cast<int *>(MEM_malloc_arrayN(result_nverts, sizeof(int), __func__));
+    full_doubles_map = MEM_malloc_arrayN<int>(size_t(result_nverts), __func__);
     copy_vn_i(full_doubles_map, result_nverts, -1);
   }
 

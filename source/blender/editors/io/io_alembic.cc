@@ -18,8 +18,6 @@
 #  include <cerrno>
 #  include <cstring>
 
-#  include "MEM_guardedalloc.h"
-
 #  include "DNA_modifier_types.h"
 #  include "DNA_object_types.h"
 #  include "DNA_scene_types.h"
@@ -71,7 +69,9 @@ const EnumPropertyItem rna_enum_abc_export_evaluation_mode_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-static int wm_alembic_export_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+static wmOperatorStatus wm_alembic_export_invoke(bContext *C,
+                                                 wmOperator *op,
+                                                 const wmEvent * /*event*/)
 {
   if (!RNA_struct_property_is_set(op->ptr, "as_background_job")) {
     RNA_boolean_set(op->ptr, "as_background_job", true);
@@ -86,7 +86,7 @@ static int wm_alembic_export_invoke(bContext *C, wmOperator *op, const wmEvent *
   return OPERATOR_RUNNING_MODAL;
 }
 
-static int wm_alembic_export_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus wm_alembic_export_exec(bContext *C, wmOperator *op)
 {
   if (!RNA_struct_property_is_set_ex(op->ptr, "filepath", false)) {
     BKE_report(op->reports, RPT_ERROR, "No filepath given");
@@ -590,7 +590,7 @@ static void wm_alembic_import_draw(bContext *C, wmOperator *op)
 }
 
 /* op->invoke, opens fileselect if path property not set, otherwise executes */
-static int wm_alembic_import_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus wm_alembic_import_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   if (!RNA_struct_property_is_set(op->ptr, "as_background_job")) {
     RNA_boolean_set(op->ptr, "as_background_job", true);
@@ -598,7 +598,7 @@ static int wm_alembic_import_invoke(bContext *C, wmOperator *op, const wmEvent *
   return blender::ed::io::filesel_drop_import_invoke(C, op, event);
 }
 
-static int wm_alembic_import_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus wm_alembic_import_exec(bContext *C, wmOperator *op)
 {
   blender::Vector<std::string> paths = blender::ed::io::paths_from_operator_properties(op->ptr);
   if (paths.is_empty()) {

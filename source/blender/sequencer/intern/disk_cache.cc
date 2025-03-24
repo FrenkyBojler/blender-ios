@@ -14,18 +14,19 @@
 
 #include "DNA_scene_types.h"
 #include "DNA_sequence_types.h"
+#include "DNA_userdef_types.h"
 
 #include "IMB_colormanagement.hh"
 #include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
 
-#include "BLI_blenlib.h"
 #include "BLI_endian_defines.h"
 #include "BLI_endian_switch.h"
 #include "BLI_fileops.h"
 #include "BLI_fileops_types.h"
 #include "BLI_listbase.h"
 #include "BLI_path_utils.hh"
+#include "BLI_string.h"
 #include "BLI_threads.h"
 
 #include "BKE_main.hh"
@@ -52,6 +53,8 @@
  * To distinguish 2 blend files with same name, scene->ed->disk_cache_timestamp
  * is used as UID. Blend file can still be copied manually which may cause conflict.
  */
+
+namespace blender::seq {
 
 /* Format string:
  * `<cache type>-<resolution X>x<resolution Y>-<rendersize>%(<view_id>)-<frame no>.dcf`. */
@@ -132,8 +135,7 @@ static DiskCacheFile *seq_disk_cache_add_file_to_list(SeqDiskCache *disk_cache,
                                                       const char *filepath)
 {
 
-  DiskCacheFile *cache_file = static_cast<DiskCacheFile *>(
-      MEM_callocN(sizeof(DiskCacheFile), "SeqDiskCacheFile"));
+  DiskCacheFile *cache_file = MEM_callocN<DiskCacheFile>("SeqDiskCacheFile");
   char dir[FILE_MAXDIR], file[FILE_MAX];
   BLI_path_split_dir_file(filepath, dir, sizeof(dir), file, sizeof(file));
   STRNCPY(cache_file->filepath, filepath);
@@ -405,8 +407,8 @@ void seq_disk_cache_invalidate(SeqDiskCache *disk_cache,
 
   BLI_mutex_lock(&disk_cache->read_write_mutex);
 
-  start = SEQ_time_left_handle_frame_get(scene, strip_changed) - DCACHE_IMAGES_PER_FILE;
-  end = SEQ_time_right_handle_frame_get(scene, strip_changed);
+  start = time_left_handle_frame_get(scene, strip_changed) - DCACHE_IMAGES_PER_FILE;
+  end = time_right_handle_frame_get(scene, strip_changed);
 
   seq_disk_cache_delete_invalid_files(disk_cache, scene, strip, invalidate_types, start, end);
 
@@ -632,13 +634,13 @@ ImBuf *seq_disk_cache_read_file(SeqDiskCache *disk_cache, SeqCacheKey *key)
   if (header.entry[entry_index].size_raw == size_char) {
     expected_size = size_char;
     ibuf = IMB_allocImBuf(
-        key->context.rectx, key->context.recty, 32, IB_rect | IB_uninitialized_pixels);
+        key->context.rectx, key->context.recty, 32, IB_byte_data | IB_uninitialized_pixels);
     IMB_colormanagement_assign_byte_colorspace(ibuf, header.entry[entry_index].colorspace_name);
   }
   else if (header.entry[entry_index].size_raw == size_float) {
     expected_size = size_float;
     ibuf = IMB_allocImBuf(
-        key->context.rectx, key->context.recty, 32, IB_rectfloat | IB_uninitialized_pixels);
+        key->context.rectx, key->context.recty, 32, IB_float_data | IB_uninitialized_pixels);
     IMB_colormanagement_assign_float_colorspace(ibuf, header.entry[entry_index].colorspace_name);
   }
   else {
@@ -666,8 +668,7 @@ ImBuf *seq_disk_cache_read_file(SeqDiskCache *disk_cache, SeqCacheKey *key)
 
 SeqDiskCache *seq_disk_cache_create(Main *bmain, Scene *scene)
 {
-  SeqDiskCache *disk_cache = static_cast<SeqDiskCache *>(
-      MEM_callocN(sizeof(SeqDiskCache), "SeqDiskCache"));
+  SeqDiskCache *disk_cache = MEM_callocN<SeqDiskCache>("SeqDiskCache");
   disk_cache->bmain = bmain;
   BLI_mutex_init(&disk_cache->read_write_mutex);
   seq_disk_cache_handle_versioning(disk_cache);
@@ -683,3 +684,5 @@ void seq_disk_cache_free(SeqDiskCache *disk_cache)
   BLI_mutex_end(&disk_cache->read_write_mutex);
   MEM_freeN(disk_cache);
 }
+
+}  // namespace blender::seq

@@ -13,6 +13,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_listbase.h"
+#include "BLI_math_vector.h"
 #include "BLI_rect.h"
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
@@ -20,6 +21,7 @@
 #include "BLT_translation.hh"
 
 #include "BKE_context.hh"
+#include "BKE_global.hh"
 #include "BKE_image.hh"
 #include "BKE_screen.hh"
 
@@ -458,8 +460,10 @@ tSlider *ED_slider_create(bContext *C)
     LISTBASE_FOREACH (ARegion *, region, &slider->area->regionbase) {
       if (region->regiontype == RGN_TYPE_HEADER) {
         slider->region_header = region;
-        slider->draw_handle = ED_region_draw_cb_activate(
-            region->runtime->type, slider_draw, slider, REGION_DRAW_POST_PIXEL);
+        if (!G.background) {
+          slider->draw_handle = ED_region_draw_cb_activate(
+              region->runtime->type, slider_draw, slider, REGION_DRAW_POST_PIXEL);
+        }
       }
     }
   }
@@ -554,6 +558,22 @@ void ED_slider_status_string_get(const tSlider *slider,
                overshoot_str,
                precision_str,
                increments_str);
+}
+
+void ED_slider_status_get(const tSlider *slider, WorkspaceStatus &status)
+{
+  if (slider->allow_overshoot_lower || slider->allow_overshoot_upper) {
+    status.item_bool(IFACE_("Overshoot"), slider->overshoot, ICON_EVENT_E);
+  }
+  else {
+    status.item(IFACE_("Overshoot Disabled"), ICON_INFO);
+  }
+
+  status.item_bool(IFACE_("Precision"), slider->precision, ICON_EVENT_SHIFT);
+
+  if (slider->allow_increments) {
+    status.item_bool(IFACE_("Snap"), slider->increments, ICON_EVENT_CTRL);
+  }
 }
 
 void ED_slider_destroy(bContext *C, tSlider *slider)

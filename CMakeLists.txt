@@ -54,11 +54,6 @@ endif()
 # quiet output for Makefiles, 'make -s' helps too
 # set_property(GLOBAL PROPERTY RULE_MESSAGES OFF)
 
-# Global compile definitions since add_definitions() adds for all.
-# _DEBUG is a Visual Studio define, enabled for all platforms.
-set_property(DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS
-  $<$<CONFIG:Debug>:_DEBUG>
-)
 # -----------------------------------------------------------------------------
 # Set policy
 
@@ -216,20 +211,18 @@ Build \"BlendThumb.dll\" helper for Windows explorer integration to support extr
 thumbnails from `.blend` files."
     ON
   )
-else()
-  set(_option_default ON)
-  if(APPLE)
-    # In future, can be used with `quicklookthumbnailing/qlthumbnailreply`
-    # to create file thumbnails for say Finder.
-    # Turn it off for now, even though it can build on APPLE, it's not likely to be useful.
-    set(_option_default OFF)
-  endif()
+elseif(UNIX AND NOT APPLE)
   option(WITH_BLENDER_THUMBNAILER "\
 Build stand-alone \"blender-thumbnailer\" command-line thumbnail extraction utility, \
 intended for use by file-managers to extract PNG images from `.blend` files."
-    ${_option_default}
+    ON
   )
-  unset(_option_default)
+elseif(APPLE)
+  option(WITH_BLENDER_THUMBNAILER "\
+Build \"blender-thumbnailer.appex\" extension for Finder/ QuickLook thumbnail \
+support for blend files."
+    ON
+  )
 endif()
 
 option(WITH_INTERNATIONAL "Enable I18N (International fonts and text)" ON)
@@ -418,10 +411,17 @@ option(WITH_OPENMP "Enable OpenMP (has to be supported by the compiler)" ON)
 if(UNIX AND NOT APPLE)
   option(WITH_OPENMP_STATIC "Link OpenMP statically (only used by the release environment)" OFF)
   mark_as_advanced(WITH_OPENMP_STATIC)
-elseif(WIN32 AND CMAKE_C_COMPILER_ID MATCHES "Clang" AND CMAKE_SYSTEM_PROCESSOR STREQUAL "ARM64")
-  # At time of testing (LLVM 18.1.6) OMP is not included in public LLVM builds for Windows ARM64
-  set(WITH_OPENMP OFF)
-  set(WITH_OPENMP_STATIC OFF)
+elseif(WIN32 AND CMAKE_C_COMPILER_ID MATCHES "Clang" AND CMAKE_SYSTEM_PROCESSOR STREQUAL "ARM64" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 19.1)
+  # Prior to LLVM 19.1, OpenMP was not included in public LLVM builds for Windows ARM64
+  if(WITH_OPENMP)
+    if(WITH_STRICT_BUILD_OPTIONS)
+      message(SEND_ERROR "OpenMP enabled, but LLVM ${CMAKE_CXX_COMPILER_VERSION} detected, minimum of 19.1 required for OpenMP functionality")
+    else()
+      message(STATUS "Disabling OpenMP, LLVM ${CMAKE_CXX_COMPILER_VERSION} detected, minimum of 19.1 required for OpenMP functionality")
+    endif()
+    set(WITH_OPENMP OFF)
+    set(WITH_OPENMP_STATIC OFF)
+  endif()
 endif()
 
 if(WITH_GHOST_X11)
@@ -492,6 +492,9 @@ option(WITH_IO_WAVEFRONT_OBJ "Enable Wavefront-OBJ 3D file format support (*.obj
 option(WITH_IO_PLY "Enable PLY 3D file format support (*.ply)" ON)
 option(WITH_IO_STL "Enable STL 3D file format support (*.stl)" ON)
 option(WITH_IO_GREASE_PENCIL "Enable grease-pencil file format IO (*.svg, *.pdf)" ON)
+
+# Csv support
+option(WITH_IO_CSV "Enable CSV file format support (*.csv)" ON)
 
 # Sound output
 option(WITH_SDL "Enable SDL for sound" OFF)
@@ -567,13 +570,6 @@ Try to link with static libraries, as much as possible, \
 to make blender more portable across distributions"
     OFF
   )
-  if(WITH_STATIC_LIBS)
-    option(WITH_BOOST_ICU "\
-Boost uses ICU library (required for linking with static Boost built with libicu)."
-      OFF
-    )
-    mark_as_advanced(WITH_BOOST_ICU)
-  endif()
 endif()
 
 # Misc
@@ -665,7 +661,7 @@ Build Cycles kernels with address sanitizer when WITH_COMPILER_ASAN is on, even 
   OFF
 )
 set(CYCLES_TEST_DEVICES CPU CACHE STRING "\
-Run regression tests on the specified device types (CPU CUDA OPTIX HIP)"
+Run regression tests on the specified device types (CPU CUDA OPTIX HIP HIP-RT METAL METAL-RT ONEAPI ONEAPI-RT)"
 )
 option(WITH_CYCLES_TEST_OSL "\
 Run additional Cycles test with OSL enabled"
@@ -687,7 +683,7 @@ if(NOT APPLE AND NOT (WIN32 AND CMAKE_SYSTEM_PROCESSOR STREQUAL "ARM64"))
 
   option(WITH_CYCLES_CUDA_BINARIES "Build Cycles NVIDIA CUDA binaries" OFF)
   set(CYCLES_CUDA_BINARIES_ARCH
-    sm_30 sm_35 sm_37 sm_50 sm_52 sm_60 sm_61 sm_70 sm_75 sm_86 sm_89 compute_75
+    sm_30 sm_35 sm_37 sm_50 sm_52 sm_60 sm_61 sm_70 sm_75 sm_86 sm_89 sm_120 compute_75
     CACHE STRING "CUDA architectures to build binaries for"
   )
   option(WITH_CYCLES_CUDA_BUILD_SERIAL "\
@@ -722,7 +718,8 @@ if(NOT APPLE AND NOT (WIN32 AND CMAKE_SYSTEM_PROCESSOR STREQUAL "ARM64"))
   set(CYCLES_HIP_BINARIES_ARCH
     gfx1010 gfx1011 gfx1012
     gfx1030 gfx1031 gfx1032 gfx1034 gfx1035 gfx1036
-    gfx1100 gfx1101 gfx1102 gfx1103 gfx1150 gfx1151
+    gfx1100 gfx1101 gfx1102 gfx1103 gfx1150 gfx1151 gfx1152
+    gfx1200 gfx1201
     CACHE STRING "AMD HIP architectures to build binaries for"
   )
   mark_as_advanced(WITH_CYCLES_DEVICE_HIP)
@@ -834,6 +831,13 @@ Run GPU render tests silently (finished tests will pass). \
 Generated report will show failing tests"
   ON
 )
+option(WITH_GPU_RENDER_TESTS_HEADED "\
+Enable GPU render related unit testing that doesn't work in background mode. \
+These tests require an environment with a display server to run. \
+Requires WITH_GPU_RENDER_TESTS "
+  OFF
+)
+mark_as_advanced(WITH_GPU_RENDER_TESTS_HEADED)
 option(WITH_GPU_BACKEND_TESTS "\
 Enable GPU backend related unit testing"
   OFF
@@ -843,8 +847,13 @@ Enable GPU drawing related unit testing (draw manager)"
   OFF
 )
 option(WITH_GPU_COMPOSITOR_TESTS "Enable regression testing for GPU compositor" OFF)
+option(WITH_GPU_MESH_PAINT_TESTS "Enable visual render-based regression testing for mesh painting" OFF)
+option(WITH_UI_TESTS "\
+Enable user-interface tests (Experimental)"
+  OFF
+)
 if(UNIX AND NOT (APPLE OR HAIKU))
-  option(WITH_UI_TESTS "\
+  option(WITH_UI_TESTS_HEADLESS "\
 Enable user-interface tests using a headless display server. \
 Currently this depends on WITH_GHOST_WAYLAND and the weston compositor \
 (Experimental)"
@@ -857,8 +866,7 @@ packaged properly. For example that we don't link to any unexpected system libra
     OFF
   )
 else()
-  # TODO: support running GUI tests on other platforms.
-  set(WITH_UI_TESTS OFF)
+  set(WITH_UI_TESTS_HEADLESS OFF)
   # TODO: We should probaby add more sanity checks for Windows and Mac as well
   set(WITH_LINUX_OFFICIAL_RELEASE_TESTS OFF)
 endif()
@@ -982,7 +990,7 @@ Ensure string operations on fixed size buffers \
 mark_as_advanced(WITH_STRSIZE_DEBUG)
 
 # Compiler tool-chain.
-if(UNIX)
+if(UNIX AND NOT APPLE)
   if(CMAKE_COMPILER_IS_GNUCC)
     option(WITH_LINKER_GOLD "Use ld.gold linker which is usually faster than ld.bfd" ON)
     mark_as_advanced(WITH_LINKER_GOLD)
@@ -1121,11 +1129,26 @@ if(WIN32)
   option(WITH_WINDOWS_FIND_MODULES "Use find_package to locate libraries" OFF)
   mark_as_advanced(WITH_WINDOWS_FIND_MODULES)
 
-  option(WINDOWS_PYTHON_DEBUG "\
-Include the files needed for debugging python scripts with visual studio 2017+."
-    OFF
-  )
-  mark_as_advanced(WINDOWS_PYTHON_DEBUG)
+  # The python debugger in Visual Studio for has been broken for years
+  # but the upstream project over at https://github.com/microsoft/PTVS
+  # show hopeful signs of life once in a while, so there is hope that
+  # at one point this will start working again. That being said people
+  # do keep turning this option on and end up disappointed it isn't
+  # working and they spend a whole bunch of time on trying to get it to
+  # work. So for now rather than removing this functionality
+  # completely, just disable it.
+
+  if(WINDOWS_PYTHON_DEBUG)
+    # No need for a python version check here, anything over python 3.6 isn't working.
+    message(WARNING "Unsupported python version for VS debugger, disabling WINDOWS_PYTHON_DEBUG")
+    set(WINDOWS_PYTHON_DEBUG OFF)
+  endif()
+
+  # option(WINDOWS_PYTHON_DEBUG "\
+  # Include the files needed for debugging python scripts with visual studio 2017+."
+  #   OFF
+  # )
+  # mark_as_advanced(WINDOWS_PYTHON_DEBUG)
 
   option(WITH_WINDOWS_BUNDLE_CRT "Bundle the C runtime for install free distribution." ON)
   mark_as_advanced(WITH_WINDOWS_BUNDLE_CRT)
@@ -1277,9 +1300,7 @@ set_and_warn_dependency(WITH_PYTHON WITH_MOD_FLUID     OFF)
 # enable boost for cycles, audaspace or i18n
 # otherwise if the user disabled
 
-set_and_warn_dependency(WITH_BOOST WITH_INTERNATIONAL  OFF)
 set_and_warn_dependency(WITH_BOOST WITH_OPENVDB        OFF)
-set_and_warn_dependency(WITH_BOOST WITH_QUADRIFLOW     OFF)
 set_and_warn_dependency(WITH_BOOST WITH_USD            OFF)
 if(WITH_CYCLES)
   set_and_warn_dependency(WITH_BOOST   WITH_CYCLES_OSL          OFF)
@@ -1330,8 +1351,8 @@ endif()
 set_and_warn_incompatible(WITH_HEADLESS WITH_XR_OPENXR OFF)
 set_and_warn_incompatible(WITH_GHOST_SDL WITH_XR_OPENXR OFF)
 
-if(WITH_UI_TESTS)
-  set_and_warn_dependency(WITH_GHOST_WAYLAND WITH_UI_TESTS OFF)
+if(WITH_UI_TESTS_HEADLESS)
+  set_and_warn_dependency(WITH_GHOST_WAYLAND WITH_UI_TESTS_HEADLESS OFF)
 endif()
 
 if(WITH_BUILDINFO)
@@ -1406,7 +1427,7 @@ set(PLATFORM_CFLAGS)
 set(C_WARNINGS)
 set(CXX_WARNINGS)
 
-# NOTE: These flags are intended for situations where where it's impractical to
+# NOTE: These flags are intended for situations where it's impractical to
 # suppress warnings by modifying the code or for code which is maintained externally.
 # For GCC this typically means adding `-Wno-*` arguments to negate warnings
 # that are useful in the general case.
@@ -1515,16 +1536,6 @@ endif()
 # -----------------------------------------------------------------------------
 # Common Checks for Compatible Options
 
-if(WITH_INTERNATIONAL)
-  if(NOT WITH_BOOST)
-    message(
-      FATAL_ERROR
-      "Internationalization requires WITH_BOOST, the library may not have been found. "
-      "Configure BOOST or disable WITH_INTERNATIONAL"
-    )
-  endif()
-endif()
-
 # Enable SIMD support if detected by `test_sse_support()` or `test_neon_support()`.
 #
 if(WITH_CPU_SIMD)
@@ -1629,19 +1640,9 @@ if(WITH_OPENVDB)
     ${OPENEXR_INCLUDE_DIRS}
   )
 
-  list(APPEND OPENVDB_LIBRARIES ${OPENEXR_LIBRARIES} ${ZLIB_LIBRARIES})
-
   if(WITH_OPENVDB_BLOSC)
     list(APPEND OPENVDB_DEFINITIONS -DWITH_OPENVDB_BLOSC)
-    # Even when `WITH_OPENVDB_BLOSC` is set, `FindBlosc.cmake` isn't running.
-    # As this might be used at some point, check the libraries are defined.
-    if(DEFINED BLOSC_LIBRARIES)
-      list(APPEND OPENVDB_LIBRARIES ${BLOSC_LIBRARIES})
-    endif()
-    list(APPEND OPENVDB_LIBRARIES ${ZLIB_LIBRARIES})
   endif()
-
-  list(APPEND OPENVDB_LIBRARIES ${BOOST_LIBRARIES} ${TBB_LIBRARIES})
 endif()
 
 # -----------------------------------------------------------------------------
@@ -2249,6 +2250,8 @@ elseif(CMAKE_C_COMPILER_ID MATCHES "Clang")
       # And some additional ones that came up when using LLVM 18.1.8 on Windows ARM64
       C_WARN_CLANG_CL_SWITCH_DEFAULT -Wno-switch-default
       C_WARN_CLANG_CL_NAN_INFINITY_DISABLED -Wno-nan-infinity-disabled
+      # And another from 19.1.5
+      C_WARN_CLANG_CL_PRE_C11_COMPAT -Wno-pre-c11-compat
     )
 
     add_check_cxx_compiler_flags(
@@ -2383,6 +2386,8 @@ elseif(CMAKE_C_COMPILER_ID MATCHES "Clang")
       # And some additional ones that came up when using LLVM 18.1.8 on Windows ARM64
       CXX_WARN_CLANG_CL_SWITCH_DEFAULT -Wno-switch-default
       CXX_WARN_CLANG_CL_NAN_INFINITY_DISABLED -Wno-nan-infinity-disabled
+      # And another from 19.1.5
+      CXX_WARN_CLANG_CL_PRE_C11_COMPAT -Wno-pre-c11-compat
     )
   endif()
 
@@ -2768,6 +2773,7 @@ if(FIRST_RUN)
   info_cfg_option(WITH_OPENCOLLADA)
   info_cfg_option(WITH_OPENCOLORIO)
   info_cfg_option(WITH_OPENIMAGEDENOISE)
+  info_cfg_option(WITH_OPENSUBDIV)
   info_cfg_option(WITH_OPENVDB)
   info_cfg_option(WITH_POTRACE)
   info_cfg_option(WITH_PUGIXML)
@@ -2810,6 +2816,7 @@ if(FIRST_RUN)
   info_cfg_option(WITH_IMAGE_OPENJPEG)
 
   info_cfg_text("Audio:")
+  info_cfg_option(WITH_AUDASPACE)
   info_cfg_option(WITH_CODEC_FFMPEG)
   info_cfg_option(WITH_CODEC_SNDFILE)
   info_cfg_option(WITH_COREAUDIO)

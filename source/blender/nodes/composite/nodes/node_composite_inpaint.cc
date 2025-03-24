@@ -14,8 +14,6 @@
 #include "UI_interface.hh"
 #include "UI_resources.hh"
 
-#include "DNA_scene_types.h"
-
 #include "COM_algorithm_jump_flooding.hh"
 #include "COM_algorithm_symmetric_separable_blur_variable_size.hh"
 #include "COM_node_operation.hh"
@@ -48,10 +46,10 @@ class InpaintOperation : public NodeOperation {
 
   void execute() override
   {
-    Result &input = get_input("Image");
-    Result &output = get_result("Image");
-    if (input.is_single_value() || get_max_distance() == 0) {
-      input.pass_through(output);
+    const Result &input = this->get_input("Image");
+    if (input.is_single_value() || this->get_max_distance() == 0) {
+      Result &output = this->get_result("Image");
+      output.share_data(input);
       return;
     }
 
@@ -373,5 +371,5 @@ void register_node_type_cmp_inpaint()
   ntype.draw_buttons = file_ns::node_composit_buts_inpaint;
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
 
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }

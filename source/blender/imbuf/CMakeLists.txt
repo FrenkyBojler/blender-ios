@@ -21,7 +21,7 @@ set(SRC
   intern/allocimbuf.cc
   intern/colormanagement.cc
   intern/colormanagement_inline.h
-  intern/divers.cc
+  intern/conversion.cc
   intern/filetype.cc
   intern/filter.cc
   intern/format_bmp.cc
@@ -95,9 +95,10 @@ else()
   )
 endif()
 
-# Keep until APPLE/ARM libraries are updated.
-if((APPLE AND CMAKE_OSX_ARCHITECTURES MATCHES arm64) OR
-   (CMAKE_SYSTEM_PROCESSOR MATCHES "ARM64|aarch64"))
+# OpenImageIO headers include `Imath` headers when there is no SSE support for
+# matrix operations. This depends on the specific architecture and compiler
+# flags, most reliable is to always include the `Imath` headers if we have them.
+if(DEFINED IMATH_INCLUDE_DIRS)
   list(APPEND INC_SYS
     ${IMATH_INCLUDE_DIRS}
   )

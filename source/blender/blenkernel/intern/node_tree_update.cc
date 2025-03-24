@@ -4,12 +4,14 @@
 
 #include <fmt/format.h>
 
+#include "BLI_listbase.h"
 #include "BLI_map.hh"
 #include "BLI_multi_value_map.hh"
 #include "BLI_noise.hh"
 #include "BLI_rand.hh"
 #include "BLI_set.hh"
 #include "BLI_stack.hh"
+#include "BLI_string.h"
 #include "BLI_string_utf8_symbols.h"
 #include "BLI_vector_set.hh"
 
@@ -19,6 +21,7 @@
 
 #include "BKE_anim_data.hh"
 #include "BKE_image.hh"
+#include "BKE_lib_id.hh"
 #include "BKE_main.hh"
 #include "BKE_node.hh"
 #include "BKE_node_enum.hh"
@@ -66,6 +69,7 @@ static void add_tree_tag(bNodeTree *ntree, const eNodeTreeChangedFlag flag)
   ntree->runtime->changed_flag |= flag;
   ntree->runtime->topology_cache_mutex.tag_dirty();
   ntree->runtime->tree_zones_cache_mutex.tag_dirty();
+  ntree->runtime->inferenced_input_socket_usage_mutex.tag_dirty();
 }
 
 static void add_node_tag(bNodeTree *ntree, bNode *node, const eNodeTreeChangedFlag flag)
@@ -196,7 +200,6 @@ struct NodeTreeRelations {
  private:
   Main *bmain_;
   std::optional<Vector<bNodeTree *>> all_trees_;
-  std::optional<Map<bNodeTree *, ID *>> owner_ids_;
   std::optional<MultiValueMap<bNodeTree *, TreeNodePair>> group_node_users_;
   std::optional<MultiValueMap<bNodeTree *, ObjectModifierPair>> modifiers_users_;
 
@@ -209,23 +212,14 @@ struct NodeTreeRelations {
       return;
     }
     all_trees_.emplace();
-    owner_ids_.emplace();
     if (bmain_ == nullptr) {
       return;
     }
 
     FOREACH_NODETREE_BEGIN (bmain_, ntree, id) {
       all_trees_->append(ntree);
-      if (&ntree->id != id) {
-        owner_ids_->add_new(ntree, id);
-      }
     }
     FOREACH_NODETREE_END;
-  }
-
-  void ensure_owner_ids()
-  {
-    this->ensure_all_trees();
   }
 
   void ensure_group_node_users()
@@ -286,12 +280,6 @@ struct NodeTreeRelations {
   {
     BLI_assert(group_node_users_.has_value());
     return group_node_users_->lookup(ntree);
-  }
-
-  ID &get_owner_id(bNodeTree *ntree)
-  {
-    BLI_assert(owner_ids_.has_value());
-    return *owner_ids_->lookup_default(ntree, &ntree->id);
   }
 };
 
@@ -395,13 +383,13 @@ class NodeTreeMainUpdater {
         ntree->runtime->geometry_nodes_lazy_function_graph_info.reset();
       }
 
-      relations_.ensure_owner_ids();
-      ID &owner_id = relations_.get_owner_id(ntree);
+      ID *owner_id = BKE_id_owner_get(&ntree->id);
+      ID &owner_or_self_id = owner_id ? *owner_id : ntree->id;
       if (params_.tree_changed_fn) {
-        params_.tree_changed_fn(*ntree, owner_id);
+        params_.tree_changed_fn(*ntree, owner_or_self_id);
       }
       if (params_.tree_output_changed_fn && result.output_changed) {
-        params_.tree_output_changed_fn(*ntree, owner_id);
+        params_.tree_output_changed_fn(*ntree, owner_or_self_id);
       }
     }
 
@@ -501,6 +489,10 @@ class NodeTreeMainUpdater {
 
     ntree.runtime->link_errors_by_target_node.clear();
 
+    if (this->update_panel_toggle_names(ntree)) {
+      result.interface_changed = true;
+    }
+
     this->update_socket_link_and_use(ntree);
     this->update_individual_nodes(ntree);
     this->update_internal_links(ntree);
@@ -586,7 +578,7 @@ class NodeTreeMainUpdater {
   void update_individual_nodes(bNodeTree &ntree)
   {
     for (bNode *node : ntree.all_nodes()) {
-      bke::node_declaration_ensure(&ntree, node);
+      bke::node_declaration_ensure(ntree, *node);
       if (this->should_update_individual_node(ntree, *node)) {
         bke::bNodeType &ntype = *node->typeinfo;
         if (ntype.group_update_func) {
@@ -597,6 +589,18 @@ class NodeTreeMainUpdater {
           BLI_assert(ntype.static_declaration != nullptr);
           if (ntype.static_declaration->is_context_dependent) {
             nodes::update_node_declaration_and_sockets(ntree, *node);
+          }
+        }
+        else if (node->is_undefined()) {
+          /* If a node has become undefined (it generally was unregistered from Python), it does
+           * not have a declaration anymore. */
+          delete node->runtime->declaration;
+          node->runtime->declaration = nullptr;
+          LISTBASE_FOREACH (bNodeSocket *, socket, &node->inputs) {
+            socket->runtime->declaration = nullptr;
+          }
+          LISTBASE_FOREACH (bNodeSocket *, socket, &node->outputs) {
+            socket->runtime->declaration = nullptr;
           }
         }
         if (ntype.updatefunc) {
@@ -921,17 +925,16 @@ class NodeTreeMainUpdater {
         }
         continue;
       }
-      else {
-        /* Clear current enum references. */
-        for (bNodeSocket *socket : node->input_sockets()) {
-          if (socket->is_available() && socket->type == SOCK_MENU) {
-            clear_enum_reference(*socket);
-          }
+
+      /* Clear current enum references. */
+      for (bNodeSocket *socket : node->input_sockets()) {
+        if (socket->is_available() && socket->type == SOCK_MENU) {
+          clear_enum_reference(*socket);
         }
-        for (bNodeSocket *socket : node->output_sockets()) {
-          if (socket->is_available() && socket->type == SOCK_MENU) {
-            clear_enum_reference(*socket);
-          }
+      }
+      for (bNodeSocket *socket : node->output_sockets()) {
+        if (socket->is_available() && socket->type == SOCK_MENU) {
+          clear_enum_reference(*socket);
         }
       }
 
@@ -1097,6 +1100,12 @@ class NodeTreeMainUpdater {
           dst.enum_items = src.enum_items;
           SET_FLAG_FROM_TEST(dst.runtime_flag, src.has_conflict(), NODE_MENU_ITEMS_CONFLICT);
         }
+        else {
+          /* If the item isn't move make sure it gets released again. */
+          if (src.enum_items) {
+            src.enum_items->remove_user_and_delete_if_last();
+          }
+        }
       }
     }
 
@@ -1230,8 +1239,8 @@ class NodeTreeMainUpdater {
               NodeLinkError{fmt::format("{}: {} " BLI_STR_UTF8_BLACK_RIGHT_POINTING_SMALL_TRIANGLE
                                         " {}",
                                         TIP_("Conversion is not supported"),
-                                        TIP_(link->fromsock->typeinfo->label.c_str()),
-                                        TIP_(link->tosock->typeinfo->label.c_str()))});
+                                        TIP_(link->fromsock->typeinfo->label),
+                                        TIP_(link->tosock->typeinfo->label))});
           continue;
         }
       }
@@ -1561,7 +1570,9 @@ class NodeTreeMainUpdater {
         }
         /* The Normal node has a special case, because the value stored in the first output
          * socket is used as input in the node. */
-        if (node.is_type("ShaderNodeNormal") && socket.index() == 1) {
+        if ((node.is_type("ShaderNodeNormal") || node.is_type("CompositorNodeNormal")) &&
+            socket.index() == 1)
+        {
           BLI_assert(STREQ(socket.name, "Dot"));
           const bNodeSocket &normal_output = node.output_socket(0);
           BLI_assert(STREQ(normal_output.name, "Normal"));
@@ -1658,8 +1669,8 @@ class NodeTreeMainUpdater {
     }
 
     /* Allocate new array for the nested node references contained in the node tree. */
-    bNestedNodeRef *new_refs = static_cast<bNestedNodeRef *>(
-        MEM_malloc_arrayN(new_path_by_id.size(), sizeof(bNestedNodeRef), __func__));
+    bNestedNodeRef *new_refs = MEM_malloc_arrayN<bNestedNodeRef>(size_t(new_path_by_id.size()),
+                                                                 __func__);
     int index = 0;
     for (const auto item : new_path_by_id.items()) {
       bNestedNodeRef &ref = new_refs[index];
@@ -1704,6 +1715,29 @@ class NodeTreeMainUpdater {
 
     ntree.tree_interface.reset_changed_flags();
   }
+
+  /**
+   * Update the panel toggle sockets to use the same name as the panel.
+   */
+  bool update_panel_toggle_names(bNodeTree &ntree)
+  {
+    bool changed = false;
+    ntree.ensure_interface_cache();
+    for (bNodeTreeInterfaceItem *item : ntree.interface_items()) {
+      if (item->item_type != NODE_INTERFACE_PANEL) {
+        continue;
+      }
+      bNodeTreeInterfacePanel *panel = reinterpret_cast<bNodeTreeInterfacePanel *>(item);
+      if (bNodeTreeInterfaceSocket *toggle_socket = panel->header_toggle_socket()) {
+        if (!STREQ(panel->name, toggle_socket->name)) {
+          MEM_SAFE_FREE(toggle_socket->name);
+          toggle_socket->name = BLI_strdup_null(panel->name);
+          changed = true;
+        }
+      }
+    }
+    return changed;
+  }
 };
 
 }  // namespace blender::bke
@@ -1719,6 +1753,11 @@ void BKE_ntree_update_tag_node_property(bNodeTree *ntree, bNode *node)
 }
 
 void BKE_ntree_update_tag_node_new(bNodeTree *ntree, bNode *node)
+{
+  add_node_tag(ntree, node, NTREE_CHANGED_NODE_PROPERTY);
+}
+
+void BKE_ntree_update_tag_node_type(bNodeTree *ntree, bNode *node)
 {
   add_node_tag(ntree, node, NTREE_CHANGED_NODE_PROPERTY);
 }
