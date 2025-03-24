@@ -1,3 +1,4 @@
 Referenced by issue #119655, Normals loss when Deleting, Joining or Instancing geometry in GeoNodes
 Referenced by issue #91048, Joining meshes or realizing instances in geometry nodes removes custom normals data
 Referenced by issue #136378, Regression: Geometry Nodes: "Set Curve Normal" -> "Free" corrupts normals (?)
+Referenced by pull request #136452, Fix #136378: Curve custom normals incorrectly propagated
