@@ -2893,7 +2893,15 @@ static wmOperatorStatus region_scale_invoke(bContext *C, wmOperator *op, const w
     rmd->maxsize = area_max_regionsize(rmd->area, rmd->region, rmd->edge);
 
     /* if not set we do now, otherwise it uses type */
-    if (rmd->region->sizex == 0) {
+    if (rmd->region->flag & RGN_FLAG_HIDDEN) {
+      if (ELEM(rmd->edge, AE_LEFT_TO_TOPRIGHT, AE_RIGHT_TO_TOPLEFT)) {
+        rmd->region->winx = rmd->region->sizex = 1;
+      }
+      else {
+        rmd->region->winy = rmd->region->sizey = 1;
+      }
+    }
+    else if (rmd->region->sizex == 0) {
       rmd->region->sizex = rmd->region->winx;
     }
     if (rmd->region->sizey == 0) {
@@ -2912,7 +2920,7 @@ static wmOperatorStatus region_scale_invoke(bContext *C, wmOperator *op, const w
 
     rmd->win = CTX_wm_window(C);
     rmd->draw_callback = WM_draw_cb_activate(CTX_wm_window(C), region_scale_draw_cb, op);
-    WM_event_add_notifier(C, NC_WINDOW | NA_PAINTING, nullptr);
+    WM_event_add_notifier(C, NC_SCREEN | NA_EDITED, nullptr);
 
     /* add temp handler */
     G.moving |= G_TRANSFORM_WM;
@@ -3089,7 +3097,7 @@ static wmOperatorStatus region_scale_modal(bContext *C, wmOperator *op, const wm
     }
     case LEFTMOUSE:
       if (event->val == KM_RELEASE) {
-        if (len_manhattan_v2v2_int(event->xy, rmd->orig_xy) <= WM_EVENT_CURSOR_MOTION_THRESHOLD) {
+        if (len_manhattan_v2v2_int(event->xy, rmd->orig_xy) <= WM_event_drag_threshold(event)) {
           if (rmd->region->flag & RGN_FLAG_HIDDEN) {
             region_scale_toggle_hidden(C, rmd);
           }
@@ -3108,7 +3116,9 @@ static wmOperatorStatus region_scale_modal(bContext *C, wmOperator *op, const wm
       break;
 
     case EVT_ESCKEY:
-      break;
+      region_scale_exit(op);
+      WM_event_add_notifier(C, NC_SCREEN | NA_EDITED, nullptr);
+      return OPERATOR_CANCELLED;
   }
 
   return OPERATOR_RUNNING_MODAL;
