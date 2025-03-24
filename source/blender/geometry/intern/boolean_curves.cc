@@ -676,6 +676,7 @@ BooleanResult execute_single_boolean(const CurveBooleanOpParameters op_params,
   Vector<Segment> all_segments;
   Vector<bool> all_inside_left;
   Vector<bool> all_inside_right;
+  Array<IndexRange> all_segments_by_curve(points_by_curve.size());
 
   auto add_segments = [&](const int curve_k, const bool is_subj) {
     const IndexRange points_k = points_by_curve[curve_k];
@@ -790,8 +791,9 @@ BooleanResult execute_single_boolean(const CurveBooleanOpParameters op_params,
     }
 
     all_segments.extend(segments_k);
+    all_segments_by_curve[curve_k] = all_segments.index_range().take_back(segments_k.size());
 
-    const IndexRange segments = all_segments.index_range().take_back(segments_k.size());
+    const IndexRange segments = all_segments_by_curve[curve_k];
 
     const Segment &first_segment = all_segments[segments.first()];
     const IndexMask &mask_shapes = is_subj ? clipping_shapes : shapes[subj_shape_id];
