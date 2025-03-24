@@ -33,6 +33,7 @@ using ed::greasepencil::MutableDrawingInfo;
 
 class TintOperation : public GreasePencilStrokeOperation {
  public:
+  TintOperation(bool set_eraser = false) : is_erase_mode_(set_eraser){};
   void on_stroke_begin(const bContext &C, const InputSample &start_sample) override;
   void on_stroke_extended(const bContext &C, const InputSample &extension_sample) override;
   void on_stroke_done(const bContext &C) override;
@@ -40,6 +41,7 @@ class TintOperation : public GreasePencilStrokeOperation {
  private:
   float radius_;
   float strength_;
+  bool is_erase_mode_;
   bool active_layer_only_;
   ColorGeometry4f color_;
   Vector<MutableDrawingInfo> drawings_;
@@ -197,16 +199,23 @@ void TintOperation::execute_tint(const bContext &C, const InputSample &extension
             const float influence = strength * BKE_brush_curve_strength(brush, distance, radius);
             if (influence > 0.0f) {
               stroke_touched = true;
-              /* Manually do an alpha-over mix, not using `ColorGeometry4f::premultiply_alpha`
-               * since the vertex color in GPv3 is stored as straight alpha (which is technically
-               * `ColorPaint4f`). */
-              float4 premultiplied;
-              straight_to_premul_v4_v4(premultiplied, vertex_colors[point]);
-              float4 rgba = float4(
-                  math::interpolate(float3(premultiplied), float3(color_), influence),
-                  vertex_colors[point][3]);
-              rgba[3] = rgba[3] * (1.0f - influence) + influence;
-              premul_to_straight_v4_v4(vertex_colors[point], rgba);
+              if (is_erase_mode_) {
+                float &alpha = vertex_colors[point][3];
+                alpha -= influence;
+                alpha = math::max(alpha, 0.0f);
+              }
+              else {
+                /* Manually do an alpha-over mix, not using `ColorGeometry4f::premultiply_alpha`
+                 * since the vertex color in GPv3 is stored as straight alpha (which is technically
+                 * `ColorPaint4f`). */
+                float4 premultiplied;
+                straight_to_premul_v4_v4(premultiplied, vertex_colors[point]);
+                float4 rgba = float4(
+                    math::interpolate(float3(premultiplied), float3(color_), influence),
+                    vertex_colors[point][3]);
+                rgba[3] = rgba[3] * (1.0f - influence) + influence;
+                premul_to_straight_v4_v4(vertex_colors[point], rgba);
+              }
             }
           }
         }
@@ -219,14 +228,21 @@ void TintOperation::execute_tint(const bContext &C, const InputSample &extension
                                                               points_by_curve[curve].size()),
                                                           mouse_position);
           if (fill_effective) {
-            float4 premultiplied;
-            straight_to_premul_v4_v4(premultiplied, fill_colors[curve]);
-            float4 rgba = float4(
-                math::interpolate(float3(premultiplied), float3(color_), fill_strength),
-                fill_colors[curve][3]);
-            rgba[3] = rgba[3] * (1.0f - fill_strength) + fill_strength;
-            premul_to_straight_v4_v4(fill_colors[curve], rgba);
-            stroke_touched = true;
+            if (is_erase_mode_) {
+              float &alpha = fill_colors[curve][3];
+              alpha -= fill_strength;
+              alpha = math::max(alpha, 0.0f);
+            }
+            else {
+              float4 premultiplied;
+              straight_to_premul_v4_v4(premultiplied, fill_colors[curve]);
+              float4 rgba = float4(
+                  math::interpolate(float3(premultiplied), float3(color_), fill_strength),
+                  fill_colors[curve][3]);
+              rgba[3] = rgba[3] * (1.0f - fill_strength) + fill_strength;
+              premul_to_straight_v4_v4(fill_colors[curve], rgba);
+              stroke_touched = true;
+            }
           }
         }
         if (stroke_touched) {
@@ -254,9 +270,9 @@ void TintOperation::on_stroke_extended(const bContext &C, const InputSample &ext
 
 void TintOperation::on_stroke_done(const bContext & /*C*/) {}
 
-std::unique_ptr<GreasePencilStrokeOperation> new_tint_operation()
+std::unique_ptr<GreasePencilStrokeOperation> new_tint_operation(bool set_eraser)
 {
-  return std::make_unique<TintOperation>();
+  return std::make_unique<TintOperation>(set_eraser);
 }
 
 }  // namespace blender::ed::sculpt_paint::greasepencil
