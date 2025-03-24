@@ -59,6 +59,11 @@ struct GHOST_ContextVK_WindowInfo {
 };
 
 class GHOST_ContextVK : public GHOST_Context {
+  /** Preferred number of swapchain images. */
+  static constexpr int preferred_swapchain_size = 3;
+  /** Maximum number of swapchain semaphores.  */
+  static constexpr int max_semaphore_size = 5;
+
  public:
   /**
    * Constructor.

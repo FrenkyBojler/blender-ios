@@ -495,6 +495,15 @@ GHOST_ContextVK::~GHOST_ContextVK()
 
     destroySwapchain();
 
+    for (VkSemaphore semaphore : m_acquire_semaphores) {
+      vkDestroySemaphore(device_vk.device, semaphore, nullptr);
+    }
+    m_acquire_semaphores.clear();
+    for (VkSemaphore semaphore : m_present_semaphores) {
+      vkDestroySemaphore(device_vk.device, semaphore, nullptr);
+    }
+    m_present_semaphores.clear();
+
     if (m_surface != VK_NULL_HANDLE) {
       vkDestroySurfaceKHR(device_vk.instance, m_surface, nullptr);
     }
@@ -514,15 +523,6 @@ GHOST_TSuccess GHOST_ContextVK::destroySwapchain()
   if (m_swapchain != VK_NULL_HANDLE) {
     vkDestroySwapchainKHR(device, m_swapchain, nullptr);
   }
-  VK_CHECK(vkDeviceWaitIdle(device));
-  for (VkSemaphore semaphore : m_acquire_semaphores) {
-    vkDestroySemaphore(device, semaphore, nullptr);
-  }
-  m_acquire_semaphores.clear();
-  for (VkSemaphore semaphore : m_present_semaphores) {
-    vkDestroySemaphore(device, semaphore, nullptr);
-  }
-  m_present_semaphores.clear();
 
   return GHOST_kSuccess;
 }
@@ -829,7 +829,7 @@ GHOST_TSuccess GHOST_ContextVK::createSwapchain()
   }
 
   /* Driver can stall if only using minimal image count. */
-  uint32_t image_count = 3;
+  uint32_t image_count = preferred_swapchain_size;
   /* NOTE: maxImageCount == 0 means no limit. */
   if (capabilities.minImageCount != 0 && image_count < capabilities.minImageCount) {
     image_count = capabilities.minImageCount;
@@ -863,17 +863,18 @@ GHOST_TSuccess GHOST_ContextVK::createSwapchain()
   vkGetSwapchainImagesKHR(device, m_swapchain, &image_count, nullptr);
   m_swapchain_images.resize(image_count);
   vkGetSwapchainImagesKHR(device, m_swapchain, &image_count, m_swapchain_images.data());
-  const VkSemaphoreCreateInfo vk_semaphore_create_info = {
-      VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO, nullptr, 0};
-  m_acquire_semaphores.resize(image_count);
-  m_present_semaphores.resize(image_count);
-  for (int index = 0; index < image_count; index++) {
-    VK_CHECK(vkCreateSemaphore(
-        device, &vk_semaphore_create_info, nullptr, &m_acquire_semaphores[index]));
-    VK_CHECK(vkCreateSemaphore(
-        device, &vk_semaphore_create_info, nullptr, &m_present_semaphores[index]));
+  if (m_acquire_semaphores.empty()) {
+    const VkSemaphoreCreateInfo vk_semaphore_create_info = {
+        VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO, nullptr, 0};
+    m_acquire_semaphores.resize(max_semaphore_size);
+    m_present_semaphores.resize(max_semaphore_size);
+    for (int index = 0; index < max_semaphore_size; index++) {
+      VK_CHECK(vkCreateSemaphore(
+          device, &vk_semaphore_create_info, nullptr, &m_acquire_semaphores[index]));
+      VK_CHECK(vkCreateSemaphore(
+          device, &vk_semaphore_create_info, nullptr, &m_present_semaphores[index]));
+    }
   }
-  m_render_frame = 0;
 
   return GHOST_kSuccess;
 }
