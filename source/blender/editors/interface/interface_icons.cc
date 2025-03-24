@@ -392,7 +392,7 @@ static void icon_node_socket_draw(int socket_type, int x, int y, int w, int h, f
   };
 
   float color_inner[4];
-  copy_v4_v4(color_inner, blender::ed::space_node::std_node_socket_colors[socket_type]);
+  blender::ed::space_node::std_node_socket_colors_get(socket_type, color_inner);
 
   float color_outer[4] = {0.0f, 0.0f, 0.0f, 1.0f};
 

@@ -20,6 +20,7 @@ struct bNodeSocket;
 struct bNodeTree;
 struct Object;
 struct rcti;
+struct rctf;
 struct NodesModifierData;
 struct uiLayout;
 
@@ -61,7 +62,7 @@ void node_draw_nodesocket(const rctf *rect,
                           int shape,
                           float aspect);
 
-extern const float std_node_socket_colors[][4];
+void std_node_socket_colors_get(int socket_type, float *r_color);
 
 /**
  * Find the nested node id of a currently visible node in the root tree.

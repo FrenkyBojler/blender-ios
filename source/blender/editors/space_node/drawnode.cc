@@ -1127,7 +1127,7 @@ namespace blender::ed::space_node {
 static const float virtual_node_socket_color[4] = {0.2, 0.2, 0.2, 1.0};
 
 /* maps standard socket integer type to a color */
-extern const float std_node_socket_colors[][4] = {
+static const float std_node_socket_colors[][4] = {
     {0.63, 0.63, 0.63, 1.0}, /* SOCK_FLOAT */
     {0.39, 0.39, 0.78, 1.0}, /* SOCK_VECTOR */
     {0.78, 0.78, 0.16, 1.0}, /* SOCK_RGBA */
@@ -1146,6 +1146,14 @@ extern const float std_node_socket_colors[][4] = {
     {0.40, 0.40, 0.40, 1.0}, /* SOCK_MENU */
     {0.72, 0.20, 0.52, 1.0}, /* SOCK_MATRIX */
 };
+
+void std_node_socket_colors_get(int socket_type, float *r_color)
+{
+  BLI_assert(socket_type >= 0);
+  BLI_assert(socket_type < std::size(std_node_socket_colors));
+
+  copy_v4_v4(r_color, std_node_socket_colors[socket_type]);
+}
 
 /* Callback for colors that does not depend on the socket pointer argument to get the type. */
 template<int socket_type>
