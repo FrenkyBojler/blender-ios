@@ -63,10 +63,9 @@ template<
      */
     typename Key,
     /**
-     * The number of values that can be stored in the container without a heap allocation for the
-     * keys.
+     * The number of values that can be stored in the container without a heap allocation.
      */
-    int64_t InlineBufferCapacity = 4,
+    int64_t InlineBufferCapacity = default_inline_buffer_capacity(sizeof(Key)),
     /**
      * The strategy used to deal with collisions. They are defined in BLI_probing_strategies.hh.
      */
@@ -143,6 +142,8 @@ class VectorSet {
    */
   SlotArray slots_;
 
+  BLI_NO_UNIQUE_ADDRESS TypedBuffer<Key, InlineBufferCapacity> inline_buffer_;
+
   /**
    * Pointer to an array that contains all keys. The keys are sorted by insertion order as long as
    * no keys are removed. The first set->size() elements in this array are initialized. The
@@ -165,11 +166,11 @@ class VectorSet {
   VectorSet(Allocator allocator = {}) noexcept
       : removed_slots_(0),
         occupied_and_removed_slots_(0),
-        usable_slots_(0),
+        usable_slots_(InlineBufferCapacity),
         slot_mask_(0),
-        slots_(1, allocator),
-        keys_(nullptr)
+        slots_(1, allocator)
   {
+    keys_ = inline_buffer_;
   }
 
   VectorSet(NoExceptConstructor, Allocator allocator = {}) : VectorSet(allocator) {}
@@ -190,19 +191,26 @@ class VectorSet {
   ~VectorSet()
   {
     destruct_n(keys_, this->size());
-    if (keys_ != nullptr) {
+    if (keys_ != inline_buffer_) {
       this->deallocate_keys_array(keys_);
     }
   }
 
   VectorSet(const VectorSet &other) : slots_(other.slots_)
   {
-    keys_ = this->allocate_keys_array(other.usable_slots_);
+    if (other.size() > InlineBufferCapacity) {
+      keys_ = this->allocate_keys_array(other.usable_slots_);
+    }
+    else {
+      keys_ = inline_buffer_;
+    }
     try {
       uninitialized_copy_n(other.keys_, other.size(), keys_);
     }
     catch (...) {
-      this->deallocate_keys_array(keys_);
+      if (keys_ != inline_buffer_) {
+        this->deallocate_keys_array(keys_);
+      }
       throw;
     }
 
@@ -214,20 +222,51 @@ class VectorSet {
     is_equal_ = other.is_equal_;
   }
 
-  VectorSet(VectorSet &&other) noexcept
+  template<int64_t OtherInlineBufferCapacity>
+  VectorSet(VectorSet<Key, OtherInlineBufferCapacity> &&other) noexcept
       : removed_slots_(other.removed_slots_),
         occupied_and_removed_slots_(other.occupied_and_removed_slots_),
-        usable_slots_(other.usable_slots_),
         slot_mask_(other.slot_mask_),
-        slots_(std::move(other.slots_)),
-        keys_(other.keys_)
+        slots_(std::move(other.slots_))
   {
+    if (other.is_inline()) {
+      const int64_t size = other.size();
+
+      /* Optimize the case by copying the full inline buffer. Similar to #Vector move
+       * constructor. */
+      constexpr bool other_is_same_type = std::is_same_v<VectorSet, std::decay_t<decltype(other)>>;
+      constexpr size_t max_full_copy_size = 32;
+      if constexpr (other_is_same_type && std::is_trivial_v<Key> &&
+                    sizeof(inline_buffer_) <= max_full_copy_size)
+      {
+        usable_slots_ = InlineBufferCapacity;
+        keys_ = inline_buffer_;
+        if (size > 0) {
+          memcpy(inline_buffer_, other.inline_buffer_, sizeof(inline_buffer_));
+        }
+      }
+      else {
+        usable_slots_ = size;
+        if (OtherInlineBufferCapacity <= InlineBufferCapacity || size <= InlineBufferCapacity) {
+          keys_ = inline_buffer_;
+          uninitialized_relocate_n(other.keys_, size, keys_);
+        }
+        else {
+          keys_ = this->allocate_keys_array(size);
+          uninitialized_relocate_n(other.keys_, size, keys_);
+        }
+      }
+    }
+    else {
+      keys_ = other.keys_;
+      usable_slots_ = other.usable_slots_;
+    }
     other.removed_slots_ = 0;
     other.occupied_and_removed_slots_ = 0;
-    other.usable_slots_ = 0;
+    other.usable_slots_ = OtherInlineBufferCapacity;
     other.slot_mask_ = 0;
     other.slots_ = SlotArray(1);
-    other.keys_ = nullptr;
+    other.keys_ = other.inline_buffer_;
   }
 
   VectorSet &operator=(const VectorSet &other)
@@ -518,6 +557,11 @@ class VectorSet {
     stats.print(name);
   }
 
+  bool is_inline() const
+  {
+    return keys_ == inline_buffer_;
+  }
+
   /**
    * Returns the number of keys stored in the vector set.
    */
@@ -620,10 +664,33 @@ class VectorSet {
    * Extracts all inserted values as a #Vector. The values are removed from the #VectorSet. This
    * takes O(1) time.
    *
+   * If the values were stored in the inline-buffer, the values are copied to a newly allocated
+   * array first. The caller does not have to any special handling in this case.
+   *
    * One can use this to create a #Vector without duplicates efficiently.
    */
   VectorT extract_vector()
   {
+    if (this->is_inline()) {
+      if (this->is_empty()) {
+        /* No need to make an allocation that does not contain any data. */
+        return {};
+      }
+      /* Make an new allocation, because it's not possible to transfer ownership of the inline
+       * buffer to the caller. */
+      const int64_t size = this->size();
+      Key *data = this->allocate_keys_array(size);
+      try {
+        uninitialized_relocate_n(keys_, size, data);
+      }
+      catch (...) {
+        this->deallocate_keys_array(data);
+        throw;
+      }
+      keys_ = data;
+      usable_slots_ = size;
+    }
+
     VectorData<Key, Allocator> data;
     data.data = keys_;
     data.size = this->size();
@@ -631,7 +698,7 @@ class VectorSet {
 
     /* Reset some values so that the destructor does not free the data that is moved to the
      * #Vector. */
-    keys_ = nullptr;
+    keys_ = inline_buffer_;
     occupied_and_removed_slots_ = 0;
     removed_slots_ = 0;
     std::destroy_at(this);
@@ -653,9 +720,9 @@ class VectorSet {
     if (this->size() == 0) {
       try {
         slots_.reinitialize(total_slots);
-        if (keys_ != nullptr) {
+        if (keys_ != inline_buffer_) {
           this->deallocate_keys_array(keys_);
-          keys_ = nullptr;
+          keys_ = inline_buffer_;
         }
         keys_ = this->allocate_keys_array(usable_slots);
       }
