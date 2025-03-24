@@ -291,6 +291,7 @@ void wm_window_free(bContext *C, wmWindowManager *wm, wmWindow *win)
   BKE_workspace_instance_hook_free(G_MAIN, win->workspace_hook);
   MEM_freeN(win->stereo3d_format);
 
+  MEM_delete(win->runtime);
   MEM_freeN(win);
 }
 
@@ -317,6 +318,7 @@ wmWindow *wm_window_new(const Main *bmain, wmWindowManager *wm, wmWindow *parent
   win->parent = (!dialog && parent && parent->parent) ? parent->parent : parent;
   win->stereo3d_format = MEM_callocN<Stereo3dFormat>("Stereo 3D Format (window)");
   win->workspace_hook = BKE_workspace_instance_hook_create(bmain, win->winid);
+  win->runtime = MEM_new<blender::bke::WindowRuntime>(__func__);
 
   return win;
 }
@@ -876,7 +878,7 @@ static void wm_window_ghostwindow_add(wmWindowManager *wm,
     /* Until screens get drawn, make it nice gray. */
     GPU_clear_color(0.25f, 0.25f, 0.25f, 1.0f);
 
-    /* Needed here, because it's used before it reads userdef. */
+    /* Needed here, because it's used before it reads #UserDef. */
     WM_window_set_dpi(win);
 
     wm_window_swap_buffers(win);
@@ -1194,7 +1196,7 @@ wmWindow *WM_window_open(bContext *C,
 /** \name Operators
  * \{ */
 
-int wm_window_close_exec(bContext *C, wmOperator * /*op*/)
+wmOperatorStatus wm_window_close_exec(bContext *C, wmOperator * /*op*/)
 {
   wmWindowManager *wm = CTX_wm_manager(C);
   wmWindow *win = CTX_wm_window(C);
@@ -1202,7 +1204,7 @@ int wm_window_close_exec(bContext *C, wmOperator * /*op*/)
   return OPERATOR_FINISHED;
 }
 
-int wm_window_new_exec(bContext *C, wmOperator *op)
+wmOperatorStatus wm_window_new_exec(bContext *C, wmOperator *op)
 {
   wmWindow *win_src = CTX_wm_window(C);
   ScrArea *area = BKE_screen_find_big_area(CTX_wm_screen(C), SPACE_TYPE_ANY, 0);
@@ -1231,7 +1233,7 @@ int wm_window_new_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-int wm_window_new_main_exec(bContext *C, wmOperator *op)
+wmOperatorStatus wm_window_new_main_exec(bContext *C, wmOperator *op)
 {
   wmWindow *win_src = CTX_wm_window(C);
 
@@ -1243,7 +1245,7 @@ int wm_window_new_main_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-int wm_window_fullscreen_toggle_exec(bContext *C, wmOperator * /*op*/)
+wmOperatorStatus wm_window_fullscreen_toggle_exec(bContext *C, wmOperator * /*op*/)
 {
   wmWindow *window = CTX_wm_window(C);
 
@@ -1568,7 +1570,7 @@ static bool ghost_event_proc(GHOST_EventHandle ghost_event, GHOST_TUserDataPtr C
       copy_v2_v2_int(event.prev_xy, event.xy);
       event.flag = eWM_EventFlag(0);
 
-      wm_event_add(win, &event);
+      WM_event_add(win, &event);
 
       break;
     }
@@ -1730,7 +1732,7 @@ static bool ghost_event_proc(GHOST_EventHandle ghost_event, GHOST_TUserDataPtr C
       wm->winactive = win;
       win->active = 1;
 
-      wm_event_add(win, &event);
+      WM_event_add(win, &event);
 
       /* Make blender drop event with custom data pointing to wm drags. */
       event.type = EVT_DROP;
@@ -1739,7 +1741,7 @@ static bool ghost_event_proc(GHOST_EventHandle ghost_event, GHOST_TUserDataPtr C
       event.customdata = &wm->drags;
       event.customdata_free = true;
 
-      wm_event_add(win, &event);
+      WM_event_add(win, &event);
 
       // printf("Drop detected\n");
 
@@ -1878,7 +1880,7 @@ static bool wm_window_timers_process(const bContext *C, int *sleep_us_p)
       event.flag = eWM_EventFlag(0);
       event.custom = EVT_DATA_TIMER;
       event.customdata = wt;
-      wm_event_add(win, &event);
+      WM_event_add(win, &event);
 
       has_event = true;
     }
@@ -2383,7 +2385,7 @@ void WM_event_timer_remove(wmWindowManager *wm, wmWindow * /*win*/, wmTimer *tim
   }
   /* There might be events in queue with this timer as customdata. */
   LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
-    LISTBASE_FOREACH (wmEvent *, event, &win->event_queue) {
+    LISTBASE_FOREACH (wmEvent *, event, &win->runtime->event_queue) {
       if (event->customdata == timer) {
         event->customdata = nullptr;
         event->type = EVENT_NONE; /* Timer users customdata, don't want `nullptr == nullptr`. */

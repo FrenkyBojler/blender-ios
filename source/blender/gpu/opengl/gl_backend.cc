@@ -311,6 +311,7 @@ static void detect_workarounds()
     GCaps.mip_render_workaround = true;
     GCaps.stencil_clasify_buffer_workaround = true;
     GCaps.node_link_instancing_workaround = true;
+    GCaps.line_directive_workaround = true;
     GLContext::debug_layer_workaround = true;
     /* Turn off Blender features. */
     GCaps.hdr_viewport_support = false;
@@ -401,6 +402,18 @@ static void detect_workarounds()
       GCaps.use_hq_normals_workaround = true;
     }
   }
+  /* See #132968: Legacy AMD drivers do not accept a hash after the line number and results into
+   * undefined behaviour. Users have reported that the issue can go away after doing a clean
+   * install of the driver.
+   */
+  if (GPU_type_matches(GPU_DEVICE_ATI, GPU_OS_ANY, GPU_DRIVER_OFFICIAL)) {
+    if (strstr(version, " 22.6.1 ") || strstr(version, " 21.Q1.2 ") ||
+        strstr(version, " 21.Q2.1 "))
+    {
+      GCaps.line_directive_workaround = true;
+    }
+  }
+
   /* Special fix for these specific GPUs.
    * Without this workaround, blender crashes on startup. (see #72098) */
   if (GPU_type_matches(GPU_DEVICE_INTEL, GPU_OS_WIN, GPU_DRIVER_OFFICIAL) &&
@@ -498,24 +511,6 @@ static void detect_workarounds()
    * Disabling batching fixes the issue. */
   if (GPU_type_matches(GPU_DEVICE_INTEL, GPU_OS_ANY, GPU_DRIVER_OFFICIAL)) {
     GCaps.node_link_instancing_workaround = true;
-  }
-
-  /* Fix #123787: Multi viewport creates small triangle discard on RDNA2 GPUs with official
-   * drivers. Using geometry shader workaround fixes the issue. */
-  if (GPU_type_matches(GPU_DEVICE_ATI, GPU_OS_ANY, GPU_DRIVER_OFFICIAL)) {
-    if (strstr(renderer, "RX 6300") || strstr(renderer, "RX 6400") ||
-        strstr(renderer, "RX 6450") || strstr(renderer, "RX 6500") ||
-        strstr(renderer, "RX 6550") || strstr(renderer, "RX 6600") ||
-        strstr(renderer, "RX 6650") || strstr(renderer, "RX 6700") ||
-        strstr(renderer, "RX 6750") || strstr(renderer, "RX 6800") ||
-        strstr(renderer, "RX 6850") || strstr(renderer, "RX 6900") ||
-        strstr(renderer, "RX 6950") || strstr(renderer, "W6300") || strstr(renderer, "W6400") ||
-        strstr(renderer, "W6500") || strstr(renderer, "W6600") ||
-        /* NOTE: `W6700` was never released, so it's not in this list. */
-        strstr(renderer, "W6800") || strstr(renderer, "W6900"))
-    {
-      GLContext::layered_rendering_support = false;
-    }
   }
 
   /* Metal-related Workarounds. */

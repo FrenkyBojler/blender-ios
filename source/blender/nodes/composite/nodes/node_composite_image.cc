@@ -310,8 +310,7 @@ static void cmp_node_rlayer_create_outputs(bNodeTree *ntree,
     if (engine_type && engine_type->update_render_passes) {
       ViewLayer *view_layer = (ViewLayer *)BLI_findlink(&scene->view_layers, node->custom1);
       if (view_layer) {
-        RLayerUpdateData *data = (RLayerUpdateData *)MEM_mallocN(sizeof(RLayerUpdateData),
-                                                                 "render layer update data");
+        RLayerUpdateData *data = MEM_mallocN<RLayerUpdateData>("render layer update data");
         data->available_sockets = available_sockets;
         data->prev_index = -1;
         node->storage = data;
@@ -470,6 +469,10 @@ class ImageOperation : public NodeOperation {
   void execute() override
   {
     for (const bNodeSocket *output : this->node()->output_sockets()) {
+      if (!output->is_available()) {
+        continue;
+      }
+
       compute_output(output->identifier);
     }
   }
@@ -711,6 +714,10 @@ class RenderLayerOperation : public NodeOperation {
     }
 
     for (const bNodeSocket *output : this->node()->output_sockets()) {
+      if (!output->is_available()) {
+        continue;
+      }
+
       if (STR_ELEM(output->identifier, "Image", "Alpha")) {
         continue;
       }
@@ -798,6 +805,7 @@ class RenderLayerOperation : public NodeOperation {
       case ResultType::Int:
       case ResultType::Int2:
       case ResultType::Float2:
+      case ResultType::Bool:
         /* Not supported. */
         break;
     }

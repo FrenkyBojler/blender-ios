@@ -1001,25 +1001,30 @@ static void area_azone_init(const wmWindow *win, const bScreen *screen, ScrArea 
     return;
   }
 
+  /* Use a taller zone on the left side, the height of
+   * the header, to make them easier to hit. The others
+   * on the right are shorter to not interfere with
+   * scroll bars. */
+
   const float coords[4][4] = {
       /* Bottom-left. */
       {area->totrct.xmin - U.pixelsize,
        area->totrct.ymin - U.pixelsize,
-       area->totrct.xmin + AZONESPOTW,
-       area->totrct.ymin + AZONESPOTH},
+       area->totrct.xmin + UI_AZONESPOTW,
+       float(area->totrct.ymin + ED_area_headersize())},
       /* Bottom-right. */
-      {area->totrct.xmax - AZONESPOTW,
+      {area->totrct.xmax - UI_AZONESPOTW,
        area->totrct.ymin - U.pixelsize,
        area->totrct.xmax + U.pixelsize,
-       area->totrct.ymin + AZONESPOTH},
+       area->totrct.ymin + UI_AZONESPOTH},
       /* Top-left. */
       {area->totrct.xmin - U.pixelsize,
-       area->totrct.ymax - AZONESPOTH,
-       area->totrct.xmin + AZONESPOTW,
+       float(area->totrct.ymax - ED_area_headersize()),
+       area->totrct.xmin + UI_AZONESPOTW,
        area->totrct.ymax + U.pixelsize},
       /* Top-right. */
-      {area->totrct.xmax - AZONESPOTW,
-       area->totrct.ymax - AZONESPOTH,
+      {area->totrct.xmax - UI_AZONESPOTW,
+       area->totrct.ymax - UI_AZONESPOTH,
        area->totrct.xmax + U.pixelsize,
        area->totrct.ymax + U.pixelsize},
   };
