@@ -973,11 +973,13 @@ class VectorSet {
  * allocating memory with static storage duration.
  */
 template<typename Key,
+         int64_t InlineBufferCapacity = 4,
          typename ProbingStrategy = DefaultProbingStrategy,
          typename Hash = DefaultHash<Key>,
          typename IsEqual = DefaultEquality<Key>,
          typename Slot = typename DefaultVectorSetSlot<Key>::type>
-using RawVectorSet = VectorSet<Key, 4, ProbingStrategy, Hash, IsEqual, Slot, RawAllocator>;
+using RawVectorSet =
+    VectorSet<Key, InlineBufferCapacity, ProbingStrategy, Hash, IsEqual, Slot, RawAllocator>;
 
 template<typename T, typename GetIDFn> struct CustomIDHash {
   using CustomIDType = decltype(GetIDFn{}(std::declval<T>()));
