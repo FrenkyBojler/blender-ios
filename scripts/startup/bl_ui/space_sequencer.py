@@ -2945,7 +2945,6 @@ class SEQUENCER_PT_modifiers(SequencerButtonsPanel, Panel):
                             box.template_sound_equalizer_mapping(
                                 sound_eq,
                                 "curve_mapping",
-                                type='NONE',
                                 use_negative_slope=True,
                             )
 

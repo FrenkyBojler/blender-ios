@@ -2679,8 +2679,10 @@ void uiTemplateCurveMapping(uiLayout *layout,
                             bool brush,
                             bool neg_slope,
                             bool tone);
-void uiTemplateSoundEqualizerMapping(
-    uiLayout *layout, PointerRNA *ptr, blender::StringRefNull propname, int type, bool neg_slope);
+void uiTemplateSoundEqualizerMapping(uiLayout *layout,
+                                     PointerRNA *ptr,
+                                     blender::StringRefNull propname,
+                                     bool neg_slope);
 /**
  * Template for a path creation widget intended for custom bevel profiles.
  * This section is quite similar to #uiTemplateCurveMapping, but with reduced complexity.

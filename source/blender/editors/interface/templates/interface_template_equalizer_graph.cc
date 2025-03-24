@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2024 Blender Authors
+/* SPDX-FileCopyrightText: 2025 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -7,95 +7,21 @@
  */
 
 #include "BKE_colortools.hh"
-#include "BKE_context.hh"
+
 #include "BKE_library.hh"
 
-#include "BLI_rect.h"
 #include "BLI_string_ref.hh"
-
-#include "BLT_translation.hh"
-
-#include "ED_screen.hh"
-#include "ED_undo.hh"
 
 #include "RNA_access.hh"
 #include "RNA_prototypes.hh"
 
-#include "UI_interface.hh"
 #include "interface_intern.hh"
 #include "interface_templates_intern.hh"
 
 using blender::StringRefNull;
 
-static bool eq_graph_can_zoom_out(CurveMapping *cumap)
-{
-  return BLI_rctf_size_x(&cumap->curr) < BLI_rctf_size_x(&cumap->clipr);
-}
-
-static bool eq_graph_can_zoom_in(CurveMapping *cumap)
-{
-  return BLI_rctf_size_x(&cumap->curr) > CURVE_ZOOM_MAX * BLI_rctf_size_x(&cumap->clipr);
-}
-
-static void eq_graph_buttons_zoom_in(bContext *C, CurveMapping *cumap)
-{
-  if (eq_graph_can_zoom_in(cumap)) {
-    const float dx = 0.1154f * BLI_rctf_size_x(&cumap->curr);
-    cumap->curr.xmin += dx;
-    cumap->curr.xmax -= dx;
-    const float dy = 0.1154f * BLI_rctf_size_y(&cumap->curr);
-    cumap->curr.ymin += dy;
-    cumap->curr.ymax -= dy;
-  }
-
-  ED_region_tag_redraw(CTX_wm_region(C));
-}
-
-static void eq_graph_buttons_zoom_out(bContext *C, CurveMapping *cumap)
-{
-  float d, d1;
-
-  if (eq_graph_can_zoom_out(cumap)) {
-    d = d1 = 0.15f * BLI_rctf_size_x(&cumap->curr);
-
-    if (cumap->flag & CUMA_DO_CLIP) {
-      if (cumap->curr.xmin - d < cumap->clipr.xmin) {
-        d1 = cumap->curr.xmin - cumap->clipr.xmin;
-      }
-    }
-    cumap->curr.xmin -= d1;
-
-    d1 = d;
-    if (cumap->flag & CUMA_DO_CLIP) {
-      if (cumap->curr.xmax + d > cumap->clipr.xmax) {
-        d1 = -cumap->curr.xmax + cumap->clipr.xmax;
-      }
-    }
-    cumap->curr.xmax += d1;
-
-    d = d1 = 0.15f * BLI_rctf_size_y(&cumap->curr);
-
-    if (cumap->flag & CUMA_DO_CLIP) {
-      if (cumap->curr.ymin - d < cumap->clipr.ymin) {
-        d1 = cumap->curr.ymin - cumap->clipr.ymin;
-      }
-    }
-    cumap->curr.ymin -= d1;
-
-    d1 = d;
-    if (cumap->flag & CUMA_DO_CLIP) {
-      if (cumap->curr.ymax + d > cumap->clipr.ymax) {
-        d1 = -cumap->curr.ymax + cumap->clipr.ymax;
-      }
-    }
-    cumap->curr.ymax += d1;
-  }
-
-  ED_region_tag_redraw(CTX_wm_region(C));
-}
-
 /* NOTE: this is a block-menu, needs 0 events, otherwise the menu closes */
-static uiBlock *eq_graph_clipping_func(bContext *C, ARegion *region, void *cumap_v)
+static uiBlock *equalizer_clipping_func(bContext *C, ARegion *region, void *cumap_v)
 {
   CurveMapping *cumap = static_cast<CurveMapping *>(cumap_v);
   uiBut *bt;
@@ -119,7 +45,6 @@ static uiBlock *eq_graph_clipping_func(bContext *C, ARegion *region, void *cumap
                     0.0,
                     "");
   UI_but_func_set(bt, [cumap](bContext & /*C*/) { BKE_curvemapping_changed(cumap, false); });
-
   UI_block_align_begin(block);
   bt = uiDefButF(block,
                  UI_BTYPE_NUM,
@@ -130,12 +55,11 @@ static uiBlock *eq_graph_clipping_func(bContext *C, ARegion *region, void *cumap
                  width,
                  UI_UNIT_Y,
                  &cumap->clipr.xmin,
-                 -10.0,
+                 MIN_FREQUENCY_X,
                  cumap->clipr.xmax,
                  "");
-  UI_but_unit_type_set(bt, PROP_UNIT_FREQUENCY);
-  UI_but_number_step_size_set(bt, 10);
-  UI_but_number_precision_set(bt, 2);
+  UI_but_func_set(bt, [cumap](bContext & /*C*/) { BKE_curvemapping_changed(cumap, false); });
+  configure_number_button(bt, PROP_UNIT_FREQUENCY, 10, 2);
   bt = uiDefButF(block,
                  UI_BTYPE_NUM,
                  0,
@@ -146,11 +70,10 @@ static uiBlock *eq_graph_clipping_func(bContext *C, ARegion *region, void *cumap
                  UI_UNIT_Y,
                  &cumap->clipr.xmax,
                  cumap->clipr.xmin,
-                 20000.0,
+                 MAX_FREQUENCY_X,
                  "");
-  UI_but_unit_type_set(bt, PROP_UNIT_FREQUENCY);
-  UI_but_number_step_size_set(bt, 10);
-  UI_but_number_precision_set(bt, 2);
+  UI_but_func_set(bt, [cumap](bContext & /*C*/) { BKE_curvemapping_changed(cumap, false); });
+  configure_number_button(bt, PROP_UNIT_FREQUENCY, 10, 2);
   bt = uiDefButF(block,
                  UI_BTYPE_NUM,
                  0,
@@ -160,12 +83,11 @@ static uiBlock *eq_graph_clipping_func(bContext *C, ARegion *region, void *cumap
                  width,
                  UI_UNIT_Y,
                  &cumap->clipr.ymin,
-                 -100.0,
+                 MIN_DECIBEL_Y,
                  cumap->clipr.ymax,
                  "");
-  UI_but_unit_type_set(bt, PROP_UNIT_DECIBEL);
-  UI_but_number_step_size_set(bt, 10);
-  UI_but_number_precision_set(bt, 2);
+  UI_but_func_set(bt, [cumap](bContext & /*C*/) { BKE_curvemapping_changed(cumap, false); });
+  configure_number_button(bt, PROP_UNIT_DECIBEL, 10, 2);
   bt = uiDefButF(block,
                  UI_BTYPE_NUM,
                  0,
@@ -176,11 +98,10 @@ static uiBlock *eq_graph_clipping_func(bContext *C, ARegion *region, void *cumap
                  UI_UNIT_Y,
                  &cumap->clipr.ymax,
                  cumap->clipr.ymin,
-                 100.0,
+                 MAX_DECIBEL_Y,
                  "");
-  UI_but_unit_type_set(bt, PROP_UNIT_DECIBEL);
-  UI_but_number_step_size_set(bt, 10);
-  UI_but_number_precision_set(bt, 2);
+  UI_but_func_set(bt, [cumap](bContext & /*C*/) { BKE_curvemapping_changed(cumap, false); });
+  configure_number_button(bt, PROP_UNIT_DECIBEL, 10, 2);
 
   UI_block_bounds_set_normal(block, 0.3f * U.widget_unit);
   UI_block_direction_set(block, UI_DIR_DOWN);
@@ -188,138 +109,18 @@ static uiBlock *eq_graph_clipping_func(bContext *C, ARegion *region, void *cumap
   return block;
 }
 
-static uiBlock *eq_graph_tools_func(
-    bContext *C, ARegion *region, RNAUpdateCb &cb, bool show_extend, int reset_mode)
-{
-  PointerRNA cumap_ptr = RNA_property_pointer_get(&cb.ptr, cb.prop);
-  CurveMapping *cumap = static_cast<CurveMapping *>(cumap_ptr.data);
-
-  short yco = 0;
-  const short menuwidth = 10 * UI_UNIT_X;
-
-  uiBlock *block = UI_block_begin(C, region, __func__, UI_EMBOSS);
-
-  {
-    uiBut *but = uiDefIconTextBut(block,
-                                  UI_BTYPE_BUT_MENU,
-                                  1,
-                                  ICON_BLANK1,
-                                  IFACE_("Reset View"),
-                                  0,
-                                  yco -= UI_UNIT_Y,
-                                  menuwidth,
-                                  UI_UNIT_Y,
-                                  nullptr,
-                                  0.0,
-                                  0.0,
-                                  "");
-    UI_but_func_set(but, [cumap](bContext &C) {
-      BKE_curvemapping_reset_view(cumap);
-      ED_region_tag_redraw(CTX_wm_region(&C));
-    });
-  }
-
-  if (show_extend && !(cumap->flag & CUMA_USE_WRAPPING)) {
-    {
-      uiBut *but = uiDefIconTextBut(block,
-                                    UI_BTYPE_BUT_MENU,
-                                    1,
-                                    ICON_BLANK1,
-                                    IFACE_("Extend Horizontal"),
-                                    0,
-                                    yco -= UI_UNIT_Y,
-                                    menuwidth,
-                                    UI_UNIT_Y,
-                                    nullptr,
-                                    0.0,
-                                    0.0,
-                                    "");
-      UI_but_func_set(but, [cumap, cb](bContext &C) {
-        cumap->flag &= ~CUMA_EXTEND_EXTRAPOLATE;
-        BKE_curvemapping_changed(cumap, false);
-        rna_update_cb(C, cb);
-        ED_undo_push(&C, "CurveMap tools");
-        ED_region_tag_redraw(CTX_wm_region(&C));
-      });
-    }
-    {
-      uiBut *but = uiDefIconTextBut(block,
-                                    UI_BTYPE_BUT_MENU,
-                                    1,
-                                    ICON_BLANK1,
-                                    IFACE_("Extend Extrapolated"),
-                                    0,
-                                    yco -= UI_UNIT_Y,
-                                    menuwidth,
-                                    UI_UNIT_Y,
-                                    nullptr,
-                                    0.0,
-                                    0.0,
-                                    "");
-      UI_but_func_set(but, [cumap, cb](bContext &C) {
-        cumap->flag |= CUMA_EXTEND_EXTRAPOLATE;
-        BKE_curvemapping_changed(cumap, false);
-        rna_update_cb(C, cb);
-        ED_undo_push(&C, "CurveMap tools");
-        ED_region_tag_redraw(CTX_wm_region(&C));
-      });
-    }
-  }
-
-  {
-    uiBut *but = uiDefIconTextBut(block,
-                                  UI_BTYPE_BUT_MENU,
-                                  1,
-                                  ICON_BLANK1,
-                                  IFACE_("Reset Curve"),
-                                  0,
-                                  yco -= UI_UNIT_Y,
-                                  menuwidth,
-                                  UI_UNIT_Y,
-                                  nullptr,
-                                  0.0,
-                                  0.0,
-                                  "");
-    UI_but_func_set(but, [cumap, cb, reset_mode](bContext &C) {
-      CurveMap *cuma = cumap->cm + cumap->cur;
-      BKE_curvemap_reset(cuma, &cumap->clipr, cumap->preset, reset_mode);
-      BKE_curvemapping_changed(cumap, false);
-      rna_update_cb(C, cb);
-      ED_undo_push(&C, "CurveMap tools");
-      ED_region_tag_redraw(CTX_wm_region(&C));
-    });
-  }
-
-  UI_block_direction_set(block, UI_DIR_DOWN);
-  UI_block_bounds_set_text(block, 3.0f * UI_UNIT_X);
-
-  return block;
-}
-
-static uiBlock *eq_graph_tools_posslope_func(bContext *C, ARegion *region, void *cb_v)
-{
-  return eq_graph_tools_func(
-      C, region, *static_cast<RNAUpdateCb *>(cb_v), true, CURVEMAP_SLOPE_POSITIVE);
-}
-
-static uiBlock *eq_graph_tools_negslope_func(bContext *C, ARegion *region, void *cb_v)
-{
-  return eq_graph_tools_func(
-      C, region, *static_cast<RNAUpdateCb *>(cb_v), true, CURVEMAP_SLOPE_NEGATIVE);
-}
-
-static void eq_graph_buttons_redraw(bContext &C)
-{
-  ED_region_tag_redraw(CTX_wm_region(&C));
-}
-
 /**
- * \note Still unsure how this call evolves.
+ * Layouts and initializes the Equalizer buttons in the UI.
  *
- * \param labeltype: Used for defining which curve-channels to show.
+ * @param layout: Pointer to the layout structure defining the arrangement of UI elements.
+ * @param ptr: RNA pointer used to access the CurveMapping data for the equalizer curve.
+ * @param neg_slope: Boolean indicating if the negative slope mode is enabled.
+ * @param cb: Callback function for updating RNA data when a button is triggered.
  */
-static void eq_graph_buttons_layout(
-    uiLayout *layout, PointerRNA *ptr, char labeltype, bool neg_slope, const RNAUpdateCb &cb)
+static void equalizer_buttons_layout(uiLayout *layout,
+                                     PointerRNA *ptr,
+                                     bool neg_slope,
+                                     const RNAUpdateCb &cb)
 {
   CurveMapping *cumap = static_cast<CurveMapping *>(ptr->data);
   CurveMap *cm = &cumap->cm[cumap->cur];
@@ -341,25 +142,45 @@ static void eq_graph_buttons_layout(
 
   if (!(cumap->flag & CUMA_USE_WRAPPING)) {
     /* Zoom in */
-    bt = uiDefIconBut(
-        block, UI_BTYPE_BUT, 0, ICON_ZOOM_IN, 0, 0, dx, dx, nullptr, 0.0, 0.0, TIP_("Zoom in"));
-    UI_but_func_set(bt, [cumap](bContext &C) { eq_graph_buttons_zoom_in(&C, cumap); });
-    if (!eq_graph_can_zoom_in(cumap)) {
+    uiBut *bt = uiDefIconBut(block,
+                             UI_BTYPE_BUT,
+                             0,
+                             ICON_ZOOM_IN,
+                             0,
+                             0,
+                             UI_UNIT_X,
+                             UI_UNIT_X,
+                             nullptr,
+                             0.0,
+                             0.0,
+                             TIP_("Zoom in"));
+    UI_but_func_set(bt, [cumap](bContext &C) { curvemap_zoom_in(&C, cumap); });
+    if (!curvemap_can_zoom_in(cumap)) {
       UI_but_disable(bt, "");
     }
 
     /* Zoom out */
-    bt = uiDefIconBut(
-        block, UI_BTYPE_BUT, 0, ICON_ZOOM_OUT, 0, 0, dx, dx, nullptr, 0.0, 0.0, TIP_("Zoom out"));
-    UI_but_func_set(bt, [cumap](bContext &C) { eq_graph_buttons_zoom_out(&C, cumap); });
-    if (!eq_graph_can_zoom_out(cumap)) {
+    bt = uiDefIconBut(block,
+                      UI_BTYPE_BUT,
+                      0,
+                      ICON_ZOOM_OUT,
+                      0,
+                      0,
+                      UI_UNIT_X,
+                      UI_UNIT_X,
+                      nullptr,
+                      0.0,
+                      0.0,
+                      TIP_("Zoom out"));
+    UI_but_func_set(bt, [cumap](bContext &C) { curvemap_zoom_out(&C, cumap); });
+    if (!curvemap_can_zoom_out(cumap)) {
       UI_but_disable(bt, "");
     }
 
     /* Clipping button. */
     const int icon = (cumap->flag & CUMA_DO_CLIP) ? ICON_CLIPUV_HLT : ICON_CLIPUV_DEHLT;
     bt = uiDefIconBlockBut(
-        block, eq_graph_clipping_func, cumap, 0, icon, 0, 0, dx, dx, TIP_("Clipping Options"));
+        block, equalizer_clipping_func, cumap, 0, icon, 0, 0, dx, dx, TIP_("Clipping Options"));
     bt->drawflag &= ~UI_BUT_ICON_LEFT;
     UI_but_func_set(bt, [cb](bContext &C) { rna_update_cb(C, cb); });
   }
@@ -367,11 +188,11 @@ static void eq_graph_buttons_layout(
   RNAUpdateCb *tools_cb = MEM_new<RNAUpdateCb>(__func__, cb);
   if (neg_slope) {
     bt = uiDefIconBlockBut(
-        block, eq_graph_tools_negslope_func, tools_cb, 0, ICON_NONE, 0, 0, dx, dx, TIP_("Tools"));
+        block, curvemap_tools_negslope_func, tools_cb, 0, ICON_NONE, 0, 0, dx, dx, TIP_("Tools"));
   }
   else {
     bt = uiDefIconBlockBut(
-        block, eq_graph_tools_posslope_func, tools_cb, 0, ICON_NONE, 0, 0, dx, dx, TIP_("Tools"));
+        block, curvemap_tools_posslope_func, tools_cb, 0, ICON_NONE, 0, 0, dx, dx, TIP_("Tools"));
   }
   /* Pass ownership of `tools_cb` to the button. */
   UI_but_funcN_set(
@@ -406,6 +227,7 @@ static void eq_graph_buttons_layout(
       break;
     }
   }
+  /* Check if the selected curve point is the first or last point. */
   if (ELEM(i, 0, cm->totpoint - 1)) {
     point_last_or_first = true;
   }
@@ -416,14 +238,15 @@ static void eq_graph_buttons_layout(
       bounds = cumap->clipr;
     }
     else {
-      bounds.xmin = bounds.ymin = -1000.0;
-      bounds.xmax = bounds.ymax = 1000.0;
+      bounds.xmin = bounds.ymin = DEFAULT_BOUNDS_MIN;
+      bounds.xmax = bounds.ymax = DEFAULT_BOUNDS_MAX;
     }
 
     UI_block_emboss_set(block, UI_EMBOSS);
 
     uiLayoutRow(layout, true);
 
+    /* Curve handle buttons */
     /* Curve handle buttons. */
     bt = uiDefIconBut(block,
                       UI_BTYPE_BUT,
@@ -506,9 +329,7 @@ static void eq_graph_buttons_layout(
                    bounds.xmin,
                    bounds.xmax,
                    "");
-    UI_but_unit_type_set(bt, PROP_UNIT_FREQUENCY);
-    UI_but_number_step_size_set(bt, 100);
-    UI_but_number_precision_set(bt, 0);
+    configure_number_button(bt, PROP_UNIT_FREQUENCY, 10, 2);
     UI_but_func_set(bt, [cumap, cb](bContext &C) {
       BKE_curvemapping_changed(cumap, true);
       rna_update_cb(C, cb);
@@ -527,9 +348,7 @@ static void eq_graph_buttons_layout(
                    bounds.ymax,
                    "");
 
-    UI_but_unit_type_set(bt, PROP_UNIT_DECIBEL);
-    UI_but_number_step_size_set(bt, 100);
-    UI_but_number_precision_set(bt, 1);
+    configure_number_button(bt, PROP_UNIT_DECIBEL, 10, 2);
     UI_but_func_set(bt, [cumap, cb](bContext &C) {
       BKE_curvemapping_changed(cumap, true);
       rna_update_cb(C, cb);
@@ -561,8 +380,10 @@ static void eq_graph_buttons_layout(
   UI_block_funcN_set(block, nullptr, nullptr, nullptr);
 }
 
-void uiTemplateSoundEqualizerMapping(
-    uiLayout *layout, PointerRNA *ptr, const StringRefNull propname, int type, bool neg_slope)
+void uiTemplateSoundEqualizerMapping(uiLayout *layout,
+                                     PointerRNA *ptr,
+                                     const StringRefNull propname,
+                                     bool neg_slope)
 {
   PropertyRNA *prop = RNA_struct_find_property(ptr, propname.c_str());
   uiBlock *block = uiLayoutGetBlock(layout);
@@ -587,7 +408,7 @@ void uiTemplateSoundEqualizerMapping(
   ID *id = cptr.owner_id;
   UI_block_lock_set(block, (id && !ID_IS_EDITABLE(id)), ERROR_LIBDATA_MESSAGE);
 
-  eq_graph_buttons_layout(layout, &cptr, type, neg_slope, RNAUpdateCb{*ptr, prop});
+  equalizer_buttons_layout(layout, &cptr, neg_slope, RNAUpdateCb{*ptr, prop});
 
   UI_block_lock_clear(block);
 }

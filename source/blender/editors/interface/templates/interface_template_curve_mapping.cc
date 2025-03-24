@@ -10,7 +10,6 @@
 #include "BKE_context.hh"
 #include "BKE_library.hh"
 
-#include "BLI_rect.h"
 #include "BLI_string_ref.hh"
 
 #include "BLT_translation.hh"
@@ -26,73 +25,6 @@
 #include "interface_templates_intern.hh"
 
 using blender::StringRefNull;
-
-static bool curvemap_can_zoom_out(CurveMapping *cumap)
-{
-  return BLI_rctf_size_x(&cumap->curr) < BLI_rctf_size_x(&cumap->clipr);
-}
-
-static bool curvemap_can_zoom_in(CurveMapping *cumap)
-{
-  return BLI_rctf_size_x(&cumap->curr) > CURVE_ZOOM_MAX * BLI_rctf_size_x(&cumap->clipr);
-}
-
-static void curvemap_buttons_zoom_in(bContext *C, CurveMapping *cumap)
-{
-  if (curvemap_can_zoom_in(cumap)) {
-    const float dx = 0.1154f * BLI_rctf_size_x(&cumap->curr);
-    cumap->curr.xmin += dx;
-    cumap->curr.xmax -= dx;
-    const float dy = 0.1154f * BLI_rctf_size_y(&cumap->curr);
-    cumap->curr.ymin += dy;
-    cumap->curr.ymax -= dy;
-  }
-
-  ED_region_tag_redraw(CTX_wm_region(C));
-}
-
-static void curvemap_buttons_zoom_out(bContext *C, CurveMapping *cumap)
-{
-  float d, d1;
-
-  if (curvemap_can_zoom_out(cumap)) {
-    d = d1 = 0.15f * BLI_rctf_size_x(&cumap->curr);
-
-    if (cumap->flag & CUMA_DO_CLIP) {
-      if (cumap->curr.xmin - d < cumap->clipr.xmin) {
-        d1 = cumap->curr.xmin - cumap->clipr.xmin;
-      }
-    }
-    cumap->curr.xmin -= d1;
-
-    d1 = d;
-    if (cumap->flag & CUMA_DO_CLIP) {
-      if (cumap->curr.xmax + d > cumap->clipr.xmax) {
-        d1 = -cumap->curr.xmax + cumap->clipr.xmax;
-      }
-    }
-    cumap->curr.xmax += d1;
-
-    d = d1 = 0.15f * BLI_rctf_size_y(&cumap->curr);
-
-    if (cumap->flag & CUMA_DO_CLIP) {
-      if (cumap->curr.ymin - d < cumap->clipr.ymin) {
-        d1 = cumap->curr.ymin - cumap->clipr.ymin;
-      }
-    }
-    cumap->curr.ymin -= d1;
-
-    d1 = d;
-    if (cumap->flag & CUMA_DO_CLIP) {
-      if (cumap->curr.ymax + d > cumap->clipr.ymax) {
-        d1 = -cumap->curr.ymax + cumap->clipr.ymax;
-      }
-    }
-    cumap->curr.ymax += d1;
-  }
-
-  ED_region_tag_redraw(CTX_wm_region(C));
-}
 
 /* NOTE: this is a block-menu, needs 0 events, otherwise the menu closes */
 static uiBlock *curvemap_clipping_func(bContext *C, ARegion *region, void *cumap_v)
@@ -182,126 +114,6 @@ static uiBlock *curvemap_clipping_func(bContext *C, ARegion *region, void *cumap
   UI_block_direction_set(block, UI_DIR_DOWN);
 
   return block;
-}
-
-static uiBlock *curvemap_tools_func(
-    bContext *C, ARegion *region, RNAUpdateCb &cb, bool show_extend, int reset_mode)
-{
-  PointerRNA cumap_ptr = RNA_property_pointer_get(&cb.ptr, cb.prop);
-  CurveMapping *cumap = static_cast<CurveMapping *>(cumap_ptr.data);
-
-  short yco = 0;
-  const short menuwidth = 10 * UI_UNIT_X;
-
-  uiBlock *block = UI_block_begin(C, region, __func__, UI_EMBOSS);
-
-  {
-    uiBut *but = uiDefIconTextBut(block,
-                                  UI_BTYPE_BUT_MENU,
-                                  1,
-                                  ICON_BLANK1,
-                                  IFACE_("Reset View"),
-                                  0,
-                                  yco -= UI_UNIT_Y,
-                                  menuwidth,
-                                  UI_UNIT_Y,
-                                  nullptr,
-                                  0.0,
-                                  0.0,
-                                  "");
-    UI_but_func_set(but, [cumap](bContext &C) {
-      BKE_curvemapping_reset_view(cumap);
-      ED_region_tag_redraw(CTX_wm_region(&C));
-    });
-  }
-
-  if (show_extend && !(cumap->flag & CUMA_USE_WRAPPING)) {
-    {
-      uiBut *but = uiDefIconTextBut(block,
-                                    UI_BTYPE_BUT_MENU,
-                                    1,
-                                    ICON_BLANK1,
-                                    IFACE_("Extend Horizontal"),
-                                    0,
-                                    yco -= UI_UNIT_Y,
-                                    menuwidth,
-                                    UI_UNIT_Y,
-                                    nullptr,
-                                    0.0,
-                                    0.0,
-                                    "");
-      UI_but_func_set(but, [cumap, cb](bContext &C) {
-        cumap->flag &= ~CUMA_EXTEND_EXTRAPOLATE;
-        BKE_curvemapping_changed(cumap, false);
-        rna_update_cb(C, cb);
-        ED_undo_push(&C, "CurveMap tools");
-        ED_region_tag_redraw(CTX_wm_region(&C));
-      });
-    }
-    {
-      uiBut *but = uiDefIconTextBut(block,
-                                    UI_BTYPE_BUT_MENU,
-                                    1,
-                                    ICON_BLANK1,
-                                    IFACE_("Extend Extrapolated"),
-                                    0,
-                                    yco -= UI_UNIT_Y,
-                                    menuwidth,
-                                    UI_UNIT_Y,
-                                    nullptr,
-                                    0.0,
-                                    0.0,
-                                    "");
-      UI_but_func_set(but, [cumap, cb](bContext &C) {
-        cumap->flag |= CUMA_EXTEND_EXTRAPOLATE;
-        BKE_curvemapping_changed(cumap, false);
-        rna_update_cb(C, cb);
-        ED_undo_push(&C, "CurveMap tools");
-        ED_region_tag_redraw(CTX_wm_region(&C));
-      });
-    }
-  }
-
-  {
-    uiBut *but = uiDefIconTextBut(block,
-                                  UI_BTYPE_BUT_MENU,
-                                  1,
-                                  ICON_BLANK1,
-                                  IFACE_("Reset Curve"),
-                                  0,
-                                  yco -= UI_UNIT_Y,
-                                  menuwidth,
-                                  UI_UNIT_Y,
-                                  nullptr,
-                                  0.0,
-                                  0.0,
-                                  "");
-    UI_but_func_set(but, [cumap, cb, reset_mode](bContext &C) {
-      CurveMap *cuma = cumap->cm + cumap->cur;
-      BKE_curvemap_reset(cuma, &cumap->clipr, cumap->preset, reset_mode);
-      BKE_curvemapping_changed(cumap, false);
-      rna_update_cb(C, cb);
-      ED_undo_push(&C, "CurveMap tools");
-      ED_region_tag_redraw(CTX_wm_region(&C));
-    });
-  }
-
-  UI_block_direction_set(block, UI_DIR_DOWN);
-  UI_block_bounds_set_text(block, 3.0f * UI_UNIT_X);
-
-  return block;
-}
-
-static uiBlock *curvemap_tools_posslope_func(bContext *C, ARegion *region, void *cb_v)
-{
-  return curvemap_tools_func(
-      C, region, *static_cast<RNAUpdateCb *>(cb_v), true, CURVEMAP_SLOPE_POSITIVE);
-}
-
-static uiBlock *curvemap_tools_negslope_func(bContext *C, ARegion *region, void *cb_v)
-{
-  return curvemap_tools_func(
-      C, region, *static_cast<RNAUpdateCb *>(cb_v), true, CURVEMAP_SLOPE_NEGATIVE);
 }
 
 static uiBlock *curvemap_brush_tools_func(bContext *C, ARegion *region, void *cb_v)
@@ -502,18 +314,40 @@ static void curvemap_buttons_layout(uiLayout *layout,
   uiLayoutSetAlignment(sub, UI_LAYOUT_ALIGN_RIGHT);
 
   if (!(cumap->flag & CUMA_USE_WRAPPING)) {
+
+    /* zoomin and zoomout buttons */
     /* Zoom in */
-    bt = uiDefIconBut(
-        block, UI_BTYPE_BUT, 0, ICON_ZOOM_IN, 0, 0, dx, dx, nullptr, 0.0, 0.0, TIP_("Zoom in"));
-    UI_but_func_set(bt, [cumap](bContext &C) { curvemap_buttons_zoom_in(&C, cumap); });
+    uiBut *bt = uiDefIconBut(block,
+                             UI_BTYPE_BUT,
+                             0,
+                             ICON_ZOOM_IN,
+                             0,
+                             0,
+                             UI_UNIT_X,
+                             UI_UNIT_X,
+                             nullptr,
+                             0.0,
+                             0.0,
+                             TIP_("Zoom in"));
+    UI_but_func_set(bt, [cumap](bContext &C) { curvemap_zoom_in(&C, cumap); });
     if (!curvemap_can_zoom_in(cumap)) {
       UI_but_disable(bt, "");
     }
 
     /* Zoom out */
-    bt = uiDefIconBut(
-        block, UI_BTYPE_BUT, 0, ICON_ZOOM_OUT, 0, 0, dx, dx, nullptr, 0.0, 0.0, TIP_("Zoom out"));
-    UI_but_func_set(bt, [cumap](bContext &C) { curvemap_buttons_zoom_out(&C, cumap); });
+    bt = uiDefIconBut(block,
+                      UI_BTYPE_BUT,
+                      0,
+                      ICON_ZOOM_OUT,
+                      0,
+                      0,
+                      UI_UNIT_X,
+                      UI_UNIT_X,
+                      nullptr,
+                      0.0,
+                      0.0,
+                      TIP_("Zoom out"));
+    UI_but_func_set(bt, [cumap](bContext &C) { curvemap_zoom_out(&C, cumap); });
     if (!curvemap_can_zoom_out(cumap)) {
       UI_but_disable(bt, "");
     }
@@ -602,6 +436,7 @@ static void curvemap_buttons_layout(uiLayout *layout,
 
     uiLayoutRow(layout, true);
 
+    /* Curve handle buttons. */
     /* Curve handle buttons. */
     bt = uiDefIconBut(block,
                       UI_BTYPE_BUT,
