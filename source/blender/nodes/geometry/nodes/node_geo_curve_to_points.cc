@@ -85,6 +85,7 @@ static void fill_rotation_attribute(const Span<float3> tangents,
 }
 
 static void copy_curve_domain_attributes(const AttributeAccessor curve_attributes,
+                                         const AttributeFilter &attribute_filter,
                                          MutableAttributeAccessor point_attributes)
 {
   curve_attributes.foreach_attribute([&](const bke::AttributeIter &iter) {
@@ -92,6 +93,9 @@ static void copy_curve_domain_attributes(const AttributeAccessor curve_attribute
       return;
     }
     if (iter.domain != AttrDomain::Curve) {
+      return;
+    }
+    if (!attribute_filter.allow_skip(iter.name)) {
       return;
     }
     if (iter.data_type == CD_PROP_STRING) {
@@ -110,39 +114,40 @@ static PointCloud *pointcloud_from_curves(const bke::CurvesGeometry &curves,
                                           const std::optional<StringRef> &normal_id,
                                           const std::optional<StringRef> &rotation_id)
 {
+  const AttributeAccessor curve_attributes = curves.attributes();
+
   PointCloud *pointcloud = BKE_pointcloud_new_nomain(0);
   CustomData_free(&pointcloud->pdata);
   pointcloud->totpoint = curves.points_num();
-
-  AttributeAccessor curve_attributes = curves.attributes();
   MutableAttributeAccessor point_attributes = pointcloud->attributes_for_write();
 
+  const bke::AttributeFilterFromFunc filter = ([&](const StringRef name) {
+    if (attribute_filter.allow_skip(name)) {
+      return bke::AttributeFilter::Result::AllowSkip;
+    }
+    if (curve_attributes.is_builtin(name) && !point_attributes.is_builtin(name)) {
+      return bke::AttributeFilter::Result::AllowSkip;
+    }
+    return bke::AttributeFilter::Result::Process;
+  });
+
+  bke::copy_attributes(curves.attributes(),
+                       bke::AttrDomain::Point,
+                       bke::AttrDomain::Point,
+                       filter,
+                       pointcloud->attributes_for_write());
+
+  copy_curve_domain_attributes(curve_attributes, filter, point_attributes);
+
   if (rotation_id) {
-    const VArraySpan tangents = *point_attributes.lookup<float3>(*tangent_id, AttrDomain::Point);
-    const VArraySpan normals = *point_attributes.lookup<float3>(*normal_id, AttrDomain::Point);
+    const VArraySpan tangents = *curve_attributes.lookup<float3>(*tangent_id, AttrDomain::Point);
+    const VArraySpan normals = *curve_attributes.lookup<float3>(*normal_id, AttrDomain::Point);
     SpanAttributeWriter rotations =
         point_attributes.lookup_or_add_for_write_only_span<math::Quaternion>(*rotation_id,
                                                                              AttrDomain::Point);
     fill_rotation_attribute(tangents, normals, rotations.span);
     rotations.finish();
   }
-
-  bke::copy_attributes(curves.attributes(),
-                       bke::AttrDomain::Point,
-                       bke::AttrDomain::Point,
-                       bke::AttributeFilterFromFunc([&](const StringRef name) {
-                         if (attribute_filter.allow_skip(name)) {
-                           return bke::AttributeFilter::Result::AllowSkip;
-                         }
-                         if (curve_attributes.is_builtin(name) &&
-                             !point_attributes.is_builtin(name)) {
-                           return bke::AttributeFilter::Result::AllowSkip;
-                         }
-                         return bke::AttributeFilter::Result::Process;
-                       }),
-                       pointcloud->attributes_for_write());
-
-  copy_curve_domain_attributes(curves.attributes(), pointcloud->attributes_for_write());
 
   return pointcloud;
 }
