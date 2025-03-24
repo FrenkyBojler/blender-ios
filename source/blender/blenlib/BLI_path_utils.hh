@@ -715,20 +715,6 @@ bool BLI_path_abs_from_cwd(char *path, size_t path_maxncpy) ATTR_NONNULL(1);
 /** \} */
 
 /* -------------------------------------------------------------------- */
-/** \name Blender Variables
- * \{ */
-
-struct PathVariables {
-  blender::Map<std::string, std::string> strings;
-  blender::Map<std::string, int64_t> integers;
-  blender::Map<std::string, double> floats;
-};
-
-bool BLI_path_apply_variables(char path[FILE_MAX], const PathVariables &variables);
-
-/** \} */
-
-/* -------------------------------------------------------------------- */
 /** \name Native Slash Defines & Checks
  * \{ */
 

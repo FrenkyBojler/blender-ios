@@ -23,6 +23,7 @@
 #include "BKE_bpath.hh"
 #include "BKE_colortools.hh"
 #include "BKE_image_format.hh"
+#include "BKE_variables.hh"
 
 /* Init/Copy/Free */
 
@@ -617,7 +618,7 @@ static void do_makepicstring(char filepath[FILE_MAX],
     return;
   }
   BLI_strncpy(filepath, base, FILE_MAX - 10); /* weak assumption */
-  BLI_path_apply_variables(filepath, BKE_build_path_variables(relbase, frame, render_data));
+  BKE_path_apply_variables(filepath, BKE_build_blender_variables(relbase, frame, render_data));
   BLI_path_abs(filepath, relbase);
 
   if (use_frames) {
