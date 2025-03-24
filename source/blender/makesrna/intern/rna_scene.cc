@@ -1304,7 +1304,7 @@ std::optional<std::string> rna_ColorManagedDisplaySettings_path(const PointerRNA
   if (path) {
     return *path + ".display_settings";
   }
-  return std::nullopt;
+  return "display_settings";
 }
 
 std::optional<std::string> rna_ColorManagedViewSettings_path(const PointerRNA *ptr)
@@ -1315,7 +1315,7 @@ std::optional<std::string> rna_ColorManagedViewSettings_path(const PointerRNA *p
   if (path) {
     return *path + ".view_settings";
   }
-  return std::nullopt;
+  return "view_settings";
 }
 
 std::optional<std::string> rna_ColorManagedInputColorspaceSettings_path(const PointerRNA *ptr)
@@ -1326,7 +1326,7 @@ std::optional<std::string> rna_ColorManagedInputColorspaceSettings_path(const Po
   if (path) {
     return *path + ".linear_colorspace_settings";
   }
-  return std::nullopt;
+  return "linear_colorspace_settings";
 }
 
 static int rna_RenderSettings_threads_get(PointerRNA *ptr)
