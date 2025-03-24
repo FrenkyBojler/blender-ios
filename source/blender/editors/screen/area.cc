@@ -282,6 +282,7 @@ static void region_draw_azone_tab_arrow(ScrArea *area, ARegion *region, AZone *a
   float alpha = WM_region_use_viewport(area, region) ? 0.6f : 0.4f;
   const float color[4] = {0.05f, 0.05f, 0.05f, alpha};
   rctf rect{};
+  /* Hit size is a bit larger than visible background. */
   rect.xmin = float(az->x1) + U.pixelsize;
   rect.xmax = float(az->x2) - U.pixelsize;
   rect.ymin = float(az->y1) + U.pixelsize;
