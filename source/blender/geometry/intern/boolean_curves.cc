@@ -680,16 +680,17 @@ BooleanResult execute_single_boolean(const CurveBooleanOpParameters op_params,
 
   auto add_segments = [&](const int curve_k) {
     const IndexRange points_k = points_by_curve[curve_k];
-    Vector<Segment> segments_k;
     const Span<int> other_inter = inters_per_curves[curve_k];
     const Span<int> self_inter = self_clipping_inters_per_curves[curve_k];
+
+    const int start_size = all_segments.size();
 
     Array<int> new_inters(other_inter.size() + self_inter.size());
     new_inters.as_mutable_span().take_back(other_inter.size()).copy_from(other_inter);
     new_inters.as_mutable_span().take_front(self_inter.size()).copy_from(self_inter);
 
     if (new_inters.is_empty()) {
-      segments_k.append(
+      all_segments.append(
           Segment::from_curve(curve_k, points_k, is_cyclic[curve_k] || is_fill[curve_k]));
     }
     else {
@@ -710,38 +711,38 @@ BooleanResult execute_single_boolean(const CurveBooleanOpParameters op_params,
         IntersectionPoint &inter_last = intersections[int_p_2];
 
         if (curve_k == inter_last.curve_a) {
-          inter_last.end_a = SegmentEndPoint(all_segments.size() + segments_k.size(), true);
+          inter_last.end_a = SegmentEndPoint(all_segments.size(), true);
         }
         else {
-          inter_last.end_b = SegmentEndPoint(all_segments.size() + segments_k.size(), true);
+          inter_last.end_b = SegmentEndPoint(all_segments.size(), true);
         }
 
         if (curve_k == inter_first.curve_a) {
-          inter_first.start_a = SegmentEndPoint(all_segments.size() + segments_k.size(), false);
+          inter_first.start_a = SegmentEndPoint(all_segments.size(), false);
         }
         else {
-          inter_first.start_b = SegmentEndPoint(all_segments.size() + segments_k.size(), false);
+          inter_first.start_b = SegmentEndPoint(all_segments.size(), false);
         }
 
-        segments_k.append(Segment::from_intersections(curve_k,
-                                                      points_k,
-                                                      inter_last.parameter_for_curve(curve_k),
-                                                      inter_first.parameter_for_curve(curve_k),
-                                                      int_p_2,
-                                                      int_p_1));
+        all_segments.append(Segment::from_intersections(curve_k,
+                                                        points_k,
+                                                        inter_last.parameter_for_curve(curve_k),
+                                                        inter_first.parameter_for_curve(curve_k),
+                                                        int_p_2,
+                                                        int_p_1));
       }
       else {
         const int int_p_1 = new_inters[inter_sorted_ids.first()];
         IntersectionPoint &inter_first = intersections[int_p_1];
 
         if (curve_k == inter_first.curve_a) {
-          inter_first.end_a = SegmentEndPoint(all_segments.size() + segments_k.size(), true);
+          inter_first.end_a = SegmentEndPoint(all_segments.size(), true);
         }
         else {
-          inter_first.end_b = SegmentEndPoint(all_segments.size() + segments_k.size(), true);
+          inter_first.end_b = SegmentEndPoint(all_segments.size(), true);
         }
 
-        segments_k.append(Segment::from_start_to_intersection(
+        all_segments.append(Segment::from_start_to_intersection(
             curve_k, points_k, inter_first.parameter_for_curve(curve_k), int_p_1));
       }
 
@@ -753,25 +754,25 @@ BooleanResult execute_single_boolean(const CurveBooleanOpParameters op_params,
         IntersectionPoint &inter_last = intersections[int_p_2];
 
         if (curve_k == inter_first.curve_a) {
-          inter_first.end_a = SegmentEndPoint(all_segments.size() + segments_k.size(), true);
+          inter_first.end_a = SegmentEndPoint(all_segments.size(), true);
         }
         else {
-          inter_first.end_b = SegmentEndPoint(all_segments.size() + segments_k.size(), true);
+          inter_first.end_b = SegmentEndPoint(all_segments.size(), true);
         }
 
         if (curve_k == inter_last.curve_a) {
-          inter_last.start_a = SegmentEndPoint(all_segments.size() + segments_k.size(), false);
+          inter_last.start_a = SegmentEndPoint(all_segments.size(), false);
         }
         else {
-          inter_last.start_b = SegmentEndPoint(all_segments.size() + segments_k.size(), false);
+          inter_last.start_b = SegmentEndPoint(all_segments.size(), false);
         }
 
-        segments_k.append(Segment::from_intersections(curve_k,
-                                                      points_k,
-                                                      inter_first.parameter_for_curve(curve_k),
-                                                      inter_last.parameter_for_curve(curve_k),
-                                                      int_p_1,
-                                                      int_p_2));
+        all_segments.append(Segment::from_intersections(curve_k,
+                                                        points_k,
+                                                        inter_first.parameter_for_curve(curve_k),
+                                                        inter_last.parameter_for_curve(curve_k),
+                                                        int_p_1,
+                                                        int_p_2));
       }
 
       if (!(is_cyclic[curve_k] || is_fill[curve_k])) {
@@ -779,19 +780,18 @@ BooleanResult execute_single_boolean(const CurveBooleanOpParameters op_params,
         IntersectionPoint &inter_last = intersections[int_p_2];
 
         if (curve_k == inter_last.curve_a) {
-          inter_last.start_a = SegmentEndPoint(all_segments.size() + segments_k.size(), false);
+          inter_last.start_a = SegmentEndPoint(all_segments.size(), false);
         }
         else {
-          inter_last.start_b = SegmentEndPoint(all_segments.size() + segments_k.size(), false);
+          inter_last.start_b = SegmentEndPoint(all_segments.size(), false);
         }
 
-        segments_k.append(Segment::from_intersection_to_end(
+        all_segments.append(Segment::from_intersection_to_end(
             curve_k, points_k, inter_last.parameter_for_curve(curve_k), int_p_2));
       }
     }
 
-    all_segments.extend(segments_k);
-    all_segments_by_curve[curve_k] = all_segments.index_range().take_back(segments_k.size());
+    all_segments_by_curve[curve_k] = all_segments.index_range().drop_front(start_size);
   };
 
   auto check_segments = [&](const int curve_k, const bool is_subj) {
