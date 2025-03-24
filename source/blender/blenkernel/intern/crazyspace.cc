@@ -627,14 +627,14 @@ GeometryDeformation get_evaluated_curves_deformation(const Depsgraph &depsgraph,
 
 GeometryDeformation get_evaluated_grease_pencil_drawing_deformation(const Object *ob_eval,
                                                                     const Object &ob_orig,
-                                                                    const int layer_index,
+                                                                    const int orig_layer_index,
                                                                     const int frame)
 {
   BLI_assert(ob_orig.type == OB_GREASE_PENCIL);
   const GreasePencil &grease_pencil_orig = *static_cast<const GreasePencil *>(ob_orig.data);
 
   const Span<const bke::greasepencil::Layer *> layers_orig = grease_pencil_orig.layers();
-  const bke::greasepencil::Layer &layer_orig = grease_pencil_orig.layer(layer_index);
+  const bke::greasepencil::Layer &layer_orig = grease_pencil_orig.layer(orig_layer_index);
   const bke::greasepencil::Drawing *drawing_orig = grease_pencil_orig.get_drawing_at(layer_orig,
                                                                                      frame);
   if (drawing_orig == nullptr) {
@@ -665,7 +665,7 @@ GeometryDeformation get_evaluated_grease_pencil_drawing_deformation(const Object
     {
       BLI_assert(edit_hints->drawing_hints->size() == layers_orig.size());
       const GreasePencilDrawingEditHints &drawing_hints =
-          edit_hints->drawing_hints.value()[layer_index];
+          edit_hints->drawing_hints.value()[orig_layer_index];
       if (drawing_hints.positions()) {
         deformation.positions = *drawing_hints.positions();
         has_deformed_positions = true;
@@ -684,11 +684,11 @@ GeometryDeformation get_evaluated_grease_pencil_drawing_deformation(const Object
           geometry_eval->get_component<GreasePencilComponent>())
   {
     if (const GreasePencil *grease_pencil_eval = grease_pencil_component_eval->get()) {
-      Span<const bke::greasepencil::Layer *> layers_eval = grease_pencil_eval->layers();
-      if (layers_eval.size() == layers_orig.size()) {
-        const bke::greasepencil::Layer &layer_eval = *layers_eval[layer_index];
+      if (const bke::greasepencil::Layer *layer_eval =
+              grease_pencil_eval->get_eval_layer_from_orig_index(orig_layer_index))
+      {
         if (const bke::greasepencil::Drawing *drawing_eval = grease_pencil_eval->get_drawing_at(
-                layer_eval, frame))
+                *layer_eval, frame))
         {
           if (drawing_eval->strokes().points_num() == drawing_orig->strokes().points_num()) {
             deformation.positions = drawing_eval->strokes().positions();
@@ -704,11 +704,12 @@ GeometryDeformation get_evaluated_grease_pencil_drawing_deformation(const Object
 
 GeometryDeformation get_evaluated_grease_pencil_drawing_deformation(const Depsgraph &depsgraph,
                                                                     const Object &ob_orig,
-                                                                    const int layer_index,
+                                                                    const int orig_layer_index,
                                                                     const int frame)
 {
   const Object *ob_eval = DEG_get_evaluated_object(&depsgraph, const_cast<Object *>(&ob_orig));
-  return get_evaluated_grease_pencil_drawing_deformation(ob_eval, ob_orig, layer_index, frame);
+  return get_evaluated_grease_pencil_drawing_deformation(
+      ob_eval, ob_orig, orig_layer_index, frame);
 }
 
 }  // namespace blender::bke::crazyspace

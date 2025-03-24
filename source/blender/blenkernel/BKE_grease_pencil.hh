@@ -428,6 +428,10 @@ class LayerRuntime {
    * when creating a copy of of the owning GreasePencil ID for the depsgraph evaluation. */
   bool is_visibility_animated_;
 
+  /* For evaluated layers, store the index of the original layer. If no such layer exists (e.g. if
+   * the evaluated layer was created from scratch), the index is -1. */
+  int orig_layer_index_ = -1;
+
  public:
   /* Reset all runtime data. */
   void clear();

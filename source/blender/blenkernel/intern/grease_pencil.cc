@@ -2262,16 +2262,19 @@ static void grease_pencil_evaluate_layers(GreasePencil &grease_pencil)
    * cache. This will only copy the pointers to the layers, not the layers themselves. */
   Array<Layer *> layers = grease_pencil.layers_for_write();
 
-  for (Layer *layer : layers) {
+  for (const int layer_i : layers.index_range()) {
+    Layer &layer = *layers[layer_i];
+    /* Store the original index. */
+    layer.runtime->orig_layer_index_ = layer_i;
     /* When the visibility is animated, the layer should be retained even when it is invisible.
      * Changing the visibility through the animation system does NOT create another evaluated copy,
      * and thus the layer has to be kept for this future use. */
-    if (layer->is_visible() || layer->runtime->is_visibility_animated_) {
+    if (layer.is_visible() || layer.runtime->is_visibility_animated_) {
       continue;
     }
 
     /* Remove layer from evaluated data. */
-    grease_pencil.remove_layer(*layer);
+    grease_pencil.remove_layer(layer);
   }
 }
 
@@ -3463,6 +3466,29 @@ blender::Span<blender::bke::greasepencil::TreeNode *> GreasePencil::nodes_for_wr
 {
   BLI_assert(this->runtime != nullptr);
   return this->root_group().nodes_for_write();
+}
+
+const blender::bke::greasepencil::Layer *GreasePencil::get_eval_layer_from_orig_index(
+    const int64_t orig_index) const
+{
+  using namespace blender::bke::greasepencil;
+  for (const Layer *layer : this->layers()) {
+    if (layer->runtime->orig_layer_index_ == orig_index) {
+      return layer;
+    }
+  }
+  return nullptr;
+}
+blender::bke::greasepencil::Layer *GreasePencil::get_eval_layer_from_orig_index(
+    const int64_t orig_index)
+{
+  using namespace blender::bke::greasepencil;
+  for (Layer *layer : this->layers_for_write()) {
+    if (layer->runtime->orig_layer_index_ == orig_index) {
+      return layer;
+    }
+  }
+  return nullptr;
 }
 
 std::optional<int> GreasePencil::get_layer_index(
