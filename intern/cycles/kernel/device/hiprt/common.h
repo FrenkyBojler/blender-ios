@@ -422,6 +422,10 @@ ccl_device_inline bool shadow_intersection_filter(const hiprtRay &ray,
     return true;  // no hit -continue traversal
   }
 
+  if (intersection_skip_shadow_already_recoded(kg, state, object, prim, num_hits)) {
+    return true;
+  }
+
   float u = hit.uv.x;
   float v = hit.uv.y;
   int type = kernel_data_fetch(objects, object).primitive_type;
@@ -515,6 +519,10 @@ ccl_device_inline bool shadow_intersection_filter_curves(const hiprtRay &ray,
     return true;  // no hit -continue traversal
   }
 
+  if (intersection_skip_shadow_already_recoded(kg, payload->in_state, object, prim, num_hits)) {
+    return true;
+  }
+
   float u = hit.uv.x;
   float v = hit.uv.y;
 
@@ -586,26 +594,10 @@ ccl_device_inline bool local_intersection_filter(const hiprtRay &ray,
     return false;  // stop search
   }
 
-  int hit_index = 0;
-  if (payload->lcg_state) {
-    for (int i = min(max_hits, payload->local_isect->num_hits) - 1; i >= 0; --i) {
-      if (hit.t == payload->local_isect->hits[i].t) {
-        return true;  // continue search
-      }
-    }
-    hit_index = payload->local_isect->num_hits++;
-    if (payload->local_isect->num_hits > max_hits) {
-      hit_index = lcg_step_uint(payload->lcg_state) % payload->local_isect->num_hits;
-      if (hit_index >= max_hits) {
-        return true;  // continue search
-      }
-    }
-  }
-  else {
-    if (payload->local_isect->num_hits && hit.t > payload->local_isect->hits[0].t) {
-      return true;
-    }
-    payload->local_isect->num_hits = 1;
+  const int hit_index = local_intersect_get_record_index(
+      payload->local_isect, hit.t, payload->lcg_state, max_hits);
+  if (hit_index == -1) {
+    return true;  // continue search
   }
 
   Intersection *isect = &payload->local_isect->hits[hit_index];
