@@ -54,7 +54,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   geometry_set.modify_geometry_sets([&](GeometrySet &geometry) {
     if (GreasePencil *grease_pencil = geometry.get_grease_pencil_for_write()) {
-      using namespace blender::bke::greasepencil;
+      using namespace bke::greasepencil;
       for (const int layer_index : grease_pencil->layers().index_range()) {
         Drawing *drawing = grease_pencil->get_eval_drawing(grease_pencil->layer(layer_index));
         if (drawing == nullptr) {
@@ -66,7 +66,9 @@ static void node_geo_exec(GeoNodeExecParams params)
         const bke::GreasePencilLayerFieldContext layer_field_context(
             *grease_pencil, domain, layer_index);
 
-        /* TODO: Avoid doing this if the selection is false. */
+        /* FIXME: The default float value is 0, while the default opacity should be 1. So we have
+         * to initialize the attribute manually.
+         * TODO: Avoid doing this if the selection is false. */
         if (!curves.attributes().contains(opacity_attr_name)) {
           curves.attributes_for_write().add(
               opacity_attr_name,
