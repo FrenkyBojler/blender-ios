@@ -524,8 +524,7 @@ GHOST_TSuccess GHOST_ContextVK::destroySwapchain()
     vkDestroySwapchainKHR(device, m_swapchain, nullptr);
   }
   VK_CHECK(vkDeviceWaitIdle(device));
-  for (VkSemaphore semaphore : m_acquire_semaphores)
-  {
+  for (VkSemaphore semaphore : m_acquire_semaphores) {
     vkDestroySemaphore(device, semaphore, nullptr);
   }
   m_acquire_semaphores.clear();
