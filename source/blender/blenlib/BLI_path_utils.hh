@@ -9,7 +9,6 @@
 
 #include "BLI_compiler_attrs.h"
 #include "BLI_compiler_compat.h"
-#include "BLI_map.hh"
 #include "BLI_utildefines.h"
 #include "BLI_utildefines_variadic.h"
 

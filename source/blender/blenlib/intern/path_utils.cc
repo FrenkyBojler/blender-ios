@@ -9,18 +9,13 @@
 
 #include <algorithm> /* For `min/max`. */
 #include <cctype>
-#include <cmath>
 #include <cstdlib>
 #include <cstring>
-#include <optional>
 
 #include "BLI_fileops.h"
 #include "BLI_fnmatch.h"
-#include "BLI_index_range.hh"
-#include "BLI_map.hh"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
-#include "BLI_string_ref.hh"
 #include "BLI_string_utils.hh"
 #include "BLI_utildefines.h"
 

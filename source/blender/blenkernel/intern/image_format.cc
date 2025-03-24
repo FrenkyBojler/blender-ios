@@ -20,7 +20,6 @@
 
 #include "MOV_util.hh"
 
-#include "BKE_bpath.hh"
 #include "BKE_colortools.hh"
 #include "BKE_image_format.hh"
 #include "BKE_variables.hh"

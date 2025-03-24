@@ -5,8 +5,8 @@
 #include "BKE_variables.hh"
 
 PathVariables BKE_build_blender_variables(const char *blend_file_path,
-                                       std::optional<uint64_t> frame_number,
-                                       const RenderData *render_data)
+                                          std::optional<uint64_t> frame_number,
+                                          const RenderData *render_data)
 {
   PathVariables variables;
 

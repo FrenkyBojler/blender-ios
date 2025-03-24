@@ -44,8 +44,6 @@
 
 #include "BKE_bpath.hh" /* own include */
 
-#include "DNA_scene_types.h"
-
 #include "CLG_log.h"
 
 #ifndef _MSC_VER

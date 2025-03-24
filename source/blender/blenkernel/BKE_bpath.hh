@@ -14,13 +14,11 @@
 
 #pragma once
 
-#include "BLI_path_utils.hh"
 #include "BLI_utildefines.h"
 
 struct ID;
 struct Main;
 struct ReportList;
-struct RenderData;
 
 /** \name Core `foreach_path` API.
  * \{ */

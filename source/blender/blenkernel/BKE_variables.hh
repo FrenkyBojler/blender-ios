@@ -65,7 +65,7 @@ struct PathVariables {
  * \see BLI_path_abs()
  */
 PathVariables BKE_build_blender_variables(const char *blend_file_path,
-                                       std::optional<uint64_t> frame_number,
-                                       const RenderData *render_data);
+                                          std::optional<uint64_t> frame_number,
+                                          const RenderData *render_data);
 
 bool BKE_path_apply_variables(char path[FILE_MAX], const PathVariables &variables);
