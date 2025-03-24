@@ -52,41 +52,43 @@ static void node_geo_exec(GeoNodeExecParams params)
   const StringRef color_attr_name = domain == AttrDomain::Point ? "vertex_color" : "fill_color";
   const StringRef opacity_attr_name = domain == AttrDomain::Point ? "opacity" : "fill_opacity";
 
-  if (GreasePencil *grease_pencil = geometry_set.get_grease_pencil_for_write()) {
-    using namespace blender::bke::greasepencil;
-    for (const int layer_index : grease_pencil->layers().index_range()) {
-      Drawing *drawing = grease_pencil->get_eval_drawing(grease_pencil->layer(layer_index));
-      if (drawing == nullptr) {
-        continue;
-      }
-      bke::CurvesGeometry &curves = drawing->strokes_for_write();
-      const int64_t domain_size = curves.attributes().domain_size(domain);
+  geometry_set.modify_geometry_sets([&](GeometrySet &geometry) {
+    if (GreasePencil *grease_pencil = geometry.get_grease_pencil_for_write()) {
+      using namespace blender::bke::greasepencil;
+      for (const int layer_index : grease_pencil->layers().index_range()) {
+        Drawing *drawing = grease_pencil->get_eval_drawing(grease_pencil->layer(layer_index));
+        if (drawing == nullptr) {
+          continue;
+        }
+        bke::CurvesGeometry &curves = drawing->strokes_for_write();
+        const int64_t domain_size = curves.attributes().domain_size(domain);
 
-      const bke::GreasePencilLayerFieldContext layer_field_context(
-          *grease_pencil, domain, layer_index);
+        const bke::GreasePencilLayerFieldContext layer_field_context(
+            *grease_pencil, domain, layer_index);
 
-      /* TODO: Avoid doing this if the selection is false. */
-      if (!curves.attributes().contains(opacity_attr_name)) {
-        curves.attributes_for_write().add(
-            opacity_attr_name,
-            domain,
-            CD_PROP_FLOAT,
-            bke::AttributeInitVArray(VArray<float>::ForSingle(1.0f, domain_size)));
+        /* TODO: Avoid doing this if the selection is false. */
+        if (!curves.attributes().contains(opacity_attr_name)) {
+          curves.attributes_for_write().add(
+              opacity_attr_name,
+              domain,
+              CD_PROP_FLOAT,
+              bke::AttributeInitVArray(VArray<float>::ForSingle(1.0f, domain_size)));
+        }
+        bke::try_capture_field_on_geometry(curves.attributes_for_write(),
+                                           layer_field_context,
+                                           color_attr_name,
+                                           domain,
+                                           selection,
+                                           color_field);
+        bke::try_capture_field_on_geometry(curves.attributes_for_write(),
+                                           layer_field_context,
+                                           opacity_attr_name,
+                                           domain,
+                                           selection,
+                                           opacity_field);
       }
-      bke::try_capture_field_on_geometry(curves.attributes_for_write(),
-                                         layer_field_context,
-                                         color_attr_name,
-                                         domain,
-                                         selection,
-                                         color_field);
-      bke::try_capture_field_on_geometry(curves.attributes_for_write(),
-                                         layer_field_context,
-                                         opacity_attr_name,
-                                         domain,
-                                         selection,
-                                         opacity_field);
     }
-  }
+  });
 
   params.set_output("Grease Pencil", std::move(geometry_set));
 }
