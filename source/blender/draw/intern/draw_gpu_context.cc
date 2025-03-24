@@ -76,6 +76,9 @@ void DRW_gpu_context_create()
 
   /* Setup compilation context. Called first as it changes the active GPUContext. */
   DRW_shader_init();
+  /* Some part of the code assumes no context is left bound. */
+  GPU_context_active_set(nullptr);
+  WM_system_gpu_context_release(system_gpu_context);
 
   /* Activate the window's context if any. */
   wm_window_reset_drawable();
