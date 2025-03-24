@@ -21,10 +21,16 @@ struct FCurve;
 
 namespace blender::animrig {
 
-/* All the information needed to look up or create an FCurve. */
+/**
+ * All the information needed to look up or create an FCurve.
+ *
+ * The `std::optional<>` fields are only used for creation. The mandatory fields
+ * are used for both creation and lookup.
+ */
 struct FCurveDescriptor {
   StringRefNull rna_path;
   int array_index;
+  std::optional<PropertyType> prop_type;
   std::optional<PropertySubType> prop_subtype;
   std::optional<blender::StringRefNull> channel_group;
 };
