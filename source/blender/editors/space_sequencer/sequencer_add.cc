@@ -1505,8 +1505,9 @@ static int sequencer_add_effect_strip_exec(bContext *C, wmOperator *op)
   load_data.effect.type = RNA_enum_get(op->ptr, "type");
   const int num_inputs = seq::effect_get_num_inputs(load_data.effect.type);
 
-  Strip *seq1, *seq2;
-  if (!strip_effect_get_new_inputs(scene, false, num_inputs, &seq1, &seq2, &error_msg)) {
+  VectorSet<Strip *> inputs = strip_effect_get_new_inputs(scene);
+
+  if (!effect_inputs_validate(inputs, num_inputs, &error_msg)) {
     BKE_report(op->reports, RPT_ERROR, error_msg);
     return OPERATOR_CANCELLED;
   }
@@ -1514,6 +1515,9 @@ static int sequencer_add_effect_strip_exec(bContext *C, wmOperator *op)
   if (RNA_boolean_get(op->ptr, "replace_sel")) {
     deselect_all_strips(scene);
   }
+
+  Strip *seq1 = inputs[0];
+  Strip *seq2 = inputs.size() == 2 ? inputs[1] : nullptr;
 
   load_data.effect.seq1 = seq1;
   load_data.effect.seq2 = seq2;

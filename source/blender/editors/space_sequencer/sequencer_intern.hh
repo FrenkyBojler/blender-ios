@@ -174,12 +174,10 @@ void channel_draw_context_init(const bContext *C,
 void strip_rectf(const Scene *scene, const Strip *strip, rctf *r_rect);
 Strip *find_neighboring_sequence(Scene *scene, Strip *test, int lr, int sel);
 void recurs_sel_seq(Strip *strip_meta);
-bool strip_effect_get_new_inputs(Scene *scene,
-                                 bool ignore_active,
-                                 int num_inputs,
-                                 Strip **r_seq1,
-                                 Strip **r_seq2,
-                                 const char **r_error_str);
+VectorSet<Strip *> strip_effect_get_new_inputs(const Scene *scene, bool ignore_active = false);
+bool effect_inputs_validate(const VectorSet<Strip *> &inputs,
+                            int num_inputs,
+                            const char **r_error_str);
 
 /* Operator helpers. */
 bool sequencer_edit_poll(bContext *C);
