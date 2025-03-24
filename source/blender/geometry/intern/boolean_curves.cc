@@ -678,7 +678,7 @@ BooleanResult execute_single_boolean(const CurveBooleanOpParameters op_params,
   Vector<bool> all_inside_right;
   Array<IndexRange> all_segments_by_curve(points_by_curve.size());
 
-  auto add_segments = [&](const int curve_k, const bool is_subj) {
+  auto add_segments = [&](const int curve_k) {
     const IndexRange points_k = points_by_curve[curve_k];
     Vector<Segment> segments_k;
     const Span<int> other_inter = inters_per_curves[curve_k];
@@ -792,7 +792,9 @@ BooleanResult execute_single_boolean(const CurveBooleanOpParameters op_params,
 
     all_segments.extend(segments_k);
     all_segments_by_curve[curve_k] = all_segments.index_range().take_back(segments_k.size());
+  };
 
+  auto check_segments = [&](const int curve_k, const bool is_subj) {
     const IndexRange segments = all_segments_by_curve[curve_k];
 
     const Segment &first_segment = all_segments[segments.first()];
@@ -837,10 +839,18 @@ BooleanResult execute_single_boolean(const CurveBooleanOpParameters op_params,
 
   /* -------------------- */
 
-  curves_i.foreach_index([&](const int curve_i) { add_segments(curve_i, true); });
+  curves_i.foreach_index([&](const int curve_i) { add_segments(curve_i); });
   clipping_shapes.foreach_index([&](const int clip_shape_id) {
     const IndexMask &curves_j = shapes[clip_shape_id];
-    curves_j.foreach_index([&](const int curve_j) { add_segments(curve_j, false); });
+    curves_j.foreach_index([&](const int curve_j) { add_segments(curve_j); });
+  });
+
+  /* -------------------- */
+
+  curves_i.foreach_index([&](const int curve_i) { check_segments(curve_i, true); });
+  clipping_shapes.foreach_index([&](const int clip_shape_id) {
+    const IndexMask &curves_j = shapes[clip_shape_id];
+    curves_j.foreach_index([&](const int curve_j) { check_segments(curve_j, false); });
   });
 
   /* -------------------- */
