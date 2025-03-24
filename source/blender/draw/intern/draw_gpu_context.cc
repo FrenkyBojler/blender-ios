@@ -68,11 +68,6 @@ void DRW_gpu_context_create()
 
   system_gpu_context_mutex = BLI_ticket_mutex_alloc();
   submission_mutex = BLI_ticket_mutex_alloc();
-
-  if (GPU_use_main_context_workaround()) {
-    return;
-  }
-
   /* This changes the active context. */
   system_gpu_context = WM_system_gpu_context_create();
   WM_system_gpu_context_activate(system_gpu_context);
