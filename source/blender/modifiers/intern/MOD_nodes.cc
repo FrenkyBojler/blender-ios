@@ -1825,11 +1825,12 @@ static void modifyGeometry(ModifierData *md,
 
   bke::ModifierComputeContext modifier_compute_context{nullptr, nmd->modifier.name};
 
-  geometry_set = nodes::execute_geometry_nodes_on_geometry(tree,
-                                                           nmd->settings.properties,
-                                                           modifier_compute_context,
-                                                           call_data,
-                                                           std::move(geometry_set));
+  geometry_set = nodes::execute_geometry_nodes_on_geometry(
+      tree,
+      nodes::build_properties_vector_set(nmd->settings.properties),
+      modifier_compute_context,
+      call_data,
+      std::move(geometry_set));
 
   if (logging_enabled(ctx)) {
     nmd_orig->runtime->eval_log = std::move(eval_log);
@@ -1999,6 +2000,7 @@ static void attribute_search_exec_fn(bContext *C, void *data_v, void *item_v)
 struct DrawGroupInputsContext {
   const bContext &C;
   NodesModifierData &nmd;
+  nodes::PropertiesVectorSet properties;
   PointerRNA *md_ptr;
   PointerRNA *bmain_ptr;
   Array<bool> input_usages;
@@ -2084,8 +2086,8 @@ static void add_attribute_search_or_value_buttons(DrawGroupInputsContext &ctx,
 
   uiLayout *prop_row = nullptr;
 
-  const std::optional<StringRef> attribute_name = nodes::input_attribute_name_get(
-      *ctx.nmd.settings.properties, socket);
+  const std::optional<StringRef> attribute_name = nodes::input_attribute_name_get(ctx.properties,
+                                                                                  socket);
   if (type == SOCK_BOOLEAN && !attribute_name) {
     uiItemL(name_row, "", ICON_NONE);
     prop_row = uiLayoutRow(split, true);
@@ -2557,13 +2559,14 @@ static void panel_draw(const bContext *C, Panel *panel)
 
   Main *bmain = CTX_data_main(C);
   PointerRNA bmain_ptr = RNA_main_pointer_create(bmain);
-  DrawGroupInputsContext ctx{*C, *nmd, ptr, &bmain_ptr};
+  DrawGroupInputsContext ctx{
+      *C, *nmd, nodes::build_properties_vector_set(nmd->settings.properties), ptr, &bmain_ptr};
 
   if (nmd->node_group != nullptr && nmd->settings.properties != nullptr) {
     nmd->node_group->ensure_interface_cache();
     ctx.input_usages.reinitialize(nmd->node_group->interface_inputs().size());
     nodes::socket_usage_inference::infer_group_interface_inputs_usage(
-        *nmd->node_group, nmd->settings.properties, ctx.input_usages);
+        *nmd->node_group, ctx.properties, ctx.input_usages);
     draw_interface_panel_content(ctx, layout, nmd->node_group->tree_interface.root_panel);
   }
 
