@@ -261,11 +261,7 @@ string HIPDevice::compile_kernel(const uint kernel_features, const char *name, c
 
   const char *const kernel_ext = "genco";
   std::string options = "-Wno-parentheses-equality -Wno-unused-value";
-  /* Enable fast math option only for non-RDNA2 GPUs (compiler bug). */
-#  ifdef _WIN32
-  if (!hipIsRDNA2(arch))
-#  endif
-  {
+  if (hipSupportsFastMath(arch)) {
     options.append(" -ffast-math");
   }
 

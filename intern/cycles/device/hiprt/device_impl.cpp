@@ -225,10 +225,7 @@ string HIPRTDevice::compile_kernel(const uint kernel_features, const char *name,
   string options;
   options.append("-Wno-parentheses-equality -Wno-unused-value -O3 -std=c++17 -D __HIPRT__");
   options.append(" --offload-arch=").append(arch.c_str());
-#  ifdef _WIN32
-  if (!hipIsRDNA2(arch))
-#  endif
-  {
+  if (hipSupportsFastMath(arch)) {
     options.append(" -ffast-math");
   }
 #  ifdef WITH_NANOVDB
