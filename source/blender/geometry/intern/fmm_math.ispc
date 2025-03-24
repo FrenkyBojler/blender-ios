@@ -86,18 +86,6 @@ export void float3_gather_dot_product(const uniform int indices[],
   }
 }
 
-// export void float_scatter_mul_add(const uniform float factors[],
-//                                   const uniform float value,
-//                                   const uniform int indices[],
-//                                   uniform float data[],
-//                                   const uniform int count)
-// {
-//   foreach (i = 0 ... count) {
-//     data[indices[i]] += value * factors[i];
-//     prefetchw_l1(&data[indices[min(i + 32, count - 1)]]);
-//   }
-// }
-
 export void gather_distances(const uniform int indices[],
                              const uniform float positions[][3],
                              const uniform float target[3],
@@ -197,22 +185,30 @@ export void distances_split(const uniform float positions_x[],
     const uniform float<3> targets = {target[0], target[1], target[2]};
     const uniform int batch_count = (count / programCount) * programCount;
     for (uniform int index = 0; index < batch_count; index += programCount) {
-        prefetch_nt(&positions_x[index + 100]);
-        prefetch_nt(&positions_y[index + 100]);
-        prefetch_nt(&positions_z[index + 100]);
-        varying float<3> batch = {positions_x[index + programIndex],
-                                  positions_y[index + programIndex],
-                                  positions_z[index + programIndex]};
+        varying float<3> batch = {streaming_load(&positions_x[index]),
+                                  streaming_load(&positions_y[index]),
+                                  streaming_load(&positions_z[index])};
         batch -= targets;
         batch *= batch;
         distances[index + programIndex] = sqrt(batch.x + batch.y + batch.z) + offset;
     }
-    for (uniform int index = batch_count; index < count; index++) {
-        uniform float<3> batch = {positions_x[index], positions_y[index], positions_z[index]};
-        batch -= targets;
-        batch *= batch;
-        distances[index] = sqrt(batch.x + batch.y + batch.z) + offset;
-    }
+
+    uniform float sufix_x[programCount];
+    uniform float sufix_y[programCount];
+    uniform float sufix_z[programCount];
+
+    memcpy(&sufix_x[0], (uniform float * uniform)&positions_x[batch_count], sizeof(uniform float) * (count - batch_count));
+    memcpy(&sufix_y[0], (uniform float * uniform)&positions_y[batch_count], sizeof(uniform float) * (count - batch_count));
+    memcpy(&sufix_z[0], (uniform float * uniform)&positions_z[batch_count], sizeof(uniform float) * (count - batch_count));
+
+    uniform float sufix_result[programCount];
+
+    varying float<3> sufix_batch = {sufix_x[programIndex], sufix_y[programIndex], sufix_z[programIndex]};
+    sufix_batch -= targets;
+    sufix_batch *= sufix_batch;
+    sufix_result[programIndex] = sqrt(sufix_batch.x + sufix_batch.y + sufix_batch.z) + offset;
+
+    memcpy((uniform float * uniform)&distances[batch_count], &sufix_result[0], sizeof(uniform float) * (count - batch_count));
 }
 
 export uniform int predicate_indices_float_cmp(
@@ -261,6 +257,52 @@ export uniform int predicate_indices_float_cmp(
     return total_front;
 }
 
+export uniform int predicate_revers_indices_float_cmp(
+    uniform int indices[],
+    uniform float predicates[],
+    const uniform int count,
+    const uniform float min_predicate_value)
+{
+    uniform int front = 0;
+    const uniform int batch_count = (count / programCount) * programCount;
+    for (uniform int index = 0; index < batch_count; index += programCount) {
+        const varying float predicate = streaming_load(&predicates[index]);
+        const varying bool mask = predicate < min_predicate_value;
+        indices[index + programIndex] = (front + exclusive_scan_add((int)mask)) * (int)mask;
+        front += popcnt(packmask(mask));
+    }
+    for (uniform int index = batch_count; index < count; index++) {
+        const uniform float predicate = predicates[index];
+        const uniform bool mask = predicate < min_predicate_value;
+        indices[index] = front * (int)mask;
+        front += mask;
+    }
+
+    const uniform int total_front = front;
+
+    if (total_front == count || total_front == 0) {
+      return total_front;
+    }
+
+    for (uniform int index = 0; index < batch_count; index += programCount) {
+        const varying float predicate = streaming_load(&predicates[index]);
+        const varying bool mask = !(predicate < min_predicate_value);
+        const varying int old = streaming_load(&indices[index]);
+        indices[index + programIndex] = old + (front + exclusive_scan_add((int)mask)) * (int)mask;
+        front += popcnt(packmask(mask));
+    }
+
+    for (uniform int index = batch_count; index < count; index++) {
+        const uniform float predicate = predicates[index];
+        const uniform bool mask =!(predicate < min_predicate_value);
+        const uniform int offset = front * (int)mask;
+        indices[index] += front * (int)mask;
+        front += mask;
+    }
+
+    return total_front;
+}
+
 export uniform int partition_int_compare_float(
     uniform int values[],
     uniform int buffer[],
@@ -271,8 +313,8 @@ export uniform int partition_int_compare_float(
     uniform int buffer_index = 0;
     const uniform int batch_count = (count / programCount) * programCount;
     for (uniform int index = 0; index < batch_count; index += programCount) {
-        prefetch_nt(&values[index + 100]);
-        prefetch_nt(&predicates[index + 100]);
+        // prefetch_nt(&values[index + 100]);
+        // prefetch_nt(&predicates[index + 100]);
         const varying int value = streaming_load(&values[index]);
         const varying float predicate = streaming_load(&predicates[index]);
         if (predicate < min_predicate_value) {
@@ -295,8 +337,8 @@ export uniform int partition_int_compare_float(
     }
     
     for (uniform int index = 0; index < batch_count; index += programCount) {
-        prefetch_nt(&values[index + 100]);
-        prefetch_nt(&predicates[index + 100]);
+        // prefetch_nt(&values[index + 100]);
+        // prefetch_nt(&predicates[index + 100]);
         const varying int value = streaming_load(&values[index]);
         const varying float predicate = streaming_load(&predicates[index]);
         if (!(predicate < min_predicate_value)) {
@@ -316,6 +358,168 @@ export uniform int partition_int_compare_float(
     
     memcpy(&values[0], &buffer[0], sizeof(uniform int) * count);
     return total_front;
+}
+
+struct IndicesStruct {
+  int max_size_items_start;
+  int max_size_items_end;
+  int rest_size_start;
+  int rest_size_end;
+};
+
+export uniform int gather_ints_buffer_segmented(
+    uniform int values[],
+    uniform int indices[],
+    uniform int buffer[],
+    uniform int count,
+    uniform IndicesStruct * uniform more_or_equal,
+    uniform IndicesStruct * uniform smaller)
+{
+  uniform int iter = 0;
+    for (uniform int index = more_or_equal->max_size_items_start; index < more_or_equal->max_size_items_end; index++) {
+        buffer[iter + programIndex] = streaming_load(&values[indices[index]]);
+        iter += programCount;
+    }
+
+    for (uniform int index = more_or_equal->rest_size_start; index < more_or_equal->rest_size_end; index++) {
+        buffer[iter] = values[indices[index]];
+        iter++;
+    }
+
+    for (uniform int index = smaller->max_size_items_start; index < smaller->max_size_items_end; index++) {
+        buffer[iter + programIndex] = streaming_load(&values[indices[index]]);
+        iter += programCount;
+    }
+
+    for (uniform int index = smaller->rest_size_start; index < smaller->rest_size_end; index++) {
+        buffer[iter] = values[indices[index]];
+        iter++;
+    }
+
+    memcpy(&values[0], &buffer[0], sizeof(uniform int) * count);
+}
+
+enum ePredicateStatisics {
+    epsNone,
+    epsAll,
+    epsMixed,
+};
+
+export uniform ePredicateStatisics float_more_then_single(
+    uniform float values[],
+    uniform float min_predicate_value,
+    uniform int count)
+{
+    const uniform int batch_count = (count / programCount) * programCount;
+
+    varying int total = 0;
+    for (uniform int index = 0; index < batch_count / 2; index += programCount) {
+        total += (int)(streaming_load(&values[index]) < min_predicate_value);
+    }
+    const uniform int half_total = reduce_add(total);
+    if (half_total > 0 && half_total < batch_count / 2) {
+        return epsMixed;
+    }
+
+    for (uniform int index = batch_count / 2; index < batch_count; index += programCount) {
+        total += (int)(streaming_load(&values[index]) < min_predicate_value);
+    }
+
+    uniform int rest_total = 0;
+    for (uniform int index = batch_count; index < count; index++) {
+        rest_total += (int)(values[index] < min_predicate_value);
+    }
+
+    const uniform int full_total = reduce_add(total) + rest_total;
+    if (full_total == 0) {
+        return epsNone;
+    }
+
+    if (full_total == count) {
+        return epsAll;
+    }
+
+    return epsMixed;
+}
+
+export uniform int float_compare_n_indices_segmented(
+    uniform float predicates[],
+    const uniform float min_predicate_value,
+    uniform IndicesStruct * uniform more_or_equal,
+    uniform IndicesStruct * uniform smaller,
+    uniform int indices[],
+    uniform int buffer[],
+    const uniform int count)
+{
+    uniform int max_size_iter = 0;
+    uniform int rest_items_iter = 0;
+    const uniform int batch_count = (count / programCount) * programCount;
+    for (uniform int index = 0; index < batch_count; index += programCount) {
+        const varying float predicate = streaming_load(&predicates[index]);
+        indices[max_size_iter] = index;
+
+        uniform int total_rest = 0;
+        if (predicate < min_predicate_value) {
+            total_rest += packed_store_active(&buffer[rest_items_iter], index + programIndex);
+        }
+
+        const uniform bool full_batch = all(predicate < min_predicate_value);
+        max_size_iter += (int)full_batch;
+        rest_items_iter += ((int)!full_batch) * total_rest;
+    }
+
+    more_or_equal->max_size_items_start = 0;
+    more_or_equal->max_size_items_end = max_size_iter;
+
+    memcpy(&indices[0] + max_size_iter,
+        &buffer[0],
+        sizeof(uniform int) * (rest_items_iter));
+
+    for (uniform int index = batch_count; index < count; index++) {
+        const uniform float predicate = predicates[index];
+        indices[max_size_iter + rest_items_iter] = index;
+        rest_items_iter += (int)(predicate < min_predicate_value);
+    }
+    more_or_equal->rest_size_start = max_size_iter;
+    more_or_equal->rest_size_end = max_size_iter + rest_items_iter;
+
+    const uniform int total_more_or_equal = rest_items_iter + max_size_iter * programCount;
+
+    {
+        uniform int max_size_iter_back = max_size_iter + rest_items_iter;
+        uniform int rest_items_iter_back = 0;
+        const uniform int batch_count = (count / programCount) * programCount;
+        for (uniform int index = 0; index < batch_count; index += programCount) {
+            const varying float predicate = streaming_load(&predicates[index]);
+            indices[max_size_iter_back] = index;
+
+            uniform int total_rest = 0;
+            if (!(predicate < min_predicate_value)) {
+                total_rest += packed_store_active(&buffer[rest_items_iter_back], index + programIndex);
+            }
+
+            const uniform bool full_batch = all(!(predicate < min_predicate_value));
+            max_size_iter_back += (int)full_batch;
+            rest_items_iter_back += ((int)!full_batch) * total_rest;
+        }
+
+        smaller->max_size_items_start = max_size_iter + rest_items_iter;
+        smaller->max_size_items_end = max_size_iter_back;
+
+        memcpy(&indices[0] + max_size_iter_back,
+            &buffer[0],
+            sizeof(uniform int) * (rest_items_iter_back));
+
+        for (uniform int index = batch_count; index < count; index++) {
+            const uniform float predicate = predicates[index];
+            indices[max_size_iter_back + rest_items_iter_back] = index;
+            rest_items_iter_back += (int)(!(predicate < min_predicate_value));
+        }
+        smaller->rest_size_start = max_size_iter_back;
+        smaller->rest_size_end = max_size_iter_back + rest_items_iter_back;
+    }
+
+    return total_more_or_equal;
 }
 
 // export uniform int gather_ints_buffer(
@@ -343,13 +547,17 @@ export uniform int partition_int_compare_float(
 //     uniform int count,
 //     uniform int front_self_range)
 // {
+//     assume((((uniform int64)(&values[0])) % (TARGET_WIDTH * sizeof(int))) == 0);
+//     assume((((uniform int64)(&indices[0])) % (TARGET_WIDTH * sizeof(int))) == 0);
+//     assume((((uniform int64)(&buffer[0])) % (TARGET_WIDTH * sizeof(int))) == 0);
+// 
 //     const uniform int front_self_range_count = max(0, (front_self_range / programCount) * programCount - programCount);
 //     const uniform int batch_count = (count / programCount) * programCount;
 // 
 //     for (uniform int index = front_self_range_count; index < batch_count; index += programCount) {
 //         const varying int index_value = streaming_load(&indices[index]);
 //         const varying int value_value = values[index_value];
-//         streaming_store(&buffer[index], value_value);
+//         buffer[index + programIndex] = value_value;
 //     }
 // 
 //     for (uniform int index = batch_count; index < count; index++) {
@@ -359,38 +567,102 @@ export uniform int partition_int_compare_float(
 //     for (uniform int index = 0; index < front_self_range_count; index += programCount) {
 //         const varying int index_value = streaming_load(&indices[index]);
 //         const varying int value_value = values[index_value];
-//         streaming_store(&values[index], value_value);
+//         values[index + programIndex] = value_value;
 //     }
 // 
 //     memcpy(&values[0] + front_self_range_count, &buffer[0] + front_self_range_count, sizeof(uniform int) * (count - front_self_range_count));
 // }
 
-// export uniform int gather_ints_buffer(
-//     uniform int values[],
-//     uniform int indices[],
-//     uniform int buffer[],
-//     uniform int count,
-//     uniform int front_self_range)
-// {
-//     const uniform int front_self_range_count = max(0, (front_self_range / programCount) * programCount - programCount);
-//     const uniform int batch_count = (count / programCount) * programCount;
-// 
-//     for (uniform int index = front_self_range_count; index < batch_count; index += programCount) {
-//         buffer[index + programIndex] = values[indices[index + programIndex]];
-//     }
-// 
-//     for (uniform int index = batch_count; index < count; index++) {
-//         buffer[index] = values[indices[index]];
-//     }
-// 
-//     for (uniform int index = 0; index < front_self_range_count; index += programCount) {
-//         values[index + programIndex] = values[indices[index + programIndex]];
-//     }
-// 
-//     memcpy(&values[0] + front_self_range_count, &buffer[0] + front_self_range_count, sizeof(uniform int) * (count - front_self_range_count));
-// }
+
+uniform int float_more_then_single_count(
+    uniform float values[],
+    uniform float min_predicate_value,
+    uniform int count)
+{
+    const uniform int batch_count = (count / programCount) * programCount;
+
+    varying int batch_total = 0;
+    for (uniform int index = 0; index < batch_count; index += programCount) {
+        batch_total += (int)(streaming_load(&values[index]) < min_predicate_value);
+    }
+    uniform int rest_total = 0;
+    for (uniform int index = batch_count; index < count; index++) {
+        rest_total += (int)(values[index] < min_predicate_value);
+    }
+
+    return reduce_add(batch_total) + rest_total;
+}
+
+export uniform int predicate_partition_indices_float_cmp(
+    uniform int indices[],
+    uniform float predicates[],
+    const uniform int count,
+    const uniform float min_predicate_value,
+    uniform int * uniform group_indices_num)
+{
+    const uniform int total_front_size = float_more_then_single_count(predicates, min_predicate_value, count);
+    const uniform int batch_count = (count / programCount) * programCount;
+    const uniform int batch_front_size = (total_front_size / programCount) * programCount;
+
+    uniform int iter = 0;
+    for (uniform int index = 0; index < batch_front_size; index += programCount) {
+        const varying float predicate = streaming_load(&predicates[index]);
+        if (!(predicate < min_predicate_value)) {
+             iter += packed_store_active(&indices[iter], index + programIndex);
+        }
+    }
+    for (uniform int index = batch_front_size; index < total_front_size; index++) {
+        const uniform float predicate = predicates[index];
+        if (!(predicate < min_predicate_value)) {
+            indices[iter] = index;
+            iter++;
+        }
+    }
+
+    *group_indices_num = iter;
+
+    const uniform int back_start = ((total_front_size + programCount - 1) / programCount) * programCount;
+    const uniform int batch_back_total = ((total_front_size - (back_start - total_front_size)) / programCount) * programCount;
+    for (uniform int index = total_front_size; index < back_start; index++) {
+        const uniform float predicate = predicates[index];
+        if (!(predicate < min_predicate_value)) {
+            indices[iter] = index;
+            iter++;
+        }
+    }
+
+
+    return total_front_size;
+}
+
+
 
 export uniform int gather_ints_buffer(
+    uniform int values[],
+    uniform int indices[],
+    uniform int buffer[],
+    uniform int count,
+    uniform int front_self_range)
+{
+    const uniform int front_self_range_count = max(0, (front_self_range / programCount) * programCount - programCount);
+    const uniform int batch_count = (count / programCount) * programCount;
+
+    for (uniform int index = front_self_range_count; index < batch_count; index += programCount) {
+        buffer[index + programIndex] = values[streaming_load(&indices[index])];
+    }
+
+    for (uniform int index = batch_count; index < count; index++) {
+        buffer[index] = values[indices[index]];
+    }
+
+    for (uniform int index = 0; index < front_self_range_count; index += programCount) {
+        values[index + programIndex] = values[streaming_load(&indices[index])];
+    }
+
+    memcpy(&values[0] + front_self_range_count, &buffer[0] + front_self_range_count, sizeof(uniform int) * (count - front_self_range_count));
+}
+
+export uniform int scatter_ints_buffer(
     uniform int values[],
     uniform int indices[],
     uniform int buffer[],
@@ -400,15 +672,39 @@ export uniform int gather_ints_buffer(
     const uniform int batch_count = (count / programCount) * programCount;
 
     for (uniform int index = 0; index < batch_count; index += programCount) {
-        buffer[index + programIndex] = values[indices[index + programIndex]];
+        buffer[streaming_load(&indices[index])] = streaming_load(&values[index]);
     }
 
     for (uniform int index = batch_count; index < count; index++) {
-        buffer[index] = values[indices[index]];
+        buffer[indices[index]] = values[index];
     }
 
     memcpy(&values[0], &buffer[0], sizeof(uniform int) * count);
 }
+
+// export uniform int gather_ints_buffer(
+//     uniform int values[],
+//     uniform int indices[],
+//     uniform int buffer[],
+//     uniform int count,
+//     uniform int front_self_range)
+// {
+//     const uniform int batch_count = (count / programCount) * programCount;
+// 
+//     // for (uniform int index = 0; index < count; index += programCount * 8) {
+//     //     prefetch_l2(&values[index + programIndex]);
+//     // }
+// 
+//     for (uniform int index = 0; index < batch_count; index += programCount) {
+//         buffer[index + programIndex] = values[streaming_load(&indices[index])];
+//     }
+// 
+//     for (uniform int index = batch_count; index < count; index++) {
+//         buffer[index] = values[indices[index]];
+//     }
+// 
+//     memcpy(&values[0], &buffer[0], sizeof(uniform int) * count);
+// }
 
 export uniform int zip_if_larger_or_equal(
     uniform int values[],
@@ -450,15 +746,11 @@ export uniform int one_mul_add_n(
     uniform int buffer_index = 0;
     const uniform int batch_count = (count / programCount) * programCount;
     for (uniform int index = 0; index < batch_count; index += programCount) {
-        prefetch_nt(&values[index + 100]);
-        prefetch_nt(&factors[index + 100]);
         const varying float value = values[index + programIndex];
-        const varying float factor = factors[index + programIndex];
+        const varying float factor = streaming_load(&factors[index]);
         values[index + programIndex] = value + factor * other;
     }
     for (uniform int index = batch_count; index < count; index++) {
-        prefetch_nt(&values[index + 100]);
-        prefetch_nt(&factors[index + 100]);
         const uniform float value = values[index];
         const uniform float factor = factors[index];
         values[index] = value + factor * other;
@@ -554,8 +846,8 @@ export uniform float fixed_safe_2_rpow_n(uniform float values[],
 {
     uniform int index = 0;
     for (; index < count - programCount; index += programCount) {
-        prefetch_nt(&values[index + 100]);
-        streaming_store(&values[index], safe_rcp(square(streaming_load(&values[index]))));
+        // prefetch_nt(&values[index + 100]);
+        values[index + programIndex] = safe_rcp(square(streaming_load(&values[index])));
     }
     for (; index < count; index++) {
         values[index] = safe_rcp(square(values[index]));

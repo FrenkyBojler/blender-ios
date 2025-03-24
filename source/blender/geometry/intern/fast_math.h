@@ -20,6 +20,19 @@ typedef int bool;
 #ifdef __cplusplus
 namespace ispc { /* namespace */
 #endif // __cplusplus
+///////////////////////////////////////////////////////////////////////////
+// Enumerator types with external visibility from ispc code
+///////////////////////////////////////////////////////////////////////////
+
+#ifndef __ISPC_ENUM_ePredicateStatisics__
+#define __ISPC_ENUM_ePredicateStatisics__
+enum ePredicateStatisics {
+    epsNone = 0,
+    epsAll = 1,
+    epsMixed = 2 
+};
+#endif
+
 
 #ifndef __ISPC_ALIGN__
 #if defined(__clang__) || !defined(_MSC_VER)
@@ -31,6 +44,16 @@ namespace ispc { /* namespace */
 #define __ISPC_ALIGN__(s) __declspec(align(s))
 #define __ISPC_ALIGNED_STRUCT__(s) __ISPC_ALIGN__(s) struct
 #endif
+#endif
+
+#ifndef __ISPC_STRUCT_IndicesStruct__
+#define __ISPC_STRUCT_IndicesStruct__
+struct IndicesStruct {
+    int32_t max_size_items_start;
+    int32_t max_size_items_end;
+    int32_t rest_size_start;
+    int32_t rest_size_end;
+};
 #endif
 
 
@@ -58,13 +81,18 @@ extern "C" {
     extern void float3_dot_product(const float values[][3], const float * factors, const int32_t count, float * result);
     extern void float3_gather_dot_product(const int32_t * indices, const float values[][3], const float * factors, const int32_t count, float * result);
     extern void float3_gather_dot_product_(const int32_t * indices, const float values[][3], const float * factors, const int32_t count, float * result);
+    extern int32_t float_compare_n_indices_segmented(float * predicates, const float min_predicate_value, struct IndicesStruct * more_or_equal, struct IndicesStruct * smaller, int32_t * indices, int32_t * buffer, const int32_t count);
     extern float float_dot_product(const float * values, const float * factors, const int32_t count);
     extern float float_gather_dot_product(const int32_t * indices, const float * values, const float * factors, const int32_t count);
+    extern enum ePredicateStatisics float_more_then_single(float * values, float min_predicate_value, int32_t count);
     extern void gather_distances(const int32_t * indices, const float positions[][3], const float * target, const int32_t count, float * distances, const float offset);
     extern int32_t gather_ints_buffer(int32_t * values, int32_t * indices, int32_t * buffer, int32_t count, int32_t front_self_range);
+    extern int32_t gather_ints_buffer_segmented(int32_t * values, int32_t * indices, int32_t * buffer, int32_t count, struct IndicesStruct * more_or_equal, struct IndicesStruct * smaller);
     extern int32_t one_mul_add_n(float * values, float * factors, const float other, const int32_t count);
     extern int32_t partition_int_compare_float(int32_t * values, int32_t * buffer, const float * predicates, const int32_t count, const float min_predicate_value);
     extern int32_t predicate_indices_float_cmp(int32_t * indices, float * predicates, const int32_t count, const float min_predicate_value);
+    extern int32_t predicate_revers_indices_float_cmp(int32_t * indices, float * predicates, const int32_t count, const float min_predicate_value);
+    extern int32_t scatter_ints_buffer(int32_t * values, int32_t * indices, int32_t * buffer, int32_t count, int32_t front_self_range);
     extern void split_float3_to_3_float(const float xyz_values[][3], float * x_components, float * y_components, float * z_components, int32_t count);
     extern int32_t zip_if_larger_or_equal(int32_t * values, const float * predicates, const int32_t count, const float min_predicate_value);
 #if defined(__cplusplus) && (! defined(__ISPC_NO_EXTERN_C) || !__ISPC_NO_EXTERN_C )
