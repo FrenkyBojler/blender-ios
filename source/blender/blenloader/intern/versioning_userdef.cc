@@ -1418,7 +1418,7 @@ void blo_do_versions_userdef(UserDef *userdef)
       if (STREQ(keymap->idname, "SequencerCommon")) {
         STRNCPY(keymap->idname, "Video Sequence Editor");
       }
-      if (STREQ(keymap->idname, "SequencerPreview")) {
+      else if (STREQ(keymap->idname, "SequencerPreview")) {
         STRNCPY(keymap->idname, "Preview");
       }
     }
