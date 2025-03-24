@@ -42,9 +42,6 @@
  * - The default constructor is cheap.
  * - The `print_stats` method can be used to get information about the distribution of keys and
  *   memory usage.
- *
- * Possible Improvements:
- * - Small buffer optimization for the keys.
  */
 
 #include "BLI_array.hh"
