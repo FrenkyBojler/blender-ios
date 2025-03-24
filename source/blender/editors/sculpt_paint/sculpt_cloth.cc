@@ -2390,8 +2390,7 @@ static wmOperatorStatus sculpt_cloth_filter_modal(bContext *C,
 
   /* Update and write the simulation to the nodes. */
   do_simulation_step(*depsgraph, sd, object, *ss.filter_cache->cloth_sim, node_mask);
-
-  flush_update_step(C, UpdateType::Position);
+  flush_update_step(C, UpdateType::Position, pbvh.calc_bounds(node_mask));
   return OPERATOR_RUNNING_MODAL;
 }
 

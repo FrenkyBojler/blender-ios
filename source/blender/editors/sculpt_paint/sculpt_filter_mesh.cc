@@ -2183,7 +2183,7 @@ static void sculpt_mesh_filter_apply(bContext *C, wmOperator *op, bool is_replay
 
   ss.filter_cache->iteration_count++;
 
-  flush_update_step(C, UpdateType::Position);
+  flush_update_step(C, UpdateType::Position, pbvh.calc_bounds(node_mask));
 }
 
 static void sculpt_mesh_update_strength(wmOperator *op,

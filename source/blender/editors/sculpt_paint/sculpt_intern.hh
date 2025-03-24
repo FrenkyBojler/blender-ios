@@ -180,6 +180,9 @@ struct StrokeCache {
    */
   bool initial_direction_flipped;
 
+  Bounds<float3> redraw_bounds{float3(std::numeric_limits<float>::max()),
+                               float3(std::numeric_limits<float>::lowest())};
+
   /* Variants */
   float radius;
   float radius_squared;
@@ -437,6 +440,9 @@ namespace blender::ed::sculpt_paint {
  * Triggers redraws, updates, and dependency graph tags as necessary after each brush calculation.
  */
 void flush_update_step(const bContext *C, UpdateType update_type);
+void flush_update_step(const bContext *C,
+                       UpdateType update_type,
+                       const Bounds<float3> &redraw_bounds);
 /**
  * Triggers redraws, updates, and dependency graph tags as necessary when a brush stroke finishes.
  */

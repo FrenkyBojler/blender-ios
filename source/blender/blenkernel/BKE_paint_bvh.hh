@@ -323,6 +323,9 @@ class Tree {
 
   void update_visibility(const Object &object);
 
+  /* Calculates the bounds of the nodes given by `node_mask` */
+  Bounds<float3> calc_bounds(const IndexMask &node_mask);
+
  private:
   explicit Tree(Type type);
 };
