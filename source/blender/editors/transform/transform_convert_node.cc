@@ -94,7 +94,8 @@ static bool is_node_parent_select(const bNode *node)
   return false;
 }
 
-/* Some nodes are transformed together with other nodes:
+/**
+ * Some nodes are transformed together with other nodes:
  * - Parent frames with shrinking turned on are not transformed themself, but are automatically
  *   resized based on their children.
  * - Child nodes of frames that are manually resizable are transformed together with their parent
