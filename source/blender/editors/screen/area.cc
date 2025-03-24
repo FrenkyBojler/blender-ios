@@ -3378,6 +3378,7 @@ void ED_region_panels_init(wmWindowManager *wm, ARegion *region)
 {
   UI_view2d_region_reinit(&region->v2d, V2D_COMMONVIEW_PANELS_UI, region->winx, region->winy);
 
+  /* Place scroll bars to the left if left-aligned, right if right-aligned. */
   if (region->alignment & RGN_ALIGN_LEFT) {
     region->v2d.scroll &= ~V2D_SCROLL_RIGHT;
     region->v2d.scroll |= V2D_SCROLL_LEFT;
