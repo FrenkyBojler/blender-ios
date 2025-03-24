@@ -120,7 +120,7 @@ GHOST_TSuccess GHOST_ContextWGL::activateDrawingContext()
 
 GHOST_TSuccess GHOST_ContextWGL::releaseDrawingContext()
 {
-  if (WIN32_CHK(::wglMakeCurrent(nullptr, nullptr))) {
+  if (WIN32_CHK(::wglMakeCurrent(m_hDC, nullptr))) {
     return GHOST_kSuccess;
   }
   else {
