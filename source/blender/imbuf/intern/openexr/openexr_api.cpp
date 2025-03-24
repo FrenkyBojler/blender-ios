@@ -2109,13 +2109,13 @@ static bool imb_check_chromaticity_val(float test_v, float ref_v)
 
 /* https://openexr.com/en/latest/TechnicalIntroduction.html#recommendations */
 static bool imb_is_chromaticities_xyz_e(float red_x,
-                                          float red_y,
-                                          float green_x,
-                                          float green_y,
-                                          float blue_x,
-                                          float blue_y,
-                                          float white_x,
-                                          float white_y)
+                                        float red_y,
+                                        float green_x,
+                                        float green_y,
+                                        float blue_x,
+                                        float blue_y,
+                                        float white_x,
+                                        float white_y)
 {
   if (imb_check_chromaticity_val(red_x, 1.f) && (red_y == 0.f) && (green_x == 0.f) &&
       imb_check_chromaticity_val(green_y, 1.f) && (blue_x == 0.f) && (blue_y == 0.f) &&
@@ -2150,7 +2150,7 @@ static bool imb_is_chromaticities_aces_2065_1(float red_x,
 
 static void imb_exr_set_known_colorspace(const Header &header, char colorspace[IMA_MAX_SPACE])
 {
-  if (colorspace == nullptr) {
+  if (colorspace == nullptr || colorspace[0] != '\0') {
     return;
   }
   const ChromaticitiesAttribute *header_chromaticities =
@@ -2158,15 +2158,17 @@ static void imb_exr_set_known_colorspace(const Header &header, char colorspace[I
   if (header_chromaticities) {
     const Chromaticities &val = header_chromaticities->value();
     if (imb_is_chromaticities_xyz_e(val.red.x,
-                                      val.red.y,
-                                      val.green.x,
-                                      val.green.y,
-                                      val.blue.x,
-                                      val.blue.y,
-                                      val.white.x,
-                                      val.white.y))
+                                    val.red.y,
+                                    val.green.x,
+                                    val.green.y,
+                                    val.blue.x,
+                                    val.blue.y,
+                                    val.white.x,
+                                    val.white.y))
     {
-      IMB_set_colorspace_name_if_exists(colorspace, "Linear CIE-XYZ E");
+      if (IMB_set_colorspace_name_if_exists(colorspace, "Linear CIE-XYZ E")) {
+        return;
+      }
     }
     else if (imb_is_chromaticities_aces_2065_1(val.red.x,
                                                val.red.y,
@@ -2177,9 +2179,13 @@ static void imb_exr_set_known_colorspace(const Header &header, char colorspace[I
                                                val.white.x,
                                                val.white.y))
     {
-      IMB_set_colorspace_name_if_exists(colorspace, "ACES2065-1");
+      if (IMB_set_colorspace_name_if_exists(colorspace, "ACES2065-1")) {
+        return;
+      }
     }
   }
+
+  colorspace_set_default_role(colorspace, IM_MAX_SPACE, COLOR_ROLE_DEFAULT_FLOAT);
 }
 
 ImBuf *imb_load_openexr(const uchar *mem, size_t size, int flags, char colorspace[IM_MAX_SPACE])
@@ -2192,15 +2198,14 @@ ImBuf *imb_load_openexr(const uchar *mem, size_t size, int flags, char colorspac
     return nullptr;
   }
 
-  colorspace_set_default_role(colorspace, IM_MAX_SPACE, COLOR_ROLE_DEFAULT_FLOAT);
-
   try {
     bool is_multi;
 
     membuf = new IMemStream((uchar *)mem, size);
     file = new MultiPartInputFile(*membuf);
 
-    Box2i dw = file->header(0).dataWindow();
+    const Header &file_header = file->header(0);
+    Box2i dw = file_header.dataWindow();
     const size_t width = dw.max.x - dw.min.x + 1;
     const size_t height = dw.max.y - dw.min.y + 1;
 
@@ -2223,25 +2228,24 @@ ImBuf *imb_load_openexr(const uchar *mem, size_t size, int flags, char colorspac
       ibuf = IMB_allocImBuf(width, height, is_alpha ? 32 : 24, 0);
       ibuf->flags |= exr_is_half_float(*file) ? IB_halffloat : 0;
 
-      if (hasXDensity(file->header(0))) {
+      if (hasXDensity(file_header)) {
         /* Convert inches to meters. */
-        ibuf->ppm[0] = double(xDensity(file->header(0))) / 0.0254;
-        ibuf->ppm[1] = ibuf->ppm[0] * double(file->header(0).pixelAspectRatio());
+        ibuf->ppm[0] = double(xDensity(file_header)) / 0.0254;
+        ibuf->ppm[1] = ibuf->ppm[0] * double(file_header.pixelAspectRatio());
       }
 
-      imb_exr_set_known_colorspace(file->header(0), colorspace);
+      imb_exr_set_known_colorspace(file_header, colorspace);
 
       ibuf->ftype = IMB_FTYPE_OPENEXR;
 
       if (!(flags & IB_test)) {
 
         if (flags & IB_metadata) {
-          const Header &header = file->header(0);
           Header::ConstIterator iter;
 
           IMB_metadata_ensure(&ibuf->metadata);
-          for (iter = header.begin(); iter != header.end(); iter++) {
-            const StringAttribute *attr = file->header(0).findTypedAttribute<StringAttribute>(
+          for (iter = file_header.begin(); iter != file_header.end(); iter++) {
+            const StringAttribute *attr = file_header.findTypedAttribute<StringAttribute>(
                 iter.name());
 
             /* not all attributes are string attributes so we might get some NULLs here */
@@ -2436,18 +2440,10 @@ ImBuf *imb_load_filepath_thumbnail_openexr(const char *filepath,
       return ibuf;
     }
 
-    /* Create a new thumbnail. */
-
-    if (colorspace && colorspace[0]) {
-      colorspace_set_default_role(colorspace, IM_MAX_SPACE, COLOR_ROLE_DEFAULT_FLOAT);
-    }
-
-    /* Mars 2025 : Have no effect, because imb_load_filepath_thumbnail is currently call
-     with colorspace == nullptr
-     But will let having correct colorspace for thumbnail if colorspace thumbnail management is
-     added in the future */
+    /* No effect yet for thumbnails, but will work once it is supported. */
     imb_exr_set_known_colorspace(file_header, colorspace);
 
+    /* Create a new thumbnail. */
     float scale_factor = std::min(float(max_thumb_size) / float(source_w),
                                   float(max_thumb_size) / float(source_h));
     int dest_w = std::max(int(source_w * scale_factor), 1);

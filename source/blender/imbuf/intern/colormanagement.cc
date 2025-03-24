@@ -1507,7 +1507,7 @@ bool IMB_colormanagement_space_name_is_srgb(const char *name)
   return (colorspace && IMB_colormanagement_space_is_srgb(colorspace));
 }
 
-void IMB_set_colorspace_name_if_exists(char dst_colorspace[], const char *name)
+bool IMB_set_colorspace_name_if_exists(char dst_colorspace[], const char *name)
 {
   ColorSpace *colorspace = colormanage_colorspace_get_named(name);
   if (colorspace) {
