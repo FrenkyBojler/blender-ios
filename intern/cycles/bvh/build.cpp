@@ -504,7 +504,7 @@ unique_ptr<BVHNode> BVHBuild::run()
      * BVH becoming more obsolete with time it might not be the most optimal development time
      * investment.
      *
-     * The check is a bit implicit here, it relies on the fact that spacial splits are disabled on
+     * The check is a bit implicit here, it relies on the fact that spatial splits are disabled on
      * the top level, and that an object has primitives of the same type. */
     if (references[0].prim_type() & PRIMITIVE_CURVE) {
       params.use_spatial_split = false;
