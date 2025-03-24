@@ -35,11 +35,13 @@ static void node_geo_exec(GeoNodeExecParams params)
 {
   GeometrySet geometry_set = params.extract_input<GeometrySet>("Grease Pencil");
 
-  if (GreasePencil *grease_pencil = geometry_set.get_grease_pencil_for_write()) {
-    SET_FLAG_FROM_TEST(grease_pencil->flag,
-                       params.node().custom1 == GREASE_PENCIL_STROKE_ORDER_3D,
-                       GREASE_PENCIL_STROKE_ORDER_3D);
-  }
+  geometry_set.modify_geometry_sets([&](GeometrySet &geometry) {
+    if (GreasePencil *grease_pencil = geometry.get_grease_pencil_for_write()) {
+      SET_FLAG_FROM_TEST(grease_pencil->flag,
+                         params.node().custom1 == GREASE_PENCIL_STROKE_ORDER_3D,
+                         GREASE_PENCIL_STROKE_ORDER_3D);
+    }
+  });
 
   params.set_output("Grease Pencil", std::move(geometry_set));
 }
