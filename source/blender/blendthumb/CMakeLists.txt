@@ -38,7 +38,11 @@ if(WIN32)
   add_library(BlendThumb SHARED ${SRC} ${SRC_WIN32})
 
   target_link_libraries(BlendThumb bf_blenlib dbghelp.lib Version.lib Comctl32.lib)
-  set_target_properties(BlendThumb PROPERTIES LINK_FLAGS_DEBUG "/NODEFAULTLIB:msvcrt")
+  # Blenlib drags in a whole bunch of dependencies on shared libs, none of which are used by
+  # blenthumb, but will cause load issues since the debug linker will not eleminate them.
+  # Link with /OPT:ref to force elmination of those unused dependencies this is already
+  # enabled by default on the release mode flags.
+  set_target_properties(BlendThumb PROPERTIES LINK_FLAGS_DEBUG "/NODEFAULTLIB:msvcrt /OPT:ref")
   set_target_properties(BlendThumb PROPERTIES VS_GLOBAL_VcpkgEnabled "false")
 
 elseif(APPLE)
