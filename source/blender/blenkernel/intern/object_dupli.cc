@@ -1845,9 +1845,8 @@ blender::bke::Instances object_duplilist_legacy_instances(Depsgraph &depsgraph,
 
   ListBase *duplilist = MEM_callocN<ListBase>("duplilist");
   DupliContext ctx;
-  Vector<Object *> instance_stack;
+  Vector<Object *> instance_stack({&ob});
   Vector<short> dupli_gen_type_stack({0});
-  instance_stack.append(&ob);
 
   init_context(&ctx, &depsgraph, &scene, &ob, nullptr, instance_stack, dupli_gen_type_stack);
   if (ctx.gen == &gen_dupli_geometry_set) {
