@@ -374,8 +374,6 @@ MTLContext::~MTLContext()
   if (this->device) {
     [this->device release];
   }
-
-  delete compiler;
 }
 
 void MTLContext::begin_frame()
