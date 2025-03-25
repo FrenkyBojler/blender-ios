@@ -1,0 +1,1 @@
+Referenced by pull request #135699, Draw: Refactor mesh extraction to avoid creating uninitialized buffers
