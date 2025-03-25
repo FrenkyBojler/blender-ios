@@ -172,7 +172,8 @@ void ED_screen_draw_edges(wmWindow *win)
   }
 
   if (G.moving & G_TRANSFORM_WM) {
-    /* We don't want an active area when resizing, otherwise outline for active area flickers, see: #136314. */
+    /* We don't want an active area when resizing, otherwise outline for active area flickers, see:
+     * #136314. */
     active_area = nullptr;
   }
 
