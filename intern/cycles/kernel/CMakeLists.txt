@@ -647,9 +647,13 @@ endif()
 # Issue #136138
 function(get_hip_math_flag arch math_flag)
   if(WIN32 AND (${arch} MATCHES "gfx1030|gfx1031|gfx1032|gfx1033|gfx1034|gfx1035|gfx1036"))
-      set(result "")
+      set(result
+        -fhip-fp32-correctly-rounded-divide-sqrt
+        -fno-gpu-approx-transcendentals
+        -fgpu-flush-denormals-to-zero
+        -ffp-contract=off)
   else()
-      set(result "-ffast-math")
+      set(result "")
   endif()
   set(${math_flag} "${result}" PARENT_SCOPE)
 endfunction()
@@ -710,6 +714,7 @@ if(WITH_CYCLES_HIP_BINARIES AND WITH_CYCLES_DEVICE_HIP)
       -I ${CMAKE_CURRENT_SOURCE_DIR}/device/hip
       -Wno-parentheses-equality
       -Wno-unused-value
+      -ffast-math
       ${math_flag}
       ${hip_opt_flags}
       -o ${CMAKE_CURRENT_BINARY_DIR}/${hip_file})
@@ -796,6 +801,7 @@ if(WITH_CYCLES_HIP_BINARIES AND WITH_CYCLES_DEVICE_HIPRT)
     -amdgpu-function-calls=true
     -parallel-jobs=${HIPRT_COMPILER_PARALLEL_JOBS}
     --genco
+    -ffast-math
     -I ${CMAKE_CURRENT_SOURCE_DIR}/..
     -I ${CMAKE_CURRENT_SOURCE_DIR}/device/hiprt
     -I ${HIPRT_INCLUDE_DIR}

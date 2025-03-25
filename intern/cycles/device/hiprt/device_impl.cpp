@@ -223,10 +223,13 @@ string HIPRTDevice::compile_kernel(const uint kernel_features, const char *name,
 
   const char *const kernel_ext = "genco";
   string options;
-  options.append("-Wno-parentheses-equality -Wno-unused-value -O3 -std=c++17 -D __HIPRT__");
+  options.append(
+      "-Wno-parentheses-equality -Wno-unused-value -O3 -std=c++17 -D __HIPRT__ -ffast-math");
   options.append(" --offload-arch=").append(arch.c_str());
-  if (hipSupportsFastMath(arch)) {
-    options.append(" -ffast-math");
+  if (hipNeedPreciseMath(arch)) {
+    options.append(
+        " -fhip-fp32-correctly-rounded-divide-sqrt -fno-gpu-approx-transcendentals "
+        "-fgpu-flush-denormals-to-zero -ffp-contract=off");
   }
 #  ifdef WITH_NANOVDB
   options.append(" -D WITH_NANOVDB");

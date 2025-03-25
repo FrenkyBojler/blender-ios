@@ -260,9 +260,11 @@ string HIPDevice::compile_kernel(const uint kernel_features, const char *name, c
   const string kernel_md5 = util_md5_string(source_md5 + common_cflags);
 
   const char *const kernel_ext = "genco";
-  std::string options = "-Wno-parentheses-equality -Wno-unused-value";
-  if (hipSupportsFastMath(arch)) {
-    options.append(" -ffast-math");
+  std::string options = "-Wno-parentheses-equality -Wno-unused-value -ffast-math";
+  if (hipNeedPreciseMath(arch)) {
+    options.append(
+        " -fhip-fp32-correctly-rounded-divide-sqrt -fno-gpu-approx-transcendentals "
+        "-fgpu-flush-denormals-to-zero -ffp-contract=off");
   }
 
 #  ifndef NDEBUG
