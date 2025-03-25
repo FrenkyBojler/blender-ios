@@ -337,9 +337,13 @@ class Report:
             elif isinstance(v, int):
                 desc.write(f" int:{k}={v}")
             elif isinstance(v, float):
-                desc.write(f" fl:{k}={v:.3f}")
+                desc.write(f" fl:{k}={fmtf(v)}")
+            elif len(v) == 2:
+                desc.write(f" f2:{k}=({fmtf(v[0])}, {fmtf(v[1])})")
             elif len(v) == 3:
-                desc.write(f" f3:{k}=({v[0]:.3f}, {v[1]:.3f}, {v[2]:.3f})")
+                desc.write(f" f3:{k}=({fmtf(v[0])}, {fmtf(v[1])}, {fmtf(v[2])})")
+            elif len(v) == 4:
+                desc.write(f" f4:{k}=({fmtf(v[0])}, {fmtf(v[1])}, {fmtf(v[2])}, {fmtf(v[3])})")
             else:
                 desc.write(f" o:{k}={str(v)}")
         if had_any:
