@@ -941,7 +941,7 @@ static void ui_item_enum_expand_tabs(uiLayout *layout,
                                      PropertyRNA *prop,
                                      PointerRNA *ptr_highlight,
                                      PropertyRNA *prop_highlight,
-                                     const char *uiname,
+                                     const std::optional<StringRef> uiname,
                                      const int h,
                                      const bool icon_only)
 {
@@ -2496,7 +2496,7 @@ void uiItemFullR(uiLayout *layout,
 
     /* Move temporarily last buts to avoid multiple reallocations while inserting decorators. */
     blender::Vector<std::unique_ptr<uiBut>> tmp;
-    tmp.reserve(block->buttons.capacity());
+    tmp.reserve(ui_decorate.len);
     while (but_decorate && but_decorate != block->buttons.last().get()) {
       tmp.append(block->buttons.pop_last());
     }
@@ -3725,8 +3725,16 @@ void uiItemTabsEnumR_prop(uiLayout *layout,
   uiBlock *block = layout->root->block;
 
   UI_block_layout_set_current(block, layout);
-  ui_item_enum_expand_tabs(
-      layout, C, block, ptr, prop, ptr_highlight, prop_highlight, nullptr, UI_UNIT_Y, icon_only);
+  ui_item_enum_expand_tabs(layout,
+                           C,
+                           block,
+                           ptr,
+                           prop,
+                           ptr_highlight,
+                           prop_highlight,
+                           std::nullopt,
+                           UI_UNIT_Y,
+                           icon_only);
 }
 
 /** \} */
@@ -5881,7 +5889,7 @@ uiLayout *UI_block_layout(uiBlock *block,
                           int padding,
                           const uiStyle *style)
 {
-  uiLayoutRoot *root = MEM_cnew<uiLayoutRoot>(__func__);
+  uiLayoutRoot *root = MEM_callocN<uiLayoutRoot>(__func__);
   root->type = type;
   root->style = style;
   root->block = block;

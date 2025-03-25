@@ -292,8 +292,7 @@ wmKeyConfig *WM_keyconfig_new(wmWindowManager *wm, const char *idname, bool user
 {
   BLI_assert(!BLI_findstring(&wm->keyconfigs, idname, offsetof(wmKeyConfig, idname)));
   /* Create new configuration. */
-  wmKeyConfig *keyconf = static_cast<wmKeyConfig *>(
-      MEM_callocN(sizeof(wmKeyConfig), "wmKeyConfig"));
+  wmKeyConfig *keyconf = MEM_callocN<wmKeyConfig>("wmKeyConfig");
   STRNCPY_UTF8(keyconf->idname, idname);
   BLI_addtail(&wm->keyconfigs, keyconf);
 
@@ -406,7 +405,7 @@ void WM_keyconfig_set_active(wmWindowManager *wm, const char *idname)
 
 static wmKeyMap *wm_keymap_new(const char *idname, int spaceid, int regionid)
 {
-  wmKeyMap *km = static_cast<wmKeyMap *>(MEM_callocN(sizeof(wmKeyMap), "keymap list"));
+  wmKeyMap *km = MEM_callocN<wmKeyMap>("keymap list");
 
   STRNCPY_UTF8(km->idname, idname);
   km->spaceid = spaceid;
@@ -555,8 +554,7 @@ wmKeyMapItem *WM_keymap_add_item(wmKeyMap *keymap,
                                  const char *idname,
                                  const KeyMapItem_Params *params)
 {
-  wmKeyMapItem *kmi = static_cast<wmKeyMapItem *>(
-      MEM_callocN(sizeof(wmKeyMapItem), "keymap entry"));
+  wmKeyMapItem *kmi = MEM_callocN<wmKeyMapItem>("keymap entry");
 
   BLI_addtail(&keymap->items, kmi);
   STRNCPY(kmi->idname, idname);
@@ -649,15 +647,13 @@ static void wm_keymap_diff(
 
     if (!to_kmi) {
       /* Remove item. */
-      wmKeyMapDiffItem *kmdi = static_cast<wmKeyMapDiffItem *>(
-          MEM_callocN(sizeof(wmKeyMapDiffItem), "wmKeyMapDiffItem"));
+      wmKeyMapDiffItem *kmdi = MEM_callocN<wmKeyMapDiffItem>("wmKeyMapDiffItem");
       kmdi->remove_item = wm_keymap_item_copy(kmi);
       BLI_addtail(&diff_km->diff_items, kmdi);
     }
     else if (to_kmi && !wm_keymap_item_equals(kmi, to_kmi)) {
       /* Replace item. */
-      wmKeyMapDiffItem *kmdi = static_cast<wmKeyMapDiffItem *>(
-          MEM_callocN(sizeof(wmKeyMapDiffItem), "wmKeyMapDiffItem"));
+      wmKeyMapDiffItem *kmdi = MEM_callocN<wmKeyMapDiffItem>("wmKeyMapDiffItem");
       kmdi->remove_item = wm_keymap_item_copy(kmi);
       kmdi->add_item = wm_keymap_item_copy(to_kmi);
       BLI_addtail(&diff_km->diff_items, kmdi);
@@ -681,8 +677,7 @@ static void wm_keymap_diff(
   LISTBASE_FOREACH (wmKeyMapItem *, kmi, &to_km->items) {
     if (kmi->id < 0) {
       /* Add item. */
-      wmKeyMapDiffItem *kmdi = static_cast<wmKeyMapDiffItem *>(
-          MEM_callocN(sizeof(wmKeyMapDiffItem), "wmKeyMapDiffItem"));
+      wmKeyMapDiffItem *kmdi = MEM_callocN<wmKeyMapDiffItem>("wmKeyMapDiffItem");
       kmdi->add_item = wm_keymap_item_copy(kmi);
       BLI_addtail(&diff_km->diff_items, kmdi);
     }
@@ -980,8 +975,7 @@ wmKeyMap *WM_modalkeymap_find(wmKeyConfig *keyconf, const char *idname)
 
 wmKeyMapItem *WM_modalkeymap_add_item(wmKeyMap *km, const KeyMapItem_Params *params, int value)
 {
-  wmKeyMapItem *kmi = static_cast<wmKeyMapItem *>(
-      MEM_callocN(sizeof(wmKeyMapItem), "keymap entry"));
+  wmKeyMapItem *kmi = MEM_callocN<wmKeyMapItem>("keymap entry");
 
   BLI_addtail(&km->items, kmi);
   kmi->propvalue = value;
@@ -999,8 +993,7 @@ wmKeyMapItem *WM_modalkeymap_add_item_str(wmKeyMap *km,
                                           const KeyMapItem_Params *params,
                                           const char *value)
 {
-  wmKeyMapItem *kmi = static_cast<wmKeyMapItem *>(
-      MEM_callocN(sizeof(wmKeyMapItem), "keymap entry"));
+  wmKeyMapItem *kmi = MEM_callocN<wmKeyMapItem>("keymap entry");
 
   BLI_addtail(&km->items, kmi);
   STRNCPY(kmi->propvalue_str, value);
@@ -1202,10 +1195,10 @@ const char *WM_key_event_string(const short type, const bool compact)
   return CTX_IFACE_(BLT_I18NCONTEXT_UI_EVENTS, it->name);
 }
 
-std::optional<std::string> WM_keymap_item_raw_to_string(const short shift,
-                                                        const short ctrl,
-                                                        const short alt,
-                                                        const short oskey,
+std::optional<std::string> WM_keymap_item_raw_to_string(const int8_t shift,
+                                                        const int8_t ctrl,
+                                                        const int8_t alt,
+                                                        const int8_t oskey,
                                                         const short keymodifier,
                                                         const short val,
                                                         const short type,
@@ -1216,26 +1209,23 @@ std::optional<std::string> WM_keymap_item_raw_to_string(const short shift,
 
   const char *space = " ";
 
-  if (shift == KM_ANY && ctrl == KM_ANY && alt == KM_ANY && oskey == KM_ANY) {
-    /* Don't show anything for any mapping. */
+  /* When a modifier is #KM_ANY, it isn't shown as this would end up being overly verbose. */
+
+  if (shift == KM_MOD_HELD) {
+    result_array.append(WM_key_event_string(EVT_LEFTSHIFTKEY, true));
+    result_array.append(space);
   }
-  else {
-    if (shift) {
-      result_array.append(WM_key_event_string(EVT_LEFTSHIFTKEY, true));
-      result_array.append(space);
-    }
-    if (ctrl) {
-      result_array.append(WM_key_event_string(EVT_LEFTCTRLKEY, true));
-      result_array.append(space);
-    }
-    if (alt) {
-      result_array.append(WM_key_event_string(EVT_LEFTALTKEY, true));
-      result_array.append(space);
-    }
-    if (oskey) {
-      result_array.append(WM_key_event_string(EVT_OSKEY, true));
-      result_array.append(space);
-    }
+  if (ctrl == KM_MOD_HELD) {
+    result_array.append(WM_key_event_string(EVT_LEFTCTRLKEY, true));
+    result_array.append(space);
+  }
+  if (alt == KM_MOD_HELD) {
+    result_array.append(WM_key_event_string(EVT_LEFTALTKEY, true));
+    result_array.append(space);
+  }
+  if (oskey == KM_MOD_HELD) {
+    result_array.append(WM_key_event_string(EVT_OSKEY, true));
+    result_array.append(space);
   }
 
   if (keymodifier) {
