@@ -10,6 +10,7 @@
 #include "GHOST_C-api.h"
 
 #include <atomic>
+#include <condition_variable>
 #include <functional>
 #include <memory>
 #include <mutex>
