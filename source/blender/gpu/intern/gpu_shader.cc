@@ -8,6 +8,7 @@
 
 #include "BLI_math_matrix.h"
 #include "BLI_string.h"
+#include "BLI_time.h"
 
 #include "GPU_capabilities.hh"
 #include "GPU_debug.hh"
@@ -966,23 +967,43 @@ Shader *ShaderCompiler::compile(const shader::ShaderCreateInfo &info, bool is_ba
 /** \name ShaderCompilerGeneric
  * \{ */
 
+ShaderCompilerGeneric::ShaderCompilerGeneric()
+{
+  if (!GPU_use_main_context_workaround()) {
+    compilation_thread_ = std::make_unique<GPUWorker>(1, true, [=]() { this->run_thread(); });
+  }
+}
+
 ShaderCompilerGeneric::~ShaderCompilerGeneric()
 {
+  compilation_thread_.reset();
+
   /* Ensure all the requested batches have been retrieved. */
-  BLI_assert(batches.is_empty());
+  BLI_assert(batches_.is_empty());
 }
 
 BatchHandle ShaderCompilerGeneric::batch_compile(Span<const shader::ShaderCreateInfo *> &infos)
 {
-  std::lock_guard lock(mutex_);
+  std::unique_lock lock(mutex_);
 
-  BatchHandle handle = next_batch_handle++;
-  batches.add(handle, {{}, infos, true});
-  Batch &batch = batches.lookup(handle);
-  batch.shaders.reserve(infos.size());
-  for (const shader::ShaderCreateInfo *info : infos) {
-    batch.shaders.append(compile(*info, true));
+  BatchHandle handle = next_batch_handle_++;
+  batches_.add(handle, std::make_unique<Batch>());
+  Batch *batch = batches_.lookup(handle).get();
+  batch->infos = infos;
+  batch->shaders.reserve(infos.size());
+
+  if (compilation_thread_) {
+    compilation_queue_.push_back(batch);
+    lock.unlock();
+    compilation_thread_->wake_up();
   }
+  else {
+    for (const shader::ShaderCreateInfo *info : infos) {
+      batch->shaders.append(compile(*info, false));
+    }
+    batch->is_ready = true;
+  }
+
   return handle;
 }
 
@@ -990,17 +1011,45 @@ bool ShaderCompilerGeneric::batch_is_ready(BatchHandle handle)
 {
   std::lock_guard lock(mutex_);
 
-  bool is_ready = batches.lookup(handle).is_ready;
+  bool is_ready = batches_.lookup(handle)->is_ready;
   return is_ready;
 }
 
 Vector<Shader *> ShaderCompilerGeneric::batch_finalize(BatchHandle &handle)
 {
+  while (!batch_is_ready(handle)) {
+    BLI_time_sleep_ms(1);
+  }
+
   std::lock_guard lock(mutex_);
 
-  Vector<Shader *> shaders = batches.pop(handle).shaders;
+  Vector<Shader *> shaders = batches_.lookup(handle)->shaders;
+  batches_.pop(handle);
   handle = 0;
   return shaders;
+}
+
+void ShaderCompilerGeneric::run_thread()
+{
+  while (true) {
+    Batch *batch = nullptr;
+    {
+      std::unique_lock<std::mutex> lock(mutex_);
+
+      if (compilation_queue_.empty()) {
+        return;
+      }
+
+      batch = compilation_queue_.front();
+      compilation_queue_.pop_front();
+    }
+
+    /* Compile */
+    for (const shader::ShaderCreateInfo *info : batch->infos) {
+      batch->shaders.append(compile(*info, false));
+    }
+    batch->is_ready = true;
+  }
 }
 
 /** \} */
