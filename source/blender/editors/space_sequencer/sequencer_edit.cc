@@ -6,6 +6,7 @@
  * \ingroup spseq
  */
 
+#include "BLI_string_ref.hh"
 #include "BLI_vector.hh"
 #include "MEM_guardedalloc.h"
 
@@ -1204,24 +1205,19 @@ void SEQUENCER_OT_refresh_all(wmOperatorType *ot)
 /** \name Reassign Inputs Operator
  * \{ */
 
-bool effect_inputs_validate(const VectorSet<Strip *> &inputs,
-                            int num_inputs,
-                            const char **r_error_str)
+StringRef effect_inputs_validate(const VectorSet<Strip *> &inputs, int num_inputs)
 {
   if (inputs.size() > 2) {
-    *r_error_str = N_("Cannot apply effect to more than 2 sequence strips with video content");
-    return false;
+    return "Cannot apply effect to more than 2 sequence strips with video content";
   }
 
   if (num_inputs == 2 && inputs.size() != 2) {
-    *r_error_str = N_("Exactly 2 selected sequence strips with video content are needed");
-    return false;
+    return "Exactly 2 selected sequence strips with video content are needed";
   }
   if (num_inputs == 1 && inputs.size() != 1) {
-    *r_error_str = N_("Exactly one selected sequence strip with video content is needed");
-    return false;
+    return "Exactly one selected sequence strip with video content is needed";
   }
-  return true;
+  return "";
 }
 
 VectorSet<Strip *> strip_effect_get_new_inputs(const Scene *scene, bool ignore_active)
@@ -1246,7 +1242,6 @@ static int sequencer_reassign_inputs_exec(bContext *C, wmOperator *op)
 {
   Scene *scene = CTX_data_scene(C);
   Strip *active_strip = seq::select_active_get(scene);
-  const char *error_msg;
   const int num_inputs = seq::effect_get_num_inputs(active_strip->type);
 
   if (num_inputs == 0) {
@@ -1255,9 +1250,10 @@ static int sequencer_reassign_inputs_exec(bContext *C, wmOperator *op)
   }
 
   VectorSet<Strip *> inputs = strip_effect_get_new_inputs(scene, true);
+  StringRef error_msg = effect_inputs_validate(inputs, num_inputs);
 
-  if (!effect_inputs_validate(inputs, num_inputs, &error_msg)) {
-    BKE_report(op->reports, RPT_ERROR, error_msg);
+  if (!error_msg.is_empty()) {
+    BKE_report(op->reports, RPT_ERROR, error_msg.data());
     return OPERATOR_CANCELLED;
   }
 
@@ -1278,8 +1274,8 @@ static int sequencer_reassign_inputs_exec(bContext *C, wmOperator *op)
   int old_start = active_strip->start;
 
   /* Force time position update for reassigned effects.
-   * TODO(Richard): This is because internally startdisp is still used, due to poor performance of
-   * mapping effect range to inputs. This mapping could be cached though. */
+   * TODO(Richard): This is because internally startdisp is still used, due to poor performance
+   * of mapping effect range to inputs. This mapping could be cached though. */
   seq::strip_lookup_invalidate(scene->ed);
   seq::time_left_handle_frame_set(scene, seq1, seq::time_left_handle_frame_get(scene, seq1));
 
@@ -1783,7 +1779,6 @@ static int sequencer_delete_invoke(bContext *C, wmOperator *op, const wmEvent *e
 
 void SEQUENCER_OT_delete(wmOperatorType *ot)
 {
-
   /* Identifiers. */
   ot->name = "Delete Strips";
   ot->idname = "SEQUENCER_OT_delete";
@@ -1856,7 +1851,6 @@ static int sequencer_offset_clear_exec(bContext *C, wmOperator * /*op*/)
 
 void SEQUENCER_OT_offset_clear(wmOperatorType *ot)
 {
-
   /* Identifiers. */
   ot->name = "Clear Strip Offset";
   ot->idname = "SEQUENCER_OT_offset_clear";

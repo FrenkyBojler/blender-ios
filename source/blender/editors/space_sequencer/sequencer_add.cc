@@ -1498,7 +1498,6 @@ static int sequencer_add_effect_strip_exec(bContext *C, wmOperator *op)
 {
   Scene *scene = CTX_data_scene(C);
   Editing *ed = seq::editing_ensure(scene);
-  const char *error_msg;
 
   seq::LoadData load_data;
   load_data_init_from_operator(&load_data, C, op);
@@ -1506,9 +1505,10 @@ static int sequencer_add_effect_strip_exec(bContext *C, wmOperator *op)
   const int num_inputs = seq::effect_get_num_inputs(load_data.effect.type);
 
   VectorSet<Strip *> inputs = strip_effect_get_new_inputs(scene);
+  StringRef error_msg = effect_inputs_validate(inputs, num_inputs);
 
-  if (!effect_inputs_validate(inputs, num_inputs, &error_msg)) {
-    BKE_report(op->reports, RPT_ERROR, error_msg);
+  if (!error_msg.is_empty()) {
+    BKE_report(op->reports, RPT_ERROR, error_msg.data());
     return OPERATOR_CANCELLED;
   }
 
@@ -1516,7 +1516,7 @@ static int sequencer_add_effect_strip_exec(bContext *C, wmOperator *op)
     deselect_all_strips(scene);
   }
 
-  Strip *seq1 = inputs[0];
+  Strip *seq1 = inputs.size() > 0 ? inputs[0] : nullptr;
   Strip *seq2 = inputs.size() == 2 ? inputs[1] : nullptr;
 
   load_data.effect.seq1 = seq1;

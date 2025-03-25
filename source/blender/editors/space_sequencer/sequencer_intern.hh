@@ -10,6 +10,7 @@
 
 #include "BLI_map.hh"
 #include "BLI_span.hh"
+#include "BLI_string_ref.hh"
 #include "BLI_utility_mixins.hh"
 #include "BLI_vector.hh"
 #include "BLI_vector_set.hh"
@@ -175,9 +176,7 @@ void strip_rectf(const Scene *scene, const Strip *strip, rctf *r_rect);
 Strip *find_neighboring_sequence(Scene *scene, Strip *test, int lr, int sel);
 void recurs_sel_seq(Strip *strip_meta);
 VectorSet<Strip *> strip_effect_get_new_inputs(const Scene *scene, bool ignore_active = false);
-bool effect_inputs_validate(const VectorSet<Strip *> &inputs,
-                            int num_inputs,
-                            const char **r_error_str);
+StringRef effect_inputs_validate(const VectorSet<Strip *> &inputs, int num_inputs);
 
 /* Operator helpers. */
 bool sequencer_edit_poll(bContext *C);
