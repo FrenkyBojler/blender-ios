@@ -64,6 +64,8 @@ void AbstractView::update_from_old(uiBlock &new_block)
   rename_buffer_ = std::move(old_view->rename_buffer_);
   old_view->rename_buffer_ = nullptr;
 
+  sort_order = old_view->sort_order;
+
   this->update_children_from_old(*old_view);
 
   /* Finished (re-)constructing the tree. */
@@ -240,6 +242,16 @@ void AbstractView::set_popup_keep_open()
 void AbstractView::clear_search_highlight()
 {
   this->foreach_view_item([](AbstractViewItem &item) { item.is_highlighted_search_ = false; });
+}
+
+void AbstractView::set_sort_inverted()
+{
+  this->sort_order = !this->sort_order;
+}
+
+bool AbstractView::is_sort_inverted() const
+{
+  return this->sort_order;
 }
 /** \} */
 

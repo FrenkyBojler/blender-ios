@@ -243,6 +243,20 @@ void AbstractTreeView::get_hierarchy_lines(const ARegion &region,
   }
 }
 
+void AbstractTreeView::sort_inverted()
+{
+  if (!this->is_sort_inverted()) {
+    return;
+  }
+
+  auto new_order = std::move(this->children_);
+  this->children_.clear();
+  for (auto iter = new_order.rbegin(); iter != new_order.rend(); iter++) {
+    this->children_.append(std::move(*iter));
+  }
+  new_order.clear();
+}
+
 static uiButViewItem *find_first_view_item_but(const uiBlock &block, const AbstractTreeView &view)
 {
   for (const std::unique_ptr<uiBut> &but : block.buttons) {
@@ -792,6 +806,23 @@ static int count_visible_items(AbstractTreeView &tree_view)
   return item_count;
 }
 
+static void set_sort_order(bContext *C, void * /*but_arg1*/, void * /*arg2*/)
+{
+  const wmWindow *win = CTX_wm_window(C);
+  if (!(win && win->eventstate)) {
+    return;
+  }
+
+  const ARegion *region = CTX_wm_region(C);
+  if (!region) {
+    return;
+  }
+
+  if (AbstractView *view = UI_region_view_find_at(region, win->eventstate->xy, UI_UNIT_Y)) {
+    view->set_sort_inverted();
+  }
+}
+
 void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
 {
   uiLayout &parent_layout = this->current_layout();
@@ -805,6 +836,16 @@ void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
   else {
     col = uiLayoutColumn(&parent_layout, true);
   }
+
+  int icon = tree_view.is_sort_inverted() ? ICON_SORT_ASC : ICON_SORT_DESC;
+
+  /* Header */
+  uiLayout *header = uiLayoutRow(col, false);
+  uiLayoutSetAlignment(header, UI_LAYOUT_ALIGN_RIGHT);
+  uiBut *but = uiDefIconBut(
+      block, UI_BTYPE_ICON_TOGGLE, 0, icon, 0, 0, UI_UNIT_X, UI_UNIT_Y, nullptr, 0, 0, "");
+  UI_but_func_set(but, set_sort_order, nullptr, nullptr);
+
   /* Row for the tree-view and the scroll bar. */
   uiLayout *row = uiLayoutRow(col, false);
 
@@ -824,6 +865,7 @@ void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
   const int max_visible_index = visible_row_count ? first_visible_index + *visible_row_count - 1 :
                                                     std::numeric_limits<int>::max();
   int index = 0;
+
   tree_view.foreach_item(
       [&, this](AbstractTreeViewItem &item) {
         if ((index >= first_visible_index) && (index <= max_visible_index)) {
@@ -974,7 +1016,7 @@ void TreeViewBuilder::build_tree_view(const bContext &C,
   tree_view.update_from_old(block);
   tree_view.change_state_delayed();
   tree_view.filter(search_string);
-
+  tree_view.sort_inverted();
   ensure_min_rows_items(tree_view);
 
   /* Ensure the given layout is actually active. */

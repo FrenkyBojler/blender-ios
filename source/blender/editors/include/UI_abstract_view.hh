@@ -75,6 +75,7 @@ class AbstractView {
   std::string context_menu_title;
   /** See #set_popup_keep_open(). */
   bool popup_keep_open_ = false;
+  bool sort_order = false;
 
  public:
   virtual ~AbstractView() = default;
@@ -145,6 +146,9 @@ class AbstractView {
   void set_popup_keep_open();
 
   void clear_search_highlight();
+
+  void set_sort_inverted();
+  bool is_sort_inverted() const;
 
  protected:
   AbstractView() = default;
