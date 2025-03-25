@@ -79,7 +79,7 @@ void node_matrix_to_obj(const ufbx_node *node, Object *obj)
   ufbx_matrix_to_obj(mtx, obj);
 }
 
-static void read_ufbx_property(const ufbx_prop &prop, IDProperty *idgroup)
+static void read_ufbx_property(const ufbx_prop &prop, IDProperty *idgroup, bool enums_as_strings)
 {
   IDProperty *idprop = nullptr;
   IDPropertyTemplate val = {0};
@@ -93,7 +93,9 @@ static void read_ufbx_property(const ufbx_prop &prop, IDProperty *idgroup)
       break;
     case UFBX_PROP_INTEGER: {
       bool parsed_as_enum = false;
-      if ((prop.flags & UFBX_PROP_FLAG_VALUE_STR) && (prop.value_str.length > 0)) {
+      if (enums_as_strings && (prop.flags & UFBX_PROP_FLAG_VALUE_STR) &&
+          (prop.value_str.length > 0))
+      {
         /* "Enum" property with integer value, and enum names as `~` separated string. */
         const char *tilde = prop.value_str.data;
         int enum_index = -1;
@@ -206,14 +208,14 @@ static void read_ufbx_property(const ufbx_prop &prop, IDProperty *idgroup)
   }
 }
 
-void read_custom_properties(const ufbx_props &props, ID &id)
+void read_custom_properties(const ufbx_props &props, ID &id, bool enums_as_strings)
 {
   for (const ufbx_prop &prop : props.props) {
     if ((prop.flags & UFBX_PROP_FLAG_USER_DEFINED) == 0) {
       continue;
     }
     IDProperty *idgroup = IDP_EnsureProperties(&id);
-    read_ufbx_property(prop, idgroup);
+    read_ufbx_property(prop, idgroup, enums_as_strings);
   }
 }
 
@@ -226,14 +228,14 @@ static IDProperty *pchan_EnsureProperties(bPoseChannel &pchan)
   return pchan.prop;
 }
 
-void read_custom_properties(const ufbx_props& props, bPoseChannel& pchan)
+void read_custom_properties(const ufbx_props &props, bPoseChannel &pchan, bool enums_as_strings)
 {
   for (const ufbx_prop &prop : props.props) {
     if ((prop.flags & UFBX_PROP_FLAG_USER_DEFINED) == 0) {
       continue;
     }
     IDProperty *idgroup = pchan_EnsureProperties(pchan);
-    read_ufbx_property(prop, idgroup);
+    read_ufbx_property(prop, idgroup, enums_as_strings);
   }
 }
 

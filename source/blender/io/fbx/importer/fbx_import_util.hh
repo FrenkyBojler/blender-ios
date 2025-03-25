@@ -71,8 +71,8 @@ void matrix_to_m44(const ufbx_matrix &src, float dst[4][4]);
 void m44_to_matrix(const float src[4][4], ufbx_matrix &dst);
 void ufbx_matrix_to_obj(const ufbx_matrix &mtx, Object *obj);
 void node_matrix_to_obj(const ufbx_node *node, Object *obj);
-void read_custom_properties(const ufbx_props &props, ID &id);
-void read_custom_properties(const ufbx_props &props, bPoseChannel &pchan);
+void read_custom_properties(const ufbx_props &props, ID &id, bool enums_as_strings);
+void read_custom_properties(const ufbx_props &props, bPoseChannel &pchan, bool enums_as_strings);
 
 //@TODO remove debug file print once things are working properly
 #define FBX_DEBUG_PRINT

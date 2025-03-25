@@ -50,6 +50,7 @@ static wmOperatorStatus wm_fbx_import_exec(bContext *C, wmOperator *op)
   params.global_scale = RNA_float_get(op->ptr, "global_scale");
   params.use_custom_normals = RNA_boolean_get(op->ptr, "use_custom_normals");
   params.use_custom_props = RNA_boolean_get(op->ptr, "use_custom_props");
+  params.props_enum_as_string = RNA_boolean_get(op->ptr, "use_custom_props_enum_as_string");
   params.ignore_leaf_bones = RNA_boolean_get(op->ptr, "ignore_leaf_bones");
   params.use_subsurf = RNA_boolean_get(op->ptr, "use_subsurf");
   params.validate_meshes = RNA_boolean_get(op->ptr, "validate_meshes");
@@ -93,6 +94,8 @@ static void ui_fbx_import_settings(const bContext *C, uiLayout *layout, PointerR
     uiLayout *col = uiLayoutColumn(panel, false);
     uiItemR(col, ptr, "global_scale", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     uiItemR(col, ptr, "use_custom_props", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    uiLayoutSetEnabled(col, RNA_boolean_get(ptr, "use_custom_props"));
+    uiItemR(col, ptr, "use_custom_props_enum_as_string", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 
   if (uiLayout *panel = uiLayoutPanel(C, layout, "FBX_import_geometry", false, IFACE_("Geometry")))
@@ -169,6 +172,11 @@ void WM_OT_fbx_import(wmOperatorType *ot)
                   true,
                   "Custom Properties",
                   "Import user properties as custom properties");
+  RNA_def_boolean(ot->srna,
+                  "use_custom_props_enum_as_string",
+                  true,
+                  "Enums As Strings",
+                  "Store custom property enumeration values as strings");
   RNA_def_boolean(ot->srna,
                   "use_subsurf",
                   false,

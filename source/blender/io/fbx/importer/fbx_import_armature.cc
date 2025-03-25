@@ -73,7 +73,7 @@ Object *ArmatureImportContext::create_armature_for_node(const ufbx_node *node)
   if (node != nullptr) {
     this->mapping.el_to_object.add(&node->element, obj);
     if (this->params.use_custom_props) {
-      read_custom_properties(node->props, arm->id);
+      read_custom_properties(node->props, arm->id, this->params.props_enum_as_string);
     }
     node_matrix_to_obj(node, obj);
   }
@@ -237,11 +237,13 @@ void ArmatureImportContext::find_armatures(const ufbx_node *node)
     m44_to_matrix(arm_obj->runtime->object_to_world.ptr(), arm_to_world);
     ufbx_matrix world_to_arm = ufbx_matrix_invert(&arm_to_world);
 
+    Set<const ufbx_node *> arm_bones;
     bArmature *arm = static_cast<bArmature *>(arm_obj->data);
     ED_armature_to_edit(arm);
     for (const ufbx_node *fchild : node->children) {
       if (fchild->attrib_type == UFBX_ELEMENT_BONE) {
-        create_armature_bones(fchild, arm_obj, arm_bones, nullptr, ufbx_identity_matrix, world_to_arm, 1.0f);
+        create_armature_bones(
+            fchild, arm_obj, arm_bones, nullptr, ufbx_identity_matrix, world_to_arm, 1.0f);
       }
     }
     ED_armature_from_edit(&this->bmain, arm);
@@ -253,7 +255,7 @@ void ArmatureImportContext::find_armatures(const ufbx_node *node)
       if (pchan == nullptr) {
         continue;
       }
-      read_custom_properties(fbone->props, *pchan);
+      read_custom_properties(fbone->props, *pchan, this->params.props_enum_as_string);
       //@TODO
       // BKE_pchan_apply_mat4(pchan, (const float(*)[4])values, false);
     }

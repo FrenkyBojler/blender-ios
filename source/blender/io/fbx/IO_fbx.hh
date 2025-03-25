@@ -32,6 +32,7 @@ struct FBXImportParams {
   bool use_custom_normals = true;
   bool use_subsurf = false;
   bool use_custom_props = true;
+  bool props_enum_as_string = true;
   bool ignore_leaf_bones = false;
 
   bool use_anim = true;

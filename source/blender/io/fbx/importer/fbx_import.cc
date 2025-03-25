@@ -87,7 +87,7 @@ struct FbxImportContext {
     if (g_debug_file) {
       fclose(g_debug_file);
     }
-  #endif
+#endif
   }
 
   void import_globals(Scene *scene);
@@ -115,7 +115,7 @@ void FbxImportContext::import_materials()
   for (const ufbx_material *fmat : this->fbx.materials) {
     Material *mat = io::fbx::import_material(this->bmain, this->base_dir, *fmat);
     if (this->params.use_custom_props) {
-      read_custom_properties(fmat->props, mat->id);
+      read_custom_properties(fmat->props, mat->id, this->params.props_enum_as_string);
     }
     this->mapping.mat_to_material.add(fmat, mat);
   }
@@ -355,7 +355,7 @@ void FbxImportContext::import_meshes()
     BKE_mesh_nomain_to_mesh(mesh, mesh_main, nullptr);
     mesh = mesh_main;
     if (this->params.use_custom_props) {
-      read_custom_properties(fmesh->props, mesh->id);
+      read_custom_properties(fmesh->props, mesh->id, this->params.props_enum_as_string);
     }
 
     /* Blend shapes. */
@@ -485,7 +485,7 @@ void FbxImportContext::import_meshes()
       }
 
       if (this->params.use_custom_props) {
-        read_custom_properties(node->props, obj->id);
+        read_custom_properties(node->props, obj->id, this->params.props_enum_as_string);
       }
       if (!matrix_already_set) {
         node_matrix_to_obj(node, obj);
@@ -505,7 +505,7 @@ void FbxImportContext::import_cameras()
 
     Camera *bcam = BKE_camera_add(this->bmain, get_fbx_name(fcam->name, "Camera"));
     if (this->params.use_custom_props) {
-      read_custom_properties(fcam->props, bcam->id);
+      read_custom_properties(fcam->props, bcam->id, this->params.props_enum_as_string);
     }
 
     bcam->type = fcam->projection_mode == UFBX_PROJECTION_MODE_ORTHOGRAPHIC ? CAM_ORTHO :
@@ -533,7 +533,7 @@ void FbxImportContext::import_cameras()
     obj->data = bcam;
 
     if (this->params.use_custom_props) {
-      read_custom_properties(node->props, obj->id);
+      read_custom_properties(node->props, obj->id, this->params.props_enum_as_string);
     }
     node_matrix_to_obj(node, obj);
     this->mapping.el_to_object.add(&node->element, obj);
@@ -550,7 +550,7 @@ void FbxImportContext::import_lights()
 
     Light *lamp = BKE_light_add(this->bmain, get_fbx_name(flight->name, "Light"));
     if (this->params.use_custom_props) {
-      read_custom_properties(flight->props, lamp->id);
+      read_custom_properties(flight->props, lamp->id, this->params.props_enum_as_string);
     }
     switch (flight->type) {
       case UFBX_LIGHT_POINT:
@@ -581,7 +581,7 @@ void FbxImportContext::import_lights()
     obj->data = lamp;
 
     if (this->params.use_custom_props) {
-      read_custom_properties(node->props, obj->id);
+      read_custom_properties(node->props, obj->id, this->params.props_enum_as_string);
     }
     node_matrix_to_obj(node, obj);
     this->mapping.el_to_object.add(&node->element, obj);
@@ -604,7 +604,7 @@ void FbxImportContext::import_empties()
     Object *obj = BKE_object_add_only_object(this->bmain, OB_EMPTY, get_fbx_name(node->name));
     obj->data = nullptr;
     if (this->params.use_custom_props) {
-      read_custom_properties(node->props, obj->id);
+      read_custom_properties(node->props, obj->id, this->params.props_enum_as_string);
     }
     node_matrix_to_obj(node, obj);
     this->mapping.el_to_object.add(&node->element, obj);
