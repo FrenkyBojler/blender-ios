@@ -678,7 +678,7 @@ class VectorSet {
    * Extracts all inserted values as a #Vector. The values are removed from the #VectorSet. This
    * takes O(1) time.
    *
-   * If the values were stored in the inline-buffer, the values are copied to a newly allocated
+   * If the values were stored in the inline-buffer, the values are moved to a newly allocated
    * array first. The caller does not have to any special handling in this case.
    *
    * One can use this to create a #Vector without duplicates efficiently.
