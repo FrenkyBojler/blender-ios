@@ -25,6 +25,12 @@ TEST(vector_set, InitializerListConstructor_WithoutDuplicates)
   EXPECT_EQ(set[0], 1);
   EXPECT_EQ(set[1], 4);
   EXPECT_EQ(set[2], 5);
+  VectorSet<int> set_bigger_than_inline = {1, 4, 5, 8, 9, 11, 12, 13, 14, 15, 16, 17, 18, 19};
+  EXPECT_EQ(set_bigger_than_inline.size(), 14);
+  EXPECT_EQ(set_bigger_than_inline[0], 1);
+  EXPECT_EQ(set_bigger_than_inline[1], 4);
+  EXPECT_EQ(set_bigger_than_inline[2], 5);
+  EXPECT_EQ(set_bigger_than_inline.as_span().last(), 19);
 }
 
 TEST(vector_set, InitializerListConstructor_WithDuplicates)

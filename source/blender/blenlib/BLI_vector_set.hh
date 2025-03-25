@@ -146,7 +146,7 @@ class VectorSet {
    * no keys are removed. The first set->size() elements in this array are initialized. The
    * capacity of the array is usable_slots_.
    */
-  Key *keys_ = nullptr;
+  Key *keys_;
 
   /** Iterate over a slot index sequence for a given hash. */
 #define VECTOR_SET_SLOT_PROBING_BEGIN(HASH, R_SLOT) \
@@ -719,9 +719,13 @@ class VectorSet {
         slots_.reinitialize(total_slots);
         if (keys_ != inline_buffer_) {
           this->deallocate_keys_array(keys_);
+        }
+        if (usable_slots > InlineBufferCapacity) {
+          keys_ = this->allocate_keys_array(usable_slots);
+        }
+        else {
           keys_ = inline_buffer_;
         }
-        keys_ = this->allocate_keys_array(usable_slots);
       }
       catch (...) {
         this->noexcept_reset();
