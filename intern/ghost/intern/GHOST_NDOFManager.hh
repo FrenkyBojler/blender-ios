@@ -82,6 +82,7 @@ class GHOST_NDOFManager {
    * use HID button encoding (not #NDOF_ButtonT).
    */
   void updateButton(int button_number, bool press, uint64_t time);
+  void updateButtonMapped(GHOST_NDOF_ButtonT button, bool press, uint64_t time);
   void updateButtonsBitmask(int button_bits, uint64_t time);
   void updateButtonsArray(NDOF_Button_Array buttons, uint64_t time, NDOF_Button_Type type);
   /* #NDOFButton events are sent immediately */

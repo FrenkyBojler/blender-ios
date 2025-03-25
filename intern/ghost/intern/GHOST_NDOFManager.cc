@@ -506,22 +506,15 @@ void GHOST_NDOFManager::sendKeyEvent(GHOST_TKey key,
   system_.pushEvent(event);
 }
 
-void GHOST_NDOFManager::updateButton(int button_number, bool press, uint64_t time)
+void GHOST_NDOFManager::updateButtonMapped(GHOST_NDOF_ButtonT button, bool press, uint64_t time)
 {
-  GHOST_NDOF_ButtonT button = static_cast<GHOST_NDOF_ButtonT>(button_number);
-
   if (button == GHOST_NDOF_BUTTON_INVALID) {
-    CLOG_INFO(
-        LOG, 2, "button=%d, press=%d (mapped to none, ignoring!)", button_number, int(press));
+    CLOG_INFO(LOG, 2, "button=%d, press=%d (mapped to none, ignoring!)", int(button), int(press));
     return;
   }
 
-  CLOG_INFO(LOG,
-            2,
-            "button=%d, press=%d, name=%s",
-            button_number,
-            int(press),
-            ndof_button_names.at(button));
+  CLOG_INFO(
+      LOG, 2, "button=%d, press=%d, name=%s", button, int(press), ndof_button_names.at(button));
 
 #ifndef USE_3DCONNEXION_NONSTANDARD_KEYS
   if (((button >= GHOST_NDOF_BUTTON_KBP_F1) && (button <= GHOST_NDOF_BUTTON_KBP_F12)) ||
@@ -543,6 +536,16 @@ void GHOST_NDOFManager::updateButton(int button_number, bool press, uint64_t tim
       sendButtonEvent(button, press, time, window);
     }
   }
+}
+
+void GHOST_NDOFManager::updateButton(int button_number, bool press, uint64_t time)
+{
+  if (button_number >= hid_map_button_num_) {
+    CLOG_INFO(LOG, 2, "button=%d, press=%d (out of range, ignoring!)", button_number, int(press));
+    return;
+  }
+  GHOST_NDOF_ButtonT button = hid_map_[button_number];
+  GHOST_NDOFManager::updateButtonMapped(button, press, time);
 }
 
 void GHOST_NDOFManager::updateButtonsBitmask(int button_bits, uint64_t time)
@@ -574,8 +577,7 @@ void GHOST_NDOFManager::updateButtonsBitmask(int button_bits, uint64_t time)
 
       /* Bitmask devices don't have unified keymaps, so button numbers needs to be looked up in the
        * map. */
-      int button = hid_map_[button_number];
-      updateButton(button, press, time);
+      updateButton(button_number, press, time);
     }
   }
 }
@@ -598,7 +600,7 @@ void GHOST_NDOFManager::updateButtonsArray(NDOF_Button_Array buttons,
     }
 
     if (!found) {
-      updateButton(cached_button, false, time);
+      updateButtonMapped(cached_button, false, time);
     }
   }
 
@@ -613,7 +615,7 @@ void GHOST_NDOFManager::updateButtonsArray(NDOF_Button_Array buttons,
     }
 
     if (!found) {
-      updateButton(button, true, time);
+      updateButtonMapped(button, true, time);
     }
   }
   cache = buttons;
