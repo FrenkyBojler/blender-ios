@@ -157,7 +157,16 @@ static void set_bsdf_socket_values(bNode *bsdf, Material *mat, const ufbx_materi
     set_bsdf_float_param(bsdf, fmat.pbr.specular_rotation, "Anisotropic Rotation", 0.0f);
   }
 
-  if (fmat.features.transmission.enabled) {
+  if (ELEM(fmat.shader_type,
+           UFBX_SHADER_OSL_STANDARD_SURFACE,
+           UFBX_SHADER_ARNOLD_STANDARD_SURFACE,
+           UFBX_SHADER_3DS_MAX_PHYSICAL_MATERIAL,
+           UFBX_SHADER_3DS_MAX_PBR_METAL_ROUGH,
+           UFBX_SHADER_3DS_MAX_PBR_SPEC_GLOSS,
+           UFBX_SHADER_GLTF_MATERIAL,
+           UFBX_SHADER_BLENDER_PHONG) &&
+      fmat.features.transmission.enabled)
+  {
     set_bsdf_float_param(bsdf, fmat.pbr.transmission_factor, "Transmission Weight", 0.0f);
   }
 
