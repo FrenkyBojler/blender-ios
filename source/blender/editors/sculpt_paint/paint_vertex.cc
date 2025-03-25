@@ -1843,9 +1843,6 @@ static void vpaint_paint_leaves(bContext *C,
                                 const Span<bke::pbvh::MeshNode> nodes,
                                 const IndexMask &node_mask)
 {
-  const Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(C);
-  undo::push_nodes(depsgraph, ob, node_mask, undo::Type::Color);
-
   const Brush &brush = *ob.sculpt->cache->brush;
 
   switch ((eBrushVertexPaintType)brush.vertex_brush_type) {
@@ -2028,8 +2025,6 @@ static void vpaint_stroke_done(const bContext *C, PaintStroke *stroke)
 
   WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, &ob);
 
-  undo::push_end(ob);
-
   MEM_delete(ob.sculpt->cache);
   ob.sculpt->cache = nullptr;
 }
@@ -2046,11 +2041,6 @@ static int vpaint_invoke(bContext *C, wmOperator *op, const wmEvent *event)
                                     nullptr,
                                     vpaint_stroke_done,
                                     event->type);
-
-  const Scene &scene = *CTX_data_scene(C);
-  Object &ob = *CTX_data_active_object(C);
-
-  undo::push_begin_ex(scene, ob, "Vertex Paint");
 
   if ((retval = op->type->modal(C, op, event)) == OPERATOR_FINISHED) {
     paint_stroke_free(C, op, (PaintStroke *)op->customdata);
@@ -2279,7 +2269,6 @@ static int vertex_color_set_exec(bContext *C, wmOperator *op)
   using namespace blender::ed::sculpt_paint;
   Scene &scene = *CTX_data_scene(C);
   Object &obact = *CTX_data_active_object(C);
-  const Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(C);
   if (!BKE_mesh_from_object(&obact)) {
     return OPERATOR_CANCELLED;
   }
@@ -2292,18 +2281,14 @@ static int vertex_color_set_exec(bContext *C, wmOperator *op)
 
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(obact);
 
-  undo::push_begin(scene, obact, op);
   IndexMaskMemory memory;
   const IndexMask node_mask = bke::pbvh::all_leaf_nodes(pbvh, memory);
-
-  undo::push_nodes(depsgraph, obact, node_mask, undo::Type::Color);
 
   Mesh &mesh = *static_cast<Mesh *>(obact.data);
 
   fill_active_color(obact, paintcol, true, affect_alpha);
 
   pbvh.tag_attribute_changed(node_mask, mesh.active_color_attribute);
-  undo::push_end(obact);
 
   WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, &obact);
   return OPERATOR_FINISHED;
