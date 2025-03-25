@@ -2249,7 +2249,7 @@ ImBuf *imb_load_openexr(const uchar *mem, size_t size, int flags, char colorspac
       const bool is_alpha = exr_has_alpha(*file);
 
       ibuf = IMB_allocImBuf(width, height, is_alpha ? 32 : 24, 0);
-      ibuf->flags |= exr_is_half_float(*file) ? IB_halffloat : 0;
+      ibuf->foptions.flag |= exr_is_half_float(*file) ? OPENEXR_HALF : 0;
       ibuf->foptions.flag |= openexr_header_get_compression(&file->header(0));
 
       if (hasXDensity(file_header)) {

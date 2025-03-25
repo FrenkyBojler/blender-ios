@@ -871,10 +871,14 @@ void BKE_image_format_from_imbuf(ImageFormatData *im_format, const ImBuf *imbuf)
 #ifdef WITH_OPENEXR
   else if (ftype == IMB_FTYPE_OPENEXR) {
     im_format->imtype = R_IMF_IMTYPE_OPENEXR;
-    if (custom_flags & OPENEXR_HALF || imbuf->flags & IB_halffloat) {
+    char exr_codec = custom_flags & OPENEXR_CODEC_MASK;
+    if (custom_flags & OPENEXR_HALF) {
       im_format->depth = R_IMF_CHAN_DEPTH_16;
     }
-    const char exr_codec = custom_flags & OPENEXR_CODEC_MASK;
+    else if (exr_codec == R_IMF_EXR_CODEC_B44 || exr_codec == R_IMF_EXR_CODEC_B44A) {
+      /* B44 and B44A are only selectable for half precision images, default to ZIP compression */
+      exr_codec = R_IMF_EXR_CODEC_ZIP;
+    }
     if (exr_codec < R_IMF_EXR_CODEC_MAX) {
       im_format->exr_codec = exr_codec;
     }
