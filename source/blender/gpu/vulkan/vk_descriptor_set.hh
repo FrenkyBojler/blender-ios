@@ -90,10 +90,10 @@ class VKDescriptorSetTracker {
 
   struct Offsets {
     VkDescriptorSet vk_descriptor_set = VK_NULL_HANDLE;
-    int64_t buffer_info_offset;
-    int64_t image_info_offset;
-    int64_t buffer_views_offset;
     int64_t write_offset;
+    int64_t image_info_offset;
+    int64_t buffer_info_offset;
+    int64_t buffer_views_offset;
   };
   Map<VkDescriptorSetLayout, Vector<Offsets>> descriptor_set_offsets_;
   /**

@@ -352,10 +352,10 @@ void VKDescriptorSetTracker::update_descriptor_set(VKContext &context,
 
   Offsets offsets = {
       VK_NULL_HANDLE,
-      vk_buffer_views_.size(),
+      vk_write_descriptor_sets_.size(),
       vk_descriptor_image_infos_.size(),
       vk_descriptor_buffer_infos_.size(),
-      vk_write_descriptor_sets_.size(),
+      vk_buffer_views_.size(),
   };
 
   /* Allocate a new descriptor set. */
@@ -377,6 +377,15 @@ void VKDescriptorSetTracker::update_descriptor_set(VKContext &context,
     offsets.vk_descriptor_set = vk_descriptor_set;
     finalize_descriptor_set(vk_descriptor_set_layout, offsets);
   }
+}
+
+static bool operator!=(const VkDescriptorBufferInfo &a, const VkDescriptorBufferInfo &b)
+{
+  return !(a.buffer == b.buffer && a.offset == b.offset && a.range == b.range);
+}
+static bool operator!=(const VkDescriptorImageInfo &a, const VkDescriptorImageInfo &b)
+{
+  return !(a.imageLayout == b.imageLayout && a.imageView == b.imageView && a.sampler == b.sampler);
 }
 
 std::optional<VkDescriptorSet> VKDescriptorSetTracker::find_descriptor_set(
@@ -417,9 +426,9 @@ std::optional<VkDescriptorSet> VKDescriptorSetTracker::find_descriptor_set(
            IndexRange(vk_descriptor_buffer_infos_.size() - offsets.buffer_info_offset))
       {
         const VkDescriptorBufferInfo &other_info =
-            vk_descriptor_buffer_infos_[other_offset.image_info_offset + index];
+            vk_descriptor_buffer_infos_[other_offset.buffer_info_offset + index];
         const VkDescriptorBufferInfo &info =
-            vk_descriptor_buffer_infos_[offsets.image_info_offset + index];
+            vk_descriptor_buffer_infos_[offsets.buffer_info_offset + index];
         if (other_info != info) {
           is_same = false;
         }
@@ -438,6 +447,14 @@ std::optional<VkDescriptorSet> VKDescriptorSetTracker::find_descriptor_set(
 void VKDescriptorSetTracker::finalize_descriptor_set(
     VkDescriptorSetLayout vk_descriptor_set_layout, Offsets &offsets)
 {
+  BLI_assert(offsets.vk_descriptor_set != VK_NULL_HANDLE);
+  /* Populate the write infos with the new descriptor set. */
+  for (VkWriteDescriptorSet &write_descriptor :
+       vk_write_descriptor_sets_.as_mutable_span().drop_front(offsets.write_offset))
+  {
+    write_descriptor.dstSet = offsets.vk_descriptor_set;
+  }
+  descriptor_set_offsets_.lookup(vk_descriptor_set_layout).append(offsets);
 }
 
 void VKDescriptorSetTracker::discard_last_descriptor_set(Offsets &offsets)
@@ -540,6 +557,7 @@ void VKDescriptorSetTracker::upload_descriptor_sets()
   vk_descriptor_buffer_infos_.clear();
   vk_buffer_views_.clear();
   vk_write_descriptor_sets_.clear();
+  descriptor_set_offsets_.clear();
 }
 
 }  // namespace blender::gpu
