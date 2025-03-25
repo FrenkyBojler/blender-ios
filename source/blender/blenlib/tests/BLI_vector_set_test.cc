@@ -316,6 +316,18 @@ TEST(vector_set, ExtractVector)
   EXPECT_EQ(vec.data(), data_ptr);
 }
 
+TEST(vector_set, ExtractVectorInline)
+{
+  VectorSet<int, 32> set;
+  set.add_multiple({5, 2, 7, 4, 8, 5, 4, 5});
+  EXPECT_EQ(set.size(), 5);
+  const int *data_ptr = set.data();
+
+  Vector<int> vec = set.extract_vector();
+  EXPECT_EQ(vec.size(), 5);
+  EXPECT_EQ(vec.data(), data_ptr);
+}
+
 TEST(vector_set, ExtractVectorEmpty)
 {
   VectorSet<int> set;
@@ -343,6 +355,19 @@ TEST(vector_set, CustomIDVectorSet)
   EXPECT_EQ(set.size(), 2);
   set.add(ThingWithID{3333, "test", 27});
   EXPECT_EQ(set.size(), 2);
+
+  /* Add more elements than the inline capacity. */
+  CustomIDVectorSet<ThingWithID, ThingGetter> larger_set;
+  larger_set.add_new(ThingWithID{12, "test", 9});
+  EXPECT_EQ(larger_set.index_of_as("test"), 0);
+  larger_set.add_new(ThingWithID{123, "other", 8});
+  larger_set.add_new(ThingWithID{1234, "test", 7});
+  larger_set.add_new(ThingWithID{12345, "test_2", 6});
+  larger_set.add_new(ThingWithID{123456, "test_4", 5});
+  larger_set.add_new(ThingWithID{1234567, "test_5", 4});
+  EXPECT_EQ(larger_set.index_of_as("test_4"), 3);
+  larger_set.add_new(ThingWithID{12345678, "test_6", 3});
+  EXPECT_TRUE(larger_set.size() == 6);
 }
 
 namespace {
