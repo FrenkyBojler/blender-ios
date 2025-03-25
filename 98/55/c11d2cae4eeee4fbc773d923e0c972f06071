@@ -1,3 +1,4 @@
 Referenced by commit 65288e4130d608879f9c33571a4ff1d8d41e5adb, Attempt to fix build error
 Referenced by issue #136415, Animation color management
 Referenced by pull request #136423, Fix #136415: Regression: Color management settings can't be animated
+Referenced by commit 8eb2a9ef0246ec574616e6e4c4a2c86d0f9abd55, Fix #136415: Regression: Color management settings can't be animated
