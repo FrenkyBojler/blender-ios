@@ -73,4 +73,58 @@ TEST(blender_variables, VariableMap)
   EXPECT_EQ(false, map.remove("what"));
 }
 
+TEST(blender_variables, path_apply_variables)
+{
+  VariableMap variables;
+  {
+    variables.add_string("hi", "hello");
+    variables.add_string("bye", "goodbye");
+    variables.add_integer("the_answer", 42);
+    variables.add_integer("prime", 7);
+    variables.add_float("pi", 3.14159);
+    variables.add_float("e", 2.71828);
+    variables.add_float("ntsc", 30.0 / 1.001);
+  }
+
+  /* Simple case, testing all variables.
+   *
+   * TODO: the floats always print with 6 decimal digits. Investigate. */
+  {
+    char path[FILE_MAX] = "${hi}_${bye}_${the_answer}_${prime}_${pi}_${e}_${ntsc}";
+    BKE_path_apply_variables(path, variables);
+    EXPECT_EQ(blender::StringRef(path), "hello_goodbye_42_7_3.141590_2.718280_29.970030");
+  }
+
+  /* Integer formatting. */
+  {
+    char path[FILE_MAX] = "${the_answer:1}_${the_answer:2}_${the_answer:4}";
+    BKE_path_apply_variables(path, variables);
+    EXPECT_EQ(blender::StringRef(path), "42_42_0042");
+  }
+
+  /* Float formatting.
+   *
+   * TODO: the floats print with a maximum of 6 decimal digits. Investigate. */
+  {
+    char path[FILE_MAX] = "${pi:.4}_${e:.3}_${ntsc:.20}";
+    BKE_path_apply_variables(path, variables);
+    EXPECT_EQ(blender::StringRef(path), "3.1416_2.718_29.970030");
+  }
+
+  /* Missing variable. Substitution should continue on, simply ignoring the
+   * missing variable. */
+  {
+    char path[FILE_MAX] = "${hi}_${missing}_${bye}";
+    BKE_path_apply_variables(path, variables);
+    EXPECT_EQ(blender::StringRef(path), "hello_${missing}_goodbye");
+  }
+
+  /* Malformed syntax: unclosed variable. */
+  {
+    char path[FILE_MAX] = "${hi_${hi}_${bye}";
+    BKE_path_apply_variables(path, variables);
+    EXPECT_EQ(blender::StringRef(path), "${hi_hello_goodbye");
+  }
+}
+
 }  // namespace blender::bke::tests
