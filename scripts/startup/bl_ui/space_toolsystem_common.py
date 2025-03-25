@@ -1252,10 +1252,17 @@ class PlayheadSnappingPanel:
         layout = self.layout
         layout.use_property_split = True
         col = layout.column(align=True)
+
         col.prop(tool_settings, "use_snap_playhead")
+        col.separator()
+
         col.prop(tool_settings, "snap_playhead_element", expand=True)
-        col.prop(tool_settings, "snap_playhead_frame_step")
-        col.prop(tool_settings, "snap_playhead_second_step")
+        col.separator()
+
+        if 'FRAME' in tool_settings.snap_playhead_element:
+            col.prop(tool_settings, "snap_playhead_frame_step")
+        if 'SECOND' in tool_settings.snap_playhead_element:
+            col.prop(tool_settings, "snap_playhead_second_step")
 
 
 classes = (

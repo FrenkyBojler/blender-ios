@@ -3706,13 +3706,11 @@ static void rna_def_tool_settings(BlenderRNA *brna)
   RNA_def_property_int_sdna(prop, nullptr, "snap_step_frames");
   RNA_def_property_range(prop, 1, 10000);
   RNA_def_property_ui_text(prop, "Frame Step", "At which interval to snap to frames");
-  RNA_def_property_int_default(prop, 1);
   RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr);
 
   prop = RNA_def_property(srna, "snap_playhead_second_step", PROP_INT, PROP_NONE);
   RNA_def_property_int_sdna(prop, nullptr, "snap_step_seconds");
   RNA_def_property_ui_text(prop, "Second Step", "At which interval to snap to seconds");
-  RNA_def_property_int_default(prop, 1);
   RNA_def_property_range(prop, 1, 10000);
   RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr);
 
