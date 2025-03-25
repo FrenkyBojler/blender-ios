@@ -73,9 +73,11 @@ void DRW_gpu_context_create()
   WM_system_gpu_context_activate(system_gpu_context);
   /* Be sure to create blender_gpu_context too. */
   blender_gpu_context = GPU_context_create(nullptr, system_gpu_context);
+
   /* Some part of the code assumes no context is left bound. */
   GPU_context_active_set(nullptr);
   WM_system_gpu_context_release(system_gpu_context);
+
   /* Activate the window's context if any. */
   wm_window_reset_drawable();
 }

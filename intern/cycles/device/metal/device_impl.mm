@@ -86,6 +86,12 @@ MetalDevice::MetalDevice(const DeviceInfo &info, Stats &stats, Profiler &profile
     mtlDevice = usable_devices[mtlDevId];
     metal_printf("Creating new Cycles Metal device: %s\n", info.description.c_str());
 
+    /* Enable increased concurrent shader compiler limit.
+     * This is also done by MTLContext::MTLContext, but only in GUI mode. */
+    if (@available(macOS 13.3, *)) {
+      [mtlDevice setShouldMaximizeConcurrentCompilation:YES];
+    }
+
     max_threads_per_threadgroup = 512;
 
     use_metalrt = info.use_hardware_raytracing;
@@ -95,6 +101,26 @@ MetalDevice::MetalDevice(const DeviceInfo &info, Stats &stats, Profiler &profile
 
     if (getenv("CYCLES_DEBUG_METAL_CAPTURE_KERNEL")) {
       capture_enabled = true;
+    }
+
+    /* Create a global counter sampling buffer when kernel profiling is enabled.
+     * There's a limit to the number of concurrent counter sampling buffers per device, so we
+     * create one that can be reused by successive device queues. */
+    if (auto str = getenv("CYCLES_METAL_PROFILING")) {
+      if (atoi(str) && [mtlDevice supportsCounterSampling:MTLCounterSamplingPointAtStageBoundary])
+      {
+        NSArray<id<MTLCounterSet>> *counterSets = [mtlDevice counterSets];
+
+        NSError *error = nil;
+        MTLCounterSampleBufferDescriptor *desc = [[MTLCounterSampleBufferDescriptor alloc] init];
+        [desc setStorageMode:MTLStorageModeShared];
+        [desc setLabel:@"CounterSampleBuffer"];
+        [desc setSampleCount:MAX_SAMPLE_BUFFER_LENGTH];
+        [desc setCounterSet:counterSets[0]];
+        mtlCounterSampleBuffer = [mtlDevice newCounterSampleBufferWithDescriptor:desc
+                                                                           error:&error];
+        [mtlCounterSampleBuffer retain];
+      }
     }
 
     /* Set kernel_specialization_level based on user preferences. */
@@ -280,6 +306,9 @@ MetalDevice::~MetalDevice()
   [mtlAncillaryArgEncoder release];
   [mtlComputeCommandQueue release];
   [mtlGeneralCommandQueue release];
+  if (mtlCounterSampleBuffer) {
+    [mtlCounterSampleBuffer release];
+  }
   [mtlDevice release];
 
   texture_info.free();
@@ -713,15 +742,17 @@ MetalDevice::MetalMem *MetalDevice::generic_alloc(device_memory &mem)
      * pointer recalculation */
     mem.device_pointer = device_ptr(mmem.get());
 
-    /* Replace host pointer with our host allocation. */
-    if (mem.host_pointer && mem.host_pointer != mmem->hostPtr) {
-      memcpy(mmem->hostPtr, mem.host_pointer, size);
+    if (metal_buffer.storageMode == MTLStorageModeShared) {
+      /* Replace host pointer with our host allocation. */
+      if (mem.host_pointer && mem.host_pointer != mmem->hostPtr) {
+        memcpy(mmem->hostPtr, mem.host_pointer, size);
 
-      host_free(mem.type, mem.host_pointer, mem.memory_size());
-      mem.host_pointer = mmem->hostPtr;
+        host_free(mem.type, mem.host_pointer, mem.memory_size());
+        mem.host_pointer = mmem->hostPtr;
+      }
+      mem.shared_pointer = mmem->hostPtr;
+      mem.shared_counter++;
     }
-    mem.shared_pointer = mmem->hostPtr;
-    mem.shared_counter++;
 
     MetalMem *mmem_ptr = mmem.get();
     metal_mem_map[&mem] = std::move(mmem);
@@ -735,7 +766,7 @@ MetalDevice::MetalMem *MetalDevice::generic_alloc(device_memory &mem)
   }
 }
 
-void MetalDevice::generic_copy_to(device_memory &mem)
+void MetalDevice::generic_copy_to(device_memory &)
 {
   /* No need to copy - Apple Silicon has Unified Memory Architecture. */
 }
@@ -754,16 +785,13 @@ void MetalDevice::generic_free(device_memory &mem)
   MetalMem &mmem = *metal_mem_map.at(&mem);
   size_t size = mmem.size;
 
-  /* If mmem.use_uma is true, reference counting is used
-   * to safely free memory. */
+  bool free_mtlBuffer = true;
 
-  bool free_mtlBuffer = false;
-
-  assert(mem.shared_pointer);
+  /* If this is shared, reference counting is used to safely free memory. */
   if (mem.shared_pointer) {
     assert(mem.shared_counter > 0);
-    if (--mem.shared_counter == 0) {
-      free_mtlBuffer = true;
+    if (--mem.shared_counter > 0) {
+      free_mtlBuffer = false;
     }
   }
 
@@ -833,8 +861,7 @@ void MetalDevice::mem_move_to_host(device_memory & /*mem*/)
   assert(!"Metal does not support mem_move_to_host");
 }
 
-void MetalDevice::mem_copy_from(
-    device_memory &mem, const size_t y, size_t w, const size_t h, size_t elem)
+void MetalDevice::mem_copy_from(device_memory &, const size_t, size_t, const size_t, size_t)
 {
   /* No need to copy - Apple Silicon has Unified Memory Architecture. */
 }

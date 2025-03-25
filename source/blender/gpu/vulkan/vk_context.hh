@@ -71,7 +71,11 @@ class VKContext : public Context, NonCopyable {
 
   void flush() override;
 
-  TimelineValue flush_render_graph(RenderGraphFlushFlags flags);
+  TimelineValue flush_render_graph(
+      RenderGraphFlushFlags flags,
+      VkPipelineStageFlags wait_dst_stage_mask = VK_PIPELINE_STAGE_NONE,
+      VkSemaphore wait_semaphore = VK_NULL_HANDLE,
+      VkSemaphore signal_semaphore = VK_NULL_HANDLE);
   void finish() override;
 
   ShaderCompiler *get_compiler() override;

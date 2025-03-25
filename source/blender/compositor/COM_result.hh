@@ -34,19 +34,14 @@ class DerivedResources;
 
 /* Make sure to update the format related static methods in the Result class. */
 enum class ResultType : uint8_t {
-  /* The following types are user facing and can be used as inputs and outputs of operations. They
-   * either represent the base type of the result's image or a single value result. */
   Float,
-  Int,
-  Color,
+  Float2,
   Float3,
   Float4,
-
-  /* The following types are for internal use only, not user facing, and can't be used as inputs
-   * and outputs of operations. It follows that they needn't be handled in implicit operations like
-   * type conversion, shader, or single value reduction operations. */
-  Float2,
+  Int,
   Int2,
+  Color,
+  Bool,
 };
 
 /* The precision of the data. CPU data is always stored using full precision at the moment. */
@@ -135,7 +130,7 @@ class Result {
    * which will be identical to that stored in the data_ member. The active variant member depends
    * on the type of the result. This member is uninitialized and should not be used if the result
    * is not a single value. */
-  std::variant<float, float2, float3, float4, int32_t, int2> single_value_ = 0.0f;
+  std::variant<float, float2, float3, float4, int32_t, int2, bool> single_value_ = 0.0f;
   /* The domain of the result. This only matters if the result was not a single value. See the
    * discussion in COM_domain.hh for more information. */
   Domain domain_ = Domain::identity();
@@ -455,6 +450,7 @@ BLI_INLINE_METHOD int64_t Result::channels_count() const
   switch (type_) {
     case ResultType::Float:
     case ResultType::Int:
+    case ResultType::Bool:
       return 1;
     case ResultType::Float2:
     case ResultType::Int2:
