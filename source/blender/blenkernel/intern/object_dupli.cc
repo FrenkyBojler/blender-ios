@@ -1897,6 +1897,10 @@ blender::bke::Instances object_duplilist_legacy_instances(Depsgraph &depsgraph,
     if (is_particle_duplis) {
       const int particle_system_i = dob.persistent_id[0];
       const int particle_i = dob.persistent_id[1];
+      /* Attempt to build a unique ID for each particle. This allows for unique ids as long as
+       * there are not more than <= 2^26 = 67.108.864 particles per particle system and there are
+       * <= 2^6 = 64 particle systems. Otherwise there will be duplicate IDs but this is quite
+       * unlikely in the legacy particle system. */
       id = (particle_system_i << 26) + particle_i;
     }
     instances_ids.span[i] = id;
