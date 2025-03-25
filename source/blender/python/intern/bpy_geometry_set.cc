@@ -10,6 +10,7 @@
 #include "BKE_idtype.hh"
 #include "BKE_instances.hh"
 #include "BKE_lib_id.hh"
+#include "BKE_mesh_wrapper.hh"
 #include "BKE_pointcloud.hh"
 
 #include "DEG_depsgraph_query.hh"
@@ -145,7 +146,7 @@ static BPy_GeometrySet *BPy_GeometrySet_static_from_evaluated_object(PyObject * 
   else {
     bke::Instances instances = object_duplilist_legacy_instances(
         *depsgraph, *scene, *evaluated_object);
-    geometry = bke::object_get_evaluated_geometry_set(*evaluated_object);
+    geometry = bke::object_get_evaluated_geometry_set(*evaluated_object, false);
     if (instances.instances_num() > 0) {
       geometry.replace_instances(new bke::Instances(std::move(instances)));
     }
@@ -260,7 +261,15 @@ static int BPy_GeometrySet_set_name(BPy_GeometrySet *self, PyObject *value, void
 
 static PyObject *BPy_GeometrySet_get_mesh(BPy_GeometrySet *self, void * /*closure*/)
 {
-  return pyrna_id_CreatePyObject(reinterpret_cast<ID *>(self->geometry.get_mesh_for_write()));
+  Mesh *base_mesh = self->geometry.get_mesh_for_write();
+  Mesh *mesh = BKE_mesh_wrapper_ensure_subdivision(base_mesh);
+  return pyrna_id_CreatePyObject(reinterpret_cast<ID *>(mesh));
+}
+
+static PyObject *BPy_GeometrySet_get_mesh_base(BPy_GeometrySet *self, void * /*closure*/)
+{
+  Mesh *base_mesh = self->geometry.get_mesh_for_write();
+  return pyrna_id_CreatePyObject(reinterpret_cast<ID *>(base_mesh));
 }
 
 static PyObject *BPy_GeometrySet_get_pointcloud(BPy_GeometrySet *self, void * /*closure*/)
@@ -298,6 +307,14 @@ static PyGetSetDef BPy_GeometrySet_getseters[] = {
         reinterpret_cast<getter>(BPy_GeometrySet_get_mesh),
         nullptr,
         "The mesh data-block in the geometry set.\n\n:type: :class:`bpy.types.Mesh`",
+        nullptr,
+    },
+    {
+        "mesh_base",
+        reinterpret_cast<getter>(BPy_GeometrySet_get_mesh_base),
+        nullptr,
+        "The mesh data-block in the geometry set without final subdivision.\n\n"
+        ":type: :class:`bpy.types.Mesh`",
         nullptr,
     },
     {
