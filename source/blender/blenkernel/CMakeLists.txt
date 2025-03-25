@@ -835,6 +835,7 @@ if(WITH_GTESTS)
     intern/nla_test.cc
     intern/subdiv_ccg_test.cc
     intern/tracking_test.cc
+    intern/variables_test.cc
     intern/volume_test.cc
   )
   set(TEST_INC
