@@ -39,6 +39,7 @@
 #include "BKE_geometry_nodes_gizmos_transforms.hh"
 #include "BKE_geometry_set.hh"
 #include "BKE_grease_pencil.hh"
+#include "BKE_library.hh"
 #include "BKE_node_legacy_types.hh"
 #include "BKE_node_runtime.hh"
 #include "BKE_node_socket_value.hh"
@@ -2734,6 +2735,12 @@ struct GeometryNodesLazyFunctionBuilder {
       this->build_muted_node(bnode, graph_params);
       return;
     }
+    if (bnode.is_group()) {
+      /* Have special handling because `bnode.type_legacy` and `node_type.type_legacy` can be
+       * different for custom node groups. In other cases they should be identical. */
+      this->build_group_node(bnode, graph_params);
+      return;
+    }
     switch (node_type->type_legacy) {
       case NODE_FRAME: {
         /* Ignored. */
@@ -2749,11 +2756,6 @@ struct GeometryNodesLazyFunctionBuilder {
       }
       case NODE_GROUP_OUTPUT: {
         this->build_group_output_node(bnode, graph_params);
-        break;
-      }
-      case NODE_CUSTOM_GROUP:
-      case NODE_GROUP: {
-        this->build_group_node(bnode, graph_params);
         break;
       }
       case GEO_NODE_VIEWER: {
@@ -2796,7 +2798,7 @@ struct GeometryNodesLazyFunctionBuilder {
           this->build_multi_function_node(bnode, fn_item, graph_params);
           break;
         }
-        if (node_type == &bke::NodeTypeUndefined) {
+        if (bnode.is_undefined()) {
           this->build_undefined_node(bnode, graph_params);
           break;
         }

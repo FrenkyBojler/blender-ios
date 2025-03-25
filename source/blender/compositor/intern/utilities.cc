@@ -58,8 +58,13 @@ ResultType get_node_socket_result_type(const bNodeSocket *socket)
       return ResultType::Float;
     case SOCK_INT:
       return ResultType::Int;
+    case SOCK_BOOLEAN:
+      return ResultType::Bool;
     case SOCK_VECTOR:
-      return ResultType::Vector;
+      /* Vector sockets can also be ResultType::Float4 or ResultType::Float2, but the
+       * developer is expected to define that manually since there is no way to distinguish them
+       * from the socket. */
+      return ResultType::Float3;
     case SOCK_RGBA:
       return ResultType::Color;
     default:
@@ -100,7 +105,8 @@ int number_of_inputs_linked_to_output_conditioned(DOutputSocket output,
 
 bool is_pixel_node(DNode node)
 {
-  return node->typeinfo->get_compositor_shader_node;
+  BLI_assert(bool(node->typeinfo->gpu_fn) == bool(node->typeinfo->build_multi_function));
+  return node->typeinfo->gpu_fn && node->typeinfo->build_multi_function;
 }
 
 InputDescriptor input_descriptor_from_input_socket(const bNodeSocket *socket)
@@ -160,6 +166,10 @@ DOutputSocket find_preview_output_socket(const DNode &node)
   }
 
   for (const bNodeSocket *output : node->output_sockets()) {
+    if (!output->is_available()) {
+      continue;
+    }
+
     if (output->is_logically_linked()) {
       return DOutputSocket(node.context(), output);
     }

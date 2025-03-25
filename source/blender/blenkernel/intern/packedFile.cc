@@ -29,6 +29,7 @@
 #include "DNA_vfont_types.h"
 #include "DNA_volume_types.h"
 
+#include "BLI_listbase.h"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
@@ -37,6 +38,7 @@
 #include "BKE_bake_geometry_nodes_modifier_pack.hh"
 #include "BKE_image.hh"
 #include "BKE_image_format.hh"
+#include "BKE_library.hh"
 #include "BKE_main.hh"
 #include "BKE_packedFile.hh"
 #include "BKE_report.hh"
@@ -212,7 +214,7 @@ PackedFile *BKE_packedfile_new_from_memory(const void *mem,
     sharing_info = blender::implicit_sharing::info_for_mem_free(const_cast<void *>(mem));
   }
 
-  PackedFile *pf = static_cast<PackedFile *>(MEM_callocN(sizeof(*pf), "PackedFile"));
+  PackedFile *pf = MEM_callocN<PackedFile>("PackedFile");
   pf->data = mem;
   pf->size = memlen;
   pf->sharing_info = sharing_info;
@@ -448,7 +450,7 @@ enum ePF_FileCompare BKE_packedfile_compare_to_file(const char *ref_file_name,
 
       for (int i = 0; i < pf->size; i += sizeof(buf)) {
         int len = pf->size - i;
-        len = std::min<unsigned long>(len, sizeof(buf));
+        len = std::min<ulong>(len, sizeof(buf));
 
         if (BLI_read(file, buf, len) != len) {
           /* read error ... */
@@ -776,8 +778,8 @@ int BKE_packedfile_unpack_all_libraries(Main *bmain, ReportList *reports)
 
       newname = BKE_packedfile_unpack_to_file(reports,
                                               BKE_main_blendfile_path(bmain),
-                                              lib->runtime.filepath_abs,
-                                              lib->runtime.filepath_abs,
+                                              lib->runtime->filepath_abs,
+                                              lib->runtime->filepath_abs,
                                               lib->packedfile,
                                               PF_WRITE_ORIGINAL);
       if (newname != nullptr) {

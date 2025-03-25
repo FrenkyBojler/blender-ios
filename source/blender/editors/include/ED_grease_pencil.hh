@@ -60,7 +60,7 @@ enum {
 /**
  * Join selected objects. Called from #OBJECT_OT_join.
  */
-int ED_grease_pencil_join_objects_exec(bContext *C, wmOperator *op);
+wmOperatorStatus ED_grease_pencil_join_objects_exec(bContext *C, wmOperator *op);
 
 void ED_operatortypes_grease_pencil();
 void ED_operatortypes_grease_pencil_draw();
@@ -317,7 +317,9 @@ bool grease_pencil_context_poll(bContext *C);
 bool active_grease_pencil_poll(bContext *C);
 bool active_grease_pencil_material_poll(bContext *C);
 bool editable_grease_pencil_poll(bContext *C);
+bool editable_grease_pencil_with_region_view3d_poll(bContext *C);
 bool active_grease_pencil_layer_poll(bContext *C);
+bool active_grease_pencil_layer_group_poll(bContext *C);
 bool editable_grease_pencil_point_selection_poll(bContext *C);
 bool grease_pencil_selection_poll(bContext *C);
 bool grease_pencil_painting_poll(bContext *C);
@@ -336,9 +338,9 @@ float radius_from_input_sample(const RegionView3D *rv3d,
                                float3 location,
                                float4x4 to_world,
                                const BrushGpencilSettings *settings);
-int grease_pencil_draw_operator_invoke(bContext *C,
-                                       wmOperator *op,
-                                       bool use_duplicate_previous_key);
+wmOperatorStatus grease_pencil_draw_operator_invoke(bContext *C,
+                                                    wmOperator *op,
+                                                    bool use_duplicate_previous_key);
 float4x2 calculate_texture_space(const Scene *scene,
                                  const ARegion *region,
                                  const float2 &mouse,
@@ -914,13 +916,6 @@ void set_lineart_modifier_limits(GreasePencilLineartModifierData &lmd,
 GreasePencilLineartModifierData *get_first_lineart_modifier(const Object &ob);
 
 GreasePencil *from_context(bContext &C);
-
-/**
- * Remove the points in the \a point_mask and split each curve at the points that are removed (if
- * necessary).
- */
-bke::CurvesGeometry remove_points_and_split(const bke::CurvesGeometry &curves,
-                                            const IndexMask &point_mask);
 
 /* Make sure selection domain is updated to match the current selection mode. */
 bool ensure_selection_domain(ToolSettings *ts, Object *object);

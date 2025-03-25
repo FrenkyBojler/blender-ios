@@ -240,7 +240,7 @@ void imb_onehalf_no_alloc(ImBuf *ibuf2, ImBuf *ibuf1)
                         (ibuf2->float_buffer.data != nullptr);
 
   if (do_rect && (ibuf2->byte_buffer.data == nullptr)) {
-    imb_addrectImBuf(ibuf2);
+    IMB_alloc_byte_pixels(ibuf2);
   }
 
   if (ibuf1->x <= 1) {
@@ -343,16 +343,15 @@ static void alloc_scale_dst_buffers(
 {
   *r_dst_byte = nullptr;
   if (ibuf->byte_buffer.data != nullptr) {
-    *r_dst_byte = static_cast<uchar4 *>(
-        MEM_mallocN(sizeof(uchar4) * newx * newy, "scale_buf_byte"));
+    *r_dst_byte = MEM_malloc_arrayN<uchar4>(newx * newy, "scale_buf_byte");
     if (*r_dst_byte == nullptr) {
       return;
     }
   }
   *r_dst_float = nullptr;
   if (ibuf->float_buffer.data != nullptr) {
-    *r_dst_float = static_cast<float *>(
-        MEM_mallocN(sizeof(float) * ibuf->channels * newx * newy, "scale_buf_float"));
+    *r_dst_float = MEM_malloc_arrayN<float>(size_t(ibuf->channels) * newx * newy,
+                                            "scale_buf_float");
     if (*r_dst_float == nullptr) {
       if (*r_dst_byte) {
         MEM_freeN(*r_dst_byte);
@@ -664,11 +663,11 @@ static void scale_with_function(ImBuf *ibuf, int newx, int newy, ScaleFunction f
 
   /* Modify image to point to new destination. */
   if (dst_byte != nullptr) {
-    imb_freerectImBuf(ibuf);
+    IMB_free_byte_pixels(ibuf);
     IMB_assign_byte_buffer(ibuf, reinterpret_cast<uint8_t *>(dst_byte), IB_TAKE_OWNERSHIP);
   }
   if (dst_float != nullptr) {
-    imb_freerectfloatImBuf(ibuf);
+    IMB_free_float_pixels(ibuf);
     IMB_assign_float_buffer(ibuf, dst_float, IB_TAKE_OWNERSHIP);
   }
   ibuf->x = newx;

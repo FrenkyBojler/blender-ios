@@ -40,6 +40,7 @@
 #include "BKE_deform.hh"
 #include "BKE_editmesh.hh"
 #include "BKE_lib_id.hh"
+#include "BKE_library.hh"
 #include "BKE_mesh.hh"
 #include "BKE_object.hh"
 #include "BKE_object_types.hh"
@@ -785,7 +786,7 @@ void ED_object_vpaintmode_exit(bContext *C)
 /**
  * \note Keep in sync with #wpaint_mode_toggle_exec
  */
-static int vpaint_mode_toggle_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus vpaint_mode_toggle_exec(bContext *C, wmOperator *op)
 {
   Main &bmain = *CTX_data_main(C);
   wmMsgBus *mbus = CTX_wm_message_bus(C);
@@ -2033,10 +2034,8 @@ static void vpaint_stroke_done(const bContext *C, PaintStroke *stroke)
   ob.sculpt->cache = nullptr;
 }
 
-static int vpaint_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus vpaint_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  int retval;
-
   op->customdata = paint_stroke_new(C,
                                     op,
                                     SCULPT_stroke_get_location,
@@ -2051,20 +2050,22 @@ static int vpaint_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 
   undo::push_begin_ex(scene, ob, "Vertex Paint");
 
-  if ((retval = op->type->modal(C, op, event)) == OPERATOR_FINISHED) {
+  const wmOperatorStatus retval = op->type->modal(C, op, event);
+  OPERATOR_RETVAL_CHECK(retval);
+
+  if (retval == OPERATOR_FINISHED) {
     paint_stroke_free(C, op, (PaintStroke *)op->customdata);
     return OPERATOR_FINISHED;
   }
 
   WM_event_add_modal_handler(C, op);
 
-  OPERATOR_RETVAL_CHECK(retval);
   BLI_assert(retval == OPERATOR_RUNNING_MODAL);
 
   return OPERATOR_RUNNING_MODAL;
 }
 
-static int vpaint_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus vpaint_exec(bContext *C, wmOperator *op)
 {
   op->customdata = paint_stroke_new(C,
                                     op,
@@ -2089,7 +2090,7 @@ static void vpaint_cancel(bContext *C, wmOperator *op)
   paint_stroke_cancel(C, op, (PaintStroke *)op->customdata);
 }
 
-static int vpaint_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus vpaint_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   return paint_stroke_modal(C, op, event, (PaintStroke **)&op->customdata);
 }
@@ -2204,8 +2205,7 @@ static void fill_mesh_color(Mesh &mesh,
 {
   if (BMEditMesh *em = mesh.runtime->edit_mesh.get()) {
     BMesh *bm = em->bm;
-    const std::string name = attribute_name;
-    const CustomDataLayer *layer = BKE_id_attributes_color_find(&mesh.id, name.c_str());
+    const CustomDataLayer *layer = BKE_id_attributes_color_find(&mesh.id, attribute_name);
     AttributeOwner owner = AttributeOwner::from_id(&mesh.id);
     const AttrDomain domain = BKE_attribute_domain(owner, layer);
     if (layer->type == CD_PROP_COLOR) {
@@ -2274,7 +2274,7 @@ bool object_active_color_fill(Object &ob, const float fill_color[4], bool only_s
 
 }  // namespace blender::ed::sculpt_paint
 
-static int vertex_color_set_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus vertex_color_set_exec(bContext *C, wmOperator *op)
 {
   using namespace blender::ed::sculpt_paint;
   Scene &scene = *CTX_data_scene(C);

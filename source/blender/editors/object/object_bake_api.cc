@@ -136,7 +136,7 @@ static void bake_progress_update(void *bjv, float progress)
 }
 
 /** Catch escape key to cancel. */
-static int bake_modal(bContext *C, wmOperator * /*op*/, const wmEvent *event)
+static wmOperatorStatus bake_modal(bContext *C, wmOperator * /*op*/, const wmEvent *event)
 {
   /* no running blender, remove handler and pass through */
   if (0 == WM_jobs_test(CTX_wm_manager(C), CTX_data_scene(C), WM_JOB_TYPE_OBJECT_BAKE)) {
@@ -256,7 +256,7 @@ static bool write_internal_bake_pixels(Image *image,
     }
 
     if (from_colorspace != to_colorspace) {
-      IMB_colormanagement_transform(
+      IMB_colormanagement_transform_float(
           buffer, ibuf->x, ibuf->y, ibuf->channels, from_colorspace, to_colorspace, false);
     }
   }
@@ -333,7 +333,7 @@ static bool write_internal_bake_pixels(Image *image,
   /* force mipmap recalc */
   if (ibuf->mipmap[0]) {
     ibuf->userflags |= IB_MIPMAP_INVALID;
-    imb_freemipmapImBuf(ibuf);
+    IMB_free_mipmaps(ibuf);
   }
 
   BKE_image_release_ibuf(image, ibuf, nullptr);
@@ -380,7 +380,8 @@ static bool write_external_bake_pixels(const char *filepath,
   is_float = im_format->depth > 8;
 
   /* create a new ImBuf */
-  ibuf = IMB_allocImBuf(width, height, im_format->planes, (is_float ? IB_rectfloat : IB_rect));
+  ibuf = IMB_allocImBuf(
+      width, height, im_format->planes, (is_float ? IB_float_data : IB_byte_data));
 
   if (!ibuf) {
     return false;
@@ -404,7 +405,7 @@ static bool write_external_bake_pixels(const char *filepath,
       const char *from_colorspace = IMB_colormanagement_role_colorspace_name_get(
           COLOR_ROLE_SCENE_LINEAR);
       const char *to_colorspace = IMB_colormanagement_get_rect_colorspace(ibuf);
-      IMB_colormanagement_transform(
+      IMB_colormanagement_transform_float(
           buffer, ibuf->x, ibuf->y, ibuf->channels, from_colorspace, to_colorspace, false);
     }
     else if (is_tangent_normal) {
@@ -522,7 +523,7 @@ static bool bake_object_check(const Scene *scene,
       if (image) {
 
         if (node) {
-          if (bke::node_is_connected_to_output(ntree, node)) {
+          if (bke::node_is_connected_to_output(*ntree, *node)) {
             /* we don't return false since this may be a false positive
              * this can't be RPT_ERROR though, otherwise it prevents
              * multiple highpoly objects to be baked at once */
@@ -713,7 +714,7 @@ static Mesh *bake_mesh_new_from_object(Depsgraph *depsgraph,
                                        Object *object,
                                        const bool preserve_origindex)
 {
-  Mesh *mesh = BKE_mesh_new_from_object(depsgraph, object, false, preserve_origindex);
+  Mesh *mesh = BKE_mesh_new_from_object(depsgraph, object, false, preserve_origindex, true);
 
   if (mesh->normals_domain() == bke::MeshNormalDomain::Corner) {
     ED_mesh_split_faces(mesh);
@@ -1008,7 +1009,7 @@ static bool bake_targets_init_vertex_colors(Main *bmain,
   /* Ensure mesh and editmesh topology are in sync. */
   editmode_load(bmain, ob);
 
-  targets->images = MEM_cnew<BakeImage>(__func__);
+  targets->images = MEM_callocN<BakeImage>(__func__);
   targets->images_num = 1;
 
   targets->material_to_image = static_cast<Image **>(
@@ -1392,10 +1393,10 @@ static void bake_targets_free(BakeTargets *targets)
 
 /* Main Bake Logic */
 
-static int bake(const BakeAPIRender *bkr,
-                Object *ob_low,
-                const Span<PointerRNA> selected_objects,
-                ReportList *reports)
+static wmOperatorStatus bake(const BakeAPIRender *bkr,
+                             Object *ob_low,
+                             const Span<PointerRNA> selected_objects,
+                             ReportList *reports)
 {
   Render *re = bkr->render;
   Main *bmain = bkr->main;
@@ -1411,7 +1412,7 @@ static int bake(const BakeAPIRender *bkr,
 
   DEG_graph_build_from_view_layer(depsgraph);
 
-  int op_result = OPERATOR_CANCELLED;
+  wmOperatorStatus op_result = OPERATOR_CANCELLED;
   bool ok = false;
 
   Object *ob_cage = nullptr;
@@ -1576,7 +1577,8 @@ static int bake(const BakeAPIRender *bkr,
         BKE_object_handle_data_update(depsgraph, scene, ob_low_eval);
       }
 
-      me_cage_eval = BKE_mesh_new_from_object(nullptr, ob_low_eval, false, preserve_origindex);
+      me_cage_eval = BKE_mesh_new_from_object(
+          nullptr, ob_low_eval, false, preserve_origindex, true);
       if (!CustomData_has_layer(&me_cage_eval->corner_data, CD_PROP_FLOAT2)) {
         BKE_reportf(reports,
                     RPT_ERROR,
@@ -1610,7 +1612,7 @@ static int bake(const BakeAPIRender *bkr,
       ob_eval->visibility_flag &= ~OB_HIDE_RENDER;
       ob_eval->base_flag |= (BASE_ENABLED_AND_MAYBE_VISIBLE_IN_VIEWPORT | BASE_ENABLED_RENDER);
 
-      Mesh *mesh_eval = BKE_mesh_new_from_object(nullptr, ob_eval, false, false);
+      Mesh *mesh_eval = BKE_mesh_new_from_object(nullptr, ob_eval, false, false, true);
 
       /* Initialize `highpoly` data. */
       highpoly[i].ob = ob_iter;
@@ -1765,7 +1767,7 @@ static int bake(const BakeAPIRender *bkr,
             md->mode &= ~eModifierMode_Render;
 
             /* Evaluate modifiers again. */
-            me_nores = BKE_mesh_new_from_object(nullptr, ob_low_eval, false, false);
+            me_nores = BKE_mesh_new_from_object(nullptr, ob_low_eval, false, false, true);
             if (!CustomData_has_layer(&me_nores->corner_data, CD_PROP_FLOAT2)) {
               BKE_reportf(reports,
                           RPT_ERROR,
@@ -1922,10 +1924,10 @@ static void bake_init_api_data(wmOperator *op, bContext *C, BakeAPIRender *bkr)
   }
 }
 
-static int bake_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus bake_exec(bContext *C, wmOperator *op)
 {
   Render *re;
-  int result = OPERATOR_CANCELLED;
+  wmOperatorStatus result = OPERATOR_CANCELLED;
   BakeAPIRender bkr = {nullptr};
   Scene *scene = CTX_data_scene(C);
 
@@ -2162,7 +2164,7 @@ static void bake_set_props(wmOperator *op, Scene *scene)
   }
 }
 
-static int bake_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+static wmOperatorStatus bake_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
   wmJob *wm_job;
   Render *re;

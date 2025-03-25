@@ -95,7 +95,7 @@ static void rna_Volume_velocity_grid_set(PointerRNA *ptr, const char *value)
 {
   Volume *volume = (Volume *)ptr->data;
   if (!BKE_volume_set_velocity_grid_by_name(volume, value)) {
-    WM_reportf(RPT_ERROR, "Could not find grid with name %s", value);
+    WM_global_reportf(RPT_ERROR, "Could not find grid with name %s", value);
   }
   WM_main_add_notifier(NC_GEOM | ND_DATA, volume);
 }
@@ -177,7 +177,7 @@ static PointerRNA rna_Volume_grids_get(CollectionPropertyIterator *iter)
   Volume *volume = static_cast<Volume *>(iter->internal.count.ptr);
   const blender::bke::VolumeGridData *grid = BKE_volume_grid_get(volume,
                                                                  iter->internal.count.item);
-  return rna_pointer_inherit_refine(&iter->parent, &RNA_VolumeGrid, (void *)grid);
+  return RNA_pointer_create_with_parent(iter->parent, &RNA_VolumeGrid, (void *)grid);
 }
 
 static int rna_Volume_grids_length(PointerRNA *ptr)

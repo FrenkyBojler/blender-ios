@@ -66,7 +66,7 @@ static void template_search_add_button_searchmenu(const bContext *C,
                                                   const bool editable,
                                                   const bool live_icon)
 {
-  const char *ui_description = RNA_property_ui_description(
+  const StringRef ui_description = RNA_property_ui_description(
       template_search.search_data.target_prop);
 
   template_add_button_search_menu(C,
@@ -134,11 +134,19 @@ static void template_search_add_button_operator(
                             0,
                             button_width,
                             UI_UNIT_Y,
-                            nullptr);
+                            std::nullopt);
   }
   else {
-    but = uiDefIconButO(
-        block, UI_BTYPE_BUT, operator_name, opcontext, icon, 0, 0, UI_UNIT_X, UI_UNIT_Y, nullptr);
+    but = uiDefIconButO(block,
+                        UI_BTYPE_BUT,
+                        operator_name,
+                        opcontext,
+                        icon,
+                        0,
+                        0,
+                        UI_UNIT_X,
+                        UI_UNIT_Y,
+                        std::nullopt);
   }
 
   if (!editable) {

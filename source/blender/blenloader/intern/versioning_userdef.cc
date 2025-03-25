@@ -223,6 +223,14 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
     FROM_DEFAULT_V4_UCHAR(space_sequencer.text_strip_cursor);
     FROM_DEFAULT_V4_UCHAR(space_sequencer.selected_text);
   }
+
+  if (!USER_VERSION_ATLEAST(405, 3)) {
+    FROM_DEFAULT_V4_UCHAR(tui.wcol_state.error);
+    FROM_DEFAULT_V4_UCHAR(tui.wcol_state.warning);
+    FROM_DEFAULT_V4_UCHAR(tui.wcol_state.info);
+    FROM_DEFAULT_V4_UCHAR(tui.wcol_state.success);
+  }
+
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a USER_VERSION_ATLEAST check.
@@ -1213,8 +1221,8 @@ void blo_do_versions_userdef(UserDef *userdef)
 
   if (!USER_VERSION_ATLEAST(306, 5)) {
     if (userdef->pythondir_legacy[0]) {
-      bUserScriptDirectory *script_dir = static_cast<bUserScriptDirectory *>(
-          MEM_callocN(sizeof(*script_dir), "Versioning user script path"));
+      bUserScriptDirectory *script_dir = MEM_callocN<bUserScriptDirectory>(
+          "Versioning user script path");
 
       STRNCPY(script_dir->dir_path, userdef->pythondir_legacy);
       STRNCPY_UTF8(script_dir->name, DATA_("Untitled"));

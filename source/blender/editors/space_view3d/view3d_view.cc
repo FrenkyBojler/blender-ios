@@ -39,6 +39,7 @@
 
 #include "WM_api.hh"
 
+#include "ED_info.hh"
 #include "ED_object.hh"
 #include "ED_screen.hh"
 
@@ -56,7 +57,7 @@
 /** \name Camera to View Operator
  * \{ */
 
-static int view3d_camera_to_view_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus view3d_camera_to_view_exec(bContext *C, wmOperator * /*op*/)
 {
   const Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   View3D *v3d;
@@ -128,7 +129,7 @@ void VIEW3D_OT_camera_to_view(wmOperatorType *ot)
 
 /* unlike VIEW3D_OT_view_selected this is for framing a render and not
  * meant to take into account vertex/bone selection for eg. */
-static int view3d_camera_to_view_selected_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus view3d_camera_to_view_selected_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
@@ -225,7 +226,7 @@ static void sync_viewport_camera_smoothview(bContext *C,
   }
 }
 
-static int view3d_setobjectascamera_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus view3d_setobjectascamera_exec(bContext *C, wmOperator *op)
 {
   View3D *v3d;
   ARegion *region;
@@ -985,7 +986,7 @@ static bool view3d_localview_exit(const Depsgraph *depsgraph,
 
   MEM_freeN(v3d->localvd);
   v3d->localvd = nullptr;
-  MEM_SAFE_FREE(v3d->runtime.local_stats);
+  ED_view3d_local_stats_free(v3d);
 
   LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
     if (region->regiontype == RGN_TYPE_WINDOW) {
@@ -1054,7 +1055,7 @@ bool ED_localview_exit_if_empty(const Depsgraph *depsgraph,
       depsgraph, wm, win, scene, view_layer, area, frame_selected, smooth_viewtx);
 }
 
-static int localview_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus localview_exec(bContext *C, wmOperator *op)
 {
   const Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   const int smooth_viewtx = WM_operator_smooth_viewtx_get(op);
@@ -1124,7 +1125,7 @@ void VIEW3D_OT_localview(wmOperatorType *ot)
                   "Move the view to frame the selected objects");
 }
 
-static int localview_remove_from_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus localview_remove_from_exec(bContext *C, wmOperator *op)
 {
   View3D *v3d = CTX_wm_view3d(C);
   Main *bmain = CTX_data_main(C);
