@@ -165,6 +165,7 @@ class NODE_MT_geometry_node_GEO_GREASE_PENCIL_READ(Menu):
         node_add_menu.add_node_type(layout, "GeometryNodeInputNamedLayerSelection")
         node_add_menu.draw_assets_for_catalog(layout, "Grease Pencil/Read")
 
+
 class NODE_MT_geometry_node_GEO_GREASE_PENCIL_OPERATIONS(Menu):
     bl_idname = "NODE_MT_geometry_node_GEO_GREASE_PENCIL_OPERATIONS"
     bl_label = "Operations"
