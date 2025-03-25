@@ -15,6 +15,7 @@
 #include "BLI_map.hh"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
+#include "BLI_string_ref.hh"
 #include "BLI_string_utils.hh"
 
 #include "DNA_scene_types.h"
@@ -23,10 +24,94 @@
 /** \name Blender Variables
  * \{ */
 
-struct PathVariables {
+/**
+ * A store for the values of variables, addressed by variable name.
+ *
+ * Note that this is not intended to be a persistent store for variables, but
+ * rather a transient one for collecting the values of variables that are
+ * relevant/available in a given context. This is typically passed to functions
+ * that use those variables for processing of some kind.
+ *
+ * There are currently three types of variables: string, integer, and float.
+ * There can only be a single variable with a given name across all variable
+ * type. For example, you can't have both a string *and* integer variable both
+ * with the name "bob".
+ */
+class VariableMap {
   blender::Map<std::string, std::string> strings;
   blender::Map<std::string, int64_t> integers;
   blender::Map<std::string, double> floats;
+
+ public:
+  /**
+   * Check if a variable of the given name exists.
+   */
+  bool contains(blender::StringRef name) const;
+
+  /**
+   * Remove the variable with the given name.
+   *
+   * \return True if the variable existed and was removed, false if it didn't
+   * exist in the first place.
+   */
+  bool remove(blender::StringRef name);
+
+  /**
+   * Add a string variable with the given name and value.
+   *
+   * If there is already a variable with that name, regardless of type, the new
+   * variable is *not* added (no overwriting).
+   *
+   * \return True if the variable was successfully added, false if there was
+   * already a variable with that name.
+   */
+  bool add_string(blender::StringRef name, blender::StringRef value);
+
+  /**
+   * Add an integer variable with the given name and value.
+   *
+   * If there is already a variable with that name, regardless of type, the new
+   * variable is *not* added (no overwriting).
+   *
+   * \return True if the variable was successfully added, false if there was
+   * already a variable with that name.
+   */
+  bool add_integer(blender::StringRef name, int64_t value);
+
+  /**
+   * Add a float variable with the given name and value.
+   *
+   * If there is already a variable with that name, regardless of type, the new
+   * variable is *not* added (no overwriting).
+   *
+   * \return True if the variable was successfully added, false if there was
+   * already a variable with that name.
+   */
+  bool add_float(blender::StringRef name, double value);
+
+  /**
+   * Fetch the value of the string variable with the given name.
+   *
+   * \return The value if a string variable with that name exists, nullopt
+   * otherwise.
+   */
+  std::optional<blender::StringRefNull> get_string(blender::StringRef name) const;
+
+  /**
+   * Fetch the value of the integer variable with the given name.
+   *
+   * \return The value if a integer variable with that name exists, nullopt
+   * otherwise.
+   */
+  std::optional<int64_t> get_integer(blender::StringRef name) const;
+
+  /**
+   * Fetch the value of the float variable with the given name.
+   *
+   * \return The value if a float variable with that name exists, nullopt
+   * otherwise.
+   */
+  std::optional<double> get_float(blender::StringRef name) const;
 };
 
 /**
@@ -64,8 +149,8 @@ struct PathVariables {
  *
  * \see BLI_path_abs()
  */
-PathVariables BKE_build_blender_variables(const char *blend_file_path,
-                                          std::optional<uint64_t> frame_number,
-                                          const RenderData *render_data);
+VariableMap BKE_build_blender_variables(const char *blend_file_path,
+                                        std::optional<uint64_t> frame_number,
+                                        const RenderData *render_data);
 
-bool BKE_path_apply_variables(char path[FILE_MAX], const PathVariables &variables);
+bool BKE_path_apply_variables(char path[FILE_MAX], const VariableMap &variables);

@@ -4,16 +4,100 @@
 
 #include "BKE_variables.hh"
 
-PathVariables BKE_build_blender_variables(const char *blend_file_path,
-                                          std::optional<uint64_t> frame_number,
-                                          const RenderData *render_data)
+bool VariableMap::contains(blender::StringRef name) const
 {
-  PathVariables variables;
+  if (this->strings.contains(name)) {
+    return true;
+  }
+  if (this->integers.contains(name)) {
+    return true;
+  }
+  if (this->floats.contains(name)) {
+    return true;
+  }
+  return false;
+}
 
-  variables.strings.add("foo", "hooray");
-  variables.strings.add("bar", "boooo");
-  variables.strings.add("flub", "what");
-  variables.strings.add("josh", "bob");
+bool VariableMap::remove(blender::StringRef name)
+{
+  if (this->strings.remove(name)) {
+    return true;
+  }
+  if (this->integers.remove(name)) {
+    return true;
+  }
+  if (this->floats.remove(name)) {
+    return true;
+  }
+  return false;
+}
+
+bool VariableMap::add_string(blender::StringRef name, blender::StringRef value)
+{
+  if (this->contains(name)) {
+    return false;
+  }
+  this->strings.add_new(name, value);
+  return true;
+}
+
+bool VariableMap::add_integer(blender::StringRef name, int64_t value)
+{
+  if (this->contains(name)) {
+    return false;
+  }
+  this->integers.add_new(name, value);
+  return true;
+}
+
+bool VariableMap::add_float(blender::StringRef name, double value)
+{
+  if (this->contains(name)) {
+    return false;
+  }
+  this->floats.add_new(name, value);
+  return true;
+}
+
+std::optional<blender::StringRefNull> VariableMap::get_string(blender::StringRef name) const
+{
+  const std::string *value = this->strings.lookup_ptr(name);
+  if (value == nullptr) {
+    return std::nullopt;
+  }
+  return blender::StringRefNull(*value);
+}
+
+std::optional<int64_t> VariableMap::get_integer(blender::StringRef name) const
+{
+  const int64_t *value = this->integers.lookup_ptr(name);
+  if (value == nullptr) {
+    return std::nullopt;
+  }
+  return *value;
+}
+
+std::optional<double> VariableMap::get_float(blender::StringRef name) const
+{
+  const double *value = this->floats.lookup_ptr(name);
+  if (value == nullptr) {
+    return std::nullopt;
+  }
+  return *value;
+}
+
+//-------------------------------------------------------------
+
+VariableMap BKE_build_blender_variables(const char *blend_file_path,
+                                        std::optional<uint64_t> frame_number,
+                                        const RenderData *render_data)
+{
+  VariableMap variables;
+
+  variables.add_string("foo", "hooray");
+  variables.add_string("bar", "boooo");
+  variables.add_string("flub", "what");
+  variables.add_string("josh", "bob");
 
   /* Blend file name. */
   if (blend_file_path) {
@@ -22,24 +106,24 @@ PathVariables BKE_build_blender_variables(const char *blend_file_path,
       const char *file_name_end = BLI_path_extension_or_end(file_name);
       if (file_name_end == file_name) {
         /* When the filename has no extension, but starts with a period. */
-        variables.strings.add("file_name", blender::StringRef(file_name));
+        variables.add_string("file_name", blender::StringRef(file_name));
       }
       else {
         /* Normal case. */
-        variables.strings.add("file_name", blender::StringRef(file_name, file_name_end));
+        variables.add_string("file_name", blender::StringRef(file_name, file_name_end));
       }
     }
   }
 
   /* Frame number. */
   if (frame_number.has_value()) {
-    variables.integers.add("frame_number", *frame_number);
+    variables.add_integer("frame_number", *frame_number);
   }
 
   /* Start/end frame, render resolution, and fps. */
   if (render_data) {
-    variables.integers.add("start_frame", render_data->sfra);
-    variables.integers.add("end_frame", render_data->efra);
+    variables.add_integer("start_frame", render_data->sfra);
+    variables.add_integer("end_frame", render_data->efra);
 
     /* Resolution eval code copied from `sequencer_ibuf_get()`.
      *
@@ -48,15 +132,15 @@ PathVariables BKE_build_blender_variables(const char *blend_file_path,
     const double render_size = render_data->size / 100.0;
     const int res_x = roundf(render_size * render_data->xsch);
     const int res_y = roundf(render_size * render_data->ysch);
-    variables.integers.add("res_x", res_x);
-    variables.integers.add("res_y", res_y);
+    variables.add_integer("res_x", res_x);
+    variables.add_integer("res_y", res_y);
 
     /* FPS eval code copied from `BKE_cachefile_filepath_get()`.
      *
      * TODO: it might make sense to make a function for this to ensure that all
      * uses of these render variables produce a consistent fps? */
     const double fps = double(render_data->frs_sec) / double(render_data->frs_sec_base);
-    variables.floats.add("fps", fps);
+    variables.add_float("fps", fps);
   }
 
   return variables;
@@ -288,7 +372,7 @@ static int format_float_to_string(const VariableFormat &format,
   return int_length + frac_length - 1;
 }
 
-bool BKE_path_apply_variables(char path[FILE_MAX], const PathVariables &variables)
+bool BKE_path_apply_variables(char path[FILE_MAX], const VariableMap &variables)
 {
   bool was_modified = false;
 
@@ -316,18 +400,18 @@ bool BKE_path_apply_variables(char path[FILE_MAX], const PathVariables &variable
     const char *replacement_string = nullptr;
 
     /* Try to find a matching variable, and construct a string for it. */
-    if (const std::string *string_value = variables.strings.lookup_ptr_as(parsed_variable->name)) {
+    if (std::optional<blender::StringRefNull> string_value = variables.get_string(
+            parsed_variable->name))
+    {
       /* String variable found. */
       replacement_string = string_value->c_str();
     }
-    else if (const int64_t *integer_value = variables.integers.lookup_ptr_as(
-                 parsed_variable->name))
-    {
+    else if (std::optional<int64_t> integer_value = variables.get_integer(parsed_variable->name)) {
       /* Integer variable found. */
       format_int_to_string(parsed_variable->format, string_buffer, *integer_value);
       replacement_string = string_buffer;
     }
-    else if (const double *float_value = variables.floats.lookup_ptr_as(parsed_variable->name)) {
+    else if (std::optional<double> float_value = variables.get_float(parsed_variable->name)) {
       /* Float variable found. */
       format_float_to_string(parsed_variable->format, string_buffer, *float_value);
       replacement_string = string_buffer;
