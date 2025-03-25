@@ -192,7 +192,7 @@ class ShaderCompiler {
   };
 };
 
-/* Generic (fully synchronous) implementation used as fallback. */
+/* Generic implementation used as fallback. */
 class ShaderCompilerGeneric : public ShaderCompiler {
  private:
   struct Batch {
