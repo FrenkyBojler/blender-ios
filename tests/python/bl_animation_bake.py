@@ -55,8 +55,9 @@ class ObjectBakeTest(unittest.TestCase):
         self.assertEqual(len(channelbag.fcurves), 9, "If no animation is present, FCurves are created for all channels")
 
         for fcurve in channelbag.fcurves:
-            self.assertEqual(len(fcurve.keyframe_points), 10)
-            self.assertAlmostEqual(fcurve.keyframe_points[0].co.x, 0, 6)
+            self.assertEqual(len(fcurve.keyframe_points), 10, f"Unexpected key count on {fcurve.data_path}")
+            self.assertAlmostEqual(fcurve.keyframe_points[0].co.x, 0, 6,
+                                   f"Unexpected key y position on {fcurve.data_path}")
             self.assertAlmostEqual(fcurve.keyframe_points[-1].co.x, 9, 6, "Baking range is exclusive for the end")
 
     def test_bake_object_animation_to_new_action(self):
@@ -81,7 +82,7 @@ class ObjectBakeTest(unittest.TestCase):
         self.assertEqual(len(channelbag.fcurves), 9)
 
         for fcurve in channelbag.fcurves:
-            self.assertEqual(len(fcurve.keyframe_points), 10)
+            self.assertEqual(len(fcurve.keyframe_points), 10, f"Unexpected key count on {fcurve.data_path}")
             self.assertAlmostEqual(fcurve.keyframe_points[-1].co.x, 9,
                                    6, f"Baking to a new action should delete all keys outside the given range ({fcurve.data_path})")
 
@@ -109,10 +110,11 @@ class ObjectBakeTest(unittest.TestCase):
             if fcurve.data_path == "location":
                 self.assertAlmostEqual(fcurve.keyframe_points[-1].co.x, 15,
                                        6, f"Baking over an existing action should preserve all keys even those out of range ({fcurve.data_path})")
-                self.assertEqual(len(fcurve.keyframe_points), 11)
+                self.assertEqual(len(fcurve.keyframe_points), 11, f"Unexpected key count on {fcurve.data_path}")
             else:
-                self.assertAlmostEqual(fcurve.keyframe_points[-1].co.x, 9, 6)
-                self.assertEqual(len(fcurve.keyframe_points), 10)
+                self.assertAlmostEqual(fcurve.keyframe_points[-1].co.x, 9,
+                                       6, f"Unexpected key y position on {fcurve.data_path}")
+                self.assertEqual(len(fcurve.keyframe_points), 10, f"Unexpected key count on {fcurve.data_path}")
 
     def test_bake_object_multi_slot_to_new_action(self):
         obj2 = bpy.data.objects.new("obj2", None)
@@ -148,11 +150,15 @@ class ObjectBakeTest(unittest.TestCase):
                 continue
             # The keyframes should match the animation of obj2, not self.obj.
             if fcurve.array_index == 0:
-                self.assertAlmostEqual(fcurve.keyframe_points[0].co.y, 0, 6)
-                self.assertAlmostEqual(fcurve.keyframe_points[-1].co.y, 2, 6)
+                self.assertAlmostEqual(fcurve.keyframe_points[0].co.y, 0,
+                                       6, f"Unexpected key y position on {fcurve.data_path}")
+                self.assertAlmostEqual(fcurve.keyframe_points[-1].co.y, 2,
+                                       6, f"Unexpected key y position on {fcurve.data_path}")
             elif fcurve.array_index == 1:
-                self.assertAlmostEqual(fcurve.keyframe_points[0].co.y, 1, 6)
-                self.assertAlmostEqual(fcurve.keyframe_points[-1].co.y, 1, 6)
+                self.assertAlmostEqual(fcurve.keyframe_points[0].co.y, 1,
+                                       6, f"Unexpected key y position on {fcurve.data_path}")
+                self.assertAlmostEqual(fcurve.keyframe_points[-1].co.y, 1,
+                                       6, f"Unexpected key y position on {fcurve.data_path}")
 
     def test_bake_object_multi_slot_to_existing_action(self):
         obj2 = bpy.data.objects.new("obj2", None)
@@ -194,14 +200,17 @@ class ObjectBakeTest(unittest.TestCase):
             if fcurve.data_path == "location":
                 self.assertAlmostEqual(fcurve.keyframe_points[-1].co.x, 15,
                                        6, f"Baking over an existing action should preserve all keys even those out of range ({fcurve.data_path})")
-                self.assertEqual(len(fcurve.keyframe_points), 11)
+                self.assertEqual(len(fcurve.keyframe_points), 11, f"Unexpected key count on {fcurve.data_path}")
                 if fcurve.array_index == 0:
-                    self.assertAlmostEqual(fcurve.keyframe_points[-1].co.y, 2, 6)
+                    self.assertAlmostEqual(fcurve.keyframe_points[-1].co.y, 2,
+                                           6, f"Unexpected key y position on {fcurve.data_path}")
                 elif fcurve.array_index == 1:
-                    self.assertAlmostEqual(fcurve.keyframe_points[-1].co.y, 1, 6)
+                    self.assertAlmostEqual(fcurve.keyframe_points[-1].co.y, 1,
+                                           6, f"Unexpected key y position on {fcurve.data_path}")
             else:
-                self.assertAlmostEqual(fcurve.keyframe_points[-1].co.x, 9, 6)
-                self.assertEqual(len(fcurve.keyframe_points), 10)
+                self.assertAlmostEqual(fcurve.keyframe_points[-1].co.x, 9,
+                                       6, f"Unexpected key y position on {fcurve.data_path}")
+                self.assertEqual(len(fcurve.keyframe_points), 10, f"Unexpected key count on {fcurve.data_path}")
 
 
 def main():
