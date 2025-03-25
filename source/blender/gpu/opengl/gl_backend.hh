@@ -55,6 +55,10 @@ class GLBackend : public GPUBackend {
     GLBackend::platform_exit();
   }
 
+  void init_resources() override
+  {
+  };
+
   void delete_resources() override
   {
     /* Delete any resources with context active. */
