@@ -50,7 +50,7 @@ enum class ConstraintInit {
   WarmStart,
 };
 
-static void node_declare_positions(NodeDeclarationBuilder &b)
+static void node_declare(NodeDeclarationBuilder &b)
 {
   b.use_custom_socket_order();
   b.allow_any_socket_order();
@@ -66,72 +66,17 @@ static void node_declare_positions(NodeDeclarationBuilder &b)
   const int geometry_in = b.add_input<decl::Geometry>("Geometry").index();
   const int geometry_out = b.add_output<decl::Geometry>("Geometry").align_with_previous().index();
 
+  b.add_input<decl::Vector>("Old Position").field_on({geometry_in}).hide_value();
+  b.add_input<decl::Rotation>("Old Rotation").field_on({geometry_in}).hide_value();
   b.add_input<decl::Vector>("Position")
       .implicit_field_on(implicit_field_inputs::position, {geometry_in});
   b.add_output<decl::Vector>("Position").field_on({geometry_out}).align_with_previous();
   b.add_input<decl::Rotation>("Rotation").field_on({geometry_in}).hide_value();
   b.add_output<decl::Rotation>("Rotation").field_on({geometry_out}).align_with_previous();
-  b.add_input<decl::Vector>("Old Position").field_on({geometry_in}).hide_value();
-  b.add_input<decl::Rotation>("Old Rotation").field_on({geometry_in}).hide_value();
-
-  b.add_input<decl::Float>("Mass")
-      .default_value(1.0f)
-      .field_on({geometry_in})
-      .description("Linear inertial mass");
-  b.add_input<decl::Vector>("Inertia")
-      .default_value(float3(1.0f))
-      .field_on({geometry_in})
-      .description("Principal moments of inertia");
-
-  for (const ConstraintTypeInfo &info : xpbd_constraints::get_constraint_info(false)) {
-    b.add_input<decl::Geometry>(info.ui_name)
-        .supported_type(GeometryComponent::Type::PointCloud)
-        .description(info.ui_description);
-    b.add_output<decl::Geometry>(info.ui_name)
-        .description(info.ui_description)
-        .align_with_previous();
-  }
-
-  b.add_input<decl::Geometry>("Colliders")
-      .only_instances()
-      .description("Instances of colliders to evaluate contact transforms");
-
-  PanelDeclarationBuilder &debug_panel = b.add_panel("Debug").default_closed(true);
-  debug_panel.add_input<decl::Bool>("Debug Checks")
-      .default_value(false)
-      .description("Perform checks on input data, which can impact performance");
-  debug_panel.add_input<decl::Geometry>("Debug Steps")
-      .description("Complete constraint and geometry information for each solver iteration");
-  debug_panel.add_output<decl::Geometry>("Debug Steps")
-      .description("Complete constraint and geometry information for each solver iteration")
-      .align_with_previous();
-}
-
-static void node_declare_velocities(NodeDeclarationBuilder &b)
-{
-  b.use_custom_socket_order();
-  b.allow_any_socket_order();
-
-  b.add_input<decl::Float>("Delta Time").default_value(default_fps).min(0.0f).hide_value();
-  b.add_input<decl::Bool>("Use Global Solve").default_value(true);
-  b.add_input<decl::Int>("Gauss-Seidel Iterations").default_value(1).min(0);
-  b.add_input<decl::Int>("Jacobi Iterations").default_value(0).min(0);
-  b.add_input<decl::Bool>("Warm Start")
-      .default_value(true)
-      .description("Use previous lambda value when initializing instead of starting from zero");
-
-  const int geometry_in = b.add_input<decl::Geometry>("Geometry").index();
-  const int geometry_out = b.add_output<decl::Geometry>("Geometry").align_with_previous().index();
-
-  b.add_input<decl::Vector>("Position")
-      .implicit_field_on(implicit_field_inputs::position, {geometry_in});
-  b.add_input<decl::Rotation>("Rotation").field_on({geometry_in}).hide_value();
   b.add_input<decl::Vector>("Velocity").field_on({geometry_in}).hide_value();
   b.add_output<decl::Vector>("Velocity").field_on({geometry_out}).align_with_previous();
   b.add_input<decl::Vector>("Angular Velocity").field_on({geometry_in}).hide_value();
   b.add_output<decl::Vector>("Angular Velocity").field_on({geometry_out}).align_with_previous();
-  b.add_input<decl::Vector>("Original Velocity").field_on({geometry_in}).hide_value();
-  b.add_input<decl::Vector>("Original Angular Velocity").field_on({geometry_in}).hide_value();
 
   b.add_input<decl::Float>("Mass")
       .default_value(1.0f)
@@ -518,6 +463,28 @@ static Vector<IndexMask> build_group_masks(const IndexMask &constraints,
   return group_masks;
 }
 
+static void estimate_velocity(const ConstraintEvalParams &params, ConstraintVariables &vars)
+{
+  const Span<float3> old_positions = params.old_positions;
+  const Span<math::Quaternion> old_rotations = params.old_rotations;
+  const Span<float3> positions = vars.positions;
+  const Span<math::Quaternion> rotations = vars.rotations;
+  MutableSpan<float3> velocities = vars.velocities;
+  MutableSpan<float3> angular_velocities = vars.angular_velocities;
+  const IndexMask positions_mask = vars.positions.index_range();
+  const IndexMask rotations_mask = vars.rotations.index_range();
+  const float inv_dt = params.inv_delta_time;
+
+  positions_mask.foreach_index(GrainSize(1024), [&](const int index) {
+    vars.velocities[index] = inv_dt * (positions[index] - old_positions[index]);
+  });
+  rotations_mask.foreach_index(GrainSize(1024), [&](const int index) {
+    vars.angular_velocities[index] =
+        2.0f * inv_dt *
+        (math::invert_normalized(old_rotations[index]) * rotations[index]).imaginary_part();
+  });
+}
+
 static void get_constraint_data(GeoNodeExecParams params,
                                 const bool debug_output,
                                 Vector<ConstraintEvalData> &constraint_data,
@@ -565,7 +532,7 @@ static void set_constraint_data_output(GeoNodeExecParams params,
   }
 }
 
-static void node_geo_exec_positions(GeoNodeExecParams params)
+static void node_geo_exec(GeoNodeExecParams params)
 {
   ConstraintInit init_mode = params.extract_input<bool>("Warm Start") ? ConstraintInit::WarmStart :
                                                                         ConstraintInit::ZeroInit;
@@ -574,145 +541,24 @@ static void node_geo_exec_positions(GeoNodeExecParams params)
       params.extract_input<int>("Gauss-Seidel Iterations"), 0);
   const int jacobi_iterations = std::max(params.extract_input<int>("Jacobi Iterations"), 0);
   GeometrySet geometry_set = params.extract_input<GeometrySet>("Geometry");
-  Field<float3> position_field = params.extract_input<Field<float3>>("Position");
-  Field<math::Quaternion> rotation_field = params.extract_input<Field<math::Quaternion>>(
-      "Rotation");
+  Field<float> mass_field = params.extract_input<Field<float>>("Mass");
+  Field<float3> inertia_field = params.extract_input<Field<float3>>("Inertia");
   Field<float3> old_position_field = params.extract_input<Field<float3>>("Old Position");
   Field<math::Quaternion> old_rotation_field = params.extract_input<Field<math::Quaternion>>(
       "Old Rotation");
-  std::optional<std::string> position_output_id =
-      params.get_output_anonymous_attribute_id_if_needed("Position");
-  std::optional<std::string> rotation_output_id =
-      params.get_output_anonymous_attribute_id_if_needed("Rotation");
-  Field<float> mass_field = params.extract_input<Field<float>>("Mass");
-  Field<float3> inertia_field = params.extract_input<Field<float3>>("Inertia");
-
-  GeometrySet colliders_geometry_set = params.extract_input<GeometrySet>("Colliders");
-  Span<float4x4> collider_transforms = colliders_geometry_set.has_instances() ?
-                                           colliders_geometry_set.get_instances()->transforms() :
-                                           Span<float4x4>{};
-
-  ConstraintEvalParams eval_params = extract_eval_params(params);
-  const bool debug_output = (eval_params.debug_recorder != nullptr);
-
-  Vector<ConstraintEvalData> constraint_data;
-  IndexMaskMemory memory;
-  get_constraint_data(params, debug_output, constraint_data, memory);
-
-  static const Array<GeometryComponent::Type> types = {bke::GeometryComponent::Type::Mesh,
-                                                       bke::GeometryComponent::Type::PointCloud,
-                                                       bke::GeometryComponent::Type::Curve,
-                                                       bke::GeometryComponent::Type::GreasePencil};
-  geometry_set.modify_geometry_sets([&](GeometrySet &geometry_set) {
-    for (const bke::GeometryComponent::Type component_type : types) {
-      if (geometry_set.has(component_type)) {
-        bke::GeometryComponent &component = geometry_set.get_component_for_write(component_type);
-        std::optional<bke::MutableAttributeAccessor> attributes = component.attributes_for_write();
-        if (!attributes) {
-          continue;
-        }
-
-        if (eval_params.debug_recorder) {
-          eval_params.debug_recorder->set_geometry(geometry_set, component_type);
-        }
-
-        const int num_points = attributes->domain_size(AttrDomain::Point);
-        ConstraintVariables vars;
-        vars.positions.reinitialize(num_points);
-        vars.rotations.reinitialize(num_points);
-
-        const bke::GeometryFieldContext field_context{component, AttrDomain::Point};
-        fn::FieldEvaluator evaluator{field_context, num_points};
-        evaluator.add_with_destination(position_field, vars.positions.as_mutable_span());
-        evaluator.add_with_destination(rotation_field, vars.rotations.as_mutable_span());
-        evaluator.add(old_position_field);
-        evaluator.add(old_rotation_field);
-        evaluator.add(mass_field);
-        evaluator.add(inertia_field);
-        evaluator.evaluate();
-        eval_params.old_positions = evaluator.get_evaluated<float3>(2);
-        eval_params.old_rotations = evaluator.get_evaluated<math::Quaternion>(3);
-        eval_params.masses = evaluator.get_evaluated<float>(4);
-        eval_params.local_inertia = evaluator.get_evaluated<float3>(5);
-
-        eval_params.collider_transforms = collider_transforms;
-        /* XXX Transforms of the previous frame are not currently available, these are always the
-         * same as the current frame. Eventually this will allow transfer of velocity from animated
-         * colliders. */
-        eval_params.old_collider_transforms = eval_params.collider_transforms;
-
-        do_solver_iterations(SolverMethod::Global,
-                             global_iterations,
-                             EvaluationTarget::Positions,
-                             init_mode,
-                             eval_params,
-                             constraint_data,
-                             vars);
-        do_solver_iterations(SolverMethod::GaussSeidel,
-                             gauss_seidel_iterations,
-                             EvaluationTarget::Positions,
-                             init_mode,
-                             eval_params,
-                             constraint_data,
-                             vars);
-        do_solver_iterations(SolverMethod::Jacobi,
-                             jacobi_iterations,
-                             EvaluationTarget::Positions,
-                             init_mode,
-                             eval_params,
-                             constraint_data,
-                             vars);
-
-        if (position_output_id) {
-          AttributeWriter<float3> positions_writer = attributes->lookup_or_add_for_write<float3>(
-              *position_output_id, AttrDomain::Point);
-          BLI_assert(vars.positions.size() == num_points);
-          positions_writer.varray.set_all(vars.positions);
-          positions_writer.finish();
-        }
-        if (rotation_output_id) {
-          AttributeWriter<math::Quaternion> rotations_writer =
-              attributes->lookup_or_add_for_write<math::Quaternion>(*rotation_output_id,
-                                                                    AttrDomain::Point);
-          BLI_assert(vars.rotations.size() == num_points);
-          rotations_writer.varray.set_all(vars.rotations);
-          rotations_writer.finish();
-        }
-      }
-    }
-  });
-
-  params.set_output("Geometry", geometry_set);
-  set_constraint_data_output(params, constraint_data);
-  if (eval_params.debug_recorder) {
-    params.set_output("Debug Steps", eval_params.debug_recorder->debug_steps());
-  }
-}
-
-static void node_geo_exec_velocities(GeoNodeExecParams params)
-{
-  const ConstraintInit init_mode = params.extract_input<bool>("Warm Start") ?
-                                       ConstraintInit::WarmStart :
-                                       ConstraintInit::ZeroInit;
-  const int global_iterations = (params.extract_input<bool>("Use Global Solve") ? 1 : 0);
-  const int gauss_seidel_iterations = std::max(
-      params.extract_input<int>("Gauss-Seidel Iterations"), 0);
-  const int jacobi_iterations = std::max(params.extract_input<int>("Jacobi Iterations"), 0);
-  GeometrySet geometry_set = params.extract_input<GeometrySet>("Geometry");
   Field<float3> position_field = params.extract_input<Field<float3>>("Position");
   Field<math::Quaternion> rotation_field = params.extract_input<Field<math::Quaternion>>(
       "Rotation");
   Field<float3> velocity_field = params.extract_input<Field<float3>>("Velocity");
   Field<float3> angular_velocity_field = params.extract_input<Field<float3>>("Angular Velocity");
+  std::optional<std::string> position_output_id =
+      params.get_output_anonymous_attribute_id_if_needed("Position");
+  std::optional<std::string> rotation_output_id =
+      params.get_output_anonymous_attribute_id_if_needed("Rotation");
   std::optional<std::string> velocity_output_id =
       params.get_output_anonymous_attribute_id_if_needed("Velocity");
   std::optional<std::string> angular_velocity_output_id =
       params.get_output_anonymous_attribute_id_if_needed("Angular Velocity");
-  Field<float3> orig_velocity_field = params.extract_input<Field<float3>>("Original Velocity");
-  Field<float3> orig_angular_velocity_field = params.extract_input<Field<float3>>(
-      "Original Angular Velocity");
-  Field<float> mass_field = params.extract_input<Field<float>>("Mass");
-  Field<float3> inertia_field = params.extract_input<Field<float3>>("Inertia");
 
   GeometrySet colliders_geometry_set = params.extract_input<GeometrySet>("Colliders");
   Span<float4x4> collider_transforms = colliders_geometry_set.has_instances() ?
@@ -752,26 +598,50 @@ static void node_geo_exec_velocities(GeoNodeExecParams params)
 
         const bke::GeometryFieldContext field_context{component, AttrDomain::Point};
         fn::FieldEvaluator evaluator{field_context, num_points};
+        evaluator.add(mass_field);
+        evaluator.add(inertia_field);
+        evaluator.add(old_position_field);
+        evaluator.add(old_rotation_field);
         evaluator.add_with_destination(position_field, vars.positions.as_mutable_span());
         evaluator.add_with_destination(rotation_field, vars.rotations.as_mutable_span());
         evaluator.add_with_destination(velocity_field, vars.velocities.as_mutable_span());
         evaluator.add_with_destination(angular_velocity_field,
                                        vars.angular_velocities.as_mutable_span());
-        evaluator.add(orig_velocity_field);
-        evaluator.add(orig_angular_velocity_field);
-        evaluator.add(mass_field);
-        evaluator.add(inertia_field);
         evaluator.evaluate();
-        eval_params.orig_velocities = evaluator.get_evaluated<float3>(4);
-        eval_params.orig_angular_velocities = evaluator.get_evaluated<float3>(5);
-        eval_params.masses = evaluator.get_evaluated<float>(6);
-        eval_params.local_inertia = evaluator.get_evaluated<float3>(7);
+        eval_params.masses = evaluator.get_evaluated<float>(0);
+        eval_params.local_inertia = evaluator.get_evaluated<float3>(1);
+        eval_params.old_positions = evaluator.get_evaluated<float3>(2);
+        eval_params.old_rotations = evaluator.get_evaluated<math::Quaternion>(3);
 
         eval_params.collider_transforms = collider_transforms;
         /* XXX Transforms of the previous frame are not currently available, these are always the
          * same as the current frame. Eventually this will allow transfer of velocity from animated
          * colliders. */
         eval_params.old_collider_transforms = eval_params.collider_transforms;
+
+        do_solver_iterations(SolverMethod::Global,
+                             global_iterations,
+                             EvaluationTarget::Positions,
+                             init_mode,
+                             eval_params,
+                             constraint_data,
+                             vars);
+        do_solver_iterations(SolverMethod::GaussSeidel,
+                             gauss_seidel_iterations,
+                             EvaluationTarget::Positions,
+                             init_mode,
+                             eval_params,
+                             constraint_data,
+                             vars);
+        do_solver_iterations(SolverMethod::Jacobi,
+                             jacobi_iterations,
+                             EvaluationTarget::Positions,
+                             init_mode,
+                             eval_params,
+                             constraint_data,
+                             vars);
+
+        estimate_velocity(eval_params, vars);
 
         // do_solver_iterations(SolverMethod::Global,
         //                      global_iterations,
@@ -795,6 +665,21 @@ static void node_geo_exec_velocities(GeoNodeExecParams params)
                              constraint_data,
                              vars);
 
+        if (position_output_id) {
+          AttributeWriter<float3> positions_writer = attributes->lookup_or_add_for_write<float3>(
+              *position_output_id, AttrDomain::Point);
+          BLI_assert(vars.positions.size() == num_points);
+          positions_writer.varray.set_all(vars.positions);
+          positions_writer.finish();
+        }
+        if (rotation_output_id) {
+          AttributeWriter<math::Quaternion> rotations_writer =
+              attributes->lookup_or_add_for_write<math::Quaternion>(*rotation_output_id,
+                                                                    AttrDomain::Point);
+          BLI_assert(vars.rotations.size() == num_points);
+          rotations_writer.varray.set_all(vars.rotations);
+          rotations_writer.finish();
+        }
         if (velocity_output_id) {
           AttributeWriter<float3> velocities_writer = attributes->lookup_or_add_for_write<float3>(
               *velocity_output_id, AttrDomain::Point);
@@ -821,40 +706,19 @@ static void node_geo_exec_velocities(GeoNodeExecParams params)
   }
 }
 
-static void node_register_position_solve()
+static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeSolvePositionConstraints");
-  ntype.ui_name = "Solve XPBD Position Constraints";
+  geo_node_type_base(&ntype, "GeometryNodeSolveConstraints");
+  ntype.ui_name = "Solve XPBD Constraints";
   ntype.ui_description =
       "Solve position and rotation constraints on geometry using the XPBD framework";
   ntype.nclass = NODE_CLASS_GEOMETRY;
   node_type_size(ntype, 200, 120, 300);
-  ntype.geometry_node_execute = node_geo_exec_positions;
-  ntype.declare = node_declare_positions;
+  ntype.geometry_node_execute = node_geo_exec;
+  ntype.declare = node_declare;
   blender::bke::node_register_type(ntype);
-}
-
-static void node_register_velocity_solve()
-{
-  static blender::bke::bNodeType ntype;
-
-  geo_node_type_base(&ntype, "GeometryNodeSolveVelocityConstraints");
-  ntype.ui_name = "Solve XPBD Velocity Constraints";
-  ntype.ui_description =
-      "Solve linear and angular velocity constraints on geometry using the XPBD framework";
-  ntype.nclass = NODE_CLASS_GEOMETRY;
-  node_type_size(ntype, 200, 120, 300);
-  ntype.geometry_node_execute = node_geo_exec_velocities;
-  ntype.declare = node_declare_velocities;
-  blender::bke::node_register_type(ntype);
-}
-
-static void node_register()
-{
-  node_register_position_solve();
-  node_register_velocity_solve();
 }
 NOD_REGISTER_NODE(node_register)
 
