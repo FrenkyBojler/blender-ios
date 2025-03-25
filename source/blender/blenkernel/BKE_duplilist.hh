@@ -42,6 +42,11 @@ void free_object_duplilist(ListBase *lb);
  * - Dupli Verts
  * - Dupli Faces
  * - "Objects as Font"
+ *
+ * This does not include collection instances which are not considered legacy and should be treated
+ * properly at a higher level.
+ *
+ * Also see #get_dupli_generator for the different existing dupli generators.
  */
 blender::bke::Instances object_duplilist_legacy_instances(Depsgraph &depsgraph,
                                                           Scene &scene,
