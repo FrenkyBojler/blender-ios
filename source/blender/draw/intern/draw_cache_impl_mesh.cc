@@ -1151,9 +1151,9 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
     }
   }
 
-  if (batch_requested &
-      (MBC_SURFACE | MBC_SURFACE_PER_MAT | MBC_WIRE_LOOPS_UVS | MBC_EDITUV_FACES_STRETCH_AREA |
-       MBC_EDITUV_FACES_STRETCH_ANGLE | MBC_EDITUV_FACES | MBC_EDITUV_EDGES | MBC_EDITUV_VERTS))
+  if (batch_requested & (MBC_SURFACE | MBC_SURFACE_PER_MAT | MBC_WIRE_LOOPS_UVS | MBC_UV_FACES |
+                         MBC_EDITUV_FACES_STRETCH_AREA | MBC_EDITUV_FACES_STRETCH_ANGLE |
+                         MBC_EDITUV_FACES | MBC_EDITUV_EDGES | MBC_EDITUV_VERTS))
   {
     /* Modifiers will only generate an orco layer if the mesh is deformed. */
     if (cache.cd_needed.orco != 0) {
@@ -1232,6 +1232,7 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
       }
       /* We only clear the batches as they may already have been
        * referenced. */
+      GPU_BATCH_CLEAR_SAFE(cache.batch.uv_faces);
       GPU_BATCH_CLEAR_SAFE(cache.batch.wire_loops_uvs);
       GPU_BATCH_CLEAR_SAFE(cache.batch.edituv_faces_stretch_area);
       GPU_BATCH_CLEAR_SAFE(cache.batch.edituv_faces_stretch_angle);
@@ -1382,6 +1383,14 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
       if (cache.cd_used.uv != 0) {
         batch.vbos.append(VBOType::UVs);
       }
+      batch_info.append(std::move(batch));
+    }
+    if (batches_to_create & MBC_UV_FACES) {
+      BatchCreateData batch{*cache.batch.uv_faces, GPU_PRIM_TRIS, list, IBOType::Tris, {}};
+      if (cache.cd_used.uv != 0) {
+        batch.vbos.append(VBOType::UVs);
+      }
+      batch_info.append(std::move(batch));
     }
     if (batches_to_create & MBC_EDIT_MESH_ANALYSIS) {
       batch_info.append({*cache.batch.edit_mesh_analysis,
