@@ -801,12 +801,12 @@ if(WITH_CYCLES_HIP_BINARIES AND WITH_CYCLES_DEVICE_HIPRT)
     -amdgpu-function-calls=true
     -parallel-jobs=${HIPRT_COMPILER_PARALLEL_JOBS}
     --genco
-    -ffast-math
     -I ${CMAKE_CURRENT_SOURCE_DIR}/..
     -I ${CMAKE_CURRENT_SOURCE_DIR}/device/hiprt
     -I ${HIPRT_INCLUDE_DIR}
     -Wno-parentheses-equality
     -Wno-unused-value
+    -ffast-math
   )
 
   set(hiprt_hipfb)

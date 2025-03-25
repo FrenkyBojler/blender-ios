@@ -80,7 +80,7 @@ static inline bool hipIsRDNA2OrNewer(const int hipDevId)
 static inline bool hipNeedPreciseMath(const std::string &arch)
 {
 #  ifdef _WIN32
-  /* Enable fast math option only for non-RDNA2 GPUs (compiler bug on Windows). */
+  /* Enable stricter math options for RDNA2 GPUs (compiler bug on Windows). */
   return (arch == "gfx1030" || arch == "gfx1031" || arch == "gfx1032" || arch == "gfx1033" ||
           arch == "gfx1034" || arch == "gfx1035" || arch == "gfx1036");
 #  else
