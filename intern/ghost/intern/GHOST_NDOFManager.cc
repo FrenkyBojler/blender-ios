@@ -26,6 +26,10 @@
  */
 // #define USE_3DCONNEXION_NONSTANDARD_KEYS
 
+#if !defined(_WIN32) && !defined(__APPLE__)
+#  define USE_UNIX_SPACENAVD
+#endif
+
 /* -------------------------------------------------------------------- */
 /** \name NDOF Enum Strings
  * \{ */
@@ -156,6 +160,29 @@ static const GHOST_NDOF_ButtonT ndof_HID_map_Shared3Dx[] = {
     GHOST_NDOF_BUTTON_MINUS,
 };
 
+#ifdef USE_UNIX_SPACENAVD
+static const GHOST_NDOF_ButtonT ndof_HID_map_SpaceMousePro[] = {
+    /* Disable wrapping, it makes it difficult to read. */
+    /* clang-format off */
+    GHOST_NDOF_BUTTON_1,
+    GHOST_NDOF_BUTTON_2,
+    GHOST_NDOF_BUTTON_3,
+    GHOST_NDOF_BUTTON_4,
+    GHOST_NDOF_BUTTON_MENU,
+    GHOST_NDOF_BUTTON_FIT,
+    GHOST_NDOF_BUTTON_TOP,
+    GHOST_NDOF_BUTTON_RIGHT,
+    GHOST_NDOF_BUTTON_FRONT,
+    GHOST_NDOF_BUTTON_ROLL_CW,
+    GHOST_NDOF_BUTTON_ROTATE,
+    GHOST_NDOF_BUTTON_ESC,
+    GHOST_NDOF_BUTTON_ALT,
+    GHOST_NDOF_BUTTON_SHIFT,
+    GHOST_NDOF_BUTTON_CTRL,
+    /* clang-format on */
+};
+#endif /* USE_UNIX_SPACENAVD */
+
 static const GHOST_NDOF_ButtonT ndof_HID_map_SpaceExplorer[] = {
     GHOST_NDOF_BUTTON_1,
     GHOST_NDOF_BUTTON_2,
@@ -281,14 +308,27 @@ bool GHOST_NDOFManager::setDevice(ushort vendor_id, ushort product_id)
           hid_map_ = ndof_HID_map_Shared3Dx;
           break;
         }
-        case 0xC62B: {
+        case 0xC62B:
+#ifdef USE_UNIX_SPACENAVD
+        {
+          /* Generic Unix support, see: #136401.
+           *
+           * NOTE(@ideasman42): Tested to work on Linux with SPACENAVD v1.3.1.
+           * Fails on WIN32, so both mappings are needed. */
+          device_type_ = NDOF_SpaceMousePro;
+          hid_map_button_num_ = 15;
+          hid_map_ = ndof_HID_map_SpaceMousePro;
+          break;
+        }
+#else
+        {
           device_type_ = NDOF_SpaceMousePro;
           hid_map_button_num_ = 27; /* 15 physical buttons, but HID codes range from 0 to 26. */
           hid_map_button_mask_ = 0x07C0F137;
           hid_map_ = ndof_HID_map_Shared3Dx;
           break;
         }
-
+#endif
         /* -- older devices -- */
         case 0xC625: {
           device_type_ = NDOF_SpacePilot;
