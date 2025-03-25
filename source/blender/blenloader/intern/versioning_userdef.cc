@@ -1435,7 +1435,8 @@ void blo_do_versions_userdef(UserDef *userdef)
     };
 
     LISTBASE_FOREACH (wmKeyMap *, keymap, &userdef->user_keymaps) {
-      if (const std::string *new_name = keymap_renames.lookup_ptr(keymap->idname)) {
+      std::string old_name(keymap->idname);
+      if (const std::string *new_name = keymap_renames.lookup_ptr(old_name)) {
         STRNCPY(keymap->idname, new_name->c_str());
       }
     }
