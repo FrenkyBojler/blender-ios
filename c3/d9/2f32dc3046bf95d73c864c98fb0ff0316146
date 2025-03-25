@@ -1,1 +1,2 @@
 Referenced by issue #133232, 3D Connexion Space Mouse Enterprise Buttons Not Recognized in Blender 4.3.2 (Mac 15.2)
+Referenced by commit debef6b78f14d4d424cceb4eaebc655fd49932ce, Fix: NDOF HID mapping ignored on Unix
