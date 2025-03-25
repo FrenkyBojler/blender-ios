@@ -132,7 +132,7 @@ static void nla_init(wmWindowManager *wm, ScrArea *area)
 {
   SpaceNla *snla = static_cast<SpaceNla *>(area->spacedata.first);
 
-  /* init dopesheet data if non-existent (i.e. for old files) */
+  /* init dope-sheet data if non-existent (i.e. for old files). */
   if (snla->ads == nullptr) {
     snla->ads = MEM_callocN<bDopeSheet>("NlaEdit DopeSheet");
     wmWindow *win = WM_window_find_by_area(wm, area);
@@ -218,7 +218,10 @@ static void nla_track_region_draw(const bContext *C, ARegion *region)
   UI_view2d_view_restore(C);
 
   /* scrollers */
-  UI_view2d_scrollers_draw(v2d, nullptr);
+  if (region->winy > HEADERY * UI_SCALE_FAC) {
+    UI_view2d_scrollers_draw(v2d, nullptr);
+  }
+
   ANIM_animdata_freelist(&anim_data);
 }
 
@@ -298,7 +301,9 @@ static void nla_main_region_draw_overlay(const bContext *C, ARegion *region)
   ED_time_scrub_draw_current_frame(region, scene, snla->flag & SNLA_DRAWTIME);
 
   /* scrollers */
-  UI_view2d_scrollers_draw(v2d, nullptr);
+  if (region->winy > HEADERY * UI_SCALE_FAC) {
+    UI_view2d_scrollers_draw(v2d, nullptr);
+  }
 }
 
 /* add handlers, stuff you only do once or on area/region changes */
@@ -507,9 +512,8 @@ static void nla_track_region_message_subscribe(const wmRegionMessageSubscribePar
   msg_sub_value_region_tag_redraw.user_data = region;
   msg_sub_value_region_tag_redraw.notify = ED_region_do_msg_notify_tag_redraw;
 
-  /* All dopesheet filter settings, etc. affect the drawing of this editor,
-   * so just whitelist the entire struct for updates
-   */
+  /* All dope-sheet filter settings, etc. affect the drawing of this editor,
+   * so just whitelist the entire struct for updates. */
   {
     wmMsgParams_RNA msg_key_params = {{}};
     StructRNA *type_array[] = {

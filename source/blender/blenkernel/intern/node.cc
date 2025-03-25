@@ -218,8 +218,8 @@ static void ntree_copy_data(Main * /*bmain*/,
   }
 
   if (ntree_src->nested_node_refs) {
-    ntree_dst->nested_node_refs = static_cast<bNestedNodeRef *>(
-        MEM_malloc_arrayN(ntree_src->nested_node_refs_num, sizeof(bNestedNodeRef), __func__));
+    ntree_dst->nested_node_refs = MEM_malloc_arrayN<bNestedNodeRef>(
+        size_t(ntree_src->nested_node_refs_num), __func__);
     uninitialized_copy_n(
         ntree_src->nested_node_refs, ntree_src->nested_node_refs_num, ntree_dst->nested_node_refs);
   }
@@ -404,11 +404,15 @@ static void node_foreach_path(ID *id, BPathForeachPathData *bpath_data)
       for (bNode *node : ntree->all_nodes()) {
         if (node->type_legacy == SH_NODE_SCRIPT) {
           NodeShaderScript *nss = static_cast<NodeShaderScript *>(node->storage);
-          BKE_bpath_foreach_path_fixed_process(bpath_data, nss->filepath, sizeof(nss->filepath));
+          if (nss->mode == NODE_SCRIPT_EXTERNAL && nss->filepath[0]) {
+            BKE_bpath_foreach_path_fixed_process(bpath_data, nss->filepath, sizeof(nss->filepath));
+          }
         }
         else if (node->type_legacy == SH_NODE_TEX_IES) {
           NodeShaderTexIES *ies = static_cast<NodeShaderTexIES *>(node->storage);
-          BKE_bpath_foreach_path_fixed_process(bpath_data, ies->filepath, sizeof(ies->filepath));
+          if (ies->mode == NODE_IES_EXTERNAL && ies->filepath[0]) {
+            BKE_bpath_foreach_path_fixed_process(bpath_data, ies->filepath, sizeof(ies->filepath));
+          }
         }
       }
       break;
@@ -761,7 +765,7 @@ void node_tree_blend_write(BlendWriter *writer, bNodeTree *ntree)
         writer, bNodePanelState, node->num_panel_states, node->panel_states_array);
 
     if (node->storage) {
-      if (ELEM(ntree->type, NTREE_SHADER, NTREE_GEOMETRY) &&
+      if (ELEM(ntree->type, NTREE_SHADER, NTREE_GEOMETRY, NTREE_COMPOSIT) &&
           ELEM(node->type_legacy, SH_NODE_CURVE_VEC, SH_NODE_CURVE_RGB, SH_NODE_CURVE_FLOAT))
       {
         BKE_curvemapping_blend_write(writer, static_cast<const CurveMapping *>(node->storage));
@@ -1781,28 +1785,6 @@ void node_register_alias(bNodeType &nt, const StringRef alias)
   get_node_type_alias_map().add_new(alias, nt.idname);
 }
 
-bool node_type_is_undefined(const bNode &node)
-{
-  if (node.typeinfo == &NodeTypeUndefined) {
-    return true;
-  }
-
-  if (node.is_group()) {
-    const ID *group_tree = node.id;
-    if (group_tree == nullptr) {
-      return false;
-    }
-    if (!ID_IS_LINKED(group_tree)) {
-      return false;
-    }
-    if ((group_tree->tag & ID_TAG_MISSING) == 0) {
-      return false;
-    }
-    return true;
-  }
-  return false;
-}
-
 Span<bNodeSocketType *> node_socket_types_get()
 {
   return get_socket_type_map().as_span();
@@ -1815,6 +1797,15 @@ bNodeSocketType *node_socket_type_find(const StringRef idname)
     return nullptr;
   }
   return *value;
+}
+
+bNodeSocketType *node_socket_type_find_static(const int type, const int subtype)
+{
+  const std::optional<StringRefNull> idname = node_static_socket_type(type, subtype);
+  if (!idname) {
+    return nullptr;
+  }
+  return node_socket_type_find(*idname);
 }
 
 static void node_free_socket_type(void *socktype_v)
@@ -2734,7 +2725,7 @@ bNode *node_copy_with_mapping(bNodeTree *dst_tree,
                               const bool use_unique,
                               Map<const bNodeSocket *, bNodeSocket *> &socket_map)
 {
-  bNode *node_dst = static_cast<bNode *>(MEM_mallocN(sizeof(bNode), __func__));
+  bNode *node_dst = MEM_mallocN<bNode>(__func__);
   *node_dst = node_src;
 
   node_dst->runtime = MEM_new<bNodeRuntime>(__func__);
@@ -3599,14 +3590,16 @@ void node_tree_free_local_tree(bNodeTree *ntree)
 void node_tree_set_output(bNodeTree &ntree)
 {
   const bool is_compositor = ntree.type == NTREE_COMPOSIT;
+  const bool is_geometry = ntree.type == NTREE_GEOMETRY;
   /* find the active outputs, might become tree type dependent handler */
   LISTBASE_FOREACH (bNode *, node, &ntree.nodes) {
     if (node->typeinfo->nclass == NODE_CLASS_OUTPUT) {
       /* we need a check for which output node should be tagged like this, below an exception */
-      if (ELEM(node->type_legacy, CMP_NODE_OUTPUT_FILE, GEO_NODE_VIEWER)) {
+      if (node->is_type("CompositorNodeOutputFile")) {
         continue;
       }
-      const bool node_is_output = node->type_legacy == CMP_NODE_VIEWER;
+      const bool node_is_output = node->is_type("CompositorNodeViewer") ||
+                                  node->is_type("GeometryNodeViewer");
 
       int output = 0;
       /* there is more types having output class, each one is checked */
@@ -3617,12 +3610,15 @@ void node_tree_set_output(bNodeTree &ntree)
         }
 
         /* same type, exception for viewer */
-        const bool tnode_is_output = tnode->type_legacy == CMP_NODE_VIEWER;
-        const bool compositor_case = is_compositor && tnode_is_output && node_is_output;
-        const bool has_same_shortcut = compositor_case && node != tnode &&
+        const bool tnode_is_output = tnode->is_type("CompositorNodeViewer") ||
+                                     tnode->is_type("GeometryNodeViewer");
+        const bool viewer_case = (is_compositor || is_geometry) && tnode_is_output &&
+                                 node_is_output;
+        const bool has_same_shortcut = viewer_case && node != tnode &&
                                        tnode->custom1 == node->custom1 &&
                                        tnode->custom1 != NODE_VIEWER_SHORTCUT_NONE;
-        if (tnode->type_legacy == node->type_legacy || compositor_case) {
+
+        if (tnode->type_legacy == node->type_legacy || viewer_case) {
           if (tnode->flag & NODE_DO_OUTPUT) {
             output++;
             if (output > 1) {
@@ -4010,22 +4006,25 @@ static Set<int> get_known_node_types_set()
   return result;
 }
 
-static bool can_read_node_type(const int type)
+static bool can_read_node_type(const bNode &node)
 {
   /* Can always read custom node types. */
-  if (ELEM(type, NODE_CUSTOM, NODE_CUSTOM_GROUP)) {
+  if (ELEM(node.type_legacy, NODE_CUSTOM, NODE_CUSTOM_GROUP)) {
     return true;
   }
-
-  /* Check known built-in types. */
-  static Set<int> known_types = get_known_node_types_set();
-  return known_types.contains(type);
+  if (node.type_legacy < NODE_LEGACY_TYPE_GENERATION_START) {
+    /* Check known built-in types. */
+    static Set<int> known_types = get_known_node_types_set();
+    return known_types.contains(node.type_legacy);
+  }
+  /* Nodes with larger legacy_type are only identified by their idname. */
+  return node_type_find(node.idname) != nullptr;
 }
 
 static void node_replace_undefined_types(bNode *node)
 {
-  /* If the integer type is unknown then this node cannot be read. */
-  if (!can_read_node_type(node->type_legacy)) {
+  /* If the node type is built-in but unknown, the node cannot be read. */
+  if (!can_read_node_type(*node)) {
     node->type_legacy = NODE_CUSTOM;
     /* This type name is arbitrary, it just has to be unique enough to not match a future node
      * idname. Includes the old type identifier for debugging purposes. */
@@ -4254,8 +4253,7 @@ std::optional<eNodeSocketDatatype> custom_data_type_to_socket_type(eCustomDataTy
 
 static const CPPType *slow_socket_type_to_geo_nodes_base_cpp_type(const eNodeSocketDatatype type)
 {
-  const StringRefNull socket_idname = *node_static_socket_type(type, 0);
-  const bNodeSocketType *typeinfo = node_socket_type_find(socket_idname);
+  const bNodeSocketType *typeinfo = node_socket_type_find_static(type);
   return typeinfo->base_cpp_type;
 }
 

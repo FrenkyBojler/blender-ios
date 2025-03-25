@@ -336,15 +336,15 @@ static void fluid_bake_endjob(void *customdata)
    * Report for ended bake and how long it took. */
   if (job->success) {
     /* Show bake info. */
-    WM_reportf(
+    WM_global_reportf(
         RPT_INFO, "Fluid: %s complete (%.2f)", job->name, BLI_time_now_seconds() - job->start);
   }
   else {
     if (fds->error[0] != '\0') {
-      WM_reportf(RPT_ERROR, "Fluid: %s failed: %s", job->name, fds->error);
+      WM_global_reportf(RPT_ERROR, "Fluid: %s failed: %s", job->name, fds->error);
     }
     else { /* User canceled the bake. */
-      WM_reportf(RPT_WARNING, "Fluid: %s canceled!", job->name);
+      WM_global_reportf(RPT_WARNING, "Fluid: %s canceled!", job->name);
     }
   }
 }
@@ -444,15 +444,15 @@ static void fluid_free_endjob(void *customdata)
    *  Report for ended free job and how long it took */
   if (job->success) {
     /* Show free job info */
-    WM_reportf(
+    WM_global_reportf(
         RPT_INFO, "Fluid: %s complete (%.2f)", job->name, BLI_time_now_seconds() - job->start);
   }
   else {
     if (fds->error[0] != '\0') {
-      WM_reportf(RPT_ERROR, "Fluid: %s failed: %s", job->name, fds->error);
+      WM_global_reportf(RPT_ERROR, "Fluid: %s failed: %s", job->name, fds->error);
     }
     else { /* User canceled the free job */
-      WM_reportf(RPT_WARNING, "Fluid: %s canceled!", job->name);
+      WM_global_reportf(RPT_WARNING, "Fluid: %s canceled!", job->name);
     }
   }
 }
@@ -508,7 +508,7 @@ static void fluid_free_startjob(void *customdata, wmJobWorkerStatus *worker_stat
 
 /***************************** Operators ******************************/
 
-static int fluid_bake_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus fluid_bake_exec(bContext *C, wmOperator *op)
 {
   FluidJob *job = static_cast<FluidJob *>(MEM_mallocN(sizeof(FluidJob), "FluidJob"));
   char error_msg[256] = "\0";
@@ -534,7 +534,7 @@ static int fluid_bake_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static int fluid_bake_invoke(bContext *C, wmOperator *op, const wmEvent * /*_event*/)
+static wmOperatorStatus fluid_bake_invoke(bContext *C, wmOperator *op, const wmEvent * /*_event*/)
 {
   Scene *scene = CTX_data_scene(C);
   FluidJob *job = static_cast<FluidJob *>(MEM_mallocN(sizeof(FluidJob), "FluidJob"));
@@ -575,7 +575,7 @@ static int fluid_bake_invoke(bContext *C, wmOperator *op, const wmEvent * /*_eve
   return OPERATOR_RUNNING_MODAL;
 }
 
-static int fluid_bake_modal(bContext *C, wmOperator * /*op*/, const wmEvent *event)
+static wmOperatorStatus fluid_bake_modal(bContext *C, wmOperator * /*op*/, const wmEvent *event)
 {
   /* no running blender, remove handler and pass through */
   if (0 == WM_jobs_test(CTX_wm_manager(C), CTX_data_scene(C), WM_JOB_TYPE_OBJECT_SIM_FLUID)) {
@@ -589,7 +589,7 @@ static int fluid_bake_modal(bContext *C, wmOperator * /*op*/, const wmEvent *eve
   return OPERATOR_PASS_THROUGH;
 }
 
-static int fluid_free_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus fluid_free_exec(bContext *C, wmOperator *op)
 {
   FluidModifierData *fmd = nullptr;
   FluidDomainSettings *fds;
@@ -654,7 +654,7 @@ static int fluid_free_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static int fluid_pause_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus fluid_pause_exec(bContext *C, wmOperator *op)
 {
   FluidModifierData *fmd = nullptr;
   FluidDomainSettings *fds;
