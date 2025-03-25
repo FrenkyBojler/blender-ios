@@ -1347,32 +1347,23 @@ static void contact__linear_solve_elements(const ConstraintEvalParams &params,
   });
 }
 
-static void contact__init_position_step(bke::GeometrySet &constraints)
+static void contact__init_step(bke::GeometrySet &constraints)
 {
   PointCloudComponent &component = constraints.get_component_for_write<PointCloudComponent>();
   std::optional<bke::MutableAttributeAccessor> attributes = component.attributes_for_write();
 
   SpanAttributeWriter<float> position_lambda_writer =
       attributes->lookup_or_add_for_write_span<float>("position_lambda", AttrDomain::Point);
-
-  position_lambda_writer.span.fill(0.0f);
-
-  position_lambda_writer.finish();
-}
-
-static void contact__init_velocity_step(bke::GeometrySet &constraints)
-{
-  PointCloudComponent &component = constraints.get_component_for_write<PointCloudComponent>();
-  std::optional<bke::MutableAttributeAccessor> attributes = component.attributes_for_write();
-
   SpanAttributeWriter<float> restitution_lambda_writer =
       attributes->lookup_or_add_for_write_span<float>("restitution_lambda", AttrDomain::Point);
   SpanAttributeWriter<float> friction_lambda_writer =
       attributes->lookup_or_add_for_write_span<float>("friction_lambda", AttrDomain::Point);
 
+  position_lambda_writer.span.fill(0.0f);
   restitution_lambda_writer.span.fill(0.0f);
   friction_lambda_writer.span.fill(0.0f);
 
+  position_lambda_writer.finish();
   restitution_lambda_writer.finish();
   friction_lambda_writer.finish();
 }
@@ -1383,7 +1374,6 @@ template<bool debug_output> static ConstraintTypeInfo create_info__position_goal
                             "Set position of a point to a target vector",
                             0,
                             position_goal__init_position_step,
-                            {},
                             position_goal__eval_positions<debug_output>,
                             {},
                             position_goal__get_mapping,
@@ -1398,7 +1388,6 @@ template<bool debug_output> static ConstraintTypeInfo create_info__rotation_goal
                             "Set orientation of an edge to a target rotation",
                             1,
                             rotation_goal__init_position_step,
-                            {},
                             rotation_goal__eval_positions<debug_output>,
                             {},
                             rotation_goal__get_mapping,
@@ -1414,7 +1403,6 @@ template<bool debug_output> static ConstraintTypeInfo create_info__stretch_shear
       "Enforces edge length and aligns forward direction with the edge vector",
       2,
       stretch_shear__init_position_step,
-      {},
       stretch_shear__eval_positions<debug_output>,
       {},
       stretch_shear__get_mapping,
@@ -1430,7 +1418,6 @@ template<bool debug_output> static ConstraintTypeInfo create_info__bend_twist()
       "Enforces angles between neighboring edges to their relative rest orientation",
       3,
       bend_twist__init_position_step,
-      {},
       bend_twist__eval_positions<debug_output>,
       {},
       bend_twist__get_mapping,
@@ -1444,8 +1431,7 @@ template<bool debug_output> static ConstraintTypeInfo create_info__contact()
   return ConstraintTypeInfo{"Contact Constraints",
                             "Keep contact points from penetrating",
                             4,
-                            contact__init_position_step,
-                            contact__init_velocity_step,
+                            contact__init_step,
                             contact__eval_positions<debug_output>,
                             contact__eval_velocities<debug_output>,
                             contact__get_mapping,

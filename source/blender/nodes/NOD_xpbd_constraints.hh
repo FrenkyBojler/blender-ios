@@ -192,8 +192,7 @@ struct ConstraintTypeInfo {
   std::string ui_description;
   int type_code;
 
-  ConstraintInitStepFunc init_position_step;
-  ConstraintInitStepFunc init_velocity_step;
+  ConstraintInitStepFunc init_step;
   ConstraintEvalPositionFunc evaluate_position;
   ConstraintEvalVelocityFunc evaluate_velocity;
   ConstraintMappingFunc get_mapping;

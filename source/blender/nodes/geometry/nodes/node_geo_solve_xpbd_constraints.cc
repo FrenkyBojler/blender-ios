@@ -8,6 +8,10 @@
 #include "BKE_geometry_set.hh"
 #include "BKE_instances.hh"
 
+#include "UI_interface.hh"
+#include "UI_resources.hh"
+
+#include "NOD_rna_define.hh"
 #include "NOD_xpbd_constraints.hh"
 #include "NOD_xpbd_solver.hh"
 
@@ -38,9 +42,47 @@ enum class EvaluationTarget {
 };
 
 enum class SolverMethod {
-  Global,
+  /* Kugelstadt 2016: pure GS  */
+  /* Mueller 2016(?): GS + Jacobi */
+  /* Deul/Kugelstadt 2018: Global + GS */
+  /* Soler 2018: PD */
+  /* Ly 2020: PD + Local */
+  /* Daviet 2023: ADMM */
   GaussSeidel,
   Jacobi,
+  GaussSeidelJacobi,
+  ProjectiveDynamics,
+  ADMM,
+};
+
+static const EnumPropertyItem rna_enum_solver_method_items[] = {
+    {int(SolverMethod::GaussSeidel),
+     "GAUSS_SEIDEL",
+     0,
+     "Gauss-Seidel",
+     "Solves constraints sequentially in independent groups over multiple iterations"},
+    {int(SolverMethod::Jacobi),
+     "JACOBI",
+     0,
+     "Jacobi",
+     "Solves constraints in parallel and averages the solutions"},
+    {int(SolverMethod::GaussSeidelJacobi),
+     "GAUSS_SEIDEL_JACOBI",
+     0,
+     "Gauss-Seidel/Jacobi",
+     "Combination of Gauss-Seidel and Jacobi methods"},
+    {int(SolverMethod::ProjectiveDynamics),
+     "PROJECTIVE_DYNAMICS",
+     0,
+     "Projective Dynamics",
+     "Combined local projection with a single-iteration linear solver, does not support hard "
+     "constraints"},
+    {int(SolverMethod::ADMM),
+     "ADMM",
+     0,
+     "ADMM",
+     "Alternating Direction Method of Multipliers, supports hard constraints"},
+    {0, nullptr, 0, nullptr, nullptr},
 };
 
 enum class ConstraintInit {
@@ -50,15 +92,37 @@ enum class ConstraintInit {
   WarmStart,
 };
 
+static bool needs_gauss_seidel_iterations(const SolverMethod solver_method)
+{
+  return ELEM(solver_method, SolverMethod::GaussSeidel, SolverMethod::GaussSeidelJacobi);
+}
+
+static bool needs_jacobi_iterations(const SolverMethod solver_method)
+{
+  return ELEM(solver_method, SolverMethod::Jacobi, SolverMethod::GaussSeidelJacobi);
+}
+
 static void node_declare(NodeDeclarationBuilder &b)
 {
+  const bNode *node = b.node_or_null();
+
   b.use_custom_socket_order();
   b.allow_any_socket_order();
 
   b.add_input<decl::Float>("Delta Time").default_value(default_fps).min(0.0f).hide_value();
-  b.add_input<decl::Bool>("Use Global Solve").default_value(true);
-  b.add_input<decl::Int>("Gauss-Seidel Iterations").default_value(1).min(0);
-  b.add_input<decl::Int>("Jacobi Iterations").default_value(0).min(0);
+
+  if (node != nullptr) {
+    const SolverMethod solver_method = SolverMethod(node->custom1);
+    b.add_default_layout();
+
+    if (needs_gauss_seidel_iterations(solver_method)) {
+      b.add_input<decl::Int>("Gauss-Seidel Iterations").default_value(5).min(0);
+    }
+    if (needs_jacobi_iterations(solver_method)) {
+      b.add_input<decl::Int>("Jacobi Iterations").default_value(5).min(0);
+    }
+  }
+
   b.add_input<decl::Bool>("Warm Start")
       .default_value(false)
       .description("Use previous lambda value when initializing instead of starting from zero");
@@ -111,11 +175,17 @@ static void node_declare(NodeDeclarationBuilder &b)
       .align_with_previous();
 }
 
+static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+{
+  uiLayoutSetPropSep(layout, true);
+  uiLayoutSetPropDecorate(layout, false);
+  uiItemR(layout, ptr, "solver_method", UI_ITEM_NONE, "", ICON_NONE);
+}
+
 static void output_solver_matrix(const Eigen::SparseMatrix<float> &matrix,
                                  const Eigen::VectorXf &target,
                                  const Eigen::VectorXf &solution)
 {
-  FILE *fp;
   char filepath[FILENAME_MAX] = "//system_matrix.txt";
   BLI_path_abs(filepath, BKE_main_blendfile_path(G.main));
 
@@ -155,19 +225,19 @@ static void do_global_solve(const EvaluationTarget /*target*/,
   xpbd_constraints::SolverResult result = xpbd_constraints::solve_global_system(
       std::move(system), variables, constraint_data, debug_output ? &solution : nullptr);
   // BLI_assert(result == xpbd_constraints::SolverResult::Success);
-  if (result != xpbd_constraints::SolverResult::Success) {
-    switch (result) {
-      case xpbd_constraints::SolverResult::NumericalIssue:
-        eval_params.error_message_add("Global Solver: Numerical Issue");
-        break;
-      case xpbd_constraints::SolverResult::NoConvergence:
-        eval_params.error_message_add("Global Solver: No Convergence");
-        break;
-      case xpbd_constraints::SolverResult::InvalidInput:
-        eval_params.error_message_add("Global Solver: Invalid Input");
-        break;
-    }
-    return;
+  switch (result) {
+    case xpbd_constraints::SolverResult::Success:
+      /* Continue. */
+      break;
+    case xpbd_constraints::SolverResult::NumericalIssue:
+      eval_params.error_message_add("Global Solver: Numerical Issue");
+      return;
+    case xpbd_constraints::SolverResult::NoConvergence:
+      eval_params.error_message_add("Global Solver: No Convergence");
+      return;
+    case xpbd_constraints::SolverResult::InvalidInput:
+      eval_params.error_message_add("Global Solver: Invalid Input");
+      return;
   }
 
   if (debug_output) {
@@ -187,10 +257,10 @@ static void do_global_solve(const EvaluationTarget /*target*/,
   }
 }
 
-static void do_gauss_seidel_step(const EvaluationTarget target,
-                                 const ConstraintEvalParams &eval_params,
-                                 MutableSpan<ConstraintEvalData> constraint_data,
-                                 ConstraintVariables &variables)
+static void do_gauss_seidel_iteration(const EvaluationTarget target,
+                                      const ConstraintEvalParams &eval_params,
+                                      MutableSpan<ConstraintEvalData> constraint_data,
+                                      ConstraintVariables &variables)
 {
   IndexMaskMemory memory;
 
@@ -217,10 +287,10 @@ static void do_gauss_seidel_step(const EvaluationTarget target,
   }
 }
 
-static void do_jacobi_step(const EvaluationTarget target,
-                           const ConstraintEvalParams &eval_params,
-                           MutableSpan<ConstraintEvalData> constraint_data,
-                           ConstraintVariables &variables)
+static void do_jacobi_iteration(const EvaluationTarget target,
+                                const ConstraintEvalParams &eval_params,
+                                MutableSpan<ConstraintEvalData> constraint_data,
+                                ConstraintVariables &variables)
 {
   constexpr bool linearized_quaternion = true;
 
@@ -296,30 +366,19 @@ static void do_jacobi_step(const EvaluationTarget target,
   }
 }
 
-static void zero_init_solver(const EvaluationTarget target,
-                             MutableSpan<ConstraintEvalData> constraint_data)
+static void zero_init_solver(MutableSpan<ConstraintEvalData> constraint_data)
 {
   for (ConstraintEvalData &data : constraint_data) {
     if (!data.geometry) {
       continue;
     }
-    switch (target) {
-      case EvaluationTarget::Positions:
-        if (data.type->init_position_step) {
-          data.type->init_position_step(*data.geometry);
-        }
-        break;
-      case EvaluationTarget::Velocities:
-        if (data.type->init_velocity_step) {
-          data.type->init_velocity_step(*data.geometry);
-        }
-        break;
+    if (data.type->init_step) {
+      data.type->init_step(*data.geometry);
     }
   }
 }
 
-static void warm_start_solver(EvaluationTarget target,
-                              const ConstraintEvalParams &eval_params,
+static void warm_start_solver(const ConstraintEvalParams &eval_params,
                               MutableSpan<ConstraintEvalData> constraint_data)
 {
   for (ConstraintEvalData &data : constraint_data) {
@@ -328,74 +387,125 @@ static void warm_start_solver(EvaluationTarget target,
     }
     /* TODO */
     eval_params.error_message_add("Warm starting not yet implemented");
-    switch (target) {
-      case EvaluationTarget::Positions:
-        if (data.type->init_position_step) {
-          data.type->init_position_step(*data.geometry);
-        }
-        break;
-      case EvaluationTarget::Velocities:
-        if (data.type->init_velocity_step) {
-          data.type->init_velocity_step(*data.geometry);
-        }
-        break;
+    if (data.type->init_step) {
+      data.type->init_step(*data.geometry);
     }
   }
 }
 
-static void do_solver_iterations(const SolverMethod method,
-                                 const int iterations,
-                                 const EvaluationTarget target,
-                                 const ConstraintInit init_mode,
-                                 const ConstraintEvalParams &eval_params,
-                                 MutableSpan<ConstraintEvalData> constraint_data,
-                                 ConstraintVariables &variables)
+static void estimate_velocity(const ConstraintEvalParams &params, ConstraintVariables &vars)
+{
+  const Span<float3> old_positions = params.old_positions;
+  const Span<math::Quaternion> old_rotations = params.old_rotations;
+  const Span<float3> positions = vars.positions;
+  const Span<math::Quaternion> rotations = vars.rotations;
+  MutableSpan<float3> velocities = vars.velocities;
+  MutableSpan<float3> angular_velocities = vars.angular_velocities;
+  const IndexMask positions_mask = vars.positions.index_range();
+  const IndexMask rotations_mask = vars.rotations.index_range();
+  const float inv_dt = params.inv_delta_time;
+
+  positions_mask.foreach_index(GrainSize(1024), [&](const int index) {
+    velocities[index] = inv_dt * (positions[index] - old_positions[index]);
+  });
+  rotations_mask.foreach_index(GrainSize(1024), [&](const int index) {
+    angular_velocities[index] =
+        2.0f * inv_dt *
+        (math::invert_normalized(old_rotations[index]) * rotations[index]).imaginary_part();
+  });
+}
+
+static void init_constraints(const ConstraintInit init_mode,
+                             const ConstraintEvalParams &eval_params,
+                             MutableSpan<ConstraintEvalData> constraint_data)
 {
   switch (init_mode) {
     case ConstraintInit::ZeroInit:
-      zero_init_solver(target, constraint_data);
+      zero_init_solver(constraint_data);
       break;
     case ConstraintInit::WarmStart:
-      warm_start_solver(target, eval_params, constraint_data);
+      warm_start_solver(eval_params, constraint_data);
       break;
   }
+}
 
-  if (eval_params.debug_recorder) {
-    std::string label;
-    switch (target) {
-      case EvaluationTarget::Positions:
-        label = fmt::format("Init position target, ");
-        break;
-      case EvaluationTarget::Velocities:
-        label = fmt::format("Init velocity target, ");
-        break;
-    }
-    switch (method) {
-      case SolverMethod::Global:
-        label = fmt::format("{}, Global steps", label);
-        break;
-      case SolverMethod::GaussSeidel:
-        label = fmt::format("{}, Gauss-Seidel steps", label);
-        break;
-      case SolverMethod::Jacobi:
-        label = fmt::format("{}, Jacobi steps", label);
-        break;
-    }
-    eval_params.debug_recorder->record_step(label, nullptr, -1, {}, variables);
-  }
+static void execute_solver_method_on_geometry(const SolverMethod method,
+                                              const ConstraintEvalParams &eval_params,
+                                              MutableSpan<ConstraintEvalData> constraint_data,
+                                              ConstraintVariables &variables,
+                                              const int gauss_seidel_iterations,
+                                              const int jacobi_iterations)
+{
+  switch (method) {
+    case SolverMethod::GaussSeidel:
+      if (eval_params.debug_recorder) {
+        const std::string label = fmt::format("Initialize Gauss-Seidel, ");
+        eval_params.debug_recorder->record_step(label, nullptr, -1, {}, variables);
+      }
 
-  for ([[maybe_unused]] const int i : IndexRange(iterations)) {
-    switch (method) {
-      case SolverMethod::Global:
-        do_global_solve(target, eval_params, constraint_data, variables);
-        break;
-      case SolverMethod::GaussSeidel:
-        do_gauss_seidel_step(target, eval_params, constraint_data, variables);
-        break;
-      case SolverMethod::Jacobi:
-        do_jacobi_step(target, eval_params, constraint_data, variables);
-        break;
-    }
+      for ([[maybe_unused]] const int i : IndexRange(gauss_seidel_iterations)) {
+        do_gauss_seidel_iteration(
+            EvaluationTarget::Positions, eval_params, constraint_data, variables);
+      }
+
+      estimate_velocity(eval_params, variables);
+
+      do_gauss_seidel_iteration(
+          EvaluationTarget::Velocities, eval_params, constraint_data, variables);
+      break;
+
+    case SolverMethod::Jacobi:
+      if (eval_params.debug_recorder) {
+        const std::string label = fmt::format("Initialize Jacobi, ");
+        eval_params.debug_recorder->record_step(label, nullptr, -1, {}, variables);
+      }
+
+      for ([[maybe_unused]] const int i : IndexRange(jacobi_iterations)) {
+        do_jacobi_iteration(EvaluationTarget::Positions, eval_params, constraint_data, variables);
+      }
+
+      estimate_velocity(eval_params, variables);
+
+      do_gauss_seidel_iteration(
+          EvaluationTarget::Velocities, eval_params, constraint_data, variables);
+      break;
+
+    case SolverMethod::GaussSeidelJacobi:
+      if (eval_params.debug_recorder) {
+        const std::string label = fmt::format("Initialize Gauss-Seidel/Jacobi, ");
+        eval_params.debug_recorder->record_step(label, nullptr, -1, {}, variables);
+      }
+
+      for ([[maybe_unused]] const int i : IndexRange(gauss_seidel_iterations)) {
+        do_gauss_seidel_iteration(
+            EvaluationTarget::Positions, eval_params, constraint_data, variables);
+      }
+      for ([[maybe_unused]] const int i : IndexRange(jacobi_iterations)) {
+        do_jacobi_iteration(EvaluationTarget::Positions, eval_params, constraint_data, variables);
+      }
+
+      estimate_velocity(eval_params, variables);
+
+      do_gauss_seidel_iteration(
+          EvaluationTarget::Velocities, eval_params, constraint_data, variables);
+      break;
+
+    case SolverMethod::ProjectiveDynamics:
+      if (eval_params.debug_recorder) {
+        const std::string label = fmt::format("Initialize Projective Dynamics, ");
+        eval_params.debug_recorder->record_step(label, nullptr, -1, {}, variables);
+      }
+
+      do_global_solve(EvaluationTarget::Positions, eval_params, constraint_data, variables);
+
+      estimate_velocity(eval_params, variables);
+
+      do_gauss_seidel_iteration(
+          EvaluationTarget::Velocities, eval_params, constraint_data, variables);
+      break;
+
+    case SolverMethod::ADMM:
+      break;
   }
 }
 
@@ -463,28 +573,6 @@ static Vector<IndexMask> build_group_masks(const IndexMask &constraints,
   return group_masks;
 }
 
-static void estimate_velocity(const ConstraintEvalParams &params, ConstraintVariables &vars)
-{
-  const Span<float3> old_positions = params.old_positions;
-  const Span<math::Quaternion> old_rotations = params.old_rotations;
-  const Span<float3> positions = vars.positions;
-  const Span<math::Quaternion> rotations = vars.rotations;
-  MutableSpan<float3> velocities = vars.velocities;
-  MutableSpan<float3> angular_velocities = vars.angular_velocities;
-  const IndexMask positions_mask = vars.positions.index_range();
-  const IndexMask rotations_mask = vars.rotations.index_range();
-  const float inv_dt = params.inv_delta_time;
-
-  positions_mask.foreach_index(GrainSize(1024), [&](const int index) {
-    vars.velocities[index] = inv_dt * (positions[index] - old_positions[index]);
-  });
-  rotations_mask.foreach_index(GrainSize(1024), [&](const int index) {
-    vars.angular_velocities[index] =
-        2.0f * inv_dt *
-        (math::invert_normalized(old_rotations[index]) * rotations[index]).imaginary_part();
-  });
-}
-
 static void get_constraint_data(GeoNodeExecParams params,
                                 const bool debug_output,
                                 Vector<ConstraintEvalData> &constraint_data,
@@ -534,12 +622,17 @@ static void set_constraint_data_output(GeoNodeExecParams params,
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
+  const SolverMethod solver_method = SolverMethod(params.node().custom1);
+  const int gauss_seidel_iterations = needs_gauss_seidel_iterations(solver_method) ?
+                                          std::max(
+                                              params.extract_input<int>("Gauss-Seidel Iterations"),
+                                              0) :
+                                          0;
+  const int jacobi_iterations = needs_jacobi_iterations(solver_method) ?
+                                    std::max(params.extract_input<int>("Jacobi Iterations"), 0) :
+                                    0;
   ConstraintInit init_mode = params.extract_input<bool>("Warm Start") ? ConstraintInit::WarmStart :
                                                                         ConstraintInit::ZeroInit;
-  const int global_iterations = (params.extract_input<bool>("Use Global Solve") ? 1 : 0);
-  const int gauss_seidel_iterations = std::max(
-      params.extract_input<int>("Gauss-Seidel Iterations"), 0);
-  const int jacobi_iterations = std::max(params.extract_input<int>("Jacobi Iterations"), 0);
   GeometrySet geometry_set = params.extract_input<GeometrySet>("Geometry");
   Field<float> mass_field = params.extract_input<Field<float>>("Mass");
   Field<float3> inertia_field = params.extract_input<Field<float3>>("Inertia");
@@ -571,6 +664,8 @@ static void node_geo_exec(GeoNodeExecParams params)
   Vector<ConstraintEvalData> constraint_data;
   IndexMaskMemory memory;
   get_constraint_data(params, debug_output, constraint_data, memory);
+
+  init_constraints(init_mode, eval_params, constraint_data);
 
   static const Array<GeometryComponent::Type> types = {bke::GeometryComponent::Type::Mesh,
                                                        bke::GeometryComponent::Type::PointCloud,
@@ -619,51 +714,12 @@ static void node_geo_exec(GeoNodeExecParams params)
          * colliders. */
         eval_params.old_collider_transforms = eval_params.collider_transforms;
 
-        do_solver_iterations(SolverMethod::Global,
-                             global_iterations,
-                             EvaluationTarget::Positions,
-                             init_mode,
-                             eval_params,
-                             constraint_data,
-                             vars);
-        do_solver_iterations(SolverMethod::GaussSeidel,
-                             gauss_seidel_iterations,
-                             EvaluationTarget::Positions,
-                             init_mode,
-                             eval_params,
-                             constraint_data,
-                             vars);
-        do_solver_iterations(SolverMethod::Jacobi,
-                             jacobi_iterations,
-                             EvaluationTarget::Positions,
-                             init_mode,
-                             eval_params,
-                             constraint_data,
-                             vars);
-
-        estimate_velocity(eval_params, vars);
-
-        // do_solver_iterations(SolverMethod::Global,
-        //                      global_iterations,
-        //                      EvaluationTarget::Velocities,
-        //                      init_mode,
-        //                      eval_params,
-        //                      constraint_data,
-        //                      vars);
-        do_solver_iterations(SolverMethod::GaussSeidel,
-                             gauss_seidel_iterations,
-                             EvaluationTarget::Velocities,
-                             init_mode,
-                             eval_params,
-                             constraint_data,
-                             vars);
-        do_solver_iterations(SolverMethod::Jacobi,
-                             jacobi_iterations,
-                             EvaluationTarget::Velocities,
-                             init_mode,
-                             eval_params,
-                             constraint_data,
-                             vars);
+        execute_solver_method_on_geometry(solver_method,
+                                          eval_params,
+                                          constraint_data,
+                                          vars,
+                                          gauss_seidel_iterations,
+                                          jacobi_iterations);
 
         if (position_output_id) {
           AttributeWriter<float3> positions_writer = attributes->lookup_or_add_for_write<float3>(
@@ -706,6 +762,17 @@ static void node_geo_exec(GeoNodeExecParams params)
   }
 }
 
+static void node_rna(StructRNA *srna)
+{
+  RNA_def_node_enum(srna,
+                    "solver_method",
+                    "Solver Method",
+                    "Method to use for solving constraints",
+                    rna_enum_solver_method_items,
+                    NOD_inline_enum_accessors(custom1),
+                    int(SolverMethod::GaussSeidel));
+}
+
 static void node_register()
 {
   static blender::bke::bNodeType ntype;
@@ -716,9 +783,12 @@ static void node_register()
       "Solve position and rotation constraints on geometry using the XPBD framework";
   ntype.nclass = NODE_CLASS_GEOMETRY;
   node_type_size(ntype, 200, 120, 300);
+  ntype.draw_buttons = node_layout;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
   blender::bke::node_register_type(ntype);
+
+  node_rna(ntype.rna_ext.srna);
 }
 NOD_REGISTER_NODE(node_register)
 
