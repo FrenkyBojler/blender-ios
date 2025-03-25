@@ -227,6 +227,7 @@ class VectorSet {
   {
     if (other.is_inline()) {
       const int64_t size = other.size();
+      usable_slots_ = size;
 
       /* Optimize the case by copying the full inline buffer. Similar to #Vector move
        * constructor. */
@@ -235,22 +236,19 @@ class VectorSet {
       if constexpr (other_is_same_type && std::is_trivial_v<Key> &&
                     sizeof(inline_buffer_) <= max_full_copy_size)
       {
-        usable_slots_ = slots_.size();
         keys_ = inline_buffer_;
         if (size > 0) {
           memcpy(inline_buffer_, other.inline_buffer_, sizeof(inline_buffer_));
         }
       }
       else {
-        usable_slots_ = size;
         if (OtherInlineBufferCapacity <= InlineBufferCapacity || size <= InlineBufferCapacity) {
           keys_ = inline_buffer_;
-          uninitialized_relocate_n(other.keys_, size, keys_);
         }
         else {
           keys_ = this->allocate_keys_array(size);
-          uninitialized_relocate_n(other.keys_, size, keys_);
         }
+        uninitialized_relocate_n(other.keys_, size, keys_);
       }
     }
     else {
@@ -259,7 +257,7 @@ class VectorSet {
     }
     other.removed_slots_ = 0;
     other.occupied_and_removed_slots_ = 0;
-    other.usable_slots_ = 1;
+    other.usable_slots_ = 0;
     other.slot_mask_ = 0;
     other.slots_ = SlotArray(1);
     other.keys_ = other.inline_buffer_;
@@ -687,11 +685,8 @@ class VectorSet {
   {
     if (this->is_inline()) {
       if (this->is_empty()) {
-        /* No need to make an allocation that does not contain any data. */
         return {};
       }
-      /* Make an new allocation, because it's not possible to transfer ownership of the inline
-       * buffer to the caller. */
       const int64_t size = this->size();
       Key *data = this->allocate_keys_array(size);
       try {

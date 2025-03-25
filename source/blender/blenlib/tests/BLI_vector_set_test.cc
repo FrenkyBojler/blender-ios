@@ -72,6 +72,14 @@ TEST(vector_set, Move)
   EXPECT_EQ(set2.size(), 3);
 }
 
+TEST(vector_set, MoveNonInline)
+{
+  VectorSet<int> set1 = {1, 2, 3, 5, 1, 6, 7, 8, 1, 4, 57, 8, 7, 34, 57, 8, 1231};
+  VectorSet<int> set2 = std::move(set1);
+  EXPECT_EQ(set1.size(), 0); /* NOLINT: bugprone-use-after-move */
+  EXPECT_EQ(set2.size(), 11);
+}
+
 TEST(vector_set, MoveAssignment)
 {
   VectorSet<int> set1 = {1, 2, 3};
