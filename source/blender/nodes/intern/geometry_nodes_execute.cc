@@ -567,26 +567,26 @@ static void init_socket_cpp_value_from_property(const IDProperty &property,
 std::optional<StringRef> input_attribute_name_get(const PropertiesVectorSet &properties,
                                                   const bNodeTreeInterfaceSocket &io_input)
 {
-  IDProperty *const *use_attribute = properties.lookup_key_ptr_as(io_input.identifier +
-                                                                  input_use_attribute_suffix);
+  IDProperty *use_attribute = properties.lookup_key_default_as(
+      io_input.identifier + input_use_attribute_suffix, nullptr);
   if (!use_attribute) {
     return std::nullopt;
   }
-  if ((*use_attribute)->type == IDP_INT) {
-    if (IDP_Int(*use_attribute) == 0) {
+  if (use_attribute->type == IDP_INT) {
+    if (IDP_Int(use_attribute) == 0) {
       return std::nullopt;
     }
   }
-  if ((*use_attribute)->type == IDP_BOOLEAN) {
-    if (!IDP_Bool(*use_attribute)) {
+  if (use_attribute->type == IDP_BOOLEAN) {
+    if (!IDP_Bool(use_attribute)) {
       return std::nullopt;
     }
   }
 
-  const IDProperty *const *property_attribute_name = properties.lookup_key_ptr_as(
-      io_input.identifier + input_attribute_name_suffix);
+  const IDProperty *property_attribute_name = properties.lookup_key_default_as(
+      io_input.identifier + input_attribute_name_suffix, nullptr);
 
-  return IDP_String(*property_attribute_name);
+  return IDP_String(property_attribute_name);
 }
 
 static void initialize_group_input(const bNodeTree &tree,
@@ -598,18 +598,18 @@ static void initialize_group_input(const bNodeTree &tree,
   const bke::bNodeSocketType *typeinfo = io_input.socket_typeinfo();
   const eNodeSocketDatatype socket_data_type = typeinfo ? eNodeSocketDatatype(typeinfo->type) :
                                                           SOCK_CUSTOM;
-  const IDProperty *const *property = properties.lookup_key_ptr_as(io_input.identifier);
+  const IDProperty *property = properties.lookup_key_default_as(io_input.identifier, nullptr);
   if (property == nullptr) {
     typeinfo->get_geometry_nodes_cpp_value(io_input.socket_data, r_value);
     return;
   }
-  if (!id_property_type_matches_socket(io_input, **property)) {
+  if (!id_property_type_matches_socket(io_input, *property)) {
     typeinfo->get_geometry_nodes_cpp_value(io_input.socket_data, r_value);
     return;
   }
 
   if (!input_has_attribute_toggle(tree, input_index)) {
-    init_socket_cpp_value_from_property(**property, socket_data_type, r_value);
+    init_socket_cpp_value_from_property(*property, socket_data_type, r_value);
     return;
   }
 
@@ -627,7 +627,7 @@ static void initialize_group_input(const bNodeTree &tree,
     new (r_value) bke::SocketValueVariant(std::move(selection_field));
   }
   else {
-    init_socket_cpp_value_from_property(**property, socket_data_type, r_value);
+    init_socket_cpp_value_from_property(*property, socket_data_type, r_value);
   }
 }
 
@@ -660,11 +660,11 @@ static MultiValueMap<bke::AttrDomain, OutputAttributeInfo> find_output_attribute
     }
 
     const std::string prop_name = socket->identifier + input_attribute_name_suffix;
-    const IDProperty *const *prop = properties.lookup_key_ptr_as(prop_name);
-    if (!prop) {
+    const IDProperty *prop = properties.lookup_key_default_as(prop_name, nullptr);
+    if (prop == nullptr) {
       continue;
     }
-    const StringRefNull attribute_name = IDP_String(*prop);
+    const StringRefNull attribute_name = IDP_String(prop);
     if (attribute_name.is_empty()) {
       continue;
     }
@@ -1062,11 +1062,11 @@ void get_geometry_nodes_input_base_values(const bNodeTree &btree,
     if (!stype->base_cpp_type || !stype->geometry_nodes_cpp_type) {
       continue;
     }
-    const IDProperty *const *property = properties.lookup_key_ptr_as(io_input.identifier);
+    const IDProperty *property = properties.lookup_key_default_as(io_input.identifier, nullptr);
     if (!property) {
       continue;
     }
-    if (!id_property_type_matches_socket(io_input, **property)) {
+    if (!id_property_type_matches_socket(io_input, *property)) {
       continue;
     }
     if (input_attribute_name_get(properties, io_input).has_value()) {
@@ -1080,7 +1080,7 @@ void get_geometry_nodes_input_base_values(const bNodeTree &btree,
 
     void *value_buffer = scope.linear_allocator().allocate(
         stype->geometry_nodes_cpp_type->size(), stype->geometry_nodes_cpp_type->alignment());
-    init_socket_cpp_value_from_property(**property, socket_type, value_buffer);
+    init_socket_cpp_value_from_property(*property, socket_type, value_buffer);
     if (!stype->geometry_nodes_cpp_type->is_trivially_destructible()) {
       scope.add_destruct_call([type = stype->geometry_nodes_cpp_type, value_buffer]() {
         type->destruct(value_buffer);

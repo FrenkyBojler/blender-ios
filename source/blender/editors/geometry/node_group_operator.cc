@@ -783,11 +783,11 @@ static void draw_property_for_socket(const bNodeTree &node_tree,
   const eNodeSocketDatatype socket_type = eNodeSocketDatatype(typeinfo->type);
 
   /* The property should be created in #MOD_nodes_update_interface with the correct type. */
-  const IDProperty *const *property = properties_set.lookup_key_ptr_as(socket.identifier);
+  const IDProperty *property = properties_set.lookup_key_default_as(socket.identifier, nullptr);
 
   /* IDProperties can be removed with python, so there could be a situation where
    * there isn't a property for a socket or it doesn't have the correct type. */
-  if (!property || !nodes::id_property_type_matches_socket(socket, **property, true)) {
+  if (!property || !nodes::id_property_type_matches_socket(socket, *property, true)) {
     return;
   }
 
