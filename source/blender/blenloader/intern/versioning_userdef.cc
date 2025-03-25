@@ -1414,12 +1414,29 @@ void blo_do_versions_userdef(UserDef *userdef)
   }
 
   if (!USER_VERSION_ATLEAST(405, 10)) {
+    static const blender::Map<std::string, std::string> keymap_renames = {
+        {"SequencerCommon", "Video Sequence Editor"},
+        {"SequencerPreview", "Preview"},
+
+        {"Sequencer Tool: Cursor", "Preview Tool: Cursor"},
+        {"Sequencer Tool: Sample", "Preview Tool: Sample"},
+        {"Sequencer Tool: Move", "Preview Tool: Move"},
+        {"Sequencer Tool: Rotate", "Preview Tool: Rotate"},
+        {"Sequencer Tool: Scale", "Preview Tool: Scale"},
+
+        {"Sequencer Timeline Tool: Select Box", "Sequencer Tool: Select Box"},
+        {"Sequencer Timeline Tool: Select Box (fallback)",
+         "Sequencer Tool: Select Box (fallback)"},
+
+        {"Sequencer Preview Tool: Tweak", "Preview Tool: Tweak"},
+        {"Sequencer Preview Tool: Tweak (fallback)", "Preview Tool: Tweak (fallback)"},
+        {"Sequencer Preview Tool: Select Box", "Preview Tool: Select Box"},
+        {"Sequencer Preview Tool: Select Box (fallback)", "Preview Tool: Select Box (fallback)"},
+    };
+
     LISTBASE_FOREACH (wmKeyMap *, keymap, &userdef->user_keymaps) {
-      if (STREQ(keymap->idname, "SequencerCommon")) {
-        STRNCPY(keymap->idname, "Video Sequence Editor");
-      }
-      else if (STREQ(keymap->idname, "SequencerPreview")) {
-        STRNCPY(keymap->idname, "Preview");
+      if (const std::string *new_name = keymap_renames.lookup_ptr(keymap->idname)) {
+        STRNCPY(keymap->idname, new_name->c_str());
       }
     }
   }
