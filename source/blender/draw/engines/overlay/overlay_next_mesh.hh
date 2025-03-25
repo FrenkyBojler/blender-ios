@@ -241,7 +241,7 @@ class Meshes : Overlay {
       pass.init();
       /* Change first vertex convention to match blender loop structure. */
       pass.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_DEPTH_LESS_EQUAL | DRW_STATE_BLEND_ALPHA |
-                         DRW_STATE_FIRST_VERTEX_CONVENTION,
+                         DRW_STATE_WRITE_DEPTH | DRW_STATE_FIRST_VERTEX_CONVENTION,
                      state.clipping_plane_count);
       pass.shader_set(res.shaders->mesh_edit_edge.get());
       pass.push_constant("do_smooth_wire", do_smooth_wire);
