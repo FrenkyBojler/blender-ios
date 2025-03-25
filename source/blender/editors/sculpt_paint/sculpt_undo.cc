@@ -1844,10 +1844,6 @@ static void set_active_layer(bContext *C, const SculptAttrRef *attr)
   }
 
   Object *ob = CTX_data_active_object(C);
-  if (ob->mode == OB_MODE_VERTEX_PAINT) {
-    return;
-  }
-
   Mesh *mesh = BKE_object_get_original_mesh(ob);
 
   SculptAttrRef existing;
