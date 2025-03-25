@@ -382,6 +382,11 @@ struct GPUSamplerState {
            this->extend_yz == rhs.extend_yz && this->custom_type == rhs.custom_type &&
            this->type == rhs.type;
   }
+
+  bool operator!=(GPUSamplerState const &rhs) const
+  {
+    return !(*this == rhs);
+  };
 };
 
 /** \} */

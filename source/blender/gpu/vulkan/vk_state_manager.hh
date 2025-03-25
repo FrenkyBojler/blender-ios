@@ -37,12 +37,12 @@ class BindSpaceUniformBuffers {
  public:
   Vector<VKUniformBuffer *> bound_resources;
 
-  void bind(VKUniformBuffer *resource, int binding)
+  [[nodiscard]] bool bind(VKUniformBuffer *resource, int binding)
   {
     if (bound_resources.size() <= binding) {
       bound_resources.resize(binding + 1);
     }
-    bound_resources[binding] = resource;
+    return assign_if_different(bound_resources[binding], resource);
   }
 
   VKUniformBuffer *get(int binding) const
@@ -50,18 +50,23 @@ class BindSpaceUniformBuffers {
     return bound_resources[binding];
   }
 
-  void unbind(void *resource)
+  [[nodiscard]] bool unbind(void *resource)
   {
+    bool modified = false;
     for (int index : IndexRange(bound_resources.size())) {
       if (bound_resources[index] == resource) {
         bound_resources[index] = nullptr;
+        modified = true;
       }
     }
+    return modified;
   }
 
-  void unbind_all()
+  [[nodiscard]] bool unbind_all()
   {
+    bool modified = !bound_resources.is_empty();
     bound_resources.clear();
+    return modified;
   }
 };
 
@@ -72,7 +77,7 @@ template<int Offset> class BindSpaceImages {
  public:
   Vector<VKTexture *> bound_resources;
 
-  void bind(VKTexture *resource, int binding)
+  [[nodiscard]] bool bind(VKTexture *resource, int binding)
   {
     if (binding >= Offset) {
       binding -= Offset;
@@ -80,7 +85,7 @@ template<int Offset> class BindSpaceImages {
     if (bound_resources.size() <= binding) {
       bound_resources.resize(binding + 1);
     }
-    bound_resources[binding] = resource;
+    return assign_if_different(bound_resources[binding], resource);
   }
 
   VKTexture *get(int binding) const
@@ -91,18 +96,23 @@ template<int Offset> class BindSpaceImages {
     return bound_resources[binding];
   }
 
-  void unbind(void *resource)
+  [[nodiscard]] bool unbind(void *resource)
   {
+    bool modified = false;
     for (int index : IndexRange(bound_resources.size())) {
       if (bound_resources[index] == resource) {
         bound_resources[index] = nullptr;
+        modified = true;
       }
     }
+    return modified;
   }
 
-  void unbind_all()
+  [[nodiscard]] bool unbind_all()
   {
+    bool modified = !bound_resources.is_empty();
     bound_resources.clear();
+    return modified;
   }
 };
 
@@ -124,14 +134,15 @@ class BindSpaceStorageBuffers {
   };
   Vector<Elem> bound_resources;
 
-  void bind(Type resource_type, void *resource, int binding, VkDeviceSize offset)
+  [[nodiscard]] bool bind(Type resource_type, void *resource, int binding, VkDeviceSize offset)
   {
     if (bound_resources.size() <= binding) {
       bound_resources.resize(binding + 1);
     }
-    bound_resources[binding].resource_type = resource_type;
-    bound_resources[binding].resource = resource;
-    bound_resources[binding].offset = offset;
+    bool modified = assign_if_different(bound_resources[binding].resource_type, resource_type);
+    modified |= assign_if_different(bound_resources[binding].resource, resource);
+    modified |= assign_if_different(bound_resources[binding].offset, offset);
+    return modified;
   }
 
   const Elem &get(int binding) const
@@ -139,20 +150,25 @@ class BindSpaceStorageBuffers {
     return bound_resources[binding];
   }
 
-  void unbind(void *resource)
+  [[nodiscard]] bool unbind(void *resource)
   {
+    bool modified = false;
     for (int index : IndexRange(bound_resources.size())) {
       if (bound_resources[index].resource == resource) {
         bound_resources[index].resource = nullptr;
         bound_resources[index].resource_type = Type::Unused;
         bound_resources[index].offset = 0u;
+        modified = true;
       }
     }
+    return modified;
   }
 
-  void unbind_all()
+  [[nodiscard]] bool unbind_all()
   {
+    bool modified = bound_resources.is_empty();
     bound_resources.clear();
+    return modified;
   }
 };
 
@@ -171,14 +187,15 @@ class BindSpaceTextures {
   };
   Vector<Elem> bound_resources;
 
-  void bind(Type resource_type, void *resource, GPUSamplerState sampler, int binding)
+  [[nodiscard]] bool bind(Type resource_type, void *resource, GPUSamplerState sampler, int binding)
   {
     if (bound_resources.size() <= binding) {
       bound_resources.resize(binding + 1);
     }
-    bound_resources[binding].resource_type = resource_type;
-    bound_resources[binding].resource = resource;
-    bound_resources[binding].sampler = sampler;
+    bool modified = assign_if_different(bound_resources[binding].resource_type, resource_type);
+    modified |= assign_if_different(bound_resources[binding].resource, resource);
+    modified |= assign_if_different(bound_resources[binding].sampler, sampler);
+    return modified;
   }
 
   const Elem &get(int binding) const
@@ -186,20 +203,25 @@ class BindSpaceTextures {
     return bound_resources[binding];
   }
 
-  void unbind(void *resource)
+  [[nodiscard]] bool unbind(void *resource)
   {
+    bool modified = false;
     for (int index : IndexRange(bound_resources.size())) {
       if (bound_resources[index].resource == resource) {
         bound_resources[index].resource = nullptr;
         bound_resources[index].resource_type = Type::Unused;
         bound_resources[index].sampler = GPUSamplerState::default_sampler();
+        modified = true;
       }
     }
+    return modified;
   }
 
-  void unbind_all()
+  [[nodiscard]] bool unbind_all()
   {
+    bool modified = !bound_resources.is_empty();
     bound_resources.clear();
+    return modified;
   }
 };
 

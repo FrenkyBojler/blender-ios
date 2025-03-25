@@ -55,82 +55,70 @@ void VKStateManager::issue_barrier(eGPUBarrier barrier_bits)
 
 void VKStateManager::texture_bind(Texture *texture, GPUSamplerState sampler, int binding)
 {
-  textures_.bind(BindSpaceTextures::Type::Texture, texture, sampler, binding);
-  is_dirty = true;
+  is_dirty |= textures_.bind(BindSpaceTextures::Type::Texture, texture, sampler, binding);
 }
 
 void VKStateManager::texture_unbind(Texture *texture)
 {
-  textures_.unbind(texture);
-  is_dirty = true;
+  is_dirty |= textures_.unbind(texture);
 }
 
 void VKStateManager::texture_unbind_all()
 {
-  textures_.unbind_all();
-  is_dirty = true;
+  is_dirty |= textures_.unbind_all();
 }
 
 void VKStateManager::image_bind(Texture *tex, int binding)
 {
   VKTexture *texture = unwrap(tex);
-  images_.bind(texture, binding);
-  is_dirty = true;
+  is_dirty |= images_.bind(texture, binding);
 }
 
 void VKStateManager::image_unbind(Texture *tex)
 {
   VKTexture *texture = unwrap(tex);
-  images_.unbind(texture);
-  is_dirty = true;
+  is_dirty |= images_.unbind(texture);
 }
 
 void VKStateManager::image_unbind_all()
 {
-  images_.unbind_all();
-  is_dirty = true;
+  is_dirty |= images_.unbind_all();
 }
 
 void VKStateManager::uniform_buffer_bind(VKUniformBuffer *uniform_buffer, int binding)
 {
-  uniform_buffers_.bind(uniform_buffer, binding);
-  is_dirty = true;
+  is_dirty = uniform_buffers_.bind(uniform_buffer, binding);
 }
 
 void VKStateManager::uniform_buffer_unbind(VKUniformBuffer *uniform_buffer)
 {
-  uniform_buffers_.unbind(uniform_buffer);
-  is_dirty = true;
+  is_dirty |= uniform_buffers_.unbind(uniform_buffer);
 }
 
 void VKStateManager::uniform_buffer_unbind_all()
 {
-  uniform_buffers_.unbind_all();
-  is_dirty = true;
+  is_dirty |= uniform_buffers_.unbind_all();
 }
 
 void VKStateManager::unbind_from_all_namespaces(void *resource)
 {
-  uniform_buffers_.unbind(resource);
-  storage_buffers_.unbind(resource);
-  images_.unbind(resource);
-  textures_.unbind(resource);
-  is_dirty = true;
+  is_dirty |= uniform_buffers_.unbind(resource);
+  is_dirty |= storage_buffers_.unbind(resource);
+  is_dirty |= images_.unbind(resource);
+  is_dirty |= textures_.unbind(resource);
 }
 
 void VKStateManager::texel_buffer_bind(VKVertexBuffer &vertex_buffer, int binding)
 {
-  textures_.bind(BindSpaceTextures::Type::VertexBuffer,
-                 &vertex_buffer,
-                 GPUSamplerState::default_sampler(),
-                 binding);
-  is_dirty = true;
+  is_dirty |= textures_.bind(BindSpaceTextures::Type::VertexBuffer,
+                             &vertex_buffer,
+                             GPUSamplerState::default_sampler(),
+                             binding);
 }
 
 void VKStateManager::texel_buffer_unbind(VKVertexBuffer &vertex_buffer)
 {
-  textures_.unbind(&vertex_buffer);
-  is_dirty = true;
+  is_dirty |= textures_.unbind(&vertex_buffer);
 }
 
 void VKStateManager::storage_buffer_bind(BindSpaceStorageBuffers::Type resource_type,
@@ -138,20 +126,17 @@ void VKStateManager::storage_buffer_bind(BindSpaceStorageBuffers::Type resource_
                                          int binding,
                                          VkDeviceSize offset)
 {
-  storage_buffers_.bind(resource_type, resource, binding, offset);
-  is_dirty = true;
+  is_dirty |= storage_buffers_.bind(resource_type, resource, binding, offset);
 }
 
 void VKStateManager::storage_buffer_unbind(void *resource)
 {
-  storage_buffers_.unbind(resource);
-  is_dirty = true;
+  is_dirty |= storage_buffers_.unbind(resource);
 }
 
 void VKStateManager::storage_buffer_unbind_all()
 {
-  storage_buffers_.unbind_all();
-  is_dirty = true;
+  is_dirty |= storage_buffers_.unbind_all();
 }
 
 void VKStateManager::texture_unpack_row_length_set(uint len)
