@@ -1221,7 +1221,7 @@ static PyObject *M_Geometry_points_in_planes(PyObject * /*self*/, PyObject *args
 
 
 PyDoc_STRVAR(M_Geometry_cubic_curve_fit_from_points_doc,
-".. function:: curve_from_points(points, error, corner_angle=math.pi, is_cyclic=False)\n"
+".. function:: cubic_curve_from_points(points, error, corner_angle=math.pi, is_cyclic=False)\n"
 "\n"
 "   Returns the newly calculated curve.\n"
 "\n"
@@ -1238,7 +1238,7 @@ static PyObject *M_Geometry_cubic_curve_fit_from_points(PyObject *self, PyObject
 {
 	(void)self;
 
-	const char *error_prefix = "curve_from_points";
+	const char *error_prefix = "cubic_curve_from_points";
 	PyObject *points;
 	PyObject *points_fast;
 	double error_threshold;
@@ -1246,7 +1246,7 @@ static PyObject *M_Geometry_cubic_curve_fit_from_points(PyObject *self, PyObject
 	bool is_cyclic = false;
 
 	if (!PyArg_ParseTuple(
-	        args, "Od|dO&:curve_from_points",
+	        args, "Od|dO&:cubic_curve_from_points",
 	        &points,
 	        &error_threshold,
 	        &corner_angle,
@@ -1274,7 +1274,7 @@ static PyObject *M_Geometry_cubic_curve_fit_from_points(PyObject *self, PyObject
 
 	for (unsigned int i = 0; i < points_len; i++) {
 		PyObject *item = points_array[i];
-		PyObject *item_fast = PySequence_Fast(item, "curve_from_points item");
+		PyObject *item_fast = PySequence_Fast(item, "cubic_curve_from_points item");
 		if (item_fast == NULL) {
 			if (points_data != NULL) {
 				PyMem_Free(points_data);
