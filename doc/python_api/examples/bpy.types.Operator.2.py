@@ -9,12 +9,10 @@ execute().
 Some operators don't have an execute() function, removing the ability to be
 repeated from a script or macro.
 
-When an operator is called via ``bpy.ops``, it uses execute() by default.
-This behavior can be changed by providing a different execution context argument
-to ``bpy.ops`` function.
-When an operator is activated from a button or menu item, whether execute() or invoke()
-is called depends on the operator context set in :class:`UILayout.operator_context`
-In most cases, invoke() is used.
+When an operator is called via ``bpy.ops``, the execution context depends
+on the argument provided to ``bpy.ops``. By default, it uses execute().
+When an operator is activated from a button or menu item, it follows
+the setting in :class:`UILayout.operator_context`. In most cases, invoke() is used.
 When an operator is activated via a key shortcut, it defaults to invoke(),
 and this behavior cannot be changed.
 
