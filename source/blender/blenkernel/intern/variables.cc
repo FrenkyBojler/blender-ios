@@ -94,11 +94,6 @@ VariableMap BKE_build_blender_variables(const char *blend_file_path,
 {
   VariableMap variables;
 
-  variables.add_string("foo", "hooray");
-  variables.add_string("bar", "boooo");
-  variables.add_string("flub", "what");
-  variables.add_string("josh", "bob");
-
   /* Blend file name. */
   if (blend_file_path) {
     const char *file_name = BLI_path_basename(blend_file_path);
@@ -106,11 +101,11 @@ VariableMap BKE_build_blender_variables(const char *blend_file_path,
       const char *file_name_end = BLI_path_extension_or_end(file_name);
       if (file_name_end == file_name) {
         /* When the filename has no extension, but starts with a period. */
-        variables.add_string("file_name", blender::StringRef(file_name));
+        variables.add_string("blend_name", blender::StringRef(file_name));
       }
       else {
         /* Normal case. */
-        variables.add_string("file_name", blender::StringRef(file_name, file_name_end));
+        variables.add_string("blend_name", blender::StringRef(file_name, file_name_end));
       }
     }
   }
@@ -122,8 +117,8 @@ VariableMap BKE_build_blender_variables(const char *blend_file_path,
 
   /* Start/end frame, render resolution, and fps. */
   if (render_data) {
-    variables.add_integer("start_frame", render_data->sfra);
-    variables.add_integer("end_frame", render_data->efra);
+    variables.add_integer("frame_start", render_data->sfra);
+    variables.add_integer("frame_end", render_data->efra);
 
     /* Resolution eval code copied from `sequencer_ibuf_get()`.
      *
@@ -132,8 +127,8 @@ VariableMap BKE_build_blender_variables(const char *blend_file_path,
     const double render_size = render_data->size / 100.0;
     const int res_x = roundf(render_size * render_data->xsch);
     const int res_y = roundf(render_size * render_data->ysch);
-    variables.add_integer("res_x", res_x);
-    variables.add_integer("res_y", res_y);
+    variables.add_integer("resolution_x", res_x);
+    variables.add_integer("resolution_y", res_y);
 
     /* FPS eval code copied from `BKE_cachefile_filepath_get()`.
      *
