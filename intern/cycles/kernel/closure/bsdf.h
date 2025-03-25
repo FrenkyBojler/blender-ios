@@ -67,16 +67,14 @@ ccl_device_inline float bump_shadowing_term(const int shader_flag,
                                             const float3 N,
                                             float3 I)
 {
-  /*TODO: Move "cosNI", "g", and the if statement. These terms and if clause eliminate
-  fireflies from extreme shading normals, but should be independent of bump correction.*/
-  const float cosNI = dot(N, I);
-  if (cosNI < 0.0f) {
-    Ng = -Ng;
-  }
-  const float g = safe_divide(dot(Ng, I), cosNI * dot(Ng, N));
+  const float cosNgI = dot(Ng, I);
+  const float cosNgN = dot(Ng, N);
+  const float cosNI = dot(N,I);
 
-  /* If the incoming light points away from the surface, return black. */
-  if (g < 0.0f) {
+/* dot(Ng, I) * dot(Ng, N) tells us if I and N are on the same side of the actual geometry.
+ * If incoming(I) and normal(N) are on the same side we reject refractions, dot(N, I) < 0. 
+ * If they are on different sides we reject reflections, dot(N, I) > 0. */
+  if (cosNgI * cosNgN * cosNI < 0.0f) {
     return 0.0f;
   }
 
@@ -85,9 +83,9 @@ ccl_device_inline float bump_shadowing_term(const int shader_flag,
     return 1.0f;
   }
 
-  /* Calculate incoming and shader normal deviation from geometric normal, then clamp. */
-  const float cos_i = fabsf(dot(Ng, I));
-  const float cos_d = fabsf(dot(Ng, N));
+  /* Get absolute incoming and shader normal deviation from geometric normal, then clamp. */
+  const float cos_i = fabsf(cosNgI);
+  const float cos_d = fabsf(cosNgN);
   if (cos_d >= 1.0f || cos_i >= 1.0f) {
     return 1.0f;
   }
