@@ -319,12 +319,12 @@ static void stats_object_edit(Object *obedit, SceneStats *stats)
   }
   else if (obedit->type == OB_CURVES) {
     using namespace blender;
-    const Curves &curves = *static_cast<Curves *>(obedit->data);
-    const bke::CurvesGeometry &geometry = curves.geometry.wrap();
-    const VArray<bool> selection = *geometry.attributes().lookup_or_default<bool>(
+    const Curves &curves_id = *static_cast<Curves *>(obedit->data);
+    const bke::CurvesGeometry &curves = curves_id.geometry.wrap();
+    const VArray<bool> selection = *curves.attributes().lookup_or_default<bool>(
         ".selection", bke::AttrDomain::Point, true);
     stats->totvertsel += array_utils::count_booleans(selection);
-    stats->totvert += geometry.point_num;
+    stats->totvert += curves.points_num();
   }
 }
 
@@ -379,9 +379,9 @@ static void stats_object_sculpt(const Object *ob, SceneStats *stats)
       break;
     }
     case OB_CURVES: {
-      const Curves &curves = *static_cast<Curves *>(ob->data);
-      const CurvesGeometry &geometry = curves.geometry;
-      stats->totvertsculpt += geometry.point_num;
+      const Curves &curves_id = *static_cast<Curves *>(ob->data);
+      const blender::bke::CurvesGeometry &curves = curves_id.geometry.wrap();
+      stats->totvertsculpt += curves.points_num();
       break;
     }
     default:
