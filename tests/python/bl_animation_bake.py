@@ -213,7 +213,6 @@ def main():
         argv += sys.argv[sys.argv.index('--') + 1:]
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('--testdir', required=True, type=pathlib.Path)
     parser.add_argument(
         "--output-dir",
         dest="output_dir",
