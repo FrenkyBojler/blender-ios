@@ -177,6 +177,7 @@ void ArmatureImportContext::create_armature_bones(const ufbx_node *node,
   bone->tail[0] = 0.0f;
   bone->tail[1] = bone_size;
   bone->tail[2] = 0.0f;
+  this->mapping.bone_to_length.add(node, bone_size);
 
   /* Set bone matrix. */
   float bone_matrix[4][4];

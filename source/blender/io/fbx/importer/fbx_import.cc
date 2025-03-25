@@ -400,43 +400,86 @@ void FbxImportContext::import_meshes()
         obj->shapenr = 1;
       }
 
-      /* Skinned mesh. */
       bool matrix_already_set = false;
+      Object *parent_to_arm = nullptr;
+      const ufbx_node *parent_to_bone = nullptr;
+
+      /* Skinned mesh. */
       if (fmesh->skin_deformers.count > 0) {
         const ufbx_skin_deformer *skin = fmesh->skin_deformers[0];
         if (skin != nullptr && skin->clusters.count > 0) {
           /* Add vertex groups to the object. */
-          Object *arm_obj = nullptr;
           for (const ufbx_skin_cluster *fcluster : skin->clusters) {
-            if (arm_obj == nullptr) {
-              arm_obj = this->mapping.bone_to_armature.lookup_default(fcluster->bone_node,
-                                                                      nullptr);
+            if (parent_to_arm == nullptr) {
+              parent_to_arm = this->mapping.bone_to_armature.lookup_default(fcluster->bone_node,
+                                                                            nullptr);
             }
             const char *bone_name = get_fbx_name(fcluster->bone_node->name, "Bone");
             BKE_object_defgroup_add_name(obj, bone_name);
           }
 
           /* Add armature modifier. */
-          if (arm_obj) {
+          if (parent_to_arm) {
             ModifierData *md = BKE_modifier_new(eModifierType_Armature);
             STRNCPY(md->name, get_fbx_name(skin->name, "Armature"));
             BLI_addtail(&obj->modifiers, md);
             BKE_modifiers_persistent_uid_init(*obj, *md);
             ArmatureModifierData *ad = reinterpret_cast<ArmatureModifierData *>(md);
-            ad->object = arm_obj;
-            obj->parent = arm_obj;
-
-            /* We are setting mesh parent to the armature, so set the matrix that is
-             * armature-local. */
-            ufbx_matrix arm_to_world;
-            m44_to_matrix(arm_obj->runtime->object_to_world.ptr(), arm_to_world);
-            ufbx_matrix world_to_arm = ufbx_matrix_invert(&arm_to_world);
-            ufbx_matrix mtx = ufbx_matrix_mul(&node->node_to_world, &node->geometry_to_node);
-            mtx = ufbx_matrix_mul(&world_to_arm, &mtx);
-            ufbx_matrix_to_obj(mtx, obj);
-            matrix_already_set = true;
+            ad->object = parent_to_arm;
+            obj->parent = parent_to_arm;
           }
         }
+      }
+
+      /* Mesh that is rigidly parented to a bone. */
+      if (!parent_to_arm && node->parent && node->parent->bone) {
+        parent_to_arm = this->mapping.bone_to_armature.lookup_default(node->parent, nullptr);
+        parent_to_bone = node->parent;
+      }
+
+      /* For either skinned meshes or meshes parented to bones, we need to setup their matrices
+       * differently. */
+      if (parent_to_bone && parent_to_arm) {
+        /* We are setting mesh parent to the armature bone. */
+        ufbx_matrix bone_to_world = this->mapping.bone_to_bind_matrix.lookup_default(
+            parent_to_bone, ufbx_identity_matrix);
+        ufbx_matrix world_to_bone = ufbx_matrix_invert(&bone_to_world);
+        ufbx_matrix mtx = ufbx_matrix_mul(&node->node_to_world, &node->geometry_to_node);
+        mtx = ufbx_matrix_mul(&world_to_bone, &mtx);
+
+        ufbx_matrix offset_mtx = ufbx_identity_matrix;
+        offset_mtx.cols[3].y = -this->mapping.bone_to_length.lookup_default(parent_to_bone, 0.0);
+
+        mtx = ufbx_matrix_mul(&offset_mtx, &mtx);
+
+#ifdef FBX_DEBUG_PRINT
+        fprintf(g_debug_file,
+                "parent CHILD %s to ARM %s BONE %s bone_child_mtx:\n",
+                node->name.data,
+                parent_to_arm->id.name + 2,
+                parent_to_bone->name.data);
+        print_matrix(offset_mtx);
+        fprintf(g_debug_file, "- child matrix:\n");
+        print_matrix(mtx);
+#endif
+
+        ufbx_matrix_to_obj(mtx, obj);
+        matrix_already_set = true;
+
+        obj->parent = parent_to_arm;
+        obj->partype = PARBONE;
+        STRNCPY(obj->parsubstr, get_fbx_name(parent_to_bone->name));
+      }
+      else if (parent_to_arm) {
+        /* We are setting mesh parent to the armature, so set the matrix that is
+         * armature-local. */
+        ufbx_matrix arm_to_world;
+        m44_to_matrix(parent_to_arm->runtime->object_to_world.ptr(), arm_to_world);
+        ufbx_matrix world_to_arm = ufbx_matrix_invert(&arm_to_world);
+        ufbx_matrix mtx = ufbx_matrix_mul(&node->node_to_world, &node->geometry_to_node);
+        mtx = ufbx_matrix_mul(&world_to_arm, &mtx);
+        ufbx_matrix_to_obj(mtx, obj);
+        matrix_already_set = true;
       }
 
       /* Assign materials. */
