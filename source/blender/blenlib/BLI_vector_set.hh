@@ -162,7 +162,7 @@ class VectorSet {
   VectorSet(Allocator allocator = {}) noexcept
       : removed_slots_(0),
         occupied_and_removed_slots_(0),
-        usable_slots_(InlineBufferCapacity),
+        usable_slots_(0),
         slot_mask_(0),
         slots_(1, allocator)
   {
@@ -235,7 +235,7 @@ class VectorSet {
       if constexpr (other_is_same_type && std::is_trivial_v<Key> &&
                     sizeof(inline_buffer_) <= max_full_copy_size)
       {
-        usable_slots_ = InlineBufferCapacity;
+        usable_slots_ = slots_.size();
         keys_ = inline_buffer_;
         if (size > 0) {
           memcpy(inline_buffer_, other.inline_buffer_, sizeof(inline_buffer_));
@@ -259,7 +259,7 @@ class VectorSet {
     }
     other.removed_slots_ = 0;
     other.occupied_and_removed_slots_ = 0;
-    other.usable_slots_ = OtherInlineBufferCapacity;
+    other.usable_slots_ = 1;
     other.slot_mask_ = 0;
     other.slots_ = SlotArray(1);
     other.keys_ = other.inline_buffer_;
@@ -780,7 +780,9 @@ class VectorSet {
       this->noexcept_reset();
       throw;
     }
-    this->deallocate_keys_array(keys_);
+    if (keys_ != inline_buffer_) {
+      this->deallocate_keys_array(keys_);
+    }
 
     keys_ = new_keys;
     occupied_and_removed_slots_ -= removed_slots_;

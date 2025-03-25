@@ -363,7 +363,7 @@ TEST(vector_set, CustomIDVectorSet)
   larger_set.add_new(ThingWithID{12, "test", 9});
   EXPECT_EQ(larger_set.index_of_as("test"), 0);
   larger_set.add_new(ThingWithID{123, "other", 8});
-  larger_set.add_new(ThingWithID{1234, "test", 7});
+  larger_set.add(ThingWithID{1234, "test", 7});
   larger_set.add_new(ThingWithID{12345, "test_2", 6});
   larger_set.add_new(ThingWithID{123456, "test_4", 5});
   larger_set.add_new(ThingWithID{1234567, "test_5", 4});
