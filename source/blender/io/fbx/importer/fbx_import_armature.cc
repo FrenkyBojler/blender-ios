@@ -137,7 +137,17 @@ void ArmatureImportContext::create_armature_bones(const ufbx_node *node,
     if (fchild->attrib_type != UFBX_ELEMENT_BONE) {
       continue;
     }
+
+    /* Estimate child position from local transform, but if the child
+     * is skinned/posed then use the posed transform instead. */
     ufbx_vec3 pos = fchild->local_transform.translation;
+    if (this->mapping.bone_has_pose_or_skin_matrix.contains(fchild)) {
+      bool found;
+      ufbx_matrix local_mtx = this->mapping.calc_local_bind_matrix(fchild, world_to_arm, found);
+      if (found) {
+        pos = local_mtx.cols[3];
+      }
+    }
     bone_size += math::length(float3(pos.x, pos.y, pos.z));
     child_bone_count++;
   }
