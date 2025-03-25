@@ -11,6 +11,10 @@
 #include "mathutils.hh"
 #include "mathutils_geometry.hh"
 
+extern "C" {
+#include "curve_fit_nd.h"
+}
+
 /* Used for PolyFill */
 #ifndef MATH_STANDALONE /* define when building outside blender */
 #  include "BKE_curve.hh"
@@ -1214,6 +1218,165 @@ static PyObject *M_Geometry_points_in_planes(PyObject * /*self*/, PyObject *args
   }
 }
 
+
+
+PyDoc_STRVAR(M_Geometry_cubic_curve_fit_from_points_doc,
+".. function:: curve_from_points(points, error, corner_angle=math.pi, is_cyclic=False)\n"
+"\n"
+"   Returns the newly calculated curve.\n"
+"\n"
+"   :arg line: Points representing a line\n"
+"   :type line: list\n"
+"   :arg error: Error threshold.\n"
+"   :type error: float\n"
+"   :return: The point of intersection or None if no intersection is found\n"
+"   :rtype: list of float tuples\n"
+);
+
+
+static PyObject *M_Geometry_cubic_curve_fit_from_points(PyObject *self, PyObject *args)
+{
+	(void)self;
+
+	const char *error_prefix = "curve_from_points";
+	PyObject *points;
+	PyObject *points_fast;
+	double error_threshold;
+	double corner_angle = M_PI;
+	bool is_cyclic = false;
+
+	if (!PyArg_ParseTuple(
+	        args, "Od|dO&:curve_from_points",
+	        &points,
+	        &error_threshold,
+	        &corner_angle,
+	        PyC_ParseBool, &is_cyclic) ||
+	    !(points_fast = PySequence_Fast(points, error_prefix)))
+	{
+		return NULL;
+	}
+
+	unsigned int calc_flag = 0;
+
+	if (is_cyclic) {
+		calc_flag |= CURVE_FIT_CALC_CYCLIC;
+	}
+
+	const unsigned int points_len = PySequence_Fast_GET_SIZE(points_fast);
+	if (points_len == 0) {
+		Py_DECREF(points_fast);
+		return PyList_New(0);
+	}
+
+	PyObject **points_array = PySequence_Fast_ITEMS(points_fast);
+	double *points_data = NULL;
+	unsigned int dims = 0;
+
+	for (unsigned int i = 0; i < points_len; i++) {
+		PyObject *item = points_array[i];
+		PyObject *item_fast = PySequence_Fast(item, "curve_from_points item");
+		if (item_fast == NULL) {
+			if (points_data != NULL) {
+				PyMem_Free(points_data);
+			}
+			Py_DECREF(points_fast);
+			return NULL;
+		}
+
+		{
+			unsigned int item_dims = PySequence_Fast_GET_SIZE(item_fast);
+			if (i == 0) {
+				if (item_dims == 0) {
+					PyErr_SetString(PyExc_ValueError, "empty item");
+					Py_DECREF(points_fast);
+					Py_DECREF(item_fast);
+					return NULL;
+				}
+				else {
+					dims = item_dims;
+					points_data = static_cast<double*>(PyMem_Malloc((size_t)points_len * dims * sizeof(double)));
+				}
+			}
+
+			if (item_dims != dims) {
+				PyErr_SetString(PyExc_ValueError, "item size mismatch");
+				Py_DECREF(points_fast);
+				Py_DECREF(item_fast);
+				PyMem_Free(points_data);
+				return NULL;
+			}
+		}
+
+		PyObject **item_array = PySequence_Fast_ITEMS(item_fast);
+		for (unsigned int j = 0; j < dims; j++) {
+			const double number = PyFloat_AsDouble(item_array[j]);
+			if ((number == -1.0) && PyErr_Occurred()) {
+				Py_DECREF(points_fast);
+				Py_DECREF(item_fast);
+				PyMem_Free(points_data);
+				return NULL;
+			}
+			points_data[(i * dims) + j] = number;
+		}
+		Py_DECREF(item_fast);
+	}
+
+	Py_DECREF(points_fast);
+
+	double *cubic_array = NULL;
+	unsigned int cubic_array_len = 0;
+	unsigned int *cubic_orig_index = NULL;
+	unsigned int corner_indices_len = 0;
+	unsigned int *corner_indices = NULL;
+
+    /* In the original curve_fit_nd repo, there was some disabled code
+     * here. I have removed it. */
+	if (curve_fit_cubic_to_points_refit_db(
+	        points_data, points_len, dims, error_threshold, calc_flag,
+	        NULL, 0,
+	        corner_angle,  /* only difference! */
+	        &cubic_array, &cubic_array_len,
+	        &cubic_orig_index,
+	        &corner_indices, &corner_indices_len) != 0)
+	{
+
+		PyErr_SetString(PyExc_ValueError, "error fitting the curve");
+		PyMem_Free(points_data);
+		return NULL;
+	}
+
+	PyMem_Free(points_data);
+
+	PyObject *ret = PyList_New(cubic_array_len);
+	double *c = cubic_array;
+
+	for (unsigned int i = 0; i < cubic_array_len; i++) {
+		PyObject *item = PyTuple_New(3);
+		for (unsigned int h = 0; h < 3; h++) {
+			PyObject *item_point = PyTuple_New(dims);
+			for (unsigned int j = 0; j < dims; j++) {
+				PyTuple_SET_ITEM(item_point, j, PyFloat_FromDouble(*c));
+				c++;
+			}
+			PyTuple_SET_ITEM(item, h, item_point);
+		}
+
+		PyObject *item_pair = PyTuple_New(2);
+		PyTuple_SET_ITEM(item_pair, 0, PyLong_FromLong((long)cubic_orig_index[i]));
+		PyTuple_SET_ITEM(item_pair, 1, item);
+		PyList_SET_ITEM(ret, i, item_pair);
+	}
+	assert(c == (cubic_array + (cubic_array_len * dims * 3)));
+
+	free(cubic_array);
+	free(cubic_orig_index);
+	if (corner_indices) {
+		free(corner_indices);
+	}
+
+	return ret;
+}
+
 #ifndef MATH_STANDALONE
 
 PyDoc_STRVAR(
@@ -1837,6 +2000,10 @@ static PyMethodDef M_Geometry_methods[] = {
      (PyCFunction)M_Geometry_points_in_planes,
      METH_VARARGS,
      M_Geometry_points_in_planes_doc},
+	{"cubic_curve_from_points",
+	 (PyCFunction)M_Geometry_cubic_curve_fit_from_points,
+	 METH_VARARGS,
+	 M_Geometry_cubic_curve_fit_from_points_doc},
 #ifndef MATH_STANDALONE
     {"interpolate_bezier",
      (PyCFunction)M_Geometry_interpolate_bezier,

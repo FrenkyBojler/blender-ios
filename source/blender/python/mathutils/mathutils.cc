@@ -755,7 +755,6 @@ static PyModuleDef M_Mathutils_module_def = {
 /* submodules only */
 #include "mathutils_geometry.hh"
 #include "mathutils_interpolate.hh"
-#include "mathutils_curve_fit_nd.hh"
 #ifndef MATH_STANDALONE
 #  include "mathutils_bvhtree.hh"
 #  include "mathutils_kdtree.hh"
@@ -807,7 +806,6 @@ PyMODINIT_FUNC PyInit_mathutils()
   /* XXX, python doesn't do imports with this usefully yet
    * 'from mathutils.geometry import PolyFill'
    * ...fails without this. */
-  PyModule_AddObject(mod, "curve_fit_nd", (submodule = PyInit_mathutils_curve_fit_nd()));
   PyDict_SetItem(sys_modules, PyModule_GetNameObject(submodule), submodule);
 
 #ifndef MATH_STANDALONE

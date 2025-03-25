@@ -22,7 +22,6 @@ set(SRC
   mathutils_interpolate.cc
   mathutils_kdtree.cc
   mathutils_noise.cc
-  mathutils_curve_fit_nd.cc
 
   mathutils.hh
   mathutils_Color.hh
@@ -35,7 +34,6 @@ set(SRC
   mathutils_interpolate.hh
   mathutils_kdtree.hh
   mathutils_noise.hh
-  mathutils_curve_fit_nd.hh
 )
 
 set(LIB
