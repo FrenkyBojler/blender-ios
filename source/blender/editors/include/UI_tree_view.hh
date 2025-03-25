@@ -65,6 +65,7 @@ class TreeViewItemContainer {
     None = 0,
     SkipCollapsed = 1 << 0,
     SkipFiltered = 1 << 1,
+
     /* Keep ENUM_OPERATORS() below updated! */
   };
   using ItemIterFn = FunctionRef<void(AbstractTreeViewItem &)>;
