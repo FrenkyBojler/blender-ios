@@ -1242,13 +1242,13 @@ std::optional<Bounds<float3>> CurvesGeometry::bounds_min_max(const bool use_radi
 std::optional<int> CurvesGeometry::material_index_max() const
 {
   this->runtime->max_material_index_cache.ensure([&](std::optional<int> &r_max_material_index) {
-    r_max_material_index = std::clamp(
-        *blender::bounds::max<int>(
-            this->attributes()
-                .lookup_or_default<int>("material_index", blender::bke::AttrDomain::Curve, 0)
-                .varray),
-        0,
-        MAXMAT);
+    r_max_material_index = blender::bounds::max<int>(
+        this->attributes()
+            .lookup_or_default<int>("material_index", blender::bke::AttrDomain::Curve, 0)
+            .varray);
+    if (r_max_material_index.has_value()) {
+      r_max_material_index = std::clamp(*r_max_material_index, 0, MAXMAT);
+    }
   });
   return this->runtime->max_material_index_cache.data();
 }

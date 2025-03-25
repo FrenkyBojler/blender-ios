@@ -1387,13 +1387,13 @@ std::optional<int> Mesh::material_index_max() const
       value = std::nullopt;
       return;
     }
-    value = std::clamp(
-        *blender::bounds::max<int>(
-            this->attributes()
-                .lookup_or_default<int>("material_index", blender::bke::AttrDomain::Face, 0)
-                .varray),
-        0,
-        MAXMAT);
+    value = blender::bounds::max<int>(
+        this->attributes()
+            .lookup_or_default<int>("material_index", blender::bke::AttrDomain::Face, 0)
+            .varray);
+    if (value.has_value()) {
+      value = std::clamp(*value, 0, MAXMAT);
+    }
   });
   return this->runtime->max_material_index.data();
 }
