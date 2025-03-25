@@ -605,6 +605,7 @@ void node_register_alias(bNodeType &nt, StringRef alias);
 Span<bNodeType *> node_types_get();
 
 bNodeSocketType *node_socket_type_find(StringRef idname);
+bNodeSocketType *node_socket_type_find_static(int type, int subtype = 0);
 void node_register_socket_type(bNodeSocketType &stype);
 void node_unregister_socket_type(bNodeSocketType &stype);
 bool node_socket_is_registered(const bNodeSocket &sock);
@@ -891,8 +892,6 @@ void node_tree_local_merge(Main *bmain, bNodeTree *localtree, bNodeTree *ntree);
  */
 void node_tree_blend_read_data(BlendDataReader *reader, ID *owner_id, bNodeTree *ntree);
 
-bool node_type_is_undefined(const bNode &node);
-
 bool node_is_static_socket_type(const bNodeSocketType &stype);
 
 StringRefNull node_socket_sub_type_label(int subtype);
@@ -1082,18 +1081,18 @@ void node_preview_merge_tree(bNodeTree *to_ntree, bNodeTree *from_ntree, bool re
 /** \name Node Type Access
  * \{ */
 
-void nodeLabel(const bNodeTree &ntree, const bNode &node, char *label, int label_maxncpy);
+std::string node_label(const bNodeTree &ntree, const bNode &node);
 
 /**
  * Get node socket label if it is set.
  */
-StringRefNull nodeSocketLabel(const bNodeSocket &sock);
+StringRefNull node_socket_label(const bNodeSocket &sock);
 
 /**
  * Get node socket short label if it is set.
  * It is used when grouping sockets under panels, to avoid redundancy in the label.
  */
-std::optional<StringRefNull> nodeSocketShortLabel(const bNodeSocket &sock);
+std::optional<StringRefNull> node_socket_short_label(const bNodeSocket &sock);
 
 /**
  * Initialize a new node type struct with default values and callbacks.

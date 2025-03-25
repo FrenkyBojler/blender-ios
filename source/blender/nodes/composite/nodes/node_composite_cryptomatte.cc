@@ -132,7 +132,7 @@ static void cryptomatte_add(bNode &node, NodeCryptomatte &node_cryptomatte, floa
     return;
   }
 
-  CryptomatteEntry *entry = MEM_cnew<CryptomatteEntry>(__func__);
+  CryptomatteEntry *entry = MEM_callocN<CryptomatteEntry>(__func__);
   entry->encoded_hash = encoded_hash;
   blender::bke::cryptomatte::CryptomatteSessionPtr session = cryptomatte_init_from_node(node,
                                                                                         true);
@@ -185,7 +185,7 @@ void ntreeCompositCryptomatteUpdateLayerNames(bNode *node)
     for (blender::StringRef layer_name :
          blender::bke::cryptomatte::BKE_cryptomatte_layer_names_get(*session))
     {
-      CryptomatteLayer *layer = MEM_cnew<CryptomatteLayer>(__func__);
+      CryptomatteLayer *layer = MEM_callocN<CryptomatteLayer>(__func__);
       layer_name.copy_utf8_truncated(layer->name);
       BLI_addtail(&n->runtime.layers, layer);
     }
@@ -544,7 +544,7 @@ class BaseCryptoMatteOperation : public NodeOperation {
     output.allocate_texture(domain);
 
     parallel_for(domain.size, [&](const int2 texel) {
-      float4 input_color = input.load_pixel<float4>(texel);
+      float4 input_color = input.load_pixel<float4, true>(texel);
       float input_matte = matte.load_pixel<float>(texel);
 
       /* Premultiply the alpha to the image. */
@@ -590,7 +590,7 @@ static void cmp_node_cryptomatte_declare(NodeDeclarationBuilder &b)
 
 static void node_init_cryptomatte(bNodeTree * /*ntree*/, bNode *node)
 {
-  NodeCryptomatte *user = MEM_cnew<NodeCryptomatte>(__func__);
+  NodeCryptomatte *user = MEM_callocN<NodeCryptomatte>(__func__);
   node->storage = user;
 }
 
@@ -991,8 +991,12 @@ class LegacyCryptoMatteOperation : public BaseCryptoMatteOperation {
   {
     Vector<Result> layers;
     /* Add all valid results of all inputs except the first input, which is the input image. */
-    for (const bNodeSocket *socket : bnode().input_sockets().drop_front(1)) {
-      const Result input = get_input(socket->identifier);
+    for (const bNodeSocket *input_socket : bnode().input_sockets().drop_front(1)) {
+      if (!input_socket->is_available()) {
+        continue;
+      }
+
+      const Result input = get_input(input_socket->identifier);
       if (input.is_single_value()) {
         /* If this Cryptomatte layer is not valid, because it is not an image, then all later
          * Cryptomatte layers can't be used even if they were valid. */

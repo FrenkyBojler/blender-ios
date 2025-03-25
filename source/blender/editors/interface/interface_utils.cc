@@ -901,7 +901,7 @@ struct uiButStoreElem {
 
 uiButStore *UI_butstore_create(uiBlock *block)
 {
-  uiButStore *bs_handle = MEM_cnew<uiButStore>(__func__);
+  uiButStore *bs_handle = MEM_callocN<uiButStore>(__func__);
 
   bs_handle->block = block;
   BLI_addtail(&block->butstore, bs_handle);
@@ -950,7 +950,7 @@ bool UI_butstore_is_registered(uiBlock *block, uiBut *but)
 
 void UI_butstore_register(uiButStore *bs_handle, uiBut **but_p)
 {
-  uiButStoreElem *bs_elem = MEM_cnew<uiButStoreElem>(__func__);
+  uiButStoreElem *bs_elem = MEM_callocN<uiButStoreElem>(__func__);
   BLI_assert(*but_p);
   bs_elem->but_p = but_p;
 
@@ -1130,7 +1130,7 @@ std::optional<std::string> UI_key_event_operator_string(const bContext *C,
 
   if ((event_val != KM_NOTHING) && (event_type != KM_NOTHING)) {
     return WM_keymap_item_raw_to_string(
-        false, false, false, false, 0, event_val, event_type, false);
+        KM_NOTHING, KM_NOTHING, KM_NOTHING, KM_NOTHING, 0, event_val, event_type, false);
   }
 
   return std::nullopt;
