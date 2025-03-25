@@ -284,7 +284,7 @@ static int get_keyframe_snap_target(bContext *C,
 
 static int get_second_snap_target(Scene *scene, const int timeline_frame, const int step)
 {
-  const blender::int2 scene_range = BKE_scene_frame_range_get(scene);
+  const blender::int2 scene_range = BKE_scene_playback_range_get(scene);
   return BKE_scene_frame_snap_by_seconds(scene, step, timeline_frame - scene_range.x) +
          scene_range.x;
 }

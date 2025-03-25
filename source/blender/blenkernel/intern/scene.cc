@@ -2279,7 +2279,7 @@ int BKE_scene_frame_snap_by_seconds(Scene *scene, double interval_in_seconds, in
   return (delta_prev < delta_next) ? second_prev : second_next;
 }
 
-blender::int2 BKE_scene_frame_range_get(const Scene *scene)
+blender::int2 BKE_scene_playback_range_get(const Scene *scene)
 {
   if (scene->r.flag & SCER_PRV_RANGE) {
     return {scene->r.psfra, scene->r.pefra};
