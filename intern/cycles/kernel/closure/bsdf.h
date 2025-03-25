@@ -69,11 +69,11 @@ ccl_device_inline float bump_shadowing_term(const int shader_flag,
 {
   const float cosNgI = dot(Ng, I);
   const float cosNgN = dot(Ng, N);
-  const float cosNI = dot(N,I);
+  const float cosNI = dot(N, I);
 
-/* dot(Ng, I) * dot(Ng, N) tells us if I and N are on the same side of the actual geometry.
- * If incoming(I) and normal(N) are on the same side we reject refractions, dot(N, I) < 0. 
- * If they are on different sides we reject reflections, dot(N, I) > 0. */
+  /* dot(Ng, I) * dot(Ng, N) tells us if I and N are on the same side of the actual geometry.
+   * If incoming(I) and normal(N) are on the same side we reject refractions, dot(N, I) < 0.
+   * If they are on different sides we reject reflections, dot(N, I) > 0. */
   if (cosNgI * cosNgN * cosNI < 0.0f) {
     return 0.0f;
   }
