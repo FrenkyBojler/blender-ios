@@ -1,0 +1,1 @@
+Referenced by issue #136128, Regression: Calling socket.is_linked from within the insert_link() callback of Node crashes Blender
