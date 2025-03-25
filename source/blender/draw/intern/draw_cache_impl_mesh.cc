@@ -884,12 +884,6 @@ gpu::Batch *DRW_mesh_batch_cache_get_surface_viewer_attribute(Mesh &mesh)
 /** \name Edit Mode API
  * \{ */
 
-/** \} */
-
-/* ---------------------------------------------------------------------- */
-/** \name Edit Mode API
- * \{ */
-
 gpu::Batch *DRW_mesh_batch_cache_get_edit_triangles(Mesh &mesh)
 {
   MeshBatchCache &cache = *mesh_batch_cache_get(mesh);
