@@ -286,6 +286,9 @@ TEST(vector_set, LookupKey)
   EXPECT_EQ(set.lookup_key_ptr_as("d"), nullptr);
   EXPECT_EQ(set.lookup_key_ptr_as("b")->size(), 1);
   EXPECT_EQ(set.lookup_key_ptr("a"), set.lookup_key_ptr_as("a"));
+  std::string default_value = "default";
+  EXPECT_EQ(set.lookup_key_default("d", default_value), "default");
+  EXPECT_EQ(set.lookup_key_default("c", default_value), "c");
 }
 
 TEST(vector_set, GrowWhenEmpty)
@@ -377,6 +380,18 @@ TEST(vector_set, AddOverwrite)
   EXPECT_EQ(set[0].data, "c");
   EXPECT_EQ(set[1].data, "d");
   EXPECT_EQ(set.lookup_key(key).data, "d");
+}
+
+TEST(vector_set, LookupDefault)
+{
+  VectorSet<KeyWithData> set;
+  EXPECT_FALSE(set.add(KeyWithData{1, "b"}));
+  EXPECT_FALSE(set.add(KeyWithData{423, "s"}));
+  EXPECT_FALSE(set.add(KeyWithData{2, "t"}));
+  KeyWithData default_key{1, "default"};
+  EXPECT_EQ(set.lookup_key_default(KeyWithData{1, "1233333"}, default_key), default_key);
+  KeyWithData other_s{21423, "s"};
+  EXPECT_EQ(set.lookup_key_default(KeyWithData{1, "s"}, default_key), other_s);
 }
 
 }  // namespace blender::tests
