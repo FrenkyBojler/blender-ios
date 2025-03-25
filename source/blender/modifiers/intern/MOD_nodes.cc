@@ -842,7 +842,9 @@ static void find_socket_log_contexts(const NodesModifierData &nmd,
  * \note This could be done in #initialize_group_input, though that would require adding the
  * the object as a parameter, so it's likely better to this check as a separate step.
  */
-static void check_property_socket_sync(const Object *ob, ModifierData *md)
+static void check_property_socket_sync(const Object *ob,
+                                       const nodes::PropertiesVectorSet &properties,
+                                       ModifierData *md)
 {
   NodesModifierData *nmd = reinterpret_cast<NodesModifierData *>(md);
 
@@ -859,7 +861,7 @@ static void check_property_socket_sync(const Object *ob, ModifierData *md)
       continue;
     }
 
-    IDProperty *property = IDP_GetPropertyFromGroup(nmd->settings.properties, socket->identifier);
+    IDProperty *property = properties.lookup_key_default_as(socket->identifier, nullptr);
     if (property == nullptr) {
       if (ELEM(type, SOCK_GEOMETRY, SOCK_MATRIX)) {
         geometry_socket_count++;
@@ -1756,8 +1758,11 @@ static void modifyGeometry(ModifierData *md,
   NodesModifierData *nmd_orig = reinterpret_cast<NodesModifierData *>(
       BKE_modifier_get_original(ctx->object, &nmd->modifier));
 
+  nodes::PropertiesVectorSet properties = nodes::build_properties_vector_set(
+      nmd->settings.properties);
+
   const bNodeTree &tree = *nmd->node_group;
-  check_property_socket_sync(ctx->object, md);
+  check_property_socket_sync(ctx->object, properties, md);
 
   tree.ensure_topology_cache();
   const bNode *output_node = tree.group_output_node();
@@ -1826,11 +1831,7 @@ static void modifyGeometry(ModifierData *md,
   bke::ModifierComputeContext modifier_compute_context{nullptr, nmd->modifier.name};
 
   geometry_set = nodes::execute_geometry_nodes_on_geometry(
-      tree,
-      nodes::build_properties_vector_set(nmd->settings.properties),
-      modifier_compute_context,
-      call_data,
-      std::move(geometry_set));
+      tree, properties, modifier_compute_context, call_data, std::move(geometry_set));
 
   if (logging_enabled(ctx)) {
     nmd_orig->runtime->eval_log = std::move(eval_log);
@@ -2135,7 +2136,7 @@ static void draw_property_for_socket(DrawGroupInputsContext &ctx,
 {
   const StringRefNull identifier = socket.identifier;
   /* The property should be created in #MOD_nodes_update_interface with the correct type. */
-  IDProperty *property = IDP_GetPropertyFromGroup(ctx.nmd.settings.properties, identifier);
+  IDProperty *property = ctx.properties.lookup_key_default_as(identifier, nullptr);
 
   /* IDProperties can be removed with python, so there could be a situation where
    * there isn't a property for a socket or it doesn't have the correct type. */
@@ -2311,7 +2312,7 @@ static void draw_interface_panel_content(DrawGroupInputsContext &ctx,
       const bNodeTreeInterfaceSocket *toggle_socket = sub_interface_panel.header_toggle_socket();
       if (toggle_socket && !(toggle_socket->flag & NODE_INTERFACE_SOCKET_HIDE_IN_MODIFIER)) {
         const StringRefNull identifier = toggle_socket->identifier;
-        IDProperty *property = IDP_GetPropertyFromGroup(ctx.nmd.settings.properties, identifier);
+        IDProperty *property = ctx.properties.lookup_key_default_as(identifier, nullptr);
         /* IDProperties can be removed with python, so there could be a situation where
          * there isn't a property for a socket or it doesn't have the correct type. */
         if (property == nullptr ||
