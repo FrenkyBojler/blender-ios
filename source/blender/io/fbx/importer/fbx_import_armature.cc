@@ -266,8 +266,29 @@ void ArmatureImportContext::find_armatures(const ufbx_node *node)
         continue;
       }
       read_custom_properties(fbone->props, *pchan, this->params.props_enum_as_string);
-      //@TODO
-      // BKE_pchan_apply_mat4(pchan, (const float(*)[4])values, false);
+
+      /* For non-root bones that have pose information, apply that to the pose bone. */
+      if (this->mapping.bone_has_pose_or_skin_matrix.contains(fbone) && fbone->parent &&
+          fbone->parent->bone)
+      {
+        bool found;
+        ufbx_matrix bind_local_mtx = this->mapping.calc_local_bind_matrix(
+            fbone, world_to_arm, found);
+        if (found) {
+          ufbx_matrix bind_local_mtx_inv = ufbx_matrix_invert(&bind_local_mtx);
+          ufbx_matrix local_mtx = ufbx_transform_to_matrix(&fbone->local_transform);
+          ufbx_matrix pose_mtx = ufbx_matrix_mul(&bind_local_mtx_inv, &local_mtx);
+
+          float pchan_matrix[4][4];
+          matrix_to_m44(pose_mtx, pchan_matrix);
+          BKE_pchan_apply_mat4(pchan, pchan_matrix, false);
+
+#ifdef FBX_DEBUG_PRINT
+          fprintf(g_debug_file, "set POSE matrix of %s matrix_basis:\n", fbone->name.data);
+          print_matrix(pose_mtx);
+#endif
+        }
+      }
     }
   }
 
