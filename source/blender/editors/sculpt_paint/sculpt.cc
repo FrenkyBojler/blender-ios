@@ -5286,7 +5286,6 @@ void flush_update_step(const bContext *C,
 
 void flush_update_step(const bContext *C, const UpdateType update_type)
 {
-  /* Update the whole region using "infinite" bounds */
   const Bounds redraw_bounds{float3(std::numeric_limits<float>::lowest()),
                              float3(std::numeric_limits<float>::max())};
   flush_update_step(C, update_type, redraw_bounds);
