@@ -1727,12 +1727,6 @@ class IMAGE_PT_overlay_render_guides(Panel):
     bl_label = "Guides"
     bl_parent_id = "IMAGE_PT_overlay"
 
-    @classmethod
-    def poll(cls, context):
-        sima = context.space_data
-
-        return sima.show_render
-
     def draw(self, context):
         layout = self.layout
 

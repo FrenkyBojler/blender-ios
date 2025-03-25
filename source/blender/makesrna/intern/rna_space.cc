@@ -5782,6 +5782,7 @@ static void rna_def_space_image_overlay(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "passepartout_alpha", PROP_FLOAT, PROP_FACTOR);
   RNA_def_property_float_sdna(prop, nullptr, "overlay.passepartout_alpha");
+  RNA_def_property_float_default(prop, 0.5f);
   RNA_def_property_ui_text(
       prop, "Passepartout Alpha", "Opacity of the darkened overlay outside the render region");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_IMAGE, nullptr);
