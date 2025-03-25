@@ -121,7 +121,7 @@ static PointCloud *pointcloud_from_curves(const bke::CurvesGeometry &curves,
   pointcloud->totpoint = curves.points_num();
   MutableAttributeAccessor point_attributes = pointcloud->attributes_for_write();
 
-  const bke::AttributeFilterFromFunc filter = ([&](const StringRef name) {
+  const bke::AttributeFilterFromFunc filter = [&](const StringRef name) {
     if (attribute_filter.allow_skip(name)) {
       return bke::AttributeFilter::Result::AllowSkip;
     }
@@ -129,7 +129,7 @@ static PointCloud *pointcloud_from_curves(const bke::CurvesGeometry &curves,
       return bke::AttributeFilter::Result::AllowSkip;
     }
     return bke::AttributeFilter::Result::Process;
-  });
+  };
 
   bke::copy_attributes(curves.attributes(),
                        bke::AttrDomain::Point,
