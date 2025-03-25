@@ -96,16 +96,15 @@ static bool is_node_parent_select(const bNode *node)
 
 /**
  * Some nodes are transformed together with other nodes:
- * - Parent frames with shrinking turned on are not transformed themself, but are automatically
- *   resized based on their children.
+ * - Parent frames with shrinking turned on are automatically resized based on their children.
  * - Child nodes of frames that are manually resizable are transformed together with their parent
- *   node.
+ *   frame.
  */
 static bool transform_tied_to_other_node(bNode *node, VectorSet<bNode *> transformed_nodes)
 {
+  /* Check for frame nodes that adjust their size based on the contained child nodes. */
   if (node->is_frame()) {
     const NodeFrame *data = static_cast<const NodeFrame *>(node->storage);
-
     const bool shrinking = data->flag & NODE_FRAME_SHRINK;
     const bool is_parent = !(node->direct_children_in_frame().is_empty());
 
@@ -114,16 +113,17 @@ static bool transform_tied_to_other_node(bNode *node, VectorSet<bNode *> transfo
     }
   }
 
-  /* Node is not a parent frame node that shrinks. */
+  /* Now check for child nodes of manually resized frames. */
   while ((node = node->parent)) {
-    const NodeFrame *data = (const NodeFrame *)node->storage;
-    const bool parent_shrinking = data->flag & NODE_FRAME_SHRINK;
+    const NodeFrame *parent_data = (const NodeFrame *)node->storage;
+    const bool parent_shrinking = parent_data->flag & NODE_FRAME_SHRINK;
     const bool parent_transformed = transformed_nodes.contains(node);
 
     if (parent_transformed && !parent_shrinking) {
       return true;
     }
   }
+
   return false;
 }
 
