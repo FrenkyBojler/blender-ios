@@ -2893,15 +2893,7 @@ static wmOperatorStatus region_scale_invoke(bContext *C, wmOperator *op, const w
     rmd->maxsize = area_max_regionsize(rmd->area, rmd->region, rmd->edge);
 
     /* if not set we do now, otherwise it uses type */
-    if (rmd->region->flag & RGN_FLAG_HIDDEN) {
-      if (ELEM(rmd->edge, AE_LEFT_TO_TOPRIGHT, AE_RIGHT_TO_TOPLEFT)) {
-        rmd->region->winx = rmd->region->sizex = 1;
-      }
-      else {
-        rmd->region->winy = rmd->region->sizey = 1;
-      }
-    }
-    else if (rmd->region->sizex == 0) {
+    if (rmd->region->sizex == 0) {
       rmd->region->sizex = rmd->region->winx;
     }
     if (rmd->region->sizey == 0) {
