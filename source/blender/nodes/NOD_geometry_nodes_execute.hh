@@ -37,6 +37,10 @@ struct IDPropNameGetter {
   }
 };
 
+/**
+ * Use a #VectorSet to store properties for constant time lookup, to avoid slowdown with many
+ * inputs.
+ */
 using PropertiesVectorSet = CustomIDVectorSet<IDProperty *, IDPropNameGetter>;
 PropertiesVectorSet build_properties_vector_set(const IDProperty *properties);
 
