@@ -166,7 +166,7 @@ class BindSpaceStorageBuffers {
 
   [[nodiscard]] bool unbind_all()
   {
-    bool modified = bound_resources.is_empty();
+    bool modified = !bound_resources.is_empty();
     bound_resources.clear();
     return modified;
   }

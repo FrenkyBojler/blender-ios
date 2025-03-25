@@ -87,7 +87,7 @@ void VKStateManager::image_unbind_all()
 
 void VKStateManager::uniform_buffer_bind(VKUniformBuffer *uniform_buffer, int binding)
 {
-  is_dirty = uniform_buffers_.bind(uniform_buffer, binding);
+  is_dirty |= uniform_buffers_.bind(uniform_buffer, binding);
 }
 
 void VKStateManager::uniform_buffer_unbind(VKUniformBuffer *uniform_buffer)
