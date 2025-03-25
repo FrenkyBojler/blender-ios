@@ -7,6 +7,7 @@
  * \ingroup bke
  */
 
+#include "BLI_math_vector_types.hh"
 #include "BLI_sys_types.h"
 
 struct Base;
@@ -164,6 +165,11 @@ float BKE_scene_frame_get(const Scene *scene);
  * Set current frame and sub-frame based on a fractional frame.
  */
 void BKE_scene_frame_set(Scene *scene, float frame);
+
+/**
+ * Get the playback range of the given scene. Can be the preview range if that is enabled.
+ */
+blender::int2 BKE_scene_frame_range_get(const Scene *scene);
 
 TransformOrientationSlot *BKE_scene_orientation_slot_get_from_flag(Scene *scene, int flag);
 TransformOrientationSlot *BKE_scene_orientation_slot_get(Scene *scene, int slot_index);

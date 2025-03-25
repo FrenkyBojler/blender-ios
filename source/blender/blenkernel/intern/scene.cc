@@ -2279,6 +2279,14 @@ int BKE_scene_frame_snap_by_seconds(Scene *scene, double interval_in_seconds, in
   return (delta_prev < delta_next) ? second_prev : second_next;
 }
 
+blender::int2 BKE_scene_frame_range_get(const Scene *scene)
+{
+  if (scene->r.flag & SCER_PRV_RANGE) {
+    return {scene->r.psfra, scene->r.pefra};
+  }
+  return {scene->r.sfra, scene->r.efra};
+}
+
 void BKE_scene_remove_rigidbody_object(Main *bmain, Scene *scene, Object *ob, const bool free_us)
 {
   /* remove rigid body constraint from world before removing object */
