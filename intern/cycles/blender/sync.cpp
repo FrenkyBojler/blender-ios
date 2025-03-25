@@ -856,12 +856,9 @@ SceneParams BlenderSync::get_scene_params(BL::Scene &b_scene,
     params.shadingsystem = SHADINGSYSTEM_OSL;
   }
 
-  if (background || (use_developer_ui && get_enum(cscene, "debug_bvh_type"))) {
-    params.bvh_type = BVH_TYPE_STATIC;
-  }
-  else {
-    params.bvh_type = BVH_TYPE_DYNAMIC;
-  }
+
+  params.bvh_type = BVH_TYPE_DYNAMIC;
+
 
   params.use_bvh_compact_structure = RNA_boolean_get(&cscene, "debug_use_compact_bvh");
   params.num_bvh_time_steps = RNA_int_get(&cscene, "debug_bvh_time_steps");
