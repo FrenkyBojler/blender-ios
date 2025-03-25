@@ -34,7 +34,7 @@
  *
  * There are currently three types of variables: string, integer, and float.
  * There can only be a single variable with a given name across all variable
- * type. For example, you can't have both a string *and* integer variable both
+ * types. For example, you can't have both a string *and* integer variable both
  * with the name "bob".
  */
 class VariableMap {
