@@ -459,10 +459,10 @@ void VKDescriptorSetTracker::finalize_descriptor_set(
 
 void VKDescriptorSetTracker::discard_last_descriptor_set(Offsets &offsets)
 {
-  vk_buffer_views_.resize(offsets.buffer_info_offset);
+  vk_write_descriptor_sets_.resize(offsets.write_offset);
   vk_descriptor_image_infos_.resize(offsets.image_info_offset);
   vk_descriptor_buffer_infos_.resize(offsets.buffer_info_offset);
-  vk_write_descriptor_sets_.resize(offsets.write_offset);
+  vk_buffer_views_.resize(offsets.buffer_views_offset);
 }
 
 void VKDescriptorSetTracker::upload_descriptor_sets()
