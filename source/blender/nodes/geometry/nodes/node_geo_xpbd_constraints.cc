@@ -712,8 +712,8 @@ static void bend_twist__eval_positions(const ConstraintEvalParams &params,
   VArraySpan<float> betas = *attributes->lookup_or_default<float>(
       ATTR_BETA, AttrDomain::Point, 0.0f);
   /* XXX plain float4 attribute is not supported, have to store it as float + float3. */
-  VArraySpan<float3> darboux = *lookup_or_warn<float3>(
-      *attributes, "darboux", AttrDomain::Point, float3(0.0f), params.error_message_add);
+  VArraySpan<float3> darboux_vectors = *lookup_or_warn<float3>(
+      *attributes, "darboux_vector", AttrDomain::Point, float3(0.0f), params.error_message_add);
   SpanAttributeWriter<float3> lambda_writer = attributes->lookup_or_add_for_write_span<float3>(
       "lambda", AttrDomain::Point);
   SpanAttributeWriter<float> delta_rotation1_w_writer =
@@ -746,7 +746,7 @@ static void bend_twist__eval_positions(const ConstraintEvalParams &params,
     }
     const float weight_rot1 = math::safe_divide(2.0f, trace(params.local_inertia[point1]));
     const float weight_rot2 = math::safe_divide(2.0f, trace(params.local_inertia[point2]));
-    const float3 &darboux_vector = darboux[index];
+    const float3 &darboux_vector = darboux_vectors[index];
     float3 &lambda = lambda_writer.span[index];
     float &delta_rotation1_w = delta_rotation1_w_writer.span[index];
     float3 &delta_rotation1_xyz = delta_rotation1_xyz_writer.span[index];
