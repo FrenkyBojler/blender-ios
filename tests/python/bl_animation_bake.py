@@ -3,15 +3,15 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 import unittest
-import bpy
 import sys
 import pathlib
 
+import bpy
 from bpy_extras import anim_utils
 
 
 """
-blender -b --factory-startup --python tests/python/bl_animation_bake.py -- --testdir tests/data/animation/
+blender -b --factory-startup --python tests/python/bl_animation_bake.py
 """
 
 OBJECT_BAKE_OPTIONS = anim_utils.BakeOptions(
@@ -31,6 +31,7 @@ OBJECT_BAKE_OPTIONS = anim_utils.BakeOptions(
 
 
 class ObjectBakeTest(unittest.TestCase):
+    """This tests the animation baking to document the current behavior without any attempt of declaring that behavior correct or good."""
     obj: bpy.types.Object
 
     def setUp(self) -> None:
@@ -42,15 +43,15 @@ class ObjectBakeTest(unittest.TestCase):
     def test_bake_object_without_animation(self):
         self.assertEqual(self.obj.animation_data.action, None)
 
-        anim_utils.bake_action_objects(((self.obj, None),), frames=range(0, 10), bake_options=OBJECT_BAKE_OPTIONS)
+        anim_utils.bake_action_objects([(self.obj, None)], frames=range(0, 10), bake_options=OBJECT_BAKE_OPTIONS)
 
         action = self.obj.animation_data.action
-        self.assertTrue(action is not None, "Baking without an existing action should create an action")
+        self.assertIsNotNone(action, "Baking without an existing action should create an action")
         self.assertEqual(len(action.slots), 1, "Baking should have created a slot")
         self.assertEqual(action.slots[0], self.obj.animation_data.action_slot)
         channelbag = anim_utils.action_get_channelbag_for_slot(action, action.slots[0])
 
-        self.assertTrue(channelbag is not None)
+        self.assertIsNotNone(channelbag)
         self.assertEqual(len(channelbag.fcurves), 9, "If no animation is present, FCurves are created for all channels")
 
         for fcurve in channelbag.fcurves:
@@ -69,20 +70,20 @@ class ObjectBakeTest(unittest.TestCase):
         self.obj.keyframe_insert("location")
 
         # Passing None here will create a new action.
-        anim_utils.bake_action_objects(((self.obj, None),), frames=range(0, 10), bake_options=OBJECT_BAKE_OPTIONS)
+        anim_utils.bake_action_objects([(self.obj, None)], frames=range(0, 10), bake_options=OBJECT_BAKE_OPTIONS)
 
         self.assertNotEqual(action, self.obj.animation_data.action, "Expected baking to result in a new action")
         baked_action = self.obj.animation_data.action
         self.assertEqual(len(baked_action.slots), 1)
         channelbag = anim_utils.action_get_channelbag_for_slot(baked_action, self.obj.animation_data.action_slot)
 
-        self.assertTrue(channelbag is not None)
+        self.assertIsNotNone(channelbag)
         self.assertEqual(len(channelbag.fcurves), 9)
 
         for fcurve in channelbag.fcurves:
             self.assertEqual(len(fcurve.keyframe_points), 10)
             self.assertAlmostEqual(fcurve.keyframe_points[-1].co.x, 9,
-                                   6, "Baking deletes all keys outside the given range")
+                                   6, f"Baking to a new action should delete all keys outside the given range ({fcurve.data_path})")
 
     def test_bake_object_animation_to_existing_action(self):
         action = bpy.data.actions.new("test_action")
@@ -95,19 +96,19 @@ class ObjectBakeTest(unittest.TestCase):
         self.obj.keyframe_insert("location")
 
         # Passing the action as the second element of the tuple means that it will be written into.
-        anim_utils.bake_action_objects(((self.obj, action),), frames=range(0, 10), bake_options=OBJECT_BAKE_OPTIONS)
+        anim_utils.bake_action_objects([(self.obj, action)], frames=range(0, 10), bake_options=OBJECT_BAKE_OPTIONS)
 
         self.assertEqual(self.obj.animation_data.action, action)
         self.assertEqual(len(action.slots), 1)
         channelbag = anim_utils.action_get_channelbag_for_slot(action, self.obj.animation_data.action_slot)
 
-        self.assertTrue(channelbag is not None)
+        self.assertIsNotNone(channelbag)
         self.assertEqual(len(channelbag.fcurves), 9)
 
         for fcurve in channelbag.fcurves:
             if fcurve.data_path == "location":
                 self.assertAlmostEqual(fcurve.keyframe_points[-1].co.x, 15,
-                                       6, "Baking over an existing action preserves all keys even those out of range")
+                                       6, f"Baking over an existing action should preserve all keys even those out of range ({fcurve.data_path})")
                 self.assertEqual(len(fcurve.keyframe_points), 11)
             else:
                 self.assertAlmostEqual(fcurve.keyframe_points[-1].co.x, 9, 6)
@@ -132,10 +133,10 @@ class ObjectBakeTest(unittest.TestCase):
         obj2.location = (2, 1, 0)
         obj2.keyframe_insert("location")
 
-        self.assertTrue(self.obj.animation_data.action_slot is not None)
-        self.assertTrue(obj2.animation_data.action_slot is not None)
+        self.assertIsNotNone(self.obj.animation_data.action_slot)
+        self.assertIsNotNone(obj2.animation_data.action_slot)
 
-        anim_utils.bake_action_objects(((obj2, None),), frames=range(0, 10), bake_options=OBJECT_BAKE_OPTIONS)
+        anim_utils.bake_action_objects([(obj2, None)], frames=range(0, 10), bake_options=OBJECT_BAKE_OPTIONS)
 
         self.assertNotEqual(action, obj2.animation_data.action, "Expected baking to result in a new action")
         baked_action = obj2.animation_data.action
@@ -174,10 +175,10 @@ class ObjectBakeTest(unittest.TestCase):
 
         self.assertEqual(len(action.slots), 2)
 
-        self.assertTrue(self.obj.animation_data.action_slot is not None)
-        self.assertTrue(obj2.animation_data.action_slot is not None)
+        self.assertIsNotNone(self.obj.animation_data.action_slot)
+        self.assertIsNotNone(obj2.animation_data.action_slot)
 
-        anim_utils.bake_action_objects(((obj2, action),), frames=range(0, 10), bake_options=OBJECT_BAKE_OPTIONS)
+        anim_utils.bake_action_objects([(obj2, action)], frames=range(0, 10), bake_options=OBJECT_BAKE_OPTIONS)
 
         self.assertEqual(action, obj2.animation_data.action)
         self.assertEqual(len(action.slots), 2, "Didn't expect baking to create a new slot")
@@ -185,14 +186,14 @@ class ObjectBakeTest(unittest.TestCase):
 
         channelbag = anim_utils.action_get_channelbag_for_slot(action, obj2.animation_data.action_slot)
 
-        self.assertTrue(channelbag is not None)
+        self.assertIsNotNone(channelbag)
         self.assertEqual(len(channelbag.fcurves), 9)
 
         for fcurve in channelbag.fcurves:
             # The keyframes should match the animation of obj2, not self.obj.
             if fcurve.data_path == "location":
                 self.assertAlmostEqual(fcurve.keyframe_points[-1].co.x, 15,
-                                       6, "Baking over an existing action preserves all keys even those out of range")
+                                       6, f"Baking over an existing action should preserve all keys even those out of range ({fcurve.data_path})")
                 self.assertEqual(len(fcurve.keyframe_points), 11)
                 if fcurve.array_index == 0:
                     self.assertAlmostEqual(fcurve.keyframe_points[-1].co.y, 2, 6)

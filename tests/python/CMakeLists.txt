@@ -512,8 +512,6 @@ add_blender_test(
 add_blender_test(
   bl_animation_bake
   --python ${CMAKE_CURRENT_LIST_DIR}/bl_animation_bake.py
-  --
-  --testdir "${TEST_SRC_DIR}/animation"
 )
 
 add_blender_test(
