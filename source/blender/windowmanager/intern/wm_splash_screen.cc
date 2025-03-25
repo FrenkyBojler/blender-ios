@@ -248,7 +248,7 @@ static void wm_block_splash_close_on_fileselect(bContext *C, void *arg1, void * 
 
   /* Check for the event as this will run before the new window/area has been created. */
   bool has_fileselect = false;
-  LISTBASE_FOREACH (const wmEvent *, event, &win->event_queue) {
+  LISTBASE_FOREACH (const wmEvent *, event, &win->runtime->event_queue) {
     if (event->type == EVT_FILESELECT) {
       has_fileselect = true;
       break;
@@ -406,7 +406,9 @@ static uiBlock *wm_block_splash_create(bContext *C, ARegion *region, void * /*ar
   return block;
 }
 
-static int wm_splash_invoke(bContext *C, wmOperator * /*op*/, const wmEvent * /*event*/)
+static wmOperatorStatus wm_splash_invoke(bContext *C,
+                                         wmOperator * /*op*/,
+                                         const wmEvent * /*event*/)
 {
   UI_popup_block_invoke(C, wm_block_splash_create, nullptr, nullptr);
 
@@ -483,7 +485,9 @@ static uiBlock *wm_block_about_create(bContext *C, ARegion *region, void * /*arg
   return block;
 }
 
-static int wm_splash_about_invoke(bContext *C, wmOperator * /*op*/, const wmEvent * /*event*/)
+static wmOperatorStatus wm_splash_about_invoke(bContext *C,
+                                               wmOperator * /*op*/,
+                                               const wmEvent * /*event*/)
 {
   UI_popup_block_invoke(C, wm_block_about_create, nullptr, nullptr);
 

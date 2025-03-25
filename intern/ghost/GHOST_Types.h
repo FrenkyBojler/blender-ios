@@ -746,7 +746,21 @@ typedef struct {
   VkSurfaceFormatKHR surface_format;
   /** Resolution of the image. */
   VkExtent2D extent;
+  /** Semaphore to wait before updating the image. */
+  VkSemaphore acquire_semaphore;
+  /** Semaphore to signal after the image has been updated. */
+  VkSemaphore present_semaphore;
 } GHOST_VulkanSwapChainData;
+
+typedef struct {
+  VkInstance instance;
+  VkPhysicalDevice physical_device;
+  VkDevice device;
+  uint32_t graphic_queue_family;
+  VkQueue queue;
+  void *queue_mutex;
+} GHOST_VulkanHandles;
+
 #endif
 
 typedef enum {
