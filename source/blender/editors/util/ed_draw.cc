@@ -961,10 +961,10 @@ void ED_region_image_render_region_draw(
   if (passepartout_alpha > 0) {
     /* Darken the area outside the frame. */
     immUniformColor4f(0, 0, 0, passepartout_alpha);
-    immRectf(pos, -100000, y2, 100000, 100000);
-    immRectf(pos, -100000, y1, 100000, -100000);
-    immRectf(pos, -100000, y1, x1, y2);
-    immRectf(pos, x2, y1, 100000, y2);
+    immRectf(pos, -500000, y2, 500000, 500000);
+    immRectf(pos, -500000, y1, 500000, -500000);
+    immRectf(pos, -500000, y1, x1, y2);
+    immRectf(pos, x2, y1, 500000, y2);
   }
 
   float wire_color[3];
