@@ -289,11 +289,17 @@ wmDrag *WM_drag_data_create(bContext *C, int icon, eWM_DragDataType type, void *
       /* The asset-list case is special: We get multiple assets from context and attach them to the
        * drag item. */
     case WM_DRAG_ASSET_LIST: {
+      wmDrag *single_drag = static_cast<wmDrag *>(poin);
+      wmDragAsset *single_asset_drag = single_drag && (single_drag->type == WM_DRAG_ASSET) ?
+                                           static_cast<wmDragAsset *>(single_drag->poin) :
+                                           nullptr;
+
       blender::Vector<PointerRNA> asset_links = CTX_data_collection_get(C, "selected_assets");
       for (const PointerRNA &ptr : asset_links) {
         const AssetRepresentationHandle *asset = static_cast<const AssetRepresentationHandle *>(
             ptr.data);
-        WM_drag_add_asset_list_item(drag, asset);
+        WM_drag_add_asset_list_item(
+            drag, asset, single_asset_drag ? &single_asset_drag->import_settings : nullptr);
       }
       break;
     }
@@ -875,7 +881,8 @@ wmDragAssetCatalog *WM_drag_get_asset_catalog_data(const wmDrag *drag)
 }
 
 void WM_drag_add_asset_list_item(wmDrag *drag,
-                                 const blender::asset_system::AssetRepresentation *asset)
+                                 const blender::asset_system::AssetRepresentation *asset,
+                                 const AssetImportSettings *import_settings)
 {
   BLI_assert(drag->type == WM_DRAG_ASSET_LIST);
 
@@ -891,11 +898,12 @@ void WM_drag_add_asset_list_item(wmDrag *drag,
   else {
     drag_asset->is_external = true;
 
-    AssetImportSettings import_settings{};
-    import_settings.method = ASSET_IMPORT_APPEND;
-    import_settings.use_instance_collections = false;
+    AssetImportSettings fallback_import_settings{};
+    fallback_import_settings.method = ASSET_IMPORT_APPEND;
+    fallback_import_settings.use_instance_collections = false;
 
-    drag_asset->asset_data.external_info = WM_drag_create_asset_data(asset, import_settings);
+    drag_asset->asset_data.external_info = WM_drag_create_asset_data(
+        asset, import_settings ? *import_settings : fallback_import_settings);
   }
   BLI_addtail(&drag->asset_items, drag_asset);
 }

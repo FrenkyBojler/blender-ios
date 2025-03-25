@@ -123,6 +123,6 @@ void ui_but_drag_start(bContext *C, uiBut *but)
   /* Special feature for assets: We add another drag item that supports multiple assets. It
    * gets the assets from context. */
   if (ELEM(but->dragtype, WM_DRAG_ASSET, WM_DRAG_ID)) {
-    WM_event_start_drag(C, ICON_NONE, WM_DRAG_ASSET_LIST, nullptr, WM_DRAG_NOP);
+    WM_event_start_drag(C, ICON_NONE, WM_DRAG_ASSET_LIST, drag, WM_DRAG_NOP);
   }
 }

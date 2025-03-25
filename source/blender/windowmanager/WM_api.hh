@@ -1606,7 +1606,8 @@ wmDragAssetCatalog *WM_drag_get_asset_catalog_data(const wmDrag *drag);
  * \note Does not store \a asset in any way, so it's fine to pass a temporary.
  */
 void WM_drag_add_asset_list_item(wmDrag *drag,
-                                 const blender::asset_system::AssetRepresentation *asset);
+                                 const blender::asset_system::AssetRepresentation *asset,
+                                 const AssetImportSettings *import_settings);
 
 const ListBase *WM_drag_asset_list_get(const wmDrag *drag);
 
