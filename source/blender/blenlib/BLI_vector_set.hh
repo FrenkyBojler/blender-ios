@@ -461,19 +461,19 @@ class VectorSet {
   }
 
   /**
-   * Returns the key that is stored in the vector set that compares equal to the given key. If the
-   * key is not in the set, the given default value is returned instead.
+   * Returns the key that compares equal to the given key. If the key is not in the set, the given
+   * default value is returned instead.
    */
-  const Key &lookup_key_default(const Key &key, const Key &default_value) const
+  Key lookup_key_default(const Key &key, const Key &default_value) const
   {
     return this->lookup_key_default_as(key, default_value);
   }
-  template<typename ForwardKey>
-  const Key &lookup_key_default_as(const ForwardKey &key, const Key &default_key) const
+  template<typename ForwardKey, typename... ForwardDefault>
+  Key lookup_key_default_as(const ForwardKey &key, ForwardDefault &&...default_key) const
   {
     const Key *ptr = this->lookup_key_ptr_as(key);
     if (ptr == nullptr) {
-      return default_key;
+      return Key(std::forward<ForwardDefault>(default_key)...);
     }
     return *ptr;
   }
