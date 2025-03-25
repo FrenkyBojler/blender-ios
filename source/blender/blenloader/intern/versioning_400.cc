@@ -6482,6 +6482,14 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
     }
   }
 
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 10)) {
+    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+      scene->toolsettings->snap_playhead_mode |= SCE_SNAP_TO_STRIPS | SCE_SNAP_TO_KEYS;
+      scene->toolsettings->snap_step_frames = 1;
+      scene->toolsettings->snap_step_seconds = 1;
+    }
+  }
+
   /* Always run this versioning; meshes are written with the legacy format which always needs to
    * be converted to the new format on file load. Can be moved to a subversion check in a larger
    * breaking release. */
