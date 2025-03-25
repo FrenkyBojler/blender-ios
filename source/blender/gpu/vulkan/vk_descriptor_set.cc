@@ -350,13 +350,102 @@ void VKDescriptorSetTracker::update_descriptor_set(VKContext &context,
   }
   state_manager.is_dirty = false;
 
+  Offsets offsets = {
+      VK_NULL_HANDLE,
+      vk_buffer_views_.size(),
+      vk_descriptor_image_infos_.size(),
+      vk_descriptor_buffer_infos_.size(),
+      vk_write_descriptor_sets_.size(),
+  };
+
   /* Allocate a new descriptor set. */
+  vk_descriptor_set = VK_NULL_HANDLE;
   VkDescriptorSetLayout vk_descriptor_set_layout = shader.vk_descriptor_set_layout_get();
-  vk_descriptor_set = context.descriptor_pools_get().allocate(vk_descriptor_set_layout);
-  BLI_assert(vk_descriptor_set != VK_NULL_HANDLE);
-  debug::object_label(vk_descriptor_set, shader.name_get());
   const VKDevice &device = VKBackend::get().device;
   bind_shader_resources(device, state_manager, shader, access_info);
+
+  std::optional<VkDescriptorSet> identical_descriptor_set = find_descriptor_set(
+      vk_descriptor_set_layout, offsets);
+  if (identical_descriptor_set.has_value()) {
+    discard_last_descriptor_set(offsets);
+    vk_descriptor_set = *identical_descriptor_set;
+  }
+  else {
+    vk_descriptor_set = context.descriptor_pools_get().allocate(vk_descriptor_set_layout);
+    BLI_assert(vk_descriptor_set != VK_NULL_HANDLE);
+    debug::object_label(vk_descriptor_set, shader.name_get());
+    offsets.vk_descriptor_set = vk_descriptor_set;
+    finalize_descriptor_set(vk_descriptor_set_layout, offsets);
+  }
+}
+
+std::optional<VkDescriptorSet> VKDescriptorSetTracker::find_descriptor_set(
+    VkDescriptorSetLayout vk_descriptor_set_layout, Offsets &offsets)
+{
+  const Vector<Offsets> &all_offsets = descriptor_set_offsets_.lookup_or_add_default(
+      vk_descriptor_set_layout);
+  for (const Offsets &other_offset : all_offsets) {
+    /* Check same buffer views. */
+    bool is_same = true;
+    for (int64_t index : IndexRange(vk_buffer_views_.size() - offsets.buffer_views_offset)) {
+      const VkBufferView &other_buffer =
+          vk_buffer_views_[other_offset.buffer_views_offset + index];
+      const VkBufferView &buffer = vk_buffer_views_[offsets.buffer_views_offset + index];
+      if (other_buffer != buffer) {
+        is_same = false;
+      }
+    }
+
+    /* Check same image info */
+    if (is_same) {
+      for (int64_t index :
+           IndexRange(vk_descriptor_image_infos_.size() - offsets.image_info_offset))
+      {
+        const VkDescriptorImageInfo &other_info =
+            vk_descriptor_image_infos_[other_offset.image_info_offset + index];
+        const VkDescriptorImageInfo &info =
+            vk_descriptor_image_infos_[offsets.image_info_offset + index];
+        if (other_info != info) {
+          is_same = false;
+        }
+      }
+    }
+
+    /* Check same buffer info */
+    if (is_same) {
+      for (int64_t index :
+           IndexRange(vk_descriptor_buffer_infos_.size() - offsets.buffer_info_offset))
+      {
+        const VkDescriptorBufferInfo &other_info =
+            vk_descriptor_buffer_infos_[other_offset.image_info_offset + index];
+        const VkDescriptorBufferInfo &info =
+            vk_descriptor_buffer_infos_[offsets.image_info_offset + index];
+        if (other_info != info) {
+          is_same = false;
+        }
+      }
+    }
+
+    /* Found a match. */
+    if (is_same) {
+      return other_offset.vk_descriptor_set;
+    }
+  }
+
+  return std::nullopt;
+}
+
+void VKDescriptorSetTracker::finalize_descriptor_set(
+    VkDescriptorSetLayout vk_descriptor_set_layout, Offsets &offsets)
+{
+}
+
+void VKDescriptorSetTracker::discard_last_descriptor_set(Offsets &offsets)
+{
+  vk_buffer_views_.resize(offsets.buffer_info_offset);
+  vk_descriptor_image_infos_.resize(offsets.image_info_offset);
+  vk_descriptor_buffer_infos_.resize(offsets.buffer_info_offset);
+  vk_write_descriptor_sets_.resize(offsets.write_offset);
 }
 
 void VKDescriptorSetTracker::upload_descriptor_sets()

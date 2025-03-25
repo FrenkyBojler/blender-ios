@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include "BLI_map.hh"
 #include "BLI_utility_mixins.hh"
 #include "BLI_vector.hh"
 
@@ -86,6 +87,30 @@ class VKDescriptorSetTracker {
 
   /* Last used layout to identify changes. */
   VkDescriptorSetLayout vk_descriptor_set_layout_ = VK_NULL_HANDLE;
+
+  struct Offsets {
+    VkDescriptorSet vk_descriptor_set = VK_NULL_HANDLE;
+    int64_t buffer_info_offset;
+    int64_t image_info_offset;
+    int64_t buffer_views_offset;
+    int64_t write_offset;
+  };
+  Map<VkDescriptorSetLayout, Vector<Offsets>> descriptor_set_offsets_;
+  /**
+   * Find a descriptor set that uses the same bindings as the given one.
+   *
+   * The provided offsets and must be the point to bindings that are last added. They are used to
+   * identify how many bindings would be needed. of each kind.
+   *
+   * Returns std::nullopt when no previous identical descriptor set could be found.
+   */
+  std::optional<VkDescriptorSet> find_descriptor_set(
+      VkDescriptorSetLayout vk_descriptor_set_layout, Offsets &offsets);
+  void finalize_descriptor_set(VkDescriptorSetLayout vk_descriptor_set_layout, Offsets &offsets);
+  /**
+   * Discard the last added descriptor set.
+   */
+  void discard_last_descriptor_set(Offsets &offsets);
 
  public:
   VkDescriptorSet vk_descriptor_set = VK_NULL_HANDLE;
