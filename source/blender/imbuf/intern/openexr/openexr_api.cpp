@@ -466,9 +466,9 @@ static void openexr_header_compression(Header *header, int compression, int qual
   }
 }
 
-static int openexr_header_get_compression(const Header *header)
+static int openexr_header_get_compression(const Header &header)
 {
-  switch (header->compression()) {
+  switch (header.compression()) {
     case NO_COMPRESSION:
       return R_IMF_EXR_CODEC_NONE;
     case RLE_COMPRESSION:
@@ -2250,7 +2250,7 @@ ImBuf *imb_load_openexr(const uchar *mem, size_t size, int flags, char colorspac
 
       ibuf = IMB_allocImBuf(width, height, is_alpha ? 32 : 24, 0);
       ibuf->foptions.flag |= exr_is_half_float(*file) ? OPENEXR_HALF : 0;
-      ibuf->foptions.flag |= openexr_header_get_compression(&file->header(0));
+      ibuf->foptions.flag |= openexr_header_get_compression(file_header);
 
       if (hasXDensity(file_header)) {
         /* Convert inches to meters. */
