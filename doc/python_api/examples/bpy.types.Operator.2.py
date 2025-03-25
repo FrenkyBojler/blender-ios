@@ -13,7 +13,7 @@ When an operator is called via ``bpy.ops``, the execution context depends
 on the argument provided to ``bpy.ops``. By default, it uses execute().
 When an operator is activated from a button or menu item, it follows
 the setting in :class:`UILayout.operator_context`. In most cases, invoke() is used.
-When an operator is activated via a key shortcut, it defaults to invoke(),
+Running an operator via a key shortcut always uses invoke(),
 and this behavior cannot be changed.
 
 This example shows how to define an operator which gets mouse input to
