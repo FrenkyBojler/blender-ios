@@ -1,1 +1,2 @@
 Referenced by issue #95752, blender crashes when editing two objects at once
+Referenced by pull request #136497, Fix #136491: crash 'Select Linked' after 'Select Boundary Loop'
