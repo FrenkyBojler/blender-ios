@@ -418,7 +418,7 @@ bool ED_undo_is_legacy_compatible_for_property(bContext *C, ID *id, PointerRNA &
     Object *obact = BKE_view_layer_active_object_get(view_layer);
     if (obact != nullptr) {
       if (obact->mode & (OB_MODE_ALL_PAINT & ~OB_MODE_WEIGHT_PAINT)) {
-        /* For all non-weightpaint paint modes: Don't store property changes when painting.
+        /* For all non-weight-paint paint modes: Don't store property changes when painting.
          * Weight Paint uses global undo, and thus doesn't need to be special-cased here. */
         CLOG_INFO(&LOG, 1, "skipping undo for paint-mode");
         return false;
@@ -658,8 +658,6 @@ bool ED_undo_operator_repeat(bContext *C, wmOperator *op)
          * NOTE: WM_operator_check_ui_enabled() jobs test _must_ stay in sync with this. */
         (WM_jobs_test(wm, scene, WM_JOB_TYPE_ANY) == 0))
     {
-      int retval;
-
       if (G.debug & G_DEBUG) {
         printf("redo_cb: operator redo %s\n", op->type->name);
       }
@@ -678,7 +676,7 @@ bool ED_undo_operator_repeat(bContext *C, wmOperator *op)
         }
       }
 
-      retval = WM_operator_repeat(C, op);
+      const wmOperatorStatus retval = WM_operator_repeat(C, op);
       if ((retval & OPERATOR_FINISHED) == 0) {
         if (G.debug & G_DEBUG) {
           printf("redo_cb: operator redo failed: %s, return %d\n", op->type->name, retval);

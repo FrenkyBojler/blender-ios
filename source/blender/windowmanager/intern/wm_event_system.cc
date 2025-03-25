@@ -1152,7 +1152,7 @@ void WM_operator_region_active_win_set(bContext *C)
  */
 static void wm_operator_reports(bContext *C,
                                 wmOperator *op,
-                                const int retval,
+                                const wmOperatorStatus retval,
                                 const bool caller_owns_reports)
 {
   if (G.background == 0 && caller_owns_reports == false) { /* Popup. */
@@ -2374,27 +2374,26 @@ BLI_INLINE bool wm_eventmatch(const wmEvent *winevent, const wmKeyMapItem *kmi)
 
   /* Account for rare case of when these keys are used as the 'type' not as modifiers. */
   if (kmi->shift != KM_ANY) {
-    const bool shift = (winevent->modifier & KM_SHIFT) != 0;
-    if ((shift != bool(kmi->shift)) && !ELEM(winevent->type, EVT_LEFTSHIFTKEY, EVT_RIGHTSHIFTKEY))
-    {
+    const int8_t shift = (winevent->modifier & KM_SHIFT) ? KM_MOD_HELD : KM_NOTHING;
+    if ((shift != kmi->shift) && !ELEM(winevent->type, EVT_LEFTSHIFTKEY, EVT_RIGHTSHIFTKEY)) {
       return false;
     }
   }
   if (kmi->ctrl != KM_ANY) {
-    const bool ctrl = (winevent->modifier & KM_CTRL) != 0;
-    if (ctrl != bool(kmi->ctrl) && !ELEM(winevent->type, EVT_LEFTCTRLKEY, EVT_RIGHTCTRLKEY)) {
+    const int8_t ctrl = (winevent->modifier & KM_CTRL) ? KM_MOD_HELD : KM_NOTHING;
+    if ((ctrl != kmi->ctrl) && !ELEM(winevent->type, EVT_LEFTCTRLKEY, EVT_RIGHTCTRLKEY)) {
       return false;
     }
   }
   if (kmi->alt != KM_ANY) {
-    const bool alt = (winevent->modifier & KM_ALT) != 0;
-    if (alt != bool(kmi->alt) && !ELEM(winevent->type, EVT_LEFTALTKEY, EVT_RIGHTALTKEY)) {
+    const int8_t alt = (winevent->modifier & KM_ALT) ? KM_MOD_HELD : KM_NOTHING;
+    if ((alt != kmi->alt) && !ELEM(winevent->type, EVT_LEFTALTKEY, EVT_RIGHTALTKEY)) {
       return false;
     }
   }
   if (kmi->oskey != KM_ANY) {
-    const bool oskey = (winevent->modifier & KM_OSKEY) != 0;
-    if ((oskey != bool(kmi->oskey)) && (winevent->type != EVT_OSKEY)) {
+    const int8_t oskey = (winevent->modifier & KM_OSKEY) ? KM_MOD_HELD : KM_NOTHING;
+    if ((oskey != kmi->oskey) && (winevent->type != EVT_OSKEY)) {
       return false;
     }
   }
@@ -2914,13 +2913,12 @@ static eHandlerActionFlag wm_handler_fileselect_do(bContext *C,
       /* Needed for #UI_popup_menu_reports. */
 
       if (val == EVT_FILESELECT_EXEC) {
-        int retval;
-
         if (handler->op->type->flag & OPTYPE_UNDO) {
           wm->op_undo_depth++;
         }
 
-        retval = handler->op->type->exec(C, handler->op);
+        const wmOperatorStatus retval = handler->op->type->exec(C, handler->op);
+        OPERATOR_RETVAL_CHECK(retval);
 
         /* XXX check this carefully, `CTX_wm_manager(C) == wm` is a bit hackish. */
         if (handler->op->type->flag & OPTYPE_UNDO && CTX_wm_manager(C) == wm) {
@@ -3471,7 +3469,7 @@ static eHandlerActionFlag wm_handlers_do_intern(bContext *C,
                   event->customdata = &single_lb;
 
                   const wmOperatorCallContext opcontext = wm_drop_operator_context_get(drop);
-                  int op_retval =
+                  const wmOperatorStatus op_retval =
                       drop->ot ? wm_operator_call_internal(
                                      C, drop->ot, drop->ptr, nullptr, opcontext, false, event) :
                                  OPERATOR_CANCELLED;
