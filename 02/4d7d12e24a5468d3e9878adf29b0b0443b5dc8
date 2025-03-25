@@ -6,3 +6,4 @@ Referenced by issue #131977, Memory leak after remeshing in sculpt mode
 Referenced by issue #134707, Dynamic paint broken in last 4.5 alpha
 Referenced by issue #136317, Mantaflow moving Collision not detected
 Referenced by pull request #136443, Fix #136317: Mantaflow moving Collision not detected
+Referenced by commit caf8951a0c39831ddd5242326d2e57bb8008c28c, Fix #136317: Mantaflow moving Collision not detected
