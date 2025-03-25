@@ -171,16 +171,9 @@ void ED_screen_draw_edges(wmWindow *win)
     }
   }
 
-  if (!active_area && G.moving & G_TRANSFORM_WM) {
-    active_area = BKE_screen_find_area_xy(screen, SPACE_TYPE_ANY, win->eventstate->xy);
-    /* We don't want an active area if at a border edge. */
-    if (active_area) {
-      rcti rect = active_area->totrct;
-      BLI_rcti_pad(&rect, -BORDERPADDING, -BORDERPADDING);
-      if (!BLI_rcti_isect_pt_v(&rect, win->eventstate->xy)) {
-        active_area = nullptr;
-      }
-    }
+  if (G.moving & G_TRANSFORM_WM) {
+    /* We don't want an active area when resizing, otherwise outline for active area flickers, see: #136314. */
+    active_area = nullptr;
   }
 
   const blender::int2 win_size = WM_window_native_pixel_size(win);
