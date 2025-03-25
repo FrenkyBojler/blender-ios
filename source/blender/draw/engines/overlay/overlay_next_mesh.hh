@@ -765,7 +765,7 @@ class MeshUVs : Overlay {
       wireframe_ps_.draw_expand(geom, GPU_PRIM_TRIS, 2, 1, res_handle);
     }
 
-    if (show_face_ && has_active_object_uvmap) {
+    if (show_face_ && has_active_object_uvmap && face_opacity > 0.0f) {
       faces_ps_.push_constant("uvOpacity", face_opacity);
       gpu::Batch *geom = DRW_mesh_batch_cache_get_uv_faces(*ob, mesh);
       faces_ps_.draw(geom, res_handle);
@@ -829,7 +829,9 @@ class MeshUVs : Overlay {
         analysis_ps_.draw(geom, res_handle);
       }
     }
-    else if (show_face_ && (has_active_object_uvmap || has_active_edit_uvmap) && !is_uv_editable) {
+    else if (show_face_ && (has_active_object_uvmap || has_active_edit_uvmap) && !is_uv_editable &&
+             space_image->uv_face_opacity > 0.0f)
+    {
       faces_ps_.push_constant("uvOpacity", space_image->uv_face_opacity);
       gpu::Batch *face_geom = DRW_mesh_batch_cache_get_uv_faces(ob, mesh);
       faces_ps_.draw(face_geom, res_handle);
