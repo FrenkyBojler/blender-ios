@@ -284,14 +284,14 @@ static int get_keyframe_snap_target(bContext *C,
 
 static int get_second_snap_target(Scene *scene, const int timeline_frame, const int step)
 {
-  const blender::int2 scene_range = BKE_scene_playback_range_get(scene);
-  return BKE_scene_frame_snap_by_seconds(scene, step, timeline_frame - scene_range.x) +
-         scene_range.x;
+  const int start_frame = scene->r.sfra;
+  return BKE_scene_frame_snap_by_seconds(scene, step, timeline_frame - start_frame) + start_frame;
 }
 
-static int get_frame_snap_target(const int timeline_frame, const int step)
+static int get_frame_snap_target(const Scene *scene, const int timeline_frame, const int step)
 {
-  return round(timeline_frame / float(step)) * step;
+  const int start_frame = scene->r.sfra;
+  return (round((timeline_frame - start_frame) / float(step)) * step) + start_frame;
 }
 
 static int seq_frame_apply_snap(bContext *C, const int timeline_frame)
@@ -354,7 +354,8 @@ static int action_frame_apply_snap(bContext *C, ChangeFrameData &op_data, const 
   }
 
   if (tool_settings->snap_playhead_mode & SCE_SNAP_TO_FRAME) {
-    const int snap_target = get_frame_snap_target(timeline_frame, tool_settings->snap_step_frames);
+    const int snap_target = get_frame_snap_target(
+        scene, timeline_frame, tool_settings->snap_step_frames);
     if (abs(snap_target - timeline_frame) < abs(snap_frame - timeline_frame)) {
       snap_frame = snap_target;
     }
@@ -398,7 +399,8 @@ static int graph_frame_apply_snap(bContext *C, ChangeFrameData &op_data, const i
   }
 
   if (tool_settings->snap_playhead_mode & SCE_SNAP_TO_FRAME) {
-    const int snap_target = get_frame_snap_target(timeline_frame, tool_settings->snap_step_frames);
+    const int snap_target = get_frame_snap_target(
+        scene, timeline_frame, tool_settings->snap_step_frames);
     if (abs(snap_target - timeline_frame) < abs(snap_frame - timeline_frame)) {
       snap_frame = snap_target;
     }
@@ -449,7 +451,8 @@ static int nla_frame_apply_snap(bContext *C, const int timeline_frame)
   }
 
   if (tool_settings->snap_playhead_mode & SCE_SNAP_TO_FRAME) {
-    const int snap_target = get_frame_snap_target(timeline_frame, tool_settings->snap_step_frames);
+    const int snap_target = get_frame_snap_target(
+        scene, timeline_frame, tool_settings->snap_step_frames);
     if (abs(snap_target - timeline_frame) < abs(snap_frame - timeline_frame)) {
       snap_frame = snap_target;
     }
