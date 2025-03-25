@@ -9912,6 +9912,7 @@ void BPY_free_srna_pytype(StructRNA *srna)
   " | :class:`bpy.types.FileHandler`" \
   " | :class:`bpy.types.PropertyGroup`" \
   " | :class:`bpy.types.AddonPreferences`" \
+  " | :class:`bpy.types.NodeTree`" \
   " | :class:`bpy.types.Node`" \
   " | :class:`bpy.types.NodeSocket`" \
   "]"
