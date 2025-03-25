@@ -3543,6 +3543,7 @@ static void do_brush_action(const Depsgraph &depsgraph,
   /* Update last stroke position. */
   ups.last_stroke_valid = true;
 
+  /* Update the redraw bounds with the bounds of the BVH nodes from the current symmetry pass. */
   ss.cache->redraw_bounds = bounds::merge(ss.cache->redraw_bounds, pbvh.calc_bounds(node_mask));
 }
 
