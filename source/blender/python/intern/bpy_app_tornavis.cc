@@ -22,9 +22,9 @@ static PyStructSequence_Field app_tornavis_info_fields[] = {
 };
 
 static PyStructSequence_Desc app_tornavis_info_desc = {
-    "bpy.app.tornavis",                                                /* name */
+    "bpy.app.tornavis",                                    /* name */
     "This module contains options about tornavis project", /* doc */
-    app_tornavis_info_fields,                                              /* fields */
+    app_tornavis_info_fields,                              /* fields */
     ARRAY_SIZE(app_tornavis_info_fields) - 1,
 };
 
@@ -32,23 +32,21 @@ static PyObject *make_tornavis_info()
 {
   PyObject *tornavis_info;
   PyObject *list;
-  int pos=0;
+  int pos = 0;
   char *patch = nullptr;
-  
+
   tornavis_info = PyStructSequence_New(&BlenderAppTornavisType);
   if (tornavis_info == nullptr) {
     return nullptr;
   }
-  
+
   list = PyList_New(0);
-  
+
   PyStructSequence_SET_ITEM(tornavis_info, pos++, list);
-  
-  
-  for (int i =0 ; (patch = MB_patch_get(i)); i++) {
+
+  for (int i = 0; (patch = MB_patch_get(i)); i++) {
     PyList_Append(list, PyUnicode_FromString(patch));
   }
-  
 
   return tornavis_info;
 }

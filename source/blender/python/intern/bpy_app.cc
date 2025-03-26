@@ -22,8 +22,8 @@
 #include "bpy_app_opensubdiv.hh"
 #include "bpy_app_openvdb.hh"
 #include "bpy_app_sdl.hh"
-#include "bpy_app_usd.hh"
 #include "bpy_app_tornavis.h"
+#include "bpy_app_usd.hh"
 
 #include "bpy_app_translations.hh"
 
