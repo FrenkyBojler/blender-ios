@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2024 Blender Authors
+/* SPDX-FileCopyrightText: 2025 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -9,6 +9,7 @@
 #ifdef WITH_IO_FBX
 
 #  include "BKE_context.hh"
+#  include "BKE_file_handler.hh"
 #  include "BKE_report.hh"
 
 #  include "BLI_string.h"
@@ -134,7 +135,7 @@ void WM_OT_fbx_import(wmOperatorType *ot)
 {
   PropertyRNA *prop;
 
-  ot->name = "Import FBX";
+  ot->name = "Import FBX (experimental)";
   ot->description = "Import FBX file into current scene";
   ot->idname = "WM_OT_fbx_import";
 
@@ -212,5 +213,19 @@ void WM_OT_fbx_import(wmOperatorType *ot)
   prop = RNA_def_string(ot->srna, "filter_glob", "*.fbx", 0, "Extension Filter", "");
   RNA_def_property_flag(prop, PROP_HIDDEN);
 }
+
+namespace blender::ed::io {
+void fbx_file_handler_add()
+{
+  auto fh = std::make_unique<blender::bke::FileHandlerType>();
+  STRNCPY(fh->idname, "IO_FH_fbx_experimental");
+  STRNCPY(fh->import_operator, "WM_OT_fbx_import");
+  STRNCPY(fh->label, "FBX");
+  STRNCPY(fh->file_extensions_str, ".fbx");
+  fh->poll_drop = poll_file_object_drop;
+  bke::file_handler_add(std::move(fh));
+}
+
+}  // namespace blender::ed::io
 
 #endif /* WITH_IO_FBX */

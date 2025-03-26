@@ -384,7 +384,6 @@ static void add_image_textures(Main *bmain,
         BKE_image_release_ibuf(image, ibuf, lock);
 
         if (has_alpha) {
-          //@TODO: add to list of cycles decals
           link_sockets(ntree, image_node, "Alpha", bsdf, "Alpha");
         }
       }
