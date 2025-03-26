@@ -1107,6 +1107,7 @@ static void panel_draw_aligned_widgets(const uiStyle *style,
   const uiFontStyle *fontstyle = (is_subpanel) ? &style->widget : &style->paneltitle;
 
   const int header_height = BLI_rcti_size_y(header_rect);
+  const int header_width = BLI_rcti_size_x(header_rect);
   const int scaled_unit = round_fl_to_int(UI_UNIT_X / aspect);
 
   /* Offset triangle and text to the right for sub-panels. */
@@ -1124,11 +1125,16 @@ static void panel_draw_aligned_widgets(const uiStyle *style,
   {
     const float size_y = BLI_rcti_size_y(&widget_rect);
     GPU_blend(GPU_BLEND_ALPHA);
+    float alpha = 0.8f;
+    /* Dim as its space is reduced to zero. */
+    if (header_width < (scaled_unit * 2)) {
+      alpha *= std::max(float(header_width) / float(scaled_unit * 2), 0.0f);
+    }
     UI_icon_draw_ex(widget_rect.xmin + size_y * 0.2f,
                     widget_rect.ymin + size_y * (UI_panel_is_closed(panel) ? 0.17f : 0.14f),
                     UI_panel_is_closed(panel) ? ICON_RIGHTARROW : ICON_DOWNARROW_HLT,
                     aspect * UI_INV_SCALE_FAC,
-                    0.8f,
+                    alpha,
                     0.0f,
                     title_color,
                     false,
@@ -1140,7 +1146,7 @@ static void panel_draw_aligned_widgets(const uiStyle *style,
   if (panel->drawname && panel->drawname[0] != '\0') {
     rcti title_rect;
     title_rect.xmin = widget_rect.xmin + (panel->labelofs / aspect) + scaled_unit * 1.1f;
-    title_rect.xmax = widget_rect.xmax;
+    title_rect.xmax = widget_rect.xmax - scaled_unit;
     title_rect.ymin = widget_rect.ymin - 2.0f / aspect;
     title_rect.ymax = widget_rect.ymax;
 
@@ -1170,8 +1176,15 @@ static void panel_draw_aligned_widgets(const uiStyle *style,
     const int drag_widget_size = header_height * 0.7f;
     const int col_tint = 84;
     float color_high[4], color_dark[4];
+
     UI_GetThemeColorShade4fv(TH_PANEL_HEADER, col_tint, color_high);
     UI_GetThemeColorShade4fv(TH_PANEL_BACK, -col_tint, color_dark);
+
+    if (header_width < (scaled_unit * 4)) {
+      color_high[3] *= std::max(header_width / float(scaled_unit * 4), 0.0f);
+      color_dark[3] *= std::max(header_width / float(scaled_unit * 4), 0.0f);
+    }
+
     if (panel_custom_pin_to_last_get(panel)) {
       GPU_blend(GPU_BLEND_ALPHA);
       UI_icon_draw_ex(widget_rect.xmax - scaled_unit * 1.15,
@@ -1186,6 +1199,7 @@ static void panel_draw_aligned_widgets(const uiStyle *style,
       GPU_blend(GPU_BLEND_NONE);
     }
     else {
+      GPU_blend(GPU_BLEND_ALPHA);
       GPU_matrix_push();
       /* The magic numbers here center the widget vertically and offset it to the left.
        * Currently this depends on the height of the header, although it could be independent. */
@@ -1196,6 +1210,7 @@ static void panel_draw_aligned_widgets(const uiStyle *style,
       GPU_batch_program_set_builtin(batch, GPU_SHADER_3D_FLAT_COLOR);
       GPU_batch_draw(batch);
       GPU_matrix_pop();
+      GPU_blend(GPU_BLEND_NONE);
     }
   }
 }
