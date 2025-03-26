@@ -6620,21 +6620,41 @@ void calc_factors_common_mesh_indexed(const Depsgraph &depsgraph,
                                       Vector<float> &r_factors,
                                       Vector<float> &r_distances)
 {
+  const Span<int> verts = node.verts();
+  r_factors.resize(verts.size());
+  r_distances.resize(verts.size());
+
+  calc_factors_common_mesh_indexed(depsgraph,
+                                   brush,
+                                   object,
+                                   attribute_data,
+                                   vert_positions,
+                                   vert_normals,
+                                   node,
+                                   r_factors.as_mutable_span(),
+                                   r_distances.as_mutable_span());
+}
+void calc_factors_common_mesh_indexed(const Depsgraph &depsgraph,
+                                      const Brush &brush,
+                                      const Object &object,
+                                      const MeshAttributeData &attribute_data,
+                                      const Span<float3> vert_positions,
+                                      const Span<float3> vert_normals,
+                                      const bke::pbvh::MeshNode &node,
+                                      const MutableSpan<float> factors,
+                                      const MutableSpan<float> distances)
+{
   const SculptSession &ss = *object.sculpt;
   const StrokeCache &cache = *ss.cache;
 
   const Span<int> verts = node.verts();
 
-  r_factors.resize(verts.size());
-  const MutableSpan<float> factors = r_factors;
   fill_factor_from_hide_and_mask(attribute_data.hide_vert, attribute_data.mask, verts, factors);
   filter_region_clip_factors(ss, vert_positions, verts, factors);
   if (brush.flag & BRUSH_FRONTFACE) {
     calc_front_face(cache.view_normal_symm, vert_normals, verts, factors);
   }
 
-  r_distances.resize(verts.size());
-  const MutableSpan<float> distances = r_distances;
   calc_brush_distances(
       ss, vert_positions, verts, eBrushFalloffShape(brush.falloff_shape), distances);
   filter_distances_with_radius(cache.radius, distances, factors);

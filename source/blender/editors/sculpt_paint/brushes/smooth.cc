@@ -58,7 +58,6 @@ struct LocalData {
 
 BLI_NOINLINE static void apply_positions_faces(const Sculpt &sd,
                                                const bke::pbvh::MeshNode &node,
-                                               const float strength,
                                                Object &object,
                                                LocalData &tls,
                                                const MutableSpan<float> factors,
@@ -68,8 +67,6 @@ BLI_NOINLINE static void apply_positions_faces(const Sculpt &sd,
   SculptSession &ss = *object.sculpt;
 
   const Span<int> verts = node.verts();
-
-  scale_factors(factors, strength);
 
   tls.translations.resize(verts.size());
   const MutableSpan<float3> translations = tls.translations;
@@ -103,7 +100,8 @@ BLI_NOINLINE static void do_smooth_brush_mesh(const Depsgraph &depsgraph,
   const OffsetIndices<int> node_vert_offsets = create_node_vert_offsets(
       nodes, node_mask, node_offset_data);
   Array<float3> new_positions(node_vert_offsets.total_size());
-  Vector<Vector<float>> all_factors(node_mask.size());
+  Array<float> all_factors(node_vert_offsets.total_size());
+  Array<float> all_distances(node_vert_offsets.total_size());
 
   threading::EnumerableThreadSpecific<LocalData> all_tls;
 
@@ -114,24 +112,29 @@ BLI_NOINLINE static void do_smooth_brush_mesh(const Depsgraph &depsgraph,
     node_mask.foreach_index(GrainSize(1), [&](const int i, const int pos) {
       LocalData &tls = all_tls.local();
       const Span<int> verts = nodes[i].verts();
-      calc_factors_common_mesh_indexed(depsgraph,
-                                       brush,
-                                       object,
-                                       attribute_data,
-                                       position_data.eval,
-                                       vert_normals,
-                                       nodes[i],
-                                       all_factors[pos],
-                                       tls.distances);
-      const GroupedSpan<int> neighbors = calc_vert_neighbors_interior(faces,
-                                                                      corner_verts,
-                                                                      vert_to_face_map,
-                                                                      ss.vertex_info.boundary,
-                                                                      attribute_data.hide_poly,
-                                                                      verts,
-                                                                      all_factors[pos],
-                                                                      tls.neighbor_offsets,
-                                                                      tls.neighbor_data);
+      const MutableSpan<float> node_factors = all_factors.as_mutable_span().slice(
+          node_vert_offsets[pos]);
+      calc_factors_common_mesh_indexed(
+          depsgraph,
+          brush,
+          object,
+          attribute_data,
+          position_data.eval,
+          vert_normals,
+          nodes[i],
+          node_factors,
+          all_distances.as_mutable_span().slice(node_vert_offsets[pos]));
+      scale_factors(node_factors, strength);
+      const GroupedSpan<int> neighbors = calc_vert_neighbors_interior(
+          faces,
+          corner_verts,
+          vert_to_face_map,
+          ss.vertex_info.boundary,
+          attribute_data.hide_poly,
+          verts,
+          node_factors,
+          tls.neighbor_offsets,
+          tls.neighbor_data);
       smooth::neighbor_data_average_mesh_check_loose(
           position_data.eval,
           verts,
@@ -143,10 +146,9 @@ BLI_NOINLINE static void do_smooth_brush_mesh(const Depsgraph &depsgraph,
       LocalData &tls = all_tls.local();
       apply_positions_faces(sd,
                             nodes[i],
-                            strength,
                             object,
                             tls,
-                            all_factors[pos],
+                            all_factors.as_mutable_span().slice(node_vert_offsets[pos]),
                             new_positions.as_span().slice(node_vert_offsets[pos]),
                             position_data);
     });
