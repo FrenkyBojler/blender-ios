@@ -963,9 +963,9 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
 
       const float joint_min_distance = src_joints_min_distance[joint_index];
       
-      const ispc::ePredicateStatisics predicate_stat = ispc::float_more_then_single(batch_distances.data(), joint_min_distance, prefix_to_visit);
+      const int total_next = ispc::float_more_then_single_count(batch_distances.data(), joint_min_distance, prefix_to_visit);
 
-      if (UNLIKELY(predicate_stat == ispc::epsAll)) {
+      if (UNLIKELY(total_next == prefix_to_visit)) {
         if (depth_i == total_depth - 1) {
           continue;
         }
@@ -986,12 +986,15 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
       //                                                                prefix_to_visit);
 
       // const int total_next = ispc::predicate_indices_float_cmp(partition.data(), batch_distances.data(), prefix_to_visit, joint_min_distance);
-      int total_next;
-      if (predicate_stat == ispc::epsMixed) {
-        total_next = ispc::predicate_revers_indices_float_cmp(partition.data(), batch_distances.data(), prefix_to_visit, joint_min_distance);
-      } else {
-        BLI_assert(predicate_stat == ispc::epsNone);
-        total_next = 0;
+
+      int pertition_mapping_total = -1;
+      if (total_next > 0) {
+        pertition_mapping_total = ispc::predicate_partition_indices_float_cmp(partition.data(),
+                                                                              batch_distances.data(),
+                                                                              prefix_to_visit,
+                                                                              joint_min_distance,
+                                                                              total_next);
+        // ispc::predicate_revers_indices_float_cmp(partition.data(), batch_distances.data(), prefix_to_visit, joint_min_distance);
       }
 
       // const int total_next = partition_i(partition, [&](const int i) {
@@ -1008,14 +1011,20 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
       //   continue;
       // }
 
-      ispc::zip_if_larger_or_equal(batch_distances.cast<int>().data(), batch_distances.data(), prefix_to_visit, joint_min_distance);
+      // ispc::zip_if_larger_or_equal(batch_distances.cast<int>().data(), batch_distances.data(), prefix_to_visit, joint_min_distance);
+      if (total_next > 0) {
+        // ispc::parition_as_gather_front_only(batch_distances.cast<int>().data(), partition.data(), buffer.data(), pertition_mapping_total);
+        ispc::parition_as_gather(batch_distances.cast<int>().data(), partition.data(), buffer.data(), pertition_mapping_total);
+      }
+      
       distance_invertion(power_value, batch_distances.drop_back(total_next));
 
       if (LIKELY(total_next > 0)) {
         if (value_type.is<float>()) {
           const MutableSpan<float> batch_values = batch_values_buffer[0].as_mutable_span().take_front(prefix_to_visit);
           // ispc::gather_ints_buffer(batch_values.cast<int>().data(), partition.data(), buffer.data(), prefix_to_visit, total_next);
-          ispc::scatter_ints_buffer(batch_values.cast<int>().data(), partition.data(), buffer.data(), prefix_to_visit, total_next);
+          // ispc::scatter_ints_buffer(batch_values.cast<int>().data(), partition.data(), buffer.data(), prefix_to_visit, total_next);
+          ispc::parition_as_gather(batch_values.cast<int>().data(), partition.data(), buffer.data(), pertition_mapping_total);
           
           // ispc::gather_ints_buffer_segmented(batch_values.cast<int>().data(),
           //                                    partition.data(),
@@ -1027,7 +1036,9 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
         } else {
           MutableSpan<float> batch_values = batch_values_buffer[0].as_mutable_span().take_front(prefix_to_visit);
           // ispc::gather_ints_buffer(batch_values.cast<int>().data(), partition.data(), buffer.data(), prefix_to_visit, total_next);
-          ispc::scatter_ints_buffer(batch_values.cast<int>().data(), partition.data(), buffer.data(), prefix_to_visit, total_next);
+          // ispc::scatter_ints_buffer(batch_values.cast<int>().data(), partition.data(), buffer.data(), prefix_to_visit, total_next);
+          ispc::parition_as_gather(batch_values.cast<int>().data(), partition.data(), buffer.data(), pertition_mapping_total);
+          
           // ispc::gather_ints_buffer_segmented(batch_values.cast<int>().data(),
           //                                    partition.data(),
           //                                    buffer.data(),
@@ -1037,7 +1048,8 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
           
           batch_values = batch_values_buffer[1].as_mutable_span().take_front(prefix_to_visit);
           // ispc::gather_ints_buffer(batch_values.cast<int>().data(), partition.data(), buffer.data(), prefix_to_visit, total_next);
-          ispc::scatter_ints_buffer(batch_values.cast<int>().data(), partition.data(), buffer.data(), prefix_to_visit, total_next);
+          // ispc::scatter_ints_buffer(batch_values.cast<int>().data(), partition.data(), buffer.data(), prefix_to_visit, total_next);
+          ispc::parition_as_gather(batch_values.cast<int>().data(), partition.data(), buffer.data(), pertition_mapping_total);
           // ispc::gather_ints_buffer_segmented(batch_values.cast<int>().data(),
           //                                    partition.data(),
           //                                    buffer.data(),
@@ -1047,7 +1059,8 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
           
           batch_values = batch_values_buffer[2].as_mutable_span().take_front(prefix_to_visit);
           // ispc::gather_ints_buffer(batch_values.cast<int>().data(), partition.data(), buffer.data(), prefix_to_visit, total_next);
-          ispc::scatter_ints_buffer(batch_values.cast<int>().data(), partition.data(), buffer.data(), prefix_to_visit, total_next);
+          // ispc::scatter_ints_buffer(batch_values.cast<int>().data(), partition.data(), buffer.data(), prefix_to_visit, total_next);
+          ispc::parition_as_gather(batch_values.cast<int>().data(), partition.data(), buffer.data(), pertition_mapping_total);
           // ispc::gather_ints_buffer_segmented(batch_values.cast<int>().data(),
           //                                    partition.data(),
           //                                    buffer.data(),
@@ -1061,23 +1074,24 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
         const float joint_value = src_joints_value.typed<float>()[joint_index];
 
         const MutableSpan<float> batch_values = batch_values_buffer[0].as_mutable_span().take_front(prefix_to_visit);
-        ispc::one_mul_add_n(batch_values.data() + total_next, batch_distances.data(), joint_value, prefix_to_visit - total_next);
+        ispc::one_mul_add_n(batch_values.data() + total_next, batch_distances.data() + total_next, joint_value, prefix_to_visit - total_next);
       } else {
         const float3 joint_value = src_joints_value.typed<float3>()[joint_index];
 
         MutableSpan<float> batch_values = batch_values_buffer[0].as_mutable_span().take_front(prefix_to_visit);
-        ispc::one_mul_add_n(batch_values.data() + total_next, batch_distances.data(), joint_value.x, prefix_to_visit - total_next);
+        ispc::one_mul_add_n(batch_values.data() + total_next, batch_distances.data() + total_next, joint_value.x, prefix_to_visit - total_next);
         
         batch_values = batch_values_buffer[1].as_mutable_span().take_front(prefix_to_visit);
-        ispc::one_mul_add_n(batch_values.data() + total_next, batch_distances.data(), joint_value.y, prefix_to_visit - total_next);
+        ispc::one_mul_add_n(batch_values.data() + total_next, batch_distances.data() + total_next, joint_value.y, prefix_to_visit - total_next);
         
         batch_values = batch_values_buffer[2].as_mutable_span().take_front(prefix_to_visit);
-        ispc::one_mul_add_n(batch_values.data() + total_next, batch_distances.data(), joint_value.z, prefix_to_visit - total_next);
+        ispc::one_mul_add_n(batch_values.data() + total_next, batch_distances.data() + total_next, joint_value.z, prefix_to_visit - total_next);
       }
 
       if (LIKELY(total_next > 0)) {
         // ispc::gather_ints_buffer(batch_indices.data(), partition.data(), buffer.data(), prefix_to_visit, total_next);
-        ispc::scatter_ints_buffer(batch_indices.data(), partition.data(), buffer.data(), prefix_to_visit, total_next);
+        // ispc::scatter_ints_buffer(batch_indices.data(), partition.data(), buffer.data(), prefix_to_visit, total_next);
+        ispc::parition_as_gather(batch_indices.cast<int>().data(), partition.data(), buffer.data(), pertition_mapping_total);
         
         // ispc::gather_ints_buffer_segmented(batch_indices.data(),
         //                                    partition.data(),
@@ -1087,7 +1101,8 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
         //                                    &back_indices);
 
         // ispc::gather_ints_buffer(batch_positions_x.cast<int>().data(), partition.data(), buffer.data(), prefix_to_visit, total_next);
-        ispc::scatter_ints_buffer(batch_positions_x.cast<int>().data(), partition.data(), buffer.data(), prefix_to_visit, total_next);
+        // ispc::scatter_ints_buffer(batch_positions_x.cast<int>().data(), partition.data(), buffer.data(), prefix_to_visit, total_next);
+        ispc::parition_as_gather(batch_positions_x.cast<int>().data(), partition.data(), buffer.data(), pertition_mapping_total);
         
         // ispc::gather_ints_buffer_segmented(batch_positions_x.cast<int>().data(),
         //                                    partition.data(),
@@ -1096,7 +1111,8 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
         //                                    &front_indices,
         //                                    &back_indices);
         // ispc::gather_ints_buffer(batch_positions_y.cast<int>().data(), partition.data(), buffer.data(), prefix_to_visit, total_next);
-        ispc::scatter_ints_buffer(batch_positions_y.cast<int>().data(), partition.data(), buffer.data(), prefix_to_visit, total_next);
+        // ispc::scatter_ints_buffer(batch_positions_y.cast<int>().data(), partition.data(), buffer.data(), prefix_to_visit, total_next);
+        ispc::parition_as_gather(batch_positions_y.cast<int>().data(), partition.data(), buffer.data(), pertition_mapping_total);
         
         // ispc::gather_ints_buffer_segmented(batch_positions_y.cast<int>().data(),
         //                                    partition.data(),
@@ -1108,7 +1124,8 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
         // /* Sice #partition indices are not needed after this gather its possible to use them as buffer instead of other extra memory. */
         // ispc::gather_ints_buffer(batch_positions_z.cast<int>().data(), partition.data(), partition.data(), prefix_to_visit, total_next);
         // ispc::gather_ints_buffer(batch_positions_z.cast<int>().data(), partition.data(), buffer.data(), prefix_to_visit, total_next);
-        ispc::scatter_ints_buffer(batch_positions_z.cast<int>().data(), partition.data(), buffer.data(), prefix_to_visit, total_next);
+        // ispc::scatter_ints_buffer(batch_positions_z.cast<int>().data(), partition.data(), buffer.data(), prefix_to_visit, total_next);
+        ispc::parition_as_gather(batch_positions_z.cast<int>().data(), partition.data(), buffer.data(), pertition_mapping_total);
         
         // ispc::gather_ints_buffer_segmented(batch_positions_z.cast<int>().data(),
         //                                    partition.data(),
