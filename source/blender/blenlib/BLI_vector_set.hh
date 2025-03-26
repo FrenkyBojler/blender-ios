@@ -676,33 +676,35 @@ class VectorSet {
    * Extracts all inserted values as a #Vector. The values are removed from the #VectorSet. This
    * takes O(1) time.
    *
-   * If the values were stored in the inline-buffer, the values are moved to a newly allocated
-   * array first. The caller does not have to any special handling in this case.
+   * The caller does not need special handling for when the data is stored inline in the vector
+   * set.
    *
    * One can use this to create a #Vector without duplicates efficiently.
    */
   VectorT extract_vector()
   {
+    const int64_t size = this->size();
     if (this->is_inline()) {
       if (this->is_empty()) {
         return {};
       }
-      const int64_t size = this->size();
-      Key *data = this->allocate_keys_array(size);
+      VectorData<Key, Allocator> data;
+      data.data = this->allocate_keys_array(size);
+      data.size = size;
+      data.capacity = size;
       try {
-        uninitialized_relocate_n(keys_, size, data);
+        uninitialized_relocate_n(keys_, size, data.data);
       }
       catch (...) {
-        this->deallocate_keys_array(data);
+        this->deallocate_keys_array(data.data);
         throw;
       }
-      keys_ = data;
-      usable_slots_ = size;
+      return data;
     }
 
     VectorData<Key, Allocator> data;
     data.data = keys_;
-    data.size = this->size();
+    data.size = size;
     data.capacity = usable_slots_;
 
     /* Reset some values so that the destructor does not free the data that is moved to the
@@ -731,12 +733,10 @@ class VectorSet {
         slots_.reinitialize(total_slots);
         if (keys_ != inline_buffer_) {
           this->deallocate_keys_array(keys_);
+          keys_ = inline_buffer_;
         }
         if (usable_slots > InlineBufferCapacity) {
           keys_ = this->allocate_keys_array(usable_slots);
-        }
-        else {
-          keys_ = inline_buffer_;
         }
       }
       catch (...) {
