@@ -125,16 +125,15 @@ BLI_NOINLINE static void do_smooth_brush_mesh(const Depsgraph &depsgraph,
           node_factors,
           all_distances.as_mutable_span().slice(node_vert_offsets[pos]));
       scale_factors(node_factors, strength);
-      const GroupedSpan<int> neighbors = calc_vert_neighbors_interior(
-          faces,
-          corner_verts,
-          vert_to_face_map,
-          ss.vertex_info.boundary,
-          attribute_data.hide_poly,
-          verts,
-          node_factors,
-          tls.neighbor_offsets,
-          tls.neighbor_data);
+      const GroupedSpan<int> neighbors = calc_vert_neighbors_interior(faces,
+                                                                      corner_verts,
+                                                                      vert_to_face_map,
+                                                                      ss.vertex_info.boundary,
+                                                                      attribute_data.hide_poly,
+                                                                      verts,
+                                                                      node_factors,
+                                                                      tls.neighbor_offsets,
+                                                                      tls.neighbor_data);
       smooth::neighbor_data_average_mesh_check_loose(
           position_data.eval,
           verts,
