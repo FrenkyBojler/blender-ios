@@ -10,6 +10,28 @@ from . import anim
 class PROPERTIES_HT_header(Header):
     bl_space_type = 'PROPERTIES'
 
+    @staticmethod
+    def _search_poll(space):
+        return (space.show_properties_tool or
+            space.show_properties_render or
+            space.show_properties_output or
+            space.show_properties_view_layer or
+            space.show_properties_scene or
+            space.show_properties_world or
+            space.show_properties_collection or
+            space.show_properties_object or
+            space.show_properties_modifiers or
+            space.show_properties_effects or
+            space.show_properties_particles or
+            space.show_properties_physics or
+            space.show_properties_constraints or
+            space.show_properties_data or
+            space.show_properties_bone or
+            space.show_properties_bone_constraints or
+            space.show_properties_material or
+            space.show_properties_texture
+        )
+
     def draw(self, context):
         layout = self.layout
         view = context.space_data
@@ -20,16 +42,17 @@ class PROPERTIES_HT_header(Header):
 
         layout.separator_spacer()
 
-        # The following is an ugly attempt to make the search button center-align better visually.
-        # A dummy icon is inserted that has to be scaled as the available width changes.
-        content_size_est = 160 * ui_scale
-        layout_scale = min(1, max(0, (region.width / content_size_est) - 1))
-        if layout_scale > 0:
-            row = layout.row()
-            row.scale_x = layout_scale
-            row.label(icon='BLANK1')
+        if self._search_poll(context.space_data):
+            # The following is an ugly attempt to make the search button center-align better visually.
+            # A dummy icon is inserted that has to be scaled as the available width changes.
+            content_size_est = 160 * ui_scale
+            layout_scale = min(1, max(0, (region.width / content_size_est) - 1))
+            if layout_scale > 0:
+                row = layout.row()
+                row.scale_x = layout_scale
+                row.label(icon='BLANK1')
 
-        layout.prop(view, "search_filter", icon='VIEWZOOM', text="")
+            layout.prop(view, "search_filter", icon='VIEWZOOM', text="")
 
         layout.separator_spacer()
 
