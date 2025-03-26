@@ -20,7 +20,8 @@
 #include "DNA_userdef_types.h"
 #include "DNA_windowmanager_types.h"
 
-#include "BLI_blenlib.h"
+#include "BLI_listbase.h"
+#include "BLI_path_utils.hh"
 #include "BLI_utildefines.h"
 
 #include "BKE_appdir.hh"
@@ -66,7 +67,7 @@ static void wm_block_splash_add_label(uiBlock *block, const char *label, int x, 
   UI_block_emboss_set(block, UI_EMBOSS_NONE);
 
   uiBut *but = uiDefBut(
-      block, UI_BTYPE_LABEL, 0, label, 0, y, x, UI_UNIT_Y, nullptr, 0, 0, nullptr);
+      block, UI_BTYPE_LABEL, 0, label, 0, y, x, UI_UNIT_Y, nullptr, 0, 0, std::nullopt);
   UI_but_drawflag_disable(but, UI_BUT_TEXT_LEFT);
   UI_but_drawflag_enable(but, UI_BUT_TEXT_RIGHT);
 
@@ -143,14 +144,14 @@ static ImBuf *wm_block_splash_image(int width, int *r_height)
             U.app_template, template_directory, sizeof(template_directory)))
     {
       BLI_path_join(splash_filepath, sizeof(splash_filepath), template_directory, "splash.png");
-      ibuf = IMB_loadiffname(splash_filepath, IB_rect, nullptr);
+      ibuf = IMB_loadiffname(splash_filepath, IB_byte_data, nullptr);
     }
   }
 
   if (ibuf == nullptr) {
     const char *custom_splash_path = BLI_getenv("BLENDER_CUSTOM_SPLASH");
     if (custom_splash_path) {
-      ibuf = IMB_loadiffname(custom_splash_path, IB_rect, nullptr);
+      ibuf = IMB_loadiffname(custom_splash_path, IB_byte_data, nullptr);
     }
   }
 
@@ -158,7 +159,7 @@ static ImBuf *wm_block_splash_image(int width, int *r_height)
     const uchar *splash_data = (const uchar *)datatoc_splash_png;
     size_t splash_data_size = datatoc_splash_png_size;
     ibuf = IMB_ibImageFromMemory(
-        splash_data, splash_data_size, IB_rect, nullptr, "<splash screen>");
+        splash_data, splash_data_size, IB_byte_data, nullptr, "<splash screen>");
   }
 
   if (ibuf) {
@@ -191,7 +192,7 @@ static ImBuf *wm_block_splash_banner_image(int *r_width,
 
   const char *custom_splash_path = BLI_getenv("BLENDER_CUSTOM_SPLASH_BANNER");
   if (custom_splash_path) {
-    ibuf = IMB_loadiffname(custom_splash_path, IB_rect, nullptr);
+    ibuf = IMB_loadiffname(custom_splash_path, IB_byte_data, nullptr);
   }
 
   if (!ibuf) {
@@ -247,7 +248,7 @@ static void wm_block_splash_close_on_fileselect(bContext *C, void *arg1, void * 
 
   /* Check for the event as this will run before the new window/area has been created. */
   bool has_fileselect = false;
-  LISTBASE_FOREACH (const wmEvent *, event, &win->event_queue) {
+  LISTBASE_FOREACH (const wmEvent *, event, &win->runtime->event_queue) {
     if (event->type == EVT_FILESELECT) {
       has_fileselect = true;
       break;
@@ -364,7 +365,8 @@ static uiBlock *wm_block_splash_create(bContext *C, ARegion *region, void * /*ar
 #  if defined(__APPLE__)
   if (is_using_macos_rosetta() > 0)
 #  elif defined(_M_X64)
-  if (strncmp(BLI_getenv("PROCESSOR_IDENTIFIER"), "ARM", 3) == 0)
+  const char *proc_id = BLI_getenv("PROCESSOR_IDENTIFIER");
+  if (proc_id && strncmp(proc_id, "ARM", 3) == 0)
 #  endif
   {
     uiItemS_ex(layout, 2.0f, LayoutSeparatorType::Line);
@@ -405,7 +407,9 @@ static uiBlock *wm_block_splash_create(bContext *C, ARegion *region, void * /*ar
   return block;
 }
 
-static int wm_splash_invoke(bContext *C, wmOperator * /*op*/, const wmEvent * /*event*/)
+static wmOperatorStatus wm_splash_invoke(bContext *C,
+                                         wmOperator * /*op*/,
+                                         const wmEvent * /*event*/)
 {
   UI_popup_block_invoke(C, wm_block_splash_create, nullptr, nullptr);
 
@@ -482,7 +486,9 @@ static uiBlock *wm_block_about_create(bContext *C, ARegion *region, void * /*arg
   return block;
 }
 
-static int wm_splash_about_invoke(bContext *C, wmOperator * /*op*/, const wmEvent * /*event*/)
+static wmOperatorStatus wm_splash_about_invoke(bContext *C,
+                                               wmOperator * /*op*/,
+                                               const wmEvent * /*event*/)
 {
   UI_popup_block_invoke(C, wm_block_about_create, nullptr, nullptr);
 

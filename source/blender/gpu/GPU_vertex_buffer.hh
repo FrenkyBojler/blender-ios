@@ -13,6 +13,7 @@
 #include "BLI_span.hh"
 #include "BLI_utildefines.h"
 
+#include "GPU_common.hh"
 #include "GPU_vertex_format.hh"
 
 enum GPUVertBufStatus {
@@ -294,3 +295,15 @@ uint GPU_vertbuf_get_memory_usage();
       verts = nullptr; \
     } \
   } while (0)
+
+namespace blender::gpu {
+
+class VertBufDeleter {
+ public:
+  void operator()(VertBuf *vbo)
+  {
+    GPU_vertbuf_discard(vbo);
+  }
+};
+
+}  // namespace blender::gpu

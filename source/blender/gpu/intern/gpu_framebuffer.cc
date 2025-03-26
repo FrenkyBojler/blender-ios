@@ -12,9 +12,7 @@
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
-#include "GPU_batch.hh"
 #include "GPU_capabilities.hh"
-#include "GPU_shader.hh"
 #include "GPU_texture.hh"
 
 #include "gpu_backend.hh"
@@ -734,7 +732,7 @@ GPUOffScreen *GPU_offscreen_create(int width,
                                    eGPUTextureUsage usage,
                                    char err_out[256])
 {
-  GPUOffScreen *ofs = MEM_cnew<GPUOffScreen>(__func__);
+  GPUOffScreen *ofs = MEM_callocN<GPUOffScreen>(__func__);
 
   /* Sometimes areas can have 0 height or width and this will
    * create a 1D texture which we don't want. */

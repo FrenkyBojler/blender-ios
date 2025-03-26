@@ -24,9 +24,7 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
-#include "spreadsheet_column.hh"
 #include "spreadsheet_intern.hh"
-#include "spreadsheet_row_filter.hh"
 #include "spreadsheet_row_filter_ui.hh"
 
 #include <sstream>
@@ -345,7 +343,7 @@ static void set_filter_expand_flag(const bContext * /*C*/, Panel *panel, short e
 void register_row_filter_panels(ARegionType &region_type)
 {
   {
-    PanelType *panel_type = MEM_cnew<PanelType>(__func__);
+    PanelType *panel_type = MEM_callocN<PanelType>(__func__);
     STRNCPY(panel_type->idname, "SPREADSHEET_PT_row_filters");
     STRNCPY(panel_type->label, N_("Filters"));
     STRNCPY(panel_type->category, "Filters");
@@ -356,7 +354,7 @@ void register_row_filter_panels(ARegionType &region_type)
   }
 
   {
-    PanelType *panel_type = MEM_cnew<PanelType>(__func__);
+    PanelType *panel_type = MEM_callocN<PanelType>(__func__);
     STRNCPY(panel_type->idname, "SPREADSHEET_PT_filter");
     STRNCPY(panel_type->label, "");
     STRNCPY(panel_type->category, "Filters");

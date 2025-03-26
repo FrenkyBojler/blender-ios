@@ -8,6 +8,8 @@
 
 #include "BKE_editmesh.hh"
 
+#include "BLI_math_geom.h"
+
 #include "GPU_index_buffer.hh"
 
 #include "extract_mesh.hh"
@@ -75,8 +77,8 @@ static void extract_tris_bmesh(const MeshRenderData &mr,
       if (BM_elem_flag_test(&face, BM_ELEM_HIDDEN)) {
         continue;
       }
-      const int loop_index = BM_elem_index_get(BM_FACE_FIRST_LOOP(&face));
-      const IndexRange bm_tris(poly_to_tri_count(face_index, loop_index),
+      const int corner_index = BM_elem_index_get(BM_FACE_FIRST_LOOP(&face));
+      const IndexRange bm_tris(poly_to_tri_count(face_index, corner_index),
                                bke::mesh::face_triangles_num(face.len));
       const IndexRange ibo_tris(face_tri_offsets[face_index], bm_tris.size());
       for (const int i : bm_tris.index_range()) {
@@ -90,43 +92,35 @@ static void extract_tris_bmesh(const MeshRenderData &mr,
   GPU_indexbuf_build_in_place_ex(&builder, 0, bm.totloop, false, &ibo);
 }
 
-static void create_material_subranges(const MeshRenderData &mr,
-                                      const SortedFaceData &face_sorted,
-                                      MeshBatchCache &cache,
-                                      gpu::IndexBuf &ibo)
+void create_material_subranges(const SortedFaceData &face_sorted,
+                               gpu::IndexBuf &tris_ibo,
+                               MutableSpan<gpu::IndexBuf *> ibos)
 {
   /* Create ibo sub-ranges. Always do this to avoid error when the standard surface batch
    * is created before the surfaces-per-material. */
   int mat_start = 0;
-  for (int i = 0; i < mr.materials_num; i++) {
+  for (const int i : face_sorted.tris_num_by_material.index_range()) {
     /* These IBOs have not been queried yet but we create them just in case they are needed
      * later since they are not tracked by mesh_buffer_cache_create_requested(). */
-    if (cache.tris_per_mat[i] == nullptr) {
-      cache.tris_per_mat[i] = GPU_indexbuf_calloc();
+    if (ibos[i] == nullptr) {
+      ibos[i] = GPU_indexbuf_calloc();
     }
     const int mat_tri_len = face_sorted.tris_num_by_material[i];
     /* Multiply by 3 because these are triangle indices. */
     const int start = mat_start * 3;
     const int len = mat_tri_len * 3;
-    GPU_indexbuf_create_subrange_in_place(cache.tris_per_mat[i], &ibo, start, len);
+    GPU_indexbuf_create_subrange_in_place(ibos[i], &tris_ibo, start, len);
     mat_start += mat_tri_len;
   }
 }
 
-void extract_tris(const MeshRenderData &mr,
-                  const SortedFaceData &face_sorted,
-                  MeshBatchCache &cache,
-                  gpu::IndexBuf &ibo)
+void extract_tris(const MeshRenderData &mr, const SortedFaceData &face_sorted, gpu::IndexBuf &ibo)
 {
   if (mr.extract_type == MeshExtractType::Mesh) {
     extract_tris_mesh(mr, face_sorted, ibo);
   }
   else {
     extract_tris_bmesh(mr, face_sorted, ibo);
-  }
-
-  if (mr.use_final_mesh && !cache.tris_per_mat.is_empty()) {
-    create_material_subranges(mr, face_sorted, cache, ibo);
   }
 }
 

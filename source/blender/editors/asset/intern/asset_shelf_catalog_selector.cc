@@ -15,6 +15,8 @@
 
 #include "DNA_screen_types.h"
 
+#include "BLI_listbase.h"
+
 #include "BKE_context.hh"
 #include "BKE_screen.hh"
 
@@ -152,7 +154,7 @@ class AssetCatalogSelectorTree : public ui::AbstractTreeView {
                                     0,
                                     UI_UNIT_X,
                                     UI_UNIT_Y,
-                                    (char *)&catalog_path_enabled_,
+                                    &catalog_path_enabled_,
                                     0,
                                     0,
                                     TIP_("Toggle catalog visibility in the asset shelf"));
@@ -227,7 +229,7 @@ void catalog_selector_panel_register(ARegionType *region_type)
     return;
   }
 
-  PanelType *pt = MEM_cnew<PanelType>(__func__);
+  PanelType *pt = MEM_callocN<PanelType>(__func__);
   STRNCPY(pt->idname, "ASSETSHELF_PT_catalog_selector");
   STRNCPY(pt->label, N_("Catalog Selector"));
   STRNCPY(pt->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);

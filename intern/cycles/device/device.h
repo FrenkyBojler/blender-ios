@@ -78,45 +78,30 @@ enum MetalRTSetting {
 
 class DeviceInfo {
  public:
-  DeviceType type;
+  DeviceType type = DEVICE_CPU;
   string description;
-  string id; /* used for user preferences, should stay fixed with changing hardware config */
-  int num;
-  bool display_device;          /* GPU is used as a display device. */
-  bool has_nanovdb;             /* Support NanoVDB volumes. */
-  bool has_mnee;                /* Support MNEE. */
-  bool has_osl;                 /* Support Open Shading Language. */
-  bool has_guiding;             /* Support path guiding. */
-  bool has_profiling;           /* Supports runtime collection of profiling info. */
-  bool has_peer_memory;         /* GPU has P2P access to memory of another GPU. */
-  bool has_gpu_queue;           /* Device supports GPU queue. */
-  bool use_hardware_raytracing; /* Use hardware instructions to accelerate ray tracing. */
-  bool use_metalrt_by_default;  /* Use MetalRT by default. */
-  KernelOptimizationLevel kernel_optimization_level; /* Optimization level applied to path tracing
-                                                      * kernels (Metal only). */
-  DenoiserTypeMask denoisers;                        /* Supported denoiser types. */
-  int cpu_threads;
+  /* used for user preferences, should stay fixed with changing hardware config */
+  string id = "CPU";
+  int num = 0;
+  bool display_device = false;          /* GPU is used as a display device. */
+  bool has_nanovdb = false;             /* Support NanoVDB volumes. */
+  bool has_mnee = true;                 /* Support MNEE. */
+  bool has_osl = false;                 /* Support Open Shading Language. */
+  bool has_guiding = false;             /* Support path guiding. */
+  bool has_profiling = false;           /* Supports runtime collection of profiling info. */
+  bool has_peer_memory = false;         /* GPU has P2P access to memory of another GPU. */
+  bool has_gpu_queue = false;           /* Device supports GPU queue. */
+  bool use_hardware_raytracing = false; /* Use hardware instructions to accelerate ray tracing. */
+  bool use_metalrt_by_default = false;  /* Use MetalRT by default. */
+  KernelOptimizationLevel kernel_optimization_level =
+      KERNEL_OPTIMIZATION_LEVEL_FULL;         /* Optimization level applied to path tracing
+                                               * kernels (Metal only). */
+  DenoiserTypeMask denoisers = DENOISER_NONE; /* Supported denoiser types. */
+  int cpu_threads = 0;
   vector<DeviceInfo> multi_devices;
   string error_msg;
 
-  DeviceInfo()
-  {
-    type = DEVICE_CPU;
-    id = "CPU";
-    num = 0;
-    cpu_threads = 0;
-    display_device = false;
-    has_nanovdb = false;
-    has_mnee = true;
-    has_osl = false;
-    has_guiding = false;
-    has_profiling = false;
-    has_peer_memory = false;
-    has_gpu_queue = false;
-    use_hardware_raytracing = false;
-    use_metalrt_by_default = false;
-    denoisers = DENOISER_NONE;
-  }
+  DeviceInfo() = default;
 
   bool operator==(const DeviceInfo &info) const
   {
@@ -130,6 +115,8 @@ class DeviceInfo {
   {
     return !(*this == info);
   }
+
+  bool contains_device_type(const DeviceType type) const;
 };
 
 /* Device */
@@ -247,6 +234,13 @@ class Device {
     return false;
   }
 
+  virtual bool is_shared(const void * /*shared_pointer*/,
+                         const device_ptr /*device_pointer*/,
+                         Device * /*sub_device*/)
+  {
+    return false;
+  }
+
   /* Graphics resources interoperability.
    *
    * The interoperability comes here by the meaning that the device is capable of computing result
@@ -313,8 +307,12 @@ class Device {
   friend class DeviceServer;
   friend class device_memory;
 
+  virtual void *host_alloc(const MemoryType type, const size_t size);
+  virtual void host_free(const MemoryType type, void *host_pointer, const size_t size);
+
   virtual void mem_alloc(device_memory &mem) = 0;
   virtual void mem_copy_to(device_memory &mem) = 0;
+  virtual void mem_move_to_host(device_memory &mem) = 0;
   virtual void mem_copy_from(
       device_memory &mem, const size_t y, size_t w, const size_t h, size_t elem) = 0;
   virtual void mem_zero(device_memory &mem) = 0;
@@ -337,12 +335,7 @@ class Device {
 class GPUDevice : public Device {
  protected:
   GPUDevice(const DeviceInfo &info_, Stats &stats_, Profiler &profiler_, bool headless_)
-      : Device(info_, stats_, profiler_, headless_),
-        texture_info(this, "texture_info", MEM_GLOBAL),
-
-        device_mem_map(),
-        device_mem_map_mutex()
-
+      : Device(info_, stats_, profiler_, headless_), texture_info(this, "texture_info", MEM_GLOBAL)
   {
   }
 
@@ -351,6 +344,7 @@ class GPUDevice : public Device {
 
   /* For GPUs that can use bindless textures in some way or another. */
   device_vector<TextureInfo> texture_info;
+  thread_mutex texture_info_mutex;
   bool need_texture_info = false;
   /* Returns true if the texture info was copied to the device (meaning, some more
    * re-initialization might be needed). */
@@ -372,20 +366,18 @@ class GPUDevice : public Device {
 
     texMemObject texobject = 0;
     arrayMemObject array = 0;
-
-    /* If true, a mapped host memory in shared_pointer is being used. */
-    bool use_mapped_host = false;
   };
   using MemMap = map<device_memory *, Mem>;
   MemMap device_mem_map;
   thread_mutex device_mem_map_mutex;
-  bool move_texture_to_host = false;
   /* Simple counter which will try to track amount of used device memory */
   size_t device_mem_in_use = 0;
 
   virtual void init_host_memory(const size_t preferred_texture_headroom = 0,
-                                size_t preferred_working_headroom = 0);
-  virtual void move_textures_to_host(const size_t size, bool for_texture);
+                                const size_t preferred_working_headroom = 0);
+  virtual void move_textures_to_host(const size_t size,
+                                     const size_t headroom,
+                                     const bool for_texture);
 
   /* Allocation, deallocation and copy functions, with corresponding
    * support of device/host allocations. */
@@ -396,19 +388,21 @@ class GPUDevice : public Device {
   /* total - amount of device memory, free - amount of available device memory */
   virtual void get_device_memory_info(size_t &total, size_t &free) = 0;
 
+  /* Device side memory. */
   virtual bool alloc_device(void *&device_pointer, const size_t size) = 0;
-
   virtual void free_device(void *device_pointer) = 0;
 
-  virtual bool alloc_host(void *&shared_pointer, const size_t size) = 0;
-
-  virtual void free_host(void *shared_pointer) = 0;
-
+  /* Shared memory. */
+  virtual bool shared_alloc(void *&shared_pointer, const size_t size) = 0;
+  virtual void shared_free(void *shared_pointer) = 0;
+  bool is_shared(const void *shared_pointer,
+                 const device_ptr device_pointer,
+                 Device *sub_device) override;
   /* This function should return device pointer corresponding to shared pointer, which
-   * is host buffer, allocated in `alloc_host`. The function should `true`, if such
-   * address transformation is possible and `false` otherwise. */
-  virtual void transform_host_pointer(void *&device_pointer, void *&shared_pointer) = 0;
+   * is host buffer, allocated in `shared_alloc`. */
+  virtual void *shared_to_device_pointer(const void *shared_pointer) = 0;
 
+  /* Memory copy. */
   virtual void copy_host_to_device(void *device_pointer,
                                    void *host_pointer,
                                    const size_t size) = 0;

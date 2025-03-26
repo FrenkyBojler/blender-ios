@@ -7,8 +7,6 @@
 #include <memory>
 
 #include "BLI_map.hh"
-#include "BLI_string_ref.hh"
-#include "BLI_vector_set.hh"
 
 #include "GPU_material.hh"
 #include "GPU_shader.hh"
@@ -18,9 +16,9 @@
 #include "NOD_derived_node_tree.hh"
 
 #include "COM_context.hh"
-#include "COM_operation.hh"
 #include "COM_pixel_operation.hh"
 #include "COM_scheduler.hh"
+#include "COM_shader_node.hh"
 
 namespace blender::compositor {
 
@@ -73,7 +71,7 @@ class ShaderOperation : public PixelOperation {
   ShaderOperation(Context &context, PixelCompileUnit &compile_unit, const Schedule &schedule);
 
   /* Free the GPU material. */
-  ~ShaderOperation();
+  ~ShaderOperation() override;
 
   /* Allocate the output results, bind the shader and all its needed resources, then dispatch the
    * shader. */
@@ -111,12 +109,18 @@ class ShaderOperation : public PixelOperation {
    *   operation, they are exposed as outputs to the shader operation itself. */
   static void construct_material(void *thunk, GPUMaterial *material);
 
-  /* Link the inputs of the node if needed. Unlinked inputs are ignored as they will be linked by
-   * the node compile method. If the input is linked to a node that is not part of the shader
-   * operation, the input will be exposed as an input to the shader operation and linked to it.
-   * While if the input is linked to a node that is part of the shader operation, then it is linked
-   * to that node in the GPU material node graph. */
+  /* Link the inputs of the node if needed. Unlinked inputs will be linked to constant values. If
+   * the input is linked to a node that is not part of the shader operation, the input will be
+   * exposed as an input to the shader operation and linked to it. While if the input is linked to
+   * a node that is part of the shader operation, then it is linked to that node in the GPU
+   * material node graph. */
   void link_node_inputs(DNode node);
+
+  /* Link the GPU stack of the given unlinked input to a constant value setter GPU node that
+   * supplies the value of the unlinked input. The value us taken from the given origin input,
+   * which will be equal to the input in most cases, but can also be an unlinked input of a group
+   * node */
+  void link_node_input_constant(const DInputSocket input, const DInputSocket origin);
 
   /* Given the input socket of a node that is part of the shader operation which is linked to the
    * given output socket of a node that is also part of the shader operation, just link the output

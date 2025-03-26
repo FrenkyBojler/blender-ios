@@ -13,6 +13,8 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_listbase.h"
+#include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
 #include "BLI_time.h"
 #include "BLI_utildefines.h"
@@ -212,11 +214,7 @@ static bool annotation_draw_poll(bContext *C)
   if (ED_operator_regionactive(C)) {
     /* check if current context can support GPencil data */
     if (ED_annotation_data_get_pointers(C, nullptr) != nullptr) {
-      /* check if Grease Pencil isn't already running */
-      if (ED_gpencil_session_active() == 0) {
-        return true;
-      }
-      CTX_wm_operator_poll_msg_set(C, "Annotation operator is already active");
+      return true;
     }
     else {
       CTX_wm_operator_poll_msg_set(C, "Failed to find Annotation data to draw into");
@@ -660,7 +658,7 @@ static short annotation_stroke_addpoint(tGPsdata *p,
           }
         }
 
-        view3d_region_operator_needs_opengl(p->win, p->region);
+        view3d_region_operator_needs_gpu(p->region);
         ED_view3d_depth_override(p->depsgraph, p->region, v3d, nullptr, mode, false, nullptr);
       }
 
@@ -1071,7 +1069,7 @@ static void annotation_free_stroke(bGPDframe *gpf, bGPDstroke *gps)
 
   if (gps->dvert) {
     BKE_gpencil_free_stroke_weights(gps);
-    MEM_freeN(gps->dvert);
+    MEM_freeN(static_cast<void *>(gps->dvert));
   }
 
   if (gps->triangles) {
@@ -1220,7 +1218,7 @@ static void annotation_stroke_doeraser(tGPsdata *p)
   if (p->area->spacetype == SPACE_VIEW3D) {
     if (p->flags & GP_PAINTFLAG_V3D_ERASER_DEPTH) {
       View3D *v3d = static_cast<View3D *>(p->area->spacedata.first);
-      view3d_region_operator_needs_opengl(p->win, p->region);
+      view3d_region_operator_needs_gpu(p->region);
       ED_view3d_depth_override(
           p->depsgraph, p->region, v3d, nullptr, V3D_DEPTH_NO_GPENCIL, false, &p->depths);
     }
@@ -1408,13 +1406,6 @@ static bool annotation_session_initdata(bContext *C, tGPsdata *p)
   }
   p->gpd = *gpd_ptr;
 
-  if (ED_gpencil_session_active() == 0) {
-    /* initialize undo stack,
-     * also, existing undo stack would make buffer drawn
-     */
-    gpencil_undo_init(p->gpd);
-  }
-
   /* clear out buffer (stored in gp-data), in case something contaminated it */
   annotation_session_validatebuffer(p);
 
@@ -1462,7 +1453,7 @@ static tGPsdata *annotation_session_initpaint(bContext *C)
   tGPsdata *p = nullptr;
 
   /* create new context data */
-  p = static_cast<tGPsdata *>(MEM_callocN(sizeof(tGPsdata), "Annotation Drawing Data"));
+  p = MEM_new<tGPsdata>("Annotation Drawing Data");
 
   /* Try to initialize context data
    * WARNING: This may not always succeed (e.g. using GP in an annotation-only context)
@@ -1472,7 +1463,7 @@ static tGPsdata *annotation_session_initpaint(bContext *C)
      * NOTE: It should be safe to just free the data, since failing context checks should
      * only happen when no data has been allocated.
      */
-    MEM_freeN(p);
+    MEM_delete(p);
     return nullptr;
   }
 
@@ -1517,7 +1508,7 @@ static void annotation_session_free(tGPsdata *p)
   if (p->depths) {
     ED_view3d_depths_free(p->depths);
   }
-  MEM_freeN(p);
+  MEM_delete(p);
 }
 
 /* init new stroke */
@@ -1690,7 +1681,7 @@ static void annotation_paint_strokeend(tGPsdata *p)
       }
     }
     /* need to restore the original projection settings before packing up */
-    view3d_region_operator_needs_opengl(p->win, p->region);
+    view3d_region_operator_needs_gpu(p->region);
     ED_view3d_depth_override(
         p->depsgraph, p->region, v3d, nullptr, mode, false, is_eraser ? nullptr : &p->depths);
   }
@@ -1881,9 +1872,6 @@ static void annotation_draw_exit(bContext *C, wmOperator *op)
      *       have been toggled at some point.
      */
     U.gp_eraser = p->radius;
-
-    /* clear undo stack */
-    gpencil_undo_finish();
 
     /* cleanup */
     annotation_paint_cleanup(p);
@@ -2197,7 +2185,7 @@ static void annotation_draw_apply_event(
 /* ------------------------------- */
 
 /* operator 'redo' (i.e. after changing some properties, but also for repeat last) */
-static int annotation_draw_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus annotation_draw_exec(bContext *C, wmOperator *op)
 {
   tGPsdata *p = nullptr;
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
@@ -2264,7 +2252,7 @@ static int annotation_draw_exec(bContext *C, wmOperator *op)
 /* ------------------------------- */
 
 /* start of interactive drawing part of operator */
-static int annotation_draw_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus annotation_draw_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   tGPsdata *p = nullptr;
 
@@ -2384,8 +2372,6 @@ static void annotation_stroke_end(wmOperator *op)
 
   annotation_paint_cleanup(p);
 
-  gpencil_undo_push(p->gpd);
-
   annotation_session_cleanup(p);
 
   p->status = GP_STATUS_IDLING;
@@ -2433,11 +2419,11 @@ static void annotation_add_missing_events(bContext *C,
 }
 
 /* events handling during interactive drawing part of operator */
-static int annotation_draw_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus annotation_draw_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   tGPsdata *p = static_cast<tGPsdata *>(op->customdata);
   /* Default exit state - pass through to support MMB view navigation, etc. */
-  int estate = OPERATOR_PASS_THROUGH;
+  wmOperatorStatus estate = OPERATOR_PASS_THROUGH;
 
 /* NOTE(mike erwin): Not quite what I was looking for, but a good start!
  * grease-pencil continues to draw on the screen while the 3D mouse moves the viewpoint.
@@ -2722,8 +2708,10 @@ static int annotation_draw_modal(bContext *C, wmOperator *op, const wmEvent *eve
       annotation_draw_exit(C, op);
       break;
 
-    case OPERATOR_RUNNING_MODAL | OPERATOR_PASS_THROUGH:
-      /* event doesn't need to be handled */
+      /* Event doesn't need to be handled. */
+      /* `OPERATOR_RUNNING_MODAL | OPERATOR_PASS_THROUGH` */
+    default:
+      /* Quiet warnings. */
       break;
   }
 

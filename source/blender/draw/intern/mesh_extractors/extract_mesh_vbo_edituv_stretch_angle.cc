@@ -6,6 +6,8 @@
  * \ingroup draw
  */
 
+#include "BLI_math_vector.h"
+
 #include "BKE_attribute.hh"
 #include "BKE_mesh.hh"
 
@@ -194,12 +196,14 @@ static void extract_uv_stretch_angle_mesh(const MeshRenderData &mr,
 
 void extract_edituv_stretch_angle(const MeshRenderData &mr, gpu::VertBuf &vbo)
 {
-  static GPUVertFormat format = {0};
-  if (format.attr_len == 0) {
+  static const GPUVertFormat format = []() {
+    GPUVertFormat format{};
     /* Waning: adjust #UVStretchAngle struct accordingly. */
     GPU_vertformat_attr_add(&format, "uv_angles", GPU_COMP_I16, 2, GPU_FETCH_INT_TO_FLOAT_UNIT);
     GPU_vertformat_attr_add(&format, "angle", GPU_COMP_I16, 1, GPU_FETCH_INT_TO_FLOAT_UNIT);
-  }
+    return format;
+  }();
+
   GPU_vertbuf_init_with_format(vbo, format);
   GPU_vertbuf_data_alloc(vbo, mr.corners_num);
   MutableSpan vbo_data = vbo.data<UVStretchAngle>();
@@ -214,12 +218,13 @@ void extract_edituv_stretch_angle(const MeshRenderData &mr, gpu::VertBuf &vbo)
 
 static const GPUVertFormat &get_edituv_stretch_angle_format_subdiv()
 {
-  static GPUVertFormat format = {0};
-  if (format.attr_len == 0) {
+  static const GPUVertFormat format = []() {
+    GPUVertFormat format{};
     /* Waning: adjust #UVStretchAngle struct accordingly. */
     GPU_vertformat_attr_add(&format, "angle", GPU_COMP_F32, 1, GPU_FETCH_FLOAT);
     GPU_vertformat_attr_add(&format, "uv_angles", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
-  }
+    return format;
+  }();
   return format;
 }
 
@@ -231,8 +236,8 @@ void extract_edituv_stretch_angle_subdiv(const MeshRenderData &mr,
   GPU_vertbuf_init_build_on_device(
       vbo, get_edituv_stretch_angle_format_subdiv(), subdiv_cache.num_subdiv_loops);
 
-  gpu::VertBuf *pos_nor = cache.final.buff.vbo.pos;
-  gpu::VertBuf *uvs = cache.final.buff.vbo.uv;
+  gpu::VertBuf *pos_nor = cache.final.buff.vbos.lookup(VBOType::Position).get();
+  gpu::VertBuf *uvs = cache.final.buff.vbos.lookup(VBOType::UVs).get();
 
   /* It may happen that the data for the UV editor is requested before (as a separate draw update)
    * the data for the mesh when switching to the `UV Editing` workspace, and therefore the position
@@ -276,10 +281,6 @@ void extract_edituv_stretch_angle_subdiv(const MeshRenderData &mr,
   uvs_offset *= subdiv_cache.num_subdiv_loops * 2;
 
   draw_subdiv_build_edituv_stretch_angle_buffer(subdiv_cache, pos_nor, uvs, uvs_offset, &vbo);
-
-  if (!cache.final.buff.vbo.pos) {
-    GPU_vertbuf_discard(pos_nor);
-  }
 }
 
 }  // namespace blender::draw

@@ -196,8 +196,11 @@ void VKTexture::read_sub(
   staging_buffer.create(device_memory_size,
                         VK_BUFFER_USAGE_TRANSFER_DST_BIT,
                         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
-                        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-                        VMA_ALLOCATION_CREATE_MAPPED_BIT);
+                        VK_MEMORY_PROPERTY_HOST_CACHED_BIT,
+                        /* Although we are only reading, we need to set the host access random bit
+                           to improve the performance on AMD GPUs. */
+                        VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT |
+                            VMA_ALLOCATION_CREATE_MAPPED_BIT);
 
   render_graph::VKCopyImageToBufferNode::CreateInfo copy_image_to_buffer = {};
   render_graph::VKCopyImageToBufferNode::Data &node_data = copy_image_to_buffer.node_data;
@@ -451,8 +454,8 @@ static VkImageUsageFlags to_vk_image_usage(const eGPUTextureUsage usage,
                                            const eGPUTextureFormatFlag format_flag)
 {
   const VKDevice &device = VKBackend::get().device;
-  const bool supports_local_read = !device.workarounds_get().dynamic_rendering_local_read;
-  const bool supports_dynamic_rendering = !device.workarounds_get().dynamic_rendering;
+  const bool supports_local_read = device.extensions_get().dynamic_rendering_local_read;
+  const bool supports_dynamic_rendering = device.extensions_get().dynamic_rendering;
 
   VkImageUsageFlags result = VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT |
                              VK_IMAGE_USAGE_SAMPLED_BIT;

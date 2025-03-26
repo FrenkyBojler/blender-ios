@@ -7,6 +7,7 @@
 #include "AS_asset_library.hh"
 #include "AS_asset_representation.hh"
 
+#include "BLI_listbase.h"
 #include "BLI_multi_value_map.hh"
 #include "BLI_string.h"
 
@@ -101,7 +102,7 @@ static void catalog_assets_draw(const bContext *C, Menu *menu)
     PointerRNA props_ptr;
     uiItemFullO_ptr(layout,
                     ot,
-                    IFACE_(asset->get_name().c_str()),
+                    IFACE_(asset->get_name()),
                     ICON_NONE,
                     nullptr,
                     WM_OP_INVOKE_DEFAULT,
@@ -142,7 +143,7 @@ static void unassigned_assets_draw(const bContext *C, Menu *menu)
     PointerRNA props_ptr;
     uiItemFullO_ptr(layout,
                     ot,
-                    IFACE_(asset->get_name().c_str()),
+                    IFACE_(asset->get_name()),
                     ICON_NONE,
                     nullptr,
                     WM_OP_INVOKE_DEFAULT,
@@ -277,7 +278,7 @@ static bNodeTree *get_node_group(const bContext &C, PointerRNA &ptr, ReportList 
   return node_group;
 }
 
-static int modifier_add_asset_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus modifier_add_asset_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
@@ -321,7 +322,9 @@ static int modifier_add_asset_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static int modifier_add_asset_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus modifier_add_asset_invoke(bContext *C,
+                                                  wmOperator *op,
+                                                  const wmEvent *event)
 {
   if (event->modifier & KM_ALT || CTX_wm_view3d(C)) {
     RNA_boolean_set(op->ptr, "use_selected_objects", true);
@@ -396,9 +399,9 @@ static MenuType modifier_add_root_catalogs_menu_type()
 
 void object_modifier_add_asset_register()
 {
-  WM_menutype_add(MEM_cnew<MenuType>(__func__, modifier_add_catalog_assets_menu_type()));
-  WM_menutype_add(MEM_cnew<MenuType>(__func__, modifier_add_unassigned_assets_menu_type()));
-  WM_menutype_add(MEM_cnew<MenuType>(__func__, modifier_add_root_catalogs_menu_type()));
+  WM_menutype_add(MEM_dupallocN<MenuType>(__func__, modifier_add_catalog_assets_menu_type()));
+  WM_menutype_add(MEM_dupallocN<MenuType>(__func__, modifier_add_unassigned_assets_menu_type()));
+  WM_menutype_add(MEM_dupallocN<MenuType>(__func__, modifier_add_root_catalogs_menu_type()));
   WM_operatortype_append(OBJECT_OT_modifier_add_node_group);
 }
 

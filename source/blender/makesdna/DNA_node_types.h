@@ -39,7 +39,6 @@ class bNodeSocketRuntime;
 namespace blender::bke {
 class bNodeTreeZones;
 class bNodeTreeZone;
-struct bNodeInstanceHash;
 struct bNodeTreeType;
 struct bNodeType;
 struct bNodeSocketType;
@@ -51,7 +50,6 @@ using bNodeTreeRuntimeHandle = blender::bke::bNodeTreeRuntime;
 using bNodeRuntimeHandle = blender::bke::bNodeRuntime;
 using bNodeSocketRuntimeHandle = blender::bke::bNodeSocketRuntime;
 using RuntimeNodeEnumItemsHandle = blender::bke::RuntimeNodeEnumItems;
-using NodeInstanceHashHandle = blender::bke::bNodeInstanceHash;
 using bNodeTreeTypeHandle = blender::bke::bNodeTreeType;
 using bNodeTypeHandle = blender::bke::bNodeType;
 using bNodeSocketTypeHandle = blender::bke::bNodeSocketType;
@@ -78,7 +76,6 @@ struct PreviewImage;
 struct Tex;
 struct bGPdata;
 struct bNodeLink;
-struct bNodePreview;
 struct bNode;
 struct NodeEnumDefinition;
 
@@ -353,6 +350,21 @@ typedef struct bNodePanelState {
 #endif
 } bNodePanelState;
 
+typedef enum eViewerNodeShortcut {
+  NODE_VIEWER_SHORTCUT_NONE = 0,
+  /* Users can set custom keys to shortcuts,
+   * but shortcuts should always be referred to as enums. */
+  NODE_VIEWER_SHORCTUT_SLOT_1 = 1,
+  NODE_VIEWER_SHORCTUT_SLOT_2 = 2,
+  NODE_VIEWER_SHORCTUT_SLOT_3 = 3,
+  NODE_VIEWER_SHORCTUT_SLOT_4 = 4,
+  NODE_VIEWER_SHORCTUT_SLOT_5 = 5,
+  NODE_VIEWER_SHORCTUT_SLOT_6 = 6,
+  NODE_VIEWER_SHORCTUT_SLOT_7 = 7,
+  NODE_VIEWER_SHORCTUT_SLOT_8 = 8,
+  NODE_VIEWER_SHORCTUT_SLOT_9 = 9
+} eViewerNodeShortcut;
+
 typedef enum NodeWarningPropagation {
   NODE_WARNING_PROPAGATION_ALL = 0,
   NODE_WARNING_PROPAGATION_NONE = 1,
@@ -475,8 +487,10 @@ typedef struct bNode {
   bool is_reroute() const;
   bool is_frame() const;
   bool is_group() const;
+  bool is_custom_group() const;
   bool is_group_input() const;
   bool is_group_output() const;
+  bool is_undefined() const;
 
   /**
    * Check if the node has the given idname.
@@ -630,15 +644,6 @@ typedef struct bNodeInstanceHashEntry {
   short tag;
 } bNodeInstanceHashEntry;
 
-#
-#
-typedef struct bNodePreview {
-  /** Must be first. */
-  bNodeInstanceHashEntry hash_entry;
-
-  struct ImBuf *ibuf;
-} bNodePreview;
-
 typedef struct bNodeLink {
   struct bNodeLink *next, *prev;
 
@@ -767,11 +772,6 @@ typedef struct bNodeTree {
 
   bNodeTreeInterface tree_interface;
 
-  /**
-   * Node preview hash table.
-   * Only available in base node trees (e.g. scene->node_tree).
-   */
-  NodeInstanceHashHandle *previews;
   /**
    * Defines the node tree instance to use for the "active" context,
    * in case multiple different editors are used and make context ambiguous.
@@ -1012,7 +1012,7 @@ typedef enum GeometryNodeAssetTraitFlag {
   GEO_NODE_ASSET_SCULPT = (1 << 2),
   GEO_NODE_ASSET_MESH = (1 << 3),
   GEO_NODE_ASSET_CURVE = (1 << 4),
-  GEO_NODE_ASSET_POINT_CLOUD = (1 << 5),
+  GEO_NODE_ASSET_POINTCLOUD = (1 << 5),
   GEO_NODE_ASSET_MODIFIER = (1 << 6),
   GEO_NODE_ASSET_OBJECT = (1 << 7),
   GEO_NODE_ASSET_WAIT_FOR_CURSOR = (1 << 8),
@@ -1817,6 +1817,11 @@ typedef struct NodeGeometryCurvePrimitiveQuad {
 typedef struct NodeGeometryCurveResample {
   /** #GeometryNodeCurveResampleMode. */
   uint8_t mode;
+  /**
+   * If false, curves may be collapsed to a single point. This is unexpected and is only supported
+   * for compatibility reasons (#102598).
+   */
+  uint8_t keep_last_segment;
 } NodeGeometryCurveResample;
 
 typedef struct NodeGeometryCurveFillet {
@@ -2676,13 +2681,12 @@ enum {
   CMP_NODE_BLUR_ASPECT_X = 2,
 };
 
-/* wrapping */
-enum {
-  CMP_NODE_WRAP_NONE = 0,
-  CMP_NODE_WRAP_X = 1,
-  CMP_NODE_WRAP_Y = 2,
-  CMP_NODE_WRAP_XY = 3,
-};
+typedef enum CMPNodeTranslateRepeatAxis {
+  CMP_NODE_TRANSLATE_REPEAT_AXIS_NONE = 0,
+  CMP_NODE_TRANSLATE_REPEAT_AXIS_X = 1,
+  CMP_NODE_TRANSLATE_REPEAT_AXIS_Y = 2,
+  CMP_NODE_TRANSLATE_REPEAT_AXIS_XY = 3,
+} CMPNodeTranslateRepeatAxis;
 
 #define CMP_NODE_MASK_MBLUR_SAMPLES_MAX 64
 

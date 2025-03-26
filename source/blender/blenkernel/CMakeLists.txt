@@ -210,8 +210,8 @@ set(SRC
   intern/mesh_runtime.cc
   intern/mesh_sample.cc
   intern/mesh_tangent.cc
-  intern/mesh_topology_state.cc
   intern/mesh_tessellate.cc
+  intern/mesh_topology_state.cc
   intern/mesh_validate.cc
   intern/mesh_wrapper.cc
   intern/modifier.cc
@@ -491,7 +491,6 @@ set(SRC
   BKE_scene.hh
   BKE_scene_runtime.hh
   BKE_screen.hh
-  BKE_sequencer_offscreen.h
   BKE_shader_fx.h
   BKE_shrinkwrap.hh
   BKE_softbody.h
@@ -837,6 +836,8 @@ if(WITH_GTESTS)
     intern/volume_test.cc
   )
   set(TEST_INC
+    # WARNING: this is a bad-level include which is only acceptable for tests
+    # and even then it would be good if the dependency could be removed.
     ../editors/include
   )
   set(TEST_LIB

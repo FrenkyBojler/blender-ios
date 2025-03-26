@@ -1314,7 +1314,7 @@ static PyObject *bpy_bmesh_from_object(BPy_BMesh *self, PyObject *args, PyObject
       return nullptr;
     }
 
-    mesh_eval = BKE_mesh_new_from_object(depsgraph, ob_eval, true, false);
+    mesh_eval = BKE_mesh_new_from_object(depsgraph, ob_eval, true, false, true);
     need_free = true;
   }
   else {
@@ -3711,7 +3711,7 @@ static PyObject *bpy_bmiter_next(BPy_BMIter *self)
     return nullptr;
   }
 
-  return (PyObject *)BPy_BMElem_CreatePyObject(self->bm, ele);
+  return BPy_BMElem_CreatePyObject(self->bm, ele);
 }
 
 /* Deallocate Functions

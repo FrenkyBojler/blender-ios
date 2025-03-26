@@ -13,6 +13,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
 #include "BLI_vector.hh"
 #include "BLI_virtual_array.hh"
@@ -33,6 +34,7 @@
 #include "BKE_deform.hh"
 #include "BKE_editmesh.hh"
 #include "BKE_key.hh"
+#include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_material.hh"
 #include "BKE_mesh.hh"
@@ -334,7 +336,7 @@ static void mesh_join_offset_face_sets_ID(Mesh *mesh, int *face_set_offset)
   face_sets.finish();
 }
 
-int ED_mesh_join_objects_exec(bContext *C, wmOperator *op)
+wmOperatorStatus ED_mesh_join_objects_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
@@ -685,7 +687,7 @@ int ED_mesh_join_objects_exec(bContext *C, wmOperator *op)
   ob->totcol = mesh->totcol = totcol;
 
   /* other mesh users */
-  BKE_objects_materials_test_all(bmain, (ID *)mesh);
+  BKE_objects_materials_sync_length_all(bmain, (ID *)mesh);
 
   /* Free temporary copy of destination shape-keys (if applicable). */
   if (nkey) {
@@ -718,7 +720,7 @@ int ED_mesh_join_objects_exec(bContext *C, wmOperator *op)
  * Append selected meshes vertex locations as shapes of the active mesh.
  * \{ */
 
-int ED_mesh_shapes_join_objects_exec(bContext *C, wmOperator *op)
+wmOperatorStatus ED_mesh_shapes_join_objects_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
@@ -1269,7 +1271,7 @@ bool ED_mesh_pick_face_vert(
       }
     }
 
-    /* map 'dm -> mesh' r_index if possible */
+    /* Map the `dm` to `mesh`, setting the `r_index` if possible. */
     if (v_idx_best != ORIGINDEX_NONE) {
       const int *index_mv_to_orig = (const int *)CustomData_get_layer(&mesh_eval->vert_data,
                                                                       CD_ORIGINDEX);
@@ -1282,6 +1284,49 @@ bool ED_mesh_pick_face_vert(
       *r_index = v_idx_best;
       return true;
     }
+  }
+
+  return false;
+}
+
+bool ED_mesh_pick_edge(bContext *C, Object *ob, const int mval[2], uint dist_px, uint *r_index)
+{
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  Mesh *mesh = static_cast<Mesh *>(ob->data);
+
+  BLI_assert(mesh && GS(mesh->id.name) == ID_ME);
+
+  if (!mesh || mesh->edges_num == 0) {
+    return false;
+  }
+
+  ViewContext vc = ED_view3d_viewcontext_init(C, depsgraph);
+  ED_view3d_select_id_validate(&vc);
+  Base *base = BKE_view_layer_base_find(vc.view_layer, vc.obact);
+  DRW_select_buffer_context_create(vc.depsgraph, {base}, SCE_SELECT_EDGE);
+
+  uint edge_idx_best = ORIGINDEX_NONE;
+
+  if (dist_px) {
+    /* Sample rect to increase chances of selecting, so that when clicking
+     * on an edge in the back-buffer, we can still select a face. */
+    edge_idx_best = DRW_select_buffer_find_nearest_to_point(
+        vc.depsgraph, vc.region, vc.v3d, mval, 1, mesh->edges_num + 1, &dist_px);
+  }
+  else {
+    /* sample only on the exact position */
+    edge_idx_best = DRW_select_buffer_sample_point(vc.depsgraph, vc.region, vc.v3d, mval);
+  }
+
+  if (edge_idx_best == 0 || edge_idx_best > uint(mesh->edges_num)) {
+    return false;
+  }
+
+  edge_idx_best--;
+
+  if (edge_idx_best != ORIGINDEX_NONE) {
+    *r_index = edge_idx_best;
+    return true;
   }
 
   return false;
