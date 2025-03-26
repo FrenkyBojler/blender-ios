@@ -326,7 +326,7 @@ static int *parse_int_relative_clamp_n(
     }
   }
 
-  int *values = MEM_mallocN(sizeof(*values) * len, __func__);
+  int *values = MEM_malloc_arrayN<int>(size_t(len), __func__);
   int i = 0;
   while (true) {
     const char *str_end = strchr(str, sep);
@@ -382,7 +382,7 @@ static int (*parse_int_range_relative_clamp_n(const char *str,
     }
   }
 
-  int(*values)[2] = static_cast<int(*)[2]>(MEM_mallocN(sizeof(*values) * len, __func__));
+  int(*values)[2] = MEM_malloc_arrayN<int[2]>(size_t(len), __func__);
   int i = 0;
   while (true) {
     const char *str_end_range;
@@ -439,7 +439,7 @@ fail:
 #  ifdef WIN32
 static char **argv_duplicate(const char **argv, int argc)
 {
-  char **argv_copy = static_cast<char **>(MEM_mallocN(sizeof(*argv_copy) * argc, __func__));
+  char **argv_copy = MEM_malloc_arrayN<char *>(size_t(argc), __func__);
   for (int i = 0; i < argc; i++) {
     argv_copy[i] = BLI_strdup(argv[i]);
   }
@@ -472,8 +472,7 @@ static bool main_arg_deferred_is_set()
 static void main_arg_deferred_setup(BA_ArgCallback func, int argc, const char **argv, void *data)
 {
   BLI_assert(app_state.main_arg_deferred == nullptr);
-  BA_ArgCallback_Deferred *d = static_cast<BA_ArgCallback_Deferred *>(
-      MEM_callocN(sizeof(*d), __func__));
+  BA_ArgCallback_Deferred *d = MEM_callocN<BA_ArgCallback_Deferred>(__func__);
   d->func = func;
   d->argc = argc;
   d->argv = argv;
@@ -2510,6 +2509,7 @@ static int arg_handle_addons_set(int argc, const char **argv, void *data)
   return 0;
 }
 
+#  ifdef WITH_OPENGL_BACKEND
 static const char arg_handle_profile_gpu_set_doc[] =
     "\n"
     "\tEnable CPU & GPU performance profiling for GPU debug groups\n"
@@ -2519,6 +2519,7 @@ static int arg_handle_profile_gpu_set(int /*argc*/, const char ** /*argv*/, void
   G.profile_gpu = true;
   return 0;
 }
+#  endif
 
 /**
  * Implementation for #arg_handle_load_last_file, also used by `--open-last`.

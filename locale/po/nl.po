@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.4.0 Beta (b'ed5b077f929a')\n"
+"Project-Id-Version: Blender 4.5.0 Alpha (b'409ce2b976cf')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-02-17 14:06+0000\n"
+"POT-Creation-Date: 2025-03-24 09:38+0000\n"
 "PO-Revision-Date: 2025-01-27 09:56+0000\n"
 "Last-Translator: Sander Spolspoel <sander@sworl.be>\n"
 "Language-Team: Dutch <https://translate.blender.org/projects/blender-ui/ui/nl/>\n"
@@ -69,10 +69,6 @@ msgstr "F-Curve groepen"
 
 msgid "Action F-Curves"
 msgstr "Actie F-Curves"
-
-
-msgid "Collection of action F-Curves"
-msgstr "Collectie van actie F-Curves"
 
 
 msgid "Action Group"
@@ -1836,10 +1832,6 @@ msgid "Reference"
 msgstr "Voorbeeld"
 
 
-msgid "Grease Pencil Layer"
-msgstr "Vetkrijt laag"
-
-
 msgid "Regular"
 msgstr "Normaal"
 
@@ -1850,6 +1842,10 @@ msgstr "Omgekeerd"
 
 msgid "Repeat"
 msgstr "Herhaal"
+
+
+msgid "Grease Pencil Layer"
+msgstr "Vetkrijt laag"
 
 
 msgid "Red"
@@ -2468,11 +2464,6 @@ msgid "Mirror Y"
 msgstr "Spiegel Y"
 
 
-msgctxt "Sequence"
-msgid "Clip"
-msgstr "Clip"
-
-
 msgid "Workspace"
 msgstr "Werkomgeving"
 
@@ -2707,26 +2698,6 @@ msgid "Mask"
 msgstr "Mask"
 
 
-msgid "Mirror"
-msgstr "Spiegel"
-
-
-msgid "Local View"
-msgstr "Lokale Scherm"
-
-
-msgid "Navigation"
-msgstr "Navigatie"
-
-
-msgid "Select Similar"
-msgstr "Selecteer Vergelijkbaar"
-
-
-msgid "Select Linked"
-msgstr "Selecteer Aaneengesloten"
-
-
 msgid "Light"
 msgstr "Licht"
 
@@ -2769,6 +2740,26 @@ msgstr "Namen"
 
 msgid "Text"
 msgstr "Tekst"
+
+
+msgid "Mirror"
+msgstr "Spiegel"
+
+
+msgid "Local View"
+msgstr "Lokale Scherm"
+
+
+msgid "Navigation"
+msgstr "Navigatie"
+
+
+msgid "Select Similar"
+msgstr "Selecteer Vergelijkbaar"
+
+
+msgid "Select Linked"
+msgstr "Selecteer Aaneengesloten"
 
 
 msgctxt "MovieClip"
@@ -4768,11 +4759,6 @@ msgstr "Isoleer Actie"
 
 
 msgctxt "Operator"
-msgid "Add File Node"
-msgstr "Voeg Bestand-node Toe"
-
-
-msgctxt "Operator"
 msgid "Add Mask Node"
 msgstr "Voeg Masker-node Toe"
 
@@ -6432,10 +6418,6 @@ msgid "Custom Shape"
 msgstr "Aangepaste Vorm"
 
 
-msgid "Restrictions"
-msgstr "Beperkingen"
-
-
 msgid "Custom Distance"
 msgstr "Aangepaste Afstand"
 
@@ -6939,6 +6921,11 @@ msgstr "Scene"
 msgctxt "Sequence"
 msgid "Movie"
 msgstr "Film"
+
+
+msgctxt "Sequence"
+msgid "Clip"
+msgstr "Clip"
 
 
 msgctxt "Sequence"
@@ -9161,6 +9148,10 @@ msgstr "Geen actieve venster in context!"
 
 msgid "Custom Camera"
 msgstr "Aangepaste Camera"
+
+
+msgid "Restrictions"
+msgstr "Beperkingen"
 
 
 msgid "Create Armature"

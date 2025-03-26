@@ -1,18 +1,18 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.4.0 Beta (b'ed5b077f929a')\n"
+"Project-Id-Version: Blender 4.5.0 Alpha (b'409ce2b976cf')\n"
 "Report-Msgid-Bugs-To: Leandro Paganelli <leandrobp@fastmail.com>\n"
-"POT-Creation-Date: 2025-02-17 14:06+0000\n"
-"PO-Revision-Date: 2025-02-14 05:56+0000\n"
-"Last-Translator: Gilberto Rodrigues <gilbertorodrigues@outlook.com>\n"
+"POT-Creation-Date: 2025-03-24 09:38+0000\n"
+"PO-Revision-Date: 2025-03-03 11:30+0000\n"
+"Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Portuguese (Brazil) <https://translate.blender.org/projects/blender-ui/ui/pt_BR/>\n"
 "Language: pt_BR\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=n > 1;\n"
-"X-Generator: Weblate 5.9.2\n"
+"X-Generator: Weblate 5.10.1\n"
 "X-Poedit-SourceCharset: utf-8"
 
 
@@ -106,10 +106,6 @@ msgstr "A lista de canais de animação para cada espaço de ação"
 
 msgid "Action F-Curves"
 msgstr "Curvas-f das ações"
-
-
-msgid "Collection of action F-Curves"
-msgstr "Coleção de Curvas-F de ações"
 
 
 msgid "Action Group"
@@ -659,14 +655,6 @@ msgstr "Distribuir memória pelos dispositivos"
 
 msgid "Make more room for large scenes to fit by distributing memory across interconnected devices (e.g. via NVLink) rather than duplicating it"
 msgstr "Distribuir a cena na memória de múltiplos dispositivos interconectados, por exemplo via NVLink, em vez de duplicá-la para cada dispositivo"
-
-
-msgid "HIP RT (Experimental)"
-msgstr "HIP RT (experimental)"
-
-
-msgid "HIP RT enables AMD hardware ray tracing on RDNA2 and above, with shader fallback on older cards. This feature is experimental and some scenes may render incorrectly"
-msgstr "O recurso HIP RT permite raytracing por hardware em placas AMD de arquiteturas a partir da RDNA2, com recuo de shader em placas mais antigas. Este recurso é experimental e pode resultar em renderizações incorretas"
 
 
 msgid "Embree on GPU"
@@ -4852,16 +4840,8 @@ msgid "Exposure"
 msgstr "Exposição"
 
 
-msgid "Exposure (stops) applied before display transform"
-msgstr "Os pontos de exposição (intervalos) aplicados antes de transformar as exibições."
-
-
 msgid "Gamma"
 msgstr "Gama"
-
-
-msgid "Amount of gamma modification applied after display transform"
-msgstr "Quantidade de modificação de gama aplicada após transformar as exibições."
 
 
 msgid "Look"
@@ -11434,16 +11414,36 @@ msgid "Grease Pencil Frames"
 msgstr "Quadros de lápis de cera"
 
 
+msgid "Invert mask"
+msgstr "Inverter máscara"
+
+
+msgid "Active Layer Index"
+msgstr "Índice de camada ativa"
+
+
+msgid "Regular"
+msgstr "Regular"
+
+
+msgid "Reverse"
+msgstr "Reverso"
+
+
+msgid "Repeat"
+msgstr "Repetir"
+
+
+msgid "Frame Start"
+msgstr "Quadro inicial"
+
+
 msgid "Grease Pencil Layer"
 msgstr "Camada de lápis de cera"
 
 
 msgid "Blend Mode"
 msgstr "Modo de mesclagem"
-
-
-msgid "Regular"
-msgstr "Regular"
 
 
 msgid "Hard Light"
@@ -11468,26 +11468,6 @@ msgstr "Índice de passo"
 
 msgid "Translation"
 msgstr "Movimento"
-
-
-msgid "Invert mask"
-msgstr "Inverter máscara"
-
-
-msgid "Active Layer Index"
-msgstr "Índice de camada ativa"
-
-
-msgid "Reverse"
-msgstr "Reverso"
-
-
-msgid "Repeat"
-msgstr "Repetir"
-
-
-msgid "Frame Start"
-msgstr "Quadro inicial"
 
 
 msgid "Grease Pencil Layers"
@@ -11583,10 +11563,6 @@ msgid "A collection of F-Curves for animation"
 msgstr "Uma coleção de curvas-f para animação."
 
 
-msgid "The individual F-Curves that make up the action"
-msgstr "As curvas-f individuais que perfazem a ação."
-
-
 msgid "Frame Range"
 msgstr "Faixa de quadros"
 
@@ -11595,17 +11571,9 @@ msgid "Groups"
 msgstr "Grupos"
 
 
-msgid "Convenient groupings of F-Curves"
-msgstr "Agrupamentos convenientes de curvas-f."
-
-
 msgctxt "ID"
 msgid "ID Root Type"
 msgstr "Tipo de identificador raiz"
-
-
-msgid "Type of ID block that action can be used on - DO NOT CHANGE UNLESS YOU KNOW WHAT YOU ARE DOING"
-msgstr "Tipo de identificador de bloco em que a ação pode ser usada - NÃO ALTERE A MENOS QUE SAIBA O QUE ESTÁ FAZENDO."
 
 
 msgid "Layers"
@@ -11786,22 +11754,6 @@ msgstr "Cíclico(a)"
 
 msgid "Brush's capabilities"
 msgstr "Capacidades do pincel."
-
-
-msgid "Clone Alpha"
-msgstr "Alfa para clone"
-
-
-msgid "Opacity of clone image display"
-msgstr "Opacidade na qual mostrar a imagem clone."
-
-
-msgid "Clone Image"
-msgstr "Imagem para clonar"
-
-
-msgid "Clone Offset"
-msgstr "Deslocamento para clone"
 
 
 msgid "Cloth Damping"
@@ -17915,11 +17867,6 @@ msgid "Volume render settings for 3D viewport"
 msgstr "Configurações de renderização de volume para a janela de exibição 3D"
 
 
-msgctxt "Sequence"
-msgid "Clip"
-msgstr "Clipe"
-
-
 msgid "Window Manager"
 msgstr "Gerenciador de janelas"
 
@@ -21533,62 +21480,6 @@ msgid "Material slot name"
 msgstr "Nome do compartimento do material."
 
 
-msgid "Mirror"
-msgstr "Espelhar"
-
-
-msgid "Snap"
-msgstr "Atrair"
-
-
-msgid "UV Mapping"
-msgstr "Mapeamento UV"
-
-
-msgid "Local View"
-msgstr "Visão local"
-
-
-msgid "Viewpoint"
-msgstr "Ponto de visualização"
-
-
-msgid "Navigation"
-msgstr "Navegação"
-
-
-msgid "Align View"
-msgstr "Alinhar visualização"
-
-
-msgid "Align View to Active"
-msgstr "Alinhar vista para o ativo"
-
-
-msgid "View Regions"
-msgstr "Visualizar Regiões"
-
-
-msgid "Select More/Less"
-msgstr "Selecionar mais ou menos"
-
-
-msgid "Select Similar"
-msgstr "Selecionar por similaridades"
-
-
-msgid "Select All by Trait"
-msgstr "Selecionar todos por características..."
-
-
-msgid "Select Linked"
-msgstr "Selecionar vinculados(as)"
-
-
-msgid "Select Loops"
-msgstr "Selecionar anéis"
-
-
 msgid "Metaball"
 msgstr "Meta-esfera"
 
@@ -21705,8 +21596,64 @@ msgid "Pivot Point"
 msgstr "Pontos de pivô"
 
 
+msgid "Snap"
+msgstr "Atrair"
+
+
 msgid "Proportional Editing Falloff"
 msgstr "Tipo de decaimento para edição proporcional"
+
+
+msgid "Mirror"
+msgstr "Espelhar"
+
+
+msgid "UV Mapping"
+msgstr "Mapeamento UV"
+
+
+msgid "Local View"
+msgstr "Visão local"
+
+
+msgid "Viewpoint"
+msgstr "Ponto de visualização"
+
+
+msgid "Navigation"
+msgstr "Navegação"
+
+
+msgid "Align View"
+msgstr "Alinhar visualização"
+
+
+msgid "Align View to Active"
+msgstr "Alinhar vista para o ativo"
+
+
+msgid "View Regions"
+msgstr "Visualizar Regiões"
+
+
+msgid "Select More/Less"
+msgstr "Selecionar mais ou menos"
+
+
+msgid "Select Similar"
+msgstr "Selecionar por similaridades"
+
+
+msgid "Select All by Trait"
+msgstr "Selecionar todos por características..."
+
+
+msgid "Select Linked"
+msgstr "Selecionar vinculados(as)"
+
+
+msgid "Select Loops"
+msgstr "Selecionar anéis"
 
 
 msgid "Basic"
@@ -28054,10 +28001,6 @@ msgid "If not set to high quality, the effect will be applied to a low-res copy 
 msgstr "Caso não configurado para alta qualidade, o efeito será aplicado para uma cópia de baixa-resolução da imagem fonte."
 
 
-msgid "Rotate 45"
-msgstr "Rotacionar 45 graus"
-
-
 msgid "Simple star filter: add 45 degree rotation offset"
 msgstr "Para o filtro de estrelas simples. Adiciona um deslocamento de 45 graus para a rotação."
 
@@ -28785,6 +28728,10 @@ msgstr "Repetir Resultado"
 
 msgid "Z Up"
 msgstr "Z Para cima"
+
+
+msgid "Unknown"
+msgstr "Desconhecido"
 
 
 msgid "Align text to the center"
@@ -34337,6 +34284,11 @@ msgstr "Selecionar aleatoriamente"
 
 
 msgctxt "Operator"
+msgid "Separate"
+msgstr "Separar"
+
+
+msgctxt "Operator"
 msgid "Clear Tilt"
 msgstr "Limpar inclinação"
 
@@ -34629,11 +34581,6 @@ msgstr "Maior"
 
 msgid "Less"
 msgstr "Menor"
-
-
-msgctxt "Operator"
-msgid "Separate"
-msgstr "Separar"
 
 
 msgid "Separate selected points from connected unselected points into a new object"
@@ -36890,6 +36837,10 @@ msgstr "Através do material"
 msgctxt "Operator"
 msgid "Select Mode"
 msgstr "Modo de seleção"
+
+
+msgid "Fill Opacity"
+msgstr "Preencher opacidade"
 
 
 msgctxt "Operator"
@@ -40322,15 +40273,6 @@ msgstr "A cor fonte"
 
 msgid "Gamma Corrected"
 msgstr "Usar correção de gama"
-
-
-msgctxt "Operator"
-msgid "Add File Node"
-msgstr "Adicionar nó de arquivo"
-
-
-msgid "Add a file node to the current node editor"
-msgstr "Adiciona um nó de arquivo ao editor de nó atual."
 
 
 msgid "Settings to be applied on the newly created node"
@@ -45912,10 +45854,6 @@ msgid "Multiply effect strip type"
 msgstr "Faixa de efeito tipo multiplicar."
 
 
-msgid "Alpha Over Drop effect strip type"
-msgstr "Faixa de efeito tipo alfa por cima."
-
-
 msgctxt "Sequence"
 msgid "Wipe"
 msgstr "Varredura"
@@ -47789,10 +47727,6 @@ msgstr "Exporta o esquema UV para uma imagem de bitmap."
 
 msgid "Exports UVs from the modified mesh"
 msgstr "Exporta as UVs a partir da malha modificada."
-
-
-msgid "Fill Opacity"
-msgstr "Preencher opacidade"
 
 
 msgid "Set amount of opacity for exported UV layout"
@@ -50017,8 +49951,24 @@ msgid "Image used as canvas"
 msgstr "A imagem usada como lona"
 
 
+msgid "Clone Alpha"
+msgstr "Alfa para clone"
+
+
+msgid "Opacity of clone image display"
+msgstr "Opacidade na qual mostrar a imagem clone."
+
+
+msgid "Clone Image"
+msgstr "Imagem para clonar"
+
+
 msgid "Image used as clone source"
 msgstr "Imagem usada como fonte de clonagem"
+
+
+msgid "Clone Offset"
+msgstr "Deslocamento para clone"
 
 
 msgid "Dither"
@@ -53407,10 +53357,6 @@ msgstr "Usa um esquema em colunas para a caixa de ferramentas."
 
 msgid "Developer Extras"
 msgstr "Extras de Desenvolvedores"
-
-
-msgid "Show options for developers (edit source in context menu, geometry indices)"
-msgstr "Mostra opções para desenvolvedores (editar o código fonte no menu de contexto, índices de geometria)"
 
 
 msgid "Navigation Controls"
@@ -58213,10 +58159,6 @@ msgid "Gamma Cross"
 msgstr "Cruzar por gama"
 
 
-msgid "Over Drop"
-msgstr "Sobreposição"
-
-
 msgid "Y position of the sequence strip"
 msgstr "Posição Y da faixa de sequência "
 
@@ -58290,6 +58232,11 @@ msgstr "Filme"
 
 
 msgctxt "Sequence"
+msgid "Clip"
+msgstr "Clipe"
+
+
+msgctxt "Sequence"
 msgid "Mask"
 msgstr "Máscara"
 
@@ -58302,11 +58249,6 @@ msgstr "Som"
 msgctxt "Sequence"
 msgid "Cross"
 msgstr "Cruzar"
-
-
-msgctxt "Sequence"
-msgid "Over Drop"
-msgstr "Sobreposição"
 
 
 msgid "Use Default Fade"
@@ -62155,10 +62097,6 @@ msgid "Rotation"
 msgstr "Rotação"
 
 
-msgid "Unknown"
-msgstr "Desconhecido"
-
-
 msgctxt "Operator"
 msgid "Update All Paths"
 msgstr "Atualizar Todos os Caminhos"
@@ -65197,10 +65135,6 @@ msgid "Strand Lengths"
 msgstr "Comprimento do fio"
 
 
-msgid "Path Steps"
-msgstr "Passos de caminho:"
-
-
 msgid "No Brushes currently available"
 msgstr "Não há pincéis disponíveis atualmente."
 
@@ -65304,10 +65238,6 @@ msgstr "Não é possível criar o caminho das preferências de usuário para os 
 
 msgid "File written by newer Blender binary (%d.%d), expect loss of data!"
 msgstr "Arquivo escrito por um executável Blender mais novo: (%d.%d), espere por perda de dados !"
-
-
-msgid "Loading failed: "
-msgstr "Falha durante o carregamento:"
 
 
 msgid "Linking or appending from a very old .blend file format (%d.%d), no animation conversion will be done! You may want to re-save your lib file with current Blender"
@@ -65727,10 +65657,6 @@ msgstr "Par de anéis de arestas não estão conectados."
 
 msgid "Edge-rings are not connected"
 msgstr "Anéis de arestas não estão conectados."
-
-
-msgid "UV/Image"
-msgstr "UV/Imagem"
 
 
 msgid "NLA Strip Controls"
@@ -67769,10 +67695,6 @@ msgid "Scene has no camera"
 msgstr "A cena não possui uma câmera definida."
 
 
-msgid "Movie format unsupported"
-msgstr "Formato de filme não suportado."
-
-
 msgid "Failed to create OpenGL off-screen buffer, %s"
 msgstr "Falha ao criar buffer OpenGL fora-de-tela, %s"
 
@@ -68703,10 +68625,6 @@ msgid "Undefined Socket Type"
 msgstr "Tipo de soquete indefinido"
 
 
-msgid "{} (String)"
-msgstr "{} (String)"
-
-
 msgid "{} (Integer)"
 msgstr "{} (Inteiro)"
 
@@ -68725,6 +68643,10 @@ msgstr "Verdadeiro"
 
 msgid "False"
 msgstr "Falso"
+
+
+msgid "{} (String)"
+msgstr "{} (String)"
 
 
 msgid " Named Attribute"
@@ -69013,10 +68935,6 @@ msgstr "Sem osso ativo"
 
 msgid "Radius (Parent)"
 msgstr "Raio (parente)"
-
-
-msgid "Size:"
-msgstr "Tamanho"
 
 
 msgid "Displays global values"
@@ -69329,10 +69247,6 @@ msgstr "Encolher ou estufar: %s"
 
 msgid "Shrink/Fatten: %3f"
 msgstr "Encolher ou estufar: %3f"
-
-
-msgid "Edge Slide: "
-msgstr "Deslizar arestas:"
 
 
 msgid "Opacity: %s"

@@ -145,7 +145,7 @@ const EnumPropertyItem rna_enum_usd_xform_op_mode_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-const EnumPropertyItem prop_usdz_downscale_size[] = {
+const EnumPropertyItem rna_enum_usdz_downscale_size[] = {
     {USD_TEXTURE_SIZE_KEEP, "KEEP", 0, "Keep", "Keep all current texture sizes"},
     {USD_TEXTURE_SIZE_256, "256", 0, "256", "Resize to a maximum of 256 pixels"},
     {USD_TEXTURE_SIZE_512, "512", 0, "512", "Resize to a maximum of 512 pixels"},
@@ -218,7 +218,7 @@ const EnumPropertyItem rna_enum_usd_convert_scene_units_items[] = {
 
 /* Stored in the wmOperator's customdata field to indicate it should run as a background job.
  * This is set when the operator is invoked, and not set when it is only executed. */
-struct eUSDOperatorOptions {
+struct USDOperatorOptions {
   bool as_background_job;
 };
 
@@ -244,9 +244,11 @@ static void process_prim_path(char *prim_path)
   }
 }
 
-static int wm_usd_export_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+static wmOperatorStatus wm_usd_export_invoke(bContext *C,
+                                             wmOperator *op,
+                                             const wmEvent * /*event*/)
 {
-  eUSDOperatorOptions *options = MEM_cnew<eUSDOperatorOptions>("eUSDOperatorOptions");
+  USDOperatorOptions *options = MEM_callocN<USDOperatorOptions>("USDOperatorOptions");
   options->as_background_job = true;
   op->customdata = options;
 
@@ -257,7 +259,7 @@ static int wm_usd_export_invoke(bContext *C, wmOperator *op, const wmEvent * /*e
   return OPERATOR_RUNNING_MODAL;
 }
 
-static int wm_usd_export_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus wm_usd_export_exec(bContext *C, wmOperator *op)
 {
   if (!RNA_struct_property_is_set_ex(op->ptr, "filepath", false)) {
     BKE_report(op->reports, RPT_ERROR, "No filepath given");
@@ -267,7 +269,7 @@ static int wm_usd_export_exec(bContext *C, wmOperator *op)
   char filepath[FILE_MAX];
   RNA_string_get(op->ptr, "filepath", filepath);
 
-  eUSDOperatorOptions *options = static_cast<eUSDOperatorOptions *>(op->customdata);
+  USDOperatorOptions *options = static_cast<USDOperatorOptions *>(op->customdata);
   const bool as_background_job = (options != nullptr && options->as_background_job);
   MEM_SAFE_FREE(op->customdata);
 
@@ -326,11 +328,7 @@ static int wm_usd_export_exec(bContext *C, wmOperator *op)
 
   const bool merge_parent_xform = RNA_boolean_get(op->ptr, "merge_parent_xform");
 
-#  if PXR_VERSION >= 2403
   const bool allow_unicode = RNA_boolean_get(op->ptr, "allow_unicode");
-#  else
-  const bool allow_unicode = false;
-#  endif
 
   /* When the texture export settings were moved into an enum this bit
    * became more involved, but it needs to stick around for API backwards
@@ -456,9 +454,7 @@ static void wm_usd_export_draw(bContext *C, wmOperator *op)
     uiItemR(props_col, ptr, "custom_properties_namespace", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     uiItemR(props_col, ptr, "author_blender_name", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     uiLayoutSetActive(props_col, RNA_boolean_get(op->ptr, "export_custom_properties"));
-#  if PXR_VERSION >= 2403
     uiItemR(sub, ptr, "allow_unicode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-#  endif
 
     sub = uiLayoutColumnWithHeading(col, true, IFACE_("File References"));
     uiItemR(sub, ptr, "relative_paths", UI_ITEM_NONE, std::nullopt, ICON_NONE);
@@ -832,7 +828,6 @@ void WM_OT_usd_export(wmOperatorType *ot)
       "Currently works for simple materials, consisting of an environment texture "
       "connected to a background shader, with an optional vector multiply of the texture color");
 
-#  if PXR_VERSION >= 2403
   RNA_def_boolean(
       ot->srna,
       "allow_unicode",
@@ -840,7 +835,6 @@ void WM_OT_usd_export(wmOperatorType *ot)
       "Allow Unicode",
       "Preserve UTF-8 encoded characters when writing USD prim and property names "
       "(requires software utilizing USD 24.03 or greater when opening the resulting files)");
-#  endif
 
   RNA_def_boolean(ot->srna, "export_meshes", true, "Meshes", "Export all meshes");
 
@@ -876,7 +870,7 @@ void WM_OT_usd_export(wmOperatorType *ot)
 
   RNA_def_enum(ot->srna,
                "usdz_downscale_size",
-               prop_usdz_downscale_size,
+               rna_enum_usdz_downscale_size,
                DAG_EVAL_VIEWPORT,
                "USDZ Texture Downsampling",
                "Choose a maximum size for all exported textures");
@@ -919,16 +913,16 @@ void WM_OT_usd_export(wmOperatorType *ot)
 
 /* ====== USD Import ====== */
 
-static int wm_usd_import_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus wm_usd_import_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  eUSDOperatorOptions *options = MEM_cnew<eUSDOperatorOptions>("eUSDOperatorOptions");
+  USDOperatorOptions *options = MEM_callocN<USDOperatorOptions>("USDOperatorOptions");
   options->as_background_job = true;
   op->customdata = options;
 
   return blender::ed::io::filesel_drop_import_invoke(C, op, event);
 }
 
-static int wm_usd_import_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus wm_usd_import_exec(bContext *C, wmOperator *op)
 {
   if (!RNA_struct_property_is_set_ex(op->ptr, "filepath", false)) {
     BKE_report(op->reports, RPT_ERROR, "No filepath given");
@@ -938,7 +932,7 @@ static int wm_usd_import_exec(bContext *C, wmOperator *op)
   char filepath[FILE_MAX];
   RNA_string_get(op->ptr, "filepath", filepath);
 
-  eUSDOperatorOptions *options = static_cast<eUSDOperatorOptions *>(op->customdata);
+  USDOperatorOptions *options = static_cast<USDOperatorOptions *>(op->customdata);
   const bool as_background_job = (options != nullptr && options->as_background_job);
   MEM_SAFE_FREE(op->customdata);
 

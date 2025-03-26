@@ -2250,6 +2250,13 @@ class SEQUENCER_PT_time(SequencerButtonsPanel, Panel):
             split.label(text="End")
             split.prop(strip, "animation_offset_end", text=smpte_from_frame(strip.animation_offset_end))
 
+            if strip.type == 'SOUND':
+                sub2 = layout.column(align=True)
+                split = sub2.split(factor=factor + max_factor, align=True)
+                split.alignment = 'RIGHT'
+                split.label(text="Sound Offset", text_ctxt=i18n_contexts.id_sound)
+                split.prop(strip, "sound_offset", text="")
+
         col = layout.column(align=True)
         col = col.box()
         col.active = (
@@ -2312,11 +2319,6 @@ class SEQUENCER_PT_adjust_sound(SequencerButtonsPanel, Panel):
             split.alignment = 'RIGHT'
             split.label(text="Volume", text_ctxt=i18n_contexts.id_sound)
             split.prop(strip, "volume", text="")
-
-            split = col.split(factor=0.4)
-            split.alignment = 'RIGHT'
-            split.label(text="Offset", text_ctxt=i18n_contexts.id_sound)
-            split.prop(strip, "sound_offset", text="")
 
             layout.use_property_split = False
             col = layout.column()
@@ -3022,6 +3024,7 @@ class SEQUENCER_PT_snapping(Panel):
     bl_space_type = 'SEQUENCE_EDITOR'
     bl_region_type = 'HEADER'
     bl_label = ""
+    bl_ui_units_x = 11
 
     def draw(self, _context):
         pass
@@ -3072,6 +3075,7 @@ class SEQUENCER_PT_sequencer_snapping(Panel):
         layout.use_property_decorate = False
 
         col = layout.column(heading="Snap to", align=True)
+        col.prop(sequencer_tool_settings, "snap_to_frame_range")
         col.prop(sequencer_tool_settings, "snap_to_current_frame")
         col.prop(sequencer_tool_settings, "snap_to_hold_offset")
         col.prop(sequencer_tool_settings, "snap_to_markers")

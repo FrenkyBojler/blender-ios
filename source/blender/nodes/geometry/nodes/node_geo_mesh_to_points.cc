@@ -44,7 +44,7 @@ static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeGeometryMeshToPoints *data = MEM_cnew<NodeGeometryMeshToPoints>(__func__);
+  NodeGeometryMeshToPoints *data = MEM_callocN<NodeGeometryMeshToPoints>(__func__);
   data->mode = GEO_NODE_MESH_TO_POINTS_VERTICES;
   node->storage = data;
 }
@@ -252,8 +252,8 @@ static void node_register()
   ntype.initfunc = node_init;
   ntype.draw_buttons = node_layout;
   blender::bke::node_type_storage(
-      &ntype, "NodeGeometryMeshToPoints", node_free_standard_storage, node_copy_standard_storage);
-  blender::bke::node_register_type(&ntype);
+      ntype, "NodeGeometryMeshToPoints", node_free_standard_storage, node_copy_standard_storage);
+  blender::bke::node_register_type(ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

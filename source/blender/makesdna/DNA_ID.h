@@ -41,26 +41,6 @@ struct PackedFile;
 struct UniqueName_Map;
 struct Depsgraph;
 
-/* Runtime display data */
-struct DrawData;
-typedef void (*DrawDataInitCb)(struct DrawData *engine_data);
-typedef void (*DrawDataFreeCb)(struct DrawData *engine_data);
-
-#
-#
-typedef struct DrawData {
-  struct DrawData *next, *prev;
-  struct DrawEngineType *engine_type;
-  /* Only nested data, NOT the engine data itself. */
-  DrawDataFreeCb free;
-  /* Accumulated recalc flags, which corresponds to ID->recalc flags. */
-  unsigned int recalc;
-} DrawData;
-
-typedef struct DrawDataList {
-  struct DrawData *first, *last;
-} DrawDataList;
-
 typedef struct IDPropertyUIData {
   /** Tool-tip / property description pointer. Owned by the #IDProperty. */
   char *description;
@@ -604,8 +584,7 @@ typedef struct PreviewImage {
  */
 #define ID_REFCOUNTING_USERS(id) (ID_REAL_USERS(id) - ID_EXTRA_REAL_USERS(id))
 
-#define ID_CHECK_UNDO(id) \
-  ((GS((id)->name) != ID_SCR) && (GS((id)->name) != ID_WM) && (GS((id)->name) != ID_WS))
+#define ID_CHECK_UNDO(id) (!ELEM(GS((id)->name), ID_SCR, ID_WM, ID_WS, ID_BR))
 
 #define ID_BLEND_PATH(_bmain, _id) \
   ((_id)->lib ? (_id)->lib->runtime->filepath_abs : BKE_main_blendfile_path((_bmain)))
@@ -616,7 +595,8 @@ typedef struct PreviewImage {
 
 #define ID_IS_LINKED(_id) (((const ID *)(_id))->lib != NULL)
 
-#define ID_TYPE_SUPPORTS_ASSET_EDITABLE(id_type) ELEM(id_type, ID_BR, ID_TE, ID_NT, ID_IM, ID_PC)
+#define ID_TYPE_SUPPORTS_ASSET_EDITABLE(id_type) \
+  ELEM(id_type, ID_BR, ID_TE, ID_NT, ID_IM, ID_PC, ID_MA)
 
 #define ID_IS_EDITABLE(_id) \
   ((((const ID *)(_id))->lib == NULL) || \

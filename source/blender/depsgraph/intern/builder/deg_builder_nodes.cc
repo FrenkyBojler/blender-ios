@@ -1809,7 +1809,13 @@ void DepsgraphNodeBuilder::build_object_data_geometry_datablock(ID *obdata)
       break;
     }
     case ID_GP: {
-      op_node = add_operation_node(obdata, NodeType::GEOMETRY, OperationCode::GEOMETRY_EVAL);
+      op_node = add_operation_node(obdata,
+                                   NodeType::GEOMETRY,
+                                   OperationCode::GEOMETRY_EVAL,
+                                   [obdata_cow](::Depsgraph *depsgraph) {
+                                     BKE_grease_pencil_eval_geometry(
+                                         depsgraph, reinterpret_cast<GreasePencil *>(obdata_cow));
+                                   });
       op_node->set_as_entry();
       break;
     }
@@ -2064,6 +2070,7 @@ void DepsgraphNodeBuilder::build_texture(Tex *texture)
   }
   /* Texture itself. */
   add_id_node(&texture->id);
+  Tex *texture_cow = get_cow_datablock(texture);
   build_idproperties(texture->id.properties);
   build_animdata(&texture->id);
   build_parameters(&texture->id);
@@ -2075,8 +2082,12 @@ void DepsgraphNodeBuilder::build_texture(Tex *texture)
       build_image(texture->ima);
     }
   }
-  add_operation_node(
-      &texture->id, NodeType::GENERIC_DATABLOCK, OperationCode::GENERIC_DATABLOCK_UPDATE);
+  add_operation_node(&texture->id,
+                     NodeType::GENERIC_DATABLOCK,
+                     OperationCode::GENERIC_DATABLOCK_UPDATE,
+                     [texture_cow](::Depsgraph *depsgraph) {
+                       texture_cow->runtime.last_update = DEG_get_update_count(depsgraph);
+                     });
 }
 
 void DepsgraphNodeBuilder::build_image(Image *image)
@@ -2272,10 +2283,10 @@ void DepsgraphNodeBuilder::build_scene_sequencer(Scene *scene)
                      NodeType::SEQUENCER,
                      OperationCode::SEQUENCES_EVAL,
                      [scene_cow](::Depsgraph *depsgraph) {
-                       SEQ_eval_sequences(depsgraph, scene_cow, &scene_cow->ed->seqbase);
+                       seq::eval_sequences(depsgraph, scene_cow, &scene_cow->ed->seqbase);
                      });
   /* Make sure data for sequences is in the graph. */
-  SEQ_for_each_callback(&scene->ed->seqbase, strip_node_build_cb, this);
+  seq::for_each_callback(&scene->ed->seqbase, strip_node_build_cb, this);
 }
 
 void DepsgraphNodeBuilder::build_scene_audio(Scene *scene)

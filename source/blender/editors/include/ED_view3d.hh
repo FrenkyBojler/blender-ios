@@ -45,6 +45,7 @@ struct ViewContext;
 struct ViewLayer;
 struct ViewOpsData;
 struct bContext;
+struct bGPDlayer;
 struct bPoseChannel;
 struct bScreen;
 struct rctf;
@@ -1065,6 +1066,7 @@ void ED_view3d_check_mats_rv3d(RegionView3D *rv3d);
 
 RV3DMatrixStore *ED_view3d_mats_rv3d_backup(RegionView3D *rv3d);
 void ED_view3d_mats_rv3d_restore(RegionView3D *rv3d, RV3DMatrixStore *rv3dmat);
+void ED_view3D_mats_rv3d_free(RV3DMatrixStore *rv3d_mat);
 
 RenderEngineType *ED_view3d_engine_type(const Scene *scene, int drawtype);
 
@@ -1349,6 +1351,13 @@ void ED_view3d_gizmo_mesh_preselect_get_active(const bContext *C,
                                                Base **r_base,
                                                BMElem **r_ele);
 void ED_view3d_gizmo_mesh_preselect_clear(wmGizmo *gz);
+
+/* view3d_gizmo_ruler.cc */
+
+/**
+ * Remove all rulers when Annotation layer is removed.
+ */
+void ED_view3d_gizmo_ruler_remove_by_gpencil_layer(struct bContext *C, bGPDlayer *gpl);
 
 /* `space_view3d.cc` */
 

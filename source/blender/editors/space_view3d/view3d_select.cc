@@ -36,6 +36,8 @@
 #include "BLI_utildefines.h"
 #include "BLI_vector.hh"
 
+#include "BLT_translation.hh"
+
 #ifdef __BIG_ENDIAN__
 #  include "BLI_endian_switch.h"
 #endif
@@ -79,7 +81,7 @@
 #include "ED_object.hh"
 #include "ED_outliner.hh"
 #include "ED_particle.hh"
-#include "ED_point_cloud.hh"
+#include "ED_pointcloud.hh"
 #include "ED_screen.hh"
 #include "ED_sculpt.hh"
 #include "ED_select_utils.hh"
@@ -234,7 +236,7 @@ static void editselect_buf_cache_init_with_generic_userdata(wmGenericUserData *w
                                                             const ViewContext *vc,
                                                             short select_mode)
 {
-  EditSelectBuf_Cache *esel = MEM_cnew<EditSelectBuf_Cache>(__func__);
+  EditSelectBuf_Cache *esel = MEM_callocN<EditSelectBuf_Cache>(__func__);
   wm_userdata->data = esel;
   wm_userdata->free_fn = editselect_buf_cache_free_voidp;
   wm_userdata->use_free = true;
@@ -1439,10 +1441,10 @@ static bool view3d_lasso_select(bContext *C,
           break;
         }
         case OB_POINTCLOUD: {
-          PointCloud &point_cloud = *static_cast<PointCloud *>(vc->obedit->data);
+          PointCloud &pointcloud = *static_cast<PointCloud *>(vc->obedit->data);
           const float4x4 projection = ED_view3d_ob_project_mat_get(vc->rv3d, vc->obedit);
-          changed = ed::point_cloud::select_lasso(
-              point_cloud, *vc->region, projection, mcoords, sel_op);
+          changed = ed::pointcloud::select_lasso(
+              pointcloud, *vc->region, projection, mcoords, sel_op);
           if (changed) {
             /* Use #ID_RECALC_GEOMETRY instead of #ID_RECALC_SELECT because it is handled as a
              * generic attribute for now. */
@@ -1476,7 +1478,7 @@ static bool view3d_lasso_select(bContext *C,
 
 /* lasso operator gives properties, but since old code works
  * with short array we convert */
-static int view3d_lasso_select_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus view3d_lasso_select_exec(bContext *C, wmOperator *op)
 {
   Array<int2> mcoords = WM_gesture_lasso_path_to_array(C, op);
   if (mcoords.is_empty()) {
@@ -1565,7 +1567,7 @@ static const EnumPropertyItem *object_select_menu_enum_itemf(bContext *C,
   return item;
 }
 
-static int object_select_menu_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus object_select_menu_exec(bContext *C, wmOperator *op)
 {
   const int name_index = RNA_enum_get(op->ptr, "name");
   const bool extend = RNA_boolean_get(op->ptr, "extend");
@@ -1643,6 +1645,17 @@ static int object_select_menu_exec(bContext *C, wmOperator *op)
   return OPERATOR_CANCELLED;
 }
 
+static std::string object_select_menu_get_name(wmOperatorType * /*ot*/, PointerRNA *ptr)
+{
+  if (RNA_boolean_get(ptr, "deselect")) {
+    return CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Deselect Object");
+  }
+  if (RNA_boolean_get(ptr, "toggle")) {
+    return CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Toggle Object Selection");
+  }
+  return CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Select Object");
+}
+
 void VIEW3D_OT_select_menu(wmOperatorType *ot)
 {
   PropertyRNA *prop;
@@ -1655,6 +1668,7 @@ void VIEW3D_OT_select_menu(wmOperatorType *ot)
   /* api callbacks */
   ot->invoke = WM_menu_invoke;
   ot->exec = object_select_menu_exec;
+  ot->get_name = object_select_menu_get_name;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -1727,7 +1741,7 @@ static bool object_mouse_select_menu(bContext *C,
 
     if (ok) {
       base_count++;
-      BaseRefWithDepth *base_ref = MEM_cnew<BaseRefWithDepth>(__func__);
+      BaseRefWithDepth *base_ref = MEM_callocN<BaseRefWithDepth>(__func__);
       base_ref->base = base;
       base_ref->depth_id = depth_id;
       BLI_addtail(&base_ref_list, (void *)base_ref);
@@ -1786,7 +1800,7 @@ static bool object_mouse_select_menu(bContext *C,
   return true;
 }
 
-static int bone_select_menu_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus bone_select_menu_exec(bContext *C, wmOperator *op)
 {
   const int name_index = RNA_enum_get(op->ptr, "name");
 
@@ -1967,7 +1981,7 @@ static bool bone_mouse_select_menu(bContext *C,
 
     if (!is_duplicate_bone) {
       bone_count++;
-      BoneRefWithDepth *bone_ref = MEM_cnew<BoneRefWithDepth>(__func__);
+      BoneRefWithDepth *bone_ref = MEM_callocN<BoneRefWithDepth>(__func__);
       bone_ref->base = bone_base;
       bone_ref->bone_ptr = bone_ptr;
       bone_ref->depth_id = hit_result.depth;
@@ -3075,7 +3089,7 @@ static bool ed_wpaint_vertex_select_pick(bContext *C,
 
 struct ClosestPointCloud {
   PointCloud *pointcloud = nullptr;
-  blender::ed::point_cloud::FindClosestData elem;
+  blender::ed::pointcloud::FindClosestData elem;
 };
 
 /**
@@ -3083,7 +3097,7 @@ struct ClosestPointCloud {
  *
  * \returns true if the selection changed.
  */
-static bool point_cloud_select_pick(bContext &C, const int2 mval, const SelectPick_Params &params)
+static bool pointcloud_select_pick(bContext &C, const int2 mval, const SelectPick_Params &params)
 {
   using namespace blender;
   using namespace blender::ed;
@@ -3105,14 +3119,14 @@ static bool point_cloud_select_pick(bContext &C, const int2 mval, const SelectPi
           PointCloud &pointcloud = *static_cast<PointCloud *>(object.data);
           const float4x4 projection = ED_view3d_ob_project_mat_get(vc.rv3d, &object);
 
-          std::optional<point_cloud::FindClosestData> new_closest_elem =
-              point_cloud::find_closest_point_to_screen_co(*vc.region,
-                                                           pointcloud.positions(),
-                                                           projection,
-                                                           IndexMask(pointcloud.totpoint),
-                                                           float2(mval),
-                                                           ED_view3d_select_dist_px(),
-                                                           new_closest.elem);
+          std::optional<pointcloud::FindClosestData> new_closest_elem =
+              pointcloud::find_closest_point_to_screen_co(*vc.region,
+                                                          pointcloud.positions(),
+                                                          projection,
+                                                          IndexMask(pointcloud.totpoint),
+                                                          float2(mval),
+                                                          ED_view3d_select_dist_px(),
+                                                          new_closest.elem);
           if (new_closest_elem) {
             new_closest.elem = *new_closest_elem;
             new_closest.pointcloud = &pointcloud;
@@ -3129,13 +3143,13 @@ static bool point_cloud_select_pick(bContext &C, const int2 mval, const SelectPi
     threading::parallel_for(bases.index_range(), 1L, [&](const IndexRange range) {
       for (Base *base : bases.as_span().slice(range)) {
         PointCloud &pointcloud = *static_cast<PointCloud *>(base->object->data);
-        if (!point_cloud::has_anything_selected(pointcloud)) {
+        if (!pointcloud::has_anything_selected(pointcloud)) {
           continue;
         }
 
-        bke::GSpanAttributeWriter selection = point_cloud::ensure_selection_attribute(
-            pointcloud, CD_PROP_BOOL);
-        point_cloud::fill_selection_false(selection.span, IndexMask(pointcloud.totpoint));
+        bke::GSpanAttributeWriter selection = pointcloud::ensure_selection_attribute(pointcloud,
+                                                                                     CD_PROP_BOOL);
+        pointcloud::fill_selection_false(selection.span, IndexMask(pointcloud.totpoint));
         selection.finish();
 
         deselected = true;
@@ -3151,8 +3165,8 @@ static bool point_cloud_select_pick(bContext &C, const int2 mval, const SelectPi
     return deselected;
   }
 
-  bke::GSpanAttributeWriter selection = point_cloud::ensure_selection_attribute(
-      *closest.pointcloud, CD_PROP_BOOL);
+  bke::GSpanAttributeWriter selection = pointcloud::ensure_selection_attribute(*closest.pointcloud,
+                                                                               CD_PROP_BOOL);
   curves::apply_selection_operation_at_index(selection.span, closest.elem.index, params.sel_op);
   selection.finish();
 
@@ -3467,7 +3481,7 @@ static bool ed_grease_pencil_select_pick(bContext *C,
   return true;
 }
 
-static int view3d_select_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus view3d_select_exec(bContext *C, wmOperator *op)
 {
   Scene *scene = CTX_data_scene(C);
   Object *obedit = CTX_data_edit_object(C);
@@ -3548,7 +3562,7 @@ static int view3d_select_exec(bContext *C, wmOperator *op)
       changed = ED_curve_editfont_select_pick(C, mval, &params);
     }
     else if (obedit->type == OB_POINTCLOUD) {
-      changed = point_cloud_select_pick(*C, mval, params);
+      changed = pointcloud_select_pick(*C, mval, params);
     }
     else if (obedit->type == OB_CURVES) {
       changed = ed_curves_select_pick(*C, mval, params);
@@ -3585,11 +3599,11 @@ static int view3d_select_exec(bContext *C, wmOperator *op)
   return OPERATOR_PASS_THROUGH | OPERATOR_CANCELLED;
 }
 
-static int view3d_select_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus view3d_select_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   RNA_int_set_array(op->ptr, "location", event->mval);
 
-  const int retval = view3d_select_exec(C, op);
+  const wmOperatorStatus retval = view3d_select_exec(C, op);
 
   return WM_operator_flag_only_pass_through_on_press(retval, event);
 }
@@ -4419,7 +4433,7 @@ static bool do_grease_pencil_box_select(const ViewContext *vc,
       });
 }
 
-static int view3d_box_select_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus view3d_box_select_exec(bContext *C, wmOperator *op)
 {
   using namespace blender;
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
@@ -4510,9 +4524,9 @@ static int view3d_box_select_exec(bContext *C, wmOperator *op)
           break;
         }
         case OB_POINTCLOUD: {
-          PointCloud &point_cloud = *static_cast<PointCloud *>(vc.obedit->data);
+          PointCloud &pointcloud = *static_cast<PointCloud *>(vc.obedit->data);
           const float4x4 projection = ED_view3d_ob_project_mat_get(vc.rv3d, vc.obedit);
-          changed = ed::point_cloud::select_box(point_cloud, *vc.region, projection, rect, sel_op);
+          changed = ed::pointcloud::select_box(pointcloud, *vc.region, projection, rect, sel_op);
           if (changed) {
             /* Use #ID_RECALC_GEOMETRY instead of #ID_RECALC_SELECT because it is handled as a
              * generic attribute for now. */
@@ -5359,10 +5373,10 @@ static bool obedit_circle_select(bContext *C,
       break;
     }
     case OB_POINTCLOUD: {
-      PointCloud &point_cloud = *static_cast<PointCloud *>(vc->obedit->data);
+      PointCloud &pointcloud = *static_cast<PointCloud *>(vc->obedit->data);
       const float4x4 projection = ED_view3d_ob_project_mat_get(vc->rv3d, vc->obedit);
-      changed = ed::point_cloud::select_circle(
-          point_cloud, *vc->region, projection, mval, rad, sel_op);
+      changed = ed::pointcloud::select_circle(
+          pointcloud, *vc->region, projection, mval, rad, sel_op);
       if (changed) {
         /* Use #ID_RECALC_GEOMETRY instead of #ID_RECALC_SELECT because it is handled as a
          * generic attribute for now. */
@@ -5457,9 +5471,11 @@ static void view3d_circle_select_recalc(void *user_data)
   }
 }
 
-static int view3d_circle_select_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus view3d_circle_select_modal(bContext *C,
+                                                   wmOperator *op,
+                                                   const wmEvent *event)
 {
-  int result = WM_gesture_circle_modal(C, op, event);
+  wmOperatorStatus result = WM_gesture_circle_modal(C, op, event);
   if (result & OPERATOR_FINISHED) {
     view3d_circle_select_recalc(C);
   }
@@ -5472,7 +5488,7 @@ static void view3d_circle_select_cancel(bContext *C, wmOperator *op)
   view3d_circle_select_recalc(C);
 }
 
-static int view3d_circle_select_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus view3d_circle_select_exec(bContext *C, wmOperator *op)
 {
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   const int radius = RNA_int_get(op->ptr, "radius");

@@ -53,8 +53,8 @@ static void createTransSculpt(bContext *C, TransInfo *t)
     TransDataContainer *tc = t->data_container;
     tc->data_len = 1;
     tc->is_active = true;
-    td = tc->data = MEM_cnew<TransData>(__func__);
-    td->ext = tc->data_ext = MEM_cnew<TransDataExtension>(__func__);
+    td = tc->data = MEM_callocN<TransData>(__func__);
+    td->ext = tc->data_ext = MEM_callocN<TransDataExtension>(__func__);
   }
 
   td->flag = TD_SELECTED;
@@ -87,9 +87,9 @@ static void createTransSculpt(bContext *C, TransInfo *t)
   ss.pivot_scale[0] = 1.0f;
   ss.pivot_scale[1] = 1.0f;
   ss.pivot_scale[2] = 1.0f;
-  td->ext->size = ss.pivot_scale;
+  td->ext->scale = ss.pivot_scale;
   copy_v3_v3(ss.init_pivot_scale, ss.pivot_scale);
-  copy_v3_v3(td->ext->isize, ss.init_pivot_scale);
+  copy_v3_v3(td->ext->iscale, ss.init_pivot_scale);
 
   copy_m3_m3(td->smtx, obmat_inv);
   copy_m3_m4(td->mtx, ob.object_to_world().ptr());
@@ -110,7 +110,13 @@ static void recalcData_sculpt(TransInfo *t)
 {
   BKE_view_layer_synced_ensure(t->scene, t->view_layer);
   Object *ob = BKE_view_layer_active_object_get(t->view_layer);
-  sculpt_paint::update_modal_transform(t->context, *ob);
+
+  if (t->state == TRANS_CANCEL) {
+    sculpt_paint::cancel_modal_transform(t->context, *ob);
+  }
+  else {
+    sculpt_paint::update_modal_transform(t->context, *ob);
+  }
 }
 
 static void special_aftertrans_update__sculpt(bContext *C, TransInfo *t)

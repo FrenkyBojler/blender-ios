@@ -18,6 +18,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_listbase.h"
+#include "BLI_math_vector.h"
 #include "BLI_string.h"
 #include "BLI_time.h"
 #include "BLI_utildefines.h"
@@ -1377,6 +1378,7 @@ void UI_panel_category_draw_all(ARegion *region, const char *category_id_active)
   View2D *v2d = &region->v2d;
   const uiStyle *style = UI_style_get();
   const uiFontStyle *fstyle = &style->widget;
+  UI_fontstyle_set(fstyle);
   const int fontid = fstyle->uifont_id;
   float fstyle_points = fstyle->points;
   const float aspect = BLI_listbase_is_empty(&region->runtime->uiblocks) ?
@@ -2153,7 +2155,7 @@ void ui_panel_drag_collapse_handler_add(const bContext *C, const bool was_open)
 {
   wmWindow *win = CTX_wm_window(C);
   const wmEvent *event = win->eventstate;
-  uiPanelDragCollapseHandle *dragcol_data = MEM_cnew<uiPanelDragCollapseHandle>(__func__);
+  uiPanelDragCollapseHandle *dragcol_data = MEM_callocN<uiPanelDragCollapseHandle>(__func__);
 
   dragcol_data->was_first_open = was_open;
   copy_v2_v2_int(dragcol_data->xy_init, event->xy);
@@ -2332,7 +2334,7 @@ static void ui_panel_category_active_set(ARegion *region, const char *idname, bo
     BLI_remlink(lb, pc_act);
   }
   else {
-    pc_act = MEM_cnew<PanelCategoryStack>(__func__);
+    pc_act = MEM_callocN<PanelCategoryStack>(__func__);
     STRNCPY(pc_act->idname, idname);
   }
 
@@ -2419,7 +2421,7 @@ static PanelCategoryDyn *panel_categories_find_mouse_over(ARegion *region, const
 
 void UI_panel_category_add(ARegion *region, const char *name)
 {
-  PanelCategoryDyn *pc_dyn = MEM_cnew<PanelCategoryDyn>(__func__);
+  PanelCategoryDyn *pc_dyn = MEM_callocN<PanelCategoryDyn>(__func__);
   BLI_addtail(&region->runtime->panels_category, pc_dyn);
 
   STRNCPY(pc_dyn->idname, name);
@@ -2563,9 +2565,7 @@ int ui_handler_panel_region(bContext *C,
 
       /* The panel collapse / expand key "A" is special as it takes priority over
        * active button handling. */
-      if (event->type == EVT_AKEY &&
-          ((event->modifier & (KM_SHIFT | KM_CTRL | KM_ALT | KM_OSKEY)) == 0))
-      {
+      if ((event->type == EVT_AKEY) && (event->modifier == 0)) {
         retval = WM_UI_HANDLER_BREAK;
         ui_handle_panel_header(
             C, block, mx, event->type, event->modifier & KM_CTRL, event->modifier & KM_SHIFT);

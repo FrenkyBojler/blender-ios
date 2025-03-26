@@ -67,10 +67,10 @@ struct SpaceOutliner_Runtime;
 }  // namespace blender::ed::outliner
 using SpaceOutliner_Runtime = blender::ed::outliner::SpaceOutliner_Runtime;
 
-namespace blender::ed::seq {
+namespace blender::ed::vse {
 struct SpaceSeq_Runtime;
-}  // namespace blender::ed::seq
-using SpaceSeq_Runtime = blender::ed::seq::SpaceSeq_Runtime;
+}  // namespace blender::ed::vse
+using SpaceSeq_Runtime = blender::ed::vse::SpaceSeq_Runtime;
 
 namespace blender::ed::text {
 struct SpaceText_Runtime;
@@ -834,7 +834,8 @@ typedef struct FileSelectParams {
   int sel_first;
   int sel_last;
   unsigned short thumbnail_size;
-  char _pad1[2];
+  unsigned short list_thumbnail_size;
+  unsigned short list_column_size;
 
   /* short */
   /** XXX: for now store type here, should be moved to the operator. */
@@ -847,7 +848,7 @@ typedef struct FileSelectParams {
   short display;
   /** Details toggles (file size, creation date, etc.) */
   char details_flags;
-  char _pad2[3];
+  char _pad1;
 
   /** Filter when (flags & FILE_FILTER) is true. */
   int filter;
@@ -855,7 +856,7 @@ typedef struct FileSelectParams {
   /** Max number of levels in directory tree to show at once, 0 to disable recursion. */
   short recursion_level;
 
-  char _pad4[2];
+  char _pad2[2];
 } FileSelectParams;
 
 /**
@@ -872,7 +873,8 @@ typedef struct FileAssetSelectParams {
   bUUID catalog_id;
 
   short import_method; /* eFileAssetImportMethod */
-  char _pad2[6];
+  short import_flags;  /* eFileImportFlags */
+  char _pad2[4];
 } FileAssetSelectParams;
 
 typedef enum eFileAssetImportMethod {
@@ -887,6 +889,11 @@ typedef enum eFileAssetImportMethod {
   /** Default: Follow the preference setting for this asset library. */
   FILE_ASSET_IMPORT_FOLLOW_PREFS = 3,
 } eFileAssetImportMethod;
+
+typedef enum eFileAssetImportFlags {
+  FILE_ASSET_IMPORT_INSTANCE_COLLECTIONS_ON_LINK = (1 << 0),
+  FILE_ASSET_IMPORT_INSTANCE_COLLECTIONS_ON_APPEND = (1 << 1),
+} eFileAssetImportFlags;
 
 /**
  * A wrapper to store previous and next folder lists (#FolderList) for a specific browse mode

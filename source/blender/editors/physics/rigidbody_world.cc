@@ -53,7 +53,7 @@ static bool ED_rigidbody_world_add_poll(bContext *C)
 
 /* ********** Add RigidBody World **************** */
 
-static int rigidbody_world_add_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus rigidbody_world_add_exec(bContext *C, wmOperator * /*op*/)
 {
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
@@ -87,7 +87,7 @@ void RIGIDBODY_OT_world_add(wmOperatorType *ot)
 
 /* ********** Remove RigidBody World ************* */
 
-static int rigidbody_world_remove_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus rigidbody_world_remove_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
@@ -129,7 +129,7 @@ void RIGIDBODY_OT_world_remove(wmOperatorType *ot)
 
 /* ********** Export RigidBody World ************* */
 
-static int rigidbody_world_export_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus rigidbody_world_export_exec(bContext *C, wmOperator *op)
 {
   Scene *scene = CTX_data_scene(C);
   RigidBodyWorld *rbw = scene->rigidbody_world;
@@ -140,7 +140,8 @@ static int rigidbody_world_export_exec(bContext *C, wmOperator *op)
     BKE_report(op->reports, RPT_ERROR, "No Rigid Body World to export");
     return OPERATOR_CANCELLED;
   }
-  if (rbw->shared->physics_world == nullptr) {
+  rbDynamicsWorld *physics_world = BKE_rigidbody_world_physics(rbw);
+  if (physics_world == nullptr) {
     BKE_report(
         op->reports, RPT_ERROR, "Rigid Body World has no associated physics data to export");
     return OPERATOR_CANCELLED;
@@ -148,12 +149,14 @@ static int rigidbody_world_export_exec(bContext *C, wmOperator *op)
 
   RNA_string_get(op->ptr, "filepath", filepath);
 #ifdef WITH_BULLET
-  RB_dworld_export(static_cast<rbDynamicsWorld *>(rbw->shared->physics_world), filepath);
+  RB_dworld_export(physics_world, filepath);
 #endif
   return OPERATOR_FINISHED;
 }
 
-static int rigidbody_world_export_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+static wmOperatorStatus rigidbody_world_export_invoke(bContext *C,
+                                                      wmOperator *op,
+                                                      const wmEvent * /*event*/)
 {
   if (!RNA_struct_property_is_set(op->ptr, "relative_path")) {
     RNA_boolean_set(op->ptr, "relative_path", (U.flag & USER_RELPATHS) != 0);

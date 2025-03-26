@@ -45,7 +45,7 @@ struct DRWPatchMap {
   int min_patch_face;
   int max_patch_face;
   int max_depth;
-  int patches_are_triangular;
+  bool patches_are_triangular;
 };
 
 /** \} */
@@ -155,6 +155,8 @@ void DRW_create_subdivision(Object &ob,
                             Mesh &mesh,
                             MeshBatchCache &batch_cache,
                             MeshBufferCache &mbc,
+                            Span<IBOType> ibo_requests,
+                            Span<VBOType> vbo_requests,
                             bool is_editmode,
                             bool is_paint_mode,
                             const float4x4 &object_to_world,

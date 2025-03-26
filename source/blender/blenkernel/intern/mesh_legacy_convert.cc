@@ -136,7 +136,7 @@ static void mesh_calc_edges_mdata(const MVert * /*allvert*/,
     return;
   }
 
-  ed = edsort = (EdgeSort *)MEM_mallocN(totedge * sizeof(EdgeSort), "EdgeSort");
+  ed = edsort = MEM_malloc_arrayN<EdgeSort>(totedge, "EdgeSort");
 
   for (a = totface, mface = allface; a > 0; a--, mface++) {
     to_edgesort(ed++, mface->v1, mface->v2, !mface->v3, mface->edcode & ME_V1V2);
@@ -162,7 +162,7 @@ static void mesh_calc_edges_mdata(const MVert * /*allvert*/,
   }
   totedge_final++;
 
-  edges = (MEdge *)MEM_callocN(sizeof(MEdge) * totedge_final, __func__);
+  edges = MEM_calloc_arrayN<MEdge>(totedge_final, __func__);
 
   for (a = totedge, edge = edges, ed = edsort; a > 1; a--, ed++) {
     /* edge is unique when it differs from next edge, or is last */
@@ -429,8 +429,7 @@ static void bm_corners_to_loops_ex(ID *id,
           MEM_freeN(ld->disps);
         }
 
-        ld->disps = (float(*)[3])MEM_malloc_arrayN(
-            size_t(side_sq), sizeof(float[3]), "converted loop mdisps");
+        ld->disps = MEM_malloc_arrayN<float[3]>(size_t(side_sq), "converted loop mdisps");
         if (fd->disps) {
           memcpy(ld->disps, disps, size_t(side_sq) * sizeof(float[3]));
         }
@@ -1033,10 +1032,9 @@ static int mesh_tessface_calc(Mesh &mesh,
   /* Allocate the length of `totfaces`, avoid many small reallocation's,
    * if all faces are triangles it will be correct, `quads == 2x` allocations. */
   /* Take care since memory is _not_ zeroed so be sure to initialize each field. */
-  mface_to_poly_map = (int *)MEM_malloc_arrayN(
-      size_t(corner_tris_num), sizeof(*mface_to_poly_map), __func__);
-  mface = (MFace *)MEM_malloc_arrayN(size_t(corner_tris_num), sizeof(*mface), __func__);
-  lindices = (uint(*)[4])MEM_malloc_arrayN(size_t(corner_tris_num), sizeof(*lindices), __func__);
+  mface_to_poly_map = MEM_malloc_arrayN<int>(size_t(corner_tris_num), __func__);
+  mface = MEM_malloc_arrayN<MFace>(size_t(corner_tris_num), __func__);
+  lindices = MEM_malloc_arrayN<uint[4]>(size_t(corner_tris_num), __func__);
 
   mface_index = 0;
   for (poly_index = 0; poly_index < faces_num; poly_index++) {
@@ -1726,21 +1724,18 @@ void BKE_mesh_legacy_convert_uvs_to_generic(Mesh *mesh)
         },
         [](const uint32_t a, const uint32_t b) { return a | b; });
 
-    float2 *coords = static_cast<float2 *>(
-        MEM_malloc_arrayN(mesh->corners_num, sizeof(float2), __func__));
+    float2 *coords = MEM_malloc_arrayN<float2>(size_t(mesh->corners_num), __func__);
     bool *vert_selection = nullptr;
     bool *edge_selection = nullptr;
     bool *pin = nullptr;
     if (needed_boolean_attributes & MLOOPUV_VERTSEL) {
-      vert_selection = static_cast<bool *>(
-          MEM_malloc_arrayN(mesh->corners_num, sizeof(bool), __func__));
+      vert_selection = MEM_malloc_arrayN<bool>(size_t(mesh->corners_num), __func__);
     }
     if (needed_boolean_attributes & MLOOPUV_EDGESEL) {
-      edge_selection = static_cast<bool *>(
-          MEM_malloc_arrayN(mesh->corners_num, sizeof(bool), __func__));
+      edge_selection = MEM_malloc_arrayN<bool>(size_t(mesh->corners_num), __func__);
     }
     if (needed_boolean_attributes & MLOOPUV_PINNED) {
-      pin = static_cast<bool *>(MEM_malloc_arrayN(mesh->corners_num, sizeof(bool), __func__));
+      pin = MEM_malloc_arrayN<bool>(size_t(mesh->corners_num), __func__);
     }
 
     threading::parallel_for(IndexRange(mesh->corners_num), 4096, [&](IndexRange range) {
@@ -2124,7 +2119,7 @@ static bNodeTree *add_auto_smooth_node_tree(Main &bmain, Library *owner_library)
   bNodeTree *group = node_tree_add_in_lib(
       &bmain, owner_library, DATA_("Auto Smooth"), "GeometryNodeTree");
   if (!group->geometry_node_asset_traits) {
-    group->geometry_node_asset_traits = MEM_cnew<GeometryNodeAssetTraits>(__func__);
+    group->geometry_node_asset_traits = MEM_callocN<GeometryNodeAssetTraits>(__func__);
   }
   group->geometry_node_asset_traits->flag |= GEO_NODE_ASSET_MODIFIER;
 
@@ -2139,10 +2134,10 @@ static bNodeTree *add_auto_smooth_node_tree(Main &bmain, Library *owner_library)
   angle_data.max = DEG2RADF(180.0f);
   angle_data.subtype = PROP_ANGLE;
 
-  bNode *group_output = node_add_node(nullptr, group, "NodeGroupOutput");
+  bNode *group_output = node_add_node(nullptr, *group, "NodeGroupOutput");
   group_output->location[0] = 480.0f;
   group_output->location[1] = -100.0f;
-  bNode *group_input_angle = node_add_node(nullptr, group, "NodeGroupInput");
+  bNode *group_input_angle = node_add_node(nullptr, *group, "NodeGroupInput");
   group_input_angle->location[0] = -420.0f;
   group_input_angle->location[1] = -300.0f;
   LISTBASE_FOREACH (bNodeSocket *, socket, &group_input_angle->outputs) {
@@ -2150,7 +2145,7 @@ static bNodeTree *add_auto_smooth_node_tree(Main &bmain, Library *owner_library)
       socket->flag |= SOCK_HIDDEN;
     }
   }
-  bNode *group_input_mesh = node_add_node(nullptr, group, "NodeGroupInput");
+  bNode *group_input_mesh = node_add_node(nullptr, *group, "NodeGroupInput");
   group_input_mesh->location[0] = -60.0f;
   group_input_mesh->location[1] = -100.0f;
   LISTBASE_FOREACH (bNodeSocket *, socket, &group_input_mesh->outputs) {
@@ -2158,81 +2153,81 @@ static bNodeTree *add_auto_smooth_node_tree(Main &bmain, Library *owner_library)
       socket->flag |= SOCK_HIDDEN;
     }
   }
-  bNode *shade_smooth_edge = node_add_node(nullptr, group, "GeometryNodeSetShadeSmooth");
+  bNode *shade_smooth_edge = node_add_node(nullptr, *group, "GeometryNodeSetShadeSmooth");
   shade_smooth_edge->custom1 = int16_t(bke::AttrDomain::Edge);
   shade_smooth_edge->location[0] = 120.0f;
   shade_smooth_edge->location[1] = -100.0f;
-  bNode *shade_smooth_face = node_add_node(nullptr, group, "GeometryNodeSetShadeSmooth");
+  bNode *shade_smooth_face = node_add_node(nullptr, *group, "GeometryNodeSetShadeSmooth");
   shade_smooth_face->custom1 = int16_t(bke::AttrDomain::Face);
   shade_smooth_face->location[0] = 300.0f;
   shade_smooth_face->location[1] = -100.0f;
-  bNode *edge_angle = node_add_node(nullptr, group, "GeometryNodeInputMeshEdgeAngle");
+  bNode *edge_angle = node_add_node(nullptr, *group, "GeometryNodeInputMeshEdgeAngle");
   edge_angle->location[0] = -420.0f;
   edge_angle->location[1] = -220.0f;
-  bNode *edge_smooth = node_add_node(nullptr, group, "GeometryNodeInputEdgeSmooth");
+  bNode *edge_smooth = node_add_node(nullptr, *group, "GeometryNodeInputEdgeSmooth");
   edge_smooth->location[0] = -60.0f;
   edge_smooth->location[1] = -160.0f;
-  bNode *face_smooth = node_add_node(nullptr, group, "GeometryNodeInputShadeSmooth");
+  bNode *face_smooth = node_add_node(nullptr, *group, "GeometryNodeInputShadeSmooth");
   face_smooth->location[0] = -240.0f;
   face_smooth->location[1] = -340.0f;
-  bNode *boolean_and = node_add_node(nullptr, group, "FunctionNodeBooleanMath");
+  bNode *boolean_and = node_add_node(nullptr, *group, "FunctionNodeBooleanMath");
   boolean_and->custom1 = NODE_BOOLEAN_MATH_AND;
   boolean_and->location[0] = -60.0f;
   boolean_and->location[1] = -220.0f;
-  bNode *less_than_or_equal = node_add_node(nullptr, group, "FunctionNodeCompare");
+  bNode *less_than_or_equal = node_add_node(nullptr, *group, "FunctionNodeCompare");
   static_cast<NodeFunctionCompare *>(less_than_or_equal->storage)->operation =
       NODE_COMPARE_LESS_EQUAL;
   less_than_or_equal->location[0] = -240.0f;
   less_than_or_equal->location[1] = -180.0f;
 
-  node_add_link(group,
-                edge_angle,
-                node_find_socket(edge_angle, SOCK_OUT, "Unsigned Angle"),
-                less_than_or_equal,
-                node_find_socket(less_than_or_equal, SOCK_IN, "A"));
-  node_add_link(group,
-                shade_smooth_face,
-                node_find_socket(shade_smooth_face, SOCK_OUT, "Geometry"),
-                group_output,
-                node_find_socket(group_output, SOCK_IN, "Socket_0"));
-  node_add_link(group,
-                group_input_angle,
-                node_find_socket(group_input_angle, SOCK_OUT, "Socket_2"),
-                less_than_or_equal,
-                node_find_socket(less_than_or_equal, SOCK_IN, "B"));
-  node_add_link(group,
-                less_than_or_equal,
-                node_find_socket(less_than_or_equal, SOCK_OUT, "Result"),
-                boolean_and,
-                node_find_socket(boolean_and, SOCK_IN, "Boolean"));
-  node_add_link(group,
-                face_smooth,
-                node_find_socket(face_smooth, SOCK_OUT, "Smooth"),
-                boolean_and,
-                node_find_socket(boolean_and, SOCK_IN, "Boolean_001"));
-  node_add_link(group,
-                group_input_mesh,
-                node_find_socket(group_input_mesh, SOCK_OUT, "Socket_1"),
-                shade_smooth_edge,
-                node_find_socket(shade_smooth_edge, SOCK_IN, "Geometry"));
-  node_add_link(group,
-                edge_smooth,
-                node_find_socket(edge_smooth, SOCK_OUT, "Smooth"),
-                shade_smooth_edge,
-                node_find_socket(shade_smooth_edge, SOCK_IN, "Selection"));
-  node_add_link(group,
-                shade_smooth_edge,
-                node_find_socket(shade_smooth_edge, SOCK_OUT, "Geometry"),
-                shade_smooth_face,
-                node_find_socket(shade_smooth_face, SOCK_IN, "Geometry"));
-  node_add_link(group,
-                boolean_and,
-                node_find_socket(boolean_and, SOCK_OUT, "Boolean"),
-                shade_smooth_edge,
-                node_find_socket(shade_smooth_edge, SOCK_IN, "Shade Smooth"));
+  node_add_link(*group,
+                *edge_angle,
+                *node_find_socket(*edge_angle, SOCK_OUT, "Unsigned Angle"),
+                *less_than_or_equal,
+                *node_find_socket(*less_than_or_equal, SOCK_IN, "A"));
+  node_add_link(*group,
+                *shade_smooth_face,
+                *node_find_socket(*shade_smooth_face, SOCK_OUT, "Geometry"),
+                *group_output,
+                *node_find_socket(*group_output, SOCK_IN, "Socket_0"));
+  node_add_link(*group,
+                *group_input_angle,
+                *node_find_socket(*group_input_angle, SOCK_OUT, "Socket_2"),
+                *less_than_or_equal,
+                *node_find_socket(*less_than_or_equal, SOCK_IN, "B"));
+  node_add_link(*group,
+                *less_than_or_equal,
+                *node_find_socket(*less_than_or_equal, SOCK_OUT, "Result"),
+                *boolean_and,
+                *node_find_socket(*boolean_and, SOCK_IN, "Boolean"));
+  node_add_link(*group,
+                *face_smooth,
+                *node_find_socket(*face_smooth, SOCK_OUT, "Smooth"),
+                *boolean_and,
+                *node_find_socket(*boolean_and, SOCK_IN, "Boolean_001"));
+  node_add_link(*group,
+                *group_input_mesh,
+                *node_find_socket(*group_input_mesh, SOCK_OUT, "Socket_1"),
+                *shade_smooth_edge,
+                *node_find_socket(*shade_smooth_edge, SOCK_IN, "Geometry"));
+  node_add_link(*group,
+                *edge_smooth,
+                *node_find_socket(*edge_smooth, SOCK_OUT, "Smooth"),
+                *shade_smooth_edge,
+                *node_find_socket(*shade_smooth_edge, SOCK_IN, "Selection"));
+  node_add_link(*group,
+                *shade_smooth_edge,
+                *node_find_socket(*shade_smooth_edge, SOCK_OUT, "Geometry"),
+                *shade_smooth_face,
+                *node_find_socket(*shade_smooth_face, SOCK_IN, "Geometry"));
+  node_add_link(*group,
+                *boolean_and,
+                *node_find_socket(*boolean_and, SOCK_OUT, "Boolean"),
+                *shade_smooth_edge,
+                *node_find_socket(*shade_smooth_edge, SOCK_IN, "Shade Smooth"));
 
   LISTBASE_FOREACH (bNode *, node, &group->nodes) {
-    node_set_selected(node, false);
+    node_set_selected(*node, false);
   }
 
   BKE_ntree_update_after_single_tree_change(bmain, *group);

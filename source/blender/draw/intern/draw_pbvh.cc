@@ -31,6 +31,7 @@
 
 #include "DRW_engine.hh"
 #include "DRW_pbvh.hh"
+#include "DRW_render.hh"
 
 #include "attribute_convert.hh"
 #include "bmesh.hh"
@@ -620,7 +621,7 @@ static void update_positions_mesh(const Object &object,
 {
   const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   const Span<bke::pbvh::MeshNode> nodes = pbvh.nodes<bke::pbvh::MeshNode>();
-  const Mesh &mesh = *static_cast<const Mesh *>(object.data);
+  const Mesh &mesh = DRW_object_get_data_for_drawing<Mesh>(object);
   const OffsetIndices<int> faces = mesh.faces();
   const Span<int> corner_verts = mesh.corner_verts();
   const Span<float3> vert_positions = bke::pbvh::vert_positions_eval_from_eval(object);
@@ -637,7 +638,7 @@ static void update_normals_mesh(const Object &object,
 {
   const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   const Span<bke::pbvh::MeshNode> nodes = pbvh.nodes<bke::pbvh::MeshNode>();
-  const Mesh &mesh = *static_cast<const Mesh *>(object.data);
+  const Mesh &mesh = DRW_object_get_data_for_drawing<Mesh>(object);
   const OffsetIndices<int> faces = mesh.faces();
   const Span<int> corner_verts = mesh.corner_verts();
   const Span<float3> vert_normals = bke::pbvh::vert_normals_eval_from_eval(object);
@@ -671,7 +672,7 @@ BLI_NOINLINE static void update_masks_mesh(const Object &object,
 {
   const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   const Span<bke::pbvh::MeshNode> nodes = pbvh.nodes<bke::pbvh::MeshNode>();
-  const Mesh &mesh = *static_cast<const Mesh *>(object.data);
+  const Mesh &mesh = DRW_object_get_data_for_drawing<Mesh>(object);
   const OffsetIndices<int> faces = mesh.faces();
   const Span<int> corner_verts = mesh.corner_verts();
   const VArraySpan mask = *orig_mesh_data.attributes.lookup<float>(".sculpt_mask",
@@ -701,7 +702,7 @@ BLI_NOINLINE static void update_face_sets_mesh(const Object &object,
 {
   const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   const Span<bke::pbvh::MeshNode> nodes = pbvh.nodes<bke::pbvh::MeshNode>();
-  const Mesh &mesh = *static_cast<const Mesh *>(object.data);
+  const Mesh &mesh = DRW_object_get_data_for_drawing<Mesh>(object);
   const OffsetIndices<int> faces = mesh.faces();
   const int color_default = orig_mesh_data.face_set_default;
   const int color_seed = orig_mesh_data.face_set_seed;
@@ -743,7 +744,7 @@ BLI_NOINLINE static void update_generic_attribute_mesh(const Object &object,
 {
   const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   const Span<bke::pbvh::MeshNode> nodes = pbvh.nodes<bke::pbvh::MeshNode>();
-  const Mesh &mesh = *static_cast<const Mesh *>(object.data);
+  const Mesh &mesh = DRW_object_get_data_for_drawing<Mesh>(object);
   const OffsetIndices<int> faces = mesh.faces();
   const Span<int> corner_verts = mesh.corner_verts();
   const StringRefNull name = attr.name;
@@ -1136,9 +1137,9 @@ BLI_NOINLINE static void update_generic_attribute_bmesh(const Object &object,
   });
 }
 
-static gpu::IndexBuf *create_index_faces(const OffsetIndices<int> faces,
-                                         const Span<bool> hide_poly,
-                                         const Span<int> face_indices)
+static gpu::IndexBuf *create_lines_index_faces(const OffsetIndices<int> faces,
+                                               const Span<bool> hide_poly,
+                                               const Span<int> face_indices)
 {
   int corners_count = 0;
   for (const int face : face_indices) {
@@ -1174,30 +1175,30 @@ static gpu::IndexBuf *create_index_faces(const OffsetIndices<int> faces,
   return ibo;
 }
 
-static gpu::IndexBuf *create_index_bmesh(const Set<BMFace *, 0> &faces,
-                                         const int visible_faces_num)
+static gpu::IndexBuf *create_lines_index_bmesh(const Set<BMFace *, 0> &faces,
+                                               const int visible_faces_num)
 {
   GPUIndexBufBuilder builder;
-  GPU_indexbuf_init(&builder, GPU_PRIM_LINES, visible_faces_num, INT_MAX);
+  GPU_indexbuf_init(&builder, GPU_PRIM_LINES, visible_faces_num * 3, INT_MAX);
 
   MutableSpan<uint2> data = GPU_indexbuf_get_data(&builder).cast<uint2>();
 
-  int tri_index = 0;
-  int v_index = 0;
+  int line_index = 0;
+  int vert_index = 0;
 
   for (const BMFace *face : faces) {
     if (BM_elem_flag_test(face, BM_ELEM_HIDDEN)) {
       continue;
     }
 
-    data[tri_index] = uint2(v_index, v_index + 1);
-    tri_index++;
-    data[tri_index] = uint2(v_index + 1, v_index + 2);
-    tri_index++;
-    data[tri_index] = uint2(v_index + 2, v_index);
-    tri_index++;
+    data[line_index] = uint2(vert_index, vert_index + 1);
+    line_index++;
+    data[line_index] = uint2(vert_index + 1, vert_index + 2);
+    line_index++;
+    data[line_index] = uint2(vert_index + 2, vert_index);
+    line_index++;
 
-    v_index += 3;
+    vert_index += 3;
   }
 
   gpu::IndexBuf *ibo = GPU_indexbuf_calloc();
@@ -1414,7 +1415,7 @@ static Array<int> calc_material_indices(const Object &object, const OrigMeshData
   switch (pbvh.type()) {
     case bke::pbvh::Type::Mesh: {
       const Span<bke::pbvh::MeshNode> nodes = pbvh.nodes<bke::pbvh::MeshNode>();
-      const Mesh &mesh = *static_cast<const Mesh *>(object.data);
+      const Mesh &mesh = DRW_object_get_data_for_drawing<Mesh>(object);
       const bke::AttributeAccessor attributes = mesh.attributes();
       const VArray material_indices = *attributes.lookup<int>("material_index",
                                                               bke::AttrDomain::Face);
@@ -1644,12 +1645,12 @@ Span<gpu::IndexBuf *> DrawCacheImpl::ensure_lines_indices(const Object &object,
   switch (pbvh.type()) {
     case bke::pbvh::Type::Mesh: {
       const Span<bke::pbvh::MeshNode> nodes = pbvh.nodes<bke::pbvh::MeshNode>();
-      const Mesh &mesh = *static_cast<const Mesh *>(object.data);
+      const Mesh &mesh = DRW_object_get_data_for_drawing<Mesh>(object);
       const OffsetIndices<int> faces = mesh.faces();
       const bke::AttributeAccessor attributes = orig_mesh_data.attributes;
       const VArraySpan hide_poly = *attributes.lookup<bool>(".hide_poly", bke::AttrDomain::Face);
       nodes_to_calculate.foreach_index(GrainSize(1), [&](const int i) {
-        ibos[i] = create_index_faces(faces, hide_poly, nodes[i].faces());
+        ibos[i] = create_lines_index_faces(faces, hide_poly, nodes[i].faces());
       });
       break;
     }
@@ -1669,7 +1670,7 @@ Span<gpu::IndexBuf *> DrawCacheImpl::ensure_lines_indices(const Object &object,
         const Set<BMFace *, 0> &faces = BKE_pbvh_bmesh_node_faces(
             &const_cast<bke::pbvh::BMeshNode &>(nodes[i]));
         const int visible_faces_num = count_visible_tris_bmesh(faces);
-        ibos[i] = create_index_bmesh(faces, visible_faces_num);
+        ibos[i] = create_lines_index_bmesh(faces, visible_faces_num);
       });
       break;
     }
@@ -1826,7 +1827,7 @@ Span<gpu::IndexBuf *> DrawCacheImpl::ensure_tri_indices(const Object &object,
       const IndexMask nodes_to_calculate = IndexMask::from_predicate(
           node_mask, GrainSize(8196), memory, [&](const int i) { return !ibos[i]; });
 
-      const Mesh &mesh = *static_cast<const Mesh *>(object.data);
+      const Mesh &mesh = DRW_object_get_data_for_drawing<Mesh>(object);
       const OffsetIndices<int> faces = mesh.faces();
       const Span<int3> corner_tris = mesh.corner_tris();
       const bke::AttributeAccessor attributes = orig_mesh_data.attributes;
