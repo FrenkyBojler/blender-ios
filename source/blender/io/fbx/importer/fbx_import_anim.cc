@@ -15,6 +15,7 @@
 #include "BKE_fcurve.hh"
 #include "BKE_lib_id.hh"
 
+#include "BLI_math_axis_angle.hh"
 #include "BLI_math_quaternion.hh"
 #include "BLI_set.hh"
 #include "BLI_string.h"
@@ -327,7 +328,7 @@ static void create_transform_curves(const FbxElementMapping &mapping,
         set_curve_sample(curves_rot[3], i, tf, quat.z);
         break;
       case ROT_MODE_AXISANGLE: {
-        math::AxisAngle axis_angle = math::to_axis_angle(quat);
+        const math::AxisAngle axis_angle = math::to_axis_angle(quat);
         set_curve_sample(curves_rot[0], i, tf, axis_angle.angle().radian());
         set_curve_sample(curves_rot[1], i, tf, axis_angle.axis().x);
         set_curve_sample(curves_rot[2], i, tf, axis_angle.axis().y);
