@@ -295,20 +295,31 @@ void screen_draw_move_highlight(bScreen *screen, eScreenAxis dir_axis)
 
 void screen_draw_region_scale_highlight(ARegion *region)
 {
-  const float hwidth = 4.0 * U.pixelsize;
   rctf rect = {float(region->winrct.xmin),
                float(region->winrct.xmax),
                float(region->winrct.ymin),
                float(region->winrct.ymax)};
   UI_draw_roundbox_corner_set(UI_CNR_ALL);
 
-  if (region->alignment & RGN_ALIGN_RIGHT) {
-    rect.xmin -= hwidth;
-    rect.xmax = rect.xmin + hwidth;
-  }
-  else if (region->alignment & RGN_ALIGN_LEFT) {
-    rect.xmax += hwidth;
-    rect.xmin = rect.xmax - hwidth;
+  switch (region->alignment) {
+    case RGN_ALIGN_RIGHT:
+      rect.xmax = rect.xmin;
+      rect.xmin = rect.xmax - (3.0f * U.pixelsize);
+      break;
+    case RGN_ALIGN_LEFT:
+      rect.xmin = rect.xmax;
+      rect.xmax = rect.xmin + (3.0f * U.pixelsize);
+      break;
+    case RGN_ALIGN_TOP:
+      rect.ymax = rect.ymin;
+      rect.ymin = rect.ymax - (3.0f * U.pixelsize);
+      break;
+    case RGN_ALIGN_BOTTOM:
+      rect.ymin = rect.ymax;
+      rect.ymax = rect.ymin + (3.0f * U.pixelsize);
+      break;
+    default:
+      return;
   }
 
   float inner[4] = {1.0f, 1.0f, 1.0f, 0.4f};
