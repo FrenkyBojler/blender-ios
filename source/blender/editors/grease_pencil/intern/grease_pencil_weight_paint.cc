@@ -1020,7 +1020,7 @@ static void weight_gradient_finish(WeightGradientToolData *tool)
   MEM_delete(tool);
 }
 
-static int weight_gradient_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus weight_gradient_exec(bContext *C, wmOperator *op)
 {
   wmGesture *gesture = static_cast<wmGesture *>(op->customdata);
   if (gesture == nullptr || gesture->user_data.data == nullptr) {
@@ -1030,6 +1030,7 @@ static int weight_gradient_exec(bContext *C, wmOperator *op)
 
   /* Get gradient type (linear/radial). */
   const WeightGradientType gradient_type = WeightGradientType(RNA_enum_get(op->ptr, "type"));
+  const bool limit_start = RNA_boolean_get(op->ptr, "limit_start");
 
   /* Get position and length of the interactive gradient line in the viewport. */
   const int x_start = RNA_int_get(op->ptr, "xstart");
@@ -1056,6 +1057,7 @@ static int weight_gradient_exec(bContext *C, wmOperator *op)
                 cache.deform_verts[point].dw)
             {
               cache.deform_weights.set(point, cache.point_original_weights[point]);
+              cache.point_flags[point] &= ~WPAINT_GRADIENT_POINT_IS_MODIFIED;
             }
 
             /* Get the vector of gradient line starting point to the stroke point. */
@@ -1067,12 +1069,15 @@ static int weight_gradient_exec(bContext *C, wmOperator *op)
               case WeightGradientType::Linear: {
                 /* For the linear gradient, get the orthogonal position of the stroke point towards
                  * the gradient line. */
-                const float dist_on_gradient_line = math::max(
-                    0.0f, math::dot(vec_point_to_gradient, gradient_vector));
-                if (dist_on_gradient_line > gradient_length_sq) {
+                const float dist_on_gradient_line = math::dot(vec_point_to_gradient,
+                                                              gradient_vector);
+                if (dist_on_gradient_line > gradient_length_sq ||
+                    (limit_start && dist_on_gradient_line < 0.0f))
+                {
                   continue;
                 }
-                gradient_factor = (dist_on_gradient_line / gradient_length_sq) * gradient_length;
+                gradient_factor = (math::max(0.0f, dist_on_gradient_line) / gradient_length_sq) *
+                                  gradient_length;
                 break;
               }
               case WeightGradientType::Radial: {
@@ -1145,12 +1150,12 @@ static void weight_gradient_cancel(const bContext &C, WeightGradientToolData &to
   weight_gradient_finish(&tool);
 }
 
-static int weight_gradient_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus weight_gradient_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   wmGesture &gesture = *static_cast<wmGesture *>(op->customdata);
   WeightGradientToolData &tool = *static_cast<WeightGradientToolData *>(gesture.user_data.data);
 
-  int result = WM_gesture_straightline_modal(C, op, event);
+  wmOperatorStatus result = WM_gesture_straightline_modal(C, op, event);
 
   /* Check for mouse release. */
   if (result & OPERATOR_RUNNING_MODAL) {
@@ -1294,7 +1299,7 @@ static bool active_vertex_group_is_locked(const bContext &C)
   return (object_defgroup->flag & DG_LOCK_WEIGHT);
 }
 
-static int weight_gradient_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus weight_gradient_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   /* Check if active vertex group is locked. */
   if (active_vertex_group_is_locked(*C)) {
@@ -1303,7 +1308,7 @@ static int weight_gradient_invoke(bContext *C, wmOperator *op, const wmEvent *ev
   }
 
   /* Invoke interactive line drawing (representing the gradient) in viewport. */
-  const int result = WM_gesture_straightline_invoke(C, op, event);
+  const wmOperatorStatus result = WM_gesture_straightline_invoke(C, op, event);
   if ((result & OPERATOR_RUNNING_MODAL) == 0) {
     return result;
   }
@@ -1353,6 +1358,12 @@ static void GREASE_PENCIL_OT_weight_gradient(wmOperatorType *ot)
       ot->srna, "type", gradient_types, 0, "Type", "The gradient type (linear or gradient)");
   RNA_def_property_flag(prop, PROP_HIDDEN);
   prop = RNA_def_enum(ot->srna, "mode", brush_modes, 0, "Mode", "");
+  RNA_def_property_flag(prop, PROP_HIDDEN);
+  prop = RNA_def_boolean(ot->srna,
+                         "limit_start",
+                         false,
+                         "Limit Start",
+                         "Only affect points from the start of the line, nothing before");
   RNA_def_property_flag(prop, PROP_HIDDEN);
 
   WM_operator_properties_gesture_straightline(ot, WM_CURSOR_EDIT);
