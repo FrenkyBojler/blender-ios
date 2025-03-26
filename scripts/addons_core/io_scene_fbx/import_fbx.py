@@ -58,9 +58,6 @@ LINEAR_INTERPOLATION_VALUE = bpy.types.Keyframe.bl_rna.properties['interpolation
 # global singleton, assign on execution
 fbx_elem_nil = None
 
-FBX_DEBUG_PRINT = 1
-fbx_debug_file = None
-
 # Units converters...
 convert_deg_to_rad_iter = units_convertor_iter("degree", "radian")
 
@@ -68,18 +65,6 @@ MAT_CONVERT_BONE = fbx_utils.MAT_CONVERT_BONE.inverted()
 MAT_CONVERT_LIGHT = fbx_utils.MAT_CONVERT_LIGHT.inverted()
 MAT_CONVERT_CAMERA = fbx_utils.MAT_CONVERT_CAMERA.inverted()
 
-def fmtf(f: float) -> str:
-    # ensure tiny numbers are 0.0,
-    # and not "-0.0" for example
-    if abs(f) < 0.0005:
-        return "0.000"
-    return f"{f:.3f}"
-
-def print_matrix(mtx):
-    if FBX_DEBUG_PRINT:
-        print(f"    ({fmtf(mtx[0][0])} {fmtf(mtx[0][1])} {fmtf(mtx[0][2])} {fmtf(mtx[0][3])})", file=fbx_debug_file)
-        print(f"    ({fmtf(mtx[1][0])} {fmtf(mtx[1][1])} {fmtf(mtx[1][2])} {fmtf(mtx[1][3])})", file=fbx_debug_file)
-        print(f"    ({fmtf(mtx[2][0])} {fmtf(mtx[2][1])} {fmtf(mtx[2][2])} {fmtf(mtx[2][3])})", file=fbx_debug_file)
 
 def validate_blend_names(name):
     assert(type(name) == bytes)
@@ -705,8 +690,6 @@ def _transformation_curves_gen(item, values_arrays, channel_keys):
 
         # Now we have a virtual matrix of transform from AnimCurves, we can yield keyframe values!
         loc, rot, sca = mat_decompose(mat)
-        #if FBX_DEBUG_PRINT:
-        #   print(f"fbx: loc {loc} rot {rot} sca {sca}", file=fbx_debug_file)
         if rot_mode == 'QUATERNION':
             if quat_dot(rot_quat_prev, rot) < 0.0:
                 rot = -rot
@@ -1033,8 +1016,6 @@ def blen_read_animations_action_item(action, item, cnodes, fps, anim_offset, glo
             for channel, curve in channel_to_curve.items():
                 assert(channel in {0, 1, 2})
                 fbx_key_times, values = blen_read_animation_curve(curve)
-                #if FBX_DEBUG_PRINT:
-                #   print(f"fbx: read curve {fbxprop} chan {channel} frames {len(fbx_key_times)} {fbx_key_times} = {values}", file=fbx_debug_file)
 
                 channel_keys.append((fbxprop, channel))
 
@@ -1102,8 +1083,6 @@ def blen_read_animations(fbx_tmpl_astack, fbx_tmpl_alayer, stacks, scene, anim_o
                     # XXX Ignore rigged mesh animations - those are a nightmare to handle, see note about it in
                     #     FbxImportHelperNode class definition.
                     if id_data and id_data.type == 'MESH' and id_data.parent and id_data.parent.type == 'ARMATURE':
-                        if FBX_DEBUG_PRINT:
-                            print(f"ignoring rigged mesh {id_data.name} animations", file=fbx_debug_file)
                         continue
                 if id_data is None:
                     continue
@@ -2224,9 +2203,6 @@ def blen_read_camera(fbx_tmpl, fbx_obj, settings):
     if settings.use_custom_props:
         blen_read_custom_properties(fbx_obj, camera, settings)
 
-    if FBX_DEBUG_PRINT:
-        print(f"create CAMERA {camera.name} t:{camera.type} lens:{fmtf(camera.lens)} clip:{fmtf(camera.clip_start)}..{fmtf(camera.clip_end)}", file=fbx_debug_file)
-
     return camera
 
 
@@ -2537,8 +2513,6 @@ class FbxImportHelperNode:
             # if we are not a null node we need an intermediate node for the data
             if self.fbx_type not in {b'Null', b'Root'}:
                 node = FbxImportHelperNode(self.fbx_elem, self.bl_data, None, False)
-                if FBX_DEBUG_PRINT:
-                    print(f"adding FAKE BONE {node.fbx_name}", file=fbx_debug_file)
                 self.fbx_elem = None
                 self.bl_data = None
 
@@ -2592,10 +2566,6 @@ class FbxImportHelperNode:
             bind_matrix = parent_matrix.inverted_safe() @ self.bind_matrix
         else:
             bind_matrix = self.matrix.copy() if self.matrix else None
-            #if FBX_DEBUG_PRINT:
-            #    print(f"bind_pose_local: {self.fbx_name} has no bind matrix, use self.matrix:", file=fbx_debug_file)
-            #    if self.matrix:
-            #        print_matrix(self.matrix)
 
         self.bind_matrix = bind_matrix
         if bind_matrix:
@@ -2705,21 +2675,7 @@ class FbxImportHelperNode:
         # And rotate/move it to its final "rest pose".
         bone_matrix = parent_matrix @ self.get_bind_matrix().normalized()
 
-        if FBX_DEBUG_PRINT:
-            print(f"create BONE {bone.name} (parent {self.parent.fbx_name if self.parent else ''}) parent_mtx:", file=fbx_debug_file)
-            print_matrix(parent_matrix)
-            #if not self.bind_matrix:
-            #    print(f"  NO BIND MATRIX:", file=fbx_debug_file)
-            #    print_matrix(self.get_bind_matrix())
-            #print(f"  local_bind_mtx:", file=fbx_debug_file)
-            #print_matrix(self.get_bind_matrix())
-            print(f"  pre-head ({fmtf(bone.head[0])} {fmtf(bone.head[1])} {fmtf(bone.head[2])}) pre-tail ({fmtf(bone.tail[0])} {fmtf(bone.tail[1])} {fmtf(bone.tail[2])})", file=fbx_debug_file)
-            print(f"  bone_mtx:", file=fbx_debug_file)
-            print_matrix(bone_matrix)
-
         bone.matrix = bone_matrix
-        if FBX_DEBUG_PRINT:
-            print(f"  length {fmtf(bone_size)} head ({fmtf(bone.head[0])} {fmtf(bone.head[1])} {fmtf(bone.head[2])}) tail ({fmtf(bone.tail[0])} {fmtf(bone.tail[1])} {fmtf(bone.tail[2])})", file=fbx_debug_file)
 
         force_connect_children = settings.force_connect_children
 
@@ -2828,11 +2784,6 @@ class FbxImportHelperNode:
                         child.pre_matrix = self.bone_child_matrix
 
                     child_obj.matrix_basis = child.get_matrix()
-                    if FBX_DEBUG_PRINT:
-                        print(f"parent CHILD {child_obj.name} to ARM {self.bl_obj.name} BONE {self.bl_bone} bone_child_mtx:", file=fbx_debug_file)
-                        print_matrix(self.bone_child_matrix)
-                        print(f"- child matrix:", file=fbx_debug_file)
-                        print_matrix(child.get_matrix())
                 child.link_skeleton_children(fbx_tmpl, settings, scene)
             return None
         else:
@@ -2938,9 +2889,6 @@ class FbxImportHelperNode:
             self.bl_obj = arm = bpy.data.objects.new(name=elem_name_utf8, object_data=arm_data)
 
             arm.matrix_basis = self.get_matrix()
-            if FBX_DEBUG_PRINT:
-                print(f"create ARMATURE {elem_name_utf8}", file=fbx_debug_file)
-                print_matrix(arm.matrix_basis)
 
             if self.fbx_elem:
                 fbx_props = (elem_find_first(self.fbx_elem, b'Properties70'),
@@ -3098,8 +3046,6 @@ def load(operator, context, filepath="",
     global fbx_elem_nil
     fbx_elem_nil = FBXElem('', (), (), ())
 
-    global fbx_debug_file
-
     import os
     import time
     from bpy_extras.io_utils import axis_conversion
@@ -3146,10 +3092,6 @@ def load(operator, context, filepath="",
     if version < 7100:
         operator.report({'ERROR'}, tip_("Version %r unsupported, must be %r or later") % (version, 7100))
         return {'CANCELLED'}
-
-    if FBX_DEBUG_PRINT:
-        debug_file_path = f"{os.path.splitext(filepath)[0]}-dbg-a.txt"
-        fbx_debug_file = open(debug_file_path, 'w')
 
     print("FBX version: %r" % version)
 
@@ -3480,15 +3422,6 @@ def load(operator, context, filepath="",
                     # set parent
                     child.parent = parent
 
-        if FBX_DEBUG_PRINT:
-            print(f"Initial NODE local matrices:", file=fbx_debug_file)
-            sorted_helper_nodes = sorted(fbx_helper_nodes.values(), key=lambda x: (getattr(x, 'fbx_name', '<none>'), getattr(x, 'fbx_type', '<none>')))
-            for node in sorted_helper_nodes:
-                print(f"init NODE {getattr(node, 'fbx_name', '<none>')} self.matrix:", file=fbx_debug_file)
-                if node.matrix:
-                    print_matrix(node.matrix)
-            print(f"", file=fbx_debug_file)
-
         # find armatures (either an empty below a bone or a new node inserted at the bone
         root_helper.find_armatures()
 
@@ -3527,9 +3460,6 @@ def load(operator, context, filepath="",
                     # Store the matrix in the helper node.
                     # There may be several bind pose matrices for the same node, but in tests they seem to be identical.
                     bone.bind_matrix = matrix  # global space
-                    if FBX_DEBUG_PRINT:
-                        print(f"bone POSE matrix {bone.fbx_name}", file=fbx_debug_file)
-                        print_matrix(matrix)
 
         # get clusters and bind pose
         for helper_uuid, helper_node in fbx_helper_nodes.items():
@@ -3558,9 +3488,6 @@ def load(operator, context, filepath="",
                 if tx_bone:
                     mesh_matrix = tx_bone @ mesh_matrix
                     helper_node.bind_matrix = tx_bone  # overwrite the bind matrix
-                    if FBX_DEBUG_PRINT:
-                        print(f"bone SKIN matrix {helper_node.fbx_name}", file=fbx_debug_file)
-                        print_matrix(tx_bone)
 
                 # Get the meshes driven by this cluster: (Shouldn't that be only one?)
                 meshes = set()
@@ -4099,7 +4026,5 @@ def load(operator, context, filepath="",
 
     perfmon.level_down()
 
-    if FBX_DEBUG_PRINT:
-        fbx_debug_file.close()
     perfmon.level_down("Import finished.")
     return {'FINISHED'}

@@ -76,7 +76,7 @@ void read_custom_properties(const ufbx_props &props, ID &id, bool enums_as_strin
 void read_custom_properties(const ufbx_props &props, bPoseChannel &pchan, bool enums_as_strings);
 
 //@TODO remove debug file print once things are working properly
-#define FBX_DEBUG_PRINT
+// #define FBX_DEBUG_PRINT
 
 #ifdef FBX_DEBUG_PRINT
 extern FILE *g_debug_file;
