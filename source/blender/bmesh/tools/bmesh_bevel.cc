@@ -6507,7 +6507,7 @@ static BevVert *bevel_vert_construct(BMesh *bm, BevelParams *bp, BMVert *v)
             e->offset_l_spec = 0.01f * bp->offset; /* Undefined behavior, so tiny bevel. */
           }
           else {
-            e->offset_l_spec = bp->offset / z;
+            e->offset_l_spec = bv->offset / z;
           }
           break;
         }
@@ -6519,7 +6519,7 @@ static BevVert *bevel_vert_construct(BMesh *bm, BevelParams *bp, BMVert *v)
             e->offset_l_spec = 0.01f * bp->offset; /* Undefined behavior, so tiny bevel. */
           }
           else {
-            e->offset_l_spec = bp->offset / z;
+            e->offset_l_spec = bv->offset / z;
           }
           break;
         }
