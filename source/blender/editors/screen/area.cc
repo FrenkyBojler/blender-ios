@@ -3351,7 +3351,7 @@ void ED_region_panels_draw(const bContext *C, ARegion *region)
     mask.xmax -= round_fl_to_int(UI_view2d_scale_get_x(&region->v2d) *
                                  UI_PANEL_CATEGORY_MARGIN_WIDTH);
   }
-  UI_view2d_scrollers_draw_ex(v2d, use_mask ? &mask : nullptr);
+  UI_view2d_scrollers_draw(v2d, use_mask ? &mask : nullptr);
 }
 
 void ED_region_panels_ex(const bContext *C,

@@ -1493,7 +1493,7 @@ void view2d_scrollers_calc(View2D *v2d, const rcti *mask_custom, View2DScrollers
   }
 }
 
-void UI_view2d_scrollers_draw_ex(View2D *v2d, const rcti *mask_custom)
+void UI_view2d_scrollers_draw(View2D *v2d, const rcti *mask_custom)
 {
   View2DScrollers scrollers;
   view2d_scrollers_calc(v2d, mask_custom, &scrollers);
@@ -1602,11 +1602,6 @@ void UI_view2d_scrollers_draw_ex(View2D *v2d, const rcti *mask_custom)
 
   /* Was changed above, so reset. */
   btheme->tui.widget_emboss[3] = emboss_alpha;
-}
-
-void UI_view2d_scrollers_draw(View2D *v2d, const rcti *mask_custom)
-{
-  UI_view2d_scrollers_draw_ex(v2d, mask_custom);
 }
 
 /** \} */
