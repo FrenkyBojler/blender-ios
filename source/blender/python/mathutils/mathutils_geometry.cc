@@ -1334,7 +1334,7 @@ static PyObject *M_Geometry_cubic_curve_fit_from_points(PyObject *self, PyObject
 	if (curve_fit_cubic_to_points_refit_db(
 	        points_data, points_len, dims, error_threshold, calc_flag,
 	        NULL, 0,
-	        corner_angle,  /* only difference! */
+	        corner_angle,
 	        &cubic_array, &cubic_array_len,
 	        &cubic_orig_index,
 	        &corner_indices, &corner_indices_len) != 0)
