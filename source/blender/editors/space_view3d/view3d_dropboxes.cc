@@ -167,29 +167,7 @@ static bool view3d_ob_drop_poll_local_id(bContext *C, wmDrag *drag, const wmEven
 
 static bool view3d_mixed_drop_poll(bContext *C, wmDrag *drag, const wmEvent *event)
 {
-  if (drag->type != WM_DRAG_ASSET_LIST) {
-    return false;
-  }
-  if (!view3d_drop_in_main_region_poll(C, event)) {
-    return false;
-  }
-  const ListBase *asset_drags = WM_drag_asset_list_get(drag);
-  if (!asset_drags) {
-    return false;
-  }
-
-  LISTBASE_FOREACH (wmDragAssetListItem *, asset_item, asset_drags) {
-    const std::optional<ID_Type> idtype = asset_item->idtype();
-    if (!idtype) {
-      continue;
-    }
-
-    if (ELEM(*idtype, ID_OB, ID_GR) || OB_DATA_SUPPORT_ID(*idtype)) {
-      return true;
-    }
-  }
-
-  return false;
+  return (drag->type == WM_DRAG_ASSET_LIST) && view3d_drop_in_main_region_poll(C, event);
 }
 
 static void view3d_mixed_drop_copy(bContext * /*C*/, wmDrag * /*drag*/, wmDropBox * /*drop*/) {}
