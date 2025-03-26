@@ -16,3 +16,4 @@ Referenced by issue #135488, Intel Arc: Corrupted text/menu/input fields
 Referenced by issue #136047, OSL gettextureinfo crashes with sigsev
 Referenced by issue #136456, Sculpt mode not always working
 Referenced by issue #136514, Alembic attribute not read in Blender 4.3 / 4.4
+Referenced by issue #136543, Report message from previous run persists in successive run of the same operator
