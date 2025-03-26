@@ -56,6 +56,8 @@ class Meshes : Overlay {
   PassSimple edit_mesh_weight_ps_ = {"Edit Weight"};
 
   PassSimple edit_mesh_edges_ps_ = {"Edges"};
+  PassSimple::Sub *edit_mesh_edges_ = nullptr;
+  PassSimple::Sub *edit_mesh_edges_loose_ = nullptr;
   PassSimple edit_mesh_faces_ps_ = {"Faces"};
   PassSimple edit_mesh_cages_ps_ = {"Cages"}; /* Same as faces but with a different offset. */
   PassSimple edit_mesh_verts_ps_ = {"Verts"};
@@ -239,14 +241,22 @@ class Meshes : Overlay {
     {
       auto &pass = edit_mesh_edges_ps_;
       pass.init();
-      /* Change first vertex convention to match blender loop structure. */
-      pass.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_DEPTH_LESS_EQUAL | DRW_STATE_BLEND_ALPHA |
-                         DRW_STATE_WRITE_DEPTH | DRW_STATE_FIRST_VERTEX_CONVENTION,
-                     state.clipping_plane_count);
       pass.shader_set(res.shaders->mesh_edit_edge.get());
       pass.push_constant("do_smooth_wire", do_smooth_wire);
       pass.push_constant("use_vertex_selection", select_vert_);
       mesh_edit_common_resource_bind(pass, backwire_opacity, edge_ndc_offset_);
+
+      /* Change first vertex convention to match blender loop structure. */
+      edit_mesh_edges_ = &pass.sub("Edges");
+      edit_mesh_edges_->state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_DEPTH_LESS_EQUAL |
+                                      DRW_STATE_BLEND_ALPHA | DRW_STATE_FIRST_VERTEX_CONVENTION,
+                                  state.clipping_plane_count);
+
+      edit_mesh_edges_loose_ = &pass.sub("Loose Edges");
+      edit_mesh_edges_loose_->state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_DEPTH_LESS_EQUAL |
+                                            DRW_STATE_BLEND_ALPHA | DRW_STATE_WRITE_DEPTH |
+                                            DRW_STATE_FIRST_VERTEX_CONVENTION,
+                                        state.clipping_plane_count);
     }
     {
       auto &pass = edit_mesh_faces_ps_;
@@ -353,6 +363,9 @@ class Meshes : Overlay {
     {
       gpu::Batch *geom = DRW_mesh_batch_cache_get_edit_edges(mesh);
       edit_mesh_edges_ps_.draw_expand(geom, GPU_PRIM_TRIS, 2, 1, res_handle);
+      if (geom = DRW_mesh_batch_cache_get_loose_edges(mesh)) {
+        edit_mesh_edges_loose_->draw_expand(geom, GPU_PRIM_TRIS, 2, 1, res_handle);
+      }
     }
     {
       gpu::Batch *geom = DRW_mesh_batch_cache_get_edit_triangles(mesh);
