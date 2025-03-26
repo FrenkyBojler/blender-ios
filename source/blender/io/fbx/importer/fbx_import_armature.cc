@@ -236,7 +236,7 @@ void ArmatureImportContext::find_armatures(const ufbx_node *node)
   /* Create armature if needed. */
   if (needs_arm) {
     Object *arm_obj = nullptr;
-    if (node->bone && node->bone->is_root || node->attrib_type == UFBX_ELEMENT_EMPTY) {
+    if ((node->bone && node->bone->is_root) || (node->attrib_type == UFBX_ELEMENT_EMPTY)) {
       arm_obj = this->create_armature_for_node(node);
     }
     else {

@@ -303,7 +303,6 @@ static void add_image_textures(Main *bmain,
                                const std::string &file_dir,
                                bNodeTree *ntree,
                                bNode *bsdf,
-                               Material *mat,
                                const ufbx_material &fmat)
 {
   float node_locy = node_locy_top;
@@ -405,7 +404,7 @@ Material *import_material(Main *bmain, const std::string &base_dir, const ufbx_m
   bNode *bsdf = add_node(ntree, SH_NODE_BSDF_PRINCIPLED, node_locx_bsdf, node_locy_top);
   bNode *output = add_node(ntree, SH_NODE_OUTPUT_MATERIAL, node_locx_output, node_locy_top);
   set_bsdf_socket_values(bsdf, mat, fmat);
-  add_image_textures(bmain, base_dir, ntree, bsdf, mat, fmat);
+  add_image_textures(bmain, base_dir, ntree, bsdf, fmat);
   link_sockets(ntree, bsdf, "BSDF", output, "Surface");
   bke::node_set_active(*ntree, *output);
 

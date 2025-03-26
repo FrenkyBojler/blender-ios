@@ -81,7 +81,7 @@ static wmOperatorStatus wm_fbx_import_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static bool wm_fbx_import_check(bContext * /*C*/, wmOperator *op)
+static bool wm_fbx_import_check(bContext * /*C*/, wmOperator * /*op*/)
 {
   return false;
 }

@@ -63,8 +63,7 @@ struct ElementAnimations {
   const ufbx_anim_prop *prop_mat_diffuse = nullptr;
 };
 
-static Vector<ElementAnimations> gather_animated_properties(const ufbx_scene &fbx,
-                                                            const FbxElementMapping &mapping,
+static Vector<ElementAnimations> gather_animated_properties(const FbxElementMapping &mapping,
                                                             const ufbx_anim_layer &flayer)
 {
   int64_t order = 0;
@@ -175,7 +174,7 @@ static Vector<ElementAnimations> gather_animated_properties(const ufbx_scene &fb
   return animations;
 }
 
-static void finalize_curve(const ElementAnimations &anim, FCurve *cu)
+static void finalize_curve(FCurve *cu)
 {
   if (cu != nullptr) {
     BKE_fcurve_handles_recalc(cu);
@@ -349,18 +348,17 @@ static void create_transform_curves(const FbxElementMapping &mapping,
 
   /* Finalize the curves. */
   for (FCurve *cu : curves_pos) {
-    finalize_curve(anim, cu);
+    finalize_curve(cu);
   }
   for (FCurve *cu : curves_rot) {
-    finalize_curve(anim, cu);
+    finalize_curve(cu);
   }
   for (FCurve *cu : curves_scale) {
-    finalize_curve(anim, cu);
+    finalize_curve(cu);
   }
 }
 
 static void create_camera_curves(const ufbx_metadata &metadata,
-                                 const FbxElementMapping &mapping,
                                  const ElementAnimations &anim,
                                  animrig::Channelbag &channelbag,
                                  const double fps,
@@ -379,7 +377,7 @@ static void create_camera_curves(const ufbx_metadata &metadata,
       float val = float(fkey.value);
       set_curve_sample(curve, i, tf, val);
     }
-    finalize_curve(anim, curve);
+    finalize_curve(curve);
   }
 
   if (anim.prop_focus_dist != nullptr) {
@@ -392,12 +390,11 @@ static void create_camera_curves(const ufbx_metadata &metadata,
       float val = float(fkey.value / 1000.0 * metadata.geometry_scale * metadata.root_scale);
       set_curve_sample(curve, i, tf, val);
     }
-    finalize_curve(anim, curve);
+    finalize_curve(curve);
   }
 }
 
-static void create_material_curves(const FbxElementMapping &mapping,
-                                   const ElementAnimations &anim,
+static void create_material_curves(const ElementAnimations &anim,
                                    bAction *action,
                                    animrig::Channelbag &channelbag,
                                    const double fps,
@@ -431,8 +428,8 @@ static void create_material_curves(const FbxElementMapping &mapping,
         set_curve_sample(curve_1, i, tf, val);
         set_curve_sample(curve_2, i, tf, val);
       }
-      finalize_curve(anim, curve_1);
-      finalize_curve(anim, curve_2);
+      finalize_curve(curve_1);
+      finalize_curve(curve_2);
     }
   }
 }
@@ -455,9 +452,7 @@ static void create_blend_shape_curves(const ElementAnimations &anim,
     float val = float(fkey.value / 100.0); /* FBX shape weights are 0..100 range. */
     set_curve_sample(curve, i, tf, val);
   }
-
-  /* Finalize the curves. */
-  finalize_curve(anim, curve);
+  finalize_curve(curve);
 }
 
 void import_animations(Main &bmain,
@@ -470,7 +465,7 @@ void import_animations(Main &bmain,
    * actions. */
   for (const ufbx_anim_stack *fstack : fbx.anim_stacks) {
     for (const ufbx_anim_layer *flayer : fstack->layers) {
-      Vector<ElementAnimations> animations = gather_animated_properties(fbx, mapping, *flayer);
+      Vector<ElementAnimations> animations = gather_animated_properties(mapping, *flayer);
       if (animations.is_empty()) {
         continue;
       }
@@ -519,10 +514,10 @@ void import_animations(Main &bmain,
           create_transform_curves(mapping, flayer->anim, anim, channelbag, fps, anim_offset);
         }
         if (anim.prop_focal_length || anim.prop_focus_dist) {
-          create_camera_curves(fbx.metadata, mapping, anim, channelbag, fps, anim_offset);
+          create_camera_curves(fbx.metadata, anim, channelbag, fps, anim_offset);
         }
         if (anim.prop_mat_diffuse) {
-          create_material_curves(mapping, anim, &action, channelbag, fps, anim_offset);
+          create_material_curves(anim, &action, channelbag, fps, anim_offset);
         }
         if (anim.prop_blend_shape) {
           create_blend_shape_curves(anim, channelbag, fps, anim_offset);
