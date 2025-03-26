@@ -131,9 +131,9 @@ static void points_build_sources_timeline_retiming(
         cmp_fn);
 }
 
-static void points_build_sources_preview(const Scene *scene,
-                                         TransSeqSnapData *snap_data,
-                                         const Span<Strip *> snap_sources)
+static void points_build_sources_preview_strips(const Scene *scene,
+                                                TransSeqSnapData *snap_data,
+                                                const Span<Strip *> snap_sources)
 {
   for (Strip *strip : snap_sources) {
     const Array<float2> seq_image_quad = seq::image_transform_final_quad_get(scene, strip);
@@ -224,7 +224,6 @@ static VectorSet<Strip *> query_snap_targets_preview(Scene *scene, const short s
   ListBase *channels = seq::channels_displayed_get(ed);
 
   snap_targets = seq::query_rendered_strips(scene, channels, ed->seqbasep, scene->r.cfra, 0);
-  snap_targets.remove_if([&](Strip *strip) { return (strip->flag & SELECT) == 1; });
 
   return snap_targets;
 }
@@ -355,6 +354,10 @@ static int seq_snap_threshold_get_frame_distance(const TransInfo *t)
 
 /** \} */
 
+/* -------------------------------------------------------------------- */
+/** \name Snap data
+ * \{ */
+
 static void snap_data_build_timeline(const TransInfo *t, TransSeqSnapData *snap_data)
 {
   Scene *scene = t->scene;
@@ -384,7 +387,17 @@ static void snap_data_build_preview(const TransInfo *t, TransSeqSnapData *snap_d
   VectorSet<Strip *> snap_targets = query_snap_targets_preview(scene, snap_mode);
 
   /* Build arrays of snap points. */
-  points_build_sources_preview(scene, snap_data, snap_sources);
+  if (t->data_type == &TransConvertType_SequencerImage) {
+    /* Ignore selected strips if we are not snapping the cursor,
+     * since they move with the transform. */
+    snap_targets.remove_if([&](Strip *strip) { return (strip->flag & SELECT) == 1; });
+    points_build_sources_preview_strips(scene, snap_data, snap_sources);
+  }
+  else if (t->data_type == &TransConvertType_CursorSequencer) {
+    SpaceSeq *sseq = static_cast<SpaceSeq *>(t->area->spacedata.first);
+    float2 cursor_view = float2(sseq->cursor) * float2(t->aspect);
+    snap_data->source_snap_points.append(cursor_view);
+  }
   points_build_targets_preview(scene, v2d, snap_mode, snap_data, snap_targets);
 }
 
@@ -411,6 +424,12 @@ void snap_sequencer_data_free(TransSeqSnapData *data)
 {
   MEM_delete(data);
 }
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Snap calculation
+ * \{ */
 
 static bool snap_calc_timeline(TransInfo *t, const TransSeqSnapData *snap_data)
 {
@@ -584,5 +603,7 @@ void sequencer_snap_point(ARegion *region, const float snap_point)
 
   drawSnapping(&t);
 }
+
+/** \} */
 
 }  // namespace blender::ed::transform
