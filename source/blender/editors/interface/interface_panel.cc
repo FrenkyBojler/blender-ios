@@ -1176,10 +1176,8 @@ static void panel_draw_aligned_widgets(const uiStyle *style,
     const int drag_widget_size = header_height * 0.7f;
     const int col_tint = 84;
     float color_high[4], color_dark[4];
-
     UI_GetThemeColorShade4fv(TH_PANEL_HEADER, col_tint, color_high);
     UI_GetThemeColorShade4fv(TH_PANEL_BACK, -col_tint, color_dark);
-
     if (header_width < (scaled_unit * 4)) {
       color_high[3] *= std::max(header_width / float(scaled_unit * 4), 0.0f);
       color_dark[3] *= std::max(header_width / float(scaled_unit * 4), 0.0f);
