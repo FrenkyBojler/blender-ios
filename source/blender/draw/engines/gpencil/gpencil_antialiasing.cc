@@ -6,12 +6,14 @@
  * \ingroup draw
  */
 
+#include "BLI_rand.h"
 #include "DNA_scene_types.h"
 #include "DRW_render.hh"
 
 #include "gpencil_engine_private.hh"
 
 #include "BLI_smaa_textures.h"
+#include <iostream>
 
 namespace blender::draw::gpencil {
 
@@ -112,6 +114,55 @@ void Instance::antialiasing_draw(Manager &manager)
 
   GPU_framebuffer_bind(this->scene_fb);
   manager.submit(this->smaa_resolve_ps);
+}
+
+static float erfinv_approx(float x)
+{
+  /* From: Approximating the `erfinv` function by Mike Giles. */
+  /* To avoid trouble at the limit, clamp input to 1-epsilon. */
+  const float a = math::min(fabsf(x), 0.99999994f);
+  float w = -logf((1.0f - a) * (1.0f + a));
+  float p;
+  if (w < 5.0f) {
+    w = w - 2.5f;
+    p = 2.81022636e-08f;
+    p = p * w + 3.43273939e-07f;
+    p = p * w + -3.5233877e-06f;
+    p = p * w + -4.39150654e-06f;
+    p = p * w + 0.00021858087f;
+    p = p * w + -0.00125372503f;
+    p = p * w + -0.00417768164f;
+    p = p * w + 0.246640727f;
+    p = p * w + 1.50140941f;
+  }
+  else {
+    w = sqrtf(w) - 3.0f;
+    p = -0.000200214257f;
+    p = p * w + 0.000100950558f;
+    p = p * w + 0.00134934322f;
+    p = p * w + -0.00367342844f;
+    p = p * w + 0.00573950773f;
+    p = p * w + -0.0076224613f;
+    p = p * w + 0.00943887047f;
+    p = p * w + 1.00167406f;
+    p = p * w + 2.83297682f;
+  }
+  return p * x;
+}
+
+float2 Instance::antialiasing_sample_get(int sample_index, int sample_count)
+{
+  if (sample_count < 2) {
+    return float2(0.0f);
+  }
+  double van_der_corput;
+  BLI_hammersley_1d(sample_index, &van_der_corput);
+  /* Hammersley distribution [0..1]. */
+  const float2 rand = float2(sample_index / float(sample_count), float(van_der_corput));
+  const float2 rand_02 = rand * 2.0f;
+  const float2 rand_wrapped = rand_02 - math::floor(rand_02) * 2.0f;
+  const float2 offset = float2(erfinv_approx(rand_wrapped.x), erfinv_approx(rand_wrapped.y));
+  return offset;
 }
 
 void Instance::antialiasing_accumulate(Manager &manager, float alpha)

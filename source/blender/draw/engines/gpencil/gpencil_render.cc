@@ -260,8 +260,9 @@ void Engine::render_to_image(RenderEngine *engine, RenderLayer *render_layer, co
 
   manager.end_sync();
 
-  for (auto i : IndexRange(25)) {
-    float2 aa_offset = (float2(i % 5, i / 5) - 3.0f) / 4.0f;
+  const int sample_count = draw_ctx->scene->eevee.taa_render_samples;
+  for (auto i : IndexRange(sample_count)) {
+    float2 aa_offset = Instance::antialiasing_sample_get(i, sample_count) * 20.0f;
     aa_offset = 2.0f * aa_offset / float2(inst.render_color_tx.size());
     render_set_view(engine, depsgraph, aa_offset);
     render_init_buffers(draw_ctx, inst, engine, render_layer, depsgraph, &rect);

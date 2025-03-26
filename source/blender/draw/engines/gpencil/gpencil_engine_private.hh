@@ -319,6 +319,8 @@ struct Instance final : public DrawEngine {
 
   void antialiasing_accumulate(Manager &manager, float alpha);
 
+  static float2 antialiasing_sample_get(int sample_index, int sample_count);
+
  private:
   tObject *object_sync_do(Object *ob, ResourceHandle res_handle);
 
