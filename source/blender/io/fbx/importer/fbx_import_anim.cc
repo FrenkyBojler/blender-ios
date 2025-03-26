@@ -329,17 +329,17 @@ static void create_transform_curves(const FbxElementMapping &mapping,
   FCurve *curves_pos[3] = {};
   for (int i = 0; i < 3; i++) {
     curves_pos[i] = create_fcurve(
-        channelbag, {rna_position, i, {}, group_name}, sorted_key_times.size());
+        channelbag, {rna_position, i, {}, {}, group_name}, sorted_key_times.size());
   }
   FCurve *curves_rot[4] = {};
   for (int i = 0; i < rot_channels; i++) {
     curves_rot[i] = create_fcurve(
-        channelbag, {rna_rotation, i, {}, group_name}, sorted_key_times.size());
+        channelbag, {rna_rotation, i, {}, {}, group_name}, sorted_key_times.size());
   }
   FCurve *curves_scale[3] = {};
   for (int i = 0; i < 3; i++) {
     curves_scale[i] = create_fcurve(
-        channelbag, {rna_scale, i, {}, group_name}, sorted_key_times.size());
+        channelbag, {rna_scale, i, {}, {}, group_name}, sorted_key_times.size());
   }
 
   /* Evaluate transforms at all the key times. */
