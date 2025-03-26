@@ -1495,7 +1495,7 @@ static void edit_modify_coordinates(
   }
 
   pbvh.tag_positions_changed(node_mask);
-  pbvh.update_bounds(depsgraph, ob);
+  pbvh.update_bounds(depsgraph, ob, node_mask);
   flush_update_step(C, UpdateType::Position);
   flush_update_done(C, ob, UpdateType::Position);
   undo::push_end(ob);

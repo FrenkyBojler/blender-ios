@@ -200,7 +200,7 @@ static void gesture_apply_for_symmetry_pass(bContext &C, gesture::GestureData &g
       break;
   }
   pbvh.tag_positions_changed(node_mask);
-  pbvh.flush_bounds_to_parents();
+  pbvh.flush_bounds_to_parents(node_mask);
 }
 
 static void gesture_end(bContext &C, gesture::GestureData &gesture_data)

@@ -275,9 +275,9 @@ Tree Tree::from_mesh(const Mesh &mesh)
 
   build_mesh_leaf_nodes(mesh.verts_num, faces, corner_verts, nodes);
 
-  pbvh.tag_positions_changed(nodes.index_range());
-
-  pbvh.update_bounds_mesh(vert_positions);
+  const IndexRange all_nodes = nodes.index_range();
+  pbvh.tag_positions_changed(all_nodes);
+  pbvh.update_bounds_mesh(vert_positions, all_nodes);
   store_bounds_orig(pbvh);
 
   if (!hide_vert.is_empty()) {
@@ -459,9 +459,9 @@ Tree Tree::from_grids(const Mesh &base_mesh, const SubdivCCG &subdiv_ccg)
     }
   });
 
-  pbvh.tag_positions_changed(nodes.index_range());
-
-  pbvh.update_bounds_grids(positions, key.grid_area);
+  const IndexRange all_nodes = nodes.index_range();
+  pbvh.tag_positions_changed(all_nodes);
+  pbvh.update_bounds_grids(positions, key.grid_area, all_nodes);
   store_bounds_orig(pbvh);
 
   const BitGroupVector<> &grid_hidden = subdiv_ccg.grid_hidden;
@@ -540,9 +540,7 @@ Tree::~Tree()
 
 void Tree::tag_positions_changed(const IndexMask &node_mask)
 {
-  bounds_dirty_.resize(std::max(bounds_dirty_.size(), node_mask.min_array_size()), false);
   normals_dirty_.resize(std::max(normals_dirty_.size(), node_mask.min_array_size()), false);
-  node_mask.set_bits(bounds_dirty_);
   node_mask.set_bits(normals_dirty_);
   if (this->draw_data) {
     this->draw_data->tag_positions_changed(node_mask);
@@ -1118,74 +1116,67 @@ static BoundsMergeInfo merge_child_bounds(MutableSpan<NodeT> nodes,
   return {node.bounds_, update};
 }
 
-void Tree::flush_bounds_to_parents()
+void Tree::flush_bounds_to_parents(const IndexMask &node_mask)
 {
   std::visit(
       [&](auto &nodes) {
-        nodes.first().bounds_ =
-            merge_child_bounds(nodes.as_mutable_span(), bounds_dirty_, 0).bounds;
+        //nodes.first().bounds_ =
+        //    merge_child_bounds(nodes.as_mutable_span(), bounds_dirty_, 0).bounds;
       },
       this->nodes_);
-  bounds_dirty_.clear_and_shrink();
 }
 
-void Tree::update_bounds_mesh(const Span<float3> vert_positions)
+void Tree::update_bounds_mesh(const Span<float3> vert_positions, const IndexMask &node_mask)
 {
-  IndexMaskMemory memory;
-  const IndexMask nodes_to_update = IndexMask::from_bits(bounds_dirty_, memory);
-  if (nodes_to_update.is_empty()) {
+  if (node_mask.is_empty()) {
     return;
   }
   MutableSpan<MeshNode> nodes = this->nodes<MeshNode>();
-  nodes_to_update.foreach_index(
+  node_mask.foreach_index(
       GrainSize(1), [&](const int i) { update_node_bounds_mesh(vert_positions, nodes[i]); });
-  this->flush_bounds_to_parents();
+  this->flush_bounds_to_parents(node_mask);
 }
 
-void Tree::update_bounds_grids(const Span<float3> positions, const int grid_area)
+void Tree::update_bounds_grids(const Span<float3> positions, const int grid_area, const IndexMask& node_mask)
 {
-  IndexMaskMemory memory;
-  const IndexMask nodes_to_update = IndexMask::from_bits(bounds_dirty_, memory);
-  if (nodes_to_update.is_empty()) {
+  if (node_mask.is_empty()) {
     return;
   }
   MutableSpan<GridsNode> nodes = this->nodes<GridsNode>();
-  nodes_to_update.foreach_index(GrainSize(1), [&](const int i) {
+  node_mask.foreach_index(GrainSize(1), [&](const int i) {
     update_node_bounds_grids(grid_area, positions, nodes[i]);
   });
-  this->flush_bounds_to_parents();
+  this->flush_bounds_to_parents(node_mask);
 }
 
-void Tree::update_bounds_bmesh(const BMesh & /*bm*/)
+void Tree::update_bounds_bmesh(const BMesh & /*bm*/, const IndexMask& node_mask)
 {
-  IndexMaskMemory memory;
-  const IndexMask nodes_to_update = IndexMask::from_bits(bounds_dirty_, memory);
-  if (nodes_to_update.is_empty()) {
+  if (node_mask.is_empty()) {
     return;
   }
   MutableSpan<BMeshNode> nodes = this->nodes<BMeshNode>();
-  nodes_to_update.foreach_index(GrainSize(1),
+  node_mask.foreach_index(GrainSize(1),
                                 [&](const int i) { update_node_bounds_bmesh(nodes[i]); });
-  this->flush_bounds_to_parents();
+  this->flush_bounds_to_parents(node_mask);
 }
 
-void Tree::update_bounds(const Depsgraph &depsgraph, const Object &object)
+void Tree::update_bounds(const Depsgraph &depsgraph, const Object &object, const IndexMask &node_mask)
 {
   switch (this->type()) {
     case Type::Mesh: {
       const Span<float3> positions = bke::pbvh::vert_positions_eval(depsgraph, object);
-      this->update_bounds_mesh(positions);
+      this->update_bounds_mesh(positions, node_mask);
       break;
     }
     case Type::Grids: {
       const SculptSession &ss = *object.sculpt;
       const SubdivCCG &subdiv_ccg = *ss.subdiv_ccg;
-      this->update_bounds_grids(subdiv_ccg.positions, subdiv_ccg.grid_area);
+      this->update_bounds_grids(subdiv_ccg.positions, subdiv_ccg.grid_area, node_mask);
       break;
     }
     case Type::BMesh: {
       const SculptSession &ss = *object.sculpt;
-      this->update_bounds_bmesh(*ss.bm);
+      this->update_bounds_bmesh(*ss.bm, node_mask);
       break;
     }
   }
@@ -2355,8 +2346,9 @@ void BKE_pbvh_vert_coords_apply(blender::bke::pbvh::Tree &pbvh,
                                 const blender::Span<blender::float3> vert_positions)
 {
   using namespace blender::bke::pbvh;
-  pbvh.tag_positions_changed(blender::IndexRange(pbvh.nodes_num()));
-  pbvh.update_bounds_mesh(vert_positions);
+  const blender::IndexRange all_nodes = blender::IndexRange(pbvh.nodes_num());
+  pbvh.tag_positions_changed(all_nodes);
+  pbvh.update_bounds_mesh(vert_positions, all_nodes);
   store_bounds_orig(pbvh);
 }
 

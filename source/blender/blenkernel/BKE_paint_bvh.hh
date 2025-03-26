@@ -232,7 +232,7 @@ class Tree {
    * \note Values are only meaningful for leaf nodes.
    * \note The vector's size may not match the size of the nodes array.
    */
-  BitVector<> bounds_dirty_;
+  //BitVector<> bounds_dirty_;
 
   /**
    * If true, the normals for the corresponding node index are out of date.
@@ -308,16 +308,16 @@ class Tree {
    * bounds to their parent/ancestor inner nodes. This is meant to be used after leaf node bounds
    * have been computed separately.
    */
-  void flush_bounds_to_parents();
+  void flush_bounds_to_parents(const IndexMask &node_mask);
 
   /**
    * Recalculate node bounding boxes based on the current coordinates. Calculation is only done for
    * affected nodes that have been tagged by #PBVH::tag_positions_changed().
    */
-  void update_bounds(const Depsgraph &depsgraph, const Object &object);
-  void update_bounds_mesh(Span<float3> vert_positions);
-  void update_bounds_grids(Span<float3> positions, int grid_area);
-  void update_bounds_bmesh(const BMesh &bm);
+  void update_bounds(const Depsgraph &depsgraph, const Object &object, const IndexMask& node_mask);
+  void update_bounds_mesh(Span<float3> vert_positions, const IndexMask& node_mask);
+  void update_bounds_grids(Span<float3> positions, int grid_area, const IndexMask& node_mask);
+  void update_bounds_bmesh(const BMesh &bm, const IndexMask& node_mask);
 
   void update_normals(Object &object_orig, Object &object_eval);
 

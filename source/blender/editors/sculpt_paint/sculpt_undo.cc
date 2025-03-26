@@ -878,6 +878,7 @@ static void restore_list(bContext *C, Depsgraph *depsgraph, StepData &step_data)
               return indices_contain_true(modified_grids, nodes[i].grids());
             });
         pbvh.tag_positions_changed(changed_nodes);
+        pbvh.update_bounds(*depsgraph, object, changed_nodes);
         multires_mark_as_modified(depsgraph, &object, MULTIRES_COORDS_MODIFIED);
       }
       else {
@@ -894,6 +895,7 @@ static void restore_list(bContext *C, Depsgraph *depsgraph, StepData &step_data)
               return indices_contain_true(modified_verts, nodes[i].all_verts());
             });
         pbvh.tag_positions_changed(changed_nodes);
+        pbvh.update_bounds(*depsgraph, object, changed_nodes);
       }
 
       if (tag_update) {
@@ -908,7 +910,6 @@ static void restore_list(bContext *C, Depsgraph *depsgraph, StepData &step_data)
          * We need to manually clear that cache. */
         mesh.runtime->corner_normals_cache.tag_dirty();
       }
-      pbvh.update_bounds(*depsgraph, object);
       bke::pbvh::store_bounds_orig(pbvh);
       break;
     }

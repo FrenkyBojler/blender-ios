@@ -1532,7 +1532,7 @@ void do_simulation_step(const Depsgraph &depsgraph,
     }
   }
   pbvh.tag_positions_changed(node_mask);
-  pbvh.flush_bounds_to_parents();
+  pbvh.flush_bounds_to_parents(node_mask);
 }
 
 static void cloth_brush_apply_brush_forces(const Depsgraph &depsgraph,
@@ -2383,7 +2383,7 @@ static wmOperatorStatus sculpt_cloth_filter_modal(bContext *C,
     }
   }
   pbvh.tag_positions_changed(node_mask);
-  pbvh.flush_bounds_to_parents();
+  pbvh.flush_bounds_to_parents(node_mask);
 
   /* Activate all nodes. */
   sim_activate_nodes(object, *ss.filter_cache->cloth_sim, node_mask);
