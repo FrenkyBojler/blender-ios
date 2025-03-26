@@ -399,19 +399,18 @@ void AbcCurveReader::readObjectData(Main *bmain, const Alembic::Abc::ISampleSele
   }
 }
 
-static void read_interp_position(Array<Imath::V3f> &interp_positions,
-                                 const P3fArraySamplePtr &positions,
-                                 const P3fArraySamplePtr &ceil_positions,
-                                 const double weight)
+static float3 interpolate_to_zup(const Span<Imath::V3f> &floor_positions,
+                                 const Span<Imath::V3f> &ceil_positions,
+                                 int i,
+                                 float weight)
 {
-  float tmp[3];
-  for (int i = 0; i < positions->size(); i++) {
-    const Imath::V3f &floor_pos = (*positions)[i];
-    const Imath::V3f &ceil_pos = (*ceil_positions)[i];
+  float3 p;
+  const Imath::V3f &floor_pos = floor_positions[i];
+  const Imath::V3f &ceil_pos = ceil_positions[i];
 
-    interp_v3_v3v3(tmp, floor_pos.getValue(), ceil_pos.getValue(), float(weight));
-    interp_positions[i].setValue(tmp[0], tmp[1], tmp[2]);
-  }
+  interp_v3_v3v3(p, floor_pos.getValue(), ceil_pos.getValue(), weight);
+  copy_zup_from_yup(p, p);
+  return p;
 }
 
 static void add_bezier_control_point(int cp,
@@ -421,20 +420,42 @@ static void add_bezier_control_point(int cp,
                                      MutableSpan<float3> handles_left,
                                      MutableSpan<float3> handles_right)
 {
+  positions[cp] = to_zup_float3(alembic_positions[offset]);
   if (offset == 0) {
-    positions[cp] = to_zup_float3(alembic_positions[offset]);
     handles_right[cp] = to_zup_float3(alembic_positions[offset + 1]);
     handles_left[cp] = 2.0f * positions[cp] - handles_right[cp];
   }
   else if (offset == alembic_positions.size() - 1) {
-    positions[cp] = to_zup_float3(alembic_positions[offset]);
     handles_left[cp] = to_zup_float3(alembic_positions[offset - 1]);
     handles_right[cp] = 2.0f * positions[cp] - handles_left[cp];
   }
   else {
-    positions[cp] = to_zup_float3(alembic_positions[offset]);
     handles_left[cp] = to_zup_float3(alembic_positions[offset - 1]);
     handles_right[cp] = to_zup_float3(alembic_positions[offset + 1]);
+  }
+}
+
+static void add_bezier_control_point_interp(int cp,
+                                            int offset,
+                                            const Span<Imath::V3f> floor_positions,
+                                            const Span<Imath::V3f> ceil_positions,
+                                            MutableSpan<float3> positions,
+                                            MutableSpan<float3> handles_left,
+                                            MutableSpan<float3> handles_right,
+                                            float weight)
+{
+  positions[cp] = interpolate_to_zup(floor_positions, ceil_positions, offset, weight);
+  if (offset == 0) {
+    handles_right[cp] = interpolate_to_zup(floor_positions, ceil_positions, offset + 1, weight);
+    handles_left[cp] = 2.0f * positions[cp] - handles_right[cp];
+  }
+  else if (offset == floor_positions.size() - 1) {
+    handles_left[cp] = interpolate_to_zup(floor_positions, ceil_positions, offset - 1, weight);
+    handles_right[cp] = 2.0f * positions[cp] - handles_left[cp];
+  }
+  else {
+    handles_left[cp] = interpolate_to_zup(floor_positions, ceil_positions, offset - 1, weight);
+    handles_right[cp] = interpolate_to_zup(floor_positions, ceil_positions, offset + 1, weight);
   }
 }
 
@@ -472,17 +493,11 @@ void AbcCurveReader::read_curves_sample(Curves *curves_id,
 
   MutableSpan<float3> curves_positions = curves.positions_for_write();
 
-  Array<Imath::V3f> interp_points;
-  Span<Imath::V3f> alembic_points;
+  Span<Imath::V3f> alembic_points = {&(*data.positions)[0], int64_t((*data.positions).size())};
 
+  Span<Imath::V3f> alembic_points_ceil;
   if (data.interpolation_settings.has_value()) {
-    interp_points = Array<Imath::V3f>(data.positions->size());
-    read_interp_position(
-        interp_points, data.positions, data.ceil_positions, data.interpolation_settings->weight);
-    alembic_points = interp_points;
-  }
-  else {
-    alembic_points = {&(*data.positions)[0], int64_t((*data.positions).size())};
+    alembic_points_ceil = {&(*data.ceil_positions)[0], int64_t((*data.ceil_positions).size())};
   }
 
   if (data.curve_type == CURVE_TYPE_BEZIER) {
@@ -500,12 +515,25 @@ void AbcCurveReader::read_curves_sample(Curves *curves_id,
 
       int cp_offset = 0;
       for (const int cp : IndexRange(cp_count)) {
-        add_bezier_control_point(cp,
-                                 cp_offset,
-                                 alembic_points.slice(alembic_point_offset, alembic_point_count),
-                                 curves_positions.slice(point_offset, point_count),
-                                 handles_left.slice(point_offset, point_count),
-                                 handles_right.slice(point_offset, point_count));
+        if (data.interpolation_settings.has_value()) {
+          add_bezier_control_point_interp(
+              cp,
+              cp_offset,
+              alembic_points.slice(alembic_point_offset, alembic_point_count),
+              alembic_points_ceil.slice(alembic_point_offset, alembic_point_count),
+              curves_positions.slice(point_offset, point_count),
+              handles_left.slice(point_offset, point_count),
+              handles_right.slice(point_offset, point_count),
+              float(data.interpolation_settings->weight));
+        }
+        else {
+          add_bezier_control_point(cp,
+                                   cp_offset,
+                                   alembic_points.slice(alembic_point_offset, alembic_point_count),
+                                   curves_positions.slice(point_offset, point_count),
+                                   handles_left.slice(point_offset, point_count),
+                                   handles_right.slice(point_offset, point_count));
+        }
         cp_offset += 3;
       }
 
@@ -516,7 +544,16 @@ void AbcCurveReader::read_curves_sample(Curves *curves_id,
     for (const int i_curve : curves.curves_range()) {
       int position_offset = data.offset_in_alembic[i_curve];
       for (const int i_point : curves.points_by_curve()[i_curve]) {
-        curves_positions[i_point] = to_zup_float3(alembic_points[position_offset++]);
+        if (data.interpolation_settings.has_value()) {
+          curves_positions[i_point] = interpolate_to_zup(
+              alembic_points,
+              alembic_points_ceil,
+              position_offset++,
+              float(data.interpolation_settings->weight));
+        }
+        else {
+          curves_positions[i_point] = to_zup_float3(alembic_points[position_offset++]);
+        }
       }
     }
   }
