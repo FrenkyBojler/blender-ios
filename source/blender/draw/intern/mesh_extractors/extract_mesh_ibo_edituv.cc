@@ -216,7 +216,6 @@ static void extract_edituv_lines_mesh(const MeshRenderData &mr,
   else {
     IndexMaskMemory memory;
     IndexMask visible = faces.index_range();
-
     if (!mr.hide_poly.is_empty()) {
       visible = IndexMask::from_bools_inverse(visible, mr.hide_poly, memory);
     }
@@ -228,7 +227,6 @@ static void extract_edituv_lines_mesh(const MeshRenderData &mr,
         visible = IndexMask::from_bools(visible, mr.select_poly, memory);
       }
     }
-
     visible.foreach_index([&](const int face_index) {
       const IndexRange face = faces[face_index];
       for (const int corner : face) {

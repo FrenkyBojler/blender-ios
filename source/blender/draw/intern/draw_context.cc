@@ -384,21 +384,15 @@ template<> Mesh &DRW_object_get_data_for_drawing(const Object &object)
 
 bool DRW_space_data_is_uv_editor(const DRWContext *draw_ctx)
 {
-  /* Ensure space_data is not null*/
   if (!draw_ctx->space_data) {
     return false;
   }
-
   const bool is_space_image = draw_ctx->space_data->spacetype == SPACE_IMAGE;
-
   /* Space can only be UV Editor when its the SPACE_IMAGE type */
   if (!is_space_image) {
     return false;
   }
-
-  /* Cast the space_data to SpaceImage type */
   const SpaceImage *space_image = reinterpret_cast<const SpaceImage *>(draw_ctx->space_data);
-
   return space_image->mode == SI_MODE_UV;
 }
 

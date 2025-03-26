@@ -202,6 +202,7 @@ bool DRW_object_is_in_edit_mode(const Object *ob);
  */
 int DRW_object_visibility_in_active_context(const Object *ob);
 bool DRW_object_use_hide_faces(const Object *ob);
+bool DRW_space_data_is_uv_editor(const DRWContext *draw_ctx);
 
 bool DRW_object_is_visible_psys_in_active_context(const Object *object,
                                                   const ParticleSystem *psys);
@@ -216,8 +217,6 @@ template<typename T> T &DRW_object_get_data_for_drawing(const Object &object)
 }
 
 template<> Mesh &DRW_object_get_data_for_drawing(const Object &object);
-
-bool DRW_space_data_is_uv_editor(const DRWContext *draw_ctx);
 
 /* Draw State. */
 
