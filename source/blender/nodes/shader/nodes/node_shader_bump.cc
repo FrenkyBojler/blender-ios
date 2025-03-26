@@ -63,7 +63,7 @@ static int gpu_shader_bump(GPUMaterial *mat,
                            GPUNodeStack *out)
 {
   /* If there is no Height input, the node becomes a no-op. */
-  if (!in[2].link) {
+  if (!in[3].link) {
     if (!in[4].link) {
       return GPU_link(mat, "world_normals_get", &out[0].link);
     }
