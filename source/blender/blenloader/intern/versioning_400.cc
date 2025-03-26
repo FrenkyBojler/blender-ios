@@ -6537,7 +6537,7 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
     }
   }
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 10)) {
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 12)) {
     version_show_texpaint_to_show_uv(bmain);
     version_set_uv_face_overlay_defaults(bmain);
   }
