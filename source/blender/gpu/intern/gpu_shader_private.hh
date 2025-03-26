@@ -175,6 +175,7 @@ class ShaderCompiler {
   Shader *compile(const shader::ShaderCreateInfo &info, bool is_batch_compilation);
 
   virtual BatchHandle batch_compile(Span<const shader::ShaderCreateInfo *> &infos) = 0;
+  virtual void batch_cancel(BatchHandle &handle) = 0;
   virtual bool batch_is_ready(BatchHandle handle) = 0;
   virtual Vector<Shader *> batch_finalize(BatchHandle &handle) = 0;
 
@@ -199,9 +200,20 @@ class ShaderCompilerGeneric : public ShaderCompiler {
     Vector<Shader *> shaders;
     Vector<const shader::ShaderCreateInfo *> infos;
     std::atomic_bool is_ready = false;
+    std::atomic_bool is_cancelled = false;
+
+    void free_shaders()
+    {
+      for (Shader *shader : shaders) {
+        if (shader) {
+          GPU_shader_free(wrap(shader));
+        }
+      }
+      shaders.clear();
+    }
   };
   BatchHandle next_batch_handle_ = 1;
-  Map<BatchHandle, std::unique_ptr<Batch>> batches_;
+  Map<BatchHandle, Batch *> batches_;
   std::mutex mutex_;
 
   std::deque<Batch *> compilation_queue_;
@@ -214,6 +226,7 @@ class ShaderCompilerGeneric : public ShaderCompiler {
   ~ShaderCompilerGeneric() override;
 
   BatchHandle batch_compile(Span<const shader::ShaderCreateInfo *> &infos) override;
+  void batch_cancel(BatchHandle &handle) override;
   bool batch_is_ready(BatchHandle handle) override;
   Vector<Shader *> batch_finalize(BatchHandle &handle) override;
 };
