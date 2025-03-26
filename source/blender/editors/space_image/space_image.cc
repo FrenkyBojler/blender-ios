@@ -313,6 +313,8 @@ static void image_listener(const wmSpaceTypeListenerParams *params)
           break;
         case ND_OB_ACTIVE:
         case ND_OB_SELECT:
+          ED_area_tag_redraw(area);
+          break;
         case ND_MODE:
           ED_paint_cursor_start(&params->scene->toolsettings->imapaint.paint,
                                 ED_image_tools_paint_poll);
