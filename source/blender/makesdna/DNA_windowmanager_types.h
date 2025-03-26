@@ -36,6 +36,11 @@ typedef struct WindowManagerRuntimeHandle WindowManagerRuntimeHandle;
 typedef struct WindowRuntimeHandle WindowRuntimeHandle;
 #endif  // __cplusplus
 
+/* MSVC defines. */
+#ifdef hyper
+#  undef hyper
+#endif
+
 /* Defined here: */
 
 struct wmNotifier;
@@ -413,10 +418,6 @@ typedef struct wmWindow {
 
 #ifdef ime_data
 #  undef ime_data
-#endif
-/* MSVC defines. */
-#if defined(_MSC_VER) && defined(hyper)
-#  undef hyper
 #endif
 
 /* These two lines with # tell `makesdna` this struct can be excluded. */
