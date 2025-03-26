@@ -108,8 +108,6 @@ class NodeSocketViewItem : public BasicTreeViewItem {
 
     uiLayout *input_socket_layout = &row.row(true);
     if (socket_.flag & NODE_INTERFACE_SOCKET_INPUT) {
-      /* XXX Socket template only draws in embossed layouts (Julian). */
-      uiLayoutSetEmboss(input_socket_layout, blender::ui::EmbossType::Emboss);
       /* Context is not used by the template function. */
       uiTemplateNodeSocket(input_socket_layout, /*C*/ nullptr, socket_.socket_color());
     }
@@ -122,8 +120,6 @@ class NodeSocketViewItem : public BasicTreeViewItem {
 
     uiLayout *output_socket_layout = &row.row(true);
     if (socket_.flag & NODE_INTERFACE_SOCKET_OUTPUT) {
-      /* XXX Socket template only draws in embossed layouts (Julian). */
-      uiLayoutSetEmboss(output_socket_layout, blender::ui::EmbossType::Emboss);
       /* Context is not used by the template function. */
       uiTemplateNodeSocket(output_socket_layout, /*C*/ nullptr, socket_.socket_color());
     }
@@ -196,8 +192,6 @@ class NodePanelViewItem : public BasicTreeViewItem {
     /* Add boolean socket if panel has a toggle. */
     if (toggle_ != nullptr) {
       uiLayout *toggle_layout = &row.row(true);
-      /* XXX Socket template only draws in embossed layouts (Julian). */
-      uiLayoutSetEmboss(toggle_layout, blender::ui::EmbossType::Emboss);
       /* Context is not used by the template function. */
       uiTemplateNodeSocket(toggle_layout, /*C*/ nullptr, toggle_->socket_color());
     }
