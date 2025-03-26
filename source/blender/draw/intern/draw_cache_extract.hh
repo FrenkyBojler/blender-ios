@@ -122,6 +122,7 @@ struct MeshBatchList {
   gpu::Batch *edit_triangles;
   gpu::Batch *edit_vertices;
   gpu::Batch *edit_edges;
+  gpu::Batch *edit_edges_loose;
   gpu::Batch *edit_vnor;
   gpu::Batch *edit_lnor;
   gpu::Batch *edit_fdots;
@@ -166,6 +167,7 @@ enum DRWBatchFlag {
   MBC_EDIT_TRIANGLES = (1u << MBC_BATCH_INDEX(edit_triangles)),
   MBC_EDIT_VERTICES = (1u << MBC_BATCH_INDEX(edit_vertices)),
   MBC_EDIT_EDGES = (1u << MBC_BATCH_INDEX(edit_edges)),
+  MBC_EDIT_EDGES_LOOSE = (1u << MBC_BATCH_INDEX(edit_edges_loose)),
   MBC_EDIT_VNOR = (1u << MBC_BATCH_INDEX(edit_vnor)),
   MBC_EDIT_LNOR = (1u << MBC_BATCH_INDEX(edit_lnor)),
   MBC_EDIT_FACEDOTS = (1u << MBC_BATCH_INDEX(edit_fdots)),

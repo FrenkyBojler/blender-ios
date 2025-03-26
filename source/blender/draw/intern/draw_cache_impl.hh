@@ -211,6 +211,7 @@ blender::gpu::Batch *DRW_mesh_batch_cache_get_surface_viewer_attribute(Mesh &mes
 blender::gpu::Batch *DRW_mesh_batch_cache_get_edit_triangles(Mesh &mesh);
 blender::gpu::Batch *DRW_mesh_batch_cache_get_edit_vertices(Mesh &mesh);
 blender::gpu::Batch *DRW_mesh_batch_cache_get_edit_edges(Mesh &mesh);
+blender::gpu::Batch *DRW_mesh_batch_cache_get_edit_edges_loose(Mesh &mesh);
 blender::gpu::Batch *DRW_mesh_batch_cache_get_edit_vert_normals(Mesh &mesh);
 blender::gpu::Batch *DRW_mesh_batch_cache_get_edit_loop_normals(Mesh &mesh);
 blender::gpu::Batch *DRW_mesh_batch_cache_get_edit_facedots(Mesh &mesh);

@@ -363,7 +363,7 @@ class Meshes : Overlay {
     {
       gpu::Batch *geom = DRW_mesh_batch_cache_get_edit_edges(mesh);
       edit_mesh_edges_ps_.draw_expand(geom, GPU_PRIM_TRIS, 2, 1, res_handle);
-      if (geom = DRW_mesh_batch_cache_get_loose_edges(mesh)) {
+      if (geom = DRW_mesh_batch_cache_get_edit_edges_loose(mesh)) {
         edit_mesh_edges_loose_->draw_expand(geom, GPU_PRIM_TRIS, 2, 1, res_handle);
       }
     }

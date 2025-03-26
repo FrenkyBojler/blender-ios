@@ -83,11 +83,11 @@ static constexpr DRWBatchFlag batches_that_use_buffer(const int buffer_index)
   switch (buffer_index) {
     case BUFFER_INDEX(vbo.pos):
       return MBC_SURFACE | MBC_SURFACE_WEIGHTS | MBC_EDIT_TRIANGLES | MBC_EDIT_VERTICES |
-             MBC_EDIT_EDGES | MBC_EDIT_VNOR | MBC_EDIT_LNOR | MBC_EDIT_MESH_ANALYSIS |
-             MBC_EDIT_SELECTION_VERTS | MBC_EDIT_SELECTION_EDGES | MBC_EDIT_SELECTION_FACES |
-             MBC_ALL_VERTS | MBC_ALL_EDGES | MBC_LOOSE_EDGES | MBC_EDGE_DETECTION |
-             MBC_WIRE_EDGES | MBC_WIRE_LOOPS | MBC_SCULPT_OVERLAYS | MBC_VIEWER_ATTRIBUTE_OVERLAY |
-             MBC_SURFACE_PER_MAT;
+             MBC_EDIT_EDGES | MBC_EDIT_EDGES_LOOSE | MBC_EDIT_VNOR | MBC_EDIT_LNOR |
+             MBC_EDIT_MESH_ANALYSIS | MBC_EDIT_SELECTION_VERTS | MBC_EDIT_SELECTION_EDGES |
+             MBC_EDIT_SELECTION_FACES | MBC_ALL_VERTS | MBC_ALL_EDGES | MBC_LOOSE_EDGES |
+             MBC_EDGE_DETECTION | MBC_WIRE_EDGES | MBC_WIRE_LOOPS | MBC_SCULPT_OVERLAYS |
+             MBC_VIEWER_ATTRIBUTE_OVERLAY | MBC_SURFACE_PER_MAT;
     case BUFFER_INDEX(vbo.nor):
       return MBC_SURFACE | MBC_EDIT_LNOR | MBC_WIRE_EDGES | MBC_WIRE_LOOPS | MBC_SURFACE_PER_MAT |
              MBC_ALL_VERTS;
@@ -106,7 +106,7 @@ static constexpr DRWBatchFlag batches_that_use_buffer(const int buffer_index)
     case BUFFER_INDEX(vbo.orco):
       return MBC_SURFACE_PER_MAT;
     case BUFFER_INDEX(vbo.edit_data):
-      return MBC_EDIT_TRIANGLES | MBC_EDIT_EDGES | MBC_EDIT_VERTICES;
+      return MBC_EDIT_TRIANGLES | MBC_EDIT_EDGES | MBC_EDIT_EDGES_LOOSE | MBC_EDIT_VERTICES;
     case BUFFER_INDEX(vbo.edituv_data):
       return MBC_EDITUV_FACES | MBC_EDITUV_FACES_STRETCH_AREA | MBC_EDITUV_FACES_STRETCH_ANGLE |
              MBC_EDITUV_EDGES | MBC_EDITUV_VERTS;
@@ -161,7 +161,7 @@ static constexpr DRWBatchFlag batches_that_use_buffer(const int buffer_index)
     case BUFFER_INDEX(ibo.lines):
       return MBC_EDIT_EDGES | MBC_EDIT_SELECTION_EDGES | MBC_ALL_EDGES | MBC_WIRE_EDGES;
     case BUFFER_INDEX(ibo.lines_loose):
-      return MBC_LOOSE_EDGES;
+      return MBC_EDIT_EDGES_LOOSE | MBC_LOOSE_EDGES;
     case BUFFER_INDEX(ibo.points):
       return MBC_EDIT_VNOR | MBC_EDIT_VERTICES | MBC_EDIT_SELECTION_VERTS;
     case BUFFER_INDEX(ibo.fdots):
@@ -1064,6 +1064,16 @@ gpu::Batch *DRW_mesh_batch_cache_get_edit_edges(Mesh &mesh)
   return DRW_batch_request(&cache.batch.edit_edges);
 }
 
+gpu::Batch *DRW_mesh_batch_cache_get_edit_edges_loose(Mesh &mesh)
+{
+  MeshBatchCache &cache = *mesh_batch_cache_get(mesh);
+  mesh_batch_cache_add_request(cache, MBC_EDIT_EDGES_LOOSE);
+  if (cache.no_loose_wire) {
+    return nullptr;
+  }
+  return DRW_batch_request(&cache.batch.edit_edges_loose);
+}
+
 gpu::Batch *DRW_mesh_batch_cache_get_edit_vertices(Mesh &mesh)
 {
   MeshBatchCache &cache = *mesh_batch_cache_get(mesh);
@@ -1710,6 +1720,23 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
     }
     else {
       init_empty_dummy_batch(*cache.batch.edit_edges);
+    }
+  }
+  assert_deps_valid(
+      MBC_EDIT_EDGES_LOOSE,
+      {BUFFER_INDEX(ibo.lines_loose), BUFFER_INDEX(vbo.pos), BUFFER_INDEX(vbo.edit_data)});
+  if (DRW_batch_requested(cache.batch.edit_edges_loose, GPU_PRIM_LINES)) {
+    if (edit_mapping_valid) {
+      DRW_ibo_request(cache.batch.edit_edges_loose, &mbuflist->ibo.lines_loose);
+      DRW_vbo_request(cache.batch.edit_edges_loose, &mbuflist->vbo.pos);
+      DRW_vbo_request(cache.batch.edit_edges_loose, &mbuflist->vbo.edit_data);
+      if (!do_subdivision || do_cage) {
+        /* For GPU subdivision, vertex normals are included in the `pos` VBO. */
+        DRW_vbo_request(cache.batch.edit_edges_loose, &mbuflist->vbo.vnor);
+      }
+    }
+    else {
+      init_empty_dummy_batch(*cache.batch.edit_edges_loose);
     }
   }
   assert_deps_valid(MBC_EDIT_VNOR,
