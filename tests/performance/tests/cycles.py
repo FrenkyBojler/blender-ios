@@ -10,8 +10,15 @@ def _run(args):
 
     device_info = args['device_type'].split("-")
     device_type = device_info[0]
-    use_hwrt = "RT" in device_info
-    use_osl = "OSL" in device_info
+
+    device_suffixes = device_info[1:]
+    use_hwrt = "RT" in device_suffixes
+    use_osl = "OSL" in device_suffixes
+
+    for suffix in device_suffixes:
+        if suffix not in {"RT", "OSL"}:
+            raise SystemExit(f"Unknown device type suffix {suffix}")
+
     device_index = args['device_index']
 
     scene = bpy.context.scene
