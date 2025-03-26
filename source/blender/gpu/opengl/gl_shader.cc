@@ -1768,6 +1768,41 @@ BatchHandle GLShaderCompiler::batch_compile(Span<const shader::ShaderCreateInfo 
   return handle;
 }
 
+void GLShaderCompiler::batch_cancel(BatchHandle &handle)
+{
+  bool has_started = false;
+  {
+    std::lock_guard lock(mutex_);
+
+    Batch &batch = batches.lookup(handle);
+    batch.is_cancelled = true;
+
+    if (!batch.is_ready) {
+      for (CompilationWork &item : batch.items) {
+        if (item.worker) {
+          has_started = true;
+          break;
+        }
+      }
+    }
+
+    if (!has_started) {
+      for (CompilationWork &item : batch.items) {
+        GPU_shader_free(wrap(item.shader));
+      }
+      batches.pop(handle);
+    }
+  }
+
+  if (has_started) {
+    for (Shader *shader : batch_finalize(handle)) {
+      GPU_shader_free(wrap(shader));
+    }
+  }
+
+  handle = 0;
+}
+
 bool GLShaderCompiler::batch_is_ready(BatchHandle handle)
 {
   std::scoped_lock lock(mutex_);
@@ -1780,7 +1815,7 @@ bool GLShaderCompiler::batch_is_ready(BatchHandle handle)
 
   batch.is_ready = true;
   for (CompilationWork &item : batch.items) {
-    if (item.is_ready) {
+    if (item.is_ready || (batch.is_cancelled && !item.worker)) {
       continue;
     }
 

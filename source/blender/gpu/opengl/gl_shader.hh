@@ -269,6 +269,7 @@ class GLShaderCompiler : public ShaderCompiler {
   struct Batch {
     Vector<CompilationWork> items;
     bool is_ready = false;
+    bool is_cancelled = false;
   };
 
   Map<BatchHandle, Batch> batches;
@@ -312,6 +313,7 @@ class GLShaderCompiler : public ShaderCompiler {
   virtual ~GLShaderCompiler() override;
 
   virtual BatchHandle batch_compile(Span<const shader::ShaderCreateInfo *> &infos) override;
+  virtual void batch_cancel(BatchHandle &handle) override;
   virtual bool batch_is_ready(BatchHandle handle) override;
   virtual Vector<Shader *> batch_finalize(BatchHandle &handle) override;
 
