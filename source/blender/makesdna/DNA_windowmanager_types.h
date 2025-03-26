@@ -414,6 +414,10 @@ typedef struct wmWindow {
 #ifdef ime_data
 #  undef ime_data
 #endif
+/* MSVC defines. */
+#if defined(_MSC_VER) && defined(hyper)
+#  undef hyper
+#endif
 
 /* These two lines with # tell `makesdna` this struct can be excluded. */
 /* should be something like DNA_EXCLUDE
