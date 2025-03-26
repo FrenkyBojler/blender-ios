@@ -304,19 +304,19 @@ void screen_draw_region_scale_highlight(ARegion *region)
   switch (region->alignment) {
     case RGN_ALIGN_RIGHT:
       rect.xmax = rect.xmin;
-      rect.xmin = rect.xmax - (3.0f * U.pixelsize);
+      rect.xmin = rect.xmax - (4.0f * U.pixelsize);
       break;
     case RGN_ALIGN_LEFT:
       rect.xmin = rect.xmax;
-      rect.xmax = rect.xmin + (3.0f * U.pixelsize);
+      rect.xmax = rect.xmin + (4.0f * U.pixelsize);
       break;
     case RGN_ALIGN_TOP:
       rect.ymax = rect.ymin;
-      rect.ymin = rect.ymax - (3.0f * U.pixelsize);
+      rect.ymin = rect.ymax - (4.0f * U.pixelsize);
       break;
     case RGN_ALIGN_BOTTOM:
       rect.ymin = rect.ymax;
-      rect.ymax = rect.ymin + (3.0f * U.pixelsize);
+      rect.ymax = rect.ymin + (4.0f * U.pixelsize);
       break;
     default:
       return;

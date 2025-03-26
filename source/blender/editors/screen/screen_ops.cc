@@ -3093,6 +3093,14 @@ static wmOperatorStatus region_scale_modal(bContext *C, wmOperator *op, const wm
       if (size_changed && rmd->region->runtime->type->on_user_resize) {
         rmd->region->runtime->type->on_user_resize(rmd->region);
       }
+      if (size_changed) {
+        if (ELEM(rmd->edge, AE_LEFT_TO_TOPRIGHT, AE_RIGHT_TO_TOPLEFT)) {
+          WM_cursor_set(CTX_wm_window(C), WM_CURSOR_X_MOVE);
+        }
+        else {
+          WM_cursor_set(CTX_wm_window(C), WM_CURSOR_Y_MOVE);
+        }
+      }
       ED_area_tag_redraw(rmd->area);
       WM_event_add_notifier(C, NC_SCREEN | NA_EDITED, nullptr);
 
