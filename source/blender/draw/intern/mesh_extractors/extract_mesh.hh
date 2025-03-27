@@ -34,8 +34,6 @@ struct BMLoop;
 
 namespace blender::draw {
 
-#define MIN_RANGE_LEN 1024
-
 /* ---------------------------------------------------------------------- */
 /** \name Mesh Render Data
  * \{ */
@@ -65,9 +63,6 @@ struct MeshRenderData {
   bool use_subsurf_fdots;
   bool hide_unmapped_edges;
   bool use_simplify_normals;
-
-  /** Use for #MeshStatVis calculation which use world-space coords. */
-  float4x4 object_to_world;
 
   const ToolSettings *toolsettings;
   /** Edit Mesh */
@@ -189,7 +184,6 @@ MeshRenderData mesh_render_data_create(Object &object,
                                        Mesh &mesh,
                                        bool is_editmode,
                                        bool is_paint_mode,
-                                       const float4x4 &object_to_world,
                                        bool do_final,
                                        bool do_uvedit,
                                        bool use_hide,
@@ -391,7 +385,9 @@ void extract_sculpt_data_subdiv(const MeshRenderData &mr,
 
 void extract_orco(const MeshRenderData &mr, gpu::VertBuf &vbo);
 
-void extract_mesh_analysis(const MeshRenderData &mr, gpu::VertBuf &vbo);
+void extract_mesh_analysis(const MeshRenderData &mr,
+                           const float4x4 &object_to_world,
+                           gpu::VertBuf &vbo);
 
 void extract_attribute(const MeshRenderData &mr,
                        const DRW_AttributeRequest &request,
