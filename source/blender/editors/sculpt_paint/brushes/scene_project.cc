@@ -38,40 +38,44 @@ struct LocalData {
   Vector<float3> translations;
 };
 
-static void raycast(const Span<Object *> target_objects,
-                    const Span<float3> positions,
-                    const float3 &normal,
-                    const Span<float> factors,
-                    const MutableSpan<float> r_hit_distances)
+static void object_raycast(const Object &object,
+                           const float3 &normal,
+                           const Span<float3> positions,
+                           const Span<float> factors,
+                           const MutableSpan<float> r_hit_distances)
+{
+  const Mesh &mesh = *static_cast<Mesh *>(object.data);
+  bke::BVHTreeFromMesh tree_data = mesh.bvh_corner_tris();
+
+  if (tree_data.tree == nullptr) {
+    return;
+  }
+
+  for (const int i : positions.index_range()) {
+    if (factors[i] == 0.0f) {
+      continue;
+    }
+
+    BVHTreeRayHit hit;
+    hit.dist = std::numeric_limits<float>::max();
+
+    BLI_bvhtree_ray_cast(
+        tree_data.tree, positions[i], normal, 0.0f, &hit, tree_data.raycast_callback, &tree_data);
+
+    r_hit_distances[i] = math::min(r_hit_distances[i], hit.dist);
+  }
+}
+
+static void scene_raycast(const Span<Object *> target_objects,
+                          const float3 &normal,
+                          const Span<float3> positions,
+                          const Span<float> factors,
+                          const MutableSpan<float> r_hit_distances)
 {
   r_hit_distances.fill(std::numeric_limits<float>::max());
 
   for (const int i : target_objects.index_range()) {
-    const Mesh &mesh = *static_cast<Mesh *>(target_objects[i]->data);
-    bke::BVHTreeFromMesh tree_data = mesh.bvh_corner_tris();
-
-    if (tree_data.tree == nullptr) {
-      continue;
-    }
-
-    for (const int j : positions.index_range()) {
-      if (factors[j] == 0.0f) {
-        continue;
-      }
-
-      BVHTreeRayHit hit;
-      hit.dist = std::numeric_limits<float>::max();
-
-      BLI_bvhtree_ray_cast(tree_data.tree,
-                           positions[j],
-                           normal,
-                           0.0f,
-                           &hit,
-                           tree_data.raycast_callback,
-                           &tree_data);
-
-      r_hit_distances[j] = math::min(r_hit_distances[j], hit.dist);
-    }
+    object_raycast(*target_objects[i], normal, positions, factors, r_hit_distances);
   }
 
   for (const int i : r_hit_distances.index_range()) {
@@ -171,7 +175,8 @@ static void calc_faces(const Depsgraph &depsgraph,
 
   tls.hit_distances.resize(verts.size());
   const MutableSpan<float> hit_distances = tls.hit_distances;
-  raycast(ss.cache->target_objects, world_positions, world_normal, tls.factors, hit_distances);
+  scene_raycast(
+      ss.cache->target_objects, world_normal, world_positions, tls.factors, hit_distances);
 
   tls.translations.resize(verts.size());
   const MutableSpan<float3> world_translations = tls.translations;
@@ -209,7 +214,8 @@ static void calc_grids(const Depsgraph &depsgraph,
 
   tls.hit_distances.resize(positions.size());
   const MutableSpan<float> hit_distances = tls.hit_distances;
-  raycast(ss.cache->target_objects, world_positions, world_normal, tls.factors, hit_distances);
+  scene_raycast(
+      ss.cache->target_objects, world_normal, world_positions, tls.factors, hit_distances);
 
   tls.translations.resize(positions.size());
   const MutableSpan<float3> world_translations = tls.translations;
@@ -246,7 +252,8 @@ static void calc_bmesh(const Depsgraph &depsgraph,
 
   tls.hit_distances.resize(positions.size());
   const MutableSpan<float> hit_distances = tls.hit_distances;
-  raycast(ss.cache->target_objects, world_positions, world_normal, tls.factors, hit_distances);
+  scene_raycast(
+      ss.cache->target_objects, world_normal, world_positions, tls.factors, hit_distances);
 
   tls.translations.resize(positions.size());
   const MutableSpan<float3> world_translations = tls.translations;
