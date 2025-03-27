@@ -766,6 +766,7 @@ class VectorSet {
       throw;
     }
 
+if (usable_slots > InlineBufferCapacity) {
     Key *new_keys = this->allocate_keys_array(usable_slots);
     try {
       uninitialized_relocate_n(keys_, this->size(), new_keys);
@@ -780,6 +781,7 @@ class VectorSet {
     }
 
     keys_ = new_keys;
+}
     occupied_and_removed_slots_ -= removed_slots_;
     usable_slots_ = usable_slots;
     removed_slots_ = 0;
