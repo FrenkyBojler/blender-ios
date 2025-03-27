@@ -205,9 +205,9 @@ struct ParsedPathVariable {
    * this references the path string, and does not own the value. */
   blender::StringRef name;
 
-  /* Indicates how to the variable's value should be formatted as a string. This
-   * is derived from the format string after the `:` in e.g. `${blah:5}`.
-   * Currently only used for integer and float variable types. */
+  /* Indicates how the variable's value should be formatted as a string. This is
+   * derived from the format string after the `:` in e.g. `${blah:5}`. Currently
+   * only used for integer and float variable types. */
   VariableFormat format;
 };
 
