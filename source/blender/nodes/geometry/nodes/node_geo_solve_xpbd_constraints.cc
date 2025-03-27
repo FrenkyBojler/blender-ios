@@ -264,7 +264,12 @@ static void do_gauss_seidel_iteration(const EvaluationTarget target,
 {
   IndexMaskMemory memory;
 
-  for (ConstraintEvalData &data : constraint_data) {
+  Array<xpbd_constraints::VariableIndexArrays> indices_by_type(constraint_data.size());
+  xpbd_constraints::read_constraint_topology(constraint_data, indices_by_type);
+
+  for (const int constraint_i : constraint_data.index_range()) {
+    ConstraintEvalData &data = constraint_data[constraint_i];
+    const xpbd_constraints::VariableIndexArrays &indices = indices_by_type[constraint_i];
     if (!data.geometry) {
       continue;
     }
@@ -274,12 +279,12 @@ static void do_gauss_seidel_iteration(const EvaluationTarget target,
       switch (target) {
         case EvaluationTarget::Positions: {
           apply_gauss_seidel_positions_group(
-              eval_params, *data.type, *data.geometry, group_mask, variables, memory);
+              eval_params, *data.type, *data.geometry, group_mask, variables, indices, memory);
           break;
         }
         case EvaluationTarget::Velocities: {
           apply_gauss_seidel_velocities_group(
-              eval_params, *data.type, *data.geometry, group_mask, variables, memory);
+              eval_params, *data.type, *data.geometry, group_mask, variables, indices, memory);
           break;
         }
       }
@@ -296,71 +301,84 @@ static void do_jacobi_iteration(const EvaluationTarget target,
 
   IndexMaskMemory memory;
 
+  Array<xpbd_constraints::VariableIndexArrays> indices_by_type(constraint_data.size());
+  xpbd_constraints::read_constraint_topology(constraint_data, indices_by_type);
+
   switch (target) {
     case EvaluationTarget::Positions: {
-      Array<int> point_weights(variables.positions.size(), 0);
+      Array<int> position_weights(variables.positions.size(), 0);
+      Array<int> rotation_weights(variables.rotations.size(), 0);
       Array<float3> point_delta_positions(variables.positions.size(), float3(0.0f));
       Array<float4> point_delta_rotations(variables.positions.size(), float4(0.0f));
-      for (ConstraintEvalData &data : constraint_data) {
+      for (const int constraint_i : constraint_data.index_range()) {
+        ConstraintEvalData &data = constraint_data[constraint_i];
         if (data.geometry) {
           add_jacobi_position_deltas(eval_params,
                                      *data.type,
                                      *data.geometry,
                                      data.constraints,
                                      variables,
+                                     indices_by_type[constraint_i],
                                      point_delta_positions,
                                      point_delta_rotations,
-                                     point_weights,
+                                     position_weights,
+                                     rotation_weights,
                                      memory);
         }
       }
 
-      threading::parallel_for(point_weights.index_range(), 4096, [&](const IndexRange range) {
-        for (const int point : range) {
-          const int weight = point_weights[point];
-          if (weight > 0) {
-            const float norm = 1.0f / float(weight);
-            const float3 delta_pos = point_delta_positions[point] * norm;
-            const float4 delta_rot = point_delta_rotations[point] * norm;
-            xpbd_constraints::apply_position_impulse(delta_pos, variables.positions[point]);
-            xpbd_constraints::apply_rotation_impulse<linearized_quaternion>(
-                delta_rot, variables.rotations[point]);
-          }
-        }
-      });
+      threading::parallel_for(
+          variables.positions.index_range(), 4096, [&](const IndexRange range) {
+            for (const int point : range) {
+              const int weight = position_weights[point];
+              if (weight > 0) {
+                const float norm = 1.0f / float(weight);
+                const float3 delta_pos = point_delta_positions[point] * norm;
+                const float4 delta_rot = point_delta_rotations[point] * norm;
+                xpbd_constraints::apply_position_impulse(delta_pos, variables.positions[point]);
+                xpbd_constraints::apply_rotation_impulse<linearized_quaternion>(
+                    delta_rot, variables.rotations[point]);
+              }
+            }
+          });
       break;
     }
     case EvaluationTarget::Velocities: {
-      Array<int> point_weights(variables.positions.size(), 0);
+      Array<int> position_weights(variables.positions.size(), 0);
+      Array<int> rotation_weights(variables.rotations.size(), 0);
       Array<float3> point_delta_velocities(variables.positions.size(), float3(0.0f));
       Array<float3> point_delta_angular_velocities(variables.positions.size(), float3(0.0f));
-      for (ConstraintEvalData &data : constraint_data) {
+      for (const int constraint_i : constraint_data.index_range()) {
+        ConstraintEvalData &data = constraint_data[constraint_i];
         if (data.geometry) {
           add_jacobi_velocity_deltas(eval_params,
                                      *data.type,
                                      *data.geometry,
                                      data.constraints,
                                      variables,
+                                     indices_by_type[constraint_i],
                                      point_delta_velocities,
                                      point_delta_angular_velocities,
-                                     point_weights,
+                                     position_weights,
+                                     rotation_weights,
                                      memory);
         }
       }
 
-      threading::parallel_for(point_weights.index_range(), 4096, [&](const IndexRange range) {
-        for (const int point : range) {
-          const int weight = point_weights[point];
-          if (weight > 0) {
-            const float norm = 1.0f / float(weight);
-            const float3 delta_vel = point_delta_velocities[point] * norm;
-            const float3 delta_angvel = point_delta_angular_velocities[point] * norm;
-            xpbd_constraints::apply_velocity_impulse(delta_vel, variables.velocities[point]);
-            xpbd_constraints::apply_angular_velocity_impulse(delta_angvel,
-                                                             variables.angular_velocities[point]);
-          }
-        }
-      });
+      threading::parallel_for(
+          variables.rotations.index_range(), 4096, [&](const IndexRange range) {
+            for (const int point : range) {
+              const int weight = rotation_weights[point];
+              if (weight > 0) {
+                const float norm = 1.0f / float(weight);
+                const float3 delta_vel = point_delta_velocities[point] * norm;
+                const float3 delta_angvel = point_delta_angular_velocities[point] * norm;
+                xpbd_constraints::apply_velocity_impulse(delta_vel, variables.velocities[point]);
+                xpbd_constraints::apply_angular_velocity_impulse(
+                    delta_angvel, variables.angular_velocities[point]);
+              }
+            }
+          });
       break;
     }
   }

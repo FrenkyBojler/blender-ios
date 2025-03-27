@@ -129,14 +129,6 @@ static void position_goal__eval_positions(const ConstraintEvalParams &params,
   r_delta_rotations = {{}};
 }
 
-static Vector<VArray<int>> position_goal__get_mapping(const bke::GeometrySet &constraints)
-{
-  const PointCloudComponent &component = *constraints.get_component<PointCloudComponent>();
-  bke::AttributeAccessor attributes = *component.attributes();
-
-  return {*attributes.lookup_or_default<int>(ATTR_POINT1, AttrDomain::Point, 0)};
-}
-
 static void position_goal__init_position_step(bke::GeometrySet &constraints)
 {
   PointCloudComponent &component = constraints.get_component_for_write<PointCloudComponent>();
@@ -150,10 +142,10 @@ static void position_goal__init_position_step(bke::GeometrySet &constraints)
   lambda_writer.finish();
 }
 
-static void position_goal__linear_solve_size(int &r_num_components,
-                                             int &r_num_position_vars,
-                                             int &r_num_rotation_vars,
-                                             bool &r_use_active_mask)
+static void position_goal__get_size(int &r_num_components,
+                                    int &r_num_position_vars,
+                                    int &r_num_rotation_vars,
+                                    bool &r_use_active_mask)
 {
   r_num_components = 1;
   r_num_position_vars = 1;
@@ -161,10 +153,10 @@ static void position_goal__linear_solve_size(int &r_num_components,
   r_use_active_mask = false;
 }
 
-static void position_goal__linear_solve_variables(const bke::AttributeAccessor &attributes,
-                                                  const IndexMask &selection,
-                                                  MutableSpan<int> r_position_indices[4],
-                                                  MutableSpan<int> /*r_rotation_indices*/[4])
+static void position_goal__get_variable_indices(const bke::AttributeAccessor &attributes,
+                                                const IndexMask &selection,
+                                                MutableSpan<int> r_position_indices[4],
+                                                MutableSpan<int> /*r_rotation_indices*/[4])
 {
   const VArraySpan<int> points = *attributes.lookup_or_default<int>(
       ATTR_POINT1, AttrDomain::Point, 0);
@@ -341,18 +333,10 @@ static void rotation_goal__eval_positions(const ConstraintEvalParams &params,
       VArray<float4>::ForFunc(attributes->domain_size(AttrDomain::Point), delta_rotation_fn)};
 }
 
-static Vector<VArray<int>> rotation_goal__get_mapping(const bke::GeometrySet &constraints)
-{
-  const PointCloudComponent &component = *constraints.get_component<PointCloudComponent>();
-  bke::AttributeAccessor attributes = *component.attributes();
-
-  return {*attributes.lookup_or_default<int>(ATTR_POINT1, AttrDomain::Point, 0)};
-}
-
-static void rotation_goal__linear_solve_size(int &r_num_components,
-                                             int &r_num_position_vars,
-                                             int &r_num_rotation_vars,
-                                             bool &r_use_active_mask)
+static void rotation_goal__get_size(int &r_num_components,
+                                    int &r_num_position_vars,
+                                    int &r_num_rotation_vars,
+                                    bool &r_use_active_mask)
 {
   r_num_components = 3;
   r_num_position_vars = 0;
@@ -360,10 +344,10 @@ static void rotation_goal__linear_solve_size(int &r_num_components,
   r_use_active_mask = false;
 }
 
-static void rotation_goal__linear_solve_variables(const bke::AttributeAccessor &attributes,
-                                                  const IndexMask &selection,
-                                                  MutableSpan<int> /*r_position_indices*/[4],
-                                                  MutableSpan<int> r_rotation_indices[4])
+static void rotation_goal__get_variable_indices(const bke::AttributeAccessor &attributes,
+                                                const IndexMask &selection,
+                                                MutableSpan<int> /*r_position_indices*/[4],
+                                                MutableSpan<int> r_rotation_indices[4])
 {
   const VArraySpan<int> points = *attributes.lookup_or_default<int>(
       ATTR_POINT1, AttrDomain::Point, 0);
@@ -582,19 +566,10 @@ static void stretch_shear__eval_positions(const ConstraintEvalParams &params,
       VArray<float4>::ForFunc(attributes->domain_size(AttrDomain::Point), delta_rotation1_fn), {}};
 }
 
-static Vector<VArray<int>> stretch_shear__get_mapping(const bke::GeometrySet &constraints)
-{
-  const PointCloudComponent &component = *constraints.get_component<PointCloudComponent>();
-  bke::AttributeAccessor attributes = *component.attributes();
-
-  return {*attributes.lookup_or_default<int>(ATTR_POINT1, AttrDomain::Point, 0),
-          *attributes.lookup_or_default<int>(ATTR_POINT2, AttrDomain::Point, 0)};
-}
-
-static void stretch_shear__linear_solve_size(int &r_num_components,
-                                             int &r_num_position_vars,
-                                             int &r_num_rotation_vars,
-                                             bool &r_use_active_mask)
+static void stretch_shear__get_size(int &r_num_components,
+                                    int &r_num_position_vars,
+                                    int &r_num_rotation_vars,
+                                    bool &r_use_active_mask)
 {
   r_num_components = 3;
   r_num_position_vars = 2;
@@ -602,10 +577,10 @@ static void stretch_shear__linear_solve_size(int &r_num_components,
   r_use_active_mask = false;
 }
 
-static void stretch_shear__linear_solve_variables(const bke::AttributeAccessor &attributes,
-                                                  const IndexMask &selection,
-                                                  MutableSpan<int> r_position_indices[4],
-                                                  MutableSpan<int> r_rotation_indices[4])
+static void stretch_shear__get_variable_indices(const bke::AttributeAccessor &attributes,
+                                                const IndexMask &selection,
+                                                MutableSpan<int> r_position_indices[4],
+                                                MutableSpan<int> r_rotation_indices[4])
 {
   const VArraySpan<int> points1 = *attributes.lookup_or_default<int>(
       ATTR_POINT1, AttrDomain::Point, 0);
@@ -832,19 +807,10 @@ static void bend_twist__eval_positions(const ConstraintEvalParams &params,
       VArray<float4>::ForFunc(attributes->domain_size(AttrDomain::Point), delta_rotation2_fn)};
 }
 
-static Vector<VArray<int>> bend_twist__get_mapping(const bke::GeometrySet &constraints)
-{
-  const PointCloudComponent &component = *constraints.get_component<PointCloudComponent>();
-  bke::AttributeAccessor attributes = *component.attributes();
-
-  return {*attributes.lookup_or_default<int>(ATTR_POINT1, AttrDomain::Point, 0),
-          *attributes.lookup_or_default<int>(ATTR_POINT2, AttrDomain::Point, 0)};
-}
-
-static void bend_twist__linear_solve_size(int &r_num_components,
-                                          int &r_num_position_vars,
-                                          int &r_num_rotation_vars,
-                                          bool &r_use_active_mask)
+static void bend_twist__get_size(int &r_num_components,
+                                 int &r_num_position_vars,
+                                 int &r_num_rotation_vars,
+                                 bool &r_use_active_mask)
 {
   r_num_components = 3;
   r_num_position_vars = 0;
@@ -852,10 +818,10 @@ static void bend_twist__linear_solve_size(int &r_num_components,
   r_use_active_mask = false;
 }
 
-static void bend_twist__linear_solve_variables(const bke::AttributeAccessor &attributes,
-                                               const IndexMask &selection,
-                                               MutableSpan<int> /*r_position_indices*/[4],
-                                               MutableSpan<int> r_rotation_indices[4])
+static void bend_twist__get_variable_indices(const bke::AttributeAccessor &attributes,
+                                             const IndexMask &selection,
+                                             MutableSpan<int> /*r_position_indices*/[4],
+                                             MutableSpan<int> r_rotation_indices[4])
 {
   const VArraySpan<int> points1 = *attributes.lookup_or_default<int>(
       ATTR_POINT1, AttrDomain::Point, 0);
@@ -1242,18 +1208,10 @@ static void contact__eval_velocities(const ConstraintEvalParams &params,
       *attributes->lookup<float3>("delta_angular_velocity1", AttrDomain::Point)};
 }
 
-static Vector<VArray<int>> contact__get_mapping(const bke::GeometrySet &constraints)
-{
-  const PointCloudComponent &component = *constraints.get_component<PointCloudComponent>();
-  bke::AttributeAccessor attributes = *component.attributes();
-
-  return {*attributes.lookup_or_default<int>(ATTR_POINT1, AttrDomain::Point, 0)};
-}
-
-static void contact__linear_solve_size(int &r_num_components,
-                                       int &r_num_position_vars,
-                                       int &r_num_rotation_vars,
-                                       bool &r_use_active_mask)
+static void contact__get_size(int &r_num_components,
+                              int &r_num_position_vars,
+                              int &r_num_rotation_vars,
+                              bool &r_use_active_mask)
 {
   r_num_components = 1;
   r_num_position_vars = 1;
@@ -1261,10 +1219,10 @@ static void contact__linear_solve_size(int &r_num_components,
   r_use_active_mask = true;
 }
 
-static void contact__linear_solve_variables(const bke::AttributeAccessor &attributes,
-                                            const IndexMask &selection,
-                                            MutableSpan<int> r_position_indices[4],
-                                            MutableSpan<int> r_rotation_indices[4])
+static void contact__get_variable_indices(const bke::AttributeAccessor &attributes,
+                                          const IndexMask &selection,
+                                          MutableSpan<int> r_position_indices[4],
+                                          MutableSpan<int> r_rotation_indices[4])
 {
   const VArraySpan<int> points1 = *attributes.lookup_or_default<int>(
       ATTR_POINT1, AttrDomain::Point, 0);
@@ -1373,12 +1331,11 @@ template<bool debug_output> static ConstraintTypeInfo create_info__position_goal
   return ConstraintTypeInfo{"Position Goal Constraints",
                             "Set position of a point to a target vector",
                             0,
+                            position_goal__get_size,
+                            position_goal__get_variable_indices,
                             position_goal__init_position_step,
                             position_goal__eval_positions<debug_output>,
                             {},
-                            position_goal__get_mapping,
-                            position_goal__linear_solve_size,
-                            position_goal__linear_solve_variables,
                             position_goal__linear_solve_elements};
 }
 
@@ -1387,12 +1344,11 @@ template<bool debug_output> static ConstraintTypeInfo create_info__rotation_goal
   return ConstraintTypeInfo{"Rotation Goal Constraints",
                             "Set orientation of an edge to a target rotation",
                             1,
+                            rotation_goal__get_size,
+                            rotation_goal__get_variable_indices,
                             rotation_goal__init_position_step,
                             rotation_goal__eval_positions<debug_output>,
                             {},
-                            rotation_goal__get_mapping,
-                            rotation_goal__linear_solve_size,
-                            rotation_goal__linear_solve_variables,
                             rotation_goal__linear_solve_elements};
 }
 
@@ -1402,12 +1358,11 @@ template<bool debug_output> static ConstraintTypeInfo create_info__stretch_shear
       "Stretch/Shear Constraints",
       "Enforces edge length and aligns forward direction with the edge vector",
       2,
+      stretch_shear__get_size,
+      stretch_shear__get_variable_indices,
       stretch_shear__init_position_step,
       stretch_shear__eval_positions<debug_output>,
       {},
-      stretch_shear__get_mapping,
-      stretch_shear__linear_solve_size,
-      stretch_shear__linear_solve_variables,
       stretch_shear__linear_solve_elements};
 }
 
@@ -1417,12 +1372,11 @@ template<bool debug_output> static ConstraintTypeInfo create_info__bend_twist()
       "Bend/Twist Constraints",
       "Enforces angles between neighboring edges to their relative rest orientation",
       3,
+      bend_twist__get_size,
+      bend_twist__get_variable_indices,
       bend_twist__init_position_step,
       bend_twist__eval_positions<debug_output>,
       {},
-      bend_twist__get_mapping,
-      bend_twist__linear_solve_size,
-      bend_twist__linear_solve_variables,
       bend_twist__linear_solve_elements};
 }
 
@@ -1431,12 +1385,11 @@ template<bool debug_output> static ConstraintTypeInfo create_info__contact()
   return ConstraintTypeInfo{"Contact Constraints",
                             "Keep contact points from penetrating",
                             4,
+                            contact__get_size,
+                            contact__get_variable_indices,
                             contact__init_step,
                             contact__eval_positions<debug_output>,
                             contact__eval_velocities<debug_output>,
-                            contact__get_mapping,
-                            contact__linear_solve_size,
-                            contact__linear_solve_variables,
                             contact__linear_solve_elements};
 }
 

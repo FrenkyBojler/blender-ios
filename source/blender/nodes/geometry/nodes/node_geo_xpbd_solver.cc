@@ -133,6 +133,7 @@ void apply_gauss_seidel_positions_group(const ConstraintEvalParams &eval_params,
                                         GeometrySet &constraints,
                                         const IndexMask &group_mask,
                                         ConstraintVariables &variables,
+                                        const VariableIndexArrays &index_arrays,
                                         IndexMaskMemory &memory)
 {
   constexpr bool linearized_quaternion = true;
@@ -141,6 +142,10 @@ void apply_gauss_seidel_positions_group(const ConstraintEvalParams &eval_params,
     return;
   }
 
+  int num_components, num_position_vars, num_rotation_vars;
+  bool use_active_mask;
+  constraint_info.get_size(num_components, num_position_vars, num_rotation_vars, use_active_mask);
+
   VArray<bool> active;
   Vector<VArray<float3>> delta_positions;
   Vector<VArray<float4>> delta_rotations;
@@ -148,35 +153,31 @@ void apply_gauss_seidel_positions_group(const ConstraintEvalParams &eval_params,
       eval_params, variables, group_mask, constraints, active, delta_positions, delta_rotations);
   IndexMask group_and_active_mask = IndexMask::from_bools(group_mask, active, memory);
 
-  Vector<VArray<int>> mapping = constraint_info.get_mapping(constraints);
-  BLI_assert(delta_positions.size() == mapping.size());
-  BLI_assert(delta_rotations.size() == mapping.size());
   /* TODO optimize: constraints should have at most 4 point maps and associated deltas.
    * It should be possible to unroll the mapping loop and use only a single group mask iteration.
    */
   const IndexRange points_range = variables.positions.index_range();
-  for (const int map_i : mapping.index_range()) {
-    const VArraySpan<int> map = mapping[map_i];
-    /* Gauss-Seidel solver has a unique source for each point and can just write to it. */
-    if (delta_positions[map_i]) {
-      const VArraySpan<float3> delta_pos = delta_positions[map_i];
-      group_and_active_mask.foreach_index(GrainSize(4096), [&](const int index) {
-        const int point = map[index];
-        if (points_range.contains(point)) {
-          xpbd_constraints::apply_position_impulse(delta_pos[index], variables.positions[point]);
-        }
-      });
-    }
-    if (delta_rotations[map_i]) {
-      const VArraySpan<float4> delta_rot = delta_rotations[map_i];
-      group_and_active_mask.foreach_index(GrainSize(4096), [&](const int index) {
-        const int point = map[index];
-        if (points_range.contains(point)) {
-          xpbd_constraints::apply_rotation_impulse<linearized_quaternion>(
-              delta_rot[index], variables.rotations[point]);
-        }
-      });
-    }
+  for (const int var_i : IndexRange(num_position_vars)) {
+    const Span<int> indices = index_arrays.position_indices[var_i];
+    const VArraySpan<float3> delta_pos = delta_positions[var_i];
+    group_and_active_mask.foreach_index(GrainSize(4096), [&](const int index) {
+      /* Gauss-Seidel solver has a unique source for each point and can just write to it. */
+      const int point = indices[index];
+      if (points_range.contains(point)) {
+        xpbd_constraints::apply_position_impulse(delta_pos[index], variables.positions[point]);
+      }
+    });
+  }
+  for (const int var_i : IndexRange(num_rotation_vars)) {
+    const Span<int> indices = index_arrays.rotation_indices[var_i];
+    const VArraySpan<float4> delta_rot = delta_rotations[var_i];
+    group_and_active_mask.foreach_index(GrainSize(4096), [&](const int index) {
+      const int point = indices[index];
+      if (points_range.contains(point)) {
+        xpbd_constraints::apply_rotation_impulse<linearized_quaternion>(
+            delta_rot[index], variables.rotations[point]);
+      }
+    });
   }
 
   if (eval_params.debug_recorder) {
@@ -191,11 +192,16 @@ void apply_gauss_seidel_velocities_group(const ConstraintEvalParams &eval_params
                                          GeometrySet &constraints,
                                          const IndexMask &group_mask,
                                          ConstraintVariables &variables,
+                                         const VariableIndexArrays &index_arrays,
                                          IndexMaskMemory &memory)
 {
   if (!constraint_info.evaluate_velocity) {
     return;
   }
+
+  int num_components, num_position_vars, num_rotation_vars;
+  bool use_active_mask;
+  constraint_info.get_size(num_components, num_position_vars, num_rotation_vars, use_active_mask);
 
   VArray<bool> active;
   Vector<VArray<float3>> delta_velocities;
@@ -209,35 +215,31 @@ void apply_gauss_seidel_velocities_group(const ConstraintEvalParams &eval_params
                                     delta_angular_velocities);
   IndexMask group_and_active_mask = IndexMask::from_bools(group_mask, active, memory);
 
-  Vector<VArray<int>> mapping = constraint_info.get_mapping(constraints);
-  BLI_assert(mapping.size() == delta_velocities.size());
-  BLI_assert(mapping.size() == delta_angular_velocities.size());
   /* TODO optimize: constraints should have at most 4 point maps and associated deltas.
    * It should be possible to unroll the mapping loop and use only a single group mask iteration.
    */
   const IndexRange points_range = variables.positions.index_range();
-  for (const int map_i : mapping.index_range()) {
-    const VArraySpan<int> map = mapping[map_i];
-    /* Gauss-Seidel solver has a unique source for each point and can just write to it. */
-    if (delta_velocities[map_i]) {
-      const VArraySpan<float3> delta_vel = delta_velocities[map_i];
-      group_and_active_mask.foreach_index(GrainSize(4096), [&](const int index) {
-        const int point = map[index];
-        if (points_range.contains(point)) {
-          xpbd_constraints::apply_velocity_impulse(delta_vel[index], variables.velocities[point]);
-        }
-      });
-    }
-    if (delta_angular_velocities[map_i]) {
-      const VArraySpan<float3> delta_angvel = delta_angular_velocities[map_i];
-      group_and_active_mask.foreach_index(GrainSize(4096), [&](const int index) {
-        const int point = map[index];
-        if (points_range.contains(point)) {
-          xpbd_constraints::apply_angular_velocity_impulse(delta_angvel[index],
-                                                           variables.angular_velocities[point]);
-        }
-      });
-    }
+  for (const int var_i : IndexRange(num_position_vars)) {
+    const Span<int> indices = index_arrays.position_indices[var_i];
+    const VArraySpan<float3> delta_vel = delta_velocities[var_i];
+    group_and_active_mask.foreach_index(GrainSize(4096), [&](const int index) {
+      /* Gauss-Seidel solver has a unique source for each point and can just write to it. */
+      const int point = indices[index];
+      if (points_range.contains(point)) {
+        xpbd_constraints::apply_velocity_impulse(delta_vel[index], variables.velocities[point]);
+      }
+    });
+  }
+  for (const int var_i : IndexRange(num_rotation_vars)) {
+    const Span<int> indices = index_arrays.rotation_indices[var_i];
+    const VArraySpan<float3> delta_angvel = delta_angular_velocities[var_i];
+    group_and_active_mask.foreach_index(GrainSize(4096), [&](const int index) {
+      const int point = indices[index];
+      if (points_range.contains(point)) {
+        xpbd_constraints::apply_angular_velocity_impulse(delta_angvel[index],
+                                                         variables.angular_velocities[point]);
+      }
+    });
   }
 
   if (eval_params.debug_recorder) {
@@ -258,14 +260,20 @@ void add_jacobi_position_deltas(const ConstraintEvalParams &eval_params,
                                 GeometrySet &constraints,
                                 const IndexMask &constraints_mask,
                                 ConstraintVariables &variables,
+                                const VariableIndexArrays &index_arrays,
                                 MutableSpan<float3> point_delta_positions,
                                 MutableSpan<float4> point_delta_rotations,
-                                MutableSpan<int> point_weights,
+                                MutableSpan<int> position_weights,
+                                MutableSpan<int> rotation_weights,
                                 IndexMaskMemory &memory)
 {
   if (!constraint_info.evaluate_position) {
     return;
   }
+
+  int num_components, num_position_vars, num_rotation_vars;
+  bool use_active_mask;
+  constraint_info.get_size(num_components, num_position_vars, num_rotation_vars, use_active_mask);
 
   VArray<bool> active;
   Vector<VArray<float3>> delta_positions;
@@ -279,40 +287,67 @@ void add_jacobi_position_deltas(const ConstraintEvalParams &eval_params,
                                     delta_rotations);
   IndexMask active_mask = IndexMask::from_bools(constraints_mask, active, memory);
 
-  Vector<VArray<int>> mapping = constraint_info.get_mapping(constraints);
-  BLI_assert(delta_positions.size() == mapping.size());
-  BLI_assert(delta_rotations.size() == mapping.size());
   /* TODO optimize: constraints should have at most 4 point maps and associated deltas.
    * It should be possible to unroll the mapping loop and use only a single group mask iteration.
    */
-  const IndexRange points_range = variables.positions.index_range();
-  for (const int map_i : mapping.index_range()) {
-    const VArraySpan<int> map = mapping[map_i];
-    active_mask.foreach_index(GrainSize(4096), [&](const int index) {
-      const int point = map[index];
-      if (points_range.contains(point)) {
-        ++point_weights[point];
+  const IndexRange positions_range = variables.positions.index_range();
+  const IndexRange rotations_range = variables.rotations.index_range();
+
+  struct ThreadLocalDelta {
+    Array<float3> pos_delta;
+    Array<float4> rot_delta;
+    Array<int> pos_weight;
+    Array<int> rot_weight;
+
+    ThreadLocalDelta(const int64_t positions_size, const int64_t rotations_size)
+        : pos_delta(positions_size, float3(0.0f)),
+          rot_delta(rotations_size, float4(0.0f)),
+          pos_weight(rotations_size, 0),
+          rot_weight(rotations_size, 0)
+    {
+    }
+  };
+
+  threading::EnumerableThreadSpecific<ThreadLocalDelta> thread_delta(
+      ThreadLocalDelta{positions_range.size(), rotations_range.size()});
+  threading::parallel_for(active_mask.index_range(), 1024, [&](const IndexRange range) {
+    const IndexMask sub_mask = active_mask.slice(range);
+    ThreadLocalDelta &local_delta = thread_delta.local();
+
+    for (const int var_i : IndexRange(num_position_vars)) {
+      const Span<int> indices = index_arrays.position_indices[var_i];
+      const VArraySpan<float3> delta_pos = delta_positions[var_i];
+      sub_mask.foreach_index([&](const int index) {
+        const int point = indices[index];
+        if (positions_range.contains(point)) {
+          ++local_delta.pos_weight[point];
+          local_delta.pos_delta[point] += delta_pos[index];
+        }
+      });
+    }
+    for (const int var_i : IndexRange(num_rotation_vars)) {
+      const Span<int> indices = index_arrays.rotation_indices[var_i];
+      const VArraySpan<float4> delta_rot = delta_rotations[var_i];
+      sub_mask.foreach_index([&](const int index) {
+        const int point = indices[index];
+        if (rotations_range.contains(point)) {
+          ++local_delta.rot_weight[point];
+          local_delta.rot_delta[point] += delta_rot[index];
+        }
+      });
+    }
+  });
+
+  threading::parallel_for(positions_range, 1024, [&](const IndexRange range) {
+    for (const ThreadLocalDelta &local_delta : thread_delta) {
+      for (const int index : range) {
+        position_weights[index] += local_delta.pos_weight[index];
+        rotation_weights[index] += local_delta.rot_weight[index];
+        point_delta_positions[index] += local_delta.pos_delta[index];
+        point_delta_rotations[index] += local_delta.rot_delta[index];
       }
-    });
-    if (delta_positions[map_i]) {
-      const VArraySpan<float3> delta_pos = delta_positions[map_i];
-      active_mask.foreach_index(GrainSize(4096), [&](const int index) {
-        const int point = map[index];
-        if (points_range.contains(point)) {
-          point_delta_positions[point] += delta_pos[index];
-        }
-      });
     }
-    if (delta_rotations[map_i]) {
-      const VArraySpan<float4> delta_rot = delta_rotations[map_i];
-      active_mask.foreach_index(GrainSize(4096), [&](const int index) {
-        const int point = map[index];
-        if (points_range.contains(point)) {
-          point_delta_rotations[point] += delta_rot[index];
-        }
-      });
-    }
-  }
+  });
 
   if (eval_params.debug_recorder) {
     const std::string label = fmt::format("Evaluate: {}", constraint_info.ui_name);
@@ -326,14 +361,20 @@ void add_jacobi_velocity_deltas(const ConstraintEvalParams &eval_params,
                                 GeometrySet &constraints,
                                 const IndexMask &constraints_mask,
                                 ConstraintVariables &variables,
+                                const VariableIndexArrays &index_arrays,
                                 MutableSpan<float3> point_delta_velocities,
                                 MutableSpan<float3> point_delta_angular_velocities,
-                                MutableSpan<int> point_weights,
+                                MutableSpan<int> velocity_weights,
+                                MutableSpan<int> angular_velocity_weights,
                                 IndexMaskMemory &memory)
 {
   if (!constraint_info.evaluate_velocity) {
     return;
   }
+
+  int num_components, num_position_vars, num_rotation_vars;
+  bool use_active_mask;
+  constraint_info.get_size(num_components, num_position_vars, num_rotation_vars, use_active_mask);
 
   VArray<bool> active;
   Vector<VArray<float3>> delta_velocities;
@@ -347,40 +388,67 @@ void add_jacobi_velocity_deltas(const ConstraintEvalParams &eval_params,
                                     delta_angular_velocities);
   IndexMask active_mask = IndexMask::from_bools(constraints_mask, active, memory);
 
-  Vector<VArray<int>> mapping = constraint_info.get_mapping(constraints);
-  BLI_assert(delta_velocities.size() == mapping.size());
-  BLI_assert(delta_angular_velocities.size() == mapping.size());
   /* TODO optimize: constraints should have at most 4 point maps and associated deltas.
    * It should be possible to unroll the mapping loop and use only a single group mask iteration.
    */
-  const IndexRange points_range = variables.positions.index_range();
-  for (const int map_i : mapping.index_range()) {
-    const VArraySpan<int> map = mapping[map_i];
-    active_mask.foreach_index(GrainSize(4096), [&](const int index) {
-      const int point = map[index];
-      if (points_range.contains(point)) {
-        ++point_weights[point];
+  const IndexRange positions_range = variables.positions.index_range();
+  const IndexRange rotations_range = variables.rotations.index_range();
+
+  struct ThreadLocalDelta {
+    Array<float3> vel_delta;
+    Array<float3> angvel_delta;
+    Array<int> vel_weight;
+    Array<int> angvel_weight;
+
+    ThreadLocalDelta(const int64_t positions_size, const int64_t rotations_size)
+        : vel_delta(positions_size, float3(0.0f)),
+          angvel_delta(rotations_size, float3(0.0f)),
+          vel_weight(rotations_size, 0),
+          angvel_weight(rotations_size, 0)
+    {
+    }
+  };
+
+  threading::EnumerableThreadSpecific<ThreadLocalDelta> thread_delta(
+      ThreadLocalDelta{positions_range.size(), rotations_range.size()});
+  threading::parallel_for(active_mask.index_range(), 1024, [&](const IndexRange range) {
+    const IndexMask sub_mask = active_mask.slice(range);
+    ThreadLocalDelta &local_delta = thread_delta.local();
+
+    for (const int var_i : IndexRange(num_position_vars)) {
+      const Span<int> indices = index_arrays.position_indices[var_i];
+      const VArraySpan<float3> delta_vel = delta_velocities[var_i];
+      sub_mask.foreach_index([&](const int index) {
+        const int point = indices[index];
+        if (positions_range.contains(point)) {
+          ++local_delta.vel_weight[point];
+          local_delta.vel_delta[point] += delta_vel[index];
+        }
+      });
+    }
+    for (const int var_i : IndexRange(num_rotation_vars)) {
+      const Span<int> indices = index_arrays.rotation_indices[var_i];
+      const VArraySpan<float3> delta_angvel = delta_angular_velocities[var_i];
+      sub_mask.foreach_index([&](const int index) {
+        const int point = indices[index];
+        if (rotations_range.contains(point)) {
+          ++local_delta.angvel_weight[point];
+          local_delta.angvel_delta[point] += delta_angvel[index];
+        }
+      });
+    }
+  });
+
+  threading::parallel_for(positions_range, 1024, [&](const IndexRange range) {
+    for (const ThreadLocalDelta &local_delta : thread_delta) {
+      for (const int index : range) {
+        velocity_weights[index] += local_delta.vel_weight[index];
+        angular_velocity_weights[index] += local_delta.angvel_weight[index];
+        point_delta_velocities[index] += local_delta.vel_delta[index];
+        point_delta_angular_velocities[index] += local_delta.angvel_delta[index];
       }
-    });
-    if (delta_velocities[map_i]) {
-      const VArraySpan<float3> delta_vel = delta_velocities[map_i];
-      active_mask.foreach_index(GrainSize(4096), [&](const int index) {
-        const int point = map[index];
-        if (points_range.contains(point)) {
-          point_delta_velocities[point] += delta_vel[index];
-        }
-      });
     }
-    if (delta_angular_velocities[map_i]) {
-      const VArraySpan<float3> delta_angvel = delta_angular_velocities[map_i];
-      active_mask.foreach_index(GrainSize(4096), [&](const int index) {
-        const int point = map[index];
-        if (points_range.contains(point)) {
-          point_delta_angular_velocities[point] += delta_angvel[index];
-        }
-      });
-    }
-  }
+  });
 
   if (eval_params.debug_recorder) {
     const std::string label = fmt::format("Evaluate: {}", constraint_info.ui_name);
@@ -405,8 +473,6 @@ inline float4x4 quaternion_matrix(const math::Quaternion &q)
   return result;
 }
 
-using VariableIndexArrays = std::array<Array<int>, 4>;
-
 static void read_constraint_attributes(const Span<ConstraintEvalData> constraint_data,
                                        MutableSpan<GVArray> lambdas_by_type)
 {
@@ -418,8 +484,7 @@ static void read_constraint_attributes(const Span<ConstraintEvalData> constraint
 
     int num_components, num_position_vars, num_rotation_vars;
     bool use_active_mask;
-    data.type->linear_solve_size(
-        num_components, num_position_vars, num_rotation_vars, use_active_mask);
+    data.type->get_size(num_components, num_position_vars, num_rotation_vars, use_active_mask);
 
     const GeometryComponent &component = *data.geometry->get_component<PointCloudComponent>();
     const AttributeAccessor attributes = *component.attributes();
@@ -454,8 +519,7 @@ static void write_constraint_attributes(MutableSpan<ConstraintEvalData> constrai
 
     int num_components, num_position_vars, num_rotation_vars;
     bool use_active_mask;
-    data.type->linear_solve_size(
-        num_components, num_position_vars, num_rotation_vars, use_active_mask);
+    data.type->get_size(num_components, num_position_vars, num_rotation_vars, use_active_mask);
 
     GeometryComponent &component = data.geometry->get_component_for_write<PointCloudComponent>();
     MutableAttributeAccessor attributes = *component.attributes_for_write();
@@ -479,13 +543,13 @@ static void write_constraint_attributes(MutableSpan<ConstraintEvalData> constrai
   }
 }
 
-static void read_constraint_topology(const Span<ConstraintEvalData> constraint_data,
-                                     MutableSpan<VariableIndexArrays> position_indices_by_type,
-                                     MutableSpan<VariableIndexArrays> rotation_indices_by_type)
+void read_constraint_topology(const Span<ConstraintEvalData> constraint_data,
+                              MutableSpan<VariableIndexArrays> indices_by_type)
 {
   for (const int constraint_i : constraint_data.index_range()) {
     const ConstraintEvalData &data = constraint_data[constraint_i];
-    if (!data.type->linear_solve_size || !data.type->linear_solve_variables) {
+    VariableIndexArrays &index_arrays = indices_by_type[constraint_i];
+    if (!data.type->get_size || !data.type->get_variable_indices) {
       continue;
     }
     if (!data.geometry || !data.geometry->has_component<PointCloudComponent>()) {
@@ -494,30 +558,29 @@ static void read_constraint_topology(const Span<ConstraintEvalData> constraint_d
 
     int num_components, num_position_vars, num_rotation_vars;
     bool use_active_mask;
-    data.type->linear_solve_size(
-        num_components, num_position_vars, num_rotation_vars, use_active_mask);
+    data.type->get_size(num_components, num_position_vars, num_rotation_vars, use_active_mask);
 
     const int num_constraints = data.constraints.size();
     const GeometryComponent &component = *data.geometry->get_component<PointCloudComponent>();
     const AttributeAccessor attributes = *component.attributes();
     /* Only allocate data for variables that are actually needed by the constraint type. */
     for (const int var_i : IndexRange(num_position_vars)) {
-      position_indices_by_type[constraint_i][var_i].reinitialize(num_constraints);
+      index_arrays.position_indices[var_i].reinitialize(num_constraints);
     }
     for (const int var_i : IndexRange(num_rotation_vars)) {
-      rotation_indices_by_type[constraint_i][var_i].reinitialize(num_constraints);
+      index_arrays.rotation_indices[var_i].reinitialize(num_constraints);
     }
     /* Arrays of spans to use as function arguments. */
-    MutableSpan<int> position_indices[4] = {position_indices_by_type[constraint_i][0],
-                                            position_indices_by_type[constraint_i][1],
-                                            position_indices_by_type[constraint_i][2],
-                                            position_indices_by_type[constraint_i][3]};
-    MutableSpan<int> rotation_indices[4] = {rotation_indices_by_type[constraint_i][0],
-                                            rotation_indices_by_type[constraint_i][1],
-                                            rotation_indices_by_type[constraint_i][2],
-                                            rotation_indices_by_type[constraint_i][3]};
+    MutableSpan<int> position_indices[4] = {index_arrays.position_indices[0],
+                                            index_arrays.position_indices[1],
+                                            index_arrays.position_indices[2],
+                                            index_arrays.position_indices[3]};
+    MutableSpan<int> rotation_indices[4] = {index_arrays.rotation_indices[0],
+                                            index_arrays.rotation_indices[1],
+                                            index_arrays.rotation_indices[2],
+                                            index_arrays.rotation_indices[3]};
     /* Fill the index arrays */
-    data.type->linear_solve_variables(
+    data.type->get_variable_indices(
         attributes, data.constraints, position_indices, rotation_indices);
   }
 }
@@ -526,8 +589,7 @@ static void debug_check_constraint_topology(const ConstraintEvalParams &params,
                                             const Span<ConstraintEvalData> constraint_data,
                                             const int num_positions,
                                             const int num_rotations,
-                                            Span<VariableIndexArrays> position_indices_by_type,
-                                            Span<VariableIndexArrays> rotation_indices_by_type)
+                                            Span<VariableIndexArrays> indices_by_type)
 {
   for (const int constraint_i : constraint_data.index_range()) {
     const ConstraintEvalData &data = constraint_data[constraint_i];
@@ -537,20 +599,19 @@ static void debug_check_constraint_topology(const ConstraintEvalParams &params,
 
     int num_components, num_position_vars, num_rotation_vars;
     bool use_active_mask;
-    data.type->linear_solve_size(
-        num_components, num_position_vars, num_rotation_vars, use_active_mask);
+    data.type->get_size(num_components, num_position_vars, num_rotation_vars, use_active_mask);
 
     std::atomic_bool has_invalid_position_index = false;
     std::atomic_bool has_invalid_rotation_index = false;
     for (const int var_i : IndexRange(num_position_vars)) {
-      for (const int index : position_indices_by_type[constraint_i][var_i]) {
+      for (const int index : indices_by_type[constraint_i].position_indices[var_i]) {
         if (!IndexRange(num_positions).contains(index)) {
           has_invalid_position_index.store(true, std::memory_order_relaxed);
         }
       }
     }
     for (const int var_i : IndexRange(num_rotation_vars)) {
-      for (const int index : rotation_indices_by_type[constraint_i][var_i]) {
+      for (const int index : indices_by_type[constraint_i].rotation_indices[var_i]) {
         if (!IndexRange(num_rotations).contains(index)) {
           has_invalid_rotation_index.store(true, std::memory_order_relaxed);
         }
@@ -588,14 +649,13 @@ static void count_global_solve_matrix_entries(const Span<ConstraintEvalData> con
    * Each rotation adds 4 moment-of-inertia entries on the diagonal. */
   r_non_zeroes_capacity += num_positions * 3 + num_rotations * 4;
   for (const ConstraintEvalData &data : constraint_data) {
-    if (!data.type->linear_solve_size) {
+    if (!data.type->get_size) {
       continue;
     }
 
     int num_components, num_position_vars, num_rotation_vars;
     bool use_active_mask;
-    data.type->linear_solve_size(
-        num_components, num_position_vars, num_rotation_vars, use_active_mask);
+    data.type->get_size(num_components, num_position_vars, num_rotation_vars, use_active_mask);
 
     const int num_constraints = data.constraints.size();
     /* Lower-right sub-matrix has a row/column for each constraint component. */
@@ -703,8 +763,7 @@ static void set_global_solve_elements(const ConstraintEvalParams &params,
                                       const IndexRange positions_range,
                                       const IndexRange rotations_range,
                                       const ConstraintEvalData &data,
-                                      const VariableIndexArrays &position_index_arrays,
-                                      const VariableIndexArrays &rotation_index_arrays,
+                                      const VariableIndexArrays &index_arrays,
                                       const GVArray &lambdas,
                                       Vector<Eigen::Triplet<float>> &triplets,
                                       Vector<float> &rhs_values,
@@ -731,8 +790,7 @@ static void set_global_solve_elements(const ConstraintEvalParams &params,
 
   int num_components_rt, num_position_vars, num_rotation_vars;
   bool use_active_mask;
-  data.type->linear_solve_size(
-      num_components_rt, num_position_vars, num_rotation_vars, use_active_mask);
+  data.type->get_size(num_components_rt, num_position_vars, num_rotation_vars, use_active_mask);
   BLI_assert(num_components_rt == num_components);
   BLI_assert(num_position_vars <= 4);
   BLI_assert(num_rotation_vars <= 4);
@@ -798,7 +856,7 @@ static void set_global_solve_elements(const ConstraintEvalParams &params,
 
   /* Gradient entries. */
   for (const int var_i : IndexRange(num_position_vars)) {
-    const Span<int> indices = position_index_arrays[var_i];
+    const Span<int> indices = index_arrays.position_indices[var_i];
     const Span<PosGradT> pos_gradients = position_gradient_spans[var_i].typed<PosGradT>();
 
     active_constraints.foreach_index([&](const int index, const int pos) {
@@ -815,7 +873,7 @@ static void set_global_solve_elements(const ConstraintEvalParams &params,
     });
   }
   for (const int var_i : IndexRange(num_rotation_vars)) {
-    const Span<int> indices = rotation_index_arrays[var_i];
+    const Span<int> indices = index_arrays.rotation_indices[var_i];
     const Span<RotGradT> rot_gradients = rotation_gradient_spans[var_i].typed<RotGradT>();
 
     active_constraints.foreach_index([&](const int index, const int pos) {
@@ -836,10 +894,11 @@ static void set_global_solve_elements(const ConstraintEvalParams &params,
    * This is based on the minimization problem described in the XPBD paper
    * "XPBD: Position-Based Simulation of Compliant Constrained Dynamics" (Macklin et al.).
    *
-   * The original XPBD paper only implements the Gauss-Seidel method, and uses the Schur complement
-   * to solve for the Lagrance multipliers separately. By contrast the global solver retains the
-   * full system of equations, as described in: "Direct Position-Based Solver for Stiff Rods"
-   * (Kugelstadt et al.). Adding the damping potential "beta" modifies the constraint equations:
+   * The original XPBD paper only implements the Gauss-Seidel method, and uses the Schur
+   * complement to solve for the Lagrance multipliers separately. By contrast the global solver
+   * retains the full system of equations, as described in: "Direct Position-Based Solver for
+   * Stiff Rods" (Kugelstadt et al.). Adding the damping potential "beta" modifies the constraint
+   * equations:
    *
    *         M * dx  - grad(C)^T * dLambda = 0
    *   grad(C) * dx + alpha/dt^2 * dLambda =
@@ -862,7 +921,7 @@ static void set_global_solve_elements(const ConstraintEvalParams &params,
       for (const int var_i : IndexRange(num_position_vars)) {
         const Span<PosGradT> pos_gradients = position_gradient_spans[var_i].typed<PosGradT>();
         const PosGradT &gradient = pos_gradients[index];
-        const int point_index = position_index_arrays[var_i][index];
+        const int point_index = index_arrays.position_indices[var_i][index];
         const float3 delta_pos = variables.positions[point_index] -
                                  params.old_positions[point_index];
         velocity += ValueT(mul_position_gradient(gradient, delta_pos)) * inv_dt;
@@ -870,7 +929,7 @@ static void set_global_solve_elements(const ConstraintEvalParams &params,
       for (const int var_i : IndexRange(num_rotation_vars)) {
         const Span<RotGradT> rot_gradients = rotation_gradient_spans[var_i].typed<RotGradT>();
         const RotGradT &gradient = rot_gradients[index];
-        const int point_index = rotation_index_arrays[var_i][index];
+        const int point_index = index_arrays.rotation_indices[var_i][index];
         // XXX should this be angular velocity? i.e. (0, 2*Im(old_rot^T * rot)/dt)
         const float4 delta_rot = float4(variables.rotations[point_index]) -
                                  float4(params.old_rotations[point_index]);
@@ -894,8 +953,7 @@ static void set_global_solve_elements(const ConstraintEvalParams &params,
                                       const IndexRange positions_range,
                                       const IndexRange rotations_range,
                                       const ConstraintEvalData &data,
-                                      const VariableIndexArrays &position_index_arrays,
-                                      const VariableIndexArrays &rotation_index_arrays,
+                                      const VariableIndexArrays &index_arrays,
                                       const GVArray &lambdas,
                                       const int num_components,
                                       Vector<Eigen::Triplet<float>> &triplets,
@@ -913,8 +971,7 @@ static void set_global_solve_elements(const ConstraintEvalParams &params,
                                                           positions_range,
                                                           rotations_range,
                                                           data,
-                                                          position_index_arrays,
-                                                          rotation_index_arrays,
+                                                          index_arrays,
                                                           lambdas,
                                                           triplets,
                                                           rhs_values,
@@ -928,8 +985,7 @@ static void set_global_solve_elements(const ConstraintEvalParams &params,
                                                                positions_range,
                                                                rotations_range,
                                                                data,
-                                                               position_index_arrays,
-                                                               rotation_index_arrays,
+                                                               index_arrays,
                                                                lambdas,
                                                                triplets,
                                                                rhs_values,
@@ -943,8 +999,7 @@ static void set_global_solve_elements(const ConstraintEvalParams &params,
                                                                positions_range,
                                                                rotations_range,
                                                                data,
-                                                               position_index_arrays,
-                                                               rotation_index_arrays,
+                                                               index_arrays,
                                                                lambdas,
                                                                triplets,
                                                                rhs_values,
@@ -962,8 +1017,7 @@ static GlobalSolverSystem build_global_solve_matrix_from_triplets(
     const ConstraintEvalParams &params,
     const Span<ConstraintEvalData> constraint_data,
     const ConstraintVariables &variables,
-    const Span<VariableIndexArrays> position_indices_by_type,
-    const Span<VariableIndexArrays> rotation_indices_by_type,
+    const Span<VariableIndexArrays> indices_by_type,
     const Span<GVArray> lambdas_by_type,
     const int non_zeroes_capacity,
     const int max_columns,
@@ -1012,14 +1066,13 @@ static GlobalSolverSystem build_global_solve_matrix_from_triplets(
   Array<IndexMask> constraint_mapping(constraint_data.size());
   for (const int constraint_i : constraint_data.index_range()) {
     const ConstraintEvalData &data = constraint_data[constraint_i];
-    if (!data.type->linear_solve_size || !data.type->linear_solve_elements) {
+    if (!data.type->get_size || !data.type->linear_solve_elements) {
       continue;
     }
 
     int num_components, num_position_vars, num_rotation_vars;
     bool use_active_mask;
-    data.type->linear_solve_size(
-        num_components, num_position_vars, num_rotation_vars, use_active_mask);
+    data.type->get_size(num_components, num_position_vars, num_rotation_vars, use_active_mask);
 
     // TODO Eventually these callbacks should be based around Fields instead of arrays, so that
     // node closures can be used directly. For now mapping and mask evaluation takes place
@@ -1066,8 +1119,7 @@ static GlobalSolverSystem build_global_solve_matrix_from_triplets(
     //                                                                    var_i);
     // }
 
-    const VariableIndexArrays &position_index_arrays = position_indices_by_type[constraint_i];
-    const VariableIndexArrays &rotation_index_arrays = rotation_indices_by_type[constraint_i];
+    const VariableIndexArrays &index_arrays = indices_by_type[constraint_i];
     const GVArray &lambdas = lambdas_by_type[constraint_i];
     int num_columns = 0;
     IndexMask &active_constraints = constraint_mapping[constraint_i];
@@ -1076,8 +1128,7 @@ static GlobalSolverSystem build_global_solve_matrix_from_triplets(
                               positions_range,
                               rotations_range,
                               data,
-                              position_index_arrays,
-                              rotation_index_arrays,
+                              index_arrays,
                               lambdas,
                               num_components,
                               triplets,
@@ -1118,24 +1169,18 @@ static GlobalSolverSystem do_build_global_solve_system(
   read_constraint_attributes(constraint_data, lambdas_by_type);
   /* Read constraint topology.
    * Constraints can use up to 4 variables, any extra arrays remain empty. */
-  Array<VariableIndexArrays> position_indices_by_type(constraint_data.size());
-  Array<VariableIndexArrays> rotation_indices_by_type(constraint_data.size());
-  read_constraint_topology(constraint_data, position_indices_by_type, rotation_indices_by_type);
+  Array<VariableIndexArrays> indices_by_type(constraint_data.size());
+  read_constraint_topology(constraint_data, indices_by_type);
   if constexpr (debug_check) {
-    debug_check_constraint_topology(params,
-                                    constraint_data,
-                                    num_positions,
-                                    num_rotations,
-                                    position_indices_by_type,
-                                    rotation_indices_by_type);
+    debug_check_constraint_topology(
+        params, constraint_data, num_positions, num_rotations, indices_by_type);
   }
 
   /* LHS matrix describing equations of motion and constraint impulses. */
   return build_global_solve_matrix_from_triplets(params,
                                                  constraint_data,
                                                  variables,
-                                                 position_indices_by_type,
-                                                 rotation_indices_by_type,
+                                                 indices_by_type,
                                                  lambdas_by_type,
                                                  non_zeroes_capacity,
                                                  max_columns,
@@ -1209,8 +1254,7 @@ SolverResult solve_global_system(GlobalSolverSystem &&system,
     const ConstraintEvalData &data = constraint_data[constraint_i];
     int num_components, num_position_vars, num_rotation_vars;
     bool use_active_mask;
-    data.type->linear_solve_size(
-        num_components, num_position_vars, num_rotation_vars, use_active_mask);
+    data.type->get_size(num_components, num_position_vars, num_rotation_vars, use_active_mask);
 
     const IndexMask &constraints = system.constraint_mapping[constraint_i];
     const IndexRange lambda_rows = prev_rows.after(constraints.size() * num_components);

@@ -77,6 +77,28 @@ struct ConstraintVariables {
  * \{ */
 
 /**
+ * Returns the number of components used by a constraint.
+ * \param r_num_components Number of components, or Lagrange multipliers (lambda), used by a single
+ * constraint, typically up to 3.
+ * \param r_num_position_vars Number of position variables used by a single constraint, up to 4.
+ * \param r_num_rotation_vars Number of rotation variables used by a single constraint, up to 4.
+ */
+using ConstraintSizeFunc = std::function<void(int &r_num_components,
+                                              int &r_num_position_vars,
+                                              int &r_num_rotation_vars,
+                                              bool &r_use_active_mask)>;
+
+/**
+ * Returns the variable indices used by a constraint.
+ */
+using ConstraintVariableIndicesFunc = std::function<void(const bke::AttributeAccessor &attributes,
+                                                         const IndexMask &selection,
+                                                         MutableSpan<int> r_position_indices[4],
+                                                         MutableSpan<int> r_rotation_indices[4])>;
+
+using ConstraintInitStepFunc = std::function<void(bke::GeometrySet &constraints)>;
+
+/**
  * Evaluates position constraints based on current geometry state.
  * It should write the results to attributes in the constraints geometry, which are then
  * applied to the geometry by the solver using the constraint mapping.
@@ -101,26 +123,6 @@ using ConstraintEvalVelocityFunc =
                        VArray<bool> &r_active,
                        Vector<VArray<float3>> &r_delta_velocities,
                        Vector<VArray<float3>> &r_delta_angular_velocities)>;
-/**
- * Returns the number of components used by a constraint.
- * \param r_num_components Number of components, or Lagrange multipliers (lambda), used by a single
- * constraint, typically up to 3.
- * \param r_num_position_vars Number of position variables used by a single constraint, up to 4.
- * \param r_num_rotation_vars Number of rotation variables used by a single constraint, up to 4.
- */
-using ConstraintLinearSolveSizeFunc = std::function<void(int &r_num_components,
-                                                         int &r_num_position_vars,
-                                                         int &r_num_rotation_vars,
-                                                         bool &r_use_active_mask)>;
-
-/**
- * Returns the variable indices used by a constraint.
- */
-using ConstraintPositionLinearSolveVariablesFunc =
-    std::function<void(const bke::AttributeAccessor &attributes,
-                       const IndexMask &selection,
-                       MutableSpan<int> r_position_indices[4],
-                       MutableSpan<int> r_rotation_indices[4])>;
 
 /**
  * Compute elements of the constraint matrix for a global linear constraint solve.
@@ -171,14 +173,6 @@ using ConstraintPositionLinearSolveElementsFunc =
                        GMutableSpan r_rotation_gradients[4],
                        MutableSpan<bool> r_active_mask)>;
 
-/**
- * Returns up to 4 index attributes mapping constraints to geometry points.
- */
-using ConstraintMappingFunc =
-    std::function<Vector<VArray<int>>(const bke::GeometrySet &constraints)>;
-
-using ConstraintInitStepFunc = std::function<void(bke::GeometrySet &constraints)>;
-
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -192,13 +186,12 @@ struct ConstraintTypeInfo {
   std::string ui_description;
   int type_code;
 
+  ConstraintSizeFunc get_size;
+  ConstraintVariableIndicesFunc get_variable_indices;
+
   ConstraintInitStepFunc init_step;
   ConstraintEvalPositionFunc evaluate_position;
   ConstraintEvalVelocityFunc evaluate_velocity;
-  ConstraintMappingFunc get_mapping;
-
-  ConstraintLinearSolveSizeFunc linear_solve_size;
-  ConstraintPositionLinearSolveVariablesFunc linear_solve_variables;
   ConstraintPositionLinearSolveElementsFunc linear_solve_elements;
 };
 

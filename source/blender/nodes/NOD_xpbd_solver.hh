@@ -50,6 +50,14 @@ struct ConstraintEvalData {
   Vector<IndexMask> group_masks;
 };
 
+struct VariableIndexArrays {
+  std::array<Array<int>, 4> position_indices;
+  std::array<Array<int>, 4> rotation_indices;
+};
+
+void read_constraint_topology(const Span<ConstraintEvalData> constraint_data,
+                              MutableSpan<VariableIndexArrays> indices_by_type);
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -93,6 +101,7 @@ void apply_gauss_seidel_positions_group(const ConstraintEvalParams &eval_params,
                                         bke::GeometrySet &constraints,
                                         const IndexMask &group_mask,
                                         ConstraintVariables &variables,
+                                        const VariableIndexArrays &index_arrays,
                                         IndexMaskMemory &memory);
 
 void apply_gauss_seidel_velocities_group(const ConstraintEvalParams &eval_params,
@@ -100,6 +109,7 @@ void apply_gauss_seidel_velocities_group(const ConstraintEvalParams &eval_params
                                          bke::GeometrySet &constraints,
                                          const IndexMask &group_mask,
                                          ConstraintVariables &variables,
+                                         const VariableIndexArrays &index_arrays,
                                          IndexMaskMemory &memory);
 
 void add_jacobi_position_deltas(const ConstraintEvalParams &eval_params,
@@ -107,9 +117,11 @@ void add_jacobi_position_deltas(const ConstraintEvalParams &eval_params,
                                 bke::GeometrySet &constraints,
                                 const IndexMask &constraints_mask,
                                 ConstraintVariables &variables,
+                                const VariableIndexArrays &index_arrays,
                                 MutableSpan<float3> point_delta_positions,
                                 MutableSpan<float4> point_delta_rotations,
-                                MutableSpan<int> point_weights,
+                                MutableSpan<int> position_weights,
+                                MutableSpan<int> rotation_weights,
                                 IndexMaskMemory &memory);
 
 void add_jacobi_velocity_deltas(const ConstraintEvalParams &eval_params,
@@ -117,9 +129,11 @@ void add_jacobi_velocity_deltas(const ConstraintEvalParams &eval_params,
                                 bke::GeometrySet &constraints,
                                 const IndexMask &constraints_mask,
                                 ConstraintVariables &variables,
+                                const VariableIndexArrays &index_arrays,
                                 MutableSpan<float3> point_delta_velocities,
                                 MutableSpan<float3> point_delta_angular_velocities,
-                                MutableSpan<int> point_weights,
+                                MutableSpan<int> velocity_weights,
+                                MutableSpan<int> angular_velocity_weights,
                                 IndexMaskMemory &memory);
 
 /** \} */
