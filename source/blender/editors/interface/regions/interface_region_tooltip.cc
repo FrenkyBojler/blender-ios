@@ -41,6 +41,7 @@
 #include "BLI_utildefines.h"
 
 #include "BKE_context.hh"
+#include "BKE_id_hash.hh"
 #include "BKE_idtype.hh"
 #include "BKE_image.hh"
 #include "BKE_library.hh"

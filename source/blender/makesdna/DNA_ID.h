@@ -15,6 +15,8 @@
 
 /** Workaround to forward-declare C++ type in C header. */
 #ifdef __cplusplus
+#  include <cstring>
+
 namespace blender::bke {
 struct PreviewImageRuntime;
 }
@@ -397,6 +399,34 @@ typedef struct ID_Runtime {
   struct ID_Readfile_Data *readfile_data;
 } ID_Runtime;
 
+typedef struct IDHash {
+  char data[16];
+
+#ifdef __cplusplus
+  uint64_t hash() const
+  {
+    return *reinterpret_cast<const uint64_t *>(this->data);
+  }
+
+  bool is_null() const
+  {
+    constexpr IDHash null_hash{};
+    return *this == null_hash;
+  }
+
+  friend bool operator==(const IDHash &a, const IDHash &b)
+  {
+    return memcmp(a.data, b.data, sizeof(a.data)) == 0;
+  }
+
+  friend bool operator!=(const IDHash &a, const IDHash &b)
+  {
+    return !(a == b);
+  }
+
+#endif
+} IDHash;
+
 typedef struct ID {
   /* There's a nasty circular dependency here.... 'void *' to the rescue! I
    * really wonder why this is needed. */
@@ -439,6 +469,18 @@ typedef struct ID {
    * re-allocations (e.g. due to undo/redo steps).
    */
   unsigned int session_uid;
+
+  /**
+   * This is only available on embedded linked data-blocks. It is a hash of the contents the
+   * data-block including all its dependencies. It is computed when first embedding the data-block
+   * and is not changed afterwards. It can be used to detect that embedded data-blocks in two
+   * separate .blend files are the same.
+   *
+   * Two data-blocks with the same deep hash are assumed to be interchangeable, but not necessarily
+   * exactly the same. For example, it's possible to change node positions on embedded data-blocks
+   * without changing the deep hash.
+   */
+  IDHash deep_hash;
 
   IDProperty *properties;
 
