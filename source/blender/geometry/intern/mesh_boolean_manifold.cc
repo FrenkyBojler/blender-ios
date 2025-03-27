@@ -976,8 +976,7 @@ static void merge_out_face_pair(Vector<OutFace> &faces)
   const int e1 = shared_edge.e1;
   const int e2 = shared_edge.e2;
   if (dbg_level > 0) {
-    std::cout << "shared_edge = e" << e1 << ", e" << e2
-      << "; " << va << ", " << vb << "\n";
+    std::cout << "shared_edge = e" << e1 << ", e" << e2 << "; " << va << ", " << vb << "\n";
   }
   BLI_assert(e1 < 3 && e2 >= 3);
   /* Say tri1 has verts starting at pos e1 called a, b, c.
@@ -986,8 +985,8 @@ static void merge_out_face_pair(Vector<OutFace> &faces)
    */
   const int vc = tri1.verts[(e1 + 2) % 3];
   const int vd = tri2.verts[(e2 - 3 + 2) % 3];
-  BLI_assert(tri1.verts[e1] == va && tri1.verts[(e1 + 1) % 3] == vb &&
-             tri2.verts[e2 - 3] == vb && tri2.verts[(e2 - 3 + 1) % 3] == va);
+  BLI_assert(tri1.verts[e1] == va && tri1.verts[(e1 + 1) % 3] == vb && tri2.verts[e2 - 3] == vb &&
+             tri2.verts[(e2 - 3 + 1) % 3] == va);
   if (vc == vd) {
     /* This can't happen geometrically, but maybe in extreme cases... */
     return;
@@ -1157,9 +1156,9 @@ static MeshAssembly assemble_mesh_from_meshgl(const MeshGL &mgl, const MeshOffse
         merge_out_faces(group_faces);
       }
     });
-#ifdef DEBUG_TIME
+#  ifdef DEBUG_TIME
     timeit::ScopedTimer xtimer("copying groups at end");
-#endif
+#  endif
     for (const int i : new_groups.index_range()) {
       ma.new_faces.extend(new_groups[i].as_span());
     }
@@ -1657,8 +1656,8 @@ static bke::GeometrySet join_meshes_with_transforms(const Span<const Mesh *> mes
   Map<const Mesh *, int> handle_by_mesh;
   for (const int i : meshes.index_range()) {
     handles[i] = handle_by_mesh.lookup_or_add_cb(meshes[i], [&]() {
-      bke::GeometrySet geometry = bke::GeometrySet::from_mesh(const_cast<Mesh *>(meshes[i]),
-                                                    bke::GeometryOwnershipType::ReadOnly);
+      bke::GeometrySet geometry = bke::GeometrySet::from_mesh(
+          const_cast<Mesh *>(meshes[i]), bke::GeometryOwnershipType::ReadOnly);
       return instances.add_new_reference(std::move(geometry));
     });
   }
