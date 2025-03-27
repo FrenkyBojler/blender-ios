@@ -344,6 +344,15 @@ struct MeshAssembly {
  * These are created lazily - if their current length is zero, then need to be
  * created. */
 class OutToInMaps {
+  Array<int> vertex_map_;
+  Array<int> face_map_;
+  Array<int> edge_map_;
+  Array<int> corner_map_;
+
+  const MeshAssembly *mesh_assembly_;
+  const Mesh *joined_mesh_;
+  const Mesh *output_mesh_;
+
  public:
   OutToInMaps(const MeshAssembly *mesh_assembly, const Mesh *joined_mesh, const Mesh *output_mesh)
       : mesh_assembly_(mesh_assembly), joined_mesh_(joined_mesh), output_mesh_(output_mesh)
@@ -354,16 +363,6 @@ class OutToInMaps {
   Span<int> ensure_face_map();
   Span<int> ensure_edge_map();
   Span<int> ensure_corner_map();
-
- private:
-  Array<int> vertex_map_;
-  Array<int> face_map_;
-  Array<int> edge_map_;
-  Array<int> corner_map_;
-
-  const MeshAssembly *mesh_assembly_;
-  const Mesh *joined_mesh_;
-  const Mesh *output_mesh_;
 };
 
 Span<int> OutToInMaps::ensure_face_map()
