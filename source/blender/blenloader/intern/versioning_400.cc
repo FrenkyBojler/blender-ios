@@ -6548,7 +6548,7 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
     }
   }
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 10)) {
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 13)) {
     LISTBASE_FOREACH (bAction *, dna_action, &bmain->actions) {
       blender::animrig::Action &action = dna_action->wrap();
       blender::animrig::foreach_fcurve_in_action(
