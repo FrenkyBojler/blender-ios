@@ -2096,6 +2096,11 @@ void do_versions_after_linking_400(FileData *fd, Main *bmain)
     FOREACH_NODETREE_END;
   }
 
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 30)) {
+    BKE_fcurves_main_cb(
+        bmain, [&](ID * /* id */, FCurve *fcurve) { version_fix_fcurve_noise_offset(*fcurve); });
+  }
+
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 8)) {
     FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
       if (ntree->type == NTREE_COMPOSIT) {
@@ -6546,27 +6551,6 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
         }
       }
     }
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 13)) {
-    LISTBASE_FOREACH (bAction *, dna_action, &bmain->actions) {
-      blender::animrig::Action &action = dna_action->wrap();
-      blender::animrig::foreach_fcurve_in_action(
-          action, [&](FCurve &fcurve) { version_fix_fcurve_noise_offset(fcurve); });
-    }
-
-    ID *id;
-    FOREACH_MAIN_ID_BEGIN (bmain, id) {
-      AnimData *adt = BKE_animdata_from_id(id);
-      if (!adt) {
-        continue;
-      }
-
-      LISTBASE_FOREACH (FCurve *, fcu, &adt->drivers) {
-        version_fix_fcurve_noise_offset(*fcu);
-      }
-    }
-    FOREACH_MAIN_ID_END;
   }
 
   /* Always run this versioning; meshes are written with the legacy format which always needs to
