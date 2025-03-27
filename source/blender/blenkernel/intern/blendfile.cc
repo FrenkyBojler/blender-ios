@@ -1489,7 +1489,7 @@ UserDef *BKE_blendfile_userdef_read_from_memory(const void *file_buf,
 
 UserDef *BKE_blendfile_userdef_from_defaults()
 {
-  UserDef *userdef = static_cast<UserDef *>(MEM_callocN(sizeof(UserDef), __func__));
+  UserDef *userdef = MEM_callocN<UserDef>(__func__);
   *userdef = blender::dna::shallow_copy(U_default);
 
   /* Add-ons. */
@@ -1513,7 +1513,7 @@ UserDef *BKE_blendfile_userdef_from_defaults()
 
   /* Theme. */
   {
-    bTheme *btheme = static_cast<bTheme *>(MEM_mallocN(sizeof(*btheme), __func__));
+    bTheme *btheme = MEM_mallocN<bTheme>(__func__);
     memcpy(btheme, &U_theme_default, sizeof(*btheme));
 
     BLI_addtail(&userdef->themes, btheme);

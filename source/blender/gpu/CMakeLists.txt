@@ -16,8 +16,8 @@ set(INC
 
   # For `*_info.hh` includes.
   ../compositor/shaders/infos
-  ../draw/engines/eevee_next
-  ../draw/engines/eevee_next/shaders/infos
+  ../draw/engines/eevee
+  ../draw/engines/eevee/shaders/infos
   ../draw/engines/gpencil
   ../draw/engines/gpencil/shaders/infos
   ../draw/engines/image/shaders/infos
@@ -149,6 +149,7 @@ set(SRC
   intern/gpu_query.hh
   intern/gpu_select_private.hh
   intern/gpu_shader_create_info.hh
+  intern/gpu_shader_create_info_list.hh
   intern/gpu_shader_create_info_private.hh
   intern/gpu_shader_dependency_private.hh
   intern/gpu_shader_interface.hh
@@ -222,6 +223,7 @@ set(VULKAN_SRC
   vulkan/vk_descriptor_set.cc
   vulkan/vk_descriptor_set_layouts.cc
   vulkan/vk_device.cc
+  vulkan/vk_device_submission.cc
   vulkan/vk_fence.cc
   vulkan/vk_framebuffer.cc
   vulkan/vk_image_view.cc
@@ -767,6 +769,10 @@ endif()
 
 if(WITH_OPENCOLORIO)
   target_link_libraries(bf_gpu PUBLIC bf_ocio_shaders)
+endif()
+
+if(WITH_OPENSUBDIV)
+  target_link_libraries(bf_gpu PUBLIC bf_osd_shaders)
 endif()
 
 if(WITH_RENDERDOC)

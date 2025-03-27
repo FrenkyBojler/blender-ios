@@ -136,14 +136,16 @@ class GeometryToObjectsBuilder {
                                             const bke::GeometrySet &geometry)
   {
     ComponentObjects component_objects = this->get_objects_for_geometry(src_ob_eval, geometry);
-    return this->collection_from_component_objects(
-        component_objects, geometry.name.empty() ? BKE_id_name(src_ob_eval.id) : geometry.name);
+    const StringRefNull name = geometry.name.empty() ? StringRefNull(BKE_id_name(src_ob_eval.id)) :
+                                                       StringRefNull(geometry.name);
+    return this->collection_from_component_objects(component_objects, name);
   }
 
   ComponentObjects get_objects_for_geometry(const Object &src_ob_eval,
                                             const bke::GeometrySet &geometry)
   {
-    const StringRefNull name = geometry.name.empty() ? BKE_id_name(src_ob_eval.id) : geometry.name;
+    const StringRefNull name = geometry.name.empty() ? StringRefNull(BKE_id_name(src_ob_eval.id)) :
+                                                       StringRefNull(geometry.name);
     ComponentObjects objects;
     if (const Mesh *mesh = geometry.get_mesh()) {
       if (mesh->verts_num > 0) {
@@ -437,7 +439,7 @@ static Vector<Collection *> find_collections_containing_object(Main &bmain,
   return collections.extract_vector();
 }
 
-static int visual_geometry_to_objects_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus visual_geometry_to_objects_exec(bContext *C, wmOperator * /*op*/)
 {
   Main &bmain = *CTX_data_main(C);
   Scene &scene = *CTX_data_scene(C);

@@ -8304,7 +8304,9 @@ static PyObject *pyrna_struct_CreatePyObject_from_type(const PointerRNA *ptr,
 #endif
 
   if (pyrna == nullptr) {
-    PyErr_SetString(PyExc_MemoryError, "couldn't create bpy_struct object");
+    if (!PyErr_Occurred()) {
+      PyErr_SetString(PyExc_MemoryError, "couldn't create bpy_struct object");
+    }
     return nullptr;
   }
 
@@ -9450,10 +9452,16 @@ static int bpy_class_call(bContext *C, PointerRNA *ptr, FunctionRNA *func, Param
     }
     else if (py_srna == nullptr) {
       py_class_instance = nullptr;
+      if (PyErr_Occurred()) {
+        err = -1; /* So the error is not overridden below. */
+      }
     }
     else if (py_srna == Py_None) { /* Probably won't ever happen, but possible. */
       Py_DECREF(py_srna);
       py_class_instance = nullptr;
+      if (PyErr_Occurred()) {
+        err = -1; /* So the error is not overridden below. */
+      }
     }
     else {
 #if 0
@@ -9510,7 +9518,9 @@ static int bpy_class_call(bContext *C, PointerRNA *ptr, FunctionRNA *func, Param
 #endif
 
       if (py_class_instance == nullptr) {
-        err = -1; /* So the error is not overridden below. */
+        if (PyErr_Occurred()) {
+          err = -1; /* So the error is not overridden below. */
+        }
       }
 
       Py_DECREF(py_srna);
@@ -9720,15 +9730,15 @@ static void bpy_class_free(void *pyob_ptr)
 {
 #ifdef WITH_PYTHON_MODULE
   /* This can happen when Python has exited before all Blender's RNA types have been freed.
-   * In this Python memory management can't run. see: #125376.
+   * In this Python memory management can't run.
    *
    * NOTE(@ideasman42): While I wasn't able to redo locally, it resolves the problem.
-   * Apparently this happens with AUDASPACE on macOS. Ideally this would be resolved
+   * This happens:
+   * - With AUDASPACE on macOS, see: #125376.
+   * - With the build-bot on Linux, see: #135195.
+   * Ideally this would be resolved
    * by correcting the order classes are freed (before Python exits). */
   if (!Py_IsInitialized()) {
-#  if !(defined(__APPLE__) || defined(_WIN32))
-    BLI_assert_msg(false, "This should never happen, please report a bug!");
-#  endif
     return;
   }
 #endif
@@ -9901,7 +9911,10 @@ void BPY_free_srna_pytype(StructRNA *srna)
   ":class:`bpy.types.AssetShelf` | " \
   ":class:`bpy.types.FileHandler` | " \
   ":class:`bpy.types.PropertyGroup` | " \
-  ":class:`bpy.types.AddonPreferences`" \
+  ":class:`bpy.types.AddonPreferences` | " \
+  ":class:`bpy.types.NodeTree` | " \
+  ":class:`bpy.types.Node` | " \
+  ":class:`bpy.types.NodeSocket`" \
   "]"
 
 /**
