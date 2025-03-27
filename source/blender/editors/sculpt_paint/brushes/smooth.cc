@@ -60,7 +60,7 @@ BLI_NOINLINE static void apply_positions_faces(const Sculpt &sd,
                                                const bke::pbvh::MeshNode &node,
                                                Object &object,
                                                LocalData &tls,
-                                               const MutableSpan<float> factors,
+                                               const Span<float> factors,
                                                const Span<float3> new_positions,
                                                const PositionDeformData &position_data)
 {

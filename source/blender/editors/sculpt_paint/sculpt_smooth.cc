@@ -116,6 +116,9 @@ static void neighbor_position_average_interior_grids_impl(const OffsetIndices<in
   const Span<float3> positions = subdiv_ccg.positions;
 
   BLI_assert(grids.size() * key.grid_area == new_positions.size());
+  if constexpr (use_factors) {
+    BLI_assert(new_positions.size() == factors.size());
+  }
 
   for (const int i : grids.index_range()) {
     const int node_verts_start = i * key.grid_area;
@@ -292,17 +295,20 @@ void neighbor_position_average_bmesh(const Set<BMVert *, 0> &verts,
   }
 }
 
-template<bool use_factor>
+template<bool use_factors>
 static void neighbor_position_average_interior_bmesh_impl(const Set<BMVert *, 0> &verts,
                                                           const Span<float> factors,
                                                           const MutableSpan<float3> new_positions)
 {
   BLI_assert(verts.size() == new_positions.size());
+  if constexpr (use_factors) {
+    BLI_assert(new_positions.size() == factors.size());
+  }
   Vector<BMVert *, 64> neighbor_data;
 
   int i = 0;
   for (BMVert *vert : verts) {
-    if constexpr (use_factor) {
+    if constexpr (use_factors) {
       if (factors[i] == 0.0f) {
         new_positions[i] = float3(vert->co);
         i++;
