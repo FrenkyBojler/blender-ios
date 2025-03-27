@@ -5,9 +5,7 @@
 #include <algorithm>
 #include <iostream>
 
-#include "BLI_alloca.h"
 #include "BLI_array.hh"
-#include "BLI_hash.hh"
 #include "BLI_map.hh"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
@@ -28,12 +26,9 @@
 
 #include "BKE_attribute.hh"
 #include "BKE_attribute_math.hh"
-#include "BKE_customdata.hh"
 #include "BKE_geometry_set.hh"
 #include "BKE_instances.hh"
-#include "BKE_lib_id.hh"
 #include "BKE_mesh.hh"
-#include "BKE_mesh_mapping.hh"
 
 #include "GEO_join_geometries.hh"
 #include "GEO_realize_instances.hh"
