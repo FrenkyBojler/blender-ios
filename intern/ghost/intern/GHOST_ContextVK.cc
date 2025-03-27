@@ -956,6 +956,11 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
     const char *native_surface_extension_name = getPlatformSpecificSurfaceExtension();
     requireExtension(extensions_available, extensions_enabled, VK_KHR_SURFACE_EXTENSION_NAME);
     requireExtension(extensions_available, extensions_enabled, native_surface_extension_name);
+    requireExtension(
+        extensions_available, extensions_enabled, VK_EXT_SURFACE_MAINTENANCE_1_EXTENSION_NAME);
+    requireExtension(extensions_available,
+                     extensions_enabled,
+                     VK_KHR_GET_SURFACE_CAPABILITIES_2_EXTENSION_NAME);
 
     required_device_extensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
     required_device_extensions.push_back(VK_EXT_SWAPCHAIN_MAINTENANCE_1_EXTENSION_NAME);
