@@ -944,6 +944,46 @@ bool BVHMetal::build_BLAS(Progress &progress,
   return false;
 }
 
+#  if defined(MAC_OS_VERSION_15_0)
+
+/* Set MTLComponentTransform from a DecomposedTransform (or to identity if src is null). */
+static void populate_decomposed_transform(MTLComponentTransform &srt_data,
+                                          DecomposedTransform const *src)
+{
+  if (@available(macos 15.0, *)) {
+    /* Scale. */
+    srt_data.scale.x = src ? src->y.w : 1.0f;
+    srt_data.scale.y = src ? src->z.w : 1.0f;
+    srt_data.scale.z = src ? src->w.w : 1.0f;
+
+    /* Shear. */
+    srt_data.shear.x = src ? src->z.x : 0.0f;
+    srt_data.shear.y = src ? src->z.y : 0.0f;
+    srt_data.shear.z = src ? src->w.x : 0.0f;
+    assert(src[i].z.z == 0.0f);
+    assert(src[i].w.y == 0.0f);
+    assert(src[i].w.z == 0.0f);
+
+    /* Pivot point. */
+    srt_data.pivot.x = 0.0f;
+    srt_data.pivot.y = 0.0f;
+    srt_data.pivot.z = 0.0f;
+
+    /* Rotation. */
+    srt_data.rotation.x = src ? src->x.x : 0.0f;
+    srt_data.rotation.y = src ? src->x.y : 0.0f;
+    srt_data.rotation.z = src ? src->x.z : 0.0f;
+    srt_data.rotation.w = src ? src->x.w : 1.0f;
+
+    /* Translation. */
+    srt_data.translation.x = src ? src->y.x : 0.0f;
+    srt_data.translation.y = src ? src->y.y : 0.0f;
+    srt_data.translation.z = src ? src->y.z : 0.0f;
+  }
+}
+
+#  endif
+
 bool BVHMetal::build_TLAS(Progress &progress,
                           id<MTLDevice> mtl_device,
                           id<MTLCommandQueue> queue,
@@ -1160,87 +1200,16 @@ bool BVHMetal::build_TLAS(Progress &progress,
         transform_motion_decompose(
             decomp.data(), ob->get_motion().data(), ob->get_motion().size());
 
-#  if defined(MAC_OS_VERSION_15_0)
-        auto populateDecomposedTransforms = [&](int key_count) {
-          if (@available(macos 15.0, *)) {
-            for (int i = 0; i < key_count; i++) {
-              auto &srt_data = *(
-                  MTLComponentTransform *)&decomposed_motion_transforms[motion_transform_index++];
-
-              /* Scale. */
-              srt_data.scale.x = decomp[i].y.w;
-              srt_data.scale.y = decomp[i].z.w;
-              srt_data.scale.z = decomp[i].w.w;
-
-              /* Shear. */
-              srt_data.shear.x = decomp[i].z.x;
-              srt_data.shear.y = decomp[i].z.y;
-              srt_data.shear.z = decomp[i].w.x;
-              assert(decomp[i].z.z == 0.0f);
-              assert(decomp[i].w.y == 0.0f);
-              assert(decomp[i].w.z == 0.0f);
-
-              /* Pivot point. */
-              srt_data.pivot.x = 0.0f;
-              srt_data.pivot.y = 0.0f;
-              srt_data.pivot.z = 0.0f;
-
-              /* Rotation. */
-              srt_data.rotation.x = decomp[i].x.x;
-              srt_data.rotation.y = decomp[i].x.y;
-              srt_data.rotation.z = decomp[i].x.z;
-              srt_data.rotation.w = decomp[i].x.w;
-
-              /* Translation. */
-              srt_data.translation.x = decomp[i].y.x;
-              srt_data.translation.y = decomp[i].y.y;
-              srt_data.translation.z = decomp[i].y.z;
-            }
-          }
-        };
-
-        /* Sets a single transform to the identity matrix */
-        auto populateIdentityDecomposedTransform = [&]() {
-          if (@available(macos 15.0, *)) {
-            auto &srt_data = *(
-                MTLComponentTransform *)&decomposed_motion_transforms[motion_transform_index++];
-
-            /* Scale. */
-            srt_data.scale.x = 1;
-            srt_data.scale.y = 1;
-            srt_data.scale.z = 1;
-
-            /* Shear. */
-            srt_data.shear.x = 0;
-            srt_data.shear.y = 0;
-            srt_data.shear.z = 0;
-
-            /* Pivot point. */
-            srt_data.pivot.x = 0.0f;
-            srt_data.pivot.y = 0.0f;
-            srt_data.pivot.z = 0.0f;
-
-            /* Rotation. */
-            srt_data.rotation.x = 0;
-            srt_data.rotation.y = 0;
-            srt_data.rotation.z = 0;
-            srt_data.rotation.w = 1;
-
-            /* Translation. */
-            srt_data.translation.x = 0;
-            srt_data.translation.y = 0;
-            srt_data.translation.z = 0;
-          }
-        };
-#  endif
-
         int key_count = ob->get_motion().size();
         if (key_count) {
           desc.motionTransformsCount = key_count;
 
 #  if defined(MAC_OS_VERSION_15_0)
           if (use_motion_srt_transforms) {
-            populateDecomposedTransforms(key_count);
+            for (int i = 0; i < key_count; i++) {
+              populate_decomposed_transform(decomposed_motion_transforms[motion_transform_index++],
+                                            &decomp[i]);
+            }
           }
           else
 #  endif
@@ -1262,10 +1231,12 @@ bool BVHMetal::build_TLAS(Progress &progress,
 #  if defined(MAC_OS_VERSION_15_0)
           if (use_motion_srt_transforms) {
             if (ob->get_geometry()->is_instanced()) {
-              populateDecomposedTransforms(1);
+              populate_decomposed_transform(decomposed_motion_transforms[motion_transform_index++],
+                                            &decomp[0]);
             }
             else {
-              populateIdentityDecomposedTransform();
+              populate_decomposed_transform(decomposed_motion_transforms[motion_transform_index++],
+                                            nullptr);
             }
           }
           else
