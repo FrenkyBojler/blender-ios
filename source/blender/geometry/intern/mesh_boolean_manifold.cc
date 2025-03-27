@@ -100,7 +100,7 @@ static void dump_meshgl(const MeshGL &mgl, const std::string &name)
   dump_vector(mgl.vertProperties, mgl.numProp, "vertProperties");
   dump_vector(mgl.triVerts, 3, "triVerts");
   dump_vector(mgl.faceID, 1, "faceID");
-  if (mgl.mergeFromVert.size() > 0) {
+  if (!mgl.mergeFromVert.empty()) {
     dump_vector(mgl.mergeFromVert, 1, "mergeFromVert");
     dump_vector(mgl.mergeToVert, 1, "mergeToVert");
   }
@@ -368,7 +368,7 @@ class OutToInMaps {
 
 void OutToInMaps::ensure_face_map()
 {
-  if (this->face_map.size() > 0) {
+  if (!this->face_map.is_empty()) {
     return;
   }
   /* The MeshAssembly's new_faces should map one to one with output faces. */
@@ -388,7 +388,7 @@ void OutToInMaps::ensure_face_map()
 
 void OutToInMaps::ensure_vertex_map()
 {
-  if (this->vertex_map.size() > 0) {
+  if (!this->vertex_map.is_empty()) {
     return;
   }
   /* There may be better ways, but for now we discover the output to input
@@ -433,7 +433,7 @@ void OutToInMaps::ensure_vertex_map()
 
 void OutToInMaps::ensure_corner_map()
 {
-  if (this->corner_map.size() > 0) {
+  if (!this->corner_map.is_empty()) {
     return;
   }
   /* There may be better ways, but for now we discover the output to input
@@ -489,7 +489,7 @@ static bool same_dir(const float3 &p1, const float3 &p2, const float3 &q1, const
 void OutToInMaps::ensure_edge_map()
 {
   constexpr int dbg_level = 0;
-  if (this->edge_map.size() > 0) {
+  if (!this->edge_map.is_empty()) {
     return;
   }
   if (dbg_level > 0) {
@@ -1476,9 +1476,9 @@ static Mesh *meshgl_to_mesh(const MeshGL &mgl,
 #ifdef DEBUG_TIME
   timeit::ScopedTimer timer("meshgl to mesh from joined_mesh");
 #endif
-  BLI_assert(mgl.mergeFromVert.size() == 0);
+  BLI_assert(mgl.mergeFromVert.empty());
 
-  if (mgl.vertProperties.size() == 0 || mgl.triVerts.size() == 0) {
+  if (mgl.vertProperties.empty() || mgl.triVerts.empty()) {
     Mesh *mesh = BKE_mesh_new_nomain_from_template(joined_mesh, 0, 0, 0, 0);
     return mesh;
   }
