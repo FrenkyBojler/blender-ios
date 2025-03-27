@@ -658,12 +658,12 @@ static bool nearHomePosition(const GHOST_TEventNDOFMotionData *ndof, float thres
 
 bool GHOST_NDOFManager::sendMotionEvent()
 {
-  if (!motion_event_pending_) {
+  if (!motion_event_pending_ && (motion_state_ == GHOST_kNotStarted)) {
     /* Avoid large `dt` times when changing windows. */
-    motion_state_ = GHOST_kNotStarted;
     return false;
   }
 
+  const bool had_motion = motion_event_pending_;
   motion_event_pending_ = false; /* Any pending motion is handled right now. */
 
   GHOST_IWindow *window = system_.getWindowManager()->getActiveWindow();
@@ -671,8 +671,15 @@ bool GHOST_NDOFManager::sendMotionEvent()
   /* Delivery will fail, so don't bother sending. */
   if (window == nullptr) {
     /* Avoid large `dt` times when changing windows. */
-    motion_state_ = GHOST_kNotStarted;
-    return false;
+    if (motion_state_ != GHOST_kNotStarted) {
+       printf("NDOF, clearing progress on the now inactive window: %d\n", motion_state_);
+
+       motion_state_ = GHOST_kNotStarted;
+     }
+     return false;
+  }
+  if (!had_motion) {
+     return false;
   }
 
   const GHOST_EventNDOFMotion *event = new GHOST_EventNDOFMotion(motion_time_, window);
