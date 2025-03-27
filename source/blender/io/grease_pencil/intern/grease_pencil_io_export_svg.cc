@@ -229,8 +229,7 @@ void SVGExporter::export_grease_pencil_objects(pugi::xml_node node, const int fr
   /* Camera clipping. */
   if (is_clipping) {
     pugi::xml_node clip_node = frame_group_node.append_child("clipPath");
-    const std::string clip_node_id = "clip_path." + std::to_string(frame_number) +
-                                     this->get_node_uuid_string();
+    const std::string clip_node_id = "clip_path." + std::to_string(frame_number);
     clip_node.append_attribute("id").set_value(clip_node_id.c_str());
 
     write_rect(clip_node, 0, 0, render_rect_.size().x, render_rect_.size().y, 0.0f, "#000000");
