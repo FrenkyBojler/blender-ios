@@ -300,7 +300,7 @@ struct SnapTarget {
   bool use_snap_treshold;
 };
 
-static blender::Vector<SnapTarget> seq_frame_apply_snap(bContext *C, const int timeline_frame)
+static blender::Vector<SnapTarget> seq_get_snap_targets(bContext *C, const int timeline_frame)
 {
   Scene *scene = CTX_data_scene(C);
   ToolSettings *tool_settings = scene->toolsettings;
@@ -319,22 +319,22 @@ static blender::Vector<SnapTarget> seq_frame_apply_snap(bContext *C, const int t
     targets.append({snap_target, true});
   }
 
-  if (tool_settings->snap_playhead_mode & SCE_SNAP_TO_FRAME) {
-    const int snap_target = get_frame_snap_target(
-        scene, timeline_frame, tool_settings->snap_step_frames);
-    targets.append({snap_target, false});
-  }
-
   if (tool_settings->snap_playhead_mode & SCE_SNAP_TO_SECOND) {
     const int snap_target = get_second_snap_target(
         scene, timeline_frame, tool_settings->snap_step_seconds);
     targets.append({snap_target, false});
   }
 
+  if (tool_settings->snap_playhead_mode & SCE_SNAP_TO_FRAME) {
+    const int snap_target = get_frame_snap_target(
+        scene, timeline_frame, tool_settings->snap_step_frames);
+    targets.append({snap_target, false});
+  }
+
   return targets;
 }
 
-static blender::Vector<SnapTarget> action_frame_apply_snap(bContext *C,
+static blender::Vector<SnapTarget> action_get_snap_targets(bContext *C,
                                                            ChangeFrameData &op_data,
                                                            const int timeline_frame)
 {
@@ -348,6 +348,12 @@ static blender::Vector<SnapTarget> action_frame_apply_snap(bContext *C,
     targets.append({snap_target, true});
   }
 
+  if (tool_settings->snap_playhead_mode & SCE_SNAP_TO_KEYS) {
+    /* Snapping should probably happen in floats. */
+    const int snap_target = get_keyframe_snap_target(C, op_data, timeline_frame);
+    targets.append({snap_target, true});
+  }
+
   if (tool_settings->snap_playhead_mode & SCE_SNAP_TO_SECOND) {
     const int snap_target = get_second_snap_target(
         scene, timeline_frame, tool_settings->snap_step_seconds);
@@ -360,16 +366,10 @@ static blender::Vector<SnapTarget> action_frame_apply_snap(bContext *C,
     targets.append({snap_target, false});
   }
 
-  if (tool_settings->snap_playhead_mode & SCE_SNAP_TO_KEYS) {
-    /* Snapping should probably happen in floats. */
-    const int snap_target = get_keyframe_snap_target(C, op_data, timeline_frame);
-    targets.append({snap_target, true});
-  }
-
   return targets;
 }
 
-static blender::Vector<SnapTarget> graph_frame_apply_snap(bContext *C,
+static blender::Vector<SnapTarget> graph_get_snap_targets(bContext *C,
                                                           ChangeFrameData &op_data,
                                                           const int timeline_frame)
 {
@@ -383,6 +383,12 @@ static blender::Vector<SnapTarget> graph_frame_apply_snap(bContext *C,
     targets.append({snap_target, true});
   }
 
+  if (tool_settings->snap_playhead_mode & SCE_SNAP_TO_KEYS) {
+    /* Snapping should probably happen in floats. */
+    const int snap_target = get_keyframe_snap_target(C, op_data, timeline_frame);
+    targets.append({snap_target, true});
+  }
+
   if (tool_settings->snap_playhead_mode & SCE_SNAP_TO_SECOND) {
     const int snap_target = get_second_snap_target(
         scene, timeline_frame, tool_settings->snap_step_seconds);
@@ -395,16 +401,10 @@ static blender::Vector<SnapTarget> graph_frame_apply_snap(bContext *C,
     targets.append({snap_target, false});
   }
 
-  if (tool_settings->snap_playhead_mode & SCE_SNAP_TO_KEYS) {
-    /* Snapping should probably happen in floats. */
-    const int snap_target = get_keyframe_snap_target(C, op_data, timeline_frame);
-    targets.append({snap_target, true});
-  }
-
   return targets;
 }
 
-static blender::Vector<SnapTarget> nla_frame_apply_snap(bContext *C, const int timeline_frame)
+static blender::Vector<SnapTarget> nla_get_snap_targets(bContext *C, const int timeline_frame)
 {
   Scene *scene = CTX_data_scene(C);
   ToolSettings *tool_settings = scene->toolsettings;
@@ -440,16 +440,22 @@ static float apply_frame_snap(bContext *C, ChangeFrameData &op_data, const float
 {
   Scene *scene = CTX_data_scene(C);
   ScrArea *area = CTX_wm_area(C);
+
   blender::Vector<SnapTarget> targets;
   switch (area->spacetype) {
     case SPACE_SEQ:
-      targets = seq_frame_apply_snap(C, frame);
+      targets = seq_get_snap_targets(C, frame);
+      break;
     case SPACE_ACTION:
-      targets = action_frame_apply_snap(C, op_data, frame);
+      targets = action_get_snap_targets(C, op_data, frame);
+      break;
     case SPACE_GRAPH:
-      targets = graph_frame_apply_snap(C, op_data, frame);
+      targets = graph_get_snap_targets(C, op_data, frame);
+      break;
     case SPACE_NLA:
-      targets = nla_frame_apply_snap(C, frame);
+      targets = nla_get_snap_targets(C, frame);
+      break;
+
     default:
       break;
   }
