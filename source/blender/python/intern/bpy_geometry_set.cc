@@ -72,7 +72,7 @@ static void BPy_GeometrySet_dealloc(BPy_GeometrySet *self)
 PyDoc_STRVAR(
     /* Wrap. */
     bpy_geometry_set_from_evaluated_object_doc,
-    ".. staticmethod:: from_evaluated_object(evaluated_object, depsgraph)\n"
+    ".. staticmethod:: from_evaluated_object(evaluated_object)\n"
     "\n"
     "   :arg evaluated_object: The evaluated object to create a geometry set from.\n"
     "   :type evaluated_object: bpy.types.Object\n");
