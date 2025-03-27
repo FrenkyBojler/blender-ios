@@ -34,22 +34,18 @@ Engine::Engine(RenderEngine *bl_engine, const std::string &render_delegate_name)
 
   pxr::TF_PY_ALLOW_THREADS_IN_SCOPE();
 
-  if (GPU_backend_get_type() == GPU_BACKEND_VULKAN) {
-    BLI_setenv("HGI_ENABLE_VULKAN", "1");
-  }
-
   pxr::HdDriverVector hd_drivers;
   if (bl_engine->type->flag & RE_USE_GPU_CONTEXT) {
     pxr::TfToken hgi_token;
     switch (GPU_backend_get_type()) {
       case GPU_BACKEND_METAL:
-        hgi_token = pxr::TfToken("HgiMetal");
+        hgi_token = pxr::TfToken("Metal");
         break;
       case GPU_BACKEND_OPENGL:
-        hgi_token = pxr::TfToken("HgiGL");
+        hgi_token = pxr::TfToken("OpenGL");
         break;
       case GPU_BACKEND_VULKAN:
-        hgi_token = pxr::TfToken("HgiVulkan");
+        hgi_token = pxr::TfToken("Vulkan");
         break;
       case GPU_BACKEND_NONE:
       case GPU_BACKEND_ANY:
