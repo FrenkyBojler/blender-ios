@@ -11,6 +11,9 @@
 
 #include "vk_device.hh"
 
+#include "BLI_timeit.hh"
+#include "gpu_profile_report.hh"
+
 namespace blender::gpu {
 
 /* -------------------------------------------------------------------- */
@@ -35,7 +38,13 @@ TimelineValue VKDevice::render_graph_submit(render_graph::VKRenderGraph *render_
                                             VkSemaphore wait_semaphore,
                                             VkSemaphore signal_semaphore)
 {
+  render_graph->timings.context_end = blender::timeit::Clock::now().time_since_epoch().count();
   if (render_graph->is_empty()) {
+    if (G.profile_gpu) {
+      ProfileReport::get().add_timing("RenderGraph::Context",
+                                      render_graph->timings.context_start,
+                                      render_graph->timings.context_end);
+    }
     render_graph->reset();
     BLI_thread_queue_push(unused_render_graphs_, render_graph);
     return 0;
@@ -91,12 +100,14 @@ render_graph::VKRenderGraph *VKDevice::render_graph_new()
   render_graph::VKRenderGraph *render_graph = static_cast<render_graph::VKRenderGraph *>(
       BLI_thread_queue_pop_timeout(unused_render_graphs_, 0));
   if (render_graph) {
+    render_graph->timings.context_start = blender::timeit::Clock::now().time_since_epoch().count();
     return render_graph;
   }
 
   std::scoped_lock lock(resources.mutex);
   render_graph = MEM_new<render_graph::VKRenderGraph>(__func__, resources);
   render_graphs_.append(render_graph);
+  render_graph->timings.context_start = blender::timeit::Clock::now().time_since_epoch().count();
   return render_graph;
 }
 
@@ -171,12 +182,23 @@ void VKDevice::submission_runner(TaskPool *__restrict pool, void *task_data)
     BLI_assert(vk_command_buffer != VK_NULL_HANDLE);
 
     render_graph::VKRenderGraph &render_graph = *submit_task->render_graph;
+    render_graph.timings.reorder_nodes_start =
+        blender::timeit::Clock::now().time_since_epoch().count();
     Span<render_graph::NodeHandle> node_handles = scheduler.select_nodes(render_graph);
+    render_graph.timings.reorder_nodes_end =
+        blender::timeit::Clock::now().time_since_epoch().count();
     {
+      render_graph.timings.build_nodes_start =
+          blender::timeit::Clock::now().time_since_epoch().count();
       std::scoped_lock lock_resources(device->resources.mutex);
       command_builder.build_nodes(render_graph, *command_buffer, node_handles);
+      render_graph.timings.build_nodes_end =
+          blender::timeit::Clock::now().time_since_epoch().count();
     }
+    render_graph.timings.recording_start =
+        blender::timeit::Clock::now().time_since_epoch().count();
     command_builder.record_commands(render_graph, *command_buffer, node_handles);
+    render_graph.timings.recording_end = blender::timeit::Clock::now().time_since_epoch().count();
 
     if (submit_task->submit_to_device) {
       /* Create submit infos for previous command buffers. */
@@ -235,6 +257,20 @@ void VKDevice::submission_runner(TaskPool *__restrict pool, void *task_data)
       }
       unsubmitted_command_buffers.clear();
       command_buffer.reset();
+    }
+    if (G.profile_gpu) {
+      ProfileReport::get().add_timing("RenderGraph::Context",
+                                      render_graph.timings.context_start,
+                                      render_graph.timings.context_end);
+      ProfileReport::get().add_timing("RenderGraph::ReorderingNodes",
+                                      render_graph.timings.reorder_nodes_start,
+                                      render_graph.timings.reorder_nodes_end);
+      ProfileReport::get().add_timing("RenderGraph::BuildNodes",
+                                      render_graph.timings.build_nodes_start,
+                                      render_graph.timings.build_nodes_end);
+      ProfileReport::get().add_timing("RenderGraph::Recording",
+                                      render_graph.timings.recording_start,
+                                      render_graph.timings.recording_end);
     }
 
     render_graph.reset();

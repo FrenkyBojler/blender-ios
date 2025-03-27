@@ -31,6 +31,13 @@ void VKRenderGraph::reset()
   debug_.used_groups.clear();
   debug_.group_stack.clear();
   debug_.groups.clear();
+
+  timings.context_start = 0;
+  timings.context_end = 0;
+  timings.reorder_nodes_start = 0;
+  timings.reorder_nodes_end = 0;
+  timings.recording_start = 0;
+  timings.recording_end = 0;
 }
 
 /** \} */

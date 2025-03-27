@@ -248,6 +248,7 @@ static eGPUOSType determine_os_type()
 
 void VKBackend::platform_init()
 {
+  G.profile_gpu = true;
   GPG.init(GPU_DEVICE_ANY,
            determine_os_type(),
            GPU_DRIVER_ANY,

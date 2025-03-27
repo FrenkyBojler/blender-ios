@@ -205,6 +205,17 @@ class VKRenderGraph : public NonCopyable {
   ADD_NODE(VKSynchronizationNode)
 #undef ADD_NODE
 
+  struct {
+    uint64_t context_start;
+    uint64_t context_end;
+    uint64_t reorder_nodes_start;
+    uint64_t reorder_nodes_end;
+    uint64_t build_nodes_start;
+    uint64_t build_nodes_end;
+    uint64_t recording_start;
+    uint64_t recording_end;
+  } timings;
+
   /**
    * Push a new debugging group to the stack with the given name.
    *

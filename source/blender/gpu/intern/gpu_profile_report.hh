@@ -40,6 +40,21 @@ class ProfileReport {
     return singleton;
   }
 
+  void add_timing(StringRefNull name, uint64_t start, uint64_t end)
+  {
+    std::scoped_lock lock(_mutex);
+
+    size_t thread_hash = std::hash<std::thread::id>()(std::this_thread::get_id());
+    int thread_id = _thread_ids.lookup_or_add(thread_hash, _thread_ids.size());
+    _report << fmt::format(
+        ",\n"
+        R"({{"name":"{}","ph":"X","ts":{},"dur":{},"pid":2,"tid":{}}})",
+        name.c_str(),
+        start / uint64_t(1000),
+        (end - start) / uint64_t(1000),
+        thread_id);
+  }
+
   void add_group(StringRefNull name,
                  uint64_t gpu_start,
                  uint64_t gpu_end,
