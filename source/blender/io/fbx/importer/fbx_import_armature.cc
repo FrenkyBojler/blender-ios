@@ -195,6 +195,16 @@ void ArmatureImportContext::create_armature_bones(const ufbx_node *node,
           adjf(bone->tail[2]));
 #endif
 
+  /* Mark bone as connected to parent if head approximately in the same place as parent tail. */
+  if (parent_bone != nullptr) {
+    float3 self_head(bone->head);
+    float3 par_tail(parent_bone->tail);
+    const float connect_dist = 1.0e-6f;
+    if (math::distance_squared(self_head, par_tail) < connect_dist * connect_dist) {
+      bone->flag |= BONE_CONNECTED;
+    }
+  }
+
   /* Recurse into child bones. */
   for (const ufbx_node *fchild : node->children) {
     if (fchild->attrib_type != UFBX_ELEMENT_BONE) {
