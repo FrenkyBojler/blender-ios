@@ -573,7 +573,6 @@ inline eMeshSymmetryType operator++(eMeshSymmetryType &flags, int)
 }
 #endif
 
-
 /** #Mesh.lock */
 typedef enum eMeshLockType {
   ME_LOCK_X = 1 << 0,

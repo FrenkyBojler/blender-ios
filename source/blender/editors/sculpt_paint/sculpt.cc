@@ -1259,8 +1259,7 @@ static float calc_radial_symmetry_feather(Mesh *mesh,
   return overlap;
 }
 
-static float calc_symmetry_feather(Mesh *mesh,
-                                   const blender::ed::sculpt_paint::StrokeCache &cache)
+static float calc_symmetry_feather(Mesh *mesh, const blender::ed::sculpt_paint::StrokeCache &cache)
 {
   if (!(mesh->symmetry & ME_SYMMETRY_FEATHER)) {
     return 1.0f;
@@ -7065,7 +7064,7 @@ void filter_region_clip_factors(const SculptSession &ss,
   }
 
   const eMeshSymmetryType mirror_symmetry_pass = ss.cache ? ss.cache->mirror_symmetry_pass :
-                                                              ME_SYMMETRY_NONE;
+                                                            ME_SYMMETRY_NONE;
   const int radial_symmetry_pass = ss.cache ? ss.cache->radial_symmetry_pass : 0;
   const float4x4 symm_rot_mat_inv = ss.cache ? ss.cache->symm_rot_mat_inv : float4x4::identity();
   for (const int i : verts.index_range()) {
@@ -7092,7 +7091,7 @@ void filter_region_clip_factors(const SculptSession &ss,
   }
 
   const eMeshSymmetryType mirror_symmetry_pass = ss.cache ? ss.cache->mirror_symmetry_pass :
-                                                              ME_SYMMETRY_NONE;
+                                                            ME_SYMMETRY_NONE;
   const int radial_symmetry_pass = ss.cache ? ss.cache->radial_symmetry_pass : 0;
   const float4x4 symm_rot_mat_inv = ss.cache ? ss.cache->symm_rot_mat_inv : float4x4::identity();
   for (const int i : positions.index_range()) {
