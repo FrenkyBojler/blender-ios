@@ -45,13 +45,13 @@
 #endif
 
 #if UINT_MAX == UINT_MAX_32_BITS
-typedef unsigned int md5_uint32;
+using md5_uint32 = uint;
 #else
 #  if USHRT_MAX == UINT_MAX_32_BITS
-typedef unsigned short md5_uint32;
+using md5_uint32 = unsigned short;
 #  else
 #    if ULONG_MAX == UINT_MAX_32_BITS
-typedef unsigned long md5_uint32;
+using md5_uint32 = unsigned long;
 #    else
 /* The following line is intended to evoke an error. Using #error is not portable enough. */
 "Cannot determine unsigned 32-bit data type."
@@ -103,7 +103,7 @@ static void md5_process_block(const void *buffer, size_t len, md5_ctx *ctx)
  * RFC 1321. The first function is a little bit optimized
  * (as found in Colin Plumbs public domain implementation).
  */
-/* #define FF(b, c, d) ((b & c) | (~b & d)) */
+// #define FF(b, c, d) ((b & c) | (~b & d))
 #define FF(b, c, d) (d ^ (b & (c ^ d)))
 #define FG(b, c, d) FF(d, b, c)
 #define FH(b, c, d) (b ^ c ^ d)
@@ -268,8 +268,7 @@ static void *md5_read_ctx(const md5_ctx *ctx, void *resbuf)
   return resbuf;
 }
 
-/*
-Top level public functions. */
+/* Top level public functions. */
 
 int BLI_hash_md5_stream(FILE *stream, void *resblock)
 {

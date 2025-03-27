@@ -11,23 +11,20 @@
 
 #include <cstring>
 
-#include "MEM_guardedalloc.h"
-
 #include "DNA_armature_types.h"
 #include "DNA_camera_types.h"
 #include "DNA_constraint_types.h"
-#include "DNA_gpencil_legacy_types.h"
-#include "DNA_gpencil_modifier_types.h"
 #include "DNA_object_types.h"
 
-#include "BLI_blenlib.h"
 #include "BLI_ghash.h"
+#include "BLI_listbase_wrapper.hh"
+#include "BLI_string.h"
 #include "BLI_string_utils.hh"
 #include "BLI_utildefines.h"
 
 #include "BLT_translation.hh"
 
-#include "BKE_action.h"
+#include "BKE_action.hh"
 #include "BKE_animsys.h"
 #include "BKE_armature.hh"
 #include "BKE_constraint.h"
@@ -53,7 +50,7 @@
 
 #include "armature_intern.hh"
 
-using blender::Vector;
+using namespace blender;
 
 /* -------------------------------------------------------------------- */
 /** \name Unique Bone Name Utility (Edit Mode)
@@ -66,6 +63,18 @@ static bool editbone_unique_check(void *arg, const char *name)
     ListBase *lb;
     void *bone;
   } *data = static_cast<Arg *>(arg);
+
+  if (data->bone) {
+    /* This indicates that there is a bone to ignore. This means ED_armature_ebone_find_name()
+     * cannot be used, as it might return the bone we should be ignoring. */
+    for (EditBone *ebone : ListBaseWrapper<EditBone>(data->lb)) {
+      if (STREQ(ebone->name, name) && ebone != data->bone) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   EditBone *dupli = ED_armature_ebone_find_name(data->lb, name);
   return dupli && dupli != data->bone;
 }
@@ -90,7 +99,7 @@ void ED_armature_ebone_unique_name(ListBase *ebones, char *name, EditBone *bone)
 
 static bool bone_unique_check(void *arg, const char *name)
 {
-  return BKE_armature_find_bone_name((bArmature *)arg, name) != nullptr;
+  return BKE_armature_find_bone_name(static_cast<bArmature *>(arg), name) != nullptr;
 }
 
 static void ed_armature_bone_unique_name(bArmature *arm, char *name)
@@ -128,7 +137,7 @@ static void constraint_bone_name_fix(Object *ob,
 
     /* action constraints */
     if (curcon->type == CONSTRAINT_TYPE_ACTION) {
-      bActionConstraint *actcon = (bActionConstraint *)curcon->data;
+      bActionConstraint *actcon = static_cast<bActionConstraint *>(curcon->data);
       BKE_action_fix_paths_rename(
           &ob->id, actcon->act, "pose.bones", oldname, newname, 0, 0, true);
     }
@@ -246,9 +255,26 @@ void ED_armature_bone_rename(Main *bmain,
       }
 
       if (BKE_modifiers_uses_armature(ob, arm) && BKE_object_supports_vertex_groups(ob)) {
-        bDeformGroup *dg = BKE_object_defgroup_find_name(ob, oldname);
-        if (dg) {
+        if (BKE_object_defgroup_find_name(ob, newname)) {
+          WM_global_reportf(
+              eReportType::RPT_WARNING,
+              "%s (%s::%s)",
+              RPT_("New bone name collides with an existing vertex group name, vertex group "
+                   "names are unchanged."),
+              &ob->id.name[2],
+              newname);
+          /* Not renaming vertex group could cause bone to bind to other vertex group, in this case
+           * deformation could change, so we tag this object for depsgraph update. */
+          DEG_id_tag_update(static_cast<ID *>(ob->data), ID_RECALC_GEOMETRY);
+        }
+        else if (bDeformGroup *dg = BKE_object_defgroup_find_name(ob, oldname)) {
           STRNCPY(dg->name, newname);
+
+          if (ob->type == OB_GREASE_PENCIL) {
+            /* Update vgroup names stored in CurvesGeometry */
+            BKE_grease_pencil_vgroup_name_update(ob, oldname, dg->name);
+          }
+
           DEG_id_tag_update(static_cast<ID *>(ob->data), ID_RECALC_GEOMETRY);
         }
       }
@@ -257,7 +283,7 @@ void ED_armature_bone_rename(Main *bmain,
       LISTBASE_FOREACH (ModifierData *, md, &ob->modifiers) {
         switch (md->type) {
           case eModifierType_Hook: {
-            HookModifierData *hmd = (HookModifierData *)md;
+            HookModifierData *hmd = reinterpret_cast<HookModifierData *>(md);
 
             if (hmd->object && (hmd->object->data == arm)) {
               if (STREQ(hmd->subtarget, oldname)) {
@@ -267,7 +293,7 @@ void ED_armature_bone_rename(Main *bmain,
             break;
           }
           case eModifierType_UVWarp: {
-            UVWarpModifierData *umd = (UVWarpModifierData *)md;
+            UVWarpModifierData *umd = reinterpret_cast<UVWarpModifierData *>(md);
 
             if (umd->object_src && (umd->object_src->data == arm)) {
               if (STREQ(umd->bone_src, oldname)) {
@@ -288,51 +314,11 @@ void ED_armature_bone_rename(Main *bmain,
 
       /* fix camera focus */
       if (ob->type == OB_CAMERA) {
-        Camera *cam = (Camera *)ob->data;
+        Camera *cam = static_cast<Camera *>(ob->data);
         if ((cam->dof.focus_object != nullptr) && (cam->dof.focus_object->data == arm)) {
           if (STREQ(cam->dof.focus_subtarget, oldname)) {
             STRNCPY(cam->dof.focus_subtarget, newname);
             DEG_id_tag_update(&cam->id, ID_RECALC_SYNC_TO_EVAL);
-          }
-        }
-      }
-
-      /* fix grease pencil modifiers and vertex groups */
-      if (ob->type == OB_GPENCIL_LEGACY) {
-
-        bGPdata *gpd = (bGPdata *)ob->data;
-        LISTBASE_FOREACH (bGPDlayer *, gpl, &gpd->layers) {
-          if ((gpl->parent != nullptr) && (gpl->parent->data == arm)) {
-            if (STREQ(gpl->parsubstr, oldname)) {
-              STRNCPY(gpl->parsubstr, newname);
-            }
-          }
-        }
-
-        LISTBASE_FOREACH (GpencilModifierData *, gp_md, &ob->greasepencil_modifiers) {
-          switch (gp_md->type) {
-            case eGpencilModifierType_Armature: {
-              ArmatureGpencilModifierData *mmd = (ArmatureGpencilModifierData *)gp_md;
-              if (mmd->object && mmd->object->data == arm) {
-                bDeformGroup *dg = BKE_object_defgroup_find_name(ob, oldname);
-                if (dg) {
-                  STRNCPY(dg->name, newname);
-                  DEG_id_tag_update(static_cast<ID *>(ob->data), ID_RECALC_GEOMETRY);
-                }
-              }
-              break;
-            }
-            case eGpencilModifierType_Hook: {
-              HookGpencilModifierData *hgp_md = (HookGpencilModifierData *)gp_md;
-              if (hgp_md->object && (hgp_md->object->data == arm)) {
-                if (STREQ(hgp_md->subtarget, oldname)) {
-                  STRNCPY(hgp_md->subtarget, newname);
-                }
-              }
-              break;
-            }
-            default:
-              break;
           }
         }
       }
@@ -376,7 +362,7 @@ void ED_armature_bone_rename(Main *bmain,
         LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
           LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
             if (sl->spacetype == SPACE_VIEW3D) {
-              View3D *v3d = (View3D *)sl;
+              View3D *v3d = reinterpret_cast<View3D *>(sl);
               if (v3d->ob_center && v3d->ob_center->data == arm) {
                 if (STREQ(v3d->ob_center_bone, oldname)) {
                   STRNCPY(v3d->ob_center_bone, newname);
@@ -446,7 +432,7 @@ void ED_armature_bones_flip_names(Main *bmain,
 /** \name Flip Bone Names (Edit Mode Operator)
  * \{ */
 
-static int armature_flip_names_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus armature_flip_names_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   const Scene *scene = CTX_data_scene(C);
@@ -494,7 +480,7 @@ static int armature_flip_names_exec(bContext *C, wmOperator *op)
     DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
 
     /* copied from #rna_Bone_update_renamed */
-    /* Redraw Outliner / Dopesheet. */
+    /* Redraw Outliner / Dope-sheet. */
     WM_event_add_notifier(C, NC_GEOM | ND_DATA | NA_RENAME, ob->data);
 
     /* update animation channels */
@@ -532,7 +518,7 @@ void ARMATURE_OT_flip_names(wmOperatorType *ot)
 /** \name Bone Auto Side Names (Edit Mode Operator)
  * \{ */
 
-static int armature_autoside_names_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus armature_autoside_names_exec(bContext *C, wmOperator *op)
 {
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);

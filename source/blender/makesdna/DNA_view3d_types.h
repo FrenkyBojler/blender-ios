@@ -16,6 +16,11 @@ struct SpaceLink;
 struct bGPdata;
 struct wmTimer;
 
+#ifdef __cplusplus
+#  include "BLI_math_matrix_types.hh"
+#  include "BLI_math_quaternion_types.hh"
+#endif
+
 #include "DNA_defs.h"
 #include "DNA_image_types.h"
 #include "DNA_listBase.h"
@@ -62,7 +67,7 @@ typedef struct RegionView3D {
 
   /** Transform gizmo matrix. */
   float twmat[4][4];
-  /** min/max dot product on twmat xyz axis. */
+  /** min/max dot product on `twmat` XYZ axis. */
   float tw_axis_min[3], tw_axis_max[3];
   float tw_axis_matrix[3][3];
 
@@ -110,11 +115,14 @@ typedef struct RegionView3D {
   char lpersp;
   char lview;
   char lview_axis_roll;
-  char _pad8[1];
+  char _pad8[4];
 
-  /** Active rotation from NDOF or elsewhere. */
-  float rot_angle;
-  float rot_axis[3];
+  char ndof_flag;
+  float ndof_ofs[3];
+
+  /** Active rotation from NDOF (run-time only). */
+  float ndof_rot_angle;
+  float ndof_rot_axis[3];
 } RegionView3D;
 
 typedef struct View3DCursor {
@@ -126,6 +134,15 @@ typedef struct View3DCursor {
   short rotation_mode;
 
   char _pad[6];
+
+#ifdef __cplusplus
+  template<typename T> T matrix() const;
+  blender::math::Quaternion rotation() const;
+
+  void set_rotation(const blender::math::Quaternion &quat, bool use_compat);
+  void set_matrix(const blender::float3x3 &mat, bool use_compat);
+  void set_matrix(const blender::float4x4 &mat, bool use_compat);
+#endif
 } View3DCursor;
 
 /** 3D Viewport Shading settings. */
@@ -223,6 +240,12 @@ typedef struct View3DOverlay {
   float gpencil_paper_opacity;
   float gpencil_grid_opacity;
   float gpencil_fade_layer;
+
+  /* Grease Pencil canvas settings. */
+  float gpencil_grid_color[3];
+  float gpencil_grid_scale[2];
+  float gpencil_grid_offset[2];
+  int gpencil_grid_subdivisions;
 
   /** Factor for mixing vertex paint with original color */
   float gpencil_vertex_paint_opacity;
@@ -389,6 +412,8 @@ enum {
   V3D_RUNTIME_XR_SESSION_ROOT = (1 << 0),
   /** Some operators override the depth buffer for dedicated occlusion operations. */
   V3D_RUNTIME_DEPTHBUF_OVERRIDDEN = (1 << 1),
+  /** Local view may have become empty, and may need to be exited. */
+  V3D_RUNTIME_LOCAL_MAYBE_EMPTY = (1 << 2),
 };
 
 /** #RegionView3D::persp */
@@ -414,6 +439,12 @@ enum {
 
 /** #RegionView3D.viewlock */
 enum {
+  /**
+   * Used to lock axis views when quad-view is enabled.
+   *
+   * \note this implies locking the perspective as these views
+   * should use an orthographic projection.
+   */
   RV3D_LOCK_ROTATION = (1 << 0),
   RV3D_BOXVIEW = (1 << 1),
   RV3D_BOXCLIP = (1 << 2),
@@ -457,6 +488,25 @@ enum {
   RV3D_VIEW_AXIS_ROLL_270 = 3,
 };
 
+/** #RegionView3D::ndof_flag */
+enum {
+  /**
+   * When set, #RegionView3D::ndof_ofs may be used instead of #RegionView3D::ofs,
+   *
+   * This value will be recalculated when starting NDOF motion,
+   * however if the center can *not* be calculated, the previous value may be used.
+   *
+   * To prevent strange behavior some checks should be used
+   * to ensure the previously calculated value makes sense.
+   *
+   * The most common case is for perspective views, where orbiting around a point behind
+   * the view (while possible) often seems like a bug from a user perspective.
+   * We could consider other cases invalid too (values beyond the clipping plane for e.g.),
+   * although in practice these cases should be fairly rare.
+   */
+  RV3D_NDOF_OFS_IS_VALID = (1 << 0),
+};
+
 #define RV3D_CLIPPING_ENABLED(v3d, rv3d) \
   ((rv3d) && (v3d) && ((rv3d)->rflag & RV3D_CLIPPING) && \
    ELEM((v3d)->shading.type, OB_WIRE, OB_SOLID) && (rv3d)->clipbb)
@@ -479,6 +529,9 @@ enum {
   V3D_FLAG2_UNUSED_15 = 1 << 15, /* cleared */
   V3D_XR_SHOW_CONTROLLERS = 1 << 16,
   V3D_XR_SHOW_CUSTOM_OVERLAYS = 1 << 17,
+  V3D_SHOW_CAMERA_GUIDES = (1 << 18),
+  V3D_SHOW_CAMERA_PASSEPARTOUT = (1 << 19),
+  V3D_XR_SHOW_PASSTHROUGH = 1 << 20,
 };
 
 /** #View3D::gp_flag (short) */
@@ -501,6 +554,8 @@ enum {
   V3D_GP_SHOW_MATERIAL_NAME = 1 << 8,
   /** Show Canvas Grid on Top. */
   V3D_GP_SHOW_GRID_XRAY = 1 << 9,
+  /** Force 3D depth rendering and ignore per-object stroke depth mode. */
+  V3D_GP_FORCE_STROKE_ORDER_3D = 1 << 10,
 };
 
 /** #View3DShading.flag */
@@ -666,6 +721,7 @@ enum {
   V3D_GIZMO_HIDE_NAVIGATE = (1 << 1),
   V3D_GIZMO_HIDE_CONTEXT = (1 << 2),
   V3D_GIZMO_HIDE_TOOL = (1 << 3),
+  V3D_GIZMO_HIDE_MODIFIER = (1 << 4),
 };
 
 /** #View3d.gizmo_show_object */

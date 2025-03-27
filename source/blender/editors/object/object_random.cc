@@ -6,13 +6,11 @@
  * \ingroup edobj
  */
 
-#include "MEM_guardedalloc.h"
-
 #include "DNA_layer_types.h"
 #include "DNA_object_types.h"
 
 #include "BLI_math_vector.h"
-#include "BLI_rand.h"
+#include "BLI_rand.hh"
 
 #include "BKE_context.hh"
 #include "BKE_layer.hh"
@@ -26,9 +24,9 @@
 #include "ED_object.hh"
 #include "ED_transverts.hh"
 
-#include "object_intern.h"
+#include "object_intern.hh"
 
-using blender::Vector;
+namespace blender::ed::object {
 
 /**
  * Generic randomize vertices function
@@ -41,7 +39,6 @@ static bool object_rand_transverts(TransVertStore *tvs,
                                    const uint seed)
 {
   bool use_normal = (normal_factor != 0.0f);
-  RNG *rng;
   TransVert *tv;
   int a;
 
@@ -49,13 +46,12 @@ static bool object_rand_transverts(TransVertStore *tvs,
     return false;
   }
 
-  rng = BLI_rng_new(seed);
+  RandomNumberGenerator rng(seed);
 
   tv = tvs->transverts;
   for (a = 0; a < tvs->transverts_tot; a++, tv++) {
-    const float t = max_ff(0.0f, uniform + ((1.0f - uniform) * BLI_rng_get_float(rng)));
-    float vec[3];
-    BLI_rng_get_float_unit_v3(rng, vec);
+    const float t = max_ff(0.0f, uniform + ((1.0f - uniform) * rng.get_float()));
+    float3 vec = rng.get_unit_float3();
 
     if (use_normal && (tv->flag & TX_VERT_USE_NORMAL)) {
       float no[3];
@@ -74,12 +70,10 @@ static bool object_rand_transverts(TransVertStore *tvs,
     madd_v3_v3fl(tv->loc, vec, offset * t);
   }
 
-  BLI_rng_free(rng);
-
   return true;
 }
 
-static int object_rand_verts_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus object_rand_verts_exec(bContext *C, wmOperator *op)
 {
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
@@ -106,7 +100,7 @@ static int object_rand_verts_exec(bContext *C, wmOperator *op)
         mode |= TX_VERT_USE_NORMAL;
       }
 
-      if (ED_object_edit_report_if_shape_key_is_locked(ob_iter, op->reports)) {
+      if (shape_key_report_if_locked(ob_iter, op->reports)) {
         continue;
       }
 
@@ -175,3 +169,5 @@ void TRANSFORM_OT_vertex_random(wmOperatorType *ot)
   /* Set generic modal callbacks. */
   WM_operator_type_modal_from_exec_for_object_edit_coords(ot);
 }
+
+}  // namespace blender::ed::object

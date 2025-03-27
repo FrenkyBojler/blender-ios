@@ -19,6 +19,8 @@
 
 #include "transform_convert.hh"
 
+namespace blender::ed::transform {
+
 /* -------------------------------------------------------------------- */
 /** \name Edit Mesh Bevel Weight and Crease Transform Creation
  * \{ */
@@ -123,8 +125,8 @@ static void createTransMeshVertCData(bContext * /*C*/, TransInfo *t)
     }
 
     copy_m3_m4(mtx, tc->obedit->object_to_world().ptr());
-    /* we use a pseudo-inverse so that when one of the axes is scaled to 0,
-     * matrix inversion still works and we can still moving along the other */
+    /* We use a pseudo-inverse so that when one of the axes is scaled to 0,
+     * matrix inversion still works and we can still moving along the other. */
     pseudoinverse_m3_m3(smtx, mtx, PSEUDOINVERSE_EPSILON);
 
     /* Original index of our connected vertex when connected distances are calculated.
@@ -168,7 +170,7 @@ static void createTransMeshVertCData(bContext * /*C*/, TransInfo *t)
           createSpaceNormal(td->axismtx, eve->no);
         }
         else {
-          /* Setting normals */
+          /* Setting normals. */
           copy_v3_v3(td->axismtx[2], eve->no);
           td->axismtx[0][0] = td->axismtx[0][1] = td->axismtx[0][2] = td->axismtx[1][0] =
               td->axismtx[1][1] = td->axismtx[1][2] = 0.0f;
@@ -183,7 +185,7 @@ static void createTransMeshVertCData(bContext * /*C*/, TransInfo *t)
           }
         }
 
-        /* CrazySpace */
+        /* CrazySpace. */
         transform_convert_mesh_crazyspace_transdata_set(
             mtx,
             smtx,
@@ -228,3 +230,5 @@ TransConvertTypeInfo TransConvertType_MeshVertCData = {
     /*recalc_data*/ recalcData_mesh_cdata,
     /*special_aftertrans_update*/ nullptr,
 };
+
+}  // namespace blender::ed::transform

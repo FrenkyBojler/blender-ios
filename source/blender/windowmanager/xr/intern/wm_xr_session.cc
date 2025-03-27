@@ -9,7 +9,7 @@
 #include "BKE_callbacks.hh"
 #include "BKE_context.hh"
 #include "BKE_global.hh"
-#include "BKE_idprop.h"
+#include "BKE_idprop.hh"
 #include "BKE_main.hh"
 #include "BKE_scene.hh"
 #include "BKE_screen.hh"
@@ -34,8 +34,8 @@
 
 #include "GHOST_C-api.h"
 
-#include "GPU_batch.h"
-#include "GPU_viewport.h"
+#include "GPU_batch.hh"
+#include "GPU_viewport.hh"
 
 #include "MEM_guardedalloc.h"
 
@@ -113,8 +113,8 @@ static void wm_xr_session_begin_info_create(wmXrData *xr_data,
    * after the session is created but before it is started. */
   r_begin_info->create_fn = wm_xr_session_create_cb;
 
-  /* WM-XR exit function, does some own stuff and calls callback passed to wm_xr_session_toggle(),
-   * to allow external code to execute its own session-exit logic. */
+  /* WM-XR exit function, does some of its own stuff and calls callback passed to
+   * wm_xr_session_toggle(), to allow external code to execute its own session-exit logic. */
   r_begin_info->exit_fn = wm_xr_session_exit_cb;
   r_begin_info->exit_customdata = xr_data;
 }
@@ -231,7 +231,7 @@ wmWindow *wm_xr_session_root_window_or_fallback_get(const wmWindowManager *wm,
  * started from) if still available. If it's not available, use some fallback window.
  *
  * It's important that the VR session follows some existing window, otherwise it would need to have
- * an own depsgraph, which is an expense we should avoid.
+ * its own depsgraph, which is an expense we should avoid.
  */
 static void wm_xr_session_scene_and_depsgraph_get(const wmWindowManager *wm,
                                                   Scene **r_scene,
@@ -639,6 +639,7 @@ static void wm_xr_session_controller_data_update(const XrSessionSettings *settin
   wm_xr_pose_scale_to_mat(&state->nav_pose, state->nav_scale, nav_mat);
 
   LISTBASE_FOREACH_INDEX (wmXrController *, controller, &state->controllers, subaction_idx) {
+    controller->grip_active = ((GHOST_XrPose *)grip_action->states)[subaction_idx].is_active;
     wm_xr_session_controller_pose_calc(&((GHOST_XrPose *)grip_action->states)[subaction_idx],
                                        view_ofs,
                                        base_mat,
@@ -646,6 +647,7 @@ static void wm_xr_session_controller_data_update(const XrSessionSettings *settin
                                        &controller->grip_pose,
                                        controller->grip_mat,
                                        controller->grip_mat_base);
+    controller->aim_active = ((GHOST_XrPose *)aim_action->states)[subaction_idx].is_active;
     wm_xr_session_controller_pose_calc(&((GHOST_XrPose *)aim_action->states)[subaction_idx],
                                        view_ofs,
                                        base_mat,
@@ -752,7 +754,7 @@ static void wm_xr_session_modal_action_test_add(ListBase *active_modal_actions,
 {
   bool found;
   if (wm_xr_session_modal_action_test(active_modal_actions, action, &found) && !found) {
-    LinkData *ld = static_cast<LinkData *>(MEM_callocN(sizeof(LinkData), __func__));
+    LinkData *ld = MEM_callocN<LinkData>(__func__);
     ld->data = (void *)action;
     BLI_addtail(active_modal_actions, ld);
   }
@@ -793,7 +795,7 @@ static void wm_xr_session_haptic_action_add(ListBase *active_haptic_actions,
     ha->time_start = time_now;
   }
   else {
-    ha = static_cast<wmXrHapticAction *>(MEM_callocN(sizeof(wmXrHapticAction), __func__));
+    ha = MEM_callocN<wmXrHapticAction>(__func__);
     ha->action = (wmXrAction *)action;
     ha->subaction_path = subaction_path;
     ha->time_start = time_now;
@@ -1038,8 +1040,7 @@ static wmXrActionData *wm_xr_session_event_create(const char *action_set_name,
                                                   uint subaction_idx_other,
                                                   bool bimanual)
 {
-  wmXrActionData *data = static_cast<wmXrActionData *>(
-      MEM_callocN(sizeof(wmXrActionData), __func__));
+  wmXrActionData *data = MEM_callocN<wmXrActionData>(__func__);
   STRNCPY(data->action_set, action_set_name);
   STRNCPY(data->action, action->name);
   STRNCPY(data->user_path, action->subaction_paths[subaction_idx]);
@@ -1119,8 +1120,7 @@ static void wm_xr_session_events_dispatch(wmXrData *xr,
   ListBase *active_modal_actions = &action_set->active_modal_actions;
   ListBase *active_haptic_actions = &action_set->active_haptic_actions;
 
-  wmXrAction **actions = static_cast<wmXrAction **>(
-      MEM_calloc_arrayN(count, sizeof(*actions), __func__));
+  wmXrAction **actions = MEM_calloc_arrayN<wmXrAction *>(count, __func__);
 
   GHOST_XrGetActionCustomdataArray(xr_context, action_set_name, (void **)actions);
 
@@ -1266,8 +1266,7 @@ void wm_xr_session_controller_data_populate(const wmXrAction *grip_action,
   wm_xr_session_controller_data_free(state);
 
   for (uint i = 0; i < count; ++i) {
-    wmXrController *controller = static_cast<wmXrController *>(
-        MEM_callocN(sizeof(*controller), __func__));
+    wmXrController *controller = MEM_callocN<wmXrController>(__func__);
 
     BLI_assert(STREQ(grip_action->subaction_paths[i], aim_action->subaction_paths[i]));
     STRNCPY(controller->subaction_path, grip_action->subaction_paths[i]);
@@ -1303,7 +1302,7 @@ void wm_xr_session_controller_data_clear(wmXrSessionState *state)
   }
 }
 
-/** \} */ /* XR-Session Actions */
+/** \} */ /* XR-Session Actions. */
 
 /* -------------------------------------------------------------------- */
 /** \name XR-Session Surface
@@ -1364,7 +1363,7 @@ bool wm_xr_session_surface_offscreen_ensure(wmXrSurfaceData *surface_data,
 {
   wmXrViewportPair *vp = nullptr;
   if (draw_view->view_idx >= BLI_listbase_count(&surface_data->viewports)) {
-    vp = static_cast<wmXrViewportPair *>(MEM_callocN(sizeof(*vp), __func__));
+    vp = MEM_callocN<wmXrViewportPair>(__func__);
     BLI_addtail(&surface_data->viewports, vp);
   }
   else {
@@ -1463,11 +1462,9 @@ static wmSurface *wm_xr_session_surface_create()
     return g_xr_surface;
   }
 
-  wmSurface *surface = static_cast<wmSurface *>(MEM_callocN(sizeof(*surface), __func__));
-  wmXrSurfaceData *data = static_cast<wmXrSurfaceData *>(
-      MEM_callocN(sizeof(*data), "XrSurfaceData"));
-  data->controller_art = static_cast<ARegionType *>(
-      MEM_callocN(sizeof(*(data->controller_art)), "XrControllerRegionType"));
+  wmSurface *surface = MEM_callocN<wmSurface>(__func__);
+  wmXrSurfaceData *data = MEM_callocN<wmXrSurfaceData>("XrSurfaceData");
+  data->controller_art = MEM_callocN<ARegionType>("XrControllerRegionType");
 
   surface->draw = wm_xr_session_surface_draw;
   surface->do_depsgraph = wm_xr_session_do_depsgraph;
@@ -1501,7 +1498,7 @@ void *wm_xr_session_gpu_binding_context_create()
 
 void wm_xr_session_gpu_binding_context_destroy(GHOST_ContextHandle /*context*/)
 {
-  if (g_xr_surface) { /* Might have been freed already */
+  if (g_xr_surface) { /* Might have been freed already. */
     wm_surface_remove(g_xr_surface);
   }
 
@@ -1522,4 +1519,4 @@ ARegionType *WM_xr_surface_controller_region_type_get()
   return nullptr;
 }
 
-/** \} */ /* XR-Session Surface */
+/** \} */ /* XR-Session Surface. */

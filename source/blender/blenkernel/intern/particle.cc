@@ -13,6 +13,7 @@
 #include <cmath>
 #include <cstdlib>
 #include <cstring>
+#include <optional>
 
 #include "MEM_guardedalloc.h"
 
@@ -30,17 +31,19 @@
 #include "DNA_object_force_types.h"
 #include "DNA_particle_types.h"
 #include "DNA_scene_types.h"
+#include "DNA_texture_types.h"
 
-#include "BLI_blenlib.h"
-#include "BLI_kdopbvh.h"
+#include "BLI_kdopbvh.hh"
 #include "BLI_kdtree.h"
 #include "BLI_linklist.h"
+#include "BLI_listbase.h"
 #include "BLI_math_base_safe.h"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
 #include "BLI_rand.h"
+#include "BLI_string.h"
 #include "BLI_task.h"
 #include "BLI_threads.h"
 #include "BLI_utildefines.h"
@@ -62,7 +65,7 @@
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
-#include "BKE_material.h"
+#include "BKE_material.hh"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_legacy_convert.hh"
 #include "BKE_modifier.hh"
@@ -99,6 +102,7 @@ static void particle_settings_init(ID *id)
 }
 
 static void particle_settings_copy_data(Main * /*bmain*/,
+                                        std::optional<Library *> /*owner_library*/,
                                         ID *id_dst,
                                         const ID *id_src,
                                         const int /*flag*/)
@@ -311,56 +315,56 @@ static void particle_settings_blend_write(BlendWriter *writer, ID *id, const voi
   }
 }
 
-void BKE_particle_partdeflect_blend_read_data(BlendDataReader * /*reader*/, PartDeflect *pd)
+void BKE_particle_partdeflect_blend_read_data(BlendDataReader * /*reader*/, PartDeflect * /*pd*/)
 {
-  if (pd) {
-    pd->rng = nullptr;
-  }
 }
 
 static void particle_settings_blend_read_data(BlendDataReader *reader, ID *id)
 {
   ParticleSettings *part = (ParticleSettings *)id;
 
-  BLO_read_data_address(reader, &part->pd);
-  BLO_read_data_address(reader, &part->pd2);
+  BLO_read_struct(reader, PartDeflect, &part->pd);
+  BLO_read_struct(reader, PartDeflect, &part->pd2);
   BKE_particle_partdeflect_blend_read_data(reader, part->pd);
   BKE_particle_partdeflect_blend_read_data(reader, part->pd2);
 
-  BLO_read_data_address(reader, &part->clumpcurve);
+  BLO_read_struct(reader, CurveMapping, &part->clumpcurve);
   if (part->clumpcurve) {
     BKE_curvemapping_blend_read(reader, part->clumpcurve);
   }
-  BLO_read_data_address(reader, &part->roughcurve);
+  BLO_read_struct(reader, CurveMapping, &part->roughcurve);
   if (part->roughcurve) {
     BKE_curvemapping_blend_read(reader, part->roughcurve);
   }
-  BLO_read_data_address(reader, &part->twistcurve);
+  BLO_read_struct(reader, CurveMapping, &part->twistcurve);
   if (part->twistcurve) {
     BKE_curvemapping_blend_read(reader, part->twistcurve);
   }
 
-  BLO_read_data_address(reader, &part->effector_weights);
+  BLO_read_struct(reader, EffectorWeights, &part->effector_weights);
   if (!part->effector_weights) {
     part->effector_weights = BKE_effector_add_weights(part->force_group);
   }
 
-  BLO_read_list(reader, &part->instance_weights);
+  BLO_read_struct_list(reader, ParticleDupliWeight, &part->instance_weights);
 
-  BLO_read_data_address(reader, &part->boids);
-  BLO_read_data_address(reader, &part->fluid);
+  BLO_read_struct(reader, BoidSettings, &part->boids);
+  BLO_read_struct(reader, SPHFluidSettings, &part->fluid);
 
   if (part->boids) {
-    BLO_read_list(reader, &part->boids->states);
+    BLO_read_struct_list(reader, BoidState, &part->boids->states);
 
     LISTBASE_FOREACH (BoidState *, state, &part->boids->states) {
-      BLO_read_list(reader, &state->rules);
-      BLO_read_list(reader, &state->conditions);
-      BLO_read_list(reader, &state->actions);
+      BLO_read_struct_list(reader, BoidRule, &state->rules);
+#if 0
+      /* Not implemented yet. */
+      BLO_read_struct_list(reader, BoidCondition, &state->conditions);
+      BLO_read_struct_list(reader, BoidAction, &state->actions);
+#endif
     }
   }
   for (int a = 0; a < MAX_MTEX; a++) {
-    BLO_read_data_address(reader, &part->mtex[a]);
+    BLO_read_struct(reader, MTex, &part->mtex[a]);
   }
 
   /* Protect against integer overflow vulnerability. */
@@ -495,12 +499,13 @@ static ParticleCacheKey **psys_alloc_path_cache_buffers(ListBase *bufs, int tot,
 
   tot = std::max(tot, 1);
   totkey = 0;
-  cache = static_cast<ParticleCacheKey **>(MEM_callocN(tot * sizeof(void *), "PathCacheArray"));
+  cache = MEM_calloc_arrayN<ParticleCacheKey *>(size_t(tot), "PathCacheArray");
 
   while (totkey < tot) {
     totbufkey = std::min(tot - totkey, PATH_CACHE_BUF_SIZE);
-    buf = static_cast<LinkData *>(MEM_callocN(sizeof(LinkData), "PathCacheLinkData"));
-    buf->data = MEM_callocN(sizeof(ParticleCacheKey) * totbufkey * totkeys, "ParticleCacheKey");
+    buf = MEM_callocN<LinkData>("PathCacheLinkData");
+    buf->data = MEM_calloc_arrayN<ParticleCacheKey>(size_t(totbufkey) * size_t(totkeys),
+                                                    "ParticleCacheKey");
 
     for (i = 0; i < totbufkey; i++) {
       cache[totkey + i] = ((ParticleCacheKey *)buf->data) + i * totkeys;
@@ -793,8 +798,7 @@ void psys_check_group_weights(ParticleSettings *part)
     }
 
     if (!dw) {
-      dw = static_cast<ParticleDupliWeight *>(
-          MEM_callocN(sizeof(ParticleDupliWeight), "ParticleDupliWeight"));
+      dw = MEM_callocN<ParticleDupliWeight>("ParticleDupliWeight");
       dw->ob = object;
       dw->count = 1;
       BLI_addtail(&part->instance_weights, dw);
@@ -1444,7 +1448,9 @@ static void do_particle_interpolation(ParticleSystem *psys,
 
     while (pind->hkey[1]->time < real_t) {
       pind->hkey[1]++;
-      pind->vert_positions[1]++;
+      if (pind->mesh) {
+        pind->vert_positions[1]++;
+      }
     }
 
     pind->hkey[0] = pind->hkey[1] - 1;
@@ -2311,8 +2317,8 @@ void precalc_guides(ParticleSimulationData *sim, ListBase *effectors)
       }
 
       if (!eff->guide_data) {
-        eff->guide_data = static_cast<GuideEffectorData *>(
-            MEM_callocN(sizeof(GuideEffectorData) * psys->totpart, "GuideEffectorData"));
+        eff->guide_data = MEM_calloc_arrayN<GuideEffectorData>(size_t(psys->totpart),
+                                                               "GuideEffectorData");
       }
 
       data = eff->guide_data + p;
@@ -2581,7 +2587,7 @@ float *psys_cache_vgroup(Mesh *mesh, ParticleSystem *psys, int vgroup)
     const MDeformVert *dvert = mesh->deform_verts().data();
     if (dvert) {
       int totvert = mesh->verts_num, i;
-      vg = static_cast<float *>(MEM_callocN(sizeof(float) * totvert, "vg_cache"));
+      vg = MEM_calloc_arrayN<float>(size_t(totvert), "vg_cache");
       if (psys->vg_neg & (1 << vgroup)) {
         for (i = 0; i < totvert; i++) {
           vg[i] = 1.0f - BKE_defvert_find_weight(&dvert[i], psys->vgroup[vgroup] - 1);
@@ -2613,9 +2619,7 @@ void psys_find_parents(ParticleSimulationData *sim, const bool use_render_params
   }
 
   /* hard limit, workaround for it being ignored above */
-  if (sim->psys->totpart < totparent) {
-    totparent = sim->psys->totpart;
-  }
+  totparent = std::min(sim->psys->totpart, totparent);
 
   tree = BLI_kdtree_3d_new(totparent);
 
@@ -3917,7 +3921,7 @@ void psys_mat_hair_to_global(
 /************************************************/
 
 static ModifierData *object_add_or_copy_particle_system(
-    Main *bmain, Scene *scene, Object *ob, const char *name, const ParticleSystem *psys_orig)
+    Main *bmain, const Scene *scene, Object *ob, const char *name, const ParticleSystem *psys_orig)
 {
   ParticleSystem *psys;
   ModifierData *md;
@@ -3936,7 +3940,7 @@ static ModifierData *object_add_or_copy_particle_system(
     psys->flag &= ~PSYS_CURRENT;
   }
 
-  psys = static_cast<ParticleSystem *>(MEM_callocN(sizeof(ParticleSystem), "particle_system"));
+  psys = MEM_callocN<ParticleSystem>("particle_system");
   psys->pointcache = BKE_ptcache_add(&psys->ptcaches);
   BLI_addtail(&ob->particlesystem, psys);
   psys_unique_name(ob, psys, name);
@@ -3970,13 +3974,16 @@ static ModifierData *object_add_or_copy_particle_system(
   return md;
 }
 
-ModifierData *object_add_particle_system(Main *bmain, Scene *scene, Object *ob, const char *name)
+ModifierData *object_add_particle_system(Main *bmain,
+                                         const Scene *scene,
+                                         Object *ob,
+                                         const char *name)
 {
   return object_add_or_copy_particle_system(bmain, scene, ob, name, nullptr);
 }
 
 ModifierData *object_copy_particle_system(Main *bmain,
-                                          Scene *scene,
+                                          const Scene *scene,
                                           Object *ob,
                                           const ParticleSystem *psys_orig)
 {
@@ -3993,10 +4000,10 @@ void object_remove_particle_system(Main *bmain,
   }
 
   ParticleSystemModifierData *psmd;
-  ModifierData *md;
+  ModifierData *md = BKE_modifiers_findby_type(ob, eModifierType_Fluid);
 
   /* Clear particle system in fluid modifier. */
-  if ((md = BKE_modifiers_findby_type(ob, eModifierType_Fluid))) {
+  if (md) {
     FluidModifierData *fmd = (FluidModifierData *)md;
 
     /* Clear particle system pointer in flow settings. */
@@ -4146,7 +4153,7 @@ static int get_particle_uv(Mesh *mesh,
                            ParticleData *pa,
                            int index,
                            const float fuv[4],
-                           char *name,
+                           const char *name,
                            float *texco,
                            bool from_vert)
 {
@@ -5351,11 +5358,11 @@ void BKE_particle_system_blend_read_data(BlendDataReader *reader, ListBase *part
   int a;
 
   LISTBASE_FOREACH (ParticleSystem *, psys, particles) {
-    BLO_read_data_address(reader, &psys->particles);
+    BLO_read_struct_array(reader, ParticleData, psys->totpart, &psys->particles);
 
     if (psys->particles && psys->particles->hair) {
       for (a = 0, pa = psys->particles; a < psys->totpart; a++, pa++) {
-        BLO_read_data_address(reader, &pa->hair);
+        BLO_read_struct_array(reader, HairKey, pa->totkey, &pa->hair);
       }
     }
 
@@ -5370,7 +5377,7 @@ void BKE_particle_system_blend_read_data(BlendDataReader *reader, ListBase *part
 
     if (psys->particles && psys->particles->boid) {
       pa = psys->particles;
-      BLO_read_data_address(reader, &pa->boid);
+      BLO_read_struct_array(reader, BoidParticle, psys->totpart, &pa->boid);
 
       /* This is purely runtime data, but still can be an issue if left dangling. */
       pa->boid->ground = nullptr;
@@ -5386,12 +5393,12 @@ void BKE_particle_system_blend_read_data(BlendDataReader *reader, ListBase *part
       }
     }
 
-    BLO_read_data_address(reader, &psys->fluid_springs);
+    BLO_read_struct_array(reader, ParticleSpring, psys->tot_fluidsprings, &psys->fluid_springs);
 
-    BLO_read_data_address(reader, &psys->child);
+    BLO_read_struct_array(reader, ChildParticle, psys->totchild, &psys->child);
     psys->effectors = nullptr;
 
-    BLO_read_list(reader, &psys->targets);
+    BLO_read_struct_list(reader, ParticleTarget, &psys->targets);
 
     psys->edit = nullptr;
     psys->free_edit = nullptr;
@@ -5402,12 +5409,12 @@ void BKE_particle_system_blend_read_data(BlendDataReader *reader, ListBase *part
     psys->pdd = nullptr;
 
     if (psys->clmd) {
-      BLO_read_data_address(reader, &psys->clmd);
+      BLO_read_struct(reader, ClothModifierData, &psys->clmd);
       psys->clmd->clothObject = nullptr;
       psys->clmd->hairdata = nullptr;
 
-      BLO_read_data_address(reader, &psys->clmd->sim_parms);
-      BLO_read_data_address(reader, &psys->clmd->coll_parms);
+      BLO_read_struct(reader, ClothSimSettings, &psys->clmd->sim_parms);
+      BLO_read_struct(reader, ClothCollSettings, &psys->clmd->coll_parms);
 
       if (psys->clmd->sim_parms) {
         psys->clmd->sim_parms->effector_weights = nullptr;

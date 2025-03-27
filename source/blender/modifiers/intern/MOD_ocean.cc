@@ -6,9 +6,9 @@
  * \ingroup modifiers
  */
 
-#include "BLI_utildefines.h"
-
+#include "BLI_math_base.h"
 #include "BLI_task.h"
+#include "BLI_utildefines.h"
 
 #include "BLT_translation.hh"
 
@@ -30,7 +30,7 @@
 #include "UI_resources.hh"
 
 #include "RNA_access.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "WM_types.hh" /* For UI free bake operator. */
 
@@ -135,12 +135,6 @@ static void required_data_mask(ModifierData *md, CustomData_MeshMasks *r_cddata_
 #else  /* WITH_OCEANSIM */
 static void required_data_mask(ModifierData * /*md*/, CustomData_MeshMasks * /*r_cddata_masks*/) {}
 #endif /* WITH_OCEANSIM */
-
-static bool depends_on_normals(ModifierData *md)
-{
-  OceanModifierData *omd = (OceanModifierData *)md;
-  return (omd->geometry_mode != MOD_OCEAN_GEOM_GENERATE);
-}
 
 #ifdef WITH_OCEANSIM
 
@@ -448,7 +442,7 @@ static Mesh *doOcean(ModifierData *md, const ModifierEvalContext *ctx, Mesh *mes
     }
   }
 
-  mesh->tag_positions_changed();
+  result->tag_positions_changed();
 
   if (allocated_ocean) {
     BKE_ocean_free(omd->ocean);
@@ -483,7 +477,7 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
   uiLayoutSetPropSep(layout, true);
 
   col = uiLayoutColumn(layout, false);
-  uiItemR(col, ptr, "geometry_mode", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(col, ptr, "geometry_mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   if (RNA_enum_get(ptr, "geometry_mode") == MOD_OCEAN_GEOM_GENERATE) {
     sub = uiLayoutColumn(col, true);
     uiItemR(sub, ptr, "repeat_x", UI_ITEM_NONE, IFACE_("Repeat X"), ICON_NONE);
@@ -494,15 +488,15 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
   uiItemR(sub, ptr, "viewport_resolution", UI_ITEM_NONE, IFACE_("Resolution Viewport"), ICON_NONE);
   uiItemR(sub, ptr, "resolution", UI_ITEM_NONE, IFACE_("Render"), ICON_NONE);
 
-  uiItemR(col, ptr, "time", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(col, ptr, "time", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  uiItemR(col, ptr, "depth", UI_ITEM_NONE, nullptr, ICON_NONE);
-  uiItemR(col, ptr, "size", UI_ITEM_NONE, nullptr, ICON_NONE);
-  uiItemR(col, ptr, "spatial_size", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(col, ptr, "depth", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  uiItemR(col, ptr, "size", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  uiItemR(col, ptr, "spatial_size", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  uiItemR(col, ptr, "random_seed", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(col, ptr, "random_seed", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  uiItemR(col, ptr, "use_normals", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(col, ptr, "use_normals", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   modifier_panel_end(layout, ptr);
 
@@ -523,9 +517,9 @@ static void waves_panel_draw(const bContext * /*C*/, Panel *panel)
 
   col = uiLayoutColumn(layout, false);
   uiItemR(col, ptr, "wave_scale", UI_ITEM_NONE, IFACE_("Scale"), ICON_NONE);
-  uiItemR(col, ptr, "wave_scale_min", UI_ITEM_NONE, nullptr, ICON_NONE);
-  uiItemR(col, ptr, "choppiness", UI_ITEM_NONE, nullptr, ICON_NONE);
-  uiItemR(col, ptr, "wind_velocity", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(col, ptr, "wave_scale_min", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  uiItemR(col, ptr, "choppiness", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  uiItemR(col, ptr, "wind_velocity", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   uiItemS(layout);
 
@@ -534,7 +528,7 @@ static void waves_panel_draw(const bContext * /*C*/, Panel *panel)
   sub = uiLayoutColumn(col, false);
   uiLayoutSetActive(sub, RNA_float_get(ptr, "wave_alignment") > 0.0f);
   uiItemR(sub, ptr, "wave_direction", UI_ITEM_NONE, IFACE_("Direction"), ICON_NONE);
-  uiItemR(sub, ptr, "damping", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(sub, ptr, "damping", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 static void foam_panel_draw_header(const bContext * /*C*/, Panel *panel)
@@ -612,10 +606,10 @@ static void spectrum_panel_draw(const bContext * /*C*/, Panel *panel)
   uiLayoutSetPropSep(layout, true);
 
   col = uiLayoutColumn(layout, false);
-  uiItemR(col, ptr, "spectrum", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(col, ptr, "spectrum", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   if (ELEM(spectrum, MOD_OCEAN_SPECTRUM_TEXEL_MARSEN_ARSLOE, MOD_OCEAN_SPECTRUM_JONSWAP)) {
-    uiItemR(col, ptr, "sharpen_peak_jonswap", UI_ITEM_R_SLIDER, nullptr, ICON_NONE);
-    uiItemR(col, ptr, "fetch_jonswap", UI_ITEM_NONE, nullptr, ICON_NONE);
+    uiItemR(col, ptr, "sharpen_peak_jonswap", UI_ITEM_R_SLIDER, std::nullopt, ICON_NONE);
+    uiItemR(col, ptr, "fetch_jonswap", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 }
 
@@ -638,16 +632,25 @@ static void bake_panel_draw(const bContext * /*C*/, Panel *panel)
                 IFACE_("Delete Bake"),
                 ICON_NONE,
                 nullptr,
-                WM_OP_EXEC_DEFAULT,
+                WM_OP_INVOKE_DEFAULT,
                 UI_ITEM_NONE,
                 &op_ptr);
     RNA_boolean_set(&op_ptr, "free", true);
   }
   else {
-    uiItemO(layout, nullptr, ICON_NONE, "OBJECT_OT_ocean_bake");
+    PointerRNA op_ptr;
+    uiItemFullO(layout,
+                "OBJECT_OT_ocean_bake",
+                IFACE_("Bake"),
+                ICON_NONE,
+                nullptr,
+                WM_OP_INVOKE_DEFAULT,
+                UI_ITEM_NONE,
+                &op_ptr);
+    RNA_boolean_set(&op_ptr, "free", false);
   }
 
-  uiItemR(layout, ptr, "filepath", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(layout, ptr, "filepath", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   col = uiLayoutColumn(layout, true);
   uiLayoutSetEnabled(col, !is_cached);
@@ -656,7 +659,7 @@ static void bake_panel_draw(const bContext * /*C*/, Panel *panel)
 
   col = uiLayoutColumn(layout, false);
   uiLayoutSetActive(col, use_foam);
-  uiItemR(col, ptr, "bake_foam_fade", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(col, ptr, "bake_foam_fade", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 #endif /* WITH_OCEANSIM */
 
@@ -710,7 +713,7 @@ ModifierTypeInfo modifierType_Ocean = {
     /*is_disabled*/ nullptr,
     /*update_depsgraph*/ nullptr,
     /*depends_on_time*/ nullptr,
-    /*depends_on_normals*/ depends_on_normals,
+    /*depends_on_normals*/ nullptr,
     /*foreach_ID_link*/ nullptr,
     /*foreach_tex_link*/ nullptr,
     /*free_runtime_data*/ nullptr,

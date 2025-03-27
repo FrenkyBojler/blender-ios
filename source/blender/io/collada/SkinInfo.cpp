@@ -8,14 +8,6 @@
 
 #include <algorithm>
 
-#if !defined(WIN32)
-#  include <cstdint>
-#endif
-
-/* COLLADABU_ASSERT, may be able to remove later */
-#include "COLLADABUPlatform.h"
-
-#include "BLI_compiler_attrs.h"
 #include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
 
@@ -23,13 +15,14 @@
 #include "DNA_modifier_types.h"
 #include "DNA_scene_types.h"
 
-#include "BKE_action.h"
+#include "BKE_action.hh"
 #include "BKE_deform.hh"
 #include "BKE_object.hh"
 #include "BKE_object_deform.h"
 
 #include "ED_mesh.hh"
 #include "ED_object.hh"
+#include "ED_object_vgroup.hh"
 
 #include "SkinInfo.h"
 #include "collada_utils.h"
@@ -198,7 +191,7 @@ void SkinInfo::link_armature(bContext *C,
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
 
-  ModifierData *md = ED_object_modifier_add(
+  ModifierData *md = blender::ed::object::modifier_add(
       nullptr, bmain, scene, ob, nullptr, eModifierType_Armature);
   ArmatureModifierData *amd = (ArmatureModifierData *)md;
   amd->object = ob_arm;
@@ -265,7 +258,8 @@ void SkinInfo::link_armature(bContext *C,
         const ListBase *defbase = BKE_object_defgroup_list(ob);
         bDeformGroup *def = (bDeformGroup *)BLI_findlink(defbase, joint);
 
-        ED_vgroup_vert_add(ob, def, vertex, weights[joint_weight], WEIGHT_REPLACE);
+        blender::ed::object::vgroup_vert_add(
+            ob, def, vertex, weights[joint_weight], WEIGHT_REPLACE);
       }
     }
   }

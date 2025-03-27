@@ -13,14 +13,14 @@
 
 #include "DNA_userdef_types.h"
 
-#include "GPU_capabilities.h"
-#include "GPU_framebuffer.h"
-#include "GPU_platform.h"
+#include "GPU_capabilities.hh"
+#include "GPU_framebuffer.hh"
+#include "GPU_platform.hh"
 
+#include "GPU_vertex_buffer.hh" /* TODO: should be `gl_vertex_buffer.hh`. */
 #include "gl_backend.hh"
 #include "gl_debug.hh"
 #include "gl_state.hh"
-#include "gpu_vertex_buffer_private.hh" /* TODO: should be `gl_vertex_buffer.hh`. */
 
 #include "gl_texture.hh"
 
@@ -98,9 +98,9 @@ bool GLTexture::init_internal()
   return true;
 }
 
-bool GLTexture::init_internal(GPUVertBuf *vbo)
+bool GLTexture::init_internal(VertBuf *vbo)
 {
-  GLVertBuf *gl_vbo = static_cast<GLVertBuf *>(unwrap(vbo));
+  GLVertBuf *gl_vbo = static_cast<GLVertBuf *>(vbo);
   target_ = to_gl_target(type_);
 
   /* We need to bind once to define the texture type. */
@@ -328,24 +328,20 @@ void GLTexture::clear(eGPUDataFormat data_format, const void *data)
 {
   BLI_assert(validate_data_format(format_, data_format));
 
-  if (GLContext::clear_texture_support) {
-    int mip = 0;
-    GLenum gl_format = to_gl_data_format(format_);
-    GLenum gl_type = to_gl(data_format);
-    glClearTexImage(tex_id_, mip, gl_format, gl_type, data);
-  }
-  else {
-    /* Fallback for older GL. */
-    GPUFrameBuffer *prev_fb = GPU_framebuffer_active_get();
+  /* Note: do not use glClearTexImage, even if it is available (via
+   * extension or GL 4.4). It causes GL framebuffer binding to be
+   * way slower at least on some drivers (e.g. Win10 / NV RTX 3080,
+   * but also reportedly others), as if glClearTexImage causes
+   * "pixel data" to exist which is then uploaded CPU -> GPU at bind
+   * time. */
 
-    FrameBuffer *fb = this->framebuffer_get();
-    fb->bind(true);
-    fb->clear_attachment(this->attachment_type(0), data_format, data);
+  GPUFrameBuffer *prev_fb = GPU_framebuffer_active_get();
 
-    GPU_framebuffer_bind(prev_fb);
-  }
+  FrameBuffer *fb = this->framebuffer_get();
+  fb->bind(true);
+  fb->clear_attachment(this->attachment_type(0), data_format, data);
 
-  has_pixels_ = true;
+  GPU_framebuffer_bind(prev_fb);
 }
 
 void GLTexture::copy_to(Texture *dst_)
@@ -758,9 +754,10 @@ void GLTexture::check_feedback_loop()
   }
 }
 
-/* TODO(fclem): Legacy. Should be removed at some point. */
 uint GLTexture::gl_bindcode_get() const
 {
+  /* TODO(fclem): Legacy. Should be removed at some point. */
+
   return tex_id_;
 }
 
@@ -768,7 +765,7 @@ uint GLTexture::gl_bindcode_get() const
 /** \name Pixel Buffer
  * \{ */
 
-GLPixelBuffer::GLPixelBuffer(uint size) : PixelBuffer(size)
+GLPixelBuffer::GLPixelBuffer(size_t size) : PixelBuffer(size)
 {
   glGenBuffers(1, &gl_id_);
   BLI_assert(gl_id_);

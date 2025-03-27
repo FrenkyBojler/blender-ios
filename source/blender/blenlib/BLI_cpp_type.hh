@@ -75,7 +75,6 @@
 #include "BLI_hash.hh"
 #include "BLI_index_mask.hh"
 #include "BLI_map.hh"
-#include "BLI_math_base.h"
 #include "BLI_parameter_pack_utils.hh"
 #include "BLI_string_ref.hh"
 #include "BLI_utility_mixins.hh"
@@ -90,6 +89,7 @@ enum class CPPTypeFlags {
   Hashable = 1 << 0,
   Printable = 1 << 1,
   EqualityComparable = 1 << 2,
+  IdentityDefaultValue = 1 << 3,
 
   BasicType = Hashable | Printable | EqualityComparable,
 };

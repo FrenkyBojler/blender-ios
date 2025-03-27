@@ -10,6 +10,8 @@
  * ID type structure, helping to factorize common operations and data for all data-block types.
  */
 
+#include <optional>
+
 #include "BLI_sys_types.h"
 
 struct AssetTypeInfo;
@@ -18,6 +20,7 @@ struct BlendDataReader;
 struct BlendLibReader;
 struct BlendWriter;
 struct ID;
+struct Library;
 struct LibraryForeachIDData;
 struct Main;
 
@@ -45,6 +48,20 @@ enum {
    * data-blocks.
    */
   IDTYPE_FLAGS_NO_MEMFILE_UNDO = 1 << 5,
+  /**
+   * Indicates that the given IDType is considered as unused.
+   *
+   * This is used for some 'root' ID types which typically do not have any actual user (WM.
+   * Scene...). It prevents e.g. their deletion through the 'Purge' operation.
+   *
+   * \note This applies to local IDs. Linked data should essentially ignore this flag. In practice,
+   * currently, only the Scene ID can be linked among the `never unused` types.
+   *
+   * \note The implementation of the expected behaviors related to this characteristic is somewhat
+   * fragile and inconsistent currently. In most case though, code is expected to ensure that such
+   * IDs have at least an 'extra user' (#ID_TAG_EXTRAUSER).
+   */
+  IDTYPE_FLAGS_NEVER_UNUSED = 1 << 6,
 };
 
 struct IDCacheKey {
@@ -63,7 +80,8 @@ bool BKE_idtype_cache_key_cmp(const void *key_a_v, const void *key_b_v);
 using IDTypeInitDataFunction = void (*)(ID *id);
 
 /** \param flag: Copying options (see BKE_lib_id.hh's LIB_ID_COPY_... flags for more). */
-using IDTypeCopyDataFunction = void (*)(Main *bmain, ID *id_dst, const ID *id_src, int flag);
+using IDTypeCopyDataFunction = void (*)(
+    Main *bmain, std::optional<Library *> owner_library, ID *id_dst, const ID *id_src, int flag);
 
 using IDTypeFreeDataFunction = void (*)(ID *id);
 
@@ -85,7 +103,15 @@ using IDTypeForeachCacheFunction = void (*)(ID *id,
 
 using IDTypeForeachPathFunction = void (*)(ID *id, BPathForeachPathData *bpath_data);
 
-using IDTypeEmbeddedOwnerPointerGetFunction = ID **(*)(ID *id);
+/**
+ * Callback returning the address of the pointer to the owner ID,
+ * for embedded (and Shape-key) ones.
+ *
+ * \param debug_relationship_assert: usually the owner <-> embedded relation pointers should be
+ * fully valid, and can be asserted on. But in some cases, they are not (fully) valid, e.g when
+ * copying an ID and all of its embedded data.
+ */
+using IDTypeEmbeddedOwnerPointerGetFunction = ID **(*)(ID *id, bool debug_relationship_assert);
 
 using IDTypeBlendWriteFunction = void (*)(BlendWriter *writer, ID *id, const void *id_address);
 using IDTypeBlendReadDataFunction = void (*)(BlendDataReader *reader, ID *id);
@@ -119,7 +145,7 @@ struct IDTypeInfo {
 
   /**
    * Define the position of this data-block type in the virtual list of all data in a Main that is
-   * returned by `set_listbasepointers()`.
+   * returned by `BKE_main_lists_get()`.
    * Very important, this has to be unique and below INDEX_ID_MAX, see DNA_ID.h.
    */
   int main_listbase_index;
@@ -127,7 +153,13 @@ struct IDTypeInfo {
   /** Memory size of a data-block of that type. */
   size_t struct_size;
 
-  /** The user visible name for this data-block, also used as default name for a new data-block. */
+  /**
+   * The user visible name for this data-block, also used as default name for a new data-block.
+   *
+   * \note: Also used for the 'filepath' ID type part when listing IDs in library blend-files
+   * (`my_blendfile.blend/<IDType.name>/my_id_name`, e.g. `boat-v001.blend/Collection/PR-boat` for
+   * the `GRPR-boat` Collection ID in `boat-v001.blend`).
+   */
   const char *name;
   /** Plural version of the user-visible name. */
   const char *name_plural;
@@ -350,9 +382,9 @@ short BKE_idtype_idcode_from_name(const char *idtype_name);
  */
 int BKE_idtype_idcode_to_index(short idcode);
 /**
- * Convert an \a idfilter into an \a idtype_index (e.g. #FILTER_ID_OB -> #INDEX_ID_OB).
+ * Convert an \a id_filter into an \a idtype_index (e.g. #FILTER_ID_OB -> #INDEX_ID_OB).
  */
-int BKE_idtype_idfilter_to_index(uint64_t idfilter);
+int BKE_idtype_idfilter_to_index(uint64_t id_filter);
 
 /**
  * Convert an \a idtype_index into an \a idcode (e.g. #INDEX_ID_OB -> #ID_OB).

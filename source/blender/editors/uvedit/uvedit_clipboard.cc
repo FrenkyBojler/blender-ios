@@ -224,7 +224,7 @@ static bool find_isomorphism(UvElementMap *dest,
   const bool found = ED_uvedit_clipboard_maximum_common_subgraph(
       graph_source, graph_dest, solution, &solution_length, r_search_abandoned);
 
-  /* Todo: Implement "Best Effort" / "Nearest Match" paste functionality here. */
+  /* TODO: Implement "Best Effort" / "Nearest Match" paste functionality here. */
 
   if (found) {
     BLI_assert(solution_length == dest->island_total_unique_uvs[dest_island_index]);
@@ -272,7 +272,7 @@ bool UV_ClipboardBuffer::find_isomorphism(UvElementMap *dest_element_map,
   return false;
 }
 
-static int uv_copy_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus uv_copy_exec(bContext *C, wmOperator * /*op*/)
 {
   UV_clipboard_free();
   uv_clipboard = new UV_ClipboardBuffer();
@@ -301,7 +301,7 @@ static int uv_copy_exec(bContext *C, wmOperator * /*op*/)
   return OPERATOR_FINISHED;
 }
 
-static int uv_paste_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus uv_paste_exec(bContext *C, wmOperator *op)
 {
   /* TODO: Restore `UvClipboard` from system clipboard. */
   if (!uv_clipboard) {

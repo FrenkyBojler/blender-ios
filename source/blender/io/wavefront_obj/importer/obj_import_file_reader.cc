@@ -8,20 +8,24 @@
 
 #include "BKE_report.hh"
 
+#include "BLI_fileops.hh"
 #include "BLI_map.hh"
-#include "BLI_math_color.h"
 #include "BLI_math_vector.h"
+#include "BLI_math_vector_types.hh"
 #include "BLI_string.h"
 #include "BLI_string_ref.hh"
 #include "BLI_vector.hh"
 
+#include "IO_string_utils.hh"
+
 #include "obj_export_mtl.hh"
 #include "obj_import_file_reader.hh"
-#include "obj_import_string_utils.hh"
 
 #include <algorithm>
 #include <charconv>
-#include <iostream>
+
+#include "CLG_log.h"
+static CLG_LogRef LOG = {"io.obj"};
 
 namespace blender::io::obj {
 
@@ -72,6 +76,7 @@ static Geometry *create_geometry(Geometry *const prev_geometry,
 
 static void geom_add_vertex(const char *p, const char *end, GlobalVertices &r_global_vertices)
 {
+  r_global_vertices.flush_mrgb_block();
   float3 vert;
   p = parse_floats(p, end, 0.0f, vert, 3);
   r_global_vertices.vertices.append(vert);
@@ -84,20 +89,14 @@ static void geom_add_vertex(const char *p, const char *end, GlobalVertices &r_gl
     if (srgb.x >= 0 && srgb.y >= 0 && srgb.z >= 0) {
       float3 linear;
       srgb_to_linearrgb_v3_v3(linear, srgb);
-
-      auto &blocks = r_global_vertices.vertex_colors;
-      /* If we don't have vertex colors yet, or the previous vertex
-       * was without color, we need to start a new vertex colors block. */
-      if (blocks.is_empty() || (blocks.last().start_vertex_index + blocks.last().colors.size() !=
-                                r_global_vertices.vertices.size() - 1))
-      {
-        GlobalVertices::VertexColorsBlock block;
-        block.start_vertex_index = r_global_vertices.vertices.size() - 1;
-        blocks.append(block);
-      }
-      blocks.last().colors.append(linear);
+      r_global_vertices.set_vertex_color(r_global_vertices.vertices.size() - 1, linear);
+    }
+    else if (srgb.x > 0) {
+      /* Treats value in srgb.x as weight. */
+      r_global_vertices.set_vertex_weight(r_global_vertices.vertices.size() - 1, srgb.x);
     }
   }
+  UNUSED_VARS(p);
 }
 
 static void geom_add_mrgb_colors(const char *p, const char *end, GlobalVertices &r_global_vertices)
@@ -121,20 +120,7 @@ static void geom_add_mrgb_colors(const char *p, const char *end, GlobalVertices 
     float linear[4];
     srgb_to_linearrgb_uchar4(linear, srgb);
 
-    auto &blocks = r_global_vertices.vertex_colors;
-    /* If we don't have vertex colors yet, or the previous vertex
-     * was without color, we need to start a new vertex colors block. */
-    if (blocks.is_empty() || (blocks.last().start_vertex_index + blocks.last().colors.size() !=
-                              r_global_vertices.vertices.size()))
-    {
-      GlobalVertices::VertexColorsBlock block;
-      block.start_vertex_index = r_global_vertices.vertices.size();
-      blocks.append(block);
-    }
-    blocks.last().colors.append({linear[0], linear[1], linear[2]});
-    /* MRGB colors are specified after vertex positions; each new color
-     * "pushes" the vertex colors block further back into which vertices it is for. */
-    blocks.last().start_vertex_index--;
+    r_global_vertices.mrgb_block.append(float3(linear[0], linear[1], linear[2]));
 
     p += mrgb_length;
   }
@@ -173,7 +159,7 @@ static const char *parse_vertex_index(const char *p, const char *end, size_t n_e
   if (r_index != INT32_MAX) {
     r_index += r_index < 0 ? n_elems : -1;
     if (r_index < 0 || r_index >= n_elems) {
-      fprintf(stderr, "Invalid vertex index %i (valid range [0, %zu))\n", r_index, n_elems);
+      CLOG_WARN(&LOG, "Invalid vertex index %i (valid range [0, %zu))", r_index, n_elems);
       r_index = INT32_MAX;
     }
   }
@@ -199,7 +185,7 @@ static void geom_add_polyline(Geometry *geom,
   p = parse_vertex_index(p, end, r_global_vertices.vertices.size(), last_vertex_index);
 
   if (last_vertex_index == INT32_MAX) {
-    fprintf(stderr, "Skipping invalid OBJ polyline.\n");
+    CLOG_WARN(&LOG, "Skipping invalid OBJ polyline.");
     return;
   }
   geom->track_vertex_index(last_vertex_index);
@@ -273,10 +259,10 @@ static void geom_add_polygon(Geometry *geom,
     /* Always keep stored indices non-negative and zero-based. */
     corner.vert_index += corner.vert_index < 0 ? global_vertices.vertices.size() : -1;
     if (corner.vert_index < 0 || corner.vert_index >= global_vertices.vertices.size()) {
-      fprintf(stderr,
-              "Invalid vertex index %i (valid range [0, %zu)), ignoring face\n",
-              corner.vert_index,
-              size_t(global_vertices.vertices.size()));
+      CLOG_WARN(&LOG,
+                "Invalid vertex index %i (valid range [0, %zu)), ignoring face",
+                corner.vert_index,
+                size_t(global_vertices.vertices.size()));
       face_valid = false;
     }
     else {
@@ -286,10 +272,10 @@ static void geom_add_polygon(Geometry *geom,
     if (got_uv && !global_vertices.uv_vertices.is_empty()) {
       corner.uv_vert_index += corner.uv_vert_index < 0 ? global_vertices.uv_vertices.size() : -1;
       if (corner.uv_vert_index < 0 || corner.uv_vert_index >= global_vertices.uv_vertices.size()) {
-        fprintf(stderr,
-                "Invalid UV index %i (valid range [0, %zu)), ignoring face\n",
-                corner.uv_vert_index,
-                size_t(global_vertices.uv_vertices.size()));
+        CLOG_WARN(&LOG,
+                  "Invalid UV index %i (valid range [0, %zu)), ignoring face",
+                  corner.uv_vert_index,
+                  size_t(global_vertices.uv_vertices.size()));
         face_valid = false;
       }
     }
@@ -303,10 +289,10 @@ static void geom_add_polygon(Geometry *geom,
       if (corner.vertex_normal_index < 0 ||
           corner.vertex_normal_index >= global_vertices.vert_normals.size())
       {
-        fprintf(stderr,
-                "Invalid normal index %i (valid range [0, %zu)), ignoring face\n",
-                corner.vertex_normal_index,
-                size_t(global_vertices.vert_normals.size()));
+        CLOG_WARN(&LOG,
+                  "Invalid normal index %i (valid range [0, %zu)), ignoring face",
+                  corner.vertex_normal_index,
+                  size_t(global_vertices.vert_normals.size()));
         face_valid = false;
       }
     }
@@ -337,8 +323,8 @@ static Geometry *geom_set_curve_type(Geometry *geom,
                                      Vector<std::unique_ptr<Geometry>> &r_all_geometries)
 {
   p = drop_whitespace(p, end);
-  if (!StringRef(p, end).startswith("bspline")) {
-    std::cerr << "Curve type not supported: '" << std::string(p, end) << "'" << std::endl;
+  if (!StringRef(p, end).startswith("bspline") && !StringRef(p, end).startswith("rat bspline")) {
+    CLOG_WARN(&LOG, "Curve type not supported: '%s'", std::string(p, end).c_str());
     return geom;
   }
   geom = create_geometry(geom, GEOM_CURVE, group_name, r_all_geometries);
@@ -356,9 +342,8 @@ static void geom_add_curve_vertex_indices(Geometry *geom,
                                           const char *end,
                                           const GlobalVertices &global_vertices)
 {
-  /* Curve lines always have "0.0" and "1.0", skip over them. */
-  float dummy[2];
-  p = parse_floats(p, end, 0, dummy, 2);
+  /* Parse curve parameter range. */
+  p = parse_floats(p, end, 0, geom->nurbs_element_.range, 2);
   /* Parse indices. */
   while (p < end) {
     int index;
@@ -376,11 +361,11 @@ static void geom_add_curve_parameters(Geometry *geom, const char *p, const char 
 {
   p = drop_whitespace(p, end);
   if (p == end) {
-    std::cerr << "Invalid OBJ curve parm line" << std::endl;
+    CLOG_ERROR(&LOG, "Invalid OBJ curve parm line");
     return;
   }
   if (*p != 'u') {
-    std::cerr << "OBJ curve surfaces are not supported: '" << *p << "'" << std::endl;
+    CLOG_WARN(&LOG, "OBJ curve surfaces are not supported, found '%c'", *p);
     return;
   }
   ++p;
@@ -392,7 +377,7 @@ static void geom_add_curve_parameters(Geometry *geom, const char *p, const char 
       geom->nurbs_element_.parm.append(val);
     }
     else {
-      std::cerr << "OBJ curve parm line has invalid number" << std::endl;
+      CLOG_ERROR(&LOG, "OBJ curve parm line has invalid number");
       return;
     }
   }
@@ -448,7 +433,7 @@ OBJParser::OBJParser(const OBJImportParams &import_params, size_t read_buffer_si
 {
   obj_file_ = BLI_fopen(import_params_.filepath, "rb");
   if (!obj_file_) {
-    fprintf(stderr, "Cannot read from OBJ file:'%s'.\n", import_params_.filepath);
+    CLOG_ERROR(&LOG, "Cannot read from OBJ file:'%s'.\n", import_params_.filepath);
     BKE_reportf(import_params_.reports,
                 RPT_ERROR,
                 "OBJ Import: Cannot open file '%s'",
@@ -562,10 +547,10 @@ void OBJParser::parse(Vector<std::unique_ptr<Geometry>> &r_all_geometries,
     }
     if (buffer[last_nl] != '\n') {
       /* Whole line did not fit into our read buffer. Warn and exit. */
-      fprintf(stderr,
-              "OBJ file contains a line #%zu that is too long (max. length %zu)\n",
-              line_number,
-              read_buffer_size_);
+      CLOG_ERROR(&LOG,
+                 "OBJ file contains a line #%zu that is too long (max. length %zu)",
+                 line_number,
+                 read_buffer_size_);
       break;
     }
     ++last_nl;
@@ -690,7 +675,7 @@ void OBJParser::parse(Vector<std::unique_ptr<Geometry>> &r_all_geometries,
         /* End of curve definition, nothing else to do. */
       }
       else {
-        std::cout << "OBJ element not recognized: '" << std::string(p, end) << "'" << std::endl;
+        CLOG_WARN(&LOG, "OBJ element not recognized: '%s'", std::string(p, end).c_str());
       }
     }
 
@@ -701,6 +686,7 @@ void OBJParser::parse(Vector<std::unique_ptr<Geometry>> &r_all_geometries,
     buffer_offset = left_size;
   }
 
+  r_global_vertices.flush_mrgb_block();
   use_all_vertices_if_no_faces(curr_geom, r_all_geometries, r_global_vertices);
   add_default_mtl_library();
 }
@@ -778,8 +764,9 @@ static bool parse_texture_option(const char *&p,
     tex_map.projection_type = SHD_PROJ_SPHERE;
     const StringRef line = StringRef(p, end);
     if (!line.startswith("sphere")) {
-      std::cerr << "OBJ import: only sphere MTL projection type is supported: '" << line << "'"
-                << std::endl;
+      CLOG_WARN(&LOG,
+                "Only the 'sphere' MTL projection type is supported, found: '%s'",
+                std::string(line).c_str());
     }
     p = drop_non_whitespace(p, end);
     return true;
@@ -814,7 +801,7 @@ static void parse_texture_map(const char *p,
   MTLTexMapType key = mtl_line_start_to_texture_type(p, end);
   if (key == MTLTexMapType::Count) {
     /* No supported texture map found. */
-    std::cerr << "OBJ import: MTL texture map type not supported: '" << line << "'" << std::endl;
+    CLOG_WARN(&LOG, "MTL texture map type not supported: '%s'", std::string(line).c_str());
     return;
   }
   MTLTexMap &tex_map = material->tex_map_of_type(key);
@@ -847,8 +834,8 @@ void OBJParser::add_mtl_library(StringRef path)
 
 void OBJParser::add_default_mtl_library()
 {
-  /* Add any existing .mtl file that's with the same base name as the .obj file
-   * into candidate .mtl files to search through. This is not technically following the
+  /* Add any existing `.mtl` file that's with the same base name as the `.obj` file
+   * into candidate `.mtl` files to search through. This is not technically following the
    * spec, but the old python importer was doing it, and there are user files out there
    * that contain "mtllib bar.mtl" for a foo.obj, and depend on finding materials
    * from foo.mtl (see #97757). */
@@ -875,7 +862,7 @@ void MTLParser::parse_and_store(Map<string, std::unique_ptr<MTLMaterial>> &r_mat
   size_t buffer_len;
   void *buffer = BLI_file_read_text_as_mem(mtl_file_path_, 0, &buffer_len);
   if (buffer == nullptr) {
-    fprintf(stderr, "OBJ import: cannot read from MTL file: '%s'\n", mtl_file_path_);
+    CLOG_ERROR(&LOG, "OBJ import: cannot read from MTL file: '%s'", mtl_file_path_);
     return;
   }
 

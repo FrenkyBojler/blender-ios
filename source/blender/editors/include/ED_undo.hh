@@ -8,14 +8,16 @@
 
 #pragma once
 
-#include "BLI_compiler_attrs.h"
 #include "BLI_sys_types.h"
+#include "BLI_vector.hh"
 
 struct Base;
 struct CLG_LogRef;
+struct ID;
+struct MemFile;
+struct PointerRNA;
 struct Object;
 struct Scene;
-struct MemFile;
 struct UndoStack;
 struct ViewLayer;
 struct bContext;
@@ -46,8 +48,10 @@ void ED_OT_undo_history(wmOperatorType *ot);
 
 /**
  * UI callbacks should call this rather than calling WM_operator_repeat() themselves.
+ *
+ * \return true when repeat succeeded.
  */
-int ED_undo_operator_repeat(bContext *C, wmOperator *op);
+bool ED_undo_operator_repeat(bContext *C, wmOperator *op);
 /**
  * Convenience since UI callbacks use this mostly.
  */
@@ -71,7 +75,7 @@ bool ED_undo_is_memfile_compatible(const bContext *C);
  * For example, changing a brush property isn't stored by sculpt-mode undo steps.
  * This workaround is needed until the limitation is removed, see: #61948.
  */
-bool ED_undo_is_legacy_compatible_for_property(bContext *C, ID *id);
+bool ED_undo_is_legacy_compatible_for_property(bContext *C, ID *id, PointerRNA &ptr);
 
 /**
  * This function addresses the problem of restoring undo steps when multiple windows are used.
@@ -101,12 +105,10 @@ void ED_undo_object_editmode_restore_helper(Scene *scene,
                                             uint object_array_len,
                                             uint object_array_stride);
 
-Object **ED_undo_editmode_objects_from_view_layer(const Scene *scene,
-                                                  ViewLayer *view_layer,
-                                                  uint *r_len);
-Base **ED_undo_editmode_bases_from_view_layer(const Scene *scene,
-                                              ViewLayer *view_layer,
-                                              uint *r_len);
+blender::Vector<Object *> ED_undo_editmode_objects_from_view_layer(const Scene *scene,
+                                                                   ViewLayer *view_layer);
+blender::Vector<Base *> ED_undo_editmode_bases_from_view_layer(const Scene *scene,
+                                                               ViewLayer *view_layer);
 
 /**
  * Ideally we won't access the stack directly,

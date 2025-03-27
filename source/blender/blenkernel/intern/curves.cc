@@ -6,8 +6,8 @@
  * \ingroup bke
  */
 
-#include <cmath>
 #include <cstring>
+#include <optional>
 
 #include "MEM_guardedalloc.h"
 
@@ -17,7 +17,6 @@
 #include "DNA_object_types.h"
 
 #include "BLI_index_range.hh"
-#include "BLI_math_base.h"
 #include "BLI_math_matrix.hh"
 #include "BLI_rand.hh"
 #include "BLI_span.hh"
@@ -61,7 +60,11 @@ static void curves_init_data(ID *id)
   new (&curves->geometry) blender::bke::CurvesGeometry();
 }
 
-static void curves_copy_data(Main * /*bmain*/, ID *id_dst, const ID *id_src, const int /*flag*/)
+static void curves_copy_data(Main * /*bmain*/,
+                             std::optional<Library *> /*owner_library*/,
+                             ID *id_dst,
+                             const ID *id_src,
+                             const int /*flag*/)
 {
   Curves *curves_dst = (Curves *)id_dst;
   const Curves *curves_src = (const Curves *)id_src;
@@ -102,6 +105,9 @@ static void curves_blend_write(BlendWriter *writer, ID *id, const void *id_addre
 {
   Curves *curves = (Curves *)id;
 
+  /* Only for forward compatibility. */
+  curves->attributes_active_index_legacy = curves->geometry.attributes_active_index;
+
   blender::bke::CurvesGeometry::BlendWriteData write_data =
       curves->geometry.wrap().blend_write_prepare();
 
@@ -124,10 +130,10 @@ static void curves_blend_read_data(BlendDataReader *reader, ID *id)
   /* Geometry */
   curves->geometry.wrap().blend_read(*reader);
 
-  BLO_read_data_address(reader, &curves->surface_uv_map);
+  BLO_read_string(reader, &curves->surface_uv_map);
 
   /* Materials */
-  BLO_read_pointer_array(reader, (void **)&curves->mat);
+  BLO_read_pointer_array(reader, curves->totcol, (void **)&curves->mat);
 }
 
 IDTypeInfo IDType_ID_CV = {
@@ -160,16 +166,16 @@ IDTypeInfo IDType_ID_CV = {
     /*lib_override_apply_post*/ nullptr,
 };
 
-void *BKE_curves_add(Main *bmain, const char *name)
+Curves *BKE_curves_add(Main *bmain, const char *name)
 {
   Curves *curves = static_cast<Curves *>(BKE_id_new(bmain, ID_CV, name));
 
   return curves;
 }
 
-bool BKE_curves_attribute_required(const Curves * /*curves*/, const char *name)
+bool BKE_curves_attribute_required(const Curves * /*curves*/, const blender::StringRef name)
 {
-  return STREQ(name, ATTR_POSITION);
+  return name == ATTR_POSITION;
 }
 
 Curves *BKE_curves_copy_for_eval(const Curves *curves_src)
@@ -187,7 +193,7 @@ static void curves_evaluate_modifiers(Depsgraph *depsgraph,
   const bool use_render = (DEG_get_mode(depsgraph) == DAG_EVAL_RENDER);
   int required_mode = use_render ? eModifierMode_Render : eModifierMode_Realtime;
   if (BKE_object_is_in_editmode(object)) {
-    required_mode = (ModifierMode)(int(required_mode) | eModifierMode_Editmode);
+    required_mode = (ModifierMode)(required_mode | eModifierMode_Editmode);
   }
   ModifierApplyFlag apply_flag = use_render ? MOD_APPLY_RENDER : MOD_APPLY_USECACHE;
   const ModifierEvalContext mectx = {depsgraph, object, apply_flag};
@@ -225,7 +231,7 @@ void BKE_curves_data_update(Depsgraph *depsgraph, Scene *scene, Object *object)
   /* Evaluate modifiers. */
   Curves *curves = static_cast<Curves *>(object->data);
   GeometrySet geometry_set = GeometrySet::from_curves(curves, GeometryOwnershipType::ReadOnly);
-  if (object->mode == OB_MODE_SCULPT_CURVES) {
+  if (ELEM(object->mode, OB_MODE_EDIT, OB_MODE_SCULPT_CURVES)) {
     /* Try to propagate deformation data through modifier evaluation, so that sculpt mode can work
      * on evaluated curves. */
     GeometryComponentEditData &edit_component =
@@ -297,9 +303,8 @@ Curves *curves_new_nomain(CurvesGeometry curves)
 void curves_copy_parameters(const Curves &src, Curves &dst)
 {
   dst.flag = src.flag;
-  dst.attributes_active_index = src.attributes_active_index;
   MEM_SAFE_FREE(dst.mat);
-  dst.mat = static_cast<Material **>(MEM_malloc_arrayN(src.totcol, sizeof(Material *), __func__));
+  dst.mat = MEM_malloc_arrayN<Material *>(size_t(src.totcol), __func__);
   dst.totcol = src.totcol;
   MutableSpan(dst.mat, dst.totcol).copy_from(Span(src.mat, src.totcol));
   dst.symmetry = src.symmetry;
@@ -309,6 +314,7 @@ void curves_copy_parameters(const Curves &src, Curves &dst)
   if (src.surface_uv_map != nullptr) {
     dst.surface_uv_map = BLI_strdup(src.surface_uv_map);
   }
+  dst.surface_collision_distance = src.surface_collision_distance;
 }
 
 CurvesSurfaceTransforms::CurvesSurfaceTransforms(const Object &curves_ob, const Object *surface_ob)
@@ -328,8 +334,8 @@ CurvesSurfaceTransforms::CurvesSurfaceTransforms(const Object &curves_ob, const 
 bool CurvesEditHints::is_valid() const
 {
   const int point_num = this->curves_id_orig.geometry.point_num;
-  if (this->positions.has_value()) {
-    if (this->positions->size() != point_num) {
+  if (this->positions().has_value()) {
+    if (this->positions()->size() != point_num) {
       return false;
     }
   }
@@ -339,6 +345,35 @@ bool CurvesEditHints::is_valid() const
     }
   }
   return true;
+}
+
+std::optional<Span<float3>> CurvesEditHints::positions() const
+{
+  if (!this->positions_data.has_value()) {
+    return std::nullopt;
+  }
+  const int points_num = this->curves_id_orig.geometry.wrap().points_num();
+  return Span(static_cast<const float3 *>(this->positions_data.data), points_num);
+}
+
+std::optional<MutableSpan<float3>> CurvesEditHints::positions_for_write()
+{
+  if (!this->positions_data.has_value()) {
+    return std::nullopt;
+  }
+
+  const int points_num = this->curves_id_orig.geometry.wrap().points_num();
+  ImplicitSharingPtrAndData &data = this->positions_data;
+  if (data.sharing_info->is_mutable()) {
+    data.sharing_info->tag_ensured_mutable();
+  }
+  else {
+    auto *new_sharing_info = new ImplicitSharedValue<Array<float3>>(*this->positions());
+    data.sharing_info = ImplicitSharingPtr<>(new_sharing_info);
+    data.data = new_sharing_info->data.data();
+  }
+
+  return MutableSpan(const_cast<float3 *>(static_cast<const float3 *>(data.data)), points_num);
 }
 
 void curves_normals_point_domain_calc(const CurvesGeometry &curves, MutableSpan<float3> normals)

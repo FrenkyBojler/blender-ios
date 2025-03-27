@@ -8,6 +8,7 @@
  * 3D View checks and manipulation (no operators).
  */
 
+#include <algorithm>
 #include <cfloat>
 #include <cmath>
 #include <cstdio>
@@ -19,18 +20,24 @@
 #include "DNA_scene_types.h"
 #include "DNA_world_types.h"
 
+#include "RNA_path.hh"
+
 #include "MEM_guardedalloc.h"
 
 #include "BLI_array_utils.h"
 #include "BLI_bitmap_draw_2d.h"
+#include "BLI_listbase.h"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
+#include "BLI_rect.h"
 #include "BLI_utildefines.h"
+#include "BLI_vector.hh"
 
 #include "BKE_camera.h"
 #include "BKE_context.hh"
+#include "BKE_library.hh"
 #include "BKE_object.hh"
 #include "BKE_scene.hh"
 #include "BKE_screen.hh"
@@ -38,7 +45,7 @@
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_query.hh"
 
-#include "GPU_matrix.h"
+#include "GPU_matrix.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -49,10 +56,11 @@
 #include "ED_view3d.hh"
 
 #include "ANIM_keyframing.hh"
+#include "ANIM_keyingsets.hh"
 
 #include "UI_resources.hh"
 
-#include "view3d_intern.h" /* own include */
+#include "view3d_intern.hh" /* own include */
 
 /* -------------------------------------------------------------------- */
 /** \name View Data Access Utilities
@@ -72,6 +80,42 @@ void ED_view3d_background_color_get(const Scene *scene, const View3D *v3d, float
   }
 
   UI_GetThemeColor3fv(TH_BACK, r_color);
+}
+
+void ED_view3d_text_colors_get(const Scene *scene,
+                               const View3D *v3d,
+                               float r_text_color[4],
+                               float r_shadow_color[4])
+{
+  /* Text fully opaque, shadow slightly transparent. */
+  r_text_color[3] = 1.0f;
+  r_shadow_color[3] = 0.8f;
+
+  /* Default text color from TH_TEXT_HI. If it is too close
+   * to the background color, darken or lighten it. */
+  UI_GetThemeColor3fv(TH_TEXT_HI, r_text_color);
+  float text_lightness = srgb_to_grayscale(r_text_color);
+  float bg_color[3];
+  ED_view3d_background_color_get(scene, v3d, bg_color);
+  const float distance = len_v3v3(r_text_color, bg_color);
+  if (distance < 0.5f) {
+    if (text_lightness > 0.5f) {
+      mul_v3_fl(r_text_color, 0.33f);
+    }
+    else {
+      mul_v3_fl(r_text_color, 3.0f);
+    }
+    clamp_v3(r_text_color, 0.0f, 1.0f);
+  }
+
+  /* Shadow color is black or white depending on final text lightness. */
+  text_lightness = srgb_to_grayscale(r_text_color);
+  if (text_lightness > 0.4f) {
+    copy_v3_fl(r_shadow_color, 0.0f);
+  }
+  else {
+    copy_v3_fl(r_shadow_color, 1.0f);
+  }
 }
 
 bool ED_view3d_has_workbench_in_texture_color(const Scene *scene,
@@ -113,9 +157,9 @@ void ED_view3d_dist_range_get(const View3D *v3d, float r_dist_range[2])
 bool ED_view3d_clip_range_get(const Depsgraph *depsgraph,
                               const View3D *v3d,
                               const RegionView3D *rv3d,
-                              float *r_clipsta,
-                              float *r_clipend,
-                              const bool use_ortho_factor)
+                              const bool use_ortho_factor,
+                              float *r_clip_start,
+                              float *r_clip_end)
 {
   CameraParams params;
 
@@ -128,17 +172,17 @@ bool ED_view3d_clip_range_get(const Depsgraph *depsgraph,
     params.clip_end *= fac;
   }
 
-  if (r_clipsta) {
-    *r_clipsta = params.clip_start;
+  if (r_clip_start) {
+    *r_clip_start = params.clip_start;
   }
-  if (r_clipend) {
-    *r_clipend = params.clip_end;
+  if (r_clip_end) {
+    *r_clip_end = params.clip_end;
   }
 
   return params.is_ortho;
 }
 
-bool ED_view3d_viewplane_get(Depsgraph *depsgraph,
+bool ED_view3d_viewplane_get(const Depsgraph *depsgraph,
                              const View3D *v3d,
                              const RegionView3D *rv3d,
                              int winx,
@@ -176,19 +220,18 @@ bool ED_view3d_viewplane_get(Depsgraph *depsgraph,
 /** \name View State/Context Utilities
  * \{ */
 
-void view3d_operator_needs_opengl(const bContext *C)
+void view3d_operator_needs_gpu(const bContext *C)
 {
-  wmWindow *win = CTX_wm_window(C);
   ARegion *region = CTX_wm_region(C);
 
-  view3d_region_operator_needs_opengl(win, region);
+  view3d_region_operator_needs_gpu(region);
 }
 
-void view3d_region_operator_needs_opengl(wmWindow * /*win*/, ARegion *region)
+void view3d_region_operator_needs_gpu(ARegion *region)
 {
   /* for debugging purpose, context should always be OK */
   if ((region == nullptr) || (region->regiontype != RGN_TYPE_WINDOW)) {
-    printf("view3d_region_operator_needs_opengl error, wrong region\n");
+    printf("view3d_region_operator_needs_gpu error, wrong region\n");
   }
   else {
     RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
@@ -474,6 +517,7 @@ void ED_view3d_persp_switch_from_camera(const Depsgraph *depsgraph,
     rv3d->dist = ED_view3d_offset_distance(
         ob_camera_eval->object_to_world().ptr(), rv3d->ofs, VIEW3D_DIST_FALLBACK);
     ED_view3d_from_object(ob_camera_eval, rv3d->ofs, rv3d->viewquat, &rv3d->dist, nullptr);
+    WM_main_add_notifier(NC_SPACE | ND_SPACE_VIEW3D, v3d);
   }
 
   if (!ED_view3d_camera_lock_check(v3d, rv3d)) {
@@ -550,7 +594,7 @@ bool ED_view3d_camera_view_pan(ARegion *region, const float event_ofs[2])
 
 bool ED_view3d_camera_lock_check(const View3D *v3d, const RegionView3D *rv3d)
 {
-  return ((v3d->camera) && !ID_IS_LINKED(v3d->camera) && (v3d->flag2 & V3D_LOCK_CAMERA) &&
+  return ((v3d->camera) && ID_IS_EDITABLE(v3d->camera) && (v3d->flag2 & V3D_LOCK_CAMERA) &&
           (rv3d->persp == RV3D_CAMOB));
 }
 
@@ -637,29 +681,45 @@ bool ED_view3d_camera_lock_sync(const Depsgraph *depsgraph, View3D *v3d, RegionV
 bool ED_view3d_camera_autokey(
     const Scene *scene, ID *id_key, bContext *C, const bool do_rotate, const bool do_translate)
 {
-  if (blender::animrig::autokeyframe_cfra_can_key(scene, id_key)) {
-    const float cfra = float(scene->r.cfra);
-    blender::Vector<PointerRNA> sources;
-    /* add data-source override for the camera object */
-    ANIM_relative_keyingset_add_source(sources, id_key);
+  BLI_assert(GS(id_key->name) == ID_OB);
+  using namespace blender;
 
-    /* insert keyframes
-     * 1) on the first frame
-     * 2) on each subsequent frame
-     *    TODO: need to check in future that frame changed before doing this
-     */
-    if (do_rotate) {
-      KeyingSet *ks = ANIM_get_keyingset_for_autokeying(scene, ANIM_KS_ROTATION_ID);
-      ANIM_apply_keyingset(C, &sources, ks, MODIFYKEY_MODE_INSERT, cfra);
-    }
-    if (do_translate) {
-      KeyingSet *ks = ANIM_get_keyingset_for_autokeying(scene, ANIM_KS_LOCATION_ID);
-      ANIM_apply_keyingset(C, &sources, ks, MODIFYKEY_MODE_INSERT, cfra);
-    }
-
-    return true;
+  /* While `autokeyframe_object` does already call `autokeyframe_cfra_can_key` we need this here
+   * because at the time of writing this it returns void. Once the keying result is returned, like
+   * implemented for `blender::animrig::insert_keyframes`, this `if` can be removed. */
+  if (!animrig::autokeyframe_cfra_can_key(scene, id_key)) {
+    return false;
   }
-  return false;
+
+  Object *camera_object = reinterpret_cast<Object *>(id_key);
+
+  Vector<RNAPath> rna_paths;
+
+  if (do_rotate) {
+    switch (camera_object->rotmode) {
+      case ROT_MODE_QUAT:
+        rna_paths.append({"rotation_quaternion"});
+        break;
+
+      case ROT_MODE_AXISANGLE:
+        rna_paths.append({"rotation_axis_angle"});
+        break;
+
+      case ROT_MODE_EUL:
+        rna_paths.append({"rotation_euler"});
+        break;
+
+      default:
+        break;
+    }
+  }
+  if (do_translate) {
+    rna_paths.append({"location"});
+  }
+
+  animrig::autokeyframe_object(C, scene, camera_object, rna_paths);
+  WM_main_add_notifier(NC_ANIMATION | ND_KEYFRAME | NA_ADDED, nullptr);
+  return true;
 }
 
 bool ED_view3d_camera_lock_autokey(
@@ -983,9 +1043,9 @@ void ED_view3d_quadview_update(ScrArea *area, ARegion *region, bool do_clip)
   /* ensure locked regions have an axis, locked user views don't make much sense */
   if (viewlock & RV3D_LOCK_ROTATION) {
     int index_qsplit = 0;
-    LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
-      if (region->alignment == RGN_ALIGN_QSPLIT) {
-        rv3d = static_cast<RegionView3D *>(region->regiondata);
+    LISTBASE_FOREACH (ARegion *, region_iter, &area->regionbase) {
+      if (region_iter->alignment == RGN_ALIGN_QSPLIT) {
+        rv3d = static_cast<RegionView3D *>(region_iter->regiondata);
         if (rv3d->viewlock) {
           if (!RV3D_VIEW_IS_AXIS(rv3d->view) || (rv3d->view_axis_roll != RV3D_VIEW_AXIS_ROLL_0)) {
             rv3d->view = ED_view3d_lock_view_from_index(index_qsplit);
@@ -1101,20 +1161,15 @@ static float view_autodist_depth_margin(ARegion *region, const int mval[2], int 
   return depth_close;
 }
 
-bool ED_view3d_autodist(Depsgraph *depsgraph,
-                        ARegion *region,
+bool ED_view3d_autodist(ARegion *region,
                         View3D *v3d,
                         const int mval[2],
                         float mouse_worldloc[3],
-                        const bool /*alphaoverride*/,
                         const float fallback_depth_pt[3])
 {
   float depth_close;
   int margin_arr[] = {0, 2, 4};
   bool depth_ok = false;
-
-  /* Get Z Depths, needed for perspective, nice for ortho */
-  ED_view3d_depth_override(depsgraph, region, v3d, nullptr, V3D_DEPTH_NO_GPENCIL, nullptr);
 
   /* Attempt with low margin's first */
   int i = 0;
@@ -1184,7 +1239,7 @@ static bool depth_segment_cb(int x, int y, void *user_data)
 }
 
 bool ED_view3d_depth_read_cached_seg(
-    const ViewDepths *vd, const int mval_sta[2], const int mval_end[2], int margin, float *depth)
+    const ViewDepths *vd, const int mval_sta[2], const int mval_end[2], int margin, float *r_depth)
 {
   struct {
     const ViewDepths *vd;
@@ -1203,9 +1258,9 @@ bool ED_view3d_depth_read_cached_seg(
 
   BLI_bitmap_draw_2d_line_v2v2i(p1, p2, depth_segment_cb, &data);
 
-  *depth = data.depth;
+  *r_depth = data.depth;
 
-  return (*depth != 1.0f);
+  return (*r_depth != 1.0f);
 }
 
 /** \} */
@@ -1577,7 +1632,8 @@ void ED_view3d_to_m4(float mat[4][4], const float ofs[3], const float quat[4], c
   sub_v3_v3v3(mat[3], dvec, ofs);
 }
 
-void ED_view3d_from_object(const Object *ob, float ofs[3], float quat[4], float *dist, float *lens)
+void ED_view3d_from_object(
+    const Object *ob, float ofs[3], float quat[4], const float *dist, float *lens)
 {
   ED_view3d_from_m4(ob->object_to_world().ptr(), ofs, quat, dist);
 
@@ -1697,9 +1753,7 @@ static bool depth_read_test_fn(const void *value, void *userdata)
 {
   ReadData *data = static_cast<ReadData *>(userdata);
   float depth = *(float *)value;
-  if (depth < data->r_depth) {
-    data->r_depth = depth;
-  }
+  data->r_depth = std::min(depth, data->r_depth);
 
   if ((++data->count) >= data->count_max) {
     /* Outside the margin. */
@@ -1713,13 +1767,13 @@ bool ED_view3d_depth_read_cached(const ViewDepths *vd,
                                  int margin,
                                  float *r_depth)
 {
-  BLI_assert(1.0 <= vd->depth_range[1]);
   *r_depth = 1.0f;
 
   if (!vd || !vd->depths) {
     return false;
   }
 
+  BLI_assert(1.0 <= vd->depth_range[1]);
   int x = mval[0];
   int y = mval[1];
   if (x < 0 || y < 0 || x >= vd->w || y >= vd->h) {

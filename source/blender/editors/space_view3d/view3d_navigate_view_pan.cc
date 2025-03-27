@@ -6,14 +6,12 @@
  * \ingroup spview3d
  */
 
-#include "MEM_guardedalloc.h"
-
 #include "WM_api.hh"
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
 
-#include "view3d_intern.h"
+#include "view3d_intern.hh"
 
 #include "view3d_navigate.hh" /* own include */
 
@@ -38,10 +36,10 @@ static const EnumPropertyItem prop_view_pan_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-static int viewpan_invoke_impl(bContext * /*C*/,
-                               ViewOpsData *vod,
-                               const wmEvent * /*event*/,
-                               PointerRNA *ptr)
+static wmOperatorStatus viewpan_invoke_impl(bContext * /*C*/,
+                                            ViewOpsData *vod,
+                                            const wmEvent * /*event*/,
+                                            PointerRNA *ptr)
 {
   int x = 0, y = 0;
   int pandir = RNA_enum_get(ptr, "type");
@@ -64,7 +62,7 @@ static int viewpan_invoke_impl(bContext * /*C*/,
   return OPERATOR_FINISHED;
 }
 
-static int viewpan_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus viewpan_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   return view3d_navigate_invoke_impl(C, op, event, &ViewOpsType_pan);
 }

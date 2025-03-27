@@ -11,9 +11,8 @@
 
 #include "BLI_listbase.h"
 #include "BLI_string.h"
-#include "BLI_utildefines.h"
 
-#include "BKE_idprop.h"
+#include "BKE_idprop.hh"
 
 #include "DNA_ID.h" /* ID property definitions. */
 
@@ -27,8 +26,7 @@ void IMB_metadata_ensure(IDProperty **metadata)
     return;
   }
 
-  IDPropertyTemplate val = {0};
-  *metadata = IDP_New(IDP_GROUP, &val, "metadata");
+  *metadata = blender::bke::idprop::create_group("metadata").release();
 }
 
 void IMB_metadata_free(IDProperty *metadata)
@@ -40,18 +38,16 @@ void IMB_metadata_free(IDProperty *metadata)
   IDP_FreeProperty(metadata);
 }
 
-bool IMB_metadata_get_field(IDProperty *metadata,
+bool IMB_metadata_get_field(const IDProperty *metadata,
                             const char *key,
                             char *value,
                             const size_t value_maxncpy)
 {
-  IDProperty *prop;
-
   if (metadata == nullptr) {
     return false;
   }
 
-  prop = IDP_GetPropertyFromGroup(metadata, key);
+  IDProperty *prop = IDP_GetPropertyFromGroup(metadata, key);
 
   if (prop && prop->type == IDP_STRING) {
     BLI_strncpy(value, IDP_String(prop), value_maxncpy);
@@ -82,8 +78,8 @@ void IMB_metadata_set_field(IDProperty *metadata, const char *key, const char *v
   if (prop) {
     IDP_AssignString(prop, value);
   }
-  else if (prop == nullptr) {
-    prop = IDP_NewString(value, key);
+  else {
+    prop = blender::bke::idprop::create(key, value).release();
     IDP_AddToGroup(metadata, prop);
   }
 }

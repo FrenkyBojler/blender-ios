@@ -6,8 +6,6 @@
  * \ingroup modifiers
  */
 
-#include <cstdio>
-
 #include "BLI_utildefines.h"
 
 #include "BLI_array.hh"
@@ -29,9 +27,8 @@
 #include "BKE_global.hh" /* only to check G.debug */
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
-#include "BKE_material.h"
+#include "BKE_material.hh"
 #include "BKE_mesh.hh"
-#include "BKE_mesh_boolean_convert.hh"
 #include "BKE_mesh_wrapper.hh"
 #include "BKE_modifier.hh"
 
@@ -39,12 +36,13 @@
 #include "UI_resources.hh"
 
 #include "RNA_access.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "MOD_ui_common.hh"
 
 #include "MEM_guardedalloc.h"
 
+#include "GEO_mesh_boolean.hh"
 #include "GEO_randomize.hh"
 
 #include "bmesh.hh"
@@ -84,7 +82,7 @@ static bool is_disabled(const Scene * /*scene*/, ModifierData *md, bool /*use_re
   }
   if (bmd->flag & eBooleanModifierFlag_Collection) {
     /* The Exact solver tolerates an empty collection. */
-    return !col && bmd->solver != eBooleanModifierSolver_Exact;
+    return !col && bmd->solver != eBooleanModifierSolver_Mesh_Arr;
   }
   return false;
 }
@@ -176,7 +174,7 @@ static bool BMD_error_messages(const Object *ob, ModifierData *md)
   bool error_returns_result = false;
 
   const bool operand_collection = (bmd->flag & eBooleanModifierFlag_Collection) != 0;
-  const bool use_exact = bmd->solver == eBooleanModifierSolver_Exact;
+  const bool use_exact = bmd->solver == eBooleanModifierSolver_Mesh_Arr;
   const bool operation_intersect = bmd->operation == eBooleanModifierOp_Intersect;
 
 #ifndef WITH_GMP
@@ -276,9 +274,7 @@ static void BMD_mesh_intersection(BMesh *bm,
   /* Main BMesh intersection setup. */
   /* Create tessellation & intersect. */
   const int looptris_tot = poly_to_tri_count(bm->totface, bm->totloop);
-  BMLoop *(*looptris)[3] = (BMLoop * (*)[3])
-      MEM_malloc_arrayN(looptris_tot, sizeof(*looptris), __func__);
-
+  blender::Array<std::array<BMLoop *, 3>> looptris(looptris_tot);
   BM_mesh_calc_tessellation_beauty(bm, looptris);
 
   /* postpone this until after tessellating
@@ -332,6 +328,9 @@ static void BMD_mesh_intersection(BMesh *bm,
       if (LIKELY(efa->mat_nr < operand_ob->totcol)) {
         efa->mat_nr = material_remap[efa->mat_nr];
       }
+      else {
+        efa->mat_nr = 0;
+      }
 
       if (++i == i_faces_end) {
         break;
@@ -356,7 +355,6 @@ static void BMD_mesh_intersection(BMesh *bm,
 
   BM_mesh_intersect(bm,
                     looptris,
-                    looptris_tot,
                     bm_face_isect_pair,
                     nullptr,
                     false,
@@ -367,8 +365,6 @@ static void BMD_mesh_intersection(BMesh *bm,
                     false,
                     bmd->operation,
                     bmd->double_threshold);
-
-  MEM_freeN(looptris);
 }
 
 #ifdef WITH_GMP
@@ -378,9 +374,9 @@ static void BMD_mesh_intersection(BMesh *bm,
  * or to zero if there aren't enough slots in the destination. */
 static Array<short> get_material_remap_index_based(Object *dest_ob, Object *src_ob)
 {
-  int n = src_ob->totcol;
+  const int n = src_ob->totcol;
   if (n <= 0) {
-    n = 1;
+    return Array<short>(1, 0);
   }
   Array<short> remap(n);
   BKE_object_material_remap_calc(dest_ob, src_ob, remap.data());
@@ -478,18 +474,23 @@ static Mesh *exact_boolean_mesh(BooleanModifierData *bmd,
 
   const bool use_self = (bmd->flag & eBooleanModifierFlag_Self) != 0;
   const bool hole_tolerant = (bmd->flag & eBooleanModifierFlag_HoleTolerant) != 0;
-  Mesh *result = blender::meshintersect::direct_mesh_boolean(meshes,
-                                                             obmats,
-                                                             ctx->object->object_to_world(),
-                                                             material_remaps,
-                                                             use_self,
-                                                             hole_tolerant,
-                                                             bmd->operation,
-                                                             nullptr);
+  blender::geometry::boolean::BooleanOpParameters op_params;
+  op_params.boolean_mode = blender::geometry::boolean::Operation(bmd->operation);
+  op_params.no_self_intersections = !use_self;
+  op_params.watertight = !hole_tolerant;
+  op_params.no_nested_components = false;
+  Mesh *result = blender::geometry::boolean::mesh_boolean(
+      meshes,
+      obmats,
+      ctx->object->object_to_world(),
+      material_remaps,
+      op_params,
+      blender::geometry::boolean::Solver::MeshArr,
+      nullptr);
 
   if (material_mode == eBooleanModifierMaterialMode_Transfer) {
     MEM_SAFE_FREE(result->mat);
-    result->mat = (Material **)MEM_malloc_arrayN(materials.size(), sizeof(Material *), __func__);
+    result->mat = MEM_malloc_arrayN<Material *>(size_t(materials.size()), __func__);
     result->totcol = materials.size();
     MutableSpan(result->mat, result->totcol).copy_from(materials);
   }
@@ -513,7 +514,7 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
   }
 
 #ifdef WITH_GMP
-  if (bmd->solver == eBooleanModifierSolver_Exact) {
+  if (bmd->solver == eBooleanModifierSolver_Mesh_Arr) {
     return exact_boolean_mesh(bmd, ctx, mesh);
   }
 #endif
@@ -609,19 +610,19 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
   uiLayout *layout = panel->layout;
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, nullptr);
 
-  uiItemR(layout, ptr, "operation", UI_ITEM_R_EXPAND, nullptr, ICON_NONE);
+  uiItemR(layout, ptr, "operation", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
 
   uiLayoutSetPropSep(layout, true);
 
-  uiItemR(layout, ptr, "operand_type", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(layout, ptr, "operand_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   if (RNA_enum_get(ptr, "operand_type") == eBooleanModifierFlag_Object) {
-    uiItemR(layout, ptr, "object", UI_ITEM_NONE, nullptr, ICON_NONE);
+    uiItemR(layout, ptr, "object", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
   else {
-    uiItemR(layout, ptr, "collection", UI_ITEM_NONE, nullptr, ICON_NONE);
+    uiItemR(layout, ptr, "collection", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 
-  uiItemR(layout, ptr, "solver", UI_ITEM_R_EXPAND, nullptr, ICON_NONE);
+  uiItemR(layout, ptr, "solver", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
 
   modifier_panel_end(layout, ptr);
 }
@@ -631,7 +632,7 @@ static void solver_options_panel_draw(const bContext * /*C*/, Panel *panel)
   uiLayout *layout = panel->layout;
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, nullptr);
 
-  const bool use_exact = RNA_enum_get(ptr, "solver") == eBooleanModifierSolver_Exact;
+  const bool use_exact = RNA_enum_get(ptr, "solver") == eBooleanModifierSolver_Mesh_Arr;
 
   uiLayoutSetPropSep(layout, true);
 
@@ -640,16 +641,16 @@ static void solver_options_panel_draw(const bContext * /*C*/, Panel *panel)
     uiItemR(col, ptr, "material_mode", UI_ITEM_NONE, IFACE_("Materials"), ICON_NONE);
     /* When operand is collection, we always use_self. */
     if (RNA_enum_get(ptr, "operand_type") == eBooleanModifierFlag_Object) {
-      uiItemR(col, ptr, "use_self", UI_ITEM_NONE, nullptr, ICON_NONE);
+      uiItemR(col, ptr, "use_self", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     }
-    uiItemR(col, ptr, "use_hole_tolerant", UI_ITEM_NONE, nullptr, ICON_NONE);
+    uiItemR(col, ptr, "use_hole_tolerant", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
   else {
-    uiItemR(col, ptr, "double_threshold", UI_ITEM_NONE, nullptr, ICON_NONE);
+    uiItemR(col, ptr, "double_threshold", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 
   if (G.debug) {
-    uiItemR(col, ptr, "debug_options", UI_ITEM_NONE, nullptr, ICON_NONE);
+    uiItemR(col, ptr, "debug_options", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 }
 
@@ -668,7 +669,7 @@ ModifierTypeInfo modifierType_Boolean = {
     /*srna*/ &RNA_BooleanModifier,
     /*type*/ ModifierTypeType::Nonconstructive,
     /*flags*/
-    (ModifierTypeFlag)(eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_SupportsEditmode),
+    (eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_SupportsEditmode),
     /*icon*/ ICON_MOD_BOOLEAN,
 
     /*copy_data*/ BKE_modifier_copydata_generic,

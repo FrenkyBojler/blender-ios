@@ -8,17 +8,17 @@
 
 #pragma once
 
-#include "BLI_compiler_attrs.h"
 #include "WM_types.hh"
 
 struct Main;
 struct bContext;
+class WorkspaceStatus;
 
 namespace blender::bke::id {
 class IDRemapper;
 }
 
-/* ed_util.cc */
+/* `ed_util.cc` */
 
 void ED_editors_init_for_undo(Main *bmain);
 void ED_editors_init(bContext *C);
@@ -48,6 +48,19 @@ void ED_spacedata_id_remap_single(ScrArea *area, SpaceLink *sl, ID *old_id, ID *
 void ED_spacedata_id_remap(ScrArea *area,
                            SpaceLink *sl,
                            const blender::bke::id::IDRemapper &mappings);
+
+/**
+ * Helper for context sensitive operations: Returns the "id" context member wrapped in a
+ * #PointerRNA vector. Useful when the API uses vectors to also support acting on multiple IDs,
+ * e.g. as returned by #ED_operator_get_ids_from_context_as_vec().
+ */
+blender::Vector<PointerRNA> ED_operator_single_id_from_context_as_vec(const bContext *C);
+/**
+ * Helper for context sensitive operations: Returns the "selected_ids" context member or, if none,
+ * the "id" context member as a #PointerRNA vector. Batch operations can use this to get all IDs to
+ * act on, including a fallback to the active ID if there's no selection.
+ */
+blender::Vector<PointerRNA> ED_operator_get_ids_from_context_as_vec(const bContext *C);
 
 void ED_operatortypes_edutils();
 
@@ -87,23 +100,38 @@ void ED_slider_status_string_get(const tSlider *slider,
                                  char *status_string,
                                  size_t size_of_status_string);
 
-float ED_slider_factor_get(tSlider *slider);
+void ED_slider_status_get(const tSlider *slider, WorkspaceStatus &status);
+
+float ED_slider_factor_get(const tSlider *slider);
 void ED_slider_factor_set(tSlider *slider, float factor);
 
-/* One bool value for each side of the slider. Allows to enable overshoot only on one side. */
+/**
+ * By default the increment step is 0.1, which depending on the factor bounds might not be desired.
+ * Only has an effect if increment is allowed and enabled.
+ * See `ED_slider_allow_increments_set`.
+ * \param increment_step: cannot be 0.
+ */
+void ED_slider_increment_step_set(tSlider *slider, float increment_step);
+
+/** One bool value for each side of the slider. Allows to enable overshoot only on one side. */
 void ED_slider_allow_overshoot_set(tSlider *slider, bool lower, bool upper);
 
 /**
  * Set the soft limits for the slider, which are applied until the user enables overshooting.
  */
-void ED_slider_factor_bounds_set(tSlider *slider, float lower_bound, float upper_bound);
+void ED_slider_factor_bounds_set(tSlider *slider,
+                                 float factor_bound_lower,
+                                 float factor_bound_upper);
 
-bool ED_slider_allow_increments_get(tSlider *slider);
+bool ED_slider_allow_increments_get(const tSlider *slider);
 void ED_slider_allow_increments_set(tSlider *slider, bool value);
 
 void ED_slider_mode_set(tSlider *slider, SliderMode mode);
-SliderMode ED_slider_mode_get(tSlider *slider);
+SliderMode ED_slider_mode_get(const tSlider *slider);
 void ED_slider_unit_set(tSlider *slider, const char *unit);
+/* Set a name that will show next to the slider to indicate which property is modified currently.
+ * To clear, set to an empty string. */
+void ED_slider_property_label_set(tSlider *slider, const char *property_label);
 
 /* ************** XXX OLD CRUFT WARNING ************* */
 

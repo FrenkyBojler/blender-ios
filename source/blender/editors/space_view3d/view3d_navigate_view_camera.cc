@@ -6,16 +6,14 @@
  * \ingroup spview3d
  */
 
-#include "MEM_guardedalloc.h"
-
 #include "BKE_context.hh"
 #include "BKE_layer.hh"
 
-#include "DEG_depsgraph_query.hh"
+#include "DEG_depsgraph.hh"
 
 #include "WM_api.hh"
 
-#include "view3d_intern.h"
+#include "view3d_intern.hh"
 
 #include "view3d_navigate.hh" /* own include */
 
@@ -23,7 +21,7 @@
 /** \name View Camera Operator
  * \{ */
 
-static int view_camera_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus view_camera_exec(bContext *C, wmOperator *op)
 {
   View3D *v3d;
   ARegion *region;

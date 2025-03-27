@@ -25,7 +25,9 @@ struct wmGizmoGroupType;
 struct wmKeyConfig;
 struct wmOperatorType;
 
-void ED_keymap_transform(wmKeyConfig *keyconf);
+namespace blender::ed::transform {
+
+void keymap_transform(wmKeyConfig *keyconf);
 void transform_operatortypes();
 
 /* ******************** Macros & Prototypes *********************** */
@@ -52,7 +54,6 @@ enum eTfmMode {
   TFM_BONE_ENVELOPE,
   TFM_CURVE_SHRINKFATTEN,
   TFM_MASK_SHRINKFATTEN,
-  TFM_GPENCIL_SHRINKFATTEN,
   TFM_BONE_ROLL,
   TFM_TIME_TRANSLATE,
   TFM_TIME_SLIDE,
@@ -71,9 +72,11 @@ enum eTfmMode {
   TFM_GPENCIL_OPACITY,
 };
 
-/* Standalone call to get the transformation center corresponding to the current situation
+/**
+ * Standalone call to get the transformation center corresponding to the current situation
  * returns 1 if successful, 0 otherwise (usually means there's no selection)
- * (if false is returns, `cent3d` is unmodified). */
+ * (if false is returns, `cent3d` is unmodified).
+ */
 bool calculateTransformCenter(bContext *C, int centerMode, float cent3d[3], float cent2d[2]);
 
 /* UNUSED */
@@ -123,10 +126,10 @@ int BIF_countTransformOrientation(const bContext *C);
 /* For properties performed when confirming the transformation. */
 #define P_POST_TRANSFORM (1 << 18)
 
-void Transform_Properties(wmOperatorType *ot, int flags);
+void properties_register(wmOperatorType *ot, int flags);
 
 /* `transform_orientations.cc` */
-void ED_transform_calc_orientation_from_type(const bContext *C, float r_mat[3][3]);
+void calc_orientation_from_type(const bContext *C, float r_mat[3][3]);
 /**
  * \note The resulting matrix may not be orthogonal,
  * callers that depend on `r_mat` to be orthogonal should use #orthogonalize_m3.
@@ -136,17 +139,17 @@ void ED_transform_calc_orientation_from_type(const bContext *C, float r_mat[3][3
  * - #V3D_ORIENT_LOCAL may contain shear from non-uniform scale in parent/child relationships.
  * - #V3D_ORIENT_CUSTOM may have been created from #V3D_ORIENT_LOCAL.
  */
-short ED_transform_calc_orientation_from_type_ex(const Scene *scene,
-                                                 ViewLayer *view_layer,
-                                                 const View3D *v3d,
-                                                 const RegionView3D *rv3d,
-                                                 Object *ob,
-                                                 Object *obedit,
-                                                 short orientation_index,
-                                                 int pivot_point,
-                                                 float r_mat[3][3]);
+short calc_orientation_from_type_ex(const Scene *scene,
+                                    ViewLayer *view_layer,
+                                    const View3D *v3d,
+                                    const RegionView3D *rv3d,
+                                    Object *ob,
+                                    Object *obedit,
+                                    short orientation_index,
+                                    int pivot_point,
+                                    float r_mat[3][3]);
 
-bool ED_transform_calc_pivot_pos(const bContext *C, const short pivot_type, float r_pivot_pos[3]);
+bool calc_pivot_pos(const bContext *C, const short pivot_type, float r_pivot_pos[3]);
 
 /* transform gizmos */
 
@@ -170,10 +173,12 @@ void ED_widgetgroup_gizmo2d_rotate_callbacks_set(wmGizmoGroupType *gzgt);
 #define SNAP_INCREMENTAL_ANGLE DEG2RAD(5.0)
 
 struct TransformBounds {
-  float center[3];      /* Center for transform widget. */
-  float min[3], max[3]; /* Bounding-box of selection for transform widget. */
+  /** Center for transform widget. */
+  float center[3];
+  /** Bounding-box of selection for transform widget. */
+  float min[3], max[3];
 
-  /* Normalized axis */
+  /** Normalized axis. */
   float axis[3][3];
   float axis_min[3], axis_max[3];
 
@@ -188,7 +193,7 @@ struct TransformBounds {
 struct TransformCalcParams {
   uint use_only_center : 1;
   uint use_local_axis : 1;
-  /* Use 'Scene.orientation_type' when zero, otherwise subtract one and use. */
+  /** Use #Scene::orientation_type when zero, otherwise subtract one and use. */
   ushort orientation_index;
 };
 /**
@@ -196,10 +201,10 @@ struct TransformCalcParams {
  *
  * Returns total items selected.
  */
-int ED_transform_calc_gizmo_stats(const bContext *C,
-                                  const TransformCalcParams *params,
-                                  TransformBounds *tbounds,
-                                  RegionView3D *rv3d);
+int calc_gizmo_stats(const bContext *C,
+                     const TransformCalcParams *params,
+                     TransformBounds *tbounds,
+                     RegionView3D *rv3d);
 
 /**
  * Iterates over all the strips and finds the closest snapping candidate of either \a frame_1 or \a
@@ -207,11 +212,13 @@ int ED_transform_calc_gizmo_stats(const bContext *C,
  * strip.
  * \returns True if there was anything to snap to.
  */
-bool ED_transform_snap_sequencer_to_closest_strip_calc(Scene *scene,
-                                                       ARegion *region,
-                                                       int frame_1,
-                                                       int frame_2,
-                                                       int *r_snap_distance,
-                                                       float *r_snap_frame);
+bool snap_sequencer_to_closest_strip_calc(Scene *scene,
+                                          ARegion *region,
+                                          int frame_1,
+                                          int frame_2,
+                                          int *r_snap_distance,
+                                          float *r_snap_frame);
 
-void ED_draw_sequencer_snap_point(ARegion *region, float snap_point);
+void sequencer_snap_point(ARegion *region, float snap_point);
+
+}  // namespace blender::ed::transform

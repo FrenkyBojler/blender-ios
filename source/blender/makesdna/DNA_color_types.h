@@ -92,6 +92,7 @@ typedef enum eCurveMappingFlags {
 
   /** The curve is extended by extrapolation. When not set the curve is extended horizontally. */
   CUMA_EXTEND_EXTRAPOLATE = (1 << 4),
+  CUMA_USE_WRAPPING = (1 << 5),
 } eCurveMappingFlags;
 
 /** #CurveMapping.preset */
@@ -100,7 +101,7 @@ typedef enum eCurveMappingPreset {
   CURVE_PRESET_SHARP = 1,
   CURVE_PRESET_SMOOTH = 2,
   CURVE_PRESET_MAX = 3,
-  CURVE_PRESET_MID9 = 4,
+  CURVE_PRESET_MID8 = 4,
   CURVE_PRESET_ROUND = 5,
   CURVE_PRESET_ROOT = 6,
   CURVE_PRESET_GAUSS = 7,
@@ -145,6 +146,10 @@ typedef struct Histogram {
   /** Sample line only (image coords: source -> destination). */
   float co[2][2];
 } Histogram;
+
+/* Multiplier to map YUV U,V range (+-0.436, +-0.615) to +-0.5 on both axes. */
+#define SCOPES_VEC_U_SCALE float(0.5f / 0.436f)
+#define SCOPES_VEC_V_SCALE float(0.5f / 0.615f)
 
 typedef struct Scopes {
   int ok;
@@ -196,6 +201,9 @@ typedef struct ColorManagedViewSettings {
   float exposure;
   /** Post-display gamma transform. */
   float gamma;
+  /** White balance parameters. */
+  float temperature;
+  float tint;
   /** Pre-display RGB curves transform. */
   struct CurveMapping *curve_mapping;
   void *_pad2;
@@ -214,4 +222,5 @@ typedef struct ColorManagedColorspaceSettings {
 enum {
   COLORMANAGE_VIEW_USE_CURVES = (1 << 0),
   COLORMANAGE_VIEW_USE_HDR = (1 << 1),
+  COLORMANAGE_VIEW_USE_WHITE_BALANCE = (1 << 2),
 };

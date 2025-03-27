@@ -5,23 +5,24 @@
 /** \file
  * \ingroup depsgraph
  *
- * Datatypes for internal use in the Depsgraph
+ * Data-types for internal use in the Depsgraph
  *
- * All of these datatypes are only really used within the "core" depsgraph.
+ * All of these data-types are only really used within the "core" depsgraph.
  * In particular, node types declared here form the structure of operations
  * in the graph.
  */
 
 #pragma once
 
+#include <cstdlib>
 #include <functional>
 #include <mutex>
-#include <stdlib.h>
 
 #include "MEM_guardedalloc.h"
 
 #include "DNA_ID.h" /* for ID_Type and INDEX_ID_MAX */
 
+#include "BLI_set.hh"
 #include "BLI_threads.h" /* for SpinLock */
 
 #include "DEG_depsgraph.hh"
@@ -29,7 +30,6 @@
 
 #include "intern/debug/deg_debug.h"
 #include "intern/depsgraph_light_linking.hh"
-#include "intern/depsgraph_type.hh"
 
 struct ID;
 struct Scene;
@@ -108,6 +108,8 @@ struct Depsgraph {
 
   /* Indicates which ID types were updated. */
   char id_type_updated[INDEX_ID_MAX];
+  /* Accumulate id type updates from multiple update passes. */
+  char id_type_updated_backup[INDEX_ID_MAX];
 
   /* Indicates type of IDs present in the depsgraph. */
   char id_type_exist[INDEX_ID_MAX];

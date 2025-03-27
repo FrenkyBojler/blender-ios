@@ -11,6 +11,8 @@
 #include "DNA_space_types.h"
 #include "DNA_windowmanager_types.h"
 
+#include "ED_fileselect.hh"
+
 /* internal exports only */
 
 struct ARegion;
@@ -22,6 +24,9 @@ struct Main;
 struct SpaceFile;
 struct View2D;
 struct uiLayout;
+namespace blender::asset_system {
+class AssetLibrary;
+}
 
 bool file_main_region_needs_refresh_before_draw(SpaceFile *sfile);
 
@@ -35,9 +40,12 @@ int /*eContextResult*/ file_context(const bContext *C,
 
 #define ATTRIBUTE_COLUMN_PADDING (0.5f * UI_UNIT_X)
 
-#define FILE_LAYOUT_COMPACT(_layout) ((_layout->width / UI_SCALE_FAC) < 500)
-#define FILE_LAYOUT_HIDE_DATE(_layout) ((_layout->width / UI_SCALE_FAC) < 250)
-#define FILE_LAYOUT_HIDE_SIZE(_layout) ((_layout->width / UI_SCALE_FAC) < 350)
+#define FILE_LAYOUT_COMPACT(_layout) \
+  (_layout->flag & FILE_LAYOUT_VER && (_layout->width / UI_SCALE_FAC) < 500)
+#define FILE_LAYOUT_HIDE_DATE(_layout) \
+  (_layout->flag & FILE_LAYOUT_VER && (_layout->width / UI_SCALE_FAC) < 250)
+#define FILE_LAYOUT_HIDE_SIZE(_layout) \
+  (_layout->flag & FILE_LAYOUT_VER && (_layout->width / UI_SCALE_FAC) < 350)
 
 void file_calc_previews(const bContext *C, ARegion *region);
 void file_draw_list(const bContext *C, ARegion *region);
@@ -164,15 +172,15 @@ void file_params_invoke_rename_postscroll(wmWindowManager *wm, wmWindow *win, Sp
 void file_params_rename_end(wmWindowManager *wm,
                             wmWindow *win,
                             SpaceFile *sfile,
-                            FileDirEntry *rename_file);
+                            const FileDirEntry *rename_file);
 /**
  * Helper used by both main update code, and smooth-scroll timer,
  * to try to enable rename editing from #FileSelectParams.renamefile name.
  */
 void file_params_renamefile_activate(SpaceFile *sfile, FileSelectParams *params);
 
-typedef void *onReloadFnData;
-typedef void (*onReloadFn)(SpaceFile *space_data, onReloadFnData custom_data);
+using onReloadFnData = void *;
+using onReloadFn = void (*)(SpaceFile *space_data, onReloadFnData custom_data);
 struct SpaceFile_Runtime {
   /* Called once after the file browser has reloaded. Reset to NULL after calling.
    * Use file_on_reload_callback_register() to register a callback. */
@@ -220,37 +228,33 @@ void file_tile_boundbox(const ARegion *region, FileLayout *layout, int file, rct
 /**
  * If \a path leads to a .blend, remove the trailing slash (if needed).
  */
-void file_path_to_ui_path(const char *path, char *r_pathi, int max_size);
+void file_path_to_ui_path(const char *path, char *r_path, int r_path_maxncpy);
 
 /* asset_catalog_tree_view.cc */
 
-/* C-handle for #ed::asset_browser::AssetCatalogFilterSettings. */
-struct FileAssetCatalogFilterSettingsHandle;
+namespace blender::ed::asset_browser {
 
-void file_create_asset_catalog_tree_view_in_layout(
-    blender::asset_system::AssetLibrary *asset_library,
-    uiLayout *layout,
-    SpaceFile *space_file,
-    FileAssetSelectParams *params);
+void file_create_asset_catalog_tree_view_in_layout(const bContext *C,
+                                                   asset_system::AssetLibrary *asset_library,
+                                                   uiLayout *layout,
+                                                   SpaceFile *space_file,
+                                                   FileAssetSelectParams *params);
 
-namespace blender::asset_system {
-class AssetLibrary;
-}
+class AssetCatalogFilterSettings;
 
-FileAssetCatalogFilterSettingsHandle *file_create_asset_catalog_filter_settings();
-void file_delete_asset_catalog_filter_settings(
-    FileAssetCatalogFilterSettingsHandle **filter_settings_handle);
+AssetCatalogFilterSettings *file_create_asset_catalog_filter_settings();
+void file_delete_asset_catalog_filter_settings(AssetCatalogFilterSettings **filter_settings);
 /**
  * \return True if the file list should update its filtered results
  * (e.g. because filtering parameters changed).
  */
 bool file_set_asset_catalog_filter_settings(
-    FileAssetCatalogFilterSettingsHandle *filter_settings_handle,
+    AssetCatalogFilterSettings *filter_settings,
     eFileSel_Params_AssetCatalogVisibility catalog_visibility,
-    ::bUUID catalog_id);
-void file_ensure_updated_catalog_filter_data(
-    FileAssetCatalogFilterSettingsHandle *filter_settings_handle,
-    const blender::asset_system::AssetLibrary *asset_library);
+    const ::bUUID &catalog_id);
+void file_ensure_updated_catalog_filter_data(AssetCatalogFilterSettings *filter_settings,
+                                             const asset_system::AssetLibrary *asset_library);
 bool file_is_asset_visible_in_catalog_filter_settings(
-    const FileAssetCatalogFilterSettingsHandle *filter_settings_handle,
-    const AssetMetaData *asset_data);
+    const AssetCatalogFilterSettings *filter_settings, const AssetMetaData *asset_data);
+
+}  // namespace blender::ed::asset_browser

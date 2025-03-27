@@ -8,9 +8,10 @@
 
 #include "BLI_utildefines.h"
 
+#include "BLI_array.hh"
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
-#include "BLI_simd.h"
+#include "BLI_simd.hh"
 #include "BLI_task.h"
 
 #include "BLT_translation.hh"
@@ -31,7 +32,7 @@
 #include "BLO_read_write.hh"
 
 #include "RNA_access.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "MEM_guardedalloc.h"
 
@@ -148,7 +149,7 @@ static void update_depsgraph(ModifierData *md, const ModifierUpdateDepsgraphCont
     DEG_add_object_relation(ctx->node, mmd->object, DEG_OB_COMP_TRANSFORM, "Mesh Deform Modifier");
     DEG_add_object_relation(ctx->node, mmd->object, DEG_OB_COMP_GEOMETRY, "Mesh Deform Modifier");
   }
-  /* We need own transformation as well. */
+  /* We need our own transformation as well. */
   DEG_add_depends_on_transform_relation(ctx->node, "Mesh Deform Modifier");
 }
 
@@ -378,12 +379,12 @@ static void meshdeformModifier_do(ModifierData *md,
     BKE_modifier_set_error(ob, md, "Vertices changed from %d to %d", mmd->verts_num, verts_num);
     return;
   }
-  else if (mmd->cage_verts_num != cage_verts_num) {
+  if (mmd->cage_verts_num != cage_verts_num) {
     BKE_modifier_set_error(
         ob, md, "Cage vertices changed from %d to %d", mmd->cage_verts_num, cage_verts_num);
     return;
   }
-  else if (mmd->bindcagecos == nullptr) {
+  if (mmd->bindcagecos == nullptr) {
     BKE_modifier_set_error(ob, md, "Bind data missing");
     return;
   }
@@ -440,10 +441,10 @@ static void deform_verts(ModifierData *md,
 void BKE_modifier_mdef_compact_influences(ModifierData *md)
 {
   MeshDeformModifierData *mmd = (MeshDeformModifierData *)md;
-  float weight, *weights, totweight;
+  float weight, totweight;
   int influences_num, verts_num, cage_verts_num, a, b;
 
-  weights = mmd->bindweights;
+  const float *weights = mmd->bindweights;
   if (!weights) {
     return;
   }
@@ -463,9 +464,8 @@ void BKE_modifier_mdef_compact_influences(ModifierData *md)
   }
 
   /* allocate bind influences */
-  mmd->bindinfluences = static_cast<MDefInfluence *>(
-      MEM_calloc_arrayN(mmd->influences_num, sizeof(MDefInfluence), __func__));
-  mmd->bindoffsets = static_cast<int *>(MEM_calloc_arrayN((verts_num + 1), sizeof(int), __func__));
+  mmd->bindinfluences = MEM_calloc_arrayN<MDefInfluence>(size_t(mmd->influences_num), __func__);
+  mmd->bindoffsets = MEM_calloc_arrayN<int>(size_t(verts_num) + 1, __func__);
 
   /* write influences */
   influences_num = 0;
@@ -516,14 +516,14 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
 
   col = uiLayoutColumn(layout, true);
   uiLayoutSetEnabled(col, !is_bound);
-  uiItemR(col, ptr, "object", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(col, ptr, "object", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  modifier_vgroup_ui(layout, ptr, &ob_ptr, "vertex_group", "invert_vertex_group", nullptr);
+  modifier_vgroup_ui(layout, ptr, &ob_ptr, "vertex_group", "invert_vertex_group", std::nullopt);
 
   col = uiLayoutColumn(layout, false);
   uiLayoutSetEnabled(col, !is_bound);
-  uiItemR(col, ptr, "precision", UI_ITEM_NONE, nullptr, ICON_NONE);
-  uiItemR(col, ptr, "use_dynamic_bind", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(col, ptr, "precision", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  uiItemR(col, ptr, "use_dynamic_bind", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   uiItemO(layout,
           is_bound ? IFACE_("Unbind") : IFACE_("Bind"),
@@ -587,8 +587,9 @@ static void blend_write(BlendWriter *writer, const ID *id_owner, const ModifierD
 static void blend_read(BlendDataReader *reader, ModifierData *md)
 {
   MeshDeformModifierData *mmd = (MeshDeformModifierData *)md;
+  const int size = mmd->dyngridsize;
 
-  BLO_read_data_address(reader, &mmd->bindinfluences);
+  BLO_read_struct_array(reader, MDefInfluence, mmd->influences_num, &mmd->bindinfluences);
 
   /* NOTE: `bindoffset` is abusing `verts_num + 1` as its size, this becomes an incorrect value in
    * case `verts_num == 0`, since `bindoffset` is then nullptr, not a size 1 allocated array. */
@@ -597,8 +598,8 @@ static void blend_read(BlendDataReader *reader, ModifierData *md)
   }
 
   BLO_read_float3_array(reader, mmd->cage_verts_num, &mmd->bindcagecos);
-  BLO_read_data_address(reader, &mmd->dyngrid);
-  BLO_read_data_address(reader, &mmd->dyninfluences);
+  BLO_read_struct_array(reader, MDefCell, size * size * size, &mmd->dyngrid);
+  BLO_read_struct_array(reader, MDefInfluence, mmd->influences_num, &mmd->dyninfluences);
   BLO_read_int32_array(reader, mmd->verts_num, &mmd->dynverts);
 
   /* Deprecated storage. */

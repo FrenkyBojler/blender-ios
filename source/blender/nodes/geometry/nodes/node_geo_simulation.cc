@@ -2,45 +2,38 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BLI_math_matrix.hh"
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
-#include "BLI_string_utils.hh"
-#include "BLI_task.hh"
 
+#include "BKE_anonymous_attribute_make.hh"
 #include "BKE_attribute_math.hh"
-#include "BKE_bake_geometry_nodes_modifier.hh"
 #include "BKE_bake_items_socket.hh"
-#include "BKE_compute_contexts.hh"
 #include "BKE_context.hh"
 #include "BKE_curves.hh"
 #include "BKE_instances.hh"
 #include "BKE_modifier.hh"
-#include "BKE_node_socket_value.hh"
-#include "BKE_object.hh"
-#include "BKE_scene.hh"
+#include "BKE_node_tree_zones.hh"
+#include "BKE_screen.hh"
 
 #include "DEG_depsgraph_query.hh"
 
 #include "UI_interface.hh"
 
-#include "NOD_common.h"
-#include "NOD_geometry.hh"
+#include "NOD_common.hh"
+#include "NOD_geo_bake.hh"
+#include "NOD_geo_simulation.hh"
+#include "NOD_node_extra_info.hh"
 #include "NOD_socket.hh"
-#include "NOD_zone_socket_items.hh"
+#include "NOD_socket_items_ops.hh"
+#include "NOD_socket_items_ui.hh"
 
-#include "DNA_curves_types.h"
 #include "DNA_mesh_types.h"
-#include "DNA_modifier_types.h"
 #include "DNA_pointcloud_types.h"
-#include "DNA_space_types.h"
 
 #include "ED_node.hh"
 
 #include "RNA_access.hh"
-#include "RNA_prototypes.h"
-
-#include "MOD_nodes.hh"
+#include "RNA_prototypes.hh"
 
 #include "BLT_translation.hh"
 
@@ -48,14 +41,15 @@
 
 #include "WM_api.hh"
 
+#include "BLO_read_write.hh"
+
 #include "node_geometry_util.hh"
 
 namespace blender::nodes::node_geo_simulation_cc {
 
 static const CPPType &get_simulation_item_cpp_type(const eNodeSocketDatatype socket_type)
 {
-  const char *socket_idname = nodeStaticSocketType(socket_type, 0);
-  const bNodeSocketType *typeinfo = nodeSocketTypeFind(socket_idname);
+  const bke::bNodeSocketType *typeinfo = bke::node_socket_type_find_static(socket_type);
   BLI_assert(typeinfo);
   BLI_assert(typeinfo->geometry_nodes_cpp_type);
   return *typeinfo->geometry_nodes_cpp_type;
@@ -92,16 +86,19 @@ static bke::bake::BakeSocketConfig make_bake_socket_config(
   return config;
 }
 
-static std::shared_ptr<AnonymousAttributeFieldInput> make_attribute_field(
+static std::shared_ptr<AttributeFieldInput> make_attribute_field(
     const Object &self_object,
     const ComputeContext &compute_context,
     const bNode &node,
     const NodeSimulationItem &item,
     const CPPType &type)
 {
-  AnonymousAttributeIDPtr attribute_id = AnonymousAttributeIDPtr(MEM_new<NodeAnonymousAttributeID>(
-      __func__, self_object, compute_context, node, std::to_string(item.identifier), item.name));
-  return std::make_shared<AnonymousAttributeFieldInput>(attribute_id, type, node.label_or_name());
+  std::string attribute_name = bke::hash_to_anonymous_attribute_name(
+      self_object.id.name, compute_context.hash(), node.identifier, item.identifier);
+  std::string socket_inspection_name = make_anonymous_attribute_socket_inspection_string(
+      node.label_or_name(), item.name);
+  return std::make_shared<AttributeFieldInput>(
+      std::move(attribute_name), type, std::move(socket_inspection_name));
 }
 
 static void move_simulation_state_to_values(const Span<NodeSimulationItem> node_simulation_items,
@@ -177,6 +174,73 @@ static bke::bake::BakeState move_values_to_simulation_state(
     }
   }
   return bake_state;
+}
+
+static void draw_simulation_state(const bContext *C,
+                                  uiLayout *layout,
+                                  bNodeTree &ntree,
+                                  bNode &output_node)
+{
+  if (uiLayout *panel = uiLayoutPanel(
+          C, layout, "simulation_state_items", false, IFACE_("Simulation State")))
+  {
+    socket_items::ui::draw_items_list_with_operators<SimulationItemsAccessor>(
+        C, panel, ntree, output_node);
+    auto &storage = *static_cast<NodeGeometrySimulationOutput *>(output_node.storage);
+    socket_items::ui::draw_active_item_props<SimulationItemsAccessor>(
+        ntree, output_node, [&](PointerRNA *item_ptr) {
+          NodeSimulationItem &active_item = storage.items[storage.active_index];
+          uiLayoutSetPropSep(panel, true);
+          uiLayoutSetPropDecorate(panel, false);
+          uiItemR(panel, item_ptr, "socket_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+          if (socket_type_supports_fields(eNodeSocketDatatype(active_item.socket_type))) {
+            uiItemR(panel, item_ptr, "attribute_domain", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+          }
+        });
+  }
+}
+
+/** Shared for simulation input and output node. */
+static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *current_node_ptr)
+{
+  bNodeTree &ntree = *reinterpret_cast<bNodeTree *>(current_node_ptr->owner_id);
+  bNode *current_node = static_cast<bNode *>(current_node_ptr->data);
+
+  const bke::bNodeTreeZones *zones = ntree.zones();
+  if (!zones) {
+    return;
+  }
+  const bke::bNodeTreeZone *zone = zones->get_zone_by_node(current_node->identifier);
+  if (!zone) {
+    return;
+  }
+  if (!zone->output_node) {
+    return;
+  }
+  bNode &output_node = const_cast<bNode &>(*zone->output_node);
+
+  BakeDrawContext ctx;
+  if (!get_bake_draw_context(C, output_node, ctx)) {
+    return;
+  }
+
+  draw_simulation_state(C, layout, ntree, output_node);
+
+  uiLayoutSetPropSep(layout, true);
+  uiLayoutSetPropDecorate(layout, false);
+
+  uiLayoutSetEnabled(layout, ID_IS_EDITABLE(ctx.object));
+
+  {
+    uiLayout *col = uiLayoutColumn(layout, false);
+    draw_bake_button_row(ctx, col, true);
+    if (const std::optional<std::string> bake_state_str = get_bake_state_string(ctx)) {
+      uiLayout *row = uiLayoutRow(col, true);
+      uiItemL(row, *bake_state_str, ICON_NONE);
+    }
+  }
+  draw_common_bake_settings(C, ctx, layout);
+  draw_data_blocks(C, layout, ctx.bake_rna);
 }
 
 namespace sim_input_node {
@@ -361,13 +425,18 @@ static void node_declare(NodeDeclarationBuilder &b)
   for (const int i : IndexRange(output_storage.items_num)) {
     const NodeSimulationItem &item = output_storage.items[i];
     const eNodeSocketDatatype socket_type = eNodeSocketDatatype(item.socket_type);
+    if (socket_type == SOCK_GEOMETRY && i > 0) {
+      b.add_separator();
+    }
     const StringRef name = item.name;
     const std::string identifier = SimulationItemsAccessor::socket_identifier_for_item(item);
-    auto &input_decl = b.add_input(socket_type, name, identifier);
+    auto &input_decl = b.add_input(socket_type, name, identifier)
+                           .socket_name_ptr(
+                               &node_tree->id, SimulationItemsAccessor::item_srna, &item, "name");
     auto &output_decl = b.add_output(socket_type, name, identifier).align_with_previous();
     if (socket_type_supports_fields(socket_type)) {
       input_decl.supports_field();
-      output_decl.dependent_field({input_decl.input_index()});
+      output_decl.dependent_field({input_decl.index()});
     }
   }
   b.add_input<decl::Extend>("", "__extend__");
@@ -376,7 +445,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeGeometrySimulationInput *data = MEM_cnew<NodeGeometrySimulationInput>(__func__);
+  NodeGeometrySimulationInput *data = MEM_callocN<NodeGeometrySimulationInput>(__func__);
   /* Needs to be initialized for the node to work. */
   data->output_node_id = 0;
   node->storage = data;
@@ -402,19 +471,24 @@ static bool node_insert_link(bNodeTree *ntree, bNode *node, bNodeLink *link)
 
 static void node_register()
 {
-  static bNodeType ntype;
-  geo_node_type_base(&ntype, GEO_NODE_SIMULATION_INPUT, "Simulation Input", NODE_CLASS_INTERFACE);
+  static blender::bke::bNodeType ntype;
+  geo_node_type_base(&ntype, "GeometryNodeSimulationInput", GEO_NODE_SIMULATION_INPUT);
+  ntype.ui_name = "Simulation Input";
+  ntype.ui_description = "Input data for the simulation zone";
+  ntype.enum_name_legacy = "SIMULATION_INPUT";
+  ntype.nclass = NODE_CLASS_INTERFACE;
   ntype.initfunc = node_init;
   ntype.declare = node_declare;
   ntype.labelfunc = node_label;
   ntype.insert_link = node_insert_link;
   ntype.gather_link_search_ops = nullptr;
   ntype.no_muting = true;
-  node_type_storage(&ntype,
-                    "NodeGeometrySimulationInput",
-                    node_free_standard_storage,
-                    node_copy_standard_storage);
-  nodeRegisterType(&ntype);
+  ntype.draw_buttons_ex = node_layout_ex;
+  blender::bke::node_type_storage(ntype,
+                                  "NodeGeometrySimulationInput",
+                                  node_free_standard_storage,
+                                  node_copy_standard_storage);
+  blender::bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 
@@ -685,10 +759,11 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.use_custom_socket_order();
   b.allow_any_socket_order();
-  b.add_input<decl::Bool>("Skip").description(
+  b.add_input<decl::Bool>("Skip").hide_value().description(
       "Forward the output of the simulation input node directly to the output node and ignore "
       "the nodes in the simulation zone");
 
+  const bNodeTree *tree = b.tree_or_null();
   const bNode *node = b.node_or_null();
   if (node == nullptr) {
     return;
@@ -699,13 +774,18 @@ static void node_declare(NodeDeclarationBuilder &b)
   for (const int i : IndexRange(storage.items_num)) {
     const NodeSimulationItem &item = storage.items[i];
     const eNodeSocketDatatype socket_type = eNodeSocketDatatype(item.socket_type);
+    if (socket_type == SOCK_GEOMETRY && i > 0) {
+      b.add_separator();
+    }
     const StringRef name = item.name;
     const std::string identifier = SimulationItemsAccessor::socket_identifier_for_item(item);
-    auto &input_decl = b.add_input(socket_type, name, identifier);
+    auto &input_decl = b.add_input(socket_type, name, identifier)
+                           .socket_name_ptr(
+                               &tree->id, SimulationItemsAccessor::item_srna, &item, "name");
     auto &output_decl = b.add_output(socket_type, name, identifier).align_with_previous();
     if (socket_type_supports_fields(socket_type)) {
       input_decl.supports_field();
-      output_decl.dependent_field({input_decl.input_index()});
+      output_decl.dependent_field({input_decl.index()});
     }
   }
   b.add_input<decl::Extend>("", "__extend__");
@@ -714,11 +794,11 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeGeometrySimulationOutput *data = MEM_cnew<NodeGeometrySimulationOutput>(__func__);
+  NodeGeometrySimulationOutput *data = MEM_callocN<NodeGeometrySimulationOutput>(__func__);
 
   data->next_identifier = 0;
 
-  data->items = MEM_cnew_array<NodeSimulationItem>(1, __func__);
+  data->items = MEM_calloc_arrayN<NodeSimulationItem>(1, __func__);
   data->items[0].name = BLI_strdup(DATA_("Geometry"));
   data->items[0].socket_type = SOCK_GEOMETRY;
   data->items[0].identifier = data->next_identifier++;
@@ -736,150 +816,15 @@ static void node_free_storage(bNode *node)
 static void node_copy_storage(bNodeTree * /*dst_tree*/, bNode *dst_node, const bNode *src_node)
 {
   const NodeGeometrySimulationOutput &src_storage = node_storage(*src_node);
-  auto *dst_storage = MEM_new<NodeGeometrySimulationOutput>(__func__, src_storage);
+  auto *dst_storage = MEM_dupallocN<NodeGeometrySimulationOutput>(__func__, src_storage);
   dst_node->storage = dst_storage;
 
   socket_items::copy_array<SimulationItemsAccessor>(*src_node, *dst_node);
 }
 
-static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *ptr)
+static void node_operators()
 {
-  const bNode *node = static_cast<bNode *>(ptr->data);
-  Scene *scene = CTX_data_scene(C);
-  SpaceNode *snode = CTX_wm_space_node(C);
-  if (snode == nullptr) {
-    return;
-  }
-  std::optional<ed::space_node::ObjectAndModifier> object_and_modifier =
-      ed::space_node::get_modifier_for_node_editor(*snode);
-  if (!object_and_modifier.has_value()) {
-    return;
-  }
-  const Object &object = *object_and_modifier->object;
-  const NodesModifierData &nmd = *object_and_modifier->nmd;
-  const std::optional<int32_t> bake_id = ed::space_node::find_nested_node_id_in_root(*snode,
-                                                                                     *node);
-  if (!bake_id.has_value()) {
-    return;
-  }
-  const NodesModifierBake *bake = nullptr;
-  for (const NodesModifierBake &iter_bake : Span{nmd.bakes, nmd.bakes_num}) {
-    if (iter_bake.id == *bake_id) {
-      bake = &iter_bake;
-      break;
-    }
-  }
-  if (bake == nullptr) {
-    return;
-  }
-
-  PointerRNA bake_rna = RNA_pointer_create(
-      const_cast<ID *>(&object.id), &RNA_NodesModifierBake, (void *)bake);
-
-  const std::optional<IndexRange> simulation_range = bke::bake::get_node_bake_frame_range(
-      *scene, object, nmd, *bake_id);
-
-  std::optional<IndexRange> baked_range;
-  if (nmd.runtime->cache) {
-    const bke::bake::ModifierCache &cache = *nmd.runtime->cache;
-    std::lock_guard lock{cache.mutex};
-    if (const std::unique_ptr<bke::bake::SimulationNodeCache> *node_cache_ptr =
-            cache.simulation_cache_by_id.lookup_ptr(*bake_id))
-    {
-      const bke::bake::SimulationNodeCache &node_cache = **node_cache_ptr;
-      if (node_cache.cache_status == bke::bake::CacheStatus::Baked &&
-          !node_cache.bake.frames.is_empty())
-      {
-        const int first_frame = node_cache.bake.frames.first()->frame.frame();
-        const int last_frame = node_cache.bake.frames.last()->frame.frame();
-        baked_range = IndexRange(first_frame, last_frame - first_frame + 1);
-      }
-    }
-  }
-  bool is_baked = baked_range.has_value();
-
-  uiLayoutSetPropSep(layout, true);
-  uiLayoutSetPropDecorate(layout, false);
-
-  uiLayoutSetEnabled(layout, !ID_IS_LINKED(&object));
-
-  {
-    uiLayout *col = uiLayoutColumn(layout, false);
-    uiLayout *row = uiLayoutRow(col, true);
-    {
-      char bake_label[1024] = N_("Bake");
-
-      PointerRNA ptr;
-      uiItemFullO(row,
-                  "OBJECT_OT_geometry_node_bake_single",
-                  bake_label,
-                  ICON_NONE,
-                  nullptr,
-                  WM_OP_INVOKE_DEFAULT,
-                  UI_ITEM_NONE,
-                  &ptr);
-      WM_operator_properties_id_lookup_set_from_id(&ptr, &object.id);
-      RNA_string_set(&ptr, "modifier_name", nmd.modifier.name);
-      RNA_int_set(&ptr, "bake_id", bake->id);
-    }
-    {
-      PointerRNA ptr;
-      uiItemFullO(row,
-                  "OBJECT_OT_geometry_node_bake_delete_single",
-                  "",
-                  ICON_TRASH,
-                  nullptr,
-                  WM_OP_INVOKE_DEFAULT,
-                  UI_ITEM_NONE,
-                  &ptr);
-      WM_operator_properties_id_lookup_set_from_id(&ptr, &object.id);
-      RNA_string_set(&ptr, "modifier_name", nmd.modifier.name);
-      RNA_int_set(&ptr, "bake_id", bake->id);
-    }
-    if (is_baked) {
-      char baked_range_label[64];
-      SNPRINTF(baked_range_label,
-               N_("Baked %d - %d"),
-               int(baked_range->first()),
-               int(baked_range->last()));
-      uiItemL(layout, baked_range_label, ICON_NONE);
-    }
-    else if (simulation_range.has_value()) {
-      char simulation_range_label[64];
-      SNPRINTF(simulation_range_label,
-               N_("Frames %d - %d"),
-               int(simulation_range->first()),
-               int(simulation_range->last()));
-      uiItemL(layout, simulation_range_label, ICON_NONE);
-    }
-  }
-  {
-    uiLayout *settings_col = uiLayoutColumn(layout, false);
-    uiLayoutSetActive(settings_col, !is_baked);
-    {
-      uiLayout *col = uiLayoutColumn(settings_col, true);
-      uiLayoutSetActive(col, !is_baked);
-      uiItemR(col, &bake_rna, "use_custom_path", UI_ITEM_NONE, "Custom Path", ICON_NONE);
-      uiLayout *subcol = uiLayoutColumn(col, true);
-      uiLayoutSetActive(subcol, bake->flag & NODES_MODIFIER_BAKE_CUSTOM_PATH);
-      uiItemR(subcol, &bake_rna, "directory", UI_ITEM_NONE, "Path", ICON_NONE);
-    }
-    {
-      uiLayout *col = uiLayoutColumn(settings_col, true);
-      uiItemR(col,
-              &bake_rna,
-              "use_custom_simulation_frame_range",
-              UI_ITEM_NONE,
-              "Custom Range",
-              ICON_NONE);
-      uiLayout *subcol = uiLayoutColumn(col, true);
-      uiLayoutSetActive(subcol, bake->flag & NODES_MODIFIER_BAKE_CUSTOM_SIMULATION_FRAME_RANGE);
-      uiItemR(subcol, &bake_rna, "frame_start", UI_ITEM_NONE, "Start", ICON_NONE);
-      uiItemR(subcol, &bake_rna, "frame_end", UI_ITEM_NONE, "End", ICON_NONE);
-    }
-  }
-
-  draw_data_blocks(C, layout, bake_rna);
+  socket_items::ops::make_common_operators<SimulationItemsAccessor>();
 }
 
 static bool node_insert_link(bNodeTree *ntree, bNode *node, bNodeLink *link)
@@ -888,12 +833,28 @@ static bool node_insert_link(bNodeTree *ntree, bNode *node, bNodeLink *link)
       *ntree, *node, *node, *link);
 }
 
+static void node_extra_info(NodeExtraInfoParams &params)
+{
+  BakeDrawContext ctx;
+  if (!get_bake_draw_context(&params.C, params.node, ctx)) {
+    return;
+  }
+  if (ctx.is_baked) {
+    NodeExtraInfoRow row;
+    row.text = get_baked_string(ctx);
+    params.rows.append(std::move(row));
+  }
+}
+
 static void node_register()
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(
-      &ntype, GEO_NODE_SIMULATION_OUTPUT, "Simulation Output", NODE_CLASS_INTERFACE);
+  geo_node_type_base(&ntype, "GeometryNodeSimulationOutput", GEO_NODE_SIMULATION_OUTPUT);
+  ntype.ui_name = "Simulation Output";
+  ntype.ui_description = "Output data from the simulation zone";
+  ntype.enum_name_legacy = "SIMULATION_OUTPUT";
+  ntype.nclass = NODE_CLASS_INTERFACE;
   ntype.initfunc = node_init;
   ntype.declare = node_declare;
   ntype.labelfunc = sim_input_node::node_label;
@@ -901,8 +862,11 @@ static void node_register()
   ntype.insert_link = node_insert_link;
   ntype.draw_buttons_ex = node_layout_ex;
   ntype.no_muting = true;
-  node_type_storage(&ntype, "NodeGeometrySimulationOutput", node_free_storage, node_copy_storage);
-  nodeRegisterType(&ntype);
+  ntype.register_operators = node_operators;
+  ntype.get_extra_info = node_extra_info;
+  blender::bke::node_type_storage(
+      ntype, "NodeGeometrySimulationOutput", node_free_storage, node_copy_storage);
+  blender::bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 
@@ -917,7 +881,7 @@ std::unique_ptr<LazyFunction> get_simulation_input_lazy_function(
     const bNode &node,
     GeometryNodesLazyFunctionGraphInfo &own_lf_graph_info)
 {
-  BLI_assert(node.type == GEO_NODE_SIMULATION_INPUT);
+  BLI_assert(node.type_legacy == GEO_NODE_SIMULATION_INPUT);
   return std::make_unique<
       node_geo_simulation_cc::sim_input_node::LazyFunctionForSimulationInputNode>(
       node_tree, node, own_lf_graph_info);
@@ -926,7 +890,7 @@ std::unique_ptr<LazyFunction> get_simulation_input_lazy_function(
 std::unique_ptr<LazyFunction> get_simulation_output_lazy_function(
     const bNode &node, GeometryNodesLazyFunctionGraphInfo &own_lf_graph_info)
 {
-  BLI_assert(node.type == GEO_NODE_SIMULATION_OUTPUT);
+  BLI_assert(node.type_legacy == GEO_NODE_SIMULATION_OUTPUT);
   return std::make_unique<
       node_geo_simulation_cc::sim_output_node::LazyFunctionForSimulationOutputNode>(
       node, own_lf_graph_info);
@@ -951,7 +915,7 @@ void mix_baked_data_item(const eNodeSocketDatatype socket_type,
     case SOCK_ROTATION:
     case SOCK_RGBA:
     case SOCK_MATRIX: {
-      const CPPType &type = node_geo_simulation_cc::get_simulation_item_cpp_type(socket_type);
+      const CPPType &type = *bke::socket_type_to_geo_nodes_base_cpp_type(socket_type);
       SocketValueVariant prev_value_variant = *static_cast<const SocketValueVariant *>(prev);
       SocketValueVariant next_value_variant = *static_cast<const SocketValueVariant *>(next);
       if (prev_value_variant.is_context_dependent_field() ||
@@ -977,6 +941,20 @@ void mix_baked_data_item(const eNodeSocketDatatype socket_type,
     default:
       break;
   }
+}
+
+StructRNA *SimulationItemsAccessor::item_srna = &RNA_SimulationStateItem;
+int SimulationItemsAccessor::node_type = GEO_NODE_SIMULATION_OUTPUT;
+int SimulationItemsAccessor::item_dna_type = SDNA_TYPE_FROM_STRUCT(NodeSimulationItem);
+
+void SimulationItemsAccessor::blend_write_item(BlendWriter *writer, const ItemT &item)
+{
+  BLO_write_string(writer, item.name);
+}
+
+void SimulationItemsAccessor::blend_read_data_item(BlendDataReader *reader, ItemT &item)
+{
+  BLO_read_string(reader, &item.name);
 }
 
 }  // namespace blender::nodes

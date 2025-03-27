@@ -43,20 +43,24 @@ class RuntimeAssetLibrary;
 class AssetLibraryService {
   static std::unique_ptr<AssetLibraryService> instance_;
 
-  /** Identify libraries with the library type, and the absolute path of the library's root path
+  /**
+   * Identify libraries with the library type, and the absolute path of the library's root path
    * (normalize with #normalize_directory_path()!). The type is relevant since the current file
-   * library may point to the same path as a custom library. */
+   * library may point to the same path as a custom library.
+   */
   using OnDiskLibraryIdentifier = std::pair<eAssetLibraryType, std::string>;
-  /* Mapping of a (type, root path) pair to the AssetLibrary instance. */
+  /** Mapping of a (type, root path) pair to the AssetLibrary instance. */
   Map<OnDiskLibraryIdentifier, std::unique_ptr<OnDiskAssetLibrary>> on_disk_libraries_;
-  /** Library without a known path, i.e. the "Current File" library if the file isn't saved yet. If
+  /**
+   * Library without a known path, i.e. the "Current File" library if the file isn't saved yet. If
    * the file was saved, a valid path for the library can be determined and #on_disk_libraries_
-   * above should be used. */
+   * above should be used.
+   */
   std::unique_ptr<RuntimeAssetLibrary> current_file_library_;
   /** The "all" asset library, merging all other libraries into one. */
   std::unique_ptr<AllAssetLibrary> all_library_;
 
-  /* Handlers for managing the life cycle of the AssetLibraryService instance. */
+  /** Handlers for managing the life cycle of the AssetLibraryService instance. */
   bCallbackFuncStore on_load_callback_store_;
   static bool atexit_handler_registered_;
 
@@ -75,6 +79,17 @@ class AssetLibraryService {
       const AssetLibraryReference &library_reference);
   static bUserAssetLibrary *find_custom_preferences_asset_library_from_asset_weak_ref(
       const AssetWeakReference &asset_reference);
+  /**
+   * Turn the runtime current file library into a on-disk current file library, preserving catalog
+   * data like undo/redo history, deleted catalog info, catalog saving state, etc. Note that this
+   * creates a new on-disk asset library and destroys the runtime one.
+   *
+   * Call when the .blend file is saved to disk.
+   *
+   * \return the new on-disk current file asset library (null in case of failure to find a path to
+   * store the library in, based on the #Main.filepath from \a main).
+   */
+  static AssetLibrary *move_runtime_current_file_into_on_disk_library(const Main &bmain);
 
   AssetLibrary *get_asset_library(const Main *bmain,
                                   const AssetLibraryReference &library_reference);
@@ -152,14 +167,19 @@ class AssetLibraryService {
   /** Allocate a new instance of the service and assign it to `instance_`. */
   static void allocate_service_instance();
 
+  OnDiskAssetLibrary *lookup_on_disk_library(eAssetLibraryType type, StringRefNull root_path);
+
   AssetLibrary *find_loaded_on_disk_asset_library_from_name(StringRef name) const;
 
   /**
    * Get the given asset library. Opens it (i.e. creates a new AssetLibrary instance) if necessary.
+   *
+   * \param root_path: The top level directory.
    */
   AssetLibrary *get_asset_library_on_disk(eAssetLibraryType library_type,
                                           StringRef name,
-                                          StringRefNull top_level_directory);
+                                          StringRefNull root_path,
+                                          bool load_catalogs = true);
   /**
    * Ensure the AssetLibraryService instance is destroyed before a new blend file is loaded.
    * This makes memory management simple, and ensures a fresh start for every blend file. */

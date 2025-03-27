@@ -11,14 +11,13 @@
 #include "DNA_lattice_types.h"
 #include "DNA_meta_types.h"
 #include "DNA_object_types.h"
-#include "DNA_scene_types.h"
+#include "DNA_screen_types.h"
 
+#include "BLI_listbase.h"
 #include "BLI_math_geom.h"
 #include "BLI_rect.h"
-#include "BLI_utildefines.h"
 
-#include "BKE_DerivedMesh.hh"
-#include "BKE_action.h"
+#include "BKE_action.hh"
 #include "BKE_armature.hh"
 #include "BKE_attribute.hh"
 #include "BKE_curve.hh"
@@ -26,11 +25,11 @@
 #include "BKE_editmesh.hh"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_iterators.hh"
+#include "BKE_mesh_runtime.hh"
 #include "BKE_mesh_wrapper.hh"
 #include "BKE_object.hh"
 #include "BKE_object_types.hh"
 
-#include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_query.hh"
 
 #include "ANIM_bone_collections.hh"
@@ -38,7 +37,6 @@
 #include "bmesh.hh"
 
 #include "ED_armature.hh"
-#include "ED_screen.hh"
 #include "ED_view3d.hh"
 
 /* -------------------------------------------------------------------- */
@@ -221,7 +219,7 @@ struct foreachScreenVert_userData {
   eV3DProjTest clip_flag;
 };
 
-/* user data structures for derived mesh callbacks */
+/** User data structures for evaluated mesh callbacks. */
 struct foreachScreenEdge_userData {
   void (*func)(void *user_data,
                BMEdge *eed,
@@ -344,7 +342,7 @@ void mesh_foreachScreenVert(
 {
   foreachScreenVert_userData data;
 
-  Mesh *mesh = editbmesh_get_eval_cage_from_orig(
+  Mesh *mesh = blender::bke::editbmesh_get_eval_cage_from_orig(
       vc->depsgraph, vc->scene, vc->obedit, &CD_MASK_BAREMESH);
   mesh = BKE_mesh_wrapper_ensure_subdivision(mesh);
 
@@ -409,7 +407,7 @@ void mesh_foreachScreenEdge(const ViewContext *vc,
 {
   foreachScreenEdge_userData data;
 
-  Mesh *mesh = editbmesh_get_eval_cage_from_orig(
+  Mesh *mesh = blender::bke::editbmesh_get_eval_cage_from_orig(
       vc->depsgraph, vc->scene, vc->obedit, &CD_MASK_BAREMESH);
   mesh = BKE_mesh_wrapper_ensure_subdivision(mesh);
 
@@ -499,7 +497,7 @@ void mesh_foreachScreenEdge_clip_bb_segment(const ViewContext *vc,
 {
   foreachScreenEdge_userData data;
 
-  Mesh *mesh = editbmesh_get_eval_cage_from_orig(
+  Mesh *mesh = blender::bke::editbmesh_get_eval_cage_from_orig(
       vc->depsgraph, vc->scene, vc->obedit, &CD_MASK_BAREMESH);
   mesh = BKE_mesh_wrapper_ensure_subdivision(mesh);
 
@@ -574,7 +572,7 @@ void mesh_foreachScreenFace(
   BLI_assert((clip_flag & V3D_PROJ_TEST_CLIP_CONTENT) == 0);
   foreachScreenFace_userData data;
 
-  Mesh *mesh = editbmesh_get_eval_cage_from_orig(
+  Mesh *mesh = blender::bke::editbmesh_get_eval_cage_from_orig(
       vc->depsgraph, vc->scene, vc->obedit, &CD_MASK_BAREMESH);
   mesh = BKE_mesh_wrapper_ensure_subdivision(mesh);
   ED_view3d_check_mats_rv3d(vc->rv3d);

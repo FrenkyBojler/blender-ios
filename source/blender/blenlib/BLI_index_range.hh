@@ -55,7 +55,7 @@ class IndexRange {
  public:
   constexpr IndexRange() = default;
 
-  constexpr explicit IndexRange(int64_t size) : start_(0), size_(size)
+  constexpr explicit IndexRange(int64_t size) : size_(size)
   {
     BLI_assert(size >= 0);
   }
@@ -168,6 +168,14 @@ class IndexRange {
   }
 
   /**
+   * Creates a new index range with the same beginning but a different end.
+   */
+  constexpr IndexRange with_new_end(const int64_t new_end) const
+  {
+    return IndexRange::from_begin_end(start_, new_end);
+  }
+
+  /**
    * Create a new range starting at the end of the current one.
    */
   constexpr IndexRange after(int64_t n) const
@@ -239,6 +247,23 @@ class IndexRange {
   constexpr bool contains(int64_t value) const
   {
     return value >= start_ && value < start_ + size_;
+  }
+
+  /**
+   * Returns true when all indices in the given range are also in the current range.
+   */
+  constexpr bool contains(const IndexRange range) const
+  {
+    if (range.is_empty()) {
+      return true;
+    }
+    if (range.start_ < start_) {
+      return false;
+    }
+    if (range.start_ + range.size_ > start_ + size_) {
+      return false;
+    }
+    return true;
   }
 
   /**

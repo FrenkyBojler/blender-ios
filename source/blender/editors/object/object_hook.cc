@@ -24,11 +24,12 @@
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
-#include "BKE_action.h"
+#include "BKE_action.hh"
 #include "BKE_context.hh"
 #include "BKE_deform.hh"
 #include "BKE_editmesh.hh"
 #include "BKE_layer.hh"
+#include "BKE_mesh_types.hh"
 #include "BKE_modifier.hh"
 #include "BKE_object.hh"
 #include "BKE_report.hh"
@@ -40,7 +41,7 @@
 #include "RNA_access.hh"
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "ED_curve.hh"
 #include "ED_mesh.hh"
@@ -51,7 +52,9 @@
 
 #include "UI_resources.hh"
 
-#include "object_intern.h"
+#include "object_intern.hh"
+
+namespace blender::ed::object {
 
 static int return_editmesh_indexar(BMEditMesh *em,
                                    int *r_indexar_num,
@@ -129,7 +132,7 @@ static bool return_editmesh_vgroup(Object *obedit, BMEditMesh *em, char *r_name,
 static void select_editbmesh_hook(Object *ob, HookModifierData *hmd)
 {
   Mesh *mesh = static_cast<Mesh *>(ob->data);
-  BMEditMesh *em = mesh->edit_mesh;
+  BMEditMesh *em = mesh->runtime->edit_mesh.get();
   BMVert *eve;
   BMIter iter;
   int index = 0, nr = 0;
@@ -332,14 +335,12 @@ static bool object_hook_index_array(Main *bmain,
     case OB_MESH: {
       Mesh *mesh = static_cast<Mesh *>(obedit->data);
 
-      BMEditMesh *em;
-
       EDBM_mesh_load(bmain, obedit);
       EDBM_mesh_make(obedit, scene->toolsettings->selectmode, true);
 
       DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
 
-      em = mesh->edit_mesh;
+      BMEditMesh *em = mesh->runtime->edit_mesh.get();
 
       BKE_editmesh_looptris_and_normals_calc(em);
 
@@ -611,7 +612,7 @@ static int add_hook_object(const bContext *C,
   return true;
 }
 
-static int object_add_hook_selob_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus object_add_hook_selob_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
@@ -667,7 +668,7 @@ void OBJECT_OT_hook_add_selob(wmOperatorType *ot)
                   "Assign the hook to the hook object's active bone");
 }
 
-static int object_add_hook_newob_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus object_add_hook_newob_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
@@ -701,7 +702,7 @@ void OBJECT_OT_hook_add_newob(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-static int object_hook_remove_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus object_hook_remove_exec(bContext *C, wmOperator *op)
 {
   int num = RNA_enum_get(op->ptr, "modifier");
   Object *ob = CTX_data_edit_object(C);
@@ -718,6 +719,7 @@ static int object_hook_remove_exec(bContext *C, wmOperator *op)
   BKE_modifier_remove_from_list(ob, (ModifierData *)hmd);
   BKE_modifier_free((ModifierData *)hmd);
 
+  DEG_relations_tag_update(CTX_data_main(C));
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
   WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, ob);
 
@@ -782,7 +784,7 @@ void OBJECT_OT_hook_remove(wmOperatorType *ot)
   ot->prop = prop;
 }
 
-static int object_hook_reset_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus object_hook_reset_exec(bContext *C, wmOperator *op)
 {
   PointerRNA ptr = CTX_data_pointer_get_type(C, "modifier", &RNA_HookModifier);
   int num = RNA_enum_get(op->ptr, "modifier");
@@ -830,7 +832,7 @@ void OBJECT_OT_hook_reset(wmOperatorType *ot)
   RNA_def_property_flag(prop, PROP_ENUM_NO_TRANSLATE);
 }
 
-static int object_hook_recenter_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus object_hook_recenter_exec(bContext *C, wmOperator *op)
 {
   PointerRNA ptr = CTX_data_pointer_get_type(C, "modifier", &RNA_HookModifier);
   int num = RNA_enum_get(op->ptr, "modifier");
@@ -885,7 +887,7 @@ void OBJECT_OT_hook_recenter(wmOperatorType *ot)
   RNA_def_property_flag(prop, PROP_ENUM_NO_TRANSLATE);
 }
 
-static int object_hook_assign_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus object_hook_assign_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
@@ -952,7 +954,7 @@ void OBJECT_OT_hook_assign(wmOperatorType *ot)
   RNA_def_property_flag(prop, PROP_ENUM_NO_TRANSLATE);
 }
 
-static int object_hook_select_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus object_hook_select_exec(bContext *C, wmOperator *op)
 {
   PointerRNA ptr = CTX_data_pointer_get_type(C, "modifier", &RNA_HookModifier);
   int num = RNA_enum_get(op->ptr, "modifier");
@@ -996,3 +998,5 @@ void OBJECT_OT_hook_select(wmOperatorType *ot)
   RNA_def_enum_funcs(prop, hook_mod_itemf);
   RNA_def_property_flag(prop, PROP_ENUM_NO_TRANSLATE);
 }
+
+}  // namespace blender::ed::object

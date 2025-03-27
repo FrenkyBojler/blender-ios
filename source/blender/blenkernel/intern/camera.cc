@@ -6,8 +6,8 @@
  * \ingroup bke
  */
 
-#include <cstddef>
 #include <cstdlib>
+#include <optional>
 
 /* Allow using deprecated functionality for .blend file I/O. */
 #define DNA_DEPRECATED_ALLOW
@@ -28,9 +28,9 @@
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
-#include "BKE_action.h"
+#include "BKE_action.hh"
 #include "BKE_camera.h"
-#include "BKE_idprop.h"
+#include "BKE_idprop.hh"
 #include "BKE_idtype.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
@@ -68,12 +68,16 @@ static void camera_init_data(ID *id)
  *
  * \param flag: Copying options (see BKE_lib_id.hh's LIB_ID_COPY_... flags for more).
  */
-static void camera_copy_data(Main * /*bmain*/, ID *id_dst, const ID *id_src, const int flag)
+static void camera_copy_data(Main * /*bmain*/,
+                             std::optional<Library *> /*owner_library*/,
+                             ID *id_dst,
+                             const ID *id_src,
+                             const int flag)
 {
   Camera *cam_dst = (Camera *)id_dst;
   const Camera *cam_src = (const Camera *)id_src;
 
-  /* We never handle user-count here for own data. */
+  /* We never handle user-count here for owned data. */
   const int flag_subdata = flag | LIB_ID_CREATE_NO_USER_REFCOUNT;
 
   BLI_listbase_clear(&cam_dst->bg_images);
@@ -119,33 +123,26 @@ static CameraCyclesCompatibilityData camera_write_cycles_compatibility_data_crea
     if (prop) {
       return prop;
     }
-    IDPropertyTemplate val = {0};
-    prop = IDP_New(IDP_GROUP, &val, "cycles");
+    prop = blender::bke::idprop::create_group("cycles").release();
     IDP_AddToGroup(group, prop);
     return prop;
   };
 
   auto cycles_property_int_set = [](IDProperty *idprop, const char *name, int value) {
-    IDProperty *prop = IDP_GetPropertyTypeFromGroup(idprop, name, IDP_INT);
-    if (prop) {
+    if (IDProperty *prop = IDP_GetPropertyTypeFromGroup(idprop, name, IDP_INT)) {
       IDP_Int(prop) = value;
     }
     else {
-      IDPropertyTemplate val = {0};
-      val.i = value;
-      IDP_AddToGroup(idprop, IDP_New(IDP_INT, &val, name));
+      IDP_AddToGroup(idprop, blender::bke::idprop::create(name, value).release());
     }
   };
 
   auto cycles_property_float_set = [](IDProperty *idprop, const char *name, float value) {
-    IDProperty *prop = IDP_GetPropertyTypeFromGroup(idprop, name, IDP_FLOAT);
-    if (prop) {
+    if (IDProperty *prop = IDP_GetPropertyTypeFromGroup(idprop, name, IDP_FLOAT)) {
       IDP_Float(prop) = value;
     }
     else {
-      IDPropertyTemplate val = {0};
-      val.f = value;
-      IDP_AddToGroup(idprop, IDP_New(IDP_FLOAT, &val, name));
+      IDP_AddToGroup(idprop, blender::bke::idprop::create(name, value).release());
     }
   };
 
@@ -214,7 +211,7 @@ static void camera_blend_read_data(BlendDataReader *reader, ID *id)
 {
   Camera *ca = (Camera *)id;
 
-  BLO_read_list(reader, &ca->bg_images);
+  BLO_read_struct_list(reader, CameraBGImage, &ca->bg_images);
 
   LISTBASE_FOREACH (CameraBGImage *, bgpic, &ca->bg_images) {
     bgpic->iuser.scene = nullptr;
@@ -262,7 +259,7 @@ IDTypeInfo IDType_ID_CA = {
 /** \name Camera Usage
  * \{ */
 
-void *BKE_camera_add(Main *bmain, const char *name)
+Camera *BKE_camera_add(Main *bmain, const char *name)
 {
   Camera *cam;
 
@@ -273,7 +270,7 @@ void *BKE_camera_add(Main *bmain, const char *name)
 
 float BKE_camera_object_dof_distance(const Object *ob)
 {
-  Camera *cam = (Camera *)ob->data;
+  const Camera *cam = (const Camera *)ob->data;
   if (ob->type != OB_CAMERA) {
     return 0.0f;
   }
@@ -292,9 +289,9 @@ float BKE_camera_object_dof_distance(const Object *ob)
                   ob->object_to_world().location(),
                   cam->dof.focus_object->object_to_world().location());
     }
-    return fabsf(dot_v3v3(view_dir, dof_dir));
+    return fmax(fabsf(dot_v3v3(view_dir, dof_dir)), 1e-5f);
   }
-  return cam->dof.focus_distance;
+  return fmax(cam->dof.focus_distance, 1e-5f);
 }
 
 float BKE_camera_sensor_size(int sensor_fit, float sensor_x, float sensor_y)
@@ -350,7 +347,7 @@ void BKE_camera_params_from_object(CameraParams *params, const Object *cam_ob)
 
   if (cam_ob->type == OB_CAMERA) {
     /* camera object */
-    Camera *cam = static_cast<Camera *>(cam_ob->data);
+    const Camera *cam = static_cast<const Camera *>(cam_ob->data);
 
     if (cam->type == CAM_ORTHO) {
       params->is_ortho = true;
@@ -485,6 +482,18 @@ void BKE_camera_params_compute_viewplane(
   params->viewdx = pixsize;
   params->viewdy = params->ycor * pixsize;
   params->viewplane = viewplane;
+}
+
+void BKE_camera_params_crop_viewplane(rctf *viewplane, int winx, int winy, const rcti *region)
+{
+  float pix_size_x = BLI_rctf_size_x(viewplane) / winx;
+  float pix_size_y = BLI_rctf_size_y(viewplane) / winy;
+
+  viewplane->xmin += pix_size_x * region->xmin;
+  viewplane->ymin += pix_size_y * region->ymin;
+
+  viewplane->xmax = viewplane->xmin + pix_size_x * BLI_rcti_size_x(region);
+  viewplane->ymax = viewplane->ymin + pix_size_y * BLI_rcti_size_y(region);
 }
 
 void BKE_camera_params_compute_matrix(CameraParams *params)
@@ -894,7 +903,7 @@ static void camera_stereo3d_model_matrix(const Object *camera,
                                          const bool is_left,
                                          float r_modelmat[4][4])
 {
-  Camera *data = (Camera *)camera->data;
+  const Camera *data = (const Camera *)camera->data;
   float interocular_distance, convergence_distance;
   short convergence_mode, pivot;
   float sizemat[4][4];
@@ -1055,7 +1064,6 @@ void BKE_camera_multiview_window_matrix(const RenderData *rd,
 
 bool BKE_camera_multiview_spherical_stereo(const RenderData *rd, const Object *camera)
 {
-  Camera *cam;
   const bool is_multiview = (rd && rd->scemode & R_MULTIVIEW) != 0;
 
   if (!is_multiview) {
@@ -1066,7 +1074,7 @@ bool BKE_camera_multiview_spherical_stereo(const RenderData *rd, const Object *c
     return false;
   }
 
-  cam = static_cast<Camera *>(camera->data);
+  const Camera *cam = static_cast<const Camera *>(camera->data);
 
   if ((rd->views_format == SCE_VIEWS_FORMAT_STEREO_3D) && ELEM(cam->type, CAM_PANO, CAM_PERSP) &&
       ((cam->stereo.flag & CAM_S3D_SPHERICAL) != 0))
@@ -1127,7 +1135,7 @@ Object *BKE_camera_multiview_render(const Scene *scene, Object *camera, const ch
 
 static float camera_stereo3d_shift_x(const Object *camera, const char *viewname)
 {
-  Camera *data = static_cast<Camera *>(camera->data);
+  const Camera *data = static_cast<const Camera *>(camera->data);
   float shift = data->shiftx;
   float interocular_distance, convergence_distance;
   short convergence_mode, pivot;
@@ -1169,7 +1177,7 @@ float BKE_camera_multiview_shift_x(const RenderData *rd,
                                    const char *viewname)
 {
   const bool is_multiview = (rd && rd->scemode & R_MULTIVIEW) != 0;
-  Camera *data = static_cast<Camera *>(camera->data);
+  const Camera *data = static_cast<const Camera *>(camera->data);
 
   BLI_assert(camera->type == OB_CAMERA);
 
@@ -1204,8 +1212,7 @@ void BKE_camera_multiview_params(const RenderData *rd,
 
 CameraBGImage *BKE_camera_background_image_new(Camera *cam)
 {
-  CameraBGImage *bgpic = static_cast<CameraBGImage *>(
-      MEM_callocN(sizeof(CameraBGImage), "Background Image"));
+  CameraBGImage *bgpic = MEM_callocN<CameraBGImage>("Background Image");
 
   bgpic->scale = 1.0f;
   bgpic->alpha = 0.5f;
@@ -1217,7 +1224,7 @@ CameraBGImage *BKE_camera_background_image_new(Camera *cam)
   return bgpic;
 }
 
-CameraBGImage *BKE_camera_background_image_copy(CameraBGImage *bgpic_src, const int flag)
+CameraBGImage *BKE_camera_background_image_copy(const CameraBGImage *bgpic_src, const int flag)
 {
   CameraBGImage *bgpic_dst = static_cast<CameraBGImage *>(MEM_dupallocN(bgpic_src));
 

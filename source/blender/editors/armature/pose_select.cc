@@ -11,19 +11,16 @@
 #include "DNA_anim_types.h"
 #include "DNA_armature_types.h"
 #include "DNA_constraint_types.h"
-#include "DNA_gpencil_modifier_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
-#include "MEM_guardedalloc.h"
+#include "BLI_listbase.h"
+#include "BLI_string.h"
 
-#include "BLI_blenlib.h"
-
-#include "BKE_action.h"
+#include "BKE_action.hh"
 #include "BKE_armature.hh"
 #include "BKE_constraint.h"
 #include "BKE_context.hh"
-#include "BKE_gpencil_modifier_legacy.h"
 #include "BKE_layer.hh"
 #include "BKE_modifier.hh"
 #include "BKE_object.hh"
@@ -41,6 +38,7 @@
 #include "ED_keyframing.hh"
 #include "ED_mesh.hh"
 #include "ED_object.hh"
+#include "ED_object_vgroup.hh"
 #include "ED_outliner.hh"
 #include "ED_screen.hh"
 #include "ED_select_utils.hh"
@@ -48,6 +46,7 @@
 
 #include "ANIM_bone_collections.hh"
 #include "ANIM_bonecolor.hh"
+#include "ANIM_keyingsets.hh"
 
 #include "armature_intern.hh"
 
@@ -142,7 +141,7 @@ bool ED_armature_pose_select_pick_bone(const Scene *scene,
   bool found = false;
   bool changed = false;
 
-  if (ob || ob->pose) {
+  if (ob->pose) {
     if (bone && ((bone->flag & BONE_UNSELECTABLE) == 0)) {
       found = true;
     }
@@ -233,7 +232,7 @@ bool ED_armature_pose_select_pick_bone(const Scene *scene,
       /* In weight-paint we select the associated vertex group too. */
       if (ob_act->mode & OB_MODE_ALL_WEIGHT_PAINT) {
         if (bone == arm->act_bone) {
-          ED_vgroup_select_by_name(ob_act, bone->name);
+          blender::ed::object::vgroup_select_by_name(ob_act, bone->name);
           DEG_id_tag_update(&ob_act->id, ID_RECALC_GEOMETRY);
         }
       }
@@ -290,45 +289,23 @@ void ED_armature_pose_select_in_wpaint_mode(const Scene *scene,
   Object *ob_active = BKE_view_layer_active_object_get(view_layer);
   BLI_assert(ob_active && (ob_active->mode & OB_MODE_ALL_WEIGHT_PAINT));
 
-  if (ob_active->type == OB_GPENCIL_LEGACY) {
-    GpencilVirtualModifierData virtual_modifier_data;
-    GpencilModifierData *md = BKE_gpencil_modifiers_get_virtual_modifierlist(
-        ob_active, &virtual_modifier_data);
-    for (; md; md = md->next) {
-      if (md->type == eGpencilModifierType_Armature) {
-        ArmatureGpencilModifierData *agmd = (ArmatureGpencilModifierData *)md;
-        Object *ob_arm = agmd->object;
-        if (ob_arm != nullptr) {
-          Base *base_arm = BKE_view_layer_base_find(view_layer, ob_arm);
-          if ((base_arm != nullptr) && (base_arm != base_select) &&
-              (base_arm->flag & BASE_SELECTED))
-          {
-            ED_object_base_select(base_arm, BA_DESELECT);
-          }
-        }
-      }
-    }
-  }
-  else {
-    VirtualModifierData virtual_modifier_data;
-    ModifierData *md = BKE_modifiers_get_virtual_modifierlist(ob_active, &virtual_modifier_data);
-    for (; md; md = md->next) {
-      if (md->type == eModifierType_Armature) {
-        ArmatureModifierData *amd = (ArmatureModifierData *)md;
-        Object *ob_arm = amd->object;
-        if (ob_arm != nullptr) {
-          Base *base_arm = BKE_view_layer_base_find(view_layer, ob_arm);
-          if ((base_arm != nullptr) && (base_arm != base_select) &&
-              (base_arm->flag & BASE_SELECTED))
-          {
-            ED_object_base_select(base_arm, BA_DESELECT);
-          }
+  VirtualModifierData virtual_modifier_data;
+  ModifierData *md = BKE_modifiers_get_virtual_modifierlist(ob_active, &virtual_modifier_data);
+  for (; md; md = md->next) {
+    if (md->type == eModifierType_Armature) {
+      ArmatureModifierData *amd = reinterpret_cast<ArmatureModifierData *>(md);
+      Object *ob_arm = amd->object;
+      if (ob_arm != nullptr) {
+        Base *base_arm = BKE_view_layer_base_find(view_layer, ob_arm);
+        if ((base_arm != nullptr) && (base_arm != base_select) && (base_arm->flag & BASE_SELECTED))
+        {
+          blender::ed::object::base_select(base_arm, blender::ed::object::BA_DESELECT);
         }
       }
     }
   }
   if ((base_select->flag & BASE_SELECTED) == 0) {
-    ED_object_base_select(base_select, BA_SELECT);
+    blender::ed::object::base_select(base_select, blender::ed::object::BA_SELECT);
   }
 }
 
@@ -443,12 +420,14 @@ static void selectconnected_posebonechildren(Object *ob, Bone *bone, int extend)
 
 /* within active object context */
 /* previously known as "selectconnected_posearmature" */
-static int pose_select_connected_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus pose_select_connected_invoke(bContext *C,
+                                                     wmOperator *op,
+                                                     const wmEvent *event)
 {
   Bone *bone, *curBone, *next = nullptr;
   const bool extend = RNA_boolean_get(op->ptr, "extend");
 
-  view3d_operator_needs_opengl(C);
+  view3d_operator_needs_gpu(C);
 
   Base *base = nullptr;
   bone = ED_armature_pick_bone(C, event->mval, !extend, &base);
@@ -523,7 +502,7 @@ void POSE_OT_select_linked_pick(wmOperatorType *ot)
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
-static int pose_select_linked_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus pose_select_linked_exec(bContext *C, wmOperator * /*op*/)
 {
   Bone *curBone, *next = nullptr;
 
@@ -581,7 +560,7 @@ void POSE_OT_select_linked(wmOperatorType *ot)
 
 /* -------------------------------------- */
 
-static int pose_de_select_all_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus pose_de_select_all_exec(bContext *C, wmOperator *op)
 {
   int action = RNA_enum_get(op->ptr, "action");
 
@@ -637,10 +616,10 @@ void POSE_OT_select_all(wmOperatorType *ot)
 
 /* -------------------------------------- */
 
-static int pose_select_parent_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus pose_select_parent_exec(bContext *C, wmOperator * /*op*/)
 {
   Object *ob = BKE_object_pose_armature_get(CTX_data_active_object(C));
-  bArmature *arm = (bArmature *)ob->data;
+  bArmature *arm = static_cast<bArmature *>(ob->data);
   bPoseChannel *pchan, *parent;
 
   /* Determine if there is an active bone */
@@ -682,7 +661,7 @@ void POSE_OT_select_parent(wmOperatorType *ot)
 
 /* -------------------------------------- */
 
-static int pose_select_constraint_target_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus pose_select_constraint_target_exec(bContext *C, wmOperator * /*op*/)
 {
   int found = 0;
 
@@ -742,7 +721,7 @@ void POSE_OT_select_constraint_target(wmOperatorType *ot)
 
 /* No need to convert to multi-objects. Just like we keep the non-active bones
  * selected we then keep the non-active objects untouched (selected/unselected). */
-static int pose_select_hierarchy_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus pose_select_hierarchy_exec(bContext *C, wmOperator *op)
 {
   Object *ob = BKE_object_pose_armature_get(CTX_data_active_object(C));
   bArmature *arm = static_cast<bArmature *>(ob->data);
@@ -965,17 +944,18 @@ static bool pose_select_same_collection(bContext *C, const bool extend)
 
 static bool pose_select_same_keyingset(bContext *C, ReportList *reports, bool extend)
 {
+  using namespace blender::animrig;
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   bool changed_multi = false;
-  KeyingSet *ks = ANIM_scene_get_active_keyingset(CTX_data_scene(C));
+  KeyingSet *ks = scene_get_active_keyingset(CTX_data_scene(C));
 
   /* sanity checks: validate Keying Set and object */
   if (ks == nullptr) {
     BKE_report(reports, RPT_ERROR, "No active Keying Set to use");
     return false;
   }
-  if (ANIM_validate_keyingset(C, nullptr, ks) != 0) {
+  if (validate_keyingset(C, nullptr, ks) != ModifyKeyReturn::SUCCESS) {
     if (ks->paths.first == nullptr) {
       if ((ks->flag & KEYINGSET_ABSOLUTE) == 0) {
         BKE_report(reports,
@@ -1045,7 +1025,7 @@ static bool pose_select_same_keyingset(bContext *C, ReportList *reports, bool ex
   return changed_multi;
 }
 
-static int pose_select_grouped_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus pose_select_grouped_exec(bContext *C, wmOperator *op)
 {
   Object *ob = BKE_object_pose_armature_get(CTX_data_active_object(C));
   const ePose_SelectSame_Mode type = ePose_SelectSame_Mode(RNA_enum_get(op->ptr, "type"));
@@ -1129,7 +1109,7 @@ void POSE_OT_select_grouped(wmOperatorType *ot)
 /**
  * \note clone of #armature_select_mirror_exec keep in sync
  */
-static int pose_select_mirror_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus pose_select_mirror_exec(bContext *C, wmOperator *op)
 {
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
@@ -1180,7 +1160,7 @@ static int pose_select_mirror_exec(bContext *C, wmOperator *op)
 
       /* In weight-paint we select the associated vertex group too. */
       if (is_weight_paint) {
-        ED_vgroup_select_by_name(ob_active, pchan_mirror_act->name);
+        blender::ed::object::vgroup_select_by_name(ob_active, pchan_mirror_act->name);
         DEG_id_tag_update(&ob_active->id, ID_RECALC_GEOMETRY);
       }
     }

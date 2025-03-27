@@ -18,6 +18,8 @@
 #include "transform.hh"
 #include "transform_convert.hh"
 
+namespace blender::ed::transform {
+
 /* -------------------------------------------------------------------- */
 /** \name Edge (for crease) Transform Creation
  * \{ */
@@ -65,7 +67,7 @@ static void createTransEdge(bContext * /*C*/, TransInfo *t)
     copy_m3_m4(mtx, tc->obedit->object_to_world().ptr());
     pseudoinverse_m3_m3(smtx, mtx, PSEUDOINVERSE_EPSILON);
 
-    /* create data we need */
+    /* Create data we need. */
     if (t->mode == TFM_BWEIGHT) {
       if (!CustomData_has_layer_named(&em->bm->edata, CD_PROP_FLOAT, "bevel_weight_edge")) {
         BM_data_layer_add_named(em->bm, &em->bm->edata, CD_PROP_FLOAT, "bevel_weight_edge");
@@ -73,7 +75,7 @@ static void createTransEdge(bContext * /*C*/, TransInfo *t)
       cd_edge_float_offset = CustomData_get_offset_named(
           &em->bm->edata, CD_PROP_FLOAT, "bevel_weight_edge");
     }
-    else { /* if (t->mode == TFM_EDGE_CREASE) { */
+    else { /* `if (t->mode == TFM_EDGE_CREASE) {`. */
       BLI_assert(t->mode == TFM_EDGE_CREASE);
       if (!CustomData_has_layer_named(&em->bm->edata, CD_PROP_FLOAT, "crease_edge")) {
         BM_data_layer_add_named(em->bm, &em->bm->edata, CD_PROP_FLOAT, "crease_edge");
@@ -89,7 +91,7 @@ static void createTransEdge(bContext * /*C*/, TransInfo *t)
           (BM_elem_flag_test(eed, BM_ELEM_SELECT) || is_prop_edit))
       {
         float *fl_ptr;
-        /* need to set center for center calculations */
+        /* Need to set center for center calculations. */
         mid_v3_v3v3(td->center, eed->v1->co, eed->v2->co);
 
         td->loc = nullptr;
@@ -130,3 +132,5 @@ TransConvertTypeInfo TransConvertType_MeshEdge = {
     /*recalc_data*/ recalcData_mesh_edge,
     /*special_aftertrans_update*/ nullptr,
 };
+
+}  // namespace blender::ed::transform

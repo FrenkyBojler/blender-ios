@@ -42,7 +42,7 @@
 
 #include "DEG_depsgraph.hh"
 
-#include "lattice_intern.h"
+#include "lattice_intern.hh"
 
 using blender::Span;
 using blender::Vector;
@@ -89,7 +89,7 @@ bool ED_lattice_deselect_all_multi(bContext *C)
 /** \name Select Random Operator
  * \{ */
 
-static int lattice_select_random_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus lattice_select_random_exec(bContext *C, wmOperator *op)
 {
   const bool select = (RNA_enum_get(op->ptr, "action") == SEL_SELECT);
   const float randfac = RNA_float_get(op->ptr, "ratio");
@@ -198,7 +198,7 @@ static void ed_lattice_select_mirrored(Lattice *lt, const int axis, const bool e
   MEM_freeN(selpoints);
 }
 
-static int lattice_select_mirror_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus lattice_select_mirror_exec(bContext *C, wmOperator *op)
 {
   const int axis_flag = RNA_enum_get(op->ptr, "axis");
   const bool extend = RNA_boolean_get(op->ptr, "extend");
@@ -252,7 +252,7 @@ void LATTICE_OT_select_mirror(wmOperatorType *ot)
  * \{ */
 
 static bool lattice_test_bitmap_uvw(
-    Lattice *lt, const BLI_bitmap *selpoints, int u, int v, int w, const bool selected)
+    const Lattice *lt, const BLI_bitmap *selpoints, int u, int v, int w, const bool selected)
 {
   if ((u < 0 || u >= lt->pntsu) || (v < 0 || v >= lt->pntsv) || (w < 0 || w >= lt->pntsw)) {
     return false;
@@ -265,7 +265,7 @@ static bool lattice_test_bitmap_uvw(
   return false;
 }
 
-static int lattice_select_more_less(bContext *C, const bool select)
+static wmOperatorStatus lattice_select_more_less(bContext *C, const bool select)
 {
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
@@ -315,12 +315,12 @@ static int lattice_select_more_less(bContext *C, const bool select)
   return changed ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
 }
 
-static int lattice_select_more_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus lattice_select_more_exec(bContext *C, wmOperator * /*op*/)
 {
   return lattice_select_more_less(C, true);
 }
 
-static int lattice_select_less_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus lattice_select_less_exec(bContext *C, wmOperator * /*op*/)
 {
   return lattice_select_more_less(C, false);
 }
@@ -389,7 +389,7 @@ bool ED_lattice_flags_set(Object *obedit, int flag)
   return changed;
 }
 
-static int lattice_select_all_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus lattice_select_all_exec(bContext *C, wmOperator *op)
 {
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
@@ -474,7 +474,7 @@ void LATTICE_OT_select_all(wmOperatorType *ot)
 /** \name Select Ungrouped Verts Operator
  * \{ */
 
-static int lattice_select_ungrouped_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus lattice_select_ungrouped_exec(bContext *C, wmOperator *op)
 {
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
@@ -665,7 +665,7 @@ bool ED_lattice_select_pick(bContext *C, const int mval[2], const SelectPick_Par
 
     BKE_view_layer_synced_ensure(vc.scene, vc.view_layer);
     if (BKE_view_layer_active_base_get(vc.view_layer) != basact) {
-      ED_object_base_activate(C, basact);
+      blender::ed::object::base_activate(C, basact);
     }
 
     DEG_id_tag_update(static_cast<ID *>(vc.obedit->data), ID_RECALC_SELECT);

@@ -9,7 +9,7 @@
 #include "BLI_math_matrix.hh"
 
 #include "BLI_math_rotation.hh"
-#include "BLI_simd.h"
+#include "BLI_simd.hh"
 
 #include <Eigen/Core>
 #include <Eigen/Dense>
@@ -139,13 +139,20 @@ template double determinant(const double2x2 &mat);
 template double determinant(const double3x3 &mat);
 template double determinant(const double4x4 &mat);
 
+template<typename T> bool is_negative(const MatBase<T, 3, 3> &mat)
+{
+  return determinant(mat) < T(0);
+}
+
 template<typename T> bool is_negative(const MatBase<T, 4, 4> &mat)
 {
   return Eigen::Map<const Eigen::Matrix<T, 3, 3>, 0, Eigen::Stride<4, 1>>(mat.base_ptr())
              .determinant() < T(0);
 }
 
+template bool is_negative(const float3x3 &mat);
 template bool is_negative(const float4x4 &mat);
+template bool is_negative(const double3x3 &mat);
 template bool is_negative(const double4x4 &mat);
 
 /** \} */
@@ -308,7 +315,7 @@ static void polar_decompose(const MatBase<T, 3, 3> &mat3,
 
     Eigen::Map<MatrixT>(W.base_ptr()) = svd.matrixU();
     (Eigen::Map<VectorT>(S_val)) = svd.singularValues();
-    Map<MatrixT>(V.base_ptr()) = svd.matrixV();
+    Eigen::Map<MatrixT>(V.base_ptr()) = svd.matrixV();
   }
 
   MatBase<T, 3, 3> S = from_scale<MatBase<T, 3, 3>>(S_val);
