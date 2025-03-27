@@ -345,61 +345,62 @@ struct MeshAssembly {
  * created. */
 class OutToInMaps {
  public:
-  Array<int> vertex_map;
-  Array<int> face_map;
-  Array<int> edge_map;
-  Array<int> corner_map;
-
   OutToInMaps(const MeshAssembly *mesh_assembly, const Mesh *joined_mesh, const Mesh *output_mesh)
       : mesh_assembly_(mesh_assembly), joined_mesh_(joined_mesh), output_mesh_(output_mesh)
   {
   }
 
-  void ensure_vertex_map();
-  void ensure_face_map();
-  void ensure_edge_map();
-  void ensure_corner_map();
+  Span<int> ensure_vertex_map();
+  Span<int> ensure_face_map();
+  Span<int> ensure_edge_map();
+  Span<int> ensure_corner_map();
 
  private:
+  Array<int> vertex_map_;
+  Array<int> face_map_;
+  Array<int> edge_map_;
+  Array<int> corner_map_;
+
   const MeshAssembly *mesh_assembly_;
   const Mesh *joined_mesh_;
   const Mesh *output_mesh_;
 };
 
-void OutToInMaps::ensure_face_map()
+Span<int> OutToInMaps::ensure_face_map()
 {
-  if (!this->face_map.is_empty()) {
-    return;
+  if (!face_map_.is_empty()) {
+    return face_map_;
   }
   /* The MeshAssembly's new_faces should map one to one with output faces. */
 #ifdef DEBUG_TIME
   timeit::ScopedTimer timer("filling face map");
 #endif
-  this->face_map.reinitialize(output_mesh_->faces_num);
-  BLI_assert(mesh_assembly_->new_faces.size() == this->face_map.size());
+  face_map_.reinitialize(output_mesh_->faces_num);
+  BLI_assert(mesh_assembly_->new_faces.size() == face_map_.size());
   constexpr int grain_size = 50000;
   threading::parallel_for(
       mesh_assembly_->new_faces.index_range(), grain_size, [&](const IndexRange range) {
         for (const int i : range) {
-          this->face_map[i] = mesh_assembly_->new_faces[i].face_id;
+          face_map_[i] = mesh_assembly_->new_faces[i].face_id;
         }
       });
+  return face_map_;
 }
 
-void OutToInMaps::ensure_vertex_map()
+Span<int> OutToInMaps::ensure_vertex_map()
 {
-  if (!this->vertex_map.is_empty()) {
-    return;
+  if (!vertex_map_.is_empty()) {
+    return vertex_map_;
   }
   /* There may be better ways, but for now we discover the output to input
    * vertex mapping by going through the output faces, and for each, looking
    * through the vertices of the corresponding input face for matches.
    */
-  this->ensure_face_map();
+  const Span<int> face_map = this->ensure_face_map();
 #ifdef DEBUG_TIME
   timeit::ScopedTimer timer("filling vertex map");
 #endif
-  this->vertex_map = Array<int>(output_mesh_->verts_num, -1);
+  vertex_map_ = Array<int>(output_mesh_->verts_num, -1);
   /* To parallelize this, need to deal with the fact that this will
    * have different threads wanting to write vertex_map, and also want
    * determinism of which one wins if there is more than one possibility.
@@ -411,12 +412,12 @@ void OutToInMaps::ensure_vertex_map()
   const Span<float3> out_vert_positions = output_mesh_->vert_positions();
   const Span<float3> in_vert_positions = joined_mesh_->vert_positions();
   for (const int out_face_index : IndexRange(output_mesh_->faces_num)) {
-    const int in_face_index = this->face_map[out_face_index];
+    const int in_face_index = face_map[out_face_index];
     const IndexRange in_face = in_faces[in_face_index];
     const IndexRange out_face = out_faces[out_face_index];
     const Span<int> in_face_verts = in_corner_verts.slice(in_face);
     for (const int out_v : out_corner_verts.slice(out_face)) {
-      if (this->vertex_map[out_v] != -1) {
+      if (vertex_map_[out_v] != -1) {
         continue;
       }
       float3 out_pos = out_vert_positions[out_v];
@@ -425,28 +426,29 @@ void OutToInMaps::ensure_vertex_map()
       });
       if (it != in_face_verts.end()) {
         int in_v = in_face_verts[std::distance(in_face_verts.begin(), it)];
-        this->vertex_map[out_v] = in_v;
+        vertex_map_[out_v] = in_v;
       }
     }
   }
+  return vertex_map_;
 }
 
-void OutToInMaps::ensure_corner_map()
+Span<int> OutToInMaps::ensure_corner_map()
 {
-  if (!this->corner_map.is_empty()) {
-    return;
+  if (!corner_map_.is_empty()) {
+    return corner_map_;
   }
   /* There may be better ways, but for now we discover the output to input
    * corner mapping by going through the output faces, and for each, looking
    * through the corners of the corresponding input face for matches of the
    * vertex involved.
    */
-  this->ensure_face_map();
-  this->ensure_vertex_map();
+  const Span<int> face_map = this->ensure_face_map();
+  const Span<int> vert_map = this->ensure_vertex_map();
 #ifdef DEBUG_TIME
   timeit::ScopedTimer timer("filling corner map");
 #endif
-  this->corner_map = Array<int>(output_mesh_->corners_num, -1);
+  corner_map_ = Array<int>(output_mesh_->corners_num, -1);
   const OffsetIndices<int> in_faces = joined_mesh_->faces();
   const OffsetIndices<int> out_faces = output_mesh_->faces();
   const Span<int> in_corner_verts = joined_mesh_->corner_verts();
@@ -455,23 +457,24 @@ void OutToInMaps::ensure_corner_map()
   threading::parallel_for(
       IndexRange(output_mesh_->faces_num), grain_size, [&](const IndexRange range) {
         for (const int out_face_index : range) {
-          const int in_face_index = this->face_map[out_face_index];
+          const int in_face_index = face_map[out_face_index];
           const IndexRange in_face = in_faces[in_face_index];
           for (const int out_c : out_faces[out_face_index]) {
-            BLI_assert(this->corner_map[out_c] == -1);
+            BLI_assert(corner_map_[out_c] == -1);
             const int out_v = out_corner_verts[out_c];
-            const int in_v = this->vertex_map[out_v];
+            const int in_v = vert_map[out_v];
             if (in_v == -1) {
               continue;
             }
             const int in_face_i = in_corner_verts.slice(in_face).first_index_try(in_v);
             if (in_face_i != -1) {
               const int in_c = in_face[in_face_i];
-              this->corner_map[out_c] = in_c;
+              corner_map_[out_c] = in_c;
             }
           }
         }
       });
+  return corner_map_;
 }
 
 static bool same_dir(const float3 &p1, const float3 &p2, const float3 &q1, const float3 &q2)
@@ -486,11 +489,11 @@ static bool same_dir(const float3 &p1, const float3 &p2, const float3 &q1, const
   return (math::abs(abs_cos_pq - 1.0f) <= 1e-5f);
 }
 
-void OutToInMaps::ensure_edge_map()
+Span<int> OutToInMaps::ensure_edge_map()
 {
   constexpr int dbg_level = 0;
-  if (!this->edge_map.is_empty()) {
-    return;
+  if (!edge_map_.is_empty()) {
+    return edge_map_;
   }
   if (dbg_level > 0) {
     std::cout << "\nensure_edge_map\n";
@@ -510,9 +513,9 @@ void OutToInMaps::ensure_edge_map()
    * "starts at" case, because if it is "ends at" in this face, it
    * should be "starts at" in the matching face.
    */
-  this->ensure_face_map();
-  this->ensure_vertex_map();
-  this->ensure_corner_map();
+  const Span<int> face_map = this->ensure_face_map();
+  const Span<int> vert_map = this->ensure_vertex_map();
+  const Span<int> corner_map = this->ensure_corner_map();
   /* To parallelize this, would need a way to figure out that
    * this is the "canonical" edge representative so that only
    * one thread tries to write this. Or could use atomic operations.
@@ -520,7 +523,7 @@ void OutToInMaps::ensure_edge_map()
 #ifdef DEBUG_TIME
   timeit::ScopedTimer timer("filling edge map");
 #endif
-  this->edge_map = Array<int>(output_mesh_->edges_num, -1);
+  edge_map_ = Array<int>(output_mesh_->edges_num, -1);
   const Span<int> out_corner_edges = output_mesh_->corner_edges();
   const Span<int> out_corner_verts = output_mesh_->corner_verts();
   const Span<int2> out_edges = output_mesh_->edges();
@@ -533,14 +536,14 @@ void OutToInMaps::ensure_edge_map()
   const OffsetIndices<int> out_faces = output_mesh_->faces();
   Array<bool> done_edge(output_mesh_->edges_num, false);
   for (const int out_face_index : IndexRange(output_mesh_->faces_num)) {
-    const int in_face_index = this->face_map[out_face_index];
+    const int in_face_index = face_map[out_face_index];
     const IndexRange in_face = in_faces[in_face_index];
     if (dbg_level > 0) {
       std::cout << "process out_face = " << out_face_index << ", in_face = " << in_face_index
                 << "\n";
     }
     for (const int out_c : out_faces[out_face_index]) {
-      const int in_c = this->corner_map[out_c];
+      const int in_c = corner_map[out_c];
       if (dbg_level > 0) {
         std::cout << "  out_c = " << out_c << ", in_c = " << in_c << "\n";
       }
@@ -559,7 +562,7 @@ void OutToInMaps::ensure_edge_map()
       const int in_e = in_corner_edges[in_c];
       const int in_v = in_corner_verts[in_c];
       /* Because of corner mapping, the output vertex should map to the input one. */
-      BLI_assert(this->vertex_map[out_v] == in_v);
+      BLI_assert(vert_map[out_v] == in_v);
       int2 out_e_v = out_edges[out_e];
       if (out_e_v[0] != out_v) {
         out_e_v = {out_e_v[1], out_e_v[0]};
@@ -571,23 +574,23 @@ void OutToInMaps::ensure_edge_map()
       if (dbg_level > 0) {
         std::cout << "  out_v = " << out_v << ", in_e = " << in_e << ", in_v = " << in_v << "\n";
         std::cout << "  out_e_v = " << out_e_v << ", in_e_v = " << in_e_v << "\n";
-        std::cout << "  vertex_map(out_e_v) = "
-                  << int2(this->vertex_map[out_e_v[0]], this->vertex_map[out_e_v[1]]) << "\n";
+        std::cout << "  vertex_map(out_e_v) = " << int2(vert_map[out_e_v[0]], vert_map[out_e_v[1]])
+                  << "\n";
       }
       /* Here out_e_v should hold the output vertices in out_e, with the first
        * one being out_v, the vertex at corner out_c.
        * Similarly for in_e_v, with the first one being in_v.
        */
-      BLI_assert(this->vertex_map[out_e_v[0]] == in_e_v[0]);
+      BLI_assert(vert_map[out_e_v[0]] == in_e_v[0]);
       int edge_rep = -1;
-      if (this->vertex_map[out_e_v[1]] == in_e_v[1]) {
+      if (vert_map[out_e_v[1]] == in_e_v[1]) {
         /* Here both ends of the edges match. */
         if (dbg_level > 0) {
           std::cout << "  case 1, edge_rep = in_e = " << in_e << "\n";
         }
         edge_rep = in_e;
       }
-      else if (this->vertex_map[out_e_v[1]] == -1) {
+      else if (vert_map[out_e_v[1]] == -1) {
         /* Here the "ends at" vertex of the output edge is a new vertex.
          * Does the edge at least go in the same direction as in_e?
          */
@@ -620,14 +623,14 @@ void OutToInMaps::ensure_edge_map()
                     << ", in_v_prev = " << in_v_prev << "\n";
           std::cout << "  in_e_v_prev = " << in_e_v_prev << "\n";
         }
-        if (this->vertex_map[out_e_v[0]] == in_e_v_prev[1]) {
-          if (this->vertex_map[out_e_v[1]] == in_e_v_prev[0]) {
+        if (vert_map[out_e_v[0]] == in_e_v_prev[1]) {
+          if (vert_map[out_e_v[1]] == in_e_v_prev[0]) {
             if (dbg_level > 0) {
               std::cout << "  case 3, edge_rep = in_e_prev = " << in_e_prev << "\n";
             }
             edge_rep = in_e_prev;
           }
-          else if (this->vertex_map[out_e_v[1]] == -1) {
+          else if (vert_map[out_e_v[1]] == -1) {
             if (same_dir(out_positions[out_e_v[0]],
                          out_positions[out_e_v[1]],
                          in_positions[in_e_v_prev[0]],
@@ -645,11 +648,12 @@ void OutToInMaps::ensure_edge_map()
         if (dbg_level > 0) {
           std::cout << "  found: set edge_map[" << out_e << "] = " << edge_rep << "\n";
         }
-        this->edge_map[out_e] = edge_rep;
+        edge_map_[out_e] = edge_rep;
         done_edge[out_e] = true;
       }
     }
   }
+  return edge_map_;
 }
 
 /* Most input faces should mape to face_group_inline or fewer output triangles. */
@@ -1380,7 +1384,7 @@ static inline int mesh_id_for_face(int face_id, const MeshOffsets &mesh_offsets)
  * and add their indices to \a r_intersecting_edges. */
 static void get_intersecting_edges(Vector<int> *r_intersecting_edges,
                                    const Mesh *mesh,
-                                   const OutToInMaps &out_to_in,
+                                   OutToInMaps &out_to_in,
                                    const MeshOffsets &mesh_offsets)
 {
   /* In a manifold mesh, every edge is adjacent to exactly two faces.
@@ -1391,6 +1395,7 @@ static void get_intersecting_edges(Vector<int> *r_intersecting_edges,
 #endif
   const OffsetIndices<int> faces = mesh->faces();
   const Span<int> corner_edges = mesh->corner_edges();
+  const Span<int> face_map = out_to_in.ensure_face_map();
   Array<int> edge_first_face(mesh->edges_num, -1);
   for (int face_i : faces.index_range()) {
     for (const int edge_i : corner_edges.slice(faces[face_i])) {
@@ -1399,8 +1404,8 @@ static void get_intersecting_edges(Vector<int> *r_intersecting_edges,
         edge_first_face[edge_i] = face_i;
       }
       else {
-        int in_face_i = out_to_in.face_map[face_i];
-        int in_face2_i = out_to_in.face_map[face2_i];
+        int in_face_i = face_map[face_i];
+        int in_face2_i = face_map[face2_i];
         int m1 = mesh_id_for_face(in_face_i, mesh_offsets);
         int m2 = mesh_id_for_face(in_face2_i, mesh_offsets);
         BLI_assert(m1 != -1 && m2 != -1);
@@ -1588,20 +1593,16 @@ static Mesh *meshgl_to_mesh(const MeshGL &mgl,
       bool do_copy = true;
       switch (iter.domain) {
         case bke::AttrDomain::Point: {
-          out_to_in.ensure_vertex_map();
-          out_to_in_map = out_to_in.vertex_map.as_span();
+          out_to_in_map = out_to_in.ensure_vertex_map();
         } break;
         case bke::AttrDomain::Face: {
-          out_to_in.ensure_face_map();
-          out_to_in_map = out_to_in.face_map.as_span();
+          out_to_in_map = out_to_in.ensure_face_map();
         } break;
         case bke::AttrDomain::Edge: {
-          out_to_in.ensure_edge_map();
-          out_to_in_map = out_to_in.edge_map.as_span();
+          out_to_in_map = out_to_in.ensure_edge_map();
         } break;
         case bke::AttrDomain::Corner: {
-          out_to_in.ensure_corner_map();
-          out_to_in_map = out_to_in.corner_map.as_span();
+          out_to_in_map = out_to_in.ensure_corner_map();
           need_corner_interpolation = true;
         } break;
         default:
@@ -1613,8 +1614,12 @@ static Mesh *meshgl_to_mesh(const MeshGL &mgl,
       }
     });
     if (need_corner_interpolation) {
-      interpolate_corner_attributes(
-          output_attrs, join_attrs, mesh, joined_mesh, out_to_in.corner_map, out_to_in.face_map);
+      interpolate_corner_attributes(output_attrs,
+                                    join_attrs,
+                                    mesh,
+                                    joined_mesh,
+                                    out_to_in.ensure_corner_map(),
+                                    out_to_in.ensure_face_map());
     }
     if (r_intersecting_edges != nullptr) {
       get_intersecting_edges(r_intersecting_edges, mesh, out_to_in, mesh_offsets);
