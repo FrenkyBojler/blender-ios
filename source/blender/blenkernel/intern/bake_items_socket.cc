@@ -66,7 +66,7 @@ static std::unique_ptr<BakeItem> move_common_socket_value_to_bake_item(
     case SOCK_RGBA: {
       auto &value_variant = *static_cast<SocketValueVariant *>(socket_value);
       if (value_variant.is_context_dependent_field()) {
-        /* Not supported here because we it's not known which geometry this field belongs to. */
+        /* Not supported here because it's not known which geometry this field belongs to. */
         return {};
       }
 #ifdef WITH_OPENVDB
