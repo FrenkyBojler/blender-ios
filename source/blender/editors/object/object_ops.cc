@@ -183,6 +183,8 @@ void operatortypes_object()
   WM_operatortype_append(CONSTRAINT_OT_limitdistance_reset);
   WM_operatortype_append(CONSTRAINT_OT_childof_set_inverse);
   WM_operatortype_append(CONSTRAINT_OT_childof_clear_inverse);
+  WM_operatortype_append(CONSTRAINT_OT_freezetrans_set_freezemat);
+  WM_operatortype_append(CONSTRAINT_OT_freezetrans_clear_freezemat);
   WM_operatortype_append(CONSTRAINT_OT_objectsolver_set_inverse);
   WM_operatortype_append(CONSTRAINT_OT_objectsolver_clear_inverse);
   WM_operatortype_append(CONSTRAINT_OT_followpath_path_animate);

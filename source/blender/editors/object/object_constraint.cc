@@ -1071,6 +1071,140 @@ void CONSTRAINT_OT_childof_clear_inverse(wmOperatorType *ot)
 /** \} */
 
 /* ------------------------------------------------------------------- */
+/** \name Freeze Transforms Constraint (Set Freeze Transform Matrix)
+ * \{ */
+
+/* FreezeTrans Constraint - set freezemat callback */
+static wmOperatorStatus freezetrans_set_freezemat_exec(bContext *C, wmOperator *op)
+{
+  Main *bmain = CTX_data_main(C);
+  Object *ob = context_active_object(C);
+  bConstraint *con = edit_constraint_property_get(C, op, ob, CONSTRAINT_TYPE_FREEZETRANS);
+  bFreezeTransConstraint *data = (con) ? (bFreezeTransConstraint *)con->data : nullptr;
+
+  /* despite 3 layers of checks, we may still not be able to find a constraint */
+  if (data == nullptr) {
+    printf("DEBUG: Freeze Transforms Set Matrix - object = '%s'\n",
+           (ob) ? ob->id.name + 2 : "<None>");
+    BKE_report(
+        op->reports, RPT_ERROR, "Could not find constraint data for Freeze Transforms Set Matrix");
+    return OPERATOR_CANCELLED;
+  }
+
+  /* Set a flag to request recalculation on next update. */
+  data->flag |= FREEZETRANS_PENDING_FREEZE;
+
+  /* Force constraint to run, it will perform the recalculation. */
+  force_evaluation_if_constraint_disabled(C, ob, con);
+
+  constraint_update(bmain, ob);
+  WM_event_add_notifier(C, NC_OBJECT | ND_CONSTRAINT, ob);
+
+  return OPERATOR_FINISHED;
+}
+
+static wmOperatorStatus freezetrans_set_freezemat_invoke(bContext *C,
+                                                         wmOperator *op,
+                                                         const wmEvent * /*event*/)
+{
+  if (edit_constraint_invoke_properties(C, op, nullptr, nullptr)) {
+    return freezetrans_set_freezemat_exec(C, op);
+  }
+  return OPERATOR_CANCELLED;
+}
+
+void CONSTRAINT_OT_freezetrans_set_freezemat(wmOperatorType *ot)
+{
+  /* identifiers */
+  ot->name = "Set Freeze Matrix";
+  ot->idname = "CONSTRAINT_OT_freezetrans_set_freezemat";
+  ot->description = "Set freeze matrix for Freeze Transforms constraint";
+
+  /* callbacks */
+  ot->invoke = freezetrans_set_freezemat_invoke;
+  ot->exec = freezetrans_set_freezemat_exec;
+  ot->poll = edit_constraint_liboverride_allowed_poll;
+
+  /* flags */
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+  /* properties */
+  edit_constraint_properties(ot);
+}
+
+/* FreezeTrans Constraint - clear freezemat callback */
+static wmOperatorStatus freezetrans_clear_freezemat_exec(bContext *C, wmOperator *op)
+{
+  Main *bmain = CTX_data_main(C);
+  Object *ob = context_active_object(C);
+  bConstraint *con = edit_constraint_property_get(C, op, ob, CONSTRAINT_TYPE_FREEZETRANS);
+  bFreezeTransConstraint *data = (con) ? (bFreezeTransConstraint *)con->data : nullptr;
+
+  if (data == nullptr) {
+    BKE_report(op->reports, RPT_ERROR, "Freeze Transforms constraint not found");
+    return OPERATOR_CANCELLED;
+  }
+
+  /* simply clear the matrix */
+  unit_m4(data->freezemat);
+  data->flag &= ~FREEZETRANS_IS_FROZEN;
+
+  constraint_update(bmain, ob);
+  WM_event_add_notifier(C, NC_OBJECT | ND_CONSTRAINT, ob);
+
+  return OPERATOR_FINISHED;
+}
+
+static wmOperatorStatus freezetrans_clear_freezemat_invoke(bContext *C,
+                                                           wmOperator *op,
+                                                           const wmEvent * /*event*/)
+{
+  if (edit_constraint_invoke_properties(C, op, nullptr, nullptr)) {
+    return freezetrans_clear_freezemat_exec(C, op);
+  }
+  return OPERATOR_CANCELLED;
+}
+
+static bool freezetrans_clear_freezemat_poll(bContext *C)
+{
+  if (!edit_constraint_liboverride_allowed_poll(C)) {
+    return false;
+  }
+
+  PointerRNA ptr = CTX_data_pointer_get_type(C, "constraint", &RNA_Constraint);
+  bConstraint *con = static_cast<bConstraint *>(ptr.data);
+  bFreezeTransConstraint *data = (con) ? (bFreezeTransConstraint *)con->data : nullptr;
+
+  if (!data) {
+    return false;
+  }
+
+  /* Can only clear if currently frozen. */
+  return (data->flag & FREEZETRANS_IS_FROZEN) != 0;
+}
+
+void CONSTRAINT_OT_freezetrans_clear_freezemat(wmOperatorType *ot)
+{
+  /* identifiers */
+  ot->name = "Clear Freeze Matrix";
+  ot->idname = "CONSTRAINT_OT_freezetrans_clear_freezemat";
+  ot->description = "Clear freeze matrix for Freeze Transforms constraint";
+
+  /* callbacks */
+  ot->invoke = freezetrans_clear_freezemat_invoke;
+  ot->exec = freezetrans_clear_freezemat_exec;
+  ot->poll = freezetrans_clear_freezemat_poll;
+
+  /* flags */
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+  /* properties */
+  edit_constraint_properties(ot);
+}
+
+/** \} */
+
+/* ------------------------------------------------------------------- */
 /** \name Follow Path Constraint (Auto Animate Path Operator)
  * \{ */
 

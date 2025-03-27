@@ -2657,6 +2657,9 @@ TreeElementIcon tree_element_get_icon(TreeStoreElem *tselem, TreeElement *te)
           case CONSTRAINT_TYPE_TRANSLIKE:
             data.icon = ICON_CON_TRANSLIKE;
             break;
+          case CONSTRAINT_TYPE_FREEZETRANS:
+            data.icon = ICON_FREEZE;
+            break;
           case CONSTRAINT_TYPE_DISTLIMIT:
             data.icon = ICON_CON_DISTLIMIT;
             break;

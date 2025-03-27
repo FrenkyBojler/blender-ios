@@ -2397,6 +2397,57 @@ static bConstraintTypeInfo CTI_TRANSLIKE = {
     /*evaluate_constraint*/ translike_evaluate,
 };
 
+/* ----------- Freeze Transforms ------------- */
+
+static void freezetrans_evaluate(bConstraint *con, bConstraintOb *cob, ListBase * /*targets*/)
+{
+  bFreezeTransConstraint *data = static_cast<bFreezeTransConstraint *>(con->data);
+
+  if (data->flag & FREEZETRANS_PENDING_FREEZE) {
+    /* TODO: allow handling matrix in another space (e.g. parent space, custom space) */
+    copy_m4_m4(data->freezemat, cob->matrix);
+
+    data->flag &= ~FREEZETRANS_PENDING_FREEZE;
+    data->flag |= FREEZETRANS_IS_FROZEN;
+
+    /* Write the computed matrix back to the master copy if in copy-on-eval evaluation. */
+    bConstraint *orig_con = constraint_find_original_for_update(cob, con);
+
+    if (orig_con != nullptr) {
+      bFreezeTransConstraint *orig_data = static_cast<bFreezeTransConstraint *>(orig_con->data);
+
+      copy_m4_m4(orig_data->freezemat, data->freezemat);
+      orig_data->flag &= ~FREEZETRANS_PENDING_FREEZE;
+      orig_data->flag |= FREEZETRANS_IS_FROZEN;
+    }
+  }
+
+  if (data->flag & FREEZETRANS_IS_FROZEN) {
+    /* TODO: remove shear option */
+    /* Remove the shear of the target matrix if enabled.
+     * Use Y as the axis since it's the natural default for bones. */
+    // if (data->flag & TRANSLIKE_REMOVE_TARGET_SHEAR) {
+    //   orthogonalize_m4_stable(target_mat, 1, false);
+    // }
+    copy_m4_m4(cob->matrix, data->freezemat);
+  }
+}
+
+static bConstraintTypeInfo CTI_FREEZETRANS = {
+    /*type*/ CONSTRAINT_TYPE_FREEZETRANS,
+    /*size*/ sizeof(bFreezeTransConstraint),
+    /*name*/ N_("Freeze Transforms"),
+    /*struct_name*/ "bFreezeTransConstraint",
+    /*free_data*/ nullptr,
+    /*id_looper*/ nullptr,
+    /*copy_data*/ nullptr,
+    /*new_data*/ nullptr,
+    /*get_constraint_targets*/ nullptr,
+    /*flush_constraint_targets*/ nullptr,
+    /*get_target_matrix*/ nullptr,
+    /*evaluate_constraint*/ freezetrans_evaluate,
+};
+
 /* ---------- Maintain Volume ---------- */
 
 static void samevolume_new_data(void *cdata)
@@ -5617,6 +5668,7 @@ static void constraints_init_typeinfo()
   constraintsTypeInfo[28] = &CTI_OBJECTSOLVER;    /* Object Solver Constraint */
   constraintsTypeInfo[29] = &CTI_TRANSFORM_CACHE; /* Transform Cache Constraint */
   constraintsTypeInfo[30] = &CTI_ARMATURE;        /* Armature Constraint */
+  constraintsTypeInfo[31] = &CTI_FREEZETRANS;     /* Freeze Transforms Constraint */
 }
 
 const bConstraintTypeInfo *BKE_constraint_typeinfo_from_type(int type)

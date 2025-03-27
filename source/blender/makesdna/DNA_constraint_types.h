@@ -304,6 +304,12 @@ typedef struct bTransLikeConstraint {
   char subtarget[64];
 } bTransLikeConstraint;
 
+/* Freeze Transform Constraint */
+typedef struct bFreezeTransConstraint {
+  int flag;
+  float freezemat[4][4];
+} bFreezeTransConstraint;
+
 /* Floor Constraint */
 typedef struct bMinMaxConstraint {
   struct Object *tar;
@@ -664,6 +670,7 @@ typedef enum eBConstraint_Types {
   CONSTRAINT_TYPE_OBJECTSOLVER = 28,
   CONSTRAINT_TYPE_TRANSFORM_CACHE = 29,
   CONSTRAINT_TYPE_ARMATURE = 30,
+  CONSTRAINT_TYPE_FREEZETRANS = 31,
 
   /* This should be the last entry in this list. */
   NUM_CONSTRAINT_TYPES,
@@ -788,6 +795,12 @@ typedef enum eCopyTransforms_Flags {
   /* Remove shear from the target matrix. */
   TRANSLIKE_REMOVE_TARGET_SHEAR = (1 << 0),
 } eCopyTransforms_Flags;
+
+/** #bFreezeTransConstraint.flag */
+typedef enum eFreezeTransforms_Flags {
+  FREEZETRANS_PENDING_FREEZE = (1 << 0),
+  FREEZETRANS_IS_FROZEN = (1 << 1),
+} eFreezeTransforms_Flags;
 
 /** #bTransLikeConstraint.mix_mode */
 typedef enum eCopyTransforms_MixMode {

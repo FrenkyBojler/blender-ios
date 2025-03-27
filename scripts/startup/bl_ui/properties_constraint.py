@@ -504,6 +504,18 @@ class ConstraintButtonsPanel:
 
         self.draw_influence(layout, con)
 
+    def draw_freeze_trans(self, context):
+        layout = self.layout
+        con = self.get_constraint(context)
+        layout.use_property_split = True
+        layout.use_property_decorate = True
+
+        row = layout.row()
+        row.operator("constraint.freezetrans_set_freezemat", text="Re-Capture Transform" if con.is_frozen else "Capture Transform", icon='PINNED' if con.is_frozen else 'UNPINNED')
+        row.operator("constraint.freezetrans_clear_freezemat", text="Clear Transform", icon='PANEL_CLOSE')
+
+        self.draw_influence(layout, con)
+
     def draw_action(self, context):
         layout = self.layout
         con = self.get_constraint(context)
@@ -1331,6 +1343,18 @@ class BONE_PT_bTransLikeConstraint(BoneConstraintPanel, ConstraintButtonsPanel, 
         self.draw_trans_like(context)
 
 
+# Freeze Transform Constraint
+
+class OBJECT_PT_bFreezeTransConstraint(ObjectConstraintPanel, ConstraintButtonsPanel, Panel):
+    def draw(self, context):
+        self.draw_freeze_trans(context)
+
+
+class BONE_PT_bFreezeTransConstraint(BoneConstraintPanel, ConstraintButtonsPanel, Panel):
+    def draw(self, context):
+        self.draw_freeze_trans(context)
+
+
 # Action Constraint
 
 class OBJECT_PT_bActionConstraint(ObjectConstraintPanel, ConstraintButtonsPanel, Panel):
@@ -1718,6 +1742,7 @@ classes = (
     OBJECT_PT_bSizeLikeConstraint,
     OBJECT_PT_bSameVolumeConstraint,
     OBJECT_PT_bTransLikeConstraint,
+    OBJECT_PT_bFreezeTransConstraint,
     OBJECT_PT_bActionConstraint,
     OBJECT_PT_bActionConstraint_target,
     OBJECT_PT_bActionConstraint_action,
@@ -1756,6 +1781,7 @@ classes = (
     BONE_PT_bSizeLikeConstraint,
     BONE_PT_bSameVolumeConstraint,
     BONE_PT_bTransLikeConstraint,
+    BONE_PT_bFreezeTransConstraint,
     BONE_PT_bActionConstraint,
     BONE_PT_bActionConstraint_target,
     BONE_PT_bActionConstraint_action,

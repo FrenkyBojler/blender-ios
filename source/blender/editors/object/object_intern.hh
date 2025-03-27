@@ -271,6 +271,8 @@ void CONSTRAINT_OT_stretchto_reset(wmOperatorType *ot);
 void CONSTRAINT_OT_limitdistance_reset(wmOperatorType *ot);
 void CONSTRAINT_OT_childof_set_inverse(wmOperatorType *ot);
 void CONSTRAINT_OT_childof_clear_inverse(wmOperatorType *ot);
+void CONSTRAINT_OT_freezetrans_set_freezemat(wmOperatorType *ot);
+void CONSTRAINT_OT_freezetrans_clear_freezemat(wmOperatorType *ot);
 void CONSTRAINT_OT_objectsolver_set_inverse(wmOperatorType *ot);
 void CONSTRAINT_OT_objectsolver_clear_inverse(wmOperatorType *ot);
 void CONSTRAINT_OT_followpath_path_animate(wmOperatorType *ot);

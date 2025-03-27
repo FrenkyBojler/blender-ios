@@ -54,6 +54,12 @@ const EnumPropertyItem rna_enum_constraint_type_items[] = {
      ICON_CON_TRANSLIKE,
      "Copy Transforms",
      "Copy all the transformations of a target, so that they move together"},
+    {CONSTRAINT_TYPE_FREEZETRANS,
+     "FREEZE_TRANSFORMS",
+     ICON_FREEZE,
+     "Freeze Transforms",
+     "Capture the transformations of the owner and freeze them, disregarding parent "
+     "transformations"},
     {CONSTRAINT_TYPE_DISTLIMIT,
      "LIMIT_DISTANCE",
      ICON_CON_DISTLIMIT,
@@ -395,6 +401,8 @@ static StructRNA *rna_ConstraintType_refine(PointerRNA *ptr)
       return &RNA_ObjectSolverConstraint;
     case CONSTRAINT_TYPE_TRANSFORM_CACHE:
       return &RNA_TransformCacheConstraint;
+    case CONSTRAINT_TYPE_FREEZETRANS:
+      return &RNA_FreezeTransformsConstraint;
     default:
       return &RNA_UnknownType;
   }
@@ -552,6 +560,17 @@ static void rna_Constraint_childof_inverse_matrix_update(Main *bmain,
   bConstraint *con = static_cast<bConstraint *>(ptr->data);
   bChildOfConstraint *data = static_cast<bChildOfConstraint *>(con->data);
   data->flag &= ~CHILDOF_SET_INVERSE;
+  rna_Constraint_update(bmain, scene, ptr);
+}
+
+/* Update only needed so this isn't overwritten on first evaluation. */
+static void rna_Constraint_freezetrans_freeze_matrix_update(Main *bmain,
+                                                            Scene *scene,
+                                                            PointerRNA *ptr)
+{
+  bConstraint *con = static_cast<bConstraint *>(ptr->data);
+  bFreezeTransConstraint *data = static_cast<bFreezeTransConstraint *>(con->data);
+  data->flag &= ~FREEZETRANS_PENDING_FREEZE;
   rna_Constraint_update(bmain, scene, ptr);
 }
 
@@ -1838,6 +1857,46 @@ static void rna_def_constraint_transform_like(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop, "Mix Mode", "Specify how the copied and existing transformations are combined");
   RNA_def_property_update(prop, NC_OBJECT | ND_CONSTRAINT, "rna_Constraint_update");
+
+  RNA_define_lib_overridable(false);
+}
+
+static void rna_def_constraint_freeze_transform(BlenderRNA *brna)
+{
+  StructRNA *srna;
+  PropertyRNA *prop;
+
+  srna = RNA_def_struct(brna, "FreezeTransformsConstraint", "Constraint");
+  RNA_def_struct_ui_text(
+      srna,
+      "Freeze Transforms Constraint",
+      "Capture the transformations of the owner and freeze them, disregarding parent "
+      "transformations");
+
+  RNA_def_struct_sdna_from(srna, "bFreezeTransConstraint", "data");
+
+  RNA_def_struct_ui_icon(srna, ICON_FREEZE);
+
+  RNA_define_lib_overridable(true);
+
+  prop = RNA_def_property(srna, "freeze_pending", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", FREEZETRANS_PENDING_FREEZE);
+  RNA_def_property_ui_text(
+      prop, "Freeze Pending", "Set to true to request recalculation of the freeze transform");
+  RNA_def_property_update(prop, NC_OBJECT | ND_CONSTRAINT, "rna_Constraint_update");
+
+  prop = RNA_def_property(srna, "freeze_matrix", PROP_FLOAT, PROP_MATRIX);
+  RNA_def_property_float_sdna(prop, nullptr, "freezemat");
+  RNA_def_property_multi_array(prop, 2, rna_matrix_dimsize_4x4);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_ui_text(prop, "Freeze Matrix", "Transformation matrix to use as freeze");
+  RNA_def_property_update(
+      prop, NC_OBJECT | ND_CONSTRAINT, "rna_Constraint_freezetrans_freeze_matrix_update");
+
+  prop = RNA_def_property(srna, "is_frozen", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", FREEZETRANS_IS_FROZEN);
+  RNA_def_property_ui_text(prop, "Is Frozen", "Is storing a freeze transformation matrix");
 
   RNA_define_lib_overridable(false);
 }
@@ -3804,6 +3863,7 @@ void RNA_def_constraint(BlenderRNA *brna)
   rna_def_constraint_locate_like(brna);
   rna_def_constraint_rotate_like(brna);
   rna_def_constraint_transform_like(brna);
+  rna_def_constraint_freeze_transform(brna);
   rna_def_constraint_minmax(brna);
   rna_def_constraint_track_to(brna);
   rna_def_constraint_kinematic(brna);
