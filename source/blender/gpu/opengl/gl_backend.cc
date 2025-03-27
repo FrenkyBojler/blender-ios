@@ -344,12 +344,6 @@ static void detect_workarounds()
     return;
   }
 
-  /* Only use main context when running inside RenderDoc.
-   * RenderDoc requires that all calls are* from the same context. */
-  if (G.debug & G_DEBUG_GPU_RENDERDOC) {
-    GCaps.use_main_context_workaround = true;
-  }
-
   if (GPU_type_matches(GPU_DEVICE_ATI, GPU_OS_WIN, GPU_DRIVER_OFFICIAL) &&
       (strstr(version, "4.5.13399") || strstr(version, "4.5.13417") ||
        strstr(version, "4.5.13422") || strstr(version, "4.5.13467")))
@@ -403,7 +397,7 @@ static void detect_workarounds()
     }
   }
   /* See #132968: Legacy AMD drivers do not accept a hash after the line number and results into
-   * undefined behaviour. Users have reported that the issue can go away after doing a clean
+   * undefined behavior. Users have reported that the issue can go away after doing a clean
    * install of the driver.
    */
   if (GPU_type_matches(GPU_DEVICE_ATI, GPU_OS_ANY, GPU_DRIVER_OFFICIAL)) {

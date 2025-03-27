@@ -645,6 +645,10 @@ class Report:
                         desc.write(f" parent:'{bone.parent.name}'")
                     desc.write(
                         f" h:({fmtf(bone.head[0])}, {fmtf(bone.head[1])}, {fmtf(bone.head[2])}) t:({fmtf(bone.tail[0])}, {fmtf(bone.tail[1])}, {fmtf(bone.tail[2])})")
+                    if bone.use_connect:
+                        desc.write(f" connect")
+                    if not bone.use_deform:
+                        desc.write(f" no-deform")
                     if bone.inherit_scale != 'FULL':
                         desc.write(f" inh_scale:{bone.inherit_scale}")
                     if bone.head_radius > 0.0 or bone.tail_radius > 0.0:
