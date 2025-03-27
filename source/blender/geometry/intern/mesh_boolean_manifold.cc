@@ -1664,7 +1664,7 @@ static bke::GeometrySet join_meshes_with_transforms(const Span<const Mesh *> mes
 Mesh *mesh_boolean_manifold(Span<const Mesh *> meshes,
                             const Span<float4x4> transforms,
                             const float4x4 &target_transform,
-                            const Span<Array<short>>,
+                            const Span<Array<short>> /*material_remaps*/,
                             const BooleanOpParameters op_params,
                             Vector<int> *r_intersecting_edges,
                             BooleanError *r_error)
