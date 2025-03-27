@@ -117,7 +117,6 @@ class IndexBuf {
                                     uint max_idx,
                                     GPUPrimType prim_type,
                                     bool clamp_indices_in_range);
-  inline uint index_range(uint *r_min, uint *r_max);
   virtual void strip_restart_indices() = 0;
 };
 
@@ -272,3 +271,15 @@ int GPU_indexbuf_primitive_len(GPUPrimType prim_type);
       elem = nullptr; \
     } \
   } while (0)
+
+namespace blender::gpu {
+
+class IndexBufDeleter {
+ public:
+  void operator()(IndexBuf *ibo)
+  {
+    GPU_indexbuf_discard(ibo);
+  }
+};
+
+}  // namespace blender::gpu

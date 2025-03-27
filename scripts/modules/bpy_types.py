@@ -14,7 +14,7 @@ _StructMetaPropGroup = _types.bpy_struct_meta_idprop
 # Private dummy object use for comparison only.
 _sentinel = object()
 
-# Note that methods extended in C are defined in: `bpy_rna_types_capi.cc`.
+# Note that methods extended in the C-API are defined in: `bpy_rna_types_capi.cc`.
 
 
 class Context(_StructRNA):
@@ -29,9 +29,9 @@ class Context(_StructRNA):
         :arg coerce: optional argument, when True, the property will be converted into its Python representation.
         :type coerce: bool
         """
-        # This is a convenience wrapper around `_StructRNA.path_resolve` which doesn't support accessing context members.
-        # Without this wrapper many users were writing `exec("context.{:s}".format(data_path))` which is a security
-        # concern if the `data_path` comes from an unknown source.
+        # This is a convenience wrapper around `_StructRNA.path_resolve` which doesn't support accessing
+        # context members. Without this wrapper many users were writing `exec("context.{:s}".format(data_path))`
+        # which is a security concern if the `data_path` comes from an unknown source.
         # This function performs the initial lookup, after that the regular `path_resolve` function is used.
 
         # Extract the initial attribute into `(attr, path_rest)`.
