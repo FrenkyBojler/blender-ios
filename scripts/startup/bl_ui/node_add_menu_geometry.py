@@ -104,7 +104,6 @@ class NODE_MT_geometry_node_GEO_CURVE_WRITE(Menu):
         node_add_menu.add_node_type(layout, "GeometryNodeSetSplineCyclic")
         node_add_menu.add_node_type(layout, "GeometryNodeSetSplineResolution")
         node_add_menu.add_node_type(layout, "GeometryNodeCurveSplineType")
-        node_add_menu.add_node_type(layout, "GeometryNodeSetGreasePencilDepth")
         node_add_menu.draw_assets_for_catalog(layout, "Curve/Write")
 
 
@@ -175,6 +174,7 @@ class NODE_MT_geometry_node_GEO_GREASE_PENCIL_OPERATIONS(Menu):
         layout = self.layout
         node_add_menu.add_node_type(layout, "GeometryNodeGreasePencilToCurves")
         node_add_menu.add_node_type(layout, "GeometryNodeMergeLayers")
+        node_add_menu.add_node_type(layout, "GeometryNodeSetGreasePencilDepth")
         node_add_menu.draw_assets_for_catalog(layout, "Grease Pencil/Operations")
 
 
