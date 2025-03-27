@@ -1025,6 +1025,17 @@ static std::unique_ptr<uiTooltipData> ui_tooltip_data_from_button_or_extra_icon(
                                                      id->lib->filepath;
         UI_tooltip_text_field_add(
             *data, fmt::format("{}: {}", title, path), {}, UI_TIP_STYLE_NORMAL, UI_TIP_LC_NORMAL);
+        if (ID_IS_LINKED_EMBEDDED(id)) {
+          const IDHash &deep_hash = id->deep_hash;
+          BLI_assert(!deep_hash.is_null());
+          const std::string deep_hash_str = blender::bke::id_hash::id_hash_to_hex(deep_hash);
+          UI_tooltip_text_field_add(
+              *data,
+              fmt::format(fmt::runtime(TIP_("Embedded Data-block, Hash: {}")), deep_hash_str),
+              {},
+              UI_TIP_STYLE_NORMAL,
+              UI_TIP_LC_NORMAL);
+        }
       }
     }
   }
