@@ -92,7 +92,6 @@ struct GPUCodegenCreateInfo : ShaderCreateInfo {
 
 struct GPUPass {
   static inline std::atomic<uint64_t> compilation_counts = 0;
-  static inline std::atomic<uint32_t> in_flight_compilation_counts = 0;
 
   GPUCodegenCreateInfo *create_info = nullptr;
   BatchHandle compilation_handle = 0;
@@ -113,43 +112,33 @@ struct GPUPass {
   GPUPass(GPUCodegenCreateInfo *info, bool deferred_compilation, bool is_optimization_pass)
       : create_info(info), is_optimization_pass(is_optimization_pass)
   {
-    if (!deferred_compilation) {
-      GPUShaderCreateInfo *base_info = reinterpret_cast<GPUShaderCreateInfo *>(create_info);
+
+    if (is_optimization_pass && deferred_compilation) {
+      // Defer until all non optimization passes are compiled.
+      return;
+    }
+
+    GPUShaderCreateInfo *base_info = reinterpret_cast<GPUShaderCreateInfo *>(create_info);
+
+    if (deferred_compilation) {
+      compilation_handle = GPU_shader_batch_create_from_infos(
+          Span<GPUShaderCreateInfo *>(&base_info, 1));
+    }
+    else {
       shader = GPU_shader_create_from_info(base_info);
       finalize_compilation();
-    }
-    else if (!is_optimization_pass) {
-      /* Optimization passes are deferred until all base passes are compiled. */
-      try_setup_deferred_compilation();
     }
   }
 
   ~GPUPass()
   {
     if (compilation_handle) {
+      // TODO: Add a way to remove handles from the compilation queue.
       finalize_compilation();
     }
     BLI_assert(create_info == nullptr || (is_optimization_pass && status == GPU_PASS_QUEUED));
     MEM_delete(create_info);
     GPU_SHADER_FREE_SAFE(shader);
-  }
-
-  void try_setup_deferred_compilation()
-  {
-    BLI_assert(status == GPU_PASS_QUEUED && compilation_handle == 0 && refcount > 0);
-
-    /* Avoid having too many compilations in flight, in case they need to be cancelled. */
-    /* TODO: Add a way to cancel compilation batches. */
-    int max_in_flight_compilations = std::max(16, GPU_max_parallel_compilations() * 2);
-    if (in_flight_compilation_counts >= max_in_flight_compilations) {
-      return;
-    }
-
-    GPUShaderCreateInfo *base_info = reinterpret_cast<GPUShaderCreateInfo *>(create_info);
-    compilation_handle = GPU_shader_batch_create_from_infos(
-        Span<GPUShaderCreateInfo *>(&base_info, 1));
-
-    in_flight_compilation_counts++;
   }
 
   void finalize_compilation()
@@ -158,7 +147,6 @@ struct GPUPass {
 
     if (compilation_handle) {
       shader = GPU_shader_batch_finalize(compilation_handle).first();
-      in_flight_compilation_counts--;
     }
 
     compilation_timestamp = ++compilation_counts;
@@ -183,17 +171,16 @@ struct GPUPass {
 
   void update_compilation()
   {
-    if (status != GPU_PASS_QUEUED) {
-      return;
-    }
-
     if (compilation_handle) {
       if (GPU_shader_batch_is_ready(compilation_handle)) {
         finalize_compilation();
       }
     }
-    else if (refcount != 0) {
-      try_setup_deferred_compilation();
+    else if (status == GPU_PASS_QUEUED && refcount > 0) {
+      BLI_assert(is_optimization_pass);
+      GPUShaderCreateInfo *base_info = reinterpret_cast<GPUShaderCreateInfo *>(create_info);
+      compilation_handle = GPU_shader_batch_create_from_infos(
+          Span<GPUShaderCreateInfo *>(&base_info, 1));
     }
   }
 
