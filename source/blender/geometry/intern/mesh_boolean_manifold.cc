@@ -1593,20 +1593,25 @@ static Mesh *meshgl_to_mesh(const MeshGL &mgl,
       switch (iter.domain) {
         case bke::AttrDomain::Point: {
           out_to_in_map = out_to_in.ensure_vertex_map();
-        } break;
+          break;
+        }
         case bke::AttrDomain::Face: {
           out_to_in_map = out_to_in.ensure_face_map();
-        } break;
+          break;
+        }
         case bke::AttrDomain::Edge: {
           out_to_in_map = out_to_in.ensure_edge_map();
-        } break;
+          break;
+        }
         case bke::AttrDomain::Corner: {
           out_to_in_map = out_to_in.ensure_corner_map();
           need_corner_interpolation = true;
-        } break;
-        default:
+          break;
+        }
+        default: {
           do_copy = false;
           break;
+        }
       }
       if (do_copy) {
         copy_attribute_using_map(iter, output_attrs, join_attrs, out_to_in_map);
