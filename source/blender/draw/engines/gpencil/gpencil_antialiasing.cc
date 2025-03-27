@@ -155,14 +155,26 @@ float2 Instance::antialiasing_sample_get(int sample_index, int sample_count)
   if (sample_count < 2) {
     return float2(0.0f);
   }
-  double van_der_corput;
-  BLI_hammersley_1d(sample_index, &van_der_corput);
-  /* Hammersley distribution [0..1]. */
-  const float2 rand = float2(sample_index / float(sample_count), float(van_der_corput));
-  const float2 rand_02 = rand * 2.0f;
-  const float2 rand_wrapped = rand_02 - math::floor(rand_02) * 2.0f;
-  const float2 offset = float2(erfinv_approx(rand_wrapped.x), erfinv_approx(rand_wrapped.y));
-  return offset;
+
+  double halton[2];
+  {
+    uint primes[2] = {2, 3};
+    double ofs[2] = {0, 0};
+    BLI_halton_2d(primes, ofs, sample_index, halton);
+    UNUSED_VARS(sample_count);
+  }
+  /* Uniform distribution [0..1]. */
+  const float2 rand = float2(halton[0], halton[1]);
+  /* Uniform distribution [-1..1]. */
+  const float2 rand_remap = rand * 2.0f - 1.0f;
+  /* Limit sampling region to avoid outliers. */
+  const float2 rand_adjusted = rand_remap * 0.93f;
+  /* Gaussian distribution [-1..1]. */
+  const float2 offset = float2(erfinv_approx(rand_adjusted.x), erfinv_approx(rand_adjusted.y));
+  /* Gaussian fitted to Blackman-Harris (follows EEVEE). */
+  const float sigma = 0.284f;
+  /* NOTE(fclem): Not sure where this sqrt comes from but is needed to match EEVEE. */
+  return offset * sqrt(sigma);
 }
 
 void Instance::antialiasing_accumulate(Manager &manager, float alpha)

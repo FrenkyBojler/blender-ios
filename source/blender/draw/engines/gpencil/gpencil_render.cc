@@ -260,9 +260,10 @@ void Engine::render_to_image(RenderEngine *engine, RenderLayer *render_layer, co
 
   manager.end_sync();
 
+  const float aa_radius = clamp_f(draw_ctx->scene->r.gauss, 0.0f, 100.0f);
   const int sample_count = draw_ctx->scene->grease_pencil_settings.aa_samples;
   for (auto i : IndexRange(sample_count)) {
-    float2 aa_offset = Instance::antialiasing_sample_get(i, sample_count) * 20.0f;
+    float2 aa_offset = Instance::antialiasing_sample_get(i, sample_count) * aa_radius;
     aa_offset = 2.0f * aa_offset / float2(inst.render_color_tx.size());
     render_set_view(engine, depsgraph, aa_offset);
     render_init_buffers(draw_ctx, inst, engine, render_layer, depsgraph, &rect);
