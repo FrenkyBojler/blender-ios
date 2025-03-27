@@ -62,6 +62,7 @@
 #include "ED_object_vgroup.hh"
 #include "ED_screen.hh"
 #include "ED_grease_pencil.hh"
+#include "ED_curves.hh"
 
 #include "ANIM_bone_collections.hh"
 
@@ -99,12 +100,17 @@ struct TransformMedian_GreasePencil {
   float location[3];
 };
 
+struct TransformMedian_Curves {
+  float location[3];
+};
+
 union TransformMedian {
   TransformMedian_Generic generic;
   TransformMedian_Mesh mesh;
   TransformMedian_Curve curve;
   TransformMedian_Lattice lattice;
   TransformMedian_GreasePencil grease_pencil;
+  TransformMedian_Curves curves;
 };
 
 /* temporary struct for storing transform properties */
@@ -501,6 +507,23 @@ static void v3d_editvertex_buts(const bContext *C, uiLayout *layout, View3D *v3d
         add_v3_v3(median->location, positions[point_i]);
         tot++;
       });
+    });
+  }
+  else if (ob->type == OB_CURVES) {
+    using namespace blender;
+    Curves &curves_id = *static_cast<Curves *>(ob->data);
+    bke::CurvesGeometry &curves = curves_id.geometry.wrap();
+    if (curves.is_empty()) {
+      return;
+    }
+
+    IndexMaskMemory memory;
+    const IndexMask selection = ed::curves::retrieve_selected_points(curves_id, memory);
+    Span<float3> positions = curves.positions();
+    TransformMedian_Curves *median = &median_basis.curves;
+    selection.foreach_index([&](const int point_i) {
+      add_v3_v3(median->location, positions[point_i]);
+      tot++;
     });
   }
 
@@ -1227,8 +1250,24 @@ static void v3d_editvertex_buts(const bContext *C, uiLayout *layout, View3D *v3d
         TransformMedian_GreasePencil *ve_median = &ve_median_basis.grease_pencil;
         selection.foreach_index([&](const int point_i) {
           apply_raw_diff_v3(positions[point_i], tot, ve_median->location, median->location);
-          int a = 0;
         });
+      });
+    }
+    else if (ob->type == OB_CURVES && apply_vcos) {
+      using namespace blender;
+      Curves &curves_id = *static_cast<Curves *>(ob->data);
+      bke::CurvesGeometry &curves = curves_id.geometry.wrap();
+      if (curves.is_empty()) {
+        return;
+      }
+
+      IndexMaskMemory memory;
+      IndexMask selection = ed::curves::retrieve_selected_points(curves, memory);
+      MutableSpan<float3> positions = curves.positions_for_write();
+      TransformMedian_Curves *median = &median_basis.curves;
+      TransformMedian_Curves *ve_median = &ve_median_basis.curves;
+      selection.foreach_index([&](const int point_i) {
+        apply_raw_diff_v3(positions[point_i], tot, ve_median->location, median->location);
       });
     }
 
