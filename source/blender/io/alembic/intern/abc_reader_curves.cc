@@ -493,8 +493,7 @@ void AbcCurveReader::read_curves_sample(Curves *curves_id,
 
   MutableSpan<float3> curves_positions = curves.positions_for_write();
 
-  Span<Imath::V3f> alembic_points = {&(*data.positions)[0], int64_t((*data.positions).size())};
-
+  Span<Imath::V3f> alembic_points{&(*data.positions)[0], int64_t((*data.positions).size())};
   Span<Imath::V3f> alembic_points_ceil;
   if (data.interpolation_settings.has_value()) {
     alembic_points_ceil = {&(*data.ceil_positions)[0], int64_t((*data.ceil_positions).size())};
