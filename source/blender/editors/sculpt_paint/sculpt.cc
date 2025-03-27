@@ -4015,19 +4015,23 @@ static void smooth_brush_toggle_off(const bContext *C, Paint *paint, StrokeCache
   }
 }
 
-static void init_scene_project_brush_target_objects(bContext *C,
-                                                    Object &active_object,
+static void init_scene_project_brush_target_objects(const bContext *C,
+                                                    const Object &active_object,
+                                                    const Brush &brush,
                                                     StrokeCache &cache)
 {
   ViewLayer *view_layer = CTX_data_view_layer(C);
   View3D *v3d = CTX_wm_view3d(C);
-
   cache.target_objects.clear();
+
+  const bool ignore_hidden = brush.flag2 & BRUSH_IGNORE_HIDDEN_OBJECTS;
 
   LISTBASE_FOREACH (Base *, base, BKE_view_layer_object_bases_get(view_layer)) {
     Object *object = base->object;
 
-    if (object != &active_object && object->type == OB_MESH && BKE_base_is_visible(v3d, base)) {
+    if (object != &active_object && object->type == OB_MESH &&
+        (!ignore_hidden || BKE_base_is_visible(v3d, base)))
+    {
       cache.target_objects.append(object);
     }
   }
@@ -4094,7 +4098,7 @@ static void sculpt_update_cache_invariants(
   }
 
   if (brush->sculpt_brush_type == SCULPT_BRUSH_TYPE_SCENE_PROJECT) {
-    init_scene_project_brush_target_objects(C, ob, *cache);
+    init_scene_project_brush_target_objects(C, ob, *brush, *cache);
   }
 
   /* Not very nice, but with current events system implementation

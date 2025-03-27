@@ -924,7 +924,9 @@ def brush_settings(layout, context, brush, popover=False):
             layout.prop(brush, "use_grab_silhouette")
 
         elif sculpt_tool == 'SCENE_PROJECT':
+            layout.separator()
             layout.prop(brush, "project_direction_type")
+            layout.prop(brush, "ignore_hidden_objects")
 
         elif sculpt_tool == 'PAINT':
             row = layout.row(align=True)

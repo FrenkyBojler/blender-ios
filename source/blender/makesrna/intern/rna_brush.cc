@@ -3694,6 +3694,11 @@ static void rna_def_brush(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Persistent", "Sculpt on a persistent layer of the mesh");
   RNA_def_property_update(prop, 0, "rna_Brush_update");
 
+  prop = RNA_def_property(srna, "ignore_hidden_objects", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag2", BRUSH_IGNORE_HIDDEN_OBJECTS);
+  RNA_def_property_ui_text(prop, "Ignore Hidden Objects", "Ignore hidden objects");
+  RNA_def_property_update(prop, 0, "rna_Brush_update");
+
   prop = RNA_def_property(srna, "use_accumulate", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", BRUSH_ACCUMULATE);
   RNA_def_property_ui_text(prop, "Accumulate", "Accumulate stroke daubs on top of each other");
