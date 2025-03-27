@@ -1210,13 +1210,13 @@ static void copy_attribute_using_map(const bke::AttributeIter iter,
   if (!src.has_value()) {
     return;
   }
-  const CPPType &ty = dst_writer.span.type();
+  const CPPType &type = dst_writer.span.type();
   const int grain_size = 20000;
   threading::parallel_for(out_to_in_map.index_range(), grain_size, [&](const IndexRange range) {
     for (const int out_elem : range) {
       const int in_elem = out_to_in_map[out_elem];
       if (in_elem != -1) {
-        ty.copy_assign(src.value()[in_elem], dst[out_elem]);
+        type.copy_assign(src.value()[in_elem], dst[out_elem]);
       }
     }
   });
@@ -1321,10 +1321,10 @@ static void interpolate_corner_attributes(bke::MutableAttributeAccessor &output_
                 continue;
               }
               GVArraySpan &src = src_opt.value();
-              const CPPType &ty = dst.type();
-              BUFFER_FOR_CPP_TYPE_VALUE(ty, buffer);
-              BLI_SCOPED_DEFER([&]() { ty.destruct(buffer); });
-              bke::attribute_math::convert_to_static_type(ty, [&](auto dummy) {
+              const CPPType &type = dst.type();
+              BUFFER_FOR_CPP_TYPE_VALUE(type, buffer);
+              BLI_SCOPED_DEFER([&]() { type.destruct(buffer); });
+              bke::attribute_math::convert_to_static_type(type, [&](auto dummy) {
                 using T = decltype(dummy);
                 const Span<T> src_typed = src.typed<T>();
                 Array<T, 20> in_values(in_face.size());
@@ -1337,7 +1337,7 @@ static void interpolate_corner_attributes(bke::MutableAttributeAccessor &output_
                   mixer.mix_in(0, in_values[i], weights[i]);
                 }
                 mixer.finalize();
-                ty.copy_assign(buffer, dst[out_c]);
+                type.copy_assign(buffer, dst[out_c]);
               });
             }
           }
