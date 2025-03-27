@@ -192,14 +192,37 @@ static std::optional<VariableFormat> parse_path_variable_format(
   return std::nullopt;
 }
 
+/**
+ * Information about a variable reference parsed from a path string.
+ */
 struct ParsedPathVariable {
+  /* Byte index range (exclusive on the right) in the path string that should be
+   * replaced with the variable value. This is the full range of the `${blah}`
+   * syntax that was parsed. */
   blender::IndexRange replacement_range;
+
+  /* Reference to the the variable name as written in the path string. Note that
+   * this references the path string, and does not own the value. */
   blender::StringRef name;
 
-  /* Simply the empty string when there is no format specifier. */
+  /* Indicates how to the variable's value should be formatted as a string. This
+   * is derived from the format string after the `:` in e.g. `${blah:5}`.
+   * Currently only used for integer and float variable types. */
   VariableFormat format;
 };
 
+/**
+ * Finds and parses the first valid variable in `path`.
+ *
+ * \param path The path string to parse.
+ *
+ * \param path_allocation_size The total amount of valid memory that `path`
+ * points to, in bytes. This is just used as a fail-safe in case path isn't
+ * properly null-terminated, to prevent reading off the end of valid memory.
+ *
+ * \return The parsed variable information, or nullopt if no variable reference
+ * is found in `path`.
+ */
 static std::optional<ParsedPathVariable> next_path_variable(char *path,
                                                             const int path_allocation_size)
 {
@@ -213,33 +236,37 @@ static std::optional<ParsedPathVariable> next_path_variable(char *path,
   for (int byte_index = 0; byte_index < path_allocation_size && path[byte_index] != '\0';
        byte_index++)
   {
-    /* Check if we've found a starting "${". */
-    if (start == -1) {
-      if ((byte_index + 1) < path_allocation_size && path[byte_index] == '$' &&
-          path[byte_index + 1] == '{')
-      {
-        start = byte_index;
-        byte_index++; /* To jump past the "{" as well. */
-      }
+    /* Check if we've found a starting "${".
+     *
+     * Note that if we're already inside a variable reference, this restarts
+     * from the new one we've just found. This is okay, since it's not valid to
+     * have `${` inside a variable reference, and this just treats such
+     * situations as an incomplete (and thus invalid) variable reference. */
+    if ((byte_index + 1) < path_allocation_size && path[byte_index] == '$' &&
+        path[byte_index + 1] == '{')
+    {
+      start = byte_index;
+      format_specifier_split = -1;
+      byte_index++; /* To jump past the "{" as well. */
       continue;
     }
 
-    /* "$" or "{" within a variable name is illegal, so we bail.
-     *
-     * TODO: is this the right thing to do when we encounter this? */
-    if (path[byte_index] == '$' || path[byte_index] == '{') {
-      return std::nullopt;
+    /* If we haven't found a start, we shouldn't try to parse the other bits
+     * yet. */
+    if (start == -1) {
+      continue;
     }
 
     /* Check if we've found a format splitter. */
     if (path[byte_index] == ':') {
-      if (format_specifier_split != -1) {
-        /* Found a second format specifier split. Invalid! Bail.
-         *
-         * TODO: is this the right thing to do when we encounter this? */
-        return std::nullopt;
+      if (format_specifier_split == -1) {
+        format_specifier_split = byte_index;
       }
-      format_specifier_split = byte_index;
+      else {
+        /* Found a second format specifier split. Invalid! Restart. */
+        start = -1;
+        format_specifier_split = -1;
+      }
       byte_index++;
       continue;
     }
@@ -251,12 +278,12 @@ static std::optional<ParsedPathVariable> next_path_variable(char *path,
     }
   }
 
+  /* No variable reference found. */
   if (start == -1 || end == -1) {
     return std::nullopt;
   }
 
-  /* TODO: syntax checks. */
-
+  /* Parse the variable reference we found. */
   ParsedPathVariable variable;
   variable.replacement_range = blender::IndexRange::from_begin_end(start, end);
   if (format_specifier_split == -1) {
@@ -271,12 +298,6 @@ static std::optional<ParsedPathVariable> next_path_variable(char *path,
             blender::StringRef(path + format_specifier_split + 1, path + end - 1)))
     {
       variable.format = *format;
-    }
-    else {
-      /* Invalid format specifier. Bail!
-       *
-       * TODO: is this the right thing to do when we encounter this? */
-      return std::nullopt;
     }
   }
 
@@ -376,19 +397,13 @@ bool BKE_path_apply_variables(char path[FILE_MAX], const VariableMap &variables)
   bool was_modified = false;
 
   const int length = strlen(path);
-  int processed = 0;
-  while (processed < length) {
-    const auto parsed_variable = next_path_variable(path + processed, FILE_MAX - processed);
+  int bytes_processed = 0;
+  while (bytes_processed < length) {
+    const auto parsed_variable = next_path_variable(path + bytes_processed,
+                                                    FILE_MAX - bytes_processed);
 
-    /* Check for parse error.
-     *
-     * TODO: right now we're stupid and just keep on trying to parse at the next
-     * byte, which is O(N^2) in pathological cases! We should return useful
-     * information about the parse error from `next_path_variable() that lets us
-     * do smarter things, and report issues to the user. */
     if (!parsed_variable.has_value()) {
-      processed++;
-      continue;
+      break;
     }
 
     /* For computing strings for integer and float variables. */
@@ -418,21 +433,21 @@ bool BKE_path_apply_variables(char path[FILE_MAX], const VariableMap &variables)
 
     /* Perform the replacement if we found a matching variable, otherwise skip. */
     if (replacement_string != nullptr) {
-      BLI_string_replace_range(path + processed,
-                               FILE_MAX - processed,
+      BLI_string_replace_range(path + bytes_processed,
+                               FILE_MAX - bytes_processed,
                                parsed_variable->replacement_range.start(),
                                parsed_variable->replacement_range.one_after_last(),
                                replacement_string);
 
-      processed += parsed_variable->replacement_range.one_after_last();
-      processed -= parsed_variable->replacement_range.size();
-      processed += strlen(replacement_string);
+      bytes_processed += parsed_variable->replacement_range.one_after_last();
+      bytes_processed -= parsed_variable->replacement_range.size();
+      bytes_processed += strlen(replacement_string);
 
       was_modified = true;
     }
     else {
       /* No matching variable, so skip. */
-      processed += parsed_variable->replacement_range.one_after_last();
+      bytes_processed += parsed_variable->replacement_range.one_after_last();
     }
   }
 
