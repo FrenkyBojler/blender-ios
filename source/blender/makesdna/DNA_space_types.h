@@ -182,7 +182,7 @@ typedef struct SpaceProperties {
 
   /** Context tabs. */
   short mainb, mainbo, mainbuser;
-  int visible_tabs;
+  unsigned int visible_tabs;
   /** Preview is signal to refresh. */
   short preview;
   char flag;

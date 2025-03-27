@@ -181,7 +181,7 @@ blender::Vector<eSpaceButtons_Context> ED_buttons_tabs_list(const SpacePropertie
   const int filter = sbuts->visible_tabs;
 
   auto add_spacer = [&]() {
-    if (tabs.size() != 0 && tabs.last() != eSpaceButtons_Context(-1)) {
+    if (!tabs.is_empty() && tabs.last() != eSpaceButtons_Context(-1)) {
       tabs.append(eSpaceButtons_Context(-1));
     }
   };
@@ -472,9 +472,9 @@ static void buttons_main_region_property_search(const bContext *C,
 
 static eSpaceButtons_Context find_new_properties_tab(const SpaceProperties *sbuts, int iter_step)
 {
-  const blender::Vector<eSpaceButtons_Context> tabs_array_no_filter = ED_buttons_tabs_list(sbuts,
-                                                                                           false);
-  const blender::Vector<eSpaceButtons_Context> tabs_array = ED_buttons_tabs_list(sbuts);
+  using namespace blender;
+  const Vector<eSpaceButtons_Context> tabs_array_no_filter = ED_buttons_tabs_list(sbuts, false);
+  const Vector<eSpaceButtons_Context> tabs_array = ED_buttons_tabs_list(sbuts);
 
   const int old_index = tabs_array_no_filter.first_index_of(eSpaceButtons_Context(sbuts->mainb));
 

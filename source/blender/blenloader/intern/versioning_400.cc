@@ -6,7 +6,6 @@
  * \ingroup blenloader
  */
 
-#include "DNA_space_types.h"
 #define DNA_DEPRECATED_ALLOW
 
 #include <algorithm>
@@ -34,6 +33,7 @@
 #include "DNA_movieclip_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_sequence_types.h"
+#include "DNA_space_types.h"
 #include "DNA_workspace_types.h"
 #include "DNA_world_types.h"
 
@@ -6507,15 +6507,8 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
         LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
           if (sl->spacetype == SPACE_PROPERTIES) {
             SpaceProperties *sbuts = reinterpret_cast<SpaceProperties *>(sl);
-            sbuts->visible_tabs |= (1 << BCONTEXT_TOOL) | (1 << BCONTEXT_SCENE) |
-                                   (1 << BCONTEXT_RENDER) | (1 << BCONTEXT_OUTPUT) |
-                                   (1 << BCONTEXT_VIEW_LAYER) | (1 << BCONTEXT_WORLD) |
-                                   (1 << BCONTEXT_COLLECTION) | (1 << BCONTEXT_OBJECT) |
-                                   (1 << BCONTEXT_CONSTRAINT) | (1 << BCONTEXT_MODIFIER) |
-                                   (1 << BCONTEXT_DATA) | (1 << BCONTEXT_BONE) |
-                                   (1 << BCONTEXT_BONE_CONSTRAINT) | (1 << BCONTEXT_MATERIAL) |
-                                   (1 << BCONTEXT_TEXTURE) | (1 << BCONTEXT_PARTICLE) |
-                                   (1 << BCONTEXT_PHYSICS) | (1 << BCONTEXT_SHADERFX);
+            /* Translates to 0xFFFFFFFF, so other tabs can be added without versioning. */
+            sbuts->visible_tabs = uint(-1);
           }
         }
       }

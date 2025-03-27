@@ -185,7 +185,6 @@ typedef struct WorkSpace {
    * spreadsheet and viewport do this).
    */
   ViewerPath viewer_path;
-
 } WorkSpace;
 
 /**

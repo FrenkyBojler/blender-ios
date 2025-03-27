@@ -9,6 +9,7 @@
 #include <cstdlib>
 #include <cstring>
 
+#include "BLI_string_ref.hh"
 #include "BLT_translation.hh"
 
 #include "BKE_context.hh"
@@ -5662,9 +5663,9 @@ static void rna_def_space_properties_filter(StructRNA *srna)
   for (const int i : blender::IndexRange(BCONTEXT_TOT)) {
     EnumPropertyItem item = buttons_context_items[i];
     const int value = (1 << item.value);
-    const char *prop_name = blender::ed::properties::filter_items[i].c_str();
+    blender::StringRefNull prop_name = blender::ed::properties::filter_items[i].c_str();
 
-    PropertyRNA *prop = RNA_def_property(srna, prop_name, PROP_BOOLEAN, PROP_NONE);
+    PropertyRNA *prop = RNA_def_property(srna, prop_name.c_str(), PROP_BOOLEAN, PROP_NONE);
     RNA_def_property_boolean_sdna(prop, nullptr, "visible_tabs", value);
     RNA_def_property_ui_text(prop, item.name, "");
     RNA_def_property_update(
