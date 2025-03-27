@@ -141,15 +141,15 @@ static void dump_mesh(const Mesh *mesh, const std::string &name)
       } break;
       case CD_PROP_INT32:
       case CD_PROP_BOOL: {
-        VArraySpan<int> intspan(*attrs.lookup<int>(iter.name));
+        const VArraySpan<int> intspan(*attrs.lookup<int>(iter.name));
         dump_span(intspan, label);
       } break;
       case CD_PROP_FLOAT3: {
-        VArraySpan<float3> float3span(*attrs.lookup<float3>(iter.name));
+        const VArraySpan<float3> float3span(*attrs.lookup<float3>(iter.name));
         dump_span(float3span, label);
       } break;
       case CD_PROP_FLOAT2: {
-        VArraySpan<float2> float2span(*attrs.lookup<float2>(iter.name));
+        const VArraySpan<float2> float2span(*attrs.lookup<float2>(iter.name));
         dump_span(float2span, label);
       } break;
       default:
@@ -229,7 +229,7 @@ static void get_manifold(Manifold &manifold,
   const int verts_num = mesh_offsets.vert_offsets[mesh_index].size();
   const int vert_start = mesh_offsets.vert_start[mesh_index];
   meshgl.vertProperties.resize(verts_num * props_num);
-  Span<float3> vpos = joined_mesh->vert_positions();
+  const Span<float3> vpos = joined_mesh->vert_positions();
   const int grain_size = 20000;
   threading::parallel_for(IndexRange(verts_num), grain_size, [&](const IndexRange range) {
     for (const int i : range) {
@@ -242,9 +242,9 @@ static void get_manifold(Manifold &manifold,
   });
   /* Calling joined_mesh->corner_tris() may cause triangulation to happen,
    * to populate a triangulation cache for the mesh. */
-  Span<int3> corner_tris = joined_mesh->corner_tris();
-  Span<int> corner_verts = joined_mesh->corner_verts();
-  Span<int> corner_tri_faces = joined_mesh->corner_tri_faces();
+  const Span<int3> corner_tris = joined_mesh->corner_tris();
+  const Span<int> corner_verts = joined_mesh->corner_verts();
+  const Span<int> corner_tri_faces = joined_mesh->corner_tri_faces();
   const int tris_start = poly_to_tri_count(mesh_offsets.face_start[mesh_index],
                                            mesh_offsets.corner_start[mesh_index]);
   const int tris_end = poly_to_tri_count(mesh_offsets.face_start[mesh_index + 1],
@@ -404,17 +404,17 @@ void OutToInMaps::ensure_vertex_map()
    * have different threads wanting to write vertex_map, and also want
    * determinism of which one wins if there is more than one possibility.
    */
-  OffsetIndices<int> in_faces = joined_mesh_->faces();
-  OffsetIndices<int> out_faces = output_mesh_->faces();
-  Span<int> in_corner_verts = joined_mesh_->corner_verts();
-  Span<int> out_corner_verts = output_mesh_->corner_verts();
-  Span<float3> out_vert_positions = output_mesh_->vert_positions();
-  Span<float3> in_vert_positions = joined_mesh_->vert_positions();
+  const OffsetIndices<int> in_faces = joined_mesh_->faces();
+  const OffsetIndices<int> out_faces = output_mesh_->faces();
+  const Span<int> in_corner_verts = joined_mesh_->corner_verts();
+  const Span<int> out_corner_verts = output_mesh_->corner_verts();
+  const Span<float3> out_vert_positions = output_mesh_->vert_positions();
+  const Span<float3> in_vert_positions = joined_mesh_->vert_positions();
   for (const int out_face_index : IndexRange(output_mesh_->faces_num)) {
     const int in_face_index = this->face_map[out_face_index];
     const IndexRange in_face = in_faces[in_face_index];
     const IndexRange out_face = out_faces[out_face_index];
-    Span<int> in_face_verts = in_corner_verts.slice(in_face);
+    const Span<int> in_face_verts = in_corner_verts.slice(in_face);
     for (const int out_v : out_corner_verts.slice(out_face)) {
       if (this->vertex_map[out_v] != -1) {
         continue;
@@ -447,10 +447,10 @@ void OutToInMaps::ensure_corner_map()
   timeit::ScopedTimer timer("filling corner map");
 #endif
   this->corner_map = Array<int>(output_mesh_->corners_num, -1);
-  OffsetIndices<int> in_faces = joined_mesh_->faces();
-  OffsetIndices<int> out_faces = output_mesh_->faces();
-  Span<int> in_corner_verts = joined_mesh_->corner_verts();
-  Span<int> out_corner_verts = output_mesh_->corner_verts();
+  const OffsetIndices<int> in_faces = joined_mesh_->faces();
+  const OffsetIndices<int> out_faces = output_mesh_->faces();
+  const Span<int> in_corner_verts = joined_mesh_->corner_verts();
+  const Span<int> out_corner_verts = output_mesh_->corner_verts();
   constexpr int grain_size = 10000;
   threading::parallel_for(
       IndexRange(output_mesh_->faces_num), grain_size, [&](const IndexRange range) {
@@ -521,16 +521,16 @@ void OutToInMaps::ensure_edge_map()
   timeit::ScopedTimer timer("filling edge map");
 #endif
   this->edge_map = Array<int>(output_mesh_->edges_num, -1);
-  Span<int> out_corner_edges = output_mesh_->corner_edges();
-  Span<int> out_corner_verts = output_mesh_->corner_verts();
-  Span<int2> out_edges = output_mesh_->edges();
-  Span<float3> out_positions = output_mesh_->vert_positions();
-  Span<int> in_corner_edges = joined_mesh_->corner_edges();
-  Span<int> in_corner_verts = joined_mesh_->corner_verts();
-  Span<int2> in_edges = joined_mesh_->edges();
-  Span<float3> in_positions = joined_mesh_->vert_positions();
-  OffsetIndices<int> in_faces = joined_mesh_->faces();
-  OffsetIndices<int> out_faces = output_mesh_->faces();
+  const Span<int> out_corner_edges = output_mesh_->corner_edges();
+  const Span<int> out_corner_verts = output_mesh_->corner_verts();
+  const Span<int2> out_edges = output_mesh_->edges();
+  const Span<float3> out_positions = output_mesh_->vert_positions();
+  const Span<int> in_corner_edges = joined_mesh_->corner_edges();
+  const Span<int> in_corner_verts = joined_mesh_->corner_verts();
+  const Span<int2> in_edges = joined_mesh_->edges();
+  const Span<float3> in_positions = joined_mesh_->vert_positions();
+  const OffsetIndices<int> in_faces = joined_mesh_->faces();
+  const OffsetIndices<int> out_faces = output_mesh_->faces();
   Array<bool> done_edge(output_mesh_->edges_num, false);
   for (const int out_face_index : IndexRange(output_mesh_->faces_num)) {
     const int in_face_index = this->face_map[out_face_index];
@@ -1142,7 +1142,7 @@ static MeshAssembly assemble_mesh_from_meshgl(const MeshGL &mgl, const MeshOffse
     const int grain_size = 15000;
     threading::parallel_for(face_groups.index_range(), grain_size, [&](const IndexRange range) {
       for (const int gid : range) {
-        Span<int> group = face_groups[gid].as_span();
+        const Span<int> group = face_groups[gid].as_span();
         Vector<OutFace> &group_faces = new_groups[gid] = Vector<OutFace, 4>(group.size());
         for (const int i : group_faces.index_range()) {
           int tri_index = group[i];
@@ -1159,7 +1159,7 @@ static MeshAssembly assemble_mesh_from_meshgl(const MeshGL &mgl, const MeshOffse
     }
 #else
     for (const int gid : face_groups.index_range()) {
-      Span<int> group = face_groups[gid].as_span();
+      const Span<int> group = face_groups[gid].as_span();
       Vector<OutFace> group_faces(group.size());
       for (const int i : group_faces.index_range()) {
         int tri_index = group[i];
@@ -1187,7 +1187,7 @@ static MeshAssembly assemble_mesh_from_meshgl(const MeshGL &mgl, const MeshOffse
 static void copy_attribute_using_map(const bke::AttributeIter iter,
                                      bke::MutableAttributeAccessor &output_attrs,
                                      bke::AttributeAccessor &input_attrs,
-                                     Span<int> out_to_in_map)
+                                     const Span<int> out_to_in_map)
 {
   constexpr int dbg_level = 0;
   if (dbg_level > 0) {
@@ -1224,8 +1224,8 @@ static void interpolate_corner_attributes(bke::MutableAttributeAccessor &output_
                                           bke::AttributeAccessor &input_attrs,
                                           Mesh *output_mesh,
                                           const Mesh *input_mesh,
-                                          Span<int> out_to_in_corner_map,
-                                          Span<int> out_to_in_face_map)
+                                          const Span<int> out_to_in_corner_map,
+                                          const Span<int> out_to_in_face_map)
 {
 #ifdef DEBUG_TIME
   timeit::ScopedTimer timer("interpolate corner attributes");
@@ -1260,10 +1260,10 @@ static void interpolate_corner_attributes(bke::MutableAttributeAccessor &output_
    * face. */
   const OffsetIndices<int> output_faces = output_mesh->faces();
   const OffsetIndices<int> input_faces = input_mesh->faces();
-  Span<int> input_corner_verts = input_mesh->corner_verts();
-  Span<float3> input_vert_positions = input_mesh->vert_positions();
-  Span<int> output_corner_verts = output_mesh->corner_verts();
-  Span<float3> output_vert_positions = output_mesh->vert_positions();
+  const Span<int> input_corner_verts = input_mesh->corner_verts();
+  const Span<float3> input_vert_positions = input_mesh->vert_positions();
+  const Span<int> output_corner_verts = output_mesh->corner_verts();
+  const Span<float3> output_vert_positions = output_mesh->vert_positions();
   const int grain_size = 5000;
   threading::parallel_for(
       out_to_in_face_map.index_range(), grain_size, [&](const IndexRange range) {
@@ -1287,7 +1287,7 @@ static void interpolate_corner_attributes(bke::MutableAttributeAccessor &output_
            * weights has the right size. */
           const int in_face_index = out_to_in_face_map[out_face_index];
           const IndexRange in_face = input_faces[in_face_index];
-          Span<int> in_face_verts = input_corner_verts.slice(in_face);
+          const Span<int> in_face_verts = input_corner_verts.slice(in_face);
           const int in_face_size = in_face.size();
           weights.resize(in_face_size);
           cos_2d.resize(in_face_size);
@@ -1389,8 +1389,8 @@ static void get_intersecting_edges(Vector<int> *r_intersecting_edges,
 #ifdef DEBUG_TIME
   timeit::ScopedTimer timer("get_intersecting_edges");
 #endif
-  OffsetIndices<int> faces = mesh->faces();
-  Span<int> corner_edges = mesh->corner_edges();
+  const OffsetIndices<int> faces = mesh->faces();
+  const Span<int> corner_edges = mesh->corner_edges();
   Array<int> edge_first_face(mesh->edges_num, -1);
   for (int face_i : faces.index_range()) {
     for (const int edge_i : corner_edges.slice(faces[face_i])) {
@@ -1421,7 +1421,7 @@ static bool is_plane(const Mesh *mesh, float3 *r_normal, float *r_origin_offset)
     return false;
   }
   float3 vpos[4];
-  Span<int> f_corners = mesh->corner_verts().slice(mesh->faces()[0]);
+  const Span<int> f_corners = mesh->corner_verts().slice(mesh->faces()[0]);
   for (int i = 0; i < 4; i++) {
     vpos[i] = mesh->vert_positions()[f_corners[i]];
   }
@@ -1662,10 +1662,10 @@ static bke::GeometrySet join_meshes_with_transforms(const Span<const Mesh *> mes
 }
 
 Mesh *mesh_boolean_manifold(Span<const Mesh *> meshes,
-                            Span<float4x4> transforms,
+                            const Span<float4x4> transforms,
                             const float4x4 &target_transform,
-                            Span<Array<short>>,
-                            BooleanOpParameters op_params,
+                            const Span<Array<short>>,
+                            const BooleanOpParameters op_params,
                             Vector<int> *r_intersecting_edges,
                             BooleanError *r_error)
 {
