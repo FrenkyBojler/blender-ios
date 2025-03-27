@@ -379,7 +379,7 @@ static void vicon_handletype_auto_clamp_draw(
 static void icon_node_socket_draw(int socket_type, int x, int y, int w, int h, float /*alpha*/)
 {
   /* Factor to account for the draw function of the node socket being based on the widget unit,
-   * which is 10 px by default, which differs from icons. */
+   * which is 10 pixels by default, which differs from icons. */
   constexpr float size_factor = 10.0f / float(ICON_DEFAULT_WIDTH);
 
   const float socket_radius = w * 0.5f * size_factor;
@@ -693,10 +693,10 @@ int UI_icon_from_event_type(short event_type, short event_value)
   return ICON_NONE;
 }
 
-int UI_icon_from_keymap_item(const wmKeyMapItem *kmi, int r_icon_mod[4])
+int UI_icon_from_keymap_item(const wmKeyMapItem *kmi, int r_icon_mod[KM_MOD_NUM])
 {
   if (r_icon_mod) {
-    memset(r_icon_mod, 0x0, sizeof(int[4]));
+    memset(r_icon_mod, 0x0, sizeof(int[KM_MOD_NUM]));
     int i = 0;
     if (kmi->ctrl == KM_MOD_HELD) {
       r_icon_mod[i++] = ICON_EVENT_CTRL;
@@ -709,6 +709,9 @@ int UI_icon_from_keymap_item(const wmKeyMapItem *kmi, int r_icon_mod[4])
     }
     if (kmi->oskey == KM_MOD_HELD) {
       r_icon_mod[i++] = ICON_EVENT_OS;
+    }
+    if (!ELEM(kmi->hyper, KM_NOTHING, KM_ANY)) {
+      r_icon_mod[i++] = ICON_EVENT_HYPER;
     }
   }
   return UI_icon_from_event_type(kmi->type, kmi->val);
@@ -762,6 +765,7 @@ static void init_event_icons()
   INIT_EVENT_ICON(ICON_EVENT_CTRL, EVT_LEFTCTRLKEY, KM_ANY);
   INIT_EVENT_ICON(ICON_EVENT_ALT, EVT_LEFTALTKEY, KM_ANY);
   INIT_EVENT_ICON(ICON_EVENT_OS, EVT_OSKEY, KM_ANY);
+  INIT_EVENT_ICON(ICON_EVENT_HYPER, EVT_HYPER, KM_ANY);
   INIT_EVENT_ICON(ICON_EVENT_F1, EVT_F1KEY, KM_ANY);
   INIT_EVENT_ICON(ICON_EVENT_F2, EVT_F2KEY, KM_ANY);
   INIT_EVENT_ICON(ICON_EVENT_F3, EVT_F3KEY, KM_ANY);
