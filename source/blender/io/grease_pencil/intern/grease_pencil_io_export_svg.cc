@@ -179,7 +179,8 @@ bool SVGExporter::export_scene(Scene &scene, StringRefNull filepath)
 
       /* Put frames in a hidden group. They are referenced later by a <use>-node that displays
        * them in order. Use a group rather than a <defs>-node because some graphics applications
-       * don't expose those to users making it hard for them to work with the file. */
+       * don't expose those to users making it hard for them to work with the file.
+       */
       pugi::xml_node frames_group_node = main_node.append_child("g");
       frames_group_node.append_attribute("id").set_value("blender_frames");
       frames_group_node.append_attribute("display").set_value("none");
