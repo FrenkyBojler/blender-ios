@@ -1403,9 +1403,10 @@ static bool is_plane(const Mesh *mesh, float3 *r_normal, float *r_origin_offset)
     return false;
   }
   float3 vpos[4];
+  const Span<float3> positions = mesh->vert_positions();
   const Span<int> f_corners = mesh->corner_verts().slice(mesh->faces()[0]);
   for (int i = 0; i < 4; i++) {
-    vpos[i] = mesh->vert_positions()[f_corners[i]];
+    vpos[i] = positions[f_corners[i]];
   }
   float3 norm1 = math::normal_tri(vpos[0], vpos[1], vpos[2]);
   float3 norm2 = math::normal_tri(vpos[0], vpos[2], vpos[3]);
