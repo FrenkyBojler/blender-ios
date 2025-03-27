@@ -260,7 +260,7 @@ void Engine::render_to_image(RenderEngine *engine, RenderLayer *render_layer, co
 
   manager.end_sync();
 
-  const int sample_count = draw_ctx->scene->eevee.taa_render_samples;
+  const int sample_count = draw_ctx->scene->grease_pencil_settings.aa_samples;
   for (auto i : IndexRange(sample_count)) {
     float2 aa_offset = Instance::antialiasing_sample_get(i, sample_count) * 20.0f;
     aa_offset = 2.0f * aa_offset / float2(inst.render_color_tx.size());

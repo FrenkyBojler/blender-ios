@@ -1966,7 +1966,7 @@ typedef struct SceneEEVEE {
 
 typedef struct SceneGpencil {
   float smaa_threshold;
-  char _pad[4];
+  int aa_samples;
 } SceneGpencil;
 
 typedef struct SceneHydra {

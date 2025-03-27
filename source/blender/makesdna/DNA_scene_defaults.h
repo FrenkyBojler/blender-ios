@@ -236,6 +236,12 @@
     .flag = SCE_EEVEE_TAA_REPROJECTION, \
   }
 
+#define _DNA_DEFAULT_SceneGreasePencil \
+  { \
+    .smaa_threshold = 1.0f, \
+    .aa_samples = 1, \
+  }
+
 #define _DNA_DEFAULT_SceneHydra \
   { \
     .export_method = SCE_HYDRA_EXPORT_HYDRA, \
@@ -254,6 +260,8 @@
     .safe_areas = _DNA_DEFAULT_DisplaySafeAreas, \
  \
     .eevee = _DNA_DEFAULT_SceneEEVEE, \
+ \
+    .grease_pencil_settings = _DNA_DEFAULT_SceneGreasePencil, \
  \
     .hydra = _DNA_DEFAULT_SceneHydra, \
     .simulation_frame_start = 1, \

@@ -8498,6 +8498,16 @@ static void rna_def_scene_gpencil(BlenderRNA *brna)
                            "Anti-Aliasing Threshold",
                            "Threshold for edge detection algorithm (higher values might over-blur "
                            "some part of the image)");
+
+  prop = RNA_def_property(srna, "aa_samples", PROP_INT, PROP_NONE);
+  RNA_def_property_ui_text(
+      prop, "Anti-Aliasing Samples", "Number of anti-aliasing samples per pixel for final render");
+  RNA_def_property_range(prop, 1, INT_MAX);
+  RNA_def_property_ui_range(prop, 1, 256, 1, 3);
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
+  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
+  RNA_def_property_flag(prop, PROP_ANIMATABLE);
+
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
 }

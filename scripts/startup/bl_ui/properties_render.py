@@ -865,6 +865,7 @@ class RENDER_PT_gpencil(RenderButtonsPanel, Panel):
 
         col = layout.column()
         col.prop(props, "antialias_threshold")
+        col.prop(props, "aa_samples")
 
 
 class RENDER_PT_opengl_sampling(RenderButtonsPanel, Panel):
