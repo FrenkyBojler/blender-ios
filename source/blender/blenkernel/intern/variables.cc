@@ -2,6 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BKE_scene.hh"
 #include "BKE_variables.hh"
 
 bool VariableMap::contains(blender::StringRef name) const
@@ -120,13 +121,8 @@ VariableMap BKE_build_blender_variables(const char *blend_file_path,
     variables.add_integer("frame_start", render_data->sfra);
     variables.add_integer("frame_end", render_data->efra);
 
-    /* Resolution eval code copied from `sequencer_ibuf_get()`.
-     *
-     * TODO: it might make sense to make a function for this to ensure that all
-     * uses of these render variables produce a consistent output resolution? */
-    const double render_size = render_data->size / 100.0;
-    const int res_x = roundf(render_size * render_data->xsch);
-    const int res_y = roundf(render_size * render_data->ysch);
+    int res_x, res_y;
+    BKE_render_resolution(render_data, false, &res_x, &res_y);
     variables.add_integer("resolution_x", res_x);
     variables.add_integer("resolution_y", res_y);
 
