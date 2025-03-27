@@ -6,4 +6,4 @@
 
 #include <Python.h>
 
-PyObject *BPyInit_geometry_set_type();
+PyObject *BPyInit_geometry_set();

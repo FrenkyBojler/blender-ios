@@ -10,6 +10,7 @@ __all__ = (
     "app",
     "context",
     "data",
+    "geometry",
     "msgbus",
     "ops",
     "path",
@@ -31,6 +32,7 @@ from _bpy import (
 
 # python modules
 from . import (
+    geometry,
     ops,
     path,
     utils,

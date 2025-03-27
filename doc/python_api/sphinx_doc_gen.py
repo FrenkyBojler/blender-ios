@@ -1993,6 +1993,7 @@ def write_rst_index(basepath):
 
         # Python C-API modules.
         "bpy.props",
+        "bpy.geometry",
     )
 
     for mod in app_modules:
@@ -2099,6 +2100,29 @@ def write_rst_ops_index(basepath):
         fw("   :glob:\n\n")
         fw("   bpy.ops.*\n\n")
         file.close()
+
+
+def write_rst_geometry(basepath):
+    """
+    Write the RST files of ``bpy.geometry`` module
+    """
+    if 'bpy.geometry' in EXCLUDE_MODULES:
+        return
+
+    # Write the index.
+    filepath = os.path.join(basepath, "bpy.geometry.rst")
+    file = open(filepath, "w", encoding="utf-8")
+    fw = file.write
+    fw(title_string("Geometry (bpy.geometry)", "="))
+    write_example_ref("", fw, "bpy.geometry")
+    fw(".. toctree::\n")
+    fw("   :glob:\n\n")
+    fw("   bpy.geometry.*\n\n")
+    file.close()
+
+    # Write the contents.
+    pymodule2sphinx(basepath, 'bpy.geometry', bpy.geometry, 'Geometry', ())
+    EXAMPLE_SET_USED.add("bpy.geometry")
 
 
 def write_rst_msgbus(basepath):
@@ -2410,6 +2434,7 @@ def rna2sphinx(basepath):
     write_rst_types_index(basepath)         # `bpy.types`.
     write_rst_ops_index(basepath)           # `bpy.ops`.
     write_rst_msgbus(basepath)              # `bpy.msgbus`.
+    write_rst_geometry(basepath)            # `bpy.geometry`.
     pyrna2sphinx(basepath)                  # `bpy.types.*` & `bpy.ops.*`.
     write_rst_data(basepath)                # `bpy.data`.
     write_rst_importable_modules(basepath)

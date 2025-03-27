@@ -278,6 +278,7 @@ static _inittab bpy_internal_modules[] = {
     {"bl_math", BPyInit_bl_math},
     {"imbuf", BPyInit_imbuf},
     {"bmesh", BPyInit_bmesh},
+    {"_bpy_geometry_set", BPyInit_geometry_set},
 #if 0
     {"bmesh.types", BPyInit_bmesh_types},
     {"bmesh.utils", BPyInit_bmesh_utils},
