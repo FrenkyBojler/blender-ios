@@ -976,7 +976,7 @@ ShaderCompilerGeneric::ShaderCompilerGeneric()
 
 ShaderCompilerGeneric::~ShaderCompilerGeneric()
 {
-  compilation_thread_.reset();
+  compilation_worker_.reset();
 
   /* Ensure all the requested batches have been retrieved. */
   BLI_assert(batches_.is_empty());
@@ -993,10 +993,10 @@ BatchHandle ShaderCompilerGeneric::batch_compile(Span<const shader::ShaderCreate
   BatchHandle handle = next_batch_handle_++;
   batches_.add(handle, batch);
 
-  if (compilation_thread_) {
+  if (compilation_worker_) {
     compilation_queue_.push_back(batch);
     lock.unlock();
-    compilation_thread_->wake_up();
+    compilation_worker_->wake_up();
   }
   else {
     for (const shader::ShaderCreateInfo *info : infos) {

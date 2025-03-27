@@ -217,7 +217,7 @@ class ShaderCompilerGeneric : public ShaderCompiler {
   std::mutex mutex_;
 
   std::deque<Batch *> compilation_queue_;
-  std::unique_ptr<GPUWorker> compilation_thread_;
+  std::unique_ptr<GPUWorker> compilation_worker_;
 
   void run_thread();
 
