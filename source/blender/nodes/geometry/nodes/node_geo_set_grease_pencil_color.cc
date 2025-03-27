@@ -76,18 +76,12 @@ static void node_geo_exec(GeoNodeExecParams params)
               CD_PROP_FLOAT,
               bke::AttributeInitVArray(VArray<float>::ForSingle(1.0f, domain_size)));
         }
-        bke::try_capture_field_on_geometry(curves.attributes_for_write(),
-                                           layer_field_context,
-                                           color_attr_name,
-                                           domain,
-                                           selection,
-                                           color_field);
-        bke::try_capture_field_on_geometry(curves.attributes_for_write(),
-                                           layer_field_context,
-                                           opacity_attr_name,
-                                           domain,
-                                           selection,
-                                           opacity_field);
+        bke::try_capture_fields_on_geometry(curves.attributes_for_write(),
+                                            layer_field_context,
+                                            {color_attr_name, opacity_attr_name},
+                                            domain,
+                                            selection,
+                                            {color_field, opacity_field});
       }
     }
   });
