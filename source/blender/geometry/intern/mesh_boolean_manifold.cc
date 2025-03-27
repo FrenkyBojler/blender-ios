@@ -25,6 +25,7 @@
 
 #include "BKE_attribute.hh"
 #include "BKE_attribute_math.hh"
+#include "BKE_deform.hh"
 #include "BKE_geometry_set.hh"
 #include "BKE_instances.hh"
 #include "BKE_mesh.hh"
@@ -1205,7 +1206,7 @@ static void copy_attribute_using_map(const bke::AttributeIter &iter,
   if (!src_reader) {
     return;
   }
-  bke::GSpanAttributeWriter dst_writer = output_attrs.lookup_or_add_for_write_only_span(
+  bke::GSpanAttributeWriter dst_writer = output_attrs.lookup_or_add_for_write_span(
       iter.name, iter.domain, iter.data_type);
   GMutableSpan dst = dst_writer.span;
   const GVArraySpan src = *src_reader;
@@ -1251,7 +1252,7 @@ static void interpolate_corner_attributes(bke::MutableAttributeAccessor &output_
     }
     attribute_iters.append(iter);
     writers.append(
-        output_attrs.lookup_or_add_for_write_only_span(iter.name, iter.domain, iter.data_type));
+        output_attrs.lookup_or_add_for_write_span(iter.name, iter.domain, iter.data_type));
     readers.append(input_attrs.lookup_or_default(iter.name, iter.domain, iter.data_type));
     srcs.append(*readers.last());
     dsts.append(writers.last().span);
@@ -1343,25 +1344,6 @@ static void interpolate_corner_attributes(bke::MutableAttributeAccessor &output_
   for (bke::GSpanAttributeWriter &writer : writers) {
     writer.finish();
   }
-}
-
-/* Add all the edge attributes that are in \a from_mesh to \a to_mesh. */
-static void add_edge_attributes_from_mesh(Mesh *to_mesh, const Mesh *from_mesh)
-{
-  bke::MutableAttributeAccessor to_attrs = to_mesh->attributes_for_write();
-  bke::AttributeAccessor from_attrs = from_mesh->attributes();
-  from_attrs.foreach_attribute([&](const bke::AttributeIter &iter) {
-    if (iter.domain == bke::AttrDomain::Edge) {
-      if (iter.name == ".edge_verts") {
-        return;
-      }
-      bke::GAttributeWriter writer = to_attrs.lookup_or_add_for_write(
-          iter.name, iter.domain, iter.data_type);
-      if (writer) {
-        writer.finish();
-      }
-    }
-  });
 }
 
 /* What mesh_id corresponds to a given face_id, assuming that the face_id
@@ -1480,7 +1462,8 @@ static Mesh *meshgl_to_mesh(const MeshGL &mgl,
   BLI_assert(mgl.mergeFromVert.empty());
 
   if (mgl.vertProperties.empty() || mgl.triVerts.empty()) {
-    Mesh *mesh = BKE_mesh_new_nomain_from_template(joined_mesh, 0, 0, 0, 0);
+    Mesh *mesh = BKE_mesh_new_nomain(0, 0, 0, 0);
+    BKE_mesh_copy_parameters_for_eval(mesh, joined_mesh);
     return mesh;
   }
 
@@ -1507,12 +1490,10 @@ static Mesh *meshgl_to_mesh(const MeshGL &mgl,
 
   /* Make a new Mesh, now that we know the number of positions, faces, and corners.
    * We will use Blender's parallelized function to calculate edges later.
-   * By using joined_mesh as the template, all the needed attributes should have
-   * been created, as well as other "parameters" such as vertex group names
-   * and materials.
    */
-  Mesh *mesh = BKE_mesh_new_nomain_from_template(
-      joined_mesh, tot_positions, 0, tot_faces, tot_corners);
+  Mesh *mesh = BKE_mesh_new_nomain(tot_positions, 0, tot_faces, tot_corners);
+  BKE_defgroup_copy_list(&mesh->vertex_group_names, &joined_mesh->vertex_group_names);
+  BKE_mesh_copy_parameters_for_eval(mesh, joined_mesh);
 
   /* Set the vertex positions. */
   MutableSpan<float3> positions = mesh->vert_positions_for_write();
@@ -1556,9 +1537,6 @@ static Mesh *meshgl_to_mesh(const MeshGL &mgl,
     timeit::ScopedTimer timer_e("calculating edges");
 #endif
     bke::mesh_calc_edges(*mesh, false, false);
-    /* That function killed the edge attributes that were copied from joined_mesh.
-     * Add them back. */
-    add_edge_attributes_from_mesh(mesh, joined_mesh);
   }
 
   OutToInMaps out_to_in(&ma, joined_mesh, mesh);
