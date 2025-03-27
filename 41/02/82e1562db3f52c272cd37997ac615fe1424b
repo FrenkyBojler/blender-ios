@@ -1,1 +1,1 @@
-Referenced by issue #136594, sunlight shadow issue
+Referenced by issue #136594, 4.5 regression, EEVEE smooth normals can leak light in some situations
