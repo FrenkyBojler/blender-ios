@@ -12,6 +12,7 @@
 #include "BLI_string.h"
 
 #include "ED_curves.hh"
+#include "ED_grease_pencil.hh"
 #include "ED_object.hh"
 #include "ED_screen.hh"
 #include "ED_select_utils.hh"
@@ -26,6 +27,7 @@
 #include "BKE_customdata.hh"
 #include "BKE_editmesh.hh"
 #include "BKE_geometry_set.hh"
+#include "BKE_grease_pencil.hh"
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
@@ -250,6 +252,12 @@ static bke::GeometrySet get_original_geometry_eval_copy(Depsgraph &depsgraph,
       orig_mesh_states.append_as(*mesh_copy);
       return bke::GeometrySet::from_mesh(mesh_copy);
     }
+    case OB_GREASE_PENCIL: {
+      GreasePencil *grease_pencil = BKE_grease_pencil_copy_for_eval(
+          static_cast<const GreasePencil *>(object.data));
+      grease_pencil->runtime->eval_frame = int(DEG_get_ctime(&depsgraph));
+      return bke::GeometrySet::from_grease_pencil(grease_pencil);
+    }
     default:
       return {};
   }
@@ -332,6 +340,30 @@ static void store_result_geometry(const wmOperator &op,
         BKE_report(op.reports, RPT_WARNING, "Mesh shape key data removed");
       }
       break;
+    }
+    case OB_GREASE_PENCIL: {
+      const int eval_frame = int(DEG_get_ctime(&depsgraph));
+
+      GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object.data);
+      GreasePencil *new_grease_pencil =
+          geometry.get_component_for_write<bke::GreasePencilComponent>().get_for_write();
+      if (!new_grease_pencil) {
+        /* TODO: Clear Grease Pencil? */
+        break;
+      }
+
+      ed::greasepencil::apply_eval_grease_pencil_data(
+          *new_grease_pencil, eval_frame, grease_pencil.layers().index_range(), grease_pencil);
+
+      Main *bmain = DEG_get_bmain(&depsgraph);
+      /* There might be layers with empty names after evaluation. Make sure to rename them. */
+      for (bke::greasepencil::Layer *layer : grease_pencil.layers_for_write()) {
+        if (layer->name().is_empty()) {
+          grease_pencil.rename_node(*bmain, layer->as_node(), DATA_("Layer"));
+        }
+      }
+      BKE_object_material_from_eval_data(bmain, &object, &new_grease_pencil->id);
+      DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
     }
   }
 }
@@ -468,7 +500,7 @@ static void replace_inputs_evaluated_data_blocks(
 
 static bool object_has_editable_data(const Main &bmain, const Object &object)
 {
-  if (!ELEM(object.type, OB_CURVES, OB_POINTCLOUD, OB_MESH)) {
+  if (!ELEM(object.type, OB_CURVES, OB_POINTCLOUD, OB_MESH, OB_GREASE_PENCIL)) {
     return false;
   }
   if (!BKE_id_is_editable(&bmain, static_cast<const ID *>(object.data))) {
@@ -1062,6 +1094,18 @@ static GeometryNodeAssetTraitFlag asset_flag_for_context(const ObjectType type,
       }
       break;
     }
+    case OB_GREASE_PENCIL: {
+      switch (mode) {
+        case OB_MODE_OBJECT:
+          return (GEO_NODE_ASSET_TOOL | GEO_NODE_ASSET_OBJECT | GEO_NODE_ASSET_GREASE_PENCIL);
+        case OB_MODE_EDIT:
+          return (GEO_NODE_ASSET_TOOL | GEO_NODE_ASSET_EDIT | GEO_NODE_ASSET_GREASE_PENCIL);
+        case OB_MODE_SCULPT_GREASE_PENCIL:
+          return (GEO_NODE_ASSET_TOOL | GEO_NODE_ASSET_SCULPT | GEO_NODE_ASSET_GREASE_PENCIL);
+        default:
+          break;
+      }
+    }
     default:
       break;
   }
@@ -1120,6 +1164,24 @@ static asset::AssetItemTree *get_static_item_tree(const ObjectType type, const e
           return &tree;
         }
         case OB_MODE_EDIT: {
+          static asset::AssetItemTree tree;
+          return &tree;
+        }
+        default:
+          return nullptr;
+      }
+    }
+    case OB_GREASE_PENCIL: {
+      switch (mode) {
+        case OB_MODE_OBJECT: {
+          static asset::AssetItemTree tree;
+          return &tree;
+        }
+        case OB_MODE_EDIT: {
+          static asset::AssetItemTree tree;
+          return &tree;
+        }
+        case OB_MODE_SCULPT_GREASE_PENCIL: {
           static asset::AssetItemTree tree;
           return &tree;
         }
@@ -1236,6 +1298,13 @@ static Set<std::string> get_builtin_menus(const ObjectType object_type, const eO
           menus.add_new("View");
           menus.add_new("Weights");
           break;
+        default:
+          break;
+      }
+      break;
+    case OB_GREASE_PENCIL:
+      switch (mode) {
+        /* TODO! */
         default:
           break;
       }

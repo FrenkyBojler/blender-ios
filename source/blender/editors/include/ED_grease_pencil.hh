@@ -993,4 +993,9 @@ ColorGeometry4f randomize_color(const BrushGpencilSettings &settings,
                                 ColorGeometry4f color,
                                 float pressure);
 
+void apply_eval_grease_pencil_data(const GreasePencil &src_grease_pencil,
+                                   int eval_frame,
+                                   const IndexMask &orig_layers,
+                                   GreasePencil &orig_grease_pencil);
+
 }  // namespace blender::ed::greasepencil
