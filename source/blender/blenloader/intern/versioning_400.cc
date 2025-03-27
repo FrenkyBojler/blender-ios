@@ -6532,7 +6532,7 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
     }
   }
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 10)) {
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 13)) {
     LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
       scene->toolsettings->snap_playhead_mode |= SCE_SNAP_TO_STRIPS | SCE_SNAP_TO_KEYS;
       scene->toolsettings->snap_step_frames = 1;
