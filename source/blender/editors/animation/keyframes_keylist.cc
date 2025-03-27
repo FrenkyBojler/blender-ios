@@ -273,8 +273,13 @@ const ActKeyColumn *ED_keylist_find_closest(const AnimKeylist *keylist, float cf
   if (ED_keylist_is_empty(keylist)) {
     return nullptr;
   }
+  const ActKeyColumn *exact = ED_keylist_find_exact(keylist, cfra);
+  if (exact) {
+    return exact;
+  }
   const ActKeyColumn *prev = ED_keylist_find_prev(keylist, cfra);
   const ActKeyColumn *next = ED_keylist_find_next(keylist, cfra);
+
   if (!prev) {
     return next;
   }
@@ -284,6 +289,7 @@ const ActKeyColumn *ED_keylist_find_closest(const AnimKeylist *keylist, float cf
 
   const float prev_delta = cfra - prev->cfra;
   const float next_delta = next->cfra - cfra;
+  BLI_assert(prev_delta >= 0 && next_delta >= 0);
 
   if (prev_delta < next_delta) {
     return prev;

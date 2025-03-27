@@ -201,14 +201,6 @@ static int get_marker_snap_target(Scene *scene, const int frame)
   return ED_markers_find_nearest_marker_time(&scene->markers, frame);
 }
 
-static int seq_snap_threshold_get_frame_distance(bContext *C)
-{
-  const int snap_distance = blender::seq::tool_settings_snap_distance_get(CTX_data_scene(C));
-  const ARegion *region = CTX_wm_region(C);
-  return round_fl_to_int(UI_view2d_region_to_view_x(&region->v2d, snap_distance) -
-                         UI_view2d_region_to_view_x(&region->v2d, 0));
-}
-
 static int get_snap_threshold(const ARegion *region)
 {
   return UI_view2d_region_to_view_x(&region->v2d, 30) -
@@ -438,7 +430,6 @@ static blender::Vector<SnapTarget> nla_get_snap_targets(bContext *C, const int t
 
 static float apply_frame_snap(bContext *C, ChangeFrameData &op_data, const float frame)
 {
-  Scene *scene = CTX_data_scene(C);
   ScrArea *area = CTX_wm_area(C);
 
   blender::Vector<SnapTarget> targets;
