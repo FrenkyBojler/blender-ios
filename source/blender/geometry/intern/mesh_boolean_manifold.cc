@@ -32,7 +32,6 @@
 
 #include "GEO_join_geometries.hh"
 #include "GEO_realize_instances.hh"
-#include "GEO_transform.hh"
 
 #include "mesh_boolean_manifold.hh"
 
@@ -1727,9 +1726,7 @@ Mesh *mesh_boolean_manifold(Span<const Mesh *> meshes,
       mesh_result = meshgl_to_mesh(meshgl_result, joined_mesh, mesh_offsets, r_intersecting_edges);
     }
     if (!math::is_identity(target_transform)) {
-      bke::GeometrySet gset = bke::GeometrySet::from_mesh(mesh_result,
-                                                          bke::GeometryOwnershipType::Editable);
-      transform_geometry(gset, target_transform);
+      BKE_mesh_transform(mesh_result, target_transform.ptr(), false);
     }
     return mesh_result;
   }
