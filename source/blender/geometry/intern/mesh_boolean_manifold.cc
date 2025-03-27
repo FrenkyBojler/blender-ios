@@ -1446,7 +1446,7 @@ static MeshGL mesh_trim_manifold(Manifold &manifold0,
  * If \a r_intersecting_edges is not null, fill it with the edge indices
  * of edges that saparate two different meshes of the input.
  */
-static Mesh *meshgl_to_mesh(const MeshGL &mgl,
+static Mesh *meshgl_to_mesh(MeshGL &mgl,
                             const Mesh *joined_mesh,
                             const MeshOffsets &mesh_offsets,
                             Vector<int> *r_intersecting_edges)
@@ -1473,7 +1473,7 @@ static Mesh *meshgl_to_mesh(const MeshGL &mgl,
   /* Make a new Mesh, now that we know the number of vertices and faces. Corners will be counted
    * using the mesh's face offsets, and we will use Blender's parallelized function to calculate
    * edges later. */
-  Mesh *mesh = BKE_mesh_new_nomain(verts_num, 0, faces_num, 0);
+  Mesh *mesh = bke::mesh_new_no_attributes(verts_num, 0, faces_num, 0);
   BKE_defgroup_copy_list(&mesh->vertex_group_names, &joined_mesh->vertex_group_names);
   BKE_mesh_copy_parameters_for_eval(mesh, joined_mesh);
 
@@ -1487,22 +1487,6 @@ static Mesh *meshgl_to_mesh(const MeshGL &mgl,
   });
   const OffsetIndices<int> faces = offset_indices::accumulate_counts_to_offsets(face_offsets);
   mesh->corners_num = faces.total_size();
-
-  /* Set the vertex positions. */
-  MutableSpan<float3> positions = mesh->vert_positions_for_write();
-  {
-#ifdef DEBUG_TIME
-    timeit::ScopedTimer timer_c("set positions");
-#endif
-    int grain_size = 100000;
-    threading::parallel_for(IndexRange(verts_num), grain_size, [&](const IndexRange range) {
-      for (const int i : range) {
-        int offset = ma.vertpos_stride * i;
-        float3 pos(ma.vertpos[offset], ma.vertpos[offset + 1], ma.vertpos[offset + 2]);
-        positions[i] = pos;
-      }
-    });
-  }
 
   /* Write corner vertex references. */
   MutableSpan<int> corner_verts = mesh->corner_verts_for_write();
@@ -1524,6 +1508,21 @@ static Mesh *meshgl_to_mesh(const MeshGL &mgl,
     bke::mesh_calc_edges(*mesh, false, false);
   }
 
+  bke::MutableAttributeAccessor output_attrs = mesh->attributes_for_write();
+
+  /* Set the vertex positions, using implicit sharing to avoid copying any data. */
+  {
+#ifdef DEBUG_TIME
+    timeit::ScopedTimer timer_c("set positions");
+#endif
+    BLI_assert(!output_attrs.contains("position"));
+    BLI_assert(mgl.numProp == 3);
+    auto *sharing_info = new ImplicitSharedValue<std::vector<float>>(
+        std::move(mgl.vertProperties));
+    const bke::AttributeInitShared init(sharing_info->data.data(), *sharing_info);
+    output_attrs.add<float3>("position", bke::AttrDomain::Point, init);
+  }
+
   OutToInMaps out_to_in(&ma, joined_mesh, mesh);
 
   {
@@ -1540,7 +1539,6 @@ static Mesh *meshgl_to_mesh(const MeshGL &mgl,
      * such attributes at once for a given face.
      */
     bke::AttributeAccessor join_attrs = joined_mesh->attributes();
-    bke::MutableAttributeAccessor output_attrs = mesh->attributes_for_write();
 
     bool need_corner_interpolation = false;
 
