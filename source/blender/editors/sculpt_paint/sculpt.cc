@@ -7054,7 +7054,6 @@ void filter_region_clip_factors(const SculptSession &ss,
                                 const Span<int> verts,
                                 const MutableSpan<float> factors)
 {
-  // TODO: Integrate changes from SCULPT_clip in PR
   BLI_assert(verts.size() == factors.size());
 
   const RegionView3D *rv3d = ss.cache ? ss.cache->vc->rv3d : ss.rv3d;

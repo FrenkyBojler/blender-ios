@@ -39,8 +39,6 @@
 
 #include <cstdlib>
 
-// TODO: REAPPLY BOUNDARY SYMM CHANGES...
-
 namespace blender::ed::sculpt_paint::boundary {
 
 static bool check_counts(const int neighbor_count, const int boundary_vertex_count)
