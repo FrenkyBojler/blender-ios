@@ -2,9 +2,9 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BKE_geometry_nodes_closure.hh"
+#include "NOD_geometry_nodes_closure.hh"
 
-namespace blender::bke {
+namespace blender::nodes {
 
 std::optional<int> ClosureSignature::find_input_index(const SocketInterfaceKey &key) const
 {
@@ -28,4 +28,4 @@ std::optional<int> ClosureSignature::find_output_index(const SocketInterfaceKey 
   return std::nullopt;
 }
 
-}  // namespace blender::bke
+}  // namespace blender::nodes

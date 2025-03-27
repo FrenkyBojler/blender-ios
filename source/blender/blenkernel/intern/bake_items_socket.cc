@@ -8,6 +8,8 @@
 #include "BKE_node_socket_value.hh"
 #include "BKE_volume_grid.hh"
 
+#include "NOD_geometry_nodes_bundle.hh"
+
 namespace blender::bke::bake {
 
 static void capture_field_on_geometry_components(GeometrySet &geometry,
@@ -83,11 +85,11 @@ static std::unique_ptr<BakeItem> move_common_socket_value_to_bake_item(
     }
     case SOCK_BUNDLE: {
       auto &value_variant = *static_cast<SocketValueVariant *>(socket_value);
-      BundlePtr bundle_ptr = value_variant.extract<bke::BundlePtr>();
+      nodes::BundlePtr bundle_ptr = value_variant.extract<nodes::BundlePtr>();
       auto bundle_bake_item = std::make_unique<BundleBakeItem>();
       if (bundle_ptr) {
-        const Bundle &bundle = *bundle_ptr;
-        for (const Bundle::StoredItem &bundle_item : bundle.items()) {
+        const nodes::Bundle &bundle = *bundle_ptr;
+        for (const nodes::Bundle::StoredItem &bundle_item : bundle.items()) {
           if (std::unique_ptr<BakeItem> bake_item = move_common_socket_value_to_bake_item(
                   *bundle_item.type, bundle_item.value, std::nullopt, r_geometry_bake_items))
           {
@@ -264,8 +266,8 @@ Array<std::unique_ptr<BakeItem>> move_socket_values_to_bake_items(const Span<voi
     }
     case SOCK_BUNDLE: {
       if (const auto *item = dynamic_cast<const BundleBakeItem *>(&bake_item)) {
-        BundlePtr bundle_ptr = Bundle::create();
-        Bundle &bundle = const_cast<Bundle &>(*bundle_ptr);
+        nodes::BundlePtr bundle_ptr = nodes::Bundle::create();
+        nodes::Bundle &bundle = const_cast<nodes::Bundle &>(*bundle_ptr);
         for (const BundleBakeItem::Item &item : item->items) {
           const bNodeSocketType *stype = node_socket_type_find(item.socket_idname);
           if (!stype) {

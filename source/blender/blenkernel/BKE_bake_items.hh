@@ -7,9 +7,10 @@
 #include "BLI_memory_counter_fwd.hh"
 
 #include "BKE_bake_data_block_map.hh"
-#include "BKE_geometry_nodes_bundle.hh"
 #include "BKE_geometry_set.hh"
 #include "BKE_volume_grid_fwd.hh"
+
+#include "NOD_socket_interface_key.hh"
 
 namespace blender::bke::bake {
 
@@ -148,7 +149,7 @@ class StringBakeItem : public BakeItem {
 class BundleBakeItem : public BakeItem {
  public:
   struct Item {
-    SocketInterfaceKey key;
+    nodes::SocketInterfaceKey key;
     std::string socket_idname;
     std::unique_ptr<BakeItem> value;
   };

@@ -2,10 +2,11 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BKE_type_conversions.hh"
+#include "BLI_cpp_type.hh"
+
 #include "NOD_geometry_nodes_bundle.hh"
 
-namespace blender::bke {
+namespace blender::nodes {
 
 SocketInterfaceKey::SocketInterfaceKey(std::string identifier)
 {
@@ -77,7 +78,7 @@ Bundle &Bundle::operator=(Bundle &&other) noexcept
   return *this;
 }
 
-void Bundle::add_new(SocketInterfaceKey key, const bNodeSocketType &type, const void *value)
+void Bundle::add_new(SocketInterfaceKey key, const bke::bNodeSocketType &type, const void *value)
 {
   BLI_assert(!this->contains(key));
   BLI_assert(type.geometry_nodes_cpp_type);
@@ -88,7 +89,9 @@ void Bundle::add_new(SocketInterfaceKey key, const bNodeSocketType &type, const 
   buffers_.append(buffer);
 }
 
-bool Bundle::add(const SocketInterfaceKey &key, const bNodeSocketType &type, const void *value)
+bool Bundle::add(const SocketInterfaceKey &key,
+                 const bke::bNodeSocketType &type,
+                 const void *value)
 {
   if (this->contains(key)) {
     return false;
@@ -97,7 +100,7 @@ bool Bundle::add(const SocketInterfaceKey &key, const bNodeSocketType &type, con
   return true;
 }
 
-bool Bundle::add(SocketInterfaceKey &&key, const bNodeSocketType &type, const void *value)
+bool Bundle::add(SocketInterfaceKey &&key, const bke::bNodeSocketType &type, const void *value)
 {
   if (this->contains(key)) {
     return false;
@@ -143,4 +146,4 @@ void Bundle::delete_self()
   MEM_delete(this);
 }
 
-}  // namespace blender::bke
+}  // namespace blender::nodes

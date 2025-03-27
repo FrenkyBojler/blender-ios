@@ -8,11 +8,11 @@
 
 #include <sstream>
 
-#include "BKE_geometry_nodes_bundle.hh"
-#include "BKE_geometry_nodes_closure.hh"
 #include "BKE_node.hh"
 #include "BKE_node_socket_value.hh"
 #include "BKE_volume_grid.hh"
+#include "NOD_geometry_nodes_bundle.hh"
+#include "NOD_geometry_nodes_closure.hh"
 
 #include "BLI_color.hh"
 #include "BLI_math_rotation_types.hh"
@@ -61,10 +61,10 @@ template<typename T> static std::optional<eNodeSocketDatatype> static_type_to_so
   if constexpr (is_same_any_v<T, std::string>) {
     return SOCK_STRING;
   }
-  if constexpr (is_same_any_v<T, BundlePtr>) {
+  if constexpr (is_same_any_v<T, nodes::BundlePtr>) {
     return SOCK_BUNDLE;
   }
-  if constexpr (is_same_any_v<T, ClosurePtr>) {
+  if constexpr (is_same_any_v<T, nodes::ClosurePtr>) {
     return SOCK_CLOSURE;
   }
   return std::nullopt;
@@ -96,9 +96,9 @@ static bool static_type_is_base_socket_type(const eNodeSocketDatatype socket_typ
     case SOCK_MENU:
       return std::is_same_v<T, int>;
     case SOCK_BUNDLE:
-      return std::is_same_v<T, BundlePtr>;
+      return std::is_same_v<T, nodes::BundlePtr>;
     case SOCK_CLOSURE:
-      return std::is_same_v<T, ClosurePtr>;
+      return std::is_same_v<T, nodes::ClosurePtr>;
     case SOCK_CUSTOM:
     case SOCK_SHADER:
     case SOCK_OBJECT:
@@ -264,11 +264,11 @@ void SocketValueVariant::store_single(const eNodeSocketDatatype socket_type, con
       break;
     }
     case SOCK_BUNDLE: {
-      value_.emplace<BundlePtr>(*static_cast<const BundlePtr *>(value));
+      value_.emplace<nodes::BundlePtr>(*static_cast<const nodes::BundlePtr *>(value));
       break;
     }
     case SOCK_CLOSURE: {
-      value_.emplace<ClosurePtr>(*static_cast<const ClosurePtr *>(value));
+      value_.emplace<nodes::ClosurePtr>(*static_cast<const nodes::ClosurePtr *>(value));
       break;
     }
     default: {
@@ -368,9 +368,9 @@ void *SocketValueVariant::allocate_single(const eNodeSocketDatatype socket_type)
     case SOCK_MENU:
       return value_.allocate<int>();
     case SOCK_BUNDLE:
-      return value_.allocate<BundlePtr>();
+      return value_.allocate<nodes::BundlePtr>();
     case SOCK_CLOSURE:
-      return value_.allocate<ClosurePtr>();
+      return value_.allocate<nodes::ClosurePtr>();
     default: {
       BLI_assert_unreachable();
       return nullptr;
@@ -429,8 +429,8 @@ INSTANTIATE_SINGLE_AND_FIELD_AND_GRID(blender::math::Quaternion)
 
 INSTANTIATE(std::string)
 INSTANTIATE(fn::GField)
-INSTANTIATE(blender::bke::BundlePtr)
-INSTANTIATE(blender::bke::ClosurePtr)
+INSTANTIATE(blender::nodes::BundlePtr)
+INSTANTIATE(blender::nodes::ClosurePtr)
 
 INSTANTIATE(float4x4)
 INSTANTIATE(fn::Field<float4x4>)

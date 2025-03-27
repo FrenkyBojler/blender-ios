@@ -35,11 +35,12 @@
 #include "BLI_generic_pointer.hh"
 #include "BLI_linear_allocator_chunked_list.hh"
 
-#include "BKE_geometry_nodes_bundle.hh"
 #include "BKE_geometry_set.hh"
 #include "BKE_node.hh"
 #include "BKE_node_tree_zones.hh"
 #include "BKE_volume_grid_fwd.hh"
+
+#include "NOD_geometry_nodes_bundle.hh"
 
 #include "FN_field.hh"
 
@@ -188,7 +189,7 @@ class GeometryInfoLog : public ValueLog {
 class BundleValueLog : public ValueLog {
  public:
   struct Item {
-    bke::SocketInterfaceKey key;
+    SocketInterfaceKey key;
     const bke::bNodeSocketType *type;
   };
 
@@ -200,7 +201,7 @@ class BundleValueLog : public ValueLog {
 class ClosureValueLog : public ValueLog {
  public:
   struct Item {
-    bke::SocketInterfaceKey key;
+    SocketInterfaceKey key;
     const bke::bNodeSocketType *type;
   };
 

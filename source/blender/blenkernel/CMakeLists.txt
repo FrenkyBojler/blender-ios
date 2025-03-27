@@ -134,8 +134,6 @@ set(SRC
   intern/geometry_component_pointcloud.cc
   intern/geometry_component_volume.cc
   intern/geometry_fields.cc
-  intern/geometry_nodes_bundle.cc
-  intern/geometry_nodes_closure.cc
   intern/geometry_set.cc
   intern/geometry_set_instances.cc
   intern/gpencil_geom_legacy.cc
@@ -400,8 +398,6 @@ set(SRC
   BKE_freestyle.h
   BKE_geometry_compare.hh
   BKE_geometry_fields.hh
-  BKE_geometry_nodes_bundle.hh
-  BKE_geometry_nodes_closure.hh
   BKE_geometry_nodes_gizmos_transforms.hh
   BKE_geometry_nodes_reference_set.hh
   BKE_geometry_set.hh

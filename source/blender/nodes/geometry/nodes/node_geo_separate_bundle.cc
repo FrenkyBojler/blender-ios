@@ -10,7 +10,7 @@
 
 #include "BLO_read_write.hh"
 
-#include "BKE_geometry_nodes_bundle.hh"
+#include "NOD_geometry_nodes_bundle.hh"
 
 #include "UI_interface.hh"
 
@@ -91,7 +91,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
 
-  bke::BundlePtr bundle = params.extract_input<bke::BundlePtr>("Bundle");
+  nodes::BundlePtr bundle = params.extract_input<nodes::BundlePtr>("Bundle");
   if (!bundle) {
     params.set_default_remaining_outputs();
     return;
@@ -112,7 +112,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     if (!stype || !stype->geometry_nodes_cpp_type) {
       continue;
     }
-    const std::optional<bke::Bundle::Item> value = bundle->lookup(bke::SocketInterfaceKey(name));
+    const std::optional<Bundle::Item> value = bundle->lookup(SocketInterfaceKey(name));
     if (!value) {
       params.error_message_add(NodeWarningType::Error,
                                fmt::format(fmt::runtime(TIP_("Value not found: \"{}\"")), name));

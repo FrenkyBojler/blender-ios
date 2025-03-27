@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "BKE_geometry_nodes_closure.hh"
+#include "NOD_geometry_nodes_closure.hh"
 
 #include "NOD_geometry_nodes_lazy_function.hh"
 
@@ -12,7 +12,7 @@ namespace blender::nodes {
 
 struct ClosureEagerEvalParams {
   struct InputItem {
-    bke::SocketInterfaceKey key;
+    SocketInterfaceKey key;
     const bke::bNodeSocketType *type = nullptr;
     /**
      * The actual socket value of type bNodeSocketType::geometry_nodes_cpp_type.
@@ -22,7 +22,7 @@ struct ClosureEagerEvalParams {
   };
 
   struct OutputItem {
-    bke::SocketInterfaceKey key;
+    SocketInterfaceKey key;
     const bke::bNodeSocketType *type = nullptr;
     /** Where the output value should be stored. */
     void *value = nullptr;
@@ -33,6 +33,6 @@ struct ClosureEagerEvalParams {
   GeoNodesLFUserData *user_data = nullptr;
 };
 
-void evaluate_closure_eagerly(const bke::Closure &closure, ClosureEagerEvalParams &params);
+void evaluate_closure_eagerly(const Closure &closure, ClosureEagerEvalParams &params);
 
 }  // namespace blender::nodes

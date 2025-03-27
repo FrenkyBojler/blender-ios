@@ -1640,7 +1640,7 @@ static std::unique_ptr<BakeItem> deserialize_bake_item(const DictionaryValue &io
         return {};
       }
       bundle->items.append(BundleBakeItem::Item{
-          SocketInterfaceKey{std::move(key)}, *socket_idname, std::move(value)});
+          nodes::SocketInterfaceKey{std::move(key)}, *socket_idname, std::move(value)});
     }
     return bundle;
   }

@@ -8,11 +8,11 @@
 #include "NOD_geometry_nodes_lazy_function.hh"
 
 #include "BKE_compute_contexts.hh"
-#include "BKE_geometry_nodes_closure.hh"
 #include "BKE_geometry_nodes_reference_set.hh"
 #include "BKE_node_runtime.hh"
 #include "BKE_node_socket_value.hh"
 #include "BKE_node_tree_reference_lifetimes.hh"
+#include "NOD_geometry_nodes_closure.hh"
 
 #include "DEG_depsgraph_query.hh"
 
@@ -34,7 +34,7 @@ class LazyFunctionForClosureZone : public LazyFunction {
   const bNode &output_bnode_;
   const ZoneBuildInfo &zone_info_;
   const ZoneBodyFunction &body_fn_;
-  std::shared_ptr<bke::ClosureSignature> closure_signature_;
+  std::shared_ptr<ClosureSignature> closure_signature_;
 
  public:
   LazyFunctionForClosureZone(const bNodeTree &btree,
@@ -76,16 +76,15 @@ class LazyFunctionForClosureZone : public LazyFunction {
 
     const auto &storage = *static_cast<const NodeGeometryClosureOutput *>(output_bnode_.storage);
 
-    closure_signature_ = std::make_shared<bke::ClosureSignature>();
+    closure_signature_ = std::make_shared<ClosureSignature>();
 
     for (const int i : IndexRange(storage.input_items.items_num)) {
       const bNodeSocket &bsocket = zone_.input_node->output_socket(i);
-      closure_signature_->inputs.append({bke::SocketInterfaceKey(bsocket.name), bsocket.typeinfo});
+      closure_signature_->inputs.append({SocketInterfaceKey(bsocket.name), bsocket.typeinfo});
     }
     for (const int i : IndexRange(storage.output_items.items_num)) {
       const bNodeSocket &bsocket = zone_.output_node->input_socket(i);
-      closure_signature_->outputs.append(
-          {bke::SocketInterfaceKey(bsocket.name), bsocket.typeinfo});
+      closure_signature_->outputs.append({SocketInterfaceKey(bsocket.name), bsocket.typeinfo});
     }
   }
 
@@ -96,8 +95,7 @@ class LazyFunctionForClosureZone : public LazyFunction {
       params.set_output(zone_info_.indices.outputs.border_link_usages[i], true);
     }
     if (!U.experimental.use_bundle_and_closure_nodes) {
-      params.set_output(zone_info_.indices.outputs.main[0],
-                        bke::SocketValueVariant(bke::ClosurePtr()));
+      params.set_output(zone_info_.indices.outputs.main[0], bke::SocketValueVariant(ClosurePtr()));
       return;
     }
 
@@ -108,7 +106,7 @@ class LazyFunctionForClosureZone : public LazyFunction {
 
     lf::Graph &lf_graph = closure_scope->construct<lf::Graph>("Closure Graph");
     lf::FunctionNode &lf_body_node = lf_graph.add_function(*body_fn_.function);
-    bke::ClosureFunctionIndices closure_indices;
+    ClosureFunctionIndices closure_indices;
     Vector<const void *> default_input_values;
 
     for (const int i : IndexRange(storage.input_items.items_num)) {
@@ -204,12 +202,12 @@ class LazyFunctionForClosureZone : public LazyFunction {
     lf::GraphExecutor &lf_graph_executor = closure_scope->construct<lf::GraphExecutor>(
         lf_graph, nullptr, nullptr, nullptr);
 
-    bke::ClosurePtr closure{MEM_new<bke::Closure>(__func__,
-                                                  closure_signature_,
-                                                  std::move(closure_scope),
-                                                  lf_graph_executor,
-                                                  closure_indices,
-                                                  std::move(default_input_values))};
+    ClosurePtr closure{MEM_new<Closure>(__func__,
+                                        closure_signature_,
+                                        std::move(closure_scope),
+                                        lf_graph_executor,
+                                        closure_indices,
+                                        std::move(default_input_values))};
 
     params.set_output(zone_info_.indices.outputs.main[0],
                       bke::SocketValueVariant(std::move(closure)));
@@ -218,7 +216,7 @@ class LazyFunctionForClosureZone : public LazyFunction {
 
 struct EvaluateClosureEvalStorage {
   ResourceScope scope;
-  bke::ClosurePtr closure;
+  ClosurePtr closure;
   lf::Graph graph;
   std::optional<lf::GraphExecutor> graph_executor;
   void *graph_executor_storage = nullptr;
@@ -292,7 +290,7 @@ class LazyFunctionForEvaluateClosureNode : public LazyFunction {
 
     if (!eval_storage.graph_executor) {
       eval_storage.closure = params.extract_input<bke::SocketValueVariant>(indices_.inputs.main[0])
-                                 .extract<bke::ClosurePtr>();
+                                 .extract<ClosurePtr>();
       if (!eval_storage.closure) {
         for (const bNodeSocket *bsocket : bnode_.output_sockets().drop_back(1)) {
           const int index = bsocket->index();
@@ -310,7 +308,7 @@ class LazyFunctionForEvaluateClosureNode : public LazyFunction {
     eval_storage.graph_executor->execute(params, eval_graph_context);
   }
 
-  void generate_closure_compatibility_warnings(const bke::Closure &closure,
+  void generate_closure_compatibility_warnings(const Closure &closure,
                                                const lf::Context &context) const
   {
     const auto &node_storage = *static_cast<const NodeGeometryEvaluateClosure *>(bnode_.storage);
@@ -320,14 +318,12 @@ class LazyFunctionForEvaluateClosureNode : public LazyFunction {
     if (tree_logger == nullptr) {
       return;
     }
-    const bke::ClosureSignature &signature = closure.signature();
+    const ClosureSignature &signature = closure.signature();
     for (const NodeGeometryEvaluateClosureInputItem &item :
          Span{node_storage.input_items.items, node_storage.input_items.items_num})
     {
-      if (const std::optional<int> i = signature.find_input_index(
-              bke::SocketInterfaceKey{item.name}))
-      {
-        const bke::ClosureSignature::Item &closure_item = signature.inputs[*i];
+      if (const std::optional<int> i = signature.find_input_index(SocketInterfaceKey{item.name})) {
+        const ClosureSignature::Item &closure_item = signature.inputs[*i];
         if (!btree_.typeinfo->validate_link(eNodeSocketDatatype(item.socket_type),
                                             eNodeSocketDatatype(closure_item.type->type)))
         {
@@ -352,10 +348,9 @@ class LazyFunctionForEvaluateClosureNode : public LazyFunction {
     for (const NodeGeometryEvaluateClosureOutputItem &item :
          Span{node_storage.output_items.items, node_storage.output_items.items_num})
     {
-      if (const std::optional<int> i = signature.find_output_index(
-              bke::SocketInterfaceKey{item.name}))
+      if (const std::optional<int> i = signature.find_output_index(SocketInterfaceKey{item.name}))
       {
-        const bke::ClosureSignature::Item &closure_item = signature.outputs[*i];
+        const ClosureSignature::Item &closure_item = signature.outputs[*i];
         if (!btree_.typeinfo->validate_link(eNodeSocketDatatype(closure_item.type->type),
                                             eNodeSocketDatatype(item.socket_type)))
         {
@@ -393,19 +388,19 @@ class LazyFunctionForEvaluateClosureNode : public LazyFunction {
     const Span<lf::GraphInputSocket *> lf_graph_inputs = lf_graph.graph_inputs();
     const Span<lf::GraphOutputSocket *> lf_graph_outputs = lf_graph.graph_outputs();
 
-    const bke::Closure &closure = *eval_storage.closure;
-    const bke::ClosureSignature &closure_signature = closure.signature();
-    const bke::ClosureFunctionIndices &closure_indices = closure.indices();
+    const Closure &closure = *eval_storage.closure;
+    const ClosureSignature &closure_signature = closure.signature();
+    const ClosureFunctionIndices &closure_indices = closure.indices();
 
     Array<std::optional<int>> inputs_map(node_storage.input_items.items_num);
     for (const int i : inputs_map.index_range()) {
       inputs_map[i] = closure_signature.find_input_index(
-          bke::SocketInterfaceKey(node_storage.input_items.items[i].name));
+          SocketInterfaceKey(node_storage.input_items.items[i].name));
     }
     Array<std::optional<int>> outputs_map(node_storage.output_items.items_num);
     for (const int i : outputs_map.index_range()) {
       outputs_map[i] = closure_signature.find_output_index(
-          bke::SocketInterfaceKey(node_storage.output_items.items[i].name));
+          SocketInterfaceKey(node_storage.output_items.items[i].name));
     }
 
     lf::FunctionNode &lf_closure_node = lf_graph.add_function(closure.function());
@@ -559,11 +554,11 @@ class LazyFunctionForEvaluateClosureNode : public LazyFunction {
   }
 };
 
-void evaluate_closure_eagerly(const bke::Closure &closure, ClosureEagerEvalParams &params)
+void evaluate_closure_eagerly(const Closure &closure, ClosureEagerEvalParams &params)
 {
   const LazyFunction &fn = closure.function();
-  const bke::ClosureFunctionIndices &indices = closure.indices();
-  const bke::ClosureSignature &signature = closure.signature();
+  const ClosureFunctionIndices &indices = closure.indices();
+  const ClosureSignature &signature = closure.signature();
   const int fn_inputs_num = fn.inputs().size();
   const int fn_outputs_num = fn.outputs().size();
 

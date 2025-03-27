@@ -6,9 +6,9 @@
 
 #include "BLI_implicit_sharing_ptr.hh"
 
-namespace blender::bke {
+namespace blender::nodes {
 
-class Closure;
-using ClosurePtr = ImplicitSharingPtr<Closure>;
+class Bundle;
+using BundlePtr = ImplicitSharingPtr<Bundle>;
 
-}  // namespace blender::bke
+}  // namespace blender::nodes

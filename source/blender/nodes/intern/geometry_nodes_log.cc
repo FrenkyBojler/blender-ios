@@ -2,6 +2,8 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "NOD_geometry_nodes_bundle.hh"
+#include "NOD_geometry_nodes_closure.hh"
 #include "NOD_geometry_nodes_log.hh"
 
 #include "BLI_listbase.h"
@@ -11,7 +13,6 @@
 #include "BKE_anonymous_attribute_id.hh"
 #include "BKE_compute_contexts.hh"
 #include "BKE_curves.hh"
-#include "BKE_geometry_nodes_closure.hh"
 #include "BKE_geometry_nodes_gizmos_transforms.hh"
 #include "BKE_node_legacy_types.hh"
 #include "BKE_node_runtime.hh"
@@ -278,8 +279,8 @@ void GeoTreeLogger::log_value(const bNode &node, const bNodeSocket &socket, cons
 #endif
     else if (value_variant.valid_for_socket(SOCK_BUNDLE)) {
       Vector<BundleValueLog::Item> items;
-      if (const bke::BundlePtr bundle = value_variant.extract<bke::BundlePtr>()) {
-        for (const bke::Bundle::StoredItem &item : bundle->items()) {
+      if (const BundlePtr bundle = value_variant.extract<BundlePtr>()) {
+        for (const Bundle::StoredItem &item : bundle->items()) {
           items.append({item.key, item.type});
         }
       }
@@ -288,12 +289,12 @@ void GeoTreeLogger::log_value(const bNode &node, const bNodeSocket &socket, cons
     else if (value_variant.valid_for_socket(SOCK_CLOSURE)) {
       Vector<ClosureValueLog::Item> inputs;
       Vector<ClosureValueLog::Item> outputs;
-      if (const bke::ClosurePtr closure = value_variant.extract<bke::ClosurePtr>()) {
-        const bke::ClosureSignature &signature = closure->signature();
-        for (const bke::ClosureSignature::Item &item : signature.inputs) {
+      if (const ClosurePtr closure = value_variant.extract<ClosurePtr>()) {
+        const ClosureSignature &signature = closure->signature();
+        for (const ClosureSignature::Item &item : signature.inputs) {
           inputs.append({item.key, item.type});
         }
-        for (const bke::ClosureSignature::Item &item : signature.outputs) {
+        for (const ClosureSignature::Item &item : signature.outputs) {
           outputs.append({item.key, item.type});
         }
       }

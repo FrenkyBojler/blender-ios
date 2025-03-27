@@ -4,21 +4,23 @@
 
 #pragma once
 
-#include "BKE_geometry_nodes_bundle.hh"
-#include "BKE_geometry_nodes_closure_fwd.hh"
+#include "BKE_node.hh"
+
+#include "NOD_geometry_nodes_closure_fwd.hh"
+#include "NOD_socket_interface_key.hh"
 
 #include "BLI_resource_scope.hh"
 
 #include "FN_lazy_function.hh"
 
-namespace blender::bke {
+namespace blender::nodes {
 
 /** Describes the names and types of the inputs and outputs of a closure. */
 class ClosureSignature {
  public:
   struct Item {
     SocketInterfaceKey key;
-    const bNodeSocketType *type = nullptr;
+    const bke::bNodeSocketType *type = nullptr;
   };
 
   Vector<Item> inputs;
@@ -114,4 +116,4 @@ class Closure : public ImplicitSharingMixin {
   }
 };
 
-}  // namespace blender::bke
+}  // namespace blender::nodes

@@ -52,8 +52,6 @@
 #include "BKE_bpath.hh"
 #include "BKE_colortools.hh"
 #include "BKE_context.hh"
-#include "BKE_geometry_nodes_bundle.hh"
-#include "BKE_geometry_nodes_closure.hh"
 #include "BKE_global.hh"
 #include "BKE_idprop.hh"
 #include "BKE_idtype.hh"
@@ -70,6 +68,8 @@
 #include "BKE_node_tree_update.hh"
 #include "BKE_preview_image.hh"
 #include "BKE_type_conversions.hh"
+#include "NOD_geometry_nodes_bundle.hh"
+#include "NOD_geometry_nodes_closure.hh"
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
@@ -4351,10 +4351,10 @@ const CPPType *socket_type_to_geo_nodes_base_cpp_type(const eNodeSocketDatatype 
       cpp_type = &CPPType::get<float4x4>();
       break;
     case SOCK_BUNDLE:
-      cpp_type = &CPPType::get<BundlePtr>();
+      cpp_type = &CPPType::get<nodes::BundlePtr>();
       break;
     case SOCK_CLOSURE:
-      cpp_type = &CPPType::get<ClosurePtr>();
+      cpp_type = &CPPType::get<nodes::ClosurePtr>();
       break;
     default:
       cpp_type = slow_socket_type_to_geo_nodes_base_cpp_type(type);
@@ -4390,10 +4390,10 @@ std::optional<eNodeSocketDatatype> geo_nodes_base_cpp_type_to_socket_type(const 
   if (type.is<std::string>()) {
     return SOCK_STRING;
   }
-  if (type.is<BundlePtr>()) {
+  if (type.is<nodes::BundlePtr>()) {
     return SOCK_BUNDLE;
   }
-  if (type.is<ClosurePtr>()) {
+  if (type.is<nodes::ClosurePtr>()) {
     return SOCK_CLOSURE;
   }
   return std::nullopt;

@@ -10,7 +10,7 @@
 
 #include "BLO_read_write.hh"
 
-#include "BKE_geometry_nodes_bundle.hh"
+#include "NOD_geometry_nodes_bundle.hh"
 
 #include "UI_interface.hh"
 
@@ -90,9 +90,9 @@ static void node_geo_exec(GeoNodeExecParams params)
   const bNode &node = params.node();
   const NodeGeometryCombineBundle &storage = node_storage(node);
 
-  bke::BundlePtr bundle_ptr = bke::Bundle::create();
+  BundlePtr bundle_ptr = Bundle::create();
   BLI_assert(bundle_ptr->is_mutable());
-  bke::Bundle &bundle = const_cast<bke::Bundle &>(*bundle_ptr);
+  Bundle &bundle = const_cast<Bundle &>(*bundle_ptr);
 
   for (const int i : IndexRange(storage.items_num)) {
     const NodeGeometryCombineBundleItem &item = storage.items[i];
@@ -106,7 +106,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     }
     void *input_ptr = params.low_level_lazy_function_params().try_get_input_data_ptr(i);
     BLI_assert(input_ptr);
-    bundle.add(bke::SocketInterfaceKey(name), *stype, input_ptr);
+    bundle.add(SocketInterfaceKey(name), *stype, input_ptr);
   }
 
   params.set_output("Bundle", std::move(bundle_ptr));
