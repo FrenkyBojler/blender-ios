@@ -222,7 +222,7 @@ class ShaderCompilerGeneric : public ShaderCompiler {
   void run_thread();
 
  public:
-  ShaderCompilerGeneric();
+  ShaderCompilerGeneric(bool multithreaded = false, bool share_context = true);
   ~ShaderCompilerGeneric() override;
 
   BatchHandle batch_compile(Span<const shader::ShaderCreateInfo *> &infos) override;

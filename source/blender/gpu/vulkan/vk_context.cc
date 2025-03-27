@@ -178,7 +178,7 @@ void VKContext::finish() {}
 
 ShaderCompiler *VKContext::get_compiler()
 {
-  return &VKBackend::get().shader_compiler;
+  return VKBackend::get().shader_compiler;
 }
 
 void VKContext::memory_statistics_get(int *r_total_mem_kb, int *r_free_mem_kb)

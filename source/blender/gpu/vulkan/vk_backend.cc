@@ -434,8 +434,14 @@ void VKBackend::platform_exit()
   }
 }
 
-void VKBackend::init_resources() {}
-void VKBackend::delete_resources() {}
+void VKBackend::init_resources()
+{
+  shader_compiler = MEM_new<ShaderCompilerGeneric>(__func__, true, true);
+}
+void VKBackend::delete_resources()
+{
+  MEM_delete(shader_compiler);
+}
 
 void VKBackend::samplers_update()
 {
