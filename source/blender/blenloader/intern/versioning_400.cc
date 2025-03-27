@@ -134,6 +134,22 @@ static void version_fcurve_noise_modifier(FCurve &fcurve)
   }
 }
 
+static void version_fix_fcurve_noise_offset(FCurve &fcurve)
+{
+  LISTBASE_FOREACH (FModifier *, fcurve_modifier, &fcurve.modifiers) {
+    if (fcurve_modifier->type != FMODIFIER_TYPE_NOISE) {
+      continue;
+    }
+    FMod_Noise *data = static_cast<FMod_Noise *>(fcurve_modifier->data);
+    if (data->legacy_noise) {
+      /* We don't want to modify anything if the noise is set to legacy, because the issue only
+       * occurred on the new style noise. */
+      continue;
+    }
+    data->offset *= data->size;
+  }
+}
+
 /* Move bone-group color to the individual bones. */
 static void version_bonegroup_migrate_color(Main *bmain)
 {
@@ -6530,6 +6546,27 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
         }
       }
     }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 10)) {
+    LISTBASE_FOREACH (bAction *, dna_action, &bmain->actions) {
+      blender::animrig::Action &action = dna_action->wrap();
+      blender::animrig::foreach_fcurve_in_action(
+          action, [&](FCurve &fcurve) { version_fix_fcurve_noise_offset(fcurve); });
+    }
+
+    ID *id;
+    FOREACH_MAIN_ID_BEGIN (bmain, id) {
+      AnimData *adt = BKE_animdata_from_id(id);
+      if (!adt) {
+        continue;
+      }
+
+      LISTBASE_FOREACH (FCurve *, fcu, &adt->drivers) {
+        version_fix_fcurve_noise_offset(*fcu);
+      }
+    }
+    FOREACH_MAIN_ID_END;
   }
 
   /* Always run this versioning; meshes are written with the legacy format which always needs to
