@@ -420,7 +420,7 @@ Span<int> OutToInMaps::ensure_vertex_map()
         continue;
       }
       float3 out_pos = out_vert_positions[out_v];
-      auto it = std::find_if(in_face_verts.begin(), in_face_verts.end(), [&](int in_v) {
+      const auto *it = std::find_if(in_face_verts.begin(), in_face_verts.end(), [&](int in_v) {
         return out_pos == in_vert_positions[in_v];
       });
       if (it != in_face_verts.end()) {
@@ -932,8 +932,8 @@ static bool try_merge_out_face_pair(OutFace &f1, const OutFace &f2, const Shared
    */
   const int i2_prev = (i2 + f2_len - 1) % f2_len;
   const int i2_next_next = (i2_next + 1) % f2_len;
-  auto f2_start_it = f2.verts.begin() + i2_next_next;
-  auto f2_end_it = f2.verts.begin() + i2_prev + 1;
+  const auto *f2_start_it = f2.verts.begin() + i2_next_next;
+  const auto *f2_end_it = f2.verts.begin() + i2_prev + 1;
   if (f2_end_it > f2_start_it) {
     f1.verts.insert(i1_next, f2_start_it, f2_end_it);
   }
