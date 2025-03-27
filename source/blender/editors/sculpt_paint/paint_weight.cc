@@ -1871,10 +1871,6 @@ static void wpaint_stroke_update_step(bContext *C,
 
   rcti r;
   if (SCULPT_get_redraw_rect(*vc->region, *CTX_wm_region_view3d(C), *ob, r)) {
-    if (ss.cache) {
-      ss.cache->current_r = r;
-    }
-
     /* previous is not set in the current cache else
      * the partial rect will always grow */
     if (ss.cache) {

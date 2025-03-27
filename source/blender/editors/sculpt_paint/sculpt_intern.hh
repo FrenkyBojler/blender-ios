@@ -389,7 +389,6 @@ struct StrokeCache {
   float multiplane_scrape_angle;
 
   rcti previous_r; /* previous redraw rectangle */
-  rcti current_r;  /* current redraw rectangle */
 
   ~StrokeCache();
 };

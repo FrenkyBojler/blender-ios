@@ -5253,9 +5253,6 @@ void flush_update_step(const bContext *C, const UpdateType update_type)
     rcti r;
 
     if (rv3d && SCULPT_get_redraw_rect(region, *rv3d, ob, r)) {
-      if (ss.cache) {
-        ss.cache->current_r = r;
-      }
 
       /* previous is not set in the current cache else
        * the partial rect will always grow */
