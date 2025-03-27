@@ -119,7 +119,7 @@ struct tObject {
 
 /* *********** LISTS *********** */
 
-struct Instance : public DrawEngine {
+struct Instance final : public DrawEngine {
   PassSimple smaa_edge_ps = {"smaa_edge"};
   PassSimple smaa_weight_ps = {"smaa_weight"};
   PassSimple smaa_resolve_ps = {"smaa_resolve"};
@@ -140,7 +140,7 @@ struct Instance : public DrawEngine {
   Texture snapshot_depth_tx = {"snapshot_depth_tx"};
   Texture snapshot_color_tx = {"snapshot_color_tx"};
   Texture snapshot_reveal_tx = {"snapshot_reveal_tx"};
-  /* Textures used by Antialiasing. */
+  /* Textures used by Anti-aliasing. */
   Texture smaa_area_tx = {"smaa_area_tx"};
   Texture smaa_search_tx = {"smaa_search_tx"};
 

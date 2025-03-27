@@ -173,9 +173,6 @@ class GHOST_ContextVK : public GHOST_Context {
   const int m_debug;
   const GHOST_GPUDevice m_preferred_device;
 
-  VkCommandPool m_command_pool;
-  VkCommandBuffer m_command_buffer;
-
   VkQueue m_graphic_queue;
   VkQueue m_present_queue;
 
@@ -185,7 +182,7 @@ class GHOST_ContextVK : public GHOST_Context {
   std::vector<VkImage> m_swapchain_images;
   std::vector<VkSemaphore> m_acquire_semaphores;
   std::vector<VkSemaphore> m_present_semaphores;
-  uint32_t m_render_frame;
+  uint64_t m_render_frame;
 
   VkExtent2D m_render_extent;
   VkExtent2D m_render_extent_min;
@@ -197,8 +194,4 @@ class GHOST_ContextVK : public GHOST_Context {
   const char *getPlatformSpecificSurfaceExtension() const;
   GHOST_TSuccess createSwapchain();
   GHOST_TSuccess destroySwapchain();
-  GHOST_TSuccess createCommandPools();
-  GHOST_TSuccess createGraphicsCommandBuffers();
-  GHOST_TSuccess createGraphicsCommandBuffer();
-  GHOST_TSuccess recordCommandBuffers();
 };
