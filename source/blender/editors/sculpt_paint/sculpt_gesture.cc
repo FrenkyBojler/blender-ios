@@ -71,7 +71,7 @@ static void init_common(bContext *C, const wmOperator *op, GestureData &gesture_
   gesture_data.ss = object.sculpt;
 
   /* Symmetry. */
-  gesture_data.symm = eMeshSymmetryType(SCULPT_mesh_symmetry_xyz_get(object));
+  gesture_data.symm = SCULPT_mesh_symmetry_xyz_get(object);
 
   /* View Normal. */
   const float3x3 view_inv(float4x4(gesture_data.vc.rv3d->viewinv));

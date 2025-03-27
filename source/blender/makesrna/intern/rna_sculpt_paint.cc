@@ -598,12 +598,6 @@ static void rna_def_paint(BlenderRNA *brna)
       "Update the geometry when it enters the view, providing faster view navigation");
   RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr);
 
-  prop = RNA_def_property(srna, "input_samples", PROP_INT, PROP_UNSIGNED);
-  RNA_def_property_int_sdna(prop, nullptr, "num_input_samples_deprecated");
-  RNA_def_property_ui_range(prop, 1, PAINT_MAX_INPUT_SAMPLES, 1, -1);
-  RNA_def_property_ui_text(
-      prop, "Input Samples", "Average multiple input samples together to smooth the brush stroke");
-
   prop = RNA_def_property(srna, "cavity_curve", PROP_POINTER, PROP_NONE);
   RNA_def_property_flag(prop, PROP_NEVER_NULL);
   RNA_def_property_ui_text(prop, "Curve", "Editable cavity curve");
@@ -691,14 +685,6 @@ static void rna_def_sculpt(BlenderRNA *brna)
   RNA_def_struct_path_func(srna, "rna_Sculpt_path");
   RNA_def_struct_ui_text(srna, "Sculpt", "");
   RNA_def_struct_clear_flag(srna, STRUCT_UNDO);
-
-  prop = RNA_def_property(srna, "radial_symmetry", PROP_INT, PROP_XYZ);
-  RNA_def_property_int_sdna(prop, nullptr, "radial_symm");
-  RNA_def_property_int_default(prop, 1);
-  RNA_def_property_range(prop, 1, 64);
-  RNA_def_property_ui_range(prop, 0, 32, 1, 1);
-  RNA_def_property_ui_text(
-      prop, "Radial Symmetry Count X Axis", "Number of times to copy strokes across the surface");
 
   prop = RNA_def_property(srna, "use_deform_only", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flags", SCULPT_ONLY_DEFORM);

@@ -2060,7 +2060,7 @@ void do_pose_brush(const Depsgraph &depsgraph,
   SculptSession &ss = *ob.sculpt;
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(ob);
   const Brush &brush = *BKE_paint_brush_for_read(&sd.paint);
-  const eMeshSymmetryType symm = eMeshSymmetryType(SCULPT_mesh_symmetry_xyz_get(ob));
+  const eMeshSymmetryType symm = SCULPT_mesh_symmetry_xyz_get(ob);
 
   /* The pose brush applies all enabled symmetry axis in a single iteration, so the rest can be
    * ignored. */

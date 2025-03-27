@@ -1931,8 +1931,8 @@ static void vpaint_do_symmetrical_brush_actions(bContext *C,
   int i = 0;
 
   /* initial stroke */
-  const eMeshSymmetryType initial_symm = eMeshSymmetryType(0);
-  cache.mirror_symmetry_pass = eMeshSymmetryType(0);
+  const eMeshSymmetryType initial_symm = ME_SYMMETRY_NONE;
+  cache.mirror_symmetry_pass = ME_SYMMETRY_NONE;
   vpaint_do_paint(C, vp, vpd, ob, mesh, brush, initial_symm, 'X', 0, 0);
   vpaint_do_radial_symmetry(C, vp, vpd, ob, mesh, brush, initial_symm, 'X');
   vpaint_do_radial_symmetry(C, vp, vpd, ob, mesh, brush, initial_symm, 'Y');

@@ -7065,7 +7065,7 @@ void filter_region_clip_factors(const SculptSession &ss,
   }
 
   const eMeshSymmetryType mirror_symmetry_pass = ss.cache ? ss.cache->mirror_symmetry_pass :
-                                                              eMeshSymmetryType(0);
+                                                              ME_SYMMETRY_NONE;
   const int radial_symmetry_pass = ss.cache ? ss.cache->radial_symmetry_pass : 0;
   const float4x4 symm_rot_mat_inv = ss.cache ? ss.cache->symm_rot_mat_inv : float4x4::identity();
   for (const int i : verts.index_range()) {
@@ -7092,7 +7092,7 @@ void filter_region_clip_factors(const SculptSession &ss,
   }
 
   const eMeshSymmetryType mirror_symmetry_pass = ss.cache ? ss.cache->mirror_symmetry_pass :
-                                                              eMeshSymmetryType(0);
+                                                              ME_SYMMETRY_NONE;
   const int radial_symmetry_pass = ss.cache ? ss.cache->radial_symmetry_pass : 0;
   const float4x4 symm_rot_mat_inv = ss.cache ? ss.cache->symm_rot_mat_inv : float4x4::identity();
   for (const int i : positions.index_range()) {

@@ -1744,11 +1744,11 @@ static void wpaint_do_symmetrical_brush_actions(
   int i = 0;
 
   /* initial stroke */
-  cache.mirror_symmetry_pass = eMeshSymmetryType(0);
-  wpaint_do_paint(C, ob, wp, wpd, wpi, mesh, brush, eMeshSymmetryType(0), 'X', 0, 0);
-  wpaint_do_radial_symmetry(C, ob, wp, wpd, wpi, mesh, brush, eMeshSymmetryType(0), 'X');
-  wpaint_do_radial_symmetry(C, ob, wp, wpd, wpi, mesh, brush, eMeshSymmetryType(0), 'Y');
-  wpaint_do_radial_symmetry(C, ob, wp, wpd, wpi, mesh, brush, eMeshSymmetryType(0), 'Z');
+  cache.mirror_symmetry_pass = ME_SYMMETRY_NONE;
+  wpaint_do_paint(C, ob, wp, wpd, wpi, mesh, brush, ME_SYMMETRY_NONE, 'X', 0, 0);
+  wpaint_do_radial_symmetry(C, ob, wp, wpd, wpi, mesh, brush, ME_SYMMETRY_NONE, 'X');
+  wpaint_do_radial_symmetry(C, ob, wp, wpd, wpi, mesh, brush, ME_SYMMETRY_NONE, 'Y');
+  wpaint_do_radial_symmetry(C, ob, wp, wpd, wpi, mesh, brush, ME_SYMMETRY_NONE, 'Z');
 
   cache.symmetry = symm;
 

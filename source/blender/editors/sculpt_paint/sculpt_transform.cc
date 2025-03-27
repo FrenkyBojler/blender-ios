@@ -288,7 +288,7 @@ static void sculpt_transform_all_vertices(const Depsgraph &depsgraph, const Scul
   undo::restore_position_from_undo_step(depsgraph, ob);
 
   SculptSession &ss = *ob.sculpt;
-  const eMeshSymmetryType symm = eMeshSymmetryType(SCULPT_mesh_symmetry_xyz_get(ob));
+  const eMeshSymmetryType symm = SCULPT_mesh_symmetry_xyz_get(ob);
 
   std::array<float4x4, 8> transform_mats = transform_matrices_init(
       ss, symm, ss.filter_cache->transform_displacement_mode);
