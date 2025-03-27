@@ -1471,29 +1471,23 @@ static Mesh *meshgl_to_mesh(const MeshGL &mgl,
   const int verts_num = ma.output_verts_num;
   const int faces_num = ma.new_faces.size();
 
-  /* Get total number of corners, and index of the start
-   * corner for each new face. */
-  int corners_num = 0;
-  /* TODO: maybe parallelize corner counting and offset calculation. */
-  Array<int> face_corner_start_index;
-  {
-#ifdef DEBUG_TIME
-    timeit::ScopedTimer timer_c("calculate corner_start_index");
-#endif
-    face_corner_start_index.reinitialize(faces_num + 1);
-    for (const int i : ma.new_faces.index_range()) {
-      face_corner_start_index[i] = corners_num;
-      corners_num += ma.new_faces[i].verts.size();
-    }
-    face_corner_start_index[faces_num] = corners_num;
-  }
-
-  /* Make a new Mesh, now that we know the number of vertices, faces, and corners.
-   * We will use Blender's parallelized function to calculate edges later.
-   */
-  Mesh *mesh = BKE_mesh_new_nomain(verts_num, 0, faces_num, corners_num);
+  /* Make a new Mesh, now that we know the number of vertices and faces. Corners will be counted
+   * using the mesh's face offsets, and we will use Blender's parallelized function to calculate
+   * edges later. */
+  Mesh *mesh = BKE_mesh_new_nomain(verts_num, 0, faces_num, 0);
   BKE_defgroup_copy_list(&mesh->vertex_group_names, &joined_mesh->vertex_group_names);
   BKE_mesh_copy_parameters_for_eval(mesh, joined_mesh);
+
+  /* First the face offsets store the size of each result face, then we accumulate them to form the
+   * final offsets. */
+  MutableSpan<int> face_offsets = mesh->face_offsets_for_write();
+  threading::parallel_for(IndexRange(faces_num), 10'000, [&](const IndexRange range) {
+    for (const int face : range) {
+      face_offsets[face] = ma.new_faces[face].verts.size();
+    }
+  });
+  const OffsetIndices<int> faces = offset_indices::accumulate_counts_to_offsets(face_offsets);
+  mesh->corners_num = faces.total_size();
 
   /* Set the vertex positions. */
   MutableSpan<float3> positions = mesh->vert_positions_for_write();
@@ -1511,25 +1505,17 @@ static Mesh *meshgl_to_mesh(const MeshGL &mgl,
     });
   }
 
-  /* Make the faces. */
-  MutableSpan<int> face_start = mesh->face_offsets_for_write();
+  /* Write corner vertex references. */
   MutableSpan<int> corner_verts = mesh->corner_verts_for_write();
   {
 #ifdef DEBUG_TIME
     timeit::ScopedTimer timer_c("calculate faces");
 #endif
-    int grain_size = 50000;
-    threading::parallel_for(IndexRange(faces_num), grain_size, [&](const IndexRange range) {
-      for (const int face_index : range) {
-        const int corner_index = face_corner_start_index[face_index];
-        face_start[face_index] = corner_index;
-        const OutFace &face = ma.new_faces[face_index];
-        for (const int i : face.verts.index_range()) {
-          corner_verts[corner_index + i] = face.verts[i];
-        }
+    threading::parallel_for(IndexRange(faces_num), 10'000, [&](const IndexRange range) {
+      for (const int face : range) {
+        corner_verts.slice(faces[face]).copy_from(ma.new_faces[face].verts);
       }
     });
-    face_start[faces_num] = corners_num;
   }
 
   {
