@@ -1241,8 +1241,7 @@ static void interpolate_corner_attributes(bke::MutableAttributeAccessor &output_
   Vector<std::optional<GVArraySpan>> srcs;
   Vector<GMutableSpan> dsts;
   output_attrs.foreach_attribute([&](const bke::AttributeIter &iter) {
-    if (iter.domain != bke::AttrDomain::Corner ||
-        (iter.name == ".corner_vert" || iter.name == ".corner_edge"))
+    if (iter.domain != bke::AttrDomain::Corner || ELEM(iter.name, ".corner_vert", ".corner_edge"))
     {
       return;
     }
