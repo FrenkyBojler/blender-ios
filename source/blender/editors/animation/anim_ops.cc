@@ -294,37 +294,66 @@ static int get_frame_snap_target(const Scene *scene, const int timeline_frame, c
   return (round((timeline_frame - start_frame) / float(step)) * step) + start_frame;
 }
 
+struct SnapTarget {
+  int pos;
+  /* If true, only snap if close to the point. */
+  bool use_snap_treshold;
+};
+
 static int seq_frame_apply_snap(bContext *C, const int timeline_frame)
 {
   Scene *scene = CTX_data_scene(C);
   ToolSettings *tool_settings = scene->toolsettings;
-  int snap_frame = MAXFRAME;
+
+  blender::Vector<SnapTarget> targets;
 
   if (tool_settings->snap_playhead_mode & SCE_SNAP_TO_STRIPS) {
     ListBase *seqbase = blender::seq::active_seqbase_get(blender::seq::editing_get(scene));
     const int snap_target = get_strip_snap_target(
         blender::seq::query_all_strips(seqbase), scene, timeline_frame);
-    if (abs(snap_target - timeline_frame) < abs(snap_frame - timeline_frame)) {
-      snap_frame = snap_target;
-    }
+    targets.append({snap_target, true});
   }
 
   if (tool_settings->snap_playhead_mode & SCE_SNAP_TO_MARKERS) {
     const int snap_target = get_marker_snap_target(scene, timeline_frame);
-    if (abs(snap_target - timeline_frame) < abs(snap_frame - timeline_frame)) {
-      snap_frame = snap_target;
-    }
+    targets.append({snap_target, true});
+  }
+
+  if (tool_settings->snap_playhead_mode & SCE_SNAP_TO_FRAME) {
+    const int snap_target = get_frame_snap_target(
+        scene, timeline_frame, tool_settings->snap_step_frames);
+    targets.append({snap_target, false});
   }
 
   if (tool_settings->snap_playhead_mode & SCE_SNAP_TO_SECOND) {
     const int snap_target = get_second_snap_target(
         scene, timeline_frame, tool_settings->snap_step_seconds);
-    if (abs(snap_target - timeline_frame) < abs(snap_frame - timeline_frame)) {
-      snap_frame = snap_target;
+    targets.append({snap_target, false});
+  }
+
+  int snap_frame = MAXFRAME;
+
+  for (const SnapTarget &target : targets) {
+    if (abs(target.pos - timeline_frame) < abs(snap_frame - timeline_frame)) {
+      snap_frame = target.pos;
     }
   }
 
   if (abs(snap_frame - timeline_frame) < seq_snap_threshold_get_frame_distance(C)) {
+    return snap_frame;
+  }
+
+  snap_frame = MAXFRAME;
+  for (const SnapTarget &target : targets) {
+    if (target.use_snap_treshold) {
+      continue;
+    }
+    if (abs(target.pos - timeline_frame) < abs(snap_frame - timeline_frame)) {
+      snap_frame = target.pos;
+    }
+  }
+
+  if (snap_frame != MAXFRAME) {
     return snap_frame;
   }
 
