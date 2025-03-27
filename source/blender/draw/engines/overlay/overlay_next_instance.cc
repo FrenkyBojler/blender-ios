@@ -492,7 +492,9 @@ void Instance::object_sync(ObjectRef &ob_ref, Manager &manager)
   if (!state.hide_overlays) {
     switch (ob_ref.object->type) {
       case OB_MESH:
-        if (in_object_mode && object_is_selected(ob_ref)) {
+        if (in_object_mode &&
+            (object_is_selected(ob_ref) || (ob_ref.object == state.object_active)))
+        {
           layer.mesh_uvs.object_sync(manager, ob_ref, resources, state);
         }
         else if (in_edit_paint_mode) {
