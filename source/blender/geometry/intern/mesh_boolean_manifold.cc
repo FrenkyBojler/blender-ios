@@ -16,13 +16,12 @@
 #include "BLI_offset_indices.hh"
 #include "BLI_span.hh"
 #include "BLI_task.hh"
+#include "BLI_vector.hh"
 
 // #define DEBUG_TIME
 #ifdef DEBUG_TIME
 #  include "BLI_timeit.hh"
 #endif
-
-#include "BLI_vector.hh"
 
 #include "BKE_attribute.hh"
 #include "BKE_attribute_math.hh"
