@@ -218,8 +218,8 @@ static wmOperatorStatus symmetrize_exec(bContext *C, wmOperator *op)
   const Scene &scene = *CTX_data_scene(C);
   const Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(C);
   Object &ob = *CTX_data_active_object(C);
+  Mesh &mesh = *static_cast<Mesh *>(ob.data);
   SculptSession &ss = *ob.sculpt;
-  Mesh *mesh = static_cast<Mesh *>(ob.data);
   const bke::pbvh::Tree *pbvh = bke::object::pbvh_get(ob);
   const float dist = RNA_float_get(op->ptr, "merge_tolerance");
 
@@ -251,7 +251,7 @@ static wmOperatorStatus symmetrize_exec(bContext *C, wmOperator *op)
       BMO_op_callf(ss.bm,
                    (BMO_FLAG_DEFAULTS & ~BMO_FLAG_RESPECT_HIDE),
                    "symmetrize input=%avef direction=%i dist=%f use_shapekey=%b",
-                   mesh->symmetrize_direction,
+                   mesh.symmetrize_direction,
                    dist,
                    true);
       dyntopo::triangulate(ss.bm);
@@ -270,12 +270,11 @@ static wmOperatorStatus symmetrize_exec(bContext *C, wmOperator *op)
     case bke::pbvh::Type::Mesh: {
       /* Mesh Symmetrize. */
       undo::geometry_begin(scene, ob, op);
-      Mesh *mesh = static_cast<Mesh *>(ob.data);
 
-      BKE_mesh_mirror_apply_mirror_on_axis(bmain, mesh, mesh->symmetrize_direction, dist);
+      BKE_mesh_mirror_apply_mirror_on_axis(bmain, &mesh, mesh.symmetrize_direction, dist);
 
       undo::geometry_end(ob);
-      BKE_mesh_batch_cache_dirty_tag(mesh, BKE_MESH_BATCH_DIRTY_ALL);
+      BKE_mesh_batch_cache_dirty_tag(&mesh, BKE_MESH_BATCH_DIRTY_ALL);
 
       break;
     }
