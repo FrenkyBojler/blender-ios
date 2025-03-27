@@ -5,19 +5,19 @@
 #include "GEO_join_geometries.hh"
 #include "GEO_realize_instances.hh"
 
-#include "DNA_collection_types.h"
+#include "DNA_object_types.h"
 
 #include "BLI_array_utils.hh"
+#include "BLI_listbase.h"
+#include "BLI_math_matrix.hh"
 #include "BLI_noise.hh"
 
 #include "BKE_curves.hh"
 #include "BKE_customdata.hh"
-#include "BKE_deform.hh"
 #include "BKE_geometry_nodes_gizmos_transforms.hh"
-#include "BKE_geometry_set_instances.hh"
 #include "BKE_grease_pencil.hh"
 #include "BKE_instances.hh"
-#include "BKE_material.h"
+#include "BKE_material.hh"
 #include "BKE_mesh.hh"
 #include "BKE_pointcloud.hh"
 #include "BKE_type_conversions.hh"
@@ -1544,8 +1544,8 @@ static void copy_vertex_group_names(Mesh &dst_mesh,
       if (existing_names.contains(src_name)) {
         continue;
       }
-      bDeformGroup *dst = MEM_cnew<bDeformGroup>(__func__);
-      src_name.copy(dst->name);
+      bDeformGroup *dst = MEM_callocN<bDeformGroup>(__func__);
+      src_name.copy_utf8_truncated(dst->name);
       BLI_addtail(&dst_mesh.vertex_group_names, dst);
     }
   }
@@ -2180,7 +2180,7 @@ static void execute_realize_grease_pencil_tasks(
   if (!all_grease_pencils_info.materials.is_empty()) {
     MEM_SAFE_FREE(dst_grease_pencil->material_array);
     dst_grease_pencil->material_array_num = all_grease_pencils_info.materials.size();
-    dst_grease_pencil->material_array = MEM_cnew_array<Material *>(
+    dst_grease_pencil->material_array = MEM_calloc_arrayN<Material *>(
         dst_grease_pencil->material_array_num, __func__);
     uninitialized_copy_n(all_grease_pencils_info.materials.data(),
                          dst_grease_pencil->material_array_num,

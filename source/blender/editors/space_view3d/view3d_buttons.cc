@@ -7,8 +7,6 @@
  */
 
 #include <cfloat>
-#include <cmath>
-#include <cstdio>
 #include <cstring>
 
 #include "DNA_armature_types.h"
@@ -25,11 +23,12 @@
 #include "BLT_translation.hh"
 
 #include "BLI_array_utils.h"
-#include "BLI_bitmap.h"
-#include "BLI_blenlib.h"
+#include "BLI_bit_vector.hh"
+#include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
+#include "BLI_string.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_action.hh"
@@ -40,6 +39,7 @@
 #include "BKE_deform.hh"
 #include "BKE_editmesh.hh"
 #include "BKE_layer.hh"
+#include "BKE_library.hh"
 #include "BKE_mesh_types.hh"
 #include "BKE_object.hh"
 #include "BKE_object_deform.h"
@@ -138,12 +138,12 @@ static void *editmesh_partial_update_begin_fn(bContext * /*C*/,
   BMVert *eve;
   int i;
 
-  BLI_bitmap *verts_mask = BLI_BITMAP_NEW(em->bm->totvert, __func__);
+  blender::BitVector<> verts_mask(em->bm->totvert);
   BM_ITER_MESH_INDEX (eve, &iter, em->bm, BM_VERTS_OF_MESH, i) {
     if (!BM_elem_flag_test(eve, BM_ELEM_SELECT)) {
       continue;
     }
-    BLI_BITMAP_ENABLE(verts_mask, i);
+    verts_mask[i].set();
     verts_mask_count += 1;
   }
 
@@ -151,9 +151,7 @@ static void *editmesh_partial_update_begin_fn(bContext * /*C*/,
   update_params.do_tessellate = true;
   update_params.do_normals = true;
   BMPartialUpdate *bmpinfo = BM_mesh_partial_create_from_verts_group_single(
-      em->bm, &update_params, verts_mask, verts_mask_count);
-
-  MEM_freeN(verts_mask);
+      *em->bm, update_params, verts_mask, verts_mask_count);
 
   return bmpinfo;
 }
@@ -439,7 +437,7 @@ static void v3d_editvertex_buts(uiLayout *layout, View3D *v3d, Object *ob, float
     }
 
     if (totcurvedata == 1) {
-      data_ptr = RNA_pointer_create(&cu->id, seltype, selp);
+      data_ptr = RNA_pointer_create_discrete(&cu->id, seltype, selp);
     }
   }
   else if (ob->type == OB_LATTICE) {
@@ -467,7 +465,7 @@ static void v3d_editvertex_buts(uiLayout *layout, View3D *v3d, Object *ob, float
     }
 
     if (totlattdata == 1) {
-      data_ptr = RNA_pointer_create(&lt->id, seltype, selp);
+      data_ptr = RNA_pointer_create_discrete(&lt->id, seltype, selp);
     }
   }
 
@@ -775,7 +773,7 @@ static void v3d_editvertex_buts(uiLayout *layout, View3D *v3d, Object *ob, float
                         0,
                         0.0,
                         1.0,
-                        nullptr);
+                        std::nullopt);
         UI_but_number_step_size_set(but, 1);
         UI_but_number_precision_set(but, 3);
         but = uiDefButR(block,
@@ -791,7 +789,7 @@ static void v3d_editvertex_buts(uiLayout *layout, View3D *v3d, Object *ob, float
                         0,
                         0.0,
                         100.0,
-                        nullptr);
+                        std::nullopt);
         UI_but_number_step_size_set(but, 1);
         UI_but_number_precision_set(but, 3);
         but = uiDefButR(block,
@@ -807,7 +805,7 @@ static void v3d_editvertex_buts(uiLayout *layout, View3D *v3d, Object *ob, float
                         0,
                         -tilt_limit,
                         tilt_limit,
-                        nullptr);
+                        std::nullopt);
         UI_but_number_step_size_set(but, 1);
         UI_but_number_precision_set(but, 3);
       }
@@ -874,7 +872,7 @@ static void v3d_editvertex_buts(uiLayout *layout, View3D *v3d, Object *ob, float
                         0,
                         0.0,
                         1.0,
-                        nullptr);
+                        std::nullopt);
         UI_but_number_step_size_set(but, 1);
         UI_but_number_precision_set(but, 3);
       }
@@ -1181,6 +1179,7 @@ static void v3d_object_dimension_buts(bContext *C, uiLayout *layout, View3D *v3d
 {
   uiBlock *block = (layout) ? uiLayoutAbsoluteBlock(layout) : nullptr;
   TransformProperties *tfp = v3d_transform_props_ensure(v3d);
+  const bool is_editable = ID_IS_EDITABLE(&ob->id);
 
   if (block) {
     BLI_assert(C == nullptr);
@@ -1225,6 +1224,9 @@ static void v3d_object_dimension_buts(bContext *C, uiLayout *layout, View3D *v3d
       UI_but_number_step_size_set(but, 10);
       UI_but_number_precision_set(but, 3);
       UI_but_unit_type_set(but, PROP_UNIT_LENGTH);
+      if (!is_editable) {
+        UI_but_disable(but, "Can't edit this property from a linked data-block");
+      }
     }
     UI_block_align_end(block);
   }
@@ -1327,7 +1329,7 @@ static void view3d_panel_vgroup(const bContext *C, Panel *panel)
     bcol = uiLayoutColumn(panel->layout, true);
     row = uiLayoutRow(bcol, true); /* The filter button row */
 
-    PointerRNA tools_ptr = RNA_pointer_create(nullptr, &RNA_ToolSettings, ts);
+    PointerRNA tools_ptr = RNA_pointer_create_discrete(nullptr, &RNA_ToolSettings, ts);
     uiItemR(row, &tools_ptr, "vertex_group_subset", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
 
     col = uiLayoutColumn(bcol, true);
@@ -1444,9 +1446,6 @@ static void view3d_panel_vgroup(const bContext *C, Panel *panel)
         UI_UNIT_X * 5,
         UI_UNIT_Y,
         TIP_("Normalize weights of active vertex (if affected groups are unlocked)"));
-    if (lock_count) {
-      UI_but_flag_enable(but, UI_BUT_DISABLED);
-    }
 
     ot = WM_operatortype_find("OBJECT_OT_vertex_weight_copy", true);
     but = uiDefButO_ptr(
@@ -1585,7 +1584,7 @@ static void v3d_posearmature_buts(uiLayout *layout, Object *ob)
     return;
   }
 
-  PointerRNA pchanptr = RNA_pointer_create(&ob->id, &RNA_PoseBone, pchan);
+  PointerRNA pchanptr = RNA_pointer_create_discrete(&ob->id, &RNA_PoseBone, pchan);
 
   col = uiLayoutColumn(layout, false);
 
@@ -1608,7 +1607,7 @@ static void v3d_editarmature_buts(uiLayout *layout, Object *ob)
     return;
   }
 
-  PointerRNA eboneptr = RNA_pointer_create(&arm->id, &RNA_EditBone, ebone);
+  PointerRNA eboneptr = RNA_pointer_create_discrete(&arm->id, &RNA_EditBone, ebone);
 
   col = uiLayoutColumn(layout, false);
   uiItemR(col, &eboneptr, "head", UI_ITEM_NONE, std::nullopt, ICON_NONE);
@@ -1638,7 +1637,7 @@ static void v3d_editmetaball_buts(uiLayout *layout, Object *ob)
     return;
   }
 
-  PointerRNA ptr = RNA_pointer_create(&mball->id, &RNA_MetaElement, mball->lastelem);
+  PointerRNA ptr = RNA_pointer_create_discrete(&mball->id, &RNA_MetaElement, mball->lastelem);
 
   col = uiLayoutColumn(layout, false);
   uiItemR(col, &ptr, "co", UI_ITEM_NONE, std::nullopt, ICON_NONE);
@@ -1795,7 +1794,7 @@ void view3d_buttons_register(ARegionType *art)
   WM_menutype_add(mt);
 }
 
-static int view3d_object_mode_menu_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus view3d_object_mode_menu_exec(bContext *C, wmOperator *op)
 {
   Object *ob = CTX_data_active_object(C);
   if (ob == nullptr) {

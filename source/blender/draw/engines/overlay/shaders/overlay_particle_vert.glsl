@@ -2,22 +2,28 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "common_view_clipping_lib.glsl"
-#include "common_view_lib.glsl"
+#include "infos/overlay_extra_info.hh"
+
+VERTEX_SHADER_CREATE_INFO(overlay_particle_dot)
+
+#include "draw_model_lib.glsl"
+#include "draw_view_clipping_lib.glsl"
+#include "draw_view_lib.glsl"
 #include "select_lib.glsl"
 
 void main()
 {
-  select_id_set(drw_CustomID);
+  select_id_set(drw_custom_id());
 
   /* Draw-size packed in alpha. */
   float draw_size = ucolor.a;
 
   vec3 world_pos = part_pos;
 
-  gl_Position = point_world_to_ndc(world_pos);
+  gl_Position = drw_point_world_to_homogenous(world_pos);
   /* World sized points. */
-  gl_PointSize = sizePixel * draw_size * drw_view.winmat[1][1] * sizeViewport.y / gl_Position.w;
+  gl_PointSize = sizePixel * draw_size * drw_view().winmat[1][1] * globalsBlock.size_viewport.y /
+                 gl_Position.w;
 
   /* Coloring */
   if (part_val < 0.0) {

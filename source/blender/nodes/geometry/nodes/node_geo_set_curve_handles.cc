@@ -43,7 +43,7 @@ static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeGeometrySetCurveHandlePositions *data = MEM_cnew<NodeGeometrySetCurveHandlePositions>(
+  NodeGeometrySetCurveHandlePositions *data = MEM_callocN<NodeGeometrySetCurveHandlePositions>(
       __func__);
 
   data->mode = GEO_NODE_CURVE_HANDLE_LEFT;
@@ -132,7 +132,7 @@ static void set_position_in_component(Curves &curves_id,
         });
         return changed;
       },
-      std::logical_or<bool>());
+      std::logical_or<>());
 
   selection.foreach_segment(GrainSize(2048), [&](const IndexMaskSegment segment) {
     for (const int i : segment) {
@@ -201,19 +201,21 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(
-      &ntype, GEO_NODE_SET_CURVE_HANDLES, "Set Handle Positions", NODE_CLASS_GEOMETRY);
+  geo_node_type_base(&ntype, "GeometryNodeSetCurveHandlePositions", GEO_NODE_SET_CURVE_HANDLES);
+  ntype.ui_name = "Set Handle Positions";
+  ntype.ui_description = "Set the positions for the handles of Bézier curves";
   ntype.enum_name_legacy = "SET_CURVE_HANDLES";
+  ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
   ntype.minwidth = 100.0f;
   ntype.initfunc = node_init;
-  blender::bke::node_type_storage(&ntype,
+  blender::bke::node_type_storage(ntype,
                                   "NodeGeometrySetCurveHandlePositions",
                                   node_free_standard_storage,
                                   node_copy_standard_storage);
   ntype.draw_buttons = node_layout;
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

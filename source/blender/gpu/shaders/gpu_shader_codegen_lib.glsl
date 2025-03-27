@@ -103,8 +103,8 @@ vec4 tangent_get(vec4 attr, mat3 normalmat)
 
 #endif
 
-/* Assumes GPU_VEC4 is color data. So converting to luminance like cycles. */
-#define float_from_vec4(v) dot(v.rgb, vec3(0.2126, 0.7152, 0.0722))
+/* Assumes GPU_VEC4 is color data, special case that needs luminance coefficients from OCIO. */
+#define float_from_vec4(v, luminance_coefficients) dot(v.rgb, luminance_coefficients)
 #define float_from_vec3(v) ((v.r + v.g + v.b) * (1.0 / 3.0))
 #define float_from_vec2(v) v.r
 
@@ -322,8 +322,8 @@ GlobalData g_data;
 /* Stubs. */
 
 #  define dF_impl(a) (vec3(0.0))
-#  define dF_branch(a, b) (b = vec2(0.0))
-#  define dF_branch_incomplete(a, b) (b = vec2(0.0))
+#  define dF_branch(a, b, c) (c = vec2(0.0))
+#  define dF_branch_incomplete(a, b, c) (c = vec2(0.0))
 
 #elif defined(GPU_FAST_DERIVATIVE) /* TODO(@fclem): User Option? */
 /* Fast derivatives */
@@ -334,27 +334,33 @@ vec3 dF_impl(vec3 v)
 
 void dF_branch(float fn, out vec2 result)
 {
+  /* NOTE: this function is currently unused, once it is used we need to check if
+   * `g_derivative_filter_width` needs to be applied. */
   result.x = dFdx(fn);
   result.y = dFdy(fn);
 }
 
 #else
+
+/* Offset of coordinates for evaluating bump node. Unit in pixel. */
+float g_derivative_filter_width = 0.0;
 /* Precise derivatives */
 int g_derivative_flag = 0;
 
 vec3 dF_impl(vec3 v)
 {
   if (g_derivative_flag > 0) {
-    return dFdx(v);
+    return dFdx(v) * g_derivative_filter_width;
   }
   else if (g_derivative_flag < 0) {
-    return dFdy(v);
+    return dFdy(v) * g_derivative_filter_width;
   }
   return vec3(0.0);
 }
 
-#  define dF_branch(fn, result) \
+#  define dF_branch(fn, filter_width, result) \
     if (true) { \
+      g_derivative_filter_width = filter_width; \
       g_derivative_flag = 1; \
       result.x = (fn); \
       g_derivative_flag = -1; \
@@ -364,8 +370,9 @@ vec3 dF_impl(vec3 v)
     }
 
 /* Used when the non-offset value is already computed elsewhere */
-#  define dF_branch_incomplete(fn, result) \
+#  define dF_branch_incomplete(fn, filter_width, result) \
     if (true) { \
+      g_derivative_filter_width = filter_width; \
       g_derivative_flag = 1; \
       result.x = (fn); \
       g_derivative_flag = -1; \

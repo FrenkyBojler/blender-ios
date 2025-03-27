@@ -223,7 +223,10 @@ class NLA_OT_bake(Operator):
     )
     clear_constraints: BoolProperty(
         name="Clear Constraints",
-        description="Remove all constraints from keyed object/bones. To get a correct bake with this setting Visual Keying should be enabled",
+        description=(
+            "Remove all constraints from keyed object/bones. "
+            "To get a correct bake with this setting Visual Keying should be enabled"
+        ),
         default=False,
     )
     clear_parents: BoolProperty(
@@ -467,7 +470,8 @@ class ARMATURE_OT_copy_bone_color_to_selected(Operator):
 
     bone_type: EnumProperty(
         name="Type",
-        items=_bone_type_enum)
+        items=_bone_type_enum,
+    )
 
     @classmethod
     def poll(cls, context):
@@ -528,7 +532,8 @@ class ARMATURE_OT_copy_bone_color_to_selected(Operator):
                 "Bone colors were synced; "
                 "for {:d} bones this will not be visible due to pose bone color overrides".format(
                     num_pose_color_overrides,
-                ))
+                ),
+            )
 
         return {'FINISHED'}
 
@@ -734,7 +739,7 @@ class ANIM_OT_slot_unassign_from_id(Operator):
         return {'FINISHED'}
 
 
-class generic_slot_unassign_mixin():
+class generic_slot_unassign_mixin:
     context_property_name = ""
     """Which context attribute to use to get the to-be-manipulated data-block."""
 

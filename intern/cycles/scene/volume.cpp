@@ -97,7 +97,8 @@ static int add_vertex(const int3 v,
                       const int3 res,
                       unordered_map<size_t, int> &used_verts)
 {
-  const size_t vert_key = v.x + v.y * (res.x + 1) + v.z * (res.x + 1) * (res.y + 1);
+  const size_t vert_key = v.x + v.y * size_t(res.x + 1) +
+                          v.z * size_t(res.x + 1) * size_t(res.y + 1);
   const unordered_map<size_t, int>::iterator it = used_verts.find(vert_key);
 
   if (it != used_verts.end()) {
@@ -157,7 +158,6 @@ class VolumeMeshBuilder {
 
   void create_mesh(vector<float3> &vertices,
                    vector<int> &indices,
-                   vector<float3> &face_normals,
                    const float face_overlap_avoidance);
 
   void generate_vertices_and_quads(vector<int3> &vertices_is, vector<QuadData> &quads);
@@ -166,9 +166,7 @@ class VolumeMeshBuilder {
                             vector<float3> &out_vertices,
                             const float face_overlap_avoidance);
 
-  void convert_quads_to_tris(const vector<QuadData> &quads,
-                             vector<int> &tris,
-                             vector<float3> &face_normals);
+  void convert_quads_to_tris(const vector<QuadData> &quads, vector<int> &tris);
 
   bool empty_grid() const;
 
@@ -269,7 +267,6 @@ void VolumeMeshBuilder::add_padding(const int pad_size)
 
 void VolumeMeshBuilder::create_mesh(vector<float3> &vertices,
                                     vector<int> &indices,
-                                    vector<float3> &face_normals,
                                     const float face_overlap_avoidance)
 {
 #ifdef WITH_OPENVDB
@@ -286,11 +283,10 @@ void VolumeMeshBuilder::create_mesh(vector<float3> &vertices,
 
   convert_object_space(vertices_is, vertices, face_overlap_avoidance);
 
-  convert_quads_to_tris(quads, indices, face_normals);
+  convert_quads_to_tris(quads, indices);
 #else
   (void)vertices;
   (void)indices;
-  (void)face_normals;
   (void)face_overlap_avoidance;
 #endif
 }
@@ -403,26 +399,19 @@ void VolumeMeshBuilder::convert_object_space(const vector<int3> &vertices,
 #endif
 }
 
-void VolumeMeshBuilder::convert_quads_to_tris(const vector<QuadData> &quads,
-                                              vector<int> &tris,
-                                              vector<float3> &face_normals)
+void VolumeMeshBuilder::convert_quads_to_tris(const vector<QuadData> &quads, vector<int> &tris)
 {
   int index_offset = 0;
   tris.resize(quads.size() * 6);
-  face_normals.reserve(quads.size() * 2);
 
   for (size_t i = 0; i < quads.size(); ++i) {
     tris[index_offset++] = quads[i].v0;
     tris[index_offset++] = quads[i].v2;
     tris[index_offset++] = quads[i].v1;
 
-    face_normals.push_back(quads[i].normal);
-
     tris[index_offset++] = quads[i].v0;
     tris[index_offset++] = quads[i].v3;
     tris[index_offset++] = quads[i].v2;
-
-    face_normals.push_back(quads[i].normal);
   }
 }
 
@@ -747,8 +736,7 @@ void GeometryManager::create_volume_mesh(const Scene *scene, Volume *volume, Pro
   /* Create mesh. */
   vector<float3> vertices;
   vector<int> indices;
-  vector<float3> face_normals;
-  builder.create_mesh(vertices, indices, face_normals, face_overlap_avoidance);
+  builder.create_mesh(vertices, indices, face_overlap_avoidance);
 
   volume->reserve_mesh(vertices.size(), indices.size() / 3);
   volume->used_shaders.clear();
@@ -762,17 +750,9 @@ void GeometryManager::create_volume_mesh(const Scene *scene, Volume *volume, Pro
     volume->add_triangle(indices[i], indices[i + 1], indices[i + 2], 0, false);
   }
 
-  Attribute *attr_fN = volume->attributes.add(ATTR_STD_FACE_NORMAL);
-  float3 *fN = attr_fN->data_float3();
-
-  for (size_t i = 0; i < face_normals.size(); ++i) {
-    fN[i] = face_normals[i];
-  }
-
   /* Print stats. */
   VLOG_WORK << "Memory usage volume mesh: "
-            << ((vertices.size() + face_normals.size()) * sizeof(float3) +
-                indices.size() * sizeof(int)) /
+            << (vertices.size() * sizeof(float3) + indices.size() * sizeof(int)) /
                    (1024.0 * 1024.0)
             << "Mb.";
 }

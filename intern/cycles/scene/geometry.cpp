@@ -21,7 +21,6 @@
 #include "scene/stats.h"
 #include "scene/volume.h"
 
-#include "subd/patch_table.h"
 #include "subd/split.h"
 
 #ifdef WITH_OSL
@@ -40,7 +39,7 @@ NODE_ABSTRACT_DEFINE(Geometry)
 {
   NodeType *type = NodeType::add("geometry_base", nullptr);
 
-  SOCKET_UINT(motion_steps, "Motion Steps", 3);
+  SOCKET_UINT(motion_steps, "Motion Steps", 0);
   SOCKET_BOOLEAN(use_motion_blur, "Use Motion Blur", false);
   SOCKET_NODE_ARRAY(used_shaders, "Shaders", Shader::get_node_type());
 
@@ -164,15 +163,6 @@ void Geometry::tag_update(Scene *scene, bool rebuild)
   scene->geometry_manager->tag_update(scene, GeometryManager::GEOMETRY_MODIFIED);
 }
 
-void Geometry::tag_bvh_update(bool rebuild)
-{
-  tag_modified();
-
-  if (rebuild) {
-    need_update_rebuild = true;
-  }
-}
-
 /* Geometry Manager */
 
 GeometryManager::GeometryManager()
@@ -277,7 +267,6 @@ void GeometryManager::geom_calc_offset(Scene *scene, BVHLayout bvh_layout)
 
   size_t point_size = 0;
 
-  size_t patch_size = 0;
   size_t face_size = 0;
   size_t corner_size = 0;
 
@@ -292,23 +281,11 @@ void GeometryManager::geom_calc_offset(Scene *scene, BVHLayout bvh_layout)
       mesh->vert_offset = vert_size;
       mesh->prim_offset = tri_size;
 
-      mesh->patch_offset = patch_size;
       mesh->face_offset = face_size;
       mesh->corner_offset = corner_size;
 
       vert_size += mesh->verts.size();
       tri_size += mesh->num_triangles();
-
-      if (mesh->get_num_subd_faces()) {
-        const Mesh::SubdFace last = mesh->get_subd_face(mesh->get_num_subd_faces() - 1);
-        patch_size += (last.ptex_offset + last.num_ptex_faces()) * 8;
-
-        /* patch tables are stored in same array so include them in patch_size */
-        if (mesh->patch_table) {
-          mesh->patch_table_offset = patch_size;
-          patch_size += mesh->patch_table->total_size();
-        }
-      }
 
       face_size += mesh->get_num_subd_faces();
       corner_size += mesh->subd_face_corners.size();
@@ -335,11 +312,16 @@ void GeometryManager::geom_calc_offset(Scene *scene, BVHLayout bvh_layout)
     }
 
     if (prim_offset_changed) {
-      /* Need to rebuild BVH in OptiX, since refit only allows modified mesh data there */
-      const bool has_optix_bvh = bvh_layout == BVH_LAYOUT_OPTIX ||
-                                 bvh_layout == BVH_LAYOUT_MULTI_OPTIX ||
-                                 bvh_layout == BVH_LAYOUT_MULTI_OPTIX_EMBREE;
-      geom->need_update_rebuild |= has_optix_bvh;
+      /* Need to rebuild BVH in OptiX, since refit only allows modified mesh data.
+       * Metal has optimization for static BVH, that also require a rebuild. */
+      const bool need_update_rebuild = (bvh_layout == BVH_LAYOUT_OPTIX ||
+                                        bvh_layout == BVH_LAYOUT_MULTI_OPTIX ||
+                                        bvh_layout == BVH_LAYOUT_MULTI_OPTIX_EMBREE) ||
+                                       ((bvh_layout == BVH_LAYOUT_METAL ||
+                                         bvh_layout == BVH_LAYOUT_MULTI_METAL ||
+                                         bvh_layout == BVH_LAYOUT_MULTI_METAL_EMBREE) &&
+                                        scene->params.bvh_type == BVH_TYPE_STATIC);
+      geom->need_update_rebuild |= need_update_rebuild;
       geom->need_update_bvh_for_offset = true;
     }
   }
@@ -516,10 +498,7 @@ void GeometryManager::device_update_preprocess(Device *device, Scene *scene, Pro
       dscene->tri_verts.tag_realloc();
       dscene->tri_vnormal.tag_realloc();
       dscene->tri_vindex.tag_realloc();
-      dscene->tri_patch.tag_realloc();
-      dscene->tri_patch_uv.tag_realloc();
       dscene->tri_shader.tag_realloc();
-      dscene->patches.tag_realloc();
     }
 
     if (device_update_flags & DEVICE_CURVE_DATA_NEEDS_REALLOC) {
@@ -640,7 +619,7 @@ void GeometryManager::device_update_displacement_images(Device *device,
           }
 
           ImageSlotTextureNode *image_node = static_cast<ImageSlotTextureNode *>(node);
-          for (int i = 0; i < image_node->handle.num_tiles(); i++) {
+          for (int i = 0; i < image_node->handle.num_svm_slots(); i++) {
             const int slot = image_node->handle.svm_slot(i);
             if (slot != -1) {
               bump_images.insert(slot);
@@ -744,12 +723,10 @@ void GeometryManager::device_update(Device *device,
             if (mesh->get_subdivision_type() != Mesh::SUBDIVISION_CATMULL_CLARK)
 #endif
             {
-              mesh->add_face_normals();
               mesh->add_vertex_normals();
             }
           }
           else {
-            mesh->add_face_normals();
             mesh->add_vertex_normals();
           }
 
@@ -809,9 +786,13 @@ void GeometryManager::device_update(Device *device,
 
         progress.set_status("Updating Mesh", msg);
 
-        mesh->subd_params->camera = dicing_camera;
-        DiagSplit dsplit(*mesh->subd_params);
-        mesh->tessellate(&dsplit);
+        SubdParams subd_params(mesh);
+        subd_params.dicing_rate = mesh->get_subd_dicing_rate();
+        subd_params.max_level = mesh->get_subd_max_level();
+        subd_params.objecttoworld = mesh->get_subd_objecttoworld();
+        subd_params.camera = dicing_camera;
+
+        mesh->tessellate(subd_params);
 
         i++;
 
@@ -947,13 +928,23 @@ void GeometryManager::device_update(Device *device,
     });
     TaskPool pool;
 
+    /* Work around Embree/oneAPI bug #129596 with BVH updates. */
+    const bool use_multithreaded_build = first_bvh_build ||
+                                         !device->info.contains_device_type(DEVICE_ONEAPI);
+    first_bvh_build = false;
+
     size_t i = 0;
     for (Geometry *geom : scene->geometry) {
       if (geom->is_modified() || geom->need_update_bvh_for_offset) {
         need_update_scene_bvh = true;
-        pool.push([geom, device, dscene, scene, &progress, i, num_bvh] {
+        if (use_multithreaded_build) {
+          pool.push([geom, device, dscene, scene, &progress, i, num_bvh] {
+            geom->compute_bvh(device, dscene, &scene->params, &progress, i, num_bvh);
+          });
+        }
+        else {
           geom->compute_bvh(device, dscene, &scene->params, &progress, i, num_bvh);
-        });
+        }
         if (geom->need_build_bvh(bvh_layout)) {
           i++;
         }
@@ -1045,15 +1036,12 @@ void GeometryManager::device_update(Device *device,
   dscene->tri_verts.clear_modified();
   dscene->tri_shader.clear_modified();
   dscene->tri_vindex.clear_modified();
-  dscene->tri_patch.clear_modified();
   dscene->tri_vnormal.clear_modified();
-  dscene->tri_patch_uv.clear_modified();
   dscene->curves.clear_modified();
   dscene->curve_keys.clear_modified();
   dscene->curve_segments.clear_modified();
   dscene->points.clear_modified();
   dscene->points_shader.clear_modified();
-  dscene->patches.clear_modified();
   dscene->attributes_map.clear_modified();
   dscene->attributes_float.clear_modified();
   dscene->attributes_float2.clear_modified();
@@ -1076,14 +1064,11 @@ void GeometryManager::device_free(Device *device, DeviceScene *dscene, bool forc
   dscene->tri_shader.free_if_need_realloc(force_free);
   dscene->tri_vnormal.free_if_need_realloc(force_free);
   dscene->tri_vindex.free_if_need_realloc(force_free);
-  dscene->tri_patch.free_if_need_realloc(force_free);
-  dscene->tri_patch_uv.free_if_need_realloc(force_free);
   dscene->curves.free_if_need_realloc(force_free);
   dscene->curve_keys.free_if_need_realloc(force_free);
   dscene->curve_segments.free_if_need_realloc(force_free);
   dscene->points.free_if_need_realloc(force_free);
   dscene->points_shader.free_if_need_realloc(force_free);
-  dscene->patches.free_if_need_realloc(force_free);
   dscene->attributes_map.free_if_need_realloc(force_free);
   dscene->attributes_float.free_if_need_realloc(force_free);
   dscene->attributes_float2.free_if_need_realloc(force_free);

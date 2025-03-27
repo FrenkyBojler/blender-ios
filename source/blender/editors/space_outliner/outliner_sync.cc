@@ -6,8 +6,6 @@
  * \ingroup spoutliner
  */
 
-#include <cstdio>
-
 #include "DNA_armature_types.h"
 #include "DNA_layer_types.h"
 #include "DNA_outliner_types.h"
@@ -15,8 +13,6 @@
 #include "DNA_sequence_types.h"
 #include "DNA_space_types.h"
 
-#include "BLI_compiler_compat.h"
-#include "BLI_ghash.h"
 #include "BLI_listbase.h"
 
 #include "BKE_armature.hh"
@@ -59,7 +55,7 @@ void ED_outliner_select_sync_from_pose_bone_tag(bContext *C)
   wm->outliner_sync_select_dirty |= WM_OUTLINER_SYNC_SELECT_FROM_POSE_BONE;
 }
 
-void ED_outliner_select_sync_from_sequence_tag(bContext *C)
+void ED_outliner_select_sync_from_sequence_tag(const bContext *C)
 {
   wmWindowManager *wm = CTX_wm_manager(C);
   wm->outliner_sync_select_dirty |= WM_OUTLINER_SYNC_SELECT_FROM_SEQUENCE;
@@ -255,17 +251,17 @@ static void outliner_select_sync_to_strip(Scene *scene, const TreeElement *te)
   const TreeStoreElem *tselem = TREESTORE(te);
 
   const TreeElementStrip *te_strip = tree_element_cast<TreeElementStrip>(te);
-  Strip *seq = &te_strip->get_strip();
+  Strip *strip = &te_strip->get_strip();
 
   if (tselem->flag & TSE_ACTIVE) {
-    SEQ_select_active_set(scene, seq);
+    seq::select_active_set(scene, strip);
   }
 
   if (tselem->flag & TSE_SELECTED) {
-    seq->flag |= SELECT;
+    strip->flag |= SELECT;
   }
   else {
-    seq->flag &= ~SELECT;
+    strip->flag &= ~SELECT;
   }
 }
 
@@ -429,16 +425,16 @@ static void outliner_select_sync_from_strip(Strip *strip_active, const TreeEleme
   TreeStoreElem *tselem = TREESTORE(te);
 
   const TreeElementStrip *te_strip = tree_element_cast<TreeElementStrip>(te);
-  const Strip *seq = &te_strip->get_strip();
+  const Strip *strip = &te_strip->get_strip();
 
-  if (seq == strip_active) {
+  if (strip == strip_active) {
     tselem->flag |= TSE_ACTIVE;
   }
   else {
     tselem->flag &= ~TSE_ACTIVE;
   }
 
-  if (seq->flag & SELECT) {
+  if (strip->flag & SELECT) {
     tselem->flag |= TSE_SELECTED;
   }
   else {
@@ -507,7 +503,7 @@ static void get_sync_select_active_data(const bContext *C, SyncSelectActiveData 
   active_data->object = BKE_view_layer_active_object_get(view_layer);
   active_data->edit_bone = CTX_data_active_bone(C);
   active_data->pose_channel = CTX_data_active_pose_bone(C);
-  active_data->strip = SEQ_select_active_get(scene);
+  active_data->strip = seq::select_active_get(scene);
 }
 
 void outliner_sync_selection(const bContext *C,

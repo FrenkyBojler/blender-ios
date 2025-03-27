@@ -13,8 +13,6 @@
 #include "MEM_guardedalloc.h"
 
 #include "DNA_collection_types.h"
-#include "DNA_gpencil_legacy_types.h"
-#include "DNA_linestyle_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
@@ -26,7 +24,6 @@
 #include "DEG_depsgraph.hh"
 
 #include "BLI_listbase.h"
-#include "BLI_string.h"
 #include "BLI_threads.h"
 #include "BLI_utildefines.h"
 
@@ -106,14 +103,14 @@ struct bContext {
 
 bContext *CTX_create()
 {
-  bContext *C = MEM_cnew<bContext>(__func__);
+  bContext *C = MEM_callocN<bContext>(__func__);
 
   return C;
 }
 
 bContext *CTX_copy(const bContext *C)
 {
-  bContext *newC = MEM_cnew<bContext>(__func__);
+  bContext *newC = MEM_callocN<bContext>(__func__);
   *newC = *C;
 
   memset(&newC->wm.operator_poll_msg_dyn_params, 0, sizeof(newC->wm.operator_poll_msg_dyn_params));
@@ -367,7 +364,7 @@ static eContextResult ctx_data_get(bContext *C, const char *member, bContextData
       done = 1;
     }
     else if (std::optional<int64_t> int_value = CTX_store_int_lookup(C->wm.store, member)) {
-      result->int_value = *int_value;
+      result->int_value = int_value;
       result->type = CTX_DATA_TYPE_INT64;
       done = 1;
     }
@@ -612,7 +609,7 @@ static void data_dir_add(ListBase *lb, const char *member, const bool use_all)
     return;
   }
 
-  link = MEM_cnew<LinkData>(__func__);
+  link = MEM_callocN<LinkData>(__func__);
   link->data = (void *)member;
   BLI_addtail(lb, link);
 }
@@ -636,7 +633,7 @@ ListBase CTX_data_dir_get_ex(const bContext *C,
     int namelen;
 
     PropertyRNA *iterprop;
-    PointerRNA ctx_ptr = RNA_pointer_create(nullptr, &RNA_Context, (void *)C);
+    PointerRNA ctx_ptr = RNA_pointer_create_discrete(nullptr, &RNA_Context, (void *)C);
 
     iterprop = RNA_struct_iterator_property(ctx_ptr.type);
 
@@ -708,7 +705,7 @@ void CTX_data_id_pointer_set(bContextDataResult *result, ID *id)
 
 void CTX_data_pointer_set(bContextDataResult *result, ID *id, StructRNA *type, void *data)
 {
-  result->ptr = RNA_pointer_create(id, type, data);
+  result->ptr = RNA_pointer_create_discrete(id, type, data);
 }
 
 void CTX_data_pointer_set_ptr(bContextDataResult *result, const PointerRNA *ptr)
@@ -723,7 +720,7 @@ void CTX_data_id_list_add(bContextDataResult *result, ID *id)
 
 void CTX_data_list_add(bContextDataResult *result, ID *id, StructRNA *type, void *data)
 {
-  result->list.append(RNA_pointer_create(id, type, data));
+  result->list.append(RNA_pointer_create_discrete(id, type, data));
 }
 
 void CTX_data_list_add_ptr(bContextDataResult *result, const PointerRNA *ptr)
@@ -1250,7 +1247,7 @@ enum eContextObjectMode CTX_data_mode_enum_ex(const Object *obedit,
       case OB_GREASE_PENCIL:
         return CTX_MODE_EDIT_GREASE_PENCIL;
       case OB_POINTCLOUD:
-        return CTX_MODE_EDIT_POINT_CLOUD;
+        return CTX_MODE_EDIT_POINTCLOUD;
     }
   }
   else {
@@ -1328,7 +1325,7 @@ static const char *data_mode_strings[] = {
     "lattice_edit",
     "curves_edit",
     "grease_pencil_edit",
-    "point_cloud_edit",
+    "pointcloud_edit",
     "posemode",
     "sculpt_mode",
     "weightpaint",

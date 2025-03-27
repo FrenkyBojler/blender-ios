@@ -119,6 +119,10 @@ typedef enum {
    * Support detecting the physical trackpad direction.
    */
   GHOST_kCapabilityTrackpadPhysicalDirection = (1 << 7),
+  /**
+   * Support for window decoration styles.
+   */
+  GHOST_kCapabilityWindowDecorationStyles = (1 << 8),
 } GHOST_TCapabilityFlag;
 
 /**
@@ -129,7 +133,8 @@ typedef enum {
   (GHOST_kCapabilityCursorWarp | GHOST_kCapabilityWindowPosition | \
    GHOST_kCapabilityPrimaryClipboard | GHOST_kCapabilityGPUReadFrontBuffer | \
    GHOST_kCapabilityClipboardImages | GHOST_kCapabilityDesktopSample | \
-   GHOST_kCapabilityInputIME | GHOST_kCapabilityTrackpadPhysicalDirection)
+   GHOST_kCapabilityInputIME | GHOST_kCapabilityTrackpadPhysicalDirection | \
+   GHOST_kCapabilityWindowDecorationStyles)
 
 /* Xtilt and Ytilt represent how much the pen is tilted away from
  * vertically upright in either the X or Y direction, with X and Y the
@@ -182,6 +187,8 @@ typedef enum {
   GHOST_kModifierKeyRightControl,
   GHOST_kModifierKeyLeftOS,
   GHOST_kModifierKeyRightOS,
+  GHOST_kModifierKeyLeftHyper,
+  GHOST_kModifierKeyRightHyper,
   GHOST_kModifierKeyNum
 } GHOST_TModifierKey;
 
@@ -439,7 +446,10 @@ typedef enum {
   GHOST_kKeyRightAlt,
   GHOST_kKeyLeftOS, /* Command key on Apple, Windows key(s) on Windows. */
   GHOST_kKeyRightOS,
-#define _GHOST_KEY_MODIFIER_MAX GHOST_kKeyRightOS
+
+  GHOST_kKeyLeftHyper, /* Additional modifier on Wayland & X11, see !136340. */
+  GHOST_kKeyRightHyper,
+#define _GHOST_KEY_MODIFIER_MAX GHOST_kKeyRightHyper
 
   GHOST_kKeyGrLess, /* German PC only! */
   GHOST_kKeyApp,    /* Also known as menu key. */
@@ -632,6 +642,9 @@ typedef struct {
   uint8_t **strings;
 } GHOST_TStringArray;
 
+/**
+ * Keep in sync with #wmProgress.
+ */
 typedef enum {
   GHOST_kNotStarted = 0,
   GHOST_kStarting,
@@ -694,6 +707,11 @@ typedef enum {
   /* Can be extended as needed. */
 } GHOST_TUserSpecialDirTypes;
 
+typedef enum {
+  GHOST_kDecorationNone = 0,
+  GHOST_kDecorationColoredTitleBar = (1 << 0),
+} GHOST_TWindowDecorationStyleFlags;
+
 typedef struct {
   /** Number of pixels on a line. */
   uint32_t xPixels;
@@ -720,15 +738,48 @@ typedef struct {
   GHOST_GPUDevice preferred_device;
 } GHOST_GPUSettings;
 
+typedef struct {
+  float colored_titlebar_bg_color[3];
+  float colored_titlebar_fg_color[3];
+} GHOST_WindowDecorationStyleSettings;
+
 #ifdef WITH_VULKAN_BACKEND
 typedef struct {
   /** Image handle to the image that will be presented to the user. */
   VkImage image;
-  /** Format of the image. */
-  VkFormat format;
+  /** Format of the swap chain. */
+  VkSurfaceFormatKHR surface_format;
   /** Resolution of the image. */
   VkExtent2D extent;
+  /** Semaphore to wait before updating the image. */
+  VkSemaphore acquire_semaphore;
+  /** Semaphore to signal after the image has been updated. */
+  VkSemaphore present_semaphore;
 } GHOST_VulkanSwapChainData;
+
+typedef struct {
+  /** Resolution of the framebuffer image. */
+  VkExtent2D extent;
+  /**
+   * Host accessible data containing the image data. Data is stored in the selected swapchain
+   * format.
+   */
+  // NOTE: This is a temporary solution with quite a large performance overhead. The solution we
+  // would like to implement would use VK_KHR_external_memory. The documentation/samples around
+  // using this in our situation is scarce. We will start prototyping in a smaller scale and when
+  // experience is gained, we will implement the solution.
+  void *image_data;
+} GHOST_VulkanOpenXRData;
+
+typedef struct {
+  VkInstance instance;
+  VkPhysicalDevice physical_device;
+  VkDevice device;
+  uint32_t graphic_queue_family;
+  VkQueue queue;
+  void *queue_mutex;
+} GHOST_VulkanHandles;
+
 #endif
 
 typedef enum {
@@ -778,6 +829,7 @@ struct GHOST_XrError;
 typedef enum GHOST_TXrGraphicsBinding {
   GHOST_kXrGraphicsUnknown = 0,
   GHOST_kXrGraphicsOpenGL,
+  GHOST_kXrGraphicsVulkan,
 #  ifdef WIN32
   GHOST_kXrGraphicsD3D11,
 #  endif

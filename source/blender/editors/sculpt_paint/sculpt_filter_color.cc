@@ -12,7 +12,6 @@
 #include "BLI_math_color.h"
 #include "BLI_math_color_blend.h"
 #include "BLI_math_vector.hh"
-#include "BLI_task.h"
 
 #include "BLT_translation.hh"
 
@@ -372,6 +371,7 @@ static void sculpt_color_presmooth_init(const Mesh &mesh, Object &object)
 static void sculpt_color_filter_apply(bContext *C, wmOperator *op, Object &ob)
 {
   const Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(C);
+  const Sculpt &sd = *CTX_data_tool_settings(C)->sculpt;
   SculptSession &ss = *ob.sculpt;
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(ob);
   MutableSpan<bke::pbvh::MeshNode> nodes = pbvh.nodes<bke::pbvh::MeshNode>();
@@ -389,12 +389,17 @@ static void sculpt_color_filter_apply(bContext *C, wmOperator *op, Object &ob)
   }
 
   const IndexMask &node_mask = ss.filter_cache->node_mask;
+  if (auto_mask::is_enabled(sd, ob, nullptr) && ss.filter_cache->automasking &&
+      ss.filter_cache->automasking->settings.flags & BRUSH_AUTOMASKING_CAVITY_ALL)
+  {
+    ss.filter_cache->automasking->calc_cavity_factor(depsgraph, ob, node_mask);
+  }
 
   const OffsetIndices<int> faces = mesh.faces();
   const Span<int> corner_verts = mesh.corner_verts();
   const GroupedSpan<int> vert_to_face_map = mesh.vert_to_face_map();
   bke::GSpanAttributeWriter color_attribute = active_color_attribute_for_write(mesh);
-  const MeshAttributeData attribute_data(mesh.attributes());
+  const MeshAttributeData attribute_data(mesh);
 
   threading::EnumerableThreadSpecific<LocalData> all_tls;
   node_mask.foreach_index(GrainSize(1), [&](const int i) {
@@ -427,7 +432,9 @@ static void sculpt_color_filter_end(bContext *C, Object &ob)
   flush_update_done(C, ob, UpdateType::Color);
 }
 
-static int sculpt_color_filter_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus sculpt_color_filter_modal(bContext *C,
+                                                  wmOperator *op,
+                                                  const wmEvent *event)
 {
   Object &ob = *CTX_data_active_object(C);
   SculptSession &ss = *ob.sculpt;
@@ -507,7 +514,7 @@ static int sculpt_color_filter_init(bContext *C, wmOperator *op)
   return OPERATOR_PASS_THROUGH;
 }
 
-static int sculpt_color_filter_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus sculpt_color_filter_exec(bContext *C, wmOperator *op)
 {
   Object &ob = *CTX_data_active_object(C);
 
@@ -521,7 +528,9 @@ static int sculpt_color_filter_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static int sculpt_color_filter_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus sculpt_color_filter_invoke(bContext *C,
+                                                   wmOperator *op,
+                                                   const wmEvent *event)
 {
   Object &ob = *CTX_data_active_object(C);
   View3D *v3d = CTX_wm_view3d(C);

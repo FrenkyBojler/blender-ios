@@ -9,8 +9,8 @@ API dump in RST files
 
     blender --background --factory-startup --python doc/python_api/sphinx_doc_gen.py
 
-  This will generate python files in doc/python_api/sphinx-in/
-  providing ./blender is or links to the blender executable
+  This will generate Python files in doc/python_api/sphinx-in/
+  providing ./blender is or links to the Blender executable
 
   To choose sphinx-in directory:
     blender --background --factory-startup --python doc/python_api/sphinx_doc_gen.py -- --output=../python_api
@@ -74,8 +74,8 @@ SCRIPT_DIR = os.path.abspath(os.path.dirname(__file__))
 # For now, ignore add-ons and internal sub-classes of `bpy.types.PropertyGroup`.
 #
 # Besides disabling this line, the main change will be to add a
-# 'toctree' to 'write_rst_index' which contains the generated RST files.
-# This 'toctree' can be generated automatically.
+# `toctree` to `write_rst_index` which contains the generated RST files.
+# This `toctree` can be generated automatically.
 #
 # See: D6261 for reference.
 USE_ONLY_BUILTIN_RNA_TYPES = True
@@ -377,7 +377,7 @@ EXTRA_SOURCE_FILES = (
     "../../../scripts/templates_py/bmesh_simple.py",
     "../../../scripts/templates_py/gizmo_operator.py",
     "../../../scripts/templates_py/gizmo_operator_target.py",
-    "../../../scripts/templates_py/gizmo_simple.py",
+    "../../../scripts/templates_py/gizmo_simple_3d.py",
     "../../../scripts/templates_py/operator_simple.py",
     "../../../scripts/templates_py/ui_panel_simple.py",
     "../../../scripts/templates_py/ui_previews_custom_icon.py",
@@ -450,7 +450,7 @@ RNA_BLACKLIST = {
 RST_NOINDEX_ATTR = {
     # Render is both a method and an attribute, from looking into this
     # having both doesn't cause problems in practice since the `render` method
-    # is registered and called from C code where the attribute is accessed from the instance.
+    # is registered and called from C++ code where the attribute is accessed from the instance.
     ("bpy.types", "RenderEngine", "render"),
 }
 
@@ -585,7 +585,8 @@ def generate_changelog():
 
 # --------------------------------API DUMP--------------------------------------
 
-# Lame, python won't give some access.
+# Unfortunately Python doesn't expose direct access to these types.
+# Access them indirectly.
 ClassMethodDescriptorType = type(dict.__dict__["fromkeys"])
 MethodDescriptorType = type(dict.get)
 GetSetDescriptorType = type(int.real)
@@ -865,7 +866,7 @@ def py_descr2sphinx(ident, fw, descr, module_name, type_name, identifier):
 
 def py_c_func2sphinx(ident, fw, module_name, type_name, identifier, py_func, is_class=True):
     """
-    C defined function to sphinx.
+    C/C++ defined function to Sphinx.
     """
 
     # Dump the doc-string, assume its formatted correctly.
@@ -1177,7 +1178,8 @@ context_type_map = {
     "active_object": [("Object", False)],
     "active_operator": [("Operator", False)],
     "active_pose_bone": [("PoseBone", False)],
-    "active_sequence_strip": [("Sequence", False)],
+    "active_sequence_strip": [("Strip", False)],
+    "active_strip": [("Strip", False)],
     "active_editable_fcurve": [("FCurve", False)],
     "active_nla_strip": [("NlaStrip", False)],
     "active_nla_track": [("NlaTrack", False)],
@@ -1237,7 +1239,8 @@ context_type_map = {
     "selected_editable_fcurves": [("FCurve", True)],
     "selected_editable_keyframes": [("Keyframe", True)],
     "selected_editable_objects": [("Object", True)],
-    "selected_editable_sequences": [("Sequence", True)],
+    "selected_editable_sequences": [("Strip", True)],
+    "selected_editable_strips": [("Strip", True)],
     "selected_files": [("FileSelectEntry", True)],
     "selected_ids": [("ID", True)],
     "selected_nla_strips": [("NlaStrip", True)],
@@ -1246,10 +1249,12 @@ context_type_map = {
     "selected_objects": [("Object", True)],
     "selected_pose_bones": [("PoseBone", True)],
     "selected_pose_bones_from_active_object": [("PoseBone", True)],
-    "selected_sequences": [("Sequence", True)],
+    "selected_sequences": [("Strip", True)],
+    "selected_strips": [("Strip", True)],
     "selected_visible_actions": [("Action", True)],
     "selected_visible_fcurves": [("FCurve", True)],
-    "sequences": [("Sequence", True)],
+    "sequences": [("Strip", True)],
+    "strips": [("Strip", True)],
     "soft_body": [("SoftBodyModifier", False)],
     "speaker": [("Speaker", False)],
     "texture": [("Texture", False)],
@@ -1866,14 +1871,14 @@ def pyrna2sphinx(basepath):
             )
 
         if _BPY_PROP_COLLECTION_FAKE:
-            class_value = bpy.data.objects.__class__
+            class_value = bpy.types.bpy_prop_collection
             fake_bpy_type(
                 "bpy.types", class_value, _BPY_PROP_COLLECTION_FAKE,
                 "built-in class used for all collections.", use_subclasses=False,
             )
 
         if _BPY_PROP_COLLECTION_IDPROP_FAKE:
-            class_value = bpy.data.objects.__class__
+            class_value = bpy.types.bpy_prop_collection_idprop
             fake_bpy_type(
                 "bpy.types", class_value, _BPY_PROP_COLLECTION_IDPROP_FAKE,
                 "built-in class used for user defined collections.", use_subclasses=False,
@@ -1882,7 +1887,6 @@ def pyrna2sphinx(basepath):
     # Operators.
     def write_ops():
         API_BASEURL = "https://projects.blender.org/blender/blender/src/branch/main/scripts"
-        API_BASEURL_ADDON = "https://projects.blender.org/blender/blender-addons"
 
         op_modules = {}
         op = None
@@ -1921,13 +1925,8 @@ def pyrna2sphinx(basepath):
 
                 location = op.get_location()
                 if location != (None, None):
-                    if location[0].startswith("addons_core" + os.sep):
-                        url_base = API_BASEURL_ADDON
-                    else:
-                        url_base = API_BASEURL
-
                     fw("   :File: `{:s}\\:{:d} <{:s}/{:s}#L{:d}>`__\n\n".format(
-                        location[0], location[1], url_base, location[0], location[1]
+                        location[0], location[1], API_BASEURL, location[0], location[1]
                     ))
 
                 if op.args:
@@ -1992,7 +1991,7 @@ def write_rst_index(basepath):
         "bpy.path",
         "bpy.app",
 
-        # C modules.
+        # Python C-API modules.
         "bpy.props",
     )
 
@@ -2030,7 +2029,7 @@ def write_rst_index(basepath):
     fw("* :ref:`genindex`\n")
     fw("* :ref:`modindex`\n\n")
 
-    # Special case, this `bmesh.ops.rst` is extracted from C source.
+    # Special case, this `bmesh.ops.rst` is extracted from C++ source.
     if "bmesh.ops" not in EXCLUDE_MODULES:
         execfile(os.path.join(SCRIPT_DIR, "rst_from_bmesh_opdefines.py"))
 

@@ -570,7 +570,7 @@ static PyObject *bpy_rna_enum_items_static(PyObject * /*self*/)
     const int items_count = RNA_enum_items_count(items);
     PyObject *value = PyTuple_New(items_count);
     for (int item_index = 0; item_index < items_count; item_index++) {
-      PointerRNA ptr = RNA_pointer_create(
+      PointerRNA ptr = RNA_pointer_create_discrete(
           nullptr, &RNA_EnumPropertyItem, (void *)&items[item_index]);
       PyTuple_SET_ITEM(value, item_index, pyrna_struct_CreatePyObject(&ptr));
     }
@@ -613,6 +613,10 @@ static PyObject *bpy_wm_capabilities(PyObject *self)
   PyObject *result = nullptr;
   switch (PyObject_GetOptionalAttr(self, py_id_capabilities, &result)) {
     case 1: {
+      BLI_assert(result != nullptr);
+      break;
+    }
+    case 0: {
       result = PyDict_New();
 
       const eWM_CapabilitiesFlag flag = WM_capabilities_flag();
@@ -633,9 +637,6 @@ static PyObject *bpy_wm_capabilities(PyObject *self)
       PyObject_SetAttr(self, py_id_capabilities, result);
       break;
     }
-    case 0:
-      BLI_assert(result != nullptr);
-      break;
     default:
       /* Unlikely, but there may be an error, forward it. */
       BLI_assert(result == nullptr);
@@ -764,7 +765,7 @@ void BPy_init_modules(bContext *C)
   PyModule_AddObject(mod, "_utils_previews", BPY_utils_previews_module());
   PyModule_AddObject(mod, "msgbus", BPY_msgbus_module());
 
-  PointerRNA ctx_ptr = RNA_pointer_create(nullptr, &RNA_Context, C);
+  PointerRNA ctx_ptr = RNA_pointer_create_discrete(nullptr, &RNA_Context, C);
   bpy_context_module = (BPy_StructRNA *)pyrna_struct_CreatePyObject(&ctx_ptr);
   PyModule_AddObject(mod, "context", (PyObject *)bpy_context_module);
 

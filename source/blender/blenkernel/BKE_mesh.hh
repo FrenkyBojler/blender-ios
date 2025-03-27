@@ -12,8 +12,8 @@
 #include "BLI_offset_indices.hh"
 #include "BLI_string_ref.hh"
 
-#include "BKE_mesh.h"
-#include "BKE_mesh_types.hh"
+#include "BKE_mesh.h"         // IWYU pragma: export
+#include "BKE_mesh_types.hh"  // IWYU pragma: export
 
 namespace blender::bke {
 
@@ -192,7 +192,6 @@ void normals_calc_corners(Span<float3> vert_positions,
                           Span<int> corner_verts,
                           Span<int> corner_edges,
                           Span<int> corner_to_face_map,
-                          Span<float3> vert_normals,
                           Span<float3> face_normals,
                           Span<bool> sharp_edges,
                           Span<bool> sharp_faces,
@@ -231,7 +230,7 @@ void normals_corner_custom_set_from_verts(Span<float3> vert_positions,
                                           MutableSpan<short2> r_clnors_data);
 
 /**
- * Define sharp edges as needed to mimic 'autosmooth' from angle threshold.
+ * Define sharp edges as needed to mimic "auto-smooth" from angle threshold.
  *
  * Used when defining an empty custom corner normals data layer,
  * to keep same shading as with auto-smooth!
@@ -410,6 +409,9 @@ void mesh_data_update(Depsgraph &depsgraph,
                       const Scene &scene,
                       Object &ob,
                       const CustomData_MeshMasks &dataMask);
+
+/** Remove strings referring to attributes if they no longer exist. */
+void mesh_remove_invalid_attribute_strings(Mesh &mesh);
 
 const AttributeAccessorFunctions &mesh_attribute_accessor_functions();
 

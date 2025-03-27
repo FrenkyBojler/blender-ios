@@ -138,7 +138,11 @@ ccl_device
 
       // get Disney principled parameters
       const float metallic = saturatef(param1);
+#ifdef __SUBSURFACE__
       const float subsurface_weight = saturatef(param2);
+#else
+      const float subsurface_weight = 0.0f;
+#endif
       const float specular_ior_level = max(stack_load_float(stack, specular_ior_level_offset),
                                            0.0f);
       const float roughness = saturatef(stack_load_float(stack, roughness_offset));
@@ -450,7 +454,6 @@ ccl_device
         sd->flag |= bssrdf_setup(sd, bssrdf, path_flag, subsurface_method);
       }
 #else
-      subsurface_weight = 0.0f;
       (void)data_subsurf;
 #endif
 
@@ -839,7 +842,7 @@ ccl_device
       const AttributeDescriptor attr_descr_random = find_attribute(kg, sd, data_node2.y);
       float random = 0.0f;
       if (attr_descr_random.offset != ATTR_STD_NOT_FOUND) {
-        random = primitive_surface_attribute_float(kg, sd, attr_descr_random, nullptr, nullptr);
+        random = primitive_surface_attribute<float>(kg, sd, attr_descr_random, nullptr, nullptr);
       }
       else {
         random = stack_load_float_default(stack, random_ofs, data_node3.y);
@@ -971,7 +974,7 @@ ccl_device
           if (bsdf->aspect_ratio != 1.0f) {
             /* Align ellipse major axis with the curve normal direction. */
             const AttributeDescriptor attr_descr_normal = find_attribute(kg, sd, shared_ofs2);
-            bsdf->N = curve_attribute_float3(kg, sd, attr_descr_normal, nullptr, nullptr);
+            bsdf->N = curve_attribute<float3>(kg, sd, attr_descr_normal, nullptr, nullptr);
           }
 
           bsdf->roughness = roughness;
@@ -1202,7 +1205,7 @@ ccl_device_noinline int svm_node_principled_volume(KernelGlobals kg,
     /* Density and color attribute lookup if available. */
     const AttributeDescriptor attr_density = find_attribute(kg, sd, attr_node.x);
     if (attr_density.offset != ATTR_STD_NOT_FOUND) {
-      primitive_density = primitive_volume_attribute_float(kg, sd, attr_density);
+      primitive_density = primitive_volume_attribute<float>(kg, sd, attr_density);
       density = fmaxf(density * primitive_density, 0.0f);
     }
   }
@@ -1213,7 +1216,7 @@ ccl_device_noinline int svm_node_principled_volume(KernelGlobals kg,
 
     const AttributeDescriptor attr_color = find_attribute(kg, sd, attr_node.y);
     if (attr_color.offset != ATTR_STD_NOT_FOUND) {
-      color *= rgb_to_spectrum(primitive_volume_attribute_float3(kg, sd, attr_color));
+      color *= rgb_to_spectrum(primitive_volume_attribute<float3>(kg, sd, attr_color));
     }
 
     /* Add closure for volume scattering. */
@@ -1269,7 +1272,7 @@ ccl_device_noinline int svm_node_principled_volume(KernelGlobals kg,
     /* Add flame temperature from attribute if available. */
     const AttributeDescriptor attr_temperature = find_attribute(kg, sd, attr_node.z);
     if (attr_temperature.offset != ATTR_STD_NOT_FOUND) {
-      const float temperature = primitive_volume_attribute_float(kg, sd, attr_temperature);
+      const float temperature = primitive_volume_attribute<float>(kg, sd, attr_temperature);
       T *= fmaxf(temperature, 0.0f);
     }
 

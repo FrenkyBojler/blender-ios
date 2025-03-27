@@ -506,29 +506,15 @@ void GHOST_NDOFManager::sendKeyEvent(GHOST_TKey key,
   system_.pushEvent(event);
 }
 
-void GHOST_NDOFManager::updateButton(int button_number, bool press, uint64_t time)
+void GHOST_NDOFManager::updateButton(GHOST_NDOF_ButtonT button, bool press, uint64_t time)
 {
-  GHOST_NDOF_ButtonT button = static_cast<GHOST_NDOF_ButtonT>(button_number);
-
-  /* For bit-mask devices button mapping isn't unified, therefore check the button map. */
-  if (std::find(bitmask_devices_.begin(), bitmask_devices_.end(), device_type_) !=
-      bitmask_devices_.end())
-  {
-    button = hid_map_[button_number];
-  }
-
   if (button == GHOST_NDOF_BUTTON_INVALID) {
-    CLOG_INFO(
-        LOG, 2, "button=%d, press=%d (mapped to none, ignoring!)", button_number, int(press));
+    CLOG_INFO(LOG, 2, "button=%d, press=%d (mapped to none, ignoring!)", int(button), int(press));
     return;
   }
 
-  CLOG_INFO(LOG,
-            2,
-            "button=%d, press=%d, name=%s",
-            button_number,
-            int(press),
-            ndof_button_names.at(button));
+  CLOG_INFO(
+      LOG, 2, "button=%d, press=%d, name=%s", button, int(press), ndof_button_names.at(button));
 
 #ifndef USE_3DCONNEXION_NONSTANDARD_KEYS
   if (((button >= GHOST_NDOF_BUTTON_KBP_F1) && (button <= GHOST_NDOF_BUTTON_KBP_F12)) ||
@@ -550,6 +536,28 @@ void GHOST_NDOFManager::updateButton(int button_number, bool press, uint64_t tim
       sendButtonEvent(button, press, time, window);
     }
   }
+}
+
+void GHOST_NDOFManager::updateButtonRAW(int button_number, bool press, uint64_t time)
+{
+  GHOST_NDOF_ButtonT button;
+
+  /* For bit-mask devices button mapping isn't unified, therefore check the button map. */
+  if (std::find(bitmask_devices_.begin(), bitmask_devices_.end(), device_type_) !=
+      bitmask_devices_.end())
+  {
+    if (button_number >= hid_map_button_num_) {
+      CLOG_INFO(
+          LOG, 2, "button=%d, press=%d (out of range, ignoring!)", button_number, int(press));
+      return;
+    }
+    button = hid_map_[button_number];
+  }
+  else {
+    button = static_cast<GHOST_NDOF_ButtonT>(button_number);
+  }
+
+  GHOST_NDOFManager::updateButton(button, press, time);
 }
 
 void GHOST_NDOFManager::updateButtonsBitmask(int button_bits, uint64_t time)
@@ -578,7 +586,11 @@ void GHOST_NDOFManager::updateButtonsBitmask(int button_bits, uint64_t time)
       else {
         button_depressed_ &= ~mask; /* Clear this button's bit. */
       }
-      updateButton(button_number, press, time);
+
+      /* Bitmask devices don't have unified keymaps, so button numbers needs to be looked up in the
+       * map. */
+      const GHOST_NDOF_ButtonT button = hid_map_[button_number];
+      updateButton(button, press, time);
     }
   }
 }
@@ -600,8 +612,9 @@ void GHOST_NDOFManager::updateButtonsArray(NDOF_Button_Array buttons,
       }
     }
 
-    if (!found)
+    if (!found) {
       updateButton(cached_button, false, time);
+    }
   }
 
   /* Find pressed buttons */
@@ -614,8 +627,9 @@ void GHOST_NDOFManager::updateButtonsArray(NDOF_Button_Array buttons,
       }
     }
 
-    if (!found)
+    if (!found) {
       updateButton(button, true, time);
+    }
   }
   cache = buttons;
 }
@@ -632,10 +646,8 @@ static CLG_LogRef LOG_NDOF_MOTION = {"ghost.ndof.motion"};
 
 void GHOST_NDOFManager::setDeadZone(float dz)
 {
-  if (dz < 0.0f) {
-    /* Negative values don't make sense, so clamp at zero. */
-    dz = 0.0f;
-  }
+  /* Negative values don't make sense, so clamp at zero. */
+  dz = std::max(dz, 0.0f);
   motion_dead_zone_ = dz;
 
   /* Warn the rogue user/developer about high dead-zone, but allow it. */

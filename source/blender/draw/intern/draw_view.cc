@@ -7,13 +7,20 @@
  */
 
 #include "BLI_math_geom.h"
+#include "BLI_math_matrix.h"
 #include "BLI_math_matrix.hh"
+
+#include "DRW_render.hh"
 #include "GPU_compute.hh"
 #include "GPU_debug.hh"
 
-#include "draw_debug.hh"
+#include "draw_context_private.hh"
 #include "draw_shader.hh"
 #include "draw_view.hh"
+
+#ifdef _DEBUG
+#  include "draw_debug.hh"
+#endif
 
 namespace blender::draw {
 
@@ -96,7 +103,10 @@ void View::frustum_culling_planes_calc(int view_id)
                       culling_[view_id].frustum_planes.planes[2]);
   /* Normalize. */
   for (float4 &plane : culling_[view_id].frustum_planes.planes) {
-    plane /= math::length(plane.xyz());
+    float len = math::length(plane.xyz());
+    if (len != 0.0f) {
+      plane /= len;
+    }
   }
 }
 
@@ -257,7 +267,7 @@ void View::compute_visibility(ObjectBoundsBuf &bounds,
     culling_freeze_[0] = static_cast<ViewCullingData>(culling_[0]);
     culling_freeze_.push_update();
   }
-#ifdef _DEBUG
+#ifdef WITH_DRAW_DEBUG
   if (debug_freeze) {
     float4x4 persmat = data_freeze_[0].winmat * data_freeze_[0].viewmat;
     drw_debug_matrix_as_bbox(math::invert(persmat), float4(0, 1, 0, 1));
@@ -310,12 +320,12 @@ VisibilityBuf &View::get_visibility_buffer()
 
 blender::draw::View &View::default_get()
 {
-  return *DST.vmempool->default_view;
+  return *drw_get().data->default_view;
 }
 
 void View::default_set(const float4x4 &view_mat, const float4x4 &win_mat)
 {
-  DST.vmempool->default_view->sync(view_mat, win_mat);
+  drw_get().data->default_view->sync(view_mat, win_mat);
 }
 
 std::array<float4, 6> View::frustum_planes_get(int view_id)

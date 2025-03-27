@@ -8,6 +8,7 @@ from bl_ui.space_view3d import (
     VIEW3D_PT_shading_lighting,
     VIEW3D_PT_shading_color,
     VIEW3D_PT_shading_options,
+    VIEW3D_PT_shading_cavity,
 )
 from bl_ui.utils import PresetPanel
 
@@ -760,7 +761,8 @@ class CompositorPerformanceButtonsPanel:
         col = layout.column()
         row = col.row()
         row.prop(rd, "compositor_device", text="Device", expand=True)
-        col.prop(rd, "compositor_precision", text="Precision")
+        if rd.compositor_device == 'GPU':
+            col.prop(rd, "compositor_precision", text="Precision")
 
 
 class CompositorDenoisePerformanceButtonsPanel:
@@ -789,7 +791,8 @@ class RENDER_PT_eevee_performance_compositor(RenderButtonsPanel, CompositorPerfo
 
 
 class RENDER_PT_eevee_performance_compositor_denoise_settings(
-        RenderButtonsPanel, CompositorDenoisePerformanceButtonsPanel, Panel):
+        RenderButtonsPanel, CompositorDenoisePerformanceButtonsPanel, Panel,
+):
     bl_options = {'DEFAULT_CLOSED'}
     bl_parent_id = "RENDER_PT_eevee_performance_compositor"
     COMPAT_ENGINES = {
@@ -933,6 +936,10 @@ class RENDER_PT_opengl_options(RenderButtonsPanel, Panel):
 
     def draw(self, context):
         VIEW3D_PT_shading_options.draw(self, context)
+
+        # Cavity properties.
+        VIEW3D_PT_shading_cavity.draw_header(self, context)
+        VIEW3D_PT_shading_cavity.draw(self, context)
 
 
 class RENDER_PT_simplify(RenderButtonsPanel, Panel):

@@ -201,6 +201,11 @@ def draw_kmi(display_keymaps, kc, km, kmi, layout, level):
             subrow.prop(kmi, "alt_ui", toggle=True)
             subrow.prop(kmi, "oskey_ui", text="Cmd", toggle=True)
 
+            # On systems that don't support Hyper, only show if it's enabled.
+            # Otherwise the user may have a key binding that doesn't work and can't be changed.
+            if _platform_supports_hyper_key() or kmi.hyper == 1:
+                subrow.prop(kmi, "hyper_ui", text="Hyper", toggle=True)
+
             subrow.prop(kmi, "key_modifier", text="", event=True)
 
         # Operator properties
@@ -217,6 +222,16 @@ def draw_kmi(display_keymaps, kc, km, kmi, layout, level):
 _EVENT_TYPES = set()
 _EVENT_TYPE_MAP = {}
 _EVENT_TYPE_MAP_EXTRA = {}
+
+_HAS_HYPER_KEY = None
+
+
+def _platform_supports_hyper_key():
+    global _HAS_HYPER_KEY
+    if _HAS_HYPER_KEY is None:
+        from _bpy import _ghost_backend
+        _HAS_HYPER_KEY = _ghost_backend() in {'WAYLAND', 'X11'}
+    return _HAS_HYPER_KEY
 
 
 def draw_filtered(display_keymaps, filter_type, filter_text, layout):
@@ -258,9 +273,15 @@ def draw_filtered(display_keymaps, filter_type, filter_text, layout):
             "ctrl": "ctrl",
             "alt": "alt",
             "shift": "shift",
-            "cmd": "oskey",
             "oskey": "oskey",
+            "hyper": "hyper",
             "any": "any",
+
+            # macOS specific modifiers names
+            "control": "ctrl",
+            "option": "alt",
+            "cmd": "oskey",
+            "command": "oskey",
         }
         # KeyMapItem like dict, use for comparing against
         # attr: {states, ...}

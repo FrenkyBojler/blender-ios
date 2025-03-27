@@ -41,9 +41,9 @@ class Grid : Overlay {
 
   float3 grid_axes_ = float3(0.0f);
   float3 zplane_axes_ = float3(0.0f);
-  int grid_flag_ = int(0);
-  int zneg_flag_ = int(0);
-  int zpos_flag_ = int(0);
+  int grid_flag_ = 0;
+  int zneg_flag_ = 0;
+  int zpos_flag_ = 0;
 
  public:
   void begin_sync(Resources &res, const State &state) final
@@ -57,15 +57,17 @@ class Grid : Overlay {
     }
 
     GPUTexture **depth_tx = state.xray_enabled ? &res.xray_depth_tx : &res.depth_tx;
-    GPUTexture **depth_infront_tx = &res.depth_target_in_front_tx;
+    GPUTexture **depth_infront_tx = state.use_in_front ? &res.depth_target_in_front_tx :
+                                                         &res.dummy_depth_tx;
 
     grid_ps_.init();
     grid_ps_.bind_ubo(OVERLAY_GLOBALS_SLOT, &res.globals_buf);
+    grid_ps_.bind_ubo(DRW_CLIPPING_UBO_SLOT, &res.clip_planes_buf);
     grid_ps_.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_BLEND_ALPHA);
     if (state.is_space_image()) {
       /* Add quad background. */
       auto &sub = grid_ps_.sub("grid_background");
-      sub.shader_set(res.shaders.grid_background.get());
+      sub.shader_set(res.shaders->grid_background.get());
       const float4 color_back = math::interpolate(
           res.theme_settings.color_background, res.theme_settings.color_grid, 0.5);
       sub.push_constant("ucolor", color_back);
@@ -75,7 +77,7 @@ class Grid : Overlay {
     }
     {
       auto &sub = grid_ps_.sub("grid");
-      sub.shader_set(res.shaders.grid.get());
+      sub.shader_set(res.shaders->grid.get());
       sub.bind_ubo("grid_buf", &data_);
       sub.bind_texture("depth_tx", depth_tx, GPUSamplerState::default_sampler());
       sub.bind_texture("depth_infront_tx", depth_infront_tx, GPUSamplerState::default_sampler());
@@ -102,7 +104,7 @@ class Grid : Overlay {
 
       /* Add wire border. */
       auto &sub = grid_ps_.sub("wire_border");
-      sub.shader_set(res.shaders.grid_image.get());
+      sub.shader_set(res.shaders->grid_image.get());
       sub.push_constant("ucolor", theme_color);
       tile_pos_buf_.clear();
       for (const int x : IndexRange(data_.size[0])) {
@@ -247,7 +249,7 @@ class Grid : Overlay {
 
     /* Z axis if needed */
     if (((rv3d->view == RV3D_VIEW_USER) || (rv3d->persp != RV3D_ORTHO)) && show_axis_z) {
-      zpos_flag_ = SHOW_AXIS_Z;
+      zpos_flag_ = zneg_flag_ = SHOW_AXIS_Z;
     }
     else {
       zneg_flag_ = zpos_flag_ = CLIP_ZNEG | CLIP_ZPOS;

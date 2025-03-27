@@ -20,8 +20,6 @@
 #include "UI_resources.hh"
 
 #include "GPU_shader.hh"
-#include "GPU_state.hh"
-#include "GPU_texture.hh"
 
 #include "COM_algorithm_morphological_distance.hh"
 #include "COM_algorithm_morphological_distance_feather.hh"
@@ -45,7 +43,7 @@ static void cmp_node_dilate_declare(NodeDeclarationBuilder &b)
 
 static void node_composit_init_dilateerode(bNodeTree * /*ntree*/, bNode *node)
 {
-  NodeDilateErode *data = MEM_cnew<NodeDilateErode>(__func__);
+  NodeDilateErode *data = MEM_callocN<NodeDilateErode>(__func__);
   data->falloff = PROP_SMOOTH;
   node->storage = data;
 }
@@ -72,8 +70,10 @@ class DilateErodeOperation : public NodeOperation {
 
   void execute() override
   {
-    if (is_identity()) {
-      get_input("Mask").pass_through(get_result("Mask"));
+    if (this->is_identity()) {
+      const Result &input = this->get_input("Mask");
+      Result &output = this->get_result("Mask");
+      output.share_data(input);
       return;
     }
 
@@ -558,14 +558,17 @@ void register_node_type_cmp_dilateerode()
 
   static blender::bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, CMP_NODE_DILATEERODE, "Dilate/Erode", NODE_CLASS_OP_FILTER);
+  cmp_node_type_base(&ntype, "CompositorNodeDilateErode", CMP_NODE_DILATEERODE);
+  ntype.ui_name = "Dilate/Erode";
+  ntype.ui_description = "Expand and shrink masks";
   ntype.enum_name_legacy = "DILATE_ERODE";
+  ntype.nclass = NODE_CLASS_OP_FILTER;
   ntype.draw_buttons = file_ns::node_composit_buts_dilateerode;
   ntype.declare = file_ns::cmp_node_dilate_declare;
   ntype.initfunc = file_ns::node_composit_init_dilateerode;
   blender::bke::node_type_storage(
-      &ntype, "NodeDilateErode", node_free_standard_storage, node_copy_standard_storage);
+      ntype, "NodeDilateErode", node_free_standard_storage, node_copy_standard_storage);
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
 
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }

@@ -16,8 +16,8 @@ set(INC
 
   # For `*_info.hh` includes.
   ../compositor/shaders/infos
-  ../draw/engines/eevee_next
-  ../draw/engines/eevee_next/shaders/infos
+  ../draw/engines/eevee
+  ../draw/engines/eevee/shaders/infos
   ../draw/engines/gpencil
   ../draw/engines/gpencil/shaders/infos
   ../draw/engines/image/shaders/infos
@@ -38,6 +38,7 @@ set(INC
 
   ../../../intern/ghost
   ../../../intern/mantaflow/extern
+  ../../../intern/opensubdiv
 )
 
 if(WITH_BUILDINFO)
@@ -91,11 +92,14 @@ set(SRC
   intern/gpu_state.cc
   intern/gpu_storage_buffer.cc
   intern/gpu_texture.cc
+  intern/gpu_texture_pool.cc
   intern/gpu_uniform_buffer.cc
   intern/gpu_vertex_buffer.cc
   intern/gpu_vertex_format.cc
+  intern/gpu_vertex_format_normals.cc
   intern/gpu_viewport.cc
 
+  GPU_attribute_convert.hh
   GPU_batch.hh
   GPU_batch_presets.hh
   GPU_batch_utils.hh
@@ -123,6 +127,7 @@ set(SRC
   GPU_state.hh
   GPU_storage_buffer.hh
   GPU_texture.hh
+  GPU_texture_pool.hh
   GPU_uniform_buffer.hh
   GPU_vertex_buffer.hh
   GPU_vertex_format.hh
@@ -140,9 +145,11 @@ set(SRC
   intern/gpu_node_graph.hh
   intern/gpu_platform_private.hh
   intern/gpu_private.hh
+  intern/gpu_profile_report.hh
   intern/gpu_query.hh
   intern/gpu_select_private.hh
   intern/gpu_shader_create_info.hh
+  intern/gpu_shader_create_info_list.hh
   intern/gpu_shader_create_info_private.hh
   intern/gpu_shader_dependency_private.hh
   intern/gpu_shader_interface.hh
@@ -216,6 +223,7 @@ set(VULKAN_SRC
   vulkan/vk_descriptor_set.cc
   vulkan/vk_descriptor_set_layouts.cc
   vulkan/vk_device.cc
+  vulkan/vk_device_submission.cc
   vulkan/vk_fence.cc
   vulkan/vk_framebuffer.cc
   vulkan/vk_image_view.cc
@@ -735,6 +743,10 @@ if(WITH_OPENCOLORIO)
   add_definitions(-DWITH_OCIO)
 endif()
 
+if(WITH_OPENSUBDIV)
+  add_definitions(-DWITH_OPENSUBDIV)
+endif()
+
 if(WITH_GPU_BACKEND_TESTS)
   add_definitions(-DWITH_GPU_BACKEND_TESTS)
 endif()
@@ -757,6 +769,10 @@ endif()
 
 if(WITH_OPENCOLORIO)
   target_link_libraries(bf_gpu PUBLIC bf_ocio_shaders)
+endif()
+
+if(WITH_OPENSUBDIV)
+  target_link_libraries(bf_gpu PUBLIC bf_osd_shaders)
 endif()
 
 if(WITH_RENDERDOC)
@@ -811,20 +827,19 @@ if(WITH_GTESTS)
   endif()
 
   # Enable shader validation on build-bot for Metal
-  if(WITH_METAL_BACKEND AND NOT WITH_GPU_DRAW_TESTS)
+  if(WITH_METAL_BACKEND AND NOT WITH_GPU_DRAW_TESTS AND
+     NOT (WITH_GTESTS AND WITH_GPU_BACKEND_TESTS)) # Avoid duplicate source file
     list(APPEND TEST_SRC
       tests/shader_create_info_test.cc
     )
   endif()
 
-  if(TEST_SRC)
-    set(TEST_COMMON_SRC
-      tests/gpu_testing.cc
-      tests/gpu_testing.hh
-    )
+  set(TEST_COMMON_SRC
+    tests/gpu_testing.cc
+    tests/gpu_testing.hh
+  )
 
-    blender_add_test_suite_lib(gpu
-      "${TEST_SRC}" "${INC};${TEST_INC}" "${INC_SYS}" "${LIB};${TEST_LIB}" "${TEST_COMMON_SRC}"
-    )
-  endif()
+  blender_add_test_suite_lib(gpu
+    "${TEST_SRC}" "${INC};${TEST_INC}" "${INC_SYS}" "${LIB};${TEST_LIB}" "${TEST_COMMON_SRC}"
+  )
 endif()
