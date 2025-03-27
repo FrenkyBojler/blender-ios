@@ -945,13 +945,14 @@ static PyObject *op_handler_remove(int handler_id, PyObject *args, PyObject *kw)
     if (py_owner == Py_None && py_cb == Py_None) {
       PyErr_Format(PyExc_TypeError, "missing owner or callback");
     }
-    else if (py_op == Py_None) {
+    else if (handler_id != HANDLER_TYPE_ALL && py_op == Py_None) {
+      /** When removing all handlers, py_op is not set. */
       PyErr_Format(PyExc_TypeError, "Unknown operator");
     }
     else {
       if (WM_op_handlers_remove(op_handlers,
                                 handler_id,
-                                PyUnicode_AsUTF8(py_op),
+                                (py_op != Py_None ? PyUnicode_AsUTF8(py_op) : nullptr),
                                 (py_cb != Py_None ? py_cb : nullptr),
                                 py_owner) == 0)
       {
