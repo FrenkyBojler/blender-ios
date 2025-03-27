@@ -22,12 +22,14 @@
 #include "BLI_path_utils.hh"
 #include "BLI_set.hh"
 #include "BLI_string.h"
+#include "BLI_vector_set.hh"
 
 #include "BLT_translation.hh"
 
 #include "BLO_read_write.hh"
 
 #include "BKE_bpath.hh"
+#include "BKE_id_hash.hh"
 #include "BKE_idtype.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
@@ -406,6 +408,8 @@ Library *blender::bke::library::add_archive_library(Main &bmain, Library &refere
 
 void blender::bke::library::embed_linked_ids(Main &bmain, const blender::Set<ID *> &ids_to_embed)
 {
+  blender::VectorSet<ID *> final_ids_to_embed;
+
   for (ID *id : ids_to_embed) {
     BLI_assert(ID_IS_LINKED(id));
     if (ID_IS_LINKED_EMBEDDED(id)) {
@@ -417,6 +421,20 @@ void blender::bke::library::embed_linked_ids(Main &bmain, const blender::Set<ID 
       /* Already embedded. */
       continue;
     }
+    final_ids_to_embed.add(id);
+  }
+
+  const id_hash::IDHashResult hash_result = id_hash::compute_linked_id_deep_hashes(
+      bmain, final_ids_to_embed.as_span());
+  if (const auto *missing_blend_files = std::get_if<id_hash::MissingBlendFiles>(&hash_result)) {
+    CLOG_ERROR(&LOG,
+               "Trying to embed IDs that depend on missing linked libraries: %s",
+               missing_blend_files->paths[0].c_str());
+    return;
+  }
+  const auto &deep_hashes = std::get<id_hash::ValidDeepHashes>(hash_result);
+
+  for (ID *id : final_ids_to_embed) {
     /* Find an existing archive Library ID not containing a 'version' of this ID yet. */
     Library *reference_lib = id->lib;
     Library *archive_lib = nullptr;
@@ -445,6 +463,8 @@ void blender::bke::library::embed_linked_ids(Main &bmain, const blender::Set<ID 
     BKE_main_namemap_remove_id(bmain, *id);
     id->lib = archive_lib;
     id->flag |= ID_FLAG_LINKED_AND_EMBEDDED;
+    const IDHash &deep_hash = deep_hashes.hashes.lookup(id);
+    id->deep_hash = deep_hash;
     ListBase &lb = *which_libbase(&bmain, GS(id->name));
     BKE_id_new_name_validate(
         bmain, lb, *id, BKE_id_name(*id), IDNewNameMode::RenameExistingNever, true);
