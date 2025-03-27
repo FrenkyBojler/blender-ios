@@ -73,9 +73,9 @@ Object *ArmatureImportContext::create_armature_for_node(const ufbx_node *node)
   if (node != nullptr) {
     this->mapping.el_to_object.add(&node->element, obj);
     if (this->params.use_custom_props) {
-      read_custom_properties(node->props, arm->id, this->params.props_enum_as_string);
+      read_custom_properties(node->props, obj->id, this->params.props_enum_as_string);
     }
-    node_matrix_to_obj(node, obj);
+    node_matrix_to_obj(node, obj, this->mapping);
   }
   else {
     /* For armatures created at root, make them have the same rotation/scale

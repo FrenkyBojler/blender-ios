@@ -402,7 +402,6 @@ void FbxImportContext::import_meshes()
 
       bool matrix_already_set = false;
       Object *parent_to_arm = nullptr;
-      const ufbx_node *parent_to_bone = nullptr;
 
       /* Skinned mesh. */
       if (fmesh->skin_deformers.count > 0) {
@@ -427,59 +426,18 @@ void FbxImportContext::import_meshes()
             ArmatureModifierData *ad = reinterpret_cast<ArmatureModifierData *>(md);
             ad->object = parent_to_arm;
             obj->parent = parent_to_arm;
+
+            /* We are setting mesh parent to the armature, so set the matrix that is
+             * armature-local. */
+            ufbx_matrix arm_to_world;
+            m44_to_matrix(parent_to_arm->runtime->object_to_world.ptr(), arm_to_world);
+            ufbx_matrix world_to_arm = ufbx_matrix_invert(&arm_to_world);
+            ufbx_matrix mtx = ufbx_matrix_mul(&node->node_to_world, &node->geometry_to_node);
+            mtx = ufbx_matrix_mul(&world_to_arm, &mtx);
+            ufbx_matrix_to_obj(mtx, obj);
+            matrix_already_set = true;
           }
         }
-      }
-
-      /* Mesh that is rigidly parented to a bone. */
-      if (!parent_to_arm && node->parent && node->parent->bone) {
-        parent_to_arm = this->mapping.bone_to_armature.lookup_default(node->parent, nullptr);
-        parent_to_bone = node->parent;
-      }
-
-      /* For either skinned meshes or meshes parented to bones, we need to setup their matrices
-       * differently. */
-      if (parent_to_bone && parent_to_arm) {
-        /* We are setting mesh parent to the armature bone. */
-        ufbx_matrix bone_to_world = this->mapping.bone_to_bind_matrix.lookup_default(
-            parent_to_bone, ufbx_identity_matrix);
-        ufbx_matrix world_to_bone = ufbx_matrix_invert(&bone_to_world);
-        ufbx_matrix mtx = ufbx_matrix_mul(&node->node_to_world, &node->geometry_to_node);
-        mtx = ufbx_matrix_mul(&world_to_bone, &mtx);
-
-        ufbx_matrix offset_mtx = ufbx_identity_matrix;
-        offset_mtx.cols[3].y = -this->mapping.bone_to_length.lookup_default(parent_to_bone, 0.0);
-
-        mtx = ufbx_matrix_mul(&offset_mtx, &mtx);
-
-#ifdef FBX_DEBUG_PRINT
-        fprintf(g_debug_file,
-                "parent CHILD %s to ARM %s BONE %s bone_child_mtx:\n",
-                node->name.data,
-                parent_to_arm->id.name + 2,
-                parent_to_bone->name.data);
-        print_matrix(offset_mtx);
-        fprintf(g_debug_file, "- child matrix:\n");
-        print_matrix(mtx);
-#endif
-
-        ufbx_matrix_to_obj(mtx, obj);
-        matrix_already_set = true;
-
-        obj->parent = parent_to_arm;
-        obj->partype = PARBONE;
-        STRNCPY(obj->parsubstr, get_fbx_name(parent_to_bone->name));
-      }
-      else if (parent_to_arm) {
-        /* We are setting mesh parent to the armature, so set the matrix that is
-         * armature-local. */
-        ufbx_matrix arm_to_world;
-        m44_to_matrix(parent_to_arm->runtime->object_to_world.ptr(), arm_to_world);
-        ufbx_matrix world_to_arm = ufbx_matrix_invert(&arm_to_world);
-        ufbx_matrix mtx = ufbx_matrix_mul(&node->node_to_world, &node->geometry_to_node);
-        mtx = ufbx_matrix_mul(&world_to_arm, &mtx);
-        ufbx_matrix_to_obj(mtx, obj);
-        matrix_already_set = true;
       }
 
       /* Assign materials. */
@@ -531,7 +489,7 @@ void FbxImportContext::import_meshes()
         read_custom_properties(node->props, obj->id, this->params.props_enum_as_string);
       }
       if (!matrix_already_set) {
-        node_matrix_to_obj(node, obj);
+        node_matrix_to_obj(node, obj, this->mapping);
       }
       this->mapping.el_to_object.add(&node->element, obj);
     }
@@ -578,7 +536,7 @@ void FbxImportContext::import_cameras()
     if (this->params.use_custom_props) {
       read_custom_properties(node->props, obj->id, this->params.props_enum_as_string);
     }
-    node_matrix_to_obj(node, obj);
+    node_matrix_to_obj(node, obj, this->mapping);
     this->mapping.el_to_object.add(&node->element, obj);
   }
 }
@@ -626,7 +584,7 @@ void FbxImportContext::import_lights()
     if (this->params.use_custom_props) {
       read_custom_properties(node->props, obj->id, this->params.props_enum_as_string);
     }
-    node_matrix_to_obj(node, obj);
+    node_matrix_to_obj(node, obj, this->mapping);
     this->mapping.el_to_object.add(&node->element, obj);
   }
 }
@@ -649,7 +607,7 @@ void FbxImportContext::import_empties()
     if (this->params.use_custom_props) {
       read_custom_properties(node->props, obj->id, this->params.props_enum_as_string);
     }
-    node_matrix_to_obj(node, obj);
+    node_matrix_to_obj(node, obj, this->mapping);
     this->mapping.el_to_object.add(&node->element, obj);
   }
 }
