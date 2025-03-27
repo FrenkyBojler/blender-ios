@@ -479,7 +479,7 @@ void blender::bke::library::embed_linked_id_hierarchy(Main &bmain, ID &root_id)
 
   /* TODO: This code also needs to check upward in the hierarchy to ensure no other linked data
    * uses the root_id (or some of its dependency). Otherwise, these IDs should be duplicated before
-   * being embedded. This is likely similar process as liboverride 'make override hierarcy' code,
+   * being embedded. This is likely similar process as liboverride 'make override hierarchy' code,
    * hopefully we can deduplicate some of this logic into its own utils BKE API. */
   blender::Set<ID *> ids_to_embed;
   ids_to_embed.add(&root_id);
