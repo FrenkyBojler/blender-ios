@@ -39,7 +39,13 @@ class GPUWorker {
   std::atomic_bool terminate_ = false;
 
  public:
-  GPUWorker(uint32_t threads_count, bool share_context, std::function<void()> run_cb);
+  enum class ContextType {
+    Main,
+    Shared,
+    PerThread,
+  };
+
+  GPUWorker(uint32_t threads_count, ContextType context_type, std::function<void()> run_cb);
   ~GPUWorker();
 
   void wake_up()

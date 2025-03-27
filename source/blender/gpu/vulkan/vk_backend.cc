@@ -436,7 +436,7 @@ void VKBackend::platform_exit()
 
 void VKBackend::init_resources()
 {
-  shader_compiler = MEM_new<ShaderCompilerGeneric>(__func__, true, true);
+  shader_compiler = MEM_new<ShaderCompilerGeneric>(__func__, true, GPUWorker::ContextType::Main);
 }
 void VKBackend::delete_resources()
 {

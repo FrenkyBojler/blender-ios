@@ -222,7 +222,8 @@ class ShaderCompilerGeneric : public ShaderCompiler {
   void run_thread();
 
  public:
-  ShaderCompilerGeneric(bool multithreaded = false, bool share_context = true);
+  ShaderCompilerGeneric(bool multithreaded = false,
+                        GPUWorker::ContextType context_type = GPUWorker::ContextType::PerThread);
   ~ShaderCompilerGeneric() override;
 
   BatchHandle batch_compile(Span<const shader::ShaderCreateInfo *> &infos) override;

@@ -967,11 +967,12 @@ Shader *ShaderCompiler::compile(const shader::ShaderCreateInfo &info, bool is_ba
 /** \name ShaderCompilerGeneric
  * \{ */
 
-ShaderCompilerGeneric::ShaderCompilerGeneric(bool multithreaded, bool share_context)
+ShaderCompilerGeneric::ShaderCompilerGeneric(bool multithreaded,
+                                             GPUWorker::ContextType context_type)
 {
   if (!GPU_use_main_context_workaround()) {
     compilation_worker_ = std::make_unique<GPUWorker>(
-        multithreaded ? GPU_max_parallel_compilations() : 1, share_context, [=]() {
+        multithreaded ? GPU_max_parallel_compilations() : 1, context_type, [=]() {
           this->run_thread();
         });
   }

@@ -88,17 +88,20 @@ void GPUSecondaryContext::activate()
   GPU_context_active_set(gpu_context_);
 }
 
-GPUWorker::GPUWorker(uint32_t threads_count, bool share_context, std::function<void()> run_cb)
+GPUWorker::GPUWorker(uint32_t threads_count,
+                     ContextType context_type,
+                     std::function<void()> run_cb)
 {
   std::shared_ptr<GPUSecondaryContext> shared_context = nullptr;
-  if (share_context) {
+  if (context_type == ContextType::Shared) {
     shared_context = std::make_shared<GPUSecondaryContext>();
   }
 
   for (int i : IndexRange(threads_count)) {
     UNUSED_VARS(i);
     std::shared_ptr<GPUSecondaryContext> thread_context =
-        share_context ? shared_context : std::make_shared<GPUSecondaryContext>();
+        context_type == ContextType::PerThread ? std::make_shared<GPUSecondaryContext>() :
+                                                 shared_context;
     threads_.append(std::make_unique<std::thread>([=]() { this->run(thread_context, run_cb); }));
   }
 }
@@ -114,7 +117,9 @@ GPUWorker::~GPUWorker()
 
 void GPUWorker::run(std::shared_ptr<GPUSecondaryContext> context, std::function<void()> run_cb)
 {
-  context->activate();
+  if (context) {
+    context->activate();
+  }
 
   /* Loop until we get the terminate signal. */
   while (!terminate_) {
