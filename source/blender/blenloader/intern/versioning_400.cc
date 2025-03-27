@@ -1292,6 +1292,21 @@ static void do_version_color_to_float_conversion(bNodeTree *node_tree)
   }
 }
 
+static void do_version_bump_filter_width(bNodeTree *node_tree)
+{
+  LISTBASE_FOREACH_MUTABLE (bNode *, node, &node_tree->nodes) {
+    if (node->type_legacy != SH_NODE_BUMP) {
+      continue;
+    }
+
+    bNodeSocket *filter_width_input = blender::bke::node_find_socket(
+        *node, SOCK_IN, "Filter Width");
+    if (filter_width_input) {
+      *version_cycles_node_socket_float_value(filter_width_input) = 1.0f;
+    }
+  }
+}
+
 /* The compositor Value, Color Ramp, Mix Color, Map Range, Map Value, Math, Combine XYZ, Separate
  * XYZ, and Vector Curves nodes are now deprecated and should be replaced by their generic Shader
  * node counterpart. */
@@ -2058,6 +2073,9 @@ void do_versions_after_linking_400(FileData *fd, Main *bmain)
       if (ntree->type == NTREE_COMPOSIT) {
         do_version_color_to_float_conversion(ntree);
       }
+      else if (ntree->type == NTREE_SHADER) {
+        do_version_bump_filter_width(ntree);
+      }
     }
     FOREACH_NODETREE_END;
   }
@@ -2071,7 +2089,7 @@ void do_versions_after_linking_400(FileData *fd, Main *bmain)
     FOREACH_NODETREE_END;
   }
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 10)) {
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 12)) {
     version_node_socket_index_animdata(bmain, NTREE_COMPOSIT, CMP_NODE_GLARE, 3, 1, 14);
     FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
       if (ntree->type == NTREE_COMPOSIT) {
