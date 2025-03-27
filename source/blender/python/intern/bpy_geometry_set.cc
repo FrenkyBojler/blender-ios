@@ -75,19 +75,16 @@ PyDoc_STRVAR(
     ".. staticmethod:: from_evaluated_object(evaluated_object, depsgraph)\n"
     "\n"
     "   :arg evaluated_object: The evaluated object to create a geometry set from.\n"
-    "   :type evaluated_object: bpy.types.Object\n"
-    "   :arg depsgraph: The depsgraph the evaluated object is in.\n"
-    "   :type depsgraph: bpy.types.Depsgraph\n");
+    "   :type evaluated_object: bpy.types.Object\n");
 static BPy_GeometrySet *BPy_GeometrySet_static_from_evaluated_object(PyObject * /*self*/,
                                                                      PyObject *args,
                                                                      PyObject *kwds)
 {
   using namespace blender;
-  static const char *kwlist[] = {"evaluated_object", "depsgraph", nullptr};
+  static const char *kwlist[] = {"evaluated_object", nullptr};
   PyObject *py_evaluated_object;
-  PyObject *py_depsgraph;
   if (!PyArg_ParseTupleAndKeywords(
-          args, kwds, "OO", const_cast<char **>(kwlist), &py_evaluated_object, &py_depsgraph))
+          args, kwds, "O", const_cast<char **>(kwlist), &py_evaluated_object))
   {
     return nullptr;
   }
@@ -124,16 +121,11 @@ static BPy_GeometrySet *BPy_GeometrySet_static_from_evaluated_object(PyObject * 
                     "Object geometry is not yet evaluated, is the depsgraph evaluated?");
     return nullptr;
   }
-  if (!BPy_StructRNA_Check(py_depsgraph)) {
-    PyErr_SetString(PyExc_TypeError, "Expected a depsgraph");
+  Depsgraph *depsgraph = DEG_get_depsgraph_by_id(*evaluated_object_id);
+  if (!depsgraph) {
+    PyErr_SetString(PyExc_TypeError, "Object is not owned by a depsgraph");
     return nullptr;
   }
-  BPy_StructRNA *rna_depsgraph = reinterpret_cast<BPy_StructRNA *>(py_depsgraph);
-  if (!rna_depsgraph->ptr || !RNA_struct_is_a(rna_depsgraph->ptr->type, &RNA_Depsgraph)) {
-    PyErr_SetString(PyExc_TypeError, "Expected a depsgraph");
-    return nullptr;
-  }
-  Depsgraph *depsgraph = static_cast<Depsgraph *>(rna_depsgraph->ptr->data);
   Scene *scene = DEG_get_input_scene(depsgraph);
 
   GeometrySet geometry;

@@ -254,20 +254,16 @@ class Object(_types.ID):
         return tuple(scene for scene in bpy.data.scenes
                      if self in scene.objects[:])
 
-    def evaluated_geometry(self, depsgraph):
+    def evaluated_geometry(self):
         """
-        Get the geometry set that this object is evaluated to in the given depsgraph.
-        This only works for objects that contain geometry data like meshes and curves but not
-        e.g. cameras or empties.
+        Get the evaluated geometry set of this evaluated object. This only works for
+        objects that contain geometry data like meshes and curves but not e.g. cameras.
 
-        :arg depsgraph: The depsgraph the evaluated geometry is retrieved from.
-        :type depsgraph: :class:`bpy.types.Depsgraph`
         :return: The evaluated geometry.
         :rtype: :class:`bpy.types.GeometrySet`
         """
-        ob_eval = self if self.is_evaluated else depsgraph.id_eval_get(self)
         from bpy.types import GeometrySet
-        return GeometrySet.from_evaluated_object(ob_eval, depsgraph)
+        return GeometrySet.from_evaluated_object(self)
 
 
 class WindowManager(_types.ID):
