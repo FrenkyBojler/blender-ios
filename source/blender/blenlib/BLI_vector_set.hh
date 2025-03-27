@@ -196,8 +196,10 @@ class VectorSet {
   {
     if (other.size() > InlineBufferCapacity) {
       keys_ = this->allocate_keys_array(other.usable_slots_);
+      usable_slots_ = other.usable_slots_;
     }
     else {
+      usable_slots_ = InlineBufferCapacity;
       keys_ = inline_buffer_;
     }
     try {
@@ -212,7 +214,6 @@ class VectorSet {
 
     removed_slots_ = other.removed_slots_;
     occupied_and_removed_slots_ = other.occupied_and_removed_slots_;
-    usable_slots_ = other.usable_slots_;
     slot_mask_ = other.slot_mask_;
     hash_ = other.hash_;
     is_equal_ = other.is_equal_;
@@ -766,22 +767,22 @@ class VectorSet {
       throw;
     }
 
-if (usable_slots > InlineBufferCapacity) {
-    Key *new_keys = this->allocate_keys_array(usable_slots);
-    try {
-      uninitialized_relocate_n(keys_, this->size(), new_keys);
-    }
-    catch (...) {
-      this->deallocate_keys_array(new_keys);
-      this->noexcept_reset();
-      throw;
-    }
-    if (!this->is_inline()) {
-      this->deallocate_keys_array(keys_);
-    }
+    if (usable_slots > InlineBufferCapacity) {
+      Key *new_keys = this->allocate_keys_array(usable_slots);
+      try {
+        uninitialized_relocate_n(keys_, this->size(), new_keys);
+      }
+      catch (...) {
+        this->deallocate_keys_array(new_keys);
+        this->noexcept_reset();
+        throw;
+      }
+      if (!this->is_inline()) {
+        this->deallocate_keys_array(keys_);
+      }
 
-    keys_ = new_keys;
-}
+      keys_ = new_keys;
+    }
     occupied_and_removed_slots_ -= removed_slots_;
     usable_slots_ = usable_slots;
     removed_slots_ = 0;
