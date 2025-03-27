@@ -1564,6 +1564,8 @@ ID *WM_drag_asset_id_import(const bContext *C, wmDragAsset *asset_drag, int flag
 blender::Vector<ID *> WM_drag_asset_list_id_import_all(const bContext *C,
                                                        const wmDrag *drag,
                                                        const int flag_extra);
+void WM_drag_asset_list_foreach_asset_idtype(const wmDrag *drag,
+                                             blender::FunctionRef<void(ID_Type)> fn);
 bool WM_drag_asset_will_import_linked(const wmDrag *drag);
 void WM_drag_add_local_ID(wmDrag *drag, ID *id, ID *from_parent);
 ID *WM_drag_get_local_ID(const wmDrag *drag, short idcode);

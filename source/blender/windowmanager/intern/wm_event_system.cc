@@ -3459,7 +3459,7 @@ static eHandlerActionFlag wm_handlers_do_intern(bContext *C,
             if (event->custom == EVT_DATA_DRAGDROP) {
               ListBase *lb = (ListBase *)event->customdata;
               LISTBASE_FOREACH_MUTABLE (wmDrag *, drag, lb) {
-                if (drop->poll(C, drag, event)) {
+                if (drag->drop_state.active_dropbox == drop && drop->poll(C, drag, event)) {
                   wm_drop_prepare(C, drag, drop);
 
                   /* Pass single matched #wmDrag onto the operator. */

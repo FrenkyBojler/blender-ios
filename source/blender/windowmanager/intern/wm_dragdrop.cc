@@ -516,6 +516,24 @@ static wmDropBox *wm_dropbox_active(bContext *C, wmDrag *drag, const wmEvent *ev
   return drop;
 }
 
+static void wm_drop_active_set(const bContext *C, wmDrag *drag, wmDropBox *drop)
+{
+  wmDropBox *drop_prev = drag->drop_state.active_dropbox;
+
+  if (drop != drop_prev) {
+    if (drop_prev && drop_prev->on_exit) {
+      drop_prev->on_exit(drop_prev, drag);
+      BLI_assert(drop_prev->draw_data == nullptr);
+    }
+    if (drop && drop->on_enter) {
+      drop->on_enter(drop, drag);
+    }
+    drag->drop_state.active_dropbox = drop;
+    drag->drop_state.area_from = drop ? CTX_wm_area(C) : nullptr;
+    drag->drop_state.region_from = drop ? CTX_wm_region(C) : nullptr;
+  }
+}
+
 /**
  * Update dropping information for the current mouse position in \a event.
  */
@@ -536,20 +554,8 @@ static void wm_drop_update_active(bContext *C, wmDrag *drag, const wmEvent *even
   drag->drop_state.ui_context = wm_drop_ui_context_create(C);
   drag->drop_state.tooltip = "";
 
-  wmDropBox *drop_prev = drag->drop_state.active_dropbox;
   wmDropBox *drop = wm_dropbox_active(C, drag, event);
-  if (drop != drop_prev) {
-    if (drop_prev && drop_prev->on_exit) {
-      drop_prev->on_exit(drop_prev, drag);
-      BLI_assert(drop_prev->draw_data == nullptr);
-    }
-    if (drop && drop->on_enter) {
-      drop->on_enter(drop, drag);
-    }
-    drag->drop_state.active_dropbox = drop;
-    drag->drop_state.area_from = drop ? CTX_wm_area(C) : nullptr;
-    drag->drop_state.region_from = drop ? CTX_wm_region(C) : nullptr;
-  }
+  wm_drop_active_set(C, drag, drop);
 
   if (!drag->drop_state.active_dropbox) {
     drag->drop_state.ui_context.reset();
@@ -579,16 +585,56 @@ void wm_drop_end(bContext *C, wmDrag * /*drag*/, wmDropBox * /*drop*/)
   CTX_store_set(C, nullptr);
 }
 
+static bool wm_drag_is_multi_items(const wmDrag *drag)
+{
+  return ELEM(drag->type, WM_DRAG_ASSET_LIST) &&
+         BLI_listbase_count_at_most(&drag->asset_items, 2) > 1;
+}
+
 void wm_drags_check_ops(bContext *C, const wmEvent *event)
 {
   wmWindowManager *wm = CTX_wm_manager(C);
 
+  /* 3 passes to handle priorization:
+   * - Handle drags with multiple items. If any drop-box is active, prioritize it since usually
+   *   batch handling is prefered.
+   * - Handle drag types that only support a single item. These usually map to more specific
+   *   drop-boxes, so should be the next best choice.
+   * - Handle drags where the type supports multiple items but only there's only one attached this
+   *   time. Might call un-specific (multi-type) batch operators, so has lowest priority.
+   *
+   * Only one drop-box should be active across all drags, so once #any_active is true, the
+   * remaining drags should be disabled.
+   */
   bool any_active = false;
-  LISTBASE_FOREACH (wmDrag *, drag, &wm->drags) {
-    wm_drop_update_active(C, drag, event);
+  for (int pass = 0; pass < 3; pass++) {
+    LISTBASE_FOREACH (wmDrag *, drag, &wm->drags) {
+      if (pass == 0 && !wm_drag_is_multi_items(drag)) {
+        /* Only handle batch drags. */
+        continue;
+      }
+      if (pass == 1 && (drag->type == WM_DRAG_ASSET_LIST)) {
+        /* Only handle drags that only support a single item. */
+        continue;
+      }
+      if (pass == 2 &&
+          ((drag->type != WM_DRAG_ASSET_LIST) || !BLI_listbase_is_single(&drag->asset_items)))
+      {
+        /* Only handle drags that support multiple items but have only one this time. */
+        continue;
+      }
 
-    if (drag->drop_state.active_dropbox) {
-      any_active = true;
+      /* Disable all other drags. */
+      if (any_active) {
+        wm_drop_active_set(C, drag, nullptr);
+        continue;
+      }
+
+      wm_drop_update_active(C, drag, event);
+
+      if (drag->drop_state.active_dropbox) {
+        any_active = true;
+      }
     }
   }
 
@@ -815,6 +861,22 @@ blender::Vector<ID *> WM_drag_asset_list_id_import_all(const bContext *C,
   }
 
   return dropped_ids;
+}
+
+void WM_drag_asset_list_foreach_asset_idtype(const wmDrag *drag,
+                                             blender::FunctionRef<void(ID_Type)> fn)
+{
+  BLI_assert(drag->type == WM_DRAG_ASSET_LIST);
+  if (drag->type != WM_DRAG_ASSET_LIST) {
+    return;
+  }
+
+  const ListBase *asset_drags = WM_drag_asset_list_get(drag);
+  LISTBASE_FOREACH (wmDragAssetListItem *, asset_item, asset_drags) {
+    if (std::optional<ID_Type> idtype = asset_item->idtype()) {
+      fn(*idtype);
+    }
+  }
 }
 
 bool WM_drag_asset_will_import_linked(const wmDrag *drag)
@@ -1278,6 +1340,14 @@ void wm_drags_draw(bContext *C, wmWindow *win)
 
   wmWindowManager *wm = CTX_wm_manager(C);
 
+  bool has_any_active = false;
+  LISTBASE_FOREACH (wmDrag *, drag, &wm->drags) {
+    if (drag->drop_state.active_dropbox) {
+      has_any_active = true;
+      break;
+    }
+  }
+
   /* Should we support multi-line drag draws? Maybe not, more types mixed won't work well. */
   GPU_blend(GPU_BLEND_ALPHA);
   LISTBASE_FOREACH (wmDrag *, drag, &wm->drags) {
@@ -1296,6 +1366,7 @@ void wm_drags_draw(bContext *C, wmWindow *win)
        * restore it above). */
       if (drag->drop_state.active_dropbox->draw_droptip) {
         drag->drop_state.active_dropbox->draw_droptip(C, win, drag, xy);
+        /* Skip default drawing. */
         continue;
       }
     }
@@ -1304,9 +1375,13 @@ void wm_drags_draw(bContext *C, wmWindow *win)
       CTX_wm_region_set(C, region);
     }
 
-    /* Needs zero offset here or it looks blurry. #128112. */
-    wmWindowViewport_ex(win, 0.0f);
-    wm_drag_draw_default(C, win, drag, xy);
+    /* Only use default drawing if there's no other drag, or this is the active dropbox. */
+    const bool use_default = !has_any_active || drag->drop_state.active_dropbox;
+    if (use_default) {
+      /* Needs zero offset here or it looks blurry. #128112. */
+      wmWindowViewport_ex(win, 0.0f);
+      wm_drag_draw_default(C, win, drag, xy);
+    }
   }
   GPU_blend(GPU_BLEND_NONE);
   CTX_wm_area_set(C, nullptr);

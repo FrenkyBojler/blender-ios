@@ -172,6 +172,28 @@ static bool view3d_mixed_drop_poll(bContext *C, wmDrag *drag, const wmEvent *eve
 
 static void view3d_mixed_drop_copy(bContext * /*C*/, wmDrag * /*drag*/, wmDropBox * /*drop*/) {}
 
+static std::string view3d_mixed_drop_tooltip(bContext * /*C*/,
+                                             wmDrag *drag,
+                                             const int /*xy*/[2],
+                                             wmDropBox * /*drop*/)
+{
+  blender::Set<ID_Type> dragged_types{};
+  int count = 0;
+  /* Get some stats from the dragged ID types to build a good tooltip. */
+  WM_drag_asset_list_foreach_asset_idtype(drag, [&](ID_Type idtype) {
+    dragged_types.add(idtype);
+    count++;
+  });
+
+  /* TODO */
+  // if (dragged_types.size() == 1) {
+  //   if (dragged_types.contains(ID_OB)) {
+  //     // std::
+  //   }
+  // }
+  return TIP_("Add asset(s) to file");
+}
+
 static bool view3d_collection_drop_poll(bContext *C, wmDrag *drag, const wmEvent *event)
 {
   return view3d_drop_id_in_main_region_poll(C, drag, event, ID_GR);
@@ -552,12 +574,12 @@ void view3d_dropboxes()
 
   wmDropBox *drop;
 
-  drop = WM_dropbox_add(lb,
-                        "OBJECT_OT_drag_drop_mixed",
-                        view3d_mixed_drop_poll,
-                        view3d_mixed_drop_copy,
-                        WM_drag_free_imported_drag_ID,
-                        nullptr);
+  WM_dropbox_add(lb,
+                 "OBJECT_OT_drag_drop_mixed",
+                 view3d_mixed_drop_poll,
+                 view3d_mixed_drop_copy,
+                 nullptr,
+                 view3d_mixed_drop_tooltip);
 
   drop = WM_dropbox_add(lb,
                         "OBJECT_OT_add_named",
