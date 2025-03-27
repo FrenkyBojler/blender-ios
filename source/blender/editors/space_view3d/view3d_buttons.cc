@@ -30,6 +30,7 @@
 #include "BLI_math_vector.h"
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
+#include "BLI_vector.hh"
 
 #include "BKE_action.hh"
 #include "BKE_armature.hh"
@@ -46,6 +47,7 @@
 #include "BKE_object_types.hh"
 #include "BKE_report.hh"
 #include "BKE_screen.hh"
+#include "BKE_curves.hh"
 
 #include "DEG_depsgraph.hh"
 
@@ -59,6 +61,7 @@
 #include "ED_object.hh"
 #include "ED_object_vgroup.hh"
 #include "ED_screen.hh"
+#include "ED_grease_pencil.hh"
 
 #include "ANIM_bone_collections.hh"
 
@@ -92,11 +95,16 @@ struct TransformMedian_Lattice {
   float location[3], weight;
 };
 
+struct TransformMedian_GreasePencil {
+  float location[3];
+};
+
 union TransformMedian {
   TransformMedian_Generic generic;
   TransformMedian_Mesh mesh;
   TransformMedian_Curve curve;
   TransformMedian_Lattice lattice;
+  TransformMedian_GreasePencil grease_pencil;
 };
 
 /* temporary struct for storing transform properties */
@@ -293,7 +301,7 @@ static TransformProperties *v3d_transform_props_ensure(View3D *v3d)
 }
 
 /* is used for both read and write... */
-static void v3d_editvertex_buts(uiLayout *layout, View3D *v3d, Object *ob, float lim)
+static void v3d_editvertex_buts(const bContext *C, uiLayout *layout, View3D *v3d, Object *ob, float lim)
 {
   uiBlock *block = (layout) ? uiLayoutAbsoluteBlock(layout) : nullptr;
   TransformProperties *tfp = v3d_transform_props_ensure(v3d);
@@ -467,6 +475,33 @@ static void v3d_editvertex_buts(uiLayout *layout, View3D *v3d, Object *ob, float
     if (totlattdata == 1) {
       data_ptr = RNA_pointer_create_discrete(&lt->id, seltype, selp);
     }
+  }
+  else if (ob->type == OB_GREASE_PENCIL) {
+    using namespace blender;
+    using namespace blender::ed::greasepencil;
+    Scene &scene = *CTX_data_scene(C);
+    GreasePencil &grease_pencil = *static_cast<GreasePencil *>(ob->data);
+    blender::Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(scene,
+                                                                              grease_pencil);
+
+    threading::parallel_for_each(drawings, [&](const MutableDrawingInfo &info) {
+      const bke::CurvesGeometry &curves = info.drawing.strokes();
+      if (curves.is_empty()) {
+        return;
+      }
+      IndexMaskMemory memory;
+      IndexMask selection = retrieve_editable_and_selected_points(
+          *ob, info.drawing, info.layer_index, memory);
+      if (selection.is_empty()) {
+        return;
+      }
+      Span<float3> positions = curves.positions();
+      TransformMedian_GreasePencil *median = &median_basis.grease_pencil;
+      selection.foreach_index([&](const int point_i) {
+        add_v3_v3(median->location, positions[point_i]);
+        tot++;
+      });
+    });
   }
 
   if (tot == 0) {
@@ -1168,6 +1203,34 @@ static void v3d_editvertex_buts(uiLayout *layout, View3D *v3d, Object *ob, float
         bp++;
       }
     }
+    else if (ob->type == OB_GREASE_PENCIL && apply_vcos) {
+      using namespace blender;
+      using namespace blender::ed::greasepencil;
+      Scene &scene = *CTX_data_scene(C);
+      GreasePencil &grease_pencil = *static_cast<GreasePencil *>(ob->data);
+      blender::Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(scene,
+                                                                                grease_pencil);
+
+      threading::parallel_for_each(drawings, [&](const MutableDrawingInfo &info) {
+        bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
+        if (curves.is_empty()) {
+          return;
+        }
+        IndexMaskMemory memory;
+        IndexMask selection = retrieve_editable_and_selected_points(
+            *ob, info.drawing, info.layer_index, memory);
+        if (selection.is_empty()) {
+          return;
+        }
+        MutableSpan<float3> positions = curves.positions_for_write();
+        TransformMedian_GreasePencil *median = &median_basis.grease_pencil;
+        TransformMedian_GreasePencil *ve_median = &ve_median_basis.grease_pencil;
+        selection.foreach_index([&](const int point_i) {
+          apply_raw_diff_v3(positions[point_i], tot, ve_median->location, median->location);
+          int a = 0;
+        });
+      });
+    }
 
     // ED_undo_push(C, "Transform properties");
   }
@@ -1691,7 +1754,7 @@ static void do_view3d_region_buttons(bContext *C, void * /*index*/, int event)
 
     case B_TRANSFORM_PANEL_MEDIAN:
       if (ob) {
-        v3d_editvertex_buts(nullptr, v3d, ob, 1.0);
+        v3d_editvertex_buts(C, nullptr, v3d, ob, 1.0);
         DEG_id_tag_update(static_cast<ID *>(ob->data), ID_RECALC_GEOMETRY);
       }
       break;
@@ -1738,7 +1801,7 @@ static void view3d_panel_transform(const bContext *C, Panel *panel)
     }
     else {
       View3D *v3d = CTX_wm_view3d(C);
-      v3d_editvertex_buts(col, v3d, ob, FLT_MAX);
+      v3d_editvertex_buts(C, col, v3d, ob, FLT_MAX);
     }
   }
   else if (ob->mode & OB_MODE_POSE) {
