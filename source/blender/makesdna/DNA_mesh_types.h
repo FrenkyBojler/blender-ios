@@ -562,8 +562,17 @@ typedef enum eMeshSymmetryType {
   ME_TILE_Y = (1 << 5),
   ME_TILE_Z = (1 << 6),
 } eMeshSymmetryType;
-
+ENUM_OPERATORS(eMeshSymmetryType, ME_TILE_Z);
 #define ME_SYMMETRY_ANY (ME_SYMMETRY_X | ME_SYMMETRY_Y | ME_SYMMETRY_Z)
+
+#ifdef __cplusplus
+inline eMeshSymmetryType operator++(eMeshSymmetryType &flags, int)
+{
+  flags = eMeshSymmetryType(char(flags) + 1);
+  return flags;
+}
+#endif
+
 
 /** #Mesh.lock */
 typedef enum eMeshLockType {

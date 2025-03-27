@@ -1117,7 +1117,7 @@ static void calc_bend_mesh(const Depsgraph &depsgraph,
   const Span<int> verts = node.verts();
   const OrigPositionData orig_data = orig_position_data_get_mesh(object, node);
 
-  const ePaintSymmetryFlags symm = SCULPT_mesh_symmetry_xyz_get(object);
+  const eMeshSymmetryType symm = SCULPT_mesh_symmetry_xyz_get(object);
 
   const MutableSpan<float> factors = gather_data_mesh(vert_factors, verts, tls.factors);
 
@@ -1177,7 +1177,7 @@ static void calc_bend_grids(const Depsgraph &depsgraph,
   const int grid_verts_num = grids.size() * key.grid_area;
   const OrigPositionData orig_data = orig_position_data_get_grids(object, node);
 
-  const ePaintSymmetryFlags symm = SCULPT_mesh_symmetry_xyz_get(object);
+  const eMeshSymmetryType symm = SCULPT_mesh_symmetry_xyz_get(object);
 
   const MutableSpan<float> factors = gather_data_grids(
       subdiv_ccg, vert_factors, grids, tls.factors);
@@ -1243,7 +1243,7 @@ static void calc_bend_bmesh(const Depsgraph &depsgraph,
   Array<float3> orig_normals(verts.size());
   orig_position_data_gather_bmesh(*ss.bm_log, verts, orig_positions, orig_normals);
 
-  const ePaintSymmetryFlags symm = SCULPT_mesh_symmetry_xyz_get(object);
+  const eMeshSymmetryType symm = SCULPT_mesh_symmetry_xyz_get(object);
 
   const MutableSpan<float> factors = gather_data_bmesh(vert_factors, verts, tls.factors);
 
@@ -1406,7 +1406,7 @@ static void calc_slide_mesh(const Depsgraph &depsgraph,
   const Span<int> verts = node.verts();
   const OrigPositionData orig_data = orig_position_data_get_mesh(object, node);
 
-  const ePaintSymmetryFlags symm = SCULPT_mesh_symmetry_xyz_get(object);
+  const eMeshSymmetryType symm = SCULPT_mesh_symmetry_xyz_get(object);
 
   const MutableSpan<float> factors = gather_data_mesh(vert_factors, verts, tls.factors);
 
@@ -1465,7 +1465,7 @@ static void calc_slide_grids(const Depsgraph &depsgraph,
   const int grid_verts_num = grids.size() * key.grid_area;
   const OrigPositionData orig_data = orig_position_data_get_grids(object, node);
 
-  const ePaintSymmetryFlags symm = SCULPT_mesh_symmetry_xyz_get(object);
+  const eMeshSymmetryType symm = SCULPT_mesh_symmetry_xyz_get(object);
 
   const MutableSpan<float> factors = gather_data_grids(
       subdiv_ccg, vert_factors, grids, tls.factors);
@@ -1529,7 +1529,7 @@ static void calc_slide_bmesh(const Depsgraph &depsgraph,
   Array<float3> orig_normals(verts.size());
   orig_position_data_gather_bmesh(*ss.bm_log, verts, orig_positions, orig_normals);
 
-  const ePaintSymmetryFlags symm = SCULPT_mesh_symmetry_xyz_get(object);
+  const eMeshSymmetryType symm = SCULPT_mesh_symmetry_xyz_get(object);
 
   const MutableSpan<float> factors = gather_data_bmesh(vert_factors, verts, tls.factors);
 
@@ -1687,7 +1687,7 @@ static void calc_inflate_mesh(const Depsgraph &depsgraph,
   const Span<int> verts = node.verts();
   const OrigPositionData orig_data = orig_position_data_get_mesh(object, node);
 
-  const ePaintSymmetryFlags symm = SCULPT_mesh_symmetry_xyz_get(object);
+  const eMeshSymmetryType symm = SCULPT_mesh_symmetry_xyz_get(object);
 
   const MutableSpan<float> factors = gather_data_mesh(vert_factors, verts, tls.factors);
 
@@ -1741,7 +1741,7 @@ static void calc_inflate_grids(const Depsgraph &depsgraph,
   const int grid_verts_num = grids.size() * key.grid_area;
   const OrigPositionData orig_data = orig_position_data_get_grids(object, node);
 
-  const ePaintSymmetryFlags symm = SCULPT_mesh_symmetry_xyz_get(object);
+  const eMeshSymmetryType symm = SCULPT_mesh_symmetry_xyz_get(object);
 
   const MutableSpan<float> factors = gather_data_grids(
       subdiv_ccg, vert_factors, grids, tls.factors);
@@ -1800,7 +1800,7 @@ static void calc_inflate_bmesh(const Depsgraph &depsgraph,
   Array<float3> orig_normals(verts.size());
   orig_position_data_gather_bmesh(*ss.bm_log, verts, orig_positions, orig_normals);
 
-  const ePaintSymmetryFlags symm = SCULPT_mesh_symmetry_xyz_get(object);
+  const eMeshSymmetryType symm = SCULPT_mesh_symmetry_xyz_get(object);
 
   const MutableSpan<float> factors = gather_data_bmesh(vert_factors, verts, tls.factors);
 
@@ -1952,7 +1952,7 @@ static void calc_grab_mesh(const Depsgraph &depsgraph,
   const Span<int> verts = node.verts();
   const OrigPositionData orig_data = orig_position_data_get_mesh(object, node);
 
-  const ePaintSymmetryFlags symm = SCULPT_mesh_symmetry_xyz_get(object);
+  const eMeshSymmetryType symm = SCULPT_mesh_symmetry_xyz_get(object);
 
   const MutableSpan<float> factors = gather_data_mesh(vert_factors, verts, tls.factors);
 
@@ -2007,7 +2007,7 @@ static void calc_grab_grids(const Depsgraph &depsgraph,
   const int grid_verts_num = grids.size() * key.grid_area;
   const OrigPositionData orig_data = orig_position_data_get_grids(object, node);
 
-  const ePaintSymmetryFlags symm = SCULPT_mesh_symmetry_xyz_get(object);
+  const eMeshSymmetryType symm = SCULPT_mesh_symmetry_xyz_get(object);
 
   const MutableSpan<float> factors = gather_data_grids(
       subdiv_ccg, vert_factors, grids, tls.factors);
@@ -2067,7 +2067,7 @@ static void calc_grab_bmesh(const Depsgraph &depsgraph,
   Array<float3> orig_normals(verts.size());
   orig_position_data_gather_bmesh(*ss.bm_log, verts, orig_positions, orig_normals);
 
-  const ePaintSymmetryFlags symm = SCULPT_mesh_symmetry_xyz_get(object);
+  const eMeshSymmetryType symm = SCULPT_mesh_symmetry_xyz_get(object);
 
   const MutableSpan<float> factors = gather_data_bmesh(vert_factors, verts, tls.factors);
 
@@ -2225,7 +2225,7 @@ static void calc_twist_mesh(const Depsgraph &depsgraph,
   const Span<int> verts = node.verts();
   const OrigPositionData orig_data = orig_position_data_get_mesh(object, node);
 
-  const ePaintSymmetryFlags symm = SCULPT_mesh_symmetry_xyz_get(object);
+  const eMeshSymmetryType symm = SCULPT_mesh_symmetry_xyz_get(object);
 
   const MutableSpan<float> factors = gather_data_mesh(vert_factors, verts, tls.factors);
 
@@ -2282,7 +2282,7 @@ static void calc_twist_grids(const Depsgraph &depsgraph,
   const int grid_verts_num = grids.size() * key.grid_area;
   const OrigPositionData orig_data = orig_position_data_get_grids(object, node);
 
-  const ePaintSymmetryFlags symm = SCULPT_mesh_symmetry_xyz_get(object);
+  const eMeshSymmetryType symm = SCULPT_mesh_symmetry_xyz_get(object);
 
   const MutableSpan<float> factors = gather_data_grids(
       subdiv_ccg, vert_factors, grids, tls.factors);
@@ -2344,7 +2344,7 @@ static void calc_twist_bmesh(const Depsgraph &depsgraph,
   Array<float3> orig_normals(verts.size());
   orig_position_data_gather_bmesh(*ss.bm_log, verts, orig_positions, orig_normals);
 
-  const ePaintSymmetryFlags symm = SCULPT_mesh_symmetry_xyz_get(object);
+  const eMeshSymmetryType symm = SCULPT_mesh_symmetry_xyz_get(object);
 
   const MutableSpan<float> factors = gather_data_bmesh(vert_factors, verts, tls.factors);
 
@@ -2561,7 +2561,7 @@ static void calc_smooth_mesh(const Sculpt &sd,
   const Span<int> verts = node.verts();
   const OrigPositionData orig_data = orig_position_data_get_mesh(object, node);
 
-  const ePaintSymmetryFlags symm = SCULPT_mesh_symmetry_xyz_get(object);
+  const eMeshSymmetryType symm = SCULPT_mesh_symmetry_xyz_get(object);
 
   const MutableSpan<float> factors = gather_data_mesh(vert_factors, verts, tls.factors);
 
@@ -2630,7 +2630,7 @@ static void calc_smooth_grids(const Sculpt &sd,
   const int grid_verts_num = grids.size() * key.grid_area;
   const OrigPositionData orig_data = orig_position_data_get_grids(object, node);
 
-  const ePaintSymmetryFlags symm = SCULPT_mesh_symmetry_xyz_get(object);
+  const eMeshSymmetryType symm = SCULPT_mesh_symmetry_xyz_get(object);
 
   const MutableSpan<float> factors = gather_data_grids(
       subdiv_ccg, vert_factors, grids, tls.factors);
@@ -2699,7 +2699,7 @@ static void calc_smooth_bmesh(const Sculpt &sd,
   Array<float3> orig_normals(verts.size());
   orig_position_data_gather_bmesh(*ss.bm_log, verts, orig_positions, orig_normals);
 
-  const ePaintSymmetryFlags symm = SCULPT_mesh_symmetry_xyz_get(object);
+  const eMeshSymmetryType symm = SCULPT_mesh_symmetry_xyz_get(object);
 
   const MutableSpan<float> factors = gather_data_bmesh(vert_factors, verts, tls.factors);
 
@@ -3031,7 +3031,7 @@ static void init_falloff_bmesh(BMesh *bm,
 static void init_boundary_mesh(const Depsgraph &depsgraph,
                                Object &object,
                                const Brush &brush,
-                               const ePaintSymmetryFlags symm_area)
+                               const eMeshSymmetryType symm_area)
 {
   const SculptSession &ss = *object.sculpt;
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
@@ -3090,7 +3090,7 @@ static void init_boundary_mesh(const Depsgraph &depsgraph,
 
 static void init_boundary_grids(Object &object,
                                 const Brush &brush,
-                                const ePaintSymmetryFlags symm_area)
+                                const eMeshSymmetryType symm_area)
 {
   const SculptSession &ss = *object.sculpt;
   const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
@@ -3147,7 +3147,7 @@ static void init_boundary_grids(Object &object,
 
 static void init_boundary_bmesh(Object &object,
                                 const Brush &brush,
-                                const ePaintSymmetryFlags symm_area)
+                                const eMeshSymmetryType symm_area)
 {
   const SculptSession &ss = *object.sculpt;
   const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
@@ -3249,7 +3249,7 @@ void do_boundary_brush(const Depsgraph &depsgraph,
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(ob);
   const Brush &brush = *BKE_paint_brush_for_read(&sd.paint);
 
-  const ePaintSymmetryFlags symm_area = ss.cache->mirror_symmetry_pass;
+  const eMeshSymmetryType symm_area = ss.cache->mirror_symmetry_pass;
   if (SCULPT_stroke_is_first_brush_step_of_symmetry_pass(*ss.cache)) {
     switch (pbvh.type()) {
       case bke::pbvh::Type::Mesh:

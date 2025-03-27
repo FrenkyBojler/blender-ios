@@ -14,7 +14,7 @@
 #include "BLI_math_matrix_types.hh"
 #include "BLI_math_vector_types.hh"
 
-#include "DNA_scene_enums.h"
+#include "DNA_mesh_types.h"
 #include "DNA_vec_types.h"
 
 #include "ED_view3d.hh"
@@ -73,8 +73,8 @@ struct GestureData {
   ViewContext vc;
 
   /* Enabled and currently active symmetry. */
-  ePaintSymmetryFlags symm;
-  ePaintSymmetryFlags symmpass;
+  eMeshSymmetryType symm;
+  eMeshSymmetryType symmpass;
 
   /* Operation parameters. */
   ShapeType shape_type;

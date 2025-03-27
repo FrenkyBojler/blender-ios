@@ -218,9 +218,8 @@ static wmOperatorStatus symmetrize_exec(bContext *C, wmOperator *op)
   const Scene &scene = *CTX_data_scene(C);
   const Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(C);
   Object &ob = *CTX_data_active_object(C);
-  const Sculpt &sd = *CTX_data_tool_settings(C)->sculpt;
   SculptSession &ss = *ob.sculpt;
-  Mesh *mesh = static_cast<Mesh *>(ob->data);
+  Mesh *mesh = static_cast<Mesh *>(ob.data);
   const bke::pbvh::Tree *pbvh = bke::object::pbvh_get(ob);
   const float dist = RNA_float_get(op->ptr, "merge_tolerance");
 

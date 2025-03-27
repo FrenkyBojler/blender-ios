@@ -71,7 +71,7 @@ static void init_common(bContext *C, const wmOperator *op, GestureData &gesture_
   gesture_data.ss = object.sculpt;
 
   /* Symmetry. */
-  gesture_data.symm = ePaintSymmetryFlags(SCULPT_mesh_symmetry_xyz_get(object));
+  gesture_data.symm = eMeshSymmetryType(SCULPT_mesh_symmetry_xyz_get(object));
 
   /* View Normal. */
   const float3x3 view_inv(float4x4(gesture_data.vc.rv3d->viewinv));
@@ -282,19 +282,19 @@ GestureData::~GestureData()
 
 static void flip_plane(float out[4], const float in[4], const char symm)
 {
-  if (symm & PAINT_SYMM_X) {
+  if (symm & ME_SYMMETRY_X) {
     out[0] = -in[0];
   }
   else {
     out[0] = in[0];
   }
-  if (symm & PAINT_SYMM_Y) {
+  if (symm & ME_SYMMETRY_Y) {
     out[1] = -in[1];
   }
   else {
     out[1] = in[1];
   }
-  if (symm & PAINT_SYMM_Z) {
+  if (symm & ME_SYMMETRY_Z) {
     out[2] = -in[2];
   }
   else {
@@ -304,7 +304,7 @@ static void flip_plane(float out[4], const float in[4], const char symm)
   out[3] = in[3];
 }
 
-static void flip_for_symmetry_pass(GestureData &gesture_data, const ePaintSymmetryFlags symmpass)
+static void flip_for_symmetry_pass(GestureData &gesture_data, const eMeshSymmetryType symmpass)
 {
   gesture_data.symmpass = symmpass;
   for (int j = 0; j < 4; j++) {
@@ -455,7 +455,7 @@ void apply(bContext &C, GestureData &gesture_data, wmOperator &op)
 
   for (int symmpass = 0; symmpass <= gesture_data.symm; symmpass++) {
     if (SCULPT_is_symmetry_iteration_valid(symmpass, gesture_data.symm)) {
-      flip_for_symmetry_pass(gesture_data, ePaintSymmetryFlags(symmpass));
+      flip_for_symmetry_pass(gesture_data, eMeshSymmetryType(symmpass));
       update_affected_nodes(gesture_data);
 
       operation->apply_for_symmetry_pass(C, gesture_data);

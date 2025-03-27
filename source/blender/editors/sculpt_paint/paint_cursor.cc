@@ -1116,17 +1116,17 @@ static void cursor_draw_point_with_symmetry(const uint gpuattr,
                                             const Object &ob,
                                             const float radius)
 {
-  Mesh *me = static_cast<Mesh *>(ob->data);
+  Mesh *me = static_cast<Mesh *>(ob.data);
   const char symm = SCULPT_mesh_symmetry_xyz_get(ob);
   const int *radsymm = me->radial_symmetry;
   float3 location;
   float symm_rot_mat[4][4];
 
-  for (ePaintSymmetryFlags symmpass = PAINT_SYMM_NONE; symmpass <= symm; symmpass++) {
+  for (eMeshSymmetryType symmpass = ME_SYMMETRY_NONE; symmpass <= symm; symmpass++) {
     if (SCULPT_is_symmetry_iteration_valid(symmpass, symm)) {
       /* Axis Symmetry. */
       location = symmetry_flip(true_location, symmpass);
-      cursor_draw_point_screen_space(gpuattr, region, location, ob->object_to_world().ptr(), 3);
+      cursor_draw_point_screen_space(gpuattr, region, location, ob.object_to_world().ptr(), 3);
 
       /* Tiling. */
       cursor_draw_tiling_preview(gpuattr, region, location, sd, ob, radius);

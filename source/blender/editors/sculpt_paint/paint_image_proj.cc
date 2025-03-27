@@ -5991,12 +5991,12 @@ void *paint_proj_new_stroke(bContext *C, Object *ob, const float mouse[2], int m
       do {
         int z = 0;
         do {
-          symmetry_flag_views[index++] = ((x ? PAINT_SYMM_X : 0) | (y ? PAINT_SYMM_Y : 0) |
-                                          (z ? PAINT_SYMM_Z : 0));
+          symmetry_flag_views[index++] = ((x ? ME_SYMMETRY_X : 0) | (y ? ME_SYMMETRY_Y : 0) |
+                                          (z ? ME_SYMMETRY_Z : 0));
           BLI_assert(index <= ps_handle->ps_views_tot);
-        } while ((z++ == 0) && (ps_handle->symmetry_flags & PAINT_SYMM_Z));
-      } while ((y++ == 0) && (ps_handle->symmetry_flags & PAINT_SYMM_Y));
-    } while ((x++ == 0) && (ps_handle->symmetry_flags & PAINT_SYMM_X));
+        } while ((z++ == 0) && (ps_handle->symmetry_flags & ME_SYMMETRY_Z));
+      } while ((y++ == 0) && (ps_handle->symmetry_flags & ME_SYMMETRY_Y));
+    } while ((x++ == 0) && (ps_handle->symmetry_flags & ME_SYMMETRY_X));
     BLI_assert(index == ps_handle->ps_views_tot);
   }
 

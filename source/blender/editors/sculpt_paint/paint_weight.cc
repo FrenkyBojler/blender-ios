@@ -1699,7 +1699,7 @@ static void wpaint_do_paint(bContext *C,
                             WeightPaintInfo &wpi,
                             Mesh &mesh,
                             Brush &brush,
-                            const ePaintSymmetryFlags symm,
+                            const eMeshSymmetryType symm,
                             const int axis,
                             const int i,
                             const float angle)
@@ -1722,7 +1722,7 @@ static void wpaint_do_radial_symmetry(bContext *C,
                                       WeightPaintInfo &wpi,
                                       Mesh &mesh,
                                       Brush &brush,
-                                      const ePaintSymmetryFlags symm,
+                                      const eMeshSymmetryType symm,
                                       const int axis)
 {
   for (int i = 1; i < wp.radial_symm[axis - 'X']; i++) {
@@ -1744,11 +1744,11 @@ static void wpaint_do_symmetrical_brush_actions(
   int i = 0;
 
   /* initial stroke */
-  cache.mirror_symmetry_pass = ePaintSymmetryFlags(0);
-  wpaint_do_paint(C, ob, wp, wpd, wpi, mesh, brush, ePaintSymmetryFlags(0), 'X', 0, 0);
-  wpaint_do_radial_symmetry(C, ob, wp, wpd, wpi, mesh, brush, ePaintSymmetryFlags(0), 'X');
-  wpaint_do_radial_symmetry(C, ob, wp, wpd, wpi, mesh, brush, ePaintSymmetryFlags(0), 'Y');
-  wpaint_do_radial_symmetry(C, ob, wp, wpd, wpi, mesh, brush, ePaintSymmetryFlags(0), 'Z');
+  cache.mirror_symmetry_pass = eMeshSymmetryType(0);
+  wpaint_do_paint(C, ob, wp, wpd, wpi, mesh, brush, eMeshSymmetryType(0), 'X', 0, 0);
+  wpaint_do_radial_symmetry(C, ob, wp, wpd, wpi, mesh, brush, eMeshSymmetryType(0), 'X');
+  wpaint_do_radial_symmetry(C, ob, wp, wpd, wpi, mesh, brush, eMeshSymmetryType(0), 'Y');
+  wpaint_do_radial_symmetry(C, ob, wp, wpd, wpi, mesh, brush, eMeshSymmetryType(0), 'Z');
 
   cache.symmetry = symm;
 
@@ -1763,7 +1763,7 @@ static void wpaint_do_symmetrical_brush_actions(
    * X; 2 is Y; 3 is XY; 4 is Z; 5 is XZ; 6 is YZ; 7 is XYZ */
   for (i = 1; i <= symm; i++) {
     if (symm & i && (symm != 5 || i != 3) && (symm != 6 || !ELEM(i, 3, 5))) {
-      const ePaintSymmetryFlags symm = ePaintSymmetryFlags(i);
+      const eMeshSymmetryType symm = eMeshSymmetryType(i);
       cache.mirror_symmetry_pass = symm;
       cache.radial_symmetry_pass = 0;
       SCULPT_cache_calc_brushdata_symm(cache, symm, 0, 0);

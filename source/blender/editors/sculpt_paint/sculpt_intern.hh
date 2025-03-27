@@ -258,7 +258,7 @@ struct StrokeCache {
    * 1 is X mirror; 2 is Y mirror; 3 is XY; 4 is Z; 5 is XZ; 6 is YZ; 7 is XYZ */
   int symmetry;
   /* The symmetry pass we are currently on between 0 and 7. */
-  ePaintSymmetryFlags mirror_symmetry_pass;
+  eMeshSymmetryType mirror_symmetry_pass;
   float3 view_normal;
   float3 view_normal_symm;
 
@@ -645,11 +645,11 @@ bool SCULPT_is_vertex_inside_brush_radius_symm(const float vertex[3],
                                                char symm);
 bool SCULPT_is_symmetry_iteration_valid(char i, char symm);
 blender::float3 SCULPT_flip_v3_by_symm_area(const blender::float3 &vector,
-                                            ePaintSymmetryFlags symm,
+                                            eMeshSymmetryType symm,
                                             ePaintSymmetryAreas symmarea,
                                             const blender::float3 &pivot);
 void SCULPT_flip_quat_by_symm_area(float quat[4],
-                                   ePaintSymmetryFlags symm,
+                                   eMeshSymmetryType symm,
                                    ePaintSymmetryAreas symmarea,
                                    const float pivot[3]);
 
@@ -739,7 +739,7 @@ void calc_smooth_translations(const Depsgraph &depsgraph,
  * Used to calculate multiple modifications to the mesh when symmetry is enabled.
  */
 void SCULPT_cache_calc_brushdata_symm(blender::ed::sculpt_paint::StrokeCache &cache,
-                                      ePaintSymmetryFlags symm,
+                                      eMeshSymmetryType symm,
                                       char axis,
                                       float angle);
 

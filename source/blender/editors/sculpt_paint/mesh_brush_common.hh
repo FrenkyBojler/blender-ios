@@ -495,7 +495,7 @@ void calc_translations_to_plane(Span<float3> positions,
 /** Ignores verts outside of a symmetric area defined by a pivot point. */
 void filter_verts_outside_symmetry_area(Span<float3> positions,
                                         const float3 &pivot,
-                                        ePaintSymmetryFlags symm,
+                                        eMeshSymmetryType symm,
                                         MutableSpan<float> factors);
 
 /** Ignore points that fall below the "plane trim" threshold for the brush. */

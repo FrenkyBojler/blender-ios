@@ -350,7 +350,7 @@ BLI_NOINLINE static void add_fake_neighbors(const Span<int> fake_neighbors,
   neighbor_offsets.last() = neighbor_data_with_fake.size();
 }
 
-static void grow_factors_mesh(const ePaintSymmetryFlags symm,
+static void grow_factors_mesh(const eMeshSymmetryType symm,
                               const float3 &pose_initial_position,
                               const Span<float3> vert_positions,
                               const OffsetIndices<int> faces,
@@ -405,7 +405,7 @@ static void grow_factors_mesh(const ePaintSymmetryFlags symm,
   }
 }
 
-static void grow_factors_grids(const ePaintSymmetryFlags symm,
+static void grow_factors_grids(const eMeshSymmetryType symm,
                                const float3 &pose_initial_position,
                                const SubdivCCG &subdiv_ccg,
                                const Span<int> fake_neighbors,
@@ -457,7 +457,7 @@ static void grow_factors_grids(const ePaintSymmetryFlags symm,
   }
 }
 
-static void grow_factors_bmesh(const ePaintSymmetryFlags symm,
+static void grow_factors_bmesh(const eMeshSymmetryType symm,
                                const float3 &pose_initial_position,
                                const Span<int> fake_neighbors,
                                const Span<float> prev_mask,
@@ -505,7 +505,7 @@ static void grow_pose_factor(const Depsgraph &depsgraph,
                              MutableSpan<float> pose_factor)
 {
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(ob);
-  const ePaintSymmetryFlags symm = SCULPT_mesh_symmetry_xyz_get(ob);
+  const eMeshSymmetryType symm = SCULPT_mesh_symmetry_xyz_get(ob);
 
   IndexMaskMemory memory;
   const IndexMask node_mask = bke::pbvh::all_leaf_nodes(pbvh, memory);
@@ -649,7 +649,7 @@ static bool vert_inside_brush_radius(const float3 &vertex,
 {
   for (char i = 0; i <= symm; ++i) {
     if (SCULPT_is_symmetry_iteration_valid(i, symm)) {
-      const float3 location = symmetry_flip(br_co, ePaintSymmetryFlags(i));
+      const float3 location = symmetry_flip(br_co, eMeshSymmetryType(i));
       if (math::distance(location, vertex) < radius) {
         return true;
       }
@@ -2036,7 +2036,7 @@ static void calc_squash_stretch_deform(SculptSession &ss, const Brush & /*brush*
 }
 
 static void align_pivot_local_space(float r_mat[4][4],
-                                    ePaintSymmetryFlags symm,
+                                    eMeshSymmetryType symm,
                                     ePaintSymmetryAreas symm_area,
                                     IKChainSegment *segment,
                                     const float3 &grab_location)
@@ -2060,7 +2060,7 @@ void do_pose_brush(const Depsgraph &depsgraph,
   SculptSession &ss = *ob.sculpt;
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(ob);
   const Brush &brush = *BKE_paint_brush_for_read(&sd.paint);
-  const ePaintSymmetryFlags symm = ePaintSymmetryFlags(SCULPT_mesh_symmetry_xyz_get(ob));
+  const eMeshSymmetryType symm = eMeshSymmetryType(SCULPT_mesh_symmetry_xyz_get(ob));
 
   /* The pose brush applies all enabled symmetry axis in a single iteration, so the rest can be
    * ignored. */

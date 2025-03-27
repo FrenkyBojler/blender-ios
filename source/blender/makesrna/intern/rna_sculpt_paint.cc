@@ -604,29 +604,6 @@ static void rna_def_paint(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop, "Input Samples", "Average multiple input samples together to smooth the brush stroke");
 
-  prop = RNA_def_property(srna, "use_symmetry_x", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "symmetry_flags", PAINT_SYMM_X);
-  RNA_def_property_ui_text(prop, "Symmetry X", "Mirror brush across the X axis");
-  RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr);
-
-  prop = RNA_def_property(srna, "use_symmetry_y", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "symmetry_flags", PAINT_SYMM_Y);
-  RNA_def_property_ui_text(prop, "Symmetry Y", "Mirror brush across the Y axis");
-  RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr);
-
-  prop = RNA_def_property(srna, "use_symmetry_z", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "symmetry_flags", PAINT_SYMM_Z);
-  RNA_def_property_ui_text(prop, "Symmetry Z", "Mirror brush across the Z axis");
-  RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr);
-
-  prop = RNA_def_property(srna, "use_symmetry_feather", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "symmetry_flags", PAINT_SYMMETRY_FEATHER);
-  RNA_def_property_ui_text(prop,
-                           "Symmetry Feathering",
-                           "Reduce the strength of the brush where it overlaps symmetrical daubs");
-
-  RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr);
-
   prop = RNA_def_property(srna, "cavity_curve", PROP_POINTER, PROP_NONE);
   RNA_def_property_flag(prop, PROP_NEVER_NULL);
   RNA_def_property_ui_text(prop, "Curve", "Editable cavity curve");
@@ -635,6 +612,16 @@ static void rna_def_paint(BlenderRNA *brna)
   prop = RNA_def_property(srna, "use_cavity", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flags", PAINT_USE_CAVITY_MASK);
   RNA_def_property_ui_text(prop, "Cavity Mask", "Mask painting according to mesh geometry cavity");
+  RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr);
+
+  prop = RNA_def_property(srna, "tile_x", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "symmetry_flags", PAINT_TILE_X);
+  RNA_def_property_ui_text(prop, "Tile X", "Tile along X axis");
+  RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr);
+
+  prop = RNA_def_property(srna, "tile_y", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "symmetry_flags", PAINT_TILE_Y);
+  RNA_def_property_ui_text(prop, "Tile Y", "Tile along Y axis");
   RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr);
 }
 

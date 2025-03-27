@@ -485,22 +485,22 @@ bool facemask_paint_poll(bContext *C);
 
 namespace blender::ed::sculpt_paint {
 
-inline float3 symmetry_flip(const float3 &src, const ePaintSymmetryFlags symm)
+inline float3 symmetry_flip(const float3 &src, const eMeshSymmetryType symm)
 {
   float3 dst;
-  if (symm & PAINT_SYMM_X) {
+  if (symm & ME_SYMMETRY_X) {
     dst.x = -src.x;
   }
   else {
     dst.x = src.x;
   }
-  if (symm & PAINT_SYMM_Y) {
+  if (symm & ME_SYMMETRY_Y) {
     dst.y = -src.y;
   }
   else {
     dst.y = src.y;
   }
-  if (symm & PAINT_SYMM_Z) {
+  if (symm & ME_SYMMETRY_Z) {
     dst.z = -src.z;
   }
   else {
