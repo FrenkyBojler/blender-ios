@@ -300,7 +300,7 @@ struct SnapTarget {
   bool use_snap_treshold;
 };
 
-static int seq_frame_apply_snap(bContext *C, const int timeline_frame)
+static blender::Vector<SnapTarget> seq_frame_apply_snap(bContext *C, const int timeline_frame)
 {
   Scene *scene = CTX_data_scene(C);
   ToolSettings *tool_settings = scene->toolsettings;
@@ -331,24 +331,150 @@ static int seq_frame_apply_snap(bContext *C, const int timeline_frame)
     targets.append({snap_target, false});
   }
 
+  return targets;
+}
+
+static blender::Vector<SnapTarget> action_frame_apply_snap(bContext *C,
+                                                           ChangeFrameData &op_data,
+                                                           const int timeline_frame)
+{
+  Scene *scene = CTX_data_scene(C);
+  ToolSettings *tool_settings = scene->toolsettings;
+
+  blender::Vector<SnapTarget> targets;
+
+  if (tool_settings->snap_playhead_mode & SCE_SNAP_TO_MARKERS) {
+    const int snap_target = get_marker_snap_target(scene, timeline_frame);
+    targets.append({snap_target, true});
+  }
+
+  if (tool_settings->snap_playhead_mode & SCE_SNAP_TO_SECOND) {
+    const int snap_target = get_second_snap_target(
+        scene, timeline_frame, tool_settings->snap_step_seconds);
+    targets.append({snap_target, false});
+  }
+
+  if (tool_settings->snap_playhead_mode & SCE_SNAP_TO_FRAME) {
+    const int snap_target = get_frame_snap_target(
+        scene, timeline_frame, tool_settings->snap_step_frames);
+    targets.append({snap_target, false});
+  }
+
+  if (tool_settings->snap_playhead_mode & SCE_SNAP_TO_KEYS) {
+    /* Snapping should probably happen in floats. */
+    const int snap_target = get_keyframe_snap_target(C, op_data, timeline_frame);
+    targets.append({snap_target, true});
+  }
+
+  return targets;
+}
+
+static blender::Vector<SnapTarget> graph_frame_apply_snap(bContext *C,
+                                                          ChangeFrameData &op_data,
+                                                          const int timeline_frame)
+{
+  Scene *scene = CTX_data_scene(C);
+  ToolSettings *tool_settings = scene->toolsettings;
+
+  blender::Vector<SnapTarget> targets;
+
+  if (tool_settings->snap_playhead_mode & SCE_SNAP_TO_MARKERS) {
+    const int snap_target = get_marker_snap_target(scene, timeline_frame);
+    targets.append({snap_target, true});
+  }
+
+  if (tool_settings->snap_playhead_mode & SCE_SNAP_TO_SECOND) {
+    const int snap_target = get_second_snap_target(
+        scene, timeline_frame, tool_settings->snap_step_seconds);
+    targets.append({snap_target, false});
+  }
+
+  if (tool_settings->snap_playhead_mode & SCE_SNAP_TO_FRAME) {
+    const int snap_target = get_frame_snap_target(
+        scene, timeline_frame, tool_settings->snap_step_frames);
+    targets.append({snap_target, false});
+  }
+
+  if (tool_settings->snap_playhead_mode & SCE_SNAP_TO_KEYS) {
+    /* Snapping should probably happen in floats. */
+    const int snap_target = get_keyframe_snap_target(C, op_data, timeline_frame);
+    targets.append({snap_target, true});
+  }
+
+  return targets;
+}
+
+static blender::Vector<SnapTarget> nla_frame_apply_snap(bContext *C, const int timeline_frame)
+{
+  Scene *scene = CTX_data_scene(C);
+  ToolSettings *tool_settings = scene->toolsettings;
+
+  blender::Vector<SnapTarget> targets;
+
+  if (tool_settings->snap_playhead_mode & SCE_SNAP_TO_STRIPS) {
+    const int snap_target = get_nla_strip_snap_target(C, timeline_frame);
+    targets.append({snap_target, true});
+  }
+
+  if (tool_settings->snap_playhead_mode & SCE_SNAP_TO_MARKERS) {
+    const int snap_target = get_marker_snap_target(scene, timeline_frame);
+    targets.append({snap_target, true});
+  }
+
+  if (tool_settings->snap_playhead_mode & SCE_SNAP_TO_SECOND) {
+    const int snap_target = get_second_snap_target(
+        scene, timeline_frame, tool_settings->snap_step_seconds);
+    targets.append({snap_target, false});
+  }
+
+  if (tool_settings->snap_playhead_mode & SCE_SNAP_TO_FRAME) {
+    const int snap_target = get_frame_snap_target(
+        scene, timeline_frame, tool_settings->snap_step_frames);
+    targets.append({snap_target, false});
+  }
+
+  return targets;
+}
+
+static float apply_frame_snap(bContext *C, ChangeFrameData &op_data, const float frame)
+{
+  Scene *scene = CTX_data_scene(C);
+  ScrArea *area = CTX_wm_area(C);
+  blender::Vector<SnapTarget> targets;
+  switch (area->spacetype) {
+    case SPACE_SEQ:
+      targets = seq_frame_apply_snap(C, frame);
+    case SPACE_ACTION:
+      targets = action_frame_apply_snap(C, op_data, frame);
+    case SPACE_GRAPH:
+      targets = graph_frame_apply_snap(C, op_data, frame);
+    case SPACE_NLA:
+      targets = nla_frame_apply_snap(C, frame);
+    default:
+      break;
+  }
+
   int snap_frame = MAXFRAME;
 
+  /* Find closest frame of all targets. */
   for (const SnapTarget &target : targets) {
-    if (abs(target.pos - timeline_frame) < abs(snap_frame - timeline_frame)) {
+    if (abs(target.pos - frame) < abs(snap_frame - frame)) {
       snap_frame = target.pos;
     }
   }
 
-  if (abs(snap_frame - timeline_frame) < seq_snap_threshold_get_frame_distance(C)) {
+  const ARegion *region = CTX_wm_region(C);
+  if (abs(snap_frame - frame) < get_snap_threshold(region)) {
     return snap_frame;
   }
 
   snap_frame = MAXFRAME;
+  /* No frame is close enough to the snap threshold. Hard snap to targets without a threshold. */
   for (const SnapTarget &target : targets) {
     if (target.use_snap_treshold) {
       continue;
     }
-    if (abs(target.pos - timeline_frame) < abs(snap_frame - timeline_frame)) {
+    if (abs(target.pos - frame) < abs(snap_frame - frame)) {
       snap_frame = target.pos;
     }
   }
@@ -357,161 +483,7 @@ static int seq_frame_apply_snap(bContext *C, const int timeline_frame)
     return snap_frame;
   }
 
-  return timeline_frame;
-}
-
-static int action_frame_apply_snap(bContext *C, ChangeFrameData &op_data, const int timeline_frame)
-{
-  Scene *scene = CTX_data_scene(C);
-  ToolSettings *tool_settings = scene->toolsettings;
-
-  int snap_frame = MAXFRAME;
-
-  if (tool_settings->snap_playhead_mode & SCE_SNAP_TO_MARKERS) {
-    const int snap_target = get_marker_snap_target(scene, timeline_frame);
-    if (abs(snap_target - timeline_frame) < abs(snap_frame - timeline_frame)) {
-      snap_frame = snap_target;
-    }
-  }
-
-  if (tool_settings->snap_playhead_mode & SCE_SNAP_TO_SECOND) {
-    const int snap_target = get_second_snap_target(
-        scene, timeline_frame, tool_settings->snap_step_seconds);
-    if (abs(snap_target - timeline_frame) < abs(snap_frame - timeline_frame)) {
-      snap_frame = snap_target;
-    }
-  }
-
-  if (tool_settings->snap_playhead_mode & SCE_SNAP_TO_FRAME) {
-    const int snap_target = get_frame_snap_target(
-        scene, timeline_frame, tool_settings->snap_step_frames);
-    if (abs(snap_target - timeline_frame) < abs(snap_frame - timeline_frame)) {
-      snap_frame = snap_target;
-    }
-  }
-
-  if (tool_settings->snap_playhead_mode & SCE_SNAP_TO_KEYS) {
-    const int snap_target = get_keyframe_snap_target(C, op_data, timeline_frame);
-    /* Snapping should probably happen in floats. */
-    if (abs(snap_target - timeline_frame) < abs(snap_frame - timeline_frame)) {
-      snap_frame = snap_target;
-    }
-  }
-
-  const ARegion *region = CTX_wm_region(C);
-  if (abs(snap_frame - timeline_frame) < get_snap_threshold(region)) {
-    return snap_frame;
-  }
-
-  return timeline_frame;
-}
-
-static int graph_frame_apply_snap(bContext *C, ChangeFrameData &op_data, const int timeline_frame)
-{
-  Scene *scene = CTX_data_scene(C);
-  ToolSettings *tool_settings = scene->toolsettings;
-  int snap_frame = MAXFRAME;
-
-  if (tool_settings->snap_playhead_mode & SCE_SNAP_TO_MARKERS) {
-    const int snap_target = get_marker_snap_target(scene, timeline_frame);
-    if (abs(snap_target - timeline_frame) < abs(snap_frame - timeline_frame)) {
-      snap_frame = snap_target;
-    }
-  }
-
-  if (tool_settings->snap_playhead_mode & SCE_SNAP_TO_SECOND) {
-    const int snap_target = get_second_snap_target(
-        scene, timeline_frame, tool_settings->snap_step_seconds);
-    if (abs(snap_target - timeline_frame) < abs(snap_frame - timeline_frame)) {
-      snap_frame = snap_target;
-    }
-  }
-
-  if (tool_settings->snap_playhead_mode & SCE_SNAP_TO_FRAME) {
-    const int snap_target = get_frame_snap_target(
-        scene, timeline_frame, tool_settings->snap_step_frames);
-    if (abs(snap_target - timeline_frame) < abs(snap_frame - timeline_frame)) {
-      snap_frame = snap_target;
-    }
-  }
-
-  if (tool_settings->snap_playhead_mode & SCE_SNAP_TO_KEYS) {
-    const int snap_target = get_keyframe_snap_target(C, op_data, timeline_frame);
-    /* Snapping should probably happen in floats. */
-    if (abs(snap_target - timeline_frame) < abs(snap_frame - timeline_frame)) {
-      snap_frame = snap_target;
-    }
-  }
-
-  const ARegion *region = CTX_wm_region(C);
-  if (abs(snap_frame - timeline_frame) < get_snap_threshold(region)) {
-    return snap_frame;
-  }
-
-  return timeline_frame;
-}
-
-static int nla_frame_apply_snap(bContext *C, const int timeline_frame)
-{
-  Scene *scene = CTX_data_scene(C);
-  ToolSettings *tool_settings = scene->toolsettings;
-  int snap_frame = MAXFRAME;
-
-  if (tool_settings->snap_playhead_mode & SCE_SNAP_TO_STRIPS) {
-    const int snap_target = get_nla_strip_snap_target(C, timeline_frame);
-    if (abs(snap_target - timeline_frame) < abs(snap_frame - timeline_frame)) {
-      snap_frame = snap_target;
-    }
-  }
-
-  if (tool_settings->snap_playhead_mode & SCE_SNAP_TO_MARKERS) {
-    const int snap_target = get_marker_snap_target(scene, timeline_frame);
-    if (abs(snap_target - timeline_frame) < abs(snap_frame - timeline_frame)) {
-      snap_frame = snap_target;
-    }
-  }
-
-  if (tool_settings->snap_playhead_mode & SCE_SNAP_TO_SECOND) {
-    const int snap_target = get_second_snap_target(
-        scene, timeline_frame, tool_settings->snap_step_seconds);
-    if (abs(snap_target - timeline_frame) < abs(snap_frame - timeline_frame)) {
-      snap_frame = snap_target;
-    }
-  }
-
-  if (tool_settings->snap_playhead_mode & SCE_SNAP_TO_FRAME) {
-    const int snap_target = get_frame_snap_target(
-        scene, timeline_frame, tool_settings->snap_step_frames);
-    if (abs(snap_target - timeline_frame) < abs(snap_frame - timeline_frame)) {
-      snap_frame = snap_target;
-    }
-  }
-
-  const ARegion *region = CTX_wm_region(C);
-  if (abs(snap_frame - timeline_frame) < get_snap_threshold(region)) {
-    return snap_frame;
-  }
-  return timeline_frame;
-}
-
-static float apply_frame_snap(bContext *C, ChangeFrameData &op_data, const float frame)
-{
-  Scene *scene = CTX_data_scene(C);
-  ScrArea *area = CTX_wm_area(C);
-  switch (area->spacetype) {
-    case SPACE_SEQ:
-      return seq_frame_apply_snap(C, frame);
-    case SPACE_ACTION:
-      return action_frame_apply_snap(C, op_data, frame);
-    case SPACE_GRAPH:
-      return graph_frame_apply_snap(C, op_data, frame);
-    case SPACE_NLA:
-      return nla_frame_apply_snap(C, frame);
-    default:
-      break;
-  }
-
-  return BKE_scene_frame_snap_by_seconds(scene, 1.0, frame);
+  return frame;
 }
 
 /* Set the new frame number */
