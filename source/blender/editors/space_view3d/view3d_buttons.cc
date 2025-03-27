@@ -36,6 +36,7 @@
 #include "BKE_armature.hh"
 #include "BKE_context.hh"
 #include "BKE_curve.hh"
+#include "BKE_curves.hh"
 #include "BKE_customdata.hh"
 #include "BKE_deform.hh"
 #include "BKE_editmesh.hh"
@@ -47,7 +48,6 @@
 #include "BKE_object_types.hh"
 #include "BKE_report.hh"
 #include "BKE_screen.hh"
-#include "BKE_curves.hh"
 
 #include "DEG_depsgraph.hh"
 
@@ -57,12 +57,12 @@
 #include "RNA_access.hh"
 #include "RNA_prototypes.hh"
 
+#include "ED_curves.hh"
+#include "ED_grease_pencil.hh"
 #include "ED_mesh.hh"
 #include "ED_object.hh"
 #include "ED_object_vgroup.hh"
 #include "ED_screen.hh"
-#include "ED_grease_pencil.hh"
-#include "ED_curves.hh"
 
 #include "ANIM_bone_collections.hh"
 
@@ -307,7 +307,8 @@ static TransformProperties *v3d_transform_props_ensure(View3D *v3d)
 }
 
 /* is used for both read and write... */
-static void v3d_editvertex_buts(const bContext *C, uiLayout *layout, View3D *v3d, Object *ob, float lim)
+static void v3d_editvertex_buts(
+    const bContext *C, uiLayout *layout, View3D *v3d, Object *ob, float lim)
 {
   uiBlock *block = (layout) ? uiLayoutAbsoluteBlock(layout) : nullptr;
   TransformProperties *tfp = v3d_transform_props_ensure(v3d);
