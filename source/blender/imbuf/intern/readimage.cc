@@ -111,12 +111,12 @@ static void imb_handle_colorspace_and_alpha(ImBuf *ibuf,
   colormanage_imbuf_make_linear(ibuf, new_colorspace);
 }
 
-ImBuf *imb_from_memory(const uchar *mem,
-                       size_t size,
-                       int flags,
-                       char colorspace[IM_MAX_SPACE],
-                       const char *filepath,
-                       const char *descr)
+ImBuf *IMB_ibImageFromMemory(const uchar *mem,
+                             size_t size,
+                             int flags,
+                             char colorspace[IM_MAX_SPACE],
+                             const char *descr,
+                             const char *filepath)
 {
   ImBuf *ibuf;
   const ImFileType *type;
@@ -145,12 +145,6 @@ ImBuf *imb_from_memory(const uchar *mem,
   return nullptr;
 }
 
-ImBuf *IMB_ibImageFromMemory(
-    const uchar *mem, size_t size, int flags, char colorspace[IM_MAX_SPACE], const char *descr)
-{
-  return imb_from_memory(mem, size, flags, colorspace, nullptr, descr);
-}
-
 ImBuf *IMB_loadifffile(int file, int flags, char colorspace[IM_MAX_SPACE], const char *filepath)
 {
   ImBuf *ibuf;
@@ -170,7 +164,7 @@ ImBuf *IMB_loadifffile(int file, int flags, char colorspace[IM_MAX_SPACE], const
   const uchar *mem = static_cast<const uchar *>(BLI_mmap_get_pointer(mmap_file));
   const size_t size = BLI_mmap_get_length(mmap_file);
 
-  ibuf = imb_from_memory(mem, size, flags, colorspace, filepath, filepath);
+  ibuf = IMB_ibImageFromMemory(mem, size, flags, colorspace, filepath, filepath);
 
   imb_mmap_lock();
   BLI_mmap_free(mmap_file);

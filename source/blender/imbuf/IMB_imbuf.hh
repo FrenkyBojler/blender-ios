@@ -33,7 +33,8 @@ ImBuf *IMB_ibImageFromMemory(const unsigned char *mem,
                              size_t size,
                              int flags,
                              char colorspace[IM_MAX_SPACE],
-                             const char *descr);
+                             const char *descr,
+                             const char *filepath = nullptr);
 
 ImBuf *IMB_testiffname(const char *filepath, int flags);
 
