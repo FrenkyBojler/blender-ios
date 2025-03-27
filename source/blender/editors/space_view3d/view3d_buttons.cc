@@ -511,15 +511,20 @@ static void v3d_editvertex_buts(const bContext *C, uiLayout *layout, View3D *v3d
   }
   else if (ob->type == OB_CURVES) {
     using namespace blender;
-    Curves &curves_id = *static_cast<Curves *>(ob->data);
-    bke::CurvesGeometry &curves = curves_id.geometry.wrap();
+    const Curves &curves_id = *static_cast<Curves *>(ob->data);
+    const bke::CurvesGeometry &curves = curves_id.geometry.wrap();
     if (curves.is_empty()) {
       return;
     }
 
     IndexMaskMemory memory;
     const IndexMask selection = ed::curves::retrieve_selected_points(curves_id, memory);
-    Span<float3> positions = curves.positions();
+
+    if (selection.is_empty()) {
+      return;
+    }
+
+    const Span<float3> positions = curves.positions();
     TransformMedian_Curves *median = &median_basis.curves;
     selection.foreach_index([&](const int point_i) {
       add_v3_v3(median->location, positions[point_i]);
