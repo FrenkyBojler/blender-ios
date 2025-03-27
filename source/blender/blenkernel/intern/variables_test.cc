@@ -79,6 +79,7 @@ TEST(blender_variables, path_apply_variables)
   {
     variables.add_string("hi", "hello");
     variables.add_string("bye", "goodbye");
+    variables.add_string("long", "This string is exactly 32 bytes.");
     variables.add_integer("the_answer", 42);
     variables.add_integer("prime", 7);
     variables.add_float("pi", 3.14159);
@@ -124,6 +125,45 @@ TEST(blender_variables, path_apply_variables)
     char path[FILE_MAX] = "${hi_${hi}_${bye}";
     BKE_path_apply_variables(path, variables);
     EXPECT_EQ(blender::StringRef(path), "${hi_hello_goodbye");
+  }
+
+  /* Test what happens when the path would expand to a string that's longer than
+   * `FILE_MAX`.
+   *
+   * We don't care so much about any kind of "correctness" here, we just want to
+   * ensure that it still results in a valid null-terminated string that fits in
+   * `FILE_MAX` bytes.
+   *
+   * NOTE: this test will have to be updated if `FILE_MAX` is ever changed. */
+  {
+    char path[FILE_MAX] =
+        "_${long}${long}${long}${long}${long}${long}${long}${long}${long}${long}${long}${long}${"
+        "long}${long}${long}${long}${long}${long}${long}${long}${long}${long}${long}${long}${long}"
+        "${long}${long}${long}${long}${long}${long}${long}${long}${long}${long}${long}${long}${"
+        "long}${long}${long}${long}${long}${long}${long}${long}${long}${long}${long}${long}${long}"
+        "${long}${long}${long}${long}${long}${long}${long}${long}${long}${long}${long}${long}${"
+        "long}${long}${long}${long}${long}${long}${long}${long}${long}${long}${long}${long}${long}"
+        "${long}${long}${long}${long}${long}${long}${long}${long}${long}${long}${long}${long}${"
+        "long}${long}${long}${long}${long}${long}${long}${long}${long}${long}${long}${long}${long}"
+        "${long}${long}${long}${long}${long}${long}${long}${long}${long}${long}${long}${long}${"
+        "long}${long}${long}${long}${long}${long}${long}${long}${long}${long}${long}${long}${long}"
+        "${long}${long}${long}${long}${long}${long}${long}${long}${long}${long}${long}${long}${"
+        "long}${long}${long}${long}${long}${long}${long}${long}${long}";
+    const char result[FILE_MAX] =
+        "_This string is exactly 32 bytes.This string is exactly 32 bytes.This string is exactly "
+        "32 bytes.This string is exactly 32 bytes.This string is exactly 32 bytes.This string is "
+        "exactly 32 bytes.This string is exactly 32 bytes.This string is exactly 32 bytes.This "
+        "string is exactly 32 bytes.This string is exactly 32 bytes.This string is exactly 32 "
+        "bytes.This string is exactly 32 bytes.This string is exactly 32 bytes.This string is "
+        "exactly 32 bytes.This string is exactly 32 bytes.This string is exactly 32 bytes.This "
+        "string is exactly 32 bytes.This string is exactly 32 bytes.This string is exactly 32 "
+        "bytes.This string is exactly 32 bytes.This string is exactly 32 bytes.This string is "
+        "exactly 32 bytes.This string is exactly 32 bytes.This string is exactly 32 bytes.This "
+        "string is exactly 32 bytes.This string is exactly 32 bytes.This string is exactly 32 "
+        "bytes.This string is exactly 32 bytes.This string is exactly 32 bytes.This string is "
+        "exactly 32 bytes.This string is exactly 32 bytes.This string is exactly 32 byte";
+    BKE_path_apply_variables(path, variables);
+    EXPECT_EQ(blender::StringRef(path), blender::StringRef(result));
   }
 }
 
