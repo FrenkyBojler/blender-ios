@@ -203,15 +203,23 @@ struct ParsedPathVariable {
 static std::optional<ParsedPathVariable> next_path_variable(char *path,
                                                             const int path_allocation_size)
 {
+  /* We use magic number -1 to indicate that the component hasn't been found
+   * yet. Otherwise they are the byte offset at which the component was found. */
   int start = -1;
   int format_specifier_split = -1;
   int end = -1;
-  for (int i = 0; i < path_allocation_size && path[i] != '\0'; i++) {
+
+  /* Just a simple loop over the bytes of the path. */
+  for (int byte_index = 0; byte_index < path_allocation_size && path[byte_index] != '\0';
+       byte_index++)
+  {
     /* Check if we've found a starting "${". */
     if (start == -1) {
-      if ((i + 1) < path_allocation_size && path[i] == '$' && path[i + 1] == '{') {
-        start = i;
-        i++; /* To jump passed the "{" as well. */
+      if ((byte_index + 1) < path_allocation_size && path[byte_index] == '$' &&
+          path[byte_index + 1] == '{')
+      {
+        start = byte_index;
+        byte_index++; /* To jump past the "{" as well. */
       }
       continue;
     }
@@ -219,26 +227,26 @@ static std::optional<ParsedPathVariable> next_path_variable(char *path,
     /* "$" or "{" within a variable name is illegal, so we bail.
      *
      * TODO: is this the right thing to do when we encounter this? */
-    if (path[i] == '$' || path[i] == '{') {
+    if (path[byte_index] == '$' || path[byte_index] == '{') {
       return std::nullopt;
     }
 
     /* Check if we've found a format splitter. */
-    if (path[i] == ':') {
+    if (path[byte_index] == ':') {
       if (format_specifier_split != -1) {
         /* Found a second format specifier split. Invalid! Bail.
          *
          * TODO: is this the right thing to do when we encounter this? */
         return std::nullopt;
       }
-      format_specifier_split = i;
-      i++;
+      format_specifier_split = byte_index;
+      byte_index++;
       continue;
     }
 
     /* Check if we've found the closing "}". */
-    if (path[i] == '}') {
-      end = i + 1; /* Exclusive end. */
+    if (path[byte_index] == '}') {
+      end = byte_index + 1; /* Exclusive end. */
       break;
     }
   }
