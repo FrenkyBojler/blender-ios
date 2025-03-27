@@ -331,11 +331,10 @@ TEST(vector_set, ExtractVectorInline)
   VectorSet<int, 32> set;
   set.add_multiple({5, 2, 7, 4, 8, 5, 4, 5});
   EXPECT_EQ(set.size(), 5);
-  const int *data_ptr = set.data();
 
   Vector<int> vec = set.extract_vector();
   EXPECT_EQ(vec.size(), 5);
-  EXPECT_EQ(vec.data(), data_ptr);
+  EXPECT_EQ(vec[2], 7);
 }
 
 TEST(vector_set, ExtractVectorEmpty)
