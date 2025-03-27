@@ -388,11 +388,8 @@ struct StrokeCache {
   float4x4 stroke_local_mat;
   float multiplane_scrape_angle;
 
-  /* The bounds of the BVH nodes influenced by the stroke. */
   Bounds<float3> redraw_bounds{float3(std::numeric_limits<float>::max()),
                                float3(std::numeric_limits<float>::lowest())};
-  rcti previous_r; /* previous redraw rectangle */
-  rcti current_r;  /* current redraw rectangle */
 
   ~StrokeCache();
 };
