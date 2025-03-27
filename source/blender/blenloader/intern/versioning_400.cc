@@ -2096,11 +2096,6 @@ void do_versions_after_linking_400(FileData *fd, Main *bmain)
     FOREACH_NODETREE_END;
   }
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 31)) {
-    BKE_fcurves_main_cb(
-        bmain, [&](ID * /* id */, FCurve *fcurve) { version_fix_fcurve_noise_offset(*fcurve); });
-  }
-
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 8)) {
     FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
       if (ntree->type == NTREE_COMPOSIT) {
@@ -2118,6 +2113,11 @@ void do_versions_after_linking_400(FileData *fd, Main *bmain)
       }
     }
     FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 13)) {
+    BKE_fcurves_main_cb(
+        bmain, [&](ID * /* id */, FCurve *fcurve) { version_fix_fcurve_noise_offset(*fcurve); });
   }
 
   /**
