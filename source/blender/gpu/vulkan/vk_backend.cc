@@ -151,6 +151,9 @@ static Vector<StringRefNull> missing_capabilities_get(VkPhysicalDevice vk_physic
   if (!extensions.contains(VK_KHR_SWAPCHAIN_EXTENSION_NAME)) {
     missing_capabilities.append(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
   }
+  if (!extensions.contains(VK_EXT_SWAPCHAIN_MAINTENANCE_1_EXTENSION_NAME)) {
+    missing_capabilities.append(VK_EXT_SWAPCHAIN_MAINTENANCE_1_EXTENSION_NAME);
+  }
 #ifndef __APPLE__
   /* Metal doesn't support provoking vertex. */
   if (!extensions.contains(VK_EXT_PROVOKING_VERTEX_EXTENSION_NAME)) {

@@ -198,6 +198,16 @@ class GHOST_DeviceVK {
       }
     }
 
+    /* Check if the given extension name will be enabled. */
+    auto extension_requested = [=](const char *extension_name) {
+      for (const char *device_extension_name : device_extensions) {
+        if (device_extension_name == extension_name) {
+          return true;
+        }
+      }
+      return false;
+    };
+
     float queue_priorities[] = {1.0f};
     VkDeviceQueueCreateInfo graphic_queue_create_info = {};
     graphic_queue_create_info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
@@ -290,6 +300,14 @@ class GHOST_DeviceVK {
     if (has_extensions({VK_KHR_MAINTENANCE_4_EXTENSION_NAME})) {
       maintenance_4.pNext = device_create_info_p_next;
       device_create_info_p_next = &maintenance_4;
+    }
+
+    /* Swapchain maintenance 1 is not requested when running in background */
+    VkPhysicalDeviceSwapchainMaintenance1FeaturesEXT swapchain_maintenance_1 = {
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SWAPCHAIN_MAINTENANCE_1_FEATURES_EXT, nullptr, VK_TRUE};
+    if (extension_requested(VK_EXT_SWAPCHAIN_MAINTENANCE_1_EXTENSION_NAME)) {
+      swapchain_maintenance_1.pNext = device_create_info_p_next;
+      device_create_info_p_next = &swapchain_maintenance_1;
     }
 
     /* Query and enable Fragment Shader Barycentrics. */
@@ -940,6 +958,7 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
     requireExtension(extensions_available, extensions_enabled, native_surface_extension_name);
 
     required_device_extensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
+    required_device_extensions.push_back(VK_EXT_SWAPCHAIN_MAINTENANCE_1_EXTENSION_NAME);
   }
 #ifdef __APPLE__
   optional_device_extensions.push_back(VK_EXT_PROVOKING_VERTEX_EXTENSION_NAME);
