@@ -182,12 +182,12 @@ struct MeshOffsets {
 
 MeshOffsets::MeshOffsets(Span<const Mesh *> meshes)
 {
-  const int num_meshes = meshes.size();
-  this->vert_start.reinitialize(num_meshes + 1);
-  this->face_start.reinitialize(num_meshes + 1);
-  this->edge_start.reinitialize(num_meshes + 1);
-  this->corner_start.reinitialize(num_meshes + 1);
-  for (int i = 0; i <= num_meshes; i++) {
+  const int meshes_num = meshes.size();
+  this->vert_start.reinitialize(meshes_num + 1);
+  this->face_start.reinitialize(meshes_num + 1);
+  this->edge_start.reinitialize(meshes_num + 1);
+  this->corner_start.reinitialize(meshes_num + 1);
+  for (int i = 0; i <= meshes_num; i++) {
     this->vert_start[i] = (i == 0) ? 0 : this->vert_start[i - 1] + meshes[i - 1]->verts_num;
     this->face_start[i] = (i == 0) ? 0 : this->face_start[i - 1] + meshes[i - 1]->faces_num;
     this->edge_start[i] = (i == 0) ? 0 : this->edge_start[i - 1] + meshes[i - 1]->edges_num;
@@ -331,9 +331,9 @@ struct MeshAssembly {
   Span<float> vertpos;
   int vertpos_stride = 3;
   /* How many vertices were in the combined input meshes. */
-  int num_input_verts;
+  int input_verts_num;
   /* How many vertices are in the output (i.e., in vertpos). */
-  int num_output_verts;
+  int output_verts_num;
   /* New faces to output. */
   Vector<OutFace> new_faces;
 };
@@ -1076,13 +1076,13 @@ static void merge_out_faces(Vector<OutFace> &faces)
   /* Now compress the surviving faces. */
   int move_from = 0;
   int move_to = 0;
-  const int orig_num_faces = faces.size();
-  while (move_from < orig_num_faces) {
+  const int orig_faces_num = faces.size();
+  while (move_from < orig_faces_num) {
     /* Don't move faces that have been merged elsewhere. */
-    while (move_from < orig_num_faces && merged_to[move_from] != -1) {
+    while (move_from < orig_faces_num && merged_to[move_from] != -1) {
       move_from++;
     }
-    if (move_from >= orig_num_faces) {
+    if (move_from >= orig_faces_num) {
       break;
     }
     if (move_to < move_from) {
@@ -1091,7 +1091,7 @@ static void merge_out_faces(Vector<OutFace> &faces)
     move_to++;
     move_from++;
   }
-  if (move_to < orig_num_faces) {
+  if (move_to < orig_faces_num) {
     faces.resize(move_to);
   }
   if (dbg_level > 0) {
@@ -1122,8 +1122,8 @@ static MeshAssembly assemble_mesh_from_meshgl(const MeshGL &mgl, const MeshOffse
   MeshAssembly ma;
   ma.vertpos = Span<float>(&*mgl.vertProperties.begin(), mgl.vertProperties.size());
   ma.vertpos_stride = mgl.numProp;
-  ma.num_input_verts = mesh_offsets.vert_start.last();
-  ma.num_output_verts = ma.vertpos.size() / ma.vertpos_stride;
+  ma.input_verts_num = mesh_offsets.vert_start.last();
+  ma.output_verts_num = ma.vertpos.size() / ma.vertpos_stride;
   const int input_faces_num = mesh_offsets.face_start.last();
 
   /* For each offset input mesh face, what mgl triangles have it as id? */
@@ -1175,8 +1175,8 @@ static MeshAssembly assemble_mesh_from_meshgl(const MeshGL &mgl, const MeshOffse
   }
   if (dbg_level > 0) {
     std::cout << "mesh_assembly result:\n";
-    std::cout << "num_input_verts = " << ma.num_input_verts
-              << ", num_output_verts = " << ma.num_output_verts << "\n";
+    std::cout << "input_verts_num = " << ma.input_verts_num
+              << ", output_verts_num = " << ma.output_verts_num << "\n";
     dump_span_with_stride(ma.vertpos, ma.vertpos_stride, "vertpos");
     std::cout << "new_faces:\n";
     for (const int i : ma.new_faces.index_range()) {
@@ -1468,30 +1468,30 @@ static Mesh *meshgl_to_mesh(const MeshGL &mgl,
   }
 
   MeshAssembly ma = assemble_mesh_from_meshgl(mgl, mesh_offsets);
-  const int tot_positions = ma.num_output_verts;
-  const int tot_faces = ma.new_faces.size();
+  const int verts_num = ma.output_verts_num;
+  const int faces_num = ma.new_faces.size();
 
   /* Get total number of corners, and index of the start
    * corner for each new face. */
-  int tot_corners = 0;
+  int corners_num = 0;
   /* TODO: maybe parallelize corner counting and offset calculation. */
   Array<int> face_corner_start_index;
   {
 #ifdef DEBUG_TIME
     timeit::ScopedTimer timer_c("calculate corner_start_index");
 #endif
-    face_corner_start_index.reinitialize(tot_faces + 1);
+    face_corner_start_index.reinitialize(faces_num + 1);
     for (const int i : ma.new_faces.index_range()) {
-      face_corner_start_index[i] = tot_corners;
-      tot_corners += ma.new_faces[i].verts.size();
+      face_corner_start_index[i] = corners_num;
+      corners_num += ma.new_faces[i].verts.size();
     }
-    face_corner_start_index[tot_faces] = tot_corners;
+    face_corner_start_index[faces_num] = corners_num;
   }
 
   /* Make a new Mesh, now that we know the number of positions, faces, and corners.
    * We will use Blender's parallelized function to calculate edges later.
    */
-  Mesh *mesh = BKE_mesh_new_nomain(tot_positions, 0, tot_faces, tot_corners);
+  Mesh *mesh = BKE_mesh_new_nomain(verts_num, 0, faces_num, corners_num);
   BKE_defgroup_copy_list(&mesh->vertex_group_names, &joined_mesh->vertex_group_names);
   BKE_mesh_copy_parameters_for_eval(mesh, joined_mesh);
 
@@ -1502,7 +1502,7 @@ static Mesh *meshgl_to_mesh(const MeshGL &mgl,
     timeit::ScopedTimer timer_c("set positions");
 #endif
     int grain_size = 100000;
-    threading::parallel_for(IndexRange(tot_positions), grain_size, [&](const IndexRange range) {
+    threading::parallel_for(IndexRange(verts_num), grain_size, [&](const IndexRange range) {
       for (const int i : range) {
         int offset = ma.vertpos_stride * i;
         float3 pos(ma.vertpos[offset], ma.vertpos[offset + 1], ma.vertpos[offset + 2]);
@@ -1519,7 +1519,7 @@ static Mesh *meshgl_to_mesh(const MeshGL &mgl,
     timeit::ScopedTimer timer_c("calculate faces");
 #endif
     int grain_size = 50000;
-    threading::parallel_for(IndexRange(tot_faces), grain_size, [&](const IndexRange range) {
+    threading::parallel_for(IndexRange(faces_num), grain_size, [&](const IndexRange range) {
       for (const int face_index : range) {
         const int corner_index = face_corner_start_index[face_index];
         face_start[face_index] = corner_index;
@@ -1529,7 +1529,7 @@ static Mesh *meshgl_to_mesh(const MeshGL &mgl,
         }
       }
     });
-    face_start[tot_faces] = tot_corners;
+    face_start[faces_num] = corners_num;
   }
 
   {
@@ -1662,8 +1662,8 @@ Mesh *mesh_boolean_manifold(Span<const Mesh *> meshes,
 #ifdef DEBUG_TIME
     timeit::ScopedTimer timer("MANIFOLD BOOLEAN");
 #endif
-    const int num_meshes = meshes.size();
-    std::vector<Manifold> manifolds(num_meshes);
+    const int meshes_num = meshes.size();
+    std::vector<Manifold> manifolds(meshes_num);
     bke::GeometrySet joined_meshes_set;
     bool no_transforms = math::is_identity(target_transform);
     no_transforms &= std::all_of(transforms.begin(), transforms.end(), [](const float4x4 &t) {
@@ -1691,7 +1691,7 @@ Mesh *mesh_boolean_manifold(Span<const Mesh *> meshes,
       /* Check special case of subtracting a plane, which Manifold can handle. */
       float3 normal;
       float origin_offset;
-      if (num_meshes == 2 && op == Operation::Difference &&
+      if (meshes_num == 2 && op == Operation::Difference &&
           manifolds[0].Status() == Manifold::Error::NoError &&
           is_plane(meshes[1], &normal, &origin_offset))
       {
