@@ -524,27 +524,6 @@ GHOST_ContextVK::~GHOST_ContextVK()
   }
 }
 
-GHOST_TSuccess GHOST_ContextVK::destroySwapchain()
-{
-  assert(vulkan_device.has_value() && vulkan_device->device != VK_NULL_HANDLE);
-  VkDevice device = vulkan_device->device;
-
-  if (m_swapchain != VK_NULL_HANDLE) {
-    vkDestroySwapchainKHR(device, m_swapchain, nullptr);
-  }
-  VK_CHECK(vkDeviceWaitIdle(device));
-  for (VkSemaphore semaphore : m_acquire_semaphores) {
-    vkDestroySemaphore(device, semaphore, nullptr);
-  }
-  m_acquire_semaphores.clear();
-  for (VkSemaphore semaphore : m_present_semaphores) {
-    vkDestroySemaphore(device, semaphore, nullptr);
-  }
-  m_present_semaphores.clear();
-
-  return GHOST_kSuccess;
-}
-
 GHOST_TSuccess GHOST_ContextVK::swapBuffers()
 {
   if (m_swapchain == VK_NULL_HANDLE) {
@@ -564,8 +543,7 @@ GHOST_TSuccess GHOST_ContextVK::swapBuffers()
 
     if (recreate_swapchain) {
       /* Swap-chain is out of date. Recreate swap-chain. */
-      destroySwapchain();
-      createSwapchain();
+      recreateSwapchain();
     }
   }
 #endif
@@ -587,8 +565,7 @@ GHOST_TSuccess GHOST_ContextVK::swapBuffers()
                                    VK_NULL_HANDLE,
                                    &image_index);
     if (result == VK_ERROR_OUT_OF_DATE_KHR) {
-      destroySwapchain();
-      createSwapchain();
+      recreateSwapchain();
     }
   }
 
@@ -619,8 +596,7 @@ GHOST_TSuccess GHOST_ContextVK::swapBuffers()
   }
   if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
     /* Swap-chain is out of date. Recreate swap-chain and skip this frame. */
-    destroySwapchain();
-    createSwapchain();
+    recreateSwapchain();
     if (swap_buffers_post_callback_) {
       swap_buffers_post_callback_();
     }
@@ -792,7 +768,7 @@ static bool selectSurfaceFormat(const VkPhysicalDevice physical_device,
   return false;
 }
 
-GHOST_TSuccess GHOST_ContextVK::createSwapchain()
+GHOST_TSuccess GHOST_ContextVK::recreateSwapchain()
 {
   assert(vulkan_device.has_value() && vulkan_device->device != VK_NULL_HANDLE);
 
@@ -808,8 +784,21 @@ GHOST_TSuccess GHOST_ContextVK::createSwapchain()
     return GHOST_kFailure;
   }
 
-  VkSurfaceCapabilitiesKHR capabilities;
-  vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physical_device, m_surface, &capabilities);
+  /* Query the surface capabilities for the given present mode on the surface. */
+  VkSurfacePresentScalingCapabilitiesEXT vk_surface_present_scaling_capabilities = {
+      VK_STRUCTURE_TYPE_SURFACE_PRESENT_SCALING_CAPABILITIES_EXT,
+  };
+  VkSurfaceCapabilities2KHR vk_surface_capabilities = {
+      VK_STRUCTURE_TYPE_SURFACE_CAPABILITIES_2_KHR,
+      &vk_surface_present_scaling_capabilities,
+  };
+  VkSurfacePresentModeEXT vk_surface_present_mode = {
+      VK_STRUCTURE_TYPE_SURFACE_PRESENT_MODE_EXT, nullptr, present_mode};
+  VkPhysicalDeviceSurfaceInfo2KHR vk_physical_device_surface_info = {
+      VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SURFACE_INFO_2_KHR, &vk_surface_present_mode, m_surface};
+  VK_CHECK(vkGetPhysicalDeviceSurfaceCapabilities2KHR(
+      physical_device, &vk_physical_device_surface_info, &vk_surface_capabilities));
+  VkSurfaceCapabilitiesKHR &capabilities = vk_surface_capabilities.surfaceCapabilities;
 
   m_render_extent = capabilities.currentExtent;
   m_render_extent_min = capabilities.minImageExtent;
@@ -841,10 +830,19 @@ GHOST_TSuccess GHOST_ContextVK::createSwapchain()
     if (capabilities.minImageExtent.height > m_render_extent.height) {
       m_render_extent.height = capabilities.minImageExtent.height;
     }
+    if (vk_surface_present_scaling_capabilities.minScaledImageExtent.width > m_render_extent.width)
+    {
+      m_render_extent.width = vk_surface_present_scaling_capabilities.minScaledImageExtent.width;
+    }
+    if (vk_surface_present_scaling_capabilities.minScaledImageExtent.height >
+        m_render_extent.height)
+    {
+      m_render_extent.height = vk_surface_present_scaling_capabilities.minScaledImageExtent.height;
+    }
   }
 
   /* Driver can stall if only using minimal image count. */
-  uint32_t image_count = 3;
+  uint32_t image_count = present_mode == VK_PRESENT_MODE_MAILBOX_KHR ? 4 : 2;
   /* NOTE: maxImageCount == 0 means no limit. */
   if (capabilities.minImageCount != 0 && image_count < capabilities.minImageCount) {
     image_count = capabilities.minImageCount;
@@ -853,20 +851,37 @@ GHOST_TSuccess GHOST_ContextVK::createSwapchain()
     image_count = capabilities.maxImageCount;
   }
 
+  VkSwapchainKHR old_swapchain = m_swapchain;
+
+  VkSwapchainPresentModesCreateInfoEXT vk_swapchain_present_modes = {
+      VK_STRUCTURE_TYPE_SWAPCHAIN_PRESENT_MODES_CREATE_INFO_EXT, nullptr, 1, &present_mode};
+  VkSwapchainPresentScalingCreateInfoEXT vk_swapchain_present_scaling = {
+      VK_STRUCTURE_TYPE_SWAPCHAIN_PRESENT_SCALING_CREATE_INFO_EXT,
+      &vk_swapchain_present_modes,
+      vk_surface_present_scaling_capabilities.supportedPresentScaling &
+          VK_PRESENT_SCALING_STRETCH_BIT_EXT,
+      vk_surface_present_scaling_capabilities.supportedPresentGravityX &
+          VK_PRESENT_GRAVITY_CENTERED_BIT_EXT,
+      vk_surface_present_scaling_capabilities.supportedPresentGravityY &
+          VK_PRESENT_GRAVITY_CENTERED_BIT_EXT,
+  };
+
   VkSwapchainCreateInfoKHR create_info = {};
   create_info.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
+  create_info.pNext = &vk_swapchain_present_scaling;
+  create_info.flags = VK_SWAPCHAIN_CREATE_DEFERRED_MEMORY_ALLOCATION_BIT_EXT;
   create_info.surface = m_surface;
   create_info.minImageCount = image_count;
   create_info.imageFormat = m_surface_format.format;
   create_info.imageColorSpace = m_surface_format.colorSpace;
   create_info.imageExtent = m_render_extent;
   create_info.imageArrayLayers = 1;
-  create_info.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
-  create_info.preTransform = capabilities.currentTransform;
+  create_info.imageUsage = VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+  create_info.preTransform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
   create_info.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
   create_info.presentMode = present_mode;
   create_info.clipped = VK_TRUE;
-  create_info.oldSwapchain = VK_NULL_HANDLE; /* TODO Window resize */
+  create_info.oldSwapchain = old_swapchain;
   create_info.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
   create_info.queueFamilyIndexCount = 0;
   create_info.pQueueFamilyIndices = nullptr;
@@ -875,20 +890,49 @@ GHOST_TSuccess GHOST_ContextVK::createSwapchain()
   VK_CHECK(vkCreateSwapchainKHR(device, &create_info, nullptr, &m_swapchain));
 
   /* image_count may not be what we requested! Getter for final value. */
-  vkGetSwapchainImagesKHR(device, m_swapchain, &image_count, nullptr);
-  m_swapchain_images.resize(image_count);
-  vkGetSwapchainImagesKHR(device, m_swapchain, &image_count, m_swapchain_images.data());
-  const VkSemaphoreCreateInfo vk_semaphore_create_info = {
-      VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO, nullptr, 0};
-  m_acquire_semaphores.resize(image_count);
-  m_present_semaphores.resize(image_count);
-  for (int index = 0; index < image_count; index++) {
-    VK_CHECK(vkCreateSemaphore(
-        device, &vk_semaphore_create_info, nullptr, &m_acquire_semaphores[index]));
-    VK_CHECK(vkCreateSemaphore(
-        device, &vk_semaphore_create_info, nullptr, &m_present_semaphores[index]));
+  uint32_t actual_image_count = 0;
+  vkGetSwapchainImagesKHR(device, m_swapchain, &actual_image_count, nullptr);
+  m_swapchain_images.resize(actual_image_count);
+  vkGetSwapchainImagesKHR(device, m_swapchain, &actual_image_count, m_swapchain_images.data());
+  /* Construct new semaphores. It can be that image_count is larger than previously. We only need
+   * to fill in where the handle is `VK_NULL_HANDLE`. */
+  if (actual_image_count > m_acquire_semaphores.size()) {
+    const VkSemaphoreCreateInfo vk_semaphore_create_info = {
+        VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO, nullptr, 0};
+    m_acquire_semaphores.resize(image_count, VK_NULL_HANDLE);
+    m_present_semaphores.resize(image_count, VK_NULL_HANDLE);
+    for (int index = 0; index < image_count; index++) {
+      if (m_acquire_semaphores[index] == VK_NULL_HANDLE) {
+        VK_CHECK(vkCreateSemaphore(
+            device, &vk_semaphore_create_info, nullptr, &m_acquire_semaphores[index]));
+      }
+      if (m_present_semaphores[index] == VK_NULL_HANDLE) {
+        VK_CHECK(vkCreateSemaphore(
+            device, &vk_semaphore_create_info, nullptr, &m_present_semaphores[index]));
+      }
+    }
   }
-  m_render_frame = 0;
+
+  return GHOST_kSuccess;
+}
+
+GHOST_TSuccess GHOST_ContextVK::destroySwapchain()
+{
+  assert(vulkan_device.has_value() && vulkan_device->device != VK_NULL_HANDLE);
+  VkDevice device = vulkan_device->device;
+
+  if (m_swapchain != VK_NULL_HANDLE) {
+    vkDestroySwapchainKHR(device, m_swapchain, nullptr);
+  }
+  VK_CHECK(vkDeviceWaitIdle(device));
+  for (VkSemaphore semaphore : m_acquire_semaphores) {
+    vkDestroySemaphore(device, semaphore, nullptr);
+  }
+  m_acquire_semaphores.clear();
+  for (VkSemaphore semaphore : m_present_semaphores) {
+    vkDestroySemaphore(device, semaphore, nullptr);
+  }
+  m_present_semaphores.clear();
 
   return GHOST_kSuccess;
 }
@@ -1080,7 +1124,7 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
   if (use_window_surface) {
     vkGetDeviceQueue(
         vulkan_device->device, vulkan_device->generic_queue_family, 0, &m_present_queue);
-    createSwapchain();
+    recreateSwapchain();
   }
 
   return GHOST_kSuccess;

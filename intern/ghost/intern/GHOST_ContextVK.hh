@@ -209,6 +209,6 @@ class GHOST_ContextVK : public GHOST_Context {
   std::function<void(GHOST_VulkanOpenXRData *)> openxr_release_framebuffer_image_callback_;
 
   const char *getPlatformSpecificSurfaceExtension() const;
-  GHOST_TSuccess createSwapchain();
+  GHOST_TSuccess recreateSwapchain();
   GHOST_TSuccess destroySwapchain();
 };
