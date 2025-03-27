@@ -1187,7 +1187,7 @@ static MeshAssembly assemble_mesh_from_meshgl(const MeshGL &mgl, const MeshOffse
   return ma;
 }
 
-static void copy_attribute_using_map(const bke::AttributeIter iter,
+static void copy_attribute_using_map(const bke::AttributeIter &iter,
                                      bke::MutableAttributeAccessor &output_attrs,
                                      bke::AttributeAccessor &input_attrs,
                                      const Span<int> out_to_in_map)
@@ -1201,22 +1201,22 @@ static void copy_attribute_using_map(const bke::AttributeIter iter,
   if (!output_attrs.lookup(iter.name, iter.domain, iter.data_type)) {
     return;
   }
-  bke::GSpanAttributeWriter dst_writer = output_attrs.lookup_or_add_for_write_only_span(
-      iter.name, iter.domain, iter.data_type);
   bke::GAttributeReader src_reader = input_attrs.lookup_or_default(
       iter.name, iter.domain, iter.data_type);
-  GMutableSpan dst = dst_writer.span;
-  std::optional<GVArraySpan> src = *src_reader;
-  if (!src.has_value()) {
+  if (!src_reader) {
     return;
   }
+  bke::GSpanAttributeWriter dst_writer = output_attrs.lookup_or_add_for_write_only_span(
+      iter.name, iter.domain, iter.data_type);
+  GMutableSpan dst = dst_writer.span;
+  const GVArraySpan src = *src_reader;
   const CPPType &type = dst_writer.span.type();
   const int grain_size = 20000;
   threading::parallel_for(out_to_in_map.index_range(), grain_size, [&](const IndexRange range) {
     for (const int out_elem : range) {
       const int in_elem = out_to_in_map[out_elem];
       if (in_elem != -1) {
-        type.copy_assign(src.value()[in_elem], dst[out_elem]);
+        type.copy_assign(src[in_elem], dst[out_elem]);
       }
     }
   });
@@ -1246,10 +1246,9 @@ static void interpolate_corner_attributes(bke::MutableAttributeAccessor &output_
     {
       return;
     }
-    bke::GAttributeReader reader = input_attrs.lookup_or_default(
+    const bke::GAttributeReader reader = input_attrs.lookup_or_default(
         iter.name, iter.domain, iter.data_type);
-    std::optional<GVArraySpan> src = *reader;
-    if (!src.has_value()) {
+    if (!reader) {
       return;
     }
     attribute_iters.append(iter);
