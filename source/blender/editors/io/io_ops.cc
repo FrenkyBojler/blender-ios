@@ -90,7 +90,7 @@ void ED_operatortypes_io()
 
 #ifdef WITH_IO_FBX
   WM_operatortype_append(WM_OT_fbx_import);
-  ed::io::fbx_file_handler_add();
+  /* ed::io::fbx_file_handler_add(); TODO: add once not experimental */
 #endif
 
   WM_operatortype_append(WM_OT_drop_import_file);
