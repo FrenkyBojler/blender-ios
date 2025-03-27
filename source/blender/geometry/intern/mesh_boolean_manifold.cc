@@ -1488,7 +1488,7 @@ static Mesh *meshgl_to_mesh(const MeshGL &mgl,
     face_corner_start_index[faces_num] = corners_num;
   }
 
-  /* Make a new Mesh, now that we know the number of positions, faces, and corners.
+  /* Make a new Mesh, now that we know the number of vertices, faces, and corners.
    * We will use Blender's parallelized function to calculate edges later.
    */
   Mesh *mesh = BKE_mesh_new_nomain(verts_num, 0, faces_num, corners_num);
