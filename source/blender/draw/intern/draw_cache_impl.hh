@@ -182,7 +182,8 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
                                            Mesh &mesh,
                                            const Scene &scene,
                                            bool is_paint_mode,
-                                           bool use_hide);
+                                           bool use_hide,
+                                           bool is_editing_uvs);
 
 blender::gpu::Batch *DRW_mesh_batch_cache_get_all_verts(Mesh &mesh);
 blender::gpu::Batch *DRW_mesh_batch_cache_get_all_edges(Mesh &mesh);

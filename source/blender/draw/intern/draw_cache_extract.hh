@@ -289,7 +289,7 @@ struct MeshBatchCache {
   bool is_dirty;
   bool is_editmode;
   bool is_uvsyncsel;
-  bool use_hide;
+  bool is_editing_uvs;
 
   DRW_MeshWeightState weight_state;
 
@@ -329,7 +329,8 @@ void mesh_buffer_cache_create_requested(TaskGraph &task_graph,
                                         bool is_paint_mode,
                                         bool do_final,
                                         bool do_uvedit,
-                                        bool use_hide);
+                                        bool use_hide,
+                                        bool is_editing_uvs);
 
 void mesh_buffer_cache_create_requested_subdiv(MeshBatchCache &cache,
                                                MeshBufferCache &mbc,

@@ -1117,7 +1117,8 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
                                            Mesh &mesh,
                                            const Scene &scene,
                                            const bool is_paint_mode,
-                                           const bool use_hide)
+                                           const bool use_hide,
+                                           const bool is_editing_uvs)
 {
   const ToolSettings *ts = scene.toolsettings;
 
@@ -1215,12 +1216,14 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
   }
 
   if (batch_requested & MBC_EDITUV) {
-    /* Discard UV batches if sync_selection changes. Also discard if use_hide changes due to Image
-     * Editor type changing.*/
+    /* Discard UV batches if sync_selection changes. Also discard if is_editing_uvs changes due to
+     * Image Editor type changing.*/
     const bool is_uvsyncsel = ts && (ts->uv_flag & UV_SYNC_SELECTION);
-    if (cd_uv_update || (cache.is_uvsyncsel != is_uvsyncsel) || (cache.use_hide != use_hide)) {
+    if (cd_uv_update || (cache.is_uvsyncsel != is_uvsyncsel) ||
+        (cache.is_editing_uvs != is_editing_uvs))
+    {
       cache.is_uvsyncsel = is_uvsyncsel;
-      cache.use_hide = use_hide;
+      cache.is_editing_uvs = is_editing_uvs;
       FOREACH_MESH_BUFFER_CACHE (cache, mbc) {
         mbc->buff.vbos.remove(VBOType::EditUVData);
         mbc->buff.vbos.remove(VBOType::FaceDotUV);
@@ -1674,6 +1677,7 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
                                        is_paint_mode,
                                        false,
                                        true,
+                                       true,
                                        true);
   }
 
@@ -1690,6 +1694,7 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
                                        is_paint_mode,
                                        false,
                                        false,
+                                       true,
                                        true);
   }
 
@@ -1707,7 +1712,8 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
                            false,
                            do_cage,
                            ts,
-                           use_hide);
+                           use_hide,
+                           is_editing_uvs);
   }
   else {
     /* The subsurf modifier may have been recently removed, or another modifier was added after it,
@@ -1727,7 +1733,8 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
                                      is_paint_mode,
                                      true,
                                      false,
-                                     use_hide);
+                                     use_hide,
+                                     is_editing_uvs);
 
   std::array<MeshBufferCache *, 3> caches{&cache.final, &cache.cage, &cache.uv_cage};
   for (const BatchCreateData &batch : batch_info) {

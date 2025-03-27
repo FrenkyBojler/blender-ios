@@ -84,7 +84,8 @@ void mesh_buffer_cache_create_requested(TaskGraph & /*task_graph*/,
                                         const bool is_paint_mode,
                                         const bool do_final,
                                         const bool do_uvedit,
-                                        const bool use_hide)
+                                        const bool use_hide,
+                                        const bool is_editing_uvs)
 {
   if (ibo_requests.is_empty() && vbo_requests.is_empty()) {
     return;
@@ -104,6 +105,7 @@ void mesh_buffer_cache_create_requested(TaskGraph & /*task_graph*/,
                                               do_final,
                                               do_uvedit,
                                               use_hide,
+                                              is_editing_uvs,
                                               scene.toolsettings);
 
   ensure_dependency_data(mr, ibo_requests, vbo_requests, mbc);

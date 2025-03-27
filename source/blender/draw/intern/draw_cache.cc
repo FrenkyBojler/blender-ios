@@ -551,8 +551,11 @@ void drw_batch_cache_generate_requested(Object *ob, TaskGraph &task_graph)
   const bool is_space_uv_editor = DRW_space_data_is_uv_editor(draw_ctx);
 
   const bool use_hide = ((ob->type == OB_MESH) &&
-                         (((mode == CTX_MODE_EDIT_MESH) && (ob->mode == OB_MODE_EDIT) &&
-                           is_space_uv_editor)));
+                         ((is_paint_mode && (ob == draw_ctx->obact) &&
+                           DRW_object_use_hide_faces(ob)) ||
+                          ((mode == CTX_MODE_EDIT_MESH) && (ob->mode == OB_MODE_EDIT))));
+  const bool is_editing_uvs = is_space_uv_editor && (mode == CTX_MODE_EDIT_MESH) &&
+                              (ob->mode == OB_MODE_EDIT);
 
   switch (ob->type) {
     case OB_MESH:
@@ -561,7 +564,8 @@ void drw_batch_cache_generate_requested(Object *ob, TaskGraph &task_graph)
                                             DRW_object_get_data_for_drawing<Mesh>(*ob),
                                             *scene,
                                             is_paint_mode,
-                                            use_hide);
+                                            use_hide,
+                                            is_editing_uvs);
       break;
     case OB_CURVES_LEGACY:
     case OB_FONT:
@@ -591,11 +595,14 @@ void drw_batch_cache_generate_requested_evaluated_mesh_or_curve(Object *ob, Task
       draw_ctx->object_edit, draw_ctx->obact, draw_ctx->object_mode);
   const bool is_paint_mode = ELEM(
       mode, CTX_MODE_SCULPT, CTX_MODE_PAINT_TEXTURE, CTX_MODE_PAINT_VERTEX, CTX_MODE_PAINT_WEIGHT);
+  const bool is_space_uv_editor = DRW_space_data_is_uv_editor(draw_ctx);
 
   const bool use_hide = ((ob->type == OB_MESH) &&
                          ((is_paint_mode && (ob == draw_ctx->obact) &&
                            DRW_object_use_hide_faces(ob)) ||
                           ((mode == CTX_MODE_EDIT_MESH) && (ob->mode == OB_MODE_EDIT))));
+  const bool is_editing_uvs = is_space_uv_editor && (mode == CTX_MODE_EDIT_MESH) &&
+                              (ob->mode == OB_MODE_EDIT);
 
   Mesh *mesh = BKE_object_get_evaluated_mesh_no_subsurf_unchecked(ob);
   /* Try getting the mesh first and if that fails, try getting the curve data.
@@ -603,7 +610,8 @@ void drw_batch_cache_generate_requested_evaluated_mesh_or_curve(Object *ob, Task
    * of the final result.
    */
   if (mesh != nullptr) {
-    DRW_mesh_batch_cache_create_requested(task_graph, *ob, *mesh, *scene, is_paint_mode, use_hide);
+    DRW_mesh_batch_cache_create_requested(
+        task_graph, *ob, *mesh, *scene, is_paint_mode, use_hide, is_editing_uvs);
   }
   else if (ELEM(ob->type, OB_CURVES_LEGACY, OB_FONT, OB_SURF)) {
     DRW_curve_batch_cache_create_requested(ob, scene);

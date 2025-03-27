@@ -61,6 +61,7 @@ struct MeshRenderData {
   int materials_num;
 
   bool use_hide;
+  bool is_editing_uvs;
   bool use_subsurf_fdots;
   bool hide_unmapped_edges;
   bool use_simplify_normals;
@@ -192,6 +193,7 @@ MeshRenderData mesh_render_data_create(Object &object,
                                        bool do_final,
                                        bool do_uvedit,
                                        bool use_hide,
+                                       bool is_editing_uvs,
                                        const ToolSettings *ts);
 void mesh_render_data_update_corner_normals(MeshRenderData &mr);
 void mesh_render_data_update_face_normals(MeshRenderData &mr);
