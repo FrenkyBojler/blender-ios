@@ -1017,7 +1017,7 @@ void ShaderCompilerGeneric::batch_cancel(BatchHandle &handle)
 
   batch->is_cancelled = true;
 
-  auto iter = std::find(compilation_queue_.begin(), compilation_queue_.end(), &batch);
+  auto iter = std::find(compilation_queue_.begin(), compilation_queue_.end(), batch);
   if (iter != compilation_queue_.end()) {
     compilation_queue_.erase(iter);
     BLI_assert(!batch->is_ready);
