@@ -41,7 +41,8 @@ const std::array<blender::StringRefNull, BCONTEXT_TOT> filter_items = {
     "show_properties_effects",
 };
 
-}
+}  // namespace blender::ed::properties
+
 /**
  * Fills an array with the tab context values for the properties editor. -1 signals a separator.
  *
