@@ -187,7 +187,7 @@ class VectorSet {
   ~VectorSet()
   {
     destruct_n(keys_, this->size());
-    if (keys_ != inline_buffer_) {
+    if (!this->is_inline()) {
       this->deallocate_keys_array(keys_);
     }
   }
@@ -204,7 +204,7 @@ class VectorSet {
       uninitialized_copy_n(other.keys_, other.size(), keys_);
     }
     catch (...) {
-      if (keys_ != inline_buffer_) {
+      if (!this->is_inline()) {
         this->deallocate_keys_array(keys_);
       }
       throw;
@@ -731,7 +731,7 @@ class VectorSet {
     if (this->size() == 0) {
       try {
         slots_.reinitialize(total_slots);
-        if (keys_ != inline_buffer_) {
+        if (!this->is_inline()) {
           this->deallocate_keys_array(keys_);
           keys_ = inline_buffer_;
         }
@@ -775,7 +775,7 @@ class VectorSet {
       this->noexcept_reset();
       throw;
     }
-    if (keys_ != inline_buffer_) {
+    if (!this->is_inline()) {
       this->deallocate_keys_array(keys_);
     }
 
