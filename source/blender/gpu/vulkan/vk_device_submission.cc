@@ -41,7 +41,10 @@ TimelineValue VKDevice::render_graph_submit(render_graph::VKRenderGraph *render_
   render_graph->timings.context_end = blender::timeit::Clock::now().time_since_epoch().count();
   if (render_graph->is_empty()) {
     if (G.profile_gpu) {
-      ProfileReport::get().add_timing("RenderGraph::Context",
+      ProfileReport::get().add_timing("RenderGraph",
+                                      render_graph->id,
+                                      "Context",
+                                      3,
                                       render_graph->timings.context_start,
                                       render_graph->timings.context_end);
     }
@@ -106,6 +109,7 @@ render_graph::VKRenderGraph *VKDevice::render_graph_new()
 
   std::scoped_lock lock(resources.mutex);
   render_graph = MEM_new<render_graph::VKRenderGraph>(__func__, resources);
+  render_graph->id = uint64_t(render_graph);
   render_graphs_.append(render_graph);
   render_graph->timings.context_start = blender::timeit::Clock::now().time_since_epoch().count();
   return render_graph;
@@ -133,6 +137,8 @@ void VKDevice::submission_runner(TaskPool *__restrict pool, void *task_data)
   Vector<VkSubmitInfo> submit_infos;
   submit_infos.reserve(2);
   std::optional<render_graph::VKCommandBufferWrapper> command_buffer;
+  uint64_t command_buffer_start = 0;
+  uint64_t command_buffer_end = 0;
 
   while (device->lifetime < Lifetime::DEINITIALIZING) {
     VKRenderGraphSubmitTask *submit_task = static_cast<VKRenderGraphSubmitTask *>(
@@ -145,6 +151,16 @@ void VKDevice::submission_runner(TaskPool *__restrict pool, void *task_data)
      * recorded commands can run before the wait semaphores. The commands that must be guarded by
      * the semaphores are part of the new submitted render graph. */
     if (submit_task->wait_semaphore != VK_NULL_HANDLE && command_buffer.has_value()) {
+      if (G.profile_gpu) {
+        command_buffer_end = blender::timeit::Clock::now().time_since_epoch().count();
+        ProfileReport::get().add_timing("CommandBuffer",
+                                        uint64_t(vk_command_buffer),
+                                        "Recording",
+                                        3,
+                                        command_buffer_start,
+                                        command_buffer_end);
+      }
+
       command_buffer->end_recording();
       unsubmitted_command_buffers.append(vk_command_buffer);
       command_buffer.reset();
@@ -176,6 +192,7 @@ void VKDevice::submission_runner(TaskPool *__restrict pool, void *task_data)
       vk_command_buffer = command_buffers_unused.pop_last();
       command_buffer = std::make_optional<render_graph::VKCommandBufferWrapper>(
           vk_command_buffer, device->extensions_);
+      command_buffer_start = blender::timeit::Clock::now().time_since_epoch().count();
       command_buffer->begin_recording();
     }
 
@@ -218,6 +235,15 @@ void VKDevice::submission_runner(TaskPool *__restrict pool, void *task_data)
 
       /* Finalize current command buffer. */
       command_buffer->end_recording();
+      if (G.profile_gpu) {
+        command_buffer_end = blender::timeit::Clock::now().time_since_epoch().count();
+        ProfileReport::get().add_timing("CommandBuffer",
+                                        uint64_t(vk_command_buffer),
+                                        "Recording",
+                                        3,
+                                        command_buffer_start,
+                                        command_buffer_end);
+      }
       unsubmitted_command_buffers.append(vk_command_buffer);
 
       uint32_t wait_semaphore_len = submit_task->wait_semaphore == VK_NULL_HANDLE ? 0 : 1;
@@ -259,16 +285,28 @@ void VKDevice::submission_runner(TaskPool *__restrict pool, void *task_data)
       command_buffer.reset();
     }
     if (G.profile_gpu) {
-      ProfileReport::get().add_timing("RenderGraph::Context",
+      ProfileReport::get().add_timing("RenderGraph",
+                                      render_graph.id,
+                                      "Context",
+                                      2,
                                       render_graph.timings.context_start,
                                       render_graph.timings.context_end);
-      ProfileReport::get().add_timing("RenderGraph::ReorderingNodes",
+      ProfileReport::get().add_timing("RenderGraph",
+                                      render_graph.id,
+                                      "ReorderingNodes",
+                                      3,
                                       render_graph.timings.reorder_nodes_start,
                                       render_graph.timings.reorder_nodes_end);
-      ProfileReport::get().add_timing("RenderGraph::BuildNodes",
+      ProfileReport::get().add_timing("RenderGraph",
+                                      render_graph.id,
+                                      "BuildNodes",
+                                      3,
                                       render_graph.timings.build_nodes_start,
                                       render_graph.timings.build_nodes_end);
-      ProfileReport::get().add_timing("RenderGraph::Recording",
+      ProfileReport::get().add_timing("RenderGraph",
+                                      render_graph.id,
+                                      "Recording",
+                                      3,
                                       render_graph.timings.recording_start,
                                       render_graph.timings.recording_end);
     }

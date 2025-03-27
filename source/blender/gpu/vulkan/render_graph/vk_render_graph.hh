@@ -215,6 +215,7 @@ class VKRenderGraph : public NonCopyable {
     uint64_t recording_start;
     uint64_t recording_end;
   } timings;
+  uint64_t id = 0;
 
   /**
    * Push a new debugging group to the stack with the given name.
