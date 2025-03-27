@@ -949,10 +949,14 @@ static PyObject *op_handler_remove(int handler_id, PyObject *args, PyObject *kw)
       PyErr_Format(PyExc_TypeError, "Unknown operator");
     }
     else {
-      if (WM_op_handlers_remove(
-              op_handlers, handler_id, PyUnicode_AsUTF8(py_op), py_cb, py_owner) == 0)
+      if (WM_op_handlers_remove(op_handlers,
+                                handler_id,
+                                PyUnicode_AsUTF8(py_op),
+                                (py_cb != Py_None ? py_cb : nullptr),
+                                py_owner) == 0)
       {
-        PyErr_Format(PyExc_NameError, "data not found on %s", PyUnicode_AsUTF8(py_op));
+        PyErr_Format(
+            PyExc_NameError, "data not found on %s, remove failed.", PyUnicode_AsUTF8(py_op));
       }
     }
   }
