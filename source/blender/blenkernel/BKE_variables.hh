@@ -153,4 +153,16 @@ VariableMap BKE_build_blender_variables(const char *blend_file_path,
                                         std::optional<uint64_t> frame_number,
                                         const RenderData *render_data);
 
+/**
+ * Substitutes `${variable_name}` syntax with the value of the named variable in
+ * the given path.
+ *
+ * Note that this mutates the path in-place. The path should be a
+ * null-terminated string.
+ *
+ * For integer and float variables, there is additional syntax to perform
+ * formatting.
+ *
+ * TODO: document the formatting syntax once it's settled and agreed upon.
+ */
 bool BKE_path_apply_variables(char path[FILE_MAX], const VariableMap &variables);
