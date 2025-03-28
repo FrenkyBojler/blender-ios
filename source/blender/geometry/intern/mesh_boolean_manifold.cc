@@ -1639,7 +1639,6 @@ Mesh *mesh_boolean_manifold(Span<const Mesh *> meshes,
     if (joined_mesh == nullptr) {
       return nullptr;
     }
-    BLI_assert(joined_mesh != nullptr);
     get_manifolds(manifolds, joined_mesh, mesh_offsets);
     MeshGL meshgl_result;
     Operation op = op_params.boolean_mode;
