@@ -980,15 +980,13 @@ ShaderCompilerGeneric::ShaderCompilerGeneric(bool multithreaded,
 
 ShaderCompilerGeneric::~ShaderCompilerGeneric()
 {
-  compilation_worker_.reset();
-
   /* Ensure all the requested batches have been retrieved. */
   BLI_assert(batches_.is_empty());
 }
 
 BatchHandle ShaderCompilerGeneric::batch_compile(Span<const shader::ShaderCreateInfo *> &infos)
 {
-  std::unique_lock lock(mutex_);
+  std::lock_guard lock(mutex_);
 
   Batch *batch = MEM_new<Batch>(__func__);
   batch->infos = infos;
@@ -998,15 +996,17 @@ BatchHandle ShaderCompilerGeneric::batch_compile(Span<const shader::ShaderCreate
   batches_.add(handle, batch);
 
   if (compilation_worker_) {
-    compilation_queue_.push_back(batch);
-    lock.unlock();
-    compilation_worker_->wake_up();
+    batch->shaders.resize(infos.size(), nullptr);
+    batch->pending_compilations = infos.size();
+    for (int i : infos.index_range()) {
+      compilation_queue_.push_back({batch, i});
+      compilation_worker_->wake_up();
+    }
   }
   else {
     for (const shader::ShaderCreateInfo *info : infos) {
       batch->shaders.append(compile(*info, false));
     }
-    batch->is_ready = true;
   }
 
   return handle;
@@ -1017,35 +1017,42 @@ void ShaderCompilerGeneric::batch_cancel(BatchHandle &handle)
   std::lock_guard lock(mutex_);
 
   Batch *batch = batches_.pop(handle);
+
+  for (CompilationWork &work : compilation_queue_) {
+    if (work.batch == batch) {
+      work = {};
+      batch->pending_compilations--;
+    }
+  }
+
+  compilation_queue_.erase(std::remove_if(
+      compilation_queue_.begin(), compilation_queue_.end(), [](const CompilationWork &work) {
+        return !work.batch;
+      }));
+
+  if (batch->is_ready()) {
+    batch->free_shaders();
+    MEM_delete(batch);
+  }
+  else {
+    /* If it's currently compiling, the compilation thread makes the cleanup. */
+    batch->is_cancelled = true;
+  }
+
   handle = 0;
-
-  batch->is_cancelled = true;
-
-  auto iter = std::find(compilation_queue_.begin(), compilation_queue_.end(), batch);
-  if (iter != compilation_queue_.end()) {
-    compilation_queue_.erase(iter);
-    BLI_assert(!batch->is_ready);
-  }
-  else if (!batch->is_ready) {
-    /* Currently compiling, let the compilation thread make the cleanup. */
-    return;
-  }
-
-  batch->free_shaders();
-  MEM_delete(batch);
 }
 
 bool ShaderCompilerGeneric::batch_is_ready(BatchHandle handle)
 {
   std::lock_guard lock(mutex_);
 
-  bool is_ready = batches_.lookup(handle)->is_ready;
-  return is_ready;
+  return batches_.lookup(handle)->is_ready();
 }
 
 Vector<Shader *> ShaderCompilerGeneric::batch_finalize(BatchHandle &handle)
 {
   while (!batch_is_ready(handle)) {
+    /*TODO: Notify. */
     BLI_time_sleep_ms(1);
   }
 
@@ -1062,7 +1069,8 @@ Vector<Shader *> ShaderCompilerGeneric::batch_finalize(BatchHandle &handle)
 void ShaderCompilerGeneric::run_thread()
 {
   while (true) {
-    Batch *batch = nullptr;
+    Batch *batch;
+    int shader_index;
     {
       std::lock_guard lock(mutex_);
 
@@ -1070,25 +1078,19 @@ void ShaderCompilerGeneric::run_thread()
         return;
       }
 
-      batch = compilation_queue_.front();
+      CompilationWork &work = compilation_queue_.front();
+      batch = work.batch;
+      shader_index = work.shader_index;
       compilation_queue_.pop_front();
-      if (batch->is_cancelled) {
-        continue;
-      }
     }
 
     /* Compile */
-    for (const shader::ShaderCreateInfo *info : batch->infos) {
-      batch->shaders.append(compile(*info, false));
-      if (batch->is_cancelled) {
-        break;
-      }
-    }
+    batch->shaders[shader_index] = compile(*batch->infos[shader_index], false);
 
     {
       std::lock_guard lock(mutex_);
-      batch->is_ready = true;
-      if (batch->is_cancelled) {
+      batch->pending_compilations--;
+      if (batch->is_ready() && batch->is_cancelled) {
         batch->free_shaders();
         MEM_delete(batch);
       }

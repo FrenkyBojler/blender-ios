@@ -199,8 +199,14 @@ class ShaderCompilerGeneric : public ShaderCompiler {
   struct Batch {
     Vector<Shader *> shaders;
     Vector<const shader::ShaderCreateInfo *> infos;
-    std::atomic_bool is_ready = false;
+    std::atomic_int32_t pending_compilations = 0;
     std::atomic_bool is_cancelled = false;
+
+    bool is_ready()
+    {
+      BLI_assert(pending_compilations >= 0);
+      return pending_compilations == 0;
+    }
 
     void free_shaders()
     {
@@ -216,7 +222,12 @@ class ShaderCompilerGeneric : public ShaderCompiler {
   Map<BatchHandle, Batch *> batches_;
   std::mutex mutex_;
 
-  std::deque<Batch *> compilation_queue_;
+  struct CompilationWork {
+    Batch *batch = nullptr;
+    int shader_index = 0;
+  };
+  std::deque<CompilationWork> compilation_queue_;
+
   std::unique_ptr<GPUWorker> compilation_worker_;
 
   void run_thread();
