@@ -76,6 +76,7 @@ class AbstractView {
   /** See #set_popup_keep_open(). */
   bool popup_keep_open_ = false;
   bool sort_order = false;
+  bool filtering_collapsed_state = true;
 
  public:
   virtual ~AbstractView() = default;
@@ -149,6 +150,9 @@ class AbstractView {
 
   void set_sort_inverted();
   bool is_sort_inverted() const;
+
+  void set_filtering_collapsed();
+  bool is_filtering_collapsed() const;
 
  protected:
   AbstractView() = default;

@@ -823,6 +823,23 @@ static void set_sort_order_fn(bContext *C, void * /*but_arg1*/, void * /*arg2*/)
   }
 }
 
+static void set_filtering_collapsed_fn(bContext* C, void* /*but_arg1*/, void* /*arg2*/)
+{
+  const wmWindow *win = CTX_wm_window(C);
+  if (!(win && win->eventstate)) {
+    return;
+  }
+
+  const ARegion *region = CTX_wm_region(C);
+  if (!region) {
+    return;
+  }
+
+  if (AbstractView *view = UI_region_view_find_at(region, win->eventstate->xy, 2 * UI_UNIT_Y)) {
+    view->set_filtering_collapsed();
+  }
+}
+
 void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
 {
   uiLayout &parent_layout = this->current_layout();
@@ -837,15 +854,35 @@ void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
     col = uiLayoutColumn(&parent_layout, true);
   }
 
-  int icon = tree_view.is_sort_inverted() ? ICON_SORT_ASC : ICON_SORT_DESC;
-
   /* Header */
   uiLayout *header = uiLayoutRow(col, false);
-  uiLayoutSetAlignment(header, UI_LAYOUT_ALIGN_RIGHT);
-  uiBut *but = uiDefIconBut(
-      block, UI_BTYPE_ICON_TOGGLE, 0, icon, 0, 0, UI_UNIT_X, UI_UNIT_Y, nullptr, 0, 0, "");
-  UI_but_func_set(but, set_sort_order_fn, nullptr, nullptr);
+  uiLayoutSetAlignment(header, UI_LAYOUT_ALIGN_LEFT);
+  UI_block_emboss_set(block, UI_EMBOSS_NONE);
+  int icon = tree_view.is_filtering_collapsed() ? ICON_DISCLOSURE_TRI_RIGHT :
+                                                  ICON_DISCLOSURE_TRI_DOWN;
+  uiBut *but = uiDefIconBut(block,
+                            UI_BTYPE_ICON_TOGGLE,
+                            0,
+                            icon,
+                            0,
+                            0,
+                            UI_UNIT_X,
+                            UI_UNIT_Y,
+                            nullptr,
+                            0,
+                            0,
+                            "");
+  UI_but_func_set(but, set_filtering_collapsed_fn, nullptr, nullptr);
+  UI_block_emboss_set(block, UI_EMBOSS);
 
+  if (!tree_view.is_filtering_collapsed()) {
+    uiLayout *filter_layout = uiLayoutRow(col, false);
+    uiLayoutSetAlignment(filter_layout, UI_LAYOUT_ALIGN_RIGHT);
+    icon = tree_view.is_sort_inverted() ? ICON_SORT_ASC : ICON_SORT_DESC;
+    but = uiDefIconBut(
+        block, UI_BTYPE_ICON_TOGGLE, 0, icon, 0, 0, UI_UNIT_X, UI_UNIT_Y, nullptr, 0, 0, "");
+    UI_but_func_set(but, set_sort_order_fn, nullptr, nullptr);
+  }
   /* Row for the tree-view and the scroll bar. */
   uiLayout *row = uiLayoutRow(col, false);
 
