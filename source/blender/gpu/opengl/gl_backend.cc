@@ -249,7 +249,7 @@ void GLBackend::platform_init()
     if (epoxy_has_gl_extension("GL_EXT_memory_object_win32") && (os & GPU_OS_WIN)) {
       GLubyte device_luid[GL_LUID_SIZE_EXT] = {0};
       glGetUnsignedBytevEXT(GL_DEVICE_LUID_EXT, device_luid);
-      GPG.device_luid = Array<uint8_t, 8>(Span<uint8_t>(device_luid, GL_DEVICE_LUID_EXT));
+      GPG.device_luid = Array<uint8_t, 8>(Span<uint8_t>(device_luid, GL_LUID_SIZE_EXT));
 
       GLint node_mask = 0;
       glGetIntegerv(GL_DEVICE_NODE_MASK_EXT, &node_mask);
