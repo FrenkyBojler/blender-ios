@@ -1233,7 +1233,7 @@ static void interpolate_corner_attributes(bke::MutableAttributeAccessor &output_
   Vector<bke::GAttributeReader> readers;
   Vector<GVArraySpan> srcs;
   Vector<GMutableSpan> dsts;
-  output_attrs.foreach_attribute([&](const bke::AttributeIter &iter) {
+  input_attrs.foreach_attribute([&](const bke::AttributeIter &iter) {
     if (iter.domain != bke::AttrDomain::Corner || ELEM(iter.name, ".corner_vert", ".corner_edge"))
     {
       return;
@@ -1527,7 +1527,7 @@ static Mesh *meshgl_to_mesh(MeshGL &mgl,
 
     bool need_corner_interpolation = false;
 
-    output_attrs.foreach_attribute([&](const bke::AttributeIter &iter) {
+    join_attrs.foreach_attribute([&](const bke::AttributeIter &iter) {
       if (ELEM(iter.name, "position", ".edge_verts", ".corner_vert", ".corner_edge")) {
         return;
       }
