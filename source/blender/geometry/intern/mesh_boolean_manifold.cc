@@ -300,7 +300,7 @@ static void get_manifolds(MutableSpan<Manifold> manifolds,
     }
     else {
       Mesh *transformed_mesh = BKE_mesh_copy_for_eval(*meshes[i]);
-      BKE_mesh_transform(transformed_mesh, transforms[i].ptr(), false);
+      bke::mesh_transform(*transformed_mesh, transforms[i], false);
       transformed_meshes[i] = transformed_mesh;
     }
   }
