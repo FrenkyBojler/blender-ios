@@ -123,6 +123,11 @@ typedef enum {
    * Support for window decoration styles.
    */
   GHOST_kCapabilityWindowDecorationStyles = (1 << 8),
+  /**
+   * Support for the "Hyper" modifier key.
+   */
+  GHOST_kCapabilityKeyboardHyperKey = (1 << 9),
+
 } GHOST_TCapabilityFlag;
 
 /**
@@ -134,7 +139,7 @@ typedef enum {
    GHOST_kCapabilityPrimaryClipboard | GHOST_kCapabilityGPUReadFrontBuffer | \
    GHOST_kCapabilityClipboardImages | GHOST_kCapabilityDesktopSample | \
    GHOST_kCapabilityInputIME | GHOST_kCapabilityTrackpadPhysicalDirection | \
-   GHOST_kCapabilityWindowDecorationStyles)
+   GHOST_kCapabilityWindowDecorationStyles | GHOST_kCapabilityKeyboardHyperKey)
 
 /* Xtilt and Ytilt represent how much the pen is tilted away from
  * vertically upright in either the X or Y direction, with X and Y the
@@ -187,6 +192,8 @@ typedef enum {
   GHOST_kModifierKeyRightControl,
   GHOST_kModifierKeyLeftOS,
   GHOST_kModifierKeyRightOS,
+  GHOST_kModifierKeyLeftHyper,
+  GHOST_kModifierKeyRightHyper,
   GHOST_kModifierKeyNum
 } GHOST_TModifierKey;
 
@@ -444,7 +451,10 @@ typedef enum {
   GHOST_kKeyRightAlt,
   GHOST_kKeyLeftOS, /* Command key on Apple, Windows key(s) on Windows. */
   GHOST_kKeyRightOS,
-#define _GHOST_KEY_MODIFIER_MAX GHOST_kKeyRightOS
+
+  GHOST_kKeyLeftHyper, /* Additional modifier on Wayland & X11, see !136340. */
+  GHOST_kKeyRightHyper,
+#define _GHOST_KEY_MODIFIER_MAX GHOST_kKeyRightHyper
 
   GHOST_kKeyGrLess, /* German PC only! */
   GHOST_kKeyApp,    /* Also known as menu key. */
@@ -753,6 +763,20 @@ typedef struct {
 } GHOST_VulkanSwapChainData;
 
 typedef struct {
+  /** Resolution of the framebuffer image. */
+  VkExtent2D extent;
+  /**
+   * Host accessible data containing the image data. Data is stored in the selected swapchain
+   * format.
+   */
+  // NOTE: This is a temporary solution with quite a large performance overhead. The solution we
+  // would like to implement would use VK_KHR_external_memory. The documentation/samples around
+  // using this in our situation is scarce. We will start prototyping in a smaller scale and when
+  // experience is gained, we will implement the solution.
+  void *image_data;
+} GHOST_VulkanOpenXRData;
+
+typedef struct {
   VkInstance instance;
   VkPhysicalDevice physical_device;
   VkDevice device;
@@ -810,6 +834,7 @@ struct GHOST_XrError;
 typedef enum GHOST_TXrGraphicsBinding {
   GHOST_kXrGraphicsUnknown = 0,
   GHOST_kXrGraphicsOpenGL,
+  GHOST_kXrGraphicsVulkan,
 #  ifdef WIN32
   GHOST_kXrGraphicsD3D11,
 #  endif

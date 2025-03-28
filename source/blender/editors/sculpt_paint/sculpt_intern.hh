@@ -388,9 +388,6 @@ struct StrokeCache {
   float4x4 stroke_local_mat;
   float multiplane_scrape_angle;
 
-  rcti previous_r; /* previous redraw rectangle */
-  rcti current_r;  /* current redraw rectangle */
-
   ~StrokeCache();
 };
 
@@ -645,7 +642,6 @@ bool SCULPT_is_vertex_inside_brush_radius_symm(const float vertex[3],
                                                const float br_co[3],
                                                float radius,
                                                char symm);
-bool SCULPT_is_symmetry_iteration_valid(char i, char symm);
 blender::float3 SCULPT_flip_v3_by_symm_area(const blender::float3 &vector,
                                             ePaintSymmetryFlags symm,
                                             ePaintSymmetryAreas symmarea,
