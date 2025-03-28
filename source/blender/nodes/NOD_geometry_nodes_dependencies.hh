@@ -42,6 +42,7 @@ struct GeometryNodesEvalDependencies {
 
   bool needs_own_transform = false;
   bool needs_active_camera = false;
+  bool needs_scene_render_params = false;
   bool time_dependent = false;
 
   /**
@@ -68,11 +69,12 @@ struct GeometryNodesEvalDependencies {
    */
   void merge(const GeometryNodesEvalDependencies &other);
 
-  BLI_STRUCT_EQUALITY_OPERATORS_5(GeometryNodesEvalDependencies,
+  BLI_STRUCT_EQUALITY_OPERATORS_6(GeometryNodesEvalDependencies,
                                   ids,
                                   objects_info,
                                   needs_own_transform,
                                   needs_active_camera,
+                                  needs_scene_render_params,
                                   time_dependent);
 };
 

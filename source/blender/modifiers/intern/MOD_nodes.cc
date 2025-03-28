@@ -223,7 +223,9 @@ static void update_depsgraph(ModifierData *md, const ModifierUpdateDepsgraphCont
   }
   if (eval_deps.needs_active_camera) {
     DEG_add_scene_camera_relation(ctx->node, ctx->scene, DEG_OB_COMP_TRANSFORM, "Nodes Modifier");
-    /* Active camera is a scene parameter that can change, so we need a relation for that, too. */
+  }
+  /* Active camera is a scene parameter that can change, so we need a relation for that, too. */
+  if (eval_deps.needs_active_camera || eval_deps.needs_scene_render_params) {
     DEG_add_scene_relation(ctx->node, ctx->scene, DEG_SCENE_COMP_PARAMETERS, "Nodes Modifier");
   }
 }
