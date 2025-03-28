@@ -1217,7 +1217,7 @@ static void interpolate_corner_attributes(bke::MutableAttributeAccessor &output_
    */
   Vector<bke::GSpanAttributeWriter> writers;
   Vector<bke::GAttributeReader> readers;
-  Vector<std::optional<GVArraySpan>> srcs;
+  Vector<GVArraySpan> srcs;
   Vector<GMutableSpan> dsts;
   output_attrs.foreach_attribute([&](const bke::AttributeIter &iter) {
     if (iter.domain != bke::AttrDomain::Corner || ELEM(iter.name, ".corner_vert", ".corner_edge"))
@@ -1291,12 +1291,8 @@ static void interpolate_corner_attributes(bke::MutableAttributeAccessor &output_
             interp_weights_poly_v2(weights.data(), cos_2d_p, in_face_size, co);
 
             for (const int attr_index : dsts.index_range()) {
-              std::optional<GVArraySpan> &src_opt = srcs[attr_index];
+              const GSpan src = srcs[attr_index];
               GMutableSpan dst = dsts[attr_index];
-              if (!src_opt.has_value()) {
-                continue;
-              }
-              GVArraySpan &src = src_opt.value();
               const CPPType &type = dst.type();
               bke::attribute_math::convert_to_static_type(type, [&](auto dummy) {
                 using T = decltype(dummy);
