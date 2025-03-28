@@ -87,7 +87,7 @@ static const asset_system::AssetRepresentation *get_local_asset_from_relative_id
   return matching_asset;
 }
 
-static const asset_system::AssetRepresentation *find_asset_from_weak_ref_ex(
+const asset_system::AssetRepresentation *find_asset_from_weak_ref(
     const bContext &C, const AssetWeakReference &weak_ref, ReportList *reports)
 {
   if (weak_ref.asset_library_type == ASSET_LIBRARY_LOCAL) {
@@ -121,12 +121,6 @@ static const asset_system::AssetRepresentation *find_asset_from_weak_ref_ex(
     }
   }
   return matching_asset;
-}
-
-const asset_system::AssetRepresentation *find_asset_from_weak_ref(
-    const bContext &C, const AssetWeakReference &weak_ref, ReportList *reports)
-{
-  return find_asset_from_weak_ref_ex(C, weak_ref, reports);
 }
 
 static AssetWeakReference asset_weak_reference_from_operator(PointerRNA &ptr)
