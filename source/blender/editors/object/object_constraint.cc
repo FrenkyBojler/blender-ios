@@ -481,6 +481,13 @@ static void test_constraint(
       con->flag |= CONSTRAINT_DISABLE;
     }
   }
+  else if (con->type == CONSTRAINT_TYPE_FREEZETRANS) {
+    bFreezeTransConstraint *data = static_cast<bFreezeTransConstraint *>(con->data);
+
+    if ((data->flag & FREEZETRANS_IS_FROZEN) == 0) {
+      con->flag |= CONSTRAINT_DISABLE;
+    }
+  }
 
   /* Check targets for constraints */
   if (check_targets && BKE_constraint_targets_get(con, &targets)) {
