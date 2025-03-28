@@ -74,6 +74,9 @@ PyDoc_STRVAR(
     bpy_geometry_set_from_evaluated_object_doc,
     ".. staticmethod:: from_evaluated_object(evaluated_object)\n"
     "\n"
+    "   Create a geometry set from the evaluated geometry of an evaluated object.\n"
+    "   Typically, it's more convenient to use :func:`bpy.types.Object.evaluated_geometry`.\n"
+    "\n"
     "   :arg evaluated_object: The evaluated object to create a geometry set from.\n"
     "   :type evaluated_object: bpy.types.Object\n");
 static BPy_GeometrySet *BPy_GeometrySet_static_from_evaluated_object(PyObject * /*self*/,
