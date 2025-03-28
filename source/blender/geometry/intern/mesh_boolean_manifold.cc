@@ -1471,6 +1471,7 @@ static Mesh *meshgl_to_mesh(MeshGL &mgl,
         std::move(mgl.vertProperties));
     const bke::AttributeInitShared init(sharing_info->data.data(), *sharing_info);
     output_attrs.add<float3>("position", bke::AttrDomain::Point, init);
+    sharing_info->remove_user_and_delete_if_last();
   }
 
   OutToInMaps out_to_in(&ma, joined_mesh, mesh);
