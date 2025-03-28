@@ -259,7 +259,9 @@ bool PyC_RunString_AsStringOrNone(const char **imports,
                                   const char *filename,
                                   char **r_value) ATTR_NONNULL(2, 3, 4) ATTR_WARN_UNUSED_RESULT;
 
-/** Flush stdout and stderr. */
+/**
+ * Flush stdout and stderr. Errors are ignored.
+ */
 void PyC_StdFilesFlush();
 
 /**
