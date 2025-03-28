@@ -29,10 +29,9 @@ print(geometry.grease_pencil)
 # Access the mesh without final subdivision applied.
 print(geometry.mesh_base)
 
-# Accessing instances is a bit more tricky, because we don't have a great
-# mechanism to expose instances yet, since it's not a data-block. Instead two
-# accessors are provided which are easy to keep working in the future even if we
-# get a proper Instances type.
+# Accessing instances is a bit more tricky, because there is no specific
+# mechanism to expose instances. Instead, two accessors are provided which
+# are easy to keep working in the future even if we get a proper Instances type.
 
 # This is a pointcloud that provides access to all the instance attributes.
 # There is a point per instances. May return None if there is no instances data.
