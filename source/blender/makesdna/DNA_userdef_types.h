@@ -853,7 +853,8 @@ typedef struct UserDef {
   short versions;
   short dbl_click_time;
 
-  char _pad0[3];
+  char _pad0[2];
+  char border_width;
   char mini_axis_type;
   /** #eUserpref_UI_Flag. */
   int uiflag;
