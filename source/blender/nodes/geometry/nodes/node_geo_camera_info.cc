@@ -2,9 +2,6 @@
 
 #include "DEG_depsgraph_query.hh"
 
-#include "UI_interface.hh"
-#include "UI_resources.hh"
-
 #include "node_geometry_util.hh"
 
 namespace blender::nodes::node_geo_camera_info_cc {
@@ -13,8 +10,6 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.use_custom_socket_order();
 
-  b.add_output<decl::Bool>("Is Active Camera")
-      .description("Whether the camera is used for rendering the scene");
   b.add_output<decl::Matrix>("Projection Matrix").description("Camera projection matrix");
   b.add_output<decl::Float>("Focal Length").description("Perspective camera focal length");
   b.add_output<decl::Vector>("Sensor").description("Size of the camera sensor");
@@ -62,7 +57,6 @@ static void node_geo_exec(GeoNodeExecParams params)
   const float4x4 projection_matrix(camera_params.winmat);
   float focus_distance = BKE_camera_object_dof_distance(camera_obj);
 
-  params.set_output("Is Active Camera", scene->camera == camera_obj);
   params.set_output("Projection Matrix", projection_matrix);
   params.set_output("Focal Length", camera_params.lens);
   params.set_output("Sensor", float3{camera_params.sensor_x, camera_params.sensor_y, 0.0f});

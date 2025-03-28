@@ -167,23 +167,6 @@ static void add_own_transform_dependencies(const bNodeTree &tree,
   deps.needs_own_transform |= needs_own_transform;
 }
 
-static bool needs_active_camera(const bNodeTree &ntree)
-{
-  if (has_enabled_nodes_of_type(ntree, "GeometryNodeInputActiveCamera")) {
-    return true;
-  }
-  for (const bNode *node : ntree.nodes_by_type("GeometryNodeCameraInfo")) {
-    if (node->is_muted()) {
-      continue;
-    }
-    const bNodeSocket &active_camera_socket = node->output_by_identifier("Is Active Camera");
-    if (active_camera_socket.is_logically_linked()) {
-      return true;
-    }
-  }
-  return false;
-}
-
 static bool needs_scene_render_params(const bNodeTree &ntree)
 {
   for (const bNode *node : ntree.nodes_by_type("GeometryNodeCameraInfo")) {
@@ -207,7 +190,7 @@ static void gather_geometry_nodes_eval_dependencies(
   for (const bNodeSocket *socket : ntree.all_sockets()) {
     add_eval_dependencies_from_socket(*socket, deps);
   }
-  deps.needs_active_camera |= needs_active_camera(ntree);
+  deps.needs_active_camera |= has_enabled_nodes_of_type(ntree, "GeometryNodeInputActiveCamera");
   deps.needs_scene_render_params |= needs_scene_render_params(ntree);
   deps.time_dependent |= has_enabled_nodes_of_type(ntree, "GeometryNodeSimulationInput") ||
                          has_enabled_nodes_of_type(ntree, "GeometryNodeInputSceneTime");
