@@ -3,6 +3,9 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
+#include "BKE_report.hh"
+
+#include "DNA_modifier_types.h"
 
 /** \file
  * \ingroup bke
@@ -11,7 +14,14 @@
 struct Mesh;
 
 Mesh *BKE_mesh_remesh_voxel_fix_poles(const Mesh *mesh);
-Mesh *BKE_mesh_remesh_voxel(const Mesh *mesh, float voxel_size, float adaptivity, float isovalue);
+Mesh *BKE_mesh_remesh_voxel(const Mesh *mesh,
+                            float voxel_size,
+                            float adaptivity,
+                            float isovalue,
+                            const Object *object,
+                            ModifierData *modifier_data);
+Mesh *BKE_mesh_remesh_voxel(
+    const Mesh *mesh, float voxel_size, float adaptivity, float isovalue, ReportList *reports);
 Mesh *BKE_mesh_remesh_quadriflow(const Mesh *mesh,
                                  int target_faces,
                                  int seed,
