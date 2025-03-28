@@ -163,8 +163,8 @@ PyDoc_STRVAR(
     "   Get a pointcloud that encodes information about the instances of the geometry.\n"
     "   The returned pointcloud should not be modified.\n"
     "   There is a point per instance and per-instance data is stored in point attributes.\n"
-    "   The local transforms are stored in the \"instance_transform\" attribute.\n"
-    "   The data instanced by each point is referenced by the \".reference_index\" attribute,\n"
+    "   The local transforms are stored in the ``instance_transform`` attribute.\n"
+    "   The data instanced by each point is referenced by the ``.reference_index`` attribute,\n"
     "   indexing into the list returned by :func:`GeometrySet.instance_references`.\n"
     "\n"
     "   :rtype: bpy.types.PointCloud\n");
@@ -194,7 +194,7 @@ PyDoc_STRVAR(
     bpy_geometry_set_get_instance_references_doc,
     ".. method:: instance_references()\n"
     "\n"
-    "   This returns a list of geometries that is indexed by the \".reference_index\"\n"
+    "   This returns a list of geometries that is indexed by the ``.reference_index``\n"
     "   attribute of the pointcloud returned by :func:`GeometrySet.instances_pointcloud`.\n"
     "   It may contain other geometry sets, objects, collections and None values.\n"
     "\n"
