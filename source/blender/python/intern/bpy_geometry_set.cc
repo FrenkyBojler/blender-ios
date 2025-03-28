@@ -198,7 +198,7 @@ PyDoc_STRVAR(
     "   attribute of the pointcloud returned by :func:`GeometrySet.instances_pointcloud`.\n"
     "   It may contain other geometry sets, objects, collections and None values.\n"
     "\n"
-    "   :rtype: list[None | bpy.types.Object | bpy.types.Collection | GeometrySet]\n");
+    "   :rtype: list[None | bpy.types.Object | bpy.types.Collection | bpy.types.GeometrySet]\n");
 static PyObject *BPy_GeometrySet_get_instance_references(BPy_GeometrySet *self)
 {
   using namespace blender;

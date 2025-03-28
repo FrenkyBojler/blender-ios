@@ -1133,10 +1133,10 @@ def pyclass2sphinx(fw, module_name, type_name, value):
         if value.__doc__.startswith(".. class::"):
             fw(value.__doc__)
         else:
-            fw(".. class:: {:s}\n\n".format(type_name))
+            fw(".. class:: {:s}.{:s}\n\n".format(module_name, type_name))
             write_indented_lines("   ", fw, value.__doc__, True)
     else:
-        fw(".. class:: {:s}\n\n".format(type_name))
+        fw(".. class:: {:s}.{:s}\n\n".format(module_name, type_name))
     fw("\n")
 
     write_example_ref("   ", fw, module_name + "." + type_name)
