@@ -64,7 +64,7 @@ void AbstractView::update_from_old(uiBlock &new_block)
   rename_buffer_ = std::move(old_view->rename_buffer_);
   old_view->rename_buffer_ = nullptr;
 
-  sort_order = old_view->sort_order;
+  invert_sort_order = old_view->invert_sort_order;
   filtering_collapsed_state = old_view->filtering_collapsed_state;
 
   this->update_children_from_old(*old_view);
@@ -247,17 +247,17 @@ void AbstractView::clear_search_highlight()
 
 void AbstractView::set_sort_inverted()
 {
-  this->sort_order = !this->sort_order;
+  this->invert_sort_order = !this->invert_sort_order;
 }
 
 void AbstractView::set_sort_inverted(bool value)
 {
-  this->sort_order = value;
+  this->invert_sort_order = value;
 }
 
 bool AbstractView::is_sort_inverted() const
 {
-  return this->sort_order;
+  return this->invert_sort_order;
 }
 
 void AbstractView::set_filtering_collapsed()

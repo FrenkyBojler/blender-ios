@@ -810,36 +810,32 @@ static int count_visible_items(AbstractTreeView &tree_view)
   return item_count;
 }
 
-static void set_sort_order_fn(bContext *C, void * /*but_arg1*/, void * /*arg2*/)
+static AbstractView *get_abstractview(bContext *C, const int pad = 0)
 {
   const wmWindow *win = CTX_wm_window(C);
   if (!(win && win->eventstate)) {
-    return;
+    return nullptr;
   }
 
   const ARegion *region = CTX_wm_region(C);
   if (!region) {
-    return;
+    return nullptr;
   }
 
-  if (AbstractView *view = UI_region_view_find_at(region, win->eventstate->xy, UI_UNIT_Y)) {
+  AbstractView *view = UI_region_view_find_at(region, win->eventstate->xy, UI_UNIT_Y + pad);
+  return view;
+}
+
+static void set_sort_order_fn(bContext *C, void * /*but_arg1*/, void * /*arg2*/)
+{
+  if (AbstractView *view = get_abstractview(C)) {
     view->set_sort_inverted();
   }
 }
 
-static void set_filtering_collapsed_fn(bContext* C, void* /*but_arg1*/, void* /*arg2*/)
+static void set_filtering_collapsed_fn(bContext *C, void * /*but_arg1*/, void * /*arg2*/)
 {
-  const wmWindow *win = CTX_wm_window(C);
-  if (!(win && win->eventstate)) {
-    return;
-  }
-
-  const ARegion *region = CTX_wm_region(C);
-  if (!region) {
-    return;
-  }
-
-  if (AbstractView *view = UI_region_view_find_at(region, win->eventstate->xy, 2 * UI_UNIT_Y)) {
+  if (AbstractView *view = get_abstractview(C, UI_UNIT_Y * 0.5)) {
     view->set_filtering_collapsed();
   }
 }
@@ -864,18 +860,8 @@ void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
   UI_block_emboss_set(block, UI_EMBOSS_NONE);
   int icon = tree_view.is_filtering_collapsed() ? ICON_DISCLOSURE_TRI_RIGHT :
                                                   ICON_DISCLOSURE_TRI_DOWN;
-  uiBut *but = uiDefIconBut(block,
-                            UI_BTYPE_ICON_TOGGLE,
-                            0,
-                            icon,
-                            0,
-                            0,
-                            UI_UNIT_X,
-                            UI_UNIT_Y,
-                            nullptr,
-                            0,
-                            0,
-                            "");
+  uiBut *but = uiDefIconBut(
+      block, UI_BTYPE_ICON_TOGGLE, 0, icon, 0, 0, UI_UNIT_X, UI_UNIT_Y * 0.5, nullptr, 0, 0, "");
   UI_but_func_set(but, set_filtering_collapsed_fn, nullptr, nullptr);
   UI_block_emboss_set(block, UI_EMBOSS);
 
