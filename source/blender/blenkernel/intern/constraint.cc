@@ -2415,7 +2415,7 @@ static void freezetrans_evaluate(bConstraint *con, bConstraintOb *cob, ListBase 
   bFreezeTransConstraint *data = static_cast<bFreezeTransConstraint *>(con->data);
 
   if (data->flag & FREEZETRANS_PENDING_FREEZE) {
-    /* TODO: allow handling matrix in another space (e.g. parent space, custom space) */
+    /* Store current transform in the freeze matrix. */
     copy_m4_m4(data->freezemat, cob->matrix);
 
     data->flag &= ~FREEZETRANS_PENDING_FREEZE;
@@ -2434,13 +2434,6 @@ static void freezetrans_evaluate(bConstraint *con, bConstraintOb *cob, ListBase 
   }
 
   if (data->flag & FREEZETRANS_IS_FROZEN) {
-    /* TODO: remove shear option */
-    /* Remove the shear of the target matrix if enabled.
-     * Use Y as the axis since it's the natural default for bones. */
-    // if (data->flag & TRANSLIKE_REMOVE_TARGET_SHEAR) {
-    //   orthogonalize_m4_stable(target_mat, 1, false);
-    // }
-
     if ((data->flag & FREEZETRANS_SPLIT_CHANNELS) == 0) {
       /* Replace whole matrix. */
       copy_m4_m4(cob->matrix, data->freezemat);
