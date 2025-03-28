@@ -245,7 +245,7 @@ class DenoiseOperation : public NodeOperation {
     filter.execute();
 
     if (output_buffer.getStorage() != oidn::Storage::Host) {
-      output_buffer.read(0, buffer_size, output_color);
+      output_buffer.read(0, buffer_size * sizeof(float), output_color);
     }
 
     if (this->context().use_gpu()) {

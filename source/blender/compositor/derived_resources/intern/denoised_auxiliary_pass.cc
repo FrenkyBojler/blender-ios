@@ -114,7 +114,7 @@ DenoisedAuxiliaryPass::DenoisedAuxiliaryPass(Context &context,
   filter.execute();
 
   if (buffer.getStorage() != oidn::Storage::Host) {
-    buffer.read(0, buffer_size, this->denoised_buffer);
+    buffer.read(0, buffer_size * sizeof(float), this->denoised_buffer);
   }
 }
 
