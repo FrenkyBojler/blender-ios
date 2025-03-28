@@ -2818,7 +2818,7 @@ static bool uvedit_uv_threshold_weld(bContext *C, wmOperator *op)
     if (!UV_get_edgeloops(scene, em->bm, &edgeloops_arr, uvedit_uv_select_test)) {
       return false;
     }
-    BMUVOffsets offsets = BM_uv_map_get_offsets(em->bm);
+    BMUVOffsets offsets = BM_uv_map_offsets_get(em->bm);
 
     while (offsetmap_arr.size() < edgeloops_arr.size()) {
       offsetmap_arr.append(offsets);
@@ -2933,7 +2933,7 @@ static bool uvedit_uv_threshold_weld(bContext *C, wmOperator *op)
   return true;
 }
 
-static int stitch_distance_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus stitch_distance_exec(bContext *C, wmOperator *op)
 {
   uvedit_uv_threshold_weld(C, op);
   return OPERATOR_FINISHED;

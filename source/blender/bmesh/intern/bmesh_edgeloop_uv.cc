@@ -16,7 +16,7 @@ bool UV_get_edgeloops(
   BMVert *v;
   BMLoop *l;
   BMIter viter, liter;
-  const BMUVOffsets offsets = BM_uv_map_get_offsets(bm);
+  const BMUVOffsets offsets = BM_uv_map_offsets_get(bm);
 
   std::queue<BMLoop *> queue;
   BM_ITER_MESH (v, &viter, bm, BM_VERTS_OF_MESH) {

@@ -3,7 +3,9 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 #pragma once
 #include "BKE_customdata.hh"
-#include <set>
+
+#include "BLI_function_ref.hh"
+
 #include <tuple>
 #include <unordered_map>
 
