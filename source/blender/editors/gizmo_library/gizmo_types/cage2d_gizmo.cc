@@ -18,6 +18,7 @@
 #include "BLI_dial_2d.h"
 #include "BLI_math_base_safe.h"
 #include "BLI_math_matrix.h"
+#include "BLI_math_vector.h"
 #include "BLI_math_vector_types.hh"
 #include "BLI_rect.h"
 
@@ -27,7 +28,6 @@
 #include "GPU_immediate_util.hh"
 #include "GPU_matrix.hh"
 #include "GPU_select.hh"
-#include "GPU_shader.hh"
 #include "GPU_state.hh"
 
 #include "RNA_access.hh"
@@ -558,12 +558,14 @@ static void cage2d_draw_circle_wire(const float color[3],
 {
   uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
 
-  immBindBuiltinProgram(is_zero_v2(margin) ? GPU_SHADER_3D_UNIFORM_COLOR :
-                                             GPU_SHADER_3D_POLYLINE_UNIFORM_COLOR);
+  const bool use_points = is_zero_v2(margin);
+  immBindBuiltinProgram(use_points ? GPU_SHADER_3D_POINT_UNIFORM_SIZE_UNIFORM_COLOR_AA :
+                                     GPU_SHADER_3D_POLYLINE_UNIFORM_COLOR);
   immUniformColor3fv(color);
 
-  if (is_zero_v2(margin)) {
+  if (use_points) {
     /* Draw a central point. */
+    immUniform1f("size", 1.0 * U.pixelsize);
     immBegin(GPU_PRIM_POINTS, 1);
     immVertex3f(pos, 0.0f, 0.0f, 0.0f);
     immEnd();
@@ -579,6 +581,15 @@ static void cage2d_draw_circle_wire(const float color[3],
   immUnbindProgram();
 }
 
+static bool is_corner_highlighted(const int highlighted)
+{
+  return ELEM(highlighted,
+              ED_GIZMO_CAGE2D_PART_SCALE_MIN_X_MIN_Y,
+              ED_GIZMO_CAGE2D_PART_SCALE_MIN_X_MAX_Y,
+              ED_GIZMO_CAGE2D_PART_SCALE_MAX_X_MIN_Y,
+              ED_GIZMO_CAGE2D_PART_SCALE_MAX_X_MAX_Y);
+}
+
 static void cage2d_draw_rect_corner_handles(const rctf *r,
                                             const int highlighted,
                                             const float margin[2],
@@ -587,9 +598,10 @@ static void cage2d_draw_rect_corner_handles(const rctf *r,
                                             bool solid)
 {
   /* Only draw corner handles when hovering over the corners. */
-  if (highlighted < ED_GIZMO_CAGE2D_PART_SCALE_MIN_X_MIN_Y ||
-      highlighted > ED_GIZMO_CAGE2D_PART_SCALE_MAX_X_MAX_Y)
-  {
+  const bool draw_corners = is_corner_highlighted(highlighted);
+  const bool draw_rotate_handle = transform_flag & ED_GIZMO_CAGE_XFORM_FLAG_ROTATE;
+
+  if (!(draw_corners || draw_rotate_handle)) {
     return;
   }
 
@@ -605,13 +617,15 @@ static void cage2d_draw_rect_corner_handles(const rctf *r,
 
   /* should  really divide by two, but looks too bulky. */
   {
-    imm_draw_point_aspect_2d(pos, r->xmin, r->ymin, rad[0], rad[1], solid);
-    imm_draw_point_aspect_2d(pos, r->xmax, r->ymin, rad[0], rad[1], solid);
-    imm_draw_point_aspect_2d(pos, r->xmax, r->ymax, rad[0], rad[1], solid);
-    imm_draw_point_aspect_2d(pos, r->xmin, r->ymax, rad[0], rad[1], solid);
+    if (draw_corners) {
+      imm_draw_point_aspect_2d(pos, r->xmin, r->ymin, rad[0], rad[1], solid);
+      imm_draw_point_aspect_2d(pos, r->xmax, r->ymin, rad[0], rad[1], solid);
+      imm_draw_point_aspect_2d(pos, r->xmax, r->ymax, rad[0], rad[1], solid);
+      imm_draw_point_aspect_2d(pos, r->xmin, r->ymax, rad[0], rad[1], solid);
+    }
   }
 
-  if (transform_flag & ED_GIZMO_CAGE_XFORM_FLAG_ROTATE) {
+  if (draw_rotate_handle) {
     const float handle[2] = {
         BLI_rctf_cent_x(r),
         r->ymax + (margin[1] * GIZMO_MARGIN_OFFSET_SCALE),
@@ -1003,7 +1017,7 @@ static void gizmo_cage2d_setup(wmGizmo *gz)
   gz->flag |= WM_GIZMO_DRAW_MODAL | WM_GIZMO_DRAW_NO_SCALE;
 }
 
-static int gizmo_cage2d_invoke(bContext *C, wmGizmo *gz, const wmEvent *event)
+static wmOperatorStatus gizmo_cage2d_invoke(bContext *C, wmGizmo *gz, const wmEvent *event)
 {
   RectTransformInteraction *data = static_cast<RectTransformInteraction *>(
       MEM_callocN(sizeof(RectTransformInteraction), "cage_interaction"));
@@ -1078,10 +1092,10 @@ static void gizmo_pivot_from_scale_part(int part, float r_pt[2])
   }
 }
 
-static int gizmo_cage2d_modal(bContext *C,
-                              wmGizmo *gz,
-                              const wmEvent *event,
-                              eWM_GizmoFlagTweak /*tweak_flag*/)
+static wmOperatorStatus gizmo_cage2d_modal(bContext *C,
+                                           wmGizmo *gz,
+                                           const wmEvent *event,
+                                           eWM_GizmoFlagTweak /*tweak_flag*/)
 {
   RectTransformInteraction *data = static_cast<RectTransformInteraction *>(gz->interaction_data);
   int transform_flag = RNA_enum_get(gz->ptr, "transform");
@@ -1289,7 +1303,10 @@ static void gizmo_cage2d_exit(bContext *C, wmGizmo *gz, const bool cancel)
 {
   RectTransformInteraction *data = static_cast<RectTransformInteraction *>(gz->interaction_data);
 
-  MEM_SAFE_FREE(data->dial);
+  if (data->dial) {
+    BLI_dial_free(data->dial);
+    data->dial = nullptr;
+  }
 
   if (!cancel) {
     return;

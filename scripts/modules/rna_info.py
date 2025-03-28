@@ -4,6 +4,15 @@
 
 # classes for extracting info from blenders internal classes
 
+__all__ = (
+    "BuildRNAInfo",
+    "InfoFunctionRNA",
+    "InfoOperatorRNA",
+    "InfoPropertyRNA",
+    "InfoStructRNA",
+    "rna_id_ignore",
+)
+
 import bpy
 
 # use to strip python paths
@@ -78,19 +87,19 @@ def get_py_class_from_rna(rna_type):
     def subclasses_recurse(cls):
         for c in cls.__subclasses__():
             # is_registered
-            if "bl_rna" in cls.__dict__:
+            if "bl_rna" in c.__dict__:
                 yield c
             yield from subclasses_recurse(c)
 
-    while py_class is None:
-        base = rna_type.base
-        if base is None:
-            raise Exception("can't find type")
+    base = rna_type.base
+    while base is not None:
         py_class_base = getattr(bpy.types, base.identifier, None)
         if py_class_base is not None:
             for cls in subclasses_recurse(py_class_base):
                 if cls.bl_rna.identifier == identifier:
                     return cls
+        base = base.base
+    raise Exception("can't find type")
 
 
 class InfoStructRNA:
@@ -187,7 +196,7 @@ class InfoStructRNA:
         import types
         functions = []
         for identifier, attr in self._get_py_visible_attrs():
-            # Methods may be python wrappers to C functions.
+            # Methods may be Python wrappers to C-API functions.
             ok = False
             if (attr_func := getattr(attr, "__func__", None)) is not None:
                 if type(attr_func) == types.FunctionType:
@@ -203,7 +212,7 @@ class InfoStructRNA:
         import types
         functions = []
         for identifier, attr in self._get_py_visible_attrs():
-            # Methods may be python wrappers to C functions.
+            # Methods may be Python wrappers to C-API functions.
             ok = False
             if (attr_func := getattr(attr, "__func__", None)) is not None:
                 if type(attr_func) == types.BuiltinFunctionType:
@@ -381,11 +390,13 @@ class InfoPropertyRNA:
         """
         :arg enum_descr_override: Optionally override items for enum.
            Otherwise expand the literal items.
-        :type enum_descr_override: string or None when unset.
+        :type enum_descr_override: str | None
         """
         type_str = ""
         if self.fixed_type is None:
             type_str += self.type
+            if self.type == "string" and self.subtype == "BYTE_STRING":
+                type_str = "byte string"
             if self.array_length:
                 if self.array_dimensions[1] != 0:
                     dimension_str = " of {:s} items".format(
@@ -459,7 +470,7 @@ class InfoPropertyRNA:
             if not self.is_required:
                 type_info.append("optional")
             if self.is_argument_optional:
-                type_info.append("optional argument")
+                type_info.append("optional for registration")
         else:  # readonly is only useful for self's, not args
             if self.is_readonly:
                 type_info.append("readonly")
@@ -645,7 +656,7 @@ def BuildRNAInfo():
     def base_id(rna_struct):
         try:
             return rna_struct.base.identifier
-        except:
+        except AttributeError:
             return ""  # invalid id
 
     # structs = [(base_id(rna_struct), rna_struct.identifier, rna_struct) for rna_struct in bpy.doc.structs.values()]

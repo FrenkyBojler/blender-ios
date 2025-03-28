@@ -45,7 +45,7 @@ static void wm_xr_error_handler(const GHOST_XrError *error)
   wmWindow *root_win = wm->xr.runtime ? wm->xr.runtime->session_root_win : nullptr;
 
   BKE_reports_clear(&wm->runtime->reports);
-  WM_report(RPT_ERROR, error->user_message);
+  WM_global_report(RPT_ERROR, error->user_message);
   /* Rely on the fallback when `root_win` is nullptr. */
   WM_report_banner_show(wm, root_win);
 
@@ -100,6 +100,8 @@ bool wm_xr_init(wmWindowManager *wm)
                                      wm_xr_session_gpu_binding_context_create,
                                      wm_xr_session_gpu_binding_context_destroy);
     GHOST_XrDrawViewFunc(context, wm_xr_draw_view);
+    GHOST_XrPassthroughEnabledFunc(context, wm_xr_passthrough_enabled);
+    GHOST_XrDisablePassthroughFunc(context, wm_xr_disable_passthrough);
 
     if (!wm->xr.runtime) {
       wm->xr.runtime = wm_xr_runtime_data_create();
@@ -146,8 +148,7 @@ bool wm_xr_events_handle(wmWindowManager *wm)
 
 wmXrRuntimeData *wm_xr_runtime_data_create()
 {
-  wmXrRuntimeData *runtime = static_cast<wmXrRuntimeData *>(
-      MEM_callocN(sizeof(*runtime), __func__));
+  wmXrRuntimeData *runtime = MEM_callocN<wmXrRuntimeData>(__func__);
   return runtime;
 }
 

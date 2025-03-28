@@ -39,6 +39,7 @@ GLFrameBuffer::GLFrameBuffer(
   immutable_ = true;
   fbo_id_ = fbo;
   gl_attachments_[0] = target;
+  set_color_attachment_bit(GPU_FB_COLOR_ATTACHMENT0, true);
   /* Never update an internal frame-buffer. */
   dirty_attachments_ = false;
   width_ = w;
@@ -381,6 +382,12 @@ void GLFrameBuffer::bind(bool enabled_srgb)
     /* Internal frame-buffers have only one color output and needs to be set every time. */
     if (immutable_ && fbo_id_ == 0) {
       glDrawBuffer(gl_attachments_[0]);
+    }
+  }
+
+  if (!GLContext::texture_barrier_support && !GLContext::framebuffer_fetch_support) {
+    for (int index : IndexRange(GPU_FB_MAX_ATTACHMENT)) {
+      tmp_detached_[index] = GPU_ATTACHMENT_NONE;
     }
   }
 

@@ -7,7 +7,6 @@
  */
 
 #include <cfloat>
-#include <cmath>
 #include <cstdio>
 #include <cstring>
 
@@ -17,6 +16,8 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_listbase.h"
+
 #include "BKE_context.hh"
 #include "BKE_fcurve.hh"
 #include "BKE_screen.hh"
@@ -25,7 +26,7 @@
 #include "ED_screen.hh"
 #include "UI_interface.hh"
 
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "graph_intern.hh" /* own include */
 
@@ -168,7 +169,7 @@ bool graphop_editable_keyframes_poll(bContext *C)
   int filter;
   bool found = false;
 
-  /* firstly, check if in Graph Editor or Dopesheet */
+  /* Firstly, check if in Graph Editor or Dope-sheet. */
   /* TODO: also check for region? */
   if (area == nullptr || !ELEM(area->spacetype, SPACE_GRAPH, SPACE_ACTION)) {
     return found;

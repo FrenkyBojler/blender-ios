@@ -30,10 +30,9 @@ ResourceHandle VKResourceStateTracker::create_resource_slot()
   return handle;
 }
 
-void VKResourceStateTracker::add_image(VkImage vk_image,
-                                       VkImageLayout vk_image_layout,
-                                       ResourceOwner owner)
+void VKResourceStateTracker::add_image(VkImage vk_image, uint32_t layer_count, const char *name)
 {
+  UNUSED_VARS_NDEBUG(name);
   BLI_assert_msg(!image_resources_.contains(vk_image),
                  "Image resource is added twice to the render graph.");
   std::scoped_lock lock(mutex);
@@ -42,18 +41,21 @@ void VKResourceStateTracker::add_image(VkImage vk_image,
   image_resources_.add_new(vk_image, handle);
 
   resource.type = VKResourceType::IMAGE;
-  resource.owner = owner;
   resource.image.vk_image = vk_image;
-  resource.image.vk_image_layout = vk_image_layout;
+  resource.image.layer_count = layer_count;
   resource.stamp = 0;
+#ifndef NDEBUG
+  resource.name = name;
+#endif
 
 #ifdef VK_RESOURCE_STATE_TRACKER_VALIDATION
   validate();
 #endif
 }
 
-void VKResourceStateTracker::add_buffer(VkBuffer vk_buffer)
+void VKResourceStateTracker::add_buffer(VkBuffer vk_buffer, const char *name)
 {
+  UNUSED_VARS_NDEBUG(name);
   BLI_assert_msg(!buffer_resources_.contains(vk_buffer),
                  "Buffer resource is added twice to the render graph.");
   std::scoped_lock lock(mutex);
@@ -62,9 +64,11 @@ void VKResourceStateTracker::add_buffer(VkBuffer vk_buffer)
   buffer_resources_.add_new(vk_buffer, handle);
 
   resource.type = VKResourceType::BUFFER;
-  resource.owner = ResourceOwner::APPLICATION;
   resource.buffer.vk_buffer = vk_buffer;
   resource.stamp = 0;
+#ifndef NDEBUG
+  resource.name = name;
+#endif
 
 #ifdef VK_RESOURCE_STATE_TRACKER_VALIDATION
   validate();
@@ -127,7 +131,7 @@ ResourceWithStamp VKResourceStateTracker::get_image_and_increase_stamp(VkImage v
   return get_and_increase_stamp(handle, resource);
 }
 
-ResourceWithStamp VKResourceStateTracker::get_buffer_and_increase_version(VkBuffer vk_buffer)
+ResourceWithStamp VKResourceStateTracker::get_buffer_and_increase_stamp(VkBuffer vk_buffer)
 {
   ResourceHandle handle = buffer_resources_.lookup(vk_buffer);
   Resource &resource = resources_.lookup(handle);
@@ -146,16 +150,6 @@ ResourceWithStamp VKResourceStateTracker::get_image(VkImage vk_image) const
   ResourceHandle handle = image_resources_.lookup(vk_image);
   const Resource &resource = resources_.lookup(handle);
   return get_stamp(handle, resource);
-}
-
-void VKResourceStateTracker::reset_image_layouts()
-{
-  for (ResourceHandle image_handle : image_resources_.values()) {
-    VKResourceStateTracker::Resource &resource = resources_.lookup(image_handle);
-    if (resource.owner == ResourceOwner::SWAP_CHAIN) {
-      resource.reset_image_layout();
-    }
-  }
 }
 
 #ifdef VK_RESOURCE_STATE_TRACKER_VALIDATION

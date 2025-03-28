@@ -8,8 +8,15 @@
 
 #pragma once
 
+#include "BKE_nla.hh"
+
 #include "BLI_sys_types.h"
 #include "BLI_utildefines.h"
+
+#include "DNA_screen_types.h"
+#include "DNA_space_types.h"
+
+#include <optional>
 
 struct AnimData;
 struct Depsgraph;
@@ -46,6 +53,13 @@ struct uiBlock;
 struct PointerRNA;
 struct PropertyRNA;
 
+struct MPathTarget;
+
+namespace blender::animrig {
+class Action;
+class Slot;
+}  // namespace blender::animrig
+
 /* ************************************************ */
 /* ANIMATION CHANNEL FILTERING */
 /* `anim_filter.cc` */
@@ -54,6 +68,32 @@ struct PropertyRNA;
 /** \name Context
  * \{ */
 
+/** Main Data container types. */
+enum eAnimCont_Types {
+  /** Invalid or no data. */
+  ANIMCONT_NONE = 0,
+  /** Action (#bAction). */
+  ANIMCONT_ACTION = 1,
+  /** Shape-key (#Key). */
+  ANIMCONT_SHAPEKEY = 2,
+  /** Grease pencil (screen). */
+  ANIMCONT_GPENCIL = 3,
+  /** Dope-sheet (#bDopesheet). */
+  ANIMCONT_DOPESHEET = 4,
+  /** Animation F-Curves (#bDopesheet). */
+  ANIMCONT_FCURVES = 5,
+  /** Drivers (#bDopesheet). */
+  ANIMCONT_DRIVERS = 6,
+  /** NLA (#bDopesheet). */
+  ANIMCONT_NLA = 7,
+  /** Animation channel (#bAnimListElem). */
+  ANIMCONT_CHANNEL = 8,
+  /** Mask dope-sheet. */
+  ANIMCONT_MASK = 9,
+  /** "timeline" editor (#bDopeSheet). */
+  ANIMCONT_TIMELINE = 10,
+};
+
 /**
  * This struct defines a structure used for animation-specific
  * 'context' information.
@@ -61,15 +101,17 @@ struct PropertyRNA;
 struct bAnimContext {
   /** data to be filtered for use in animation editor */
   void *data;
-  /** type of data eAnimCont_Types */
-  short datatype;
+  /** Type of `data`. */
+  eAnimCont_Types datatype;
 
-  /** editor->mode */
-  short mode;
+  /** Editor mode, which depends on `spacetype` (below). */
+  eAnimEdit_Context dopesheet_mode;
+  eGraphEdit_Mode grapheditor_mode;
+
   /** area->spacetype */
-  short spacetype;
+  eSpace_Type spacetype;
   /** active region -> type (channels or main) */
-  short regiontype;
+  eRegion_Type regiontype;
 
   /** editor host */
   ScrArea *area;
@@ -98,32 +140,6 @@ struct bAnimContext {
   ReportList *reports;
 };
 
-/** Main Data container types. */
-enum eAnimCont_Types {
-  /** Invalid or no data. */
-  ANIMCONT_NONE = 0,
-  /** Action (#bAction). */
-  ANIMCONT_ACTION = 1,
-  /** Shape-key (#Key). */
-  ANIMCONT_SHAPEKEY = 2,
-  /** Grease pencil (screen). */
-  ANIMCONT_GPENCIL = 3,
-  /** Dope-sheet (#bDopesheet). */
-  ANIMCONT_DOPESHEET = 4,
-  /** Animation F-Curves (#bDopesheet). */
-  ANIMCONT_FCURVES = 5,
-  /** Drivers (#bDopesheet). */
-  ANIMCONT_DRIVERS = 6,
-  /** NLA (#bDopesheet). */
-  ANIMCONT_NLA = 7,
-  /** Animation channel (#bAnimListElem). */
-  ANIMCONT_CHANNEL = 8,
-  /** Mask dope-sheet. */
-  ANIMCONT_MASK = 9,
-  /** "timeline" editor (#bDopeSheet). */
-  ANIMCONT_TIMELINE = 10,
-};
-
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -133,8 +149,9 @@ enum eAnimCont_Types {
 /**
  * Some types for easier type-testing
  *
- * \note need to keep the order of these synchronized with the channels define code
- * which is used for drawing and handling channel lists for.
+ * \note need to keep the order of these synchronized with the channels define code (ACF_XXX must
+ * have the same value as ANIMTYPE_XXX below) which is used for drawing and handling channel lists
+ * for.
  */
 enum eAnim_ChannelType {
   ANIMTYPE_NONE = 0,
@@ -152,7 +169,8 @@ enum eAnim_ChannelType {
   ANIMTYPE_NLACURVE,
 
   ANIMTYPE_FILLACT_LAYERED, /* Layered Actions. */
-  ANIMTYPE_FILLACTD,        /* Legacy Actions. */
+  ANIMTYPE_ACTION_SLOT,
+  ANIMTYPE_FILLACTD, /* Legacy Actions. */
   ANIMTYPE_FILLDRIVERS,
 
   ANIMTYPE_DSMAT,
@@ -179,7 +197,6 @@ enum eAnim_ChannelType {
 
   ANIMTYPE_SHAPEKEY,
 
-  ANIMTYPE_GPDATABLOCK,
   ANIMTYPE_GPLAYER,
 
   ANIMTYPE_GREASE_PENCIL_DATABLOCK,
@@ -212,6 +229,7 @@ enum eAnim_KeyType {
   ALE_ACT,            /* Action summary (legacy). */
   ALE_GROUP,          /* Action Group summary (legacy). */
   ALE_ACTION_LAYERED, /* Action summary (layered). */
+  ALE_ACTION_SLOT,    /* Action slot summary. */
 
   ALE_GREASE_PENCIL_CEL,   /* Grease Pencil Cels. */
   ALE_GREASE_PENCIL_DATA,  /* Grease Pencil Cels summary. */
@@ -252,6 +270,18 @@ struct bAnimListElem {
   int flag;
   /** for un-named data, the index of the data in its collection */
   int index;
+  /**
+   * For data that is owned by a specific slot, its handle.
+   *
+   * This is not declared as #blender::animrig::slot_handle_t to avoid all the users of this
+   * header file to get the `animrig` module as extra dependency (which would spread to the undo
+   * system, line-art, etc). It's probably best to split off this struct definition from the rest
+   * of this header, as most code that uses this header doesn't need to know the definition of this
+   * struct.
+   *
+   * TODO: split off into separate header file.
+   */
+  int32_t slot_handle;
 
   /** Tag the element for updating. */
   eAnim_Update_Flags update;
@@ -278,17 +308,25 @@ struct bAnimListElem {
   ID *id;
   /** source of the animation data attached to ID block */
   AnimData *adt;
+  /** Main containing the ID. */
+  Main *bmain;
 
   /**
-   * For list element which corresponds to a f-curve, this is an ID which
-   * owns the f-curve.
+   * For list elements that correspond to an f-curve, a channel group, or an
+   * action slot, this is the ID which owns that data.
    *
-   * For example, if the f-curve is coming from Action, this id will be set to
-   * action's ID. But if this is a f-curve which is a driver, then the owner
-   * is set to, for example, object.
+   * For channel groups and action slots, that will always be an Action. For
+   * f-curves it's more complicated, because f-curves are sometimes owned by
+   * other ID types (e.g. driver f-curves are owned by objects, materials,
+   * etc.), so you have to be careful.
    *
    * NOTE: this is different from id above. The id above will be set to
    * an object if the f-curve is coming from action associated with that object.
+   *
+   * TODO: the responsibilities for this are getting overloaded, which makes it
+   * difficult to use confidently, and also makes its name misleading. Split off
+   * a separate `bAction` pointer that is simply null when the data isn't owned
+   * by an action.
    */
   ID *fcurve_owner_id;
 
@@ -348,7 +386,12 @@ enum eAnimFilter_Flags {
   /** duplicate entries for animation data attached to multi-user blocks must not occur */
   ANIMFILTER_NODUPLIS = (1 << 11),
 
-  /** avoid channel that does not have any F-curve data */
+  /**
+   * Avoid channels that don't have any F-curve data under them.
+   *
+   * Note that this isn't just direct fcurve channels, but also includes e.g.
+   * channel groups with fcurve channels as members.
+   */
   ANIMFILTER_FCURVESONLY = (1 << 12),
 
   /** for checking if we should keep some collapsed channel around (internal use only!) */
@@ -368,7 +411,7 @@ ENUM_OPERATORS(eAnimFilter_Flags, ANIMFILTER_TMP_IGNORE_ONLYSEL);
 
 /* XXX check on all of these flags again. */
 
-/* Dopesheet only */
+/* Dope-sheet only. */
 /* 'Scene' channels */
 #define SEL_SCEC(sce) (CHECK_TYPE_INLINE(sce, Scene *), ((sce->flag & SCE_DS_SELECTED)))
 #define EXPANDED_SCEC(sce) (CHECK_TYPE_INLINE(sce, Scene *), ((sce->flag & SCE_DS_COLLAPSED) == 0))
@@ -409,7 +452,7 @@ ENUM_OPERATORS(eAnimFilter_Flags, ANIMFILTER_TMP_IGNORE_ONLYSEL);
 #define EXPANDED_DRVD(adt) ((adt->flag & ADT_DRIVERS_COLLAPSED) == 0)
 #define EXPANDED_ADT(adt) ((adt->flag & ADT_UI_EXPANDED) != 0)
 
-/* Actions (also used for Dopesheet) */
+/* Actions (also used for Dope-sheet). */
 /** Action Channel Group. */
 #define EDITABLE_AGRP(agrp) (((agrp)->flag & AGRP_PROTECTED) == 0)
 #define EXPANDED_AGRP(ac, agrp) \
@@ -417,8 +460,8 @@ ENUM_OPERATORS(eAnimFilter_Flags, ANIMFILTER_TMP_IGNORE_ONLYSEL);
    (((ac) && ((ac)->spacetype == SPACE_GRAPH)) && ((agrp)->flag & AGRP_EXPANDED_G)))
 #define SEL_AGRP(agrp) (((agrp)->flag & AGRP_SELECTED) || ((agrp)->flag & AGRP_ACTIVE))
 /** F-Curve Channels. */
-#define EDITABLE_FCU(fcu) ((fcu->flag & FCURVE_PROTECTED) == 0)
-#define SEL_FCU(fcu) (fcu->flag & FCURVE_SELECTED)
+#define EDITABLE_FCU(fcu) (((fcu)->flag & FCURVE_PROTECTED) == 0)
+#define SEL_FCU(fcu) ((fcu)->flag & FCURVE_SELECTED)
 
 /* ShapeKey mode only */
 #define EDITABLE_SHAPEKEY(kb) ((kb->flag & KEYBLOCK_LOCKED) == 0)
@@ -477,6 +520,33 @@ ENUM_OPERATORS(eAnimFilter_Flags, ANIMFILTER_TMP_IGNORE_ONLYSEL);
 /* -------------------------------------------------------------------- */
 /** \name Public API
  * \{ */
+
+/**
+ * Add the channel and sub-channels for an Action Slot to `anim_data`, filtered
+ * according to `filter_mode`.
+ *
+ * \param action: the action containing the slot to generate the channels for.
+ *
+ * \param slot: the slot to generate the channels for.
+ *
+ * \param filter_mode: the filters to use for deciding what channels get
+ * included.
+ *
+ * \param animated_id: the particular animated ID that the slot channels are
+ * being generated for. This is needed for filtering channels based on bone
+ * selection, and also for resolving the names of animated properties. This
+ * should never be null, but it's okay(ish) if it's an ID not actually animated
+ * by the slot, in which case it will act as a fallback in case an ID actually
+ * animated by the slot can't be found.
+ *
+ * \return The number of items added to `anim_data`.
+ */
+size_t ANIM_animfilter_action_slot(bAnimContext *ac,
+                                   ListBase * /* bAnimListElem */ anim_data,
+                                   blender::animrig::Action &action,
+                                   blender::animrig::Slot &slot,
+                                   eAnimFilter_Flags filter_mode,
+                                   ID *animated_id);
 
 /**
  * This function filters the active data source to leave only animation channels suitable for
@@ -619,6 +689,18 @@ struct bAnimChannelType {
    * - assume that setting has been checked to be valid for current context.
    */
   void *(*setting_ptr)(bAnimListElem *ale, eAnimChannel_Settings setting, short *r_type);
+
+  /**
+   * Called after a setting was changed via ANIM_channel_setting_set().
+   *
+   * \param ale is marked as 'const', as it could have been duplicated and taken out of context.
+   * This means that any hypothetical changes to `ale->update`, for example, will not be seen by
+   * any `ANIM_animdata_update()` call. So better to keep this `const` and avoid any manipulation.
+   * Also, because of the duplications, the ale's `prev` and `next` pointers will be dangling.
+   */
+  void (*setting_post_update)(Main &bmain,
+                              const bAnimListElem &ale,
+                              eAnimChannel_Settings setting);
 };
 
 /** \} */
@@ -644,7 +726,7 @@ float ANIM_UI_get_channel_button_width();
 /**
  * Get type info from given channel type.
  */
-const bAnimChannelType *ANIM_channel_get_typeinfo(bAnimListElem *ale);
+const bAnimChannelType *ANIM_channel_get_typeinfo(const bAnimListElem *ale);
 
 /**
  * Print debug info string for the given channel.
@@ -668,7 +750,7 @@ void ANIM_channel_draw_widgets(const bContext *C,
                                bAnimContext *ac,
                                bAnimListElem *ale,
                                uiBlock *block,
-                               rctf *rect,
+                               const rctf *rect,
                                size_t channel_index);
 
 /** \} */
@@ -735,6 +817,12 @@ void ANIM_set_active_channel(bAnimContext *ac,
  * Return whether channel is active.
  */
 bool ANIM_is_active_channel(bAnimListElem *ale);
+
+/**
+ * Deselects the keys displayed within the open animation editors. Depending on the display
+ * settings of those editors, the keys may not be from an action of the selected objects.
+ */
+void ANIM_deselect_keys_in_animation_editors(bContext *C);
 
 /* ************************************************ */
 /* DRAWING API */
@@ -878,8 +966,20 @@ bool ANIM_fmodifiers_paste_from_buf(ListBase *modifiers, bool replace, FCurve *c
  *
  * \warning name buffer we're writing to cannot exceed 256 chars
  * (check anim_channels_defines.cc for details).
+ *
+ * \return the icon of whatever struct the F-Curve's RNA path resolves to.
+ * Returns #std::nullopt if the path could not be resolved.
  */
-int getname_anim_fcurve(char *name, ID *id, FCurve *fcu);
+std::optional<int> getname_anim_fcurve(char *name, ID *id, FCurve *fcu);
+
+/**
+ * Get the name of an F-Curve that's animating a specific slot.
+ *
+ * This function iterates the Slot's users to find an ID that allows it to resolve its RNA path.
+ */
+std::string getname_anim_fcurve_for_slot(Main &bmain,
+                                         const blender::animrig::Slot &slot,
+                                         FCurve &fcurve);
 
 /**
  * Automatically determine a color for the nth F-Curve.
@@ -910,18 +1010,40 @@ void nla_action_get_color(AnimData *adt, bAction *act, float color[4]);
 /* `anim_draw.cc` */
 
 /**
- * Obtain the AnimData block providing NLA-mapping for the given channel (if applicable).
+ * Check whether NLA time remapping should be done on this bAnimListElem.
  *
- * TODO: do not supply return this if the animdata tells us that there is no mapping to perform.
+ * \returns true by default, false only when this ale indicates an NLA control curve (like animated
+ * influence) or a driver.
  */
-AnimData *ANIM_nla_mapping_get(bAnimContext *ac, bAnimListElem *ale);
+bool ANIM_nla_mapping_allowed(const bAnimListElem *ale);
+
+/**
+ * Do NLA time remapping, but only if `ANIM_nla_mapping_allowed(ale)` returns `true`.
+ *
+ * \see #ANIM_nla_mapping_allowed
+ * \see #BKE_nla_tweakedit_remap
+ */
+float ANIM_nla_tweakedit_remap(bAnimListElem *ale, float cframe, eNlaTime_ConvertModes mode);
 
 /**
  * Apply/Unapply NLA mapping to all keyframes in the nominated F-Curve
  * \param restore: Whether to map points back to non-mapped time.
  * \param only_keys: Whether to only adjust the location of the center point of beztriples.
+ *
+ * TODO: this is only used by `fcurve_to_keylist()` at this point. Perhaps with
+ * some refactoring we can make `fcurve_to_keylist()` use
+ * `ANIM_nla_mapping_apply_if_needed_fcurve()` instead, and then we can get rid
+ * of this.
  */
 void ANIM_nla_mapping_apply_fcurve(AnimData *adt, FCurve *fcu, bool restore, bool only_keys);
+
+/**
+ * Same as above, but only if `ANIM_nla_mapping_allowed(ale)` returns `true`.
+ */
+void ANIM_nla_mapping_apply_if_needed_fcurve(bAnimListElem *ale,
+                                             FCurve *fcu,
+                                             bool restore,
+                                             bool only_keys);
 
 /* ..... */
 
@@ -1110,12 +1232,12 @@ enum eAnimvizCalcRange {
 Depsgraph *animviz_depsgraph_build(Main *bmain,
                                    Scene *scene,
                                    ViewLayer *view_layer,
-                                   ListBase *targets);
+                                   blender::Span<MPathTarget *> targets);
 
 void animviz_calc_motionpaths(Depsgraph *depsgraph,
                               Main *bmain,
                               Scene *scene,
-                              ListBase *targets,
+                              blender::MutableSpan<MPathTarget *> targets,
                               eAnimvizCalcRange range,
                               bool restore);
 
@@ -1129,9 +1251,16 @@ void animviz_calc_motionpaths(Depsgraph *depsgraph,
 void animviz_motionpath_compute_range(Object *ob, Scene *scene);
 
 /**
- * Get list of motion paths to be baked for the given object.
- * - assumes the given list is ready to be used.
+ * Populate the given vector with MPathTarget elements for the given object.
+ * Will look for pose bones as well. `animviz_free_motionpath_targets` needs to be called
+ * to free the memory allocated in this function.
  */
-void animviz_get_object_motionpaths(Object *ob, ListBase *targets);
+void animviz_build_motionpath_targets(Object *ob, blender::Vector<MPathTarget *> &r_targets);
+
+/**
+ * Free the elements of the vector populated with `animviz_build_motionpath_targets`.
+ * After this function the Vector will have a length of 0.
+ */
+void animviz_free_motionpath_targets(blender::Vector<MPathTarget *> &targets);
 
 /** \} */

@@ -10,11 +10,9 @@
 
 #include <cstring>
 
-#include "MEM_guardedalloc.h"
-
 #include "BLI_fileops.h"
 #include "BLI_listbase.h"
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
 #include "BLI_string_utils.hh"
@@ -27,11 +25,32 @@
 
 #include "BLO_read_write.hh"
 
-#include "DNA_asset_types.h"
 #include "DNA_defaults.h"
 #include "DNA_userdef_types.h"
 
 #define U BLI_STATIC_ASSERT(false, "Global 'U' not allowed, only use arguments passed in!")
+
+/* -------------------------------------------------------------------- */
+/** \name Preferences File
+ * \{ */
+
+namespace blender::bke::preferences {
+
+bool exists()
+{
+  const std::optional<std::string> cfgdir = BKE_appdir_folder_id(BLENDER_USER_CONFIG, nullptr);
+  if (!cfgdir.has_value()) {
+    return false;
+  }
+
+  char userpref[FILE_MAX];
+  BLI_path_join(userpref, sizeof(userpref), cfgdir->c_str(), BLENDER_USERPREF_FILE);
+  return BLI_exists(userpref);
+}
+
+}  // namespace blender::bke::preferences
+
+/** \} */
 
 /* -------------------------------------------------------------------- */
 /** \name Asset Libraries
@@ -97,7 +116,7 @@ bUserAssetLibrary *BKE_preferences_asset_library_containing_path(const UserDef *
                                                                  const char *path)
 {
   LISTBASE_FOREACH (bUserAssetLibrary *, asset_lib_pref, &userdef->asset_libraries) {
-    if (BLI_path_contains(asset_lib_pref->dirpath, path)) {
+    if (asset_lib_pref->dirpath[0] && BLI_path_contains(asset_lib_pref->dirpath, path)) {
       return asset_lib_pref;
     }
   }
@@ -264,6 +283,21 @@ void BKE_preferences_extension_repo_module_set(UserDef *userdef,
                  sizeof(repo->module));
 }
 
+bool BKE_preferences_extension_repo_module_is_valid(const bUserExtensionRepo *repo)
+{
+  /* NOTE: this should only ever return false in the case of corrupt file/memory
+   * and can be considered an exceptional situation. */
+  char module_test[sizeof(bUserExtensionRepo::module)];
+  const size_t module_len = strncpy_py_module(module_test, repo->module, sizeof(repo->module));
+  if (module_len == 0) {
+    return false;
+  }
+  if (module_len != BLI_strnlen(repo->module, sizeof(repo->module))) {
+    return false;
+  }
+  return true;
+}
+
 void BKE_preferences_extension_repo_custom_dirpath_set(bUserExtensionRepo *repo, const char *path)
 {
   STRNCPY(repo->custom_dirpath, path);
@@ -301,6 +335,18 @@ size_t BKE_preferences_extension_repo_dirpath_get(const bUserExtensionRepo *repo
     return 0;
   }
   return BLI_path_join(dirpath, dirpath_maxncpy, path.value().c_str(), repo->module);
+}
+
+size_t BKE_preferences_extension_repo_user_dirpath_get(const bUserExtensionRepo *repo,
+                                                       char *dirpath,
+                                                       const int dirpath_maxncpy)
+{
+  if (std::optional<std::string> path = BKE_appdir_folder_id_user_notest(BLENDER_USER_EXTENSIONS,
+                                                                         nullptr))
+  {
+    return BLI_path_join(dirpath, dirpath_maxncpy, path.value().c_str(), ".user", repo->module);
+  }
+  return 0;
 }
 
 bUserExtensionRepo *BKE_preferences_extension_repo_find_index(const UserDef *userdef, int index)
@@ -410,11 +456,26 @@ int BKE_preferences_extension_repo_remote_scheme_end(const char *url)
 void BKE_preferences_extension_remote_to_name(const char *remote_url,
                                               char name[sizeof(bUserExtensionRepo::name)])
 {
+#ifdef _WIN32
+  const bool is_win32 = true;
+#else
+  const bool is_win32 = false;
+#endif
   const bool is_file = STRPREFIX(remote_url, "file://");
   name[0] = '\0';
   if (int offset = BKE_preferences_extension_repo_remote_scheme_end(remote_url)) {
     /* Skip the `://`. */
     remote_url += (offset + 3);
+
+    if (is_win32) {
+      if (is_file) {
+        /* Skip the slash prefix for: `/C:/`,
+         * not *required* but seems like a bug if it's not done. */
+        if (remote_url[0] == '/' && isalpha(remote_url[1]) && (remote_url[2] == ':')) {
+          remote_url += 1;
+        }
+      }
+    }
   }
   if (UNLIKELY(remote_url[0] == '\0')) {
     return;
@@ -448,6 +509,12 @@ void BKE_preferences_extension_remote_to_name(const char *remote_url,
 
   BLI_strncpy_utf8(
       name, remote_url, std::min(size_t(c - remote_url) + 1, sizeof(bUserExtensionRepo::name)));
+
+  if (is_win32) {
+    if (is_file) {
+      BLI_path_slash_native(name);
+    }
+  }
 }
 
 int BKE_preferences_extension_repo_get_index(const UserDef *userdef,

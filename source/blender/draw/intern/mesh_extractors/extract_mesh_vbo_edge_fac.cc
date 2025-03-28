@@ -27,7 +27,7 @@ struct MEdgeDataPrev {
 
 /**
  * Calculates a factor that is used to identify the minimum angle in the shader to display an edge.
- * NOTE: Keep in sync with `common_subdiv_vbo_edge_fac_comp.glsl`.
+ * NOTE: Keep in sync with `subdiv_vbo_edge_fac_comp.glsl`.
  */
 template<typename T> T edge_factor_calc(const float3 &a, const float3 &b);
 
@@ -38,13 +38,20 @@ template<> inline float edge_factor_calc<float>(const float3 &a, const float3 &b
   /* Re-scale to the slider range. */
   float fac = (200 * (cosine - 1.0f)) + 1.0f;
   CLAMP(fac, 0.0f, 1.0f);
-  return fac;
+  /* 1.0 is a reserved value to force hide the wire. */
+  constexpr float factor = 254.0f / 255.0f;
+  return fac * factor;
 }
 
 template<> inline uint8_t edge_factor_calc<uint8_t>(const float3 &a, const float3 &b)
 {
+  const float cosine = math::dot(a, b);
+
+  /* Re-scale to the slider range. */
+  float fac = (200 * (cosine - 1.0f)) + 1.0f;
+  CLAMP(fac, 0.0f, 1.0f);
   /* 255 is a reserved value to force hide the wire. */
-  return uint8_t(edge_factor_calc<float>(a, b) * 254);
+  return fac * 254;
 }
 
 template<typename T>
@@ -62,7 +69,12 @@ static void extract_edge_factor_mesh(const MeshRenderData &mr, MutableSpan<T> vb
     for (const int corner : faces[face]) {
       const int edge = corner_edges[corner];
       if (!optimal_display_edges.is_empty() && !optimal_display_edges[edge]) {
-        vbo_data[corner] = FORCE_HIDE;
+        if constexpr (std::is_same_v<T, float>) {
+          vbo_data[corner] = 1.0f;
+        }
+        else {
+          vbo_data[corner] = FORCE_HIDE;
+        }
         continue;
       }
 
@@ -106,7 +118,7 @@ static void extract_edge_factor_bm(const MeshRenderData &mr, MutableSpan<T> vbo_
   BMesh &bm = *mr.bm;
   threading::parallel_for(IndexRange(bm.totface), 2048, [&](const IndexRange range) {
     for (const int face_index : range) {
-      const BMFace &face = *BM_face_at_index(&const_cast<BMesh &>(bm), face_index);
+      const BMFace &face = *BM_face_at_index(&bm, face_index);
       const BMLoop *loop = BM_FACE_FIRST_LOOP(&face);
       for ([[maybe_unused]] const int i : IndexRange(face.len)) {
         const int index = BM_elem_index_get(loop);
@@ -127,14 +139,12 @@ static void extract_edge_factor_bm(const MeshRenderData &mr, MutableSpan<T> vbo_
 void extract_edge_factor(const MeshRenderData &mr, gpu::VertBuf &vbo)
 {
   if (GPU_crappy_amd_driver() || GPU_minimum_per_vertex_stride() > 1) {
-    static GPUVertFormat format = {0};
-    if (format.attr_len == 0) {
-      GPU_vertformat_attr_add(&format, "wd", GPU_COMP_F32, 1, GPU_FETCH_FLOAT);
-    }
+    static const GPUVertFormat format = GPU_vertformat_from_attribute(
+        "wd", GPU_COMP_F32, 1, GPU_FETCH_FLOAT);
     GPU_vertbuf_init_with_format(vbo, format);
     GPU_vertbuf_data_alloc(vbo, mr.corners_num + mr.loose_indices_num);
     MutableSpan vbo_data = vbo.data<float>();
-    if (mr.extract_type == MR_EXTRACT_MESH) {
+    if (mr.extract_type == MeshExtractType::Mesh) {
       extract_edge_factor_mesh(mr, vbo_data);
     }
     else {
@@ -143,14 +153,12 @@ void extract_edge_factor(const MeshRenderData &mr, gpu::VertBuf &vbo)
     vbo_data.take_back(mr.loose_indices_num).fill(0.0f);
   }
   else {
-    static GPUVertFormat format = {0};
-    if (format.attr_len == 0) {
-      GPU_vertformat_attr_add(&format, "wd", GPU_COMP_U8, 1, GPU_FETCH_INT_TO_FLOAT_UNIT);
-    }
+    static const GPUVertFormat format = GPU_vertformat_from_attribute(
+        "wd", GPU_COMP_U8, 1, GPU_FETCH_INT_TO_FLOAT_UNIT);
     GPU_vertbuf_init_with_format(vbo, format);
     GPU_vertbuf_data_alloc(vbo, mr.corners_num + mr.loose_indices_num);
     MutableSpan vbo_data = vbo.data<uint8_t>();
-    if (mr.extract_type == MR_EXTRACT_MESH) {
+    if (mr.extract_type == MeshExtractType::Mesh) {
       extract_edge_factor_mesh(mr, vbo_data);
     }
     else {
@@ -164,15 +172,14 @@ void extract_edge_factor(const MeshRenderData &mr, gpu::VertBuf &vbo)
  * the buggy AMD driver case. */
 static const GPUVertFormat &get_subdiv_edge_fac_format()
 {
-  static GPUVertFormat format = {0};
-  if (format.attr_len == 0) {
-    if (GPU_crappy_amd_driver() || GPU_minimum_per_vertex_stride() > 1) {
-      GPU_vertformat_attr_add(&format, "wd", GPU_COMP_F32, 1, GPU_FETCH_FLOAT);
-    }
-    else {
-      GPU_vertformat_attr_add(&format, "wd", GPU_COMP_U8, 1, GPU_FETCH_INT_TO_FLOAT_UNIT);
-    }
+  if (GPU_crappy_amd_driver() || GPU_minimum_per_vertex_stride() > 1) {
+    static const GPUVertFormat format = GPU_vertformat_from_attribute(
+        "wd", GPU_COMP_F32, 1, GPU_FETCH_FLOAT);
+    return format;
   }
+
+  static const GPUVertFormat format = GPU_vertformat_from_attribute(
+      "wd", GPU_COMP_U8, 1, GPU_FETCH_INT_TO_FLOAT_UNIT);
   return format;
 }
 
@@ -180,10 +187,8 @@ static gpu::VertBuf *build_poly_other_map_vbo(const DRWSubdivCache &subdiv_cache
 {
   gpu::VertBuf *vbo = GPU_vertbuf_calloc();
 
-  static GPUVertFormat format = {0};
-  if (format.attr_len == 0) {
-    GPU_vertformat_attr_add(&format, "poly_other", GPU_COMP_I32, 1, GPU_FETCH_INT);
-  }
+  static const GPUVertFormat format = GPU_vertformat_from_attribute(
+      "poly_other", GPU_COMP_I32, 1, GPU_FETCH_INT);
 
   GPU_vertbuf_init_with_format(*vbo, format);
   GPU_vertbuf_data_alloc(*vbo, subdiv_cache.num_subdiv_loops);
@@ -231,12 +236,14 @@ void extract_edge_factor_subdiv(const DRWSubdivCache &subdiv_cache,
                                    subdiv_cache.num_subdiv_loops +
                                        subdiv_loose_edges_num(mr, subdiv_cache) * 2);
 
-  gpu::VertBuf *poly_other_map = build_poly_other_map_vbo(subdiv_cache);
+  if (mr.faces_num > 0) {
+    gpu::VertBuf *poly_other_map = build_poly_other_map_vbo(subdiv_cache);
 
-  draw_subdiv_build_edge_fac_buffer(
-      subdiv_cache, &pos_nor, subdiv_cache.edges_draw_flag, poly_other_map, &vbo);
+    draw_subdiv_build_edge_fac_buffer(
+        subdiv_cache, &pos_nor, subdiv_cache.edges_draw_flag, poly_other_map, &vbo);
 
-  GPU_vertbuf_discard(poly_other_map);
+    GPU_vertbuf_discard(poly_other_map);
+  }
 
   const int loose_edges_num = subdiv_loose_edges_num(mr, subdiv_cache);
   if (loose_edges_num == 0) {

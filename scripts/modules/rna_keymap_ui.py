@@ -66,6 +66,8 @@ def draw_km(display_keymaps, kc, km, children, layout, level):
 
         if km.is_user_modified:
             subrow.operator("preferences.keymap_restore", text="Restore")
+            # Add margin to space the button from the scroll-bar.
+            subrow.separator()
         if km.is_modal:
             subrow.label(text="", icon='LINKED')
         del subrow
@@ -157,6 +159,9 @@ def draw_kmi(display_keymaps, kc, km, kmi, layout, level):
             icon=('TRACKING_CLEAR_BACKWARDS' if kmi.is_user_defined else 'X')
         ).item_id = kmi.id
 
+    # Add margin to space the buttons from the scroll-bar.
+    row.separator(factor=0.25 if kmi.show_expanded else 1.0)
+
     # Expanded, additional event settings
     if kmi.show_expanded:
         box = col.box()
@@ -196,6 +201,11 @@ def draw_kmi(display_keymaps, kc, km, kmi, layout, level):
             subrow.prop(kmi, "alt_ui", toggle=True)
             subrow.prop(kmi, "oskey_ui", text="Cmd", toggle=True)
 
+            # On systems that don't support Hyper, only show if it's enabled.
+            # Otherwise the user may have a key binding that doesn't work and can't be changed.
+            if _platform_supports_hyper_key() or kmi.hyper == 1:
+                subrow.prop(kmi, "hyper_ui", text="Hyper", toggle=True)
+
             subrow.prop(kmi, "key_modifier", text="", event=True)
 
         # Operator properties
@@ -212,6 +222,16 @@ def draw_kmi(display_keymaps, kc, km, kmi, layout, level):
 _EVENT_TYPES = set()
 _EVENT_TYPE_MAP = {}
 _EVENT_TYPE_MAP_EXTRA = {}
+
+_HAS_HYPER_KEY = None
+
+
+def _platform_supports_hyper_key():
+    global _HAS_HYPER_KEY
+    if _HAS_HYPER_KEY is None:
+        from _bpy import _ghost_backend
+        _HAS_HYPER_KEY = _ghost_backend() in {'WAYLAND', 'X11'}
+    return _HAS_HYPER_KEY
 
 
 def draw_filtered(display_keymaps, filter_type, filter_text, layout):
@@ -253,9 +273,15 @@ def draw_filtered(display_keymaps, filter_type, filter_text, layout):
             "ctrl": "ctrl",
             "alt": "alt",
             "shift": "shift",
-            "cmd": "oskey",
             "oskey": "oskey",
+            "hyper": "hyper",
             "any": "any",
+
+            # macOS specific modifiers names
+            "control": "ctrl",
+            "option": "alt",
+            "cmd": "oskey",
+            "command": "oskey",
         }
         # KeyMapItem like dict, use for comparing against
         # attr: {states, ...}
@@ -345,6 +371,8 @@ def draw_filtered(display_keymaps, filter_type, filter_text, layout):
                 subrow = row.row()
                 subrow.alignment = 'RIGHT'
                 subrow.operator("preferences.keymap_restore", text="Restore")
+                # Add margin to space the button from the scroll-bar.
+                subrow.separator()
 
             for kmi in filtered_items:
                 draw_kmi(display_keymaps, kc, km, kmi, col, 1)
@@ -439,7 +467,7 @@ def draw_keymaps(context, layout):
                 # Defined by user preset, may contain mistakes out of our control.
                 try:
                     kc_prefs.draw(box)
-                except BaseException:
+                except Exception:
                     import traceback
                     traceback.print_exc()
             del box

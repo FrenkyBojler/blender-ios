@@ -89,6 +89,10 @@ class IndexBuf {
   {
     return index_base_;
   }
+  bool is_32bit() const
+  {
+    return index_type_ == GPU_INDEX_U32;
+  }
   /* Return size in byte of the drawable data buffer range. Actual buffer size might be bigger. */
   size_t size_get() const
   {
@@ -113,7 +117,6 @@ class IndexBuf {
                                     uint max_idx,
                                     GPUPrimType prim_type,
                                     bool clamp_indices_in_range);
-  inline uint index_range(uint *r_min, uint *r_max);
   virtual void strip_restart_indices() = 0;
 };
 
@@ -128,6 +131,16 @@ inline int indices_per_primitive(GPUPrimType prim_type)
       return 3;
     case GPU_PRIM_LINES_ADJ:
       return 4;
+    case GPU_PRIM_TRIS_ADJ:
+      return 6;
+    /** IMPORTANT: These last two expects no restart primitive.
+     * Asserting for this would be too slow. Just don't be stupid.
+     * This is needed for polylines but should be deprecated.
+     * See GPU_batch_draw_expanded_parameter_get */
+    case GPU_PRIM_LINE_STRIP:
+      return 1; /* Minus one for the whole length. */
+    case GPU_PRIM_LINE_LOOP:
+      return 1;
     default:
       return -1;
   }
@@ -208,6 +221,9 @@ void GPU_indexbuf_build_in_place_from_memory(blender::gpu::IndexBuf *ibo,
                                              int32_t index_max,
                                              bool uses_restart_indices);
 
+/**
+ * \note Sub-ranges are not taken into account, the whole buffer will be bound without any offset.
+ */
 void GPU_indexbuf_bind_as_ssbo(blender::gpu::IndexBuf *elem, int binding);
 
 blender::gpu::IndexBuf *GPU_indexbuf_build_curves_on_device(GPUPrimType prim_type,
@@ -255,3 +271,15 @@ int GPU_indexbuf_primitive_len(GPUPrimType prim_type);
       elem = nullptr; \
     } \
   } while (0)
+
+namespace blender::gpu {
+
+class IndexBufDeleter {
+ public:
+  void operator()(IndexBuf *ibo)
+  {
+    GPU_indexbuf_discard(ibo);
+  }
+};
+
+}  // namespace blender::gpu

@@ -118,17 +118,17 @@ struct wmWindowManager;
 #include "DNA_vec_types.h"
 #include "DNA_xr_types.h"
 
-#include "BKE_wm_runtime.hh"
+#include "BKE_wm_runtime.hh"  // IWYU pragma: export
 
 #include "RNA_types.hh"
 
 /* Exported types for WM. */
-#include "gizmo/WM_gizmo_types.hh"
-#include "wm_cursors.hh"
-#include "wm_event_types.hh"
+#include "gizmo/WM_gizmo_types.hh"  // IWYU pragma: export
+#include "wm_cursors.hh"            // IWYU pragma: export
+#include "wm_event_types.hh"        // IWYU pragma: export
 
 /* Include external gizmo API's. */
-#include "gizmo/WM_gizmo_api.hh"
+#include "gizmo/WM_gizmo_api.hh"  // IWYU pragma: export
 
 namespace blender::asset_system {
 class AssetRepresentation;
@@ -156,7 +156,27 @@ struct wmGenericCallback {
 
 /** #wmOperatorType.flag */
 enum {
-  /** Register operators in stack after finishing (needed for redo). */
+  /**
+   * Register operators in stack after finishing (needed for redo).
+   *
+   * \note Typically this flag should be enabled along with #OPTYPE_UNDO.
+   * There are some exceptions to this:
+   *
+   * - Operators can conditionally perform an undo push,
+   *   Examples include operators that may modify "screen" data
+   *   (which the undo system doesn't track), or data-blocks such as objects, meshes etc.
+   *   In this case the undo push depends on the operators internal logic.
+   *
+   *   We could support this as part of the operator return flag,
+   *   currently it requires explicit calls to undo push.
+   *
+   * - Operators can perform an undo push indirectly.
+   *   (`UI_OT_reset_default_button` for example).
+   *
+   *   In this case, register needs to be enabled so as not to clear the "Redo" panel, see #133761.
+   *   Unless otherwise stated, any operators that register without the undo flag
+   *   can be assumed to be creating undo steps indirectly (potentially at least).
+   */
   OPTYPE_REGISTER = (1 << 0),
   /** Do an undo push after the operator runs. */
   OPTYPE_UNDO = (1 << 1),
@@ -248,7 +268,7 @@ enum eOperatorPropTags {
 
 /**
  * Modifier keys, not actually used for #wmKeyMapItem (never stored in DNA), used for:
- * - #wmEvent.modifier without the `KM_*_ANY` flags.
+ * - #wmEvent.modifier.
  * - #WM_keymap_add_item & #WM_modalkeymap_add_item
  */
 enum {
@@ -257,13 +277,20 @@ enum {
   KM_ALT = (1 << 2),
   /** Use for Windows-Key on MS-Windows, Command-key on macOS and Super on Linux. */
   KM_OSKEY = (1 << 3),
-
-  /* Used for key-map item creation function arguments. */
-  KM_SHIFT_ANY = (1 << 4),
-  KM_CTRL_ANY = (1 << 5),
-  KM_ALT_ANY = (1 << 6),
-  KM_OSKEY_ANY = (1 << 7),
+  /**
+   * An additional modifier available on Unix systems (in addition to "Super").
+   * Even though standard keyboards don't have a "Hyper" key it is a valid modifier
+   * on Wayland and X11, where it is possible to map a key (typically CapsLock)
+   * to be a Hyper modifier, see !136340.
+   *
+   * Note that this is currently only supported on Wayland & X11
+   * but could could be supported on other platforms if desired.
+   */
+  KM_HYPER = (1 << 4),
 };
+
+/** The number of modifiers #wmKeyMapItem & #wmEvent can use. */
+#define KM_MOD_NUM 5
 
 /* `KM_MOD_*` flags for #wmKeyMapItem and `wmEvent.alt/shift/oskey/ctrl`. */
 /* Note that #KM_ANY and #KM_NOTHING are used with these defines too. */
@@ -465,6 +492,7 @@ struct wmNotifier {
 #define ND_NLA_ACTCHANGE (74 << 16)
 #define ND_FCURVES_ORDER (75 << 16)
 #define ND_NLA_ORDER (76 << 16)
+#define ND_KEYFRAME_AUTO (77 << 16)
 
 /* NC_GPENCIL. */
 #define ND_GPENCIL_EDITMODE (85 << 16)
@@ -479,6 +507,7 @@ struct wmNotifier {
 
 /* Influences which menus node assets are included in. */
 #define ND_NODE_ASSET_DATA (1 << 16)
+#define ND_NODE_GIZMO (2 << 16)
 
 /* NC_SPACE. */
 #define ND_SPACE_CONSOLE (1 << 16)     /* General redraw. */
@@ -535,7 +564,7 @@ struct wmNotifier {
 #define NS_MODE_PARTICLE (10 << 8)
 #define NS_EDITMODE_CURVES (11 << 8)
 #define NS_EDITMODE_GREASE_PENCIL (12 << 8)
-#define NS_EDITMODE_POINT_CLOUD (13 << 8)
+#define NS_EDITMODE_POINTCLOUD (13 << 8)
 
 /* Subtype 3d view editing. */
 #define NS_VIEW3D_GPU (16 << 8)
@@ -593,6 +622,8 @@ struct wmGesture {
   int modal_state;
   /** Optional, draw the active side of the straight-line gesture. */
   bool draw_active_side;
+  /** Latest mouse position relative to area. Currently only used by lasso drawing code. */
+  blender::int2 mval;
 
   /**
    * For modal operators which may be running idle, waiting for an event to activate the gesture.
@@ -612,13 +643,16 @@ struct wmGesture {
   /** For gestures that support flip, stores if flip is enabled using the modal keymap
    * toggle. */
   uint use_flip : 1;
+  /** For gestures that support smoothing, stores if smoothing is enabled using the modal keymap
+   * toggle. */
+  uint use_smooth : 1;
 
   /**
    * customdata
    * - for border is a #rcti.
-   * - for circle is #rcti, (xmin, ymin) is center, xmax radius.
+   * - for circle is #rcti, (`xmin`, `ymin`) is center, `xmax` radius.
    * - for lasso is short array.
-   * - for straight line is a #rcti: (xmin, ymin) is start, (xmax, ymax) is end.
+   * - for straight line is a #rcti: (`xmin`, `ymin`) is start, (`xmax`, `ymax`) is end.
    */
   void *customdata;
 
@@ -729,7 +763,7 @@ struct wmEvent {
    */
   char utf8_buf[6];
 
-  /** Modifier states: #KM_SHIFT, #KM_CTRL, #KM_ALT & #KM_OSKEY. */
+  /** Modifier states: #KM_SHIFT, #KM_CTRL, #KM_ALT, #KM_OSKEY & #KM_HYPER. */
   uint8_t modifier;
 
   /** The direction (for #KM_CLICK_DRAG events only). */
@@ -802,9 +836,12 @@ struct wmEvent {
  */
 #define WM_EVENT_CURSOR_MOTION_THRESHOLD ((float)U.move_threshold * UI_SCALE_FAC)
 
-/** Motion progress, for modal handlers. */
+/**
+ * Motion progress, for modal handlers,
+ * a copy of #GHOST_TProgress (keep in sync).
+ */
 enum wmProgress {
-  P_NOT_STARTED,
+  P_NOT_STARTED = 0,
   P_STARTING,    /* <-- */
   P_IN_PROGRESS, /* <-- only these are sent for NDOF motion. */
   P_FINISHING,   /* <-- */
@@ -997,7 +1034,7 @@ struct wmOperatorType {
    * any interface code or input device state.
    * See defines below for return values.
    */
-  int (*exec)(bContext *C, wmOperator *op) ATTR_WARN_UNUSED_RESULT;
+  wmOperatorStatus (*exec)(bContext *C, wmOperator *op) ATTR_WARN_UNUSED_RESULT;
 
   /**
    * This callback executes on a running operator whenever as property
@@ -1013,7 +1050,9 @@ struct wmOperatorType {
    * canceled due to some external reason, cancel is called
    * See defines below for return values.
    */
-  int (*invoke)(bContext *C, wmOperator *op, const wmEvent *event) ATTR_WARN_UNUSED_RESULT;
+  wmOperatorStatus (*invoke)(bContext *C,
+                             wmOperator *op,
+                             const wmEvent *event) ATTR_WARN_UNUSED_RESULT;
 
   /**
    * Called when a modal operator is canceled (not used often).
@@ -1027,7 +1066,9 @@ struct wmOperatorType {
    * or execute other operators. They keep running until they don't return
    * `OPERATOR_RUNNING_MODAL`.
    */
-  int (*modal)(bContext *C, wmOperator *op, const wmEvent *event) ATTR_WARN_UNUSED_RESULT;
+  wmOperatorStatus (*modal)(bContext *C,
+                            wmOperator *op,
+                            const wmEvent *event) ATTR_WARN_UNUSED_RESULT;
 
   /**
    * Verify if the operator can be executed in the current context. Note
@@ -1185,8 +1226,8 @@ struct wmDragID {
 };
 
 struct wmDragAsset {
-  int import_method; /* #eAssetImportMethod. */
   const AssetRepresentationHandle *asset;
+  AssetImportSettings import_settings;
 };
 
 struct wmDragAssetCatalog {
@@ -1265,6 +1306,8 @@ struct wmDragActiveDropState {
    */
   const char *disabled_info;
   bool free_disabled_info;
+
+  std::string tooltip;
 };
 
 struct wmDrag {
@@ -1274,9 +1317,11 @@ struct wmDrag {
   eWM_DragDataType type;
   void *poin;
 
-  /** If no icon but imbuf should be drawn around cursor. */
+  /** If no small icon but imbuf should be drawn around cursor. */
   const ImBuf *imb;
   float imbuf_scale;
+  /** If #imb is not set, draw this as a big preview instead of the small #icon. */
+  int preview_icon_id; /* BIFIconID */
 
   wmDragActiveDropState drop_state;
 

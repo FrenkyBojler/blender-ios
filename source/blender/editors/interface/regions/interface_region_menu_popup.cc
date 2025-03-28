@@ -44,6 +44,7 @@
 #include "interface_regions_intern.hh"
 
 using blender::StringRef;
+using blender::StringRefNull;
 
 /* -------------------------------------------------------------------- */
 /** \name Utility Functions
@@ -126,7 +127,7 @@ static uiBut *ui_popup_menu_memory__internal(uiBlock *block, uiBut *but)
   }
 
   /* get */
-  LISTBASE_FOREACH (uiBut *, but_iter, &block->buttons) {
+  for (const std::unique_ptr<uiBut> &but_iter : block->buttons) {
     /* Prevent labels (typically headings), from being returned in the case the text
      * happens to matches one of the menu items.
      * Skip separators too as checking them is redundant. */
@@ -135,7 +136,7 @@ static uiBut *ui_popup_menu_memory__internal(uiBlock *block, uiBut *but)
     }
     if (mem[hash_mod] == ui_popup_string_hash(but_iter->str, but_iter->flag & UI_BUT_HAS_SEP_CHAR))
     {
-      return but_iter;
+      return but_iter.get();
     }
   }
 
@@ -279,7 +280,7 @@ static uiBlock *ui_block_func_POPUP(bContext *C, uiPopupBlockHandle *handle, voi
 
   /* in some cases we create the block before the region,
    * so we set it delayed here if necessary */
-  if (BLI_findindex(&handle->region->uiblocks, block) == -1) {
+  if (BLI_findindex(&handle->region->runtime->uiblocks, block) == -1) {
     UI_block_region_set(block, handle->region);
   }
 
@@ -317,16 +318,16 @@ static uiBlock *ui_block_func_POPUP(bContext *C, uiPopupBlockHandle *handle, voi
         /* position mouse at 0.8*width of the button and below the tile
          * on the first item */
         offset[0] = 0;
-        LISTBASE_FOREACH (uiBut *, but_iter, &block->buttons) {
+        for (const std::unique_ptr<uiBut> &but_iter : block->buttons) {
           offset[0] = min_ii(offset[0],
                              -(but_iter->rect.xmin + 0.8f * BLI_rctf_size_x(&but_iter->rect)));
         }
 
         offset[1] = 2.1 * UI_UNIT_Y;
 
-        LISTBASE_FOREACH (uiBut *, but_iter, &block->buttons) {
-          if (ui_but_is_editable(but_iter)) {
-            but_activate = but_iter;
+        for (const std::unique_ptr<uiBut> &but_iter : block->buttons) {
+          if (ui_but_is_editable(but_iter.get())) {
+            but_activate = but_iter.get();
             break;
           }
         }
@@ -477,7 +478,7 @@ uiPopupMenu *UI_popup_menu_begin_ex(bContext *C,
   ui_popup_menu_create_block(C, pup, title, block_name);
 
   /* create in advance so we can let buttons point to retval already */
-  pup->block->handle = MEM_cnew<uiPopupBlockHandle>(__func__);
+  pup->block->handle = MEM_new<uiPopupBlockHandle>(__func__);
 
   if (title[0]) {
     create_title_button(pup->layout, title, icon);
@@ -529,7 +530,7 @@ bool UI_popup_menu_end_or_cancel(bContext *C, uiPopupMenu *pup)
     return true;
   }
   UI_block_layout_resolve(pup->block, nullptr, nullptr);
-  MEM_freeN(pup->block->handle);
+  MEM_delete(pup->block->handle);
   UI_block_free(C, pup->block);
   MEM_delete(pup);
   return false;
@@ -628,7 +629,7 @@ static void ui_popup_menu_create_from_menutype(bContext *C,
   }
 }
 
-int UI_popup_menu_invoke(bContext *C, const char *idname, ReportList *reports)
+wmOperatorStatus UI_popup_menu_invoke(bContext *C, const char *idname, ReportList *reports)
 {
   MenuType *mt = WM_menutype_find(idname, true);
 
@@ -675,9 +676,13 @@ void UI_popup_block_invoke_ex(
       C, nullptr, nullptr, func, nullptr, arg, arg_free, can_refresh);
   handle->popup = true;
 
+  /* Clear the status bar. */
+  WorkspaceStatus status(C);
+  status.item(" ", ICON_NONE);
+
   UI_popup_handlers_add(C, &window->modalhandlers, handle, 0);
   UI_block_active_only_flagged_buttons(
-      C, handle->region, static_cast<uiBlock *>(handle->region->uiblocks.first));
+      C, handle->region, static_cast<uiBlock *>(handle->region->runtime->uiblocks.first));
   WM_event_add_mousemove(window);
 }
 
@@ -706,10 +711,146 @@ void UI_popup_block_ex(bContext *C,
   handle->cancel_func = cancel_func;
   // handle->opcontext = opcontext;
 
+  /* Clear the status bar. */
+  WorkspaceStatus status(C);
+  status.item(" ", ICON_NONE);
+
   UI_popup_handlers_add(C, &window->modalhandlers, handle, 0);
   UI_block_active_only_flagged_buttons(
-      C, handle->region, static_cast<uiBlock *>(handle->region->uiblocks.first));
+      C, handle->region, static_cast<uiBlock *>(handle->region->runtime->uiblocks.first));
   WM_event_add_mousemove(window);
+}
+
+static void popup_block_template_close_cb(bContext *C, void *arg1, void * /*arg2*/)
+{
+  uiBlock *block = (uiBlock *)arg1;
+
+  uiPopupBlockHandle *handle = block->handle;
+  if (handle == nullptr) {
+    printf("Error: used outside of a popup!\n");
+    return;
+  }
+
+  wmWindow *win = CTX_wm_window(C);
+  UI_popup_menu_retval_set(block, UI_RETURN_CANCEL, true);
+
+  if (handle->cancel_func) {
+    handle->cancel_func(C, handle->popup_arg);
+  }
+
+  UI_popup_block_close(C, win, block);
+}
+
+bool UI_popup_block_template_confirm_is_supported(const uiBlock *block)
+{
+  if (block->flag & (UI_BLOCK_KEEP_OPEN | UI_BLOCK_POPOVER)) {
+    return true;
+  }
+  return false;
+}
+
+void UI_popup_block_template_confirm(uiBlock *block,
+                                     const bool cancel_default,
+                                     blender::FunctionRef<uiBut *()> confirm_fn,
+                                     blender::FunctionRef<uiBut *()> cancel_fn)
+{
+#ifdef _WIN32
+  const bool windows_layout = true;
+#else
+  const bool windows_layout = false;
+#endif
+  blender::FunctionRef<uiBut *()> *button_functions[2];
+  if (windows_layout) {
+    ARRAY_SET_ITEMS(button_functions, &confirm_fn, &cancel_fn);
+  }
+  else {
+    ARRAY_SET_ITEMS(button_functions, &cancel_fn, &confirm_fn);
+  }
+
+  for (int i = 0; i < ARRAY_SIZE(button_functions); i++) {
+    blender::FunctionRef<uiBut *()> *but_fn = button_functions[i];
+    if (uiBut *but = (*but_fn)()) {
+      const bool is_cancel = (but_fn == &cancel_fn);
+      if ((block->flag & UI_BLOCK_LOOP) == 0) {
+        UI_but_func_set(but, popup_block_template_close_cb, block, nullptr);
+      }
+      if (is_cancel == cancel_default) {
+        /* An active button shouldn't exist, if it does, never set another. */
+        if (!UI_block_has_active_default_button(block)) {
+          UI_but_flag_enable(but, UI_BUT_ACTIVE_DEFAULT);
+        }
+      }
+    }
+  }
+}
+
+void UI_popup_block_template_confirm_op(uiLayout *layout,
+                                        wmOperatorType *ot,
+                                        const std::optional<StringRef> confirm_text_opt,
+                                        const std::optional<StringRef> cancel_text_opt,
+                                        const int icon,
+                                        bool cancel_default,
+                                        PointerRNA *r_ptr)
+{
+  uiBlock *block = uiLayoutGetBlock(layout);
+
+  const StringRef confirm_text = confirm_text_opt.value_or(IFACE_("OK"));
+  const StringRef cancel_text = cancel_text_opt.value_or(IFACE_("Cancel"));
+
+  /* Use a split so both buttons are the same size. */
+  const bool show_confirm = !confirm_text.is_empty();
+  const bool show_cancel = !cancel_text.is_empty();
+  uiLayout *row = (show_confirm && show_cancel) ? uiLayoutSplit(layout, 0.5f, false) : layout;
+
+  /* When only one button is shown, make it default. */
+  if (!show_confirm) {
+    cancel_default = true;
+  }
+
+  auto confirm_fn = [&row, &ot, &confirm_text, &icon, &r_ptr, &show_confirm]() -> uiBut * {
+    if (!show_confirm) {
+      return nullptr;
+    }
+    uiBlock *block = uiLayoutGetBlock(row);
+    const uiBut *but_ref = block->last_but();
+    uiItemFullO_ptr(row,
+                    ot,
+                    confirm_text,
+                    icon,
+                    nullptr,
+                    uiLayoutGetOperatorContext(row),
+                    UI_ITEM_NONE,
+                    r_ptr);
+
+    if (block->buttons.is_empty() || but_ref == block->buttons.last().get()) {
+      return nullptr;
+    }
+    return block->buttons.last().get();
+  };
+
+  auto cancel_fn = [&row, &cancel_text, &show_cancel]() -> uiBut * {
+    if (!show_cancel) {
+      return nullptr;
+    }
+    uiBlock *block = uiLayoutGetBlock(row);
+    uiBut *but = uiDefIconTextBut(block,
+                                  UI_BTYPE_BUT,
+                                  1,
+                                  ICON_NONE,
+                                  cancel_text,
+                                  0,
+                                  0,
+                                  UI_UNIT_X, /* Ignored, as a split is used. */
+                                  UI_UNIT_Y,
+                                  nullptr,
+                                  0.0,
+                                  0.0,
+                                  "");
+
+    return but;
+  };
+
+  UI_popup_block_template_confirm(block, cancel_default, confirm_fn, cancel_fn);
 }
 
 #if 0 /* UNUSED */
@@ -751,12 +892,14 @@ void UI_popup_block_close(bContext *C, wmWindow *win, uiBlock *block)
       }
     }
   }
+
+  ED_workspace_status_text(C, nullptr);
 }
 
 bool UI_popup_block_name_exists(const bScreen *screen, const blender::StringRef name)
 {
   LISTBASE_FOREACH (const ARegion *, region, &screen->regionbase) {
-    LISTBASE_FOREACH (const uiBlock *, block, &region->uiblocks) {
+    LISTBASE_FOREACH (const uiBlock *, block, &region->runtime->uiblocks) {
       if (block->name == name) {
         return true;
       }

@@ -15,6 +15,8 @@
 
 #include "DNA_screen_types.h"
 
+#include "BLI_listbase.h"
+
 #include "BKE_context.hh"
 #include "BKE_screen.hh"
 
@@ -24,7 +26,7 @@
 #include "ED_asset_list.hh"
 
 #include "RNA_access.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "UI_interface.hh"
 #include "UI_tree_view.hh"
@@ -75,10 +77,15 @@ class AssetCatalogSelectorTree : public ui::AbstractTreeView {
   {
     Item &view_item = parent_view_item.add_tree_item<Item>(catalog_item, shelf_);
 
-    catalog_item.foreach_child(
-        [&view_item, this](const asset_system::AssetCatalogTreeItem &child) {
-          build_catalog_items_recursive(view_item, child);
-        });
+    const int parent_count = view_item.count_parents() + 1;
+    catalog_item.foreach_child([&, this](const asset_system::AssetCatalogTreeItem &child) {
+      Item &child_item = build_catalog_items_recursive(view_item, child);
+
+      /* Uncollapse to some level (gives quick access, but don't let the tree get too big). */
+      if (parent_count < 2) {
+        child_item.uncollapse_by_default();
+      }
+    });
 
     return view_item;
   }
@@ -136,7 +143,7 @@ class AssetCatalogSelectorTree : public ui::AbstractTreeView {
 
       uiLayout *subrow = uiLayoutRow(&row, false);
       uiLayoutSetActive(subrow, catalog_path_enabled_);
-      uiItemL(subrow, catalog_item_.get_name().c_str(), ICON_NONE);
+      uiItemL(subrow, catalog_item_.get_name(), ICON_NONE);
       UI_block_layout_set_current(block, &row);
 
       uiBut *toggle_but = uiDefButC(block,
@@ -147,7 +154,7 @@ class AssetCatalogSelectorTree : public ui::AbstractTreeView {
                                     0,
                                     UI_UNIT_X,
                                     UI_UNIT_Y,
-                                    (char *)&catalog_path_enabled_,
+                                    &catalog_path_enabled_,
                                     0,
                                     0,
                                     TIP_("Toggle catalog visibility in the asset shelf"));
@@ -178,7 +185,8 @@ void library_selector_draw(const bContext *C, uiLayout *layout, AssetShelf &shel
 {
   uiLayoutSetOperatorContext(layout, WM_OP_INVOKE_DEFAULT);
 
-  PointerRNA shelf_ptr = RNA_pointer_create(&CTX_wm_screen(C)->id, &RNA_AssetShelf, &shelf);
+  PointerRNA shelf_ptr = RNA_pointer_create_discrete(
+      &CTX_wm_screen(C)->id, &RNA_AssetShelf, &shelf);
 
   uiLayout *row = uiLayoutRow(layout, true);
   uiItemR(row, &shelf_ptr, "asset_library_reference", UI_ITEM_NONE, "", ICON_NONE);
@@ -210,7 +218,7 @@ static void catalog_selector_panel_draw(const bContext *C, Panel *panel)
       "asset catalog tree view",
       std::make_unique<AssetCatalogSelectorTree>(*library, *shelf));
   tree_view->set_context_menu_title("Catalog");
-  ui::TreeViewBuilder::build_tree_view(*tree_view, *layout);
+  ui::TreeViewBuilder::build_tree_view(*C, *tree_view, *layout);
 }
 
 void catalog_selector_panel_register(ARegionType *region_type)
@@ -221,7 +229,7 @@ void catalog_selector_panel_register(ARegionType *region_type)
     return;
   }
 
-  PanelType *pt = MEM_cnew<PanelType>(__func__);
+  PanelType *pt = MEM_callocN<PanelType>(__func__);
   STRNCPY(pt->idname, "ASSETSHELF_PT_catalog_selector");
   STRNCPY(pt->label, N_("Catalog Selector"));
   STRNCPY(pt->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);

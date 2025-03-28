@@ -21,11 +21,17 @@ elseif(CMAKE_C_COMPILER_ID MATCHES "Clang")
 endif()
 
 if(WITH_COMPILER_ASAN AND NOT WITH_COMPILER_ASAN_EXTERN)
-  # Disable ASAN for extern dependencies, as it can lead to linking issues due to too large binaries.
-  string(APPEND CMAKE_CXX_FLAGS_RELWITHDEBINFO " -fno-sanitize=all")
-  string(APPEND CMAKE_C_FLAGS_RELWITHDEBINFO " -fno-sanitize=all")
-  string(APPEND CMAKE_CXX_FLAGS_DEBUG " -fno-sanitize=all")
-  string(APPEND CMAKE_C_FLAGS_DEBUG " -fno-sanitize=all")
+  # Not only does MSVC not have an -fno-sanitize=all option, if you remove the /fsanitize=address
+  # flag at this point, it will give a linker error as it generates an ODR violation for some
+  # vector classes, for details see :
+  # https://learn.microsoft.com/en-us/cpp/sanitizers/error-container-overflow?view=msvc-170
+  if(NOT MSVC)
+    # Disable ASAN for extern dependencies, as it can lead to linking issues due to too large binaries.
+    string(APPEND CMAKE_CXX_FLAGS_RELWITHDEBINFO " -fno-sanitize=all")
+    string(APPEND CMAKE_C_FLAGS_RELWITHDEBINFO " -fno-sanitize=all")
+    string(APPEND CMAKE_CXX_FLAGS_DEBUG " -fno-sanitize=all")
+    string(APPEND CMAKE_C_FLAGS_DEBUG " -fno-sanitize=all")
+  endif()
 endif()
 
 
@@ -83,10 +89,6 @@ endif()
 if(WITH_GTESTS)
   add_subdirectory(gtest)
   add_subdirectory(gmock)
-endif()
-
-if(WITH_SDL AND WITH_SDL_DYNLOAD)
-  add_subdirectory(sdlew)
 endif()
 
 if(WITH_AUDASPACE AND NOT WITH_SYSTEM_AUDASPACE)

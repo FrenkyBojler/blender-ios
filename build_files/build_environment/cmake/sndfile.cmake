@@ -41,6 +41,11 @@ ExternalProject_Add(external_sndfile
   DOWNLOAD_DIR ${DOWNLOAD_DIR}
   URL_HASH ${SNDFILE_HASH_TYPE}=${SNDFILE_HASH}
   PREFIX ${BUILD_DIR}/sndfile
+  CMAKE_GENERATOR ${PLATFORM_ALT_GENERATOR}
+
+  PATCH_COMMAND ${PATCH_CMD} -p 1 -d
+    ${BUILD_DIR}/sndfile/src/external_sndfile <
+    ${PATCH_DIR}/sndfile_1045.diff
 
   CMAKE_ARGS
     -DCMAKE_INSTALL_PREFIX=${LIBDIR}/sndfile
@@ -50,20 +55,25 @@ ExternalProject_Add(external_sndfile
   INSTALL_DIR ${LIBDIR}/sndfile
 )
 
-if(BUILD_MODE STREQUAL Release AND WIN32)
-  ExternalProject_Add_Step(external_sndfile after_install
-    COMMAND ${CMAKE_COMMAND} -E copy
-      ${LIBDIR}/sndfile/bin/sndfile.dll
-      ${HARVEST_TARGET}/sndfile/lib/sndfile.dll
-    COMMAND ${CMAKE_COMMAND} -E copy
-      ${LIBDIR}/sndfile/lib/sndfile.lib
-      ${HARVEST_TARGET}/sndfile/lib/sndfile.lib
-    COMMAND ${CMAKE_COMMAND} -E copy
-      ${LIBDIR}/sndfile/include/sndfile.h
-      ${HARVEST_TARGET}/sndfile/include/sndfile.h
+if(WIN32)
+  if(BUILD_MODE STREQUAL Release)
+    ExternalProject_Add_Step(external_sndfile after_install
+      COMMAND ${CMAKE_COMMAND} -E copy
+        ${LIBDIR}/sndfile/bin/sndfile.dll
+        ${HARVEST_TARGET}/sndfile/lib/sndfile.dll
+      COMMAND ${CMAKE_COMMAND} -E copy
+        ${LIBDIR}/sndfile/lib/sndfile.lib
+        ${HARVEST_TARGET}/sndfile/lib/sndfile.lib
+      COMMAND ${CMAKE_COMMAND} -E copy
+        ${LIBDIR}/sndfile/include/sndfile.h
+        ${HARVEST_TARGET}/sndfile/include/sndfile.h
 
-    DEPENDEES install
-  )
+      DEPENDEES install
+    )
+  endif()
+else()
+  harvest(external_sndfile sndfile/include sndfile/include "*.h")
+  harvest(external_sndfile sndfile/lib sndfile/lib "*.a")
 endif()
 
 add_dependencies(

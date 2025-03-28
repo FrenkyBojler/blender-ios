@@ -25,9 +25,9 @@
 
 #include "gpu_select_private.hh"
 
-#include "BLI_strict_flags.h" /* Keep last. */
+#include "BLI_strict_flags.h" /* IWYU pragma: keep. Keep last. */
 
-/* #define DEBUG_PRINT */
+// #define DEBUG_PRINT
 
 /* Alloc number for depths */
 #define ALLOC_DEPTHS 200
@@ -39,7 +39,7 @@
 /** \name #SubRectStride
  * \{ */
 
-/** For looping over a sub-region of a #rcti, could be moved into 'rct.c'. */
+/** For looping over a sub-region of a #rcti, could be moved into `rct.c`. */
 struct SubRectStride {
   /** Start here. */
   uint start;
@@ -52,7 +52,7 @@ struct SubRectStride {
 };
 
 /** We may want to change back to float if `uint` isn't well supported. */
-typedef uint depth_t;
+using depth_t = uint;
 
 /**
  * Calculate values needed for looping over a sub-region (smaller buffer within a larger buffer).

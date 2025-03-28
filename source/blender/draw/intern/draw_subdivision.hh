@@ -45,7 +45,7 @@ struct DRWPatchMap {
   int min_patch_face;
   int max_patch_face;
   int max_depth;
-  int patches_are_triangular;
+  bool patches_are_triangular;
 };
 
 /** \} */
@@ -155,10 +155,10 @@ void DRW_create_subdivision(Object &ob,
                             Mesh &mesh,
                             MeshBatchCache &batch_cache,
                             MeshBufferCache &mbc,
+                            Span<IBOType> ibo_requests,
+                            Span<VBOType> vbo_requests,
                             bool is_editmode,
                             bool is_paint_mode,
-                            bool edit_mode_active,
-                            const float4x4 &object_to_world,
                             bool do_final,
                             bool do_uvedit,
                             bool do_cage,
@@ -207,7 +207,7 @@ void draw_subdiv_extract_pos_nor(const DRWSubdivCache &cache,
 void draw_subdiv_interp_custom_data(const DRWSubdivCache &cache,
                                     gpu::VertBuf &src_data,
                                     gpu::VertBuf &dst_data,
-                                    int comp_type, /*GPUVertCompType*/
+                                    GPUVertCompType comp_type,
                                     int dimensions,
                                     int dst_offset);
 

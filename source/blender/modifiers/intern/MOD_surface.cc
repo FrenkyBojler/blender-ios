@@ -24,7 +24,7 @@
 #include "UI_interface.hh"
 #include "UI_resources.hh"
 
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_query.hh"
@@ -57,10 +57,7 @@ static void free_data(ModifierData *md)
   SurfaceModifierData *surmd = (SurfaceModifierData *)md;
 
   if (surmd) {
-    if (surmd->runtime.bvhtree) {
-      free_bvhtree_from_mesh(surmd->runtime.bvhtree);
-      MEM_SAFE_FREE(surmd->runtime.bvhtree);
-    }
+    MEM_SAFE_DELETE(surmd->runtime.bvhtree);
 
     if (surmd->runtime.mesh) {
       BKE_id_free(nullptr, surmd->runtime.mesh);
@@ -87,11 +84,7 @@ static void deform_verts(ModifierData *md,
   const int cfra = int(DEG_get_ctime(ctx->depsgraph));
 
   /* Free mesh and BVH cache. */
-  if (surmd->runtime.bvhtree) {
-    free_bvhtree_from_mesh(surmd->runtime.bvhtree);
-    MEM_SAFE_FREE(surmd->runtime.bvhtree);
-  }
-
+  MEM_SAFE_DELETE(surmd->runtime.bvhtree);
   if (surmd->runtime.mesh) {
     BKE_id_free(nullptr, surmd->runtime.mesh);
     surmd->runtime.mesh = nullptr;
@@ -123,10 +116,8 @@ static void deform_verts(ModifierData *md,
       MEM_SAFE_FREE(surmd->runtime.vert_positions_prev);
       MEM_SAFE_FREE(surmd->runtime.vert_velocities);
 
-      surmd->runtime.vert_positions_prev = static_cast<float(*)[3]>(
-          MEM_calloc_arrayN(mesh_verts_num, sizeof(float[3]), __func__));
-      surmd->runtime.vert_velocities = static_cast<float(*)[3]>(
-          MEM_calloc_arrayN(mesh_verts_num, sizeof(float[3]), __func__));
+      surmd->runtime.vert_positions_prev = MEM_calloc_arrayN<float[3]>(mesh_verts_num, __func__);
+      surmd->runtime.vert_velocities = MEM_calloc_arrayN<float[3]>(mesh_verts_num, __func__);
 
       surmd->runtime.verts_num = mesh_verts_num;
 
@@ -154,18 +145,13 @@ static void deform_verts(ModifierData *md,
 
     const bool has_face = surmd->runtime.mesh->faces_num > 0;
     const bool has_edge = surmd->runtime.mesh->edges_num > 0;
-    if (has_face || has_edge) {
-      surmd->runtime.bvhtree = static_cast<BVHTreeFromMesh *>(
-          MEM_callocN(sizeof(BVHTreeFromMesh), __func__));
-
-      if (has_face) {
-        BKE_bvhtree_from_mesh_get(
-            surmd->runtime.bvhtree, surmd->runtime.mesh, BVHTREE_FROM_CORNER_TRIS, 2);
-      }
-      else if (has_edge) {
-        BKE_bvhtree_from_mesh_get(
-            surmd->runtime.bvhtree, surmd->runtime.mesh, BVHTREE_FROM_EDGES, 2);
-      }
+    if (has_face) {
+      surmd->runtime.bvhtree = MEM_new<blender::bke::BVHTreeFromMesh>(
+          __func__, surmd->runtime.mesh->bvh_corner_tris());
+    }
+    else if (has_edge) {
+      surmd->runtime.bvhtree = MEM_new<blender::bke::BVHTreeFromMesh>(
+          __func__, surmd->runtime.mesh->bvh_edges());
     }
   }
 }

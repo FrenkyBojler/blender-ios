@@ -2,28 +2,38 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BKE_action.hh"
 #include "BKE_attribute.hh"
 #include "BKE_brush.hh"
 #include "BKE_colortools.hh"
 #include "BKE_context.hh"
 #include "BKE_curves.hh"
+#include "BKE_deform.hh"
 #include "BKE_geometry_set.hh"
 #include "BKE_grease_pencil.hh"
-#include "BKE_material.h"
+#include "BKE_grease_pencil_vertex_groups.hh"
+#include "BKE_material.hh"
 #include "BKE_paint.hh"
 #include "BKE_scene.hh"
 
+#include "BLI_bounds.hh"
 #include "BLI_color.hh"
 #include "BLI_length_parameterize.hh"
+#include "BLI_listbase.h"
 #include "BLI_math_base.hh"
 #include "BLI_math_color.h"
-#include "BLI_math_geom.h"
+#include "BLI_noise.hh"
 #include "BLI_rand.hh"
+#include "BLI_rect.h"
+#include "BLI_time.h"
 
 #include "DEG_depsgraph_query.hh"
 
-#include "DNA_brush_enums.h"
+#include "DNA_brush_types.h"
+#include "DNA_material_types.h"
+#include "DNA_modifier_types.h"
 
+#include "DNA_scene_types.h"
 #include "ED_curves.hh"
 #include "ED_grease_pencil.hh"
 #include "ED_view3d.hh"
@@ -37,6 +47,7 @@
 
 #include "grease_pencil_intern.hh"
 
+#include <numeric>
 #include <optional>
 
 namespace blender::ed::sculpt_paint::greasepencil {
@@ -126,100 +137,12 @@ static void morph_points_to_curve(Span<float2> src, Span<float2> target, Mutable
   dst.last() = src.last();
 }
 
-/**
- * Creates a new curve with one point at the beginning or end.
- * \note Does not initialize the new curve or points.
- */
-static void create_blank_curve(bke::CurvesGeometry &curves, const bool on_back)
-{
-  if (!on_back) {
-    const int num_old_points = curves.points_num();
-    curves.resize(curves.points_num() + 1, curves.curves_num() + 1);
-    curves.offsets_for_write().last(1) = num_old_points;
-    return;
-  }
-
-  curves.resize(curves.points_num() + 1, curves.curves_num() + 1);
-  MutableSpan<int> offsets = curves.offsets_for_write();
-  offsets.first() = 0;
-
-  /* Loop through backwards to not overwrite the data. */
-  for (int i = curves.curves_num() - 2; i >= 0; i--) {
-    offsets[i + 1] = offsets[i] + 1;
-  }
-
-  bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
-
-  attributes.for_all(
-      [&](const bke::AttributeIDRef &id, const bke::AttributeMetaData /*meta_data*/) {
-        bke::GSpanAttributeWriter dst = attributes.lookup_for_write_span(id);
-
-        GMutableSpan attribute_data = dst.span;
-
-        bke::attribute_math::convert_to_static_type(attribute_data.type(), [&](auto dummy) {
-          using T = decltype(dummy);
-          MutableSpan<T> span_data = attribute_data.typed<T>();
-
-          /* Loop through backwards to not overwrite the data. */
-          for (int i = span_data.size() - 2; i >= 0; i--) {
-            span_data[i + 1] = span_data[i];
-          }
-        });
-        dst.finish();
-        return true;
-      });
-}
-
-/**
- * Extends the first or last curve by `new_points_num` number of points.
- * \note Does not initialize the new points.
- */
-static void extend_curve(bke::CurvesGeometry &curves, const bool on_back, const int new_points_num)
-{
-  if (!on_back) {
-    curves.resize(curves.points_num() + new_points_num, curves.curves_num());
-    curves.offsets_for_write().last() = curves.points_num();
-    return;
-  }
-
-  const int last_active_point = curves.points_by_curve()[0].last();
-
-  curves.resize(curves.points_num() + new_points_num, curves.curves_num());
-  MutableSpan<int> offsets = curves.offsets_for_write();
-
-  for (const int src_curve : curves.curves_range().drop_front(1)) {
-    offsets[src_curve] = offsets[src_curve] + new_points_num;
-  }
-  offsets.last() = curves.points_num();
-
-  bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
-
-  attributes.for_all([&](const bke::AttributeIDRef &id, const bke::AttributeMetaData meta_data) {
-    if (meta_data.domain != bke::AttrDomain::Point) {
-      return true;
-    }
-
-    bke::GSpanAttributeWriter dst = attributes.lookup_for_write_span(id);
-    GMutableSpan attribute_data = dst.span;
-
-    bke::attribute_math::convert_to_static_type(attribute_data.type(), [&](auto dummy) {
-      using T = decltype(dummy);
-      MutableSpan<T> span_data = attribute_data.typed<T>();
-
-      /* Loop through backwards to not overwrite the data. */
-      for (int i = (span_data.size() - 1) - new_points_num; i >= last_active_point; i--) {
-        span_data[i + new_points_num] = span_data[i];
-      }
-    });
-    dst.finish();
-    return true;
-  });
-
-  curves.tag_topology_changed();
-}
-
 class PaintOperation : public GreasePencilStrokeOperation {
  private:
+  bke::greasepencil::Drawing *drawing_;
+  int frame_number_;
+  Vector<ed::greasepencil::MutableDrawingInfo> multi_frame_drawings_;
+
   /* Screen space coordinates from input samples. */
   Vector<float2> screen_space_coords_orig_;
 
@@ -228,6 +151,8 @@ class PaintOperation : public GreasePencilStrokeOperation {
   Vector<Vector<float2>> screen_space_curve_fitted_coords_;
   /* Temporary vector of screen space offsets  */
   Vector<float2> screen_space_jitter_offsets_;
+  /* Projection planes for every point in "Stroke" placement mode. */
+  Vector<std::optional<float>> stroke_placement_depths_;
 
   /* Screen space coordinates after smoothing. */
   Vector<float2> screen_space_smoothed_coords_;
@@ -240,11 +165,34 @@ class PaintOperation : public GreasePencilStrokeOperation {
 
   /* Helper class to project screen space coordinates to 3d. */
   ed::greasepencil::DrawingPlacement placement_;
+  /* Last valid stroke intersection, for use in Stroke projection mode. */
+  std::optional<float> last_stroke_placement_depth_;
+  /* Point index of the last valid stroke placement. */
+  std::optional<int> last_stroke_placement_point_;
 
   /* Direction the pen is moving in smoothed over time. */
   float2 smoothed_pen_direction_ = float2(0.0f);
 
-  RandomNumberGenerator rng;
+  /* Accumulated distance along the stroke. */
+  float accum_distance_ = 0.0f;
+
+  RandomNumberGenerator rng_;
+
+  float stroke_random_radius_factor_;
+  float stroke_random_opacity_factor_;
+  float stroke_random_rotation_factor_;
+
+  float stroke_random_hue_factor_;
+  float stroke_random_sat_factor_;
+  float stroke_random_val_factor_;
+
+  /* The current time at which the paint operation begins. */
+  double start_time_;
+  /* Current delta time from #start_time_, updated after each extension sample. */
+  double delta_time_;
+
+  /* Whether the operation was temporarily called from tools other than draw tool. */
+  bool temp_draw_;
 
   friend struct PaintOperationExecutor;
 
@@ -252,6 +200,15 @@ class PaintOperation : public GreasePencilStrokeOperation {
   void on_stroke_begin(const bContext &C, const InputSample &start_sample) override;
   void on_stroke_extended(const bContext &C, const InputSample &extension_sample) override;
   void on_stroke_done(const bContext &C) override;
+
+  PaintOperation(const bool temp_draw = false) : temp_draw_(temp_draw) {}
+
+  bool update_stroke_depth_placement(const bContext &C, const InputSample &sample);
+  /* Returns the range of actually reprojected points. */
+  IndexRange interpolate_stroke_depth(const bContext &C,
+                                      std::optional<int> start_point,
+                                      float from_depth,
+                                      float to_depth);
 };
 
 /**
@@ -265,90 +222,60 @@ struct PaintOperationExecutor {
   Brush *brush_;
 
   BrushGpencilSettings *settings_;
-  std::optional<ColorGeometry4f> vertex_color_;
-  std::optional<ColorGeometry4f> fill_color_;
+  ColorGeometry4f vertex_color_ = ColorGeometry4f(0.0f, 0.0f, 0.0f, 0.0f);
+  ColorGeometry4f fill_color_ = ColorGeometry4f(0.0f, 0.0f, 0.0f, 0.0f);
   float softness_;
 
+  bool use_vertex_color_;
   bool use_settings_random_;
-
-  bke::greasepencil::Drawing *drawing_;
 
   PaintOperationExecutor(const bContext &C)
   {
     scene_ = CTX_data_scene(&C);
-    Object *object = CTX_data_active_object(&C);
-    GreasePencil *grease_pencil = static_cast<GreasePencil *>(object->data);
-
     Paint *paint = &scene_->toolsettings->gp_paint->paint;
     brush_ = BKE_paint_brush(paint);
     settings_ = brush_->gpencil_settings;
 
     use_settings_random_ = (settings_->flag & GP_BRUSH_GROUP_RANDOM) != 0;
-    const bool use_vertex_color = (scene_->toolsettings->gp_paint->mode ==
-                                   GPPAINT_FLAG_USE_VERTEXCOLOR);
-    if (use_vertex_color) {
+    use_vertex_color_ = brush_using_vertex_color(scene_->toolsettings->gp_paint, brush_);
+    if (use_vertex_color_) {
       ColorGeometry4f color_base;
       srgb_to_linearrgb_v3_v3(color_base, brush_->rgb);
       color_base.a = settings_->vertex_factor;
-      vertex_color_ = ELEM(settings_->vertex_mode, GPPAINT_MODE_STROKE, GPPAINT_MODE_BOTH) ?
-                          std::make_optional(color_base) :
-                          std::nullopt;
-      fill_color_ = ELEM(settings_->vertex_mode, GPPAINT_MODE_FILL, GPPAINT_MODE_BOTH) ?
-                        std::make_optional(color_base) :
-                        std::nullopt;
-    }
-    else {
-      vertex_color_ = std::make_optional(ColorGeometry4f(0.0f, 0.0f, 0.0f, 0.0f));
+      if (ELEM(settings_->vertex_mode, GPPAINT_MODE_STROKE, GPPAINT_MODE_BOTH)) {
+        vertex_color_ = color_base;
+      }
+      if (ELEM(settings_->vertex_mode, GPPAINT_MODE_FILL, GPPAINT_MODE_BOTH)) {
+        fill_color_ = color_base;
+      }
     }
     softness_ = 1.0f - settings_->hardness;
-
-    BLI_assert(grease_pencil->has_active_layer());
-    drawing_ = grease_pencil->get_editable_drawing_at(*grease_pencil->get_active_layer(),
-                                                      scene_->r.cfra);
-    BLI_assert(drawing_ != nullptr);
-  }
-
-  /* Attributes that are defined explicitly and should not be copied from original geometry. */
-  Set<std::string> skipped_attribute_ids(const bke::AttrDomain domain) const
-  {
-    switch (domain) {
-      case bke::AttrDomain::Point:
-        if (vertex_color_) {
-          return {"position", "radius", "opacity", "vertex_color"};
-        }
-        else {
-          return {"position", "radius", "opacity"};
-        }
-      case bke::AttrDomain::Curve:
-        if (fill_color_) {
-          return {"curve_type",
-                  "material_index",
-                  "cyclic",
-                  "softness",
-                  "start_cap",
-                  "end_cap",
-                  "fill_color"};
-        }
-        else {
-          return {"curve_type", "material_index", "cyclic", "softness", "start_cap", "end_cap"};
-        }
-      default:
-        return {};
-    }
-    return {};
   }
 
   void process_start_sample(PaintOperation &self,
                             const bContext &C,
                             const InputSample &start_sample,
-                            const int material_index)
+                            const int material_index,
+                            const bool use_fill)
   {
     const float2 start_coords = start_sample.mouse_position;
     const RegionView3D *rv3d = CTX_wm_region_view3d(&C);
     const ARegion *region = CTX_wm_region(&C);
 
-    const float3 start_location = self.placement_.project(start_coords);
-    const float start_radius = ed::greasepencil::radius_from_input_sample(
+    float3 start_location;
+    if (self.placement_.use_project_to_stroke()) {
+      const std::optional<float> depth = self.placement_.get_depth(start_coords);
+      if (depth) {
+        start_location = self.placement_.place(start_coords, *depth);
+      }
+      else {
+        start_location = self.placement_.project(start_coords);
+      }
+    }
+    else {
+      start_location = self.placement_.project(start_coords);
+    }
+    float start_radius = ed::greasepencil::radius_from_input_sample(
         rv3d,
         region,
         brush_,
@@ -356,8 +283,32 @@ struct PaintOperationExecutor {
         start_location,
         self.placement_.to_world_space(),
         settings_);
-    const float start_opacity = ed::greasepencil::opacity_from_input_sample(
+    start_radius = ed::greasepencil::randomize_radius(
+        *settings_, self.stroke_random_radius_factor_, 0.0f, start_radius, start_sample.pressure);
+
+    float start_opacity = ed::greasepencil::opacity_from_input_sample(
         start_sample.pressure, brush_, settings_);
+    start_opacity = ed::greasepencil::randomize_opacity(*settings_,
+                                                        self.stroke_random_opacity_factor_,
+                                                        0.0f,
+                                                        start_opacity,
+                                                        start_sample.pressure);
+
+    /* Do not allow pressure opacity when drawing tool was invoked temporarily. */
+    const float fill_opacity = (!self.temp_draw_) ? start_opacity : 1.0f;
+
+    const float start_rotation = ed::greasepencil::randomize_rotation(
+        *settings_, self.rng_, self.stroke_random_rotation_factor_, start_sample.pressure);
+    if (use_vertex_color_) {
+      vertex_color_ = ed::greasepencil::randomize_color(*settings_,
+                                                        self.stroke_random_hue_factor_,
+                                                        self.stroke_random_sat_factor_,
+                                                        self.stroke_random_val_factor_,
+                                                        0.0f,
+                                                        vertex_color_,
+                                                        start_sample.pressure);
+    }
+
     Scene *scene = CTX_data_scene(&C);
     const bool on_back = (scene->toolsettings->gpencil_flags & GP_TOOL_FLAG_PAINT_ONBACK) != 0;
 
@@ -368,68 +319,140 @@ struct PaintOperationExecutor {
     self.screen_space_final_coords_.append(start_coords);
 
     /* Resize the curves geometry so there is one more curve with a single point. */
-    bke::CurvesGeometry &curves = drawing_->strokes_for_write();
-    create_blank_curve(curves, on_back);
+    bke::CurvesGeometry &curves = self.drawing_->strokes_for_write();
+    ed::greasepencil::add_single_curve(curves, on_back == false);
 
     const int active_curve = on_back ? curves.curves_range().first() :
                                        curves.curves_range().last();
     const IndexRange curve_points = curves.points_by_curve()[active_curve];
     const int last_active_point = curve_points.last();
 
+    Set<std::string> point_attributes_to_skip;
+    Set<std::string> curve_attributes_to_skip;
+    bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
     curves.positions_for_write()[last_active_point] = start_location;
-    drawing_->radii_for_write()[last_active_point] = start_radius;
-    drawing_->opacities_for_write()[last_active_point] = start_opacity;
-    if (vertex_color_) {
-      drawing_->vertex_colors_for_write()[last_active_point] = *vertex_color_;
+    self.drawing_->radii_for_write()[last_active_point] = start_radius;
+    self.drawing_->opacities_for_write()[last_active_point] = start_opacity;
+    point_attributes_to_skip.add_multiple({"position", "radius", "opacity"});
+    if (use_vertex_color_ || attributes.contains("vertex_color")) {
+      self.drawing_->vertex_colors_for_write()[last_active_point] = vertex_color_;
+      point_attributes_to_skip.add("vertex_color");
     }
-    if (fill_color_) {
-      drawing_->fill_colors_for_write()[active_curve] = *fill_color_;
+    if (use_fill || attributes.contains("fill_color")) {
+      self.drawing_->fill_colors_for_write()[active_curve] = fill_color_;
+      curve_attributes_to_skip.add("fill_color");
+    }
+    if (bke::SpanAttributeWriter<float> delta_times =
+            attributes.lookup_or_add_for_write_span<float>("delta_time", bke::AttrDomain::Point))
+    {
+      delta_times.span[last_active_point] = 0.0f;
+      point_attributes_to_skip.add("delta_time");
+      delta_times.finish();
     }
 
-    bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
     bke::SpanAttributeWriter<int> materials = attributes.lookup_or_add_for_write_span<int>(
         "material_index", bke::AttrDomain::Curve);
     bke::SpanAttributeWriter<bool> cyclic = attributes.lookup_or_add_for_write_span<bool>(
         "cyclic", bke::AttrDomain::Curve);
-    bke::SpanAttributeWriter<float> softness = attributes.lookup_or_add_for_write_span<float>(
-        "softness", bke::AttrDomain::Curve);
     cyclic.span[active_curve] = false;
     materials.span[active_curve] = material_index;
-    softness.span[active_curve] = softness_;
+    curve_attributes_to_skip.add_multiple({"material_index", "cyclic"});
+    cyclic.finish();
+    materials.finish();
+
+    if (bke::SpanAttributeWriter<float> softness = attributes.lookup_or_add_for_write_span<float>(
+            "softness", bke::AttrDomain::Curve))
+    {
+      softness.span[active_curve] = softness_;
+      curve_attributes_to_skip.add("softness");
+      softness.finish();
+    }
+    if (bke::SpanAttributeWriter<float> u_scale = attributes.lookup_or_add_for_write_span<float>(
+            "u_scale", bke::AttrDomain::Curve))
+    {
+      u_scale.span[active_curve] = 1.0f;
+      curve_attributes_to_skip.add("u_scale");
+      u_scale.finish();
+    }
+
+    if (settings_->uv_random > 0.0f || attributes.contains("rotation")) {
+      if (bke::SpanAttributeWriter<float> rotations =
+              attributes.lookup_or_add_for_write_span<float>("rotation", bke::AttrDomain::Point))
+      {
+        rotations.span[last_active_point] = start_rotation;
+        point_attributes_to_skip.add("rotation");
+        rotations.finish();
+      }
+    }
 
     /* Only set the attribute if the type is not the default or if it already exists. */
     if (settings_->caps_type != GP_STROKE_CAP_TYPE_ROUND || attributes.contains("start_cap")) {
-      bke::SpanAttributeWriter<int8_t> start_caps =
-          attributes.lookup_or_add_for_write_span<int8_t>("start_cap", bke::AttrDomain::Curve);
-      start_caps.span[active_curve] = settings_->caps_type;
-      start_caps.finish();
+      if (bke::SpanAttributeWriter<int8_t> start_caps =
+              attributes.lookup_or_add_for_write_span<int8_t>("start_cap", bke::AttrDomain::Curve))
+      {
+        start_caps.span[active_curve] = settings_->caps_type;
+        curve_attributes_to_skip.add("start_cap");
+        start_caps.finish();
+      }
     }
 
     if (settings_->caps_type != GP_STROKE_CAP_TYPE_ROUND || attributes.contains("end_cap")) {
-      bke::SpanAttributeWriter<int8_t> end_caps = attributes.lookup_or_add_for_write_span<int8_t>(
-          "end_cap", bke::AttrDomain::Curve);
-      end_caps.span[active_curve] = settings_->caps_type;
-      end_caps.finish();
+      if (bke::SpanAttributeWriter<int8_t> end_caps =
+              attributes.lookup_or_add_for_write_span<int8_t>("end_cap", bke::AttrDomain::Curve))
+      {
+        end_caps.span[active_curve] = settings_->caps_type;
+        curve_attributes_to_skip.add("end_cap");
+        end_caps.finish();
+      }
     }
 
-    cyclic.finish();
-    materials.finish();
-    softness.finish();
+    if (use_fill && (start_opacity < 1.0f || attributes.contains("fill_opacity"))) {
+      if (bke::SpanAttributeWriter<float> fill_opacities =
+              attributes.lookup_or_add_for_write_span<float>(
+                  "fill_opacity",
+                  bke::AttrDomain::Curve,
+                  bke::AttributeInitVArray(VArray<float>::ForSingle(1.0f, curves.curves_num()))))
+      {
+        fill_opacities.span[active_curve] = fill_opacity;
+        curve_attributes_to_skip.add("fill_opacity");
+        fill_opacities.finish();
+      }
+    }
+
+    if (bke::SpanAttributeWriter<float> init_times =
+            attributes.lookup_or_add_for_write_span<float>("init_time", bke::AttrDomain::Curve))
+    {
+      /* Truncating time in ms to uint32 then we don't lose precision in lower bits. */
+      init_times.span[active_curve] = float(uint64_t(self.start_time_ * 1e3)) / float(1e3);
+      curve_attributes_to_skip.add("init_time");
+      init_times.finish();
+    }
 
     curves.curve_types_for_write()[active_curve] = CURVE_TYPE_POLY;
+    curve_attributes_to_skip.add("curve_type");
     curves.update_curve_types();
 
-    /* Initialize the rest of the attributes with default values. */
-    bke::fill_attribute_range_default(attributes,
-                                      bke::AttrDomain::Point,
-                                      this->skipped_attribute_ids(bke::AttrDomain::Point),
-                                      IndexRange(last_active_point, 1));
-    bke::fill_attribute_range_default(attributes,
-                                      bke::AttrDomain::Curve,
-                                      this->skipped_attribute_ids(bke::AttrDomain::Curve),
-                                      IndexRange(active_curve, 1));
+    if (self.placement_.use_project_to_stroke()) {
+      self.stroke_placement_depths_.append(self.stroke_placement_depths_.is_empty() ?
+                                               std::nullopt :
+                                               self.stroke_placement_depths_.last());
+      /* Initialize the snap point. */
+      self.update_stroke_depth_placement(C, start_sample);
+    }
 
-    drawing_->tag_topology_changed();
+    /* Initialize the rest of the attributes with default values. */
+    bke::fill_attribute_range_default(
+        attributes,
+        bke::AttrDomain::Point,
+        bke::attribute_filter_from_skip_ref(point_attributes_to_skip),
+        IndexRange(last_active_point, 1));
+    bke::fill_attribute_range_default(
+        attributes,
+        bke::AttrDomain::Curve,
+        bke::attribute_filter_from_skip_ref(curve_attributes_to_skip),
+        IndexRange(active_curve, 1));
+
+    self.drawing_->tag_topology_changed();
   }
 
   void active_smoothing(PaintOperation &self, const IndexRange smooth_window)
@@ -525,7 +548,7 @@ struct PaintOperationExecutor {
     const float2 tangent = math::normalize(self.smoothed_pen_direction_);
     const float2 cotangent = float2(-tangent.y, tangent.x);
     for ([[maybe_unused]] const int _ : IndexRange(new_points_num)) {
-      const float rand = self.rng.get_float() * 2.0f - 1.0f;
+      const float rand = self.rng_.get_float() * 2.0f - 1.0f;
       const float factor = rand * settings_->draw_jitter * jitter_factor;
       self.screen_space_jitter_offsets_.append(cotangent * factor * brush_radius_px);
     }
@@ -536,9 +559,22 @@ struct PaintOperationExecutor {
     MutableSpan<float2> final_coords = self.screen_space_final_coords_.as_mutable_span().slice(
         active_window);
     MutableSpan<float3> positions_slice = curve_positions.slice(active_window);
-    for (const int64_t window_i : active_window.index_range()) {
-      final_coords[window_i] = smoothed_coords[window_i] + jitter_slice[window_i];
-      positions_slice[window_i] = self.placement_.project(final_coords[window_i]);
+    if (self.placement_.use_project_to_stroke()) {
+      BLI_assert(self.stroke_placement_depths_.size() == self.screen_space_coords_orig_.size());
+      const Span<std::optional<float>> stroke_depths =
+          self.stroke_placement_depths_.as_span().slice(active_window);
+      for (const int64_t window_i : active_window.index_range()) {
+        final_coords[window_i] = smoothed_coords[window_i] + jitter_slice[window_i];
+        const std::optional<float> depth = stroke_depths[window_i];
+        positions_slice[window_i] = depth ? self.placement_.place(final_coords[window_i], *depth) :
+                                            self.placement_.project(final_coords[window_i]);
+      }
+    }
+    else {
+      for (const int64_t window_i : active_window.index_range()) {
+        final_coords[window_i] = smoothed_coords[window_i] + jitter_slice[window_i];
+        positions_slice[window_i] = self.placement_.project(final_coords[window_i]);
+      }
     }
   }
 
@@ -552,7 +588,22 @@ struct PaintOperationExecutor {
     const bool on_back = (scene->toolsettings->gpencil_flags & GP_TOOL_FLAG_PAINT_ONBACK) != 0;
 
     const float2 coords = extension_sample.mouse_position;
-    float3 position = self.placement_.project(coords);
+    float3 position;
+    if (self.placement_.use_project_to_stroke()) {
+      const std::optional<float> depth = self.stroke_placement_depths_.is_empty() ?
+                                             std::nullopt :
+                                             self.stroke_placement_depths_.last();
+      if (depth) {
+        position = self.placement_.place(coords, *depth);
+      }
+      else {
+        position = self.placement_.project(coords);
+      }
+    }
+    else {
+      position = self.placement_.project(coords);
+    }
+
     float radius = ed::greasepencil::radius_from_input_sample(rv3d,
                                                               region,
                                                               brush_,
@@ -560,12 +611,13 @@ struct PaintOperationExecutor {
                                                               position,
                                                               self.placement_.to_world_space(),
                                                               settings_);
-    const float brush_radius_px = brush_radius_to_pixel_radius(
-        rv3d, brush_, math::transform_point(self.placement_.to_world_space(), position));
-    const float opacity = ed::greasepencil::opacity_from_input_sample(
+    float opacity = ed::greasepencil::opacity_from_input_sample(
         extension_sample.pressure, brush_, settings_);
 
-    bke::CurvesGeometry &curves = drawing_->strokes_for_write();
+    const float brush_radius_px = brush_radius_to_pixel_radius(
+        rv3d, brush_, math::transform_point(self.placement_.to_world_space(), position));
+
+    bke::CurvesGeometry &curves = self.drawing_->strokes_for_write();
     OffsetIndices<int> points_by_curve = curves.points_by_curve();
     bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
 
@@ -575,42 +627,79 @@ struct PaintOperationExecutor {
     const int last_active_point = curve_points.last();
 
     const float2 prev_coords = self.screen_space_coords_orig_.last();
-    const float prev_radius = drawing_->radii()[last_active_point];
-    const float prev_opacity = drawing_->opacities()[last_active_point];
-    const ColorGeometry4f prev_vertex_color = drawing_->vertex_colors()[last_active_point];
+    float prev_radius = self.drawing_->radii()[last_active_point];
+    const float prev_opacity = self.drawing_->opacities()[last_active_point];
+    const ColorGeometry4f prev_vertex_color = self.drawing_->vertex_colors()[last_active_point];
 
-    /* Use the vector from the previous to the next point and then interpolate it with the previous
-     * direction to get a smoothed value over time. */
-    self.smoothed_pen_direction_ = math::interpolate(
-        self.smoothed_pen_direction_, coords - self.screen_space_coords_orig_.last(), 0.1f);
+    const bool is_first_sample = (curve_points.size() == 1);
+
+    /* Use the vector from the previous to the next point. Set the direction based on the first two
+     * samples. For subsequent samples, interpolate with the previous direction to get a smoothed
+     * value over time. */
+    if (is_first_sample) {
+      self.smoothed_pen_direction_ = self.screen_space_coords_orig_.last() - coords;
+    }
+    else {
+      /* The smoothing rate is a factor from 0 to 1 that represents how quickly the
+       * `smoothed_pen_direction_` "reacts" to changes in direction.
+       *  - 1.0f: Immediate reaction.
+       *  - 0.0f: No reaction (value never changes). */
+      constexpr float smoothing_rate_factor = 0.3f;
+      self.smoothed_pen_direction_ = math::interpolate(self.smoothed_pen_direction_,
+                                                       self.screen_space_coords_orig_.last() -
+                                                           coords,
+                                                       smoothing_rate_factor);
+    }
 
     /* Approximate brush with non-circular shape by changing the radius based on the angle. */
+    float radius_factor = 1.0f;
     if (settings_->draw_angle_factor > 0.0f) {
+      /* `angle` is the angle to the horizontal line in screen space. */
       const float angle = settings_->draw_angle;
       const float2 angle_vec = float2(math::cos(angle), math::sin(angle));
 
-      /* `angle_factor` is the angle to the horizontal line in screen space. */
-      const float angle_factor =
-          1.0f - math::abs(math::dot(angle_vec, math::normalize(self.smoothed_pen_direction_)));
+      /* The angle factor is 1.0f when the direction is aligned with the angle vector and 0.0f when
+       * it is orthogonal to the angle vector. This is consistent with the behavior from GPv2. */
+      const float angle_factor = math::abs(
+          math::dot(angle_vec, math::normalize(self.smoothed_pen_direction_)));
 
       /* Influence is controlled by `draw_angle_factor`. */
-      const float radius_factor = math::interpolate(
-          1.0f, angle_factor, settings_->draw_angle_factor);
+      radius_factor = math::interpolate(1.0f, angle_factor, settings_->draw_angle_factor);
       radius *= radius_factor;
     }
 
     /* Overwrite last point if it's very close. */
-    const bool is_first_sample = (curve_points.size() == 1);
-    constexpr float point_override_threshold_px = 2.0f;
     const float distance_px = math::distance(coords, prev_coords);
+    constexpr float point_override_threshold_px = 2.0f;
     if (distance_px < point_override_threshold_px) {
+      self.accum_distance_ += distance_px;
       /* Don't move the first point of the stroke. */
       if (!is_first_sample) {
         curves.positions_for_write()[last_active_point] = position;
       }
-      drawing_->radii_for_write()[last_active_point] = math::max(radius, prev_radius);
-      drawing_->opacities_for_write()[last_active_point] = math::max(opacity, prev_opacity);
+      if (use_settings_random_ && settings_->draw_random_press > 0.0f) {
+        radius = ed::greasepencil::randomize_radius(*settings_,
+                                                    self.stroke_random_radius_factor_,
+                                                    self.accum_distance_,
+                                                    radius,
+                                                    extension_sample.pressure);
+      }
+      if (use_settings_random_ && settings_->draw_random_strength > 0.0f) {
+        opacity = ed::greasepencil::randomize_opacity(*settings_,
+                                                      self.stroke_random_opacity_factor_,
+                                                      self.accum_distance_,
+                                                      opacity,
+                                                      extension_sample.pressure);
+      }
+      self.drawing_->radii_for_write()[last_active_point] = math::max(radius, prev_radius);
+      self.drawing_->opacities_for_write()[last_active_point] = math::max(opacity, prev_opacity);
       return;
+    }
+
+    /* Adjust the first points radius based on the computed angle. */
+    if (is_first_sample && settings_->draw_angle_factor > 0.0f) {
+      self.drawing_->radii_for_write()[last_active_point] *= radius_factor;
+      prev_radius = self.drawing_->radii()[last_active_point];
     }
 
     /* Clamp the number of points within a pixel in screen space. */
@@ -624,24 +713,110 @@ struct PaintOperationExecutor {
                                    int(math::floor(distance_px / max_spacing_px)) :
                                    1;
     /* Resize the curves geometry. */
-    extend_curve(curves, on_back, new_points_num);
+    ed::greasepencil::resize_single_curve(
+        curves, on_back == false, curve_points.size() + new_points_num);
 
-    /* Subdivide stroke in new_points. */
+    Set<std::string> point_attributes_to_skip;
+    /* Subdivide new segment. */
     const IndexRange new_points = curves.points_by_curve()[active_curve].take_back(new_points_num);
     Array<float2> new_screen_space_coords(new_points_num);
     MutableSpan<float3> positions = curves.positions_for_write();
     MutableSpan<float3> new_positions = positions.slice(new_points);
-    MutableSpan<float> new_radii = drawing_->radii_for_write().slice(new_points);
-    MutableSpan<float> new_opacities = drawing_->opacities_for_write().slice(new_points);
+    MutableSpan<float> new_radii = self.drawing_->radii_for_write().slice(new_points);
+    MutableSpan<float> new_opacities = self.drawing_->opacities_for_write().slice(new_points);
+
+    /* Interpolate the screen space positions. */
     linear_interpolation<float2>(prev_coords, coords, new_screen_space_coords, is_first_sample);
-    linear_interpolation<float>(prev_radius, radius, new_radii, is_first_sample);
-    linear_interpolation<float>(prev_opacity, opacity, new_opacities, is_first_sample);
-    if (vertex_color_) {
-      MutableSpan<ColorGeometry4f> new_vertex_colors = drawing_->vertex_colors_for_write().slice(
-          new_points);
-      linear_interpolation<ColorGeometry4f>(
-          prev_vertex_color, *vertex_color_, new_vertex_colors, is_first_sample);
+    point_attributes_to_skip.add_multiple({"position", "radius", "opacity"});
+
+    /* Randomize radii. */
+    if (use_settings_random_ && settings_->draw_random_press > 0.0f) {
+      for (const int i : IndexRange(new_points_num)) {
+        new_radii[i] = ed::greasepencil::randomize_radius(*settings_,
+                                                          self.stroke_random_radius_factor_,
+                                                          self.accum_distance_ +
+                                                              max_spacing_px * i,
+                                                          radius,
+                                                          extension_sample.pressure);
+      }
     }
+    else {
+      linear_interpolation<float>(prev_radius, radius, new_radii, is_first_sample);
+    }
+
+    /* Randomize opacities. */
+    if (use_settings_random_ && settings_->draw_random_strength > 0.0f) {
+      for (const int i : IndexRange(new_points_num)) {
+        new_opacities[i] = ed::greasepencil::randomize_opacity(*settings_,
+                                                               self.stroke_random_opacity_factor_,
+                                                               self.accum_distance_ +
+                                                                   max_spacing_px * i,
+                                                               opacity,
+                                                               extension_sample.pressure);
+      }
+    }
+    else {
+      linear_interpolation<float>(prev_opacity, opacity, new_opacities, is_first_sample);
+    }
+
+    /* Randomize rotations. */
+    if (use_settings_random_ && (settings_->uv_random > 0.0f || attributes.contains("rotation"))) {
+      if (bke::SpanAttributeWriter<float> rotations =
+              attributes.lookup_or_add_for_write_span<float>("rotation", bke::AttrDomain::Point))
+      {
+        const MutableSpan<float> new_rotations = rotations.span.slice(new_points);
+        for (const int i : IndexRange(new_points_num)) {
+          new_rotations[i] = ed::greasepencil::randomize_rotation(
+              *settings_,
+              self.rng_,
+              self.stroke_random_rotation_factor_,
+              extension_sample.pressure);
+        }
+        point_attributes_to_skip.add("rotation");
+        rotations.finish();
+      }
+    }
+
+    /* Randomize vertex color. */
+    if (use_vertex_color_ || attributes.contains("vertex_color")) {
+      MutableSpan<ColorGeometry4f> new_vertex_colors =
+          self.drawing_->vertex_colors_for_write().slice(new_points);
+      if (use_settings_random_ || attributes.contains("vertex_color")) {
+        for (const int i : IndexRange(new_points_num)) {
+          new_vertex_colors[i] = ed::greasepencil::randomize_color(*settings_,
+                                                                   self.stroke_random_hue_factor_,
+                                                                   self.stroke_random_sat_factor_,
+                                                                   self.stroke_random_val_factor_,
+                                                                   self.accum_distance_ +
+                                                                       max_spacing_px * i,
+                                                                   vertex_color_,
+                                                                   extension_sample.pressure);
+        }
+      }
+      else {
+        linear_interpolation<ColorGeometry4f>(
+            prev_vertex_color, vertex_color_, new_vertex_colors, is_first_sample);
+      }
+      point_attributes_to_skip.add("vertex_color");
+    }
+
+    const double new_delta_time = BLI_time_now_seconds() - self.start_time_;
+    if (bke::SpanAttributeWriter<float> delta_times =
+            attributes.lookup_or_add_for_write_span<float>("delta_time", bke::AttrDomain::Point))
+    {
+      linear_interpolation<float>(float(self.delta_time_),
+                                  float(new_delta_time),
+                                  delta_times.span.slice(new_points),
+                                  is_first_sample);
+      point_attributes_to_skip.add("delta_time");
+      delta_times.finish();
+    }
+
+    /* Update the accumulated distance along the stroke in pixels. */
+    self.accum_distance_ += distance_px;
+
+    /* Update the current delta time. */
+    self.delta_time_ = new_delta_time;
 
     /* Update screen space buffers with new points. */
     self.screen_space_coords_orig_.extend(new_screen_space_coords);
@@ -650,19 +825,43 @@ struct PaintOperationExecutor {
     for (float2 new_position : new_screen_space_coords) {
       self.screen_space_curve_fitted_coords_.append(Vector<float2>({new_position}));
     }
+    if (self.placement_.use_project_to_stroke()) {
+      const std::optional<float> last_depth = self.stroke_placement_depths_.is_empty() ?
+                                                  std::nullopt :
+                                                  self.stroke_placement_depths_.last();
+      self.stroke_placement_depths_.append_n_times(last_depth, new_points_num);
+    }
 
     /* Only start smoothing if there are enough points. */
     constexpr int64_t min_active_smoothing_points_num = 8;
     const IndexRange smooth_window = self.screen_space_coords_orig_.index_range().drop_front(
         self.active_smooth_start_index_);
     if (smooth_window.size() < min_active_smoothing_points_num) {
-      self.placement_.project(new_screen_space_coords, new_positions);
+      if (self.placement_.use_project_to_stroke()) {
+        const Span<std::optional<float>> new_depths =
+            self.stroke_placement_depths_.as_mutable_span().take_back(new_points_num);
+        for (const int64_t i : new_positions.index_range()) {
+          const std::optional<float> depth = new_depths[i];
+          if (depth) {
+            new_positions[i] = self.placement_.place(coords, *depth);
+          }
+          else {
+            new_positions[i] = self.placement_.project(coords);
+          }
+        }
+      }
+      else {
+        self.placement_.project(new_screen_space_coords, new_positions);
+      }
     }
     else {
-      /* Active smoothing is done in a window at the end of the new stroke. */
+      /* Active smoothing is done in a window at the end of the new stroke.
+       * Final positions are written below. */
       this->active_smoothing(self, smooth_window);
     }
 
+    /* Jitter uses smoothed coordinates as input. In case smoothing is not applied these are the
+     * unsmoothed original coordinates. */
     MutableSpan<float3> curve_positions = positions.slice(curves.points_by_curve()[active_curve]);
     if (use_settings_random_ && settings_->draw_jitter > 0.0f) {
       this->active_jitter(self,
@@ -680,26 +879,183 @@ struct PaintOperationExecutor {
       /* Not jitter, so we just copy the positions over. */
       final_coords.copy_from(smoothed_coords);
       MutableSpan<float3> curve_positions_slice = curve_positions.slice(smooth_window);
-      for (const int64_t window_i : smooth_window.index_range()) {
-        curve_positions_slice[window_i] = self.placement_.project(final_coords[window_i]);
+      if (self.placement_.use_project_to_stroke()) {
+        BLI_assert(self.stroke_placement_depths_.size() == self.screen_space_coords_orig_.size());
+        const Span<std::optional<float>> stroke_depths =
+            self.stroke_placement_depths_.as_mutable_span().slice(smooth_window);
+        for (const int64_t window_i : smooth_window.index_range()) {
+          const std::optional<float> depth = stroke_depths[window_i];
+          curve_positions_slice[window_i] = depth ?
+                                                self.placement_.place(final_coords[window_i],
+                                                                      *depth) :
+                                                self.placement_.project(final_coords[window_i]);
+        }
+      }
+      else {
+        for (const int64_t window_i : smooth_window.index_range()) {
+          curve_positions_slice[window_i] = self.placement_.project(final_coords[window_i]);
+        }
       }
     }
 
-    /* Initialize the rest of the attributes with default values. */
-    bke::fill_attribute_range_default(attributes,
-                                      bke::AttrDomain::Point,
-                                      this->skipped_attribute_ids(bke::AttrDomain::Point),
-                                      curves.points_range().take_back(1));
+    if (self.placement_.use_project_to_stroke()) {
+      /* Find a new snap point and apply projection to trailing points. */
+      self.update_stroke_depth_placement(C, extension_sample);
+    }
 
-    drawing_->set_texture_matrices({self.texture_space_}, IndexRange::from_single(active_curve));
+    /* Initialize the rest of the attributes with default values. */
+    bke::fill_attribute_range_default(
+        attributes,
+        bke::AttrDomain::Point,
+        bke::attribute_filter_from_skip_ref(point_attributes_to_skip),
+        curves.points_range().take_back(new_points_num));
+
+    self.drawing_->set_texture_matrices({self.texture_space_},
+                                        IndexRange::from_single(active_curve));
   }
 
   void execute(PaintOperation &self, const bContext &C, const InputSample &extension_sample)
   {
+    const Scene *scene = CTX_data_scene(&C);
+    const bool on_back = (scene->toolsettings->gpencil_flags & GP_TOOL_FLAG_PAINT_ONBACK) != 0;
+
     this->process_extension_sample(self, C, extension_sample);
-    drawing_->tag_topology_changed();
+
+    const bke::CurvesGeometry &curves = self.drawing_->strokes();
+    const int active_curve = on_back ? curves.curves_range().first() :
+                                       curves.curves_range().last();
+    self.drawing_->tag_topology_changed(IndexRange::from_single(active_curve));
   }
 };
+
+enum class StrokeSnapMode {
+  AllPoints,
+  EndPoints,
+  FirstPoint,
+};
+
+static StrokeSnapMode get_snap_mode(const bContext &C)
+{
+  /* gpencil_v3d_align is an awkward combination of multiple properties. If none of the non-zero
+   * flags are set the AllPoints mode is the default. */
+  const Scene &scene = *CTX_data_scene(&C);
+  const char align_flags = scene.toolsettings->gpencil_v3d_align;
+  if (align_flags & GP_PROJECT_DEPTH_STROKE_ENDPOINTS) {
+    return StrokeSnapMode::EndPoints;
+  }
+  if (align_flags & GP_PROJECT_DEPTH_STROKE_FIRST) {
+    return StrokeSnapMode::FirstPoint;
+  }
+  return StrokeSnapMode::AllPoints;
+}
+
+bool PaintOperation::update_stroke_depth_placement(const bContext &C, const InputSample &sample)
+{
+  BLI_assert(placement_.use_project_to_stroke());
+
+  const std::optional<float> new_stroke_placement_depth = placement_.get_depth(
+      sample.mouse_position);
+  if (!new_stroke_placement_depth) {
+    return false;
+  }
+
+  const StrokeSnapMode snap_mode = get_snap_mode(C);
+  switch (snap_mode) {
+    case StrokeSnapMode::AllPoints: {
+      const float start_depth = last_stroke_placement_depth_ ? *last_stroke_placement_depth_ :
+                                                               *new_stroke_placement_depth;
+      const float end_depth = *new_stroke_placement_depth;
+      const IndexRange reprojected_points = this->interpolate_stroke_depth(
+          C, last_stroke_placement_point_, start_depth, end_depth);
+      /* Only reproject newly added points next time a hit point is found. */
+      if (!reprojected_points.is_empty()) {
+        last_stroke_placement_point_ = reprojected_points.one_after_last();
+      }
+
+      last_stroke_placement_depth_ = new_stroke_placement_depth;
+      break;
+    }
+    case StrokeSnapMode::EndPoints: {
+      const float start_depth = last_stroke_placement_depth_ ? *last_stroke_placement_depth_ :
+                                                               *new_stroke_placement_depth;
+      const float end_depth = *new_stroke_placement_depth;
+      const IndexRange reprojected_points = this->interpolate_stroke_depth(
+          C, last_stroke_placement_point_, start_depth, end_depth);
+
+      /* Only update depth on the first hit. */
+      if (!last_stroke_placement_depth_) {
+        /* Keep reprojecting all points from the first hit onward. */
+        if (!reprojected_points.is_empty()) {
+          last_stroke_placement_point_ = reprojected_points.one_after_last();
+        }
+        last_stroke_placement_depth_ = new_stroke_placement_depth;
+      }
+      break;
+    }
+    case StrokeSnapMode::FirstPoint: {
+      /* Only reproject once in "First Point" mode. */
+      if (!last_stroke_placement_depth_) {
+        const float start_depth = *new_stroke_placement_depth;
+        const float end_depth = *new_stroke_placement_depth;
+        this->interpolate_stroke_depth(C, last_stroke_placement_point_, start_depth, end_depth);
+
+        last_stroke_placement_depth_ = new_stroke_placement_depth;
+        break;
+      }
+    }
+  }
+
+  return true;
+}
+
+IndexRange PaintOperation::interpolate_stroke_depth(const bContext &C,
+                                                    std::optional<int> start_point,
+                                                    const float from_depth,
+                                                    const float to_depth)
+{
+  using namespace blender::bke;
+
+  Scene *scene = CTX_data_scene(&C);
+  const bool on_back = (scene->toolsettings->gpencil_flags & GP_TOOL_FLAG_PAINT_ONBACK) != 0;
+
+  /* Drawing should exist. */
+  BLI_assert(drawing_);
+  bke::greasepencil::Drawing &drawing = *drawing_;
+  const int active_curve = on_back ? drawing.strokes().curves_range().first() :
+                                     drawing.strokes().curves_range().last();
+  const offset_indices::OffsetIndices<int> points_by_curve = drawing.strokes().points_by_curve();
+  const IndexRange all_points = points_by_curve[active_curve];
+  BLI_assert(screen_space_final_coords_.size() == all_points.size());
+  if (all_points.is_empty()) {
+    return {};
+  }
+
+  IndexRange active_points = all_points;
+  if (start_point) {
+    active_points = IndexRange::from_begin_end_inclusive(*start_point, all_points.last());
+  }
+  if (active_points.is_empty()) {
+    return {};
+  }
+
+  /* Point slice relative to the curve, valid for 2D coordinate array. */
+  const IndexRange active_curve_points = active_points.shift(-all_points.start());
+
+  MutableSpan<std::optional<float>> depths = stroke_placement_depths_.as_mutable_span().slice(
+      active_curve_points);
+  MutableSpan<float3> positions = drawing.strokes_for_write().positions_for_write().slice(
+      active_points);
+  const Span<float2> final_coords = screen_space_final_coords_.as_span().slice(
+      active_curve_points);
+  const float step_size = 1.0f / std::max(int(active_points.size()) - 1, 1);
+  for (const int i : positions.index_range()) {
+    /* Update the placement depth for later reprojection (active smoothing). */
+    depths[i] = math::interpolate(from_depth, to_depth, float(i) * step_size);
+    positions[i] = placement_.place(final_coords[i], *depths[i]);
+  }
+
+  return active_points;
+}
 
 void PaintOperation::on_stroke_begin(const bContext &C, const InputSample &start_sample)
 {
@@ -717,45 +1073,70 @@ void PaintOperation::on_stroke_begin(const bContext &C, const InputSample &start
   if (brush->gpencil_settings == nullptr) {
     BKE_brush_init_gpencil_settings(brush);
   }
+  BrushGpencilSettings *settings = brush->gpencil_settings;
 
-  BKE_curvemapping_init(brush->gpencil_settings->curve_sensitivity);
-  BKE_curvemapping_init(brush->gpencil_settings->curve_strength);
-  BKE_curvemapping_init(brush->gpencil_settings->curve_jitter);
-  BKE_curvemapping_init(brush->gpencil_settings->curve_rand_pressure);
-  BKE_curvemapping_init(brush->gpencil_settings->curve_rand_strength);
-  BKE_curvemapping_init(brush->gpencil_settings->curve_rand_uv);
-  BKE_curvemapping_init(brush->gpencil_settings->curve_rand_hue);
-  BKE_curvemapping_init(brush->gpencil_settings->curve_rand_saturation);
-  BKE_curvemapping_init(brush->gpencil_settings->curve_rand_value);
+  BKE_curvemapping_init(settings->curve_sensitivity);
+  BKE_curvemapping_init(settings->curve_strength);
+  BKE_curvemapping_init(settings->curve_jitter);
+  BKE_curvemapping_init(settings->curve_rand_pressure);
+  BKE_curvemapping_init(settings->curve_rand_strength);
+  BKE_curvemapping_init(settings->curve_rand_uv);
+  BKE_curvemapping_init(settings->curve_rand_hue);
+  BKE_curvemapping_init(settings->curve_rand_saturation);
+  BKE_curvemapping_init(settings->curve_rand_value);
 
+  BLI_assert(grease_pencil->has_active_layer());
   const bke::greasepencil::Layer &layer = *grease_pencil->get_active_layer();
   /* Initialize helper class for projecting screen space coordinates. */
   placement_ = ed::greasepencil::DrawingPlacement(*scene, *region, *view3d, *eval_object, &layer);
   if (placement_.use_project_to_surface()) {
-    placement_.cache_viewport_depths(CTX_data_depsgraph_pointer(&C), region, view3d);
+    placement_.cache_viewport_depths(depsgraph, region, view3d);
   }
-  else if (placement_.use_project_to_nearest_stroke()) {
-    placement_.cache_viewport_depths(CTX_data_depsgraph_pointer(&C), region, view3d);
-    placement_.set_origin_to_nearest_stroke(start_sample.mouse_position);
+  else if (placement_.use_project_to_stroke()) {
+    placement_.cache_viewport_depths(depsgraph, region, view3d);
   }
 
-  this->texture_space_ = ed::greasepencil::calculate_texture_space(
+  texture_space_ = ed::greasepencil::calculate_texture_space(
       scene, region, start_sample.mouse_position, placement_);
 
   /* `View` is already stored in object space but all others are in layer space. */
   if (scene->toolsettings->gp_sculpt.lock_axis != GP_LOCKAXIS_VIEW) {
-    this->texture_space_ = this->texture_space_ * layer.to_object_space(*object);
+    texture_space_ = texture_space_ * layer.to_object_space(*object);
   }
 
-  Material *material = BKE_grease_pencil_object_material_ensure_from_active_input_brush(
+  rng_ = RandomNumberGenerator::from_random_seed();
+  if ((settings->flag & GP_BRUSH_GROUP_RANDOM) != 0) {
+    /* Since we want stroke properties to randomize around set values, it's easier for us to have a
+     * signed value in range (-1,1) in calculations downstream. */
+    stroke_random_radius_factor_ = rng_.get_float() * 2.0f - 1.0f;
+    stroke_random_opacity_factor_ = rng_.get_float() * 2.0f - 1.0f;
+    stroke_random_rotation_factor_ = rng_.get_float() * 2.0f - 1.0f;
+
+    stroke_random_hue_factor_ = rng_.get_float() * 2.0f - 1.0f;
+    stroke_random_sat_factor_ = rng_.get_float() * 2.0f - 1.0f;
+    stroke_random_val_factor_ = rng_.get_float() * 2.0f - 1.0f;
+  }
+
+  Material *material = BKE_grease_pencil_object_material_ensure_from_brush(
       CTX_data_main(&C), object, brush);
   const int material_index = BKE_object_material_index_get(object, material);
+  const bool use_fill = (material->gp_style->flag & GP_MATERIAL_FILL_SHOW) != 0;
+
+  frame_number_ = scene->r.cfra;
+  drawing_ = grease_pencil->get_editable_drawing_at(layer, frame_number_);
+  multi_frame_drawings_ = ed::greasepencil::retrieve_editable_drawings(*scene, *grease_pencil);
+  BLI_assert(drawing_ != nullptr);
 
   /* We're now starting to draw. */
   grease_pencil->runtime->is_drawing_stroke = true;
 
+  /* Initialize the start time to the current time. */
+  start_time_ = BLI_time_now_seconds();
+  /* Delta time starts at 0. */
+  delta_time_ = 0.0f;
+
   PaintOperationExecutor executor{C};
-  executor.process_start_sample(*this, C, start_sample, material_index);
+  executor.process_start_sample(*this, C, start_sample, material_index, use_fill);
 
   DEG_id_tag_update(&grease_pencil->id, ID_RECALC_GEOMETRY);
   WM_event_add_notifier(&C, NC_GEOM | ND_DATA, grease_pencil);
@@ -827,17 +1208,18 @@ static void smooth_stroke(bke::greasepencil::Drawing &drawing,
 }
 
 static void simplify_stroke(bke::greasepencil::Drawing &drawing,
-                            Span<float2> screen_space_positions,
                             const float epsilon,
                             const int active_curve)
 {
   const bke::CurvesGeometry &curves = drawing.strokes();
+  const bke::AttributeAccessor attributes = curves.attributes();
   const IndexRange points = curves.points_by_curve()[active_curve];
-  BLI_assert(screen_space_positions.size() == points.size());
+  const VArray<float2> screen_space_positions_attribute = *attributes.lookup<float2>(
+      ".draw_tool_screen_space_positions");
+  BLI_assert(screen_space_positions_attribute.is_span());
 
-  if (epsilon <= 0.0f) {
-    return;
-  }
+  const Span<float2> screen_space_positions =
+      screen_space_positions_attribute.get_internal_span().slice(points);
 
   Array<bool> points_to_delete_arr(drawing.strokes().points_num(), false);
   points_to_delete_arr.as_mutable_span().slice(points).fill(true);
@@ -851,7 +1233,73 @@ static void simplify_stroke(bke::greasepencil::Drawing &drawing,
   const IndexMask points_to_delete = IndexMask::from_bools(points_to_delete_arr, memory);
   if (!points_to_delete.is_empty()) {
     drawing.strokes_for_write().remove_points(points_to_delete, {});
+    drawing.tag_topology_changed();
   }
+}
+
+static void add_strokes_to_drawing(const bool on_back,
+                                   Curves *strokes,
+                                   bke::greasepencil::Drawing &drawing)
+{
+  Curves *other_curves = bke::curves_new_nomain(std::move(drawing.strokes_for_write()));
+  std::array<bke::GeometrySet, 2> geometry_sets;
+  if (on_back) {
+    geometry_sets = {bke::GeometrySet::from_curves(strokes),
+                     bke::GeometrySet::from_curves(other_curves)};
+  }
+  else {
+    geometry_sets = {bke::GeometrySet::from_curves(other_curves),
+                     bke::GeometrySet::from_curves(strokes)};
+  }
+  drawing.strokes_for_write() = std::move(
+      geometry::join_geometries(geometry_sets, {}).get_curves_for_write()->geometry.wrap());
+  drawing.tag_topology_changed();
+}
+
+static void trim_stroke_ends(bke::greasepencil::Drawing &drawing,
+                             const int active_curve,
+                             const bool on_back)
+{
+  const bke::CurvesGeometry &curves = drawing.strokes();
+  const IndexRange points = curves.points_by_curve()[active_curve];
+  const bke::AttributeAccessor attributes = curves.attributes();
+  const VArray<float2> screen_space_positions_attribute = *attributes.lookup<float2>(
+      ".draw_tool_screen_space_positions");
+  BLI_assert(screen_space_positions_attribute.is_span());
+  const Span<float2> screen_space_positions =
+      screen_space_positions_attribute.get_internal_span().slice(points);
+  /* Extract the drawn stroke into a separate geometry, so we can trim the ends for just this
+   * stroke. */
+  bke::CurvesGeometry stroke = bke::curves_copy_curve_selection(
+      drawing.strokes(), IndexRange::from_single(active_curve), {});
+  auto bounds = bounds::min_max(screen_space_positions);
+  rcti screen_space_bounds;
+  BLI_rcti_init(&screen_space_bounds,
+                int(bounds->min.x),
+                int(bounds->max.x),
+                int(bounds->min.y),
+                int(bounds->max.y));
+  /* Use the first and last point. */
+  const Vector<Vector<int>> point_selection = {{0, int(points.index_range().last())}};
+  /* Trim the stroke ends by finding self intersections using the screen space positions. */
+  bke::CurvesGeometry stroke_trimmed = ed::greasepencil::trim::trim_curve_segments(
+      stroke,
+      screen_space_positions,
+      {screen_space_bounds},
+      IndexRange::from_single(0),
+      point_selection,
+      true);
+
+  /* No intersection found. */
+  if (stroke_trimmed.is_empty()) {
+    return;
+  }
+
+  /* Remove the original stroke. */
+  drawing.strokes_for_write().remove_curves(IndexRange::from_single(active_curve), {});
+
+  /* Join the trimmed stroke into the drawing. */
+  add_strokes_to_drawing(on_back, bke::curves_new_nomain(std::move(stroke_trimmed)), drawing);
 }
 
 static void outline_stroke(bke::greasepencil::Drawing &drawing,
@@ -879,19 +1327,7 @@ static void outline_stroke(bke::greasepencil::Drawing &drawing,
   drawing.strokes_for_write().remove_curves(IndexRange::from_single(active_curve), {});
 
   /* Join the outline stroke into the drawing. */
-  Curves *outline_curve = bke::curves_new_nomain(std::move(outline));
-  Curves *other_curves = bke::curves_new_nomain(std::move(drawing.strokes_for_write()));
-  std::array<bke::GeometrySet, 2> geometry_sets;
-  if (on_back) {
-    geometry_sets = {bke::GeometrySet::from_curves(outline_curve),
-                     bke::GeometrySet::from_curves(other_curves)};
-  }
-  else {
-    geometry_sets = {bke::GeometrySet::from_curves(other_curves),
-                     bke::GeometrySet::from_curves(outline_curve)};
-  }
-  drawing.strokes_for_write() = std::move(
-      geometry::join_geometries(geometry_sets, {}).get_curves_for_write()->geometry.wrap());
+  add_strokes_to_drawing(on_back, bke::curves_new_nomain(std::move(outline)), drawing);
 }
 
 static int trim_end_points(bke::greasepencil::Drawing &drawing,
@@ -918,6 +1354,11 @@ static int trim_end_points(bke::greasepencil::Drawing &drawing,
     return 0;
   }
 
+  /* Don't remove the entire stroke. Leave at least one point. */
+  if (points.size() - num_points_to_remove < 1) {
+    num_points_to_remove = points.size() - 1;
+  }
+
   if (!on_back) {
     curves.resize(curves.points_num() - num_points_to_remove, curves.curves_num());
     curves.offsets_for_write().last() = curves.points_num();
@@ -928,12 +1369,12 @@ static int trim_end_points(bke::greasepencil::Drawing &drawing,
   const int last_active_point = curves.points_by_curve()[0].last();
 
   /* Shift the data before resizing to not delete the data at the end. */
-  attributes.for_all([&](const bke::AttributeIDRef &id, const bke::AttributeMetaData meta_data) {
-    if (meta_data.domain != bke::AttrDomain::Point) {
-      return true;
+  attributes.foreach_attribute([&](const bke::AttributeIter &iter) {
+    if (iter.domain != bke::AttrDomain::Point) {
+      return;
     }
 
-    bke::GSpanAttributeWriter dst = attributes.lookup_for_write_span(id);
+    bke::GSpanAttributeWriter dst = attributes.lookup_for_write_span(iter.name);
     GMutableSpan attribute_data = dst.span;
 
     bke::attribute_math::convert_to_static_type(attribute_data.type(), [&](auto dummy) {
@@ -948,7 +1389,6 @@ static int trim_end_points(bke::greasepencil::Drawing &drawing,
       }
     });
     dst.finish();
-    return true;
   });
 
   curves.resize(curves.points_num() - num_points_to_remove, curves.curves_num());
@@ -969,7 +1409,7 @@ static void deselect_stroke(const bContext &C,
   const IndexRange points = drawing.strokes().points_by_curve()[active_curve];
 
   bke::CurvesGeometry &curves = drawing.strokes_for_write();
-  const bke::AttrDomain selection_domain = ED_grease_pencil_selection_domain_get(
+  const bke::AttrDomain selection_domain = ED_grease_pencil_edit_selection_domain_get(
       scene->toolsettings);
 
   bke::GSpanAttributeWriter selection = ed::curves::ensure_selection_attribute(
@@ -985,12 +1425,143 @@ static void deselect_stroke(const bContext &C,
   selection.finish();
 }
 
+static void process_stroke_weights(const Scene &scene,
+                                   const Object &object,
+                                   bke::greasepencil::Drawing &drawing,
+                                   const int active_curve)
+{
+  bke::CurvesGeometry &curves = drawing.strokes_for_write();
+  const IndexRange points = curves.points_by_curve()[active_curve];
+
+  const int def_nr = BKE_object_defgroup_active_index_get(&object) - 1;
+
+  if (def_nr == -1) {
+    return;
+  }
+
+  const bDeformGroup *defgroup = static_cast<const bDeformGroup *>(
+      BLI_findlink(BKE_object_defgroup_list(&object), def_nr));
+
+  const StringRef vertex_group_name = defgroup->name;
+
+  blender::bke::greasepencil::assign_to_vertex_group_from_mask(
+      curves, IndexMask(points), vertex_group_name, scene.toolsettings->vgroup_weight);
+
+  if (scene.toolsettings->vgroup_weight == 0.0f) {
+    return;
+  }
+
+  /* Loop through all modifiers trying to find the pose channel for the vertex group name. */
+  bPoseChannel *channel = nullptr;
+  Object *ob_arm = nullptr;
+  LISTBASE_FOREACH (ModifierData *, md, &(&object)->modifiers) {
+    if (md->type != eModifierType_GreasePencilArmature) {
+      continue;
+    }
+
+    /* Skip not visible modifiers. */
+    if (!(md->mode & eModifierMode_Realtime)) {
+      continue;
+    }
+
+    GreasePencilArmatureModifierData *amd = reinterpret_cast<GreasePencilArmatureModifierData *>(
+        md);
+    if (amd == nullptr) {
+      continue;
+    }
+
+    ob_arm = amd->object;
+    /* Not an armature. */
+    if (ob_arm->type != OB_ARMATURE || ob_arm->pose == nullptr) {
+      continue;
+    }
+
+    channel = BKE_pose_channel_find_name(ob_arm->pose, vertex_group_name.data());
+    if (channel == nullptr) {
+      continue;
+    }
+
+    /* Found the channel. */
+    break;
+  }
+
+  /* Nothing valid was found. */
+  if (channel == nullptr) {
+    return;
+  }
+
+  const float4x4 obinv = math::invert(object.object_to_world());
+
+  const float4x4 postmat = obinv * ob_arm->object_to_world();
+  const float4x4 premat = math::invert(postmat);
+
+  const float4x4 matrix = postmat * math::invert(float4x4(channel->chan_mat)) * premat;
+
+  /* Update the position of the stroke to undo the movement caused by the modifier. */
+  MutableSpan<float3> positions = curves.positions_for_write().slice(points);
+  threading::parallel_for(positions.index_range(), 1024, [&](const IndexRange range) {
+    for (float3 &position : positions.slice(range)) {
+      position = math::transform_point(matrix, position);
+    }
+  });
+}
+
+static bke::CurvesGeometry get_single_stroke(const bke::CurvesGeometry &src, const int curve)
+{
+
+  const IndexRange points = src.points_by_curve()[curve];
+  bke::CurvesGeometry dst(points.size(), 1);
+
+  Array<int> src_offsets({points.first(), points.one_after_last()});
+  Array<int> dst_offsets({0, int(points.size())});
+
+  copy_attributes_group_to_group(src.attributes(),
+                                 bke::AttrDomain::Point,
+                                 bke::AttrDomain::Point,
+                                 {},
+                                 src_offsets.as_span(),
+                                 dst_offsets.as_span(),
+                                 IndexMask{1},
+                                 dst.attributes_for_write());
+
+  src_offsets = {curve, curve + 1};
+  dst_offsets = {0, 1};
+
+  copy_attributes_group_to_group(src.attributes(),
+                                 bke::AttrDomain::Curve,
+                                 bke::AttrDomain::Curve,
+                                 {},
+                                 src_offsets.as_span(),
+                                 dst_offsets.as_span(),
+                                 IndexMask{1},
+                                 dst.attributes_for_write());
+  return dst;
+}
+
+static void append_stroke_to_multiframe_drawings(
+    const bke::CurvesGeometry &src_strokes,
+    const int curve,
+    const int current_frame,
+    const bool on_back,
+    Span<ed::greasepencil::MutableDrawingInfo> drawings)
+{
+  const bke::CurvesGeometry stroke = get_single_stroke(src_strokes, curve);
+
+  for (const ed::greasepencil::MutableDrawingInfo &drawing_info : drawings) {
+    if (drawing_info.frame_number == current_frame) {
+      continue;
+    }
+    add_strokes_to_drawing(on_back, bke::curves_new_nomain(stroke), drawing_info.drawing);
+  }
+}
+
 void PaintOperation::on_stroke_done(const bContext &C)
 {
   using namespace blender::bke;
   Scene *scene = CTX_data_scene(&C);
   Object *object = CTX_data_active_object(&C);
   RegionView3D *rv3d = CTX_wm_region_view3d(&C);
+  const ARegion *region = CTX_wm_region(&C);
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
 
   Paint *paint = &scene->toolsettings->gp_paint->paint;
@@ -998,40 +1569,54 @@ void PaintOperation::on_stroke_done(const bContext &C)
   BrushGpencilSettings *settings = brush->gpencil_settings;
   const bool on_back = (scene->toolsettings->gpencil_flags & GP_TOOL_FLAG_PAINT_ONBACK) != 0;
   const bool do_post_processing = (settings->flag & GP_BRUSH_GROUP_SETTINGS) != 0;
+  const bool do_automerge_endpoints = (scene->toolsettings->gpencil_flags &
+                                       GP_TOOL_FLAG_AUTOMERGE_STROKE) != 0;
 
   /* Grease Pencil should have an active layer. */
   BLI_assert(grease_pencil.has_active_layer());
   bke::greasepencil::Layer &active_layer = *grease_pencil.get_active_layer();
   /* Drawing should exist. */
-  bke::greasepencil::Drawing &drawing = *grease_pencil.get_editable_drawing_at(active_layer,
-                                                                               scene->r.cfra);
+  bke::greasepencil::Drawing &drawing = *drawing_;
   const int active_curve = on_back ? drawing.strokes().curves_range().first() :
                                      drawing.strokes().curves_range().last();
+  const offset_indices::OffsetIndices<int> points_by_curve = drawing.strokes().points_by_curve();
+  const IndexRange points = points_by_curve[active_curve];
+
+  /* Write the screen space positions of the new stroke as a temporary attribute, so all the
+   * changes in topology with the operations below get propagated correctly. */
+  bke::MutableAttributeAccessor attributes = drawing.strokes_for_write().attributes_for_write();
+  bke::SpanAttributeWriter<float2> screen_space_positions =
+      attributes.lookup_or_add_for_write_only_span<float2>(".draw_tool_screen_space_positions",
+                                                           bke::AttrDomain::Point);
+  BLI_assert(screen_space_positions);
+  screen_space_positions.span.slice(points).copy_from(this->screen_space_final_coords_);
+  screen_space_positions.finish();
+
   /* Remove trailing points with radii close to zero. */
-  const int num_points_removed = trim_end_points(drawing, 1e-5f, on_back, active_curve);
+  trim_end_points(drawing, 1e-5f, on_back, active_curve);
+
   /* Set the selection of the newly drawn stroke to false. */
   deselect_stroke(C, drawing, active_curve);
+
   if (do_post_processing) {
     if (settings->draw_smoothfac > 0.0f) {
       smooth_stroke(drawing, settings->draw_smoothfac, settings->draw_smoothlvl, active_curve);
     }
     if (settings->simplify_px > 0.0f) {
-      simplify_stroke(drawing,
-                      this->screen_space_final_coords_.as_span().drop_back(num_points_removed),
-                      settings->simplify_px,
-                      active_curve);
+      simplify_stroke(drawing, settings->simplify_px, active_curve);
+    }
+    if ((settings->flag & GP_BRUSH_TRIM_STROKE) != 0) {
+      trim_stroke_ends(drawing, active_curve, on_back);
+    }
+    if ((scene->toolsettings->gpencil_flags & GP_TOOL_FLAG_CREATE_WEIGHTS) != 0) {
+      process_stroke_weights(*scene, *object, drawing, active_curve);
     }
     if ((settings->flag & GP_BRUSH_OUTLINE_STROKE) != 0) {
-      const float outline_radius = float(brush->unprojected_radius) * settings->outline_fac * 0.5f;
+      const float outline_radius = brush->unprojected_radius * settings->outline_fac * 0.5f;
       const int material_index = [&]() {
-        Material *material = BKE_grease_pencil_object_material_ensure_from_active_input_brush(
+        Material *material = BKE_grease_pencil_object_material_alt_ensure_from_brush(
             CTX_data_main(&C), object, brush);
-        const int active_index = BKE_object_material_index_get(object, material);
-        if (settings->material_alt == nullptr) {
-          return active_index;
-        }
-        const int alt_index = BKE_object_material_slot_find_index(object, settings->material_alt);
-        return (alt_index > -1) ? alt_index - 1 : active_index;
+        return BKE_object_material_index_get(object, material);
       }();
       outline_stroke(drawing,
                      active_curve,
@@ -1042,8 +1627,28 @@ void PaintOperation::on_stroke_done(const bContext &C)
                      on_back);
     }
   }
+  /* Remove the temporary attribute. */
+  attributes.remove(".draw_tool_screen_space_positions");
+
   drawing.set_texture_matrices({texture_space_}, IndexRange::from_single(active_curve));
+
+  if (do_automerge_endpoints) {
+    constexpr float merge_distance = 20.0f;
+    const float4x4 layer_to_world = active_layer.to_world_space(*object);
+    const IndexMask selection = IndexRange::from_single(active_curve);
+    drawing.strokes_for_write() = ed::greasepencil::curves_merge_endpoints_by_distance(
+        *region, drawing.strokes(), layer_to_world, merge_distance, selection, {});
+  }
+
   drawing.tag_topology_changed();
+
+  const bool use_multi_frame_editing = (scene->toolsettings->gpencil_flags &
+                                        GP_USE_MULTI_FRAME_EDITING) != 0;
+
+  if (use_multi_frame_editing) {
+    append_stroke_to_multiframe_drawings(
+        drawing.strokes(), active_curve, frame_number_, on_back, multi_frame_drawings_);
+  }
 
   /* Now we're done drawing. */
   grease_pencil.runtime->is_drawing_stroke = false;
@@ -1052,9 +1657,9 @@ void PaintOperation::on_stroke_done(const bContext &C)
   WM_event_add_notifier(&C, NC_GEOM | ND_DATA, &grease_pencil.id);
 }
 
-std::unique_ptr<GreasePencilStrokeOperation> new_paint_operation()
+std::unique_ptr<GreasePencilStrokeOperation> new_paint_operation(const bool temp_draw)
 {
-  return std::make_unique<PaintOperation>();
+  return std::make_unique<PaintOperation>(temp_draw);
 }
 
 }  // namespace blender::ed::sculpt_paint::greasepencil

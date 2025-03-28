@@ -33,7 +33,8 @@ class VKCopyBufferNode : public VKNodeInfo<VKNodeType::COPY_BUFFER,
    * (`VK*Data`/`VK*CreateInfo`) types can be included in the same header file as the logic. The
    * actual node data (`VKRenderGraphNode` includes all header files.)
    */
-  template<typename Node> static void set_node_data(Node &node, const CreateInfo &create_info)
+  template<typename Node, typename Storage>
+  static void set_node_data(Node &node, Storage & /* storage */, const CreateInfo &create_info)
   {
     node.copy_buffer = create_info;
   }
@@ -46,7 +47,7 @@ class VKCopyBufferNode : public VKNodeInfo<VKNodeType::COPY_BUFFER,
                    const CreateInfo &create_info) override
   {
     ResourceWithStamp src_resource = resources.get_buffer(create_info.src_buffer);
-    ResourceWithStamp dst_resource = resources.get_buffer_and_increase_version(
+    ResourceWithStamp dst_resource = resources.get_buffer_and_increase_stamp(
         create_info.dst_buffer);
     node_links.inputs.append(
         {src_resource, VK_ACCESS_TRANSFER_READ_BIT, VK_IMAGE_LAYOUT_UNDEFINED});

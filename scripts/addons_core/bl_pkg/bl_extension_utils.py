@@ -21,15 +21,16 @@ __all__ = (
 
     "pkg_make_obsolete_for_testing",
 
-    "dummy_progress",
-
     # Public Stand-Alone Utilities.
     "pkg_theme_file_list",
     "pkg_manifest_params_compatible_or_error",
     "platform_from_this_system",
     "url_append_query_for_blender",
     "url_parse_for_blender",
+    "seconds_as_human_readable_text",
     "file_mtime_or_none",
+    "scandir_with_demoted_errors",
+    "rmtree_with_fallback_or_error",
 
     # Public API.
     "json_from_filepath",
@@ -37,8 +38,10 @@ __all__ = (
     "json_to_filepath",
 
     "pkg_manifest_dict_is_valid_or_error",
-    "pkg_manifest_dict_from_file_or_error",
+    "pkg_manifest_dict_from_archive_or_error",
     "pkg_manifest_archive_url_abs_from_remote_url",
+
+    "python_versions_from_wheel_python_tag",
 
     "CommandBatch",
     "RepoCacheStore",
@@ -46,6 +49,8 @@ __all__ = (
     # Directory Lock.
     "RepoLock",
     "RepoLockContext",
+
+    "repo_lock_directory_query",
 )
 
 import abc
@@ -60,26 +65,17 @@ import tomllib
 
 from typing import (
     Any,
+    IO,
+    NamedTuple,
+)
+from collections.abc import (
     Callable,
     Generator,
-    IO,
-    List,
-    Optional,
-    Dict,
-    NamedTuple,
+    Iterator,
     Sequence,
-    Set,
-    Tuple,
-    Union,
 )
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
-
-BLENDER_EXT_CMD = (
-    # When run from within Blender, it will point to Blender's local Python binary.
-    sys.executable,
-    os.path.normpath(os.path.join(BASE_DIR, "cli", "blender_ext.py")),
-)
 
 # This directory is in the local repository.
 REPO_LOCAL_PRIVATE_DIR = ".blender_ext"
@@ -90,11 +86,15 @@ PKG_REPO_LIST_FILENAME = "index.json"
 PKG_MANIFEST_FILENAME_TOML = "blender_manifest.toml"
 PKG_EXT = ".zip"
 
+# Components to use when creating temporary directory.
+# Note that digits may be added to the suffix avoid conflicts.
+PKG_TEMP_PREFIX_AND_SUFFIX = (".", ".~temp~")
+
 # Add this to the local JSON file.
 REPO_LOCAL_JSON = os.path.join(REPO_LOCAL_PRIVATE_DIR, PKG_REPO_LIST_FILENAME)
 
 # An item we communicate back to Blender.
-InfoItem = Tuple[str, Any]
+InfoItem = tuple[str, Any]
 InfoItemSeq = Sequence[InfoItem]
 
 COMPLETE_ITEM = ('DONE', "")
@@ -162,7 +162,7 @@ else:
         return True
 
 
-def file_mtime_or_none(filepath: str) -> Optional[int]:
+def file_mtime_or_none(filepath: str) -> int | None:
     try:
         # For some reason `mypy` thinks this is a float.
         return int(os.stat(filepath)[stat.ST_MTIME])
@@ -174,7 +174,7 @@ def file_mtime_or_none_with_error_fn(
         filepath: str,
         *,
         error_fn: Callable[[Exception], None],
-) -> Optional[int]:
+) -> int | None:
     try:
         # For some reason `mypy` thinks this is a float.
         return int(os.stat(filepath)[stat.ST_MTIME])
@@ -185,97 +185,131 @@ def file_mtime_or_none_with_error_fn(
     return None
 
 
-def scandir_with_demoted_errors(path: str) -> Generator[os.DirEntry[str], None, None]:
+def scandir_with_demoted_errors(path: str) -> Iterator[os.DirEntry[str]]:
     try:
         yield from os.scandir(path)
     except Exception as ex:
         print("Error: scandir", ex)
 
 
+def rmtree_with_fallback_or_error(
+        path: str,
+        *,
+        remove_file: bool = True,
+        remove_link: bool = True,
+) -> str | None:
+    from .cli.blender_ext import rmtree_with_fallback_or_error as fn
+    result = fn(
+        path,
+        remove_file=remove_file,
+        remove_link=remove_link,
+    )
+    assert result is None or isinstance(result, str)
+    return result
+
+
+def blender_ext_cmd(python_args: Sequence[str]) -> Sequence[str]:
+    return (
+        sys.executable,
+        *python_args,
+        os.path.normpath(os.path.join(BASE_DIR, "cli", "blender_ext.py")),
+    )
+
+
 # -----------------------------------------------------------------------------
 # Call JSON.
 #
 
-def non_blocking_call(cmd: Sequence[str]) -> subprocess.Popen[bytes]:
-    # pylint: disable-next=consider-using-with
-    ps = subprocess.Popen(cmd, stdout=subprocess.PIPE)
-    stdout = ps.stdout
-    assert stdout is not None
-    # Needed so whatever is available can be read (without waiting).
-    file_handle_make_non_blocking(stdout)
-    return ps
-
-
 def command_output_from_json_0(
         args: Sequence[str],
         use_idle: bool,
+        *,
+        python_args: Sequence[str],
 ) -> Generator[InfoItemSeq, bool, None]:
-    cmd = [*BLENDER_EXT_CMD, *args, "--output-type=JSON_0"]
-    ps = non_blocking_call(cmd)
-    stdout = ps.stdout
-    assert stdout is not None
-    chunk_list = []
-    request_exit_signal_sent = False
+    cmd = [*blender_ext_cmd(python_args), *args, "--output-type=JSON_0"]
+    # Note that the context-manager isn't used to wait until the process is finished as
+    # the function only finishes when `poll()` is not none, it's just use to ensure file-handles
+    # are closed before this function exits, this only seems to be a problem on WIN32.
 
-    while True:
-        # It's possible this is multiple chunks.
-        try:
-            chunk = stdout.read()
-        except Exception as ex:
-            if not file_handle_non_blocking_is_error_blocking(ex):
-                raise ex
-            chunk = b''
+    # WIN32 needs to use a separate process-group else Blender will recieve the "break", see #131947.
+    creationflags = 0
+    if sys.platform == "win32":
+        creationflags = subprocess.CREATE_NEW_PROCESS_GROUP
 
-        json_messages = []
+    with subprocess.Popen(cmd, stdout=subprocess.PIPE, creationflags=creationflags) as ps:
+        stdout = ps.stdout
+        assert stdout is not None
 
-        if not chunk:
-            if ps.poll() is not None:
-                break
-            if use_idle:
-                time.sleep(IDLE_WAIT_ON_READ)
-        elif (chunk_zero_index := chunk.find(b'\0')) == -1:
-            chunk_list.append(chunk)
-        else:
-            # Extract contiguous data from `chunk_list`.
-            chunk_list.append(chunk[:chunk_zero_index])
+        # Needed so whatever is available can be read (without waiting).
+        file_handle_make_non_blocking(stdout)
 
-            json_bytes_list = [b''.join(chunk_list)]
-            chunk_list.clear()
+        chunk_list = []
+        request_exit_signal_sent = False
 
-            # There may be data afterwards, even whole chunks.
-            if chunk_zero_index + 1 != len(chunk):
-                chunk = chunk[chunk_zero_index + 1:]
-                # Add whole chunks.
-                while (chunk_zero_index := chunk.find(b'\0')) != -1:
-                    json_bytes_list.append(chunk[:chunk_zero_index])
+        while True:
+            # It's possible this is multiple chunks.
+            try:
+                chunk = stdout.read()
+            except Exception as ex:
+                if not file_handle_non_blocking_is_error_blocking(ex):
+                    raise ex
+                chunk = b''
+
+            json_messages = []
+
+            if not chunk:
+                if ps.poll() is not None:
+                    break
+                if use_idle:
+                    time.sleep(IDLE_WAIT_ON_READ)
+            elif (chunk_zero_index := chunk.find(b'\0')) == -1:
+                chunk_list.append(chunk)
+            else:
+                # Extract contiguous data from `chunk_list`.
+                chunk_list.append(chunk[:chunk_zero_index])
+
+                json_bytes_list = [b''.join(chunk_list)]
+                chunk_list.clear()
+
+                # There may be data afterwards, even whole chunks.
+                if chunk_zero_index + 1 != len(chunk):
                     chunk = chunk[chunk_zero_index + 1:]
-                if chunk:
-                    chunk_list.append(chunk)
+                    # Add whole chunks.
+                    while (chunk_zero_index := chunk.find(b'\0')) != -1:
+                        json_bytes_list.append(chunk[:chunk_zero_index])
+                        chunk = chunk[chunk_zero_index + 1:]
+                    if chunk:
+                        chunk_list.append(chunk)
 
-            request_exit = False
+                request_exit = False
 
-            for json_bytes in json_bytes_list:
-                json_data = json.loads(json_bytes.decode("utf-8"))
+                for json_bytes in json_bytes_list:
+                    json_data = json.loads(json_bytes.decode("utf-8"))
 
-                assert len(json_data) == 2
-                assert isinstance(json_data[0], str)
+                    assert len(json_data) == 2
+                    assert isinstance(json_data[0], str)
 
-                json_messages.append((json_data[0], json_data[1]))
+                    json_messages.append((json_data[0], json_data[1]))
 
-        # Yield even when `json_messages`, otherwise this generator can block.
-        # It also means a request to exit might not be responded to soon enough.
-        request_exit = yield json_messages
-        if request_exit and not request_exit_signal_sent:
-            ps.send_signal(signal.SIGINT)
-            request_exit_signal_sent = True
+            # Yield even when `json_messages`, otherwise this generator can block.
+            # It also means a request to exit might not be responded to soon enough.
+            request_exit = yield json_messages
+            if request_exit and not request_exit_signal_sent:
+                if sys.platform == "win32":
+                    # Caught by the `signal.SIGBREAK` signal handler.
+                    ps.send_signal(signal.CTRL_BREAK_EVENT)
+                else:
+                    ps.send_signal(signal.SIGINT)
+                request_exit_signal_sent = True
 
 
 # -----------------------------------------------------------------------------
 # Internal Functions.
 #
 
-
-def repositories_validate_or_errors(repos: Sequence[str]) -> Optional[InfoItemSeq]:
+# pylint: disable-next=useless-return
+def repositories_validate_or_errors(repos: Sequence[str]) -> InfoItemSeq | None:
+    _ = repos
     return None
 
 
@@ -283,12 +317,16 @@ def repository_iter_package_dirs(
         directory: str,
         *,
         error_fn: Callable[[Exception], None],
-) -> Generator[os.DirEntry[str], None, None]:
+        ignore_missing: bool = False,
+) -> Iterator[os.DirEntry[str]]:
     try:
         dir_entries = os.scandir(directory)
     except Exception as ex:
+        # The `isinstance` check is ignored, suppress warning.
+        # pylint: disable-next=no-member
+        if not (ignore_missing and isinstance(ex, FileNotFoundError) and ex.filename == directory):
+            error_fn(ex)
         dir_entries = None
-        error_fn(ex)
 
     for entry in (dir_entries if dir_entries is not None else ()):
         # Only check directories.
@@ -335,7 +373,7 @@ def license_info_to_text(license_list: Sequence[str]) -> str:
 # Public Stand-Alone Utilities
 #
 
-def pkg_theme_file_list(directory: str, pkg_idname: str) -> Tuple[str, List[str]]:
+def pkg_theme_file_list(directory: str, pkg_idname: str) -> tuple[str, list[str]]:
     theme_dir = os.path.join(directory, pkg_idname)
     theme_files = [
         filename for entry in os.scandir(theme_dir)
@@ -367,7 +405,7 @@ def platform_from_this_system() -> str:
     return result
 
 
-def _url_append_query(url: str, query: Dict[str, str]) -> str:
+def _url_append_query(url: str, query: dict[str, str]) -> str:
     import urllib
     import urllib.parse
 
@@ -400,7 +438,12 @@ def _url_append_query(url: str, query: Dict[str, str]) -> str:
     return new_url
 
 
-def url_append_query_for_blender(url: str, blender_version: Tuple[int, int, int]) -> str:
+def url_append_query_for_blender(
+        *,
+        url: str,
+        blender_version: tuple[int, int, int],
+        python_version: tuple[int, int, int],
+) -> str:
     # `blender_version` is typically `bpy.app.version`.
 
     # While this won't cause errors, it's redundant to add this information to file URL's.
@@ -410,11 +453,12 @@ def url_append_query_for_blender(url: str, blender_version: Tuple[int, int, int]
     query = {
         "platform": platform_from_this_system(),
         "blender_version": "{:d}.{:d}.{:d}".format(*blender_version),
+        "python_version": "{:d}.{:d}.{:d}".format(*python_version),
     }
     return _url_append_query(url, query)
 
 
-def url_parse_for_blender(url: str) -> Tuple[str, Dict[str, str]]:
+def url_parse_for_blender(url: str) -> tuple[str, dict[str, str]]:
     # Split the URL into components:
     # - The stripped: `scheme + netloc + path`
     # - Known query values used by Blender.
@@ -440,7 +484,7 @@ def url_parse_for_blender(url: str) -> Tuple[str, Dict[str, str]]:
     for key, value in query:
         value_xform = None
         match key:
-            case "blender_version_min" | "blender_version_max" | "platforms":
+            case "blender_version_min" | "blender_version_max" | "python_versions" | "platforms":
                 if value:
                     value_xform = value
             case "repository":
@@ -454,12 +498,49 @@ def url_parse_for_blender(url: str) -> Tuple[str, Dict[str, str]]:
                             None,  # `parsed_url.query,`
                             None,  # `parsed_url.fragment,`
                         ))
+                    elif value.startswith("./"):
+                        value_xform = urllib.parse.urlunparse((
+                            parsed_url.scheme,
+                            parsed_url.netloc,
+                            parsed_url.path.rsplit("/", 1)[0] + value[1:],
+                            None,  # `parsed_url.params,`
+                            None,  # `parsed_url.query,`
+                            None,  # `parsed_url.fragment,`
+                        ))
                     else:
                         value_xform = value
         if value_xform is not None:
             query_known[key] = value_xform
 
     return url_strip, query_known
+
+
+def seconds_as_human_readable_text(seconds: float, unit_num: int) -> str:
+    seconds_units = (
+        ("year", "years", 31_556_952.0),
+        ("week", "weeks", 604_800.0),
+        ("day", "days", 86400.0),
+        ("hour", "hours", 3600.0),
+        ("minute", "minutes", 60.0),
+        ("second", "seconds", 1.0),
+    )
+    result = []
+    for unit_text, unit_text_plural, unit_value in seconds_units:
+        if seconds >= unit_value:
+            unit_count = int(seconds / unit_value)
+            seconds -= (unit_count * unit_value)
+            if unit_count > 1:
+                result.append("{:d} {:s}".format(unit_count, unit_text_plural))
+            else:
+                result.append("{:d} {:s}".format(unit_count, unit_text))
+            if len(result) == unit_num:
+                break
+
+    # For short time periods, always show something.
+    if not result:
+        result.append("{:.02g} {:s}".format(seconds / unit_value, unit_text_plural))
+
+    return ", ".join(result)
 
 
 # -----------------------------------------------------------------------------
@@ -475,11 +556,12 @@ def repo_sync(
         access_token: str,
         timeout: float,
         use_idle: bool,
+        python_args: Sequence[str],
         force_exit_ok: bool = False,
         dry_run: bool = False,
         demote_connection_errors_to_status: bool = False,
         extension_override: str = "",
-) -> Generator[InfoItemSeq, None, None]:
+) -> Iterator[InfoItemSeq]:
     """
     Implementation:
     ``bpy.ops.ext.repo_sync(directory)``.
@@ -499,7 +581,7 @@ def repo_sync(
         *(("--force-exit-ok",) if force_exit_ok else ()),
         *(("--demote-connection-errors-to-status",) if demote_connection_errors_to_status else ()),
         *(("--extension-override", extension_override) if extension_override else ()),
-    ], use_idle=use_idle)
+    ], use_idle=use_idle, python_args=python_args)
     yield [COMPLETE_ITEM]
 
 
@@ -510,7 +592,8 @@ def repo_upgrade(
         online_user_agent: str,
         access_token: str,
         use_idle: bool,
-) -> Generator[InfoItemSeq, None, None]:
+        python_args: Sequence[str],
+) -> Iterator[InfoItemSeq]:
     """
     Implementation:
     ``bpy.ops.ext.repo_upgrade(directory)``.
@@ -521,14 +604,15 @@ def repo_upgrade(
         "--remote-url", remote_url,
         "--online-user-agent", online_user_agent,
         "--access-token", access_token,
-    ], use_idle=use_idle)
+        "--temp-prefix-and-suffix", "/".join(PKG_TEMP_PREFIX_AND_SUFFIX),
+    ], use_idle=use_idle, python_args=python_args)
     yield [COMPLETE_ITEM]
 
 
 def repo_listing(
         *,
         repos: Sequence[str],
-) -> Generator[InfoItemSeq, None, None]:
+) -> Iterator[InfoItemSeq]:
     """
     Implementation:
     ``bpy.ops.ext.repo_listing(directory)``.
@@ -548,8 +632,11 @@ def pkg_install_files(
         *,
         directory: str,
         files: Sequence[str],
+        blender_version: tuple[int, int, int],
+        python_version: tuple[int, int, int],
         use_idle: bool,
-) -> Generator[InfoItemSeq, None, None]:
+        python_args: Sequence[str],
+) -> Iterator[InfoItemSeq]:
     """
     Implementation:
     ``bpy.ops.ext.pkg_install_files(directory, files)``.
@@ -557,7 +644,10 @@ def pkg_install_files(
     yield from command_output_from_json_0([
         "install-files", *files,
         "--local-dir", directory,
-    ], use_idle=use_idle)
+        "--blender-version", "{:d}.{:d}.{:d}".format(*blender_version),
+        "--python-version", "{:d}.{:d}.{:d}".format(*python_version),
+        "--temp-prefix-and-suffix", "/".join(PKG_TEMP_PREFIX_AND_SUFFIX),
+    ], use_idle=use_idle, python_args=python_args)
     yield [COMPLETE_ITEM]
 
 
@@ -566,13 +656,15 @@ def pkg_install(
         directory: str,
         remote_url: str,
         pkg_id_sequence: Sequence[str],
-        blender_version: Tuple[int, int, int],
+        blender_version: tuple[int, int, int],
+        python_version: tuple[int, int, int],
         online_user_agent: str,
         access_token: str,
         timeout: float,
         use_cache: bool,
         use_idle: bool,
-) -> Generator[InfoItemSeq, None, None]:
+        python_args: Sequence[str],
+) -> Iterator[InfoItemSeq]:
     """
     Implementation:
     ``bpy.ops.ext.pkg_install(directory, pkg_id)``.
@@ -582,20 +674,24 @@ def pkg_install(
         "--local-dir", directory,
         "--remote-url", remote_url,
         "--blender-version", "{:d}.{:d}.{:d}".format(*blender_version),
+        "--python-version", "{:d}.{:d}.{:d}".format(*python_version),
         "--online-user-agent", online_user_agent,
         "--access-token", access_token,
         "--local-cache", str(int(use_cache)),
         "--timeout", "{:g}".format(timeout),
-    ], use_idle=use_idle)
+        "--temp-prefix-and-suffix", "/".join(PKG_TEMP_PREFIX_AND_SUFFIX),
+    ], use_idle=use_idle, python_args=python_args)
     yield [COMPLETE_ITEM]
 
 
 def pkg_uninstall(
         *,
         directory: str,
+        user_directory: str,
         pkg_id_sequence: Sequence[str],
         use_idle: bool,
-) -> Generator[InfoItemSeq, None, None]:
+        python_args: Sequence[str],
+) -> Iterator[InfoItemSeq]:
     """
     Implementation:
     ``bpy.ops.ext.pkg_uninstall(directory, pkg_id)``.
@@ -603,23 +699,9 @@ def pkg_uninstall(
     yield from command_output_from_json_0([
         "uninstall", ",".join(pkg_id_sequence),
         "--local-dir", directory,
-    ], use_idle=use_idle)
-    yield [COMPLETE_ITEM]
-
-
-# -----------------------------------------------------------------------------
-# Public Demo Actions
-#
-
-def dummy_progress(
-        *,
-        use_idle: bool,
-) -> Generator[InfoItemSeq, bool, None]:
-    """
-    Implementation:
-    ``bpy.ops.extensions.dummy_progress()``.
-    """
-    yield from command_output_from_json_0(["dummy-progress", "--time-duration=1.0"], use_idle=use_idle)
+        "--user-dir", user_directory,
+        "--temp-prefix-and-suffix", "/".join(PKG_TEMP_PREFIX_AND_SUFFIX),
+    ], use_idle=use_idle, python_args=python_args)
     yield [COMPLETE_ITEM]
 
 
@@ -627,7 +709,7 @@ def dummy_progress(
 # Public (non-command-line-wrapping) functions
 #
 
-def json_from_filepath(filepath_json: str) -> Optional[Dict[str, Any]]:
+def json_from_filepath(filepath_json: str) -> dict[str, Any] | None:
     if os.path.exists(filepath_json):
         with open(filepath_json, "r", encoding="utf-8") as fh:
             result = json.loads(fh.read())
@@ -636,7 +718,7 @@ def json_from_filepath(filepath_json: str) -> Optional[Dict[str, Any]]:
     return None
 
 
-def toml_from_filepath(filepath_json: str) -> Optional[Dict[str, Any]]:
+def toml_from_filepath(filepath_json: str) -> dict[str, Any] | None:
     if os.path.exists(filepath_json):
         with open(filepath_json, "r", encoding="utf-8") as fh:
             return tomllib.loads(fh.read())
@@ -664,10 +746,10 @@ def pkg_make_obsolete_for_testing(local_dir: str, pkg_id: str) -> None:
 
 
 def pkg_manifest_dict_is_valid_or_error(
-        data: Dict[str, Any],
+        data: dict[str, Any],
         from_repo: bool,
         strict: bool,
-) -> Optional[str]:
+) -> str | None:
     # Exception! In in general `cli` shouldn't be considered a Python module,
     # it's validation function is handy to reuse.
     from .cli.blender_ext import pkg_manifest_from_dict_and_validate
@@ -678,9 +760,9 @@ def pkg_manifest_dict_is_valid_or_error(
     return None
 
 
-def pkg_manifest_dict_from_file_or_error(
+def pkg_manifest_dict_from_archive_or_error(
         filepath: str,
-) -> Union[Dict[str, Any], str]:
+) -> dict[str, Any] | str:
     from .cli.blender_ext import pkg_manifest_from_archive_and_validate
     result = pkg_manifest_from_archive_and_validate(filepath, strict=False)
     if isinstance(result, str):
@@ -704,7 +786,7 @@ def pkg_manifest_archive_url_abs_from_remote_url(remote_url: str, archive_url: s
     return archive_url
 
 
-def pkg_manifest_dict_apply_build_generated_table(manifest_dict: Dict[str, Any]) -> None:
+def pkg_manifest_dict_apply_build_generated_table(manifest_dict: dict[str, Any]) -> None:
     from .cli.blender_ext import pkg_manifest_dict_apply_build_generated_table as fn
     fn(manifest_dict)
 
@@ -734,6 +816,27 @@ def pkg_repo_cache_clear(local_dir: str) -> None:
             print("Error: unlink", ex)
 
 
+def python_versions_from_wheel_python_tag(python_tag: str) -> set[tuple[int] | tuple[int, int]] | str:
+    from .cli.blender_ext import python_versions_from_wheel_python_tag as fn
+    result = fn(python_tag)
+    assert isinstance(result, (set, str))
+    return result
+
+
+def python_versions_from_wheel_abi_tag(abi_tag: str, *, stable_only: bool) -> set[tuple[int] | tuple[int, int]] | str:
+    from .cli.blender_ext import python_versions_from_wheel_abi_tag as fn
+    result = fn(abi_tag, stable_only=stable_only)
+    assert isinstance(result, (set, str))
+    return result
+
+
+def python_versions_from_wheels(wheel_files: Sequence[str]) -> set[tuple[int] | tuple[int, int]] | str:
+    from .cli.blender_ext import python_versions_from_wheels as fn
+    result = fn(wheel_files)
+    assert isinstance(result, (set, str))
+    return result
+
+
 # -----------------------------------------------------------------------------
 # Public Command Pool (non-command-line wrapper)
 #
@@ -746,6 +849,7 @@ class CommandBatchItem:
         "fn_with_args",
         "fn_iter",
         "status",
+        "has_fatal_error",
         "has_error",
         "has_warning",
         "msg_log",
@@ -761,11 +865,12 @@ class CommandBatchItem:
 
     def __init__(self, fn_with_args: InfoItemCallable):
         self.fn_with_args = fn_with_args
-        self.fn_iter: Optional[Generator[InfoItemSeq, bool, None]] = None
+        self.fn_iter: Generator[InfoItemSeq, bool, None] | None = None
         self.status = CommandBatchItem.STATUS_NOT_YET_STARTED
+        self.has_fatal_error = False
         self.has_error = False
         self.has_warning = False
-        self.msg_log: List[Tuple[str, Any]] = []
+        self.msg_log: list[tuple[str, Any]] = []
         self.msg_log_len_last = 0
         self.msg_type = ""
         self.msg_info = ""
@@ -776,7 +881,7 @@ class CommandBatchItem:
 
 class CommandBatch_ExecNonBlockingResult(NamedTuple):
     # A message list for each command, aligned to `CommandBatchItem._batch`.
-    messages: Tuple[List[Tuple[str, str]], ...]
+    messages: tuple[list[tuple[str, str]], ...]
     # When true, the status of all commands is `CommandBatchItem.STATUS_COMPLETE`.
     all_complete: bool
     # When true, `calc_status_data` will return a different result.
@@ -791,6 +896,28 @@ class CommandBatch_StatusFlag(NamedTuple):
 
 
 class CommandBatch:
+    """
+    This class manages running command-line programs as sub-processes, abstracting away process management,
+    performing non-blocking reads to access JSON output.
+
+    The sub-processes must conform to the following constraints:
+
+    - Only output JSON to the STDOUT.
+    - Exit gracefully when: SIGINT signal is sent
+      (``signal.CTRL_BREAK_EVENT`` on WIN32).
+    - Errors must be caught and forwarded as JSON error messages.
+      Unhandled exceptions are not expected and and will produce ugly
+      messages from the STDERR output.
+
+    The user of this class creates the class with all known jobs,
+    setting the limit for the number of jobs that run simultaneously.
+
+    The caller can then monitor the processes:
+    - By calling ``exec_blocking``.
+    - Or by periodically calling ``exec_non_blocking``.
+
+      Canceling is performed by calling ``exec_non_blocking`` with ``request_exit=True``.
+    """
     __slots__ = (
         "title",
 
@@ -816,12 +943,14 @@ class CommandBatch:
     def _exec_blocking_single(
             self,
             report_fn: Callable[[str, str], None],
+            # TODO: investigate using this or removing it.
+            # pylint: disable-next=unused-argument
             request_exit_fn: Callable[[], bool],
     ) -> bool:
         for cmd in self._batch:
             assert cmd.fn_iter is None
             cmd.fn_iter = cmd.invoke()
-            request_exit: Optional[bool] = None
+            request_exit: bool | None = None
             while True:
                 try:
                     # Request `request_exit` starts off as None, then it's a boolean.
@@ -872,7 +1001,7 @@ class CommandBatch:
         """
         Return the result of running multiple commands.
         """
-        command_output: Tuple[List[Tuple[str, str]], ...] = tuple([] for _ in range(len(self._batch)))
+        command_output: tuple[list[tuple[str, str]], ...] = tuple([] for _ in range(len(self._batch)))
 
         if request_exit:
             self._request_exit = True
@@ -895,7 +1024,7 @@ class CommandBatch:
                 complete_count += 1
                 continue
 
-            send_arg: Optional[bool] = self._request_exit
+            send_arg: bool | None = self._request_exit
 
             # First time initialization.
             if cmd.fn_iter is None:
@@ -932,7 +1061,11 @@ class CommandBatch:
 
                     command_output[cmd_index].append((ty, msg))
                     if ty != 'PROGRESS':
-                        if ty == 'ERROR':
+                        if ty == 'FATAL_ERROR':
+                            if not cmd.has_fatal_error:
+                                cmd.has_fatal_error = True
+                                status_data_changed = True
+                        elif ty == 'ERROR':
                             if not cmd.has_error:
                                 cmd.has_error = True
                                 status_data_changed = True
@@ -954,7 +1087,7 @@ class CommandBatch:
             status_data_changed=status_data_changed,
         )
 
-    def calc_status_string(self) -> List[str]:
+    def calc_status_string(self) -> list[str]:
         return [
             "{:s}: {:s}".format(cmd.msg_type, cmd.msg_info)
             for cmd in self._batch if (cmd.msg_type or cmd.msg_info)
@@ -968,7 +1101,7 @@ class CommandBatch:
         failure_count = 0
         for cmd in self._batch:
             status_flag |= 1 << cmd.status
-            if cmd.has_error or cmd.has_warning:
+            if cmd.has_fatal_error or cmd.has_error or cmd.has_warning:
                 failure_count += 1
         return CommandBatch_StatusFlag(
             flag=status_flag,
@@ -980,7 +1113,7 @@ class CommandBatch:
     def calc_status_text_icon_from_data(
             status_data: CommandBatch_StatusFlag,
             update_count: int,
-    ) -> Tuple[str, str]:
+    ) -> tuple[str, str]:
         # Generate a nice UI string for a status-bar & splash screen (must be short).
         #
         # NOTE: this is (arguably) UI logic, it's just nice to have it here
@@ -1010,7 +1143,7 @@ class CommandBatch:
         # Should never reach this line!
         return "Internal error, unknown state!{:s}".format(fail_text), 'ERROR'
 
-    def calc_status_log_or_none(self) -> Optional[List[Tuple[str, str]]]:
+    def calc_status_log_or_none(self) -> list[tuple[str, str]] | None:
         """
         Return the log or None if there were no changes since the last call.
         """
@@ -1024,11 +1157,11 @@ class CommandBatch:
             for ty, msg in (cmd.msg_log + ([(cmd.msg_type, cmd.msg_info)] if cmd.msg_type == 'PROGRESS' else []))
         ]
 
-    def calc_status_log_since_last_request_or_none(self) -> Optional[List[List[Tuple[str, str]]]]:
+    def calc_status_log_since_last_request_or_none(self) -> list[list[tuple[str, str]]] | None:
         """
         Return a list of new errors per command or None when none are found.
         """
-        result: List[List[Tuple[str, str]]] = [[] for _ in range(len(self._batch))]
+        result: list[list[tuple[str, str]]] = [[] for _ in range(len(self._batch))]
         found = False
         for cmd_index, cmd in enumerate(self._batch):
             msg_log_len = len(cmd.msg_log)
@@ -1045,6 +1178,29 @@ class CommandBatch:
 # -----------------------------------------------------------------------------
 # Internal Repo Data Source
 #
+
+class PkgBlock_Normalized(NamedTuple):
+    reason: str
+
+    @staticmethod
+    def from_dict_with_error_fn(
+        block_dict: dict[str, Any],
+        *,
+        # Only for useful error messages.
+        pkg_idname: str,
+        error_fn: Callable[[Exception], None],
+    ) -> "PkgBlock_Normalized | None":  # NOTE: quotes can be removed from typing in Py3.12+.
+
+        try:
+            reason = block_dict["reason"]
+        except KeyError as ex:
+            error_fn(KeyError("{:s}: missing key {:s}".format(pkg_idname, str(ex))))
+            return None
+
+        return PkgBlock_Normalized(
+            reason=reason,
+        )
+
 
 # See similar named tuple: `bl_pkg.cli.blender_ext.PkgManifest`.
 # This type is loaded from an external source and had it's valued parsed into a known "normalized" state.
@@ -1064,22 +1220,26 @@ class PkgManifest_Normalized(NamedTuple):
 
     # Optional.
     website: str
-    permissions: Dict[str, str]
-    tags: Tuple[str]
-    wheels: Tuple[str]
+    permissions: dict[str, str]
+    tags: tuple[str]
+    wheels: tuple[str]
 
     # Remote.
     archive_size: int
     archive_url: str
 
+    # Taken from the `blocklist`.
+    block: PkgBlock_Normalized | None
+
     @staticmethod
     def from_dict_with_error_fn(
-        manifest_dict: Dict[str, Any],
+        manifest_dict: dict[str, Any],
         *,
         # Only for useful error messages.
         pkg_idname: str,
+        pkg_block: PkgBlock_Normalized | None,
         error_fn: Callable[[Exception], None],
-    ) -> Optional["PkgManifest_Normalized"]:
+    ) -> "PkgManifest_Normalized | None":
         # NOTE: it is expected there are no errors here for typical usage.
         # Any errors here will return none with a terse message which is not intended to
         # be helpful for debugging, besides letting users/developers know there is a problem.
@@ -1100,7 +1260,7 @@ class PkgManifest_Normalized(NamedTuple):
 
             # Optional.
             field_website = manifest_dict.get("website", "")
-            field_permissions: Union[List[str], Dict[str, str]] = manifest_dict.get("permissions", {})
+            field_permissions: list[str] | dict[str, str] = manifest_dict.get("permissions", {})
             field_tags = manifest_dict.get("tags", [])
             field_wheels = manifest_dict.get("wheels", [])
 
@@ -1171,6 +1331,7 @@ class PkgManifest_Normalized(NamedTuple):
             error_fn(ex)
             return None
 
+        import re
         return PkgManifest_Normalized(
             name=field_name,
             tagline=field_tagline,
@@ -1178,7 +1339,7 @@ class PkgManifest_Normalized(NamedTuple):
             type=field_type,
             # Remove the maintainers email while it's not private, showing prominently
             # could cause maintainers to get direct emails instead of issue tracking systems.
-            maintainer=field_maintainer.split("<", 1)[0].rstrip(),
+            maintainer=re.sub(r"\s*<.*?>", "", field_maintainer),
             license=license_info_to_text(field_license),
 
             # Optional.
@@ -1189,15 +1350,17 @@ class PkgManifest_Normalized(NamedTuple):
 
             archive_size=field_archive_size,
             archive_url=field_archive_url,
+
+            block=pkg_block,
         )
 
 
 def repository_id_with_error_fn(
-        item: Dict[str, Any],
+        item: dict[str, Any],
         *,
         repo_directory: str,
         error_fn: Callable[[Exception], None],
-) -> Optional[str]:
+) -> str | None:
     if not (pkg_idname := item.get("id", "")):
         error_fn(ValueError("{:s}: \"id\" missing".format(repo_directory)))
         return None
@@ -1212,11 +1375,12 @@ def repository_id_with_error_fn(
 # Values used to exclude incompatible packages when listing & installing.
 class PkgManifest_FilterParams(NamedTuple):
     platform: str
-    blender_version: Tuple[int, int, int]
+    blender_version: tuple[int, int, int]
+    python_version: tuple[int, int, int]
 
 
 def repository_filter_skip(
-        item: Dict[str, Any],
+        item: dict[str, Any],
         filter_params: PkgManifest_FilterParams,
         error_fn: Callable[[Exception], None],
 ) -> bool:
@@ -1224,6 +1388,7 @@ def repository_filter_skip(
     result = repository_filter_skip_impl(
         item,
         filter_blender_version=filter_params.blender_version,
+        filter_python_version=filter_params.python_version,
         filter_platform=filter_params.platform,
         skip_message_fn=None,
         error_fn=error_fn,
@@ -1236,27 +1401,33 @@ def pkg_manifest_params_compatible_or_error(
         *,
         blender_version_min: str,
         blender_version_max: str,
-        platforms: List[str],
-        this_platform: Tuple[int, int, int],
-        this_blender_version: Tuple[int, int, int],
+        platforms: list[str],
+        python_versions: list[str],
+        this_platform: str,
+        this_blender_version: tuple[int, int, int],
+        this_python_version: tuple[int, int, int],
         error_fn: Callable[[Exception], None],
-) -> Optional[str]:
+) -> str | None:
     from .cli.blender_ext import repository_filter_skip as fn
 
     # Weak, create the minimum information for a manifest to be checked against.
-    item: Dict[str, Any] = {}
+    item: dict[str, Any] = {}
     if blender_version_min:
         item["blender_version_min"] = blender_version_min
     if blender_version_max:
         item["blender_version_max"] = blender_version_max
     if platforms:
         item["platforms"] = platforms
+    if python_versions:
+        item["python_versions"] = python_versions
 
     result_report = []
     result = fn(
         item=item,
         filter_blender_version=this_blender_version,
+        filter_python_version=this_python_version,
         filter_platform=this_platform,
+        # pylint: disable-next=unnecessary-lambda
         skip_message_fn=lambda msg: result_report.append(msg),
         error_fn=error_fn,
     )
@@ -1267,15 +1438,55 @@ def pkg_manifest_params_compatible_or_error(
     return None
 
 
-def repository_filter_packages(
-        data: List[Dict[str, Any]],
+def repository_parse_blocklist(
+        data: list[dict[str, Any]],
+        *,
+        repo_directory: str,
+        error_fn: Callable[[Exception], None],
+) -> dict[str, PkgBlock_Normalized]:
+    pkg_block_map = {}
+
+    for item in data:
+        if not isinstance(item, dict):
+            error_fn(Exception("found non dict item in repository \"blocklist\", found {:s}".format(str(type(item)))))
+            continue
+
+        if (pkg_idname := repository_id_with_error_fn(
+                item,
+                repo_directory=repo_directory,
+                error_fn=error_fn,
+        )) is None:
+            continue
+        if (value := PkgBlock_Normalized.from_dict_with_error_fn(
+                item,
+                pkg_idname=pkg_idname,
+                error_fn=error_fn,
+        )) is None:
+            # NOTE: typically we would skip invalid items
+            # however as it's known this ID is blocked, create a dummy item.
+            value = PkgBlock_Normalized(
+                reason="Unknown (parse error)",
+            )
+
+        pkg_block_map[pkg_idname] = value
+
+    return pkg_block_map
+
+
+def repository_parse_data_filtered(
+        data: list[dict[str, Any]],
         *,
         repo_directory: str,
         filter_params: PkgManifest_FilterParams,
+        pkg_block_map: dict[str, PkgBlock_Normalized],
         error_fn: Callable[[Exception], None],
-) -> Dict[str, PkgManifest_Normalized]:
+) -> dict[str, PkgManifest_Normalized]:
     pkg_manifest_map = {}
     for item in data:
+        if not isinstance(item, dict):
+            error_fn(Exception("found non dict item in repository \"data\", found {:s}".format(str(type(item)))))
+            continue
+
         if (pkg_idname := repository_id_with_error_fn(
                 item,
                 repo_directory=repo_directory,
@@ -1293,6 +1504,7 @@ def repository_filter_packages(
         if (value := PkgManifest_Normalized.from_dict_with_error_fn(
                 item,
                 pkg_idname=pkg_idname,
+                pkg_block=pkg_block_map.get(pkg_idname),
                 error_fn=error_fn,
         )) is None:
             continue
@@ -1304,9 +1516,8 @@ def repository_filter_packages(
 
 class RepoRemoteData(NamedTuple):
     version: str
-    blocklist: List[str]
-    # Converted from the `data` field.
-    pkg_manifest_map: Dict[str, PkgManifest_Normalized]
+    # Converted from the `data` & `blocklist` fields.
+    pkg_manifest_map: dict[str, PkgManifest_Normalized]
 
 
 class _RepoDataSouce_ABC(metaclass=abc.ABCMeta):
@@ -1339,7 +1550,7 @@ class _RepoDataSouce_ABC(metaclass=abc.ABCMeta):
         raise Exception("Caller must define")
 
     @abc.abstractmethod
-    def cache_data(self) -> Optional[RepoRemoteData]:
+    def cache_data(self) -> RepoRemoteData | None:
         raise Exception("Caller must define")
 
     # Should not be called directly use `data(..)` which supports cache.
@@ -1348,7 +1559,7 @@ class _RepoDataSouce_ABC(metaclass=abc.ABCMeta):
             self,
             *,
             error_fn: Callable[[Exception], None],
-    ) -> Optional[RepoRemoteData]:
+    ) -> RepoRemoteData | None:
         raise Exception("Caller must define")
 
     def data(
@@ -1357,7 +1568,7 @@ class _RepoDataSouce_ABC(metaclass=abc.ABCMeta):
             cache_validate: bool,
             force: bool,
             error_fn: Callable[[Exception], None],
-    ) -> Optional[RepoRemoteData]:
+    ) -> RepoRemoteData | None:
         if not self.exists():
             self.cache_clear()
             return None
@@ -1392,7 +1603,7 @@ class _RepoDataSouce_JSON(_RepoDataSouce_ABC):
         self._filepath: str = filepath
         self._mtime: int = 0
         self._filter_params: PkgManifest_FilterParams = filter_params
-        self._data: Optional[RepoRemoteData] = None
+        self._data: RepoRemoteData | None = None
 
     def exists(self) -> bool:
         try:
@@ -1415,52 +1626,66 @@ class _RepoDataSouce_JSON(_RepoDataSouce_ABC):
         self._data = None
         self._mtime = 0
 
-    def cache_data(self) -> Optional[RepoRemoteData]:
+    def cache_data(self) -> RepoRemoteData | None:
         return self._data
 
     def _data_load(
             self,
             *,
             error_fn: Callable[[Exception], None],
-    ) -> Optional[RepoRemoteData]:
+    ) -> RepoRemoteData | None:
         assert self.exists()
 
         data = None
         mtime = file_mtime_or_none_with_error_fn(self._filepath, error_fn=error_fn) or 0
 
-        data_dict: Dict[str, Any] = {}
+        data_dict: dict[str, Any] = {}
         if mtime != 0:
             try:
                 data_dict = json_from_filepath(self._filepath) or {}
             except Exception as ex:
                 error_fn(ex)
+            else:
+                # This is *not* a full validation,
+                # just skip malformed JSON files as they're likely to cause issues later on.
+                if not isinstance(data_dict, dict):
+                    error_fn(Exception("Remote repository data from {:s} must be a dict not a {:s}".format(
+                        self._filepath,
+                        str(type(data_dict)),
+                    )))
+                    data_dict = {}
 
-            # This is *not* a full validation,
-            # just skip malformed JSON files as they're likely to cause issues later on.
-            if not isinstance(data_dict, dict):
-                error_fn(Exception("Remote repository data from {:s} must be a dict not a {:s}".format(
-                    self._filepath,
-                    str(type(data_dict)),
-                )))
-                data_dict = {}
-
-            if not isinstance(data_dict.get("data"), list):
-                error_fn(Exception("Remote repository data from {:s} must contain a \"data\" list".format(
-                    self._filepath,
-                )))
-                data_dict = {}
+                if not isinstance(data_dict.get("data"), list):
+                    error_fn(Exception("Remote repository data from {:s} must contain a \"data\" list".format(
+                        self._filepath,
+                    )))
+                    data_dict = {}
 
         # It's important to assign this value even if it's "empty",
         # otherwise corrupt files will be detected as unset and continuously attempt to load.
+
+        repo_directory = os.path.dirname(self._filepath)
+
+        # Useful for testing:
+        # `data_dict["blocklist"] = [{"id": "math_vis_console", "reason": "This is blocked"}]`
+
+        pkg_block_map = repository_parse_blocklist(
+            data_dict.get("blocklist", []),
+            repo_directory=repo_directory,
+            error_fn=error_fn,
+        )
+
+        pkg_manifest_map = repository_parse_data_filtered(
+            data_dict.get("data", []),
+            repo_directory=repo_directory,
+            filter_params=self._filter_params,
+            pkg_block_map=pkg_block_map,
+            error_fn=error_fn,
+        )
+
         data = RepoRemoteData(
             version=data_dict.get("version", "v1"),
-            blocklist=data_dict.get("blocklist", []),
-            pkg_manifest_map=repository_filter_packages(
-                data_dict.get("data", []),
-                repo_directory=os.path.dirname(self._filepath),
-                filter_params=self._filter_params,
-                error_fn=error_fn,
-            ),
+            pkg_manifest_map=pkg_manifest_map,
         )
 
         self._data = data
@@ -1485,8 +1710,8 @@ class _RepoDataSouce_TOML_FILES(_RepoDataSouce_ABC):
     ):
         self._directory: str = directory
         self._filter_params = filter_params
-        self._mtime_for_each_package: Optional[Dict[str, int]] = None
-        self._data: Optional[RepoRemoteData] = None
+        self._mtime_for_each_package: dict[str, int] | None = None
+        self._data: RepoRemoteData | None = None
 
     def exists(self) -> bool:
         try:
@@ -1517,14 +1742,14 @@ class _RepoDataSouce_TOML_FILES(_RepoDataSouce_ABC):
         self._data = None
         self._mtime_for_each_package = None
 
-    def cache_data(self) -> Optional[RepoRemoteData]:
+    def cache_data(self) -> RepoRemoteData | None:
         return self._data
 
     def _data_load(
             self,
             *,
             error_fn: Callable[[Exception], None],
-    ) -> Optional[RepoRemoteData]:
+    ) -> RepoRemoteData | None:
         assert self.exists()
 
         mtime_for_each_package = self._mtime_for_each_package_create(
@@ -1532,7 +1757,7 @@ class _RepoDataSouce_TOML_FILES(_RepoDataSouce_ABC):
             error_fn=error_fn,
         )
 
-        pkg_manifest_map: Dict[str, PkgManifest_Normalized] = {}
+        pkg_manifest_map: dict[str, PkgManifest_Normalized] = {}
         for dirname in mtime_for_each_package.keys():
             filepath_toml = os.path.join(self._directory, dirname, PKG_MANIFEST_FILENAME_TOML)
             try:
@@ -1561,6 +1786,7 @@ class _RepoDataSouce_TOML_FILES(_RepoDataSouce_ABC):
             if (value := PkgManifest_Normalized.from_dict_with_error_fn(
                     item_local,
                     pkg_idname=pkg_idname,
+                    pkg_block=None,
                     error_fn=error_fn,
             )) is None:
                 continue
@@ -1572,7 +1798,6 @@ class _RepoDataSouce_TOML_FILES(_RepoDataSouce_ABC):
         # to use the same structure as the actual JSON.
         data = RepoRemoteData(
             version="v1",
-            blocklist=[],
             pkg_manifest_map=pkg_manifest_map,
         )
         # End: compatibility change.
@@ -1588,11 +1813,11 @@ class _RepoDataSouce_TOML_FILES(_RepoDataSouce_ABC):
             *,
             directory: str,
             error_fn: Callable[[Exception], None],
-    ) -> Dict[str, int]:
+    ) -> dict[str, int]:
         # Caller must check `self.exists()`.
         assert os.path.isdir(directory)
 
-        mtime_for_each_package: Dict[str, int] = {}
+        mtime_for_each_package: dict[str, int] = {}
 
         for entry in repository_iter_package_dirs(directory, error_fn=error_fn):
             dirname = entry.name
@@ -1601,12 +1826,12 @@ class _RepoDataSouce_TOML_FILES(_RepoDataSouce_ABC):
 
         return mtime_for_each_package
 
-    @ classmethod
+    @classmethod
     def _mtime_for_each_package_changed(
             cls,
             *,
             directory: str,
-            mtime_for_each_package: Dict[str, int],
+            mtime_for_each_package: dict[str, int],
             error_fn: Callable[[Exception], None],
     ) -> bool:
         """
@@ -1663,8 +1888,8 @@ class _RepoCacheEntry:
         self.remote_url = remote_url
         # Manifest data per package loaded from the packages local JSON.
         # TODO(@ideasman42): use `_RepoDataSouce_ABC` for `pkg_manifest_local`.
-        self._pkg_manifest_local: Optional[Dict[str, PkgManifest_Normalized]] = None
-        self._pkg_manifest_remote: Optional[Dict[str, PkgManifest_Normalized]] = None
+        self._pkg_manifest_local: dict[str, PkgManifest_Normalized] | None = None
+        self._pkg_manifest_remote: dict[str, PkgManifest_Normalized] | None = None
         self._pkg_manifest_remote_data_source: _RepoDataSouce_ABC = (
             _RepoDataSouce_JSON(directory, filter_params) if remote_url else
             _RepoDataSouce_TOML_FILES(directory, filter_params)
@@ -1678,14 +1903,14 @@ class _RepoCacheEntry:
             error_fn: Callable[[Exception], None],
             check_files: bool = False,
             ignore_missing: bool = False,
-    ) -> Optional[Dict[str, PkgManifest_Normalized]]:
+    ) -> dict[str, PkgManifest_Normalized] | None:
         data = self._pkg_manifest_remote_data_source.data(
             cache_validate=check_files,
             force=False,
             error_fn=error_fn,
         )
 
-        pkg_manifest_remote: Optional[Dict[str, PkgManifest_Normalized]] = None
+        pkg_manifest_remote: dict[str, PkgManifest_Normalized] | None = None
         if data is not None:
             pkg_manifest_remote = data.pkg_manifest_map
 
@@ -1708,14 +1933,14 @@ class _RepoCacheEntry:
             *,
             error_fn: Callable[[Exception], None],
             force: bool = False,
-    ) -> Optional[Dict[str, PkgManifest_Normalized]]:
+    ) -> dict[str, PkgManifest_Normalized] | None:
         data = self._pkg_manifest_remote_data_source.data(
             cache_validate=True,
             force=force,
             error_fn=error_fn,
         )
 
-        pkg_manifest_remote: Optional[Dict[str, PkgManifest_Normalized]] = None
+        pkg_manifest_remote: dict[str, PkgManifest_Normalized] | None = None
         if data is not None:
             pkg_manifest_remote = data.pkg_manifest_map
 
@@ -1729,18 +1954,18 @@ class _RepoCacheEntry:
             *,
             error_fn: Callable[[Exception], None],
             ignore_missing: bool = False,
-    ) -> Optional[Dict[str, PkgManifest_Normalized]]:
+    ) -> dict[str, PkgManifest_Normalized] | None:
         # Important for local-only repositories (where the directory name defines the ID).
         has_remote = self.remote_url != ""
 
         if self._pkg_manifest_local is None:
-            self._json_data_ensure(
-                ignore_missing=ignore_missing,
-                error_fn=error_fn,
-            )
             pkg_manifest_local = {}
 
-            for entry in repository_iter_package_dirs(self.directory, error_fn=error_fn):
+            for entry in repository_iter_package_dirs(
+                    self.directory,
+                    ignore_missing=ignore_missing,
+                    error_fn=error_fn,
+            ):
                 dirname = entry.name
                 filepath_toml = os.path.join(self.directory, dirname, PKG_MANIFEST_FILENAME_TOML)
                 try:
@@ -1778,6 +2003,7 @@ class _RepoCacheEntry:
                 if (value := PkgManifest_Normalized.from_dict_with_error_fn(
                         item_local,
                         pkg_idname=pkg_idname,
+                        pkg_block=None,
                         error_fn=error_fn,
                 )) is not None:
                     pkg_manifest_local[pkg_idname] = value
@@ -1790,7 +2016,7 @@ class _RepoCacheEntry:
             *,
             error_fn: Callable[[Exception], None],
             ignore_missing: bool = False,
-    ) -> Optional[Dict[str, PkgManifest_Normalized]]:
+    ) -> dict[str, PkgManifest_Normalized] | None:
         if self._pkg_manifest_remote is None:
             self._json_data_ensure(
                 ignore_missing=ignore_missing,
@@ -1809,11 +2035,17 @@ class RepoCacheStore:
         "_is_init",
     )
 
-    def __init__(self, blender_version: Tuple[int, int, int]) -> None:
-        self._repos: List[_RepoCacheEntry] = []
+    def __init__(
+        self,
+            *,
+            blender_version: tuple[int, int, int],
+            python_version: tuple[int, int, int],
+    ) -> None:
+        self._repos: list[_RepoCacheEntry] = []
         self._filter_params = PkgManifest_FilterParams(
             platform=platform_from_this_system(),
             blender_version=blender_version,
+            python_version=python_version,
         )
         self._is_init = False
 
@@ -1822,7 +2054,7 @@ class RepoCacheStore:
 
     def refresh_from_repos(
             self, *,
-            repos: List[Tuple[str, str]],
+            repos: list[tuple[str, str]],
             force: bool = False,
     ) -> None:
         """
@@ -1847,9 +2079,10 @@ class RepoCacheStore:
             *,
             error_fn: Callable[[Exception], None],
             force: bool = False,
-    ) -> Optional[Dict[str, PkgManifest_Normalized]]:
+    ) -> dict[str, PkgManifest_Normalized] | None:
         for repo_entry in self._repos:
             if directory == repo_entry.directory:
+                # pylint: disable-next=protected-access
                 return repo_entry._json_data_refresh(force=force, error_fn=error_fn)
         raise ValueError("Directory {:s} not a known repo".format(directory))
 
@@ -1859,7 +2092,7 @@ class RepoCacheStore:
             *,
             error_fn: Callable[[Exception], None],
             ignore_missing: bool = False,
-    ) -> Optional[Dict[str, PkgManifest_Normalized]]:
+    ) -> dict[str, PkgManifest_Normalized] | None:
         for repo_entry in self._repos:
             if directory == repo_entry.directory:
                 # Force refresh.
@@ -1876,8 +2109,8 @@ class RepoCacheStore:
             error_fn: Callable[[Exception], None],
             check_files: bool = False,
             ignore_missing: bool = False,
-            directory_subset: Optional[Set[str]] = None,
-    ) -> Generator[Optional[Dict[str, PkgManifest_Normalized]], None, None]:
+            directory_subset: set[str] | None = None,
+    ) -> Iterator[dict[str, PkgManifest_Normalized] | None]:
         for repo_entry in self._repos:
             if directory_subset is not None:
                 if repo_entry.directory not in directory_subset:
@@ -1886,6 +2119,7 @@ class RepoCacheStore:
             # While we could yield a valid manifest here,
             # leave it to the caller to skip "remote" data for local-only repositories.
             if repo_entry.remote_url:
+                # pylint: disable-next=protected-access
                 yield repo_entry._json_data_ensure(
                     check_files=check_files,
                     ignore_missing=ignore_missing,
@@ -1899,15 +2133,19 @@ class RepoCacheStore:
             *,
             error_fn: Callable[[Exception], None],
             check_files: bool = False,
-            directory_subset: Optional[Set[str]] = None,
-    ) -> Generator[Optional[Dict[str, PkgManifest_Normalized]], None, None]:
+            ignore_missing: bool = False,
+            directory_subset: set[str] | None = None,
+    ) -> Iterator[dict[str, PkgManifest_Normalized] | None]:
         for repo_entry in self._repos:
             if directory_subset is not None:
                 if repo_entry.directory not in directory_subset:
                     continue
             if check_files:
                 repo_entry.force_local_refresh()
-            yield repo_entry.pkg_manifest_from_local_ensure(error_fn=error_fn)
+            yield repo_entry.pkg_manifest_from_local_ensure(
+                ignore_missing=ignore_missing,
+                error_fn=error_fn,
+            )
 
     def clear(self) -> None:
         self._repos.clear()
@@ -1917,6 +2155,11 @@ class RepoCacheStore:
 # -----------------------------------------------------------------------------
 # Public Repo Lock
 #
+
+# Currently this is based on a path, this gives significant room without the risk of not being large enough.
+# The size limit is used to prevent over-allocating memory in the unlikely case a lot of data
+# is written into the lock file.
+_REPO_LOCK_SIZE_LIMIT = 16384
 
 
 class RepoLock:
@@ -1942,8 +2185,9 @@ class RepoLock:
             It must point to a path that exists.
             When a lock exists, check if the cookie path exists, if it doesn't, allow acquiring the lock.
         """
+        assert len(cookie) <= _REPO_LOCK_SIZE_LIMIT, "Unreachable"
         self._repo_directories = tuple(repo_directories)
-        self._repo_lock_files: List[Tuple[str, str]] = []
+        self._repo_lock_files: list[tuple[str, str]] = []
         self._held = False
         self._cookie = cookie
 
@@ -1953,28 +2197,28 @@ class RepoLock:
         sys.stderr.write("{:s}: freed without releasing lock!".format(type(self).__name__))
 
     @staticmethod
-    def _is_locked_with_stale_cookie_removal(local_lock_file: str, cookie: str) -> Optional[str]:
+    def _is_locked_with_stale_cookie_removal(local_lock_file: str, cookie: str) -> str | None:
         if os.path.exists(local_lock_file):
             try:
                 with open(local_lock_file, "r", encoding="utf8") as fh:
-                    data = fh.read()
+                    data = fh.read(_REPO_LOCK_SIZE_LIMIT)
             except Exception as ex:
-                return "lock file could not be read: {:s}".format(str(ex))
+                return "lock file could not be read ({:s})".format(str(ex))
 
             # The lock is held.
             if os.path.exists(data):
                 if data == cookie:
                     return "lock is already held by this session"
-                return "lock is held by other session: {:s}".format(data)
+                return "lock is held by other session \"{:s}\"".format(data)
 
             # The lock is held (but stale), remove it.
             try:
                 os.remove(local_lock_file)
             except Exception as ex:
-                return "lock file could not be removed: {:s}".format(str(ex))
+                return "lock file could not be removed ({:s})".format(str(ex))
         return None
 
-    def acquire(self) -> Dict[str, Optional[str]]:
+    def acquire(self) -> dict[str, str | None]:
         """
         Return directories and the lock status,
         with None if locking succeeded.
@@ -1985,24 +2229,29 @@ class RepoLock:
             raise Exception("acquire(): cookie doesn't exist! (when it should)")
 
         # Assume all succeed.
-        result: Dict[str, Optional[str]] = {directory: None for directory in self._repo_directories}
+        result: dict[str, str | None] = {directory: None for directory in self._repo_directories}
         for directory in self._repo_directories:
             local_private_dir = os.path.join(directory, REPO_LOCAL_PRIVATE_DIR)
 
             # This most likely exists, create if it doesn't.
             if not os.path.isdir(local_private_dir):
-                os.makedirs(local_private_dir)
+                try:
+                    os.makedirs(local_private_dir)
+                except Exception as ex:
+                    # Likely no permissions or read-only file-system.
+                    result[directory] = "lock directory could not be created ({:s})".format(str(ex))
+                    continue
 
             local_lock_file = os.path.join(local_private_dir, REPO_LOCAL_PRIVATE_LOCK)
             # Attempt to get the lock, kick out stale locks.
             if (lock_msg := self._is_locked_with_stale_cookie_removal(local_lock_file, self._cookie)) is not None:
-                result[directory] = "Lock exists: {:s}".format(lock_msg)
+                result[directory] = "lock exists ({:s})".format(lock_msg)
                 continue
             try:
                 with open(local_lock_file, "w", encoding="utf8") as fh:
                     fh.write(self._cookie)
             except Exception as ex:
-                result[directory] = "Lock could not be created: {:s}".format(str(ex))
+                result[directory] = "lock could not be created ({:s})".format(str(ex))
                 # Remove if it was created (but failed to write)... disk-full?
                 try:
                     os.remove(local_lock_file)
@@ -2015,32 +2264,32 @@ class RepoLock:
         self._held = True
         return result
 
-    def release(self) -> Dict[str, Optional[str]]:
+    def release(self) -> dict[str, str | None]:
         # NOTE: lots of error checks here, mostly to give insights in the very unlikely case this fails.
         if not self._held:
             raise Exception("release(): called without a lock!")
 
-        result: Dict[str, Optional[str]] = {directory: None for directory in self._repo_directories}
+        result: dict[str, str | None] = {directory: None for directory in self._repo_directories}
         for directory, local_lock_file in self._repo_lock_files:
             if not os.path.exists(local_lock_file):
                 result[directory] = "release(): lock missing when expected, continuing."
                 continue
             try:
                 with open(local_lock_file, "r", encoding="utf8") as fh:
-                    data = fh.read()
+                    data = fh.read(_REPO_LOCK_SIZE_LIMIT)
             except Exception as ex:
-                result[directory] = "release(): lock file could not be read: {:s}".format(str(ex))
+                result[directory] = "release(): lock file could not be read ({:s})".format(str(ex))
                 continue
             # Owned by another application, this shouldn't happen.
             if data != self._cookie:
-                result[directory] = "release(): lock was unexpectedly stolen by another program: {:s}".format(data)
+                result[directory] = "release(): lock was unexpectedly stolen by another program ({:s})".format(data)
                 continue
 
             # This is our lock file, we're allowed to remove it!
             try:
                 os.remove(local_lock_file)
             except Exception as ex:
-                result[directory] = "release(): failed to remove file {!r}".format(ex)
+                result[directory] = "release(): failed to remove file ({!r})".format(ex)
 
         self._held = False
         return result
@@ -2054,8 +2303,54 @@ class RepoLockContext:
     def __init__(self, *, repo_directories: Sequence[str], cookie: str):
         self._repo_lock = RepoLock(repo_directories=repo_directories, cookie=cookie)
 
-    def __enter__(self) -> Dict[str, Optional[str]]:
+    def __enter__(self) -> dict[str, str | None]:
         return self._repo_lock.acquire()
 
     def __exit__(self, _ty: Any, _value: Any, _traceback: Any) -> None:
         self._repo_lock.release()
+
+
+# -----------------------------------------------------------------------------
+# Public Repo Lock Query & Unlock Support
+#
+
+def repo_lock_directory_query(
+        directory: str,
+        cookie: str,
+) -> tuple[bool, float, str] | None:
+    local_lock_file = os.path.join(directory, REPO_LOCAL_PRIVATE_DIR, REPO_LOCAL_PRIVATE_LOCK)
+
+    cookie_is_ours = False
+    cookie_mtime = 0.0
+    cookie_error = ""
+
+    try:
+        cookie_stat = os.stat(local_lock_file)
+    except FileNotFoundError:
+        return None
+    except Exception as ex:
+        cookie_error = "lock file could not stat: {:s}".format(str(ex))
+    else:
+        cookie_mtime = cookie_stat[stat.ST_MTIME]
+
+        data = ""
+        try:
+            with open(local_lock_file, "r", encoding="utf8") as fh:
+                data = fh.read(_REPO_LOCK_SIZE_LIMIT)
+        except Exception as ex:
+            cookie_error = "lock file could not be read: {:s}".format(str(ex))
+
+        cookie_is_ours = cookie == data
+
+    return cookie_is_ours, cookie_mtime, cookie_error
+
+
+def repo_lock_directory_force_unlock(
+        directory: str,
+) -> str | None:
+    local_lock_file = os.path.join(directory, REPO_LOCAL_PRIVATE_DIR, REPO_LOCAL_PRIVATE_LOCK)
+    try:
+        os.remove(local_lock_file)
+    except Exception as ex:
+        return str(ex)
+    return None
