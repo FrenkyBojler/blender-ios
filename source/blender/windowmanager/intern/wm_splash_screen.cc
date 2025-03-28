@@ -144,22 +144,22 @@ static ImBuf *wm_block_splash_image(int width, int *r_height)
             U.app_template, template_directory, sizeof(template_directory)))
     {
       BLI_path_join(splash_filepath, sizeof(splash_filepath), template_directory, "splash.png");
-      ibuf = IMB_loadiffname(splash_filepath, IB_byte_data, nullptr);
+      ibuf = IMB_load_image_from_filepath(splash_filepath, IB_byte_data);
     }
   }
 
   if (ibuf == nullptr) {
     const char *custom_splash_path = BLI_getenv("BLENDER_CUSTOM_SPLASH");
     if (custom_splash_path) {
-      ibuf = IMB_loadiffname(custom_splash_path, IB_byte_data, nullptr);
+      ibuf = IMB_load_image_from_filepath(custom_splash_path, IB_byte_data);
     }
   }
 
   if (ibuf == nullptr) {
     const uchar *splash_data = (const uchar *)datatoc_splash_png;
     size_t splash_data_size = datatoc_splash_png_size;
-    ibuf = IMB_ibImageFromMemory(
-        splash_data, splash_data_size, IB_byte_data, nullptr, "<splash screen>");
+    ibuf = IMB_load_image_from_memory(
+        splash_data, splash_data_size, IB_byte_data, "<splash screen>");
   }
 
   if (ibuf) {
@@ -192,7 +192,7 @@ static ImBuf *wm_block_splash_banner_image(int *r_width,
 
   const char *custom_splash_path = BLI_getenv("BLENDER_CUSTOM_SPLASH_BANNER");
   if (custom_splash_path) {
-    ibuf = IMB_loadiffname(custom_splash_path, IB_byte_data, nullptr);
+    ibuf = IMB_load_image_from_filepath(custom_splash_path, IB_byte_data);
   }
 
   if (!ibuf) {
@@ -365,7 +365,8 @@ static uiBlock *wm_block_splash_create(bContext *C, ARegion *region, void * /*ar
 #  if defined(__APPLE__)
   if (is_using_macos_rosetta() > 0)
 #  elif defined(_M_X64)
-  if (strncmp(BLI_getenv("PROCESSOR_IDENTIFIER"), "ARM", 3) == 0)
+  const char *proc_id = BLI_getenv("PROCESSOR_IDENTIFIER");
+  if (proc_id && strncmp(proc_id, "ARM", 3) == 0)
 #  endif
   {
     uiItemS_ex(layout, 2.0f, LayoutSeparatorType::Line);
