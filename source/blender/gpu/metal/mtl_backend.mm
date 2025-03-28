@@ -6,6 +6,8 @@
  * \ingroup gpu
  */
 
+#include <cstring>
+
 #include "BKE_global.hh"
 
 #include "gpu_backend.hh"
@@ -39,8 +41,8 @@ thread_local int g_autoreleasepool_depth = 0;
 /** \name Metal Backend
  * \{ */
 
-void MTLBackend::samplers_update(){
-    /* Placeholder -- Handled in MTLContext. */
+void MTLBackend::samplers_update() {
+  /* Placeholder -- Handled in MTLContext. */
 };
 
 Context *MTLBackend::context_alloc(void *ghost_window, void *ghost_context)
@@ -243,6 +245,16 @@ void MTLBackend::platform_init(MTLContext *ctx)
            renderer,
            version,
            architecture_type);
+
+  /* UUID is not supported on Metal. */
+  GPG.device_uuid.clear_and_shrink();
+
+  /* LUID is registryID on Metal, or at least this is what libraries like OIDN expects. */
+  GPG.device_luid.reinitialize(sizeof(mtl_device.registryID));
+  std::memcpy(GPG.device_luid, &mtl_device.registryID, sizeof(mtl_device.registryID));
+
+  /* Metal only has one device per LUID, so only the first bit will always be active.. */
+  GPG.device_luid_node_mask = 1;
 }
 
 void MTLBackend::platform_exit()
