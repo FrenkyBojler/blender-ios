@@ -236,7 +236,7 @@ class GLCompilerWorker {
     /* The worker is not currently in use and can be acquired. */
     AVAILABLE
   };
-  eState state_ = AVAILABLE;
+  std::atomic<eState> state_ = AVAILABLE;
   double compilation_start = 0;
 
   GLCompilerWorker();
@@ -251,28 +251,10 @@ class GLCompilerWorker {
   bool is_lost();
 };
 
-class GLShaderCompiler : public ShaderCompiler {
+class GLShaderCompiler : public ShaderCompilerGeneric {
  private:
-  std::mutex mutex_;
   Vector<GLCompilerWorker *> workers_;
-
-  struct CompilationWork {
-    const shader::ShaderCreateInfo *info = nullptr;
-    GLShader *shader = nullptr;
-    GLSourcesBaked sources;
-
-    GLCompilerWorker *worker = nullptr;
-    bool do_async_compilation = false;
-    bool is_ready = false;
-  };
-
-  struct Batch {
-    Vector<CompilationWork> items;
-    bool is_ready = false;
-    bool is_cancelled = false;
-  };
-
-  Map<BatchHandle, Batch> batches;
+  std::mutex workers_mutex_;
 
   struct SpecializationRequest {
     BatchHandle handle;
@@ -280,6 +262,7 @@ class GLShaderCompiler : public ShaderCompiler {
   };
 
   Vector<SpecializationRequest> specialization_queue;
+  std::mutex specializations_mutex_;
 
   struct SpecializationWork {
     GLShader *shader = nullptr;
@@ -302,20 +285,14 @@ class GLShaderCompiler : public ShaderCompiler {
   SpecializationBatch current_specialization_batch;
   void prepare_next_specialization_batch();
 
-  /* Shared across regular and specialization batches,
-   * to prevent the use of a wrong handle type. */
-  int64_t next_batch_handle = 1;
-
   GLCompilerWorker *get_compiler_worker(const GLSourcesBaked &sources);
-  bool worker_is_lost(GLCompilerWorker *&worker);
+  bool check_worker_is_lost(GLCompilerWorker *&worker);
 
  public:
+  GLShaderCompiler() : ShaderCompilerGeneric(true, GPUWorker::ContextType::PerThread){};
   virtual ~GLShaderCompiler() override;
 
-  virtual BatchHandle batch_compile(Span<const shader::ShaderCreateInfo *> &infos) override;
-  virtual void batch_cancel(BatchHandle &handle) override;
-  virtual bool batch_is_ready(BatchHandle handle) override;
-  virtual Vector<Shader *> batch_finalize(BatchHandle &handle) override;
+  virtual Shader *compile_shader(const shader::ShaderCreateInfo &info) override;
 
   virtual SpecializationBatchHandle precompile_specializations(
       Span<ShaderSpecialization> specializations) override;

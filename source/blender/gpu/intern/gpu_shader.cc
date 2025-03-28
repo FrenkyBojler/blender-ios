@@ -984,6 +984,11 @@ ShaderCompilerGeneric::~ShaderCompilerGeneric()
   BLI_assert(batches_.is_empty());
 }
 
+Shader *ShaderCompilerGeneric::compile_shader(const shader::ShaderCreateInfo &info)
+{
+  return compile(info, false);
+}
+
 BatchHandle ShaderCompilerGeneric::batch_compile(Span<const shader::ShaderCreateInfo *> &infos)
 {
   std::lock_guard lock(mutex_);
@@ -1085,7 +1090,7 @@ void ShaderCompilerGeneric::run_thread()
     }
 
     /* Compile */
-    batch->shaders[shader_index] = compile(*batch->infos[shader_index], false);
+    batch->shaders[shader_index] = compile_shader(*batch->infos[shader_index]);
 
     {
       std::lock_guard lock(mutex_);

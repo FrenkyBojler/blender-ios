@@ -218,7 +218,6 @@ class ShaderCompilerGeneric : public ShaderCompiler {
       shaders.clear();
     }
   };
-  BatchHandle next_batch_handle_ = 1;
   Map<BatchHandle, Batch *> batches_;
   std::mutex mutex_;
 
@@ -232,10 +231,15 @@ class ShaderCompilerGeneric : public ShaderCompiler {
 
   void run_thread();
 
+ protected:
+  BatchHandle next_batch_handle_ = 1;
+
  public:
   ShaderCompilerGeneric(bool multithreaded = false,
                         GPUWorker::ContextType context_type = GPUWorker::ContextType::PerThread);
   ~ShaderCompilerGeneric() override;
+
+  virtual Shader *compile_shader(const shader::ShaderCreateInfo &info);
 
   BatchHandle batch_compile(Span<const shader::ShaderCreateInfo *> &infos) override;
   void batch_cancel(BatchHandle &handle) override;
