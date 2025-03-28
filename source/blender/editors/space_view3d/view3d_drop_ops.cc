@@ -95,3 +95,43 @@ void VIEW3D_OT_drop_assets(wmOperatorType *ot)
 }
 
 /** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Add asset to file operator
+ *
+ * Use for drag & drop.
+ * \{ */
+
+static wmOperatorStatus view3d_drop_asset_add_to_file_invoke(bContext *C,
+                                                             wmOperator * /*op*/,
+                                                             const wmEvent *event)
+{
+  const wmDrag *drag = WM_drag_get_data_from_event(event);
+  if (!drag || (drag->type != WM_DRAG_ASSET)) {
+    return OPERATOR_CANCELLED;
+  }
+
+  wmDragAsset *asset_drag = WM_drag_get_asset_data(drag, 0);
+  WM_drag_asset_id_import(C, asset_drag, 0);
+
+  WM_event_add_notifier(C, NC_WINDOW, nullptr);
+
+  return OPERATOR_FINISHED;
+}
+
+void VIEW3D_OT_drop_asset_add_to_file(wmOperatorType *ot)
+{
+  /* identifiers */
+  ot->name = "Add Asset to File";
+  ot->description = "Import dragged asset to the file";
+  ot->idname = "VIEW3D_OT_drop_asset_add_to_file";
+
+  /* api callbacks */
+  ot->invoke = view3d_drop_asset_add_to_file_invoke;
+  ot->poll = ED_operator_objectmode_poll_msg;
+
+  /* flags */
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}
+
+/** \} */

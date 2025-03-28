@@ -74,6 +74,7 @@ float view3d_depth_near(ViewDepths *d);
 /* view3d_drop_ops.cc */
 
 void VIEW3D_OT_drop_assets(wmOperatorType *ot);
+void VIEW3D_OT_drop_asset_add_to_file(wmOperatorType *ot);
 
 /* view3d_dropboxes.cc */
 

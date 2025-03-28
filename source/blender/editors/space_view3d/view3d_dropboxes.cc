@@ -168,12 +168,26 @@ static bool view3d_ob_drop_poll_local_id(bContext *C, wmDrag *drag, const wmEven
   return true;
 }
 
+static bool view3d_any_external_asset_id_drop_poll(bContext *C, wmDrag *drag, const wmEvent *event)
+{
+  return (drag->type == WM_DRAG_ASSET) && view3d_drop_in_main_region_poll(C, event);
+}
+
+static std::string view3d_any_external_asset_id_drop_tooltip(bContext * /*C*/,
+                                                             wmDrag *drag,
+                                                             const int /*xy*/[2],
+                                                             wmDropBox * /*drop*/)
+{
+  const wmDragAsset *asset_drag = WM_drag_get_asset_data(drag, 0);
+  const char *idtype_name = BKE_idtype_idcode_to_name(asset_drag->asset->get_id_type());
+
+  return fmt::format(fmt::runtime(IFACE_("Add {} to file")), idtype_name);
+}
+
 static bool view3d_mixed_drop_poll(bContext *C, wmDrag *drag, const wmEvent *event)
 {
   return (drag->type == WM_DRAG_ASSET_LIST) && view3d_drop_in_main_region_poll(C, event);
 }
-
-static void view3d_mixed_drop_copy(bContext * /*C*/, wmDrag * /*drag*/, wmDropBox * /*drop*/) {}
 
 static std::string view3d_mixed_drop_tooltip(bContext * /*C*/,
                                              wmDrag *drag,
@@ -600,13 +614,6 @@ void view3d_dropboxes()
 
   wmDropBox *drop;
 
-  WM_dropbox_add(lb,
-                 "VIEW3D_OT_drop_assets",
-                 view3d_mixed_drop_poll,
-                 view3d_mixed_drop_copy,
-                 nullptr,
-                 view3d_mixed_drop_tooltip);
-
   drop = WM_dropbox_add(lb,
                         "OBJECT_OT_add_named",
                         view3d_ob_drop_poll_local_id,
@@ -684,4 +691,19 @@ void view3d_dropboxes()
                  view3d_id_drop_copy,
                  WM_drag_free_imported_drag_ID,
                  nullptr);
+
+  /* Keep last: This is the fallback that just adds the dragged in assets to the file. */
+  WM_dropbox_add(lb,
+                 "VIEW3D_OT_drop_asset_add_to_file",
+                 view3d_any_external_asset_id_drop_poll,
+                 nullptr,
+                 nullptr,
+                 view3d_any_external_asset_id_drop_tooltip);
+
+  WM_dropbox_add(lb,
+                 "VIEW3D_OT_drop_assets",
+                 view3d_mixed_drop_poll,
+                 nullptr,
+                 nullptr,
+                 view3d_mixed_drop_tooltip);
 }
