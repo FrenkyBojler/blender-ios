@@ -42,8 +42,6 @@ ExternalProject_Add(external_hiprt
 
   # hiprt_baked_kernels.diff
   #    https://github.com/GPUOpen-LibrariesAndSDKs/HIPRT/pull/38
-  # hiprt_fix_gpu_archs.diff
-  #    https://github.com/GPUOpen-LibrariesAndSDKs/HIPRT/pull/37
   # hiprt_skip_baked_header.diff
   #    https://github.com/GPUOpen-LibrariesAndSDKs/HIPRT/pull/40
   # hiprt_skip_baked_hipfb.diff
@@ -52,9 +50,6 @@ ExternalProject_Add(external_hiprt
     ${PATCH_CMD} -p 1 -d
       ${BUILD_DIR}/hiprt/src/external_hiprt <
       ${PATCH_DIR}/hiprt_baked_kernels.diff &&
-    ${PATCH_CMD} -p 1 -d
-      ${BUILD_DIR}/hiprt/src/external_hiprt <
-      ${PATCH_DIR}/hiprt_fix_gpu_archs.diff &&
     ${PATCH_CMD} -p 1 -d
       ${BUILD_DIR}/hiprt/src/external_hiprt <
       ${PATCH_DIR}/hiprt_skip_baked_header.diff &&
