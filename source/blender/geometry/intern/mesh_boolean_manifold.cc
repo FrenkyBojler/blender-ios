@@ -240,34 +240,23 @@ static void get_manifold(Manifold &manifold,
       meshgl.vertProperties[props_num * i + 2] = pos[2];
     }
   });
-  /* Calling joined_mesh->corner_tris() may cause triangulation to happen,
-   * to populate a triangulation cache for the mesh. */
-  const Span<int3> corner_tris = joined_mesh->corner_tris();
-  const Span<int> corner_verts = joined_mesh->corner_verts();
-  const Span<int> corner_tri_faces = joined_mesh->corner_tri_faces();
-  const int tris_start = poly_to_tri_count(mesh_offsets.face_start[mesh_index],
-                                           mesh_offsets.corner_start[mesh_index]);
-  const int tris_end = poly_to_tri_count(mesh_offsets.face_start[mesh_index + 1],
-                                         mesh_offsets.corner_start[mesh_index + 1]);
-  const int tris_num = tris_end - tris_start;
-  meshgl.triVerts.resize(3 * tris_num);
-  meshgl.faceID.resize(tris_num);
-  threading::parallel_for(
-      IndexRange(tris_start, tris_num), grain_size, [&](const IndexRange range) {
-        for (const int i : range) {
-          const int3 &ctri = corner_tris[i];
-          const int meshgl_i = i - tris_start;
-          const int tv_start = 3 * meshgl_i;
-          meshgl.triVerts[tv_start] = corner_verts[ctri[0]] - vert_start;
-          meshgl.triVerts[tv_start + 1] = corner_verts[ctri[1]] - vert_start;
-          meshgl.triVerts[tv_start + 2] = corner_verts[ctri[2]] - vert_start;
-          meshgl.faceID[meshgl_i] = corner_tri_faces[i];
-        }
-      });
+  const IndexRange faces_range = mesh_offsets.face_offsets[mesh_index];
+  const IndexRange corners_range = mesh_offsets.corner_offsets[mesh_index];
+  const IndexRange tris_range(poly_to_tri_count(faces_range.start(), corners_range.start()),
+                              poly_to_tri_count(faces_range.size(), corners_range.size()));
+
+  meshgl.faceID.resize(tris_range.size());
+  bke::mesh::corner_tris_calc_face_indices(joined_mesh->faces().slice(faces_range),
+                                           MutableSpan(meshgl.faceID).cast<int>());
+
+  meshgl.triVerts.resize(tris_range.size() * 3);
+  bke::mesh::vert_tris_from_corner_tris(joined_mesh->corner_verts().slice(corners_range),
+                                        joined_mesh->corner_tris().slice(tris_range),
+                                        MutableSpan(meshgl.triVerts).cast<int3>());
   meshgl.runIndex.resize(2);
   meshgl.runOriginalID.resize(1);
   meshgl.runIndex[0] = 0;
-  meshgl.runIndex[1] = 3 * tris_num;
+  meshgl.runIndex[1] = tris_range.size() * 3;
   meshgl.runOriginalID[0] = mesh_index;
   if (dbg_level > 0) {
     dump_meshgl(meshgl, "converted result for mesh " + std::to_string(mesh_index));
