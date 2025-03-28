@@ -26,7 +26,7 @@ struct GeometryNodesEvalDependencies {
     bool geometry = false;
     bool camera_parameters = false;
 
-    BLI_STRUCT_EQUALITY_OPERATORS_2(ObjectDependencyInfo, transform, geometry);
+    BLI_STRUCT_EQUALITY_OPERATORS_3(ObjectDependencyInfo, transform, geometry, camera_parameters);
   };
   static constexpr ObjectDependencyInfo all_object_deps{true, true, true};
 
