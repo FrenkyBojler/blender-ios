@@ -6,6 +6,7 @@
 #include <iostream>
 
 #include "BLI_array.hh"
+#include "BLI_array_utils.hh"
 #include "BLI_map.hh"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
@@ -1568,6 +1569,7 @@ static Mesh *meshgl_to_mesh(MeshGL &mgl,
           break;
         }
         default: {
+          BLI_assert_unreachable();
           do_copy = false;
           break;
         }
