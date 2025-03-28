@@ -441,6 +441,10 @@ static std::shared_ptr<DictionaryValue> write_blob_simple_gspan(BlobWriter &blob
     return read_blob_raw_data_with_endian(
         blob_reader, io_data, sizeof(int32_t), r_data.size() * 2, r_data.data());
   }
+  if (type.is_any<short2>()) {
+    return read_blob_raw_data_with_endian(
+        blob_reader, io_data, sizeof(short), r_data.size() * 2, r_data.data());
+  }
   if (type.is<float3>()) {
     return read_blob_raw_data_with_endian(
         blob_reader, io_data, sizeof(float), r_data.size() * 3, r_data.data());
@@ -865,7 +869,7 @@ static Mesh *try_load_mesh(const DictionaryValue &io_geometry,
       if (value->type() != io::serialize::eValueType::String) {
         return cancel();
       }
-      bDeformGroup *defgroup = MEM_cnew<bDeformGroup>(__func__);
+      bDeformGroup *defgroup = MEM_callocN<bDeformGroup>(__func__);
       STRNCPY(defgroup->name, value->as_string_value()->value().c_str());
       BLI_addtail(&mesh->vertex_group_names, defgroup);
     }

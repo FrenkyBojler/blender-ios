@@ -358,8 +358,8 @@ static void update_bakes_from_node_group(NodesModifierData &nmd)
     }
   }
 
-  NodesModifierBake *new_bake_data = MEM_cnew_array<NodesModifierBake>(new_bake_ids.size(),
-                                                                       __func__);
+  NodesModifierBake *new_bake_data = MEM_calloc_arrayN<NodesModifierBake>(new_bake_ids.size(),
+                                                                          __func__);
   for (const int i : new_bake_ids.index_range()) {
     const int id = new_bake_ids[i];
     NodesModifierBake *old_bake = old_bake_by_id.lookup_default(id, nullptr);
@@ -410,8 +410,8 @@ static void update_panels_from_node_group(NodesModifierData &nmd)
     });
   }
 
-  NodesModifierPanel *new_panels = MEM_cnew_array<NodesModifierPanel>(interface_panels.size(),
-                                                                      __func__);
+  NodesModifierPanel *new_panels = MEM_calloc_arrayN<NodesModifierPanel>(interface_panels.size(),
+                                                                         __func__);
 
   for (const int i : interface_panels.index_range()) {
     const bNodeTreeInterfacePanel &interface_panel = *interface_panels[i];
@@ -842,7 +842,9 @@ static void find_socket_log_contexts(const NodesModifierData &nmd,
  * \note This could be done in #initialize_group_input, though that would require adding the
  * the object as a parameter, so it's likely better to this check as a separate step.
  */
-static void check_property_socket_sync(const Object *ob, ModifierData *md)
+static void check_property_socket_sync(const Object *ob,
+                                       const nodes::PropertiesVectorSet &properties,
+                                       ModifierData *md)
 {
   NodesModifierData *nmd = reinterpret_cast<NodesModifierData *>(md);
 
@@ -859,7 +861,7 @@ static void check_property_socket_sync(const Object *ob, ModifierData *md)
       continue;
     }
 
-    IDProperty *property = IDP_GetPropertyFromGroup(nmd->settings.properties, socket->identifier);
+    IDProperty *property = properties.lookup_key_default_as(socket->identifier, nullptr);
     if (property == nullptr) {
       if (ELEM(type, SOCK_GEOMETRY, SOCK_MATRIX)) {
         geometry_socket_count++;
@@ -1756,8 +1758,11 @@ static void modifyGeometry(ModifierData *md,
   NodesModifierData *nmd_orig = reinterpret_cast<NodesModifierData *>(
       BKE_modifier_get_original(ctx->object, &nmd->modifier));
 
+  nodes::PropertiesVectorSet properties = nodes::build_properties_vector_set(
+      nmd->settings.properties);
+
   const bNodeTree &tree = *nmd->node_group;
-  check_property_socket_sync(ctx->object, md);
+  check_property_socket_sync(ctx->object, properties, md);
 
   tree.ensure_topology_cache();
   const bNode *output_node = tree.group_output_node();
@@ -1825,11 +1830,8 @@ static void modifyGeometry(ModifierData *md,
 
   bke::ModifierComputeContext modifier_compute_context{nullptr, nmd->modifier.name};
 
-  geometry_set = nodes::execute_geometry_nodes_on_geometry(tree,
-                                                           nmd->settings.properties,
-                                                           modifier_compute_context,
-                                                           call_data,
-                                                           std::move(geometry_set));
+  geometry_set = nodes::execute_geometry_nodes_on_geometry(
+      tree, properties, modifier_compute_context, call_data, std::move(geometry_set));
 
   if (logging_enabled(ctx)) {
     nmd_orig->runtime->eval_log = std::move(eval_log);
@@ -1999,6 +2001,7 @@ static void attribute_search_exec_fn(bContext *C, void *data_v, void *item_v)
 struct DrawGroupInputsContext {
   const bContext &C;
   NodesModifierData &nmd;
+  nodes::PropertiesVectorSet properties;
   PointerRNA *md_ptr;
   PointerRNA *bmain_ptr;
   Array<bool> input_usages;
@@ -2038,7 +2041,7 @@ static void add_attribute_search_button(DrawGroupInputsContext &ctx,
     return;
   }
 
-  AttributeSearchData *data = MEM_cnew<AttributeSearchData>(__func__);
+  AttributeSearchData *data = MEM_callocN<AttributeSearchData>(__func__);
   data->object_session_uid = object->id.session_uid;
   STRNCPY(data->modifier_name, ctx.nmd.modifier.name);
   STRNCPY(data->socket_identifier, socket.identifier);
@@ -2084,8 +2087,8 @@ static void add_attribute_search_or_value_buttons(DrawGroupInputsContext &ctx,
 
   uiLayout *prop_row = nullptr;
 
-  const std::optional<StringRef> attribute_name = nodes::input_attribute_name_get(
-      *ctx.nmd.settings.properties, socket);
+  const std::optional<StringRef> attribute_name = nodes::input_attribute_name_get(ctx.properties,
+                                                                                  socket);
   if (type == SOCK_BOOLEAN && !attribute_name) {
     uiItemL(name_row, "", ICON_NONE);
     prop_row = uiLayoutRow(split, true);
@@ -2133,7 +2136,7 @@ static void draw_property_for_socket(DrawGroupInputsContext &ctx,
 {
   const StringRefNull identifier = socket.identifier;
   /* The property should be created in #MOD_nodes_update_interface with the correct type. */
-  IDProperty *property = IDP_GetPropertyFromGroup(ctx.nmd.settings.properties, identifier);
+  IDProperty *property = ctx.properties.lookup_key_default_as(identifier, nullptr);
 
   /* IDProperties can be removed with python, so there could be a situation where
    * there isn't a property for a socket or it doesn't have the correct type. */
@@ -2267,6 +2270,12 @@ static bool interface_panel_affects_output(DrawGroupInputsContext &ctx,
   for (const bNodeTreeInterfaceItem *item : panel.items()) {
     if (item->item_type == NODE_INTERFACE_SOCKET) {
       const auto &socket = *reinterpret_cast<const bNodeTreeInterfaceSocket *>(item);
+      if (socket.flag & NODE_INTERFACE_SOCKET_HIDE_IN_MODIFIER) {
+        continue;
+      }
+      if (!(socket.flag & NODE_INTERFACE_SOCKET_INPUT)) {
+        continue;
+      }
       const int input_index = ctx.nmd.node_group->interface_input_index(socket);
       if (ctx.input_usages[input_index]) {
         return true;
@@ -2303,7 +2312,7 @@ static void draw_interface_panel_content(DrawGroupInputsContext &ctx,
       const bNodeTreeInterfaceSocket *toggle_socket = sub_interface_panel.header_toggle_socket();
       if (toggle_socket && !(toggle_socket->flag & NODE_INTERFACE_SOCKET_HIDE_IN_MODIFIER)) {
         const StringRefNull identifier = toggle_socket->identifier;
-        IDProperty *property = IDP_GetPropertyFromGroup(ctx.nmd.settings.properties, identifier);
+        IDProperty *property = ctx.properties.lookup_key_default_as(identifier, nullptr);
         /* IDProperties can be removed with python, so there could be a situation where
          * there isn't a property for a socket or it doesn't have the correct type. */
         if (property == nullptr ||
@@ -2551,13 +2560,14 @@ static void panel_draw(const bContext *C, Panel *panel)
 
   Main *bmain = CTX_data_main(C);
   PointerRNA bmain_ptr = RNA_main_pointer_create(bmain);
-  DrawGroupInputsContext ctx{*C, *nmd, ptr, &bmain_ptr};
+  DrawGroupInputsContext ctx{
+      *C, *nmd, nodes::build_properties_vector_set(nmd->settings.properties), ptr, &bmain_ptr};
 
   if (nmd->node_group != nullptr && nmd->settings.properties != nullptr) {
     nmd->node_group->ensure_interface_cache();
     ctx.input_usages.reinitialize(nmd->node_group->interface_inputs().size());
     nodes::socket_usage_inference::infer_group_interface_inputs_usage(
-        *nmd->node_group, nmd->settings.properties, ctx.input_usages);
+        *nmd->node_group, ctx.properties, ctx.input_usages);
     draw_interface_panel_content(ctx, layout, nmd->node_group->tree_interface.root_panel);
   }
 

@@ -47,33 +47,6 @@ static void transform_positions(MutableSpan<float3> positions, const float4x4 &m
   });
 }
 
-static void transform_normals(MutableSpan<float3> normals, const float4x4 &matrix)
-{
-  const float3x3 normal_transform = math::transpose(math::invert(float3x3(matrix)));
-  threading::parallel_for(normals.index_range(), 1024, [&](const IndexRange range) {
-    for (float3 &normal : normals.slice(range)) {
-      normal = normal_transform * normal;
-    }
-  });
-}
-
-static void transform_mesh(Mesh &mesh, const float4x4 &transform)
-{
-  transform_positions(mesh.vert_positions_for_write(), transform);
-  bke::MutableAttributeAccessor attributes = mesh.attributes_for_write();
-  if (const std::optional<bke::AttributeMetaData> meta_data = attributes.lookup_meta_data(
-          "custom_normal"))
-  {
-    if (meta_data->data_type == CD_PROP_FLOAT3) {
-      if (bke::GSpanAttributeWriter normals = attributes.lookup_for_write_span("custom_normal")) {
-        transform_normals(normals.span.typed<float3>(), transform);
-        normals.finish();
-      }
-    }
-  }
-  mesh.tag_positions_changed();
-}
-
 static void translate_pointcloud(PointCloud &pointcloud, const float3 translation)
 {
   if (math::is_zero(translation)) {
@@ -265,11 +238,14 @@ static void translate_gizmos_edit_hints(bke::GizmoEditHints &edit_hints, const f
 
 void translate_geometry(bke::GeometrySet &geometry, const float3 translation)
 {
+  if (math::is_zero(translation)) {
+    return;
+  }
   if (Curves *curves = geometry.get_curves_for_write()) {
     curves->geometry.wrap().translate(translation);
   }
   if (Mesh *mesh = geometry.get_mesh_for_write()) {
-    BKE_mesh_translate(mesh, translation, false);
+    bke::mesh_translate(*mesh, translation, false);
   }
   if (PointCloud *pointcloud = geometry.get_pointcloud_for_write()) {
     translate_pointcloud(*pointcloud, translation);
@@ -294,12 +270,15 @@ void translate_geometry(bke::GeometrySet &geometry, const float3 translation)
 std::optional<TransformGeometryErrors> transform_geometry(bke::GeometrySet &geometry,
                                                           const float4x4 &transform)
 {
+  if (transform == float4x4::identity()) {
+    return std::nullopt;
+  }
   TransformGeometryErrors errors;
   if (Curves *curves = geometry.get_curves_for_write()) {
     curves->geometry.wrap().transform(transform);
   }
   if (Mesh *mesh = geometry.get_mesh_for_write()) {
-    transform_mesh(*mesh, transform);
+    bke::mesh_transform(*mesh, transform, false);
   }
   if (PointCloud *pointcloud = geometry.get_pointcloud_for_write()) {
     transform_pointcloud(*pointcloud, transform);
@@ -337,7 +316,7 @@ void transform_mesh(Mesh &mesh,
                     const float3 scale)
 {
   const float4x4 matrix = math::from_loc_rot_scale<float4x4>(translation, rotation, scale);
-  transform_mesh(mesh, matrix);
+  bke::mesh_transform(mesh, matrix, false);
 }
 
 }  // namespace blender::geometry
