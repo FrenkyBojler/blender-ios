@@ -268,6 +268,10 @@ void GHOST_XrSession::requestEnd()
 
 void GHOST_XrSession::beginSession()
 {
+  if (m_context->isExtensionEnabled(XR_VARJO_QUAD_VIEWS_EXTENSION_NAME)) {
+    m_oxr->view_type = XR_VIEW_CONFIGURATION_TYPE_PRIMARY_QUAD_VARJO;
+  }
+
   XrSessionBeginInfo begin_info = {XR_TYPE_SESSION_BEGIN_INFO};
   begin_info.primaryViewConfigurationType = m_oxr->view_type;
   CHECK_XR(xrBeginSession(m_oxr->session, &begin_info), "Failed to cleanly begin the VR session.");
