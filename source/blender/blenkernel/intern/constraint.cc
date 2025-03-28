@@ -2399,6 +2399,15 @@ static bConstraintTypeInfo CTI_TRANSLIKE = {
 
 /* ----------- Freeze Transforms ------------- */
 
+static void freezetrans_new_data(void *cdata)
+{
+  bFreezeTransConstraint *data = (bFreezeTransConstraint *)cdata;
+
+  data->flag |= FREEZETRANS_LOCATION;
+  data->flag |= FREEZETRANS_ROTATION;
+  data->flag |= FREEZETRANS_SCALE;
+}
+
 static void freezetrans_evaluate(bConstraint *con, bConstraintOb *cob, ListBase * /*targets*/)
 {
   bFreezeTransConstraint *data = static_cast<bFreezeTransConstraint *>(con->data);
@@ -2429,7 +2438,33 @@ static void freezetrans_evaluate(bConstraint *con, bConstraintOb *cob, ListBase 
     // if (data->flag & TRANSLIKE_REMOVE_TARGET_SHEAR) {
     //   orthogonalize_m4_stable(target_mat, 1, false);
     // }
-    copy_m4_m4(cob->matrix, data->freezemat);
+
+    const eFreezeTransforms_Flags ALL_COMPONENTS = static_cast<eFreezeTransforms_Flags>(
+        FREEZETRANS_LOCATION | FREEZETRANS_ROTATION | FREEZETRANS_SCALE);
+    if ((data->flag & ALL_COMPONENTS) == ALL_COMPONENTS) {
+      /* TODO: Applying matrix per-component is different from a direct copy... Maybe turn this
+       * into an explicit option? */
+      copy_m4_m4(cob->matrix, data->freezemat);
+    }
+    else if ((data->flag & ALL_COMPONENTS) != 0) {
+      float loc_o[3], rot_o[3][3], size_o[3];
+      float loc_f[3], rot_f[3][3], size_f[3];
+
+      mat4_to_loc_rot_size(loc_o, rot_o, size_o, cob->matrix);
+      mat4_to_loc_rot_size(loc_f, rot_f, size_f, data->freezemat);
+
+      if (data->flag & FREEZETRANS_LOCATION) {
+        copy_v3_v3(loc_o, loc_f);
+      }
+      if (data->flag & FREEZETRANS_ROTATION) {
+        copy_m3_m3(rot_o, rot_f);
+      }
+      if (data->flag & FREEZETRANS_SCALE) {
+        copy_v3_v3(size_o, size_f);
+      }
+
+      loc_rot_size_to_mat4(cob->matrix, loc_o, rot_o, size_o);
+    }
   }
 }
 
@@ -2441,7 +2476,7 @@ static bConstraintTypeInfo CTI_FREEZETRANS = {
     /*free_data*/ nullptr,
     /*id_looper*/ nullptr,
     /*copy_data*/ nullptr,
-    /*new_data*/ nullptr,
+    /*new_data*/ freezetrans_new_data,
     /*get_constraint_targets*/ nullptr,
     /*flush_constraint_targets*/ nullptr,
     /*get_target_matrix*/ nullptr,

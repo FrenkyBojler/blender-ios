@@ -1898,6 +1898,21 @@ static void rna_def_constraint_freeze_transform(BlenderRNA *brna)
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", FREEZETRANS_IS_FROZEN);
   RNA_def_property_ui_text(prop, "Is Frozen", "Is storing a freeze transformation matrix");
 
+  prop = RNA_def_property(srna, "use_location", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", FREEZETRANS_LOCATION);
+  RNA_def_property_ui_text(prop, "Location", "Freeze the owner's location");
+  RNA_def_property_update(prop, NC_OBJECT | ND_CONSTRAINT, "rna_Constraint_update");
+
+  prop = RNA_def_property(srna, "use_rotation", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", FREEZETRANS_ROTATION);
+  RNA_def_property_ui_text(prop, "Rotation", "Freeze the owner's rotation");
+  RNA_def_property_update(prop, NC_OBJECT | ND_CONSTRAINT, "rna_Constraint_update");
+
+  prop = RNA_def_property(srna, "use_scale", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", FREEZETRANS_SCALE);
+  RNA_def_property_ui_text(prop, "Scale", "Freeze the owner's scale");
+  RNA_def_property_update(prop, NC_OBJECT | ND_CONSTRAINT, "rna_Constraint_update");
+
   RNA_define_lib_overridable(false);
 }
 
