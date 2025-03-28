@@ -239,6 +239,12 @@ static PyObject *BPy_GeometrySet_get_instance_references(BPy_GeometrySet *self)
   return py_references;
 }
 
+PyDoc_STRVAR(
+    /* Wrap. */
+    bpy_geometry_set_name_doc,
+    "The name of the geometry set.\n"
+    "\n"
+    ":type: str\n");
 static PyObject *BPy_GeometrySet_get_name(BPy_GeometrySet *self, void * /*closure*/)
 {
   return PyUnicode_FromString(self->geometry.name.c_str());
@@ -255,6 +261,12 @@ static int BPy_GeometrySet_set_name(BPy_GeometrySet *self, PyObject *value, void
   return 0;
 }
 
+PyDoc_STRVAR(
+    /* Wrap. */
+    bpy_geometry_set_mesh_doc,
+    "The mesh data-block in the geometry set.\n"
+    "\n"
+    ":type: :class:`bpy.types.Mesh`\n");
 static PyObject *BPy_GeometrySet_get_mesh(BPy_GeometrySet *self, void * /*closure*/)
 {
   Mesh *base_mesh = self->geometry.get_mesh_for_write();
@@ -262,28 +274,58 @@ static PyObject *BPy_GeometrySet_get_mesh(BPy_GeometrySet *self, void * /*closur
   return pyrna_id_CreatePyObject(reinterpret_cast<ID *>(mesh));
 }
 
+PyDoc_STRVAR(
+    /* Wrap. */
+    bpy_geometry_set_mesh_base_doc,
+    "The mesh data-block in the geometry set without final subdivision.\n"
+    "\n"
+    ":type: :class:`bpy.types.Mesh`\n");
 static PyObject *BPy_GeometrySet_get_mesh_base(BPy_GeometrySet *self, void * /*closure*/)
 {
   Mesh *base_mesh = self->geometry.get_mesh_for_write();
   return pyrna_id_CreatePyObject(reinterpret_cast<ID *>(base_mesh));
 }
 
+PyDoc_STRVAR(
+    /* Wrap. */
+    bpy_geometry_set_pointcloud_doc,
+    "The point cloud data-block in the geometry set.\n"
+    "\n"
+    ":type: :class:`bpy.types.PointCloud`\n");
 static PyObject *BPy_GeometrySet_get_pointcloud(BPy_GeometrySet *self, void * /*closure*/)
 {
   return pyrna_id_CreatePyObject(
       reinterpret_cast<ID *>(self->geometry.get_pointcloud_for_write()));
 }
 
+PyDoc_STRVAR(
+    /* Wrap. */
+    bpy_geometry_set_curves_doc,
+    "The curves data-block in the geometry set.\n"
+    "\n"
+    ":type: :class:`bpy.types.Curves`\n");
 static PyObject *BPy_GeometrySet_get_curves(BPy_GeometrySet *self, void * /*closure*/)
 {
   return pyrna_id_CreatePyObject(reinterpret_cast<ID *>(self->geometry.get_curves_for_write()));
 }
 
+PyDoc_STRVAR(
+    /* Wrap. */
+    bpy_geometry_set_volume_doc,
+    "The volume data-block in the geometry set.\n"
+    "\n"
+    ":type: :class:`bpy.types.Volume`\n");
 static PyObject *BPy_GeometrySet_get_volume(BPy_GeometrySet *self, void * /*closure*/)
 {
   return pyrna_id_CreatePyObject(reinterpret_cast<ID *>(self->geometry.get_volume_for_write()));
 }
 
+PyDoc_STRVAR(
+    /* Wrap. */
+    bpy_geometry_set_grease_pencil_doc,
+    "The Grease Pencil data-block in the geometry set.\n"
+    "\n"
+    ":type: :class:`bpy.types.GreasePencilv3`\n");
 static PyObject *BPy_GeometrySet_get_grease_pencil(BPy_GeometrySet *self, void * /*closure*/)
 {
   return pyrna_id_CreatePyObject(
@@ -295,51 +337,49 @@ static PyGetSetDef BPy_GeometrySet_getseters[] = {
         "name",
         reinterpret_cast<getter>(BPy_GeometrySet_get_name),
         reinterpret_cast<setter>(BPy_GeometrySet_set_name),
-        "The name of the geometry set.\n\n:type: str",
+        bpy_geometry_set_name_doc,
         nullptr,
     },
     {
         "mesh",
         reinterpret_cast<getter>(BPy_GeometrySet_get_mesh),
         nullptr,
-        "The mesh data-block in the geometry set.\n\n:type: :class:`bpy.types.Mesh`",
+        bpy_geometry_set_mesh_doc,
         nullptr,
     },
     {
         "mesh_base",
         reinterpret_cast<getter>(BPy_GeometrySet_get_mesh_base),
         nullptr,
-        "The mesh data-block in the geometry set without final subdivision.\n\n"
-        ":type: :class:`bpy.types.Mesh`",
+        bpy_geometry_set_mesh_base_doc,
         nullptr,
     },
     {
         "pointcloud",
         reinterpret_cast<getter>(BPy_GeometrySet_get_pointcloud),
         nullptr,
-        "The point cloud data-block in the geometry set.\n\n:type: :class:`bpy.types.PointCloud`",
+        bpy_geometry_set_pointcloud_doc,
         nullptr,
     },
     {
         "curves",
         reinterpret_cast<getter>(BPy_GeometrySet_get_curves),
         nullptr,
-        "The curves data-block in the geometry set.\n\n:type: :class:`bpy.types.Curves`",
+        bpy_geometry_set_curves_doc,
         nullptr,
     },
     {
         "volume",
         reinterpret_cast<getter>(BPy_GeometrySet_get_volume),
         nullptr,
-        "The volume data-block in the geometry set.\n\n:type: :class:`bpy.types.Volume`",
+        bpy_geometry_set_volume_doc,
         nullptr,
     },
     {
         "grease_pencil",
         reinterpret_cast<getter>(BPy_GeometrySet_get_grease_pencil),
         nullptr,
-        "The Grease Pencil data-block in the geometry set.\n\n:type: "
-        ":class:`bpy.types.GreasePencilv3`",
+        bpy_geometry_set_grease_pencil_doc,
         nullptr,
     },
     {nullptr},
