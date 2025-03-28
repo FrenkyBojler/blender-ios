@@ -32,7 +32,6 @@
 #include "BKE_lib_id.hh"
 #include "BKE_mesh.hh"
 
-#include "GEO_join_geometries.hh"
 #include "GEO_realize_instances.hh"
 
 #include "mesh_boolean_manifold.hh"
@@ -1583,20 +1582,6 @@ static Mesh *meshgl_to_mesh(MeshGL &mgl,
   return mesh;
 }
 
-static bke::GeometrySet join_meshes(Span<const Mesh *> meshes)
-{
-#ifdef DEBUG_TIME
-  timeit::ScopedTimer jtimer("join meshes");
-#endif
-  const int meshes_num = meshes.size();
-  Array<bke::GeometrySet> geometries(meshes_num);
-  for (const int i : geometries.index_range()) {
-    geometries[i] = bke::GeometrySet::from_mesh(const_cast<Mesh *>(meshes[i]),
-                                                bke::GeometryOwnershipType::ReadOnly);
-  }
-  return geometry::join_geometries(geometries, {});
-}
-
 static bke::GeometrySet join_meshes_with_transforms(const Span<const Mesh *> meshes,
                                                     const Span<float4x4> transforms)
 {
@@ -1641,17 +1626,7 @@ Mesh *mesh_boolean_manifold(Span<const Mesh *> meshes,
 
     const int meshes_num = meshes.size();
 
-    bke::GeometrySet joined_meshes_set;
-    bool no_transforms = math::is_identity(target_transform);
-    no_transforms &= std::all_of(transforms.begin(), transforms.end(), [](const float4x4 &t) {
-      return math::is_identity(t);
-    });
-    if (!no_transforms) {
-      joined_meshes_set = join_meshes_with_transforms(meshes, transforms);
-    }
-    else {
-      joined_meshes_set = join_meshes(meshes);
-    }
+    bke::GeometrySet joined_meshes_set = join_meshes_with_transforms(meshes, transforms);
     const Mesh *joined_mesh = joined_meshes_set.get_mesh();
     if (joined_mesh == nullptr) {
       return nullptr;
