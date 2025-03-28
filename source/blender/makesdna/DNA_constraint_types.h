@@ -803,6 +803,8 @@ typedef enum eFreezeTransforms_Flags {
   FREEZETRANS_LOCATION = (1 << 2),
   FREEZETRANS_ROTATION = (1 << 3),
   FREEZETRANS_SCALE = (1 << 4),
+  /** Copy each component individually, instead of copying whole matrix. */
+  FREEZETRANS_SPLIT_CHANNELS = (1 << 5),
 } eFreezeTransforms_Flags;
 
 /** #bTransLikeConstraint.mix_mode */

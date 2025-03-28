@@ -510,10 +510,13 @@ class ConstraintButtonsPanel:
         layout.use_property_split = True
         layout.use_property_decorate = True
 
-        row = layout.row(align=True, heading="Components")
-        row.prop(con, "use_location", toggle=1)
-        row.prop(con, "use_rotation", toggle=1)
-        row.prop(con, "use_scale", toggle=1)
+        layout.prop(con, "mode")
+
+        if con.mode == 'SPLIT_COMPONENTS':
+            row = layout.row(align=True, heading="Components")
+            row.prop(con, "use_location", toggle=1)
+            row.prop(con, "use_rotation", toggle=1)
+            row.prop(con, "use_scale", toggle=1)
 
         row = layout.row()
         row.operator("constraint.freezetrans_set_freezemat", text="Re-Capture Transform" if con.is_frozen else "Capture Transform", icon='PINNED' if con.is_frozen else 'UNPINNED')

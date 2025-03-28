@@ -2406,6 +2406,8 @@ static void freezetrans_new_data(void *cdata)
   data->flag |= FREEZETRANS_LOCATION;
   data->flag |= FREEZETRANS_ROTATION;
   data->flag |= FREEZETRANS_SCALE;
+  /* Defaulting to "split channels" mode, to allow easily disabling loc/rot/scale. */
+  data->flag |= FREEZETRANS_SPLIT_CHANNELS;
 }
 
 static void freezetrans_evaluate(bConstraint *con, bConstraintOb *cob, ListBase * /*targets*/)
@@ -2439,14 +2441,13 @@ static void freezetrans_evaluate(bConstraint *con, bConstraintOb *cob, ListBase 
     //   orthogonalize_m4_stable(target_mat, 1, false);
     // }
 
-    const eFreezeTransforms_Flags ALL_COMPONENTS = static_cast<eFreezeTransforms_Flags>(
-        FREEZETRANS_LOCATION | FREEZETRANS_ROTATION | FREEZETRANS_SCALE);
-    if ((data->flag & ALL_COMPONENTS) == ALL_COMPONENTS) {
-      /* TODO: Applying matrix per-component is different from a direct copy... Maybe turn this
-       * into an explicit option? */
+    if ((data->flag & FREEZETRANS_SPLIT_CHANNELS) == 0) {
+      /* Replace whole matrix. */
       copy_m4_m4(cob->matrix, data->freezemat);
     }
-    else if ((data->flag & ALL_COMPONENTS) != 0) {
+    else if ((data->flag & (FREEZETRANS_LOCATION | FREEZETRANS_ROTATION | FREEZETRANS_SCALE)) != 0)
+    {
+      /* Apply split channels. */
       float loc_o[3], rot_o[3][3], size_o[3];
       float loc_f[3], rot_f[3][3], size_f[3];
 
