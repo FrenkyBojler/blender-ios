@@ -903,11 +903,7 @@ static wmOperatorStatus text_run_script_exec(bContext *C, wmOperator *op)
 
   return OPERATOR_CANCELLED;
 #else
-  const wmOperatorStatus status = text_run_script(C, op->reports);
-  /* Flush stdout/stderr to ensure the script output is visible.
-   * Using fflush(stdout) does not solve it. */
-  BPY_run_string_exec(C, nullptr, "import sys\nsys.stdout.flush()\nsys.stderr.flush()\n");
-  return status;
+  return text_run_script(C, op->reports);
 #endif /* WITH_PYTHON */
 }
 

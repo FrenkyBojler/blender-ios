@@ -1688,6 +1688,18 @@ bool PyC_RunString_AsStringOrNone(const char *imports[],
 #endif /* #ifndef MATH_STANDALONE */
 
 /* -------------------------------------------------------------------- */
+/** \name Std Files Flush
+ *
+ * \{ */
+
+void PyC_StdFilesFlush()
+{
+  /* TODO: Actually implement the flushing. */
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
 /** \name Int Conversion
  *
  * \note Python doesn't provide overflow checks for specific bit-widths.
