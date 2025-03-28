@@ -2314,18 +2314,17 @@ static void vgroup_assign_verts(Object *ob, Scene &scene, const float weight)
     if (mesh->runtime->edit_mesh) {
       BMEditMesh *em = mesh->runtime->edit_mesh.get();
       int cd_dvert_offset;
-
       BMIter iter;
       BMVert *eve;
+      int i;
 
       if (!CustomData_has_layer(&em->bm->vdata, CD_MDEFORMVERT)) {
         BM_data_layer_add(em->bm, &em->bm->vdata, CD_MDEFORMVERT);
       }
-
       cd_dvert_offset = CustomData_get_offset(&em->bm->vdata, CD_MDEFORMVERT);
 
       /* Go through the list of edit-vertices and assign them. */
-      BM_ITER_MESH (eve, &iter, em->bm, BM_VERTS_OF_MESH) {
+      BM_ITER_MESH_INDEX (eve, &iter, em->bm, BM_VERTS_OF_MESH, i) {
         if (BM_elem_flag_test(eve, BM_ELEM_SELECT)) {
           MDeformVert *dv;
           MDeformWeight *dw;
@@ -2336,7 +2335,7 @@ static void vgroup_assign_verts(Object *ob, Scene &scene, const float weight)
             dw->weight = weight;
           }
           if (mesh->symmetry & ME_SYMMETRY_X) {
-            ED_mesh_defvert_mirror_update_em(ob, eve, def_nr, -1, cd_dvert_offset);
+            ED_mesh_defvert_mirror_update_em(ob, eve, def_nr, i, cd_dvert_offset);
           }
         }
       }
@@ -2824,7 +2823,8 @@ static int vertex_group_remove_from_exec(bContext *C, wmOperator *op)
       const int def_nr = BKE_object_defgroup_active_index_get(ob) - 1;
       BMIter iter;
       BMVert *eve;
-      BM_ITER_MESH (eve, &iter, em->bm, BM_VERTS_OF_MESH) {
+      int i;
+      BM_ITER_MESH_INDEX (eve, &iter, em->bm, BM_VERTS_OF_MESH, i) {
         if (!use_all_verts && !BM_elem_flag_test(eve, BM_ELEM_SELECT)) {
           continue;
         }
@@ -2833,7 +2833,7 @@ static int vertex_group_remove_from_exec(bContext *C, wmOperator *op)
         if (dw) {
           BKE_defvert_remove_group(dv, dw);
           if (mesh->symmetry & ME_SYMMETRY_X) {
-            ED_mesh_defvert_mirror_update_em(ob, eve, def_nr, -1, cd_dvert_offset);
+            ED_mesh_defvert_mirror_update_em(ob, eve, def_nr, i, cd_dvert_offset);
           }
         }
       }
