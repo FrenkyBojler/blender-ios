@@ -160,7 +160,6 @@ static float3 calc_normal(const Brush &brush, const StrokeCache &cache)
 static void calc_faces(const Depsgraph &depsgraph,
                        const Sculpt &sd,
                        const Brush &brush,
-                       const float strength,
                        const bool both_directions,
                        const MeshAttributeData &attribute_data,
                        const Span<float3> vert_normals,
@@ -201,7 +200,7 @@ static void calc_faces(const Depsgraph &depsgraph,
   tls.translations.resize(verts.size());
   const MutableSpan<float3> translations = tls.translations;
   calc_translations(normal, tls.factors, hit_distances, translations);
-  scale_translations(translations, strength);
+  scale_translations(translations, ss.cache->bstrength);
 
   clip_and_lock_translations(sd, ss, position_data.eval, verts, translations);
   position_data.deform(translations, verts);
@@ -212,7 +211,6 @@ static void calc_grids(const Depsgraph &depsgraph,
                        Object &object,
                        const Brush &brush,
                        const bool both_directions,
-                       const float strength,
                        const bke::pbvh::GridsNode &node,
                        LocalData &tls)
 {
@@ -239,7 +237,7 @@ static void calc_grids(const Depsgraph &depsgraph,
   tls.translations.resize(positions.size());
   const MutableSpan<float3> translations = tls.translations;
   calc_translations(normal, tls.factors, hit_distances, translations);
-  scale_translations(translations, strength);
+  scale_translations(translations, ss.cache->bstrength);
 
   clip_and_lock_translations(sd, ss, positions, translations);
   apply_translations(translations, grids, subdiv_ccg);
@@ -249,7 +247,6 @@ static void calc_bmesh(const Depsgraph &depsgraph,
                        const Sculpt &sd,
                        Object &object,
                        const Brush &brush,
-                       const float strength,
                        const bool both_directions,
                        bke::pbvh::BMeshNode &node,
                        LocalData &tls)
@@ -276,7 +273,7 @@ static void calc_bmesh(const Depsgraph &depsgraph,
   tls.translations.resize(positions.size());
   const MutableSpan<float3> translations = tls.translations;
   calc_translations(normal, tls.factors, hit_distances, translations);
-  scale_translations(translations, strength);
+  scale_translations(translations, ss.cache->bstrength);
 
   clip_and_lock_translations(sd, ss, positions, translations);
   apply_translations(translations, verts);
@@ -291,9 +288,7 @@ void do_scene_project_brush(const Depsgraph &depsgraph,
 {
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   const Brush &brush = *BKE_paint_brush_for_read(&sd.paint);
-  const StrokeCache &cache = *object.sculpt->cache;
 
-  const float strength = cache.radius * cache.bstrength;
   const bool both_directions = brush.flag2 & BRUSH_BOTH_DIRECTIONS;
 
   threading::EnumerableThreadSpecific<LocalData> all_tls;
@@ -310,7 +305,6 @@ void do_scene_project_brush(const Depsgraph &depsgraph,
         calc_faces(depsgraph,
                    sd,
                    brush,
-                   strength,
                    both_directions,
                    attribute_data,
                    vert_normals,
@@ -328,7 +322,7 @@ void do_scene_project_brush(const Depsgraph &depsgraph,
       MutableSpan<bke::pbvh::GridsNode> nodes = pbvh.nodes<bke::pbvh::GridsNode>();
       node_mask.foreach_index(GrainSize(1), [&](const int i) {
         LocalData &tls = all_tls.local();
-        calc_grids(depsgraph, sd, object, brush, strength, both_directions, nodes[i], tls);
+        calc_grids(depsgraph, sd, object, brush, both_directions, nodes[i], tls);
         bke::pbvh::update_node_bounds_grids(subdiv_ccg.grid_area, positions, nodes[i]);
       });
       break;
@@ -337,7 +331,7 @@ void do_scene_project_brush(const Depsgraph &depsgraph,
       MutableSpan<bke::pbvh::BMeshNode> nodes = pbvh.nodes<bke::pbvh::BMeshNode>();
       node_mask.foreach_index(GrainSize(1), [&](const int i) {
         LocalData &tls = all_tls.local();
-        calc_bmesh(depsgraph, sd, object, brush, strength, both_directions, nodes[i], tls);
+        calc_bmesh(depsgraph, sd, object, brush, both_directions, nodes[i], tls);
         bke::pbvh::update_node_bounds_bmesh(nodes[i]);
       });
       break;
