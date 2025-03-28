@@ -736,6 +736,11 @@ typedef struct RenderData {
    */
   float xasp, yasp;
 
+  /** Pixels per meter (factor of PPM base). */
+  float ppm_factor;
+  /** Pixels per meter base (0.0254 for DPI). */
+  float ppm_base;
+
   float frs_sec_base;
 
   /**
