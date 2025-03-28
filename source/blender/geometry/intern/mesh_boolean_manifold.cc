@@ -1243,7 +1243,7 @@ static void interpolate_corner_attributes(bke::MutableAttributeAccessor &output_
   const Span<float3> input_vert_positions = input_mesh->vert_positions();
   const Span<int> output_corner_verts = output_mesh->corner_verts();
   const Span<float3> output_vert_positions = output_mesh->vert_positions();
-  const int grain_size = 5000;
+  const int grain_size = 256;
   threading::parallel_for(
       out_to_in_face_map.index_range(), grain_size, [&](const IndexRange range) {
         Vector<float, 20> weights;
