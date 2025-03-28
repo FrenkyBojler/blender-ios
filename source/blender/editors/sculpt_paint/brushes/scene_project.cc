@@ -53,19 +53,36 @@ BLI_INLINE void raycast(const float3 &ray_origin,
       tree_data.tree, ray_origin, ray_normal, 0.0f, &hit, tree_data.raycast_callback, &tree_data);
 }
 
-static void object_raycast(const Object &object,
+static void convert_positions(const float4x4 &mat,
+                              const Span<float3> positions,
+                              const MutableSpan<float3> r_converted_positions)
+{
+  for (const int i : positions.index_range()) {
+    r_converted_positions[i] = math::transform_point(mat, positions[i]);
+  }
+}
+
+static void object_raycast(const Object &active_object,
+                           const Object &target_object,
                            const bool both_directions,
                            const float3 &normal,
                            const Span<float3> positions,
                            const Span<float> factors,
                            const MutableSpan<float> r_hit_distances)
 {
-  const Mesh &mesh = *static_cast<Mesh *>(object.data);
+  const Mesh &mesh = *static_cast<Mesh *>(target_object.data);
   bke::BVHTreeFromMesh tree_data = mesh.bvh_corner_tris();
 
   if (tree_data.tree == nullptr) {
     return;
   }
+
+  const float4x4 active_to_target_mat = active_object.object_to_world() *
+                                        target_object.world_to_object();
+
+  const float3 ray_normal = math::transform_direction(active_to_target_mat, normal);
+  Array<float3> ray_origins(positions.size());
+  convert_positions(active_to_target_mat, positions, ray_origins);
 
   for (const int i : positions.index_range()) {
     if (factors[i] == 0.0f) {
@@ -73,17 +90,18 @@ static void object_raycast(const Object &object,
     }
 
     BVHTreeRayHit hit;
-    raycast(positions[i], normal, tree_data, hit);
+    raycast(ray_origins[i], ray_normal, tree_data, hit);
     r_hit_distances[i] = calc_absolute_min_distance(r_hit_distances[i], hit.dist);
 
     if (both_directions) {
-      raycast(positions[i], -normal, tree_data, hit);
+      raycast(ray_origins[i], -ray_normal, tree_data, hit);
       r_hit_distances[i] = calc_absolute_min_distance(r_hit_distances[i], -hit.dist);
     }
   }
 }
 
-static void scene_raycast(const Span<Object *> target_objects,
+static void scene_raycast(const Object &active_object,
+                          const Span<Object *> target_objects,
                           const bool both_directions,
                           const float3 &normal,
                           const Span<float3> positions,
@@ -93,8 +111,13 @@ static void scene_raycast(const Span<Object *> target_objects,
   r_hit_distances.fill(BVH_RAYCAST_DIST_MAX);
 
   for (const int i : target_objects.index_range()) {
-    object_raycast(
-        *target_objects[i], both_directions, normal, positions, factors, r_hit_distances);
+    object_raycast(active_object,
+                   *target_objects[i],
+                   both_directions,
+                   normal,
+                   positions,
+                   factors,
+                   r_hit_distances);
   }
 
   for (const int i : r_hit_distances.index_range()) {
@@ -104,62 +127,34 @@ static void scene_raycast(const Span<Object *> target_objects,
   }
 }
 
-static void calc_world_positions(const float4x4 mat,
-                                 const Span<int> verts,
-                                 const Span<float3> object_positions,
-                                 const MutableSpan<float3> r_world_positions)
-{
-  for (const int i : verts.index_range()) {
-    r_world_positions[i] = math::transform_point(mat, object_positions[verts[i]]);
-  }
-}
-
-static void calc_world_positions(const float4x4 mat,
-                                 const Span<float3> object_positions,
-                                 const MutableSpan<float3> r_world_positions)
-{
-  for (const int i : object_positions.index_range()) {
-    r_world_positions[i] = math::transform_point(mat, object_positions[i]);
-  }
-}
-
-static void calc_world_translations(const float3 &normal,
-                                    const Span<float> factors,
-                                    const Span<float> hit_distances,
-                                    const MutableSpan<float3> r_translations)
+static void calc_translations(const float3 &normal,
+                              const Span<float> factors,
+                              const Span<float> hit_distances,
+                              const MutableSpan<float3> r_translations)
 {
   for (const int i : factors.index_range()) {
     r_translations[i] = normal * hit_distances[i] * factors[i];
   }
 }
 
-static void calc_object_translations(const float4x4 &mat,
-                                     const Span<float3> world_translations,
-                                     const MutableSpan<float3> r_object_translations)
+static float3 calc_normal(const Brush &brush, const StrokeCache &cache)
 {
-  for (const int i : world_translations.index_range()) {
-    r_object_translations[i] = math::transform_direction(mat, world_translations[i]);
-  }
-}
-
-static float3 calc_world_normal(const float4x4 &mat, const Brush &brush, const StrokeCache &cache)
-{
-  float3 object_normal;
+  float3 normal;
 
   switch (brush.project_direction_type) {
     case BRUSH_PROJECT_DIRECTION_VIEW_NORMAL:
-      object_normal = -cache.view_normal_symm;
+      normal = -cache.view_normal_symm;
       break;
     case BRUSH_PROJECT_DIRECTION_PLANE_NORMAL:
-      object_normal = -cache.sculpt_normal_symm;
+      normal = -cache.sculpt_normal_symm;
       break;
   }
 
   if (cache.initial_direction_flipped) {
-    object_normal *= -1.0f;
+    normal *= -1.0f;
   }
 
-  return math::transform_direction(mat, object_normal);
+  return normal;
 }
 
 static void calc_faces(const Depsgraph &depsgraph,
@@ -188,31 +183,28 @@ static void calc_faces(const Depsgraph &depsgraph,
                                    tls.distances);
 
   tls.positions.resize(verts.size());
-  const MutableSpan<float3> world_positions = tls.positions;
-  calc_world_positions(object.object_to_world(), verts, position_data.eval, world_positions);
+  const MutableSpan<float3> positions = tls.positions;
+  gather_data_mesh(position_data.eval, verts, positions);
 
-  const float3 world_normal = calc_world_normal(object.object_to_world(), brush, *ss.cache);
+  const float3 normal = calc_normal(brush, *ss.cache);
 
   tls.hit_distances.resize(verts.size());
   const MutableSpan<float> hit_distances = tls.hit_distances;
-  scene_raycast(ss.cache->target_objects,
+  scene_raycast(object,
+                ss.cache->target_objects,
                 both_directions,
-                world_normal,
-                world_positions,
+                normal,
+                positions,
                 tls.factors,
                 hit_distances);
 
   tls.translations.resize(verts.size());
-  const MutableSpan<float3> world_translations = tls.translations;
-  calc_world_translations(world_normal, tls.factors, hit_distances, world_translations);
+  const MutableSpan<float3> translations = tls.translations;
+  calc_translations(normal, tls.factors, hit_distances, translations);
+  scale_translations(translations, strength);
 
-  const MutableSpan<float3> object_translations = world_translations;
-  calc_object_translations(object.world_to_object(), world_translations, object_translations);
-
-  scale_translations(object_translations, strength);
-
-  clip_and_lock_translations(sd, ss, position_data.eval, verts, object_translations);
-  position_data.deform(object_translations, verts);
+  clip_and_lock_translations(sd, ss, position_data.eval, verts, translations);
+  position_data.deform(translations, verts);
 }
 
 static void calc_grids(const Depsgraph &depsgraph,
@@ -232,31 +224,25 @@ static void calc_grids(const Depsgraph &depsgraph,
 
   calc_factors_common_grids(depsgraph, brush, object, positions, node, tls.factors, tls.distances);
 
-  const MutableSpan<float3> world_positions = positions;
-  calc_world_positions(object.object_to_world(), positions, world_positions);
-
-  const float3 world_normal = calc_world_normal(object.object_to_world(), brush, *ss.cache);
+  const float3 normal = calc_normal(brush, *ss.cache);
 
   tls.hit_distances.resize(positions.size());
   const MutableSpan<float> hit_distances = tls.hit_distances;
-  scene_raycast(ss.cache->target_objects,
+  scene_raycast(object,
+                ss.cache->target_objects,
                 both_directions,
-                world_normal,
-                world_positions,
+                normal,
+                positions,
                 tls.factors,
                 hit_distances);
 
   tls.translations.resize(positions.size());
-  const MutableSpan<float3> world_translations = tls.translations;
-  calc_world_translations(world_normal, tls.factors, hit_distances, world_translations);
+  const MutableSpan<float3> translations = tls.translations;
+  calc_translations(normal, tls.factors, hit_distances, translations);
+  scale_translations(translations, strength);
 
-  const MutableSpan<float3> object_translations = world_translations;
-  calc_object_translations(object.world_to_object(), world_translations, object_translations);
-
-  scale_translations(object_translations, strength);
-
-  clip_and_lock_translations(sd, ss, positions, object_translations);
-  apply_translations(object_translations, grids, subdiv_ccg);
+  clip_and_lock_translations(sd, ss, positions, translations);
+  apply_translations(translations, grids, subdiv_ccg);
 }
 
 static void calc_bmesh(const Depsgraph &depsgraph,
@@ -275,31 +261,25 @@ static void calc_bmesh(const Depsgraph &depsgraph,
 
   calc_factors_common_bmesh(depsgraph, brush, object, positions, node, tls.factors, tls.distances);
 
-  const MutableSpan<float3> world_positions = positions;
-  calc_world_positions(object.object_to_world(), positions, world_positions);
-
-  const float3 world_normal = calc_world_normal(object.object_to_world(), brush, *ss.cache);
+  const float3 normal = calc_normal(brush, *ss.cache);
 
   tls.hit_distances.resize(positions.size());
   const MutableSpan<float> hit_distances = tls.hit_distances;
-  scene_raycast(ss.cache->target_objects,
+  scene_raycast(object,
+                ss.cache->target_objects,
                 both_directions,
-                world_normal,
-                world_positions,
+                normal,
+                positions,
                 tls.factors,
                 hit_distances);
 
   tls.translations.resize(positions.size());
-  const MutableSpan<float3> world_translations = tls.translations;
-  calc_world_translations(world_normal, tls.factors, hit_distances, world_translations);
+  const MutableSpan<float3> translations = tls.translations;
+  calc_translations(normal, tls.factors, hit_distances, translations);
+  scale_translations(translations, strength);
 
-  const MutableSpan<float3> object_translations = world_translations;
-  calc_object_translations(object.world_to_object(), world_translations, object_translations);
-
-  scale_translations(object_translations, strength);
-
-  clip_and_lock_translations(sd, ss, positions, object_translations);
-  apply_translations(object_translations, verts);
+  clip_and_lock_translations(sd, ss, positions, translations);
+  apply_translations(translations, verts);
 }
 
 }  // namespace scene_project_cc
