@@ -29,6 +29,7 @@
 #include "BKE_deform.hh"
 #include "BKE_geometry_set.hh"
 #include "BKE_instances.hh"
+#include "BKE_lib_id.hh"
 #include "BKE_mesh.hh"
 
 #include "GEO_join_geometries.hh"
@@ -215,7 +216,7 @@ MeshOffsets::MeshOffsets(Span<const Mesh *> meshes)
  * access OriginalId's in the output, they will be \a mesh_index.
  */
 static void get_manifold(Manifold &manifold,
-                         const Mesh *joined_mesh,
+                         const Span<const Mesh *> meshes,
                          int mesh_index,
                          const MeshOffsets &mesh_offsets)
 {
@@ -223,31 +224,43 @@ static void get_manifold(Manifold &manifold,
   if (dbg_level > 0) {
     std::cout << "get_manifold for mesh " << mesh_index << "\n";
   }
+  /* Use the original mesh for simplicity for some things, and use the joined mesh for data that
+   * could have been affected by a transform input. A potential optimization would be retrieving
+   * the data from an original mesh instead if the corresponding transform was the identity. */
+  const Mesh &mesh = *meshes[mesh_index];
+  const OffsetIndices<int> faces = mesh.faces();
+  const Span<int> corner_verts = mesh.corner_verts();
+  const Span<int3> corner_tris = mesh.corner_tris();
+
   MeshGL meshgl;
-  const IndexRange verts_range = mesh_offsets.vert_offsets[mesh_index];
-  const IndexRange faces_range = mesh_offsets.face_offsets[mesh_index];
-  const IndexRange corners_range = mesh_offsets.corner_offsets[mesh_index];
-  const IndexRange tris_range(poly_to_tri_count(faces_range.start(), corners_range.start()),
-                              poly_to_tri_count(faces_range.size(), corners_range.size()));
 
   constexpr int props_num = 3;
   meshgl.numProp = props_num;
-  meshgl.vertProperties.resize(verts_range.size() * props_num);
-  array_utils::copy(joined_mesh->vert_positions().slice(verts_range),
-                    MutableSpan(meshgl.vertProperties).cast<float3>());
+  meshgl.vertProperties.resize(size_t(mesh.verts_num) * props_num);
+  array_utils::copy(mesh.vert_positions(), MutableSpan(meshgl.vertProperties).cast<float3>());
 
-  meshgl.faceID.resize(tris_range.size());
-  bke::mesh::corner_tris_calc_face_indices(joined_mesh->faces().slice(faces_range),
-                                           MutableSpan(meshgl.faceID).cast<int>());
+  const int face_start = mesh_offsets.face_start[mesh_index];
 
-  meshgl.triVerts.resize(tris_range.size() * 3);
-  bke::mesh::vert_tris_from_corner_tris(joined_mesh->corner_verts().slice(corners_range),
-                                        joined_mesh->corner_tris().slice(tris_range),
-                                        MutableSpan(meshgl.triVerts).cast<int3>());
+  meshgl.faceID.resize(corner_tris.size());
+  /* Inlined copy of #corner_tris_calc_face_indices with an offset added to the face index. */
+  MutableSpan face_ids = MutableSpan(meshgl.faceID);
+  threading::parallel_for(faces.index_range(), 1024, [&](const IndexRange range) {
+    for (const int i : range) {
+      const IndexRange face = faces[i];
+      const int start = poly_to_tri_count(int(i), int(face.start()));
+      const int num = bke::mesh::face_triangles_num(int(face.size()));
+      face_ids.slice(start, num).fill(uint32_t(i + face_start));
+    }
+  });
+
+  meshgl.triVerts.resize(corner_tris.size() * 3);
+  MutableSpan vert_tris = MutableSpan(meshgl.triVerts).cast<int3>();
+  bke::mesh::vert_tris_from_corner_tris(corner_verts, corner_tris, vert_tris);
+
   meshgl.runIndex.resize(2);
   meshgl.runOriginalID.resize(1);
   meshgl.runIndex[0] = 0;
-  meshgl.runIndex[1] = tris_range.size() * 3;
+  meshgl.runIndex[1] = corner_tris.size() * 3;
   meshgl.runOriginalID[0] = mesh_index;
   if (dbg_level > 0) {
     dump_meshgl(meshgl, "converted result for mesh " + std::to_string(mesh_index));
@@ -263,13 +276,13 @@ static void get_manifold(Manifold &manifold,
 /* Get all the Manifold data structures for each Mesh subset of \a joined_mesh that is indicated
  * by a range of offsets in \a mesh_offsets. ß*/
 static void get_manifolds(MutableSpan<Manifold> manifolds,
-                          const Mesh *joined_mesh,
+                          const Span<const Mesh *> meshes,
+                          const Span<float4x4> transforms,
                           const MeshOffsets &mesh_offsets)
 {
   constexpr int dbg_level = 0;
   if (dbg_level > 0) {
     std::cout << "GET_MANIFOLDS\n";
-    dump_mesh(joined_mesh, "joined_mesh");
     std::cout << "\nMesh Offset (starts):\n";
     dump_span(mesh_offsets.vert_start.as_span(), "vert");
     dump_span(mesh_offsets.face_start.as_span(), "face");
@@ -277,15 +290,37 @@ static void get_manifolds(MutableSpan<Manifold> manifolds,
     dump_span(mesh_offsets.corner_start.as_span(), "corner");
   }
   const int meshes_num = manifolds.size();
+
+  /* Transforming the original input meshes is a simple way to reuse the Mesh::corner_tris() cache
+   * for un-transformed meshes. This should reduce memory usage and help to avoid unnecessary cache
+   * recomputations. */
+  Array<const Mesh *> transformed_meshes(meshes_num);
+  for (const int i : meshes.index_range()) {
+    if (math::is_identity(transforms[i])) {
+      transformed_meshes[i] = meshes[i];
+    }
+    else {
+      Mesh *transformed_mesh = BKE_mesh_copy_for_eval(*meshes[i]);
+      BKE_mesh_transform(transformed_mesh, transforms[i].ptr(), false);
+      transformed_meshes[i] = transformed_mesh;
+    }
+  }
+
   if (dbg_level > 0) {
     for (const int mesh_index : IndexRange(meshes_num)) {
-      get_manifold(manifolds[mesh_index], joined_mesh, mesh_index, mesh_offsets);
+      get_manifold(manifolds[mesh_index], meshes, mesh_index, mesh_offsets);
     }
   }
   else {
     threading::parallel_for_each(IndexRange(meshes_num), [&](int mesh_index) {
-      get_manifold(manifolds[mesh_index], joined_mesh, mesh_index, mesh_offsets);
+      get_manifold(manifolds[mesh_index], meshes, mesh_index, mesh_offsets);
     });
+  }
+
+  for (const int i : transformed_meshes.index_range()) {
+    if (transformed_meshes[i] != meshes[i]) {
+      BKE_id_free(nullptr, const_cast<Mesh *>(transformed_meshes[i]));
+    }
   }
 }
 
@@ -1603,8 +1638,9 @@ Mesh *mesh_boolean_manifold(Span<const Mesh *> meshes,
 #ifdef DEBUG_TIME
     timeit::ScopedTimer timer("MANIFOLD BOOLEAN");
 #endif
+
     const int meshes_num = meshes.size();
-    std::vector<Manifold> manifolds(meshes_num);
+
     bke::GeometrySet joined_meshes_set;
     bool no_transforms = math::is_identity(target_transform);
     no_transforms &= std::all_of(transforms.begin(), transforms.end(), [](const float4x4 &t) {
@@ -1616,12 +1652,15 @@ Mesh *mesh_boolean_manifold(Span<const Mesh *> meshes,
     else {
       joined_meshes_set = join_meshes(meshes);
     }
-    MeshOffsets mesh_offsets(meshes);
     const Mesh *joined_mesh = joined_meshes_set.get_mesh();
     if (joined_mesh == nullptr) {
       return nullptr;
     }
-    get_manifolds(manifolds, joined_mesh, mesh_offsets);
+
+    const MeshOffsets mesh_offsets(meshes);
+    std::vector<Manifold> manifolds(meshes_num);
+    get_manifolds(manifolds, meshes, transforms, mesh_offsets);
+
     MeshGL meshgl_result;
     Operation op = op_params.boolean_mode;
     if (std::any_of(manifolds.begin(), manifolds.end(), [](const Manifold &m) {
