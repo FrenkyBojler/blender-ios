@@ -663,6 +663,12 @@ void importer_main(Main *bmain, Scene *scene, ViewLayer *view_layer, const FBXIm
   opts.load_external_files = false;
   opts.clean_skin_weights = true;
   opts.use_blender_pbr_material = true;
+
+  /* Do geometry modifications for "geometric transforms" cases; when it cannot do that
+   * (e.g. instancing etc.), do not insert helper nodes to account for that. Helper nodes currently
+   * cause armatures/skins to not import correctly, when inserted in the middle of bone chain. */
+  opts.geometry_transform_handling = UFBX_GEOMETRY_TRANSFORM_HANDLING_MODIFY_GEOMETRY_NO_FALLBACK;
+
   //@TODO: axes according to import settings
   opts.space_conversion = UFBX_SPACE_CONVERSION_ADJUST_TRANSFORMS;
   opts.target_axes.right = UFBX_COORDINATE_AXIS_POSITIVE_X;
