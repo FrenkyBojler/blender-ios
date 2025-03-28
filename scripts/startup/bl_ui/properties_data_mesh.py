@@ -270,11 +270,11 @@ class DATA_PT_vertex_groups(MeshButtonsPanel, Panel):
             sub.operator("object.vertex_group_select", text="Select")
             sub.operator("object.vertex_group_deselect", text="Deselect")
 
-            layout.use_property_split = True
-            layout.prop(context.tool_settings, "vertex_group_weight", text="Weight")
-            tool_settings = context.tool_settings
-
-            layout.prop(tool_settings, "use_auto_normalize", text="Auto Normalize")
+            col = layout.column(align=True)
+            col.use_property_split = True
+            col.separator()
+            col.prop(context.tool_settings, "vertex_group_weight", text="Weight")
+            col.prop(context.tool_settings, "use_auto_normalize", text="Auto Normalize")
 
         draw_attribute_warnings(context, layout)
 
