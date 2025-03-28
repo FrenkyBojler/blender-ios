@@ -1305,14 +1305,10 @@ static void interpolate_corner_attributes(bke::MutableAttributeAccessor &output_
               bke::attribute_math::convert_to_static_type(type, [&](auto dummy) {
                 using T = decltype(dummy);
                 const Span<T> src_typed = src.typed<T>();
-                Array<T, 20> in_values(in_face.size());
-                for (const int i : in_values.index_range()) {
-                  in_values[i] = src_typed[in_face[i]];
-                }
                 bke::attribute_math::DefaultMixer<T> mixer{
                     MutableSpan(static_cast<T *>(buffer), 1)};
-                for (const int i : in_values.index_range()) {
-                  mixer.mix_in(0, in_values[i], weights[i]);
+                for (const int i : in_face.index_range()) {
+                  mixer.mix_in(0, src_typed[in_face[i]], weights[i]);
                 }
                 mixer.finalize();
                 type.copy_assign(buffer, dst[out_c]);
