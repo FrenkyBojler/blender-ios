@@ -6,11 +6,14 @@
  * \ingroup spview3d
  */
 
+#include <fmt/format.h>
+
 #include "AS_asset_representation.hh"
 
 #include "BKE_asset.hh"
 #include "BKE_context.hh"
 #include "BKE_idprop.hh"
+#include "BKE_idtype.hh"
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_library.hh"
@@ -185,13 +188,36 @@ static std::string view3d_mixed_drop_tooltip(bContext * /*C*/,
     count++;
   });
 
-  /* TODO */
-  // if (dragged_types.size() == 1) {
-  //   if (dragged_types.contains(ID_OB)) {
-  //     // std::
-  //   }
-  // }
-  return TIP_("Add asset(s) to file");
+  const bool has_objects = dragged_types.contains(ID_OB);
+  const bool has_collections = dragged_types.contains(ID_GR);
+
+  if (dragged_types.size() == 1) {
+    const char *name_plural = IFACE_(BKE_idtype_idcode_to_name_plural(*dragged_types.begin()));
+
+    if (has_objects || has_collections) {
+      return fmt::format(fmt::runtime(IFACE_("Add {} to the active collection")), name_plural);
+    }
+    return fmt::format(fmt::runtime(IFACE_("Add {} to file")), name_plural);
+  }
+
+  if (dragged_types.size() == 2) {
+    if (has_objects && has_collections) {
+      return TIP_("Add objects and collections to the active collection");
+    }
+    if (has_objects) {
+      return TIP_("Add objects to the active collection, and remaing assets to the file");
+    }
+    if (has_collections) {
+      return TIP_("Add collections to the active collection, and remaing assets to the file");
+    }
+  }
+
+  if (has_objects && has_collections) {
+    return TIP_(
+        "Add objects and collections to the active collection, and remaining assets to the file");
+  }
+
+  return TIP_("Add assets to file");
 }
 
 static bool view3d_collection_drop_poll(bContext *C, wmDrag *drag, const wmEvent *event)
