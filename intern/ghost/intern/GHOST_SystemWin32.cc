@@ -583,10 +583,14 @@ GHOST_TSuccess GHOST_SystemWin32::getButtons(GHOST_Buttons &buttons) const
 
 GHOST_TCapabilityFlag GHOST_SystemWin32::getCapabilities() const
 {
-  return GHOST_TCapabilityFlag(GHOST_CAPABILITY_FLAG_ALL &
-                               ~(
-                                   /* WIN32 has no support for a primary selection clipboard. */
-                                   GHOST_kCapabilityPrimaryClipboard));
+  return GHOST_TCapabilityFlag(
+      GHOST_CAPABILITY_FLAG_ALL &
+      ~(
+          /* WIN32 has no support for a primary selection clipboard. */
+          GHOST_kCapabilityPrimaryClipboard |
+          /* WIN32 doesn't define a Hyper modifier key,
+           * it's possible another modifier could be optionally used in it's place. */
+          GHOST_kCapabilityKeyboardHyperKey));
 }
 
 GHOST_TSuccess GHOST_SystemWin32::init()
@@ -1380,6 +1384,9 @@ GHOST_Event *GHOST_SystemWin32::processWindowEvent(GHOST_TEventType type,
 
   if (type == GHOST_kEventWindowActivate) {
     system->getWindowManager()->setActiveWindow(window);
+  }
+  else if (type == GHOST_kEventWindowDeactivate) {
+    system->getWindowManager()->setWindowInactive(window);
   }
 
   return new GHOST_Event(getMessageTime(system), type, window);
