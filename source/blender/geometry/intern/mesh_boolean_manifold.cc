@@ -1250,7 +1250,7 @@ static void interpolate_corner_attributes(bke::MutableAttributeAccessor &output_
       out_to_in_face_map.index_range(), grain_size, [&](const IndexRange range) {
         Vector<float, 20> weights;
         Vector<float2, 20> cos_2d;
-        float axis_mat[3][3];
+        float3x3 axis_mat;
         for (const int out_face_index : range) {
           /* Are there any corners needing interpolation in this face?
            * The corners needing interpolation are those whose out_to_in_corner_map entry is -1.
@@ -1275,10 +1275,10 @@ static void interpolate_corner_attributes(bke::MutableAttributeAccessor &output_
           float(*cos_2d_p)[2] = reinterpret_cast<float(*)[2]>(cos_2d.data());
           const float3 axis_dominant = bke::mesh::face_normal_calc(input_vert_positions,
                                                                    in_face_verts);
-          axis_dominant_v3_to_m3(axis_mat, axis_dominant);
+          axis_dominant_v3_to_m3(axis_mat.ptr(), axis_dominant);
           for (const int i : in_face_verts.index_range()) {
-            float3 co = input_vert_positions[in_face_verts[i]];
-            cos_2d[i] = (float3x3(axis_mat) * co).xy();
+            const float3 &co = input_vert_positions[in_face_verts[i]];
+            cos_2d[i] = (axis_mat * co).xy();
           }
           /* Now the loop to actually interpolate attributes of the new-vertex corners of the
            * output face. */
@@ -1288,8 +1288,8 @@ static void interpolate_corner_attributes(bke::MutableAttributeAccessor &output_
               continue;
             }
             const int out_v = output_corner_verts[out_c];
-            float co[2];
-            mul_v2_m3v3(co, axis_mat, output_vert_positions[out_v]);
+            float2 co;
+            mul_v2_m3v3(co, axis_mat.ptr(), output_vert_positions[out_v]);
             interp_weights_poly_v2(weights.data(), cos_2d_p, in_face_size, co);
 
             for (const int attr_index : dsts.index_range()) {
