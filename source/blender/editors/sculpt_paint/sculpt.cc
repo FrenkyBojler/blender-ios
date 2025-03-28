@@ -67,6 +67,7 @@
 #include "NOD_texture.h"
 
 #include "DEG_depsgraph.hh"
+#include "DEG_depsgraph_query.hh"
 
 #include "WM_api.hh"
 #include "WM_toolsystem.hh"
@@ -4020,6 +4021,7 @@ static void init_scene_project_brush_target_objects(const bContext *C,
                                                     const Brush &brush,
                                                     StrokeCache &cache)
 {
+  const Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   View3D *v3d = CTX_wm_view3d(C);
   cache.target_objects.clear();
@@ -4027,9 +4029,10 @@ static void init_scene_project_brush_target_objects(const bContext *C,
   const bool ignore_hidden = brush.flag2 & BRUSH_IGNORE_HIDDEN_OBJECTS;
 
   LISTBASE_FOREACH (Base *, base, BKE_view_layer_object_bases_get(view_layer)) {
-    Object *object = base->object;
+    const bool is_active_object = base->object == &active_object;
+    Object *object = DEG_get_evaluated_object(&depsgraph, base->object);
 
-    if (object != &active_object && object->type == OB_MESH &&
+    if (!is_active_object && object->type == OB_MESH &&
         (!ignore_hidden || BKE_base_is_visible(v3d, base)))
     {
       cache.target_objects.append(object);
