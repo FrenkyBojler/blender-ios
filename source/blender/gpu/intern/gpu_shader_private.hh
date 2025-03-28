@@ -199,8 +199,16 @@ class ShaderCompilerGeneric : public ShaderCompiler {
   struct Batch {
     Vector<Shader *> shaders;
     Vector<const shader::ShaderCreateInfo *> infos;
+
+    Vector<ShaderSpecialization> specializations;
+
     std::atomic_int32_t pending_compilations = 0;
     std::atomic_bool is_cancelled = false;
+
+    bool is_specialization_batch()
+    {
+      return !specializations.is_empty();
+    }
 
     bool is_ready()
     {
@@ -221,11 +229,11 @@ class ShaderCompilerGeneric : public ShaderCompiler {
   Map<BatchHandle, Batch *> batches_;
   std::mutex mutex_;
 
-  struct CompilationWork {
+  struct ParallelWork {
     Batch *batch = nullptr;
     int shader_index = 0;
   };
-  std::deque<CompilationWork> compilation_queue_;
+  std::deque<ParallelWork> compilation_queue_;
 
   std::unique_ptr<GPUWorker> compilation_worker_;
 
@@ -240,11 +248,17 @@ class ShaderCompilerGeneric : public ShaderCompiler {
   ~ShaderCompilerGeneric() override;
 
   virtual Shader *compile_shader(const shader::ShaderCreateInfo &info);
+  virtual void specialize_shader(ShaderSpecialization & /*specialization*/){};
 
   BatchHandle batch_compile(Span<const shader::ShaderCreateInfo *> &infos) override;
   void batch_cancel(BatchHandle &handle) override;
   bool batch_is_ready(BatchHandle handle) override;
   Vector<Shader *> batch_finalize(BatchHandle &handle) override;
+
+  virtual SpecializationBatchHandle precompile_specializations(
+      Span<ShaderSpecialization> specializations) override;
+
+  virtual bool specialization_batch_is_ready(SpecializationBatchHandle &handle) override;
 };
 
 enum class Severity {

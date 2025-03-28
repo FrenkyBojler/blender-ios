@@ -256,48 +256,17 @@ class GLShaderCompiler : public ShaderCompilerGeneric {
   Vector<GLCompilerWorker *> workers_;
   std::mutex workers_mutex_;
 
-  struct SpecializationRequest {
-    BatchHandle handle;
-    Vector<ShaderSpecialization> specializations;
-  };
-
-  Vector<SpecializationRequest> specialization_queue;
-  std::mutex specializations_mutex_;
-
-  struct SpecializationWork {
-    GLShader *shader = nullptr;
-    Vector<shader::SpecializationConstant> constants;
-    GLSourcesBaked sources;
-
-    GLShader::GLProgram *program_get();
-
-    GLCompilerWorker *worker = nullptr;
-    bool do_async_compilation = false;
-    bool is_ready = false;
-  };
-
-  struct SpecializationBatch {
-    SpecializationBatchHandle handle = 0;
-    Vector<SpecializationWork> items;
-    bool is_ready = true;
-  };
-
-  SpecializationBatch current_specialization_batch;
-  void prepare_next_specialization_batch();
-
   GLCompilerWorker *get_compiler_worker(const GLSourcesBaked &sources);
   bool check_worker_is_lost(GLCompilerWorker *&worker);
+
+  GLShader::GLProgram *specialization_program_get(ShaderSpecialization &specialization);
 
  public:
   GLShaderCompiler() : ShaderCompilerGeneric(true, GPUWorker::ContextType::PerThread){};
   virtual ~GLShaderCompiler() override;
 
   virtual Shader *compile_shader(const shader::ShaderCreateInfo &info) override;
-
-  virtual SpecializationBatchHandle precompile_specializations(
-      Span<ShaderSpecialization> specializations) override;
-
-  virtual bool specialization_batch_is_ready(SpecializationBatchHandle &handle) override;
+  virtual void specialize_shader(ShaderSpecialization &specialization) override;
 };
 
 #else

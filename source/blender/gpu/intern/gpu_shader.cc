@@ -1023,17 +1023,16 @@ void ShaderCompilerGeneric::batch_cancel(BatchHandle &handle)
 
   Batch *batch = batches_.pop(handle);
 
-  for (CompilationWork &work : compilation_queue_) {
+  for (ParallelWork &work : compilation_queue_) {
     if (work.batch == batch) {
       work = {};
       batch->pending_compilations--;
     }
   }
 
-  compilation_queue_.erase(std::remove_if(
-      compilation_queue_.begin(), compilation_queue_.end(), [](const CompilationWork &work) {
-        return !work.batch;
-      }));
+  compilation_queue_.erase(std::remove_if(compilation_queue_.begin(),
+                                          compilation_queue_.end(),
+                                          [](const ParallelWork &work) { return !work.batch; }));
 
   if (batch->is_ready()) {
     batch->free_shaders();
@@ -1071,6 +1070,43 @@ Vector<Shader *> ShaderCompilerGeneric::batch_finalize(BatchHandle &handle)
   return shaders;
 }
 
+SpecializationBatchHandle ShaderCompilerGeneric::precompile_specializations(
+    Span<ShaderSpecialization> specializations)
+{
+  if (!compilation_worker_) {
+    return 0;
+  }
+
+  std::lock_guard lock(mutex_);
+
+  Batch *batch = MEM_new<Batch>(__func__);
+  batch->specializations = specializations;
+
+  BatchHandle handle = next_batch_handle_++;
+  batches_.add(handle, batch);
+
+  batch->pending_compilations = specializations.size();
+  for (int i : specializations.index_range()) {
+    compilation_queue_.push_back({batch, i});
+    compilation_worker_->wake_up();
+  }
+
+  return handle;
+}
+
+bool ShaderCompilerGeneric::specialization_batch_is_ready(SpecializationBatchHandle &handle)
+{
+  if (handle != 0 && batch_is_ready(handle)) {
+    std::lock_guard lock(mutex_);
+
+    Batch *batch = batches_.pop(handle);
+    MEM_delete(batch);
+    handle = 0;
+  }
+
+  return handle == 0;
+}
+
 void ShaderCompilerGeneric::run_thread()
 {
   while (true) {
@@ -1083,14 +1119,19 @@ void ShaderCompilerGeneric::run_thread()
         return;
       }
 
-      CompilationWork &work = compilation_queue_.front();
+      ParallelWork &work = compilation_queue_.front();
       batch = work.batch;
       shader_index = work.shader_index;
       compilation_queue_.pop_front();
     }
 
     /* Compile */
-    batch->shaders[shader_index] = compile_shader(*batch->infos[shader_index]);
+    if (!batch->is_specialization_batch()) {
+      batch->shaders[shader_index] = compile_shader(*batch->infos[shader_index]);
+    }
+    else {
+      specialize_shader(batch->specializations[shader_index]);
+    }
 
     {
       std::lock_guard lock(mutex_);
