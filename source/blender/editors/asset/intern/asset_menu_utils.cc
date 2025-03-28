@@ -123,7 +123,8 @@ const asset_system::AssetRepresentation *find_asset_from_weak_ref(
   return matching_asset;
 }
 
-static AssetWeakReference asset_weak_reference_from_operator(PointerRNA &ptr)
+const asset_system::AssetRepresentation *operator_asset_reference_props_get_asset_from_all_library(
+    const bContext &C, PointerRNA &ptr, ReportList *reports)
 {
   AssetWeakReference weak_ref{};
   weak_ref.asset_library_type = RNA_enum_get(&ptr, "asset_library_type");
@@ -131,13 +132,7 @@ static AssetWeakReference asset_weak_reference_from_operator(PointerRNA &ptr)
       &ptr, "asset_library_identifier", nullptr, 0, nullptr);
   weak_ref.relative_asset_identifier = RNA_string_get_alloc(
       &ptr, "relative_asset_identifier", nullptr, 0, nullptr);
-  return weak_ref;
-}
 
-const asset_system::AssetRepresentation *operator_asset_reference_props_get_asset_from_all_library(
-    const bContext &C, PointerRNA &ptr, ReportList *reports)
-{
-  const AssetWeakReference weak_ref = asset_weak_reference_from_operator(ptr);
   return find_asset_from_weak_ref(C, weak_ref, reports);
 }
 
