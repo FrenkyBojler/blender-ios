@@ -1215,7 +1215,6 @@ static void interpolate_corner_attributes(bke::MutableAttributeAccessor &output_
 #endif
   /* Make parallel arrays of things needed access and write all corner attributes to interpolate.
    */
-  Vector<bke::AttributeIter> attribute_iters;
   Vector<bke::GSpanAttributeWriter> writers;
   Vector<bke::GAttributeReader> readers;
   Vector<std::optional<GVArraySpan>> srcs;
@@ -1230,7 +1229,6 @@ static void interpolate_corner_attributes(bke::MutableAttributeAccessor &output_
     if (!reader) {
       return;
     }
-    attribute_iters.append(iter);
     writers.append(
         output_attrs.lookup_or_add_for_write_span(iter.name, iter.domain, iter.data_type));
     readers.append(input_attrs.lookup_or_default(iter.name, iter.domain, iter.data_type));
