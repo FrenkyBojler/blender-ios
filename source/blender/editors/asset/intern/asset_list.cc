@@ -94,7 +94,7 @@ class AssetList : NonCopyable {
 
   void setup();
   void fetch(const bContext &C);
-  void ensure(const bContext &C);
+  void ensure_blocking(const bContext &C);
   void clear(wmWindowManager *wm);
 
   AssetHandle asset_get_by_index(int index) const;
@@ -163,7 +163,7 @@ void AssetList::fetch(const bContext &C)
   filelist_filter(files);
 }
 
-void AssetList::ensure(const bContext &C)
+void AssetList::ensure_blocking(const bContext &C)
 {
   FileList *files = filelist_;
 
@@ -424,18 +424,18 @@ void storage_fetch(const AssetLibraryReference *library_reference, const bContex
   }
 }
 
-void ensure_storage_loaded(const AssetLibraryReference *library_reference, const bContext *C)
+void storage_fetch_blocking(const AssetLibraryReference &library_reference, const bContext &C)
 {
-  std::optional filesel_type = asset_library_reference_to_fileselect_type(*library_reference);
+  std::optional filesel_type = asset_library_reference_to_fileselect_type(library_reference);
   if (!filesel_type) {
     /* TODO: Warn? */
     return;
   }
 
-  auto [list, is_new] = ensure_list_storage(*library_reference, *filesel_type);
+  auto [list, is_new] = ensure_list_storage(library_reference, *filesel_type);
   if (is_new || list.needs_refetch()) {
     list.setup();
-    list.ensure(*C);
+    list.ensure_blocking(C);
   }
 }
 

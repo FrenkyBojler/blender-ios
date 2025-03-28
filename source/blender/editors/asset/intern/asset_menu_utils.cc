@@ -100,7 +100,7 @@ static const asset_system::AssetRepresentation *find_asset_from_weak_ref_ex(
 
   const AssetLibraryReference library_ref = asset_system::all_library_reference();
   if (force_blocking_read) {
-    list::ensure_storage_loaded(&library_ref, &C);
+    list::storage_fetch_blocking(library_ref, C);
   }
   else {
     list::storage_fetch(&library_ref, &C);
