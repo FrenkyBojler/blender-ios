@@ -1996,7 +1996,6 @@ def write_rst_index(basepath):
 
         # Python C-API modules.
         "bpy.props",
-        "bpy.geometry",
     )
 
     for mod in app_modules:
@@ -2107,7 +2106,7 @@ def write_rst_ops_index(basepath):
 
 def write_rst_geometry_set(basepath):
     """
-    Write the RST file for ``bpy.types.GeometrySet``
+    Write the RST file for ``bpy.types.GeometrySet``.
     """
     if 'bpy.types.GeometrySet' in EXCLUDE_MODULES:
         return
@@ -2117,7 +2116,7 @@ def write_rst_geometry_set(basepath):
     file = open(filepath, "w", encoding="utf-8")
     fw = file.write
     fw(title_string("GeometrySet", "="))
-    pyclass2sphinx(fw, "bpy.types", "GeometrySet", bpy.geometry.GeometrySet)
+    pyclass2sphinx(fw, "bpy.types", "GeometrySet", bpy.types.GeometrySet)
 
     EXAMPLE_SET_USED.add("bpy.types.GeometrySet")
 

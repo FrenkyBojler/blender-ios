@@ -260,9 +260,9 @@ class Object(_types.ID):
         objects that contain geometry data like meshes and curves but not e.g. cameras.
 
         :return: The evaluated geometry.
-        :rtype: :class:`bpy.geometry.GeometrySet`
+        :rtype: :class:`bpy.types.GeometrySet`
         """
-        from bpy.geometry import GeometrySet
+        from bpy.types import GeometrySet
         return GeometrySet.from_evaluated_object(self)
 
 

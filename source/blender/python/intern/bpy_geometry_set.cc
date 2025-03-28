@@ -404,24 +404,10 @@ PyTypeObject bpy_geometry_set_Type = {
     /*tp_new*/ reinterpret_cast<newfunc>(BPy_GeometrySet_new),
 };
 
-static PyModuleDef _bpy_geometry_set_module_def = {
-    /*m_base*/ PyModuleDef_HEAD_INIT,
-    /*m_name*/ "_bpy_geometry_set",
-    /*m_doc*/ nullptr,
-    /*m_size*/ 0,
-    /*m_methods*/ nullptr,
-    /*m_slots*/ nullptr,
-    /*m_traverse*/ nullptr,
-    /*m_clear*/ nullptr,
-    /*m_free*/ nullptr,
-};
-
-PyObject *BPyInit_geometry_set()
+PyObject *BPyInit_geometry_set_type()
 {
-  PyObject *m = PyModule_Create(&_bpy_geometry_set_module_def);
   if (PyType_Ready(&bpy_geometry_set_Type) < 0) {
     return nullptr;
   }
-  PyModule_AddObject(m, "GeometrySet", reinterpret_cast<PyObject *>(&bpy_geometry_set_Type));
-  return m;
+  return reinterpret_cast<PyObject *>(&bpy_geometry_set_Type);
 }
