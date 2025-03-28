@@ -84,20 +84,24 @@ static void object_raycast(const Object &active_object,
   Array<float3> ray_origins(positions.size());
   convert_positions(active_to_target_mat, positions, ray_origins);
 
-  for (const int i : positions.index_range()) {
-    if (factors[i] == 0.0f) {
-      continue;
-    }
+  threading::isolate_task([&]() {
+    threading::parallel_for(positions.index_range(), 256, [&](IndexRange range) {
+      for (const int i : range) {
+        if (factors[i] == 0.0f) {
+          continue;
+        }
 
-    BVHTreeRayHit hit;
-    raycast(ray_origins[i], ray_normal, tree_data, hit);
-    r_hit_distances[i] = calc_absolute_min_distance(r_hit_distances[i], hit.dist);
+        BVHTreeRayHit hit;
+        raycast(ray_origins[i], ray_normal, tree_data, hit);
+        r_hit_distances[i] = calc_absolute_min_distance(r_hit_distances[i], hit.dist);
 
-    if (both_directions) {
-      raycast(ray_origins[i], -ray_normal, tree_data, hit);
-      r_hit_distances[i] = calc_absolute_min_distance(r_hit_distances[i], -hit.dist);
-    }
-  }
+        if (both_directions) {
+          raycast(ray_origins[i], -ray_normal, tree_data, hit);
+          r_hit_distances[i] = calc_absolute_min_distance(r_hit_distances[i], -hit.dist);
+        }
+      }
+    });
+  });
 }
 
 static void scene_raycast(const Object &active_object,
