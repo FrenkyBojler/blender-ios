@@ -1694,7 +1694,33 @@ bool PyC_RunString_AsStringOrNone(const char *imports[],
 
 void PyC_StdFilesFlush()
 {
-  /* TODO: Actually implement the flushing. */
+  PyObject *sys_module = PyImport_ImportModule("sys");
+  if (!sys_module) {
+    PyErr_Clear();
+    return;
+  }
+  PyObject *py_flush = PyUnicode_FromString("flush");
+  if (!py_flush) {
+    PyErr_Clear();
+    return;
+  }
+
+  auto flush = [&](const char *name) {
+    PyObject *py_file = PyObject_GetAttrString(sys_module, name);
+    if (!py_file) {
+      PyErr_Clear();
+      return;
+    }
+    if (!PyObject_CallMethodNoArgs(py_file, py_flush)) {
+      PyErr_Clear();
+    }
+    Py_DECREF(py_file);
+  };
+
+  flush("stdout");
+  flush("stderr");
+  Py_DECREF(py_flush);
+  Py_DECREF(sys_module);
 }
 
 /** \} */
