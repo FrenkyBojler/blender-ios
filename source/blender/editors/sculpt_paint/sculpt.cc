@@ -737,18 +737,13 @@ std::optional<BMVert *> nearest_vert_calc_bmesh(const bke::pbvh::Tree &pbvh,
 
 }  // namespace blender::ed::sculpt_paint
 
-bool SCULPT_is_symmetry_iteration_valid(char i, char symm)
-{
-  return i == 0 || (symm & i && (symm != 5 || i != 3) && (symm != 6 || !ELEM(i, 3, 5)));
-}
-
 bool SCULPT_is_vertex_inside_brush_radius_symm(const float vertex[3],
                                                const float br_co[3],
                                                float radius,
                                                char symm)
 {
   for (eMeshSymmetryType symmpass = ME_SYMMETRY_NONE; symmpass <= symm; symmpass++) {
-    if (!SCULPT_is_symmetry_iteration_valid(symmpass, symm)) {
+    if (!is_symmetry_iteration_valid(symmpass, symm)) {
       continue;
     }
     float3 location = blender::ed::sculpt_paint::symmetry_flip(br_co, symmpass);
@@ -1269,7 +1264,7 @@ static float calc_symmetry_feather(const Mesh &mesh, const blender::ed::sculpt_p
 
   overlap = 0.0f;
   for (eMeshSymmetryType symmpass = ME_SYMMETRY_NONE; symmpass <= symm; symmpass++) {
-    if (!SCULPT_is_symmetry_iteration_valid(symmpass, symm)) {
+    if (!blender::ed::sculpt_paint::is_symmetry_iteration_valid(symmpass, symm)) {
       continue;
     }
 
@@ -3719,7 +3714,7 @@ static void do_symmetrical_brush_actions(const Depsgraph &depsgraph,
   /* `symm` is a bit combination of XYZ -
    * 1 is mirror X; 2 is Y; 3 is XY; 4 is Z; 5 is XZ; 6 is YZ; 7 is XYZ */
   for (int i = 0; i <= symm; i++) {
-    if (!SCULPT_is_symmetry_iteration_valid(i, symm)) {
+    if (!is_symmetry_iteration_valid(i, symm)) {
       continue;
     }
     const eMeshSymmetryType symm = eMeshSymmetryType(i);

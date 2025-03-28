@@ -1123,7 +1123,7 @@ static void cursor_draw_point_with_symmetry(const uint gpuattr,
   float symm_rot_mat[4][4];
 
   for (eMeshSymmetryType symmpass = ME_SYMMETRY_NONE; symmpass <= symm; symmpass++) {
-    if (SCULPT_is_symmetry_iteration_valid(symmpass, symm)) {
+    if (is_symmetry_iteration_valid(symmpass, symm)) {
       /* Axis Symmetry. */
       location = symmetry_flip(true_location, symmpass);
       cursor_draw_point_screen_space(gpuattr, region, location, ob.object_to_world().ptr(), 3);
