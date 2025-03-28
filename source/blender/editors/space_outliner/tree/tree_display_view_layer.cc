@@ -22,16 +22,22 @@
 #include "common.hh"
 #include "tree_display.hh"
 
+
 namespace blender::ed::outliner {
 
 template<typename T> using List = ListBaseWrapper<T>;
 
 class ObjectsChildrenBuilder {
   using TreeChildren = Vector<TreeElement *>;
+  using ObjectsVector = Vector<Object*>;
   using ObjectTreeElementsMap = Map<Object *, TreeChildren>;
+  using ObjectHierarchyDepthMap = Map<Object*, size_t>;
+
 
   SpaceOutliner &outliner_;
   ObjectTreeElementsMap object_tree_elements_map_;
+  ObjectsVector sorted_objects_vector_;
+  ObjectHierarchyDepthMap object_hierarchy_depth_map_;
 
  public:
   ObjectsChildrenBuilder(SpaceOutliner &space_outliner);
@@ -42,6 +48,8 @@ class ObjectsChildrenBuilder {
  private:
   void object_tree_elements_lookup_create_recursive(TreeElement *te_parent);
   void make_object_parent_hierarchy_collections();
+  void prepare_sorted_objects_vector();
+  static size_t object_hierarchy_depth(const Object* o);
 };
 
 /* -------------------------------------------------------------------- */
@@ -229,21 +237,62 @@ void ObjectsChildrenBuilder::object_tree_elements_lookup_create_recursive(TreeEl
 }
 
 /**
+ * Compute how many parents an Object has.
+ */
+size_t ObjectsChildrenBuilder::object_hierarchy_depth(const Object* o)
+{
+  size_t result = 0;
+  Object* p = o->parent;
+  while (p != nullptr)
+  {
+    result++;
+    p = p->parent;
+  }
+  return result;
+}
+
+/**
+ * Compose vector of Object* sorted by their hierarchy depth.
+ * We want objects higher in hierarchy to be added to tree earlier
+ * than their children.
+ */
+void ObjectsChildrenBuilder::prepare_sorted_objects_vector()
+{
+  sorted_objects_vector_.clear();
+  sorted_objects_vector_.reserve(object_tree_elements_map_.size());
+  object_hierarchy_depth_map_.clear();
+  object_hierarchy_depth_map_.reserve(object_tree_elements_map_.size());
+
+  for (ObjectTreeElementsMap::MutableItem item : object_tree_elements_map_.items()) {
+    sorted_objects_vector_.append(item.key);
+
+    // Cache the hierarchy depths to avoid multiple calls to object_hierarchy_depth when sorting
+    object_hierarchy_depth_map_.add(item.key, object_hierarchy_depth(item.key));
+  }
+
+  std::sort(sorted_objects_vector_.begin(), sorted_objects_vector_.end(), [this](Object* a, Object* b)
+  {    
+    return object_hierarchy_depth_map_.lookup(a) < object_hierarchy_depth_map_.lookup(b);
+  });
+}
+
+/**
  * For all objects in the tree, lookup the parent in this map,
  * and move or add tree elements as needed.
  */
 void ObjectsChildrenBuilder::make_object_parent_hierarchy_collections()
 {
-  for (ObjectTreeElementsMap::MutableItem item : object_tree_elements_map_.items()) {
-    Object *child = item.key;
+  prepare_sorted_objects_vector();
 
+  for (Object* child : sorted_objects_vector_) {
     if (child->parent == nullptr) {
       continue;
     }
 
-    Vector<TreeElement *> &child_ob_tree_elements = item.value;
+    Vector<TreeElement *> &child_ob_tree_elements = object_tree_elements_map_.lookup(child);
     Vector<TreeElement *> *parent_ob_tree_elements = object_tree_elements_map_.lookup_ptr(
         child->parent);
+
     if (parent_ob_tree_elements == nullptr) {
       continue;
     }
