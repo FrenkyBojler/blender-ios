@@ -45,8 +45,11 @@
 
 #include "interface_intern.hh"
 
+#include "UI_interface_layout.hh"
+
 using blender::StringRef;
 using blender::StringRefNull;
+using blender::ui::ILayout;
 
 /* Show an icon button after each RNA button to use to quickly set keyframes,
  * this is a way to display animation/driven/override status, see #54951. */
@@ -4959,17 +4962,22 @@ static void ui_layout_heading_set(uiLayout *layout, const StringRef heading)
   heading.copy_utf8_truncated(layout->heading);
 }
 
-uiLayout *uiLayoutRow(uiLayout *layout, bool align)
+ILayout ILayout::row(bool align)
 {
   uiLayout *litem = MEM_new<uiLayout>(__func__);
-  ui_litem_init_from_parent(litem, layout, align);
+  ui_litem_init_from_parent(litem, this->layout_, align);
 
   litem->type = ITEM_LAYOUT_ROW;
-  litem->space = (align) ? 0 : layout->root->style->buttonspacex;
+  litem->space = (align) ? 0 : this->layout_->root->style->buttonspacex;
 
-  UI_block_layout_set_current(layout->root->block, litem);
+  UI_block_layout_set_current(this->layout_->root->block, litem);
 
   return litem;
+}
+
+uiLayout *uiLayoutRow(uiLayout *layout, bool align)
+{
+  return ILayout(layout).row(align);
 }
 
 PanelLayout uiLayoutPanelProp(const bContext *C,
@@ -5089,40 +5097,71 @@ uiLayout *uiLayoutRowWithHeading(uiLayout *layout, bool align, const StringRef h
   return litem;
 }
 
-uiLayout *uiLayoutColumn(uiLayout *layout, bool align)
+ILayout ILayout::column(bool align)
 {
   uiLayout *litem = MEM_new<uiLayout>(__func__);
-  ui_litem_init_from_parent(litem, layout, align);
+  ui_litem_init_from_parent(litem, this->layout_, align);
 
   litem->type = ITEM_LAYOUT_COLUMN;
-  litem->space = (align) ? 0 : layout->root->style->buttonspacey;
+  litem->space = (align) ? 0 : this->layout_->root->style->buttonspacey;
 
-  UI_block_layout_set_current(layout->root->block, litem);
+  UI_block_layout_set_current(this->layout_->root->block, litem);
 
+  return litem;
+}
+uiLayout *uiLayoutColumn(uiLayout *layout, bool align)
+{
+  return ILayout(layout).column(align);
+}
+
+ILayout ILayout::column_with_heading(bool align, const StringRef heading)
+{
+  uiLayout *litem = uiLayoutColumn(this->layout_, align);
+  ui_layout_heading_set(litem, heading);
   return litem;
 }
 
 uiLayout *uiLayoutColumnWithHeading(uiLayout *layout, bool align, const StringRef heading)
 {
-  uiLayout *litem = uiLayoutColumn(layout, align);
-  ui_layout_heading_set(litem, heading);
-  return litem;
+  return ILayout(layout).column_with_heading(align, heading);
 }
 
 uiLayout *uiLayoutColumnFlow(uiLayout *layout, int number, bool align)
 {
+  return ILayout(layout).column_flow(number, align);
+}
+
+ILayout ILayout::column_flow(int number, bool align)
+{
   uiLayoutItemFlow *flow = MEM_new<uiLayoutItemFlow>(__func__);
-  ui_litem_init_from_parent(flow, layout, align);
+  ui_litem_init_from_parent(flow, this->layout_, align);
 
   flow->type = ITEM_LAYOUT_COLUMN_FLOW;
-  flow->space = (flow->align) ? 0 : layout->root->style->columnspace;
+  flow->space = (flow->align) ? 0 : this->layout_->root->style->columnspace;
   flow->number = number;
 
-  UI_block_layout_set_current(layout->root->block, flow);
+  UI_block_layout_set_current(this->layout_->root->block, flow);
 
   return flow;
 }
 
+ILayout ILayout::grid_flow(
+    bool row_major, int columns_len, bool even_columns, bool even_rows, bool align)
+{
+  uiLayoutItemGridFlow *flow = MEM_new<uiLayoutItemGridFlow>(__func__);
+  flow->type = ITEM_LAYOUT_GRID_FLOW;
+  ui_litem_init_from_parent(flow, this->layout_, align);
+
+  flow->space = (flow->align) ? 0 : this->layout_->root->style->columnspace;
+  flow->row_major = row_major;
+  flow->columns_len = columns_len;
+  flow->even_columns = even_columns;
+  flow->even_rows = even_rows;
+
+  UI_block_layout_set_current(this->layout_->root->block, flow);
+
+  return flow;
+}
 uiLayout *uiLayoutGridFlow(uiLayout *layout,
                            bool row_major,
                            int columns_len,
@@ -5130,19 +5169,8 @@ uiLayout *uiLayoutGridFlow(uiLayout *layout,
                            bool even_rows,
                            bool align)
 {
-  uiLayoutItemGridFlow *flow = MEM_new<uiLayoutItemGridFlow>(__func__);
-  flow->type = ITEM_LAYOUT_GRID_FLOW;
-  ui_litem_init_from_parent(flow, layout, align);
 
-  flow->space = (flow->align) ? 0 : layout->root->style->columnspace;
-  flow->row_major = row_major;
-  flow->columns_len = columns_len;
-  flow->even_columns = even_columns;
-  flow->even_rows = even_rows;
-
-  UI_block_layout_set_current(layout->root->block, flow);
-
-  return flow;
+  return ILayout(layout).grid_flow(row_major, columns_len, even_columns, even_rows, align);
 }
 
 static uiLayoutItemBx *ui_layout_box(uiLayout *layout, int type)
@@ -5160,35 +5188,45 @@ static uiLayoutItemBx *ui_layout_box(uiLayout *layout, int type)
   return box;
 }
 
-uiLayout *uiLayoutRadial(uiLayout *layout)
+ILayout ILayout::radial()
 {
   /* radial layouts are only valid for radial menus */
-  if (layout->root->type != UI_LAYOUT_PIEMENU) {
-    return ui_item_local_sublayout(layout, layout, false);
+  if (this->layout_->root->type != UI_LAYOUT_PIEMENU) {
+    return ui_item_local_sublayout(this->layout_, this->layout_, false);
   }
 
   /* only one radial wheel per root layout is allowed, so check and return that, if it exists */
-  for (uiItem *item : layout->root->layout->items) {
+  for (uiItem *item : this->layout_->root->layout->items) {
     if (item->type == ITEM_LAYOUT_RADIAL) {
       uiLayout *litem = static_cast<uiLayout *>(item);
-      UI_block_layout_set_current(layout->root->block, litem);
+      UI_block_layout_set_current(this->layout_->root->block, litem);
       return litem;
     }
   }
 
   uiLayout *litem = MEM_new<uiLayout>(__func__);
-  ui_litem_init_from_parent(litem, layout, false);
+  ui_litem_init_from_parent(litem, this->layout_, false);
 
   litem->type = ITEM_LAYOUT_RADIAL;
 
-  UI_block_layout_set_current(layout->root->block, litem);
+  UI_block_layout_set_current(this->layout_->root->block, litem);
 
   return litem;
 }
 
+uiLayout *uiLayoutRadial(uiLayout *layout)
+{
+  return ILayout(layout).radial();
+}
+
+ILayout ILayout::box()
+{
+  return ui_layout_box(this->layout_, UI_BTYPE_ROUNDBOX);
+}
+
 uiLayout *uiLayoutBox(uiLayout *layout)
 {
-  return (uiLayout *)ui_layout_box(layout, UI_BTYPE_ROUNDBOX);
+  return ILayout(layout).box();
 }
 
 void ui_layout_list_set_labels_active(uiLayout *layout)
@@ -5206,12 +5244,9 @@ void ui_layout_list_set_labels_active(uiLayout *layout)
   }
 }
 
-uiLayout *uiLayoutListBox(uiLayout *layout,
-                          uiList *ui_list,
-                          PointerRNA *actptr,
-                          PropertyRNA *actprop)
+ILayout ILayout::list_box(uiList *ui_list, PointerRNA *actptr, PropertyRNA *actprop)
 {
-  uiLayoutItemBx *box = ui_layout_box(layout, UI_BTYPE_LISTBOX);
+  uiLayoutItemBx *box = ui_layout_box(this->layout_, UI_BTYPE_LISTBOX);
   uiBut *but = box->roundbox;
 
   but->custom_data = ui_list;
@@ -5224,7 +5259,15 @@ uiLayout *uiLayoutListBox(uiLayout *layout,
     but->tip = RNA_property_description(actprop);
   }
 
-  return (uiLayout *)box;
+  return box;
+}
+
+uiLayout *uiLayoutListBox(uiLayout *layout,
+                          uiList *ui_list,
+                          PointerRNA *actptr,
+                          PropertyRNA *actprop)
+{
+  return ILayout(layout).list_box(ui_list, actptr, actprop);
 }
 
 uiLayout *uiLayoutAbsolute(uiLayout *layout, bool align)
@@ -5259,18 +5302,23 @@ uiLayout *uiLayoutOverlap(uiLayout *layout)
   return litem;
 }
 
-uiLayout *uiLayoutSplit(uiLayout *layout, float percentage, bool align)
+ILayout ILayout::split(float percentage, bool align)
 {
   uiLayoutItemSplit *split = MEM_new<uiLayoutItemSplit>(__func__);
-  ui_litem_init_from_parent(split, layout, align);
+  ui_litem_init_from_parent(split, this->layout_, align);
 
   split->type = ITEM_LAYOUT_SPLIT;
-  split->space = layout->root->style->columnspace;
+  split->space = this->layout_->root->style->columnspace;
   split->percentage = percentage;
 
-  UI_block_layout_set_current(layout->root->block, split);
+  UI_block_layout_set_current(this->layout_->root->block, split);
 
   return split;
+}
+
+uiLayout *uiLayoutSplit(uiLayout *layout, float percentage, bool align)
+{
+  return ILayout(layout).split(percentage, align);
 }
 
 void uiLayoutSetActive(uiLayout *layout, bool active)
