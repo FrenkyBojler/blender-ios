@@ -6,9 +6,9 @@
  * \ingroup bke
  */
 
-#include <optional>
-
 #include "MEM_guardedalloc.h"
+#include <iostream>
+#include <optional>
 
 /* Allow using deprecated functionality for .blend file I/O. */
 #define DNA_DEPRECATED_ALLOW
@@ -613,17 +613,19 @@ void BKE_mesh_reorder_vertices_spatial(Object *object)
   BitVector<> added_verts(mesh->verts_num, false);
 
   // Store offsets for unique vertices
-  Vector<int> node_unique_offsets;
-  node_unique_offsets.reserve(pbvh->nodes_num() + 1);
-  node_unique_offsets.append(0);
+  pbvh->node_unique_offsets.clear();
+  pbvh->node_unique_offsets.reserve(pbvh->nodes_num() + 1);
+  pbvh->node_unique_offsets.append(0);
 
   // Store offsets for all vertices
-  Vector<int> node_all_offsets;
-  node_all_offsets.reserve(pbvh->nodes_num() + 1);
-  node_all_offsets.append(0);
+  pbvh->node_all_offsets.clear();
+  pbvh->node_all_offsets.reserve(pbvh->nodes_num() + 1);
+  pbvh->node_all_offsets.append(0);
+
   for (int i = 0; i < pbvh->nodes_num(); i++) {
     MeshNode &node = pbvh->nodes<MeshNode>()[i];
     node.node_idx_ = i;
+    // std::cout << "node_idx_: " << node.node_idx_ << std::endl;
   }
   for (int i = 0; i < pbvh->nodes_num(); i++) {
     MeshNode &node = pbvh->nodes<MeshNode>()[i];
@@ -636,7 +638,7 @@ void BKE_mesh_reorder_vertices_spatial(Object *object)
           added_verts[vert_idx].set();
         }
       }
-      node_unique_offsets.append(new_order.size());
+      pbvh->node_unique_offsets.append(new_order.size());
 
       // shared vertices
       for (int j = node.unique_verts_num_; j < node.vert_indices_.size(); j++) {
@@ -646,22 +648,19 @@ void BKE_mesh_reorder_vertices_spatial(Object *object)
           added_verts[vert_idx].set();
         }
       }
-      node_all_offsets.append(new_order.size());
+      pbvh->node_all_offsets.append(new_order.size());
     }
   }
-
   // remaining vertices
   for (int i = 0; i < mesh->verts_num; i++) {
     if (!added_verts[i]) {
       new_order.append(i);
     }
   }
-
   Vector<int> reverse_map(mesh->verts_num);
   for (int i = 0; i < mesh->verts_num; i++) {
     reverse_map[new_order[i]] = i;
   }
-
   // Reorder point domain attributes
   MutableAttributeAccessor attributes_for_write = mesh->attributes_for_write();
   if (auto mask_span_writer = attributes_for_write.lookup_or_add_for_write_only_span<float>(
@@ -705,9 +704,12 @@ void BKE_mesh_reorder_vertices_spatial(Object *object)
     edge.y = reverse_map[edge.y];
   }
 
-  pbvh->node_unique_offset_indices = OffsetIndices<int>(node_unique_offsets);
-  pbvh->node_all_offset_indices = OffsetIndices<int>(node_all_offsets);
-
+  pbvh->node_unique_offset_indices = OffsetIndices<int>(pbvh->node_unique_offsets);
+  pbvh->node_all_offset_indices = OffsetIndices<int>(pbvh->node_all_offsets);
+  for (int i = 0; i < pbvh->node_unique_offset_indices.data().size(); i++) {
+    std::cout << pbvh->node_unique_offset_indices.data()[i] << std::endl;
+  }
+  std::cout << " " << std::endl;
   mesh->tag_topology_changed();
 }
 

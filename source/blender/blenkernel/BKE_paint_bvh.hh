@@ -250,6 +250,8 @@ class Tree {
 
  public:
   std::variant<Vector<MeshNode>, Vector<GridsNode>, Vector<BMeshNode>> nodes_;
+  Vector<int> node_unique_offsets;
+  Vector<int> node_all_offsets;
   OffsetIndices<int> node_unique_offset_indices;
   OffsetIndices<int> node_all_offset_indices;
   pixels::PBVHData *pixels_ = nullptr;

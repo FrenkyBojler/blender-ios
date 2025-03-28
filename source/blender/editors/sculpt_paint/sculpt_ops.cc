@@ -91,9 +91,9 @@ static int mesh_reorder_vertices_spatial_exec(bContext *C, wmOperator *op)
   blender::bke::BKE_mesh_reorder_vertices_spatial(ob);
 
   // BKE_mesh_batch_cache_dirty_tag(mesh, BKE_MESH_BATCH_DIRTY_ALL);
-  DEG_id_tag_update(&mesh->id, ID_RECALC_GEOMETRY);
+  // DEG_id_tag_update(&mesh->id, ID_RECALC_GEOMETRY);
 
-  WM_event_add_notifier(C, NC_GEOM | ND_DATA, mesh);
+  // WM_event_add_notifier(C, NC_GEOM | ND_DATA, mesh);
 
   return OPERATOR_FINISHED;
 }

@@ -83,8 +83,11 @@ static void calc_faces(const Depsgraph &depsgraph,
 
   // get unique contiguous vertex range using IndexRange from offset indices
   const int node_idx = node.node_idx_;
-  if (node_idx < 0 || node_idx >= pbvh.node_unique_offset_indices.size()) {
-    std::cout << "from calc_faces " << std::endl;
+  std::cout << "node_idx from calc_faces" << node_idx << std::endl;
+  for (int i = 0; i < pbvh.node_unique_offset_indices.data().size(); i++) {
+    std::cout << pbvh.node_unique_offset_indices.data()[i] << std::endl;
+  }
+  if (node_idx < 0) {
     return;
   }
   const IndexRange vertex_range = pbvh.node_unique_offset_indices[node_idx];
