@@ -224,26 +224,17 @@ static void get_manifold(Manifold &manifold,
     std::cout << "get_manifold for mesh " << mesh_index << "\n";
   }
   MeshGL meshgl;
-  constexpr int props_num = 3;
-  meshgl.numProp = props_num;
-  const int verts_num = mesh_offsets.vert_offsets[mesh_index].size();
-  const int vert_start = mesh_offsets.vert_start[mesh_index];
-  meshgl.vertProperties.resize(verts_num * props_num);
-  const Span<float3> vpos = joined_mesh->vert_positions();
-  const int grain_size = 20000;
-  threading::parallel_for(IndexRange(verts_num), grain_size, [&](const IndexRange range) {
-    for (const int i : range) {
-      int offset_i = i + vert_start;
-      const float3 &pos = vpos[offset_i];
-      meshgl.vertProperties[props_num * i] = pos[0];
-      meshgl.vertProperties[props_num * i + 1] = pos[1];
-      meshgl.vertProperties[props_num * i + 2] = pos[2];
-    }
-  });
+  const IndexRange verts_range = mesh_offsets.vert_offsets[mesh_index];
   const IndexRange faces_range = mesh_offsets.face_offsets[mesh_index];
   const IndexRange corners_range = mesh_offsets.corner_offsets[mesh_index];
   const IndexRange tris_range(poly_to_tri_count(faces_range.start(), corners_range.start()),
                               poly_to_tri_count(faces_range.size(), corners_range.size()));
+
+  constexpr int props_num = 3;
+  meshgl.numProp = props_num;
+  meshgl.vertProperties.resize(verts_range.size() * props_num);
+  array_utils::copy(joined_mesh->vert_positions().slice(verts_range),
+                    MutableSpan(meshgl.vertProperties).cast<float3>());
 
   meshgl.faceID.resize(tris_range.size());
   bke::mesh::corner_tris_calc_face_indices(joined_mesh->faces().slice(faces_range),
