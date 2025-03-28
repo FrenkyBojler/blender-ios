@@ -575,7 +575,7 @@ void view3d_dropboxes()
   wmDropBox *drop;
 
   WM_dropbox_add(lb,
-                 "OBJECT_OT_drag_drop_mixed",
+                 "VIEW3D_OT_drop_assets",
                  view3d_mixed_drop_poll,
                  view3d_mixed_drop_copy,
                  nullptr,

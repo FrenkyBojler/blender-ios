@@ -114,7 +114,6 @@ void OBJECT_OT_select_same_collection(wmOperatorType *ot);
 
 void OBJECT_OT_add(wmOperatorType *ot);
 void OBJECT_OT_add_named(wmOperatorType *ot);
-void OBJECT_OT_drag_drop_mixed(wmOperatorType *ot);
 void OBJECT_OT_transform_to_mouse(wmOperatorType *ot);
 void OBJECT_OT_metaball_add(wmOperatorType *ot);
 void OBJECT_OT_text_add(wmOperatorType *ot);

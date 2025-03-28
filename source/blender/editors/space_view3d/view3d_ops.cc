@@ -230,6 +230,8 @@ void view3d_operatortypes()
   WM_operatortype_append(VIEW3D_OT_ruler_add);
   WM_operatortype_append(VIEW3D_OT_ruler_remove);
 
+  WM_operatortype_append(VIEW3D_OT_drop_assets);
+
   blender::ed::transform::transform_operatortypes();
 }
 
