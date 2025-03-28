@@ -91,14 +91,14 @@ TEST(blender_variables, path_apply_variables)
    *
    * TODO: the floats always print with 6 decimal digits. Investigate. */
   {
-    char path[FILE_MAX] = "${hi}_${bye}_${the_answer}_${prime}_${pi}_${e}_${ntsc}";
+    char path[FILE_MAX] = "{hi}_{bye}_{the_answer}_{prime}_{pi}_{e}_{ntsc}";
     BKE_path_apply_variables(path, variables);
     EXPECT_EQ(blender::StringRef(path), "hello_goodbye_42_7_3.141590_2.718280_29.970030");
   }
 
   /* Integer formatting. */
   {
-    char path[FILE_MAX] = "${the_answer:1}_${the_answer:2}_${the_answer:4}";
+    char path[FILE_MAX] = "{the_answer:1}_{the_answer:2}_{the_answer:4}";
     BKE_path_apply_variables(path, variables);
     EXPECT_EQ(blender::StringRef(path), "42_42_0042");
   }
@@ -107,7 +107,7 @@ TEST(blender_variables, path_apply_variables)
    *
    * TODO: the floats print with a maximum of 6 decimal digits. Investigate. */
   {
-    char path[FILE_MAX] = "${pi:.4}_${e:.3}_${ntsc:.20}";
+    char path[FILE_MAX] = "{pi:.4}_{e:.3}_{ntsc:.20}";
     BKE_path_apply_variables(path, variables);
     EXPECT_EQ(blender::StringRef(path), "3.1416_2.718_29.970030");
   }
@@ -115,16 +115,23 @@ TEST(blender_variables, path_apply_variables)
   /* Missing variable. Substitution should continue on, simply ignoring the
    * missing variable. */
   {
-    char path[FILE_MAX] = "${hi}_${missing}_${bye}";
+    char path[FILE_MAX] = "{hi}_{missing}_{bye}";
     BKE_path_apply_variables(path, variables);
-    EXPECT_EQ(blender::StringRef(path), "hello_${missing}_goodbye");
+    EXPECT_EQ(blender::StringRef(path), "hello_{missing}_goodbye");
+  }
+
+  /* Escaping. "{{" and "}}" are the escape codes for literal "{" and "}". */
+  {
+    char path[FILE_MAX] = "{hi}_{{hi}}_{bye}";
+    BKE_path_apply_variables(path, variables);
+    EXPECT_EQ(blender::StringRef(path), "hello_{hi}_goodbye");
   }
 
   /* Malformed syntax: unclosed variable. */
   {
-    char path[FILE_MAX] = "${hi_${hi}_${bye}";
+    char path[FILE_MAX] = "{hi_{hi}_{bye}";
     BKE_path_apply_variables(path, variables);
-    EXPECT_EQ(blender::StringRef(path), "${hi_hello_goodbye");
+    EXPECT_EQ(blender::StringRef(path), "{hi_hello_goodbye");
   }
 
   /* Test what happens when the path would expand to a string that's longer than
@@ -137,20 +144,21 @@ TEST(blender_variables, path_apply_variables)
    * NOTE: this test will have to be updated if `FILE_MAX` is ever changed. */
   {
     char path[FILE_MAX] =
-        "_${long}${long}${long}${long}${long}${long}${long}${long}${long}${long}${long}${long}${"
-        "long}${long}${long}${long}${long}${long}${long}${long}${long}${long}${long}${long}${long}"
-        "${long}${long}${long}${long}${long}${long}${long}${long}${long}${long}${long}${long}${"
-        "long}${long}${long}${long}${long}${long}${long}${long}${long}${long}${long}${long}${long}"
-        "${long}${long}${long}${long}${long}${long}${long}${long}${long}${long}${long}${long}${"
-        "long}${long}${long}${long}${long}${long}${long}${long}${long}${long}${long}${long}${long}"
-        "${long}${long}${long}${long}${long}${long}${long}${long}${long}${long}${long}${long}${"
-        "long}${long}${long}${long}${long}${long}${long}${long}${long}${long}${long}${long}${long}"
-        "${long}${long}${long}${long}${long}${long}${long}${long}${long}${long}${long}${long}${"
-        "long}${long}${long}${long}${long}${long}${long}${long}${long}${long}${long}${long}${long}"
-        "${long}${long}${long}${long}${long}${long}${long}${long}${long}${long}${long}${long}${"
-        "long}${long}${long}${long}${long}${long}${long}${long}${long}";
+        "___{long}{long}{long}{long}{long}{long}{long}{long}{long}{long}{long}{long}{long}{long}{"
+        "long}{long}{long}{long}{long}{long}{long}{long}{long}{long}{long}{long}{long}{long}{long}"
+        "{long}{long}{long}{long}{long}{long}{long}{long}{long}{long}{long}{long}{long}{long}{"
+        "long}{long}{long}{long}{long}{long}{long}{long}{long}{long}{long}{long}{long}{long}{long}"
+        "{long}{long}{long}{long}{long}{long}{long}{long}{long}{long}{long}{long}{long}{long}{"
+        "long}{long}{long}{long}{long}{long}{long}{long}{long}{long}{long}{long}{long}{long}{long}"
+        "{long}{long}{long}{long}{long}{long}{long}{long}{long}{long}{long}{long}{long}{long}{"
+        "long}{long}{long}{long}{long}{long}{long}{long}{long}{long}{long}{long}{long}{long}{long}"
+        "{long}{long}{long}{long}{long}{long}{long}{long}{long}{long}{long}{long}{long}{long}{"
+        "long}{long}{long}{long}{long}{long}{long}{long}{long}{long}{long}{long}{long}{long}{long}"
+        "{long}{long}{long}{long}{long}{long}{long}{long}{long}{long}{long}{long}{long}{long}{"
+        "long}{long}{long}{long}{long}{long}{long}{long}{long}{long}{long}";
     const char result[FILE_MAX] =
-        "_This string is exactly 32 bytes.This string is exactly 32 bytes.This string is exactly "
+        "___This string is exactly 32 bytes.This string is exactly 32 bytes.This string is "
+        "exactly "
         "32 bytes.This string is exactly 32 bytes.This string is exactly 32 bytes.This string is "
         "exactly 32 bytes.This string is exactly 32 bytes.This string is exactly 32 bytes.This "
         "string is exactly 32 bytes.This string is exactly 32 bytes.This string is exactly 32 "
@@ -161,7 +169,7 @@ TEST(blender_variables, path_apply_variables)
         "exactly 32 bytes.This string is exactly 32 bytes.This string is exactly 32 bytes.This "
         "string is exactly 32 bytes.This string is exactly 32 bytes.This string is exactly 32 "
         "bytes.This string is exactly 32 bytes.This string is exactly 32 bytes.This string is "
-        "exactly 32 bytes.This string is exactly 32 bytes.This string is exactly 32 byte";
+        "exactly 32 bytes.This string is exactly 32 bytes.This string is exactly 32 by";
     BKE_path_apply_variables(path, variables);
     EXPECT_EQ(blender::StringRef(path), blender::StringRef(result));
   }

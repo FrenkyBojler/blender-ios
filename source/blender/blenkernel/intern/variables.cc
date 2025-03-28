@@ -192,18 +192,27 @@ static std::optional<VariableFormat> parse_path_variable_format(
   return std::nullopt;
 }
 
+enum class ParsedEntityType {
+  VARIABLE,
+  LEFT_CURLY_BRACE,  /* An escaped { */
+  RIGHT_CURLY_BRACE, /* An escaped } */
+};
+
 /**
- * Information about a variable reference parsed from a path string.
+ * Information about a thing that was parsed and should be substituted in the
+ * path string.
  */
-struct ParsedPathVariable {
+struct ParsedEntity {
+  ParsedEntityType substitution_type = ParsedEntityType::VARIABLE;
+
   /* Byte index range (exclusive on the right) in the path string that should be
-   * replaced with the variable value. This is the full range of the `${blah}`
+   * replaced with the variable value. This is the full range of the `{blah}`
    * syntax that was parsed. */
   blender::IndexRange replacement_range;
 
   /* Reference to the the variable name as written in the path string. Note that
    * this references the path string, and does not own the value. */
-  blender::StringRef name;
+  blender::StringRef variable_name;
 
   /* Indicates how the variable's value should be formatted as a string. This is
    * derived from the format string after the `:` in e.g. `${blah:5}`. Currently
@@ -223,8 +232,7 @@ struct ParsedPathVariable {
  * \return The parsed variable information, or nullopt if no variable reference
  * is found in `path`.
  */
-static std::optional<ParsedPathVariable> next_path_variable(char *path,
-                                                            const int path_allocation_size)
+static std::optional<ParsedEntity> next_path_variable(char *path, const int path_allocation_size)
 {
   /* We use magic number -1 to indicate that the component hasn't been found
    * yet. Otherwise they are the byte offset at which the component was found. */
@@ -236,18 +244,35 @@ static std::optional<ParsedPathVariable> next_path_variable(char *path,
   for (int byte_index = 0; byte_index < path_allocation_size && path[byte_index] != '\0';
        byte_index++)
   {
-    /* Check if we've found a starting "${".
+    /* Check for escaped {. */
+    if ((byte_index + 1) < path_allocation_size && path[byte_index] == '{' &&
+        path[byte_index + 1] == '{')
+    {
+      ParsedEntity variable;
+      variable.substitution_type = ParsedEntityType::LEFT_CURLY_BRACE;
+      variable.replacement_range = blender::IndexRange::from_begin_end(byte_index, byte_index + 2);
+      return variable;
+    }
+
+    /* Check for escaped }. */
+    if ((byte_index + 1) < path_allocation_size && path[byte_index] == '}' &&
+        path[byte_index + 1] == '}')
+    {
+      ParsedEntity variable;
+      variable.substitution_type = ParsedEntityType::RIGHT_CURLY_BRACE;
+      variable.replacement_range = blender::IndexRange::from_begin_end(byte_index, byte_index + 2);
+      return variable;
+    }
+
+    /* Check if we've found a starting "{".
      *
      * Note that if we're already inside a variable reference, this restarts
      * from the new one we've just found. This is okay, since it's not valid to
-     * have `${` inside a variable reference, and this just treats such
+     * have `{` inside a variable reference, and this just treats such
      * situations as an incomplete (and thus invalid) variable reference. */
-    if ((byte_index + 1) < path_allocation_size && path[byte_index] == '$' &&
-        path[byte_index + 1] == '{')
-    {
+    if (path[byte_index] == '{') {
       start = byte_index;
       format_specifier_split = -1;
-      byte_index++; /* To jump past the "{" as well. */
       continue;
     }
 
@@ -284,15 +309,15 @@ static std::optional<ParsedPathVariable> next_path_variable(char *path,
   }
 
   /* Parse the variable reference we found. */
-  ParsedPathVariable variable;
+  ParsedEntity variable;
   variable.replacement_range = blender::IndexRange::from_begin_end(start, end);
   if (format_specifier_split == -1) {
     /* No format specifier. */
-    variable.name = blender::StringRef(path + start + 2, path + end - 1);
+    variable.variable_name = blender::StringRef(path + start + 1, path + end - 1);
   }
   else {
     /* Found format specifier. */
-    variable.name = blender::StringRef(path + start + 2, path + format_specifier_split);
+    variable.variable_name = blender::StringRef(path + start + 1, path + format_specifier_split);
 
     if (std::optional<VariableFormat> format = parse_path_variable_format(
             blender::StringRef(path + format_specifier_split + 1, path + end - 1)))
@@ -406,6 +431,30 @@ bool BKE_path_apply_variables(char path[FILE_MAX], const VariableMap &variables)
       break;
     }
 
+    /* Check for escapes. */
+    if (parsed_variable->substitution_type == ParsedEntityType::LEFT_CURLY_BRACE) {
+      BLI_string_replace_range(path + bytes_processed,
+                               FILE_MAX - bytes_processed,
+                               parsed_variable->replacement_range.start(),
+                               parsed_variable->replacement_range.one_after_last(),
+                               "{");
+
+      bytes_processed += 1;
+      was_modified = true;
+      continue;
+    }
+    if (parsed_variable->substitution_type == ParsedEntityType::RIGHT_CURLY_BRACE) {
+      BLI_string_replace_range(path + bytes_processed,
+                               FILE_MAX - bytes_processed,
+                               parsed_variable->replacement_range.start(),
+                               parsed_variable->replacement_range.one_after_last(),
+                               "}");
+
+      bytes_processed += 1;
+      was_modified = true;
+      continue;
+    }
+
     /* For computing strings for integer and float variables. */
     char string_buffer[128];
 
@@ -415,17 +464,21 @@ bool BKE_path_apply_variables(char path[FILE_MAX], const VariableMap &variables)
 
     /* Try to find a matching variable, and construct a string for it. */
     if (std::optional<blender::StringRefNull> string_value = variables.get_string(
-            parsed_variable->name))
+            parsed_variable->variable_name))
     {
       /* String variable found. */
       replacement_string = string_value->c_str();
     }
-    else if (std::optional<int64_t> integer_value = variables.get_integer(parsed_variable->name)) {
+    else if (std::optional<int64_t> integer_value = variables.get_integer(
+                 parsed_variable->variable_name))
+    {
       /* Integer variable found. */
       format_int_to_string(parsed_variable->format, string_buffer, *integer_value);
       replacement_string = string_buffer;
     }
-    else if (std::optional<double> float_value = variables.get_float(parsed_variable->name)) {
+    else if (std::optional<double> float_value = variables.get_float(
+                 parsed_variable->variable_name))
+    {
       /* Float variable found. */
       format_float_to_string(parsed_variable->format, string_buffer, *float_value);
       replacement_string = string_buffer;
