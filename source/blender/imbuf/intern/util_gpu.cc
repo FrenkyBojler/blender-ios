@@ -59,7 +59,7 @@ static void imb_gpu_get_format(const ImBuf *ibuf,
 
   if (float_rect) {
     /* Float. */
-    const bool use_high_bitdepth = (!(ibuf->flags & IB_halffloat) && high_bitdepth);
+    const bool use_high_bitdepth = (!(ibuf->foptions.flag & OPENEXR_HALF) && high_bitdepth);
     *r_texture_format = is_grayscale ? (use_high_bitdepth ? GPU_R32F : GPU_R16F) :
                                        (use_high_bitdepth ? GPU_RGBA32F : GPU_RGBA16F);
   }
@@ -132,7 +132,7 @@ static void *imb_gpu_get_data(const ImBuf *ibuf,
      * convention, no colorspace conversion needed. But we do require 4 channels
      * currently. */
     if (ibuf->channels != 4 || !store_premultiplied) {
-      data_rect = MEM_mallocN(sizeof(float[4]) * ibuf->x * ibuf->y, __func__);
+      data_rect = MEM_malloc_arrayN<float>(4 * size_t(ibuf->x) * size_t(ibuf->y), __func__);
       *r_freedata = freedata = true;
 
       if (data_rect == nullptr) {
@@ -181,7 +181,7 @@ static void *imb_gpu_get_data(const ImBuf *ibuf,
     }
     else {
       /* Other colorspace, store as float texture to avoid precision loss. */
-      data_rect = MEM_mallocN(sizeof(float[4]) * ibuf->x * ibuf->y, __func__);
+      data_rect = MEM_malloc_arrayN<float>(4 * size_t(ibuf->x) * size_t(ibuf->y), __func__);
       *r_freedata = freedata = true;
       is_float_rect = true;
 

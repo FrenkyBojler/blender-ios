@@ -242,6 +242,7 @@ set(SRC_KERNEL_GEOM_HEADERS
   geom/attribute.h
   geom/curve.h
   geom/curve_intersect.h
+  geom/geom_intersect.h
   geom/motion_curve.h
   geom/motion_point.h
   geom/motion_triangle.h
@@ -642,6 +643,21 @@ endif()
 
 # HIP module
 
+# Workaround for SDK 6.3.42560-881c2d702 compiler bug on RDNA2
+# Issue #136138
+function(get_hip_math_flag arch math_flag)
+  if(WIN32 AND (${arch} MATCHES "gfx1030|gfx1031|gfx1032|gfx1033|gfx1034|gfx1035|gfx1036"))
+      set(result
+        -fhip-fp32-correctly-rounded-divide-sqrt
+        -fno-gpu-approx-transcendentals
+        -fgpu-flush-denormals-to-zero
+        -ffp-contract=off)
+  else()
+      set(result "")
+  endif()
+  set(${math_flag} "${result}" PARENT_SCOPE)
+endfunction()
+
 if(WITH_CYCLES_HIP_BINARIES AND WITH_CYCLES_DEVICE_HIP)
   # build for each arch
   set(hip_sources device/hip/kernel.cpp
@@ -682,6 +698,8 @@ if(WITH_CYCLES_HIP_BINARIES AND WITH_CYCLES_DEVICE_HIP)
       set(hip_opt_flags)
     endif()
 
+    get_hip_math_flag(${arch} math_flag)
+
     set(hip_flags
       ${hip_flags}
       --offload-arch=${arch}
@@ -697,6 +715,7 @@ if(WITH_CYCLES_HIP_BINARIES AND WITH_CYCLES_DEVICE_HIP)
       -Wno-parentheses-equality
       -Wno-unused-value
       -ffast-math
+      ${math_flag}
       ${hip_opt_flags}
       -o ${CMAKE_CURRENT_BINARY_DIR}/${hip_file})
 
@@ -792,10 +811,12 @@ if(WITH_CYCLES_HIP_BINARIES AND WITH_CYCLES_DEVICE_HIPRT)
 
   set(hiprt_hipfb)
   foreach(arch ${CYCLES_HIP_BINARIES_ARCH})
+    get_hip_math_flag(${arch} math_flag)
     set(hiprt_file ${CMAKE_CURRENT_BINARY_DIR}/kernel_rt_${arch}.hipfb)
     set(hiprt_file_compressed ${hiprt_file}.zst)
     set(hiprt_flags
     ${hiprt_compile_flags}
+    ${math_flag}
     --offload-arch=${arch}
     -o ${hiprt_file})
 
@@ -947,12 +968,7 @@ if(WITH_CYCLES_DEVICE_ONEAPI)
     -shared
     -DWITH_ONEAPI
     -O2
-    -fno-fast-math
-    -ffp-contract=fast
-    -fassociative-math
-    -freciprocal-math
-    -fno-signed-zeros
-    -ffinite-math-only
+    -ffast-math
     -D__KERNEL_LOCAL_ATOMIC_SORT__
     -o"${cycles_kernel_oneapi_lib}"
     -I"${CMAKE_CURRENT_SOURCE_DIR}/.."
@@ -965,7 +981,7 @@ if(WITH_CYCLES_DEVICE_ONEAPI)
 
   # Set defaults for spir64 and spir64_gen options
   if(NOT DEFINED CYCLES_ONEAPI_SYCL_OPTIONS_spir64)
-    set(CYCLES_ONEAPI_SYCL_OPTIONS_spir64 "-options '-cl-fast-relaxed-math -ze-intel-enable-auto-large-GRF-mode -ze-opt-regular-grf-kernel integrator_intersect -ze-opt-no-local-to-generic'")
+    set(CYCLES_ONEAPI_SYCL_OPTIONS_spir64 "-options '-cl-fast-relaxed-math -ze-intel-enable-auto-large-GRF-mode -ze-opt-regular-grf-kernel integrator_intersect -ze-opt-large-grf-kernel shade_surface -ze-opt-no-local-to-generic'")
   endif()
   if(NOT DEFINED CYCLES_ONEAPI_SYCL_OPTIONS_spir64_gen)
     set(CYCLES_ONEAPI_SYCL_OPTIONS_spir64_gen "${CYCLES_ONEAPI_SYCL_OPTIONS_spir64}" CACHE STRING "Extra build options for spir64_gen target")
