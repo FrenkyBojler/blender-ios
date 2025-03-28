@@ -46,12 +46,4 @@ const asset_system::AssetRepresentation *find_asset_from_weak_ref(
 const asset_system::AssetRepresentation *operator_asset_reference_props_get_asset_from_all_library(
     const bContext &C, PointerRNA &ptr, ReportList *reports);
 
-/**
- * Blocking variant of \ref #operator_asset_reference_props_get_asset_from_all_library.
- */
-const asset_system::AssetRepresentation *
-operator_asset_reference_props_blocking_get_asset_from_all_library(const bContext &C,
-                                                                   PointerRNA &ptr,
-                                                                   ReportList *reports);
-
 }  // namespace blender::ed::asset

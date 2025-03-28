@@ -88,10 +88,7 @@ static const asset_system::AssetRepresentation *get_local_asset_from_relative_id
 }
 
 static const asset_system::AssetRepresentation *find_asset_from_weak_ref_ex(
-    const bContext &C,
-    const AssetWeakReference &weak_ref,
-    ReportList *reports,
-    const bool force_blocking_read)
+    const bContext &C, const AssetWeakReference &weak_ref, ReportList *reports)
 {
   if (weak_ref.asset_library_type == ASSET_LIBRARY_LOCAL) {
     return get_local_asset_from_relative_identifier(
@@ -99,12 +96,7 @@ static const asset_system::AssetRepresentation *find_asset_from_weak_ref_ex(
   }
 
   const AssetLibraryReference library_ref = asset_system::all_library_reference();
-  if (force_blocking_read) {
-    list::storage_fetch_blocking(library_ref, C);
-  }
-  else {
-    list::storage_fetch(&library_ref, &C);
-  }
+  list::storage_fetch(&library_ref, &C);
   asset_system::AssetLibrary *all_library = list::library_get_once_available(
       asset_system::all_library_reference());
   if (!all_library) {
@@ -134,13 +126,7 @@ static const asset_system::AssetRepresentation *find_asset_from_weak_ref_ex(
 const asset_system::AssetRepresentation *find_asset_from_weak_ref(
     const bContext &C, const AssetWeakReference &weak_ref, ReportList *reports)
 {
-  return find_asset_from_weak_ref_ex(C, weak_ref, reports, false);
-}
-
-const asset_system::AssetRepresentation *blocking_find_asset_from_weak_ref(
-    const bContext &C, const AssetWeakReference &weak_ref, ReportList *reports)
-{
-  return find_asset_from_weak_ref_ex(C, weak_ref, reports, true);
+  return find_asset_from_weak_ref_ex(C, weak_ref, reports);
 }
 
 static AssetWeakReference asset_weak_reference_from_operator(PointerRNA &ptr)
@@ -159,15 +145,6 @@ const asset_system::AssetRepresentation *operator_asset_reference_props_get_asse
 {
   const AssetWeakReference weak_ref = asset_weak_reference_from_operator(ptr);
   return find_asset_from_weak_ref(C, weak_ref, reports);
-}
-
-const asset_system::AssetRepresentation *
-operator_asset_reference_props_blocking_get_asset_from_all_library(const bContext &C,
-                                                                   PointerRNA &ptr,
-                                                                   ReportList *reports)
-{
-  const AssetWeakReference weak_ref = asset_weak_reference_from_operator(ptr);
-  return blocking_find_asset_from_weak_ref(C, weak_ref, reports);
 }
 
 void draw_menu_for_catalog(const asset_system::AssetCatalogTreeItem &item,
