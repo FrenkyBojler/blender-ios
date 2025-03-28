@@ -132,7 +132,6 @@ const asset_system::AssetRepresentation *operator_asset_reference_props_get_asse
       &ptr, "asset_library_identifier", nullptr, 0, nullptr);
   weak_ref.relative_asset_identifier = RNA_string_get_alloc(
       &ptr, "relative_asset_identifier", nullptr, 0, nullptr);
-
   return find_asset_from_weak_ref(C, weak_ref, reports);
 }
 
