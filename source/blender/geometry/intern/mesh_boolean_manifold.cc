@@ -1196,11 +1196,6 @@ static void copy_attribute_using_map(const bke::AttributeIter &iter,
   if (dbg_level > 0) {
     std::cout << "copy_attribute_using_map, name = " << iter.name << "\n";
   }
-  /* If the attribute isn't already in the output mesh, then join_geometries
-   * chose not to copy it for some reason, so respect that. */
-  if (!output_attrs.lookup(iter.name, iter.domain, iter.data_type)) {
-    return;
-  }
   bke::GAttributeReader src_reader = input_attrs.lookup_or_default(
       iter.name, iter.domain, iter.data_type);
   if (!src_reader) {
