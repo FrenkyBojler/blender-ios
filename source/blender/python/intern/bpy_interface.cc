@@ -30,7 +30,6 @@
 
 #include "bpy.hh"
 #include "bpy_capi_utils.hh"
-#include "bpy_geometry_set.hh"
 #include "bpy_intern_string.hh"
 #include "bpy_path.hh"
 #include "bpy_props.hh"
