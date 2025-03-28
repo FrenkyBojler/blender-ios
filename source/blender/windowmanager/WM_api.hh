@@ -1568,6 +1568,14 @@ blender::Vector<ID *> WM_drag_asset_list_id_import_all(const bContext *C,
                                                        const int flag_extra);
 void WM_drag_asset_list_foreach_asset_idtype(const wmDrag *drag,
                                              blender::FunctionRef<void(ID_Type)> fn);
+/**
+ * When dragging multiple items, get the drag data for the one item that dragging was invoked from.
+ * Useful to give it special treatment, e.g. this should preferably become the active object when
+ * dragging in multiple objects.
+ */
+wmDragAsset *WM_drag_asset_list_active_asset(const wmDrag *drag);
+std::optional<int> WM_drag_asset_list_item_index_from_asset(
+    const wmDrag *drag, const AssetRepresentationHandle *asset);
 bool WM_drag_asset_will_import_linked(const wmDrag *drag);
 void WM_drag_add_local_ID(wmDrag *drag, ID *id, ID *from_parent);
 ID *WM_drag_get_local_ID(const wmDrag *drag, short idcode);

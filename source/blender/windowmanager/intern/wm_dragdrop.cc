@@ -300,6 +300,7 @@ wmDrag *WM_drag_data_create(bContext *C, int icon, eWM_DragDataType type, void *
             ptr.data);
         WM_drag_add_asset_list_item(
             drag, asset, single_asset_drag ? &single_asset_drag->import_settings : nullptr);
+        drag->poin = single_asset_drag;
       }
       break;
     }
@@ -871,12 +872,39 @@ void WM_drag_asset_list_foreach_asset_idtype(const wmDrag *drag,
     return;
   }
 
-  const ListBase *asset_drags = WM_drag_asset_list_get(drag);
-  LISTBASE_FOREACH (wmDragAssetListItem *, asset_item, asset_drags) {
+  LISTBASE_FOREACH (wmDragAssetListItem *, asset_item, &drag->asset_items) {
     if (std::optional<ID_Type> idtype = asset_item->idtype()) {
       fn(*idtype);
     }
   }
+}
+
+wmDragAsset *WM_drag_asset_list_active_asset(const wmDrag *drag)
+{
+  BLI_assert(drag->type == WM_DRAG_ASSET_LIST);
+  if (drag->type != WM_DRAG_ASSET_LIST) {
+    return nullptr;
+  }
+
+  return static_cast<wmDragAsset *>(drag->poin);
+}
+
+std::optional<int> WM_drag_asset_list_item_index_from_asset(const wmDrag *drag,
+                                                            const AssetRepresentationHandle *asset)
+{
+  BLI_assert(drag->type == WM_DRAG_ASSET_LIST);
+  if (drag->type != WM_DRAG_ASSET_LIST) {
+    return {};
+  }
+
+  int i = 0;
+  LISTBASE_FOREACH_INDEX (wmDragAssetListItem *, asset_item, &drag->asset_items, i) {
+    if (asset_item->is_external && asset_item->asset_data.external_info->asset == asset) {
+      return i;
+    }
+  }
+
+  return {};
 }
 
 bool WM_drag_asset_will_import_linked(const wmDrag *drag)
