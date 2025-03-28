@@ -241,7 +241,7 @@ static Image *load_texture_image(Main *bmain, const std::string &file_dir, const
   return image;
 }
 
-static const char *ufbx_map_to_node_socket[UFBX_MATERIAL_PBR_MAP_COUNT] = {
+static const char *ufbx_map_to_node_socket[] = {
     nullptr,                 /* UFBX_MATERIAL_PBR_BASE_FACTOR */
     "Base Color",            /* UFBX_MATERIAL_PBR_BASE_COLOR */
     "Roughness",             /* UFBX_MATERIAL_PBR_ROUGHNESS */
@@ -281,6 +281,7 @@ static const char *ufbx_map_to_node_socket[UFBX_MATERIAL_PBR_MAP_COUNT] = {
     "Coat Normal",           /* UFBX_MATERIAL_PBR_COAT_NORMAL */
     nullptr,                 /* UFBX_MATERIAL_PBR_COAT_AFFECT_BASE_COLOR */
     nullptr,                 /* UFBX_MATERIAL_PBR_COAT_AFFECT_BASE_ROUGHNESS */
+    nullptr,                 /* UFBX_MATERIAL_PBR_THIN_FILM_FACTOR */
     "Thin Film Thickness",   /* UFBX_MATERIAL_PBR_THIN_FILM_THICKNESS */
     "Thin Film IOR",         /* UFBX_MATERIAL_PBR_THIN_FILM_IOR */
     "Emission Strength",     /* UFBX_MATERIAL_PBR_EMISSION_FACTOR */
@@ -298,6 +299,8 @@ static const char *ufbx_map_to_node_socket[UFBX_MATERIAL_PBR_MAP_COUNT] = {
     nullptr,                 /* UFBX_MATERIAL_PBR_COAT_GLOSSINESS */
     nullptr,                 /* UFBX_MATERIAL_PBR_TRANSMISSION_GLOSSINESS */
 };
+static_assert(sizeof(ufbx_map_to_node_socket) / sizeof(ufbx_map_to_node_socket[0]) ==
+              UFBX_MATERIAL_PBR_MAP_COUNT);
 
 static void add_image_textures(Main *bmain,
                                const std::string &file_dir,
