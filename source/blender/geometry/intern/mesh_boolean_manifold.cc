@@ -1187,25 +1187,11 @@ static MeshAssembly assemble_mesh_from_meshgl(const MeshGL &mgl, const MeshOffse
   return ma;
 }
 
-static void copy_attribute_using_map(const bke::AttributeIter &iter,
-                                     bke::MutableAttributeAccessor &output_attrs,
-                                     bke::AttributeAccessor &input_attrs,
-                                     const Span<int> out_to_in_map)
+static void copy_attribute_using_map(const GSpan src,
+                                     const Span<int> out_to_in_map,
+                                     GMutableSpan dst)
 {
-  constexpr int dbg_level = 0;
-  if (dbg_level > 0) {
-    std::cout << "copy_attribute_using_map, name = " << iter.name << "\n";
-  }
-  bke::GAttributeReader src_reader = input_attrs.lookup_or_default(
-      iter.name, iter.domain, iter.data_type);
-  if (!src_reader) {
-    return;
-  }
-  bke::GSpanAttributeWriter dst_writer = output_attrs.lookup_or_add_for_write_span(
-      iter.name, iter.domain, iter.data_type);
-  GMutableSpan dst = dst_writer.span;
-  const GVArraySpan src = *src_reader;
-  const CPPType &type = dst_writer.span.type();
+  const CPPType &type = dst.type();
   const int grain_size = 20000;
   threading::parallel_for(out_to_in_map.index_range(), grain_size, [&](const IndexRange range) {
     for (const int out_elem : range) {
@@ -1215,7 +1201,6 @@ static void copy_attribute_using_map(const bke::AttributeIter &iter,
       }
     }
   });
-  dst_writer.finish();
 }
 
 static void interpolate_corner_attributes(bke::MutableAttributeAccessor &output_attrs,
@@ -1570,7 +1555,13 @@ static Mesh *meshgl_to_mesh(MeshGL &mgl,
         }
       }
       if (do_copy) {
-        copy_attribute_using_map(iter, output_attrs, join_attrs, out_to_in_map);
+        if (dbg_level > 0) {
+          std::cout << "copy_attribute_using_map, name = " << iter.name << "\n";
+        }
+        bke::GSpanAttributeWriter dst = output_attrs.lookup_or_add_for_write_span(
+            iter.name, iter.domain, iter.data_type);
+        copy_attribute_using_map(GVArraySpan(*iter.get()), out_to_in_map, dst.span);
+        dst.finish();
       }
     });
     if (need_corner_interpolation) {
