@@ -6493,9 +6493,6 @@ void BKE_constraint_blend_read_data(BlendDataReader *reader, ID *id_owner, ListB
 
     /* Patch for error introduced by changing constraints (don't know how). */
     /* NOTE(@ton): If `con->data` type changes, DNA cannot resolve the pointer!. */
-    /* FIXME This is likely dead code actually, since it used to be in
-     * constraint 'read_lib', so it would have crashed on null pointer access in any of
-     * the code below? But does not hurt to keep it around as a safety measure. */
     if (con->data == nullptr) {
       con->type = CONSTRAINT_TYPE_NULL;
     }
