@@ -5,6 +5,7 @@
 #pragma once
 
 #include <chrono>
+#include <optional>
 #include <string>
 
 #include "BLI_sys_types.h"
@@ -40,14 +41,14 @@ class ScopedTimerAveraged {
   int64_t &total_count_;
   Nanoseconds &total_time_;
   Nanoseconds &min_time_;
-  int64_t window_size_;
+  std::optional<int64_t> window_size_;
 
  public:
   ScopedTimerAveraged(std::string name,
                       int64_t &total_count,
                       Nanoseconds &total_time,
                       Nanoseconds &min_time,
-                      const int64_t window_size)
+                      const std::optional<int64_t> window_size)
       : name_(std::move(name)),
         total_count_(total_count),
         total_time_(total_time),
@@ -72,7 +73,8 @@ class ScopedTimerAveraged {
   static int64_t total_count_; \
   static blender::timeit::Nanoseconds total_time_; \
   static blender::timeit::Nanoseconds min_time_ = blender::timeit::Nanoseconds::max(); \
-  blender::timeit::ScopedTimerAveraged scoped_timer(name, total_count_, total_time_, min_time_, 0)
+  blender::timeit::ScopedTimerAveraged scoped_timer( \
+      name, total_count_, total_time_, min_time_, std::nullopt)
 
 /**
  * Print the rolling average and minimum runtime of the timer's scope.
