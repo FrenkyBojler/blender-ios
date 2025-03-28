@@ -625,7 +625,6 @@ void BKE_mesh_reorder_vertices_spatial(Object *object)
   for (int i = 0; i < pbvh->nodes_num(); i++) {
     MeshNode &node = pbvh->nodes<MeshNode>()[i];
     node.node_idx_ = i;
-    // std::cout << "node_idx_: " << node.node_idx_ << std::endl;
   }
   for (int i = 0; i < pbvh->nodes_num(); i++) {
     MeshNode &node = pbvh->nodes<MeshNode>()[i];

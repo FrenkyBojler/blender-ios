@@ -322,7 +322,7 @@ class Tree {
   void update_bounds_grids(Span<float3> positions, int grid_area);
   void update_bounds_bmesh(const BMesh &bm);
 
-  void update_normals(Object &object_orig, Object &object_eval);
+  void update_normals(Object &object_orig, Object &object_eval, Tree &pbvh);
 
   void update_visibility(const Object &object);
 

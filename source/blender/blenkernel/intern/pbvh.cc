@@ -918,6 +918,21 @@ static void normals_calc_verts_simple(const GroupedSpan<int> vert_to_face_map,
   }
 }
 
+static void normals_calc_verts_simple(const GroupedSpan<int> vert_to_face_map,
+                                      const Span<float3> face_normals,
+                                      const int start_offset,
+                                      const int num_verts,
+                                      MutableSpan<float3> vert_normals)
+{
+  for (int i = 0; i < num_verts; i++) {
+    float3 normal(0.0f);
+    for (const int face : vert_to_face_map[start_offset + i]) {
+      normal += face_normals[face];
+    }
+    vert_normals[start_offset + i] = math::normalize(normal);
+  }
+}
+
 static void calc_boundary_vert_normals(const GroupedSpan<int> vert_to_face_map,
                                        const Span<float3> face_normals,
                                        const Span<int> verts,
@@ -932,16 +947,22 @@ static void calc_node_vert_normals(const GroupedSpan<int> vert_to_face_map,
                                    const Span<float3> face_normals,
                                    const Span<MeshNode> nodes,
                                    const IndexMask &nodes_to_update,
-                                   MutableSpan<float3> vert_normals)
+                                   MutableSpan<float3> vert_normals,
+                                   const Tree &pbvh)
 {
   nodes_to_update.foreach_index(GrainSize(1), [&](const int i) {
-    normals_calc_verts_simple(vert_to_face_map, face_normals, nodes[i].verts(), vert_normals);
+    const IndexRange vertex_range = pbvh.node_unique_offset_indices[nodes[i].node_idx_];
+    const int start_offset = vertex_range.start();
+    const int num_verts = vertex_range.size();
+    normals_calc_verts_simple(
+        vert_to_face_map, face_normals, start_offset, num_verts, vert_normals);
   });
 }
 
 static void update_normals_mesh(Object &object_orig,
                                 Object &object_eval,
                                 const Span<MeshNode> nodes,
+                                Tree &pbvh,
                                 const IndexMask &nodes_to_update)
 {
   /* Position changes are tracked on a per-node level, so all the vertex and face normals for every
@@ -970,7 +991,17 @@ static void update_normals_mesh(Object &object_orig,
   VectorSet<int> boundary_faces;
   nodes_to_update.foreach_index([&](const int i) {
     const MeshNode &node = nodes[i];
-    for (const int vert : node.vert_indices_.as_span().drop_front(node.unique_verts_num_)) {
+    // for (const int vert : node.vert_indices_.as_span().drop_front(node.unique_verts_num_)) {
+    //   boundary_faces.add_multiple(vert_to_face_map[vert]);
+    // }
+    if (node.node_idx_ < 0) {
+      return;
+    }
+    const IndexRange vertex_range = pbvh.node_all_offset_indices[node.node_idx_];
+    const int start_offset = vertex_range.start();
+    const int num_verts = vertex_range.size();
+    for (int i = node.unique_verts_num_; i < num_verts; i++) {
+      const int vert = start_offset + i;
       boundary_faces.add_multiple(vert_to_face_map[vert]);
     }
   });
@@ -1010,20 +1041,21 @@ static void update_normals_mesh(Object &object_orig,
   }
   else {
     vert_normals_cache.update([&](Vector<float3> &r_data) {
-      calc_node_vert_normals(vert_to_face_map, face_normals, nodes, nodes_to_update, r_data);
+      calc_node_vert_normals(vert_to_face_map, face_normals, nodes, nodes_to_update, r_data, pbvh);
       calc_boundary_vert_normals(vert_to_face_map, face_normals, boundary_verts, r_data);
     });
   }
 }
 
-void Tree::update_normals(Object &object_orig, Object &object_eval)
+void Tree::update_normals(Object &object_orig, Object &object_eval, Tree &pbvh)
 {
   IndexMaskMemory memory;
   const IndexMask nodes_to_update = IndexMask::from_bits(normals_dirty_, memory);
 
   switch (this->type()) {
     case Type::Mesh: {
-      update_normals_mesh(object_orig, object_eval, this->nodes<MeshNode>(), nodes_to_update);
+      update_normals_mesh(
+          object_orig, object_eval, this->nodes<MeshNode>(), pbvh, nodes_to_update);
       break;
     }
     case Type::Grids: {
@@ -1048,7 +1080,7 @@ void update_normals(const Depsgraph &depsgraph, Object &object_orig, Tree &pbvh)
 {
   BLI_assert(DEG_is_original_object(&object_orig));
   Object &object_eval = *DEG_get_evaluated_object(&depsgraph, &object_orig);
-  pbvh.update_normals(object_orig, object_eval);
+  pbvh.update_normals(object_orig, object_eval, pbvh);
 }
 
 void update_normals_from_eval(Object &object_eval, Tree &pbvh)
@@ -1058,7 +1090,7 @@ void update_normals_from_eval(Object &object_eval, Tree &pbvh)
    * their result), and also because (currently) sculpt deformations skip tagging the mesh normals
    * caches dirty. */
   Object &object_orig = *DEG_get_original_object(&object_eval);
-  pbvh.update_normals(object_orig, object_eval);
+  pbvh.update_normals(object_orig, object_eval, pbvh);
 }
 
 void update_node_bounds_mesh(const Span<float3> positions, MeshNode &node)
