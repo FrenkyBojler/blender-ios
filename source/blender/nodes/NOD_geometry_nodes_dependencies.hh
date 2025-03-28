@@ -24,10 +24,11 @@ struct GeometryNodesEvalDependencies {
   struct ObjectDependencyInfo {
     bool transform = false;
     bool geometry = false;
+    bool camera_parameters = false;
 
     BLI_STRUCT_EQUALITY_OPERATORS_2(ObjectDependencyInfo, transform, geometry);
   };
-  static constexpr ObjectDependencyInfo all_object_deps{true, true};
+  static constexpr ObjectDependencyInfo all_object_deps{true, true, true};
 
   /**
    * Maps `session_uid` to the corresponding data-block.
@@ -41,7 +42,6 @@ struct GeometryNodesEvalDependencies {
 
   bool needs_own_transform = false;
   bool needs_active_camera = false;
-  bool needs_camera_info = false;
   bool time_dependent = false;
 
   /**

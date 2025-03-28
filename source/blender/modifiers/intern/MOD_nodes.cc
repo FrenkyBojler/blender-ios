@@ -152,6 +152,11 @@ static void add_object_relation(
       DEG_add_customdata_mask(ctx->node, &object, &dependency_data_mask);
     }
   }
+  if (object.type == OB_CAMERA) {
+    if (info.camera_parameters) {
+      DEG_add_object_relation(ctx->node, &object, DEG_OB_COMP_PARAMETERS, "Nodes Modifier");
+    }
+  }
 }
 
 static void update_depsgraph(ModifierData *md, const ModifierUpdateDepsgraphContext *ctx)
@@ -220,9 +225,6 @@ static void update_depsgraph(ModifierData *md, const ModifierUpdateDepsgraphCont
     DEG_add_scene_camera_relation(ctx->node, ctx->scene, DEG_OB_COMP_TRANSFORM, "Nodes Modifier");
     /* Active camera is a scene parameter that can change, so we need a relation for that, too. */
     DEG_add_scene_relation(ctx->node, ctx->scene, DEG_SCENE_COMP_PARAMETERS, "Nodes Modifier");
-  }
-  if (eval_deps.needs_camera_info) {
-    DEG_add_scene_camera_relation(ctx->node, ctx->scene, DEG_OB_COMP_PARAMETERS, "Nodes Modifier");
   }
 }
 
