@@ -118,14 +118,20 @@ class CornerPinOperation : public NodeOperation {
 
   void compute_plane_gpu(const float3x3 &homography_matrix, Result &plane_mask)
   {
-    GPUShader *shader = context().get_shader("compositor_plane_deform");
+    GPUShader *shader = this->context().get_shader(this->get_realization_shader_name());
     GPU_shader_bind(shader);
 
     GPU_shader_uniform_mat3_as_mat4(shader, "homography_matrix", homography_matrix.ptr());
 
     Result &input_image = get_input("Image");
     GPU_texture_mipmap_mode(input_image, true, true);
-    GPU_texture_anisotropic_filter(input_image, true);
+    /* The texture sampler should use bilinear interpolation for both the bilinear and bicubic
+     * cases, as the logic used by the bicubic realization shader expects textures to use bilinear
+     * interpolation. */
+    const Interpolation interpolation = this->get_interpolation();
+    const bool use_bilinear = ELEM(interpolation, Interpolation::Bilinear, Interpolation::Bicubic);
+    GPU_texture_filter_mode(input_image, use_bilinear);
+    GPU_texture_anisotropic_filter(input_image, !use_bilinear);
     GPU_texture_extend_mode(input_image, GPU_SAMPLER_EXTEND_MODE_EXTEND);
     input_image.bind_as_texture(shader, "input_tx");
 
@@ -277,6 +283,22 @@ class CornerPinOperation : public NodeOperation {
     float identity_corners[4][2] = {{0.0f, 0.0f}, {1.0f, 0.0f}, {1.0f, 1.0f}, {0.0f, 1.0f}};
     BKE_tracking_homography_between_two_quads(corners, identity_corners, homography_matrix.ptr());
     return homography_matrix;
+  }
+
+  const char *get_realization_shader_name() const
+  {
+    switch (this->get_interpolation()) {
+      case Interpolation::Bilinear:
+      case Interpolation::Bicubic:
+        return "compositor_plane_deform_bicubic";
+      case Interpolation::Nearest:
+        return "compositor_plane_deform_nearest";
+      case Interpolation::Anisotropic:
+        return "compositor_plane_deform_anisotropic";
+    }
+
+    BLI_assert_unreachable();
+    return "compositor_plane_deform_anisotropic";
   }
 
   Interpolation get_interpolation() const
