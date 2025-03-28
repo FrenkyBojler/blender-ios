@@ -478,12 +478,10 @@ int main(int argc,
   /* After parsing number of threads argument. */
   BLI_task_scheduler_init();
 
-<<<<<<< HEAD
-  MB_init();
-=======
   /* Initialize FFTW threading support. */
   blender::fftw::initialize_float();
->>>>>>> bf-blender
+
+  MB_init();
 
 #ifndef WITH_PYTHON_MODULE
   /* The settings pass includes:
