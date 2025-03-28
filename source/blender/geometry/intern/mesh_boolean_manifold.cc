@@ -1437,12 +1437,15 @@ static Mesh *meshgl_to_mesh(MeshGL &mgl,
   const OffsetIndices<int> faces = offset_indices::accumulate_counts_to_offsets(face_offsets);
   mesh->corners_num = faces.total_size();
 
+  bke::MutableAttributeAccessor output_attrs = mesh->attributes_for_write();
+
   /* Write corner vertex references. */
-  MutableSpan<int> corner_verts = mesh->corner_verts_for_write();
   {
 #ifdef DEBUG_TIME
     timeit::ScopedTimer timer_c("calculate faces");
 #endif
+    output_attrs.add<int>(".corner_vert", bke::AttrDomain::Corner, bke::AttributeInitConstruct());
+    MutableSpan<int> corner_verts = mesh->corner_verts_for_write();
     threading::parallel_for(IndexRange(faces_num), 10'000, [&](const IndexRange range) {
       for (const int face : range) {
         corner_verts.slice(faces[face]).copy_from(ma.new_faces[face].verts);
@@ -1456,8 +1459,6 @@ static Mesh *meshgl_to_mesh(MeshGL &mgl,
 #endif
     bke::mesh_calc_edges(*mesh, false, false);
   }
-
-  bke::MutableAttributeAccessor output_attrs = mesh->attributes_for_write();
 
   /* Set the vertex positions, using implicit sharing to avoid copying any data. */
   {
