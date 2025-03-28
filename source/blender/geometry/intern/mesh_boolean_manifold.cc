@@ -1298,18 +1298,15 @@ static void interpolate_corner_attributes(bke::MutableAttributeAccessor &output_
               }
               GVArraySpan &src = src_opt.value();
               const CPPType &type = dst.type();
-              BUFFER_FOR_CPP_TYPE_VALUE(type, buffer);
-              BLI_SCOPED_DEFER([&]() { type.destruct(buffer); });
               bke::attribute_math::convert_to_static_type(type, [&](auto dummy) {
                 using T = decltype(dummy);
                 const Span<T> src_typed = src.typed<T>();
-                bke::attribute_math::DefaultMixer<T> mixer{
-                    MutableSpan(static_cast<T *>(buffer), 1)};
+                MutableSpan<T> dst_typed = dst.typed<T>();
+                bke::attribute_math::DefaultMixer<T> mixer{MutableSpan(&dst_typed[out_c], 1)};
                 for (const int i : in_face.index_range()) {
                   mixer.mix_in(0, src_typed[in_face[i]], weights[i]);
                 }
                 mixer.finalize();
-                type.copy_assign(buffer, dst[out_c]);
               });
             }
           }
