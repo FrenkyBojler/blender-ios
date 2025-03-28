@@ -252,7 +252,7 @@ void MTLBackend::platform_init(MTLContext *ctx)
   /* LUID is registryID on Metal, or at least this is what libraries like OIDN expects. */
   const uint64_t luid = mtl_device.registryID;
   GPG.device_luid.reinitialize(sizeof(luid));
-  std::memcpy(GPG.device_luid, &luid, sizeof(luid));
+  std::memcpy(GPG.device_luid.data(), &luid, sizeof(luid));
 
   /* Metal only has one device per LUID, so only the first bit will always be active.. */
   GPG.device_luid_node_mask = 1;
