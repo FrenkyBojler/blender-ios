@@ -2354,6 +2354,9 @@ static void vgroup_assign_verts(Object *ob, Scene &scene, const float weight)
           if (dw) {
             dw->weight = weight;
           }
+          if (mesh->symmetry & ME_SYMMETRY_X) {
+            ED_mesh_defvert_mirror_update_ob(ob, def_nr, i);
+          }
         }
       }
     }
