@@ -307,12 +307,12 @@ static void get_manifolds(MutableSpan<Manifold> manifolds,
 
   if (dbg_level > 0) {
     for (const int mesh_index : IndexRange(meshes_num)) {
-      get_manifold(manifolds[mesh_index], meshes, mesh_index, mesh_offsets);
+      get_manifold(manifolds[mesh_index], transformed_meshes, mesh_index, mesh_offsets);
     }
   }
   else {
     threading::parallel_for_each(IndexRange(meshes_num), [&](int mesh_index) {
-      get_manifold(manifolds[mesh_index], meshes, mesh_index, mesh_offsets);
+      get_manifold(manifolds[mesh_index], transformed_meshes, mesh_index, mesh_offsets);
     });
   }
 
