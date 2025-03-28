@@ -250,6 +250,11 @@ void AbstractView::set_sort_inverted()
   this->sort_order = !this->sort_order;
 }
 
+void AbstractView::set_sort_inverted(bool value)
+{
+  this->sort_order = value;
+}
+
 bool AbstractView::is_sort_inverted() const
 {
   return this->sort_order;
@@ -258,6 +263,11 @@ bool AbstractView::is_sort_inverted() const
 void AbstractView::set_filtering_collapsed()
 {
   this->filtering_collapsed_state = !this->filtering_collapsed_state;
+}
+
+void AbstractView::set_filtering_collapsed(bool value)
+{
+  this->filtering_collapsed_state = value;
 }
 
 bool AbstractView::is_filtering_collapsed() const

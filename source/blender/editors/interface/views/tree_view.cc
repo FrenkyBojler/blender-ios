@@ -148,7 +148,8 @@ std::optional<uiViewState> AbstractTreeView::persistent_state() const
   if (scroll_value_) {
     state.scroll_offset = *scroll_value_;
   }
-
+  state.invert_sort_order = is_sort_inverted();
+  state.filtering_collapsed_state = is_filtering_collapsed();
   return state;
 }
 
@@ -160,6 +161,9 @@ void AbstractTreeView::persistent_state_apply(const uiViewState &state)
   if (state.scroll_offset) {
     scroll_value_ = std::make_shared<int>(state.scroll_offset);
   }
+
+  set_filtering_collapsed(state.filtering_collapsed_state);
+  set_sort_inverted(state.invert_sort_order);
 }
 
 int AbstractTreeView::count_visible_descendants(const AbstractTreeViewItem &parent) const

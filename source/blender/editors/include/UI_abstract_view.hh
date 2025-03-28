@@ -149,14 +149,15 @@ class AbstractView {
   void clear_search_highlight();
 
   void set_sort_inverted();
+  void set_sort_inverted(bool value);
   bool is_sort_inverted() const;
 
   void set_filtering_collapsed();
+  void set_filtering_collapsed(bool value);
   bool is_filtering_collapsed() const;
 
  protected:
   AbstractView() = default;
-
   /**
    * Items may want to do additional work when state changes. But these state changes can only be
    * reliably detected after the view has completed reconstruction (see #is_reconstructed()). So
