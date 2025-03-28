@@ -1,3 +1,4 @@
 Referenced by pull request #136570, Refactor: Draw: Further changes to mesh buffer extraction
 Referenced by commit 9b1a5a1c43d62885433eba245c3f0658c8c88775, Refactor: Draw: Further changes to mesh buffer extraction
 Referenced by issue #136625, Instant Crash when switching to Texture Paint
+Referenced by issue #136670, UV: I cannot select vertices in the UV Editor if "Sync" is off
