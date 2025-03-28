@@ -388,9 +388,6 @@ struct StrokeCache {
   float4x4 stroke_local_mat;
   float multiplane_scrape_angle;
 
-  rcti previous_r; /* previous redraw rectangle */
-  rcti current_r;  /* current redraw rectangle */
-
   ~StrokeCache();
 };
 
@@ -986,6 +983,16 @@ inline bool brush_uses_vector_displacement(const Brush &brush)
   return brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_DRAW &&
          brush.flag2 & BRUSH_USE_COLOR_AS_DISPLACEMENT &&
          brush.mtex.brush_map_mode == MTEX_MAP_MODE_AREA;
+}
+
+inline bool brush_type_supports_gravity(const int tool)
+{
+  return !brush_type_is_attribute_only(tool) && !ELEM(tool,
+                                                      SCULPT_BRUSH_TYPE_BOUNDARY,
+                                                      SCULPT_BRUSH_TYPE_SMOOTH,
+                                                      SCULPT_BRUSH_TYPE_SIMPLIFY,
+                                                      SCULPT_BRUSH_TYPE_DISPLACEMENT_SMEAR,
+                                                      SCULPT_BRUSH_TYPE_DISPLACEMENT_ERASER);
 }
 
 }  // namespace blender::ed::sculpt_paint

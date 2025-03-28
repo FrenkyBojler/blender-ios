@@ -67,7 +67,7 @@ enum {
   /* Defaults from ghost. */
   WHEELUPMOUSE = 0x000a,
   WHEELDOWNMOUSE = 0x000b,
-  /* Mapped with userdef. */
+  /* Mapped based on #USER_WHEELZOOMDIR. */
   WHEELINMOUSE = 0x000c,
   WHEELOUTMOUSE = 0x000d,
   /* Successive MOUSEMOVE's are converted to this, so we can easily
@@ -175,6 +175,9 @@ enum {
   EVT_MEDIALAST = 0x00b1,  /* 177 */
   /* Menu/App key. */
   EVT_APPKEY = 0x00b2, /* 178 */
+
+  /** Additional modifier, see: #KM_HYPER for details. */
+  EVT_HYPER = 0x00b3, /* 179 */
 
   EVT_PADPERIOD = 0x00c7, /* 199 */
 
@@ -395,7 +398,7 @@ enum {
 /** Test whether the event is a modifier key. */
 #define ISKEYMODIFIER(event_type) \
   (((event_type) >= EVT_LEFTCTRLKEY && (event_type) <= EVT_LEFTSHIFTKEY) || \
-   (event_type) == EVT_OSKEY)
+   ELEM((event_type), EVT_OSKEY, EVT_HYPER))
 
 /**
  * Test whether the event is any kind:
