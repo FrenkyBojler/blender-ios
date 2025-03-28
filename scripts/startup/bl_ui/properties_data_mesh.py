@@ -270,6 +270,7 @@ class DATA_PT_vertex_groups(MeshButtonsPanel, Panel):
             sub.operator("object.vertex_group_select", text="Select")
             sub.operator("object.vertex_group_deselect", text="Deselect")
 
+            layout.use_property_split = True
             layout.prop(context.tool_settings, "vertex_group_weight", text="Weight")
             tool_settings = context.tool_settings
 
