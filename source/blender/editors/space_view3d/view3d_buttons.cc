@@ -310,6 +310,7 @@ static TransformProperties *v3d_transform_props_ensure(View3D *v3d)
 static void v3d_editvertex_buts(
     const bContext *C, uiLayout *layout, View3D *v3d, Object *ob, float lim)
 {
+  using namespace blender;
   uiBlock *block = (layout) ? uiLayoutAbsoluteBlock(layout) : nullptr;
   TransformProperties *tfp = v3d_transform_props_ensure(v3d);
   TransformMedian median_basis, ve_median_basis;
@@ -484,7 +485,6 @@ static void v3d_editvertex_buts(
     }
   }
   else if (ob->type == OB_GREASE_PENCIL) {
-    using namespace blender;
     using namespace blender::ed::greasepencil;
     Scene &scene = *CTX_data_scene(C);
     GreasePencil &grease_pencil = *static_cast<GreasePencil *>(ob->data);
@@ -502,16 +502,15 @@ static void v3d_editvertex_buts(
       if (selection.is_empty()) {
         return;
       }
-      Span<float3> positions = curves.positions();
+      const Span<float3> positions = curves.positions();
       TransformMedian_GreasePencil *median = &median_basis.grease_pencil;
-      selection.foreach_index([&](const int point_i) {
-        add_v3_v3(median->location, positions[point_i]);
-        tot++;
+      tot += selection.size();
+      selection.foreach_index([&](const int point) {
+        add_v3_v3(median->location, positions[point]);
       });
     });
   }
   else if (ob->type == OB_CURVES) {
-    using namespace blender;
     const Curves &curves_id = *static_cast<Curves *>(ob->data);
     const bke::CurvesGeometry &curves = curves_id.geometry.wrap();
     if (curves.is_empty()) {
@@ -520,16 +519,15 @@ static void v3d_editvertex_buts(
 
     IndexMaskMemory memory;
     const IndexMask selection = ed::curves::retrieve_selected_points(curves_id, memory);
-
     if (selection.is_empty()) {
       return;
     }
 
     const Span<float3> positions = curves.positions();
     TransformMedian_Curves *median = &median_basis.curves;
-    selection.foreach_index([&](const int point_i) {
-      add_v3_v3(median->location, positions[point_i]);
-      tot++;
+    tot += selection.size();
+    selection.foreach_index([&](const int point) {
+      add_v3_v3(median->location, positions[point]);
     });
   }
 
@@ -1233,7 +1231,6 @@ static void v3d_editvertex_buts(
       }
     }
     else if (ob->type == OB_GREASE_PENCIL && apply_vcos) {
-      using namespace blender;
       using namespace blender::ed::greasepencil;
       Scene &scene = *CTX_data_scene(C);
       GreasePencil &grease_pencil = *static_cast<GreasePencil *>(ob->data);
@@ -1254,13 +1251,12 @@ static void v3d_editvertex_buts(
         MutableSpan<float3> positions = curves.positions_for_write();
         TransformMedian_GreasePencil *median = &median_basis.grease_pencil;
         TransformMedian_GreasePencil *ve_median = &ve_median_basis.grease_pencil;
-        selection.foreach_index([&](const int point_i) {
-          apply_raw_diff_v3(positions[point_i], tot, ve_median->location, median->location);
+        selection.foreach_index([&](const int point) {
+          apply_raw_diff_v3(positions[point], tot, ve_median->location, median->location);
         });
       });
     }
     else if (ob->type == OB_CURVES && apply_vcos) {
-      using namespace blender;
       Curves &curves_id = *static_cast<Curves *>(ob->data);
       bke::CurvesGeometry &curves = curves_id.geometry.wrap();
       if (curves.is_empty()) {
@@ -1272,8 +1268,8 @@ static void v3d_editvertex_buts(
       MutableSpan<float3> positions = curves.positions_for_write();
       TransformMedian_Curves *median = &median_basis.curves;
       TransformMedian_Curves *ve_median = &ve_median_basis.curves;
-      selection.foreach_index([&](const int point_i) {
-        apply_raw_diff_v3(positions[point_i], tot, ve_median->location, median->location);
+      selection.foreach_index([&](const int point) {
+        apply_raw_diff_v3(positions[point], tot, ve_median->location, median->location);
       });
     }
 
