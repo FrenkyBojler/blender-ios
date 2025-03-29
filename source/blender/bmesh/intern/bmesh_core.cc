@@ -1341,8 +1341,8 @@ BMFace *BM_faces_join(BMesh *bm, BMFace **faces, int totface, const bool do_del,
   bm_elements_systag_disable(faces, totface, _FLAG_JF);
   BM_ELEM_API_FLAG_DISABLE(f_new, _FLAG_JF);
 
-  /* delete old geometry */
   if (do_del) {
+    /* if do_del, delete all the edges and verts that were identified while walking the mesh. */
     for (BMEdge *edge : deledges) {
       BM_edge_kill(bm, edge);
     }
@@ -1352,7 +1352,7 @@ BMFace *BM_faces_join(BMesh *bm, BMFace **faces, int totface, const bool do_del,
     }
   }
   else {
-    /* otherwise we get both old and new faces */
+    /* otherwise, delete only the faces that were merged (do not leave the mesh with both both the old and new faces) */
     for (i = 0; i < totface; i++) {
       BM_face_kill(bm, faces[i]);
     }
