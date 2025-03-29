@@ -602,6 +602,59 @@ static void calculate_offsets_from_segments(const Span<Segment> segments,
   offsets.last() = offset;
 }
 
+void check_segments(const CurveBooleanOpParameters &op_params,
+                    const int curve_k,
+                    const bool is_subj,
+                    const int subj_shape_id,
+                    const Span<float2> points,
+                    const Vector<IndexMask> &shapes,
+                    const OffsetIndices<int> points_by_curve,
+                    const IndexMask &clipping_shapes,
+                    const Span<Segment> all_segments,
+                    const Span<IndexRange> all_segments_by_curve,
+                    const Span<IntersectionPoint> &intersections,
+                    const VArray<bool> &is_fill,
+                    MutableSpan<bool> all_inside_left,
+                    MutableSpan<bool> all_inside_right)
+{
+  const IndexRange segments = all_segments_by_curve[curve_k];
+
+  const Segment &first_segment = all_segments[segments.first()];
+  const IndexMask &mask_shapes = is_subj ? clipping_shapes : shapes[subj_shape_id];
+  auto [state_L, state_R] = LR_states_from_segment(
+      first_segment, points, points_by_curve, shapes, mask_shapes, is_fill);
+
+  for (const int seg_i : segments) {
+    const Segment &this_segment = all_segments[seg_i];
+
+    all_inside_left[seg_i] = state_L.is_contributing(
+        op_params, shapes, subj_shape_id, clipping_shapes);
+    all_inside_right[seg_i] = state_R.is_contributing(
+        op_params, shapes, subj_shape_id, clipping_shapes);
+
+    if (!this_segment.has_end_intersection()) {
+      continue;
+    }
+    const int int_p_end = this_segment.end_intersection();
+    const IntersectionPoint &inter_end = intersections[int_p_end];
+
+    const int other_curve_k = inter_end.other_curve(curve_k);
+
+    if (is_fill[other_curve_k]) {
+      const int point_k = curve_k == inter_end.curve_a ? inter_end.point_a : inter_end.point_b;
+      const int point_other = curve_k != inter_end.curve_a ? inter_end.point_a : inter_end.point_b;
+      const float2 &point1 = points[point_k];
+      const float2 &point_other1 = points[point_other];
+      const float2 &point_other2 = points[(point_other + 1) % points.size()];
+      const bool ccw = cross_tri_v2(point1, point_other1, point_other2) > 0.0;
+
+      /* Crossing a line going left to right is incrementing. */
+      state_L.add_to_curve(other_curve_k, ccw ? -1 : 1);
+      state_R.add_to_curve(other_curve_k, ccw ? -1 : 1);
+    }
+  }
+}
+
 struct BooleanResult {
   Vector<Segment> segments;
   Vector<int> segment_offsets;
@@ -783,53 +836,40 @@ BooleanResult execute_single_boolean(const CurveBooleanOpParameters op_params,
   Array<bool> all_inside_left(all_segments.size());
   Array<bool> all_inside_right(all_segments.size());
 
-  auto check_segments = [&](const int curve_k, const bool is_subj) {
-    const IndexRange segments = all_segments_by_curve[curve_k];
-
-    const Segment &first_segment = all_segments[segments.first()];
-    const IndexMask &mask_shapes = is_subj ? clipping_shapes : shapes[subj_shape_id];
-    auto [state_L, state_R] = LR_states_from_segment(
-        first_segment, points, points_by_curve, shapes, mask_shapes, is_fill);
-
-    for (const int seg_i : segments) {
-      const Segment &this_segment = all_segments[seg_i];
-
-      const bool is_in_L = state_L.is_contributing(
-          op_params, shapes, subj_shape_id, clipping_shapes);
-      const bool is_in_R = state_R.is_contributing(
-          op_params, shapes, subj_shape_id, clipping_shapes);
-
-      all_inside_left[seg_i] = (is_in_L);
-      all_inside_right[seg_i] = (is_in_R);
-
-      if (!this_segment.has_end_intersection()) {
-        continue;
-      }
-      const int int_p_end = this_segment.end_intersection();
-      const IntersectionPoint &inter_end = intersections[int_p_end];
-
-      const int other_curve_k = inter_end.other_curve(curve_k);
-
-      if (is_fill[other_curve_k]) {
-        const int point_k = curve_k == inter_end.curve_a ? inter_end.point_a : inter_end.point_b;
-        const int point_other = curve_k != inter_end.curve_a ? inter_end.point_a :
-                                                               inter_end.point_b;
-        const float2 &point1 = points[point_k];
-        const float2 &point_other1 = points[point_other];
-        const float2 &point_other2 = points[(point_other + 1) % points.size()];
-        const bool ccw = cross_tri_v2(point1, point_other1, point_other2) > 0.0;
-
-        /* Crossing a line going left to right is incrementing. */
-        state_L.add_to_curve(other_curve_k, ccw ? -1 : 1);
-        state_R.add_to_curve(other_curve_k, ccw ? -1 : 1);
-      }
-    }
-  };
-
-  curves_i.foreach_index([&](const int curve_i) { check_segments(curve_i, true); });
+  curves_i.foreach_index([&](const int curve_i) {
+    check_segments(op_params,
+                   curve_i,
+                   true,
+                   subj_shape_id,
+                   points,
+                   shapes,
+                   points_by_curve,
+                   clipping_shapes,
+                   all_segments,
+                   all_segments_by_curve,
+                   intersections,
+                   is_fill,
+                   all_inside_left,
+                   all_inside_right);
+  });
   clipping_shapes.foreach_index([&](const int clip_shape_id) {
     const IndexMask &curves_j = shapes[clip_shape_id];
-    curves_j.foreach_index([&](const int curve_j) { check_segments(curve_j, false); });
+    curves_j.foreach_index([&](const int curve_j) {
+      check_segments(op_params,
+                     curve_j,
+                     false,
+                     subj_shape_id,
+                     points,
+                     shapes,
+                     points_by_curve,
+                     clipping_shapes,
+                     all_segments,
+                     all_segments_by_curve,
+                     intersections,
+                     is_fill,
+                     all_inside_left,
+                     all_inside_right);
+    });
   });
 
   /* -------------------- */
