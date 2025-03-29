@@ -1,2 +1,3 @@
 Referenced by issue #136637, Blender crash when entering a number in remesh modifier
 Referenced by pull request #136690, Fix #136637: Voxel remesh crashes with small input
+Referenced by commit c5cda9474e31e1837d45fe0726a15bcc062abbfc, Fix #136637: Voxel remesh crashes with small input
