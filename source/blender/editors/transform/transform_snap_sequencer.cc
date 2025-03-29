@@ -211,7 +211,9 @@ static VectorSet<Strip *> query_snap_targets_timeline(Scene *scene,
   return snap_targets;
 }
 
-static VectorSet<Strip *> query_snap_targets_preview(Scene *scene, const short snap_mode)
+static VectorSet<Strip *> query_snap_targets_preview(Scene *scene,
+                                                     const short snap_mode,
+                                                     const bool exclude_selected)
 {
   VectorSet<Strip *> snap_targets;
 
@@ -224,6 +226,9 @@ static VectorSet<Strip *> query_snap_targets_preview(Scene *scene, const short s
   ListBase *channels = seq::channels_displayed_get(ed);
 
   snap_targets = seq::query_rendered_strips(scene, channels, ed->seqbasep, scene->r.cfra, 0);
+  if (exclude_selected) {
+    snap_targets.remove_if([&](Strip *strip) { return (strip->flag & SELECT) == 1; });
+  }
 
   return snap_targets;
 }
@@ -382,19 +387,20 @@ static void snap_data_build_preview(const TransInfo *t, TransSeqSnapData *snap_d
   Scene *scene = t->scene;
   short snap_mode = t->tsnap.mode;
   View2D *v2d = &t->region->v2d;
+  SpaceSeq *sseq = static_cast<SpaceSeq *>(t->area->spacedata.first);
 
   VectorSet<Strip *> snap_sources = query_snap_sources_preview(scene);
-  VectorSet<Strip *> snap_targets = query_snap_targets_preview(scene, snap_mode);
+  VectorSet<Strip *> snap_targets;
 
   /* Build arrays of snap points. */
   if (t->data_type == &TransConvertType_SequencerImage) {
     /* Ignore selected strips if we are not snapping the cursor,
      * since they move with the transform. */
-    snap_targets.remove_if([&](Strip *strip) { return (strip->flag & SELECT) == 1; });
+    snap_targets = query_snap_targets_preview(scene, snap_mode, true);
     points_build_sources_preview_strips(scene, snap_data, snap_sources);
   }
   else if (t->data_type == &TransConvertType_CursorSequencer) {
-    SpaceSeq *sseq = static_cast<SpaceSeq *>(t->area->spacedata.first);
+    snap_targets = query_snap_targets_preview(scene, snap_mode, false);
     float2 cursor_view = float2(sseq->cursor) * float2(t->aspect);
     snap_data->source_snap_points.append(cursor_view);
   }
