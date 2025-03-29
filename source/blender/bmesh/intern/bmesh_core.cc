@@ -1318,9 +1318,6 @@ BMFace *BM_faces_join(BMesh *bm, BMFace **faces, int totface, const bool do_del,
   }
 #endif
 
-  bm_elements_systag_disable(faces, totface, _FLAG_JF);
-  BM_ELEM_API_FLAG_DISABLE(f_new, _FLAG_JF);
-
   /* handle multi-res data */
   if (cd_loop_mdisp_offset != -1) {
     float f_center[3];
@@ -1339,6 +1336,10 @@ BMFace *BM_faces_join(BMesh *bm, BMFace **faces, int totface, const bool do_del,
       }
     } while ((l_iter = l_iter->next) != l_first);
   }
+
+  /* clean up the internal flags.*/
+  bm_elements_systag_disable(faces, totface, _FLAG_JF);
+  BM_ELEM_API_FLAG_DISABLE(f_new, _FLAG_JF);
 
   /* delete old geometry */
   if (do_del) {
