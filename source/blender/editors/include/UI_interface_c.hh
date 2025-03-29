@@ -2399,6 +2399,7 @@ float uiLayoutGetSearchWeight(uiLayout *layout);
 
 int uiLayoutListItemPaddingWidth();
 void uiLayoutListItemAddPadding(uiLayout *layout);
+bool uiLayoutIsEmpty(uiLayout *layout);
 
 /* Layout create functions. */
 

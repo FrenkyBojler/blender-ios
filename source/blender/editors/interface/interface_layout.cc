@@ -5454,6 +5454,10 @@ void uiLayoutListItemAddPadding(uiLayout *layout)
   UI_block_layout_set_current(block, layout);
 }
 
+bool uiLayoutIsEmpty(uiLayout* layout)
+{
+  return layout->items.is_empty();
+}
 /** \} */
 
 /* -------------------------------------------------------------------- */

@@ -172,6 +172,10 @@ void uiTemplateNodeInputs(uiLayout *layout, bContext *C, PointerRNA *ptr)
       blender::ui::nodes::draw_node_input(C, layout, ptr, *input);
     }
   }
+
+  if (uiLayoutIsEmpty(layout)) {
+    uiItemL(layout, "No properties available", ICON_NONE);
+  }
 }
 
 /** \} */
