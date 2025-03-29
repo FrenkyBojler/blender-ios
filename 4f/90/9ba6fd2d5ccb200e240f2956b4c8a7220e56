@@ -1,1 +1,2 @@
 Referenced by issue #135605, Crash baking lightprobe cache
+Referenced by issue #136699, Crash while denoise node is used by the viewport compositor
