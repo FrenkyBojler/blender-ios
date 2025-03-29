@@ -585,6 +585,60 @@ struct BooleanResult {
   Vector<int> shape_ids;
 };
 
+void find_intersections_between_shapes(const Span<float2> points,
+                                       const Vector<IndexMask> &shapes,
+                                       const IndexMask &shapes_i,
+                                       const IndexMask &shapes_j,
+                                       const OffsetIndices<int> points_by_curve,
+                                       const VArray<bool> &is_fill,
+                                       const VArray<bool> &is_cyclic,
+                                       const bool self_intersection,
+                                       Array<Vector<int>> &r_inters_per_curves,
+                                       Vector<IntersectionPoint> &r_intersections)
+{
+  shapes_i.foreach_index([&](const int shape_i) {
+    const IndexMask &curves_i = shapes[shape_i];
+    curves_i.foreach_index([&](const int curve_i) {
+      const IndexRange points_i = points_by_curve[curve_i];
+      const bool is_cyclic_i = is_cyclic[curve_i] || is_fill[curve_i];
+
+      shapes_j.foreach_index([&](const int shape_j) {
+        const IndexMask &curves_j = shapes[shape_j];
+        curves_j.foreach_index([&](const int curve_j) {
+          if (self_intersection && shape_i >= shape_j) {
+            return;
+          }
+
+          const IndexRange points_j = points_by_curve[curve_j];
+          const bool is_cyclic_j = is_cyclic[curve_j] || is_fill[curve_j];
+
+          for (const int i : points_i.index_range().drop_back(is_cyclic_i ? 0 : 1)) {
+            for (const int j : points_j.index_range().drop_back(is_cyclic_j ? 0 : 1)) {
+              float alpha_a, alpha_b;
+              const int val = intersect(points[points_i[i]],
+                                        points[points_i[(i + 1) % points_i.size()]],
+                                        points[points_j[j]],
+                                        points[points_j[(j + 1) % points_j.size()]],
+                                        &alpha_a,
+                                        &alpha_b);
+              if (val == ISECT_LINE_LINE_CROSS) {
+                r_inters_per_curves[curve_i].append(r_intersections.size());
+                r_inters_per_curves[curve_j].append(r_intersections.size());
+                r_intersections.append(create_intersection(
+                    points_i[i], points_j[j], alpha_a, alpha_b, curve_i, curve_j));
+              }
+              else if (val == ISECT_LINE_LINE_EXACT) {
+                /* TODO */
+                // return std::nullopt;
+              }
+            }
+          }
+        });
+      });
+    });
+  });
+}
+
 BooleanResult execute_single_boolean(const CurveBooleanOpParameters op_params,
                                      const int subj_shape_id,
                                      const Span<float2> points,
@@ -603,40 +657,16 @@ BooleanResult execute_single_boolean(const CurveBooleanOpParameters op_params,
 
   Array<Vector<int>> inters_per_curves(points_by_curve.size());
 
-  curves_i.foreach_index([&](const int curve_i) {
-    const IndexRange points_i = points_by_curve[curve_i];
-    const bool is_cyclic_i = is_cyclic[curve_i] || is_fill[curve_i];
-
-    clipping_shapes.foreach_index([&](const int clip_shape_id) {
-      const IndexMask &curves_j = shapes[clip_shape_id];
-      curves_j.foreach_index([&](const int curve_j) {
-        const IndexRange points_j = points_by_curve[curve_j];
-        const bool is_cyclic_j = is_cyclic[curve_j] || is_fill[curve_j];
-
-        for (const int i : points_i.index_range().drop_back(is_cyclic_i ? 0 : 1)) {
-          for (const int j : points_j.index_range().drop_back(is_cyclic_j ? 0 : 1)) {
-            float alpha_a, alpha_b;
-            const int val = intersect(points[points_i[i]],
-                                      points[points_i[(i + 1) % points_i.size()]],
-                                      points[points_j[j]],
-                                      points[points_j[(j + 1) % points_j.size()]],
-                                      &alpha_a,
-                                      &alpha_b);
-            if (val == ISECT_LINE_LINE_CROSS) {
-              inters_per_curves[curve_i].append(intersections.size());
-              inters_per_curves[curve_j].append(intersections.size());
-              intersections.append(create_intersection(
-                  points_i[i], points_j[j], alpha_a, alpha_b, curve_i, curve_j));
-            }
-            else if (val == ISECT_LINE_LINE_EXACT) {
-              /* TODO */
-              // return std::nullopt;
-            }
-          }
-        }
-      });
-    });
-  });
+  find_intersections_between_shapes(points,
+                                    shapes,
+                                    IndexMask(IndexRange::from_single(subj_shape_id)),
+                                    clipping_shapes,
+                                    points_by_curve,
+                                    is_fill,
+                                    is_cyclic,
+                                    false,
+                                    inters_per_curves,
+                                    intersections);
 
   /* -------------------- */
 
@@ -879,47 +909,16 @@ static BooleanResult execute_boolean(const CurveBooleanOpParameters op_params,
 
   Array<Vector<int>> self_clipping_inters_per_curves(points_by_curve.size());
 
-  clipping_shapes.foreach_index([&](const int shape_i) {
-    const IndexMask &curves_i = shapes[shape_i];
-    curves_i.foreach_index([&](const int curve_i) {
-      const IndexRange points_i = points_by_curve[curve_i];
-      const bool is_cyclic_i = is_cyclic[curve_i] || is_fill[curve_i];
-
-      clipping_shapes.foreach_index([&](const int shape_j) {
-        const IndexMask &curves_j = shapes[shape_j];
-        curves_j.foreach_index([&](const int curve_j) {
-          if (shape_i >= shape_j) {
-            return;
-          }
-
-          const IndexRange points_j = points_by_curve[curve_j];
-          const bool is_cyclic_j = is_cyclic[curve_j] || is_fill[curve_j];
-
-          for (const int i : points_i.index_range().drop_back(is_cyclic_i ? 0 : 1)) {
-            for (const int j : points_j.index_range().drop_back(is_cyclic_j ? 0 : 1)) {
-              float alpha_a, alpha_b;
-              const int val = intersect(points[points_i[i]],
-                                        points[points_i[(i + 1) % points_i.size()]],
-                                        points[points_j[j]],
-                                        points[points_j[(j + 1) % points_j.size()]],
-                                        &alpha_a,
-                                        &alpha_b);
-              if (val == ISECT_LINE_LINE_CROSS) {
-                self_clipping_inters_per_curves[curve_i].append(intersections.size());
-                self_clipping_inters_per_curves[curve_j].append(intersections.size());
-                intersections.append(create_intersection(
-                    points_i[i], points_j[j], alpha_a, alpha_b, curve_i, curve_j));
-              }
-              else if (val == ISECT_LINE_LINE_EXACT) {
-                /* TODO */
-                // return std::nullopt;
-              }
-            }
-          }
-        });
-      });
-    });
-  });
+  find_intersections_between_shapes(points,
+                                    shapes,
+                                    clipping_shapes,
+                                    clipping_shapes,
+                                    points_by_curve,
+                                    is_fill,
+                                    is_cyclic,
+                                    true,
+                                    self_clipping_inters_per_curves,
+                                    intersections);
 
   BooleanResult results_all;
   results_all.segment_offsets.append(0);
