@@ -418,70 +418,6 @@ class SegmentEndPoint {
 };
 
 class IntersectionPoint {
- private:
-  /* Stores how each segment is connected.
-   * if a index is connected to itself then it ends.
-   * Default to each index connected to itself.
-   */
-  uint8_t connection_data_ = (0u << (0u << 1u)) | (1u << (1u << 1u)) | (2u << (2u << 1u)) |
-                             (3u << (3u << 1u));
-
-  int connected(const uint current_index)
-  {
-    BLI_assert(current_index >= 0u && current_index <= 3u);
-
-    const uint offset = current_index << 1u;
-    const uint bit_mask = 3u << offset;
-    const uint other_index = (connection_data_ & bit_mask) >> offset;
-
-    if (other_index == current_index) {
-      return -1;
-    }
-    return other_index;
-  }
-
-  int end_point_to_index(const SegmentEndPoint current)
-  {
-    if (current == start_a) {
-      return 0;
-    }
-    else if (current == end_a) {
-      return 1;
-    }
-    else if (current == start_b) {
-      return 2;
-    }
-    else if (current == end_b) {
-      return 3;
-    }
-    else {
-      BLI_assert_unreachable();
-      return -1;
-    }
-  }
-
-  SegmentEndPoint index_to_end_point(const int current_index)
-  {
-    BLI_assert(current_index >= 0 && current_index <= 3);
-
-    const SegmentEndPoint end_points[4] = {start_a, end_a, start_b, end_b};
-    return end_points[current_index];
-  }
-
-  void connect_indexes(const uint index_i, const uint index_j)
-  {
-    BLI_assert(index_i >= 0u && index_i <= 3u);
-    BLI_assert(index_j >= 0u && index_j <= 3u);
-
-    const uint offset_i = index_i << 1u;
-    const uint offset_j = index_j << 1u;
-
-    /* Connect i to j and j to i. */
-    connection_data_ |= index_j << offset_i;
-    connection_data_ |= index_i << offset_j;
-  }
-
- public:
   int point_a = -1;
   int point_b = -1;
   float alpha_a = -1.0f;
@@ -505,20 +441,6 @@ class IntersectionPoint {
   {
     BLI_assert(curve == curve_a || curve == curve_b);
     return curve == curve_a ? curve_b : curve_a;
-  }
-
-  SegmentEndPoint other_connected_segment(const SegmentEndPoint current)
-  {
-    const int current_index = end_point_to_index(current);
-    return index_to_end_point(current_index);
-  }
-
-  void connect_segment_ends(const SegmentEndPoint seg_end_i, const SegmentEndPoint seg_end_j)
-  {
-    const int index_i = end_point_to_index(seg_end_i);
-    const int index_j = end_point_to_index(seg_end_j);
-
-    connect_indexes(index_i, index_j);
   }
 };
 
