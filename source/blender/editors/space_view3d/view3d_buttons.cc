@@ -505,9 +505,8 @@ static void v3d_editvertex_buts(
       const Span<float3> positions = curves.positions();
       TransformMedian_GreasePencil *median = &median_basis.grease_pencil;
       tot += selection.size();
-      selection.foreach_index([&](const int point) {
-        add_v3_v3(median->location, positions[point]);
-      });
+      selection.foreach_index(
+          [&](const int point) { add_v3_v3(median->location, positions[point]); });
     });
   }
   else if (ob->type == OB_CURVES) {
@@ -526,9 +525,8 @@ static void v3d_editvertex_buts(
     const Span<float3> positions = curves.positions();
     TransformMedian_Curves *median = &median_basis.curves;
     tot += selection.size();
-    selection.foreach_index([&](const int point) {
-      add_v3_v3(median->location, positions[point]);
-    });
+    selection.foreach_index(
+        [&](const int point) { add_v3_v3(median->location, positions[point]); });
   }
 
   if (tot == 0) {
