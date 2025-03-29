@@ -1282,59 +1282,66 @@ BMFace *BM_faces_join(BMesh *bm, BMFace **faces, int totface, const bool do_del,
     }
   }
 
-  /* copy over loop data */
-  l_iter = l_first = BM_FACE_FIRST_LOOP(f_new);
-  do {
-    BMLoop *l2 = l_iter->radial_next;
+  bool reusing_face = (f_existing && r_double == nullptr);
 
-    do {
-      if (BM_ELEM_API_FLAG_TEST(l2->f, _FLAG_JF)) {
-        break;
-      }
-      l2 = l2->radial_next;
-    } while (l2 != l_iter);
+  /* If we are *not* reusing an existing face, we need to transfer data from the faces being joined
+   * to the newly created joined face. */
+  if (LIKELY(reusing_face == false)) {
 
-    if (l2 != l_iter) {
-      /* loops share an edge, shared vert depends on winding */
-      if (l2->v != l_iter->v) {
-        l2 = l2->next;
-      }
-      BLI_assert(l_iter->v == l2->v);
-
-      BM_elem_attrs_copy(bm, l2, l_iter);
-    }
-  } while ((l_iter = l_iter->next) != l_first);
-
-#ifdef USE_BMESH_HOLES
-  /* add holes */
-  BLI_movelisttolist(&f_new->loops, &holes);
-
-  /* update loop face pointer */
-  for (lst = f_new->loops.first; lst; lst = lst->next) {
-    l_iter = l_first = lst->first;
-    do {
-      l_iter->f = f_new;
-    } while ((l_iter = l_iter->next) != l_first);
-  }
-#endif
-
-  /* handle multi-res data */
-  if (cd_loop_mdisp_offset != -1) {
-    float f_center[3];
-    float(*faces_center)[3] = BLI_array_alloca(faces_center, totface);
-
-    BM_face_calc_center_median(f_new, f_center);
-    for (i = 0; i < totface; i++) {
-      BM_face_calc_center_median(faces[i], faces_center[i]);
-    }
-
+    /* copy over loop data */
     l_iter = l_first = BM_FACE_FIRST_LOOP(f_new);
     do {
-      for (i = 0; i < totface; i++) {
-        BM_loop_interp_multires_ex(
-            bm, l_iter, faces[i], f_center, faces_center[i], cd_loop_mdisp_offset);
+      BMLoop *l2 = l_iter->radial_next;
+
+      do {
+        if (BM_ELEM_API_FLAG_TEST(l2->f, _FLAG_JF)) {
+          break;
+        }
+        l2 = l2->radial_next;
+      } while (l2 != l_iter);
+
+      if (l2 != l_iter) {
+        /* loops share an edge, shared vert depends on winding */
+        if (l2->v != l_iter->v) {
+          l2 = l2->next;
+        }
+        BLI_assert(l_iter->v == l2->v);
+
+        BM_elem_attrs_copy(bm, l2, l_iter);
       }
     } while ((l_iter = l_iter->next) != l_first);
+
+#ifdef USE_BMESH_HOLES
+    /* add holes */
+    BLI_movelisttolist(&f_new->loops, &holes);
+
+    /* update loop face pointer */
+    for (lst = f_new->loops.first; lst; lst = lst->next) {
+      l_iter = l_first = lst->first;
+      do {
+        l_iter->f = f_new;
+      } while ((l_iter = l_iter->next) != l_first);
+    }
+#endif
+
+    /* handle multi-res data */
+    if (cd_loop_mdisp_offset != -1) {
+      float f_center[3];
+      float(*faces_center)[3] = BLI_array_alloca(faces_center, totface);
+
+      BM_face_calc_center_median(f_new, f_center);
+      for (i = 0; i < totface; i++) {
+        BM_face_calc_center_median(faces[i], faces_center[i]);
+      }
+
+      l_iter = l_first = BM_FACE_FIRST_LOOP(f_new);
+      do {
+        for (i = 0; i < totface; i++) {
+          BM_loop_interp_multires_ex(
+              bm, l_iter, faces[i], f_center, faces_center[i], cd_loop_mdisp_offset);
+        }
+      } while ((l_iter = l_iter->next) != l_first);
+    }
   }
 
   /* clean up the internal flags.*/
