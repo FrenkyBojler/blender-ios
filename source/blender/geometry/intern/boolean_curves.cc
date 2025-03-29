@@ -417,7 +417,7 @@ class SegmentEndPoint {
   }
 };
 
-class IntersectionPoint {
+struct IntersectionPoint {
   int point_a = -1;
   int point_b = -1;
   float alpha_a = -1.0f;
