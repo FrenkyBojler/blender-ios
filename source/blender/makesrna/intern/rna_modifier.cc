@@ -1221,7 +1221,7 @@ static void rna_HookModifier_vertex_indices_set(HookModifierData *hmd,
 
     /* Copy and sort the index array. */
     size_t size = sizeof(int) * indices_num;
-    int *buffer = static_cast<int *>(MEM_mallocN(size, "hook indexar"));
+    int *buffer = MEM_malloc_arrayN<int>(size_t(indices_num), "hook indexar");
     memcpy(buffer, indices, size);
 
     qsort(buffer, indices_num, sizeof(int), BLI_sortutil_cmp_int);
@@ -2100,10 +2100,15 @@ static void rna_GreasePencilModifier_material_set(PointerRNA *ptr,
                                                   Material **ma_target)
 {
   Object *ob = reinterpret_cast<Object *>(ptr->owner_id);
+  Material *ma_old = *ma_target;
   Material *ma = reinterpret_cast<Material *>(value.data);
 
   if (ma == nullptr || BKE_object_material_index_get(ob, ma) != -1) {
-    id_lib_extern(reinterpret_cast<ID *>(ob));
+    id_us_min(&ma_old->id);
+    id_us_plus_no_lib(&ma->id);
+    if (!ID_IS_LINKED(&ob->id)) {
+      id_lib_extern(&ma->id);
+    }
     *ma_target = ma;
   }
   else {
@@ -2539,6 +2544,9 @@ static void rna_def_modifier_subsurf(BlenderRNA *brna)
                            "Place vertices at the surface that would be produced with infinite "
                            "levels of subdivision (smoothest possible shape)");
   RNA_def_property_update(prop, 0, "rna_Modifier_update");
+
+  rna_def_modifier_panel_open_prop(srna, "open_adaptive_subdivision_panel", 0);
+  rna_def_modifier_panel_open_prop(srna, "open_advanced_panel", 1);
 
   RNA_define_lib_overridable(false);
 }

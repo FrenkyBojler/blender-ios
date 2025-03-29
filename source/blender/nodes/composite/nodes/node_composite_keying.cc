@@ -47,7 +47,7 @@ static void cmp_node_keying_declare(NodeDeclarationBuilder &b)
 
 static void node_composit_init_keying(bNodeTree * /*ntree*/, bNode *node)
 {
-  NodeKeyingData *data = MEM_cnew<NodeKeyingData>(__func__);
+  NodeKeyingData *data = MEM_callocN<NodeKeyingData>(__func__);
 
   data->screen_balance = 0.5f;
   data->despill_balance = 0.5f;
@@ -86,13 +86,13 @@ class KeyingOperation : public NodeOperation {
 
   void execute() override
   {
-    Result &input_image = get_result("Image");
+    const Result &input_image = get_result("Image");
     Result &output_image = get_result("Image");
     Result &output_matte = get_result("Matte");
     Result &output_edges = get_result("Edges");
     if (input_image.is_single_value()) {
       if (output_image.should_compute()) {
-        input_image.pass_through(output_image);
+        output_image.share_data(input_image);
       }
       if (output_matte.should_compute()) {
         output_matte.allocate_invalid();

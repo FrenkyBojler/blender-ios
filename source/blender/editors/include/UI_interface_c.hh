@@ -338,6 +338,8 @@ enum {
   UI_BUT_HAS_TOOLTIP_LABEL = 1 << 5,
   /** Do not add the usual horizontal padding for text drawing. */
   UI_BUT_NO_TEXT_PADDING = 1 << 6,
+  /** Do not add the usual padding around preview image drawing, use the size of the button. */
+  UI_BUT_NO_PREVIEW_PADDING = 1 << 7,
 
   /* Button align flag, for drawing groups together.
    * Used in 'uiBlock.flag', take care! */
@@ -732,7 +734,8 @@ bool UI_popup_menu_end_or_cancel(bContext *C, uiPopupMenu *pup);
 uiLayout *UI_popup_menu_layout(uiPopupMenu *pup);
 
 void UI_popup_menu_reports(bContext *C, ReportList *reports) ATTR_NONNULL();
-int UI_popup_menu_invoke(bContext *C, const char *idname, ReportList *reports) ATTR_NONNULL(1, 2);
+wmOperatorStatus UI_popup_menu_invoke(bContext *C, const char *idname, ReportList *reports)
+    ATTR_NONNULL(1, 2);
 
 /**
  * If \a block is displayed in a popup menu, tag it for closing.
@@ -765,7 +768,10 @@ void UI_popup_menu_but_set(uiPopupMenu *pup, ARegion *butregion, uiBut *but);
 
 struct uiPopover;
 
-int UI_popover_panel_invoke(bContext *C, const char *idname, bool keep_open, ReportList *reports);
+wmOperatorStatus UI_popover_panel_invoke(bContext *C,
+                                         const char *idname,
+                                         bool keep_open,
+                                         ReportList *reports);
 
 /**
  * Only return handler, and set optional title.
@@ -787,16 +793,16 @@ void UI_popover_once_clear(uiPopover *pup);
 /* Pie menus */
 struct uiPieMenu;
 
-int UI_pie_menu_invoke(bContext *C, const char *idname, const wmEvent *event);
-int UI_pie_menu_invoke_from_operator_enum(bContext *C,
-                                          blender::StringRefNull title,
-                                          blender::StringRefNull opname,
-                                          blender::StringRefNull propname,
-                                          const wmEvent *event);
-int UI_pie_menu_invoke_from_rna_enum(bContext *C,
-                                     const char *title,
-                                     const char *path,
-                                     const wmEvent *event);
+wmOperatorStatus UI_pie_menu_invoke(bContext *C, const char *idname, const wmEvent *event);
+wmOperatorStatus UI_pie_menu_invoke_from_operator_enum(bContext *C,
+                                                       blender::StringRefNull title,
+                                                       blender::StringRefNull opname,
+                                                       blender::StringRefNull propname,
+                                                       const wmEvent *event);
+wmOperatorStatus UI_pie_menu_invoke_from_rna_enum(bContext *C,
+                                                  const char *title,
+                                                  const char *path,
+                                                  const wmEvent *event);
 
 uiPieMenu *UI_pie_menu_begin(bContext *C, const char *title, int icon, const wmEvent *event)
     ATTR_NONNULL();
@@ -1357,6 +1363,18 @@ uiBut *uiDefIconButO_ptr(uiBlock *block,
                          short width,
                          short height,
                          std::optional<blender::StringRef> tip);
+uiBut *uiDefIconPreviewBut(uiBlock *block,
+                           int type,
+                           int retval,
+                           int icon,
+                           int x,
+                           int y,
+                           short width,
+                           short height,
+                           void *poin,
+                           float min,
+                           float max,
+                           std::optional<blender::StringRef> tip);
 uiBut *uiDefButImage(
     uiBlock *block, void *imbuf, int x, int y, short width, short height, const uchar color[4]);
 uiBut *uiDefButAlert(uiBlock *block, int icon, int x, int y, short width, short height);
@@ -1554,7 +1572,7 @@ int UI_icon_colorid_from_report_type(int type);
 int UI_text_colorid_from_report_type(int type);
 
 int UI_icon_from_event_type(short event_type, short event_value);
-int UI_icon_from_keymap_item(const wmKeyMapItem *kmi, int r_icon_mod[4]);
+int UI_icon_from_keymap_item(const wmKeyMapItem *kmi, int r_icon_mod[KM_MOD_NUM]);
 
 uiBut *uiDefMenuBut(uiBlock *block,
                     uiMenuCreateFunc func,
@@ -1980,7 +1998,7 @@ void UI_but_drag_attach_image(uiBut *but, const ImBuf *imb, float scale);
  */
 void UI_but_drag_set_asset(uiBut *but,
                            const blender::asset_system::AssetRepresentation *asset,
-                           int import_method, /* eAssetImportMethod */
+                           const AssetImportSettings &import_settings,
                            int icon,
                            int preview_icon);
 
@@ -2222,6 +2240,9 @@ ENUM_OPERATORS(eUI_Item_Flag, UI_ITEM_R_TEXT_BUT_FORCE_SEMI_MODAL_ACTIVE)
 #define UI_ITEM_NONE eUI_Item_Flag(0)
 
 #define UI_HEADER_OFFSET ((void)0, 0.4f * UI_UNIT_X)
+
+#define UI_AZONESPOTW UI_HEADER_OFFSET       /* Width of corner action zone #AZone. */
+#define UI_AZONESPOTH (0.6f * U.widget_unit) /* Height of corner action zone #AZone. */
 
 /* uiLayoutOperatorButs flags */
 enum {

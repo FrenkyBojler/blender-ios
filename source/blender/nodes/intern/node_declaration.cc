@@ -6,6 +6,7 @@
 #include "NOD_socket_declarations.hh"
 #include "NOD_socket_declarations_geometry.hh"
 
+#include "BLI_assert.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_geometry_fields.hh"
@@ -705,6 +706,14 @@ BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::propagate_all()
   return *this;
 }
 
+BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::propagate_all_instance_attributes()
+{
+  /* We can't distinguish between actually propagating everything or just instance attributes
+   * currently. It's still nice to be more explicit at the node declaration level. */
+  this->propagate_all();
+  return *this;
+}
+
 BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::compositor_realization_mode(
     CompositorInputRealizationMode value)
 {
@@ -715,6 +724,7 @@ BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::compositor_realizati
 BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::compositor_domain_priority(
     int priority)
 {
+  BLI_assert(priority >= 0);
   decl_base_->compositor_domain_priority_ = priority;
   return *this;
 }

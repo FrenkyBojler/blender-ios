@@ -445,14 +445,14 @@ const char *node_socket_get_label(const bNodeSocket *socket, const char *panel_l
 {
   /* Get the short label if possible. This is used when grouping sockets under panels,
    * to avoid redundancy in the label. */
-  const std::optional<StringRefNull> socket_short_label = bke::nodeSocketShortLabel(*socket);
+  const std::optional<StringRefNull> socket_short_label = bke::node_socket_short_label(*socket);
   const char *socket_translation_context = node_socket_get_translation_context(*socket);
 
   if (socket_short_label.has_value()) {
     return CTX_IFACE_(socket_translation_context, socket_short_label->c_str());
   }
 
-  const StringRefNull socket_label = bke::nodeSocketLabel(*socket);
+  const StringRefNull socket_label = bke::node_socket_label(*socket);
   const char *translated_socket_label = CTX_IFACE_(socket_translation_context,
                                                    socket_label.c_str());
 
@@ -1527,12 +1527,6 @@ static void create_inspection_string_for_generic_value(const bNodeSocket &socket
     id_to_inspection_string(*static_cast<const ID *const *>(buffer), ID_GR);
     return;
   }
-  if (value_type.is<std::string>()) {
-    fmt::format_to(fmt::appender(buf),
-                   fmt::runtime(TIP_("{} (String)")),
-                   *static_cast<const std::string *>(buffer));
-    return;
-  }
 
   const CPPType &socket_type = *socket.typeinfo->base_cpp_type;
 
@@ -1890,6 +1884,16 @@ static std::optional<std::string> create_log_inspection_string(geo_log::GeoTreeL
   {
     create_inspection_string_for_generic_value(socket, generic_value_log->value, buf);
   }
+  else if (const geo_log::StringLog *string_log = dynamic_cast<const geo_log::StringLog *>(
+               value_log))
+  {
+    if (string_log->truncated) {
+      fmt::format_to(fmt::appender(buf), fmt::runtime(TIP_("{}... (String)")), string_log->value);
+    }
+    else {
+      fmt::format_to(fmt::appender(buf), fmt::runtime(TIP_("{} (String)")), string_log->value);
+    }
+  }
   else if (const geo_log::FieldInfoLog *gfield_value_log =
                dynamic_cast<const geo_log::FieldInfoLog *>(value_log))
   {
@@ -2128,15 +2132,13 @@ static std::string node_socket_get_tooltip(const SpaceNode *snode,
     const bool is_extend = StringRef(socket.idname) == "NodeSocketVirtual";
     const bNode &node = socket.owner_node();
     if (node.is_reroute()) {
-      char reroute_name[MAX_NAME];
-      bke::nodeLabel(ntree, node, reroute_name, sizeof(reroute_name));
-      output << reroute_name;
+      output << bke::node_label(ntree, node);
     }
     else if (is_extend) {
       output << TIP_("Connect a link to create a new socket");
     }
     else {
-      output << bke::nodeSocketLabel(socket);
+      output << bke::node_socket_label(socket);
     }
 
     if (ntree.type == NTREE_GEOMETRY && !is_extend) {
@@ -2173,7 +2175,7 @@ void node_socket_add_tooltip(const bNodeTree &ntree, const bNodeSocket &sock, ui
     const bNodeSocket *socket;
   };
 
-  SocketTooltipData *data = MEM_cnew<SocketTooltipData>(__func__);
+  SocketTooltipData *data = MEM_callocN<SocketTooltipData>(__func__);
   data->ntree = &ntree;
   data->socket = &sock;
 
@@ -2201,7 +2203,9 @@ void node_socket_draw(bNodeSocket *sock, const rcti *rect, const float color[4],
       center.y - radius,
       center.y + radius,
   };
-  float outline_color[4] = {0};
+
+  ColorTheme4f outline_color;
+  node_socket_outline_color_get(sock->flag & SELECT, sock->type, outline_color);
 
   node_draw_nodesocket(&draw_rect,
                        color,
@@ -3315,7 +3319,7 @@ static void node_draw_extra_info_panel(const bContext &C,
 
 static short get_viewer_shortcut_icon(const bNode &node)
 {
-  BLI_assert(node.is_type("CompositorNodeViewer"));
+  BLI_assert(node.is_type("CompositorNodeViewer") || node.is_type("GeometryNodeViewer"));
   switch (node.custom1) {
     case NODE_VIEWER_SHORTCUT_NONE:
       /* No change by default. */
@@ -3341,6 +3345,35 @@ static short get_viewer_shortcut_icon(const bNode &node)
   }
 
   return node.typeinfo->ui_icon;
+}
+
+/* Returns true if the given node has an undefined type, a missing group node tree, or is
+ * unsupported in the given node tree. */
+static bool node_undefined_or_unsupported(const bNodeTree &node_tree, const bNode &node)
+{
+  if (node.typeinfo == &bke::NodeTypeUndefined) {
+    return true;
+  }
+
+  const char *disabled_hint = nullptr;
+  if (!node.typeinfo->poll(node.typeinfo, &node_tree, &disabled_hint)) {
+    return true;
+  }
+
+  if (node.is_group()) {
+    const ID *group_tree = node.id;
+    if (group_tree == nullptr) {
+      return false;
+    }
+    if (!ID_IS_LINKED(group_tree)) {
+      return false;
+    }
+    if ((group_tree->tag & ID_TAG_MISSING) == 0) {
+      return false;
+    }
+    return true;
+  }
+  return false;
 }
 
 static void node_draw_basis(const bContext &C,
@@ -3530,9 +3563,24 @@ static void node_draw_basis(const bContext &C,
                               0,
                               "");
     /* Selection implicitly activates the node. */
-    const char *operator_idname = is_active ? "NODE_OT_deactivate_viewer" : "NODE_OT_select";
+    const char *operator_idname = is_active ? "NODE_OT_deactivate_viewer" :
+                                              "NODE_OT_activate_viewer";
     UI_but_func_set(
         but, node_toggle_button_cb, POINTER_FROM_INT(node.identifier), (void *)operator_idname);
+
+    short shortcut_icon = get_viewer_shortcut_icon(node);
+    uiDefIconBut(&block,
+                 UI_BTYPE_BUT,
+                 0,
+                 shortcut_icon,
+                 iconofs - 1.2 * iconbutw,
+                 rct.ymax - NODE_DY,
+                 iconbutw,
+                 UI_UNIT_Y,
+                 nullptr,
+                 0,
+                 0,
+                 "");
     UI_block_emboss_set(&block, UI_EMBOSS);
   }
   /* Viewer node shortcuts. */
@@ -3590,8 +3638,7 @@ static void node_draw_basis(const bContext &C,
     UI_block_emboss_set(&block, UI_EMBOSS);
   }
 
-  char showname[128];
-  bke::nodeLabel(ntree, node, showname, sizeof(showname));
+  const std::string showname = bke::node_label(ntree, node);
 
   uiBut *but = uiDefBut(&block,
                         UI_BTYPE_LABEL,
@@ -3630,7 +3677,7 @@ static void node_draw_basis(const bContext &C,
   const float outline_width = U.pixelsize;
   {
     /* Use warning color to indicate undefined types. */
-    if (bke::node_type_is_undefined(node)) {
+    if (node_undefined_or_unsupported(ntree, node)) {
       UI_GetThemeColorBlend4f(TH_REDALERT, TH_NODE, 0.4f, color);
     }
     /* Muted nodes get a mix of the background with the node color. */
@@ -3708,7 +3755,7 @@ static void node_draw_basis(const bContext &C,
     if (node.flag & SELECT) {
       UI_GetThemeColor4fv((node.flag & NODE_ACTIVE) ? TH_ACTIVE : TH_SELECT, color_outline);
     }
-    else if (bke::node_type_is_undefined(node)) {
+    else if (node_undefined_or_unsupported(ntree, node)) {
       UI_GetThemeColor4fv(TH_REDALERT, color_outline);
     }
     else if (const bke::bNodeZoneType *zone_type = bke::zone_type_by_node_type(node.type_legacy)) {
@@ -3772,7 +3819,7 @@ static void node_draw_hidden(const bContext &C,
   /* Body. */
   float color[4];
   {
-    if (bke::node_type_is_undefined(node)) {
+    if (node_undefined_or_unsupported(ntree, node)) {
       /* Use warning color to indicate undefined types. */
       UI_GetThemeColorBlend4f(TH_REDALERT, TH_NODE, 0.4f, color);
     }
@@ -3842,8 +3889,7 @@ static void node_draw_hidden(const bContext &C,
     UI_block_emboss_set(&block, UI_EMBOSS);
   }
 
-  char showname[128];
-  bke::nodeLabel(ntree, node, showname, sizeof(showname));
+  const std::string showname = bke::node_label(ntree, node);
 
   uiBut *but = uiDefBut(&block,
                         UI_BTYPE_LABEL,
@@ -3874,7 +3920,7 @@ static void node_draw_hidden(const bContext &C,
     if (node.flag & SELECT) {
       UI_GetThemeColor4fv((node.flag & NODE_ACTIVE) ? TH_ACTIVE : TH_SELECT, color_outline);
     }
-    else if (bke::node_type_is_undefined(node)) {
+    else if (node_undefined_or_unsupported(ntree, node)) {
       UI_GetThemeColor4fv(TH_REDALERT, color_outline);
     }
     else {
@@ -4141,8 +4187,7 @@ static void frame_node_draw_label(TreeDrawContext &tree_draw_ctx,
   const NodeFrame *data = (const NodeFrame *)node.storage;
   const float font_size = data->label_size / aspect;
 
-  char label[MAX_NAME];
-  bke::nodeLabel(ntree, node, label, sizeof(label));
+  const std::string label = bke::node_label(ntree, node);
 
   BLF_enable(fontid, BLF_ASPECT);
   BLF_aspect(fontid, aspect, aspect, 1.0f);
@@ -4155,7 +4200,7 @@ static void frame_node_draw_label(TreeDrawContext &tree_draw_ctx,
   BLF_color3ubv(fontid, color);
 
   const float margin = NODE_FRAME_MARGIN;
-  const float width = BLF_width(fontid, label, sizeof(label));
+  const float width = BLF_width(fontid, label.c_str(), label.size());
   const int label_height = frame_node_label_height(*data);
 
   const rctf &rct = node.runtime->draw_bounds;
@@ -4166,7 +4211,7 @@ static void frame_node_draw_label(TreeDrawContext &tree_draw_ctx,
   const bool has_label = node.label[0] != '\0';
   if (has_label) {
     BLF_position(fontid, label_x, label_y, 0);
-    BLF_draw(fontid, label, sizeof(label));
+    BLF_draw(fontid, label.c_str(), label.size());
   }
 
   /* Draw text body. */

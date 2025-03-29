@@ -214,11 +214,7 @@ static bool annotation_draw_poll(bContext *C)
   if (ED_operator_regionactive(C)) {
     /* check if current context can support GPencil data */
     if (ED_annotation_data_get_pointers(C, nullptr) != nullptr) {
-      /* check if Grease Pencil isn't already running */
-      if (ED_gpencil_session_active() == 0) {
-        return true;
-      }
-      CTX_wm_operator_poll_msg_set(C, "Annotation operator is already active");
+      return true;
     }
     else {
       CTX_wm_operator_poll_msg_set(C, "Failed to find Annotation data to draw into");
@@ -1410,13 +1406,6 @@ static bool annotation_session_initdata(bContext *C, tGPsdata *p)
   }
   p->gpd = *gpd_ptr;
 
-  if (ED_gpencil_session_active() == 0) {
-    /* initialize undo stack,
-     * also, existing undo stack would make buffer drawn
-     */
-    gpencil_undo_init(p->gpd);
-  }
-
   /* clear out buffer (stored in gp-data), in case something contaminated it */
   annotation_session_validatebuffer(p);
 
@@ -1884,9 +1873,6 @@ static void annotation_draw_exit(bContext *C, wmOperator *op)
      */
     U.gp_eraser = p->radius;
 
-    /* clear undo stack */
-    gpencil_undo_finish();
-
     /* cleanup */
     annotation_paint_cleanup(p);
     annotation_session_cleanup(p);
@@ -2199,7 +2185,7 @@ static void annotation_draw_apply_event(
 /* ------------------------------- */
 
 /* operator 'redo' (i.e. after changing some properties, but also for repeat last) */
-static int annotation_draw_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus annotation_draw_exec(bContext *C, wmOperator *op)
 {
   tGPsdata *p = nullptr;
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
@@ -2266,7 +2252,7 @@ static int annotation_draw_exec(bContext *C, wmOperator *op)
 /* ------------------------------- */
 
 /* start of interactive drawing part of operator */
-static int annotation_draw_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus annotation_draw_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   tGPsdata *p = nullptr;
 
@@ -2386,8 +2372,6 @@ static void annotation_stroke_end(wmOperator *op)
 
   annotation_paint_cleanup(p);
 
-  gpencil_undo_push(p->gpd);
-
   annotation_session_cleanup(p);
 
   p->status = GP_STATUS_IDLING;
@@ -2435,11 +2419,11 @@ static void annotation_add_missing_events(bContext *C,
 }
 
 /* events handling during interactive drawing part of operator */
-static int annotation_draw_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus annotation_draw_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   tGPsdata *p = static_cast<tGPsdata *>(op->customdata);
   /* Default exit state - pass through to support MMB view navigation, etc. */
-  int estate = OPERATOR_PASS_THROUGH;
+  wmOperatorStatus estate = OPERATOR_PASS_THROUGH;
 
 /* NOTE(mike erwin): Not quite what I was looking for, but a good start!
  * grease-pencil continues to draw on the screen while the 3D mouse moves the viewpoint.
@@ -2724,8 +2708,10 @@ static int annotation_draw_modal(bContext *C, wmOperator *op, const wmEvent *eve
       annotation_draw_exit(C, op);
       break;
 
-    case OPERATOR_RUNNING_MODAL | OPERATOR_PASS_THROUGH:
-      /* event doesn't need to be handled */
+      /* Event doesn't need to be handled. */
+      /* `OPERATOR_RUNNING_MODAL | OPERATOR_PASS_THROUGH` */
+    default:
+      /* Quiet warnings. */
       break;
   }
 
