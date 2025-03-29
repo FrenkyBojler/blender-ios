@@ -804,7 +804,7 @@ static wmOperatorStatus grease_pencil_merge_layer_exec(bContext *C, wmOperator *
         *bmain, grease_pencil.layer(indices[0]).as_node(), merged_layer_name);
   }
   else if (mode == MergeMode::All) {
-    if (grease_pencil.layers().size() == 0) {
+    if (grease_pencil.layers().is_empty()) {
       return OPERATOR_CANCELLED;
     }
     /* Remove all groups, keep the layers. */
