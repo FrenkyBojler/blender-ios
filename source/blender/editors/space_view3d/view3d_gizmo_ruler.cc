@@ -661,6 +661,9 @@ void ED_view3d_gizmo_ruler_remove_by_gpencil_layer(bContext *C, bGPDlayer *gpl)
       wmGizmoMap *gzmap = region->runtime->gizmo_map;
       wmGizmoGroup *gzgroup = WM_gizmomap_group_find(gzmap, view3d_gzgt_ruler_id);
 
+      if (!gzgroup) {
+        continue;
+      }
       RulerItem *ruler_item;
       while ((ruler_item = gzgroup_ruler_item_first_get(gzgroup))) {
         ruler_item_remove(C, gzgroup, ruler_item);
@@ -1251,7 +1254,7 @@ static void gizmo_ruler_exit(bContext *C, wmGizmo *gz, const bool cancel)
     /* We could convert only the current gizmo, for now just re-generate. */
     if (view3d_ruler_to_gpencil(C, gzgroup)) {
       /* For immediate update when a ruler annotation layer was added. */
-      WM_event_add_notifier(C, NC_GPENCIL | NA_EDITED, NULL);
+      WM_event_add_notifier(C, NC_GPENCIL | NA_EDITED, nullptr);
     }
   }
 
