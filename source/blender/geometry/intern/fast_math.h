@@ -91,6 +91,7 @@ extern "C" {
     extern int32_t gather_ints_buffer_segmented(int32_t * values, int32_t * indices, int32_t * buffer, int32_t count, struct IndicesStruct * more_or_equal, struct IndicesStruct * smaller);
     extern int32_t one_mul_add_n(float * values, float * factors, const float other, const int32_t count);
     extern void parition_as_gather(int32_t * values, int32_t * indices, int32_t * buffer, int32_t mapping_total);
+    extern void parition_as_gather_back(int32_t * values, int32_t * indices, int32_t * buffer, int32_t mapping_total);
     extern int32_t partition_int_compare_float(int32_t * values, int32_t * buffer, const float * predicates, const int32_t count, const float min_predicate_value);
     extern int32_t predicate_indices_float_cmp(int32_t * indices, float * predicates, const int32_t count, const float min_predicate_value);
     extern int32_t predicate_partition_indices_float_cmp(int32_t * indices, float * predicates, const int32_t count, const float min_predicate_value, const int32_t total_front_size);

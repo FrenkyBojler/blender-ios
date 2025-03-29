@@ -26,7 +26,7 @@
 
 namespace blender::geometry::fmm {
 
-static FunctionRef<void(int, MutableSpan<float>)> powered_rcp_for_values_old(const int power_value)
+static FunctionRef<void(int, MutableSpan<float>)> powered_rcp_for_values(const int power_value)
 {
   switch (power_value) {
     case 0:
@@ -129,7 +129,7 @@ static FunctionRef<void(int, MutableSpan<float>)> powered_rcp_for_values_old(con
   }
 }
 
-static FunctionRef<void(int, MutableSpan<float>)> powered_rcp_for_values(const int power_value)
+static FunctionRef<void(int, MutableSpan<float>)> powered_rcp_for_values_new(const int power_value)
 {
   switch (power_value) {
     case 0:
@@ -1014,7 +1014,7 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
       // ispc::zip_if_larger_or_equal(batch_distances.cast<int>().data(), batch_distances.data(), prefix_to_visit, joint_min_distance);
       if (total_next > 0) {
         // ispc::parition_as_gather_front_only(batch_distances.cast<int>().data(), partition.data(), buffer.data(), pertition_mapping_total);
-        ispc::parition_as_gather(batch_distances.cast<int>().data(), partition.data(), buffer.data(), pertition_mapping_total);
+        ispc::parition_as_gather_back(batch_distances.cast<int>().data(), partition.data(), buffer.data(), pertition_mapping_total);
       }
       
       distance_invertion(power_value, batch_distances.drop_back(total_next));
@@ -1074,18 +1074,18 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
         const float joint_value = src_joints_value.typed<float>()[joint_index];
 
         const MutableSpan<float> batch_values = batch_values_buffer[0].as_mutable_span().take_front(prefix_to_visit);
-        ispc::one_mul_add_n(batch_values.data() + total_next, batch_distances.data() + total_next, joint_value, prefix_to_visit - total_next);
+        ispc::one_mul_add_n(batch_values.data() + total_next, batch_distances.data(), joint_value, prefix_to_visit - total_next);
       } else {
         const float3 joint_value = src_joints_value.typed<float3>()[joint_index];
 
         MutableSpan<float> batch_values = batch_values_buffer[0].as_mutable_span().take_front(prefix_to_visit);
-        ispc::one_mul_add_n(batch_values.data() + total_next, batch_distances.data() + total_next, joint_value.x, prefix_to_visit - total_next);
+        ispc::one_mul_add_n(batch_values.data() + total_next, batch_distances.data(), joint_value.x, prefix_to_visit - total_next);
         
         batch_values = batch_values_buffer[1].as_mutable_span().take_front(prefix_to_visit);
-        ispc::one_mul_add_n(batch_values.data() + total_next, batch_distances.data() + total_next, joint_value.y, prefix_to_visit - total_next);
+        ispc::one_mul_add_n(batch_values.data() + total_next, batch_distances.data(), joint_value.y, prefix_to_visit - total_next);
         
         batch_values = batch_values_buffer[2].as_mutable_span().take_front(prefix_to_visit);
-        ispc::one_mul_add_n(batch_values.data() + total_next, batch_distances.data() + total_next, joint_value.z, prefix_to_visit - total_next);
+        ispc::one_mul_add_n(batch_values.data() + total_next, batch_distances.data(), joint_value.z, prefix_to_visit - total_next);
       }
 
       if (LIKELY(total_next > 0)) {

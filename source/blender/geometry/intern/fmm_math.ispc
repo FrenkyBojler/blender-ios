@@ -582,6 +582,13 @@ static void gather_ints(
     uniform int indices_start,
     uniform int indices_count)
 {
+  uniform int tr = 0;
+  for (uniform int index = indices_start; index < indices_start + indices_count; index++) {
+    dst[tr] = src[indices[index]];
+    tr++;
+  }
+  return;
+
     const uniform int start_round_up = ((indices_start + programCount - 1) / programCount) * programCount;
     const uniform int end_round_down = ((indices_start + indices_count) / programCount) * programCount;
     uniform int iter = 0;
@@ -613,6 +620,13 @@ static void scatter_ints(
     uniform int indices_start,
     uniform int indices_count)
 {
+  uniform int tr = 0;
+  for (uniform int index = indices_start; index < indices_start + indices_count; index++) {
+    dst[indices[index]] = src[tr];
+    tr++;
+  }
+  return;
+  
     const uniform int start_round_up = ((indices_start + programCount - 1) / programCount) * programCount;
     const uniform int end_round_down = ((indices_start + indices_count) / programCount) * programCount;
     uniform int iter = 0;
@@ -646,11 +660,59 @@ export void parition_as_gather(
     assert(mapping_total % 2 == 0);
     const uniform int mapping_half = mapping_total / 2;
 
-    gather_ints(values, indices, buffer, 0, mapping_half);
-    gather_ints(values, indices, buffer + mapping_half, mapping_half, mapping_half);
+    // uniform int tr1 = 0;
+    // for (uniform int index = 0; index < mapping_total; index++) {
+    //   buffer[tr1] = values[indices[index]];
+    //   tr1++;
+    // }
+    // uniform int tr2 = mapping_half;
+    // for (uniform int index = 0; index < mapping_half; index++) {
+    //   values[indices[index]] = buffer[tr2];
+    //   tr2++;
+    // }
+    // uniform int tr3 = 0;
+    // for (uniform int index = mapping_half; index < mapping_total; index++) {
+    //   values[indices[index]] = buffer[tr3];
+    //   tr3++;
+    // }
+    // return;
+    
+
+    gather_ints(values, indices, buffer, 0, mapping_total);
 
     scatter_ints(buffer, indices, values, mapping_half, mapping_half);
     scatter_ints(buffer + mapping_half, indices, values, 0, mapping_half);
+}
+
+export void parition_as_gather_back(
+    uniform int values[],
+    uniform int indices[],
+    uniform int buffer[],
+    uniform int mapping_total)
+{
+    assert(mapping_total % 2 == 0);
+    const uniform int mapping_half = mapping_total / 2;
+
+    // uniform int tr1 = 0;
+    // for (uniform int index = 0; index < mapping_total; index++) {
+    //   buffer[tr1] = values[indices[index]];
+    //   tr1++;
+    // }
+    // uniform int tr2 = mapping_half;
+    // for (uniform int index = 0; index < mapping_half; index++) {
+    //   values[indices[index]] = buffer[tr2];
+    //   tr2++;
+    // }
+    // uniform int tr3 = 0;
+    // for (uniform int index = mapping_half; index < mapping_total; index++) {
+    //   values[indices[index]] = buffer[tr3];
+    //   tr3++;
+    // }
+    // return;
+
+    gather_ints(values, indices, buffer, 0, mapping_half);
+
+    scatter_ints(buffer, indices, values, mapping_half, mapping_half);
 }
 
 // export void parition_as_gather_front_only(
@@ -762,6 +824,26 @@ export uniform int predicate_partition_indices_float_cmp(
 {
     assert(total_front_size > 0);
     assert(total_front_size < count);
+    
+    // uniform int tr1 = 0;
+    // for (uniform int index = 0; index < total_front_size; index++) {
+    //   if (!(predicates[index] < min_predicate_value)) {
+    //     indices[tr1] = index;
+    //     tr1++;
+    //   }
+    // }
+    // uniform int tr2 = 0;
+    // for (uniform int index = total_front_size; index < count; index++) {
+    //   if ((predicates[index] < min_predicate_value)) {
+    //     indices[tr1 + tr2] = index;
+    //     tr2++;
+    //   }
+    // }
+    // assert(tr1 == tr2);
+    // return tr1 + tr2;
+    
+    
+    
     const uniform int front_to_move = n_float_more_then_single(indices,
                                                                predicates,
                                                                min_predicate_value,
