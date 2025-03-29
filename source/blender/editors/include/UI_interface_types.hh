@@ -11,6 +11,11 @@
 struct bContext;
 struct uiLayout;
 
+/* names */
+#define UI_MAX_DRAW_STR 400
+#define UI_MAX_NAME_STR 128
+#define UI_MAX_SHORTCUT_STR 64
+
 /** #uiBlock.emboss and #uiBut.emboss */
 enum eUIEmbossType {
   /** Use widget style for drawing. */

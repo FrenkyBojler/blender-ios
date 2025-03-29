@@ -111,11 +111,6 @@ struct uiTooltipData;
  */
 #define UI_MENU_ARROW_SEP BLI_STR_UTF8_BLACK_RIGHT_POINTING_SMALL_TRIANGLE
 
-/* names */
-#define UI_MAX_DRAW_STR 400
-#define UI_MAX_NAME_STR 128
-#define UI_MAX_SHORTCUT_STR 64
-
 /**
  * For #ARegion.overlap regions, pass events though if they don't overlap
  * the regions contents (the usable part of the #View2D and buttons).

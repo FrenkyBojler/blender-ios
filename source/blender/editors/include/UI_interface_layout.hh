@@ -7,21 +7,22 @@
 #include <optional>
 
 #include "BLI_string_ref.hh"
+#include "BLI_vector.hh"
 
 #include "UI_interface_icons.hh" /* `eAlertIcon` */
 #include "UI_interface_types.hh"
 
 #include "WM_types.hh" /* `wmOperatorCallContext` */
 
-struct uiLayout;
-struct uiBlock;
-struct uiStyle;
-struct PointerRNA;
-struct bContextStore;
 struct bContext;
+struct bContextStore;
+struct uiBlock;
+struct uiBut;
+struct uiLayoutRoot;
+struct uiStyle;
 struct MenuType;
 struct PanelType;
-struct uiBut;
+struct PointerRNA;
 
 /* Layout
  *
@@ -33,7 +34,56 @@ struct uiBut;
  *   operator, label or menu. Also regular buttons can be used when setting
  *   uiBlockCurLayout. */
 
-/* layout */
+/**
+ * NOTE: `uiItem` properties should be considered private outside `interface_layout.cc`,
+ * incoming refactors would remove public access and add public read/write function methods.
+ * Meanwhile keep using `uiLayout*` functions to read/write this properties.
+ */
+struct uiItem {
+  enum uiItemType type;
+  enum uiItemInternalFlag flag;
+
+  uiItem() = default;
+  uiItem(const uiItem &) = default;
+  virtual ~uiItem() = default;
+};
+/**
+ * NOTE: `uiLayout` properties should be considered private outside `interface_layout.cc`,
+ * incoming refactors would remove public access and add public read/write function methods.
+ * Meanwhile keep using `uiLayout*` functions to read/write this properties.
+ */
+struct uiLayout : uiItem {
+  // protected:
+  uiLayoutRoot *root;
+  bContextStore *context;
+  uiLayout *parent;
+  blender::Vector<uiItem *> items;
+
+  char heading[UI_MAX_NAME_STR];
+
+  /** Sub layout to add child items, if not the layout itself. */
+  uiLayout *child_items_layout;
+
+  int x, y, w, h;
+  float scale[2];
+  short space;
+  bool align;
+  bool active;
+  bool active_default;
+  bool activate_init;
+  bool enabled;
+  bool redalert;
+  bool keepaspect;
+  /** For layouts inside grid-flow, they and their items shall never have a fixed maximal size. */
+  bool variable_size;
+  char alignment;
+  eUIEmbossType emboss;
+  /** for fixed width or height to avoid UI size changes */
+  float units[2];
+  /** Is copied to uiButs created in this layout. */
+  float search_weight;
+};
+
 enum {
   UI_LAYOUT_HORIZONTAL = 0,
   UI_LAYOUT_VERTICAL = 1,
