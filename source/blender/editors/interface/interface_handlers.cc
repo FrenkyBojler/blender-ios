@@ -208,8 +208,6 @@ static int ui_handle_region_semi_modal_buttons(bContext *C, const wmEvent *event
 #define MENU_TOWARDS_MARGIN 20
 /** Tolerance for closing menus (in pixels). */
 #define MENU_TOWARDS_WIGGLE_ROOM 64
-/** Drag-lock distance threshold (in pixels). */
-#define BUTTON_DRAGLOCK_THRESH 3
 
 enum uiButtonActivateType {
   BUTTON_ACTIVATE_OVER,
@@ -695,7 +693,8 @@ static bool ui_but_dragedit_update_mval(uiHandleButtonData *data, int mx)
   }
 
   if (data->draglock) {
-    if (abs(mx - data->dragstartx) <= BUTTON_DRAGLOCK_THRESH) {
+    const int threshold = WM_event_drag_threshold(data->window->event_last_handled);
+    if (abs(mx - data->dragstartx) <= threshold) {
       return false;
     }
 #ifdef USE_DRAG_MULTINUM
