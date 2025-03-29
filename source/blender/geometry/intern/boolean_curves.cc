@@ -51,128 +51,226 @@
 
 namespace blender::geometry::boolean {
 
-bool Segment::is_loop() const
-{
-  return alpha_2 == 1.0f;
-}
+class Segment {
+ public:
+  int curve = -1;
+  IndexRange points;
 
-int Segment::start_intersection() const
-{
-  return reversed ? inter_index_2 : inter_index_1;
-}
+  int point_1 = -1;
+  int point_2 = -1;
 
-int Segment::end_intersection() const
-{
-  return reversed ? inter_index_1 : inter_index_2;
-}
+  float alpha_1 = 0.0;
+  float alpha_2 = 0.0;
 
-bool Segment::has_start_intersection() const
-{
-  return this->start_alpha() != 0.0f && this->start_alpha() != 1.0f;
-}
+  int inter_index_1 = -1;
+  int inter_index_2 = -1;
 
-bool Segment::has_end_intersection() const
-{
-  return this->end_alpha() != 0.0f && this->end_alpha() != 1.0f;
-}
+  bool reversed = false;
 
-float Segment::start_alpha() const
-{
-  return reversed ? alpha_2 : alpha_1;
-}
+  constexpr Segment() = default;
 
-float Segment::end_alpha() const
-{
-  return reversed ? alpha_1 : alpha_2;
-}
-
-int2 Segment::start_edge() const
-{
-  if (reversed) {
-    return int2(point_2, this->wrap_index(point_2 + 1));
+ public:
+  bool is_loop() const
+  {
+    return alpha_2 == 1.0f;
   }
-  return int2(point_1, this->wrap_index(point_1 + 1));
-}
 
-int2 Segment::end_edge() const
-{
-  if (reversed) {
+  int start_intersection() const
+  {
+    return reversed ? inter_index_2 : inter_index_1;
+  }
+
+  int end_intersection() const
+  {
+    return reversed ? inter_index_1 : inter_index_2;
+  }
+
+  bool has_start_intersection() const
+  {
+    return this->start_alpha() != 0.0f && this->start_alpha() != 1.0f;
+  }
+
+  bool has_end_intersection() const
+  {
+    return this->end_alpha() != 0.0f && this->end_alpha() != 1.0f;
+  }
+
+  float start_alpha() const
+  {
+    return reversed ? alpha_2 : alpha_1;
+  }
+
+  float end_alpha() const
+  {
+    return reversed ? alpha_1 : alpha_2;
+  }
+
+  int2 start_edge() const
+  {
+    if (reversed) {
+      return int2(point_2, this->wrap_index(point_2 + 1));
+    }
     return int2(point_1, this->wrap_index(point_1 + 1));
   }
-  return int2(point_2, this->wrap_index(point_2 + 1));
-}
 
-int Segment::start_point() const
-{
-  if (!this->has_start_intersection()) {
+  int2 end_edge() const
+  {
     if (reversed) {
-      return points.last();
+      return int2(point_1, this->wrap_index(point_1 + 1));
     }
-    return points.first();
-  }
-  return this->start_edge().y;
-}
-
-int Segment::end_point() const
-{
-  return this->end_edge().x;
-}
-
-int Segment::wrap_index(const int i) const
-{
-  return math::mod_periodic(i - points.first(), points.size()) + points.first();
-}
-
-IndexRange Segment::point_range() const
-{
-  if (this->is_loop()) {
-    return points;
+    return int2(point_2, this->wrap_index(point_2 + 1));
   }
 
-  if (!this->has_start_intersection() && this->has_end_intersection()) {
-    return IndexRange::from_begin_end_inclusive(points.first(), point_2);
-  }
-
-  if (!this->has_start_intersection() && !this->has_end_intersection()) {
-    return points;
-  }
-
-  /* If both intersection points are on the same edge, there's ether no points between or
-   * all of the points are. */
-  if (point_1 == point_2) {
-    if (alpha_1 > alpha_2) {
-      return points.shift(point_1 + 1);
+  int start_point() const
+  {
+    if (!this->has_start_intersection()) {
+      if (reversed) {
+        return points.last();
+      }
+      return points.first();
     }
-    return IndexRange(0);
+    return this->start_edge().y;
   }
 
-  if (point_1 > point_2) {
-    return IndexRange::from_begin_end_inclusive(point_1 + 1, point_2 + points.size());
+  int end_point() const
+  {
+    return this->end_edge().x;
   }
 
-  return IndexRange::from_begin_end_inclusive(point_1 + 1, point_2);
-}
+  int wrap_index(const int i) const
+  {
+    return math::mod_periodic(i - points.first(), points.size()) + points.first();
+  }
 
-template<typename Fn> inline void Segment::foreach_point(Fn &&fn) const
-{
-  const IndexRange point_range = this->point_range();
-
-  for (const int64_t pos : point_range.index_range()) {
-    const int i = this->wrap_index(point_range[reversed ? (point_range.size() - 1) - pos : pos]);
-
-    if constexpr (std::is_invocable_r_v<void, Fn, int64_t, int64_t>) {
-      fn(i, pos);
+  IndexRange point_range() const
+  {
+    if (this->is_loop()) {
+      return points;
     }
-    else {
-      fn(i);
+
+    if (!this->has_start_intersection() && this->has_end_intersection()) {
+      return IndexRange::from_begin_end_inclusive(points.first(), point_2);
+    }
+
+    if (!this->has_start_intersection() && !this->has_end_intersection()) {
+      return points;
+    }
+
+    /* If both intersection points are on the same edge, there's ether no points between or
+     * all of the points are. */
+    if (point_1 == point_2) {
+      if (alpha_1 > alpha_2) {
+        return points.shift(point_1 + 1);
+      }
+      return IndexRange(0);
+    }
+
+    if (point_1 > point_2) {
+      return IndexRange::from_begin_end_inclusive(point_1 + 1, point_2 + points.size());
+    }
+
+    return IndexRange::from_begin_end_inclusive(point_1 + 1, point_2);
+  }
+
+  int points_num() const
+  {
+    return this->point_range().size();
+  }
+
+  template<typename Fn> inline void foreach_point(Fn &&fn) const
+  {
+    const IndexRange point_range = this->point_range();
+
+    for (const int64_t pos : point_range.index_range()) {
+      const int i = this->wrap_index(point_range[reversed ? (point_range.size() - 1) - pos : pos]);
+
+      if constexpr (std::is_invocable_r_v<void, Fn, int64_t, int64_t>) {
+        fn(i, pos);
+      }
+      else {
+        fn(i);
+      }
     }
   }
-}
 
-int Segment::points_num() const
-{
-  return this->point_range().size();
-}
+  constexpr static Segment from_curve(const int curve_i,
+                                      const IndexRange points,
+                                      const bool cyclical)
+  {
+    Segment segment;
+    segment.curve = curve_i;
+    segment.points = points;
+
+    segment.point_1 = points.first();
+    segment.point_2 = points.last();
+
+    if (cyclical) {
+      segment.alpha_1 = 0.0f;
+      segment.alpha_2 = 1.0f;
+    }
+
+    return segment;
+  }
+
+  static Segment from_intersections(const int curve_i,
+                                    const IndexRange points,
+                                    const float parameter_first,
+                                    const float parameter_last,
+                                    const int inter_index_first,
+                                    const int inter_index_last)
+  {
+    Segment segment;
+    segment.curve = curve_i;
+    segment.points = points;
+
+    segment.point_1 = int(math::floor(parameter_first));
+    segment.alpha_1 = math::fract(parameter_first);
+    segment.inter_index_1 = inter_index_first;
+
+    segment.point_2 = int(math::floor(parameter_last));
+    segment.alpha_2 = math::fract(parameter_last);
+    segment.inter_index_2 = inter_index_last;
+
+    return segment;
+  }
+
+  static Segment from_start_to_intersection(const int curve_i,
+                                            const IndexRange points,
+                                            const float parameter_2,
+                                            const int inter_index)
+  {
+    Segment segment;
+    segment.curve = curve_i;
+    segment.points = points;
+
+    segment.point_1 = points.first();
+
+    segment.point_2 = int(math::floor(parameter_2));
+    segment.alpha_2 = math::fract(parameter_2);
+    segment.inter_index_2 = inter_index;
+
+    return segment;
+  }
+
+  static Segment from_intersection_to_end(const int curve_i,
+                                          const IndexRange points,
+                                          const float parameter_1,
+                                          const int inter_index)
+  {
+    Segment segment;
+    segment.curve = curve_i;
+    segment.points = points;
+
+    segment.point_1 = int(math::floor(parameter_1));
+    segment.alpha_1 = math::fract(parameter_1);
+
+    segment.inter_index_1 = inter_index;
+
+    segment.point_2 = points.last();
+
+    return segment;
+  }
+};
 
 /**
  * -----------------------------------
