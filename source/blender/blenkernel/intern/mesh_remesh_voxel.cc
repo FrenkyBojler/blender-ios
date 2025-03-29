@@ -257,6 +257,9 @@ Mesh *BKE_mesh_remesh_voxel(const Mesh *mesh,
     transform = openvdb::math::Transform::createLinearTransform(voxel_size);
   }
   catch (const openvdb::ArithmeticError & /*e*/) {
+    /* OpenVDB internally has a limit of 3e-15 for the matrix's determinant and throws
+     * ArithmeticError if the provided value is too low.
+     * See #136637 for more details. */
     BKE_modifier_set_error(
         object, modifier_data, "Voxel size of %f too small to be solved", voxel_size);
     return nullptr;
@@ -283,6 +286,9 @@ Mesh *BKE_mesh_remesh_voxel(const Mesh *mesh,
     transform = openvdb::math::Transform::createLinearTransform(voxel_size);
   }
   catch (const openvdb::ArithmeticError & /*e*/) {
+    /* OpenVDB internally has a limit of 3e-15 for the matrix's determinant and throws
+     * ArithmeticError if the provided value is too low.
+     * See #136637 for more details. */
     BKE_reportf(reports, RPT_ERROR, "Voxel size of %f too small to be solved", voxel_size);
     return nullptr;
   }
