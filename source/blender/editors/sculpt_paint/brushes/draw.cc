@@ -83,7 +83,7 @@ static void calc_faces(const Depsgraph &depsgraph,
 
   // get unique contiguous vertex range using IndexRange from offset indices
   const int node_idx = node.node_idx_;
-  std::cout << "node_idx from calc_faces" << node_idx << std::endl;
+  std::cout << "node_idx from calc_faces is " << node_idx << std::endl;
   for (int i = 0; i < pbvh.node_unique_offset_indices.data().size(); i++) {
     std::cout << pbvh.node_unique_offset_indices.data()[i] << std::endl;
   }
@@ -181,18 +181,24 @@ static void offset_positions(const Depsgraph &depsgraph,
       const Span<float3> vert_normals = bke::pbvh::vert_normals_eval(depsgraph, object);
       MutableSpan<bke::pbvh::MeshNode> nodes = pbvh.nodes<bke::pbvh::MeshNode>();
       node_mask.foreach_index(GrainSize(1), [&](const int i) {
-        LocalData &tls = all_tls.local();
-        calc_faces(depsgraph,
-                   sd,
-                   brush,
-                   offset,
-                   attribute_data,
-                   vert_normals,
-                   nodes[i],
-                   object,
-                   tls,
-                   position_data);
-        bke::pbvh::update_node_bounds_mesh(position_data.eval, nodes[i], pbvh);
+        if (!(nodes[i].flag_ & bke::pbvh::Node::Leaf)) {
+          std::cout << "not a leaf node" << std::endl;
+          return;
+        }
+        else {
+          LocalData &tls = all_tls.local();
+          calc_faces(depsgraph,
+                     sd,
+                     brush,
+                     offset,
+                     attribute_data,
+                     vert_normals,
+                     nodes[i],
+                     object,
+                     tls,
+                     position_data);
+          bke::pbvh::update_node_bounds_mesh(position_data.eval, nodes[i], pbvh);
+        }
       });
       break;
     }

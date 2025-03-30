@@ -13,8 +13,6 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "CLG_log.h"
-
 #include "BLI_array_utils.hh"
 #include "BLI_atomic_disjoint_set.hh"
 #include "BLI_dial_2d.h"
@@ -32,13 +30,14 @@
 #include "BLI_task.hh"
 #include "BLI_utildefines.h"
 #include "BLI_vector.hh"
-
+#include "CLG_log.h"
 #include "DNA_brush_types.h"
 #include "DNA_customdata_types.h"
 #include "DNA_key_types.h"
 #include "DNA_node_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
+#include <iostream>
 
 #include "BKE_attribute.hh"
 #include "BKE_brush.hh"
@@ -1499,6 +1498,111 @@ static void calc_area_normal_and_center_node_mesh(const Object &object,
     }
   }
 }
+static void calc_area_normal_and_center_node_mesh(const Object &object,
+                                                  const Span<float3> vert_positions,
+                                                  const Span<float3> vert_normals,
+                                                  const Span<bool> hide_vert,
+                                                  const Brush &brush,
+                                                  const bool use_area_nos,
+                                                  const bool use_area_cos,
+                                                  const bke::pbvh::MeshNode &node,
+                                                  SampleLocalData &tls,
+                                                  AreaNormalCenterData &anctd,
+                                                  const bke::pbvh::Tree &pbvh)
+{
+  const SculptSession &ss = *object.sculpt;
+  const float3 &location = ss.cache ? ss.cache->location_symm : ss.cursor_location;
+  const float3 &view_normal = ss.cache ? ss.cache->view_normal_symm : ss.cursor_view_normal;
+  const float position_radius = area_normal_and_center_get_position_radius(ss, brush);
+  const float position_radius_sq = position_radius * position_radius;
+  const float position_radius_inv = math::rcp(position_radius);
+  const float normal_radius = area_normal_and_center_get_normal_radius(ss, brush);
+  const float normal_radius_sq = normal_radius * normal_radius;
+  const float normal_radius_inv = math::rcp(normal_radius);
+
+  // Check if node_idx_ is valid
+  if (node.node_idx_ < 0 || node.node_idx_ >= pbvh.node_unique_offsets.size()) {
+    return;
+  }
+
+  // Get the vertex range for this node from the contiguous storage
+  const IndexRange vertex_range = pbvh.node_all_offset_indices[node.node_idx_];
+  const int start_offset = vertex_range.start();
+  const int num_verts = vertex_range.size();
+
+  if (ss.cache && !ss.cache->accum) {
+    if (const std::optional<OrigPositionData> orig_data = orig_position_data_lookup_mesh(object,
+                                                                                         node))
+    {
+      const Span<float3> orig_positions = orig_data->positions;
+      const Span<float3> orig_normals = orig_data->normals;
+
+      tls.distances.reinitialize(num_verts);
+      const MutableSpan<float> distances_sq = tls.distances;
+
+      // Original positions are already in a contiguous array with their own indexing
+      // so we use 0 as the start offset for them
+      const eBrushFalloffShape falloff_shape = eBrushFalloffShape(brush.falloff_shape);
+      calc_brush_distances_squared(ss, orig_positions, 0, num_verts, falloff_shape, distances_sq);
+
+      for (int i = 0; i < num_verts; i++) {
+        const int vert = start_offset + i;
+        if (!hide_vert.is_empty() && hide_vert[vert]) {
+          continue;
+        }
+        const bool normal_test_r = use_area_nos && distances_sq[i] <= normal_radius_sq;
+        const bool area_test_r = use_area_cos && distances_sq[i] <= position_radius_sq;
+        if (!normal_test_r && !area_test_r) {
+          continue;
+        }
+        const float3 &normal = orig_normals[i];
+        const float distance = std::sqrt(distances_sq[i]);
+        const int flip_index = math::dot(view_normal, normal) <= 0.0f;
+        if (area_test_r) {
+          accumulate_area_center(
+              location, orig_positions[i], distance, position_radius_inv, flip_index, anctd);
+        }
+        if (normal_test_r) {
+          accumulate_area_normal(normal, distance, normal_radius_inv, flip_index, anctd);
+        }
+      }
+      return;
+    }
+  }
+
+  tls.distances.reinitialize(num_verts);
+  const MutableSpan<float> distances_sq = tls.distances;
+
+  // Use the new version of calc_brush_distances_squared with start_offset and num_verts
+  calc_brush_distances_squared(ss,
+                               vert_positions,
+                               start_offset,
+                               num_verts,
+                               eBrushFalloffShape(brush.falloff_shape),
+                               distances_sq);
+
+  for (int i = 0; i < num_verts; i++) {
+    const int vert = start_offset + i;
+    if (!hide_vert.is_empty() && hide_vert[vert]) {
+      continue;
+    }
+    const bool normal_test_r = use_area_nos && distances_sq[i] <= normal_radius_sq;
+    const bool area_test_r = use_area_cos && distances_sq[i] <= position_radius_sq;
+    if (!normal_test_r && !area_test_r) {
+      continue;
+    }
+    const float3 &normal = vert_normals[vert];
+    const float distance = std::sqrt(distances_sq[i]);
+    const int flip_index = math::dot(view_normal, normal) <= 0.0f;
+    if (area_test_r) {
+      accumulate_area_center(
+          location, vert_positions[vert], distance, position_radius_inv, flip_index, anctd);
+    }
+    if (normal_test_r) {
+      accumulate_area_normal(normal, distance, normal_radius_inv, flip_index, anctd);
+    }
+  }
+}
 
 static void calc_area_normal_and_center_node_grids(const Object &object,
                                                    const Brush &brush,
@@ -1804,7 +1908,8 @@ void calc_area_center(const Depsgraph &depsgraph,
                                                     true,
                                                     nodes[i],
                                                     tls,
-                                                    anctd);
+                                                    anctd,
+                                                    pbvh);
             });
             return anctd;
           },
@@ -1904,7 +2009,8 @@ std::optional<float3> calc_area_normal(const Depsgraph &depsgraph,
                                                     false,
                                                     nodes[i],
                                                     tls,
-                                                    anctd);
+                                                    anctd,
+                                                    pbvh);
             });
             return anctd;
           },
@@ -2103,7 +2209,8 @@ void calc_area_normal_and_center(const Depsgraph &depsgraph,
                                                     true,
                                                     nodes[i],
                                                     tls,
-                                                    anctd);
+                                                    anctd,
+                                                    pbvh);
             });
             return anctd;
           },
@@ -3356,9 +3463,11 @@ static void do_brush_action(const Depsgraph &depsgraph,
   switch (brush.sculpt_brush_type) {
     case SCULPT_BRUSH_TYPE_DRAW: {
       if (brush_uses_vector_displacement(brush)) {
+        std::cout << "uses vector displacement" << std::endl;
         do_draw_vector_displacement_brush(depsgraph, sd, ob, node_mask);
       }
       else {
+        //   std::cout << "does not use vector displacement" << std::endl;
         do_draw_brush(depsgraph, sd, ob, node_mask);
       }
       break;
@@ -4639,7 +4748,8 @@ static void sculpt_raycast_cb(blender::bke::pbvh::Node &node, SculptRaycastData 
                                          &srd.depth,
                                          mesh_active_vert,
                                          srd.active_face_grid_index,
-                                         srd.face_normal);
+                                         srd.face_normal,
+                                         pbvh);
       if (hit) {
         srd.active_vertex = mesh_active_vert;
       }
@@ -7262,10 +7372,18 @@ void calc_brush_distances_squared(const SculptSession &ss,
                                   const eBrushFalloffShape falloff_shape,
                                   const MutableSpan<float> r_distances)
 {
+  if (num_verts == r_distances.size()) {
+    // std::cout << "equal" << std::endl;
+  }
+  else {
+    std::cout << "not equal" << std::endl;
+    return;
+  }
   BLI_assert(num_verts == r_distances.size());
 
   const float3 &test_location = ss.cache ? ss.cache->location_symm : ss.cursor_location;
   if (falloff_shape == PAINT_FALLOFF_SHAPE_TUBE && (ss.cache || ss.filter_cache)) {
+    std::cout << "tube shape falloff" << std::endl;
     /* The tube falloff shape requires the cached view normal. */
     const float3 &view_normal = ss.cache ? ss.cache->view_normal_symm :
                                            ss.filter_cache->view_normal;
@@ -7279,6 +7397,7 @@ void calc_brush_distances_squared(const SculptSession &ss,
     }
   }
   else {
+    // std::cout << "not tube shape falloff" << std::endl;
     for (int i = 0; i < num_verts; i++) {
       const int vert = start_offset + i;
       r_distances[i] = math::distance_squared(test_location, positions[vert]);
@@ -7304,6 +7423,7 @@ void calc_brush_distances(const SculptSession &ss,
                           const MutableSpan<float> r_distances)
 {
   calc_brush_distances_squared(ss, positions, start_offset, num_verts, falloff_shape, r_distances);
+  // std::cout << "ran fine" << std::endl;
   for (float &value : r_distances) {
     value = std::sqrt(value);
   }

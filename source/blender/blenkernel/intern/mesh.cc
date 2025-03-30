@@ -602,7 +602,6 @@ void BKE_mesh_reorder_vertices_spatial(Object *object)
   using namespace blender::bke::object;
 
   Mesh *mesh = (Mesh *)object->data;
-
   blender::bke::pbvh::Tree *pbvh = blender::bke::object::pbvh_get(*object);
   if (pbvh->type() == blender::bke::pbvh::Type::Grids) {
     return;
@@ -622,16 +621,14 @@ void BKE_mesh_reorder_vertices_spatial(Object *object)
   pbvh->node_all_offsets.reserve(pbvh->nodes_num() + 1);
   pbvh->node_all_offsets.append(0);
 
-  for (int i = 0; i < pbvh->nodes_num(); i++) {
-    MeshNode &node = pbvh->nodes<MeshNode>()[i];
-    node.node_idx_ = i;
-  }
+  int leaf_index = 0;
   for (int i = 0; i < pbvh->nodes_num(); i++) {
     MeshNode &node = pbvh->nodes<MeshNode>()[i];
     if (node.flag_ & Node::Leaf) {
+      node.node_idx_ = leaf_index++;
       // unique vertices
-      for (int j = 0; j < node.unique_verts_num_; j++) {
-        int vert_idx = node.vert_indices_[j];
+      for (int j = 0; j < node.verts().size(); j++) {
+        int vert_idx = node.verts()[j];
         if (!added_verts[vert_idx]) {
           new_order.append(vert_idx);
           added_verts[vert_idx].set();
@@ -640,8 +637,8 @@ void BKE_mesh_reorder_vertices_spatial(Object *object)
       pbvh->node_unique_offsets.append(new_order.size());
 
       // shared vertices
-      for (int j = node.unique_verts_num_; j < node.vert_indices_.size(); j++) {
-        int vert_idx = node.vert_indices_[j];
+      for (int j = node.unique_verts_num_; j < node.all_verts().size(); j++) {
+        int vert_idx = node.all_verts()[j];
         if (!added_verts[vert_idx]) {
           new_order.append(vert_idx);
           added_verts[vert_idx].set();
@@ -650,12 +647,7 @@ void BKE_mesh_reorder_vertices_spatial(Object *object)
       pbvh->node_all_offsets.append(new_order.size());
     }
   }
-  // remaining vertices
-  for (int i = 0; i < mesh->verts_num; i++) {
-    if (!added_verts[i]) {
-      new_order.append(i);
-    }
-  }
+
   Vector<int> reverse_map(mesh->verts_num);
   for (int i = 0; i < mesh->verts_num; i++) {
     reverse_map[new_order[i]] = i;
@@ -691,7 +683,7 @@ void BKE_mesh_reorder_vertices_spatial(Object *object)
     new_positions[i] = positions[new_order[i]];
   }
   positions.copy_from(new_positions);
-
+  // mesh->face_offsets_for_write
   MutableSpan corner_verts = mesh->corner_verts_for_write();
   for (int &corner_vert : corner_verts) {
     corner_vert = reverse_map[corner_vert];
@@ -705,9 +697,9 @@ void BKE_mesh_reorder_vertices_spatial(Object *object)
 
   pbvh->node_unique_offset_indices = OffsetIndices<int>(pbvh->node_unique_offsets);
   pbvh->node_all_offset_indices = OffsetIndices<int>(pbvh->node_all_offsets);
-  for (int i = 0; i < pbvh->node_unique_offset_indices.data().size(); i++) {
-    std::cout << pbvh->node_unique_offset_indices.data()[i] << std::endl;
-  }
+  // for (int i = 0; i < pbvh->node_unique_offset_indices.data().size(); i++) {
+  //   std::cout << pbvh->node_unique_offset_indices.data()[i] << std::endl;
+  // }
   std::cout << " " << std::endl;
   mesh->tag_topology_changed();
 }

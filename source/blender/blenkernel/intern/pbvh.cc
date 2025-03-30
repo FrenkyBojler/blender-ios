@@ -918,21 +918,6 @@ static void normals_calc_verts_simple(const GroupedSpan<int> vert_to_face_map,
   }
 }
 
-static void normals_calc_verts_simple(const GroupedSpan<int> vert_to_face_map,
-                                      const Span<float3> face_normals,
-                                      const int start_offset,
-                                      const int num_verts,
-                                      MutableSpan<float3> vert_normals)
-{
-  for (int i = 0; i < num_verts; i++) {
-    float3 normal(0.0f);
-    for (const int face : vert_to_face_map[start_offset + i]) {
-      normal += face_normals[face];
-    }
-    vert_normals[start_offset + i] = math::normalize(normal);
-  }
-}
-
 static void calc_boundary_vert_normals(const GroupedSpan<int> vert_to_face_map,
                                        const Span<float3> face_normals,
                                        const Span<int> verts,
@@ -942,7 +927,6 @@ static void calc_boundary_vert_normals(const GroupedSpan<int> vert_to_face_map,
     normals_calc_verts_simple(vert_to_face_map, face_normals, verts.slice(range), vert_normals);
   });
 }
-
 static void calc_node_vert_normals(const GroupedSpan<int> vert_to_face_map,
                                    const Span<float3> face_normals,
                                    const Span<MeshNode> nodes,
@@ -951,11 +935,28 @@ static void calc_node_vert_normals(const GroupedSpan<int> vert_to_face_map,
                                    const Tree &pbvh)
 {
   nodes_to_update.foreach_index(GrainSize(1), [&](const int i) {
-    const IndexRange vertex_range = pbvh.node_unique_offset_indices[nodes[i].node_idx_];
+    const MeshNode &node = nodes[i];
+    if ((node.flag_ & bke::pbvh::Node::Leaf) == 0) {
+      std::cout << "oopsie" << std::endl;
+      return;
+    }
+
+    if (node.node_idx_ < 0 || node.node_idx_ >= pbvh.node_all_offset_indices.size()) {
+      return;
+    }
+
+    // Create a temporary array of vertex indices
+    const IndexRange vertex_range = pbvh.node_unique_offset_indices[node.node_idx_];
     const int start_offset = vertex_range.start();
     const int num_verts = vertex_range.size();
+
+    Array<int> vertex_indices(num_verts);
+    for (int j = 0; j < num_verts; j++) {
+      vertex_indices[j] = start_offset + j;
+    }
+
     normals_calc_verts_simple(
-        vert_to_face_map, face_normals, start_offset, num_verts, vert_normals);
+        vert_to_face_map, face_normals, vertex_indices.as_span(), vert_normals);
   });
 }
 
@@ -991,12 +992,18 @@ static void update_normals_mesh(Object &object_orig,
   VectorSet<int> boundary_faces;
   nodes_to_update.foreach_index([&](const int i) {
     const MeshNode &node = nodes[i];
-    // for (const int vert : node.vert_indices_.as_span().drop_front(node.unique_verts_num_)) {
-    //   boundary_faces.add_multiple(vert_to_face_map[vert]);
-    // }
     if (node.node_idx_ < 0) {
       return;
     }
+    else if ((node.flag_ & Node::Leaf)) {
+      std::cout << " leaf node in update normal mesh" << std::endl;
+      // return;
+    }
+
+    // for (const int vert : node.vert_indices_.as_span().drop_front(node.unique_verts_num_)) {
+    //   boundary_faces.add_multiple(vert_to_face_map[vert]);
+    // }
+
     const IndexRange vertex_range = pbvh.node_all_offset_indices[node.node_idx_];
     const int start_offset = vertex_range.start();
     const int num_verts = vertex_range.size();
@@ -1054,6 +1061,7 @@ void Tree::update_normals(Object &object_orig, Object &object_eval, Tree &pbvh)
 
   switch (this->type()) {
     case Type::Mesh: {
+      //  std::cout << "update_normals 1" << std::endl;
       update_normals_mesh(
           object_orig, object_eval, this->nodes<MeshNode>(), pbvh, nodes_to_update);
       break;
@@ -1078,6 +1086,8 @@ void Tree::update_normals(Object &object_orig, Object &object_eval, Tree &pbvh)
 
 void update_normals(const Depsgraph &depsgraph, Object &object_orig, Tree &pbvh)
 {
+  // std::cout << "update_normals 2" << std::endl;
+
   BLI_assert(DEG_is_original_object(&object_orig));
   Object &object_eval = *DEG_get_evaluated_object(&depsgraph, &object_orig);
   pbvh.update_normals(object_orig, object_eval, pbvh);
@@ -1104,8 +1114,7 @@ void update_node_bounds_mesh(const Span<float3> positions, MeshNode &node)
 void update_node_bounds_mesh(const Span<float3> positions, MeshNode &node, Tree &pbvh)
 {
   Bounds<float3> bounds = negative_bounds();
-  if (node.node_idx_ < 0 || node.node_idx_ >= pbvh.node_all_offset_indices.size()) {
-    std::cout << "from update_node_bounds_mesh " << std::endl;
+  if (node.node_idx_ < 0) {
     return;
   }
   const IndexRange vertex_range = pbvh.node_all_offset_indices[node.node_idx_];
@@ -1864,6 +1873,7 @@ bool node_raycast_mesh(const MeshNode &node,
 
   bool hit = false;
   if (node_positions.is_empty()) {
+    std::cout << "node_pos empty" << std::endl;
     for (const int i : face_indices.index_range()) {
       const int face_i = face_indices[i];
       if (!hide_poly.is_empty() && hide_poly[face_i]) {
@@ -1893,6 +1903,7 @@ bool node_raycast_mesh(const MeshNode &node,
     }
   }
   else {
+    std::cout << "node_pos not empty" << std::endl;
     const MeshNode::LocalVertMap &vert_map = node.vert_indices_;
     for (const int i : face_indices.index_range()) {
       const int face_i = face_indices[i];
@@ -1906,6 +1917,100 @@ bool node_raycast_mesh(const MeshNode &node,
             {node_positions[vert_map.index_of(corner_verts[tri[0]])],
              node_positions[vert_map.index_of(corner_verts[tri[1]])],
              node_positions[vert_map.index_of(corner_verts[tri[2]])]}};
+        if (ray_face_intersection_tri(ray_start, isect_precalc, co[0], co[1], co[2], depth)) {
+          hit = true;
+          calc_mesh_intersect_data(corner_verts,
+                                   corner_tris,
+                                   ray_start,
+                                   ray_normal,
+                                   face_i,
+                                   tri_i,
+                                   co,
+                                   *depth,
+                                   r_active_vertex,
+                                   r_active_face_index,
+                                   r_face_normal);
+        }
+      }
+    }
+  }
+
+  return hit;
+}
+bool node_raycast_mesh(const MeshNode &node,
+                       const Span<float3> node_positions,
+                       const Span<float3> vert_positions,
+                       const OffsetIndices<int> faces,
+                       const Span<int> corner_verts,
+                       const Span<int3> corner_tris,
+                       const Span<bool> hide_poly,
+                       const float3 &ray_start,
+                       const float3 &ray_normal,
+                       IsectRayPrecalc *isect_precalc,
+                       float *depth,
+                       int &r_active_vertex,
+                       int &r_active_face_index,
+                       float3 &r_face_normal,
+                       const Tree &pbvh)
+{
+  const Span<int> face_indices = node.faces();
+
+  bool hit = false;
+
+  if (node_positions.is_empty()) {
+    // std::cout << "node pos empty new func" << std::endl;
+    //  Original case: use global vertex positions
+    for (const int i : face_indices.index_range()) {
+      const int face_i = face_indices[i];
+      if (!hide_poly.is_empty() && hide_poly[face_i]) {
+        continue;
+      }
+
+      for (const int tri_i : bke::mesh::face_triangles_range(faces, face_i)) {
+        const int3 &tri = corner_tris[tri_i];
+        const std::array<const float *, 3> co{{vert_positions[corner_verts[tri[0]]],
+                                               vert_positions[corner_verts[tri[1]]],
+                                               vert_positions[corner_verts[tri[2]]]}};
+        if (ray_face_intersection_tri(ray_start, isect_precalc, co[0], co[1], co[2], depth)) {
+          hit = true;
+          calc_mesh_intersect_data(corner_verts,
+                                   corner_tris,
+                                   ray_start,
+                                   ray_normal,
+                                   face_i,
+                                   tri_i,
+                                   co,
+                                   *depth,
+                                   r_active_vertex,
+                                   r_active_face_index,
+                                   r_face_normal);
+        }
+      }
+    }
+  }
+  else {
+    //  std::cout << "node pos not empty new func" << std::endl;
+
+    // Case for reordered contiguous vertices
+    if (node.node_idx_ < 0 || node.node_idx_ >= pbvh.node_all_offset_indices.size()) {
+      return false;
+    }
+
+    const IndexRange vertex_range = pbvh.node_all_offset_indices[node.node_idx_];
+    const int start_offset = vertex_range.start();
+
+    for (const int i : face_indices.index_range()) {
+      const int face_i = face_indices[i];
+      if (!hide_poly.is_empty() && hide_poly[face_i]) {
+        continue;
+      }
+
+      for (const int tri_i : bke::mesh::face_triangles_range(faces, face_i)) {
+        const int3 &tri = corner_tris[tri_i];
+        const std::array<const float *, 3> co{
+            {node_positions[corner_verts[tri[0]] - start_offset],
+             node_positions[corner_verts[tri[1]] - start_offset],
+             node_positions[corner_verts[tri[2]] - start_offset]}};
         if (ray_face_intersection_tri(ray_start, isect_precalc, co[0], co[1], co[2], depth)) {
           hit = true;
           calc_mesh_intersect_data(corner_verts,
