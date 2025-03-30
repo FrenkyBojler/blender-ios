@@ -1006,7 +1006,7 @@ static NSCursor *getImageCursor(GHOST_TStandardCursor shape, NSString *name, NSP
 /* busyButClickableCursor is an undocumented NSCursor API, but
  * has been in use since at least OS X 10.4 and through 10.9. */
 @interface NSCursor (Undocumented)
-+ (NSCursor*)busyButClickableCursor;
++ (NSCursor *)busyButClickableCursor;
 @end
 
 NSCursor *GHOST_WindowCocoa::getStandardCursor(GHOST_TStandardCursor shape) const
