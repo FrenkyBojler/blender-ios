@@ -276,6 +276,7 @@ ccl_device_inline float3 panorama_to_direction(ccl_constant KernelCamera *cam,
     case PANORAMA_CENTRAL_CYLINDRICAL:
       return central_cylindrical_to_direction(u, v, cam->central_cylindrical_range);
     case PANORAMA_SCRIPT:
+      kernel_assert(false);
       return zero_float3();
     case PANORAMA_FISHEYE_EQUISOLID:
     default:

@@ -89,7 +89,7 @@ def shader_param_ensure(node, param):
     return sock
 
 
-def camera_param_ensure(ccam, param):
+def osl_param_ensure_property(ccam, param):
     import idprop
 
     if param.isoutput or param.isclosure:
@@ -114,7 +114,7 @@ def camera_param_ensure(ccam, param):
     default = param.value if isinstance(param.value, tuple) else [param.value]
     default = [datatype(v) for v in default]
 
-    name = 'script_param_' + param.name
+    name = param.name
     if name in ccam:
         # If the parameter already exists, only reset its value if its type
         # or array length changed
@@ -294,6 +294,7 @@ def update_camera_script(cam, report):
     oso_file_remove = False
 
     ccam = cam.cycles
+    custom_props = cam.cycles_custom
     if ccam.script_mode == 'EXTERNAL':
         # compile external script file
         ok, oso_path, oso_file_remove = update_external_script(report, ccam.script_path, cam.library)
@@ -315,13 +316,13 @@ def update_camera_script(cam, report):
             # Ensure that all parameters have a matching property
             used_params = set()
             for param in query.parameters:
-                if name := camera_param_ensure(ccam, param):
+                if name := osl_param_ensure_property(custom_props, param):
                     used_params.add(name)
 
             # Clean up unused parameters
-            for prop in list(ccam.keys()):
-                if prop.startswith('script_param_') and prop not in used_params:
-                    del ccam[prop]
+            for prop in list(custom_props.keys()):
+                if prop not in used_params:
+                    del custom_props[prop]
         else:
             ok = False
             report({'ERROR'}, tip_("OSL query failed to open %s") % oso_path)

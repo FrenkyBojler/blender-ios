@@ -311,10 +311,8 @@ packed_float3 osl_eval_camera(const ThreadKernelGlobalsCPU *kg,
 
   float output[21] = {0.0f};
 
-  if (kg->osl.globals->camera_state) {
-    ss->execute(
-        *octx, *kg->osl.globals->camera_state, kg->osl.thread_index, 0, *globals, nullptr, output);
-  }
+  ss->execute(
+      *octx, *kg->osl.globals->camera_state, kg->osl.thread_index, 0, *globals, nullptr, output);
 
   P = make_float3(output[0], output[1], output[2]);
   dPdx = make_float3(output[3], output[4], output[5]);

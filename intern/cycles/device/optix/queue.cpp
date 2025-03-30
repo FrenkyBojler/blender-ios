@@ -32,7 +32,8 @@ static bool is_optix_specific_kernel(DeviceKernel kernel, bool osl_shading, bool
     return true;
   }
 #  else
-  (void)use_osl;
+  (void)osl_shading;
+  (void)osl_camera;
 #  endif
 
   return device_kernel_has_intersection(kernel);

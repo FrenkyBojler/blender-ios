@@ -38,10 +38,10 @@ ccl_device float2 camera_sample_aperture(ccl_constant KernelCamera *cam, const f
   return bokeh;
 }
 
-ccl_device void camera_sample_perspective(KernelGlobals kg,
-                                          const float2 raster_xy,
-                                          const float2 rand_lens,
-                                          ccl_private Ray *ray)
+ccl_device Spectrum camera_sample_perspective(KernelGlobals kg,
+                                              const float2 raster_xy,
+                                              const float2 rand_lens,
+                                              ccl_private Ray *ray)
 {
   /* create ray form raster position */
   const ProjectionTransform rastertocamera = kernel_data.cam.rastertocamera;
@@ -166,13 +166,15 @@ ccl_device void camera_sample_perspective(KernelGlobals kg,
   ray->dP += nearclip * ray->dD;
   ray->tmin = 0.0f;
   ray->tmax = kernel_data.cam.cliplength * z_inv;
+
+  return one_spectrum();
 }
 
 /* Orthographic Camera */
-ccl_device void camera_sample_orthographic(KernelGlobals kg,
-                                           const float2 raster_xy,
-                                           const float2 rand_lens,
-                                           ccl_private Ray *ray)
+ccl_device Spectrum camera_sample_orthographic(KernelGlobals kg,
+                                               const float2 raster_xy,
+                                               const float2 rand_lens,
+                                               ccl_private Ray *ray)
 {
   /* create ray form raster position */
   const ProjectionTransform rastertocamera = kernel_data.cam.rastertocamera;
@@ -228,6 +230,8 @@ ccl_device void camera_sample_orthographic(KernelGlobals kg,
   /* clipping */
   ray->tmin = 0.0f;
   ray->tmax = kernel_data.cam.cliplength;
+
+  return one_spectrum();
 }
 
 /* Panorama Camera */
@@ -254,9 +258,10 @@ ccl_device_inline Spectrum camera_sample_panorama(KernelGlobals kg,
   float3 Px = zero_float3(), Dx = zero_float3();
   float3 Py = zero_float3(), Dy = zero_float3();
 #endif
-  Spectrum T = one_spectrum();
+  Spectrum throughput = one_spectrum();
 
   if (cam->panorama_type == PANORAMA_SCRIPT) {
+#ifdef WITH_OSL
     const ProjectionTransform rastertocamera = cam->rastertocamera;
     float3 sensor = transform_perspective(&rastertocamera, make_float3(raster.x, raster.y, 0.0f));
     float3 dSdx = transform_perspective_direction(&rastertocamera, make_float3(1.0f, 0.0f, 0.0f));
@@ -273,19 +278,22 @@ ccl_device_inline Spectrum camera_sample_panorama(KernelGlobals kg,
                                packed_D,
                                packed_dDdx,
                                packed_dDdy);
-    if (is_zero(T)) {
-      return T;
+    if (is_zero(packed_T)) {
+      return zero_spectrum();
     }
     P = packed_P;
     D = packed_D;
-    T = packed_T;
-#ifdef __RAY_DIFFERENTIALS__
+    throughput = packed_T;
+#  ifdef __RAY_DIFFERENTIALS__
     Pcenter = packed_P;
     Dcenter = packed_D;
     Px = packed_P + packed_dPdx;
     Py = packed_P + packed_dPdy;
     Dx = packed_D + packed_dDdx;
     Dy = packed_D + packed_dDdy;
+#  endif
+#else
+    return zero_spectrum();
 #endif
   }
   else {
@@ -319,8 +327,8 @@ ccl_device_inline Spectrum camera_sample_panorama(KernelGlobals kg,
       const float3 Pfocus = Dfocus * cam->focaldistance;
 
       /* calculate orthonormal coordinates perpendicular to Dfocus */
-      float3 U = normalize(make_float3(1.0f, 0.0f, 0.0f) - Dfocus.x * Dfocus);
-      float3 V = normalize(cross(Dfocus, U));
+      const float3 U = normalize(make_float3(1.0f, 0.0f, 0.0f) - Dfocus.x * Dfocus);
+      const float3 V = normalize(cross(Dfocus, U));
 
       /* update ray for effect of lens */
       P = U * lens_uv.x + V * lens_uv.y;
@@ -378,11 +386,13 @@ ccl_device_inline Spectrum camera_sample_panorama(KernelGlobals kg,
   ray->tmin = 0.0f;
   ray->tmax = cam->cliplength;
 
-  return T;
+  return throughput;
 }
 
 /* Common */
 
+/* Generates an outgoing camera ray for the given raster position and random inputs.
+ * Returns camera sensitivity (used to initialize path throughput). */
 ccl_device_inline Spectrum camera_sample(KernelGlobals kg,
                                          const int x,
                                          const int y,
@@ -437,17 +447,17 @@ ccl_device_inline Spectrum camera_sample(KernelGlobals kg,
 
   /* sample */
   if (kernel_data.cam.type == CAMERA_PERSPECTIVE) {
-    camera_sample_perspective(kg, raster, lens_uv, ray);
-    return one_spectrum();
+    return camera_sample_perspective(kg, raster, lens_uv, ray);
   }
-  else if (kernel_data.cam.type == CAMERA_ORTHOGRAPHIC) {
-    camera_sample_orthographic(kg, raster, lens_uv, ray);
-    return one_spectrum();
+  if (kernel_data.cam.type == CAMERA_ORTHOGRAPHIC) {
+    return camera_sample_orthographic(kg, raster, lens_uv, ray);
   }
-  else {
+  if (kernel_data.cam.type == CAMERA_PANORAMA) {
     const ccl_global DecomposedTransform *cam_motion = kernel_data_array(camera_motion);
     return camera_sample_panorama(kg, &kernel_data.cam, cam_motion, raster, lens_uv, ray);
   }
+  kernel_assert(false);
+  return zero_spectrum();
 }
 
 /* Utilities */

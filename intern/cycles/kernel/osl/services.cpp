@@ -118,8 +118,8 @@ ustring OSLRenderServices::u_v("v");
 ustring OSLRenderServices::u_empty;
 
 ustring OSLRenderServices::u_sensor_size("cam:sensor_size");
-ustring OSLRenderServices::u_image_size("cam:image_size");
-ustring OSLRenderServices::u_aspect_ratio("cam:aspect_ratio");
+ustring OSLRenderServices::u_image_resolution("cam:image_resolution");
+ustring OSLRenderServices::u_aperture_aspect_ratio("cam:aperture_aspect_ratio");
 ustring OSLRenderServices::u_aperture_size("cam:aperture_size");
 ustring OSLRenderServices::u_aperture_position("cam:aperture_position");
 ustring OSLRenderServices::u_focal_distance("cam:focal_distance");
@@ -964,11 +964,11 @@ bool OSLRenderServices::get_camera_attribute(
     const float2 sensor = make_float2(kernel_data.cam.sensorwidth, kernel_data.cam.sensorheight);
     return set_attribute(sensor, type, derivatives, val);
   }
-  else if (name == u_image_size) {
+  else if (name == u_image_resolution) {
     const float2 image = make_float2(kernel_data.cam.width, kernel_data.cam.height);
     return set_attribute(image, type, derivatives, val);
   }
-  else if (name == u_aspect_ratio) {
+  else if (name == u_aperture_aspect_ratio) {
     return set_attribute(1.0f / kernel_data.cam.inv_aperture_ratio, type, derivatives, val);
   }
   else if (name == u_aperture_size) {

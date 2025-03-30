@@ -25,7 +25,7 @@ class BlenderCamera {
     full_height = render_height = render_resolution_y(b_render);
   };
 
-  PointerRNA script_ccam;
+  PointerRNA custom_props;
   string script_bytecode;
   string script_bytecode_hash;
   string script_path;
@@ -276,14 +276,15 @@ static void blender_camera_from_object(BlenderCamera *bcam,
     }
 
     if ((bcam->type == CAMERA_PANORAMA) && (bcam->panorama_type == PANORAMA_SCRIPT)) {
-      bcam->script_ccam = RNA_pointer_get(&b_camera.ptr, "cycles");
-      bcam->script_bytecode_hash = get_string(bcam->script_ccam, "script_bytecode_hash");
+      PointerRNA ccam = RNA_pointer_get(&b_camera.ptr, "cycles");
+      bcam->custom_props = RNA_pointer_get(&b_camera.ptr, "cycles_custom");
+      bcam->script_bytecode_hash = get_string(ccam, "script_bytecode_hash");
       if (!bcam->script_bytecode_hash.empty()) {
-        bcam->script_bytecode = get_string(bcam->script_ccam, "script_bytecode");
+        bcam->script_bytecode = get_string(ccam, "script_bytecode");
       }
       else {
         bcam->script_path = blender_absolute_path(
-            b_data, b_camera, get_string(bcam->script_ccam, "script_path"));
+            b_data, b_camera, get_string(ccam, "script_path"));
       }
     }
   }
@@ -437,7 +438,7 @@ static void blender_camera_viewplane(BlenderCamera *bcam,
 
 class BlenderCameraParamQuery : public OSLCameraParamQuery {
  public:
-  BlenderCameraParamQuery(PointerRNA ccam) : ccam(ccam) {}
+  BlenderCameraParamQuery(PointerRNA custom_props) : custom_props(custom_props) {}
   virtual ~BlenderCameraParamQuery() = default;
 
   bool get_float(ustring name, vector<float> &data) override
@@ -446,12 +447,12 @@ class BlenderCameraParamQuery : public OSLCameraParamQuery {
     if (!prop)
       return false;
     if (RNA_property_array_check(prop)) {
-      data.resize(RNA_property_array_length(&ccam, prop));
-      RNA_property_float_get_array(&ccam, prop, data.data());
+      data.resize(RNA_property_array_length(&custom_props, prop));
+      RNA_property_float_get_array(&custom_props, prop, data.data());
     }
     else {
       data.resize(1);
-      data[0] = RNA_property_float_get(&ccam, prop);
+      data[0] = RNA_property_float_get(&custom_props, prop);
     }
     return true;
   }
@@ -464,7 +465,7 @@ class BlenderCameraParamQuery : public OSLCameraParamQuery {
 
     int array_len = 0;
     if (RNA_property_array_check(prop)) {
-      array_len = RNA_property_array_length(&ccam, prop);
+      array_len = RNA_property_array_length(&custom_props, prop);
     }
 
     /* OSL represents booleans as integers, but we represent them as boolean-type
@@ -473,20 +474,20 @@ class BlenderCameraParamQuery : public OSLCameraParamQuery {
       if (array_len > 0) {
         /* Can't use std::vector<bool> here since it's a weird special case. */
         array<bool> bool_data(array_len);
-        RNA_property_boolean_get_array(&ccam, prop, bool_data.data());
+        RNA_property_boolean_get_array(&custom_props, prop, bool_data.data());
         std::copy(bool_data.begin(), bool_data.end(), std::back_inserter(data));
       }
       else {
-        data.push_back(RNA_property_boolean_get(&ccam, prop));
+        data.push_back(RNA_property_boolean_get(&custom_props, prop));
       }
     }
     else {
       if (array_len > 0) {
         data.resize(array_len);
-        RNA_property_int_get_array(&ccam, prop, data.data());
+        RNA_property_int_get_array(&custom_props, prop, data.data());
       }
       else {
-        data.push_back(RNA_property_int_get(&ccam, prop));
+        data.push_back(RNA_property_int_get(&custom_props, prop));
       }
     }
     return true;
@@ -497,17 +498,17 @@ class BlenderCameraParamQuery : public OSLCameraParamQuery {
     PropertyRNA *prop = get_prop(name);
     if (!prop)
       return false;
-    data = RNA_property_string_get(&ccam, prop);
+    data = RNA_property_string_get(&custom_props, prop);
     return true;
   }
 
  private:
-  PointerRNA ccam;
+  PointerRNA custom_props;
 
   PropertyRNA *get_prop(ustring param)
   {
-    string name = string_printf("[\"script_param_%s\"]", param.c_str());
-    return RNA_struct_find_property(&ccam, name.c_str());
+    string name = string_printf("[\"%s\"]", param.c_str());
+    return RNA_struct_find_property(&custom_props, name.c_str());
   }
 };
 
@@ -570,7 +571,7 @@ static void blender_camera_sync(Camera *cam,
   /* script */
   if (scene != nullptr) {
     if ((bcam->type == CAMERA_PANORAMA) && (bcam->panorama_type == PANORAMA_SCRIPT)) {
-      BlenderCameraParamQuery params(bcam->script_ccam);
+      BlenderCameraParamQuery params(bcam->custom_props);
       cam->set_osl_camera(
           scene, params, bcam->script_path, bcam->script_bytecode_hash, bcam->script_bytecode);
     }

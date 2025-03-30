@@ -863,6 +863,7 @@ void Camera::set_osl_camera(Scene *scene,
                             const std::string &bytecode_hash,
                             const std::string &bytecode)
 {
+#ifdef WITH_OSL
   /* create query */
   const char *hash;
 
@@ -953,17 +954,21 @@ void Camera::set_osl_camera(Scene *scene,
     tag_modified();
     scene->osl_manager->tag_update();
   }
+#endif
 }
 
 void Camera::clear_osl_camera(Scene *scene)
 {
-  if (script_name == "")
+#ifdef WITH_OSL
+  if (script_name == "") {
     return;
+  }
 
   script_name = "";
   script_params.clear();
 
   scene->osl_manager->tag_update();
+#endif
 }
 
 uint Camera::get_kernel_features() const

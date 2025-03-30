@@ -198,8 +198,7 @@ bool OptiXDevice::load_kernels(const uint kernel_features)
   }
 
 #  ifdef WITH_OSL
-  /* In theory, this could be split further, into a OSL-camera-only kernel and a
-   * full-OSL kernel. However, for now this is good enough. */
+  /* TODO: Consider splitting kernels into an OSL-camera-only and a full-OSL variant. */
   const uint osl_mask = KERNEL_FEATURE_OSL_SHADING | KERNEL_FEATURE_OSL_CAMERA;
   const bool use_osl = (kernel_features & osl_mask);
 #  else

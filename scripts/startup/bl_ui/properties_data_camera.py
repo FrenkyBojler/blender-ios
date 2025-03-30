@@ -173,19 +173,18 @@ class DATA_PT_lens_script_parameters(CameraButtonsPanel, Panel):
                 cam.type == 'PANO' and
                 context.engine == 'CYCLES' and
                 cam.panorama_type == 'SCRIPT' and
-                any(key.startswith('script_param_') for key in cam.cycles.keys()))
+                len(cam.cycles_custom.keys()) > 0)
 
     def draw(self, context):
         layout = self.layout
         layout.use_property_split = True
 
         cam = context.camera
-        ccam = cam.cycles
+        ccam = cam.cycles_custom
 
         col = layout.column()
         for key in ccam.keys():
-            if key.startswith('script_param_'):
-                col.prop(ccam, f'["{key}"]', text=key[13:])
+            col.prop(ccam, f'["{key}"]')
 
 
 class DATA_PT_camera_stereoscopy(CameraButtonsPanel, Panel):

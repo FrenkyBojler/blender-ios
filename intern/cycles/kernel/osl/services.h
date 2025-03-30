@@ -323,8 +323,8 @@ class OSLRenderServices : public OSL::RendererServices {
 
   /* Attributes for camera shaders. */
   static ustring u_sensor_size;
-  static ustring u_image_size;
-  static ustring u_aspect_ratio;
+  static ustring u_image_resolution;
+  static ustring u_aperture_aspect_ratio;
   static ustring u_aperture_size;
   static ustring u_aperture_position;
   static ustring u_focal_distance;

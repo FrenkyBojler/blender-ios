@@ -144,10 +144,10 @@ ccl_device_constant DeviceString u_path_transparent_depth = 7821650266475578543u
 ccl_device_constant DeviceString u_path_transmission_depth = 15113408892323917624ull;
 /* "cam:sensor_size" */
 ccl_device_constant DeviceString u_sensor_size = 7525693591727141378ull;
-/* "cam:image_size" */
-ccl_device_constant DeviceString u_image_size = 6137598533458943087ull;
-/* "cam:aspect_ratio" */
-ccl_device_constant DeviceString u_aspect_ratio = 3295456962254665118ull;
+/* "cam:image_resolution" */
+ccl_device_constant DeviceString u_image_resolution = 5199143367706113607ull;
+/* "cam:aperture_aspect_ratio" */
+ccl_device_constant DeviceString u_aperture_aspect_ratio = 8708221138893210943ull;
 /* "cam:aperture_size" */
 ccl_device_constant DeviceString u_aperture_size = 3708482920470008383ull;
 /* "cam:aperture_position" */
@@ -1385,11 +1385,11 @@ ccl_device_inline bool get_camera_attribute(ccl_private ShaderGlobals *sg,
     const float2 sensor = make_float2(kernel_data.cam.sensorwidth, kernel_data.cam.sensorheight);
     return set_attribute(sensor, type, derivatives, val);
   }
-  else if (name == DeviceStrings::u_image_size) {
+  else if (name == DeviceStrings::u_image_resolution) {
     const float2 image = make_float2(kernel_data.cam.width, kernel_data.cam.height);
     return set_attribute(image, type, derivatives, val);
   }
-  else if (name == DeviceStrings::u_aspect_ratio) {
+  else if (name == DeviceStrings::u_aperture_aspect_ratio) {
     return set_attribute(1.0f / kernel_data.cam.inv_aperture_ratio, type, derivatives, val);
   }
   else if (name == DeviceStrings::u_aperture_size) {
