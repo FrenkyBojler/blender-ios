@@ -27,6 +27,7 @@
 
 using blender::StringRef;
 using blender::StringRefNull;
+using blender::Vector;
 
 struct CurveRuntimeProperties {
   float center_x;
@@ -415,7 +416,7 @@ static void CurveProfile_buttons_layout(uiLayout *layout, PointerRNA *ptr, const
            "");
 
   /* Position sliders for (first) selected point */
-  iVector<CurveProfilePoint *> cfps;
+  Vector<CurveProfilePoint *> cfps;
   bool point_last_or_first = false;
   for (int i = 0; i < profile->path_len; i++) {
     if (profile->path[i].flag & (PROF_SELECT | PROF_H1_SELECT | PROF_H2_SELECT)) {
@@ -439,9 +440,7 @@ static void CurveProfile_buttons_layout(uiLayout *layout, PointerRNA *ptr, const
 
     row = uiLayoutRow(layout, true);
 
-    PointerRNA point_ptr = RNA_pointer_create(ptr->owner_id, &RNA_CurveProfilePoint, cfps[0]);
-    PointerRNA point_ptr = RNA_pointer_create_discrete(
-        ptr->owner_id, &RNA_CurveProfilePoint, point);
+    PointerRNA point_ptr = RNA_pointer_create_discrete(ptr->owner_id, &RNA_CurveProfilePoint, cfps[0]);
     PropertyRNA *prop_handle_type = RNA_struct_find_property(&point_ptr, "handle_type_1");
     uiItemFullR(row,
                 &point_ptr,

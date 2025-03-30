@@ -26,6 +26,7 @@
 #include "interface_templates_intern.hh"
 
 using blender::StringRefNull;
+using blender::Vector;
 
 /* temporary struct for storing curvemap/curveprofile properties */
 
