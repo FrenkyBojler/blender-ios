@@ -157,7 +157,6 @@ class CornerPinOperation : public NodeOperation {
     const Domain domain = compute_domain();
     Result &output = get_result("Image");
     output.allocate_texture(domain);
-    output.get_realization_options().interpolation = this->get_interpolation();
 
     const RealizationOptions realization_options = output.get_realization_options();
 
