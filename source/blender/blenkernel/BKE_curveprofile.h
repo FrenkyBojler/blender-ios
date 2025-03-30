@@ -60,6 +60,10 @@ bool BKE_curveprofile_move_point(struct CurveProfile *profile,
                                  bool snap,
                                  const float delta[2]);
 
+void BKE_curveprofile_translate_selection(struct CurveProfile *profile,
+                                          const float delta_x,
+                                          const float delta_y);
+
 /**
  * Removes a specific point from the path of control points.
  * \note Requires #BKE_curveprofile_update call after.
@@ -146,6 +150,9 @@ void BKE_curveprofile_evaluate_length_portion(const struct CurveProfile *profile
                                               float length_portion,
                                               float *x_out,
                                               float *y_out);
+void BKE_curveprofile_get_selection_center(const struct CurveProfile *profile,
+                                           float *center_x_out,
+                                           float *center_y_out);
 
 void BKE_curveprofile_blend_write(struct BlendWriter *writer, const struct CurveProfile *profile);
 /**

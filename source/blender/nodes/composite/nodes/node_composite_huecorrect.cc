@@ -40,7 +40,7 @@ static void cmp_node_huecorrect_declare(NodeDeclarationBuilder &b)
 
 static void node_composit_init_huecorrect(bNodeTree * /*ntree*/, bNode *node)
 {
-  node->storage = BKE_curvemapping_add(1, 0.0f, 0.0f, 1.0f, 1.0f);
+  node->storage = BKE_curvemapping_add(3, 0.0f, 0.0f, 1.0f, 1.0f);
 
   CurveMapping *cumapping = (CurveMapping *)node->storage;
 

@@ -114,6 +114,9 @@ void BKE_curvemapping_free_data(CurveMapping *cumap)
       MEM_freeN(cumap->cm[a].premultable);
       cumap->cm[a].premultable = nullptr;
     }
+    if (cumap->cm[a].runtime.runtime_storage) {
+      cumap->cm[a].runtime.runtime_storage_free(cumap->cm[a].runtime.runtime_storage);
+    }
   }
 }
 
@@ -141,6 +144,9 @@ void BKE_curvemapping_copy_data(CurveMapping *target, const CurveMapping *cumap)
     if (cumap->cm[a].premultable) {
       target->cm[a].premultable = static_cast<CurveMapPoint *>(
           MEM_dupallocN(cumap->cm[a].premultable));
+    }
+    if (cumap->cm[a].runtime.runtime_storage) {
+      target->cm[a].runtime.runtime_storage = MEM_dupallocN(cumap->cm[a].runtime.runtime_storage);
     }
   }
 }
@@ -930,6 +936,36 @@ void BKE_curvemapping_premultiply(CurveMapping *cumap, bool restore)
 }
 
 /* ************************ more CurveMapping calls *************** */
+void BKE_curvemap_get_selection_center(CurveMap *cuma, float *center_x_out, float *center_y_out)
+{
+  int n = 0;
+  *center_x_out = 0.0f;
+  *center_y_out = 0.0f;
+
+  for (int i = 0; i < cuma->totpoint; i++) {
+    CurveMapPoint *pt = &cuma->curve[i];
+    if (pt->flag & CUMA_SELECT) {
+      *center_x_out += pt->x;
+      *center_y_out += pt->y;
+      n++;
+    }
+  }
+  if (n > 0) {
+    *center_x_out /= n;
+    *center_y_out /= n;
+  }
+}
+
+void BKE_translate_selection(CurveMap *cuma, const float delta_x, const float delta_y)
+{
+  for (int i = 0; i < cuma->totpoint; i++) {
+    CurveMapPoint *pt = &cuma->curve[i];
+    if (pt->flag & CUMA_SELECT) {
+      pt->x += delta_x;
+      pt->y += delta_y;
+    }
+  }
+}
 
 void BKE_curvemapping_changed(CurveMapping *cumap, const bool rem_doubles)
 {
@@ -1390,6 +1426,8 @@ void BKE_curvemapping_blend_read(BlendDataReader *reader, CurveMapping *cumap)
     BLO_read_struct_array(reader, CurveMapPoint, cumap->cm[a].totpoint, &cumap->cm[a].curve);
     cumap->cm[a].table = nullptr;
     cumap->cm[a].premultable = nullptr;
+    cumap->cm[a].runtime.runtime_storage = nullptr;
+    cumap->cm[a].runtime.runtime_storage_free = nullptr;
   }
 }
 

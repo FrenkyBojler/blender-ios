@@ -47,6 +47,9 @@ void BKE_curveprofile_free_data(CurveProfile *profile)
   MEM_SAFE_FREE(profile->path);
   MEM_SAFE_FREE(profile->table);
   MEM_SAFE_FREE(profile->segments);
+  if (profile->runtime.runtime_storage) {
+    profile->runtime.runtime_storage_free(profile->runtime.runtime_storage);
+  }
 }
 
 void BKE_curveprofile_free(CurveProfile *profile)
@@ -64,6 +67,7 @@ void BKE_curveprofile_copy_data(CurveProfile *target, const CurveProfile *profil
   target->path = (CurveProfilePoint *)MEM_dupallocN(profile->path);
   target->table = (CurveProfilePoint *)MEM_dupallocN(profile->table);
   target->segments = (CurveProfilePoint *)MEM_dupallocN(profile->segments);
+  target->runtime.runtime_storage = MEM_dupallocN(profile->runtime.runtime_storage);
 
   /* Update the reference the points have to the profile. */
   for (int i = 0; i < target->path_len; i++) {
@@ -92,6 +96,8 @@ void BKE_curveprofile_blend_read(BlendDataReader *reader, CurveProfile *profile)
   BLO_read_struct_array(reader, CurveProfilePoint, profile->path_len, &profile->path);
   profile->table = nullptr;
   profile->segments = nullptr;
+  profile->runtime.runtime_storage = nullptr;
+  profile->runtime.runtime_storage_free = nullptr;
 
   /* Reset the points' pointers to the profile. */
   for (int i = 0; i < profile->path_len; i++) {
@@ -192,6 +198,27 @@ bool BKE_curveprofile_move_point(CurveProfile *profile,
     return true;
   }
   return false;
+}
+
+void BKE_curveprofile_translate_selection(struct CurveProfile *profile,
+                                          const float delta_x,
+                                          const float delta_y)
+{
+  for (int i = 0; i < profile->path_len; i++) {
+    CurveProfilePoint *pt = &profile->path[i];
+    if (pt->flag & PROF_SELECT) {
+      pt->x += delta_x;
+      pt->y += delta_y;
+    }
+    if (pt->flag & PROF_H1_SELECT) {
+      pt->h1_loc[0] += delta_x;
+      pt->h1_loc[1] += delta_y;
+    }
+    if (pt->flag & PROF_H2_SELECT) {
+      pt->h2_loc[0] += delta_x;
+      pt->h2_loc[1] += delta_y;
+    }
+  }
 }
 
 bool BKE_curveprofile_remove_point(CurveProfile *profile, CurveProfilePoint *point)
@@ -1016,6 +1043,39 @@ void BKE_curveprofile_update(CurveProfile *profile, const int update_flags)
   /* Store a table of samples for the segment locations for a preview and the table's user. */
   if (profile->segments_len > 0) {
     curveprofile_make_segments_table(profile);
+  }
+}
+
+void BKE_curveprofile_get_selection_center(const struct CurveProfile *profile,
+                                           float *center_x_out,
+                                           float *center_y_out)
+{
+  int n = 0;
+  *center_x_out = 0.0f;
+  *center_y_out = 0.0f;
+
+  for (int i = 0; i < profile->path_len; i++) {
+    CurveProfilePoint *pt = &profile->path[i];
+    if (pt->flag & PROF_SELECT) {
+      *center_x_out += pt->x;
+      *center_y_out += pt->y;
+      n++;
+    }
+    if (pt->flag & PROF_H1_SELECT) {
+      *center_x_out += pt->h1_loc[0];
+      *center_y_out += pt->h1_loc[1];
+      n++;
+    }
+    if (pt->flag & PROF_H2_SELECT) {
+      *center_x_out += pt->h2_loc[0];
+      *center_y_out += pt->h2_loc[1];
+      n++;
+    }
+  }
+
+  if (n > 0) {
+    *center_x_out /= n;
+    *center_y_out /= n;
   }
 }
 
