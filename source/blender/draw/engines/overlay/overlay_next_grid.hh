@@ -333,15 +333,16 @@ class GridMesh : Overlay {
   PassSimple grid_ps_ = {"grid_ps_"};
 
   /* Millimeter. */
-  // float base_unit_ = 0.001f;
+  float base_unit_ = 0.001f;
   /* Metric. */
-  // std::array<int, SI_GRID_STEPS_LEN + 1> level_subdiv_ = {10, 10, 10, 10, 10, 10, 10, 10,
-  // INT_MAX};
+  std::array<int, SI_GRID_STEPS_LEN + 1> level_subdiv_ = {10, 10, 10, 10, 10, 10, 10, 10, INT_MAX};
 
+  /* TODO(fclem): Plug real values from UI. */
   /* Inch. */
-  float base_unit_ = 0.0254f;
+  // float base_unit_ = 0.0254f;
   /* Imperial. */
-  std::array<int, SI_GRID_STEPS_LEN> level_subdiv_ = {3, 22, 10, 8 /* Rounded */, 10, 10, 10, 10};
+  // std::array<int, SI_GRID_STEPS_LEN> level_subdiv_ = {3, 22, 10, 8 /* Rounded */, 10, 10, 10,
+  // 10};
 
   /* Contains only an index buffer connecting visible vertices.
    * Position is derived from. */
