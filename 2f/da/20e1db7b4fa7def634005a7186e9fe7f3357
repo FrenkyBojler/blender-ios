@@ -1,3 +1,3 @@
 Referenced by issue #133693, Regression: use after free displaying a mesh with a modifier
 Referenced by issue #133698, Regression: materials viewport color not displayed in edit-mode
-Referenced by issue #136636, Blender 4.4 Computer Freeze (BSOD) upon 4.3.2 project opening
+Referenced by issue #136636, Regression: Blender uses all the RAM when opening simple file.
