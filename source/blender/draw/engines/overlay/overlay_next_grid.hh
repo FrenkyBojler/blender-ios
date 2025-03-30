@@ -349,6 +349,8 @@ class GridMesh : Overlay {
 
   gpu::Batch *axis_ = nullptr;
 
+  float far_clip_ = 0.0f;
+
  public:
   ~GridMesh()
   {
@@ -411,6 +413,7 @@ class GridMesh : Overlay {
     grid_ps_.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_BLEND_ALPHA | DRW_STATE_WRITE_DEPTH |
                        DRW_STATE_DEPTH_LESS_EQUAL);
     grid_ps_.shader_set(res.shaders->grid_mesh.get());
+    grid_ps_.push_constant("far_clip", &far_clip_);
 
     {
       if (axis_ == nullptr) {
@@ -450,6 +453,8 @@ class GridMesh : Overlay {
     if (!enabled_) {
       return;
     }
+
+    far_clip_ = abs(view.far_clip());
 
     GPU_framebuffer_bind(framebuffer);
     manager.submit(grid_ps_, view);
