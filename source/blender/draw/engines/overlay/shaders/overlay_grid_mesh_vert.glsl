@@ -85,4 +85,6 @@ void main()
   edgePos = edgeStart = ss_P;
 
   gl_Position = hs_P;
+  /* Depth offset to avoid Z fighting with other overlays and coplanar surfaces. */
+  gl_Position.z += 2.4e-5;
 }
