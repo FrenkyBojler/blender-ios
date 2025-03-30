@@ -28,6 +28,11 @@
 using blender::StringRef;
 using blender::StringRefNull;
 
+struct CurveRuntimeProperties {
+  float center_x;
+  float center_y;
+};
+
 static uiBlock *curve_profile_presets_fn(bContext *C, ARegion *region, void *cb_v)
 {
   RNAUpdateCb &cb = *static_cast<RNAUpdateCb *>(cb_v);
@@ -135,6 +140,22 @@ static uiBlock *curve_profile_tools_fn(bContext *C, ARegion *region, void *cb_v)
   return block;
 }
 
+static CurveRuntimeProperties *curve_profile_runtime_props_ensure(CurveProfile *profile)
+{
+  if (profile->runtime.runtime_storage == nullptr) {
+    CurveRuntimeProperties *crp = static_cast<CurveRuntimeProperties *>(
+        MEM_callocN(sizeof(CurveRuntimeProperties), "CurveRuntimeProperties"));
+    /* Construct C++ structures in otherwise zero initialized struct. */
+    new (crp) CurveRuntimeProperties();
+
+    profile->runtime.runtime_storage = crp;
+    profile->runtime.runtime_storage_free = [](void *properties_storage) {
+      MEM_delete(static_cast<CurveRuntimeProperties *>(properties_storage));
+    };
+  }
+  return static_cast<CurveRuntimeProperties *>(profile->runtime.runtime_storage);
+}
+
 static bool curve_profile_can_zoom_in(CurveProfile *profile)
 {
   return BLI_rctf_size_x(&profile->view_rect) >
@@ -205,6 +226,7 @@ static void curve_profile_zoom_out(bContext *C, CurveProfile *profile)
 static void CurveProfile_buttons_layout(uiLayout *layout, PointerRNA *ptr, const RNAUpdateCb &cb)
 {
   CurveProfile *profile = static_cast<CurveProfile *>(ptr->data);
+  CurveRuntimeProperties *crp = curve_profile_runtime_props_ensure(profile);
   uiBut *bt;
 
   uiBlock *block = uiLayoutGetBlock(layout);
@@ -393,35 +415,20 @@ static void CurveProfile_buttons_layout(uiLayout *layout, PointerRNA *ptr, const
            "");
 
   /* Position sliders for (first) selected point */
-  int i;
-  float *selection_x, *selection_y;
+  iVector<CurveProfilePoint *> cfps;
   bool point_last_or_first = false;
-  CurveProfilePoint *point = nullptr;
-  for (i = 0; i < profile->path_len; i++) {
-    if (profile->path[i].flag & PROF_SELECT) {
-      point = &profile->path[i];
-      selection_x = &point->x;
-      selection_y = &point->y;
-      break;
+  for (int i = 0; i < profile->path_len; i++) {
+    if (profile->path[i].flag & (PROF_SELECT | PROF_H1_SELECT | PROF_H2_SELECT)) {
+      cfps.append(&profile->path[i]);
+      if (ELEM(i, 0, profile->path_len - 1) && profile->path[i].flag & PROF_SELECT) {
+        point_last_or_first = true;
+      }
     }
-    if (profile->path[i].flag & PROF_H1_SELECT) {
-      point = &profile->path[i];
-      selection_x = &point->h1_loc[0];
-      selection_y = &point->h1_loc[1];
-    }
-    else if (profile->path[i].flag & PROF_H2_SELECT) {
-      point = &profile->path[i];
-      selection_x = &point->h2_loc[0];
-      selection_y = &point->h2_loc[1];
-    }
-  }
-  if (ELEM(i, 0, profile->path_len - 1)) {
-    point_last_or_first = true;
   }
 
   /* Selected point data */
-  rctf bounds;
-  if (point) {
+  if (!cfps.is_empty()) {
+    rctf bounds;
     if (profile->flag & PROF_USE_CLIP) {
       bounds = profile->clip_rect;
     }
@@ -432,6 +439,7 @@ static void CurveProfile_buttons_layout(uiLayout *layout, PointerRNA *ptr, const
 
     row = uiLayoutRow(layout, true);
 
+    PointerRNA point_ptr = RNA_pointer_create(ptr->owner_id, &RNA_CurveProfilePoint, cfps[0]);
     PointerRNA point_ptr = RNA_pointer_create_discrete(
         ptr->owner_id, &RNA_CurveProfilePoint, point);
     PropertyRNA *prop_handle_type = RNA_struct_find_property(&point_ptr, "handle_type_1");
@@ -445,6 +453,7 @@ static void CurveProfile_buttons_layout(uiLayout *layout, PointerRNA *ptr, const
                 ICON_NONE);
 
     /* Position */
+    BKE_curveprofile_get_selection_center(profile, &crp->center_x, &crp->center_y);
     bt = uiDefButF(block,
                    UI_BTYPE_NUM,
                    0,
@@ -453,13 +462,18 @@ static void CurveProfile_buttons_layout(uiLayout *layout, PointerRNA *ptr, const
                    2 * UI_UNIT_Y,
                    UI_UNIT_X * 10,
                    UI_UNIT_Y,
-                   selection_x,
+                   &crp->center_x,
                    bounds.xmin,
                    bounds.xmax,
                    "");
     UI_but_number_step_size_set(bt, 1);
     UI_but_number_precision_set(bt, 5);
-    UI_but_func_set(bt, [profile, cb](bContext &C) {
+    UI_but_func_set(bt, [profile, crp, cb](bContext &C) {
+      float center_x_pre = 0.0f;
+      float center_y_pre = 0.0f;
+      BKE_curveprofile_get_selection_center(profile, &center_x_pre, &center_y_pre);
+      BKE_curveprofile_translate_selection(
+          profile, crp->center_x - center_x_pre, crp->center_y - center_y_pre);
       BKE_curveprofile_update(profile, PROF_UPDATE_REMOVE_DOUBLES | PROF_UPDATE_CLIP);
       rna_update_cb(C, cb);
     });
@@ -474,13 +488,18 @@ static void CurveProfile_buttons_layout(uiLayout *layout, PointerRNA *ptr, const
                    1 * UI_UNIT_Y,
                    UI_UNIT_X * 10,
                    UI_UNIT_Y,
-                   selection_y,
+                   &crp->center_y,
                    bounds.ymin,
                    bounds.ymax,
                    "");
     UI_but_number_step_size_set(bt, 1);
     UI_but_number_precision_set(bt, 5);
-    UI_but_func_set(bt, [profile, cb](bContext &C) {
+    UI_but_func_set(bt, [profile, crp, cb](bContext &C) {
+      float center_x_pre = 0.0f;
+      float center_y_pre = 0.0f;
+      BKE_curveprofile_get_selection_center(profile, &center_x_pre, &center_y_pre);
+      BKE_curveprofile_translate_selection(
+          profile, crp->center_x - center_x_pre, crp->center_y - center_y_pre);
       BKE_curveprofile_update(profile, PROF_UPDATE_REMOVE_DOUBLES | PROF_UPDATE_CLIP);
       rna_update_cb(C, cb);
     });

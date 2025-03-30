@@ -27,6 +27,13 @@
 
 using blender::StringRefNull;
 
+/* temporary struct for storing curvemap/curveprofile properties */
+
+struct CurveRuntimeProperties {
+  float center_x;
+  float center_y;
+};
+
 static bool curvemap_can_zoom_out(CurveMapping *cumap)
 {
   return BLI_rctf_size_x(&cumap->curr) < BLI_rctf_size_x(&cumap->clipr);
@@ -321,6 +328,24 @@ static void curvemap_buttons_redraw(bContext &C)
   ED_region_tag_redraw(CTX_wm_region(&C));
 }
 
+static CurveRuntimeProperties *curvemap_runtime_props_ensure(CurveMap *cum)
+{
+  if (cum->runtime.runtime_storage == nullptr) {
+    CurveRuntimeProperties *crp = static_cast<CurveRuntimeProperties *>(
+        MEM_callocN(sizeof(CurveRuntimeProperties), "CurveRuntimeProperties"));
+    /* Construct C++ structures in otherwise zero initialized struct. */
+    new (crp) CurveRuntimeProperties();
+
+    cum->runtime.runtime_storage = crp;
+    cum->runtime.runtime_storage_free = [](void *properties_storage) {
+      CurveRuntimeProperties *tar = static_cast<CurveRuntimeProperties *>(properties_storage);
+
+      MEM_delete(tar);
+    };
+  }
+  return static_cast<CurveRuntimeProperties *>(cum->runtime.runtime_storage);
+}
+
 /**
  * \note Still unsure how this call evolves.
  *
@@ -575,20 +600,22 @@ static void curvemap_buttons_layout(uiLayout *layout,
   curve_but->gradient_type = bg;
 
   /* Sliders for selected curve point. */
-  int i;
-  CurveMapPoint *cmp = nullptr;
+  Vector<CurveMapPoint *> cmps;
   bool point_last_or_first = false;
-  for (i = 0; i < cm->totpoint; i++) {
-    if (cm->curve[i].flag & CUMA_SELECT) {
-      cmp = &cm->curve[i];
-      break;
+  for (int i = 0; i < cm->totpoint; i++) {
+    const bool selected = cm->curve[i].flag & CUMA_SELECT;
+    if (selected) {
+      cmps.append(&cm->curve[i]);
+    }
+    if (ELEM(i, 0, cm->totpoint - 1) && selected) {
+      point_last_or_first = true;
     }
   }
-  if (ELEM(i, 0, cm->totpoint - 1)) {
-    point_last_or_first = true;
-  }
 
-  if (cmp) {
+  if (!cmps.is_empty()) {
+    CurveMap *active_cm = cumap->cm + cumap->cur;
+    CurveRuntimeProperties *crp = curvemap_runtime_props_ensure(active_cm);
+
     rctf bounds;
     if (cumap->flag & CUMA_DO_CLIP) {
       bounds = cumap->clipr;
@@ -621,10 +648,11 @@ static void curvemap_buttons_layout(uiLayout *layout,
       BKE_curvemapping_changed(cumap, false);
       rna_update_cb(C, cb);
     });
-    if (((cmp->flag & CUMA_HANDLE_AUTO_ANIM) == false) &&
-        ((cmp->flag & CUMA_HANDLE_VECTOR) == false))
-    {
-      bt->flag |= UI_SELECT_DRAW;
+
+    for (const CurveMapPoint *cmp : cmps) {
+      const bool auto_anim_vec = ((cmp->flag & CUMA_HANDLE_AUTO_ANIM) == false) &&
+                                 ((cmp->flag & CUMA_HANDLE_VECTOR) == false);
+      bt->flag |= UI_SELECT_DRAW && auto_anim_vec;
     }
 
     bt = uiDefIconBut(block,
@@ -645,8 +673,10 @@ static void curvemap_buttons_layout(uiLayout *layout,
       BKE_curvemapping_changed(cumap, false);
       rna_update_cb(C, cb);
     });
-    if (cmp->flag & CUMA_HANDLE_VECTOR) {
-      bt->flag |= UI_SELECT_DRAW;
+
+    for (const CurveMapPoint *cmp : cmps) {
+      const bool vec = (cmp->flag & CUMA_HANDLE_VECTOR);
+      bt->flag |= UI_SELECT_DRAW && vec;
     }
 
     bt = uiDefIconBut(block,
@@ -667,11 +697,14 @@ static void curvemap_buttons_layout(uiLayout *layout,
       BKE_curvemapping_changed(cumap, false);
       rna_update_cb(C, cb);
     });
-    if (cmp->flag & CUMA_HANDLE_AUTO_ANIM) {
-      bt->flag |= UI_SELECT_DRAW;
+    
+    for (const CurveMapPoint *cmp : cmps) {
+      const bool auto_anim = (cmp->flag & CUMA_HANDLE_AUTO_ANIM);
+      bt->flag |= UI_SELECT_DRAW && auto_anim;
     }
 
     /* Curve handle position */
+    BKE_curvemap_get_selection_center(active_cm, &crp->center_x, &crp->center_y);
     bt = uiDefButF(block,
                    UI_BTYPE_NUM,
                    0,
@@ -680,13 +713,19 @@ static void curvemap_buttons_layout(uiLayout *layout,
                    2 * UI_UNIT_Y,
                    UI_UNIT_X * 10,
                    UI_UNIT_Y,
-                   &cmp->x,
+                   &crp->center_x,
                    bounds.xmin,
                    bounds.xmax,
                    "");
     UI_but_number_step_size_set(bt, 1);
     UI_but_number_precision_set(bt, 5);
     UI_but_func_set(bt, [cumap, cb](bContext &C) {
+      CurveMap *cuma = cumap->cm + cumap->cur;
+      CurveRuntimeProperties *crp = curvemap_runtime_props_ensure(cuma);
+      float center_x_pre = 0.0f;
+      float center_y_pre = 0.0f;
+      BKE_curvemap_get_selection_center(cuma, &center_x_pre, &center_y_pre);
+      BKE_translate_selection(cuma, crp->center_x - center_x_pre, crp->center_y - center_y_pre);
       BKE_curvemapping_changed(cumap, true);
       rna_update_cb(C, cb);
     });
@@ -699,13 +738,19 @@ static void curvemap_buttons_layout(uiLayout *layout,
                    1 * UI_UNIT_Y,
                    UI_UNIT_X * 10,
                    UI_UNIT_Y,
-                   &cmp->y,
+                   &crp->center_y,
                    bounds.ymin,
                    bounds.ymax,
                    "");
     UI_but_number_step_size_set(bt, 1);
     UI_but_number_precision_set(bt, 5);
     UI_but_func_set(bt, [cumap, cb](bContext &C) {
+      CurveMap *cuma = cumap->cm + cumap->cur;
+      CurveRuntimeProperties *crp = curvemap_runtime_props_ensure(cuma);
+      float center_x_pre = 0.0f;
+      float center_y_pre = 0.0f;
+      BKE_curvemap_get_selection_center(cuma, &center_x_pre, &center_y_pre);
+      BKE_translate_selection(cuma, crp->center_x - center_x_pre, crp->center_y - center_y_pre);
       BKE_curvemapping_changed(cumap, true);
       rna_update_cb(C, cb);
     });
