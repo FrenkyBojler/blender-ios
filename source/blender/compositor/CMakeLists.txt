@@ -235,7 +235,7 @@ set(GLSL_SRC
   shaders/compositor_plane_deform_mask.glsl
   shaders/compositor_plane_deform_motion_blur.glsl
   shaders/compositor_plane_deform_motion_blur_mask.glsl
-  shaders/compositor_plane_deform_variable.glsl
+  shaders/compositor_plane_deform.glsl
   shaders/compositor_premultiply_alpha.glsl
   shaders/compositor_projector_lens_distortion.glsl
   shaders/compositor_read_input.glsl
