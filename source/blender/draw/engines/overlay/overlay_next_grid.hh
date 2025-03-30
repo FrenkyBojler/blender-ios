@@ -332,17 +332,7 @@ class GridMesh : Overlay {
  private:
   PassSimple grid_ps_ = {"grid_ps_"};
 
-  /* Millimeter. */
-  float base_unit_ = 0.001f;
-  /* Metric. */
-  std::array<int, SI_GRID_STEPS_LEN + 1> level_subdiv_ = {10, 10, 10, 10, 10, 10, 10, 10, INT_MAX};
-
-  /* TODO(fclem): Plug real values from UI. */
-  /* Inch. */
-  // float base_unit_ = 0.0254f;
-  /* Imperial. */
-  // std::array<int, SI_GRID_STEPS_LEN> level_subdiv_ = {3, 22, 10, 8 /* Rounded */, 10, 10, 10,
-  // 10};
+  std::array<int, SI_GRID_STEPS_LEN> level_subdiv_ = {};
 
   /* Contains only an index buffer connecting visible vertices.
    * Position is derived from. */
@@ -466,23 +456,28 @@ class GridMesh : Overlay {
     }
 
     if (show_floor) {
-      for (auto i_acc : IndexRange(SI_GRID_STEPS_LEN)) {
+      std::array<float, SI_GRID_STEPS_LEN> grid_steps = {
+          0.001f, 0.01f, 0.1f, 1.0f, 10.0f, 100.0f, 1000.0f, 10000.0f};
+      ED_view3d_grid_steps(state.scene, state.v3d, state.rv3d, grid_steps.data());
+
+      for (auto i_acc : IndexRange(SI_GRID_STEPS_LEN - 1)) {
         /* Draw in reverse order to avoid missing pixels in farthest grid level caused by depth
          * write from transparent pixel in smaller grid level. */
-        int i = SI_GRID_STEPS_LEN - 1 - i_acc;
+        int i = SI_GRID_STEPS_LEN - 2 - i_acc;
 
-        if (level_grids_[i] == nullptr) {
-          level_grids_[i] = generate_batch(level_subdiv_[i]);
+        int level_subdiv = roundf(grid_steps[i + 1] / grid_steps[i]);
+
+        if (assign_if_different(level_subdiv_[i], level_subdiv)) {
+          GPU_BATCH_DISCARD_SAFE(level_grids_[i]);
         }
-        float unit = base_unit_;
-        for (auto j : IndexRange(i)) {
-          unit *= level_subdiv_[j];
+        if (level_grids_[i] == nullptr) {
+          level_grids_[i] = generate_batch(level_subdiv);
         }
         /* TODO(fclem): Only draw levels that are visible using camera position and near/far clip.
          */
         grid_ps_.push_constant("axis", 0);
-        grid_ps_.push_constant("unit_scale", unit);
-        grid_ps_.push_constant("next_divider", float(level_subdiv_[i]));
+        grid_ps_.push_constant("unit_scale", grid_steps[i]);
+        grid_ps_.push_constant("next_divider", float(level_subdiv));
         grid_ps_.draw(level_grids_[i]);
       }
     }
