@@ -3007,11 +3007,6 @@ void DepsgraphRelationBuilder::build_nodetree(bNodeTree *ntree)
       ComponentKey material_key(id, NodeType::SHADING);
       add_relation(material_key, ntree_output_key, "Material -> Node");
     }
-    else if (id_type == ID_GR) {
-      build_collection(nullptr, (Collection *)bnode->id);
-      ComponentKey collection_key(id, NodeType::PARAMETERS);
-      add_relation(collection_key, ntree_output_key, "Collection -> Node");
-    }
     else if (id_type == ID_TE) {
       build_texture((Tex *)bnode->id);
       ComponentKey texture_key(id, NodeType::GENERIC_DATABLOCK);
