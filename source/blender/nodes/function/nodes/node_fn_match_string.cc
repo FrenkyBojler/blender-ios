@@ -2,7 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BLI_string.h"
+#include "BLI_string_ref.hh"
 #include "BLI_string_utf8.h"
 
 #include "UI_interface.hh"
@@ -52,19 +52,29 @@ static const mf::MultiFunction *get_multi_function(const bNode &bnode)
   switch (operation) {
     case MatchStringOperation::StartsWith: {
       static auto fn = mf::build::SI2_SO<std::string, std::string, bool>(
-          "Starts With",
-          [](std::string a, std::string b) { return BLI_str_startswith(a.c_str(), b.c_str()); });
+          "Starts With", [](const std::string &a, const std::string &b) {
+            StringRefNull strref_a(a);
+            StringRefNull strref_b(b);
+            return strref_a.startswith(strref_b);
+          });
       return &fn;
     }
     case MatchStringOperation::EndsWith: {
       static auto fn = mf::build::SI2_SO<std::string, std::string, bool>(
-          "Ends With",
-          [](std::string a, std::string b) { return BLI_str_endswith(a.c_str(), b.c_str()); });
+          "Ends With", [](const std::string &a, const std::string &b) {
+            StringRefNull strref_a(a);
+            StringRefNull strref_b(b);
+            return strref_a.endswith(strref_b);
+          });
       return &fn;
     }
     case MatchStringOperation::Contains: {
       static auto fn = mf::build::SI2_SO<std::string, std::string, bool>(
-          "Contains", [](std::string a, std::string b) { return a.find(b) != std::string::npos; });
+          "Contains", [](const std::string &a, const std::string &b) {
+            StringRefNull strref_a(a);
+            StringRefNull strref_b(b);
+            return strref_a.find(strref_b) != StringRef::not_found;
+          });
       return &fn;
     }
   }
