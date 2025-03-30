@@ -338,11 +338,6 @@ class GridMesh : Overlay {
   // std::array<int, SI_GRID_STEPS_LEN + 1> level_subdiv_ = {10, 10, 10, 10, 10, 10, 10, 10,
   // INT_MAX};
 
-  /* Millimeter. */
-  // float base_unit_ = 1.00f;
-  /* Metric. */
-  // std::array<int, SI_GRID_STEPS_LEN> level_subdiv_ = {3, 5, 7, 10, 10, 10, 10, 10, INT_MAX};
-
   /* Inch. */
   float base_unit_ = 0.0254f;
   /* Imperial. */
@@ -352,12 +347,30 @@ class GridMesh : Overlay {
    * Position is derived from. */
   std::array<gpu::Batch *, SI_GRID_STEPS_LEN> level_grids_ = {};
 
+  gpu::Batch *axis_ = nullptr;
+
  public:
   ~GridMesh()
   {
     for (gpu::Batch *&batch : level_grids_) {
       GPU_BATCH_DISCARD_SAFE(batch);
     }
+    GPU_BATCH_DISCARD_SAFE(axis_);
+  }
+
+  gpu::Batch *generate_axis()
+  {
+    const int res = 256;
+    GPUIndexBufBuilder builder;
+    GPU_indexbuf_init(&builder, GPU_PRIM_LINES, res * 2, 0xFFFFFFFEu);
+    auto vertex_id_at = [](int x, int y) { return ((x + 0x7FFF) << 16) | (y + 0x7FFF); };
+
+    for (int i : IndexRange(res)) {
+      int x = i - res / 2;
+      GPU_indexbuf_add_line_verts(&builder, vertex_id_at(x, 0), vertex_id_at(x + 1, 0));
+    }
+    gpu::IndexBuf *ibo = GPU_indexbuf_build(&builder);
+    return GPU_batch_create_ex(GPU_PRIM_LINES, nullptr, ibo, GPU_BATCH_OWNS_INDEX);
   }
 
   gpu::Batch *generate_batch(int next_subdivision)
@@ -399,6 +412,19 @@ class GridMesh : Overlay {
                        DRW_STATE_DEPTH_LESS_EQUAL);
     grid_ps_.shader_set(res.shaders->grid_mesh.get());
 
+    {
+      if (axis_ == nullptr) {
+        axis_ = generate_axis();
+      }
+      /* TODO(fclem): Set unit to camera far plane. */
+      grid_ps_.push_constant("unit_scale", 100.0f);
+      grid_ps_.push_constant("next_divider", 1.0f); /* UNUSED. */
+      for (auto i : IndexRange(3)) {
+        grid_ps_.push_constant("axis", int(i + 1));
+        grid_ps_.draw(axis_);
+      }
+    }
+
     for (auto i_acc : IndexRange(SI_GRID_STEPS_LEN)) {
       /* Draw in reverse order to avoid missing pixels in farthest grid level caused by depth
        * write from transparent pixel in smaller grid level. */
@@ -412,6 +438,7 @@ class GridMesh : Overlay {
         unit *= level_subdiv_[j];
       }
       /* TODO(fclem): Only draw levels that are visible using camera position and near/far clip. */
+      grid_ps_.push_constant("axis", 0);
       grid_ps_.push_constant("unit_scale", unit);
       grid_ps_.push_constant("next_divider", float(level_subdiv_[i]));
       grid_ps_.draw(level_grids_[i]);
