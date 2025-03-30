@@ -104,7 +104,7 @@ if(WITH_COMPILER_CODE_COVERAGE)
         -o ${COMPILER_CODE_COVERAGE_DATA_DIR}/blender.profdata
     )
     if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 18.1 OR
-       (APPLE AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 17.0)
+       (CMAKE_C_COMPILER_ID MATCHES "AppleClang" AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 17.0)
       )
       # Available clang on 18.1+ only , Apple's compiler doesn't map 1:1 to clang
       # versions so on apple we check for version 17+ which maps to clang
