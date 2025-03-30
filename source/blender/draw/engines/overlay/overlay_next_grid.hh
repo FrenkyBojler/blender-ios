@@ -399,7 +399,11 @@ class GridMesh : Overlay {
                        DRW_STATE_DEPTH_LESS_EQUAL);
     grid_ps_.shader_set(res.shaders->grid_mesh.get());
 
-    for (auto i : IndexRange(SI_GRID_STEPS_LEN)) {
+    for (auto i_acc : IndexRange(SI_GRID_STEPS_LEN)) {
+      /* Draw in reverse order to avoid missing pixels in farthest grid level caused by depth
+       * write from transparent pixel in smaller grid level. */
+      int i = SI_GRID_STEPS_LEN - 1 - i_acc;
+
       if (level_grids_[i] == nullptr) {
         level_grids_[i] = generate_batch(level_subdiv_[i]);
       }
