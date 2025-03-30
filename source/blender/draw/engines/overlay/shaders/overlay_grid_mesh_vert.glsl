@@ -70,7 +70,10 @@ void main()
   else {
     /* TODO(fclem): Scale alpha depending on UI scale. */
     float area = length(cross(vec3(ss_P_dx - ss_P, 0.0), vec3(ss_P_dy - ss_P, 0.0)));
-    finalColor = vec4(colorGrid.rgb, smoothstep(square(8.0), square(32.0), area));
+    float mix_fade = smoothstep(square(8.0), square(32.0), area);
+    /* TODO(fclem): Adjust with relative density with lower level. */
+    float mix_highlight = smoothstep(square(64.0), square(128.0), area);
+    finalColor = vec4(mix(colorGrid.rgb, colorGridEmphasis.rgb, mix_highlight), mix_fade);
   }
 
   edgePos = edgeStart = ss_P;
