@@ -1147,6 +1147,14 @@ static const float std_node_socket_colors[][4] = {
     {0.72, 0.20, 0.52, 1.0}, /* SOCK_MATRIX */
 };
 
+void std_node_socket_colors_get(int socket_type, float *r_color)
+{
+  BLI_assert(socket_type >= 0);
+  BLI_assert(socket_type < std::size(std_node_socket_colors));
+
+  copy_v4_v4(r_color, std_node_socket_colors[socket_type]);
+}
+
 /* Callback for colors that does not depend on the socket pointer argument to get the type. */
 template<int socket_type>
 void std_node_socket_color_fn(bContext * /*C*/,
@@ -1456,8 +1464,18 @@ static void std_node_socket_draw(
       }
       break;
     }
-    case SOCK_OBJECT: {
-      uiItemR(layout, ptr, "default_value", DEFAULT_FLAGS, text, ICON_NONE);
+    case SOCK_COLLECTION:
+    case SOCK_OBJECT:
+    case SOCK_MATERIAL: {
+      uiItemFullR(layout,
+                  ptr,
+                  RNA_struct_find_property(ptr, "default_value"),
+                  -1,
+                  0,
+                  DEFAULT_FLAGS,
+                  text,
+                  ICON_NONE,
+                  text.is_empty() ? std::optional(label) : std::nullopt);
       break;
     }
     case SOCK_IMAGE: {
@@ -1478,10 +1496,6 @@ static void std_node_socket_draw(
       }
       break;
     }
-    case SOCK_COLLECTION: {
-      uiItemR(layout, ptr, "default_value", DEFAULT_FLAGS, text, ICON_NONE);
-      break;
-    }
     case SOCK_TEXTURE: {
       if (text.is_empty()) {
         uiTemplateID(layout, C, ptr, "default_value", "texture.new", nullptr, nullptr);
@@ -1493,10 +1507,6 @@ static void std_node_socket_draw(
         uiTemplateID(row, C, ptr, "default_value", "texture.new", nullptr, nullptr);
       }
 
-      break;
-    }
-    case SOCK_MATERIAL: {
-      uiItemR(layout, ptr, "default_value", DEFAULT_FLAGS, text, ICON_NONE);
       break;
     }
     default:
