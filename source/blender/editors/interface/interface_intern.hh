@@ -458,7 +458,7 @@ struct uiButCurveMapping : public uiBut {
 
 /** Derived struct for #UI_BTYPE_HOTKEY_EVENT. */
 struct uiButHotkeyEvent : public uiBut {
-  short modifier_key = 0;
+  uint8_t modifier_key = 0;
 };
 
 /**
@@ -1337,7 +1337,8 @@ void ui_draw_preview_item_stateless(const uiFontStyle *fstyle,
                                     blender::StringRef name,
                                     int iconid,
                                     const uchar text_col[4],
-                                    eFontStyle_Align text_align);
+                                    eFontStyle_Align text_align,
+                                    const bool add_padding);
 
 #define UI_TEXT_MARGIN_X 0.4f
 #define UI_POPUP_MARGIN (UI_SCALE_FAC * 12)

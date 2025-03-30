@@ -381,7 +381,7 @@ static bool is_compositing_possible(const bContext *C)
    * texture, which we want to avoid due its cost. So we employ a heuristic that so far has worked
    * with all known GPU drivers. */
   if (size_t(width) * height > (size_t(max_texture_size) * max_texture_size) / 4) {
-    WM_report(RPT_ERROR, "Render size too large for GPU, use CPU compositor instead");
+    WM_global_report(RPT_ERROR, "Render size too large for GPU, use CPU compositor instead");
     return false;
   }
 
@@ -947,7 +947,7 @@ static void node_resize_init(
     bContext *C, wmOperator *op, const float2 &cursor, const bNode *node, NodeResizeDirection dir)
 {
   Scene *scene = CTX_data_scene(C);
-  NodeSizeWidget *nsw = MEM_cnew<NodeSizeWidget>(__func__);
+  NodeSizeWidget *nsw = MEM_callocN<NodeSizeWidget>(__func__);
 
   op->customdata = nsw;
 
@@ -1029,7 +1029,7 @@ static float nearest_node_grid_coord(float co)
   return co - rest + offset;
 }
 
-static int node_resize_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus node_resize_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   SpaceNode *snode = CTX_wm_space_node(C);
   ARegion *region = CTX_wm_region(C);
@@ -1128,7 +1128,7 @@ static int node_resize_modal(bContext *C, wmOperator *op, const wmEvent *event)
   return OPERATOR_RUNNING_MODAL;
 }
 
-static int node_resize_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus node_resize_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   SpaceNode *snode = CTX_wm_space_node(C);
   ARegion *region = CTX_wm_region(C);
@@ -1429,7 +1429,7 @@ void remap_node_pairing(bNodeTree &dst_tree, const Map<const bNode *, bNode *> &
   }
 }
 
-static int node_duplicate_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus node_duplicate_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   SpaceNode *snode = CTX_wm_space_node(C);
@@ -1476,7 +1476,7 @@ static int node_duplicate_exec(bContext *C, wmOperator *op)
     if (link->tonode && (link->tonode->flag & NODE_SELECT) &&
         (keep_inputs || (link->fromnode && (link->fromnode->flag & NODE_SELECT))))
     {
-      bNodeLink *newlink = MEM_cnew<bNodeLink>("bNodeLink");
+      bNodeLink *newlink = MEM_callocN<bNodeLink>("bNodeLink");
       newlink->flag = link->flag;
       newlink->tonode = node_map.lookup(link->tonode);
       newlink->tosock = socket_map.lookup(link->tosock);
@@ -1576,7 +1576,7 @@ void NODE_OT_duplicate(wmOperatorType *ot)
 }
 
 /* Goes over all scenes, reads render layers. */
-static int node_read_viewlayers_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus node_read_viewlayers_exec(bContext *C, wmOperator * /*op*/)
 {
   Main *bmain = CTX_data_main(C);
   SpaceNode *snode = CTX_wm_space_node(C);
@@ -1623,7 +1623,7 @@ void NODE_OT_read_viewlayers(wmOperatorType *ot)
   ot->poll = composite_node_active;
 }
 
-int node_render_changed_exec(bContext *C, wmOperator * /*op*/)
+wmOperatorStatus node_render_changed_exec(bContext *C, wmOperator * /*op*/)
 {
   Scene *sce = CTX_data_scene(C);
 
@@ -1731,7 +1731,7 @@ static void node_flag_toggle_exec(SpaceNode *snode, int toggle_flag)
   }
 }
 
-static int node_hide_toggle_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus node_hide_toggle_exec(bContext *C, wmOperator * /*op*/)
 {
   SpaceNode *snode = CTX_wm_space_node(C);
 
@@ -1762,7 +1762,7 @@ void NODE_OT_hide_toggle(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-static int node_preview_toggle_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus node_preview_toggle_exec(bContext *C, wmOperator * /*op*/)
 {
   SpaceNode *snode = CTX_wm_space_node(C);
 
@@ -1804,7 +1804,63 @@ void NODE_OT_preview_toggle(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-static int node_deactivate_viewer_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus node_activate_viewer_exec(bContext *C, wmOperator * /*op*/)
+{
+  SpaceNode *snode = CTX_wm_space_node(C);
+  PointerRNA ptr = CTX_data_pointer_get(C, "node");
+  Main *bmain = CTX_data_main(C);
+  bNodeTree *ntree = nullptr;
+  bNode *node = nullptr;
+
+  if (ptr.data) {
+    node = static_cast<bNode *>(ptr.data);
+    ntree = reinterpret_cast<bNodeTree *>(ptr.owner_id);
+  }
+  else if (snode && snode->edittree) {
+    ntree = snode->edittree;
+    node = bke::node_get_active(*ntree);
+  }
+
+  if (!node) {
+    return OPERATOR_CANCELLED;
+  }
+
+  if (node->is_type("CompositorNodeViewer")) {
+    for (bNode *other_node : ntree->all_nodes()) {
+      if (other_node->type_legacy == node->type_legacy) {
+        other_node->flag &= ~NODE_DO_OUTPUT;
+      }
+      node->flag |= NODE_DO_OUTPUT;
+
+      WM_main_add_notifier(NC_NODE | NA_EDITED, &ntree->id);
+      WM_main_add_notifier(NC_SCENE | ND_NODES, &ntree->id);
+    }
+  }
+  else if (node->is_type("GeometryNodeViewer")) {
+    /* Geometry nodes viewers don't rely on NODE_DO_OUTPUT flag alone. */
+    viewer_path::activate_geometry_node(*bmain, *snode, *node);
+  }
+  else {
+    return OPERATOR_CANCELLED;
+  }
+
+  BKE_main_ensure_invariants(*bmain, snode->edittree->id);
+  return OPERATOR_FINISHED;
+}
+
+void NODE_OT_activate_viewer(wmOperatorType *ot)
+{
+  ot->name = "Activate Viewer Node";
+  ot->description = "Activate selected viewer node in compositor and geometry nodes";
+  ot->idname = "NODE_OT_activate_viewer";
+
+  ot->exec = node_activate_viewer_exec;
+  ot->poll = ED_operator_node_active;
+
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}
+
+static wmOperatorStatus node_deactivate_viewer_exec(bContext *C, wmOperator * /*op*/)
 {
   SpaceNode &snode = *CTX_wm_space_node(C);
   WorkSpace &workspace = *CTX_wm_workspace(C);
@@ -1844,7 +1900,7 @@ void NODE_OT_deactivate_viewer(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-static int node_options_toggle_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus node_options_toggle_exec(bContext *C, wmOperator * /*op*/)
 {
   SpaceNode *snode = CTX_wm_space_node(C);
 
@@ -1875,7 +1931,7 @@ void NODE_OT_options_toggle(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-static int node_socket_toggle_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus node_socket_toggle_exec(bContext *C, wmOperator * /*op*/)
 {
   SpaceNode *snode = CTX_wm_space_node(C);
 
@@ -1933,7 +1989,7 @@ void NODE_OT_hide_socket_toggle(wmOperatorType *ot)
 /** \name Node Mute Operator
  * \{ */
 
-static int node_mute_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus node_mute_exec(bContext *C, wmOperator * /*op*/)
 {
   Main *bmain = CTX_data_main(C);
   SpaceNode *snode = CTX_wm_space_node(C);
@@ -1973,7 +2029,7 @@ void NODE_OT_mute_toggle(wmOperatorType *ot)
 /** \name Node Delete Operator
  * \{ */
 
-static int node_delete_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus node_delete_exec(bContext *C, wmOperator * /*op*/)
 {
   Main *bmain = CTX_data_main(C);
   SpaceNode *snode = CTX_wm_space_node(C);
@@ -2015,7 +2071,7 @@ void NODE_OT_delete(wmOperatorType *ot)
 /** \name Node Delete with Reconnect Operator
  * \{ */
 
-static int node_delete_reconnect_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus node_delete_reconnect_exec(bContext *C, wmOperator * /*op*/)
 {
   Main *bmain = CTX_data_main(C);
   SpaceNode *snode = CTX_wm_space_node(C);
@@ -2062,7 +2118,7 @@ void NODE_OT_delete_reconnect(wmOperatorType *ot)
 /** \name Node File Output Add Socket Operator
  * \{ */
 
-static int node_output_file_add_socket_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus node_output_file_add_socket_exec(bContext *C, wmOperator *op)
 {
   Scene *scene = CTX_data_scene(C);
   SpaceNode *snode = CTX_wm_space_node(C);
@@ -2116,7 +2172,8 @@ void NODE_OT_output_file_add_socket(wmOperatorType *ot)
 /** \name Node Multi File Output Remove Socket Operator
  * \{ */
 
-static int node_output_file_remove_active_socket_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus node_output_file_remove_active_socket_exec(bContext *C,
+                                                                   wmOperator * /*op*/)
 {
   SpaceNode *snode = CTX_wm_space_node(C);
   PointerRNA ptr = CTX_data_pointer_get(C, "node");
@@ -2166,7 +2223,7 @@ void NODE_OT_output_file_remove_active_socket(wmOperatorType *ot)
 /** \name Node Multi File Output Move Socket Node
  * \{ */
 
-static int node_output_file_move_active_socket_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus node_output_file_move_active_socket_exec(bContext *C, wmOperator *op)
 {
   SpaceNode *snode = CTX_wm_space_node(C);
   PointerRNA ptr = CTX_data_pointer_get(C, "node");
@@ -2243,7 +2300,7 @@ void NODE_OT_output_file_move_active_socket(wmOperatorType *ot)
 /** \name Node Copy Node Color Operator
  * \{ */
 
-static int node_copy_color_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus node_copy_color_exec(bContext *C, wmOperator * /*op*/)
 {
   SpaceNode &snode = *CTX_wm_space_node(C);
   bNodeTree &ntree = *snode.edittree;
@@ -2356,7 +2413,7 @@ static bool node_shader_script_update_text_recursive(RenderEngine *engine,
   return found;
 }
 
-static int node_shader_script_update_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus node_shader_script_update_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
@@ -2452,7 +2509,7 @@ static void viewer_border_corner_to_backdrop(SpaceNode *snode,
   *fy = (bufy > 0.0f ? (float(y) - 0.5f * region->winy - snode->yof) / bufy + 0.5f : 0.0f);
 }
 
-static int viewer_border_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus viewer_border_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   void *lock;
@@ -2529,7 +2586,7 @@ void NODE_OT_viewer_border(wmOperatorType *ot)
   WM_operator_properties_gesture_box(ot);
 }
 
-static int clear_viewer_border_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus clear_viewer_border_exec(bContext *C, wmOperator * /*op*/)
 {
   SpaceNode *snode = CTX_wm_space_node(C);
   bNodeTree *btree = snode->nodetree;
@@ -2562,7 +2619,7 @@ void NODE_OT_clear_viewer_border(wmOperatorType *ot)
 /** \name Cryptomatte Add Socket
  * \{ */
 
-static int node_cryptomatte_add_socket_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus node_cryptomatte_add_socket_exec(bContext *C, wmOperator * /*op*/)
 {
   SpaceNode *snode = CTX_wm_space_node(C);
   PointerRNA ptr = CTX_data_pointer_get(C, "node");
@@ -2610,7 +2667,7 @@ void NODE_OT_cryptomatte_layer_add(wmOperatorType *ot)
 /** \name Cryptomatte Remove Socket
  * \{ */
 
-static int node_cryptomatte_remove_socket_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus node_cryptomatte_remove_socket_exec(bContext *C, wmOperator * /*op*/)
 {
   SpaceNode *snode = CTX_wm_space_node(C);
   PointerRNA ptr = CTX_data_pointer_get(C, "node");

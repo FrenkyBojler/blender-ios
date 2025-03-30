@@ -121,10 +121,10 @@ class VIEW3D_HT_tool_header(Header):
                     if tool in {'SMOOTH', 'RANDOMIZE'}:
                         layout.popover("VIEW3D_PT_tools_grease_pencil_sculpt_brush_popover")
                     layout.popover("VIEW3D_PT_tools_grease_pencil_sculpt_appearance")
-        elif tool_mode == 'WEIGHT_GPENCIL' or tool_mode == 'WEIGHT_GREASE_PENCIL':
+        elif tool_mode in {'WEIGHT_GPENCIL', 'WEIGHT_GREASE_PENCIL'}:
             if is_valid_context:
                 layout.popover("VIEW3D_PT_tools_grease_pencil_weight_appearance")
-        elif tool_mode == 'VERTEX_GPENCIL' or tool_mode == 'VERTEX_GREASE_PENCIL':
+        elif tool_mode in {'VERTEX_GPENCIL', 'VERTEX_GREASE_PENCIL'}:
             if is_valid_context:
                 layout.popover("VIEW3D_PT_tools_grease_pencil_vertex_appearance")
 
@@ -1228,7 +1228,11 @@ class VIEW3D_MT_editor_menus(Menu):
                 layout.menu("VIEW3D_MT_paint_vertex_grease_pencil")
                 layout.template_node_operator_asset_root_items()
             elif mode_string == 'SCULPT_GREASE_PENCIL':
-                is_selection_mask = tool_settings.use_gpencil_select_mask_point or tool_settings.use_gpencil_select_mask_stroke or tool_settings.use_gpencil_select_mask_segment
+                is_selection_mask = (
+                    tool_settings.use_gpencil_select_mask_point or
+                    tool_settings.use_gpencil_select_mask_stroke or
+                    tool_settings.use_gpencil_select_mask_segment
+                )
                 if is_selection_mask:
                     layout.menu("VIEW3D_MT_select_edit_grease_pencil")
             else:
@@ -3897,6 +3901,8 @@ class VIEW3D_MT_mask(Menu):
         props.settings_source = 'OPERATOR'
         props.boundary_mode = 'FACE_SETS'
 
+        props = layout.operator("sculpt.mask_by_color", text="Mask by Color")
+
         layout.separator()
 
         layout.menu("VIEW3D_MT_random_mask", text="Random Mask")
@@ -5752,6 +5758,7 @@ class VIEW3D_MT_edit_greasepencil(Menu):
 
         layout.separator()
 
+        layout.operator("grease_pencil.stroke_split", text="Split")
         layout.operator("grease_pencil.copy", text="Copy", icon='COPYDOWN')
         layout.operator("grease_pencil.paste", text="Paste", icon='PASTEDOWN').type = 'ACTIVE'
         layout.operator("grease_pencil.paste", text="Paste by Layer").type = 'LAYER'
@@ -5858,14 +5865,25 @@ class VIEW3D_MT_edit_curves(Menu):
         layout = self.layout
 
         layout.menu("VIEW3D_MT_transform")
+        layout.menu("VIEW3D_MT_mirror")
+        layout.menu("VIEW3D_MT_snap")
+
         layout.separator()
+
         layout.operator("curves.duplicate_move")
+        layout.operator("curves.extrude_move")
+
         layout.separator()
+
         layout.operator("curves.attribute_set")
-        layout.operator("curves.delete")
-        layout.operator("curves.cyclic_toggle")
         layout.operator_menu_enum("curves.curve_type_set", "type")
+        layout.operator("curves.cyclic_toggle")
         layout.template_node_operator_asset_menu_items(catalog_path=self.bl_label)
+
+        layout.separator()
+
+        layout.operator("curves.separate")
+        layout.operator("curves.delete")
 
 
 class VIEW3D_MT_edit_curves_control_points(Menu):
@@ -5896,12 +5914,32 @@ class VIEW3D_MT_edit_curves_context_menu(Menu):
 
         layout.operator_context = 'INVOKE_DEFAULT'
 
+        # Additive Operators
         layout.operator("curves.subdivide")
+
+        layout.separator()
+
         layout.operator("curves.extrude_move")
 
         layout.separator()
 
+        # Deform Operators
+        layout.menu("VIEW3D_MT_mirror")
+        layout.menu("VIEW3D_MT_snap")
+
+        layout.separator()
+
+        # Modify Flags
+        layout.operator_menu_enum("curves.curve_type_set", "type")
         layout.operator_menu_enum("curves.handle_type_set", "type")
+        layout.operator("curves.cyclic_toggle")
+        layout.operator("curves.switch_direction")
+
+        layout.separator()
+
+        # Removal Operators
+        layout.operator("curves.separate")
+        layout.operator("curves.delete")
 
         layout.separator()
 
@@ -6719,14 +6757,14 @@ class VIEW3D_PT_shading_options(Panel):
             row.prop(shading, "use_dof", text="Depth of Field")
 
         if shading.type in {'WIREFRAME', 'SOLID'}:
-            row = layout.split()
+            row = col.split()
             row.prop(shading, "show_object_outline")
             sub = row.row()
             sub.active = shading.show_object_outline
             sub.prop(shading, "object_outline_color", text="")
 
         if shading.type == 'SOLID':
-            col = layout.column()
+            col = col.column()
             if shading.light in {'STUDIO', 'MATCAP'}:
                 studio_light = shading.selected_studio_light
                 col.active = (studio_light is not None) and studio_light.has_specular_highlight_pass
@@ -7671,8 +7709,20 @@ class VIEW3D_PT_snapping(Panel):
             text_ctxt=i18n_contexts.operator_default,
             toggle=True,
         )
-        row.prop(tool_settings, "use_snap_rotate", text="Rotate", text_ctxt=i18n_contexts.operator_default, toggle=True)
-        row.prop(tool_settings, "use_snap_scale", text="Scale", text_ctxt=i18n_contexts.operator_default, toggle=True)
+        row.prop(
+            tool_settings,
+            "use_snap_rotate",
+            text="Rotate",
+            text_ctxt=i18n_contexts.operator_default,
+            toggle=True,
+        )
+        row.prop(
+            tool_settings,
+            "use_snap_scale",
+            text="Scale",
+            text_ctxt=i18n_contexts.operator_default,
+            toggle=True,
+        )
         col.label(text="Rotation Increment")
         row = col.row(align=True)
         row.prop(tool_settings, "snap_angle_increment_3d", text="")
@@ -8235,6 +8285,7 @@ class VIEW3D_MT_greasepencil_edit_context_menu(Menu):
 
             col.separator()
 
+            col.operator("grease_pencil.stroke_split", text="Split")
             col.operator("grease_pencil.separate", text="Separate").mode = 'SELECTED'
 
             # Removal Operators

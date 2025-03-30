@@ -36,6 +36,7 @@
 #include "BKE_node_runtime.hh"
 #include "BKE_object.hh"
 #include "BKE_paint.hh"
+#include "BKE_paint_bvh.hh"
 #include "BKE_pointcloud.hh"
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
@@ -212,7 +213,8 @@ class MeshState {
  * we need to create evaluated copies of geometry before passing it to geometry nodes. Implicit
  * sharing lets us avoid copying attribute data though.
  */
-static bke::GeometrySet get_original_geometry_eval_copy(Object &object,
+static bke::GeometrySet get_original_geometry_eval_copy(Depsgraph &depsgraph,
+                                                        Object &object,
                                                         nodes::GeoNodesOperatorData &operator_data,
                                                         Vector<MeshState> &orig_mesh_states)
 {
@@ -237,6 +239,12 @@ static bke::GeometrySet get_original_geometry_eval_copy(Object &object,
         Mesh *final_copy = BKE_mesh_copy_for_eval(*mesh_copy);
         BKE_id_free(nullptr, mesh_copy);
         return bke::GeometrySet::from_mesh(final_copy);
+      }
+      if (bke::pbvh::Tree *pbvh = bke::object::pbvh_get(object)) {
+        /* Currently many sculpt mode operations do not tag normals dirty (see use of
+         * #Mesh::tag_positions_changed_no_normals()), so access within geometry nodes cannot
+         * know that normals are out of date and recalculate them. Update them here instead. */
+        bke::pbvh::update_normals(depsgraph, object, *pbvh);
       }
       Mesh *mesh_copy = BKE_mesh_copy_for_eval(*mesh);
       orig_mesh_states.append_as(*mesh_copy);
@@ -510,7 +518,7 @@ static Vector<Object *> gather_supported_objects(const bContext &C,
   return objects;
 }
 
-static int run_node_group_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus run_node_group_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
@@ -613,10 +621,14 @@ static int run_node_group_exec(bContext *C, wmOperator *op)
     }
 
     bke::GeometrySet geometry_orig = get_original_geometry_eval_copy(
-        *object, operator_eval_data, orig_mesh_states);
+        *depsgraph_active, *object, operator_eval_data, orig_mesh_states);
 
     bke::GeometrySet new_geometry = nodes::execute_geometry_nodes_on_geometry(
-        *node_tree, properties, compute_context, call_data, std::move(geometry_orig));
+        *node_tree,
+        nodes::build_properties_vector_set(properties),
+        compute_context,
+        call_data,
+        std::move(geometry_orig));
 
     store_result_geometry(
         *op, *depsgraph_active, *bmain, *scene, *object, rv3d, std::move(new_geometry));
@@ -680,7 +692,7 @@ static void store_input_node_values_rna_props(const bContext &C,
   RNA_boolean_set(op.ptr, "viewport_is_perspective", rv3d ? bool(rv3d->is_persp) : true);
 }
 
-static int run_node_group_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus run_node_group_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   const bNodeTree *node_tree = get_node_group(*C, *op->ptr, op->reports);
   if (!node_tree) {
@@ -760,7 +772,7 @@ static void add_attribute_search_or_value_buttons(uiLayout *layout,
 
 static void draw_property_for_socket(const bNodeTree &node_tree,
                                      uiLayout *layout,
-                                     IDProperty *op_properties,
+                                     const nodes::PropertiesVectorSet &properties_set,
                                      PointerRNA *bmain_ptr,
                                      PointerRNA *op_ptr,
                                      const bNodeTreeInterfaceSocket &socket,
@@ -771,11 +783,11 @@ static void draw_property_for_socket(const bNodeTree &node_tree,
   const eNodeSocketDatatype socket_type = eNodeSocketDatatype(typeinfo->type);
 
   /* The property should be created in #MOD_nodes_update_interface with the correct type. */
-  IDProperty *property = IDP_GetPropertyFromGroup(op_properties, socket.identifier);
+  const IDProperty *property = properties_set.lookup_key_default_as(socket.identifier, nullptr);
 
   /* IDProperties can be removed with python, so there could be a situation where
    * there isn't a property for a socket or it doesn't have the correct type. */
-  if (property == nullptr || !nodes::id_property_type_matches_socket(socket, *property, true)) {
+  if (!property || !nodes::id_property_type_matches_socket(socket, *property, true)) {
     return;
   }
 
@@ -835,18 +847,20 @@ static void run_node_group_ui(bContext *C, wmOperator *op)
   if (!node_tree) {
     return;
   }
+  const nodes::PropertiesVectorSet properties_set = nodes::build_properties_vector_set(
+      op->properties);
 
   node_tree->ensure_interface_cache();
 
   Array<bool> input_usages(node_tree->interface_inputs().size());
   nodes::socket_usage_inference::infer_group_interface_inputs_usage(
-      *node_tree, op->properties, input_usages);
+      *node_tree, properties_set, input_usages);
 
   int input_index = 0;
   for (const bNodeTreeInterfaceSocket *io_socket : node_tree->interface_inputs()) {
     draw_property_for_socket(*node_tree,
                              layout,
-                             op->properties,
+                             properties_set,
                              &bmain_ptr,
                              op->ptr,
                              *io_socket,
@@ -1395,6 +1409,7 @@ static void catalog_assets_draw_unassigned(const bContext *C, Menu *menu)
 MenuType node_group_operator_assets_menu_unassigned()
 {
   MenuType type{};
+  STRNCPY(type.label, "Unassigned Node Tools");
   STRNCPY(type.idname, "GEO_MT_node_operator_unassigned");
   type.poll = asset_menu_poll;
   type.draw = catalog_assets_draw_unassigned;

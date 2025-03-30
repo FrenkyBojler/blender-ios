@@ -64,6 +64,7 @@ set(SRC
   GEO_add_curves_on_mesh.hh
   GEO_bounding_sphere.hh
   GEO_curve_constraints.hh
+  GEO_curves_remove_and_split.hh
   GEO_extend_curves.hh
   GEO_extract_elements.hh
   GEO_fast_multipole_method.hh
