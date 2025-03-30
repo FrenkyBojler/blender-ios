@@ -1,6 +1,5 @@
 """
-Accessing Evaluated Geometry
-++++++++++++++++++++++++++++
+**Accessing Evaluated Geometry**
 """
 import bpy
 
