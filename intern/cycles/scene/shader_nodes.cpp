@@ -7649,7 +7649,6 @@ NODE_DEFINE(RadialTilingNode)
   SOCKET_IN_POINT(vector, "Vector", zero_float3());
   SOCKET_IN_FLOAT(r_gon_sides, "R_gon Sides", 5.0f);
   SOCKET_IN_FLOAT(r_gon_roundness, "R_gon Roundness", 0.0f);
-  SOCKET_IN_FLOAT(irregular_r_gon_corner_shape, "Irregular R_gon Corner Shape", 0.0f);
 
   SOCKET_OUT_POINT(segment_coordinates, "Segment Coordinates");
   SOCKET_OUT_FLOAT(segment_id, "Segment ID");
@@ -7666,7 +7665,7 @@ void RadialTilingNode::compile(SVMCompiler &compiler)
   ShaderInput *vector_in = input("Vector");
   ShaderInput *r_gon_sides_in = input("R_gon Sides");
   ShaderInput *r_gon_roundness_in = input("R_gon Roundness");
-  ShaderInput *irregular_r_gon_corner_shape_in = input("Irregular R_gon Corner Shape");
+
   ShaderOutput *segment_coordinates_out = output("Segment Coordinates");
   ShaderOutput *segment_id_out = output("Segment ID");
   ShaderOutput *max_unit_parameter_out = output("Max Unit Parameter");
@@ -7677,9 +7676,8 @@ void RadialTilingNode::compile(SVMCompiler &compiler)
                     compiler.encode_uchar4(compiler.stack_assign(vector_in),
                                            compiler.stack_assign(r_gon_sides_in),
                                            compiler.stack_assign(r_gon_roundness_in),
-                                           compiler.stack_assign(irregular_r_gon_corner_shape_in)),
-                    compiler.encode_uchar4(compiler.stack_assign(segment_coordinates_out),
-                                           compiler.stack_assign(segment_id_out),
+                                           compiler.stack_assign(segment_coordinates_out)),
+                    compiler.encode_uchar4(compiler.stack_assign(segment_id_out),
                                            compiler.stack_assign(max_unit_parameter_out),
                                            compiler.stack_assign(x_axis_A_angle_bisector_out)));
 }

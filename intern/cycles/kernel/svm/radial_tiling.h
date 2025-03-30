@@ -10,7 +10,6 @@ struct RoundedPolygonStackOffsets {
   uint vector;
   uint r_gon_sides;
   uint r_gon_roundness;
-  uint irregular_r_gon_corner_shape;
   uint segment_coordinates;
   uint segment_id;
   uint max_unit_parameter;
@@ -34,16 +33,10 @@ ccl_device_noinline int svm_node_radial_tiling(
 
   uint normalize_r_gon_parameter = node.y;
 
-  svm_unpack_node_uchar4(node.z,
-                         &(so.vector),
-                         &(so.r_gon_sides),
-                         &(so.r_gon_roundness),
-                         &(so.irregular_r_gon_corner_shape));
-  svm_unpack_node_uchar4(node.w,
-                         &(so.segment_coordinates),
-                         &(so.segment_id),
-                         &(so.max_unit_parameter),
-                         &(so.x_axis_A_angle_bisector));
+  svm_unpack_node_uchar4(
+      node.z, &(so.vector), &(so.r_gon_sides), &(so.r_gon_roundness), &(so.segment_coordinates));
+  svm_unpack_node_uchar3(
+      node.w, &(so.segment_id), &(so.max_unit_parameter), &(so.x_axis_A_angle_bisector));
 
   bool calculate_r_gon_parameter_field = stack_valid(so.segment_coordinates);
   bool calculate_segment_id = stack_valid(so.segment_id);
@@ -53,7 +46,6 @@ ccl_device_noinline int svm_node_radial_tiling(
   float3 coord = stack_load_float3(stack, so.vector);
   float r_gon_sides = stack_load_float(stack, so.r_gon_sides);
   float r_gon_roundness = stack_load_float(stack, so.r_gon_roundness);
-  float irregular_r_gon_corner_shape = stack_load_float(stack, so.irregular_r_gon_corner_shape);
 
   if (calculate_r_gon_parameter_field || calculate_max_unit_parameter ||
       calculate_x_axis_A_angle_bisector)
@@ -63,7 +55,6 @@ ccl_device_noinline int svm_node_radial_tiling(
                                                    normalize_r_gon_parameter,
                                                    fmaxf(r_gon_sides, 2.0f),
                                                    clamp(r_gon_roundness, 0.0f, 1.0f),
-                                                   clamp(irregular_r_gon_corner_shape, 0.0f, 1.0f),
                                                    make_float2(coord.x, coord.y));
 
     if (calculate_r_gon_parameter_field) {
@@ -79,12 +70,10 @@ ccl_device_noinline int svm_node_radial_tiling(
   }
 
   if (calculate_segment_id) {
-    stack_store_float(stack,
-                      so.segment_id,
-                      calculate_out_segment_id(fmaxf(r_gon_sides, 2.0f),
-                                               clamp(r_gon_roundness, 0.0f, 1.0f),
-                                               clamp(irregular_r_gon_corner_shape, 0.0f, 1.0f),
-                                               make_float2(coord.x, coord.y)));
+    stack_store_float(
+        stack,
+        so.segment_id,
+        calculate_out_segment_id(fmaxf(r_gon_sides, 2.0f), make_float2(coord.x, coord.y)));
   }
 
   return offset;

@@ -22,7 +22,6 @@ shader node_radial_tiling(int normalize_r_gon_parameter = 0,
                           vector3 Vector = P,
                           float R_gonSides = 5.0,
                           float R_gonRoundness = 0.0,
-                          float IrregularR_gonCornerShape = 0.0,
                           output vector3 SegmentCoordinates = vector3(0.0, 0.0, 0.0),
                           output float SegmentID = 0.0,
                           output float MaxUnitParameter = 0.0,
@@ -42,7 +41,6 @@ shader node_radial_tiling(int normalize_r_gon_parameter = 0,
                                                     normalize_r_gon_parameter,
                                                     max(R_gonSides, 2.0),
                                                     clamp(R_gonRoundness, 0.0, 1.0),
-                                                    clamp(IrregularR_gonCornerShape, 0.0, 1.0),
                                                     vector2(Vector.x, Vector.y));
 
     SegmentCoordinates = vector3(out_variables.y, out_variables.x, 0.0);
@@ -51,9 +49,6 @@ shader node_radial_tiling(int normalize_r_gon_parameter = 0,
   }
 
   if (calculate_segment_id) {
-    SegmentID = calculate_out_segment_id(max(R_gonSides, 2.0),
-                                         clamp(R_gonRoundness, 0.0, 1.0),
-                                         clamp(IrregularR_gonCornerShape, 0.0, 1.0),
-                                         vector2(Vector.x, Vector.y));
+    SegmentID = calculate_out_segment_id(max(R_gonSides, 2.0), vector2(Vector.x, Vector.y));
   }
 }

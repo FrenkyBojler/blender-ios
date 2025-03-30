@@ -45,15 +45,6 @@ static void sh_node_radial_tiling_declare(NodeDeclarationBuilder &b)
       .default_value(0.0f)
       .subtype(PROP_FACTOR)
       .description("Corner roundness of the rounded polygon");
-  b.add_input<decl::Float>("Irregular R_gon Corner Shape")
-      .min(0.0f)
-      .max(1.0f)
-      .default_value(0.0f)
-      .subtype(PROP_FACTOR)
-      .description(
-          "Shape of the irregular rounded corner, if the Segments input is not an integer. A "
-          "value of 0 results in a circular "
-          "corner while a value of 1 results in an elliptical corner");
 }
 
 static void node_shader_buts_radial_tiling(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
@@ -113,8 +104,6 @@ static void node_shader_update_radial_tiling(bNodeTree *ntree, bNode *node)
   bNodeSocket *inVectorSock = bke::node_find_socket(*node, SOCK_IN, "Vector");
   bNodeSocket *inR_gonSidesSock = bke::node_find_socket(*node, SOCK_IN, "R_gon Sides");
   bNodeSocket *inR_gonRoundnessSock = bke::node_find_socket(*node, SOCK_IN, "R_gon Roundness");
-  bNodeSocket *inIrregularR_gonCornerShapeSock = bke::node_find_socket(
-      *node, SOCK_IN, "Irregular R_gon Corner Shape");
 
   bNodeSocket *outMaxUnitParameterSock = bke::node_find_socket(
       *node, SOCK_OUT, "Max Unit Parameter");
@@ -124,7 +113,6 @@ static void node_shader_update_radial_tiling(bNodeTree *ntree, bNode *node)
   node_sock_label(inVectorSock, "Vector 2D");
   node_sock_label(inR_gonSidesSock, "Segments");
   node_sock_label(inR_gonRoundnessSock, "Roundness");
-  node_sock_label(inIrregularR_gonCornerShapeSock, "Irregular Corner Shape");
 
   node_sock_label(outMaxUnitParameterSock, "Segment Width");
   node_sock_label(outX_axisToAngleBisectorAngleSock, "Segment Rotation");
@@ -162,7 +150,6 @@ class RoundedPolygonFunction : public mf::MultiFunction {
 
     builder.single_input<float>("R_gon Sides");
     builder.single_input<float>("R_gon Roundness");
-    builder.single_input<float>("Irregular R_gon Corner Shape");
 
     builder.single_output<float3>("Segment Coordinates", mf::ParamFlag::SupportsUnusedOutput);
     builder.single_output<float>("Segment ID", mf::ParamFlag::SupportsUnusedOutput);
@@ -182,8 +169,6 @@ class RoundedPolygonFunction : public mf::MultiFunction {
     const VArray<float> &r_gon_sides = params.readonly_single_input<float>(param++, "R_gon Sides");
     const VArray<float> &r_gon_roundness = params.readonly_single_input<float>(param++,
                                                                                "R_gon Roundness");
-    const VArray<float> &irregular_r_gon_corner_shape = params.readonly_single_input<float>(
-        param++, "Irregular R_gon Corner Shape");
 
     MutableSpan<float3> r_segment_coordinates =
         params.uninitialized_single_output_if_required<float3>(param++, "Segment Coordinates");
@@ -204,14 +189,12 @@ class RoundedPolygonFunction : public mf::MultiFunction {
       if (calculate_r_gon_parameter_field || calculate_max_unit_parameter ||
           calculate_x_axis_A_angle_bisector)
       {
-        float4 out_variables = calculate_out_variables(
-            calculate_r_gon_parameter_field,
-            calculate_max_unit_parameter,
-            normalize_r_gon_parameter_,
-            math::max(r_gon_sides[i], 2.0f),
-            math::clamp(r_gon_roundness[i], 0.0f, 1.0f),
-            math::clamp(irregular_r_gon_corner_shape[i], 0.0f, 1.0f),
-            float2(coord[i].x, coord[i].y));
+        float4 out_variables = calculate_out_variables(calculate_r_gon_parameter_field,
+                                                       calculate_max_unit_parameter,
+                                                       normalize_r_gon_parameter_,
+                                                       math::max(r_gon_sides[i], 2.0f),
+                                                       math::clamp(r_gon_roundness[i], 0.0f, 1.0f),
+                                                       float2(coord[i].x, coord[i].y));
 
         if (calculate_r_gon_parameter_field) {
           r_segment_coordinates[i] = float3(out_variables.y, out_variables.x, 0.0f);
@@ -225,11 +208,8 @@ class RoundedPolygonFunction : public mf::MultiFunction {
       }
 
       if (calculate_segment_id) {
-        r_segment_id[i] = calculate_out_segment_id(
-            math::max(r_gon_sides[i], 2.0f),
-            math::clamp(r_gon_roundness[i], 0.0f, 1.0f),
-            math::clamp(irregular_r_gon_corner_shape[i], 0.0f, 1.0f),
-            float2(coord[i].x, coord[i].y));
+        r_segment_id[i] = calculate_out_segment_id(math::max(r_gon_sides[i], 2.0f),
+                                                   float2(coord[i].x, coord[i].y));
       }
     });
   }

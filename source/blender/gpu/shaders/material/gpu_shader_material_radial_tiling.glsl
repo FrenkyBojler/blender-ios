@@ -16,7 +16,6 @@
 void node_radial_tiling(vec3 coord,
                         float r_gon_sides,
                         float r_gon_roundness,
-                        float irregular_r_gon_corner_shape,
                         float normalize_r_gon_parameter,
                         float calculate_r_gon_parameter_field,
                         float calculate_segment_id,
@@ -35,7 +34,6 @@ void node_radial_tiling(vec3 coord,
                                                  bool(normalize_r_gon_parameter),
                                                  max(r_gon_sides, 2.0),
                                                  clamp(r_gon_roundness, 0.0, 1.0),
-                                                 clamp(irregular_r_gon_corner_shape, 0.0, 1.0),
                                                  vec2(coord.x, coord.y));
 
     out_segment_coordinates = vec3(out_variables.y, out_variables.x, 0.0);
@@ -44,9 +42,6 @@ void node_radial_tiling(vec3 coord,
   }
 
   if (bool(calculate_segment_id)) {
-    out_segment_id = calculate_out_segment_id(max(r_gon_sides, 2.0),
-                                              clamp(r_gon_roundness, 0.0, 1.0),
-                                              clamp(irregular_r_gon_corner_shape, 0.0, 1.0),
-                                              vec2(coord.x, coord.y));
+    out_segment_id = calculate_out_segment_id(max(r_gon_sides, 2.0), vec2(coord.x, coord.y));
   }
 }
