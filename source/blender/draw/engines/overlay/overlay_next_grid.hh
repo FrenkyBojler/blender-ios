@@ -50,7 +50,7 @@ class Grid : Overlay {
   {
     is_3d_grid_ = state.is_space_v3d();
 
-    enabled_ = !state.is_space_node() && init(state);
+    enabled_ = !is_3d_grid_ && !state.is_space_node() && init(state);
     if (!enabled_) {
       grid_ps_.init();
       return;
@@ -325,6 +325,67 @@ class Grid : Overlay {
       float viewinvscale = len_v3(view.viewinv()[0]);
       data_.distance *= viewinvscale;
     }
+  }
+};
+
+class GridMesh : Overlay {
+ private:
+  PassSimple grid_ps_ = {"grid_ps_"};
+
+  /* Contains only an index buffer connecting visible vertices.
+   * Position is derived from. */
+  gpu::Batch *grid_batch_ = nullptr;
+
+ public:
+  ~GridMesh()
+  {
+    GPU_BATCH_DISCARD_SAFE(grid_batch_);
+  }
+
+  void begin_sync(Resources &res, const State &state) final
+  {
+    enabled_ = state.is_space_v3d() && !state.is_space_node();
+    if (!enabled_) {
+      grid_ps_.init();
+      return;
+    }
+
+    if (grid_batch_ == nullptr) {
+      const int res = 128;
+      GPUIndexBufBuilder builder;
+      GPU_indexbuf_init(&builder, GPU_PRIM_LINES, square_i(res + 1) * 2, 0x7FFFFFFFu);
+      auto vertex_id_at = [](int x, int y) { return (x << 16) | y; };
+      for (int x : IndexRange(res + 1)) {
+        for (int y : IndexRange(res + 1)) {
+          if (x != res) {
+            GPU_indexbuf_add_line_verts(&builder, vertex_id_at(x, y), vertex_id_at(x + 1, y));
+          }
+          if (y != res) {
+            GPU_indexbuf_add_line_verts(&builder, vertex_id_at(x, y), vertex_id_at(x, y + 1));
+          }
+        }
+      }
+      gpu::IndexBuf *ibo = GPU_indexbuf_build(&builder);
+      grid_batch_ = GPU_batch_create_ex(GPU_PRIM_LINES, nullptr, ibo, GPU_BATCH_OWNS_INDEX);
+    }
+
+    grid_ps_.init();
+    grid_ps_.bind_ubo(OVERLAY_GLOBALS_SLOT, &res.globals_buf);
+    grid_ps_.bind_ubo(DRW_CLIPPING_UBO_SLOT, &res.clip_planes_buf);
+    grid_ps_.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_BLEND_ALPHA | DRW_STATE_WRITE_DEPTH |
+                       DRW_STATE_DEPTH_LESS_EQUAL);
+    grid_ps_.shader_set(res.shaders->grid_mesh.get());
+    grid_ps_.draw(grid_batch_);
+  }
+
+  void draw_line(Framebuffer &framebuffer, Manager &manager, View &view) final
+  {
+    if (!enabled_) {
+      return;
+    }
+
+    GPU_framebuffer_bind(framebuffer);
+    manager.submit(grid_ps_, view);
   }
 };
 

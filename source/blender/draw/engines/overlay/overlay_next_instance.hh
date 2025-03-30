@@ -108,6 +108,7 @@ class Instance : public DrawEngine {
   } regular{selection_type_}, infront{selection_type_};
 
   Grid grid;
+  GridMesh grid_mesh;
 
   AntiAliasing anti_aliasing;
   XrayFade xray_fade;

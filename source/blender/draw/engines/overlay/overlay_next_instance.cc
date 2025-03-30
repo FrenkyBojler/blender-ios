@@ -460,6 +460,7 @@ void Instance::begin_sync()
   begin_sync_layer(infront);
 
   grid.begin_sync(resources, state);
+  grid_mesh.begin_sync(resources, state);
 
   anti_aliasing.begin_sync(resources, state);
   xray_fade.begin_sync(resources, state);
@@ -876,6 +877,8 @@ void Instance::draw_v3d(Manager &manager, View &view)
   {
     /* Overlay (+Line) pass. */
     draw(regular, resources.overlay_fb);
+
+    grid_mesh.draw_line(resources.overlay_line_fb, manager, view);
     draw_line(regular, resources.overlay_line_fb);
 
     /* Here because of custom order of regular.facing. */
