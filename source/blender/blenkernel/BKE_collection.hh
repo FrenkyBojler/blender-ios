@@ -8,7 +8,6 @@
  * \ingroup bke
  */
 
-#include "BLI_compiler_compat.h"
 #include "BLI_ghash.h"
 #include "BLI_iterator.h"
 #include "BLI_sys_types.h"
@@ -23,6 +22,8 @@ struct BlendDataReader;
 struct BlendWriter;
 struct Collection;
 struct ID;
+struct CollectionChild;
+struct CollectionExport;
 struct Main;
 struct Object;
 struct Scene;
@@ -39,7 +40,9 @@ struct CollectionParent {
  * Add a collection to a collection ListBase and synchronize all render layers
  * The ListBase is NULL when the collection is to be added to the master collection
  */
-Collection *BKE_collection_add(Main *bmain, Collection *parent, const char *name);
+Collection *BKE_collection_add(Main *bmain,
+                               Collection *collection_parent,
+                               const char *name_custom);
 /**
  * Add \a collection_dst to all scene collections that reference object \a ob_src is in.
  * Used to replace an instance object with a collection (library override operator).
@@ -64,6 +67,19 @@ void BKE_collection_add_from_collection(Main *bmain,
  * Free (or release) any data used by this collection (does not free the collection itself).
  */
 void BKE_collection_free_data(Collection *collection);
+
+/**
+ * Assigns a unique name to the collection exporter.
+ */
+void BKE_collection_exporter_name_set(const ListBase *exporters,
+                                      CollectionExport *data,
+                                      const char *newname);
+
+/**
+ * Free all data owned by the collection exporter.
+ */
+void BKE_collection_exporter_free_data(CollectionExport *data);
+
 /**
  * Remove a collection, optionally removing its child objects or moving
  * them to parent collections.
@@ -80,6 +96,7 @@ bool BKE_collection_delete(Main *bmain, Collection *collection, bool hierarchy);
  */
 Collection *BKE_collection_duplicate(Main *bmain,
                                      Collection *parent,
+                                     CollectionChild *child_old,
                                      Collection *collection,
                                      uint duplicate_flags,
                                      uint duplicate_options);
@@ -94,10 +111,19 @@ Collection *BKE_collection_master_add(Scene *scene);
 bool BKE_collection_has_object(Collection *collection, const Object *ob);
 bool BKE_collection_has_object_recursive(Collection *collection, Object *ob);
 bool BKE_collection_has_object_recursive_instanced(Collection *collection, Object *ob);
+/**
+ * Find whether an evaluated object's original ID is contained or instanced by any object in this
+ * collection. The collection is expected to be an evaluated data-block too.
+ */
+bool BKE_collection_has_object_recursive_instanced_orig_id(Collection *collection_eval,
+                                                           Object *object_eval);
 Collection *BKE_collection_object_find(Main *bmain,
                                        Scene *scene,
                                        Collection *collection,
                                        Object *ob);
+
+CollectionChild *BKE_collection_child_find(Collection *parent, Collection *collection);
+
 bool BKE_collection_is_empty(const Collection *collection);
 
 /**
@@ -131,12 +157,9 @@ bool BKE_collection_object_add_notest(Main *bmain, Collection *collection, Objec
  */
 void BKE_collection_object_add_from(Main *bmain, Scene *scene, Object *ob_src, Object *ob_dst);
 /**
- * Remove object from collection.
+ * Remove ob from collection.
  */
-bool BKE_collection_object_remove(Main *bmain,
-                                  Collection *collection,
-                                  Object *object,
-                                  bool free_us);
+bool BKE_collection_object_remove(Main *bmain, Collection *collection, Object *ob, bool free_us);
 /**
  * Replace one object with another in a collection (managing user counts).
  */
@@ -156,7 +179,7 @@ void BKE_collection_object_move(
 /**
  * Remove object from all collections of scene
  */
-bool BKE_scene_collections_object_remove(Main *bmain, Scene *scene, Object *object, bool free_us);
+bool BKE_scene_collections_object_remove(Main *bmain, Scene *scene, Object *ob, bool free_us);
 
 /**
  * Check all collections in \a bmain (including embedded ones in scenes) for invalid
@@ -399,7 +422,7 @@ GSet *BKE_scene_objects_as_gset(Scene *scene, GSet *objects_gset);
     bool is_scene_collection = (_scene) != NULL; \
 \
     if (_scene) { \
-      _instance_next = _scene->master_collection; \
+      _instance_next = (_scene)->master_collection; \
     } \
     else { \
       _instance_next = static_cast<Collection *>((_bmain)->collections.first); \

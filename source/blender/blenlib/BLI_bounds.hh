@@ -16,6 +16,7 @@
 #include "BLI_index_mask.hh"
 #include "BLI_math_vector.hh"
 #include "BLI_task.hh"
+#include "BLI_virtual_array.hh"
 
 namespace blender {
 
@@ -40,6 +41,23 @@ template<typename T>
     return b;
   }
   return std::nullopt;
+}
+
+template<typename T>
+[[nodiscard]] inline std::optional<Bounds<T>> merge(const std::optional<Bounds<T>> &a,
+                                                    const Bounds<T> &b)
+{
+  return merge(a, std::optional<Bounds<T>>(b));
+}
+
+template<typename T>
+[[nodiscard]] inline std::optional<Bounds<T>> min_max(const std::optional<Bounds<T>> &a,
+                                                      const T &b)
+{
+  if (a.has_value()) {
+    return merge(*a, {b, b});
+  }
+  return Bounds<T>{b, b};
 }
 
 /**
@@ -117,12 +135,61 @@ template<typename T, typename RadiusT>
       [](const Bounds<T> &a, const Bounds<T> &b) { return merge(a, b); });
 }
 
+/**
+ * Returns a new bound that contains the intersection of the two given bound.
+ * Returns no box if there are no overlap.
+ */
+template<typename T>
+[[nodiscard]] inline std::optional<Bounds<T>> intersect(const Bounds<T> &a, const Bounds<T> &b)
+{
+  const Bounds<T> result{math::max(a.min, b.min), math::min(a.max, b.max)};
+  if (result.is_empty()) {
+    return std::nullopt;
+  }
+  return result;
+}
+template<typename T>
+[[nodiscard]] inline std::optional<Bounds<T>> intersect(const std::optional<Bounds<T>> &a,
+                                                        const std::optional<Bounds<T>> &b)
+{
+  if (!a.has_value() || !b.has_value()) {
+    return std::nullopt;
+  }
+  return intersect(*a, *b);
+}
+
+/**
+ * Finds the maximum value for elements in the array.
+ */
+template<typename T> inline std::optional<T> max(const VArray<T> &values)
+{
+  if (values.is_empty()) {
+    return std::nullopt;
+  }
+  if (const std::optional<T> value = values.get_if_single()) {
+    return value;
+  }
+  const VArraySpan<int> values_span = values;
+  return threading::parallel_reduce(
+      values_span.index_range(),
+      2048,
+      std::numeric_limits<T>::min(),
+      [&](const IndexRange range, int current_max) {
+        for (const int value : values_span.slice(range)) {
+          current_max = std::max(current_max, value);
+        }
+        return current_max;
+      },
+      [](const int a, const int b) { return std::max(a, b); });
+}
+
 }  // namespace bounds
 
 namespace detail {
 
 template<typename T, int Size>
-[[nodiscard]] inline bool less_or_equal_than(const VecBase<T, Size> &a, const VecBase<T, Size> &b)
+[[nodiscard]] inline bool any_less_or_equal_than(const VecBase<T, Size> &a,
+                                                 const VecBase<T, Size> &b)
 {
   for (int i = 0; i < Size; i++) {
     if (a[i] <= b[i]) {
@@ -136,11 +203,11 @@ template<typename T, int Size>
 
 template<typename T> inline bool Bounds<T>::is_empty() const
 {
-  if constexpr (std::is_integral<T>::value || std::is_floating_point<T>::value) {
+  if constexpr (std::is_integral_v<T> || std::is_floating_point_v<T>) {
     return this->max <= this->min;
   }
   else {
-    return detail::less_or_equal_than(this->max, this->min);
+    return detail::any_less_or_equal_than(this->max, this->min);
   }
 }
 

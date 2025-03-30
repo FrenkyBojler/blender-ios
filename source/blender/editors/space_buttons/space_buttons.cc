@@ -6,17 +6,16 @@
  * \ingroup spbuttons
  */
 
-#include <cstdio>
 #include <cstring>
 
 #include "MEM_guardedalloc.h"
 
 #include "BLI_bitmap.h"
-#include "BLI_blenlib.h"
+#include "BLI_listbase.h"
+#include "BLI_string.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_context.hh"
-#include "BKE_gpencil_modifier_legacy.h" /* Types for registering panels. */
 #include "BKE_lib_query.hh"
 #include "BKE_lib_remap.hh"
 #include "BKE_modifier.hh"
@@ -35,7 +34,6 @@
 #include "RNA_access.hh"
 
 #include "UI_interface.hh"
-#include "UI_resources.hh"
 
 #include "BLO_read_write.hh"
 
@@ -56,14 +54,14 @@ static SpaceLink *buttons_create(const ScrArea * /*area*/, const Scene * /*scene
   sbuts->mainb = sbuts->mainbuser = BCONTEXT_OBJECT;
 
   /* header */
-  region = static_cast<ARegion *>(MEM_callocN(sizeof(ARegion), "header for buts"));
+  region = BKE_area_region_new();
 
   BLI_addtail(&sbuts->regionbase, region);
   region->regiontype = RGN_TYPE_HEADER;
   region->alignment = (U.uiflag & USER_HEADER_BOTTOM) ? RGN_ALIGN_BOTTOM : RGN_ALIGN_TOP;
 
   /* navigation bar */
-  region = static_cast<ARegion *>(MEM_callocN(sizeof(ARegion), "navigation bar for buts"));
+  region = BKE_area_region_new();
 
   BLI_addtail(&sbuts->regionbase, region);
   region->regiontype = RGN_TYPE_NAV_BAR;
@@ -71,14 +69,14 @@ static SpaceLink *buttons_create(const ScrArea * /*area*/, const Scene * /*scene
 
 #if 0
   /* context region */
-  region = MEM_callocN(sizeof(ARegion), "context region for buts");
+  region = BKE_area_region_new();
   BLI_addtail(&sbuts->regionbase, region);
   region->regiontype = RGN_TYPE_CHANNELS;
   region->alignment = RGN_ALIGN_TOP;
 #endif
 
   /* main region */
-  region = static_cast<ARegion *>(MEM_callocN(sizeof(ARegion), "main region for buts"));
+  region = BKE_area_region_new();
 
   BLI_addtail(&sbuts->regionbase, region);
   region->regiontype = RGN_TYPE_WINDOW;
@@ -92,12 +90,15 @@ static void buttons_free(SpaceLink *sl)
   SpaceProperties *sbuts = (SpaceProperties *)sl;
 
   if (sbuts->path) {
-    MEM_freeN(sbuts->path);
+    MEM_delete(static_cast<ButsContextPath *>(sbuts->path));
   }
 
   if (sbuts->texuser) {
     ButsContextTexture *ct = static_cast<ButsContextTexture *>(sbuts->texuser);
-    BLI_freelistN(&ct->users);
+    LISTBASE_FOREACH_MUTABLE (ButsTextureUser *, user, &ct->users) {
+      MEM_delete(user);
+    }
+    BLI_listbase_clear(&ct->users);
     MEM_freeN(ct);
   }
 
@@ -145,7 +146,7 @@ static void buttons_main_region_init(wmWindowManager *wm, ARegion *region)
   ED_region_panels_init(wm, region);
 
   keymap = WM_keymap_ensure(wm->defaultconf, "Property Editor", SPACE_PROPERTIES, RGN_TYPE_WINDOW);
-  WM_event_add_keymap_handler(&region->handlers, keymap);
+  WM_event_add_keymap_handler(&region->runtime->handlers, keymap);
 }
 
 /** \} */
@@ -304,7 +305,7 @@ static void buttons_main_region_layout_properties(const bContext *C,
   const char *contexts[2] = {buttons_main_region_context_string(sbuts->mainb), nullptr};
 
   ED_region_panels_layout_ex(
-      C, region, &region->type->paneltypes, WM_OP_INVOKE_REGION_WIN, contexts, nullptr);
+      C, region, &region->runtime->type->paneltypes, WM_OP_INVOKE_REGION_WIN, contexts, nullptr);
 }
 
 /** \} */
@@ -315,21 +316,28 @@ static void buttons_main_region_layout_properties(const bContext *C,
 
 const char *ED_buttons_search_string_get(SpaceProperties *sbuts)
 {
-  return sbuts->runtime->search_string;
+  return (sbuts->runtime) ? sbuts->runtime->search_string : "";
 }
 
 int ED_buttons_search_string_length(SpaceProperties *sbuts)
 {
-  return BLI_strnlen(sbuts->runtime->search_string, sizeof(sbuts->runtime->search_string));
+  return (sbuts->runtime) ?
+             BLI_strnlen(sbuts->runtime->search_string, sizeof(sbuts->runtime->search_string)) :
+             0;
 }
 
 void ED_buttons_search_string_set(SpaceProperties *sbuts, const char *value)
 {
-  STRNCPY(sbuts->runtime->search_string, value);
+  if (sbuts->runtime) {
+    STRNCPY(sbuts->runtime->search_string, value);
+  }
 }
 
 bool ED_buttons_tab_has_search_result(SpaceProperties *sbuts, const int index)
 {
+  if (!sbuts->runtime) {
+    return false;
+  }
   return BLI_BITMAP_TEST(sbuts->runtime->tab_search_results, index);
 }
 
@@ -348,7 +356,8 @@ static bool property_search_for_context(const bContext *C, ARegion *region, Spac
   }
 
   buttons_context_compute(C, sbuts);
-  return ED_region_property_search(C, region, &region->type->paneltypes, contexts, nullptr);
+  return ED_region_property_search(
+      C, region, &region->runtime->type->paneltypes, contexts, nullptr);
 }
 
 static void property_search_move_to_next_tab_with_results(SpaceProperties *sbuts,
@@ -398,7 +407,7 @@ static void property_search_all_tabs(const bContext *C,
   ARegion *region_copy = BKE_area_region_copy(area_copy.type, region_original);
   /* Set the region visible field. Otherwise some layout code thinks we're drawing in a popup.
    * This likely isn't necessary, but it's nice to emulate a "real" region where possible. */
-  region_copy->visible = true;
+  region_copy->runtime->visible = true;
   CTX_wm_area_set((bContext *)C, &area_copy);
   CTX_wm_region_set((bContext *)C, region_copy);
 
@@ -601,7 +610,10 @@ static void buttons_navigation_bar_region_init(wmWindowManager *wm, ARegion *reg
 
 static void buttons_navigation_bar_region_draw(const bContext *C, ARegion *region)
 {
-  LISTBASE_FOREACH (PanelType *, pt, &region->type->paneltypes) {
+  SpaceProperties *sbuts = CTX_wm_space_properties(C);
+  buttons_context_compute(C, sbuts);
+
+  LISTBASE_FOREACH (PanelType *, pt, &region->runtime->type->paneltypes) {
     pt->flag |= PANEL_TYPE_LAYOUT_VERT_BAR;
   }
 
@@ -623,6 +635,10 @@ static void buttons_navigation_bar_region_message_subscribe(
   msg_sub_value_region_tag_redraw.notify = ED_region_do_msg_notify_tag_redraw;
 
   WM_msg_subscribe_rna_anon_prop(mbus, Window, view_layer, &msg_sub_value_region_tag_redraw);
+  /* Redraw when image editor mode changes, texture tab needs to be added when switching to "Paint"
+   * mode. */
+  WM_msg_subscribe_rna_anon_prop(
+      mbus, SpaceImageEditor, ui_mode, &msg_sub_value_region_tag_redraw);
 }
 
 /* draw a certain button set only if properties area is currently
@@ -801,6 +817,7 @@ static void buttons_area_listener(const wmSpaceTypeListenerParams *params)
       break;
     case NC_ANIMATION:
       switch (wmn->data) {
+        case ND_KEYFRAME_PROP:
         case ND_NLA_ACTCHANGE:
           ED_area_tag_redraw(area);
           break;
@@ -875,7 +892,9 @@ static void buttons_id_remap(ScrArea * /*area*/,
           if (i != 0) {
             /* If the first item in the path is cleared, the whole path is cleared, so no need to
              * clear further items here, see also at the end of this block. */
-            memset(&path->ptr[i], 0, sizeof(path->ptr[i]) * (path->len - i));
+            for (int j = i; j < path->len; j++) {
+              path->ptr[j] = {};
+            }
           }
           break;
         }
@@ -884,7 +903,9 @@ static void buttons_id_remap(ScrArea * /*area*/,
           /* There is no easy way to check/make path downwards valid, just nullify it.
            * Next redraw will rebuild this anyway. */
           i++;
-          memset(&path->ptr[i], 0, sizeof(path->ptr[i]) * (path->len - i));
+          for (int j = i; j < path->len; j++) {
+            path->ptr[j] = {};
+          }
           path->len = i;
           break;
         }
@@ -896,15 +917,19 @@ static void buttons_id_remap(ScrArea * /*area*/,
         }
       }
     }
-    if (path->len == 0) {
-      MEM_SAFE_FREE(sbuts->path);
+    if (path->len == 0 && sbuts->path) {
+      MEM_delete(static_cast<ButsContextPath *>(sbuts->path));
+      sbuts->path = nullptr;
     }
   }
 
   if (sbuts->texuser) {
     ButsContextTexture *ct = static_cast<ButsContextTexture *>(sbuts->texuser);
     mappings.apply(reinterpret_cast<ID **>(&ct->texture), ID_REMAP_APPLY_DEFAULT);
-    BLI_freelistN(&ct->users);
+    LISTBASE_FOREACH_MUTABLE (ButsTextureUser *, user, &ct->users) {
+      MEM_delete(user);
+    }
+    BLI_listbase_clear(&ct->users);
     ct->user = nullptr;
   }
 }
@@ -915,22 +940,28 @@ static void buttons_foreach_id(SpaceLink *space_link, LibraryForeachIDData *data
   const int data_flags = BKE_lib_query_foreachid_process_flags_get(data);
   const bool is_readonly = (data_flags & IDWALK_READONLY) != 0;
 
-  BKE_LIB_FOREACHID_PROCESS_ID(data, sbuts->pinid, IDWALK_CB_NOP);
+  BKE_LIB_FOREACHID_PROCESS_ID(data, sbuts->pinid, IDWALK_CB_DIRECT_WEAK_LINK);
   if (!is_readonly) {
     if (sbuts->pinid == nullptr) {
       sbuts->flag &= ~SB_PIN_CONTEXT;
     }
     /* NOTE: Restoring path pointers is complicated, if not impossible, because this contains
      * data pointers too, not just ID ones. See #40046. */
-    MEM_SAFE_FREE(sbuts->path);
+    if (sbuts->path) {
+      MEM_delete(static_cast<ButsContextPath *>(sbuts->path));
+      sbuts->path = nullptr;
+    }
   }
 
   if (sbuts->texuser) {
     ButsContextTexture *ct = static_cast<ButsContextTexture *>(sbuts->texuser);
-    BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, ct->texture, IDWALK_CB_NOP);
+    BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, ct->texture, IDWALK_CB_DIRECT_WEAK_LINK);
 
     if (!is_readonly) {
-      BLI_freelistN(&ct->users);
+      LISTBASE_FOREACH_MUTABLE (ButsTextureUser *, user, &ct->users) {
+        MEM_delete(user);
+      }
+      BLI_listbase_clear(&ct->users);
       ct->user = nullptr;
     }
   }
@@ -999,6 +1030,7 @@ void ED_spacetype_buttons()
   art->draw = ED_region_panels_draw;
   art->listener = buttons_main_region_listener;
   art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_FRAMES;
+  art->lock = true;
   buttons_context_register(art);
   BLI_addhead(&st->regiontypes, art);
 
@@ -1006,12 +1038,6 @@ void ED_spacetype_buttons()
    * than per modifier type. */
   for (int i = 0; i < NUM_MODIFIER_TYPES; i++) {
     const ModifierTypeInfo *mti = BKE_modifier_get_info(ModifierType(i));
-    if (mti != nullptr && mti->panel_register != nullptr) {
-      mti->panel_register(art);
-    }
-  }
-  for (int i = 0; i < NUM_GREASEPENCIL_MODIFIER_TYPES; i++) {
-    const GpencilModifierTypeInfo *mti = BKE_gpencil_modifier_get_info(GpencilModifierType(i));
     if (mti != nullptr && mti->panel_register != nullptr) {
       mti->panel_register(art);
     }

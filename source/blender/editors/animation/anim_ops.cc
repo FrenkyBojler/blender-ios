@@ -6,20 +6,26 @@
  * \ingroup edanimation
  */
 
+#include <algorithm>
 #include <cmath>
 #include <cstdlib>
 
-#include "BLI_sys_types.h"
-
+#include "BLI_listbase.h"
 #include "BLI_math_base.h"
 #include "BLI_utildefines.h"
+#include "BLI_vector.hh"
 
 #include "DNA_scene_types.h"
 
+#include "BKE_anim_data.hh"
 #include "BKE_context.hh"
 #include "BKE_global.hh"
+#include "BKE_lib_id.hh"
+#include "BKE_lib_query.hh"
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
+
+#include "BLT_translation.hh"
 
 #include "UI_view2d.hh"
 
@@ -35,10 +41,14 @@
 #include "ED_time_scrub_ui.hh"
 
 #include "DEG_depsgraph.hh"
+#include "DEG_depsgraph_build.hh"
 
 #include "SEQ_iterator.hh"
 #include "SEQ_sequencer.hh"
 #include "SEQ_time.hh"
+
+#include "ANIM_action.hh"
+#include "ANIM_animdata.hh"
 
 #include "anim_intern.hh"
 
@@ -86,7 +96,7 @@ static bool change_frame_poll(bContext *C)
 
 static int seq_snap_threshold_get_frame_distance(bContext *C)
 {
-  const int snap_distance = SEQ_tool_settings_snap_distance_get(CTX_data_scene(C));
+  const int snap_distance = blender::seq::tool_settings_snap_distance_get(CTX_data_scene(C));
   const ARegion *region = CTX_wm_region(C);
   return round_fl_to_int(UI_view2d_region_to_view_x(&region->v2d, snap_distance) -
                          UI_view2d_region_to_view_x(&region->v2d, 0));
@@ -106,15 +116,19 @@ static void seq_frame_snap_update_best(const int position,
 static int seq_frame_apply_snap(bContext *C, Scene *scene, const int timeline_frame)
 {
 
-  ListBase *seqbase = SEQ_active_seqbase_get(SEQ_editing_get(scene));
+  ListBase *seqbase = blender::seq::active_seqbase_get(blender::seq::editing_get(scene));
 
   int best_frame = 0;
   int best_distance = MAXFRAME;
-  for (Sequence *seq : SEQ_query_all_strips(seqbase)) {
-    seq_frame_snap_update_best(
-        SEQ_time_left_handle_frame_get(scene, seq), timeline_frame, &best_frame, &best_distance);
-    seq_frame_snap_update_best(
-        SEQ_time_right_handle_frame_get(scene, seq), timeline_frame, &best_frame, &best_distance);
+  for (Strip *strip : blender::seq::query_all_strips(seqbase)) {
+    seq_frame_snap_update_best(blender::seq::time_left_handle_frame_get(scene, strip),
+                               timeline_frame,
+                               &best_frame,
+                               &best_distance);
+    seq_frame_snap_update_best(blender::seq::time_right_handle_frame_get(scene, strip),
+                               timeline_frame,
+                               &best_frame,
+                               &best_distance);
   }
 
   if (best_distance < seq_snap_threshold_get_frame_distance(C)) {
@@ -135,7 +149,7 @@ static void change_frame_apply(bContext *C, wmOperator *op, const bool always_up
   const float old_subframe = scene->r.subframe;
 
   if (do_snap) {
-    if (CTX_wm_space_seq(C) && SEQ_editing_get(scene) != nullptr) {
+    if (CTX_wm_space_seq(C) && blender::seq::editing_get(scene) != nullptr) {
       frame = seq_frame_apply_snap(C, scene, frame);
     }
     else {
@@ -165,7 +179,7 @@ static void change_frame_apply(bContext *C, wmOperator *op, const bool always_up
 /* ---- */
 
 /* Non-modal callback for running operator without user input */
-static int change_frame_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus change_frame_exec(bContext *C, wmOperator *op)
 {
   change_frame_apply(C, op, true);
 
@@ -196,8 +210,8 @@ static void change_frame_seq_preview_begin(bContext *C, const wmEvent *event, Sp
 {
   BLI_assert(sseq != nullptr);
   ARegion *region = CTX_wm_region(C);
-  if (ED_space_sequencer_check_show_strip(sseq) && !ED_time_scrub_event_in_region(region, event)) {
-    ED_sequencer_special_preview_set(C, event->mval);
+  if (blender::ed::vse::check_show_strip(sseq) && !ED_time_scrub_event_in_region(region, event)) {
+    blender::ed::vse::special_preview_set(C, event->mval);
   }
 }
 
@@ -205,8 +219,8 @@ static void change_frame_seq_preview_end(SpaceSeq *sseq)
 {
   BLI_assert(sseq != nullptr);
   UNUSED_VARS_NDEBUG(sseq);
-  if (ED_sequencer_special_preview_get() != nullptr) {
-    ED_sequencer_special_preview_clear();
+  if (blender::ed::vse::special_preview_get() != nullptr) {
+    blender::ed::vse::special_preview_clear();
   }
 }
 
@@ -217,18 +231,43 @@ static bool use_sequencer_snapping(bContext *C)
   }
 
   Scene *scene = CTX_data_scene(C);
-  short snap_flag = SEQ_tool_settings_snap_flag_get(scene);
+  short snap_flag = blender::seq::tool_settings_snap_flag_get(scene);
   return (scene->toolsettings->snap_flag_seq & SCE_SNAP) &&
          (snap_flag & SEQ_SNAP_CURRENT_FRAME_TO_STRIPS);
 }
 
-/* Modal Operator init */
-static int change_frame_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static bool sequencer_skip_for_handle_tweak(const bContext *C, const wmEvent *event)
 {
-  ARegion *region = CTX_wm_region(C);
+  if ((U.sequencer_editor_flag & USER_SEQ_ED_SIMPLE_TWEAKING) == 0) {
+    return false;
+  }
+
+  const Scene *scene = CTX_data_scene(C);
+  if (!blender::seq::editing_get(scene)) {
+    return false;
+  }
+
+  const View2D *v2d = UI_view2d_fromcontext(C);
+
+  float mouse_co[2];
+  UI_view2d_region_to_view(v2d, event->mval[0], event->mval[1], &mouse_co[0], &mouse_co[1]);
+
+  blender::ed::vse::StripSelection selection = blender::ed::vse::pick_strip_and_handle(
+      scene, v2d, mouse_co);
+
+  return selection.handle != blender::ed::vse::SEQ_HANDLE_NONE;
+}
+
+/* Modal Operator init */
+static wmOperatorStatus change_frame_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+{
   bScreen *screen = CTX_wm_screen(C);
-  if (CTX_wm_space_seq(C) != nullptr && region->regiontype == RGN_TYPE_PREVIEW) {
-    return OPERATOR_CANCELLED;
+
+  /* This check is done in case scrubbing and strip tweaking in the sequencer are bound to the same
+   * event (e.g. RCS keymap where both are activated on left mouse press). Tweaking should take
+   * precedence. */
+  if (CTX_wm_space_seq(C) && sequencer_skip_for_handle_tweak(C, event)) {
+    return OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH;
   }
 
   /* Change to frame that mouse is over before adding modal handler,
@@ -242,9 +281,12 @@ static int change_frame_invoke(bContext *C, wmOperator *op, const wmEvent *event
   }
 
   screen->scrubbing = true;
-  SpaceSeq *sseq = CTX_wm_space_seq(C);
-  if (sseq) {
-    change_frame_seq_preview_begin(C, event, sseq);
+
+  if (RNA_boolean_get(op->ptr, "seq_solo_preview")) {
+    SpaceSeq *sseq = CTX_wm_space_seq(C);
+    if (sseq) {
+      change_frame_seq_preview_begin(C, event, sseq);
+    }
   }
 
   change_frame_apply(C, op, true);
@@ -266,37 +308,19 @@ static bool need_extra_redraw_after_scrubbing_ends(bContext *C)
   if (scene->eevee.taa_samples != 1) {
     return true;
   }
-  wmWindowManager *wm = CTX_wm_manager(C);
-  Object *object = CTX_data_active_object(C);
-  if (object && object->type == OB_GPENCIL_LEGACY) {
-    LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
-      bScreen *screen = WM_window_get_active_screen(win);
-      LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
-        SpaceLink *sl = (SpaceLink *)area->spacedata.first;
-        if (sl->spacetype == SPACE_VIEW3D) {
-          View3D *v3d = (View3D *)sl;
-          if ((v3d->flag2 & V3D_HIDE_OVERLAYS) == 0) {
-            if (v3d->gp_flag & V3D_GP_SHOW_ONION_SKIN) {
-              /* Grease pencil onion skin is not drawn during scrubbing. Redraw is necessary after
-               * scrubbing ends to show onion skin again. */
-              return true;
-            }
-          }
-        }
-      }
-    }
-  }
   return false;
 }
 
-static void change_frame_cancel(bContext *C, wmOperator * /*op*/)
+static void change_frame_cancel(bContext *C, wmOperator *op)
 {
   bScreen *screen = CTX_wm_screen(C);
   screen->scrubbing = false;
 
-  SpaceSeq *sseq = CTX_wm_space_seq(C);
-  if (sseq != nullptr) {
-    change_frame_seq_preview_end(sseq);
+  if (RNA_boolean_get(op->ptr, "seq_solo_preview")) {
+    SpaceSeq *sseq = CTX_wm_space_seq(C);
+    if (sseq != nullptr) {
+      change_frame_seq_preview_end(sseq);
+    }
   }
 
   if (need_extra_redraw_after_scrubbing_ends(C)) {
@@ -306,9 +330,9 @@ static void change_frame_cancel(bContext *C, wmOperator * /*op*/)
 }
 
 /* Modal event handling of frame changing */
-static int change_frame_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus change_frame_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  int ret = OPERATOR_RUNNING_MODAL;
+  wmOperatorStatus ret = OPERATOR_RUNNING_MODAL;
   /* execute the events */
   switch (event->type) {
     case EVT_ESCKEY:
@@ -355,10 +379,13 @@ static int change_frame_modal(bContext *C, wmOperator *op, const wmEvent *event)
     bScreen *screen = CTX_wm_screen(C);
     screen->scrubbing = false;
 
-    SpaceSeq *sseq = CTX_wm_space_seq(C);
-    if (sseq != nullptr) {
-      change_frame_seq_preview_end(sseq);
+    if (RNA_boolean_get(op->ptr, "seq_solo_preview")) {
+      SpaceSeq *sseq = CTX_wm_space_seq(C);
+      if (sseq != nullptr) {
+        change_frame_seq_preview_end(sseq);
+      }
     }
+
     if (need_extra_redraw_after_scrubbing_ends(C)) {
       Scene *scene = CTX_data_scene(C);
       WM_event_add_notifier(C, NC_SCENE | ND_FRAME, scene);
@@ -366,6 +393,15 @@ static int change_frame_modal(bContext *C, wmOperator *op, const wmEvent *event)
   }
 
   return ret;
+}
+
+static std::string change_frame_get_name(wmOperatorType * /*ot*/, PointerRNA *ptr)
+{
+  if (RNA_boolean_get(ptr, "seq_solo_preview")) {
+    return CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Set Frame (Strip Preview)");
+  }
+
+  return {};
 }
 
 static void ANIM_OT_change_frame(wmOperatorType *ot)
@@ -383,6 +419,7 @@ static void ANIM_OT_change_frame(wmOperatorType *ot)
   ot->cancel = change_frame_cancel;
   ot->modal = change_frame_modal;
   ot->poll = change_frame_poll;
+  ot->get_name = change_frame_get_name;
 
   /* flags */
   ot->flag = OPTYPE_BLOCKING | OPTYPE_GRAB_CURSOR_X | OPTYPE_UNDO_GROUPED;
@@ -393,6 +430,7 @@ static void ANIM_OT_change_frame(wmOperatorType *ot)
       ot->srna, "frame", 0, MINAFRAME, MAXFRAME, "Frame", "", MINAFRAME, MAXFRAME);
   prop = RNA_def_boolean(ot->srna, "snap", false, "Snap", "");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+  prop = RNA_def_boolean(ot->srna, "seq_solo_preview", false, "Strip Preview", "");
 }
 
 /** \} */
@@ -423,7 +461,7 @@ static bool anim_set_end_frames_poll(bContext *C)
   return false;
 }
 
-static int anim_set_sfra_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus anim_set_sfra_exec(bContext *C, wmOperator *op)
 {
   Scene *scene = CTX_data_scene(C);
   int frame;
@@ -478,7 +516,7 @@ static void ANIM_OT_start_frame_set(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-static int anim_set_efra_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus anim_set_efra_exec(bContext *C, wmOperator *op)
 {
   Scene *scene = CTX_data_scene(C);
   int frame;
@@ -539,7 +577,7 @@ static void ANIM_OT_end_frame_set(wmOperatorType *ot)
 /** \name Set Preview Range Operator
  * \{ */
 
-static int previewrange_define_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus previewrange_define_exec(bContext *C, wmOperator *op)
 {
   Scene *scene = CTX_data_scene(C);
   ARegion *region = CTX_wm_region(C);
@@ -559,9 +597,7 @@ static int previewrange_define_exec(bContext *C, wmOperator *op)
    */
   FRAMENUMBER_MIN_CLAMP(sfra);
   FRAMENUMBER_MIN_CLAMP(efra);
-  if (efra < sfra) {
-    efra = sfra;
-  }
+  efra = std::max(efra, sfra);
 
   scene->r.flag |= SCER_PRV_RANGE;
   scene->r.psfra = round_fl_to_int(sfra);
@@ -605,7 +641,7 @@ static void ANIM_OT_previewrange_set(wmOperatorType *ot)
 /** \name Clear Preview Range Operator
  * \{ */
 
-static int previewrange_clear_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus previewrange_clear_exec(bContext *C, wmOperator * /*op*/)
 {
   Scene *scene = CTX_data_scene(C);
   ScrArea *curarea = CTX_wm_area(C);
@@ -647,6 +683,276 @@ static void ANIM_OT_previewrange_clear(wmOperatorType *ot)
 /** \} */
 
 /* -------------------------------------------------------------------- */
+/** \name Debug operator: channel list
+ * \{ */
+
+#ifndef NDEBUG
+static wmOperatorStatus debug_channel_list_exec(bContext *C, wmOperator * /*op*/)
+{
+  bAnimContext ac;
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
+    return OPERATOR_CANCELLED;
+  }
+
+  ListBase anim_data = {nullptr, nullptr};
+  /* Same filter flags as in action_channel_region_draw() in
+   * `source/blender/editors/space_action/space_action.cc`. */
+  const eAnimFilter_Flags filter = ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE |
+                                   ANIMFILTER_LIST_CHANNELS;
+  ANIM_animdata_filter(&ac, &anim_data, filter, ac.data, eAnimCont_Types(ac.datatype));
+
+  printf("==============================================\n");
+  printf("Animation Channel List:\n");
+  printf("----------------------------------------------\n");
+
+  LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
+    ANIM_channel_debug_print_info(ale, 1);
+  }
+
+  printf("==============================================\n");
+
+  ANIM_animdata_freelist(&anim_data);
+  return OPERATOR_FINISHED;
+}
+
+static void ANIM_OT_debug_channel_list(wmOperatorType *ot)
+{
+  ot->name = "Debug Channel List";
+  ot->idname = "ANIM_OT_debug_channel_list";
+  ot->description =
+      "Log the channel list info in the terminal. This operator is only available in debug builds "
+      "of Blender";
+
+  ot->exec = debug_channel_list_exec;
+  ot->poll = ED_operator_animview_active;
+
+  ot->flag = OPTYPE_REGISTER;
+}
+#endif /* !NDEBUG */
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Frame Scene/Preview Range Operator
+ * \{ */
+
+static wmOperatorStatus scene_range_frame_exec(bContext *C, wmOperator * /*op*/)
+{
+  ARegion *region = CTX_wm_region(C);
+  const Scene *scene = CTX_data_scene(C);
+  BLI_assert(region);
+  BLI_assert(scene);
+
+  View2D &v2d = region->v2d;
+  v2d.cur.xmin = PSFRA;
+  v2d.cur.xmax = PEFRA;
+
+  v2d.cur = ANIM_frame_range_view2d_add_xmargin(v2d, v2d.cur);
+
+  UI_view2d_sync(CTX_wm_screen(C), CTX_wm_area(C), &v2d, V2D_LOCK_COPY);
+  ED_area_tag_redraw(CTX_wm_area(C));
+
+  return OPERATOR_FINISHED;
+}
+
+static void ANIM_OT_scene_range_frame(wmOperatorType *ot)
+{
+  ot->name = "Frame Scene/Preview Range";
+  ot->idname = "ANIM_OT_scene_range_frame";
+  ot->description =
+      "Reset the horizontal view to the current scene frame range, taking the preview range into "
+      "account if it is active";
+
+  ot->exec = scene_range_frame_exec;
+  ot->poll = ED_operator_animview_active;
+
+  ot->flag = OPTYPE_REGISTER;
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Conversion
+ * \{ */
+
+static wmOperatorStatus convert_action_exec(bContext *C, wmOperator * /*op*/)
+{
+  using namespace blender;
+
+  Object *object = CTX_data_active_object(C);
+  AnimData *adt = BKE_animdata_from_id(&object->id);
+  BLI_assert(adt != nullptr);
+  BLI_assert(adt->action != nullptr);
+
+  animrig::Action &legacy_action = adt->action->wrap();
+  Main *bmain = CTX_data_main(C);
+
+  animrig::Action *layered_action = animrig::convert_to_layered_action(*bmain, legacy_action);
+  /* We did already check if the action can be converted. */
+  BLI_assert(layered_action != nullptr);
+  const bool assign_ok = animrig::assign_action(layered_action, object->id);
+  BLI_assert_msg(assign_ok, "Expecting assigning a layered Action to always work");
+  UNUSED_VARS_NDEBUG(assign_ok);
+
+  BLI_assert(layered_action->slots().size() == 1);
+  animrig::Slot *slot = layered_action->slot(0);
+  layered_action->slot_identifier_set(*bmain, *slot, object->id.name);
+
+  const animrig::ActionSlotAssignmentResult result = animrig::assign_action_slot(slot, object->id);
+  BLI_assert(result == animrig::ActionSlotAssignmentResult::OK);
+  UNUSED_VARS_NDEBUG(result);
+
+  ANIM_id_update(bmain, &object->id);
+  DEG_relations_tag_update(bmain);
+  WM_main_add_notifier(NC_ANIMATION | ND_NLA_ACTCHANGE, nullptr);
+
+  return OPERATOR_FINISHED;
+}
+
+static bool convert_action_poll(bContext *C)
+{
+  Object *object = CTX_data_active_object(C);
+  if (!object) {
+    return false;
+  }
+
+  AnimData *adt = BKE_animdata_from_id(&object->id);
+  if (!adt || !adt->action) {
+    return false;
+  }
+
+  /* This will also convert empty actions to layered by just adding an empty slot. */
+  if (!adt->action->wrap().is_action_legacy()) {
+    CTX_wm_operator_poll_msg_set(C, "Action is already layered");
+    return false;
+  }
+
+  return true;
+}
+
+static void ANIM_OT_convert_legacy_action(wmOperatorType *ot)
+{
+  /* identifiers */
+  ot->name = "Convert Legacy Action";
+  ot->idname = "ANIM_OT_convert_legacy_action";
+  ot->description = "Convert a legacy Action to a layered Action on the active object";
+
+  /* api callbacks */
+  ot->exec = convert_action_exec;
+  ot->poll = convert_action_poll;
+
+  /* flags */
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}
+
+static bool merge_actions_selection_poll(bContext *C)
+{
+  Object *object = CTX_data_active_object(C);
+  if (!object) {
+    CTX_wm_operator_poll_msg_set(C, "No active object");
+    return false;
+  }
+  blender::animrig::Action *action = blender::animrig::get_action(object->id);
+  if (!action) {
+    CTX_wm_operator_poll_msg_set(C, "Active object has no action");
+    return false;
+  }
+  if (!BKE_id_is_editable(CTX_data_main(C), &action->id)) {
+    return false;
+  }
+  return true;
+}
+
+static wmOperatorStatus merge_actions_selection_exec(bContext *C, wmOperator *op)
+{
+  using namespace blender::animrig;
+  Object *active_object = CTX_data_active_object(C);
+  /* Those cases are caught by the poll. */
+  BLI_assert(active_object != nullptr);
+  BLI_assert(active_object->adt->action != nullptr);
+
+  Action &active_action = active_object->adt->action->wrap();
+
+  blender::Vector<PointerRNA> selection;
+  if (!CTX_data_selected_objects(C, &selection)) {
+    return OPERATOR_CANCELLED;
+  }
+
+  Main *bmain = CTX_data_main(C);
+  int moved_slots_count = 0;
+  for (const PointerRNA &ptr : selection) {
+    blender::Vector<ID *> related_ids = find_related_ids(*bmain, *ptr.owner_id);
+    for (ID *related_id : related_ids) {
+      Action *action = get_action(*related_id);
+      if (!action) {
+        continue;
+      }
+      if (action == &active_action) {
+        /* Object is already animated by the same action, no point in moving. */
+        continue;
+      }
+      if (action->is_action_legacy()) {
+        continue;
+      }
+      if (!BKE_id_is_editable(bmain, &action->id)) {
+        BKE_reportf(op->reports, RPT_WARNING, "The action %s is not editable", action->id.name);
+        continue;
+      }
+      AnimData *id_anim_data = BKE_animdata_ensure_id(related_id);
+      /* Since we already get an action from the ID the animdata has to exist. */
+      BLI_assert(id_anim_data);
+      Slot *slot = action->slot_for_handle(id_anim_data->slot_handle);
+      if (!slot) {
+        continue;
+      }
+      blender::animrig::move_slot(*bmain, *slot, *action, active_action);
+      moved_slots_count++;
+      ANIM_id_update(bmain, related_id);
+      DEG_id_tag_update_ex(bmain, &action->id, ID_RECALC_ANIMATION_NO_FLUSH);
+    }
+  }
+
+  if (moved_slots_count > 0) {
+    BKE_reportf(op->reports,
+                RPT_INFO,
+                "Moved %i slot(s) into the action of the active object",
+                moved_slots_count);
+  }
+  else {
+    BKE_reportf(op->reports,
+                RPT_ERROR,
+                "Failed to merge any animation. Note that NLA strips cannot be merged");
+  }
+
+  /* `ID_RECALC_ANIMATION_NO_FLUSH` is used here (and above), as the actual animation values do not
+   * change, so there is no need to flush to the animated IDs. The Action itself does need to be
+   * re-evaluated to get an up-to-date evaluated copy with the new slots & channelbags. Without
+   * this, future animation evaluation will break. */
+  DEG_id_tag_update_ex(bmain, &active_action.id, ID_RECALC_ANIMATION_NO_FLUSH);
+
+  DEG_relations_tag_update(bmain);
+  WM_main_add_notifier(NC_ANIMATION | ND_NLA_ACTCHANGE, nullptr);
+
+  return OPERATOR_FINISHED;
+}
+
+static void ANIM_OT_merge_animation(wmOperatorType *ot)
+{
+  ot->name = "Merge Animation";
+  ot->idname = "ANIM_OT_merge_animation";
+  ot->description =
+      "Merge the animation of the selected objects into the action of the active object. Actions "
+      "are not deleted by this, but might end up with zero users";
+
+  ot->exec = merge_actions_selection_exec;
+  ot->poll = merge_actions_selection_poll;
+
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
 /** \name Registration
  * \{ */
 
@@ -660,6 +966,12 @@ void ED_operatortypes_anim()
 
   WM_operatortype_append(ANIM_OT_previewrange_set);
   WM_operatortype_append(ANIM_OT_previewrange_clear);
+
+  WM_operatortype_append(ANIM_OT_scene_range_frame);
+
+#ifndef NDEBUG
+  WM_operatortype_append(ANIM_OT_debug_channel_list);
+#endif
 
   /* Entire UI --------------------------------------- */
   WM_operatortype_append(ANIM_OT_keyframe_insert);
@@ -688,6 +1000,13 @@ void ED_operatortypes_anim()
   WM_operatortype_append(ANIM_OT_keying_set_path_remove);
 
   WM_operatortype_append(ANIM_OT_keying_set_active_set);
+
+  WM_operatortype_append(ANIM_OT_convert_legacy_action);
+  WM_operatortype_append(ANIM_OT_merge_animation);
+
+  WM_operatortype_append(blender::ed::animrig::POSELIB_OT_create_pose_asset);
+  WM_operatortype_append(blender::ed::animrig::POSELIB_OT_asset_modify);
+  WM_operatortype_append(blender::ed::animrig::POSELIB_OT_asset_delete);
 }
 
 void ED_keymap_anim(wmKeyConfig *keyconf)

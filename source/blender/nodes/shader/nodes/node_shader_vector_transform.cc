@@ -19,7 +19,8 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Vector>("Vector")
       .default_value({0.5f, 0.5f, 0.5f})
       .min(-10000.0f)
-      .max(10000.0f);
+      .max(10000.0f)
+      .description("Vector, point, or normal which will be used for convertion between spaces");
   b.add_output<decl::Vector>("Vector");
 }
 
@@ -29,7 +30,7 @@ static void node_shader_buts_vect_transform(uiLayout *layout, bContext * /*C*/, 
           ptr,
           "vector_type",
           UI_ITEM_R_SPLIT_EMPTY_NAME | UI_ITEM_R_EXPAND,
-          nullptr,
+          std::nullopt,
           ICON_NONE);
   uiItemR(layout, ptr, "convert_from", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
   uiItemR(layout, ptr, "convert_to", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
@@ -37,7 +38,7 @@ static void node_shader_buts_vect_transform(uiLayout *layout, bContext * /*C*/, 
 
 static void node_shader_init_vect_transform(bNodeTree * /*ntree*/, bNode *node)
 {
-  NodeShaderVectTransform *vect = MEM_cnew<NodeShaderVectTransform>("NodeShaderVectTransform");
+  NodeShaderVectTransform *vect = MEM_callocN<NodeShaderVectTransform>("NodeShaderVectTransform");
 
   /* Convert World into Object Space per default */
   vect->convert_to = 1;
@@ -205,16 +206,21 @@ void register_node_type_sh_vect_transform()
 {
   namespace file_ns = blender::nodes::node_shader_vector_transform_cc;
 
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
-  sh_node_type_base(&ntype, SH_NODE_VECT_TRANSFORM, "Vector Transform", NODE_CLASS_OP_VECTOR);
+  sh_node_type_base(&ntype, "ShaderNodeVectorTransform", SH_NODE_VECT_TRANSFORM);
+  ntype.ui_name = "Vector Transform";
+  ntype.ui_description =
+      "Convert a vector, point, or normal between world, camera, and object coordinate space";
+  ntype.enum_name_legacy = "VECT_TRANSFORM";
+  ntype.nclass = NODE_CLASS_OP_VECTOR;
   ntype.declare = file_ns::node_declare;
   ntype.draw_buttons = file_ns::node_shader_buts_vect_transform;
   ntype.initfunc = file_ns::node_shader_init_vect_transform;
-  node_type_storage(
-      &ntype, "NodeShaderVectTransform", node_free_standard_storage, node_copy_standard_storage);
+  blender::bke::node_type_storage(
+      ntype, "NodeShaderVectTransform", node_free_standard_storage, node_copy_standard_storage);
   ntype.gpu_fn = file_ns::gpu_shader_vect_transform;
   ntype.materialx_fn = file_ns::node_shader_materialx;
 
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(ntype);
 }

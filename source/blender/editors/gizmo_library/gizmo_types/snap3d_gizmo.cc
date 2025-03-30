@@ -12,12 +12,10 @@
  * \brief Snap gizmo which exposes the location, normal and index in the props.
  */
 
-#include "MEM_guardedalloc.h"
-
-#include "BLI_math_color.h"
 #include "BLI_math_vector.h"
 
 #include "BKE_context.hh"
+#include "BKE_screen.hh"
 
 #include "ED_gizmo_library.hh"
 #include "ED_screen.hh"
@@ -25,7 +23,7 @@
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "WM_api.hh"
 
@@ -42,7 +40,8 @@ struct SnapGizmo3D {
 /** \name ED_gizmo_library specific API
  * \{ */
 
-SnapObjectContext *ED_gizmotypes_snap_3d_context_ensure(Scene *scene, wmGizmo * /*gz*/)
+blender::ed::transform::SnapObjectContext *ED_gizmotypes_snap_3d_context_ensure(Scene *scene,
+                                                                                wmGizmo * /*gz*/)
 {
   return ED_view3d_cursor_snap_context_ensure(scene);
 }
@@ -68,15 +67,14 @@ void ED_gizmotypes_snap_3d_data_get(const bContext *C,
 {
   if (C) {
     /* Snap values are updated too late at the cursor. Be sure to update ahead of time. */
-    wmWindowManager *wm = CTX_wm_manager(C);
-    const wmEvent *event = wm->winactive ? wm->winactive->eventstate : nullptr;
+    const wmEvent *event = CTX_wm_window(C)->eventstate;
     if (event) {
       ARegion *region = CTX_wm_region(C);
       int x = event->xy[0] - region->winrct.xmin;
       int y = event->xy[1] - region->winrct.ymin;
 
       SnapGizmo3D *snap_gizmo = (SnapGizmo3D *)gz;
-      ED_view3d_cursor_snap_data_update(snap_gizmo->snap_state, C, x, y);
+      ED_view3d_cursor_snap_data_update(snap_gizmo->snap_state, C, region, x, y);
     }
   }
 
@@ -210,7 +208,9 @@ static bool snap_cursor_poll(ARegion *region, void *data)
     return false;
   }
 
-  if (!WM_gizmomap_group_find_ptr(region->gizmo_map, snap_gizmo->gizmo.parent_gzgroup->type)) {
+  if (!WM_gizmomap_group_find_ptr(region->runtime->gizmo_map,
+                                  snap_gizmo->gizmo.parent_gzgroup->type))
+  {
     /* Wrong viewport. */
     snap_cursor_free(snap_gizmo);
     return false;
@@ -254,14 +254,13 @@ static void snap_gizmo_draw(const bContext * /*C*/, wmGizmo *gz)
 static int snap_gizmo_test_select(bContext *C, wmGizmo *gz, const int mval[2])
 {
   SnapGizmo3D *snap_gizmo = (SnapGizmo3D *)gz;
+  const ARegion *region = CTX_wm_region(C);
 
   /* Snap values are updated too late at the cursor. Be sure to update ahead of time. */
   int x, y;
   {
-    wmWindowManager *wm = CTX_wm_manager(C);
-    const wmEvent *event = wm->winactive ? wm->winactive->eventstate : nullptr;
+    const wmEvent *event = CTX_wm_window(C)->eventstate;
     if (event) {
-      ARegion *region = CTX_wm_region(C);
       x = event->xy[0] - region->winrct.xmin;
       y = event->xy[1] - region->winrct.ymin;
     }
@@ -270,7 +269,7 @@ static int snap_gizmo_test_select(bContext *C, wmGizmo *gz, const int mval[2])
       y = mval[1];
     }
   }
-  ED_view3d_cursor_snap_data_update(snap_gizmo->snap_state, C, x, y);
+  ED_view3d_cursor_snap_data_update(snap_gizmo->snap_state, C, region, x, y);
   V3DSnapCursorData *snap_data = ED_view3d_cursor_snap_data_get();
 
   if (snap_data->type_target != SCE_SNAP_TO_NONE) {
@@ -279,15 +278,17 @@ static int snap_gizmo_test_select(bContext *C, wmGizmo *gz, const int mval[2])
   return -1;
 }
 
-static int snap_gizmo_modal(bContext * /*C*/,
-                            wmGizmo * /*gz*/,
-                            const wmEvent * /*event*/,
-                            eWM_GizmoFlagTweak /*tweak_flag*/)
+static wmOperatorStatus snap_gizmo_modal(bContext * /*C*/,
+                                         wmGizmo * /*gz*/,
+                                         const wmEvent * /*event*/,
+                                         eWM_GizmoFlagTweak /*tweak_flag*/)
 {
   return OPERATOR_RUNNING_MODAL;
 }
 
-static int snap_gizmo_invoke(bContext * /*C*/, wmGizmo * /*gz*/, const wmEvent * /*event*/)
+static wmOperatorStatus snap_gizmo_invoke(bContext * /*C*/,
+                                          wmGizmo * /*gz*/,
+                                          const wmEvent * /*event*/)
 {
   return OPERATOR_RUNNING_MODAL;
 }
@@ -316,7 +317,7 @@ static void GIZMO_GT_snap_3d(wmGizmoType *gzt)
   {
     /* Get Snap Element Items enum. */
     bool free;
-    PointerRNA toolsettings_ptr = RNA_pointer_create(nullptr, &RNA_ToolSettings, nullptr);
+    PointerRNA toolsettings_ptr = RNA_pointer_create_discrete(nullptr, &RNA_ToolSettings, nullptr);
     PropertyRNA *prop = RNA_struct_find_property(&toolsettings_ptr, "snap_elements");
     RNA_property_enum_items(
         nullptr, &toolsettings_ptr, prop, &rna_enum_snap_element_items, nullptr, &free);

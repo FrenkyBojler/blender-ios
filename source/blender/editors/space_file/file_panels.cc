@@ -6,7 +6,8 @@
  * \ingroup spfile
  */
 
-#include "BLI_blenlib.h"
+#include "BLI_listbase.h"
+#include "BLI_string.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_context.hh"
@@ -16,13 +17,12 @@
 
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
-#include "DNA_userdef_types.h"
 
 #include "MEM_guardedalloc.h"
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "ED_fileselect.hh"
 
@@ -68,10 +68,13 @@ static void file_panel_operator(const bContext *C, Panel *panel)
 
   /* Hack: temporary hide. */
   const char *hide[] = {"filepath", "files", "directory", "filename"};
+  /* Track overridden properties with #PROP_HIDDEN flag. */
+  bool hidden_override[ARRAY_SIZE(hide)] = {false};
   for (int i = 0; i < ARRAY_SIZE(hide); i++) {
     PropertyRNA *prop = RNA_struct_find_property(op->ptr, hide[i]);
-    if (prop) {
+    if (prop && !(RNA_property_flag(prop) & PROP_HIDDEN)) {
       RNA_def_property_flag(prop, PROP_HIDDEN);
+      hidden_override[i] = true;
     }
   }
 
@@ -81,7 +84,7 @@ static void file_panel_operator(const bContext *C, Panel *panel)
   /* Hack: temporary hide. */
   for (int i = 0; i < ARRAY_SIZE(hide); i++) {
     PropertyRNA *prop = RNA_struct_find_property(op->ptr, hide[i]);
-    if (prop) {
+    if (prop && hidden_override[i]) {
       RNA_def_property_clear_flag(prop, PROP_HIDDEN);
     }
   }
@@ -141,7 +144,8 @@ static void file_panel_execution_buttons_draw(const bContext *C, Panel *panel)
       false;
 #endif
 
-  PointerRNA params_rna_ptr = RNA_pointer_create(&screen->id, &RNA_FileSelectParams, params);
+  PointerRNA params_rna_ptr = RNA_pointer_create_discrete(
+      &screen->id, &RNA_FileSelectParams, params);
 
   row = uiLayoutRow(panel->layout, false);
   uiLayoutSetScaleY(row, 1.3f);
@@ -229,7 +233,8 @@ static void file_panel_asset_catalog_buttons_draw(const bContext *C, Panel *pane
   uiLayout *col = uiLayoutColumn(panel->layout, false);
   uiLayout *row = uiLayoutRow(col, true);
 
-  PointerRNA params_ptr = RNA_pointer_create(&screen->id, &RNA_FileAssetSelectParams, params);
+  PointerRNA params_ptr = RNA_pointer_create_discrete(
+      &screen->id, &RNA_FileAssetSelectParams, params);
 
   uiItemR(row, &params_ptr, "asset_library_reference", UI_ITEM_NONE, "", ICON_NONE);
   if (params->asset_library_ref.type == ASSET_LIBRARY_LOCAL) {
@@ -240,7 +245,7 @@ static void file_panel_asset_catalog_buttons_draw(const bContext *C, Panel *pane
                       C,
                       "asset.bundle_install",
                       "asset_library_reference",
-                      "Copy Bundle to Asset Library...",
+                      IFACE_("Copy Bundle to Asset Library..."),
                       ICON_IMPORT);
     }
     CTX_free(mutable_ctx);
@@ -252,7 +257,7 @@ static void file_panel_asset_catalog_buttons_draw(const bContext *C, Panel *pane
   uiItemS(col);
 
   blender::ed::asset_browser::file_create_asset_catalog_tree_view_in_layout(
-      asset_library, col, sfile, params);
+      C, asset_library, col, sfile, params);
 }
 
 void file_tools_region_panels_register(ARegionType *art)

@@ -8,8 +8,10 @@
 
 #pragma once
 
-#include "BLI_listbase.h"
+#include "BLI_compiler_attrs.h"
 #include "BLI_span.hh"
+
+#include "DNA_windowmanager_enums.h"
 
 struct Base;
 struct Bone;
@@ -67,7 +69,7 @@ void ED_armature_ebone_copy(EditBone *dest, const EditBone *source);
 
 /**
  * Get current armature from the context, including properties editor pinning.
- **/
+ */
 bArmature *ED_armature_context(const bContext *C);
 
 /**
@@ -132,7 +134,7 @@ void ED_keymap_armature(wmKeyConfig *keyconf);
 /**
  * Join armature exec is exported for use in object->join objects operator.
  */
-int ED_armature_join_objects_exec(bContext *C, wmOperator *op);
+wmOperatorStatus ED_armature_join_objects_exec(bContext *C, wmOperator *op);
 
 /* `armature_select.cc` */
 
@@ -201,7 +203,6 @@ void ED_armature_undosys_type(UndoType *ut);
 
 /** Sync selection to parent for connected children. */
 void ED_armature_edit_sync_selection(ListBase *edbo);
-void ED_armature_edit_validate_active(bArmature *arm);
 /**
  * \param clear_connected: When false caller is responsible for keeping the flag in a valid state.
  */
@@ -287,7 +288,8 @@ bool ED_armature_pose_select_pick_bone(const Scene *scene,
                                        View3D *v3d,
                                        Object *ob,
                                        Bone *bone,
-                                       const SelectPick_Params *params);
+                                       const SelectPick_Params *params)
+    ATTR_NONNULL(1, 2, 3, 4, 6);
 /**
  * Called for mode-less pose selection.
  * assumes the active object is still on old situation.
@@ -301,7 +303,7 @@ bool ED_armature_pose_select_pick_with_buffer(const Scene *scene,
                                               const GPUSelectResult *hit_results,
                                               int hits,
                                               const SelectPick_Params *params,
-                                              bool do_nearest);
+                                              bool do_nearest) ATTR_NONNULL(1, 2, 3, 4, 5, 7);
 /**
  * While in weight-paint mode, a single pose may be active as well.
  * While not common, it's possible we have multiple armatures deforming a mesh.
@@ -339,3 +341,7 @@ void ED_mesh_deform_bind_callback(Object *object,
                                   float *vertexcos,
                                   int verts_num,
                                   float cagemat[4][4]);
+
+EditBone *ED_armature_pick_ebone(bContext *C, const int xy[2], bool findunsel, Base **r_base);
+bPoseChannel *ED_armature_pick_pchan(bContext *C, const int xy[2], bool findunsel, Base **r_base);
+Bone *ED_armature_pick_bone(bContext *C, const int xy[2], bool findunsel, Base **r_base);

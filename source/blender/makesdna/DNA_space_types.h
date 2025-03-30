@@ -67,10 +67,10 @@ struct SpaceOutliner_Runtime;
 }  // namespace blender::ed::outliner
 using SpaceOutliner_Runtime = blender::ed::outliner::SpaceOutliner_Runtime;
 
-namespace blender::ed::seq {
+namespace blender::ed::vse {
 struct SpaceSeq_Runtime;
-}  // namespace blender::ed::seq
-using SpaceSeq_Runtime = blender::ed::seq::SpaceSeq_Runtime;
+}  // namespace blender::ed::vse
+using SpaceSeq_Runtime = blender::ed::vse::SpaceSeq_Runtime;
 
 namespace blender::ed::text {
 struct SpaceText_Runtime;
@@ -368,12 +368,12 @@ typedef enum eSpaceOutliner_Filter {
 
   SO_FILTER_ID_TYPE = (1 << 19),
 
-  SO_FILTER_NO_OB_GPENCIL_LEGACY = (1 << 20),
+  SO_FILTER_NO_OB_GREASE_PENCIL = (1 << 20),
 } eSpaceOutliner_Filter;
 
 #define SO_FILTER_OB_TYPE \
   (SO_FILTER_NO_OB_MESH | SO_FILTER_NO_OB_ARMATURE | SO_FILTER_NO_OB_EMPTY | \
-   SO_FILTER_NO_OB_LAMP | SO_FILTER_NO_OB_CAMERA | SO_FILTER_NO_OB_GPENCIL_LEGACY | \
+   SO_FILTER_NO_OB_LAMP | SO_FILTER_NO_OB_CAMERA | SO_FILTER_NO_OB_GREASE_PENCIL | \
    SO_FILTER_NO_OB_OTHERS)
 
 #define SO_FILTER_OB_STATE \
@@ -630,7 +630,7 @@ typedef struct SequencerTimelineOverlay {
 typedef enum eSpaceSeq_SequencerTimelineOverlay_Flag {
   SEQ_TIMELINE_SHOW_STRIP_OFFSETS = (1 << 1),
   SEQ_TIMELINE_SHOW_THUMBNAILS = (1 << 2),
-  /** Use #Sequence::color_tag */
+  /** Use #Strip::color_tag */
   SEQ_TIMELINE_SHOW_STRIP_COLOR_TAG = (1 << 3),
   SEQ_TIMELINE_SHOW_STRIP_RETIMING = (1 << 4),
   SEQ_TIMELINE_SHOW_FCURVES = (1 << 5),
@@ -645,6 +645,20 @@ typedef enum eSpaceSeq_SequencerTimelineOverlay_Flag {
   SEQ_TIMELINE_SHOW_STRIP_DURATION = (1 << 16),
   SEQ_TIMELINE_SHOW_GRID = (1 << 18),
 } eSpaceSeq_SequencerTimelineOverlay_Flag;
+
+typedef struct SequencerCacheOverlay {
+  int flag;
+  char _pad0[4];
+} SequencerCacheOverlay;
+
+/** #SequencerCacheOverlay.flag */
+typedef enum eSpaceSeq_SequencerCacheOverlay_Flag {
+  SEQ_CACHE_SHOW = (1 << 1),
+  SEQ_CACHE_SHOW_RAW = (1 << 2),
+  SEQ_CACHE_SHOW_PREPROCESSED = (1 << 3),
+  SEQ_CACHE_SHOW_COMPOSITE = (1 << 4),
+  SEQ_CACHE_SHOW_FINAL_OUT = (1 << 5),
+} eSpaceSeq_SequencerCacheOverlay_Flag;
 
 /** Sequencer. */
 typedef struct SpaceSeq {
@@ -686,6 +700,7 @@ typedef struct SpaceSeq {
 
   struct SequencerPreviewOverlay preview_overlay;
   struct SequencerTimelineOverlay timeline_overlay;
+  struct SequencerCacheOverlay cache_overlay;
 
   /** Multi-view current eye - for internal use. */
   char multiview_eye;
@@ -700,6 +715,7 @@ typedef enum eSpaceSeq_RegionType {
   SEQ_DRAW_IMG_WAVEFORM = 2,
   SEQ_DRAW_IMG_VECTORSCOPE = 3,
   SEQ_DRAW_IMG_HISTOGRAM = 4,
+  SEQ_DRAW_IMG_RGBPARADE = 5,
 } eSpaceSeq_RegionType;
 
 /** #SpaceSeq.draw_flag */
@@ -713,9 +729,9 @@ typedef enum eSpaceSeq_DrawFlag {
 typedef enum eSpaceSeq_Flag {
   SEQ_DRAWFRAMES = (1 << 0),
   SEQ_MARKER_TRANS = (1 << 1),
-  SEQ_DRAW_COLOR_SEPARATED = (1 << 2),
+  SEQ_DRAW_COLOR_SEPARATED_UNUSED_2 = (1 << 2),
   SEQ_CLAMP_VIEW = (1 << 3),
-  SPACE_SEQ_FLAG_UNUSED_4 = (1 << 4),
+  SPACE_SEQ_DESELECT_STRIP_HANDLE = (1 << 4),
   SPACE_SEQ_FLAG_UNUSED_5 = (1 << 5),
   SEQ_USE_ALPHA = (1 << 6), /* use RGBA display mode for preview */
   SPACE_SEQ_FLAG_UNUSED_10 = (1 << 10),
@@ -815,7 +831,8 @@ typedef struct FileSelectParams {
   int sel_first;
   int sel_last;
   unsigned short thumbnail_size;
-  char _pad1[2];
+  unsigned short list_thumbnail_size;
+  unsigned short list_column_size;
 
   /* short */
   /** XXX: for now store type here, should be moved to the operator. */
@@ -828,7 +845,7 @@ typedef struct FileSelectParams {
   short display;
   /** Details toggles (file size, creation date, etc.) */
   char details_flags;
-  char _pad2[3];
+  char _pad1;
 
   /** Filter when (flags & FILE_FILTER) is true. */
   int filter;
@@ -836,7 +853,7 @@ typedef struct FileSelectParams {
   /** Max number of levels in directory tree to show at once, 0 to disable recursion. */
   short recursion_level;
 
-  char _pad4[2];
+  char _pad2[2];
 } FileSelectParams;
 
 /**
@@ -853,7 +870,8 @@ typedef struct FileAssetSelectParams {
   bUUID catalog_id;
 
   short import_method; /* eFileAssetImportMethod */
-  char _pad2[6];
+  short import_flags;  /* eFileImportFlags */
+  char _pad2[4];
 } FileAssetSelectParams;
 
 typedef enum eFileAssetImportMethod {
@@ -868,6 +886,11 @@ typedef enum eFileAssetImportMethod {
   /** Default: Follow the preference setting for this asset library. */
   FILE_ASSET_IMPORT_FOLLOW_PREFS = 3,
 } eFileAssetImportMethod;
+
+typedef enum eFileAssetImportFlags {
+  FILE_ASSET_IMPORT_INSTANCE_COLLECTIONS_ON_LINK = (1 << 0),
+  FILE_ASSET_IMPORT_INSTANCE_COLLECTIONS_ON_APPEND = (1 << 1),
+} eFileAssetImportFlags;
 
 /**
  * A wrapper to store previous and next folder lists (#FolderList) for a specific browse mode
@@ -984,6 +1007,8 @@ enum eFileSortType {
   FILE_SORT_EXTENSION = 2,
   FILE_SORT_TIME = 3,
   FILE_SORT_SIZE = 4,
+  /* Assets: Sort by catalog. Within each catalog, assets will be sorted by name. */
+  FILE_SORT_ASSET_CATALOG = 5,
 };
 
 /** #SpaceFile.tags */
@@ -1537,6 +1562,11 @@ typedef enum eSpaceNodeOverlay_Flag {
   SN_OVERLAY_SHOW_PATH = (1 << 4),
   SN_OVERLAY_SHOW_NAMED_ATTRIBUTES = (1 << 5),
   SN_OVERLAY_SHOW_PREVIEWS = (1 << 6),
+  /**
+   * Display an automatic label on reroute nodes based on the user-defined labels
+   * of connected reroute nodes.
+   */
+  SN_OVERLAY_SHOW_REROUTE_AUTO_LABELS = (1 << 7),
 } eSpaceNodeOverlay_Flag;
 
 typedef enum eSpaceNodeOverlay_preview_shape {
@@ -1623,7 +1653,7 @@ typedef enum eSpaceNode_Flag {
   SNODE_SHOW_R = (1 << 7),
   SNODE_SHOW_G = (1 << 8),
   SNODE_SHOW_B = (1 << 9),
-  SNODE_AUTO_RENDER = (1 << 5),
+  SNODE_FLAG_UNUSED_5 = (1 << 5),   /* cleared */
   SNODE_FLAG_UNUSED_6 = (1 << 6),   /* cleared */
   SNODE_FLAG_UNUSED_10 = (1 << 10), /* cleared */
   SNODE_FLAG_UNUSED_11 = (1 << 11), /* cleared */
@@ -1930,6 +1960,10 @@ typedef struct SpreadsheetColumn {
   char *display_name;
 } SpreadsheetColumn;
 
+typedef struct SpreadsheetInstanceID {
+  int reference_index;
+} SpreadsheetInstanceID;
+
 typedef struct SpaceSpreadsheet {
   SpaceLink *next, *prev;
   /** Storage of regions for inactive spaces. */
@@ -1952,6 +1986,13 @@ typedef struct SpaceSpreadsheet {
    */
   ViewerPath viewer_path;
 
+  /**
+   * The "path" to the currently active instance reference. This is needed when viewing nested
+   * instances.
+   */
+  SpreadsheetInstanceID *instance_ids;
+  int instance_ids_num;
+
   /* eSpaceSpreadsheet_FilterFlag. */
   uint8_t filter_flag;
 
@@ -1966,7 +2007,6 @@ typedef struct SpaceSpreadsheet {
 
   /* eSpaceSpreadsheet_Flag. */
   uint32_t flag;
-  char _pad1[4];
 
   SpaceSpreadsheet_Runtime *runtime;
 } SpaceSpreadsheet;

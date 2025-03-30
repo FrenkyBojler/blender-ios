@@ -7,9 +7,10 @@
  * \ingroup bke
  */
 
-#include "BLI_compiler_attrs.h"
-#include "BLI_compiler_compat.h"
-#include "BLI_utildefines.h"
+#include <cstdint>
+
+#include "BLI_array.hh"
+#include "BLI_string_ref.hh"
 
 #include "DNA_mesh_types.h"
 
@@ -33,7 +34,7 @@ struct Object;
 struct Scene;
 
 /* TODO: Move to `BKE_mesh_types.hh` when possible. */
-enum eMeshBatchDirtyMode {
+enum eMeshBatchDirtyMode : int8_t {
   BKE_MESH_BATCH_DIRTY_ALL = 0,
   BKE_MESH_BATCH_DIRTY_SELECT,
   BKE_MESH_BATCH_DIRTY_SELECT_PAINT,
@@ -47,8 +48,12 @@ enum eMeshBatchDirtyMode {
 BMesh *BKE_mesh_to_bmesh_ex(const Mesh *mesh,
                             const BMeshCreateParams *create_params,
                             const BMeshFromMeshParams *convert_params);
+/**
+ * \param active_shapekey: See #BMeshFromMeshParams::active_shapekey.
+ * \param add_key_index: See #BMeshFromMeshParams::add_key_index.
+ */
 BMesh *BKE_mesh_to_bmesh(Mesh *mesh,
-                         Object *ob,
+                         int active_shapekey,
                          bool add_key_index,
                          const BMeshCreateParams *params);
 
@@ -93,8 +98,6 @@ void BKE_mesh_clear_geometry_and_metadata(Mesh *mesh);
 
 Mesh *BKE_mesh_add(Main *bmain, const char *name);
 
-void BKE_mesh_free_editmesh(Mesh *mesh);
-
 /**
  * A version of #BKE_mesh_copy_parameters that is intended for evaluated output
  * (the modifier stack for example).
@@ -123,13 +126,10 @@ Mesh *BKE_mesh_new_nomain_from_template_ex(const Mesh *me_src,
                                            int corners_num,
                                            CustomData_MeshMasks mask);
 
-void BKE_mesh_eval_delete(Mesh *mesh_eval);
-
 /**
- * Performs copy for use during evaluation,
- * optional referencing original arrays to reduce memory.
+ * Performs copy for use during evaluation.
  */
-Mesh *BKE_mesh_copy_for_eval(const Mesh *source);
+Mesh *BKE_mesh_copy_for_eval(const Mesh &source);
 
 /**
  * These functions construct a new Mesh,
@@ -138,9 +138,12 @@ Mesh *BKE_mesh_copy_for_eval(const Mesh *source);
 Mesh *BKE_mesh_new_nomain_from_curve(const Object *ob);
 Mesh *BKE_mesh_new_nomain_from_curve_displist(const Object *ob, const ListBase *dispbase);
 
-bool BKE_mesh_attribute_required(const char *name);
+bool BKE_mesh_attribute_required(blender::StringRef name);
 
-float (*BKE_mesh_orco_verts_get(const Object *ob))[3];
+blender::Array<blender::float3> BKE_mesh_orco_verts_get(const Object *ob);
+void BKE_mesh_orco_verts_transform(Mesh *mesh,
+                                   blender::MutableSpan<blender::float3> orco,
+                                   bool invert);
 void BKE_mesh_orco_verts_transform(Mesh *mesh, float (*orco)[3], int totvert, bool invert);
 
 /**
@@ -180,7 +183,8 @@ void BKE_mesh_texspace_get_reference(Mesh *mesh,
 Mesh *BKE_mesh_new_from_object(Depsgraph *depsgraph,
                                Object *object,
                                bool preserve_all_data_layers,
-                               bool preserve_origindex);
+                               bool preserve_origindex,
+                               bool ensure_subdivision);
 
 /**
  * This is a version of BKE_mesh_new_from_object() which stores mesh in the given main database.
@@ -201,10 +205,6 @@ void BKE_mesh_nomain_to_meshkey(Mesh *mesh_src, Mesh *mesh_dst, KeyBlock *kb);
 
 /* Vertex level transformations & checks (no evaluated mesh). */
 
-/* basic vertex data functions */
-void BKE_mesh_transform(Mesh *mesh, const float mat[4][4], bool do_keys);
-void BKE_mesh_translate(Mesh *mesh, const float offset[3], bool do_keys);
-
 void BKE_mesh_tessface_clear(Mesh *mesh);
 
 void BKE_mesh_mselect_clear(Mesh *mesh);
@@ -212,11 +212,11 @@ void BKE_mesh_mselect_validate(Mesh *mesh);
 /**
  * \return the index within `me->mselect`, or -1
  */
-int BKE_mesh_mselect_find(Mesh *mesh, int index, int type);
+int BKE_mesh_mselect_find(const Mesh *mesh, int index, int type);
 /**
  * \return The index of the active element.
  */
-int BKE_mesh_mselect_active_get(Mesh *mesh, int type);
+int BKE_mesh_mselect_active_get(const Mesh *mesh, int type);
 void BKE_mesh_mselect_active_set(Mesh *mesh, int index, int type);
 
 void BKE_mesh_count_selected_items(const Mesh *mesh, int r_count[3]);
@@ -230,18 +230,37 @@ bool BKE_mesh_vert_normals_are_dirty(const Mesh *mesh);
 bool BKE_mesh_face_normals_are_dirty(const Mesh *mesh);
 
 /**
- * References a contiguous loop-fan with normal offset vars.
+ * References a contiguous loop-fan.
+ * Combined with the automatically calculated face corner normal, this gives a dimensional
+ * coordinate space used to convert normals between the "custom normal" #short2 representation and
+ * a regular #float3 format.
  */
 struct MLoopNorSpace {
-  /** Automatically computed loop normal. */
+  /** The automatically computed face corner normal, not including influence of custom normals. */
   float vec_lnor[3];
-  /** Reference vector, orthogonal to vec_lnor. */
+  /**
+   * Reference vector, orthogonal to #vec_lnor, aligned with one of the edges (borders) of the
+   * smooth fan, called 'reference edge'.
+   */
   float vec_ref[3];
-  /** Third vector, orthogonal to vec_lnor and vec_ref. */
+  /** Third vector, orthogonal to #vec_lnor and #vec_ref. */
   float vec_ortho[3];
-  /** Reference angle, around vec_ortho, in ]0, pi] range (0.0 marks that space as invalid). */
+  /**
+   * Reference angle around #vec_ortho, in ]0, pi] range, between #vec_lnor and the reference edge.
+   *
+   * A 0.0 value marks that space as invalid, as it can only happen in extremely degenerate
+   * geometry cases (it would mean that the default normal is perfectly aligned with the reference
+   * edge).
+   */
   float ref_alpha;
-  /** Reference angle, around vec_lnor, in ]0, 2pi] range (0.0 marks that space as invalid). */
+  /**
+   * Reference angle around #vec_lnor, in ]0, 2pi] range, between the reference edge and the other
+   * border edge of the fan.
+   *
+   * A 0.0 value marks that space as invalid, as it can only happen in degenerate geometry cases
+   * (it would mean that all the edges connected to that corner of the smooth fan are perfectly
+   * aligned).
+   */
   float ref_beta;
   /** All loops using this lnor space (i.e. smooth fan of loops),
    * as (depending on owning MLoopNorSpaceArrary.data_type):
@@ -348,23 +367,6 @@ void BKE_mesh_normals_loop_to_vertex(int numVerts,
  */
 bool BKE_mesh_has_custom_loop_normals(Mesh *mesh);
 
-/**
- * Higher level functions hiding most of the code needed around call to
- * #normals_corner_custom_set().
- *
- * \param r_custom_loop_normals: is not const, since code will replace zero_v3 normals there
- * with automatically computed vectors.
- */
-void BKE_mesh_set_custom_normals(Mesh *mesh, float (*r_custom_loop_normals)[3]);
-/**
- * Higher level functions hiding most of the code needed around call to
- * #normals_corner_custom_set_from_verts().
- *
- * \param r_custom_vert_normals: is not const, since code will replace zero_v3 normals there
- * with automatically computed vectors.
- */
-void BKE_mesh_set_custom_normals_from_verts(Mesh *mesh, float (*r_custom_vert_normals)[3]);
-
 /* *** mesh_evaluate.cc *** */
 
 float BKE_mesh_calc_area(const Mesh *mesh);
@@ -466,7 +468,7 @@ bool BKE_mesh_validate_arrays(Mesh *mesh,
                               unsigned int edges_num,
                               MFace *legacy_faces,
                               unsigned int legacy_faces_num,
-                              int *corner_verts,
+                              const int *corner_verts,
                               int *corner_edges,
                               unsigned int corners_num,
                               const int *face_offsets,
@@ -493,9 +495,6 @@ bool BKE_mesh_validate_all_customdata(CustomData *vert_data,
                                       bool *r_change);
 
 void BKE_mesh_strip_loose_faces(Mesh *mesh);
-
-/* In DerivedMesh.cc */
-void BKE_mesh_wrapper_deferred_finalize_mdata(Mesh *mesh_eval);
 
 /* **** Depsgraph evaluation **** */
 

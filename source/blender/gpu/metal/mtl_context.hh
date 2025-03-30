@@ -7,12 +7,9 @@
  */
 #pragma once
 
-#include "MEM_guardedalloc.h"
-
 #include "gpu_context_private.hh"
 
 #include "GPU_common_types.hh"
-#include "GPU_context.hh"
 
 /* Don't generate OpenGL deprecation warning. This is a known thing, and is not something easily
  * solvable in a short term. */
@@ -180,10 +177,7 @@ class MTLComputeState {
                             bool use_argument_buffer_for_samplers,
                             uint slot);
   /* Buffer binding (ComputeCommandEncoder). */
-  void bind_compute_buffer(id<MTLBuffer> buffer,
-                           uint64_t buffer_offset,
-                           uint index,
-                           bool writeable = false);
+  void bind_compute_buffer(id<MTLBuffer> buffer, uint64_t buffer_offset, uint index);
   void bind_compute_bytes(const void *bytes, uint64_t length, uint index);
 };
 
@@ -457,7 +451,7 @@ struct MTLStorageBufferBinding {
 };
 
 struct MTLContextGlobalShaderPipelineState {
-  bool initialised;
+  bool initialised = false;
 
   /* Whether the pipeline state has been modified since application.
    * `dirty_flags` is a bitmask of the types of state which have been updated.
@@ -465,14 +459,14 @@ struct MTLContextGlobalShaderPipelineState {
    * Some state parameters are dynamically applied on the RenderCommandEncoder,
    * others may be encapsulated in GPU-resident state objects such as
    * MTLDepthStencilState or MTLRenderPipelineState. */
-  bool dirty;
-  MTLPipelineStateDirtyFlag dirty_flags;
+  bool dirty = true;
+  MTLPipelineStateDirtyFlag dirty_flags = MTL_PIPELINE_STATE_NULL_FLAG;
 
   /* Shader resources. */
-  MTLShader *null_shader;
+  MTLShader *null_shader = nullptr;
 
   /* Active Shader State. */
-  MTLShader *active_shader;
+  MTLShader *active_shader = nullptr;
 
   /* Global Uniform Buffers. */
   MTLUniformBufferBinding ubo_bindings[MTL_MAX_BUFFER_BINDINGS];
@@ -551,8 +545,8 @@ class MTLCommandBufferManager {
   friend class MTLContext;
 
  public:
-  /* Counter for active command buffers. */
-  static int num_active_cmd_bufs;
+  /* Counter for all active command buffers. */
+  static volatile std::atomic<int> num_active_cmd_bufs_in_system;
 
  private:
   /* Associated Context and properties. */
@@ -562,6 +556,7 @@ class MTLCommandBufferManager {
   /* CommandBuffer tracking. */
   id<MTLCommandBuffer> active_command_buffer_ = nil;
   id<MTLCommandBuffer> last_submitted_command_buffer_ = nil;
+  volatile std::atomic<int> num_active_cmd_bufs = 0;
 
   /* Active MTLCommandEncoders. */
   enum {
@@ -637,7 +632,7 @@ class MTLCommandBufferManager {
 
   /* Encoder and Pass management. */
   /* End currently active MTLCommandEncoder. */
-  bool end_active_command_encoder();
+  bool end_active_command_encoder(bool retain_framebuffers = false);
   id<MTLRenderCommandEncoder> ensure_begin_render_command_encoder(MTLFrameBuffer *ctx_framebuffer,
                                                                   bool force_begin,
                                                                   bool *r_new_pass);
@@ -655,6 +650,31 @@ class MTLCommandBufferManager {
   /* Debug. */
   void push_debug_group(const char *name, int index);
   void pop_debug_group();
+
+  void inc_active_command_buffer_count()
+  {
+    num_active_cmd_bufs_in_system++;
+    num_active_cmd_bufs++;
+  }
+
+  void dec_active_command_buffer_count()
+  {
+    BLI_assert(num_active_cmd_bufs_in_system > 0 && num_active_cmd_bufs > 0);
+    num_active_cmd_bufs_in_system--;
+    num_active_cmd_bufs--;
+  }
+
+  int get_active_command_buffer_count()
+  {
+    return num_active_cmd_bufs;
+  }
+
+  void wait_until_active_command_buffers_complete()
+  {
+    while (get_active_command_buffer_count()) {
+      std::this_thread::yield();
+    }
+  }
 
  private:
   /* Begin new command buffer. */
@@ -786,6 +806,9 @@ class MTLContext : public Context {
   bool debug_capture_scope_begin(void *scope) override;
   void debug_capture_scope_end(void *scope) override;
 
+  void debug_unbind_all_ubo() override{};
+  void debug_unbind_all_ssbo() override{};
+
   /*** MTLContext Utility functions. */
   /*
    * All below functions modify the global state for the context, controlling the flow of
@@ -824,7 +847,7 @@ class MTLContext : public Context {
    * to every draw call, to ensure that all state is applied and up
    * to date. We handle:
    *
-   * - Buffer bindings (Vertex buffers, Uniforms, UBOs, transform feedback)
+   * - Buffer bindings (Vertex buffers, Uniforms, UBOs)
    * - Texture bindings
    * - Sampler bindings (+ argument buffer bindings)
    * - Dynamic Render pipeline state (on encoder)

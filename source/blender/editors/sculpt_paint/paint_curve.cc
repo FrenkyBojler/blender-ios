@@ -21,7 +21,9 @@
 
 #include "BLT_translation.hh"
 
+#include "BKE_brush.hh"
 #include "BKE_context.hh"
+#include "BKE_lib_id.hh"
 #include "BKE_paint.hh"
 
 #include "ED_paint.hh"
@@ -56,8 +58,8 @@ bool paint_curve_poll(bContext *C)
     return false;
   }
 
-  Paint *p = BKE_paint_get_active_from_context(C);
-  Brush *brush = (p) ? BKE_paint_brush(p) : nullptr;
+  Paint *paint = BKE_paint_get_active_from_context(C);
+  Brush *brush = (paint) ? BKE_paint_brush(paint) : nullptr;
 
   if (brush && (brush->flag & BRUSH_CURVE)) {
     return true;
@@ -144,14 +146,22 @@ static char paintcurve_point_side_index(const BezTriple *bezt,
 
 /******************* Operators *********************************/
 
-static int paintcurve_new_exec(bContext *C, wmOperator * /*op*/)
+static PaintCurve *paintcurve_for_brush_add(Main *bmain, const char *name, const Brush *brush)
 {
-  Paint *p = BKE_paint_get_active_from_context(C);
-  Brush *brush = (p) ? BKE_paint_brush(p) : nullptr;
+  PaintCurve *curve = BKE_paint_curve_add(bmain, name);
+  BKE_id_move_to_same_lib(*bmain, curve->id, brush->id);
+  return curve;
+}
+
+static wmOperatorStatus paintcurve_new_exec(bContext *C, wmOperator * /*op*/)
+{
+  Paint *paint = BKE_paint_get_active_from_context(C);
+  Brush *brush = (paint) ? BKE_paint_brush(paint) : nullptr;
   Main *bmain = CTX_data_main(C);
 
   if (brush) {
-    brush->paint_curve = BKE_paint_curve_add(bmain, DATA_("PaintCurve"));
+    brush->paint_curve = paintcurve_for_brush_add(bmain, DATA_("PaintCurve"), brush);
+    BKE_brush_tag_unsaved_changes(brush);
   }
 
   WM_event_add_notifier(C, NC_PAINTCURVE | NA_ADDED, nullptr);
@@ -176,8 +186,8 @@ void PAINTCURVE_OT_new(wmOperatorType *ot)
 
 static void paintcurve_point_add(bContext *C, wmOperator *op, const int loc[2])
 {
-  Paint *p = BKE_paint_get_active_from_context(C);
-  Brush *br = BKE_paint_brush(p);
+  Paint *paint = BKE_paint_get_active_from_context(C);
+  Brush *br = BKE_paint_brush(paint);
   Main *bmain = CTX_data_main(C);
   wmWindow *window = CTX_wm_window(C);
   ARegion *region = CTX_wm_region(C);
@@ -185,7 +195,7 @@ static void paintcurve_point_add(bContext *C, wmOperator *op, const int loc[2])
 
   PaintCurve *pc = br->paint_curve;
   if (!pc) {
-    br->paint_curve = pc = BKE_paint_curve_add(bmain, DATA_("PaintCurve"));
+    br->paint_curve = pc = paintcurve_for_brush_add(bmain, DATA_("PaintCurve"), br);
   }
 
   ED_paintcurve_undo_push_begin(op->type->name);
@@ -232,11 +242,14 @@ static void paintcurve_point_add(bContext *C, wmOperator *op, const int loc[2])
   }
 
   ED_paintcurve_undo_push_end(C);
+  BKE_brush_tag_unsaved_changes(br);
 
   WM_paint_cursor_tag_redraw(window, region);
 }
 
-static int paintcurve_add_point_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus paintcurve_add_point_invoke(bContext *C,
+                                                    wmOperator *op,
+                                                    const wmEvent *event)
 {
   const int loc[2] = {event->mval[0], event->mval[1]};
   paintcurve_point_add(C, op, loc);
@@ -244,7 +257,7 @@ static int paintcurve_add_point_invoke(bContext *C, wmOperator *op, const wmEven
   return OPERATOR_FINISHED;
 }
 
-static int paintcurve_add_point_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus paintcurve_add_point_exec(bContext *C, wmOperator *op)
 {
   int loc[2];
 
@@ -285,10 +298,10 @@ void PAINTCURVE_OT_add_point(wmOperatorType *ot)
                      SHRT_MAX);
 }
 
-static int paintcurve_delete_point_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus paintcurve_delete_point_exec(bContext *C, wmOperator *op)
 {
-  Paint *p = BKE_paint_get_active_from_context(C);
-  Brush *br = BKE_paint_brush(p);
+  Paint *paint = BKE_paint_get_active_from_context(C);
+  Brush *br = BKE_paint_brush(paint);
   PaintCurve *pc;
   PaintCurvePoint *pcp;
   wmWindow *window = CTX_wm_window(C);
@@ -344,6 +357,7 @@ static int paintcurve_delete_point_exec(bContext *C, wmOperator *op)
 #undef DELETE_TAG
 
   ED_paintcurve_undo_push_end(C);
+  BKE_brush_tag_unsaved_changes(br);
 
   WM_paint_cursor_tag_redraw(window, region);
 
@@ -370,8 +384,8 @@ static bool paintcurve_point_select(
 {
   wmWindow *window = CTX_wm_window(C);
   ARegion *region = CTX_wm_region(C);
-  Paint *p = BKE_paint_get_active_from_context(C);
-  Brush *br = BKE_paint_brush(p);
+  Paint *paint = BKE_paint_get_active_from_context(C);
+  Brush *br = BKE_paint_brush(paint);
   PaintCurve *pc;
   int i;
   const float loc_fl[2] = {float(loc[0]), float(loc[1])};
@@ -466,7 +480,9 @@ static bool paintcurve_point_select(
   return true;
 }
 
-static int paintcurve_select_point_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus paintcurve_select_point_invoke(bContext *C,
+                                                       wmOperator *op,
+                                                       const wmEvent *event)
 {
   const int loc[2] = {event->mval[0], event->mval[1]};
   bool toggle = RNA_boolean_get(op->ptr, "toggle");
@@ -478,7 +494,7 @@ static int paintcurve_select_point_invoke(bContext *C, wmOperator *op, const wmE
   return OPERATOR_CANCELLED;
 }
 
-static int paintcurve_select_point_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus paintcurve_select_point_exec(bContext *C, wmOperator *op)
 {
   int loc[2];
 
@@ -537,15 +553,15 @@ struct PointSlideData {
   bool align;
 };
 
-static int paintcurve_slide_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus paintcurve_slide_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  Paint *p = BKE_paint_get_active_from_context(C);
+  Paint *paint = BKE_paint_get_active_from_context(C);
   const float loc_fl[2] = {float(event->mval[0]), float(event->mval[1])};
   char select;
   int i;
   bool do_select = RNA_boolean_get(op->ptr, "select");
   bool align = RNA_boolean_get(op->ptr, "align");
-  Brush *br = BKE_paint_brush(p);
+  Brush *br = BKE_paint_brush(paint);
   PaintCurve *pc = br->paint_curve;
   PaintCurvePoint *pcp;
 
@@ -590,6 +606,7 @@ static int paintcurve_slide_invoke(bContext *C, wmOperator *op, const wmEvent *e
     /* only select the active point */
     PAINT_CURVE_POINT_SELECT(pcp, psd->select);
     BKE_paint_curve_clamp_endpoint_add_index(pc, pcp - pc->points);
+    BKE_brush_tag_unsaved_changes(br);
 
     WM_event_add_modal_handler(C, op);
     WM_paint_cursor_tag_redraw(window, region);
@@ -599,7 +616,7 @@ static int paintcurve_slide_invoke(bContext *C, wmOperator *op, const wmEvent *e
   return OPERATOR_PASS_THROUGH;
 }
 
-static int paintcurve_slide_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus paintcurve_slide_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   PointSlideData *psd = static_cast<PointSlideData *>(op->customdata);
 
@@ -664,7 +681,7 @@ void PAINTCURVE_OT_slide(wmOperatorType *ot)
       ot->srna, "select", true, "Select", "Attempt to select a point handle before transform");
 }
 
-static int paintcurve_draw_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus paintcurve_draw_exec(bContext *C, wmOperator * /*op*/)
 {
   PaintMode mode = BKE_paintmode_get_active_from_context(C);
   const char *name;
@@ -711,7 +728,9 @@ void PAINTCURVE_OT_draw(wmOperatorType *ot)
   ot->flag = OPTYPE_UNDO;
 }
 
-static int paintcurve_cursor_invoke(bContext *C, wmOperator * /*op*/, const wmEvent *event)
+static wmOperatorStatus paintcurve_cursor_invoke(bContext *C,
+                                                 wmOperator * /*op*/,
+                                                 const wmEvent *event)
 {
   PaintMode mode = BKE_paintmode_get_active_from_context(C);
 

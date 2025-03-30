@@ -20,27 +20,49 @@ struct bNodeSocket;
 struct bNodeTree;
 struct Object;
 struct rcti;
+struct rctf;
 struct NodesModifierData;
 struct uiLayout;
 
 namespace blender::ed::space_node {
 
+void tree_update(const bContext *C);
+void tag_update_id(ID *id);
+
+float grid_size_get();
+
+/** Update the active node tree based on the context. */
+void snode_set_context(const bContext &C);
+
 VectorSet<bNode *> get_selected_nodes(bNodeTree &node_tree);
 
-void node_insert_on_link_flags_set(SpaceNode &snode, const ARegion &region);
+/**
+ * \param is_new_node: If the node was just inserted, it is allowed to be inserted in a link, even
+ * if it is linked already (after link-drag-search).
+ */
+void node_insert_on_link_flags_set(SpaceNode &snode,
+                                   const ARegion &region,
+                                   bool attach_enabled,
+                                   bool is_new_node);
 
 /**
- * Assumes link with #NODE_LINKFLAG_HILITE set.
+ * Assumes link with #NODE_LINK_INSERT_TARGET set.
  */
-void node_insert_on_link_flags(Main &bmain, SpaceNode &snode);
+void node_insert_on_link_flags(Main &bmain, SpaceNode &snode, bool is_new_node);
 void node_insert_on_link_flags_clear(bNodeTree &node_tree);
 
 /**
  * Draw a single node socket at default size.
- * \note this is only called from external code, internally #node_socket_draw_nested() is used for
- *       optimized drawing of multiple/all sockets of a node.
  */
 void node_socket_draw(bNodeSocket *sock, const rcti *rect, const float color[4], float scale);
+void node_draw_nodesocket(const rctf *rect,
+                          const float color_inner[4],
+                          const float color_outline[4],
+                          float outline_thickness,
+                          int shape,
+                          float aspect);
+
+void std_node_socket_colors_get(int socket_type, float *r_color);
 
 /**
  * Find the nested node id of a currently visible node in the root tree.

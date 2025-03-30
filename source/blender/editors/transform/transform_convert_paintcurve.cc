@@ -13,10 +13,13 @@
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
 
+#include "BKE_brush.hh"
 #include "BKE_paint.hh"
 
 #include "transform.hh"
 #include "transform_convert.hh"
+
+namespace blender::ed::transform {
 
 struct TransDataPaintCurve {
   PaintCurvePoint *pcp; /* Initial curve point. */
@@ -203,6 +206,12 @@ static void flushTransPaintCurve(TransInfo *t)
     PaintCurvePoint *pcp = tdpc->pcp;
     copy_v2_v2(pcp->bez.vec[tdpc->id], td2d->loc);
   }
+
+  if (t->context) {
+    Paint *paint = BKE_paint_get_active_from_context(t->context);
+    Brush *br = (paint) ? BKE_paint_brush(paint) : nullptr;
+    BKE_brush_tag_unsaved_changes(br);
+  }
 }
 
 /** \} */
@@ -213,3 +222,5 @@ TransConvertTypeInfo TransConvertType_PaintCurve = {
     /*recalc_data*/ flushTransPaintCurve,
     /*special_aftertrans_update*/ nullptr,
 };
+
+}  // namespace blender::ed::transform

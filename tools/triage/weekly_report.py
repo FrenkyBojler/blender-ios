@@ -15,11 +15,17 @@ Example usage:
 
     python ./weekly_report.py --username mano-wii
 """
+__all__ = (
+    "main",
+)
+
 
 import argparse
 import datetime
 import json
 import re
+import shutil
+import sys
 
 from gitea_utils import (
     gitea_json_activities_get,
@@ -30,11 +36,26 @@ from gitea_utils import (
 
 from typing import (
     Any,
-    Dict,
-    List,
-    Set,
+)
+from collections.abc import (
     Iterable,
 )
+
+# Support piping the output to a file or process.
+IS_ATTY = sys.stdout.isatty()
+
+
+if IS_ATTY:
+    def print_progress(text: str) -> None:
+        # The trailing space clears the previous output.
+        term_width = shutil.get_terminal_size(fallback=(80, 20))[0]
+
+        if (space := term_width - len(text)) > 0:
+            text = text + (" " * space)
+        print(text, end="\r", flush=True)
+else:
+    def print_progress(text: str) -> None:
+        pass
 
 
 def argparse_create() -> argparse.ArgumentParser:
@@ -64,6 +85,14 @@ def argparse_create() -> argparse.ArgumentParser:
     )
 
     parser.add_argument(
+        "--hash-length",
+        dest="hash_length",
+        type=int,
+        default=10,
+        help="Number of characters to abbreviate the hash to (0 to disable).",
+    )
+
+    parser.add_argument(
         "-v",
         "--verbose",
         action="store_true",
@@ -73,42 +102,48 @@ def argparse_create() -> argparse.ArgumentParser:
     return parser
 
 
-def report_personal_weekly_get(username: str, start: datetime.datetime, verbose: bool = True) -> None:
+def report_personal_weekly_get(
+        username: str,
+        start: datetime.datetime,
+        *,
+        hash_length: int,
+        verbose: bool = True,
+) -> None:
 
-    data_cache: Dict[str, Dict[str, Any]] = {}
+    data_cache: dict[str, dict[str, Any]] = {}
 
-    def gitea_json_issue_get_cached(issue_fullname: str) -> Dict[str, Any]:
+    def gitea_json_issue_get_cached(issue_fullname: str) -> dict[str, Any]:
         if issue_fullname not in data_cache:
             issue = gitea_json_issue_get(issue_fullname)
             data_cache[issue_fullname] = issue
 
         return data_cache[issue_fullname]
 
-    pulls_closed: Set[str] = set()
-    pulls_commented: Set[str] = set()
-    pulls_created: Set[str] = set()
+    pulls_closed: set[str] = set()
+    pulls_commented: set[str] = set()
+    pulls_created: set[str] = set()
 
-    issues_closed: Set[str] = set()
-    issues_commented: Set[str] = set()
-    issues_created: Set[str] = set()
+    issues_closed: set[str] = set()
+    issues_commented: set[str] = set()
+    issues_created: set[str] = set()
 
-    pulls_reviewed: List[str] = []
+    pulls_reviewed: list[str] = []
 
-    issues_confirmed: List[str] = []
-    issues_needing_user_info: List[str] = []
-    issues_needing_developer_info: List[str] = []
-    issues_fixed: List[str] = []
-    issues_duplicated: List[str] = []
-    issues_archived: List[str] = []
+    issues_confirmed: list[str] = []
+    issues_needing_user_info: list[str] = []
+    issues_needing_developer_info: list[str] = []
+    issues_fixed: list[str] = []
+    issues_duplicated: list[str] = []
+    issues_archived: list[str] = []
 
-    commits_main: List[str] = []
+    commits_main: list[str] = []
 
-    user_data: Dict[str, Any] = gitea_user_get(username)
+    user_data: dict[str, Any] = gitea_user_get(username)
 
     for i in range(7):
         date_curr = start + datetime.timedelta(days=i)
         date_curr_str = date_curr.strftime("%Y-%m-%d")
-        print(f"Requesting activity of {date_curr_str}", end="\r", flush=True)
+        print_progress(f"Requesting activity of {date_curr_str}")
         for activity in gitea_json_activities_get(username, date_curr_str):
             op_type = activity["op_type"]
             if op_type == "close_issue":
@@ -141,7 +176,7 @@ def report_personal_weekly_get(username: str, start: datetime.datetime, verbose:
                     content_json = json.loads(activity["content"])
                     assert isinstance(content_json, dict)
                     repo_fullname = activity["repo"]["full_name"]
-                    content_json_commits: List[Dict[str, Any]] = content_json["Commits"]
+                    content_json_commits: list[dict[str, Any]] = content_json["Commits"]
                     for commits in content_json_commits:
                         # Skip commits that were not made by this user. Using email doesn't seem to
                         # be possible unfortunately.
@@ -156,14 +191,16 @@ def report_personal_weekly_get(username: str, start: datetime.datetime, verbose:
                         # Substitute occurrences of "#\d+" with "repo#\d+"
                         title = re.sub(r"#(\d+)", rf"{repo_fullname}#\1", title)
 
-                        hash_value = commits["Sha1"][:10]
+                        hash_value = commits["Sha1"]
+                        if hash_length > 0:
+                            hash_value[:hash_length]
                         commits_main.append(f"{title} ({repo_fullname}@{hash_value})")
 
     date_end = date_curr
     len_total = len(issues_closed) + len(issues_commented) + len(pulls_commented)
     process = 0
     for issue in issues_commented:
-        print(f"[{int(100 * (process / len_total))}%] Checking issue {issue}       ", end="\r", flush=True)
+        print_progress("[{:d}%] Checking issue {:s}".format(int(100 * (process / len_total)), issue))
         process += 1
 
         issue_events = gitea_json_issue_events_filter(
@@ -188,7 +225,7 @@ def report_personal_weekly_get(username: str, start: datetime.datetime, verbose:
                 issues_needing_developer_info.append(issue)
 
     for issue in issues_closed:
-        print(f"[{int(100 * (process / len_total))}%] Checking issue {issue}       ", end="\r", flush=True)
+        print_progress("[{:d}%] Checking issue {:s}".format(int(100 * (process / len_total)), issue))
         process += 1
 
         issue_events = gitea_json_issue_events_filter(
@@ -210,7 +247,7 @@ def report_personal_weekly_get(username: str, start: datetime.datetime, verbose:
                 issues_archived.append(issue)
 
     for pull in pulls_commented:
-        print(f"[{int(100 * (process / len_total))}%] Checking pull {pull}         ", end="\r", flush=True)
+        print_progress("[{:d}%] Checking pull {:s}".format(int(100 * (process / len_total)), pull))
         process += 1
 
         pull_events = gitea_json_issue_events_filter(
@@ -230,14 +267,17 @@ def report_personal_weekly_get(username: str, start: datetime.datetime, verbose:
 
     issues_involved = issues_closed | issues_commented | issues_created
 
-    print("**Involved in %s reports:**                                     " % len(issues_involved))
-    print("* Confirmed: %s" % len(issues_confirmed))
-    print("* Closed as Resolved: %s" % len(issues_fixed))
-    print("* Closed as Archived: %s" % len(issues_archived))
-    print("* Closed as Duplicate: %s" % len(issues_duplicated))
-    print("* Needs Info from User: %s" % len(issues_needing_user_info))
-    print("* Needs Info from Developers: %s" % len(issues_needing_developer_info))
-    print("* Actions total: %s" % (len(issues_closed) + len(issues_commented) + len(issues_created)))
+    # Clear any progress.
+    print_progress("")
+
+    print("**Involved in {:d} reports:**".format(len(issues_involved)))
+    print("* Confirmed: {:d}".format(len(issues_confirmed)))
+    print("* Closed as Resolved: {:d}".format(len(issues_fixed)))
+    print("* Closed as Archived: {:d}".format(len(issues_archived)))
+    print("* Closed as Duplicate: {:d}".format(len(issues_duplicated)))
+    print("* Needs Info from User: {:d}".format(len(issues_needing_user_info)))
+    print("* Needs Info from Developers: {:d}".format(len(issues_needing_developer_info)))
+    print("* Actions total: {:d}".format(len(issues_closed) + len(issues_commented) + len(issues_created)))
     print()
 
     # Print review stats
@@ -248,12 +288,12 @@ def report_personal_weekly_get(username: str, start: datetime.datetime, verbose:
             owner, repo, _, number = pull.split('/')
             print(f"* {title} ({owner}/{repo}!{number})")
 
-    print("**Review: %s**" % len(pulls_reviewed))
+    print("**Review: {:d}**".format(len(pulls_reviewed)))
     print_pulls(pulls_reviewed)
     print()
 
     # Print created diffs
-    print("**Created Pull Requests: %s**" % len(pulls_created))
+    print("**Created Pull Requests: {:d}**".format(len(pulls_created)))
     print_pulls(pulls_created)
     print()
 
@@ -320,11 +360,17 @@ def main() -> None:
     end_date_str = str(sunday.day) if start_date.month == sunday.month else sunday.strftime('%B ') + str(sunday.day)
 
     print(f"## {start_date_str} - {end_date_str}\n")
-    report_personal_weekly_get(username, start_date, verbose=args.verbose)
+    report_personal_weekly_get(
+        username,
+        start_date,
+        hash_length=args.hash_length,
+        verbose=args.verbose,
+    )
 
 
 if __name__ == "__main__":
     main()
 
-    # wait for input to close window
-    input()
+    # Wait for input to close window.
+    if IS_ATTY:
+        input()

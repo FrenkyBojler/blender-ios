@@ -14,7 +14,6 @@
 
 #include "BLT_translation.hh"
 
-#include "RNA_access.hh"
 #include "RNA_define.hh"
 
 #include "rna_internal.hh"
@@ -28,6 +27,7 @@
 
 #  include "BKE_camera.h"
 #  include "BKE_object.hh"
+#  include "BKE_report.hh"
 
 #  include "DEG_depsgraph.hh"
 #  include "DEG_depsgraph_build.hh"
@@ -105,7 +105,7 @@ static void rna_Camera_background_images_remove(Camera *cam,
   }
 
   BKE_camera_background_image_remove(cam, bgpic);
-  RNA_POINTER_INVALIDATE(bgpic_ptr);
+  bgpic_ptr->invalidate();
 
   WM_main_add_notifier(NC_CAMERA | ND_DRAW_RENDER_VIEWPORT, cam);
 }
@@ -190,7 +190,7 @@ static bool rna_Camera_background_images_override_apply(
 
 static void rna_Camera_dof_update(Main *bmain, Scene *scene, PointerRNA * /*ptr*/)
 {
-  SEQ_relations_invalidate_scene_strips(bmain, scene);
+  blender::seq::relations_invalidate_scene_strips(bmain, scene);
   WM_main_add_notifier(NC_SCENE | ND_SEQUENCER, scene);
 }
 
@@ -421,7 +421,11 @@ static void rna_def_camera_stereo_data(BlenderRNA *brna)
   static const EnumPropertyItem convergence_mode_items[] = {
       {CAM_S3D_OFFAXIS, "OFFAXIS", 0, "Off-Axis", "Off-axis frustums converging in a plane"},
       {CAM_S3D_PARALLEL, "PARALLEL", 0, "Parallel", "Parallel cameras with no convergence"},
-      {CAM_S3D_TOE, "TOE", 0, "Toe-in", "Rotated cameras, looking at the convergence distance"},
+      {CAM_S3D_TOE,
+       "TOE",
+       0,
+       "Toe-in",
+       "Rotated cameras, looking at the same point at the convergence distance"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
@@ -531,7 +535,7 @@ static void rna_def_camera_dof_settings_data(BlenderRNA *brna)
   prop = RNA_def_property(srna, "focus_distance", PROP_FLOAT, PROP_DISTANCE);
   // RNA_def_property_pointer_sdna(prop, nullptr, "focus_distance");
   RNA_def_property_range(prop, 0.0f, FLT_MAX);
-  RNA_def_property_ui_range(prop, 0.0f, 5000.0f, 1, 2);
+  RNA_def_property_ui_range(prop, 0.0f, 5000.0f, 1, 4);
   RNA_def_property_ui_text(
       prop, "Focus Distance", "Distance to the focus point for depth of field");
   RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Camera_dof_update");
@@ -628,6 +632,12 @@ void RNA_def_camera(BlenderRNA *brna)
        "Fisheye Lens Polynomial",
        "Defines the lens projection as polynomial to allow real world camera lenses to be "
        "mimicked"},
+      {CAM_PANORAMA_CENTRAL_CYLINDRICAL,
+       "CENTRAL_CYLINDRICAL",
+       0,
+       "Central Cylindrical",
+       "Projection onto a virtual cylinder from its center, similar as a rotating panoramic "
+       "camera"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
@@ -677,6 +687,7 @@ void RNA_def_camera(BlenderRNA *brna)
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_ui_text(prop, "Field of View", "Camera lens field of view");
   RNA_def_property_float_funcs(prop, "rna_Camera_angle_get", "rna_Camera_angle_set", nullptr);
+  RNA_def_property_float_default(prop, 0.6911504f);
   RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Camera_update");
 
   prop = RNA_def_property(srna, "clip_start", PROP_FLOAT, PROP_DISTANCE);
@@ -922,6 +933,36 @@ void RNA_def_camera(BlenderRNA *brna)
   prop = RNA_def_property(srna, "fisheye_polynomial_k4", PROP_FLOAT, PROP_ANGLE);
   RNA_def_property_ui_range(prop, -FLT_MAX, FLT_MAX, 0.1, 6);
   RNA_def_property_ui_text(prop, "Fisheye Polynomial K4", "Coefficient K4 of the lens polynomial");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Camera_update");
+
+  prop = RNA_def_property(srna, "central_cylindrical_range_u_min", PROP_FLOAT, PROP_ANGLE);
+  RNA_def_property_ui_range(prop, -M_PI, M_PI, 3, 2);
+  RNA_def_property_ui_text(
+      prop, "Min Longitude", "Minimum Longitude value for the central cylindrical lens");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Camera_update");
+
+  prop = RNA_def_property(srna, "central_cylindrical_range_u_max", PROP_FLOAT, PROP_ANGLE);
+  RNA_def_property_ui_range(prop, -M_PI, M_PI, 3, 2);
+  RNA_def_property_ui_text(
+      prop, "Max Longitude", "Maximum Longitude value for the central cylindrical lens");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Camera_update");
+
+  prop = RNA_def_property(srna, "central_cylindrical_range_v_min", PROP_FLOAT, PROP_DISTANCE);
+  RNA_def_property_ui_range(prop, -10.0f, 10.0f, 0.1f, 3);
+  RNA_def_property_ui_text(
+      prop, "Min Height", "Minimum Height value for the central cylindrical lens");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Camera_update");
+
+  prop = RNA_def_property(srna, "central_cylindrical_range_v_max", PROP_FLOAT, PROP_DISTANCE);
+  RNA_def_property_ui_range(prop, -10.0f, 10.0f, 0.1f, 3);
+  RNA_def_property_ui_text(
+      prop, "Max Height", "Maximum Height value for the central cylindrical lens");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Camera_update");
+
+  prop = RNA_def_property(srna, "central_cylindrical_radius", PROP_FLOAT, PROP_DISTANCE);
+  RNA_def_property_range(prop, 0.00001f, FLT_MAX);
+  RNA_def_property_ui_range(prop, 0.00001f, 10.0f, 0.1f, 3);
+  RNA_def_property_ui_text(prop, "Cylinder Radius", "Radius of the virtual cylinder");
   RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Camera_update");
 
   /* pointers */

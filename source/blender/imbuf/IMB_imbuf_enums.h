@@ -6,20 +6,13 @@
 
 #include "BLI_utildefines.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /** \file
  * \ingroup imbuf
  */
 
-/* WARNING: Keep explicit value assignments here,
- * this file is included in areas where not all format defines are set
- * (e.g. intern/dds only get WITH_DDS, even if TIFF, HDR etc are also defined).
- * See #46524. */
+#define IM_MAX_SPACE 64
 
-/** #ImBuf.ftype flag, main image types. */
+/** #ImBuf.ftype: main image types. */
 enum eImbFileType {
   IMB_FTYPE_NONE = 0,
   IMB_FTYPE_PNG = 1,
@@ -45,40 +38,12 @@ enum eImbFileType {
 #endif
 };
 
-typedef enum IMB_Timecode_Type {
-  /** Don't use time-code files at all. */
-  IMB_TC_NONE = 0,
-  /**
-   * Use images in the order as they are recorded
-   * (currently, this is the only one implemented
-   * and is a sane default).
-   */
-  IMB_TC_RECORD_RUN = 1,
-  /**
-   * Use global timestamp written by recording
-   * device (prosumer camcorders e.g. can do that).
-   */
-  IMB_TC_FREE_RUN = 2,
-  /**
-   * Interpolate a global timestamp using the
-   * record date and time written by recording
-   * device (*every* consumer camcorder can do that).
-   */
-  IMB_TC_INTERPOLATED_REC_DATE_FREE_RUN = 4,
-  IMB_TC_RECORD_RUN_NO_GAPS = 8,
-  IMB_TC_MAX_SLOT = 4,
-} IMB_Timecode_Type;
-
-typedef enum IMB_Proxy_Size {
+enum IMB_Proxy_Size {
   IMB_PROXY_NONE = 0,
   IMB_PROXY_25 = 1,
   IMB_PROXY_50 = 2,
   IMB_PROXY_75 = 4,
   IMB_PROXY_100 = 8,
   IMB_PROXY_MAX_SLOT = 4,
-} IMB_Proxy_Size;
+};
 ENUM_OPERATORS(IMB_Proxy_Size, IMB_PROXY_100);
-
-#ifdef __cplusplus
-}
-#endif

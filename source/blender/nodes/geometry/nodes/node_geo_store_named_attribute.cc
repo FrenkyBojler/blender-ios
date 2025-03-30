@@ -17,8 +17,6 @@
 #include "NOD_rna_define.hh"
 #include "NOD_socket_search_link.hh"
 
-#include "RNA_enum_types.hh"
-
 #include "node_geometry_util.hh"
 
 #include <fmt/format.h>
@@ -33,7 +31,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
   b.add_input<decl::Geometry>("Geometry");
   b.add_input<decl::Bool>("Selection").default_value(true).hide_value().field_on_all();
-  b.add_input<decl::String>("Name").is_attribute_name();
+  b.add_input<decl::String>("Name").is_attribute_name().hide_label();
 
   if (node != nullptr) {
     const NodeGeometryStoreNamedAttribute &storage = node_storage(*node);
@@ -54,7 +52,7 @@ static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeGeometryStoreNamedAttribute *data = MEM_cnew<NodeGeometryStoreNamedAttribute>(__func__);
+  NodeGeometryStoreNamedAttribute *data = MEM_callocN<NodeGeometryStoreNamedAttribute>(__func__);
   data->data_type = CD_PROP_FLOAT;
   data->domain = int8_t(AttrDomain::Point);
   node->storage = data;
@@ -91,6 +89,12 @@ static void node_geo_exec(GeoNodeExecParams params)
   }
   if (!bke::allow_procedural_attribute_access(name)) {
     params.error_message_add(NodeWarningType::Info, TIP_(bke::no_procedural_access_message));
+    params.set_output("Geometry", std::move(geometry_set));
+    return;
+  }
+  if (bke::attribute_name_is_anonymous(name)) {
+    params.error_message_add(NodeWarningType::Info,
+                             TIP_("Anonymous attributes can't be created here"));
     params.set_output("Geometry", std::move(geometry_set));
     return;
   }
@@ -164,7 +168,8 @@ static void node_geo_exec(GeoNodeExecParams params)
     const char *type_name = nullptr;
     RNA_enum_name_from_value(rna_enum_attribute_type_items, data_type, &type_name);
     const std::string message = fmt::format(
-        TIP_("Failed to write to attribute \"{}\" with domain \"{}\" and type \"{}\""),
+        fmt::runtime(
+            TIP_("Failed to write to attribute \"{}\" with domain \"{}\" and type \"{}\"")),
         name,
         TIP_(domain_name),
         TIP_(type_name));
@@ -196,27 +201,30 @@ static void node_rna(StructRNA *srna)
                     "Which domain to store the data in",
                     rna_enum_attribute_domain_items,
                     NOD_storage_enum_accessors(domain),
-                    int(AttrDomain::Point),
-                    enums::domain_experimental_grease_pencil_version3_fn);
+                    int(AttrDomain::Point));
 }
 
 static void node_register()
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(
-      &ntype, GEO_NODE_STORE_NAMED_ATTRIBUTE, "Store Named Attribute", NODE_CLASS_ATTRIBUTE);
-  node_type_storage(&ntype,
-                    "NodeGeometryStoreNamedAttribute",
-                    node_free_standard_storage,
-                    node_copy_standard_storage);
-  blender::bke::node_type_size(&ntype, 140, 100, 700);
+  geo_node_type_base(&ntype, "GeometryNodeStoreNamedAttribute", GEO_NODE_STORE_NAMED_ATTRIBUTE);
+  ntype.ui_name = "Store Named Attribute";
+  ntype.ui_description =
+      "Store the result of a field on a geometry as an attribute with the specified name";
+  ntype.enum_name_legacy = "STORE_NAMED_ATTRIBUTE";
+  ntype.nclass = NODE_CLASS_ATTRIBUTE;
+  blender::bke::node_type_storage(ntype,
+                                  "NodeGeometryStoreNamedAttribute",
+                                  node_free_standard_storage,
+                                  node_copy_standard_storage);
+  blender::bke::node_type_size(ntype, 140, 100, 700);
   ntype.initfunc = node_init;
   ntype.declare = node_declare;
   ntype.gather_link_search_ops = node_gather_link_searches;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.draw_buttons = node_layout;
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

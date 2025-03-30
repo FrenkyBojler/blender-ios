@@ -11,7 +11,6 @@
 #include "BLI_span.hh"
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
-#include "BLI_vector_set.hh"
 
 #include "DNA_defaults.h"
 #include "DNA_modifier_types.h"
@@ -37,12 +36,10 @@
 #include "WM_types.hh"
 
 #include "RNA_access.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "MOD_grease_pencil_util.hh"
 #include "MOD_ui_common.hh"
-
-#include <iostream>
 
 namespace blender {
 
@@ -134,7 +131,7 @@ struct FrameRange {
  * and after the interval. The extra keys are needed when frames are held at the beginning or when
  * reversing the direction.
  */
-static const IndexRange find_key_range(const Span<int> sorted_keys, const FrameRange &frame_range)
+static IndexRange find_key_range(const Span<int> sorted_keys, const FrameRange &frame_range)
 {
   IndexRange result = sorted_keys.index_range();
   for (const int i : result.index_range()) {
@@ -248,12 +245,12 @@ static void insert_keys_forward(const TimeMapping &mapping,
   const int offset = gp_dst_range.sfra - gp_src_range.sfra;
   for (const int i : sorted_keys.index_range()) {
     const int gp_key = sorted_keys[i];
-    const int gp_start_key = std::max(gp_key, gp_src_range.sfra);
-    if (gp_start_key > gp_src_range.efra) {
+    const int gp_insert_key = std::max(gp_key, gp_src_range.sfra);
+    if (gp_insert_key > gp_src_range.efra) {
       continue;
     }
 
-    const int scene_key = mapping.scene_frame_after_local_frame(gp_key + offset);
+    const int scene_key = mapping.scene_frame_after_local_frame(gp_insert_key + offset);
     dst_frames.add_overwrite(scene_key, frames.lookup(gp_key));
   }
 }
@@ -532,7 +529,7 @@ static void panel_draw(const bContext *C, Panel *panel)
 
   uiLayoutSetPropSep(layout, true);
 
-  uiItemR(layout, ptr, "mode", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(layout, ptr, "mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   col = uiLayoutColumn(layout, false);
 
@@ -545,7 +542,7 @@ static void panel_draw(const bContext *C, Panel *panel)
 
   row = uiLayoutRow(layout, false);
   uiLayoutSetActive(row, !use_fixed_offset);
-  uiItemR(row, ptr, "use_keep_loop", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(row, ptr, "use_keep_loop", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   if (mode == MOD_GREASE_PENCIL_TIME_MODE_CHAIN) {
     row = uiLayoutRow(layout, false);
@@ -583,16 +580,17 @@ static void panel_draw(const bContext *C, Panel *panel)
                        "DOWN");
 
     if (tmd->segments().index_range().contains(tmd->segment_active_index)) {
-      PointerRNA segment_ptr = RNA_pointer_create(ptr->owner_id,
-                                                  &RNA_GreasePencilTimeModifierSegment,
-                                                  &tmd->segments()[tmd->segment_active_index]);
+      PointerRNA segment_ptr = RNA_pointer_create_discrete(
+          ptr->owner_id,
+          &RNA_GreasePencilTimeModifierSegment,
+          &tmd->segments()[tmd->segment_active_index]);
 
       sub = uiLayoutColumn(layout, true);
-      uiItemR(sub, &segment_ptr, "segment_mode", UI_ITEM_NONE, nullptr, ICON_NONE);
+      uiItemR(sub, &segment_ptr, "segment_mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
       sub = uiLayoutColumn(layout, true);
-      uiItemR(sub, &segment_ptr, "segment_start", UI_ITEM_NONE, nullptr, ICON_NONE);
-      uiItemR(sub, &segment_ptr, "segment_end", UI_ITEM_NONE, nullptr, ICON_NONE);
-      uiItemR(sub, &segment_ptr, "segment_repeat", UI_ITEM_NONE, nullptr, ICON_NONE);
+      uiItemR(sub, &segment_ptr, "segment_start", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      uiItemR(sub, &segment_ptr, "segment_end", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      uiItemR(sub, &segment_ptr, "segment_repeat", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     }
   }
 
@@ -601,7 +599,7 @@ static void panel_draw(const bContext *C, Panel *panel)
   if (uiLayout *header = custom_range_panel_layout.header) {
     uiLayoutSetPropSep(header, false);
     uiLayoutSetActive(header, use_custom_range);
-    uiItemR(header, ptr, "use_custom_frame_range", UI_ITEM_NONE, nullptr, ICON_NONE);
+    uiItemR(header, ptr, "use_custom_frame_range", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
   if (uiLayout *body = custom_range_panel_layout.body) {
     uiLayoutSetPropSep(body, true);
@@ -613,7 +611,7 @@ static void panel_draw(const bContext *C, Panel *panel)
   }
 
   if (uiLayout *influence_panel = uiLayoutPanelProp(
-          C, layout, ptr, "open_influence_panel", "Influence"))
+          C, layout, ptr, "open_influence_panel", IFACE_("Influence")))
   {
     modifier::greasepencil::draw_layer_filter_settings(C, influence_panel, ptr);
   }
@@ -640,8 +638,7 @@ static void panel_register(ARegionType *region_type)
 {
   modifier_panel_register(region_type, eModifierType_GreasePencilTime, panel_draw);
 
-  uiListType *list_type = static_cast<uiListType *>(
-      MEM_callocN(sizeof(uiListType), "Grease Pencil Time modifier segments"));
+  uiListType *list_type = MEM_callocN<uiListType>("Grease Pencil Time modifier segments");
   STRNCPY(list_type->idname, "MOD_UL_grease_pencil_time_modifier_segments");
   list_type->draw_item = segment_list_item_draw;
   WM_uilisttype_add(list_type);
@@ -664,7 +661,8 @@ static void blend_read(BlendDataReader *reader, ModifierData *md)
 
   modifier::greasepencil::read_influence_data(reader, &tmd->influence);
 
-  BLO_read_data_address(reader, &tmd->segments_array);
+  BLO_read_struct_array(
+      reader, GreasePencilTimeModifierSegment, tmd->segments_num, &tmd->segments_array);
 }
 
 }  // namespace blender

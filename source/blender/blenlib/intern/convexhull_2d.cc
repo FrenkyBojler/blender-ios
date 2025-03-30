@@ -13,12 +13,14 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_bounds.hh"
+#include "BLI_bounds_types.hh"
 #include "BLI_convexhull_2d.h"
 #include "BLI_math_vector.h"
+#include "BLI_math_vector.hh"
+#include "BLI_math_vector_types.hh"
 #include "BLI_utildefines.h"
 
-#include "BLI_strict_flags.h" /* Keep last. */
+#include "BLI_strict_flags.h" /* IWYU pragma: keep. Keep last. */
 
 /**
  * Assert the optimized bounds match a brute force check,
@@ -30,7 +32,7 @@
  * Assert that the angles the iterator is looping over are in order.
  * This works as a general rule however it can fail for large near co-linear edges.
  * Even though the hull is convex, the angles calculated from the edges may not consistently
- * wind in in the same direction. Even when it does occur the angle discrepancy is so small
+ * wind in the same direction. Even when it does occur the angle discrepancy is so small
  * that it can be safely ignored.
  */
 // #define USE_ANGLE_ITER_ORDER_ASSERT
@@ -128,7 +130,7 @@ static int convexhull_2d_sorted(const float (*points)[2], const int points_num, 
   i = minmax;
   while (++i <= maxmin) {
     /* The lower line joins `points[minmin]` with `points[maxmin]`. */
-    if (is_left(points[minmin], points[maxmin], points[i]) >= 0 && i < maxmin) {
+    if ((i < maxmin) && (is_left(points[minmin], points[maxmin], points[i]) >= 0)) {
       continue; /* Ignore `points[i]` above or on the lower line. */
     }
 
@@ -152,7 +154,7 @@ static int convexhull_2d_sorted(const float (*points)[2], const int points_num, 
   i = maxmin;
   while (--i >= minmax) {
     /* The upper line joins `points[maxmax]` with `points[minmax]`. */
-    if (is_left(points[maxmax], points[minmax], points[i]) >= 0 && i > minmax) {
+    if ((i > minmax) && (is_left(points[maxmax], points[minmax], points[i]) >= 0)) {
       continue; /* Ignore points[i] below or on the upper line. */
     }
 
@@ -189,9 +191,8 @@ int BLI_convexhull_2d(const float (*points)[2], const int points_num, int r_poin
     }
     return points_num;
   }
-  int *points_map = static_cast<int *>(MEM_mallocN(sizeof(int) * size_t(points_num), __func__));
-  float(*points_sort)[2] = static_cast<float(*)[2]>(
-      MEM_mallocN(sizeof(*points_sort) * size_t(points_num), __func__));
+  int *points_map = MEM_malloc_arrayN<int>(size_t(points_num), __func__);
+  float(*points_sort)[2] = MEM_malloc_arrayN<float[2]>(size_t(points_num), __func__);
 
   for (int i = 0; i < points_num; i++) {
     points_map[i] = i;
@@ -481,7 +482,6 @@ static HullAngleIter convexhull_2d_angle_iter_init(const float (*points_hull)[2]
    * has a `sin` of 1.0 (which must always come first). */
   for (int axis = 0; axis < 2; axis++) {
     for (int i = 0; i < 2; i++) {
-      int count = 0;
       const int i_orig = hiter.axis[axis][i].index;
       int i_curr = i_orig, i_prev;
       /* Prevent an eternal loop (incredibly unlikely).
@@ -503,7 +503,6 @@ static HullAngleIter convexhull_2d_angle_iter_init(const float (*points_hull)[2]
         }
         i_curr = i_prev;
         hiter.axis[axis][i].index = i_curr;
-        count++;
       }
     }
   }
@@ -638,7 +637,7 @@ static float convexhull_aabb_fit_hull_2d(const float (*points_hull)[2], int poin
     convexhull_2d_angle_iter_step(hull_iter);
   }
 
-  const float angle = (area_best != FLT_MAX) ? float(atan2(sincos_best[0], sincos_best[1])) : 0.0f;
+  const float angle = (area_best != FLT_MAX) ? atan2(sincos_best[0], sincos_best[1]) : 0.0f;
 
 #if defined(USE_BRUTE_FORCE_ASSERT) && !defined(NDEBUG)
   {
@@ -659,14 +658,12 @@ float BLI_convexhull_aabb_fit_points_2d(const float (*points)[2], int points_num
   BLI_assert(points_num >= 0);
   float angle = 0.0f;
 
-  int *index_map = static_cast<int *>(
-      MEM_mallocN(sizeof(*index_map) * size_t(points_num), __func__));
+  int *index_map = MEM_malloc_arrayN<int>(size_t(points_num), __func__);
 
   int points_hull_num = BLI_convexhull_2d(points, points_num, index_map);
 
   if (points_hull_num > 1) {
-    float(*points_hull)[2] = static_cast<float(*)[2]>(
-        MEM_mallocN(sizeof(*points_hull) * size_t(points_hull_num), __func__));
+    float(*points_hull)[2] = MEM_malloc_arrayN<float[2]>(size_t(points_hull_num), __func__);
     for (int j = 0; j < points_hull_num; j++) {
       copy_v2_v2(points_hull[j], points[index_map[j]]);
     }

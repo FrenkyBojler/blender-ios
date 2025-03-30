@@ -18,6 +18,7 @@ struct Main;
 struct Material;
 struct bNode;
 struct bNodeTree;
+struct ReportList;
 
 namespace blender::io::usd {
 
@@ -51,6 +52,15 @@ struct NodePlacementContext {
         vertical_step(in_vertical_step)
   {
   }
+};
+
+/* Helper struct which carries an assortment of optional
+ * information that is sometimes required when linking
+ * nodes together. */
+struct ExtraLinkInfo {
+  bool is_color_corrected = false;
+
+  float opacity_threshold = 0.0f;
 };
 
 /* Converts USD materials to Blender representation. */
@@ -87,7 +97,10 @@ class USDMaterialReader {
  public:
   USDMaterialReader(const USDImportParams &params, Main *bmain);
 
-  Material *add_material(const pxr::UsdShadeMaterial &usd_material) const;
+  Material *add_material(const pxr::UsdShadeMaterial &usd_material,
+                         bool read_usd_preview = true) const;
+
+  void import_usd_preview(Material *mtl, const pxr::UsdShadeMaterial &usd_material) const;
 
   /** Get the wmJobWorkerStatus-provided `reports` list pointer, to use with the BKE_report API. */
   ReportList *reports() const
@@ -97,11 +110,15 @@ class USDMaterialReader {
 
  protected:
   /** Create the Principled BSDF shader node network. */
-  void import_usd_preview(Material *mtl, const pxr::UsdShadeShader &usd_shader) const;
+  void import_usd_preview_nodes(Material *mtl, const pxr::UsdShadeShader &usd_shader) const;
 
   void set_principled_node_inputs(bNode *principled_node,
                                   bNodeTree *ntree,
                                   const pxr::UsdShadeShader &usd_shader) const;
+
+  bool set_displacement_node_inputs(bNodeTree *ntree,
+                                    bNode *output,
+                                    const pxr::UsdShadeShader &usd_shader) const;
 
   /** Convert the given USD shader input to an input on the given Blender node. */
   bool set_node_input(const pxr::UsdShadeInput &usd_input,
@@ -110,7 +127,7 @@ class USDMaterialReader {
                       bNodeTree *ntree,
                       int column,
                       NodePlacementContext *r_ctx,
-                      bool is_color_corrected) const;
+                      const ExtraLinkInfo &extra = {}) const;
 
   /**
    * Follow the connected source of the USD input to create corresponding inputs
@@ -122,7 +139,7 @@ class USDMaterialReader {
                          bNodeTree *ntree,
                          int column,
                          NodePlacementContext *r_ctx,
-                         bool is_color_corrected = false) const;
+                         const ExtraLinkInfo &extra = {}) const;
 
   void convert_usd_uv_texture(const pxr::UsdShadeShader &usd_shader,
                               const pxr::TfToken &usd_source_name,
@@ -131,7 +148,7 @@ class USDMaterialReader {
                               bNodeTree *ntree,
                               int column,
                               NodePlacementContext *r_ctx,
-                              bool is_color_corrected = false) const;
+                              const ExtraLinkInfo &extra = {}) const;
 
   void convert_usd_transform_2d(const pxr::UsdShadeShader &usd_shader,
                                 bNode *dest_node,
@@ -146,7 +163,7 @@ class USDMaterialReader {
    */
   void load_tex_image(const pxr::UsdShadeShader &usd_shader,
                       bNode *tex_image,
-                      bool is_color_corrected = false) const;
+                      const ExtraLinkInfo &extra = {}) const;
 
   /**
    * This function creates a Blender UV Map node, under the simplifying assumption that
@@ -171,7 +188,7 @@ class USDMaterialReader {
  * might be modified to be a valid USD identifier, to match material
  * names in the imported USD.
  */
-void build_material_map(const Main *bmain, blender::Map<std::string, Material *> *r_mat_map);
+void build_material_map(const Main *bmain, blender::Map<std::string, Material *> &r_mat_map);
 
 /**
  * Returns an existing Blender material that corresponds to the USD material with the given path.
@@ -180,16 +197,15 @@ void build_material_map(const Main *bmain, blender::Map<std::string, Material *>
  * \param mat_map: Map a material name to a Blender material.  Note that the name key
  * might be the Blender material name modified to be a valid USD identifier,
  * to match the material names in the imported USD.
- * \param usd_path_to_mat_name: Map a USD material path to the imported Blender material name.
+ * \param usd_path_to_mat: Map a USD material path to the imported Blender material.
  *
- * The usd_path_to_mat_name is needed to determine the name of the Blender
+ * The usd_path_to_mat is needed to determine the name of the Blender
  * material imported from a USD path in the case when a unique name was generated
  * for the material due to a name collision.
  */
-Material *find_existing_material(
-    const pxr::SdfPath &usd_mat_path,
-    const USDImportParams &params,
-    const blender::Map<std::string, Material *> &mat_map,
-    const blender::Map<std::string, std::string> &usd_path_to_mat_name);
+Material *find_existing_material(const pxr::SdfPath &usd_mat_path,
+                                 const USDImportParams &params,
+                                 const blender::Map<std::string, Material *> &mat_map,
+                                 const blender::Map<pxr::SdfPath, Material *> &usd_path_to_mat);
 
 }  // namespace blender::io::usd

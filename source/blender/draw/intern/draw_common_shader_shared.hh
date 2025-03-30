@@ -6,6 +6,8 @@
  * \ingroup draw
  */
 
+#pragma once
+
 #ifndef GPU_SHADER
 #  include "GPU_shader_shared_utils.hh"
 
@@ -115,6 +117,8 @@ struct GlobalsUboStorage {
   float4 color_mball_stiffness_select;
 
   float4 color_current_frame;
+  float4 color_before_frame;
+  float4 color_after_frame;
 
   float4 color_grid;
   float4 color_grid_emphasis;
@@ -137,7 +141,10 @@ struct GlobalsUboStorage {
   float size_checker;
   float size_vertex_gpencil;
   float fresnel_mix_edit;
-  float _pad1, _pad2, _pad3;
+
+  bool32_t backface_culling;
+
+  float _pad1, _pad2;
 };
 BLI_STATIC_ASSERT_ALIGN(GlobalsUboStorage, 16)
 
@@ -228,6 +235,8 @@ BLI_STATIC_ASSERT_ALIGN(GlobalsUboStorage, 16)
 #  define colorMballStiffness globalsBlock.color_mball_stiffness
 #  define colorMballStiffnessSelect globalsBlock.color_mball_stiffness_select
 #  define colorCurrentFrame globalsBlock.color_current_frame
+#  define colorBeforeFrame globalsBlock.color_before_frame
+#  define colorAfterFrame globalsBlock.color_after_frame
 #  define colorGrid globalsBlock.color_grid
 #  define colorGridEmphasis globalsBlock.color_grid_emphasis
 #  define colorGridAxisX globalsBlock.color_grid_axis_x
@@ -236,8 +245,8 @@ BLI_STATIC_ASSERT_ALIGN(GlobalsUboStorage, 16)
 #  define colorFaceBack globalsBlock.color_face_back
 #  define colorFaceFront globalsBlock.color_face_front
 #  define colorUVShadow globalsBlock.color_uv_shadow
-#  define sizeViewport globalsBlock.size_viewport.xy
-#  define sizeViewportInv globalsBlock.size_viewport.zw
+#  define sizeViewport vec2(globalsBlock.size_viewport.xy)
+#  define sizeViewportInv vec2(globalsBlock.size_viewport.zw)
 #  define sizePixel globalsBlock.size_pixel
 #  define pixelFac globalsBlock.pixel_fac
 #  define sizeObjectCenter globalsBlock.size_object_center

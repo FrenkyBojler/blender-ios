@@ -11,15 +11,15 @@
 
 #  include <algorithm>
 #  include <fstream>
+#  include <functional>
 #  include <iostream>
 #  include <memory>
+#  include <numeric>
 
-#  include "BLI_allocator.hh"
 #  include "BLI_array.hh"
 #  include "BLI_assert.h"
 #  include "BLI_delaunay_2d.hh"
-#  include "BLI_hash.hh"
-#  include "BLI_kdopbvh.h"
+#  include "BLI_kdopbvh.hh"
 #  include "BLI_map.hh"
 #  include "BLI_math_geom.h"
 #  include "BLI_math_matrix.h"
@@ -40,6 +40,10 @@
 #  include "BLI_mesh_intersect.hh"
 
 // #  define PERFDEBUG
+
+#  ifdef _WIN_32
+#    include "BLI_fileops.h"
+#  endif
 
 namespace blender::meshintersect {
 
@@ -945,7 +949,7 @@ class CoplanarClusterInfo {
     return tri_cluster_[t];
   }
 
-  int add_cluster(CoplanarCluster cl)
+  int add_cluster(const CoplanarCluster &cl)
   {
     int c_index = clusters_.append_and_get_index(cl);
     for (int t : cl) {
@@ -2028,8 +2032,8 @@ static Array<Face *> polyfill_triangulate_poly(Face *f, IMeshArena *arena)
   uint(*tris)[3];
   const int totfilltri = flen - 2;
   /* Prepare projected vertices and array to receive triangles in tessellation. */
-  tris = static_cast<uint(*)[3]>(MEM_malloc_arrayN(totfilltri, sizeof(*tris), __func__));
-  projverts = static_cast<float(*)[2]>(MEM_malloc_arrayN(flen, sizeof(*projverts), __func__));
+  tris = MEM_malloc_arrayN<uint[3]>(size_t(totfilltri), __func__);
+  projverts = MEM_malloc_arrayN<float[2]>(size_t(flen), __func__);
   axis_dominant_v3_to_m3_negate(axis_mat, no);
   for (int j = 0; j < flen; ++j) {
     const double3 &dco = (*f)[j]->co;
@@ -2310,7 +2314,7 @@ static bool bvhtreeverlap_cmp(const BVHTreeOverlap &a, const BVHTreeOverlap &b)
   if (a.indexA < b.indexA) {
     return true;
   }
-  if ((a.indexA == b.indexA) & (a.indexB < b.indexB)) {
+  if ((a.indexA == b.indexA) && (a.indexB < b.indexB)) {
     return true;
   }
   return false;
@@ -3104,10 +3108,15 @@ void write_obj_mesh(IMesh &m, const std::string &objname)
    * This is just for developer debugging anyway,
    * and should never be called in production Blender. */
 #  ifdef _WIN_32
-  const char *objdir = BLI_getenv("HOME");
+  const char *objdir = BLI_dir_home();
+  if (objdir == nullptr) {
+    std::cout << "Could not access home directory\n";
+    return;
+  }
 #  else
   const char *objdir = "/tmp/";
 #  endif
+
   if (m.face_size() == 0) {
     return;
   }

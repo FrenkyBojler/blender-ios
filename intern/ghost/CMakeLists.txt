@@ -4,7 +4,7 @@
 
 set(INC
   PUBLIC .
-  ../../source/blender/imbuf
+  ../guardedalloc
 )
 
 set(INC_SYS
@@ -72,6 +72,8 @@ set(SRC
 set(LIB
   PRIVATE bf::blenlib
   PRIVATE bf::dna
+  PRIVATE bf::gpu
+  PRIVATE bf::imbuf
   PRIVATE bf::intern::clog
 )
 
@@ -90,8 +92,7 @@ if(WITH_OPENGL_BACKEND)
 endif()
 
 if(WITH_VULKAN_BACKEND)
-
-  if(APPLE)
+  if(WITH_VULKAN_MOLTENVK)
     list(APPEND INC_SYS
       PUBLIC ${MOLTENVK_INCLUDE_DIRS}
     )
@@ -106,7 +107,9 @@ if(WITH_VULKAN_BACKEND)
 
     intern/GHOST_ContextVK.hh
   )
-
+  list(APPEND INC
+    ../../extern/vulkan_memory_allocator/
+  )
   list(APPEND INC_SYS
     PUBLIC ${VULKAN_INCLUDE_DIRS}
   )
@@ -170,16 +173,9 @@ elseif(WITH_GHOST_SDL)
   list(APPEND INC_SYS
     ${SDL_INCLUDE_DIR}
   )
-  if(WITH_SDL_DYNLOAD)
-    list(APPEND LIB
-      extern_sdlew
-    )
-  else()
-    list(APPEND LIB
-      ${SDL_LIBRARY}
-    )
-  endif()
-
+  list(APPEND LIB
+    ${SDL_LIBRARY}
+  )
 elseif(APPLE AND NOT WITH_GHOST_X11)
   list(APPEND SRC
     intern/GHOST_DisplayManagerCocoa.mm
@@ -190,12 +186,6 @@ elseif(APPLE AND NOT WITH_GHOST_X11)
     intern/GHOST_SystemCocoa.hh
     intern/GHOST_WindowCocoa.hh
     intern/GHOST_WindowViewCocoa.hh
-  )
-
-  list(APPEND SRC
-    intern/GHOST_ContextCGL.mm
-
-    intern/GHOST_ContextCGL.hh
   )
 
   if(WITH_INPUT_NDOF)
@@ -442,7 +432,7 @@ elseif(WITH_GHOST_X11 OR WITH_GHOST_WAYLAND)
     )
     # Tablet.
     generate_protocol_bindings(
-      "${WAYLAND_PROTOCOLS_DIR}/unstable/tablet/tablet-unstable-v2.xml"
+      "${WAYLAND_PROTOCOLS_DIR}/stable/tablet/tablet-v2.xml"
     )
     # Primary-selection.
     generate_protocol_bindings(
@@ -539,6 +529,16 @@ if(UNIX AND NOT APPLE)
 endif()
 
 if(APPLE)
+  if(WITH_METAL_BACKEND)
+    list(APPEND SRC
+      intern/GHOST_ContextCGL.mm
+
+      intern/GHOST_ContextCGL.hh
+    )
+  endif()
+endif()
+
+if(APPLE)
   list(APPEND SRC
     intern/GHOST_SystemPathsCocoa.hh
     intern/GHOST_SystemPathsCocoa.mm
@@ -603,7 +603,19 @@ if(WITH_XR_OPENXR)
     ${XR_OPENXR_SDK_LIBRARIES}
   )
 
-  set(XR_PLATFORM_DEFINES -DXR_USE_GRAPHICS_API_OPENGL)
+  set(XR_PLATFORM_DEFINES
+  )
+  if(WITH_OPENGL_BACKEND)
+    list(APPEND XR_PLATFORM_DEFINES -DXR_USE_GRAPHICS_API_OPENGL)
+  endif()
+  if(WITH_VULKAN_BACKEND)
+    list(APPEND XR_PLATFORM_DEFINES -DXR_USE_GRAPHICS_API_VULKAN)
+    list(APPEND SRC
+      intern/GHOST_XrGraphicsBindingVulkan.cc
+
+      intern/GHOST_XrGraphicsBindingVulkan.hh
+    )
+  endif()
 
   # Add compiler defines as required by the OpenXR specification.
   if(WIN32)

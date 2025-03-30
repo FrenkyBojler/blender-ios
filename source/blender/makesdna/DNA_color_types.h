@@ -155,6 +155,10 @@ typedef struct Histogram {
   float co[2][2];
 } Histogram;
 
+/* Multiplier to map YUV U,V range (+-0.436, +-0.615) to +-0.5 on both axes. */
+#define SCOPES_VEC_U_SCALE float(0.5f / 0.436f)
+#define SCOPES_VEC_V_SCALE float(0.5f / 0.615f)
+
 typedef struct Scopes {
   int ok;
   int sample_full;
@@ -205,6 +209,9 @@ typedef struct ColorManagedViewSettings {
   float exposure;
   /** Post-display gamma transform. */
   float gamma;
+  /** White balance parameters. */
+  float temperature;
+  float tint;
   /** Pre-display RGB curves transform. */
   struct CurveMapping *curve_mapping;
   void *_pad2;
@@ -223,4 +230,5 @@ typedef struct ColorManagedColorspaceSettings {
 enum {
   COLORMANAGE_VIEW_USE_CURVES = (1 << 0),
   COLORMANAGE_VIEW_USE_HDR = (1 << 1),
+  COLORMANAGE_VIEW_USE_WHITE_BALANCE = (1 << 2),
 };

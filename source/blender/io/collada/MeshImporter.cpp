@@ -6,31 +6,22 @@
  * \ingroup collada
  */
 
-#include <algorithm>
 #include <iostream>
-
-/* COLLADABU_ASSERT, may be able to remove later */
-#include "COLLADABUPlatform.h"
 
 #include "COLLADAFWMeshPrimitive.h"
 #include "COLLADAFWMeshVertexData.h"
 #include "COLLADAFWPolygons.h"
 
-#include "MEM_guardedalloc.h"
-
 #include "BKE_attribute.hh"
 #include "BKE_customdata.hh"
-#include "BKE_displist.h"
 #include "BKE_global.hh"
 #include "BKE_lib_id.hh"
-#include "BKE_material.h"
+#include "BKE_material.hh"
 #include "BKE_mesh.hh"
+#include "BKE_mesh_runtime.hh"
 #include "BKE_object.hh"
 
 #include "DNA_meshdata_types.h"
-
-#include "BLI_listbase.h"
-#include "BLI_string.h"
 
 #include "ArmatureImporter.h"
 #include "MeshImporter.h"
@@ -556,7 +547,7 @@ void MeshImporter::mesh_add_edges(Mesh *mesh, int len)
   totedge = mesh->edges_num + len;
 
   /* Update custom-data. */
-  CustomData_copy_layout(
+  CustomData_init_layout_from(
       &mesh->edge_data, &edge_data, CD_MASK_MESH.emask, CD_SET_DEFAULT, totedge);
   CustomData_copy_data(&mesh->edge_data, &edge_data, 0, 0, mesh->edges_num);
 
@@ -564,8 +555,11 @@ void MeshImporter::mesh_add_edges(Mesh *mesh, int len)
     CustomData_add_layer_named(&edge_data, CD_PROP_INT32_2D, CD_CONSTRUCT, totedge, ".edge_verts");
   }
 
-  CustomData_free(&mesh->edge_data, mesh->edges_num);
+  CustomData_free(&mesh->edge_data);
   mesh->edge_data = edge_data;
+
+  BKE_mesh_runtime_clear_cache(mesh);
+
   mesh->edges_num = totedge;
 }
 
@@ -641,6 +635,10 @@ void MeshImporter::read_polys(COLLADAFW::Mesh *collada_mesh,
     bool mp_has_faces = primitive_has_faces(mp);
 
     int collada_meshtype = mp->getPrimitiveType();
+
+    if (collada_meshtype == COLLADAFW::MeshPrimitive::LINES) {
+      continue; /* read the lines later after all the rest is done */
+    }
 
     /* Since we cannot set `poly->mat_nr` here, we store a portion of `mesh->mpoly` in Primitive.
      */
@@ -791,10 +789,6 @@ void MeshImporter::read_polys(COLLADAFW::Mesh *collada_mesh,
                 mesh->id.name,
                 invalid_loop_holes);
       }
-    }
-
-    else if (collada_meshtype == COLLADAFW::MeshPrimitive::LINES) {
-      continue; /* read the lines later after all the rest is done */
     }
 
     if (mp_has_faces) {
@@ -1126,7 +1120,7 @@ Object *MeshImporter::create_mesh_object(
 
 bool MeshImporter::write_geometry(const COLLADAFW::Geometry *geom)
 {
-
+  using namespace blender;
   if (geom->getType() != COLLADAFW::Geometry::GEO_TYPE_MESH) {
     /* TODO: report warning */
     fprintf(stderr, "Mesh type %s is not supported\n", bc_geomTypeToStr(geom->getType()));
@@ -1159,10 +1153,10 @@ bool MeshImporter::write_geometry(const COLLADAFW::Geometry *geom)
   blender::bke::mesh_calc_edges(*blender_mesh, false, false);
 
   /* We must apply custom normals after edges have been calculated, because
-   * BKE_mesh_set_custom_normals()'s internals expect mesh->medge to be populated
+   * bke::mesh_set_custom_normals()'s internals expect mesh->medge to be populated
    * and for the MLoops to have correct edge indices. */
   if (use_custom_normals && !loop_normals.is_empty()) {
-    /* BKE_mesh_set_custom_normals()'s internals also expect that each corner
+    /* bke::mesh_set_custom_normals()'s internals also expect that each corner
      * has a valid vertex index, which may not be the case due to the existing
      * logic in read_faces(). This check isn't necessary in the no-custom-normals
      * case because the invalid MLoops get stripped in a later step. */
@@ -1178,8 +1172,7 @@ bool MeshImporter::write_geometry(const COLLADAFW::Geometry *geom)
               int(loop_normals.size()));
     }
     else {
-      BKE_mesh_set_custom_normals(blender_mesh,
-                                  reinterpret_cast<float(*)[3]>(loop_normals.data()));
+      bke::mesh_set_custom_normals(*blender_mesh, loop_normals);
     }
   }
 

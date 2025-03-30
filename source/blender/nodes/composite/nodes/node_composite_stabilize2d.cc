@@ -23,7 +23,6 @@
 #include "BKE_movieclip.h"
 #include "BKE_tracking.h"
 
-#include "COM_algorithm_transform.hh"
 #include "COM_node_operation.hh"
 
 #include "node_composite_util.hh"
@@ -36,6 +35,7 @@ static void cmp_node_stabilize2d_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Color>("Image")
       .default_value({0.8f, 0.8f, 0.8f, 1.0f})
+      .compositor_realization_mode(CompositorInputRealizationMode::None)
       .compositor_domain_priority(0);
   b.add_output<decl::Color>("Image");
 }
@@ -56,26 +56,17 @@ static void node_composit_buts_stabilize2d(uiLayout *layout, bContext *C, Pointe
 {
   bNode *node = (bNode *)ptr->data;
 
-  uiTemplateID(layout,
-               C,
-               ptr,
-               "clip",
-               nullptr,
-               "CLIP_OT_open",
-               nullptr,
-               UI_TEMPLATE_ID_FILTER_ALL,
-               false,
-               nullptr);
+  uiTemplateID(layout, C, ptr, "clip", nullptr, "CLIP_OT_open", nullptr);
 
   if (!node->id) {
     return;
   }
 
   uiItemR(layout, ptr, "filter_type", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
-  uiItemR(layout, ptr, "invert", UI_ITEM_R_SPLIT_EMPTY_NAME, nullptr, ICON_NONE);
+  uiItemR(layout, ptr, "invert", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
 }
 
-using namespace blender::realtime_compositor;
+using namespace blender::compositor;
 
 class Stabilize2DOperation : public NodeOperation {
  public:
@@ -83,12 +74,12 @@ class Stabilize2DOperation : public NodeOperation {
 
   void execute() override
   {
-    Result &input = get_input("Image");
-    Result &output = get_result("Image");
+    const Result &input = this->get_input("Image");
+    Result &output = this->get_result("Image");
 
     MovieClip *movie_clip = get_movie_clip();
     if (input.is_single_value() || !movie_clip) {
-      input.pass_through(output);
+      output.share_data(input);
       return;
     }
 
@@ -108,20 +99,19 @@ class Stabilize2DOperation : public NodeOperation {
       transformation = math::invert(transformation);
     }
 
-    RealizationOptions realization_options = input.get_realization_options();
-    realization_options.interpolation = get_interpolation();
-
-    transform(context(), input, output, transformation, realization_options);
+    output.share_data(input);
+    output.transform(transformation);
+    output.get_realization_options().interpolation = this->get_interpolation();
   }
 
   Interpolation get_interpolation()
   {
-    switch (static_cast<CMPNodeStabilizeInterpolation>(bnode().custom1)) {
-      case CMP_NODE_STABILIZE_INTERPOLATION_NEAREST:
+    switch (static_cast<CMPNodeInterpolation>(bnode().custom1)) {
+      case CMP_NODE_INTERPOLATION_NEAREST:
         return Interpolation::Nearest;
-      case CMP_NODE_STABILIZE_INTERPOLATION_BILINEAR:
+      case CMP_NODE_INTERPOLATION_BILINEAR:
         return Interpolation::Bilinear;
-      case CMP_NODE_STABILIZE_INTERPOLATION_BICUBIC:
+      case CMP_NODE_INTERPOLATION_BICUBIC:
         return Interpolation::Bicubic;
     }
 
@@ -136,7 +126,7 @@ class Stabilize2DOperation : public NodeOperation {
 
   MovieClip *get_movie_clip()
   {
-    return (MovieClip *)bnode().id;
+    return reinterpret_cast<MovieClip *>(bnode().id);
   }
 };
 
@@ -151,13 +141,17 @@ void register_node_type_cmp_stabilize2d()
 {
   namespace file_ns = blender::nodes::node_composite_stabilize2d_cc;
 
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, CMP_NODE_STABILIZE2D, "Stabilize 2D", NODE_CLASS_DISTORT);
+  cmp_node_type_base(&ntype, "CompositorNodeStabilize", CMP_NODE_STABILIZE2D);
+  ntype.ui_name = "Stabilize 2D";
+  ntype.ui_description = "Stabilize footage using 2D stabilization motion tracking settings";
+  ntype.enum_name_legacy = "STABILIZE2D";
+  ntype.nclass = NODE_CLASS_DISTORT;
   ntype.declare = file_ns::cmp_node_stabilize2d_declare;
   ntype.draw_buttons = file_ns::node_composit_buts_stabilize2d;
   ntype.initfunc_api = file_ns::init;
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
 
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(ntype);
 }

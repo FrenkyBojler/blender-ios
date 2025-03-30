@@ -2,22 +2,13 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#pragma once
+
 #ifndef GPU_SHADER
-#  pragma once
-
 #  include "GPU_shader_shared_utils.hh"
-
-#  ifndef __cplusplus
-typedef struct gpMaterial gpMaterial;
-typedef struct gpLight gpLight;
-typedef enum gpMaterialFlag gpMaterialFlag;
-#    ifdef GP_LIGHT
-typedef enum gpLightType gpLightType;
-#    endif
-#  endif
 #endif
 
-enum gpMaterialFlag {
+enum gpMaterialFlag : uint32_t {
   GP_FLAG_NONE = 0u,
   GP_STROKE_ALIGNMENT_STROKE = 1u,
   GP_STROKE_ALIGNMENT_OBJECT = 2u,
@@ -39,7 +30,7 @@ enum gpMaterialFlag {
                    GP_FILL_GRADIENT_USE | GP_FILL_GRADIENT_RADIAL | GP_FILL_HOLDOUT),
 };
 
-enum gpLightType {
+enum gpLightType : uint32_t {
   GP_LIGHT_TYPE_POINT = 0u,
   GP_LIGHT_TYPE_SPOT = 1u,
   GP_LIGHT_TYPE_SUN = 2u,

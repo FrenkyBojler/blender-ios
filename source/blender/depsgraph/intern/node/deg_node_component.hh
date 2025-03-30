@@ -13,12 +13,8 @@
 #include "intern/node/deg_node_id.hh"
 #include "intern/node/deg_node_operation.hh"
 
-#include "BLI_string.h"
-#include "BLI_utildefines.h"
-
-#include "BKE_object.hh"
-
-#include "DNA_object_types.h"
+#include "BLI_map.hh"
+#include "BLI_vector.hh"
 
 struct ID;
 struct bPoseChannel;
@@ -41,19 +37,19 @@ struct ComponentNode : public Node {
     OperationIDKey(OperationCode opcode);
     OperationIDKey(OperationCode opcode, const char *name, int name_tag);
 
-    string identifier() const;
+    std::string identifier() const;
     bool operator==(const OperationIDKey &other) const;
     uint64_t hash() const;
   };
 
   /* Typedef for container of operations */
   ComponentNode();
-  ~ComponentNode();
+  ~ComponentNode() override;
 
   /** Initialize 'component' node - from pointer data given. */
   void init(const ID *id, const char *subdata) override;
 
-  virtual string identifier() const override;
+  std::string identifier() const override;
 
   /* Find an existing operation, if requested operation does not exist nullptr will be returned.
    * See #add_operation for the meaning and examples of #name and #name_tag.
@@ -103,10 +99,10 @@ struct ComponentNode : public Node {
 
   void clear_operations();
 
-  virtual void tag_update(Depsgraph *graph, eUpdateSource source) override;
+  void tag_update(Depsgraph *graph, eUpdateSource source) override;
 
-  virtual OperationNode *get_entry_operation() override;
-  virtual OperationNode *get_exit_operation() override;
+  OperationNode *get_entry_operation() override;
+  OperationNode *get_exit_operation() override;
 
   void finalize_build(Depsgraph *graph);
 
@@ -132,7 +128,7 @@ struct ComponentNode : public Node {
 
   /* Denotes whether copy-on-eval component is to be tagged when this component
    * is tagged for update. */
-  virtual bool need_tag_cow_before_update()
+  virtual bool need_tag_cow_before_update(const IDRecalcFlag /*tag*/)
   {
     return true;
   }
@@ -170,7 +166,7 @@ struct ComponentNode : public Node {
 #define DEG_COMPONENT_NODE_DECLARE_NO_COW_TAG_ON_UPDATE(name) \
   struct name##ComponentNode : public ComponentNode { \
     DEG_COMPONENT_NODE_DECLARE; \
-    virtual bool need_tag_cow_before_update() \
+    virtual bool need_tag_cow_before_update(const IDRecalcFlag /*tag*/) \
     { \
       return false; \
     } \
@@ -204,7 +200,6 @@ DEG_COMPONENT_NODE_DECLARE_NO_COW_TAG_ON_UPDATE(ObjectFromLayer);
 DEG_COMPONENT_NODE_DECLARE_NO_COW_TAG_ON_UPDATE(Hierarchy);
 DEG_COMPONENT_NODE_DECLARE_GENERIC(Instancing);
 DEG_COMPONENT_NODE_DECLARE_GENERIC(Synchronization);
-DEG_COMPONENT_NODE_DECLARE_GENERIC(Audio);
 DEG_COMPONENT_NODE_DECLARE_GENERIC(Armature);
 DEG_COMPONENT_NODE_DECLARE_GENERIC(GenericDatablock);
 DEG_COMPONENT_NODE_DECLARE_GENERIC(Scene);
@@ -216,7 +211,7 @@ DEG_COMPONENT_NODE_DECLARE_GENERIC(NTreeGeometryPreprocess);
 /* Bone Component */
 struct BoneComponentNode : public ComponentNode {
   /** Initialize 'bone component' node - from pointer data given. */
-  void init(const ID *id, const char *subdata);
+  void init(const ID *id, const char *subdata) override;
 
   struct bPoseChannel *pchan; /* the bone that this component represents */
 
@@ -226,7 +221,7 @@ struct BoneComponentNode : public ComponentNode {
 /* Eventually we would not tag parameters in all cases.
  * Support for this each ID needs to be added on an individual basis. */
 struct ParametersComponentNode : public ComponentNode {
-  virtual bool need_tag_cow_before_update() override
+  bool need_tag_cow_before_update(const IDRecalcFlag /*tag*/) override
   {
     if (ID_TYPE_SUPPORTS_PARAMS_WITHOUT_COW(owner->id_type)) {
       /* Disabled as this is not true for newly added objects, needs investigation. */
@@ -234,6 +229,18 @@ struct ParametersComponentNode : public ComponentNode {
       return false;
     }
     return true;
+  }
+
+  DEG_COMPONENT_NODE_DECLARE;
+};
+
+/* Audio component. */
+struct AudioComponentNode : public ComponentNode {
+  bool need_tag_cow_before_update(const IDRecalcFlag tag) override
+  {
+    /* Frame change doesn't require a copy of the scene, doing so can be a heavy operation
+     * especially when the collection contains many objects, see #104798. */
+    return (tag != ID_RECALC_FRAME_CHANGE);
   }
 
   DEG_COMPONENT_NODE_DECLARE;

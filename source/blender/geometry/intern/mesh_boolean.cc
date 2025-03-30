@@ -6,6 +6,7 @@
 
 #include "BKE_attribute.hh"
 #include "BKE_customdata.hh"
+#include "BKE_lib_id.hh"
 #include "BKE_mesh.hh"
 
 #include "BLI_alloca.h"
@@ -26,8 +27,6 @@
 #include "GEO_mesh_boolean.hh"
 
 #include "bmesh.hh"
-#include "bmesh_tools.hh"
-#include "tools/bmesh_boolean.hh"
 #include "tools/bmesh_intersect.hh"
 
 namespace blender::geometry::boolean {
@@ -106,10 +105,10 @@ class MeshesToIMeshInfo {
   int input_mesh_for_imesh_vert(int imesh_v) const;
   int input_mesh_for_imesh_edge(int imesh_e) const;
   int input_mesh_for_imesh_face(int imesh_f) const;
-  const IndexRange input_face_for_orig_index(int orig_index,
-                                             const Mesh **r_orig_mesh,
-                                             int *r_orig_mesh_index,
-                                             int *r_index_in_orig_mesh) const;
+  IndexRange input_face_for_orig_index(int orig_index,
+                                       const Mesh **r_orig_mesh,
+                                       int *r_orig_mesh_index,
+                                       int *r_index_in_orig_mesh) const;
   void input_mvert_for_orig_index(int orig_index,
                                   const Mesh **r_orig_mesh,
                                   int *r_index_in_orig_mesh) const;
@@ -162,10 +161,10 @@ int MeshesToIMeshInfo::input_mesh_for_imesh_face(int imesh_f) const
  * and also return the index of that `Mesh` in  `*r_orig_mesh_index`.
  * Finally, return the index of the corresponding face in that `Mesh`
  * in `*r_index_in_orig_mesh`. */
-const IndexRange MeshesToIMeshInfo::input_face_for_orig_index(int orig_index,
-                                                              const Mesh **r_orig_mesh,
-                                                              int *r_orig_mesh_index,
-                                                              int *r_index_in_orig_mesh) const
+IndexRange MeshesToIMeshInfo::input_face_for_orig_index(int orig_index,
+                                                        const Mesh **r_orig_mesh,
+                                                        int *r_orig_mesh_index,
+                                                        int *r_index_in_orig_mesh) const
 {
   int orig_mesh_index = input_mesh_for_imesh_face(orig_index);
   BLI_assert(0 <= orig_mesh_index && orig_mesh_index < meshes.size());
@@ -1074,7 +1073,7 @@ static Mesh *mesh_boolean_float(Span<const Mesh *> meshes,
   if (meshes.size() == 1) {
     /* The float solver doesn't do self union. Just return nullptr, which will
      * cause geometry nodes to leave the input as is. */
-    return BKE_mesh_copy_for_eval(meshes[0]);
+    return BKE_mesh_copy_for_eval(*meshes[0]);
   }
 
   Array<std::array<BMLoop *, 3>> looptris;
@@ -1122,7 +1121,7 @@ static Mesh *mesh_boolean_float(Span<const Mesh *> meshes,
     if (prev_result_mesh != nullptr) {
       /* Except in the first iteration, two_meshes[0] holds the intermediate
        * mesh result from the previous iteration. */
-      BKE_mesh_eval_delete(prev_result_mesh);
+      BKE_id_free(nullptr, prev_result_mesh);
     }
     if (i < meshes.size() - 2) {
       two_meshes[0] = result_i_mesh;

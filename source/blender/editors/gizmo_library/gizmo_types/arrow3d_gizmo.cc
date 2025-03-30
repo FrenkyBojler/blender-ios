@@ -17,6 +17,7 @@
  * - `matrix[2]` is the arrow direction (for all arrows).
  */
 
+#include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector_types.hh"
@@ -319,10 +320,10 @@ static int gizmo_arrow_test_select(bContext * /*C*/, wmGizmo *gz, const int mval
  * Calculate arrow offset independent from prop min value,
  * meaning the range will not be offset by min value first.
  */
-static int gizmo_arrow_modal(bContext *C,
-                             wmGizmo *gz,
-                             const wmEvent *event,
-                             eWM_GizmoFlagTweak tweak_flag)
+static wmOperatorStatus gizmo_arrow_modal(bContext *C,
+                                          wmGizmo *gz,
+                                          const wmEvent *event,
+                                          eWM_GizmoFlagTweak tweak_flag)
 {
   if (event->type != MOUSEMOVE) {
     return OPERATOR_RUNNING_MODAL;
@@ -420,7 +421,7 @@ static void gizmo_arrow_setup(wmGizmo *gz)
   arrow->data.range_fac = 1.0f;
 }
 
-static int gizmo_arrow_invoke(bContext * /*C*/, wmGizmo *gz, const wmEvent *event)
+static wmOperatorStatus gizmo_arrow_invoke(bContext * /*C*/, wmGizmo *gz, const wmEvent *event)
 {
   ArrowGizmo3D *arrow = (ArrowGizmo3D *)gz;
   GizmoInteraction *inter = static_cast<GizmoInteraction *>(
@@ -498,8 +499,8 @@ void ED_gizmo_arrow3d_set_ui_range(wmGizmo *gz, const float min, const float max
   ArrowGizmo3D *arrow = (ArrowGizmo3D *)gz;
 
   BLI_assert(min < max);
-  BLI_assert(!(WM_gizmo_target_property_is_valid(WM_gizmo_target_property_find(gz, "offset")) &&
-               "Make sure this function is called before WM_gizmo_target_property_def_rna"));
+  BLI_assert_msg(!WM_gizmo_target_property_is_valid(WM_gizmo_target_property_find(gz, "offset")),
+                 "Make sure this function is called before WM_gizmo_target_property_def_rna");
 
   arrow->data.range = max - min;
   arrow->data.min = min;
@@ -510,8 +511,8 @@ void ED_gizmo_arrow3d_set_ui_range(wmGizmo *gz, const float min, const float max
 void ED_gizmo_arrow3d_set_range_fac(wmGizmo *gz, const float range_fac)
 {
   ArrowGizmo3D *arrow = (ArrowGizmo3D *)gz;
-  BLI_assert(!(WM_gizmo_target_property_is_valid(WM_gizmo_target_property_find(gz, "offset")) &&
-               "Make sure this function is called before WM_gizmo_target_property_def_rna"));
+  BLI_assert_msg(!WM_gizmo_target_property_is_valid(WM_gizmo_target_property_find(gz, "offset")),
+                 "Make sure this function is called before WM_gizmo_target_property_def_rna");
 
   arrow->data.range_fac = range_fac;
 }

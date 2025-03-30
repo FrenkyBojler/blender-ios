@@ -15,6 +15,7 @@
 #include "BLI_bit_vector.hh"
 #include "BLI_bounds_types.hh"
 #include "BLI_implicit_sharing.hh"
+#include "BLI_kdopbvh.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_shared_cache.hh"
 #include "BLI_vector.hh"
@@ -22,14 +23,14 @@
 #include "DNA_customdata_types.h"
 
 struct BMEditMesh;
-struct BVHCache;
+struct BVHTree;
 struct Mesh;
 class ShrinkwrapBoundaryData;
 struct SubdivCCG;
 struct SubsurfRuntimeData;
 namespace blender::bke {
 struct EditMeshData;
-}
+}  // namespace blender::bke
 namespace blender::bke::bake {
 struct BakeMaterialsList;
 }
@@ -94,10 +95,26 @@ struct LooseEdgeCache : public LooseGeomCache {};
  */
 struct LooseVertCache : public LooseGeomCache {};
 
+struct TrianglesCache {
+  SharedCache<Array<int3>> data;
+  bool frozen = false;
+  bool dirty_while_frozen = false;
+
+  /** Delay applying dirty tags from #tag_dirty() until #unfreeze is called. */
+  void freeze();
+  /** Apply dirty tags from after #freeze, and make future dirty tags apply immediately. */
+  void unfreeze();
+  /** Call instead of `data.tag_dirty()`. */
+  void tag_dirty();
+};
+
 struct MeshRuntime {
-  /* Evaluated mesh for objects which do not have effective modifiers.
-   * This mesh is used as a result of modifier stack evaluation.
-   * Since modifier stack evaluation is threaded on object level we need some synchronization. */
+  /**
+   * "Evaluated" mesh owned by this mesh. Used for objects which don't have effective modifiers, so
+   * that the evaluated mesh can be shared between objects. Also stores the lazily created #Mesh
+   * for #BMesh and GPU subdivision mesh wrappers. Since this is accessed and set from multiple
+   * threads, access and use must be protected by the #eval_mutex lock.
+   */
   Mesh *mesh_eval = nullptr;
   std::mutex eval_mutex;
 
@@ -108,11 +125,16 @@ struct MeshRuntime {
   const ImplicitSharingInfo *face_offsets_sharing_info = nullptr;
 
   /**
-   * Storage of the edit mode mesh. If it exists, it generally has the most up-to-date
-   * information about the mesh.
+   * Storage of the edit mode BMesh with some extra data for quick access in edit mode.
+   * - For original (non-evaluated) meshes, when it exists, it generally has the most up-to-date
+   *   information about the mesh. That's because this is only allocated in edit mode.
+   * - For evaluated meshes, this just references the BMesh from an original object in edit mode.
+   *   Conceptually this is a weak pointer for evaluated meshes. In other words, it doesn't have
+   *   ownership over the BMesh, and using `shared_ptr` is just a convenient way to avoid copying
+   *   the whole struct and making sure the reference is valid.
    * \note When the object is available, the preferred access method is #BKE_editmesh_from_object.
    */
-  BMEditMesh *edit_mesh = nullptr;
+  std::shared_ptr<BMEditMesh> edit_mesh;
 
   /**
    * A cache of bounds shared between data-blocks with unchanged positions. When changing positions
@@ -133,12 +155,21 @@ struct MeshRuntime {
   void *batch_cache = nullptr;
 
   /** Cache for derived triangulation of the mesh, accessed with #Mesh::corner_tris(). */
-  SharedCache<Array<int3>> corner_tris_cache;
+  TrianglesCache corner_tris_cache;
   /** Cache for triangle to original face index map, accessed with #Mesh::corner_tri_faces(). */
   SharedCache<Array<int>> corner_tri_faces_cache;
 
-  /** Cache for BVH trees generated for the mesh. Defined in 'BKE_bvhutil.c' */
-  BVHCache *bvh_cache = nullptr;
+  SharedCache<std::unique_ptr<BVHTree, BVHTreeDeleter>> bvh_cache_verts;
+  SharedCache<std::unique_ptr<BVHTree, BVHTreeDeleter>> bvh_cache_edges;
+  SharedCache<std::unique_ptr<BVHTree, BVHTreeDeleter>> bvh_cache_faces;
+  SharedCache<std::unique_ptr<BVHTree, BVHTreeDeleter>> bvh_cache_corner_tris;
+  SharedCache<std::unique_ptr<BVHTree, BVHTreeDeleter>> bvh_cache_corner_tris_no_hidden;
+  SharedCache<std::unique_ptr<BVHTree, BVHTreeDeleter>> bvh_cache_loose_verts;
+  SharedCache<std::unique_ptr<BVHTree, BVHTreeDeleter>> bvh_cache_loose_verts_no_hidden;
+  SharedCache<std::unique_ptr<BVHTree, BVHTreeDeleter>> bvh_cache_loose_edges;
+  SharedCache<std::unique_ptr<BVHTree, BVHTreeDeleter>> bvh_cache_loose_edges_no_hidden;
+
+  SharedCache<std::optional<int>> max_material_index;
 
   /** Needed in case we need to lazily initialize the mesh. */
   CustomData_MeshMasks cd_mask_extra = {};
@@ -163,11 +194,6 @@ struct MeshRuntime {
 
   /** #eMeshWrapperType and others. */
   eMeshWrapperType wrapper_type = ME_WRAPPER_TYPE_MDATA;
-  /**
-   * A type mask from wrapper_type,
-   * in case there are differences in finalizing logic between types.
-   */
-  eMeshWrapperType wrapper_type_finalize = ME_WRAPPER_TYPE_MDATA;
 
   /**
    * Settings for lazily evaluating the subdivision on the CPU if needed. These are
