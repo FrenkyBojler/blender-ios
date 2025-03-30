@@ -172,6 +172,30 @@ inline Value parallel_reduce(IndexRange range,
 }
 
 template<typename Value, typename Function, typename Reduction>
+inline Value parallel_deterministic_reduce(IndexRange range,
+                                           int64_t grain_size,
+                                           const Value &identity,
+                                           const Function &function,
+                                           const Reduction &reduction)
+{
+#ifdef WITH_TBB
+  if (range.size() >= grain_size) {
+    lazy_threading::send_hint();
+    return tbb::parallel_deterministic_reduce(
+        tbb::blocked_range<int64_t>(range.first(), range.one_after_last(), grain_size),
+        identity,
+        [&](const tbb::blocked_range<int64_t> &subrange, const Value &ident) {
+          return function(IndexRange(subrange.begin(), subrange.size()), ident);
+        },
+        reduction);
+  }
+#else
+  UNUSED_VARS(grain_size, reduction);
+#endif
+  return function(range, identity);
+}
+
+template<typename Value, typename Function, typename Reduction>
 inline Value parallel_reduce_aligned(const IndexRange range,
                                      const int64_t grain_size,
                                      const int64_t alignment,

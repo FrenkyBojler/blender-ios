@@ -174,14 +174,29 @@ template<typename T> static T gather_mean(const VArray<T> &values, const Span<in
     return *value;
   }
 
-  T value(0);
+  using MeanAccumulator = std::pair<T, int>;
+  const auto join_accumulators = [](const MeanAccumulator a,
+                                    const MeanAccumulator b) -> MeanAccumulator {
+    return {(a.first + b.first) / (a.second + b.second), 1};
+  };
+
+  T value;
   devirtualize_varray(values, [&](const auto values) {
-    for (const int index : indices) {
-      value += values[index];
-    }
+    const auto accumulator = threading::parallel_deterministic_reduce<MeanAccumulator>(
+        indices.index_range(),
+        2048,
+        MeanAccumulator(T(), 0),
+        [&](const IndexRange range, MeanAccumulator other) -> MeanAccumulator {
+          T value(0);
+          for (const int i : indices.slice(range)) {
+            value += values[i];
+          }
+          return join_accumulators({value, int(range.size())}, other);
+        },
+        join_accumulators);
+    value = accumulator.first / accumulator.second;
   });
-  BLI_assert(!indices.is_empty());
-  return value / indices.size();
+  return value;
 }
 
 static float3 transform_with_uniform_scale(const float3 &position,
