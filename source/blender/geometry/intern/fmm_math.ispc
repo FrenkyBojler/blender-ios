@@ -190,7 +190,7 @@ export void distances_split(const uniform float positions_x[],
                                   streaming_load(&positions_z[index])};
         batch -= targets;
         batch *= batch;
-        distances[index + programIndex] = sqrt(batch.x + batch.y + batch.z) + offset;
+        distances[index + programIndex] = batch.x + batch.y + batch.z;
     }
 
     uniform float sufix_x[programCount];
@@ -206,9 +206,24 @@ export void distances_split(const uniform float positions_x[],
     varying float<3> sufix_batch = {sufix_x[programIndex], sufix_y[programIndex], sufix_z[programIndex]};
     sufix_batch -= targets;
     sufix_batch *= sufix_batch;
-    sufix_result[programIndex] = sqrt(sufix_batch.x + sufix_batch.y + sufix_batch.z) + offset;
+    sufix_result[programIndex] = sufix_batch.x + sufix_batch.y + sufix_batch.z;
 
     memcpy((uniform float * uniform)&distances[batch_count], &sufix_result[0], sizeof(uniform float) * (count - batch_count));
+}
+
+export void sqrt_n_add_single(float uniform values[], const uniform int count, const uniform float offset)
+{
+    const uniform int batch_count = (count / programCount) * programCount;
+    for (uniform int index = 0; index < batch_count; index += programCount) {
+        values[index + programIndex] = sqrt(streaming_load(&values[index])) + offset;
+    }
+
+    uniform float sufix[programCount];
+    memcpy(&sufix[0], &values[batch_count], sizeof(uniform float) * (count - batch_count));
+
+    sufix[programIndex] = sqrt(sufix[programIndex]) + offset;
+
+    memcpy(&values[batch_count], sufix, sizeof(uniform float) * (count - batch_count));
 }
 
 export uniform int predicate_indices_float_cmp(
@@ -684,11 +699,13 @@ export void parition_as_gather(
     scatter_ints(buffer + mapping_half, indices, values, 0, mapping_half);
 }
 
-export void parition_as_gather_back(
+export void parition_as_gather_front(
     uniform int values[],
     uniform int indices[],
     uniform int buffer[],
-    uniform int mapping_total)
+    const uniform int mapping_total,
+    const uniform int count,
+    const uniform int total_front_size)
 {
     assert(mapping_total % 2 == 0);
     const uniform int mapping_half = mapping_total / 2;
@@ -709,10 +726,11 @@ export void parition_as_gather_back(
     //   tr3++;
     // }
     // return;
+    
 
     gather_ints(values, indices, buffer, 0, mapping_half);
-
     scatter_ints(buffer, indices, values, mapping_half, mapping_half);
+    memmove(values, values + total_front_size, (count - total_front_size) * sizeof(uniform float));
 }
 
 // export void parition_as_gather_front_only(
@@ -747,7 +765,7 @@ export uniform int float_more_then_single_count(
     return reduce_add(batch_total) + rest_total;
 }
 
-static uniform int n_float_more_then_single(uniform int indices[],
+static uniform int n_float_less_then_or_equal_single(uniform int indices[],
                                             uniform float predicates[],
                                             const uniform float min_predicate_value,
                                             const uniform int predicates_start,
@@ -771,7 +789,7 @@ static uniform int n_float_more_then_single(uniform int indices[],
     }
     for (uniform int index = start_round_up; index < end_round_down; index += programCount) {
         if (!(streaming_load(&predicates[index]) < min_predicate_value)) {
-             iter += packed_store_active(&indices[iter], index + programIndex);
+             iter += packed_store_active2(&indices[iter], index + programIndex);
         }
     }
     for (uniform int index = end_round_down; index < predicates_start + predicates_count; index++) {
@@ -781,7 +799,7 @@ static uniform int n_float_more_then_single(uniform int indices[],
     return iter;
 }
 
-static uniform int n_float_less_then_or_equal_single(uniform int indices[],
+static uniform int n_float_more_then_single(uniform int indices[],
                                                      uniform float predicates[],
                                                      const uniform float min_predicate_value,
                                                      const uniform int predicates_start,
@@ -805,7 +823,7 @@ static uniform int n_float_less_then_or_equal_single(uniform int indices[],
     }
     for (uniform int index = start_round_up; index < end_round_down; index += programCount) {
         if ((streaming_load(&predicates[index]) < min_predicate_value)) {
-             iter += packed_store_active(&indices[iter], index + programIndex);
+             iter += packed_store_active2(&indices[iter], index + programIndex);
         }
     }
     for (uniform int index = end_round_down; index < predicates_start + predicates_count; index++) {
@@ -814,6 +832,34 @@ static uniform int n_float_less_then_or_equal_single(uniform int indices[],
     }
     return iter;
 }
+
+// export void replace_by_larger_if_smaller(
+//     uniform float predicates[],
+//     uniform int buffer[],
+//     uniform float min_predicate_value,
+//     uniform int count,
+//     uniform int  )
+// {
+//   uniform int tr1 = 0;
+//   for (uniform int index = 0; index < count - total_front_size; index++) {
+//     if ((predicates[index] < min_predicate_value)) {
+//       buffer[tr1] = index;
+//       tr1++;
+//     }
+//   }
+//   uniform int tr2 = 0;
+//   for (uniform int index = count - total_front_size; index < count; index++) {
+//     if (!(predicates[index] < min_predicate_value)) {
+//       buffer[tr1 + tr2] = index;
+//       tr2++;
+//     }
+//   }
+//   assert(tr1 == tr2);
+//   
+//   for (uniform int index = 0; index < tr1; index++) {
+//     predicates[buffer[index]] = predicates[buffer[tr1 + index]];
+//   }
+// }
 
 export uniform int predicate_partition_indices_float_cmp(
     uniform int indices[],
@@ -844,16 +890,16 @@ export uniform int predicate_partition_indices_float_cmp(
     
     
     
-    const uniform int front_to_move = n_float_more_then_single(indices,
-                                                               predicates,
-                                                               min_predicate_value,
-                                                               0,
-                                                               total_front_size);
-    const uniform int back_to_move = n_float_less_then_or_equal_single(indices + front_to_move,
-                                                                       predicates,
-                                                                       min_predicate_value,
-                                                                       total_front_size,
-                                                                       count - total_front_size);
+    const uniform int front_to_move = n_float_less_then_or_equal_single(indices,
+                                                                        predicates,
+                                                                        min_predicate_value,
+                                                                        0,
+                                                                        total_front_size);
+    const uniform int back_to_move = n_float_more_then_single(indices + front_to_move,
+                                                              predicates,
+                                                              min_predicate_value,
+                                                              total_front_size,
+                                                              count - total_front_size);
     // print("%, %: (%, %);\n", count, total_front_size, front_to_move, back_to_move); // 6, 4: (2, 8);
     assert(front_to_move == back_to_move);
     return front_to_move + back_to_move;

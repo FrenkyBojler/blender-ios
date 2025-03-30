@@ -26,7 +26,7 @@
 
 namespace blender::geometry::fmm {
 
-static FunctionRef<void(int, MutableSpan<float>)> powered_rcp_for_values(const int power_value)
+static FunctionRef<void(int, MutableSpan<float>)> powered_rcp_for_values_old(const int power_value)
 {
   switch (power_value) {
     case 0:
@@ -129,7 +129,7 @@ static FunctionRef<void(int, MutableSpan<float>)> powered_rcp_for_values(const i
   }
 }
 
-static FunctionRef<void(int, MutableSpan<float>)> powered_rcp_for_values_new(const int power_value)
+static FunctionRef<void(int, MutableSpan<float>)> powered_rcp_for_values(const int power_value)
 {
   switch (power_value) {
     case 0:
@@ -879,6 +879,10 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
 
   const FunctionRef<void(int, MutableSpan<float>)> distance_invertion = powered_rcp_for_values(power_value);
 
+  int total_checks = 0;
+  int total_skips = 0;
+  int total_no_gather = 0;
+
   {
     const int batch_size = sample_position.size();
 
@@ -963,9 +967,12 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
 
       const float joint_min_distance = src_joints_min_distance[joint_index];
       
-      const int total_next = ispc::float_more_then_single_count(batch_distances.data(), joint_min_distance, prefix_to_visit);
+      const int total_next = ispc::float_more_then_single_count(batch_distances.data(), math::square(joint_min_distance - offset_value), prefix_to_visit);
+
+      total_checks++;
 
       if (UNLIKELY(total_next == prefix_to_visit)) {
+        total_skips++;
         if (depth_i == total_depth - 1) {
           continue;
         }
@@ -973,6 +980,10 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
         joint_stack.extend_unchecked({joint_i * 2 + 1, joint_i * 2 + 0});
         prefix_to_visit_stack.extend_unchecked({prefix_to_visit, prefix_to_visit});
         continue;
+      }
+      
+      if (total_next == 0) {
+        total_no_gather++;
       }
 
       // ispc::IndicesStruct front_indices;
@@ -992,7 +1003,7 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
         pertition_mapping_total = ispc::predicate_partition_indices_float_cmp(partition.data(),
                                                                               batch_distances.data(),
                                                                               prefix_to_visit,
-                                                                              joint_min_distance,
+                                                                              math::square(joint_min_distance - offset_value),
                                                                               total_next);
         // ispc::predicate_revers_indices_float_cmp(partition.data(), batch_distances.data(), prefix_to_visit, joint_min_distance);
       }
@@ -1014,9 +1025,17 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
       // ispc::zip_if_larger_or_equal(batch_distances.cast<int>().data(), batch_distances.data(), prefix_to_visit, joint_min_distance);
       if (total_next > 0) {
         // ispc::parition_as_gather_front_only(batch_distances.cast<int>().data(), partition.data(), buffer.data(), pertition_mapping_total);
-        ispc::parition_as_gather_back(batch_distances.cast<int>().data(), partition.data(), buffer.data(), pertition_mapping_total);
+        // ispc::parition_as_gather(batch_distances.cast<int>().data(), partition.data(), buffer.data(), pertition_mapping_total);
+        // ispc::replace_by_larger_if_smaller(batch_distances.data(), buffer.data(), joint_min_distance, prefix_to_visit, total_next);
+        ispc::parition_as_gather_front(batch_distances.cast<int>().data(),
+                                       partition.data(),
+                                       buffer.data(),
+                                       pertition_mapping_total,
+                                       prefix_to_visit,
+                                       total_next);
       }
       
+      ispc::sqrt_n_add_single(batch_distances.data(), prefix_to_visit - total_next, offset_value);
       distance_invertion(power_value, batch_distances.drop_back(total_next));
 
       if (LIKELY(total_next > 0)) {
@@ -1159,6 +1178,8 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
       }
     }
   }
+
+  // printf("%d: %d, %d;\n", total_checks, total_skips, total_no_gather);
 
   // Vector<float, 0, GuardedAlignedAllocator<>> buffer;
   // 

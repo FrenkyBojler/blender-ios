@@ -91,13 +91,14 @@ extern "C" {
     extern int32_t gather_ints_buffer_segmented(int32_t * values, int32_t * indices, int32_t * buffer, int32_t count, struct IndicesStruct * more_or_equal, struct IndicesStruct * smaller);
     extern int32_t one_mul_add_n(float * values, float * factors, const float other, const int32_t count);
     extern void parition_as_gather(int32_t * values, int32_t * indices, int32_t * buffer, int32_t mapping_total);
-    extern void parition_as_gather_back(int32_t * values, int32_t * indices, int32_t * buffer, int32_t mapping_total);
+    extern void parition_as_gather_front(int32_t * values, int32_t * indices, int32_t * buffer, const int32_t mapping_total, const int32_t count, const int32_t total_front_size);
     extern int32_t partition_int_compare_float(int32_t * values, int32_t * buffer, const float * predicates, const int32_t count, const float min_predicate_value);
     extern int32_t predicate_indices_float_cmp(int32_t * indices, float * predicates, const int32_t count, const float min_predicate_value);
     extern int32_t predicate_partition_indices_float_cmp(int32_t * indices, float * predicates, const int32_t count, const float min_predicate_value, const int32_t total_front_size);
     extern int32_t predicate_revers_indices_float_cmp(int32_t * indices, float * predicates, const int32_t count, const float min_predicate_value);
     extern int32_t scatter_ints_buffer(int32_t * values, int32_t * indices, int32_t * buffer, int32_t count, int32_t front_self_range);
     extern void split_float3_to_3_float(const float xyz_values[][3], float * x_components, float * y_components, float * z_components, int32_t count);
+    extern void sqrt_n_add_single(float * values, const int32_t count, const float offset);
     extern int32_t zip_if_larger_or_equal(int32_t * values, const float * predicates, const int32_t count, const float min_predicate_value);
 #if defined(__cplusplus) && (! defined(__ISPC_NO_EXTERN_C) || !__ISPC_NO_EXTERN_C )
 } /* end extern C */
