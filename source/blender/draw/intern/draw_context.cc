@@ -35,6 +35,7 @@
 #include "BKE_main.hh"
 #include "BKE_mball.hh"
 #include "BKE_mesh.hh"
+#include "BKE_mesh_wrapper.hh"
 #include "BKE_modifier.hh"
 #include "BKE_object.hh"
 #include "BKE_object_types.hh"
@@ -367,6 +368,18 @@ bool DRW_object_is_visible_psys_in_active_context(const Object *object, const Pa
     }
   }
   return true;
+}
+
+template<> Mesh &DRW_object_get_data_for_drawing(const Object &object)
+{
+  /* For drawing we want either the base mesh if GPU subdivision is enabled, or the
+   * tessellated mesh if GPU subdivision is disabled. */
+  BLI_assert(object.type == OB_MESH);
+  Mesh &mesh = *static_cast<Mesh *>(object.data);
+  if (BKE_subsurf_modifier_has_gpu_subdiv(&mesh)) {
+    return mesh;
+  }
+  return *BKE_mesh_wrapper_ensure_subdivision(&mesh);
 }
 
 /** \} */
@@ -932,7 +945,7 @@ static void drw_callbacks_pre_scene(DRWContext &draw_ctx)
     DRW_submission_end();
   }
 
-  /* State is reset later at the begining of `draw_ctx.engines_draw_scene()`. */
+  /* State is reset later at the beginning of `draw_ctx.engines_draw_scene()`. */
 }
 
 static void drw_callbacks_post_scene(DRWContext &draw_ctx)
@@ -1687,6 +1700,10 @@ void DRW_draw_select_loop(Depsgraph *depsgraph,
   draw_ctx.engines_init_and_sync([&](DupliCacheManager &duplis, ExtractionGraph &extraction) {
     if (use_obedit) {
       FOREACH_OBJECT_IN_MODE_BEGIN (scene, view_layer, v3d, object_type, object_mode, ob_iter) {
+        /* Depsgraph usually does this, but we use a different iterator.
+         * So we have to do it manually. */
+        ob_iter->runtime->select_id = DEG_get_original_object(ob_iter)->runtime->select_id;
+
         blender::draw::ObjectRef ob_ref(ob_iter);
         drw_engines_cache_populate(ob_ref, extraction);
       }

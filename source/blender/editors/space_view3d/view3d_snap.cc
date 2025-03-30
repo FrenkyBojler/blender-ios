@@ -68,7 +68,7 @@ static bool snap_calc_active_center(bContext *C, const bool select_only, float r
  * \{ */
 
 /** Snaps every individual object center to its nearest point on the grid. */
-static int snap_sel_to_grid_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus snap_sel_to_grid_exec(bContext *C, wmOperator *op)
 {
   using namespace blender::ed;
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
@@ -696,7 +696,7 @@ bool ED_view3d_snap_selected_to_location(bContext *C,
 /** \name Snap Selection to Cursor Operator
  * \{ */
 
-static int snap_selected_to_cursor_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus snap_selected_to_cursor_exec(bContext *C, wmOperator *op)
 {
   const bool use_offset = RNA_boolean_get(op->ptr, "use_offset");
   const bool use_rotation = RNA_boolean_get(op->ptr, "use_rotation");
@@ -749,7 +749,7 @@ void VIEW3D_OT_snap_selected_to_cursor(wmOperatorType *ot)
  * \{ */
 
 /** Snaps each selected object to the location of the active selected object. */
-static int snap_selected_to_active_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus snap_selected_to_active_exec(bContext *C, wmOperator *op)
 {
   float snap_target_global[3];
 
@@ -786,7 +786,7 @@ void VIEW3D_OT_snap_selected_to_active(wmOperatorType *ot)
  * \{ */
 
 /** Snaps the 3D cursor location to its nearest point on the grid. */
-static int snap_curs_to_grid_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus snap_curs_to_grid_exec(bContext *C, wmOperator * /*op*/)
 {
   Scene *scene = CTX_data_scene(C);
   ARegion *region = CTX_wm_region(C);
@@ -984,7 +984,7 @@ static bool snap_curs_to_sel_ex(bContext *C, const int pivot_point, float r_curs
   return true;
 }
 
-static int snap_curs_to_sel_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus snap_curs_to_sel_exec(bContext *C, wmOperator * /*op*/)
 {
   Scene *scene = CTX_data_scene(C);
   const int pivot_point = scene->toolsettings->transform_pivot_point;
@@ -1033,7 +1033,7 @@ static bool snap_calc_active_center(bContext *C, const bool select_only, float r
   return blender::ed::object::calc_active_center(ob, select_only, r_center);
 }
 
-static int snap_curs_to_active_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus snap_curs_to_active_exec(bContext *C, wmOperator * /*op*/)
 {
   Scene *scene = CTX_data_scene(C);
 
@@ -1068,7 +1068,7 @@ void VIEW3D_OT_snap_cursor_to_active(wmOperatorType *ot)
  * \{ */
 
 /** Snaps the 3D cursor location to the origin and clears cursor rotation. */
-static int snap_curs_to_center_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus snap_curs_to_center_exec(bContext *C, wmOperator * /*op*/)
 {
   Scene *scene = CTX_data_scene(C);
 

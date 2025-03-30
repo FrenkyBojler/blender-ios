@@ -365,8 +365,13 @@ static bool should_add_attribute_to_mesh(const AttributeAccessor &curve_attribut
                                          const AttributeFilter &attribute_filter)
 {
 
-  /* The position attribute has special non-generic evaluation. */
   if (id == "position") {
+    /* The position attribute has special non-generic evaluation. */
+    return false;
+  }
+  if (id == "custom_normal") {
+    /* The custom normal attribute is builtin on both meshes and curves, but has a different
+     * meaning and shouldn't be directly propagated. */
     return false;
   }
   /* Don't propagate built-in curves attributes that are not built-in on meshes. */
@@ -851,7 +856,7 @@ Mesh *curve_to_mesh_sweep(const CurvesGeometry &main,
                        face_offsets);
   });
 
-  if (fill_caps) {
+  if (fill_caps && mesh->faces_num != 0) {
     /* TODO: This is used to keep the tests passing after refactoring mesh shade smooth flags. It
      * can be removed if the tests are updated and the final shading results will be the same. */
     SpanAttributeWriter<bool> sharp_faces = mesh_attributes.lookup_or_add_for_write_span<bool>(
