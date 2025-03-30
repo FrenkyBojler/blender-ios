@@ -18,10 +18,7 @@ vec4 get_homogenous_space_grid_point(int x, int y, out float dist_to_cam)
 {
   vec3 ls_P = vec3(x, y, 0.0) * unit_scale;
 
-  if (axis == 2) {
-    ls_P = ls_P.zxz;
-  }
-  else if (axis == 3) {
+  if (axis == 3) {
     ls_P = ls_P.zzx;
   }
 

@@ -348,7 +348,7 @@ class GridMesh : Overlay {
    * Position is derived from. */
   std::array<gpu::Batch *, SI_GRID_STEPS_LEN> level_grids_ = {};
 
-  gpu::Batch *axis_ = nullptr;
+  std::array<gpu::Batch *, 2> axes_ = {};
 
   float far_clip_ = 0.0f;
 
@@ -358,10 +358,12 @@ class GridMesh : Overlay {
     for (gpu::Batch *&batch : level_grids_) {
       GPU_BATCH_DISCARD_SAFE(batch);
     }
-    GPU_BATCH_DISCARD_SAFE(axis_);
+    for (gpu::Batch *&batch : axes_) {
+      GPU_BATCH_DISCARD_SAFE(batch);
+    }
   }
 
-  gpu::Batch *generate_axis()
+  gpu::Batch *generate_axis(int axis)
   {
     const int res = 256;
     GPUIndexBufBuilder builder;
@@ -370,7 +372,12 @@ class GridMesh : Overlay {
 
     for (int i : IndexRange(res)) {
       int x = i - res / 2;
-      GPU_indexbuf_add_line_verts(&builder, vertex_id_at(x, 0), vertex_id_at(x + 1, 0));
+      if (axis == 0) {
+        GPU_indexbuf_add_line_verts(&builder, vertex_id_at(x, 0), vertex_id_at(x + 1, 0));
+      }
+      else {
+        GPU_indexbuf_add_line_verts(&builder, vertex_id_at(0, x), vertex_id_at(0, x + 1));
+      }
     }
     gpu::IndexBuf *ibo = GPU_indexbuf_build(&builder);
     return GPU_batch_create_ex(GPU_PRIM_LINES, nullptr, ibo, GPU_BATCH_OWNS_INDEX);
@@ -408,6 +415,11 @@ class GridMesh : Overlay {
       return;
     }
 
+    const bool show_axis_x = (state.v3d_gridflag & V3D_SHOW_X) != 0;
+    const bool show_axis_y = (state.v3d_gridflag & V3D_SHOW_Y) != 0;
+    const bool show_axis_z = (state.v3d_gridflag & V3D_SHOW_Z) != 0;
+    const bool show_floor = (state.v3d_gridflag & V3D_SHOW_FLOOR) != 0;
+
     grid_ps_.init();
     grid_ps_.bind_ubo(OVERLAY_GLOBALS_SLOT, &res.globals_buf);
     grid_ps_.bind_ubo(DRW_CLIPPING_UBO_SLOT, &res.clip_planes_buf);
@@ -417,35 +429,62 @@ class GridMesh : Overlay {
     grid_ps_.push_constant("far_clip", &far_clip_);
 
     {
-      if (axis_ == nullptr) {
-        axis_ = generate_axis();
+      if (axes_[0] == nullptr) {
+        axes_[0] = generate_axis(0);
+      }
+      if (axes_[1] == nullptr) {
+        axes_[1] = generate_axis(1);
       }
       /* TODO(fclem): Set unit to camera far plane. */
       grid_ps_.push_constant("unit_scale", 100.0f);
       grid_ps_.push_constant("next_divider", 1.0f); /* UNUSED. */
-      for (auto i : IndexRange(3)) {
-        grid_ps_.push_constant("axis", int(i + 1));
-        grid_ps_.draw(axis_);
+
+      if (show_axis_x) {
+        grid_ps_.push_constant("axis", int(1));
+        grid_ps_.draw(axes_[0]);
+      }
+      else if (show_floor) {
+        /* Still show the line without color. */
+        grid_ps_.push_constant("axis", int(4));
+        grid_ps_.draw(axes_[0]);
+      }
+
+      if (show_axis_y) {
+        grid_ps_.push_constant("axis", int(2));
+        grid_ps_.draw(axes_[1]);
+      }
+      else if (show_floor) {
+        /* Still show the line without color. */
+        grid_ps_.push_constant("axis", int(4));
+        grid_ps_.draw(axes_[1]);
+      }
+
+      if (show_axis_z) {
+        grid_ps_.push_constant("axis", int(3));
+        grid_ps_.draw(axes_[0]);
       }
     }
 
-    for (auto i_acc : IndexRange(SI_GRID_STEPS_LEN)) {
-      /* Draw in reverse order to avoid missing pixels in farthest grid level caused by depth
-       * write from transparent pixel in smaller grid level. */
-      int i = SI_GRID_STEPS_LEN - 1 - i_acc;
+    if (show_floor) {
+      for (auto i_acc : IndexRange(SI_GRID_STEPS_LEN)) {
+        /* Draw in reverse order to avoid missing pixels in farthest grid level caused by depth
+         * write from transparent pixel in smaller grid level. */
+        int i = SI_GRID_STEPS_LEN - 1 - i_acc;
 
-      if (level_grids_[i] == nullptr) {
-        level_grids_[i] = generate_batch(level_subdiv_[i]);
+        if (level_grids_[i] == nullptr) {
+          level_grids_[i] = generate_batch(level_subdiv_[i]);
+        }
+        float unit = base_unit_;
+        for (auto j : IndexRange(i)) {
+          unit *= level_subdiv_[j];
+        }
+        /* TODO(fclem): Only draw levels that are visible using camera position and near/far clip.
+         */
+        grid_ps_.push_constant("axis", 0);
+        grid_ps_.push_constant("unit_scale", unit);
+        grid_ps_.push_constant("next_divider", float(level_subdiv_[i]));
+        grid_ps_.draw(level_grids_[i]);
       }
-      float unit = base_unit_;
-      for (auto j : IndexRange(i)) {
-        unit *= level_subdiv_[j];
-      }
-      /* TODO(fclem): Only draw levels that are visible using camera position and near/far clip. */
-      grid_ps_.push_constant("axis", 0);
-      grid_ps_.push_constant("unit_scale", unit);
-      grid_ps_.push_constant("next_divider", float(level_subdiv_[i]));
-      grid_ps_.draw(level_grids_[i]);
     }
   }
 
