@@ -33,10 +33,10 @@ class InstanceBoundsField final : public bke::InstancesFieldInput {
   }
 
   GVArray get_varray_for_context(const bke::Instances &instances,
-                                 const IndexMask & /*mask*/) const final
+                                 const IndexMask & mask) const final
   {
     Span<int> handles = instances.reference_handles();
-    const int instance_count = instances.instances_num();
+    const int instance_count = mask.size();
     const int handle_count = instances.references().size();
 
     Array<float3> bounds_min(handle_count, float3(0.0f));
@@ -62,7 +62,9 @@ class InstanceBoundsField final : public bke::InstancesFieldInput {
     }
 
     for (int i = 0; i < instance_count; ++i) {
-      output_bounds[i] = return_max_ ? bounds_min[handles[i]] : bounds_max[handles[i]];
+      int mask_index = mask[i]; 
+      output_bounds[mask_index] = return_max_ ? bounds_min[handles[mask_index]] :
+                                                bounds_max[handles[mask_index]];
     }
 
     return VArray<float3>::ForContainer(std::move(output_bounds));
@@ -70,12 +72,15 @@ class InstanceBoundsField final : public bke::InstancesFieldInput {
 
   uint64_t hash() const override
   {
-    return get_default_hash(return_max_);
+    return get_default_hash(use_radius_, return_max_);
   }
 
   bool is_equal_to(const fn::FieldNode &other) const override
   {
-    return dynamic_cast<const InstanceBoundsField *>(&other) != nullptr;
+    if (const auto *other_field = dynamic_cast<const InstanceBoundsField *>(&other)) {
+      return use_radius_ == other_field->use_radius_ && return_max_ == other_field->return_max_;
+    }
+    return false;
   }
 };
 
