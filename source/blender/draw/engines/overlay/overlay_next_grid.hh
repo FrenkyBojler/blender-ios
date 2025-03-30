@@ -333,15 +333,20 @@ class GridMesh : Overlay {
   PassSimple grid_ps_ = {"grid_ps_"};
 
   /* Millimeter. */
-  float base_unit_ = 0.001f;
+  // float base_unit_ = 0.001f;
   /* Metric. */
-  std::array<int, SI_GRID_STEPS_LEN + 1> level_subdiv_ = {10, 10, 10, 10, 10, 10, 10, 10, INT_MAX};
+  // std::array<int, SI_GRID_STEPS_LEN + 1> level_subdiv_ = {10, 10, 10, 10, 10, 10, 10, 10,
+  // INT_MAX};
 
-  /* Thou. */
-  // float base_unit_ = 0.0000254f;
+  /* Millimeter. */
+  // float base_unit_ = 1.00f;
+  /* Metric. */
+  // std::array<int, SI_GRID_STEPS_LEN> level_subdiv_ = {3, 5, 7, 10, 10, 10, 10, 10, INT_MAX};
+
+  /* Inch. */
+  float base_unit_ = 0.0254f;
   /* Imperial. */
-  // std::array<int, SI_GRID_STEPS_LEN + 1> level_subdiv_ = {
-  //     1000, 12, 3, 22, 10, 8 /* Rounded */, INT_MAX, INT_MAX, INT_MAX};
+  std::array<int, SI_GRID_STEPS_LEN> level_subdiv_ = {3, 22, 10, 8 /* Rounded */, 10, 10, 10, 10};
 
   /* Contains only an index buffer connecting visible vertices.
    * Position is derived from. */
@@ -355,7 +360,7 @@ class GridMesh : Overlay {
     }
   }
 
-  gpu::Batch *generate_batch(int /*subdivision*/, int next_subdivision)
+  gpu::Batch *generate_batch(int next_subdivision)
   {
     const int res = 256;
     GPUIndexBufBuilder builder;
@@ -396,7 +401,7 @@ class GridMesh : Overlay {
 
     for (auto i : IndexRange(SI_GRID_STEPS_LEN)) {
       if (level_grids_[i] == nullptr) {
-        level_grids_[i] = generate_batch(level_subdiv_[i], level_subdiv_[i + 1]);
+        level_grids_[i] = generate_batch(level_subdiv_[i]);
       }
       float unit = base_unit_;
       for (auto j : IndexRange(i)) {
@@ -404,7 +409,7 @@ class GridMesh : Overlay {
       }
       /* TODO(fclem): Only draw levels that are visible using camera position and near/far clip. */
       grid_ps_.push_constant("unit_scale", unit);
-      grid_ps_.push_constant("next_divider", float(level_subdiv_[i + 1]));
+      grid_ps_.push_constant("next_divider", float(level_subdiv_[i]));
       grid_ps_.draw(level_grids_[i]);
     }
   }
