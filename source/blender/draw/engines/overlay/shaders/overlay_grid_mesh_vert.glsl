@@ -15,8 +15,8 @@ VERTEX_SHADER_CREATE_INFO(overlay_grid_mesh)
 
 void main()
 {
-  int x = gl_VertexID >> 16u;
-  int y = gl_VertexID & (~0x0u >> 16u);
+  int x = int(uint(gl_VertexID) >> 16u) - 0x7FFF;
+  int y = int(uint(gl_VertexID) & (~0x0u >> 16u)) - 0x7FFF;
   vec3 ls_P = vec3(x, y, 0);
 
   gl_Position = drw_point_world_to_homogenous(ls_P);

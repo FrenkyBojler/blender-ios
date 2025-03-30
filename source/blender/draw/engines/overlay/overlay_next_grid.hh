@@ -353,14 +353,16 @@ class GridMesh : Overlay {
     if (grid_batch_ == nullptr) {
       const int res = 128;
       GPUIndexBufBuilder builder;
-      GPU_indexbuf_init(&builder, GPU_PRIM_LINES, square_i(res + 1) * 2, 0x7FFFFFFFu);
-      auto vertex_id_at = [](int x, int y) { return (x << 16) | y; };
-      for (int x : IndexRange(res + 1)) {
-        for (int y : IndexRange(res + 1)) {
-          if (x != res) {
+      GPU_indexbuf_init(&builder, GPU_PRIM_LINES, square_i(res + 1) * 2, 0xFFFFFFFEu);
+      auto vertex_id_at = [](int x, int y) { return ((x + 0x7FFF) << 16) | (y + 0x7FFF); };
+      for (int i : IndexRange(res + 1)) {
+        for (int j : IndexRange(res + 1)) {
+          int x = i - res / 2;
+          int y = j - res / 2;
+          if (i != res) {
             GPU_indexbuf_add_line_verts(&builder, vertex_id_at(x, y), vertex_id_at(x + 1, y));
           }
-          if (y != res) {
+          if (j != res) {
             GPU_indexbuf_add_line_verts(&builder, vertex_id_at(x, y), vertex_id_at(x, y + 1));
           }
         }
