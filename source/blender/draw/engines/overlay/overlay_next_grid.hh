@@ -351,7 +351,7 @@ class GridMesh : Overlay {
     }
 
     if (grid_batch_ == nullptr) {
-      const int res = 128;
+      const int res = 256;
       GPUIndexBufBuilder builder;
       GPU_indexbuf_init(&builder, GPU_PRIM_LINES, square_i(res + 1) * 2, 0xFFFFFFFEu);
       auto vertex_id_at = [](int x, int y) { return ((x + 0x7FFF) << 16) | (y + 0x7FFF); };
@@ -377,6 +377,11 @@ class GridMesh : Overlay {
     grid_ps_.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_BLEND_ALPHA | DRW_STATE_WRITE_DEPTH |
                        DRW_STATE_DEPTH_LESS_EQUAL);
     grid_ps_.shader_set(res.shaders->grid_mesh.get());
+    grid_ps_.push_constant("unit_scale", 1.0f);
+    grid_ps_.draw(grid_batch_);
+    grid_ps_.push_constant("unit_scale", 8.0f);
+    grid_ps_.draw(grid_batch_);
+    grid_ps_.push_constant("unit_scale", 64.0f);
     grid_ps_.draw(grid_batch_);
   }
 

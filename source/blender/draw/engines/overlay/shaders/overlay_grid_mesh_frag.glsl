@@ -16,6 +16,6 @@ FRAGMENT_SHADER_CREATE_INFO(overlay_grid_mesh)
 
 void main()
 {
-  fragColor = vec4(1.0);
+  fragColor = finalColor;
   lineOutput = pack_line_data(gl_FragCoord.xy, edgeStart, edgePos);
 }

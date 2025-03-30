@@ -17,9 +17,19 @@ void main()
 {
   int x = int(uint(gl_VertexID) >> 16u) - 0x7FFF;
   int y = int(uint(gl_VertexID) & (~0x0u >> 16u)) - 0x7FFF;
-  vec3 ls_P = vec3(x, y, 0);
+  vec3 ls_P = vec3(x, y, 0.0) * unit_scale;
 
-  gl_Position = drw_point_world_to_homogenous(ls_P);
+  /* Round to grid increment. */
+  vec3 camera_P = drw_view_position();
+  ls_P.xy -= fract(camera_P.xy / unit_scale) * unit_scale;
+  ls_P.z -= camera_P.z;
+
+  /* Do not use matrix translation as it degrades precision. */
+  vec3 vs_P = drw_normal_world_to_view(ls_P);
+
+  finalColor = vec4(vec3(unit_scale / 64.0), 1.0);
+
+  gl_Position = drw_point_view_to_homogenous(vs_P);
 
   /* Convert to screen position [0..sizeVp]. */
   edgePos = edgeStart = ((gl_Position.xy / gl_Position.w) * 0.5 + 0.5) * sizeViewport;
