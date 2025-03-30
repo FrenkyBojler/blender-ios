@@ -332,14 +332,51 @@ class GridMesh : Overlay {
  private:
   PassSimple grid_ps_ = {"grid_ps_"};
 
+  /* Millimeter. */
+  float base_unit_ = 0.001f;
+  /* Metric. */
+  std::array<int, SI_GRID_STEPS_LEN + 1> level_subdiv_ = {10, 10, 10, 10, 10, 10, 10, 10, INT_MAX};
+
+  /* Thou. */
+  // float base_unit_ = 0.0000254f;
+  /* Imperial. */
+  // std::array<int, SI_GRID_STEPS_LEN + 1> level_subdiv_ = {
+  //     1000, 12, 3, 22, 10, 8 /* Rounded */, INT_MAX, INT_MAX, INT_MAX};
+
   /* Contains only an index buffer connecting visible vertices.
    * Position is derived from. */
-  gpu::Batch *grid_batch_ = nullptr;
+  std::array<gpu::Batch *, SI_GRID_STEPS_LEN> level_grids_ = {};
 
  public:
   ~GridMesh()
   {
-    GPU_BATCH_DISCARD_SAFE(grid_batch_);
+    for (gpu::Batch *&batch : level_grids_) {
+      GPU_BATCH_DISCARD_SAFE(batch);
+    }
+  }
+
+  gpu::Batch *generate_batch(int /*subdivision*/, int next_subdivision)
+  {
+    const int res = 256;
+    GPUIndexBufBuilder builder;
+    GPU_indexbuf_init(&builder, GPU_PRIM_LINES, square_i(res + 1) * 2, 0xFFFFFFFEu);
+    auto vertex_id_at = [](int x, int y) { return ((x + 0x7FFF) << 16) | (y + 0x7FFF); };
+
+    for (int i : IndexRange(res + 1)) {
+      for (int j : IndexRange(res + 1)) {
+        int x = i - res / 2;
+        int y = j - res / 2;
+        /* TODO(fclem): Use circular mask for perspective to cull corners. */
+        if (i != res && (y % next_subdivision) != 0) {
+          GPU_indexbuf_add_line_verts(&builder, vertex_id_at(x, y), vertex_id_at(x + 1, y));
+        }
+        if (j != res && (x % next_subdivision) != 0) {
+          GPU_indexbuf_add_line_verts(&builder, vertex_id_at(x, y), vertex_id_at(x, y + 1));
+        }
+      }
+    }
+    gpu::IndexBuf *ibo = GPU_indexbuf_build(&builder);
+    return GPU_batch_create_ex(GPU_PRIM_LINES, nullptr, ibo, GPU_BATCH_OWNS_INDEX);
   }
 
   void begin_sync(Resources &res, const State &state) final
@@ -350,39 +387,26 @@ class GridMesh : Overlay {
       return;
     }
 
-    if (grid_batch_ == nullptr) {
-      const int res = 256;
-      GPUIndexBufBuilder builder;
-      GPU_indexbuf_init(&builder, GPU_PRIM_LINES, square_i(res + 1) * 2, 0xFFFFFFFEu);
-      auto vertex_id_at = [](int x, int y) { return ((x + 0x7FFF) << 16) | (y + 0x7FFF); };
-      for (int i : IndexRange(res + 1)) {
-        for (int j : IndexRange(res + 1)) {
-          int x = i - res / 2;
-          int y = j - res / 2;
-          if (i != res) {
-            GPU_indexbuf_add_line_verts(&builder, vertex_id_at(x, y), vertex_id_at(x + 1, y));
-          }
-          if (j != res) {
-            GPU_indexbuf_add_line_verts(&builder, vertex_id_at(x, y), vertex_id_at(x, y + 1));
-          }
-        }
-      }
-      gpu::IndexBuf *ibo = GPU_indexbuf_build(&builder);
-      grid_batch_ = GPU_batch_create_ex(GPU_PRIM_LINES, nullptr, ibo, GPU_BATCH_OWNS_INDEX);
-    }
-
     grid_ps_.init();
     grid_ps_.bind_ubo(OVERLAY_GLOBALS_SLOT, &res.globals_buf);
     grid_ps_.bind_ubo(DRW_CLIPPING_UBO_SLOT, &res.clip_planes_buf);
     grid_ps_.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_BLEND_ALPHA | DRW_STATE_WRITE_DEPTH |
                        DRW_STATE_DEPTH_LESS_EQUAL);
     grid_ps_.shader_set(res.shaders->grid_mesh.get());
-    grid_ps_.push_constant("unit_scale", 1.0f);
-    grid_ps_.draw(grid_batch_);
-    grid_ps_.push_constant("unit_scale", 8.0f);
-    grid_ps_.draw(grid_batch_);
-    grid_ps_.push_constant("unit_scale", 64.0f);
-    grid_ps_.draw(grid_batch_);
+
+    for (auto i : IndexRange(SI_GRID_STEPS_LEN)) {
+      if (level_grids_[i] == nullptr) {
+        level_grids_[i] = generate_batch(level_subdiv_[i], level_subdiv_[i + 1]);
+      }
+      float unit = base_unit_;
+      for (auto j : IndexRange(i)) {
+        unit *= level_subdiv_[j];
+      }
+      /* TODO(fclem): Only draw levels that are visible using camera position and near/far clip. */
+      grid_ps_.push_constant("unit_scale", unit);
+      grid_ps_.push_constant("next_divider", float(level_subdiv_[i + 1]));
+      grid_ps_.draw(level_grids_[i]);
+    }
   }
 
   void draw_line(Framebuffer &framebuffer, Manager &manager, View &view) final
