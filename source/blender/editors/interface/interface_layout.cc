@@ -109,12 +109,12 @@ enum class ItemType : int8_t {
 
   LayoutRoot,
 #if 0
-   TemplateColumnFlow,
-   TemplateSplit,
-   TemplateBox,
- 
-   TemplateHeader,
-   TemplateHeaderID,
+  TemplateColumnFlow,
+  TemplateSplit,
+  TemplateBox,
+
+  TemplateHeader,
+  TemplateHeaderID,
 #endif
 };
 }  // namespace blender::ui
