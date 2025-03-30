@@ -315,7 +315,7 @@ static Transform blender_camera_matrix(const Transform &tfm,
                          1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f);
     }
     else if (panorama_type == PANORAMA_SCRIPT) {
-      /* note the blender camera points along the negative z-axis */
+      /* Note the blender camera points along the negative z-axis. */
       result = tfm * transform_scale(1.0f, 1.0f, -1.0f);
     }
     else {
@@ -328,7 +328,7 @@ static Transform blender_camera_matrix(const Transform &tfm,
     }
   }
   else {
-    /* note the blender camera points along the negative z-axis */
+    /* Note the blender camera points along the negative z-axis. */
     result = tfm * transform_scale(1.0f, 1.0f, -1.0f);
   }
 
@@ -568,7 +568,7 @@ static void blender_camera_sync(Camera *cam,
     }
   }
 
-  /* script */
+  /* Sync custom camera parameters. */
   if (scene != nullptr) {
     if ((bcam->type == CAMERA_PANORAMA) && (bcam->panorama_type == PANORAMA_SCRIPT)) {
       BlenderCameraParamQuery params(bcam->custom_props);

@@ -191,7 +191,7 @@ class Camera : public Node {
   KernelCamera kernel_camera;
   array<DecomposedTransform> kernel_camera_motion;
 
-  /* osl script */
+  /* Custom camera script. */
   std::string script_name;
   map<ustring, pair<vector<uint8_t>, TypeDesc>> script_params;
 

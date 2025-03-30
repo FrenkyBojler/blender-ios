@@ -295,16 +295,16 @@ packed_float3 osl_eval_camera(const ThreadKernelGlobalsCPU *kg,
     return zero_spectrum();
   }
 
-  /* setup shader globals from shader data */
+  /* Setup shader globals from from the sensor position. */
   cameradata_to_shaderglobals(sensor, dSdx, dSdy, rand_lens, &kg->osl.shader_globals);
 
-  /* clear trace data */
+  /* Clear trace data. */
   kg->osl.tracedata.init = false;
 
-  /* Used by render-services. */
+  /* Provide kernel globals to the render-services. */
   kg->osl.shader_globals.kg = kg;
 
-  /* execute shader */
+  /* Execute the shader. */
   OSL::ShadingSystem *ss = (OSL::ShadingSystem *)kg->osl.ss;
   OSL::ShaderGlobals *globals = reinterpret_cast<OSL::ShaderGlobals *>(&kg->osl.shader_globals);
   OSL::ShadingContext *octx = kg->osl.context;

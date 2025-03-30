@@ -262,10 +262,12 @@ ccl_device_inline Spectrum camera_sample_panorama(KernelGlobals kg,
 
   if (cam->panorama_type == PANORAMA_SCRIPT) {
 #ifdef WITH_OSL
+    /* Transform raster position to camera space. */
     const ProjectionTransform rastertocamera = cam->rastertocamera;
     float3 sensor = transform_perspective(&rastertocamera, make_float3(raster.x, raster.y, 0.0f));
     float3 dSdx = transform_perspective_direction(&rastertocamera, make_float3(1.0f, 0.0f, 0.0f));
     float3 dSdy = transform_perspective_direction(&rastertocamera, make_float3(0.0f, 1.0f, 0.0f));
+    /* Execute OSL shader to sample position, direction and transmission. */
     packed_float3 packed_P, packed_dPdx, packed_dPdy, packed_D, packed_dDdx, packed_dDdy, packed_T;
     packed_T = osl_eval_camera(kg,
                                sensor,
@@ -278,9 +280,11 @@ ccl_device_inline Spectrum camera_sample_panorama(KernelGlobals kg,
                                packed_D,
                                packed_dDdx,
                                packed_dDdy);
+    /* Zero throughput indicates failed sampling. */
     if (is_zero(packed_T)) {
       return zero_spectrum();
     }
+    /* Unpack values and compute offset rays. */
     P = packed_P;
     D = packed_D;
     throughput = packed_T;
@@ -297,7 +301,7 @@ ccl_device_inline Spectrum camera_sample_panorama(KernelGlobals kg,
 #endif
   }
   else {
-    /* create ray from raster position */
+    /* Create ray from raster position. */
     D = camera_panorama_direction(cam, raster.x, raster.y);
 
 #ifdef __RAY_DIFFERENTIALS__
@@ -310,33 +314,35 @@ ccl_device_inline Spectrum camera_sample_panorama(KernelGlobals kg,
     Dy = camera_panorama_direction(cam, raster.x, raster.y + 1.0f);
 #endif
 
-    /* indicates ray should not receive any light, outside of the lens */
+    /* Here, zero indicates failed sampling, e.g. when the raster position is outside
+     * the fisheye lens. */
     if (is_zero(D)) {
       return zero_spectrum();
     }
 
-    /* modify ray for depth of field */
+    /* Perform depth-of-field sampling. */
     const float aperturesize = cam->aperturesize;
 
     if (aperturesize > 0.0f) {
-      /* sample point on aperture */
+      /* Sample a point on the aperture. */
       const float2 lens_uv = camera_sample_aperture(cam, rand_lens) * aperturesize;
 
-      /* compute point on plane of focus */
+      /* Compute the intersection of the original ray with the focal plane. */
       const float3 Dfocus = normalize(D);
       const float3 Pfocus = Dfocus * cam->focaldistance;
 
-      /* calculate orthonormal coordinates perpendicular to Dfocus */
+      /* Calculate orthonormal coordinate system perpendicular to Dfocus. */
       const float3 U = normalize(make_float3(1.0f, 0.0f, 0.0f) - Dfocus.x * Dfocus);
       const float3 V = normalize(cross(Dfocus, U));
 
-      /* update ray for effect of lens */
+      /* Compute new ray by shifting its origin (to account for aperture position) and
+       * setting its direction to meet the original ray at the focal plane. */
       P = U * lens_uv.x + V * lens_uv.y;
       D = normalize(Pfocus - P);
     }
   }
 
-  /* transform ray from camera to world */
+  /* Transform the ray from camera to world. */
   Transform cameratoworld = cam->cameratoworld;
 
   if (cam->num_motion_steps) {

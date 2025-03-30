@@ -864,7 +864,7 @@ void Camera::set_osl_camera(Scene *scene,
                             const std::string &bytecode)
 {
 #ifdef WITH_OSL
-  /* create query */
+  /* Load the shader. */
   const char *hash;
 
   if (!filepath.empty()) {
@@ -889,12 +889,12 @@ void Camera::set_osl_camera(Scene *scene,
 
     OSLShaderInfo *info = scene->osl_manager->shader_loaded_info(hash);
 
-    /* Fetch parameter values */
+    /* Fetch parameter values. */
     std::set<ustring> used_params;
     for (int i = 0; i < info->query.nparams(); i++) {
       const OSL::OSLQuery::Parameter *param = info->query.getparam(i);
 
-      /* skip unsupported types */
+      /* Skip unsupported types. */
       if (param->varlenarray || param->isstruct || param->type.arraylen > 1 || param->isoutput ||
           param->isclosure)
         continue;
@@ -939,7 +939,7 @@ void Camera::set_osl_camera(Scene *scene,
       used_params.insert(param->name);
     }
 
-    /* Remove unused parameters */
+    /* Remove unused parameters. */
     for (auto it = script_params.begin(); it != script_params.end();) {
       if (used_params.count(it->first))
         it++;

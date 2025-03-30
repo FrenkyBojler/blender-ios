@@ -149,7 +149,7 @@ void OSLManager::device_update_post(Device *device,
                                     Progress &progress,
                                     const bool reload_kernels)
 {
-  /* create camera shader */
+  /* Create the camera shader. */
   if (need_update() && !scene->camera->script_name.empty()) {
     if (progress.get_cancel())
       return;
