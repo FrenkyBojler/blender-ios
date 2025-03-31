@@ -260,7 +260,7 @@ ccl_device_inline Spectrum camera_sample_panorama(KernelGlobals kg,
 #endif
   Spectrum throughput = one_spectrum();
 
-  if (cam->panorama_type == PANORAMA_SCRIPT) {
+  if (cam->panorama_type == PANORAMA_CUSTOM) {
 #ifdef WITH_OSL
     /* Transform raster position to camera space. */
     const ProjectionTransform rastertocamera = cam->rastertocamera;

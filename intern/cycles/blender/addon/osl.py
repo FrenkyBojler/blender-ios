@@ -286,25 +286,24 @@ def update_script_node(node, report):
     return ok
 
 
-def update_camera_script(cam, report):
-    """compile and update camera script"""
+def update_custom_camera_shader(cam, report):
+    """compile and update custom camera shader"""
     import os
     import oslquery
 
     oso_file_remove = False
 
-    ccam = cam.cycles
     custom_props = cam.cycles_custom
-    if ccam.script_mode == 'EXTERNAL':
+    if cam.custom_mode == 'EXTERNAL':
         # compile external script file
-        ok, oso_path, oso_file_remove = update_external_script(report, ccam.script_path, cam.library)
+        ok, oso_path, oso_file_remove = update_external_script(report, cam.custom_filepath, cam.library)
 
-    elif ccam.script_mode == 'INTERNAL' and ccam.script:
+    elif cam.custom_mode == 'INTERNAL' and cam.custom_shader:
         # internal script, we will store bytecode in the node
-        ok, oso_path, bytecode, bytecode_hash = update_internal_script(report, ccam.script)
+        ok, oso_path, bytecode, bytecode_hash = update_internal_script(report, cam.custom_shader)
         if bytecode:
-            ccam.script_bytecode = bytecode
-            ccam.script_bytecode_hash = bytecode_hash
+            cam.custom_bytecode = bytecode
+            cam.custom_bytecode_hash = bytecode_hash
             cam.update_tag()
 
     else:
@@ -327,7 +326,7 @@ def update_camera_script(cam, report):
             ok = False
             report({'ERROR'}, tip_("OSL query failed to open %s") % oso_path)
     else:
-        report({'ERROR'}, "OSL script compilation failed, see console for errors")
+        report({'ERROR'}, "Custom Camera shader compilation failed, see console for errors")
 
     # remove temporary oso file
     if oso_file_remove:

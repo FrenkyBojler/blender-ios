@@ -71,11 +71,6 @@ enum_use_layer_samples = (
     ('IGNORE', "Ignore", "Ignore per render layer number of samples"),
 )
 
-enum_script_modes = {
-    ('INTERNAL', "Internal", "Use internal text data-block", 0),
-    ('EXTERNAL', "External", "Use external .osl or .oso file", 1),
-}
-
 
 def enum_sampling_pattern(self, context):
     prefs = context.preferences
@@ -1120,46 +1115,6 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
         del bpy.types.Scene.cycles
 
 
-class CyclesCameraSettings(bpy.types.PropertyGroup):
-
-    script: PointerProperty(
-        name="OSL Script",
-        description="OSL script to use for generating camera rays",
-        type=bpy.types.Text,
-        update=update_camera_script,
-    )
-
-    script_path: StringProperty(
-        name="OSL Script Path",
-        description="Path to the OSL script to use for generating camera rays",
-        subtype='FILE_PATH',
-        default='',
-        update=update_camera_script,
-    )
-
-    script_mode: EnumProperty(
-        name="OSL Script Source",
-        items=enum_script_modes,
-        default='INTERNAL',
-        update=update_camera_script,
-    )
-
-    script_bytecode: StringProperty(name="OSL Script Bytecode")
-    script_bytecode_hash: StringProperty(name="OSL Script Bytecode Hash")
-
-    @classmethod
-    def register(cls):
-        bpy.types.Camera.cycles = PointerProperty(
-            name="Cycles Camera Settings",
-            description="Cycles camera settings",
-            type=cls,
-        )
-
-    @classmethod
-    def unregister(cls):
-        del bpy.types.Camera.cycles
-
-
 class CyclesCustomCameraSettings(bpy.types.PropertyGroup):
 
     @classmethod
@@ -1971,7 +1926,6 @@ class CyclesView3DShadingSettings(bpy.types.PropertyGroup):
 
 def register():
     bpy.utils.register_class(CyclesRenderSettings)
-    bpy.utils.register_class(CyclesCameraSettings)
     bpy.utils.register_class(CyclesCustomCameraSettings)
     bpy.utils.register_class(CyclesMaterialSettings)
     bpy.utils.register_class(CyclesLightSettings)
@@ -1993,7 +1947,6 @@ def register():
 
 def unregister():
     bpy.utils.unregister_class(CyclesRenderSettings)
-    bpy.utils.unregister_class(CyclesCameraSettings)
     bpy.utils.unregister_class(CyclesCustomCameraSettings)
     bpy.utils.unregister_class(CyclesMaterialSettings)
     bpy.utils.unregister_class(CyclesLightSettings)

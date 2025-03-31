@@ -18,6 +18,7 @@
 #include "DNA_light_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
+#include "DNA_text_types.h"
 #include "DNA_view3d_types.h"
 
 #include "BLI_listbase.h"
@@ -85,6 +86,10 @@ static void camera_copy_data(Main * /*bmain*/,
     CameraBGImage *bgpic_dst = BKE_camera_background_image_copy(bgpic_src, flag_subdata);
     BLI_addtail(&cam_dst->bg_images, bgpic_dst);
   }
+
+  if (cam_src->custom_bytecode) {
+    cam_dst->custom_bytecode = static_cast<char *>(MEM_dupallocN(cam_src->custom_bytecode));
+  }
 }
 
 /** Free (or release) any data used by this camera (does not free the camera itself). */
@@ -92,6 +97,9 @@ static void camera_free_data(ID *id)
 {
   Camera *cam = (Camera *)id;
   BLI_freelistN(&cam->bg_images);
+  if (cam->custom_bytecode) {
+    MEM_freeN(cam->custom_bytecode);
+  }
 }
 
 static void camera_foreach_id(ID *id, LibraryForeachIDData *data)
@@ -109,6 +117,8 @@ static void camera_foreach_id(ID *id, LibraryForeachIDData *data)
     BKE_LIB_FOREACHID_PROCESS_ID_NOCHECK(data, camera->ipo, IDWALK_CB_USER);
     BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, camera->dof_ob, IDWALK_CB_NOP);
   }
+
+  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, camera->custom_shader, IDWALK_CB_NOP);
 }
 
 struct CameraCyclesCompatibilityData {
@@ -205,6 +215,10 @@ static void camera_blend_write(BlendWriter *writer, ID *id, const void *id_addre
   if (!is_undo) {
     camera_write_cycles_compatibility_data_clear(id, cycles_data);
   }
+
+  if (cam->custom_bytecode) {
+    BLO_write_string(writer, cam->custom_bytecode);
+  }
 }
 
 static void camera_blend_read_data(BlendDataReader *reader, ID *id)
@@ -221,6 +235,8 @@ static void camera_blend_read_data(BlendDataReader *reader, ID *id)
       bgpic->flag &= ~CAM_BGIMG_FLAG_OVERRIDE_LIBRARY_LOCAL;
     }
   }
+
+  BLO_read_string(reader, &ca->custom_bytecode);
 }
 
 IDTypeInfo IDType_ID_CA = {

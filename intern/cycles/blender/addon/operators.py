@@ -155,10 +155,10 @@ class CYCLES_OT_merge_images(Operator):
         return {'FINISHED'}
 
 
-class CYCLES_OT_camera_script_update(Operator):
-    """Update the parameters of a Camera's OSL Script"""
-    bl_idname = "cycles.camera_script_update"
-    bl_label = "Update Camera Script"
+class CYCLES_OT_custom_camera_shader_update(Operator):
+    """Update the parameters of a Custom Camera's Shader"""
+    bl_idname = "cycles.custom_camera_shader_update"
+    bl_label = "Update Custom Camera Shader"
 
     @classmethod
     def poll(cls, context):
@@ -168,14 +168,16 @@ class CYCLES_OT_camera_script_update(Operator):
         cam = getattr(context, "camera", False)
         if not cam:
             return False
-        if cam.type != 'PANO' or cam.panorama_type != 'SCRIPT':
+        if cam.type != 'PANO' or cam.panorama_type != 'CUSTOM':
             return False
-        ccam = cam.cycles
-        return bool(ccam.script_path if ccam.script_mode == 'EXTERNAL' else ccam.script)
+        if cam.custom_mode == 'EXTERNAL':
+            return bool(cam.custom_filepath)
+        else:
+            return bool(cam.custom_shader)
 
     def execute(self, context):
         from . import osl
-        osl.update_camera_script(context.camera, self.report)
+        osl.update_custom_camera_shader(context.camera, self.report)
         return {'FINISHED'}
 
 
@@ -183,7 +185,7 @@ classes = (
     CYCLES_OT_use_shading_nodes,
     CYCLES_OT_denoise_animation,
     CYCLES_OT_merge_images,
-    CYCLES_OT_camera_script_update,
+    CYCLES_OT_custom_camera_shader_update,
 )
 
 

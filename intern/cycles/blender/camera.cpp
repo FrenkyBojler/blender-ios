@@ -26,9 +26,9 @@ class BlenderCamera {
   };
 
   PointerRNA custom_props;
-  string script_bytecode;
-  string script_bytecode_hash;
-  string script_path;
+  string custom_bytecode;
+  string custom_bytecode_hash;
+  string custom_filepath;
 
   float nearclip = 1e-5f;
   float farclip = 1e5f;
@@ -154,8 +154,8 @@ static PanoramaType blender_panorama_type_to_cycles(const BL::Camera::panorama_t
       return PANORAMA_FISHEYE_LENS_POLYNOMIAL;
     case BL::Camera::panorama_type_CENTRAL_CYLINDRICAL:
       return PANORAMA_CENTRAL_CYLINDRICAL;
-    case BL::Camera::panorama_type_SCRIPT:
-      return PANORAMA_SCRIPT;
+    case BL::Camera::panorama_type_CUSTOM:
+      return PANORAMA_CUSTOM;
   }
   /* Could happen if loading a newer file that has an unsupported type. */
   return PANORAMA_FISHEYE_EQUISOLID;
@@ -275,16 +275,15 @@ static void blender_camera_from_object(BlenderCamera *bcam,
       bcam->sensor_fit = BlenderCamera::VERTICAL;
     }
 
-    if ((bcam->type == CAMERA_PANORAMA) && (bcam->panorama_type == PANORAMA_SCRIPT)) {
-      PointerRNA ccam = RNA_pointer_get(&b_camera.ptr, "cycles");
+    if ((bcam->type == CAMERA_PANORAMA) && (bcam->panorama_type == PANORAMA_CUSTOM)) {
       bcam->custom_props = RNA_pointer_get(&b_camera.ptr, "cycles_custom");
-      bcam->script_bytecode_hash = get_string(ccam, "script_bytecode_hash");
-      if (!bcam->script_bytecode_hash.empty()) {
-        bcam->script_bytecode = get_string(ccam, "script_bytecode");
+      bcam->custom_bytecode_hash = b_camera.custom_bytecode_hash();
+      if (!bcam->custom_bytecode_hash.empty()) {
+        bcam->custom_bytecode = b_camera.custom_bytecode();
       }
       else {
-        bcam->script_path = blender_absolute_path(
-            b_data, b_camera, get_string(ccam, "script_path"));
+        bcam->custom_filepath = blender_absolute_path(
+            b_data, b_camera, b_camera.custom_filepath());
       }
     }
   }
@@ -314,7 +313,7 @@ static Transform blender_camera_matrix(const Transform &tfm,
       result = tfm * make_transform(
                          1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f);
     }
-    else if (panorama_type == PANORAMA_SCRIPT) {
+    else if (panorama_type == PANORAMA_CUSTOM) {
       /* Note the blender camera points along the negative z-axis. */
       result = tfm * transform_scale(1.0f, 1.0f, -1.0f);
     }
@@ -538,7 +537,7 @@ static void blender_camera_sync(Camera *cam,
   /* panorama sensor */
   if (bcam->type == CAMERA_PANORAMA && (bcam->panorama_type == PANORAMA_FISHEYE_EQUISOLID ||
                                         bcam->panorama_type == PANORAMA_FISHEYE_LENS_POLYNOMIAL ||
-                                        bcam->panorama_type == PANORAMA_SCRIPT))
+                                        bcam->panorama_type == PANORAMA_CUSTOM))
   {
     const float fit_xratio = (float)bcam->render_width * bcam->pixelaspect.x;
     const float fit_yratio = (float)bcam->render_height * bcam->pixelaspect.y;
@@ -570,10 +569,10 @@ static void blender_camera_sync(Camera *cam,
 
   /* Sync custom camera parameters. */
   if (scene != nullptr) {
-    if ((bcam->type == CAMERA_PANORAMA) && (bcam->panorama_type == PANORAMA_SCRIPT)) {
+    if ((bcam->type == CAMERA_PANORAMA) && (bcam->panorama_type == PANORAMA_CUSTOM)) {
       BlenderCameraParamQuery params(bcam->custom_props);
       cam->set_osl_camera(
-          scene, params, bcam->script_path, bcam->script_bytecode_hash, bcam->script_bytecode);
+          scene, params, bcam->custom_filepath, bcam->custom_bytecode_hash, bcam->custom_bytecode);
     }
     else {
       cam->clear_osl_camera(scene);

@@ -110,6 +110,17 @@ typedef struct Camera {
   float central_cylindrical_radius;
   float _pad2;
 
+  /* Custom Camera properties. */
+  struct Text *custom_shader;
+
+  /** 1024 = FILE_MAX. */
+  char custom_filepath[1024];
+
+  char custom_bytecode_hash[64];
+  char *custom_bytecode;
+  int custom_mode;
+  int _pad3;
+
   /** Old animation system, deprecated for 2.5. */
   struct Ipo *ipo DNA_DEPRECATED;
 
@@ -145,7 +156,13 @@ enum {
   CAM_PANORAMA_FISHEYE_LENS_POLYNOMIAL = 4,
   CAM_PANORAMA_EQUIANGULAR_CUBEMAP_FACE = 5,
   CAM_PANORAMA_CENTRAL_CYLINDRICAL = 6,
-  CAM_PANORAMA_SCRIPT = 7,
+  CAM_PANORAMA_CUSTOM = 7,
+};
+
+/* custom_mode */
+enum {
+  CAM_CUSTOM_SHADER_INTERNAL = 0,
+  CAM_CUSTOM_SHADER_EXTERNAL = 1,
 };
 
 /* dtx */

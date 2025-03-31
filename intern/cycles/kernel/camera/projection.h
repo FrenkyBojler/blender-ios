@@ -275,7 +275,7 @@ ccl_device_inline float3 panorama_to_direction(ccl_constant KernelCamera *cam,
                                                   cam->sensorheight);
     case PANORAMA_CENTRAL_CYLINDRICAL:
       return central_cylindrical_to_direction(u, v, cam->central_cylindrical_range);
-    case PANORAMA_SCRIPT:
+    case PANORAMA_CUSTOM:
       kernel_assert(false);
       return zero_float3();
     case PANORAMA_FISHEYE_EQUISOLID:
@@ -304,7 +304,7 @@ ccl_device_inline float2 direction_to_panorama(ccl_constant KernelCamera *cam, c
                                                   cam->sensorheight);
     case PANORAMA_CENTRAL_CYLINDRICAL:
       return direction_to_central_cylindrical(dir, cam->central_cylindrical_range);
-    case PANORAMA_SCRIPT:
+    case PANORAMA_CUSTOM:
       /* TODO: We don't support reverse mapping for custom cameras yet. */
       return zero_float2();
     case PANORAMA_FISHEYE_EQUISOLID:
