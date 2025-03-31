@@ -1270,6 +1270,7 @@ static void v3d_editvertex_buts(
             apply_raw_diff_v3(
                 positions[attribute_i][point], tot, ve_median->location, median->location);
           });
+          info.drawing.tag_positions_changed();
         }
       });
     }
