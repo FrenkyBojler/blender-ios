@@ -486,27 +486,33 @@ static void v3d_editvertex_buts(
   }
   else if (ob->type == OB_GREASE_PENCIL) {
     using namespace blender::ed::greasepencil;
+    using namespace ed::curves;
     Scene &scene = *CTX_data_scene(C);
     GreasePencil &grease_pencil = *static_cast<GreasePencil *>(ob->data);
     blender::Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(scene,
                                                                               grease_pencil);
 
     threading::parallel_for_each(drawings, [&](const MutableDrawingInfo &info) {
-      const bke::CurvesGeometry &curves = info.drawing.strokes();
+      bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
       if (curves.is_empty()) {
         return;
       }
-      IndexMaskMemory memory;
-      IndexMask selection = retrieve_editable_and_selected_points(
-          *ob, info.drawing, info.layer_index, memory);
-      if (selection.is_empty()) {
-        return;
+
+      const Span<StringRef> selection_names = get_curves_selection_attribute_names(curves);
+      Vector<MutableSpan<float3>> positions = get_curves_positions_for_write(curves);
+      TransformMedian_Curves *median = &median_basis.curves;
+      for (int attribute_i : selection_names.index_range()) {
+        IndexMaskMemory memory;
+        const IndexMask selection = retrieve_selected_points(
+            curves, selection_names[attribute_i], memory);
+        if (selection.is_empty()) {
+          continue;
+        }
+
+        tot += selection.size();
+        selection.foreach_index(
+            [&](const int point) { add_v3_v3(median->location, positions[attribute_i][point]); });
       }
-      const Span<float3> positions = curves.positions();
-      TransformMedian_GreasePencil *median = &median_basis.grease_pencil;
-      tot += selection.size();
-      selection.foreach_index(
-          [&](const int point) { add_v3_v3(median->location, positions[point]); });
     });
   }
   else if (ob->type == OB_CURVES) {
@@ -1235,6 +1241,7 @@ static void v3d_editvertex_buts(
     }
     else if (ob->type == OB_GREASE_PENCIL && apply_vcos) {
       using namespace blender::ed::greasepencil;
+      using namespace ed::curves;
       Scene &scene = *CTX_data_scene(C);
       GreasePencil &grease_pencil = *static_cast<GreasePencil *>(ob->data);
       blender::Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(scene,
@@ -1245,18 +1252,25 @@ static void v3d_editvertex_buts(
         if (curves.is_empty()) {
           return;
         }
-        IndexMaskMemory memory;
-        IndexMask selection = retrieve_editable_and_selected_points(
-            *ob, info.drawing, info.layer_index, memory);
-        if (selection.is_empty()) {
-          return;
-        }
-        MutableSpan<float3> positions = curves.positions_for_write();
+
         TransformMedian_GreasePencil *median = &median_basis.grease_pencil;
         TransformMedian_GreasePencil *ve_median = &ve_median_basis.grease_pencil;
-        selection.foreach_index([&](const int point) {
-          apply_raw_diff_v3(positions[point], tot, ve_median->location, median->location);
-        });
+        IndexMaskMemory memory;
+        const Span<StringRef> selection_names = get_curves_selection_attribute_names(curves);
+        Vector<MutableSpan<float3>> positions = get_curves_positions_for_write(curves);
+        for (int attribute_i : selection_names.index_range()) {
+          IndexMaskMemory memory;
+          const IndexMask selection = retrieve_selected_points(
+              curves, selection_names[attribute_i], memory);
+          if (selection.is_empty()) {
+            continue;
+          }
+
+          selection.foreach_index([&](const int point) {
+            apply_raw_diff_v3(
+                positions[attribute_i][point], tot, ve_median->location, median->location);
+          });
+        }
       });
     }
     else if (ob->type == OB_CURVES && apply_vcos) {
