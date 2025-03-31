@@ -32,6 +32,7 @@ from bl_ui.properties_data_light import (
     DATA_PT_light,
     DATA_PT_EEVEE_light,
 )
+from ..bl_operators.node import get_direct_tree
 
 
 class NODE_HT_header(Header):
@@ -906,8 +907,7 @@ class NODE_MT_node_tree_interface_context_menu(Menu):
 
     def draw(self, context):
         layout = self.layout
-        snode = context.space_data
-        tree = snode.edit_tree
+        tree = get_direct_tree(context)
         active_item = tree.interface.active
 
         layout.operator("node.interface_item_duplicate", icon='DUPLICATE')
@@ -929,7 +929,7 @@ class NODE_PT_node_tree_interface(Panel):
         snode = context.space_data
         if snode is None:
             return False
-        tree = snode.edit_tree
+        tree = get_direct_tree(context)
         if tree is None:
             return False
         if tree.is_embedded_data:
@@ -998,7 +998,7 @@ class NODE_PT_node_tree_interface_panel_toggle(Panel):
         snode = context.space_data
         if snode is None:
             return False
-        tree = snode.edit_tree
+        tree = get_direct_tree(context)
         if tree is None:
             return False
         active_item = tree.interface.active
@@ -1011,8 +1011,7 @@ class NODE_PT_node_tree_interface_panel_toggle(Panel):
 
     def draw(self, context):
         layout = self.layout
-        snode = context.space_data
-        tree = snode.edit_tree
+        tree = get_direct_tree(context)
 
         active_item = tree.interface.active
         panel_toggle_item = active_item.interface_items[0]
@@ -1038,7 +1037,7 @@ class NODE_PT_node_tree_properties(Panel):
         snode = context.space_data
         if snode is None:
             return False
-        group = snode.edit_tree
+        group = get_direct_tree(context)
         if group is None:
             return False
         if group.is_embedded_data:
@@ -1047,8 +1046,7 @@ class NODE_PT_node_tree_properties(Panel):
 
     def draw(self, context):
         layout = self.layout
-        snode = context.space_data
-        group = snode.edit_tree
+        group = get_direct_tree(context)
         layout.use_property_split = True
         layout.use_property_decorate = False
 
