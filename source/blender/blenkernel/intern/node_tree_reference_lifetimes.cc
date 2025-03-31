@@ -807,6 +807,20 @@ static bool pass_right_to_left(const bNodeTree &tree,
         }
         break;
       }
+      case GEO_NODE_CLOSURE_OUTPUT: {
+        const bNodeTreeZone *zone = get_zone_of_node_if_full(zones, *node);
+        if (!zone) {
+          break;
+        }
+        /* Data that's required on the closure is also required on all inputs of the closure. */
+        const bNodeSocket &output_socket = node->output_socket(0);
+        const BoundedBitSpan required_data =
+            r_required_data_by_socket[output_socket.index_in_tree()];
+        for (const bNodeSocket *input_socket : node->input_sockets()) {
+          r_required_data_by_socket[input_socket->index_in_tree()] |= required_data;
+        }
+        break;
+      }
     }
   }
   return needs_extra_pass;
