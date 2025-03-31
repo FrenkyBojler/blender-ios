@@ -263,7 +263,8 @@ static bke::GeometrySet get_original_geometry_eval_copy(Depsgraph &depsgraph,
   }
 }
 
-static void store_result_geometry(const wmOperator &op,
+static void store_result_geometry(const bContext &C,
+                                  const wmOperator &op,
                                   const Depsgraph &depsgraph,
                                   Main &bmain,
                                   Scene &scene,
@@ -345,6 +346,17 @@ static void store_result_geometry(const wmOperator &op,
       const int eval_frame = int(DEG_get_ctime(&depsgraph));
 
       GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object.data);
+      bool inserted_new_keyframe;
+      for (bke::greasepencil::Layer *layer : grease_pencil.layers_for_write()) {
+        if (!layer->is_editable()) {
+          continue;
+        }
+        /* TODO: For now, this is always set to false, but it might be good to expose this as an
+         * option somehow. */
+        const bool duplicate_previous_key = false;
+        ed::greasepencil::ensure_active_keyframe(
+            scene, grease_pencil, *layer, duplicate_previous_key, inserted_new_keyframe);
+      }
       GreasePencil *new_grease_pencil =
           geometry.get_component_for_write<bke::GreasePencilComponent>().get_for_write();
       if (!new_grease_pencil) {
@@ -363,7 +375,11 @@ static void store_result_geometry(const wmOperator &op,
         }
       }
       BKE_object_material_from_eval_data(bmain, &object, &new_grease_pencil->id);
+
       DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
+      if (inserted_new_keyframe) {
+        WM_event_add_notifier(&C, NC_GPENCIL | NA_EDITED, nullptr);
+      }
     }
   }
 }
@@ -663,7 +679,7 @@ static wmOperatorStatus run_node_group_exec(bContext *C, wmOperator *op)
         std::move(geometry_orig));
 
     store_result_geometry(
-        *op, *depsgraph_active, *bmain, *scene, *object, rv3d, std::move(new_geometry));
+        *C, *op, *depsgraph_active, *bmain, *scene, *object, rv3d, std::move(new_geometry));
     WM_event_add_notifier(C, NC_GEOM | ND_DATA, object->data);
   }
 
