@@ -369,11 +369,7 @@ static void store_result_geometry(const bContext &C,
 
       Main *bmain = DEG_get_bmain(&depsgraph);
       /* There might be layers with empty names after evaluation. Make sure to rename them. */
-      for (bke::greasepencil::Layer *layer : grease_pencil.layers_for_write()) {
-        if (layer->name().is_empty()) {
-          grease_pencil.rename_node(*bmain, layer->as_node(), DATA_("Layer"));
-        }
-      }
+      bke::greasepencil::rename_layers_with_empty_name(*bmain, grease_pencil);
       BKE_object_material_from_eval_data(bmain, &object, &new_grease_pencil->id);
 
       DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);

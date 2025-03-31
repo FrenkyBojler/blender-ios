@@ -981,11 +981,7 @@ static bool apply_grease_pencil_for_modifier(Depsgraph *depsgraph,
 
   Main *bmain = DEG_get_bmain(depsgraph);
   /* There might be layers with empty names after evaluation. Make sure to rename them. */
-  for (Layer *layer : grease_pencil_orig.layers_for_write()) {
-    if (layer->name().is_empty()) {
-      grease_pencil_orig.rename_node(*bmain, layer->as_node(), DATA_("Layer"));
-    }
-  }
+  bke::greasepencil::rename_layers_with_empty_name(*bmain, grease_pencil_result);
   BKE_object_material_from_eval_data(bmain, ob, &grease_pencil_result.id);
   return true;
 }
@@ -1065,11 +1061,7 @@ static bool apply_grease_pencil_for_modifier_all_keyframes(Depsgraph *depsgraph,
   BKE_scene_graph_update_for_newframe(depsgraph);
 
   /* There might be layers with empty names after evaluation. Make sure to rename them. */
-  for (Layer *layer : grease_pencil_orig.layers_for_write()) {
-    if (layer->name().is_empty()) {
-      grease_pencil_orig.rename_node(*bmain, layer->as_node(), DATA_("Layer"));
-    }
-  }
+  bke::greasepencil::rename_layers_with_empty_name(*bmain, grease_pencil_orig);
 
   WM_cursor_wait(false);
   return changed;
