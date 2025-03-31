@@ -402,7 +402,7 @@ typedef enum eBrushFlags2 {
   BRUSH_GRAB_SILHOUETTE = (1 << 8),
   BRUSH_USE_COLOR_AS_DISPLACEMENT = (1 << 9),
   BRUSH_IGNORE_HIDDEN_OBJECTS = (1 << 10),
-  BRUSH_BOTH_DIRECTIONS = (1 << 11),
+  BRUSH_BIDIRECTIONAL = (1 << 11),
 } eBrushFlags2;
 
 typedef enum {

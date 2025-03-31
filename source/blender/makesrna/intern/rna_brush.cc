@@ -2424,8 +2424,16 @@ static void rna_def_brush(BlenderRNA *brna)
   };
 
   static const EnumPropertyItem brush_project_direction_type_items[] = {
-      {BRUSH_PROJECT_DIRECTION_VIEW_NORMAL, "VIEW_NORMAL", 0, "View Normal", "View Normal."},
-      {BRUSH_PROJECT_DIRECTION_PLANE_NORMAL, "PLANE_NORMAL", 0, "Plane Normal", "Plane Normal."},
+      {BRUSH_PROJECT_DIRECTION_VIEW_NORMAL,
+       "VIEW_NORMAL",
+       0,
+       "View Normal",
+       "Project the vertices along the view normal."},
+      {BRUSH_PROJECT_DIRECTION_PLANE_NORMAL,
+       "PLANE_NORMAL",
+       0,
+       "Plane Normal",
+       "Project the vertices along the plane normal."},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
@@ -3696,12 +3704,18 @@ static void rna_def_brush(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "ignore_hidden_objects", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flag2", BRUSH_IGNORE_HIDDEN_OBJECTS);
-  RNA_def_property_ui_text(prop, "Ignore Hidden Objects", "Ignore hidden objects");
+  RNA_def_property_ui_text(
+      prop,
+      "Ignore Hidden Objects",
+      "Hidden objects in the scene are not considered as  raycasting targets for the brush.");
   RNA_def_property_update(prop, 0, "rna_Brush_update");
 
-  prop = RNA_def_property(srna, "both_directions", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "flag2", BRUSH_BOTH_DIRECTIONS);
-  RNA_def_property_ui_text(prop, "Both Directions", "Both directions");
+  prop = RNA_def_property(srna, "bidirectional", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag2", BRUSH_BIDIRECTIONAL);
+  RNA_def_property_ui_text(prop,
+                           "Bidirectional",
+                           "Project vertices both along along the projection direction and its "
+                           "inverse, choosing the closest intersection.");
   RNA_def_property_update(prop, 0, "rna_Brush_update");
 
   prop = RNA_def_property(srna, "use_accumulate", PROP_BOOLEAN, PROP_NONE);
