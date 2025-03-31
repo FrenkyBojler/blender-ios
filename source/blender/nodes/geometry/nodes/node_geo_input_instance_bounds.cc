@@ -33,7 +33,7 @@ class InstanceBoundsField final : public bke::InstancesFieldInput {
   }
 
   GVArray get_varray_for_context(const bke::Instances &instances,
-                                 const IndexMask & mask) const final
+                                 const IndexMask &mask) const final
   {
     Span<int> handles = instances.reference_handles();
     const int instance_count = mask.size();
