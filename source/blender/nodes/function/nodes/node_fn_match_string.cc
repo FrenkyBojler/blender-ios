@@ -45,6 +45,16 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Bool>("Result");
 }
 
+static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+{
+  uiItemR(layout, ptr, "operation", UI_ITEM_NONE, "", ICON_NONE);
+}
+
+static void node_init(bNodeTree * /*tree*/, bNode *node)
+{
+  node->custom1 = int(MatchStringOperation::StartsWith);
+}
+
 static const mf::MultiFunction *get_multi_function(const bNode &bnode)
 {
   const MatchStringOperation operation = MatchStringOperation(bnode.custom1);
@@ -53,8 +63,8 @@ static const mf::MultiFunction *get_multi_function(const bNode &bnode)
     case MatchStringOperation::StartsWith: {
       static auto fn = mf::build::SI2_SO<std::string, std::string, bool>(
           "Starts With", [](const std::string &a, const std::string &b) {
-            StringRefNull strref_a(a);
-            StringRefNull strref_b(b);
+            const StringRef strref_a(a);
+            const StringRef strref_b(b);
             return strref_a.startswith(strref_b);
           });
       return &fn;
@@ -62,8 +72,8 @@ static const mf::MultiFunction *get_multi_function(const bNode &bnode)
     case MatchStringOperation::EndsWith: {
       static auto fn = mf::build::SI2_SO<std::string, std::string, bool>(
           "Ends With", [](const std::string &a, const std::string &b) {
-            StringRefNull strref_a(a);
-            StringRefNull strref_b(b);
+            const StringRef strref_a(a);
+            const StringRef strref_b(b);
             return strref_a.endswith(strref_b);
           });
       return &fn;
@@ -71,8 +81,8 @@ static const mf::MultiFunction *get_multi_function(const bNode &bnode)
     case MatchStringOperation::Contains: {
       static auto fn = mf::build::SI2_SO<std::string, std::string, bool>(
           "Contains", [](const std::string &a, const std::string &b) {
-            StringRefNull strref_a(a);
-            StringRefNull strref_b(b);
+            const StringRef strref_a(a);
+            const StringRef strref_b(b);
             return strref_a.find(strref_b) != StringRef::not_found;
           });
       return &fn;
@@ -99,7 +109,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
            item++)
       {
         if (item->name != nullptr && item->identifier[0] != '\0') {
-          MatchStringOperation operation = static_cast<MatchStringOperation>(item->value);
+          MatchStringOperation operation = MatchStringOperation(item->value);
           params.add_item(IFACE_(item->name), [operation](LinkSearchOpParams &params) {
             bNode &node = params.add_node("FunctionNodeMatchString");
             node.custom1 = int8_t(operation);
@@ -116,16 +126,6 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
       params.update_and_connect_available_socket(node, "Result");
     });
   }
-}
-
-static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
-{
-  uiItemR(layout, ptr, "operation", UI_ITEM_NONE, "", ICON_NONE);
-}
-
-static void node_init(bNodeTree * /*tree*/, bNode *node)
-{
-  node->custom1 = int(MatchStringOperation::StartsWith);
 }
 
 static void node_label(const bNodeTree * /*tree*/,
