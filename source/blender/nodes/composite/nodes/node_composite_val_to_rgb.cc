@@ -164,7 +164,22 @@ static void cmp_node_rgbtobw_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Float>("Val");
 }
 
+static void node_composit_init_rgbtobw(bNodeTree * /*ntree*/, bNode *node)
+{
+  IMB_colormanagement_get_luminance_coefficients(node->color);
+}
+
+static void node_composit_buts_rgbtobw(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+{
+  uiItemR(layout, ptr, "luminance", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+}
+
 using namespace blender::compositor;
+
+static float3 get_luminance(const bNode &node)
+{
+  return node.color;
+}
 
 static int node_gpu_material(GPUMaterial *material,
                              bNode *node,
@@ -172,8 +187,7 @@ static int node_gpu_material(GPUMaterial *material,
                              GPUNodeStack *inputs,
                              GPUNodeStack *outputs)
 {
-  float luminance_coefficients[3];
-  IMB_colormanagement_get_luminance_coefficients(luminance_coefficients);
+  float3 luminance_coefficients = get_luminance(*node);
 
   return GPU_stack_link(
       material, node, "color_to_luminance", inputs, outputs, GPU_constant(luminance_coefficients));
@@ -181,8 +195,7 @@ static int node_gpu_material(GPUMaterial *material,
 
 static void node_build_multi_function(blender::nodes::NodeMultiFunctionBuilder &builder)
 {
-  float3 luminance_coefficients;
-  IMB_colormanagement_get_luminance_coefficients(luminance_coefficients);
+  float3 luminance_coefficients = get_luminance(builder.node());
 
   builder.construct_and_set_matching_fn_cb([=]() {
     return mf::build::SI1_SO<float4, float>(
@@ -204,11 +217,13 @@ void register_node_type_cmp_rgbtobw()
 
   cmp_node_type_base(&ntype, "CompositorNodeRGBToBW", CMP_NODE_RGBTOBW);
   ntype.ui_name = "RGB to BW";
-  ntype.ui_description = "Convert RGB input into grayscale using luminance";
+  ntype.ui_description = "Convert RGB input into grayscale using variable luminance";
   ntype.enum_name_legacy = "RGBTOBW";
   ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.declare = file_ns::cmp_node_rgbtobw_declare;
   blender::bke::node_type_size_preset(ntype, blender::bke::eNodeSizePreset::Default);
+  ntype.draw_buttons = file_ns::node_composit_buts_rgbtobw;
+  ntype.initfunc = file_ns::node_composit_init_rgbtobw;
   ntype.gpu_fn = file_ns::node_gpu_material;
   ntype.build_multi_function = file_ns::node_build_multi_function;
 

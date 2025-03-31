@@ -7201,6 +7201,17 @@ static void def_cmp_image(BlenderRNA *brna, StructRNA *srna)
   def_node_image_user(brna, srna);
 }
 
+static void def_cmp_rgb_to_bw(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  PropertyRNA *prop;
+
+  prop = RNA_def_property(srna, "luminance", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_array(prop, 3);
+  RNA_def_property_float_sdna(prop, nullptr, "color");
+  RNA_def_property_ui_text(prop, "Luminance", "Luminance coefficients for each channel");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+}
+
 static void def_cmp_render_layers(BlenderRNA * /*brna*/, StructRNA *srna)
 {
   PropertyRNA *prop;
@@ -12335,7 +12346,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("CompositorNode", "CompositorNodePosterize");
   define("CompositorNode", "CompositorNodePremulKey", def_cmp_premul_key);
   define("CompositorNode", "CompositorNodeRGB");
-  define("CompositorNode", "CompositorNodeRGBToBW");
+  define("CompositorNode", "CompositorNodeRGBToBW", def_cmp_rgb_to_bw);
   define("CompositorNode", "CompositorNodeRLayers", def_cmp_render_layers);
   define("CompositorNode", "CompositorNodeRotate", def_cmp_rotate);
   define("CompositorNode", "CompositorNodeScale", def_cmp_scale);
