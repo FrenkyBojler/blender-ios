@@ -72,7 +72,7 @@ static Object *asset_list_drag_find_object_to_activate(const wmDrag *drag,
     if (GS(dropped_id->name) == ID_OB) {
       return reinterpret_cast<Object *>(dropped_id);
     }
-    else if (GS(dropped_id->name) == ID_GR) {
+    if (GS(dropped_id->name) == ID_GR) {
       Collection *collection = reinterpret_cast<Collection *>(dropped_id);
       if (collection->gobject.first) {
         return static_cast<Object *>(collection->gobject.first);
