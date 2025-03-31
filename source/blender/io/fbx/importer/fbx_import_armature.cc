@@ -278,10 +278,10 @@ void ArmatureImportContext::find_armatures(const ufbx_node *node)
       }
       read_custom_properties(fbone->props, *pchan, this->params.props_enum_as_string);
 
-      /* For non-root bones that have pose information, apply that to the pose bone. */
-      if (this->mapping.bone_has_pose_or_skin_matrix.contains(fbone) && fbone->parent &&
-          fbone->parent->bone)
-      {
+      /* For bones that have pose information, apply that to the pose bone. Do not do
+       * this for bones that are at scene root (uncommon case, scale not work work properly). */
+      const bool bone_at_scene_root = fbone->node_depth <= 1;
+      if (this->mapping.bone_has_pose_or_skin_matrix.contains(fbone) && !bone_at_scene_root) {
         bool found;
         ufbx_matrix bind_local_mtx = this->mapping.calc_local_bind_matrix(
             fbone, world_to_arm, found);
