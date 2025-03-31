@@ -1217,9 +1217,12 @@ static asset::AssetItemTree *get_static_item_tree(const Object &active_object)
 
 void clear_operator_asset_trees()
 {
-  for (const ObjectType type : {OB_MESH, OB_CURVES, OB_POINTCLOUD}) {
-    for (const eObjectMode mode :
-         {OB_MODE_OBJECT, OB_MODE_EDIT, OB_MODE_SCULPT, OB_MODE_SCULPT_CURVES})
+  for (const ObjectType type : {OB_MESH, OB_CURVES, OB_POINTCLOUD, OB_GREASE_PENCIL}) {
+    for (const eObjectMode mode : {OB_MODE_OBJECT,
+                                   OB_MODE_EDIT,
+                                   OB_MODE_SCULPT,
+                                   OB_MODE_SCULPT_CURVES,
+                                   OB_MODE_SCULPT_GREASE_PENCIL})
     {
       if (asset::AssetItemTree *tree = get_static_item_tree(type, mode)) {
         tree->dirty = true;
@@ -1318,12 +1321,31 @@ static Set<std::string> get_builtin_menus(const ObjectType object_type, const eO
           break;
       }
       break;
-    case OB_GREASE_PENCIL:
+    case OB_GREASE_PENCIL: {
       switch (mode) {
-        /* TODO! */
+        case OB_MODE_OBJECT:
+          menus.add_new("View");
+          menus.add_new("Select");
+          menus.add_new("Add");
+          menus.add_new("Object");
+          menus.add_new("Object/Apply");
+          menus.add_new("Object/Convert");
+          menus.add_new("Object/Quick Effects");
+          break;
+        case OB_MODE_EDIT:
+          menus.add_new("View");
+          menus.add_new("Select");
+          menus.add_new("Grease Pencil");
+          menus.add_new("Stroke");
+          menus.add_new("Point");
+          break;
+        case OB_MODE_SCULPT_GREASE_PENCIL:
+          menus.add_new("View");
+          break;
         default:
           break;
       }
+    }
     default:
       break;
   }
