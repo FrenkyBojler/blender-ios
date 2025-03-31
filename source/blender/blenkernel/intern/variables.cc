@@ -336,21 +336,16 @@ static int format_int_to_string(const VariableFormat &format,
                                 char *output_string,
                                 int64_t integer_value)
 {
-  sprintf(output_string, "%ld", integer_value);
-  int length = strlen(output_string);
+  int output_length = 0;
 
-  /* Ensure the length of the string is at least the minimum specified digits,
-   * if that was specified. */
-  if (format.fixed_integer_digits && length < *format.fixed_integer_digits) {
-    const int diff = *format.fixed_integer_digits - length;
-    for (int i = 0; i < diff; i++) {
-      output_string[i] = '0';
-    }
-    sprintf(output_string + diff, "%ld", integer_value);
-    length = *format.fixed_integer_digits;
+  if (format.fixed_integer_digits.has_value()) {
+    output_length = sprintf(output_string, "%0*ld", *format.fixed_integer_digits, integer_value);
+  }
+  else {
+    output_length = sprintf(output_string, "%ld", integer_value);
   }
 
-  return length;
+  return output_length;
 }
 
 /**
@@ -367,54 +362,63 @@ static int format_float_to_string(const VariableFormat &format,
     return int_length;
   }
 
-  /* Round to the desired number of fractional decimal digits. Note that this
-   * needs to be done *before* we take the integer part, because rounding can
-   * propagate from the fractional part to the integer part.
-   *
-   * TODO: this isn't 100% correct due to floating point rounding error, but
-   * since we're using doubles here it shouldn't cause any practical problems.
-   * Nevertheless, doing something actually correct to format floats would be
-   * nice! */
-  if (format.fixed_fractional_digits) {
-    uint64_t factor = 1;
-    for (int i = 0; i < *format.fixed_fractional_digits; i++) {
-      factor *= 10;
-    }
-    float_value = std::round(float_value * factor) / factor;
+  int output_length = 0;
+  if (format.fixed_integer_digits.has_value() && format.fixed_fractional_digits.has_value()) {
+    /* Both integer and fractional component lengths are specified. */
+    output_length = sprintf(output_string,
+                            "%0*.*f",
+                            *format.fixed_integer_digits + *format.fixed_fractional_digits + 1,
+                            *format.fixed_fractional_digits,
+                            float_value);
   }
-
-  const int64_t integer_part = float_value;
-  const int int_length = format_int_to_string(format, output_string, integer_part);
-
-  double tmp; /* Just needed for the call to `modf()`. We don't actually use it. */
-  const double fractional_part = std::abs(std::modf(float_value, &tmp));
-  char frac_string_buffer[128];
-  sprintf(frac_string_buffer, "%f", fractional_part);
-  int frac_length = strlen(frac_string_buffer);
-
-  if (frac_length < 3 || frac_string_buffer[0] != '0' || frac_string_buffer[1] != '.') {
-    /* Fractional component is weird! Just return the int part.
+  else if (format.fixed_integer_digits.has_value()) {
+    /* Only integer component length is specified.
      *
-     * TODO: is this really the right thing to do here? */
-    return int_length;
-  }
+     * `sprintf()` has no way to specify *just* the number of integer digits
+     * independent of the number of fractional digits, which is what we want
+     * here. So we have to do some annoying gymnastics to bend it to our will.
+     *
+     * The solution here isn't perfect, but it's reasonable: we assume a desired
+     * fractional precision of 15 digits (the maximum precision you would get
+     * with a 64-bit float when there's a non-zero integer component), and then
+     * expand the total digits to ensure the given number of integer digits.
+     * Then we truncate any unneeded trailing zeros. */
+    const int total_digits = 15 + 1 + *format.fixed_integer_digits;
+    output_length = sprintf(output_string, "%0*.15f", total_digits, float_value);
 
-  /* Ensure the number of fractional digits exactly matches digit count
-   * specified, if it was specified. */
-  const int offset = 2; /* For the leading "0.". */
-  if (format.fixed_fractional_digits && (frac_length - offset) != *format.fixed_fractional_digits)
-  {
-    const int diff = *format.fixed_fractional_digits - (frac_length - offset);
-    for (int i = 0; i < diff; i++) {
-      frac_string_buffer[frac_length + i + offset] = '0';
+    while (output_length > 1 && output_string[output_length - 2] != '.' &&
+           output_string[output_length - 1] == '0')
+    {
+      output_string[output_length - 1] = '\0';
+      output_length--;
     }
-    frac_string_buffer[*format.fixed_fractional_digits + offset] = '\0';
-    frac_length = *format.fixed_integer_digits + offset;
+  }
+  else if (format.fixed_fractional_digits.has_value()) {
+    /* Only fractional component length is specified. */
+    output_length = sprintf(output_string, "%.*f", *format.fixed_fractional_digits, float_value);
+  }
+  else {
+    /* No format specification is given.
+     *
+     * When no format specification is given, we attempt to approximate Python's
+     * behavior when no format specification is given. We can't exactly match
+     * via `sprintf()`, but we can get pretty close. The only major difference
+     * that we can't replicate is that in `sprintf()` whole numbers are printed
+     * without a trailing ".0", whereas in Python they are. So we handle that
+     * bit manually. */
+    output_length = sprintf(output_string, "%.16g", float_value);
+
+    /* If the string consists only of digits and a possible negative sign, then
+     * we append a ".0" to match Python. */
+    if (blender::StringRef(output_string).find_first_not_of("-0123456789") == std::string::npos) {
+      output_string[output_length] = '.';
+      output_string[output_length + 1] = '0';
+      output_string[output_length + 2] = '\0';
+      output_length += 2;
+    }
   }
 
-  BLI_strncpy(output_string + int_length, frac_string_buffer + 1, 64);
-
-  return int_length + frac_length - 1;
+  return output_length;
 }
 
 bool BKE_path_apply_variables(char path[FILE_MAX], const VariableMap &variables)

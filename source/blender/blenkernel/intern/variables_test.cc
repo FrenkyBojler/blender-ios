@@ -82,34 +82,67 @@ TEST(blender_variables, path_apply_variables)
     variables.add_string("long", "This string is exactly 32 bytes.");
     variables.add_integer("the_answer", 42);
     variables.add_integer("prime", 7);
-    variables.add_float("pi", 3.14159);
-    variables.add_float("e", 2.71828);
+    variables.add_integer("i_negative", -7);
+    variables.add_float("pi", 3.14159265358979323846);
+    variables.add_float("e", 2.71828182845904523536);
     variables.add_float("ntsc", 30.0 / 1.001);
+    variables.add_float("two", 2.0);
+    variables.add_float("f_negative", -3.14159265358979323846);
+    variables.add_float("huge", 200000000000000000000000000000000.0);
+    variables.add_float("tiny", 0.000000000000000000000000000000002);
   }
 
-  /* Simple case, testing all variables.
-   *
-   * TODO: the floats always print with 6 decimal digits. Investigate. */
+  /* Simple case, testing all variables. */
   {
-    char path[FILE_MAX] = "{hi}_{bye}_{the_answer}_{prime}_{pi}_{e}_{ntsc}";
+    char path[FILE_MAX] =
+        "{hi}_{bye}_{the_answer}_{prime}_{i_negative}_{pi}_{e}_{ntsc}_{two}_{f_negative}_{huge}_{"
+        "tiny}";
     BKE_path_apply_variables(path, variables);
-    EXPECT_EQ(blender::StringRef(path), "hello_goodbye_42_7_3.141590_2.718280_29.970030");
+    EXPECT_EQ(blender::StringRef(path),
+              "hello_goodbye_42_7_-7_3.141592653589793_2.718281828459045_29.97002997002997_2.0_-3."
+              "141592653589793_2e+32_2e-33");
   }
 
   /* Integer formatting. */
   {
-    char path[FILE_MAX] = "{the_answer:1}_{the_answer:2}_{the_answer:4}";
+    char path[FILE_MAX] = "{the_answer:1}_{the_answer:2}_{the_answer:4}_{i_negative:4}";
     BKE_path_apply_variables(path, variables);
-    EXPECT_EQ(blender::StringRef(path), "42_42_0042");
+    EXPECT_EQ(blender::StringRef(path), "42_42_0042_-007");
   }
 
-  /* Float formatting.
-   *
-   * TODO: the floats print with a maximum of 6 decimal digits. Investigate. */
+  /* Float formatting: specify fractional digits only. */
   {
-    char path[FILE_MAX] = "{pi:.4}_{e:.3}_{ntsc:.20}";
+    char path[FILE_MAX] = "{pi:.4}_{e:.3}_{ntsc:.8}_{two:.2}_{f_negative:.2}_{huge:.2}_{tiny:.2}";
     BKE_path_apply_variables(path, variables);
-    EXPECT_EQ(blender::StringRef(path), "3.1416_2.718_29.970030");
+    EXPECT_EQ(blender::StringRef(path),
+              "3.1416_2.718_29.97002997_2.00_-3.14_200000000000000010732324408786944.00_0.00");
+  }
+
+  /* Float formatting: specify integer digits only. */
+  {
+    char path[FILE_MAX] = "{pi:2.}_{e:4.}_{ntsc:1.}_{two:3.}_{f_negative:3.}_{huge:3.}_{tiny:3.}";
+    BKE_path_apply_variables(path, variables);
+    EXPECT_EQ(
+        blender::StringRef(path),
+        "03.141592653589793_0002.718281828459045_29.970029970029973_002.0_-03.141592653589793_"
+        "200000000000000010732324408786944.0_000.0");
+  }
+
+  /* Float formatting: specify both integer and fractional digits. */
+  {
+    char path[FILE_MAX] =
+        "{pi:2.4}_{e:4.3}_{ntsc:1.8}_{two:3.2}_{f_negative:3.2}_{huge:3.2}_{tiny:3.2}";
+    BKE_path_apply_variables(path, variables);
+    EXPECT_EQ(
+        blender::StringRef(path),
+        "03.1416_0002.718_29.97002997_002.00_-03.14_200000000000000010732324408786944.00_000.00");
+  }
+
+  /* Float formatting: format as integer. */
+  {
+    char path[FILE_MAX] = "{pi:2}_{e:4}_{ntsc:1}_{two:3}";
+    BKE_path_apply_variables(path, variables);
+    EXPECT_EQ(blender::StringRef(path), "03_0003_30_002");
   }
 
   /* Missing variable. Substitution should continue on, simply ignoring the
