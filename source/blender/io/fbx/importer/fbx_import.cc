@@ -734,13 +734,15 @@ void importer_main(Main *bmain, Scene *scene, ViewLayer *view_layer, const FBXIm
     }
     std::sort(nodes.begin(), nodes.end(), [](const ufbx_node *a, const ufbx_node *b) {
       int ncmp = strcmp(a->name.data, b->name.data);
-      if (ncmp != 0)
+      if (ncmp != 0) {
         return ncmp < 0;
+      }
       return a->attrib_type > b->attrib_type;
     });
     for (const ufbx_node *node : nodes) {
-      ufbx_matrix mtx = ufbx_matrix_mul(
-          node->is_root ? &node->node_to_world : &node->node_to_parent, &node->geometry_to_node);
+      ufbx_matrix mtx = ufbx_matrix_mul(node->node_depth < 2 ? &node->node_to_world :
+                                                               &node->node_to_parent,
+                                        &node->geometry_to_node);
       fprintf(g_debug_file, "init NODE %s self.matrix:\n", node->name.data);
       print_matrix(mtx);
     }

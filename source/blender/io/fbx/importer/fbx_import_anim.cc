@@ -14,6 +14,7 @@
 #include "BKE_action.hh"
 #include "BKE_fcurve.hh"
 #include "BKE_lib_id.hh"
+#include "BKE_object_types.hh"
 
 #include "BLI_math_axis_angle.hh"
 #include "BLI_math_quaternion.hh"
@@ -203,8 +204,20 @@ static void create_transform_curves(const FbxElementMapping &mapping,
      * in joint-local space:
      * - Calculate local space bind matrix: inv(parent_bind) * bind
      * - Invert the result; this will be used to transform loc/rot/scale curves. */
+
+    const bool bone_at_scene_root = fnode->node_depth <= 1;
+    ufbx_matrix world_to_arm = ufbx_identity_matrix;
+    if (!bone_at_scene_root) {
+      Object *arm_obj = mapping.bone_to_armature.lookup_default(fnode, nullptr);
+      if (arm_obj != nullptr) {
+        ufbx_matrix arm_to_world;
+        m44_to_matrix(arm_obj->runtime->object_to_world.ptr(), arm_to_world);
+        world_to_arm = ufbx_matrix_invert(&arm_to_world);
+      }
+    }
+
     bool found = false;
-    bone_xform = mapping.calc_local_bind_matrix(fnode, ufbx_identity_matrix, found);
+    bone_xform = mapping.calc_local_bind_matrix(fnode, world_to_arm, found);
     bone_xform = ufbx_matrix_invert(&bone_xform);
     BLI_assert_msg(found, "fbx: did not find bind matrix for bone curve");
   }

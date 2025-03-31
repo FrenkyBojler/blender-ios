@@ -109,7 +109,8 @@ void node_matrix_to_obj(const ufbx_node *node, Object *obj, const FbxElementMapp
     }
   }
 
-  ufbx_matrix mtx = ufbx_matrix_mul(node->is_root ? &node->node_to_world : &node->node_to_parent,
+  ufbx_matrix mtx = ufbx_matrix_mul(node->node_depth < 2 ? &node->node_to_world :
+                                                           &node->node_to_parent,
                                     &node->geometry_to_node);
   ufbx_matrix_to_obj(mtx, obj);
 }
