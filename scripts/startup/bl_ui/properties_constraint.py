@@ -512,7 +512,7 @@ class ConstraintButtonsPanel:
 
         layout.prop(con, "mode")
 
-        if con.mode == 'SPLIT_COMPONENTS':
+        if con.mode == 'SPLIT_CHANNELS':
             row = layout.row(align=True, heading="Components")
             row.prop(con, "use_location", toggle=1)
             row.prop(con, "use_rotation", toggle=1)
@@ -521,6 +521,8 @@ class ConstraintButtonsPanel:
         row = layout.row()
         row.operator("constraint.freezetrans_set_freezemat", text="Re-Capture Transform" if con.is_frozen else "Capture Transform", icon='PINNED' if con.is_frozen else 'UNPINNED')
         row.operator("constraint.freezetrans_clear_freezemat", text="Clear Transform", icon='PANEL_CLOSE')
+
+        layout.prop(con, "space")
 
         self.draw_influence(layout, con)
 

@@ -307,7 +307,10 @@ typedef struct bTransLikeConstraint {
 /* Freeze Transform Constraint */
 typedef struct bFreezeTransConstraint {
   int flag;
+  char space;
+  char _pad[3];
   float freezemat[4][4];
+  float freezeparentmat[4][4];
 } bFreezeTransConstraint;
 
 /* Floor Constraint */
@@ -795,6 +798,16 @@ typedef enum eCopyTransforms_Flags {
   /* Remove shear from the target matrix. */
   TRANSLIKE_REMOVE_TARGET_SHEAR = (1 << 0),
 } eCopyTransforms_Flags;
+
+/** #bFreezeTransConstraint.space */
+typedef enum eFreezeTransforms_Space {
+  /** Freezes in global space. */
+  FREEZETRANS_SPACE_GLOBAL = 0,
+  /** Freezes own transformation, but retains parent's. */
+  FREEZETRANS_SPACE_PARENT = 1,
+  /** Freezes parent transformation, but retains its own. */
+  FREEZETRANS_SPACE_LOCAL = 2,
+} eFreezeTransforms_Space;
 
 /** #bFreezeTransConstraint.flag */
 typedef enum eFreezeTransforms_Flags {

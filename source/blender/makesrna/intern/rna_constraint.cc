@@ -1884,6 +1884,21 @@ static void rna_def_constraint_freeze_transform(BlenderRNA *brna)
       {0, nullptr, 0, nullptr, nullptr},
   };
 
+  static const EnumPropertyItem space_items[] = {
+      {FREEZETRANS_SPACE_GLOBAL, "GLOBAL", 0, "Global Space", "Freezes in global space"},
+      {FREEZETRANS_SPACE_PARENT,
+       "PARENT",
+       0,
+       "Parent Space",
+       "Freezes own transformation, but retains parent's"},
+      {FREEZETRANS_SPACE_LOCAL,
+       "LOCAL",
+       0,
+       "Local Space",
+       "Freezes parent transformation, but retains its own"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
   RNA_def_struct_sdna_from(srna, "bFreezeTransConstraint", "data");
 
   RNA_def_struct_ui_icon(srna, ICON_FREEZE);
@@ -1913,6 +1928,12 @@ static void rna_def_constraint_freeze_transform(BlenderRNA *brna)
   RNA_def_property_enum_bitflag_sdna(prop, nullptr, "flag");
   RNA_def_property_enum_items(prop, mode_items);
   RNA_def_property_ui_text(prop, "Mode", "How the freeze transformation should be applied");
+  RNA_def_property_update(prop, NC_OBJECT | ND_CONSTRAINT, "rna_Constraint_update");
+
+  prop = RNA_def_property(srna, "space", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "space");
+  RNA_def_property_enum_items(prop, space_items);
+  RNA_def_property_ui_text(prop, "Space", "Space to freeze transformation in");
   RNA_def_property_update(prop, NC_OBJECT | ND_CONSTRAINT, "rna_Constraint_update");
 
   prop = RNA_def_property(srna, "use_location", PROP_BOOLEAN, PROP_NONE);

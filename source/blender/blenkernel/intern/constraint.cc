@@ -2414,9 +2414,30 @@ static void freezetrans_evaluate(bConstraint *con, bConstraintOb *cob, ListBase 
 {
   bFreezeTransConstraint *data = static_cast<bFreezeTransConstraint *>(con->data);
 
+  float parentmat[4][4];
+  float parentinv[4][4];
+
+  if (cob->pchan) {
+    /* TODO: bone parent matrix */
+    BLI_assert(false);
+  }
+  else {
+    /* Object parent. */
+    if (cob->ob->parent) {
+      copy_m4_m4(parentmat, cob->ob->parent->object_to_world().ptr());
+      copy_m4_m4(parentinv, cob->ob->parentinv);
+    }
+    else {
+      unit_m4(parentmat);
+      unit_m4(parentinv);
+    }
+  }
+
+  /* While running the freeze operator... */
   if (data->flag & FREEZETRANS_PENDING_FREEZE) {
     /* Store current transform in the freeze matrix. */
     copy_m4_m4(data->freezemat, cob->matrix);
+    copy_m4_m4(data->freezeparentmat, parentmat);
 
     data->flag &= ~FREEZETRANS_PENDING_FREEZE;
     data->flag |= FREEZETRANS_IS_FROZEN;
@@ -2428,15 +2449,45 @@ static void freezetrans_evaluate(bConstraint *con, bConstraintOb *cob, ListBase 
       bFreezeTransConstraint *orig_data = static_cast<bFreezeTransConstraint *>(orig_con->data);
 
       copy_m4_m4(orig_data->freezemat, data->freezemat);
+      copy_m4_m4(orig_data->freezeparentmat, data->freezeparentmat);
       orig_data->flag &= ~FREEZETRANS_PENDING_FREEZE;
       orig_data->flag |= FREEZETRANS_IS_FROZEN;
     }
   }
 
+  /* If we have stored freeze data, apply to cob. */
   if (data->flag & FREEZETRANS_IS_FROZEN) {
+    float tarmat[4][4];
+
+    switch (data->space) {
+      case FREEZETRANS_SPACE_GLOBAL: {
+        /* Use freezemat as it was stored. */
+        copy_m4_m4(tarmat, data->freezemat);
+      } break;
+      case FREEZETRANS_SPACE_LOCAL: {
+        /* Compute local transform of cob. */
+        float local_cob[4][4];
+        mul_m4_m4m4(local_cob, parentmat, parentinv);
+        invert_m4(local_cob);
+        mul_m4_m4_post(local_cob, cob->matrix);
+
+        /* Apply it to the frozen parent matrix. */
+        float temp[4][4];
+        mul_m4_m4m4(temp, parentinv, local_cob);
+        mul_m4_m4m4(tarmat, data->freezeparentmat, temp);
+      } break;
+      case FREEZETRANS_SPACE_PARENT: {
+        /* Use current parent matrix, but applied onto the frozen cob. */
+        float invparentmat[4][4];
+        invert_m4_m4(invparentmat, data->freezeparentmat);
+        mul_m4_m4_post(invparentmat, data->freezemat);
+        mul_m4_m4m4(tarmat, parentmat, invparentmat);
+      } break;
+    }
+
     if ((data->flag & FREEZETRANS_SPLIT_CHANNELS) == 0) {
       /* Replace whole matrix. */
-      copy_m4_m4(cob->matrix, data->freezemat);
+      copy_m4_m4(cob->matrix, tarmat);
     }
     else if ((data->flag & (FREEZETRANS_LOCATION | FREEZETRANS_ROTATION | FREEZETRANS_SCALE)) != 0)
     {
@@ -2445,7 +2496,7 @@ static void freezetrans_evaluate(bConstraint *con, bConstraintOb *cob, ListBase 
       float loc_f[3], rot_f[3][3], size_f[3];
 
       mat4_to_loc_rot_size(loc_o, rot_o, size_o, cob->matrix);
-      mat4_to_loc_rot_size(loc_f, rot_f, size_f, data->freezemat);
+      mat4_to_loc_rot_size(loc_f, rot_f, size_f, tarmat);
 
       if (data->flag & FREEZETRANS_LOCATION) {
         copy_v3_v3(loc_o, loc_f);
