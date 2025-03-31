@@ -1758,7 +1758,7 @@ void resize_single_curve(bke::CurvesGeometry &curves, const bool at_end, const i
   }
 }
 
-void apply_eval_grease_pencil_data(const GreasePencil &src_grease_pencil,
+void apply_eval_grease_pencil_data(const GreasePencil &eval_grease_pencil,
                                    const int eval_frame,
                                    const IndexMask &orig_layers,
                                    GreasePencil &orig_grease_pencil)
@@ -1773,17 +1773,17 @@ void apply_eval_grease_pencil_data(const GreasePencil &src_grease_pencil,
   });
 
   /* Ensure that the layer names are unique by merging layers with the same name. */
-  const int old_layers_num = src_grease_pencil.layers().size();
+  const int old_layers_num = eval_grease_pencil.layers().size();
   Vector<Vector<int>> layers_map;
   Map<StringRef, int> new_layer_index_by_name;
   for (const int layer_i : IndexRange(old_layers_num)) {
-    const Layer &layer = src_grease_pencil.layer(layer_i);
+    const Layer &layer = eval_grease_pencil.layer(layer_i);
     const int new_layer_index = new_layer_index_by_name.lookup_or_add_cb(
         layer.name(), [&]() { return layers_map.append_and_get_index_as(); });
     layers_map[new_layer_index].append(layer_i);
   }
   GreasePencil &merged_layers_grease_pencil = *geometry::merge_layers(
-      src_grease_pencil, layers_map, {});
+      eval_grease_pencil, layers_map, {});
 
   Map<const Layer *, const Layer *> eval_to_orig_layer_map;
   {
@@ -1792,7 +1792,7 @@ void apply_eval_grease_pencil_data(const GreasePencil &src_grease_pencil,
      * updating the cache every time a new layer is added. */
     Map<const LayerGroup *, TreeNode *> last_node_by_group;
     /* Set of orig layers that require the drawing on `eval_frame` to be cleared. These are layers
-     * that existed in original geometry but were removed during the modifier evaluation. */
+     * that existed in original geometry but were removed in the evaluated data. */
     Set<Layer *> orig_layers_to_clear;
     for (Layer *layer : orig_grease_pencil.layers_for_write()) {
       /* Only allow clearing a layer if it is visible. */
@@ -1849,7 +1849,7 @@ void apply_eval_grease_pencil_data(const GreasePencil &src_grease_pencil,
     }
 
     /* Clear the keyframe of all the original layers that don't have a matching evaluated layer,
-     * e.g. the ones that were "deleted" in the modifier. */
+     * e.g. the ones that were "deleted" in the evalauted data. */
     for (Layer *layer_orig : orig_layers_to_clear) {
       /* Try inserting a frame. */
       Drawing *drawing_orig = orig_grease_pencil.insert_frame(*layer_orig, eval_frame);
@@ -1892,7 +1892,7 @@ void apply_eval_grease_pencil_data(const GreasePencil &src_grease_pencil,
   /* Build material indices mapping. This maps the materials indices on the original geometry to
    * the material indices used in the result geometry. The material indices for the drawings in the
    * result geometry are already correct, but this might not be the case for all drawings in the
-   * original geometry (like for drawings that are not visible on the frame that the modifier is
+   * original geometry (like for drawings that are not visible on the frame that the data is
    * being applied on). */
   Array<int> material_indices_map(orig_grease_pencil.material_array_num);
   for (const int mat_i : IndexRange(orig_grease_pencil.material_array_num)) {
