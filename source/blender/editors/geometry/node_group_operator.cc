@@ -368,7 +368,16 @@ static void store_result_geometry(const bContext &C,
       GreasePencil *new_grease_pencil =
           geometry.get_component_for_write<bke::GreasePencilComponent>().get_for_write();
       if (!new_grease_pencil) {
-        /* TODO: Clear Grease Pencil? */
+        /* Clear the Grease Pencil geometry. */
+        for (const int layer_i : editable_layer_indices) {
+          bke::greasepencil::Layer &layer = grease_pencil.layer(layer_i);
+          if (bke::greasepencil::Drawing *drawing_orig = grease_pencil.get_drawing_at(layer,
+                                                                                      eval_frame))
+          {
+            drawing_orig->strokes_for_write() = {};
+            drawing_orig->tag_topology_changed();
+          }
+        }
         break;
       }
 
