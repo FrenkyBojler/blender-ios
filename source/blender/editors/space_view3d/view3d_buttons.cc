@@ -510,23 +510,28 @@ static void v3d_editvertex_buts(
     });
   }
   else if (ob->type == OB_CURVES) {
-    const Curves &curves_id = *static_cast<Curves *>(ob->data);
-    const bke::CurvesGeometry &curves = curves_id.geometry.wrap();
+    using namespace ed::curves;
+    Curves &curves_id = *static_cast<Curves *>(ob->data);
+    bke::CurvesGeometry &curves = curves_id.geometry.wrap();
     if (curves.is_empty()) {
       return;
     }
 
-    IndexMaskMemory memory;
-    const IndexMask selection = ed::curves::retrieve_selected_points(curves_id, memory);
-    if (selection.is_empty()) {
-      return;
-    }
-
-    const Span<float3> positions = curves.positions();
+    const Span<StringRef> selection_names = get_curves_selection_attribute_names(curves);
+    Vector<MutableSpan<float3>> positions = get_curves_positions_for_write(curves);
     TransformMedian_Curves *median = &median_basis.curves;
-    tot += selection.size();
-    selection.foreach_index(
-        [&](const int point) { add_v3_v3(median->location, positions[point]); });
+    for (int attribute_i : selection_names.index_range()) {
+      IndexMaskMemory memory;
+      const IndexMask selection = retrieve_selected_points(
+          curves, selection_names[attribute_i], memory);
+      if (selection.is_empty()) {
+        continue;
+      }
+
+      tot += selection.size();
+      selection.foreach_index(
+          [&](const int point) { add_v3_v3(median->location, positions[attribute_i][point]); });
+    }
   }
 
   if (tot == 0) {
@@ -1255,24 +1260,36 @@ static void v3d_editvertex_buts(
       });
     }
     else if (ob->type == OB_CURVES && apply_vcos) {
+      using namespace ed::curves;
       Curves &curves_id = *static_cast<Curves *>(ob->data);
       bke::CurvesGeometry &curves = curves_id.geometry.wrap();
       if (curves.is_empty()) {
         return;
       }
 
-      IndexMaskMemory memory;
-      IndexMask selection = ed::curves::retrieve_selected_points(curves, memory);
-      MutableSpan<float3> positions = curves.positions_for_write();
       TransformMedian_Curves *median = &median_basis.curves;
       TransformMedian_Curves *ve_median = &ve_median_basis.curves;
-      selection.foreach_index([&](const int point) {
-        apply_raw_diff_v3(positions[point], tot, ve_median->location, median->location);
-      });
-    }
+      IndexMaskMemory memory;
+      const Span<StringRef> selection_names = get_curves_selection_attribute_names(curves);
+      Vector<MutableSpan<float3>> positions = get_curves_positions_for_write(curves);
+      for (int attribute_i : selection_names.index_range()) {
+        IndexMaskMemory memory;
+        const IndexMask selection = retrieve_selected_points(
+            curves, selection_names[attribute_i], memory);
+        if (selection.is_empty()) {
+          continue;
+        }
 
-    // ED_undo_push(C, "Transform properties");
+        selection.foreach_index([&](const int point) {
+          apply_raw_diff_v3(
+              positions[attribute_i][point], tot, ve_median->location, median->location);
+        });
+      }
+      curves.tag_positions_changed();
+    }
   }
+
+  // ED_undo_push(C, "Transform properties");
 }
 
 #undef TRANSFORM_MEDIAN_ARRAY_LEN
