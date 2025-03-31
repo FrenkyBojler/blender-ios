@@ -255,7 +255,7 @@ static bool propagate_zone_data_requirements(const bNodeTree &tree,
       for (const bNode *input_node : tree.nodes_by_type("GeometryNodeSimulationInput")) {
         const auto &data = *static_cast<const NodeGeometrySimulationInput *>(input_node->storage);
         if (node.identifier == data.output_node_id) {
-          if (simulation_zone_requirements_propagate(node, *input_node, input_requirements)) {
+          if (simulation_zone_requirements_propagate(*input_node, node, input_requirements)) {
             return true;
           }
         }
@@ -425,7 +425,7 @@ static bool propagate_zone_status(const bNodeTree &tree,
       for (const bNode *input_node : tree.nodes_by_type("GeometryNodeSimulationInput")) {
         const auto &data = *static_cast<const NodeGeometrySimulationInput *>(input_node->storage);
         if (node.identifier == data.output_node_id) {
-          if (simulation_zone_status_propagate(node, *input_node, structure_types)) {
+          if (simulation_zone_status_propagate(*input_node, node, structure_types)) {
             return true;
           }
         }
