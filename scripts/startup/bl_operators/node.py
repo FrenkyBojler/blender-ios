@@ -295,7 +295,7 @@ class NodeInterfaceOperator():
         return True
 
 
-def get_direct_tree(context):
+def group_or_edit_tree(context):
     node = context.active_node
     if node and node.select and node.bl_idname == "GeometryNodeGroup":
         return node.node_tree
@@ -310,7 +310,7 @@ class NODE_OT_interface_item_new(NodeInterfaceOperator, Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     def get_items(_self, context):
-        tree = get_direct_tree(context)
+        tree = group_or_edit_tree(context)
         interface = tree.interface
 
         items = [
@@ -354,7 +354,7 @@ class NODE_OT_interface_item_new(NodeInterfaceOperator, Operator):
             types_to_check.extend(t.__subclasses__())
 
     def execute(self, context):
-        tree = get_direct_tree(context)
+        tree = group_or_edit_tree(context)
         interface = tree.interface
 
         # Remember active item and position to determine target position.
@@ -404,12 +404,12 @@ class NODE_OT_interface_item_duplicate(NodeInterfaceOperator, Operator):
         if not super().poll(context):
             return False
 
-        tree = get_direct_tree(context)
+        tree = group_or_edit_tree(context)
         interface = tree.interface
         return interface.active is not None
 
     def execute(self, context):
-        tree = get_direct_tree(context)
+        tree = group_or_edit_tree(context)
         interface = tree.interface
         item = interface.active
 
@@ -427,7 +427,7 @@ class NODE_OT_interface_item_remove(NodeInterfaceOperator, Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
-        tree = get_direct_tree(context)
+        tree = group_or_edit_tree(context)
         interface = tree.interface
         item = interface.active
 
@@ -449,7 +449,7 @@ class NODE_OT_interface_item_make_panel_toggle(NodeInterfaceOperator, Operator):
         if not super().poll(context):
             return False
 
-        tree = get_direct_tree(context)
+        tree = group_or_edit_tree(context)
         interface = tree.interface
         active_item = interface.active
         if not active_item:
@@ -469,7 +469,7 @@ class NODE_OT_interface_item_make_panel_toggle(NodeInterfaceOperator, Operator):
         return True
 
     def execute(self, context):
-        tree = get_direct_tree(context)
+        tree = group_or_edit_tree(context)
         interface = tree.interface
         active_item = interface.active
 
@@ -503,7 +503,7 @@ class NODE_OT_interface_item_unlink_panel_toggle(NodeInterfaceOperator, Operator
         if not super().poll(context):
             return False
 
-        tree = get_direct_tree(context)
+        tree = group_or_edit_tree(context)
         interface = tree.interface
         active_item = interface.active
         if not active_item or active_item.item_type != 'PANEL':
@@ -515,7 +515,7 @@ class NODE_OT_interface_item_unlink_panel_toggle(NodeInterfaceOperator, Operator
         return first_item.is_panel_toggle
 
     def execute(self, context):
-        tree = get_direct_tree(context)
+        tree = group_or_edit_tree(context)
         interface = tree.interface
         active_item = interface.active
 
