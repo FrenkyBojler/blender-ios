@@ -122,6 +122,28 @@ struct uiTooltipData;
 /** Use for clamping popups within the screen. */
 #define UI_SCREEN_MARGIN 10
 
+namespace blender::ui {
+/** #uiBlock.emboss and #uiBut.emboss */
+enum class EmbossType : uint8_t {
+  /** Use widget style for drawing. */
+  Emboss = 0,
+  /** Nothing, only icon and/or text */
+  None = 1,
+  /** Pull-down menu style */
+  Pulldown = 2,
+  /** Pie Menu */
+  PieMenu = 3,
+  /**
+   * The same as #EmbossType::None, unless the button has
+   * a coloring status like an animation state or red alert.
+   */
+  NoneOrStatus = 4,
+  /** For layout engine, use emboss from block. */
+  Undefined = 255,
+};
+
+}  // namespace blender::ui
+
 /** #uiBlock::direction */
 enum {
   UI_DIR_UP = 1 << 0,
@@ -846,13 +868,13 @@ bool UI_popup_block_name_exists(const bScreen *screen, blender::StringRef name);
 uiBlock *UI_block_begin(const bContext *C,
                         ARegion *region,
                         std::string name,
-                        eUIEmbossType emboss);
+                        blender::ui::EmbossType emboss);
 uiBlock *UI_block_begin(const bContext *C,
                         Scene *scene,
                         wmWindow *window,
                         ARegion *region,
                         std::string name,
-                        eUIEmbossType emboss);
+                        blender::ui::EmbossType emboss);
 void UI_block_end_ex(const bContext *C,
                      Main *bmain,
                      wmWindow *window,
@@ -877,8 +899,8 @@ enum {
   UI_BLOCK_THEME_STYLE_POPUP = 1,
 };
 void UI_block_theme_style_set(uiBlock *block, char theme_style);
-eUIEmbossType UI_block_emboss_get(uiBlock *block);
-void UI_block_emboss_set(uiBlock *block, eUIEmbossType emboss);
+blender::ui::EmbossType UI_block_emboss_get(uiBlock *block);
+void UI_block_emboss_set(uiBlock *block, blender::ui::EmbossType emboss);
 bool UI_block_is_search_only(const uiBlock *block);
 /**
  * Use when a block must be searched to give accurate results
