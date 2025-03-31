@@ -23,6 +23,7 @@
 #include "BLO_read_write.hh"
 
 #include "DNA_curves_types.h"
+#include "DNA_material_types.h"
 
 #include "BKE_attribute.hh"
 #include "BKE_attribute_math.hh"
@@ -70,8 +71,7 @@ CurvesGeometry::CurvesGeometry(const int point_num, const int curve_num)
       "position", AttrDomain::Point, AttributeInitConstruct());
 
   if (curve_num > 0) {
-    this->curve_offsets = static_cast<int *>(
-        MEM_malloc_arrayN(this->curve_num + 1, sizeof(int), __func__));
+    this->curve_offsets = MEM_malloc_arrayN<int>(size_t(this->curve_num) + 1, __func__);
     this->runtime->curve_offsets_sharing_info = implicit_sharing::info_for_mem_free(
         this->curve_offsets);
 #ifndef NDEBUG
@@ -1246,6 +1246,9 @@ std::optional<int> CurvesGeometry::material_index_max() const
         this->attributes()
             .lookup_or_default<int>("material_index", blender::bke::AttrDomain::Curve, 0)
             .varray);
+    if (r_max_material_index.has_value()) {
+      r_max_material_index = std::clamp(*r_max_material_index, 0, MAXMAT);
+    }
   });
   return this->runtime->max_material_index_cache.data();
 }
