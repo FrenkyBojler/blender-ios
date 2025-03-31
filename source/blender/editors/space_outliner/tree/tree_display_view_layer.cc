@@ -22,7 +22,6 @@
 #include "common.hh"
 #include "tree_display.hh"
 
-
 namespace blender::ed::outliner {
 
 template<typename T> using List = ListBaseWrapper<T>;
@@ -266,7 +265,7 @@ void ObjectsChildrenBuilder::prepare_sorted_objects_vector()
   for (ObjectTreeElementsMap::MutableItem item : object_tree_elements_map_.items()) {
     sorted_objects_vector_.append(item.key);
 
-    // Cache the hierarchy depths to avoid multiple calls to object_hierarchy_depth when sorting
+    /* Cache the hierarchy depths to avoid multiple calls to object_hierarchy_depth when sorting. */
     object_hierarchy_depth_map_.add(item.key, object_hierarchy_depth(item.key));
   }
 
@@ -292,7 +291,6 @@ void ObjectsChildrenBuilder::make_object_parent_hierarchy_collections()
     Vector<TreeElement *> &child_ob_tree_elements = object_tree_elements_map_.lookup(child);
     Vector<TreeElement *> *parent_ob_tree_elements = object_tree_elements_map_.lookup_ptr(
         child->parent);
-
     if (parent_ob_tree_elements == nullptr) {
       continue;
     }
