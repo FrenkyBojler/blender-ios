@@ -271,7 +271,7 @@ enum eOperatorPropTags {
  * - #wmEvent.modifier.
  * - #WM_keymap_add_item & #WM_modalkeymap_add_item
  */
-enum wmEventModifierFlag : uint8_t {
+enum wmEventModifierFlag : unsigned char {
   KM_SHIFT = (1 << 0),
   KM_CTRL = (1 << 1),
   KM_ALT = (1 << 2),
