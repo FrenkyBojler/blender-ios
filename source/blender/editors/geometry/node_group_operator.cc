@@ -6,6 +6,7 @@
  * \ingroup edcurves
  */
 
+#include "BLI_index_mask.hh"
 #include "BLI_listbase.h"
 #include "BLI_path_utils.hh"
 #include "BLI_rect.h"
@@ -346,16 +347,23 @@ static void store_result_geometry(const bContext &C,
       const int eval_frame = int(DEG_get_ctime(&depsgraph));
 
       GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object.data);
-      bool inserted_new_keyframe;
-      for (bke::greasepencil::Layer *layer : grease_pencil.layers_for_write()) {
-        if (!layer->is_editable()) {
+      Vector<int> editable_layer_indices;
+      for (const int layer_i : grease_pencil.layers().index_range()) {
+        const bke::greasepencil::Layer &layer = grease_pencil.layer(layer_i);
+        if (!layer.is_editable()) {
           continue;
         }
+        editable_layer_indices.append(layer_i);
+      }
+
+      bool inserted_new_keyframe;
+      for (const int layer_i : editable_layer_indices) {
+        bke::greasepencil::Layer &layer = grease_pencil.layer(layer_i);
         /* TODO: For now, we always create a blank keyframe, but it might be good to expose this as
          * an option and allow to duplicate the previous key. */
         const bool duplicate_previous_key = false;
         ed::greasepencil::ensure_active_keyframe(
-            scene, grease_pencil, *layer, duplicate_previous_key, inserted_new_keyframe);
+            scene, grease_pencil, layer, duplicate_previous_key, inserted_new_keyframe);
       }
       GreasePencil *new_grease_pencil =
           geometry.get_component_for_write<bke::GreasePencilComponent>().get_for_write();
@@ -364,8 +372,11 @@ static void store_result_geometry(const bContext &C,
         break;
       }
 
+      IndexMaskMemory memory;
+      const IndexMask editable_layers = IndexMask::from_indices(editable_layer_indices.as_span(),
+                                                                memory);
       ed::greasepencil::apply_eval_grease_pencil_data(
-          *new_grease_pencil, eval_frame, grease_pencil.layers().index_range(), grease_pencil);
+          *new_grease_pencil, eval_frame, editable_layers, grease_pencil);
 
       Main *bmain = DEG_get_bmain(&depsgraph);
       /* There might be layers with empty names after evaluation. Make sure to rename them. */
