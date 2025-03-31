@@ -1694,16 +1694,17 @@ bool PyC_RunString_AsStringOrNone(const char *imports[],
 
 void PyC_StdFilesFlush()
 {
+  /* This is ported from CPython's internal #flush_std_files. */
   PyObject *py_flush = PyUnicode_FromString("flush");
   if (!py_flush) {
     PyErr_Clear();
     return;
   }
-  auto flush = [&](const char *name) {
+  for (const char *name : {"stdout", "stderr"}) {
     PyObject *py_file = PySys_GetObject(name);
     if (!py_file) {
       PyErr_Clear();
-      return;
+      continue;
     }
     PyObject *py_flush_retval = PyObject_CallMethodNoArgs(py_file, py_flush);
     if (py_flush_retval) {
@@ -1712,9 +1713,7 @@ void PyC_StdFilesFlush()
     else {
       PyErr_Clear();
     }
-  };
-  flush("stdout");
-  flush("stderr");
+  }
   Py_DECREF(py_flush);
 }
 
