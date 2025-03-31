@@ -769,7 +769,7 @@ static wmOperatorStatus grease_pencil_merge_layer_exec(bContext *C, wmOperator *
     }
     LayerGroup &active_group = *grease_pencil.get_active_group();
 
-    if (active_group.layers().is_empty()){
+    if (active_group.layers().is_empty()) {
       BKE_report(op->reports, RPT_INFO, "No child layers to merge");
       return OPERATOR_CANCELLED;
     }
@@ -792,7 +792,6 @@ static wmOperatorStatus grease_pencil_merge_layer_exec(bContext *C, wmOperator *
         indices.append(layer_i);
       }
     }
-
     src_layer_indices_by_dst_layer.append(indices);
 
     /* Store the name of the group as the name of the merged layer. */
