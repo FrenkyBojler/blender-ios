@@ -803,9 +803,9 @@ typedef enum eCopyTransforms_Flags {
 typedef enum eFreezeTransforms_Space {
   /** Freezes in global space. */
   FREEZETRANS_SPACE_GLOBAL = 0,
-  /** Freezes own transformation, but retains parent's. */
-  FREEZETRANS_SPACE_PARENT = 1,
   /** Freezes parent transformation, but retains its own. */
+  FREEZETRANS_SPACE_PARENT = 1,
+  /** Freezes own transformation, but retains parent's. */
   FREEZETRANS_SPACE_LOCAL = 2,
 } eFreezeTransforms_Space;
 

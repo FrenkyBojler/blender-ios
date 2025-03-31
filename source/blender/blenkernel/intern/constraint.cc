@@ -2464,7 +2464,7 @@ static void freezetrans_evaluate(bConstraint *con, bConstraintOb *cob, ListBase 
         /* Use freezemat as it was stored. */
         copy_m4_m4(tarmat, data->freezemat);
       } break;
-      case FREEZETRANS_SPACE_LOCAL: {
+      case FREEZETRANS_SPACE_PARENT: {
         /* Compute local transform of cob. */
         float local_cob[4][4];
         mul_m4_m4m4(local_cob, parentmat, parentinv);
@@ -2476,7 +2476,7 @@ static void freezetrans_evaluate(bConstraint *con, bConstraintOb *cob, ListBase 
         mul_m4_m4m4(temp, parentinv, local_cob);
         mul_m4_m4m4(tarmat, data->freezeparentmat, temp);
       } break;
-      case FREEZETRANS_SPACE_PARENT: {
+      case FREEZETRANS_SPACE_LOCAL: {
         /* Use current parent matrix, but applied onto the frozen cob. */
         float invparentmat[4][4];
         invert_m4_m4(invparentmat, data->freezeparentmat);

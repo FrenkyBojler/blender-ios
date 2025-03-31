@@ -1890,12 +1890,12 @@ static void rna_def_constraint_freeze_transform(BlenderRNA *brna)
        "PARENT",
        0,
        "Parent Space",
-       "Freezes own transformation, but retains parent's"},
+       "Freezes parent transformation, but retains its own"},
       {FREEZETRANS_SPACE_LOCAL,
        "LOCAL",
        0,
        "Local Space",
-       "Freezes parent transformation, but retains its own"},
+       "Freezes own transformation, but retains parent's"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
