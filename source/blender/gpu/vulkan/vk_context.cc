@@ -143,7 +143,10 @@ void VKContext::end_frame()
   device.orphaned_data.destroy_discarded_resources(device);
 }
 
-void VKContext::flush() {}
+void VKContext::flush()
+{
+  flush_render_graph(RenderGraphFlushFlags::RENEW_RENDER_GRAPH);
+}
 
 TimelineValue VKContext::flush_render_graph(RenderGraphFlushFlags flags,
                                             VkPipelineStageFlags wait_dst_stage_mask,
@@ -397,6 +400,41 @@ void VKContext::swap_buffers_pre_handler(const GHOST_VulkanSwapChainData &swap_c
 void VKContext::swap_buffers_post_handler()
 {
   sync_backbuffer(true);
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name OpenXR
+ * \{ */
+
+void VKContext::openxr_acquire_framebuffer_image_callback(GHOST_VulkanOpenXRData *openxr_data)
+{
+  VKContext *context = VKContext::get();
+  BLI_assert(context);
+  context->openxr_acquire_framebuffer_image_handler(*openxr_data);
+}
+
+void VKContext::openxr_release_framebuffer_image_callback(GHOST_VulkanOpenXRData *openxr_data)
+{
+  VKContext *context = VKContext::get();
+  BLI_assert(context);
+  context->openxr_release_framebuffer_image_handler(*openxr_data);
+}
+
+void VKContext::openxr_acquire_framebuffer_image_handler(GHOST_VulkanOpenXRData &openxr_data)
+{
+  VKFrameBuffer &framebuffer = *unwrap(active_fb);
+  VKTexture *color_attachment = unwrap(unwrap(framebuffer.color_tex(0)));
+  openxr_data.image_data = color_attachment->read(0, GPU_DATA_HALF_FLOAT);
+  openxr_data.extent.width = color_attachment->width_get();
+  openxr_data.extent.height = color_attachment->height_get();
+}
+
+void VKContext::openxr_release_framebuffer_image_handler(GHOST_VulkanOpenXRData &openxr_data)
+{
+  MEM_freeN(openxr_data.image_data);
+  openxr_data.image_data = nullptr;
 }
 
 /** \} */
