@@ -134,6 +134,9 @@ ENUM_OPERATORS(ItemInternalFlag, ItemInternalFlag::PropDecorateNoPad)
 
 }  // namespace blender::ui
 
+using uiItemType = blender::ui::ItemType;
+using uiItemInternalFlag = blender::ui::ItemInternalFlag;
+
 struct uiButtonItem : uiItem {
   uiBut *but;
 };

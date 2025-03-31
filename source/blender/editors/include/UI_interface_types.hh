@@ -16,25 +16,6 @@ struct uiLayout;
 #define UI_MAX_NAME_STR 128
 #define UI_MAX_SHORTCUT_STR 64
 
-/** #uiBlock.emboss and #uiBut.emboss */
-enum eUIEmbossType {
-  /** Use widget style for drawing. */
-  UI_EMBOSS = 0,
-  /** Nothing, only icon and/or text */
-  UI_EMBOSS_NONE = 1,
-  /** Pull-down menu style */
-  UI_EMBOSS_PULLDOWN = 2,
-  /** Pie Menu */
-  UI_EMBOSS_PIE_MENU = 3,
-  /**
-   * The same as #UI_EMBOSS_NONE, unless the button has
-   * a coloring status like an animation state or red alert.
-   */
-  UI_EMBOSS_NONE_OR_STATUS = 4,
-  /** For layout engine, use emboss from block. */
-  UI_EMBOSS_UNDEFINED = 255,
-};
-
 /* Menu Callbacks */
 
 using uiMenuCreateFunc = void (*)(bContext *C, uiLayout *layout, void *arg1);

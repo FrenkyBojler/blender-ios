@@ -34,14 +34,20 @@ struct PointerRNA;
  *   operator, label or menu. Also regular buttons can be used when setting
  *   uiBlockCurLayout. */
 
+namespace blender::ui {
+enum class ItemType : int8_t;
+enum class ItemInternalFlag : uint8_t;
+enum class EmbossType : uint8_t;
+}  // namespace blender::ui
+
 /**
  * NOTE: `uiItem` properties should be considered private outside `interface_layout.cc`,
  * incoming refactors would remove public access and add public read/write function methods.
  * Meanwhile keep using `uiLayout*` functions to read/write this properties.
  */
 struct uiItem {
-  enum uiItemType type;
-  enum uiItemInternalFlag flag;
+  blender::ui::ItemType type;
+  blender::ui::ItemInternalFlag flag;
 
   uiItem() = default;
   uiItem(const uiItem &) = default;
@@ -77,7 +83,7 @@ struct uiLayout : uiItem {
   /** For layouts inside grid-flow, they and their items shall never have a fixed maximal size. */
   bool variable_size;
   char alignment;
-  eUIEmbossType emboss;
+  blender::ui::EmbossType emboss;
   /** for fixed width or height to avoid UI size changes */
   float units[2];
   /** Is copied to uiButs created in this layout. */
@@ -219,7 +225,7 @@ void uiLayoutSetScaleX(uiLayout *layout, float scale);
 void uiLayoutSetScaleY(uiLayout *layout, float scale);
 void uiLayoutSetUnitsX(uiLayout *layout, float unit);
 void uiLayoutSetUnitsY(uiLayout *layout, float unit);
-void uiLayoutSetEmboss(uiLayout *layout, eUIEmbossType emboss);
+void uiLayoutSetEmboss(uiLayout *layout, blender::ui::EmbossType emboss);
 void uiLayoutSetPropSep(uiLayout *layout, bool is_sep);
 void uiLayoutSetPropDecorate(uiLayout *layout, bool is_sep);
 int uiLayoutGetLocalDir(const uiLayout *layout);
@@ -239,7 +245,7 @@ float uiLayoutGetScaleX(uiLayout *layout);
 float uiLayoutGetScaleY(uiLayout *layout);
 float uiLayoutGetUnitsX(uiLayout *layout);
 float uiLayoutGetUnitsY(uiLayout *layout);
-eUIEmbossType uiLayoutGetEmboss(uiLayout *layout);
+blender::ui::EmbossType uiLayoutGetEmboss(uiLayout *layout);
 bool uiLayoutGetPropSep(uiLayout *layout);
 bool uiLayoutGetPropDecorate(uiLayout *layout);
 Panel *uiLayoutGetRootPanel(uiLayout *layout);
