@@ -229,6 +229,7 @@ static Image *load_texture_image(Main *bmain, const std::string &file_dir, const
 
   /* Use embedded data for this image, if we haven't done that yet. */
   if (tex.content.size > 0 && (image == nullptr || !BKE_image_has_packedfile(image))) {
+    BKE_image_free_buffers(image); /* Free cached placeholder images. */
     char *data_dup = static_cast<char *>(MEM_mallocN(tex.content.size, __func__));
     memcpy(data_dup, tex.content.data, tex.content.size);
     BKE_image_packfiles_from_mem(nullptr, image, data_dup, tex.content.size);
