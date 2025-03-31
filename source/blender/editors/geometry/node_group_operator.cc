@@ -387,10 +387,9 @@ static void store_result_geometry(const bContext &C,
       ed::greasepencil::apply_eval_grease_pencil_data(
           *new_grease_pencil, eval_frame, editable_layers, grease_pencil);
 
-      Main *bmain = DEG_get_bmain(&depsgraph);
       /* There might be layers with empty names after evaluation. Make sure to rename them. */
-      bke::greasepencil::rename_layers_with_empty_name(*bmain, grease_pencil);
-      BKE_object_material_from_eval_data(bmain, &object, &new_grease_pencil->id);
+      bke::greasepencil::rename_layers_with_empty_name(bmain, grease_pencil);
+      BKE_object_material_from_eval_data(&bmain, &object, &new_grease_pencil->id);
 
       DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
       if (inserted_new_keyframe) {
