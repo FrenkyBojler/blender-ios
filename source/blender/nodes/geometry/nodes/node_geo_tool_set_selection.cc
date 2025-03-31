@@ -2,6 +2,8 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BKE_curves.hh"
+#include "BKE_grease_pencil.hh"
 #include "BKE_mesh.hh"
 #include "BKE_type_conversions.hh"
 
@@ -162,6 +164,17 @@ static void node_geo_exec(GeoNodeExecParams params)
       if (domain == AttrDomain::Point) {
         bke::try_capture_field_on_geometry(
             geometry.get_component_for_write<PointCloudComponent>(), ".selection", domain, field);
+      }
+    }
+    if (geometry.has_grease_pencil()) {
+      /* Grease Pencil only supports boolean selection. */
+      const Field<bool> field = conversions.try_convert(selection, CPPType::get<bool>());
+      if (ELEM(domain, AttrDomain::Point, AttrDomain::Curve)) {
+        bke::try_capture_field_on_geometry(
+            geometry.get_component_for_write<GreasePencilComponent>(),
+            ".selection",
+            domain,
+            field);
       }
     }
   });
