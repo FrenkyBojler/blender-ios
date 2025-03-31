@@ -139,57 +139,64 @@ VariableMap BKE_build_blender_variables(const char *blend_file_path,
 
 enum class VariableFormatType {
   NONE = 0,
+  INVALID,
   INTEGER,
   FLOAT,
 };
 
 struct VariableFormat {
-  VariableFormatType type;
+  VariableFormatType type = VariableFormatType::NONE;
 
   std::optional<uint8_t> fixed_integer_digits;
   std::optional<uint8_t> fixed_fractional_digits;
 };
 
-static std::optional<VariableFormat> parse_path_variable_format(
-    const blender::StringRef format_specifier)
+static VariableFormat parse_path_variable_format(const blender::StringRef format_specifier)
 {
   VariableFormat format = {};
 
-  if (format_specifier.is_empty() || format_specifier.size() > 5) {
-    return std::nullopt;
-  }
-
-  /* If it's all digits. */
-  if (format_specifier.find_first_not_of("0123456789") == std::string::npos) {
-    format.type = VariableFormatType::INTEGER;
-    format.fixed_integer_digits = std::stoi(format_specifier);
+  /* A ":" was used, but no format specifier was given, which is invalid. */
+  if (format_specifier.is_empty()) {
+    format.type = VariableFormatType::INVALID;
     return format;
   }
 
-  /* If it's digits and a dot. */
+  /* If it's all digit specifiers, then format as an integer. */
+  if (format_specifier.find_first_not_of("#") == std::string::npos) {
+    format.fixed_integer_digits = format_specifier.size();
+
+    format.type = VariableFormatType::INTEGER;
+    return format;
+  }
+
+  /* If it's digit specifiers and a dot, format as a float. */
   const int64_t dot_index = format_specifier.find_first_of('.');
   const int64_t dot_index_last = format_specifier.find_last_of('.');
   const bool found_dot = dot_index != std::string::npos;
   const bool only_one_dot = dot_index == dot_index_last;
-  const bool not_just_dot = format_specifier.size() > 1;
-  if (format_specifier.find_first_not_of(".0123456789") == std::string::npos && found_dot &&
-      only_one_dot && not_just_dot)
-  {
-    format.type = VariableFormatType::FLOAT;
+  if (format_specifier.find_first_not_of(".#") == std::string::npos && found_dot && only_one_dot) {
     const blender::StringRef left = format_specifier.substr(0, dot_index);
-    if (!left.is_empty()) {
-      format.fixed_integer_digits = std::stoi(left);
-    }
-
     const blender::StringRef right = format_specifier.substr(dot_index + 1);
-    if (!right.is_empty()) {
-      format.fixed_fractional_digits = std::stoi(right);
+
+    /* We currently require that the fractional digits are specified, so bail if
+     * they aren't. */
+    if (right.is_empty()) {
+      format.type = VariableFormatType::INVALID;
+      return format;
     }
 
+    if (!left.is_empty()) {
+      format.fixed_integer_digits = left.size();
+    }
+
+    format.fixed_fractional_digits = right.size();
+
+    format.type = VariableFormatType::FLOAT;
     return format;
   }
 
-  return std::nullopt;
+  format.type = VariableFormatType::INVALID;
+  return format;
 }
 
 enum class ParsedEntityType {
@@ -318,12 +325,8 @@ static std::optional<ParsedEntity> next_path_variable(char *path, const int path
   else {
     /* Found format specifier. */
     variable.variable_name = blender::StringRef(path + start + 1, path + format_specifier_split);
-
-    if (std::optional<VariableFormat> format = parse_path_variable_format(
-            blender::StringRef(path + format_specifier_split + 1, path + end - 1)))
-    {
-      variable.format = *format;
-    }
+    variable.format = parse_path_variable_format(
+        blender::StringRef(path + format_specifier_split + 1, path + end - 1));
   }
 
   return variable;
@@ -374,24 +377,9 @@ static int format_float_to_string(const VariableFormat &format,
   else if (format.fixed_integer_digits.has_value()) {
     /* Only integer component length is specified.
      *
-     * `sprintf()` has no way to specify *just* the number of integer digits
-     * independent of the number of fractional digits, which is what we want
-     * here. So we have to do some annoying gymnastics to bend it to our will.
-     *
-     * The solution here isn't perfect, but it's reasonable: we assume a desired
-     * fractional precision of 15 digits (the maximum precision you would get
-     * with a 64-bit float when there's a non-zero integer component), and then
-     * expand the total digits to ensure the given number of integer digits.
-     * Then we truncate any unneeded trailing zeros. */
-    const int total_digits = 15 + 1 + *format.fixed_integer_digits;
-    output_length = sprintf(output_string, "%0*.15f", total_digits, float_value);
-
-    while (output_length > 1 && output_string[output_length - 2] != '.' &&
-           output_string[output_length - 1] == '0')
-    {
-      output_string[output_length - 1] = '\0';
-      output_length--;
-    }
+     * We currently don't support this as it's not clear exactly what should
+     * happen. We can revisit this in the future when people have an actual use
+     * case. */
   }
   else if (format.fixed_fractional_digits.has_value()) {
     /* Only fractional component length is specified. */
@@ -434,6 +422,12 @@ bool BKE_path_apply_variables(char path[FILE_MAX], const VariableMap &variables)
       break;
     }
 
+    /* Skip variables with invalid format specifier syntax. */
+    if (parsed_variable->format.type == VariableFormatType::INVALID) {
+      bytes_processed += parsed_variable->replacement_range.one_after_last();
+      continue;
+    }
+
     /* Check for escapes. */
     if (parsed_variable->substitution_type == ParsedEntityType::LEFT_CURLY_BRACE) {
       BLI_string_replace_range(path + bytes_processed,
@@ -469,8 +463,11 @@ bool BKE_path_apply_variables(char path[FILE_MAX], const VariableMap &variables)
     if (std::optional<blender::StringRefNull> string_value = variables.get_string(
             parsed_variable->variable_name))
     {
-      /* String variable found. */
-      replacement_string = string_value->c_str();
+      /* String variable found, but only process if there's no format specifier.
+       * String variables do not support format specifiers. */
+      if (parsed_variable->format.type == VariableFormatType::NONE) {
+        replacement_string = string_value->c_str();
+      }
     }
     else if (std::optional<int64_t> integer_value = variables.get_integer(
                  parsed_variable->variable_name))

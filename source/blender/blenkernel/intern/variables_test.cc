@@ -103,35 +103,45 @@ TEST(blender_variables, path_apply_variables)
               "141592653589793_2e+32_2e-33");
   }
 
+  /* String variables do not support format specifiers, so should be skipped if
+   * there is one. */
+  {
+    char path[FILE_MAX] = "{hi:##}_{bye:#}";
+    BKE_path_apply_variables(path, variables);
+    EXPECT_EQ(blender::StringRef(path), "{hi:##}_{bye:#}");
+  }
+
   /* Integer formatting. */
   {
-    char path[FILE_MAX] = "{the_answer:1}_{the_answer:2}_{the_answer:4}_{i_negative:4}";
+    char path[FILE_MAX] = "{the_answer:#}_{the_answer:##}_{the_answer:####}_{i_negative:####}";
     BKE_path_apply_variables(path, variables);
     EXPECT_EQ(blender::StringRef(path), "42_42_0042_-007");
   }
 
   /* Float formatting: specify fractional digits only. */
   {
-    char path[FILE_MAX] = "{pi:.4}_{e:.3}_{ntsc:.8}_{two:.2}_{f_negative:.2}_{huge:.2}_{tiny:.2}";
+    char path[FILE_MAX] =
+        "{pi:.####}_{e:.###}_{ntsc:.########}_{two:.##}_{f_negative:.##}_{huge:.##}_{tiny:.##}";
     BKE_path_apply_variables(path, variables);
     EXPECT_EQ(blender::StringRef(path),
               "3.1416_2.718_29.97002997_2.00_-3.14_200000000000000010732324408786944.00_0.00");
   }
 
-  /* Float formatting: specify integer digits only. */
+  /* Float formatting: specifying integer digits only (but still wanting it
+   * printed as a float) is currently not supported, so the variables should get
+   * skipped. */
   {
     char path[FILE_MAX] = "{pi:2.}_{e:4.}_{ntsc:1.}_{two:3.}_{f_negative:3.}_{huge:3.}_{tiny:3.}";
     BKE_path_apply_variables(path, variables);
-    EXPECT_EQ(
-        blender::StringRef(path),
-        "03.141592653589793_0002.718281828459045_29.970029970029973_002.0_-03.141592653589793_"
-        "200000000000000010732324408786944.0_000.0");
+    EXPECT_EQ(blender::StringRef(path),
+              "{pi:2.}_{e:4.}_{ntsc:1.}_{two:3.}_{f_negative:3.}_{huge:3.}_{tiny:3.}");
   }
 
   /* Float formatting: specify both integer and fractional digits. */
   {
     char path[FILE_MAX] =
-        "{pi:2.4}_{e:4.3}_{ntsc:1.8}_{two:3.2}_{f_negative:3.2}_{huge:3.2}_{tiny:3.2}";
+        "{pi:##.####}_{e:####.###}_{ntsc:#.########}_{two:###.##}_{f_negative:###.##}_{huge:###.##"
+        "}_{tiny:###.##}";
     BKE_path_apply_variables(path, variables);
     EXPECT_EQ(
         blender::StringRef(path),
@@ -140,7 +150,7 @@ TEST(blender_variables, path_apply_variables)
 
   /* Float formatting: format as integer. */
   {
-    char path[FILE_MAX] = "{pi:2}_{e:4}_{ntsc:1}_{two:3}";
+    char path[FILE_MAX] = "{pi:##}_{e:####}_{ntsc:#}_{two:###}";
     BKE_path_apply_variables(path, variables);
     EXPECT_EQ(blender::StringRef(path), "03_0003_30_002");
   }
@@ -151,6 +161,13 @@ TEST(blender_variables, path_apply_variables)
     char path[FILE_MAX] = "{hi}_{missing}_{bye}";
     BKE_path_apply_variables(path, variables);
     EXPECT_EQ(blender::StringRef(path), "hello_{missing}_goodbye");
+  }
+
+  /* Variables with invalid format specifiers should be skipped. */
+  {
+    char path[FILE_MAX] = "{prime:}_{prime:.}_{prime:#.#.#}_{prime:sup}_{prime}";
+    BKE_path_apply_variables(path, variables);
+    EXPECT_EQ(blender::StringRef(path), "{prime:}_{prime:.}_{prime:#.#.#}_{prime:sup}_7");
   }
 
   /* Escaping. "{{" and "}}" are the escape codes for literal "{" and "}". */
