@@ -322,6 +322,17 @@ void FbxImportContext::import_meshes()
       if (skin != nullptr && fmesh->num_vertices > 0 &&
           skin->vertices.count == fmesh->num_vertices)
       {
+        /* We need to build mapping from cluster indices to non-empty
+         * cluster indices. */
+        Vector<int> skin_cluster_to_nonempty_cluster_index(skin->clusters.count, -1);
+        int cluster_counter = 0;
+        for (int i = 0; i < skin->clusters.count; i++) {
+          if (skin->clusters[i]->num_weights != 0) {
+            skin_cluster_to_nonempty_cluster_index[i] = cluster_counter;
+            cluster_counter++;
+          }
+        }
+
         MutableSpan<MDeformVert> dverts = mesh->deform_verts_for_write();
         for (int i = 0; i < fmesh->num_vertices; i++) {
           const ufbx_skin_vertex &fvertex = skin->vertices[i];
@@ -332,8 +343,10 @@ void FbxImportContext::import_meshes()
             dverts[i].totweight = num_weights;
             for (int j = 0; j < num_weights; j++) {
               const ufbx_skin_weight &fweight = skin->weights[fvertex.weight_begin + j];
-              dverts[i].dw[j].def_nr = fweight.cluster_index;
-              dverts[i].dw[j].weight = fweight.weight;
+              const int bone_index = skin_cluster_to_nonempty_cluster_index[fweight.cluster_index];
+              const bool valid = bone_index >= 0;
+              dverts[i].dw[j].def_nr = valid ? bone_index : 0;
+              dverts[i].dw[j].weight = valid ? fweight.weight : 0.0f;
             }
           }
         }
@@ -409,6 +422,9 @@ void FbxImportContext::import_meshes()
         if (skin != nullptr && skin->clusters.count > 0) {
           /* Add vertex groups to the object. */
           for (const ufbx_skin_cluster *fcluster : skin->clusters) {
+            if (fcluster->num_weights == 0) { /* Do not add groups for empty clusters. */
+              continue;
+            }
             if (parent_to_arm == nullptr) {
               parent_to_arm = this->mapping.bone_to_armature.lookup_default(fcluster->bone_node,
                                                                             nullptr);
