@@ -598,6 +598,9 @@ static void v3d_editvertex_buts(
         /* Curve */
         c = IFACE_("Control Point:");
       }
+      else if (ELEM(ob->type, OB_CURVES, OB_GREASE_PENCIL)) {
+        c = IFACE_("Point:");
+      }
       else {
         /* Mesh or lattice */
         c = IFACE_("Vertex:");
