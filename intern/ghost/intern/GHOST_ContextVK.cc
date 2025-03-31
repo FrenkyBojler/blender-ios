@@ -530,6 +530,12 @@ GHOST_TSuccess GHOST_ContextVK::swapBuffers()
     return GHOST_kFailure;
   }
 
+  assert(vulkan_device.has_value() && vulkan_device->device != VK_NULL_HANDLE);
+  VkDevice device = vulkan_device->device;
+
+  m_render_frame = (m_render_frame + 1) % m_image_count;
+  m_discard_pile[m_render_frame].destroy(device);
+
 #ifdef WITH_GHOST_WAYLAND
   /* Wayland doesn't provide a WSI with windowing capabilities, therefore cannot detect whether the
    * swap-chain needs to be recreated. But as a side effect we can recreate the swap chain before
@@ -548,14 +554,10 @@ GHOST_TSuccess GHOST_ContextVK::swapBuffers()
   }
 #endif
 
-  assert(vulkan_device.has_value() && vulkan_device->device != VK_NULL_HANDLE);
-  VkDevice device = vulkan_device->device;
-
   /* Some platforms (NVIDIA/Wayland) can receive an out of date swapchain when acquiring the next
    * swapchain image. Other do it when calling vkQueuePresent. */
   VkResult result = VK_ERROR_OUT_OF_DATE_KHR;
   uint32_t image_index = 0;
-  m_render_frame += 1;
   int32_t semaphore_index = uint32_t(m_render_frame % m_acquire_semaphores.size());
   while (result == VK_ERROR_OUT_OF_DATE_KHR) {
     result = vkAcquireNextImageKHR(device,
@@ -564,7 +566,7 @@ GHOST_TSuccess GHOST_ContextVK::swapBuffers()
                                    m_acquire_semaphores[semaphore_index],
                                    VK_NULL_HANDLE,
                                    &image_index);
-    if (result == VK_ERROR_OUT_OF_DATE_KHR) {
+    if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
       recreateSwapchain();
     }
   }
@@ -913,6 +915,12 @@ GHOST_TSuccess GHOST_ContextVK::recreateSwapchain()
     }
   }
 
+  if (actual_image_count > m_discard_pile.size()) {
+    m_discard_pile.resize(image_count);
+  }
+  m_image_count = actual_image_count;
+  m_discard_pile[m_render_frame % m_image_count].swapchains.push_back(old_swapchain);
+
   return GHOST_kSuccess;
 }
 
@@ -933,6 +941,12 @@ GHOST_TSuccess GHOST_ContextVK::destroySwapchain()
     vkDestroySemaphore(device, semaphore, nullptr);
   }
   m_present_semaphores.clear();
+
+  while (!m_discard_pile.empty()) {
+    GHOST_FrameDiscard &discard_pile = m_discard_pile.back();
+    discard_pile.destroy(device);
+    m_discard_pile.pop_back();
+  }
 
   return GHOST_kSuccess;
 }

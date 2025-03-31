@@ -58,6 +58,19 @@ struct GHOST_ContextVK_WindowInfo {
   int size[2];
 };
 
+struct GHOST_FrameDiscard {
+  std::vector<VkSwapchainKHR> swapchains;
+
+  void destroy(VkDevice vk_device)
+  {
+    while (!swapchains.empty()) {
+      VkSwapchainKHR vk_swapchain = swapchains.back();
+      swapchains.pop_back();
+      vkDestroySwapchainKHR(vk_device, vk_swapchain, nullptr);
+    }
+  }
+};
+
 class GHOST_ContextVK : public GHOST_Context {
   friend class GHOST_XrGraphicsBindingVulkan;
 
@@ -198,6 +211,8 @@ class GHOST_ContextVK : public GHOST_Context {
   std::vector<VkSemaphore> m_acquire_semaphores;
   std::vector<VkSemaphore> m_present_semaphores;
   uint64_t m_render_frame;
+  uint64_t m_image_count;
+  std::vector<GHOST_FrameDiscard> m_discard_pile;
 
   VkExtent2D m_render_extent;
   VkExtent2D m_render_extent_min;
