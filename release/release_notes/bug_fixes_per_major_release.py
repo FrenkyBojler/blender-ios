@@ -374,12 +374,7 @@ class CommitInfo:
             report_information = url_json_get(
                 f"https://projects.blender.org/api/v1/repos/blender/blender/issues/{report_number}")
 
-            try:
-                report_title = report_information['title']
-            except:
-                print(report_number)
-                print(report_information)
-                quit()
+            report_title = report_information['title']
             module = self.get_module(report_information['labels'])
 
             if "pull" in report_information['html_url']:
@@ -864,8 +859,6 @@ def overrides_apply(list_of_commits: list[CommitInfo]) -> None:
     override_data = overrides_read()
     if len(override_data) == 0:
         return
-
-    print(override_data)
 
     for commit in list_of_commits:
         if commit.hash in override_data:
