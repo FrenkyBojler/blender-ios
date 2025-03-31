@@ -40,12 +40,8 @@ Specifically the fixed issue listed in the commit message may be
 incorrect.
 
 In situations like this it can be easier to simply override the issue that
-the commit claims to fix. This can be done by launching the script with:
-`bug_fixes_per_major_release.py -o`
-
-The script will then ask for the commit hash, then the
-issue number that commit actually fixes then will use that override
-(and all other overrides you've setup) when you run the script again.
+the commit claims to fix. This can be done by adding a entry to the overrides
+issue: https://projects.blender.org/blender/blender/issues/128422
 
 ---
 
@@ -192,7 +188,6 @@ NEWER_VERION = "NEWER"
 SAME_VERION = "SAME"
 
 dir_of_script = Path(__file__).parent.resolve()
-PATH_TO_OVERRIDES = dir_of_script.joinpath('overrides.json')
 PATH_TO_CACHED_COMMITS = dir_of_script.joinpath('cached_commits.json')
 del dir_of_script
 
@@ -379,7 +374,12 @@ class CommitInfo:
             report_information = url_json_get(
                 f"https://projects.blender.org/api/v1/repos/blender/blender/issues/{report_number}")
 
-            report_title = report_information['title']
+            try:
+                report_title = report_information['title']
+            except:
+                print(report_number)
+                print(report_information)
+                quit()
             module = self.get_module(report_information['labels'])
 
             if "pull" in report_information['html_url']:
@@ -438,9 +438,9 @@ class CommitInfo:
 
         self.needs_update = False
 
-    def read_from_override(self, override_data: list[str]) -> None:
+    def read_from_override(self, override_data: str) -> None:
         self.set_defaults()
-        self.fixed_reports = override_data
+        self.fixed_reports = [override_data]
 
         self.has_been_overwritten = True
 
@@ -835,36 +835,41 @@ def cached_commits_store(list_of_commits: list[CommitInfo]) -> None:
 # -----------------------------------------------------------------------------
 # Override Utilities
 
-def overrides_load() -> dict[str, list[str]]:
+
+def overrides_read() -> dict[str, str]:
     override_data = {}
-    if PATH_TO_OVERRIDES.exists():
-        with open(str(PATH_TO_OVERRIDES), 'r', encoding='utf-8') as file:
-            override_data = json.load(file)
+    override_report = url_json_get("https://projects.blender.org/api/v1/repos/blender/blender/issues/128422")
+    description = override_report["body"].splitlines()
+
+    for line in description:
+        if "|" not in line:
+            continue
+        if line.startswith("| Commit"):
+            continue
+        if line.startswith("| -"):
+            continue
+
+        info = line.split("|")
+        # Remove empty strings
+        info = [entry for entry in info if entry != ""]
+
+        # Position 0 is the commit hash
+        # Position 1 is the issue number it actually fixed
+        override_data[info[0].strip()] = info[1].strip()
 
     return override_data
 
 
-def overrides_store(override_data: dict[str, list[str]]) -> None:
-    with open(str(PATH_TO_OVERRIDES), 'w', encoding='utf-8') as file:
-        json.dump(override_data, file, indent=4)
-
-
 def overrides_apply(list_of_commits: list[CommitInfo]) -> None:
-    override_data = overrides_load()
-    if len(override_data) > 0:
-        for commit in list_of_commits:
-            if commit.hash in override_data:
-                commit.read_from_override(override_data[commit.hash])
+    override_data = overrides_read()
+    if len(override_data) == 0:
+        return
 
+    print(override_data)
 
-def create_override() -> None:
-    commit_hash = input("Please input the full hash of the commit you want to override: ")
-    issue_number = input("Please input the issue number you want to override it with: ")
-
-    override_data = overrides_load()
-    override_data[commit_hash] = [issue_number]
-
-    overrides_store(override_data)
+    for commit in list_of_commits:
+        if commit.hash in override_data:
+            commit.read_from_override(override_data[commit.hash])
 
 
 # -----------------------------------------------------------------------------
@@ -875,14 +880,6 @@ def argparse_create() -> argparse.ArgumentParser:
         description=__doc__,
         # Don't re-format multi-line text.
         formatter_class=argparse.RawTextHelpFormatter,
-    )
-    parser.add_argument(
-        "-o",
-        "--override",
-        action="store_true",
-        help=(
-            "Create a override for a commit."
-        ),
     )
     parser.add_argument(
         "-st",
@@ -993,10 +990,6 @@ def validate_arguments(args: argparse.Namespace) -> bool:
 
 def main() -> int:
     args = argparse_create().parse_args()
-
-    if args.override:
-        create_override()
-        return 0
 
     if not validate_arguments(args):
         return 0
