@@ -204,7 +204,6 @@ CurvesGeometry::~CurvesGeometry()
   if (this->runtime) {
     implicit_sharing::free_shared_data(&this->curve_offsets,
                                        &this->runtime->curve_offsets_sharing_info);
-
     implicit_sharing::free_shared_data(&this->custom_knots,
                                        &this->runtime->custom_knots_sharing_info);
     MEM_delete(this->runtime);
@@ -1406,9 +1405,8 @@ void curves_copy_point_selection_custom_knots(const CurvesGeometry &curves,
         const int point_to_span = point_to_knot + leading_spans;
 
         const int first_knot = ranges_to_copy.first().start() + point_to_knot;
-        for (const int knot : IndexRange::from_begin_size(first_knot, leading_spans + 1)) {
-          new_knots.append(src_knots[knot]);
-        }
+        new_knots.extend(
+            src_knots.slice(IndexRange::from_begin_size(first_knot, leading_spans + 1)));
         float last_knot = new_knots.last();
         for (IndexRange range : ranges_to_copy) {
           for (const int spans_left_knot : range.shift(point_to_span)) {
