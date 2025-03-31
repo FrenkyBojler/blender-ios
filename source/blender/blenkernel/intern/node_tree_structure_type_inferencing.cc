@@ -32,6 +32,11 @@ static nodes::StructureTypeInterface calc_node_interface(const bNode &node)
         nodes::StructureTypeInterface::OutputDependency{StructureType::Dynamic});
     return node_interface;
   }
+  if (node.is_reroute()) {
+    node_interface.inputs.first() = StructureType::Dynamic;
+    node_interface.outputs.first() = {StructureType::Dynamic, {0}};
+    return node_interface;
+  }
 
   for (const int i : input_sockets.index_range()) {
     const nodes::SocketDeclaration &decl = *input_sockets[i]->runtime->declaration;
@@ -337,6 +342,11 @@ static StructureType merge_status_left_to_right(const StructureType a, const Str
 {
   if (a == b) {
     return a;
+  }
+  if ((a == StructureType::Dynamic && b == StructureType::Single) ||
+      (a == StructureType::Single && b == StructureType::Dynamic))
+  {
+    return StructureType::Single;
   }
   if ((a == StructureType::Dynamic && b == StructureType::Field) ||
       (a == StructureType::Field && b == StructureType::Dynamic))
