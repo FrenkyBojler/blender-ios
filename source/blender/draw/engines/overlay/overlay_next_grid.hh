@@ -375,7 +375,7 @@ class GridMesh : Overlay {
 
   gpu::Batch *generate_batch(int next_subdivision)
   {
-    const int res = 256;
+    const int res = 512;
     GPUIndexBufBuilder builder;
     GPU_indexbuf_init(&builder, GPU_PRIM_LINES, square_i(res + 1) * 2, 0xFFFFFFFEu);
     auto vertex_id_at = [](int x, int y) { return ((x + 0x7FFF) << 16) | (y + 0x7FFF); };
