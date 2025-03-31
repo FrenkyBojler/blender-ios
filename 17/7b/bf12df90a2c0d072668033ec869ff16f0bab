@@ -1,2 +1,3 @@
 Referenced by issue #136767, GPU subdivision can interpolate attributes incorrectly
 Referenced by pull request #136769, Fix #136767: SubDiv: Incorrect attribute interpolation
+Referenced by commit 3ad5721a1cd0f03bd70839ac3bdd9499b835a706, Fix #136767: SubDiv: Incorrect attribute interpolation
