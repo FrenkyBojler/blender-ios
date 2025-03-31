@@ -150,9 +150,10 @@ bool Light::has_contribution(const Scene *scene, const Object *object)
     return true;
   }
   if (light_type == LIGHT_AREA) {
-    const float size_u = get_sizeu() * len(transform_get_column(&object->get_tfm(), 0));
-    const float size_v = get_sizev() * len(transform_get_column(&object->get_tfm(), 0));
-    if (size_u * size_v * get_size() == 0.0f) {
+    if ((get_sizeu() * get_sizev() * get_size() == 0.0f) ||
+        is_zero(transform_get_column(&object->get_tfm(), 0)) ||
+        is_zero(transform_get_column(&object->get_tfm(), 1)))
+    {
       /* Area light with a size of zero does not contribute to the scene. */
       return false;
     }
