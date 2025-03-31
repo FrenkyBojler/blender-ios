@@ -421,9 +421,8 @@ bool BKE_path_apply_variables(char path[FILE_MAX], const VariableMap &variables)
 {
   bool was_modified = false;
 
-  const int length = strlen(path);
   int bytes_processed = 0;
-  while (bytes_processed < length) {
+  while (bytes_processed < FILE_MAX && path[bytes_processed] != '\0') {
     const auto parsed_variable = next_path_variable(path + bytes_processed,
                                                     FILE_MAX - bytes_processed);
 
