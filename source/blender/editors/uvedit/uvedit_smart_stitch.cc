@@ -60,7 +60,6 @@ using blender::Vector;
 
 /* ********************** smart stitch operator *********************** */
 
-/* Prevent naming collision. */
 namespace {
 
 /* object that stores display data for previewing before confirming stitching */

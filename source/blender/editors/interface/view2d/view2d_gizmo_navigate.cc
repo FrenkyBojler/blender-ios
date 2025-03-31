@@ -39,7 +39,6 @@
 /* How much mini buttons offset from the primary. */
 #define GIZMO_MINI_OFFSET_FAC 0.38f
 
-/* Prevent naming collision. */
 namespace {
 
 enum {

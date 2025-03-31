@@ -429,7 +429,6 @@ static int gizmo_cage3d_get_cursor(wmGizmo *gz)
   return WM_CURSOR_DEFAULT;
 }
 
-/* Prevent naming collision. */
 namespace {
 
 struct RectTransformInteraction {

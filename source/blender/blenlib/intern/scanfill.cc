@@ -34,7 +34,6 @@
 
 #include "BLI_strict_flags.h" /* IWYU pragma: keep. Keep last. */
 
-/* Prevent naming collision. */
 namespace {
 
 /* local types */

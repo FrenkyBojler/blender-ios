@@ -40,7 +40,6 @@ namespace blender::ed::transform {
 #define STRIP_EDGE_PAN_DELAY 1.0f
 #define STRIP_EDGE_PAN_ZOOM_INFLUENCE 0.5f
 
-/* Prevent naming collision. */
 namespace {
 
 /** Used for sequencer transform. */

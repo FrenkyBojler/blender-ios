@@ -65,7 +65,6 @@
 #  include "BLI_time_utildefines.h"
 #endif
 
-/* Prevent naming collision. */
 namespace {
 
 using eSign = int8_t;

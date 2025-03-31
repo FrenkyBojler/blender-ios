@@ -107,7 +107,6 @@ typedef struct localListBase {
   void *first, *last;
 } localListBase;
 
-/* Prevent naming collision. */
 namespace {
 
 /* NOTE(@hos): keep this struct aligned (e.g., IRIX/GCC). */

@@ -55,7 +55,6 @@ using blender::Vector;
 /** \name Path Select Struct & Properties
  * \{ */
 
-/* Prevent naming collision. */
 namespace {
 
 struct PathSelectParams {

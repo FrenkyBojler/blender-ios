@@ -31,7 +31,6 @@
 /** \name Undo Conversion
  * \{ */
 
-/* Prevent naming collision. */
 namespace {
 
 struct UndoCurve {

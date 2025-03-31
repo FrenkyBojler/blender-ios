@@ -357,7 +357,6 @@ static bool space_image_main_area_not_uv_brush_poll(bContext *C)
 /** \name View Pan Operator
  * \{ */
 
-/* Prevent naming collision. */
 namespace {
 
 struct ViewPanData {
@@ -509,7 +508,6 @@ void IMAGE_OT_view_pan(wmOperatorType *ot)
 /** \name View Zoom Operator
  * \{ */
 
-/* Prevent naming collision. */
 namespace {
 
 struct ViewZoomData {

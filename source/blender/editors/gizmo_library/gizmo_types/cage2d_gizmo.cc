@@ -992,7 +992,6 @@ static int gizmo_cage2d_test_select(bContext *C, wmGizmo *gz, const int mval[2])
   return -1;
 }
 
-/* Prevent naming collision. */
 namespace {
 
 struct RectTransformInteraction {

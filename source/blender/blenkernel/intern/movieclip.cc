@@ -465,7 +465,6 @@ static void get_proxy_filepath(const MovieClip *clip,
 
 #ifdef WITH_OPENEXR
 
-/* Prevent naming collision. */
 namespace {
 
 struct MultilayerConvertContext {

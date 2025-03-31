@@ -25,7 +25,6 @@
 
 #define COST_INVALID FLT_MAX
 
-/* Prevent naming collision. */
 namespace {
 
 struct DelimitData {

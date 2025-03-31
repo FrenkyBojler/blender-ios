@@ -31,7 +31,6 @@
 
 namespace blender::ed::transform {
 
-/* Prevent naming collision. */
 namespace {
 
 /** Used for sequencer transform. */

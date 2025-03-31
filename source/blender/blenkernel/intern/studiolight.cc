@@ -274,7 +274,6 @@ static void direction_to_equirect(float r[2], const float dir[3])
   r[1] = (acosf(dir[2] / 1.0) - M_PI) / -M_PI;
 }
 
-/* Prevent naming collision. */
 namespace {
 
 struct MultilayerConvertContext {

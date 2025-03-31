@@ -269,7 +269,6 @@ static void bm_edge_to_quad_verts(const BMEdge *e, const BMVert *r_v_quad[4])
 
 /** Cache custom-data delimiters. */
 
-/* Prevent naming collision. */
 namespace {
 
 struct DelimitData_CD {

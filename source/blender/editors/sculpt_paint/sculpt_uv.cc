@@ -46,7 +46,6 @@
 
 #include "UI_view2d.hh"
 
-/* Prevent naming collision. */
 namespace {
 
 enum eBrushUVSculptTool {

@@ -363,7 +363,6 @@ void CLIP_OT_reload(wmOperatorType *ot)
 /** \name View Pan Operator
  * \{ */
 
-/* Prevent naming collision. */
 namespace {
 
 struct ViewPanData {
@@ -541,7 +540,6 @@ void CLIP_OT_view_pan(wmOperatorType *ot)
 /** \name View Zoom Operator
  * \{ */
 
-/* Prevent naming collision. */
 namespace {
 
 struct ViewZoomData {

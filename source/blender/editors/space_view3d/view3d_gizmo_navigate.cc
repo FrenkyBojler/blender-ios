@@ -42,7 +42,6 @@
 /* Margin around the smaller buttons. */
 #define GIZMO_MINI_OFFSET 2.0f
 
-/* Prevent naming collision. */
 namespace {
 
 enum {

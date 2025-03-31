@@ -31,7 +31,6 @@
 
 using namespace mem_guarded::internal;
 
-/* Prevent naming collision. */
 namespace {
 
 typedef struct MemHead {

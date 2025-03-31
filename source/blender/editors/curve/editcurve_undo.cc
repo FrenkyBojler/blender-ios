@@ -46,7 +46,6 @@ static CLG_LogRef LOG = {"ed.undo.curve"};
 /** \name Undo Conversion
  * \{ */
 
-/* Prevent naming collision. */
 namespace {
 
 struct UndoCurve {
