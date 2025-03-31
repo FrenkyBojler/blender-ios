@@ -805,6 +805,7 @@ void Instance::draw_v3d(Manager &manager, View &view)
     layer.armatures.draw_line(framebuffer, manager, view);
     layer.sculpts.draw_line(framebuffer, manager, view);
     layer.grease_pencil.draw_line(framebuffer, manager, view);
+    /* NOTE: Temporarily moved after grid drawing (See #136764). */
     // layer.meshes.draw_line(framebuffer, manager, view);
     layer.curves.draw_line(framebuffer, manager, view);
   };
