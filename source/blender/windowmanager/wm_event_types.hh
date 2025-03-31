@@ -38,7 +38,7 @@ enum {
  * \note Also used for #wmKeyMapItem.type which is saved in key-map files,
  * do not change the values of existing values which can be used in key-maps.
  */
-enum {
+enum wmEventType : int16_t {
   /* Non-event, for example disabled timer. */
   EVENT_NONE = 0x0000,
 
