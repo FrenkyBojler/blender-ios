@@ -1694,7 +1694,18 @@ bool PyC_RunString_AsStringOrNone(const char *imports[],
 
 void PyC_StdFilesFlush()
 {
-  /* This is ported from CPython's internal #flush_std_files. */
+  /* This is ported from CPython's internal #flush_std_files (2025-03-31). The code is a bit
+   * different because the original code uses some internal APIs.
+   *
+   * This is approximately equivalent to:
+   * ```
+   * try:
+   *     sys.stdout.flush()
+   *     sys.stderr.flush()
+   * except Exception:
+   *     pass
+   * ```
+   */
   PyObject *py_flush = PyUnicode_FromString("flush");
   BLI_assert(py_flush);
   for (const char *name : {"stdout", "stderr"}) {
