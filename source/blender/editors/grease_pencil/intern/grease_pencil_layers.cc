@@ -786,6 +786,15 @@ static wmOperatorStatus grease_pencil_merge_layer_exec(bContext *C, wmOperator *
         indices.append(layer_i);
       }
     }
+
+    if(indices.is_empty()){
+      BKE_report(op->reports, RPT_INFO, "No child layers to merge");
+      /* Because we have potentially deleted empty layer groups within the active group, need to tag updates. */
+      DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
+      WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_SELECTED, nullptr);
+      return OPERATOR_FINISHED;
+    }
+
     src_layer_indices_by_dst_layer.append(indices);
 
     /* Store the name of the group as the name of the merged layer. */
