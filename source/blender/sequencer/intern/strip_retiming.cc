@@ -694,18 +694,11 @@ static void strip_retiming_fix_transitions(const Scene *scene, Strip *strip, Seq
 {
   const int key_index = retiming_key_index_get(strip, key);
 
-  if (!retiming_is_last_key(strip, key)) {
-    SeqRetimingKey *next_key = key + 1;
-    if (retiming_key_is_transition_start(next_key)) {
-      strip_retiming_fix_transition(scene, strip, next_key);
-    }
-  }
-
-  if (key_index <= 1) {
+  if (key_index <= 1 || retiming_is_last_key(strip, key)) {
     return;
   }
 
-  SeqRetimingKey *next_key = &retiming_keys_get(strip)[key_index + 1];
+  SeqRetimingKey *next_key = key + 1;
   if (retiming_key_is_transition_start(next_key)) {
     strip_retiming_fix_transition(scene, strip, next_key);
   }
