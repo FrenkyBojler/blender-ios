@@ -87,7 +87,7 @@ std::optional<double> VariableMap::get_float(blender::StringRef name) const
   return *value;
 }
 
-//-------------------------------------------------------------
+/*-----------------------------------------------------------*/
 
 VariableMap BKE_build_blender_variables(const char *blend_file_path,
                                         std::optional<uint64_t> frame_number,
@@ -137,27 +137,149 @@ VariableMap BKE_build_blender_variables(const char *blend_file_path,
   return variables;
 }
 
-enum class VariableFormatType {
+/*-----------------------------------------------------------*/
+
+/* Anonymous namespace to make the types local to this file. */
+namespace {
+
+enum class FormatSpecifierType {
+  /* No format specifier given. */
   NONE = 0,
+
+  /* The format specifier was invalid, due to e.g. incorrect syntax. */
   INVALID,
+
   INTEGER,
   FLOAT,
 };
 
-struct VariableFormat {
-  VariableFormatType type = VariableFormatType::NONE;
+struct FormatSpecifier {
+  FormatSpecifierType type = FormatSpecifierType::NONE;
 
   std::optional<uint8_t> fixed_integer_digits;
   std::optional<uint8_t> fixed_fractional_digits;
 };
 
-static VariableFormat parse_path_variable_format(const blender::StringRef format_specifier)
+enum class TokenType {
+  VARIABLE,
+
+  /* An escaped { */
+  LEFT_CURLY_BRACE,
+
+  /* An escaped } */
+  RIGHT_CURLY_BRACE,
+};
+
+/**
+ * A token that was parsed and should be substituted in the path string.
+ */
+struct Token {
+  TokenType type = TokenType::VARIABLE;
+
+  /* Byte index range (exclusive on the right) in the path string that should be
+   * replaced with the variable value. This is the full range of the `{blah}`
+   * syntax that was parsed. */
+  blender::IndexRange replacement_range;
+
+  /* Reference to the the variable name as written in the path string. Note that
+   * this references the path string, and does not own the value.
+   *
+   * Only relevant when `type == VARIABLE`. */
+  blender::StringRef variable_name;
+
+  /* Indicates how the variable's value should be formatted into a string. This
+   * is derived from the format string after the `:` in e.g. `${blah:5}`.
+   *
+   * Only relevant when `type == VARIABLE`. */
+  FormatSpecifier format;
+};
+
+}  // namespace
+
+/**
+ * \return length of the produced string.
+ */
+static int format_int_to_string(const FormatSpecifier &format,
+                                char *output_string,
+                                int64_t integer_value)
 {
-  VariableFormat format = {};
+  int output_length = 0;
+
+  if (format.fixed_integer_digits.has_value()) {
+    output_length = sprintf(output_string, "%0*ld", *format.fixed_integer_digits, integer_value);
+  }
+  else {
+    output_length = sprintf(output_string, "%ld", integer_value);
+  }
+
+  return output_length;
+}
+
+/**
+ * \return length of the produced string.
+ */
+static int format_float_to_string(const FormatSpecifier &format,
+                                  char *output_string,
+                                  double float_value)
+{
+  /* If an integer format was specified, defer to the integer formatter with a
+   * rounded value. */
+  if (format.type == FormatSpecifierType::INTEGER) {
+    const int int_length = format_int_to_string(format, output_string, std::round(float_value));
+    return int_length;
+  }
+
+  int output_length = 0;
+  if (format.fixed_integer_digits.has_value() && format.fixed_fractional_digits.has_value()) {
+    /* Both integer and fractional component lengths are specified. */
+    output_length = sprintf(output_string,
+                            "%0*.*f",
+                            *format.fixed_integer_digits + *format.fixed_fractional_digits + 1,
+                            *format.fixed_fractional_digits,
+                            float_value);
+  }
+  else if (format.fixed_integer_digits.has_value()) {
+    /* Only integer component length is specified.
+     *
+     * We currently don't support this as it's not clear exactly what should
+     * happen. We can revisit this in the future when people have an actual use
+     * case. */
+  }
+  else if (format.fixed_fractional_digits.has_value()) {
+    /* Only fractional component length is specified. */
+    output_length = sprintf(output_string, "%.*f", *format.fixed_fractional_digits, float_value);
+  }
+  else {
+    /* No format specification is given.
+     *
+     * When no format specification is given, we attempt to approximate Python's
+     * behavior when no format specification is given. We can't exactly match
+     * via `sprintf()`, but we can get pretty close. The only major difference
+     * that we can't replicate is that in `sprintf()` whole numbers are printed
+     * without a trailing ".0", whereas in Python they are. So we handle that
+     * bit manually. */
+    output_length = sprintf(output_string, "%.16g", float_value);
+
+    /* If the string consists only of digits and a possible negative sign, then
+     * we append a ".0" to match Python. */
+    if (blender::StringRef(output_string).find_first_not_of("-0123456789") == std::string::npos) {
+      output_string[output_length] = '.';
+      output_string[output_length + 1] = '0';
+      output_string[output_length + 2] = '\0';
+      output_length += 2;
+    }
+  }
+
+  return output_length;
+}
+
+static FormatSpecifier parse_path_variable_format(const blender::StringRef format_specifier)
+{
+  FormatSpecifier format = {};
 
   /* A ":" was used, but no format specifier was given, which is invalid. */
   if (format_specifier.is_empty()) {
-    format.type = VariableFormatType::INVALID;
+    format.type = FormatSpecifierType::INVALID;
     return format;
   }
 
@@ -165,7 +287,7 @@ static VariableFormat parse_path_variable_format(const blender::StringRef format
   if (format_specifier.find_first_not_of("#") == std::string::npos) {
     format.fixed_integer_digits = format_specifier.size();
 
-    format.type = VariableFormatType::INTEGER;
+    format.type = FormatSpecifierType::INTEGER;
     return format;
   }
 
@@ -181,7 +303,7 @@ static VariableFormat parse_path_variable_format(const blender::StringRef format
     /* We currently require that the fractional digits are specified, so bail if
      * they aren't. */
     if (right.is_empty()) {
-      format.type = VariableFormatType::INVALID;
+      format.type = FormatSpecifierType::INVALID;
       return format;
     }
 
@@ -191,44 +313,16 @@ static VariableFormat parse_path_variable_format(const blender::StringRef format
 
     format.fixed_fractional_digits = right.size();
 
-    format.type = VariableFormatType::FLOAT;
+    format.type = FormatSpecifierType::FLOAT;
     return format;
   }
 
-  format.type = VariableFormatType::INVALID;
+  format.type = FormatSpecifierType::INVALID;
   return format;
 }
 
-enum class ParsedEntityType {
-  VARIABLE,
-  LEFT_CURLY_BRACE,  /* An escaped { */
-  RIGHT_CURLY_BRACE, /* An escaped } */
-};
-
 /**
- * Information about a thing that was parsed and should be substituted in the
- * path string.
- */
-struct ParsedEntity {
-  ParsedEntityType substitution_type = ParsedEntityType::VARIABLE;
-
-  /* Byte index range (exclusive on the right) in the path string that should be
-   * replaced with the variable value. This is the full range of the `{blah}`
-   * syntax that was parsed. */
-  blender::IndexRange replacement_range;
-
-  /* Reference to the the variable name as written in the path string. Note that
-   * this references the path string, and does not own the value. */
-  blender::StringRef variable_name;
-
-  /* Indicates how the variable's value should be formatted as a string. This is
-   * derived from the format string after the `:` in e.g. `${blah:5}`. Currently
-   * only used for integer and float variable types. */
-  VariableFormat format;
-};
-
-/**
- * Finds and parses the first valid variable in `path`.
+ * Finds and parses the first valid token in `path`.
  *
  * \param path The path string to parse.
  *
@@ -236,10 +330,10 @@ struct ParsedEntity {
  * points to, in bytes. This is just used as a fail-safe in case path isn't
  * properly null-terminated, to prevent reading off the end of valid memory.
  *
- * \return The parsed variable information, or nullopt if no variable reference
- * is found in `path`.
+ * \return The parsed token information, or nullopt if no token is found in
+ * `path`.
  */
-static std::optional<ParsedEntity> next_path_variable(char *path, const int path_allocation_size)
+static std::optional<Token> next_token(char *path, const int path_allocation_size)
 {
   /* We use magic number -1 to indicate that the component hasn't been found
    * yet. Otherwise they are the byte offset at which the component was found. */
@@ -255,8 +349,8 @@ static std::optional<ParsedEntity> next_path_variable(char *path, const int path
     if ((byte_index + 1) < path_allocation_size && path[byte_index] == '{' &&
         path[byte_index + 1] == '{')
     {
-      ParsedEntity variable;
-      variable.substitution_type = ParsedEntityType::LEFT_CURLY_BRACE;
+      Token variable;
+      variable.type = TokenType::LEFT_CURLY_BRACE;
       variable.replacement_range = blender::IndexRange::from_begin_end(byte_index, byte_index + 2);
       return variable;
     }
@@ -265,8 +359,8 @@ static std::optional<ParsedEntity> next_path_variable(char *path, const int path
     if ((byte_index + 1) < path_allocation_size && path[byte_index] == '}' &&
         path[byte_index + 1] == '}')
     {
-      ParsedEntity variable;
-      variable.substitution_type = ParsedEntityType::RIGHT_CURLY_BRACE;
+      Token variable;
+      variable.type = TokenType::RIGHT_CURLY_BRACE;
       variable.replacement_range = blender::IndexRange::from_begin_end(byte_index, byte_index + 2);
       return variable;
     }
@@ -316,7 +410,7 @@ static std::optional<ParsedEntity> next_path_variable(char *path, const int path
   }
 
   /* Parse the variable reference we found. */
-  ParsedEntity variable;
+  Token variable;
   variable.replacement_range = blender::IndexRange::from_begin_end(start, end);
   if (format_specifier_split == -1) {
     /* No format specifier. */
@@ -332,119 +426,42 @@ static std::optional<ParsedEntity> next_path_variable(char *path, const int path
   return variable;
 }
 
-/**
- * \return length of the produced string.
- */
-static int format_int_to_string(const VariableFormat &format,
-                                char *output_string,
-                                int64_t integer_value)
-{
-  int output_length = 0;
-
-  if (format.fixed_integer_digits.has_value()) {
-    output_length = sprintf(output_string, "%0*ld", *format.fixed_integer_digits, integer_value);
-  }
-  else {
-    output_length = sprintf(output_string, "%ld", integer_value);
-  }
-
-  return output_length;
-}
-
-/**
- * \return length of the produced string.
- */
-static int format_float_to_string(const VariableFormat &format,
-                                  char *output_string,
-                                  double float_value)
-{
-  /* If an integer format was specified, defer to the integer formatter with a
-   * rounded value. */
-  if (format.type == VariableFormatType::INTEGER) {
-    const int int_length = format_int_to_string(format, output_string, std::round(float_value));
-    return int_length;
-  }
-
-  int output_length = 0;
-  if (format.fixed_integer_digits.has_value() && format.fixed_fractional_digits.has_value()) {
-    /* Both integer and fractional component lengths are specified. */
-    output_length = sprintf(output_string,
-                            "%0*.*f",
-                            *format.fixed_integer_digits + *format.fixed_fractional_digits + 1,
-                            *format.fixed_fractional_digits,
-                            float_value);
-  }
-  else if (format.fixed_integer_digits.has_value()) {
-    /* Only integer component length is specified.
-     *
-     * We currently don't support this as it's not clear exactly what should
-     * happen. We can revisit this in the future when people have an actual use
-     * case. */
-  }
-  else if (format.fixed_fractional_digits.has_value()) {
-    /* Only fractional component length is specified. */
-    output_length = sprintf(output_string, "%.*f", *format.fixed_fractional_digits, float_value);
-  }
-  else {
-    /* No format specification is given.
-     *
-     * When no format specification is given, we attempt to approximate Python's
-     * behavior when no format specification is given. We can't exactly match
-     * via `sprintf()`, but we can get pretty close. The only major difference
-     * that we can't replicate is that in `sprintf()` whole numbers are printed
-     * without a trailing ".0", whereas in Python they are. So we handle that
-     * bit manually. */
-    output_length = sprintf(output_string, "%.16g", float_value);
-
-    /* If the string consists only of digits and a possible negative sign, then
-     * we append a ".0" to match Python. */
-    if (blender::StringRef(output_string).find_first_not_of("-0123456789") == std::string::npos) {
-      output_string[output_length] = '.';
-      output_string[output_length + 1] = '0';
-      output_string[output_length + 2] = '\0';
-      output_length += 2;
-    }
-  }
-
-  return output_length;
-}
-
 bool BKE_path_apply_variables(char path[FILE_MAX], const VariableMap &variables)
 {
   bool was_modified = false;
 
   int bytes_processed = 0;
   while (bytes_processed < FILE_MAX && path[bytes_processed] != '\0') {
-    const auto parsed_variable = next_path_variable(path + bytes_processed,
-                                                    FILE_MAX - bytes_processed);
+    const std::optional<Token> token = next_token(path + bytes_processed,
+                                                  FILE_MAX - bytes_processed);
 
-    if (!parsed_variable.has_value()) {
+    if (!token.has_value()) {
       break;
     }
 
     /* Skip variables with invalid format specifier syntax. */
-    if (parsed_variable->format.type == VariableFormatType::INVALID) {
-      bytes_processed += parsed_variable->replacement_range.one_after_last();
+    if (token->format.type == FormatSpecifierType::INVALID) {
+      bytes_processed += token->replacement_range.one_after_last();
       continue;
     }
 
     /* Check for escapes. */
-    if (parsed_variable->substitution_type == ParsedEntityType::LEFT_CURLY_BRACE) {
+    if (token->type == TokenType::LEFT_CURLY_BRACE) {
       BLI_string_replace_range(path + bytes_processed,
                                FILE_MAX - bytes_processed,
-                               parsed_variable->replacement_range.start(),
-                               parsed_variable->replacement_range.one_after_last(),
+                               token->replacement_range.start(),
+                               token->replacement_range.one_after_last(),
                                "{");
 
       bytes_processed += 1;
       was_modified = true;
       continue;
     }
-    if (parsed_variable->substitution_type == ParsedEntityType::RIGHT_CURLY_BRACE) {
+    if (token->type == TokenType::RIGHT_CURLY_BRACE) {
       BLI_string_replace_range(path + bytes_processed,
                                FILE_MAX - bytes_processed,
-                               parsed_variable->replacement_range.start(),
-                               parsed_variable->replacement_range.one_after_last(),
+                               token->replacement_range.start(),
+                               token->replacement_range.one_after_last(),
                                "}");
 
       bytes_processed += 1;
@@ -461,26 +478,22 @@ bool BKE_path_apply_variables(char path[FILE_MAX], const VariableMap &variables)
 
     /* Try to find a matching variable, and construct a string for it. */
     if (std::optional<blender::StringRefNull> string_value = variables.get_string(
-            parsed_variable->variable_name))
+            token->variable_name))
     {
       /* String variable found, but only process if there's no format specifier.
        * String variables do not support format specifiers. */
-      if (parsed_variable->format.type == VariableFormatType::NONE) {
+      if (token->format.type == FormatSpecifierType::NONE) {
         replacement_string = string_value->c_str();
       }
     }
-    else if (std::optional<int64_t> integer_value = variables.get_integer(
-                 parsed_variable->variable_name))
-    {
+    else if (std::optional<int64_t> integer_value = variables.get_integer(token->variable_name)) {
       /* Integer variable found. */
-      format_int_to_string(parsed_variable->format, string_buffer, *integer_value);
+      format_int_to_string(token->format, string_buffer, *integer_value);
       replacement_string = string_buffer;
     }
-    else if (std::optional<double> float_value = variables.get_float(
-                 parsed_variable->variable_name))
-    {
+    else if (std::optional<double> float_value = variables.get_float(token->variable_name)) {
       /* Float variable found. */
-      format_float_to_string(parsed_variable->format, string_buffer, *float_value);
+      format_float_to_string(token->format, string_buffer, *float_value);
       replacement_string = string_buffer;
     }
 
@@ -488,19 +501,19 @@ bool BKE_path_apply_variables(char path[FILE_MAX], const VariableMap &variables)
     if (replacement_string != nullptr) {
       BLI_string_replace_range(path + bytes_processed,
                                FILE_MAX - bytes_processed,
-                               parsed_variable->replacement_range.start(),
-                               parsed_variable->replacement_range.one_after_last(),
+                               token->replacement_range.start(),
+                               token->replacement_range.one_after_last(),
                                replacement_string);
 
-      bytes_processed += parsed_variable->replacement_range.one_after_last();
-      bytes_processed -= parsed_variable->replacement_range.size();
+      bytes_processed += token->replacement_range.one_after_last();
+      bytes_processed -= token->replacement_range.size();
       bytes_processed += strlen(replacement_string);
 
       was_modified = true;
     }
     else {
       /* No matching variable, so skip. */
-      bytes_processed += parsed_variable->replacement_range.one_after_last();
+      bytes_processed += token->replacement_range.one_after_last();
     }
   }
 
