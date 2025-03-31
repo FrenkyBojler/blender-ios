@@ -8,7 +8,6 @@
 
 #pragma once
 
-#include "BLI_span.hh"
 #include "BLI_struct_equality_utils.hh"
 #include "intern/node/deg_node.hh"
 
@@ -59,8 +58,8 @@ struct IDNode : public Node {
 
   std::string identifier() const override;
 
-  ComponentNode *find_component(NodeType type, const StringRef name = "") const;
-  ComponentNode *add_component(NodeType type, const StringRef name = "");
+  ComponentNode *find_component(NodeType type, StringRef name = "") const;
+  ComponentNode *add_component(NodeType type, StringRef name = "");
 
   void tag_update(Depsgraph *graph, eUpdateSource source) override;
 
