@@ -768,6 +768,12 @@ static wmOperatorStatus grease_pencil_merge_layer_exec(bContext *C, wmOperator *
       return OPERATOR_CANCELLED;
     }
     LayerGroup &active_group = *grease_pencil.get_active_group();
+
+    if (active_group.layers().is_empty()){
+      BKE_report(op->reports, RPT_INFO, "No child layers to merge");
+      return OPERATOR_CANCELLED;
+    }
+
     /* Remove all sub groups of the active group since they won't be needed anymore, but keep the
      * layers. */
     Array<LayerGroup *> groups = active_group.groups_for_write();
@@ -785,14 +791,6 @@ static wmOperatorStatus grease_pencil_merge_layer_exec(bContext *C, wmOperator *
       else {
         indices.append(layer_i);
       }
-    }
-
-    if(indices.is_empty()){
-      BKE_report(op->reports, RPT_INFO, "No child layers to merge");
-      /* Because we have potentially deleted empty layer groups within the active group, need to tag updates. */
-      DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
-      WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_SELECTED, nullptr);
-      return OPERATOR_FINISHED;
     }
 
     src_layer_indices_by_dst_layer.append(indices);
