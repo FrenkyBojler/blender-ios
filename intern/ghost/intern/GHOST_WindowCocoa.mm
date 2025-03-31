@@ -1053,7 +1053,10 @@ NSCursor *GHOST_WindowCocoa::getStandardCursor(GHOST_TStandardCursor shape) cons
       case GHOST_kStandardCursorDefault:
         return [NSCursor arrowCursor];
       case GHOST_kStandardCursorWait:
-        return [NSCursor busyButClickableCursor];
+        if ([NSCursor respondsToSelector:@selector(busyButClickableCursor)]) {
+          return [NSCursor busyButClickableCursor];
+        }
+        return nullptr;
       case GHOST_kStandardCursorKnife:
         return getImageCursor(shape, @"knife.pdf", NSMakePoint(6, 24));
       case GHOST_kStandardCursorEraser:
