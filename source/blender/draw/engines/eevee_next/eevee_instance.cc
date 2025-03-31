@@ -555,6 +555,8 @@ void Instance::render_frame(RenderEngine *engine, RenderLayer *render_layer, con
 
   this->film.cryptomatte_sort();
 
+  GPU_flush();
+
   this->render_read_result(render_layer, view_name);
 
   if (!info_.empty()) {
