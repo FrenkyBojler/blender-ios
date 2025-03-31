@@ -351,8 +351,8 @@ static void store_result_geometry(const bContext &C,
         if (!layer->is_editable()) {
           continue;
         }
-        /* TODO: For now, this is always set to false, but it might be good to expose this as an
-         * option somehow. */
+        /* TODO: For now, we always create a blank keyframe, but it might be good to expose this as
+         * an option and allow to duplicate the previous key. */
         const bool duplicate_previous_key = false;
         ed::greasepencil::ensure_active_keyframe(
             scene, grease_pencil, *layer, duplicate_previous_key, inserted_new_keyframe);
