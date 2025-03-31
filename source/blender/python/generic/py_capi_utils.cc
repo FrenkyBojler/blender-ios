@@ -1696,10 +1696,7 @@ void PyC_StdFilesFlush()
 {
   /* This is ported from CPython's internal #flush_std_files. */
   PyObject *py_flush = PyUnicode_FromString("flush");
-  if (!py_flush) {
-    PyErr_Clear();
-    return;
-  }
+  BLI_assert(py_flush);
   for (const char *name : {"stdout", "stderr"}) {
     PyObject *py_file = PySys_GetObject(name);
     if (!py_file) {
