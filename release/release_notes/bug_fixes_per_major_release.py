@@ -313,7 +313,7 @@ class CommitInfo:
         command_output = subprocess.run(command, capture_output=True).stdout.decode('utf-8')
 
         # Find every instance of #NUMBER. These are the report that the commit claims to fix.
-        match = re.findall(r'#(\d+)', command_output)
+        match = re.findall(r'\s#+(\d+)', command_output)
         if match:
             self.fixed_reports = match
 
