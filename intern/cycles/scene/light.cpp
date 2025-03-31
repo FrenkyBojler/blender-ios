@@ -138,7 +138,7 @@ void Light::tag_update(Scene *scene)
   }
 }
 
-bool Light::has_contribution(Scene *scene)
+bool Light::has_contribution(const Scene *scene, const Object *object)
 {
   if (strength == zero_float3()) {
     return false;
@@ -148,6 +148,14 @@ bool Light::has_contribution(Scene *scene)
   }
   if (light_type == LIGHT_BACKGROUND) {
     return true;
+  }
+  if (light_type == LIGHT_AREA) {
+    const float size_u = get_sizeu() * len(transform_get_column(&object->get_tfm(), 0));
+    const float size_v = get_sizev() * len(transform_get_column(&object->get_tfm(), 0));
+    if (size_u * size_v * get_size() == 0.0f) {
+      /* Area light with a size of zero does not contribute to the scene. */
+      return false;
+    }
   }
 
   const Shader *effective_shader = (get_shader()) ? get_shader() : scene->default_light;
@@ -219,7 +227,7 @@ void LightManager::test_enabled_lights(Scene *scene)
     }
 
     Light *light = static_cast<Light *>(object->get_geometry());
-    light->is_enabled = light->has_contribution(scene);
+    light->is_enabled = light->has_contribution(scene, object);
     has_portal |= light->is_portal;
 
     if (light->light_type == LIGHT_BACKGROUND) {
@@ -1297,7 +1305,7 @@ void LightManager::device_update_lights(DeviceScene *dscene, Scene *scene)
       if (light->ellipse) {
         area *= M_PI_4_F;
       }
-      float invarea = (light->normalize && area != 0.0f) ? 1.0f / area : 1.0f;
+      float invarea = light->normalize ? 1.0f / area : 1.0f;
       if (light->ellipse) {
         /* Negative inverse area indicates ellipse. */
         invarea = -invarea;
