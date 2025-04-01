@@ -845,7 +845,6 @@ static void search_fn(bContext *C, void * /*arg1*/, void *arg2)
   char *string = static_cast<char *>(arg2);
   view->set_serach_string(string);
   std::string name = view->get_search_string();
-  int a = 0;
 }
 
 void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
