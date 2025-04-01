@@ -425,8 +425,13 @@ static std::pair<WindingState, WindingState> LR_states_from_segment(
 
   state_L.add_to_curve(curve_i, 1); /* TODO. */
 
-  /* TODO: This assumes that the segment size is not zero which is not always true. */
-  const int first_point = segment.start_point();
+  float2 first_point = points[segment.start_point()];
+
+  /* If there are no control points in the segment calculate the starting point. */
+  if (segment.points_num() == 0) {
+    first_point = math::interpolate(
+        points[segment.start_edge().x], points[segment.start_edge().y], segment.start_alpha());
+  }
 
   mask_shapes.foreach_index([&](const int shape_id) {
     const IndexMask &curves_j = shapes[shape_id];
@@ -437,7 +442,7 @@ static std::pair<WindingState, WindingState> LR_states_from_segment(
 
       if (is_fill[curve_j]) {
         const Span<float2> poly_j = points.slice(points_by_curve[curve_j]);
-        int winding_j = point_in_polygon_winding_order(points[first_point], poly_j);
+        const int winding_j = point_in_polygon_winding_order(first_point, poly_j);
         state_L.add_to_curve(curve_j, winding_j);
         state_R.add_to_curve(curve_j, winding_j);
       }
