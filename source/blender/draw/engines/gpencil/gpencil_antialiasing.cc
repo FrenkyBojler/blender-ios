@@ -13,7 +13,6 @@
 #include "gpencil_engine_private.hh"
 
 #include "BLI_smaa_textures.h"
-#include <iostream>
 
 namespace blender::draw::gpencil {
 
@@ -116,7 +115,7 @@ void Instance::antialiasing_draw(Manager &manager)
   manager.submit(this->smaa_resolve_ps);
 }
 
-static float erfinv_approx(float x)
+static float erfinv_approx(const float x)
 {
   /* From: Approximating the `erfinv` function by Mike Giles. */
   /* To avoid trouble at the limit, clamp input to 1-epsilon. */
@@ -150,7 +149,7 @@ static float erfinv_approx(float x)
   return p * x;
 }
 
-float2 Instance::antialiasing_sample_get(int sample_index, int sample_count)
+float2 Instance::antialiasing_sample_get(const int sample_index, const int sample_count)
 {
   if (sample_count < 2) {
     return float2(0.0f);
@@ -161,7 +160,6 @@ float2 Instance::antialiasing_sample_get(int sample_index, int sample_count)
     uint primes[2] = {2, 3};
     double ofs[2] = {0, 0};
     BLI_halton_2d(primes, ofs, sample_index, halton);
-    UNUSED_VARS(sample_count);
   }
   /* Uniform distribution [0..1]. */
   const float2 rand = float2(halton[0], halton[1]);
@@ -177,14 +175,14 @@ float2 Instance::antialiasing_sample_get(int sample_index, int sample_count)
   return offset * sqrt(sigma);
 }
 
-void Instance::antialiasing_accumulate(Manager &manager, float alpha)
+void Instance::antialiasing_accumulate(Manager &manager, const float alpha)
 {
   BLI_assert_msg(this->render_color_tx.gpu_texture() != nullptr,
                  "This should only be called during render");
-  int2 size = this->render_color_tx.size().xy();
+  const int2 size = this->render_color_tx.size().xy();
 
-  eGPUTextureUsage usage = GPU_TEXTURE_USAGE_HOST_READ | GPU_TEXTURE_USAGE_SHADER_READ |
-                           GPU_TEXTURE_USAGE_SHADER_WRITE | GPU_TEXTURE_USAGE_ATTACHMENT;
+  const eGPUTextureUsage usage = GPU_TEXTURE_USAGE_HOST_READ | GPU_TEXTURE_USAGE_SHADER_READ |
+                                 GPU_TEXTURE_USAGE_SHADER_WRITE | GPU_TEXTURE_USAGE_ATTACHMENT;
   accumulation_tx.ensure_2d(GPENCIL_ACCUM_FORMAT, size, usage);
 
   {

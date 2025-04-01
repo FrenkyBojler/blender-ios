@@ -36,9 +36,9 @@ static void remap_depth(const View &view, MutableSpan<float> pix_z)
   }
   else {
     /* Keep in mind, near and far distance are negatives. */
-    float near = view.near_clip();
-    float far = view.far_clip();
-    float range_inv = 1.0f / fabsf(far - near);
+    const float near = view.near_clip();
+    const float far = view.far_clip();
+    const float range_inv = 1.0f / fabsf(far - near);
     for (auto &pix : pix_z) {
       pix = (pix + near) * range_inv;
       pix = clamp_f(pix, 0.0f, 1.0f);
@@ -271,7 +271,12 @@ void Engine::render_to_image(RenderEngine *engine, RenderLayer *render_layer, co
     /* Render the gpencil object and merge the result to the underlying render. */
     inst.draw(manager);
 
-    inst.antialiasing_accumulate(manager, 1.0f / (1.0f + i));
+    /* Weight of this render SSAA sample. The sum of previous samples is weighted by `1 - weight`.
+     * This diminishes after each new sample as we want all samples to be equally weighted inside
+     * the final result (inside the combined buffer). This weighting scheme allows to always store
+     * the resolved result making it ready for in-progress display or readback. */
+    float weight = 1.0f / (1.0f + i);
+    inst.antialiasing_accumulate(manager, weight);
   }
 
   render_result_combined(render_layer, viewname, inst, &rect);
