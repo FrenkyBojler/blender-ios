@@ -157,7 +157,7 @@ endef
 
 # This makefile is not meant for Windows
 ifeq ($(OS),Windows_NT)
-	$(error On Windows, use "cmd //c make.bat" instead of "make")
+$(error On Windows, use "cmd //c make.bat" instead of "make")
 endif
 
 # System Vars
