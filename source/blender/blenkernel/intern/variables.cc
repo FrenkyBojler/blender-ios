@@ -149,15 +149,15 @@ enum class FormatSpecifierType {
   /* No format specifier given. Use default formatting. */
   NONE = 0,
 
-  /* The format specifier was invalid, due to e.g. incorrect syntax. */
-  INVALID,
-
   /* The format specifier was a string of just "#" characters. E.g. "####". */
   INTEGER,
 
   /* The format specifier was a string of "#" characters with a single ".". E.g.
    * "###.##". */
   FLOAT,
+
+  /* The format specifier was invalid due to incorrect syntax. */
+  INVALID_SYNTAX,
 };
 
 /**
@@ -221,14 +221,35 @@ static int format_int_to_string(const FormatSpecifier &format,
                                 int64_t integer_value,
                                 char r_output_string[FORMAT_BUFFER_SIZE])
 {
+  BLI_assert(format.type != FormatSpecifierType::INVALID_SYNTAX);
+
   r_output_string[0] = '\0';
   int output_length = 0;
 
-  if (format.fixed_integer_digits.has_value()) {
-    output_length = sprintf(r_output_string, "%0*ld", *format.fixed_integer_digits, integer_value);
-  }
-  else {
-    output_length = sprintf(r_output_string, "%ld", integer_value);
+  switch (format.type) {
+    case FormatSpecifierType::NONE: {
+      output_length = sprintf(r_output_string, "%ld", integer_value);
+      break;
+    }
+
+    case FormatSpecifierType::INTEGER: {
+      BLI_assert(format.fixed_integer_digits.has_value());
+      output_length = sprintf(
+          r_output_string, "%0*ld", *format.fixed_integer_digits, integer_value);
+      break;
+    }
+
+    case FormatSpecifierType::FLOAT: {
+
+      break;
+    }
+
+    case FormatSpecifierType::INVALID_SYNTAX: {
+      BLI_assert_msg(
+          false,
+          "Format specifiers with invalid syntax should have been rejected before getting here.");
+      break;
+    }
   }
 
   return output_length;
@@ -246,54 +267,63 @@ static int format_float_to_string(const FormatSpecifier &format,
                                   double float_value,
                                   char r_output_string[FORMAT_BUFFER_SIZE])
 {
+  BLI_assert(format.type != FormatSpecifierType::INVALID_SYNTAX);
+
   r_output_string[0] = '\0';
   int output_length = 0;
 
-  /* If an integer format was specified, defer to the integer formatter with a
-   * rounded value. */
-  if (format.type == FormatSpecifierType::INTEGER) {
-    const int int_length = format_int_to_string(format, std::round(float_value), r_output_string);
-    return int_length;
-  }
+  switch (format.type) {
+    case FormatSpecifierType::NONE: {
+      /* When no format specification is given, we attempt to approximate
+       * Python's behavior in the same situation. We can't exactly match via
+       * `sprintf()`, but we can get pretty close. The only major thing we can't
+       * replicate via `sprintf()` is that in Python whole numbers are printed
+       * with a trailing ".0". So we handle that bit manually. */
+      output_length = sprintf(r_output_string, "%.16g", float_value);
 
-  if (format.fixed_integer_digits.has_value() && format.fixed_fractional_digits.has_value()) {
-    /* Both integer and fractional component lengths are specified. */
-    output_length = sprintf(r_output_string,
-                            "%0*.*f",
-                            *format.fixed_integer_digits + *format.fixed_fractional_digits + 1,
-                            *format.fixed_fractional_digits,
-                            float_value);
-  }
-  else if (format.fixed_integer_digits.has_value()) {
-    /* Only integer component length is specified.
-     *
-     * We currently don't support this as it's not clear exactly what should
-     * happen. We can revisit this in the future when people have an actual use
-     * case. */
-  }
-  else if (format.fixed_fractional_digits.has_value()) {
-    /* Only fractional component length is specified. */
-    output_length = sprintf(r_output_string, "%.*f", *format.fixed_fractional_digits, float_value);
-  }
-  else {
-    /* No format specification is given.
-     *
-     * When no format specification is given, we attempt to approximate Python's
-     * behavior when no format specification is given. We can't exactly match
-     * via `sprintf()`, but we can get pretty close. The only major difference
-     * that we can't replicate is that in `sprintf()` whole numbers are printed
-     * without a trailing ".0", whereas in Python they are. So we handle that
-     * bit manually. */
-    output_length = sprintf(r_output_string, "%.16g", float_value);
+      /* If the string consists only of digits and a possible negative sign, then
+       * we append a ".0" to match Python. */
+      if (blender::StringRef(r_output_string).find_first_not_of("-0123456789") ==
+          std::string::npos)
+      {
+        r_output_string[output_length] = '.';
+        r_output_string[output_length + 1] = '0';
+        r_output_string[output_length + 2] = '\0';
+        output_length += 2;
+      }
+      break;
+    }
 
-    /* If the string consists only of digits and a possible negative sign, then
-     * we append a ".0" to match Python. */
-    if (blender::StringRef(r_output_string).find_first_not_of("-0123456789") == std::string::npos)
-    {
-      r_output_string[output_length] = '.';
-      r_output_string[output_length + 1] = '0';
-      r_output_string[output_length + 2] = '\0';
-      output_length += 2;
+    case FormatSpecifierType::INTEGER: {
+      /* Defer to the integer formatter with a rounded value. */
+      return format_int_to_string(format, std::round(float_value), r_output_string);
+    }
+
+    case FormatSpecifierType::FLOAT: {
+      BLI_assert(format.fixed_fractional_digits.has_value());
+
+      if (format.fixed_integer_digits.has_value()) {
+        /* Both integer and fractional component lengths are specified. */
+        output_length = sprintf(r_output_string,
+                                "%0*.*f",
+                                *format.fixed_integer_digits + *format.fixed_fractional_digits + 1,
+                                *format.fixed_fractional_digits,
+                                float_value);
+      }
+      else {
+        /* Only fractional component length is specified. */
+        output_length = sprintf(
+            r_output_string, "%.*f", *format.fixed_fractional_digits, float_value);
+      }
+
+      break;
+    }
+
+    case FormatSpecifierType::INVALID_SYNTAX: {
+      BLI_assert_msg(
+          false,
+          "Format specifiers with invalid syntax should have been rejected before getting here.");
+      break;
     }
   }
 
@@ -306,7 +336,7 @@ static FormatSpecifier parse_path_variable_format(const blender::StringRef forma
 
   /* A ":" was used, but no format specifier was given, which is invalid. */
   if (format_specifier.is_empty()) {
-    format.type = FormatSpecifierType::INVALID;
+    format.type = FormatSpecifierType::INVALID_SYNTAX;
     return format;
   }
 
@@ -330,7 +360,7 @@ static FormatSpecifier parse_path_variable_format(const blender::StringRef forma
     /* We currently require that the fractional digits are specified, so bail if
      * they aren't. */
     if (right.is_empty()) {
-      format.type = FormatSpecifierType::INVALID;
+      format.type = FormatSpecifierType::INVALID_SYNTAX;
       return format;
     }
 
@@ -344,7 +374,7 @@ static FormatSpecifier parse_path_variable_format(const blender::StringRef forma
     return format;
   }
 
-  format.type = FormatSpecifierType::INVALID;
+  format.type = FormatSpecifierType::INVALID_SYNTAX;
   return format;
 }
 
@@ -467,7 +497,7 @@ bool BKE_path_apply_variables(char path[FILE_MAX], const VariableMap &variables)
     }
 
     /* Skip variables with invalid format specifier syntax. */
-    if (token->format.type == FormatSpecifierType::INVALID) {
+    if (token->format.type == FormatSpecifierType::INVALID_SYNTAX) {
       bytes_processed += token->replacement_range.one_after_last();
       continue;
     }
