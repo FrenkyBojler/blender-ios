@@ -493,13 +493,13 @@ static void v3d_editvertex_buts(
                                                                               grease_pencil);
 
     threading::parallel_for_each(drawings, [&](const MutableDrawingInfo &info) {
-      bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
+      const bke::CurvesGeometry &curves = info.drawing.strokes();
       if (curves.is_empty()) {
         return;
       }
 
       const Span<StringRef> selection_names = get_curves_selection_attribute_names(curves);
-      Vector<MutableSpan<float3>> positions = get_curves_positions_for_write(curves);
+      Vector<Span<float3>> positions = get_curves_positions(curves);
       TransformMedian_Curves &median = median_basis.curves;
       for (int attribute_i : selection_names.index_range()) {
         IndexMaskMemory memory;
@@ -517,14 +517,14 @@ static void v3d_editvertex_buts(
   }
   else if (ob->type == OB_CURVES) {
     using namespace ed::curves;
-    Curves &curves_id = *static_cast<Curves *>(ob->data);
-    bke::CurvesGeometry &curves = curves_id.geometry.wrap();
+    const Curves &curves_id = *static_cast<Curves *>(ob->data);
+    const bke::CurvesGeometry &curves = curves_id.geometry.wrap();
     if (curves.is_empty()) {
       return;
     }
 
     const Span<StringRef> selection_names = get_curves_selection_attribute_names(curves);
-    Vector<MutableSpan<float3>> positions = get_curves_positions_for_write(curves);
+    const Vector<Span<float3>> positions = get_curves_positions(curves);
     TransformMedian_Curves &median = median_basis.curves;
     for (int attribute_i : selection_names.index_range()) {
       IndexMaskMemory memory;
@@ -1260,9 +1260,8 @@ static void v3d_editvertex_buts(
         TransformMedian_GreasePencil &ve_median = ve_median_basis.grease_pencil;
         IndexMaskMemory memory;
         const Span<StringRef> selection_names = get_curves_selection_attribute_names(curves);
-        Vector<MutableSpan<float3>> positions = get_curves_positions_for_write(curves);
+        const Vector<MutableSpan<float3>> positions = get_curves_positions_for_write(curves);
         for (int attribute_i : selection_names.index_range()) {
-          IndexMaskMemory memory;
           const IndexMask selection = retrieve_selected_points(
               curves, selection_names[attribute_i], memory);
           if (selection.is_empty()) {
@@ -1291,7 +1290,6 @@ static void v3d_editvertex_buts(
       const Span<StringRef> selection_names = get_curves_selection_attribute_names(curves);
       Vector<MutableSpan<float3>> positions = get_curves_positions_for_write(curves);
       for (int attribute_i : selection_names.index_range()) {
-        IndexMaskMemory memory;
         const IndexMask selection = retrieve_selected_points(
             curves, selection_names[attribute_i], memory);
         if (selection.is_empty()) {
