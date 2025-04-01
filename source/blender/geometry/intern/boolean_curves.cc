@@ -65,8 +65,6 @@ class Segment {
   int inter_index_1 = -1;
   int inter_index_2 = -1;
 
-  bool reversed = false;
-
   constexpr Segment() = default;
 
  public:
@@ -77,12 +75,12 @@ class Segment {
 
   int start_intersection() const
   {
-    return reversed ? inter_index_2 : inter_index_1;
+    return inter_index_1;
   }
 
   int end_intersection() const
   {
-    return reversed ? inter_index_1 : inter_index_2;
+    return inter_index_2;
   }
 
   bool has_start_intersection() const
@@ -97,36 +95,27 @@ class Segment {
 
   float start_alpha() const
   {
-    return reversed ? alpha_2 : alpha_1;
+    return alpha_1;
   }
 
   float end_alpha() const
   {
-    return reversed ? alpha_1 : alpha_2;
+    return alpha_2;
   }
 
   int2 start_edge() const
   {
-    if (reversed) {
-      return int2(point_2, this->wrap_index(point_2 + 1));
-    }
     return int2(point_1, this->wrap_index(point_1 + 1));
   }
 
   int2 end_edge() const
   {
-    if (reversed) {
-      return int2(point_1, this->wrap_index(point_1 + 1));
-    }
     return int2(point_2, this->wrap_index(point_2 + 1));
   }
 
   int start_point() const
   {
     if (!this->has_start_intersection()) {
-      if (reversed) {
-        return points.last();
-      }
       return points.first();
     }
     return this->start_edge().y;
@@ -182,7 +171,7 @@ class Segment {
     const IndexRange point_range = this->point_range();
 
     for (const int64_t pos : point_range.index_range()) {
-      const int i = this->wrap_index(point_range[reversed ? (point_range.size() - 1) - pos : pos]);
+      const int i = this->wrap_index(point_range[pos]);
 
       if constexpr (std::is_invocable_r_v<void, Fn, int64_t, int64_t>) {
         fn(i, pos);
@@ -1205,9 +1194,8 @@ bke::CurvesGeometry curve_boolean(const CurveBooleanOpParameters op_params,
       for (const int curve_i : dst_segments_by_curve.index_range()) {
         const IndexRange segment_range = dst_segments_by_curve[curve_i];
         for (const int seg_i : segment_range) {
-          Segment segment = result.segments[seg_i];
+          const Segment &segment = result.segments[seg_i];
           const bool reversed = result.segment_reversed[seg_i];
-          segment.reversed = false;
 
           if (reversed ? segment.has_end_intersection() : segment.has_start_intersection()) {
             const float start_alpha = reversed ? segment.alpha_2 : segment.alpha_1;
