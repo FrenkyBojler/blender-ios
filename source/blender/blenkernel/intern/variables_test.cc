@@ -118,6 +118,14 @@ TEST(blender_variables, path_apply_variables)
     EXPECT_EQ(blender::StringRef(path), "42_42_0042_-007");
   }
 
+  /* Integer formatting as float. */
+  {
+    char path[FILE_MAX] =
+        "{the_answer:.###}_{the_answer:#.##}_{the_answer:###.##}_{i_negative:###.####}";
+    BKE_path_apply_variables(path, variables);
+    EXPECT_EQ(blender::StringRef(path), "42.000_42.00_042.00_-07.0000");
+  }
+
   /* Float formatting: specify fractional digits only. */
   {
     char path[FILE_MAX] =

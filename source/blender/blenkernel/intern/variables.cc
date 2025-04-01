@@ -234,12 +234,38 @@ static int format_int_to_string(const FormatSpecifier &format,
 
     case FormatSpecifierType::INTEGER: {
       BLI_assert(format.fixed_integer_digits.has_value());
+      BLI_assert(*format.fixed_integer_digits > 0);
       output_length = sprintf(
           r_output_string, "%0*ld", *format.fixed_integer_digits, integer_value);
       break;
     }
 
     case FormatSpecifierType::FLOAT: {
+      /* Formatting an integer as a float: we do *not* defer to the float
+       * formatter for this because we could lose precision with very large
+       * numbers. Instead we simply print the integer, and then append ".000..."
+       * to it. */
+      BLI_assert(format.fixed_fractional_digits.has_value());
+      BLI_assert(*format.fixed_fractional_digits > 0);
+
+      if (format.fixed_integer_digits.has_value()) {
+        BLI_assert(*format.fixed_integer_digits > 0);
+        output_length = sprintf(
+            r_output_string, "%0*ld", *format.fixed_integer_digits, integer_value);
+      }
+      else {
+        output_length = sprintf(r_output_string, "%ld", integer_value);
+      }
+
+      r_output_string[output_length] = '.';
+      output_length++;
+
+      for (int i = 0; i < *format.fixed_fractional_digits; i++) {
+        r_output_string[output_length] = '0';
+        output_length++;
+      }
+
+      r_output_string[output_length] = '\0';
 
       break;
     }
@@ -301,9 +327,11 @@ static int format_float_to_string(const FormatSpecifier &format,
 
     case FormatSpecifierType::FLOAT: {
       BLI_assert(format.fixed_fractional_digits.has_value());
+      BLI_assert(*format.fixed_fractional_digits > 0);
 
       if (format.fixed_integer_digits.has_value()) {
         /* Both integer and fractional component lengths are specified. */
+        BLI_assert(*format.fixed_integer_digits > 0);
         output_length = sprintf(r_output_string,
                                 "%0*.*f",
                                 *format.fixed_integer_digits + *format.fixed_fractional_digits + 1,
