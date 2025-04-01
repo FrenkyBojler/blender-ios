@@ -156,13 +156,13 @@ static void nlastrips_apply_fcurve_versioning(ListBase &strips)
 {
   /* This function is used (via `BKE_fcurves_id_cb()`) by the versioning system.
    * As such, legacy Actions should always be expected here. */
-  LISTBASE_FOREACH (NlaStrip *, strip, strips) {
+  LISTBASE_FOREACH (NlaStrip *, strip, &strips) {
     LISTBASE_FOREACH (FCurve *, fcurve, &strip->fcurves) {
       version_fix_fcurve_noise_offset(*fcurve);
     }
 
     /* Check sub-strips (if meta-strips). */
-    nlastrips_apply_all_curves_cb(strip->strips);
+    nlastrips_apply_fcurve_versioning(strip->strips);
   }
 }
 
