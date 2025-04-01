@@ -1139,7 +1139,10 @@ static wmOperatorStatus pose_select_mirror_exec(bContext *C, wmOperator *op)
     /* Remember the pre-mirroring selection flags of the bones. */
     blender::Map<bPoseChannel *, eBone_Flag> old_selection_flags;
     LISTBASE_FOREACH (bPoseChannel *, pchan, &ob->pose->chanbase) {
-      old_selection_flags.add_new(pchan, eBone_Flag(pchan->bone->flag));
+      /* Treat invisible bones as deselected. */
+      const int flags = PBONE_VISIBLE(arm, pchan->bone) ? pchan->bone->flag : 0;
+
+      old_selection_flags.add_new(pchan, eBone_Flag(flags));
     }
 
     LISTBASE_FOREACH (bPoseChannel *, pchan, &ob->pose->chanbase) {
@@ -1148,17 +1151,24 @@ static wmOperatorStatus pose_select_mirror_exec(bContext *C, wmOperator *op)
       }
 
       bPoseChannel *pchan_mirror = BKE_pose_channel_get_mirrored(ob->pose, pchan->name);
-      if (!pchan_mirror || !PBONE_VISIBLE(arm, pchan_mirror->bone)) {
-        set_bone_selection_flags(pchan, eBone_Flag(0));
+      if (!pchan_mirror) {
+        /* If a bone cannot be mirrored, keep its flags as-is. This makes it possible to select
+         * the spine and an arm, and still flip the selection to the other arm (without losing
+         * the selection on the spine). */
         continue;
       }
 
       if (pchan->bone == arm->act_bone) {
         pchan_mirror_act = pchan_mirror;
+        printf("found pchan_mirror_act = %p %s (act bone = %s)\n",
+               pchan_mirror,
+               pchan_mirror ? pchan_mirror->bone->name : "-nil-",
+               arm->act_bone ? arm->act_bone->name : "-nil-");
       }
 
-      /* Skip all but the active or its mirror. */
+      /* If active-only, just deselect unrelated bones. */
       if (active_only && !ELEM(arm->act_bone, pchan->bone, pchan_mirror->bone)) {
+        set_bone_selection_flags(pchan, eBone_Flag(0));
         continue;
       }
 
@@ -1167,6 +1177,7 @@ static wmOperatorStatus pose_select_mirror_exec(bContext *C, wmOperator *op)
     }
 
     if (pchan_mirror_act) {
+      printf("setting arm->act_bone = %s\n", pchan_mirror_act->bone->name);
       arm->act_bone = pchan_mirror_act->bone;
 
       /* In weight-paint we select the associated vertex group too. */
@@ -1174,6 +1185,9 @@ static wmOperatorStatus pose_select_mirror_exec(bContext *C, wmOperator *op)
         blender::ed::object::vgroup_select_by_name(ob_active, pchan_mirror_act->name);
         DEG_id_tag_update(&ob_active->id, ID_RECALC_GEOMETRY);
       }
+    }
+    else {
+      printf("pchan_mirror_act is nil\n");
     }
 
     WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, ob);
