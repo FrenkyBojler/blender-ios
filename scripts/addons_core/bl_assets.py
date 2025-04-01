@@ -21,17 +21,17 @@ def register():
 
     do_reload = 'bl_assets' in sys.modules
 
-    import bl_assets
+    from _bpy_internal.assets import remote_library_index
 
     if do_reload:
         import importlib
 
-        bl_assets = importlib.reload(bl_assets)
+        remote_library_index = importlib.reload(remote_library_index)
 
-    bl_assets.register()
+    remote_library_index.register()
 
 
 def unregister():
-    import bl_assets
+    from _bpy_internal.assets import remote_library_index
 
-    bl_assets.unregister()
+    remote_library_index.unregister()
