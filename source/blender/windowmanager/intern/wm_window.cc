@@ -786,6 +786,10 @@ static void wm_window_update_eventstate(wmWindow *win)
 
 static void wm_window_ensure_eventstate(wmWindow *win)
 {
+  /* Some files could be saved with ime_data still present.
+   * See https://projects.blender.org/blender/blender/issues/136829 */
+  win->ime_data = nullptr;
+
   if (win->eventstate) {
     return;
   }
