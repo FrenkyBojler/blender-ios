@@ -136,7 +136,9 @@ void FileOutput::save(Scene *scene)
     BKE_render_result_stamp_data(render_result_, field.key.c_str(), field.value.c_str());
   }
 
-  if (save_as_render_) {
+  /* NOTE: without this the file will be written without any density information.
+   * So always write this. */
+  if (save_as_render_ || true) {
     BKE_scene_ppm_get(&scene->r, render_result_->ppm);
   }
 
