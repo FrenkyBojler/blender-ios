@@ -975,12 +975,12 @@ static bNodeTree *node_group_add_for_brush(Main *bmain,
     float_data->value = 1.0f;
   }
 
-  bke::node_add_node(nullptr, node_group, "NodeGroupOutput");
+  bke::node_add_node(nullptr, *node_group, "NodeGroupOutput");
   BKE_ntree_update_after_single_tree_change(*bmain, *node_group);
   return node_group;
 }
 
-static int new_node_group_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus new_node_group_exec(bContext *C, wmOperator * /*op*/)
 {
   Paint *paint = BKE_paint_get_active_from_context(C);
   if (!paint) {
