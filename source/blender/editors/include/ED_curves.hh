@@ -61,7 +61,7 @@ Span<StringRef> get_curves_selection_attribute_names(const bke::CurvesGeometry &
 Vector<MutableSpan<float3>> get_curves_positions_for_write(bke::CurvesGeometry &curves);
 
 /**
- * Get Read-Only positions per selection attribute for given curve.
+ * Get read-only positions per selection attribute for given curve.
  */
 Vector<Span<float3>> get_curves_positions(const bke::CurvesGeometry &curves);
 
