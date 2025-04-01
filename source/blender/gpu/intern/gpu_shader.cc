@@ -970,7 +970,7 @@ Shader *ShaderCompiler::compile(const shader::ShaderCreateInfo &info, bool is_ba
 ShaderCompilerGeneric::ShaderCompilerGeneric()
 {
   if (!GPU_use_main_context_workaround()) {
-    compilation_thread_ = std::make_unique<GPUWorker>(1, true, [=]() { this->run_thread(); });
+    compilation_thread_ = std::make_unique<GPUWorker>(1, true, [this]() { this->run_thread(); });
   }
 }
 
