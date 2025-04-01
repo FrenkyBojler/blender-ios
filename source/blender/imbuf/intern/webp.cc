@@ -37,13 +37,11 @@ bool imb_is_a_webp(const uchar *mem, size_t size)
   return false;
 }
 
-ImBuf *imb_loadwebp(const uchar *mem, size_t size, int flags, char colorspace[IM_MAX_SPACE])
+ImBuf *imb_loadwebp(const uchar *mem, size_t size, int flags, ImFileColorSpace & /*r_colorspace*/)
 {
   if (!imb_is_a_webp(mem, size)) {
     return nullptr;
   }
-
-  colorspace_set_default_role(colorspace, IM_MAX_SPACE, COLOR_ROLE_DEFAULT_BYTE);
 
   WebPBitstreamFeatures features;
   if (WebPGetFeatures(mem, size, &features) != VP8_STATUS_OK) {
@@ -77,7 +75,7 @@ ImBuf *imb_loadwebp(const uchar *mem, size_t size, int flags, char colorspace[IM
 ImBuf *imb_load_filepath_thumbnail_webp(const char *filepath,
                                         const int /*flags*/,
                                         const size_t max_thumb_size,
-                                        char colorspace[],
+                                        ImFileColorSpace & /*r_colorspace*/,
                                         size_t *r_width,
                                         size_t *r_height)
 {
@@ -116,7 +114,6 @@ ImBuf *imb_load_filepath_thumbnail_webp(const char *filepath,
   const int dest_w = std::max(int(config.input.width * scale), 1);
   const int dest_h = std::max(int(config.input.height * scale), 1);
 
-  colorspace_set_default_role(colorspace, IM_MAX_SPACE, COLOR_ROLE_DEFAULT_BYTE);
   ImBuf *ibuf = IMB_allocImBuf(dest_w, dest_h, 32, IB_byte_data);
   if (ibuf == nullptr) {
     fprintf(stderr, "WebP: Failed to allocate image memory\n");
@@ -167,8 +164,7 @@ bool imb_savewebp(ImBuf *ibuf, const char *filepath, int /*flags*/)
     /* We must convert the ImBuf RGBA buffer to RGB as WebP expects a RGB buffer. */
     const size_t num_pixels = ibuf->x * ibuf->y;
     const uint8_t *rgba_rect = ibuf->byte_buffer.data;
-    uint8_t *rgb_rect = static_cast<uint8_t *>(
-        MEM_mallocN(sizeof(uint8_t) * num_pixels * 3, "webp rgb_rect"));
+    uint8_t *rgb_rect = MEM_malloc_arrayN<uint8_t>(num_pixels * 3, "webp rgb_rect");
     for (int i = 0; i < num_pixels; i++) {
       rgb_rect[i * 3 + 0] = rgba_rect[i * 4 + 0];
       rgb_rect[i * 3 + 1] = rgba_rect[i * 4 + 1];
