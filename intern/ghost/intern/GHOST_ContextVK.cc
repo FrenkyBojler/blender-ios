@@ -534,7 +534,12 @@ GHOST_TSuccess GHOST_ContextVK::swapBuffers()
   VkDevice device = vulkan_device->device;
 
   m_render_frame = (m_render_frame + 1) % m_image_count;
-  m_discard_pile[m_render_frame].destroy(device);
+  GHOST_Frame &frame_data = m_frame_data[m_render_frame];
+  /* Wait for the previous time this frame was used to be finished rendering. Presenting can still
+   * happen in parallel, but acquiring needs can only happen when the frame acquire semaphore has
+   * been signalled and waited for. */
+  vkWaitForFences(device, 1, &frame_data.submission_fence, true, UINT64_MAX);
+  frame_data.discard_pile.destroy(device);
 
 #ifdef WITH_GHOST_WAYLAND
   /* Wayland doesn't provide a WSI with windowing capabilities, therefore cannot detect whether the
@@ -556,17 +561,16 @@ GHOST_TSuccess GHOST_ContextVK::swapBuffers()
 
   /* Some platforms (NVIDIA/Wayland) can receive an out of date swapchain when acquiring the next
    * swapchain image. Other do it when calling vkQueuePresent. */
-  VkResult result = VK_ERROR_OUT_OF_DATE_KHR;
+  VkResult acquire_result = VK_ERROR_OUT_OF_DATE_KHR;
   uint32_t image_index = 0;
-  int32_t semaphore_index = uint32_t(m_render_frame % m_acquire_semaphores.size());
-  while (result == VK_ERROR_OUT_OF_DATE_KHR) {
-    result = vkAcquireNextImageKHR(device,
-                                   m_swapchain,
-                                   UINT64_MAX,
-                                   m_acquire_semaphores[semaphore_index],
-                                   VK_NULL_HANDLE,
-                                   &image_index);
-    if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
+  while (acquire_result == VK_ERROR_OUT_OF_DATE_KHR) {
+    acquire_result = vkAcquireNextImageKHR(device,
+                                           m_swapchain,
+                                           UINT64_MAX,
+                                           frame_data.acquire_semaphore,
+                                           VK_NULL_HANDLE,
+                                           &image_index);
+    if (acquire_result == VK_ERROR_OUT_OF_DATE_KHR) {
       recreateSwapchain();
     }
   }
@@ -575,9 +579,11 @@ GHOST_TSuccess GHOST_ContextVK::swapBuffers()
   swap_chain_data.image = m_swapchain_images[image_index];
   swap_chain_data.surface_format = m_surface_format;
   swap_chain_data.extent = m_render_extent;
-  swap_chain_data.acquire_semaphore = m_acquire_semaphores[semaphore_index];
-  swap_chain_data.present_semaphore = m_present_semaphores[semaphore_index];
+  swap_chain_data.submission_fence = frame_data.submission_fence;
+  swap_chain_data.acquire_semaphore = frame_data.acquire_semaphore;
+  swap_chain_data.present_semaphore = frame_data.present_semaphore;
 
+  vkResetFences(device, 1, &frame_data.submission_fence);
   if (swap_buffers_pre_callback_) {
     swap_buffers_pre_callback_(&swap_chain_data);
   }
@@ -585,18 +591,20 @@ GHOST_TSuccess GHOST_ContextVK::swapBuffers()
   VkPresentInfoKHR present_info = {};
   present_info.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
   present_info.waitSemaphoreCount = 1;
-  present_info.pWaitSemaphores = &m_present_semaphores[semaphore_index];
+  present_info.pWaitSemaphores = &frame_data.present_semaphore;
   present_info.swapchainCount = 1;
   present_info.pSwapchains = &m_swapchain;
   present_info.pImageIndices = &image_index;
   present_info.pResults = nullptr;
 
-  result = VK_SUCCESS;
+  VkResult present_result = VK_SUCCESS;
   {
     std::scoped_lock lock(vulkan_device->queue_mutex);
-    result = vkQueuePresentKHR(m_present_queue, &present_info);
+    present_result = vkQueuePresentKHR(m_present_queue, &present_info);
   }
-  if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
+  if (present_result == VK_ERROR_OUT_OF_DATE_KHR || present_result == VK_SUBOPTIMAL_KHR ||
+      acquire_result == VK_SUBOPTIMAL_KHR)
+  {
     /* Swap-chain is out of date. Recreate swap-chain and skip this frame. */
     recreateSwapchain();
     if (swap_buffers_post_callback_) {
@@ -604,14 +612,10 @@ GHOST_TSuccess GHOST_ContextVK::swapBuffers()
     }
     return GHOST_kSuccess;
   }
-  if (result != VK_SUCCESS) {
+  if (present_result != VK_SUCCESS) {
     fprintf(stderr,
             "Error: Failed to present swap chain image : %s\n",
-            vulkan_error_as_string(result));
-    if (swap_buffers_post_callback_) {
-      swap_buffers_post_callback_();
-    }
-    return GHOST_kFailure;
+            vulkan_error_as_string(acquire_result));
   }
 
   if (swap_buffers_post_callback_) {
@@ -844,16 +848,14 @@ GHOST_TSuccess GHOST_ContextVK::recreateSwapchain()
   }
 
   /* Driver can stall if only using minimal image count. */
-  uint32_t image_count = present_mode == VK_PRESENT_MODE_MAILBOX_KHR ? 4 : 2;
+  uint32_t image_count_requested = present_mode == VK_PRESENT_MODE_MAILBOX_KHR ? 4 : 2;
   /* NOTE: maxImageCount == 0 means no limit. */
-  if (capabilities.minImageCount != 0 && image_count < capabilities.minImageCount) {
-    image_count = capabilities.minImageCount;
+  if (capabilities.minImageCount != 0 && image_count_requested < capabilities.minImageCount) {
+    image_count_requested = capabilities.minImageCount;
   }
-  if (capabilities.maxImageCount != 0 && image_count > capabilities.maxImageCount) {
-    image_count = capabilities.maxImageCount;
+  if (capabilities.maxImageCount != 0 && image_count_requested > capabilities.maxImageCount) {
+    image_count_requested = capabilities.maxImageCount;
   }
-
-  VkSwapchainKHR old_swapchain = m_swapchain;
 
   VkSwapchainPresentModesCreateInfoEXT vk_swapchain_present_modes = {
       VK_STRUCTURE_TYPE_SWAPCHAIN_PRESENT_MODES_CREATE_INFO_EXT, nullptr, 1, &present_mode};
@@ -868,12 +870,13 @@ GHOST_TSuccess GHOST_ContextVK::recreateSwapchain()
           VK_PRESENT_GRAVITY_CENTERED_BIT_EXT,
   };
 
+  VkSwapchainKHR old_swapchain = m_swapchain;
   VkSwapchainCreateInfoKHR create_info = {};
   create_info.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
   create_info.pNext = &vk_swapchain_present_scaling;
   create_info.flags = VK_SWAPCHAIN_CREATE_DEFERRED_MEMORY_ALLOCATION_BIT_EXT;
   create_info.surface = m_surface;
-  create_info.minImageCount = image_count;
+  create_info.minImageCount = image_count_requested;
   create_info.imageFormat = m_surface_format.format;
   create_info.imageColorSpace = m_surface_format.colorSpace;
   create_info.imageExtent = m_render_extent;
@@ -898,28 +901,33 @@ GHOST_TSuccess GHOST_ContextVK::recreateSwapchain()
   vkGetSwapchainImagesKHR(device, m_swapchain, &actual_image_count, m_swapchain_images.data());
   /* Construct new semaphores. It can be that image_count is larger than previously. We only need
    * to fill in where the handle is `VK_NULL_HANDLE`. */
-  if (actual_image_count > m_acquire_semaphores.size()) {
-    const VkSemaphoreCreateInfo vk_semaphore_create_info = {
-        VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO, nullptr, 0};
-    m_acquire_semaphores.resize(image_count, VK_NULL_HANDLE);
-    m_present_semaphores.resize(image_count, VK_NULL_HANDLE);
-    for (int index = 0; index < image_count; index++) {
-      if (m_acquire_semaphores[index] == VK_NULL_HANDLE) {
-        VK_CHECK(vkCreateSemaphore(
-            device, &vk_semaphore_create_info, nullptr, &m_acquire_semaphores[index]));
-      }
-      if (m_present_semaphores[index] == VK_NULL_HANDLE) {
-        VK_CHECK(vkCreateSemaphore(
-            device, &vk_semaphore_create_info, nullptr, &m_present_semaphores[index]));
-      }
+  const VkSemaphoreCreateInfo vk_semaphore_create_info = {
+      VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO, nullptr, 0};
+  const VkFenceCreateInfo vk_fence_create_info = {
+      VK_STRUCTURE_TYPE_FENCE_CREATE_INFO, nullptr, VK_FENCE_CREATE_SIGNALED_BIT};
+  if (actual_image_count > m_frame_data.size()) {
+    m_frame_data.resize(actual_image_count);
+  }
+  for (int index = 0; index < m_frame_data.size(); index++) {
+    GHOST_Frame &frame_data = m_frame_data[index];
+    if (frame_data.acquire_semaphore == VK_NULL_HANDLE) {
+      VK_CHECK(vkCreateSemaphore(
+          device, &vk_semaphore_create_info, nullptr, &frame_data.acquire_semaphore));
+    }
+    if (frame_data.present_semaphore == VK_NULL_HANDLE) {
+      VK_CHECK(vkCreateSemaphore(
+          device, &vk_semaphore_create_info, nullptr, &frame_data.present_semaphore));
+    }
+    if (frame_data.submission_fence == VK_NULL_HANDLE) {
+      VK_CHECK(
+          vkCreateFence(device, &vk_fence_create_info, nullptr, &frame_data.submission_fence));
     }
   }
 
-  if (actual_image_count > m_discard_pile.size()) {
-    m_discard_pile.resize(image_count);
-  }
   m_image_count = actual_image_count;
-  m_discard_pile[m_render_frame % m_image_count].swapchains.push_back(old_swapchain);
+  if (old_swapchain) {
+    m_frame_data[m_render_frame].discard_pile.swapchains.push_back(old_swapchain);
+  }
 
   return GHOST_kSuccess;
 }
@@ -933,20 +941,10 @@ GHOST_TSuccess GHOST_ContextVK::destroySwapchain()
     vkDestroySwapchainKHR(device, m_swapchain, nullptr);
   }
   VK_CHECK(vkDeviceWaitIdle(device));
-  for (VkSemaphore semaphore : m_acquire_semaphores) {
-    vkDestroySemaphore(device, semaphore, nullptr);
+  for (GHOST_Frame &frame_data : m_frame_data) {
+    frame_data.destroy(device);
   }
-  m_acquire_semaphores.clear();
-  for (VkSemaphore semaphore : m_present_semaphores) {
-    vkDestroySemaphore(device, semaphore, nullptr);
-  }
-  m_present_semaphores.clear();
-
-  while (!m_discard_pile.empty()) {
-    GHOST_FrameDiscard &discard_pile = m_discard_pile.back();
-    discard_pile.destroy(device);
-    m_discard_pile.pop_back();
-  }
+  m_frame_data.clear();
 
   return GHOST_kSuccess;
 }

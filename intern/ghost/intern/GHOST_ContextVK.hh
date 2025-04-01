@@ -60,6 +60,7 @@ struct GHOST_ContextVK_WindowInfo {
 
 struct GHOST_FrameDiscard {
   std::vector<VkSwapchainKHR> swapchains;
+  std::vector<VkSemaphore> semaphores;
 
   void destroy(VkDevice vk_device)
   {
@@ -68,6 +69,33 @@ struct GHOST_FrameDiscard {
       swapchains.pop_back();
       vkDestroySwapchainKHR(vk_device, vk_swapchain, nullptr);
     }
+    while (!semaphores.empty()) {
+      VkSemaphore vk_semaphore = semaphores.back();
+      semaphores.pop_back();
+      vkDestroySemaphore(vk_device, vk_semaphore, nullptr);
+    }
+  }
+};
+
+struct GHOST_Frame {
+  /** Fence signalled when presenting, waiting when acquiring next image. */
+  VkFence submission_fence = VK_NULL_HANDLE;
+  /** Semaphore for acquiring */
+  VkSemaphore acquire_semaphore = VK_NULL_HANDLE;
+  /** Semaphore for presenting */
+  VkSemaphore present_semaphore = VK_NULL_HANDLE;
+
+  GHOST_FrameDiscard discard_pile;
+
+  void destroy(VkDevice vk_device)
+  {
+    vkDestroyFence(vk_device, submission_fence, nullptr);
+    submission_fence = VK_NULL_HANDLE;
+    vkDestroySemaphore(vk_device, acquire_semaphore, nullptr);
+    acquire_semaphore = VK_NULL_HANDLE;
+    vkDestroySemaphore(vk_device, present_semaphore, nullptr);
+    present_semaphore = VK_NULL_HANDLE;
+    discard_pile.destroy(vk_device);
   }
 };
 
@@ -208,11 +236,9 @@ class GHOST_ContextVK : public GHOST_Context {
   VkSurfaceKHR m_surface;
   VkSwapchainKHR m_swapchain;
   std::vector<VkImage> m_swapchain_images;
-  std::vector<VkSemaphore> m_acquire_semaphores;
-  std::vector<VkSemaphore> m_present_semaphores;
+  std::vector<GHOST_Frame> m_frame_data;
   uint64_t m_render_frame;
   uint64_t m_image_count;
-  std::vector<GHOST_FrameDiscard> m_discard_pile;
 
   VkExtent2D m_render_extent;
   VkExtent2D m_render_extent_min;
