@@ -1573,6 +1573,7 @@ static void rna_def_node_socket_bundle(BlenderRNA *brna, const char *identifier)
 
   srna = RNA_def_struct(brna, identifier, "NodeSocketStandard");
   RNA_def_struct_ui_text(srna, "Bundle Node Socket", "Bundle socket of a node");
+  RNA_def_struct_ui_icon(srna, ICON_NODE_SOCKET_BUNDLE);
   RNA_def_struct_sdna(srna, "bNodeSocket");
 }
 
@@ -1593,6 +1594,7 @@ static void rna_def_node_socket_closure(BlenderRNA *brna, const char *identifier
 
   srna = RNA_def_struct(brna, identifier, "NodeSocketStandard");
   RNA_def_struct_ui_text(srna, "Closure Node Socket", "Closure socket of a node");
+  RNA_def_struct_ui_icon(srna, ICON_NODE_SOCKET_CLOSURE);
   RNA_def_struct_sdna(srna, "bNodeSocket");
 }
 
