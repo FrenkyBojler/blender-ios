@@ -1224,19 +1224,18 @@ PyDoc_STRVAR(M_Geometry_cubic_curve_fit_from_points_doc,
 ".. function:: cubic_curve_from_points(points, error, corner_angle=math.pi, is_cyclic=False)\n"
 "\n"
 "   Computes a cubic Bezier curve in any arbitrary number of dimensions.\n"
-"   Any kind of data can be added as dimensions. An example of this usage is, in addition to\n"
-"   the usual X, Y, and Z coordinates, using Tilt and Radius as the fourth and fifth\n"
-"   dimension."
+"   Any kind of data can be added as dimensions, e.g. tilt or radius, in addition to the\n"
+"   usual X, Y, and Z coordinates.\n"
+"   The return value is a tuple. Each index contains the index of the nearest point on the\n"
+"   original list of points and a tuple of (Bezier Handle Left, Bezier Center, Bezier Handle\n"
+"   Right). Each handle is a tuple of floats, with one float for each dimension.\n"
 "\n"
 "   :arg line: Points in n-dimensions representing a line.\n"
 "   :type line: list\n"
-"   :arg error: Error threshold for the newly computed curve. Higher values result in\n"
-"   fewer control points in the final curve, but greater deviation from the original data.\n"
+"   :arg error: Error threshold for the newly computed curve.\n"
 "   :type error: float\n"
-"   :return: tuple of (int, tuple). Each index of the tuple contains the nearest point on\n"
-"   the original curve and a tuple of (Bezier Handle Left, Bezier Center, Bezier Handle\n"
-"   Right). Each Bezier Handle is a tuple of floats, with one float for each dimension.\n"
-"   :rtype: tuple(int, tuple(tuple, tuple, tuple))\n"
+"   :return: tuple of (int, tuple) containing the cubic curve data.\n"
+"   :rtype: tuple(int, tuple(tuple, tuple, tuple)).\n"
 );
 
 
@@ -2006,10 +2005,10 @@ static PyMethodDef M_Geometry_methods[] = {
      (PyCFunction)M_Geometry_points_in_planes,
      METH_VARARGS,
      M_Geometry_points_in_planes_doc},
-	{"cubic_curve_from_points",
-	 (PyCFunction)M_Geometry_cubic_curve_fit_from_points,
-	 METH_VARARGS,
-	 M_Geometry_cubic_curve_fit_from_points_doc},
+	  {"cubic_curve_from_points",
+	   (PyCFunction)M_Geometry_cubic_curve_fit_from_points,
+	   METH_VARARGS,
+	   M_Geometry_cubic_curve_fit_from_points_doc},
 #ifndef MATH_STANDALONE
     {"interpolate_bezier",
      (PyCFunction)M_Geometry_interpolate_bezier,
