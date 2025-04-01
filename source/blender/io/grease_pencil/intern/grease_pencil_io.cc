@@ -340,7 +340,7 @@ void GreasePencilExporter::prepare_render_params(Scene &scene, const int frame_n
     BKE_render_resolution(&scene.r, false, &width, &height);
     camera_rect_ = {{0.0f, 0.0f}, {float(width), float(height)}};
     /* Compute factor that remaps screen_rect to final output resolution. */
-    BLI_assert(screen_rect_.size() != 0);
+    BLI_assert(screen_rect_.size() != 0.0f);
     camera_fac_ = float2(camera_rect_.size()) / float2(screen_rect_.size());
   }
   else {
