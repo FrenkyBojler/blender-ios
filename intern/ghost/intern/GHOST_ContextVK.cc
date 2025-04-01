@@ -107,6 +107,19 @@ static const char *vulkan_error_as_string(VkResult result)
     printf(__VA_ARGS__); \
   }
 
+/* Check if the given extension name is in the extension_list.
+ */
+static bool contains_extension(const vector<VkExtensionProperties> &extension_list,
+                               const char *extension_name)
+{
+  for (const VkExtensionProperties &extension_properties : extension_list) {
+    if (strcmp(extension_properties.extensionName, extension_name) == 0) {
+      return true;
+    }
+  }
+  return false;
+};
+
 /* -------------------------------------------------------------------- */
 /** \name Vulkan Device
  * \{ */
@@ -129,6 +142,8 @@ class GHOST_DeviceVK {
 
   /** Mutex to externally synchronize access to queue. */
   std::mutex queue_mutex;
+
+  bool use_vk_ext_swapchain_maintenance_1 = false;
 
  public:
   GHOST_DeviceVK(VkInstance vk_instance, VkPhysicalDevice vk_physical_device)
@@ -198,12 +213,10 @@ class GHOST_DeviceVK {
       }
     }
 
-    /* Check if the given extension name will be enabled. Every location that uses vulkan extension
-     * names use `VK_*_EXTENSION_NAME` defines. We can do pointer in stead of string comparisons.
-     */
+    /* Check if the given extension name will be enabled. */
     auto extension_requested = [=](const char *extension_name) {
       for (const char *device_extension_name : device_extensions) {
-        if (device_extension_name == extension_name) {
+        if (strcmp(device_extension_name, extension_name) == 0) {
           return true;
         }
       }
@@ -304,12 +317,13 @@ class GHOST_DeviceVK {
       device_create_info_p_next = &maintenance_4;
     }
 
-    /* Swapchain maintenance 1 is not requested when running in background */
+    /* Swapchain maintenance 1 is optional. */
     VkPhysicalDeviceSwapchainMaintenance1FeaturesEXT swapchain_maintenance_1 = {
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SWAPCHAIN_MAINTENANCE_1_FEATURES_EXT, nullptr, VK_TRUE};
     if (extension_requested(VK_EXT_SWAPCHAIN_MAINTENANCE_1_EXTENSION_NAME)) {
       swapchain_maintenance_1.pNext = device_create_info_p_next;
       device_create_info_p_next = &swapchain_maintenance_1;
+      use_vk_ext_swapchain_maintenance_1 = true;
     }
 
     /* Query and enable Fragment Shader Barycentrics. */
@@ -804,9 +818,16 @@ GHOST_TSuccess GHOST_ContextVK::recreateSwapchain()
       VK_STRUCTURE_TYPE_SURFACE_PRESENT_MODE_EXT, nullptr, present_mode};
   VkPhysicalDeviceSurfaceInfo2KHR vk_physical_device_surface_info = {
       VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SURFACE_INFO_2_KHR, &vk_surface_present_mode, m_surface};
-  VK_CHECK(vkGetPhysicalDeviceSurfaceCapabilities2KHR(
-      physical_device, &vk_physical_device_surface_info, &vk_surface_capabilities));
-  VkSurfaceCapabilitiesKHR &capabilities = vk_surface_capabilities.surfaceCapabilities;
+  VkSurfaceCapabilitiesKHR capabilities = {};
+
+  if (vulkan_device->use_vk_ext_swapchain_maintenance_1) {
+    VK_CHECK(vkGetPhysicalDeviceSurfaceCapabilities2KHR(
+        physical_device, &vk_physical_device_surface_info, &vk_surface_capabilities));
+    capabilities = vk_surface_capabilities.surfaceCapabilities;
+  }
+  else {
+    vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physical_device, m_surface, &capabilities);
+  }
 
   m_render_extent = capabilities.currentExtent;
   m_render_extent_min = capabilities.minImageExtent;
@@ -838,14 +859,19 @@ GHOST_TSuccess GHOST_ContextVK::recreateSwapchain()
     if (capabilities.minImageExtent.height > m_render_extent.height) {
       m_render_extent.height = capabilities.minImageExtent.height;
     }
-    if (vk_surface_present_scaling_capabilities.minScaledImageExtent.width > m_render_extent.width)
-    {
-      m_render_extent.width = vk_surface_present_scaling_capabilities.minScaledImageExtent.width;
-    }
-    if (vk_surface_present_scaling_capabilities.minScaledImageExtent.height >
-        m_render_extent.height)
-    {
-      m_render_extent.height = vk_surface_present_scaling_capabilities.minScaledImageExtent.height;
+
+    if (vulkan_device->use_vk_ext_swapchain_maintenance_1) {
+      if (vk_surface_present_scaling_capabilities.minScaledImageExtent.width >
+          m_render_extent.width)
+      {
+        m_render_extent.width = vk_surface_present_scaling_capabilities.minScaledImageExtent.width;
+      }
+      if (vk_surface_present_scaling_capabilities.minScaledImageExtent.height >
+          m_render_extent.height)
+      {
+        m_render_extent.height =
+            vk_surface_present_scaling_capabilities.minScaledImageExtent.height;
+      }
     }
   }
 
@@ -875,8 +901,10 @@ GHOST_TSuccess GHOST_ContextVK::recreateSwapchain()
   VkSwapchainKHR old_swapchain = m_swapchain;
   VkSwapchainCreateInfoKHR create_info = {};
   create_info.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
-  create_info.pNext = &vk_swapchain_present_scaling;
-  create_info.flags = VK_SWAPCHAIN_CREATE_DEFERRED_MEMORY_ALLOCATION_BIT_EXT;
+  if (vulkan_device->use_vk_ext_swapchain_maintenance_1) {
+    create_info.pNext = &vk_swapchain_present_scaling;
+    create_info.flags = VK_SWAPCHAIN_CREATE_DEFERRED_MEMORY_ALLOCATION_BIT_EXT;
+  }
   create_info.surface = m_surface;
   create_info.minImageCount = image_count_requested;
   create_info.imageFormat = m_surface_format.format;
@@ -1014,14 +1042,22 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
     const char *native_surface_extension_name = getPlatformSpecificSurfaceExtension();
     requireExtension(extensions_available, extensions_enabled, VK_KHR_SURFACE_EXTENSION_NAME);
     requireExtension(extensions_available, extensions_enabled, native_surface_extension_name);
-    requireExtension(
-        extensions_available, extensions_enabled, VK_EXT_SURFACE_MAINTENANCE_1_EXTENSION_NAME);
-    requireExtension(extensions_available,
-                     extensions_enabled,
-                     VK_KHR_GET_SURFACE_CAPABILITIES_2_EXTENSION_NAME);
+
+/* Required instance extension dependency of VK_EXT_SWAPCHAIN_MAINTENANCE_1_EXTENSION_NAME */
+#if 0
+    if (contains_extension(extensions_available, VK_EXT_SURFACE_MAINTENANCE_1_EXTENSION_NAME) &&
+        contains_extension(extensions_available, VK_KHR_GET_SURFACE_CAPABILITIES_2_EXTENSION_NAME))
+    {
+      requireExtension(
+          extensions_available, extensions_enabled, VK_EXT_SURFACE_MAINTENANCE_1_EXTENSION_NAME);
+      requireExtension(extensions_available,
+                       extensions_enabled,
+                       VK_KHR_GET_SURFACE_CAPABILITIES_2_EXTENSION_NAME);
+      optional_device_extensions.push_back(VK_EXT_SWAPCHAIN_MAINTENANCE_1_EXTENSION_NAME);
+    }
+#endif
 
     required_device_extensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
-    required_device_extensions.push_back(VK_EXT_SWAPCHAIN_MAINTENANCE_1_EXTENSION_NAME);
   }
 #ifdef __APPLE__
   optional_device_extensions.push_back(VK_EXT_PROVOKING_VERTEX_EXTENSION_NAME);
