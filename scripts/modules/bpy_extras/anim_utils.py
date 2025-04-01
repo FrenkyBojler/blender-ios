@@ -407,10 +407,7 @@ def bake_action_iter(
 
     # A slot needs to be assigned.
     if not atd.action_slot:
-        if old_slot_name:
-            slot = action.slots.new(obj.id_type, old_slot_name)
-        else:
-            slot = action.slots.new(obj.id_type, obj.name)
+        slot = action.slots.new(obj.id_type, old_slot_name or obj.name)
         atd.action_slot = slot
 
     # Baking the action only makes sense in Replace mode, so force it (#69105)
