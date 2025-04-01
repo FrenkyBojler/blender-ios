@@ -10,8 +10,10 @@
 
 #include "BKE_constraint.h"
 #include "BKE_context.hh"
+#include "BKE_library.hh"
 #include "BKE_screen.hh"
 
+#include "BLI_listbase.h"
 #include "BLI_string_utils.hh"
 
 #include "BLT_translation.hh"
@@ -43,7 +45,7 @@ static void constraint_ops_extra_draw(bContext *C, uiLayout *layout, void *con_v
 
   Object *ob = blender::ed::object::context_active_object(C);
 
-  PointerRNA ptr = RNA_pointer_create(&ob->id, &RNA_Constraint, con);
+  PointerRNA ptr = RNA_pointer_create_discrete(&ob->id, &RNA_Constraint, con);
   uiLayoutSetContextPointer(layout, "constraint", &ptr);
   uiLayoutSetOperatorContext(layout, WM_OP_INVOKE_DEFAULT);
 
@@ -111,7 +113,7 @@ static void draw_constraint_header(uiLayout *layout, Object *ob, bConstraint *co
   uiBlock *block = uiLayoutGetBlock(layout);
   UI_block_func_set(block, constraint_active_func, ob, con);
 
-  PointerRNA ptr = RNA_pointer_create(&ob->id, &RNA_Constraint, con);
+  PointerRNA ptr = RNA_pointer_create_discrete(&ob->id, &RNA_Constraint, con);
 
   if (block->panel) {
     UI_panel_context_pointer_set(block->panel, "constraint", &ptr);
@@ -122,11 +124,11 @@ static void draw_constraint_header(uiLayout *layout, Object *ob, bConstraint *co
 
   /* Constraint type icon. */
   uiLayout *sub = uiLayoutRow(layout, false);
-  uiLayoutSetEmboss(sub, UI_EMBOSS);
+  uiLayoutSetEmboss(sub, blender::ui::EmbossType::Emboss);
   uiLayoutSetRedAlert(sub, (con->flag & CONSTRAINT_DISABLE));
   uiItemL(sub, "", RNA_struct_ui_icon(ptr.type));
 
-  UI_block_emboss_set(block, UI_EMBOSS);
+  UI_block_emboss_set(block, blender::ui::EmbossType::Emboss);
 
   uiLayout *row = uiLayoutRow(layout, true);
 
@@ -140,7 +142,7 @@ static void draw_constraint_header(uiLayout *layout, Object *ob, bConstraint *co
 
   /* Close 'button' - emboss calls here disable drawing of 'button' behind X */
   sub = uiLayoutRow(row, false);
-  uiLayoutSetEmboss(sub, UI_EMBOSS_NONE);
+  uiLayoutSetEmboss(sub, blender::ui::EmbossType::None);
   uiLayoutSetOperatorContext(sub, WM_OP_INVOKE_DEFAULT);
   uiItemO(sub, "", ICON_X, "CONSTRAINT_OT_delete");
 
@@ -308,7 +310,7 @@ void uiTemplateConstraints(uiLayout * /*layout*/, bContext *C, bool use_bone_con
 
       /* Create custom data RNA pointer. */
       PointerRNA *con_ptr = MEM_new<PointerRNA>(__func__);
-      *con_ptr = RNA_pointer_create(&ob->id, &RNA_Constraint, con);
+      *con_ptr = RNA_pointer_create_discrete(&ob->id, &RNA_Constraint, con);
 
       Panel *new_panel = UI_panel_add_instanced(C, region, &region->panels, panel_idname, con_ptr);
 
@@ -343,7 +345,7 @@ void uiTemplateConstraints(uiLayout * /*layout*/, bContext *C, bool use_bone_con
       }
 
       PointerRNA *con_ptr = MEM_new<PointerRNA>(__func__);
-      *con_ptr = RNA_pointer_create(&ob->id, &RNA_Constraint, con);
+      *con_ptr = RNA_pointer_create_discrete(&ob->id, &RNA_Constraint, con);
       UI_panel_custom_data_set(panel, con_ptr);
 
       panel = panel->next;

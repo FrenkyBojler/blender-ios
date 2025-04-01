@@ -42,8 +42,8 @@ NODE_STORAGE_FUNCS(NodePlaneTrackDeformData)
 
 static void cmp_node_planetrackdeform_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Color>("Image").compositor_realization_options(
-      CompositorInputRealizationOptions::None);
+  b.add_input<decl::Color>("Image").compositor_realization_mode(
+      CompositorInputRealizationMode::Transforms);
   b.add_output<decl::Color>("Image");
   b.add_output<decl::Float>("Plane");
 }
@@ -52,7 +52,7 @@ static void init(const bContext *C, PointerRNA *ptr)
 {
   bNode *node = (bNode *)ptr->data;
 
-  NodePlaneTrackDeformData *data = MEM_cnew<NodePlaneTrackDeformData>(__func__);
+  NodePlaneTrackDeformData *data = MEM_callocN<NodePlaneTrackDeformData>(__func__);
   data->motion_blur_samples = 16;
   data->motion_blur_shutter = 0.5f;
   node->storage = data;
@@ -86,14 +86,14 @@ static void node_composit_buts_planetrackdeform(uiLayout *layout, bContext *C, P
     MovieTracking *tracking = &clip->tracking;
     MovieTrackingObject *tracking_object;
     uiLayout *col;
-    PointerRNA tracking_ptr = RNA_pointer_create(&clip->id, &RNA_MovieTracking, tracking);
+    PointerRNA tracking_ptr = RNA_pointer_create_discrete(&clip->id, &RNA_MovieTracking, tracking);
 
     col = uiLayoutColumn(layout, false);
     uiItemPointerR(col, ptr, "tracking_object", &tracking_ptr, "objects", "", ICON_OBJECT_DATA);
 
     tracking_object = BKE_tracking_object_get_named(tracking, data->tracking_object);
     if (tracking_object) {
-      PointerRNA object_ptr = RNA_pointer_create(
+      PointerRNA object_ptr = RNA_pointer_create_discrete(
           &clip->id, &RNA_MovieTrackingObject, tracking_object);
 
       uiItemPointerR(
@@ -123,13 +123,14 @@ class PlaneTrackDeformOperation : public NodeOperation {
   {
     MovieTrackingPlaneTrack *plane_track = get_plane_track();
 
-    Result &input_image = get_input("Image");
-    Result &output_image = get_result("Image");
-    Result &output_mask = get_result("Plane");
+    const Result &input_image = get_input("Image");
     if (input_image.is_single_value() || !plane_track) {
+      Result &output_image = get_result("Image");
       if (output_image.should_compute()) {
-        input_image.pass_through(output_image);
+        output_image.share_data(input_image);
       }
+
+      Result &output_mask = get_result("Plane");
       if (output_mask.should_compute()) {
         output_mask.allocate_single_value();
         output_mask.set_single_value(1.0f);
@@ -435,19 +436,19 @@ void register_node_type_cmp_planetrackdeform()
 
   static blender::bke::bNodeType ntype;
 
-  cmp_node_type_base(
-      &ntype, "CompositorNodePlaneTrackDeform", CMP_NODE_PLANETRACKDEFORM, NODE_CLASS_DISTORT);
+  cmp_node_type_base(&ntype, "CompositorNodePlaneTrackDeform", CMP_NODE_PLANETRACKDEFORM);
   ntype.ui_name = "Plane Track Deform";
   ntype.ui_description =
       "Replace flat planes in footage by another image, detected by plane tracks from motion "
       "tracking";
   ntype.enum_name_legacy = "PLANETRACKDEFORM";
+  ntype.nclass = NODE_CLASS_DISTORT;
   ntype.declare = file_ns::cmp_node_planetrackdeform_declare;
   ntype.draw_buttons = file_ns::node_composit_buts_planetrackdeform;
   ntype.initfunc_api = file_ns::init;
   blender::bke::node_type_storage(
-      &ntype, "NodePlaneTrackDeformData", node_free_standard_storage, node_copy_standard_storage);
+      ntype, "NodePlaneTrackDeformData", node_free_standard_storage, node_copy_standard_storage);
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
 
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }

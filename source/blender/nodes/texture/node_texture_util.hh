@@ -8,12 +8,14 @@
 
 #pragma once
 
+#include <optional>
+
 #include "BKE_node.hh"
 #include "BKE_node_legacy_types.hh"  // IWYU pragma: export
 
-#include "node_texture_register.hh"
+#include "node_texture_register.hh"  // IWYU pragma: export
 
-#include "BLT_translation.hh"
+#include "BLT_translation.hh"  // IWYU pragma: export
 
 #include "RE_texture.h"
 
@@ -53,7 +55,6 @@ struct TexDelegate {
   TexCallData *cdata;
   TexFn fn;
   bNode *node;
-  bNodePreview *preview;
   bNodeStack *in[MAX_SOCKET];
   int type;
 };
@@ -63,8 +64,7 @@ bool tex_node_poll_default(const blender::bke::bNodeType *ntype,
                            const char **r_disabled_hint);
 void tex_node_type_base(blender::bke::bNodeType *ntype,
                         std::string idname,
-                        int type,
-                        short nclass);
+                        std::optional<int16_t> legacy_type = std::nullopt);
 
 void tex_input_rgba(float *out, bNodeStack *in, TexParams *params, short thread);
 void tex_input_vec(float *out, bNodeStack *in, TexParams *params, short thread);

@@ -36,6 +36,7 @@ set(SRC
   bpy_capi_utils.cc
   bpy_cli_command.cc
   bpy_driver.cc
+  bpy_geometry_set.cc
   bpy_gizmo_wrap.cc
   bpy_interface.cc
   bpy_interface_atexit.cc
@@ -84,6 +85,7 @@ set(SRC
   bpy_capi_utils.hh
   bpy_cli_command.hh
   bpy_driver.hh
+  bpy_geometry_set.hh
   bpy_gizmo_wrap.hh
   bpy_intern_string.hh
   bpy_library.hh
@@ -138,6 +140,10 @@ set(LIB
 # Only to check if `buildinfo` is available.
 if(WITH_BUILDINFO)
   add_definitions(-DBUILD_DATE)
+endif()
+
+if(WITH_INSTALL_PORTABLE)
+  add_definitions(-DWITH_INSTALL_PORTABLE)
 endif()
 
 if(WITH_PYTHON_MODULE)

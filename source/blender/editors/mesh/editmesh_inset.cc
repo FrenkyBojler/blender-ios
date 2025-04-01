@@ -105,7 +105,7 @@ static void edbm_inset_update_header(wmOperator *op, bContext *C)
   WorkspaceStatus status(C);
   status.item(IFACE_("Confirm"), ICON_EVENT_RETURN, ICON_MOUSE_LMB);
   status.item(IFACE_("Cancel"), ICON_EVENT_ESC, ICON_MOUSE_RMB);
-  status.item_bool(IFACE_("Tweak"), opdata->modify_depth, ICON_EVENT_CTRL);
+  status.item_bool(IFACE_("Depth"), opdata->modify_depth, ICON_EVENT_CTRL);
   status.item_bool(IFACE_("Outset"), RNA_boolean_get(op->ptr, "use_outset"), ICON_EVENT_O);
   status.item_bool(IFACE_("Boundary"), RNA_boolean_get(op->ptr, "use_boundary"), ICON_EVENT_B);
   status.item_bool(IFACE_("Individual"), RNA_boolean_get(op->ptr, "use_individual"), ICON_EVENT_I);
@@ -318,7 +318,7 @@ static bool edbm_inset_calc(wmOperator *op)
   return changed;
 }
 
-static int edbm_inset_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus edbm_inset_exec(bContext *C, wmOperator *op)
 {
   if (!edbm_inset_init(C, op, false)) {
     return OPERATOR_CANCELLED;
@@ -333,7 +333,7 @@ static int edbm_inset_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static int edbm_inset_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus edbm_inset_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   RegionView3D *rv3d = CTX_wm_region_view3d(C);
   InsetData *opdata;
@@ -349,7 +349,9 @@ static int edbm_inset_invoke(bContext *C, wmOperator *op, const wmEvent *event)
   opdata->launch_event = WM_userdef_event_type_from_keymap_type(event->type);
 
   /* initialize mouse values */
-  if (!calculateTransformCenter(C, V3D_AROUND_CENTER_MEDIAN, center_3d, opdata->mcenter)) {
+  if (!blender::ed::transform::calculateTransformCenter(
+          C, V3D_AROUND_CENTER_MEDIAN, center_3d, opdata->mcenter))
+  {
     /* in this case the tool will likely do nothing,
      * ideally this will never happen and should be checked for above */
     opdata->mcenter[0] = opdata->mcenter[1] = 0;
@@ -367,7 +369,7 @@ static int edbm_inset_invoke(bContext *C, wmOperator *op, const wmEvent *event)
   return OPERATOR_RUNNING_MODAL;
 }
 
-static int edbm_inset_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus edbm_inset_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   InsetData *opdata = static_cast<InsetData *>(op->customdata);
   const bool has_numinput = hasNumInput(&opdata->num_input);
@@ -545,6 +547,9 @@ static int edbm_inset_modal(bContext *C, wmOperator *op, const wmEvent *event)
         handled = true;
       }
       break;
+    default: {
+      break;
+    }
   }
 
   /* Modal numinput inactive, try to handle numeric inputs last... */

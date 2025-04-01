@@ -66,7 +66,6 @@ void iterate(const AssetLibraryReference &library_reference, AssetListIterFn fn)
  */
 void storage_fetch(const AssetLibraryReference *library_reference, const bContext *C);
 bool is_loaded(const AssetLibraryReference *library_reference);
-void previews_fetch(const AssetLibraryReference *library_reference, const bContext *C);
 /**
  * Clears this asset library and the "All" asset library for reload in both the static asset list
  * storage, as well as for all open asset browsers. Call this whenever the content of the given
@@ -79,7 +78,17 @@ void clear(const AssetLibraryReference *library_reference, const bContext *C);
  * reload is necessary.
  */
 void clear_all_library(const bContext *C);
-bool storage_has_list_for_library(const AssetLibraryReference *library_reference);
+/**
+ * Returns if the given asset library in global asset list storage.
+ */
+bool has_list_storage_for_library(const AssetLibraryReference *library_reference);
+/**
+ * Returns if any asset browser is visible showing the given asset library. Asset browsers are not
+ * really handled by this API, but for convenience of managing clearing it's handled here together
+ * with #has_list_storage_for_library().
+ */
+bool has_asset_browser_storage_for_library(const AssetLibraryReference *library_reference,
+                                           const bContext *C);
 /**
  * Tag all asset lists in the storage that show main data as needing an update (re-fetch).
  *
@@ -103,13 +112,6 @@ AssetHandle asset_handle_get_by_index(const AssetLibraryReference *library_refer
                                       int asset_index);
 asset_system::AssetRepresentation *asset_get_by_index(
     const AssetLibraryReference &library_reference, int asset_index);
-
-bool asset_image_is_loading(const AssetLibraryReference *library_reference,
-                            const AssetHandle *asset_handle);
-void asset_preview_ensure_requested(const bContext &C,
-                                    const AssetLibraryReference *library_reference,
-                                    AssetHandle *asset_handle);
-ImBuf *asset_image_get(const AssetHandle *asset_handle);
 
 /**
  * \return True if the region needs a UI redraw.

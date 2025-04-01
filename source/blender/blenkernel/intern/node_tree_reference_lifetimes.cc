@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include <iostream>
-#include <sstream>
 
 #include <fmt/format.h>
 
@@ -15,7 +14,6 @@
 
 #include "BLI_bit_group_vector.hh"
 #include "BLI_bit_span_ops.hh"
-#include "BLI_math_base.h"
 
 #include "NOD_node_declaration.hh"
 #include "NOD_socket.hh"
@@ -825,7 +823,7 @@ static std::unique_ptr<ReferenceLifetimesInfo> make_reference_lifetimes_info(con
   /* Make sure that all required data is also potentially available. */
   required_data_by_socket.all_bits() &= potential_data_by_socket.all_bits();
 
-/* Only useful when debugging th reference lifetimes analysis. */
+/* Only useful when debugging the reference lifetimes analysis. */
 #if 0
   std::cout << "\n\n"
             << node_tree_to_dot(tree,

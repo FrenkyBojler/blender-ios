@@ -62,9 +62,10 @@ class DespeckleOperation : public NodeOperation {
 
   void execute() override
   {
-    Result &input_image = get_input("Image");
-    if (input_image.is_single_value()) {
-      input_image.pass_through(get_result("Image"));
+    const Result &input = this->get_input("Image");
+    if (input.is_single_value()) {
+      Result &output = this->get_result("Image");
+      output.share_data(input);
       return;
     }
 
@@ -202,17 +203,18 @@ void register_node_type_cmp_despeckle()
 
   static blender::bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, "CompositorNodeDespeckle", CMP_NODE_DESPECKLE, NODE_CLASS_OP_FILTER);
+  cmp_node_type_base(&ntype, "CompositorNodeDespeckle", CMP_NODE_DESPECKLE);
   ntype.ui_name = "Despeckle";
   ntype.ui_description =
       "Smooth areas of an image in which noise is noticeable, while leaving complex areas "
       "untouched";
   ntype.enum_name_legacy = "DESPECKLE";
+  ntype.nclass = NODE_CLASS_OP_FILTER;
   ntype.declare = file_ns::cmp_node_despeckle_declare;
   ntype.draw_buttons = file_ns::node_composit_buts_despeckle;
   ntype.flag |= NODE_PREVIEW;
   ntype.initfunc = file_ns::node_composit_init_despeckle;
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
 
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }

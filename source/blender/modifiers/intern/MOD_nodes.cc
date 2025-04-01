@@ -8,17 +8,13 @@
 
 #include <cstring>
 #include <fmt/format.h>
-#include <iostream>
 #include <sstream>
 #include <string>
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_array.hh"
 #include "BLI_listbase.h"
-#include "BLI_math_vector_types.hh"
 #include "BLI_multi_value_map.hh"
-#include "BLI_path_utils.hh"
 #include "BLI_set.hh"
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
@@ -29,7 +25,6 @@
 #include "DNA_defaults.h"
 #include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
-#include "DNA_meshdata_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_node_types.h"
 #include "DNA_object_types.h"
@@ -40,13 +35,10 @@
 #include "DNA_view3d_types.h"
 #include "DNA_windowmanager_types.h"
 
-#include "BKE_attribute_math.hh"
 #include "BKE_bake_data_block_map.hh"
 #include "BKE_bake_geometry_nodes_modifier.hh"
 #include "BKE_compute_contexts.hh"
 #include "BKE_customdata.hh"
-#include "BKE_geometry_fields.hh"
-#include "BKE_geometry_set_instances.hh"
 #include "BKE_global.hh"
 #include "BKE_idprop.hh"
 #include "BKE_lib_id.hh"
@@ -87,7 +79,6 @@
 
 #include "ED_object.hh"
 #include "ED_screen.hh"
-#include "ED_spreadsheet.hh"
 #include "ED_undo.hh"
 #include "ED_viewer_path.hh"
 
@@ -97,11 +88,7 @@
 #include "NOD_geometry_nodes_gizmos.hh"
 #include "NOD_geometry_nodes_lazy_function.hh"
 #include "NOD_node_declaration.hh"
-
-#include "FN_field.hh"
-#include "FN_lazy_function_execute.hh"
-#include "FN_lazy_function_graph_executor.hh"
-#include "FN_multi_function.hh"
+#include "NOD_socket_usage_inference.hh"
 
 namespace lf = blender::fn::lazy_function;
 namespace geo_log = blender::nodes::geo_eval_log;
@@ -163,6 +150,11 @@ static void add_object_relation(
     else if (DEG_object_has_geometry_component(&object)) {
       DEG_add_object_relation(ctx->node, &object, DEG_OB_COMP_GEOMETRY, "Nodes Modifier");
       DEG_add_customdata_mask(ctx->node, &object, &dependency_data_mask);
+    }
+  }
+  if (object.type == OB_CAMERA) {
+    if (info.camera_parameters) {
+      DEG_add_object_relation(ctx->node, &object, DEG_OB_COMP_PARAMETERS, "Nodes Modifier");
     }
   }
 }
@@ -231,7 +223,9 @@ static void update_depsgraph(ModifierData *md, const ModifierUpdateDepsgraphCont
   }
   if (eval_deps.needs_active_camera) {
     DEG_add_scene_camera_relation(ctx->node, ctx->scene, DEG_OB_COMP_TRANSFORM, "Nodes Modifier");
-    /* Active camera is a scene parameter that can change, so we need a relation for that, too. */
+  }
+  /* Active camera is a scene parameter that can change, so we need a relation for that, too. */
+  if (eval_deps.needs_active_camera || eval_deps.needs_scene_render_params) {
     DEG_add_scene_relation(ctx->node, ctx->scene, DEG_SCENE_COMP_PARAMETERS, "Nodes Modifier");
   }
 }
@@ -275,7 +269,7 @@ static void foreach_ID_link(ModifierData *md, Object *ob, IDWalkFunc walk, void 
 
 static void foreach_tex_link(ModifierData *md, Object *ob, TexWalkFunc walk, void *user_data)
 {
-  PointerRNA ptr = RNA_pointer_create(&ob->id, &RNA_Modifier, md);
+  PointerRNA ptr = RNA_pointer_create_discrete(&ob->id, &RNA_Modifier, md);
   PropertyRNA *prop = RNA_struct_find_property(&ptr, "texture");
   walk(user_data, ob, md, &ptr, prop);
 }
@@ -371,8 +365,8 @@ static void update_bakes_from_node_group(NodesModifierData &nmd)
     }
   }
 
-  NodesModifierBake *new_bake_data = MEM_cnew_array<NodesModifierBake>(new_bake_ids.size(),
-                                                                       __func__);
+  NodesModifierBake *new_bake_data = MEM_calloc_arrayN<NodesModifierBake>(new_bake_ids.size(),
+                                                                          __func__);
   for (const int i : new_bake_ids.index_range()) {
     const int id = new_bake_ids[i];
     NodesModifierBake *old_bake = old_bake_by_id.lookup_default(id, nullptr);
@@ -423,8 +417,8 @@ static void update_panels_from_node_group(NodesModifierData &nmd)
     });
   }
 
-  NodesModifierPanel *new_panels = MEM_cnew_array<NodesModifierPanel>(interface_panels.size(),
-                                                                      __func__);
+  NodesModifierPanel *new_panels = MEM_calloc_arrayN<NodesModifierPanel>(interface_panels.size(),
+                                                                         __func__);
 
   for (const int i : interface_panels.index_range()) {
     const bNodeTreeInterfacePanel &interface_panel = *interface_panels[i];
@@ -837,7 +831,7 @@ static void find_socket_log_contexts(const NodesModifierData &nmd,
       const SpaceLink *sl = static_cast<SpaceLink *>(area->spacedata.first);
       if (sl->spacetype == SPACE_NODE) {
         const SpaceNode &snode = *reinterpret_cast<const SpaceNode *>(sl);
-        if (snode.edittree == nullptr) {
+        if (snode.edittree == nullptr || snode.edittree->type != NTREE_GEOMETRY) {
           continue;
         }
         const Map<const bke::bNodeTreeZone *, ComputeContextHash> hash_by_zone =
@@ -855,7 +849,9 @@ static void find_socket_log_contexts(const NodesModifierData &nmd,
  * \note This could be done in #initialize_group_input, though that would require adding the
  * the object as a parameter, so it's likely better to this check as a separate step.
  */
-static void check_property_socket_sync(const Object *ob, ModifierData *md)
+static void check_property_socket_sync(const Object *ob,
+                                       const nodes::PropertiesVectorSet &properties,
+                                       ModifierData *md)
 {
   NodesModifierData *nmd = reinterpret_cast<NodesModifierData *>(md);
 
@@ -872,7 +868,7 @@ static void check_property_socket_sync(const Object *ob, ModifierData *md)
       continue;
     }
 
-    IDProperty *property = IDP_GetPropertyFromGroup(nmd->settings.properties, socket->identifier);
+    IDProperty *property = properties.lookup_key_default_as(socket->identifier, nullptr);
     if (property == nullptr) {
       if (ELEM(type, SOCK_GEOMETRY, SOCK_MATRIX)) {
         geometry_socket_count++;
@@ -1460,7 +1456,7 @@ class NodesModifierBakeParams : public nodes::GeoNodesBakeParams {
     bmain_ = DEG_get_bmain(depsgraph);
   }
 
-  nodes::BakeNodeBehavior *get(const int id) const
+  nodes::BakeNodeBehavior *get(const int id) const override
   {
     if (!modifier_cache_) {
       return nullptr;
@@ -1769,8 +1765,11 @@ static void modifyGeometry(ModifierData *md,
   NodesModifierData *nmd_orig = reinterpret_cast<NodesModifierData *>(
       BKE_modifier_get_original(ctx->object, &nmd->modifier));
 
+  nodes::PropertiesVectorSet properties = nodes::build_properties_vector_set(
+      nmd->settings.properties);
+
   const bNodeTree &tree = *nmd->node_group;
-  check_property_socket_sync(ctx->object, md);
+  check_property_socket_sync(ctx->object, properties, md);
 
   tree.ensure_topology_cache();
   const bNode *output_node = tree.group_output_node();
@@ -1838,11 +1837,8 @@ static void modifyGeometry(ModifierData *md,
 
   bke::ModifierComputeContext modifier_compute_context{nullptr, nmd->modifier.name};
 
-  geometry_set = nodes::execute_geometry_nodes_on_geometry(tree,
-                                                           nmd->settings.properties,
-                                                           modifier_compute_context,
-                                                           call_data,
-                                                           std::move(geometry_set));
+  geometry_set = nodes::execute_geometry_nodes_on_geometry(
+      tree, properties, modifier_compute_context, call_data, std::move(geometry_set));
 
   if (logging_enabled(ctx)) {
     nmd_orig->runtime->eval_log = std::move(eval_log);
@@ -2012,8 +2008,10 @@ static void attribute_search_exec_fn(bContext *C, void *data_v, void *item_v)
 struct DrawGroupInputsContext {
   const bContext &C;
   NodesModifierData &nmd;
+  nodes::PropertiesVectorSet properties;
   PointerRNA *md_ptr;
   PointerRNA *bmain_ptr;
+  Array<bool> input_usages;
 };
 
 static void add_attribute_search_button(DrawGroupInputsContext &ctx,
@@ -2042,7 +2040,7 @@ static void add_attribute_search_button(DrawGroupInputsContext &ctx,
                                  0,
                                  0.0f,
                                  0.0f,
-                                 socket.description);
+                                 StringRef(socket.description));
 
   const Object *object = ed::object::context_object(&ctx.C);
   BLI_assert(object != nullptr);
@@ -2050,7 +2048,7 @@ static void add_attribute_search_button(DrawGroupInputsContext &ctx,
     return;
   }
 
-  AttributeSearchData *data = MEM_cnew<AttributeSearchData>(__func__);
+  AttributeSearchData *data = MEM_callocN<AttributeSearchData>(__func__);
   data->object_session_uid = object->id.session_uid;
   STRNCPY(data->modifier_name, ctx.nmd.modifier.name);
   STRNCPY(data->socket_identifier, socket.identifier);
@@ -2096,8 +2094,8 @@ static void add_attribute_search_or_value_buttons(DrawGroupInputsContext &ctx,
 
   uiLayout *prop_row = nullptr;
 
-  const std::optional<StringRef> attribute_name = nodes::input_attribute_name_get(
-      *ctx.nmd.settings.properties, socket);
+  const std::optional<StringRef> attribute_name = nodes::input_attribute_name_get(ctx.properties,
+                                                                                  socket);
   if (type == SOCK_BOOLEAN && !attribute_name) {
     uiItemL(name_row, "", ICON_NONE);
     prop_row = uiLayoutRow(split, true);
@@ -2145,7 +2143,7 @@ static void draw_property_for_socket(DrawGroupInputsContext &ctx,
 {
   const StringRefNull identifier = socket.identifier;
   /* The property should be created in #MOD_nodes_update_interface with the correct type. */
-  IDProperty *property = IDP_GetPropertyFromGroup(ctx.nmd.settings.properties, identifier);
+  IDProperty *property = ctx.properties.lookup_key_default_as(identifier, nullptr);
 
   /* IDProperties can be removed with python, so there could be a situation where
    * there isn't a property for a socket or it doesn't have the correct type. */
@@ -2159,10 +2157,11 @@ static void draw_property_for_socket(DrawGroupInputsContext &ctx,
   char rna_path[sizeof(socket_id_esc) + 4];
   SNPRINTF(rna_path, "[\"%s\"]", socket_id_esc);
 
+  const int input_index = ctx.nmd.node_group->interface_input_index(socket);
+
   uiLayout *row = uiLayoutRow(layout, true);
   uiLayoutSetPropDecorate(row, true);
-
-  const int input_index = ctx.nmd.node_group->interface_input_index(socket);
+  uiLayoutSetActive(row, ctx.input_usages[input_index]);
 
   /* Use #uiItemPointerR to draw pointer properties because #uiItemR would not have enough
    * information about what type of ID to select for editing the values. This is because
@@ -2189,7 +2188,16 @@ static void draw_property_for_socket(DrawGroupInputsContext &ctx,
       break;
     }
     case SOCK_IMAGE: {
-      uiItemPointerR(row, ctx.md_ptr, rna_path, ctx.bmain_ptr, "images", name, ICON_IMAGE);
+      uiTemplateID(row,
+                   &ctx.C,
+                   ctx.md_ptr,
+                   rna_path,
+                   "image.new",
+                   "image.open",
+                   nullptr,
+                   UI_TEMPLATE_ID_FILTER_ALL,
+                   false,
+                   name);
       break;
     }
     case SOCK_BOOLEAN: {
@@ -2263,24 +2271,87 @@ static bool interface_panel_has_socket(const bNodeTreeInterfacePanel &interface_
   return false;
 }
 
+static bool interface_panel_affects_output(DrawGroupInputsContext &ctx,
+                                           const bNodeTreeInterfacePanel &panel)
+{
+  for (const bNodeTreeInterfaceItem *item : panel.items()) {
+    if (item->item_type == NODE_INTERFACE_SOCKET) {
+      const auto &socket = *reinterpret_cast<const bNodeTreeInterfaceSocket *>(item);
+      if (socket.flag & NODE_INTERFACE_SOCKET_HIDE_IN_MODIFIER) {
+        continue;
+      }
+      if (!(socket.flag & NODE_INTERFACE_SOCKET_INPUT)) {
+        continue;
+      }
+      const int input_index = ctx.nmd.node_group->interface_input_index(socket);
+      if (ctx.input_usages[input_index]) {
+        return true;
+      }
+    }
+    else if (item->item_type == NODE_INTERFACE_PANEL) {
+      const auto &sub_interface_panel = *reinterpret_cast<const bNodeTreeInterfacePanel *>(item);
+      if (interface_panel_affects_output(ctx, sub_interface_panel)) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 static void draw_interface_panel_content(DrawGroupInputsContext &ctx,
                                          uiLayout *layout,
-                                         const bNodeTreeInterfacePanel &interface_panel)
+                                         const bNodeTreeInterfacePanel &interface_panel,
+                                         const bool skip_first = false)
 {
-  for (const bNodeTreeInterfaceItem *item : interface_panel.items()) {
+  for (const bNodeTreeInterfaceItem *item : interface_panel.items().drop_front(skip_first ? 1 : 0))
+  {
     if (item->item_type == NODE_INTERFACE_PANEL) {
       const auto &sub_interface_panel = *reinterpret_cast<const bNodeTreeInterfacePanel *>(item);
       if (!interface_panel_has_socket(sub_interface_panel)) {
         continue;
       }
       NodesModifierPanel *panel = find_panel_by_id(ctx.nmd, sub_interface_panel.identifier);
-      PointerRNA panel_ptr = RNA_pointer_create(
+      PointerRNA panel_ptr = RNA_pointer_create_discrete(
           ctx.md_ptr->owner_id, &RNA_NodesModifierPanel, panel);
-      PanelLayout panel_layout = uiLayoutPanelProp(&ctx.C, layout, &panel_ptr, "is_open");
-      uiItemL(panel_layout.header, IFACE_(sub_interface_panel.name), ICON_NONE);
+      PanelLayout panel_layout;
+      bool skip_first = false;
+      /* Check if the panel should have a toggle in the header. */
+      const bNodeTreeInterfaceSocket *toggle_socket = sub_interface_panel.header_toggle_socket();
+      if (toggle_socket && !(toggle_socket->flag & NODE_INTERFACE_SOCKET_HIDE_IN_MODIFIER)) {
+        const StringRefNull identifier = toggle_socket->identifier;
+        IDProperty *property = ctx.properties.lookup_key_default_as(identifier, nullptr);
+        /* IDProperties can be removed with python, so there could be a situation where
+         * there isn't a property for a socket or it doesn't have the correct type. */
+        if (property == nullptr ||
+            !nodes::id_property_type_matches_socket(*toggle_socket, *property))
+        {
+          continue;
+        }
+        char socket_id_esc[MAX_NAME * 2];
+        BLI_str_escape(socket_id_esc, identifier.c_str(), sizeof(socket_id_esc));
+
+        char rna_path[sizeof(socket_id_esc) + 4];
+        SNPRINTF(rna_path, "[\"%s\"]", socket_id_esc);
+
+        panel_layout = uiLayoutPanelPropWithBoolHeader(&ctx.C,
+                                                       layout,
+                                                       &panel_ptr,
+                                                       "is_open",
+                                                       ctx.md_ptr,
+                                                       rna_path,
+                                                       IFACE_(sub_interface_panel.name));
+        skip_first = true;
+      }
+      else {
+        panel_layout = uiLayoutPanelProp(&ctx.C, layout, &panel_ptr, "is_open");
+        uiItemL(panel_layout.header, IFACE_(sub_interface_panel.name), ICON_NONE);
+      }
+      if (!interface_panel_affects_output(ctx, sub_interface_panel)) {
+        uiLayoutSetActive(panel_layout.header, false);
+      }
       uiLayoutSetTooltipFunc(
           panel_layout.header,
-          [](bContext * /*C*/, void *panel_arg, const char * /*tip*/) -> std::string {
+          [](bContext * /*C*/, void *panel_arg, const StringRef /*tip*/) -> std::string {
             const auto *panel = static_cast<bNodeTreeInterfacePanel *>(panel_arg);
             return StringRef(panel->description);
           },
@@ -2288,7 +2359,7 @@ static void draw_interface_panel_content(DrawGroupInputsContext &ctx,
           nullptr,
           nullptr);
       if (panel_layout.body) {
-        draw_interface_panel_content(ctx, panel_layout.body, sub_interface_panel);
+        draw_interface_panel_content(ctx, panel_layout.body, sub_interface_panel, skip_first);
       }
     }
     else {
@@ -2496,10 +2567,14 @@ static void panel_draw(const bContext *C, Panel *panel)
 
   Main *bmain = CTX_data_main(C);
   PointerRNA bmain_ptr = RNA_main_pointer_create(bmain);
-  DrawGroupInputsContext ctx{*C, *nmd, ptr, &bmain_ptr};
+  DrawGroupInputsContext ctx{
+      *C, *nmd, nodes::build_properties_vector_set(nmd->settings.properties), ptr, &bmain_ptr};
 
   if (nmd->node_group != nullptr && nmd->settings.properties != nullptr) {
     nmd->node_group->ensure_interface_cache();
+    ctx.input_usages.reinitialize(nmd->node_group->interface_inputs().size());
+    nodes::socket_usage_inference::infer_group_interface_inputs_usage(
+        *nmd->node_group, ctx.properties, ctx.input_usages);
     draw_interface_panel_content(ctx, layout, nmd->node_group->tree_interface.root_panel);
   }
 
@@ -2807,10 +2882,9 @@ ModifierTypeInfo modifierType_Nodes = {
     /*srna*/ &RNA_NodesModifier,
     /*type*/ ModifierTypeType::Constructive,
     /*flags*/
-    static_cast<ModifierTypeFlag>(
-        eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_AcceptsCVs |
-        eModifierTypeFlag_SupportsEditmode | eModifierTypeFlag_EnableInEditmode |
-        eModifierTypeFlag_SupportsMapping | eModifierTypeFlag_AcceptsGreasePencil),
+    (eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_AcceptsCVs |
+     eModifierTypeFlag_SupportsEditmode | eModifierTypeFlag_EnableInEditmode |
+     eModifierTypeFlag_SupportsMapping | eModifierTypeFlag_AcceptsGreasePencil),
     /*icon*/ ICON_GEOMETRY_NODES,
 
     /*copy_data*/ blender::copy_data,

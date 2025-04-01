@@ -123,7 +123,7 @@ static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeGeometryCurvePrimitiveQuad *data = MEM_cnew<NodeGeometryCurvePrimitiveQuad>(__func__);
+  NodeGeometryCurvePrimitiveQuad *data = MEM_callocN<NodeGeometryCurvePrimitiveQuad>(__func__);
   data->mode = GEO_NODE_CURVE_PRIMITIVE_QUAD_MODE_RECTANGLE;
   node->storage = data;
 }
@@ -310,23 +310,22 @@ static void node_rna(StructRNA *srna)
 static void node_register()
 {
   static blender::bke::bNodeType ntype;
-  geo_node_type_base(&ntype,
-                     "GeometryNodeCurvePrimitiveQuadrilateral",
-                     GEO_NODE_CURVE_PRIMITIVE_QUADRILATERAL,
-                     NODE_CLASS_GEOMETRY);
+  geo_node_type_base(
+      &ntype, "GeometryNodeCurvePrimitiveQuadrilateral", GEO_NODE_CURVE_PRIMITIVE_QUADRILATERAL);
   ntype.ui_name = "Quadrilateral";
   ntype.ui_description = "Generate a polygon with four points";
   ntype.enum_name_legacy = "CURVE_PRIMITIVE_QUADRILATERAL";
+  ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.draw_buttons = node_layout;
   ntype.initfunc = node_init;
-  blender::bke::node_type_storage(&ntype,
+  blender::bke::node_type_storage(ntype,
                                   "NodeGeometryCurvePrimitiveQuad",
                                   node_free_standard_storage,
                                   node_copy_standard_storage);
   ntype.gather_link_search_ops = node_gather_link_searches;
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

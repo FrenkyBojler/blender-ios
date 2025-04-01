@@ -4,7 +4,6 @@
 
 set(INC
   ..
-  ../../mikktspace
   ../../../source/blender/makesrna
   ${CMAKE_BINARY_DIR}/source/blender/makesrna/intern
 )
@@ -58,6 +57,7 @@ set(LIB
   PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
   PRIVATE bf::dna
+  PRIVATE bf::imbuf
   PRIVATE bf::gpu
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::render
@@ -69,8 +69,6 @@ set(LIB
   cycles_session
   cycles_subd
   cycles_util
-
-  bf_intern_mikktspace
 
   ${Epoxy_LIBRARIES}
   ${PYTHON_LINKFLAGS}

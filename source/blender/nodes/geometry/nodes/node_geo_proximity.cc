@@ -2,7 +2,6 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BLI_math_vector.h"
 #include "BLI_task.hh"
 
 #include "BKE_bvhutils.hh"
@@ -51,7 +50,7 @@ static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 
 static void geo_proximity_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeGeometryProximity *node_storage = MEM_cnew<NodeGeometryProximity>(__func__);
+  NodeGeometryProximity *node_storage = MEM_callocN<NodeGeometryProximity>(__func__);
   node_storage->target_element = GEO_NODE_PROX_TARGET_FACES;
   node->storage = node_storage;
 }
@@ -96,7 +95,7 @@ class ProximityFunction : public mf::MultiFunction {
     }
   }
 
-  ~ProximityFunction() = default;
+  ~ProximityFunction() override = default;
 
   void init_for_pointcloud(const PointCloud &pointcloud, const Field<int> &group_id_field)
   {
@@ -229,7 +228,7 @@ class ProximityFunction : public mf::MultiFunction {
                                  const_cast<bke::BVHTreeFromMesh *>(&trees.mesh_bvh));
       }
       if (trees.pointcloud_bvh.tree != nullptr) {
-        BLI_bvhtree_find_nearest(trees.pointcloud_bvh.tree.get(),
+        BLI_bvhtree_find_nearest(trees.pointcloud_bvh.tree,
                                  sample_position,
                                  &nearest,
                                  trees.pointcloud_bvh.nearest_callback,
@@ -308,17 +307,18 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeProximity", GEO_NODE_PROXIMITY, NODE_CLASS_GEOMETRY);
+  geo_node_type_base(&ntype, "GeometryNodeProximity", GEO_NODE_PROXIMITY);
   ntype.ui_name = "Geometry Proximity";
   ntype.ui_description = "Compute the closest location on the target geometry";
   ntype.enum_name_legacy = "PROXIMITY";
+  ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.initfunc = geo_proximity_init;
   blender::bke::node_type_storage(
-      &ntype, "NodeGeometryProximity", node_free_standard_storage, node_copy_standard_storage);
+      ntype, "NodeGeometryProximity", node_free_standard_storage, node_copy_standard_storage);
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.draw_buttons = node_layout;
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

@@ -37,7 +37,7 @@ static void draw_item_in_list(uiList * /*ui_list*/,
     RNA_float_get_array(itemptr, "color", color);
     uiTemplateNodeSocket(row, const_cast<bContext *>(C), color);
   }
-  uiLayoutSetEmboss(row, UI_EMBOSS_NONE);
+  uiLayoutSetEmboss(row, blender::ui::EmbossType::None);
   uiItemR(row, itemptr, "name", UI_ITEM_NONE, "", ICON_NONE);
 }
 
@@ -52,11 +52,11 @@ static void draw_items_list_with_operators(const bContext *C,
                                            const bNode &node)
 {
   BLI_assert(Accessor::node_type == node.type_legacy);
-  PointerRNA node_ptr = RNA_pointer_create(
+  PointerRNA node_ptr = RNA_pointer_create_discrete(
       const_cast<ID *>(&tree.id), &RNA_Node, const_cast<bNode *>(&node));
 
   static const uiListType *items_list = []() {
-    uiListType *list = MEM_cnew<uiListType>(Accessor::ui_idnames::list);
+    uiListType *list = MEM_callocN<uiListType>(Accessor::ui_idnames::list);
     STRNCPY(list->idname, Accessor::ui_idnames::list);
     list->draw_item = draw_item_in_list<Accessor>;
     WM_uilisttype_add(list);
@@ -112,7 +112,8 @@ static void draw_active_item_props(const bNodeTree &tree,
   }
 
   ItemT &item = (*ref.items)[*ref.active_index];
-  PointerRNA item_ptr = RNA_pointer_create(const_cast<ID *>(&tree.id), Accessor::item_srna, &item);
+  PointerRNA item_ptr = RNA_pointer_create_discrete(
+      const_cast<ID *>(&tree.id), Accessor::item_srna, &item);
   draw_item(&item_ptr);
 }
 

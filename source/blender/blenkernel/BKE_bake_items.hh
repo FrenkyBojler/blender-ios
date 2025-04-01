@@ -2,6 +2,10 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+/** \file
+ * \ingroup bke
+ */
+
 #pragma once
 
 #include "BLI_memory_counter_fwd.hh"
@@ -97,7 +101,7 @@ class VolumeGridBakeItem : public BakeItem {
   std::unique_ptr<GVolumeGrid> grid;
 
   VolumeGridBakeItem(std::unique_ptr<GVolumeGrid> grid);
-  ~VolumeGridBakeItem();
+  ~VolumeGridBakeItem() override;
 
   void count_memory(MemoryCounter &memory) const override;
 };
@@ -111,7 +115,7 @@ class PrimitiveBakeItem : public BakeItem {
 
  public:
   PrimitiveBakeItem(const CPPType &type, const void *value);
-  ~PrimitiveBakeItem();
+  ~PrimitiveBakeItem() override;
 
   const void *value() const
   {

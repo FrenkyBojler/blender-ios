@@ -6,11 +6,13 @@
  * \ingroup spgraph
  */
 
+#include <algorithm>
 #include <cfloat>
 #include <cmath>
 #include <cstdio>
 #include <cstring>
 
+#include "BLI_listbase.h"
 #include "BLI_math_vector_types.hh"
 #include "BLI_utildefines.h"
 #include "BLI_vector.hh"
@@ -636,15 +638,11 @@ static void draw_fcurve_curve(bAnimContext *ac,
      * This one still amounts to 10 sample-frames for each 1-frame interval
      * which should be quite a decent approximation in many situations.
      */
-    if (samplefreq < 0.1f) {
-      samplefreq = 0.1f;
-    }
+    samplefreq = std::max(samplefreq, 0.1f);
   }
   else {
     /* "Higher Precision" but slower - especially on larger windows (e.g. #40372) */
-    if (samplefreq < 0.00001f) {
-      samplefreq = 0.00001f;
-    }
+    samplefreq = std::max(samplefreq, 0.00001f);
   }
 
   /* the start/end times are simply the horizontal extents of the 'cur' rect */
@@ -702,9 +700,7 @@ static void draw_fcurve_curve(bAnimContext *ac,
      * eval_start + total_samples * eval_freq > eval_end
      * due to floating point problems.
      */
-    if (eval_time > eval_end) {
-      eval_time = eval_end;
-    }
+    eval_time = std::min(eval_time, eval_end);
 
     immVertex2f(pos, ctime, (evaluate_fcurve(&fcurve_for_draw, eval_time) + offset) * unitFac);
   }
@@ -1549,7 +1545,7 @@ void graph_draw_channel_names(bContext *C,
     }
   }
   { /* second pass: widgets */
-    uiBlock *block = UI_block_begin(C, region, __func__, UI_EMBOSS);
+    uiBlock *block = UI_block_begin(C, region, __func__, blender::ui::EmbossType::Emboss);
     size_t channel_index = 0;
     float ymax = ANIM_UI_get_first_channel_top(v2d);
 

@@ -8,6 +8,7 @@
 
 #include <cmath>
 
+#include "BKE_node.hh"
 #include "BLI_math_base.hh"
 #include "BLI_math_matrix_types.hh"
 #include "BLI_math_vector_types.hh"
@@ -45,7 +46,7 @@ static void cmp_node_boxmask_declare(NodeDeclarationBuilder &b)
 
 static void node_composit_init_boxmask(bNodeTree * /*ntree*/, bNode *node)
 {
-  NodeBoxMask *data = MEM_cnew<NodeBoxMask>(__func__);
+  NodeBoxMask *data = MEM_callocN<NodeBoxMask>(__func__);
   data->x = 0.5;
   data->y = 0.5;
   data->width = 0.2;
@@ -303,16 +304,17 @@ void register_node_type_cmp_boxmask()
 
   static blender::bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, "CompositorNodeBoxMask", CMP_NODE_MASK_BOX, NODE_CLASS_MATTE);
+  cmp_node_type_base(&ntype, "CompositorNodeBoxMask", CMP_NODE_MASK_BOX);
   ntype.ui_name = "Box Mask";
   ntype.ui_description = "Create rectangular mask suitable for use as a simple matte";
   ntype.enum_name_legacy = "BOXMASK";
+  ntype.nclass = NODE_CLASS_MATTE;
   ntype.declare = file_ns::cmp_node_boxmask_declare;
   ntype.draw_buttons = file_ns::node_composit_buts_boxmask;
   ntype.initfunc = file_ns::node_composit_init_boxmask;
   blender::bke::node_type_storage(
-      &ntype, "NodeBoxMask", node_free_standard_storage, node_copy_standard_storage);
+      ntype, "NodeBoxMask", node_free_standard_storage, node_copy_standard_storage);
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
 
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }

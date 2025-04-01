@@ -4,7 +4,6 @@
 
 #include "BKE_curves.hh"
 #include "BKE_grease_pencil.hh"
-#include "BLI_task.hh"
 
 #include "UI_interface.hh"
 #include "UI_resources.hh"
@@ -79,7 +78,7 @@ static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeGeometryCurveTrim *data = MEM_cnew<NodeGeometryCurveTrim>(__func__);
+  NodeGeometryCurveTrim *data = MEM_callocN<NodeGeometryCurveTrim>(__func__);
 
   data->mode = GEO_NODE_CURVE_SAMPLE_FACTOR;
   node->storage = data;
@@ -260,18 +259,19 @@ static void node_rna(StructRNA *srna)
 static void node_register()
 {
   static blender::bke::bNodeType ntype;
-  geo_node_type_base(&ntype, "GeometryNodeTrimCurve", GEO_NODE_TRIM_CURVE, NODE_CLASS_GEOMETRY);
+  geo_node_type_base(&ntype, "GeometryNodeTrimCurve", GEO_NODE_TRIM_CURVE);
   ntype.ui_name = "Trim Curve";
   ntype.ui_description = "Shorten curves by removing portions at the start or end";
   ntype.enum_name_legacy = "TRIM_CURVE";
+  ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.draw_buttons = node_layout;
   ntype.declare = node_declare;
   blender::bke::node_type_storage(
-      &ntype, "NodeGeometryCurveTrim", node_free_standard_storage, node_copy_standard_storage);
+      ntype, "NodeGeometryCurveTrim", node_free_standard_storage, node_copy_standard_storage);
   ntype.initfunc = node_init;
   ntype.gather_link_search_ops = node_gather_link_searches;
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

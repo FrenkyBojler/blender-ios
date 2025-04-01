@@ -6,6 +6,8 @@
  * \ingroup nodes
  */
 
+#include <optional>
+
 #include "DNA_node_types.h"
 #include "DNA_space_types.h"
 
@@ -36,33 +38,34 @@ bool sh_node_poll_default(const blender::bke::bNodeType * /*ntype*/,
   return true;
 }
 
-static bool sh_fn_poll_default(const blender::bke::bNodeType * /*ntype*/,
-                               const bNodeTree *ntree,
-                               const char **r_disabled_hint)
+static bool common_poll_default(const blender::bke::bNodeType * /*ntype*/,
+                                const bNodeTree *ntree,
+                                const char **r_disabled_hint)
 {
-  if (!STR_ELEM(ntree->idname, "ShaderNodeTree", "GeometryNodeTree")) {
-    *r_disabled_hint = RPT_("Not a shader or geometry node tree");
+  if (!STR_ELEM(ntree->idname, "ShaderNodeTree", "GeometryNodeTree", "CompositorNodeTree")) {
+    *r_disabled_hint = RPT_("Not a shader, geometry, or compositor node tree");
     return false;
   }
   return true;
 }
 
-void sh_node_type_base(blender::bke::bNodeType *ntype, std::string idname, int type, short nclass)
+void sh_node_type_base(blender::bke::bNodeType *ntype,
+                       std::string idname,
+                       const std::optional<int16_t> legacy_type)
 {
-  blender::bke::node_type_base(ntype, idname, type, nclass);
+  blender::bke::node_type_base(*ntype, idname, legacy_type);
 
   ntype->poll = sh_node_poll_default;
   ntype->insert_link = node_insert_link_default;
   ntype->gather_link_search_ops = blender::nodes::search_link_ops_for_basic_node;
 }
 
-void sh_fn_node_type_base(blender::bke::bNodeType *ntype,
-                          std::string idname,
-                          int type,
-                          short nclass)
+void common_node_type_base(blender::bke::bNodeType *ntype,
+                           std::string idname,
+                           const std::optional<int16_t> legacy_type)
 {
-  sh_node_type_base(ntype, idname, type, nclass);
-  ntype->poll = sh_fn_poll_default;
+  sh_node_type_base(ntype, idname, legacy_type);
+  ntype->poll = common_poll_default;
   ntype->gather_link_search_ops = blender::nodes::search_link_ops_for_basic_node;
 }
 
@@ -224,14 +227,14 @@ static void data_from_gpu_stack_list(ListBase *sockets, bNodeStack **ns, GPUNode
   }
 }
 
-bool blender::bke::node_supports_active_flag(const bNode *node, int sub_activity)
+bool blender::bke::node_supports_active_flag(const bNode &node, int sub_activity)
 {
   BLI_assert(ELEM(sub_activity, NODE_ACTIVE_TEXTURE, NODE_ACTIVE_PAINT_CANVAS));
   switch (sub_activity) {
     case NODE_ACTIVE_TEXTURE:
-      return node->typeinfo->nclass == NODE_CLASS_TEXTURE;
+      return node.typeinfo->nclass == NODE_CLASS_TEXTURE;
     case NODE_ACTIVE_PAINT_CANVAS:
-      return ELEM(node->type_legacy, SH_NODE_TEX_IMAGE, SH_NODE_ATTRIBUTE);
+      return ELEM(node.type_legacy, SH_NODE_TEX_IMAGE, SH_NODE_ATTRIBUTE);
   }
   return false;
 }
@@ -255,7 +258,7 @@ static bNode *node_get_active(bNodeTree *ntree, int sub_activity)
         return node;
       }
     }
-    else if (!inactivenode && blender::bke::node_supports_active_flag(node, sub_activity)) {
+    else if (!inactivenode && blender::bke::node_supports_active_flag(*node, sub_activity)) {
       inactivenode = node;
     }
     else if (node->type_legacy == NODE_GROUP) {
@@ -298,18 +301,21 @@ static bNode *node_get_active(bNodeTree *ntree, int sub_activity)
 
 namespace blender::bke {
 
-bNode *node_get_active_texture(bNodeTree *ntree)
+bNode *node_get_active_texture(bNodeTree &ntree)
 {
-  return node_get_active(ntree, NODE_ACTIVE_TEXTURE);
+  return node_get_active(&ntree, NODE_ACTIVE_TEXTURE);
 }
 
-bNode *node_get_active_paint_canvas(bNodeTree *ntree)
+bNode *node_get_active_paint_canvas(bNodeTree &ntree)
 {
-  return node_get_active(ntree, NODE_ACTIVE_PAINT_CANVAS);
+  return node_get_active(&ntree, NODE_ACTIVE_PAINT_CANVAS);
 }
 }  // namespace blender::bke
 
-void ntreeExecGPUNodes(bNodeTreeExec *exec, GPUMaterial *mat, bNode *output_node, int *depth_level)
+void ntreeExecGPUNodes(bNodeTreeExec *exec,
+                       GPUMaterial *mat,
+                       bNode *output_node,
+                       const int *depth_level)
 {
   bNodeExec *nodeexec;
   bNode *node;

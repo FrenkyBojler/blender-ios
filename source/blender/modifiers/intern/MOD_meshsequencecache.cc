@@ -7,7 +7,6 @@
  */
 
 #include <cstring>
-#include <limits>
 
 #include "BLI_math_vector.hh"
 #include "BLI_string.h"
@@ -158,7 +157,7 @@ static Mesh *generate_bounding_box_mesh(const std::optional<Bounds<float3>> &bou
     result->totcol = totcol;
   }
 
-  BKE_mesh_translate(result, math::midpoint(bounds->min, bounds->max), false);
+  bke::mesh_translate(*result, math::midpoint(bounds->min, bounds->max), false);
 
   return result;
 }
@@ -209,7 +208,7 @@ static void modify_geometry_set(ModifierData *md,
           pointcloud->bounds_min_max(), pointcloud->mat, pointcloud->totcol);
     }
 
-    *geometry_set = bke::GeometrySet::from_mesh(bbox, bke::GeometryOwnershipType::Editable);
+    *geometry_set = bke::GeometrySet::from_mesh(bbox);
     return;
   }
 
@@ -494,7 +493,7 @@ ModifierTypeInfo modifierType_MeshSequenceCache = {
     /*srna*/ &RNA_MeshSequenceCacheModifier,
     /*type*/ ModifierTypeType::Constructive,
     /*flags*/
-    static_cast<ModifierTypeFlag>(eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_AcceptsCVs),
+    (eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_AcceptsCVs),
     /*icon*/ ICON_MOD_MESHDEFORM, /* TODO: Use correct icon. */
 
     /*copy_data*/ copy_data,

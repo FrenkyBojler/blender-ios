@@ -11,6 +11,7 @@
 #include "BKE_idprop.hh"
 #include "BKE_screen.hh"
 
+#include "BLI_listbase.h"
 #include "BLI_string.h"
 
 #include "BLT_translation.hh"
@@ -124,7 +125,7 @@ static eAutoPropButsReturn template_operator_property_buts_draw_single(
     user_data.flag = layout_flags;
     const bool use_prop_split = (layout_flags & UI_TEMPLATE_OP_PROPS_NO_SPLIT_LAYOUT) == 0;
 
-    PointerRNA ptr = RNA_pointer_create(&wm->id, op->type->srna, op->properties);
+    PointerRNA ptr = RNA_pointer_create_discrete(&wm->id, op->type->srna, op->properties);
 
     uiLayoutSetPropSep(layout, use_prop_split);
     uiLayoutSetPropDecorate(layout, false);
@@ -177,14 +178,14 @@ static eAutoPropButsReturn template_operator_property_buts_draw_single(
 
   /* set various special settings for buttons */
 
-  /* Only do this if we're not refreshing an existing UI. */
-  if (block->oldblock == nullptr) {
-    const bool is_popup = (block->flag & UI_BLOCK_KEEP_OPEN) != 0;
+  const bool is_popup = (block->flag & UI_BLOCK_KEEP_OPEN) != 0;
 
-    LISTBASE_FOREACH (uiBut *, but, &block->buttons) {
-      /* no undo for buttons for operator redo panels */
-      UI_but_flag_disable(but, UI_BUT_UNDO);
+  for (const std::unique_ptr<uiBut> &but : block->buttons) {
+    /* no undo for buttons for operator redo panels */
+    UI_but_flag_disable(but.get(), UI_BUT_UNDO);
 
+    /* Only do this if we're not refreshing an existing UI. */
+    if (block->oldblock == nullptr) {
       /* only for popups, see #36109. */
 
       /* if button is operator's default property, and a text-field, enable focus for it
@@ -192,7 +193,7 @@ static eAutoPropButsReturn template_operator_property_buts_draw_single(
        */
       if (is_popup) {
         if ((but->rnaprop == op->type->prop) && ELEM(but->type, UI_BTYPE_TEXT, UI_BTYPE_NUM)) {
-          UI_but_focus_on_enter_event(CTX_wm_window(C), but);
+          UI_but_focus_on_enter_event(CTX_wm_window(C), but.get());
         }
       }
     }
@@ -244,7 +245,7 @@ static bool ui_layout_operator_properties_only_booleans(const bContext *C,
     user_data.op = op;
     user_data.flag = layout_flags;
 
-    PointerRNA ptr = RNA_pointer_create(&wm->id, op->type->srna, op->properties);
+    PointerRNA ptr = RNA_pointer_create_discrete(&wm->id, op->type->srna, op->properties);
 
     bool all_booleans = true;
     RNA_STRUCT_BEGIN (&ptr, prop) {
@@ -332,7 +333,7 @@ static wmOperator *minimal_operator_create(wmOperatorType *ot, PointerRNA *prope
 {
   /* Copied from #wm_operator_create.
    * Create a slimmed down operator suitable only for UI drawing. */
-  wmOperator *op = MEM_cnew<wmOperator>(ot->rna_ext.srna ? __func__ : ot->idname);
+  wmOperator *op = MEM_callocN<wmOperator>(ot->rna_ext.srna ? __func__ : ot->idname);
   STRNCPY(op->idname, ot->idname);
   op->type = ot;
 
@@ -351,7 +352,7 @@ static void draw_export_controls(
   uiItemL(layout, label, ICON_NONE);
   if (valid) {
     uiLayout *row = uiLayoutRow(layout, false);
-    uiLayoutSetEmboss(row, UI_EMBOSS_NONE);
+    uiLayoutSetEmboss(row, blender::ui::EmbossType::None);
     uiItemPopoverPanel(row, C, "WM_PT_operator_presets", "", ICON_PRESET);
     uiItemIntO(row, "", ICON_EXPORT, "COLLECTION_OT_exporter_export", "index", index);
   }
@@ -395,7 +396,7 @@ static void draw_exporter_item(uiList * /*ui_list*/,
                                int /*flt_flag*/)
 {
   uiLayout *row = uiLayoutRow(layout, false);
-  uiLayoutSetEmboss(row, UI_EMBOSS_NONE);
+  uiLayoutSetEmboss(row, blender::ui::EmbossType::None);
   uiItemR(row, itemptr, "name", UI_ITEM_NONE, "", ICON_NONE);
 }
 
@@ -407,7 +408,7 @@ void uiTemplateCollectionExporters(uiLayout *layout, bContext *C)
 
   /* Register the exporter list type on first use. */
   static const uiListType *exporter_item_list = []() {
-    uiListType *lt = MEM_cnew<uiListType>(__func__);
+    uiListType *lt = MEM_callocN<uiListType>(__func__);
     STRNCPY(lt->idname, "COLLECTION_UL_exporter_list");
     lt->draw_item = draw_exporter_item;
     WM_uilisttype_add(lt);
@@ -415,7 +416,7 @@ void uiTemplateCollectionExporters(uiLayout *layout, bContext *C)
   }();
 
   /* Draw exporter list and controls. */
-  PointerRNA collection_ptr = RNA_pointer_create(&collection->id, &RNA_Collection, collection);
+  PointerRNA collection_ptr = RNA_id_pointer_create(&collection->id);
   uiLayout *row = uiLayoutRow(layout, false);
   uiTemplateList(row,
                  C,
@@ -447,7 +448,8 @@ void uiTemplateCollectionExporters(uiLayout *layout, bContext *C)
   }
 
   using namespace blender;
-  PointerRNA exporter_ptr = RNA_pointer_create(&collection->id, &RNA_CollectionExport, data);
+  PointerRNA exporter_ptr = RNA_pointer_create_discrete(
+      &collection->id, &RNA_CollectionExport, data);
   PanelLayout panel = uiLayoutPanelProp(C, layout, &exporter_ptr, "is_open");
 
   bke::FileHandlerType *fh = bke::file_handler_find(data->fh_idname);
@@ -465,7 +467,8 @@ void uiTemplateCollectionExporters(uiLayout *layout, bContext *C)
   }
 
   /* Assign temporary operator to uiBlock, which takes ownership. */
-  PointerRNA properties = RNA_pointer_create(&collection->id, ot->srna, data->export_properties);
+  PointerRNA properties = RNA_pointer_create_discrete(
+      &collection->id, ot->srna, data->export_properties);
   wmOperator *op = minimal_operator_create(ot, &properties);
   UI_block_set_active_operator(uiLayoutGetBlock(panel.header), op, true);
 

@@ -50,7 +50,7 @@ static void node_shader_buts_script_ex(uiLayout *layout, bContext *C, PointerRNA
 
 static void init(bNodeTree * /*ntree*/, bNode *node)
 {
-  NodeShaderScript *nss = MEM_cnew<NodeShaderScript>("shader script node");
+  NodeShaderScript *nss = MEM_callocN<NodeShaderScript>("shader script node");
   node->storage = nss;
 }
 
@@ -87,17 +87,18 @@ void register_node_type_sh_script()
 
   static blender::bke::bNodeType ntype;
 
-  sh_node_type_base(&ntype, "ShaderNodeScript", SH_NODE_SCRIPT, NODE_CLASS_SCRIPT);
+  sh_node_type_base(&ntype, "ShaderNodeScript", SH_NODE_SCRIPT);
   ntype.ui_name = "Script";
   ntype.ui_description =
       "Generate an OSL shader from a file or text data-block.\nNote: OSL shaders are not "
       "supported on all GPU backends";
   ntype.enum_name_legacy = "SCRIPT";
+  ntype.nclass = NODE_CLASS_SCRIPT;
   ntype.draw_buttons = file_ns::node_shader_buts_script;
   ntype.draw_buttons_ex = file_ns::node_shader_buts_script_ex;
   ntype.initfunc = file_ns::init;
   blender::bke::node_type_storage(
-      &ntype, "NodeShaderScript", file_ns::node_free_script, file_ns::node_copy_script);
+      ntype, "NodeShaderScript", file_ns::node_free_script, file_ns::node_copy_script);
 
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }

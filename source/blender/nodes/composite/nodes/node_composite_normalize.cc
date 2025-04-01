@@ -42,10 +42,10 @@ class NormalizeOperation : public NodeOperation {
 
   void execute() override
   {
-    Result &input_image = this->get_input("Value");
-    Result &output_image = this->get_result("Value");
+    const Result &input_image = this->get_input("Value");
     if (input_image.is_single_value()) {
-      input_image.pass_through(output_image);
+      Result &output_image = this->get_result("Value");
+      output_image.share_data(input_image);
       return;
     }
 
@@ -114,13 +114,14 @@ void register_node_type_cmp_normalize()
 
   static blender::bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, "CompositorNodeNormalize", CMP_NODE_NORMALIZE, NODE_CLASS_OP_VECTOR);
+  cmp_node_type_base(&ntype, "CompositorNodeNormalize", CMP_NODE_NORMALIZE);
   ntype.ui_name = "Normalize";
   ntype.ui_description =
       "Map values to 0 to 1 range, based on the minimum and maximum pixel values";
   ntype.enum_name_legacy = "NORMALIZE";
+  ntype.nclass = NODE_CLASS_OP_VECTOR;
   ntype.declare = file_ns::cmp_node_normalize_declare;
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
 
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }

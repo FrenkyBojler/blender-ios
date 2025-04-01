@@ -2,8 +2,12 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "common_view_clipping_lib.glsl"
-#include "common_view_lib.glsl"
+#include "infos/overlay_armature_info.hh"
+
+VERTEX_SHADER_CREATE_INFO(overlay_armature_dof)
+
+#include "draw_view_clipping_lib.glsl"
+#include "draw_view_lib.glsl"
 
 vec3 sphere_project(float ax, float az)
 {
@@ -27,7 +31,7 @@ void main()
                                   pos.y * abs((pos.y > 0.0) ? amax.y : amin.y));
 
   vec3 world_pos = (model_mat * vec4(final_pos, 1.0)).xyz;
-  gl_Position = point_world_to_ndc(world_pos);
+  gl_Position = drw_point_world_to_homogenous(world_pos);
   finalColor = data_buf[gl_InstanceID].color_;
 
   edgeStart = edgePos = ((gl_Position.xy / gl_Position.w) * 0.5 + 0.5) * sizeViewport;

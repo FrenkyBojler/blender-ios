@@ -47,13 +47,13 @@ VKFrameBuffer::~VKFrameBuffer()
 
 void VKFrameBuffer::render_pass_free()
 {
-  VKDevice &device = VKBackend::get().device;
+  VKDiscardPool &discard_pool = VKDiscardPool::discard_pool_get();
   if (vk_framebuffer != VK_NULL_HANDLE) {
-    device.discard_pool_for_current_thread().discard_framebuffer(vk_framebuffer);
+    discard_pool.discard_framebuffer(vk_framebuffer);
     vk_framebuffer = VK_NULL_HANDLE;
   }
   if (vk_render_pass != VK_NULL_HANDLE) {
-    device.discard_pool_for_current_thread().discard_render_pass(vk_render_pass);
+    discard_pool.discard_render_pass(vk_render_pass);
     vk_render_pass = VK_NULL_HANDLE;
   }
 }
@@ -73,12 +73,14 @@ void VKFrameBuffer::bind(bool enabled_srgb)
   }
 
   context.activate_framebuffer(*this);
+  update_size();
+  viewport_reset();
+  scissor_reset();
+
   enabled_srgb_ = enabled_srgb;
   Shader::set_framebuffer_srgb_target(enabled_srgb && srgb_);
   load_stores.fill(default_load_store());
   attachment_states_.fill(GPU_ATTACHMENT_WRITE);
-  viewport_reset();
-  scissor_reset();
 }
 
 void VKFrameBuffer::vk_viewports_append(Vector<VkViewport> &r_viewports) const
@@ -202,7 +204,7 @@ void VKFrameBuffer::clear(render_graph::VKClearAttachmentsNode::CreateInfo &clea
 {
   VKContext &context = *VKContext::get();
   rendering_ensure(context);
-  context.render_graph.add_node(clear_attachments);
+  context.render_graph().add_node(clear_attachments);
 }
 
 void VKFrameBuffer::clear(const eGPUFrameBufferBits buffers,
@@ -332,7 +334,13 @@ void VKFrameBuffer::subpass_transition_impl(const GPUAttachmentState depth_attac
                                             Span<GPUAttachmentState> color_attachment_states)
 {
   const VKDevice &device = VKBackend::get().device;
-  const bool supports_local_read = !device.workarounds_get().dynamic_rendering_local_read;
+  const bool supports_local_read = device.extensions_get().dynamic_rendering_local_read;
+
+  attachment_states_[GPU_FB_DEPTH_ATTACHMENT] = depth_attachment_state;
+  attachment_states_.as_mutable_span()
+      .slice(GPU_FB_COLOR_ATTACHMENT0, color_attachment_states.size())
+      .copy_from(color_attachment_states);
+
   if (supports_local_read) {
     VKContext &context = *VKContext::get();
 
@@ -344,7 +352,10 @@ void VKFrameBuffer::subpass_transition_impl(const GPUAttachmentState depth_attac
         }
       }
     }
-    load_stores.fill(default_load_store());
+    if (is_rendering_) {
+      is_rendering_ = false;
+      load_stores.fill(default_load_store());
+    }
   }
   else {
     VKContext &context = *VKContext::get();
@@ -358,10 +369,6 @@ void VKFrameBuffer::subpass_transition_impl(const GPUAttachmentState depth_attac
       load_stores.fill(default_load_store());
     }
 
-    attachment_states_[GPU_FB_DEPTH_ATTACHMENT] = depth_attachment_state;
-    attachment_states_.as_mutable_span()
-        .slice(GPU_FB_COLOR_ATTACHMENT0, color_attachment_states.size())
-        .copy_from(color_attachment_states);
     for (int index : IndexRange(color_attachment_states.size())) {
       if (color_attachment_states[index] == GPU_ATTACHMENT_READ) {
         VKTexture *texture = unwrap(unwrap(color_tex(index)));
@@ -470,7 +477,7 @@ static void blit_aspect(VKContext &context,
                                   dst_texture.height_get());
   region.dstOffsets[1].z = 1;
 
-  context.render_graph.add_node(blit_image);
+  context.render_graph().add_node(blit_image);
 }
 
 void VKFrameBuffer::blit_to(eGPUFrameBufferBits planes,
@@ -775,7 +782,7 @@ void VKFrameBuffer::rendering_ensure_render_pass(VKContext &context)
   begin_info.framebuffer = vk_framebuffer;
   render_area_update(begin_info.renderArea);
 
-  context.render_graph.add_node(begin_rendering);
+  context.render_graph().add_node(begin_rendering);
 
   /* Load store operations are not supported inside a render pass.
    * It requires duplicating render passes and frame-buffers to support suspend/resume rendering.
@@ -808,16 +815,16 @@ void VKFrameBuffer::rendering_ensure_render_pass(VKContext &context)
       render_area_update(clear_attachments.vk_clear_rect.rect);
       clear_attachments.vk_clear_rect.baseArrayLayer = 0;
       clear_attachments.vk_clear_rect.layerCount = 1;
-      context.render_graph.add_node(clear_attachments);
+      context.render_graph().add_node(clear_attachments);
     }
   }
 }
 
 void VKFrameBuffer::rendering_ensure_dynamic_rendering(VKContext &context,
-                                                       const VKWorkarounds &workarounds)
+                                                       const VKExtensions &extensions)
 {
   const VKDevice &device = VKBackend::get().device;
-  const bool supports_local_read = !device.workarounds_get().dynamic_rendering_local_read;
+  const bool supports_local_read = device.extensions_get().dynamic_rendering_local_read;
 
   depth_attachment_format_ = VK_FORMAT_UNDEFINED;
   stencil_attachment_format_ = VK_FORMAT_UNDEFINED;
@@ -884,7 +891,7 @@ void VKFrameBuffer::rendering_ensure_dynamic_rendering(VKContext &context,
          VK_IMAGE_ASPECT_COLOR_BIT,
          layer_base});
     color_attachment_formats_.append(
-        (workarounds.dynamic_rendering_unused_attachments && vk_image_view == VK_NULL_HANDLE) ?
+        (!extensions.dynamic_rendering_unused_attachments && vk_image_view == VK_NULL_HANDLE) ?
             VK_FORMAT_UNDEFINED :
             vk_format);
 
@@ -922,7 +929,7 @@ void VKFrameBuffer::rendering_ensure_dynamic_rendering(VKContext &context,
                                          VKImageViewArrayed::DONT_CARE};
       depth_image_view = depth_texture.image_view_get(image_view_info).vk_handle();
     }
-    VkFormat vk_format = (workarounds.dynamic_rendering_unused_attachments &&
+    VkFormat vk_format = (!extensions.dynamic_rendering_unused_attachments &&
                           depth_image_view == VK_NULL_HANDLE) ?
                              VK_FORMAT_UNDEFINED :
                              to_vk_format(depth_texture.device_format_get());
@@ -965,7 +972,7 @@ void VKFrameBuffer::rendering_ensure_dynamic_rendering(VKContext &context,
     break;
   }
 
-  context.render_graph.add_node(begin_rendering);
+  context.render_graph().add_node(begin_rendering);
 }
 
 void VKFrameBuffer::rendering_ensure(VKContext &context)
@@ -986,13 +993,13 @@ void VKFrameBuffer::rendering_ensure(VKContext &context)
   }
 #endif
 
-  const VKWorkarounds &workarounds = VKBackend::get().device.workarounds_get();
+  const VKExtensions &extensions = VKBackend::get().device.extensions_get();
   is_rendering_ = true;
-  if (workarounds.dynamic_rendering) {
-    rendering_ensure_render_pass(context);
+  if (extensions.dynamic_rendering) {
+    rendering_ensure_dynamic_rendering(context, extensions);
   }
   else {
-    rendering_ensure_dynamic_rendering(context, workarounds);
+    rendering_ensure_render_pass(context);
   }
   dirty_attachments_ = false;
   dirty_state_ = false;
@@ -1018,14 +1025,14 @@ void VKFrameBuffer::rendering_end(VKContext &context)
   }
 
   if (is_rendering_) {
-    const VKWorkarounds &workarounds = VKBackend::get().device.workarounds_get();
+    const VKExtensions &extensions = VKBackend::get().device.extensions_get();
     render_graph::VKEndRenderingNode::CreateInfo end_rendering = {};
     end_rendering.vk_render_pass = VK_NULL_HANDLE;
-    if (workarounds.dynamic_rendering) {
+    if (!extensions.dynamic_rendering) {
       BLI_assert(vk_render_pass);
       end_rendering.vk_render_pass = vk_render_pass;
     }
-    context.render_graph.add_node(end_rendering);
+    context.render_graph().add_node(end_rendering);
     is_rendering_ = false;
   }
 }

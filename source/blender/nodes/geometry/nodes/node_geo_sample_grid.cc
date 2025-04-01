@@ -2,9 +2,10 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "DNA_userdef_types.h"
+
 #include "BKE_type_conversions.hh"
 #include "BKE_volume_grid.hh"
-#include "BKE_volume_openvdb.hh"
 
 #include "NOD_rna_define.hh"
 #include "NOD_socket_search_link.hh"
@@ -283,16 +284,17 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeSampleGrid", GEO_NODE_SAMPLE_GRID, NODE_CLASS_CONVERTER);
+  geo_node_type_base(&ntype, "GeometryNodeSampleGrid", GEO_NODE_SAMPLE_GRID);
   ntype.ui_name = "Sample Grid";
   ntype.enum_name_legacy = "SAMPLE_GRID";
+  ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.initfunc = node_init;
   ntype.declare = node_declare;
   ntype.gather_link_search_ops = node_gather_link_search_ops;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.draw_buttons = node_layout;
   ntype.geometry_node_execute = node_geo_exec;
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

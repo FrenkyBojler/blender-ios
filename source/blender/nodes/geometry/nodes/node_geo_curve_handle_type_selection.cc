@@ -26,7 +26,7 @@ static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeGeometryCurveSelectHandles *data = MEM_cnew<NodeGeometryCurveSelectHandles>(__func__);
+  NodeGeometryCurveSelectHandles *data = MEM_callocN<NodeGeometryCurveSelectHandles>(__func__);
 
   data->handle_type = GEO_NODE_CURVE_HANDLE_AUTO;
   data->mode = GEO_NODE_CURVE_HANDLE_LEFT | GEO_NODE_CURVE_HANDLE_RIGHT;
@@ -134,23 +134,22 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype,
-                     "GeometryNodeCurveHandleTypeSelection",
-                     GEO_NODE_CURVE_HANDLE_TYPE_SELECTION,
-                     NODE_CLASS_INPUT);
+  geo_node_type_base(
+      &ntype, "GeometryNodeCurveHandleTypeSelection", GEO_NODE_CURVE_HANDLE_TYPE_SELECTION);
   ntype.ui_name = "Handle Type Selection";
   ntype.ui_description = "Provide a selection based on the handle types of Bézier control points";
   ntype.enum_name_legacy = "CURVE_HANDLE_TYPE_SELECTION";
+  ntype.nclass = NODE_CLASS_INPUT;
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.initfunc = node_init;
-  blender::bke::node_type_storage(&ntype,
+  blender::bke::node_type_storage(ntype,
                                   "NodeGeometryCurveSelectHandles",
                                   node_free_standard_storage,
                                   node_copy_standard_storage);
   ntype.draw_buttons = node_layout;
 
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

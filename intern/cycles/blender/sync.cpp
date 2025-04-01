@@ -53,13 +53,11 @@ BlenderSync::BlenderSync(BL::RenderEngine &b_engine,
       object_map(scene),
       procedural_map(scene),
       geometry_map(scene),
-      light_map(scene),
       particle_system_map(scene),
       world_map(nullptr),
       world_recalc(false),
       scene(scene),
       preview(preview),
-      experimental(false),
       use_developer_ui(use_developer_ui),
       dicing_rate(1.0f),
       max_subdivisions(12),
@@ -101,7 +99,7 @@ void BlenderSync::sync_recalc(BL::Depsgraph &b_depsgraph, BL::SpaceView3D &b_v3d
   /* Sync recalc flags from blender to cycles. Actual update is done separate,
    * so we can do it later on if doing it immediate is not suitable. */
 
-  if (experimental) {
+  if (use_adaptive_subdivision) {
     /* Mark all meshes as needing to be exported again if dicing changed. */
     PointerRNA cscene = RNA_pointer_get(&b_scene.ptr, "cycles");
     bool dicing_prop_changed = false;
@@ -156,6 +154,7 @@ void BlenderSync::sync_recalc(BL::Depsgraph &b_depsgraph, BL::SpaceView3D &b_v3d
     else if (b_id.is_a(&RNA_Light)) {
       const BL::Light b_light(b_id);
       shader_map.set_recalc(b_light);
+      geometry_map.set_recalc(b_light);
     }
     /* Object */
     else if (b_id.is_a(&RNA_Object)) {
@@ -177,17 +176,21 @@ void BlenderSync::sync_recalc(BL::Depsgraph &b_depsgraph, BL::SpaceView3D &b_v3d
             object_map.set_recalc(b_ob);
           }
 
-          if (updated_geometry ||
-              (object_subdivision_type(b_ob, preview, experimental) != Mesh::SUBDIVISION_NONE))
-          {
-            BL::ID const key = BKE_object_is_modified(b_ob) ? b_ob : b_ob.data();
+          const bool use_adaptive_subdiv = object_subdivision_type(
+                                               b_ob, preview, use_adaptive_subdivision) !=
+                                           Mesh::SUBDIVISION_NONE;
+
+          if (updated_geometry || use_adaptive_subdiv) {
+            BL::ID const key = BKE_object_is_modified(b_ob) ?
+                                   b_ob :
+                                   object_get_data(b_ob, use_adaptive_subdiv);
             geometry_map.set_recalc(key);
 
             /* Sync all contained geometry instances as well when the object changed.. */
             const map<void *, set<BL::ID>>::const_iterator instance_geometries =
                 instance_geometries_by_object.find(b_ob.ptr.data);
             if (instance_geometries != instance_geometries_by_object.end()) {
-              for (BL::ID const geometry : instance_geometries->second) {
+              for (BL::ID const &geometry : instance_geometries->second) {
                 geometry_map.set_recalc(geometry);
               }
             }
@@ -206,11 +209,11 @@ void BlenderSync::sync_recalc(BL::Depsgraph &b_depsgraph, BL::SpaceView3D &b_v3d
         else if (is_light) {
           if (b_update.is_updated_transform() || b_update.is_updated_shading()) {
             object_map.set_recalc(b_ob);
-            light_map.set_recalc(b_ob);
+            geometry_map.set_recalc(b_ob);
           }
 
           if (updated_geometry) {
-            light_map.set_recalc(b_ob);
+            geometry_map.set_recalc(b_ob);
           }
         }
       }
@@ -314,7 +317,9 @@ void BlenderSync::sync_integrator(BL::ViewLayer &b_view_layer,
 {
   PointerRNA cscene = RNA_pointer_get(&b_scene.ptr, "cycles");
 
-  experimental = (get_enum(cscene, "feature_set") != 0);
+  /* No adaptive subdivision for baking, mesh needs to match Blender exactly. */
+  use_adaptive_subdivision = (get_enum(cscene, "feature_set") != 0) && !b_bake_target;
+  use_experimental_procedural = (get_enum(cscene, "feature_set") != 0);
 
   Integrator *integrator = scene->integrator;
 
@@ -827,7 +832,7 @@ void BlenderSync::free_data_after_sync(BL::Depsgraph &b_depsgraph)
   for (BL::Object &b_ob : b_depsgraph.objects) {
     /* Grease pencil render requires all evaluated objects available as-is after Cycles is done
      * with its part. */
-    if (b_ob.type() == BL::Object::type_GREASEPENCIL || b_ob.type() == BL::Object::type_GPENCIL) {
+    if (b_ob.type() == BL::Object::type_GREASEPENCIL) {
       continue;
     }
     b_ob.cache_release();
@@ -928,25 +933,26 @@ SessionParams BlenderSync::get_session_params(BL::RenderEngine &b_engine,
   /* samples */
   const int samples = get_int(cscene, "samples");
   const int preview_samples = get_int(cscene, "preview_samples");
-  const int sample_offset = get_int(cscene, "sample_offset");
+  const bool use_sample_subset = get_boolean(cscene, "use_sample_subset");
+  const int sample_subset_offset = get_int(cscene, "sample_offset");
+  const int sample_subset_length = get_int(cscene, "sample_subset_length");
 
   if (background) {
     params.samples = samples;
-    params.sample_offset = sample_offset;
+
+    params.use_sample_subset = use_sample_subset;
+    params.sample_subset_offset = sample_subset_offset;
+    params.sample_subset_length = sample_subset_length;
   }
   else {
     params.samples = preview_samples;
     if (params.samples == 0) {
       params.samples = INT_MAX;
     }
-    params.sample_offset = 0;
+    params.use_sample_subset = false;
+    params.sample_subset_offset = 0;
+    params.sample_subset_length = 0;
   }
-
-  /* Clamp sample offset. */
-  params.sample_offset = clamp(params.sample_offset, 0, Integrator::MAX_SAMPLES);
-
-  /* Clamp samples. */
-  params.samples = clamp(params.samples, 0, Integrator::MAX_SAMPLES - params.sample_offset);
 
   /* Viewport Performance */
   params.pixel_size = b_engine.get_preview_pixel_size(b_scene);

@@ -607,19 +607,18 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype,
-                     "GeometryNodeDistributePointsOnFaces",
-                     GEO_NODE_DISTRIBUTE_POINTS_ON_FACES,
-                     NODE_CLASS_GEOMETRY);
+  geo_node_type_base(
+      &ntype, "GeometryNodeDistributePointsOnFaces", GEO_NODE_DISTRIBUTE_POINTS_ON_FACES);
   ntype.ui_name = "Distribute Points on Faces";
   ntype.ui_description = "Generate points spread out on the surface of a mesh";
   ntype.enum_name_legacy = "DISTRIBUTE_POINTS_ON_FACES";
-  blender::bke::node_type_size(&ntype, 170, 100, 320);
+  ntype.nclass = NODE_CLASS_GEOMETRY;
+  blender::bke::node_type_size(ntype, 170, 100, 320);
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.draw_buttons = node_layout;
   ntype.draw_buttons_ex = node_layout_ex;
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

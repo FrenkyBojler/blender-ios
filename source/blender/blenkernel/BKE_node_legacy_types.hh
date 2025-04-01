@@ -2,6 +2,10 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+/** \file
+ * \ingroup bke
+ */
+
 #pragma once
 
 /**
@@ -11,6 +15,8 @@
  * changed.
  *
  * See #bNode::type_legacy for more information.
+ *
+ * NOTE: Values here must not be larger than #NODE_LEGACY_TYPE_GENERATION_START.
  */
 
 /* -------------------------------------------------------------------- */
@@ -246,6 +252,7 @@
 #define CMP_NODE_COMBINE_XYZ 331
 #define CMP_NODE_COMBINE_COLOR 332
 #define CMP_NODE_SEPARATE_COLOR 333
+#define CMP_NODE_IMAGE_INFO 334
 
 /* channel toggles */
 #define CMP_CHAN_RGB 1

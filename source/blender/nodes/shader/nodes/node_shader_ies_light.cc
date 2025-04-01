@@ -44,7 +44,7 @@ static void node_shader_buts_ies(uiLayout *layout, bContext * /*C*/, PointerRNA 
 
 static void node_shader_init_tex_ies(bNodeTree * /*ntree*/, bNode *node)
 {
-  NodeShaderTexIES *tex = MEM_cnew<NodeShaderTexIES>("NodeShaderIESLight");
+  NodeShaderTexIES *tex = MEM_callocN<NodeShaderTexIES>("NodeShaderIESLight");
   node->storage = tex;
 }
 
@@ -57,17 +57,18 @@ void register_node_type_sh_tex_ies()
 
   static blender::bke::bNodeType ntype;
 
-  sh_node_type_base(&ntype, "ShaderNodeTexIES", SH_NODE_TEX_IES, NODE_CLASS_TEXTURE);
+  sh_node_type_base(&ntype, "ShaderNodeTexIES", SH_NODE_TEX_IES);
   ntype.ui_name = "IES Texture";
   ntype.ui_description =
       "Match real world lights with IES files, which store the directional intensity distribution "
       "of light sources";
   ntype.enum_name_legacy = "TEX_IES";
+  ntype.nclass = NODE_CLASS_TEXTURE;
   ntype.declare = file_ns::node_declare;
   ntype.draw_buttons = file_ns::node_shader_buts_ies;
   ntype.initfunc = file_ns::node_shader_init_tex_ies;
   blender::bke::node_type_storage(
-      &ntype, "NodeShaderTexIES", node_free_standard_storage, node_copy_standard_storage);
+      ntype, "NodeShaderTexIES", node_free_standard_storage, node_copy_standard_storage);
 
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }

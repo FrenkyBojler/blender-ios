@@ -70,7 +70,7 @@ static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeGeometryVolumeToMesh *data = MEM_cnew<NodeGeometryVolumeToMesh>(__func__);
+  NodeGeometryVolumeToMesh *data = MEM_callocN<NodeGeometryVolumeToMesh>(__func__);
   data->resolution_mode = VOLUME_TO_MESH_RESOLUTION_MODE_GRID;
   node->storage = data;
 }
@@ -244,19 +244,19 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(
-      &ntype, "GeometryNodeVolumeToMesh", GEO_NODE_VOLUME_TO_MESH, NODE_CLASS_GEOMETRY);
+  geo_node_type_base(&ntype, "GeometryNodeVolumeToMesh", GEO_NODE_VOLUME_TO_MESH);
   ntype.ui_name = "Volume to Mesh";
   ntype.ui_description = "Generate a mesh on the \"surface\" of a volume";
   ntype.enum_name_legacy = "VOLUME_TO_MESH";
+  ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.declare = node_declare;
   blender::bke::node_type_storage(
-      &ntype, "NodeGeometryVolumeToMesh", node_free_standard_storage, node_copy_standard_storage);
-  blender::bke::node_type_size(&ntype, 170, 120, 700);
+      ntype, "NodeGeometryVolumeToMesh", node_free_standard_storage, node_copy_standard_storage);
+  blender::bke::node_type_size(ntype, 170, 120, 700);
   ntype.initfunc = node_init;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.draw_buttons = node_layout;
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

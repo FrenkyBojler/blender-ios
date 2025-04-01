@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.4.0 Alpha (b'52cb367a9b67')\n"
+"Project-Id-Version: Blender 4.5.0 Alpha (b'409ce2b976cf')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-01-13 11:47+0000\n"
+"POT-Creation-Date: 2025-03-24 09:38+0000\n"
 "PO-Revision-Date: 2024-11-14 16:56+0000\n"
 "Last-Translator: Aras Pranckevičius <aras@nesnausk.org>\n"
 "Language-Team: Lithuanian <https://translate.blender.org/projects/blender-ui/ui/lt/>\n"
@@ -37,10 +37,6 @@ msgstr "Reikšmė"
 
 msgid "Action F-Curves"
 msgstr "Veiksmo „F“-kreivės"
-
-
-msgid "Collection of action F-Curves"
-msgstr "Veiksmo „F“-kreivių rinkinys"
 
 
 msgid "Groups of F-Curves"
@@ -157,26 +153,6 @@ msgstr "Pasirinkti"
 
 msgid "Expanded"
 msgstr "Išplėsta/-s"
-
-
-msgid "Mix Mode"
-msgstr "Maišymo veiksena"
-
-
-msgid "Replace"
-msgstr "Pakeisti"
-
-
-msgid "Add"
-msgstr "Pridėti"
-
-
-msgid "Subtract"
-msgstr "Atimti"
-
-
-msgid "Multiply"
-msgstr "Dauginti"
 
 
 msgid "Strips"
@@ -404,10 +380,6 @@ msgid "Auto"
 msgstr "Automatinis/-iškas"
 
 
-msgid "HIP RT (Experimental)"
-msgstr "„HIP RT“ (Eksperimentinis)"
-
-
 msgid "        Filter by Name"
 msgstr "        Filtruoti pagal pavadinimą"
 
@@ -448,8 +420,24 @@ msgid "Action"
 msgstr "Veiksmas"
 
 
+msgid "Replace"
+msgstr "Pakeisti"
+
+
 msgid "Combine"
 msgstr "Sujungti"
+
+
+msgid "Add"
+msgstr "Pridėti"
+
+
+msgid "Subtract"
+msgstr "Atimti"
+
+
+msgid "Multiply"
+msgstr "Dauginti"
 
 
 msgid "Hold"
@@ -1494,6 +1482,10 @@ msgstr "Įvestis"
 
 msgid "Error"
 msgstr "Klaida"
+
+
+msgid "Mix Mode"
+msgstr "Maišymo veiksena"
 
 
 msgid "X"
@@ -3157,16 +3149,16 @@ msgid "Dots"
 msgstr "Taškai"
 
 
-msgid "Show/Hide"
-msgstr "Rodyti/Slėpti"
-
-
 msgid "Apply"
 msgstr "Pritaikyti"
 
 
 msgid "Track"
 msgstr "Sekti"
+
+
+msgid "Show/Hide"
+msgstr "Rodyti/Slėpti"
 
 
 msgid "Text"
@@ -3516,10 +3508,6 @@ msgstr "Veiksena"
 msgctxt "Python console"
 msgid "Language"
 msgstr "Kalba"
-
-
-msgid "Animation mode"
-msgstr "Animacijos/-ų veiksena"
 
 
 msgid "Object settings"
@@ -4472,10 +4460,6 @@ msgid "New"
 msgstr "Nauja/-s/-i"
 
 
-msgid "*Unsaved Changes"
-msgstr "*Neišsaugoti pakeitimai"
-
-
 msgid "Blender IDs"
 msgstr "„Blender“ ID (dgs.)"
 
@@ -4591,13 +4575,13 @@ msgid "objects"
 msgstr "objektai"
 
 
+msgid "Cancel"
+msgstr "Atšaukti"
+
+
 msgctxt "WindowManager"
 msgid "Search"
 msgstr "Paieška"
-
-
-msgid "Cancel"
-msgstr "Atšaukti"
 
 
 msgctxt "Action"
@@ -4760,10 +4744,6 @@ msgstr "Importuoti „{}“ failus"
 msgctxt "Object"
 msgid "Magnet"
 msgstr "Magnetas"
-
-
-msgid "Fluid: %s canceled!"
-msgstr "Skystis: %s atšaukta/-s!"
 
 
 msgid "Blender Info Log"

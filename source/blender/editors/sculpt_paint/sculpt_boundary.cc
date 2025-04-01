@@ -9,14 +9,15 @@
 
 #include "BLI_array_utils.hh"
 #include "BLI_enumerable_thread_specific.hh"
+#include "BLI_math_geom.h"
 #include "BLI_math_rotation_legacy.hh"
 #include "BLI_math_vector.hh"
-#include "BLI_task.h"
 
 #include "DNA_brush_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_object_types.h"
 
+#include "BKE_attribute.hh"
 #include "BKE_brush.hh"
 #include "BKE_ccg.hh"
 #include "BKE_colortools.hh"
@@ -130,7 +131,7 @@ static bool is_vert_in_editable_boundary_bmesh(BMVert &initial_vert)
   int neighbor_count = 0;
   int boundary_vertex_count = 0;
 
-  Vector<BMVert *, 64> neighbors;
+  BMeshNeighborVerts neighbors;
   for (BMVert *neighbor : vert_neighbors_get_bmesh(initial_vert, neighbors)) {
     if (!BM_elem_flag_test(neighbor, BM_ELEM_HIDDEN)) {
       neighbor_count++;
@@ -695,7 +696,7 @@ static void edit_data_init_bmesh(BMesh *bm,
 
       const int from_v_i = BM_elem_index_get(from_v);
 
-      Vector<BMVert *, 64> neighbors;
+      BMeshNeighborVerts neighbors;
       for (BMVert *neighbor : vert_neighbors_get_bmesh(*from_v, neighbors)) {
         const int neighbor_idx = BM_elem_index_get(neighbor);
         if (BM_elem_flag_test(neighbor, BM_ELEM_HIDDEN) ||
@@ -1361,7 +1362,7 @@ static void do_bend_brush(const Depsgraph &depsgraph,
     }
   }
   pbvh.tag_positions_changed(node_mask);
-  bke::pbvh::flush_bounds_to_parents(pbvh);
+  pbvh.flush_bounds_to_parents();
 }
 
 /** \} */
@@ -1643,7 +1644,7 @@ static void do_slide_brush(const Depsgraph &depsgraph,
     }
   }
   pbvh.tag_positions_changed(node_mask);
-  bke::pbvh::flush_bounds_to_parents(pbvh);
+  pbvh.flush_bounds_to_parents();
 }
 
 /** \} */
@@ -1908,7 +1909,7 @@ static void do_inflate_brush(const Depsgraph &depsgraph,
     }
   }
   pbvh.tag_positions_changed(node_mask);
-  bke::pbvh::flush_bounds_to_parents(pbvh);
+  pbvh.flush_bounds_to_parents();
 }
 
 /** \} */
@@ -2179,7 +2180,7 @@ static void do_grab_brush(const Depsgraph &depsgraph,
     }
   }
   pbvh.tag_positions_changed(node_mask);
-  bke::pbvh::flush_bounds_to_parents(pbvh);
+  pbvh.flush_bounds_to_parents();
 }
 
 /** \} */
@@ -2458,7 +2459,7 @@ static void do_twist_brush(const Depsgraph &depsgraph,
     }
   }
   pbvh.tag_positions_changed(node_mask);
-  bke::pbvh::flush_bounds_to_parents(pbvh);
+  pbvh.flush_bounds_to_parents();
 }
 
 /** \} */
@@ -2820,7 +2821,7 @@ static void do_smooth_brush(const Depsgraph &depsgraph,
     }
   }
   pbvh.tag_positions_changed(node_mask);
-  bke::pbvh::flush_bounds_to_parents(pbvh);
+  pbvh.flush_bounds_to_parents();
 }
 
 /* -------------------------------------------------------------------- */

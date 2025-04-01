@@ -6,8 +6,6 @@
  * \ingroup edsculpt
  */
 
-#include "MEM_guardedalloc.h"
-
 #include "BLI_enumerable_thread_specific.hh"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
@@ -469,7 +467,7 @@ static void grow_factors_bmesh(const ePaintSymmetryFlags symm,
 {
   const Set<BMVert *, 0> &verts = BKE_pbvh_bmesh_node_unique_verts(&node);
 
-  Vector<BMVert *, 64> neighbors;
+  BMeshNeighborVerts neighbors;
 
   for (BMVert *bm_vert : verts) {
     const int vert = BM_elem_index_get(bm_vert);
@@ -485,7 +483,7 @@ static void grow_factors_bmesh(const ePaintSymmetryFlags symm,
     }
 
     if (max > prev_mask[vert]) {
-      const float3 &position = bm_vert->co;
+      const float3 position = bm_vert->co;
       pose_factor[vert] = max;
       if (SCULPT_check_vertex_pivot_symmetry(position, pose_initial_position, symm)) {
         gftd.pos_avg += position;
@@ -650,7 +648,7 @@ static bool vert_inside_brush_radius(const float3 &vertex,
                                      char symm)
 {
   for (char i = 0; i <= symm; ++i) {
-    if (SCULPT_is_symmetry_iteration_valid(i, symm)) {
+    if (is_symmetry_iteration_valid(i, symm)) {
       const float3 location = symmetry_flip(br_co, ePaintSymmetryFlags(i));
       if (math::distance(location, vertex) < radius) {
         return true;
@@ -1372,7 +1370,7 @@ static std::unique_ptr<IKChain> ik_chain_init_face_sets_bmesh(Object &object,
   SegmentData current_data = {std::get<BMVert *>(ss.active_vert()), SCULPT_FACE_SET_NONE};
 
   const int symm = SCULPT_mesh_symmetry_xyz_get(object);
-  Vector<BMVert *, 64> neighbors;
+  BMeshNeighborVerts neighbors;
   for (const int i : ik_chain->segments.index_range()) {
     const bool is_first_iteration = i == 0;
 
@@ -2143,7 +2141,7 @@ void do_pose_brush(const Depsgraph &depsgraph,
   switch (pbvh.type()) {
     case bke::pbvh::Type::Mesh: {
       Mesh &mesh = *static_cast<Mesh *>(ob.data);
-      const MeshAttributeData attribute_data(mesh.attributes());
+      const MeshAttributeData attribute_data(mesh);
       MutableSpan<bke::pbvh::MeshNode> nodes = pbvh.nodes<bke::pbvh::MeshNode>();
       const PositionDeformData position_data(depsgraph, ob);
       node_mask.foreach_index(GrainSize(1), [&](const int i) {
@@ -2175,7 +2173,7 @@ void do_pose_brush(const Depsgraph &depsgraph,
     }
   }
   pbvh.tag_positions_changed(node_mask);
-  bke::pbvh::flush_bounds_to_parents(pbvh);
+  pbvh.flush_bounds_to_parents();
 }
 
 }  // namespace blender::ed::sculpt_paint::pose
