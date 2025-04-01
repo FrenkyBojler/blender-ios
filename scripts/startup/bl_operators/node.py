@@ -297,7 +297,7 @@ class NodeInterfaceOperator():
 
 def group_or_edit_tree(context):
     node = context.active_node
-    if node and node.select and node.bl_idname == "GeometryNodeGroup":
+    if node and node.select and node.type == "GROUP":
         return node.node_tree
     else:
         return context.space_data.edit_tree
