@@ -189,7 +189,7 @@ ModifierTypeInfo modifierType_Curve = {
     /*srna*/ &RNA_CurveModifier,
     /*type*/ ModifierTypeType::OnlyDeform,
     /*flags*/ eModifierTypeFlag_AcceptsCVs | eModifierTypeFlag_AcceptsVertexCosOnly |
-        eModifierTypeFlag_SupportsEditmode | eModifierTypeFlag_NoUserAdd,
+        eModifierTypeFlag_SupportsEditmode,
     /*icon*/ ICON_MOD_CURVE,
 
     /*copy_data*/ BKE_modifier_copydata_generic,
