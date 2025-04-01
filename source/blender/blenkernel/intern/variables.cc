@@ -538,7 +538,7 @@ bool BKE_path_apply_variables(char path[FILE_MAX], const VariableMap &variables)
                                token->replacement_range.one_after_last(),
                                "{");
 
-      bytes_processed += 1;
+      bytes_processed += token->replacement_range.start() + 1;
       was_modified = true;
       continue;
     }
@@ -549,7 +549,7 @@ bool BKE_path_apply_variables(char path[FILE_MAX], const VariableMap &variables)
                                token->replacement_range.one_after_last(),
                                "}");
 
-      bytes_processed += 1;
+      bytes_processed += token->replacement_range.start() + 1;
       was_modified = true;
       continue;
     }

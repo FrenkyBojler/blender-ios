@@ -192,6 +192,13 @@ TEST(blender_variables, path_apply_variables)
     EXPECT_EQ(blender::StringRef(path), "{hi_hello_goodbye");
   }
 
+  /* Malformed syntax: escaped braces inside variable. */
+  {
+    char path[FILE_MAX] = "{hi_{{hi}}_{bye}";
+    BKE_path_apply_variables(path, variables);
+    EXPECT_EQ(blender::StringRef(path), "{hi_{hi}_goodbye");
+  }
+
   /* Test what happens when the path would expand to a string that's longer than
    * `FILE_MAX`.
    *
@@ -216,8 +223,6 @@ TEST(blender_variables, path_apply_variables)
         "long}{long}{long}{long}{long}{long}{long}{long}{long}{long}{long}";
     const char result[FILE_MAX] =
         "___This string is exactly 32 bytes.This string is exactly 32 bytes.This string is "
-        "exactly "
-        "32 bytes.This string is exactly 32 bytes.This string is exactly 32 bytes.This string is "
         "exactly 32 bytes.This string is exactly 32 bytes.This string is exactly 32 bytes.This "
         "string is exactly 32 bytes.This string is exactly 32 bytes.This string is exactly 32 "
         "bytes.This string is exactly 32 bytes.This string is exactly 32 bytes.This string is "
@@ -227,7 +232,8 @@ TEST(blender_variables, path_apply_variables)
         "exactly 32 bytes.This string is exactly 32 bytes.This string is exactly 32 bytes.This "
         "string is exactly 32 bytes.This string is exactly 32 bytes.This string is exactly 32 "
         "bytes.This string is exactly 32 bytes.This string is exactly 32 bytes.This string is "
-        "exactly 32 bytes.This string is exactly 32 bytes.This string is exactly 32 by";
+        "exactly 32 bytes.This string is exactly 32 bytes.This string is exactly 32 bytes.This "
+        "string is exactly 32 bytes.This string is exactly 32 bytes.This string is exactly 32 by";
     BKE_path_apply_variables(path, variables);
     EXPECT_EQ(blender::StringRef(path), blender::StringRef(result));
   }
