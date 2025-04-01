@@ -5,3 +5,4 @@
 include("${CMAKE_CURRENT_LIST_DIR}/../../cmake/config/blender_release.cmake")
 
 set(WITH_CYCLES_TEST_OSL     ON CACHE BOOL "" FORCE)
+set(WITH_UI_TESTS            ON CACHE BOOL "" FORCE)
