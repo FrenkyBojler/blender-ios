@@ -838,6 +838,45 @@ ID *WM_drag_asset_id_import(const bContext *C, wmDragAsset *asset_drag, const in
   return nullptr;
 }
 
+static blender::Vector<ID *> wm_drag_asset_id_batch_import(const bContext *C,
+                                                           LibraryIDReferences &datablocks,
+                                                           eAssetImportMethod import_method,
+                                                           const int flag_extra)
+{
+  /* #eFileSel_Params_Flag + #eBLOLibLinkFlags */
+  int flag = flag_extra | FILE_ACTIVE_COLLECTION;
+
+  Main *bmain = CTX_data_main(C);
+  Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  View3D *view3d = CTX_wm_view3d(C);
+
+  switch (import_method) {
+    case ASSET_IMPORT_LINK:
+      return WM_file_link_datablocks(bmain, scene, view_layer, view3d, datablocks, flag);
+    case ASSET_IMPORT_APPEND:
+      return WM_file_append_datablocks(bmain,
+                                       scene,
+                                       view_layer,
+                                       view3d,
+                                       datablocks,
+                                       flag | BLO_LIBLINK_APPEND_RECURSIVE |
+                                           BLO_LIBLINK_APPEND_ASSET_DATA_CLEAR);
+    case ASSET_IMPORT_APPEND_REUSE:
+      return WM_file_append_datablocks(G_MAIN,
+                                       scene,
+                                       view_layer,
+                                       view3d,
+                                       datablocks,
+                                       flag | BLO_LIBLINK_APPEND_RECURSIVE |
+                                           BLO_LIBLINK_APPEND_ASSET_DATA_CLEAR |
+                                           BLO_LIBLINK_APPEND_LOCAL_ID_REUSE);
+  }
+
+  BLI_assert_unreachable();
+  return {};
+}
+
 blender::Vector<ID *> WM_drag_asset_list_id_import_all(const bContext *C,
                                                        const wmDrag *drag,
                                                        const int flag_extra)
@@ -849,17 +888,80 @@ blender::Vector<ID *> WM_drag_asset_list_id_import_all(const bContext *C,
 
   blender::Vector<ID *> dropped_ids;
 
-  /* TODO API to import multiple IDs. */
+  struct ItemImportParams {
+    std::string filepath;
+    eAssetImportMethod import_method;
+    int extra_flags;
+    bool operator==(const ItemImportParams &other) const
+    {
+      return (this->filepath == other.filepath) && this->import_method == other.import_method &&
+             this->extra_flags == other.extra_flags;
+    }
+    uint64_t hash() const
+    {
+      return blender::get_default_hash(filepath, import_method, extra_flags);
+    }
+  };
+
+  blender::Map<ItemImportParams, int> added_refs_with_idx;
+  blender::Vector<std::pair<LibraryIDReferences, ItemImportParams>> refs_to_import;
+
   const ListBase *asset_drags = WM_drag_asset_list_get(drag);
   LISTBASE_FOREACH (wmDragAssetListItem *, asset_item, asset_drags) {
     if (asset_item->is_external) {
-      ID *id = WM_drag_asset_id_import(C, asset_item->asset_data.external_info, flag_extra);
-      dropped_ids.append(id);
+      const wmDragAsset *asset_drag = asset_item->asset_data.external_info;
+
+      const std::string blend_path = asset_drag->asset->full_library_path();
+      const char *id_name = asset_drag->asset->get_name().c_str();
+      const ID_Type idcode = asset_drag->asset->get_id_type();
+
+      int item_extra_flags = 0;
+      if (asset_drag->import_settings.use_instance_collections) {
+        item_extra_flags |= BLO_LIBLINK_COLLECTION_INSTANCE;
+      }
+      if (asset_drag->asset->get_use_relative_path()) {
+        item_extra_flags |= FILE_RELPATH;
+      }
+
+      ItemImportParams lookup_params{
+          blend_path,
+          asset_drag->import_settings.method,
+          item_extra_flags,
+      };
+
+      /* Already has a #LibraryIDReferences item with this filepath, import flags and import
+       * method. */
+      if (std::optional<int> idx = added_refs_with_idx.lookup_try(lookup_params)) {
+        BLI_assert(idx < refs_to_import.size());
+        BLI_assert(refs_to_import[*idx].first.filepath == blend_path);
+        BLI_assert(refs_to_import[*idx].second == lookup_params);
+        refs_to_import[*idx].first.id_references.append(
+            LibraryIDReferences::FileIDReference{idcode, id_name});
+      }
+      else {
+        added_refs_with_idx.add(lookup_params, refs_to_import.size());
+
+        LibraryIDReferences library_ids{};
+        library_ids.filepath = blend_path;
+        library_ids.id_references.append(LibraryIDReferences::FileIDReference{idcode, id_name});
+        refs_to_import.append_as(std::move(library_ids), lookup_params);
+      }
     }
     else {
       dropped_ids.append(asset_item->asset_data.local_id);
     }
   }
+
+  for (int i = 0; i < refs_to_import.size(); i++) {
+    auto &[lib_to_import, import_params] = refs_to_import[i];
+
+    blender::Vector<ID *> imported_ids;
+    imported_ids = wm_drag_asset_id_batch_import(
+        C, lib_to_import, import_params.import_method, flag_extra | import_params.extra_flags);
+    dropped_ids.extend(imported_ids);
+  }
+
+  /* TODO: Preserve order somehow? */
 
   return dropped_ids;
 }

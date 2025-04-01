@@ -452,6 +452,41 @@ ID *WM_file_append_datablock(Main *bmain,
                              short id_code,
                              const char *id_name,
                              int flag);
+struct LibraryIDReferences {
+  struct FileIDReference {
+    ID_Type id_code;
+    const char *id_name;
+  };
+
+  std::string filepath;
+  blender::Vector<FileIDReference> id_references;
+};
+/**
+ * \note `scene` (and related `view_layer` and `v3d`) pointers may be NULL,
+ * in which case no instantiation of linked objects, collections etc. will be performed.
+ * \note The caller might want to deduplicate libraries in \a datablocks, otherwise the same
+ * library file may be opened multiple times. Such de-duplication has a user visible effect though:
+ * Since it changes the order in which IDs are linked/appended, names might be made unique in
+ * different order, and naming ends up slightly different than without deduplication.
+ *
+ * \return The data-blocks that were linked directly excluding indirectly linked dependencies. I.e.
+ * the successfully imported IDs referenced in \a datablocks.
+ */
+blender::Vector<ID *> WM_file_link_datablocks(Main *bmain,
+                                              Scene *scene,
+                                              ViewLayer *view_layer,
+                                              View3D *v3d,
+                                              LibraryIDReferences &datablocks,
+                                              int flag);
+/**
+ * Variation of #WM_file_link_datablocks() that does appending, refer to its documentation.
+ */
+blender::Vector<ID *> WM_file_append_datablocks(Main *bmain,
+                                                Scene *scene,
+                                                ViewLayer *view_layer,
+                                                View3D *v3d,
+                                                LibraryIDReferences &datablocks,
+                                                int flag);
 void WM_lib_reload(Library *lib, bContext *C, ReportList *reports);
 
 /* Mouse cursors. */

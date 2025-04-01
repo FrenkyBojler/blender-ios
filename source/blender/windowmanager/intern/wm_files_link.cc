@@ -515,14 +515,12 @@ void WM_OT_append(wmOperatorType *ot)
  *
  * \{ */
 
-static ID *wm_file_link_append_datablock_ex(Main *bmain,
-                                            Scene *scene,
-                                            ViewLayer *view_layer,
-                                            View3D *v3d,
-                                            const char *filepath,
-                                            const short id_code,
-                                            const char *id_name,
-                                            const int flag)
+static blender::Vector<ID *> wm_file_link_append_datablocks_ex(Main *bmain,
+                                                               Scene *scene,
+                                                               ViewLayer *view_layer,
+                                                               View3D *v3d,
+                                                               LibraryIDReferences &refs_to_import,
+                                                               const int flag)
 {
   const bool do_append = (flag & FILE_LINK) == 0;
   /* Tag everything so we can make local only the new datablock. */
@@ -536,10 +534,17 @@ static ID *wm_file_link_append_datablock_ex(Main *bmain,
   BKE_blendfile_link_append_context_embedded_blendfile_set(
       lapp_context, datatoc_startup_blend, datatoc_startup_blend_size);
 
-  BKE_blendfile_link_append_context_library_add(lapp_context, filepath, nullptr);
-  BlendfileLinkAppendContextItem *item = BKE_blendfile_link_append_context_item_add(
-      lapp_context, id_name, id_code, nullptr);
-  BKE_blendfile_link_append_context_item_library_index_enable(lapp_context, item, 0);
+  /* Reserve #datablocks.size() items, but could end up being larger. */
+  blender::Vector<BlendfileLinkAppendContextItem *> items;
+
+  BKE_blendfile_link_append_context_library_add(
+      lapp_context, refs_to_import.filepath.c_str(), nullptr);
+  for (const LibraryIDReferences::FileIDReference &id_ref : refs_to_import.id_references) {
+    BlendfileLinkAppendContextItem *item = BKE_blendfile_link_append_context_item_add(
+        lapp_context, id_ref.id_name, id_ref.id_code, nullptr);
+    BKE_blendfile_link_append_context_item_library_index_enable(lapp_context, item, 0);
+    items.append(item);
+  }
 
   BKE_blendfile_link_append_context_init_done(lapp_context);
 
@@ -555,13 +560,17 @@ static ID *wm_file_link_append_datablock_ex(Main *bmain,
   BKE_blendfile_link_append_context_finalize(lapp_context);
 
   /* Get linked datablock and free working data. */
-  ID *id = BKE_blendfile_link_append_context_item_newid_get(lapp_context, item);
+  blender::Vector<ID *> result_ids(items.size());
+  std::transform(
+      items.begin(), items.end(), result_ids.begin(), [&](BlendfileLinkAppendContextItem *item) {
+        return BKE_blendfile_link_append_context_item_newid_get(lapp_context, item);
+      });
 
   BKE_blendfile_link_append_context_free(lapp_context);
 
   BKE_main_id_tag_all(bmain, ID_TAG_PRE_EXISTING, false);
 
-  return id;
+  return result_ids;
 }
 
 ID *WM_file_link_datablock(Main *bmain,
@@ -574,8 +583,17 @@ ID *WM_file_link_datablock(Main *bmain,
                            int flag)
 {
   flag |= FILE_LINK;
-  return wm_file_link_append_datablock_ex(
-      bmain, scene, view_layer, v3d, filepath, id_code, id_name, flag);
+
+  LibraryIDReferences library_ids{};
+  library_ids.filepath = filepath;
+  library_ids.id_references.append(
+      LibraryIDReferences::FileIDReference{ID_Type(id_code), id_name});
+
+  /* Returns the directly linked IDs, which should only be one. */
+  blender::Vector<ID *> linked_ids = wm_file_link_append_datablocks_ex(
+      bmain, scene, view_layer, v3d, library_ids, flag);
+  BLI_assert(linked_ids.size() == 1);
+  return linked_ids[0];
 }
 
 ID *WM_file_append_datablock(Main *bmain,
@@ -588,10 +606,46 @@ ID *WM_file_append_datablock(Main *bmain,
                              int flag)
 {
   BLI_assert((flag & FILE_LINK) == 0);
-  ID *id = wm_file_link_append_datablock_ex(
-      bmain, scene, view_layer, v3d, filepath, id_code, id_name, flag);
 
-  return id;
+  LibraryIDReferences library_ids{};
+  library_ids.filepath = filepath;
+  library_ids.id_references.append(
+      LibraryIDReferences::FileIDReference{ID_Type(id_code), id_name});
+
+  /* Returns the directly appened IDs, which should only be one. */
+  blender::Vector<ID *> appended_ids = wm_file_link_append_datablocks_ex(
+      bmain, scene, view_layer, v3d, library_ids, flag);
+  BLI_assert(appended_ids.size() == 1);
+  return appended_ids[0];
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Link/Append Multiple Data-Blocks & Return Them
+ *
+ * \{ */
+
+blender::Vector<ID *> WM_file_link_datablocks(Main *bmain,
+                                              Scene *scene,
+                                              ViewLayer *view_layer,
+                                              View3D *v3d,
+                                              LibraryIDReferences &id_refs,
+                                              int flag)
+{
+  flag |= FILE_LINK;
+  return wm_file_link_append_datablocks_ex(bmain, scene, view_layer, v3d, id_refs, flag);
+}
+
+blender::Vector<ID *> WM_file_append_datablocks(Main *bmain,
+                                                Scene *scene,
+                                                ViewLayer *view_layer,
+                                                View3D *v3d,
+                                                LibraryIDReferences &id_refs,
+                                                int flag)
+{
+  BLI_assert((flag & FILE_LINK) == 0);
+  return wm_file_link_append_datablocks_ex(bmain, scene, view_layer, v3d, id_refs, flag);
 }
 
 /** \} */
