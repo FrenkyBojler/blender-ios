@@ -377,11 +377,56 @@ def _selected_keyframes_for_action_slot(object: Object, rna_path_prefix: str) ->
     return sorted(keyframes)
 
 
+class Clipboard(metaclass=abc.ABCMeta):
+    """Abstract class for interfacing with a clipboard.
+
+    This is mostly here so that unit tests can run the copy/paste operators,
+    even when Blender is running in headless mode and there is no access to the
+    actual clipboard.
+    """
+
+    def __init__(self, window_manager: bpy.types.WindowManager | None):
+        self.window_manager = window_manager
+
+    @abc.abstractmethod
+    def write(self, payload: str) -> None:
+        ...
+
+    @abc.abstractmethod
+    def read(self) -> str:
+        ...
+
+
+class RealClipboard(Clipboard):
+    """Clipboard class that interfaces with the window manager."""
+
+    def write(self, payload: str) -> None:
+        assert self.window_manager is not None
+        self.window_manager.clipboard = payload
+
+    def read(self) -> str:
+        assert self.window_manager is not None
+        payload = self.window_manager.clipboard
+        assert isinstance(payload, str)
+        return payload
+
+
+# Set this in a unit test to some other implementation.
+ClipboardClass = RealClipboard
+
+
 def _copy_matrix_to_clipboard(window_manager: bpy.types.WindowManager, matrix: Matrix) -> None:
     rows = [f"    {tuple(row)!r}," for row in matrix]
     as_string = "\n".join(rows)
-    # TODO: verify that the text got put onto the clipboard correctly.
-    window_manager.clipboard = f"Matrix((\n{as_string}\n))"
+    payload = f"Matrix((\n{as_string}\n))"
+
+    clipboard = ClipboardClass(window_manager)
+    clipboard.write(payload)
+
+    # Verify that the text got put onto the clipboard correctly.
+    if clipboard.read() != payload:
+        msg = "Could not put text onto clipboard, maybe it was too large? ({})".format(len(payload))
+        raise RuntimeError(msg)
 
 
 class OBJECT_OT_copy_global_transform(Operator):
@@ -516,8 +561,9 @@ class OBJECT_OT_paste_transform(Operator):
             cls.poll_message_set("Select an object or pose bone")
             return False
 
-        clipboard = context.window_manager.clipboard.strip()
-        if not (clipboard.startswith("Matrix(") or clipboard.startswith("<Matrix 4x4")):
+        clipboard = ClipboardClass(context.window_manager)
+        payload = clipboard.read().strip()
+        if not (payload.startswith("Matrix(") or payload.startswith("<Matrix 4x4")):
             cls.poll_message_set("Clipboard does not contain a valid matrix")
             return False
         return True
@@ -548,13 +594,14 @@ class OBJECT_OT_paste_transform(Operator):
         return Matrix(floats)
 
     def execute(self, context: Context) -> set[str]:
-        clipboard = context.window_manager.clipboard.strip()
-        if clipboard.startswith("Matrix"):
-            mat = Matrix(ast.literal_eval(clipboard[6:]))
-        elif clipboard.startswith("<Matrix 4x4"):
-            mat = self.parse_repr_m4(clipboard[12:-1])
+        clipboard = ClipboardClass(context.window_manager)
+        payload = clipboard.read().strip()
+        if payload.startswith("Matrix"):
+            mat = Matrix(ast.literal_eval(payload[6:]))
+        elif payload.startswith("<Matrix 4x4"):
+            mat = self.parse_repr_m4(payload[12:-1])
         else:
-            mat = self.parse_print_m4(clipboard)
+            mat = self.parse_print_m4(payload)
 
         if mat is None:
             self.report({'ERROR'}, "Clipboard does not contain a valid matrix")
