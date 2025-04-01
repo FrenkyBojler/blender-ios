@@ -1007,7 +1007,7 @@ static void square_points(blender::int2 &p1, blender::int2 &p2)
   p2.y = p1.y + delta.y;
 }
 
-static int screenshot_preview_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus screenshot_preview_exec(bContext *C, wmOperator *op)
 {
   ED_preview_kill_jobs(CTX_wm_manager(C), CTX_data_main(C));
 
@@ -1121,7 +1121,7 @@ static void screenshot_preview_exit(bContext *C, wmOperator *op)
   MEM_freeN(data);
 }
 
-static int screenshot_preview_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus screenshot_preview_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   ARegion *region = CTX_wm_region(C);
 
@@ -1162,7 +1162,9 @@ static int screenshot_preview_modal(bContext *C, wmOperator *op, const wmEvent *
   return OPERATOR_RUNNING_MODAL;
 }
 
-static int screenshot_preview_invoke(bContext *C, wmOperator *op, const wmEvent * /* event */)
+static wmOperatorStatus screenshot_preview_invoke(bContext *C,
+                                                  wmOperator *op,
+                                                  const wmEvent * /* event */)
 {
   wmWindow *win = CTX_wm_window(C);
   WM_cursor_set(win, WM_CURSOR_CROSS);
