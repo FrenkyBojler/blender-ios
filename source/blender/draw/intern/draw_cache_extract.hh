@@ -134,7 +134,7 @@ enum class IBOType : int8_t {
 
 struct MeshBufferList {
   /* Though using maps here may add some overhead compared to just indexed arrays, it's a bit more
-   * conventient currently, because the "buffer exists" test is very clear, it's just whether the
+   * convenient currently, because the "buffer exists" test is very clear, it's just whether the
    * map contains it (e.g. compared to "buffer is allocated but not filled with data"). The
    * sparseness *may* be useful for reducing memory usage when only few buffers are used. */
 
@@ -183,8 +183,6 @@ struct MeshBatchList {
 };
 
 #define MBC_BATCH_LEN (sizeof(MeshBatchList) / sizeof(void *))
-#define MBC_VBO_LEN (sizeof(MeshBufferList::vbo) / sizeof(void *))
-#define MBC_IBO_LEN (sizeof(MeshBufferList::ibo) / sizeof(void *))
 
 #define MBC_BATCH_INDEX(batch) (offsetof(MeshBatchList, batch) / sizeof(void *))
 
@@ -269,7 +267,7 @@ struct MeshBatchCache {
   MeshBatchList batch;
 
   /* Index buffer per material. These are sub-ranges of `ibo.tris`. */
-  Array<gpu::IndexBuf *> tris_per_mat;
+  Array<gpu::IndexBufPtr> tris_per_mat;
   Array<gpu::Batch *> surface_per_mat;
 
   DRWSubdivCache *subdiv_cache;
