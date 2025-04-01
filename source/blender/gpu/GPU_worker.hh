@@ -18,6 +18,8 @@
 
 namespace blender::gpu {
 
+/* Abstracts secondary GHOST and GPU context creation, activation and deletion.
+ * Must be created from the main thread and destructed from the thread they where activated in. */
 class GPUSecondaryContext {
  private:
   GHOST_ContextHandle ghost_context_;
@@ -31,6 +33,9 @@ class GPUSecondaryContext {
   void activate();
 };
 
+/* Abstracts the creation and management of secondary threads with GPU contexts.
+ * Must be created from the main thread.
+ * Threads and their context remain alive until destruction. */
 class GPUWorker {
  private:
   Vector<std::unique_ptr<std::thread>> threads_;
@@ -39,9 +44,16 @@ class GPUWorker {
   std::atomic_bool terminate_ = false;
 
  public:
+  /**
+   * \param threads_count: Number of threads to span.
+   * \param share_context: If true, all threads will use the same secondary GPUContext,
+   *  otherwise each thread will have its own unique GPUContext.
+   * \param run_cb: The callback function that will be called by a thread on `wake_up()`.
+   */
   GPUWorker(uint32_t threads_count, bool share_context, std::function<void()> run_cb);
   ~GPUWorker();
 
+  /* Wake up a single thread. */
   void wake_up()
   {
     condition_var_.notify_one();

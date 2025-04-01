@@ -65,6 +65,9 @@ GPUSecondaryContext::GPUSecondaryContext()
   /* Restore the main thread context.
    * (required as the above context creation also makes it active). */
   GPU_context_active_set(main_thread_context);
+
+  /* NOTE: GHOST context doesn't need to be restored since GHOST contexts are not activated on
+   * creation. */
 }
 
 GPUSecondaryContext::~GPUSecondaryContext()
