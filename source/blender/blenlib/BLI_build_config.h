@@ -2,9 +2,12 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-/**
- * Based on Chromium's build_config.h, governed by a BSD-style license,
- * with tweaks and extensions needed for the Blender project. */
+/** \file
+ * \ingroup bli
+ *
+ * Based on Chromium's `build_config.h`, governed by a BSD-style license,
+ * with tweaks and extensions needed for the Blender project.
+ */
 
 /**
  * Compile-time detection of compiler and hardware platform configuration.
@@ -267,7 +270,7 @@
  *   http://msdn.microsoft.com/en-us/library/b0084kay.aspx
  *   http://www.agner.org/optimize/calling_conventions.pdf
  *
- *   or with gcc, run: "echo | gcc -E -dM -"
+ *   or with GCC, run: `echo | gcc -E -dM -`
  * \{ */
 
 #if defined(_M_X64) || defined(__x86_64__)

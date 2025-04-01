@@ -326,7 +326,7 @@ static int *parse_int_relative_clamp_n(
     }
   }
 
-  int *values = MEM_mallocN(sizeof(*values) * len, __func__);
+  int *values = MEM_malloc_arrayN<int>(size_t(len), __func__);
   int i = 0;
   while (true) {
     const char *str_end = strchr(str, sep);
@@ -382,7 +382,7 @@ static int (*parse_int_range_relative_clamp_n(const char *str,
     }
   }
 
-  int(*values)[2] = static_cast<int(*)[2]>(MEM_mallocN(sizeof(*values) * len, __func__));
+  int(*values)[2] = MEM_malloc_arrayN<int[2]>(size_t(len), __func__);
   int i = 0;
   while (true) {
     const char *str_end_range;
@@ -439,7 +439,7 @@ fail:
 #  ifdef WIN32
 static char **argv_duplicate(const char **argv, int argc)
 {
-  char **argv_copy = static_cast<char **>(MEM_mallocN(sizeof(*argv_copy) * argc, __func__));
+  char **argv_copy = MEM_malloc_arrayN<char *>(size_t(argc), __func__);
   for (int i = 0; i < argc; i++) {
     argv_copy[i] = BLI_strdup(argv[i]);
   }
@@ -472,8 +472,7 @@ static bool main_arg_deferred_is_set()
 static void main_arg_deferred_setup(BA_ArgCallback func, int argc, const char **argv, void *data)
 {
   BLI_assert(app_state.main_arg_deferred == nullptr);
-  BA_ArgCallback_Deferred *d = static_cast<BA_ArgCallback_Deferred *>(
-      MEM_callocN(sizeof(*d), __func__));
+  BA_ArgCallback_Deferred *d = MEM_callocN<BA_ArgCallback_Deferred>(__func__);
   d->func = func;
   d->argc = argc;
   d->argv = argv;
@@ -785,6 +784,7 @@ static void print_help(bArgs *ba, bool all)
   BLI_args_print_arg_doc(ba, "--gpu-backend");
 #  ifdef WITH_OPENGL_BACKEND
   BLI_args_print_arg_doc(ba, "--gpu-compilation-subprocesses");
+  BLI_args_print_arg_doc(ba, "--profile-gpu");
 #  endif
 
   PRINT("\n");
@@ -2328,11 +2328,11 @@ static const char arg_handle_python_file_run_doc[] =
     "\tRun the given Python script file.";
 static int arg_handle_python_file_run(int argc, const char **argv, void *data)
 {
-#  ifdef WITH_PYTHON
   bContext *C = static_cast<bContext *>(data);
 
   /* Workaround for scripts not getting a `bpy.context.scene`, causes internal errors elsewhere. */
   if (argc > 1) {
+#  ifdef WITH_PYTHON
     /* Make the path absolute because its needed for relative linked blends to be found. */
     char filepath[FILE_MAX];
     STRNCPY(filepath, argv[1]);
@@ -2344,16 +2344,15 @@ static int arg_handle_python_file_run(int argc, const char **argv, void *data)
       fprintf(stderr, "\nError: script failed, file: '%s', exiting.\n", argv[1]);
       WM_exit(C, app_state.exit_code_on_error.python);
     }
+#  else
+    UNUSED_VARS(C);
+    fprintf(stderr, "This Blender was built without Python support\n");
+#  endif /* WITH_PYTHON */
+
     return 1;
   }
   fprintf(stderr, "\nError: you must specify a filepath after '%s'.\n", argv[0]);
   return 0;
-
-#  else
-  UNUSED_VARS(argc, argv, data);
-  fprintf(stderr, "This Blender was built without Python support\n");
-  return 0;
-#  endif /* WITH_PYTHON */
 }
 
 static const char arg_handle_python_text_run_doc[] =
@@ -2361,11 +2360,11 @@ static const char arg_handle_python_text_run_doc[] =
     "\tRun the given Python script text block.";
 static int arg_handle_python_text_run(int argc, const char **argv, void *data)
 {
-#  ifdef WITH_PYTHON
   bContext *C = static_cast<bContext *>(data);
 
   /* Workaround for scripts not getting a `bpy.context.scene`, causes internal errors elsewhere. */
   if (argc > 1) {
+#  ifdef WITH_PYTHON
     Main *bmain = CTX_data_main(C);
     /* Make the path absolute because its needed for relative linked blends to be found. */
     Text *text = (Text *)BKE_libblock_find_name(bmain, ID_TXT, argv[1]);
@@ -2383,17 +2382,16 @@ static int arg_handle_python_text_run(int argc, const char **argv, void *data)
       fprintf(stderr, "\nError: script failed, text: '%s', exiting.\n", argv[1]);
       WM_exit(C, app_state.exit_code_on_error.python);
     }
+#  else
+    UNUSED_VARS(C);
+    fprintf(stderr, "This Blender was built without Python support\n");
+#  endif /* WITH_PYTHON */
 
     return 1;
   }
+
   fprintf(stderr, "\nError: you must specify a text block after '%s'.\n", argv[0]);
   return 0;
-
-#  else
-  UNUSED_VARS(argc, argv, data);
-  fprintf(stderr, "This Blender was built without Python support\n");
-  return 0;
-#  endif /* WITH_PYTHON */
 }
 
 static const char arg_handle_python_expr_run_doc[] =
@@ -2401,27 +2399,26 @@ static const char arg_handle_python_expr_run_doc[] =
     "\tRun the given expression as a Python script.";
 static int arg_handle_python_expr_run(int argc, const char **argv, void *data)
 {
-#  ifdef WITH_PYTHON
   bContext *C = static_cast<bContext *>(data);
 
   /* Workaround for scripts not getting a `bpy.context.scene`, causes internal errors elsewhere. */
   if (argc > 1) {
+#  ifdef WITH_PYTHON
     bool ok;
     BPY_CTX_SETUP(ok = BPY_run_string_exec(C, nullptr, argv[1]));
     if (!ok && app_state.exit_code_on_error.python) {
       fprintf(stderr, "\nError: script failed, expr: '%s', exiting.\n", argv[1]);
       WM_exit(C, app_state.exit_code_on_error.python);
     }
+#  else
+    UNUSED_VARS(C);
+    fprintf(stderr, "This Blender was built without Python support\n");
+#  endif /* WITH_PYTHON */
+
     return 1;
   }
   fprintf(stderr, "\nError: you must specify a Python expression after '%s'.\n", argv[0]);
   return 0;
-
-#  else
-  UNUSED_VARS(argc, argv, data);
-  fprintf(stderr, "This Blender was built without Python support\n");
-  return 0;
-#  endif /* WITH_PYTHON */
 }
 
 static const char arg_handle_python_console_run_doc[] =
@@ -2429,18 +2426,16 @@ static const char arg_handle_python_console_run_doc[] =
     "Run Blender with an interactive console.";
 static int arg_handle_python_console_run(int /*argc*/, const char ** /*argv*/, void *data)
 {
-#  ifdef WITH_PYTHON
   bContext *C = static_cast<bContext *>(data);
-
+#  ifdef WITH_PYTHON
   const char *imports[] = {"code", nullptr};
   BPY_CTX_SETUP(BPY_run_string_eval(C, imports, "code.interact()"));
+#  else
+  UNUSED_VARS(C);
+  fprintf(stderr, "This Blender was built without python support\n");
+#  endif /* WITH_PYTHON */
 
   return 0;
-#  else
-  UNUSED_VARS(data);
-  fprintf(stderr, "This Blender was built without python support\n");
-  return 0;
-#  endif /* WITH_PYTHON */
 }
 
 static const char arg_handle_python_exit_code_set_doc[] =
@@ -2513,6 +2508,18 @@ static int arg_handle_addons_set(int argc, const char **argv, void *data)
   fprintf(stderr, "\nError: you must specify a comma separated list after '--addons'.\n");
   return 0;
 }
+
+#  ifdef WITH_OPENGL_BACKEND
+static const char arg_handle_profile_gpu_set_doc[] =
+    "\n"
+    "\tEnable CPU & GPU performance profiling for GPU debug groups\n"
+    "\t(Outputs a profile.json file in the Trace Event Format to the current directory)";
+static int arg_handle_profile_gpu_set(int /*argc*/, const char ** /*argv*/, void * /*data*/)
+{
+  G.profile_gpu = true;
+  return 0;
+}
+#  endif
 
 /**
  * Implementation for #arg_handle_load_last_file, also used by `--open-last`.
@@ -2681,6 +2688,7 @@ void main_args_setup(bContext *C, bArgs *ba, bool all)
                "--gpu-compilation-subprocesses",
                CB(arg_handle_gpu_compilation_subprocesses_set),
                nullptr);
+  BLI_args_add(ba, nullptr, "--profile-gpu", CB(arg_handle_profile_gpu_set), nullptr);
 #  endif
 
   /* Pass: Background Mode & Settings

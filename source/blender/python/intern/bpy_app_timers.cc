@@ -44,10 +44,9 @@ static double handle_returned_value(PyObject *function, PyObject *ret)
 
 static double py_timer_execute(uintptr_t /*uuid*/, void *user_data)
 {
-  PyObject *function = static_cast<PyObject *>(user_data);
+  PyGILState_STATE gilstate = PyGILState_Ensure();
 
-  PyGILState_STATE gilstate;
-  gilstate = PyGILState_Ensure();
+  PyObject *function = static_cast<PyObject *>(user_data);
 
   PyObject *py_ret = PyObject_CallObject(function, nullptr);
   const double ret = handle_returned_value(function, py_ret);
@@ -59,11 +58,9 @@ static double py_timer_execute(uintptr_t /*uuid*/, void *user_data)
 
 static void py_timer_free(uintptr_t /*uuid*/, void *user_data)
 {
+  PyGILState_STATE gilstate = PyGILState_Ensure();
+
   PyObject *function = static_cast<PyObject *>(user_data);
-
-  PyGILState_STATE gilstate;
-  gilstate = PyGILState_Ensure();
-
   Py_DECREF(function);
 
   PyGILState_Release(gilstate);
@@ -155,9 +152,14 @@ static PyObject *bpy_app_timers_is_registered(PyObject * /*self*/, PyObject *fun
   return PyBool_FromLong(ret);
 }
 
-#if (defined(__GNUC__) && !defined(__clang__))
-#  pragma GCC diagnostic push
-#  pragma GCC diagnostic ignored "-Wcast-function-type"
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic push
+#    pragma clang diagnostic ignored "-Wcast-function-type"
+#  else
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wcast-function-type"
+#  endif
 #endif
 
 static PyMethodDef M_AppTimers_methods[] = {
@@ -173,8 +175,12 @@ static PyMethodDef M_AppTimers_methods[] = {
     {nullptr, nullptr, 0, nullptr},
 };
 
-#if (defined(__GNUC__) && !defined(__clang__))
-#  pragma GCC diagnostic pop
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic pop
+#  else
+#    pragma GCC diagnostic pop
+#  endif
 #endif
 
 static PyModuleDef M_AppTimers_module_def = {

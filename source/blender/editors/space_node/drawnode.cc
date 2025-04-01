@@ -8,6 +8,7 @@
  */
 
 #include "BLI_color.hh"
+#include "BLI_listbase.h"
 #include "BLI_string.h"
 #include "BLI_threads.h"
 
@@ -35,6 +36,7 @@
 
 #include "GPU_batch.hh"
 #include "GPU_batch_presets.hh"
+#include "GPU_capabilities.hh"
 #include "GPU_framebuffer.hh"
 #include "GPU_immediate.hh"
 #include "GPU_matrix.hh"
@@ -1145,6 +1147,14 @@ static const float std_node_socket_colors[][4] = {
     {0.72, 0.20, 0.52, 1.0}, /* SOCK_MATRIX */
 };
 
+void std_node_socket_colors_get(int socket_type, float *r_color)
+{
+  BLI_assert(socket_type >= 0);
+  BLI_assert(socket_type < std::size(std_node_socket_colors));
+
+  copy_v4_v4(r_color, std_node_socket_colors[socket_type]);
+}
+
 /* Callback for colors that does not depend on the socket pointer argument to get the type. */
 template<int socket_type>
 void std_node_socket_color_fn(bContext * /*C*/,
@@ -1220,9 +1230,9 @@ static void node_file_output_socket_draw(bContext *C,
     RNA_property_enum_name(
         C, &imfptr, imtype_prop, RNA_property_enum_get(&imfptr, imtype_prop), &imtype_name);
     block = uiLayoutGetBlock(row);
-    UI_block_emboss_set(block, UI_EMBOSS_PULLDOWN);
+    UI_block_emboss_set(block, blender::ui::EmbossType::Pulldown);
     uiItemL(row, imtype_name, ICON_NONE);
-    UI_block_emboss_set(block, UI_EMBOSS_NONE);
+    UI_block_emboss_set(block, blender::ui::EmbossType::None);
   }
 }
 
@@ -1253,7 +1263,7 @@ static void draw_node_socket_name_editable(uiLayout *layout,
 {
   if (sock->runtime->declaration) {
     if (sock->runtime->declaration->socket_name_rna) {
-      uiLayoutSetEmboss(layout, UI_EMBOSS_NONE);
+      uiLayoutSetEmboss(layout, blender::ui::EmbossType::None);
       uiItemR(layout,
               (&sock->runtime->declaration->socket_name_rna->owner),
               sock->runtime->declaration->socket_name_rna->property_name,
@@ -1454,8 +1464,18 @@ static void std_node_socket_draw(
       }
       break;
     }
-    case SOCK_OBJECT: {
-      uiItemR(layout, ptr, "default_value", DEFAULT_FLAGS, text, ICON_NONE);
+    case SOCK_COLLECTION:
+    case SOCK_OBJECT:
+    case SOCK_MATERIAL: {
+      uiItemFullR(layout,
+                  ptr,
+                  RNA_struct_find_property(ptr, "default_value"),
+                  -1,
+                  0,
+                  DEFAULT_FLAGS,
+                  text,
+                  ICON_NONE,
+                  text.is_empty() ? std::optional(label) : std::nullopt);
       break;
     }
     case SOCK_IMAGE: {
@@ -1476,10 +1496,6 @@ static void std_node_socket_draw(
       }
       break;
     }
-    case SOCK_COLLECTION: {
-      uiItemR(layout, ptr, "default_value", DEFAULT_FLAGS, text, ICON_NONE);
-      break;
-    }
     case SOCK_TEXTURE: {
       if (text.is_empty()) {
         uiTemplateID(layout, C, ptr, "default_value", "texture.new", nullptr, nullptr);
@@ -1491,10 +1507,6 @@ static void std_node_socket_draw(
         uiTemplateID(row, C, ptr, "default_value", "texture.new", nullptr, nullptr);
       }
 
-      break;
-    }
-    case SOCK_MATERIAL: {
-      uiItemR(layout, ptr, "default_value", DEFAULT_FLAGS, text, ICON_NONE);
       break;
     }
     default:
@@ -2445,7 +2457,7 @@ static void node_draw_link_bezier_ex(const SpaceNode &snode,
     nodelink_batch_init();
   }
 
-  if (g_batch_link.enabled && !draw_config.highlighted) {
+  if (g_batch_link.enabled && !draw_config.highlighted && !GPU_node_link_instancing_workaround()) {
     /* Add link to batch. */
     nodelink_batch_add_link(snode, points, draw_config);
   }

@@ -20,6 +20,8 @@ BLOCKLIST_ALL = [
     "hair_instancer_uv.blend",
     "principled_hair_directcoloring.blend",
     "visibility_particles.blend",
+    # Temporarily blocked for 4.4 lib upgrade, due to PNG alpha minor difference.
+    "image_log_osl.blend",
 ]
 
 # Blocklist that disables OSL specific tests for configurations that do not support OSL backend.
@@ -78,10 +80,6 @@ BLOCKLIST_OPTIX_OSL = [
     'both_displacement.blend',
     'bump_with_displacement.blend',
     'ray_portal.blend',
-    # Volumetric textures using the Genereated textures coordinate are different in OptiX OSL. See 129279
-    'texture_coordinate_generated.blend',
-    'principled_absorption.blend',
-    'denoise_volume.blend',
     # The 3D texture doesn't have the right mappings
     'point_density_.*_object.blend',
     # Dicing tests use wireframe node which doesn't appear to be supported with OptiX OSL
@@ -137,16 +135,15 @@ class CyclesReport(render_report.Report):
         # tokens, setting the RT suffix to an empty string if its not specified.
         self.device, suffix = (device.split("-") + [""])[:2]
         self.use_hwrt = (suffix == "RT")
-
-        super().__init__(title, output_dir, oiiotool, self.device, blocklist)
-
-        if self.use_hwrt:
-            self.title = self.title + " RT"
-            self.output_dir = self.output_dir + "_rt"
-
         self.osl = osl
+
+        variation = self.device
+        if suffix:
+            variation += ' ' + suffix
         if self.osl:
-            self.title += " OSL"
+            variation += ' OSL'
+
+        super().__init__(title, output_dir, oiiotool, variation, blocklist)
 
     def _get_render_arguments(self, arguments_cb, filepath, base_output_filepath):
         return arguments_cb(filepath, base_output_filepath, self.use_hwrt, self.osl)
@@ -257,9 +254,12 @@ def main():
     # OSL tests:
     # Blackbody is slightly different between SVM and OSL.
     # Microfacet hair renders slightly differently, and fails on Windows and Linux with OSL
+    #
+    # both_displacement.blend has slight differences between Linux and other platforms.
 
     test_dir_name = Path(args.testdir).name
-    if (test_dir_name in {'motion_blur', 'integrator'}) or ((args.osl) and (test_dir_name in {'shader', 'hair'})):
+    if (test_dir_name in {'motion_blur', 'integrator', "displacement"}) or \
+       ((args.osl) and (test_dir_name in {'shader', 'hair'})):
         report.set_fail_threshold(0.032)
 
     # Layer mixing is different between SVM and OSL, so a few tests have

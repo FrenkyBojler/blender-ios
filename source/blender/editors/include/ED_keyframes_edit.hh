@@ -44,7 +44,7 @@ enum eEditKeyframes_Validate {
   BEZT_OK_REGION,
   BEZT_OK_REGION_LASSO,
   BEZT_OK_REGION_CIRCLE,
-  /* Only for keyframes a certain Dopesheet channel */
+  /* Only for keyframes a certain Dope-sheet channel. */
   BEZT_OK_CHANNEL_LASSO,
   BEZT_OK_CHANNEL_CIRCLE,
 };
@@ -188,7 +188,7 @@ struct KeyframeEditData {
   FCurve *fcu;
   /** index of current keyframe being iterated over */
   int curIndex;
-  /** y-position of midpoint of the channel (for the dopesheet) */
+  /** Y-position of midpoint of the channel (for the dope-sheet). */
   float channel_y;
 
   /* flags */
@@ -529,12 +529,20 @@ void ANIM_fcurves_copybuf_free();
  * \returns Whether anything was copied into the buffer.
  */
 bool copy_animedit_keys(bAnimContext *ac, ListBase *anim_data);
+
+struct KeyframePasteContext {
+  eKeyPasteOffset offset_mode;
+  eKeyPasteValueOffset value_offset_mode;
+  eKeyMergeMode merge_mode;
+  bool flip;
+
+  int num_slots_selected;   /* Number of selected Action Slots to paste into. */
+  int num_fcurves_selected; /* Number of selected F-Curves to paste into. */
+};
+
 eKeyPasteError paste_animedit_keys(bAnimContext *ac,
                                    ListBase *anim_data,
-                                   eKeyPasteOffset offset_mode,
-                                   eKeyPasteValueOffset value_offset_mode,
-                                   eKeyMergeMode merge_mode,
-                                   bool flip);
+                                   const KeyframePasteContext &paste_context);
 
 /* ************************************************ */
 

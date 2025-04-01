@@ -982,7 +982,7 @@ void ui_draw_but_VECTORSCOPE(ARegion * /*region*/,
                              const rcti *recti)
 {
   const float skin_rad = DEG2RADF(123.0f); /* angle in radians of the skin tone line */
-  Scopes *scopes = (Scopes *)but->poin;
+  const Scopes *scopes = (const Scopes *)but->poin;
 
   const float colors[6][3] = {
       {0.75, 0.0, 0.0},  /* Red */
@@ -2197,7 +2197,7 @@ void ui_draw_but_TRACKPREVIEW(ARegion * /*region*/,
                                                  scopes->track_pos);
     if (tmpibuf) {
       if (tmpibuf->float_buffer.data) {
-        IMB_rect_from_float(tmpibuf);
+        IMB_byte_from_float(tmpibuf);
       }
 
       if (tmpibuf->byte_buffer.data) {

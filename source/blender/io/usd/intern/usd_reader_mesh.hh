@@ -52,7 +52,7 @@ class USDMeshReader : public USDGeomReader {
     return bool(mesh_prim_);
   }
 
-  void create_object(Main *bmain, double motionSampleTime) override;
+  void create_object(Main *bmain) override;
   void read_object_data(Main *bmain, double motionSampleTime) override;
 
   void read_geometry(bke::GeometrySet &geometry_set,
@@ -69,7 +69,7 @@ class USDMeshReader : public USDGeomReader {
    * The returned path is currently used to match armature modifiers with armature
    * objects during import.
    */
-  std::string get_skeleton_path() const;
+  pxr::SdfPath get_skeleton_path() const;
 
  private:
   void process_normals_vertex_varying(Mesh *mesh);
