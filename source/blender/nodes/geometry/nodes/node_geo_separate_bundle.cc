@@ -76,6 +76,10 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *node_ptr)
   if (uiLayout *panel = uiLayoutPanel(C, layout, "bundle_items", false, TIP_("Bundle Items"))) {
     socket_items::ui::draw_items_list_with_operators<SeparateBundleItemsAccessor>(
         C, panel, ntree, node);
+    socket_items::ui::draw_active_item_props<SeparateBundleItemsAccessor>(
+        ntree, node, [&](PointerRNA *item_ptr) {
+          uiItemR(panel, item_ptr, "socket_type", UI_ITEM_NONE, "Type", ICON_NONE);
+        });
   }
 }
 
