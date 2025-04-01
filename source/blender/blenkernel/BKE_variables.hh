@@ -149,8 +149,8 @@ VariableMap BKE_build_blender_variables(const char *blend_file_path,
 /**
  * Perform variable substitution on the given path.
  *
- * Note this mutates the path in-place. The path must be a null-terminated
- * string.
+ * This mutates the path in-place. The path must be a null-terminated string
+ * with a total allocation size of at least `FILE_MAX` bytes.
  *
  * The syntax for variables is `{variable_name}` or
  * {variable_name:format_spec}`. They will be substituted with the respective

@@ -128,8 +128,10 @@ VariableMap BKE_build_blender_variables(const char *blend_file_path,
 
     /* FPS eval code copied from `BKE_cachefile_filepath_get()`.
      *
-     * TODO: it might make sense to make a function for this to ensure that all
-     * uses of these render variables produce a consistent fps? */
+     * TODO: should probably use one function for this everywhere to ensure that
+     * fps is computed consistently, but at the time of writing no such function
+     * seems to exist. Every place in the code base just has its own bespoke
+     * code, using different precision, etc. */
     const double fps = double(render_data->frs_sec) / double(render_data->frs_sec_base);
     variables.add_float("fps", fps);
   }
@@ -139,34 +141,45 @@ VariableMap BKE_build_blender_variables(const char *blend_file_path,
 
 /* -------------------------------------------------------------------- */
 
-/* Anonymous namespace to make the types local to this file. */
+#define FORMAT_BUFFER_SIZE 128
+
 namespace {
 
 enum class FormatSpecifierType {
-  /* No format specifier given. */
+  /* No format specifier given. Use default formatting. */
   NONE = 0,
 
   /* The format specifier was invalid, due to e.g. incorrect syntax. */
   INVALID,
 
+  /* The format specifier was a string of just "#" characters. E.g. "####". */
   INTEGER,
+
+  /* The format specifier was a string of "#" characters with a single ".". E.g.
+   * "###.##". */
   FLOAT,
 };
 
+/**
+ * Specifies how a variable should be formatted into a string.
+ */
 struct FormatSpecifier {
   FormatSpecifierType type = FormatSpecifierType::NONE;
 
+  /* For INTEGER and FLOAT formatting types, the number of digits indicated on
+   * either side of the decimal point. */
   std::optional<uint8_t> fixed_integer_digits;
   std::optional<uint8_t> fixed_fractional_digits;
 };
 
 enum class TokenType {
+  /* "{variable_name}" or "{variable_name:format_spec}". */
   VARIABLE,
 
-  /* An escaped { */
+  /* "{{", which is an escaped "{". */
   LEFT_CURLY_BRACE,
 
-  /* An escaped } */
+  /* "}}", which is an escaped "}". */
   RIGHT_CURLY_BRACE,
 };
 
@@ -176,19 +189,19 @@ enum class TokenType {
 struct Token {
   TokenType type = TokenType::VARIABLE;
 
-  /* Byte index range (exclusive on the right) in the path string that should be
-   * replaced with the variable value. This is the full range of the `{blah}`
-   * syntax that was parsed. */
+  /* Byte index range (exclusive on the right) of the token in the path string.
+   * This is the range that should be replaced during substitution. For example,
+   * for variables this the byte range of the entire "{variable_name}" syntax. */
   blender::IndexRange replacement_range;
 
   /* Reference to the the variable name as written in the path string. Note that
-   * this references the path string, and does not own the value.
+   * this points into the path string, and does not own the value.
    *
    * Only relevant when `type == VARIABLE`. */
   blender::StringRef variable_name;
 
   /* Indicates how the variable's value should be formatted into a string. This
-   * is derived from the format string after the `:` in e.g. `${blah:5}`.
+   * is derived from the format specification (e.g. the "###" in "{blah:###}").
    *
    * Only relevant when `type == VARIABLE`. */
   FormatSpecifier format;
@@ -197,42 +210,55 @@ struct Token {
 }  // namespace
 
 /**
+ * Format an integer into a string, according to `format`.
+ *
+ * Note: if `format` is not valid for integers, the resulting string will be
+ * empty.
+ *
  * \return length of the produced string.
  */
 static int format_int_to_string(const FormatSpecifier &format,
-                                char *output_string,
-                                int64_t integer_value)
+                                int64_t integer_value,
+                                char r_output_string[FORMAT_BUFFER_SIZE])
 {
+  r_output_string[0] = '\0';
   int output_length = 0;
 
   if (format.fixed_integer_digits.has_value()) {
-    output_length = sprintf(output_string, "%0*ld", *format.fixed_integer_digits, integer_value);
+    output_length = sprintf(r_output_string, "%0*ld", *format.fixed_integer_digits, integer_value);
   }
   else {
-    output_length = sprintf(output_string, "%ld", integer_value);
+    output_length = sprintf(r_output_string, "%ld", integer_value);
   }
 
   return output_length;
 }
 
 /**
+ * Format a floating point number into a string, according to `format`.
+ *
+ * Note: if `format` is not valid for floating point numbers, the resulting
+ * string will be empty.
+ *
  * \return length of the produced string.
  */
 static int format_float_to_string(const FormatSpecifier &format,
-                                  char *output_string,
-                                  double float_value)
+                                  double float_value,
+                                  char r_output_string[FORMAT_BUFFER_SIZE])
 {
+  r_output_string[0] = '\0';
+  int output_length = 0;
+
   /* If an integer format was specified, defer to the integer formatter with a
    * rounded value. */
   if (format.type == FormatSpecifierType::INTEGER) {
-    const int int_length = format_int_to_string(format, output_string, std::round(float_value));
+    const int int_length = format_int_to_string(format, std::round(float_value), r_output_string);
     return int_length;
   }
 
-  int output_length = 0;
   if (format.fixed_integer_digits.has_value() && format.fixed_fractional_digits.has_value()) {
     /* Both integer and fractional component lengths are specified. */
-    output_length = sprintf(output_string,
+    output_length = sprintf(r_output_string,
                             "%0*.*f",
                             *format.fixed_integer_digits + *format.fixed_fractional_digits + 1,
                             *format.fixed_fractional_digits,
@@ -247,7 +273,7 @@ static int format_float_to_string(const FormatSpecifier &format,
   }
   else if (format.fixed_fractional_digits.has_value()) {
     /* Only fractional component length is specified. */
-    output_length = sprintf(output_string, "%.*f", *format.fixed_fractional_digits, float_value);
+    output_length = sprintf(r_output_string, "%.*f", *format.fixed_fractional_digits, float_value);
   }
   else {
     /* No format specification is given.
@@ -258,14 +284,15 @@ static int format_float_to_string(const FormatSpecifier &format,
      * that we can't replicate is that in `sprintf()` whole numbers are printed
      * without a trailing ".0", whereas in Python they are. So we handle that
      * bit manually. */
-    output_length = sprintf(output_string, "%.16g", float_value);
+    output_length = sprintf(r_output_string, "%.16g", float_value);
 
     /* If the string consists only of digits and a possible negative sign, then
      * we append a ".0" to match Python. */
-    if (blender::StringRef(output_string).find_first_not_of("-0123456789") == std::string::npos) {
-      output_string[output_length] = '.';
-      output_string[output_length + 1] = '0';
-      output_string[output_length + 2] = '\0';
+    if (blender::StringRef(r_output_string).find_first_not_of("-0123456789") == std::string::npos)
+    {
+      r_output_string[output_length] = '.';
+      r_output_string[output_length + 1] = '0';
+      r_output_string[output_length + 2] = '\0';
       output_length += 2;
     }
   }
@@ -469,8 +496,8 @@ bool BKE_path_apply_variables(char path[FILE_MAX], const VariableMap &variables)
       continue;
     }
 
-    /* For computing strings for integer and float variables. */
-    char string_buffer[128];
+    /* For formatting integer and float variables into strings. */
+    char format_buffer[FORMAT_BUFFER_SIZE];
 
     /* Will point to the string to substitute the variable with in `path`. If no
      * corresponding variable is found, is left null. */
@@ -488,13 +515,13 @@ bool BKE_path_apply_variables(char path[FILE_MAX], const VariableMap &variables)
     }
     else if (std::optional<int64_t> integer_value = variables.get_integer(token->variable_name)) {
       /* Integer variable found. */
-      format_int_to_string(token->format, string_buffer, *integer_value);
-      replacement_string = string_buffer;
+      format_int_to_string(token->format, *integer_value, format_buffer);
+      replacement_string = format_buffer;
     }
     else if (std::optional<double> float_value = variables.get_float(token->variable_name)) {
       /* Float variable found. */
-      format_float_to_string(token->format, string_buffer, *float_value);
-      replacement_string = string_buffer;
+      format_float_to_string(token->format, *float_value, format_buffer);
+      replacement_string = format_buffer;
     }
 
     /* Perform the replacement if we found a matching variable, otherwise skip. */
