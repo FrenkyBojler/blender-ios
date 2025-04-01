@@ -980,7 +980,7 @@ struct ScreenshotOperatorData {
 };
 
 /* Sort points so p1 is lower left, and p2 is top right. */
-static void sort_points(blender::int2 &p1, blender::int2 &p2)
+static inline void sort_points(blender::int2 &p1, blender::int2 &p2)
 {
   if (p1.x > p2.x) {
     const int swap = p1.x;
@@ -994,7 +994,7 @@ static void sort_points(blender::int2 &p1, blender::int2 &p2)
   }
 }
 
-static void square_points(blender::int2 &p1, blender::int2 &p2)
+static inline void square_points(blender::int2 &p1, blender::int2 &p2)
 {
   blender::int2 delta = p2 - p1;
   if (std::abs(delta.x) < std::abs(delta.y)) {
@@ -1092,7 +1092,7 @@ static wmOperatorStatus screenshot_preview_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static void screenshot_preview_draw(const wmWindow * /* window */, void *operator_data)
+static void screenshot_preview_draw(const wmWindow *window, void *operator_data)
 {
   ScreenshotOperatorData *data = static_cast<ScreenshotOperatorData *>(operator_data);
   if (!data->dragging) {
@@ -1106,10 +1106,25 @@ static void screenshot_preview_draw(const wmWindow * /* window */, void *operato
   sort_points(p1, p2);
 
   /* Drawing rect just out of the screenshot area to not capture the box in the picture. */
-  const rctf rect = {float(p1.x - 1), float(p2.x + 1), float(p1.y - 1), float(p2.y + 1)};
+  const rctf screenshot_rect = {
+      float(p1.x - 1), float(p2.x + 1), float(p1.y - 1), float(p2.y + 1)};
+
+  /* Drawing a semi-transparent mask to highlight the area that will be captured. */
+  blender::float4 mask_color = {1, 1, 1, 0.5};
+  const rctf mask_rect_bottom = {0, float(window->sizex), 0, screenshot_rect.ymin};
+  UI_draw_roundbox_aa(&mask_rect_bottom, true, 0, mask_color);
+  const rctf mask_rect_top = {0, float(window->sizex), screenshot_rect.ymax, float(window->sizey)};
+  UI_draw_roundbox_aa(&mask_rect_top, true, 0, mask_color);
+  const rctf mask_rect_left = {
+      0, screenshot_rect.xmin, screenshot_rect.ymin, screenshot_rect.ymax};
+  UI_draw_roundbox_aa(&mask_rect_left, true, 0, mask_color);
+  const rctf mask_rect_right = {
+      screenshot_rect.xmax, float(window->sizex), screenshot_rect.ymin, screenshot_rect.ymax};
+  UI_draw_roundbox_aa(&mask_rect_right, true, 0, mask_color);
+
   blender::float4 color;
   UI_GetThemeColor4fv(TH_EDITOR_BORDER, color);
-  UI_draw_roundbox_aa(&rect, false, 0, color);
+  UI_draw_roundbox_aa(&screenshot_rect, false, 0, color);
 }
 
 static void screenshot_preview_exit(bContext *C, wmOperator *op)
