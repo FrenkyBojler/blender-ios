@@ -5,9 +5,12 @@
 import hashlib
 import logging
 import os
+import re
 import shutil
+import unicodedata
 import urllib.parse
 from pathlib import Path
+from typing import Callable
 
 import bpy
 import pydantic
@@ -26,6 +29,9 @@ class BlendfileInfo(pydantic.BaseModel):
     # Last access/modification time:
     st_atime: float
     st_mtime: float
+
+    # See _filepath_to_url_transformer()
+    filepath_to_url: Callable[[Path], str]
 
 
 def list_assets(blendfile: Path, asset_library_root: Path) -> list[api_models.Asset]:
@@ -49,7 +55,7 @@ def list_assets(blendfile: Path, asset_library_root: Path) -> list[api_models.As
     if thumbnail_timestamper.exists():
         thumb_mtime = thumbnail_timestamper.stat().st_mtime
         blend_mtime = blendfile_info.st_mtime
-        should_write_thumbnails = thumb_mtime != blend_mtime
+        should_write_thumbnails = abs(blend_mtime - thumb_mtime) > 0.001
     else:
         should_write_thumbnails = True
 
@@ -68,7 +74,7 @@ def list_assets(blendfile: Path, asset_library_root: Path) -> list[api_models.As
     for attr in dir(data_to):
         datablocks = getattr(data_from, attr)
         datablocks_assets = _find_assets(
-            datablocks, thumbnail_dir, should_write_thumbnails
+            datablocks, blendfile_info, thumbnail_dir, should_write_thumbnails
         )
         assets.extend(datablocks_assets)
 
@@ -83,6 +89,7 @@ def list_assets(blendfile: Path, asset_library_root: Path) -> list[api_models.As
 
 def _find_assets(
     datablocks: bpy.types.BlendData,
+    blendfile_info: BlendfileInfo,
     thumbnail_dir: Path,
     should_write_thumbnails: bool,
 ) -> list[api_models.Asset]:
@@ -94,27 +101,43 @@ def _find_assets(
             continue
 
         thumbnail_path = _thumbnail_path(datablock, thumbnail_dir)
-
         if thumbnail_path and should_write_thumbnails:
             _save_thumbnail(datablock, thumbnail_path)
+
+        if thumbnail_path:
+            thumbnail_url = blendfile_info.filepath_to_url(thumbnail_path)
+        else:
+            thumbnail_url = ""
 
         asset = api_models.Asset(
             name=datablock.name,
             id_type=datablock.id_type.lower(),
             blender_version_min=".".join(map(str, bpy.data.version)),
-            thumbnail_url=str(thumbnail_path or ""),  # To be turned into a URL later.
-            archive_url="",  # TODO
-            archive_hash="",  # TODO
-            archive_size_in_bytes=0,  # TODO
-            meta=api_models.AssetMetadata(
-                catalog=asset_data.catalog_simple_name,
-                tags=[tag.name for tag in asset_data.tags] or None,
-                author=asset_data.author,
-                description=asset_data.description,
-                license=asset_data.license,
-                copyright=asset_data.copyright,
-            ),
+            thumbnail_url=thumbnail_url,
+            archive_url=blendfile_info.archive_url,
+            archive_hash=blendfile_info.archive_hash,
+            archive_size_in_bytes=blendfile_info.archive_size_in_bytes,
         )
+
+        # Only set the fields that have a value. That way we can detect whether
+        # none of them are set, and prevent the empty metadata from being
+        # included.
+        meta = api_models.AssetMetadata()
+        if asset_data.catalog_simple_name:
+            meta.catalog = asset_data.catalog_simple_name
+        if asset_data.tags:
+            meta.tags = [tag.name for tag in asset_data.tags]
+        if asset_data.author:
+            meta.author = asset_data.author
+        if asset_data.description:
+            meta.description = asset_data.description
+        if asset_data.license:
+            meta.license = asset_data.license
+        if asset_data.copyright:
+            meta.copyright = asset_data.copyright
+        if meta.model_fields_set:
+            asset.meta = meta
+
         assets.append(asset)
     return assets
 
@@ -158,9 +181,7 @@ def _thumbnail_path(datablock: bpy.types.ID, thumbnail_dir: Path) -> Path | None
     if not datablock.preview:
         return None
 
-    # Not all datablock names are valid in a file path, so better use URI encoding here.
-    # safe="" avoids the default safe="/", as we also don't want slashes in the filename.
-    datablock_safe = urllib.parse.quote(datablock.name, safe="")
+    datablock_safe = _name_to_filename(datablock.name)
     thumbnail_path: Path = (
         thumbnail_dir / datablock.id_type.title() / f"{datablock_safe}.webp"
     )
@@ -168,16 +189,42 @@ def _thumbnail_path(datablock: bpy.types.ID, thumbnail_dir: Path) -> Path | None
     return thumbnail_path
 
 
+_re_safe_filename_nonword = re.compile(r'[^\w\s_-]')
+_re_safe_filename_dashspace = re.compile(r'[-\s]+')
+
+
+def _name_to_filename(value: str) -> str:
+    """Convert a string into something that should be safe as filename."""
+
+    value = unicodedata.normalize('NFKD', value).encode('ascii', 'ignore').decode('ascii')
+    value = _re_safe_filename_nonword.sub('', value.lower())
+    return _re_safe_filename_dashspace.sub('-', value).strip('-_')
+
+
 def _blendfile_info(filepath: Path, asset_library_root: Path) -> BlendfileInfo:
     stat = filepath.stat()
+    filepath_to_url = _filepath_to_url_transformer(asset_library_root)
 
     return BlendfileInfo(
-        archive_url=filepath.relative_to(asset_library_root).as_posix(),
+        archive_url=filepath_to_url(filepath),
         archive_hash=_sha256_file(filepath),
         archive_size_in_bytes=stat.st_size,
         st_atime=stat.st_atime,
         st_mtime=stat.st_mtime,
+        filepath_to_url=filepath_to_url,
     )
+
+
+def _filepath_to_url_transformer(asset_library_root: Path) -> Callable[[Path], str]:
+    """Return a function that transforms an asset path to a URL.
+
+    Files are assumed to be contained in the asset library.
+    """
+
+    def transformer(filepath: Path) -> str:
+        as_posix = filepath.relative_to(asset_library_root).as_posix()
+        return urllib.parse.quote(as_posix)
+    return transformer
 
 
 def _sha256_file(filepath: Path) -> str:

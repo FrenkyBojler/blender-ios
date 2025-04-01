@@ -28,8 +28,8 @@ class CLIArguments(pydantic.BaseModel):
     """Parsed commandline arguments."""
 
     repository: Path
-    outdir: Path
     limit: int
+    page_size: int
 
 
 def main(args: list[str]) -> None:
@@ -58,11 +58,11 @@ def main(args: list[str]) -> None:
     assets: list[api_models.Asset] = []
     for i, filepath in enumerate(filepaths[:limit]):
         logger.info(f"* {i + 1}/{limit}: {filepath.relative_to(arguments.repository)}")
-        assets_in_file = asset_finder.list_assets(filepath)
+        assets_in_file = asset_finder.list_assets(filepath, arguments.repository)
         assets.extend(assets_in_file)
 
     # Write the output.
-    asset_index_pages = pagination.paginate_asset_list(assets, arguments.limit)
+    asset_index_pages = pagination.paginate_asset_list(assets, arguments.page_size)
     _write_json_files(arguments, asset_index_pages)
 
 
@@ -70,8 +70,7 @@ def _write_json_files(
     arguments: CLIArguments,
     asset_index_pages: list[api_models.AssetLibraryIndexPage],
 ) -> None:
-    outdir = arguments.outdir
-    outdir.mkdir(exist_ok=True, parents=True)
+    outdir = arguments.repository
 
     def _save_json(model: pydantic.BaseModel, filename: str) -> None:
         as_json = model.model_dump_json(indent=2, exclude_defaults=True)
@@ -102,10 +101,16 @@ def _write_json_files(
         schema_version=SCHEMA_VERSION,
         asset_size_bytes=0,  # TODO: collect this info.
         asset_count=total_asset_count,
-        page_count=1,  # TODO: support pagination.
+        page_count=len(asset_index_pages),
         catalogs=[],  # TODO: collect catalogs.
     )
     _save_json(index, f"v{API_VERSION}/asset-index.json")
+
+    # Remove old pages, in case the number of assets per page was increased and
+    # so less page files are needed.
+    existing_pages = (outdir / f"v{API_VERSION}").glob("assets-*.json")
+    for filepath in existing_pages:
+        filepath.unlink()
 
     # Library Index Page /v1/assets-{page}.json
     for page_index, page in enumerate(asset_index_pages):
@@ -118,13 +123,6 @@ def _parse_arguments(args: list[str]) -> CLIArguments:
         prog="blender -c asset_index",
         add_help=False,
         description="Create an index file listing all the assets.",
-    )
-
-    parser.add_argument(
-        "--out",
-        "-o",
-        type=Path,
-        help="""Folder where to save the JSON files, defaults to the asset repository folder""",
     )
 
     parser.add_argument(
@@ -141,13 +139,21 @@ def _parse_arguments(args: list[str]) -> CLIArguments:
         help="Limit the number of files to process",
     )
 
+    parser.add_argument(
+        "--page",
+        "-p",
+        type=int,
+        default=1000,
+        help="Number of assets per JSON file, set to 0 to disable pagination",
+    )
+
     arguments_raw = parser.parse_args(args)
 
     repository = arguments_raw.repository.absolute()
     arguments = CLIArguments(
         repository=repository,
-        outdir=arguments_raw.out or repository,
         limit=arguments_raw.limit or 0,
+        page_size=arguments_raw.page or 0,
     )
     return arguments
 
@@ -159,11 +165,6 @@ def _validate_inputs(arguments: CLIArguments) -> None:
     if not repository.is_dir():
         print(f"Error: Repository specified is not a folder: {repository}")
         sys.exit(1)
-
-    outdir = arguments.outdir
-    if outdir.exists() and not outdir.is_dir():
-        print(f"Error: Output path exists but is not a folder: {outdir}")
-        sys.exit(2)
 
 
 def _total_files_to_process(arguments: CLIArguments, files_total: int) -> int:
