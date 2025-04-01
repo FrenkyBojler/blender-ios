@@ -115,35 +115,28 @@ class VariableMap {
 };
 
 /**
- * Build path variables based on available information.
+ * Build a variable map based on available information.
  *
  * All parameters are allowed to be null, in which case the variables derived
  * from those parameters will simply not be included.
  *
- * This is generally used to create the variables passed to
+ * This is typically used to create the variables passed to
  * `BKE_path_apply_variables()`.
  *
- * Note: this does not and *shouldn't* include adding a variable for the
- * absolute path to the current blend file. That is handled by `BLI_path_abs()`
- * (with the special "//" syntax), which is called in specific ways for e.g.
- * cache paths such that corner cases are handled properly. We specifically
- * avoid that here, since the use-case is already addressed and it would be easy
- * to mess up the specifics.
- *
- *
- * \param blend_file_path: full path to the blend file, including the file name
- * (a directory-only path--ending with a slash--will also be accepted, but then
- * no "file_name" variable will be created). Typically you should fetch this
- * with `ID_BLEND_PATH()`, but there are plenty of exceptions. Note that this
- * should be the blend file that the path you're going to generate with the
- * variables "belongs" to.
+ * \param blend_file_path: full path to the blend file, including the file name.
+ * Typically you should fetch this with `ID_BLEND_PATH()`, but there are
+ * exceptions. The key thing is that this should be the path to the *relevant*
+ * blend file for the context that the variables are going to be used in. For
+ * example, if the context is a linked ID then this path should (very likely) be
+ * the path to that ID's library blend file, not the currently opened one.
  *
  * \param frame_number: the current frame.
  *
  * \param render_data: start/end frame, output resolution, and fps. Note: the
  * current frame in this is *not* used. Use the `frame_number` parameter for
- * that.
- *
+ * that. The reasons for this are a little esoteric, but boil down to the fact
+ * that the callers of this function sometimes have the current frame defined
+ * separately from the available RenderData (see e.g. `do_makepicstring()`).
  *
  * \see BKE_path_apply_variables()
  *
@@ -154,15 +147,38 @@ VariableMap BKE_build_blender_variables(const char *blend_file_path,
                                         const RenderData *render_data);
 
 /**
- * Substitutes `${variable_name}` syntax with the value of the named variable in
- * the given path.
+ * Perform variable substitution on the given path.
  *
- * Note that this mutates the path in-place. The path should be a
- * null-terminated string.
+ * Note this mutates the path in-place. The path must be a null-terminated
+ * string.
  *
- * For integer and float variables, there is additional syntax to perform
- * formatting.
+ * The syntax for variables is `{variable_name}` or
+ * {variable_name:format_spec}`. They will be substituted with the respective
+ * variable value if and only if both of the following hold true:
  *
- * TODO: document the formatting syntax once it's settled and agreed upon.
+ * - A variable with that name exists in the passed VariableMap.
+ * - The format spec (if any is provided) is syntactically correct and applies
+ *   to the variable's type.
+ *
+ * Otherwise it will be skipped and left as-is, as an indication that it
+ * couldn't be processed.
+ *
+ * The format specification syntax currently only applies to numerical variables
+ * (integer or float), and uses hash symbols (#) to indicate the number of
+ * digits to print the number with.  It can be in any of the following forms:
+ *
+ * - `####`: format as an integer with at least 4 digits, padding with zeros as
+ *   needed.
+ * - `.###`: format as a float with precisely 3 fractional digits.
+ * - `##.###`: format as a float with at least 2 integer-part digits (padded
+ *   with zeros as necessary) and precisely 3 fractional-part digits.
+ *
+ * This function also processes a simple escape sequence for writing literal "{"
+ * and "}": like Python format strings, double braces "{{" and "}}" are treated
+ * as escape sequences for "{" and "}", and are substituted appropriately. Note
+ * that this substitution only happens *outside* of the variable syntax, and
+ * therefore cannot e.g. be used inside variable names.
  */
 bool BKE_path_apply_variables(char path[FILE_MAX], const VariableMap &variables);
+
+/** \} */

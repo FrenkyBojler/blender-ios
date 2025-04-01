@@ -87,7 +87,7 @@ std::optional<double> VariableMap::get_float(blender::StringRef name) const
   return *value;
 }
 
-/*-----------------------------------------------------------*/
+/* -------------------------------------------------------------------- */
 
 VariableMap BKE_build_blender_variables(const char *blend_file_path,
                                         std::optional<uint64_t> frame_number,
@@ -137,7 +137,7 @@ VariableMap BKE_build_blender_variables(const char *blend_file_path,
   return variables;
 }
 
-/*-----------------------------------------------------------*/
+/* -------------------------------------------------------------------- */
 
 /* Anonymous namespace to make the types local to this file. */
 namespace {
