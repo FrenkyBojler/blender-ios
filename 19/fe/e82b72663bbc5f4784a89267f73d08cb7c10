@@ -1,1 +1,2 @@
 Referenced by issue #131729, batch_for_shader - ValueError: Unknown attribute 'pos' with builtin shader
+Referenced by issue #136831, Blender 4.4 crash on Mac arm64 trying to draw an empty batch for shader
