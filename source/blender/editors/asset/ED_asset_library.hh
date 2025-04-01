@@ -16,10 +16,7 @@ struct bUserAssetLibrary;
 struct bContext;
 struct AssetLibraryReference;
 struct EnumPropertyItem;
-struct PointerRNA;
-struct PropertyRNA;
 struct StringPropertySearchVisitParams;
-struct Main;
 
 namespace blender::asset_system {
 class AssetCatalog;
