@@ -733,24 +733,13 @@ static void requireExtension(const vector<VkExtensionProperties> &extensions_ava
   }
 }
 
-static GHOST_TSuccess selectPresentMode(VkPhysicalDevice device,
-                                        VkSurfaceKHR surface,
+static GHOST_TSuccess selectPresentMode(VkPhysicalDevice /*device*/,
+                                        VkSurfaceKHR /*surface*/,
                                         VkPresentModeKHR *r_presentMode)
 {
-  // TODO cleanup: we are not going to use MAILBOX as it isn't supported by renderdoc.
-  uint32_t present_count;
-  vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &present_count, nullptr);
-  vector<VkPresentModeKHR> presents(present_count);
-  vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &present_count, presents.data());
-  /* MAILBOX is the lowest latency V-Sync enabled mode so use it if available */
-  for (auto present_mode : presents) {
-    if (present_mode == VK_PRESENT_MODE_MAILBOX_KHR) {
-      *r_presentMode = present_mode;
-      return GHOST_kSuccess;
-    }
-  }
-
-  /* FIFO present mode is always available. */
+  /* FIFO present mode is always available and we prefer it as it will keep the main loop running
+   * along the monitor refresh rate. Mailbox and Fifo relaxed can generate a lot of frames that
+   * will never be displayed. */
   *r_presentMode = VK_PRESENT_MODE_FIFO_KHR;
   return GHOST_kSuccess;
 }
