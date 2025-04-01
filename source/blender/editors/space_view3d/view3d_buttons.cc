@@ -500,7 +500,7 @@ static void v3d_editvertex_buts(
 
       const Span<StringRef> selection_names = get_curves_selection_attribute_names(curves);
       Vector<MutableSpan<float3>> positions = get_curves_positions_for_write(curves);
-      TransformMedian_Curves *median = &median_basis.curves;
+      TransformMedian_Curves &median = median_basis.curves;
       for (int attribute_i : selection_names.index_range()) {
         IndexMaskMemory memory;
         const IndexMask selection = retrieve_selected_points(
@@ -511,7 +511,7 @@ static void v3d_editvertex_buts(
 
         tot += selection.size();
         selection.foreach_index(
-            [&](const int point) { add_v3_v3(median->location, positions[attribute_i][point]); });
+            [&](const int point) { add_v3_v3(median.location, positions[attribute_i][point]); });
       }
     });
   }
@@ -525,7 +525,7 @@ static void v3d_editvertex_buts(
 
     const Span<StringRef> selection_names = get_curves_selection_attribute_names(curves);
     Vector<MutableSpan<float3>> positions = get_curves_positions_for_write(curves);
-    TransformMedian_Curves *median = &median_basis.curves;
+    TransformMedian_Curves &median = median_basis.curves;
     for (int attribute_i : selection_names.index_range()) {
       IndexMaskMemory memory;
       const IndexMask selection = retrieve_selected_points(
@@ -536,7 +536,7 @@ static void v3d_editvertex_buts(
 
       tot += selection.size();
       selection.foreach_index(
-          [&](const int point) { add_v3_v3(median->location, positions[attribute_i][point]); });
+          [&](const int point) { add_v3_v3(median.location, positions[attribute_i][point]); });
     }
   }
 
@@ -1256,8 +1256,8 @@ static void v3d_editvertex_buts(
           return;
         }
 
-        TransformMedian_GreasePencil *median = &median_basis.grease_pencil;
-        TransformMedian_GreasePencil *ve_median = &ve_median_basis.grease_pencil;
+        TransformMedian_GreasePencil &median = median_basis.grease_pencil;
+        TransformMedian_GreasePencil &ve_median = ve_median_basis.grease_pencil;
         IndexMaskMemory memory;
         const Span<StringRef> selection_names = get_curves_selection_attribute_names(curves);
         Vector<MutableSpan<float3>> positions = get_curves_positions_for_write(curves);
@@ -1271,7 +1271,7 @@ static void v3d_editvertex_buts(
 
           selection.foreach_index([&](const int point) {
             apply_raw_diff_v3(
-                positions[attribute_i][point], tot, ve_median->location, median->location);
+                positions[attribute_i][point], tot, ve_median.location, median.location);
           });
           info.drawing.tag_positions_changed();
         }
@@ -1285,8 +1285,8 @@ static void v3d_editvertex_buts(
         return;
       }
 
-      TransformMedian_Curves *median = &median_basis.curves;
-      TransformMedian_Curves *ve_median = &ve_median_basis.curves;
+      TransformMedian_Curves &median = median_basis.curves;
+      TransformMedian_Curves &ve_median = ve_median_basis.curves;
       IndexMaskMemory memory;
       const Span<StringRef> selection_names = get_curves_selection_attribute_names(curves);
       Vector<MutableSpan<float3>> positions = get_curves_positions_for_write(curves);
@@ -1300,7 +1300,7 @@ static void v3d_editvertex_buts(
 
         selection.foreach_index([&](const int point) {
           apply_raw_diff_v3(
-              positions[attribute_i][point], tot, ve_median->location, median->location);
+              positions[attribute_i][point], tot, ve_median.location, median.location);
         });
       }
       curves.tag_positions_changed();
