@@ -382,7 +382,7 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
   fn_node_type_base(&ntype, "FunctionNodeConstraint", FN_NODE_CONSTRAINT);
-  ntype.ui_name = "Constraint";
+  ntype.ui_name = "Evaluate Constraint";
   ntype.enum_name_legacy = "CONSTRAINT";
   ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.declare = node_declare;

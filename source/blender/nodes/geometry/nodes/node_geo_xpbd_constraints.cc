@@ -3,7 +3,9 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BKE_attribute.hh"
+#include "BKE_curves.hh"
 #include "BKE_geometry_set.hh"
+#include "BKE_pointcloud.hh"
 
 #include "NOD_xpbd_constraints.hh"
 
@@ -37,10 +39,17 @@ constexpr StringRef ATTR_POINT2 = "point2";
 constexpr StringRef ATTR_ACTIVE = "active";
 constexpr StringRef ATTR_LAST_ACTIVE = "last_active";
 
-static void position_goal__get_size(int &r_num_components,
-                                    int &r_num_position_vars,
-                                    int &r_num_rotation_vars,
-                                    bool &r_use_active_mask)
+inline float trace(const float3 &v)
+{
+  return v.x + v.y + v.z;
+}
+
+namespace position_goal {
+
+static void get_size(int &r_num_components,
+                     int &r_num_position_vars,
+                     int &r_num_rotation_vars,
+                     bool &r_use_active_mask)
 {
   r_num_components = 1;
   r_num_position_vars = 1;
@@ -48,10 +57,10 @@ static void position_goal__get_size(int &r_num_components,
   r_use_active_mask = false;
 }
 
-static void position_goal__get_variable_indices(const bke::AttributeAccessor &attributes,
-                                                const IndexMask &selection,
-                                                MutableSpan<int> r_position_indices[4],
-                                                MutableSpan<int> /*r_rotation_indices*/[4])
+static void get_variable_indices(const bke::AttributeAccessor &attributes,
+                                 const IndexMask &selection,
+                                 MutableSpan<int> r_position_indices[4],
+                                 MutableSpan<int> /*r_rotation_indices*/[4])
 {
   const VArraySpan<int> points = *attributes.lookup_or_default<int>(
       ATTR_POINT1, AttrDomain::Point, 0);
@@ -62,7 +71,7 @@ static void position_goal__get_variable_indices(const bke::AttributeAccessor &at
   });
 }
 
-static void position_goal__init_step(bke::GeometrySet &constraints)
+static void init_step(bke::GeometrySet &constraints)
 {
   PointCloudComponent &component = constraints.get_component_for_write<PointCloudComponent>();
   std::optional<bke::MutableAttributeAccessor> attributes = component.attributes_for_write();
@@ -76,13 +85,13 @@ static void position_goal__init_step(bke::GeometrySet &constraints)
 }
 
 template<bool debug_output>
-static void position_goal__eval_positions(const ConstraintEvalParams &params,
-                                          const ConstraintVariables &variables,
-                                          const IndexMask &group_mask,
-                                          bke::GeometrySet &constraints,
-                                          VArray<bool> &r_active,
-                                          Vector<VArray<float3>> &r_delta_positions,
-                                          Vector<VArray<float4>> &r_delta_rotations)
+static void eval_positions(const ConstraintEvalParams &params,
+                           const ConstraintVariables &variables,
+                           const IndexMask &group_mask,
+                           bke::GeometrySet &constraints,
+                           VArray<bool> &r_active,
+                           Vector<VArray<float3>> &r_delta_positions,
+                           Vector<VArray<float4>> &r_delta_rotations)
 {
   constexpr bool use_damping = true;
 
@@ -167,16 +176,16 @@ static void position_goal__eval_positions(const ConstraintEvalParams &params,
   r_delta_rotations = {{}};
 }
 
-static void position_goal__linear_solve_elements(const ConstraintEvalParams &params,
-                                                 const ConstraintVariables &variables,
-                                                 const bke::AttributeAccessor &attributes,
-                                                 const IndexMask &selection,
-                                                 GMutableSpan r_alphas,
-                                                 GMutableSpan r_betas,
-                                                 GMutableSpan r_residuals,
-                                                 GMutableSpan r_position_gradients[4],
-                                                 GMutableSpan /*r_rotation_gradients*/[4],
-                                                 MutableSpan<bool> /*r_active*/)
+static void linear_solve_elements(const ConstraintEvalParams &params,
+                                  const ConstraintVariables &variables,
+                                  const bke::AttributeAccessor &attributes,
+                                  const IndexMask &selection,
+                                  GMutableSpan r_alphas,
+                                  GMutableSpan r_betas,
+                                  GMutableSpan r_residuals,
+                                  GMutableSpan r_position_gradients[4],
+                                  GMutableSpan /*r_rotation_gradients*/[4],
+                                  MutableSpan<bool> /*r_active*/)
 {
   // r_alphas = GField(AttributeFieldInput::Create(ATTR_ALPHA, CPPType::get<float>()));
   // r_betas = GField(AttributeFieldInput::Create(ATTR_BETA, CPPType::get<float>()));
@@ -220,10 +229,100 @@ static void position_goal__linear_solve_elements(const ConstraintEvalParams &par
   });
 }
 
-static void rotation_goal__get_size(int &r_num_components,
-                                    int &r_num_position_vars,
-                                    int &r_num_rotation_vars,
-                                    bool &r_use_active_mask)
+static void node_declare(NodeDeclarationBuilder &b)
+{
+  b.add_input<decl::Geometry>("Curves").supported_type(GeometryComponent::Type::Curve);
+  b.add_input<decl::Bool>("Selection").default_value(true).hide_value().field_on_all();
+
+  b.add_input<decl::Float>("Compliance").min(0.0f).field_on_all();
+  b.add_input<decl::Float>("Damping").min(0.0f).field_on_all();
+  b.add_input<decl::Vector>("Goal").field_on_all().description(
+      "Target location of the constraint");
+
+  b.add_output<decl::Geometry>("Constraints");
+}
+
+static void node_geo_exec(GeoNodeExecParams params)
+{
+  GeometrySet geometry = params.extract_input<GeometrySet>("Curves");
+  const Field<bool> selection_field = params.extract_input<Field<bool>>("Selection");
+
+  const Field<float> compliance_field = params.extract_input<Field<float>>("Compliance");
+  const Field<float> damping_field = params.extract_input<Field<float>>("Damping");
+  const Field<float3> goal_field = params.extract_input<Field<float3>>("Goal");
+
+  if (!geometry.has_curves()) {
+    params.set_default_remaining_outputs();
+    return;
+  }
+
+  const CurveComponent &component = *geometry.get_component<CurveComponent>();
+  bke::GeometryFieldContext context{component, AttrDomain::Point};
+  fn::FieldEvaluator evaluator{context, component.attribute_domain_size(AttrDomain::Point)};
+  evaluator.set_selection(selection_field);
+  evaluator.add(compliance_field);
+  evaluator.add(damping_field);
+  evaluator.add(goal_field);
+  evaluator.evaluate();
+
+  const IndexMask selection = evaluator.get_evaluated_selection_as_mask();
+  VArray<float> compliance = evaluator.get_evaluated<float>(0);
+  VArray<float> damping = evaluator.get_evaluated<float>(1);
+  VArray<float3> goal_position = evaluator.get_evaluated<float3>(2);
+
+  PointCloud *points = BKE_pointcloud_new_nomain(selection.size());
+  MutableAttributeAccessor attributes = points->attributes_for_write();
+  SpanAttributeWriter<int> output_point1 = attributes.lookup_or_add_for_write_only_span<int>(
+      ATTR_POINT1, AttrDomain::Point);
+  SpanAttributeWriter<float> output_compliance =
+      attributes.lookup_or_add_for_write_only_span<float>(ATTR_ALPHA, AttrDomain::Point);
+  SpanAttributeWriter<float> output_damping = attributes.lookup_or_add_for_write_only_span<float>(
+      ATTR_BETA, AttrDomain::Point);
+  SpanAttributeWriter<float3> output_goal_position =
+      attributes.lookup_or_add_for_write_only_span<float3>("goal_position", AttrDomain::Point);
+  SpanAttributeWriter<int> output_solver_group = attributes.lookup_or_add_for_write_only_span<int>(
+      ATTR_SOLVER_GROUP, AttrDomain::Point);
+
+  selection.to_indices(output_point1.span);
+  compliance.materialize_compressed(selection, output_compliance.span);
+  damping.materialize_compressed(selection, output_damping.span);
+  goal_position.materialize_compressed(selection, output_goal_position.span);
+  output_solver_group.span.fill(0);
+
+  output_point1.finish();
+  output_compliance.finish();
+  output_damping.finish();
+  output_goal_position.finish();
+  output_solver_group.finish();
+
+  points->positions_for_write().fill(float3(0.0f));
+  points->tag_positions_changed();
+
+  params.set_output("Constraints", GeometrySet::from_pointcloud(points));
+}
+
+static void node_register()
+{
+  static blender::bke::bNodeType ntype;
+
+  geo_node_type_base(&ntype, "GeometryNodePositionGoalConstraints");
+  ntype.ui_name = "Position Goal Constraints";
+  ntype.ui_description = "Define position goal constraints that move points to a given location";
+  ntype.nclass = NODE_CLASS_GEOMETRY;
+  node_type_size(ntype, 200, 120, 300);
+  ntype.geometry_node_execute = node_geo_exec;
+  ntype.declare = node_declare;
+  blender::bke::node_register_type(ntype);
+}
+
+}  // namespace position_goal
+
+namespace rotation_goal {
+
+static void get_size(int &r_num_components,
+                     int &r_num_position_vars,
+                     int &r_num_rotation_vars,
+                     bool &r_use_active_mask)
 {
   r_num_components = 3;
   r_num_position_vars = 0;
@@ -231,10 +330,10 @@ static void rotation_goal__get_size(int &r_num_components,
   r_use_active_mask = false;
 }
 
-static void rotation_goal__get_variable_indices(const bke::AttributeAccessor &attributes,
-                                                const IndexMask &selection,
-                                                MutableSpan<int> /*r_position_indices*/[4],
-                                                MutableSpan<int> r_rotation_indices[4])
+static void get_variable_indices(const bke::AttributeAccessor &attributes,
+                                 const IndexMask &selection,
+                                 MutableSpan<int> /*r_position_indices*/[4],
+                                 MutableSpan<int> r_rotation_indices[4])
 {
   const VArraySpan<int> points = *attributes.lookup_or_default<int>(
       ATTR_POINT1, AttrDomain::Point, 0);
@@ -245,7 +344,7 @@ static void rotation_goal__get_variable_indices(const bke::AttributeAccessor &at
   });
 }
 
-static void rotation_goal__init_step(bke::GeometrySet &constraints)
+static void init_step(bke::GeometrySet &constraints)
 {
   PointCloudComponent &component = constraints.get_component_for_write<PointCloudComponent>();
   std::optional<bke::MutableAttributeAccessor> attributes = component.attributes_for_write();
@@ -259,13 +358,13 @@ static void rotation_goal__init_step(bke::GeometrySet &constraints)
 }
 
 template<bool debug_output>
-static void rotation_goal__eval_positions(const ConstraintEvalParams &params,
-                                          const ConstraintVariables &variables,
-                                          const IndexMask &group_mask,
-                                          bke::GeometrySet &constraints,
-                                          VArray<bool> &r_active,
-                                          Vector<VArray<float3>> &r_delta_positions,
-                                          Vector<VArray<float4>> &r_delta_rotations)
+static void eval_positions(const ConstraintEvalParams &params,
+                           const ConstraintVariables &variables,
+                           const IndexMask &group_mask,
+                           bke::GeometrySet &constraints,
+                           VArray<bool> &r_active,
+                           Vector<VArray<float3>> &r_delta_positions,
+                           Vector<VArray<float4>> &r_delta_rotations)
 {
   constexpr bool linearized_quaternion = true;
   constexpr bool use_damping = true;
@@ -371,16 +470,16 @@ static void rotation_goal__eval_positions(const ConstraintEvalParams &params,
       VArray<float4>::ForFunc(attributes->domain_size(AttrDomain::Point), delta_rotation_fn)};
 }
 
-static void rotation_goal__linear_solve_elements(const ConstraintEvalParams &params,
-                                                 const ConstraintVariables &variables,
-                                                 const bke::AttributeAccessor &attributes,
-                                                 const IndexMask &selection,
-                                                 GMutableSpan r_alphas,
-                                                 GMutableSpan r_betas,
-                                                 GMutableSpan r_residuals,
-                                                 GMutableSpan /*r_position_gradients*/[4],
-                                                 GMutableSpan r_rotation_gradients[4],
-                                                 MutableSpan<bool> /*r_active*/)
+static void linear_solve_elements(const ConstraintEvalParams &params,
+                                  const ConstraintVariables &variables,
+                                  const bke::AttributeAccessor &attributes,
+                                  const IndexMask &selection,
+                                  GMutableSpan r_alphas,
+                                  GMutableSpan r_betas,
+                                  GMutableSpan r_residuals,
+                                  GMutableSpan /*r_position_gradients*/[4],
+                                  GMutableSpan r_rotation_gradients[4],
+                                  MutableSpan<bool> /*r_active*/)
 {
   const VArraySpan<int> points = *lookup_or_warn<int>(
       attributes, ATTR_POINT1, AttrDomain::Point, 0, params.error_message_add);
@@ -416,15 +515,102 @@ static void rotation_goal__linear_solve_elements(const ConstraintEvalParams &par
   });
 }
 
-inline float trace(const float3 &v)
+static void node_declare(NodeDeclarationBuilder &b)
 {
-  return v.x + v.y + v.z;
+  b.add_input<decl::Geometry>("Curves").supported_type(GeometryComponent::Type::Curve);
+  b.add_input<decl::Bool>("Selection").default_value(true).hide_value().field_on_all();
+
+  b.add_input<decl::Float>("Compliance").min(0.0f).field_on_all();
+  b.add_input<decl::Float>("Damping").min(0.0f).field_on_all();
+  b.add_input<decl::Rotation>("Goal").field_on_all().description(
+      "Target rotation of the constraint");
+
+  b.add_output<decl::Geometry>("Constraints");
 }
 
-static void stretch_shear__get_size(int &r_num_components,
-                                    int &r_num_position_vars,
-                                    int &r_num_rotation_vars,
-                                    bool &r_use_active_mask)
+static void node_geo_exec(GeoNodeExecParams params)
+{
+  GeometrySet geometry = params.extract_input<GeometrySet>("Curves");
+  const Field<bool> selection_field = params.extract_input<Field<bool>>("Selection");
+
+  const Field<float> compliance_field = params.extract_input<Field<float>>("Compliance");
+  const Field<float> damping_field = params.extract_input<Field<float>>("Damping");
+  const Field<math::Quaternion> goal_field = params.extract_input<Field<math::Quaternion>>("Goal");
+
+  if (!geometry.has_curves()) {
+    params.set_default_remaining_outputs();
+    return;
+  }
+
+  const CurveComponent &component = *geometry.get_component<CurveComponent>();
+  bke::GeometryFieldContext context{component, AttrDomain::Point};
+  fn::FieldEvaluator evaluator{context, component.attribute_domain_size(AttrDomain::Point)};
+  evaluator.set_selection(selection_field);
+  evaluator.add(compliance_field);
+  evaluator.add(damping_field);
+  evaluator.add(goal_field);
+  evaluator.evaluate();
+
+  const IndexMask selection = evaluator.get_evaluated_selection_as_mask();
+  const VArray<float> compliance = evaluator.get_evaluated<float>(0);
+  const VArray<float> damping = evaluator.get_evaluated<float>(1);
+  const VArray<math::Quaternion> goal_rotation = evaluator.get_evaluated<math::Quaternion>(2);
+
+  PointCloud *points = BKE_pointcloud_new_nomain(selection.size());
+  MutableAttributeAccessor attributes = points->attributes_for_write();
+  SpanAttributeWriter<int> output_point1 = attributes.lookup_or_add_for_write_only_span<int>(
+      ATTR_POINT1, AttrDomain::Point);
+  SpanAttributeWriter<float> output_compliance =
+      attributes.lookup_or_add_for_write_only_span<float>(ATTR_ALPHA, AttrDomain::Point);
+  SpanAttributeWriter<float> output_damping = attributes.lookup_or_add_for_write_only_span<float>(
+      ATTR_BETA, AttrDomain::Point);
+  SpanAttributeWriter<math::Quaternion> output_goal_rotation =
+      attributes.lookup_or_add_for_write_only_span<math::Quaternion>("goal_rotation",
+                                                                     AttrDomain::Point);
+  SpanAttributeWriter<int> output_solver_group = attributes.lookup_or_add_for_write_only_span<int>(
+      ATTR_SOLVER_GROUP, AttrDomain::Point);
+
+  selection.to_indices(output_point1.span);
+  compliance.materialize_compressed(selection, output_compliance.span);
+  damping.materialize_compressed(selection, output_damping.span);
+  goal_rotation.materialize_compressed(selection, output_goal_rotation.span);
+  output_solver_group.span.fill(0);
+
+  output_point1.finish();
+  output_compliance.finish();
+  output_damping.finish();
+  output_goal_rotation.finish();
+  output_solver_group.finish();
+
+  points->positions_for_write().fill(float3(0.0f));
+  points->tag_positions_changed();
+
+  params.set_output("Constraints", GeometrySet::from_pointcloud(points));
+}
+
+static void node_register()
+{
+  static blender::bke::bNodeType ntype;
+
+  geo_node_type_base(&ntype, "GeometryNodeRotationGoalConstraints");
+  ntype.ui_name = "Rotation Goal Constraints";
+  ntype.ui_description =
+      "Define rotation goal constraints that align the rotation with a given orientation";
+  ntype.nclass = NODE_CLASS_GEOMETRY;
+  node_type_size(ntype, 200, 120, 300);
+  ntype.geometry_node_execute = node_geo_exec;
+  ntype.declare = node_declare;
+  blender::bke::node_register_type(ntype);
+}
+
+}  // namespace rotation_goal
+
+namespace stretch_shear {
+
+static void get_size(int &r_num_components,
+                     int &r_num_position_vars,
+                     int &r_num_rotation_vars,
+                     bool &r_use_active_mask)
 {
   r_num_components = 3;
   r_num_position_vars = 2;
@@ -432,10 +618,10 @@ static void stretch_shear__get_size(int &r_num_components,
   r_use_active_mask = false;
 }
 
-static void stretch_shear__get_variable_indices(const bke::AttributeAccessor &attributes,
-                                                const IndexMask &selection,
-                                                MutableSpan<int> r_position_indices[4],
-                                                MutableSpan<int> r_rotation_indices[4])
+static void get_variable_indices(const bke::AttributeAccessor &attributes,
+                                 const IndexMask &selection,
+                                 MutableSpan<int> r_position_indices[4],
+                                 MutableSpan<int> r_rotation_indices[4])
 {
   const VArraySpan<int> points1 = *attributes.lookup_or_default<int>(
       ATTR_POINT1, AttrDomain::Point, 0);
@@ -452,7 +638,7 @@ static void stretch_shear__get_variable_indices(const bke::AttributeAccessor &at
   });
 }
 
-static void stretch_shear__init_step(bke::GeometrySet &constraints)
+static void init_step(bke::GeometrySet &constraints)
 {
   PointCloudComponent &component = constraints.get_component_for_write<PointCloudComponent>();
   std::optional<bke::MutableAttributeAccessor> attributes = component.attributes_for_write();
@@ -466,13 +652,13 @@ static void stretch_shear__init_step(bke::GeometrySet &constraints)
 }
 
 template<bool debug_output>
-static void stretch_shear__eval_positions(const ConstraintEvalParams &params,
-                                          const ConstraintVariables &variables,
-                                          const IndexMask &group_mask,
-                                          bke::GeometrySet &constraints,
-                                          VArray<bool> &r_active,
-                                          Vector<VArray<float3>> &r_delta_positions,
-                                          Vector<VArray<float4>> &r_delta_rotations)
+static void eval_positions(const ConstraintEvalParams &params,
+                           const ConstraintVariables &variables,
+                           const IndexMask &group_mask,
+                           bke::GeometrySet &constraints,
+                           VArray<bool> &r_active,
+                           Vector<VArray<float3>> &r_delta_positions,
+                           Vector<VArray<float4>> &r_delta_rotations)
 {
   constexpr bool linearized_quaternion = true;
   constexpr bool use_damping = true;
@@ -610,16 +796,16 @@ static void stretch_shear__eval_positions(const ConstraintEvalParams &params,
       VArray<float4>::ForFunc(attributes->domain_size(AttrDomain::Point), delta_rotation1_fn), {}};
 }
 
-static void stretch_shear__linear_solve_elements(const ConstraintEvalParams &params,
-                                                 const ConstraintVariables &variables,
-                                                 const bke::AttributeAccessor &attributes,
-                                                 const IndexMask &selection,
-                                                 GMutableSpan r_alphas,
-                                                 GMutableSpan r_betas,
-                                                 GMutableSpan r_residuals,
-                                                 GMutableSpan r_position_gradients[4],
-                                                 GMutableSpan r_rotation_gradients[4],
-                                                 MutableSpan<bool> /*r_active*/)
+static void linear_solve_elements(const ConstraintEvalParams &params,
+                                  const ConstraintVariables &variables,
+                                  const bke::AttributeAccessor &attributes,
+                                  const IndexMask &selection,
+                                  GMutableSpan r_alphas,
+                                  GMutableSpan r_betas,
+                                  GMutableSpan r_residuals,
+                                  GMutableSpan r_position_gradients[4],
+                                  GMutableSpan r_rotation_gradients[4],
+                                  MutableSpan<bool> /*r_active*/)
 {
   const VArraySpan<int> points1 = *lookup_or_warn<int>(
       attributes, ATTR_POINT1, AttrDomain::Point, 0, params.error_message_add);
@@ -663,10 +849,132 @@ static void stretch_shear__linear_solve_elements(const ConstraintEvalParams &par
   });
 }
 
-static void bend_twist__get_size(int &r_num_components,
-                                 int &r_num_position_vars,
-                                 int &r_num_rotation_vars,
-                                 bool &r_use_active_mask)
+static void node_declare(NodeDeclarationBuilder &b)
+{
+  b.add_input<decl::Geometry>("Curves").supported_type(GeometryComponent::Type::Curve);
+  b.add_input<decl::Bool>("Selection").default_value(true).hide_value().field_on_all();
+
+  b.add_input<decl::Float>("Compliance").min(0.0f).field_on_all();
+  b.add_input<decl::Float>("Damping").min(0.0f).field_on_all();
+  b.add_input<decl::Vector>("Rest Position")
+      .implicit_field_on_all(implicit_field_inputs::position)
+      .description("Rest position defining the edge length of constraints");
+
+  b.add_output<decl::Geometry>("Constraints");
+}
+
+static void node_geo_exec(GeoNodeExecParams params)
+{
+  GeometrySet geometry = params.extract_input<GeometrySet>("Curves");
+  const Field<bool> selection_field = params.extract_input<Field<bool>>("Selection");
+
+  const Field<float> compliance_field = params.extract_input<Field<float>>("Compliance");
+  const Field<float> damping_field = params.extract_input<Field<float>>("Damping");
+  const Field<float3> rest_position_field = params.extract_input<Field<float3>>("Rest Position");
+
+  if (!geometry.has_curves()) {
+    params.set_default_remaining_outputs();
+    return;
+  }
+
+  const CurveComponent &component = *geometry.get_component<CurveComponent>();
+  const bke::CurvesGeometry &curves = component.get()->geometry.wrap();
+  const OffsetIndices points_by_curve = curves.points_by_curve();
+
+  /* Skip end points of curves, these cannot have stretch/shear constraints. */
+  Array<bool> point_bools(curves.points_num(), true);
+  IndexMask(curves.curves_range()).foreach_index(GrainSize(128), [&](const int curve_i) {
+    const IndexRange points = points_by_curve[curve_i];
+    if (!points.is_empty()) {
+      point_bools[points.last()] = false;
+    }
+  });
+  IndexMaskMemory memory;
+  const IndexMask point_mask = IndexMask::from_bools(point_bools, memory);
+
+  bke::GeometryFieldContext context{component, AttrDomain::Point};
+  fn::FieldEvaluator evaluator{context, &point_mask};
+  evaluator.set_selection(selection_field);
+  evaluator.add(compliance_field);
+  evaluator.add(damping_field);
+  evaluator.add(rest_position_field);
+  evaluator.evaluate();
+
+  const IndexMask selection = evaluator.get_evaluated_selection_as_mask();
+  const VArray<float> compliance = evaluator.get_evaluated<float>(0);
+  const VArray<float> damping = evaluator.get_evaluated<float>(1);
+  const VArraySpan<float3> rest_position = evaluator.get_evaluated<float3>(2);
+
+  PointCloud *points = BKE_pointcloud_new_nomain(selection.size());
+  MutableAttributeAccessor attributes = points->attributes_for_write();
+  SpanAttributeWriter<int> output_point1 = attributes.lookup_or_add_for_write_only_span<int>(
+      ATTR_POINT1, AttrDomain::Point);
+  SpanAttributeWriter<int> output_point2 = attributes.lookup_or_add_for_write_only_span<int>(
+      ATTR_POINT2, AttrDomain::Point);
+  SpanAttributeWriter<float> output_compliance =
+      attributes.lookup_or_add_for_write_only_span<float>(ATTR_ALPHA, AttrDomain::Point);
+  SpanAttributeWriter<float> output_damping = attributes.lookup_or_add_for_write_only_span<float>(
+      ATTR_BETA, AttrDomain::Point);
+  SpanAttributeWriter<float> output_edge_length =
+      attributes.lookup_or_add_for_write_only_span<float>("edge_length", AttrDomain::Point);
+  SpanAttributeWriter<int> output_solver_group = attributes.lookup_or_add_for_write_only_span<int>(
+      ATTR_SOLVER_GROUP, AttrDomain::Point);
+
+  selection.foreach_index(GrainSize(256), [&](const int index, const int pos) {
+    /* Curve end points have been excluded, so index + 1 is safe. */
+    output_point1.span[pos] = index;
+    output_point2.span[pos] = index + 1;
+    /* Use rest position distance as the edge length. */
+    output_edge_length.span[pos] = math::distance(rest_position[index], rest_position[index + 1]);
+    /* Alternating by odd/even index separates curve constraints into independent groups. */
+    output_solver_group.span[pos] = index % 2;
+  });
+  compliance.materialize_compressed(selection, output_compliance.span);
+  damping.materialize_compressed(selection, output_damping.span);
+
+  output_point1.finish();
+  output_point2.finish();
+  output_compliance.finish();
+  output_damping.finish();
+  output_edge_length.finish();
+  output_solver_group.finish();
+
+  points->positions_for_write().fill(float3(0.0f));
+  points->tag_positions_changed();
+
+  params.set_output("Constraints", GeometrySet::from_pointcloud(points));
+}
+
+static void node_register()
+{
+  static blender::bke::bNodeType ntype;
+
+  geo_node_type_base(&ntype, "GeometryNodeStretchShearConstraints");
+  ntype.ui_name = "Stretch/Shear Constraints";
+  /* TODO Difficult to describe in a single sentence: The rotation of a hair segment is a generic
+   * independent attribute. This constraint ensures that the distance between points matches the
+   * expected edge length (zero stretch) and the orientation Z axis aligns with the actual
+   * direction of the segment between neighboring points (zero shear). It can either move the
+   * points or change the orientation, balanced by the relative position/rotation weights (inverse
+   * point masses and moments of inertia). */
+  ntype.ui_description =
+      "Define stretch/shear constraints that limit edge length and align positions to segment "
+      "rotation";
+  ntype.nclass = NODE_CLASS_GEOMETRY;
+  node_type_size(ntype, 200, 120, 300);
+  ntype.geometry_node_execute = node_geo_exec;
+  ntype.declare = node_declare;
+  blender::bke::node_register_type(ntype);
+}
+
+}  // namespace stretch_shear
+
+namespace bend_twist {
+
+static void get_size(int &r_num_components,
+                     int &r_num_position_vars,
+                     int &r_num_rotation_vars,
+                     bool &r_use_active_mask)
 {
   r_num_components = 3;
   r_num_position_vars = 0;
@@ -674,10 +982,10 @@ static void bend_twist__get_size(int &r_num_components,
   r_use_active_mask = false;
 }
 
-static void bend_twist__get_variable_indices(const bke::AttributeAccessor &attributes,
-                                             const IndexMask &selection,
-                                             MutableSpan<int> /*r_position_indices*/[4],
-                                             MutableSpan<int> r_rotation_indices[4])
+static void get_variable_indices(const bke::AttributeAccessor &attributes,
+                                 const IndexMask &selection,
+                                 MutableSpan<int> /*r_position_indices*/[4],
+                                 MutableSpan<int> r_rotation_indices[4])
 {
   const VArraySpan<int> points1 = *attributes.lookup_or_default<int>(
       ATTR_POINT1, AttrDomain::Point, 0);
@@ -692,7 +1000,7 @@ static void bend_twist__get_variable_indices(const bke::AttributeAccessor &attri
   });
 }
 
-static void bend_twist__init_step(bke::GeometrySet &constraints)
+static void init_step(bke::GeometrySet &constraints)
 {
   PointCloudComponent &component = constraints.get_component_for_write<PointCloudComponent>();
   std::optional<bke::MutableAttributeAccessor> attributes = component.attributes_for_write();
@@ -710,13 +1018,13 @@ static void bend_twist__init_step(bke::GeometrySet &constraints)
 }
 
 template<bool debug_output>
-static void bend_twist__eval_positions(const ConstraintEvalParams &params,
-                                       const ConstraintVariables &variables,
-                                       const IndexMask &group_mask,
-                                       bke::GeometrySet &constraints,
-                                       VArray<bool> &r_active,
-                                       Vector<VArray<float3>> &r_delta_positions,
-                                       Vector<VArray<float4>> &r_delta_rotations)
+static void eval_positions(const ConstraintEvalParams &params,
+                           const ConstraintVariables &variables,
+                           const IndexMask &group_mask,
+                           bke::GeometrySet &constraints,
+                           VArray<bool> &r_active,
+                           Vector<VArray<float3>> &r_delta_positions,
+                           Vector<VArray<float4>> &r_delta_rotations)
 {
   constexpr bool linearized_quaternion = true;
   constexpr bool use_damping = true;
@@ -853,16 +1161,16 @@ static void bend_twist__eval_positions(const ConstraintEvalParams &params,
       VArray<float4>::ForFunc(attributes->domain_size(AttrDomain::Point), delta_rotation2_fn)};
 }
 
-static void bend_twist__linear_solve_elements(const ConstraintEvalParams &params,
-                                              const ConstraintVariables &variables,
-                                              const bke::AttributeAccessor &attributes,
-                                              const IndexMask &selection,
-                                              GMutableSpan r_alphas,
-                                              GMutableSpan r_betas,
-                                              GMutableSpan r_residuals,
-                                              GMutableSpan /*r_position_gradients*/[4],
-                                              GMutableSpan r_rotation_gradients[4],
-                                              MutableSpan<bool> /*r_active*/)
+static void linear_solve_elements(const ConstraintEvalParams &params,
+                                  const ConstraintVariables &variables,
+                                  const bke::AttributeAccessor &attributes,
+                                  const IndexMask &selection,
+                                  GMutableSpan r_alphas,
+                                  GMutableSpan r_betas,
+                                  GMutableSpan r_residuals,
+                                  GMutableSpan /*r_position_gradients*/[4],
+                                  GMutableSpan r_rotation_gradients[4],
+                                  MutableSpan<bool> /*r_active*/)
 {
   const VArraySpan<int> points1 = *lookup_or_warn<int>(
       attributes, ATTR_POINT1, AttrDomain::Point, 0, params.error_message_add);
@@ -902,10 +1210,53 @@ static void bend_twist__linear_solve_elements(const ConstraintEvalParams &params
   });
 }
 
-static void contact__get_size(int &r_num_components,
-                              int &r_num_position_vars,
-                              int &r_num_rotation_vars,
-                              bool &r_use_active_mask)
+static void node_declare(NodeDeclarationBuilder &b)
+{
+  b.add_input<decl::Geometry>("Curves").supported_type(GeometryComponent::Type::Curve);
+  b.add_input<decl::Bool>("Selection").default_value(true).hide_value().field_on_all();
+
+  b.add_input<decl::Int>("Point 1").min(0).field_on_all().description(
+      "Index of the first point the constraint applies to");
+  b.add_input<decl::Int>("Point 2").min(0).field_on_all().description(
+      "Index of the second point the constraint applies to");
+  b.add_input<decl::Float>("Compliance").min(0.0f).field_on_all();
+  b.add_input<decl::Float>("Damping").min(0.0f).field_on_all();
+  b.add_input<decl::Rotation>("Relative Rotation")
+      .field_on_all()
+      .description("Relative rotation between points");
+  b.add_input<decl::Float>("Edge Length")
+      .min(0.0f)
+      .field_on_all()
+      .description("Distance between points");
+
+  b.add_output<decl::Geometry>("Constraints");
+}
+
+static void node_geo_exec(GeoNodeExecParams params) {}
+
+static void node_register()
+{
+  static blender::bke::bNodeType ntype;
+
+  geo_node_type_base(&ntype, "GeometryNodeBendTwistConstraints");
+  ntype.ui_name = "Bend/Twist Constraints";
+  ntype.ui_description =
+      "Define bend/twist constraints that limit relative rotation between two orientations";
+  ntype.nclass = NODE_CLASS_GEOMETRY;
+  node_type_size(ntype, 200, 120, 300);
+  ntype.geometry_node_execute = node_geo_exec;
+  ntype.declare = node_declare;
+  blender::bke::node_register_type(ntype);
+}
+
+}  // namespace bend_twist
+
+namespace contact {
+
+static void get_size(int &r_num_components,
+                     int &r_num_position_vars,
+                     int &r_num_rotation_vars,
+                     bool &r_use_active_mask)
 {
   r_num_components = 1;
   r_num_position_vars = 1;
@@ -913,10 +1264,10 @@ static void contact__get_size(int &r_num_components,
   r_use_active_mask = true;
 }
 
-static void contact__get_variable_indices(const bke::AttributeAccessor &attributes,
-                                          const IndexMask &selection,
-                                          MutableSpan<int> r_position_indices[4],
-                                          MutableSpan<int> r_rotation_indices[4])
+static void get_variable_indices(const bke::AttributeAccessor &attributes,
+                                 const IndexMask &selection,
+                                 MutableSpan<int> r_position_indices[4],
+                                 MutableSpan<int> r_rotation_indices[4])
 {
   const VArraySpan<int> points1 = *attributes.lookup_or_default<int>(
       ATTR_POINT1, AttrDomain::Point, 0);
@@ -929,7 +1280,7 @@ static void contact__get_variable_indices(const bke::AttributeAccessor &attribut
   });
 }
 
-static void contact__init_step(bke::GeometrySet &constraints)
+static void init_step(bke::GeometrySet &constraints)
 {
   PointCloudComponent &component = constraints.get_component_for_write<PointCloudComponent>();
   std::optional<bke::MutableAttributeAccessor> attributes = component.attributes_for_write();
@@ -951,13 +1302,13 @@ static void contact__init_step(bke::GeometrySet &constraints)
 }
 
 template<bool debug_output>
-static void contact__eval_positions(const ConstraintEvalParams &params,
-                                    const ConstraintVariables &variables,
-                                    const IndexMask &group_mask,
-                                    bke::GeometrySet &constraints,
-                                    VArray<bool> &r_active,
-                                    Vector<VArray<float3>> &r_delta_positions,
-                                    Vector<VArray<float4>> &r_delta_rotations)
+static void eval_positions(const ConstraintEvalParams &params,
+                           const ConstraintVariables &variables,
+                           const IndexMask &group_mask,
+                           bke::GeometrySet &constraints,
+                           VArray<bool> &r_active,
+                           Vector<VArray<float3>> &r_delta_positions,
+                           Vector<VArray<float4>> &r_delta_rotations)
 {
   PointCloudComponent &component = constraints.get_component_for_write<PointCloudComponent>();
   std::optional<bke::MutableAttributeAccessor> attributes = component.attributes_for_write();
@@ -1093,13 +1444,13 @@ static void contact__eval_positions(const ConstraintEvalParams &params,
 }
 
 template<bool debug_output>
-static void contact__eval_velocities(const ConstraintEvalParams &params,
-                                     const ConstraintVariables &variables,
-                                     const IndexMask &group_mask,
-                                     bke::GeometrySet &constraints,
-                                     VArray<bool> &r_active,
-                                     Vector<VArray<float3>> &r_delta_velocities,
-                                     Vector<VArray<float3>> &r_delta_angular_velocities)
+static void eval_velocities(const ConstraintEvalParams &params,
+                            const ConstraintVariables &variables,
+                            const IndexMask &group_mask,
+                            bke::GeometrySet &constraints,
+                            VArray<bool> &r_active,
+                            Vector<VArray<float3>> &r_delta_velocities,
+                            Vector<VArray<float3>> &r_delta_angular_velocities)
 {
   PointCloudComponent &component = constraints.get_component_for_write<PointCloudComponent>();
   std::optional<bke::MutableAttributeAccessor> attributes = component.attributes_for_write();
@@ -1256,16 +1607,16 @@ static void contact__eval_velocities(const ConstraintEvalParams &params,
       *attributes->lookup<float3>("delta_angular_velocity1", AttrDomain::Point)};
 }
 
-static void contact__linear_solve_elements(const ConstraintEvalParams &params,
-                                           const ConstraintVariables &variables,
-                                           const bke::AttributeAccessor &attributes,
-                                           const IndexMask &selection,
-                                           GMutableSpan r_alphas,
-                                           GMutableSpan r_betas,
-                                           GMutableSpan r_residuals,
-                                           GMutableSpan r_position_gradients[4],
-                                           GMutableSpan r_rotation_gradients[4],
-                                           MutableSpan<bool> r_active)
+static void linear_solve_elements(const ConstraintEvalParams &params,
+                                  const ConstraintVariables &variables,
+                                  const bke::AttributeAccessor &attributes,
+                                  const IndexMask &selection,
+                                  GMutableSpan r_alphas,
+                                  GMutableSpan r_betas,
+                                  GMutableSpan r_residuals,
+                                  GMutableSpan r_position_gradients[4],
+                                  GMutableSpan r_rotation_gradients[4],
+                                  MutableSpan<bool> r_active)
 {
   VArraySpan<int> points1 = *lookup_or_warn<int>(
       attributes, ATTR_POINT1, AttrDomain::Point, 0, params.error_message_add);
@@ -1326,17 +1677,64 @@ static void contact__linear_solve_elements(const ConstraintEvalParams &params,
   });
 }
 
+static void node_declare(NodeDeclarationBuilder &b)
+{
+  b.add_input<decl::Geometry>("Curves").supported_type(GeometryComponent::Type::Curve);
+  b.add_input<decl::Bool>("Selection").default_value(true).hide_value().field_on_all();
+
+  b.add_input<decl::Int>("Point").min(0).field_on_all().description(
+      "Index of the point the constraint applies to");
+  b.add_input<decl::Int>("Collider").min(0).field_on_all().description("Index of the collider");
+  b.add_input<decl::Float>("Friction")
+      .min(0.0f)
+      .field_on_all()
+      .description("Reduction of velocity along the surface during contact");
+  b.add_input<decl::Float>("Restitution")
+      .min(0.0f)
+      .max(1.0f)
+      .subtype(PROP_FACTOR)
+      .field_on_all()
+      .description("Amount the point bounces back after colliding");
+  b.add_input<decl::Vector>("Local Position")
+      .field_on_all()
+      .description("Contact position relative to the point");
+  b.add_input<decl::Vector>("Collider Position")
+      .field_on_all()
+      .description("Contact position relative to the collider");
+  b.add_input<decl::Vector>("Normal").field_on_all().description("Contact normal");
+
+  b.add_output<decl::Geometry>("Constraints");
+}
+
+static void node_geo_exec(GeoNodeExecParams params) {}
+
+static void node_register()
+{
+  static blender::bke::bNodeType ntype;
+
+  geo_node_type_base(&ntype, "GeometryNodeContactConstraints");
+  ntype.ui_name = "Contact Constraints";
+  ntype.ui_description = "Define contact constraints to react to collisions";
+  ntype.nclass = NODE_CLASS_GEOMETRY;
+  node_type_size(ntype, 200, 120, 300);
+  ntype.geometry_node_execute = node_geo_exec;
+  ntype.declare = node_declare;
+  blender::bke::node_register_type(ntype);
+}
+
+}  // namespace contact
+
 template<bool debug_output> static ConstraintTypeInfo create_info__position_goal()
 {
   return ConstraintTypeInfo{"Position Goal Constraints",
                             "Set position of a point to a target vector",
                             0,
-                            position_goal__get_size,
-                            position_goal__get_variable_indices,
-                            position_goal__init_step,
-                            position_goal__eval_positions<debug_output>,
+                            position_goal::get_size,
+                            position_goal::get_variable_indices,
+                            position_goal::init_step,
+                            position_goal::eval_positions<debug_output>,
                             {},
-                            position_goal__linear_solve_elements};
+                            position_goal::linear_solve_elements};
 }
 
 template<bool debug_output> static ConstraintTypeInfo create_info__rotation_goal()
@@ -1344,12 +1742,12 @@ template<bool debug_output> static ConstraintTypeInfo create_info__rotation_goal
   return ConstraintTypeInfo{"Rotation Goal Constraints",
                             "Set orientation of an edge to a target rotation",
                             1,
-                            rotation_goal__get_size,
-                            rotation_goal__get_variable_indices,
-                            rotation_goal__init_step,
-                            rotation_goal__eval_positions<debug_output>,
+                            rotation_goal::get_size,
+                            rotation_goal::get_variable_indices,
+                            rotation_goal::init_step,
+                            rotation_goal::eval_positions<debug_output>,
                             {},
-                            rotation_goal__linear_solve_elements};
+                            rotation_goal::linear_solve_elements};
 }
 
 template<bool debug_output> static ConstraintTypeInfo create_info__stretch_shear()
@@ -1358,12 +1756,12 @@ template<bool debug_output> static ConstraintTypeInfo create_info__stretch_shear
       "Stretch/Shear Constraints",
       "Enforces edge length and aligns forward direction with the edge vector",
       2,
-      stretch_shear__get_size,
-      stretch_shear__get_variable_indices,
-      stretch_shear__init_step,
-      stretch_shear__eval_positions<debug_output>,
+      stretch_shear::get_size,
+      stretch_shear::get_variable_indices,
+      stretch_shear::init_step,
+      stretch_shear::eval_positions<debug_output>,
       {},
-      stretch_shear__linear_solve_elements};
+      stretch_shear::linear_solve_elements};
 }
 
 template<bool debug_output> static ConstraintTypeInfo create_info__bend_twist()
@@ -1372,12 +1770,12 @@ template<bool debug_output> static ConstraintTypeInfo create_info__bend_twist()
       "Bend/Twist Constraints",
       "Enforces angles between neighboring edges to their relative rest orientation",
       3,
-      bend_twist__get_size,
-      bend_twist__get_variable_indices,
-      bend_twist__init_step,
-      bend_twist__eval_positions<debug_output>,
+      bend_twist::get_size,
+      bend_twist::get_variable_indices,
+      bend_twist::init_step,
+      bend_twist::eval_positions<debug_output>,
       {},
-      bend_twist__linear_solve_elements};
+      bend_twist::linear_solve_elements};
 }
 
 template<bool debug_output> static ConstraintTypeInfo create_info__contact()
@@ -1385,12 +1783,12 @@ template<bool debug_output> static ConstraintTypeInfo create_info__contact()
   return ConstraintTypeInfo{"Contact Constraints",
                             "Keep contact points from penetrating",
                             4,
-                            contact__get_size,
-                            contact__get_variable_indices,
-                            contact__init_step,
-                            contact__eval_positions<debug_output>,
-                            contact__eval_velocities<debug_output>,
-                            contact__linear_solve_elements};
+                            contact::get_size,
+                            contact::get_variable_indices,
+                            contact::init_step,
+                            contact::eval_positions<debug_output>,
+                            contact::eval_velocities<debug_output>,
+                            contact::linear_solve_elements};
 }
 
 const ConstraintTypeInfo &get_info__position_goal(const bool debug_check)
@@ -1456,5 +1854,15 @@ Span<ConstraintTypeInfo> get_constraint_info_ordered(const bool debug_output)
    * could also re-order based on some priority value. */
   return get_constraint_info(debug_output);
 }
+
+static void node_register()
+{
+  position_goal::node_register();
+  rotation_goal::node_register();
+  stretch_shear::node_register();
+  bend_twist::node_register();
+  contact::node_register();
+}
+NOD_REGISTER_NODE(node_register)
 
 }  // namespace blender::nodes::xpbd_constraints

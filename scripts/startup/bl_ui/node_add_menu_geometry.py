@@ -572,8 +572,24 @@ class NODE_MT_category_simulation(Menu):
         layout = self.layout
         node_add_menu.add_simulation_zone(layout, label="Simulation")
         node_add_menu.add_node_type(layout, "GeometryNodeSolveConstraints")
-        node_add_menu.add_node_type(layout, "FunctionNodeConstraint")
+        layout.menu("NODE_MT_geometry_node_constraint")
         node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
+
+
+class NODE_MT_geometry_node_constraint(Menu):
+    bl_idname = "NODE_MT_geometry_node_constraint"
+    bl_label = "Constraint"
+
+    def draw(self, _context):
+        layout = self.layout
+        node_add_menu.add_node_type(layout, "GeometryNodeBendTwistConstraints")
+        node_add_menu.add_node_type(layout, "GeometryNodeContactConstraints")
+        node_add_menu.add_node_type(layout, "GeometryNodePositionGoalConstraints")
+        node_add_menu.add_node_type(layout, "GeometryNodeRotationGoalConstraints")
+        node_add_menu.add_node_type(layout, "GeometryNodeStretchShearConstraints")
+        layout.separator()
+        node_add_menu.add_node_type(layout, "FunctionNodeConstraint")
+        node_add_menu.draw_assets_for_catalog(layout, "Simulation/Constraint")
 
 
 class NODE_MT_category_GEO_TEXT(Menu):
@@ -916,6 +932,7 @@ classes = (
     NODE_MT_category_utilities_matrix,
     NODE_MT_category_GEO_UTILITIES_DEPRECATED,
     NODE_MT_category_GEO_GROUP,
+    NODE_MT_geometry_node_constraint,
 )
 
 if __name__ == "__main__":  # only for live edit.
