@@ -720,7 +720,9 @@ wmOperatorStatus ED_mesh_join_objects_exec(bContext *C, wmOperator *op)
  * Add vertex positions of selected meshes as shape keys to the active mesh.
  * \{ */
 
-wmOperatorStatus ED_mesh_shapes_join_objects_exec(bContext *C, ReportList *reports)
+wmOperatorStatus ED_mesh_shapes_join_objects_exec(bContext *C,
+                                                  const bool ensure_keys_exist,
+                                                  ReportList *reports)
 {
   using namespace blender;
   Main *bmain = CTX_data_main(C);
@@ -765,6 +767,7 @@ wmOperatorStatus ED_mesh_shapes_join_objects_exec(bContext *C, ReportList *repor
         &active_mesh, active_mesh.key, BKE_keyblock_add(active_mesh.key, nullptr));
   }
 
+  int keys_changed = 0;
   Scene *scene_eval = DEG_get_evaluated_scene(&depsgraph);
   for (Object *object : compatible_objects) {
     Object *object_eval = DEG_get_evaluated_object(&depsgraph, object);
@@ -773,8 +776,27 @@ wmOperatorStatus ED_mesh_shapes_join_objects_exec(bContext *C, ReportList *repor
     if (!deformed_mesh) {
       continue;
     }
-    KeyBlock *kb = BKE_keyblock_add(active_mesh.key, object->id.name + 2);
-    BKE_keyblock_convert_from_mesh(deformed_mesh, active_mesh.key, kb);
+    const char *name = BKE_id_name(object->id);
+    if (ensure_keys_exist) {
+      KeyBlock *kb = BKE_keyblock_add(active_mesh.key, name);
+      BKE_keyblock_convert_from_mesh(deformed_mesh, active_mesh.key, kb);
+    }
+    else {
+      KeyBlock *kb = BKE_keyblock_find_name(active_mesh.key, name);
+      if (!kb) {
+        continue;
+      }
+      keys_changed++;
+      BKE_keyblock_update_from_mesh(deformed_mesh, kb);
+    }
+  }
+
+  if (!ensure_keys_exist) {
+    if (keys_changed == 0) {
+      BKE_report(reports, RPT_ERROR, "No name matches between selected objects and shape keys");
+      return OPERATOR_CANCELLED;
+    }
+    BKE_reportf(reports, RPT_INFO, "Updated %d shape key(s)", keys_changed);
   }
 
   DEG_id_tag_update(&active_mesh.id, ID_RECALC_GEOMETRY);
