@@ -2,6 +2,8 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
+from __future__ import annotations
+
 """
 Copy Global Transform
 
@@ -298,28 +300,11 @@ class AutoKeying:
         cls.key_transformation(target, options)
 
 
-def get_matrix(context: Context) -> Matrix:
+def get_context_transformable(context: Context) -> Transformable:
     bone = context.active_pose_bone
     if bone:
-        # Convert matrix to world space
-        arm = context.active_object
-        mat = arm.matrix_world @ bone.matrix
-    else:
-        mat = context.active_object.matrix_world
-
-    return mat
-
-
-def set_matrix(context: Context, mat: Matrix) -> None:
-    bone = context.active_pose_bone
-    if bone:
-        # Convert matrix to local space
-        arm_eval = context.active_object.evaluated_get(context.view_layer.depsgraph)
-        bone.matrix = arm_eval.matrix_world.inverted() @ mat
-        AutoKeying.autokey_transformation(context, bone)
-    else:
-        context.active_object.matrix_world = mat
-        AutoKeying.autokey_transformation(context, context.active_object)
+        return TransformableBone(bone)
+    return TransformableObject(context.active_object)
 
 
 def _channelbag_for_id(animated_id: ID) -> ActionChannelbag | None:
@@ -395,6 +380,7 @@ def _selected_keyframes_for_action_slot(object: Object, rna_path_prefix: str) ->
 def _copy_matrix_to_clipboard(window_manager: bpy.types.WindowManager, matrix: Matrix) -> None:
     rows = [f"    {tuple(row)!r}," for row in matrix]
     as_string = "\n".join(rows)
+    # TODO: verify that the text got put onto the clipboard correctly.
     window_manager.clipboard = f"Matrix((\n{as_string}\n))"
 
 
@@ -412,7 +398,8 @@ class OBJECT_OT_copy_global_transform(Operator):
         return bool(context.active_pose_bone) or bool(context.active_object)
 
     def execute(self, context: Context) -> set[str]:
-        mat = get_matrix(context)
+        trans = get_context_transformable(context)
+        mat = trans.matrix_world()
         _copy_matrix_to_clipboard(context.window_manager, mat)
         return {'FINISHED'}
 
@@ -448,8 +435,11 @@ class OBJECT_OT_copy_relative_transform(Operator):
                 {'ERROR'},
                 "No 'Relative To' object found, set one explicitly or make sure there is an active object")
             return {'CANCELLED'}
-        mat = rel_ob.matrix_world.inverted() @ get_matrix(context)
-        _copy_matrix_to_clipboard(context.window_manager, mat)
+
+        trans = get_context_transformable(context)
+        mat_world = trans.matrix_world()
+        mat_rel = rel_ob.matrix_world.inverted() @ mat_world
+        _copy_matrix_to_clipboard(context.window_manager, mat_rel)
         return {'FINISHED'}
 
 
@@ -576,12 +566,14 @@ class OBJECT_OT_paste_transform(Operator):
             self.report({'ERROR'}, "Unable to mirror, no mirror object/bone configured")
             return {'CANCELLED'}
 
+        trans = get_context_transformable(context)
+
         applicator = {
             'CURRENT': self._paste_current,
             'EXISTING_KEYS': self._paste_existing_keys,
             'BAKE': self._paste_bake,
         }[self.method]
-        return applicator(context, mat)
+        return applicator(context, trans, mat)
 
     def _preprocess_matrix(self, context: Context, matrix: Matrix) -> Matrix:
         if self.use_relative:
@@ -659,11 +651,11 @@ class OBJECT_OT_paste_transform(Operator):
         return mirrored_world
 
     @staticmethod
-    def _paste_current(context: Context, matrix: Matrix) -> set[str]:
-        set_matrix(context, matrix)
+    def _paste_current(context: Context, trans: Transformable, matrix: Matrix) -> set[str]:
+        trans.set_matrix_world_autokey(context, matrix)
         return {'FINISHED'}
 
-    def _paste_existing_keys(self, context: Context, matrix: Matrix) -> set[str]:
+    def _paste_existing_keys(self, context: Context, trans: Transformable, matrix: Matrix) -> set[str]:
         if not context.scene.tool_settings.use_keyframe_insert_auto:
             self.report({'ERROR'}, "This mode requires auto-keying to work properly")
             return {'CANCELLED'}
@@ -673,10 +665,10 @@ class OBJECT_OT_paste_transform(Operator):
             self.report({'WARNING'}, "No selected frames found")
             return {'CANCELLED'}
 
-        self._paste_on_frames(context, frame_numbers, matrix)
+        self._paste_on_frames(context, trans, frame_numbers, matrix)
         return {'FINISHED'}
 
-    def _paste_bake(self, context: Context, matrix: Matrix) -> set[str]:
+    def _paste_bake(self, context: Context, trans: Transformable, matrix: Matrix) -> set[str]:
         if not context.scene.tool_settings.use_keyframe_insert_auto:
             self.report({'ERROR'}, "This mode requires auto-keying to work properly")
             return {'CANCELLED'}
@@ -687,7 +679,7 @@ class OBJECT_OT_paste_transform(Operator):
 
         frame_start, frame_end = self._determine_bake_range(context)
         frame_range = range(round(frame_start), round(frame_end) + bake_step, bake_step)
-        self._paste_on_frames(context, frame_range, matrix)
+        self._paste_on_frames(context, trans, frame_range, matrix)
         return {'FINISHED'}
 
     def _determine_bake_range(self, context: Context) -> tuple[float, float]:
@@ -703,12 +695,18 @@ class OBJECT_OT_paste_transform(Operator):
         self.report({'INFO'}, "No selected keys, pasting over scene range")
         return context.scene.frame_start, context.scene.frame_end
 
-    def _paste_on_frames(self, context: Context, frame_numbers: Iterable[float], matrix: Matrix) -> None:
+    def _paste_on_frames(
+            self,
+            context: Context,
+            trans: Transformable,
+            frame_numbers: Iterable[float],
+            matrix: Matrix,
+    ) -> None:
         current_frame = context.scene.frame_current_final
         try:
             for frame in frame_numbers:
                 context.scene.frame_set(int(frame), subframe=frame % 1.0)
-                set_matrix(context, matrix)
+                trans.set_matrix_world_autokey(context, matrix)
         finally:
             context.scene.frame_set(int(current_frame), subframe=current_frame % 1.0)
 
@@ -857,10 +855,10 @@ class FixToCameraCommon:
     # Operator method stubs to avoid PyLance/MyPy errors:
     @classmethod
     def poll_message_set(cls, message: str) -> None:
-        super().poll_message_set(message)
+        super().poll_message_set(message)  # type: ignore
 
     def report(self, level: set[str], message: str) -> None:
-        super().report(level, message)
+        super().report(level, message)  # type: ignore
 
     # Implement in subclass:
     def _execute(self, context: Context, transformables: list[Transformable]) -> None:
