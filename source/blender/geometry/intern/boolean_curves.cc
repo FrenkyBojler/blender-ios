@@ -562,19 +562,23 @@ static IntersectionPoint create_intersection(const int point_a,
 
 /* Will return -1 if there is no next segment. */
 static int get_next_segment(const int current_i,
+                            const bool current_reversed,
                             const Span<Segment> all_segments,
                             const Span<IntersectionPoint> intersections,
                             const Span<bool> all_inside_left,
                             const Span<bool> all_inside_right)
 {
   const Segment current_segment = all_segments[current_i];
-  if (!current_segment.has_end_intersection()) {
+  if (!(current_reversed ? current_segment.has_start_intersection() :
+                           current_segment.has_end_intersection()))
+  {
     return -1;
   }
 
-  const int current_end_index = current_segment.end_intersection();
+  const int current_end_index = current_reversed ? current_segment.start_intersection() :
+                                                   current_segment.end_intersection();
   const IntersectionPoint &end_int = intersections[current_end_index];
-  const SegmentEndPoint endpoint = SegmentEndPoint(current_i, current_segment.reversed);
+  const SegmentEndPoint endpoint = SegmentEndPoint(current_i, current_reversed);
 
   const SegmentEndPoint all_ends[4] = {
       end_int.start_a, end_int.end_a, end_int.start_b, end_int.end_b};
@@ -975,17 +979,18 @@ BooleanResult execute_single_boolean(const CurveBooleanOpParameters op_params,
         break;
       }
 
-      all_segments[current_i].reversed = last_reversed;
-
       const Segment &current_segment = all_segments[current_i];
+      processed_segments[current_i] = true;
+
       result.segments.append(current_segment);
       result.segment_reversed.append(last_reversed);
 
-      processed_segments[current_i] = true;
-      result.segments.last().reversed = last_reversed;
-
-      const int next_segment = get_next_segment(
-          current_i, all_segments, intersections, all_inside_left, all_inside_right);
+      const int next_segment = get_next_segment(current_i,
+                                                last_reversed,
+                                                all_segments,
+                                                intersections,
+                                                all_inside_left,
+                                                all_inside_right);
 
       if (next_segment == -1) {
         PolygonDone = true;
@@ -993,14 +998,16 @@ BooleanResult execute_single_boolean(const CurveBooleanOpParameters op_params,
         break;
       }
 
-      const int current_end_index = current_segment.end_intersection();
-      const Segment &next_seg = all_segments[next_segment];
-      const bool next_reversed = next_seg.start_intersection() != current_end_index;
-
       if (next_segment == start_segment) {
         PolygonDone = true;
         PolygonClosed = true;
+        break;
       }
+
+      const int current_end_index = last_reversed ? current_segment.start_intersection() :
+                                                    current_segment.end_intersection();
+      const Segment &next_seg = all_segments[next_segment];
+      const bool next_reversed = next_seg.start_intersection() != current_end_index;
 
       last_reversed = next_reversed;
       current_i = next_segment;
