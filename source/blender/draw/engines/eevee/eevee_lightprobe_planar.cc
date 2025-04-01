@@ -101,6 +101,7 @@ void PlanarProbeModule::set_view(const draw::View &main_view, int2 main_view_ext
     world_clip_buf_.push_update();
 
     gbuf.acquire(extent,
+                 inst_.pipelines.deferred.header_layer_count(),
                  inst_.pipelines.deferred.closure_layer_count(),
                  inst_.pipelines.deferred.normal_layer_count());
 

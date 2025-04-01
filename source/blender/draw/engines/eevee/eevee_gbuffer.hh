@@ -130,20 +130,30 @@ struct GBuffer {
   Texture header_tx = {"GBufferHeader"};
   Texture closure_tx = {"GBufferClosure"};
   Texture normal_tx = {"GBufferNormal"};
+  /* Textures used to fullfil the bindings when the textures do not have enough layers for the
+   * image views. The shader are then expected to never write to them. */
+  Texture dummy_header_tx = {"GBufferDummyHeader"};
+  Texture dummy_closure_tx = {"GBufferDummyClosure"};
+  Texture dummy_normal_tx = {"GBufferDummyNormal"};
   /* References to the GBuffer layer range [1..max]. */
   GPUTexture *closure_img_tx = nullptr;
   GPUTexture *normal_img_tx = nullptr;
   GPUTexture *header_img_tx = nullptr;
 
-  void acquire(int2 extent, int data_count, int normal_count)
+  void acquire(int2 extent, int header_count, int data_count, int normal_count)
   {
-    /* Always allocating enough layers so that the image view is always valid. */
-    data_count = max_ii(3, data_count);
-    normal_count = max_ii(2, normal_count);
+    /* Always allocate enough layers so that the framebuffer attachments are always valid. */
+    header_count = max_ii(1, header_count);
+    data_count = max_ii(2, data_count);
+    normal_count = max_ii(1, normal_count);
+
+    dummy_header_tx.ensure_2d_array(GPU_R32UI, int2(1), 1, GPU_TEXTURE_USAGE_SHADER_WRITE);
+    dummy_closure_tx.ensure_2d_array(GPU_RGB10_A2, int2(1), 1, GPU_TEXTURE_USAGE_SHADER_WRITE);
+    dummy_normal_tx.ensure_2d_array(GPU_RG16, int2(1), 1, GPU_TEXTURE_USAGE_SHADER_WRITE);
 
     eGPUTextureUsage usage = GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_SHADER_WRITE |
                              GPU_TEXTURE_USAGE_ATTACHMENT;
-    header_tx.ensure_2d_array(GPU_R32UI, extent, 2, usage);
+    header_tx.ensure_2d_array(GPU_R32UI, extent, header_count, usage);
     closure_tx.ensure_2d_array(GPU_RGB10_A2, extent, data_count, usage);
     normal_tx.ensure_2d_array(GPU_RG16, extent, normal_count, usage);
     /* Ensure layer view for frame-buffer attachment. */
@@ -151,9 +161,12 @@ struct GBuffer {
     closure_tx.ensure_layer_views();
     normal_tx.ensure_layer_views();
     /* Ensure layer view for image store. */
-    header_img_tx = header_tx.layer_range_view(1, 1);
-    closure_img_tx = closure_tx.layer_range_view(2, data_count - 2);
-    normal_img_tx = normal_tx.layer_range_view(1, normal_count - 1);
+    header_img_tx = (header_count > 1) ? header_tx.layer_range_view(1, header_count - 1) :
+                                         dummy_header_tx;
+    closure_img_tx = (data_count > 2) ? closure_tx.layer_range_view(2, data_count - 2) :
+                                        dummy_closure_tx;
+    normal_img_tx = (normal_count > 1) ? normal_tx.layer_range_view(1, normal_count - 1) :
+                                         dummy_normal_tx;
   }
 
   /* Bind the GBuffer frame-buffer correctly using the correct workarounds. */

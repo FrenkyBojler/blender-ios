@@ -98,6 +98,7 @@ void ShadingView::render()
 
   GBuffer &gbuf = inst_.gbuffer;
   gbuf.acquire(extent_,
+               inst_.pipelines.deferred.header_layer_count(),
                inst_.pipelines.deferred.closure_layer_count(),
                inst_.pipelines.deferred.normal_layer_count());
 
@@ -339,6 +340,7 @@ void CaptureView::render_probes()
                       GPU_ATTACHMENT_TEXTURE(inst_.render_buffers.vector_tx));
 
     inst_.gbuffer.acquire(extent,
+                          inst_.pipelines.probe.header_layer_count(),
                           inst_.pipelines.probe.closure_layer_count(),
                           inst_.pipelines.probe.normal_layer_count());
 
