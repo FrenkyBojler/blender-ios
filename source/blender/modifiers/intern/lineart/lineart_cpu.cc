@@ -34,6 +34,7 @@
 #include "BKE_lib_id.hh"
 #include "BKE_material.hh"
 #include "BKE_mesh.hh"
+#include "BKE_mesh_wrapper.hh"
 #include "BKE_object.hh"
 #include "BKE_scene.hh"
 
@@ -2427,7 +2428,7 @@ static bool lineart_geometry_check_visible(double model_view_proj[4][4],
                                            Mesh *use_mesh)
 {
   using namespace blender;
-  if (!use_mesh) {
+  if ((!use_mesh) || (BKE_mesh_wrapper_vert_len(use_mesh) == 0)) {
     return false;
   }
   const Bounds<float3> bounds = *use_mesh->bounds_min_max();
