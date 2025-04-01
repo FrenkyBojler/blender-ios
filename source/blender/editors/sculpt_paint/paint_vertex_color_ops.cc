@@ -313,8 +313,6 @@ static void transform_active_color(bContext *C,
   /* Ensure valid sculpt state. */
   BKE_sculpt_update_object_for_edit(CTX_data_ensure_evaluated_depsgraph(C), &obact, true);
 
-  undo::push_begin(scene, obact, op);
-
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(obact);
 
   IndexMaskMemory memory;
@@ -326,7 +324,6 @@ static void transform_active_color(bContext *C,
 
   pbvh.tag_attribute_changed(node_mask, mesh.active_color_attribute);
 
-  undo::push_end(obact);
   WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, &obact);
 }
 
