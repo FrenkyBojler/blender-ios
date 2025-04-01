@@ -876,7 +876,7 @@ GHOST_TSuccess GHOST_ContextVK::recreateSwapchain()
   }
 
   /* Driver can stall if only using minimal image count. */
-  uint32_t image_count_requested = present_mode == VK_PRESENT_MODE_MAILBOX_KHR ? 4 : 2;
+  uint32_t image_count_requested = 4;
   /* NOTE: maxImageCount == 0 means no limit. */
   if (capabilities.minImageCount != 0 && image_count_requested < capabilities.minImageCount) {
     image_count_requested = capabilities.minImageCount;
@@ -1043,8 +1043,7 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
     requireExtension(extensions_available, extensions_enabled, VK_KHR_SURFACE_EXTENSION_NAME);
     requireExtension(extensions_available, extensions_enabled, native_surface_extension_name);
 
-/* Required instance extension dependency of VK_EXT_SWAPCHAIN_MAINTENANCE_1_EXTENSION_NAME */
-#if 0
+    /* Required instance extension dependency of VK_EXT_SWAPCHAIN_MAINTENANCE_1_EXTENSION_NAME */
     if (contains_extension(extensions_available, VK_EXT_SURFACE_MAINTENANCE_1_EXTENSION_NAME) &&
         contains_extension(extensions_available, VK_KHR_GET_SURFACE_CAPABILITIES_2_EXTENSION_NAME))
     {
@@ -1055,7 +1054,6 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
                        VK_KHR_GET_SURFACE_CAPABILITIES_2_EXTENSION_NAME);
       optional_device_extensions.push_back(VK_EXT_SWAPCHAIN_MAINTENANCE_1_EXTENSION_NAME);
     }
-#endif
 
     required_device_extensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
   }
