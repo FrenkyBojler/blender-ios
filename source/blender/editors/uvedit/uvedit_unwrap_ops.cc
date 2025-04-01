@@ -84,7 +84,7 @@ using blender::geometry::ParamSlimOptions;
 /** \name Utility Functions
  * \{ */
 
-static bool ED_uvedit_ensure_uvs(Object *obedit)
+static bool uvedit_ensure_uvs(Object *obedit)
 {
   if (ED_uvedit_test(obedit)) {
     return true;
@@ -1250,6 +1250,9 @@ static wmOperatorStatus minimize_stretch_modal(bContext *C, wmOperator *op, cons
         } while (BLI_time_now_seconds() - start < 0.01);
       }
       break;
+    default: {
+      break;
+    }
   }
 
   if (ms->iterations && ms->i >= ms->iterations) {
@@ -2803,7 +2806,7 @@ static wmOperatorStatus unwrap_exec(bContext *C, wmOperator *op)
     float obsize[3];
     bool use_subsurf_final;
 
-    if (!ED_uvedit_ensure_uvs(obedit)) {
+    if (!uvedit_ensure_uvs(obedit)) {
       continue;
     }
 
@@ -3188,7 +3191,7 @@ static wmOperatorStatus smart_project_exec(bContext *C, wmOperator *op)
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
     bool changed = false;
 
-    if (!ED_uvedit_ensure_uvs(obedit)) {
+    if (!uvedit_ensure_uvs(obedit)) {
       continue;
     }
 
@@ -3467,7 +3470,7 @@ static wmOperatorStatus uv_from_view_exec(bContext *C, wmOperator *op)
     bool changed = false;
 
     /* add uvs if they don't exist yet */
-    if (!ED_uvedit_ensure_uvs(obedit)) {
+    if (!uvedit_ensure_uvs(obedit)) {
       continue;
     }
 
@@ -3604,7 +3607,7 @@ static wmOperatorStatus reset_exec(bContext *C, wmOperator * /*op*/)
     }
 
     /* add uvs if they don't exist yet */
-    if (!ED_uvedit_ensure_uvs(obedit)) {
+    if (!uvedit_ensure_uvs(obedit)) {
       continue;
     }
 
@@ -3866,7 +3869,7 @@ static wmOperatorStatus sphere_project_exec(bContext *C, wmOperator *op)
     }
 
     /* add uvs if they don't exist yet */
-    if (!ED_uvedit_ensure_uvs(obedit)) {
+    if (!uvedit_ensure_uvs(obedit)) {
       continue;
     }
 
@@ -4044,7 +4047,7 @@ static wmOperatorStatus cylinder_project_exec(bContext *C, wmOperator *op)
     }
 
     /* add uvs if they don't exist yet */
-    if (!ED_uvedit_ensure_uvs(obedit)) {
+    if (!uvedit_ensure_uvs(obedit)) {
       continue;
     }
 
@@ -4194,7 +4197,7 @@ static wmOperatorStatus cube_project_exec(bContext *C, wmOperator *op)
     }
 
     /* add uvs if they don't exist yet */
-    if (!ED_uvedit_ensure_uvs(obedit)) {
+    if (!uvedit_ensure_uvs(obedit)) {
       continue;
     }
 
