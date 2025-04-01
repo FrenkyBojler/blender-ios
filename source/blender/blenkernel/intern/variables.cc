@@ -430,7 +430,7 @@ static std::optional<Token> next_token(char *path, const int path_allocation_siz
   for (int byte_index = 0; byte_index < path_allocation_size && path[byte_index] != '\0';
        byte_index++)
   {
-    /* Check for escaped {. */
+    /* Check for escaped "{". */
     if ((byte_index + 1) < path_allocation_size && path[byte_index] == '{' &&
         path[byte_index + 1] == '{')
     {
@@ -440,7 +440,7 @@ static std::optional<Token> next_token(char *path, const int path_allocation_siz
       return variable;
     }
 
-    /* Check for escaped }. */
+    /* Check for escaped "}". */
     if ((byte_index + 1) < path_allocation_size && path[byte_index] == '}' &&
         path[byte_index + 1] == '}')
     {
