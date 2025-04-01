@@ -1792,7 +1792,7 @@ static bool pbvh_bmesh_collapse_short_edges(const EdgeQueueContext *eq_ctx,
 
 /************************* Called from pbvh.cc *************************/
 
-bool node_raycast_bmesh(const BMeshNode &node,
+bool node_raycast_bmesh(BMeshNode &node,
                         const float3 &ray_start,
                         const float3 &ray_normal,
                         const IsectRayPrecalc *isect_precalc,
@@ -2236,7 +2236,7 @@ bool bmesh_update_topology(BMesh &bm,
                            const float min_edge_len,
                            const float max_edge_len,
                            const float3 &center,
-                           const std::optional<float3> view_normal,
+                           const std::optional<float3> &view_normal,
                            float radius,
                            const bool use_frontface,
                            const bool use_projected)

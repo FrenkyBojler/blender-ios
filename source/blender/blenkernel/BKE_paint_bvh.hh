@@ -366,7 +366,7 @@ bool node_raycast_grids(const SubdivCCG &subdiv_ccg,
                         int &r_active_grid_index,
                         float3 &r_face_normal);
 
-bool node_raycast_bmesh(const BMeshNode &node,
+bool node_raycast_bmesh(BMeshNode &node,
                         const float3 &ray_start,
                         const float3 &ray_normal,
                         const IsectRayPrecalc *isect_precalc,
@@ -467,7 +467,7 @@ bool bmesh_update_topology(BMesh &bm,
                            float min_edge_len,
                            float max_edge_len,
                            const float3 &center,
-                           std::optional<float3> view_normal,
+                           const std::optional<float3> &view_normal,
                            float radius,
                            bool use_frontface,
                            bool use_projected);
