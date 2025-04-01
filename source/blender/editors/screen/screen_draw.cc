@@ -241,20 +241,21 @@ void screen_draw_move_highlight(const wmWindow *win, bScreen *screen, eScreenAxi
   /* Pull in ends not at window edges. */
   rcti window_rect;
   WM_window_screen_rect_calc(win, &window_rect);
+  const float offset = (EDITORRADIUS * 1.66f);
   if (dir_axis == SCREEN_AXIS_H) {
     if (rect.xmin > (window_rect.xmin + 2)) {
-      rect.xmin += U.border_width + EDITORRADIUS;
+      rect.xmin += offset;
     }
     if (rect.xmax < (window_rect.xmax - 2)) {
-      rect.xmax -= U.border_width + EDITORRADIUS;
+      rect.xmax -= offset;
     }
   }
   else {
     if (rect.ymin > (window_rect.ymin + 2)) {
-      rect.ymin += U.border_width + EDITORRADIUS;
+      rect.ymin += offset;
     }
     if (rect.ymax < (window_rect.ymax - 2)) {
-      rect.ymax -= U.border_width + EDITORRADIUS;
+      rect.ymax -= offset;
     }
   }
 
