@@ -698,7 +698,7 @@ void find_intersections_between_curves(const Span<float2> points_i,
             i + point_offset_i, j + point_offset_j, alpha_a, alpha_b, curve_i, curve_j));
       }
       else if (val == ISECT_LINE_LINE_EXACT) {
-        /* TODO. */
+        /* TODO(@casey-bianco-davis): Properly handle degeneracy. */
         BLI_assert_unreachable();
       }
     }
@@ -1184,7 +1184,6 @@ bke::CurvesGeometry curve_boolean(const CurveBooleanOpParameters op_params,
 
       int i = 0;
 
-      /* TODO. */
       for (const int curve_i : dst_segments_by_curve.index_range()) {
         const IndexRange segment_range = dst_segments_by_curve[curve_i];
         for (const int seg_i : segment_range) {

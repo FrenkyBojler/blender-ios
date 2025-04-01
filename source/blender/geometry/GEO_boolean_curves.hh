@@ -42,8 +42,6 @@ struct CurveBooleanOpParameters {
   FillRule subject_rule;
   FillRule clipping_rule;
   FillRule output_rule;
-
-  // bool self_intersect; TODO.
 };
 
 bke::CurvesGeometry curve_boolean(const CurveBooleanOpParameters op_params,

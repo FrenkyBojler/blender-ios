@@ -1128,7 +1128,7 @@ TEST(boolean_curves, Four_Shapes)
     op_params.boolean_mode = Operation::Intersect;
     const bke::CurvesGeometry dst_curves = curve_boolean(op_params, src_curves, clipping_shapes);
 
-    /* TODO: Remove the unneeded clipping/clipping points. */
+    /* TODO(@casey-bianco-davis): Remove the unneeded clipping/clipping points. */
     const Array<Vector<float2>> expected_points = {
         {{1, 7}, {5, 7}, {5, 6}, {5, 3}, {5, 2}, {3, 2}, {3, 3}, {1, 3}},
         {{2, 3}, {2, 5}, {3, 5}, {6, 5}, {7, 5}, {7, 1}, {3, 1}, {3, 3}}};
