@@ -154,6 +154,8 @@ enum class TransformDisplacementMode {
 
 namespace blender::ed::sculpt_paint {
 
+static constexpr int plane_brush_max_rolling_average_num = 20;
+
 /**
  * This structure contains all the temporary data
  * needed for individual brush strokes.
@@ -324,6 +326,26 @@ struct StrokeCache {
 
   } clay_thumb_brush;
 
+  /* Plane Brush */
+  struct {
+    std::optional<float3> last_normal;
+    std::optional<float3> last_center;
+    Array<float3> normals;
+    Array<float3> centers;
+    int normal_index;
+    int center_index;
+
+    /**
+     * True if the current step is the first time the Plane brush is being evaluated.
+     *
+     * We cannot use the generic `first_time` variable used by other brushes because
+     * the Plane brush uses `grab_delta` to compute its local matrix. Since `grab_delta` requires
+     * at least two stroke steps, the first step (and successive steps if the user does not move
+     * the cursor) of the Plane brush is always skipped.
+     */
+    bool first_time;
+  } plane_brush;
+
   /* Cloth brush */
   std::unique_ptr<cloth::SimulationData> cloth_sim;
   float3 initial_location_symm;
@@ -370,9 +392,6 @@ struct StrokeCache {
   float4x4 stroke_local_mat;
   float multiplane_scrape_angle;
 
-  rcti previous_r; /* previous redraw rectangle */
-  rcti current_r;  /* current redraw rectangle */
-
   ~StrokeCache();
 };
 
@@ -418,7 +437,7 @@ namespace blender::ed::sculpt_paint {
 /**
  * Triggers redraws, updates, and dependency graph tags as necessary after each brush calculation.
  */
-void flush_update_step(bContext *C, UpdateType update_type);
+void flush_update_step(const bContext *C, UpdateType update_type);
 /**
  * Triggers redraws, updates, and dependency graph tags as necessary when a brush stroke finishes.
  */
@@ -536,8 +555,9 @@ namespace blender::ed::sculpt_paint {
  */
 Span<float3> vert_positions_for_grab_active_get(const Depsgraph &depsgraph, const Object &object);
 
-Span<BMVert *> vert_neighbors_get_bmesh(BMVert &vert, Vector<BMVert *, 64> &r_neighbors);
-Span<BMVert *> vert_neighbors_get_interior_bmesh(BMVert &vert, Vector<BMVert *, 64> &r_neighbors);
+using BMeshNeighborVerts = Vector<BMVert *, 64>;
+Span<BMVert *> vert_neighbors_get_bmesh(BMVert &vert, BMeshNeighborVerts &r_neighbors);
+Span<BMVert *> vert_neighbors_get_interior_bmesh(BMVert &vert, BMeshNeighborVerts &r_neighbors);
 
 Span<int> vert_neighbors_get_mesh(OffsetIndices<int> faces,
                                   Span<int> corner_verts,
@@ -627,7 +647,6 @@ bool SCULPT_is_vertex_inside_brush_radius_symm(const float vertex[3],
                                                const float br_co[3],
                                                float radius,
                                                char symm);
-bool SCULPT_is_symmetry_iteration_valid(char i, char symm);
 blender::float3 SCULPT_flip_v3_by_symm_area(const blender::float3 &vector,
                                             ePaintSymmetryFlags symm,
                                             ePaintSymmetryAreas symmarea,
@@ -968,6 +987,16 @@ inline bool brush_uses_vector_displacement(const Brush &brush)
   return brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_DRAW &&
          brush.flag2 & BRUSH_USE_COLOR_AS_DISPLACEMENT &&
          brush.mtex.brush_map_mode == MTEX_MAP_MODE_AREA;
+}
+
+inline bool brush_type_supports_gravity(const int tool)
+{
+  return !brush_type_is_attribute_only(tool) && !ELEM(tool,
+                                                      SCULPT_BRUSH_TYPE_BOUNDARY,
+                                                      SCULPT_BRUSH_TYPE_SMOOTH,
+                                                      SCULPT_BRUSH_TYPE_SIMPLIFY,
+                                                      SCULPT_BRUSH_TYPE_DISPLACEMENT_SMEAR,
+                                                      SCULPT_BRUSH_TYPE_DISPLACEMENT_ERASER);
 }
 
 }  // namespace blender::ed::sculpt_paint

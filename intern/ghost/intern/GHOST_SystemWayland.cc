@@ -319,6 +319,11 @@ enum {
 #endif
 };
 
+/* Only defined in XKB 1.8x and newer, it seems XKB doesn't provide a version define. */
+#ifndef XKB_VMOD_NAME_HYPER
+#  define XKB_VMOD_NAME_HYPER "Hyper"
+#endif
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -332,8 +337,9 @@ enum {
   MOD_INDEX_ALT = 1,
   MOD_INDEX_CTRL = 2,
   MOD_INDEX_OS = 3,
+  MOD_INDEX_HYPER = 4,
 };
-#define MOD_INDEX_NUM (MOD_INDEX_OS + 1)
+#define MOD_INDEX_NUM (MOD_INDEX_HYPER + 1)
 
 struct GWL_ModifierInfo {
   /** Only for printing messages. */
@@ -379,6 +385,15 @@ static const GWL_ModifierInfo g_modifier_info_table[MOD_INDEX_NUM] = {
         /*key_r*/ GHOST_kKeyRightOS,
         /*mod_l*/ GHOST_kModifierKeyLeftOS,
         /*mod_r*/ GHOST_kModifierKeyRightOS,
+    },
+    /*MOD_INDEX_HYPER*/
+    {
+        /*display_name*/ "Hyper",
+        /*xkb_id*/ XKB_VMOD_NAME_HYPER,
+        /*key_l*/ GHOST_kKeyLeftHyper,
+        /*key_r*/ GHOST_kKeyRightHyper,
+        /*mod_l*/ GHOST_kModifierKeyLeftHyper,
+        /*mod_r*/ GHOST_kModifierKeyRightHyper,
     },
 };
 
@@ -2107,6 +2122,8 @@ static GHOST_TKey xkb_map_gkey(const xkb_keysym_t sym)
       GXMAP(gkey, XKB_KEY_Alt_R, GHOST_kKeyRightAlt);
       GXMAP(gkey, XKB_KEY_Super_L, GHOST_kKeyLeftOS);
       GXMAP(gkey, XKB_KEY_Super_R, GHOST_kKeyRightOS);
+      GXMAP(gkey, XKB_KEY_Hyper_L, GHOST_kKeyLeftHyper);
+      GXMAP(gkey, XKB_KEY_Hyper_R, GHOST_kKeyRightHyper);
       GXMAP(gkey, XKB_KEY_Menu, GHOST_kKeyApp);
 
       GXMAP(gkey, XKB_KEY_Caps_Lock, GHOST_kKeyCapsLock);
@@ -7411,11 +7428,21 @@ GHOST_SystemWayland::GHOST_SystemWayland(bool background)
 
 #ifdef WITH_GHOST_WAYLAND_LIBDECOR
   bool libdecor_required = false;
-  if (const char *xdg_current_desktop = getenv("XDG_CURRENT_DESKTOP")) {
-    /* See the free-desktop specifications for details on `XDG_CURRENT_DESKTOP`.
-     * https://specifications.freedesktop.org/desktop-entry-spec/desktop-entry-spec-latest.html */
-    if (string_elem_split_by_delim(xdg_current_desktop, ':', "GNOME")) {
-      libdecor_required = true;
+  {
+    const char *xdg_current_desktop = [] {
+      /* Account for VSCode overriding this value (TSK!), see: #133921. */
+      const char *key = "ORIGINAL_XDG_CURRENT_DESKTOP";
+      const char *value = getenv(key);
+      return value ? value : getenv(key + 9);
+    }();
+
+    if (xdg_current_desktop) {
+      /* See the free-desktop specifications for details on `XDG_CURRENT_DESKTOP`.
+       * https://specifications.freedesktop.org/desktop-entry-spec/desktop-entry-spec-latest.html
+       */
+      if (string_elem_split_by_delim(xdg_current_desktop, ':', "GNOME")) {
+        libdecor_required = true;
+      }
     }
   }
 
@@ -8008,7 +8035,7 @@ GHOST_TSuccess GHOST_SystemWayland::hasClipboardImage() const
         if (!uris.empty()) {
           const std::string_view &uri = uris.front();
           char *filepath = GHOST_URL_decode_alloc(uri.data(), uri.size());
-          if (IMB_ispic(filepath)) {
+          if (IMB_test_image(filepath)) {
             result = GHOST_kSuccess;
           }
           free(filepath);
@@ -8049,8 +8076,8 @@ uint *GHOST_SystemWayland::getClipboardImage(int *r_width, int *r_height) const
 
       if (data) {
         /* Generate the image buffer with the received data. */
-        ibuf = IMB_ibImageFromMemory(
-            (const uint8_t *)data, data_len, IB_rect, nullptr, "<clipboard>");
+        ibuf = IMB_load_image_from_memory(
+            (const uint8_t *)data, data_len, IB_byte_data, "<clipboard>");
         free(data);
       }
     }
@@ -8065,7 +8092,7 @@ uint *GHOST_SystemWayland::getClipboardImage(int *r_width, int *r_height) const
         if (!uris.empty()) {
           const std::string_view &uri = uris.front();
           char *filepath = GHOST_URL_decode_alloc(uri.data(), uri.size());
-          ibuf = IMB_loadiffname(filepath, IB_rect, nullptr);
+          ibuf = IMB_load_image_from_filepath(filepath, IB_byte_data);
           free(filepath);
         }
         free(data);
@@ -8104,7 +8131,7 @@ GHOST_TSuccess GHOST_SystemWayland::putClipboardImage(uint *rgba, int width, int
   ImBuf *ibuf = IMB_allocFromBuffer(reinterpret_cast<uint8_t *>(rgba), nullptr, width, height, 32);
   ibuf->ftype = IMB_FTYPE_PNG;
   ibuf->foptions.quality = 15;
-  if (!IMB_saveiff(ibuf, "<memory>", IB_rect | IB_mem)) {
+  if (!IMB_save_image(ibuf, "<memory>", IB_byte_data | IB_mem)) {
     IMB_freeImBuf(ibuf);
     return GHOST_kFailure;
   }
@@ -8638,7 +8665,48 @@ GHOST_TSuccess GHOST_SystemWayland::cursor_shape_custom_set(const uint8_t *bitma
 
   cursor->visible = true;
   cursor->is_custom = true;
-  cursor->custom_scale = 1; /* TODO: support Hi-DPI custom cursors. */
+
+  /* Calculate the cursor size to use based on the theme setting. */
+  {
+
+    /* WARNING: Weak logic, if we can't use vector cursors - ideally the custom cursor
+     * function would receive multiple sizes which WAYLAND could then switch between
+     * as it does with themes. The following logic is fairly weak but works perfectly
+     * when all outputs have the same scale.
+     *
+     * There is nothing preventing multiple sized cursors from being passed in,
+     * it's just a matter of refactoring and adding support to WAYLAND. */
+
+    /* Get the lowest scale so in the case of mixed-scale-outputs,
+     * the cursor will be too big on some of the outputs instead of too small.
+     *
+     * Note that getting the min/max scale for all outputs be made into an function
+     * however it's bad practice because it means the cursor size will be wrong
+     * when there are multiple outputs with different scale.
+     * So this is not something to encouraged. */
+    int output_scale = -1;
+    for (const GWL_Output *output : display_->outputs) {
+      output_scale = (output_scale == -1) ? output->scale : std::min(output_scale, output->scale);
+    }
+    if (output_scale == -1) {
+      output_scale = 1;
+    }
+
+    const int custom_size = std::max(sizex, sizey);
+    const int target_size = seat->cursor.theme_size * output_scale;
+
+    cursor->custom_scale = std::max(1, (output_scale * custom_size) / target_size);
+    /* It would make more sense to adjust the buffer size instead of the scale.
+     * In practice with custom cursors of 16x16, 24x24 & 32x32 its only likely to cause
+     * problems with odd-scaling (HI-DPI scale of 300% or 500% for e.g.).
+     * In these cases the custom cursor will be a little too large. */
+    while ((cursor->custom_scale > 1) &&
+           !((sizex % cursor->custom_scale) == 0 && (sizey % cursor->custom_scale) == 0))
+    {
+      cursor->custom_scale -= 1;
+    }
+  }
+
   cursor->wl.buffer = buffer;
   cursor->wl.image.width = uint32_t(sizex);
   cursor->wl.image.height = uint32_t(sizey);
@@ -8720,6 +8788,10 @@ GHOST_TCapabilityFlag GHOST_SystemWayland::getCapabilities() const
           GHOST_kCapabilityGPUReadFrontBuffer |
           /* This WAYLAND back-end has not yet implemented desktop color sample. */
           GHOST_kCapabilityDesktopSample |
+          /* This WAYLAND back-end doesn't have support for window decoration styles.
+           * In all likelihood, this back-end will eventually need to support client-side
+           * decorations, see #113795. */
+          GHOST_kCapabilityWindowDecorationStyles |
           /* This flag will eventually be removed. */
           ((has_wl_trackpad_physical_direction == 1) ?
                0 :
@@ -9247,7 +9319,7 @@ bool GHOST_SystemWayland::output_unref(wl_output *wl_output)
 void GHOST_SystemWayland::output_scale_update(GWL_Output *output)
 {
   /* NOTE: keep in sync with `output_unref`. */
-  GHOST_WindowManager *window_manager = getWindowManager();
+  const GHOST_WindowManager *window_manager = getWindowManager();
   if (window_manager) {
     for (GHOST_IWindow *iwin : window_manager->getWindows()) {
       GHOST_WindowWayland *win = static_cast<GHOST_WindowWayland *>(iwin);

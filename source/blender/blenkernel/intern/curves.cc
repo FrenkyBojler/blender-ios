@@ -173,9 +173,9 @@ Curves *BKE_curves_add(Main *bmain, const char *name)
   return curves;
 }
 
-bool BKE_curves_attribute_required(const Curves * /*curves*/, const char *name)
+bool BKE_curves_attribute_required(const Curves * /*curves*/, const blender::StringRef name)
 {
-  return STREQ(name, ATTR_POSITION);
+  return name == ATTR_POSITION;
 }
 
 Curves *BKE_curves_copy_for_eval(const Curves *curves_src)
@@ -304,7 +304,7 @@ void curves_copy_parameters(const Curves &src, Curves &dst)
 {
   dst.flag = src.flag;
   MEM_SAFE_FREE(dst.mat);
-  dst.mat = static_cast<Material **>(MEM_malloc_arrayN(src.totcol, sizeof(Material *), __func__));
+  dst.mat = MEM_malloc_arrayN<Material *>(size_t(src.totcol), __func__);
   dst.totcol = src.totcol;
   MutableSpan(dst.mat, dst.totcol).copy_from(Span(src.mat, src.totcol));
   dst.symmetry = src.symmetry;

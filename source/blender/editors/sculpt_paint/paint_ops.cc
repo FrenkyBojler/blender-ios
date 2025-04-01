@@ -26,6 +26,7 @@
 #include "BKE_context.hh"
 #include "BKE_image.hh"
 #include "BKE_lib_id.hh"
+#include "BKE_library.hh"
 #include "BKE_main.hh"
 #include "BKE_node.hh"
 #include "BKE_node_tree_update.hh"
@@ -51,7 +52,7 @@
 #include "paint_mask.hh"
 #include "sculpt_intern.hh"
 
-static int brush_scale_size_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus brush_scale_size_exec(bContext *C, wmOperator *op)
 {
   Scene *scene = CTX_data_scene(C);
   Paint *paint = BKE_paint_get_active_from_context(C);
@@ -127,7 +128,7 @@ static void BRUSH_OT_scale_size(wmOperatorType *ot)
 
 /* Palette operators */
 
-static int palette_new_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus palette_new_exec(bContext *C, wmOperator * /*op*/)
 {
   Paint *paint = BKE_paint_get_active_from_context(C);
   Main *bmain = CTX_data_main(C);
@@ -167,7 +168,7 @@ static bool palette_poll(bContext *C)
   return false;
 }
 
-static int palette_color_add_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus palette_color_add_exec(bContext *C, wmOperator * /*op*/)
 {
   Scene *scene = CTX_data_scene(C);
   Paint *paint = BKE_paint_get_active_from_context(C);
@@ -214,7 +215,7 @@ static void PALETTE_OT_color_add(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-static int palette_color_delete_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus palette_color_delete_exec(bContext *C, wmOperator * /*op*/)
 {
   Paint *paint = BKE_paint_get_active_from_context(C);
   Palette *palette = paint->palette;
@@ -256,7 +257,7 @@ static bool palette_extract_img_poll(bContext *C)
   return false;
 }
 
-static int palette_extract_img_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus palette_extract_img_exec(bContext *C, wmOperator *op)
 {
   const int threshold = RNA_int_get(op->ptr, "threshold");
 
@@ -326,7 +327,7 @@ static void PALETTE_OT_extract_from_image(wmOperatorType *ot)
 }
 
 /* Sort Palette color by Hue and Saturation. */
-static int palette_sort_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus palette_sort_exec(bContext *C, wmOperator *op)
 {
   const int type = RNA_enum_get(op->ptr, "type");
 
@@ -343,7 +344,7 @@ static int palette_sort_exec(bContext *C, wmOperator *op)
   const int totcol = BLI_listbase_count(&palette->colors);
 
   if (totcol > 0) {
-    color_array = MEM_cnew_array<tPaletteColorHSV>(totcol, __func__);
+    color_array = MEM_calloc_arrayN<tPaletteColorHSV>(totcol, __func__);
     /* Put all colors in an array. */
     int t = 0;
     LISTBASE_FOREACH (PaletteColor *, color, &palette->colors) {
@@ -422,7 +423,7 @@ static void PALETTE_OT_sort(wmOperatorType *ot)
 }
 
 /* Move colors in palette. */
-static int palette_color_move_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus palette_color_move_exec(bContext *C, wmOperator *op)
 {
   Paint *paint = BKE_paint_get_active_from_context(C);
   Palette *palette = paint->palette;
@@ -468,7 +469,7 @@ static void PALETTE_OT_color_move(wmOperatorType *ot)
 }
 
 /* Join Palette swatches. */
-static int palette_join_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus palette_join_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   Paint *paint = BKE_paint_get_active_from_context(C);
@@ -601,7 +602,7 @@ static void stencil_set_target(StencilControlData *scd)
   scd->init_angle = atan2f(mdiff[1], mdiff[0]);
 }
 
-static int stencil_control_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus stencil_control_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   Paint *paint = BKE_paint_get_active_from_context(C);
   Brush *br = BKE_paint_brush(paint);
@@ -710,7 +711,7 @@ static void stencil_control_calculate(StencilControlData *scd, const int mval[2]
 #undef PIXEL_MARGIN
 }
 
-static int stencil_control_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus stencil_control_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   StencilControlData *scd = static_cast<StencilControlData *>(op->customdata);
 
@@ -817,7 +818,7 @@ static void BRUSH_OT_stencil_control(wmOperatorType *ot)
   RNA_def_property_flag(prop, PropertyFlag(PROP_HIDDEN | PROP_SKIP_SAVE));
 }
 
-static int stencil_fit_image_aspect_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus stencil_fit_image_aspect_exec(bContext *C, wmOperator *op)
 {
   Paint *paint = BKE_paint_get_active_from_context(C);
   Brush *br = BKE_paint_brush(paint);
@@ -895,7 +896,7 @@ static void BRUSH_OT_stencil_fit_image_aspect(wmOperatorType *ot)
       ot->srna, "mask", false, "Modify Mask Stencil", "Modify either the primary or mask stencil");
 }
 
-static int stencil_reset_transform_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus stencil_reset_transform_exec(bContext *C, wmOperator *op)
 {
   Paint *paint = BKE_paint_get_active_from_context(C);
   Brush *br = BKE_paint_brush(paint);

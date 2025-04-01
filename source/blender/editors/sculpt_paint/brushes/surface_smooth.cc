@@ -409,7 +409,7 @@ void do_surface_smooth_brush(const Depsgraph &depsgraph,
     }
   }
   pbvh.tag_positions_changed(node_mask);
-  bke::pbvh::update_bounds(depsgraph, object, pbvh);
+  pbvh.update_bounds(depsgraph, object);
 }
 
 }  // namespace blender::ed::sculpt_paint

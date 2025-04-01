@@ -364,8 +364,7 @@ static StructRNA *rna_RenderEngine_register(Main *bmain,
   }
 
   /* create a new engine type */
-  et = static_cast<RenderEngineType *>(
-      MEM_mallocN(sizeof(RenderEngineType), "Python render engine"));
+  et = MEM_mallocN<RenderEngineType>("Python render engine");
   memcpy(et, &dummy_et, sizeof(dummy_et));
 
   et->rna_ext.srna = RNA_def_struct_ptr(&BLENDER_RNA, et->idname, &RNA_RenderEngine);
@@ -419,7 +418,7 @@ static PointerRNA rna_RenderEngine_render_get(PointerRNA *ptr)
   if (engine->re) {
     RenderData *r = RE_engine_get_render_data(engine->re);
 
-    return rna_pointer_inherit_refine(ptr, &RNA_RenderSettings, r);
+    return RNA_pointer_create_with_parent(*ptr, &RNA_RenderSettings, r);
   }
   return PointerRNA_NULL;
 }
@@ -454,13 +453,13 @@ static void rna_RenderEngine_engine_frame_set(RenderEngine *engine, int frame, f
 static void rna_RenderResult_views_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
 {
   RenderResult *rr = (RenderResult *)ptr->data;
-  rna_iterator_listbase_begin(iter, &rr->views, nullptr);
+  rna_iterator_listbase_begin(iter, ptr, &rr->views, nullptr);
 }
 
 static void rna_RenderResult_layers_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
 {
   RenderResult *rr = (RenderResult *)ptr->data;
-  rna_iterator_listbase_begin(iter, &rr->layers, nullptr);
+  rna_iterator_listbase_begin(iter, ptr, &rr->layers, nullptr);
 }
 
 static void rna_RenderResult_stamp_data_add_field(RenderResult *rr,
@@ -473,7 +472,7 @@ static void rna_RenderResult_stamp_data_add_field(RenderResult *rr,
 static void rna_RenderLayer_passes_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
 {
   RenderLayer *rl = (RenderLayer *)ptr->data;
-  rna_iterator_listbase_begin(iter, &rl->passes, nullptr);
+  rna_iterator_listbase_begin(iter, ptr, &rl->passes, nullptr);
 }
 
 static int rna_RenderPass_rect_get_length(const PointerRNA *ptr,

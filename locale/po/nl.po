@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.4.0 Alpha (b'efff379ea583')\n"
+"Project-Id-Version: Blender 4.5.0 Alpha (b'409ce2b976cf')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-01-27 10:58+0000\n"
+"POT-Creation-Date: 2025-03-24 09:38+0000\n"
 "PO-Revision-Date: 2025-01-27 09:56+0000\n"
 "Last-Translator: Sander Spolspoel <sander@sworl.be>\n"
 "Language-Team: Dutch <https://translate.blender.org/projects/blender-ui/ui/nl/>\n"
@@ -69,10 +69,6 @@ msgstr "F-Curve groepen"
 
 msgid "Action F-Curves"
 msgstr "Actie F-Curves"
-
-
-msgid "Collection of action F-Curves"
-msgstr "Collectie van actie F-Curves"
 
 
 msgid "Action Group"
@@ -239,58 +235,6 @@ msgid "Collection of action groups"
 msgstr "Collectie van actiegroepen"
 
 
-msgid "Influence"
-msgstr "Invloed"
-
-
-msgid "How much of this layer is used when blending into the lower layers"
-msgstr "Hoeveel wordt van deze laag getoond wanneer je'm mengt met lagen eronder"
-
-
-msgid "Mix Mode"
-msgstr "Mixmodus"
-
-
-msgid "How animation of this layer is blended into the lower layers"
-msgstr "Hoe de animatie van deze laag gemengd wordt met lagen eronder"
-
-
-msgid "Replace"
-msgstr "Vervangen"
-
-
-msgid "Channels in this layer override the same channels from underlying layers"
-msgstr "Kanalen in deze laag overschrijven dezelfde kanalen van onderliggende lagen"
-
-
-msgid "Channels in this layer are added to underlying layers as sequential operations"
-msgstr "Kanalen in deze laag worden toegevoegd aan onderliggende lagen als opeenvolgende operaties"
-
-
-msgid "Add"
-msgstr "Toevoegen"
-
-
-msgid "Channels in this layer are added to underlying layers on a per-channel basis"
-msgstr "Kanalen in deze laag worden per kanaal toegevoegd aan onderliggende lagen"
-
-
-msgid "Subtract"
-msgstr "Aftrekken"
-
-
-msgid "Channels in this layer are subtracted to underlying layers on a per-channel basis"
-msgstr "Kanalen in deze laag worden per kanaal afgetrokken van onderliggende lagen"
-
-
-msgid "Multiply"
-msgstr "Vermenigvuldigen"
-
-
-msgid "Channels in this layer are multiplied with underlying layers on a per-channel basis"
-msgstr "Kanalen in deze laag worden per kanaal vermenigvuldigd met onderliggende lagen"
-
-
 msgid "Strips"
 msgstr "Strook"
 
@@ -437,8 +381,24 @@ msgid "Action"
 msgstr "Actie"
 
 
+msgid "Replace"
+msgstr "Vervangen"
+
+
 msgid "Combine"
 msgstr "Combineer"
+
+
+msgid "Add"
+msgstr "Toevoegen"
+
+
+msgid "Subtract"
+msgstr "Aftrekken"
+
+
+msgid "Multiply"
+msgstr "Vermenigvuldigen"
 
 
 msgid "Nothing"
@@ -1164,6 +1124,10 @@ msgid "Rotation error"
 msgstr "Rotatiefout"
 
 
+msgid "Influence"
+msgstr "Invloed"
+
+
 msgid "Disable"
 msgstr "Uitzetten"
 
@@ -1210,6 +1174,10 @@ msgstr "Skelet"
 
 msgid "Floor"
 msgstr "Vloer"
+
+
+msgid "Mix Mode"
+msgstr "Mixmodus"
 
 
 msgid "Active Clip"
@@ -1864,10 +1832,6 @@ msgid "Reference"
 msgstr "Voorbeeld"
 
 
-msgid "Grease Pencil Layer"
-msgstr "Vetkrijt laag"
-
-
 msgid "Regular"
 msgstr "Normaal"
 
@@ -1878,6 +1842,10 @@ msgstr "Omgekeerd"
 
 msgid "Repeat"
 msgstr "Herhaal"
+
+
+msgid "Grease Pencil Layer"
+msgstr "Vetkrijt laag"
 
 
 msgid "Red"
@@ -2496,11 +2464,6 @@ msgid "Mirror Y"
 msgstr "Spiegel Y"
 
 
-msgctxt "Sequence"
-msgid "Clip"
-msgstr "Clip"
-
-
 msgid "Workspace"
 msgstr "Werkomgeving"
 
@@ -2735,34 +2698,6 @@ msgid "Mask"
 msgstr "Mask"
 
 
-msgid "Names"
-msgstr "Namen"
-
-
-msgid "Show/Hide"
-msgstr "Toon/Verberg"
-
-
-msgid "Mirror"
-msgstr "Spiegel"
-
-
-msgid "Local View"
-msgstr "Lokale Scherm"
-
-
-msgid "Navigation"
-msgstr "Navigatie"
-
-
-msgid "Select Similar"
-msgstr "Selecteer Vergelijkbaar"
-
-
-msgid "Select Linked"
-msgstr "Selecteer Aaneengesloten"
-
-
 msgid "Light"
 msgstr "Licht"
 
@@ -2783,6 +2718,10 @@ msgid "Quick Effects"
 msgstr "Snelle Effecten"
 
 
+msgid "Show/Hide"
+msgstr "Toon/Verberg"
+
+
 msgid "Convert"
 msgstr "Converteer"
 
@@ -2795,8 +2734,32 @@ msgid "Clear Transform"
 msgstr "Maak Transformatie Leeg"
 
 
+msgid "Names"
+msgstr "Namen"
+
+
 msgid "Text"
 msgstr "Tekst"
+
+
+msgid "Mirror"
+msgstr "Spiegel"
+
+
+msgid "Local View"
+msgstr "Lokale Scherm"
+
+
+msgid "Navigation"
+msgstr "Navigatie"
+
+
+msgid "Select Similar"
+msgstr "Selecteer Vergelijkbaar"
+
+
+msgid "Select Linked"
+msgstr "Selecteer Aaneengesloten"
 
 
 msgctxt "MovieClip"
@@ -4796,11 +4759,6 @@ msgstr "Isoleer Actie"
 
 
 msgctxt "Operator"
-msgid "Add File Node"
-msgstr "Voeg Bestand-node Toe"
-
-
-msgctxt "Operator"
 msgid "Add Mask Node"
 msgstr "Voeg Masker-node Toe"
 
@@ -6460,10 +6418,6 @@ msgid "Custom Shape"
 msgstr "Aangepaste Vorm"
 
 
-msgid "Restrictions"
-msgstr "Beperkingen"
-
-
 msgid "Custom Distance"
 msgstr "Aangepaste Afstand"
 
@@ -6678,10 +6632,6 @@ msgstr "Draai Y As Om"
 
 msgid "Invert Z Axis"
 msgstr "Draai Z As Om"
-
-
-msgid "Show Navigation Guide"
-msgstr "Toon Navigatie Gids"
 
 
 msgid "Continue"
@@ -6971,6 +6921,11 @@ msgstr "Scene"
 msgctxt "Sequence"
 msgid "Movie"
 msgstr "Film"
+
+
+msgctxt "Sequence"
+msgid "Clip"
+msgstr "Clip"
 
 
 msgctxt "Sequence"
@@ -8603,6 +8558,10 @@ msgid "Too many points selected: %d"
 msgstr "Teveel punten geselecteerd: %d"
 
 
+msgid "Cancel"
+msgstr "Annuleren"
+
+
 msgctxt "Curve"
 msgid "CurvePath"
 msgstr "Kromme Pad"
@@ -8659,10 +8618,6 @@ msgstr "Niets om te gummen"
 
 msgid "Nothing selected"
 msgstr "Niets geselecteerd"
-
-
-msgid "Cancel"
-msgstr "Annuleren"
 
 
 msgid "Pin"
@@ -9193,6 +9148,10 @@ msgstr "Geen actieve venster in context!"
 
 msgid "Custom Camera"
 msgstr "Aangepaste Camera"
+
+
+msgid "Restrictions"
+msgstr "Beperkingen"
 
 
 msgid "Create Armature"
