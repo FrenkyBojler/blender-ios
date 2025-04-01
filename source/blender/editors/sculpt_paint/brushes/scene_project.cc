@@ -14,7 +14,9 @@
  * Settings:
  *  - Projection Direction: The ray direction, which can be set to the view normal or the brush
  * plane normal.
- *  - Bidirectional: When enabled, projects vertices both along along the projection direction and
+ *  - Projection Offset: Offsets the projection to maintain the average relative position of the
+ * vertices.
+ *  - Bidirectional: When enabled, projects vertices both along the projection direction and
  * its inverse, choosing the closest intersection.
  *  - Ignore Hidden Objects: When enabled, hidden objects in the scene are not considered as
  * raycasting targets for the brush.
@@ -114,6 +116,7 @@ static void convert_positions(const float4x4 &mat,
  *
  * Therefore, `d` also represents the parametric distance in the new coordinate system.
  */
+
 static void object_raycast(const Object &active_object,
                            const Object &target_object,
                            const bool bidirectional,
@@ -131,6 +134,7 @@ static void object_raycast(const Object &active_object,
 
   const float4x4 active_to_target_mat = active_object.object_to_world() *
                                         target_object.world_to_object();
+
   Array<float3> ray_origins(positions.size());
 
   /* Normal and positions are in the coordinate system of the active object. Convert them to the
@@ -190,6 +194,68 @@ static void scene_raycast(const Object &active_object,
   }
 }
 
+/**
+ * Calculates the projection of the brush plane center on the target objects, and returns its
+ * distance.
+ */
+static float calc_center_projection_distance(const Object &active_object,
+                                             const StrokeCache &cache,
+                                             const float3 &normal,
+                                             const bool bidirectional)
+{
+  const Span<Object *> target_objects = cache.target_objects;
+  const float3 &center = cache.location_symm;
+
+  BVHTreeRayHit hit;
+  float distance = BVH_RAYCAST_DIST_MAX;
+
+  for (const int i : target_objects.index_range()) {
+    const Mesh &mesh = *static_cast<Mesh *>(target_objects[i]->data);
+    bke::BVHTreeFromMesh tree_data = mesh.bvh_corner_tris();
+
+    if (tree_data.tree == nullptr) {
+      continue;
+    }
+
+    const float4x4 active_to_target_mat = active_object.object_to_world() *
+                                          target_objects[i]->world_to_object();
+
+    const float3 ray_origin = math::transform_point(active_to_target_mat, center);
+    const float3 ray_direction = math::transform_direction(active_to_target_mat, normal);
+
+    raycast(ray_origin, ray_direction, tree_data, hit);
+    distance = absolute_min_distance(distance, hit.dist);
+
+    if (bidirectional) {
+      raycast(ray_origin, -ray_direction, tree_data, hit);
+      distance = absolute_min_distance(distance, -hit.dist);
+    }
+  }
+
+  return distance == BVH_RAYCAST_DIST_MAX ? 0.0f : hit.dist;
+}
+
+/*
+ * Offsets the projection from the target objects, preventing meshes with volume from being
+ * squeezed when projected.
+ */
+static void calc_projection_offset(const float3 &center,
+                                   const float3 &normal,
+                                   const float center_projection_dist,
+                                   const float projection_offset_factor,
+                                   const Span<float3> positions,
+                                   const MutableSpan<float> hit_distances)
+{
+  if (projection_offset_factor == 0.0f) {
+    return;
+  }
+
+  for (const int i : positions.index_range()) {
+    const float distance = math::dot(positions[i] - center, normal);
+    hit_distances[i] += (distance - center_projection_dist) * projection_offset_factor;
+  }
+}
+
 static void calc_translations(const float3 &normal,
                               const Span<float> factors,
                               const Span<float> hit_distances,
@@ -226,6 +292,7 @@ static void calc_faces(const Depsgraph &depsgraph,
                        const bool bidirectional,
                        const MeshAttributeData &attribute_data,
                        const Span<float3> vert_normals,
+                       const float center_projection_dist,
                        const bke::pbvh::MeshNode &node,
                        Object &object,
                        LocalData &tls,
@@ -260,6 +327,13 @@ static void calc_faces(const Depsgraph &depsgraph,
                 tls.factors,
                 hit_distances);
 
+  calc_projection_offset(ss.cache->location_symm,
+                         normal,
+                         center_projection_dist,
+                         brush.projection_offset_factor,
+                         positions,
+                         hit_distances);
+
   tls.translations.resize(verts.size());
   const MutableSpan<float3> translations = tls.translations;
   calc_translations(normal, tls.factors, hit_distances, translations);
@@ -274,6 +348,7 @@ static void calc_grids(const Depsgraph &depsgraph,
                        Object &object,
                        const Brush &brush,
                        const bool bidirectional,
+                       const float center_projection_dist,
                        const bke::pbvh::GridsNode &node,
                        LocalData &tls)
 {
@@ -297,6 +372,13 @@ static void calc_grids(const Depsgraph &depsgraph,
                 tls.factors,
                 hit_distances);
 
+  calc_projection_offset(ss.cache->location_symm,
+                         normal,
+                         center_projection_dist,
+                         brush.projection_offset_factor,
+                         positions,
+                         hit_distances);
+
   tls.translations.resize(positions.size());
   const MutableSpan<float3> translations = tls.translations;
   calc_translations(normal, tls.factors, hit_distances, translations);
@@ -311,6 +393,7 @@ static void calc_bmesh(const Depsgraph &depsgraph,
                        Object &object,
                        const Brush &brush,
                        const bool bidirectional,
+                       const float center_projection_dist,
                        bke::pbvh::BMeshNode &node,
                        LocalData &tls)
 {
@@ -333,6 +416,13 @@ static void calc_bmesh(const Depsgraph &depsgraph,
                 tls.factors,
                 hit_distances);
 
+  calc_projection_offset(ss.cache->location_symm,
+                         normal,
+                         center_projection_dist,
+                         brush.projection_offset_factor,
+                         positions,
+                         hit_distances);
+
   tls.translations.resize(positions.size());
   const MutableSpan<float3> translations = tls.translations;
   calc_translations(normal, tls.factors, hit_distances, translations);
@@ -351,8 +441,12 @@ void do_scene_project_brush(const Depsgraph &depsgraph,
 {
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   const Brush &brush = *BKE_paint_brush_for_read(&sd.paint);
+  const StrokeCache &cache = *object.sculpt->cache;
 
   const bool bidirectional = brush.flag2 & BRUSH_BIDIRECTIONAL;
+  const float3 normal = calc_normal(brush, cache);
+  const float center_projection_dist = calc_center_projection_distance(
+      object, cache, normal, bidirectional);
 
   threading::EnumerableThreadSpecific<LocalData> all_tls;
   switch (pbvh.type()) {
@@ -371,6 +465,7 @@ void do_scene_project_brush(const Depsgraph &depsgraph,
                    bidirectional,
                    attribute_data,
                    vert_normals,
+                   center_projection_dist,
                    nodes[i],
                    object,
                    tls,
@@ -385,7 +480,8 @@ void do_scene_project_brush(const Depsgraph &depsgraph,
       MutableSpan<bke::pbvh::GridsNode> nodes = pbvh.nodes<bke::pbvh::GridsNode>();
       node_mask.foreach_index(GrainSize(1), [&](const int i) {
         LocalData &tls = all_tls.local();
-        calc_grids(depsgraph, sd, object, brush, bidirectional, nodes[i], tls);
+        calc_grids(
+            depsgraph, sd, object, brush, bidirectional, center_projection_dist, nodes[i], tls);
         bke::pbvh::update_node_bounds_grids(subdiv_ccg.grid_area, positions, nodes[i]);
       });
       break;
@@ -394,7 +490,8 @@ void do_scene_project_brush(const Depsgraph &depsgraph,
       MutableSpan<bke::pbvh::BMeshNode> nodes = pbvh.nodes<bke::pbvh::BMeshNode>();
       node_mask.foreach_index(GrainSize(1), [&](const int i) {
         LocalData &tls = all_tls.local();
-        calc_bmesh(depsgraph, sd, object, brush, bidirectional, nodes[i], tls);
+        calc_bmesh(
+            depsgraph, sd, object, brush, bidirectional, center_projection_dist, nodes[i], tls);
         bke::pbvh::update_node_bounds_bmesh(nodes[i]);
       });
       break;

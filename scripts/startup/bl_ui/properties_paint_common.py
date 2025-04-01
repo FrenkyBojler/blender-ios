@@ -926,6 +926,7 @@ def brush_settings(layout, context, brush, popover=False):
         elif sculpt_tool == 'SCENE_PROJECT':
             layout.separator()
             layout.prop(brush, "project_direction_type")
+            layout.prop(brush, "projection_offset_factor")
             layout.prop(brush, "bidirectional")
             layout.prop(brush, "ignore_hidden_objects")
 

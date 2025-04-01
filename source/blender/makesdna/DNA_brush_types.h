@@ -287,7 +287,7 @@ typedef struct Brush {
   char gpencil_weight_brush_type;
   /** Active curves sculpt brush type (#eBrushCurvesSculptType). */
   char curves_sculpt_brush_type;
-  char _pad1[6];
+  char _pad1[2];
 
   float autosmooth_factor;
 
@@ -314,6 +314,7 @@ typedef struct Brush {
 
   /* Scene Project brush */
   int project_direction_type;
+  float projection_offset_factor;
 
   float texture_sample_bias;
 
