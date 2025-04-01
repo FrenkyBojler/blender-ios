@@ -1,2 +1,3 @@
 Referenced by issue #136784, `wireframe_color_type` in a new window
 Referenced by pull request #136813, Fix #136784: Missing default for "wireframe_color_type" in a new window
+Referenced by commit e348b463078664c139d1656ed49ce52735bfc27f, Fix #136784: Missing default for "wireframe_color_type" in a new window
