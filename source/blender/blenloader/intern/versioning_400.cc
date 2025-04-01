@@ -2153,8 +2153,31 @@ void do_versions_after_linking_400(FileData *fd, Main *bmain)
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 14)) {
-    BKE_fcurves_main_cb(
-        bmain, [&](ID * /* id */, FCurve *fcurve) { version_fix_fcurve_noise_offset(*fcurve); });
+    LISTBASE_FOREACH (bAction *, dna_action, &bmain->actions) {
+      blender::animrig::Action &action = dna_action->wrap();
+      blender::animrig::foreach_fcurve_in_action(
+          action, [&](FCurve &fcurve) { version_fix_fcurve_noise_offset(fcurve); });
+    }
+
+    ID *id;
+    FOREACH_MAIN_ID_BEGIN (bmain, id) {
+      AnimData *adt = BKE_animdata_from_id(id);
+      if (!adt) {
+        continue;
+      }
+
+      LISTBASE_FOREACH (FCurve *, fcurve, &adt->drivers) {
+        version_fix_fcurve_noise_offset(*fcurve);
+      }
+      LISTBASE_FOREACH (NlaTrack *, track, &adt->nla_tracks) {
+        LISTBASE_FOREACH (NlaStrip *, strip, &track->strips) {
+          LISTBASE_FOREACH (FCurve *, fcurve, &strip->fcurves) {
+            version_fix_fcurve_noise_offset(*fcurve);
+          }
+        }
+      }
+    }
+    FOREACH_MAIN_ID_END;
   }
 
   /**
