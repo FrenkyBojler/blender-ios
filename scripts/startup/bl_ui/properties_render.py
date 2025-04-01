@@ -845,7 +845,8 @@ class RENDER_PT_eevee_performance_viewport(RenderButtonsPanel, Panel):
         col.prop(rd, "preview_pixel_size", text="Pixel Size")
 
 
-class RENDER_PT_grease_pencil(RenderButtonsPanel, Panel):
+# TODO(falk): To rename for 5.0
+class RENDER_PT_gpencil(RenderButtonsPanel, Panel):
     bl_label = "Grease Pencil"
     bl_options = {'DEFAULT_CLOSED'}
     bl_order = 10
@@ -866,7 +867,7 @@ class RENDER_PT_grease_pencil(RenderButtonsPanel, Panel):
 class RENDER_PT_grease_pencil_viewport(RenderButtonsPanel, Panel):
     bl_label = "Viewport"
     bl_options = {'DEFAULT_CLOSED'}
-    bl_parent_id = "RENDER_PT_grease_pencil"
+    bl_parent_id = "RENDER_PT_gpencil"
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
         'BLENDER_EEVEE_NEXT',
@@ -888,7 +889,7 @@ class RENDER_PT_grease_pencil_viewport(RenderButtonsPanel, Panel):
 class RENDER_PT_grease_pencil_render(RenderButtonsPanel, Panel):
     bl_label = "Render"
     bl_options = {'DEFAULT_CLOSED'}
-    bl_parent_id = "RENDER_PT_grease_pencil"
+    bl_parent_id = "RENDER_PT_gpencil"
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
         'BLENDER_EEVEE_NEXT',
@@ -1121,7 +1122,7 @@ classes = (
     RENDER_PT_eevee_performance_compositor_denoise_settings,
 
 
-    RENDER_PT_grease_pencil,
+    RENDER_PT_gpencil,
     RENDER_PT_grease_pencil_viewport,
     RENDER_PT_grease_pencil_render,
     RENDER_PT_opengl_sampling,
