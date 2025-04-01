@@ -51,12 +51,15 @@ class GRAPH_HT_header(Header):
         layout.prop(st, "pivot_point", icon_only=True)
 
         row = layout.row(align=True)
-        row.prop(tool_settings, "use_snap_anim", text="")
-        sub = row.row(align=True)
-        sub.popover(
-            panel="GRAPH_PT_snapping",
-            text="",
-        )
+        if context.space_data.mode == 'DRIVERS':
+            row.prop(tool_settings, "use_snap_driver", text="")
+        else:
+            row.prop(tool_settings, "use_snap_anim", text="")
+            sub = row.row(align=True)
+            sub.popover(
+                panel="GRAPH_PT_snapping",
+                text="",
+            )
 
         row = layout.row(align=True)
         row.prop(tool_settings, "use_proportional_fcurve", text="", icon_only=True)
