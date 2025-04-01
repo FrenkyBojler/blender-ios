@@ -72,6 +72,9 @@ GPUSecondaryContext::GPUSecondaryContext()
 
 GPUSecondaryContext::~GPUSecondaryContext()
 {
+  /* Contexts should be destructe on the thread they were activated. */
+  BLI_assert(!BLI_thread_is_main());
+
   GPU_context_discard(gpu_context_);
 
   GHOST_ReleaseGPUContext(ghost_context_);
