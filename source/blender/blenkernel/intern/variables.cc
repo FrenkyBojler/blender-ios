@@ -42,7 +42,7 @@ bool VariableMap::add_string(blender::StringRef name, blender::StringRef value)
   return true;
 }
 
-bool VariableMap::add_integer(blender::StringRef name, int64_t value)
+bool VariableMap::add_integer(blender::StringRef name, const int64_t value)
 {
   if (this->contains(name)) {
     return false;
@@ -51,7 +51,7 @@ bool VariableMap::add_integer(blender::StringRef name, int64_t value)
   return true;
 }
 
-bool VariableMap::add_float(blender::StringRef name, double value)
+bool VariableMap::add_float(blender::StringRef name, const double value)
 {
   if (this->contains(name)) {
     return false;
@@ -90,7 +90,7 @@ std::optional<double> VariableMap::get_float(blender::StringRef name) const
 /* -------------------------------------------------------------------- */
 
 VariableMap BKE_build_blender_variables(const char *blend_file_path,
-                                        std::optional<uint64_t> frame_number,
+                                        const std::optional<uint64_t> frame_number,
                                         const RenderData *render_data)
 {
   VariableMap variables;
@@ -218,7 +218,7 @@ struct Token {
  * \return length of the produced string.
  */
 static int format_int_to_string(const FormatSpecifier &format,
-                                int64_t integer_value,
+                                const int64_t integer_value,
                                 char r_output_string[FORMAT_BUFFER_SIZE])
 {
   BLI_assert(format.type != FormatSpecifierType::INVALID_SYNTAX);
@@ -290,7 +290,7 @@ static int format_int_to_string(const FormatSpecifier &format,
  * \return length of the produced string.
  */
 static int format_float_to_string(const FormatSpecifier &format,
-                                  double float_value,
+                                  const double float_value,
                                   char r_output_string[FORMAT_BUFFER_SIZE])
 {
   BLI_assert(format.type != FormatSpecifierType::INVALID_SYNTAX);
@@ -358,7 +358,7 @@ static int format_float_to_string(const FormatSpecifier &format,
   return output_length;
 }
 
-static FormatSpecifier parse_path_variable_format(const blender::StringRef format_specifier)
+static FormatSpecifier parse_path_variable_format(blender::StringRef format_specifier)
 {
   FormatSpecifier format = {};
 
@@ -382,8 +382,8 @@ static FormatSpecifier parse_path_variable_format(const blender::StringRef forma
   const bool found_dot = dot_index != std::string::npos;
   const bool only_one_dot = dot_index == dot_index_last;
   if (format_specifier.find_first_not_of(".#") == std::string::npos && found_dot && only_one_dot) {
-    const blender::StringRef left = format_specifier.substr(0, dot_index);
-    const blender::StringRef right = format_specifier.substr(dot_index + 1);
+    blender::StringRef left = format_specifier.substr(0, dot_index);
+    blender::StringRef right = format_specifier.substr(dot_index + 1);
 
     /* We currently require that the fractional digits are specified, so bail if
      * they aren't. */
