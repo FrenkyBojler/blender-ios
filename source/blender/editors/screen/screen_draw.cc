@@ -200,15 +200,13 @@ void ED_screen_draw_edges(wmWindow *win)
 
   float outline1[4];
   float outline2[4];
+  rctf bounds;
   UI_GetThemeColor4fv(TH_EDITOR_OUTLINE, outline1);
   UI_GetThemeColor4fv(TH_EDITOR_OUTLINE_ACTIVE, outline2);
   UI_draw_roundbox_corner_set(UI_CNR_ALL);
   LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
-    rctf rectf2 = {float(area->totrct.xmin),
-                   float(area->totrct.xmax),
-                   float(area->totrct.ymin),
-                   float(area->totrct.ymax)};
-    UI_draw_roundbox_4fv_ex(&rectf2,
+    BLI_rctf_rcti_copy(&bounds, &area->totrct);
+    UI_draw_roundbox_4fv_ex(&bounds,
                             nullptr,
                             nullptr,
                             1.0f,
