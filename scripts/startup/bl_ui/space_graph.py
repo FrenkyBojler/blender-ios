@@ -53,6 +53,11 @@ class GRAPH_HT_header(Header):
         row = layout.row(align=True)
         if context.space_data.mode == 'DRIVERS':
             row.prop(tool_settings, "use_snap_driver", text="")
+            sub = row.row(align=True)
+            sub.popover(
+                panel="GRAPH_PT_driver_snapping",
+                text="",
+            )
         else:
             row.prop(tool_settings, "use_snap_anim", text="")
             sub = row.row(align=True)
@@ -125,6 +130,18 @@ class GRAPH_PT_snapping(Panel):
         col.prop(tool_settings, "snap_anim_element", expand=True)
         if tool_settings.snap_anim_element != 'MARKER':
             col.prop(tool_settings, "use_snap_time_absolute")
+
+
+class GRAPH_PT_driver_snapping(Panel):
+    bl_space_type = 'GRAPH_EDITOR'
+    bl_region_type = 'HEADER'
+    bl_label = "Snapping"
+
+    def draw(self, context):
+        layout = self.layout
+        col = layout.column()
+        tool_settings = context.tool_settings
+        col.prop(tool_settings, "use_snap_driver_absolute")
 
 
 class GRAPH_MT_editor_menus(Menu):
@@ -543,6 +560,7 @@ classes = (
     GRAPH_MT_view_pie,
     GRAPH_PT_filters,
     GRAPH_PT_snapping,
+    GRAPH_PT_driver_snapping,
 )
 
 if __name__ == "__main__":  # only for live edit.
