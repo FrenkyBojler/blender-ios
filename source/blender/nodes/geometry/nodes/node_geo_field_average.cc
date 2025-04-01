@@ -6,7 +6,6 @@
 
 #include "BLI_array.hh"
 #include "BLI_generic_virtual_array.hh"
-#include "BLI_sort.hh"
 #include "BLI_vector.hh"
 #include "BLI_virtual_array.hh"
 
@@ -20,7 +19,6 @@
 #include "UI_interface.hh"
 #include "UI_resources.hh"
 
-#include <map>
 #include <numeric>
 
 namespace blender::nodes::node_geo_field_average_cc {
@@ -147,9 +145,7 @@ template<typename T> T calculate_median(Vector<T> &values)
       const auto left_middle_itr = std::max_element(values.begin(), middle_itr);
       return (*left_middle_itr + *middle_itr) / 2;
     }
-    else {
-      return *middle_itr;
-    }
+    return *middle_itr;
   }
 }
 
@@ -330,7 +326,7 @@ static void node_register()
   ntype.draw_buttons = node_layout;
   ntype.declare = node_declare;
   ntype.gather_link_search_ops = node_gather_link_searches;
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
   node_rna(ntype.rna_ext.srna);
 }
 NOD_REGISTER_NODE(node_register)
