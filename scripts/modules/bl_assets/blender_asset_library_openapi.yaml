@@ -108,8 +108,8 @@ components:
       description: Owner / publisher of this asset library.
       properties:
         "name": { type: string }
-        "url": { type: string, format: url }
-        "email": { type: string, format: idn-email }
+        "url": { type: string }
+        "email": { type: string }
       required: [name, url]
 
     ## Index
