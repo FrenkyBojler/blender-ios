@@ -4,3 +4,4 @@ Referenced by issue #136625, Instant Crash when switching to Texture Paint
 Referenced by issue #136670, UV: vertices selection not drawn in the UV Editor if "Sync" is off
 Referenced by commit ec2cdce657e3e724983cef8c8f06d0232ef1f758, Fix #136625: Crash switching to Texture Paint workspace
 Referenced by commit ebe7259c658cf664bc356f158286092a5efca94e, Fix #136670: Missing update after UV editor selection
+Referenced by issue #136837, Objects with a GPU subdivision surface modifier always render with smooth shading
