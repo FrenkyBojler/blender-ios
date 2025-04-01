@@ -2498,10 +2498,13 @@ static IndexMask pbvh_gather_cursor_update(Object &ob, bool use_original, IndexM
 
 /** \return All nodes that are potentially within the cursor or brush's area of influence. */
 static IndexMask pbvh_gather_generic(
-    Object &ob, const Brush &brush, const float3& center, const float radius_sq, const bool use_original, IndexMaskMemory &memory)
+    Object &ob, const Brush &brush, const bool use_original, const float radius_scale, IndexMaskMemory &memory)
 {
   SculptSession &ss = *ob.sculpt;
   const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(ob);
+
+  const float3 center = ss.cache->location_symm;
+  const float radius_sq = math::square(ss.cache->radius * radius_scale);
 
   const bool ignore_ineffective = brush.sculpt_brush_type != SCULPT_BRUSH_TYPE_MASK;
   switch (brush.falloff_shape) {
@@ -2527,16 +2530,6 @@ static IndexMask pbvh_gather_generic(
   }
 
   return {};
-}
-
-static IndexMask pbvh_gather_generic(
-    Object &ob, const Brush &brush, const bool use_original, const float radius_scale, IndexMaskMemory &memory)
-{
-  SculptSession &ss = *ob.sculpt;
-  const float3 center = ss.cache->location_symm;
-  const float radius_sq = math::square(ss.cache->radius * radius_scale);
-
-  return pbvh_gather_generic(ob, brush, center, radius_sq, use_original, memory);
 }
 
 static IndexMask pbvh_gather_texpaint(Object &ob,
@@ -3021,37 +3014,6 @@ void calc_brush_plane(const Depsgraph &depsgraph,
     /* Shift the plane for the current tile. */
     add_v3_v3(r_area_co, ss.cache->plane_offset);
   }
-}
-
-static IndexMask calc_plane_for_plane_brush(const Depsgraph &depsgraph,
-                                            const StrokeCache &cache,
-                                            const Brush &brush,
-                                            Object &object,
-                                            IndexMaskMemory &memory,
-                                            float3 &r_plane_normal,
-                                            float3 &r_plane_center)
-{
-  const bool use_original = !cache.accum;
-
-  IndexMaskMemory cursor_mask_memory;
-  const IndexMask cursor_node_mask = pbvh_gather_generic(
-      object, brush, use_original, 1.0f, cursor_mask_memory);
-  calc_brush_plane(depsgraph, brush, object, cursor_node_mask, r_plane_normal, r_plane_center);
-
-  const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
-
-  /* Recompute the node mask using the center of the brush plane as the center.
-   *
-   * The indices of the nodes in `cursor_node_mask` have been calculated based on the cursor
-   * location. However, for the Plane brush, its effective center often deviates from the cursor
-   * location. Calculating the affected nodes using the cursor location as the center can lead to
-   * issues (see, for example, #123768). */
-  return bke::pbvh::search_nodes(pbvh, memory, [&](const bke::pbvh::Node &node) {
-    if (node_fully_masked_or_hidden(node)) {
-      return false;
-    }
-    return node_in_sphere(node, r_plane_center, pow2f(cache.radius), use_original);
-  });
 }
 
 }  // namespace blender::ed::sculpt_paint
