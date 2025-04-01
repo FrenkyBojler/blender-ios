@@ -229,9 +229,8 @@ if(NOT MSVC_CLANG)
   string(APPEND CMAKE_CXX_FLAGS " /permissive- /Zc:__cplusplus /Zc:inline")
   string(APPEND CMAKE_C_FLAGS   " /Zc:inline")
 
-  # For ARM64 devices, we need to tell MSVC to use the new preprocessor
-  # This is because sse2neon requires it.
-  if(CMAKE_SYSTEM_PROCESSOR STREQUAL "ARM64")
+  # For VS2022+ we can enable the the new preprocessor
+  if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 19.30.30423)
     string(APPEND CMAKE_CXX_FLAGS " /Zc:preprocessor")
     string(APPEND CMAKE_C_FLAGS " /Zc:preprocessor")
   endif()
@@ -467,14 +466,9 @@ if(WITH_FFTW3)
   set(FFTW3_LIBRARIES
     ${FFTW3}/lib/fftw3.lib
     ${FFTW3}/lib/fftw3f.lib
+    ${FFTW3}/lib/fftw3_threads.lib
+    ${FFTW3}/lib/fftw3f_threads.lib
   )
-  if(EXISTS ${FFTW3}/lib/fftw3_threads.lib)
-    list(APPEND FFTW3_LIBRARIES
-      ${FFTW3}/lib/fftw3_threads.lib
-      ${FFTW3}/lib/fftw3f_threads.lib
-    )
-    set(WITH_FFTW3_THREADS_SUPPORT ON)
-  endif()
   set(FFTW3_INCLUDE_DIRS ${FFTW3}/include)
   set(FFTW3_LIBPATH ${FFTW3}/lib)
 endif()

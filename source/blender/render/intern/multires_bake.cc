@@ -546,10 +546,9 @@ static void do_multires_bake(MultiresBakeRender *bkr,
       const Span<float3> corner_normals = temp_mesh->corner_normals();
       BKE_mesh_calc_loop_tangent_ex(positions,
                                     faces,
-                                    dm->getCornerVertArray(dm),
-                                    corner_tris.data(),
-                                    tri_faces.data(),
-                                    corner_tris.size(),
+                                    Span(dm->getCornerVertArray(dm), faces.total_size()),
+                                    corner_tris,
+                                    tri_faces,
                                     sharp_faces ? Span(sharp_faces, faces.size()) : Span<bool>(),
                                     &dm->loopData,
                                     true,
@@ -1142,8 +1141,8 @@ static void create_ao_raytree(MultiresBakeRender *bkr, MAOBakeData *ao_data)
 
   raytree = ao_data->raytree = RE_rayobject_create(
       bkr->raytrace_structure, faces_num, bkr->octree_resolution);
-  face = ao_data->rayfaces = (RayFace *)MEM_callocN(faces_num * sizeof(RayFace),
-                                                    "ObjectRen faces");
+  face = ao_data->rayfaces = MEM_calloc_arrayN<RayFace>(size_t(faces_num),
+                                                        "ObjectRen faces");
 
   for (i = 0; i < grids_num; i++) {
     int x, y;
@@ -1172,11 +1171,10 @@ static void *init_ao_data(MultiresBakeRender *bkr, ImBuf * /*ibuf*/)
   MAOBakeData *ao_data;
   DerivedMesh *lodm = bkr->lores_dm;
   ushort *temp_permutation_table;
-  size_t permutation_size;
 
   init_ao_random();
 
-  ao_data = MEM_callocN(sizeof(MAOBakeData), "MultiresBake aoData");
+  ao_data = MEM_callocN<MAOBakeData>("MultiresBake aoData");
 
   ao_data->number_of_rays = bkr->number_of_rays;
   ao_data->bias = bkr->bias;
@@ -1186,10 +1184,9 @@ static void *init_ao_data(MultiresBakeRender *bkr, ImBuf * /*ibuf*/)
   create_ao_raytree(bkr, ao_data);
 
   /* initialize permutation tables */
-  permutation_size = sizeof(ushort) * bkr->number_of_rays;
-  ao_data->permutation_table_1 = MEM_callocN(permutation_size, "multires AO baker perm1");
-  ao_data->permutation_table_2 = MEM_callocN(permutation_size, "multires AO baker perm2");
-  temp_permutation_table = MEM_callocN(permutation_size, "multires AO baker temp perm");
+  ao_data->permutation_table_1 = MEM_calloc_arrayN<ushort>(size_t(bkr->number_of_rays), "multires AO baker perm1");
+  ao_data->permutation_table_2 = MEM_calloc_arrayN<ushort>(size_t(bkr->number_of_rays), "multires AO baker perm2");
+  temp_permutation_table = MEM_calloc_arrayN<ushort>(size_t(bkr->number_of_rays), "multires AO baker temp perm");
 
   build_permutation_table(
       ao_data->permutation_table_1, temp_permutation_table, bkr->number_of_rays, 1);

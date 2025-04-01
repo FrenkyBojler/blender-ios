@@ -23,6 +23,7 @@
 
 #include "MOV_read.hh"
 
+#include "SEQ_animation.hh"
 #include "SEQ_channels.hh"
 #include "SEQ_iterator.hh"
 #include "SEQ_render.hh"
@@ -185,7 +186,7 @@ void time_update_meta_strip_range(const Scene *scene, Strip *strip_meta)
   strip_update_sound_bounds_recursive(scene, strip_meta);
   blender::Span<Strip *> effects = SEQ_lookup_effects_by_strip(scene->ed, strip_meta);
   strip_time_update_effects_strip_range(scene, effects);
-  time_update_meta_strip_range(scene, SEQ_lookup_meta_by_strip(scene->ed, strip_meta));
+  time_update_meta_strip_range(scene, lookup_meta_by_strip(scene->ed, strip_meta));
 }
 
 void strip_time_effect_range_set(const Scene *scene, Strip *strip)
@@ -470,7 +471,7 @@ void time_start_frame_set(const Scene *scene, Strip *strip, int timeline_frame)
   strip->start = timeline_frame;
   blender::Span<Strip *> effects = SEQ_lookup_effects_by_strip(scene->ed, strip);
   strip_time_update_effects_strip_range(scene, effects);
-  time_update_meta_strip_range(scene, SEQ_lookup_meta_by_strip(scene->ed, strip));
+  time_update_meta_strip_range(scene, lookup_meta_by_strip(scene->ed, strip));
 }
 
 float time_content_end_frame_get(const Scene *scene, const Strip *strip)
@@ -520,7 +521,7 @@ void time_left_handle_frame_set(const Scene *scene, Strip *strip, int timeline_f
 
   blender::Span<Strip *> effects = SEQ_lookup_effects_by_strip(scene->ed, strip);
   strip_time_update_effects_strip_range(scene, effects);
-  time_update_meta_strip_range(scene, SEQ_lookup_meta_by_strip(scene->ed, strip));
+  time_update_meta_strip_range(scene, lookup_meta_by_strip(scene->ed, strip));
 }
 
 void time_right_handle_frame_set(const Scene *scene, Strip *strip, int timeline_frame)
@@ -536,7 +537,7 @@ void time_right_handle_frame_set(const Scene *scene, Strip *strip, int timeline_
 
   blender::Span<Strip *> effects = SEQ_lookup_effects_by_strip(scene->ed, strip);
   strip_time_update_effects_strip_range(scene, effects);
-  time_update_meta_strip_range(scene, SEQ_lookup_meta_by_strip(scene->ed, strip));
+  time_update_meta_strip_range(scene, lookup_meta_by_strip(scene->ed, strip));
 }
 
 void strip_time_translate_handles(const Scene *scene, Strip *strip, const int offset)
@@ -548,17 +549,21 @@ void strip_time_translate_handles(const Scene *scene, Strip *strip, const int of
 
   blender::Span<Strip *> effects = SEQ_lookup_effects_by_strip(scene->ed, strip);
   strip_time_update_effects_strip_range(scene, effects);
-  time_update_meta_strip_range(scene, SEQ_lookup_meta_by_strip(scene->ed, strip));
+  time_update_meta_strip_range(scene, lookup_meta_by_strip(scene->ed, strip));
 }
 
-static void strip_time_slip_strip_ex(
-    const Scene *scene, Strip *strip, int delta, float subframe_delta, bool recursed)
+static void strip_time_slip_strip_ex(const Scene *scene,
+                                     Strip *strip,
+                                     int delta,
+                                     float subframe_delta,
+                                     bool slip_keyframes,
+                                     bool recursed)
 {
   if (strip->type == STRIP_TYPE_SOUND_RAM && subframe_delta != 0.0f) {
     strip->sound_offset += subframe_delta / FPS;
   }
 
-  if (delta == 0) {
+  if (delta == 0 && (!slip_keyframes || subframe_delta == 0.0f)) {
     return;
   }
 
@@ -580,12 +585,23 @@ static void strip_time_slip_strip_ex(
     if (BLI_listbase_is_empty(&strip->seqbase)) {
       return;
     }
+
     LISTBASE_FOREACH (Strip *, strip_child, &strip->seqbase) {
-      strip_time_slip_strip_ex(scene, strip_child, delta, subframe_delta, true);
+      /* The keyframes of strips inside meta strips should always be moved. */
+      strip_time_slip_strip_ex(scene, strip_child, delta, subframe_delta, true, true);
     }
   }
 
   strip->start = strip->start + delta;
+
+  if (slip_keyframes) {
+    float anim_offset = delta;
+    if (strip->type == STRIP_TYPE_SOUND_RAM) {
+      anim_offset += subframe_delta;
+    }
+    offset_animdata(scene, strip, anim_offset);
+  }
+
   if (!recursed) {
     strip->startofs = strip->startofs - delta;
     strip->endofs = strip->endofs + delta;
@@ -599,9 +615,10 @@ static void strip_time_slip_strip_ex(
   strip_time_update_effects_strip_range(scene, effects);
 }
 
-void time_slip_strip(const Scene *scene, Strip *strip, int delta, float subframe_delta)
+void time_slip_strip(
+    const Scene *scene, Strip *strip, int delta, float subframe_delta, bool slip_keyframes)
 {
-  strip_time_slip_strip_ex(scene, strip, delta, subframe_delta, false);
+  strip_time_slip_strip_ex(scene, strip, delta, subframe_delta, slip_keyframes, false);
 }
 
 int time_get_rounded_sound_offset(const Strip *strip, const float frames_per_second)
