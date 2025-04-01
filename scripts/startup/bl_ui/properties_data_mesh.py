@@ -276,7 +276,7 @@ class DATA_PT_vertex_groups(MeshButtonsPanel, Panel):
             col.prop(context.tool_settings, "vertex_group_weight", text="Weight")
             col.prop(context.tool_settings, "use_auto_normalize", text="Auto Normalize")
 
-        draw_attribute_warnings(context, layout)
+        draw_attribute_warnings(context, layout, None)
 
 
 class DATA_PT_shape_keys(MeshButtonsPanel, Panel):
