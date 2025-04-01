@@ -152,6 +152,20 @@ static void version_fix_fcurve_noise_offset(FCurve &fcurve)
   }
 }
 
+static void nlastrips_apply_fcurve_versioning(ListBase &strips)
+{
+  /* This function is used (via `BKE_fcurves_id_cb()`) by the versioning system.
+   * As such, legacy Actions should always be expected here. */
+  LISTBASE_FOREACH (NlaStrip *, strip, strips) {
+    LISTBASE_FOREACH (FCurve *, fcurve, &strip->fcurves) {
+      version_fix_fcurve_noise_offset(*fcurve);
+    }
+
+    /* Check sub-strips (if meta-strips). */
+    nlastrips_apply_all_curves_cb(strip->strips);
+  }
+}
+
 /* Move bone-group color to the individual bones. */
 static void version_bonegroup_migrate_color(Main *bmain)
 {
@@ -2170,11 +2184,7 @@ void do_versions_after_linking_400(FileData *fd, Main *bmain)
         version_fix_fcurve_noise_offset(*fcurve);
       }
       LISTBASE_FOREACH (NlaTrack *, track, &adt->nla_tracks) {
-        LISTBASE_FOREACH (NlaStrip *, strip, &track->strips) {
-          LISTBASE_FOREACH (FCurve *, fcurve, &strip->fcurves) {
-            version_fix_fcurve_noise_offset(*fcurve);
-          }
-        }
+        nlastrips_apply_fcurve_versioning(track->strips);
       }
     }
     FOREACH_MAIN_ID_END;
