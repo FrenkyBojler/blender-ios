@@ -19,8 +19,8 @@ vec4 colorspace_perceptual_to_scene(vec4 color)
 void main()
 {
   ivec2 texel = ivec2(gl_FragCoord.xy);
-  vec4 data_src = colorspace_scene_to_perceptual(imageLoadFast(src_img, texel));
-  vec4 data_dst = colorspace_scene_to_perceptual(imageLoadFast(dst_img, texel));
+  vec4 data_src = colorspace_scene_to_perceptual(max(vec4(0.0), imageLoadFast(src_img, texel)));
+  vec4 data_dst = colorspace_scene_to_perceptual(max(vec4(0.0), imageLoadFast(dst_img, texel)));
   vec4 result = data_src * weight_src;
   if (weight_dst > 0.0) {
     /* Avoid uncleared data to mess with the result value. */
