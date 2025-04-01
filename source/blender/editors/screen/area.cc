@@ -1805,7 +1805,7 @@ static void region_rect_recursive(
 
 static void area_calc_totrct(const bScreen *screen, ScrArea *area, const rcti *window_rect)
 {
-  short px = short(std::max(float(U.border_width) * UI_SCALE_FAC, 1.0f * UI_SCALE_FAC));
+  short px = short(std::max(float(U.border_width) * UI_SCALE_FAC, UI_SCALE_FAC));
 
   area->totrct.xmin = area->v1->vec.x;
   area->totrct.xmax = area->v4->vec.x;
