@@ -283,7 +283,7 @@ void BKE_scene_multiview_videos_dimensions_get(
     const RenderData *rd, size_t width, size_t height, size_t *r_width, size_t *r_height);
 int BKE_scene_multiview_num_videos_get(const RenderData *rd);
 
-void BKE_scene_ppm_get(const struct RenderData *rd, double r_ppm[2]);
+void BKE_scene_ppm_get(const RenderData *rd, double r_ppm[2]);
 
 /* depsgraph */
 void BKE_scene_allocate_depsgraph_hash(Scene *scene);
