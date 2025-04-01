@@ -34,6 +34,12 @@ void BKE_image_format_blend_write(BlendWriter *writer, ImageFormatData *imf);
 
 void BKE_image_format_set(ImageFormatData *imf, ID *owner_id, const char imtype);
 
+/**
+ * \param aspect: The aspect the image was rendered with,
+ * typically from #RenderData::aspect.
+ */
+void BKE_image_format_ppm_get(const ImageFormatData *imf, const float aspect[2], double r_ppm[2]);
+
 /* File Paths */
 
 void BKE_image_path_from_imformat(char *filepath,

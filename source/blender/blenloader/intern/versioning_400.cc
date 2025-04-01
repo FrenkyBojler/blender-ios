@@ -6580,12 +6580,12 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
 
   /* TODO: define version bump. */
   {
-    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-      if (scene->r.ppm_factor == 0.0f && scene->r.ppm_base == 0.0f) {
-        scene->r.ppm_factor = 72.0f;
-        scene->r.ppm_base = 0.0254f;
+    do_versions_foreach_imformat(bmain, [](ImageFormatData &imf) {
+      if (imf.ppm_factor == 0.0f && imf.ppm_base == 0.0f) {
+        imf.ppm_factor = 72.0f;
+        imf.ppm_base = 0.0254f;
       }
-    }
+    });
   }
 
   /**

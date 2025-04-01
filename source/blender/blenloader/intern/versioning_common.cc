@@ -129,6 +129,37 @@ ID *do_versions_rename_id(Main *bmain,
   return id;
 }
 
+void do_versions_foreach_imformat(Main *bmain, FunctionRef<void(ImageFormatData &imf)> version_fn)
+{
+  LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+    if (scene->r.im_format.ppm_factor == 0.0f && scene->r.im_format.ppm_base == 0.0f) {
+      version_fn(scene->r.im_format);
+      version_fn(scene->r.im_format);
+    }
+  }
+
+  FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
+    if (ntree->type == NTREE_COMPOSIT) {
+      for (bNode *node : ntree->all_nodes()) {
+        if (node->type_legacy == CMP_NODE_OUTPUT_FILE) {
+
+          if (node->storage) {
+            NodeImageMultiFile *nimf = (NodeImageMultiFile *)node->storage;
+            version_fn(nimf->format);
+          }
+
+          LISTBASE_FOREACH (const bNodeSocket *, input, &node->inputs) {
+            NodeImageMultiFileSocket *input_storage = static_cast<NodeImageMultiFileSocket *>(
+                input->storage);
+            version_fn(input_storage->format);
+          }
+        }
+      }
+    }
+  }
+  FOREACH_NODETREE_END;
+}
+
 static void change_node_socket_name(ListBase *sockets, const char *old_name, const char *new_name)
 {
   LISTBASE_FOREACH (bNodeSocket *, socket, sockets) {

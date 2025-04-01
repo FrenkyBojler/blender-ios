@@ -130,7 +130,7 @@ struct RenderResult {
 
   /**
    * Pixels per meter (for image output).
-   * - Typically initialized via #BKE_scene_ppm_get.
+   * - Typically initialized via #BKE_image_format_ppm_get.
    * - May be zero which indicates the PPM being "unset".
    *   Although in most cases a scene is available.
    */

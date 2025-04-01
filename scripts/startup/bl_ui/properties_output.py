@@ -430,14 +430,14 @@ class RENDER_PT_output_pixel_density(RenderOutputButtonsPanel, Panel):
         return args
 
     @staticmethod
-    def draw_pixeldensity(layout, rd):
+    def draw_pixeldensity(layout, image_settings):
         if RENDER_PT_output_pixel_density._preset_class is None:
             RENDER_PT_output_pixel_density._preset_class = bpy.types.RENDER_MT_pixeldensity_presets
 
-        args = rd.ppm_base, RENDER_PT_output_pixel_density._preset_class.bl_label
+        args = image_settings.ppm_base, RENDER_PT_output_pixel_density._preset_class.bl_label
         pixeldensity_label_text, show_pixeldensity = RENDER_PT_output_pixel_density._draw_pixeldensity_label(*args)
 
-        layout.prop(rd, "ppm_factor", text="Pixels")
+        layout.prop(image_settings, "ppm_factor", text="Pixels")
 
         row = layout.split(factor=0.4)
         row.alignment = 'RIGHT'
@@ -446,7 +446,7 @@ class RENDER_PT_output_pixel_density(RenderOutputButtonsPanel, Panel):
 
         if show_pixeldensity:
             col = layout.column(align=True)
-            col.prop(rd, "ppm_base", text="Base")
+            col.prop(image_settings, "ppm_base", text="Base")
 
     def draw(self, context):
         layout = self.layout
@@ -454,9 +454,9 @@ class RENDER_PT_output_pixel_density(RenderOutputButtonsPanel, Panel):
         layout.use_property_decorate = False
 
         scene = context.scene
-        rd = scene.render
+        image_settings = scene.render.image_settings
 
-        self.draw_pixeldensity(layout, rd)
+        self.draw_pixeldensity(layout, image_settings)
 
 
 class RENDER_PT_encoding(RenderOutputButtonsPanel, Panel):
