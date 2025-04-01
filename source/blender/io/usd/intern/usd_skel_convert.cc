@@ -70,32 +70,6 @@ void resize_fcurve(FCurve *fcu, uint bezt_count)
   BKE_fcurve_bezt_resize(fcu, bezt_count);
 }
 
-/* Utility: create curve at the given array index and add it as a channel to a group. */
-FCurve *create_fcurve(blender::animrig::Channelbag &channelbag,
-                      const blender::animrig::FCurveDescriptor &fcurve_descriptor,
-                      const int totvert)
-{
-  FCurve *fcurve = channelbag.fcurve_create_unique(nullptr, fcurve_descriptor);
-  BLI_assert_msg(fcurve, "The same F-Curve is being created twice, this is unexpected.");
-  BKE_fcurve_bezt_resize(fcurve, totvert);
-  return fcurve;
-}
-
-/* Utility: add curve sample. */
-void add_bezt(FCurve *fcu,
-              uint bezt_index,
-              const float frame,
-              const float value,
-              const eBezTriple_Interpolation ipo = BEZT_IPO_LIN)
-{
-  BezTriple &bez = fcu->bezt[bezt_index];
-  bez.vec[1][0] = frame;
-  bez.vec[1][1] = value;
-  bez.ipo = ipo; /* use default interpolation mode here... */
-  bez.f1 = bez.f2 = bez.f3 = SELECT;
-  bez.h1 = bez.h2 = HD_AUTO;
-}
-
 /**
  * Import a USD skeleton animation as an action on the given armature object.
  * This assumes bones have already been created on the armature.
@@ -114,6 +88,8 @@ void import_skeleton_curves(Main *bmain,
                             ReportList *reports)
 
 {
+  using namespace blender::io::usd;
+
   if (!(bmain && arm_obj && skel_query)) {
     return;
   }
@@ -295,7 +271,7 @@ void import_skeleton_curves(Main *bmain,
           break;
         }
         if (FCurve *fcu = loc_curves[k]) {
-          add_bezt(fcu, bezt_index, frame, t[j]);
+          set_fcurve_sample(fcu, bezt_index, frame, t[j]);
         }
       }
 
@@ -307,10 +283,10 @@ void import_skeleton_curves(Main *bmain,
         }
         if (FCurve *fcu = rot_curves[k]) {
           if (j == 0) {
-            add_bezt(fcu, bezt_index, frame, re);
+            set_fcurve_sample(fcu, bezt_index, frame, re);
           }
           else {
-            add_bezt(fcu, bezt_index, frame, im[j - 1]);
+            set_fcurve_sample(fcu, bezt_index, frame, im[j - 1]);
           }
         }
       }
@@ -322,7 +298,7 @@ void import_skeleton_curves(Main *bmain,
           break;
         }
         if (FCurve *fcu = scale_curves[k]) {
-          add_bezt(fcu, bezt_index, frame, s[j]);
+          set_fcurve_sample(fcu, bezt_index, frame, s[j]);
         }
       }
     }
@@ -668,7 +644,7 @@ void import_blendshapes(Main *bmain,
     Span<float> weights = Span(usd_weights.cdata(), usd_weights.size());
     for (int wi = 0; wi < weights.size(); ++wi) {
       if (curves[wi] != nullptr) {
-        add_bezt(curves[wi], bezt_index, frame, weights[wi]);
+        set_fcurve_sample(curves[wi], bezt_index, frame, weights[wi]);
       }
     }
 
