@@ -154,8 +154,6 @@ static void version_fix_fcurve_noise_offset(FCurve &fcurve)
 
 static void nlastrips_apply_fcurve_versioning(ListBase &strips)
 {
-  /* This function is used (via `BKE_fcurves_id_cb()`) by the versioning system.
-   * As such, legacy Actions should always be expected here. */
   LISTBASE_FOREACH (NlaStrip *, strip, &strips) {
     LISTBASE_FOREACH (FCurve *, fcurve, &strip->fcurves) {
       version_fix_fcurve_noise_offset(*fcurve);
@@ -2173,21 +2171,14 @@ void do_versions_after_linking_400(FileData *fd, Main *bmain)
           action, [&](FCurve &fcurve) { version_fix_fcurve_noise_offset(fcurve); });
     }
 
-    ID *id;
-    FOREACH_MAIN_ID_BEGIN (bmain, id) {
-      AnimData *adt = BKE_animdata_from_id(id);
-      if (!adt) {
-        continue;
-      }
-
+    BKE_animdata_main_cb(bmain, [](ID * /* id */, AnimData *adt) {
       LISTBASE_FOREACH (FCurve *, fcurve, &adt->drivers) {
         version_fix_fcurve_noise_offset(*fcurve);
       }
       LISTBASE_FOREACH (NlaTrack *, track, &adt->nla_tracks) {
         nlastrips_apply_fcurve_versioning(track->strips);
       }
-    }
-    FOREACH_MAIN_ID_END;
+    });
   }
 
   /**
