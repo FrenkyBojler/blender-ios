@@ -1,1 +1,2 @@
 Referenced by issue #136732, Python API: GPU module modifying gl_FragDepth has no effect
+Referenced by pull request #136846, PyDoc: Fix a format of GPUShaderCreateInfo.depth_write
