@@ -36,12 +36,8 @@ class InstanceBoundsField final : public bke::InstancesFieldInput {
                                  const IndexMask &mask) const final
   {
     Span<int> handles = instances.reference_handles();
-    const int instance_count = mask.size();
-    const int handle_count = instances.references().size();
-
-    Array<float3> bounds_min(handle_count, float3(0.0f));
-    Array<float3> bounds_max(handle_count, float3(0.0f));
-    Array<float3> output_bounds(instance_count, float3(0.0f));
+    Array<float3> bounds(instances.references().size());
+    Array<float3> output_bounds(mask.size());
 
     bke::Instances &const_instances = const_cast<bke::Instances &>(instances);
     const_instances.ensure_geometry_instances();
@@ -55,16 +51,14 @@ class InstanceBoundsField final : public bke::InstancesFieldInput {
             instance_geometry.compute_boundbox_without_instances(use_radius_);
 
         if (sub_bounds) {
-          bounds_min[handle] = sub_bounds->min;
-          bounds_max[handle] = sub_bounds->max;
+          bounds[handle] = return_max_ ? sub_bounds->min : sub_bounds->max;
         }
       }
     }
 
-    for (int i = 0; i < instance_count; ++i) {
-      int mask_index = mask[i]; 
-      output_bounds[mask_index] = return_max_ ? bounds_min[handles[mask_index]] :
-                                                bounds_max[handles[mask_index]];
+    for (int i = 0; i < mask.size(); ++i) {
+      int mask_index = mask[i];
+      output_bounds[mask_index] = bounds[handles[mask_index]];
     }
 
     return VArray<float3>::ForContainer(std::move(output_bounds));
