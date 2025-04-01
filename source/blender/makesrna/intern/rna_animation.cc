@@ -295,13 +295,13 @@ void rna_generic_action_slot_handle_set(blender::animrig::slot_handle_t slot_han
       BLI_assert_unreachable();
       break;
     case ActionSlotAssignmentResult::SlotNotSuitable:
-      WM_reportf(RPT_ERROR,
-                 "This slot is not suitable for this data-block type (%c%c)",
-                 animated_id.name[0],
-                 animated_id.name[1]);
+      WM_global_reportf(RPT_ERROR,
+                        "This slot is not suitable for this data-block type (%c%c)",
+                        animated_id.name[0],
+                        animated_id.name[1]);
       break;
     case ActionSlotAssignmentResult::MissingAction:
-      WM_report(RPT_ERROR, "Cannot set slot without an assigned Action.");
+      WM_global_report(RPT_ERROR, "Cannot set slot without an assigned Action.");
       break;
   }
 }
@@ -428,17 +428,19 @@ bool rna_iterator_generic_action_suitable_slots_skip(CollectionPropertyIterator 
 }
 
 void rna_iterator_generic_action_suitable_slots_begin(CollectionPropertyIterator *iter,
+                                                      PointerRNA *owner_ptr,
                                                       bAction *assigned_action)
 {
   if (!assigned_action) {
     /* No action means no slots. */
-    rna_iterator_array_begin(iter, nullptr, 0, 0, 0, nullptr);
+    rna_iterator_array_begin(iter, owner_ptr, nullptr, 0, 0, 0, nullptr);
     return;
   }
 
   animrig::Action &action = assigned_action->wrap();
   Span<animrig::Slot *> slots = action.slots();
   rna_iterator_array_begin(iter,
+                           owner_ptr,
                            (void *)slots.data(),
                            sizeof(animrig::Slot *),
                            slots.size(),
@@ -449,7 +451,7 @@ void rna_iterator_generic_action_suitable_slots_begin(CollectionPropertyIterator
 static void rna_iterator_animdata_action_suitable_slots_begin(CollectionPropertyIterator *iter,
                                                               PointerRNA *ptr)
 {
-  rna_iterator_generic_action_suitable_slots_begin(iter, rna_animdata(ptr).action);
+  rna_iterator_generic_action_suitable_slots_begin(iter, ptr, rna_animdata(ptr).action);
 }
 
 /* ****************************** */
@@ -620,7 +622,7 @@ static StructRNA *rna_KeyingSetInfo_register(Main *bmain,
   }
 
   /* create a new KeyingSetInfo type */
-  ksi = static_cast<KeyingSetInfo *>(MEM_mallocN(sizeof(KeyingSetInfo), "python keying set info"));
+  ksi = MEM_mallocN<KeyingSetInfo>("python keying set info");
   memcpy(ksi, &dummy_ksi, sizeof(KeyingSetInfo));
 
   /* set RNA-extensions info */
@@ -755,8 +757,8 @@ static int rna_KeyingSet_active_ksPath_editable(const PointerRNA *ptr, const cha
 static PointerRNA rna_KeyingSet_active_ksPath_get(PointerRNA *ptr)
 {
   KeyingSet *ks = (KeyingSet *)ptr->data;
-  return rna_pointer_inherit_refine(
-      ptr, &RNA_KeyingSetPath, BLI_findlink(&ks->paths, ks->active_path - 1));
+  return RNA_pointer_create_with_parent(
+      *ptr, &RNA_KeyingSetPath, BLI_findlink(&ks->paths, ks->active_path - 1));
 }
 
 static void rna_KeyingSet_active_ksPath_set(PointerRNA *ptr,
@@ -798,7 +800,7 @@ static PointerRNA rna_KeyingSet_typeinfo_get(PointerRNA *ptr)
   if ((ks->flag & KEYINGSET_ABSOLUTE) == 0) {
     ksi = blender::animrig::keyingset_info_find_name(ks->typeinfo);
   }
-  return rna_pointer_inherit_refine(ptr, &RNA_KeyingSetInfo, ksi);
+  return RNA_pointer_create_with_parent(*ptr, &RNA_KeyingSetInfo, ksi);
 }
 
 static KS_Path *rna_KeyingSet_paths_add(KeyingSet *keyingset,
@@ -846,7 +848,7 @@ static void rna_KeyingSet_paths_remove(KeyingSet *keyingset,
 
   /* remove the active path from the KeyingSet */
   BKE_keyingset_free_path(keyingset, ksp);
-  RNA_POINTER_INVALIDATE(ksp_ptr);
+  ksp_ptr->invalidate();
 
   /* the active path number will most likely have changed */
   /* TODO: we should get more fancy and actually check if it was removed,
@@ -907,7 +909,7 @@ static void rna_NlaTrack_remove(
   }
 
   BKE_nlatrack_remove_and_free(&adt->nla_tracks, track, true);
-  RNA_POINTER_INVALIDATE(track_ptr);
+  track_ptr->invalidate();
 
   WM_event_add_notifier(C, NC_ANIMATION | ND_NLA | NA_REMOVED, nullptr);
 
@@ -919,7 +921,7 @@ static PointerRNA rna_NlaTrack_active_get(PointerRNA *ptr)
 {
   AnimData *adt = (AnimData *)ptr->data;
   NlaTrack *track = BKE_nlatrack_find_active(&adt->nla_tracks);
-  return rna_pointer_inherit_refine(ptr, &RNA_NlaTrack, track);
+  return RNA_pointer_create_with_parent(*ptr, &RNA_NlaTrack, track);
 }
 
 static void rna_NlaTrack_active_set(PointerRNA *ptr, PointerRNA value, ReportList * /*reports*/)

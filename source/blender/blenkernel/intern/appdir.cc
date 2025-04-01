@@ -454,7 +454,7 @@ static blender::Vector<std::string> get_path_environment_multiple(const char *su
   const char *char_end = BLI_strchr_or_end(char_begin, separator);
   while (char_begin[0]) {
     const size_t base_path_len = char_end - char_begin;
-    if (base_path_len > 0 && base_path_len <= PATH_MAX) {
+    if (base_path_len > 0 && base_path_len < PATH_MAX) {
       char base_path[PATH_MAX];
       memcpy(base_path, char_begin, base_path_len);
       base_path[base_path_len] = '\0';
@@ -868,8 +868,7 @@ static void where_am_i(char *program_filepath,
 
 #  ifdef _WIN32
   {
-    wchar_t *fullname_16 = static_cast<wchar_t *>(
-        MEM_mallocN(program_filepath_maxncpy * sizeof(wchar_t), "ProgramPath"));
+    wchar_t *fullname_16 = MEM_malloc_arrayN<wchar_t>(program_filepath_maxncpy, "ProgramPath");
     if (GetModuleFileNameW(0, fullname_16, program_filepath_maxncpy)) {
       conv_utf_16_to_8(fullname_16, program_filepath, program_filepath_maxncpy);
       if (!BLI_exists(program_filepath)) {

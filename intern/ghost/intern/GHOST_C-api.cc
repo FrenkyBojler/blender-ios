@@ -606,6 +606,33 @@ GHOST_TSuccess GHOST_SetPath(GHOST_WindowHandle windowhandle, const char *filepa
   return window->setPath(filepath);
 }
 
+GHOST_TWindowDecorationStyleFlags GHOST_GetWindowDecorationStyleFlags(
+    GHOST_WindowHandle windowhandle)
+{
+  GHOST_IWindow *window = (GHOST_IWindow *)windowhandle;
+  return window->getWindowDecorationStyleFlags();
+}
+
+void GHOST_SetWindowDecorationStyleFlags(GHOST_WindowHandle windowhandle,
+                                         GHOST_TWindowDecorationStyleFlags styleFlags)
+{
+  GHOST_IWindow *window = (GHOST_IWindow *)windowhandle;
+  window->setWindowDecorationStyleFlags(styleFlags);
+}
+
+void GHOST_SetWindowDecorationStyleSettings(GHOST_WindowHandle windowhandle,
+                                            GHOST_WindowDecorationStyleSettings decorationSettings)
+{
+  GHOST_IWindow *window = (GHOST_IWindow *)windowhandle;
+  window->setWindowDecorationStyleSettings(decorationSettings);
+}
+
+GHOST_TSuccess GHOST_ApplyWindowDecorationStyle(GHOST_WindowHandle windowhandle)
+{
+  GHOST_IWindow *window = (GHOST_IWindow *)windowhandle;
+  return window->applyWindowDecorationStyle();
+}
+
 GHOST_RectangleHandle GHOST_GetWindowBounds(GHOST_WindowHandle windowhandle)
 {
   const GHOST_IWindow *window = (const GHOST_IWindow *)windowhandle;
@@ -1249,26 +1276,26 @@ int GHOST_XrGetControllerModelData(GHOST_XrContextHandle xr_contexthandle,
 
 #ifdef WITH_VULKAN_BACKEND
 
-void GHOST_GetVulkanHandles(GHOST_ContextHandle contexthandle,
-                            void *r_instance,
-                            void *r_physical_device,
-                            void *r_device,
-                            uint32_t *r_graphic_queue_family,
-                            void *r_queue,
-                            void **r_queue_mutex)
+void GHOST_GetVulkanHandles(GHOST_ContextHandle contexthandle, GHOST_VulkanHandles *r_handles)
 {
   GHOST_IContext *context = (GHOST_IContext *)contexthandle;
-  context->getVulkanHandles(
-      r_instance, r_physical_device, r_device, r_graphic_queue_family, r_queue, r_queue_mutex);
+  context->getVulkanHandles(*r_handles);
 }
 
 void GHOST_SetVulkanSwapBuffersCallbacks(
     GHOST_ContextHandle contexthandle,
     void (*swap_buffers_pre_callback)(const GHOST_VulkanSwapChainData *),
-    void (*swap_buffers_post_callback)(void))
+    void (*swap_buffers_post_callback)(void),
+    void (*openxr_acquire_image_callback)(GHOST_VulkanOpenXRData *),
+    void (*openxr_release_image_callback)(GHOST_VulkanOpenXRData *)
+
+)
 {
   GHOST_IContext *context = (GHOST_IContext *)contexthandle;
-  context->setVulkanSwapBuffersCallbacks(swap_buffers_pre_callback, swap_buffers_post_callback);
+  context->setVulkanSwapBuffersCallbacks(swap_buffers_pre_callback,
+                                         swap_buffers_post_callback,
+                                         openxr_acquire_image_callback,
+                                         openxr_release_image_callback);
 }
 
 void GHOST_GetVulkanSwapChainFormat(GHOST_WindowHandle windowhandle,
