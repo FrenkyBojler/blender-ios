@@ -261,7 +261,8 @@ std::string AbstractView::get_search_string()
   return search_string_;
 }
 
-void AbstractView::set_serach_string(char *search_string) {
+void AbstractView::set_serach_string(char *search_string)
+{
   search_string_.assign(search_string);
   if (search_string_ != nullptr && !search_string_.empty()) {
     search_string_.insert(0, "*");
