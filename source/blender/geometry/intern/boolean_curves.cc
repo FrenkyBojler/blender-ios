@@ -677,6 +677,7 @@ void check_segments(const CurveBooleanOpParameters &op_params,
 
 struct BooleanResult {
   Vector<Segment> segments;
+  Vector<bool> segment_reversed;
   Vector<int> segment_offsets;
   Vector<bool> cyclic;
   Vector<int> point_offsets;
@@ -978,6 +979,7 @@ BooleanResult execute_single_boolean(const CurveBooleanOpParameters op_params,
 
       const Segment &current_segment = all_segments[current_i];
       result.segments.append(current_segment);
+      result.segment_reversed.append(last_reversed);
 
       processed_segments[current_i] = true;
       result.segments.last().reversed = last_reversed;
@@ -1061,6 +1063,7 @@ static BooleanResult execute_boolean(const CurveBooleanOpParameters op_params,
       results_all.segment_offsets.append(result.segment_offsets[i] + results_all.segments.size());
     }
     results_all.cyclic.extend(result.cyclic);
+    results_all.segment_reversed.extend(result.segment_reversed);
     results_all.shape_ids.append_n_times(subj_shape_id, result.cyclic.size());
 
     for (const int i : result.segments.index_range()) {
@@ -1195,25 +1198,34 @@ bke::CurvesGeometry curve_boolean(const CurveBooleanOpParameters op_params,
       for (const int curve_i : dst_segments_by_curve.index_range()) {
         const IndexRange segment_range = dst_segments_by_curve[curve_i];
         for (const int seg_i : segment_range) {
-          const Segment &segment = result.segments[seg_i];
+          Segment segment = result.segments[seg_i];
+          const bool reversed = result.segment_reversed[seg_i];
+          segment.reversed = false;
 
-          if (segment.has_start_intersection()) {
-            dst_attr[i++] = bke::attribute_math::mix2<T>(segment.start_alpha(),
-                                                         src_attr[segment.start_edge().x],
-                                                         src_attr[segment.start_edge().y]);
+          if (reversed ? segment.has_end_intersection() : segment.has_start_intersection()) {
+            const float start_alpha = reversed ? segment.alpha_2 : segment.alpha_1;
+            const int2 start_edge = reversed ? segment.end_edge() : segment.start_edge();
+            dst_attr[i++] = bke::attribute_math::mix2<T>(
+                start_alpha, src_attr[start_edge.x], src_attr[start_edge.y]);
           }
 
           segment.foreach_point(
               [&](const int index, const int pos) { dst_attr[pos + i] = src_attr[index]; });
 
+          if (reversed) {
+            dst_attr.slice(IndexRange::from_begin_size(i, segment.points_num())).reverse();
+          }
+
           i += segment.points_num();
 
-          if (seg_i == segment_range.last() && segment.has_end_intersection() &&
+          if (seg_i == segment_range.last() &&
+              (reversed ? segment.has_start_intersection() : segment.has_end_intersection()) &&
               !result.cyclic[curve_i])
           {
-            dst_attr[i++] = bke::attribute_math::mix2<T>(segment.end_alpha(),
-                                                         src_attr[segment.end_edge().x],
-                                                         src_attr[segment.end_edge().y]);
+            const float end_alpha = reversed ? segment.alpha_1 : segment.alpha_2;
+            const int2 end_edge = reversed ? segment.start_edge() : segment.end_edge();
+            dst_attr[i++] = bke::attribute_math::mix2<T>(
+                end_alpha, src_attr[end_edge.x], src_attr[end_edge.y]);
           }
         }
       }
