@@ -60,7 +60,6 @@ struct GHOST_ContextVK_WindowInfo {
 
 struct GHOST_FrameDiscard {
   std::vector<VkSwapchainKHR> swapchains;
-  std::vector<VkSemaphore> semaphores;
 
   void destroy(VkDevice vk_device)
   {
@@ -69,20 +68,20 @@ struct GHOST_FrameDiscard {
       swapchains.pop_back();
       vkDestroySwapchainKHR(vk_device, vk_swapchain, nullptr);
     }
-    while (!semaphores.empty()) {
-      VkSemaphore vk_semaphore = semaphores.back();
-      semaphores.pop_back();
-      vkDestroySemaphore(vk_device, vk_semaphore, nullptr);
-    }
   }
 };
 
 struct GHOST_Frame {
-  /** Fence signalled when presenting, waiting when acquiring next image. */
+  /**
+   * Fence signalled when "previous" use of the frame has finished rendering. When signalled the
+   * frame can acquire a new image and the semaphores can be reused.
+   */
   VkFence submission_fence = VK_NULL_HANDLE;
-  /** Semaphore for acquiring */
+  /** Semaphore for acquiring; being signalled when the swap chain image is ready to be updated. */
   VkSemaphore acquire_semaphore = VK_NULL_HANDLE;
-  /** Semaphore for presenting */
+  /**
+   * Semaphore for presenting; being signalled when the swap chain image is ready to be presented.
+   */
   VkSemaphore present_semaphore = VK_NULL_HANDLE;
 
   GHOST_FrameDiscard discard_pile;
