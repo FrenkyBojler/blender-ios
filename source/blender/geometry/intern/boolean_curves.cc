@@ -62,8 +62,7 @@ class Segment {
   float alpha_1 = 0.0;
   float alpha_2 = 0.0;
 
-  int inter_index_1 = -1;
-  int inter_index_2 = -1;
+  int intersection_index[2] = {-1, -1};
 
   constexpr Segment() = default;
 
@@ -71,16 +70,6 @@ class Segment {
   bool is_loop() const
   {
     return alpha_2 == 1.0f;
-  }
-
-  int start_intersection() const
-  {
-    return inter_index_1;
-  }
-
-  int end_intersection() const
-  {
-    return inter_index_2;
   }
 
   bool has_start_intersection() const
@@ -214,11 +203,11 @@ class Segment {
 
     segment.point_1 = int(math::floor(parameter_first));
     segment.alpha_1 = math::fract(parameter_first);
-    segment.inter_index_1 = inter_index_first;
+    segment.intersection_index[0] = inter_index_first;
 
     segment.point_2 = int(math::floor(parameter_last));
     segment.alpha_2 = math::fract(parameter_last);
-    segment.inter_index_2 = inter_index_last;
+    segment.intersection_index[1] = inter_index_last;
 
     return segment;
   }
@@ -236,7 +225,7 @@ class Segment {
 
     segment.point_2 = int(math::floor(parameter_2));
     segment.alpha_2 = math::fract(parameter_2);
-    segment.inter_index_2 = inter_index;
+    segment.intersection_index[1] = inter_index;
 
     return segment;
   }
@@ -253,7 +242,7 @@ class Segment {
     segment.point_1 = int(math::floor(parameter_1));
     segment.alpha_1 = math::fract(parameter_1);
 
-    segment.inter_index_1 = inter_index;
+    segment.intersection_index[0] = inter_index;
 
     segment.point_2 = points.last();
 
@@ -564,8 +553,8 @@ static int get_next_segment(const int current_i,
     return -1;
   }
 
-  const int current_end_index = current_reversed ? current_segment.start_intersection() :
-                                                   current_segment.end_intersection();
+  const int current_end_index = current_reversed ? current_segment.intersection_index[0] :
+                                                   current_segment.intersection_index[1];
   const IntersectionPoint &end_int = intersections[current_end_index];
   const SegmentEndPoint endpoint = SegmentEndPoint(current_i, current_reversed);
 
@@ -648,7 +637,7 @@ void check_segments(const CurveBooleanOpParameters &op_params,
     if (!this_segment.has_end_intersection()) {
       continue;
     }
-    const int int_p_end = this_segment.end_intersection();
+    const int int_p_end = this_segment.intersection_index[1];
     const IntersectionPoint &inter_end = intersections[int_p_end];
 
     const int other_curve_k = inter_end.other_curve(curve_k);
@@ -878,7 +867,7 @@ BooleanResult execute_single_boolean(const CurveBooleanOpParameters op_params,
     const int curve_i = segment.curve;
 
     if (segment.has_start_intersection()) {
-      IntersectionPoint &inter_start = intersections[segment.start_intersection()];
+      IntersectionPoint &inter_start = intersections[segment.intersection_index[0]];
       if (curve_i == inter_start.curve_a) {
         inter_start.end_a = SegmentEndPoint(seg_i, true);
       }
@@ -888,7 +877,7 @@ BooleanResult execute_single_boolean(const CurveBooleanOpParameters op_params,
     }
 
     if (segment.has_end_intersection()) {
-      IntersectionPoint &inter_end = intersections[segment.end_intersection()];
+      IntersectionPoint &inter_end = intersections[segment.intersection_index[1]];
       if (curve_i == inter_end.curve_a) {
         inter_end.start_a = SegmentEndPoint(seg_i, false);
       }
@@ -993,10 +982,10 @@ BooleanResult execute_single_boolean(const CurveBooleanOpParameters op_params,
         break;
       }
 
-      const int current_end_index = last_reversed ? current_segment.start_intersection() :
-                                                    current_segment.end_intersection();
+      const int current_end_index = last_reversed ? current_segment.intersection_index[0] :
+                                                    current_segment.intersection_index[1];
       const Segment &next_seg = all_segments[next_segment];
-      const bool next_reversed = next_seg.start_intersection() != current_end_index;
+      const bool next_reversed = next_seg.intersection_index[0] != current_end_index;
 
       last_reversed = next_reversed;
       current_i = next_segment;
