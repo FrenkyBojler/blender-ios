@@ -198,7 +198,9 @@ class GHOST_DeviceVK {
       }
     }
 
-    /* Check if the given extension name will be enabled. */
+    /* Check if the given extension name will be enabled. Every location that uses vulkan extension
+     * names use `VK_*_EXTENSION_NAME` defines. We can do pointer in stead of string comparisons.
+     */
     auto extension_requested = [=](const char *extension_name) {
       for (const char *device_extension_name : device_extensions) {
         if (device_extension_name == extension_name) {
