@@ -168,8 +168,8 @@ struct FormatSpecifier {
 
   /* For INTEGER and FLOAT formatting types, the number of digits indicated on
    * either side of the decimal point. */
-  std::optional<uint8_t> fixed_integer_digits;
-  std::optional<uint8_t> fixed_fractional_digits;
+  std::optional<uint8_t> integer_digit_count;
+  std::optional<uint8_t> fractional_digit_count;
 };
 
 enum class TokenType {
@@ -233,10 +233,10 @@ static int format_int_to_string(const FormatSpecifier &format,
     }
 
     case FormatSpecifierType::INTEGER: {
-      BLI_assert(format.fixed_integer_digits.has_value());
-      BLI_assert(*format.fixed_integer_digits > 0);
+      BLI_assert(format.integer_digit_count.has_value());
+      BLI_assert(*format.integer_digit_count > 0);
       output_length = sprintf(
-          r_output_string, "%0*ld", *format.fixed_integer_digits, integer_value);
+          r_output_string, "%0*ld", *format.integer_digit_count, integer_value);
       break;
     }
 
@@ -245,13 +245,13 @@ static int format_int_to_string(const FormatSpecifier &format,
        * formatter for this because we could lose precision with very large
        * numbers. Instead we simply print the integer, and then append ".000..."
        * to it. */
-      BLI_assert(format.fixed_fractional_digits.has_value());
-      BLI_assert(*format.fixed_fractional_digits > 0);
+      BLI_assert(format.fractional_digit_count.has_value());
+      BLI_assert(*format.fractional_digit_count > 0);
 
-      if (format.fixed_integer_digits.has_value()) {
-        BLI_assert(*format.fixed_integer_digits > 0);
+      if (format.integer_digit_count.has_value()) {
+        BLI_assert(*format.integer_digit_count > 0);
         output_length = sprintf(
-            r_output_string, "%0*ld", *format.fixed_integer_digits, integer_value);
+            r_output_string, "%0*ld", *format.integer_digit_count, integer_value);
       }
       else {
         output_length = sprintf(r_output_string, "%ld", integer_value);
@@ -260,7 +260,7 @@ static int format_int_to_string(const FormatSpecifier &format,
       r_output_string[output_length] = '.';
       output_length++;
 
-      for (int i = 0; i < *format.fixed_fractional_digits; i++) {
+      for (int i = 0; i < *format.fractional_digit_count; i++) {
         r_output_string[output_length] = '0';
         output_length++;
       }
@@ -326,22 +326,22 @@ static int format_float_to_string(const FormatSpecifier &format,
     }
 
     case FormatSpecifierType::FLOAT: {
-      BLI_assert(format.fixed_fractional_digits.has_value());
-      BLI_assert(*format.fixed_fractional_digits > 0);
+      BLI_assert(format.fractional_digit_count.has_value());
+      BLI_assert(*format.fractional_digit_count > 0);
 
-      if (format.fixed_integer_digits.has_value()) {
+      if (format.integer_digit_count.has_value()) {
         /* Both integer and fractional component lengths are specified. */
-        BLI_assert(*format.fixed_integer_digits > 0);
+        BLI_assert(*format.integer_digit_count > 0);
         output_length = sprintf(r_output_string,
                                 "%0*.*f",
-                                *format.fixed_integer_digits + *format.fixed_fractional_digits + 1,
-                                *format.fixed_fractional_digits,
+                                *format.integer_digit_count + *format.fractional_digit_count + 1,
+                                *format.fractional_digit_count,
                                 float_value);
       }
       else {
         /* Only fractional component length is specified. */
         output_length = sprintf(
-            r_output_string, "%.*f", *format.fixed_fractional_digits, float_value);
+            r_output_string, "%.*f", *format.fractional_digit_count, float_value);
       }
 
       break;
@@ -370,7 +370,7 @@ static FormatSpecifier parse_path_variable_format(const blender::StringRef forma
 
   /* If it's all digit specifiers, then format as an integer. */
   if (format_specifier.find_first_not_of("#") == std::string::npos) {
-    format.fixed_integer_digits = format_specifier.size();
+    format.integer_digit_count = format_specifier.size();
 
     format.type = FormatSpecifierType::INTEGER;
     return format;
@@ -393,10 +393,10 @@ static FormatSpecifier parse_path_variable_format(const blender::StringRef forma
     }
 
     if (!left.is_empty()) {
-      format.fixed_integer_digits = left.size();
+      format.integer_digit_count = left.size();
     }
 
-    format.fixed_fractional_digits = right.size();
+    format.fractional_digit_count = right.size();
 
     format.type = FormatSpecifierType::FLOAT;
     return format;
@@ -420,13 +420,13 @@ static FormatSpecifier parse_path_variable_format(const blender::StringRef forma
  */
 static std::optional<Token> next_token(char *path, const int path_allocation_size)
 {
-  /* We use magic number -1 to indicate that the component hasn't been found
-   * yet. Otherwise they are the byte offset at which the component was found. */
-  int start = -1;
-  int format_specifier_split = -1;
-  int end = -1;
+  /* We use the magic number -1 here to indicate that a component hasn't been
+   * found yet. When a component is found, the respective variable here is set
+   * to the byte offset it was found at. */
+  int start = -1;                  /* "{" */
+  int format_specifier_split = -1; /* ":" */
+  int end = -1;                    /* "}" */
 
-  /* Just a simple loop over the bytes of the path. */
   for (int byte_index = 0; byte_index < path_allocation_size && path[byte_index] != '\0';
        byte_index++)
   {
@@ -557,16 +557,18 @@ bool BKE_path_apply_variables(char path[FILE_MAX], const VariableMap &variables)
     /* For formatting integer and float variables into strings. */
     char format_buffer[FORMAT_BUFFER_SIZE];
 
-    /* Will point to the string to substitute the variable with in `path`. If no
-     * corresponding variable is found, is left null. */
+    /* Points to the string that will replace the "{variable}" in `path`. If no
+     * corresponding variable is found, or if the format specification is
+     * invalid, this is left null to indicate that no replacement should be
+     * done. */
     const char *replacement_string = nullptr;
 
     /* Try to find a matching variable, and construct a string for it. */
     if (std::optional<blender::StringRefNull> string_value = variables.get_string(
             token->variable_name))
     {
-      /* String variable found, but only process if there's no format specifier.
-       * String variables do not support format specifiers. */
+      /* String variable found, but we only process it if there's no format
+       * specifier: string variables do not support format specifiers. */
       if (token->format.type == FormatSpecifierType::NONE) {
         replacement_string = string_value->c_str();
       }
