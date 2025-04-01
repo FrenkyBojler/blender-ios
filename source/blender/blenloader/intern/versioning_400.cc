@@ -6571,6 +6571,8 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 14)) {
     LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+      scene->grease_pencil_settings.smaa_threshold_render =
+          scene->grease_pencil_settings.smaa_threshold;
       scene->grease_pencil_settings.aa_samples = 1;
     }
   }

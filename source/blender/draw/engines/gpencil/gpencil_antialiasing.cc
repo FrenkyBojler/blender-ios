@@ -59,6 +59,10 @@ void Instance::antialiasing_init()
     this->smaa_weight_fb.ensure(GPU_ATTACHMENT_NONE, GPU_ATTACHMENT_TEXTURE(this->smaa_weight_tx));
   }
 
+  SceneGpencil gpencil_settings = this->scene->grease_pencil_settings;
+  float luma_weight = this->is_viewport ? gpencil_settings.smaa_threshold :
+                                          gpencil_settings.smaa_threshold_render;
+
   {
     /* Stage 1: Edge detection. */
     PassSimple &pass = this->smaa_edge_ps;
@@ -68,7 +72,7 @@ void Instance::antialiasing_init()
     pass.bind_texture("colorTex", &this->color_tx);
     pass.bind_texture("revealTex", &this->reveal_tx);
     pass.push_constant("viewportMetrics", metrics);
-    pass.push_constant("lumaWeight", this->scene->grease_pencil_settings.smaa_threshold);
+    pass.push_constant("lumaWeight", luma_weight);
     pass.clear_color(float4(0.0f));
     pass.draw_procedural(GPU_PRIM_TRIS, 1, 3);
   }

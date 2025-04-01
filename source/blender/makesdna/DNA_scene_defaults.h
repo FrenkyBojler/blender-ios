@@ -239,7 +239,8 @@
 #define _DNA_DEFAULT_SceneGreasePencil \
   { \
     .smaa_threshold = 1.0f, \
-    .aa_samples = 1, \
+    .smaa_threshold_render = 0.25f, \
+    .aa_samples = 8, \
   }
 
 #define _DNA_DEFAULT_SceneHydra \

@@ -8491,13 +8491,21 @@ static void rna_def_scene_gpencil(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "antialias_threshold", PROP_FLOAT, PROP_NONE);
   RNA_def_property_float_sdna(prop, nullptr, "smaa_threshold");
-  RNA_def_property_float_default(prop, 1.0f);
   RNA_def_property_range(prop, 0.0f, FLT_MAX);
   RNA_def_property_ui_range(prop, 0.0f, 2.0f, 1, 3);
   RNA_def_property_ui_text(prop,
-                           "Anti-Aliasing Threshold",
+                           "Anti-Aliasing Threshold Viewport",
                            "Threshold for edge detection algorithm (higher values might over-blur "
                            "some part of the image)");
+
+  prop = RNA_def_property(srna, "antialias_threshold_render", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, nullptr, "smaa_threshold_render");
+  RNA_def_property_range(prop, 0.0f, FLT_MAX);
+  RNA_def_property_ui_range(prop, 0.0f, 2.0f, 1, 3);
+  RNA_def_property_ui_text(prop,
+                           "Anti-Aliasing Threshold Render",
+                           "Threshold for edge detection algorithm (higher values might over-blur "
+                           "some part of the image). Only applies to final render");
 
   prop = RNA_def_property(srna, "aa_samples", PROP_INT, PROP_NONE);
   RNA_def_property_ui_text(
