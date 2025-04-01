@@ -498,11 +498,9 @@ Span<int> node_face_indices_calc_grids(const SubdivCCG &subdiv_ccg,
                                        Vector<int> &faces);
 
 Bounds<float3> node_bounds(const Node &node);
+Bounds<float3> original_node_bounds(const Node &node);
 
 }  // namespace blender::bke::pbvh
-
-blender::Bounds<blender::float3> BKE_pbvh_node_get_original_BB(
-    const blender::bke::pbvh::Node *node);
 
 float BKE_pbvh_node_get_tmin(const blender::bke::pbvh::Node *node);
 

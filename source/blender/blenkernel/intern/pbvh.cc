@@ -1597,13 +1597,12 @@ Bounds<float3> node_bounds(const Node &node)
   return node.bounds_;
 }
 
-}  // namespace blender::bke::pbvh
-
-blender::Bounds<blender::float3> BKE_pbvh_node_get_original_BB(
-    const blender::bke::pbvh::Node *node)
+Bounds<float3> original_node_bounds(const Node &node)
 {
-  return node->bounds_orig_;
+  return node.bounds_orig_;
 }
+
+}  // namespace blender::bke::pbvh
 
 void BKE_pbvh_node_get_bm_orco_data(const blender::bke::pbvh::BMeshNode &node,
                                     blender::Span<blender::float3> &r_orig_positions,
@@ -2016,7 +2015,7 @@ void clip_ray_ortho(
   const float offset_vec[3] = {1e-3f, 1e-3f, 1e-3f};
 
   if (original) {
-    bb_root = BKE_pbvh_node_get_original_BB(&first_node(pbvh));
+    bb_root = original_node_bounds(first_node(pbvh));
   }
   else {
     bb_root = node_bounds(first_node(pbvh));
