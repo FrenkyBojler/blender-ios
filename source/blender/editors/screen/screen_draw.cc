@@ -241,7 +241,7 @@ void screen_draw_move_highlight(const wmWindow *win, bScreen *screen, eScreenAxi
   /* Pull in ends not at window edges. */
   rcti window_rect;
   WM_window_screen_rect_calc(win, &window_rect);
-  const float offset = (EDITORRADIUS * 1.66f);
+  const float offset = U.border_width * UI_SCALE_FAC;
   if (dir_axis == SCREEN_AXIS_H) {
     if (rect.xmin > (window_rect.xmin + 2)) {
       rect.xmin += offset;
