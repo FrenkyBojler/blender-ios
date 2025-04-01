@@ -19,9 +19,6 @@ NODE_STORAGE_FUNCS(NodeGeometrySampleIndex);
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.use_custom_socket_order();
-  b.allow_any_socket_order();
-  b.add_default_layout();
   const bNode *node = b.node_or_null();
   b.add_input<decl::Geometry>("Geometry")
       .supported_type({GeometryComponent::Type::Mesh,
@@ -32,10 +29,14 @@ static void node_declare(NodeDeclarationBuilder &b)
   if (node != nullptr) {
     const eCustomDataType data_type = eCustomDataType(node_storage(*node).data_type);
     b.add_input(data_type, "Value").hide_value().field_on_all();
-    b.add_output(data_type, "Value").dependent_field({2}).align_with_previous();
   }
   b.add_input<decl::Int>("Index").supports_field().description(
       "Which element to retrieve a value from on the geometry");
+
+  if (node != nullptr) {
+    const eCustomDataType data_type = eCustomDataType(node_storage(*node).data_type);
+    b.add_output(data_type, "Value").dependent_field({2});
+  }
 }
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
