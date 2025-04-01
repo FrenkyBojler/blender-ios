@@ -1,2 +1,3 @@
 Referenced by issue #135860, 4.4: Candidates for corrective releases
 Referenced by issue #136779, Regression: Effector object of a fluid simulation is ignored when changing the Domain's resolution
+Referenced by issue #136789, Fluid sim doesn't react to a transformed/animated object
