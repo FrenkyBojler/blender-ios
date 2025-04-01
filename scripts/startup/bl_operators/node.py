@@ -284,6 +284,27 @@ class NODE_OT_tree_path_parent(Operator):
         return {'FINISHED'}
 
 
+class NODE_OT_set_selected_group_default_width(Operator):
+    """Set default group node width"""
+    bl_idname = "node.set_selected_group_default_width"
+    bl_label = "Set Default Group Node Width"
+    bl_description = "Set the width based on the selected group node in the current context"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    @classmethod
+    def poll(cls, context):
+        space = context.space_data
+        # needs active node editor and a tree
+        return (space and (space.type == 'NODE_EDITOR') and
+                (space.edit_tree and space.edit_tree.is_editable))
+
+    def execute(self, context):
+        node = context.active_node
+        if node and node.select and node.type == "GROUP":
+            node.node_tree.default_group_node_width = int(node.width)
+        return {'FINISHED'}
+
+
 class NodeInterfaceOperator():
     @classmethod
     def poll(cls, context):
@@ -677,6 +698,7 @@ classes = (
     NODE_OT_interface_item_remove,
     NODE_OT_interface_item_make_panel_toggle,
     NODE_OT_interface_item_unlink_panel_toggle,
+    NODE_OT_set_selected_group_default_width,
     NODE_OT_tree_path_parent,
     NODE_OT_viewer_shortcut_get,
     NODE_OT_viewer_shortcut_set,

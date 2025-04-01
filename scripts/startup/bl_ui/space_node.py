@@ -1062,7 +1062,11 @@ class NODE_PT_node_tree_properties(Panel):
         layout.prop(group, "color_tag")
         row = layout.row(align=True)
         row.prop(group, "default_group_node_width", text="Node Width")
-        row.operator("node.default_group_width_set", text="", icon='NODE')
+        node = context.active_node
+        if node and node.select and node.type == "GROUP":
+            row.operator("node.set_selected_group_default_width", text="", icon='NODE')
+        else:
+            row.operator("node.default_group_width_set", text="", icon='NODE')
 
         if group.bl_idname == "GeometryNodeTree":
             header, body = layout.panel("group_usage")
