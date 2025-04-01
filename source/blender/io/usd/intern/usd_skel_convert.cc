@@ -18,13 +18,11 @@
 
 #include "DNA_anim_types.h"
 #include "DNA_armature_types.h"
-#include "DNA_constraint_types.h"
 #include "DNA_key_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 
 #include "BKE_armature.hh"
-#include "BKE_constraint.h"
 #include "BKE_deform.hh"
 #include "BKE_fcurve.hh"
 #include "BKE_key.hh"
@@ -688,6 +686,7 @@ void import_blendshapes(Main *bmain,
 static void set_rest_pose(Main *bmain,
                           Object *arm_obj,
                           bArmature *arm,
+                          const pxr::VtArray<pxr::GfMatrix4d> &bind_xforms,
                           const pxr::VtTokenArray &joint_order,
                           const pxr::UsdSkelTopology &skel_topology,
                           const pxr::UsdSkelSkeletonQuery &skel_query)
@@ -706,23 +705,17 @@ static void set_rest_pose(Main *bmain,
       const std::string &name = joint_path.GetName();
       bPoseChannel *pchan = BKE_pose_channel_find_name(arm_obj->pose, name.c_str());
 
+      pxr::GfMatrix4d xf = rest_xforms.AsConst()[i];
+      pxr::GfMatrix4d bind_xf = bind_xforms[i];
+
       const int parent_id = skel_topology.GetParent(i);
+      if (parent_id >= 0) {
+        bind_xf = bind_xf * bind_xforms[parent_id].GetInverse();
+      }
 
-      pxr::GfMatrix4d xf = rest_xforms[i];
-
-      /* TODO: Why is this needed? */
-      xf.SetTranslateOnly(pxr::GfVec3d(0, 0, 0));
+      xf = xf * bind_xf.GetInverse();
 
       pxr::GfMatrix4f mat(xf);
-      if (parent_id < 0) {
-        BKE_constraint_mat_convertspace(arm_obj,
-                                        pchan,
-                                        nullptr,
-                                        (float(*)[4])mat.data(),
-                                        CONSTRAINT_SPACE_POSE,
-                                        CONSTRAINT_SPACE_PARLOCAL,
-                                        true);
-      }
       BKE_pchan_apply_mat4(pchan, (float(*)[4])mat.data(), false);
 
       i++;
@@ -991,7 +984,7 @@ void import_skeleton(Main *bmain,
   ED_armature_from_edit(bmain, arm);
   ED_armature_edit_free(arm);
 
-  set_rest_pose(bmain, arm_obj, arm, joint_order, skel_topology, skel_query);
+  set_rest_pose(bmain, arm_obj, arm, bind_xforms, joint_order, skel_topology, skel_query);
 
   if (import_anim && valid_skeleton) {
     import_skeleton_curves(bmain, arm_obj, skel_query, joint_to_bone_map, reports);
