@@ -183,8 +183,6 @@ struct MeshBatchList {
 };
 
 #define MBC_BATCH_LEN (sizeof(MeshBatchList) / sizeof(void *))
-#define MBC_VBO_LEN (sizeof(MeshBufferList::vbo) / sizeof(void *))
-#define MBC_IBO_LEN (sizeof(MeshBufferList::ibo) / sizeof(void *))
 
 #define MBC_BATCH_INDEX(batch) (offsetof(MeshBatchList, batch) / sizeof(void *))
 
@@ -269,7 +267,7 @@ struct MeshBatchCache {
   MeshBatchList batch;
 
   /* Index buffer per material. These are sub-ranges of `ibo.tris`. */
-  Array<gpu::IndexBuf *> tris_per_mat;
+  Array<gpu::IndexBufPtr> tris_per_mat;
   Array<gpu::Batch *> surface_per_mat;
 
   DRWSubdivCache *subdiv_cache;

@@ -224,25 +224,28 @@ void SVGExporter::export_grease_pencil_objects(pugi::xml_node node, const int fr
 
   Vector<ObjectInfo> objects = retrieve_objects();
 
-  pugi::xml_node frame_group_node = node.append_child("g");
-  frame_group_node.append_attribute("id").set_value(frame_name(frame_number).c_str());
-
   /* Camera clipping. */
   if (is_clipping) {
-    pugi::xml_node clip_node = frame_group_node.append_child("clipPath");
-    const std::string clip_node_id = "clip_path." + std::to_string(frame_number);
-    clip_node.append_attribute("id").set_value(clip_node_id.c_str());
+    pugi::xml_node clip_node = node.append_child("clipPath");
+    clip_node.append_attribute("id").set_value(
+        ("clip-path." + std::to_string(frame_number)).c_str());
 
-    write_rect(clip_node, 0, 0, render_rect_.size().x, render_rect_.size().y, 0.0f, "#000000");
+    write_rect(clip_node, 0, 0, camera_rect_.size().x, camera_rect_.size().y, 0.0f, "#000000");
+  }
 
-    frame_group_node.append_attribute("clip-path")
-        .set_value(("url(" + clip_node_id + ")").c_str());
+  pugi::xml_node frame_node = node.append_child("g");
+  frame_node.append_attribute("id").set_value(frame_name(frame_number).c_str());
+
+  /* Clip area. */
+  if (is_clipping) {
+    frame_node.append_attribute("clip-path")
+        .set_value(("url(#clip-path." + std::to_string(frame_number) + ")").c_str());
   }
 
   for (const ObjectInfo &info : objects) {
     const Object *ob = info.object;
 
-    pugi::xml_node ob_node = frame_group_node.append_child("g");
+    pugi::xml_node ob_node = frame_node.append_child("g");
 
     char obtxt[96];
     SNPRINTF(obtxt, "blender_object.%s.%d", ob->id.name + 2, frame_number);
@@ -356,8 +359,16 @@ pugi::xml_node SVGExporter::write_main_node()
   main_node.append_attribute("y").set_value("0px");
   main_node.append_attribute("xmlns").set_value("http://www.w3.org/2000/svg");
 
-  std::string width = std::to_string(render_rect_.size().x);
-  std::string height = std::to_string(render_rect_.size().y);
+  std::string width, height;
+
+  if (camera_persmat_) {
+    width = std::to_string(camera_rect_.size().x);
+    height = std::to_string(camera_rect_.size().y);
+  }
+  else {
+    width = std::to_string(screen_rect_.size().x);
+    height = std::to_string(screen_rect_.size().y);
+  }
 
   main_node.append_attribute("width").set_value((width + "px").c_str());
   main_node.append_attribute("height").set_value((height + "px").c_str());
@@ -411,8 +422,14 @@ pugi::xml_node SVGExporter::write_polygon(pugi::xml_node node,
     }
     /* SVG has inverted Y axis. */
     const float2 screen_co = this->project_to_screen(transform, positions[i]);
-    txt.append(std::to_string(screen_co.x) + "," +
-               std::to_string(render_rect_.size().y - screen_co.y));
+    if (camera_persmat_) {
+      txt.append(std::to_string(screen_co.x) + "," +
+                 std::to_string(camera_rect_.size().y - screen_co.y));
+    }
+    else {
+      txt.append(std::to_string(screen_co.x) + "," +
+                 std::to_string(screen_rect_.size().y - screen_co.y));
+    }
   }
 
   element_node.append_attribute("points").set_value(txt.c_str());
@@ -439,8 +456,14 @@ pugi::xml_node SVGExporter::write_polyline(pugi::xml_node node,
     }
     /* SVG has inverted Y axis. */
     const float2 screen_co = this->project_to_screen(transform, positions[i]);
-    txt.append(std::to_string(screen_co.x) + "," +
-               std::to_string(render_rect_.size().y - screen_co.y));
+    if (camera_persmat_) {
+      txt.append(std::to_string(screen_co.x) + "," +
+                 std::to_string(camera_rect_.size().y - screen_co.y));
+    }
+    else {
+      txt.append(std::to_string(screen_co.x) + "," +
+                 std::to_string(screen_rect_.size().y - screen_co.y));
+    }
   }
 
   element_node.append_attribute("points").set_value(txt.c_str());
@@ -462,8 +485,14 @@ pugi::xml_node SVGExporter::write_path(pugi::xml_node node,
     }
     const float2 screen_co = this->project_to_screen(transform, positions[i]);
     /* SVG has inverted Y axis. */
-    txt.append(std::to_string(screen_co.x) + "," +
-               std::to_string(render_rect_.size().y - screen_co.y));
+    if (camera_persmat_) {
+      txt.append(std::to_string(screen_co.x) + "," +
+                 std::to_string(camera_rect_.size().y - screen_co.y));
+    }
+    else {
+      txt.append(std::to_string(screen_co.x) + "," +
+                 std::to_string(screen_rect_.size().y - screen_co.y));
+    }
   }
   /* Close patch (cyclic). */
   if (cyclic) {
