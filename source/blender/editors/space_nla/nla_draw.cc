@@ -17,7 +17,6 @@
 #include "DNA_space_types.h"
 
 #include "BLI_bounds_types.hh"
-#include "BLI_listbase.h"
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
@@ -58,7 +57,7 @@ void nla_action_get_color(AnimData *adt, bAction *act, float color[4])
   }
   else {
     if (act) {
-      /* reddish color - same as dope-sheet summary */
+      /* reddish color - same as dopesheet summary */
       UI_GetThemeColor4fv(TH_ANIM_ACTIVE, color);
     }
     else {
@@ -947,6 +946,7 @@ void draw_nla_main_data(bAnimContext *ac, SpaceNla *snla, ARegion *region)
         case ANIMTYPE_DSPOINTCLOUD:
         case ANIMTYPE_DSVOLUME:
         case ANIMTYPE_SHAPEKEY:
+        case ANIMTYPE_GPDATABLOCK:
         case ANIMTYPE_GPLAYER:
         case ANIMTYPE_GREASE_PENCIL_DATABLOCK:
         case ANIMTYPE_GREASE_PENCIL_LAYER_GROUP:
@@ -1000,7 +1000,7 @@ void draw_nla_track_list(const bContext *C,
     }
   }
   { /* second pass: UI widgets */
-    uiBlock *block = UI_block_begin(C, region, __func__, blender::ui::EmbossType::Emboss);
+    uiBlock *block = UI_block_begin(C, region, __func__, UI_EMBOSS);
     size_t track_index = 0;
     float ymax = NLATRACK_FIRST_TOP(ac);
 

@@ -11,7 +11,6 @@
 #include <cstring>
 
 #include "BLI_array.hh"
-#include "BLI_listbase.h"
 #include "BLI_math_geom.h"
 #include "BLI_math_vector.hh"
 #include "BLI_string.h"
@@ -39,7 +38,7 @@
 
 #include "render.hh"
 
-namespace blender::seq {
+using namespace blender;
 
 /* -------------------------------------------------------------------- */
 
@@ -171,7 +170,7 @@ template<typename T> static void apply_modifier_op(T &op, ImBuf *ibuf, const ImB
 /**
  * \a timeline_frame is offset by \a fra_offset only in case we are using a real mask.
  */
-static ImBuf *modifier_render_mask_input(const RenderData *context,
+static ImBuf *modifier_render_mask_input(const SeqRenderData *context,
                                          int mask_input_type,
                                          Strip *mask_sequence,
                                          Mask *mask_id,
@@ -198,7 +197,7 @@ static ImBuf *modifier_render_mask_input(const RenderData *context,
 }
 
 static ImBuf *modifier_mask_get(SequenceModifierData *smd,
-                                const RenderData *context,
+                                const SeqRenderData *context,
                                 int timeline_frame,
                                 int fra_offset)
 {
@@ -1111,7 +1110,7 @@ static void tonemapmodifier_apply(const StripScreenQuad &quad,
 /** \name Public Modifier Functions
  * \{ */
 
-static StripModifierTypeInfo modifiersTypes[NUM_SEQUENCE_MODIFIER_TYPES] = {
+static SequenceModifierTypeInfo modifiersTypes[NUM_SEQUENCE_MODIFIER_TYPES] = {
     {}, /* First entry is unused. */
     {
         /*name*/ CTX_N_(BLT_I18NCONTEXT_ID_SEQUENCE, "Color Balance"),
@@ -1180,14 +1179,14 @@ static StripModifierTypeInfo modifiersTypes[NUM_SEQUENCE_MODIFIER_TYPES] = {
         /*name*/ CTX_N_(BLT_I18NCONTEXT_ID_SEQUENCE, "Equalizer"),
         /*struct_name*/ "SoundEqualizerModifierData",
         /*struct_size*/ sizeof(SoundEqualizerModifierData),
-        /*init_data*/ sound_equalizermodifier_init_data,
-        /*free_data*/ sound_equalizermodifier_free,
-        /*copy_data*/ sound_equalizermodifier_copy_data,
+        /*init_data*/ SEQ_sound_equalizermodifier_init_data,
+        /*free_data*/ SEQ_sound_equalizermodifier_free,
+        /*copy_data*/ SEQ_sound_equalizermodifier_copy_data,
         /*apply*/ nullptr,
     },
 };
 
-const StripModifierTypeInfo *modifier_type_info_get(int type)
+const SequenceModifierTypeInfo *SEQ_modifier_type_info_get(int type)
 {
   if (type <= 0 || type >= NUM_SEQUENCE_MODIFIER_TYPES) {
     return nullptr;
@@ -1195,10 +1194,10 @@ const StripModifierTypeInfo *modifier_type_info_get(int type)
   return &modifiersTypes[type];
 }
 
-SequenceModifierData *modifier_new(Strip *strip, const char *name, int type)
+SequenceModifierData *SEQ_modifier_new(Strip *strip, const char *name, int type)
 {
   SequenceModifierData *smd;
-  const StripModifierTypeInfo *smti = modifier_type_info_get(type);
+  const SequenceModifierTypeInfo *smti = SEQ_modifier_type_info_get(type);
 
   smd = static_cast<SequenceModifierData *>(MEM_callocN(smti->struct_size, "sequence modifier"));
 
@@ -1214,7 +1213,7 @@ SequenceModifierData *modifier_new(Strip *strip, const char *name, int type)
 
   BLI_addtail(&strip->modifiers, smd);
 
-  modifier_unique_name(strip, smd);
+  SEQ_modifier_unique_name(strip, smd);
 
   if (smti->init_data) {
     smti->init_data(smd);
@@ -1223,33 +1222,33 @@ SequenceModifierData *modifier_new(Strip *strip, const char *name, int type)
   return smd;
 }
 
-bool modifier_remove(Strip *strip, SequenceModifierData *smd)
+bool SEQ_modifier_remove(Strip *strip, SequenceModifierData *smd)
 {
   if (BLI_findindex(&strip->modifiers, smd) == -1) {
     return false;
   }
 
   BLI_remlink(&strip->modifiers, smd);
-  modifier_free(smd);
+  SEQ_modifier_free(smd);
 
   return true;
 }
 
-void modifier_clear(Strip *strip)
+void SEQ_modifier_clear(Strip *strip)
 {
   SequenceModifierData *smd, *smd_next;
 
   for (smd = static_cast<SequenceModifierData *>(strip->modifiers.first); smd; smd = smd_next) {
     smd_next = smd->next;
-    modifier_free(smd);
+    SEQ_modifier_free(smd);
   }
 
   BLI_listbase_clear(&strip->modifiers);
 }
 
-void modifier_free(SequenceModifierData *smd)
+void SEQ_modifier_free(SequenceModifierData *smd)
 {
-  const StripModifierTypeInfo *smti = modifier_type_info_get(smd->type);
+  const SequenceModifierTypeInfo *smti = SEQ_modifier_type_info_get(smd->type);
 
   if (smti && smti->free_data) {
     smti->free_data(smd);
@@ -1258,9 +1257,9 @@ void modifier_free(SequenceModifierData *smd)
   MEM_freeN(smd);
 }
 
-void modifier_unique_name(Strip *strip, SequenceModifierData *smd)
+void SEQ_modifier_unique_name(Strip *strip, SequenceModifierData *smd)
 {
-  const StripModifierTypeInfo *smti = modifier_type_info_get(smd->type);
+  const SequenceModifierTypeInfo *smti = SEQ_modifier_type_info_get(smd->type);
 
   BLI_uniquename(&strip->modifiers,
                  smd,
@@ -1270,7 +1269,7 @@ void modifier_unique_name(Strip *strip, SequenceModifierData *smd)
                  sizeof(smd->name));
 }
 
-SequenceModifierData *modifier_find_by_name(Strip *strip, const char *name)
+SequenceModifierData *SEQ_modifier_find_by_name(Strip *strip, const char *name)
 {
   return static_cast<SequenceModifierData *>(
       BLI_findstring(&(strip->modifiers), name, offsetof(SequenceModifierData, name)));
@@ -1285,27 +1284,27 @@ static bool skip_modifier(Scene *scene, const SequenceModifierData *smd, int tim
   }
   const bool strip_has_ended_skip = smd->mask_input_type == SEQUENCE_MASK_INPUT_STRIP &&
                                     smd->mask_time == SEQUENCE_MASK_TIME_RELATIVE &&
-                                    !time_strip_intersects_frame(
+                                    !SEQ_time_strip_intersects_frame(
                                         scene, smd->mask_sequence, timeline_frame);
-  const bool missing_data_skip = !sequence_has_valid_data(smd->mask_sequence) ||
+  const bool missing_data_skip = !SEQ_sequence_has_valid_data(smd->mask_sequence) ||
                                  media_presence_is_missing(scene, smd->mask_sequence);
 
   return strip_has_ended_skip || missing_data_skip;
 }
 
-void modifier_apply_stack(const RenderData *context,
-                          const Strip *strip,
-                          ImBuf *ibuf,
-                          int timeline_frame)
+void SEQ_modifier_apply_stack(const SeqRenderData *context,
+                              const Strip *strip,
+                              ImBuf *ibuf,
+                              int timeline_frame)
 {
   const StripScreenQuad quad = get_strip_screen_quad(context, strip);
 
   if (strip->modifiers.first && (strip->flag & SEQ_USE_LINEAR_MODIFIERS)) {
-    render_imbuf_from_sequencer_space(context->scene, ibuf);
+    SEQ_render_imbuf_from_sequencer_space(context->scene, ibuf);
   }
 
   LISTBASE_FOREACH (SequenceModifierData *, smd, &strip->modifiers) {
-    const StripModifierTypeInfo *smti = modifier_type_info_get(smd->type);
+    const SequenceModifierTypeInfo *smti = SEQ_modifier_type_info_get(smd->type);
 
     /* could happen if modifier is being removed or not exists in current version of blender */
     if (!smti) {
@@ -1339,11 +1338,11 @@ void modifier_apply_stack(const RenderData *context,
   }
 }
 
-void modifier_list_copy(Strip *seqn, Strip *strip)
+void SEQ_modifier_list_copy(Strip *seqn, Strip *strip)
 {
   LISTBASE_FOREACH (SequenceModifierData *, smd, &strip->modifiers) {
     SequenceModifierData *smdn;
-    const StripModifierTypeInfo *smti = modifier_type_info_get(smd->type);
+    const SequenceModifierTypeInfo *smti = SEQ_modifier_type_info_get(smd->type);
 
     smdn = static_cast<SequenceModifierData *>(MEM_dupallocN(smd));
 
@@ -1361,7 +1360,7 @@ void modifier_list_copy(Strip *seqn, Strip *strip)
   }
 }
 
-int sequence_supports_modifiers(Strip *strip)
+int SEQ_sequence_supports_modifiers(Strip *strip)
 {
   return (strip->type != STRIP_TYPE_SOUND_RAM);
 }
@@ -1372,10 +1371,10 @@ int sequence_supports_modifiers(Strip *strip)
 /** \name .blend File I/O
  * \{ */
 
-void modifier_blend_write(BlendWriter *writer, ListBase *modbase)
+void SEQ_modifier_blend_write(BlendWriter *writer, ListBase *modbase)
 {
   LISTBASE_FOREACH (SequenceModifierData *, smd, modbase) {
-    const StripModifierTypeInfo *smti = modifier_type_info_get(smd->type);
+    const SequenceModifierTypeInfo *smti = SEQ_modifier_type_info_get(smd->type);
 
     if (smti) {
       BLO_write_struct_by_name(writer, smti->struct_name, smd);
@@ -1404,7 +1403,7 @@ void modifier_blend_write(BlendWriter *writer, ListBase *modbase)
   }
 }
 
-void modifier_blend_read_data(BlendDataReader *reader, ListBase *lb)
+void SEQ_modifier_blend_read_data(BlendDataReader *reader, ListBase *lb)
 {
   BLO_read_struct_list(reader, SequenceModifierData, lb);
 
@@ -1434,5 +1433,3 @@ void modifier_blend_read_data(BlendDataReader *reader, ListBase *lb)
 }
 
 /** \} */
-
-}  // namespace blender::seq

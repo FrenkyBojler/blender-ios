@@ -8,8 +8,6 @@
 
 #pragma once
 
-#include "BLI_function_ref.hh"
-#include "BLI_string_ref.hh"
 #include "DNA_asset_types.h"
 
 struct bUserAssetLibrary;
@@ -21,7 +19,6 @@ struct StringPropertySearchVisitParams;
 namespace blender::asset_system {
 class AssetCatalog;
 class AssetCatalogPath;
-class AssetRepresentation;
 }  // namespace blender::asset_system
 
 namespace blender::ed::asset {
@@ -43,17 +40,12 @@ AssetLibraryReference library_reference_from_enum_value(int value);
  * Since this is meant for UI display, skips non-displayable libraries, that is, libraries with an
  * empty name or path.
  *
- * \param include_readonly: If set, the "All" and "Essentials" asset libraries will be added, which
- * cannot be written to.
- * \param include_current_file: If set, "Current File" asset library will be added.
+ * \param include_generated: Whether to include libraries that are generated and thus cannot be
+ *                           written to. Setting this to false means only custom libraries will be
+ *                           included, since they are stored on disk with a single root directory,
+ *                           thus have a well defined location that can be written to.
  */
-const EnumPropertyItem *library_reference_to_rna_enum_itemf(bool include_readonly,
-                                                            bool include_current_file);
-/**
- * Same as #library_reference_to_rna_enum_itemf(), but only includes custom asset libraries
- * (libraries on disk, configured in the Preferences).
- */
-const EnumPropertyItem *custom_libraries_rna_enum_itemf();
+const EnumPropertyItem *library_reference_to_rna_enum_itemf(bool include_generated);
 
 /**
  * Find the catalog with the given path in the library. Creates it in case it doesn't exist.
@@ -62,6 +54,10 @@ blender::asset_system::AssetCatalog &library_ensure_catalogs_in_path(
     blender::asset_system::AssetLibrary &library,
     const blender::asset_system::AssetCatalogPath &path);
 
+/**
+ * May return a nullptr if the given AssetLibraryReference is not a user library.
+ */
+const bUserAssetLibrary *library_ref_to_user_library(const AssetLibraryReference &library_ref);
 AssetLibraryReference user_library_to_library_ref(const bUserAssetLibrary &user_library);
 
 /**
@@ -69,7 +65,5 @@ AssetLibraryReference user_library_to_library_ref(const bUserAssetLibrary &user_
  */
 void refresh_asset_library(const bContext *C, const AssetLibraryReference &library_ref);
 void refresh_asset_library(const bContext *C, const bUserAssetLibrary &user_library);
-void refresh_asset_library_from_asset(const bContext *C,
-                                      const blender::asset_system::AssetRepresentation &asset);
 
 }  // namespace blender::ed::asset

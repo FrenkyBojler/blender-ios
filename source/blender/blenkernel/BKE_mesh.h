@@ -10,7 +10,6 @@
 #include <cstdint>
 
 #include "BLI_array.hh"
-#include "BLI_string_ref.hh"
 
 #include "DNA_mesh_types.h"
 
@@ -138,7 +137,7 @@ Mesh *BKE_mesh_copy_for_eval(const Mesh &source);
 Mesh *BKE_mesh_new_nomain_from_curve(const Object *ob);
 Mesh *BKE_mesh_new_nomain_from_curve_displist(const Object *ob, const ListBase *dispbase);
 
-bool BKE_mesh_attribute_required(blender::StringRef name);
+bool BKE_mesh_attribute_required(const char *name);
 
 blender::Array<blender::float3> BKE_mesh_orco_verts_get(const Object *ob);
 void BKE_mesh_orco_verts_transform(Mesh *mesh,
@@ -183,8 +182,7 @@ void BKE_mesh_texspace_get_reference(Mesh *mesh,
 Mesh *BKE_mesh_new_from_object(Depsgraph *depsgraph,
                                Object *object,
                                bool preserve_all_data_layers,
-                               bool preserve_origindex,
-                               bool ensure_subdivision);
+                               bool preserve_origindex);
 
 /**
  * This is a version of BKE_mesh_new_from_object() which stores mesh in the given main database.
@@ -204,6 +202,10 @@ void BKE_mesh_nomain_to_mesh(Mesh *mesh_src, Mesh *mesh_dst, Object *ob);
 void BKE_mesh_nomain_to_meshkey(Mesh *mesh_src, Mesh *mesh_dst, KeyBlock *kb);
 
 /* Vertex level transformations & checks (no evaluated mesh). */
+
+/* basic vertex data functions */
+void BKE_mesh_transform(Mesh *mesh, const float mat[4][4], bool do_keys);
+void BKE_mesh_translate(Mesh *mesh, const float offset[3], bool do_keys);
 
 void BKE_mesh_tessface_clear(Mesh *mesh);
 

@@ -21,16 +21,10 @@ struct FCurve;
 
 namespace blender::animrig {
 
-/**
- * All the information needed to look up or create an FCurve.
- *
- * The `std::optional<>` fields are only used for creation. The mandatory fields
- * are used for both creation and lookup.
- */
+/* All the information needed to look up or create an FCurve. */
 struct FCurveDescriptor {
   StringRefNull rna_path;
   int array_index;
-  std::optional<PropertyType> prop_type;
   std::optional<PropertySubType> prop_subtype;
   std::optional<blender::StringRefNull> channel_group;
 };
@@ -55,8 +49,8 @@ KeyframeSettings get_keyframe_settings(bool from_userprefs);
  *
  * If no matching fcurve is found, returns nullptr.
  */
-const FCurve *fcurve_find(Span<const FCurve *> fcurves, const FCurveDescriptor &fcurve_descriptor);
-FCurve *fcurve_find(Span<FCurve *> fcurves, const FCurveDescriptor &fcurve_descriptor);
+const FCurve *fcurve_find(Span<const FCurve *> fcurves, FCurveDescriptor fcurve_descriptor);
+FCurve *fcurve_find(Span<FCurve *> fcurves, FCurveDescriptor fcurve_descriptor);
 
 /**
  * Create an fcurve for a specific channel, pre-set-up with default flags and
@@ -65,12 +59,7 @@ FCurve *fcurve_find(Span<FCurve *> fcurves, const FCurveDescriptor &fcurve_descr
  * If the channel's property subtype is provided, the fcurve will also be set to
  * the correct color mode based on user preferences.
  */
-FCurve *create_fcurve_for_channel(const FCurveDescriptor &fcurve_descriptor);
-
-/**
- * Determine the F-Curve flags suitable for animating an RNA property of the given type.
- */
-eFCurve_Flags fcurve_flags_for_property_type(PropertyType prop_type);
+FCurve *create_fcurve_for_channel(FCurveDescriptor fcurve_descriptor);
 
 /** Initialize the given BezTriple with default values. */
 void initialize_bezt(BezTriple *beztr,

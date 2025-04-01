@@ -12,7 +12,6 @@
 #include "DNA_space_types.h"
 
 #include "BLI_math_color.h"
-#include "BLI_math_vector.h"
 
 #include "BKE_brush.hh"
 #include "BKE_context.hh"
@@ -451,8 +450,10 @@ static bool paint_stroke_test_start(bContext *C, wmOperator *op, const float mou
   return true;
 }
 
-static wmOperatorStatus paint_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static int paint_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
+  int retval;
+
   op->customdata = paint_stroke_new(C,
                                     op,
                                     nullptr,
@@ -462,22 +463,20 @@ static wmOperatorStatus paint_invoke(bContext *C, wmOperator *op, const wmEvent 
                                     paint_stroke_done,
                                     event->type);
 
-  const wmOperatorStatus retval = op->type->modal(C, op, event);
-  OPERATOR_RETVAL_CHECK(retval);
-
-  if (retval == OPERATOR_FINISHED) {
+  if ((retval = op->type->modal(C, op, event)) == OPERATOR_FINISHED) {
     paint_stroke_free(C, op, static_cast<PaintStroke *>(op->customdata));
     return OPERATOR_FINISHED;
   }
   /* add modal handler */
   WM_event_add_modal_handler(C, op);
 
+  OPERATOR_RETVAL_CHECK(retval);
   BLI_assert(retval == OPERATOR_RUNNING_MODAL);
 
   return OPERATOR_RUNNING_MODAL;
 }
 
-static wmOperatorStatus paint_exec(bContext *C, wmOperator *op)
+static int paint_exec(bContext *C, wmOperator *op)
 {
   PropertyRNA *strokeprop;
   PointerRNA firstpoint;
@@ -520,7 +519,7 @@ static wmOperatorStatus paint_exec(bContext *C, wmOperator *op)
   return paint_stroke_exec(C, op, static_cast<PaintStroke *>(op->customdata));
 }
 
-static wmOperatorStatus paint_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static int paint_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   return paint_stroke_modal(C, op, event, reinterpret_cast<PaintStroke **>(&op->customdata));
 }

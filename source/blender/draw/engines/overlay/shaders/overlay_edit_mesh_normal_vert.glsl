@@ -2,15 +2,8 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "infos/overlay_edit_mode_info.hh"
-
-VERTEX_SHADER_CREATE_INFO(overlay_mesh_loop_normal)
-#ifdef GLSL_CPP_STUBS
-#  define LOOP_NORMAL
-#endif
-
+#include "common_view_clipping_lib.glsl"
 #include "draw_model_lib.glsl"
-#include "draw_view_clipping_lib.glsl"
 #include "draw_view_lib.glsl"
 #include "gpu_shader_attribute_load_lib.glsl"
 #include "gpu_shader_index_load_lib.glsl"
@@ -44,6 +37,12 @@ void main()
   uint in_primitive_id = uint(gl_VertexID) / output_vertex_count_per_input_primitive;
   uint in_primitive_first_vertex = in_primitive_id * input_primitive_vertex_count;
 
+  uint out_vertex_id = uint(gl_VertexID) % ouput_primitive_vertex_count;
+  uint out_primitive_id = (uint(gl_VertexID) / ouput_primitive_vertex_count) %
+                          ouput_primitive_count;
+  uint out_invocation_id = (uint(gl_VertexID) / output_vertex_count_per_invocation) %
+                           ouput_invocation_count;
+
   uint vert_i = gpu_index_load(in_primitive_first_vertex);
 
   vec3 ls_pos = gpu_attr_load_float3(pos, gpu_attr_1, vert_i);
@@ -66,12 +65,7 @@ void main()
   finalColor = colorNormal;
 
 #elif defined(VERT_NORMAL)
-#  if defined(FLOAT_NORMAL)
-  /* Path for opensubdiv. To be phased out at some point. */
-  nor = gpu_attr_load_float3(vnor, gpu_attr_0, vert_i);
-#  else
   nor = gpu_attr_load_uint_1010102_snorm(vnor, gpu_attr_0, vert_i).xyz;
-#  endif
   finalColor = colorVNormal;
 
 #elif defined(LOOP_NORMAL)
@@ -120,7 +114,7 @@ void main()
 
   if ((gl_VertexID & 1) == 0) {
     if (isConstantScreenSizeNormals) {
-      bool is_persp = (drw_view().winmat[3][3] == 0.0);
+      bool is_persp = (drw_view.winmat[3][3] == 0.0);
       if (is_persp) {
         float dist_fac = length(drw_view_position() - world_pos);
         float cos_fac = dot(drw_view_forward(), drw_world_incident_vector(world_pos));

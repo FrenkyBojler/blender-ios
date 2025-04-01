@@ -2,10 +2,6 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "infos/overlay_grid_info.hh"
-
-VERTEX_SHADER_CREATE_INFO(overlay_grid_next)
-
 /**
  * Infinite grid:
  * Draw anti-aliased grid and axes of different sizes with smooth blending between Level of
@@ -13,8 +9,8 @@ VERTEX_SHADER_CREATE_INFO(overlay_grid_next)
  * interpolation.
  */
 
+#include "common_math_lib.glsl"
 #include "draw_view_lib.glsl"
-#include "gpu_shader_utildefines_lib.glsl"
 
 void main()
 {
@@ -48,5 +44,5 @@ void main()
     local_pos.z = clamp(local_pos.z, -1.0, 0.0);
   }
 
-  gl_Position = drw_view().winmat * (drw_view().viewmat * vec4(real_pos, 1.0));
+  gl_Position = drw_view.winmat * (drw_view.viewmat * vec4(real_pos, 1.0));
 }

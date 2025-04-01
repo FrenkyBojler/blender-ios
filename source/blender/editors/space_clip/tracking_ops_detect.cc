@@ -10,8 +10,6 @@
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
 
-#include "BLI_listbase.h"
-
 #include "BKE_context.hh"
 #include "BKE_movieclip.h"
 #include "BKE_report.hh"
@@ -47,7 +45,7 @@ static bGPDlayer *detect_get_layer(MovieClip *clip)
   return nullptr;
 }
 
-static wmOperatorStatus detect_features_exec(bContext *C, wmOperator *op)
+static int detect_features_exec(bContext *C, wmOperator *op)
 {
   SpaceClip *sc = CTX_wm_space_clip(C);
   MovieClip *clip = ED_space_clip_get_clip(sc);

@@ -12,11 +12,12 @@
 #include "BKE_context.hh"
 #include "BKE_main.hh"
 #include "BLI_fileops.h"
-#include "BLI_listbase.h"
 #include "BLI_path_utils.hh"
 #include "BLO_readfile.hh"
 
 #include "DEG_depsgraph.hh"
+
+#include "WM_api.hh"
 
 #include "usd.hh"
 

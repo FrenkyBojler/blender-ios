@@ -6,7 +6,6 @@
  * \ingroup spview3d
  */
 
-#include "BLI_listbase.h"
 #include "BLI_math_base_safe.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"

@@ -26,18 +26,6 @@ enum class InputRealizationMode : uint8_t {
 };
 
 /* ------------------------------------------------------------------------------------------------
- * Implicit Input
- *
- * Specifies the implicit input that should be assigned to the input if it is unlinked. See the
- * ImplicitInputOperation operation for more information on the individual types. */
-enum class ImplicitInput : uint8_t {
-  /* The input does not have an implicit input and its value should be used.  */
-  None,
-  /* The input should have the texture coordinates of the compositing space as an input. */
-  TextureCoordinates,
-};
-
-/* ------------------------------------------------------------------------------------------------
  * Input Descriptor
  *
  * A class that describes an input of an operation. */
@@ -49,8 +37,6 @@ class InputDescriptor {
   ResultType type;
   /* Specify how the input should be realized. */
   InputRealizationMode realization_mode = InputRealizationMode::OperationDomain;
-  /* Specifies the type of implicit input in case the input in unlinked. */
-  ImplicitInput implicit_input = ImplicitInput::None;
   /* The priority of the input for determining the operation domain. The non-single value input
    * with the highest priority will be used to infer the operation domain, the highest priority
    * being zero. See the discussion in COM_domain.hh for more information. */
@@ -61,9 +47,6 @@ class InputDescriptor {
    * result that will be discarded anyways. If false, the input can work with both single and
    * non-single values. */
   bool expects_single_value = false;
-  /* If true, the input will not be implicitly converted to the type of the input and will be
-   * passed as is. */
-  bool skip_type_conversion = false;
 };
 
 }  // namespace blender::compositor

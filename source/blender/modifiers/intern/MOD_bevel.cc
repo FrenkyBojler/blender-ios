@@ -172,9 +172,11 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
           continue;
         }
       }
-      else {
-        weight = BKE_defvert_array_find_weight_safe(
-            dvert, BM_elem_index_get(v), vgroup, invert_vgroup);
+      else if (vgroup != -1) {
+        weight = invert_vgroup ?
+                     1.0f -
+                         BKE_defvert_array_find_weight_safe(dvert, BM_elem_index_get(v), vgroup) :
+                     BKE_defvert_array_find_weight_safe(dvert, BM_elem_index_get(v), vgroup);
         /* Check is against 0.5 rather than != 0.0 because cascaded bevel modifiers will
          * interpolate weights for newly created vertices, and may cause unexpected "selection" */
         if (weight < 0.5f) {
@@ -207,11 +209,15 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
             continue;
           }
         }
-        else {
-          weight = BKE_defvert_array_find_weight_safe(
-              dvert, BM_elem_index_get(e->v1), vgroup, invert_vgroup);
-          weight2 = BKE_defvert_array_find_weight_safe(
-              dvert, BM_elem_index_get(e->v2), vgroup, invert_vgroup);
+        else if (vgroup != -1) {
+          weight = invert_vgroup ?
+                       1.0f - BKE_defvert_array_find_weight_safe(
+                                  dvert, BM_elem_index_get(e->v1), vgroup) :
+                       BKE_defvert_array_find_weight_safe(dvert, BM_elem_index_get(e->v1), vgroup);
+          weight2 = invert_vgroup ? 1.0f - BKE_defvert_array_find_weight_safe(
+                                               dvert, BM_elem_index_get(e->v2), vgroup) :
+                                    BKE_defvert_array_find_weight_safe(
+                                        dvert, BM_elem_index_get(e->v2), vgroup);
           if (weight < 0.5f || weight2 < 0.5f) {
             continue;
           }

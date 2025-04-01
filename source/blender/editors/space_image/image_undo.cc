@@ -23,7 +23,6 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_listbase.h"
 #include "BLI_map.hh"
 #include "BLI_string.h"
 #include "BLI_threads.h"
@@ -33,7 +32,6 @@
 #include "DNA_object_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
-#include "DNA_userdef_types.h"
 #include "DNA_windowmanager_types.h"
 
 #include "IMB_imbuf.hh"
@@ -89,7 +87,7 @@ void ED_image_paint_tile_lock_end()
 static ImBuf *imbuf_alloc_temp_tile()
 {
   return IMB_allocImBuf(
-      ED_IMAGE_UNDO_TILE_SIZE, ED_IMAGE_UNDO_TILE_SIZE, 32, IB_float_data | IB_byte_data);
+      ED_IMAGE_UNDO_TILE_SIZE, ED_IMAGE_UNDO_TILE_SIZE, 32, IB_rectfloat | IB_rect);
 }
 
 struct PaintTileKey {
@@ -536,7 +534,7 @@ static void ubuf_ensure_compat_ibuf(const UndoImageBuf *ubuf, ImBuf *ibuf)
   /* We could have both float and rect buffers,
    * in this case free the float buffer if it's unused. */
   if ((ibuf->float_buffer.data != nullptr) && (ubuf->image_state.use_float == false)) {
-    IMB_free_float_pixels(ibuf);
+    imb_freerectfloatImBuf(ibuf);
   }
 
   if (ibuf->x == ubuf->image_dims[0] && ibuf->y == ubuf->image_dims[1] &&
@@ -546,14 +544,14 @@ static void ubuf_ensure_compat_ibuf(const UndoImageBuf *ubuf, ImBuf *ibuf)
     return;
   }
 
-  IMB_free_all_data(ibuf);
+  imb_freerectImbuf_all(ibuf);
   IMB_rect_size_set(ibuf, ubuf->image_dims);
 
   if (ubuf->image_state.use_float) {
-    IMB_alloc_float_pixels(ibuf, 4);
+    imb_addrectfloatImBuf(ibuf, 4);
   }
   else {
-    IMB_alloc_byte_pixels(ibuf);
+    imb_addrectImBuf(ibuf);
   }
 }
 

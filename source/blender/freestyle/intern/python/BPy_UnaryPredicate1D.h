@@ -14,6 +14,10 @@ extern "C" {
 
 #include "../stroke/Predicates1D.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 ///////////////////////////////////////////////////////////////////////////////////////////
 
 extern PyTypeObject UnaryPredicate1D_Type;
@@ -32,3 +36,7 @@ typedef struct {
 int UnaryPredicate1D_Init(PyObject *module);
 
 ///////////////////////////////////////////////////////////////////////////////////////////
+
+#ifdef __cplusplus
+}
+#endif

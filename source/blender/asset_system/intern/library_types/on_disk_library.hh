@@ -18,7 +18,6 @@ class OnDiskAssetLibrary : public AssetLibrary {
                      StringRef name = "",
                      StringRef root_path = "");
 
-  std::optional<AssetLibraryReference> library_reference() const override;
   void refresh_catalogs() override;
 };
 

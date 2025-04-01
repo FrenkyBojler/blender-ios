@@ -1,10 +1,10 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.5.0 Alpha (b'409ce2b976cf')\n"
+"Project-Id-Version: Blender 4.4.0 Alpha (b'efff379ea583')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-03-24 09:38+0000\n"
-"PO-Revision-Date: 2025-03-23 23:56+0000\n"
+"POT-Creation-Date: 2025-01-27 10:58+0000\n"
+"PO-Revision-Date: 2025-01-26 22:47+0000\n"
 "Last-Translator: Joan Pujolar <joan.pujolar@gmail.com>\n"
 "Language-Team: Catalan <https://translate.blender.org/projects/blender-ui/ui/ca/>\n"
 "Language: ca\n"
@@ -12,7 +12,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=n != 1;\n"
-"X-Generator: Weblate 5.10.1"
+"X-Generator: Weblate 5.9.2"
 
 
 msgid "Shader AOV"
@@ -83,14 +83,6 @@ msgid "Groupings of F-Curves for display purposes, in e.g. the dopesheet and gra
 msgstr "Agrupaments de Corbes-F a efectes de visualització en p. ex. el guió tècnic i l'editor de gràfiques"
 
 
-msgid "Slot"
-msgstr "Born"
-
-
-msgid "The Slot that the Channelbag's animation data is for"
-msgstr "L'Epígraf a què estan destinades les dades d'animació de la Bossa de canals"
-
-
 msgid "Collection of F-Curves for a specific action slot, on a specific strip"
 msgstr "Col·lecció de Corbes-F per un epígraf d'acció concret d'un segment concret"
 
@@ -111,8 +103,8 @@ msgid "Action F-Curves"
 msgstr "Corbes-F d'acció"
 
 
-msgid "Collection of action F-Curves. Note that this is a legacy API that is unaware of action slots, and will only consider the F-Curves for this action's first slot"
-msgstr "Col·lecció de Corbes-F d'acció. Fixeu-vos en compte que aquesta és una API antiquada que desconeix els epígrafs d'acció i només tindrà en compte les Corbes-F per al primer epígraf d'aquesta acció"
+msgid "Collection of action F-Curves"
+msgstr "[Action F-Curves]: Col·lecció de corbes-F d'acció"
 
 
 msgid "Action Group"
@@ -295,6 +287,62 @@ msgid "Action Layer"
 msgstr "Capa d'acció"
 
 
+msgid "Influence"
+msgstr "Influència"
+
+
+msgid "How much of this layer is used when blending into the lower layers"
+msgstr "Quantitat d'aquesta capa que s'utilitza quan es fusiona amb les capes inferiors"
+
+
+msgid "Mix Mode"
+msgstr "Mode combinat"
+
+
+msgid "How animation of this layer is blended into the lower layers"
+msgstr "Com es fusiona l'animació d'aquesta amb les capes inferiors"
+
+
+msgid "Replace"
+msgstr "Substituir"
+
+
+msgid "Channels in this layer override the same channels from underlying layers"
+msgstr "Els canals d'aquesta capa de sobreseuen els mateixos canals des de les capes subjacents"
+
+
+msgid "Offset"
+msgstr "Desplaçament"
+
+
+msgid "Channels in this layer are added to underlying layers as sequential operations"
+msgstr "Els canals de la capa s'afegeixen a capes subjacents com a operacions seqüencials"
+
+
+msgid "Add"
+msgstr "Sumar"
+
+
+msgid "Channels in this layer are added to underlying layers on a per-channel basis"
+msgstr "Els canals d'aquesta capa se sumen a les capes subjacents canal per canal"
+
+
+msgid "Subtract"
+msgstr "Restar"
+
+
+msgid "Channels in this layer are subtracted to underlying layers on a per-channel basis"
+msgstr "Els canals d'aquesta capa es resten de les capes subjacents canal per canal"
+
+
+msgid "Multiply"
+msgstr "Multiplicar"
+
+
+msgid "Channels in this layer are multiplied with underlying layers on a per-channel basis"
+msgstr "Els canals d'aquesta capa es multipliquen per les capes subjacents canal per canal"
+
+
 msgid "Strips"
 msgstr "Segments"
 
@@ -389,15 +437,6 @@ msgstr "Mostrar expandida"
 
 msgid "Expanded state of the slot"
 msgstr "Estat desplegat de l'epígraf"
-
-
-msgctxt "ID"
-msgid "Target ID Type"
-msgstr "Tipus d'ID del referent"
-
-
-msgid "Type of data-block that this slot is intended to animate; can be set when 'UNSPECIFIED' but is otherwise read-only"
-msgstr "Tipus de bloc de dades que es pretén animar amb aquest epígraf; es pot definir quan està ' NO ESPECIFICAT', però si no és de només lectura"
 
 
 msgctxt "ID"
@@ -740,12 +779,12 @@ msgid "Make more room for large scenes to fit by distributing memory across inte
 msgstr "Allibera capacitat per adaptar-se a grans escenes tot repartint memòria entre dispositius interconnectats (pe. ex. via NVLink) en lloc de duplicar-la"
 
 
-msgid "HIP RT"
-msgstr "HIP RT"
+msgid "HIP RT (Experimental)"
+msgstr "HIP RT (experimental)"
 
 
-msgid "HIP RT enables AMD hardware ray tracing on RDNA2 and above"
-msgstr "HIP RT habilita el radiotraçat de programari en AMD a RDNA2 en amunt"
+msgid "HIP RT enables AMD hardware ray tracing on RDNA2 and above, with shader fallback on older cards. This feature is experimental and some scenes may render incorrectly"
+msgstr "L'HIP RT activa el radiotraçat de maquinari en RDNA2 i superior, i recorre a aspectors amb targes antiquades. Aquesta funcionalitat és experimental i pot revelar incorrectament algunes escenes"
 
 
 msgid "Embree on GPU"
@@ -952,10 +991,6 @@ msgid "Method used for combining Active Action's result with result of NLA stack
 msgstr "[Action Blending]: Mètode per combinar el resultat de l'Acció activa amb el resultat de l'estiba d'ANL (Animació No Lineal)"
 
 
-msgid "Replace"
-msgstr "Substituir"
-
-
 msgid "The strip values replace the accumulated results by amount specified by influence"
 msgstr "[Replace]: Els valors del segment substitueixen els resultats acumulats per la quantitat especificada a la influència"
 
@@ -965,27 +1000,15 @@ msgstr "Combinar"
 
 
 msgid "The strip values are combined with accumulated results by appropriately using addition, multiplication, or quaternion math, based on channel type"
-msgstr "[Combine]: Els valors del segment es combinen amb els resultats acumulats mitjançant el càlcul pertinent de suma, multiplicació o quartenió d'acord amb el tipus de canal"
-
-
-msgid "Add"
-msgstr "Sumar"
+msgstr "[Combine]: Els valors del segment es combinen amb els resultats acumulats mitjançant el càlcul pertinent de suma, multiplicació o quartenió en base al tipus de canal"
 
 
 msgid "Weighted result of strip is added to the accumulated results"
 msgstr "[Add]: El resultat ponderat d'un segment se suma als resultats acumulats"
 
 
-msgid "Subtract"
-msgstr "Restar"
-
-
 msgid "Weighted result of strip is removed from the accumulated results"
 msgstr "[Subtract]: El resultat ponderat del segment se suprimeix dels resultats acumulats"
-
-
-msgid "Multiply"
-msgstr "Multiplicar"
 
 
 msgid "Weighted result of strip is multiplied with the accumulated results"
@@ -4784,14 +4807,6 @@ msgid "Has Pinch Factor"
 msgstr "TÉ factor de pinçat"
 
 
-msgid "Has Plane Depth"
-msgstr "TÉ profunditat de pla"
-
-
-msgid "Has Plane Height"
-msgstr "TÉ alçada de pla"
-
-
 msgid "Has Plane Offset"
 msgstr "TÉ pla de separació"
 
@@ -5852,10 +5867,6 @@ msgid "In a local override camera, whether this background image comes from the 
 msgstr "[Override Background Image]: En una càmera local de sobreseïment, tant si la imatge de fons prové de la càmera de referència enllaçada, o és local al sobreseïment"
 
 
-msgid "Offset"
-msgstr "Desplaçament"
-
-
 msgid "Rotation"
 msgstr "Rotació"
 
@@ -6021,7 +6032,7 @@ msgstr "Fora d'eix"
 
 
 msgid "Off-axis frustums converging in a plane"
-msgstr "[Off-Axis]: Frustums fora d'eix que convergeixen en un pla"
+msgstr "[Off-Axis]: Troncs fora d'eix que convergeixen en un pla"
 
 
 msgid "Parallel"
@@ -6301,7 +6312,7 @@ msgstr "[Compression Stiffness Maximum]: Valor màxim de rigidesa de compressió
 
 
 msgid "Target Density Strength"
-msgstr "Potència de la densitat buscada"
+msgstr "Força del límit de densitat"
 
 
 msgid "Influence of target density on the simulation"
@@ -7164,8 +7175,16 @@ msgid "Exposure"
 msgstr "Exposició"
 
 
+msgid "Exposure (stops) applied before display transform"
+msgstr "Exposició (parades) aplicada abans de la transformació de la visualització"
+
+
 msgid "Gamma"
 msgstr "Gamma"
+
+
+msgid "Amount of gamma modification applied after display transform"
+msgstr "Quantitat de modificació gamma aplicada després de la transformació de la visualització"
 
 
 msgid "Look"
@@ -7513,10 +7532,6 @@ msgid "Amount of residual error in radians for constraints that work on orientat
 msgstr "[Rotation error]: Quantitat d'error residual en radians per a les restriccions que operen sobre l'orientació"
 
 
-msgid "Influence"
-msgstr "Influència"
-
-
 msgid "Amount of influence constraint will have on the final solution"
 msgstr "[Influence]: Quantitat d'influència que tindrà la restricció en la solució final"
 
@@ -7774,7 +7789,7 @@ msgstr "Trajectòria bloquejada"
 
 
 msgid "Rotate around the specified ('locked') axis to point towards a target"
-msgstr "[Locked Track]: Gira entorn d'un eix donat (travat) per apuntar envers un referent"
+msgstr "[Locked Track]: Gira entorn d'un eix donat (bloquejat) per apuntar envers un referent"
 
 
 msgid "Spline IK"
@@ -7907,10 +7922,6 @@ msgstr "Mínim"
 
 msgid "Minimum value for target channel range"
 msgstr "[Minimum]: Valor mínim per a l'interval del canal de referència"
-
-
-msgid "Mix Mode"
-msgstr "Mode combinat"
 
 
 msgid "Specify how existing transformations and the action channels are combined"
@@ -8186,7 +8197,7 @@ msgstr "Usa l'escalat en Z del pare"
 
 
 msgid "Clamp To Constraint"
-msgstr "Restricció Retenir envers"
+msgstr "Restricció Retenir a"
 
 
 msgid "Constrain an object's location to the nearest point along the target path"
@@ -8536,7 +8547,7 @@ msgstr "[Remove Target Shear]: Suprimeix l'estrebament de la transformació del 
 
 
 msgid "Damped Track Constraint"
-msgstr "Restricció de trajectòria amortida"
+msgstr "Restricció de trajectòria amorrida"
 
 
 msgid "Point toward target by taking the shortest rotation path"
@@ -8837,7 +8848,7 @@ msgstr "Referència d'eix"
 
 
 msgid "Constraint axis Lock options relative to Bone or Target reference"
-msgstr "[Axis Reference]: Opcions de la restricció de travat d'eix relatives al referent o a l'os de referència"
+msgstr "[Axis Reference]: Opcions de bloqueig de la restricció d'eix relatives al referent o a l'os de referència"
 
 
 msgid "Bone"
@@ -9037,7 +9048,7 @@ msgstr "[Locked Track Constraint]: Apunta envers el referent al llarg de l'eix d
 
 
 msgid "Locked Axis"
-msgstr "Eix travat"
+msgstr "Eix bloquejat"
 
 
 msgid "Maintain Volume Constraint"
@@ -10626,7 +10637,7 @@ msgstr "Àrea segura per a elements generals amb una ràtio d'aspecte diferent"
 
 
 msgid "Title Safe Margins"
-msgstr "Marges de títol segur"
+msgstr "Marges segurs de títol"
 
 
 msgid "Safe area for text and graphics"
@@ -12204,7 +12215,7 @@ msgstr "Definit per la usuària"
 
 
 msgid "Use custom hand-picked color for F-Curve"
-msgstr "[User Defined]: S'usa un color personalitzat piscat manualment per a la Corba-F"
+msgstr "[User Defined]: S'usa un color personalitzat pescat manualment per a la Corba-F"
 
 
 msgid "RNA Path to property affected by F-Curve"
@@ -16063,7 +16074,7 @@ msgstr "Usar textura"
 
 
 msgid "Use a texture to control emission strength"
-msgstr "[Use Texture]: Utilitza una textura per a controlar la potència de l'emissió"
+msgstr "[Use Texture]: Utilitza una textura per a controlar la força de l'emissió"
 
 
 msgid "Initial"
@@ -16555,7 +16566,7 @@ msgstr "Límits de materials"
 
 
 msgid "Enable material boundaries"
-msgstr "Activa límits de materials"
+msgstr "Activa límits del materials"
 
 
 msgid "Ridges and Valleys"
@@ -16571,7 +16582,7 @@ msgstr "Suavitzat de cares"
 
 
 msgid "Take face smoothness into account in view map calculation"
-msgstr "[Face Smoothness]: Té en compte el suavitzat de cara en el càlcul del mapa de visionat"
+msgstr "[Face Smoothness]: Té en compte el suavitzat de cara en el càlcul del mapa de visió"
 
 
 msgid "Suggestive Contours"
@@ -16583,11 +16594,11 @@ msgstr "[Suggestive Contours]: Activa contorns suggestius"
 
 
 msgid "View Map Cache"
-msgstr "Caché de mapa de visionat"
+msgstr "Caché de visionat de mapes"
 
 
 msgid "Keep the computed view map and avoid recalculating it if mesh geometry is unchanged"
-msgstr "[View Map Cache]: Manté el mapa de visionat calculat i evita de recalcular-lo si la geometria de la malla no ha canviat"
+msgstr "[View Map Cache]: Manté el mapa de visió calculat i evita de recalcular-lo si la geometria de la malla no ha canviat"
 
 
 msgid "Annotation Frame"
@@ -16883,7 +16894,7 @@ msgstr "Marge per a la intersecció de traços"
 
 
 msgid "Lock Axis"
-msgstr "Travar eix"
+msgstr "Travar l'eix"
 
 
 msgid "Align strokes to current view plane"
@@ -17495,6 +17506,246 @@ msgid "Collection of Grease Pencil frames"
 msgstr "Col·lecció de fotogrames de llapis de greix"
 
 
+msgid "Grease Pencil Layer"
+msgstr "Llapis de greix - Capa"
+
+
+msgid "Collection of related drawings"
+msgstr "Col·lecció de dibuixos relacionats"
+
+
+msgid "Blend Mode"
+msgstr "Mode de fusió"
+
+
+msgid "Blend mode"
+msgstr "Mode de fusió"
+
+
+msgid "Regular"
+msgstr "Regular"
+
+
+msgid "Hard Light"
+msgstr "Llum dura"
+
+
+msgid "Grease Pencil frames"
+msgstr "Fotogrames de Llapis de greix"
+
+
+msgid "Set layer visibility"
+msgstr "Determina la visibilitat de capa"
+
+
+msgid "Ignore Material Locking"
+msgstr "Ignorar Blocatge de material"
+
+
+msgid "Allow editing strokes even if they use locked materials"
+msgstr "Permet d'editar traços encara que facin servir materials blocats"
+
+
+msgid "List of Masking Layers"
+msgstr "Llista de capes màscara"
+
+
+msgid "Local Matrix"
+msgstr "Matriu local"
+
+
+msgid "Local transformation matrix of the layer"
+msgstr "Matriu transformadora local de la capa"
+
+
+msgid "Inverse Parent Matrix"
+msgstr "Invertir matriu inversa"
+
+
+msgid "Inverse of layer's parent transformation matrix"
+msgstr "Invers de la Matriu de transrormació de la capa pare"
+
+
+msgid "Layer Opacity"
+msgstr "Opacitat de capa"
+
+
+msgid "Parent object"
+msgstr "Objecte pare"
+
+
+msgid "Parent Bone"
+msgstr "Os pare"
+
+
+msgid "Name of parent bone. Only used when the parent object is an armature."
+msgstr "Nom de l'os pare. Només usat quan l'objecte pare és un esquelet."
+
+
+msgid "Parent Layer Group"
+msgstr "Grup de capes pare"
+
+
+msgid "The parent layer group this layer is part of"
+msgstr "El grup de capes pare a què pertany la capa"
+
+
+msgid "Pass Index"
+msgstr "Índex de passada"
+
+
+msgid "Index number for the \"Layer Index\" pass"
+msgstr "[Pass Index]: Número d'índex per a la passada d'«Índex de capa»"
+
+
+msgid "Radius Offset"
+msgstr "Desplaçament de radi"
+
+
+msgid "Radius change to apply to current strokes"
+msgstr "Canvi en el radi per aplicar als traços actuals"
+
+
+msgid "Euler rotation of the layer"
+msgstr "Rotació Euler de la capa"
+
+
+msgid "Scale of the layer"
+msgstr "Escala de la capa"
+
+
+msgid "Tint Color"
+msgstr "Color de tenyit"
+
+
+msgid "Color for tinting stroke colors"
+msgstr "Color de tenyir traços de colors"
+
+
+msgid "Tint Factor"
+msgstr "Factor de tenyit"
+
+
+msgid "Factor of tinting color"
+msgstr "Factor del color de tenyit"
+
+
+msgid "Translation"
+msgstr "Translació"
+
+
+msgid "Translation of the layer"
+msgstr "Translació de la capa"
+
+
+msgid "Use Lights"
+msgstr "Usar llums"
+
+
+msgid "Enable the use of lights on stroke and fill materials"
+msgstr "[Use Lights]: Possibilita l'ús de llums en materials de traç i d'emplenat"
+
+
+msgid "Use Masks"
+msgstr "Usar màscares"
+
+
+msgid "The visibility of drawings on this layer is affected by the layers in its masks list"
+msgstr "[Use Mask]: La visibilitat dels dibuixos d'aquesta capa es veu afectada per les capes de la seva llista de màscares"
+
+
+msgid "Display onion skins before and after the current frame"
+msgstr "Mostrar pells de ceba abans i després del fotograma actual"
+
+
+msgid "Use Masks in Render"
+msgstr "Usar màscares en revelar"
+
+
+msgid "Include the mask layers when rendering the view-layer"
+msgstr "[Use Masks in Render]: Inclou les càpes màscara en revelar la capa de visió"
+
+
+msgid "ViewLayer"
+msgstr "Capa de visió"
+
+
+msgid "Only include Layer in this View Layer render output (leave blank to include always)"
+msgstr "[ViewLayer]: Inclou només la capa dins d'aquesta Capa de visionat en el revelat finalment egressat (deixa en blanc perquè sempre s'hi inclogui)"
+
+
+msgid "Grease Pencil Layer Group"
+msgstr "Llapis de greix - Grup de capes"
+
+
+msgid "Group of Grease Pencil layers"
+msgstr "Agrupar totes les capes de Llapis de greix"
+
+
+msgid "Reset color tag"
+msgstr "Restablir etiqueta de color"
+
+
+msgid "Color tag 1"
+msgstr "Etiqueta de color 1"
+
+
+msgid "Color tag 2"
+msgstr "Etiqueta de color 2"
+
+
+msgid "Color tag 3"
+msgstr "Etiqueta de color 3"
+
+
+msgid "Color tag 4"
+msgstr "Etiqueta de color 4"
+
+
+msgid "Color tag 5"
+msgstr "Etiqueta de color 5"
+
+
+msgid "Color tag 6"
+msgstr "Etiqueta de color 6"
+
+
+msgid "Color tag 7"
+msgstr "Etiqueta de color 7"
+
+
+msgid "Color tag 8"
+msgstr "Etiqueta de color 8"
+
+
+msgid "Set layer group visibility"
+msgstr "Determinar visibilitat de grup de capa"
+
+
+msgid "The layer groups is expanded in the UI"
+msgstr "Els grup de capes s'expandeix en la IU"
+
+
+msgid "Protect group from further editing and/or frame changes"
+msgstr "Protegeix el grup de les edicions addicionals i/o dels canvis de fotograma"
+
+
+msgid "Group name"
+msgstr "Nom de grup"
+
+
+msgid "Parent Group"
+msgstr "Grup de pares"
+
+
+msgid "The parent group this group is part of"
+msgstr "El grup de pares a què pertany aquest grup"
+
+
+msgid "The visibility of drawings in the layers in this group is affected by the layers in the masks lists"
+msgstr "[Use Mask]: La visibilitat dels dibuixos d'aquesta capa es veu afectada dins aquest grupper les capes de la llista de màscares"
+
+
 msgid "Grease Pencil Masking Layers"
 msgstr "Llapis de greix - Capes màscara"
 
@@ -17563,10 +17814,6 @@ msgid "Last frame of the segment"
 msgstr "Últim fotograma del segment"
 
 
-msgid "Regular"
-msgstr "Regular"
-
-
 msgid "Apply offset in usual animation direction"
 msgstr "Aplica el desfasament en la direcció de l'animació habitual"
 
@@ -17601,210 +17848,6 @@ msgstr "Fotograma inicial"
 
 msgid "First frame of the segment"
 msgstr "Primer fotograma del segment"
-
-
-msgid "Channel Color"
-msgstr "Color de canal"
-
-
-msgid "Parent Layer Group"
-msgstr "Grup de capes pare"
-
-
-msgid "Use Masks"
-msgstr "Usar màscares"
-
-
-msgid "Display onion skins before and after the current frame"
-msgstr "Mostrar pells de ceba abans i després del fotograma actual"
-
-
-msgid "Grease Pencil Layer"
-msgstr "Llapis de greix - Capa"
-
-
-msgid "Collection of related drawings"
-msgstr "Col·lecció de dibuixos relacionats"
-
-
-msgid "Blend Mode"
-msgstr "Mode de fusió"
-
-
-msgid "Blend mode"
-msgstr "Mode de fusió"
-
-
-msgid "Hard Light"
-msgstr "Llum dura"
-
-
-msgid "Grease Pencil frames"
-msgstr "Fotogrames de Llapis de greix"
-
-
-msgid "Ignore Material Locking"
-msgstr "Ignorar Blocatge de material"
-
-
-msgid "Allow editing strokes even if they use locked materials"
-msgstr "Permet d'editar traços encara que facin servir materials blocats"
-
-
-msgid "List of Masking Layers"
-msgstr "Llista de capes màscara"
-
-
-msgid "Local Matrix"
-msgstr "Matriu local"
-
-
-msgid "Local transformation matrix of the layer"
-msgstr "Matriu transformadora local de la capa"
-
-
-msgid "Inverse Parent Matrix"
-msgstr "Matriu de paternitat inversa"
-
-
-msgid "Inverse of layer's parent transformation matrix"
-msgstr "Invers de la Matriu de transformació de la capa pare"
-
-
-msgid "Layer Opacity"
-msgstr "Opacitat de capa"
-
-
-msgid "Parent object"
-msgstr "Objecte pare"
-
-
-msgid "Parent Bone"
-msgstr "Os pare"
-
-
-msgid "Name of parent bone. Only used when the parent object is an armature."
-msgstr "Nom de l'os pare. Només usat quan l'objecte pare és un esquelet."
-
-
-msgid "Pass Index"
-msgstr "Índex de passada"
-
-
-msgid "Index number for the \"Layer Index\" pass"
-msgstr "[Pass Index]: Número d'índex per a la passada d'«Índex de capa»"
-
-
-msgid "Radius Offset"
-msgstr "Desplaçament de radi"
-
-
-msgid "Radius change to apply to current strokes"
-msgstr "Canvi en el radi per aplicar als traços actuals"
-
-
-msgid "Euler rotation of the layer"
-msgstr "Rotació Euler de la capa"
-
-
-msgid "Scale of the layer"
-msgstr "Escala de la capa"
-
-
-msgid "Tint Color"
-msgstr "Color de tenyit"
-
-
-msgid "Color for tinting stroke colors"
-msgstr "Color de tenyir traços de colors"
-
-
-msgid "Tint Factor"
-msgstr "Factor de tenyit"
-
-
-msgid "Factor of tinting color"
-msgstr "Factor del color de tenyit"
-
-
-msgid "Translation"
-msgstr "Translació"
-
-
-msgid "Translation of the layer"
-msgstr "Translació de la capa"
-
-
-msgid "Use Lights"
-msgstr "Usar llums"
-
-
-msgid "Enable the use of lights on stroke and fill materials"
-msgstr "[Use Lights]: Possibilita l'ús de llums en materials de traç i d'emplenat"
-
-
-msgid "Use Masks in Render"
-msgstr "Usar màscares en revelar"
-
-
-msgid "Include the mask layers when rendering the view-layer"
-msgstr "[Use Masks in Render]: Inclou les càpes màscara en revelar la capa de visió"
-
-
-msgid "ViewLayer"
-msgstr "Capa de visió"
-
-
-msgid "Only include Layer in this View Layer render output (leave blank to include always)"
-msgstr "[ViewLayer]: Inclou només la capa dins d'aquesta Capa de visionat en el revelat finalment egressat (deixa en blanc perquè sempre s'hi inclogui)"
-
-
-msgid "Grease Pencil Layer Group"
-msgstr "Llapis de greix - Grup de capes"
-
-
-msgid "Group of Grease Pencil layers"
-msgstr "Agrupar totes les capes de Llapis de greix"
-
-
-msgid "Reset color tag"
-msgstr "Restablir etiqueta de color"
-
-
-msgid "Color tag 1"
-msgstr "Etiqueta de color 1"
-
-
-msgid "Color tag 2"
-msgstr "Etiqueta de color 2"
-
-
-msgid "Color tag 3"
-msgstr "Etiqueta de color 3"
-
-
-msgid "Color tag 4"
-msgstr "Etiqueta de color 4"
-
-
-msgid "Color tag 5"
-msgstr "Etiqueta de color 5"
-
-
-msgid "Color tag 6"
-msgstr "Etiqueta de color 6"
-
-
-msgid "Color tag 7"
-msgstr "Etiqueta de color 7"
-
-
-msgid "Color tag 8"
-msgstr "Etiqueta de color 8"
-
-
-msgid "The layer groups is expanded in the UI"
-msgstr "Els grup de capes s'expandeix en la IU"
 
 
 msgid "Grease Pencil Group"
@@ -18071,8 +18114,8 @@ msgid "The combined frame range of all F-Curves within this action"
 msgstr "[Curve Frame Range]: L'interval combinat de fotogrames de totes les corbes-F dins d'aquesta acció"
 
 
-msgid "Legacy API, for backward compatibility with code that does not handle slotted actions yet. This collection contains the F-Curves for the action's first slot"
-msgstr "API antiquada per a compatibilitat retrospectiva amb el codi que encara no pot gestionar accions amb epígrafs. Aquesta col·lecció conté les corbes-F per al primer epígraf d'acció"
+msgid "The individual F-Curves that make up the action"
+msgstr "[F-Curves]: Les corbes-F individuals que conformen l'acció"
 
 
 msgid "The end frame of the manually set intended playback range"
@@ -18095,8 +18138,8 @@ msgid "Groups"
 msgstr "Grups"
 
 
-msgid "Legacy API, for backward compatibility with code that does not handle slotted actions yet. This collection contains the F-Curve groups for the action's first slot"
-msgstr "API antiquada per a compatibilitat retrospectiva amb el codi que encara no pot gestionar accions amb epígrafs. Aquesta col·lecció conté els grups de corbes-F per al primer epígraf d'acció"
+msgid "Convenient groupings of F-Curves"
+msgstr "Agrupaments pràcitcs de les corbes-F"
 
 
 msgctxt "ID"
@@ -18104,8 +18147,8 @@ msgid "ID Root Type"
 msgstr "Tipus d'ID arrel"
 
 
-msgid "Legacy API, for backward compatibility with code that does not handle slotted actions yet. Type of data-block that the action's first slot can be used on. Do not change unless you know what you are doing"
-msgstr "API antiquada per a compatibilitat retrospectiva amb el codi que encara no pot gestionar accions amb epígrafs. Tipus de bloc de dades amb què es pot fer ús del primer epígraf d'acció. No el canvieu a menys que tingueu molt clar el que esteu tocant"
+msgid "Type of ID block that action can be used on - DO NOT CHANGE UNLESS YOU KNOW WHAT YOU ARE DOING"
+msgstr "[ID Root Type]: Tipus de bloc d'IDs en base al qual es pot aplicar l'acció - NO HO CANVIÏS A MENYS QUE SÀPIGUES EL QUE ET FAS"
 
 
 msgid "Is Layered Action"
@@ -18120,8 +18163,8 @@ msgid "Is Legacy Action"
 msgstr "ÉS acció antiquada"
 
 
-msgid "Return whether this is a legacy Action. Legacy Actions have no layers or slots. An empty Action considered as both a 'legacy' and a 'layered' Action. Since Blender 4.4 actions are automatically updated to layered actions, and thus this will only return True when the action is empty"
-msgstr "Retorna si aquesta és una Acció antiquada. Les Accions antiquades no tenen capes ni epígrafs. Una Acció buida considerada alhora 'antiquada' i com a Acció 'en capes'. Des de Blender 4.4. les accions s'actualitzen automàticament com a accions en capes, i per tant aquest element només retornarà VER quan l'acció estigui buida"
+msgid "Return whether this is a legacy Action. Legacy Actions have no layers or slots. An empty Action considered as both a 'legacy' and a 'layered' Action."
+msgstr "Retorna si l'Acció és antiquada. Les Accions antiquades no tenen ni capes ni epígrafs. Una Acció buida es considera tant 'antiquada' com una Acció 'per capes'."
 
 
 msgid "Is Empty"
@@ -18780,6 +18823,26 @@ msgstr "[Boundary Origin Offset]: Desplaçament de l'origen del contorn en relac
 
 msgid "Brush's capabilities"
 msgstr "Capacitats del pinzell"
+
+
+msgid "Clone Alpha"
+msgstr "Alfa de clon"
+
+
+msgid "Opacity of clone image display"
+msgstr "[Clone Alpha]: Opacitat de la imatge clonada"
+
+
+msgid "Clone Image"
+msgstr "Imatge per clonar"
+
+
+msgid "Image for clone brushes"
+msgstr "Imatge per pinzells-clon"
+
+
+msgid "Clone Offset"
+msgstr "Desplaçament de clon"
 
 
 msgid "Soft Body Plasticity"
@@ -19570,34 +19633,6 @@ msgid "Active paint curve"
 msgstr "[Paint Curve]: Corba de pintura activa"
 
 
-msgid "The maximum distance below the plane for affected vertices. Increasing the depth affects vertices farther below the plane."
-msgstr "La distància màxima per sota del pla per als vèrtexs afectats. L'augment de la profunditat afecta els vèrtexs que estan més dessota del pla."
-
-
-msgid "The maximum distance above the plane for affected vertices. Increasing the height affects vertices farther above the plane."
-msgstr "La distància màxima sobre el pla per als vèrtexs afectats. L'augment de l'alçada afecta els vèrtexs que estan més elevats per sobre del pla."
-
-
-msgid "Inversion Mode"
-msgstr "Mode inversió"
-
-
-msgid "Invert Displacement"
-msgstr "Invertir desplaçament"
-
-
-msgid "Displace the vertices away from the plane."
-msgstr "Allunya els vèrtexs del pla."
-
-
-msgid "Swap Height and Depth"
-msgstr "Intercanvia l'Alçada i la Profunditat"
-
-
-msgid "Swap the roles of Height and Depth."
-msgstr "Intercanvia els rols d'Alçada i Profunditat."
-
-
 msgid "Plane Offset"
 msgstr "Pla de separació"
 
@@ -19772,11 +19807,6 @@ msgstr "Raspar"
 
 
 msgctxt "Brush"
-msgid "Plane"
-msgstr "Pla"
-
-
-msgctxt "Brush"
 msgid "Multi-plane Scrape"
 msgstr "Raspat multiplà"
 
@@ -19921,22 +19951,6 @@ msgstr "Modifica tota la malla usant la deformació elàstica"
 
 msgid "Spacing between brush daubs as a percentage of brush diameter"
 msgstr "L'espaiat entre les enllefernades del pinzell com a percentatge del diàmetre del pinzell"
-
-
-msgid "Stabilize Normal"
-msgstr "Estabilitzar normal"
-
-
-msgid "Stabilize the orientation of the brush plane."
-msgstr "Estabilitza l'orientació del pla del pinzell."
-
-
-msgid "Stabilize Plane"
-msgstr "Estabilitzar pla"
-
-
-msgid "Stabilize the center of the brush plane."
-msgstr "Estabilitza el centre del pla del pinzell."
 
 
 msgid "Stencil Dimensions"
@@ -20596,7 +20610,7 @@ msgstr "Mescla per impregnació"
 
 
 msgid "Amount of paint that is picked from the surface into the brush color"
-msgstr "[Wet Mix]: Quantitat de pintura que es pisca de la superfície i queda al color del pinzell"
+msgstr "[Wet Mix]: Quantitat de pintura de la superfície que queda agafada al color del pinzell"
 
 
 msgid "Wet Paint Radius"
@@ -21163,11 +21177,11 @@ msgstr "Mostrar àrees segures"
 
 
 msgid "Show TV title safe and action safe areas in Camera view"
-msgstr "[Show Safe Areas]: Mostra les àrees de títol segur i d'acció segura en TV dins la vista de càmera"
+msgstr "[Show Safe Areas]: Mostra les àrees segures de títol i d'acció en TV dins la vista de càmera"
 
 
 msgid "Show Center-Cut Safe Areas"
-msgstr "Mostrar marges de seguretat d'àrea central"
+msgstr "Mostrar les àrees segures de centre i baixa"
 
 
 msgid "Show safe areas to fit content in a different aspect ratio"
@@ -22431,7 +22445,7 @@ msgstr "Ordena pel valor Y projectat al sistema en el sistema de coordenades de 
 
 
 msgid "Sort Order"
-msgstr "Ordre de classificació"
+msgstr "Ordenació"
 
 
 msgid "Select the sort order"
@@ -24365,7 +24379,7 @@ msgstr "Controla el fusionat i la compatibilitat d'algunes característiques"
 
 
 msgid "Dithered"
-msgstr "Tramat"
+msgstr "Fluctuat"
 
 
 msgid "Allows for grayscale hashed transparency, and compatible with render passes and raytracing. Also known as deferred rendering."
@@ -24477,7 +24491,7 @@ msgstr "Empra el mapejat d'ombra dels llums projectors d'ombra per refinar el gr
 
 
 msgid "Use Transparency Overlap"
-msgstr "Emprar Superposició de transparències"
+msgstr "Emprar solapament de transparències"
 
 
 msgid "Render multiple transparent layers (may introduce transparency sorting problems)"
@@ -25952,8 +25966,8 @@ msgid "Display the object's name"
 msgstr "[Display Name]: Mostra el nom de l'objecte"
 
 
-msgid "Solo Active Shape Key"
-msgstr "Morfofita activa en solitari"
+msgid "Shape Key Lock"
+msgstr "Bloquejar morfofita"
 
 
 msgid "Only show the active shape key at full value"
@@ -26016,7 +26030,7 @@ msgstr "Eix que apunta en la direcció cap amunt (s'aplica als vèrtexs d'instà
 
 
 msgid "Camera Parent Lock"
-msgstr "Blocar pare de càmera"
+msgstr "Blocar paternitat càmera"
 
 
 msgid "View Lock 3D viewport camera transformation affects the object's parent instead"
@@ -26820,7 +26834,7 @@ msgstr "Fa que el vector distant de la ubicació de la partícula referent doni 
 
 
 msgid "How many steps paths are rendered with (power of 2)"
-msgstr "Amb quants trams s'hi revelen els trajectes (potència de 2)"
+msgstr "Amb quants passos s'hi revelen els trajectes (potència de 2)"
 
 
 msgid "Particle Rendering"
@@ -27761,11 +27775,11 @@ msgstr "Fa sonar l'àudio des de l'Editor de seqüències, altrament el silencia
 
 
 msgid "Audio Scrubbing"
-msgstr "Refregar l'àudio"
+msgstr "Toquerejar àudio"
 
 
 msgid "Play audio from Sequence Editor while scrubbing"
-msgstr "[Audio Scrubbing]: Reprodueix l'àudio des de l'editor de seqüències mentre es refrega endavant i enrere"
+msgstr "[Audio Scrubbing]: Reprodueix l'àudio des de l'editor de seqüències mentres es toquereja"
 
 
 msgid "Custom Simulation Range"
@@ -27882,11 +27896,11 @@ msgstr "[Animation Playing]: La reproducció de l'animació està activa"
 
 
 msgid "User is Scrubbing"
-msgstr "La usuària està refregant"
+msgstr "La usuària està toquerejant"
 
 
 msgid "True when the user is scrubbing through time"
-msgstr "[User is Scrubbing]: VER quan la usuària està refregant en el temps"
+msgstr "[User is Scrubbing]: VER quan la usuària està toquerejant en el temps"
 
 
 msgid "An area is maximized, filling this screen"
@@ -28257,7 +28271,7 @@ msgstr "[Image or Movie]: Permet que les imatges o vídeos siguin utilitzats com
 
 
 msgid "Magic"
-msgstr "Màgica"
+msgstr "Màgic"
 
 
 msgid "Procedural - color texture based on trigonometric functions"
@@ -28269,7 +28283,7 @@ msgstr "Marbre"
 
 
 msgid "Procedural - marble-like noise texture with wave generated bands"
-msgstr "Procedimental - textura de soroll semblant al marbre amb aigües generades per ones"
+msgstr "Procedimental - textura de soroll semblant al marbre amb bandes generades per ones"
 
 
 msgid "Musgrave"
@@ -28305,7 +28319,7 @@ msgstr "Fusta"
 
 
 msgid "Procedural - wave generated bands or rings, with optional noise"
-msgstr "Procedimental - aigües o anelles generades per ones, amb soroll opcional"
+msgstr "Procedimental - bandes o anelles generats per ones, amb soroll opcional"
 
 
 msgid "Set negative texture RGB and intensity values to zero, for some uses like displacement this option can be disabled to get the full range"
@@ -28867,7 +28881,7 @@ msgstr "Sin"
 
 
 msgid "Use a sine wave to produce bands"
-msgstr "Usa una ona sinusoidal per produir aigües"
+msgstr "Usa una ona sinusoidal per produir bandes"
 
 
 msgid "Saw"
@@ -28875,7 +28889,7 @@ msgstr "Ser"
 
 
 msgid "Use a saw wave to produce bands"
-msgstr "Utilitza una ona de serra per produir aigües"
+msgstr "Utilitza una ona de serra per produir bandes"
 
 
 msgid "Tri"
@@ -28883,11 +28897,11 @@ msgstr "Tri"
 
 
 msgid "Use a triangle wave to produce bands"
-msgstr "Usa una ona de triangle per produir aigües"
+msgstr "Usa una ona de triangle per produir bandes"
 
 
 msgid "Turbulence of the bandnoise and ringnoise types"
-msgstr "Turbulència dels tipus soroll d'aigües i soroll d'anell"
+msgstr "Turbulència dels tipus soroll de banda i soroll d'anell"
 
 
 msgid "Procedural musgrave texture"
@@ -29054,7 +29068,7 @@ msgstr "[Distance Metric]: Algorisme utilitzat per calcular la distància dels p
 
 
 msgid "Actual Distance"
-msgstr "Distància de fet"
+msgstr "Distància real"
 
 
 msgid "sqrt(x*x+y*y+z*z)"
@@ -29237,7 +29251,7 @@ msgid "Volume render settings for 3D viewport"
 msgstr "Paràmetres de revelat del volum per al mirador 3D"
 
 
-msgctxt "Volume"
+msgctxt "Sequence"
 msgid "Sequence Mode"
 msgstr "Mode seqüència"
 
@@ -29246,16 +29260,16 @@ msgid "Sequence playback mode"
 msgstr "Mode reproducció de seqüència"
 
 
-msgctxt "Volume"
+msgctxt "Sequence"
 msgid "Clip"
-msgstr "Segar"
+msgstr "Clip"
 
 
 msgid "Hide frames outside the specified frame range"
 msgstr "Amaga els fotogrames fora de l'interval especificat"
 
 
-msgctxt "Volume"
+msgctxt "Sequence"
 msgid "Extend"
 msgstr "Estendre"
 
@@ -29264,18 +29278,18 @@ msgid "Repeat the start frame before, and the end frame after the frame range"
 msgstr "Repeteix el fotograma inicial abans i el fotograma final després de l'interval de fotogrames definit"
 
 
-msgctxt "Volume"
+msgctxt "Sequence"
 msgid "Repeat"
-msgstr "Repetir"
+msgstr "Repetició"
 
 
 msgid "Cycle the frames in the sequence"
 msgstr "Ciclitza els fotogrames de la seqüència"
 
 
-msgctxt "Volume"
+msgctxt "Sequence"
 msgid "Ping-Pong"
-msgstr "Ping-Pong"
+msgstr "Ping-pong"
 
 
 msgid "Repeat the frames, reversing the playback direction every other cycle"
@@ -29352,6 +29366,14 @@ msgstr "Comunitat"
 
 msgid "Maintained by community developers"
 msgstr "Mantingut pels desenvolupadors de la comunitat"
+
+
+msgid "Testing"
+msgstr "En proves"
+
+
+msgid "Newly contributed scripts (excluded from release builds)"
+msgstr "Protocols aportats de nou (exclosos de compilacions publicades)"
 
 
 msgid "Addon Tags"
@@ -30023,7 +30045,7 @@ msgstr "[Max Step]: Límit superior per al cronolapse en segons en el cas de sub
 
 
 msgid "Min Step"
-msgstr "Mín tandes"
+msgstr "Min tandes"
 
 
 msgid "Lower bound for timestep in second in case of automatic substeps"
@@ -33944,42 +33966,6 @@ msgid "Aligned Single"
 msgstr "Alineada senzilla"
 
 
-msgid "Selection status of the control point. (Deprecated: use Select Control Point instead)"
-msgstr "Estatus de selecció del punt de control. (Obsolet: utilitzeu en el seu lloc Selecció de punt de control)"
-
-
-msgid "Select Control Point"
-msgstr "Selecció de punt de control"
-
-
-msgid "Selection status of the control point"
-msgstr "Estatus de selecció del punt de control"
-
-
-msgid "Select Left Handle"
-msgstr "Selecció de nansa esquerra"
-
-
-msgid "Selection status of the left handle"
-msgstr "Estatus de selecció de la nansa esquerra"
-
-
-msgid "Select Right Handle"
-msgstr "Selecció de nansa dreta"
-
-
-msgid "Selection status of the right handle"
-msgstr "Estatus de selecció de la nansa dreta"
-
-
-msgid "Select Aligned Single Handle"
-msgstr "Selecció de nansa única alineada"
-
-
-msgid "Selection status of the Aligned Single handle"
-msgstr "Estatus de selecció de la Nansa única alineada"
-
-
 msgid "Weight of the point"
 msgstr "Pes del punt"
 
@@ -34318,40 +34304,12 @@ msgid "Editor menu containing buttons"
 msgstr "El menú d'edició que conté els botons"
 
 
-msgid "Metaball"
-msgstr "Metabola"
+msgid "Names"
+msgstr "Noms"
 
 
-msgid "Light"
-msgstr "Llum"
-
-
-msgid "Light Probe"
-msgstr "Sonda de llum"
-
-
-msgid "Add Image"
-msgstr "Afegir imatge"
-
-
-msgid "Relations"
-msgstr "Relacions"
-
-
-msgid "Rigid Body"
-msgstr "Cos rígid"
-
-
-msgid "Apply"
-msgstr "Aplicar"
-
-
-msgid "Track"
-msgstr "Rastrejar"
-
-
-msgid "Quick Effects"
-msgstr "Efectes ràpids"
+msgid "Bone Roll"
+msgstr "Girar os"
 
 
 msgid "Show/Hide"
@@ -34360,114 +34318,6 @@ msgstr "Mostrar/amagar"
 
 msgid "Clean Up"
 msgstr "Netejar"
-
-
-msgid "Asset"
-msgstr "Recurs"
-
-
-msgid "Make Single User"
-msgstr "Forçar un únic usador"
-
-
-msgid "Convert"
-msgstr "Convertir en"
-
-
-msgid "Link/Transfer Data"
-msgstr "Enllaçar/transferir dades"
-
-
-msgid "Hooks"
-msgstr "Ganxos"
-
-
-msgid "Vertex Group Locks"
-msgstr "Blocatges de grup de vèrtexs"
-
-
-msgid "Trim/Add"
-msgstr "Retallar/afegir"
-
-
-msgid "Sculpt Set Pivot"
-msgstr "Pivot de conjunt escultòric"
-
-
-msgid "Face Sets Init"
-msgstr "Jocs de cares inicials"
-
-
-msgid "Random Mask"
-msgstr "Màscara aleatòria"
-
-
-msgid "Clear Transform"
-msgstr "Retirar transformació"
-
-
-msgid "In-Betweens"
-msgstr "Entremitgers"
-
-
-msgid "Propagate"
-msgstr "Propagar"
-
-
-msgid "Bone Collections"
-msgstr "Col·leccions d'ossos"
-
-
-msgid "Names"
-msgstr "Noms"
-
-
-msgid "Toggle Bone Options"
-msgstr "Permutar opcions d'os"
-
-
-msgid "Enable Bone Options"
-msgstr "Activar opcions de l'os"
-
-
-msgid "Disable Bone Options"
-msgstr "Desactivar opcions de l'os"
-
-
-msgid "Mesh Select Mode"
-msgstr "Mode selecció de malla"
-
-
-msgid "Face Data"
-msgstr "Dades de cares"
-
-
-msgid "Select by Face Strength"
-msgstr "Seleccionar segons força de cara"
-
-
-msgid "Set Face Strength"
-msgstr "Definir força de cara"
-
-
-msgid "Merge"
-msgstr "Fusionar"
-
-
-msgid "Special Characters"
-msgstr "Caràcters especials"
-
-
-msgid "Kerning"
-msgstr "Interlletratge"
-
-
-msgid "Text"
-msgstr "Text"
-
-
-msgid "Bone Roll"
-msgstr "Girar os"
 
 
 msgid "Pivot Point"
@@ -34492,6 +34342,10 @@ msgstr "Automàscara"
 
 msgid "Face Sets Edit"
 msgstr "Edició de jocs de cares"
+
+
+msgid "Vertex Group Locks"
+msgstr "Blocatges de grup de vèrtexs"
 
 
 msgid "Mirror"
@@ -34548,6 +34402,138 @@ msgstr "Seleccionar bucles"
 
 msgid "Assign Material"
 msgstr "Assignar material"
+
+
+msgid "Metaball"
+msgstr "Metabola"
+
+
+msgid "Light"
+msgstr "Llum"
+
+
+msgid "Light Probe"
+msgstr "Sonda de llum"
+
+
+msgid "Add Image"
+msgstr "Afegir imatge"
+
+
+msgid "Relations"
+msgstr "Relacions"
+
+
+msgid "Rigid Body"
+msgstr "Cos rígid"
+
+
+msgid "Apply"
+msgstr "Aplicar"
+
+
+msgid "Track"
+msgstr "Rastrejar"
+
+
+msgid "Quick Effects"
+msgstr "Efectes ràpids"
+
+
+msgid "Asset"
+msgstr "Recurs"
+
+
+msgid "Make Single User"
+msgstr "Forçar un únic usador"
+
+
+msgid "Convert"
+msgstr "Convertir en"
+
+
+msgid "Link/Transfer Data"
+msgstr "Enllaçar/transferir dades"
+
+
+msgid "Hooks"
+msgstr "Ganxos"
+
+
+msgid "Trim/Add"
+msgstr "Retallar/afegir"
+
+
+msgid "Sculpt Set Pivot"
+msgstr "Pivot de conjunt escultòric"
+
+
+msgid "Face Sets Init"
+msgstr "Jocs de cares inicials"
+
+
+msgid "Random Mask"
+msgstr "Màscara aleatòria"
+
+
+msgid "Clear Transform"
+msgstr "Retirar transformació"
+
+
+msgid "In-Betweens"
+msgstr "Entremitgers"
+
+
+msgid "Propagate"
+msgstr "Propagar"
+
+
+msgid "Bone Collections"
+msgstr "Col·leccions d'ossos"
+
+
+msgid "Toggle Bone Options"
+msgstr "Permutar opcions d'os"
+
+
+msgid "Enable Bone Options"
+msgstr "Activar opcions de l'os"
+
+
+msgid "Disable Bone Options"
+msgstr "Desactivar opcions de l'os"
+
+
+msgid "Mesh Select Mode"
+msgstr "Mode selecció de malla"
+
+
+msgid "Face Data"
+msgstr "Dades de cares"
+
+
+msgid "Select by Face Strength"
+msgstr "Seleccionar segons força de cara"
+
+
+msgid "Set Face Strength"
+msgstr "Definir força de cara"
+
+
+msgid "Merge"
+msgstr "Fusionar"
+
+
+msgid "Special Characters"
+msgstr "Caràcters especials"
+
+
+msgid "Kerning"
+msgstr "Interlletratge"
+
+
+msgid "Text"
+msgstr "Text"
 
 
 msgid "Keyframe Insert Pie"
@@ -34656,10 +34642,6 @@ msgid "Add Attribute"
 msgstr "Afegir atribut"
 
 
-msgid "Attribute Specials"
-msgstr "Especials d'atributs"
-
-
 msgid "Rigify Color Sets Specials"
 msgstr "Aparellar - Especials de jocs de colors"
 
@@ -34749,6 +34731,10 @@ msgstr "Desembolcallar"
 msgctxt "WindowManager"
 msgid "Area"
 msgstr "Àrea"
+
+
+msgid "Attribute Specials"
+msgstr "Especials d'atributs"
 
 
 msgid "Color Attribute Specials"
@@ -35036,7 +35022,7 @@ msgstr "Plantilles"
 
 
 msgid "Open Shading Language"
-msgstr "Llenguatge Obert d'Aspecció"
+msgstr "Obre llenguatge d'aspecte"
 
 
 msgid "Python"
@@ -35172,10 +35158,6 @@ msgstr "Buit"
 msgctxt "Constraint"
 msgid "Track"
 msgstr "Rastrejar"
-
-
-msgid "Modify Pose Asset"
-msgstr "Mdificar recurs de posa"
 
 
 msgid "Rigify"
@@ -38218,7 +38200,7 @@ msgstr "Factor de fosa"
 
 
 msgid "Defines how much of the stroke is fading in/out"
-msgstr "[Fade Factor]: Defineix fins a quin punt el traç s'esvaeix d'inici/de final"
+msgstr "[Fade Factor]: Defineix fins a quin punt el traç es fon d'inici/de final"
 
 
 msgid "Opacity Strength"
@@ -44400,7 +44382,7 @@ msgstr "Generar un difuminat tipus bokeh semblant a Desenfocat. A diferència de
 
 
 msgid "Max Blur"
-msgstr "Màx difuminat"
+msgstr "Difuminat màxim"
 
 
 msgid "Blur limit, maximum CoC radius"
@@ -44507,28 +44489,28 @@ msgid "Create matte based on differences in color channels"
 msgstr "Crear trepa en base a les diferències dels canals de color"
 
 
-msgid "RGB (Red, Green, Blue) color space"
-msgstr "Espai de color RGB (Vermell, Verd i Blau en anglès)"
+msgid "RGB color space"
+msgstr "Espai de color RGB"
 
 
-msgid "HSV (Hue, Saturation, Value) color space"
-msgstr "Espai de color TSV (Tonalitat, Salutació, Valor)"
+msgid "HSV color space"
+msgstr "Espai de color TSV"
 
 
 msgid "YUV"
 msgstr "YUV"
 
 
-msgid "YUV (Y - luma, U V - chroma) color space"
-msgstr "Espai de color YUV (Y - Iuma, U V - croma)"
+msgid "YUV color space"
+msgstr "Espai de color YUV"
 
 
 msgid "YCbCr"
 msgstr "YCbCr"
 
 
-msgid "YCbCr (Y - luma, Cb - blue-difference chroma, Cr - red-difference chroma) color space"
-msgstr "Espai de color YCbCr (Y - luma, Cb - blau-croma de diferència, Cr - vermell-croma de diferència)"
+msgid "YCbCr color space"
+msgstr "Espai de color YCbCr"
 
 
 msgctxt "Color"
@@ -45054,24 +45036,24 @@ msgid "Mode of color processing"
 msgstr "Mode de procés de color"
 
 
-msgid "Use RGB (Red, Green, Blue) color processing"
-msgstr "Usar processament de color RGB (Vermell, Verd i Blau en anglès)"
+msgid "Use RGB color processing"
+msgstr "Usar procés de color RGB"
 
 
-msgid "Use HSV (Hue, Saturation, Value) color processing"
-msgstr "Usar processament de color TSV (Tonalitat, Salutació, Valor)"
+msgid "Use HSV color processing"
+msgstr "Usar procés de color TSV"
 
 
-msgid "Use HSL (Hue, Saturation, Lightness) color processing"
-msgstr "Usar processament de color TSL (Tonalitat, Salutació, Lluminositat)"
+msgid "Use HSL color processing"
+msgstr "Usar procés de color TSL"
 
 
-msgid "Use YCbCr (Y - luma, Cb - blue-difference chroma, Cr - red-difference chroma) color processing"
-msgstr "Usar processament de color YCbCr (Y - luma, Cb - blau-croma de diferència, Cr - vermell-croma de diferència)"
+msgid "Use YCbCr color processing"
+msgstr "Usar procés de color YCbCr"
 
 
-msgid "Use YUV (Y - luma, U V - chroma) color processing"
-msgstr "Usar processament de color YUV (Y - Iuma, U V - croma)"
+msgid "Use YUV color processing"
+msgstr "Usar procés de color YUV"
 
 
 msgid "Color space used for YCbCrA processing"
@@ -45171,7 +45153,7 @@ msgstr "Obsolet. Empreu enlloc d'això el node Criptotrepa"
 
 
 msgid "Add object or material to matte, by picking a color from the Pick output"
-msgstr "[Cryptomatte (Legacy)]: Afegir un objecte o material a la trepa, tot piscant un color des de l'egressió del Selector"
+msgstr "[Cryptomatte (Legacy)]: Afegir un objecte o material a la trepa, tot pescant un color des de la sortida Selector"
 
 
 msgid "Matte Objects"
@@ -45183,7 +45165,7 @@ msgstr "[Matte Objects]: Llista de criptoidentificadors de d'objectes i material
 
 
 msgid "Remove object or material from matte, by picking a color from the Pick output"
-msgstr "Suprimeix l'objecte o el material de la trepa, tit piscant un color des de l'egressió del Selector"
+msgstr "Suprimeix l'objecte o el material de la trepa, seleccionant un color des de la sortida Selector"
 
 
 msgid "Cryptomatte"
@@ -45531,10 +45513,6 @@ msgid "Create matte based on 3D distance between colors"
 msgstr "Crear trepa en base a la distància 3D entre colors"
 
 
-msgid "RGB color space"
-msgstr "Espai de color RGB"
-
-
 msgid "YCbCr suppression"
 msgstr "Supressió YCbCr"
 
@@ -45759,6 +45737,10 @@ msgid "The glare filter will only be applied to pixels brighter than this value.
 msgstr "El filtre de resplendor només s'aplicarà als píxels més brillants que aquest valor. (Obsolet: useu en el seu lloc la ingressió Llindar)"
 
 
+msgid "Rotate 45"
+msgstr "Rotar 45"
+
+
 msgid "Simple star filter: add 45 degree rotation offset"
 msgstr "[Rotate 45]: Filtre estel·lar simple: afegeix una rotació de 45 graus"
 
@@ -45805,10 +45787,6 @@ msgstr "Born de sortida d'alfa directa"
 
 msgid "Put node output buffer to straight alpha instead of premultiplied"
 msgstr "[Straight Alpha Output]: Posa l'egressió del regulador a alfa directa enlloc de premultiplicada"
-
-
-msgid "Image Info"
-msgstr "Informació d'imatge"
 
 
 msgid "Inpaint"
@@ -46417,7 +46395,7 @@ msgstr "Acoblar"
 
 
 msgid "Snap to increment, snap(A,B)"
-msgstr "Acoblar a l'increment, snap(A,B)"
+msgstr "Ajusta a l'increment, snap(A,B)"
 
 
 msgctxt "NodeTree"
@@ -46678,7 +46656,7 @@ msgstr "Un selector de color"
 
 
 msgid "RGB to BW"
-msgstr "RGB a BN"
+msgstr "RGB a BW"
 
 
 msgid "Convert RGB input into grayscale using luminance"
@@ -46850,7 +46828,7 @@ msgstr "Apagat: primer born, engegat: segon born"
 
 
 msgid "Switch View"
-msgstr "Intercanviar vista"
+msgstr "Canviar visionat"
 
 
 msgid "Combine the views (left and right) into a single stereo 3D output"
@@ -47001,36 +46979,40 @@ msgid "Use relative (fraction of input image size) values to define translation"
 msgstr "[Translate]: Usa valors relatius (fracció de la mida de la imatge ingressada) per a definir la translació"
 
 
-msgid "Repeats image on a specific axis"
-msgstr "Repeteix la imatge en un eix específic"
+msgid "Wrapping"
+msgstr "Enclusió"
 
 
-msgid "No repeating"
-msgstr "No repeteix"
+msgid "Wrap image on a specific axis"
+msgstr "[Wrapping]: Enclou la imatge a un eix específic"
+
+
+msgid "No wrapping on X and Y"
+msgstr "No encloure en X ni Y"
 
 
 msgid "X Axis"
 msgstr "Eix X"
 
 
-msgid "Repeats on the X axis"
-msgstr "Repeteix en l'eix X"
+msgid "Wrap all pixels on the X axis"
+msgstr "Encloure tots els píxels a l'eix X"
 
 
 msgid "Y Axis"
 msgstr "Eix Y"
 
 
-msgid "Repeats on the Y axis"
-msgstr "Repeteix en l'eix Y"
+msgid "Wrap all pixels on the Y axis"
+msgstr "Encloure tots els píxels a l'eix Y"
 
 
 msgid "Both Axes"
 msgstr "Tots dos eixos"
 
 
-msgid "Repeats on both axes"
-msgstr "Repeticions en tots dos eixos"
+msgid "Wrap all pixels on both axes"
+msgstr "Encloure tots els píxels a ambdós eixos"
 
 
 msgid "Map values to colors with the use of a gradient"
@@ -48462,6 +48444,10 @@ msgid "Generate a mesh on the \"surface\" of a volume grid"
 msgstr "Generar una malla a la «superfície» d'una cubícula"
 
 
+msgid "Image Info"
+msgstr "Informació d'imatge"
+
+
 msgid "Retrieve information about an image"
 msgstr "Extreu informació sobre una imatge"
 
@@ -48687,14 +48673,6 @@ msgid "Retrieve a unit length vector indicating the direction pointing away from
 msgstr "Extreu un vector d'unitat de longitud que indica l'orientació en direcció contrària a la geometria a cada element"
 
 
-msgid "Flat Corner Normals"
-msgstr "Normals de cantells aplanats"
-
-
-msgid "Always use face normals for the face corner domain, matching old behavior of the node"
-msgstr "Cal emprar sempre normals de cara per al domini de cantells de cara, coincidint amb l'antic comportament del node"
-
-
 msgid "Output a single object"
 msgstr "Egressar un únic objecte"
 
@@ -48836,7 +48814,7 @@ msgstr "Ara es pot accedir a la definició d'enum directament amb el node. Això
 
 
 msgid "Merge by Distance"
-msgstr "Fusió per distància"
+msgstr "Fusiona per distància"
 
 
 msgid "Merge vertices or points within a given distance"
@@ -49225,14 +49203,6 @@ msgstr "Remostrejar corba"
 
 msgid "Generate a poly spline for each input spline"
 msgstr "[Resample Curve]: Genera un poli-spline per a cada spline ingressada"
-
-
-msgid "Keep Last Segment"
-msgstr "Mantenir l'últim segment"
-
-
-msgid "Don't collapse a curves to single points if they are shorter than the given length. The collapsing behavior exists for compatibility reasons."
-msgstr "No concentreu les corbes a punts individuals si són més curtes que la llargada donada. El comportament de concentració existeix per raons de compatibilitat."
 
 
 msgid "How to specify the amount of samples"
@@ -49665,46 +49635,6 @@ msgstr "Guardar graella amb nom"
 
 msgid "Store grid data in a volume geometry with the specified name"
 msgstr "Guarda dades de quadriculat d'una geometria volumètrica amb el nom especificat"
-
-
-msgid "Single precision float"
-msgstr "Coma flotant de precisió única"
-
-
-msgid "Double precision"
-msgstr "Precisió doble"
-
-
-msgid "64-bit integer"
-msgstr "Enter de 64 bits"
-
-
-msgid "No data, boolean mask of active voxels"
-msgstr "Sense dades, màscara booleana de vòxels actius"
-
-
-msgid "3D float vector"
-msgstr "Vector de flotant 3D"
-
-
-msgid "3D double vector"
-msgstr "Vector doble 3D"
-
-
-msgid "3D integer vector"
-msgstr "Vector enter 3D"
-
-
-msgid "Points grid, currently unsupported by volume objects"
-msgstr "Graella de punts, actualment no admesa per objectes de volum"
-
-
-msgid "Unknown"
-msgstr "Desconegut"
-
-
-msgid "Unsupported data type"
-msgstr "Tipus de dades no admès"
 
 
 msgid "Join Strings"
@@ -51109,11 +51039,11 @@ msgstr "Usa les coordenades d'aquest objecte (per a l'egressió de les coordenad
 
 
 msgid "Environment Texture"
-msgstr "Textura entorn"
+msgstr "Textura atmosfera"
 
 
 msgid "Sample an image file as an environment texture. Typically used to light the scene with the background node"
-msgstr "[Environment Texture]: Mostrejar document d'imatge com a textura d'entorn. D'ús típic per il·luminar l'escena amb el node de rerefons"
+msgstr "[Environment Texture]: Mostrejar document d'imatge com a textura ambiental. D'ús típic per il·luminar l'escena amb el node de rerefons"
 
 
 msgid "Texture interpolation"
@@ -51661,27 +51591,27 @@ msgstr "Textura onatge"
 
 
 msgid "Generate procedural bands or rings with noise"
-msgstr "[Wave Texture]: Genera aigües o anelles procedimentals amb soroll"
+msgstr "[Wave Texture]: Genera bandes o anelles procedimentals amb soroll"
 
 
 msgid "Bands Direction"
-msgstr "Direcció de les aigües"
+msgstr "Direcció de les bandes"
 
 
 msgid "Bands across X axis"
-msgstr "Aigües al llarg de l'eix X"
+msgstr "Bandes al llarg de l'eix X"
 
 
 msgid "Bands across Y axis"
-msgstr "Aigües al llarg de l'eix Y"
+msgstr "Bandes al llarg de l'eix Y"
 
 
 msgid "Bands across Z axis"
-msgstr "Aigües al llarg de l'eix Z"
+msgstr "Bandes al llarg de l'eix Z"
 
 
 msgid "Bands across diagonal axis"
-msgstr "Aigües al llarg de l'eix diagonal"
+msgstr "Bandes al llarg de l'eix diagonal"
 
 
 msgid "Rings Direction"
@@ -51733,7 +51663,7 @@ msgstr "Aigües"
 
 
 msgid "Use standard wave texture in bands"
-msgstr "Usa la textura d'ona estàndard amb aigües"
+msgstr "Usa la textura d'ona estàndard amb bandes"
 
 
 msgid "Rings"
@@ -53707,6 +53637,11 @@ msgid "Export glTF 2.0"
 msgstr "Exportar glTF 2.0"
 
 
+msgctxt "Operator"
+msgid "Ext Demo"
+msgstr "Demo d'ext"
+
+
 msgid "Turn off this extension"
 msgstr "Desactivar l'extensió"
 
@@ -53714,6 +53649,15 @@ msgstr "Desactivar l'extensió"
 msgctxt "Operator"
 msgid "Disable extension"
 msgstr "Desactiva l'extensió"
+
+
+msgid "Turn on this extension"
+msgstr "Activar l'extensió"
+
+
+msgctxt "Operator"
+msgid "Enable Extension"
+msgstr "Activar extensió"
 
 
 msgid "Download and install the extension"
@@ -54389,19 +54333,6 @@ msgid "Parent Node Tree"
 msgstr "Arbre de node pare"
 
 
-msgid "Activate a specific compositor viewer node using 1,2,..,9 keys"
-msgstr "Activar un node compositador específic utilitzant les tecles 1,2,..,9"
-
-
-msgctxt "Operator"
-msgid "Fast Preview"
-msgstr "Previsionat exprés"
-
-
-msgid "Create a compositor viewer shortcut for the selected node by pressing ctrl+1,2,..9"
-msgstr "Crear una drecera de visor de compositador per al node especificat tot pitjant ctrol+1,2,..,9"
-
-
 msgctxt "Operator"
 msgid "Add Modifier"
 msgstr "Afegir modificador"
@@ -54714,6 +54645,11 @@ msgstr "Convertir biblioteca antiga de poses"
 msgctxt "Operator"
 msgid "Copy Pose as Asset"
 msgstr "Copiar posa com a recurs"
+
+
+msgctxt "Operator"
+msgid "Create Pose Asset"
+msgstr "Crear recurs de posa"
 
 
 msgctxt "Operator"
@@ -59682,11 +59618,11 @@ msgstr "Vista de Zoom"
 
 
 msgid "Zoom in/out the view"
-msgstr "Aproximar/allunyar la vista"
+msgstr "Acosta/allunya la vista"
 
 
 msgid "Zoom factor, values higher than 1.0 zoom in, lower values zoom out"
-msgstr "Factor d'aproximació, els valors més alts que 1,0 aproximen, els més baixos allunyen"
+msgstr "Factor d'acostament, els valors més alts que 1,0 apropen, els més baixos allunyen"
 
 
 msgid "Use Mouse Position"
@@ -59699,11 +59635,11 @@ msgstr "Permet que s'utilitzi la posició inicial del ratolí"
 
 msgctxt "Operator"
 msgid "Zoom In"
-msgstr "Aproximar"
+msgstr "Acostar"
 
 
 msgid "Zoom in the view"
-msgstr "Aproximar en la vista"
+msgstr "Acosta amb el zoom"
 
 
 msgid "Cursor location in screen coordinates"
@@ -60483,11 +60419,6 @@ msgstr "Font d'aleatorietat"
 
 
 msgctxt "Operator"
-msgid "Separate"
-msgstr "Separar"
-
-
-msgctxt "Operator"
 msgid "Set Select Mode"
 msgstr "Especificar mode de selecció"
 
@@ -61046,6 +60977,11 @@ msgstr "Major"
 
 msgid "Less"
 msgstr "Menor"
+
+
+msgctxt "Operator"
+msgid "Separate"
+msgstr "Separar"
 
 
 msgid "Separate selected points from connected unselected points into a new object"
@@ -62625,22 +62561,6 @@ msgstr "Usar esquelet en posa de repòs"
 
 msgid "Export armatures using rest position as joints' rest pose. When off, current frame pose is used as rest pose"
 msgstr "Exporta esquelets en posa de repòs com a posa de respòs d'articulacions. Si no està activat, la posa del fotograma actual fa de posa de repòs"
-
-
-msgid "Sampling Interpolation Fallback"
-msgstr "Alternativa a la interpolació de mostratge"
-
-
-msgid "Interpolation fallback for sampled animations, when the property is not keyed"
-msgstr "Alternativa d'interpolació per a animacions mostrejades quan la propietat no està fitada"
-
-
-msgid "Linear interpolation between keyframes"
-msgstr "Interpolació lineal entre fotofites"
-
-
-msgid "No interpolation between keyframes"
-msgstr "Sense interpolació entre fotofites"
 
 
 msgid "Shared Accessors"
@@ -65197,15 +65117,6 @@ msgstr "Eliminar traços o punts seleccionats"
 
 
 msgctxt "Operator"
-msgid "Delete Breakdown Frames"
-msgstr "Eliminar fotogrames de partionament"
-
-
-msgid "Remove breakdown frames generated by interpolating between two Grease Pencil frames"
-msgstr "Elimina els fotogrames de partionament gent una interpolació entre dos fotogrames de Llapis de greix"
-
-
-msgctxt "Operator"
 msgid "Delete Frame"
 msgstr "Suprimir fotograma"
 
@@ -65396,7 +65307,7 @@ msgstr "[Exclude Breakdowns]: Exclou les fotofites de partionament existents com
 
 
 msgid "Flip Mode"
-msgstr "Mode capgirar"
+msgstr "Mode inversió"
 
 
 msgid "Invert destination stroke to match start and end with source stroke"
@@ -65951,14 +65862,6 @@ msgid "Add pasted strokes behind all strokes"
 msgstr "[Paste on Back]: Afegir traços enganxats al darrere de tots els traços"
 
 
-msgid "Paste to Active"
-msgstr "Enganxar a actiu"
-
-
-msgid "Paste by Layer"
-msgstr "Enganxar per capa"
-
-
 msgctxt "Operator"
 msgid "Grease Pencil Arc Shape"
 msgstr "Llapis de greix - Forma d'arc"
@@ -66237,14 +66140,6 @@ msgid "Set all stroke points to same opacity"
 msgstr "Posar tots els punts de traç a la mateixa opacitat"
 
 
-msgid "Fill Opacity"
-msgstr "Opacitat d'emplenat"
-
-
-msgid "Stroke Opacity"
-msgstr "Opacitat de traç"
-
-
 msgctxt "Operator"
 msgid "Set Uniform Thickness"
 msgstr "Determinar gruix com a uniforme"
@@ -66304,11 +66199,11 @@ msgstr "Nom del material"
 
 msgctxt "Operator"
 msgid "Merge by Distance"
-msgstr "Fusió per distància"
+msgstr "Fusionar per distància"
 
 
 msgid "Merge points by distance"
-msgstr "[Merge by Distance]: Fusiona punts segons la distància"
+msgstr "[Merge by Distance]: Fusiona punts per distància"
 
 
 msgid "Use whole stroke, not only selected points"
@@ -66732,7 +66627,7 @@ msgstr "Elimina l'objecte fantasma d'imatge després de crear la malla pla"
 
 
 msgid "Emission Strength"
-msgstr "Potència d'emissió"
+msgstr "Intensitat emissió"
 
 
 msgid "Strength of emission"
@@ -66972,7 +66867,7 @@ msgstr "Importa imatges numerades seqüencialment com a seqüència d'imatges an
 
 
 msgid "Offset Planes"
-msgstr "Separar plans"
+msgstr "Desplaçar plans"
 
 
 msgid "Offset planes from each other. If disabled, multiple planes will be created at the same location"
@@ -67082,7 +66977,7 @@ msgstr "Invertir canal vermell"
 
 msgctxt "Operator"
 msgid "Match Movie Length"
-msgstr "Coincidir durada de filmació"
+msgstr "Coincidir longitud de filmació"
 
 
 msgid "Set image's user's length to the one of this video"
@@ -67468,7 +67363,7 @@ msgstr "Vista de zoom"
 
 
 msgid "Zoom in/out the image"
-msgstr "Aproxima/allunya la imatge"
+msgstr "Acosta/allunya la imatge"
 
 
 msgctxt "Operator"
@@ -67477,7 +67372,7 @@ msgstr "Zoom a secció"
 
 
 msgid "Zoom in the view to the nearest item contained in the border"
-msgstr "[Zoom to Border]: Aproxima la vista a l'element més proper contingut dins la secció"
+msgstr "[Zoom to Border]: Acosta la vista a l'element més proper contingut dins la secció"
 
 
 msgid "Zoom Out"
@@ -67485,7 +67380,7 @@ msgstr "Allunyar"
 
 
 msgid "Zoom in the image (centered around 2D cursor)"
-msgstr "Aproxima la imatge (centrat al voltant del cursor 2D)"
+msgstr "Acosta la imatge (centrat al voltant del cursor 2D)"
 
 
 msgid "Zoom out the image (centered around 2D cursor)"
@@ -69657,7 +69552,7 @@ msgstr "Escorre un bucle d'arestes al llarg d'una malla"
 
 msgctxt "Operator"
 msgid "Mark Freestyle Edge"
-msgstr "Marcar aresta com a Freestyle"
+msgstr "Marcar aresta en Freestyle"
 
 
 msgid "(Un)mark selected edges as Freestyle feature edges"
@@ -69666,7 +69561,7 @@ msgstr "(Des)marca les arestes seleccionades com a arestes destacades en Freesty
 
 msgctxt "Operator"
 msgid "Mark Freestyle Face"
-msgstr "Marcar cara com a Freestyle"
+msgstr "Assenyalar cara en Freestyle"
 
 
 msgid "(Un)mark selected faces for exclusion from Freestyle feature edge detection"
@@ -70747,7 +70642,7 @@ msgstr "Aplanat/Suavitzat"
 
 msgctxt "Mesh"
 msgid "Freestyle Face Marks"
-msgstr "Marques de cara de Freestyle"
+msgstr "Senyals de cares en Freestyle"
 
 
 msgctxt "Operator"
@@ -71725,32 +71620,12 @@ msgstr "Afegir un node d'info de col·lecció a l'editor de nodes actual"
 
 
 msgctxt "Operator"
-msgid "Add Color"
-msgstr "Afegir color"
+msgid "Add File Node"
+msgstr "Afegir node document"
 
 
-msgid "Add a color node to the current node editor"
-msgstr "Afegeix un node de color a l'editor de nodes actual"
-
-
-msgid "Source color"
-msgstr "Color d'origen"
-
-
-msgid "Gamma Corrected"
-msgstr "Gamma corregida"
-
-
-msgid "The source color is gamma corrected"
-msgstr "El color d'origen té la gamma corregida"
-
-
-msgid "Has Alpha"
-msgstr "TÉ alfa"
-
-
-msgid "The source color contains an Alpha component"
-msgstr "El color de font conté un component Alfa"
+msgid "Add a file node to the current node editor"
+msgstr "[Add File Node]: Afegir un node de document a l'editor de nodes actual"
 
 
 msgid "Offset of nodes from the cursor when added"
@@ -71873,7 +71748,7 @@ msgstr "Zoom d'imatge de fons"
 
 
 msgid "Zoom in/out the background image"
-msgstr "Aproxima/allunya la imatge de fons"
+msgstr "Acosta/allunya la imatge de fons"
 
 
 msgctxt "Operator"
@@ -73098,14 +72973,6 @@ msgid "Set the boundaries for viewer operations"
 msgstr "Defineix els límits per a les operacions del visor"
 
 
-msgid "Viewer Index"
-msgstr "Índex de visor"
-
-
-msgid "Index corresponding to the shortcut, e.g. number key 1 corresponds to index 1 etc.."
-msgstr "Índex que correspon a la drecera, p. ex. la tecla número 1 correspon a l'índex 1, etc."
-
-
 msgctxt "Operator"
 msgid "Add Object"
 msgstr "Afegir objecte"
@@ -73476,6 +73343,14 @@ msgstr "Tipus d'objecte en què convertir"
 
 msgid "Curve from Mesh or Text objects"
 msgstr "Corba des d'objectes malla o text"
+
+
+msgid "Mesh from Curve, Surface, Metaball, Text, or Point Cloud objects"
+msgstr "Malla des d'objectes Corba, Superfície, Metabola, Text o Núvol de punts"
+
+
+msgid "Point Cloud from Mesh objects"
+msgstr "Núvol de punts des d'objectes malla"
 
 
 msgid "Curves from evaluated curve data"
@@ -77318,7 +77193,7 @@ msgstr "Arrossegar per retirar paternitat en l'Inventari"
 
 msgctxt "Operator"
 msgid "Drop to Set Parent (hold Alt to keep transforms)"
-msgstr "Deposar per Assignar pare (mantenir Alt per conservar les transformacions)"
+msgstr "Deposar per especificar pare (mantenir Alt per conservar les transformacions)"
 
 
 msgid "Drag to parent in Outliner"
@@ -77904,7 +77779,7 @@ msgstr "Selecciona els vèrtexs connectats"
 
 msgctxt "Operator"
 msgid "Select Linked Vertices Pick"
-msgstr "Seleccionar vèrtexs connectats amb cursor"
+msgstr "Seleccionar connectats amb cursor - vèrtexs"
 
 
 msgid "Select linked vertices under the cursor"
@@ -78583,60 +78458,6 @@ msgstr "[Apply Flipped]: Quan s'activa, aplica la posa invertida sobre l'eix X"
 
 
 msgctxt "Operator"
-msgid "Delete Pose Asset"
-msgstr "Eliminar recurs de posa"
-
-
-msgid "Delete the selected Pose Asset"
-msgstr "Deliminar el Recurs de posa seleccionat"
-
-
-msgctxt "Operator"
-msgid "Modify Pose Asset"
-msgstr "Modificar recurs de posa"
-
-
-msgid "Update the selected pose asset in the asset library from the currently selected bones. The mode defines how the asset is updated"
-msgstr "Actualitza el recurs de posa seleccionat en la biblioteca de recursos des dels ossos presentment seleccionats. El mode defineix la manera d'actualitzar el recurs"
-
-
-msgid "Overwrite Mode"
-msgstr "Mode de sobreescriptura"
-
-
-msgid "Specify which parts of the pose asset are overwritten"
-msgstr "Especifica quines parts del recurs de posa se sobreescriuen"
-
-
-msgid "Update existing channels in the pose asset but don't remove or add any channels"
-msgstr "Actualitza els canals existents al recurs de posa però no elimina ni afegeix cap canal"
-
-
-msgid "Replace with Selection"
-msgstr "Substituir per selecció"
-
-
-msgid "Completely replace all channels in the pose asset with the current selection"
-msgstr "Substitueix completament tots els canals del recurs de amb els de la selecció present"
-
-
-msgid "Add Selected Bones"
-msgstr "Afegir ossos seleccionats"
-
-
-msgid "Add channels of the selection to the pose asset. Existing channels will be updated"
-msgstr "Afegeix canals de la selecció al recurs de posa. S'actualitzaran els canals ja existents"
-
-
-msgid "Remove Selected Bones"
-msgstr "Suprimir ossos seleccionats"
-
-
-msgid "Remove channels of the selection from the pose asset"
-msgstr "Suprimeix els canals de la selecció des del recurs de posa"
-
-
-msgctxt "Operator"
 msgid "Blend Pose Asset"
 msgstr "Fusionar recurs de posa"
 
@@ -78657,33 +78478,16 @@ msgid "Create a new pose asset on the clipboard, to be pasted into an Asset Brow
 msgstr "[Copy Pose as Asset]: Crea un nou recurs de posa al porta-retalls, per enganxar-lo en el navegador de recursos"
 
 
-msgctxt "Operator"
-msgid "Create Pose Asset..."
-msgstr "Crear recurs de posa..."
-
-
-msgid "Create a new asset from the selected bones in the scene"
-msgstr "Crea un nou recurs a partir dels ossos seleccionats de l'escena"
+msgid "Create a new Action that contains the pose of the selected bones, and mark it as Asset. The asset will be stored in the current blend file"
+msgstr "[Create Pose Asset]: Crea una nova Acció que conté la posa dels ossos seleccionats, i la marca com a recurs. El recurs s'emmagatzemarà al document blend actual"
 
 
 msgid "Activate New Action"
 msgstr "Activar nova acció"
 
 
-msgid "This property is deprecated and will be removed in the future"
-msgstr "Aquesta propietat és obsoleta i s'eliminarà en el futur"
-
-
-msgid "Asset library used to store the new pose"
-msgstr "la biblioteca de recursos emprada per emmagatzemar la nova posa"
-
-
 msgid "Pose Name"
 msgstr "Nom de posa"
-
-
-msgid "Name for the new pose asset"
-msgstr "Nom per al nou recurs posa"
 
 
 msgid "Paste the Asset that was previously copied using Copy As Asset"
@@ -78720,7 +78524,7 @@ msgstr "Travat d'eix"
 
 
 msgid "Transform axis to restrict effects to"
-msgstr "[Axis Lock]: Eix de transformació a què es restringiran els efectes"
+msgstr "[Axis Lock]: Transforma l'eix a què es restringiran els efectes"
 
 
 msgid "All axes are affected"
@@ -82068,6 +81872,15 @@ msgstr "Tipus de segment efecte multiplicar"
 
 
 msgctxt "Sequence"
+msgid "Alpha Over Drop"
+msgstr "Alfa per sobre descendent"
+
+
+msgid "Alpha Over Drop effect strip type"
+msgstr "[Alpha Over Drop]: Tipus de segment amb efecte alfa per sobre descendent"
+
+
+msgctxt "Sequence"
 msgid "Wipe"
 msgstr "Fregar"
 
@@ -82911,7 +82724,7 @@ msgstr "Seleccionar tots els segments adjacents a la selecció actual"
 
 msgctxt "Operator"
 msgid "Select Pick Linked"
-msgstr "Seleccionó de connectats amb cursor"
+msgstr "Seleccionar de connectats amb cursor"
 
 
 msgid "Select a chain of linked strips nearest to the mouse pointer"
@@ -84638,6 +84451,18 @@ msgid "Drop colors to buttons"
 msgstr "Deixa caure els colors damunt els botons"
 
 
+msgid "Source color"
+msgstr "Color d'origen"
+
+
+msgid "Gamma Corrected"
+msgstr "Gamma corregida"
+
+
+msgid "The source color is gamma corrected"
+msgstr "El color d'origen té la gamma corregida"
+
+
 msgctxt "Operator"
 msgid "Drop Material in Material slots"
 msgstr "Deposar material en epígrafs de materials"
@@ -85298,6 +85123,10 @@ msgid "Exports UVs from the modified mesh"
 msgstr "Exporta UVs des de la malla modificada"
 
 
+msgid "Fill Opacity"
+msgstr "Opacitat d'emplenat"
+
+
 msgid "Set amount of opacity for exported UV layout"
 msgstr "Especificar la quantitat d'opacitat per a la disposició UV exportada"
 
@@ -85637,7 +85466,7 @@ msgstr "Fusionar UVs segons distància"
 
 
 msgid "Selected UV vertices that are within a radius of each other are welded together"
-msgstr "[Merge UVs by Distance]: Se'ls solden junts els vèrtexs UV seleccionats que estan dins d'un radi l'un de l'altre"
+msgstr "[Merge UVs by Distance]: Als vèrtexs UV seleccionats que estan dins d'un radi l'un de l'altre se'ls solda junts"
 
 
 msgid "Maximum distance between welded vertices"
@@ -86978,11 +86807,11 @@ msgstr "Camina interactivament per l'escena"
 
 
 msgid "Zoom in/out in the view"
-msgstr "Aproxima/allunya la vista"
+msgstr "Acostar/allunyar la vista"
 
 
 msgid "Zoom in the view to the nearest object contained in the border"
-msgstr "Aproxima la vista a l'objecte més proper contingut dins la secció"
+msgstr "Acosta la vista a l'objecte més proper contingut dins la secció"
 
 
 msgctxt "Operator"
@@ -87328,11 +87157,6 @@ msgstr "Esquelets"
 msgctxt "ID"
 msgid "Lattices"
 msgstr "Retícules"
-
-
-msgctxt "ID"
-msgid "Lights"
-msgstr "Llums"
 
 
 msgctxt "ID"
@@ -88166,6 +87990,10 @@ msgid "Export Normals"
 msgstr "Exportar normals"
 
 
+msgid "Export per-face normals if the face is flat-shaded, per-face-per-loop normals if smooth-shaded"
+msgstr "Exporta normals per-cara si la cara és aplanada, per-cara-per-bucle si és suavitzada"
+
+
 msgid "Export Object Groups"
 msgstr "Exportar grups d'objectes"
 
@@ -88192,6 +88020,10 @@ msgstr "Exporta només els objectes seleccionats en lloc de tots els objectes co
 
 msgid "Export Smooth Groups"
 msgstr "Exportar grups suavitzats"
+
+
+msgid "Every smooth-shaded face is assigned group \"1\" and every flat-shaded face \"off\""
+msgstr "A cada cara d'aspecció suavitzada se li assigna el grup «1» i a cada cara d'aplanada «off»"
 
 
 msgid "Export Triangulated Mesh"
@@ -88248,6 +88080,10 @@ msgstr "Escriure sols nom de document"
 
 msgid "Copy the file to the destination path"
 msgstr "Copiar document al ruta de destinació"
+
+
+msgid "Generate Bitflags for Smooth Groups"
+msgstr "Generar semàfors per a grups suavitzats"
 
 
 msgid "The first frame to be exported"
@@ -88428,7 +88264,7 @@ msgstr "Importar els atributs de vèrtex personalitzats"
 
 
 msgid "Merges vertices by distance"
-msgstr "Fusiona vèrtexs segons la distància"
+msgstr "Fusionar vèrtexs per distància"
 
 
 msgid "Save Backups"
@@ -89089,7 +88925,7 @@ msgstr "[Interlace]: Revela la visió dels ulls esquerre i dret entrellaçada en
 
 
 msgid "Time Sequential"
-msgstr "Seqüencial temporal"
+msgstr "Seqüencial de temps"
 
 
 msgid "Render alternate eyes (also known as page flip, quad buffer support in the graphic card is required)"
@@ -89341,8 +89177,8 @@ msgid "Specify a custom scene meters per unit value"
 msgstr "Especifica un valor d'escena personalitzat en metres per unitat"
 
 
-msgid "World Dome Light"
-msgstr "Llum de cúpula del món"
+msgid "Convert World Material"
+msgstr "Convertir material món"
 
 
 msgid "Convert the world material to a USD dome light. Currently works for simple materials, consisting of an environment texture connected to a background shader, with an optional vector multiply of the texture color"
@@ -89696,6 +89532,10 @@ msgstr "Crear col·lecció"
 
 msgid "Add all imported objects to a new collection"
 msgstr "Afegir tots els objectes importats a una nova col·lecció"
+
+
+msgid "Create World Material"
+msgstr "Crear material del món"
 
 
 msgid "Convert the first discovered USD dome light to a world background shader"
@@ -90505,28 +90345,12 @@ msgid "Image used as canvas"
 msgstr "Imatge usada com a llenç"
 
 
-msgid "Clone Alpha"
-msgstr "Alfa de clon"
-
-
-msgid "Opacity of clone image display"
-msgstr "[Clone Alpha]: Opacitat de la imatge clonada"
-
-
-msgid "Clone Image"
-msgstr "Imatge per clonar"
-
-
 msgid "Image used as clone source"
 msgstr "Imatge usada com a font de clonació"
 
 
-msgid "Clone Offset"
-msgstr "Desplaçament de clon"
-
-
 msgid "Dither"
-msgstr "Tramat"
+msgstr "Fluctuació"
 
 
 msgid "Amount of dithering when painting on byte images"
@@ -90817,6 +90641,19 @@ msgid "Use only deformation modifiers (temporary disable all constructive modifi
 msgstr "Utilitza només modificadors de deformació (desactiva temporalment tots els modificadors constructius excepte el multiresolució)"
 
 
+msgid "UV Sculpting"
+msgstr "Esculpir UVs"
+
+
+msgctxt "Curve"
+msgid "Strength Curve Preset"
+msgstr "Predefinit de corba de força"
+
+
+msgid "Strength Curve"
+msgstr "Corba de força"
+
+
 msgid "Properties of vertex and weight paint mode"
 msgstr "Propietats del mode pintat de vèrtexs i pesos"
 
@@ -90861,50 +90698,6 @@ msgid "Panel containing UI elements"
 msgstr "Plafó que conté elements de la IU"
 
 
-msgid "Auto-Masking"
-msgstr "Auto-màscara"
-
-
-msgid "Curves Sculpt Add Curve Options"
-msgstr "Afegir opcions de corbes a l'escultura amb corba"
-
-
-msgid "Curves Sculpt Parameter Falloff"
-msgstr "Paràmetre de decaïment d'escultura amb corba"
-
-
-msgid "Curves Grow/Shrink Scaling"
-msgstr "Expandir/encongir escala de corbes"
-
-
-msgid "Viewport Debug"
-msgstr "Depuració de mirador"
-
-
-msgid "VR"
-msgstr "RV"
-
-
-msgid "VR Info"
-msgstr "Info RV"
-
-
-msgid "glTF Variants"
-msgstr "Variants glTF"
-
-
-msgid "glTF Material Variants"
-msgstr "Variants de material gITF"
-
-
-msgid "glTF"
-msgstr "glTF"
-
-
-msgid "glTF Animations"
-msgstr "Animacions glTF"
-
-
 msgid "Active Tool"
 msgstr "Eina activa"
 
@@ -90927,10 +90720,6 @@ msgstr "Paràmetres d'ombra"
 
 msgid "SSAO Settings"
 msgstr "Paràmetres de SSAO"
-
-
-msgid "Cavity"
-msgstr "Cavitat"
 
 
 msgid "Render Pass"
@@ -91007,6 +90796,50 @@ msgstr "Estereoscòpia"
 
 msgid "Multi Frame"
 msgstr "Multifotograma"
+
+
+msgid "glTF Variants"
+msgstr "Variants glTF"
+
+
+msgid "glTF Material Variants"
+msgstr "Variants de material gITF"
+
+
+msgid "Auto-Masking"
+msgstr "Auto-màscara"
+
+
+msgid "Curves Sculpt Add Curve Options"
+msgstr "Afegir opcions de corbes a l'escultura amb corba"
+
+
+msgid "Curves Sculpt Parameter Falloff"
+msgstr "Paràmetre de decaïment d'escultura amb corba"
+
+
+msgid "Curves Grow/Shrink Scaling"
+msgstr "Expandir/encongir escala de corbes"
+
+
+msgid "Viewport Debug"
+msgstr "Depuració de mirador"
+
+
+msgid "glTF"
+msgstr "glTF"
+
+
+msgid "glTF Animations"
+msgstr "Animacions glTF"
+
+
+msgid "VR"
+msgstr "RV"
+
+
+msgid "VR Info"
+msgstr "Info RV"
 
 
 msgid "Chain Scaling"
@@ -91146,6 +90979,10 @@ msgid "Cloth Presets"
 msgstr "Predefinits de tela"
 
 
+msgid "Restrictions"
+msgstr "Restriccions"
+
+
 msgid "Exporters"
 msgstr "Exportadors"
 
@@ -91271,7 +91108,7 @@ msgstr "Guies de compositació"
 
 
 msgid "Center-Cut Safe Areas"
-msgstr "Marges de seguretat d'àrea central"
+msgstr "Àrees segures al centre"
 
 
 msgid "Texture Space"
@@ -91337,6 +91174,10 @@ msgstr "Quadres de text"
 
 msgid "OpenVDB File"
 msgstr "Document OpenVDB"
+
+
+msgid "Slot"
+msgstr "Born"
 
 
 msgid "Create Pose Asset"
@@ -92823,7 +92664,7 @@ msgstr "Intensitat de pinzell"
 
 
 msgid "Puff Volume"
-msgstr "Voluminat del pèl"
+msgstr "Volum de pèl"
 
 
 msgid "Apply puff to unselected end-points (helps maintain hair volume when puffing root)"
@@ -94524,6 +94365,14 @@ msgid "Enable additional features for the new curves data block"
 msgstr "Activar característiques addicionals per al bloc de dades de corbes noves"
 
 
+msgid "New File Import Nodes"
+msgstr "Nous nodes d'importació de documents"
+
+
+msgid "Enables visibility of the new File Import nodes in the UI"
+msgstr "Habilita la visibilitat dels nous nodes d'Importació de documents a la IU"
+
+
 msgid "New Point Cloud Type"
 msgstr "Tipus nou de núvol de punts"
 
@@ -95002,18 +94851,6 @@ msgid "Keep horizon level while flying with 3D Mouse"
 msgstr "Manté el nivell de l'horitzó mentre es vola amb el ratolí 3D"
 
 
-msgid "Auto sets the orbit center dynamically. When the complete model is in view, the center of volume of the whole model is used as the rotation point. When you move closer, the orbit center will be set on an object close to your center of the view."
-msgstr "Auto determina el centre de l'òrbita dinàmicament. Quan el model complet està a la vista, el centre de volum de tot el model s'utilitza com a punt de rotació. Quan us hi acosteu, el centre de l'òrbita s'assignarà a un objecte proper al vostre centre de visió."
-
-
-msgid "Use Selected Items"
-msgstr "Usar elements seleccionats"
-
-
-msgid "Use selected item forces the orbit center to only take the currently selected objects into account."
-msgstr "L'ús de l'element seleccionat força el centre d'òrbita a tenir en compte només els objectes seleccionats actualment."
-
-
 msgid "Orbit Sensitivity"
 msgstr "Sensibilitat d'òrbita"
 
@@ -95058,20 +94895,12 @@ msgid "Overall sensitivity of the 3D Mouse for panning"
 msgstr "Sensibilitat general del ratolí 3D per a l'escombratge"
 
 
-msgid "Show Orbit Axis Guide"
-msgstr "Mostrar guia de l'eix de l'òrbita"
+msgid "Show Navigation Guide"
+msgstr "Mostrar guia de navegació"
 
 
 msgid "Display the center and axis during rotation"
 msgstr "Mostra el centre i l'eix durant la rotació"
-
-
-msgid "Show Orbit Center Guide"
-msgstr "Mostrar guia del centre de l'òrbita"
-
-
-msgid "Display the orbit center during rotation"
-msgstr "Mostra el centre de l'òrbita durant la rotació"
 
 
 msgid "NDOF View Navigate"
@@ -95263,7 +95092,7 @@ msgstr "Fer zoom fins al ratolí"
 
 
 msgid "Zoom in towards the mouse pointer's position in the 3D view, rather than the 2D window center"
-msgstr "Aproxima la vista 3D anant vers el punter del ratolí, preferentment que al centre de la finestra 2D"
+msgstr "Amplia la vista 3D anant vers el punter del ratolí, preferentment que al centre de la finestra 2D"
 
 
 msgid "Orbit Method"
@@ -95295,15 +95124,15 @@ msgstr "Eix de zoom"
 
 
 msgid "Axis of mouse movement to zoom in or out on"
-msgstr "[Zoom Axis]: Eix del moviment del ratolí per a aproximar o allunyar"
+msgstr "[Zoom Axis]: Eix del moviment del ratolí per a apropar o allunyar"
 
 
 msgid "Zoom in and out based on vertical mouse movement"
-msgstr "Aproximar-se i allunyar-se en funció del moviment vertical del ratolí"
+msgstr "Apropar-se i allunyar-se en funció del moviment vertical del ratolí"
 
 
 msgid "Zoom in and out based on horizontal mouse movement"
-msgstr "Aproximar-se i allunyar-se en funció del moviment horitzontal del ratolí"
+msgstr "Apropar-se i allunyar-se en funció del moviment horitzontal del ratolí"
 
 
 msgid "Zoom Style"
@@ -95327,11 +95156,11 @@ msgstr "Dolly"
 
 
 msgid "Zoom in and out based on mouse movement along the set Zoom Axis"
-msgstr "Aproximar-se i allunyar.se en funció del moviment del ratolí al llarg de l'eix de zoom especificat"
+msgstr "Apropar-se i allunyar.se en funció del moviment del ratolí al llarg de l'eix de zoom especificat"
 
 
 msgid "Zoom in and out as if you are scaling the view, mouse movements relative to center"
-msgstr "S'aproxima i allunya com si estiguessis escalant la vista, els moviments del ratolí van en relació amb el centre"
+msgstr "S'apropa i allunya com si estiguessis escalant la vista, els moviments del ratolí van en relació amb el centre"
 
 
 msgid "Walk Navigation"
@@ -96268,6 +96097,10 @@ msgstr "Utilitza una disposició de columna per a la caixa d'eines"
 
 msgid "Developer Extras"
 msgstr "Extres per a desenvolupadors"
+
+
+msgid "Show options for developers (edit source in context menu, geometry indices)"
+msgstr "Mostra les opcions per als desenvolupadors (editar codi font al menú contextual, índexs de geometria)"
 
 
 msgid "Show Extensions Update Count"
@@ -97478,7 +97311,7 @@ msgstr "[Motion Steps]: Controla la precisió de la borra de moviment, més pass
 
 
 msgid "Shadow Terminator Geometry Offset"
-msgstr "Desviació geomètrica de l'Anul·lador d'ombres"
+msgstr "Desviació anul·ladora d'ombres de geometria"
 
 
 msgid "Offset rays from the surface to reduce shadow terminator artifact on low poly geometry. Only affects triangles at grazing angles to light"
@@ -97622,7 +97455,7 @@ msgstr "[Bake Type]: Tipus de passada a precuinar"
 
 
 msgid "Filter Glossy"
-msgstr "Filtrar reflexos"
+msgstr "Filtrar setinats"
 
 
 msgid "Adaptively blur glossy shaders after blurry bounces, to reduce noise at the cost of accuracy"
@@ -97778,7 +97611,7 @@ msgstr "Albedo i normal"
 
 
 msgid "Use albedo and normal passes for denoising"
-msgstr "Usar passades d'albedo i de normals per a dessorollar"
+msgstr "Usar passades albedo i normals per a dessorollar"
 
 
 msgid "Denoising Prefilter"
@@ -97786,7 +97619,7 @@ msgstr "Prefiltre de dessorollar"
 
 
 msgid "Prefilter noisy guiding (albedo and normal) passes to improve denoising quality when using OpenImageDenoise"
-msgstr "Prefiltra de passades guia (d'albedo i normal) sorolloses per millorar la qualitat del dessorollat del OpenImageDenoiser"
+msgstr "Prefiltra de passades guia (albedo i normal) sorolloses per millorar la qualitat del dessorollat del OpenImageDenoiser"
 
 
 msgid "Denoise color and guiding passes together. Improves quality when guiding passes are noisy using least amount of extra processing time"
@@ -98362,7 +98195,7 @@ msgstr "Revela imatges d'alta resolució en les tessel·les per a reduir l'ús d
 
 
 msgid "Allow objects to be culled based on the camera frustum"
-msgstr "Permetre que s'esporguin objectes en base al frustum de la càmera"
+msgstr "Permetre que s'esporguin objectes en base al tronc de la càmera"
 
 
 msgid "Deterministic"
@@ -98618,7 +98451,7 @@ msgstr "Mostrar la passada de revelat de la boira"
 
 
 msgid "Denoising Albedo"
-msgstr "Dessorollat d'albedo"
+msgstr "Dessorollar amb Albedo"
 
 
 msgid "Albedo pass used by denoiser"
@@ -98626,7 +98459,7 @@ msgstr "Passada d'albedo utilitzada per a dessorollar"
 
 
 msgid "Denoising Normal"
-msgstr "Dessorollat de normal"
+msgstr "Normal dessorolladora"
 
 
 msgid "Normal pass used by denoiser"
@@ -100379,11 +100212,11 @@ msgstr "Precisió plena"
 
 
 msgid "Dither Intensity"
-msgstr "Intensitat de tramat"
+msgstr "Intensitat de variació"
 
 
 msgid "Amount of dithering noise added to the rendered image to break up banding"
-msgstr "Quantitat de soroll de fluctuació afegit a la imatge revelada per trencar l'efecte faixa"
+msgstr "Quantitat de soroll de variació afegit a la imatge revelada per trencar l'efecte faixa"
 
 
 msgid "Engine"
@@ -100690,7 +100523,7 @@ msgstr "Mostrar efectes d'aspector"
 
 
 msgid "Layers Tinting"
-msgstr "Tenyit de capes"
+msgstr "Capes de tenyit"
 
 
 msgid "Display layer tint"
@@ -101110,7 +100943,7 @@ msgstr "Fita mapejada a un fotograma concret que es pot moure per canviar la vel
 
 
 msgid "Position of retiming key in timeline"
-msgstr "Posició de la fita de retemporització dins el cronograma"
+msgstr "Posició de la fitade retemporització dins el cronograma"
 
 
 msgid "Collection of RetimingKey"
@@ -102596,16 +102429,8 @@ msgid "Retiming Key Selection Status"
 msgstr "Estatus de selecció de la fita de retemporització"
 
 
-msgid "(Deprecated: Replaced by '.strips') Top-level strips only"
-msgstr "(Obsolet: substituït per '.strips') Sols per a segments de nivell màxim"
-
-
 msgid "All Strips"
 msgstr "Tots els segments"
-
-
-msgid "(Deprecated: Replaced by '.strips_all') All strips, recursively including those inside metastrips"
-msgstr "(Obsolet: substituït per '.strips') Tots els segments incloent-hi recursivament els que estan dins de metasegments"
 
 
 msgid "Show Missing Media"
@@ -102753,7 +102578,7 @@ msgstr "[Show Metadata]: Mostra les metadades del primer segment visible"
 
 
 msgid "Show TV title safe and action safe areas in preview"
-msgstr "Mostra en el previsionat els marges de títol segur i d'acció segura en TV"
+msgstr "Mostra en la vista prèvia les àrees segures del títol i l'acció de TV"
 
 
 msgid "Timeline Overlay Settings"
@@ -103562,7 +103387,7 @@ msgstr "Deformació permanent"
 
 
 msgid "Pull"
-msgstr "Estirar"
+msgstr "Resistència"
 
 
 msgid "Edge spring stiffness when longer than rest length"
@@ -104406,7 +104231,7 @@ msgstr "[Show Handles]: Mostra les nanses dels punts de control bezier"
 
 
 msgid "Auto-Lock Key Axis"
-msgstr "Autotravar eix de fotofites"
+msgstr "Autoblocar eix de fotofites"
 
 
 msgid "Automatically locks the movement of keyframes to the dominant axis"
@@ -105447,7 +105272,7 @@ msgstr "Usar simulacions"
 
 
 msgid "Use optimized files for faster scrubbing when available"
-msgstr "[Use Proxies]: Usa documents optimitzats per poder refregar amb més desimboltura quan es pugui"
+msgstr "[Use Proxies]: Usa documents optimitzats per poder toquerejar més ràpidament quan es pugui"
 
 
 msgid "Zoom to Fit"
@@ -106023,7 +105848,7 @@ msgstr "Mostra el pla de convergència estèreo 3D"
 
 
 msgid "Show the stereo 3D frustum volume"
-msgstr "Mostrar el volum del frustum 3D estèreo"
+msgstr "Mostrar el volum del tronc 3D estèreo"
 
 
 msgid "Show Viewer"
@@ -106067,7 +105892,7 @@ msgstr "Alfa del volum"
 
 
 msgid "Opacity (alpha) of the cameras' frustum volume"
-msgstr "[Volume Alpha]: Opacitat (alfa) del frustum de les càmeres"
+msgstr "[Volume Alpha]: Opacitat (alfa) del volum del tronc de les càmeres"
 
 
 msgid "Tracks Size"
@@ -106656,6 +106481,10 @@ msgid "Gamma Cross"
 msgstr "Transició gamma"
 
 
+msgid "Over Drop"
+msgstr "Per sobre descendent"
+
+
 msgid "Y position of the sequence strip"
 msgstr "[Over Drop]: Posició Y del segment de la seqüència"
 
@@ -106753,11 +106582,6 @@ msgstr "Pel·lícula"
 
 
 msgctxt "Sequence"
-msgid "Clip"
-msgstr "Clip"
-
-
-msgctxt "Sequence"
 msgid "Mask"
 msgstr "Màscara"
 
@@ -106770,6 +106594,11 @@ msgstr "So"
 msgctxt "Sequence"
 msgid "Cross"
 msgstr "Transició"
+
+
+msgctxt "Sequence"
+msgid "Over Drop"
+msgstr "Per sobre descendent"
 
 
 msgid "Use Default Fade"
@@ -107010,6 +106839,10 @@ msgstr "Canal d'origen multicàmera"
 
 msgid "Multiply Strip"
 msgstr "Segment multiplicador"
+
+
+msgid "Over Drop Strip"
+msgstr "Segment per sobre descendent"
 
 
 msgid "SpeedControl Strip"
@@ -107338,10 +107171,6 @@ msgstr "Metasegment"
 
 msgid "Sequence strip to group other strips as a single sequence strip"
 msgstr "[Meta Sequence]: Segment de seqüència que agrupa altres segments com un de sol"
-
-
-msgid "(Deprecated: Replaced by '.strips') Strips nested in meta strip"
-msgstr "(Obsolet: substituït per '.strips') Segments aniuats dins metasegments"
 
 
 msgid "Strips nested in meta strip"
@@ -108618,7 +108447,7 @@ msgstr "Línia de marcador seleccionada"
 
 
 msgid "Scrubbing/Markers Region"
-msgstr "Regió de refregar/marcadors"
+msgstr "Regió de toquerejar/marcadors"
 
 
 msgid "Theme Collection Color"
@@ -109125,12 +108954,28 @@ msgid "Foreground color of Debug icon"
 msgstr "Color del primer pla de la icona de depuració"
 
 
+msgid "Error Icon Background"
+msgstr "Fons de la icona d'error"
+
+
+msgid "Background color of Error icon"
+msgstr "Color de fons de la icona d'error"
+
+
 msgid "Error Icon Foreground"
 msgstr "Frontal d'icona d'error"
 
 
 msgid "Foreground color of Error icon"
 msgstr "Color del primer pla de la icona d'error"
+
+
+msgid "Info Icon Background"
+msgstr "Fons d'icona d'info"
+
+
+msgid "Background color of Info icon"
+msgstr "Color de fons de la icona d'informació"
 
 
 msgid "Info Icon Foreground"
@@ -109187,6 +109032,14 @@ msgstr "Color de text de línia seleccionada"
 
 msgid "Text color of selected line"
 msgstr "Color del text de la línia seleccionada"
+
+
+msgid "Warning Icon Background"
+msgstr "Fons d'icona d'avís"
+
+
+msgid "Background color of Warning icon"
+msgstr "Color de fons de la icona d'avís"
 
 
 msgid "Warning Icon Foreground"
@@ -111496,19 +111349,6 @@ msgid "Enable this light in solid shading mode"
 msgstr "Activa aquesta llum en mode d'aspecció sòlida"
 
 
-msgid "UV Sculpting"
-msgstr "Esculpir UVs"
-
-
-msgctxt "Curve"
-msgid "Strength Curve Preset"
-msgstr "Predefinit de corba de força"
-
-
-msgid "Strength Curve"
-msgstr "Corba de força"
-
-
 msgid "Group of vertices, used for armature deform and other purposes"
 msgstr "Grup de vèrtexs, utilitzat per a la deformació d'esquelet i d'altres propòsits"
 
@@ -111878,11 +111718,11 @@ msgstr "Mostra les marques d'aresta Freestyle, usades amb el revelador de Freest
 
 
 msgid "Display Freestyle Face Marks"
-msgstr "Mostrar marques de cara de Freestyle"
+msgstr "Mostrar senyals de cara en Freestyle"
 
 
 msgid "Display Freestyle face marks, used with the Freestyle renderer"
-msgstr "Mostrar marques cara de Freestyle, usades en el revelat del Freestyle"
+msgstr "Mostrar senyals de cara en Freestyle, usades en el revelat del Freestyle"
 
 
 msgid "Light Colors"
@@ -112487,6 +112327,10 @@ msgid "Darkness of shadows"
 msgstr "Foscor de les ombres"
 
 
+msgid "Cavity"
+msgstr "Cavitat"
+
+
 msgid "Show Cavity"
 msgstr "Mostrar cavitat"
 
@@ -112942,9 +112786,17 @@ msgid "Float"
 msgstr "Coma flotant"
 
 
+msgid "Single precision float"
+msgstr "Coma flotant de precisió única"
+
+
 msgctxt "Volume"
 msgid "Double"
 msgstr "Doble"
+
+
+msgid "Double precision"
+msgstr "Precisió doble"
 
 
 msgctxt "Volume"
@@ -112957,9 +112809,17 @@ msgid "Integer 64-bit"
 msgstr "Enter de 64 bits"
 
 
+msgid "64-bit integer"
+msgstr "Enter de 64 bits"
+
+
 msgctxt "Volume"
 msgid "Mask"
 msgstr "Màscara"
+
+
+msgid "No data, boolean mask of active voxels"
+msgstr "Sense dades, màscara booleana de vòxels actius"
 
 
 msgctxt "Volume"
@@ -112967,9 +112827,17 @@ msgid "Float Vector"
 msgstr "Vector de flotant"
 
 
+msgid "3D float vector"
+msgstr "Vector de flotant 3D"
+
+
 msgctxt "Volume"
 msgid "Double Vector"
 msgstr "Vector doble"
+
+
+msgid "3D double vector"
+msgstr "Vector doble 3D"
 
 
 msgctxt "Volume"
@@ -112977,14 +112845,26 @@ msgid "Integer Vector"
 msgstr "Vector enter"
 
 
+msgid "3D integer vector"
+msgstr "Vector enter 3D"
+
+
 msgctxt "Volume"
 msgid "Points (Unsupported)"
 msgstr "Punts (sense suport)"
 
 
+msgid "Points grid, currently unsupported by volume objects"
+msgstr "Graella de punts, actualment no admesa per objectes de volum"
+
+
 msgctxt "Volume"
 msgid "Unknown"
 msgstr "Desconegut"
+
+
+msgid "Unsupported data type"
+msgstr "Tipus de dades no admès"
 
 
 msgid "Is Loaded"
@@ -115156,16 +115036,6 @@ msgstr "Decrementar subdivisió"
 
 
 msgctxt "WindowManager"
-msgid "Change Radius"
-msgstr "Canviar radi"
-
-
-msgctxt "WindowManager"
-msgid "Change Opacity"
-msgstr "Canviar opacitat"
-
-
-msgctxt "WindowManager"
 msgid "Knife Tool Modal Map"
 msgstr "Mapa modal d'eina ganivet"
 
@@ -116738,56 +116608,6 @@ msgid "Collide Extensions"
 msgstr "Col·lidir extensions"
 
 
-msgctxt "WindowManager"
-msgid "Generic Gizmo"
-msgstr "Flòstic genèric"
-
-
-msgctxt "WindowManager"
-msgid "Generic Gizmo Drag"
-msgstr "Arrossegament de flòstic genèric"
-
-
-msgctxt "WindowManager"
-msgid "Generic Gizmo Click Drag"
-msgstr "Clicar i arrossegar amb flòstic genèric"
-
-
-msgctxt "WindowManager"
-msgid "Generic Gizmo Maybe Drag"
-msgstr "Possible arrossegament de flòstic genèric"
-
-
-msgctxt "WindowManager"
-msgid "Generic Gizmo Select"
-msgstr "Selecció de flòstic genèric"
-
-
-msgctxt "WindowManager"
-msgid "Generic Gizmo Tweak Modal Map"
-msgstr "Mapa modal de retoc amb flòstic genèric"
-
-
-msgctxt "WindowManager"
-msgid "Enable Precision"
-msgstr "Habilitar precisió"
-
-
-msgctxt "WindowManager"
-msgid "Disable Precision"
-msgstr "Deshabilitar precisió"
-
-
-msgctxt "WindowManager"
-msgid "Enable Snap"
-msgstr "Habilitar acoblament"
-
-
-msgctxt "WindowManager"
-msgid "Disable Snap"
-msgstr "Deshabilitar acoblament"
-
-
 msgid "Checking for Extension Updates"
 msgstr "Comprovant si hi ha actualitzacions d'extensions"
 
@@ -116879,6 +116699,10 @@ msgstr "Repositori(s) blocat(s) {:d}"
 
 msgid "Unlocked {:d} repos(s)"
 msgstr "Repositori(s) desblocat(s) {:d}"
+
+
+msgid "Extension needs to be installed before it can be enabled"
+msgstr "L'extensió cal instal·lar-la abans d'habilitar-la"
 
 
 msgid "Active repository is disabled"
@@ -117154,7 +116978,7 @@ msgstr "No hi ha etiquetes visibles."
 
 msgctxt "Operator"
 msgid "Report a Bug"
-msgstr "Informar d'incidència"
+msgstr "Informar de pífia"
 
 
 msgid "Blender's extension repository must be enabled to install extensions!"
@@ -117283,10 +117107,6 @@ msgid "Work Relative to some Object"
 msgstr "Treball relatiu a algun objecte"
 
 
-msgid "No 'Relative To' object found, set one explicitly or make sure there is an active object"
-msgstr "No s'ha trobat objecte 'Relatiu a', cal definir-ne un d'explícit per assegurar que hi ha un objecte actiu"
-
-
 msgid "Select an object or pose bone"
 msgstr "Seleccionar un objecte o os de posa"
 
@@ -117413,12 +117233,8 @@ msgid "Requires AMD GPU with RDNA architecture"
 msgstr "Requereix GPU AMD amb arquitectura RDNA"
 
 
-msgid "and AMD Adrenalin driver %s or newer"
-msgstr "I el controlador Adrenalin %s d'AMD o més recent"
-
-
-msgid "or AMD Radeon Pro %s driver or newer"
-msgstr "o el controlador Radeon Pro %s d'AMD o més recent"
+msgid "and AMD Radeon Pro %s driver or newer"
+msgstr "i el controlador %s de l'AMD Radeon Pro o més recent"
 
 
 msgid "Requires Intel GPU with Xe-HPG architecture"
@@ -117534,7 +117350,7 @@ msgstr "Desplaçament d'aspecció"
 
 
 msgid "Show In"
-msgstr "Mostrar dins"
+msgstr "Mostrar en"
 
 
 msgid "Viewports"
@@ -117908,10 +117724,6 @@ msgid "No glTF Animation"
 msgstr "Sense animació glTF"
 
 
-msgid "Please disable/enable 'action filter' to refresh the list"
-msgstr "Sisplau deshabiliteu/habiliteu 'filtre d'acció' per a refrescar la llista"
-
-
 msgid "No Actions in .blend file"
 msgstr "No hi ha accions en el document .blend"
 
@@ -118257,21 +118069,6 @@ msgstr "Aplicar posa invertida"
 
 
 msgctxt "Operator"
-msgid "Adjust Pose Asset"
-msgstr "Ajustar recurs de posa"
-
-
-msgctxt "Operator"
-msgid "Add Selected Bones"
-msgstr "Afegir ossos seleccionats"
-
-
-msgctxt "Operator"
-msgid "Remove Selected Bones"
-msgstr "Suprimir ossos seleccionats"
-
-
-msgctxt "Operator"
 msgid "Blend Pose"
 msgstr "Fusionar posa"
 
@@ -118279,6 +118076,10 @@ msgstr "Fusionar posa"
 msgctxt "Operator"
 msgid "Blend Pose Flipped"
 msgstr "Fusionar posa invertida"
+
+
+msgid "Action %s marked Fake User to prevent loss"
+msgstr "L'acció %s s'ha marcat amb fals usador per evitar-ne la pèrdua"
 
 
 msgid "Pose Asset copied, use Paste As New Asset in any Asset Browser to paste"
@@ -118297,6 +118098,18 @@ msgid "Converted %d poses to pose assets"
 msgstr "Convertides %d poses en recursos de posa"
 
 
+msgid "An active armature object in pose mode is needed"
+msgstr "Es requereix un objecte esquelet actiu en mode posa"
+
+
+msgid "Asset Browser must be set to the Current File library"
+msgstr "El navegador de recursos s'ha d'assignar a l'actual biblioteca de documents"
+
+
+msgid "No keyframes were found for this pose"
+msgstr "No s'han trobat fotofites per a aquesta posa"
+
+
 msgid "No animation data found to create asset from"
 msgstr "No s'ha trobat cap dada d'animació per a crear-ne el recurs"
 
@@ -118307,10 +118120,6 @@ msgstr "Recompte no-zero inesperat d'usadors pel recurs, sisplau informeu-ho com
 
 msgid "Current editor is not an asset browser"
 msgstr "L'editor actual no és un navegador de recursos"
-
-
-msgid "Asset Browser must be set to the Current File library"
-msgstr "El navegador de recursos s'ha d'assignar a l'actual biblioteca de documents"
 
 
 msgid "Clipboard is empty"
@@ -119054,6 +118863,10 @@ msgid "performance impact!"
 msgstr "afectació en el rendiment!"
 
 
+msgid "Built without VR/OpenXR features"
+msgstr "Programat sense funcionalitats VR/OpenXR"
+
+
 msgid "Start VR Session"
 msgstr "Iniciar sessió d'RV"
 
@@ -119383,22 +119196,6 @@ msgid "{:d} duplicates found in {:d} mesh(es), mirror may be incomplete"
 msgstr "{:d} duplicat(s) trobat(s) en {:d} malla/es, l'emmirallat pot estar incomplet"
 
 
-msgid "Assigned shortcut {:d} to {:s}"
-msgstr "Drecera {:d} assignada a {:s}"
-
-
-msgid "Select a node to assign a shortcut"
-msgstr "Selecciona un node per assignar-lo a una drecera"
-
-
-msgid "Unable to set shortcut, selected node is not a viewer node or does not support viewing"
-msgstr "No s'ha pogut crear drecera; el node seleccionat no és un node de visionat o no admet visionat"
-
-
-msgid "Shortcut {:d} is not assigned to a Viewer node yet"
-msgstr "La drecera {:d} encara no està assignada a un node Visor"
-
-
 msgid "Node has no attribute {:s}"
 msgstr "El node no té atribut {:s}"
 
@@ -119475,14 +119272,6 @@ msgid "No objects with bound-box selected"
 msgstr "No hi ha cap objecte seleccionat amb la capsa contenidora"
 
 
-msgid "Smoke Domain"
-msgstr "Domini de fum"
-
-
-msgid "Liquid Domain"
-msgstr "Domini de líquid"
-
-
 msgid "Select at least one mesh object"
 msgstr "Seleccionar almenys un objecte malla"
 
@@ -119515,14 +119304,6 @@ msgid "Built without Fluid modifier"
 msgstr "Construït sense modificador Fluid"
 
 
-msgid "Smoke Domain Material"
-msgstr "Material de domini de fum"
-
-
-msgid "Liquid Domain Material"
-msgstr "Material de domini de líquid"
-
-
 msgid "Object {!r} already has a particle system"
 msgstr "L'objecte {!r} ja té un sistema de partícules"
 
@@ -119535,20 +119316,12 @@ msgid "Interpolate Hair Curves"
 msgstr "Interpolar corbes de pèl"
 
 
-msgid "Explode Fade"
-msgstr "Esvaïment d'explosió"
-
-
 msgid "Hair Curves Noise"
 msgstr "Soroll de corbes de pèl"
 
 
 msgid "Frizz Hair Curves"
 msgstr "Corbes d'encrespament de pèl"
-
-
-msgid "Explode fade"
-msgstr "Esvaïment de l'explosió"
 
 
 msgid "New Preset"
@@ -119667,8 +119440,8 @@ msgid "Installing keymap failed: {:s}"
 msgstr "Ha fallat la instal·lació del teclari: {:s}"
 
 
-msgid "This script was written for Blender version {:d}.{:d}.{:d} and might not function (correctly), though it is enabled"
-msgstr "Aquest protocol es va escriure per a la versió del Blender {:d}.{:d}.{:d} i podria no funcionar (correctament), tot i que està habilitat"
+msgid "This script was written Blender version {:d}.{:d}.{:d} and might not function (correctly), though it is enabled"
+msgstr "Aquest protocol es va escriure per a la versió del Blender {:d}.{:d}.{:d} i podria no funcionar (correctament), encara que estigui activat"
 
 
 msgid "File already installed to {!r}"
@@ -119838,7 +119611,7 @@ msgstr "Continuar"
 
 
 msgid "Getting Started"
-msgstr "Per començar"
+msgstr "S'està iniciant"
 
 
 msgctxt "Operator"
@@ -120145,6 +119918,10 @@ msgid "Rotation"
 msgstr "Rotació"
 
 
+msgid "Unknown"
+msgstr "Desconegut"
+
+
 msgid "Switch Stereo View"
 msgstr "Canviar vista estèreo"
 
@@ -120326,6 +120103,11 @@ msgstr "Suprimir col·leccions en desús"
 msgctxt "Operator"
 msgid "Assign Selected Bones"
 msgstr "Assignar ossos seleccionats"
+
+
+msgctxt "Operator"
+msgid "Remove Selected Bones"
+msgstr "Suprimir ossos seleccionats"
 
 
 msgctxt "Operator"
@@ -120579,8 +120361,32 @@ msgid "Only Axis Aligned"
 msgstr "Sols alineat a eix"
 
 
+msgid "View in Render"
+msgstr "Visionar en revelat"
+
+
+msgid "Thickness Scale"
+msgstr "Escalat del gruix"
+
+
+msgid "Edit Line Color"
+msgstr "Editar color de línia"
+
+
+msgid "Keyframes Before"
+msgstr "Fotofites anteriors"
+
+
+msgid "Keyframes After"
+msgstr "Fotofites posteriors"
+
+
 msgid "Stroke Thickness"
 msgstr "Gruix de traç"
+
+
+msgid "Channel Color"
+msgstr "Color de canal"
 
 
 msgid "Autolock Inactive Layers"
@@ -120639,14 +120445,6 @@ msgstr "Copiar totes les capes a selecció"
 msgctxt "Operator"
 msgid "Delete Group"
 msgstr "Eliminar grup"
-
-
-msgid "Keyframes Before"
-msgstr "Fotofites anteriors"
-
-
-msgid "Keyframes After"
-msgstr "Fotofites posteriors"
 
 
 msgid "Interpolation U"
@@ -121029,7 +120827,7 @@ msgstr "Mètode de desplaçament no compatible"
 
 
 msgid "Transparency Overlap"
-msgstr "Superposició de transparències"
+msgstr "Solapament de transparències"
 
 
 msgid "From Shadow"
@@ -121121,16 +120919,16 @@ msgid "Saving"
 msgstr "Desant"
 
 
-msgid "Strip Name"
-msgstr "Nom de segment"
-
-
 msgid "Max B-frames"
 msgstr "Màx fotogrames B"
 
 
+msgid "Strip Name"
+msgstr "Nom de segment"
+
+
 msgid "Buffer"
-msgstr "Dosificador de memòria"
+msgstr "Memòria intermèdia"
 
 
 msgid "Custom ({:.4g} fps)"
@@ -121273,7 +121071,7 @@ msgstr "Passos de qualitat"
 
 
 msgid "Pin Goal Strength"
-msgstr "Fixar potència del destí"
+msgstr "Força de fixacions a destí"
 
 
 msgid "Air Drag"
@@ -121285,7 +121083,7 @@ msgstr "Densitat pretesa"
 
 
 msgid "Density Strength"
-msgstr "Potència de la densitat"
+msgstr "Densitat d'emissió"
 
 
 msgid "Tangent Phase"
@@ -121981,7 +121779,7 @@ msgstr "Tipus de càlcul"
 
 
 msgid "Step Size Min"
-msgstr "Mín mida de pas"
+msgstr "Mín. mida de pas"
 
 
 msgid "Auto-Step"
@@ -122087,10 +121885,6 @@ msgstr "[Array All Items]: Agrupament de corbes-F"
 msgctxt "Operator"
 msgid "Bake All Light Probe Volumes"
 msgstr "Precuinar tots els volums de sonda de llum"
-
-
-msgid "Compositing Node Tree"
-msgstr "Arbre de nodes de Compositació"
 
 
 msgctxt "Operator"
@@ -123491,7 +123285,7 @@ msgstr "Atributs amb nom"
 
 msgctxt "Operator"
 msgid "Backdrop Zoom In"
-msgstr "Aproximar pla de fons"
+msgstr "Acostar pla de fons"
 
 
 msgctxt "Operator"
@@ -124279,7 +124073,7 @@ msgstr "Duplicar marcador a l'escena"
 
 
 msgid "Scrubbing"
-msgstr "Refregar"
+msgstr "Toquerejar"
 
 
 msgid "Limit to Frame Range"
@@ -125031,6 +124825,10 @@ msgid "The Vulkan backend is experimental:"
 msgstr "El basament Vulkan és experimental:"
 
 
+msgid "• OpenXR and GPU subdivision are not supported"
+msgstr "• No s'adment la subdivisió d'OpenXR i GPU"
+
+
 msgid "• Expect reduced performance"
 msgstr "• Compteu amb un menor rendiment"
 
@@ -125067,18 +124865,6 @@ msgstr "Roda"
 
 msgid "Invert Wheel Zoom Direction"
 msgstr "Invertir direcció del zoom de ròdol"
-
-
-msgid "Show Guides"
-msgstr "Mostrar guies"
-
-
-msgid "Orbit Axis"
-msgstr "Eix d'òrbita"
-
-
-msgid "Orbit Center"
-msgstr "Centre d'òrbita"
 
 
 msgid "Fly/Walk"
@@ -125244,12 +125030,12 @@ msgstr "Fill"
 
 msgctxt "Operator"
 msgid "Extend Parent"
-msgstr "Estendre al pare"
+msgstr "Estendre amb el pare"
 
 
 msgctxt "Operator"
 msgid "Extend Child"
-msgstr "Estendre al fill"
+msgstr "Estendre amb el fill"
 
 
 msgctxt "Operator"
@@ -126395,11 +126181,6 @@ msgstr "Projectar des de la vista (delimitat)"
 
 
 msgctxt "Operator"
-msgid "Frame Last Stroke"
-msgstr "Traç de fotograma final"
-
-
-msgctxt "Operator"
 msgid "Viewport Render Animation"
 msgstr "Mirador - revelar animació"
 
@@ -126902,11 +126683,6 @@ msgstr "Amagar capes inactives"
 
 
 msgctxt "Operator"
-msgid "Paste by Layer"
-msgstr "Enganxar per capa"
-
-
-msgctxt "Operator"
 msgid "Close"
 msgstr "Tancar"
 
@@ -126988,6 +126764,11 @@ msgstr "Mesclar"
 
 
 msgctxt "Operator"
+msgid "Frame Last Stroke"
+msgstr "Traç de fotograma final"
+
+
+msgctxt "Operator"
 msgid "Frame Selected (Quad View)"
 msgstr "Enquadrar seleccionats (vista de quadrant)"
 
@@ -127050,7 +126831,7 @@ msgstr "Destensar topologia"
 
 
 msgid "Relax Face Sets"
-msgstr "Destensar jocs de cares"
+msgstr "[Relax mesh]: Destensa els jocs de cares"
 
 
 msgid "Sharpen"
@@ -127107,18 +126888,6 @@ msgstr "Retirar cara en Freestyle"
 
 msgid "Specular Lighting"
 msgstr "Il·luminació especular"
-
-
-msgid "Ridge"
-msgstr "Cresta"
-
-
-msgid "Valley"
-msgstr "Vall"
-
-
-msgid "Screen Space"
-msgstr "Quadre de pantalla"
 
 
 msgid "Include Active"
@@ -127235,6 +127004,18 @@ msgstr "Ajustar mida de representació de fantasmes"
 
 msgid "Empty Display Size: %.3f"
 msgstr "Mida de representació de fantasmes: %.3f"
+
+
+msgid "Ridge"
+msgstr "Cresta"
+
+
+msgid "Valley"
+msgstr "Vall"
+
+
+msgid "Screen Space"
+msgstr "Quadre de pantalla"
 
 
 msgid "No object selected, using cursor"
@@ -127401,7 +127182,7 @@ msgstr "Posicions d'arrels"
 
 
 msgid "Path Steps"
-msgstr "Trams de trajecte"
+msgstr "Passos de camí"
 
 
 msgid "No brush selected"
@@ -127603,6 +127384,10 @@ msgstr "Ometent el camí del joc de fitoatributs, ja que no té ID (KS = '%s', c
 
 msgid "\"%s\" is using Action \"%s\", which does not have a slot with identifier \"%s\" or \"%s\". Manually assign the right action slot to \"%s\"."
 msgstr "\"%s\" fas servir l'Acció \"%s\", que no té cap epígraf amb l'identificador \"%s\" o \"%s\". Assigneu manualment l'epígraf d'acció correcte a \"%s\"."
+
+
+msgid "Legacy action \"%s\" is assigned to \"%s\", which does not match the action's id_root \"%s\". The action has been upgraded to a slotted action with slot \"%s\" with an id_type \"%s\", which has also been assigned to \"%s\" despite this type mismatch. This likely indicates something odd about the blend file."
+msgstr "L'acció antiquada \"%s\" s'assigna a \"%s\", que no coincideix amb l'id_root \"%s\" de l'acció. L'acció s'ha actualitzat tot consignant-la a l'epígraf d'acció \"%s\" amb un id_type \"%s\", que també s'ha assignat a \"%s\" encara aquest tipus no encaixi. Això probablement indica que hi ha alguna cosa estranya en el document blend."
 
 
 msgid "Named Layer node"
@@ -128126,10 +127911,6 @@ msgstr "Error en escriure resultat de revelat, %s (consultar consola)"
 
 msgid "Render error (%s) cannot save: '%s'"
 msgstr "Error de revelat (%s) no es pot desar: '%s'"
-
-
-msgid "Failed to create stereo image buffer"
-msgstr "Ha fallat la creació del dosificador d'imatge estèreo"
 
 
 msgid "ipos"
@@ -129121,10 +128902,6 @@ msgid "Error: Too many AOVs"
 msgstr "Error: Massa VEAs"
 
 
-msgid "Required render size ({}px) is larger than reported texture size limit ({}px)."
-msgstr "La Mida de revelat requerida de ({}px) és més gran que el límit de mida de textura informat ({}px)."
-
-
 msgid "Errors during render. See the System Console for more info."
 msgstr "Erros en el revelat. Consulteu la Consola del sistema per a més info."
 
@@ -129217,48 +128994,28 @@ msgid "Warning: Volume rendering data could not be allocated. Now using a resolu
 msgstr "Atenció: no s'han pogut assignar les dades per revelar volums. Es recoore a una resolució de 1:{} MB en lloc de 1:{} MB."
 
 
+msgid "GpencilMode"
+msgstr "ModeLlapisdG"
+
+
+msgid "UV/Image"
+msgstr "UV/Imatge"
+
+
+msgid "Select ID Debug"
+msgstr "Seleccionar depuració d'ID"
+
+
+msgid "Select ID"
+msgstr "Seleccionar ID"
+
+
+msgid "Select-Next"
+msgstr "Seleccionar següent"
+
+
 msgid "Workbench"
 msgstr "Workbench"
-
-
-msgid "Create"
-msgstr "Doblegar"
-
-
-msgid "Delete Pose Asset"
-msgstr "Eliminar recurs de posa"
-
-
-msgid "Permanently delete pose asset blend file? This cannot be undone."
-msgstr "¿Voleu eliminar permanentment el document blend amb el recurs de posa? L'acció no es pot desfer."
-
-
-msgid "The asset is local to the file. Deleting it will just clear the asset status."
-msgstr "El recurs és local respecte del document. Si s'elimina només se li retirarà l'estatus de recurs."
-
-
-msgid "Failed to load asset library"
-msgstr "No s'ha pogut carregar la biblioteca de recursos"
-
-
-msgid "No name set"
-msgstr "No té el nom posat"
-
-
-msgid "Unexpected library type. Failed to create pose asset"
-msgstr "Tipus de biblioteca inesperada. No s'ha pogut crear el recurs de posa"
-
-
-msgid "Pose assets can only be modified from Pose Mode"
-msgstr "Els recursos de posa només es poden modificar des del Mode posa"
-
-
-msgid "Action is not editable"
-msgstr "L'acció no és editable"
-
-
-msgid "Asset blend file is not editable"
-msgstr "El document blend de recursos no és editable"
 
 
 msgid "NLA Strip Controls"
@@ -129329,10 +129086,6 @@ msgid "CombinedAction"
 msgstr "AccióCombinada"
 
 
-msgid "Separated %s into %i new actions"
-msgstr "S'ha separat %s en %i accions"
-
-
 msgid "No active action to operate on"
 msgstr "No hi ha cap acció activa on operar"
 
@@ -129347,6 +129100,34 @@ msgstr "No hi ha cap objecte actiu"
 
 msgid "Active object isn't animated"
 msgstr "L'objecte actiu no està animat"
+
+
+msgid "No channels to operate on"
+msgstr "No hi ha canals on operar"
+
+
+msgid "No keyframes to focus on"
+msgstr "No hi ha fotofites on projectar-se"
+
+
+msgid "None of the selected channels is an Action Slot"
+msgstr "Cap dels canals detectats no és un Epígraf d'acció"
+
+
+msgid "No open Graph Editor window found"
+msgstr "No s'ha trobat cap finestra d'Editor de gràfiques"
+
+
+msgid "Cannot create the Animation Context"
+msgstr "No es pot crear el Context d'animació"
+
+
+msgid "One or more F-Curves are not visible due to filter settings"
+msgstr "Una o més corbes-F no són visibles degut al filtre"
+
+
+msgid "F-Curves have no valid size"
+msgstr "Les corbes-F no tenen una dimensió vàlida"
 
 
 msgid "<invalid>"
@@ -129415,14 +129196,6 @@ msgstr "Fotograma final retingut a un interval de revelat vàlid"
 
 msgid "The action %s is not editable"
 msgstr "L’acció %s no és editable"
-
-
-msgid "Moved %i slot(s) into the action of the active object"
-msgstr "S'ha(n) introduït %i epígraf(s) a l'acció de l'objecte actiu"
-
-
-msgid "Failed to merge any animation. Note that NLA strips cannot be merged"
-msgstr "No s'ha pogut fusionar cap animació. Tingueu en compte que els segments d'ANL no es poden fusionar"
 
 
 msgid "Expected an animation area to be active"
@@ -129513,6 +129286,10 @@ msgstr "A"
 msgctxt "Action"
 msgid "B"
 msgstr "B"
+
+
+msgid "Modifier requires original data"
+msgstr "El modificador requereix dades originals"
 
 
 msgid "Remove animation from selected objects?"
@@ -129651,6 +129428,10 @@ msgid "Property added to Keying Set: '%s'"
 msgstr "Propietat afegida al Joc de fitoatributs: '%s'"
 
 
+msgid "Bone was added to a hidden collection '%s'"
+msgstr "S'ha afegit l'os a una col·lecció oculta '%s'"
+
+
 msgid "Delete selected bones?"
 msgstr "Elimina els ossos seleccionats?"
 
@@ -129691,10 +129472,6 @@ msgid "%d bones aligned to bone '%s'"
 msgstr "%d ossos alineats a l'os '%s'"
 
 
-msgid "New bone name collides with an existing vertex group name, vertex group names are unchanged."
-msgstr "El nou nom de l'os fa conflicte amb un nom de grup de vèrtexs existent, els noms de grups de vèrtex no es modifiquen."
-
-
 msgid "Active object is not a selected armature"
 msgstr "L'objecte actiu no és un esquelet seleccionat"
 
@@ -129709,6 +129486,10 @@ msgstr "Os no seleccionable a la cadena"
 
 msgid "Move to New Bone Collection"
 msgstr "Moure a nova col·lecció d'ossos"
+
+
+msgid "Create"
+msgstr "Doblegar"
 
 
 msgid "Bone collection with index %d not found on Armature %s"
@@ -129771,6 +129552,46 @@ msgid "This needs a local Armature or an override"
 msgstr "Per això cal un esquelet local o un sobreseïment"
 
 
+msgid "This operator only works in pose mode and armature edit mode"
+msgstr "Aquest operador només funciona en mode posa i en mode edició d'esquelet"
+
+
+msgid "No bones selected, nothing to assign to bone collection"
+msgstr "No hi ha ossos seleccionats, no hi ha res a assignar a la col·lecció"
+
+
+msgid "All selected bones were already part of this collection"
+msgstr "Tots els ossos seleccionats ja eren part de la col·lecció"
+
+
+msgid "No bones selected, nothing to unassign from bone collection"
+msgstr "No hi ha ossos seleccionats, no hi ha res a desassignar de la col·lecció"
+
+
+msgid "None of the selected bones were assigned to this collection"
+msgstr "Cap dels ossos seleccionats no s'han assignat a la col·lecció"
+
+
+msgid "Missing bone name"
+msgstr "L'os està sense nom"
+
+
+msgid "No bone collection named '%s'"
+msgstr "No hi ha cap col·lecció d'ossos de nom '%s'"
+
+
+msgid "Cannot assign to linked bone collection %s"
+msgstr "No es pot assignar la col·lecció d'ossos vinculada %s"
+
+
+msgid "Could not find bone '%s'"
+msgstr "No s'ha pogut trobar l'os '%s'"
+
+
+msgid "Bone '%s' was not assigned to collection '%s'"
+msgstr "L'os '%s' no s'ha assignat a la col·lecció '%s'"
+
+
 msgid "Bone Heat Weighting: failed to find solution for one or more bones"
 msgstr "Ponderació d'os en acció: no s'ha trobat solució per un o més ossos"
 
@@ -129795,24 +129616,8 @@ msgid "Cannot pose libdata"
 msgstr "No es pot crear posa de dades de bib"
 
 
-msgid "Show Original Pose"
-msgstr "Mostrar posa original"
-
-
-msgid "Show Blended Pose"
-msgstr "Mostrar posa fusionada"
-
-
-msgid "Flip Pose"
-msgstr "Capgirar posa"
-
-
 msgid "Pose lib is only for armatures in pose mode"
 msgstr "La bib de poses només és per a esquelets en mode posa"
-
-
-msgid "This pose asset is empty, and thus has no pose"
-msgstr "Aquest recurs posa està buit i per tant no té cap posa"
 
 
 msgid "Internal pose library error, canceling operator"
@@ -129847,20 +129652,48 @@ msgid "Sliding-Tool"
 msgstr "Eina de lliscar"
 
 
-msgid "Cancel"
-msgstr "Cancel·lar"
+msgid "[X]/Y/Z axis only (X to clear)"
+msgstr "[X]/Y/Z només eix (X per retirar)"
 
 
-msgid "Axis Constraint"
-msgstr "Restricció d'eix"
+msgid "X/[Y]/Z axis only (Y to clear)"
+msgstr "X/[Y]/Z només eix (Y per retirar)"
 
 
-msgid "Axis Only"
-msgstr "Només en eix"
+msgid "X/Y/[Z] axis only (Z to clear)"
+msgstr "X/Y/[Z] només eix (Z per retirar)"
 
 
-msgid "Bone Visibility"
-msgstr "Visibilitat d'ossos"
+msgid "X/Y/Z = Axis Constraint"
+msgstr "X/Y/Z = Restricció d'eix"
+
+
+msgid "[G]/R/S/B/C - Location only (G to clear) | %s"
+msgstr "[G]/R/S/B/C - Només ubicació (G per retirar) | %s"
+
+
+msgid "G/[R]/S/B/C - Rotation only (R to clear) | %s"
+msgstr "G/[R]/S/B/C - Només rotació (R per retirar) | %s"
+
+
+msgid "G/R/[S]/B/C - Scale only (S to clear) | %s"
+msgstr "G/R/[S]/B/C - Només escalar (S per retirar) | %s"
+
+
+msgid "G/R/S/[B]/C - Bendy Bone properties only (B to clear) | %s"
+msgstr "G/R/S/[B]/C - Només propietats d'os doblegable (B per retirar) | %s"
+
+
+msgid "G/R/S/B/[C] - Custom Properties only (C to clear) | %s"
+msgstr "G/R/S/B/[C] - Només propietats expresses (C per retirar) | %s"
+
+
+msgid "G/R/S/B/C - Limit to Transform/Property Set"
+msgstr "G/R/S/B/C - Limit per joc de transformacions/propietats"
+
+
+msgid "[H] - Toggle bone visibility"
+msgstr "[H] - Permutar visibilitat d'ossos"
 
 
 msgid "No keyframes to slide between"
@@ -130284,10 +130117,6 @@ msgid "Node group's first output must be a geometry"
 msgstr "La primera egressió del grup de nodes ha de ser una geometria"
 
 
-msgid "Place Next Stroke Vertex"
-msgstr "Col·locar vèrtex del traç següent"
-
-
 msgid "Erase"
 msgstr "Esborrar"
 
@@ -130298,6 +130127,10 @@ msgstr "No es pot pintar el traç"
 
 msgid "Nothing to erase"
 msgstr "No hi ha res a esborrar"
+
+
+msgid "Annotation operator is already active"
+msgstr "L'operador d'anotació ja està actiu"
 
 
 msgid "Failed to find Annotation data to draw into"
@@ -130372,20 +130205,16 @@ msgid "The object has only one layer"
 msgstr "L'objecte té una sola capa"
 
 
-msgid "No active Grease Pencil layer to paste into"
-msgstr "No hi ha cap capa activa de Llapis de greix a on enganxar-ho"
+msgid "No active Grease Pencil layer"
+msgstr "No hi ha cap capa activa de Llapis de greix"
 
 
-msgid "Active layer is not editable"
-msgstr "La capa activa no és editable"
+msgid "Active layer is locked or hidden"
+msgstr "La capa activa està bloquejada o oculta"
 
 
 msgid "No Grease Pencil frame to draw on"
 msgstr "No hi ha quadre de Llapis de greix on treballar"
-
-
-msgid "Couldn't find matching layer, pasting into active layer"
-msgstr "No s'ha pogut trobar la capa coincident, s'enganxa a la capa activa"
 
 
 msgid "Active object is not a selected Grease Pencil"
@@ -130444,6 +130273,14 @@ msgid "Baked strokes are cleared"
 msgstr "S'han retirat els traços precuinats"
 
 
+msgid "No active object, or active object isn't a Grease Pencil object"
+msgstr "No hi ha objecte actiu o l'objecte actiu no és un objecte de Llapis de greix"
+
+
+msgid "Cancel"
+msgstr "Cancel·lar"
+
+
 msgid "Panning"
 msgstr "Escombratge"
 
@@ -130456,20 +130293,20 @@ msgid "Grab"
 msgstr "Agafar"
 
 
-msgid "No active Grease Pencil layer"
-msgstr "No hi ha cap capa activa de Llapis de greix"
-
-
-msgid "Active layer is locked or hidden"
-msgstr "La capa activa està bloquejada o oculta"
-
-
 msgid "Active Vertex Group is locked"
 msgstr "El Grup de vèrtexs actiu està bloquejat"
 
 
 msgid "Active vertex group is locked"
 msgstr "El grup de vèrtexs actiu està bloquejat"
+
+
+msgid "Data-block renamed to '%s', try again to force renaming it to '%s'"
+msgstr "S'ha reanomenat el bloc de dades a '%s', proveu de nou de reanomenar-lo a '%s'"
+
+
+msgid "Name in use. The other data-block was renamed to ‘%s’"
+msgstr "Nom ja en ús. L'altre bloc de dades s'ha reanomenat a '%s'"
 
 
 msgid "Picking a bone failed"
@@ -130766,8 +130603,44 @@ msgid "Drop {} on slot {} of {}"
 msgstr "Deposar {} sobre l'epígraf {} de {}"
 
 
+msgid "Expected an array of numbers: [n, n, ...]"
+msgstr "S'esperava una sèrie de nombres: [n, n, ...]"
+
+
+msgid "Expected a number"
+msgstr "S'esperava un nombre"
+
+
+msgid "Paste expected 3 numbers, formatted: '[n, n, n]'"
+msgstr "Enganxar els 3 números esperats, formatats: '[n, n, n]'"
+
+
+msgid "Paste expected 4 numbers, formatted: '[n, n, n, n]'"
+msgstr "Enganxar els 4 números esperats, formatats: '[n, n, n, n]'"
+
+
+msgid "Unsupported key: Unknown"
+msgstr "Tecla no admesa: desconeguda"
+
+
+msgid "Unsupported key: CapsLock"
+msgstr "Tecla no admesa: BloqMaj"
+
+
+msgid "Can't edit driven number value, see driver editor for the driver setup"
+msgstr "No es pot editar el valor del número impulsat, consulta l'editor de controladors per a la configuració del controlador"
+
+
+msgid "Failed to find '%s'"
+msgstr "Error en buscar '%s'"
+
+
 msgid "OS"
 msgstr "SO"
+
+
+msgid "Home"
+msgstr "Inici"
 
 
 msgid "Esc"
@@ -130933,8 +130806,8 @@ msgid "Expression: {}"
 msgstr "Expressió: {}"
 
 
-msgid "Built-in Asset"
-msgstr "Recurs integrat"
+msgid "Library: {}"
+msgstr "Biblioteca: {}"
 
 
 msgid "Disabled: {}"
@@ -131124,7 +130997,7 @@ msgstr "Nivell de valor"
 
 
 msgid "Zoom in"
-msgstr "Aproximar"
+msgstr "Acostar"
 
 
 msgid "Zoom out"
@@ -131354,6 +131227,18 @@ msgstr "Explorar les dades de Llapis de Greix v3 per vincular"
 
 msgid "Browse ID data to be linked"
 msgstr "Explorar les dades ID per vincular"
+
+
+msgid "The data-block %s is not overridable"
+msgstr "El bloc de dades %s no es pot sobreseure"
+
+
+msgid "The type of data-block %s is not yet implemented"
+msgstr "El tipus de bloc de dades %s encara no està implementat"
+
+
+msgid "The data-block %s could not be overridden"
+msgstr "No s'ha pogut sobreseure el bloc de dades %s"
 
 
 msgctxt "Action"
@@ -131609,14 +131494,6 @@ msgid "Show Hidden Region"
 msgstr "Mostrar regió oculta"
 
 
-msgid "Active object has negative scale"
-msgstr "L'objecte actiu té una escala negativa"
-
-
-msgid "Active object has non-uniform scale"
-msgstr "L'objecte actiu té una escala no uniforme"
-
-
 msgid "Click to open the info editor"
 msgstr "Clicar per obrir l'editor d'informació"
 
@@ -131663,6 +131540,10 @@ msgstr "No s'ha aportat cap adreça de document"
 
 msgid "Unable to determine ABC sequence length"
 msgstr "No s'ha pogut determinar la longitud de la seqüència ABC"
+
+
+msgid "Could not add a layer to the cache file"
+msgstr "No s'ha pogut afegir una capa al document de memòria cau"
 
 
 msgid "Global Orientation"
@@ -131773,10 +131654,6 @@ msgid "PBR Extensions"
 msgstr "Extensions PBR"
 
 
-msgid "File exported successfully"
-msgstr "Document exportat amb èxit"
-
-
 msgid "ASCII"
 msgstr "ASCII"
 
@@ -131866,20 +131743,12 @@ msgid "Icosphere"
 msgstr "Polisfera"
 
 
-msgid "Profile Shape"
-msgstr "Forma del perfil"
-
-
 msgid "Harden"
 msgstr "Endurir"
 
 
 msgid "Outer"
 msgstr "Enfora"
-
-
-msgid "Miter Profile Shape"
-msgstr "Forma de perfil de motllura"
 
 
 msgid "Intersection Type"
@@ -132375,14 +132244,6 @@ msgid "Cannot create editmode armature"
 msgstr "No s'ha pogut crear esquelet en mode d'edició"
 
 
-msgid "Image objects can only be added in Object Mode"
-msgstr "Els objectes d'imatge només es poden afegir en Mode objecte"
-
-
-msgid "No editable objects to convert"
-msgstr "No hi ha objectes editables per convertir"
-
-
 msgid "Converting some non-editable object/object data, enforcing 'Keep Original' option to True"
 msgstr "S'estan convertint algunes dades d'objecte/objecte no editable, forçant el paràmetre «Mantenir original» com a ver"
 
@@ -132585,22 +132446,6 @@ msgstr "Mapa de precuinat escrit a \"%s\""
 
 msgid "No UV layer named \"%s\" found in the object \"%s\""
 msgstr "No s'ha trobat cap capa UV anomenada \"%s\" en l'objecte \"%s\""
-
-
-msgid "Cage object \"%s\" not found in evaluated scene, it may be hidden"
-msgstr "No s'ha trobat l'objecte gàbia \"%s\" en l'escena avaluada, pot estar ocult"
-
-
-msgid "No UV map found in the evaluated object \"%s\""
-msgstr "No s'ha trobat cap mapa IV cares en l'objecte avaluat \"%s\""
-
-
-msgid "Object \"%s\" not found in evaluated scene, it may be hidden"
-msgstr "No s'ha trobat l'objecte \"%s\" en l'escena avaluada, pot estar ocult"
-
-
-msgid "Failed to access mesh from object \"%s\", ensure it's visible while rendering"
-msgstr "No s'ha pogut accedir a la malla des de objecte \"%s\", assegureu-vos que està visible mentre es revela"
 
 
 msgid "Error baking from object \"%s\""
@@ -133120,7 +132965,7 @@ msgstr "S'han reconstruït %d nivells nous"
 
 
 msgid "Set Parent To"
-msgstr "Assignar paternitat"
+msgstr "Assignar pare a"
 
 
 msgid "Object (Keep Transform)"
@@ -133259,22 +133104,6 @@ msgid "Voxel remesher failed to create mesh"
 msgstr "El remallador de vòxels no ha pogut crear la malla"
 
 
-msgid "QuadriFlow: Remeshing canceled"
-msgstr "QuadriFlux: s'ha cancel·lat el remallament"
-
-
-msgid "QuadriFlow: The mesh needs to be manifold and have face normals that point in a consistent direction"
-msgstr "QuadriFlux: La malla ha de ser polivalent i tenir normals de cara que apuntin en una direcció coherent"
-
-
-msgid "QuadriFlow: Remeshing completed"
-msgstr "QuadriFlux: remallament completat"
-
-
-msgid "QuadriFlow: Remeshing failed"
-msgstr "QuadriFlux: remallament fallit"
-
-
 msgid "The remesher cannot work on linked or override data"
 msgstr "El remallador no pot funcionar amb dades vinculades o de sobreseïment"
 
@@ -133289,6 +133118,22 @@ msgstr "El remallador no es pot executar amb el dyntopo activat"
 
 msgid "The remesher cannot run with a Multires modifier in the modifier stack"
 msgstr "El remallador no es pot executar amb un modificador Multires a l'estiba de modificadors"
+
+
+msgid "QuadriFlow: Remeshing canceled"
+msgstr "QuadriFlux: s'ha cancel·lat el remallament"
+
+
+msgid "QuadriFlow: The mesh needs to be manifold and have face normals that point in a consistent direction"
+msgstr "QuadriFlux: La malla ha de ser polivalent i tenir normals de cara que apuntin en una direcció coherent"
+
+
+msgid "QuadriFlow: Remeshing completed"
+msgstr "QuadriFlux: remallament completat"
+
+
+msgid "QuadriFlow: Remeshing failed"
+msgstr "QuadriFlux: remallament fallit"
 
 
 msgid "Select Collection"
@@ -133491,10 +133336,6 @@ msgid "Vertex group is locked"
 msgstr "El grup de vèrtexs està bloquejat"
 
 
-msgid "No meshes with vertex groups found"
-msgstr "No s'ha trobat cap malla amb cap grup de vèrtexs"
-
-
 msgid "%d vertex weights limited"
 msgstr "%d pesos de vèrtexs limitats"
 
@@ -133547,6 +133388,18 @@ msgid "Bake failed: invalid canvas"
 msgstr "Precuinat fallit: el llenç no és vàlid"
 
 
+msgid "Baking canceled!"
+msgstr "Precuinat cancel·lat!"
+
+
+msgid "DynamicPaint: Bake complete! (%.2f)"
+msgstr "PintatDinàmic: Precuinat enllestit! (%.2f)"
+
+
+msgid "DynamicPaint: Bake failed: %s"
+msgstr "PintatDinàmic: Precuinat fallit: %s"
+
+
 msgid "Removed %d double particle(s)"
 msgstr "S'han suprimit %d partícules dobles"
 
@@ -133593,6 +133446,18 @@ msgstr "Fluid: no s'ha pogut crear el directori de memòria cau '%s', es restabl
 
 msgid "Fluid: Could not use default cache directory '%s', please define a valid cache path manually"
 msgstr "Fluid: No s'ha pogut usar el directori de memòria cau predeterminat '%s', cal definir manualment una ruta vàlida de memòria cau"
+
+
+msgid "Fluid: %s complete (%.2f)"
+msgstr "Fluid: %s llest! (%.2f)"
+
+
+msgid "Fluid: %s failed: %s"
+msgstr "Fluid: %s fallit: %s"
+
+
+msgid "Fluid: %s canceled!"
+msgstr "Fluid: %s cancel·lat!"
 
 
 msgid "Library override data-blocks only support Disk Cache storage"
@@ -133867,6 +133732,10 @@ msgid "Scene has no camera"
 msgstr "L'escena no té càmera"
 
 
+msgid "Movie format unsupported"
+msgstr "Format de pel·lícula no compatible"
+
+
 msgid "Failed to create OpenGL off-screen buffer, %s"
 msgstr "No s'ha pogut crear el marge fora de pantalla d'OpenGL, %s"
 
@@ -133895,12 +133764,20 @@ msgid "Data-block type does not support automatic previews"
 msgstr "El bloc de dades no admet previsionats automàtics"
 
 
+msgid "No active object, unable to apply the Action before rendering"
+msgstr "No hi ha cap objecte actiu, no es pot aplicar l'acció abans de revelar"
+
+
+msgid "Action has no data, cannot render preview"
+msgstr "L'acció no té dades, no és pot revelar un previsionat"
+
+
+msgid "Object %s has no pose, unable to apply the Action before rendering"
+msgstr "L'objecte %s no té posa, no es pot aplicar l'acció abans de revelar"
+
+
 msgid "Unable to remove material slot in edit mode"
 msgstr "No s'ha pogut suprimir l'epígraf de material en mode d'edició"
-
-
-msgid "Can't bake light probe while rendering"
-msgstr "No es pot precuinar la sonda de llum mentre s'està revelant"
 
 
 msgid "No active lineset and associated line style to manipulate the modifier"
@@ -134217,6 +134094,10 @@ msgid "Unable to activate brush, wrong object mode"
 msgstr "No s'ha pogut activar el pinzell, mode objecte que no toca"
 
 
+msgid "Failed to load asset library"
+msgstr "No s'ha pogut carregar la biblioteca de recursos"
+
+
 msgid "Unable to activate just-saved brush asset"
 msgstr "No s'ha pogut activar el recurs pinzell acaba de desar"
 
@@ -134235,6 +134116,10 @@ msgstr "La biblioteca de recursos no és editable"
 
 msgid "Asset file is not editable"
 msgstr "El document de recursos no és editable"
+
+
+msgid "Asset blend file is not editable"
+msgstr "El document blend de recursos no és editable"
 
 
 msgid "Original surface mesh is empty"
@@ -134261,12 +134146,28 @@ msgid "Invalid UV map: UV islands must not overlap"
 msgstr "Mapa UV no vàlid: les illes UV no poden estar solapades"
 
 
+msgid "Cursor must be over the surface mesh"
+msgstr "El cursor ha d'estar per sobre de la malla de superfície"
+
+
 msgid "Curves do not have surface attachment information"
 msgstr "Les corbes no tenen informació d'adhesió a superfície"
 
 
 msgid "UV map or surface attachment is invalid"
 msgstr "El mapa UV o l'adhesió a la superfície no és vàlid/a"
+
+
+msgid "Fill: ESC/RMB cancel, LMB Fill, MMB Adjust Extension, S: Switch Mode, D: Stroke Collision | Mode: {}, Collision {}, Length: {:.3f}"
+msgstr "Emplenar: ESC/BDR cancel·lar, BER Emplenar, BMR Ajustar extensió, S: Mode intercanviar, D: Col·lisió de traç | Mode: {}, Col·lisió {}, Llargada: {:.3f}"
+
+
+msgid "ON"
+msgstr "ENGEGAR"
+
+
+msgid "OFF"
+msgstr "APAGAr"
 
 
 msgid "No Grease Pencil frame to draw weight on"
@@ -134564,10 +134465,6 @@ msgid "Action must have at least one keyframe or F-Modifier"
 msgstr "L'acció ha de tenir almenys una fotofita o Modificador-F"
 
 
-msgid "Action+Slot has already been stashed"
-msgstr "L'acció+epígraf ja han estat dipositats"
-
-
 msgid "Could not find current NLA Track"
 msgstr "No s'ha pogut trobar la pista d'ANL actual"
 
@@ -134804,10 +134701,6 @@ msgid "Cannot read '%s': %s"
 msgstr "No es pot llegir '%s': %s"
 
 
-msgid "Place Marker"
-msgstr "Col·locar marcador"
-
-
 msgid "Delete selected tracks?"
 msgstr "Eliminar els rastres seleccionats?"
 
@@ -134988,6 +134881,10 @@ msgid "bytes"
 msgstr "bytes"
 
 
+msgid "Could not rename: %s"
+msgstr "No s'ha pogut reanomenar: %s"
+
+
 msgid "Create new directory?"
 msgstr "Crear nou directori?"
 
@@ -135058,10 +134955,6 @@ msgstr "Catàlegs de recursos"
 
 msgid "Date Modified"
 msgstr "Data de modificació"
-
-
-msgid "Home"
-msgstr "Inici"
 
 
 msgid "Desktop"
@@ -135357,16 +135250,68 @@ msgid "All %d rotation channels were filtered"
 msgstr "S'han filtrat tots els canals de rotació %d"
 
 
-msgid "Modify Sharpness"
-msgstr "Modificar nitidesa"
+msgid "No drivers deleted"
+msgstr "No s'ha eliminat cap controlador"
 
 
-msgid "Modify Curve Bend"
-msgstr "Modificar arc de corba"
+msgid "Deleted %u drivers"
+msgstr "Eliminats %u controladors"
+
+
+msgid "Decimate Keyframes"
+msgstr "Delmar fotofites"
+
+
+msgid "[TAB] - Modify Sharpness"
+msgstr "[TAB] - Modificar nitidesa"
+
+
+msgid "[TAB] - Modify Curve Bend"
+msgstr "[TAB] - Modificar arc de corba"
+
+
+msgid "Ease Keys"
+msgstr "Gradualitzar fites"
+
+
+msgid "Shear Keys"
+msgstr "Estrebar fites"
+
+
+msgid "D - Toggle Direction"
+msgstr "D - Sentit de permuta"
+
+
+msgid "[D] - Scale From Right End"
+msgstr "[D] - Escalar des de l'extrem dret"
+
+
+msgid "[D] - Scale From Left End"
+msgstr "[D] - Escalar des de l'extrem esquerre"
+
+
+msgid "Scale from Neighbor Keys"
+msgstr "Escalar des de fites veïnes"
 
 
 msgid "Decimate F-Curves by specifying how much they can deviate from the original curve"
 msgstr "Delmar corbes-F especificant quant es poden desviar de la corba original"
+
+
+msgid "Cannot find keys to operate on"
+msgstr "No s'han pogut trobar les fites amb què operar"
+
+
+msgid "Decimate: Skipping non linear/Bézier keyframes!"
+msgstr "Delmar: s'ometen les fotofites no lineals/bezier!"
+
+
+msgid "You need at least 2 keys to the right side of the selection"
+msgstr "Et calen almenys dues fites pel costat dret de la selecció"
+
+
+msgid "You need at least 2 keys to the left side of the selection"
+msgstr "Et calen almenys dues fites pel costat esquerre de la selecció"
 
 
 msgid "There is no animation data to operate on"
@@ -135481,6 +135426,10 @@ msgid "Images cannot be copied while rendering"
 msgstr "Les imatges no es poden copiar durant el revelat"
 
 
+msgid "Packing movies or image sequences not supported"
+msgstr "No admet l'empaquetament de pel·lícules o seqüències d'imatges"
+
+
 msgid "Image is not editable"
 msgstr "La imatge no és editable"
 
@@ -135575,10 +135524,6 @@ msgstr "No hi ha documents empaquetats per desempaquetar"
 
 msgid "No packed file"
 msgstr "No hi ha cap document empaquetat"
-
-
-msgid "Data-block using this packed file is not editable"
-msgstr "El bloc de dades que fa servir aquest document empaquetat no és editable"
 
 
 msgid "Cannot set relative paths with an unsaved blend file"
@@ -135861,14 +135806,6 @@ msgid "Could not add material"
 msgstr "No s'ha pogut afegir el material"
 
 
-msgid "Could not add a color node"
-msgstr "No s'ha pogut afegir un node de color"
-
-
-msgid "Could not find node color socket"
-msgstr "No s'ha pogut trobar el born de color del node"
-
-
 msgid ""
 "Cannot add node group '%s' to '%s':\n"
 "  %s"
@@ -135891,6 +135828,10 @@ msgstr "No admet afegir grups de nodes per a arbres de nodes personalitzats (def
 
 msgid "Invalid Link"
 msgstr "Enllaç no vàlid"
+
+
+msgid "{} (String)"
+msgstr "{} (cadena)"
 
 
 msgid "{} (Menu)"
@@ -136049,10 +135990,6 @@ msgid "Supported: "
 msgstr "Compatible: "
 
 
-msgid "{} (String)"
-msgstr "{} (cadena)"
-
-
 msgid "Dangling reroute is ignored by all targets"
 msgstr "El reenrutat aproximat és ignorat per tots els referents"
 
@@ -136115,6 +136052,10 @@ msgstr " Atributs amb nom"
 
 msgid "Text not used by any node, no update done"
 msgstr "Text no utilitzat per cap node, no s'ha fet cap actualització"
+
+
+msgid "Render size too large for GPU, use CPU compositor instead"
+msgstr "Mida de revelat excessiva per a la GPU, en lloc d'això, feu servir el compositador de CPU"
 
 
 msgid "Not inside node group"
@@ -136709,6 +136650,10 @@ msgid "Add a multiply blend mode effect strip for two selected strips with video
 msgstr "Afegeix en mode fusió un segment d'efecte multiplicar a dos segments seleccionats que continguin vídeo"
 
 
+msgid "Add an alpha over drop blend mode effect strip for two selected strips with video content"
+msgstr "Afegeix en mode fusió un segment d'efecte alfa per sobre descendent a dos segments seleccionats que continguin vídeo"
+
+
 msgid "Add a wipe transition strip for two selected strips with video content"
 msgstr "Afegeix un segment de transició de fregat a dos segments seleccionats que continguin vídeo"
 
@@ -136903,26 +136848,6 @@ msgstr "No hi ha ni fites ni segments seleccionats"
 
 msgid "This strip type cannot be retimed"
 msgstr "Aquest segment no es pot retemportizar"
-
-
-msgctxt "Operator"
-msgid "Select (Unconnected)"
-msgstr "Seleccionar (no connectats)"
-
-
-msgctxt "Operator"
-msgid "Select (Linked Time)"
-msgstr "Seleccionar (Temps vinculat)"
-
-
-msgctxt "Operator"
-msgid "Select (Linked Handle)"
-msgstr "Seleccionar (Nanses vinculades)"
-
-
-msgctxt "Operator"
-msgid "Select (Side of Frame)"
-msgstr "Seleccionar (vora del fotograma)"
 
 
 msgid "No active sequence!"
@@ -137167,6 +137092,10 @@ msgstr "No disponible per a instal·lacions de Microsoft Store"
 
 msgid "Windows & Linux only operator"
 msgstr "Operador només de Windows i Línux"
+
+
+msgid "Create object instance from object-data"
+msgstr "Crear instància d'objecte a partir de dades d'objecte"
 
 
 msgid "Control Point:"
@@ -137437,10 +137366,6 @@ msgid "fps: %i"
 msgstr "fps: %i"
 
 
-msgid "Create object instance from object-data"
-msgstr "Crear instància d'objecte a partir de dades d'objecte"
-
-
 msgid "X-Ray not available in current mode"
 msgstr "Els raigs-X no estan disponibles en el mode actual"
 
@@ -137451,14 +137376,6 @@ msgstr "No es pot suprimir la imatge de rerefons %d de la càmera '%s', ja que p
 
 msgid "Gizmos hidden in this view"
 msgstr "Flòstics amagats en aquesta vista"
-
-
-msgid "Up/Down"
-msgstr "Amunt/Avall"
-
-
-msgid "Free Look"
-msgstr "A la vista"
 
 
 msgid "Cannot navigate a camera from an external library or non-editable override"
@@ -137475,22 +137392,6 @@ msgstr "No es pot volar un objecte amb restriccions"
 
 msgid "Cannot dolly when the view offset is locked"
 msgstr "No es pot fer «dolly» quan el desplaçament de la vista està bloquejat"
-
-
-msgid "Local Up/Down"
-msgstr "Amunt/avall local"
-
-
-msgid "Jump"
-msgstr "Saltar"
-
-
-msgid "Teleport"
-msgstr "Teletransportar"
-
-
-msgid "Z Axis Correction"
-msgstr "Correcció d'eix Z"
 
 
 msgid "Cannot navigate when the view offset is locked"
@@ -137801,10 +137702,6 @@ msgid "Push/Pull: %.4f%s %s"
 msgstr "Augmentar/Reduir: %.4f%s %s"
 
 
-msgid "Transform is set to only affect location"
-msgstr "Transformació definida perquè afecti únicament la ubicació"
-
-
 msgid "Rotation is not supported in the Dope Sheet Editor"
 msgstr "Rotació no admesa a l'editor de guió tècnic"
 
@@ -138010,14 +137907,6 @@ msgid " | Ctrl - Hold for increments"
 msgstr " | Ctrl - aguantar per a increments"
 
 
-msgid "Overshoot"
-msgstr "Ultrapassat"
-
-
-msgid "Overshoot Disabled"
-msgstr "Ultrapassat deshabilitat"
-
-
 msgid "Unpack File"
 msgstr "Desempaquetar document"
 
@@ -138042,6 +137931,10 @@ msgid "Failed to set preview: no ID in context (incorrect context?)"
 msgstr "No s'ha pogut crear el previsionat: sense ID al context (context incorrecte?)"
 
 
+msgid "Failed to remove preview: no ID in context (incorrect context?)"
+msgstr "Previsionat fallit: sense ID al context (context incorrecte?)"
+
+
 msgid "Incorrect context for running data-block fake user toggling"
 msgstr "El context és incorrecte per a executar la permutació de l'usador fals del bloc de dades"
 
@@ -138050,12 +137943,35 @@ msgid "Data-block type does not support fake user"
 msgstr "El tipus de bloc de dades no admet usador fals"
 
 
+msgid "Can't edit previews of overridden library data"
+msgstr "No es poden editar les vistes prèvies de les dades de la biblioteca sobreseguda"
+
+
+msgid "Data-block does not support previews"
+msgstr "El bloc de dades no admet vistes prèvies"
+
+
 msgid "No preview available to remove"
 msgstr "No hi ha previsionat disponible per suprimir"
 
 
 msgid "Numeric input evaluation"
 msgstr "Avaluació de la ingressió numèrica"
+
+
+msgctxt "Operator"
+msgid "Select (Extend)"
+msgstr "Seleccionar (estendre)"
+
+
+msgctxt "Operator"
+msgid "Select (Deselect)"
+msgstr "Seleccionar (desseleccionar)"
+
+
+msgctxt "Operator"
+msgid "Select (Toggle)"
+msgstr "Seleccionar (permutar)"
 
 
 msgctxt "Operator"
@@ -138082,14 +137998,6 @@ msgstr "No es pot dividir la selecció quan la selecció de sincronització est�
 
 msgid "Pinned vertices can be selected in Vertex Mode only"
 msgstr "Només es poden seleccionar vèrtexs fixats en només mode vèrtex"
-
-
-msgid "Switch Island"
-msgstr "Intercanviar illa"
-
-
-msgid "Midpoints"
-msgstr "Punts mitjans"
 
 
 msgid "Could not initialize stitching on any selected object"
@@ -138200,12 +138108,8 @@ msgid "Could not initialize streams, probably unsupported codec combination"
 msgstr "No s'han pogut inicialitzar els streamings, probablement la combinació de còdecs no és compatible"
 
 
-msgid "Image format is not a movie format"
-msgstr "El format d'imatge no és un format de vídeo"
-
-
-msgid "Audio sample format unsupported"
-msgstr "Format de mostreig d'àudio no compatible"
+msgid "Alembic Export: Unable to find collection '%s'"
+msgstr "Exportació amb Alemic: la col·lecció '%s' no està localitzable"
 
 
 msgid "Object type mismatch, Alembic object path pointed to Camera when importing, but not any more"
@@ -138282,6 +138186,10 @@ msgstr "No casen els tipus d'objecte, el camí de l'objecte Alembic apunta a XFo
 
 msgid "Invalid object: verify object path"
 msgstr "Objecte no vàlid: verificar ruta de l'objecte"
+
+
+msgid "Could not open Alembic archive for reading, see console for detail"
+msgstr "No s'ha pogut obrir l'arxiu Alembic per a lectura! Consulta consola per més detalls"
 
 
 msgid "Could not open SVG"
@@ -138424,6 +138332,18 @@ msgid "Couldn't close destination asset %s"
 msgstr "No s'ha pogut tancar el recurs de destinació %s"
 
 
+msgid "%s: Can't generate a textures directory path for anonymous stage"
+msgstr "%s: No es pot generar la ruta a un directori de textures en fase anònima"
+
+
+msgid "%s: Can't get resolved path for stage"
+msgstr "%s: No es pot accedir a una ruta resolta per a la fase"
+
+
+msgid "In %s: resolved path %s exceeds path buffer length."
+msgstr "A %s: la ruta resolta %s excedeix la llargada del dosificador de ruta."
+
+
 msgid "USD Export: Unable to delete existing usdz file %s"
 msgstr "Exportació USD: no s'ha pogut eliminar el document usdz existent %s"
 
@@ -138438,6 +138358,18 @@ msgstr "Exportació USD: no s'ha pogut trobar un connector USD adequat per a esc
 
 msgid "USD Export: Unable to find collection '%s'"
 msgstr "Exportació amb USD: la col·lecció '%s' no està localitzable"
+
+
+msgid "USD Export: invalid path string '%s': %s"
+msgstr "Exportació d'USD: cadena de ruta invàlida '%s': %s"
+
+
+msgid "USD Export: path '%s' is not an absolute path"
+msgstr "Exportació d'USD: la ruta '%s' no és una ruta absoluta"
+
+
+msgid "USD Export: path string '%s' is not a prim path"
+msgstr "Exportació d'USD: la cadena de ruta '%s' no és una ruta de primitiva"
 
 
 msgid "Could not open USD archive for reading, see console for detail"
@@ -138856,8 +138788,16 @@ msgid "Timeline marker '%s' not found in action '%s'"
 msgstr "No s'ha trobat la marca de cronograma '%s' a l'acció '%s'"
 
 
-msgid "Assign action \"%s\" to \"%s\" before calling this function"
-msgstr "Assignar l'acció \"%s\" a \"%s\" abans d'invocar aquesta funció"
+msgid "Action slot display names cannot be empty"
+msgstr "Els noms dels epígrafs d'Acció no poden restar buits"
+
+
+msgid "Action slot identifiers should be at least three characters"
+msgstr "Els identificadors dels epígrafs han de tenir almenys tres caràcters"
+
+
+msgid "Action slot identifier set with unexpected prefix \"%s\" (expected \"%s\")."
+msgstr "Prefix \"%s\" inesperat en l'identificador d'epígraf d'acció (el que s'espera és \"%s\")."
 
 
 msgid "Only armature objects are supported"
@@ -138918,6 +138858,10 @@ msgstr "No es pot suprimir la PistaANL '%s'"
 
 msgid "Driver '%s[%d]' already exists"
 msgstr "El controlador '%s[%d]' ja existeix"
+
+
+msgid "This slot is not suitable for this data-block type (%c%c)"
+msgstr "Aquest epígraf no és adequat per aquest tipus de bloc de dades (%c%c)"
 
 
 msgid "Invalid context for keying set"
@@ -140091,6 +140035,10 @@ msgid "Font is not editable"
 msgstr "Font no editable"
 
 
+msgid "Could not find grid with name %s"
+msgstr "No s'ha pogut trobar la graella amb el nom %s"
+
+
 msgctxt "UI_Events_KeyMaps"
 msgid "Left"
 msgstr "Esquerra"
@@ -140913,11 +140861,11 @@ msgstr "Invertir l'UDIM"
 
 msgctxt "Mesh"
 msgid "Clipping"
-msgstr "Segat"
+msgstr "Segar"
 
 
-msgid "Levels Viewport"
-msgstr "Nivells de mirador"
+msgid "Level Viewport"
+msgstr "Nivell de mirador"
 
 
 msgid "Unsubdivide"
@@ -141054,14 +141002,6 @@ msgid "Built without Remesh modifier"
 msgstr "Construït sense modificador Remallar"
 
 
-msgid "Zero voxel size cannot be solved"
-msgstr "No es pot resoldre una mida de vòxel zero"
-
-
-msgid "Zero scale cannot be solved"
-msgstr "No es pot resoldre una escala zero"
-
-
 msgid "Axis Object"
 msgstr "Objecte eix"
 
@@ -141076,10 +141016,6 @@ msgstr "Estirar UVs"
 
 msgid "SimpleDeform"
 msgstr "Deformació simple (SimpleDeform)"
-
-
-msgid "Restrictions"
-msgstr "Restriccions"
 
 
 msgid "Create Armature"
@@ -141145,6 +141081,14 @@ msgstr "Error intern: la sèrie de bucles té una mida incorrecta: %u en lloc de
 
 msgid "Adaptive Subdivision"
 msgstr "Subdivisió adaptativa"
+
+
+msgid "Levels Viewport"
+msgstr "Nivells de mirador"
+
+
+msgid "Final Scale: Render %.2f px, Viewport %.2f px"
+msgstr "Escala final: revela %.2f px, Mirador %.2f px"
 
 
 msgid "Sharp edges or custom normals detected, disabling GPU subdivision"
@@ -141244,11 +141188,6 @@ msgstr "Eix U"
 
 msgid "UVWarp"
 msgstr "Aberrar UV (UVWarp)"
-
-
-msgctxt "Modifier"
-msgid "To"
-msgstr "Envers"
 
 
 msgid "Sample Radius"
@@ -141419,14 +141358,6 @@ msgid "Quality:"
 msgstr "Qualitat:"
 
 
-msgid "Disabled. Built without OpenImageDenoise"
-msgstr "Deshabilitat. Bastit sense OpenImageDenoise"
-
-
-msgid "Disabled. Platform not supported"
-msgstr "Deshabilitat. Plataforma no compatible"
-
-
 msgid "Image 1"
 msgstr "Imatge 1"
 
@@ -141555,10 +141486,6 @@ msgid "ID value"
 msgstr "Valor ID"
 
 
-msgid "Render passes in the Viewport compositor are only supported in EEVEE"
-msgstr "Les passades de revelat del compositador del Mirador només són compatibles amb EEVEE"
-
-
 msgid "Viewport compositor setup not fully supported"
 msgstr "La configuració del compositador del mirador no és del tot compatible"
 
@@ -141597,6 +141524,10 @@ msgstr "Al màx"
 
 msgid "Offset Y"
 msgstr "Desplaçament en Y"
+
+
+msgid "Undistortion"
+msgstr "Desdistorsió"
 
 
 msgid "Dot"
@@ -142642,6 +142573,10 @@ msgid "Values larger than the threshold are inside the generated mesh"
 msgstr "Els valors més grans que el llindar es troben dins de la malla generada"
 
 
+msgid "Has Alpha"
+msgstr "TÉ alfa"
+
+
 msgid "Frame Count"
 msgstr "Recompte de fotogrames"
 
@@ -142664,10 +142599,6 @@ msgstr "Rapidesa de reproducció de l'animació en fotogrames per segon. Si una 
 
 msgid "Texture coordinates from 0 to 1"
 msgstr "Coordenades de textura de 0 a 1"
-
-
-msgid "Delimiter"
-msgstr "Delimitador"
 
 
 msgid "Disabled, Blender was compiled without OBJ I/O"
@@ -143183,7 +143114,7 @@ msgstr "Ubicació del primer vèrtex"
 
 
 msgid "In offset mode, the distance between each socket on each axis. In end points mode, the position of the final vertex"
-msgstr "En mode desplaçament, la distància entre cada born de cada eix. En el mode de punts extrems, la posició del vèrtex final"
+msgstr "En mode de desplaçament, la distància entre cada born en cada eix. En el mode de punts extrems, la posició del vèrtex final"
 
 
 msgid "Segments must be at least 3"
@@ -143698,6 +143629,10 @@ msgid "Failed to write to attribute \"{}\" with domain \"{}\" and type \"{}\""
 msgstr "No s'ha pogut escriure a l'atribut \"{}\" amb domini \"{}\" i tipus \"{}\""
 
 
+msgid "Delimiter"
+msgstr "Delimitador"
+
+
 msgid "Strings"
 msgstr "Cadenes"
 
@@ -143900,6 +143835,10 @@ msgstr "Editor d'aspectors"
 
 msgid "Not a shader node tree"
 msgstr "No és un arbre de nodes aspector"
+
+
+msgid "Not a shader or geometry node tree"
+msgstr "No és un arbre de nodes d'aspecció o geometria"
 
 
 msgid "AO"
@@ -144163,7 +144102,7 @@ msgstr "Tintat de llustre"
 
 msgctxt "Amount"
 msgid "Emission Strength"
-msgstr "Potència d'emissió"
+msgstr "Intensitat emissió"
 
 
 msgid "Color of the material used for diffuse, subsurface, metallic and transmission"
@@ -144194,12 +144133,12 @@ msgid "Blend between diffuse surface and subsurface scattering. Typically should
 msgstr "Fusió entre superfície difusiva i dispersió de subsuperfície. Típicanent hauria de ser zero o u (o bé difusiu del tot o de subsuperfície)"
 
 
-msgid "Scattering radius per color channel (RGB), multiplied with Scale"
-msgstr "Radi de dispersió per canal de color (RGB), multiplicat per l'Escala"
+msgid "Scattering radius to use for subsurface component (multiplied with Scale)"
+msgstr "Radi de dispersió disponible per al component de subsuperfície (multiplicat per l'escala)"
 
 
-msgid "Scale factor of the subsurface scattering radius"
-msgstr "Factor d'escalat del radi de dispersió de subsuperfície"
+msgid "Scale of the subsurface scattering (multiplied with Radius)"
+msgstr "Escala de dispersió de subsuperfície (multiplicada per radi)"
 
 
 msgid "Index of Refraction (IOR) used for rays that enter the subsurface component"
@@ -144367,6 +144306,14 @@ msgid "Clear Coat Normal"
 msgstr "Normal de bany clar"
 
 
+msgid ""
+"Gamma correction value\n"
+"Gamma controls the relative intensity of the mid-tones compared to the full black and full white"
+msgstr ""
+"Valor de correcció gamma\n"
+"El gamma controla la intensitat relativa dels tons mitjans en comparació amb el blanc complet i el negre complet"
+
+
 msgid "True Normal"
 msgstr "Normal veritable"
 
@@ -144380,11 +144327,11 @@ msgstr "Paramètric"
 
 
 msgid "Backfacing"
-msgstr "Contracara"
+msgstr "Contraencarament"
 
 
 msgid "Pointiness"
-msgstr "Punxegudesa"
+msgstr "Puntillisme"
 
 
 msgid "Random Per Island"
@@ -144769,7 +144716,7 @@ msgid ""
 "Position of the wave along the Bands Direction.\n"
 "This can be used as an input for more control over the distortion"
 msgstr ""
-"Posició de l'ona al llarg de la Direcció de les aigües.\n"
+"Posició de l'ona al llarg de la Direcció de Bandes.\n"
 "Es pot utilitzar com a entrada per a més control sobre la distorsió"
 
 
@@ -144931,10 +144878,6 @@ msgstr "La imatge és massa petita"
 
 msgid "Cannot render, no camera"
 msgstr "No es pot revelar, no hi ha càmera"
-
-
-msgid "Render size too large for GPU, use CPU compositor instead"
-msgstr "Mida de revelat excessiva per a la GPU, en lloc d'això, feu servir el compositador de CPU"
 
 
 msgid "No border area selected"
@@ -145135,6 +145078,10 @@ msgid "Dragging {} files"
 msgstr "Arrossegant documents {}"
 
 
+msgid "Region could not be drawn!"
+msgstr "No s'ha pogut dibuixar en la regió!"
+
+
 msgid "Input pending "
 msgstr "Ingressió pendent "
 
@@ -145191,8 +145138,8 @@ msgid ""
 "To make changes to Preferences permanent, use \"Save Preferences\".\n"
 "Warning: Your file is unsaved! Proceeding will abandon your changes."
 msgstr ""
-"Per fer que els canvis a les preferències siguin permanents, utilitzeu \"Desar preferències\".\n"
-"Avís: el vostre document no està desat! Si continueu, s'abandonaran els vostres canvis."
+"Per fer que els canvis a les preferències siguin permanents, utilitzeu \"Desa les preferències\".\n"
+"Avís: el vostre fitxer no està desat! Si continueu, s'abandonaran els vostres canvis."
 
 
 msgid "To make changes to Preferences permanent, use \"Save Preferences\"."
@@ -145383,10 +145330,6 @@ msgid "Cannot save blend file, path \"%s\" is not writable"
 msgstr "No es pot desar el document blend, la ruta \"%s\" no és escrivible"
 
 
-msgid "Cannot save blend file, path \"%s\" is a directory"
-msgstr "No es pot desar el document blend, la ruta \"%s\" és un directori"
-
-
 msgid "Can't read alternative start-up file: \"%s\""
 msgstr "No es pot llegir el document d'inici alternatiu: \"%s\""
 
@@ -145453,14 +145396,6 @@ msgstr "dbl-"
 
 msgid "drag-"
 msgstr "arrossegar-"
-
-
-msgid "ON"
-msgstr "ENGEGAR"
-
-
-msgid "OFF"
-msgstr "APAGAr"
 
 
 msgid "Set Debug Value"
@@ -145677,6 +145612,10 @@ msgstr "Ha fallat en crear la finestra"
 
 msgid "One of the add-ons or scripts is using OpenGL and will not work correct on Metal. Please contact the developer of the add-on to migrate to use 'gpu' module"
 msgstr "Un dels complements o protocols utilitza OpenGL i no funcionarà correctament amb Metal. Contacta amb el desenvolupador del complement per migrar en l'ús del mòdul 'gpu'"
+
+
+msgid "Passthrough not available"
+msgstr "Trànsit no disponible"
 
 
 msgid "1 inch"
@@ -145972,7 +145911,7 @@ msgstr "H264 en Matroska"
 
 
 msgid "H264 in Matroska for scrubbing"
-msgstr "H264 en Matroska per refregar"
+msgstr "H264 en Matroska per toquerejar"
 
 
 msgid "Ogg Theora"
@@ -146291,6 +146230,10 @@ msgid "Import SVG as curves"
 msgstr "Importar SVG com a corbes"
 
 
+msgid "Subclasses Error"
+msgstr "Error de subclasses"
+
+
 msgid "UV Layout"
 msgstr "Disposició UV"
 
@@ -146305,10 +146248,6 @@ msgstr "Inspecció de l'escena d'RV"
 
 msgid "View the viewport with virtual reality glasses (head-mounted displays)"
 msgstr "Visualitza el mirador amb ulleres de realitat virtual (dispositius per al cap)"
-
-
-msgid "All Add-ons"
-msgstr "Tots el complements"
 
 
 msgid "All Add-ons Installed by User"
@@ -147751,7 +147690,7 @@ msgstr "Travar extrems"
 
 
 msgid "Lock rotation to the axis between the curve ends"
-msgstr "Bloqueja la rotació a l'eix d'entre els extrems de la corba"
+msgstr "Bloqueja la rotació a l'eix entre els extrems de la corba"
 
 
 msgid "Sets the radius attribute of hair curves according to a profile shape"

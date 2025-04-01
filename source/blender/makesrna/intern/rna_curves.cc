@@ -104,7 +104,6 @@ static void rna_Curves_curve_offset_data_begin(CollectionPropertyIterator *iter,
 {
   Curves *curves = rna_curves(ptr);
   rna_iterator_array_begin(iter,
-                           ptr,
                            curves->geometry.wrap().offsets_for_write().data(),
                            sizeof(int),
                            curves->geometry.curve_num + 1,
@@ -118,8 +117,9 @@ static bool rna_Curves_curve_offset_data_lookup_int(PointerRNA *ptr, int index, 
   if (index < 0 || index >= curves->geometry.curve_num + 1) {
     return false;
   }
-  rna_pointer_create_with_ancestors(
-      *ptr, &RNA_IntAttributeValue, &curves->geometry.wrap().offsets_for_write()[index], *r_ptr);
+  r_ptr->owner_id = &curves->id;
+  r_ptr->type = &RNA_IntAttributeValue;
+  r_ptr->data = &curves->geometry.wrap().offsets_for_write()[index];
   return true;
 }
 
@@ -145,7 +145,6 @@ static void rna_Curves_curves_begin(CollectionPropertyIterator *iter, PointerRNA
 {
   Curves *curves = rna_curves(ptr);
   rna_iterator_array_begin(iter,
-                           ptr,
                            curves->geometry.wrap().offsets_for_write().data(),
                            sizeof(int),
                            curves->geometry.curve_num,
@@ -165,8 +164,9 @@ static bool rna_Curves_curves_lookup_int(PointerRNA *ptr, int index, PointerRNA 
   if (index < 0 || index >= curves->geometry.curve_num) {
     return false;
   }
-  rna_pointer_create_with_ancestors(
-      *ptr, &RNA_CurveSlice, &curves->geometry.wrap().offsets_for_write()[index], *r_ptr);
+  r_ptr->owner_id = &curves->id;
+  r_ptr->type = &RNA_CurveSlice;
+  r_ptr->data = &curves->geometry.wrap().offsets_for_write()[index];
   return true;
 }
 
@@ -182,10 +182,9 @@ bool rna_Curves_position_data_lookup_int(PointerRNA *ptr, int index, PointerRNA 
   if (index < 0 || index >= curves->geometry.point_num) {
     return false;
   }
-  rna_pointer_create_with_ancestors(*ptr,
-                                    &RNA_FloatVectorAttributeValue,
-                                    &get_curves_positions_for_write(*curves)[index],
-                                    *r_ptr);
+  r_ptr->owner_id = &curves->id;
+  r_ptr->type = &RNA_FloatVectorAttributeValue;
+  r_ptr->data = &get_curves_positions_for_write(*curves)[index];
   return true;
 }
 
@@ -193,7 +192,6 @@ static void rna_Curves_position_data_begin(CollectionPropertyIterator *iter, Poi
 {
   Curves *curves = rna_curves(ptr);
   rna_iterator_array_begin(iter,
-                           ptr,
                            get_curves_positions_for_write(*curves),
                            sizeof(float[3]),
                            curves->geometry.point_num,
@@ -250,8 +248,9 @@ bool rna_Curves_points_lookup_int(PointerRNA *ptr, int index, PointerRNA *r_ptr)
   if (index < 0 || index >= curves->geometry.point_num) {
     return false;
   }
-  rna_pointer_create_with_ancestors(
-      *ptr, &RNA_CurvePoint, &get_curves_positions_for_write(*curves)[index], *r_ptr);
+  r_ptr->owner_id = &curves->id;
+  r_ptr->type = &RNA_CurvePoint;
+  r_ptr->data = &get_curves_positions_for_write(*curves)[index];
   return true;
 }
 
@@ -291,7 +290,7 @@ static void rna_CurveSlice_points_begin(CollectionPropertyIterator *iter, Pointe
   const int size = rna_CurveSlice_points_length_get(ptr);
   float(*positions)[3] = get_curves_positions_for_write(*curves);
   float(*co)[3] = positions + offset;
-  rna_iterator_array_begin(iter, ptr, co, sizeof(float[3]), size, 0, nullptr);
+  rna_iterator_array_begin(iter, co, sizeof(float[3]), size, 0, nullptr);
 }
 
 static void rna_Curves_normals_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
@@ -299,7 +298,7 @@ static void rna_Curves_normals_begin(CollectionPropertyIterator *iter, PointerRN
   Curves *curves = rna_curves(ptr);
   float(*positions)[3] = blender::ed::curves::point_normals_array_create(curves);
   const int size = curves->geometry.point_num;
-  rna_iterator_array_begin(iter, ptr, positions, sizeof(float[3]), size, true, nullptr);
+  rna_iterator_array_begin(iter, positions, sizeof(float[3]), size, true, nullptr);
 }
 
 static void rna_Curves_update_data(Main * /*bmain*/, Scene * /*scene*/, PointerRNA *ptr)

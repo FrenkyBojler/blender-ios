@@ -108,7 +108,7 @@ AnimData *BKE_animdata_ensure_id(ID *id)
       AnimData *adt;
 
       /* add animdata */
-      adt = iat->adt = MEM_callocN<AnimData>("AnimData");
+      adt = iat->adt = static_cast<AnimData *>(MEM_callocN(sizeof(AnimData), "AnimData"));
 
       /* set default settings */
       adt->act_influence = 1.0f;
@@ -1216,111 +1216,55 @@ bool BKE_animdata_fix_paths_remove(ID *id, const char *prefix)
   return any_removed;
 }
 
-bool BKE_animdata_driver_path_remove(ID *id, const char *prefix)
-{
-  AnimData *adt = BKE_animdata_from_id(id);
-  if (!adt) {
-    return false;
-  }
-
-  const bool any_removed = fcurves_path_remove_from_listbase(prefix, &adt->drivers);
-  return any_removed;
-}
-
-bool BKE_animdata_drivers_remove_for_rna_struct(ID &owner_id, StructRNA &type, void *data)
-{
-  PointerRNA constraint_ptr = RNA_pointer_create_discrete(&owner_id, &type, data);
-  const std::optional<std::string> base_path = RNA_path_from_ID_to_struct(&constraint_ptr);
-  if (!base_path.has_value()) {
-    /* The data should exist, so the path should always resolve. */
-    BLI_assert_unreachable();
-  }
-
-  return BKE_animdata_driver_path_remove(&owner_id, base_path.value().c_str());
-}
-
 /* Apply Op to All FCurves in Database --------------------------- */
 
-/**
- * Callback function for ID & F-Curve reporting when looping over all F-Curves of an ID.
- *
- * \returns whether looping should continue (true = keep going, false = stop).
- */
-using IDFCurveCallback = FunctionRef<bool(ID *, FCurve *)>;
-
 /* Helper for adt_apply_all_fcurves_cb() - Apply wrapped operator to list of F-Curves */
-static bool fcurves_apply_cb(ID *id, blender::Span<FCurve *> fcurves, const IDFCurveCallback func)
+static void fcurves_apply_cb(ID *id,
+                             blender::Span<FCurve *> fcurves,
+                             const FunctionRef<void(ID *, FCurve *)> func)
 {
   for (FCurve *fcu : fcurves) {
-    if (!func(id, fcu)) {
-      return false;
-    }
+    func(id, fcu);
   }
-  return true;
 }
-static bool fcurves_listbase_apply_cb(ID *id, ListBase *fcurves, const IDFCurveCallback func)
+static void fcurves_listbase_apply_cb(ID *id,
+                                      ListBase *fcurves,
+
+                                      const FunctionRef<void(ID *, FCurve *)> func)
 {
   LISTBASE_FOREACH (FCurve *, fcu, fcurves) {
-    if (!func(id, fcu)) {
-      return false;
-    }
+    func(id, fcu);
   }
-  return true;
 }
 
 /* Helper for adt_apply_all_fcurves_cb() - Recursively go through each NLA strip */
-static bool nlastrips_apply_all_curves_cb(ID *id, ListBase *strips, const IDFCurveCallback func)
+static void nlastrips_apply_all_curves_cb(ID *id,
+                                          ListBase *strips,
+                                          const FunctionRef<void(ID *, FCurve *)> func)
 {
-  /* This function is used (via `BKE_fcurves_id_cb()`) by the versioning system.
-   * As such, legacy Actions should always be expected here. */
-
   LISTBASE_FOREACH (NlaStrip *, strip, strips) {
+    /* fix strip's action */
     if (strip->act) {
-      const Vector<FCurve *> fcurves = blender::animrig::legacy::fcurves_for_action_slot(
-          strip->act, strip->action_slot_handle);
-      if (!fcurves_apply_cb(id, fcurves, func)) {
-        return false;
-      }
+      fcurves_apply_cb(id, blender::animrig::legacy::fcurves_all(strip->act), func);
     }
 
     /* Check sub-strips (if meta-strips). */
-    if (!nlastrips_apply_all_curves_cb(id, &strip->strips, func)) {
-      return false;
-    }
+    nlastrips_apply_all_curves_cb(id, &strip->strips, func);
   }
-  return true;
 }
 
-/**
- * Call the callback function for all F-Curves on the ID. Muted NLA Tracks are
- * ignored, drivers and Actions on NLA strips are included.
- *
- * \returns whether the loop was completed to the end, so false if any call of the callback
- * returned false.
- */
-static bool adt_apply_all_fcurves_cb(ID *id, AnimData *adt, const IDFCurveCallback func)
+/* Helper for BKE_fcurves_main_cb() - Dispatch wrapped operator to all F-Curves. Muted NLA Tracks
+ * are ignored. */
+static void adt_apply_all_fcurves_cb(ID *id,
+                                     AnimData *adt,
+                                     const FunctionRef<void(ID *, FCurve *)> func)
 {
-  /* This function is used (via `BKE_fcurves_id_cb()`) by the versioning system.
-   * As such, legacy Actions should always be expected here. */
-
   if (adt->action) {
-    if (!fcurves_apply_cb(
-            id,
-            blender::animrig::legacy::fcurves_for_action_slot(adt->action, adt->slot_handle),
-            func))
-    {
-      return false;
-    }
+    fcurves_apply_cb(id, blender::animrig::legacy::fcurves_all(adt->action), func);
   }
 
   if (adt->tmpact) {
-    if (!fcurves_apply_cb(
-            id,
-            blender::animrig::legacy::fcurves_for_action_slot(adt->tmpact, adt->tmp_slot_handle),
-            func))
-    {
-      return false;
-    }
+    fcurves_apply_cb(id, blender::animrig::legacy::fcurves_all(adt->tmpact), func);
   }
 
   /* free drivers - stored as a list of F-Curves */
@@ -1328,40 +1272,26 @@ static bool adt_apply_all_fcurves_cb(ID *id, AnimData *adt, const IDFCurveCallba
 
   /* NLA Data - Animation Data for Strips */
   LISTBASE_FOREACH (NlaTrack *, nlt, &adt->nla_tracks) {
-    if (!BKE_nlatrack_is_enabled(*adt, *nlt)) {
+    if (nlt->flag & NLATRACK_MUTED) {
       continue;
     }
-    if (!nlastrips_apply_all_curves_cb(id, &nlt->strips, func)) {
-      return false;
-    }
+    nlastrips_apply_all_curves_cb(id, &nlt->strips, func);
   }
-  return true;
 }
 
 void BKE_fcurves_id_cb(ID *id, const FunctionRef<void(ID *, FCurve *)> func)
 {
   AnimData *adt = BKE_animdata_from_id(id);
   if (adt != nullptr) {
-    /* Use a little wrapper function to always return 'true' and thus keep the loop looping. */
-    const auto wrapper = [&func](ID *id, FCurve *fcurve) {
-      func(id, fcurve);
-      return true;
-    };
-    adt_apply_all_fcurves_cb(id, adt, wrapper);
+    adt_apply_all_fcurves_cb(id, adt, func);
   }
 }
 
 void BKE_fcurves_main_cb(Main *bmain, const FunctionRef<void(ID *, FCurve *)> func)
 {
-  /* Use a little wrapper function to always return 'true' and thus keep the loop looping. */
-  const auto wrapper = [&func](ID *id, FCurve *fcurve) {
-    func(id, fcurve);
-    return true;
-  };
-
   /* Use the AnimData-based function so that we don't have to reimplement all that stuff */
   BKE_animdata_main_cb(bmain,
-                       [&](ID *id, AnimData *adt) { adt_apply_all_fcurves_cb(id, adt, wrapper); });
+                       [&](ID *id, AnimData *adt) { adt_apply_all_fcurves_cb(id, adt, func); });
 }
 
 /* Whole Database Ops -------------------------------------------- */
@@ -1388,7 +1318,7 @@ void BKE_animdata_main_cb(Main *bmain, const FunctionRef<void(ID *, AnimData *)>
     if (ntp->nodetree) { \
       AnimData *adt2 = BKE_animdata_from_id((ID *)ntp->nodetree); \
       if (adt2) { \
-        func((ID *)ntp->nodetree, adt2); \
+        func(id, adt2); \
       } \
     } \
     if (adt) { \
@@ -1583,25 +1513,6 @@ namespace blender::bke::animdata {
 void action_slots_user_cache_invalidate(Main &bmain)
 {
   blender::animrig::Slot::users_invalidate(bmain);
-}
-
-bool prop_is_animated(const AnimData *adt, const StringRefNull rna_path, const int array_index)
-{
-  if (!adt) {
-    /* If there is no animdata, it's clear the property is not animated. */
-    return false;
-  }
-
-  /* The const_cast is used because adt_apply_all_fcurves_cb() wants to yield a
-   * mutable F-Curve and thus gets a mutable AnimData. The function itself is
-   * not modifying anything, so this case should be safe. */
-  const bool looped_until_end = adt_apply_all_fcurves_cb(
-      nullptr, const_cast<AnimData *>(adt), [&](const ID *, const FCurve *fcurve) {
-        /* Looping should stop (so return false) when the F-Curve was found. */
-        return !(array_index == fcurve->array_index && rna_path == fcurve->rna_path);
-      });
-
-  return !looped_until_end;
 }
 
 }  // namespace blender::bke::animdata

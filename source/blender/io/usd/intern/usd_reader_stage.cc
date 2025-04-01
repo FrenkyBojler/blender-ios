@@ -24,15 +24,12 @@
 #include <pxr/usd/usd/primRange.h>
 #include <pxr/usd/usdGeom/camera.h>
 #include <pxr/usd/usdGeom/capsule.h>
-#include <pxr/usd/usdGeom/capsule_1.h>
 #include <pxr/usd/usdGeom/cone.h>
 #include <pxr/usd/usdGeom/cube.h>
 #include <pxr/usd/usdGeom/cylinder.h>
-#include <pxr/usd/usdGeom/cylinder_1.h>
 #include <pxr/usd/usdGeom/mesh.h>
 #include <pxr/usd/usdGeom/metrics.h>
 #include <pxr/usd/usdGeom/nurbsCurves.h>
-#include <pxr/usd/usdGeom/plane.h>
 #include <pxr/usd/usdGeom/pointInstancer.h>
 #include <pxr/usd/usdGeom/points.h>
 #include <pxr/usd/usdGeom/scope.h>
@@ -111,9 +108,8 @@ static void set_instance_collection(
     instance_reader->set_instance_collection(collection);
   }
   else {
-    CLOG_WARN(&LOG,
-              "Couldn't find prototype collection for %s",
-              instance_reader->prim_path().GetAsString().c_str());
+    CLOG_WARN(
+        &LOG, "Couldn't find prototype collection for %s", instance_reader->prim_path().c_str());
   }
 }
 
@@ -181,26 +177,11 @@ static void find_prefix_to_skip(pxr::UsdStageRefPtr stage, ImportSettings &setti
   settings.skip_prefix = path;
 }
 
-/**
- * Set compatibility flags if the Stage was written by Blender.
- */
-static void determine_blender_compat(pxr::UsdStageRefPtr stage, ImportSettings &settings)
-{
-  const std::string doc = stage->GetRootLayer()->GetDocumentation();
-
-  /* Was the incoming Stage written by Blender? If so, set some broad compatibility flags. */
-  if (doc.find("Blender v", 0) == 0) {
-    /* Set flag if the Blender Stage was from before version 4.4. */
-    settings.blender_stage_version_prior_44 = doc < "Blender v4.4";
-  }
-}
-
 USDStageReader::USDStageReader(pxr::UsdStageRefPtr stage,
                                const USDImportParams &params,
                                const std::function<CacheFile *()> &get_cache_file_fn)
     : stage_(stage), params_(params)
 {
-  determine_blender_compat(stage_, settings_);
   convert_to_z_up(stage_, settings_);
   find_prefix_to_skip(stage_, settings_);
   settings_.get_cache_file = get_cache_file_fn;
@@ -223,10 +204,9 @@ bool USDStageReader::valid() const
 
 bool USDStageReader::is_primitive_prim(const pxr::UsdPrim &prim) const
 {
-  return (prim.IsA<pxr::UsdGeomCapsule>() || prim.IsA<pxr::UsdGeomCapsule_1>() ||
-          prim.IsA<pxr::UsdGeomCylinder>() || prim.IsA<pxr::UsdGeomCylinder_1>() ||
+  return (prim.IsA<pxr::UsdGeomCapsule>() || prim.IsA<pxr::UsdGeomCylinder>() ||
           prim.IsA<pxr::UsdGeomCone>() || prim.IsA<pxr::UsdGeomCube>() ||
-          prim.IsA<pxr::UsdGeomSphere>() || prim.IsA<pxr::UsdGeomPlane>());
+          prim.IsA<pxr::UsdGeomSphere>());
 }
 
 USDPrimReader *USDStageReader::create_reader_if_allowed(const pxr::UsdPrim &prim)
@@ -496,7 +476,7 @@ USDPrimReader *USDStageReader::collect_readers(const pxr::UsdPrim &prim,
   if (prim.IsA<pxr::UsdShadeMaterial>()) {
     /* Record material path for later processing, if needed,
      * e.g., when importing all materials. */
-    material_paths_.append(prim.GetPath());
+    material_paths_.append(prim.GetPath().GetAsString());
 
     /* We don't create readers for materials, so return early. */
     return nullptr;
@@ -569,7 +549,7 @@ void USDStageReader::process_armature_modifiers() const
   /* Iterate over the skeleton readers to create the
    * armature object map, which maps a USD skeleton prim
    * path to the corresponding armature object. */
-  blender::Map<pxr::SdfPath, Object *> usd_path_to_armature;
+  blender::Map<std::string, Object *> usd_path_to_armature;
   for (const USDPrimReader *reader : readers_) {
     if (dynamic_cast<const USDSkeletonReader *>(reader) && reader->object()) {
       usd_path_to_armature.add(reader->prim_path(), reader->object());
@@ -594,14 +574,14 @@ void USDStageReader::process_armature_modifiers() const
     ArmatureModifierData *amd = reinterpret_cast<ArmatureModifierData *>(md);
 
     /* Assign the armature based on the bound USD skeleton path of the skinned mesh. */
-    pxr::SdfPath skel_path = mesh_reader->get_skeleton_path();
+    std::string skel_path = mesh_reader->get_skeleton_path();
     Object *object = usd_path_to_armature.lookup_default(skel_path, nullptr);
     if (object == nullptr) {
       BKE_reportf(reports(),
                   RPT_WARNING,
                   "%s: Couldn't find armature object corresponding to USD skeleton %s",
                   __func__,
-                  skel_path.GetAsString().c_str());
+                  skel_path.c_str());
     }
     amd->object = object;
   }
@@ -613,12 +593,13 @@ void USDStageReader::import_all_materials(Main *bmain)
 
   /* Build the material name map if it's not built yet. */
   if (settings_.mat_name_to_mat.is_empty()) {
-    build_material_map(bmain, settings_.mat_name_to_mat);
+    build_material_map(bmain, &settings_.mat_name_to_mat);
   }
 
   USDMaterialReader mtl_reader(params_, bmain);
-  for (const pxr::SdfPath &mtl_path : material_paths_) {
-    pxr::UsdPrim prim = stage_->GetPrimAtPath(mtl_path);
+
+  for (const std::string &mtl_path : material_paths_) {
+    pxr::UsdPrim prim = stage_->GetPrimAtPath(pxr::SdfPath(mtl_path));
 
     pxr::UsdShadeMaterial usd_mtl(prim);
     if (!usd_mtl) {
@@ -641,19 +622,19 @@ void USDStageReader::import_all_materials(Main *bmain)
     BLI_assert_msg(new_mtl, "Failed to create material");
 
     const std::string mtl_name = make_safe_name(new_mtl->id.name + 2, true);
-    settings_.mat_name_to_mat.add_new(mtl_name, new_mtl);
+    settings_.mat_name_to_mat.lookup_or_add_default(mtl_name) = new_mtl;
 
     if (params_.mtl_name_collision_mode == USD_MTL_NAME_COLLISION_MAKE_UNIQUE) {
       /* Record the Blender material we created for the USD material with the given path.
        * This is to prevent importing the material again when assigning materials to objects
        * elsewhere in the code. */
-      settings_.usd_path_to_mat.add_new(mtl_path, new_mtl);
+      settings_.usd_path_to_mat.lookup_or_add_default(prim.GetPath().GetAsString()) = new_mtl;
     }
 
     if (have_import_hook) {
       /* Defer invoking the hook to convert the material till we can do so from
        * the main thread. */
-      settings_.usd_path_to_mat_for_hook.add_new(mtl_path, new_mtl);
+      settings_.usd_path_to_mat_for_hook.lookup_or_add_default(mtl_path) = new_mtl;
     }
   }
 }
@@ -676,7 +657,7 @@ void USDStageReader::find_material_import_hook_sources()
     if (prim.IsA<pxr::UsdShadeMaterial>()) {
       pxr::UsdShadeMaterial usd_mat(prim);
       if (have_material_import_hook(stage_, usd_mat, params_, reports())) {
-        settings_.mat_import_hook_sources.add(prim.GetPath());
+        settings_.mat_import_hook_sources.add(prim.GetPath().GetAsString());
       }
     }
   }
@@ -690,7 +671,7 @@ void USDStageReader::call_material_import_hooks(Main *bmain) const
   }
 
   for (const auto item : settings_.usd_path_to_mat_for_hook.items()) {
-    pxr::UsdPrim prim = stage_->GetPrimAtPath(item.key);
+    pxr::UsdPrim prim = stage_->GetPrimAtPath(pxr::SdfPath(item.key));
 
     pxr::UsdShadeMaterial usd_mtl(prim);
     if (!usd_mtl) {
@@ -788,7 +769,7 @@ void USDStageReader::create_proto_collections(Main *bmain, Collection *parent_co
       continue;
     }
 
-    for (const USDPrimReader *reader : item.value) {
+    for (USDPrimReader *reader : item.value) {
       Object *ob = reader->object();
 
       if (!ob) {

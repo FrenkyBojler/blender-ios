@@ -18,6 +18,10 @@
 #include "Interface0D/ViewVertex/BPy_TVertex.h"
 #include "Interface1D/BPy_FEdge.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 using namespace Freestyle;
 
 ///////////////////////////////////////////////////////////////////////////////////////////
@@ -139,16 +143,6 @@ static PyObject *Interface0D_get_fedge(BPy_Interface0D *self, PyObject *args, Py
   Py_RETURN_NONE;
 }
 
-#ifdef __GNUC__
-#  ifdef __clang__
-#    pragma clang diagnostic push
-#    pragma clang diagnostic ignored "-Wcast-function-type"
-#  else
-#    pragma GCC diagnostic push
-#    pragma GCC diagnostic ignored "-Wcast-function-type"
-#  endif
-#endif
-
 static PyMethodDef BPy_Interface0D_methods[] = {
     {"get_fedge",
      (PyCFunction)Interface0D_get_fedge,
@@ -156,14 +150,6 @@ static PyMethodDef BPy_Interface0D_methods[] = {
      Interface0D_get_fedge_doc},
     {nullptr, nullptr, 0, nullptr},
 };
-
-#ifdef __GNUC__
-#  ifdef __clang__
-#    pragma clang diagnostic pop
-#  else
-#    pragma GCC diagnostic pop
-#  endif
-#endif
 
 /*----------------------Interface1D get/setters ----------------------------*/
 
@@ -367,3 +353,7 @@ PyTypeObject Interface0D_Type = {
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////
+
+#ifdef __cplusplus
+}
+#endif

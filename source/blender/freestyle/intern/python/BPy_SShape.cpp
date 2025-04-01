@@ -16,7 +16,9 @@
 
 #include "BLI_sys_types.h"
 
-#include "../generic/py_capi_utils.hh"
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 using namespace Freestyle;
 
@@ -144,16 +146,6 @@ static PyObject *SShape_compute_bbox(BPy_SShape *self)
 // const vector< Material > &   materials () const
 // void     SetMaterials (const vector< Material > &iMaterials)
 
-#ifdef __GNUC__
-#  ifdef __clang__
-#    pragma clang diagnostic push
-#    pragma clang diagnostic ignored "-Wcast-function-type"
-#  else
-#    pragma GCC diagnostic push
-#    pragma GCC diagnostic ignored "-Wcast-function-type"
-#  endif
-#endif
-
 static PyMethodDef BPy_SShape_methods[] = {
     {"add_edge", (PyCFunction)SShape_add_edge, METH_VARARGS | METH_KEYWORDS, SShape_add_edge_doc},
     {"add_vertex",
@@ -163,14 +155,6 @@ static PyMethodDef BPy_SShape_methods[] = {
     {"compute_bbox", (PyCFunction)SShape_compute_bbox, METH_NOARGS, SShape_compute_bbox_doc},
     {nullptr, nullptr, 0, nullptr},
 };
-
-#ifdef __GNUC__
-#  ifdef __clang__
-#    pragma clang diagnostic pop
-#  else
-#    pragma GCC diagnostic pop
-#  endif
-#endif
 
 /*----------------------SShape get/setters ----------------------------*/
 
@@ -206,7 +190,7 @@ PyDoc_STRVAR(
 
 static PyObject *SShape_name_get(BPy_SShape *self, void * /*closure*/)
 {
-  return PyC_UnicodeFromStdStr(self->ss->getName());
+  return PyUnicode_FromString(self->ss->getName().c_str());
 }
 
 static int SShape_name_set(BPy_SShape *self, PyObject *value, void * /*closure*/)
@@ -340,3 +324,7 @@ PyTypeObject SShape_Type = {
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////
+
+#ifdef __cplusplus
+}
+#endif

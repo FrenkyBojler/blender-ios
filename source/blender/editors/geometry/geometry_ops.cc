@@ -14,10 +14,10 @@
 
 /**************************** registration **********************************/
 
-namespace blender::ed::geometry {
-
-void operatortypes_geometry()
+void ED_operatortypes_geometry()
 {
+  using namespace blender::ed::geometry;
+
   WM_operatortype_append(GEOMETRY_OT_attribute_add);
   WM_operatortype_append(GEOMETRY_OT_attribute_remove);
   WM_operatortype_append(GEOMETRY_OT_color_attribute_add);
@@ -29,5 +29,3 @@ void operatortypes_geometry()
   WM_operatortype_append(GEOMETRY_OT_execute_node_group);
   WM_operatortype_append(GEOMETRY_OT_geometry_randomization);
 }
-
-}  // namespace blender::ed::geometry

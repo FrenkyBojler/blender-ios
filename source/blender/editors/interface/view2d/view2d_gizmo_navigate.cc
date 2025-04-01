@@ -149,7 +149,7 @@ static bool WIDGETGROUP_navigate_poll(const bContext *C, wmGizmoGroupType * /*gz
 
 static void WIDGETGROUP_navigate_setup(const bContext * /*C*/, wmGizmoGroup *gzgroup)
 {
-  NavigateWidgetGroup *navgroup = MEM_callocN<NavigateWidgetGroup>(__func__);
+  NavigateWidgetGroup *navgroup = MEM_cnew<NavigateWidgetGroup>(__func__);
 
   const NavigateGizmoInfo *navigate_params = navigate_params_from_space_type(
       gzgroup->type->gzmap_params.spaceid);
@@ -189,13 +189,8 @@ static void WIDGETGROUP_navigate_setup(const bContext * /*C*/, wmGizmoGroup *gzg
           gz->ptr, "draw_options", ED_GIZMO_BUTTON_SHOW_OUTLINE | ED_GIZMO_BUTTON_SHOW_BACKDROP);
     }
 
-    wmOperatorType *ot = WM_operatortype_find(info->opname, false);
-#ifdef WITH_PYTHON
-    if (ot != nullptr)
-#endif
-    {
-      WM_gizmo_operator_set(gz, 0, ot, nullptr);
-    }
+    wmOperatorType *ot = WM_operatortype_find(info->opname, true);
+    WM_gizmo_operator_set(gz, 0, ot, nullptr);
   }
 
   /* Modal operators, don't use initial mouse location since we're clicking on a button. */

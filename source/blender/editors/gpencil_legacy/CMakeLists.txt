@@ -19,6 +19,7 @@ set(SRC
   gpencil_data.cc
   gpencil_edit.cc
   gpencil_ops.cc
+  gpencil_undo.cc
   gpencil_utils.cc
 
   gpencil_intern.hh

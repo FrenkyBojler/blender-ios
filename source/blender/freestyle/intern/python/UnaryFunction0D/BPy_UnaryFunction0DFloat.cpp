@@ -18,6 +18,10 @@
 #include "UnaryFunction0D_float/BPy_ReadMapPixelF0D.h"
 #include "UnaryFunction0D_float/BPy_ReadSteerableViewMapPixelF0D.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 using namespace Freestyle;
 
 ///////////////////////////////////////////////////////////////////////////////////////////
@@ -182,3 +186,7 @@ PyTypeObject UnaryFunction0DFloat_Type = {
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////
+
+#ifdef __cplusplus
+}
+#endif

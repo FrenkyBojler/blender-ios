@@ -2898,14 +2898,9 @@ static int Vector_swizzle_set(VectorObject *self, PyObject *value, void *closure
 /** \name Vector Type: Get/Set Item Definitions
  * \{ */
 
-#ifdef __GNUC__
-#  ifdef __clang__
-#    pragma clang diagnostic push
-#    pragma clang diagnostic ignored "-Wcast-function-type"
-#  else
-#    pragma GCC diagnostic push
-#    pragma GCC diagnostic ignored "-Wcast-function-type"
-#  endif
+#if (defined(__GNUC__) && !defined(__clang__))
+#  pragma GCC diagnostic push
+#  pragma GCC diagnostic ignored "-Wcast-function-type"
 #endif
 
 static PyGetSetDef Vector_getseters[] = {
@@ -3319,12 +3314,8 @@ static PyGetSetDef Vector_getseters[] = {
     {nullptr, nullptr, nullptr, nullptr, nullptr} /* Sentinel */
 };
 
-#ifdef __GNUC__
-#  ifdef __clang__
-#    pragma clang diagnostic pop
-#  else
-#    pragma GCC diagnostic pop
-#  endif
+#if (defined(__GNUC__) && !defined(__clang__))
+#  pragma GCC diagnostic pop
 #endif
 
 /** \} */
@@ -3333,14 +3324,9 @@ static PyGetSetDef Vector_getseters[] = {
 /** \name Vector Type: Method Definitions
  * \{ */
 
-#ifdef __GNUC__
-#  ifdef __clang__
-#    pragma clang diagnostic push
-#    pragma clang diagnostic ignored "-Wcast-function-type"
-#  else
-#    pragma GCC diagnostic push
-#    pragma GCC diagnostic ignored "-Wcast-function-type"
-#  endif
+#if (defined(__GNUC__) && !defined(__clang__))
+#  pragma GCC diagnostic push
+#  pragma GCC diagnostic ignored "-Wcast-function-type"
 #endif
 
 static PyMethodDef Vector_methods[] = {
@@ -3394,12 +3380,8 @@ static PyMethodDef Vector_methods[] = {
     {nullptr, nullptr, 0, nullptr},
 };
 
-#ifdef __GNUC__
-#  ifdef __clang__
-#    pragma clang diagnostic pop
-#  else
-#    pragma GCC diagnostic pop
-#  endif
+#if (defined(__GNUC__) && !defined(__clang__))
+#  pragma GCC diagnostic pop
 #endif
 
 /** \} */

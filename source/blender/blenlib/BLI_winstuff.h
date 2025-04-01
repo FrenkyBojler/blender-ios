@@ -38,6 +38,10 @@
 
 /* These definitions are also in BLI_math for simplicity. */
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #if !defined(_USE_MATH_DEFINES)
 #  define _USE_MATH_DEFINES
 #endif
@@ -113,3 +117,7 @@ bool BLI_windows_execute_self(const char *parameters,
                               const bool wait,
                               const bool elevated,
                               const bool silent);
+
+#ifdef __cplusplus
+}
+#endif

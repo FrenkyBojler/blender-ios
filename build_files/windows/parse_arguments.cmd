@@ -115,8 +115,6 @@ if NOT "%1" == "" (
 	) else if "%1" == "doc_py" (
 		set DOC_PY=1
 		goto EOF
-	) else if "%1" == "msvc" (
-		set WITH_MSVC=1
 	) else (
 		echo Command "%1" unknown, aborting!
 		goto ERR

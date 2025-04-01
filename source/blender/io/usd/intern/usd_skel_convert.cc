@@ -22,6 +22,7 @@
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 
+#include "BKE_action.hh"
 #include "BKE_armature.hh"
 #include "BKE_deform.hh"
 #include "BKE_fcurve.hh"
@@ -31,17 +32,16 @@
 #include "BKE_object_deform.h"
 #include "BKE_report.hh"
 
-#include "BLI_listbase.h"
 #include "BLI_map.hh"
 #include "BLI_math_vector.h"
 #include "BLI_set.hh"
 #include "BLI_span.hh"
+#include "BLI_string.h"
 #include "BLI_vector.hh"
 
 #include "ED_armature.hh"
 #include "ED_object_vgroup.hh"
 
-#include "ANIM_action.hh"
 #include "ANIM_animdata.hh"
 
 #include <algorithm>
@@ -60,6 +60,19 @@ inline float max_mag_component(const pxr::GfVec3d &vec)
   return pxr::GfMax(pxr::GfAbs(vec[0]), pxr::GfAbs(vec[1]), pxr::GfAbs(vec[2]));
 }
 
+/* Utility: create curve at the given array index. */
+FCurve *create_fcurve(const int array_index, const std::string &rna_path, const int totvert)
+{
+  FCurve *fcu = BKE_fcurve_create();
+  fcu->flag = (FCURVE_VISIBLE | FCURVE_SELECTED);
+  fcu->rna_path = BLI_strdup(rna_path.c_str());
+  fcu->array_index = array_index;
+  fcu->bezt = MEM_cnew_array<BezTriple>(totvert, "beztriple");
+  fcu->totvert = totvert;
+
+  return fcu;
+}
+
 void resize_fcurve(FCurve *fcu, uint bezt_count)
 {
   /* There is no need to resize if the counts match. */
@@ -67,18 +80,29 @@ void resize_fcurve(FCurve *fcu, uint bezt_count)
     return;
   }
 
-  BKE_fcurve_bezt_resize(fcu, bezt_count);
+  BezTriple *new_bezt = nullptr;
+  if (bezt_count > 0) {
+    const size_t new_size = sizeof(BezTriple) * bezt_count;
+    new_bezt = MEM_cnew_array<BezTriple>(bezt_count, "beztriple");
+    memcpy(new_bezt, fcu->bezt, new_size);
+  }
+
+  MEM_freeN(fcu->bezt);
+  fcu->bezt = new_bezt;
+  fcu->totvert = bezt_count;
 }
 
-/* Utility: create curve at the given array index and add it as a channel to a group. */
-FCurve *create_fcurve(blender::animrig::Channelbag &channelbag,
-                      const blender::animrig::FCurveDescriptor &fcurve_descriptor,
-                      const int totvert)
+/* Utility: create curve at the given array index and
+ * add it as a channel to a group. */
+FCurve *create_chan_fcurve(bAction *act,
+                           bActionGroup *grp,
+                           const int array_index,
+                           const std::string &rna_path,
+                           const int totvert)
 {
-  FCurve *fcurve = channelbag.fcurve_create_unique(nullptr, fcurve_descriptor);
-  BLI_assert_msg(fcurve, "The same F-Curve is being created twice, this is unexpected.");
-  BKE_fcurve_bezt_resize(fcurve, totvert);
-  return fcurve;
+  FCurve *fcu = create_fcurve(array_index, rna_path, totvert);
+  action_groups_add_channel(act, grp, fcu);
+  return fcu;
 }
 
 /* Utility: add curve sample. */
@@ -142,13 +166,10 @@ void import_skeleton_curves(Main *bmain,
   bAction *act = blender::animrig::id_action_ensure(bmain, &arm_obj->id);
   BKE_id_rename(*bmain, act->id, anim_query.GetPrim().GetName().GetText());
 
-  blender::animrig::Channelbag &channelbag = blender::animrig::action_channelbag_ensure(
-      *act, arm_obj->id);
-
   /* Create the curves. */
 
   /* Get the joint paths. */
-  const pxr::VtTokenArray joint_order = skel_query.GetJointOrder();
+  pxr::VtTokenArray joint_order = skel_query.GetJointOrder();
 
   blender::Vector<FCurve *> loc_curves;
   blender::Vector<FCurve *> rot_curves;
@@ -169,24 +190,26 @@ void import_skeleton_curves(Main *bmain,
       continue;
     }
 
+    bActionGroup *grp = action_groups_add_new(act, name->c_str());
+
     /* Add translation curves. */
     std::string rna_path = "pose.bones[\"" + *name + "\"].location";
-    loc_curves.append(create_fcurve(channelbag, {rna_path, 0, {}, {}, *name}, num_samples));
-    loc_curves.append(create_fcurve(channelbag, {rna_path, 1, {}, {}, *name}, num_samples));
-    loc_curves.append(create_fcurve(channelbag, {rna_path, 2, {}, {}, *name}, num_samples));
+    loc_curves.append(create_chan_fcurve(act, grp, 0, rna_path, num_samples));
+    loc_curves.append(create_chan_fcurve(act, grp, 1, rna_path, num_samples));
+    loc_curves.append(create_chan_fcurve(act, grp, 2, rna_path, num_samples));
 
     /* Add rotation curves. */
     rna_path = "pose.bones[\"" + *name + "\"].rotation_quaternion";
-    rot_curves.append(create_fcurve(channelbag, {rna_path, 0, {}, {}, *name}, num_samples));
-    rot_curves.append(create_fcurve(channelbag, {rna_path, 1, {}, {}, *name}, num_samples));
-    rot_curves.append(create_fcurve(channelbag, {rna_path, 2, {}, {}, *name}, num_samples));
-    rot_curves.append(create_fcurve(channelbag, {rna_path, 3, {}, {}, *name}, num_samples));
+    rot_curves.append(create_chan_fcurve(act, grp, 0, rna_path, num_samples));
+    rot_curves.append(create_chan_fcurve(act, grp, 1, rna_path, num_samples));
+    rot_curves.append(create_chan_fcurve(act, grp, 2, rna_path, num_samples));
+    rot_curves.append(create_chan_fcurve(act, grp, 3, rna_path, num_samples));
 
     /* Add scale curves. */
     rna_path = "pose.bones[\"" + *name + "\"].scale";
-    scale_curves.append(create_fcurve(channelbag, {rna_path, 0, {}, {}, *name}, num_samples));
-    scale_curves.append(create_fcurve(channelbag, {rna_path, 1, {}, {}, *name}, num_samples));
-    scale_curves.append(create_fcurve(channelbag, {rna_path, 2, {}, {}, *name}, num_samples));
+    scale_curves.append(create_chan_fcurve(act, grp, 0, rna_path, num_samples));
+    scale_curves.append(create_chan_fcurve(act, grp, 1, rna_path, num_samples));
+    scale_curves.append(create_chan_fcurve(act, grp, 2, rna_path, num_samples));
   }
 
   /* Sanity checks: make sure we have a curve entry for each joint. */
@@ -217,8 +240,8 @@ void import_skeleton_curves(Main *bmain,
    */
 
   /* Get the world space joint transforms at bind time. */
-  pxr::VtMatrix4dArray usd_bind_xforms;
-  if (!skel_query.GetJointWorldBindTransforms(&usd_bind_xforms)) {
+  pxr::VtMatrix4dArray bind_xforms;
+  if (!skel_query.GetJointWorldBindTransforms(&bind_xforms)) {
     BKE_reportf(reports,
                 RPT_WARNING,
                 "%s: Couldn't get world bind transforms for skeleton %s",
@@ -227,7 +250,7 @@ void import_skeleton_curves(Main *bmain,
     return;
   }
 
-  if (usd_bind_xforms.size() != joint_order.size()) {
+  if (bind_xforms.size() != joint_order.size()) {
     BKE_reportf(reports,
                 RPT_WARNING,
                 "%s: Number of bind transforms doesn't match the number of joints for skeleton %s",
@@ -238,7 +261,6 @@ void import_skeleton_curves(Main *bmain,
 
   const pxr::UsdSkelTopology &skel_topology = skel_query.GetTopology();
 
-  const pxr::VtMatrix4dArray &bind_xforms = usd_bind_xforms.AsConst();
   pxr::VtMatrix4dArray joint_local_bind_xforms(bind_xforms.size());
   for (int i = 0; i < bind_xforms.size(); ++i) {
     const int parent_id = skel_topology.GetParent(i);
@@ -273,8 +295,7 @@ void import_skeleton_curves(Main *bmain,
     }
 
     for (int i = 0; i < joint_local_xforms.size(); ++i) {
-      const pxr::GfMatrix4d bone_xform = joint_local_xforms.AsConst()[i] *
-                                         joint_local_bind_xforms[i].GetInverse();
+      pxr::GfMatrix4d bone_xform = joint_local_xforms[i] * joint_local_bind_xforms[i].GetInverse();
 
       pxr::GfVec3f t;
       pxr::GfQuatf qrot;
@@ -422,17 +443,17 @@ void import_blendshapes(Main *bmain,
   }
 
   /* Get the blend shape name tokens. */
-  pxr::VtTokenArray usd_blendshapes;
-  if (!skel_api.GetBlendShapesAttr().Get(&usd_blendshapes)) {
+  pxr::VtTokenArray blendshapes;
+  if (!skel_api.GetBlendShapesAttr().Get(&blendshapes)) {
     return;
   }
 
-  if (usd_blendshapes.empty()) {
+  if (blendshapes.empty()) {
     return;
   }
 
   /* Sanity check. */
-  if (targets.size() != usd_blendshapes.size()) {
+  if (targets.size() != blendshapes.size()) {
     BKE_reportf(reports,
                 RPT_WARNING,
                 "%s: Number of blendshapes doesn't match number of blendshape targets for prim %s",
@@ -467,7 +488,6 @@ void import_blendshapes(Main *bmain,
   /* Keep track of the shape-keys we're adding,
    * for validation when creating curves later. */
   blender::Set<pxr::TfToken> shapekey_names;
-  Span<pxr::TfToken> blendshapes = Span(usd_blendshapes.cdata(), usd_blendshapes.size());
 
   for (int i = 0; i < targets.size(); ++i) {
     /* Get USD path to blend shape. */
@@ -484,8 +504,8 @@ void import_blendshapes(Main *bmain,
       continue;
     }
 
-    pxr::VtVec3fArray usd_offsets;
-    if (!blendshape.GetOffsetsAttr().Get(&usd_offsets)) {
+    pxr::VtVec3fArray offsets;
+    if (!blendshape.GetOffsetsAttr().Get(&offsets)) {
       BKE_reportf(reports,
                   RPT_WARNING,
                   "%s: Couldn't get offsets for blend shape %s",
@@ -494,7 +514,7 @@ void import_blendshapes(Main *bmain,
       continue;
     }
 
-    if (usd_offsets.empty()) {
+    if (offsets.empty()) {
       BKE_reportf(reports,
                   RPT_WARNING,
                   "%s: No offsets for blend shape %s",
@@ -517,7 +537,6 @@ void import_blendshapes(Main *bmain,
     }
 
     float *fp = static_cast<float *>(kb->data);
-    Span<pxr::GfVec3f> offsets = Span(usd_offsets.cdata(), usd_offsets.size());
 
     if (point_indices.empty()) {
       /* Iterate over all key block elements and add the corresponding
@@ -539,7 +558,7 @@ void import_blendshapes(Main *bmain,
       /* Iterate over the point indices and add the offset to the corresponding
        * key block point. */
       int a = 0;
-      for (const int point : point_indices.AsConst()) {
+      for (const int point : point_indices) {
         if (point < 0 || point > kb->totelem) {
           CLOG_WARN(&LOG,
                     "Out of bounds point index %d for blendshape %s",
@@ -618,23 +637,20 @@ void import_blendshapes(Main *bmain,
   }
 
   /* Get the blend shape name tokens. */
-  if (!skel_anim.GetBlendShapesAttr().Get(&usd_blendshapes)) {
+  if (!skel_anim.GetBlendShapesAttr().Get(&blendshapes)) {
     return;
   }
 
-  if (usd_blendshapes.empty()) {
+  if (blendshapes.empty()) {
     return;
   }
 
   /* Create the animation and curves. */
   bAction *act = blender::animrig::id_action_ensure(bmain, &key->id);
-  blender::animrig::Channelbag &channelbag = blender::animrig::action_channelbag_ensure(*act,
-                                                                                        key->id);
-
   blender::Vector<FCurve *> curves;
-  curves.reserve(usd_blendshapes.size());
+  curves.reserve(blendshapes.size());
 
-  for (auto blendshape_name : usd_blendshapes.AsConst()) {
+  for (auto blendshape_name : blendshapes) {
     if (!shapekey_names.contains(blendshape_name)) {
       /* We didn't create a shape-key for this blend-shape, so we don't
        * create a curve and insert a null placeholder in the curve array. */
@@ -644,20 +660,21 @@ void import_blendshapes(Main *bmain,
 
     /* Create the curve for this shape key. */
     std::string rna_path = "key_blocks[\"" + blendshape_name.GetString() + "\"].value";
-    FCurve *fcu = create_fcurve(channelbag, {rna_path, 0}, times.size());
+    FCurve *fcu = create_fcurve(0, rna_path, times.size());
     curves.append(fcu);
+    BLI_addtail(&act->curves, fcu);
   }
 
   /* Add the weight time samples to the curves. */
   uint bezt_index = 0;
   for (double frame : times) {
-    pxr::VtFloatArray usd_weights;
-    if (!weights_attr.Get(&usd_weights, frame)) {
+    pxr::VtFloatArray weights;
+    if (!weights_attr.Get(&weights, frame)) {
       CLOG_WARN(&LOG, "Couldn't get blendshape weights for time %f", frame);
       continue;
     }
 
-    if (usd_weights.size() != curves.size()) {
+    if (weights.size() != curves.size()) {
       CLOG_WARN(
           &LOG,
           "Number of weight samples doesn't match number of shapekey curve entries for frame %f",
@@ -665,7 +682,6 @@ void import_blendshapes(Main *bmain,
       continue;
     }
 
-    Span<float> weights = Span(usd_weights.cdata(), usd_weights.size());
     for (int wi = 0; wi < weights.size(); ++wi) {
       if (curves[wi] != nullptr) {
         add_bezt(curves[wi], bezt_index, frame, weights[wi]);
@@ -706,7 +722,8 @@ void import_skeleton(Main *bmain,
   }
 
   const pxr::UsdSkelTopology &skel_topology = skel_query.GetTopology();
-  const pxr::VtTokenArray joint_order = skel_query.GetJointOrder();
+
+  pxr::VtTokenArray joint_order = skel_query.GetJointOrder();
 
   if (joint_order.size() != skel_topology.size()) {
     BKE_reportf(reports,
@@ -798,7 +815,7 @@ void import_skeleton(Main *bmain,
       continue;
     }
 
-    pxr::GfMatrix4f mat(bind_xforms.AsConst()[i]);
+    pxr::GfMatrix4f mat(bind_xforms[i]);
 
     float mat4[4][4];
     mat.Get(mat4);
@@ -862,10 +879,9 @@ void import_skeleton(Main *bmain,
   const pxr::UsdGeomPrimvarsAPI pv_api = pxr::UsdGeomPrimvarsAPI(skel.GetPrim());
   const pxr::UsdGeomPrimvar pv_lengths = pv_api.GetPrimvar(BlenderBoneLengths);
   if (pv_lengths.HasValue()) {
-    pxr::VtArray<float> blender_bone_lengths;
-    pv_lengths.ComputeFlattened(&blender_bone_lengths);
+    pxr::VtArray<float> bone_lengths;
+    pv_lengths.ComputeFlattened(&bone_lengths);
 
-    Span<float> bone_lengths = Span(blender_bone_lengths.cdata(), blender_bone_lengths.size());
     for (size_t i = 0; i < num_joints; ++i) {
       EditBone *bone = edit_bones[i];
       pxr::GfVec3f head(bone->head);
@@ -1069,7 +1085,7 @@ void import_mesh_skel_bindings(Object *mesh_obj, const pxr::UsdPrim &prim, Repor
 
   /* Determine which joint indices are used for skinning this prim. */
   blender::Vector<int> used_indices;
-  for (int index : joint_indices.AsConst()) {
+  for (int index : joint_indices) {
     if (std::find(used_indices.begin(), used_indices.end(), index) == used_indices.end()) {
       /* We haven't accounted for this index yet. */
       if (index < 0 || index >= joints.size()) {
@@ -1104,7 +1120,7 @@ void import_mesh_skel_bindings(Object *mesh_obj, const pxr::UsdPrim &prim, Repor
   blender::Vector<bDeformGroup *> joint_def_grps(joints.size(), nullptr);
 
   for (int idx : used_indices) {
-    std::string joint_name = pxr::SdfPath(joints.AsConst()[idx]).GetName();
+    std::string joint_name = pxr::SdfPath(joints[idx]).GetName();
     if (!BKE_object_defgroup_find_name(mesh_obj, joint_name.c_str())) {
       bDeformGroup *def_grp = BKE_object_defgroup_add_name(mesh_obj, joint_name.c_str());
       joint_def_grps[idx] = def_grp;
@@ -1121,12 +1137,12 @@ void import_mesh_skel_bindings(Object *mesh_obj, const pxr::UsdPrim &prim, Repor
     }
     for (int j = 0; j < joint_weights_elem_size; ++j) {
       const int k = offset + j;
-      const float w = joint_weights.AsConst()[k];
+      const float w = joint_weights[k];
       if (w < .00001) {
         /* No deform group if zero weight. */
         continue;
       }
-      const int joint_idx = joint_indices.AsConst()[k];
+      const int joint_idx = joint_indices[k];
       if (bDeformGroup *def_grp = joint_def_grps[joint_idx]) {
         blender::ed::object::vgroup_vert_add(mesh_obj, def_grp, i, w, WEIGHT_REPLACE);
       }

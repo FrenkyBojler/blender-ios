@@ -213,13 +213,6 @@ ccl_device_inline float max4(const float a, const float b, float c, const float 
   return max(max(a, b), max(c, d));
 }
 
-template<typename T> ccl_device_inline T make_zero();
-
-ccl_device_template_spec float make_zero()
-{
-  return 0.0f;
-}
-
 #if !defined(__KERNEL_METAL__) && !defined(__KERNEL_ONEAPI__)
 /* Int/Float conversion */
 
@@ -499,12 +492,7 @@ ccl_device_inline int mod(const int x, const int m)
   return (x % m + m) % m;
 }
 
-ccl_device_inline float interp(const float a, const float b, const float t)
-{
-  return a + t * (b - a);
-}
-
-ccl_device_inline float inverse_lerp(const float a, const float b, const float x)
+ccl_device_inline float inverse_lerp(const float a, const float b, float x)
 {
   return (x - a) / (b - a);
 }
@@ -858,8 +846,7 @@ template<typename T> struct Interval {
 
   ccl_device_inline_method bool is_empty() const
   {
-    /* NaN-safe comparison. */
-    return !(min < max);
+    return min >= max;
   }
 
   ccl_device_inline_method bool contains(T value) const
@@ -872,14 +859,6 @@ template<typename T> struct Interval {
     return max - min;
   }
 };
-
-template<typename T1, typename T2>
-ccl_device_inline Interval<T1> operator/=(ccl_private Interval<T1> &interval, const T2 f)
-{
-  interval.min /= f;
-  interval.max /= f;
-  return interval;
-}
 
 /* Computes the intersection of two intervals. */
 template<typename T>

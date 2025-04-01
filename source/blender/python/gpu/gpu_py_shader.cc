@@ -778,14 +778,9 @@ static PyObject *pygpu_shader_attrs_info_get(BPyGPUShader *self, PyObject * /*ar
   return ret;
 }
 
-#ifdef __GNUC__
-#  ifdef __clang__
-#    pragma clang diagnostic push
-#    pragma clang diagnostic ignored "-Wcast-function-type"
-#  else
-#    pragma GCC diagnostic push
-#    pragma GCC diagnostic ignored "-Wcast-function-type"
-#  endif
+#if (defined(__GNUC__) && !defined(__clang__))
+#  pragma GCC diagnostic push
+#  pragma GCC diagnostic ignored "-Wcast-function-type"
 #endif
 
 static PyMethodDef pygpu_shader__tp_methods[] = {
@@ -842,12 +837,8 @@ static PyMethodDef pygpu_shader__tp_methods[] = {
     {nullptr, nullptr, 0, nullptr},
 };
 
-#ifdef __GNUC__
-#  ifdef __clang__
-#    pragma clang diagnostic pop
-#  else
-#    pragma GCC diagnostic pop
-#  endif
+#if (defined(__GNUC__) && !defined(__clang__))
+#  pragma GCC diagnostic pop
 #endif
 
 PyDoc_STRVAR(
@@ -1090,14 +1081,9 @@ static PyObject *pygpu_shader_create_from_info(BPyGPUShader * /*self*/, BPyGPUSh
   return BPyGPUShader_CreatePyObject(shader, false);
 }
 
-#ifdef __GNUC__
-#  ifdef __clang__
-#    pragma clang diagnostic push
-#    pragma clang diagnostic ignored "-Wcast-function-type"
-#  else
-#    pragma GCC diagnostic push
-#    pragma GCC diagnostic ignored "-Wcast-function-type"
-#  endif
+#if (defined(__GNUC__) && !defined(__clang__))
+#  pragma GCC diagnostic push
+#  pragma GCC diagnostic ignored "-Wcast-function-type"
 #endif
 
 static PyMethodDef pygpu_shader_module__tp_methods[] = {
@@ -1113,12 +1099,8 @@ static PyMethodDef pygpu_shader_module__tp_methods[] = {
     {nullptr, nullptr, 0, nullptr},
 };
 
-#ifdef __GNUC__
-#  ifdef __clang__
-#    pragma clang diagnostic pop
-#  else
-#    pragma GCC diagnostic pop
-#  endif
+#if (defined(__GNUC__) && !defined(__clang__))
+#  pragma GCC diagnostic pop
 #endif
 
 PyDoc_STRVAR(

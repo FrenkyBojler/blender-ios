@@ -22,6 +22,10 @@
 #include "BLI_fileops_types.h"
 #include "BLI_utildefines.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #ifndef PATH_MAX
 #  define PATH_MAX 4096
 #endif
@@ -452,3 +456,7 @@ void BLI_get_short_name(char short_name[256], const char *filepath);
 #endif
 
 /** \} */
+
+#ifdef __cplusplus
+}
+#endif

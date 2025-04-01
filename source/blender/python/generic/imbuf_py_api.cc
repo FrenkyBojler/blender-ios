@@ -218,14 +218,9 @@ static PyObject *py_imbuf_free(Py_ImBuf *self)
   Py_RETURN_NONE;
 }
 
-#ifdef __GNUC__
-#  ifdef __clang__
-#    pragma clang diagnostic push
-#    pragma clang diagnostic ignored "-Wcast-function-type"
-#  else
-#    pragma GCC diagnostic push
-#    pragma GCC diagnostic ignored "-Wcast-function-type"
-#  endif
+#if (defined(__GNUC__) && !defined(__clang__))
+#  pragma GCC diagnostic push
+#  pragma GCC diagnostic ignored "-Wcast-function-type"
 #endif
 
 static PyMethodDef Py_ImBuf_methods[] = {
@@ -238,12 +233,8 @@ static PyMethodDef Py_ImBuf_methods[] = {
     {nullptr, nullptr, 0, nullptr},
 };
 
-#ifdef __GNUC__
-#  ifdef __clang__
-#    pragma clang diagnostic pop
-#  else
-#    pragma GCC diagnostic pop
-#  endif
+#if (defined(__GNUC__) && !defined(__clang__))
+#  pragma GCC diagnostic pop
 #endif
 
 /** \} */
@@ -502,8 +493,8 @@ static PyObject *M_imbuf_new(PyObject * /*self*/, PyObject *args, PyObject *kw)
   }
 
   /* TODO: make options. */
-  const uchar planes = 32;
-  const uint flags = IB_byte_data;
+  const uchar planes = 4;
+  const uint flags = IB_rect;
 
   ImBuf *ibuf = IMB_allocImBuf(UNPACK2(size), planes, flags);
   if (ibuf == nullptr) {
@@ -521,7 +512,7 @@ static PyObject *imbuf_load_impl(const char *filepath)
     return nullptr;
   }
 
-  ImBuf *ibuf = IMB_load_image_from_file_descriptor(file, IB_byte_data, filepath);
+  ImBuf *ibuf = IMB_loadifffile(file, IB_rect, nullptr, filepath);
 
   close(file);
 
@@ -572,7 +563,7 @@ static PyObject *M_imbuf_load(PyObject * /*self*/, PyObject *args, PyObject *kw)
 
 static PyObject *imbuf_write_impl(ImBuf *ibuf, const char *filepath)
 {
-  const bool ok = IMB_save_image(ibuf, filepath, IB_byte_data);
+  const bool ok = IMB_saveiff(ibuf, filepath, IB_rect);
   if (ok == false) {
     PyErr_Format(
         PyExc_IOError, "write: Unable to write image file (%s) '%s'", strerror(errno), filepath);
@@ -634,14 +625,9 @@ static PyObject *M_imbuf_write(PyObject * /*self*/, PyObject *args, PyObject *kw
 /** \name Module Definition (`imbuf`)
  * \{ */
 
-#ifdef __GNUC__
-#  ifdef __clang__
-#    pragma clang diagnostic push
-#    pragma clang diagnostic ignored "-Wcast-function-type"
-#  else
-#    pragma GCC diagnostic push
-#    pragma GCC diagnostic ignored "-Wcast-function-type"
-#  endif
+#if (defined(__GNUC__) && !defined(__clang__))
+#  pragma GCC diagnostic push
+#  pragma GCC diagnostic ignored "-Wcast-function-type"
 #endif
 
 static PyMethodDef IMB_methods[] = {
@@ -651,12 +637,8 @@ static PyMethodDef IMB_methods[] = {
     {nullptr, nullptr, 0, nullptr},
 };
 
-#ifdef __GNUC__
-#  ifdef __clang__
-#    pragma clang diagnostic pop
-#  else
-#    pragma GCC diagnostic pop
-#  endif
+#if (defined(__GNUC__) && !defined(__clang__))
+#  pragma GCC diagnostic pop
 #endif
 
 PyDoc_STRVAR(
@@ -735,24 +717,6 @@ PyObject *BPyInit_imbuf_types()
   PyModule_AddType(submodule, &Py_ImBuf_Type);
 
   return submodule;
-}
-
-/** \} */
-
-/* -------------------------------------------------------------------- */
-/** \name Public API
- * \{ */
-
-ImBuf *BPy_ImBuf_FromPyObject(PyObject *py_imbuf)
-{
-  /* The caller must ensure this. */
-  BLI_assert(Py_TYPE(py_imbuf) == &Py_ImBuf_Type);
-
-  if (py_imbuf_valid_check((Py_ImBuf *)py_imbuf) == -1) {
-    return nullptr;
-  }
-
-  return ((Py_ImBuf *)py_imbuf)->ibuf;
 }
 
 /** \} */

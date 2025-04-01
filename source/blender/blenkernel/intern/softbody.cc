@@ -286,7 +286,7 @@ static ccd_Mesh *ccd_mesh_make(Object *ob)
     return nullptr;
   }
 
-  pccd_M = MEM_mallocN<ccd_Mesh>("ccd_Mesh");
+  pccd_M = static_cast<ccd_Mesh *>(MEM_mallocN(sizeof(ccd_Mesh), "ccd_Mesh"));
   pccd_M->mvert_num = cmd->mvert_num;
   pccd_M->tri_num = cmd->tri_num;
   pccd_M->safety = CCD_SAFETY;
@@ -318,7 +318,8 @@ static ccd_Mesh *ccd_mesh_make(Object *ob)
   pccd_M->vert_tris = static_cast<const blender::int3 *>(MEM_dupallocN(cmd->vert_tris));
 
   /* OBBs for idea1 */
-  pccd_M->mima = MEM_malloc_arrayN<ccdf_minmax>(size_t(pccd_M->tri_num), "ccd_Mesh_Faces_mima");
+  pccd_M->mima = static_cast<ccdf_minmax *>(
+      MEM_mallocN(sizeof(ccdf_minmax) * pccd_M->tri_num, "ccd_Mesh_Faces_mima"));
 
   /* Anyhow we need to walk the list of faces and find OBB they live in. */
   for (i = 0, mima = pccd_M->mima; i < pccd_M->tri_num; i++, mima++) {
@@ -691,8 +692,8 @@ static void add_2nd_order_springs(Object *ob, float stiffness)
   add_2nd_order_roller(ob, stiffness, &counter, 0); /* counting */
   if (counter) {
     /* resize spring-array to hold additional springs */
-    bs_new = MEM_calloc_arrayN<BodySpring>(size_t(ob->soft->totspring) + size_t(counter),
-                                           "bodyspring");
+    bs_new = static_cast<BodySpring *>(
+        MEM_callocN((ob->soft->totspring + counter) * sizeof(BodySpring), "bodyspring"));
     memcpy(bs_new, ob->soft->bspring, (ob->soft->totspring) * sizeof(BodySpring));
 
     if (ob->soft->bspring) {
@@ -710,13 +711,13 @@ static void add_bp_springlist(BodyPoint *bp, int springID)
   int *newlist;
 
   if (bp->springs == nullptr) {
-    bp->springs = MEM_calloc_arrayN<int>(1, "bpsprings");
+    bp->springs = static_cast<int *>(MEM_callocN(sizeof(int), "bpsprings"));
     bp->springs[0] = springID;
     bp->nofsprings = 1;
   }
   else {
     bp->nofsprings++;
-    newlist = MEM_calloc_arrayN<int>(size_t(bp->nofsprings), "bpsprings");
+    newlist = static_cast<int *>(MEM_callocN(bp->nofsprings * sizeof(int), "bpsprings"));
     memcpy(newlist, bp->springs, (bp->nofsprings - 1) * sizeof(int));
     MEM_freeN(bp->springs);
     bp->springs = newlist;
@@ -828,9 +829,10 @@ static void renew_softbody(Object *ob, int totpoint, int totspring)
     sb->totpoint = totpoint;
     sb->totspring = totspring;
 
-    sb->bpoint = MEM_malloc_arrayN<BodyPoint>(size_t(totpoint), "bodypoint");
+    sb->bpoint = static_cast<BodyPoint *>(MEM_mallocN(totpoint * sizeof(BodyPoint), "bodypoint"));
     if (totspring) {
-      sb->bspring = MEM_malloc_arrayN<BodySpring>(size_t(totspring), "bodyspring");
+      sb->bspring = static_cast<BodySpring *>(
+          MEM_mallocN(totspring * sizeof(BodySpring), "bodyspring"));
     }
 
     /* initialize BodyPoint array */
@@ -1534,7 +1536,8 @@ static void sb_sfesf_threads_run(Depsgraph *depsgraph,
     totthread--;
   }
 
-  sb_threads = MEM_calloc_arrayN<SB_thread_context>(size_t(totthread), "SBSpringsThread");
+  sb_threads = static_cast<SB_thread_context *>(
+      MEM_callocN(sizeof(SB_thread_context) * totthread, "SBSpringsThread"));
   left = totsprings;
   dec = totsprings / totthread + 1;
   for (i = 0; i < totthread; i++) {
@@ -2214,7 +2217,8 @@ static void sb_cf_threads_run(Scene *scene,
 
   // printf("sb_cf_threads_run spawning %d threads\n", totthread);
 
-  sb_threads = MEM_calloc_arrayN<SB_thread_context>(size_t(totthread), "SBThread");
+  sb_threads = static_cast<SB_thread_context *>(
+      MEM_callocN(sizeof(SB_thread_context) * totthread, "SBThread"));
   left = totpoint;
   dec = totpoint / totthread + 1;
   for (i = 0; i < totthread; i++) {
@@ -2772,8 +2776,8 @@ static void mesh_faces_to_scratch(Object *ob)
   blender::bke::mesh::corner_tris_calc(
       mesh->vert_positions(), mesh->faces(), mesh->corner_verts(), corner_tris);
 
-  bodyface = sb->scratch->bodyface = MEM_malloc_arrayN<BodyFace>(size_t(sb->scratch->bodyface_num),
-                                                                 "SB_body_Faces");
+  bodyface = sb->scratch->bodyface = static_cast<BodyFace *>(
+      MEM_mallocN(sizeof(BodyFace) * sb->scratch->bodyface_num, "SB_body_Faces"));
 
   for (a = 0; a < sb->scratch->bodyface_num; a++, bodyface++) {
     bodyface->v1 = corner_verts[corner_tris[a][0]];
@@ -2793,7 +2797,8 @@ static void reference_to_scratch(Object *ob)
   float accu_mass = 0.0f;
   int a;
 
-  sb->scratch->Ref.ivert = MEM_malloc_arrayN<ReferenceVert>(size_t(sb->totpoint), "SB_Reference");
+  sb->scratch->Ref.ivert = static_cast<ReferenceVert *>(
+      MEM_mallocN(sizeof(ReferenceVert) * sb->totpoint, "SB_Reference"));
   bp = ob->soft->bpoint;
   rp = sb->scratch->Ref.ivert;
   for (a = 0; a < sb->totpoint; a++, rp++, bp++) {
@@ -3095,7 +3100,7 @@ static void sb_new_scratch(SoftBody *sb)
   if (!sb) {
     return;
   }
-  sb->scratch = MEM_callocN<SBScratch>("SBScratch");
+  sb->scratch = static_cast<SBScratch *>(MEM_callocN(sizeof(SBScratch), "SBScratch"));
   sb->scratch->colliderhash = BLI_ghash_ptr_new("sb_new_scratch gh");
   sb->scratch->bodyface = nullptr;
   sb->scratch->bodyface_num = 0;
@@ -3111,7 +3116,7 @@ SoftBody *sbNew()
 {
   SoftBody *sb;
 
-  sb = MEM_callocN<SoftBody>("softbody");
+  sb = static_cast<SoftBody *>(MEM_callocN(sizeof(SoftBody), "softbody"));
 
   sb->mediafrict = 0.5f;
   sb->nodemass = 1.0f;
@@ -3146,7 +3151,7 @@ SoftBody *sbNew()
   sb->shearstiff = 1.0f;
   sb->solverflags |= SBSO_OLDERR;
 
-  sb->shared = MEM_callocN<SoftBody_Shared>("SoftBody_Shared");
+  sb->shared = static_cast<SoftBody_Shared *>(MEM_callocN(sizeof(*sb->shared), "SoftBody_Shared"));
   sb->shared->pointcache = BKE_ptcache_add(&sb->shared->ptcaches);
 
   if (!sb->effector_weights) {
@@ -3254,8 +3259,8 @@ void SB_estimate_transform(Object *ob, float lloc[3], float lrot[3][3], float ls
   if (!sb || !sb->bpoint) {
     return;
   }
-  opos = MEM_calloc_arrayN<float[3]>(size_t(sb->totpoint), "SB_OPOS");
-  rpos = MEM_calloc_arrayN<float[3]>(size_t(sb->totpoint), "SB_RPOS");
+  opos = static_cast<float(*)[3]>(MEM_callocN(sizeof(float[3]) * sb->totpoint, "SB_OPOS"));
+  rpos = static_cast<float(*)[3]>(MEM_callocN(sizeof(float[3]) * sb->totpoint, "SB_RPOS"));
   /* might filter vertex selection with a vertex group */
   for (a = 0, bp = sb->bpoint, rp = sb->scratch->Ref.ivert; a < sb->totpoint; a++, bp++, rp++) {
     copy_v3_v3(rpos[a], rp->pos);

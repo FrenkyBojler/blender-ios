@@ -791,11 +791,7 @@ GHOST_TCapabilityFlag GHOST_SystemSDL::getCapabilities() const
           /* This SDL back-end has not yet implemented image copy/paste. */
           GHOST_kCapabilityClipboardImages |
           /* No support yet for IME input methods. */
-          GHOST_kCapabilityInputIME |
-          /* No support for window decoration styles. */
-          GHOST_kCapabilityWindowDecorationStyles |
-          /* No support for a Hyper modifier key. */
-          GHOST_kCapabilityKeyboardHyperKey));
+          GHOST_kCapabilityInputIME));
 }
 
 char *GHOST_SystemSDL::getClipboard(bool /*selection*/) const

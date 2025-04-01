@@ -9,7 +9,6 @@
 #include <fmt/format.h>
 
 #include "BLI_fileops.h"
-#include "BLI_listbase.h"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
 

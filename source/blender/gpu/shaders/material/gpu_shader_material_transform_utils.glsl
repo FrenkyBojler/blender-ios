@@ -7,73 +7,73 @@
 void normal_transform_object_to_world(vec3 vin, out vec3 vout)
 {
   /* Expansion of NormalMatrix. */
-  vout = vin * to_float3x3(drw_modelinv());
+  vout = vin * to_float3x3(ModelMatrixInverse);
 }
 
 void normal_transform_world_to_object(vec3 vin, out vec3 vout)
 {
   /* Expansion of NormalMatrixInverse. */
-  vout = vin * to_float3x3(drw_modelmat());
+  vout = vin * to_float3x3(ModelMatrix);
 }
 
 void direction_transform_object_to_world(vec3 vin, out vec3 vout)
 {
-  vout = to_float3x3(drw_modelmat()) * vin;
+  vout = to_float3x3(ModelMatrix) * vin;
 }
 
 void direction_transform_object_to_view(vec3 vin, out vec3 vout)
 {
-  vout = to_float3x3(drw_modelmat()) * vin;
-  vout = to_float3x3(drw_view().viewmat) * vout;
+  vout = to_float3x3(ModelMatrix) * vin;
+  vout = to_float3x3(ViewMatrix) * vout;
 }
 
 void direction_transform_view_to_world(vec3 vin, out vec3 vout)
 {
-  vout = to_float3x3(drw_view().viewinv) * vin;
+  vout = to_float3x3(ViewMatrixInverse) * vin;
 }
 
 void direction_transform_view_to_object(vec3 vin, out vec3 vout)
 {
-  vout = to_float3x3(drw_view().viewinv) * vin;
-  vout = to_float3x3(drw_modelinv()) * vout;
+  vout = to_float3x3(ViewMatrixInverse) * vin;
+  vout = to_float3x3(ModelMatrixInverse) * vout;
 }
 
 void direction_transform_world_to_view(vec3 vin, out vec3 vout)
 {
-  vout = to_float3x3(drw_view().viewmat) * vin;
+  vout = to_float3x3(ViewMatrix) * vin;
 }
 
 void direction_transform_world_to_object(vec3 vin, out vec3 vout)
 {
-  vout = to_float3x3(drw_modelinv()) * vin;
+  vout = to_float3x3(ModelMatrixInverse) * vin;
 }
 
 void point_transform_object_to_world(vec3 vin, out vec3 vout)
 {
-  vout = (drw_modelmat() * vec4(vin, 1.0)).xyz;
+  vout = (ModelMatrix * vec4(vin, 1.0)).xyz;
 }
 
 void point_transform_object_to_view(vec3 vin, out vec3 vout)
 {
-  vout = (drw_view().viewmat * (drw_modelmat() * vec4(vin, 1.0))).xyz;
+  vout = (ViewMatrix * (ModelMatrix * vec4(vin, 1.0))).xyz;
 }
 
 void point_transform_view_to_world(vec3 vin, out vec3 vout)
 {
-  vout = (drw_view().viewinv * vec4(vin, 1.0)).xyz;
+  vout = (ViewMatrixInverse * vec4(vin, 1.0)).xyz;
 }
 
 void point_transform_view_to_object(vec3 vin, out vec3 vout)
 {
-  vout = (drw_modelinv() * (drw_view().viewinv * vec4(vin, 1.0))).xyz;
+  vout = (ModelMatrixInverse * (ViewMatrixInverse * vec4(vin, 1.0))).xyz;
 }
 
 void point_transform_world_to_view(vec3 vin, out vec3 vout)
 {
-  vout = (drw_view().viewmat * vec4(vin, 1.0)).xyz;
+  vout = (ViewMatrix * vec4(vin, 1.0)).xyz;
 }
 
 void point_transform_world_to_object(vec3 vin, out vec3 vout)
 {
-  vout = (drw_modelinv() * vec4(vin, 1.0)).xyz;
+  vout = (ModelMatrixInverse * vec4(vin, 1.0)).xyz;
 }

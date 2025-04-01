@@ -9,7 +9,6 @@
 #include "WM_api.hh"
 
 #include "BKE_context.hh"
-#include "BKE_library.hh"
 #include "BKE_main_invariants.hh"
 #include "BKE_node_tree_update.hh"
 #include "BKE_node_tree_zones.hh"
@@ -40,7 +39,7 @@ inline PointerRNA get_active_node_to_operate_on(bContext *C, const int node_type
   if (!zones) {
     return PointerRNA_NULL;
   }
-  bNode *active_node = bke::node_get_active(*snode->edittree);
+  bNode *active_node = bke::node_get_active(snode->edittree);
   if (!active_node) {
     return PointerRNA_NULL;
   }
@@ -82,7 +81,7 @@ inline void remove_active_item(wmOperatorType *ot,
   ot->description = description;
   ot->poll = editable_node_active_poll<Accessor>;
 
-  ot->exec = [](bContext *C, wmOperator * /*op*/) -> wmOperatorStatus {
+  ot->exec = [](bContext *C, wmOperator * /*op*/) -> int {
     PointerRNA node_ptr = get_active_node_to_operate_on(C, Accessor::node_type);
     bNode &node = *static_cast<bNode *>(node_ptr.data);
     SocketItemsRef ref = Accessor::get_items_from_node(node);
@@ -106,7 +105,7 @@ inline void remove_item_by_index(wmOperatorType *ot,
   ot->description = description;
   ot->poll = editable_node_active_poll<Accessor>;
 
-  ot->exec = [](bContext *C, wmOperator *op) -> wmOperatorStatus {
+  ot->exec = [](bContext *C, wmOperator *op) -> int {
     PointerRNA node_ptr = get_active_node_to_operate_on(C, Accessor::node_type);
     bNode &node = *static_cast<bNode *>(node_ptr.data);
     const int index_to_remove = RNA_int_get(op->ptr, "index");
@@ -132,7 +131,7 @@ inline void add_item(wmOperatorType *ot,
   ot->description = description;
   ot->poll = editable_node_active_poll<Accessor>;
 
-  ot->exec = [](bContext *C, wmOperator * /*op*/) -> wmOperatorStatus {
+  ot->exec = [](bContext *C, wmOperator * /*op*/) -> int {
     PointerRNA node_ptr = get_active_node_to_operate_on(C, Accessor::node_type);
     bNode &node = *static_cast<bNode *>(node_ptr.data);
     SocketItemsRef ref = Accessor::get_items_from_node(node);
@@ -191,7 +190,7 @@ inline void move_active_item(wmOperatorType *ot,
   ot->description = description;
   ot->poll = editable_node_active_poll<Accessor>;
 
-  ot->exec = [](bContext *C, wmOperator *op) -> wmOperatorStatus {
+  ot->exec = [](bContext *C, wmOperator *op) -> int {
     PointerRNA node_ptr = get_active_node_to_operate_on(C, Accessor::node_type);
     bNode &node = *static_cast<bNode *>(node_ptr.data);
     const MoveDirection direction = MoveDirection(RNA_enum_get(op->ptr, "direction"));

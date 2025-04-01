@@ -2,7 +2,6 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BLI_listbase.h"
 #include "BLI_string.h"
 
 #include "BKE_action.hh"
@@ -67,11 +66,11 @@ class PoseTest : public testing::Test {
     bArmature *armature = BKE_armature_add(bmain, "ArmatureA");
     obj_armature_a->data = armature;
 
-    Bone *bone = MEM_callocN<Bone>("BONE");
+    Bone *bone = static_cast<Bone *>(MEM_callocN(sizeof(Bone), "BONE"));
     STRNCPY(bone->name, "BoneA");
     BLI_addtail(&armature->bonebase, bone);
 
-    bone = MEM_callocN<Bone>("BONE");
+    bone = static_cast<Bone *>(MEM_callocN(sizeof(Bone), "BONE"));
     STRNCPY(bone->name, "BoneB");
     BLI_addtail(&armature->bonebase, bone);
 
@@ -80,11 +79,11 @@ class PoseTest : public testing::Test {
     armature = BKE_armature_add(bmain, "ArmatureB");
     obj_armature_b->data = armature;
 
-    bone = MEM_callocN<Bone>("BONE");
+    bone = static_cast<Bone *>(MEM_callocN(sizeof(Bone), "BONE"));
     STRNCPY(bone->name, "BoneA");
     BLI_addtail(&armature->bonebase, bone);
 
-    bone = MEM_callocN<Bone>("BONE");
+    bone = static_cast<Bone *>(MEM_callocN(sizeof(Bone), "BONE"));
     STRNCPY(bone->name, "BoneB");
     BLI_addtail(&armature->bonebase, bone);
 

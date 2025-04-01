@@ -20,7 +20,6 @@
 #include "BKE_context.hh"
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
-#include "BKE_library.hh"
 #include "BKE_main.hh"
 #include "BKE_report.hh"
 
@@ -225,7 +224,7 @@ static TreeTraversalAction collection_find_selected_to_add(TreeElement *te, void
   return TRAVERSE_CONTINUE;
 }
 
-static wmOperatorStatus collection_new_exec(bContext *C, wmOperator *op)
+static int collection_new_exec(bContext *C, wmOperator *op)
 {
   SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
   ARegion *region = CTX_wm_region(C);
@@ -416,7 +415,7 @@ void outliner_collection_delete(
   }
 }
 
-static wmOperatorStatus collection_hierarchy_delete_exec(bContext *C, wmOperator *op)
+static int collection_hierarchy_delete_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
@@ -502,7 +501,7 @@ static LayerCollection *outliner_active_layer_collection(bContext *C)
   return data.layer_collection;
 }
 
-static wmOperatorStatus collection_objects_select_exec(bContext *C, wmOperator *op)
+static int collection_objects_select_exec(bContext *C, wmOperator *op)
 {
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
@@ -610,7 +609,7 @@ static TreeElement *outliner_active_collection(bContext *C)
   return data.te;
 }
 
-static wmOperatorStatus collection_duplicate_exec(bContext *C, wmOperator *op)
+static int collection_duplicate_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   TreeElement *te = outliner_active_collection(C);
@@ -712,7 +711,7 @@ void OUTLINER_OT_collection_duplicate(wmOperatorType *ot)
 /** \name Link Collection
  * \{ */
 
-static wmOperatorStatus collection_link_exec(bContext *C, wmOperator *op)
+static int collection_link_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
@@ -777,7 +776,7 @@ void OUTLINER_OT_collection_link(wmOperatorType *ot)
 /** \name Instance Collection
  * \{ */
 
-static wmOperatorStatus collection_instance_exec(bContext *C, wmOperator * /*op*/)
+static int collection_instance_exec(bContext *C, wmOperator * /*op*/)
 {
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
@@ -933,7 +932,7 @@ static bool collections_indirect_only_clear_poll(bContext *C)
   return collections_view_layer_poll(C, true, LAYER_COLLECTION_INDIRECT_ONLY);
 }
 
-static wmOperatorStatus collection_view_layer_exec(bContext *C, wmOperator *op)
+static int collection_view_layer_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
@@ -1066,7 +1065,7 @@ void OUTLINER_OT_collection_indirect_only_clear(wmOperatorType *ot)
 /** \name Visibility for Collection Operators
  * \{ */
 
-static wmOperatorStatus collection_isolate_exec(bContext *C, wmOperator *op)
+static int collection_isolate_exec(bContext *C, wmOperator *op)
 {
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
@@ -1110,9 +1109,7 @@ static wmOperatorStatus collection_isolate_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus collection_isolate_invoke(bContext *C,
-                                                  wmOperator *op,
-                                                  const wmEvent *event)
+static int collection_isolate_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   PropertyRNA *prop = RNA_struct_find_property(op->ptr, "extend");
   if (!RNA_property_is_set(op->ptr, prop) && (event->modifier & KM_SHIFT)) {
@@ -1160,7 +1157,7 @@ static bool collection_inside_poll(bContext *C)
   return outliner_active_layer_collection(C) != nullptr;
 }
 
-static wmOperatorStatus collection_visibility_exec(bContext *C, wmOperator *op)
+static int collection_visibility_exec(bContext *C, wmOperator *op)
 {
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
@@ -1303,7 +1300,7 @@ static bool collection_disable_render_poll(bContext *C)
   return collection_flag_poll(C, false, COLLECTION_HIDE_RENDER);
 }
 
-static wmOperatorStatus collection_flag_exec(bContext *C, wmOperator *op)
+static int collection_flag_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
@@ -1482,7 +1479,7 @@ static TreeTraversalAction outliner_hide_collect_data_to_edit(TreeElement *te, v
   return TRAVERSE_CONTINUE;
 }
 
-static wmOperatorStatus outliner_hide_exec(bContext *C, wmOperator * /*op*/)
+static int outliner_hide_exec(bContext *C, wmOperator * /*op*/)
 {
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
@@ -1529,7 +1526,7 @@ void OUTLINER_OT_hide(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-static wmOperatorStatus outliner_unhide_all_exec(bContext *C, wmOperator * /*op*/)
+static int outliner_unhide_all_exec(bContext *C, wmOperator * /*op*/)
 {
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
@@ -1574,7 +1571,7 @@ void OUTLINER_OT_unhide_all(wmOperatorType *ot)
 /** \name Collection Color Tags
  * \{ */
 
-static wmOperatorStatus outliner_color_tag_set_exec(bContext *C, wmOperator *op)
+static int outliner_color_tag_set_exec(bContext *C, wmOperator *op)
 {
   Scene *scene = CTX_data_scene(C);
   SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);

@@ -15,7 +15,6 @@
 struct Collection;
 
 struct EffectorWeights;
-struct RigidBodyWorld_Runtime;
 
 /* ******************************** */
 /* RigidBody World */
@@ -26,8 +25,9 @@ typedef struct RigidBodyWorld_Shared {
   struct PointCache *pointcache;
   struct ListBase ptcaches;
 
-  /* Runtime data. */
-  struct RigidBodyWorld_Runtime *runtime;
+  /* References to Physics Sim objects. Exist at runtime only ---------------------- */
+  /** Physics sim world (i.e. #btDiscreteDynamicsWorld). */
+  void *physics_world;
 } RigidBodyWorld_Shared;
 
 /* RigidBodyWorld (rbw)

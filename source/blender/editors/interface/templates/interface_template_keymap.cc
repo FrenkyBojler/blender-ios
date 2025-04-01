@@ -58,7 +58,7 @@ static void template_keymap_item_properties(uiLayout *layout, const char *title,
     if (is_set) {
       /* unset operator */
       uiBlock *block = uiLayoutGetBlock(row);
-      UI_block_emboss_set(block, blender::ui::EmbossType::None);
+      UI_block_emboss_set(block, UI_EMBOSS_NONE);
       but = uiDefIconButO(block,
                           UI_BTYPE_BUT,
                           "UI_OT_unset_property_button",
@@ -68,10 +68,10 @@ static void template_keymap_item_properties(uiLayout *layout, const char *title,
                           0,
                           UI_UNIT_X,
                           UI_UNIT_Y,
-                          std::nullopt);
+                          nullptr);
       but->rnapoin = *ptr;
       but->rnaprop = prop;
-      UI_block_emboss_set(block, blender::ui::EmbossType::Emboss);
+      UI_block_emboss_set(block, UI_EMBOSS);
     }
   }
   RNA_STRUCT_END;
@@ -82,18 +82,14 @@ void uiTemplateKeymapItemProperties(uiLayout *layout, PointerRNA *ptr)
   PointerRNA propptr = RNA_pointer_get(ptr, "properties");
 
   if (propptr.data) {
-    uiBlock *block = uiLayoutGetBlock(layout);
-    int i = uiLayoutGetBlock(layout)->buttons.size() - 1;
+    uiBut *but = static_cast<uiBut *>(uiLayoutGetBlock(layout)->buttons.last);
 
     WM_operator_properties_sanitize(&propptr, false);
     template_keymap_item_properties(layout, nullptr, &propptr);
-    if (i < 0) {
-      return;
-    }
+
     /* attach callbacks to compensate for missing properties update,
      * we don't know which keymap (item) is being modified there */
-    for (; i < block->buttons.size(); i++) {
-      uiBut *but = block->buttons[i].get();
+    for (; but; but = but->next) {
       /* operator buttons may store props for use (file selector, #36492) */
       if (but->rnaprop) {
         UI_but_func_set(but, keymap_item_modified, ptr->data, nullptr);

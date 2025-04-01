@@ -10,6 +10,10 @@
 
 #include "../BPy_UnaryFunction0DFloat.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 ///////////////////////////////////////////////////////////////////////////////////////////
 
 extern PyTypeObject GetCurvilinearAbscissaF0D_Type;
@@ -23,3 +27,7 @@ typedef struct {
 } BPy_GetCurvilinearAbscissaF0D;
 
 ///////////////////////////////////////////////////////////////////////////////////////////
+
+#ifdef __cplusplus
+}
+#endif

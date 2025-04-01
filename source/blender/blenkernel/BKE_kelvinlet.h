@@ -7,6 +7,10 @@
  * \ingroup bke
  */
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* Regularized Kelvinlets: Sculpting Brushes based on Fundamental Solutions of Elasticity
  * Pixar Technical Memo #17-03 */
 
@@ -55,3 +59,7 @@ void BKE_kelvinlet_twist(float radius_elem_disp[3],
                          const float elem_orig_co[3],
                          const float brush_location[3],
                          const float surface_normal[3]);
+
+#ifdef __cplusplus
+}
+#endif

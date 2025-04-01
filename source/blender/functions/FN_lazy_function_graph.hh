@@ -21,7 +21,7 @@
 
 #include "FN_lazy_function.hh"
 
-namespace blender::dot_export {
+namespace blender::dot {
 class DirectedEdge;
 }
 
@@ -302,7 +302,7 @@ class Graph : NonCopyable, NonMovable {
     virtual std::optional<std::string> socket_font_color(const Socket &socket) const;
     virtual void add_edge_attributes(const OutputSocket &from,
                                      const InputSocket &to,
-                                     dot_export::DirectedEdge &dot_edge) const;
+                                     dot::DirectedEdge &dot_edge) const;
   };
 
   /**

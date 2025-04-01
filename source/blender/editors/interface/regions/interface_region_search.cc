@@ -41,8 +41,6 @@
 #include "interface_intern.hh"
 #include "interface_regions_intern.hh"
 
-using blender::StringRef;
-
 #define MENU_BORDER int(0.3f * U.widget_unit)
 
 /* -------------------------------------------------------------------- */
@@ -98,7 +96,7 @@ struct uiSearchboxData {
 #define SEARCH_ITEMS 10
 
 bool UI_search_item_add(uiSearchItems *items,
-                        const StringRef name,
+                        const char *name,
                         void *poin,
                         int iconid,
                         const int but_flag,
@@ -106,7 +104,7 @@ bool UI_search_item_add(uiSearchItems *items,
 {
   /* hijack for autocomplete */
   if (items->autocpl) {
-    UI_autocomplete_update_name(items->autocpl, name.drop_prefix(name_prefix_offset));
+    UI_autocomplete_update_name(items->autocpl, name + name_prefix_offset);
     return true;
   }
 
@@ -135,7 +133,7 @@ bool UI_search_item_add(uiSearchItems *items,
   }
 
   if (items->names) {
-    name.copy_utf8_truncated(items->names[items->totitem], items->maxstrlen);
+    BLI_strncpy(items->names[items->totitem], name, items->maxstrlen);
   }
   if (items->pointers) {
     items->pointers[items->totitem] = poin;
@@ -315,12 +313,12 @@ static ARegion *wm_searchbox_tooltip_init(
   *r_exit_on_event = true;
 
   LISTBASE_FOREACH (uiBlock *, block, &region->runtime->uiblocks) {
-    for (const std::unique_ptr<uiBut> &but : block->buttons) {
+    LISTBASE_FOREACH (uiBut *, but, &block->buttons) {
       if (but->type != UI_BTYPE_SEARCH_MENU) {
         continue;
       }
 
-      uiButSearch *search_but = (uiButSearch *)but.get();
+      uiButSearch *search_but = (uiButSearch *)but;
       if (!search_but->item_tooltip_fn) {
         continue;
       }
@@ -871,7 +869,7 @@ static ARegion *ui_searchbox_create_generic_ex(bContext *C,
   region->runtime->type = &type;
 
   /* Create search-box data. */
-  uiSearchboxData *data = MEM_callocN<uiSearchboxData>(__func__);
+  uiSearchboxData *data = MEM_cnew<uiSearchboxData>(__func__);
   data->search_arg = but->arg;
   data->search_but = but;
   data->butregion = butregion;
@@ -1088,7 +1086,7 @@ void ui_but_search_refresh(uiButSearch *but)
     return;
   }
 
-  uiSearchItems *items = MEM_callocN<uiSearchItems>(__func__);
+  uiSearchItems *items = MEM_cnew<uiSearchItems>(__func__);
 
   /* setup search struct */
   items->maxitem = 10;

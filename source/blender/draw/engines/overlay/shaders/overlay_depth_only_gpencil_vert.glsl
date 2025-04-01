@@ -2,13 +2,9 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "infos/overlay_edit_mode_info.hh"
-
-VERTEX_SHADER_CREATE_INFO(overlay_depth_gpencil)
-
-#include "draw_grease_pencil_lib.glsl"
+#include "common_gpencil_lib.glsl"
+#include "common_view_clipping_lib.glsl"
 #include "draw_model_lib.glsl"
-#include "draw_view_clipping_lib.glsl"
 #include "draw_view_lib.glsl"
 #include "select_lib.glsl"
 
@@ -36,5 +32,5 @@ void main()
 
   view_clipping_distances(world_pos);
 
-  select_id_set(drw_custom_id());
+  select_id_set(drw_CustomID);
 }

@@ -15,8 +15,6 @@
 #include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
 
-struct ImFileColorSpace;
-
 namespace blender::imbuf {
 
 /**
@@ -29,11 +27,14 @@ struct ReadContext {
   const eImbFileType file_type;
   const int flags;
 
+  /** Override the automatic color-role choice with the value specified here. */
+  int use_colorspace_role = -1;
+
   /** Allocate and use all #ImBuf image planes even if the image has fewer. */
   bool use_all_planes = false;
 
   /** Use the `colorspace` provided in the image metadata when available. */
-  bool use_metadata_colorspace = false;
+  bool use_embedded_colorspace = false;
 };
 
 /**
@@ -66,7 +67,7 @@ bool imb_oiio_check(const uchar *mem, size_t mem_size, const char *file_format);
  */
 ImBuf *imb_oiio_read(const ReadContext &ctx,
                      const OIIO::ImageSpec &config,
-                     ImFileColorSpace &r_colorspace,
+                     char colorspace[IM_MAX_SPACE],
                      OIIO::ImageSpec &r_newspec);
 
 /**

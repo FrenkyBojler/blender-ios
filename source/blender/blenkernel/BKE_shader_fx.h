@@ -12,6 +12,10 @@
 
 #include "BKE_lib_query.hh" /* For LibraryForeachIDCallbackFlag enum. */
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct ARegionType;
 struct BlendDataReader;
 struct BlendWriter;
@@ -181,3 +185,7 @@ void BKE_shaderfx_blend_write(struct BlendWriter *writer, struct ListBase *fxbas
 void BKE_shaderfx_blend_read_data(struct BlendDataReader *reader,
                                   struct ListBase *lb,
                                   struct Object *ob);
+
+#ifdef __cplusplus
+}
+#endif

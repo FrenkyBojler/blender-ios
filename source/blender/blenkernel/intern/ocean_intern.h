@@ -8,6 +8,10 @@
  * \ingroup bke
  */
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #ifdef WITH_OCEANSIM
 #  include "BLI_threads.h"
 #  include "fftw3.h"
@@ -112,4 +116,8 @@ typedef struct Ocean {
   /* need some data here, C does not allow empty struct */
   int stub;
 } Ocean;
+#endif
+
+#ifdef __cplusplus
+}
 #endif

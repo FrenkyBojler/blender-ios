@@ -48,15 +48,17 @@ ListBase TreeDisplayOverrideLibraryProperties::add_library_contents(Main &mainva
 
   const short filter_id_type = id_filter_get();
 
-  Vector<ListBase *> lbarray;
+  ListBase *lbarray[INDEX_ID_MAX];
+  int tot;
   if (filter_id_type) {
-    lbarray.append(which_libbase(&mainvar, space_outliner_.filter_id_type));
+    lbarray[0] = which_libbase(&mainvar, space_outliner_.filter_id_type);
+    tot = 1;
   }
   else {
-    lbarray.extend(BKE_main_lists_get(mainvar));
+    tot = set_listbasepointers(&mainvar, lbarray);
   }
 
-  for (int a = 0; a < lbarray.size(); a++) {
+  for (int a = 0; a < tot; a++) {
     if (!lbarray[a] || !lbarray[a]->first) {
       continue;
     }

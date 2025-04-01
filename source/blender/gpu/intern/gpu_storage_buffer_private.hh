@@ -28,7 +28,7 @@ class VertBuf;
  */
 class StorageBuf {
  protected:
-  /** Data size in bytes. Doesn't need to match actual allocation size due to alignment rules. */
+  /** Data size in bytes. */
   size_t size_in_bytes_;
   /** Continuous memory block to copy to GPU. This data is owned by the StorageBuf. */
   void *data_ = nullptr;

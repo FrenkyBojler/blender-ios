@@ -15,6 +15,10 @@
 
 #include "RNA_types.hh"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct bContext;
 
 /*
@@ -23,3 +27,7 @@ struct bContext;
 int collada_import(struct bContext *C, ImportSettings *import_settings);
 
 int collada_export(struct bContext *C, ExportSettings *export_settings);
+
+#ifdef __cplusplus
+}
+#endif

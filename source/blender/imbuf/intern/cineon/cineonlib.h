@@ -13,6 +13,10 @@
 
 #include "logImageCore.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define CINEON_FILE_MAGIC 0x802A5FD7
 #define CINEON_UNDEFINED_U8 0xFF
 #define CINEON_UNDEFINED_U16 0xFFFF
@@ -112,3 +116,7 @@ void cineonSetVerbose(int);
 LogImageFile *cineonOpen(const uchar *byteStuff, int fromMemory, size_t bufferSize);
 LogImageFile *cineonCreate(
     const char *filepath, int width, int height, int bitsPerSample, const char *creator);
+
+#ifdef __cplusplus
+}
+#endif

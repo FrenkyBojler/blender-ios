@@ -12,17 +12,15 @@ set(INC_SYS
 
 set(SRC
   dice.cpp
-  interpolation.cpp
-  osd.cpp
   patch.cpp
   split.cpp
+  patch_table.cpp
 )
 
 set(SRC_HEADERS
   dice.h
-  interpolation.h
-  osd.h
   patch.h
+  patch_table.h
   split.h
   subpatch.h
 )

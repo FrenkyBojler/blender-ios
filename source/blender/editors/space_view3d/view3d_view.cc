@@ -39,7 +39,6 @@
 
 #include "WM_api.hh"
 
-#include "ED_info.hh"
 #include "ED_object.hh"
 #include "ED_screen.hh"
 
@@ -51,13 +50,11 @@
 #include "view3d_intern.hh" /* own include */
 #include "view3d_navigate.hh"
 
-#include "DNA_camera_types.h"
-
 /* -------------------------------------------------------------------- */
 /** \name Camera to View Operator
  * \{ */
 
-static wmOperatorStatus view3d_camera_to_view_exec(bContext *C, wmOperator * /*op*/)
+static int view3d_camera_to_view_exec(bContext *C, wmOperator * /*op*/)
 {
   const Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   View3D *v3d;
@@ -129,7 +126,7 @@ void VIEW3D_OT_camera_to_view(wmOperatorType *ot)
 
 /* unlike VIEW3D_OT_view_selected this is for framing a render and not
  * meant to take into account vertex/bone selection for eg. */
-static wmOperatorStatus view3d_camera_to_view_selected_exec(bContext *C, wmOperator *op)
+static int view3d_camera_to_view_selected_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
@@ -226,7 +223,7 @@ static void sync_viewport_camera_smoothview(bContext *C,
   }
 }
 
-static wmOperatorStatus view3d_setobjectascamera_exec(bContext *C, wmOperator *op)
+static int view3d_setobjectascamera_exec(bContext *C, wmOperator *op)
 {
   View3D *v3d;
   ARegion *region;
@@ -471,15 +468,15 @@ void view3d_viewmatrix_set(const Depsgraph *depsgraph,
 /** \} */
 
 /* -------------------------------------------------------------------- */
-/** \name GPU Select Utilities
+/** \name OpenGL Select Utilities
  * \{ */
 
-void view3d_gpu_select_cache_begin()
+void view3d_opengl_select_cache_begin()
 {
   GPU_select_cache_begin();
 }
 
-void view3d_gpu_select_cache_end()
+void view3d_opengl_select_cache_end()
 {
   GPU_select_cache_end();
 }
@@ -545,12 +542,12 @@ static bool drw_select_filter_object_mode_lock_for_weight_paint(Object *ob, void
   return ob_pose_list && (BLI_linklist_index(ob_pose_list, DEG_get_original_object(ob)) != -1);
 }
 
-int view3d_gpu_select_ex(const ViewContext *vc,
-                         GPUSelectBuffer *buffer,
-                         const rcti *input,
-                         eV3DSelectMode select_mode,
-                         eV3DSelectObjectFilter select_filter,
-                         const bool do_material_slot_selection)
+int view3d_opengl_select_ex(const ViewContext *vc,
+                            GPUSelectBuffer *buffer,
+                            const rcti *input,
+                            eV3DSelectMode select_mode,
+                            eV3DSelectObjectFilter select_filter,
+                            const bool do_material_slot_selection)
 {
   bThemeState theme_state;
   const wmWindowManager *wm = CTX_wm_manager(vc->C);
@@ -665,7 +662,7 @@ int view3d_gpu_select_ex(const ViewContext *vc,
   /* If in X-ray mode, we select the wires in priority. */
   if (XRAY_ACTIVE(v3d) && use_nearest) {
     /* We need to call "GPU_select_*" API's inside DRW_draw_select_loop
-     * because the GPU context created & destroyed inside this function. */
+     * because the OpenGL context created & destroyed inside this function. */
     DrawSelectLoopUserData drw_select_loop_user_data = {};
     drw_select_loop_user_data.pass = 0;
     drw_select_loop_user_data.hits = 0;
@@ -694,7 +691,7 @@ int view3d_gpu_select_ex(const ViewContext *vc,
 
   if (hits == 0) {
     /* We need to call "GPU_select_*" API's inside DRW_draw_select_loop
-     * because the GPU context created & destroyed inside this function. */
+     * because the OpenGL context created & destroyed inside this function. */
     DrawSelectLoopUserData drw_select_loop_user_data = {};
     drw_select_loop_user_data.pass = 0;
     drw_select_loop_user_data.hits = 0;
@@ -735,24 +732,24 @@ finally:
   return hits;
 }
 
-int view3d_gpu_select(const ViewContext *vc,
-                      GPUSelectBuffer *buffer,
-                      const rcti *input,
-                      eV3DSelectMode select_mode,
-                      eV3DSelectObjectFilter select_filter)
+int view3d_opengl_select(const ViewContext *vc,
+                         GPUSelectBuffer *buffer,
+                         const rcti *input,
+                         eV3DSelectMode select_mode,
+                         eV3DSelectObjectFilter select_filter)
 {
-  return view3d_gpu_select_ex(vc, buffer, input, select_mode, select_filter, false);
+  return view3d_opengl_select_ex(vc, buffer, input, select_mode, select_filter, false);
 }
 
-int view3d_gpu_select_with_id_filter(const ViewContext *vc,
-                                     GPUSelectBuffer *buffer,
-                                     const rcti *input,
-                                     eV3DSelectMode select_mode,
-                                     eV3DSelectObjectFilter select_filter,
-                                     uint select_id)
+int view3d_opengl_select_with_id_filter(const ViewContext *vc,
+                                        GPUSelectBuffer *buffer,
+                                        const rcti *input,
+                                        eV3DSelectMode select_mode,
+                                        eV3DSelectObjectFilter select_filter,
+                                        uint select_id)
 {
   const int64_t start = buffer->storage.size();
-  int hits = view3d_gpu_select(vc, buffer, input, select_mode, select_filter);
+  int hits = view3d_opengl_select(vc, buffer, input, select_mode, select_filter);
 
   /* Selection sometimes uses -1 for an invalid selection ID, remove these as they
    * interfere with detection of actual number of hits in the selection. */
@@ -904,9 +901,8 @@ static bool view3d_localview_init(const Depsgraph *depsgraph,
         negate_v3_v3(ofs_new, mid);
 
         if (rv3d->persp == RV3D_CAMOB) {
+          rv3d->persp = RV3D_PERSP;
           camera_old = v3d->camera;
-          const Camera &camera = *static_cast<Camera *>(camera_old->data);
-          rv3d->persp = (camera.type == CAM_ORTHO) ? RV3D_ORTHO : RV3D_PERSP;
         }
 
         if (rv3d->persp == RV3D_ORTHO) {
@@ -986,7 +982,7 @@ static bool view3d_localview_exit(const Depsgraph *depsgraph,
 
   MEM_freeN(v3d->localvd);
   v3d->localvd = nullptr;
-  ED_view3d_local_stats_free(v3d);
+  MEM_SAFE_FREE(v3d->runtime.local_stats);
 
   LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
     if (region->regiontype == RGN_TYPE_WINDOW) {
@@ -1055,7 +1051,7 @@ bool ED_localview_exit_if_empty(const Depsgraph *depsgraph,
       depsgraph, wm, win, scene, view_layer, area, frame_selected, smooth_viewtx);
 }
 
-static wmOperatorStatus localview_exec(bContext *C, wmOperator *op)
+static int localview_exec(bContext *C, wmOperator *op)
 {
   const Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   const int smooth_viewtx = WM_operator_smooth_viewtx_get(op);
@@ -1125,7 +1121,7 @@ void VIEW3D_OT_localview(wmOperatorType *ot)
                   "Move the view to frame the selected objects");
 }
 
-static wmOperatorStatus localview_remove_from_exec(bContext *C, wmOperator *op)
+static int localview_remove_from_exec(bContext *C, wmOperator *op)
 {
   View3D *v3d = CTX_wm_view3d(C);
   Main *bmain = CTX_data_main(C);

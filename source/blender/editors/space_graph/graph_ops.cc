@@ -10,7 +10,6 @@
 
 #include "DNA_scene_types.h"
 
-#include "BLI_listbase.h"
 #include "BLI_math_base.h"
 #include "BLI_utildefines.h"
 
@@ -99,7 +98,7 @@ static void graphview_cursor_apply(bContext *C, wmOperator *op)
 /* ... */
 
 /* Non-modal callback for running operator without user input */
-static wmOperatorStatus graphview_cursor_exec(bContext *C, wmOperator *op)
+static int graphview_cursor_exec(bContext *C, wmOperator *op)
 {
   graphview_cursor_apply(C, op);
   return OPERATOR_FINISHED;
@@ -128,7 +127,7 @@ static void graphview_cursor_setprops(bContext *C, wmOperator *op, const wmEvent
 }
 
 /* Modal Operator init */
-static wmOperatorStatus graphview_cursor_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static int graphview_cursor_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   bScreen *screen = CTX_wm_screen(C);
 
@@ -150,7 +149,7 @@ static wmOperatorStatus graphview_cursor_invoke(bContext *C, wmOperator *op, con
 }
 
 /* Modal event handling of cursor changing */
-static wmOperatorStatus graphview_cursor_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static int graphview_cursor_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   bScreen *screen = CTX_wm_screen(C);
   Scene *scene = CTX_data_scene(C);
@@ -184,9 +183,6 @@ static wmOperatorStatus graphview_cursor_modal(bContext *C, wmOperator *op, cons
         return OPERATOR_FINISHED;
       }
       break;
-    default: {
-      break;
-    }
   }
 
   return OPERATOR_RUNNING_MODAL;
@@ -219,7 +215,7 @@ static void GRAPH_OT_cursor_set(wmOperatorType *ot)
 /** \name Hide/Reveal
  * \{ */
 
-static wmOperatorStatus graphview_curves_hide_exec(bContext *C, wmOperator *op)
+static int graphview_curves_hide_exec(bContext *C, wmOperator *op)
 {
   bAnimContext ac;
   ListBase anim_data = {nullptr, nullptr};
@@ -334,7 +330,7 @@ static void GRAPH_OT_hide(wmOperatorType *ot)
 
 /* ........ */
 
-static wmOperatorStatus graphview_curves_reveal_exec(bContext *C, wmOperator *op)
+static int graphview_curves_reveal_exec(bContext *C, wmOperator *op)
 {
   bAnimContext ac;
   ListBase anim_data = {nullptr, nullptr};

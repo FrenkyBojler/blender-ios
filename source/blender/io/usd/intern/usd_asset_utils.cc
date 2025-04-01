@@ -9,8 +9,6 @@
 #include <pxr/usd/ar/packageUtils.h>
 #include <pxr/usd/ar/resolver.h>
 #include <pxr/usd/ar/writableAsset.h>
-#include <pxr/usd/usd/common.h>
-#include <pxr/usd/usd/stage.h>
 
 #include "BKE_appdir.hh"
 #include "BKE_idprop.hh"
@@ -356,7 +354,7 @@ std::string get_export_textures_dir(const pxr::UsdStageRefPtr stage)
   pxr::SdfLayerHandle layer = stage->GetRootLayer();
 
   if (layer->IsAnonymous()) {
-    WM_global_reportf(
+    WM_reportf(
         RPT_WARNING, "%s: Can't generate a textures directory path for anonymous stage", __func__);
     return "";
   }
@@ -364,7 +362,7 @@ std::string get_export_textures_dir(const pxr::UsdStageRefPtr stage)
   const pxr::ArResolvedPath &stage_path = layer->GetResolvedPath();
 
   if (stage_path.empty()) {
-    WM_global_reportf(RPT_WARNING, "%s: Can't get resolved path for stage", __func__);
+    WM_reportf(RPT_WARNING, "%s: Can't get resolved path for stage", __func__);
     return "";
   }
 
@@ -644,10 +642,10 @@ void USD_path_abs(char *path, const char *basepath, bool for_import)
         BLI_strncpy(path, path_str.c_str(), FILE_MAX);
         return;
       }
-      WM_global_reportf(RPT_ERROR,
-                        "In %s: resolved path %s exceeds path buffer length.",
-                        __func__,
-                        path_str.c_str());
+      WM_reportf(RPT_ERROR,
+                 "In %s: resolved path %s exceeds path buffer length.",
+                 __func__,
+                 path_str.c_str());
     }
   }
 

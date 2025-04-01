@@ -14,6 +14,10 @@ extern "C" {
 
 #include "../view_map/Interface0D.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 ///////////////////////////////////////////////////////////////////////////////////////////
 
 extern PyTypeObject Interface0D_Type;
@@ -33,3 +37,7 @@ typedef struct {
 int Interface0D_Init(PyObject *module);
 
 ///////////////////////////////////////////////////////////////////////////////////////////
+
+#ifdef __cplusplus
+}
+#endif

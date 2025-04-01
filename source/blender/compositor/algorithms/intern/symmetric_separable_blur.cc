@@ -19,8 +19,11 @@
 
 namespace blender::compositor {
 
-template<typename T, bool ExtendBounds>
-static void blur_pass(const Result &input, const Result &weights, Result &output)
+template<typename T>
+static void blur_pass(const Result &input,
+                      const Result &weights,
+                      Result &output,
+                      const bool extend_bounds)
 {
   /* Loads the input color of the pixel at the given texel. If bounds are extended, then the input
    * is treated as padded by a blur size amount of pixels of zero color, and the given texel is
@@ -30,7 +33,7 @@ static void blur_pass(const Result &input, const Result &weights, Result &output
    * thus zero, hence the introduced offset. */
   auto load_input = [&](const int2 texel) {
     T color;
-    if constexpr (ExtendBounds) {
+    if (extend_bounds) {
       /* Notice that we subtract 1 because the weights result have an extra center weight, see the
        * SymmetricBlurWeights class for more information. */
       int2 blur_radius = weights.domain().size - 1;
@@ -74,9 +77,14 @@ static const char *get_blur_shader(const ResultType type)
   switch (type) {
     case ResultType::Float:
       return "compositor_symmetric_separable_blur_float";
+    case ResultType::Vector:
     case ResultType::Color:
       return "compositor_symmetric_separable_blur_float4";
-    default:
+    case ResultType::Float2:
+    case ResultType::Float3:
+    case ResultType::Int2:
+    case ResultType::Int:
+      /* Not supported. */
       break;
   }
 
@@ -159,22 +167,17 @@ static Result horizontal_pass_cpu(Context &context,
 
   switch (input.type()) {
     case ResultType::Float:
-      if (extend_bounds) {
-        blur_pass<float, true>(input, weights, output);
-      }
-      else {
-        blur_pass<float, false>(input, weights, output);
-      }
+      blur_pass<float>(input, weights, output, extend_bounds);
       break;
+    case ResultType::Vector:
     case ResultType::Color:
-      if (extend_bounds) {
-        blur_pass<float4, true>(input, weights, output);
-      }
-      else {
-        blur_pass<float4, false>(input, weights, output);
-      }
+      blur_pass<float4>(input, weights, output, extend_bounds);
       break;
-    default:
+    case ResultType::Float2:
+    case ResultType::Float3:
+    case ResultType::Int2:
+    case ResultType::Int:
+      /* Not supported. */
       BLI_assert_unreachable();
       break;
   }
@@ -252,22 +255,17 @@ static void vertical_pass_cpu(Context &context,
 
   switch (original_input.type()) {
     case ResultType::Float:
-      if (extend_bounds) {
-        blur_pass<float, true>(horizontal_pass_result, weights, output);
-      }
-      else {
-        blur_pass<float, false>(horizontal_pass_result, weights, output);
-      }
+      blur_pass<float>(horizontal_pass_result, weights, output, extend_bounds);
       break;
+    case ResultType::Vector:
     case ResultType::Color:
-      if (extend_bounds) {
-        blur_pass<float4, true>(horizontal_pass_result, weights, output);
-      }
-      else {
-        blur_pass<float4, false>(horizontal_pass_result, weights, output);
-      }
+      blur_pass<float4>(horizontal_pass_result, weights, output, extend_bounds);
       break;
-    default:
+    case ResultType::Float2:
+    case ResultType::Float3:
+    case ResultType::Int2:
+    case ResultType::Int:
+      /* Not supported. */
       BLI_assert_unreachable();
       break;
   }

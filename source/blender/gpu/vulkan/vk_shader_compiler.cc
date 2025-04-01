@@ -42,7 +42,7 @@ static std::optional<std::string> cache_dir_get()
 
 VKShaderCompiler::VKShaderCompiler()
 {
-  task_pool_ = BLI_task_pool_create(nullptr, TASK_PRIORITY_HIGH);
+  task_pool_ = BLI_task_pool_create(nullptr, TASK_PRIORITY_LOW);
   cache_dir = cache_dir_get();
 }
 
@@ -269,10 +269,8 @@ void VKShaderCompiler::run(TaskPool *__restrict /*pool*/, void *task_data)
   if (has_not_succeeded) {
     shader.compilation_failed = true;
   }
-  shader.finalize_post();
-  /* Setting compilation finished needs to be the last step. It is used to detect if a compilation
-   * action of a batch has finished. See `VKShaderCompiler::batch_is_ready` */
   shader.compilation_finished = true;
+  shader.finalize_post();
 }
 
 bool VKShaderCompiler::batch_is_ready(BatchHandle handle)

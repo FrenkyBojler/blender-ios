@@ -14,7 +14,6 @@ struct Depsgraph;
 struct Main;
 struct Image;
 struct ImageUser;
-struct Scene;
 
 namespace blender::io::usd {
 

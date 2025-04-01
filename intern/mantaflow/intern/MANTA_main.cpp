@@ -1555,6 +1555,7 @@ bool MANTA::bakeData(FluidModifierData *fmd, int framenr)
     cout << "MANTA::bakeData()" << endl;
   }
 
+  string tmpString, finalString;
   ostringstream ss;
   vector<string> pythonCommands;
   FluidDomainSettings *fds = fmd->domain;

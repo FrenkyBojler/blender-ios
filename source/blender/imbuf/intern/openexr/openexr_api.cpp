@@ -6,7 +6,6 @@
  * \ingroup openexr
  */
 
-#include "IMB_filetype.hh"
 #include <algorithm>
 #include <cctype>
 #include <cerrno>
@@ -39,14 +38,11 @@
 
 #include <OpenEXR/Iex.h>
 #include <OpenEXR/ImfArray.h>
-#include <OpenEXR/ImfAttribute.h>
 #include <OpenEXR/ImfChannelList.h>
-#include <OpenEXR/ImfChromaticities.h>
 #include <OpenEXR/ImfCompression.h>
 #include <OpenEXR/ImfCompressionAttribute.h>
 #include <OpenEXR/ImfIO.h>
 #include <OpenEXR/ImfInputFile.h>
-#include <OpenEXR/ImfIntAttribute.h>
 #include <OpenEXR/ImfOutputFile.h>
 #include <OpenEXR/ImfPixelType.h>
 #include <OpenEXR/ImfPreviewImage.h>
@@ -79,7 +75,6 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_fileops.h"
-#include "BLI_listbase.h"
 #include "BLI_math_base.hh"
 #include "BLI_math_color.h"
 #include "BLI_mmap.h"
@@ -112,13 +107,6 @@ static void imb_exr_type_by_channels(ChannelList &channels,
                                      bool *r_multilayer,
                                      bool *r_multiview);
 
-/* XYZ with Illuminant E */
-static Imf::Chromaticities CHROMATICITIES_XYZ_E{
-    {1.0f, 0.0f}, {0.0f, 1.0f}, {0.0f, 0.0f}, {1.0f / 3.0f, 1.0f / 3.0f}};
-/* Values matching ChromaticitiesForACES in https://github.com/ampas/aces_container */
-static Imf::Chromaticities CHROMATICITIES_ACES_2065_1{
-    {0.7347f, 0.2653f}, {0.0f, 1.0f}, {0.0001f, -0.077f}, {0.32168f, 0.33767f}};
-
 /* Memory Input Stream */
 
 class IMemStream : public Imf::IStream {
@@ -134,19 +122,6 @@ class IMemStream : public Imf::IStream {
       memcpy(c, (void *)(&_exrbuf[_exrpos]), n);
       _exrpos += n;
       return true;
-    }
-
-    /* OpenEXR requests chunks of 4096 bytes even if the file is smaller than that. Return
-     * zeros when reading up to 2x that amount past the end of the file.
-     * This was fixed after the OpenEXR 3.3.2 release, but not in an official release yet. */
-    if (n + _exrpos < _exrsize + 8192) {
-      const size_t remainder = _exrsize - _exrpos;
-      if (remainder > 0) {
-        memcpy(c, (void *)(&_exrbuf[_exrpos]), remainder);
-        memset(c + remainder, 0, n - remainder);
-        _exrpos += n;
-        return true;
-      }
     }
 
     return false;
@@ -415,11 +390,11 @@ static int openexr_jpg_like_quality_to_dwa_quality(int q)
 {
   q = blender::math::clamp(q, 0, 100);
 
-  /* Map default JPG quality of 90 to default DWA level of 45,
+  /* Map "visually lossless" JPG quality of 97 to default DWA level of 45,
    * "lossless" JPG quality of 100 to DWA level of 0, and everything else
    * linearly based on those. */
   constexpr int x0 = 100, y0 = 0;
-  constexpr int x1 = 90, y1 = 45;
+  constexpr int x1 = 97, y1 = 45;
   q = y0 + (q - x0) * (y1 - y0) / (x1 - x0);
   return q;
 }
@@ -467,35 +442,6 @@ static void openexr_header_compression(Header *header, int compression, int qual
   }
 }
 
-static int openexr_header_get_compression(const Header &header)
-{
-  switch (header.compression()) {
-    case NO_COMPRESSION:
-      return R_IMF_EXR_CODEC_NONE;
-    case RLE_COMPRESSION:
-      return R_IMF_EXR_CODEC_RLE;
-    case ZIPS_COMPRESSION:
-      return R_IMF_EXR_CODEC_ZIPS;
-    case ZIP_COMPRESSION:
-      return R_IMF_EXR_CODEC_ZIP;
-    case PIZ_COMPRESSION:
-      return R_IMF_EXR_CODEC_PIZ;
-    case PXR24_COMPRESSION:
-      return R_IMF_EXR_CODEC_PXR24;
-    case B44_COMPRESSION:
-      return R_IMF_EXR_CODEC_B44;
-    case B44A_COMPRESSION:
-      return R_IMF_EXR_CODEC_B44A;
-    case DWAA_COMPRESSION:
-      return R_IMF_EXR_CODEC_DWAA;
-    case DWAB_COMPRESSION:
-      return R_IMF_EXR_CODEC_DWAB;
-    case NUM_COMPRESSION_METHODS:
-      return R_IMF_EXR_CODEC_NONE;
-  }
-  return R_IMF_EXR_CODEC_NONE;
-}
-
 static void openexr_header_metadata(Header *header, ImBuf *ibuf)
 {
   if (ibuf->metadata) {
@@ -509,21 +455,6 @@ static void openexr_header_metadata(Header *header, ImBuf *ibuf)
   if (ibuf->ppm[0] > 0.0) {
     /* Convert meters to inches. */
     addXDensity(*header, ibuf->ppm[0] * 0.0254);
-  }
-
-  /* Write chromaticities for ACES-2065-1, as required by ACES container format. */
-  ColorSpace *colorspace = (ibuf->float_buffer.data) ? ibuf->float_buffer.colorspace :
-                           (ibuf->byte_buffer.data)  ? ibuf->byte_buffer.colorspace :
-                                                       nullptr;
-  if (colorspace) {
-    const char *aces_colorspace = IMB_colormanagement_role_colorspace_name_get(
-        COLOR_ROLE_ACES_INTERCHANGE);
-    const char *ibuf_colorspace = IMB_colormanagement_colorspace_get_name(colorspace);
-
-    if (aces_colorspace && STREQ(aces_colorspace, ibuf_colorspace)) {
-      header->insert("chromaticities", TypedAttribute<Chromaticities>(CHROMATICITIES_ACES_2065_1));
-      header->insert("adoptedNeutral", TypedAttribute<V2f>(CHROMATICITIES_ACES_2065_1.white));
-    }
   }
 }
 
@@ -571,8 +502,8 @@ static bool imb_save_openexr_half(ImBuf *ibuf, const char *filepath, const int f
     OutputFile file(*file_stream, header);
 
     /* we store first everything in half array */
-    std::unique_ptr<RGBAZ[]> pixels = std::unique_ptr<RGBAZ[]>(new RGBAZ[int64_t(height) * width]);
-    RGBAZ *to = pixels.get();
+    std::vector<RGBAZ> pixels(height * width);
+    RGBAZ *to = pixels.data();
     int xstride = sizeof(RGBAZ);
     int ystride = xstride * width;
 
@@ -587,7 +518,7 @@ static bool imb_save_openexr_half(ImBuf *ibuf, const char *filepath, const int f
       float *from;
 
       for (int i = ibuf->y - 1; i >= 0; i--) {
-        from = ibuf->float_buffer.data + int64_t(channels) * i * width;
+        from = ibuf->float_buffer.data + channels * i * width;
 
         for (int j = ibuf->x; j > 0; j--) {
           to->r = float_to_half_safe(from[0]);
@@ -603,7 +534,7 @@ static bool imb_save_openexr_half(ImBuf *ibuf, const char *filepath, const int f
       uchar *from;
 
       for (int i = ibuf->y - 1; i >= 0; i--) {
-        from = ibuf->byte_buffer.data + int64_t(4) * i * width;
+        from = ibuf->byte_buffer.data + 4 * i * width;
 
         for (int j = ibuf->x; j > 0; j--) {
           to->r = srgb_to_linearrgb(float(from[0]) / 255.0f);
@@ -677,7 +608,7 @@ static bool imb_save_openexr_float(ImBuf *ibuf, const char *filepath, const int 
 
     /* Last scan-line, stride negative. */
     float *rect[4] = {nullptr, nullptr, nullptr, nullptr};
-    rect[0] = ibuf->float_buffer.data + int64_t(channels) * (height - 1) * width;
+    rect[0] = ibuf->float_buffer.data + channels * (height - 1) * width;
     rect[1] = (channels >= 2) ? rect[0] + 1 : rect[0];
     rect[2] = (channels >= 3) ? rect[0] + 2 : rect[0];
     rect[3] = (channels >= 4) ?
@@ -806,7 +737,7 @@ static bool imb_exr_multilayer_parse_channels_from_file(ExrHandle *data);
 
 void *IMB_exr_get_handle()
 {
-  ExrHandle *data = MEM_callocN<ExrHandle>("exr handle");
+  ExrHandle *data = MEM_cnew<ExrHandle>("exr handle");
   data->multiView = new StringVector();
 
   BLI_addtail(&exrhandles, data);
@@ -913,7 +844,7 @@ void IMB_exr_add_channel(void *handle,
   ExrHandle *data = (ExrHandle *)handle;
   ExrChannel *echan;
 
-  echan = MEM_callocN<ExrChannel>("exr channel");
+  echan = MEM_cnew<ExrChannel>("exr channel");
   echan->m = new MultiViewChannelName();
 
   if (layname && layname[0] != '\0') {
@@ -1238,7 +1169,8 @@ void IMB_exr_write_channels(void *handle)
 
     /* We allocate temporary storage for half pixels for all the channels at once. */
     if (data->num_half_channels != 0) {
-      rect_half = MEM_malloc_arrayN<half>(size_t(data->num_half_channels) * num_pixels, __func__);
+      rect_half = (half *)MEM_mallocN(sizeof(half) * data->num_half_channels * num_pixels,
+                                      __func__);
       current_rect_half = rect_half;
     }
 
@@ -1589,8 +1521,7 @@ static int imb_exr_split_channel_name(ExrChannel *echan,
   if (len == 1) {
     echan->chan_id = BLI_toupper_ascii(channelname[0]);
   }
-  else {
-    BLI_assert(len > 1); /* Checks above ensure. */
+  else if (len > 1) {
     if (len == 2) {
       /* Some multi-layers are using two-letter channels name,
        * like, MX or NZ, which is basically has structure of
@@ -1660,7 +1591,7 @@ static ExrLayer *imb_exr_get_layer(ListBase *lb, const char *layname)
   ExrLayer *lay = (ExrLayer *)BLI_findstring(lb, layname, offsetof(ExrLayer, name));
 
   if (lay == nullptr) {
-    lay = MEM_callocN<ExrLayer>("exr layer");
+    lay = MEM_cnew<ExrLayer>("exr layer");
     BLI_addtail(lb, lay);
     BLI_strncpy(lay->name, layname, EXR_LAY_MAXNAME);
   }
@@ -1673,7 +1604,7 @@ static ExrPass *imb_exr_get_pass(ListBase *lb, const char *passname)
   ExrPass *pass = (ExrPass *)BLI_findstring(lb, passname, offsetof(ExrPass, name));
 
   if (pass == nullptr) {
-    pass = MEM_callocN<ExrPass>("exr pass");
+    pass = MEM_cnew<ExrPass>("exr pass");
 
     if (STREQ(passname, "Combined")) {
       BLI_addhead(lb, pass);
@@ -1823,8 +1754,8 @@ static bool imb_exr_multilayer_parse_channels_from_file(ExrHandle *data)
   LISTBASE_FOREACH (ExrLayer *, lay, &data->layers) {
     LISTBASE_FOREACH (ExrPass *, pass, &lay->passes) {
       if (pass->totchan) {
-        pass->rect = MEM_calloc_arrayN<float>(
-            size_t(data->width) * size_t(data->height) * size_t(pass->totchan), "pass rect");
+        pass->rect = (float *)MEM_callocN(
+            data->width * data->height * pass->totchan * sizeof(float), "pass rect");
         if (pass->totchan == 1) {
           ExrChannel *echan = pass->chan[0];
           echan->rect = pass->rect;
@@ -2155,55 +2086,7 @@ bool IMB_exr_has_multilayer(void *handle)
   return imb_exr_is_multi(*data->ifile);
 }
 
-static bool imb_check_chromaticity_val(float test_v, float ref_v)
-{
-  const float tolerance_v = 0.000001f;
-  return (test_v < (ref_v + tolerance_v)) && (test_v > (ref_v - tolerance_v));
-}
-
-/* https://openexr.com/en/latest/TechnicalIntroduction.html#recommendations */
-static bool imb_check_chromaticity_matches(const Imf::Chromaticities &a,
-                                           const Imf::Chromaticities &b)
-{
-  return imb_check_chromaticity_val(a.red.x, b.red.x) &&
-         imb_check_chromaticity_val(a.red.y, b.red.y) &&
-         imb_check_chromaticity_val(a.green.x, b.green.x) &&
-         imb_check_chromaticity_val(a.green.y, b.green.y) &&
-         imb_check_chromaticity_val(a.blue.x, b.blue.x) &&
-         imb_check_chromaticity_val(a.blue.y, b.blue.y) &&
-         imb_check_chromaticity_val(a.white.x, b.white.x) &&
-         imb_check_chromaticity_val(a.white.y, b.white.y);
-}
-
-static void imb_exr_set_known_colorspace(const Header &header, ImFileColorSpace &r_colorspace)
-{
-  r_colorspace.is_hdr_float = true;
-
-  /* Read ACES container format metadata. */
-  const IntAttribute *header_aces_container = header.findTypedAttribute<IntAttribute>(
-      "acesImageContainerFlag");
-  const ChromaticitiesAttribute *header_chromaticities =
-      header.findTypedAttribute<ChromaticitiesAttribute>("chromaticities");
-
-  if ((header_aces_container && header_aces_container->value() == 1) ||
-      (header_chromaticities &&
-       imb_check_chromaticity_matches(header_chromaticities->value(), CHROMATICITIES_ACES_2065_1)))
-  {
-    const char *known_colorspace = IMB_colormanagement_role_colorspace_name_get(
-        COLOR_ROLE_ACES_INTERCHANGE);
-    if (known_colorspace) {
-      STRNCPY(r_colorspace.metadata_colorspace, known_colorspace);
-    }
-  }
-  else if (header_chromaticities &&
-           (imb_check_chromaticity_matches(header_chromaticities->value(), CHROMATICITIES_XYZ_E)))
-  {
-    /* Only works for the Blender default configuration due to fixed name. */
-    STRNCPY(r_colorspace.metadata_colorspace, "Linear CIE-XYZ E");
-  }
-}
-
-ImBuf *imb_load_openexr(const uchar *mem, size_t size, int flags, ImFileColorSpace &r_colorspace)
+ImBuf *imb_load_openexr(const uchar *mem, size_t size, int flags, char colorspace[IM_MAX_SPACE])
 {
   ImBuf *ibuf = nullptr;
   IMemStream *membuf = nullptr;
@@ -2213,14 +2096,15 @@ ImBuf *imb_load_openexr(const uchar *mem, size_t size, int flags, ImFileColorSpa
     return nullptr;
   }
 
+  colorspace_set_default_role(colorspace, IM_MAX_SPACE, COLOR_ROLE_DEFAULT_FLOAT);
+
   try {
     bool is_multi;
 
     membuf = new IMemStream((uchar *)mem, size);
     file = new MultiPartInputFile(*membuf);
 
-    const Header &file_header = file->header(0);
-    Box2i dw = file_header.dataWindow();
+    Box2i dw = file->header(0).dataWindow();
     const size_t width = dw.max.x - dw.min.x + 1;
     const size_t height = dw.max.y - dw.min.y + 1;
 
@@ -2241,27 +2125,25 @@ ImBuf *imb_load_openexr(const uchar *mem, size_t size, int flags, ImFileColorSpa
       const bool is_alpha = exr_has_alpha(*file);
 
       ibuf = IMB_allocImBuf(width, height, is_alpha ? 32 : 24, 0);
-      ibuf->foptions.flag |= exr_is_half_float(*file) ? OPENEXR_HALF : 0;
-      ibuf->foptions.flag |= openexr_header_get_compression(file_header);
+      ibuf->flags |= exr_is_half_float(*file) ? IB_halffloat : 0;
 
-      if (hasXDensity(file_header)) {
+      if (hasXDensity(file->header(0))) {
         /* Convert inches to meters. */
-        ibuf->ppm[0] = double(xDensity(file_header)) / 0.0254;
-        ibuf->ppm[1] = ibuf->ppm[0] * double(file_header.pixelAspectRatio());
+        ibuf->ppm[0] = double(xDensity(file->header(0))) / 0.0254;
+        ibuf->ppm[1] = ibuf->ppm[0] * double(file->header(0).pixelAspectRatio());
       }
-
-      imb_exr_set_known_colorspace(file_header, r_colorspace);
 
       ibuf->ftype = IMB_FTYPE_OPENEXR;
 
       if (!(flags & IB_test)) {
 
         if (flags & IB_metadata) {
+          const Header &header = file->header(0);
           Header::ConstIterator iter;
 
           IMB_metadata_ensure(&ibuf->metadata);
-          for (iter = file_header.begin(); iter != file_header.end(); iter++) {
-            const StringAttribute *attr = file_header.findTypedAttribute<StringAttribute>(
+          for (iter = header.begin(); iter != header.end(); iter++) {
+            const StringAttribute *attr = file->header(0).findTypedAttribute<StringAttribute>(
                 iter.name());
 
             /* not all attributes are string attributes so we might get some NULLs here */
@@ -2292,7 +2174,7 @@ ImBuf *imb_load_openexr(const uchar *mem, size_t size, int flags, ImFileColorSpa
           size_t ystride = -xstride * width;
 
           /* No need to clear image memory, it will be fully written below. */
-          IMB_alloc_float_pixels(ibuf, 4, false);
+          imb_addrectfloatImBuf(ibuf, 4, false);
 
           /* Inverse correct first pixel for data-window
            * coordinates (- dw.min.y because of y flip). */
@@ -2342,7 +2224,7 @@ ImBuf *imb_load_openexr(const uchar *mem, size_t size, int flags, ImFileColorSpa
            * Disabling this because the sequencer frees immediate. */
 #if 0
           if (flag & IM_rect) {
-            IMB_byte_from_float(ibuf);
+            IMB_rect_from_float(ibuf);
           }
 #endif
 
@@ -2408,7 +2290,7 @@ ImBuf *imb_load_openexr(const uchar *mem, size_t size, int flags, ImFileColorSpa
 ImBuf *imb_load_filepath_thumbnail_openexr(const char *filepath,
                                            const int /*flags*/,
                                            const size_t max_thumb_size,
-                                           ImFileColorSpace &r_colorspace,
+                                           char colorspace[],
                                            size_t *r_width,
                                            size_t *r_height)
 {
@@ -2443,10 +2325,8 @@ ImBuf *imb_load_filepath_thumbnail_openexr(const char *filepath,
     *r_width = source_w;
     *r_height = source_h;
 
-    const Header &file_header = file->header();
-
     /* If there is an embedded thumbnail, return that instead of making a new one. */
-    if (file_header.hasPreviewImage()) {
+    if (file->header().hasPreviewImage()) {
       const Imf::PreviewImage &preview = file->header().previewImage();
       ImBuf *ibuf = IMB_allocFromBuffer(
           (uint8_t *)preview.pixels(), nullptr, preview.width(), preview.height(), 4);
@@ -2456,16 +2336,18 @@ ImBuf *imb_load_filepath_thumbnail_openexr(const char *filepath,
       return ibuf;
     }
 
-    /* No effect yet for thumbnails, but will work once it is supported. */
-    imb_exr_set_known_colorspace(file_header, r_colorspace);
-
     /* Create a new thumbnail. */
+
+    if (colorspace && colorspace[0]) {
+      colorspace_set_default_role(colorspace, IM_MAX_SPACE, COLOR_ROLE_DEFAULT_FLOAT);
+    }
+
     float scale_factor = std::min(float(max_thumb_size) / float(source_w),
                                   float(max_thumb_size) / float(source_h));
     int dest_w = std::max(int(source_w * scale_factor), 1);
     int dest_h = std::max(int(source_h * scale_factor), 1);
 
-    ImBuf *ibuf = IMB_allocImBuf(dest_w, dest_h, 32, IB_float_data);
+    ImBuf *ibuf = IMB_allocImBuf(dest_w, dest_h, 32, IB_rectfloat);
 
     /* A single row of source pixels. */
     Imf::Array<Imf::Rgba> pixels(source_w);

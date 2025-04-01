@@ -94,6 +94,13 @@ typedef struct Base {
   char _pad1[2];
 } Base;
 
+typedef struct ViewLayerEngineData {
+  struct ViewLayerEngineData *next, *prev;
+  struct DrawEngineType *engine_type;
+  void *storage;
+  void (*free)(void *storage);
+} ViewLayerEngineData;
+
 typedef struct LayerCollection {
   struct LayerCollection *next, *prev;
   struct Collection *collection;
@@ -187,6 +194,8 @@ typedef struct ViewLayer {
   ViewLayerLightgroup *active_lightgroup;
 
   /* Runtime data */
+  /** ViewLayerEngineData. */
+  ListBase drawdata;
   struct Base **object_bases_array;
   struct GHash *object_bases_hash;
 } ViewLayer;

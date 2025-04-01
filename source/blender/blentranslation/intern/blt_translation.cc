@@ -11,7 +11,6 @@
 
 #include <cstdlib>
 #include <cstring>
-#include <optional>
 
 #include "BLT_translation.hh"
 
@@ -27,7 +26,6 @@
 #endif /* WITH_INTERNATIONAL */
 
 using blender::StringRef;
-using blender::StringRefNull;
 
 bool BLT_is_default_context(const StringRef msgctxt)
 {
@@ -38,45 +36,33 @@ bool BLT_is_default_context(const StringRef msgctxt)
   return (msgctxt.is_empty() || msgctxt[0] == BLT_I18NCONTEXT_DEFAULT_BPYRNA[0]);
 }
 
-static std::optional<StringRefNull> pgettext(StringRef msgctxt, const StringRef msgid)
-{
-#ifdef WITH_INTERNATIONAL
-  if (msgid.is_empty()) {
-    return std::nullopt;
-  }
-  if (BLT_is_default_context(msgctxt)) {
-    msgctxt = BLT_I18NCONTEXT_DEFAULT;
-  }
-  if (const std::optional<StringRefNull> translation = blender::locale::translate(
-          0, msgctxt, msgid))
-  {
-    return translation;
-  }
-#  ifdef WITH_PYTHON
-  return BPY_app_translations_py_pgettext(msgctxt, msgid);
-#  endif
-#else
-  UNUSED_VARS(msgctxt, msgid);
-  return std::nullopt;
-#endif
-}
-
 const char *BLT_pgettext(const char *msgctxt, const char *msgid)
 {
-  const std::optional<StringRefNull> translation = pgettext(msgctxt, msgid);
-  if (!translation) {
-    return msgid;
-  }
-  return translation->c_str();
-}
+#ifdef WITH_INTERNATIONAL
+  const char *ret = msgid;
 
-blender::StringRef BLT_pgettext(blender::StringRef msgctxt, blender::StringRef msgid)
-{
-  const std::optional<StringRefNull> translation = pgettext(msgctxt, msgid);
-  if (!translation) {
-    return msgid;
+  if (msgid && msgid[0]) {
+    if (BLT_is_default_context(msgctxt)) {
+      msgctxt = BLT_I18NCONTEXT_DEFAULT;
+    }
+
+    ret = blender::locale::translate(0, msgctxt, msgid);
+
+    /* No translation found? Try py script translations. */
+    if (ret == nullptr) {
+#  ifdef WITH_PYTHON
+      ret = BPY_app_translations_py_pgettext(msgctxt, msgid);
+#  else
+      ret = msgid;
+#  endif
+    }
   }
-  return *translation;
+
+  return ret;
+#else
+  (void)msgctxt;
+  return msgid;
+#endif
 }
 
 bool BLT_translate()
@@ -124,7 +110,7 @@ bool BLT_translate_new_dataname()
 #endif
 }
 
-template<typename StringT> StringT translate_do(StringT msgctxt, StringT msgid)
+const char *BLT_translate_do(const char *msgctxt, const char *msgid)
 {
 #ifdef WITH_INTERNATIONAL
   if (BLT_translate()) {
@@ -139,17 +125,7 @@ template<typename StringT> StringT translate_do(StringT msgctxt, StringT msgid)
 #endif
 }
 
-const char *BLT_translate_do(const char *msgctxt, const char *msgid)
-{
-  return translate_do(msgctxt, msgid);
-}
-
-StringRef BLT_translate_do(StringRef msgctxt, StringRef msgid)
-{
-  return translate_do(msgctxt, msgid);
-}
-
-template<typename StringT> StringT translate_do_iface(StringT msgctxt, StringT msgid)
+const char *BLT_translate_do_iface(const char *msgctxt, const char *msgid)
 {
 #ifdef WITH_INTERNATIONAL
   if (BLT_translate_iface()) {
@@ -164,17 +140,7 @@ template<typename StringT> StringT translate_do_iface(StringT msgctxt, StringT m
 #endif
 }
 
-const char *BLT_translate_do_iface(const char *msgctxt, const char *msgid)
-{
-  return translate_do_iface(msgctxt, msgid);
-}
-
-StringRef BLT_translate_do_iface(StringRef msgctxt, StringRef msgid)
-{
-  return translate_do_iface(msgctxt, msgid);
-}
-
-template<typename StringT> StringT translate_do_tooltip(StringT msgctxt, StringT msgid)
+const char *BLT_translate_do_tooltip(const char *msgctxt, const char *msgid)
 {
 #ifdef WITH_INTERNATIONAL
   if (BLT_translate_tooltips()) {
@@ -189,17 +155,7 @@ template<typename StringT> StringT translate_do_tooltip(StringT msgctxt, StringT
 #endif
 }
 
-const char *BLT_translate_do_tooltip(const char *msgctxt, const char *msgid)
-{
-  return translate_do_tooltip(msgctxt, msgid);
-}
-
-StringRef BLT_translate_do_tooltip(StringRef msgctxt, StringRef msgid)
-{
-  return translate_do_tooltip(msgctxt, msgid);
-}
-
-template<typename StringT> StringT translate_do_report(StringT msgctxt, StringT msgid)
+const char *BLT_translate_do_report(const char *msgctxt, const char *msgid)
 {
 #ifdef WITH_INTERNATIONAL
   if (BLT_translate_reports()) {
@@ -214,17 +170,7 @@ template<typename StringT> StringT translate_do_report(StringT msgctxt, StringT 
 #endif
 }
 
-const char *BLT_translate_do_report(const char *msgctxt, const char *msgid)
-{
-  return translate_do_report(msgctxt, msgid);
-}
-
-StringRef BLT_translate_do_report(StringRef msgctxt, StringRef msgid)
-{
-  return translate_do_report(msgctxt, msgid);
-}
-
-template<typename StringT> StringT translate_do_new_dataname(StringT msgctxt, StringT msgid)
+const char *BLT_translate_do_new_dataname(const char *msgctxt, const char *msgid)
 {
 #ifdef WITH_INTERNATIONAL
   if (BLT_translate_new_dataname()) {
@@ -237,14 +183,4 @@ template<typename StringT> StringT translate_do_new_dataname(StringT msgctxt, St
   (void)msgctxt;
   return msgid;
 #endif
-}
-
-const char *BLT_translate_do_new_dataname(const char *msgctxt, const char *msgid)
-{
-  return translate_do_new_dataname(msgctxt, msgid);
-}
-
-StringRef BLT_translate_do_new_dataname(StringRef msgctxt, StringRef msgid)
-{
-  return translate_do_new_dataname(msgctxt, msgid);
 }

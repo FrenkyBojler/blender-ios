@@ -16,7 +16,6 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
 #include "BLI_string_utf8.h"
@@ -32,7 +31,6 @@
 #include "DNA_gpencil_legacy_types.h"
 #include "DNA_material_types.h"
 #include "DNA_meshdata_types.h"
-#include "DNA_userdef_types.h"
 
 #include "BKE_action.hh"
 #include "BKE_anim_data.hh"
@@ -463,7 +461,7 @@ bGPDframe *BKE_gpencil_frame_addnew(bGPDlayer *gpl, int cframe)
   }
 
   /* allocate memory for this frame */
-  gpf = MEM_callocN<bGPDframe>("bGPDframe");
+  gpf = static_cast<bGPDframe *>(MEM_callocN(sizeof(bGPDframe), "bGPDframe"));
   gpf->framenum = cframe;
 
   /* find appropriate place to add frame */
@@ -573,7 +571,7 @@ bGPDlayer *BKE_gpencil_layer_addnew(bGPdata *gpd,
   }
 
   /* allocate memory for frame and add to end of list */
-  gpl = MEM_callocN<bGPDlayer>("bGPDlayer");
+  gpl = static_cast<bGPDlayer *>(MEM_callocN(sizeof(bGPDlayer), "bGPDlayer"));
 
   gpl_active = BKE_gpencil_layer_active_get(gpd);
 

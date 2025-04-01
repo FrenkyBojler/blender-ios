@@ -14,6 +14,10 @@
 #include "../../Interface1D/BPy_ViewEdge.h"
 #include "../BPy_SVertex.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 using namespace Freestyle;
 
 ///////////////////////////////////////////////////////////////////////////////////////////
@@ -107,16 +111,6 @@ static PyObject *TVertex_get_mate(BPy_TVertex *self, PyObject *args, PyObject *k
   Py_RETURN_NONE;
 }
 
-#ifdef __GNUC__
-#  ifdef __clang__
-#    pragma clang diagnostic push
-#    pragma clang diagnostic ignored "-Wcast-function-type"
-#  else
-#    pragma GCC diagnostic push
-#    pragma GCC diagnostic ignored "-Wcast-function-type"
-#  endif
-#endif
-
 static PyMethodDef BPy_TVertex_methods[] = {
     {"get_svertex",
      (PyCFunction)TVertex_get_svertex,
@@ -128,14 +122,6 @@ static PyMethodDef BPy_TVertex_methods[] = {
      TVertex_get_mate_doc},
     {nullptr, nullptr, 0, nullptr},
 };
-
-#ifdef __GNUC__
-#  ifdef __clang__
-#    pragma clang diagnostic pop
-#  else
-#    pragma GCC diagnostic pop
-#  endif
-#endif
 
 /*----------------------TVertex get/setters ----------------------------*/
 
@@ -273,3 +259,7 @@ PyTypeObject TVertex_Type = {
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////
+
+#ifdef __cplusplus
+}
+#endif

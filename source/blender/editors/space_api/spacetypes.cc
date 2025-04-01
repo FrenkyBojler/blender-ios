@@ -12,8 +12,6 @@
 
 #include "DNA_windowmanager_types.h"
 
-#include "BLI_listbase.h"
-
 #include "BKE_context.hh"
 #include "BKE_screen.hh"
 
@@ -43,7 +41,6 @@
 #include "ED_object.hh"
 #include "ED_paint.hh"
 #include "ED_physics.hh"
-#include "ED_pointcloud.hh"
 #include "ED_render.hh"
 #include "ED_scene.hh"
 #include "ED_screen.hh"
@@ -77,7 +74,7 @@ void ED_spacetypes_init()
   ED_spacetype_nla();
   ED_spacetype_script();
   ED_spacetype_text();
-  vse::ED_spacetype_sequencer();
+  ED_spacetype_sequencer();
   ED_spacetype_console();
   ED_spacetype_userpref();
   ED_spacetype_clip();
@@ -98,7 +95,7 @@ void ED_spacetypes_init()
   object::operatortypes_object();
   ED_operatortypes_lattice();
   ED_operatortypes_mesh();
-  geometry::operatortypes_geometry();
+  ED_operatortypes_geometry();
   sculpt_paint::operatortypes_sculpt();
   ED_operatortypes_sculpt_curves();
   ED_operatortypes_uvedit();
@@ -106,7 +103,6 @@ void ED_spacetypes_init()
   ED_operatortypes_physics();
   ED_operatortypes_curve();
   curves::operatortypes_curves();
-  pointcloud::operatortypes_pointcloud();
   ED_operatortypes_armature();
   ED_operatortypes_marker();
   ED_operatortypes_metaball();
@@ -164,9 +160,8 @@ void ED_spacemacros_init()
   ED_operatormacros_clip();
   ED_operatormacros_curve();
   curves::operatormacros_curves();
-  pointcloud::operatormacros_pointcloud();
   ED_operatormacros_mask();
-  vse::ED_operatormacros_sequencer();
+  ED_operatormacros_sequencer();
   ED_operatormacros_paint();
   ED_operatormacros_grease_pencil();
   ED_operatormacros_nla();
@@ -194,7 +189,6 @@ void ED_spacetypes_keymap(wmKeyConfig *keyconf)
   ED_keymap_uvedit(keyconf);
   ED_keymap_curve(keyconf);
   curves::keymap_curves(keyconf);
-  pointcloud::keymap_pointcloud(keyconf);
   ED_keymap_armature(keyconf);
   ED_keymap_physics(keyconf);
   ED_keymap_metaball(keyconf);
@@ -206,7 +200,7 @@ void ED_spacetypes_keymap(wmKeyConfig *keyconf)
   ED_keymap_view2d(keyconf);
   ED_keymap_ui(keyconf);
 
-  transform::keymap_transform(keyconf);
+  ED_keymap_transform(keyconf);
 
   for (const std::unique_ptr<SpaceType> &type : BKE_spacetypes_list()) {
     if (type->keymap) {
@@ -236,7 +230,7 @@ void *ED_region_draw_cb_activate(ARegionType *art,
                                  void *customdata,
                                  int type)
 {
-  RegionDrawCB *rdc = MEM_callocN<RegionDrawCB>(__func__);
+  RegionDrawCB *rdc = MEM_cnew<RegionDrawCB>(__func__);
 
   BLI_addtail(&art->drawcalls, rdc);
   rdc->draw = draw;

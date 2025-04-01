@@ -40,14 +40,9 @@ static PyObject *bpy_rna_data_temp_data(PyObject *self, PyObject *args, PyObject
 static PyObject *bpy_rna_data_context_enter(BPy_DataContext *self);
 static PyObject *bpy_rna_data_context_exit(BPy_DataContext *self, PyObject *args);
 
-#ifdef __GNUC__
-#  ifdef __clang__
-#    pragma clang diagnostic push
-#    pragma clang diagnostic ignored "-Wcast-function-type"
-#  else
-#    pragma GCC diagnostic push
-#    pragma GCC diagnostic ignored "-Wcast-function-type"
-#  endif
+#if (defined(__GNUC__) && !defined(__clang__))
+#  pragma GCC diagnostic push
+#  pragma GCC diagnostic ignored "-Wcast-function-type"
 #endif
 
 static PyMethodDef bpy_rna_data_context_methods[] = {
@@ -56,12 +51,8 @@ static PyMethodDef bpy_rna_data_context_methods[] = {
     {nullptr} /* sentinel */
 };
 
-#ifdef __GNUC__
-#  ifdef __clang__
-#    pragma clang diagnostic pop
-#  else
-#    pragma GCC diagnostic pop
-#  endif
+#if (defined(__GNUC__) && !defined(__clang__))
+#  pragma GCC diagnostic pop
 #endif
 
 static int bpy_rna_data_context_traverse(BPy_DataContext *self, visitproc visit, void *arg)
@@ -191,18 +182,13 @@ static PyObject *bpy_rna_data_context_enter(BPy_DataContext *self)
 static PyObject *bpy_rna_data_context_exit(BPy_DataContext *self, PyObject * /*args*/)
 {
   BKE_main_free(static_cast<Main *>(self->data_rna->ptr->data));
-  self->data_rna->ptr->invalidate();
+  RNA_POINTER_INVALIDATE(&self->data_rna->ptr.value());
   Py_RETURN_NONE;
 }
 
-#ifdef __GNUC__
-#  ifdef __clang__
-#    pragma clang diagnostic push
-#    pragma clang diagnostic ignored "-Wcast-function-type"
-#  else
-#    pragma GCC diagnostic push
-#    pragma GCC diagnostic ignored "-Wcast-function-type"
-#  endif
+#if (defined(__GNUC__) && !defined(__clang__))
+#  pragma GCC diagnostic push
+#  pragma GCC diagnostic ignored "-Wcast-function-type"
 #endif
 
 PyMethodDef BPY_rna_data_context_method_def = {
@@ -212,12 +198,8 @@ PyMethodDef BPY_rna_data_context_method_def = {
     bpy_rna_data_context_load_doc,
 };
 
-#ifdef __GNUC__
-#  ifdef __clang__
-#    pragma clang diagnostic pop
-#  else
-#    pragma GCC diagnostic pop
-#  endif
+#if (defined(__GNUC__) && !defined(__clang__))
+#  pragma GCC diagnostic pop
 #endif
 
 int BPY_rna_data_context_type_ready()

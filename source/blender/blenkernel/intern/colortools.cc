@@ -73,7 +73,8 @@ void BKE_curvemapping_set_defaults(CurveMapping *cumap,
     }
 
     cumap->cm[a].totpoint = 2;
-    cumap->cm[a].curve = MEM_calloc_arrayN<CurveMapPoint>(2, "curve points");
+    cumap->cm[a].curve = static_cast<CurveMapPoint *>(
+        MEM_callocN(2 * sizeof(CurveMapPoint), "curve points"));
 
     cumap->cm[a].curve[0].x = minx;
     cumap->cm[a].curve[0].y = miny;
@@ -90,7 +91,7 @@ CurveMapping *BKE_curvemapping_add(int tot, float minx, float miny, float maxx, 
 {
   CurveMapping *cumap;
 
-  cumap = MEM_callocN<CurveMapping>("new curvemap");
+  cumap = static_cast<CurveMapping *>(MEM_callocN(sizeof(CurveMapping), "new curvemap"));
 
   BKE_curvemapping_set_defaults(cumap, tot, minx, miny, maxx, maxy, HD_AUTO);
 
@@ -195,7 +196,8 @@ bool BKE_curvemap_remove_point(CurveMap *cuma, CurveMapPoint *point)
     return false;
   }
 
-  cmp = MEM_malloc_arrayN<CurveMapPoint>(size_t(cuma->totpoint), "curve points");
+  cmp = static_cast<CurveMapPoint *>(
+      MEM_mallocN((cuma->totpoint) * sizeof(CurveMapPoint), "curve points"));
 
   /* well, lets keep the two outer points! */
   for (a = 0, b = 0; a < cuma->totpoint; a++) {
@@ -216,7 +218,8 @@ bool BKE_curvemap_remove_point(CurveMap *cuma, CurveMapPoint *point)
 
 void BKE_curvemap_remove(CurveMap *cuma, const short flag)
 {
-  CurveMapPoint *cmp = MEM_malloc_arrayN<CurveMapPoint>(size_t(cuma->totpoint), "curve points");
+  CurveMapPoint *cmp = static_cast<CurveMapPoint *>(
+      MEM_mallocN((cuma->totpoint) * sizeof(CurveMapPoint), "curve points"));
   int a, b, removed = 0;
 
   /* well, lets keep the two outer points! */
@@ -239,8 +242,8 @@ void BKE_curvemap_remove(CurveMap *cuma, const short flag)
 
 CurveMapPoint *BKE_curvemap_insert(CurveMap *cuma, float x, float y)
 {
-  CurveMapPoint *cmp = MEM_calloc_arrayN<CurveMapPoint>(size_t(cuma->totpoint) + 1,
-                                                        "curve points");
+  CurveMapPoint *cmp = static_cast<CurveMapPoint *>(
+      MEM_callocN((cuma->totpoint + 1) * sizeof(CurveMapPoint), "curve points"));
   CurveMapPoint *newcmp = nullptr;
   int a, b;
   bool foundloc = false;
@@ -310,7 +313,8 @@ void BKE_curvemap_reset(CurveMap *cuma, const rctf *clipr, int preset, int slope
       break;
   }
 
-  cuma->curve = MEM_calloc_arrayN<CurveMapPoint>(size_t(cuma->totpoint), "curve points");
+  cuma->curve = static_cast<CurveMapPoint *>(
+      MEM_callocN(cuma->totpoint * sizeof(CurveMapPoint), "curve points"));
 
   for (int i = 0; i < cuma->totpoint; i++) {
     cuma->curve[i].flag = cuma->default_handle_type;
@@ -433,8 +437,8 @@ void BKE_curvemap_reset(CurveMap *cuma, const rctf *clipr, int preset, int slope
   }
   else if (slope == CURVEMAP_SLOPE_POS_NEG) {
     const int num_points = cuma->totpoint * 2 - 1;
-    CurveMapPoint *new_points = MEM_malloc_arrayN<CurveMapPoint>(size_t(num_points),
-                                                                 "curve symmetric points");
+    CurveMapPoint *new_points = static_cast<CurveMapPoint *>(
+        MEM_mallocN(num_points * sizeof(CurveMapPoint), "curve symmetric points"));
     for (int i = 0; i < cuma->totpoint; i++) {
       const int src_last_point = cuma->totpoint - i - 1;
       const int dst_last_point = num_points - i - 1;
@@ -660,7 +664,8 @@ static void curvemap_make_table(const CurveMapping *cumap, CurveMap *cuma)
   const int bezt_totpoint = max_ii(cuma->totpoint, 2);
 
   /* Rely on Blender interpolation for bezier curves, support extra functionality here as well. */
-  BezTriple *bezt = MEM_calloc_arrayN<BezTriple>(size_t(bezt_totpoint), "beztarr");
+  BezTriple *bezt = static_cast<BezTriple *>(
+      MEM_callocN(bezt_totpoint * sizeof(BezTriple), "beztarr"));
 
   /* Valid curve has at least 2 points. */
   if (cuma->totpoint >= 2) {
@@ -785,7 +790,7 @@ static void curvemap_make_table(const CurveMapping *cumap, CurveMap *cuma)
 
   const int totpoint = use_wrapping ? (bezt_totpoint + 1) * CM_RESOL :
                                       (bezt_totpoint - 1) * CM_RESOL;
-  float *allpoints = MEM_calloc_arrayN<float>(size_t(totpoint) * 2, "table");
+  float *allpoints = static_cast<float *>(MEM_callocN(totpoint * 2 * sizeof(float), "table"));
   float *point = allpoints;
 
   /* Handle pre point for wrapping */
@@ -832,7 +837,8 @@ static void curvemap_make_table(const CurveMapping *cumap, CurveMap *cuma)
   float *lastpoint = allpoints + 2 * (totpoint - 1);
   point = allpoints;
 
-  CurveMapPoint *cmp = MEM_calloc_arrayN<CurveMapPoint>(CM_TABLE + 1, "dist table");
+  CurveMapPoint *cmp = static_cast<CurveMapPoint *>(
+      MEM_callocN((CM_TABLE + 1) * sizeof(CurveMapPoint), "dist table"));
 
   for (int a = 0; a <= CM_TABLE; a++) {
     float cur_x = cuma->mintable + range * float(a);
@@ -901,7 +907,8 @@ void BKE_curvemapping_premultiply(CurveMapping *cumap, bool restore)
           curvemap_make_table(cumap, cumap->cm + a);
         }
         cumap->cm[a].premultable = cumap->cm[a].table;
-        cumap->cm[a].table = MEM_malloc_arrayN<CurveMapPoint>(CM_TABLE + 1, "premul table");
+        cumap->cm[a].table = static_cast<CurveMapPoint *>(
+            MEM_mallocN((CM_TABLE + 1) * sizeof(CurveMapPoint), "premul table"));
         memcpy(
             cumap->cm[a].table, cumap->cm[a].premultable, (CM_TABLE + 1) * sizeof(CurveMapPoint));
       }
@@ -1336,7 +1343,7 @@ void BKE_curvemapping_table_F(const CurveMapping *cumap, float **array, int *siz
   int a;
 
   *size = CM_TABLE + 1;
-  *array = MEM_calloc_arrayN<float>(4 * size_t(*size), "CurveMapping");
+  *array = static_cast<float *>(MEM_callocN(sizeof(float) * (*size) * 4, "CurveMapping"));
 
   for (a = 0; a < *size; a++) {
     if (cumap->cm[0].table) {
@@ -1350,7 +1357,7 @@ void BKE_curvemapping_table_RGBA(const CurveMapping *cumap, float **array, int *
   int a;
 
   *size = CM_TABLE + 1;
-  *array = MEM_calloc_arrayN<float>(4 * size_t(*size), "CurveMapping");
+  *array = static_cast<float *>(MEM_callocN(sizeof(float) * (*size) * 4, "CurveMapping"));
 
   for (a = 0; a < *size; a++) {
     if (cumap->cm[0].table) {
@@ -1771,16 +1778,16 @@ void BKE_scopes_update(Scopes *scopes,
     MEM_freeN(scopes->vecscope_rgb);
   }
 
-  scopes->waveform_1 = MEM_calloc_arrayN<float>(2 * size_t(scopes->waveform_tot),
-                                                "waveform point channel 1");
-  scopes->waveform_2 = MEM_calloc_arrayN<float>(2 * size_t(scopes->waveform_tot),
-                                                "waveform point channel 2");
-  scopes->waveform_3 = MEM_calloc_arrayN<float>(2 * size_t(scopes->waveform_tot),
-                                                "waveform point channel 3");
-  scopes->vecscope = MEM_calloc_arrayN<float>(2 * size_t(scopes->waveform_tot),
-                                              "vectorscope point channel");
-  scopes->vecscope_rgb = MEM_calloc_arrayN<float>(3 * size_t(scopes->waveform_tot),
-                                                  "vectorscope color channel");
+  scopes->waveform_1 = static_cast<float *>(
+      MEM_callocN(scopes->waveform_tot * 2 * sizeof(float), "waveform point channel 1"));
+  scopes->waveform_2 = static_cast<float *>(
+      MEM_callocN(scopes->waveform_tot * 2 * sizeof(float), "waveform point channel 2"));
+  scopes->waveform_3 = static_cast<float *>(
+      MEM_callocN(scopes->waveform_tot * 2 * sizeof(float), "waveform point channel 3"));
+  scopes->vecscope = static_cast<float *>(
+      MEM_callocN(scopes->waveform_tot * 2 * sizeof(float), "vectorscope point channel"));
+  scopes->vecscope_rgb = static_cast<float *>(
+      MEM_callocN(scopes->waveform_tot * 3 * sizeof(float), "vectorscope color channel"));
 
   if (ibuf->float_buffer.data) {
     cm_processor = IMB_colormanagement_display_processor_new(view_settings, display_settings);

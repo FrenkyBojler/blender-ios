@@ -18,8 +18,6 @@
 #include "transform.hh"
 #include "transform_convert.hh"
 
-namespace blender::ed::transform {
-
 /* -------------------------------------------------------------------- */
 /** \name Edge (for crease) Transform Creation
  * \{ */
@@ -132,5 +130,3 @@ TransConvertTypeInfo TransConvertType_MeshEdge = {
     /*recalc_data*/ recalcData_mesh_edge,
     /*special_aftertrans_update*/ nullptr,
 };
-
-}  // namespace blender::ed::transform

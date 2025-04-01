@@ -10,6 +10,9 @@
  * \ingroup bke
  * \brief Camera data-block and utility functions.
  */
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 struct Camera;
 struct Depsgraph;
@@ -178,3 +181,7 @@ struct CameraBGImage *BKE_camera_background_image_copy(const struct CameraBGImag
                                                        int flag);
 void BKE_camera_background_image_remove(struct Camera *cam, struct CameraBGImage *bgpic);
 void BKE_camera_background_image_clear(struct Camera *cam);
+
+#ifdef __cplusplus
+}
+#endif

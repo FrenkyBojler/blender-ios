@@ -26,8 +26,6 @@
 
 #include "transform_mode.hh"
 
-namespace blender::ed::transform {
-
 /* -------------------------------------------------------------------- */
 /** \name Transform (Animation Time Scale)
  * \{ */
@@ -165,5 +163,3 @@ TransModeInfo TransMode_timescale = {
     /*snap_apply_fn*/ timescale_snap_apply_fn,
     /*draw_fn*/ nullptr,
 };
-
-}  // namespace blender::ed::transform

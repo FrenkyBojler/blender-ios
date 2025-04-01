@@ -12,6 +12,10 @@
 
 #include "../../../view_map/Silhouette.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 ///////////////////////////////////////////////////////////////////////////////////////////
 
 extern PyTypeObject FEdgeSharp_Type;
@@ -29,3 +33,7 @@ typedef struct {
 void FEdgeSharp_mathutils_register_callback();
 
 ///////////////////////////////////////////////////////////////////////////////////////////
+
+#ifdef __cplusplus
+}
+#endif

@@ -17,7 +17,7 @@
 
 #include "effects.hh"
 
-namespace blender::seq {
+using namespace blender;
 
 static void init_gaussian_blur_effect(Strip *strip)
 {
@@ -25,7 +25,7 @@ static void init_gaussian_blur_effect(Strip *strip)
     MEM_freeN(strip->effectdata);
   }
 
-  strip->effectdata = MEM_callocN<GaussianBlurVars>("gaussianblurvars");
+  strip->effectdata = MEM_callocN(sizeof(GaussianBlurVars), "gaussianblurvars");
 }
 
 static int num_inputs_gaussian_blur()
@@ -135,7 +135,7 @@ static void gaussian_blur_y(const Span<float> gaussian,
   }
 }
 
-static ImBuf *do_gaussian_blur_effect(const RenderData *context,
+static ImBuf *do_gaussian_blur_effect(const SeqRenderData *context,
                                       Strip *strip,
                                       float /*timeline_frame*/,
                                       float /*fac*/,
@@ -216,7 +216,7 @@ static ImBuf *do_gaussian_blur_effect(const RenderData *context,
   return out;
 }
 
-void gaussian_blur_effect_get_handle(EffectHandle &rval)
+void gaussian_blur_effect_get_handle(SeqEffectHandle &rval)
 {
   rval.init = init_gaussian_blur_effect;
   rval.num_inputs = num_inputs_gaussian_blur;
@@ -225,5 +225,3 @@ void gaussian_blur_effect_get_handle(EffectHandle &rval)
   rval.early_out = early_out_gaussian_blur;
   rval.execute = do_gaussian_blur_effect;
 }
-
-}  // namespace blender::seq

@@ -79,19 +79,8 @@ wmKeyMap *WM_keymap_guess_from_context(const bContext *C)
   eSpace_Type space_type = SPACE_EMPTY;
   eRegion_Type region_type = RGN_TYPE_WINDOW;
   SpaceLink *sl = CTX_wm_space_data(C);
-
-  /* Tool property tab is a special case where 3d tool properties are shown in the properties
-   * editor. This would allow assigning tool shortcut keys from properties editor. */
-  bool allow_properties_keymap = false;
-  if (sl->spacetype == SPACE_PROPERTIES) {
-    SpaceProperties *sp = reinterpret_cast<SpaceProperties *>(sl);
-    if (sp->mainb == BCONTEXT_TOOL) {
-      allow_properties_keymap = true;
-    }
-  }
-
   const char *km_id = nullptr;
-  if (sl->spacetype == SPACE_VIEW3D || allow_properties_keymap) {
+  if (sl->spacetype == SPACE_VIEW3D) {
     const enum eContextObjectMode mode = CTX_data_mode_enum(C);
     switch (mode) {
       case CTX_MODE_EDIT_MESH:
@@ -121,8 +110,8 @@ wmKeyMap *WM_keymap_guess_from_context(const bContext *C)
       case CTX_MODE_EDIT_GREASE_PENCIL:
         km_id = "Grease Pencil Edit Mode";
         break;
-      case CTX_MODE_EDIT_POINTCLOUD:
-        km_id = "Point Cloud";
+      case CTX_MODE_EDIT_POINT_CLOUD:
+        km_id = "Point Cloud Edit Mode";
         break;
       case CTX_MODE_POSE:
         km_id = "Pose";
@@ -205,10 +194,10 @@ wmKeyMap *WM_keymap_guess_from_context(const bContext *C)
         km_id = "Sequencer";
         break;
       case SEQ_VIEW_PREVIEW:
-        km_id = "Preview";
+        km_id = "SequencerPreview";
         break;
       case SEQ_VIEW_SEQUENCE_PREVIEW:
-        km_id = "Video Sequence Editor";
+        km_id = "SequencerCommon";
         break;
     }
   }
@@ -275,7 +264,7 @@ wmKeyMap *WM_keymap_guess_opname(const bContext *C, const char *opname)
   }
   else if (STRPREFIX(opname, "OBJECT_OT")) {
     /* Exception, this needs to work outside object mode too. */
-    if (STRPREFIX(opname, "OBJECT_OT_mode_set") || STRPREFIX(opname, "OBJECT_OT_transfer_mode")) {
+    if (STRPREFIX(opname, "OBJECT_OT_mode_set")) {
       km = WM_keymap_find_all(wm, "Object Non-modal", SPACE_EMPTY, RGN_TYPE_WINDOW);
     }
     else {
@@ -340,9 +329,6 @@ wmKeyMap *WM_keymap_guess_opname(const bContext *C, const char *opname)
   }
   else if (STRPREFIX(opname, "PARTICLE_OT")) {
     km = WM_keymap_find_all(wm, "Particle", SPACE_EMPTY, RGN_TYPE_WINDOW);
-  }
-  else if (STRPREFIX(opname, "POINTCLOUD_OT")) {
-    km = WM_keymap_find_all(wm, "Point Cloud", SPACE_EMPTY, RGN_TYPE_WINDOW);
   }
   else if (STRPREFIX(opname, "FONT_OT")) {
     km = WM_keymap_find_all(wm, "Font", SPACE_EMPTY, RGN_TYPE_WINDOW);
@@ -501,8 +487,8 @@ wmKeyMap *WM_keymap_guess_opname(const bContext *C, const char *opname)
           case CTX_MODE_EDIT_CURVES:
             km = WM_keymap_find_all(wm, "Curves", SPACE_EMPTY, RGN_TYPE_WINDOW);
             break;
-          case CTX_MODE_EDIT_POINTCLOUD:
-            km = WM_keymap_find_all(wm, "Point Cloud", SPACE_EMPTY, RGN_TYPE_WINDOW);
+          case CTX_MODE_EDIT_POINT_CLOUD:
+            km = WM_keymap_find_all(wm, "Point Cloud Edit Mode", SPACE_EMPTY, RGN_TYPE_WINDOW);
             break;
           case CTX_MODE_SCULPT:
             km = WM_keymap_find_all(wm, "Sculpt", SPACE_EMPTY, RGN_TYPE_WINDOW);
@@ -545,12 +531,6 @@ static bool wm_keymap_item_uses_modifier(const wmKeyMapItem *kmi, const int even
       return false;
     }
   }
-  if (kmi->hyper != KM_ANY) {
-    if ((kmi->hyper == KM_NOTHING) != ((event_modifier & KM_HYPER) == 0)) {
-      return false;
-    }
-  }
-
   return true;
 }
 

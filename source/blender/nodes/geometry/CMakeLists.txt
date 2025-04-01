@@ -11,7 +11,6 @@ set(INC
   ../../makesrna
   ../../modifiers
   ../../io/common
-  ../../io/csv
   ../../io/ply
   ../../io/stl
   ../../io/wavefront_obj
@@ -31,7 +30,6 @@ set(SRC
   nodes/node_geo_blur_attribute.cc
   nodes/node_geo_boolean.cc
   nodes/node_geo_bounding_box.cc
-  nodes/node_geo_camera_info.cc
   nodes/node_geo_collection_info.cc
   nodes/node_geo_common.cc
   nodes/node_geo_convex_hull.cc
@@ -90,11 +88,9 @@ set(SRC
   nodes/node_geo_image.cc
   nodes/node_geo_image_info.cc
   nodes/node_geo_image_texture.cc
-  nodes/node_geo_import_csv.cc
   nodes/node_geo_import_obj.cc
   nodes/node_geo_import_ply.cc
   nodes/node_geo_import_stl.cc
-  nodes/node_geo_import_text.cc
   nodes/node_geo_index_of_nearest.cc
   nodes/node_geo_index_switch.cc
   nodes/node_geo_input_active_camera.cc
@@ -264,14 +260,6 @@ set(LIB
   PRIVATE bf::render
   PRIVATE bf::windowmanager
 )
-
-if(WITH_IO_CSV)
-  list(APPEND LIB
-    PRIVATE bf_io_common
-    PRIVATE bf_io_csv
-  )
-  add_definitions(-DWITH_IO_CSV)
-endif()
 
 if(WITH_IO_STL)
   list(APPEND LIB

@@ -26,6 +26,10 @@ struct RenderResult;
 struct ReportList;
 struct rcti;
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* New */
 
 /**
@@ -159,3 +163,7 @@ void render_result_free_gpu_texture_caches(struct RenderResult *rr);
   } \
   } \
   ((void)0)
+
+#ifdef __cplusplus
+}
+#endif

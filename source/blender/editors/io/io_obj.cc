@@ -59,9 +59,7 @@ static const EnumPropertyItem io_obj_path_mode[] = {
     {PATH_REFERENCE_COPY, "COPY", 0, "Copy", "Copy the file to the destination path"},
     {0, nullptr, 0, nullptr, nullptr}};
 
-static wmOperatorStatus wm_obj_export_invoke(bContext *C,
-                                             wmOperator *op,
-                                             const wmEvent * /*event*/)
+static int wm_obj_export_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
   ED_fileselect_ensure_default_filepath(C, op, ".obj");
 
@@ -69,7 +67,7 @@ static wmOperatorStatus wm_obj_export_invoke(bContext *C,
   return OPERATOR_RUNNING_MODAL;
 }
 
-static wmOperatorStatus wm_obj_export_exec(bContext *C, wmOperator *op)
+static int wm_obj_export_exec(bContext *C, wmOperator *op)
 {
   if (!RNA_struct_property_is_set_ex(op->ptr, "filepath", false)) {
     BKE_report(op->reports, RPT_ERROR, "No filepath given");
@@ -110,13 +108,7 @@ static wmOperatorStatus wm_obj_export_exec(bContext *C, wmOperator *op)
   RNA_string_get(op->ptr, "collection", export_params.collection);
 
   OBJ_export(C, &export_params);
-
-  if (BKE_reports_contain(op->reports, RPT_ERROR)) {
-    return OPERATOR_CANCELLED;
-  }
-
-  BKE_report(op->reports, RPT_INFO, "File exported successfully");
-  return OPERATOR_FINISHED;
+  return BKE_reports_contain(op->reports, RPT_ERROR) ? OPERATOR_CANCELLED : OPERATOR_FINISHED;
 }
 
 static void ui_obj_export_settings(const bContext *C, uiLayout *layout, PointerRNA *ptr)
@@ -337,7 +329,7 @@ void WM_OT_obj_export(wmOperatorType *ot)
                   "export_normals",
                   true,
                   "Export Normals",
-                  "Export per-face normals if the face is flat-shaded, per-face-corner "
+                  "Export per-face normals if the face is flat-shaded, per-face-per-loop "
                   "normals if smooth-shaded");
   RNA_def_boolean(ot->srna, "export_colors", false, "Export Colors", "Export per-vertex colors");
   RNA_def_boolean(ot->srna,
@@ -388,20 +380,14 @@ void WM_OT_obj_export(wmOperatorType *ot)
       "Export Vertex Groups",
       "Export the name of the vertex group of a face. It is approximated "
       "by choosing the vertex group with the most members among the vertices of a face");
-  RNA_def_boolean(ot->srna,
-                  "export_smooth_groups",
-                  false,
-                  "Export Smooth Groups",
-                  "Generate smooth groups identifiers for each group of smooth faces, as "
-                  "unique integer values by default");
   RNA_def_boolean(
       ot->srna,
-      "smooth_group_bitflags",
+      "export_smooth_groups",
       false,
-      "Bitflags Smooth Groups",
-      "If exporting smoothgroups, generate 'bitflags' values for the groups, instead of "
-      "unique integer values. The same bitflag value can be re-used for different groups of "
-      "smooth faces, as long as they have no common sharp edges or vertices");
+      "Export Smooth Groups",
+      "Every smooth-shaded face is assigned group \"1\" and every flat-shaded face \"off\"");
+  RNA_def_boolean(
+      ot->srna, "smooth_group_bitflags", false, "Generate Bitflags for Smooth Groups", "");
 
   /* Only show `.obj` or `.mtl` files by default. */
   prop = RNA_def_string(ot->srna, "filter_glob", "*.obj;*.mtl", 0, "Extension Filter", "");
@@ -411,7 +397,7 @@ void WM_OT_obj_export(wmOperatorType *ot)
   RNA_def_property_flag(prop, PROP_HIDDEN);
 }
 
-static wmOperatorStatus wm_obj_import_exec(bContext *C, wmOperator *op)
+static int wm_obj_import_exec(bContext *C, wmOperator *op)
 {
   OBJImportParams import_params;
   import_params.global_scale = RNA_float_get(op->ptr, "global_scale");

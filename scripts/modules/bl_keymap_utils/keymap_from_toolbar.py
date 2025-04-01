@@ -24,7 +24,6 @@ def generate(context, space_type, *, use_fallback_keys=True, use_reset=True):
                 ("ctrl", False),
                 ("alt", False),
                 ("oskey", False),
-                ("hyper", False),
                 ("key_modifier", 'NONE'),
         ):
             val = getattr(kmi, attr)

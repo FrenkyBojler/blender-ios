@@ -113,9 +113,9 @@ static ViewContext edbm_preselect_or_active_init_viewcontext(bContext *C,
   return vc;
 }
 
-static wmOperatorStatus edbm_polybuild_transform_at_cursor_invoke(bContext *C,
-                                                                  wmOperator * /*op*/,
-                                                                  const wmEvent * /*event*/)
+static int edbm_polybuild_transform_at_cursor_invoke(bContext *C,
+                                                     wmOperator * /*op*/,
+                                                     const wmEvent * /*event*/)
 {
   Base *basact = nullptr;
   BMElem *ele_act = nullptr;
@@ -174,12 +174,12 @@ void MESH_OT_polybuild_transform_at_cursor(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
   /* to give to transform */
-  blender::ed::transform::properties_register(ot, P_PROPORTIONAL | P_MIRROR_DUMMY);
+  Transform_Properties(ot, P_PROPORTIONAL | P_MIRROR_DUMMY);
 }
 
-static wmOperatorStatus edbm_polybuild_delete_at_cursor_invoke(bContext *C,
-                                                               wmOperator *op,
-                                                               const wmEvent * /*event*/)
+static int edbm_polybuild_delete_at_cursor_invoke(bContext *C,
+                                                  wmOperator *op,
+                                                  const wmEvent * /*event*/)
 {
   bool changed = false;
   Base *basact = nullptr;
@@ -261,7 +261,7 @@ void MESH_OT_polybuild_delete_at_cursor(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
   /* to give to transform */
-  blender::ed::transform::properties_register(ot, P_PROPORTIONAL | P_MIRROR_DUMMY);
+  Transform_Properties(ot, P_PROPORTIONAL | P_MIRROR_DUMMY);
 }
 
 /** \} */
@@ -270,9 +270,7 @@ void MESH_OT_polybuild_delete_at_cursor(wmOperatorType *ot)
 /** \name Face at Cursor
  * \{ */
 
-static wmOperatorStatus edbm_polybuild_face_at_cursor_invoke(bContext *C,
-                                                             wmOperator *op,
-                                                             const wmEvent *event)
+static int edbm_polybuild_face_at_cursor_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   float center[3];
   bool changed = false;
@@ -438,7 +436,7 @@ void MESH_OT_polybuild_face_at_cursor(wmOperatorType *ot)
                   "Create Quads",
                   "Automatically split edges in triangles to maintain quad topology");
   /* to give to transform */
-  blender::ed::transform::properties_register(ot, P_PROPORTIONAL | P_MIRROR_DUMMY);
+  Transform_Properties(ot, P_PROPORTIONAL | P_MIRROR_DUMMY);
 }
 
 /** \} */
@@ -447,9 +445,9 @@ void MESH_OT_polybuild_face_at_cursor(wmOperatorType *ot)
 /** \name Split at Cursor
  * \{ */
 
-static wmOperatorStatus edbm_polybuild_split_at_cursor_invoke(bContext *C,
-                                                              wmOperator * /*op*/,
-                                                              const wmEvent *event)
+static int edbm_polybuild_split_at_cursor_invoke(bContext *C,
+                                                 wmOperator * /*op*/,
+                                                 const wmEvent *event)
 {
   float center[3];
   bool changed = false;
@@ -522,7 +520,7 @@ void MESH_OT_polybuild_split_at_cursor(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
   /* to give to transform */
-  blender::ed::transform::properties_register(ot, P_PROPORTIONAL | P_MIRROR_DUMMY);
+  Transform_Properties(ot, P_PROPORTIONAL | P_MIRROR_DUMMY);
 }
 
 /** \} */
@@ -531,9 +529,9 @@ void MESH_OT_polybuild_split_at_cursor(wmOperatorType *ot)
 /** \name Dissolve at Cursor
  * \{ */
 
-static wmOperatorStatus edbm_polybuild_dissolve_at_cursor_invoke(bContext *C,
-                                                                 wmOperator *op,
-                                                                 const wmEvent * /*event*/)
+static int edbm_polybuild_dissolve_at_cursor_invoke(bContext *C,
+                                                    wmOperator *op,
+                                                    const wmEvent * /*event*/)
 {
   bool changed = false;
 

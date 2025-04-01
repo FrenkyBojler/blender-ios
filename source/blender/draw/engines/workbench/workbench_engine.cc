@@ -22,7 +22,6 @@
 
 #include "BLT_translation.hh"
 
-#include "GPU_context.hh"
 #include "IMB_imbuf_types.hh"
 
 #include "RE_engine.h"
@@ -41,7 +40,7 @@ namespace blender::workbench {
 
 using namespace draw;
 
-class Instance : public DrawEngine {
+class Instance {
  private:
   View view_ = {"DefaultView"};
 
@@ -63,17 +62,7 @@ class Instance : public DrawEngine {
    * They never get actually used. */
   Vector<GPUMaterial *> dummy_gpu_materials_ = {1, nullptr, {}};
 
-  /* Used to detect any scene data update. */
-  uint64_t depsgraph_last_update_ = 0;
-
  public:
-  const DRWContext *draw_ctx = nullptr;
-
-  blender::StringRefNull name_get() final
-  {
-    return "Workbench";
-  }
-
   Span<const GPUMaterial *> get_dummy_gpu_materials(int material_count)
   {
     if (material_count > dummy_gpu_materials_.size()) {
@@ -82,28 +71,18 @@ class Instance : public DrawEngine {
     return dummy_gpu_materials_.as_span().slice(IndexRange(material_count));
   };
 
-  void init() final
+  void init(Object *camera_ob = nullptr)
   {
-    this->draw_ctx = DRW_context_get();
-    init(draw_ctx->depsgraph);
-  }
-
-  void init(Depsgraph *depsgraph, Object *camera_ob = nullptr)
-  {
-    this->draw_ctx = DRW_context_get();
-    bool scene_updated = assign_if_different(depsgraph_last_update_,
-                                             DEG_get_update_count(depsgraph));
-
-    scene_state_.init(this->draw_ctx, scene_updated, camera_ob);
+    scene_state_.init(camera_ob);
     shadow_ps_.init(scene_state_, resources_);
-    resources_.init(scene_state_, this->draw_ctx);
+    resources_.init(scene_state_);
 
     outline_ps_.init(scene_state_);
-    dof_ps_.init(scene_state_, this->draw_ctx);
+    dof_ps_.init(scene_state_);
     anti_aliasing_ps_.init(scene_state_);
   }
 
-  void begin_sync() final
+  void begin_sync()
   {
     resources_.material_buf.clear_and_trim();
 
@@ -114,11 +93,11 @@ class Instance : public DrawEngine {
     shadow_ps_.sync();
     volume_ps_.sync(resources_);
     outline_ps_.sync(resources_);
-    dof_ps_.sync(resources_, this->draw_ctx);
+    dof_ps_.sync(resources_);
     anti_aliasing_ps_.sync(scene_state_, resources_);
   }
 
-  void end_sync() final
+  void end_sync()
   {
     resources_.material_buf.push_update();
   }
@@ -146,7 +125,7 @@ class Instance : public DrawEngine {
     }
   }
 
-  void object_sync(ObjectRef &ob_ref, Manager &manager) final
+  void object_sync(Manager &manager, ObjectRef &ob_ref)
   {
     if (scene_state_.render_finished) {
       return;
@@ -157,11 +136,11 @@ class Instance : public DrawEngine {
       return;
     }
 
-    const ObjectState object_state = ObjectState(this->draw_ctx, scene_state_, resources_, ob);
+    const ObjectState object_state = ObjectState(scene_state_, resources_, ob);
 
     bool is_object_data_visible = (DRW_object_visibility_in_active_context(ob) &
                                    OB_VISIBLE_SELF) &&
-                                  (ob->dt >= OB_SOLID || draw_ctx->is_scene_render());
+                                  (ob->dt >= OB_SOLID || DRW_state_is_scene_render());
 
     if (!(ob->base_flag & BASE_FROM_DUPLI)) {
       ModifierData *md = BKE_modifiers_findby_type(ob, eModifierType_Fluid);
@@ -196,7 +175,7 @@ class Instance : public DrawEngine {
         emitter_handle = handle;
       }
       else if (ob->type == OB_POINTCLOUD) {
-        this->pointcloud_sync(manager, ob_ref, object_state);
+        this->point_cloud_sync(manager, ob_ref, object_state);
       }
       else if (ob->type == OB_CURVES) {
         this->curves_sync(manager, ob_ref, object_state);
@@ -379,7 +358,7 @@ class Instance : public DrawEngine {
     }
   }
 
-  void pointcloud_sync(Manager &manager, ObjectRef &ob_ref, const ObjectState &object_state)
+  void point_cloud_sync(Manager &manager, ObjectRef &ob_ref, const ObjectState &object_state)
   {
     ResourceHandle handle = manager.resource_handle(ob_ref);
 
@@ -390,7 +369,7 @@ class Instance : public DrawEngine {
     this->draw_to_mesh_pass(ob_ref, mat.is_transparent(), [&](MeshPass &mesh_pass) {
       PassMain::Sub &pass =
           mesh_pass.get_subpass(eGeometryType::POINTCLOUD).sub("Point Cloud SubPass");
-      gpu::Batch *batch = pointcloud_sub_pass_setup(pass, ob_ref.object);
+      gpu::Batch *batch = point_cloud_sub_pass_setup(pass, ob_ref.object);
       pass.draw(batch, handle, material_index);
     });
   }
@@ -417,7 +396,7 @@ class Instance : public DrawEngine {
       PassMain::Sub &pass =
           mesh_pass.get_subpass(eGeometryType::CURVES, &texture).sub("Hair SubPass");
       pass.push_constant("emitter_object_id", int(emitter_handle.raw));
-      gpu::Batch *batch = hair_sub_pass_setup(pass, scene_state_.scene, ob_ref, psys, md);
+      gpu::Batch *batch = hair_sub_pass_setup(pass, scene_state_.scene, ob_ref.object, psys, md);
       pass.draw(batch, handle, material_index);
     });
   }
@@ -463,7 +442,7 @@ class Instance : public DrawEngine {
     if (scene_state_.render_finished) {
       /* Just copy back the already rendered result */
       anti_aliasing_ps_.draw(
-          draw_ctx, manager, View::default_get(), scene_state_, resources_, depth_in_front_tx);
+          manager, View::default_get(), scene_state_, resources_, depth_in_front_tx);
       return;
     }
 
@@ -491,7 +470,7 @@ class Instance : public DrawEngine {
     volume_ps_.draw(manager, view_, resources_);
     outline_ps_.draw(manager, resources_);
     dof_ps_.draw(manager, view_, resources_, resolution);
-    anti_aliasing_ps_.draw(draw_ctx, manager, view_, scene_state_, resources_, depth_in_front_tx);
+    anti_aliasing_ps_.draw(manager, view_, scene_state_, resources_, depth_in_front_tx);
 
     resources_.object_id_tx.release();
   }
@@ -508,20 +487,6 @@ class Instance : public DrawEngine {
     }
   }
 
-  void draw(Manager &manager) final
-  {
-    DefaultTextureList *dtxl = draw_ctx->viewport_texture_list_get();
-
-    DRW_submission_start();
-    if (draw_ctx->is_viewport_image_render()) {
-      draw_image_render(manager, dtxl->depth, dtxl->depth_in_front, dtxl->color);
-    }
-    else {
-      draw_viewport(manager, dtxl->depth, dtxl->depth_in_front, dtxl->color);
-    }
-    DRW_submission_end();
-  }
-
   void draw_image_render(Manager &manager,
                          GPUTexture *depth_tx,
                          GPUTexture *depth_in_front_tx,
@@ -536,8 +501,8 @@ class Instance : public DrawEngine {
       if (i != 0) {
         scene_state_.sample = i;
         /* Re-sync anything dependent on scene_state.sample. */
-        resources_.init(scene_state_, draw_ctx);
-        dof_ps_.init(scene_state_, draw_ctx);
+        resources_.init(scene_state_);
+        dof_ps_.init(scene_state_);
         anti_aliasing_ps_.sync(scene_state_, resources_);
       }
       this->draw(manager, depth_tx, depth_in_front_tx, color_tx);
@@ -549,17 +514,12 @@ class Instance : public DrawEngine {
       GPU_render_step();
     }
   }
+
+  void reset_taa_sample()
+  {
+    scene_state_.reset_taa_next_sample = true;
+  }
 };
-
-DrawEngine *Engine::create_instance()
-{
-  return new Instance();
-}
-
-void Engine::free_static()
-{
-  ShaderCache::release();
-}
 
 }  // namespace blender::workbench
 
@@ -569,15 +529,95 @@ void Engine::free_static()
 
 using namespace blender;
 
+struct WORKBENCH_Data {
+  DrawEngineType *engine_type;
+  DRWViewportEmptyList *fbl;
+  DRWViewportEmptyList *txl;
+  DRWViewportEmptyList *psl;
+  DRWViewportEmptyList *stl;
+  workbench::Instance *instance;
+
+  char info[GPU_INFO_SIZE];
+};
+
+static void workbench_engine_init(void *vedata)
+{
+  WORKBENCH_Data *ved = reinterpret_cast<WORKBENCH_Data *>(vedata);
+  if (ved->instance == nullptr) {
+    ved->instance = new workbench::Instance();
+  }
+
+  ved->instance->init();
+}
+
+static void workbench_cache_init(void *vedata)
+{
+  reinterpret_cast<WORKBENCH_Data *>(vedata)->instance->begin_sync();
+}
+
+static void workbench_cache_populate(void *vedata, Object *object)
+{
+  draw::Manager *manager = DRW_manager_get();
+
+  draw::ObjectRef ref;
+  ref.object = object;
+  ref.dupli_object = DRW_object_get_dupli(object);
+  ref.dupli_parent = DRW_object_get_dupli_parent(object);
+  ref.handle = draw::ResourceHandle(0);
+
+  reinterpret_cast<WORKBENCH_Data *>(vedata)->instance->object_sync(*manager, ref);
+}
+
+static void workbench_cache_finish(void *vedata)
+{
+  reinterpret_cast<WORKBENCH_Data *>(vedata)->instance->end_sync();
+}
+
+static void workbench_draw_scene(void *vedata)
+{
+  WORKBENCH_Data *ved = reinterpret_cast<WORKBENCH_Data *>(vedata);
+  DefaultTextureList *dtxl = DRW_viewport_texture_list_get();
+  draw::Manager *manager = DRW_manager_get();
+  if (DRW_state_is_viewport_image_render()) {
+    ved->instance->draw_image_render(*manager, dtxl->depth, dtxl->depth_in_front, dtxl->color);
+  }
+  else {
+    ved->instance->draw_viewport(*manager, dtxl->depth, dtxl->depth_in_front, dtxl->color);
+  }
+}
+
+static void workbench_instance_free(void *instance)
+{
+  delete reinterpret_cast<workbench::Instance *>(instance);
+}
+
+static void workbench_engine_free()
+{
+  workbench::ShaderCache::release();
+}
+
+static void workbench_view_update(void *vedata)
+{
+  WORKBENCH_Data *ved = reinterpret_cast<WORKBENCH_Data *>(vedata);
+  if (ved->instance) {
+    ved->instance->reset_taa_sample();
+  }
+}
+
+static void workbench_id_update(void *vedata, ID *id)
+{
+  UNUSED_VARS(vedata, id);
+}
+
 /* RENDER */
 
-static bool workbench_render_framebuffers_init(const DRWContext *draw_ctx)
+static bool workbench_render_framebuffers_init()
 {
   /* For image render, allocate own buffers because we don't have a viewport. */
-  const float2 viewport_size = draw_ctx->viewport_size_get();
+  const float2 viewport_size = DRW_viewport_size_get();
   const int2 size = {int(viewport_size.x), int(viewport_size.y)};
 
-  DefaultTextureList *dtxl = draw_ctx->viewport_texture_list_get();
+  DefaultTextureList *dtxl = DRW_viewport_texture_list_get();
 
   /* When doing a multi view rendering the first view will allocate the buffers
    * the other views will reuse these buffers */
@@ -596,7 +636,7 @@ static bool workbench_render_framebuffers_init(const DRWContext *draw_ctx)
     return false;
   }
 
-  DefaultFramebufferList *dfbl = draw_ctx->viewport_framebuffer_list_get();
+  DefaultFramebufferList *dfbl = DRW_viewport_framebuffer_list_get();
 
   GPU_framebuffer_ensure_config(
       &dfbl->default_fb,
@@ -682,21 +722,26 @@ static void write_render_z_output(RenderLayer *layer,
   }
 }
 
-static void workbench_render_to_image(RenderEngine *engine, RenderLayer *layer, const rcti rect)
+static void workbench_render_to_image(void *vedata,
+                                      RenderEngine *engine,
+                                      RenderLayer *layer,
+                                      const rcti *rect)
 {
   using namespace blender::draw;
-  const DRWContext *draw_ctx = DRW_context_get();
-
-  if (!workbench_render_framebuffers_init(draw_ctx)) {
+  if (!workbench_render_framebuffers_init()) {
     RE_engine_report(engine, RPT_ERROR, "Failed to allocate GPU buffers");
     return;
   }
 
   /* Setup */
-  DefaultFramebufferList *dfbl = draw_ctx->viewport_framebuffer_list_get();
+  DefaultFramebufferList *dfbl = DRW_viewport_framebuffer_list_get();
+  const DRWContextState *draw_ctx = DRW_context_state_get();
   Depsgraph *depsgraph = draw_ctx->depsgraph;
 
-  workbench::Instance instance;
+  WORKBENCH_Data *ved = reinterpret_cast<WORKBENCH_Data *>(vedata);
+  if (ved->instance == nullptr) {
+    ved->instance = new workbench::Instance();
+  }
 
   /* TODO(sergey): Shall render hold pointer to an evaluated camera instead? */
   Object *camera_ob = DEG_get_evaluated_object(depsgraph, RE_GetCamera(engine->re));
@@ -712,33 +757,31 @@ static void workbench_render_to_image(RenderEngine *engine, RenderLayer *layer, 
   DRW_cache_restart();
   blender::draw::View::default_set(float4x4(viewmat), float4x4(winmat));
 
-  instance.init(depsgraph, camera_ob);
+  ved->instance->init(camera_ob);
 
   draw::Manager &manager = *DRW_manager_get();
   manager.begin_sync();
 
-  instance.begin_sync();
-  DRW_render_object_iter(
-      engine,
-      depsgraph,
-      [&](blender::draw::ObjectRef &ob_ref, RenderEngine * /*engine*/, Depsgraph * /*depsgraph*/) {
-        instance.object_sync(ob_ref, manager);
-      });
-  instance.end_sync();
+  workbench_cache_init(vedata);
+  auto workbench_render_cache =
+      [](void *vedata, Object *ob, RenderEngine * /*engine*/, Depsgraph * /*depsgraph*/) {
+        workbench_cache_populate(vedata, ob);
+      };
+  DRW_render_object_iter(vedata, engine, depsgraph, workbench_render_cache);
+  workbench_cache_finish(vedata);
 
   manager.end_sync();
 
-  DRW_submission_start();
+  /* TODO: Remove old draw manager calls. */
+  DRW_curves_update(manager);
 
-  DefaultTextureList &dtxl = *draw_ctx->viewport_texture_list_get();
-  instance.draw_image_render(manager, dtxl.depth, dtxl.depth_in_front, dtxl.color, engine);
-
-  DRW_submission_end();
+  DefaultTextureList &dtxl = *DRW_viewport_texture_list_get();
+  ved->instance->draw_image_render(manager, dtxl.depth, dtxl.depth_in_front, dtxl.color, engine);
 
   /* Write image */
   const char *viewname = RE_GetActiveRenderView(engine->re);
-  write_render_color_output(layer, viewname, dfbl->default_fb, &rect);
-  write_render_z_output(layer, viewname, dfbl->default_fb, &rect, winmat);
+  write_render_color_output(layer, viewname, dfbl->default_fb, rect);
+  write_render_z_output(layer, viewname, dfbl->default_fb, rect, winmat);
 }
 
 static void workbench_render_update_passes(RenderEngine *engine,
@@ -753,10 +796,27 @@ static void workbench_render_update_passes(RenderEngine *engine,
   }
 }
 
-static void workbench_render(RenderEngine *engine, Depsgraph *depsgraph)
-{
-  DRW_render_to_image(engine, depsgraph, workbench_render_to_image, [](RenderResult *) {});
-}
+extern "C" {
+
+static const DrawEngineDataSize workbench_data_size = DRW_VIEWPORT_DATA_SIZE(WORKBENCH_Data);
+
+DrawEngineType draw_engine_workbench = {
+    /*next*/ nullptr,
+    /*prev*/ nullptr,
+    /*idname*/ N_("Workbench"),
+    /*vedata_size*/ &workbench_data_size,
+    /*engine_init*/ &workbench_engine_init,
+    /*engine_free*/ &workbench_engine_free,
+    /*instance_free*/ &workbench_instance_free,
+    /*cache_init*/ &workbench_cache_init,
+    /*cache_populate*/ &workbench_cache_populate,
+    /*cache_finish*/ &workbench_cache_finish,
+    /*draw_scene*/ &workbench_draw_scene,
+    /*view_update*/ &workbench_view_update,
+    /*id_update*/ &workbench_id_update,
+    /*render_to_image*/ &workbench_render_to_image,
+    /*store_metadata*/ nullptr,
+};
 
 RenderEngineType DRW_engine_viewport_workbench_type = {
     /*next*/ nullptr,
@@ -765,7 +825,7 @@ RenderEngineType DRW_engine_viewport_workbench_type = {
     /*name*/ N_("Workbench"),
     /*flag*/ RE_INTERNAL | RE_USE_STEREO_VIEWPORT | RE_USE_GPU_CONTEXT,
     /*update*/ nullptr,
-    /*render*/ &workbench_render,
+    /*render*/ &DRW_render_to_image,
     /*render_frame_finish*/ nullptr,
     /*draw*/ nullptr,
     /*bake*/ nullptr,
@@ -773,7 +833,7 @@ RenderEngineType DRW_engine_viewport_workbench_type = {
     /*view_draw*/ nullptr,
     /*update_script_node*/ nullptr,
     /*update_render_passes*/ &workbench_render_update_passes,
-    /*draw_engine*/ nullptr,
+    /*draw_engine*/ &draw_engine_workbench,
     /*rna_ext*/
     {
         /*data*/ nullptr,
@@ -781,5 +841,6 @@ RenderEngineType DRW_engine_viewport_workbench_type = {
         /*call*/ nullptr,
     },
 };
+}
 
 /** \} */

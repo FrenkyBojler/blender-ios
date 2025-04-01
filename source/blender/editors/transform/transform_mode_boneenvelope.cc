@@ -25,8 +25,6 @@
 
 #include "transform_mode.hh"
 
-namespace blender::ed::transform {
-
 /* -------------------------------------------------------------------- */
 /** \name Transform (Bone Envelope)
  * \{ */
@@ -106,5 +104,3 @@ TransModeInfo TransMode_boneenvelope = {
     /*snap_apply_fn*/ nullptr,
     /*draw_fn*/ nullptr,
 };
-
-}  // namespace blender::ed::transform

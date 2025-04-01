@@ -162,28 +162,6 @@ class ActionSlotAssignmentTest(unittest.TestCase):
             cube_adt.action_slot = slot
         self.assertEqual(cube_adt.action_slot, slot_cube, "The slot should not have changed")
 
-    def test_slot_users(self):
-        action = bpy.data.actions.new('TestAction')
-        self.assertEqual(0, action.users)
-
-        # Assign the Action to Cube.
-        cube = bpy.data.objects['Cube']
-        cube_adt = cube.animation_data_create()
-        cube_adt.action = action
-        slot_cube = action.slots.new(cube.id_type, cube.name)
-        cube_adt.action_slot = slot_cube
-
-        self.assertEqual([cube], slot_cube.users())
-
-        # Assign the same slot to the Camera object as well.
-        camera = bpy.data.objects['Camera']
-        camera_adt = camera.animation_data_create()
-        camera_adt.action = action
-        camera_adt.action_slot = slot_cube
-
-        # Sort by name, as the order doesn't matter and is an implementation detail.
-        self.assertEqual([camera, cube], sorted(slot_cube.users(), key=lambda id: id.name))
-
     def test_untyped_slot_assignment_local(self):
         """Test untyped slot assignment, with a local Action."""
 
@@ -212,87 +190,6 @@ class ActionSlotAssignmentTest(unittest.TestCase):
             slot.target_id_type,
             "After assignment, the ID type should remain UNSPECIFIED when the Action is linked.")
         self.assertEqual("XXLegacy Slot", slot.identifier)
-
-    def test_slot_identifier_writing(self):
-        """Test writing to the identifier of a slot."""
-
-        action = self._load_legacy_action(link=False)
-
-        slot_1 = action.slots[0]
-        slot_2 = action.slots.new('OBJECT', "Slot")
-
-        self.assertEqual("XXLegacy Slot", slot_1.identifier)
-        self.assertEqual('UNSPECIFIED', slot_1.target_id_type)
-        self.assertEqual("OBSlot", slot_2.identifier)
-        self.assertEqual('OBJECT', slot_2.target_id_type)
-
-        # Assigning identifier with same type prefix should work.
-        slot_1.identifier = "XXCoolerSlot"
-        slot_2.identifier = "OBCoolerSlot"
-        self.assertEqual("XXCoolerSlot", slot_1.identifier)
-        self.assertEqual("OBCoolerSlot", slot_2.identifier)
-
-        # Assigning identifier with different type prefix should still set the
-        # name part, but leave the type prefix untouched so that it stays
-        # consistent with the actual target ID type of the slot.
-        slot_1.identifier = "MAEvenCoolerSlot"
-        slot_2.identifier = "MAEvenCoolerSlot"
-        self.assertEqual("XXEvenCoolerSlot", slot_1.identifier)
-        self.assertEqual("OBEvenCoolerSlot", slot_2.identifier)
-
-    def test_untyped_slot_target_id_writing(self):
-        """Test writing to the target id type of an untyped slot."""
-
-        action = self._load_legacy_action(link=False)
-
-        slot = action.slots[0]
-        self.assertEqual('UNSPECIFIED', slot.target_id_type)
-        self.assertEqual("XXLegacy Slot", slot.identifier)
-
-        slot.target_id_type = 'OBJECT'
-
-        self.assertEqual(
-            'OBJECT',
-            slot.target_id_type,
-            "Should be able to write to target_id_type of a slot when not yet specified.")
-        self.assertEqual("OBLegacy Slot", slot.identifier)
-
-        slot.target_id_type = 'MATERIAL'
-
-        self.assertEqual(
-            'OBJECT',
-            slot.target_id_type,
-            "Should NOT be able to write to target_id_type of a slot when already specified.")
-        self.assertEqual("OBLegacy Slot", slot.identifier)
-
-    def test_untyped_slot_target_id_writing_with_duplicate_identifier(self):
-        """Test that writing to the target id type a slot appropriately renames
-        it when that would otherwise cause its identifier to collide with an
-        already existing slot."""
-
-        action = self._load_legacy_action(link=False)
-
-        slot = action.slots[0]
-
-        # Create soon-to-collide slot.
-        other_slot = action.slots.new('OBJECT', "Legacy Slot")
-
-        # Ensure the setup is correct.
-        self.assertEqual('UNSPECIFIED', slot.target_id_type)
-        self.assertEqual("XXLegacy Slot", slot.identifier)
-        self.assertEqual('OBJECT', other_slot.target_id_type)
-        self.assertEqual("OBLegacy Slot", other_slot.identifier)
-
-        # Assign the colliding target id type.
-        slot.target_id_type = 'OBJECT'
-
-        self.assertEqual('OBJECT', slot.target_id_type)
-        self.assertEqual(
-            "OBLegacy Slot.001",
-            slot.identifier,
-            "Should get renamed to not conflict with existing slots.")
-        self.assertEqual('OBJECT', other_slot.target_id_type)
-        self.assertEqual("OBLegacy Slot", other_slot.identifier)
 
     @staticmethod
     def _load_legacy_action(*, link: bool) -> bpy.types.Action:
@@ -373,7 +270,7 @@ class LegacyAPIOnLayeredActionTest(unittest.TestCase):
     - curve_frame_range
     - fcurves
     - groups
-    - id_root
+    - id_root (should always be 0 for layered Actions)
     - flip_with_pose(object)
     """
 
@@ -437,9 +334,6 @@ class LegacyAPIOnLayeredActionTest(unittest.TestCase):
         slot = self.action.slots[0]
         layer = self.action.layers[0]
 
-        self.assertEqual("Legacy Slot", slot.name_display)
-        self.assertEqual("Legacy Layer", layer.name)
-
         self.assertEqual(1, len(layer.strips))
         strip = layer.strips[0]
         self.assertEqual('KEYFRAME', strip.type)
@@ -477,90 +371,6 @@ class LegacyAPIOnLayeredActionTest(unittest.TestCase):
         self.assertNotIn(group, self.action.groups[:], "A group should be removable via the legacy API")
         self.assertNotIn(group, channelbag.groups[:], "A group should be removable via the legacy API")
 
-    def test_groups_new_on_empty_action(self) -> None:
-        # Create new group via legacy API, this should create a layer+strip+Channelbag.
-        group = self.action.groups.new("foo")
-
-        self.assertEqual(1, len(self.action.slots))
-        self.assertEqual(1, len(self.action.layers))
-
-        slot = self.action.slots[0]
-        layer = self.action.layers[0]
-
-        self.assertEqual("Legacy Slot", slot.name_display)
-        self.assertEqual("Legacy Layer", layer.name)
-
-        self.assertEqual(1, len(layer.strips))
-        strip = layer.strips[0]
-        self.assertEqual('KEYFRAME', strip.type)
-        self.assertEqual(1, len(strip.channelbags))
-        channelbag = strip.channelbags[0]
-        self.assertEqual(channelbag.slot_handle, slot.handle)
-
-        self.assertEqual([group], channelbag.groups[:])
-
-    def test_id_root_on_layered_action(self) -> None:
-        # When there's at least one slot, action.id_root should simply act as a
-        # proxy for the first slot's target_id_type. This should work for both
-        # reading and writing.
-
-        slot_1 = self.action.slots.new('OBJECT', "Slot 1")
-        slot_2 = self.action.slots.new('CAMERA', "Slot 2")
-        bpy.data.objects['Cube'].animation_data_create()
-        bpy.data.objects['Cube'].animation_data.action = self.action
-        bpy.data.objects['Cube'].animation_data.action_slot = slot_1
-
-        self.assertEqual(self.action.id_root, 'OBJECT')
-        self.assertEqual(self.action.slots[0].target_id_type, 'OBJECT')
-        self.assertEqual(self.action.slots[0].identifier, 'OBSlot 1')
-        self.assertEqual(self.action.slots[1].target_id_type, 'CAMERA')
-        self.assertEqual(self.action.slots[1].identifier, 'CASlot 2')
-        self.assertEqual(bpy.data.objects['Cube'].animation_data.last_slot_identifier, 'OBSlot 1')
-
-        self.action.id_root = 'MATERIAL'
-
-        self.assertEqual(self.action.id_root, 'MATERIAL')
-        self.assertEqual(self.action.slots[0].target_id_type, 'MATERIAL')
-        self.assertEqual(self.action.slots[0].identifier, 'MASlot 1')
-        self.assertEqual(self.action.slots[1].target_id_type, 'CAMERA')
-        self.assertEqual(self.action.slots[1].identifier, 'CASlot 2')
-        self.assertEqual(bpy.data.objects['Cube'].animation_data.last_slot_identifier, 'MASlot 1')
-
-    def test_id_root_on_layered_action_for_identifier_uniqueness(self) -> None:
-        # When setting id_root such that the first slot's identifier would
-        # become a duplicate, the name portion of the identifier should be
-        # automatically renamed to be unique.
-
-        slot_1 = self.action.slots.new('OBJECT', "Foo")
-        slot_2 = self.action.slots.new('CAMERA', "Foo")
-
-        self.assertEqual(self.action.id_root, 'OBJECT')
-        self.assertEqual(self.action.slots[0].target_id_type, 'OBJECT')
-        self.assertEqual(self.action.slots[0].identifier, 'OBFoo')
-        self.assertEqual(self.action.slots[1].target_id_type, 'CAMERA')
-        self.assertEqual(self.action.slots[1].identifier, 'CAFoo')
-
-        self.action.id_root = 'CAMERA'
-
-        self.assertEqual(self.action.id_root, 'CAMERA')
-        self.assertEqual(self.action.slots[0].target_id_type, 'CAMERA')
-        self.assertEqual(self.action.slots[0].identifier, 'CAFoo.001')
-        self.assertEqual(self.action.slots[1].target_id_type, 'CAMERA')
-        self.assertEqual(self.action.slots[1].identifier, 'CAFoo')
-
-    def test_id_root_on_empty_action(self) -> None:
-        # When there are no slots, setting action.id_root should create a legacy
-        # slot and set its target_id_type.
-
-        self.assertEqual(self.action.id_root, 'UNSPECIFIED')
-        self.assertEqual(len(self.action.slots), 0)
-
-        self.action.id_root = 'OBJECT'
-
-        self.assertEqual(self.action.id_root, 'OBJECT')
-        self.assertEqual(len(self.action.slots), 1)
-        self.assertEqual(self.action.slots[0].target_id_type, 'OBJECT')
-
 
 class ChannelbagsTest(unittest.TestCase):
     def setUp(self):
@@ -581,19 +391,13 @@ class ChannelbagsTest(unittest.TestCase):
         self.strip.key_insert(self.slot, "location", 1, 47.0, 327.0)
         self.assertEqual("location", channelbag.fcurves[0].data_path,
                          "Keys for the channelbag's slot should go into the channelbag")
-        self.assertEqual(self.slot, channelbag.slot)
 
         self.strip.channelbags.remove(channelbag)
         self.assertEqual([], list(self.strip.channelbags))
 
     def test_ensure_channelbag(self):
-        channelbag = self.strip.channelbag(self.slot, ensure=False)
-        self.assertIsNone(channelbag)
-        self.assertEqual([], list(self.strip.channelbags))
-
-        channelbag = self.strip.channelbag(self.slot, ensure=True)
+        channelbag = self.strip.channels(self.slot.handle, ensure=True)
         self.assertEqual([channelbag], list(self.strip.channelbags))
-        self.assertEqual(self.slot, channelbag.slot)
 
     def test_create_remove_fcurves(self):
         channelbag = self.strip.channelbags.new(self.slot)
@@ -699,24 +503,6 @@ class ChannelbagsTest(unittest.TestCase):
         self.assertEquals([group1], channelbag.groups[:])
         self.assertEquals([fcurve5, fcurve3], group1.channels[:])
         self.assertEquals([fcurve5, fcurve3, fcurve2, fcurve4, fcurve0, fcurve1], channelbag.fcurves[:])
-
-    def test_channelbag_slot_properties(self):
-        slot_1 = self.slot
-        slot_2 = self.action.slots.new('MATERIAL', "Test2")
-        slot_3 = self.action.slots.new('CAMERA', "Test3")
-
-        channelbag_1 = self.strip.channelbags.new(slot_1)
-        channelbag_2 = self.strip.channelbags.new(slot_2)
-        channelbag_3 = self.strip.channelbags.new(slot_3)
-
-        self.assertEqual(slot_1.handle, channelbag_1.slot_handle)
-        self.assertEqual(slot_1, channelbag_1.slot)
-
-        self.assertEqual(slot_2.handle, channelbag_2.slot_handle)
-        self.assertEqual(slot_2, channelbag_2.slot)
-
-        self.assertEqual(slot_3.handle, channelbag_3.slot_handle)
-        self.assertEqual(slot_3, channelbag_3.slot)
 
 
 class DataPathTest(unittest.TestCase):
@@ -933,48 +719,6 @@ class SlotHandleLibraryOverridesTest(unittest.TestCase):
         bpy.context.scene.frame_set(1)
         self.assertLess(override_suzanne.location.z,
                         -1, "Suzanne should be significantly below Z=0 when animated by the library Action")
-
-
-class ConvenienceFunctionsTest(unittest.TestCase):
-
-    def setUp(self) -> None:
-        bpy.ops.wm.read_homefile(use_factory_startup=True)
-
-        self.action = bpy.data.actions.new('Action')
-
-    def test_fcurve_ensure_for_datablock(self) -> None:
-        # The function should be None-safe.
-        with self.assertRaises(TypeError):
-            self.action.fcurve_ensure_for_datablock(None, "location")
-        self.assertEqual(0, len(self.action.layers))
-        self.assertEqual(0, len(self.action.slots))
-
-        # The function should not work unless the Action is assigned to its target.
-        ob_cube = bpy.data.objects["Cube"]
-        with self.assertRaises(RuntimeError):
-            self.action.fcurve_ensure_for_datablock(ob_cube, "location")
-        self.assertEqual(0, len(self.action.layers))
-        self.assertEqual(0, len(self.action.slots))
-
-        # The function should not work on empty data paths.
-        adt = ob_cube.animation_data_create()
-        adt.action = self.action
-        with self.assertRaises(RuntimeError):
-            self.action.fcurve_ensure_for_datablock(ob_cube, "")
-        self.assertEqual(0, len(self.action.layers))
-        self.assertEqual(0, len(self.action.slots))
-
-        # And finally the happy flow.
-        fcurve = self.action.fcurve_ensure_for_datablock(ob_cube, "location", index=2)
-        self.assertEqual(1, len(self.action.layers))
-        self.assertEqual(1, len(self.action.layers[0].strips))
-        self.assertEqual('KEYFRAME', self.action.layers[0].strips[0].type)
-        self.assertEqual(1, len(self.action.slots))
-        self.assertEqual("location", fcurve.data_path)
-        self.assertEqual(2, fcurve.array_index)
-
-        channelbag = self.action.layers[0].strips[0].channelbags[0]
-        self.assertEqual(fcurve, channelbag.fcurves[0])
 
 
 def main():

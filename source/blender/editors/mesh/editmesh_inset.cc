@@ -318,7 +318,7 @@ static bool edbm_inset_calc(wmOperator *op)
   return changed;
 }
 
-static wmOperatorStatus edbm_inset_exec(bContext *C, wmOperator *op)
+static int edbm_inset_exec(bContext *C, wmOperator *op)
 {
   if (!edbm_inset_init(C, op, false)) {
     return OPERATOR_CANCELLED;
@@ -333,7 +333,7 @@ static wmOperatorStatus edbm_inset_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus edbm_inset_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static int edbm_inset_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   RegionView3D *rv3d = CTX_wm_region_view3d(C);
   InsetData *opdata;
@@ -349,9 +349,7 @@ static wmOperatorStatus edbm_inset_invoke(bContext *C, wmOperator *op, const wmE
   opdata->launch_event = WM_userdef_event_type_from_keymap_type(event->type);
 
   /* initialize mouse values */
-  if (!blender::ed::transform::calculateTransformCenter(
-          C, V3D_AROUND_CENTER_MEDIAN, center_3d, opdata->mcenter))
-  {
+  if (!calculateTransformCenter(C, V3D_AROUND_CENTER_MEDIAN, center_3d, opdata->mcenter)) {
     /* in this case the tool will likely do nothing,
      * ideally this will never happen and should be checked for above */
     opdata->mcenter[0] = opdata->mcenter[1] = 0;
@@ -369,7 +367,7 @@ static wmOperatorStatus edbm_inset_invoke(bContext *C, wmOperator *op, const wmE
   return OPERATOR_RUNNING_MODAL;
 }
 
-static wmOperatorStatus edbm_inset_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static int edbm_inset_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   InsetData *opdata = static_cast<InsetData *>(op->customdata);
   const bool has_numinput = hasNumInput(&opdata->num_input);
@@ -547,9 +545,6 @@ static wmOperatorStatus edbm_inset_modal(bContext *C, wmOperator *op, const wmEv
         handled = true;
       }
       break;
-    default: {
-      break;
-    }
   }
 
   /* Modal numinput inactive, try to handle numeric inputs last... */

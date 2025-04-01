@@ -341,15 +341,21 @@ void copy_curve_attributes(Span<PointsRange> ranges_selected, bke::CurvesGeometr
  * Removes the selection state of all the affected CurvesGeometry, except the one
  * of the active layer. Points in the active layer do not get unselected
  */
-void clear_selection_attribute(Span<PointsRange> ranges_selected)
+void clear_selection_attribute(Span<PointsRange> ranges_selected,
+                               const bke::AttrDomain selection_domain)
 {
   for (const PointsRange &range : ranges_selected) {
     bke::CurvesGeometry &curves = *range.owning_curves;
     bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
-    if (bke::GSpanAttributeWriter selection = attributes.lookup_for_write_span(".selection")) {
-      ed::curves::fill_selection_false(selection.span);
-      selection.finish();
-    }
+    bke::SpanAttributeWriter<bool> selection = attributes.lookup_or_add_for_write_span<bool>(
+        ".selection", selection_domain);
+
+    const IndexMask mask = selection_domain == bke::AttrDomain::Point ?
+                               IndexMask{curves.points_num()} :
+                               IndexMask{curves.curves_num()};
+
+    masked_fill(selection.span, false, mask);
+    selection.finish();
   }
 }
 
@@ -423,7 +429,7 @@ void append_strokes_from(bke::CurvesGeometry &&other, bke::CurvesGeometry &dst)
  * This operator builds a new stroke from the points/curves selected. It makes a copy of all the
  * selected points and joins them in a single stroke, which is added to the active layer.
  */
-wmOperatorStatus grease_pencil_join_selection_exec(bContext *C, wmOperator *op)
+int grease_pencil_join_selection_exec(bContext *C, wmOperator *op)
 {
   using namespace bke::greasepencil;
 
@@ -468,10 +474,10 @@ wmOperatorStatus grease_pencil_join_selection_exec(bContext *C, wmOperator *op)
   const PointsRange working_range = copy_point_attributes(ranges_selected, tmp_curves);
   copy_curve_attributes(ranges_selected, tmp_curves);
 
-  clear_selection_attribute(ranges_selected);
+  clear_selection_attribute(ranges_selected, selection_domain);
 
   Array<PointsRange> working_range_collection = {working_range};
-  clear_selection_attribute(working_range_collection);
+  clear_selection_attribute(working_range_collection, selection_domain);
 
   bke::CurvesGeometry &dst_curves = dst_drawing->strokes_for_write();
   if (active_layer_behavior == ActiveLayerBehavior::JoinSelection) {

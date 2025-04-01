@@ -6,8 +6,6 @@
  * \ingroup draw
  */
 
-#include <climits>
-
 #include "BLI_map.hh"
 #include "BLI_ordered_edge.hh"
 
@@ -161,7 +159,7 @@ static void calc_adjacency_mesh(const MeshRenderData &mr,
   }
 }
 
-gpu::IndexBufPtr extract_lines_adjacency(const MeshRenderData &mr, bool &r_is_manifold)
+void extract_lines_adjacency(const MeshRenderData &mr, gpu::IndexBuf &ibo, bool &r_is_manifold)
 {
   /* Similar to poly_to_tri_count().
    * There is always (loop + triangle - 1) edges inside a face.
@@ -186,11 +184,12 @@ gpu::IndexBufPtr extract_lines_adjacency(const MeshRenderData &mr, bool &r_is_ma
 
   r_is_manifold = is_manifold;
 
-  return gpu::IndexBufPtr(GPU_indexbuf_build(&builder));
+  GPU_indexbuf_build_in_place(&builder, &ibo);
 }
 
-gpu::IndexBufPtr extract_lines_adjacency_subdiv(const DRWSubdivCache &subdiv_cache,
-                                                bool &r_is_manifold)
+void extract_lines_adjacency_subdiv(const DRWSubdivCache &subdiv_cache,
+                                    gpu::IndexBuf &ibo,
+                                    bool &r_is_manifold)
 {
   /* For each face there is (loop + triangle - 1) edges. Since we only have quads, and a quad
    * is split into 2 triangles, we have (loop + 2 - 1) = (loop + 1) edges for each quad, or in
@@ -236,7 +235,7 @@ gpu::IndexBufPtr extract_lines_adjacency_subdiv(const DRWSubdivCache &subdiv_cac
 
   r_is_manifold = is_manifold;
 
-  return gpu::IndexBufPtr(GPU_indexbuf_build(&builder));
+  GPU_indexbuf_build_in_place(&builder, &ibo);
 }
 
 #undef NO_EDGE

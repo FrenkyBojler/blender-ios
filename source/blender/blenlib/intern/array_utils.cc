@@ -2,10 +2,6 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-/** \file
- * \ingroup bli
- */
-
 #include <functional>
 
 #include "BLI_array_utils.hh"
@@ -176,7 +172,7 @@ int64_t count_booleans(const VArray<bool> &varray, const IndexMask &mask)
             const Span<bool> slice = span.slice(range);
             return init + std::count(slice.begin(), slice.end(), true);
           },
-          std::plus<>());
+          std::plus<int64_t>());
     }
     return threading::parallel_reduce(
         varray.index_range(),
@@ -190,7 +186,7 @@ int64_t count_booleans(const VArray<bool> &varray, const IndexMask &mask)
           }
           return value;
         },
-        std::plus<>());
+        std::plus<int64_t>());
   }
   const CommonVArrayInfo info = varray.common_info();
   if (info.type == CommonVArrayInfo::Type::Single) {
@@ -225,7 +221,7 @@ bool indices_are_range(Span<int> indices, IndexRange range)
         return is_range &&
                std::equal(local_indices.begin(), local_indices.end(), local_range.begin());
       },
-      std::logical_and<>());
+      std::logical_and<bool>());
 }
 
 }  // namespace blender::array_utils

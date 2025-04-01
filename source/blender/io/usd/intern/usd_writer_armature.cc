@@ -9,8 +9,6 @@
 
 #include "ANIM_action.hh"
 
-#include "BLI_listbase.h"
-
 #include "BKE_action.hh"
 
 #include "DNA_armature_types.h"

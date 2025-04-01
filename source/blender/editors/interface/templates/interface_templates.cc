@@ -6,7 +6,6 @@
  * \ingroup edinterface
  */
 
-#include "BKE_library.hh"
 #include "BKE_screen.hh"
 
 #include "BLI_string_ref.hh"
@@ -63,7 +62,7 @@ void template_add_button_search_menu(const bContext *C,
                                      PropertyRNA *prop,
                                      uiBlockCreateFunc block_func,
                                      void *block_argN,
-                                     const std::optional<blender::StringRef> tip,
+                                     const char *const tip,
                                      const bool use_previews,
                                      const bool editable,
                                      const bool live_icon,
@@ -172,7 +171,7 @@ uiBlock *template_common_search_menu(const bContext *C,
   /* clear initial search string, then all items show */
   search[0] = 0;
 
-  uiBlock *block = UI_block_begin(C, region, "_popup", blender::ui::EmbossType::Emboss);
+  uiBlock *block = UI_block_begin(C, region, "_popup", UI_EMBOSS);
   UI_block_flag_enable(block, UI_BLOCK_LOOP | UI_BLOCK_SEARCH_MENU);
   UI_block_theme_style_set(block, UI_BLOCK_THEME_STYLE_POPUP);
 
@@ -182,7 +181,7 @@ uiBlock *template_common_search_menu(const bContext *C,
     const int h = 5 * U.widget_unit * preview_rows * scale;
 
     /* fake button, it holds space for search items */
-    uiDefBut(block, UI_BTYPE_LABEL, 0, "", 10, 26, w, h, nullptr, 0, 0, std::nullopt);
+    uiDefBut(block, UI_BTYPE_LABEL, 0, "", 10, 26, w, h, nullptr, 0, 0, nullptr);
 
     but = uiDefSearchBut(block, search, 0, ICON_VIEWZOOM, sizeof(search), 10, 0, w, UI_UNIT_Y, "");
     UI_but_search_preview_grid_size_set(but, preview_rows, preview_cols);
@@ -204,7 +203,7 @@ uiBlock *template_common_search_menu(const bContext *C,
              nullptr,
              0,
              0,
-             std::nullopt);
+             nullptr);
     but = uiDefSearchBut(block,
                          search,
                          0,

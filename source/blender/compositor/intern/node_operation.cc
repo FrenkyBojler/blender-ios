@@ -28,19 +28,11 @@ using namespace nodes::derived_node_tree_types;
 NodeOperation::NodeOperation(Context &context, DNode node) : Operation(context), node_(node)
 {
   for (const bNodeSocket *output : node->output_sockets()) {
-    if (!output->is_available()) {
-      continue;
-    }
-
     const ResultType result_type = get_node_socket_result_type(output);
     populate_result(output->identifier, context.create_result(result_type));
   }
 
   for (const bNodeSocket *input : node->input_sockets()) {
-    if (!input->is_available()) {
-      continue;
-    }
-
     const InputDescriptor input_descriptor = input_descriptor_from_input_socket(input);
     declare_input_descriptor(input->identifier, input_descriptor);
   }
@@ -58,7 +50,7 @@ void NodeOperation::evaluate()
 
 void NodeOperation::compute_preview()
 {
-  if (bool(context().needed_outputs() & OutputTypes::Previews) && is_node_preview_needed(node())) {
+  if (context().should_compute_node_previews() && is_node_preview_needed(node())) {
     compositor::compute_preview(context(), node(), *get_preview_result());
   }
 }
@@ -67,10 +59,6 @@ Result *NodeOperation::get_preview_result()
 {
   /* Find the first linked output. */
   for (const bNodeSocket *output : node()->output_sockets()) {
-    if (!output->is_available()) {
-      continue;
-    }
-
     Result &output_result = get_result(output->identifier);
     if (output_result.should_compute()) {
       return &output_result;
@@ -79,10 +67,6 @@ Result *NodeOperation::get_preview_result()
 
   /* No linked outputs, find the first allocated input. */
   for (const bNodeSocket *input : node()->input_sockets()) {
-    if (!input->is_available()) {
-      continue;
-    }
-
     Result &input_result = get_input(input->identifier);
     if (input_result.is_allocated()) {
       return &input_result;
@@ -96,16 +80,12 @@ Result *NodeOperation::get_preview_result()
 void NodeOperation::compute_results_reference_counts(const Schedule &schedule)
 {
   for (const bNodeSocket *output : this->node()->output_sockets()) {
-    if (!output->is_available()) {
-      continue;
-    }
-
     const DOutputSocket doutput{node().context(), output};
 
     const int reference_count = number_of_inputs_linked_to_output_conditioned(
         doutput, [&](DInputSocket input) { return schedule.contains(input.node()); });
 
-    get_result(doutput->identifier).set_reference_count(reference_count);
+    get_result(doutput->identifier).set_initial_reference_count(reference_count);
   }
 }
 

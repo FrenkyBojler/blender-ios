@@ -83,7 +83,7 @@ uiBut *uiDefAutoButR(uiBlock *block,
                                  index,
                                  0,
                                  0,
-                                 std::nullopt);
+                                 nullptr);
       }
       else if (icon) {
         but = uiDefIconTextButR_prop(block,
@@ -100,7 +100,7 @@ uiBut *uiDefAutoButR(uiBlock *block,
                                      index,
                                      0,
                                      0,
-                                     std::nullopt);
+                                     nullptr);
       }
       else {
         but = uiDefButR_prop(block,
@@ -116,7 +116,7 @@ uiBut *uiDefAutoButR(uiBlock *block,
                              index,
                              0,
                              0,
-                             std::nullopt);
+                             nullptr);
       }
       break;
     }
@@ -124,20 +124,8 @@ uiBut *uiDefAutoButR(uiBlock *block,
     case PROP_FLOAT: {
       if (RNA_property_array_check(prop) && index == -1) {
         if (ELEM(RNA_property_subtype(prop), PROP_COLOR, PROP_COLOR_GAMMA)) {
-          but = uiDefButR_prop(block,
-                               UI_BTYPE_COLOR,
-                               0,
-                               name,
-                               x,
-                               y,
-                               width,
-                               height,
-                               ptr,
-                               prop,
-                               -1,
-                               0,
-                               0,
-                               std::nullopt);
+          but = uiDefButR_prop(
+              block, UI_BTYPE_COLOR, 0, name, x, y, width, height, ptr, prop, -1, 0, 0, nullptr);
         }
         else {
           return nullptr;
@@ -159,23 +147,11 @@ uiBut *uiDefAutoButR(uiBlock *block,
                              index,
                              0,
                              0,
-                             std::nullopt);
+                             nullptr);
       }
       else {
-        but = uiDefButR_prop(block,
-                             UI_BTYPE_NUM,
-                             0,
-                             name,
-                             x,
-                             y,
-                             width,
-                             height,
-                             ptr,
-                             prop,
-                             index,
-                             0,
-                             0,
-                             std::nullopt);
+        but = uiDefButR_prop(
+            block, UI_BTYPE_NUM, 0, name, x, y, width, height, ptr, prop, index, 0, 0, nullptr);
       }
 
       if (RNA_property_flag(prop) & PROP_TEXTEDIT_UPDATE) {
@@ -185,20 +161,8 @@ uiBut *uiDefAutoButR(uiBlock *block,
     }
     case PROP_ENUM:
       if (icon && name && name->is_empty()) {
-        but = uiDefIconButR_prop(block,
-                                 UI_BTYPE_MENU,
-                                 0,
-                                 icon,
-                                 x,
-                                 y,
-                                 width,
-                                 height,
-                                 ptr,
-                                 prop,
-                                 index,
-                                 0,
-                                 0,
-                                 std::nullopt);
+        but = uiDefIconButR_prop(
+            block, UI_BTYPE_MENU, 0, icon, x, y, width, height, ptr, prop, index, 0, 0, nullptr);
       }
       else if (icon) {
         but = uiDefIconTextButR_prop(block,
@@ -215,41 +179,17 @@ uiBut *uiDefAutoButR(uiBlock *block,
                                      index,
                                      0,
                                      0,
-                                     std::nullopt);
+                                     nullptr);
       }
       else {
-        but = uiDefButR_prop(block,
-                             UI_BTYPE_MENU,
-                             0,
-                             name,
-                             x,
-                             y,
-                             width,
-                             height,
-                             ptr,
-                             prop,
-                             index,
-                             0,
-                             0,
-                             std::nullopt);
+        but = uiDefButR_prop(
+            block, UI_BTYPE_MENU, 0, name, x, y, width, height, ptr, prop, index, 0, 0, nullptr);
       }
       break;
     case PROP_STRING:
       if (icon && name && name->is_empty()) {
-        but = uiDefIconButR_prop(block,
-                                 UI_BTYPE_TEXT,
-                                 0,
-                                 icon,
-                                 x,
-                                 y,
-                                 width,
-                                 height,
-                                 ptr,
-                                 prop,
-                                 index,
-                                 0,
-                                 0,
-                                 std::nullopt);
+        but = uiDefIconButR_prop(
+            block, UI_BTYPE_TEXT, 0, icon, x, y, width, height, ptr, prop, index, 0, 0, nullptr);
       }
       else if (icon) {
         but = uiDefIconTextButR_prop(block,
@@ -266,23 +206,11 @@ uiBut *uiDefAutoButR(uiBlock *block,
                                      index,
                                      0,
                                      0,
-                                     std::nullopt);
+                                     nullptr);
       }
       else {
-        but = uiDefButR_prop(block,
-                             UI_BTYPE_TEXT,
-                             0,
-                             name,
-                             x,
-                             y,
-                             width,
-                             height,
-                             ptr,
-                             prop,
-                             index,
-                             0,
-                             0,
-                             std::nullopt);
+        but = uiDefButR_prop(
+            block, UI_BTYPE_TEXT, 0, name, x, y, width, height, ptr, prop, index, 0, 0, nullptr);
       }
 
       if (RNA_property_flag(prop) & PROP_TEXTEDIT_UPDATE) {
@@ -314,15 +242,14 @@ uiBut *uiDefAutoButR(uiBlock *block,
                                    index,
                                    0,
                                    0,
-                                   std::nullopt);
+                                   nullptr);
       ui_but_add_search(but, ptr, prop, nullptr, nullptr, false);
       break;
     }
     case PROP_COLLECTION: {
       char text[256];
       SNPRINTF(text, IFACE_("%d items"), RNA_property_collection_length(ptr, prop));
-      but = uiDefBut(
-          block, UI_BTYPE_LABEL, 0, text, x, y, width, height, nullptr, 0, 0, std::nullopt);
+      but = uiDefBut(block, UI_BTYPE_LABEL, 0, text, x, y, width, height, nullptr, 0, 0, nullptr);
       UI_but_flag_enable(but, UI_BUT_DISABLED);
       break;
     }
@@ -469,7 +396,7 @@ static bool add_collection_search_item(CollItemSearch &cis,
   }
 
   return UI_search_item_add(items,
-                            cis.name,
+                            cis.name.c_str(),
                             cis.data,
                             cis.iconid,
                             cis.has_sep_char ? int(UI_BUT_HAS_SEP_CHAR) : 0,
@@ -676,13 +603,13 @@ int UI_icon_from_report_type(int type)
 int UI_icon_colorid_from_report_type(int type)
 {
   if (type & RPT_ERROR_ALL) {
-    return TH_ERROR;
+    return TH_INFO_ERROR;
   }
   if (type & RPT_WARNING_ALL) {
-    return TH_WARNING;
+    return TH_INFO_WARNING;
   }
   if (type & RPT_INFO_ALL) {
-    return TH_INFO;
+    return TH_INFO_INFO;
   }
   if (type & RPT_DEBUG_ALL) {
     return TH_INFO_DEBUG;
@@ -693,7 +620,7 @@ int UI_icon_colorid_from_report_type(int type)
   if (type & RPT_OPERATOR) {
     return TH_INFO_OPERATOR;
   }
-  return TH_WARNING;
+  return TH_INFO_WARNING;
 }
 
 int UI_text_colorid_from_report_type(int type)
@@ -901,7 +828,7 @@ struct uiButStoreElem {
 
 uiButStore *UI_butstore_create(uiBlock *block)
 {
-  uiButStore *bs_handle = MEM_callocN<uiButStore>(__func__);
+  uiButStore *bs_handle = MEM_cnew<uiButStore>(__func__);
 
   bs_handle->block = block;
   BLI_addtail(&block->butstore, bs_handle);
@@ -950,7 +877,7 @@ bool UI_butstore_is_registered(uiBlock *block, uiBut *but)
 
 void UI_butstore_register(uiButStore *bs_handle, uiBut **but_p)
 {
-  uiButStoreElem *bs_elem = MEM_callocN<uiButStoreElem>(__func__);
+  uiButStoreElem *bs_elem = MEM_cnew<uiButStoreElem>(__func__);
   BLI_assert(*but_p);
   bs_elem->but_p = but_p;
 
@@ -1095,8 +1022,7 @@ std::optional<std::string> UI_key_event_operator_string(const bContext *C,
   short event_type = KM_NOTHING;
 
   uiBut *listbox = nullptr;
-  for (int i = but->block->buttons.size() - 1; i >= 0; i--) {
-    uiBut *but_iter = but->block->buttons[i].get();
+  LISTBASE_FOREACH_BACKWARD (uiBut *, but_iter, &but->block->buttons) {
     if ((but_iter->type == UI_BTYPE_LISTBOX) && ui_but_contains_rect(but_iter, &but->rect)) {
       listbox = but_iter;
       break;
@@ -1129,15 +1055,8 @@ std::optional<std::string> UI_key_event_operator_string(const bContext *C,
   }
 
   if ((event_val != KM_NOTHING) && (event_type != KM_NOTHING)) {
-    return WM_keymap_item_raw_to_string(KM_NOTHING,
-                                        KM_NOTHING,
-                                        KM_NOTHING,
-                                        KM_NOTHING,
-                                        KM_NOTHING,
-                                        0,
-                                        event_val,
-                                        event_type,
-                                        false);
+    return WM_keymap_item_raw_to_string(
+        false, false, false, false, 0, event_val, event_type, false);
   }
 
   return std::nullopt;

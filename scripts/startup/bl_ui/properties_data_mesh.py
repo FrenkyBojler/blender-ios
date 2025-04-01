@@ -272,7 +272,7 @@ class DATA_PT_vertex_groups(MeshButtonsPanel, Panel):
 
             layout.prop(context.tool_settings, "vertex_group_weight", text="Weight")
 
-        draw_attribute_warnings(context, layout, None)
+        draw_attribute_warnings(context, layout)
 
 
 class DATA_PT_shape_keys(MeshButtonsPanel, Panel):
@@ -399,7 +399,7 @@ class DATA_PT_uv_texture(MeshButtonsPanel, Panel):
         col.operator("mesh.uv_texture_add", icon='ADD', text="")
         col.operator("mesh.uv_texture_remove", icon='REMOVE', text="")
 
-        draw_attribute_warnings(context, layout, me.uv_layers)
+        draw_attribute_warnings(context, layout)
 
 
 class DATA_PT_remesh(MeshButtonsPanel, Panel):
@@ -577,12 +577,10 @@ class DATA_PT_mesh_attributes(MeshButtonsPanel, Panel):
 
         col.menu("MESH_MT_attribute_context_menu", icon='DOWNARROW_HLT', text="")
 
-        draw_attribute_warnings(context, layout, None)
+        draw_attribute_warnings(context, layout)
 
 
-# `attribute` is list of attributes in current UI list
-# None for vgroup and mesh. Those are already utilized in comparison.
-def draw_attribute_warnings(context, layout, attributes):
+def draw_attribute_warnings(context, layout):
     ob = context.object
     mesh = context.mesh
 
@@ -592,6 +590,8 @@ def draw_attribute_warnings(context, layout, attributes):
     unique_names = set()
     colliding_names = []
     for collection in (
+            # Built-in names.
+            {"crease": None},
             mesh.attributes,
             None if ob is None else ob.vertex_groups,
     ):
@@ -601,10 +601,8 @@ def draw_attribute_warnings(context, layout, attributes):
         for name in collection.keys():
             unique_names_len = len(unique_names)
             unique_names.add(name)
-            if (len(unique_names) == unique_names_len):
-                if (not attributes or attributes.get(name)):
-                    # Print colliding names if they exist in current attribute list, see: !135495
-                    colliding_names.append(name)
+            if len(unique_names) == unique_names_len:
+                colliding_names.append(name)
 
     if not colliding_names:
         return
@@ -612,7 +610,7 @@ def draw_attribute_warnings(context, layout, attributes):
     layout.label(text=rpt_("Name collisions: ") + ", ".join(set(colliding_names)), icon='ERROR', translate=False)
 
 
-class ColorAttributesListBase:
+class ColorAttributesListBase():
     display_domain_names = {
         'POINT': "Vertex",
         'EDGE': "Edge",
@@ -681,7 +679,7 @@ class MESH_UL_color_attributes_selector(UIList, ColorAttributesListBase):
         layout.prop(attribute, "name", text="", icon='GROUP_VCOL')
 
 
-class DATA_PT_vertex_colors(MeshButtonsPanel, Panel):
+class DATA_PT_vertex_colors(DATA_PT_mesh_attributes, Panel):
     bl_label = "Color Attributes"
     bl_options = {'DEFAULT_CLOSED'}
     COMPAT_ENGINES = {
@@ -715,7 +713,7 @@ class DATA_PT_vertex_colors(MeshButtonsPanel, Panel):
 
         col.menu("MESH_MT_color_attribute_context_menu", icon='DOWNARROW_HLT', text="")
 
-        draw_attribute_warnings(context, layout, mesh.color_attributes)
+        draw_attribute_warnings(context, layout)
 
 
 classes = (

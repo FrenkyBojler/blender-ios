@@ -2,10 +2,6 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-/** \file
- * \ingroup bli
- */
-
 #include "BLI_array.hh"
 #include "BLI_linear_allocator.hh"
 #include "BLI_multi_value_map.hh"

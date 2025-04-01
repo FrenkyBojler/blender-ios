@@ -17,8 +17,6 @@
 
 #include "BLI_bitmap_draw_2d.h"
 #include "BLI_lasso_2d.hh"
-#include "BLI_listbase.h"
-#include "BLI_math_vector.h"
 #include "BLI_rect.h"
 #include "BLI_utildefines.h"
 
@@ -38,7 +36,7 @@ using blender::int2;
 
 wmGesture *WM_gesture_new(wmWindow *window, const ARegion *region, const wmEvent *event, int type)
 {
-  wmGesture *gesture = MEM_callocN<wmGesture>("new gesture");
+  wmGesture *gesture = static_cast<wmGesture *>(MEM_callocN(sizeof(wmGesture), "new gesture"));
 
   BLI_addtail(&window->gesture, gesture);
 
@@ -60,7 +58,7 @@ wmGesture *WM_gesture_new(wmWindow *window, const ARegion *region, const wmEvent
            WM_GESTURE_CIRCLE,
            WM_GESTURE_STRAIGHTLINE))
   {
-    rcti *rect = MEM_callocN<rcti>("gesture rect new");
+    rcti *rect = static_cast<rcti *>(MEM_callocN(sizeof(rcti), "gesture rect new"));
 
     gesture->customdata = rect;
     rect->xmin = xy[0] - gesture->winrct.xmin;
@@ -76,15 +74,16 @@ wmGesture *WM_gesture_new(wmWindow *window, const ARegion *region, const wmEvent
   else if (ELEM(type, WM_GESTURE_LINES, WM_GESTURE_LASSO)) {
     float *lasso;
     gesture->points_alloc = 1024;
-    gesture->customdata = lasso = MEM_malloc_arrayN<float>(size_t(2 * gesture->points_alloc),
-                                                           "lasso points");
+    gesture->customdata = lasso = static_cast<float *>(
+        MEM_mallocN(sizeof(float[2]) * gesture->points_alloc, "lasso points"));
     lasso[0] = xy[0] - gesture->winrct.xmin;
     lasso[1] = xy[1] - gesture->winrct.ymin;
     gesture->points = 1;
   }
   else if (ELEM(type, WM_GESTURE_POLYLINE)) {
     gesture->points_alloc = 64;
-    short *border = MEM_malloc_arrayN<short>(size_t(2 * gesture->points_alloc), "polyline points");
+    short *border = static_cast<short int *>(
+        MEM_mallocN(sizeof(short[2]) * gesture->points_alloc, "polyline points"));
     gesture->customdata = border;
     border[0] = xy[0] - gesture->winrct.xmin;
     border[1] = xy[1] - gesture->winrct.ymin;
@@ -137,7 +136,7 @@ static void wm_gesture_draw_line_active_side(const rcti *rect, const bool flip)
   GPU_blend(GPU_BLEND_ALPHA);
   immBindBuiltinProgram(GPU_SHADER_3D_SMOOTH_COLOR);
 
-  const float gradient_length = 150.0f * UI_SCALE_FAC;
+  const float gradient_length = 150.0f * U.pixelsize;
   float line_dir[2];
   float gradient_dir[2];
   float gradient_point[2][2];
@@ -323,7 +322,7 @@ static void draw_filled_lasso(wmGesture *gt)
   if (BLI_rcti_is_empty(&rect) == false) {
     const int w = BLI_rcti_size_x(&rect);
     const int h = BLI_rcti_size_y(&rect);
-    uchar *pixel_buf = MEM_calloc_arrayN<uchar>(size_t(w) * size_t(h), __func__);
+    uchar *pixel_buf = static_cast<uchar *>(MEM_callocN(sizeof(*pixel_buf) * w * h, __func__));
     LassoFillData lasso_fill_data = {pixel_buf, w};
 
     BLI_bitmap_draw_2d_poly_v2i_n(rect.xmin,

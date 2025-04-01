@@ -2,19 +2,15 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "infos/overlay_edit_mode_info.hh"
-
-VERTEX_SHADER_CREATE_INFO(overlay_depth_pointcloud)
-
+#include "common_pointcloud_lib.glsl"
+#include "common_view_clipping_lib.glsl"
 #include "draw_model_lib.glsl"
-#include "draw_pointcloud_lib.glsl"
-#include "draw_view_clipping_lib.glsl"
 #include "draw_view_lib.glsl"
 #include "select_lib.glsl"
 
 void main()
 {
-  select_id_set(drw_custom_id());
+  select_id_set(drw_CustomID);
 
   vec3 world_pos, world_nor;
   float world_radius;

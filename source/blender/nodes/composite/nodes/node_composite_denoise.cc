@@ -21,7 +21,6 @@
 #include "DNA_node_types.h"
 
 #include "COM_denoised_auxiliary_pass.hh"
-#include "COM_derived_resources.hh"
 #include "COM_node_operation.hh"
 #include "COM_utilities.hh"
 
@@ -55,7 +54,7 @@ static void cmp_node_denoise_declare(NodeDeclarationBuilder &b)
 
 static void node_composit_init_denonise(bNodeTree * /*ntree*/, bNode *node)
 {
-  NodeDenoise *ndg = MEM_callocN<NodeDenoise>(__func__);
+  NodeDenoise *ndg = MEM_cnew<NodeDenoise>(__func__);
   ndg->hdr = true;
   ndg->prefilter = CMP_NODE_DENOISE_PREFILTER_ACCURATE;
   ndg->quality = CMP_NODE_DENOISE_QUALITY_SCENE;
@@ -115,11 +114,11 @@ class DenoiseOperation : public NodeOperation {
 
   void execute() override
   {
-    const Result &input_image = get_input("Image");
+    Result &input_image = get_input("Image");
     Result &output_image = get_result("Image");
 
     if (!is_oidn_supported() || input_image.is_single_value()) {
-      output_image.share_data(input_image);
+      input_image.pass_through(output_image);
       return;
     }
 
@@ -148,8 +147,8 @@ class DenoiseOperation : public NodeOperation {
       temporary_buffers_to_free.append(input_color);
     }
     else {
-      input_color = const_cast<float *>(static_cast<const float *>(input_image.cpu_data().data()));
-      output_color = static_cast<float *>(output_image.cpu_data().data());
+      input_color = input_image.float_texture();
+      output_color = output_image.float_texture();
     }
     oidn::FilterRef filter = device.newFilter("RT");
     filter.setImage("color", input_color, oidn::Format::Float3, width, height, 0, pixel_stride);
@@ -179,7 +178,7 @@ class DenoiseOperation : public NodeOperation {
           temporary_buffers_to_free.append(albedo);
         }
         else {
-          albedo = static_cast<float *>(input_albedo.cpu_data().data());
+          albedo = input_albedo.float_texture();
         }
       }
 
@@ -207,19 +206,11 @@ class DenoiseOperation : public NodeOperation {
           temporary_buffers_to_free.append(normal);
         }
         else {
-          normal = static_cast<float *>(input_normal.cpu_data().data());
+          normal = input_normal.float_texture();
         }
       }
 
-      /* Float3 results might be stored in 4-component textures due to hardware limitations, so we
-       * need to use the pixel stride of the texture. */
-      int normal_pixel_stride = sizeof(float) *
-                                (this->context().use_gpu() ?
-                                     GPU_texture_component_len(GPU_texture_format(input_normal)) :
-                                     input_normal.channels_count());
-
-      filter.setImage(
-          "normal", normal, oidn::Format::Float3, width, height, 0, normal_pixel_stride);
+      filter.setImage("normal", normal, oidn::Format::Float3, width, height, 0, pixel_stride);
     }
 
     filter.commit();
@@ -340,8 +331,8 @@ void register_node_type_cmp_denoise()
   ntype.draw_buttons = file_ns::node_composit_buts_denoise;
   ntype.initfunc = file_ns::node_composit_init_denonise;
   blender::bke::node_type_storage(
-      ntype, "NodeDenoise", node_free_standard_storage, node_copy_standard_storage);
+      &ntype, "NodeDenoise", node_free_standard_storage, node_copy_standard_storage);
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
 
-  blender::bke::node_register_type(ntype);
+  blender::bke::node_register_type(&ntype);
 }

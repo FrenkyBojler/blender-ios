@@ -25,7 +25,6 @@ ExternalProject_Add(external_numpy
   PATCH_COMMAND ${NUMPY_PATCH}
   CONFIGURE_COMMAND ""
   LOG_BUILD 1
-  BUILD_IN_SOURCE 1
 
   BUILD_COMMAND
     ${PYTHON_BINARY} ${BUILD_DIR}/numpy/src/external_numpy/setup.py

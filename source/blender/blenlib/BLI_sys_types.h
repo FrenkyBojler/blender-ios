@@ -18,6 +18,10 @@
 
 #pragma once
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #if defined(__linux__) || defined(__GNU__) || defined(__NetBSD__) || defined(__OpenBSD__) || \
     defined(__FreeBSD_kernel__) || defined(__HAIKU__)
 
@@ -47,7 +51,7 @@ typedef uint64_t u_int64_t;
 #  include <stdint.h>     // IWYU pragma: export
 #  include <sys/types.h>  // IWYU pragma: export
 
-#endif /* `ifdef` platform for types. */
+#endif /* ifdef platform for types */
 
 #include <stdbool.h>  // IWYU pragma: export
 #include <stddef.h>   // IWYU pragma: export
@@ -65,3 +69,7 @@ typedef unsigned int uint;
 typedef unsigned short ushort;
 typedef unsigned long ulong;
 typedef unsigned char uchar;
+
+#ifdef __cplusplus
+}
+#endif

@@ -34,7 +34,7 @@
 #include "transform_mode.hh"
 #include "transform_snap.hh"
 
-namespace blender::ed::transform {
+using namespace blender;
 
 /* -------------------------------------------------------------------- */
 /** \name Transform (Vert Slide)
@@ -657,5 +657,3 @@ TransModeInfo TransMode_vertslide = {
     /*snap_apply_fn*/ vert_slide_snap_apply,
     /*draw_fn*/ drawVertSlide,
 };
-
-}  // namespace blender::ed::transform

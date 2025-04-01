@@ -16,6 +16,8 @@
 
 #include "GPU_material.hh"
 
+#include "COM_shader_node.hh"
+
 #include "node_composite_util.hh"
 
 /* **************** SEPARATE YCCA ******************** */
@@ -40,24 +42,42 @@ static void node_composit_init_mode_sepycca(bNodeTree * /*ntree*/, bNode *node)
 
 using namespace blender::compositor;
 
-static int node_gpu_material(GPUMaterial *material,
-                             bNode *node,
-                             bNodeExecData * /*execdata*/,
-                             GPUNodeStack *inputs,
-                             GPUNodeStack *outputs)
-{
-  switch (node->custom1) {
-    case BLI_YCC_ITU_BT601:
-      return GPU_stack_link(
-          material, node, "node_composite_separate_ycca_itu_601", inputs, outputs);
-    case BLI_YCC_ITU_BT709:
-      return GPU_stack_link(
-          material, node, "node_composite_separate_ycca_itu_709", inputs, outputs);
-    case BLI_YCC_JFIF_0_255:
-      return GPU_stack_link(material, node, "node_composite_separate_ycca_jpeg", inputs, outputs);
+class SeparateYCCAShaderNode : public ShaderNode {
+ public:
+  using ShaderNode::ShaderNode;
+
+  void compile(GPUMaterial *material) override
+  {
+    GPUNodeStack *inputs = get_inputs_array();
+    GPUNodeStack *outputs = get_outputs_array();
+
+    GPU_stack_link(material, &bnode(), get_shader_function_name(), inputs, outputs);
   }
 
-  return false;
+  int get_mode()
+  {
+    return bnode().custom1;
+  }
+
+  const char *get_shader_function_name()
+  {
+    switch (get_mode()) {
+      case BLI_YCC_ITU_BT601:
+        return "node_composite_separate_ycca_itu_601";
+      case BLI_YCC_ITU_BT709:
+        return "node_composite_separate_ycca_itu_709";
+      case BLI_YCC_JFIF_0_255:
+        return "node_composite_separate_ycca_jpeg";
+    }
+
+    BLI_assert_unreachable();
+    return nullptr;
+  }
+};
+
+static ShaderNode *get_compositor_shader_node(DNode node)
+{
+  return new SeparateYCCAShaderNode(node);
 }
 
 static void node_build_multi_function(blender::nodes::NodeMultiFunctionBuilder &builder)
@@ -124,10 +144,10 @@ void register_node_type_cmp_sepycca()
   ntype.declare = file_ns::cmp_node_sepycca_declare;
   ntype.initfunc = file_ns::node_composit_init_mode_sepycca;
   ntype.gather_link_search_ops = nullptr;
-  ntype.gpu_fn = file_ns::node_gpu_material;
+  ntype.get_compositor_shader_node = file_ns::get_compositor_shader_node;
   ntype.build_multi_function = file_ns::node_build_multi_function;
 
-  blender::bke::node_register_type(ntype);
+  blender::bke::node_register_type(&ntype);
 }
 
 /* **************** COMBINE YCCA ******************** */
@@ -167,24 +187,42 @@ static void node_composit_init_mode_combycca(bNodeTree * /*ntree*/, bNode *node)
 
 using namespace blender::compositor;
 
-static int node_gpu_material(GPUMaterial *material,
-                             bNode *node,
-                             bNodeExecData * /*execdata*/,
-                             GPUNodeStack *inputs,
-                             GPUNodeStack *outputs)
-{
-  switch (node->custom1) {
-    case BLI_YCC_ITU_BT601:
-      return GPU_stack_link(
-          material, node, "node_composite_combine_ycca_itu_601", inputs, outputs);
-    case BLI_YCC_ITU_BT709:
-      return GPU_stack_link(
-          material, node, "node_composite_combine_ycca_itu_709", inputs, outputs);
-    case BLI_YCC_JFIF_0_255:
-      return GPU_stack_link(material, node, "node_composite_combine_ycca_jpeg", inputs, outputs);
+class CombineYCCAShaderNode : public ShaderNode {
+ public:
+  using ShaderNode::ShaderNode;
+
+  void compile(GPUMaterial *material) override
+  {
+    GPUNodeStack *inputs = get_inputs_array();
+    GPUNodeStack *outputs = get_outputs_array();
+
+    GPU_stack_link(material, &bnode(), get_shader_function_name(), inputs, outputs);
   }
 
-  return false;
+  int get_mode()
+  {
+    return bnode().custom1;
+  }
+
+  const char *get_shader_function_name()
+  {
+    switch (get_mode()) {
+      case BLI_YCC_ITU_BT601:
+        return "node_composite_combine_ycca_itu_601";
+      case BLI_YCC_ITU_BT709:
+        return "node_composite_combine_ycca_itu_709";
+      case BLI_YCC_JFIF_0_255:
+        return "node_composite_combine_ycca_jpeg";
+    }
+
+    BLI_assert_unreachable();
+    return nullptr;
+  }
+};
+
+static ShaderNode *get_compositor_shader_node(DNode node)
+{
+  return new CombineYCCAShaderNode(node);
 }
 
 static void node_build_multi_function(blender::nodes::NodeMultiFunctionBuilder &builder)
@@ -266,8 +304,8 @@ void register_node_type_cmp_combycca()
   ntype.declare = file_ns::cmp_node_combycca_declare;
   ntype.initfunc = file_ns::node_composit_init_mode_combycca;
   ntype.gather_link_search_ops = nullptr;
-  ntype.gpu_fn = file_ns::node_gpu_material;
+  ntype.get_compositor_shader_node = file_ns::get_compositor_shader_node;
   ntype.build_multi_function = file_ns::node_build_multi_function;
 
-  blender::bke::node_register_type(ntype);
+  blender::bke::node_register_type(&ntype);
 }

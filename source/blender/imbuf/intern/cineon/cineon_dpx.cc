@@ -20,11 +20,13 @@
 #include "MEM_guardedalloc.h"
 
 static ImBuf *imb_load_dpx_cineon(
-    const uchar *mem, size_t size, int use_cineon, int flags, ImFileColorSpace &r_colorspace)
+    const uchar *mem, size_t size, int use_cineon, int flags, char colorspace[IM_MAX_SPACE])
 {
   ImBuf *ibuf;
   LogImageFile *image;
   int width, height, depth;
+
+  colorspace_set_default_role(colorspace, IM_MAX_SPACE, COLOR_ROLE_DEFAULT_FLOAT);
 
   logImageSetVerbose((G.debug & G_DEBUG) ? 1 : 0);
 
@@ -37,7 +39,7 @@ static ImBuf *imb_load_dpx_cineon(
 
   logImageGetSize(image, &width, &height, &depth);
 
-  ibuf = IMB_allocImBuf(width, height, 32, IB_float_data | flags);
+  ibuf = IMB_allocImBuf(width, height, 32, IB_rectfloat | flags);
   if (ibuf == nullptr) {
     logImageClose(image);
     return nullptr;
@@ -58,8 +60,6 @@ static ImBuf *imb_load_dpx_cineon(
   if (flags & IB_alphamode_detect) {
     ibuf->flags |= IB_alphamode_premul;
   }
-
-  r_colorspace.is_hdr_float = true;
 
   return ibuf;
 }
@@ -119,8 +119,8 @@ static int imb_save_dpx_cineon(ImBuf *ibuf, const char *filepath, int use_cineon
     /* Don't use the float buffer to save 8 BPP picture to prevent color banding
      * (there's no dithering algorithm behind the #logImageSetDataRGBA function). */
 
-    fbuf = MEM_malloc_arrayN<float>(4 * size_t(ibuf->x) * size_t(ibuf->y),
-                                    "fbuf in imb_save_dpx_cineon");
+    fbuf = (float *)MEM_mallocN(sizeof(float[4]) * ibuf->x * ibuf->y,
+                                "fbuf in imb_save_dpx_cineon");
 
     for (y = 0; y < ibuf->y; y++) {
       float *dst_ptr = fbuf + 4 * ((ibuf->y - y - 1) * ibuf->x);
@@ -135,11 +135,11 @@ static int imb_save_dpx_cineon(ImBuf *ibuf, const char *filepath, int use_cineon
   }
   else {
     if (ibuf->byte_buffer.data == nullptr) {
-      IMB_byte_from_float(ibuf);
+      IMB_rect_from_float(ibuf);
     }
 
-    fbuf = MEM_malloc_arrayN<float>(4 * size_t(ibuf->x) * size_t(ibuf->y),
-                                    "fbuf in imb_save_dpx_cineon");
+    fbuf = (float *)MEM_mallocN(sizeof(float[4]) * ibuf->x * ibuf->y,
+                                "fbuf in imb_save_dpx_cineon");
     if (fbuf == nullptr) {
       printf("DPX/Cineon: error allocating memory.\n");
       logImageClose(logImage);
@@ -173,10 +173,10 @@ bool imb_is_a_cineon(const uchar *mem, size_t size)
   return logImageIsCineon(mem, size);
 }
 
-ImBuf *imb_load_cineon(const uchar *mem, size_t size, int flags, ImFileColorSpace &r_colorspace)
+ImBuf *imb_load_cineon(const uchar *mem, size_t size, int flags, char colorspace[IM_MAX_SPACE])
 {
   if (!imb_is_a_cineon(mem, size)) {
     return nullptr;
   }
-  return imb_load_dpx_cineon(mem, size, 1, flags, r_colorspace);
+  return imb_load_dpx_cineon(mem, size, 1, flags, colorspace);
 }

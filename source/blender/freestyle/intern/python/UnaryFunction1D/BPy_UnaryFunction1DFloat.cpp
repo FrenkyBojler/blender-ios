@@ -12,6 +12,10 @@
 #include "../BPy_IntegrationType.h"
 #include "../BPy_Interface1D.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 using namespace Freestyle;
 
 ///////////////////////////////////////////////////////////////////////////////////////////
@@ -191,3 +195,7 @@ PyTypeObject UnaryFunction1DFloat_Type = {
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////
+
+#ifdef __cplusplus
+}
+#endif

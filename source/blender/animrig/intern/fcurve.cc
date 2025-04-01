@@ -35,7 +35,7 @@ KeyframeSettings get_keyframe_settings(const bool from_userprefs)
   return settings;
 }
 
-const FCurve *fcurve_find(Span<const FCurve *> fcurves, const FCurveDescriptor &fcurve_descriptor)
+const FCurve *fcurve_find(Span<const FCurve *> fcurves, const FCurveDescriptor fcurve_descriptor)
 {
   for (const FCurve *fcurve : fcurves) {
     /* Check indices first, much cheaper than a string comparison. */
@@ -47,13 +47,13 @@ const FCurve *fcurve_find(Span<const FCurve *> fcurves, const FCurveDescriptor &
   }
   return nullptr;
 }
-FCurve *fcurve_find(Span<FCurve *> fcurves, const FCurveDescriptor &fcurve_descriptor)
+FCurve *fcurve_find(Span<FCurve *> fcurves, const FCurveDescriptor fcurve_descriptor)
 {
   const FCurve *fcurve = fcurve_find(fcurves.cast<const FCurve *>(), fcurve_descriptor);
   return const_cast<FCurve *>(fcurve);
 }
 
-FCurve *create_fcurve_for_channel(const FCurveDescriptor &fcurve_descriptor)
+FCurve *create_fcurve_for_channel(const FCurveDescriptor fcurve_descriptor)
 {
   FCurve *fcu = BKE_fcurve_create();
   fcu->rna_path = BLI_strdupn(fcurve_descriptor.rna_path.data(),
@@ -61,10 +61,6 @@ FCurve *create_fcurve_for_channel(const FCurveDescriptor &fcurve_descriptor)
   fcu->array_index = fcurve_descriptor.array_index;
   fcu->flag = (FCURVE_VISIBLE | FCURVE_SELECTED);
   fcu->auto_smoothing = U.auto_smoothing_new;
-
-  if (fcurve_descriptor.prop_type.has_value()) {
-    fcu->flag |= fcurve_flags_for_property_type(*fcurve_descriptor.prop_type);
-  }
 
   /* Set the fcurve's color mode if needed/able. */
   if ((U.keying_flag & KEYING_FLAG_XYZ2RGB) != 0 && fcurve_descriptor.prop_subtype.has_value()) {
@@ -88,23 +84,6 @@ FCurve *create_fcurve_for_channel(const FCurveDescriptor &fcurve_descriptor)
   }
 
   return fcu;
-}
-
-eFCurve_Flags fcurve_flags_for_property_type(const PropertyType prop_type)
-{
-  switch (prop_type) {
-    case PROP_FLOAT:
-      return eFCurve_Flags(0);
-    case PROP_INT:
-      /* Do integer (only 'whole' numbers) interpolation between all points. */
-      return FCURVE_INT_VALUES;
-    default:
-      /* Do 'discrete' (i.e. enum, boolean values which cannot take any intermediate
-       * values at all) interpolation between all points.
-       *    - however, we must also ensure that evaluated values are only integers still.
-       */
-      return FCURVE_DISCRETE_VALUES | FCURVE_INT_VALUES;
-  }
 }
 
 bool fcurve_delete_keyframe_at_time(FCurve *fcurve, const float time)
@@ -196,7 +175,8 @@ int insert_bezt_fcurve(FCurve *fcu, const BezTriple *bezt, eInsertKeyFlags flag)
     /* Keyframing modes allow not replacing the keyframe. */
     else if ((flag & INSERTKEY_REPLACE) == 0) {
       /* Insert new - if we're not restricted to replacing keyframes only. */
-      BezTriple *newb = MEM_calloc_arrayN<BezTriple>(fcu->totvert + 1, "beztriple");
+      BezTriple *newb = static_cast<BezTriple *>(
+          MEM_callocN((fcu->totvert + 1) * sizeof(BezTriple), "beztriple"));
 
       /* Add the beztriples that should occur before the beztriple to be pasted
        * (originally in fcu). */
@@ -230,7 +210,7 @@ int insert_bezt_fcurve(FCurve *fcu, const BezTriple *bezt, eInsertKeyFlags flag)
    */
   else if ((flag & INSERTKEY_REPLACE) == 0 && (fcu->fpt == nullptr)) {
     /* Create new keyframes array. */
-    fcu->bezt = MEM_callocN<BezTriple>("beztriple");
+    fcu->bezt = static_cast<BezTriple *>(MEM_callocN(sizeof(BezTriple), "beztriple"));
     *(fcu->bezt) = *bezt;
     fcu->totvert = 1;
   }
@@ -415,8 +395,7 @@ static float2 remap_cyclic_keyframe_location(const FCurve &fcu,
 
     if (type == FCU_CYCLE_OFFSET) {
       /* Nasty check to handle the case when the modes are different better. */
-      FMod_Cycles *data = static_cast<FMod_Cycles *>(
-          static_cast<FModifier *>(fcu.modifiers.first)->data);
+      FMod_Cycles *data = static_cast<FMod_Cycles *>(((FModifier *)fcu.modifiers.first)->data);
       short mode = (step >= 0) ? data->after_mode : data->before_mode;
 
       if (mode == FCM_EXTRAPOLATE_CYCLIC_OFFSET) {
@@ -576,7 +555,8 @@ void bake_fcurve(FCurve *fcu,
 {
   BLI_assert(step > 0);
   const int sample_count = (range[1] - range[0]) / step + 1;
-  float *samples = MEM_calloc_arrayN<float>(size_t(sample_count), "Channel Bake Samples");
+  float *samples = static_cast<float *>(
+      MEM_callocN(sample_count * sizeof(float), "Channel Bake Samples"));
   const float sample_rate = 1.0f / step;
   sample_fcurve_segment(fcu, range[0], sample_rate, samples, sample_count);
 
@@ -584,7 +564,8 @@ void bake_fcurve(FCurve *fcu,
     remove_fcurve_key_range(fcu, range, remove_existing);
   }
 
-  BezTriple *baked_keys = MEM_calloc_arrayN<BezTriple>(size_t(sample_count), "beztriple");
+  BezTriple *baked_keys = static_cast<BezTriple *>(
+      MEM_callocN(sample_count * sizeof(BezTriple), "beztriple"));
 
   const KeyframeSettings settings = get_keyframe_settings(true);
 
@@ -655,7 +636,8 @@ void bake_fcurve_segments(FCurve *fcu)
         sfra = int(floor(start->vec[1][0]));
 
         if (range) {
-          value_cache = MEM_calloc_arrayN<TempFrameValCache>(size_t(range), "IcuFrameValCache");
+          value_cache = static_cast<TempFrameValCache *>(
+              MEM_callocN(sizeof(TempFrameValCache) * range, "IcuFrameValCache"));
 
           /* Sample values. */
           for (n = 1, fp = value_cache; n < range && fp; n++, fp++) {

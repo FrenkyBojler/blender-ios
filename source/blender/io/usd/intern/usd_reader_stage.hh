@@ -14,6 +14,8 @@
 #include <pxr/usd/usdGeom/imageable.h>
 #include <pxr/usd/usdLux/domeLight.h>
 
+#include <string>
+
 struct Collection;
 struct ImportSettings;
 struct Main;
@@ -46,7 +48,7 @@ class USDStageReader {
 
   /* USD material prim paths encountered during stage
    * traversal, for importing unused materials. */
-  blender::Vector<pxr::SdfPath> material_paths_;
+  blender::Vector<std::string> material_paths_;
 
   /* Readers for scene-graph instance prototypes. */
   ProtoReaderMap proto_readers_;

@@ -10,12 +10,11 @@
 
 #include "IMB_imbuf.hh"
 
-struct ImBuf;
-struct ImFileColorSpace;
-
 /* -------------------------------------------------------------------- */
 /** \name Generic File Type
  * \{ */
+
+struct ImBuf;
 
 #define IM_FTYPE_FLOAT 1
 
@@ -28,14 +27,14 @@ struct ImFileType {
   /**
    * Check if the data matches this file types 'magic',
    * \note that this may only read in a small part of the files header,
-   * see: #IMB_test_image_type for details.
+   * see: #IMB_ispic_type for details.
    */
   bool (*is_a)(const unsigned char *buf, size_t size);
 
   /** Load an image from memory. */
-  ImBuf *(*load)(const unsigned char *mem, size_t size, int flags, ImFileColorSpace &r_colorspace);
+  ImBuf *(*load)(const unsigned char *mem, size_t size, int flags, char colorspace[IM_MAX_SPACE]);
   /** Load an image from a file. */
-  ImBuf *(*load_filepath)(const char *filepath, int flags, ImFileColorSpace &r_colorspace);
+  ImBuf *(*load_filepath)(const char *filepath, int flags, char colorspace[IM_MAX_SPACE]);
   /**
    * Load/Create a thumbnail image from a filepath. `max_thumb_size` is maximum size of either
    * dimension, so can return less on either or both. Should, if possible and performant, return
@@ -44,7 +43,7 @@ struct ImFileType {
   ImBuf *(*load_filepath_thumbnail)(const char *filepath,
                                     int flags,
                                     size_t max_thumb_size,
-                                    ImFileColorSpace &r_colorspace,
+                                    char colorspace[IM_MAX_SPACE],
                                     size_t *r_width,
                                     size_t *r_height);
   /** Save to a file (or memory if #IB_mem is set in `flags` and the format supports it). */
@@ -56,14 +55,6 @@ struct ImFileType {
   int filetype;
 
   int default_save_role;
-};
-
-/* Color space information provided by the file. */
-struct ImFileColorSpace {
-  /* Color space from metadata. */
-  char metadata_colorspace[IM_MAX_SPACE] = "";
-  /* Is image HDR with range potentially outside 0..1? */
-  bool is_hdr_float = false;
 };
 
 extern const ImFileType IMB_FILE_TYPES[];
@@ -87,7 +78,7 @@ bool imb_is_a_png(const unsigned char *mem, size_t size);
 ImBuf *imb_load_png(const unsigned char *mem,
                     size_t size,
                     int flags,
-                    ImFileColorSpace &r_colorspace);
+                    char colorspace[IM_MAX_SPACE]);
 bool imb_save_png(ImBuf *ibuf, const char *filepath, int flags);
 
 /** \} */
@@ -100,7 +91,7 @@ bool imb_is_a_tga(const unsigned char *mem, size_t size);
 ImBuf *imb_load_tga(const unsigned char *mem,
                     size_t size,
                     int flags,
-                    ImFileColorSpace &r_colorspace);
+                    char colorspace[IM_MAX_SPACE]);
 bool imb_save_tga(ImBuf *ibuf, const char *filepath, int flags);
 
 /** \} */
@@ -116,7 +107,7 @@ bool imb_is_a_iris(const unsigned char *mem, size_t size);
 ImBuf *imb_loadiris(const unsigned char *mem,
                     size_t size,
                     int flags,
-                    ImFileColorSpace &r_colorspace);
+                    char colorspace[IM_MAX_SPACE]);
 bool imb_saveiris(ImBuf *ibuf, const char *filepath, int flags);
 
 /** \} */
@@ -129,8 +120,8 @@ bool imb_is_a_jp2(const unsigned char *buf, size_t size);
 ImBuf *imb_load_jp2(const unsigned char *mem,
                     size_t size,
                     int flags,
-                    ImFileColorSpace &r_colorspace);
-ImBuf *imb_load_jp2_filepath(const char *filepath, int flags, ImFileColorSpace &r_colorspace);
+                    char colorspace[IM_MAX_SPACE]);
+ImBuf *imb_load_jp2_filepath(const char *filepath, int flags, char colorspace[IM_MAX_SPACE]);
 bool imb_save_jp2(ImBuf *ibuf, const char *filepath, int flags);
 
 /** \} */
@@ -144,11 +135,11 @@ bool imb_savejpeg(ImBuf *ibuf, const char *filepath, int flags);
 ImBuf *imb_load_jpeg(const unsigned char *buffer,
                      size_t size,
                      int flags,
-                     ImFileColorSpace &r_colorspace);
+                     char colorspace[IM_MAX_SPACE]);
 ImBuf *imb_thumbnail_jpeg(const char *filepath,
                           int flags,
                           size_t max_thumb_size,
-                          ImFileColorSpace &r_colorspace,
+                          char colorspace[IM_MAX_SPACE],
                           size_t *r_width,
                           size_t *r_height);
 
@@ -162,7 +153,7 @@ bool imb_is_a_bmp(const unsigned char *mem, size_t size);
 ImBuf *imb_load_bmp(const unsigned char *mem,
                     size_t size,
                     int flags,
-                    ImFileColorSpace &r_colorspace);
+                    char colorspace[IM_MAX_SPACE]);
 /* Found write info at http://users.ece.gatech.edu/~slabaugh/personal/c/bitmapUnix.c */
 bool imb_save_bmp(ImBuf *ibuf, const char *filepath, int flags);
 
@@ -177,7 +168,7 @@ bool imb_save_cineon(ImBuf *buf, const char *filepath, int flags);
 ImBuf *imb_load_cineon(const unsigned char *mem,
                        size_t size,
                        int flags,
-                       ImFileColorSpace &r_colorspace);
+                       char colorspace[IM_MAX_SPACE]);
 
 /** \} */
 
@@ -190,7 +181,7 @@ bool imb_save_dpx(ImBuf *ibuf, const char *filepath, int flags);
 ImBuf *imb_load_dpx(const unsigned char *mem,
                     size_t size,
                     int flags,
-                    ImFileColorSpace &r_colorspace);
+                    char colorspace[IM_MAX_SPACE]);
 
 /** \} */
 
@@ -202,7 +193,7 @@ bool imb_is_a_hdr(const unsigned char *mem, size_t size);
 ImBuf *imb_load_hdr(const unsigned char *mem,
                     size_t size,
                     int flags,
-                    ImFileColorSpace &r_colorspace);
+                    char colorspace[IM_MAX_SPACE]);
 bool imb_save_hdr(ImBuf *ibuf, const char *filepath, int flags);
 
 /** \} */
@@ -224,7 +215,7 @@ bool imb_is_a_tiff(const unsigned char *mem, size_t size);
 ImBuf *imb_load_tiff(const unsigned char *mem,
                      size_t size,
                      int flags,
-                     ImFileColorSpace &r_colorspace);
+                     char colorspace[IM_MAX_SPACE]);
 /**
  * Saves a TIFF file.
  *
@@ -251,11 +242,11 @@ bool imb_is_a_webp(const unsigned char *mem, size_t size);
 ImBuf *imb_loadwebp(const unsigned char *mem,
                     size_t size,
                     int flags,
-                    ImFileColorSpace &r_colorspace);
+                    char colorspace[IM_MAX_SPACE]);
 ImBuf *imb_load_filepath_thumbnail_webp(const char *filepath,
                                         const int flags,
                                         const size_t max_thumb_size,
-                                        ImFileColorSpace &r_colorspace,
+                                        char colorspace[],
                                         size_t *r_width,
                                         size_t *r_height);
 bool imb_savewebp(ImBuf *ibuf, const char *filepath, int flags);
@@ -273,7 +264,7 @@ bool imb_is_a_dds(const unsigned char *mem, size_t size);
 ImBuf *imb_load_dds(const unsigned char *mem,
                     size_t size,
                     int flags,
-                    ImFileColorSpace &r_colorspace);
+                    char colorspace[IM_MAX_SPACE]);
 
 /** \} */
 
@@ -286,7 +277,7 @@ bool imb_is_a_psd(const unsigned char *mem, size_t size);
 ImBuf *imb_load_psd(const unsigned char *mem,
                     size_t size,
                     int flags,
-                    ImFileColorSpace &r_colorspace);
+                    char colorspace[IM_MAX_SPACE]);
 
 /** \} */
 
@@ -297,7 +288,7 @@ ImBuf *imb_load_psd(const unsigned char *mem,
 ImBuf *imb_load_filepath_thumbnail_svg(const char *filepath,
                                        const int flags,
                                        const size_t max_thumb_size,
-                                       ImFileColorSpace &r_colorspace,
+                                       char colorspace[],
                                        size_t *r_width,
                                        size_t *r_height);
 

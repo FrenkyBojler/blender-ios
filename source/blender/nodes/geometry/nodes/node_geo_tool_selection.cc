@@ -150,16 +150,14 @@ static GField get_selection_field(const eObjectMode object_mode, const eCustomDa
 {
   switch (object_mode) {
     case OB_MODE_OBJECT:
-      return fn::make_constant_field(*bke::custom_data_type_to_cpp_type(data_type),
-                                     true_value(data_type));
+      return fn::make_constant_field<bool>(true);
     case OB_MODE_EDIT:
       return GField(std::make_shared<EditSelectionFieldInput>(data_type));
     case OB_MODE_SCULPT:
     case OB_MODE_SCULPT_CURVES:
       return GField(std::make_shared<SculptSelectionFieldInput>(data_type));
     default:
-      return fn::make_constant_field(*bke::custom_data_type_to_cpp_type(data_type),
-                                     false_value(data_type));
+      return fn::make_constant_field<bool>(false);
   }
 }
 
@@ -184,7 +182,7 @@ static void node_register()
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.gather_link_search_ops = search_link_ops_for_tool_node;
-  blender::bke::node_register_type(ntype);
+  blender::bke::node_register_type(&ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

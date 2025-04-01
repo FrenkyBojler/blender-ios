@@ -18,7 +18,6 @@
 
 #include "BKE_context.hh"
 #include "BKE_layer.hh"
-#include "BKE_library.hh"
 #include "BKE_modifier.hh"
 #include "BKE_object.hh"
 #include "BKE_paint.hh"
@@ -456,9 +455,7 @@ static bool object_transfer_mode_to_base(bContext *C,
   return mode_transferred;
 }
 
-static wmOperatorStatus object_transfer_mode_invoke(bContext *C,
-                                                    wmOperator *op,
-                                                    const wmEvent *event)
+static int object_transfer_mode_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   Scene *scene = CTX_data_scene(C);
   ARegion *region = CTX_wm_region(C);

@@ -15,7 +15,6 @@
 #include "BLI_assert.h"
 #include "BLI_bounds_types.hh"
 
-#include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
 
 #include "CLG_log.h"
@@ -165,7 +164,8 @@ pxr::UsdTimeCode USDAbstractWriter::get_export_time_code() const
   }
   /* By using the default time-code USD won't even write a single `timeSample` for non-animated
    * data. Instead, it writes it as non-time-sampled. */
-  return pxr::UsdTimeCode::Default();
+  static pxr::UsdTimeCode default_timecode = pxr::UsdTimeCode::Default();
+  return default_timecode;
 }
 
 void USDAbstractWriter::write(HierarchyContext &context)

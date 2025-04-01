@@ -15,7 +15,6 @@ struct Base;
 struct CLG_LogRef;
 struct ID;
 struct MemFile;
-struct PointerRNA;
 struct Object;
 struct Scene;
 struct UndoStack;
@@ -48,10 +47,8 @@ void ED_OT_undo_history(wmOperatorType *ot);
 
 /**
  * UI callbacks should call this rather than calling WM_operator_repeat() themselves.
- *
- * \return true when repeat succeeded.
  */
-bool ED_undo_operator_repeat(bContext *C, wmOperator *op);
+int ED_undo_operator_repeat(bContext *C, wmOperator *op);
 /**
  * Convenience since UI callbacks use this mostly.
  */
@@ -75,7 +72,7 @@ bool ED_undo_is_memfile_compatible(const bContext *C);
  * For example, changing a brush property isn't stored by sculpt-mode undo steps.
  * This workaround is needed until the limitation is removed, see: #61948.
  */
-bool ED_undo_is_legacy_compatible_for_property(bContext *C, ID *id, PointerRNA &ptr);
+bool ED_undo_is_legacy_compatible_for_property(bContext *C, ID *id);
 
 /**
  * This function addresses the problem of restoring undo steps when multiple windows are used.

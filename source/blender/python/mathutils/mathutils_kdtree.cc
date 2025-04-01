@@ -293,7 +293,7 @@ static PyObject *py_kdtree_find_n(PyKDTree *self, PyObject *args, PyObject *kwar
     return nullptr;
   }
 
-  nearest = MEM_malloc_arrayN<KDTreeNearest_3d>(n, __func__);
+  nearest = static_cast<KDTreeNearest_3d *>(MEM_mallocN(sizeof(KDTreeNearest_3d) * n, __func__));
 
   found = BLI_kdtree_3d_find_nearest_n(self->obj, co, nearest, n);
 
@@ -367,14 +367,9 @@ static PyObject *py_kdtree_find_range(PyKDTree *self, PyObject *args, PyObject *
   return py_list;
 }
 
-#ifdef __GNUC__
-#  ifdef __clang__
-#    pragma clang diagnostic push
-#    pragma clang diagnostic ignored "-Wcast-function-type"
-#  else
-#    pragma GCC diagnostic push
-#    pragma GCC diagnostic ignored "-Wcast-function-type"
-#  endif
+#if (defined(__GNUC__) && !defined(__clang__))
+#  pragma GCC diagnostic push
+#  pragma GCC diagnostic ignored "-Wcast-function-type"
 #endif
 
 static PyMethodDef PyKDTree_methods[] = {
@@ -389,12 +384,8 @@ static PyMethodDef PyKDTree_methods[] = {
     {nullptr, nullptr, 0, nullptr},
 };
 
-#ifdef __GNUC__
-#  ifdef __clang__
-#    pragma clang diagnostic pop
-#  else
-#    pragma GCC diagnostic pop
-#  endif
+#if (defined(__GNUC__) && !defined(__clang__))
+#  pragma GCC diagnostic pop
 #endif
 
 PyDoc_STRVAR(

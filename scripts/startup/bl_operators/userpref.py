@@ -496,11 +496,11 @@ class PREFERENCES_OT_addon_enable(Operator):
                 self.report(
                     {'WARNING'},
                     rpt_(
-                        "This script was written for Blender "
+                        "This script was written Blender "
                         "version {:d}.{:d}.{:d} and might not "
                         "function (correctly), "
                         "though it is enabled"
-                    ).format(*info_ver)
+                    ).format(info_ver)
                 )
             result = {'FINISHED'}
         else:
@@ -946,10 +946,7 @@ class PREFERENCES_OT_addon_show(Operator):
             context.preferences.view.show_addons_enabled_only = False
             context.window_manager.addon_filter = 'All'
             context.window_manager.addon_search = bl_info["name"]
-
-            # No need to show the editor if it is already visible in the main window.
-            if 'PREFERENCES' not in (area.type for area in context.screen.areas):
-                bpy.ops.screen.userpref_show('INVOKE_DEFAULT')
+            bpy.ops.screen.userpref_show('INVOKE_DEFAULT')
 
         return {'FINISHED'}
 

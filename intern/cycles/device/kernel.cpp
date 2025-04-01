@@ -179,8 +179,8 @@ string device_kernel_mask_as_string(DeviceKernelMask mask)
 {
   string str;
 
-  for (uint64_t i = 0; i < mask.size(); i++) {
-    if (mask.test(i)) {
+  for (uint64_t i = 0; i < sizeof(DeviceKernelMask) * 8; i++) {
+    if (mask & (uint64_t(1) << i)) {
       if (!str.empty()) {
         str += " ";
       }
@@ -189,17 +189,6 @@ string device_kernel_mask_as_string(DeviceKernelMask mask)
   }
 
   return str;
-}
-
-bool DeviceKernelMask::operator<(const DeviceKernelMask &other) const
-{
-  for (size_t i = 0; i < size(); i++) {
-    if (test(i) ^ other.test(i)) {
-      return other.test(i);
-    }
-  }
-
-  return false;
 }
 #endif
 

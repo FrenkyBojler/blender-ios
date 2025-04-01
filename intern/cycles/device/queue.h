@@ -155,7 +155,7 @@ class DeviceQueue {
   }
 
   /* Device this queue has been created for. */
-  Device *device = nullptr;
+  Device *device;
 
   virtual void *native_queue()
   {
@@ -174,14 +174,14 @@ class DeviceQueue {
   string debug_active_kernels();
 
   /* Combination of kernels enqueued together sync last synchronize. */
-  DeviceKernelMask last_kernels_enqueued_ = {false};
+  DeviceKernelMask last_kernels_enqueued_;
   /* Time of synchronize call. */
-  double last_sync_time_ = 0.0;
+  double last_sync_time_;
   /* Accumulated execution time for combinations of kernels launched together. */
   map<DeviceKernelMask, double> stats_kernel_time_;
   /* If it is true, then a performance statistics in the debugging logs will have focus on kernels
    * and an explicit queue synchronization will be added after each kernel execution. */
-  bool is_per_kernel_performance_ = false;
+  bool is_per_kernel_performance_;
 };
 
 CCL_NAMESPACE_END

@@ -422,6 +422,7 @@ ccl_device_forceinline bool mnee_newton_solver(KernelGlobals kg,
   Ray projection_ray;
   projection_ray.self.light_object = OBJECT_NONE;
   projection_ray.self.light_prim = PRIM_NONE;
+  projection_ray.self.light = LAMP_NONE;
   projection_ray.dP = differential_make_compact(sd->dP);
   projection_ray.dD = differential_zero_compact();
   projection_ray.tmin = 0.0f;
@@ -865,6 +866,7 @@ ccl_device_forceinline bool mnee_path_contribution(KernelGlobals kg,
   Ray probe_ray;
   probe_ray.self.light_object = ls->object;
   probe_ray.self.light_prim = ls->prim;
+  probe_ray.self.light = ls->lamp;
   probe_ray.tmin = 0.0f;
   probe_ray.dP = differential_make_compact(sd->dP);
   probe_ray.dD = differential_zero_compact();
@@ -913,7 +915,7 @@ ccl_device_forceinline bool mnee_path_contribution(KernelGlobals kg,
                              wi_len,
                              sd->time,
                              false,
-                             false);
+                             LAMP_NONE);
 
     /* Set bounce info in case a light path node is used in the refractive interface
      * shader graph. */
@@ -966,6 +968,7 @@ ccl_device_forceinline int kernel_path_mnee_sample(KernelGlobals kg,
   probe_ray.self.prim = sd->prim;
   probe_ray.self.light_object = ls->object;
   probe_ray.self.light_prim = ls->prim;
+  probe_ray.self.light = ls->lamp;
   probe_ray.P = sd->P;
   probe_ray.tmin = 0.0f;
   if (ls->t == FLT_MAX) {
@@ -1097,7 +1100,7 @@ ccl_device_forceinline int kernel_path_mnee_sample(KernelGlobals kg,
   /* Distant or environment light. */
   bool light_fixed_direction = (ls->t == FLT_MAX);
   if (ls->type == LIGHT_AREA) {
-    const ccl_global KernelLight *klight = &kernel_data_fetch(lights, ls->prim);
+    const ccl_global KernelLight *klight = &kernel_data_fetch(lights, ls->lamp);
     if (klight->area.tan_half_spread == 0.0f) {
       /* Area light with zero spread also has fixed direction. */
       light_fixed_direction = true;

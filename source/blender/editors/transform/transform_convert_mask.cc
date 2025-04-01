@@ -11,7 +11,6 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
 
@@ -29,8 +28,6 @@
 
 #include "transform.hh"
 #include "transform_convert.hh"
-
-namespace blender::ed::transform {
 
 struct TransDataMasking {
   bool is_handle;
@@ -457,7 +454,7 @@ static void special_aftertrans_update__mask(bContext *C, TransInfo *t)
   }
 
   /* TODO: don't key all masks. */
-  if (animrig::is_autokey_on(t->scene)) {
+  if (blender::animrig::is_autokey_on(t->scene)) {
     Scene *scene = t->scene;
 
     if (ED_mask_layer_shape_auto_key_select(mask, scene->r.cfra)) {
@@ -475,5 +472,3 @@ TransConvertTypeInfo TransConvertType_Mask = {
     /*recalc_data*/ recalcData_mask_common,
     /*special_aftertrans_update*/ special_aftertrans_update__mask,
 };
-
-}  // namespace blender::ed::transform

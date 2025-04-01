@@ -8,6 +8,7 @@
 #include <cstring>
 
 #include "util/aligned_malloc.h"
+#include "util/guarded_allocator.h"
 #include "util/vector.h"
 
 CCL_NAMESPACE_BEGIN
@@ -52,17 +53,6 @@ template<typename T, const size_t alignment = MIN_ALIGNMENT_CPU_DATA_TYPES> clas
       datasize_ = from.datasize_;
       capacity_ = datasize_;
     }
-  }
-
-  array(array &&from)
-  {
-    data_ = from.data_;
-    datasize_ = from.datasize_;
-    capacity_ = from.capacity_;
-
-    from.data_ = nullptr;
-    from.datasize_ = 0;
-    from.capacity_ = 0;
   }
 
   array &operator=(const array &from)

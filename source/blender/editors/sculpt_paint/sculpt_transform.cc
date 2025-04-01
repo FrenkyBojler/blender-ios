@@ -334,7 +334,7 @@ static void sculpt_transform_all_vertices(const Depsgraph &depsgraph, const Scul
     }
   }
   pbvh.tag_positions_changed(node_mask);
-  pbvh.flush_bounds_to_parents();
+  bke::pbvh::flush_bounds_to_parents(pbvh);
 }
 
 BLI_NOINLINE static void calc_transform_translations(const float4x4 &elastic_transform_mat,
@@ -478,7 +478,7 @@ static void transform_radius_elastic(const Depsgraph &depsgraph,
 
   threading::EnumerableThreadSpecific<TransformLocalData> all_tls;
   for (ePaintSymmetryFlags symmpass = PAINT_SYMM_NONE; symmpass <= symm; symmpass++) {
-    if (!is_symmetry_iteration_valid(symmpass, symm)) {
+    if (!SCULPT_is_symmetry_iteration_valid(symmpass, symm)) {
       continue;
     }
 
@@ -532,7 +532,7 @@ static void transform_radius_elastic(const Depsgraph &depsgraph,
     }
   }
   pbvh.tag_positions_changed(node_mask);
-  pbvh.flush_bounds_to_parents();
+  bke::pbvh::flush_bounds_to_parents(pbvh);
 }
 
 void update_modal_transform(bContext *C, Object &ob)
@@ -574,19 +574,6 @@ void update_modal_transform(bContext *C, Object &ob)
   copy_v3_v3(ss.prev_pivot_scale, ss.pivot_scale);
 
   flush_update_step(C, UpdateType::Position);
-}
-
-void cancel_modal_transform(bContext *C, Object &ob)
-{
-  /* Canceling "Elastic" transforms (due to its #TransformDisplacementMode::Incremental nature),
-   * requires restoring positions from undo. For "All Vertices" there is no benefit in using the
-   * transform system to update to original positions either. */
-  Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(C);
-  undo::restore_position_from_undo_step(depsgraph, ob);
-
-  bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(ob);
-  bke::pbvh::update_normals(depsgraph, ob, pbvh);
-  pbvh.update_bounds(depsgraph, ob);
 }
 
 void end_transform(bContext *C, Object &ob)
@@ -910,7 +897,7 @@ static float3 average_mask_border_position(const Depsgraph &depsgraph,
   return float3(0);
 }
 
-static wmOperatorStatus set_pivot_position_exec(bContext *C, wmOperator *op)
+static int set_pivot_position_exec(bContext *C, wmOperator *op)
 {
   Object &ob = *CTX_data_active_object(C);
   SculptSession &ss = *ob.sculpt;
@@ -966,9 +953,7 @@ static wmOperatorStatus set_pivot_position_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus set_pivot_position_invoke(bContext *C,
-                                                  wmOperator *op,
-                                                  const wmEvent *event)
+static int set_pivot_position_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   RNA_float_set(op->ptr, "mouse_x", event->mval[0]);
   RNA_float_set(op->ptr, "mouse_y", event->mval[1]);

@@ -123,7 +123,7 @@ bool ED_object_get_active_image(Object *ob,
   Material *ma = DEG_is_evaluated_object(ob) ? BKE_object_material_get_eval(ob, mat_nr) :
                                                BKE_object_material_get(ob, mat_nr);
   bNodeTree *ntree = (ma && ma->use_nodes) ? ma->nodetree : nullptr;
-  bNode *node = (ntree) ? bke::node_get_active_texture(*ntree) : nullptr;
+  bNode *node = (ntree) ? bke::node_get_active_texture(ntree) : nullptr;
 
   if (node && is_image_texture_node(node)) {
     if (r_ima) {
@@ -168,7 +168,7 @@ bool ED_object_get_active_image(Object *ob,
 void ED_object_assign_active_image(Main *bmain, Object *ob, int mat_nr, Image *ima)
 {
   Material *ma = BKE_object_material_get(ob, mat_nr);
-  bNode *node = (ma && ma->use_nodes) ? bke::node_get_active_texture(*ma->nodetree) : nullptr;
+  bNode *node = (ma && ma->use_nodes) ? bke::node_get_active_texture(ma->nodetree) : nullptr;
 
   if (node && is_image_texture_node(node)) {
     node->id = &ima->id;
@@ -213,7 +213,7 @@ void ED_uvedit_foreach_uv(const Scene *scene,
   BMLoop *l;
   BMIter iter, liter;
 
-  const BMUVOffsets offsets = BM_uv_map_offsets_get(bm);
+  const BMUVOffsets offsets = BM_uv_map_get_offsets(bm);
 
   BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {
     if (skip_invisible && !uvedit_face_visible_test(scene, efa)) {
@@ -260,7 +260,7 @@ void ED_uvedit_select_all(BMesh *bm)
   BMFace *efa;
   BMLoop *l;
   BMIter iter, liter;
-  const BMUVOffsets offsets = BM_uv_map_offsets_get(bm);
+  const BMUVOffsets offsets = BM_uv_map_get_offsets(bm);
 
   BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {
     BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
@@ -270,7 +270,9 @@ void ED_uvedit_select_all(BMesh *bm)
   }
 }
 
-static bool uvedit_median_multi(const Scene *scene, const Span<Object *> objects_edit, float co[2])
+static bool ED_uvedit_median_multi(const Scene *scene,
+                                   const Span<Object *> objects_edit,
+                                   float co[2])
 {
   uint sel = 0;
   zero_v2(co);
@@ -300,7 +302,7 @@ bool ED_uvedit_center_multi(const Scene *scene,
     }
   }
   else {
-    if (uvedit_median_multi(scene, objects_edit, cent)) {
+    if (ED_uvedit_median_multi(scene, objects_edit, cent)) {
       changed = true;
     }
   }
@@ -441,7 +443,7 @@ static bool uvedit_line_update_endpoint(const float *luv,
  */
 static bool uvedit_uv_straighten_elements(const UvElement *element,
                                           const int len,
-                                          const BMUVOffsets &offsets,
+                                          const BMUVOffsets offsets,
                                           const eUVWeldAlign tool)
 {
   float uv_start[2];
@@ -514,7 +516,7 @@ static bool uvedit_uv_straighten_elements(const UvElement *element,
  */
 static bool uvedit_uv_straighten(Scene *scene, BMesh *bm, eUVWeldAlign tool)
 {
-  const BMUVOffsets offsets = BM_uv_map_offsets_get(bm);
+  const BMUVOffsets offsets = BM_uv_map_get_offsets(bm);
   if (offsets.uv == -1) {
     return false;
   }
@@ -541,6 +543,8 @@ static void uv_weld_align(bContext *C, eUVWeldAlign tool)
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   SpaceImage *sima = CTX_wm_space_image(C);
+  const ToolSettings *ts = scene->toolsettings;
+  const bool synced_selection = (ts->uv_flag & UV_SYNC_SELECTION) != 0;
   float cent[2], min[2], max[2];
 
   INIT_MINMAX2(min, max);
@@ -560,7 +564,7 @@ static void uv_weld_align(bContext *C, eUVWeldAlign tool)
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
     bool changed = false;
 
-    if (em->bm->totvertsel == 0) {
+    if (synced_selection && (em->bm->totvertsel == 0)) {
       continue;
     }
 
@@ -580,7 +584,7 @@ static void uv_weld_align(bContext *C, eUVWeldAlign tool)
   }
 }
 
-static wmOperatorStatus uv_align_exec(bContext *C, wmOperator *op)
+static int uv_align_exec(bContext *C, wmOperator *op)
 {
   uv_weld_align(C, eUVWeldAlign(RNA_enum_get(op->ptr, "axis")));
 
@@ -636,13 +640,15 @@ static void UV_OT_align(wmOperatorType *ot)
 /** \name Remove Doubles Operator
  * \{ */
 
-static wmOperatorStatus uv_remove_doubles_to_selected(bContext *C, wmOperator *op)
+static int uv_remove_doubles_to_selected(bContext *C, wmOperator *op)
 {
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   SpaceImage *sima = CTX_wm_space_image(C);
+  const ToolSettings *ts = scene->toolsettings;
 
   const float threshold = RNA_float_get(op->ptr, "threshold");
+  const bool synced_selection = (ts->uv_flag & UV_SYNC_SELECTION) != 0;
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
       scene, view_layer, nullptr);
@@ -659,7 +665,7 @@ static wmOperatorStatus uv_remove_doubles_to_selected(bContext *C, wmOperator *o
   for (Object *obedit : objects) {
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
 
-    if (em->bm->totvertsel == 0) {
+    if (synced_selection && (em->bm->totvertsel == 0)) {
       continue;
     }
 
@@ -752,7 +758,7 @@ static wmOperatorStatus uv_remove_doubles_to_selected(bContext *C, wmOperator *o
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus uv_remove_doubles_to_unselected(bContext *C, wmOperator *op)
+static int uv_remove_doubles_to_unselected(bContext *C, wmOperator *op)
 {
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
@@ -810,7 +816,7 @@ static wmOperatorStatus uv_remove_doubles_to_unselected(bContext *C, wmOperator 
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus uv_remove_doubles_to_selected_shared_vertex(bContext *C, wmOperator *op)
+static int uv_remove_doubles_to_selected_shared_vertex(bContext *C, wmOperator *op)
 {
   /* NOTE: The calculation for the center-point of loops belonging to a vertex will be skewed
    * if one UV coordinate holds more loops than the others. */
@@ -826,7 +832,7 @@ static wmOperatorStatus uv_remove_doubles_to_selected_shared_vertex(bContext *C,
 
   for (Object *obedit : objects) {
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
-    const BMUVOffsets offsets = BM_uv_map_offsets_get(em->bm);
+    BMUVOffsets offsets = BM_uv_map_get_offsets(em->bm);
     BMVert *v;
     BMLoop *l;
     BMIter viter, liter;
@@ -920,7 +926,7 @@ static wmOperatorStatus uv_remove_doubles_to_selected_shared_vertex(bContext *C,
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus uv_remove_doubles_exec(bContext *C, wmOperator *op)
+static int uv_remove_doubles_exec(bContext *C, wmOperator *op)
 {
   if (RNA_boolean_get(op->ptr, "use_unselected")) {
     return uv_remove_doubles_to_unselected(C, op);
@@ -968,7 +974,7 @@ static void UV_OT_remove_doubles(wmOperatorType *ot)
 /** \name Weld Near Operator
  * \{ */
 
-static wmOperatorStatus uv_weld_exec(bContext *C, wmOperator * /*op*/)
+static int uv_weld_exec(bContext *C, wmOperator * /*op*/)
 {
   uv_weld_align(C, UV_WELD);
 
@@ -1021,7 +1027,7 @@ static void uv_snap_cursor_to_origin(float uvco[2])
   uvco[1] = 0;
 }
 
-static wmOperatorStatus uv_snap_cursor_exec(bContext *C, wmOperator *op)
+static int uv_snap_cursor_exec(bContext *C, wmOperator *op)
 {
   SpaceImage *sima = CTX_wm_space_image(C);
 
@@ -1122,7 +1128,7 @@ static bool uv_snap_uvs_to_adjacent_unselected(Scene *scene, Object *obedit)
   BMIter iter, liter, lsubiter;
   float *luv;
   bool changed = false;
-  const BMUVOffsets offsets = BM_uv_map_offsets_get(em->bm);
+  const BMUVOffsets offsets = BM_uv_map_get_offsets(em->bm);
 
   /* Index every vert that has a selected UV using it, but only once so as to
    * get unique indices and to count how much to `malloc`. */
@@ -1187,11 +1193,13 @@ static bool uv_snap_uvs_to_pixels(SpaceImage *sima, Scene *scene, Object *obedit
   return changed;
 }
 
-static wmOperatorStatus uv_snap_selection_exec(bContext *C, wmOperator *op)
+static int uv_snap_selection_exec(bContext *C, wmOperator *op)
 {
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   SpaceImage *sima = CTX_wm_space_image(C);
+  const ToolSettings *ts = scene->toolsettings;
+  const bool synced_selection = (ts->uv_flag & UV_SYNC_SELECTION) != 0;
   const int target = RNA_enum_get(op->ptr, "target");
   float offset[2] = {0};
 
@@ -1210,7 +1218,7 @@ static wmOperatorStatus uv_snap_selection_exec(bContext *C, wmOperator *op)
   for (Object *obedit : objects) {
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
 
-    if (em->bm->totvertsel == 0) {
+    if (synced_selection && (em->bm->totvertsel == 0)) {
       continue;
     }
 
@@ -1272,7 +1280,7 @@ static void UV_OT_snap_selected(wmOperatorType *ot)
 /** \name Pin UVs Operator
  * \{ */
 
-static wmOperatorStatus uv_pin_exec(bContext *C, wmOperator *op)
+static int uv_pin_exec(bContext *C, wmOperator *op)
 {
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
@@ -1291,26 +1299,13 @@ static wmOperatorStatus uv_pin_exec(bContext *C, wmOperator *op)
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
 
     bool changed = false;
-
     const char *active_uv_name = CustomData_get_active_layer_name(&em->bm->ldata, CD_PROP_FLOAT2);
-    if (em->bm->totvertsel == 0) {
+    BM_uv_map_ensure_pin_attr(em->bm, active_uv_name);
+    const BMUVOffsets offsets = BM_uv_map_get_offsets(em->bm);
+
+    if (synced_selection && (em->bm->totvertsel == 0)) {
       continue;
     }
-    if (synced_selection) {
-      /* Pass. */
-    }
-    else {
-      if (!BM_uv_map_attr_vert_select_exists(em->bm, active_uv_name)) {
-        continue;
-      }
-    }
-
-    if (clear && !BM_uv_map_attr_pin_exists(em->bm, active_uv_name)) {
-      continue;
-    }
-
-    BM_uv_map_attr_pin_ensure(em->bm, active_uv_name);
-    const BMUVOffsets offsets = BM_uv_map_offsets_get(em->bm);
 
     BM_ITER_MESH (efa, &iter, em->bm, BM_FACES_OF_MESH) {
       if (!uvedit_face_visible_test(scene, efa)) {
@@ -1380,7 +1375,7 @@ static void UV_OT_pin(wmOperatorType *ot)
 #define UV_EDGE_SEL_TEST(l, bool_test) (BM_ELEM_CD_GET_BOOL(l, offsets.select_edge) == bool_test)
 
 /* is every UV vert selected or unselected depending on bool_test */
-static bool bm_face_is_all_uv_sel(BMFace *f, bool select_test, const BMUVOffsets &offsets)
+static bool bm_face_is_all_uv_sel(BMFace *f, bool select_test, const BMUVOffsets offsets)
 {
   BMLoop *l_iter;
   BMLoop *l_first;
@@ -1395,7 +1390,7 @@ static bool bm_face_is_all_uv_sel(BMFace *f, bool select_test, const BMUVOffsets
   return true;
 }
 
-static wmOperatorStatus uv_hide_exec(bContext *C, wmOperator *op)
+static int uv_hide_exec(bContext *C, wmOperator *op)
 {
   ViewLayer *view_layer = CTX_data_view_layer(C);
   Scene *scene = CTX_data_scene(C);
@@ -1412,16 +1407,10 @@ static wmOperatorStatus uv_hide_exec(bContext *C, wmOperator *op)
     BMLoop *l;
     BMIter iter, liter;
 
-    if (ts->uv_flag & UV_SYNC_SELECTION) {
-      /* Pass. */
-    }
-    else {
-      const char *active_uv_name = CustomData_get_active_layer_name(&em->bm->ldata,
-                                                                    CD_PROP_FLOAT2);
-      BM_uv_map_attr_vert_select_ensure(em->bm, active_uv_name);
-      BM_uv_map_attr_edge_select_ensure(em->bm, active_uv_name);
-    }
-    const BMUVOffsets offsets = BM_uv_map_offsets_get(em->bm);
+    const char *active_uv_name = CustomData_get_active_layer_name(&em->bm->ldata, CD_PROP_FLOAT2);
+    BM_uv_map_ensure_vert_select_attr(em->bm, active_uv_name);
+    BM_uv_map_ensure_edge_select_attr(em->bm, active_uv_name);
+    const BMUVOffsets offsets = BM_uv_map_get_offsets(em->bm);
 
     if (ts->uv_flag & UV_SYNC_SELECTION) {
       if (EDBM_mesh_hide(em, swap)) {
@@ -1567,7 +1556,7 @@ static void UV_OT_hide(wmOperatorType *ot)
 /** \name Reveal Operator
  * \{ */
 
-static wmOperatorStatus uv_reveal_exec(bContext *C, wmOperator *op)
+static int uv_reveal_exec(bContext *C, wmOperator *op)
 {
   ViewLayer *view_layer = CTX_data_view_layer(C);
   Scene *scene = CTX_data_scene(C);
@@ -1585,16 +1574,10 @@ static wmOperatorStatus uv_reveal_exec(bContext *C, wmOperator *op)
     BMLoop *l;
     BMIter iter, liter;
 
-    if (ts->uv_flag & UV_SYNC_SELECTION) {
-      /* Pass. */
-    }
-    else {
-      const char *active_uv_name = CustomData_get_active_layer_name(&em->bm->ldata,
-                                                                    CD_PROP_FLOAT2);
-      BM_uv_map_attr_vert_select_ensure(em->bm, active_uv_name);
-      BM_uv_map_attr_edge_select_ensure(em->bm, active_uv_name);
-    }
-    const BMUVOffsets offsets = BM_uv_map_offsets_get(em->bm);
+    const char *active_uv_name = CustomData_get_active_layer_name(&em->bm->ldata, CD_PROP_FLOAT2);
+    BM_uv_map_ensure_vert_select_attr(em->bm, active_uv_name);
+    BM_uv_map_ensure_edge_select_attr(em->bm, active_uv_name);
+    const BMUVOffsets offsets = BM_uv_map_get_offsets(em->bm);
 
     /* NOTE: Selecting faces is delayed so that it doesn't select verts/edges and confuse certain
      * UV selection checks.
@@ -1717,7 +1700,7 @@ static void UV_OT_reveal(wmOperatorType *ot)
 /** \name Set 2D Cursor Operator
  * \{ */
 
-static wmOperatorStatus uv_set_2d_cursor_exec(bContext *C, wmOperator *op)
+static int uv_set_2d_cursor_exec(bContext *C, wmOperator *op)
 {
   SpaceImage *sima = CTX_wm_space_image(C);
 
@@ -1739,7 +1722,7 @@ static wmOperatorStatus uv_set_2d_cursor_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED | OPERATOR_PASS_THROUGH;
 }
 
-static wmOperatorStatus uv_set_2d_cursor_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static int uv_set_2d_cursor_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   ARegion *region = CTX_wm_region(C);
   float location[2];
@@ -1789,7 +1772,7 @@ static void UV_OT_cursor_set(wmOperatorType *ot)
 /** \name Seam from UV Islands Operator
  * \{ */
 
-static wmOperatorStatus uv_seams_from_islands_exec(bContext *C, wmOperator *op)
+static int uv_seams_from_islands_exec(bContext *C, wmOperator *op)
 {
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
@@ -1810,7 +1793,7 @@ static wmOperatorStatus uv_seams_from_islands_exec(bContext *C, wmOperator *op)
       continue;
     }
 
-    const BMUVOffsets offsets = BM_uv_map_offsets_get(em->bm);
+    const BMUVOffsets offsets = BM_uv_map_get_offsets(em->bm);
     bool changed = false;
 
     BMFace *f;
@@ -1886,7 +1869,7 @@ static void UV_OT_seams_from_islands(wmOperatorType *ot)
 /** \name Mark Seam Operator
  * \{ */
 
-static wmOperatorStatus uv_mark_seam_exec(bContext *C, wmOperator *op)
+static int uv_mark_seam_exec(bContext *C, wmOperator *op)
 {
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
@@ -1913,7 +1896,7 @@ static wmOperatorStatus uv_mark_seam_exec(bContext *C, wmOperator *op)
       continue;
     }
 
-    const BMUVOffsets offsets = BM_uv_map_offsets_get(em->bm);
+    const BMUVOffsets offsets = BM_uv_map_get_offsets(em->bm);
 
     BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {
       if (uvedit_face_visible_test(scene, efa)) {
@@ -1939,7 +1922,7 @@ static wmOperatorStatus uv_mark_seam_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus uv_mark_seam_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+static int uv_mark_seam_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
   uiPopupMenu *pup;
   uiLayout *layout;

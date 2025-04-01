@@ -16,7 +16,6 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_fileops.h"
-#include "BLI_listbase.h"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
@@ -36,7 +35,6 @@
 #include "BKE_global.hh"
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
-#include "BKE_library.hh"
 #include "BKE_main.hh"
 #include "BKE_object.hh"
 #include "BKE_report.hh"
@@ -486,8 +484,8 @@ static void font_select_update_primary_clipboard(Object *obedit)
 static bool font_paste_wchar(Object *obedit,
                              const char32_t *str,
                              const size_t str_len,
-                             /* Optional. */
-                             const CharInfo *str_info)
+                             /* optional */
+                             CharInfo *str_info)
 {
   Curve *cu = static_cast<Curve *>(obedit->data);
   EditFont *ef = cu->editfont;
@@ -560,7 +558,7 @@ static char *font_select_to_buffer(Object *obedit)
   }
   Curve *cu = static_cast<Curve *>(obedit->data);
   EditFont *ef = cu->editfont;
-  const char32_t *text_buf = ef->textbuf + selstart;
+  char32_t *text_buf = ef->textbuf + selstart;
   const size_t text_buf_len = selend - selstart;
 
   const size_t len_utf8 = BLI_str_utf32_as_utf8_len_ex(text_buf, text_buf_len + 1);
@@ -575,12 +573,12 @@ static char *font_select_to_buffer(Object *obedit)
 /** \name Paste From File Operator
  * \{ */
 
-static wmOperatorStatus paste_from_file(bContext *C, ReportList *reports, const char *filepath)
+static int paste_from_file(bContext *C, ReportList *reports, const char *filepath)
 {
   Object *obedit = CTX_data_edit_object(C);
   char *strp;
   size_t filelen;
-  wmOperatorStatus retval;
+  int retval;
 
   strp = static_cast<char *>(BLI_file_read_text_as_mem(filepath, 1, &filelen));
   if (strp == nullptr) {
@@ -603,10 +601,10 @@ static wmOperatorStatus paste_from_file(bContext *C, ReportList *reports, const 
   return retval;
 }
 
-static wmOperatorStatus paste_from_file_exec(bContext *C, wmOperator *op)
+static int paste_from_file_exec(bContext *C, wmOperator *op)
 {
   char *filepath;
-  wmOperatorStatus retval;
+  int retval;
 
   filepath = RNA_string_get_alloc(op->ptr, "filepath", nullptr, 0, nullptr);
   retval = paste_from_file(C, op->reports, filepath);
@@ -615,9 +613,7 @@ static wmOperatorStatus paste_from_file_exec(bContext *C, wmOperator *op)
   return retval;
 }
 
-static wmOperatorStatus paste_from_file_invoke(bContext *C,
-                                               wmOperator *op,
-                                               const wmEvent * /*event*/)
+static int paste_from_file_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
   if (RNA_struct_property_is_set(op->ptr, "filepath")) {
     return paste_from_file_exec(C, op);
@@ -694,7 +690,7 @@ static void text_insert_unicode_confirm(bContext *C, void *arg_block, void *arg_
 
 static uiBlock *wm_block_insert_unicode_create(bContext *C, ARegion *region, void *arg_string)
 {
-  uiBlock *block = UI_block_begin(C, region, __func__, blender::ui::EmbossType::Emboss);
+  uiBlock *block = UI_block_begin(C, region, __func__, UI_EMBOSS);
   char *edit_string = static_cast<char *>(arg_string);
 
   UI_block_theme_style_set(block, UI_BLOCK_THEME_STYLE_POPUP);
@@ -739,17 +735,17 @@ static uiBlock *wm_block_insert_unicode_create(bContext *C, ARegion *region, voi
 
   if (windows_layout) {
     confirm = uiDefIconTextBut(
-        block, UI_BTYPE_BUT, 0, 0, "Insert", 0, 0, 0, UI_UNIT_Y, nullptr, 0, 0, std::nullopt);
+        block, UI_BTYPE_BUT, 0, 0, "Insert", 0, 0, 0, UI_UNIT_Y, nullptr, 0, 0, nullptr);
     uiLayoutColumn(split, false);
   }
 
   cancel = uiDefIconTextBut(
-      block, UI_BTYPE_BUT, 0, 0, "Cancel", 0, 0, 0, UI_UNIT_Y, nullptr, 0, 0, std::nullopt);
+      block, UI_BTYPE_BUT, 0, 0, "Cancel", 0, 0, 0, UI_UNIT_Y, nullptr, 0, 0, nullptr);
 
   if (!windows_layout) {
     uiLayoutColumn(split, false);
     confirm = uiDefIconTextBut(
-        block, UI_BTYPE_BUT, 0, 0, "Insert", 0, 0, 0, UI_UNIT_Y, nullptr, 0, 0, std::nullopt);
+        block, UI_BTYPE_BUT, 0, 0, "Insert", 0, 0, 0, UI_UNIT_Y, nullptr, 0, 0, nullptr);
   }
 
   UI_block_func_set(block, nullptr, nullptr, nullptr);
@@ -767,9 +763,7 @@ static uiBlock *wm_block_insert_unicode_create(bContext *C, ARegion *region, voi
   return block;
 }
 
-static wmOperatorStatus text_insert_unicode_invoke(bContext *C,
-                                                   wmOperator * /*op*/,
-                                                   const wmEvent * /*event*/)
+static int text_insert_unicode_invoke(bContext *C, wmOperator * /*op*/, const wmEvent * /*event*/)
 {
   char *edit_string = static_cast<char *>(MEM_mallocN(24, __func__));
   edit_string[0] = 0;
@@ -938,7 +932,7 @@ static const EnumPropertyItem style_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-static wmOperatorStatus set_style(bContext *C, const int style, const bool clear)
+static int set_style(bContext *C, const int style, const bool clear)
 {
   Object *obedit = CTX_data_edit_object(C);
   Curve *cu = static_cast<Curve *>(obedit->data);
@@ -964,7 +958,7 @@ static wmOperatorStatus set_style(bContext *C, const int style, const bool clear
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus set_style_exec(bContext *C, wmOperator *op)
+static int set_style_exec(bContext *C, wmOperator *op)
 {
   const int style = RNA_enum_get(op->ptr, "style");
   const bool clear = RNA_boolean_get(op->ptr, "clear");
@@ -998,7 +992,7 @@ void FONT_OT_style_set(wmOperatorType *ot)
 /** \name Toggle Style Operator
  * \{ */
 
-static wmOperatorStatus toggle_style_exec(bContext *C, wmOperator *op)
+static int toggle_style_exec(bContext *C, wmOperator *op)
 {
   Object *obedit = CTX_data_edit_object(C);
   Curve *cu = static_cast<Curve *>(obedit->data);
@@ -1038,7 +1032,7 @@ void FONT_OT_style_toggle(wmOperatorType *ot)
 /** \name Select All Operator
  * \{ */
 
-static wmOperatorStatus font_select_all_exec(bContext *C, wmOperator * /*op*/)
+static int font_select_all_exec(bContext *C, wmOperator * /*op*/)
 {
   Object *obedit = CTX_data_edit_object(C);
   Curve *cu = static_cast<Curve *>(obedit->data);
@@ -1104,7 +1098,7 @@ static void copy_selection(Object *obedit)
   }
 }
 
-static wmOperatorStatus copy_text_exec(bContext *C, wmOperator * /*op*/)
+static int copy_text_exec(bContext *C, wmOperator * /*op*/)
 {
   Object *obedit = CTX_data_edit_object(C);
 
@@ -1131,7 +1125,7 @@ void FONT_OT_text_copy(wmOperatorType *ot)
 /** \name Cut Text Operator
  * \{ */
 
-static wmOperatorStatus cut_text_exec(bContext *C, wmOperator * /*op*/)
+static int cut_text_exec(bContext *C, wmOperator * /*op*/)
 {
   Object *obedit = CTX_data_edit_object(C);
   int selstart, selend;
@@ -1185,11 +1179,11 @@ static bool paste_selection(Object *obedit, ReportList *reports)
   return false;
 }
 
-static wmOperatorStatus paste_text_exec(bContext *C, wmOperator *op)
+static int paste_text_exec(bContext *C, wmOperator *op)
 {
   const bool selection = RNA_boolean_get(op->ptr, "selection");
   Object *obedit = CTX_data_edit_object(C);
-  wmOperatorStatus retval;
+  int retval;
   size_t len_utf8;
   char32_t *text_buf;
 
@@ -1328,7 +1322,7 @@ static bool move_cursor_drop_select(Object *obedit, int dir)
   return true;
 }
 
-static wmOperatorStatus move_cursor(bContext *C, int type, const bool select)
+static int move_cursor(bContext *C, int type, const bool select)
 {
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   Object *obedit = CTX_data_edit_object(C);
@@ -1483,7 +1477,7 @@ static wmOperatorStatus move_cursor(bContext *C, int type, const bool select)
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus move_exec(bContext *C, wmOperator *op)
+static int move_exec(bContext *C, wmOperator *op)
 {
   int type = RNA_enum_get(op->ptr, "type");
 
@@ -1514,7 +1508,7 @@ void FONT_OT_move(wmOperatorType *ot)
 /** \name Move Select Operator
  * \{ */
 
-static wmOperatorStatus move_select_exec(bContext *C, wmOperator *op)
+static int move_select_exec(bContext *C, wmOperator *op)
 {
   int type = RNA_enum_get(op->ptr, "type");
 
@@ -1550,7 +1544,7 @@ void FONT_OT_move_select(wmOperatorType *ot)
 /** \name Change Spacing
  * \{ */
 
-static wmOperatorStatus change_spacing_exec(bContext *C, wmOperator *op)
+static int change_spacing_exec(bContext *C, wmOperator *op)
 {
   Object *obedit = CTX_data_edit_object(C);
   Curve *cu = static_cast<Curve *>(obedit->data);
@@ -1617,7 +1611,7 @@ void FONT_OT_change_spacing(wmOperatorType *ot)
 /** \name Change Character
  * \{ */
 
-static wmOperatorStatus change_character_exec(bContext *C, wmOperator *op)
+static int change_character_exec(bContext *C, wmOperator *op)
 {
   Object *obedit = CTX_data_edit_object(C);
   Curve *cu = static_cast<Curve *>(obedit->data);
@@ -1675,7 +1669,7 @@ void FONT_OT_change_character(wmOperatorType *ot)
 /** \name Line Break Operator
  * \{ */
 
-static wmOperatorStatus line_break_exec(bContext *C, wmOperator * /*op*/)
+static int line_break_exec(bContext *C, wmOperator * /*op*/)
 {
   Object *obedit = CTX_data_edit_object(C);
   Curve *cu = static_cast<Curve *>(obedit->data);
@@ -1722,7 +1716,7 @@ static const EnumPropertyItem delete_type_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-static wmOperatorStatus delete_exec(bContext *C, wmOperator *op)
+static int delete_exec(bContext *C, wmOperator *op)
 {
   Object *obedit = CTX_data_edit_object(C);
   Curve *cu = static_cast<Curve *>(obedit->data);
@@ -1865,7 +1859,7 @@ void FONT_OT_delete(wmOperatorType *ot)
 /** \name Insert Text Operator
  * \{ */
 
-static wmOperatorStatus insert_text_exec(bContext *C, wmOperator *op)
+static int insert_text_exec(bContext *C, wmOperator *op)
 {
   Object *obedit = CTX_data_edit_object(C);
   char *inserted_utf8;
@@ -1896,7 +1890,7 @@ static wmOperatorStatus insert_text_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus insert_text_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static int insert_text_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   Object *obedit = CTX_data_edit_object(C);
   Curve *cu = static_cast<Curve *>(obedit->data);
@@ -2065,9 +2059,7 @@ static void font_cursor_set_apply(bContext *C, const wmEvent *event)
   WM_event_add_notifier(C, NC_GEOM | ND_DATA, ob->data);
 }
 
-static wmOperatorStatus font_selection_set_invoke(bContext *C,
-                                                  wmOperator *op,
-                                                  const wmEvent *event)
+static int font_selection_set_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   Object *obedit = CTX_data_active_object(C);
   Curve *cu = static_cast<Curve *>(obedit->data);
@@ -2081,9 +2073,7 @@ static wmOperatorStatus font_selection_set_invoke(bContext *C,
   return OPERATOR_RUNNING_MODAL;
 }
 
-static wmOperatorStatus font_selection_set_modal(bContext *C,
-                                                 wmOperator * /*op*/,
-                                                 const wmEvent *event)
+static int font_selection_set_modal(bContext *C, wmOperator * /*op*/, const wmEvent *event)
 {
   switch (event->type) {
     case LEFTMOUSE:
@@ -2098,9 +2088,6 @@ static wmOperatorStatus font_selection_set_modal(bContext *C,
     case MOUSEMOVE:
       font_cursor_set_apply(C, event);
       break;
-    default: {
-      break;
-    }
   }
   return OPERATOR_RUNNING_MODAL;
 }
@@ -2124,7 +2111,7 @@ void FONT_OT_selection_set(wmOperatorType *ot)
 /** \name Select Word Operator
  * \{ */
 
-static wmOperatorStatus font_select_word_exec(bContext *C, wmOperator * /*op*/)
+static int font_select_word_exec(bContext *C, wmOperator * /*op*/)
 {
   Object *obedit = CTX_data_edit_object(C);
   Curve *cu = static_cast<Curve *>(obedit->data);
@@ -2160,7 +2147,7 @@ void FONT_OT_select_word(wmOperatorType *ot)
 /** \name Text-Box Add Operator
  * \{ */
 
-static wmOperatorStatus textbox_add_exec(bContext *C, wmOperator * /*op*/)
+static int textbox_add_exec(bContext *C, wmOperator * /*op*/)
 {
   Object *obedit = CTX_data_active_object(C);
   Curve *cu = static_cast<Curve *>(obedit->data);
@@ -2201,7 +2188,7 @@ void FONT_OT_textbox_add(wmOperatorType *ot)
 /** \name Text-Box Remove Operator
  * \{ */
 
-static wmOperatorStatus textbox_remove_exec(bContext *C, wmOperator *op)
+static int textbox_remove_exec(bContext *C, wmOperator *op)
 {
   Object *obedit = CTX_data_active_object(C);
   Curve *cu = static_cast<Curve *>(obedit->data);
@@ -2334,7 +2321,7 @@ static const EnumPropertyItem case_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-static wmOperatorStatus set_case(bContext *C, int ccase)
+static int set_case(bContext *C, int ccase)
 {
   Object *obedit = CTX_data_edit_object(C);
   int selstart, selend;
@@ -2355,7 +2342,7 @@ static wmOperatorStatus set_case(bContext *C, int ccase)
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus set_case_exec(bContext *C, wmOperator *op)
+static int set_case_exec(bContext *C, wmOperator *op)
 {
   return set_case(C, RNA_enum_get(op->ptr, "case"));
 }
@@ -2387,14 +2374,15 @@ void FONT_OT_case_set(wmOperatorType *ot)
 /** \name Toggle Case Operator
  * \{ */
 
-static wmOperatorStatus toggle_case_exec(bContext *C, wmOperator * /*op*/)
+static int toggle_case_exec(bContext *C, wmOperator * /*op*/)
 {
   Object *obedit = CTX_data_edit_object(C);
   Curve *cu = static_cast<Curve *>(obedit->data);
   EditFont *ef = cu->editfont;
+  char32_t *str;
   int ccase = CASE_UPPER;
 
-  const char32_t *str = ef->textbuf;
+  str = ef->textbuf;
   while (*str) {
     if (*str >= 'a' && *str <= 'z') {
       ccase = CASE_LOWER;
@@ -2428,17 +2416,18 @@ static void font_ui_template_init(bContext *C, wmOperator *op)
 {
   PropertyPointerRNA *pprop;
 
-  op->customdata = pprop = MEM_new<PropertyPointerRNA>("OpenPropertyPointerRNA");
+  op->customdata = pprop = static_cast<PropertyPointerRNA *>(
+      MEM_callocN(sizeof(PropertyPointerRNA), "OpenPropertyPointerRNA"));
   UI_context_active_but_prop_get_templateID(C, &pprop->ptr, &pprop->prop);
 }
 
 static void font_open_cancel(bContext * /*C*/, wmOperator *op)
 {
-  MEM_delete(static_cast<PropertyPointerRNA *>(op->customdata));
+  MEM_freeN(op->customdata);
   op->customdata = nullptr;
 }
 
-static wmOperatorStatus font_open_exec(bContext *C, wmOperator *op)
+static int font_open_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   VFont *font;
@@ -2472,12 +2461,12 @@ static wmOperatorStatus font_open_exec(bContext *C, wmOperator *op)
     RNA_property_update(C, &pprop->ptr, pprop->prop);
   }
 
-  MEM_delete(static_cast<PropertyPointerRNA *>(op->customdata));
+  MEM_freeN(op->customdata);
 
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus open_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+static int open_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
   VFont *vfont = nullptr;
   char filepath[FILE_MAX];
@@ -2546,7 +2535,7 @@ void FONT_OT_open(wmOperatorType *ot)
 /** \name Delete Operator
  * \{ */
 
-static wmOperatorStatus font_unlink_exec(bContext *C, wmOperator *op)
+static int font_unlink_exec(bContext *C, wmOperator *op)
 {
   VFont *builtin_font;
 

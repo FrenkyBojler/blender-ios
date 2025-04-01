@@ -13,7 +13,6 @@
 #include "BLI_compiler_attrs.h"
 #include "BLI_map.hh"
 #include "BLI_math_vector_types.hh"
-#include "BLI_string_ref.hh"
 #include "BLI_vector.hh"
 
 #include "DNA_vec_types.h"
@@ -709,7 +708,7 @@ void BKE_region_callback_refresh_tag_gizmomap_set(void (*callback)(wmGizmoMap *)
  * panel state with the given default value.
  */
 LayoutPanelState *BKE_panel_layout_panel_state_ensure(Panel *panel,
-                                                      blender::StringRef idname,
+                                                      const char *idname,
                                                       bool default_closed);
 
 /**

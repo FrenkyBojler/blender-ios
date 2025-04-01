@@ -57,7 +57,10 @@ static void free_data(ModifierData *md)
   SurfaceModifierData *surmd = (SurfaceModifierData *)md;
 
   if (surmd) {
-    MEM_SAFE_DELETE(surmd->runtime.bvhtree);
+    if (surmd->runtime.bvhtree) {
+      MEM_delete(surmd->runtime.bvhtree);
+      surmd->runtime.bvhtree = nullptr;
+    }
 
     if (surmd->runtime.mesh) {
       BKE_id_free(nullptr, surmd->runtime.mesh);
@@ -84,7 +87,9 @@ static void deform_verts(ModifierData *md,
   const int cfra = int(DEG_get_ctime(ctx->depsgraph));
 
   /* Free mesh and BVH cache. */
-  MEM_SAFE_DELETE(surmd->runtime.bvhtree);
+  MEM_delete(surmd->runtime.bvhtree);
+  surmd->runtime.bvhtree = nullptr;
+
   if (surmd->runtime.mesh) {
     BKE_id_free(nullptr, surmd->runtime.mesh);
     surmd->runtime.mesh = nullptr;
@@ -116,8 +121,10 @@ static void deform_verts(ModifierData *md,
       MEM_SAFE_FREE(surmd->runtime.vert_positions_prev);
       MEM_SAFE_FREE(surmd->runtime.vert_velocities);
 
-      surmd->runtime.vert_positions_prev = MEM_calloc_arrayN<float[3]>(mesh_verts_num, __func__);
-      surmd->runtime.vert_velocities = MEM_calloc_arrayN<float[3]>(mesh_verts_num, __func__);
+      surmd->runtime.vert_positions_prev = static_cast<float(*)[3]>(
+          MEM_calloc_arrayN(mesh_verts_num, sizeof(float[3]), __func__));
+      surmd->runtime.vert_velocities = static_cast<float(*)[3]>(
+          MEM_calloc_arrayN(mesh_verts_num, sizeof(float[3]), __func__));
 
       surmd->runtime.verts_num = mesh_verts_num;
 
@@ -145,13 +152,16 @@ static void deform_verts(ModifierData *md,
 
     const bool has_face = surmd->runtime.mesh->faces_num > 0;
     const bool has_edge = surmd->runtime.mesh->edges_num > 0;
-    if (has_face) {
-      surmd->runtime.bvhtree = MEM_new<blender::bke::BVHTreeFromMesh>(
-          __func__, surmd->runtime.mesh->bvh_corner_tris());
-    }
-    else if (has_edge) {
-      surmd->runtime.bvhtree = MEM_new<blender::bke::BVHTreeFromMesh>(
-          __func__, surmd->runtime.mesh->bvh_edges());
+    if (has_face || has_edge) {
+      surmd->runtime.bvhtree = static_cast<blender::bke::BVHTreeFromMesh *>(
+          MEM_callocN(sizeof(blender::bke::BVHTreeFromMesh), __func__));
+
+      if (has_face) {
+        *surmd->runtime.bvhtree = surmd->runtime.mesh->bvh_corner_tris();
+      }
+      else if (has_edge) {
+        *surmd->runtime.bvhtree = surmd->runtime.mesh->bvh_edges();
+      }
     }
   }
 }

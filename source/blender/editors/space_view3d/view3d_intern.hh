@@ -71,10 +71,6 @@ void view3d_depths_rect_create(ARegion *region, rcti *rect, ViewDepths *r_d);
  */
 float view3d_depth_near(ViewDepths *d);
 
-/* view3d_dropboxes.cc */
-
-void view3d_dropboxes();
-
 /* view3d_select.cc */
 
 void VIEW3D_OT_select(wmOperatorType *ot);

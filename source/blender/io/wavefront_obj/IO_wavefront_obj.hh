@@ -8,8 +8,6 @@
 
 #pragma once
 
-#include <limits.h>
-
 #include "BLI_path_utils.hh"
 
 #include "BKE_geometry_set.hh"

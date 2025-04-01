@@ -678,7 +678,7 @@ static bool edbm_shortest_path_pick_ex(Scene *scene,
   return ok;
 }
 
-static wmOperatorStatus edbm_shortest_path_pick_exec(bContext *C, wmOperator *op);
+static int edbm_shortest_path_pick_exec(bContext *C, wmOperator *op);
 
 static BMElem *edbm_elem_find_nearest(ViewContext *vc, const char htype)
 {
@@ -709,9 +709,7 @@ static BMElem *edbm_elem_active_elem_or_face_get(BMesh *bm)
   return ele;
 }
 
-static wmOperatorStatus edbm_shortest_path_pick_invoke(bContext *C,
-                                                       wmOperator *op,
-                                                       const wmEvent *event)
+static int edbm_shortest_path_pick_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   if (RNA_struct_property_is_set(op->ptr, "index")) {
     return edbm_shortest_path_pick_exec(C, op);
@@ -729,7 +727,7 @@ static wmOperatorStatus edbm_shortest_path_pick_invoke(bContext *C,
   Base *basact = BKE_view_layer_active_base_get(vc.view_layer);
   BMEditMesh *em = vc.em;
 
-  view3d_operator_needs_gpu(C);
+  view3d_operator_needs_opengl(C);
 
   {
     int base_index = -1;
@@ -793,7 +791,7 @@ static wmOperatorStatus edbm_shortest_path_pick_invoke(bContext *C,
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus edbm_shortest_path_pick_exec(bContext *C, wmOperator *op)
+static int edbm_shortest_path_pick_exec(bContext *C, wmOperator *op)
 {
   Scene *scene = CTX_data_scene(C);
   Object *obedit = CTX_data_edit_object(C);
@@ -855,7 +853,7 @@ void MESH_OT_shortest_path_pick(wmOperatorType *ot)
 /** \name Select Path Between Existing Selection
  * \{ */
 
-static wmOperatorStatus edbm_shortest_path_select_exec(bContext *C, wmOperator *op)
+static int edbm_shortest_path_select_exec(bContext *C, wmOperator *op)
 {
   Scene *scene = CTX_data_scene(C);
   bool found_valid_elements = false;

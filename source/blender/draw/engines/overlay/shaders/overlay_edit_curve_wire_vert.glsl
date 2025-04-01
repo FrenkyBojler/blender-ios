@@ -2,12 +2,8 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "infos/overlay_edit_mode_info.hh"
-
-VERTEX_SHADER_CREATE_INFO(overlay_edit_curve_wire)
-
+#include "common_view_clipping_lib.glsl"
 #include "draw_model_lib.glsl"
-#include "draw_view_clipping_lib.glsl"
 #include "draw_view_lib.glsl"
 
 void main()
@@ -17,7 +13,7 @@ void main()
   float flip = (gl_InstanceID != 0) ? -1.0 : 1.0;
 
   if (gl_VertexID % 2 == 0) {
-    final_pos += normalSize * rad * (flip * nor - tangent);
+    final_pos += normalSize * rad * (flip * nor - tan);
   }
 
   vec3 world_pos = drw_point_object_to_world(final_pos);

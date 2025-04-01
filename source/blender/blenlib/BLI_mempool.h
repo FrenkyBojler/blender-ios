@@ -10,10 +10,14 @@
 
 #include "BLI_compiler_attrs.h"
 
-#include <type_traits>
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 struct BLI_mempool;
 struct BLI_mempool_chunk;
+
+typedef struct BLI_mempool BLI_mempool;
 
 BLI_mempool *BLI_mempool_create(unsigned int esize,
                                 unsigned int elem_num,
@@ -24,27 +28,6 @@ void *BLI_mempool_alloc(BLI_mempool *pool) ATTR_MALLOC ATTR_WARN_UNUSED_RESULT A
     ATTR_NONNULL(1);
 void *BLI_mempool_calloc(BLI_mempool *pool)
     ATTR_MALLOC ATTR_WARN_UNUSED_RESULT ATTR_RETURNS_NONNULL ATTR_NONNULL(1);
-
-/**
- * C++ templates for convenience.
- */
-template<typename T>
-ATTR_MALLOC ATTR_WARN_UNUSED_RESULT ATTR_RETURNS_NONNULL
-    ATTR_NONNULL(1) T *BLI_mempool_alloc(BLI_mempool *pool)
-{
-  static_assert(std::is_trivial_v<T>,
-                "Only trivial types may be allocated with BLI_mempool_alloc");
-  return static_cast<T *>(BLI_mempool_alloc(pool));
-}
-template<typename T>
-ATTR_MALLOC ATTR_WARN_UNUSED_RESULT ATTR_RETURNS_NONNULL
-    ATTR_NONNULL(1) T *BLI_mempool_calloc(BLI_mempool *pool)
-{
-  static_assert(std::is_trivial_v<T>,
-                "Only trivial types may be allocated with BLI_mempool_calloc");
-  return static_cast<T *>(BLI_mempool_calloc(pool));
-}
-
 /**
  * Free an element from the mempool.
  *
@@ -82,7 +65,7 @@ void *BLI_mempool_as_arrayN(BLI_mempool *pool,
     ATTR_NONNULL(1, 2);
 
 #ifndef NDEBUG
-void BLI_mempool_set_memory_debug();
+void BLI_mempool_set_memory_debug(void);
 #endif
 
 /**
@@ -91,11 +74,11 @@ void BLI_mempool_set_memory_debug();
  */
 
 /**  \note Private structure. */
-struct BLI_mempool_iter {
+typedef struct BLI_mempool_iter {
   BLI_mempool *pool;
   struct BLI_mempool_chunk *curchunk;
   unsigned int curindex;
-};
+} BLI_mempool_iter;
 
 /** #BLI_mempool.flag */
 enum {
@@ -119,3 +102,7 @@ void BLI_mempool_iternew(BLI_mempool *pool, BLI_mempool_iter *iter) ATTR_NONNULL
  * Step over the iterator, returning the mempool item or NULL.
  */
 void *BLI_mempool_iterstep(BLI_mempool_iter *iter) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL();
+
+#ifdef __cplusplus
+}
+#endif

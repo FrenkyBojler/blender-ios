@@ -22,6 +22,10 @@
 #include "UnaryFunction0D_double/BPy_LocalAverageDepthF0D.h"
 #include "UnaryFunction0D_double/BPy_ZDiscontinuityF0D.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 using namespace Freestyle;
 
 ///////////////////////////////////////////////////////////////////////////////////////////
@@ -202,3 +206,7 @@ PyTypeObject UnaryFunction0DDouble_Type = {
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////
+
+#ifdef __cplusplus
+}
+#endif

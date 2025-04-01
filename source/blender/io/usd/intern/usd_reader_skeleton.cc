@@ -13,7 +13,7 @@
 
 namespace blender::io::usd {
 
-void USDSkeletonReader::create_object(Main *bmain)
+void USDSkeletonReader::create_object(Main *bmain, const double /*motionSampleTime*/)
 {
   bArmature *arm = BKE_armature_add(bmain, name_.c_str());
 

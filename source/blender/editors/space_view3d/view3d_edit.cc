@@ -14,7 +14,6 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_listbase.h"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
@@ -79,7 +78,7 @@ static bool view3d_lock_poll(bContext *C)
 /** \name View Lock Clear Operator
  * \{ */
 
-static wmOperatorStatus view_lock_clear_exec(bContext *C, wmOperator * /*op*/)
+static int view_lock_clear_exec(bContext *C, wmOperator * /*op*/)
 {
   View3D *v3d = CTX_wm_view3d(C);
 
@@ -116,7 +115,7 @@ void VIEW3D_OT_view_lock_clear(wmOperatorType *ot)
 /** \name View Lock to Active Operator
  * \{ */
 
-static wmOperatorStatus view_lock_to_active_exec(bContext *C, wmOperator * /*op*/)
+static int view_lock_to_active_exec(bContext *C, wmOperator * /*op*/)
 {
   View3D *v3d = CTX_wm_view3d(C);
   Object *obact = CTX_data_active_object(C);
@@ -173,7 +172,7 @@ void VIEW3D_OT_view_lock_to_active(wmOperatorType *ot)
 /** \name Frame Camera Bounds Operator
  * \{ */
 
-static wmOperatorStatus view3d_center_camera_exec(bContext *C, wmOperator * /*op*/)
+static int view3d_center_camera_exec(bContext *C, wmOperator * /*op*/)
 {
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   Scene *scene = CTX_data_scene(C);
@@ -225,7 +224,7 @@ void VIEW3D_OT_view_center_camera(wmOperatorType *ot)
 /** \name View Lock Center Operator
  * \{ */
 
-static wmOperatorStatus view3d_center_lock_exec(bContext *C, wmOperator * /*op*/)
+static int view3d_center_lock_exec(bContext *C, wmOperator * /*op*/)
 {
   RegionView3D *rv3d = CTX_wm_region_view3d(C);
 
@@ -257,7 +256,7 @@ void VIEW3D_OT_view_center_lock(wmOperatorType *ot)
 /** \name Set Render Border Operator
  * \{ */
 
-static wmOperatorStatus render_border_exec(bContext *C, wmOperator *op)
+static int render_border_exec(bContext *C, wmOperator *op)
 {
   View3D *v3d = CTX_wm_view3d(C);
   ARegion *region = CTX_wm_region(C);
@@ -361,7 +360,7 @@ void VIEW3D_OT_render_border(wmOperatorType *ot)
 /** \name Clear Render Border Operator
  * \{ */
 
-static wmOperatorStatus clear_render_border_exec(bContext *C, wmOperator *op)
+static int clear_render_border_exec(bContext *C, wmOperator *op)
 {
   View3D *v3d = CTX_wm_view3d(C);
   RegionView3D *rv3d = ED_view3d_context_rv3d(C);
@@ -436,7 +435,7 @@ static void view3d_set_1_to_1_viewborder(Scene *scene,
   CLAMP(rv3d->camzoom, RV3D_CAMZOOM_MIN, RV3D_CAMZOOM_MAX);
 }
 
-static wmOperatorStatus view3d_zoom_1_to_1_camera_exec(bContext *C, wmOperator * /*op*/)
+static int view3d_zoom_1_to_1_camera_exec(bContext *C, wmOperator * /*op*/)
 {
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   Scene *scene = CTX_data_scene(C);
@@ -478,7 +477,7 @@ void VIEW3D_OT_zoom_camera_1_to_1(wmOperatorType *ot)
 /** \name View Toggle Perspective/Orthographic Operator
  * \{ */
 
-static wmOperatorStatus viewpersportho_exec(bContext *C, wmOperator * /*op*/)
+static int viewpersportho_exec(bContext *C, wmOperator * /*op*/)
 {
   View3D *v3d;
   ARegion *region;
@@ -527,9 +526,7 @@ void VIEW3D_OT_view_persportho(wmOperatorType *ot)
  * Wraps walk/fly modes.
  * \{ */
 
-static wmOperatorStatus view3d_navigate_invoke(bContext *C,
-                                               wmOperator * /*op*/,
-                                               const wmEvent *event)
+static int view3d_navigate_invoke(bContext *C, wmOperator * /*op*/, const wmEvent *event)
 {
   eViewNavigation_Method mode = eViewNavigation_Method(U.navigation_mode);
 
@@ -579,7 +576,7 @@ static Camera *background_image_camera_from_context(bContext *C)
   return static_cast<Camera *>(CTX_data_pointer_get_type(C, "camera", &RNA_Camera).data);
 }
 
-static wmOperatorStatus camera_background_image_add_exec(bContext *C, wmOperator *op)
+static int camera_background_image_add_exec(bContext *C, wmOperator *op)
 {
   Camera *cam = background_image_camera_from_context(C);
   Image *ima;
@@ -638,7 +635,7 @@ void VIEW3D_OT_camera_background_image_add(wmOperatorType *ot)
 /** \name Background Image Remove Operator
  * \{ */
 
-static wmOperatorStatus camera_background_image_remove_exec(bContext *C, wmOperator *op)
+static int camera_background_image_remove_exec(bContext *C, wmOperator *op)
 {
   Camera *cam = static_cast<Camera *>(CTX_data_pointer_get_type(C, "camera", &RNA_Camera).data);
   const int index = RNA_int_get(op->ptr, "index");
@@ -695,7 +692,7 @@ void VIEW3D_OT_camera_background_image_remove(wmOperatorType *ot)
 /** \name Drop World Operator
  * \{ */
 
-static wmOperatorStatus drop_world_exec(bContext *C, wmOperator *op)
+static int drop_world_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
@@ -772,7 +769,7 @@ void ED_view3d_clipping_local(RegionView3D *rv3d, const float mat[4][4])
   }
 }
 
-static wmOperatorStatus view3d_clipping_exec(bContext *C, wmOperator *op)
+static int view3d_clipping_exec(bContext *C, wmOperator *op)
 {
   ARegion *region = CTX_wm_region(C);
   RegionView3D *rv3d = CTX_wm_region_view3d(C);
@@ -789,7 +786,7 @@ static wmOperatorStatus view3d_clipping_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus view3d_clipping_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static int view3d_clipping_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   RegionView3D *rv3d = CTX_wm_region_view3d(C);
   ARegion *region = CTX_wm_region(C);
@@ -861,7 +858,7 @@ void ED_view3d_cursor3d_position(bContext *C,
   if (use_depth) { /* maybe this should be accessed some other way */
     Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
 
-    view3d_operator_needs_gpu(C);
+    view3d_operator_needs_opengl(C);
 
     /* Ensure the depth buffer is updated for #ED_view3d_autodist. */
     ED_view3d_depth_override(depsgraph, region, v3d, nullptr, V3D_DEPTH_ALL, false, nullptr);
@@ -906,7 +903,7 @@ void ED_view3d_cursor3d_position_rotation(bContext *C,
   }
   else if (orientation == V3D_CURSOR_ORIENT_XFORM) {
     float mat[3][3];
-    blender::ed::transform::calc_orientation_from_type(C, mat);
+    ED_transform_calc_orientation_from_type(C, mat);
     mat3_to_quat(r_cursor_quat, mat);
   }
   else if (orientation == V3D_CURSOR_ORIENT_GEOM) {
@@ -917,33 +914,31 @@ void ED_view3d_cursor3d_position_rotation(bContext *C,
     float ray_no[3];
     float ray_co[3];
 
-    blender::ed::transform::SnapObjectContext *snap_context =
-        blender::ed::transform::snap_object_context_create(scene, 0);
+    SnapObjectContext *snap_context = ED_transform_snap_object_context_create(scene, 0);
 
     float obmat[4][4];
     const Object *ob_dummy = nullptr;
     float dist_px = 0;
-    blender::ed::transform::SnapObjectParams params{};
+    SnapObjectParams params{};
     params.snap_target_select = SCE_SNAP_TARGET_ALL;
-    params.edit_mode_type = blender::ed::transform::SNAP_GEOM_FINAL;
-    params.occlusion_test = blender::ed::transform::SNAP_OCCLUSION_AS_SEEM;
-    if (blender::ed::transform::snap_object_project_view3d_ex(
-            snap_context,
-            CTX_data_ensure_evaluated_depsgraph(C),
-            region,
-            v3d,
-            SCE_SNAP_TO_FACE,
-            &params,
-            nullptr,
-            mval_fl,
-            nullptr,
-            &dist_px,
-            ray_co,
-            ray_no,
-            nullptr,
-            &ob_dummy,
-            obmat,
-            nullptr) != 0)
+    params.edit_mode_type = SNAP_GEOM_FINAL;
+    params.occlusion_test = SNAP_OCCLUSION_AS_SEEM;
+    if (ED_transform_snap_object_project_view3d_ex(snap_context,
+                                                   CTX_data_ensure_evaluated_depsgraph(C),
+                                                   region,
+                                                   v3d,
+                                                   SCE_SNAP_TO_FACE,
+                                                   &params,
+                                                   nullptr,
+                                                   mval_fl,
+                                                   nullptr,
+                                                   &dist_px,
+                                                   ray_co,
+                                                   ray_no,
+                                                   nullptr,
+                                                   &ob_dummy,
+                                                   obmat,
+                                                   nullptr) != 0)
     {
       if (use_depth) {
         copy_v3_v3(r_cursor_co, ray_co);
@@ -996,7 +991,7 @@ void ED_view3d_cursor3d_position_rotation(bContext *C,
         mul_qt_qtqt(r_cursor_quat, tquat_best, r_cursor_quat);
       }
     }
-    blender::ed::transform::snap_object_context_destroy(snap_context);
+    ED_transform_snap_object_context_destroy(snap_context);
   }
 }
 
@@ -1075,7 +1070,7 @@ void ED_view3d_cursor3d_update(bContext *C,
   DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
 }
 
-static wmOperatorStatus view3d_cursor3d_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static int view3d_cursor3d_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   bool use_depth = (U.uiflag & USER_DEPTH_CURSOR);
   {
@@ -1150,7 +1145,7 @@ static const EnumPropertyItem prop_shading_type_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-static wmOperatorStatus toggle_shading_exec(bContext *C, wmOperator *op)
+static int toggle_shading_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   View3D *v3d = CTX_wm_view3d(C);
@@ -1212,7 +1207,7 @@ void VIEW3D_OT_toggle_shading(wmOperatorType *ot)
 /** \name Toggle XRay
  * \{ */
 
-static wmOperatorStatus toggle_xray_exec(bContext *C, wmOperator *op)
+static int toggle_xray_exec(bContext *C, wmOperator *op)
 {
   View3D *v3d = CTX_wm_view3d(C);
   ScrArea *area = CTX_wm_area(C);

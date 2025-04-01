@@ -16,17 +16,15 @@ CCL_NAMESPACE_BEGIN
 
 /* Bump Node */
 template<uint node_feature_mask>
-ccl_device_noinline int svm_node_set_bump(KernelGlobals kg,
-                                          ccl_private ShaderData *sd,
-                                          ccl_private float *stack,
-                                          const uint4 node,
-                                          int offset)
+ccl_device_noinline void svm_node_set_bump(KernelGlobals kg,
+                                           ccl_private ShaderData *sd,
+                                           ccl_private float *stack,
+                                           const uint4 node)
 {
   uint out_offset;
   uint bump_state_offset;
-  svm_unpack_node_uchar2(node.w, &out_offset, &bump_state_offset);
-  const uint4 data_node = read_node(kg, &offset);
-  const float bump_filter_width = __uint_as_float(data_node.x);
+  uint dummy;
+  svm_unpack_node_uchar4(node.w, &out_offset, &bump_state_offset, &dummy, &dummy);
 
 #ifdef __RAY_DIFFERENTIALS__
   IF_KERNEL_NODES_FEATURE(BUMP)
@@ -88,15 +86,8 @@ ccl_device_noinline int svm_node_set_bump(KernelGlobals kg,
 
     strength = max(strength, 0.0f);
 
-    /* Compute and output perturbed normal.
-     * dP'dx = dPdx + scale * (h_x - h_c) / filter_width * normal
-     * dP'dy = dPdy + scale * (h_y - h_c) / filter_width * normal
-     * N' = cross(dP'dx, dP'dy)
-     *    = cross(dPdx, dPdy) - scale * ((h_y - h_c) / filter_width * Ry + (h_x - h_c) /
-     * filter_width * Rx) ≈ det * normal_in - scale * surfgrad / filter_width
-     */
-    float3 normal_out = safe_normalize(bump_filter_width * absdet * normal_in -
-                                       scale * signf(det) * surfgrad);
+    /* compute and output perturbed normal */
+    float3 normal_out = safe_normalize(absdet * normal_in - scale * signf(det) * surfgrad);
     if (is_zero(normal_out)) {
       normal_out = normal_in;
     }
@@ -114,8 +105,6 @@ ccl_device_noinline int svm_node_set_bump(KernelGlobals kg,
     stack_store_float3(stack, out_offset, zero_float3());
   }
 #endif
-
-  return offset;
 }
 
 /* Displacement Node */
@@ -207,7 +196,7 @@ ccl_device_noinline int svm_node_vector_displacement(KernelGlobals kg,
       const AttributeDescriptor attr = find_attribute(kg, sd, node.z);
       float3 tangent;
       if (attr.offset != ATTR_STD_NOT_FOUND) {
-        tangent = primitive_surface_attribute<float3>(kg, sd, attr, nullptr, nullptr);
+        tangent = primitive_surface_attribute_float3(kg, sd, attr, nullptr, nullptr);
       }
       else {
         tangent = normalize(sd->dPdu);
@@ -216,7 +205,7 @@ ccl_device_noinline int svm_node_vector_displacement(KernelGlobals kg,
       float3 bitangent = safe_normalize(cross(normal, tangent));
       const AttributeDescriptor attr_sign = find_attribute(kg, sd, node.w);
       if (attr_sign.offset != ATTR_STD_NOT_FOUND) {
-        const float sign = primitive_surface_attribute<float>(kg, sd, attr_sign, nullptr, nullptr);
+        const float sign = primitive_surface_attribute_float(kg, sd, attr_sign, nullptr, nullptr);
         bitangent *= sign;
       }
 

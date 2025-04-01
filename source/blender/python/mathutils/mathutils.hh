@@ -89,6 +89,8 @@ PyMODINIT_FUNC PyInit_mathutils();
 int EXPP_FloatsAreEqual(float af, float bf, int maxDiff);
 int EXPP_VectorsAreEqual(const float *vecA, const float *vecB, int size, int floatSteps);
 
+using Mathutils_Callback = struct Mathutils_Callback;
+
 /** Checks the user is still valid. */
 using BaseMathCheckFunc = int (*)(BaseMathObject *);
 /** Gets the vector from the user. */
@@ -198,7 +200,7 @@ int mathutils_any_to_rotmat(float rmat[3][3], PyObject *value, const char *error
 /**
  * helper function that returns a Python `__hash__`.
  *
- * \note consistent with the equivalent tuple of floats (CPython's `tuplehash`)
+ * \note consistent with the equivalent tuple of floats (CPython's 'tuplehash')
  */
 Py_hash_t mathutils_array_hash(const float *array, size_t array_len);
 

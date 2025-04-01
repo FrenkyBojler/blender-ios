@@ -27,7 +27,6 @@
 #include "BKE_object_types.hh"
 #include "BKE_vfont.hh"
 
-#include "GPU_attribute_convert.hh"
 #include "GPU_batch.hh"
 #include "GPU_capabilities.hh"
 #include "GPU_texture.hh"
@@ -458,15 +457,13 @@ static void curve_create_curves_pos(CurveRenderData *rdata, gpu::VertBuf *vbo_cu
     return;
   }
 
+  static GPUVertFormat format = {0};
   static struct {
     uint pos;
   } attr_id;
-
-  static const GPUVertFormat format = [&]() {
-    GPUVertFormat format{};
+  if (format.attr_len == 0) {
     attr_id.pos = GPU_vertformat_attr_add(&format, "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
-    return format;
-  }();
+  }
 
   const int vert_len = curve_render_data_wire_verts_len_get(rdata);
   GPU_vertbuf_init_with_format(*vbo_curves_pos, format);
@@ -483,11 +480,10 @@ static void curve_create_attribute(CurveRenderData *rdata, gpu::VertBuf &vbo_att
     return;
   }
 
-  static const GPUVertFormat format = []() {
-    GPUVertFormat format{};
+  static GPUVertFormat format = {0};
+  if (format.attr_len == 0) {
     GPU_vertformat_attr_add(&format, "attribute_value", GPU_COMP_F32, 4, GPU_FETCH_FLOAT);
-    return format;
-  }();
+  }
 
   const int vert_len = curve_render_data_wire_verts_len_get(rdata);
   GPU_vertbuf_init_with_format(vbo_attr, format);
@@ -540,32 +536,28 @@ static void curve_create_edit_curves_nor(CurveRenderData *rdata,
   const bool do_hq_normals = (scene->r.perf_flag & SCE_PERF_HQ_NORMALS) != 0 ||
                              GPU_use_hq_normals_workaround();
 
+  static GPUVertFormat format = {0};
+  static GPUVertFormat format_hq = {0};
   static struct {
     uint pos, nor, tan, rad;
     uint pos_hq, nor_hq, tan_hq, rad_hq;
   } attr_id;
-
-  static const GPUVertFormat format = [&]() {
-    GPUVertFormat format{};
+  if (format.attr_len == 0) {
+    /* initialize vertex formats */
     attr_id.pos = GPU_vertformat_attr_add(&format, "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
     attr_id.rad = GPU_vertformat_attr_add(&format, "rad", GPU_COMP_F32, 1, GPU_FETCH_FLOAT);
     attr_id.nor = GPU_vertformat_attr_add(
         &format, "nor", GPU_COMP_I10, 4, GPU_FETCH_INT_TO_FLOAT_UNIT);
     attr_id.tan = GPU_vertformat_attr_add(
-        &format, "tangent", GPU_COMP_I10, 4, GPU_FETCH_INT_TO_FLOAT_UNIT);
-    return format;
-  }();
+        &format, "tan", GPU_COMP_I10, 4, GPU_FETCH_INT_TO_FLOAT_UNIT);
 
-  static const GPUVertFormat format_hq = [&]() {
-    GPUVertFormat format{};
-    attr_id.pos_hq = GPU_vertformat_attr_add(&format, "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
-    attr_id.rad_hq = GPU_vertformat_attr_add(&format, "rad", GPU_COMP_F32, 1, GPU_FETCH_FLOAT);
+    attr_id.pos_hq = GPU_vertformat_attr_add(&format_hq, "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
+    attr_id.rad_hq = GPU_vertformat_attr_add(&format_hq, "rad", GPU_COMP_F32, 1, GPU_FETCH_FLOAT);
     attr_id.nor_hq = GPU_vertformat_attr_add(
-        &format, "nor", GPU_COMP_I16, 4, GPU_FETCH_INT_TO_FLOAT_UNIT);
+        &format_hq, "nor", GPU_COMP_I16, 4, GPU_FETCH_INT_TO_FLOAT_UNIT);
     attr_id.tan_hq = GPU_vertformat_attr_add(
-        &format, "tangent", GPU_COMP_I16, 4, GPU_FETCH_INT_TO_FLOAT_UNIT);
-    return format;
-  }();
+        &format_hq, "tan", GPU_COMP_I16, 4, GPU_FETCH_INT_TO_FLOAT_UNIT);
+  }
 
   const GPUVertFormat &format_ptr = do_hq_normals ? format_hq : format;
 
@@ -596,21 +588,15 @@ static void curve_create_edit_curves_nor(CurveRenderData *rdata,
       float nor[3] = {1.0f, 0.0f, 0.0f};
       mul_qt_v3(bevp->quat, nor);
 
+      GPUNormal pnor;
+      GPUNormal ptan;
+      GPU_normal_convert_v3(&pnor, nor, do_hq_normals);
+      GPU_normal_convert_v3(&ptan, bevp->dir, do_hq_normals);
       /* Only set attributes for one vertex. */
       GPU_vertbuf_attr_set(&vbo_curves_nor, pos_id, vbo_len_used, bevp->vec);
       GPU_vertbuf_attr_set(&vbo_curves_nor, rad_id, vbo_len_used, &bevp->radius);
-      if (do_hq_normals) {
-        const short4 pnor = gpu::convert_normal<short4>(nor);
-        const short4 ptan = gpu::convert_normal<short4>(bevp->dir);
-        GPU_vertbuf_attr_set(&vbo_curves_nor, nor_id, vbo_len_used, &pnor);
-        GPU_vertbuf_attr_set(&vbo_curves_nor, tan_id, vbo_len_used, &ptan);
-      }
-      else {
-        const gpu::PackedNormal pnor = gpu::convert_normal<gpu::PackedNormal>(nor);
-        const gpu::PackedNormal ptan = gpu::convert_normal<gpu::PackedNormal>(bevp->dir);
-        GPU_vertbuf_attr_set(&vbo_curves_nor, nor_id, vbo_len_used, &pnor);
-        GPU_vertbuf_attr_set(&vbo_curves_nor, tan_id, vbo_len_used, &ptan);
-      }
+      GPU_vertbuf_attr_set(&vbo_curves_nor, nor_id, vbo_len_used, &pnor);
+      GPU_vertbuf_attr_set(&vbo_curves_nor, tan_id, vbo_len_used, &ptan);
       vbo_len_used++;
 
       /* Skip the other vertex (it does not need to be offsetted). */
@@ -664,21 +650,16 @@ static void curve_create_edit_data_and_handles(CurveRenderData *rdata,
                                                gpu::IndexBuf *ibo_edit_verts_points,
                                                gpu::IndexBuf *ibo_edit_lines)
 {
+  static GPUVertFormat format_pos = {0};
+  static GPUVertFormat format_data = {0};
   static struct {
     uint pos, data;
   } attr_id;
-
-  static const GPUVertFormat format_pos = [&]() {
-    GPUVertFormat format{};
-    attr_id.pos = GPU_vertformat_attr_add(&format, "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
-    return format;
-  }();
-
-  static const GPUVertFormat format_data = [&]() {
-    GPUVertFormat format{};
-    attr_id.data = GPU_vertformat_attr_add(&format, "data", GPU_COMP_U32, 1, GPU_FETCH_INT);
-    return format;
-  }();
+  if (format_pos.attr_len == 0) {
+    /* initialize vertex formats */
+    attr_id.pos = GPU_vertformat_attr_add(&format_pos, "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
+    attr_id.data = GPU_vertformat_attr_add(&format_data, "data", GPU_COMP_U32, 1, GPU_FETCH_INT);
+  }
 
   int verts_len_capacity = curve_render_data_overlay_verts_len_get(rdata);
   int edges_len_capacity = curve_render_data_overlay_edges_len_get(rdata) * 2;

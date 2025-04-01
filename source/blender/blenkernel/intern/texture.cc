@@ -107,6 +107,8 @@ static void texture_copy_data(Main *bmain,
     }
   }
 
+  BLI_listbase_clear((ListBase *)&texture_dst->drawdata);
+
   if ((flag & LIB_ID_COPY_NO_PREVIEW) == 0) {
     BKE_previewimg_id_copy(&texture_dst->id, &texture_src->id);
   }
@@ -118,6 +120,8 @@ static void texture_copy_data(Main *bmain,
 static void texture_free_data(ID *id)
 {
   Tex *texture = (Tex *)id;
+
+  DRW_drawdata_free(id);
 
   /* is no lib link block, but texture extension */
   if (texture->nodetree) {
@@ -183,8 +187,6 @@ static void texture_blend_read_data(BlendDataReader *reader, ID *id)
   BKE_previewimg_blend_read(reader, tex->preview);
 
   tex->iuser.scene = nullptr;
-
-  tex->runtime.last_update = 0;
 }
 
 IDTypeInfo IDType_ID_TE = {
@@ -227,7 +229,7 @@ void BKE_texture_mtex_foreach_id(LibraryForeachIDData *data, MTex *mtex)
 
 TexMapping *BKE_texture_mapping_add(int type)
 {
-  TexMapping *texmap = MEM_callocN<TexMapping>("TexMapping");
+  TexMapping *texmap = MEM_cnew<TexMapping>("TexMapping");
 
   BKE_texture_mapping_default(texmap, type);
 
@@ -330,7 +332,7 @@ void BKE_texture_mapping_init(TexMapping *texmap)
 
 ColorMapping *BKE_texture_colormapping_add()
 {
-  ColorMapping *colormap = MEM_callocN<ColorMapping>("ColorMapping");
+  ColorMapping *colormap = MEM_cnew<ColorMapping>("ColorMapping");
 
   BKE_texture_colormapping_default(colormap);
 
@@ -392,7 +394,7 @@ MTex *BKE_texture_mtex_add()
 {
   MTex *mtex;
 
-  mtex = MEM_callocN<MTex>("BKE_texture_mtex_add");
+  mtex = static_cast<MTex *>(MEM_callocN(sizeof(MTex), "BKE_texture_mtex_add"));
 
   BKE_texture_mtex_default(mtex);
 
@@ -619,7 +621,8 @@ void BKE_texture_pointdensity_init_data(PointDensity *pd)
 
 PointDensity *BKE_texture_pointdensity_add()
 {
-  PointDensity *pd = MEM_callocN<PointDensity>("pointdensity");
+  PointDensity *pd = static_cast<PointDensity *>(
+      MEM_callocN(sizeof(PointDensity), "pointdensity"));
   BKE_texture_pointdensity_init_data(pd);
   return pd;
 }

@@ -15,6 +15,10 @@ extern "C" {
 #include "../geometry/Noise.h"
 #include "../system/PseudoNoise.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 ///////////////////////////////////////////////////////////////////////////////////////////
 
 extern PyTypeObject FrsNoise_Type;
@@ -33,3 +37,7 @@ typedef struct {
 int FrsNoise_Init(PyObject *module);
 
 ///////////////////////////////////////////////////////////////////////////////////////////
+
+#ifdef __cplusplus
+}
+#endif

@@ -99,36 +99,29 @@ vec4 curvemapping_evaluate_premulRGBF(vec4 col)
 /** \name Dithering
  * \{ */
 
-/* 2D hash (iqint3) recommended from "Hash Functions for GPU Rendering" JCGT Vol. 9, No. 3, 2020
- * https://jcgt.org/published/0009/03/02/ */
-float hash_iqint3_f(uvec2 x)
+/* Using a triangle distribution which gives a more final uniform noise.
+ * See Banding in Games:A Noisy Rant(revision 5) Mikkel Gjøl, Playdead (slide 27) */
+/* GPUs are rounding before writing to frame-buffer so we center the distribution around 0.0. */
+/* Return triangle noise in [-1..1[ range */
+float dither_random_value(vec2 co)
 {
-  uvec2 q = 1103515245u * ((x >> 1u) ^ (x.yx));
-  uint n = 1103515245u * ((q.x) ^ (q.y >> 3u));
-  return float(n) * (1.0 / float(0xffffffffu));
+  /* Original code from https://www.shadertoy.com/view/4t2SDh */
+  /* Uniform noise in [0..1[ range */
+  float nrnd0 = fract(sin(dot(co.xy, vec2(12.9898, 78.233))) * 43758.5453);
+  /* Convert uniform distribution into triangle-shaped distribution. */
+  float orig = nrnd0 * 2.0 - 1.0;
+  nrnd0 = orig * inversesqrt(abs(orig));
+  nrnd0 = max(-1.0, nrnd0); /* Removes NAN's. */
+  return nrnd0 - sign(orig);
 }
 
-/* Returns triangle noise in [-1..+1) range, given integer pixel coordinates.
- * Triangle distribution which gives a more final uniform noise,
- * see "Banding in Games: A Noisy Rant" by Mikkel Gjoel (slide 27)
- * https://loopit.dk/banding_in_games.pdf */
-float dither_random_value(uvec2 co)
-{
-  float v = hash_iqint3_f(co);
-  /* Convert uniform distribution into triangle-shaped distribution. Based on
-   * "remap_pdf_tri_unity" from https://www.shadertoy.com/view/WldSRf */
-  v = v * 2.0 - 1.0;
-  v = sign(v) * (1.0 - sqrt(1.0 - abs(v)));
-  return v;
-}
-
-uvec2 get_pixel_coord(sampler2D tex, vec2 uv)
+vec2 round_to_pixel(sampler2D tex, vec2 uv)
 {
   vec2 size = vec2(textureSize(tex, 0));
-  return uvec2(uv * size);
+  return floor(uv * size) / size;
 }
 
-vec4 apply_dither(vec4 col, uvec2 uv)
+vec4 apply_dither(vec4 col, vec2 uv)
 {
   col.rgb += dither_random_value(uv) * 0.0033 * parameters.dither;
   return col;
@@ -199,8 +192,8 @@ vec4 OCIO_ProcessColor(vec4 col, vec4 col_overlay)
   }
 
   if (parameters.dither > 0.0) {
-    uvec2 texel = get_pixel_coord(image_texture, texCoord_interp.st);
-    col = apply_dither(col, texel);
+    vec2 noise_uv = round_to_pixel(image_texture, texCoord_interp.st);
+    col = apply_dither(col, noise_uv);
   }
 
   return col;

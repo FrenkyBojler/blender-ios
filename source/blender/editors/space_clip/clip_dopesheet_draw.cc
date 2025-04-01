@@ -9,8 +9,6 @@
 #include "DNA_movieclip_types.h"
 #include "DNA_scene_types.h"
 
-#include "BLI_listbase.h"
-#include "BLI_math_vector.h"
 #include "BLI_rect.h"
 #include "BLI_utildefines.h"
 
@@ -367,7 +365,7 @@ void clip_draw_dopesheet_channels(const bContext *C, ARegion *region)
   }
 
   /* third pass: widgets */
-  uiBlock *block = UI_block_begin(C, region, __func__, blender::ui::EmbossType::Emboss);
+  uiBlock *block = UI_block_begin(C, region, __func__, UI_EMBOSS);
   y = (CHANNEL_FIRST);
 
   /* get RNA properties (once) */
@@ -387,7 +385,7 @@ void clip_draw_dopesheet_channels(const bContext *C, ARegion *region)
       const int icon = (track->flag & TRACK_LOCKED) ? ICON_LOCKED : ICON_UNLOCKED;
       PointerRNA ptr = RNA_pointer_create_discrete(&clip->id, &RNA_MovieTrackingTrack, track);
 
-      UI_block_emboss_set(block, blender::ui::EmbossType::None);
+      UI_block_emboss_set(block, UI_EMBOSS_NONE);
       uiDefIconButR_prop(block,
                          UI_BTYPE_ICON_TOGGLE,
                          1,
@@ -401,8 +399,8 @@ void clip_draw_dopesheet_channels(const bContext *C, ARegion *region)
                          0,
                          0,
                          0,
-                         std::nullopt);
-      UI_block_emboss_set(block, blender::ui::EmbossType::Emboss);
+                         nullptr);
+      UI_block_emboss_set(block, UI_EMBOSS);
     }
 
     /* adjust y-position for next one */

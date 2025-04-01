@@ -4,9 +4,8 @@
 
 #pragma once
 
-#include "DNA_listBase.h"
-
-#include <stdint.h>
+#include "BLI_listbase.h"
+#include "BLI_utildefines.h"
 
 struct ID;
 

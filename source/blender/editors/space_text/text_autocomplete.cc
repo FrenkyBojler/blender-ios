@@ -14,7 +14,6 @@
 #include "DNA_text_types.h"
 
 #include "BLI_ghash.h"
-#include "BLI_listbase.h"
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
 
@@ -287,9 +286,7 @@ static void confirm_suggestion(Text *text)
 /** \name Auto Complete Operator
  * \{ */
 
-static wmOperatorStatus text_autocomplete_invoke(bContext *C,
-                                                 wmOperator *op,
-                                                 const wmEvent * /*event*/)
+static int text_autocomplete_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
   SpaceText *st = CTX_wm_space_text(C);
   Text *text = CTX_data_edit_text(C);
@@ -317,7 +314,7 @@ static wmOperatorStatus text_autocomplete_invoke(bContext *C,
   return OPERATOR_CANCELLED;
 }
 
-static wmOperatorStatus text_autocomplete_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static int text_autocomplete_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   /* NOTE(@ideasman42): this code could be refactored or rewritten. */
   SpaceText *st = CTX_wm_space_text(C);
@@ -325,7 +322,7 @@ static wmOperatorStatus text_autocomplete_modal(bContext *C, wmOperator *op, con
   ARegion *region = BKE_area_find_region_type(area, RGN_TYPE_WINDOW);
 
   int draw = 0, tools = 0, swallow = 0, scroll = 1;
-  wmOperatorStatus retval = OPERATOR_RUNNING_MODAL;
+  int retval = OPERATOR_RUNNING_MODAL;
 
   if (st->doplugins && texttool_text_is_active(st->text)) {
     if (texttool_suggest_first()) {
@@ -512,15 +509,13 @@ static wmOperatorStatus text_autocomplete_modal(bContext *C, wmOperator *op, con
     case EVT_RIGHTSHIFTKEY:
     case EVT_LEFTSHIFTKEY:
       break;
-    default: {
 #if 0
+    default:
       if (tools & TOOL_SUGG_LIST) {
         texttool_suggest_clear();
         draw = 1;
       }
 #endif
-      break;
-    }
   }
 
   if (draw) {

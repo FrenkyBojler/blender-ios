@@ -48,18 +48,18 @@ enum class SampleResult {
 };
 
 struct BoneDropper {
-  PointerRNA ptr = {};
-  PropertyRNA *prop = nullptr;
-  PointerRNA search_ptr = {};
-  PropertyRNA *search_prop = nullptr;
+  PointerRNA ptr;
+  PropertyRNA *prop;
+  PointerRNA search_ptr;
+  PropertyRNA *search_prop;
 
-  bool is_undo = false;
+  bool is_undo;
 
-  ScrArea *cursor_area = nullptr; /* Area under the cursor. */
-  ARegionType *area_region_type = nullptr;
-  void *draw_handle_pixel = nullptr;
-  int name_pos[2] = {};
-  char name[64] = {};
+  ScrArea *cursor_area; /* Area under the cursor. */
+  ARegionType *area_region_type;
+  void *draw_handle_pixel;
+  int name_pos[2];
+  char name[64];
 };
 
 struct BoneSampleData {
@@ -428,7 +428,7 @@ static void generate_sample_warning(SampleResult result, wmOperator *op)
   }
 }
 
-static wmOperatorStatus bonedropper_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static int bonedropper_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   BoneDropper *bdr = (BoneDropper *)op->customdata;
   if (!bdr) {
@@ -468,7 +468,7 @@ static wmOperatorStatus bonedropper_modal(bContext *C, wmOperator *op, const wmE
 
   return OPERATOR_RUNNING_MODAL;
 }
-static wmOperatorStatus bonedropper_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+static int bonedropper_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
   /* This is needed to ensure viewport picking works. */
   BKE_object_update_select_id(CTX_data_main(C));
@@ -485,7 +485,7 @@ static wmOperatorStatus bonedropper_invoke(bContext *C, wmOperator *op, const wm
   return OPERATOR_CANCELLED;
 }
 
-static wmOperatorStatus bonedropper_exec(bContext *C, wmOperator *op)
+static int bonedropper_exec(bContext *C, wmOperator *op)
 {
   if (bonedropper_init(C, op)) {
     bonedropper_exit(C, op);

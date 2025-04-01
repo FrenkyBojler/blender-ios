@@ -17,6 +17,10 @@
 #include <cstdint>
 #include <cstring>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 BLI_INLINE int ccg_gridsize(int level)
 {
   BLI_assert(level > 0);
@@ -262,3 +266,7 @@ BLI_INLINE void VertDataAvg4(float v[],
     v[i] = (a[i] + b[i] + c[i] + d[i]) * 0.25f;
   }
 }
+
+#ifdef __cplusplus
+}
+#endif

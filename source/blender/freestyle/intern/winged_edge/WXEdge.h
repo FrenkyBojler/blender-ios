@@ -351,7 +351,7 @@ class WXFaceLayer {
     }
   }
 
-  inline float dotP(int i) const
+  inline const float dotP(int i) const
   {
     return _DotP[i];
   }

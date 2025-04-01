@@ -20,7 +20,7 @@
 
 namespace blender::io::usd {
 
-void USDLightReader::create_object(Main *bmain)
+void USDLightReader::create_object(Main *bmain, const double /*motionSampleTime*/)
 {
   Light *blight = BKE_light_add(bmain, name_.c_str());
 

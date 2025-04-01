@@ -714,6 +714,31 @@ bool VKShader::finalize_descriptor_set_layouts(VKDevice &vk_device,
   return vk_descriptor_set_layout_ != VK_NULL_HANDLE;
 }
 
+/* -------------------------------------------------------------------- */
+/** \name Transform feedback
+ *
+ * Not supported in the vulkan backend.
+ *
+ * \{ */
+
+void VKShader::transform_feedback_names_set(Span<const char *> /*name_list*/,
+                                            eGPUShaderTFBType /*geom_type*/)
+{
+  BLI_assert_unreachable();
+}
+
+bool VKShader::transform_feedback_enable(VertBuf *)
+{
+  return false;
+}
+
+void VKShader::transform_feedback_disable()
+{
+  BLI_assert_unreachable();
+}
+
+/** \} */
+
 void VKShader::bind()
 {
   /* Intentionally empty. Binding of the pipeline are done just before drawing/dispatching.
@@ -912,7 +937,7 @@ std::string VKShader::fragment_interface_declare(const shader::ShaderCreateInfo 
 {
   std::stringstream ss;
   std::string pre_main;
-  const VKExtensions &extensions = VKBackend::get().device.extensions_get();
+  const VKWorkarounds &workarounds = VKBackend::get().device.workarounds_get();
 
   ss << "\n/* Interfaces. */\n";
   const Span<StageInterfaceInfo *> in_interfaces = info.geometry_source_.is_empty() ?
@@ -929,7 +954,7 @@ std::string VKShader::fragment_interface_declare(const shader::ShaderCreateInfo 
     ss << "#define gpu_ViewportIndex gl_ViewportIndex\n";
   }
 
-  if (!extensions.fragment_shader_barycentric &&
+  if (workarounds.fragment_shader_barycentric &&
       bool(info.builtins_ & BuiltinBits::BARYCENTRIC_COORD))
   {
     ss << "layout(location=" << (location++) << ") smooth in vec3 gpu_BaryCoord;\n";
@@ -947,8 +972,8 @@ std::string VKShader::fragment_interface_declare(const shader::ShaderCreateInfo 
 
   ss << "\n/* Sub-pass Inputs. */\n";
   const VKShaderInterface &interface = interface_get();
-  const bool use_local_read = extensions.dynamic_rendering_local_read;
-  const bool use_dynamic_rendering = extensions.dynamic_rendering;
+  const bool use_local_read = !workarounds.dynamic_rendering_local_read;
+  const bool use_dynamic_rendering = !workarounds.dynamic_rendering;
 
   if (use_local_read) {
     uint32_t subpass_input_binding_index = 0;
@@ -1202,11 +1227,11 @@ std::string VKShader::workaround_geometry_shader_source_create(
     const shader::ShaderCreateInfo &info)
 {
   std::stringstream ss;
-  const VKExtensions &extensions = VKBackend::get().device.extensions_get();
+  const VKWorkarounds &workarounds = VKBackend::get().device.workarounds_get();
 
   const bool do_layer_output = bool(info.builtins_ & BuiltinBits::LAYER);
   const bool do_viewport_output = bool(info.builtins_ & BuiltinBits::VIEWPORT_INDEX);
-  const bool do_barycentric_workaround = !extensions.fragment_shader_barycentric &&
+  const bool do_barycentric_workaround = workarounds.fragment_shader_barycentric &&
                                          bool(info.builtins_ & BuiltinBits::BARYCENTRIC_COORD);
 
   shader::ShaderCreateInfo info_modified = info;
@@ -1269,15 +1294,15 @@ std::string VKShader::workaround_geometry_shader_source_create(
 
 bool VKShader::do_geometry_shader_injection(const shader::ShaderCreateInfo *info) const
 {
-  const VKExtensions &extensions = VKBackend::get().device.extensions_get();
+  const VKWorkarounds &workarounds = VKBackend::get().device.workarounds_get();
   BuiltinBits builtins = info->builtins_;
-  if (!extensions.fragment_shader_barycentric && bool(builtins & BuiltinBits::BARYCENTRIC_COORD)) {
+  if (workarounds.fragment_shader_barycentric && bool(builtins & BuiltinBits::BARYCENTRIC_COORD)) {
     return true;
   }
-  if (!extensions.shader_output_layer && bool(builtins & BuiltinBits::LAYER)) {
+  if (workarounds.shader_output_layer && bool(builtins & BuiltinBits::LAYER)) {
     return true;
   }
-  if (!extensions.shader_output_viewport_index && bool(builtins & BuiltinBits::VIEWPORT_INDEX)) {
+  if (workarounds.shader_output_viewport_index && bool(builtins & BuiltinBits::VIEWPORT_INDEX)) {
     return true;
   }
   return false;

@@ -91,8 +91,6 @@ void WM_event_print(const wmEvent *event)
           {"CTRL", KM_CTRL},
           {"ALT", KM_ALT},
           {"OS", KM_OSKEY},
-          {"HYPER", KM_HYPER},
-
       };
       event_ids_from_flag(
           modifier_id, sizeof(modifier_id), flag_data, ARRAY_SIZE(flag_data), event->modifier);
@@ -135,27 +133,11 @@ void WM_event_print(const wmEvent *event)
     if (ISNDOF(event->type)) {
       const wmNDOFMotionData *ndof = static_cast<const wmNDOFMotionData *>(event->customdata);
       if (event->type == NDOF_MOTION) {
-        const char *ndof_progress = unknown;
-
-#  define CASE_NDOF_PROGRESS(id) \
-    case P_##id: { \
-      ndof_progress = STRINGIFY(id); \
-      break; \
-    }
-        switch (ndof->progress) {
-          CASE_NDOF_PROGRESS(NOT_STARTED);
-          CASE_NDOF_PROGRESS(STARTING);
-          CASE_NDOF_PROGRESS(IN_PROGRESS);
-          CASE_NDOF_PROGRESS(FINISHING);
-          CASE_NDOF_PROGRESS(FINISHED);
-        }
-#  undef CASE_NDOF_PROGRESS
-
-        printf(", ndof: rot: (%.4f %.4f %.4f), tx: (%.4f %.4f %.4f), dt: %.4f, progress: %s",
+        printf(", ndof: rot: (%.4f %.4f %.4f), tx: (%.4f %.4f %.4f), dt: %.4f, progress: %d",
                UNPACK3(ndof->rvec),
                UNPACK3(ndof->tvec),
                ndof->dt,
-               ndof_progress);
+               ndof->progress);
       }
       else {
         /* NDOF buttons printed already. */

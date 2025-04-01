@@ -33,8 +33,6 @@
 #include "transform_mode.hh"
 #include "transform_snap.hh"
 
-namespace blender::ed::transform {
-
 /* -------------------------------------------------------------------- */
 /** \name Transform (Sequencer Slide)
  * \{ */
@@ -89,7 +87,7 @@ static void applySeqSlide(TransInfo *t)
   else {
     copy_v2_v2(values_final, t->values);
     transform_snap_mixed_apply(t, values_final);
-    if (!vse::sequencer_retiming_mode_is_active(t->context)) {
+    if (!sequencer_retiming_mode_is_active(t->context)) {
       transform_convert_sequencer_channel_clamp(t, values_final);
     }
 
@@ -116,7 +114,7 @@ struct SeqSlideParams {
 
 static void initSeqSlide(TransInfo *t, wmOperator *op)
 {
-  SeqSlideParams *ssp = MEM_callocN<SeqSlideParams>(__func__);
+  SeqSlideParams *ssp = MEM_cnew<SeqSlideParams>(__func__);
   t->custom.mode.data = ssp;
   t->custom.mode.use_free = true;
   PropertyRNA *prop = RNA_struct_find_property(op->ptr, "use_restore_handle_selection");
@@ -162,8 +160,6 @@ TransModeInfo TransMode_seqslide = {
     /*transform_matrix_fn*/ nullptr,
     /*handle_event_fn*/ nullptr,
     /*snap_distance_fn*/ nullptr,
-    /*snap_apply_fn*/ snap_sequencer_apply_seqslide,
+    /*snap_apply_fn*/ transform_snap_sequencer_apply_seqslide,
     /*draw_fn*/ nullptr,
 };
-
-}  // namespace blender::ed::transform

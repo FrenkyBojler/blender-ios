@@ -15,6 +15,10 @@ struct DerivedMesh;
 struct MultiresBakeRender;
 struct Scene;
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct MultiresBakeRender {
   Scene *scene;
   DerivedMesh *lores_dm, *hires_dm;
@@ -50,3 +54,7 @@ struct MultiresBakeRender {
 };
 
 void RE_multires_bake_images(struct MultiresBakeRender *bkr);
+
+#ifdef __cplusplus
+}
+#endif

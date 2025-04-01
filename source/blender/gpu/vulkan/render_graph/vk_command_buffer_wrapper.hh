@@ -11,7 +11,7 @@
 #include "vk_common.hh"
 
 namespace blender::gpu {
-struct VKExtensions;
+struct VKWorkarounds;
 }
 
 namespace blender::gpu::render_graph {
@@ -146,7 +146,7 @@ class VKCommandBufferWrapper : public VKCommandBufferInterface {
   VkCommandBuffer vk_command_buffer_ = VK_NULL_HANDLE;
 
  public:
-  VKCommandBufferWrapper(VkCommandBuffer vk_command_buffer, const VKExtensions &extensions);
+  VKCommandBufferWrapper(VkCommandBuffer vk_command_buffer, const VKWorkarounds &workarounds);
 
   void begin_recording() override;
   void end_recording() override;

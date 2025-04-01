@@ -9,6 +9,16 @@
 
 #  include "DNA_action_types.h"
 #  include "DNA_view3d_types.h"
+
+#  ifdef __cplusplus
+extern "C" {
+#  else
+typedef enum OVERLAY_GridBits OVERLAY_GridBits;
+#  endif
+typedef struct OVERLAY_GridData OVERLAY_GridData;
+typedef struct ThemeColorData ThemeColorData;
+typedef struct ExtraInstanceData ExtraInstanceData;
+typedef struct VertexData VertexData;
 #endif
 
 /* TODO(fclem): Should eventually become OVERLAY_BackgroundType.
@@ -205,7 +215,7 @@ struct ExtraInstanceData {
   float4 color_;
   float4x4 object_to_world;
 
-#if !defined(GPU_SHADER)
+#if !defined(GPU_SHADER) && defined(__cplusplus)
   ExtraInstanceData(const float4x4 &object_to_world, const float4 &color, float draw_size)
   {
     this->color_ = color;
@@ -341,3 +351,9 @@ struct BoneStickData {
 #endif
 };
 BLI_STATIC_ASSERT_ALIGN(BoneStickData, 16)
+
+#ifndef GPU_SHADER
+#  ifdef __cplusplus
+}
+#  endif
+#endif

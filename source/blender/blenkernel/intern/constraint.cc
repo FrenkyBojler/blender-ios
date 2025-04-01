@@ -62,7 +62,6 @@
 #include "BKE_idprop.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
-#include "BKE_library.hh"
 #include "BKE_mesh_runtime.hh"
 #include "BKE_movieclip.h"
 #include "BKE_object.hh"
@@ -72,8 +71,6 @@
 #include "BKE_tracking.h"
 
 #include "BIK_api.h"
-
-#include "RNA_prototypes.hh"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_query.hh"
@@ -131,7 +128,7 @@ bConstraintOb *BKE_constraints_make_evalob(
   bConstraintOb *cob;
 
   /* create regardless of whether we have any data! */
-  cob = MEM_callocN<bConstraintOb>("bConstraintOb");
+  cob = static_cast<bConstraintOb *>(MEM_callocN(sizeof(bConstraintOb), "bConstraintOb"));
 
   /* NOTE(@ton): For system time, part of de-globalization, code nicer later with local time. */
   cob->scene = scene;
@@ -880,7 +877,8 @@ static bool default_get_tarmat_full_bbone(Depsgraph * /*depsgraph*/,
 /* TODO: cope with getting rotation order... */
 #define SINGLETARGET_GET_TARS(con, datatar, datasubtarget, ct, list) \
   { \
-    ct = MEM_callocN<bConstraintTarget>("tempConstraintTarget"); \
+    ct = static_cast<bConstraintTarget *>( \
+        MEM_callocN(sizeof(bConstraintTarget), "tempConstraintTarget")); \
 \
     ct->tar = datatar; \
     STRNCPY(ct->subtarget, datasubtarget); \
@@ -915,7 +913,8 @@ static bool default_get_tarmat_full_bbone(Depsgraph * /*depsgraph*/,
 /* TODO: cope with getting rotation order... */
 #define SINGLETARGETNS_GET_TARS(con, datatar, ct, list) \
   { \
-    ct = MEM_callocN<bConstraintTarget>("tempConstraintTarget"); \
+    ct = static_cast<bConstraintTarget *>( \
+        MEM_callocN(sizeof(bConstraintTarget), "tempConstraintTarget")); \
 \
     ct->tar = datatar; \
     ct->space = con->tarspace; \
@@ -2493,7 +2492,7 @@ static void pycon_new_data(void *cdata)
   bPythonConstraint *data = (bPythonConstraint *)cdata;
 
   /* Everything should be set correctly by calloc, except for the prop->type constant. */
-  data->prop = MEM_callocN<IDProperty>("PyConstraintProps");
+  data->prop = static_cast<IDProperty *>(MEM_callocN(sizeof(IDProperty), "PyConstraintProps"));
   data->prop->type = IDP_GROUP;
 }
 
@@ -5729,7 +5728,7 @@ void BKE_constraints_free(ListBase *list)
   BKE_constraints_free_ex(list, true);
 }
 
-static bool constraint_remove(ListBase *list, bConstraint *con)
+bool BKE_constraint_remove(ListBase *list, bConstraint *con)
 {
   if (con) {
     BKE_constraint_free_data(con);
@@ -5742,10 +5741,8 @@ static bool constraint_remove(ListBase *list, bConstraint *con)
 
 bool BKE_constraint_remove_ex(ListBase *list, Object *ob, bConstraint *con)
 {
-  BKE_animdata_drivers_remove_for_rna_struct(ob->id, RNA_Constraint, con);
-
   const short type = con->type;
-  if (constraint_remove(list, con)) {
+  if (BKE_constraint_remove(list, con)) {
     /* ITASC needs to be rebuilt once a constraint is removed #26920. */
     if (ELEM(type, CONSTRAINT_TYPE_KINEMATIC, CONSTRAINT_TYPE_SPLINEIK)) {
       BIK_clear_data(ob->pose);
@@ -5883,7 +5880,7 @@ void BKE_constraint_panel_expand(bConstraint *con)
 /* Creates a new constraint, initializes its data, and returns it */
 static bConstraint *add_new_constraint_internal(const char *name, short type)
 {
-  bConstraint *con = MEM_callocN<bConstraint>("Constraint");
+  bConstraint *con = static_cast<bConstraint *>(MEM_callocN(sizeof(bConstraint), "Constraint"));
   const bConstraintTypeInfo *cti = BKE_constraint_typeinfo_from_type(type);
   const char *newName;
 
@@ -6374,7 +6371,7 @@ void BKE_constraint_target_matrix_get(Depsgraph *depsgraph,
 
   if (cti && cti->get_constraint_targets) {
     /* make 'constraint-ob' */
-    cob = MEM_callocN<bConstraintOb>("tempConstraintOb");
+    cob = static_cast<bConstraintOb *>(MEM_callocN(sizeof(bConstraintOb), "tempConstraintOb"));
     cob->type = ownertype;
     cob->scene = scene;
     cob->depsgraph = depsgraph;

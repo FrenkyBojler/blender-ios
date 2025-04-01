@@ -8,6 +8,10 @@
  * \ingroup bli
  */
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /**
  * Extract 2D convex hull.
  *
@@ -30,3 +34,7 @@ int BLI_convexhull_2d(const float (*points)[2], int points_num, int r_points[/*p
  * \param points: Arbitrary 2D points.
  */
 float BLI_convexhull_aabb_fit_points_2d(const float (*points)[2], int points_num);
+
+#ifdef __cplusplus
+}
+#endif

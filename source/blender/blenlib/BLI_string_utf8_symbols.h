@@ -10,6 +10,10 @@
  * Unicode characters as UTF-8 strings.
  */
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* Notes:
  * - Last portion should include the official assigned name.
  * - Please do not add defines here that are not actually in use.
@@ -83,3 +87,7 @@
 #define BLI_STR_UTF8_CIRCLED_WHITE_BULLET "\xe2\xa6\xbe"
 /** u2B2E: `⬮` Generic Mouse */
 #define BLI_STR_UTF8_BLACK_VERTICAL_ELLIPSE "\xe2\xac\xae"
+
+#ifdef __cplusplus
+}
+#endif

@@ -4,8 +4,6 @@
 
 #include "node_function_util.hh"
 
-#include "BLT_translation.hh"
-
 #include "UI_interface.hh"
 #include "UI_resources.hh"
 
@@ -19,8 +17,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  PropertyRNA *prop = RNA_struct_find_property(ptr, "string");
-  uiItemFullR(layout, ptr, prop, -1, 0, UI_ITEM_NONE, "", ICON_NONE, IFACE_("String"));
+  uiItemR(layout, ptr, "string", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void node_build_multi_function(NodeMultiFunctionBuilder &builder)
@@ -33,7 +30,7 @@ static void node_build_multi_function(NodeMultiFunctionBuilder &builder)
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  node->storage = MEM_callocN<NodeInputString>(__func__);
+  node->storage = MEM_callocN(sizeof(NodeInputString), __func__);
 }
 
 static void node_storage_free(bNode *node)
@@ -70,10 +67,10 @@ static void node_register()
   ntype.nclass = NODE_CLASS_INPUT;
   ntype.declare = node_declare;
   ntype.initfunc = node_init;
-  blender::bke::node_type_storage(ntype, "NodeInputString", node_storage_free, node_storage_copy);
+  blender::bke::node_type_storage(&ntype, "NodeInputString", node_storage_free, node_storage_copy);
   ntype.build_multi_function = node_build_multi_function;
   ntype.draw_buttons = node_layout;
-  blender::bke::node_register_type(ntype);
+  blender::bke::node_register_type(&ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

@@ -10,6 +10,10 @@
 
 #include "CCGSubSurf.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /**
  * Definitions which defines internal behavior of CCGSubSurf.
  */
@@ -255,4 +259,8 @@ void ccgSubSurf__sync_legacy(CCGSubSurf *ss);
 
 #ifdef DUMP_RESULT_GRIDS
 void ccgSubSurf__dumpCoords(CCGSubSurf *ss);
+#endif
+
+#ifdef __cplusplus
+}
 #endif

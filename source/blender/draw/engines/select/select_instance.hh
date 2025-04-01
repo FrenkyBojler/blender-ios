@@ -102,8 +102,6 @@ struct SelectMap {
   StorageArrayBuffer<uint, 4, true> dummy_select_buf = {"dummy_select_buf"};
   /** Uniform buffer to bind to all passes to pass information about the selection state. */
   UniformBuffer<SelectInfoData> info_buf;
-  /** If clipping is enabled, this is the number of clip planes to enable. */
-  int clipping_plane_count = 0;
 
   SelectMap(const SelectionType selection_type) : selection_type(selection_type){};
 
@@ -149,13 +147,11 @@ struct SelectMap {
     return {uint32_t(-1)};
   }
 
-  void begin_sync(int clipping_plane_count)
+  void begin_sync()
   {
     if (selection_type == SelectionType::DISABLED) {
       return;
     }
-
-    this->clipping_plane_count = clipping_plane_count;
 
     select_id_map.clear();
     in_front_map.clear();
@@ -171,7 +167,8 @@ struct SelectMap {
       return;
     }
 
-    pass.state_set(DRW_STATE_WRITE_COLOR, clipping_plane_count);
+    /* TODO: clipping state. */
+    pass.state_set(DRW_STATE_WRITE_COLOR);
     pass.bind_ubo(SELECT_DATA, &info_buf);
     pass.bind_ssbo(SELECT_ID_OUT, &select_output_buf);
   }
@@ -184,7 +181,8 @@ struct SelectMap {
     }
 
     pass.use_custom_ids = true;
-    pass.state_set(DRW_STATE_WRITE_COLOR, clipping_plane_count);
+    /* TODO: clipping state. */
+    pass.state_set(DRW_STATE_WRITE_COLOR);
     pass.bind_ubo(SELECT_DATA, &info_buf);
     /* IMPORTANT: This binds a dummy buffer `in_select_buf` but it is not supposed to be used. */
     pass.bind_ssbo(SELECT_ID_IN, &dummy_select_buf);
@@ -200,7 +198,8 @@ struct SelectMap {
     }
 
     pass.use_custom_ids = true;
-    sub.state_set(DRW_STATE_WRITE_COLOR, clipping_plane_count);
+    /* TODO: clipping state. */
+    sub.state_set(DRW_STATE_WRITE_COLOR);
     sub.bind_ubo(SELECT_DATA, &info_buf);
     /* IMPORTANT: This binds a dummy buffer `in_select_buf` but it is not supposed to be used. */
     sub.bind_ssbo(SELECT_ID_IN, &dummy_select_buf);
@@ -261,12 +260,6 @@ struct SelectMap {
     }
 
     GPU_memory_barrier(GPU_BARRIER_BUFFER_UPDATE);
-    /* This flush call should not be required. Still, on non-unified memory architecture
-     * Apple devices this is needed for the result to be host visible.
-     * This is likely to be a bug in the GPU backend.
-     * So it should eventually be transformed into a backend
-     * workaround instead of being fixed in user code. */
-    select_output_buf.async_flush_to_host();
     select_output_buf.read();
 
     Vector<GPUSelectResult> hit_results;

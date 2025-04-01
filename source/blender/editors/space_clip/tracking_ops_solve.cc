@@ -13,7 +13,6 @@
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
 
-#include "BLI_listbase.h"
 #include "BLI_string.h"
 
 #include "BKE_context.hh"
@@ -77,7 +76,7 @@ static bool solve_camera_initjob(
                                                          width,
                                                          height);
 
-  tracking->stats = MEM_callocN<MovieTrackingStats>("solve camera stats");
+  tracking->stats = MEM_cnew<MovieTrackingStats>("solve camera stats");
 
   WM_set_locked_interface(scj->wm, true);
 
@@ -176,11 +175,11 @@ static void solve_camera_freejob(void *scv)
   MEM_freeN(scj);
 }
 
-static wmOperatorStatus solve_camera_exec(bContext *C, wmOperator *op)
+static int solve_camera_exec(bContext *C, wmOperator *op)
 {
   SolveCameraJob *scj;
   char error_msg[256] = "\0";
-  scj = MEM_callocN<SolveCameraJob>("SolveCameraJob data");
+  scj = MEM_cnew<SolveCameraJob>("SolveCameraJob data");
   if (!solve_camera_initjob(C, scj, op, error_msg, sizeof(error_msg))) {
     if (error_msg[0]) {
       BKE_report(op->reports, RPT_ERROR, error_msg);
@@ -194,7 +193,7 @@ static wmOperatorStatus solve_camera_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus solve_camera_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+static int solve_camera_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
   SolveCameraJob *scj;
   SpaceClip *sc = CTX_wm_space_clip(C);
@@ -210,7 +209,7 @@ static wmOperatorStatus solve_camera_invoke(bContext *C, wmOperator *op, const w
     return OPERATOR_CANCELLED;
   }
 
-  scj = MEM_callocN<SolveCameraJob>("SolveCameraJob data");
+  scj = MEM_cnew<SolveCameraJob>("SolveCameraJob data");
   if (!solve_camera_initjob(C, scj, op, error_msg, sizeof(error_msg))) {
     if (error_msg[0]) {
       BKE_report(op->reports, RPT_ERROR, error_msg);
@@ -247,7 +246,7 @@ static wmOperatorStatus solve_camera_invoke(bContext *C, wmOperator *op, const w
   return OPERATOR_RUNNING_MODAL;
 }
 
-static wmOperatorStatus solve_camera_modal(bContext *C, wmOperator * /*op*/, const wmEvent *event)
+static int solve_camera_modal(bContext *C, wmOperator * /*op*/, const wmEvent *event)
 {
   /* No running solver, remove handler and pass through. */
   if (0 == WM_jobs_test(CTX_wm_manager(C), CTX_wm_area(C), WM_JOB_TYPE_CLIP_SOLVE_CAMERA)) {
@@ -258,9 +257,6 @@ static wmOperatorStatus solve_camera_modal(bContext *C, wmOperator * /*op*/, con
   switch (event->type) {
     case EVT_ESCKEY:
       return OPERATOR_RUNNING_MODAL;
-    default: {
-      break;
-    }
   }
 
   return OPERATOR_PASS_THROUGH;
@@ -285,7 +281,7 @@ void CLIP_OT_solve_camera(wmOperatorType *ot)
 
 /********************** clear solution operator *********************/
 
-static wmOperatorStatus clear_solution_exec(bContext *C, wmOperator * /*op*/)
+static int clear_solution_exec(bContext *C, wmOperator * /*op*/)
 {
   SpaceClip *sc = CTX_wm_space_clip(C);
   MovieClip *clip = ED_space_clip_get_clip(sc);

@@ -35,8 +35,7 @@ using blender::Vector;
 /** \name Generic Utilities
  * \{ */
 
-wmOperatorStatus WM_operator_flag_only_pass_through_on_press(wmOperatorStatus retval,
-                                                             const wmEvent *event)
+int WM_operator_flag_only_pass_through_on_press(int retval, const wmEvent *event)
 {
   if (event->val != KM_PRESS) {
     if (retval & OPERATOR_PASS_THROUGH) {
@@ -169,7 +168,7 @@ struct ObCustomData_ForEditMode {
   ValueInteraction inter;
 
   /** This could be split into a sub-type if we support different kinds of data. */
-  blender::Array<std::unique_ptr<blender::ed::object::XFormObjectData>> objects_xform;
+  blender::Array<blender::ed::object::XFormObjectData *> objects_xform;
 };
 
 /* Internal callback to free. */
@@ -178,6 +177,12 @@ static void op_generic_value_exit(wmOperator *op)
   ObCustomData_ForEditMode *cd = static_cast<ObCustomData_ForEditMode *>(op->customdata);
   if (cd) {
     interactive_value_exit(&cd->inter);
+
+    for (blender::ed::object::XFormObjectData *xod : cd->objects_xform) {
+      if (xod != nullptr) {
+        blender::ed::object::data_xform_destroy(xod);
+      }
+    }
     MEM_delete(cd);
   }
 
@@ -187,9 +192,9 @@ static void op_generic_value_exit(wmOperator *op)
 static void op_generic_value_restore(wmOperator *op)
 {
   ObCustomData_ForEditMode *cd = static_cast<ObCustomData_ForEditMode *>(op->customdata);
-  for (std::unique_ptr<blender::ed::object::XFormObjectData> &xod : cd->objects_xform) {
-    blender::ed::object::data_xform_restore(*xod);
-    blender::ed::object::data_xform_tag_update(*xod);
+  for (blender::ed::object::XFormObjectData *xod : cd->objects_xform) {
+    blender::ed::object::data_xform_restore(xod);
+    blender::ed::object::data_xform_tag_update(xod);
   }
 }
 
@@ -198,7 +203,7 @@ static void op_generic_value_cancel(bContext * /*C*/, wmOperator *op)
   op_generic_value_exit(op);
 }
 
-static wmOperatorStatus op_generic_value_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static int op_generic_value_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   if (RNA_property_is_set(op->ptr, op->type->prop)) {
     return WM_operator_call_notest(C, op);
@@ -237,7 +242,7 @@ static wmOperatorStatus op_generic_value_invoke(bContext *C, wmOperator *op, con
   return OPERATOR_RUNNING_MODAL;
 }
 
-static wmOperatorStatus op_generic_value_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static int op_generic_value_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   ObCustomData_ForEditMode *cd = static_cast<ObCustomData_ForEditMode *>(op->customdata);
 
@@ -265,7 +270,7 @@ static wmOperatorStatus op_generic_value_modal(bContext *C, wmOperator *op, cons
         }
 
         wm->op_undo_depth++;
-        const wmOperatorStatus retval = op->type->exec(C, op);
+        int retval = op->type->exec(C, op);
         OPERATOR_RETVAL_CHECK(retval);
         wm->op_undo_depth--;
 
@@ -312,9 +317,6 @@ static wmOperatorStatus op_generic_value_modal(bContext *C, wmOperator *op, cons
         op_generic_value_exit(op);
         return OPERATOR_CANCELLED;
       }
-      break;
-    }
-    default: {
       break;
     }
   }

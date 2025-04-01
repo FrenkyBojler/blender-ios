@@ -10,7 +10,6 @@
 
 #include <pxr/usd/usd/prim.h>
 #include <pxr/usd/usdGeom/basisCurves.h>
-#include <pxr/usd/usdGeom/curves.h>
 
 struct Curves;
 struct Main;
@@ -31,7 +30,7 @@ class USDCurvesReader : public USDGeomReader {
   {
   }
 
-  void create_object(Main *bmain) override;
+  void create_object(Main *bmain, double motionSampleTime) override;
   void read_object_data(Main *bmain, double motionSampleTime) override;
 
   void read_geometry(bke::GeometrySet &geometry_set,

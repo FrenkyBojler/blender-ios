@@ -13,8 +13,6 @@
 
 #include "MOV_write.hh"
 
-#include "BKE_report.hh"
-
 #ifdef WITH_FFMPEG
 #  include <cstdio>
 #  include <cstring>
@@ -32,6 +30,7 @@
 #  include "BKE_global.hh"
 #  include "BKE_image.hh"
 #  include "BKE_main.hh"
+#  include "BKE_report.hh"
 
 #  include "IMB_imbuf.hh"
 
@@ -761,14 +760,6 @@ static AVStream *alloc_video_stream(MovieWriter *context,
     c->codec_tag = (('D' << 24) + ('I' << 16) + ('V' << 8) + 'X');
   }
 
-  if (codec_id == AV_CODEC_ID_H265) {
-    /* H.265 needs hvc1 tag for Apple compatibility, see
-     * https://trac.ffmpeg.org/wiki/Encode/H.265#FinalCutandApplestuffcompatibility
-     * Note that in case we are doing H.265 into an XviD container,
-     * this overwrites the tag set above. But that should not be what anyone does. */
-    c->codec_tag = MKTAG('h', 'v', 'c', '1');
-  }
-
   /* Keep lossless encodes in the RGB domain. */
   if (codec_id == AV_CODEC_ID_HUFFYUV) {
     if (rd->im_format.planes == R_IMF_PLANES_RGBA) {
@@ -1266,7 +1257,8 @@ static MovieWriter *ffmpeg_movie_open(const Scene *scene,
                                       bool preview,
                                       const char *suffix)
 {
-  MovieWriter *context = MEM_new<MovieWriter>("new FFMPEG context");
+  MovieWriter *context = static_cast<MovieWriter *>(
+      MEM_callocN(sizeof(MovieWriter), "new FFMPEG context"));
 
   context->ffmpeg_codec = AV_CODEC_ID_MPEG4;
   context->ffmpeg_audio_codec = AV_CODEC_ID_NONE;
@@ -1288,8 +1280,7 @@ static MovieWriter *ffmpeg_movie_open(const Scene *scene,
                                scene,
                                preview ? rd->psfra : rd->sfra,
                                rd->ffcodecdata.audio_mixrate,
-                               rd->ffcodecdata.audio_volume,
-                               reports);
+                               rd->ffcodecdata.audio_volume);
   }
 
   if (!success) {
@@ -1407,9 +1398,9 @@ static void ffmpeg_movie_close(MovieWriter *context)
   }
   end_ffmpeg_impl(context, false);
   if (context->stamp_data) {
-    BKE_stamp_data_free(context->stamp_data);
+    MEM_freeN(context->stamp_data);
   }
-  MEM_delete(context);
+  MEM_freeN(context);
 }
 
 #endif /* WITH_FFMPEG */
@@ -1436,7 +1427,6 @@ MovieWriter *MOV_write_begin(const char imtype,
                              const char *suffix)
 {
   if (!is_imtype_ffmpeg(imtype)) {
-    BKE_report(reports, RPT_ERROR, "Image format is not a movie format");
     return nullptr;
   }
 

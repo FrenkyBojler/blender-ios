@@ -239,8 +239,11 @@ static void calc_radius_without_interpolation(CurvesGeometry &curves,
                                               const IndexRange new_points_range,
                                               const float radius)
 {
-  curves.radius_for_write().slice(new_points_range).fill(radius);
-  curves.tag_radii_changed();
+  bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
+  bke::SpanAttributeWriter radius_attr = attributes.lookup_or_add_for_write_span<float>(
+      "radius", bke::AttrDomain::Point);
+  radius_attr.span.slice(new_points_range).fill(radius);
+  radius_attr.finish();
 }
 
 static void calc_radius_with_interpolation(CurvesGeometry &curves,

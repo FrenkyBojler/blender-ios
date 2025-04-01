@@ -95,7 +95,7 @@ static int cdf_endian()
 
 CDataFile *cdf_create(int type)
 {
-  CDataFile *cdf = MEM_callocN<CDataFile>("CDataFile");
+  CDataFile *cdf = static_cast<CDataFile *>(MEM_callocN(sizeof(CDataFile), "CDataFile"));
 
   cdf->type = type;
 
@@ -193,7 +193,8 @@ static bool cdf_read_header(CDataFile *cdf)
     return false;
   }
 
-  cdf->layer = MEM_calloc_arrayN<CDataFileLayer>(size_t(header->totlayer), "CDataFileLayer");
+  cdf->layer = static_cast<CDataFileLayer *>(
+      MEM_calloc_arrayN(header->totlayer, sizeof(CDataFileLayer), "CDataFileLayer"));
   cdf->totlayer = header->totlayer;
 
   if (!cdf->layer) {
@@ -432,7 +433,8 @@ CDataFileLayer *cdf_layer_add(CDataFile *cdf, int type, const char *name, size_t
   CDataFileLayer *newlayer, *layer;
 
   /* expand array */
-  newlayer = MEM_calloc_arrayN<CDataFileLayer>(size_t(cdf->totlayer) + 1, "CDataFileLayer");
+  newlayer = static_cast<CDataFileLayer *>(
+      MEM_calloc_arrayN((cdf->totlayer + 1), sizeof(CDataFileLayer), "CDataFileLayer"));
   if (cdf->totlayer > 0) {
     memcpy(newlayer, cdf->layer, sizeof(CDataFileLayer) * cdf->totlayer);
   }

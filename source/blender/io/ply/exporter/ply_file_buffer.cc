@@ -37,14 +37,11 @@ void FileBuffer::write_to_file()
 
 void FileBuffer::close_file()
 {
-  if (!outfile_) {
-    return;
-  }
   int close_status = std::fclose(outfile_);
   if (close_status == EOF) {
     return;
   }
-  if (close_status) {
+  if (outfile_ && close_status) {
     CLOG_ERROR(&LOG, "Error: could not close file '%s' properly, it may be corrupted.", filepath_);
   }
 }

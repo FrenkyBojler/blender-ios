@@ -16,8 +16,6 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_listbase.h"
-
 #include "BKE_context.hh"
 #include "BKE_fcurve.hh"
 #include "BKE_screen.hh"
@@ -169,7 +167,7 @@ bool graphop_editable_keyframes_poll(bContext *C)
   int filter;
   bool found = false;
 
-  /* Firstly, check if in Graph Editor or Dope-sheet. */
+  /* firstly, check if in Graph Editor or Dopesheet */
   /* TODO: also check for region? */
   if (area == nullptr || !ELEM(area->spacetype, SPACE_GRAPH, SPACE_ACTION)) {
     return found;

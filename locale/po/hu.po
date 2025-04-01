@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.5.0 Alpha (b'409ce2b976cf')\n"
+"Project-Id-Version: Blender 4.4.0 Alpha (b'efff379ea583')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-03-24 09:38+0000\n"
+"POT-Creation-Date: 2025-01-27 10:58+0000\n"
 "PO-Revision-Date: 2024-01-11 03:55+0000\n"
 "Last-Translator: Répási Dávid <hu.repasidavid@protonmail.com>\n"
 "Language-Team: Hungarian <https://translate.blender.org/projects/blender-ui/ui/hu/>\n"
@@ -47,6 +47,10 @@ msgstr "F-Görbék"
 
 msgid "Action F-Curves"
 msgstr "Akció F-Görbék"
+
+
+msgid "Collection of action F-Curves"
+msgstr "Akció F-Görbék gyűjteménye"
 
 
 msgid "Action Group"
@@ -175,6 +179,34 @@ msgstr "Kijelölés"
 
 msgid "Action group is selected"
 msgstr "Akció csoport kijelölve"
+
+
+msgid "Influence"
+msgstr "Befolyás"
+
+
+msgid "Mix Mode"
+msgstr "Keverési mód"
+
+
+msgid "Replace"
+msgstr "Lecserél"
+
+
+msgid "Offset"
+msgstr "Eltolás"
+
+
+msgid "Add"
+msgstr "Hozzáadás"
+
+
+msgid "Subtract"
+msgstr "Különbség"
+
+
+msgid "Multiply"
+msgstr "Többszörözés"
 
 
 msgid "Active"
@@ -403,24 +435,8 @@ msgid "Action"
 msgstr "Akció"
 
 
-msgid "Replace"
-msgstr "Lecserél"
-
-
 msgid "Combine"
 msgstr "Kombinálás"
-
-
-msgid "Add"
-msgstr "Hozzáadás"
-
-
-msgid "Subtract"
-msgstr "Különbség"
-
-
-msgid "Multiply"
-msgstr "Többszörözés"
 
 
 msgid "Motion Paths"
@@ -1190,10 +1206,6 @@ msgid "Image"
 msgstr "Kép"
 
 
-msgid "Offset"
-msgstr "Eltolás"
-
-
 msgid "Rotation"
 msgstr "Forgatás"
 
@@ -1282,8 +1294,16 @@ msgid "Exposure"
 msgstr "Expozíció"
 
 
+msgid "Exposure (stops) applied before display transform"
+msgstr "Alkalmazott expozíció (lépések) a megjelenítés transzformációja előtt"
+
+
 msgid "Gamma"
 msgstr "Gamma"
+
+
+msgid "Amount of gamma modification applied after display transform"
+msgstr "Alkalmazott gamma módosítás mértéke a megjelenítés transzformációja után"
 
 
 msgid "Use Curves"
@@ -1401,10 +1421,6 @@ msgstr "Bemenet"
 
 msgid "Error"
 msgstr "Hiba"
-
-
-msgid "Influence"
-msgstr "Befolyás"
 
 
 msgid "Amount of influence constraint will have on the final solution"
@@ -1697,10 +1713,6 @@ msgstr "Minimum"
 
 msgid "Minimum value for target channel range"
 msgstr "A célobjektum csatorna-tartományának minimum értéke"
-
-
-msgid "Mix Mode"
-msgstr "Keverési mód"
 
 
 msgid "Target object"
@@ -3969,22 +3981,6 @@ msgid "Grease Pencil Frames"
 msgstr "Zsírkréta képkockák"
 
 
-msgid "Grease Pencil Masking Layers"
-msgstr "Zsírkréta maszkoló réteg"
-
-
-msgid "Grease Pencil Mask Layers"
-msgstr "Zsírkréta maszkoló rétegek"
-
-
-msgid "Repeat"
-msgstr "Ismétlés"
-
-
-msgid "Frame Start"
-msgstr "Kezdő képkocka"
-
-
 msgid "Grease Pencil Layer"
 msgstr "Zsírkréta réteg"
 
@@ -4003,6 +3999,22 @@ msgstr "Szülőcsont"
 
 msgid "Pass Index"
 msgstr "Vezeték index"
+
+
+msgid "Grease Pencil Masking Layers"
+msgstr "Zsírkréta maszkoló réteg"
+
+
+msgid "Grease Pencil Mask Layers"
+msgstr "Zsírkréta maszkoló rétegek"
+
+
+msgid "Repeat"
+msgstr "Ismétlés"
+
+
+msgid "Frame Start"
+msgstr "Kezdő képkocka"
 
 
 msgid "Grease Pencil Layers"
@@ -5228,6 +5240,10 @@ msgid "Display the object's name"
 msgstr "Az objektum nevének megjelenítése"
 
 
+msgid "Shape Key Lock"
+msgstr "Formakulcs lezárása"
+
+
 msgid "Display the object's texture space"
 msgstr "Az objektum textúraterének megjelenítése"
 
@@ -5514,6 +5530,11 @@ msgstr "Oktávok"
 
 msgid "Grids"
 msgstr "Rácsok"
+
+
+msgctxt "Sequence"
+msgid "Clip"
+msgstr "Klip"
 
 
 msgid "Window Manager"
@@ -6593,6 +6614,30 @@ msgid "Mask"
 msgstr "Maszk"
 
 
+msgid "Show/Hide"
+msgstr "Mutat/Rejt"
+
+
+msgid "Clean Up"
+msgstr "Tisztítás"
+
+
+msgid "Mirror"
+msgstr "Tükrözés"
+
+
+msgid "Local View"
+msgstr "Helyi nézet"
+
+
+msgid "Navigation"
+msgstr "Navigáció"
+
+
+msgid "Align View"
+msgstr "Nézet igazítása"
+
+
 msgid "Metaball"
 msgstr "Meta test"
 
@@ -6617,36 +6662,12 @@ msgid "Track"
 msgstr "Nyom"
 
 
-msgid "Show/Hide"
-msgstr "Mutat/Rejt"
-
-
-msgid "Clean Up"
-msgstr "Tisztítás"
-
-
 msgid "Merge"
 msgstr "Összefésülés"
 
 
 msgid "Text"
 msgstr "Szöveg"
-
-
-msgid "Mirror"
-msgstr "Tükrözés"
-
-
-msgid "Local View"
-msgstr "Helyi nézet"
-
-
-msgid "Navigation"
-msgstr "Navigáció"
-
-
-msgid "Align View"
-msgstr "Nézet igazítása"
 
 
 msgctxt "MovieClip"
@@ -9238,6 +9259,10 @@ msgid "Shadow"
 msgstr "Árnyék"
 
 
+msgid "Rotate 45"
+msgstr "Forgatás 45 fokkal"
+
+
 msgid "Keying Screen"
 msgstr "Képernyő/háttér kulcsozás"
 
@@ -9276,6 +9301,10 @@ msgstr "Forgatás"
 
 msgid "Translate"
 msgstr "Áthelyez"
+
+
+msgid "Wrapping"
+msgstr "Borítás/csomagolás"
 
 
 msgid "X Axis"
@@ -14622,6 +14651,10 @@ msgid "Gamma Cross"
 msgstr "Gamma keresztezés"
 
 
+msgid "Over Drop"
+msgstr "Felé dob"
+
+
 msgid "The length of the contents of this strip after the handles are applied"
 msgstr "A sáv hossza (a széleken lévő manipulátor fogantyúk alkalmazása után)"
 
@@ -14642,11 +14675,6 @@ msgstr "Videó"
 
 
 msgctxt "Sequence"
-msgid "Clip"
-msgstr "Klip"
-
-
-msgctxt "Sequence"
 msgid "Mask"
 msgstr "Maszk"
 
@@ -14659,6 +14687,11 @@ msgstr "Hang"
 msgctxt "Sequence"
 msgid "Cross"
 msgstr "Keresztezés"
+
+
+msgctxt "Sequence"
+msgid "Over Drop"
+msgstr "Felé dob"
 
 
 msgid "Representation of alpha information in the RGBA pixels"
@@ -16460,6 +16493,10 @@ msgid "ParticleSystem"
 msgstr "Részecskerendszer"
 
 
+msgid "UV/Image"
+msgstr "UV/Kép"
+
+
 msgid "No active object"
 msgstr "Nincs aktív objektum"
 
@@ -16474,10 +16511,6 @@ msgstr "Ugyanaz a csont lett kijelölve..."
 
 msgid "Operation requires an active bone"
 msgstr "A művelet aktív csontot igényel"
-
-
-msgid "Cancel"
-msgstr "Mégsem"
 
 
 msgid "Cannot spin"
@@ -16505,6 +16538,10 @@ msgstr "Nem lehet vonást festeni"
 
 msgid "No active frame to delete"
 msgstr "Nincs törölhető aktív képkocka"
+
+
+msgid "Cancel"
+msgstr "Mégsem"
 
 
 msgctxt "Operator"
@@ -17064,6 +17101,10 @@ msgstr "Interpoláció:"
 
 msgid "Value:"
 msgstr "Érték:"
+
+
+msgid "Decimate Keyframes"
+msgstr "Kulcs-képkockák tizedelése"
 
 
 msgid "Select Layer"

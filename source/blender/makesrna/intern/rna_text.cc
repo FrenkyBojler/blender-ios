@@ -148,17 +148,20 @@ static int rna_TextLine_body_length(PointerRNA *ptr)
 static void rna_TextLine_body_set(PointerRNA *ptr, const char *value)
 {
   TextLine *line = (TextLine *)ptr->data;
-  size_t len = strlen(value);
+  int len = strlen(value);
 
   if (line->line) {
     MEM_freeN(line->line);
   }
 
-  line->line = MEM_malloc_arrayN<char>(len + 1, "rna_text_body");
-  line->len = int(len);
+  line->line = static_cast<char *>(MEM_mallocN((len + 1) * sizeof(char), "rna_text_body"));
+  line->len = len;
   memcpy(line->line, value, len + 1);
 
-  MEM_SAFE_FREE(line->format);
+  if (line->format) {
+    MEM_freeN(line->format);
+    line->format = nullptr;
+  }
 }
 
 #else

@@ -362,11 +362,10 @@ static gpu::IndexBuf *lattice_batch_cache_get_edges(LatticeRenderData *rdata,
   if (cache->edges == nullptr) {
     const int vert_len = lattice_render_data_verts_len_get(rdata);
     const int edge_len = lattice_render_data_edges_len_get(rdata);
+    int edge_len_real = 0;
 
-    GPUIndexBufBuilder builder;
-    GPU_indexbuf_init(&builder, GPU_PRIM_LINES, edge_len, vert_len);
-    MutableSpan<uint2> data = GPU_indexbuf_get_data(&builder).cast<uint2>();
-    int line_index = 0;
+    GPUIndexBufBuilder elb;
+    GPU_indexbuf_init(&elb, GPU_PRIM_LINES, edge_len, vert_len);
 
 #define LATT_INDEX(u, v, w) ((((w) * rdata->dims.v_len + (v)) * rdata->dims.u_len) + (u))
 
@@ -378,13 +377,19 @@ static gpu::IndexBuf *lattice_batch_cache_get_edges(LatticeRenderData *rdata,
           int uxt = ELEM(u, 0, rdata->dims.u_len - 1);
 
           if (w && ((uxt || vxt) || !rdata->show_only_outside)) {
-            data[line_index++] = uint2(LATT_INDEX(u, v, w - 1), LATT_INDEX(u, v, w));
+            GPU_indexbuf_add_line_verts(&elb, LATT_INDEX(u, v, w - 1), LATT_INDEX(u, v, w));
+            BLI_assert(edge_len_real <= edge_len);
+            edge_len_real++;
           }
           if (v && ((uxt || wxt) || !rdata->show_only_outside)) {
-            data[line_index++] = uint2(LATT_INDEX(u, v - 1, w), LATT_INDEX(u, v, w));
+            GPU_indexbuf_add_line_verts(&elb, LATT_INDEX(u, v - 1, w), LATT_INDEX(u, v, w));
+            BLI_assert(edge_len_real <= edge_len);
+            edge_len_real++;
           }
           if (u && ((vxt || wxt) || !rdata->show_only_outside)) {
-            data[line_index++] = uint2(LATT_INDEX(u - 1, v, w), LATT_INDEX(u, v, w));
+            GPU_indexbuf_add_line_verts(&elb, LATT_INDEX(u - 1, v, w), LATT_INDEX(u, v, w));
+            BLI_assert(edge_len_real <= edge_len);
+            edge_len_real++;
           }
         }
       }
@@ -393,13 +398,14 @@ static gpu::IndexBuf *lattice_batch_cache_get_edges(LatticeRenderData *rdata,
 #undef LATT_INDEX
 
     if (rdata->show_only_outside) {
-      BLI_assert(line_index <= edge_len);
+      BLI_assert(edge_len_real <= edge_len);
     }
     else {
-      BLI_assert(line_index == edge_len);
+      BLI_assert(edge_len_real == edge_len);
     }
+    UNUSED_VARS_NDEBUG(edge_len_real);
 
-    cache->edges = GPU_indexbuf_build_ex(&builder, 0, vert_len, false);
+    cache->edges = GPU_indexbuf_build(&elb);
   }
 
   return cache->edges;
@@ -414,15 +420,15 @@ static void lattice_batch_cache_create_overlay_batches(Lattice *lt)
   LatticeRenderData *rdata = lattice_render_data_create(lt, options);
 
   if (cache->overlay_verts == nullptr) {
+    static GPUVertFormat format = {0};
     static struct {
       uint pos, data;
     } attr_id;
-    static const GPUVertFormat format = [&]() {
-      GPUVertFormat format{};
+    if (format.attr_len == 0) {
+      /* initialize vertex format */
       attr_id.pos = GPU_vertformat_attr_add(&format, "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
       attr_id.data = GPU_vertformat_attr_add(&format, "data", GPU_COMP_U8, 1, GPU_FETCH_INT);
-      return format;
-    }();
+    }
 
     const int vert_len = lattice_render_data_verts_len_get(rdata);
 

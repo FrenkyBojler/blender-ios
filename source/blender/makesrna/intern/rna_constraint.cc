@@ -637,7 +637,8 @@ static const EnumPropertyItem *rna_Constraint_target_space_itemf(bContext * /*C*
 static bConstraintTarget *rna_ArmatureConstraint_target_new(ID *id, bConstraint *con, Main *bmain)
 {
   bArmatureConstraint *acon = static_cast<bArmatureConstraint *>(con->data);
-  bConstraintTarget *tgt = MEM_callocN<bConstraintTarget>("Constraint Target");
+  bConstraintTarget *tgt = static_cast<bConstraintTarget *>(
+      MEM_callocN(sizeof(bConstraintTarget), "Constraint Target"));
 
   tgt->weight = 1.0f;
   BLI_addtail(&acon->targets, tgt);
@@ -829,7 +830,7 @@ static void rna_iterator_ActionConstraint_action_suitable_slots_begin(
   bConstraint *con = (bConstraint *)ptr->data;
   bActionConstraint *acon = (bActionConstraint *)con->data;
 
-  rna_iterator_generic_action_suitable_slots_begin(iter, ptr, acon->act);
+  rna_iterator_generic_action_suitable_slots_begin(iter, acon->act);
 }
 
 static int rna_SplineIKConstraint_joint_bindings_get_length(const PointerRNA *ptr,

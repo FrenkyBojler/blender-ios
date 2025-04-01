@@ -7,6 +7,10 @@
  * \ingroup bke
  */
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct Text;
 
 typedef struct SuggItem {
@@ -52,3 +56,7 @@ SuggItem *texttool_suggest_last(void);
 void texttool_suggest_select(SuggItem *sel);
 SuggItem *texttool_suggest_selected(void);
 int *texttool_suggest_top(void);
+
+#ifdef __cplusplus
+}
+#endif

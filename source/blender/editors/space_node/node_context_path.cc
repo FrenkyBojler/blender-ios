@@ -7,7 +7,6 @@
  * \brief Node breadcrumbs drawing
  */
 
-#include "BLI_listbase.h"
 #include "BLI_vector.hh"
 
 #include "DNA_node_types.h"

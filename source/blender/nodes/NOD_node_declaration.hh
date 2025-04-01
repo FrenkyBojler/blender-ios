@@ -8,7 +8,6 @@
 #include <functional>
 #include <type_traits>
 
-#include "BLI_array.hh"
 #include "BLI_string_ref.hh"
 #include "BLI_utildefines.h"
 #include "BLI_vector.hh"
@@ -26,9 +25,8 @@ struct uiLayout;
 namespace blender::nodes {
 
 class NodeDeclarationBuilder;
-class PanelDeclaration;
 
-enum class InputSocketFieldType : int8_t {
+enum class InputSocketFieldType {
   /** The input is required to be a single value. */
   None,
   /** The input can be a field. */
@@ -37,7 +35,7 @@ enum class InputSocketFieldType : int8_t {
   Implicit,
 };
 
-enum class OutputSocketFieldType : int8_t {
+enum class OutputSocketFieldType {
   /** The output is always a single value. */
   None,
   /** The output is always a field, independent of the inputs. */
@@ -52,7 +50,7 @@ enum class OutputSocketFieldType : int8_t {
 /**
  * An enum that maps to the #compositor::InputRealizationMode.
  */
-enum class CompositorInputRealizationMode : int8_t {
+enum class CompositorInputRealizationMode : uint8_t {
   None,
   Transforms,
   OperationDomain,
@@ -82,8 +80,8 @@ class OutputFieldDependency {
  * Information about how a node interacts with fields.
  */
 struct FieldInferencingInterface {
-  Array<InputSocketFieldType> inputs;
-  Array<OutputFieldDependency> outputs;
+  Vector<InputSocketFieldType> inputs;
+  Vector<OutputFieldDependency> outputs;
 
   BLI_STRUCT_EQUALITY_OPERATORS_2(FieldInferencingInterface, inputs, outputs)
 };
@@ -155,8 +153,6 @@ using ImplicitInputValueFn = std::function<void(const bNode &node, void *r_value
 /* Socket or panel declaration. */
 class ItemDeclaration {
  public:
-  const PanelDeclaration *parent = nullptr;
-
   virtual ~ItemDeclaration() = default;
 };
 
@@ -192,8 +188,6 @@ class SocketDeclaration : public ItemDeclaration {
   bool is_default_link_socket = false;
   /** Puts this socket on the same line as the previous one in the UI. */
   bool align_with_previous_socket = false;
-  /** This socket is used as a toggle for the parent panel. */
-  bool is_panel_toggle = false;
 
   /** Index in the list of inputs or outputs of the node. */
   int index = -1;
@@ -205,10 +199,9 @@ class SocketDeclaration : public ItemDeclaration {
   CompositorInputRealizationMode compositor_realization_mode_ =
       CompositorInputRealizationMode::OperationDomain;
 
-  /** The priority of the input for determining the domain of the node. If negative, then the
-   * domain priority is not set and the index of the input is assumed to be the priority instead.
-   * See compositor::InputDescriptor for more information. */
-  int compositor_domain_priority_ = -1;
+  /** The priority of the input for determining the domain of the node. See
+   * compositor::InputDescriptor for more information. */
+  int compositor_domain_priority_ = 0;
 
   /** This input expects a single value and can't operate on non-single values. See
    * compositor::InputDescriptor for more information. */
@@ -356,13 +349,11 @@ class BaseSocketDeclarationBuilder {
 
   /** Attributes from the all geometry inputs can be propagated. */
   BaseSocketDeclarationBuilder &propagate_all();
-  /** Instance attributes from all geometry inputs can be propagated. */
-  BaseSocketDeclarationBuilder &propagate_all_instance_attributes();
 
   BaseSocketDeclarationBuilder &compositor_realization_mode(CompositorInputRealizationMode value);
 
   /**
-   * The priority of the input for determining the domain of the node. Needs to be positive. See
+   * The priority of the input for determining the domain of the node. See
    * compositor::InputDescriptor for more information.
    */
   BaseSocketDeclarationBuilder &compositor_domain_priority(int priority);
@@ -396,10 +387,6 @@ class BaseSocketDeclarationBuilder {
                                                 const StructRNA *srna,
                                                 const void *data,
                                                 StringRef property_name);
-  /**
-   * Use the socket as a toggle in its panel.
-   */
-  BaseSocketDeclarationBuilder &panel_toggle(bool value = true);
 
   /** Index in the list of inputs or outputs. */
   int index() const;
@@ -467,9 +454,6 @@ class PanelDeclaration : public ItemDeclaration {
   void update_or_build(const bNodePanelState &old_panel, bNodePanelState &new_panel) const;
 
   int depth() const;
-
-  /** Get the declaration for a child item that should be drawn as part of the panel header. */
-  const SocketDeclaration *panel_input_decl() const;
 };
 
 /**
@@ -700,7 +684,6 @@ inline typename DeclType::Builder &DeclarationListBuilder::add_socket(StringRef 
   this->node_decl_builder.declaration_.all_items.append(std::move(socket_decl_ptr));
   this->items.append(&socket_decl);
 
-  socket_decl.parent = this->parent_panel_decl;
   socket_decl_builder.node_decl_builder_ = &this->node_decl_builder;
 
   socket_decl_builder.decl_ = &socket_decl;

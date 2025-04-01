@@ -10,10 +10,8 @@
 
 #include "BKE_constraint.h"
 #include "BKE_context.hh"
-#include "BKE_library.hh"
 #include "BKE_screen.hh"
 
-#include "BLI_listbase.h"
 #include "BLI_string_utils.hh"
 
 #include "BLT_translation.hh"
@@ -124,11 +122,11 @@ static void draw_constraint_header(uiLayout *layout, Object *ob, bConstraint *co
 
   /* Constraint type icon. */
   uiLayout *sub = uiLayoutRow(layout, false);
-  uiLayoutSetEmboss(sub, blender::ui::EmbossType::Emboss);
+  uiLayoutSetEmboss(sub, UI_EMBOSS);
   uiLayoutSetRedAlert(sub, (con->flag & CONSTRAINT_DISABLE));
   uiItemL(sub, "", RNA_struct_ui_icon(ptr.type));
 
-  UI_block_emboss_set(block, blender::ui::EmbossType::Emboss);
+  UI_block_emboss_set(block, UI_EMBOSS);
 
   uiLayout *row = uiLayoutRow(layout, true);
 
@@ -142,7 +140,7 @@ static void draw_constraint_header(uiLayout *layout, Object *ob, bConstraint *co
 
   /* Close 'button' - emboss calls here disable drawing of 'button' behind X */
   sub = uiLayoutRow(row, false);
-  uiLayoutSetEmboss(sub, blender::ui::EmbossType::None);
+  uiLayoutSetEmboss(sub, UI_EMBOSS_NONE);
   uiLayoutSetOperatorContext(sub, WM_OP_INVOKE_DEFAULT);
   uiItemO(sub, "", ICON_X, "CONSTRAINT_OT_delete");
 

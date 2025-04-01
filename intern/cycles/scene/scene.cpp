@@ -53,9 +53,8 @@ Scene ::Scene(const SceneParams &params_, Device *device)
 {
   memset((void *)&dscene.data, 0, sizeof(dscene.data));
 
-  osl_manager = make_unique<OSLManager>(device);
-  shader_manager = ShaderManager::create(device->info.has_osl ? params.shadingsystem :
-                                                                SHADINGSYSTEM_SVM);
+  shader_manager = ShaderManager::create(
+      device->info.has_osl ? params.shadingsystem : SHADINGSYSTEM_SVM, device);
 
   light_manager = make_unique<LightManager>();
   geometry_manager = make_unique<GeometryManager>();
@@ -100,6 +99,7 @@ void Scene::free_memory(bool final)
   procedurals.clear();
   objects.clear();
   geometry.clear();
+  lights.clear();
   particle_systems.clear();
   passes.clear();
 
@@ -133,7 +133,6 @@ void Scene::free_memory(bool final)
     object_manager->device_free(device, &dscene, true);
     geometry_manager->device_free(device, &dscene, true);
     shader_manager->device_free(device, &dscene, this);
-    osl_manager->device_free(device, &dscene, this);
     light_manager->device_free(device, &dscene);
 
     particle_system_manager->device_free(device, &dscene);
@@ -155,7 +154,6 @@ void Scene::free_memory(bool final)
     object_manager.reset();
     geometry_manager.reset();
     shader_manager.reset();
-    osl_manager.reset();
     light_manager.reset();
     particle_system_manager.reset();
     image_manager.reset();
@@ -208,9 +206,7 @@ void Scene::device_update(Device *device_, Progress &progress)
   }
 
   progress.set_status("Updating Shaders");
-  osl_manager->device_update_pre(device, this);
   shader_manager->device_update(device, &dscene, this, progress);
-  osl_manager->device_update_post(device, this, progress);
 
   if (progress.get_cancel() || device->have_error()) {
     return;
@@ -424,8 +420,8 @@ bool Scene::need_reset(const bool check_camera)
 
 void Scene::reset()
 {
-  osl_manager->reset(this);
-  ShaderManager::add_default(this);
+  shader_manager->reset(this);
+  ccl::ShaderManager::add_default(this);
 
   /* ensure all objects are updated */
   camera->tag_modified();
@@ -498,25 +494,40 @@ void Scene::update_kernel_features()
         kernel_features |= KERNEL_FEATURE_OBJECT_MOTION;
       }
     }
-    if (object->get_is_shadow_catcher() && !geom->is_light()) {
+    if (object->get_is_shadow_catcher()) {
       kernel_features |= KERNEL_FEATURE_SHADOW_CATCHER;
     }
-    if (geom->is_hair()) {
+    if (geom->is_mesh()) {
+#ifdef WITH_OPENSUBDIV
+      Mesh *mesh = static_cast<Mesh *>(geom);
+      if (mesh->get_subdivision_type() != Mesh::SUBDIVISION_NONE) {
+        kernel_features |= KERNEL_FEATURE_PATCH_EVALUATION;
+      }
+#endif
+    }
+    else if (geom->is_hair()) {
       kernel_features |= KERNEL_FEATURE_HAIR;
     }
     else if (geom->is_pointcloud()) {
       kernel_features |= KERNEL_FEATURE_POINTCLOUD;
     }
-    else if (geom->is_light()) {
-      const Light *light = static_cast<const Light *>(object->get_geometry());
-      if (light->get_use_caustics()) {
-        has_caustics_light = true;
-      }
-    }
     if (object->has_light_linking()) {
       kernel_features |= KERNEL_FEATURE_LIGHT_LINKING;
     }
     if (object->has_shadow_linking()) {
+      kernel_features |= KERNEL_FEATURE_SHADOW_LINKING;
+    }
+  }
+
+  for (Light *light : lights) {
+    if (light->get_use_caustics()) {
+      has_caustics_light = true;
+    }
+
+    if (light->has_light_linking()) {
+      kernel_features |= KERNEL_FEATURE_LIGHT_LINKING;
+    }
+    if (light->has_shadow_linking()) {
       kernel_features |= KERNEL_FEATURE_SHADOW_LINKING;
     }
   }
@@ -587,6 +598,8 @@ static void log_kernel_features(const uint features)
   VLOG_INFO << "Use Baking " << string_from_bool(features & KERNEL_FEATURE_BAKING) << "\n";
   VLOG_INFO << "Use Subsurface " << string_from_bool(features & KERNEL_FEATURE_SUBSURFACE) << "\n";
   VLOG_INFO << "Use Volume " << string_from_bool(features & KERNEL_FEATURE_VOLUME) << "\n";
+  VLOG_INFO << "Use Patch Evaluation "
+            << string_from_bool(features & KERNEL_FEATURE_PATCH_EVALUATION) << "\n";
   VLOG_INFO << "Use Shadow Catcher " << string_from_bool(features & KERNEL_FEATURE_SHADOW_CATCHER)
             << "\n";
 }
@@ -706,10 +719,7 @@ bool Scene::has_shadow_catcher()
   if (shadow_catcher_modified_) {
     has_shadow_catcher_ = false;
     for (Object *object : objects) {
-      /* Shadow catcher flags on lights only controls effect on other objects, it's
-       * not catching shadows itself. This is on by default, so ignore to avoid
-       * performance impact when there is no actual shadow catcher. */
-      if (object->get_is_shadow_catcher() && !object->get_geometry()->is_light()) {
+      if (object->get_is_shadow_catcher()) {
         has_shadow_catcher_ = true;
         break;
       }
@@ -731,7 +741,7 @@ template<> Light *Scene::create_node<Light>()
   unique_ptr<Light> node = make_unique<Light>();
   Light *node_ptr = node.get();
   node->set_owner(this);
-  geometry.push_back(std::move(node));
+  lights.push_back(std::move(node));
   light_manager->tag_update(this, LightManager::LIGHT_ADDED);
   return node_ptr;
 }
@@ -869,7 +879,7 @@ template<> Film *Scene::create_node<Film>()
 template<> void Scene::delete_node(Light *node)
 {
   assert(node->get_owner() == this);
-  geometry.erase_by_swap(node);
+  lights.erase_by_swap(node);
   light_manager->tag_update(this, LightManager::LIGHT_REMOVED);
 }
 
@@ -973,12 +983,18 @@ template<typename T> static void assert_same_owner(const set<T *> &nodes, const 
 #endif
 }
 
+template<> void Scene::delete_nodes(const set<Light *> &nodes, const NodeOwner *owner)
+{
+  assert_same_owner(nodes, owner);
+  lights.erase_in_set(nodes);
+  light_manager->tag_update(this, LightManager::LIGHT_REMOVED);
+}
+
 template<> void Scene::delete_nodes(const set<Geometry *> &nodes, const NodeOwner *owner)
 {
   assert_same_owner(nodes, owner);
   geometry.erase_in_set(nodes);
   geometry_manager->tag_update(this, GeometryManager::GEOMETRY_REMOVED);
-  light_manager->tag_update(this, LightManager::LIGHT_REMOVED);
 }
 
 template<> void Scene::delete_nodes(const set<Object *> &nodes, const NodeOwner *owner)

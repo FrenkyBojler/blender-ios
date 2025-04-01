@@ -322,8 +322,8 @@ GlobalData g_data;
 /* Stubs. */
 
 #  define dF_impl(a) (vec3(0.0))
-#  define dF_branch(a, b, c) (c = vec2(0.0))
-#  define dF_branch_incomplete(a, b, c) (c = vec2(0.0))
+#  define dF_branch(a, b) (b = vec2(0.0))
+#  define dF_branch_incomplete(a, b) (b = vec2(0.0))
 
 #elif defined(GPU_FAST_DERIVATIVE) /* TODO(@fclem): User Option? */
 /* Fast derivatives */
@@ -334,33 +334,27 @@ vec3 dF_impl(vec3 v)
 
 void dF_branch(float fn, out vec2 result)
 {
-  /* NOTE: this function is currently unused, once it is used we need to check if
-   * `g_derivative_filter_width` needs to be applied. */
   result.x = dFdx(fn);
   result.y = dFdy(fn);
 }
 
 #else
-
-/* Offset of coordinates for evaluating bump node. Unit in pixel. */
-float g_derivative_filter_width = 0.0;
 /* Precise derivatives */
 int g_derivative_flag = 0;
 
 vec3 dF_impl(vec3 v)
 {
   if (g_derivative_flag > 0) {
-    return dFdx(v) * g_derivative_filter_width;
+    return dFdx(v);
   }
   else if (g_derivative_flag < 0) {
-    return dFdy(v) * g_derivative_filter_width;
+    return dFdy(v);
   }
   return vec3(0.0);
 }
 
-#  define dF_branch(fn, filter_width, result) \
+#  define dF_branch(fn, result) \
     if (true) { \
-      g_derivative_filter_width = filter_width; \
       g_derivative_flag = 1; \
       result.x = (fn); \
       g_derivative_flag = -1; \
@@ -370,9 +364,8 @@ vec3 dF_impl(vec3 v)
     }
 
 /* Used when the non-offset value is already computed elsewhere */
-#  define dF_branch_incomplete(fn, filter_width, result) \
+#  define dF_branch_incomplete(fn, result) \
     if (true) { \
-      g_derivative_filter_width = filter_width; \
       g_derivative_flag = 1; \
       result.x = (fn); \
       g_derivative_flag = -1; \

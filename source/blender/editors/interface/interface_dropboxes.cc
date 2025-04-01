@@ -9,7 +9,6 @@
 #include <fmt/format.h>
 
 #include "BKE_context.hh"
-#include "BKE_library.hh"
 
 #include "BLT_translation.hh"
 

@@ -129,7 +129,7 @@ static void bmesh_loop_layer_selected_values_set(BMEditMesh &em,
   }
 }
 
-static wmOperatorStatus mesh_set_attribute_exec(bContext *C, wmOperator *op)
+static int mesh_set_attribute_exec(bContext *C, wmOperator *op)
 {
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
@@ -137,10 +137,9 @@ static wmOperatorStatus mesh_set_attribute_exec(bContext *C, wmOperator *op)
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
       scene, view_layer, CTX_wm_view3d(C));
 
-  Mesh *active_mesh = ED_mesh_context(C);
-  AttributeOwner active_owner = AttributeOwner::from_id(&active_mesh->id);
-  CustomDataLayer *active_attribute = BKE_attributes_active_get(active_owner);
-  const StringRef name = active_attribute->name;
+  Mesh *mesh = ED_mesh_context(C);
+  AttributeOwner owner = AttributeOwner::from_id(&mesh->id);
+  CustomDataLayer *active_attribute = BKE_attributes_active_get(owner);
   const eCustomDataType active_type = eCustomDataType(active_attribute->type);
   const CPPType &type = *bke::custom_data_type_to_cpp_type(active_type);
 
@@ -156,15 +155,14 @@ static wmOperatorStatus mesh_set_attribute_exec(bContext *C, wmOperator *op)
     Mesh *mesh = static_cast<Mesh *>(object->data);
     BMEditMesh *em = BKE_editmesh_from_object(object);
     BMesh *bm = em->bm;
-    AttributeOwner owner = AttributeOwner::from_id(&mesh->id);
-    CustomDataLayer *layer = BKE_attribute_search_for_write(
-        owner, name, CD_MASK_PROP_ALL, ATTR_DOMAIN_MASK_ALL);
+
+    CustomDataLayer *layer = BKE_attributes_active_get(owner);
     if (!layer) {
       continue;
     }
     /* Use implicit conversions to try to handle the case where the active attribute has a
      * different type on multiple objects. */
-    const eCustomDataType dst_data_type = eCustomDataType(layer->type);
+    const eCustomDataType dst_data_type = eCustomDataType(active_attribute->type);
     const CPPType &dst_type = *bke::custom_data_type_to_cpp_type(dst_data_type);
     if (&type != &dst_type && !conversions.is_convertible(type, dst_type)) {
       continue;
@@ -205,9 +203,7 @@ static wmOperatorStatus mesh_set_attribute_exec(bContext *C, wmOperator *op)
   return changed ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
 }
 
-static wmOperatorStatus mesh_set_attribute_invoke(bContext *C,
-                                                  wmOperator *op,
-                                                  const wmEvent *event)
+static int mesh_set_attribute_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   Mesh *mesh = ED_mesh_context(C);
   BMesh *bm = mesh->runtime->edit_mesh->bm;

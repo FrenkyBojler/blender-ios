@@ -36,7 +36,6 @@
 #include "BKE_idprop.hh"
 #include "BKE_idtype.hh"
 #include "BKE_lib_override.hh"
-#include "BKE_library.hh"
 #include "BKE_main.hh"
 
 #include "RNA_access.hh"
@@ -710,7 +709,7 @@ bool RNA_struct_override_matches(Main *bmain,
       if (!prop_local.is_idprop) {
         rna_path_len = root_path_len + 1 + prop_name_len;
         if (rna_path_len >= RNA_PATH_BUFFSIZE) {
-          rna_path = MEM_malloc_arrayN<char>(rna_path_len + 1, __func__);
+          rna_path = static_cast<char *>(MEM_mallocN(rna_path_len + 1, __func__));
         }
 
         memcpy(rna_path_c, root_path, root_path_len);
@@ -721,7 +720,7 @@ bool RNA_struct_override_matches(Main *bmain,
       else {
         rna_path_len = root_path_len + 2 + prop_name_len + 2;
         if (rna_path_len >= RNA_PATH_BUFFSIZE) {
-          rna_path_c = MEM_malloc_arrayN<char>(rna_path_len + 1, __func__);
+          rna_path_c = static_cast<char *>(MEM_mallocN(rna_path_len + 1, __func__));
         }
 
         memcpy(rna_path_c, root_path, root_path_len);
@@ -1077,8 +1076,8 @@ static void rna_property_override_collection_subitem_name_index_lookup(
     PointerRNA *r_ptr_item_name,
     PointerRNA *r_ptr_item_index)
 {
-  r_ptr_item_name->invalidate();
-  r_ptr_item_index->invalidate();
+  RNA_POINTER_INVALIDATE(r_ptr_item_name);
+  RNA_POINTER_INVALIDATE(r_ptr_item_index);
 
   const bool do_id_pointer = item_id && RNA_struct_is_ID(RNA_property_pointer_type(ptr, prop));
 
@@ -1110,7 +1109,7 @@ static void rna_property_override_collection_subitem_name_index_lookup(
   if (rna_property_override_collection_subitem_name_id_lookup(
           ptr, prop, item_name, item_name_len, do_id_pointer, item_id, r_ptr_item_name))
   {
-    r_ptr_item_index->invalidate();
+    RNA_POINTER_INVALIDATE(r_ptr_item_index);
     return;
   }
 
@@ -1149,10 +1148,10 @@ static void rna_property_override_collection_subitem_lookup(
                                                  std::optional(opop->subitem_reference_id) :
                                                  std::nullopt;
 
-  ptr_item_dst->invalidate();
-  ptr_item_src->invalidate();
+  RNA_POINTER_INVALIDATE(ptr_item_dst);
+  RNA_POINTER_INVALIDATE(ptr_item_src);
   if (prop_storage != nullptr) {
-    ptr_item_storage->invalidate();
+    RNA_POINTER_INVALIDATE(ptr_item_storage);
   }
 
   PointerRNA ptr_item_dst_name, ptr_item_dst_index;
@@ -1357,7 +1356,7 @@ static void rna_property_override_check_resync(Main *bmain,
   {
     id_owner_dst->tag |= ID_TAG_LIBOVERRIDE_NEED_RESYNC;
     if (ID_IS_LINKED(id_owner_src)) {
-      id_owner_src->lib->runtime->tag |= LIBRARY_TAG_RESYNC_REQUIRED;
+      id_owner_src->lib->runtime.tag |= LIBRARY_TAG_RESYNC_REQUIRED;
     }
     CLOG_INFO(&LOG,
               3,
@@ -1367,7 +1366,7 @@ static void rna_property_override_check_resync(Main *bmain,
   if ((id_owner_src->override_library->reference->tag & ID_TAG_LIBOVERRIDE_NEED_RESYNC) != 0) {
     id_owner_dst->tag |= ID_TAG_LIBOVERRIDE_NEED_RESYNC;
     if (ID_IS_LINKED(id_owner_src)) {
-      id_owner_src->lib->runtime->tag |= LIBRARY_TAG_RESYNC_REQUIRED;
+      id_owner_src->lib->runtime.tag |= LIBRARY_TAG_RESYNC_REQUIRED;
     }
     CLOG_INFO(&LOG,
               3,

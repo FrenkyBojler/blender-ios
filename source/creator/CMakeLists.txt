@@ -558,18 +558,6 @@ if(WITH_OPENCOLORIO)
   )
 endif()
 if(WIN32)
-  if(EXISTS ${LIBDIR}/osl/lib/python${PYTHON_VERSION}/site-packages/oslquery) # 4.4+
-    install(
-      DIRECTORY ${LIBDIR}/osl/lib/python${PYTHON_VERSION}/site-packages/oslquery
-      DESTINATION ${TARGETDIR_SITE_PACKAGES}
-      CONFIGURATIONS Release;RelWithDebInfo;MinSizeRel
-    )
-    install(
-      DIRECTORY ${LIBDIR}/osl/lib/python${PYTHON_VERSION}_debug/site-packages/oslquery
-      DESTINATION ${TARGETDIR_SITE_PACKAGES}
-      CONFIGURATIONS Debug
-    )
-  endif()
   if(EXISTS ${LIBDIR}/osl/bin/oslquery.dll) # 4.1+
     windows_install_shared_manifest(
       FILES
@@ -588,14 +576,24 @@ if(WIN32)
       DEBUG
     )
   endif()
-  if(EXISTS ${LIBDIR}/opencolorio/bin/opencolorio_2_4.dll) # 4.4
+  if(EXISTS ${LIBDIR}/opencolorio/bin/opencolorio_2_2.dll) # 3.5
     windows_install_shared_manifest(
-      FILES ${LIBDIR}/opencolorio/bin/opencolorio_2_4.dll
+      FILES ${LIBDIR}/opencolorio/bin/opencolorio_2_2.dll
       RELEASE
     )
     windows_install_shared_manifest(
-      FILES ${LIBDIR}/opencolorio/bin/opencolorio_d_2_4.dll
+      FILES ${LIBDIR}/opencolorio/bin/opencolorio_d_2_2.dll
       DEBUG
+    )
+    install(
+      FILES ${LIBDIR}/opencolorio/lib/site-packages-debug/PyOpenColorIO_d.pyd
+      DESTINATION ${TARGETDIR_SITE_PACKAGES}
+      CONFIGURATIONS Debug
+    )
+    install(
+      FILES ${LIBDIR}/opencolorio/lib/site-packages/PyOpenColorIO.pyd
+      DESTINATION ${TARGETDIR_SITE_PACKAGES}
+      CONFIGURATIONS Release;RelWithDebInfo;MinSizeRel
     )
   endif()
   if(EXISTS ${LIBDIR}/opencolorio/bin/opencolorio_2_3.dll) # 4.1
@@ -607,17 +605,17 @@ if(WIN32)
       FILES ${LIBDIR}/opencolorio/bin/opencolorio_d_2_3.dll
       DEBUG
     )
+    install(
+      DIRECTORY ${LIBDIR}/opencolorio/lib/site-packages-debug/PyOpenColorIO
+      DESTINATION ${TARGETDIR_SITE_PACKAGES}
+      CONFIGURATIONS Debug
+    )
+    install(
+      DIRECTORY ${LIBDIR}/opencolorio/lib/site-packages/PyOpenColorIO
+      DESTINATION ${TARGETDIR_SITE_PACKAGES}
+      CONFIGURATIONS Release;RelWithDebInfo;MinSizeRel
+    )
   endif()
-  install(
-    DIRECTORY ${LIBDIR}/opencolorio/lib/site-packages-debug/PyOpenColorIO
-    DESTINATION ${TARGETDIR_SITE_PACKAGES}
-    CONFIGURATIONS Debug
-  )
-  install(
-    DIRECTORY ${LIBDIR}/opencolorio/lib/site-packages/PyOpenColorIO
-    DESTINATION ${TARGETDIR_SITE_PACKAGES}
-    CONFIGURATIONS Release;RelWithDebInfo;MinSizeRel
-  )
   if(EXISTS ${LIBDIR}/OpenImageDenoise/bin/openimagedenoise.dll) # 4.0
     windows_install_shared_manifest(
       FILES
@@ -1240,8 +1238,7 @@ elseif(WIN32)
       endif()
     endif()
 
-    # VFX libs are bundled with both Blender executable and Python module.
-    if(WITH_PYTHON_INSTALL OR WITH_PYTHON_MODULE)
+    if(WITH_PYTHON_INSTALL)
       # NOTE: as far as python is concerned `RelWithDebInfo`
       # is not debug since its without debug flags.
 
@@ -1284,7 +1281,6 @@ elseif(WIN32)
       install(
         FILES
           ${LIBDIR}/python/${_PYTHON_VERSION_NO_DOTS}/bin/python${_PYTHON_VERSION_NO_DOTS}.dll
-          ${LIBDIR}/python/${_PYTHON_VERSION_NO_DOTS}/bin/python3.dll
           ${LIBDIR}/python/${_PYTHON_VERSION_NO_DOTS}/bin/python.exe
         DESTINATION ${BLENDER_VERSION}/python/bin
         CONFIGURATIONS Release;RelWithDebInfo;MinSizeRel
@@ -1292,12 +1288,30 @@ elseif(WIN32)
       install(
         FILES
           ${LIBDIR}/python/${_PYTHON_VERSION_NO_DOTS}/bin/python${_PYTHON_VERSION_NO_DOTS}_d.dll
-          ${LIBDIR}/python/${_PYTHON_VERSION_NO_DOTS}/bin/python3_d.dll
           ${LIBDIR}/python/${_PYTHON_VERSION_NO_DOTS}/bin/python_d.exe
         DESTINATION ${BLENDER_VERSION}/python/bin
         CONFIGURATIONS Debug
       )
 
+      if(WINDOWS_PYTHON_DEBUG)
+        install(
+          FILES
+            ${LIBDIR}/python/${_PYTHON_VERSION_NO_DOTS}/libs/python${_PYTHON_VERSION_NO_DOTS}.pdb
+          DESTINATION "."
+          CONFIGURATIONS Release;RelWithDebInfo;MinSizeRel
+        )
+
+        install(
+          FILES
+            ${LIBDIR}/python/${_PYTHON_VERSION_NO_DOTS}/libs/python${_PYTHON_VERSION_NO_DOTS}_d.pdb
+          DESTINATION "."
+          CONFIGURATIONS Debug
+        )
+      endif()
+    endif()
+
+    # VFX libs are bundled with both Blender executable and Python module.
+    if(WITH_PYTHON_INSTALL OR WITH_PYTHON_MODULE)
       # This will only exist for 3.5+.
       if(EXISTS ${LIBDIR}/openimageio/lib/python${PYTHON_VERSION}/site-packages)
         install(
@@ -1365,7 +1379,6 @@ elseif(WIN32)
         set(_openvdb_arch amd64)
       endif()
 
-      # 4.3
       if(EXISTS ${LIBDIR}/openvdb/python/pyopenvdb_d.cp${_PYTHON_VERSION_NO_DOTS}-win_${_openvdb_arch}.pyd)
         install(
           FILES ${LIBDIR}/openvdb/python/pyopenvdb_d.cp${_PYTHON_VERSION_NO_DOTS}-win_${_openvdb_arch}.pyd
@@ -1378,59 +1391,24 @@ elseif(WIN32)
           CONFIGURATIONS Release;RelWithDebInfo;MinSizeRel
         )
       endif()
-      # 4.4
-      if(EXISTS ${LIBDIR}/openvdb/python/openvdb_d.cp${_PYTHON_VERSION_NO_DOTS}-win_${_openvdb_arch}.pyd)
-        install(
-          FILES ${LIBDIR}/openvdb/python/openvdb_d.cp${_PYTHON_VERSION_NO_DOTS}-win_${_openvdb_arch}.pyd
-          DESTINATION ${TARGETDIR_SITE_PACKAGES}
-          CONFIGURATIONS Debug
-        )
-        install(
-          FILES ${LIBDIR}/openvdb/python/openvdb.cp${_PYTHON_VERSION_NO_DOTS}-win_${_openvdb_arch}.pyd
-          DESTINATION ${TARGETDIR_SITE_PACKAGES}
-          CONFIGURATIONS Release;RelWithDebInfo;MinSizeRel
-        )
-      endif()
-      # MaterialX python bindings.
-      # Check they exist so building against non `LIBDIR` Python works as expected.
-      if(EXISTS ${LIBDIR}/materialx/python/Release/MaterialX)
-        install(
-          DIRECTORY ${LIBDIR}/materialx/python/Release/MaterialX
-          DESTINATION ${TARGETDIR_SITE_PACKAGES}/
-          CONFIGURATIONS Release;RelWithDebInfo;MinSizeRel
-          PATTERN "__pycache__" EXCLUDE           # * any cache *
-          PATTERN "*.pyc" EXCLUDE                 # * any cache *
-          PATTERN "*.pyo" EXCLUDE                 # * any cache *
-        )
-      endif()
-      if(EXISTS ${LIBDIR}/materialx/python/Debug/MaterialX)
-        install(
-          DIRECTORY ${LIBDIR}/materialx/python/Debug/MaterialX
-          DESTINATION ${TARGETDIR_SITE_PACKAGES}/
-          CONFIGURATIONS Debug
-          PATTERN "__pycache__" EXCLUDE           # * any cache *
-          PATTERN "*.pyc" EXCLUDE                 # * any cache *
-          PATTERN "*.pyo" EXCLUDE                 # * any cache *
-        )
-      endif()
-    endif()
 
-    if(WITH_PYTHON_INSTALL)
-      if(WINDOWS_PYTHON_DEBUG)
-        install(
-          FILES
-            ${LIBDIR}/python/${_PYTHON_VERSION_NO_DOTS}/libs/python${_PYTHON_VERSION_NO_DOTS}.pdb
-          DESTINATION "."
-          CONFIGURATIONS Release;RelWithDebInfo;MinSizeRel
-        )
-
-        install(
-          FILES
-            ${LIBDIR}/python/${_PYTHON_VERSION_NO_DOTS}/libs/python${_PYTHON_VERSION_NO_DOTS}_d.pdb
-          DESTINATION "."
-          CONFIGURATIONS Debug
-        )
-      endif()
+      # MaterialX python bindings
+      install(
+        DIRECTORY ${LIBDIR}/materialx/python/Release/MaterialX
+        DESTINATION ${TARGETDIR_SITE_PACKAGES}/
+        CONFIGURATIONS Release;RelWithDebInfo;MinSizeRel
+        PATTERN "__pycache__" EXCLUDE           # * any cache *
+        PATTERN "*.pyc" EXCLUDE                 # * any cache *
+        PATTERN "*.pyo" EXCLUDE                 # * any cache *
+      )
+      install(
+        DIRECTORY ${LIBDIR}/materialx/python/Debug/MaterialX
+        DESTINATION ${TARGETDIR_SITE_PACKAGES}/
+        CONFIGURATIONS Debug
+        PATTERN "__pycache__" EXCLUDE           # * any cache *
+        PATTERN "*.pyc" EXCLUDE                 # * any cache *
+        PATTERN "*.pyo" EXCLUDE                 # * any cache *
+      )
     endif()
 
   endif()
@@ -1460,29 +1438,16 @@ elseif(WIN32)
       ALL
     )
   endif()
-  if(EXISTS ${LIBDIR}/tbb/bin/tbb12.dll) # 4.4
-    windows_install_shared_manifest(
-      FILES
-        ${LIBDIR}/tbb/bin/tbb12.dll
-      RELEASE
-    )
-    windows_install_shared_manifest(
-      FILES
-        ${LIBDIR}/tbb/bin/tbb12_debug.dll
-      DEBUG
-    )
-  else()
-    windows_install_shared_manifest(
-      FILES
-        ${LIBDIR}/tbb/bin/tbb.dll
-      RELEASE
-    )
-    windows_install_shared_manifest(
-      FILES
-        ${LIBDIR}/tbb/bin/tbb_debug.dll
-      DEBUG
-    )
-  endif()
+  windows_install_shared_manifest(
+    FILES
+      ${LIBDIR}/tbb/bin/tbb.dll
+    RELEASE
+  )
+  windows_install_shared_manifest(
+    FILES
+      ${LIBDIR}/tbb/bin/tbb_debug.dll
+    DEBUG
+  )
   if(WITH_TBB_MALLOC_PROXY)
     windows_install_shared_manifest(
       FILES
@@ -1736,40 +1701,29 @@ endif()
 # Windows already installs these, for Unix we need to pick just the VFX libs from
 # the site-packages directory.
 if(WITH_PYTHON_MODULE AND LIBDIR AND NOT WIN32)
-  # It's possible for a build using LIBDIR to reference a non-standard Python installation.
-  path_is_prefix(LIBDIR PYTHON_INCLUDE_DIR _is_python_in_libdir)
-  if(_is_python_in_libdir)
-    install(
-      DIRECTORY ${LIBDIR}/python/lib/python${PYTHON_VERSION}/site-packages/MaterialX
-      DESTINATION ${TARGETDIR_SITE_PACKAGES}
-    )
-    install(
-      DIRECTORY ${LIBDIR}/python/lib/python${PYTHON_VERSION}/site-packages/OpenImageIO
-      DESTINATION ${TARGETDIR_SITE_PACKAGES}
-    )
-    install(
-      DIRECTORY ${LIBDIR}/python/lib/python${PYTHON_VERSION}/site-packages/PyOpenColorIO
-      DESTINATION ${TARGETDIR_SITE_PACKAGES}
-    )
-    install(
-      DIRECTORY ${LIBDIR}/python/lib/python${PYTHON_VERSION}/site-packages/oslquery
-      DESTINATION ${TARGETDIR_SITE_PACKAGES} OPTIONAL
-    )
-    install(
-      DIRECTORY ${LIBDIR}/python/lib/python${PYTHON_VERSION}/site-packages/pxr
-      DESTINATION ${TARGETDIR_SITE_PACKAGES}
-    )
-    if(APPLE)
-      set(_openvdb_filename openvdb.cpython-${PYTHON_VERSION_NO_DOTS}-darwin.so)
-    else()
-      set(_openvdb_filename openvdb.cpython-${PYTHON_VERSION_NO_DOTS}-${CMAKE_SYSTEM_PROCESSOR}-linux-gnu.so)
-    endif()
-    install(
-      FILES ${LIBDIR}/python/lib/python${PYTHON_VERSION}/site-packages/${_openvdb_filename}
-      DESTINATION ${TARGETDIR_SITE_PACKAGES}
-    )
+  install(
+    DIRECTORY ${LIBDIR}/python/lib/python${PYTHON_VERSION}/site-packages/MaterialX
+    DESTINATION ${TARGETDIR_SITE_PACKAGES})
+  install(
+    DIRECTORY ${LIBDIR}/python/lib/python${PYTHON_VERSION}/site-packages/OpenImageIO
+    DESTINATION ${TARGETDIR_SITE_PACKAGES})
+  install(
+    DIRECTORY ${LIBDIR}/python/lib/python${PYTHON_VERSION}/site-packages/PyOpenColorIO
+    DESTINATION ${TARGETDIR_SITE_PACKAGES})
+  install(
+    FILES ${LIBDIR}/python/lib/python${PYTHON_VERSION}/site-packages/oslquery.so
+    DESTINATION ${TARGETDIR_SITE_PACKAGES} OPTIONAL)
+  install(
+    DIRECTORY ${LIBDIR}/python/lib/python${PYTHON_VERSION}/site-packages/pxr
+    DESTINATION ${TARGETDIR_SITE_PACKAGES})
+  if(APPLE)
+    set(_pyopenvdb_filename pyopenvdb.cpython-${PYTHON_VERSION_NO_DOTS}-darwin.so)
+  else()
+    set(_pyopenvdb_filename pyopenvdb.cpython-${PYTHON_VERSION_NO_DOTS}-${CMAKE_SYSTEM_PROCESSOR}-linux-gnu.so)
   endif()
-  unset(_is_python_in_libdir)
+  install(
+    FILES ${LIBDIR}/python/lib/python${PYTHON_VERSION}/site-packages/${_pyopenvdb_filename}
+    DESTINATION ${TARGETDIR_SITE_PACKAGES})
 endif()
 
 # -----------------------------------------------------------------------------
@@ -1962,7 +1916,7 @@ if((DEFINED LIBDIR) AND TARGETDIR_LIB AND WITH_MATERIALX)
   )
 endif()
 
-if(WIN32 AND EXISTS ${BOOST_LIBPATH})
+if(WIN32)
   set(BOOST_COMPONENTS atomic chrono date_time filesystem
     iostreams locale program_options regex
     serialization system thread wave wserialization

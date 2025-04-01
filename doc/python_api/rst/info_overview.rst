@@ -202,13 +202,7 @@ otherwise Blender's internal initialization won't happen properly:
    class AwesomeRaytracer(bpy.types.RenderEngine):
       def __init__(self, *args, **kwargs):
          super().__init__(*args, **kwargs)
-         self.my_var = 42
          ...
-
-.. warning::
-
-   The Blender-defined parent constructor must be called before any data access to the object, including
-   from other potential parent types ``__init__()`` functions.
 
 .. warning::
 
@@ -229,9 +223,8 @@ otherwise Blender's internal initialization won't happen properly:
 
 .. note::
 
-   In case you are using complex/multi-inheritance, ``super()`` may not work (as the Blender-defined parent
-   may not be the first type in the MRO). It is best then to first explicitly invoke the Blender-defined
-   parent class constructor, before any other. For example:
+   In case you are using complex/multi-inheritance, ``super()`` may not work. It is best then to
+   explicitly invoke the Blender-defined parent class constructor. For example:
 
    .. code-block:: python
 
@@ -239,8 +232,6 @@ otherwise Blender's internal initialization won't happen properly:
       class FancyRaytracer(AwesomeRaytracer, bpy.types.RenderEngine):
          def __init__(self, *args, **kwargs):
             bpy.types.RenderEngine.__init__(self, *args, **kwargs)
-            AwesomeRaytracer.__init__(self, *args, **kwargs)
-            self.my_var = 42
             ...
 
 .. note::

@@ -38,8 +38,6 @@
 #include "BKE_node_tree_zones.hh"
 #include "BKE_screen.hh"
 
-#include "BLT_translation.hh"
-
 #include "ED_image.hh"
 #include "ED_node.hh"
 #include "ED_node_preview.hh"
@@ -60,8 +58,6 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
-#include "io_utils.hh"
-
 #include "node_intern.hh" /* own include */
 
 using blender::float2;
@@ -76,7 +72,7 @@ void ED_node_tree_start(SpaceNode *snode, bNodeTree *ntree, ID *id, ID *from)
   BLI_listbase_clear(&snode->treepath);
 
   if (ntree) {
-    bNodeTreePath *path = MEM_callocN<bNodeTreePath>("node tree path");
+    bNodeTreePath *path = MEM_cnew<bNodeTreePath>("node tree path");
     path->nodetree = ntree;
     path->parent_key = blender::bke::NODE_INSTANCE_KEY_BASE;
 
@@ -109,7 +105,7 @@ void ED_node_tree_start(SpaceNode *snode, bNodeTree *ntree, ID *id, ID *from)
 
 void ED_node_tree_push(SpaceNode *snode, bNodeTree *ntree, bNode *gnode)
 {
-  bNodeTreePath *path = MEM_callocN<bNodeTreePath>("node tree path");
+  bNodeTreePath *path = MEM_cnew<bNodeTreePath>("node tree path");
   bNodeTreePath *prev_path = (bNodeTreePath *)snode->treepath.last;
   path->nodetree = ntree;
   if (gnode) {
@@ -355,7 +351,7 @@ bool push_compute_context_for_tree_path(const SpaceNode &snode,
   for (const int i : tree_path.index_range().drop_back(1)) {
     bNodeTree *tree = tree_path[i]->nodetree;
     const char *group_node_name = tree_path[i + 1]->node_name;
-    const bNode *group_node = blender::bke::node_find_node_by_name(*tree, group_node_name);
+    const bNode *group_node = blender::bke::node_find_node_by_name(tree, group_node_name);
     if (group_node == nullptr) {
       return false;
     }
@@ -396,7 +392,7 @@ bool push_compute_context_for_tree_path(const SpaceNode &snode,
 
 static SpaceLink *node_create(const ScrArea * /*area*/, const Scene * /*scene*/)
 {
-  SpaceNode *snode = MEM_callocN<SpaceNode>(__func__);
+  SpaceNode *snode = MEM_cnew<SpaceNode>(__func__);
   snode->spacetype = SPACE_NODE;
 
   snode->flag = SNODE_SHOW_GPENCIL | SNODE_USE_ALPHA;
@@ -673,6 +669,28 @@ static void node_area_listener(const wmSpaceTypeListenerParams *params)
   }
 }
 
+/* Returns true if an image editor exists that views the compositor result. */
+static bool is_compositor_viewer_image_visible(const bContext *C)
+{
+  wmWindowManager *window_manager = CTX_wm_manager(C);
+  LISTBASE_FOREACH (wmWindow *, window, &window_manager->windows) {
+    bScreen *screen = WM_window_get_active_screen(window);
+    LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+      SpaceLink *space_link = static_cast<SpaceLink *>(area->spacedata.first);
+      if (!space_link || space_link->spacetype != SPACE_IMAGE) {
+        continue;
+      }
+      const SpaceImage *space_image = reinterpret_cast<const SpaceImage *>(space_link);
+      Image *image = ED_space_image(space_image);
+      if (image && image->source == IMA_SRC_VIEWER) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
 static void node_area_refresh(const bContext *C, ScrArea *area)
 {
   /* default now: refresh node is starting preview */
@@ -686,7 +704,11 @@ static void node_area_refresh(const bContext *C, ScrArea *area)
       if (scene->use_nodes) {
         if (snode->runtime->recalc_regular_compositing) {
           snode->runtime->recalc_regular_compositing = false;
-          ED_node_composite_job(C, snode->nodetree, scene);
+          /* Only start compositing if its result will be visible either in the backdrop or in a
+           * viewer image. */
+          if (snode->flag & SNODE_BACKDRAW || is_compositor_viewer_image_visible(C)) {
+            ED_node_composite_job(C, snode->nodetree, scene);
+          }
         }
       }
     }
@@ -859,22 +881,6 @@ static bool node_color_drop_poll(bContext *C, wmDrag *drag, const wmEvent * /*ev
   return (drag->type == WM_DRAG_COLOR) && !UI_but_active_drop_color(C);
 }
 
-static bool node_import_file_drop_poll(bContext * /*C*/, wmDrag *drag, const wmEvent * /*event*/)
-{
-  if (drag->type != WM_DRAG_PATH) {
-    return false;
-  }
-  const blender::Span<std::string> paths = WM_drag_get_paths(drag);
-  for (const StringRef path : paths) {
-    if (path.endswith(".csv") || path.endswith(".obj") || path.endswith(".ply") ||
-        path.endswith(".stl") || path.endswith(".txt"))
-    {
-      return true;
-    }
-  }
-  return false;
-}
-
 static void node_group_drop_copy(bContext *C, wmDrag *drag, wmDropBox *drop)
 {
   ID *id = WM_drag_get_local_ID_or_import_from_asset(C, drag, 0);
@@ -901,11 +907,6 @@ static void node_id_im_drop_copy(bContext *C, wmDrag *drag, wmDropBox *drop)
   }
 }
 
-static void node_import_file_drop_copy(bContext * /*C*/, wmDrag *drag, wmDropBox *drop)
-{
-  io::paths_to_operator_properties(drop->ptr, WM_drag_get_paths(drag));
-}
-
 /* this region dropbox definition */
 static void node_dropboxes()
 {
@@ -930,7 +931,7 @@ static void node_dropboxes()
                  WM_drag_free_imported_drag_ID,
                  nullptr);
   WM_dropbox_add(lb,
-                 "NODE_OT_add_image",
+                 "NODE_OT_add_file",
                  node_id_im_drop_poll,
                  node_id_im_drop_copy,
                  WM_drag_free_imported_drag_ID,
@@ -949,12 +950,6 @@ static void node_dropboxes()
                  nullptr);
   WM_dropbox_add(
       lb, "NODE_OT_add_color", node_color_drop_poll, UI_drop_color_copy, nullptr, nullptr);
-  WM_dropbox_add(lb,
-                 "NODE_OT_add_import_node",
-                 node_import_file_drop_poll,
-                 node_import_file_drop_copy,
-                 nullptr,
-                 nullptr);
 }
 
 /* ************* end drop *********** */
@@ -990,11 +985,6 @@ static void node_region_listener(const wmRegionListenerParams *params)
         case ND_SPACE_NODE_VIEW:
           WM_gizmomap_tag_refresh(gzmap);
           break;
-      }
-      break;
-    case NC_ANIMATION:
-      if (wmn->data == ND_NLA_ACTCHANGE) {
-        ED_region_tag_redraw(region);
       }
       break;
     case NC_SCREEN:
@@ -1088,7 +1078,7 @@ static int /*eContextResult*/ node_context(const bContext *C,
   }
   if (CTX_data_equals(member, "active_node")) {
     if (snode->edittree) {
-      bNode *node = bke::node_get_active(*snode->edittree);
+      bNode *node = bke::node_get_active(snode->edittree);
       CTX_data_pointer_set(result, &snode->edittree->id, &RNA_Node, node);
     }
 
@@ -1097,10 +1087,8 @@ static int /*eContextResult*/ node_context(const bContext *C,
   }
   if (CTX_data_equals(member, "node_previews")) {
     if (snode->nodetree) {
-      CTX_data_pointer_set(result,
-                           &snode->nodetree->id,
-                           &RNA_NodeInstanceHash,
-                           &snode->nodetree->runtime->previews);
+      CTX_data_pointer_set(
+          result, &snode->nodetree->id, &RNA_NodeInstanceHash, snode->nodetree->previews);
     }
 
     CTX_data_type_set(result, CTX_DATA_TYPE_POINTER);
@@ -1365,9 +1353,6 @@ static blender::StringRefNull node_space_name_get(const ScrArea *area)
 {
   SpaceNode *snode = static_cast<SpaceNode *>(area->spacedata.first);
   bke::bNodeTreeType *tree_type = bke::node_tree_type_find(snode->tree_idname);
-  if (tree_type == nullptr) {
-    return IFACE_("Node Editor");
-  }
   return tree_type->ui_name;
 }
 
@@ -1375,9 +1360,6 @@ static int node_space_icon_get(const ScrArea *area)
 {
   SpaceNode *snode = static_cast<SpaceNode *>(area->spacedata.first);
   bke::bNodeTreeType *tree_type = bke::node_tree_type_find(snode->tree_idname);
-  if (tree_type == nullptr) {
-    return ICON_NODETREE;
-  }
   return tree_type->ui_icon;
 }
 
@@ -1441,7 +1423,7 @@ void ED_spacetype_node()
   st->blend_write = node_space_blend_write;
 
   /* regions: main window */
-  art = MEM_callocN<ARegionType>("spacetype node region");
+  art = MEM_cnew<ARegionType>("spacetype node region");
   art->regionid = RGN_TYPE_WINDOW;
   art->init = node_main_region_init;
   art->draw = node_main_region_draw;
@@ -1456,7 +1438,7 @@ void ED_spacetype_node()
   BLI_addhead(&st->regiontypes, art);
 
   /* regions: header */
-  art = MEM_callocN<ARegionType>("spacetype node region");
+  art = MEM_cnew<ARegionType>("spacetype node region");
   art->regionid = RGN_TYPE_HEADER;
   art->prefsizey = HEADERY;
   art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_VIEW2D | ED_KEYMAP_FRAMES | ED_KEYMAP_HEADER;
@@ -1467,7 +1449,7 @@ void ED_spacetype_node()
   BLI_addhead(&st->regiontypes, art);
 
   /* regions: list-view/buttons */
-  art = MEM_callocN<ARegionType>("spacetype node region");
+  art = MEM_cnew<ARegionType>("spacetype node region");
   art->regionid = RGN_TYPE_UI;
   art->prefsizex = UI_SIDEBAR_PANEL_WIDTH;
   art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_FRAMES;
@@ -1478,7 +1460,7 @@ void ED_spacetype_node()
   BLI_addhead(&st->regiontypes, art);
 
   /* regions: toolbar */
-  art = MEM_callocN<ARegionType>("spacetype view3d tools region");
+  art = MEM_cnew<ARegionType>("spacetype view3d tools region");
   art->regionid = RGN_TYPE_TOOLS;
   art->prefsizex = int(UI_TOOLBAR_WIDTH);
   art->prefsizey = 50; /* XXX */
@@ -1490,9 +1472,9 @@ void ED_spacetype_node()
   art->draw = node_toolbar_region_draw;
   BLI_addhead(&st->regiontypes, art);
 
-  WM_menutype_add(MEM_dupallocN<MenuType>(__func__, add_catalog_assets_menu_type()));
-  WM_menutype_add(MEM_dupallocN<MenuType>(__func__, add_unassigned_assets_menu_type()));
-  WM_menutype_add(MEM_dupallocN<MenuType>(__func__, add_root_catalogs_menu_type()));
+  WM_menutype_add(MEM_cnew<MenuType>(__func__, add_catalog_assets_menu_type()));
+  WM_menutype_add(MEM_cnew<MenuType>(__func__, add_unassigned_assets_menu_type()));
+  WM_menutype_add(MEM_cnew<MenuType>(__func__, add_root_catalogs_menu_type()));
 
   BKE_spacetype_register(std::move(st));
 }

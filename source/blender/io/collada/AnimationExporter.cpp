@@ -12,7 +12,6 @@
 
 #include "BKE_material.hh"
 
-#include "BLI_listbase.h"
 #include "BLI_string.h"
 
 std::string EMPTY_STRING;

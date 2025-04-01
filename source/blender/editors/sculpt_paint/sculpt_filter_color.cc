@@ -432,9 +432,7 @@ static void sculpt_color_filter_end(bContext *C, Object &ob)
   flush_update_done(C, ob, UpdateType::Color);
 }
 
-static wmOperatorStatus sculpt_color_filter_modal(bContext *C,
-                                                  wmOperator *op,
-                                                  const wmEvent *event)
+static int sculpt_color_filter_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   Object &ob = *CTX_data_active_object(C);
   SculptSession &ss = *ob.sculpt;
@@ -514,7 +512,7 @@ static int sculpt_color_filter_init(bContext *C, wmOperator *op)
   return OPERATOR_PASS_THROUGH;
 }
 
-static wmOperatorStatus sculpt_color_filter_exec(bContext *C, wmOperator *op)
+static int sculpt_color_filter_exec(bContext *C, wmOperator *op)
 {
   Object &ob = *CTX_data_active_object(C);
 
@@ -528,9 +526,7 @@ static wmOperatorStatus sculpt_color_filter_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus sculpt_color_filter_invoke(bContext *C,
-                                                   wmOperator *op,
-                                                   const wmEvent *event)
+static int sculpt_color_filter_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   Object &ob = *CTX_data_active_object(C);
   View3D *v3d = CTX_wm_view3d(C);

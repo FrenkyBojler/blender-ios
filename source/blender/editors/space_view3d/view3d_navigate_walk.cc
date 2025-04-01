@@ -21,7 +21,6 @@
 #include "BLI_kdopbvh.hh"
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
-#include "BLI_math_vector.h"
 #include "BLI_rect.h"
 #include "BLI_time.h" /* Smooth-view. */
 #include "BLI_utildefines.h"
@@ -30,8 +29,6 @@
 #include "BKE_lib_id.hh"
 #include "BKE_report.hh"
 #include "BKE_screen.hh"
-
-#include "BLT_translation.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -47,8 +44,6 @@
 
 #include "view3d_intern.hh" /* own include */
 #include "view3d_navigate.hh"
-
-#include <fmt/format.h>
 
 #include "BLI_strict_flags.h" /* IWYU pragma: keep. Keep last. */
 
@@ -329,7 +324,7 @@ struct WalkInfo {
   /** Nicer dynamics. */
   float zlock_momentum;
 
-  blender::ed::transform::SnapObjectContext *snap_context;
+  SnapObjectContext *snap_context;
 
   View3DCameraControl *v3d_camera_control;
 };
@@ -436,20 +431,20 @@ static bool walk_floor_distance_get(RegionView3D *rv3d,
   mul_v3_v3fl(dvec_tmp, dvec, walk->grid);
   add_v3_v3(ray_start, dvec_tmp);
 
-  blender::ed::transform::SnapObjectParams snap_params = {};
+  SnapObjectParams snap_params = {};
   snap_params.snap_target_select = SCE_SNAP_TARGET_ALL;
   /* Avoid having to convert the edit-mesh to a regular mesh. */
-  snap_params.edit_mode_type = blender::ed::transform::SNAP_GEOM_EDIT;
+  snap_params.edit_mode_type = SNAP_GEOM_EDIT;
 
-  const bool ret = blender::ed::transform::snap_object_project_ray(walk->snap_context,
-                                                                   walk->depsgraph,
-                                                                   walk->v3d,
-                                                                   &snap_params,
-                                                                   ray_start,
-                                                                   ray_normal,
-                                                                   r_distance,
-                                                                   location_dummy,
-                                                                   normal_dummy);
+  const bool ret = ED_transform_snap_object_project_ray(walk->snap_context,
+                                                        walk->depsgraph,
+                                                        walk->v3d,
+                                                        &snap_params,
+                                                        ray_start,
+                                                        ray_normal,
+                                                        r_distance,
+                                                        location_dummy,
+                                                        normal_dummy);
 
   /* Artificially scale the distance to the scene size. */
   *r_distance /= walk->grid;
@@ -478,18 +473,18 @@ static bool walk_ray_cast(RegionView3D *rv3d,
 
   normalize_v3(ray_normal);
 
-  blender::ed::transform::SnapObjectParams snap_params = {};
+  SnapObjectParams snap_params = {};
   snap_params.snap_target_select = SCE_SNAP_TARGET_ALL;
 
-  const bool ret = blender::ed::transform::snap_object_project_ray(walk->snap_context,
-                                                                   walk->depsgraph,
-                                                                   walk->v3d,
-                                                                   &snap_params,
-                                                                   ray_start,
-                                                                   ray_normal,
-                                                                   nullptr,
-                                                                   r_location,
-                                                                   r_normal);
+  const bool ret = ED_transform_snap_object_project_ray(walk->snap_context,
+                                                        walk->depsgraph,
+                                                        walk->v3d,
+                                                        &snap_params,
+                                                        ray_start,
+                                                        ray_normal,
+                                                        nullptr,
+                                                        r_location,
+                                                        r_normal);
 
   /* Dot is positive if both rays are facing the same direction. */
   if (dot_v3v3(ray_normal, r_normal) > 0) {
@@ -631,7 +626,7 @@ static bool initWalkInfo(bContext *C, WalkInfo *walk, wmOperator *op, const int 
 
   walk->rv3d->rflag |= RV3D_NAVIGATING;
 
-  walk->snap_context = blender::ed::transform::snap_object_context_create(walk->scene, 0);
+  walk->snap_context = ED_transform_snap_object_context_create(walk->scene, 0);
 
   walk->v3d_camera_control = ED_view3d_cameracontrol_acquire(
       walk->depsgraph, walk->scene, walk->v3d, walk->rv3d);
@@ -644,7 +639,7 @@ static bool initWalkInfo(bContext *C, WalkInfo *walk, wmOperator *op, const int 
   return true;
 }
 
-static wmOperatorStatus walkEnd(bContext *C, WalkInfo *walk)
+static int walkEnd(bContext *C, WalkInfo *walk)
 {
   wmWindow *win;
   RegionView3D *rv3d;
@@ -672,13 +667,11 @@ static wmOperatorStatus walkEnd(bContext *C, WalkInfo *walk)
   win = CTX_wm_window(C);
   rv3d = walk->rv3d;
 
-  ED_workspace_status_text(C, nullptr);
-
   WM_event_timer_remove(CTX_wm_manager(C), win, walk->timer);
 
   ED_region_draw_cb_exit(walk->region->runtime->type, walk->draw_handle_pixel);
 
-  blender::ed::transform::snap_object_context_destroy(walk->snap_context);
+  ED_transform_snap_object_context_destroy(walk->snap_context);
 
   ED_view3d_cameracontrol_release(walk->v3d_camera_control, walk->state == WALK_CANCEL);
 
@@ -1468,73 +1461,14 @@ static void walkApply_ndof(bContext *C, WalkInfo *walk, bool is_confirm)
 /** \name Walk Operator
  * \{ */
 
-static void walk_draw_status(bContext *C, wmOperator *op)
-{
-  WalkInfo *walk = static_cast<WalkInfo *>(op->customdata);
-
-  WorkspaceStatus status(C);
-
-  status.opmodal(IFACE_("Confirm"), op->type, WALK_MODAL_CONFIRM);
-  status.opmodal(IFACE_("Cancel"), op->type, WALK_MODAL_CANCEL);
-
-  status.opmodal(
-      "", op->type, WALK_MODAL_DIR_FORWARD, walk->active_directions & WALK_BIT_LOCAL_FORWARD);
-  status.opmodal("", op->type, WALK_MODAL_DIR_LEFT, walk->active_directions & WALK_BIT_LOCAL_LEFT);
-  status.opmodal(
-      "", op->type, WALK_MODAL_DIR_BACKWARD, walk->active_directions & WALK_BIT_LOCAL_BACKWARD);
-  status.opmodal(
-      "", op->type, WALK_MODAL_DIR_RIGHT, walk->active_directions & WALK_BIT_LOCAL_RIGHT);
-  status.item(IFACE_("Move"), ICON_NONE);
-
-  status.opmodal("", op->type, WALK_MODAL_DIR_UP, walk->active_directions & WALK_BIT_GLOBAL_UP);
-  status.opmodal(
-      "", op->type, WALK_MODAL_DIR_DOWN, walk->active_directions & WALK_BIT_GLOBAL_DOWN);
-  status.item(IFACE_("Up/Down"), ICON_NONE);
-
-  status.opmodal(
-      "", op->type, WALK_MODAL_DIR_LOCAL_UP, walk->active_directions & WALK_BIT_LOCAL_UP);
-  status.opmodal(
-      "", op->type, WALK_MODAL_DIR_LOCAL_DOWN, walk->active_directions & WALK_BIT_LOCAL_DOWN);
-  status.item(IFACE_("Local Up/Down"), ICON_NONE);
-
-  status.opmodal(
-      IFACE_("Jump"), op->type, WALK_MODAL_JUMP, walk->gravity_state == WALK_GRAVITY_STATE_JUMP);
-
-  status.opmodal(IFACE_("Teleport"),
-                 op->type,
-                 WALK_MODAL_TELEPORT,
-                 walk->teleport.state == WALK_TELEPORT_STATE_ON);
-
-  status.opmodal(IFACE_("Fast"), op->type, WALK_MODAL_FAST_ENABLE, walk->is_fast);
-  status.opmodal(IFACE_("Slow"), op->type, WALK_MODAL_SLOW_ENABLE, walk->is_slow);
-
-  status.opmodal(IFACE_("Gravity"),
-                 op->type,
-                 WALK_MODAL_GRAVITY_TOGGLE,
-                 walk->navigation_mode == WALK_MODE_GRAVITY);
-
-  status.opmodal("", op->type, WALK_MODAL_ACCELERATE);
-  status.opmodal("", op->type, WALK_MODAL_DECELERATE);
-  status.item(fmt::format("{} ({:.2f})", IFACE_("Acceleration"), g_walk.base_speed), ICON_NONE);
-
-  status.opmodal("", op->type, WALK_MODAL_INCREASE_JUMP);
-  status.opmodal("", op->type, WALK_MODAL_DECREASE_JUMP);
-  status.item(fmt::format("{} ({:.2f})", IFACE_("Jump Height"), g_walk.jump_height), ICON_NONE);
-
-  status.opmodal(IFACE_("Z Axis Correction"),
-                 op->type,
-                 WALK_MODAL_AXIS_LOCK_Z,
-                 walk->zlock != WALK_AXISLOCK_STATE_OFF);
-}
-
-static wmOperatorStatus walk_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static int walk_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   RegionView3D *rv3d = CTX_wm_region_view3d(C);
   if (RV3D_LOCK_FLAGS(rv3d) & RV3D_LOCK_ANY_TRANSFORM) {
     return OPERATOR_CANCELLED;
   }
 
-  WalkInfo *walk = MEM_callocN<WalkInfo>("NavigationWalkOperation");
+  WalkInfo *walk = MEM_cnew<WalkInfo>("NavigationWalkOperation");
 
   op->customdata = walk;
 
@@ -1544,8 +1478,6 @@ static wmOperatorStatus walk_invoke(bContext *C, wmOperator *op, const wmEvent *
   }
 
   walkEvent(walk, event);
-
-  walk_draw_status(C, op);
 
   WM_event_add_modal_handler(C, op);
 
@@ -1561,7 +1493,7 @@ static void walk_cancel(bContext *C, wmOperator *op)
   op->customdata = nullptr;
 }
 
-static wmOperatorStatus walk_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static int walk_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   bool do_draw = false;
   WalkInfo *walk = static_cast<WalkInfo *>(op->customdata);
@@ -1572,8 +1504,6 @@ static wmOperatorStatus walk_modal(bContext *C, wmOperator *op, const wmEvent *e
   walk->redraw = false;
 
   walkEvent(walk, event);
-
-  walk_draw_status(C, op);
 
 #ifdef WITH_INPUT_NDOF
   if (walk->ndof) { /* 3D mouse overrules [2D mouse + timer]. */
@@ -1589,7 +1519,7 @@ static wmOperatorStatus walk_modal(bContext *C, wmOperator *op, const wmEvent *e
 
   do_draw |= walk->redraw;
 
-  const wmOperatorStatus exit_code = walkEnd(C, walk);
+  const int exit_code = walkEnd(C, walk);
 
   if (exit_code != OPERATOR_RUNNING_MODAL) {
     do_draw = true;

@@ -16,7 +16,6 @@
 
 #include "BLI_array_utils.h"
 #include "BLI_ghash.h"
-#include "BLI_listbase.h"
 
 #include "BKE_anim_data.hh"
 #include "BKE_context.hh"
@@ -50,17 +49,7 @@ struct UndoCurve {
   ListBase nubase;
   int actvert;
   GHash *undoIndex;
-
-  /* Historical note: Once upon a time, this code also made a backup of F-Curves, in an attempt to
-   * enable undo of animation changes. This was very limited, as it only backed up the animation
-   * of the curve ID; all the other IDs whose animation was shown in the dope sheet, timeline, etc.
-   * was ignored. It also ignored the NLA, and deleted Action groups even when the animation was
-   * not touched by the user.
-   *
-   * With the introduction of slotted Actions, a decision had to be made to either port this
-   * behavior or remove it. The latter was chosen. For more information, see #135585. */
-  ListBase drivers;
-
+  ListBase fcurves, drivers;
   int actnu;
   int flag;
 
@@ -87,6 +76,11 @@ static void undocurve_to_editcurve(Main *bmain, UndoCurve *ucu, Curve *cu, short
   }
 
   if (ad) {
+    if (ad->action) {
+      BKE_fcurves_free(&ad->action->curves);
+      BKE_fcurves_copy(&ad->action->curves, &ucu->fcurves);
+    }
+
     BKE_fcurves_free(&ad->drivers);
     BKE_fcurves_copy(&ad->drivers, &ucu->drivers);
   }
@@ -116,7 +110,7 @@ static void undocurve_from_editcurve(UndoCurve *ucu, Curve *cu, const short shap
   EditNurb *editnurb = cu->editnurb, tmpEditnurb;
   AnimData *ad = BKE_animdata_from_id(&cu->id);
 
-  /* TODO: include size of drivers & undoIndex */
+  /* TODO: include size of fcurve & undoIndex */
   // ucu->undo_size = 0;
 
   if (editnurb->keyindex) {
@@ -125,6 +119,10 @@ static void undocurve_from_editcurve(UndoCurve *ucu, Curve *cu, const short shap
   }
 
   if (ad) {
+    if (ad->action) {
+      BKE_fcurves_copy(&ucu->fcurves, &ad->action->curves);
+    }
+
     BKE_fcurves_copy(&ucu->drivers, &ad->drivers);
   }
 
@@ -157,6 +155,7 @@ static void undocurve_free_data(UndoCurve *uc)
 
   BKE_curve_editNurb_keyIndex_free(&uc->undoIndex);
 
+  BKE_fcurves_free(&uc->fcurves);
   BKE_fcurves_free(&uc->drivers);
 }
 

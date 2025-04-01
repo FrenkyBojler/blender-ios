@@ -8,6 +8,10 @@
  * \ingroup bli
  */
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 float BLI_easing_back_ease_in(
     float time, float begin, float change, float duration, float overshoot);
 float BLI_easing_back_ease_out(
@@ -45,3 +49,7 @@ float BLI_easing_quint_ease_in_out(float time, float begin, float change, float 
 float BLI_easing_sine_ease_in(float time, float begin, float change, float duration);
 float BLI_easing_sine_ease_out(float time, float begin, float change, float duration);
 float BLI_easing_sine_ease_in_out(float time, float begin, float change, float duration);
+
+#ifdef __cplusplus
+}
+#endif

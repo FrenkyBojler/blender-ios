@@ -702,13 +702,13 @@ void *MEM_guarded_calloc_arrayN(size_t len, size_t size, const char *str)
   return MEM_guarded_callocN(total_size, str);
 }
 
-static void *mem_guarded_malloc_arrayN_aligned(const size_t len,
-                                               const size_t size,
-                                               const size_t alignment,
-                                               const char *str,
-                                               size_t &r_bytes_num)
+void *MEM_guarded_calloc_arrayN_aligned(const size_t len,
+                                        const size_t size,
+                                        const size_t alignment,
+                                        const char *str)
 {
-  if (UNLIKELY(!MEM_size_safe_multiply(len, size, &r_bytes_num))) {
+  size_t bytes_num;
+  if (UNLIKELY(!MEM_size_safe_multiply(len, size, &bytes_num))) {
     print_error(
         "Calloc array aborted due to integer overflow: "
         "len=" SIZET_FORMAT "x" SIZET_FORMAT " in %s, total " SIZET_FORMAT "\n",
@@ -720,29 +720,11 @@ static void *mem_guarded_malloc_arrayN_aligned(const size_t len,
     return nullptr;
   }
   if (alignment <= MEM_MIN_CPP_ALIGNMENT) {
-    return mem_mallocN(r_bytes_num, str);
+    return MEM_callocN(bytes_num, str);
   }
-  return MEM_mallocN_aligned(r_bytes_num, alignment, str);
-}
-
-void *MEM_guarded_malloc_arrayN_aligned(const size_t len,
-                                        const size_t size,
-                                        const size_t alignment,
-                                        const char *str)
-{
-  size_t bytes_num;
-  return mem_guarded_malloc_arrayN_aligned(len, size, alignment, str, bytes_num);
-}
-
-void *MEM_guarded_calloc_arrayN_aligned(const size_t len,
-                                        const size_t size,
-                                        const size_t alignment,
-                                        const char *str)
-{
-  size_t bytes_num;
   /* There is no lower level #calloc with an alignment parameter, so we have to fallback to using
    * #memset unfortunately. */
-  void *ptr = mem_guarded_malloc_arrayN_aligned(len, size, alignment, str, bytes_num);
+  void *ptr = MEM_mallocN_aligned(bytes_num, alignment, str);
   if (!ptr) {
     return nullptr;
   }

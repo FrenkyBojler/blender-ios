@@ -20,6 +20,10 @@
 
 #include "DNA_particle_types.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct ParticleKey;
 struct ParticleSettings;
 struct ParticleSystem;
@@ -85,10 +89,7 @@ typedef struct SPHData {
   ParticleData *pa;
   float mass;
   std::optional<blender::Map<blender::OrderedEdge, int>> eh;
-
-  /** The gravity as a `float[3]`, may also be null when the simulation doesn't use gravity. */
-  const float *gravity;
-
+  float *gravity;
   float hfac;
   /* Average distance to neighbors (other particles in the support domain),
    * for calculating the Courant number (adaptive time step). */
@@ -708,3 +709,7 @@ void BKE_particle_system_blend_read_after_liblink(struct BlendLibReader *reader,
                                                   struct Object *ob,
                                                   struct ID *id,
                                                   struct ListBase *particles);
+
+#ifdef __cplusplus
+}
+#endif

@@ -196,7 +196,7 @@ class InfoStructRNA:
         import types
         functions = []
         for identifier, attr in self._get_py_visible_attrs():
-            # Methods may be Python wrappers to C-API functions.
+            # Methods may be python wrappers to C functions.
             ok = False
             if (attr_func := getattr(attr, "__func__", None)) is not None:
                 if type(attr_func) == types.FunctionType:
@@ -212,7 +212,7 @@ class InfoStructRNA:
         import types
         functions = []
         for identifier, attr in self._get_py_visible_attrs():
-            # Methods may be Python wrappers to C-API functions.
+            # Methods may be python wrappers to C functions.
             ok = False
             if (attr_func := getattr(attr, "__func__", None)) is not None:
                 if type(attr_func) == types.BuiltinFunctionType:
@@ -395,8 +395,6 @@ class InfoPropertyRNA:
         type_str = ""
         if self.fixed_type is None:
             type_str += self.type
-            if self.type == "string" and self.subtype == "BYTE_STRING":
-                type_str = "byte string"
             if self.array_length:
                 if self.array_dimensions[1] != 0:
                     dimension_str = " of {:s} items".format(
@@ -470,7 +468,7 @@ class InfoPropertyRNA:
             if not self.is_required:
                 type_info.append("optional")
             if self.is_argument_optional:
-                type_info.append("optional for registration")
+                type_info.append("optional argument")
         else:  # readonly is only useful for self's, not args
             if self.is_readonly:
                 type_info.append("readonly")

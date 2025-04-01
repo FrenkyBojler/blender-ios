@@ -229,7 +229,7 @@ MTLFrameBuffer *MTLCommandBufferManager::get_active_framebuffer()
 
 /* Encoder and Pass management. */
 /* End currently active MTLCommandEncoder. */
-bool MTLCommandBufferManager::end_active_command_encoder(bool retain_framebuffers)
+bool MTLCommandBufferManager::end_active_command_encoder()
 {
 
   /* End active encoder if one is active. */
@@ -247,10 +247,8 @@ bool MTLCommandBufferManager::end_active_command_encoder(bool retain_framebuffer
         active_command_encoder_type_ = MTL_NO_COMMAND_ENCODER;
 
         /* Reset associated frame-buffer flag. */
-        if (!retain_framebuffers) {
-          active_frame_buffer_ = nullptr;
-          active_pass_descriptor_ = nullptr;
-        }
+        active_frame_buffer_ = nullptr;
+        active_pass_descriptor_ = nullptr;
         return true;
       }
 

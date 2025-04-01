@@ -186,22 +186,6 @@ int OCIOImpl::configGetIndexForColorSpace(OCIO_ConstConfigRcPtr *config, const c
   return -1;
 }
 
-const char *OCIOImpl::getColorSpaceFromFilepath(OCIO_ConstConfigRcPtr *config,
-                                                const char *filepath)
-{
-  ConstConfigRcPtr &cfg = *(ConstConfigRcPtr *)config;
-
-  /* If Blender specific default_byte or default_float roles exist, don't use the
-   * default rule which can't distinguish between these two cases automatically. */
-  if (cfg->filepathOnlyMatchesDefaultRule(filepath) &&
-      (cfg->hasRole(OCIO_ROLE_DEFAULT_BYTE) || cfg->hasRole(OCIO_ROLE_DEFAULT_FLOAT)))
-  {
-    return nullptr;
-  }
-
-  return cfg->getColorSpaceFromFilepath(filepath);
-}
-
 const char *OCIOImpl::configGetDefaultDisplay(OCIO_ConstConfigRcPtr *config)
 {
   try {
@@ -820,15 +804,15 @@ OCIO_PackedImageDesc *OCIOImpl::createOCIO_PackedImageDesc(float *data,
                                                            long yStrideBytes)
 {
   try {
-    PackedImageDesc *id = MEM_new<PackedImageDesc>(__func__,
-                                                   data,
-                                                   width,
-                                                   height,
-                                                   numChannels,
-                                                   BIT_DEPTH_F32,
-                                                   chanStrideBytes,
-                                                   xStrideBytes,
-                                                   yStrideBytes);
+    void *mem = MEM_mallocN(sizeof(PackedImageDesc), __func__);
+    PackedImageDesc *id = new (mem) PackedImageDesc(data,
+                                                    width,
+                                                    height,
+                                                    numChannels,
+                                                    BIT_DEPTH_F32,
+                                                    chanStrideBytes,
+                                                    xStrideBytes,
+                                                    yStrideBytes);
 
     return (OCIO_PackedImageDesc *)id;
   }

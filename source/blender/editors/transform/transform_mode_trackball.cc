@@ -12,7 +12,7 @@
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
 #include "BLI_string.h"
-#include "BLI_task.hh"
+#include "BLI_task.h"
 
 #include "BKE_unit.hh"
 
@@ -28,11 +28,20 @@
 
 #include "transform_mode.hh"
 
-namespace blender::ed::transform {
-
 /* -------------------------------------------------------------------- */
-/** \name Transform (Rotation - Trackball)
+/** \name Transform (Rotation - Trackball) Element
  * \{ */
+
+/**
+ * \note Small arrays / data-structures should be stored copied for faster memory access.
+ */
+struct TransDataArgs_Trackball {
+  const TransInfo *t;
+  const TransDataContainer *tc;
+  float axis[3];
+  float angle;
+  float mat_final[3][3];
+};
 
 static void transdata_elem_trackball(const TransInfo *t,
                                      const TransDataContainer *tc,
@@ -49,6 +58,24 @@ static void transdata_elem_trackball(const TransInfo *t,
   }
   ElementRotation(t, tc, td, mat, t->around);
 }
+
+static void transdata_elem_trackball_fn(void *__restrict iter_data_v,
+                                        const int iter,
+                                        const TaskParallelTLS *__restrict /*tls*/)
+{
+  TransDataArgs_Trackball *data = static_cast<TransDataArgs_Trackball *>(iter_data_v);
+  TransData *td = &data->tc->data[iter];
+  if (td->flag & TD_SKIP) {
+    return;
+  }
+  transdata_elem_trackball(data->t, data->tc, td, data->axis, data->angle, data->mat_final);
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Transform (Rotation - Trackball)
+ * \{ */
 
 static void applyTrackballValue_calc_axis_angle(const TransInfo *t,
                                                 const float phi[2],
@@ -67,19 +94,32 @@ static void applyTrackballValue_calc_axis_angle(const TransInfo *t,
 static void applyTrackballValue(TransInfo *t, const float axis[3], const float angle)
 {
   float mat_final[3][3];
+  int i;
 
   axis_angle_normalized_to_mat3(mat_final, axis, angle);
 
   FOREACH_TRANS_DATA_CONTAINER (t, tc) {
-    threading::parallel_for(IndexRange(tc->data_len), 1024, [&](const IndexRange range) {
-      for (const int i : range) {
-        TransData *td = &tc->data[i];
+    if (tc->data_len < TRANSDATA_THREAD_LIMIT) {
+      TransData *td = tc->data;
+      for (i = 0; i < tc->data_len; i++, td++) {
         if (td->flag & TD_SKIP) {
           continue;
         }
         transdata_elem_trackball(t, tc, td, axis, angle, mat_final);
       }
-    });
+    }
+    else {
+      TransDataArgs_Trackball data{};
+      data.t = t;
+      data.tc = tc;
+      copy_v3_v3(data.axis, axis);
+      data.angle = angle;
+      copy_m3_m3(data.mat_final, mat_final);
+
+      TaskParallelSettings settings;
+      BLI_parallel_range_settings_defaults(&settings);
+      BLI_task_parallel_range(0, tc->data_len, &data, transdata_elem_trackball_fn, &settings);
+    }
   }
 }
 
@@ -151,14 +191,7 @@ static void initTrackball(TransInfo *t, wmOperator * /*op*/)
 {
   t->mode = TFM_TRACKBALL;
 
-  if (transform_mode_affect_only_locations(t)) {
-    WorkspaceStatus status(t->context);
-    status.item(TIP_("Transform is set to only affect location"), ICON_ERROR);
-    initMouseInputMode(t, &t->mouse, INPUT_ERROR);
-  }
-  else {
-    initMouseInputMode(t, &t->mouse, INPUT_TRACKBALL);
-  }
+  initMouseInputMode(t, &t->mouse, INPUT_TRACKBALL);
 
   t->idx_max = 1;
   t->num.idx_max = 1;
@@ -184,5 +217,3 @@ TransModeInfo TransMode_trackball = {
     /*snap_apply_fn*/ nullptr,
     /*draw_fn*/ nullptr,
 };
-
-}  // namespace blender::ed::transform

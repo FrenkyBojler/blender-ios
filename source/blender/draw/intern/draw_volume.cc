@@ -26,13 +26,18 @@
 
 #include "draw_cache.hh"
 #include "draw_common_c.hh"
-#include "draw_context_private.hh"
+#include "draw_manager_c.hh"
 
 #include "draw_common.hh"
 
-namespace blender::draw {
-
+using namespace blender;
+using namespace blender::draw;
 using VolumeInfosBuf = blender::draw::UniformBuffer<VolumeInfos>;
+
+static struct {
+  GPUTexture *dummy_zero;
+  GPUTexture *dummy_one;
+} g_data = {};
 
 struct VolumeUniformBufPool {
   Vector<VolumeInfosBuf *> ubos;
@@ -60,62 +65,69 @@ struct VolumeUniformBufPool {
   }
 };
 
-struct VolumeModule {
-  VolumeUniformBufPool ubo_pool;
+void DRW_volume_ubos_pool_free(void *pool)
+{
+  delete reinterpret_cast<VolumeUniformBufPool *>(pool);
+}
 
-  draw::Texture dummy_zero;
-  draw::Texture dummy_one;
+static void drw_volume_globals_init()
+{
+  const float zero[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+  const float one[4] = {1.0f, 1.0f, 1.0f, 1.0f};
+  g_data.dummy_zero = GPU_texture_create_3d(
+      "dummy_zero", 1, 1, 1, 1, GPU_RGBA8, GPU_TEXTURE_USAGE_SHADER_READ, zero);
+  g_data.dummy_one = GPU_texture_create_3d(
+      "dummy_one", 1, 1, 1, 1, GPU_RGBA8, GPU_TEXTURE_USAGE_SHADER_READ, one);
+  GPU_texture_extend_mode(g_data.dummy_zero, GPU_SAMPLER_EXTEND_MODE_REPEAT);
+  GPU_texture_extend_mode(g_data.dummy_one, GPU_SAMPLER_EXTEND_MODE_REPEAT);
+}
 
-  VolumeModule()
-  {
-    const float zero[4] = {0.0f, 0.0f, 0.0f, 0.0f};
-    const float one[4] = {1.0f, 1.0f, 1.0f, 1.0f};
-    const eGPUTextureUsage usage = GPU_TEXTURE_USAGE_SHADER_READ;
-    dummy_zero.ensure_3d(GPU_RGBA32F, int3(1), usage, zero);
-    dummy_one.ensure_3d(GPU_RGBA32F, int3(1), usage, one);
-    GPU_texture_extend_mode(dummy_zero, GPU_SAMPLER_EXTEND_MODE_REPEAT);
-    GPU_texture_extend_mode(dummy_one, GPU_SAMPLER_EXTEND_MODE_REPEAT);
+void DRW_volume_free()
+{
+  GPU_TEXTURE_FREE_SAFE(g_data.dummy_zero);
+  GPU_TEXTURE_FREE_SAFE(g_data.dummy_one);
+}
+
+static GPUTexture *grid_default_texture(eGPUDefaultValue default_value)
+{
+  if (g_data.dummy_one == nullptr) {
+    drw_volume_globals_init();
   }
 
-  GPUTexture *grid_default_texture(eGPUDefaultValue default_value)
-  {
-    switch (default_value) {
-      case GPU_DEFAULT_0:
-        return dummy_zero;
-      case GPU_DEFAULT_1:
-        return dummy_one;
-    }
-    return dummy_zero;
+  switch (default_value) {
+    case GPU_DEFAULT_0:
+      return g_data.dummy_zero;
+    case GPU_DEFAULT_1:
+      return g_data.dummy_one;
   }
-};
+  return g_data.dummy_zero;
+}
 
 void DRW_volume_init(DRWData *drw_data)
 {
-  if (drw_data == nullptr) {
-    drw_data = drw_get().data;
+  if (drw_data->volume_grids_ubos == nullptr) {
+    drw_data->volume_grids_ubos = new VolumeUniformBufPool();
   }
-  if (drw_data->volume_module == nullptr) {
-    drw_data->volume_module = MEM_new<VolumeModule>("VolumeModule");
-  }
-}
+  VolumeUniformBufPool *pool = (VolumeUniformBufPool *)drw_data->volume_grids_ubos;
+  pool->reset();
 
-void DRW_volume_module_free(draw::VolumeModule *module)
-{
-  MEM_delete(module);
+  if (g_data.dummy_one == nullptr) {
+    drw_volume_globals_init();
+  }
 }
 
 /* -------------------------------------------------------------------- */
-/** \name Public API for render engines.
+/** \name New Draw Manager implementation
  * \{ */
+
+namespace blender::draw {
 
 template<typename PassType>
 PassType *volume_world_grids_init(PassType &ps, ListBaseWrapper<GPUMaterialAttribute> &attrs)
 {
-  VolumeModule &module = *drw_get().data->volume_module;
-
   PassType *sub = &ps.sub("World Volume");
   for (const GPUMaterialAttribute *attr : attrs) {
-    sub->bind_texture(attr->input_name, module.grid_default_texture(attr->default_value));
+    sub->bind_texture(attr->input_name, grid_default_texture(attr->default_value));
   }
 
   return sub;
@@ -126,18 +138,18 @@ PassType *volume_object_grids_init(PassType &ps,
                                    Object *ob,
                                    ListBaseWrapper<GPUMaterialAttribute> &attrs)
 {
-  Volume &volume = DRW_object_get_data_for_drawing<Volume>(*ob);
-  BKE_volume_load(&volume, G.main);
+  Volume *volume = (Volume *)ob->data;
+  BKE_volume_load(volume, G.main);
 
   /* Render nothing if there is no attribute. */
-  if (BKE_volume_num_grids(&volume) == 0) {
+  if (BKE_volume_num_grids(volume) == 0) {
     return nullptr;
   }
 
-  VolumeModule &module = *drw_get().data->volume_module;
-  VolumeInfosBuf &volume_infos = *module.ubo_pool.alloc();
+  VolumeUniformBufPool *pool = (VolumeUniformBufPool *)DST.vmempool->volume_grids_ubos;
+  VolumeInfosBuf &volume_infos = *pool->alloc();
 
-  volume_infos.density_scale = BKE_volume_density_scale(&volume, ob->object_to_world().ptr());
+  volume_infos.density_scale = BKE_volume_density_scale(volume, ob->object_to_world().ptr());
   volume_infos.color_mul = float4(1.0f);
   volume_infos.temperature_mul = 1.0f;
   volume_infos.temperature_bias = 0.0f;
@@ -147,17 +159,17 @@ PassType *volume_object_grids_init(PassType &ps,
   /* Bind volume grid textures. */
   int grid_id = 0;
   for (const GPUMaterialAttribute *attr : attrs) {
-    const bke::VolumeGridData *volume_grid = BKE_volume_grid_find(&volume, attr->name);
+    const blender::bke::VolumeGridData *volume_grid = BKE_volume_grid_find(volume, attr->name);
     const DRWVolumeGrid *drw_grid = (volume_grid) ?
-                                        DRW_volume_batch_cache_get_grid(&volume, volume_grid) :
+                                        DRW_volume_batch_cache_get_grid(volume, volume_grid) :
                                         nullptr;
     /* Handle 3 cases here:
      * - Grid exists and texture was loaded -> use texture.
      * - Grid exists but has zero size or failed to load -> use zero.
      * - Grid does not exist -> use default value. */
     const GPUTexture *grid_tex = (drw_grid)    ? drw_grid->texture :
-                                 (volume_grid) ? module.dummy_zero :
-                                                 module.grid_default_texture(attr->default_value);
+                                 (volume_grid) ? g_data.dummy_zero :
+                                                 grid_default_texture(attr->default_value);
     /* TODO(@pragma37): bind_texture const support ? */
     sub->bind_texture(attr->input_name, (GPUTexture *)grid_tex);
 
@@ -178,8 +190,8 @@ PassType *drw_volume_object_mesh_init(PassType &ps,
                                       Object *ob,
                                       ListBaseWrapper<GPUMaterialAttribute> &attrs)
 {
-  VolumeModule &module = *drw_get().data->volume_module;
-  VolumeInfosBuf &volume_infos = *module.ubo_pool.alloc();
+  VolumeUniformBufPool *pool = (VolumeUniformBufPool *)DST.vmempool->volume_grids_ubos;
+  VolumeInfosBuf &volume_infos = *pool->alloc();
 
   ModifierData *md = nullptr;
 
@@ -201,7 +213,7 @@ PassType *drw_volume_object_mesh_init(PassType &ps,
     sub = &ps.sub("Volume Mesh SubPass");
     int grid_id = 0;
     for (const GPUMaterialAttribute *attr : attrs) {
-      sub->bind_texture(attr->input_name, module.grid_default_texture(attr->default_value));
+      sub->bind_texture(attr->input_name, grid_default_texture(attr->default_value));
       volume_infos.grids_xform[grid_id++] = float4x4::identity();
     }
   }
@@ -212,7 +224,7 @@ PassType *drw_volume_object_mesh_init(PassType &ps,
     sub = &ps.sub("Volume Modifier SubPass");
 
     float3 location, scale;
-    BKE_mesh_texspace_get(&DRW_object_get_data_for_drawing<Mesh>(*ob), location, scale);
+    BKE_mesh_texspace_get(static_cast<Mesh *>(ob->data), location, scale);
     float3 orco_mul = math::safe_rcp(scale * 2.0);
     float3 orco_add = (location - scale) * -orco_mul;
     /* Replace OrcoTexCoFactors with a matrix multiplication. */
@@ -223,16 +235,16 @@ PassType *drw_volume_object_mesh_init(PassType &ps,
     for (const GPUMaterialAttribute *attr : attrs) {
       if (STREQ(attr->name, "density")) {
         sub->bind_texture(attr->input_name,
-                          fds->tex_density ? &fds->tex_density : &module.dummy_one);
+                          fds->tex_density ? &fds->tex_density : &g_data.dummy_one);
       }
       else if (STREQ(attr->name, "color")) {
-        sub->bind_texture(attr->input_name, fds->tex_color ? &fds->tex_color : &module.dummy_one);
+        sub->bind_texture(attr->input_name, fds->tex_color ? &fds->tex_color : &g_data.dummy_one);
       }
       else if (STR_ELEM(attr->name, "flame", "temperature")) {
-        sub->bind_texture(attr->input_name, fds->tex_flame ? &fds->tex_flame : &module.dummy_zero);
+        sub->bind_texture(attr->input_name, fds->tex_flame ? &fds->tex_flame : &g_data.dummy_zero);
       }
       else {
-        sub->bind_texture(attr->input_name, module.grid_default_texture(attr->default_value));
+        sub->bind_texture(attr->input_name, grid_default_texture(attr->default_value));
       }
       volume_infos.grids_xform[grid_id++] = orco_mat;
     }
@@ -289,6 +301,6 @@ PassSimple::Sub *volume_sub_pass(PassSimple::Sub &ps,
   return volume_sub_pass_implementation(ps, scene, ob, gpu_material);
 }
 
-/** \} */
-
 }  // namespace blender::draw
+
+/** \} */

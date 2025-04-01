@@ -9,9 +9,7 @@
 #include "draw_sculpt.hh"
 
 #include "DNA_mesh_types.h"
-#include "DNA_scene_types.h"
 #include "draw_attributes.hh"
-#include "draw_context_private.hh"
 #include "draw_view.hh"
 
 #include "BKE_attribute.hh"
@@ -55,7 +53,7 @@ static Vector<SculptBatch> sculpt_batches_get_ex(const Object *ob,
   }
 
   /* TODO(Miguel Pozo): Don't use global context. */
-  const DRWContext *drwctx = DRW_context_get();
+  const DRWContextState *drwctx = DRW_context_state_get();
   RegionView3D *rv3d = drwctx->rv3d;
   const bool navigating = rv3d && (rv3d->rflag & RV3D_NAVIGATING);
 
@@ -162,11 +160,11 @@ Vector<SculptBatch> sculpt_batches_per_material_get(const Object *ob,
                                                     Span<const GPUMaterial *> materials)
 {
   BLI_assert(ob->type == OB_MESH);
-  const Mesh &mesh = DRW_object_get_data_for_drawing<Mesh>(*ob);
+  const Mesh *mesh = static_cast<const Mesh *>(ob->data);
 
   DRW_Attributes draw_attrs;
   DRW_MeshCDMask cd_needed;
-  DRW_mesh_get_attributes(*ob, mesh, materials, &draw_attrs, &cd_needed);
+  DRW_mesh_get_attributes(*ob, *mesh, materials, &draw_attrs, &cd_needed);
 
   Vector<pbvh::AttributeRequest, 16> attrs;
 
@@ -181,8 +179,8 @@ Vector<SculptBatch> sculpt_batches_per_material_get(const Object *ob,
   /* UV maps are not in attribute requests. */
   for (uint i = 0; i < 32; i++) {
     if (cd_needed.uv & (1 << i)) {
-      int layer_i = CustomData_get_layer_index_n(&mesh.corner_data, CD_PROP_FLOAT2, i);
-      CustomDataLayer *layer = layer_i != -1 ? mesh.corner_data.layers + layer_i : nullptr;
+      int layer_i = CustomData_get_layer_index_n(&mesh->corner_data, CD_PROP_FLOAT2, i);
+      CustomDataLayer *layer = layer_i != -1 ? mesh->corner_data.layers + layer_i : nullptr;
       if (layer) {
         attrs.append(pbvh::GenericRequest{layer->name, CD_PROP_FLOAT2, bke::AttrDomain::Corner});
       }

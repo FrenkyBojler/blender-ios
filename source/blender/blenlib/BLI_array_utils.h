@@ -12,6 +12,10 @@
 #include "BLI_compiler_typecheck.h"
 #include "BLI_sys_types.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /**
  * In-place array reverse.
  *
@@ -142,3 +146,6 @@ bool _bli_array_iter_spiral_square(const void *arr_v,
                                    void *user_data);
 #define BLI_array_iter_spiral_square(arr, arr_shape, center, test_fn, user_data) \
   _bli_array_iter_spiral_square(arr, arr_shape, sizeof(*(arr)), center, test_fn, user_data)
+#ifdef __cplusplus
+}
+#endif

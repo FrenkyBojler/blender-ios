@@ -14,7 +14,6 @@
 
 #include "BLI_math_matrix.h"
 #include "BLI_math_matrix.hh"
-#include "BLI_math_vector.h"
 #include "BLI_rand.hh"
 #include "BLI_utildefines.h"
 
@@ -1167,7 +1166,7 @@ bool paint_supports_dynamic_tex_coords(const Brush &br, const PaintMode mode)
 
 wmKeyMap *paint_stroke_modal_keymap(wmKeyConfig *keyconf)
 {
-  static const EnumPropertyItem modal_items[] = {
+  static EnumPropertyItem modal_items[] = {
       {PAINT_STROKE_MODAL_CANCEL, "CANCEL", 0, "Cancel", "Cancel and undo a stroke in progress"},
       {0}};
 
@@ -1454,10 +1453,7 @@ static void paint_stroke_line_constrain(PaintStroke *stroke, float2 &mouse)
   }
 }
 
-wmOperatorStatus paint_stroke_modal(bContext *C,
-                                    wmOperator *op,
-                                    const wmEvent *event,
-                                    PaintStroke **stroke_p)
+int paint_stroke_modal(bContext *C, wmOperator *op, const wmEvent *event, PaintStroke **stroke_p)
 {
   const Scene *scene = CTX_data_scene(C);
   Paint *paint = BKE_paint_get_active_from_context(C);
@@ -1573,27 +1569,6 @@ wmOperatorStatus paint_stroke_modal(bContext *C,
     return OPERATOR_CANCELLED;
   }
 
-  /* Handles shift-key active smooth toggling during a grease pencil stroke. */
-  if (mode == PaintMode::GPencil) {
-    if (event->modifier & KM_SHIFT) {
-      stroke->stroke_mode = BRUSH_STROKE_SMOOTH;
-      if (!stroke->stroke_cursor) {
-        stroke->stroke_cursor = WM_paint_cursor_activate(SPACE_TYPE_ANY,
-                                                         RGN_TYPE_ANY,
-                                                         paint_brush_cursor_poll,
-                                                         paint_draw_smooth_cursor,
-                                                         stroke);
-      }
-    }
-    else {
-      stroke->stroke_mode = BRUSH_STROKE_NORMAL;
-      if (stroke->stroke_cursor != nullptr) {
-        WM_paint_cursor_end(static_cast<wmPaintCursor *>(stroke->stroke_cursor));
-        stroke->stroke_cursor = nullptr;
-      }
-    }
-  }
-
   float2 mouse;
   if (event->type == stroke->event_type && !first_modal) {
     if (event->val == KM_RELEASE) {
@@ -1683,7 +1658,7 @@ wmOperatorStatus paint_stroke_modal(bContext *C,
   return OPERATOR_RUNNING_MODAL;
 }
 
-wmOperatorStatus paint_stroke_exec(bContext *C, wmOperator *op, PaintStroke *stroke)
+int paint_stroke_exec(bContext *C, wmOperator *op, PaintStroke *stroke)
 {
   /* only when executed for the first time */
   if (!stroke->stroke_started) {

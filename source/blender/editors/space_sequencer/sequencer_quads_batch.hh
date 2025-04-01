@@ -15,9 +15,6 @@ class Batch;
 class IndexBuf;
 class VertBuf;
 }  // namespace blender::gpu
-
-namespace blender::ed::vse {
-
 struct ColorVertex;
 
 /**
@@ -92,5 +89,3 @@ class SeqQuadsBatch {
   ColorVertex *verts_lines = nullptr;
   int lines_num = 0;
 };
-
-}  // namespace blender::ed::vse

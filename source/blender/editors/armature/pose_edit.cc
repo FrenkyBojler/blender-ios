@@ -7,7 +7,6 @@
  * Pose Mode API's and Operators for Pose Mode armatures.
  */
 
-#include "BLI_listbase.h"
 #include "BLI_math_vector.h"
 #include "BLI_string.h"
 
@@ -205,9 +204,7 @@ void ED_pose_recalculate_paths(bContext *C, Scene *scene, Object *ob, ePosePathC
 }
 
 /* show popup to determine settings */
-static wmOperatorStatus pose_calculate_paths_invoke(bContext *C,
-                                                    wmOperator *op,
-                                                    const wmEvent * /*event*/)
+static int pose_calculate_paths_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
   Object *ob = BKE_object_pose_armature_get(CTX_data_active_object(C));
 
@@ -235,7 +232,7 @@ static wmOperatorStatus pose_calculate_paths_invoke(bContext *C,
  * For the object with pose/action: create path curves for selected bones
  * This recalculates the WHOLE path within the `pchan->pathsf` and `pchan->pathef` range.
  */
-static wmOperatorStatus pose_calculate_paths_exec(bContext *C, wmOperator *op)
+static int pose_calculate_paths_exec(bContext *C, wmOperator *op)
 {
   Object *ob = BKE_object_pose_armature_get(CTX_data_active_object(C));
   Scene *scene = CTX_data_scene(C);
@@ -330,7 +327,7 @@ static bool pose_update_paths_poll(bContext *C)
   return false;
 }
 
-static wmOperatorStatus pose_update_paths_exec(bContext *C, wmOperator *op)
+static int pose_update_paths_exec(bContext *C, wmOperator *op)
 {
   Object *ob = BKE_object_pose_armature_get(CTX_data_active_object(C));
   Scene *scene = CTX_data_scene(C);
@@ -374,7 +371,7 @@ void POSE_OT_paths_update(wmOperatorType *ot)
 /* --------- */
 
 /* for the object with pose/action: clear path curves for selected bones only */
-static void pose_clear_paths(Object *ob, bool only_selected)
+static void ED_pose_clear_paths(Object *ob, bool only_selected)
 {
   bool skipped = false;
 
@@ -405,7 +402,7 @@ static void pose_clear_paths(Object *ob, bool only_selected)
 }
 
 /* Operator callback - wrapper for the back-end function. */
-static wmOperatorStatus pose_clear_paths_exec(bContext *C, wmOperator *op)
+static int pose_clear_paths_exec(bContext *C, wmOperator *op)
 {
   Object *ob = BKE_object_pose_armature_get(CTX_data_active_object(C));
   bool only_selected = RNA_boolean_get(op->ptr, "only_selected");
@@ -416,7 +413,7 @@ static wmOperatorStatus pose_clear_paths_exec(bContext *C, wmOperator *op)
   }
 
   /* use the backend function for this */
-  pose_clear_paths(ob, only_selected);
+  ED_pose_clear_paths(ob, only_selected);
 
   /* notifiers for updates */
   WM_event_add_notifier(C, NC_OBJECT | ND_POSE, ob);
@@ -460,7 +457,7 @@ void POSE_OT_paths_clear(wmOperatorType *ot)
 
 /* --------- */
 
-static wmOperatorStatus pose_update_paths_range_exec(bContext *C, wmOperator * /*op*/)
+static int pose_update_paths_range_exec(bContext *C, wmOperator * /*op*/)
 {
   Scene *scene = CTX_data_scene(C);
   Object *ob = BKE_object_pose_armature_get(CTX_data_active_object(C));
@@ -497,7 +494,7 @@ void POSE_OT_paths_range_update(wmOperatorType *ot)
 
 /* ********************************************** */
 
-static wmOperatorStatus pose_flip_names_exec(bContext *C, wmOperator *op)
+static int pose_flip_names_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   const Scene *scene = CTX_data_scene(C);
@@ -553,7 +550,7 @@ void POSE_OT_flip_names(wmOperatorType *ot)
 
 /* ------------------ */
 
-static wmOperatorStatus pose_autoside_names_exec(bContext *C, wmOperator *op)
+static int pose_autoside_names_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   char newname[MAXBONENAME];
@@ -612,7 +609,7 @@ void POSE_OT_autoside_names(wmOperatorType *ot)
 
 /* ********************************************** */
 
-static wmOperatorStatus pose_bone_rotmode_exec(bContext *C, wmOperator *op)
+static int pose_bone_rotmode_exec(bContext *C, wmOperator *op)
 {
   const int mode = RNA_enum_get(op->ptr, "type");
   Object *prev_ob = nullptr;
@@ -628,7 +625,7 @@ static wmOperatorStatus pose_bone_rotmode_exec(bContext *C, wmOperator *op)
 
     if (prev_ob != ob) {
       /* Notifiers and updates. */
-      DEG_id_tag_update(reinterpret_cast<ID *>(ob), ID_RECALC_GEOMETRY);
+      DEG_id_tag_update((ID *)ob, ID_RECALC_GEOMETRY);
       WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, ob);
       WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, ob);
       prev_ob = ob;
@@ -679,7 +676,7 @@ static int hide_pose_bone_fn(Object *ob, Bone *bone, void *ptr)
 }
 
 /* active object is armature in posemode, poll checked */
-static wmOperatorStatus pose_hide_exec(bContext *C, wmOperator *op)
+static int pose_hide_exec(bContext *C, wmOperator *op)
 {
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
@@ -744,7 +741,7 @@ static int show_pose_bone_cb(Object *ob, Bone *bone, void *data)
 }
 
 /* active object is armature in posemode, poll checked */
-static wmOperatorStatus pose_reveal_exec(bContext *C, wmOperator *op)
+static int pose_reveal_exec(bContext *C, wmOperator *op)
 {
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
@@ -789,7 +786,7 @@ void POSE_OT_reveal(wmOperatorType *ot)
 /** \name Flip Quaternions
  * \{ */
 
-static wmOperatorStatus pose_flip_quats_exec(bContext *C, wmOperator * /*op*/)
+static int pose_flip_quats_exec(bContext *C, wmOperator * /*op*/)
 {
   Scene *scene = CTX_data_scene(C);
 

@@ -3,8 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "gpu_shader_common_hash.glsl"
-#include "gpu_shader_math_base_lib.glsl"
-#include "gpu_shader_math_vector_lib.glsl"
+#include "gpu_shader_common_math_utils.glsl"
 
 /* clang-format off */
 #define FLOORFRAC(x, x_int, x_fract) { float x_floor = floor(x); x_int = int(x_floor); x_fract = x - x_floor; }
@@ -265,7 +264,7 @@ float snoise(float p)
   float precision_correction = 0.5 * float(abs(p) >= 1000000.0);
   /* Repeat Perlin noise texture every 100000.0 on each axis to prevent floating point
    * representation issues. */
-  p = compatible_mod(p, 100000.0) + precision_correction;
+  p = compatible_fmod(p, 100000.0) + precision_correction;
 
   return noise_scale1(noise_perlin(p));
 }
@@ -282,7 +281,7 @@ float snoise(vec2 p)
   /* Repeat Perlin noise texture every 100000.0 on each axis to prevent floating point
    * representation issues. This causes discontinuities every 100000.0, however at such scales this
    * usually shouldn't be noticeable. */
-  p = compatible_mod(p, 100000.0) + precision_correction;
+  p = compatible_fmod(p, 100000.0) + precision_correction;
 
   return noise_scale2(noise_perlin(p));
 }
@@ -300,7 +299,7 @@ float snoise(vec3 p)
   /* Repeat Perlin noise texture every 100000.0 on each axis to prevent floating point
    * representation issues. This causes discontinuities every 100000.0, however at such scales this
    * usually shouldn't be noticeable. */
-  p = compatible_mod(p, 100000.0) + precision_correction;
+  p = compatible_fmod(p, 100000.0) + precision_correction;
 
   return noise_scale3(noise_perlin(p));
 }
@@ -319,7 +318,7 @@ float snoise(vec4 p)
   /* Repeat Perlin noise texture every 100000.0 on each axis to prevent floating point
    * representation issues. This causes discontinuities every 100000.0, however at such scales this
    * usually shouldn't be noticeable. */
-  p = compatible_mod(p, 100000.0) + precision_correction;
+  p = compatible_fmod(p, 100000.0) + precision_correction;
 
   return noise_scale4(noise_perlin(p));
 }

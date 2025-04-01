@@ -6,7 +6,6 @@
 
 #include <cstddef>
 #include <cstdlib>
-#include <new>
 
 #ifdef WITH_BLENDER_GUARDEDALLOC
 #  include "../../guardedalloc/MEM_guardedalloc.h"
@@ -62,7 +61,7 @@ template<typename T> class GuardedAllocator {
     util_guarded_mem_free(n * sizeof(T));
     if (p != nullptr) {
 #ifdef WITH_BLENDER_GUARDEDALLOC
-      MEM_freeN(const_cast<void *>(static_cast<const void *>(p)));
+      MEM_freeN(p);
 #else
       free(p);
 #endif

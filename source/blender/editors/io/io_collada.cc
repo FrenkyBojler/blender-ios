@@ -38,9 +38,7 @@
 #  include "io_collada.hh"
 #  include "io_utils.hh"
 
-static wmOperatorStatus wm_collada_export_invoke(bContext *C,
-                                                 wmOperator *op,
-                                                 const wmEvent * /*event*/)
+static int wm_collada_export_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
   ED_fileselect_ensure_default_filepath(C, op, ".dae");
 
@@ -49,7 +47,7 @@ static wmOperatorStatus wm_collada_export_invoke(bContext *C,
   return OPERATOR_RUNNING_MODAL;
 }
 
-static wmOperatorStatus wm_collada_export_exec(bContext *C, wmOperator *op)
+static int wm_collada_export_exec(bContext *C, wmOperator *op)
 {
   char filepath[FILE_MAX];
   int apply_modifiers;
@@ -713,7 +711,7 @@ void WM_OT_collada_export(wmOperatorType *ot)
       "Store Bindpose information in custom bone properties for later use during Collada export");
 }
 
-static wmOperatorStatus wm_collada_import_exec(bContext *C, wmOperator *op)
+static int wm_collada_import_exec(bContext *C, wmOperator *op)
 {
   char filepath[FILE_MAX];
   int import_units;

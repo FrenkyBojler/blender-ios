@@ -19,6 +19,7 @@ namespace gpu {
 
 class GLVertBuf : public VertBuf {
   friend class GLTexture;    /* For buffer texture. */
+  friend class GLShader;     /* For transform feedback. */
   friend class GLStorageBuf; /* For sub copy. */
 
  private:

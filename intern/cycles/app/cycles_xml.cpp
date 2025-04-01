@@ -317,7 +317,7 @@ static void xml_read_shader_graph(XMLReadState &state, Shader *shader, const xml
             filepath = path_join(state.base, filepath);
           }
 
-          snode = OSLShaderManager::osl_node(graph.get(), state.scene, filepath, "");
+          snode = OSLShaderManager::osl_node(graph.get(), manager, filepath, "");
 
           if (!snode) {
             fprintf(stderr, "Failed to create OSL node from \"%s\".\n", filepath.c_str());
@@ -580,11 +580,13 @@ static void xml_read_mesh(const XMLReadState &state, const xml_node node)
     /* create vertices */
     mesh->set_verts(P_array);
 
+    size_t num_ngons = 0;
     size_t num_corners = 0;
     for (size_t i = 0; i < nverts.size(); i++) {
+      num_ngons += (nverts[i] == 4) ? 0 : 1;
       num_corners += nverts[i];
     }
-    mesh->reserve_subd_faces(nverts.size(), num_corners);
+    mesh->reserve_subd_faces(nverts.size(), num_ngons, num_corners);
 
     /* create subd_faces */
     int index_offset = 0;
@@ -600,6 +602,14 @@ static void xml_read_mesh(const XMLReadState &state, const xml_node node)
     {
       Attribute *attr = mesh->subd_attributes.add(ATTR_STD_UV);
       float3 *fdata = attr->data_float3();
+
+      /* TODO: Implement various face-varying interpolation modes and make it
+       * a property of Mesh. */
+#if 0
+      if (subdivide_uvs) {
+        attr->flags |= ATTR_SUBDIVIDED;
+      }
+#endif
 
       index_offset = 0;
       for (size_t i = 0; i < nverts.size(); i++) {
@@ -630,21 +640,9 @@ static void xml_read_mesh(const XMLReadState &state, const xml_node node)
 
 static void xml_read_light(XMLReadState &state, const xml_node node)
 {
-  Scene *scene = state.scene;
+  Light *light = state.scene->create_node<Light>();
 
-  /* Create light. */
-  Light *light = scene->create_node<Light>();
-
-  array<Node *> used_shaders;
-  used_shaders.push_back_slow(state.shader);
-  light->set_used_shaders(used_shaders);
-
-  /* Create object. */
-  Object *object = scene->create_node<Object>();
-  object->set_tfm(state.tfm);
-  object->set_visibility(PATH_RAY_ALL_VISIBILITY & ~PATH_RAY_CAMERA);
-  object->set_geometry(light);
-
+  light->set_shader(state.shader);
   xml_read_node(state, light, node);
 }
 

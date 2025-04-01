@@ -2,20 +2,6 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#ifdef GPU_SHADER
-#  pragma once
-#  include "gpu_glsl_cpp_stubs.hh"
-
-#  include "draw_common_shader_shared.hh"
-#  include "draw_object_infos_info.hh"
-#  include "draw_view_info.hh"
-
-#  include "gpu_index_load_info.hh"
-
-#  include "overlay_common_info.hh"
-#  include "overlay_shader_shared.h"
-#endif
-
 #include "overlay_common_info.hh"
 
 GPU_SHADER_CREATE_INFO(overlay_frag_output)
@@ -236,6 +222,7 @@ VERTEX_SOURCE("overlay_armature_stick_vert.glsl")
 FRAGMENT_SOURCE("overlay_armature_stick_frag.glsl")
 ADDITIONAL_INFO(overlay_frag_output)
 ADDITIONAL_INFO(overlay_armature_common)
+ADDITIONAL_INFO(draw_resource_handle_new)
 ADDITIONAL_INFO(draw_globals)
 STORAGE_BUF(0, READ, BoneStickData, data_buf[])
 GPU_SHADER_CREATE_END()
@@ -277,6 +264,7 @@ VERTEX_SOURCE("overlay_armature_wire_vert.glsl")
 FRAGMENT_SOURCE("overlay_armature_wire_frag.glsl")
 ADDITIONAL_INFO(draw_view)
 ADDITIONAL_INFO(overlay_frag_output)
+ADDITIONAL_INFO(draw_resource_handle_new)
 ADDITIONAL_INFO(draw_globals)
 STORAGE_BUF(0, READ, VertexData, data_buf[])
 GPU_SHADER_CREATE_END()

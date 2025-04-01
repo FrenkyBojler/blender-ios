@@ -2,16 +2,14 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-/** \file
- * \ingroup bli
- *
+#pragma once
+
+/**
  * Language grammar: https://www.graphviz.org/doc/info/lang.html
  * Attributes: https://www.graphviz.org/doc/info/attrs.html
  * Node Shapes: https://www.graphviz.org/doc/info/shapes.html
  * Preview: https://dreampuf.github.io/GraphvizOnline
  */
-
-#pragma once
 
 #include "BLI_map.hh"
 #include "BLI_set.hh"
@@ -23,7 +21,7 @@
 #include <iosfwd>
 #include <optional>
 
-namespace blender::dot_export {
+namespace blender::dot {
 
 class Graph;
 class DirectedGraph;
@@ -295,4 +293,4 @@ class NodeWithSocketsRef {
   }
 };
 
-}  // namespace blender::dot_export
+}  // namespace blender::dot

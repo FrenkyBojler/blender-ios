@@ -33,7 +33,7 @@ static CLG_LogRef LOG = {"bke.addon"};
 
 bAddon *BKE_addon_new()
 {
-  bAddon *addon = MEM_callocN<bAddon>("bAddon");
+  bAddon *addon = static_cast<bAddon *>(MEM_callocN(sizeof(bAddon), "bAddon"));
   return addon;
 }
 

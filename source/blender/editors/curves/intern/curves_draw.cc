@@ -734,7 +734,7 @@ static void create_NURBS(bke::CurvesGeometry &curves,
   radii.finish();
 }
 
-static wmOperatorStatus curves_draw_exec(bContext *C, wmOperator *op)
+static int curves_draw_exec(bContext *C, wmOperator *op)
 {
   if (op->customdata == nullptr) {
     if (!curve_draw_init(C, op, false)) {
@@ -1046,7 +1046,7 @@ static wmOperatorStatus curves_draw_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus curves_draw_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static int curves_draw_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   if (RNA_struct_property_is_set(op->ptr, "stroke")) {
     return curves_draw_exec(C, op);
@@ -1092,7 +1092,7 @@ static wmOperatorStatus curves_draw_invoke(bContext *C, wmOperator *op, const wm
     else {
       if ((cps->depth_mode == CURVE_PAINT_PROJECT_SURFACE) && (v3d->shading.type > OB_WIRE)) {
         /* needed or else the draw matrix can be incorrect */
-        view3d_operator_needs_gpu(C);
+        view3d_operator_needs_opengl(C);
 
         eV3DDepthOverrideMode depth_mode = V3D_DEPTH_ALL;
         if (cps->flag & CURVE_PAINT_FLAG_DEPTH_ONLY_SELECTED) {
@@ -1272,9 +1272,9 @@ static void curve_draw_exec_precalc(wmOperator *op)
   }
 }
 
-static wmOperatorStatus curves_draw_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static int curves_draw_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  wmOperatorStatus ret = OPERATOR_RUNNING_MODAL;
+  int ret = OPERATOR_RUNNING_MODAL;
   CurveDrawData *cdd = static_cast<CurveDrawData *>(op->customdata);
 
   UNUSED_VARS(C, op);

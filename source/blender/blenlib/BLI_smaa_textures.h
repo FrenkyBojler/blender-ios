@@ -6,11 +6,11 @@
  *
  * SPDX-License-Identifier: MIT */
 
-/** \file
- * \ingroup bli
- */
-
 #pragma once
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #define AREATEX_WIDTH 160
 #define AREATEX_HEIGHT 560
@@ -35,3 +35,7 @@ extern const unsigned char areaTexBytes[];
  *  - GPU: GPU_R8 texture format and GPU_DATA_UBYTE data format.
  */
 extern const unsigned char searchTexBytes[];
+
+#ifdef __cplusplus
+}
+#endif

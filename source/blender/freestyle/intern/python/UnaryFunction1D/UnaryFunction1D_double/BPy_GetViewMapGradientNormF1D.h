@@ -10,6 +10,10 @@
 
 #include "../BPy_UnaryFunction1DDouble.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 ///////////////////////////////////////////////////////////////////////////////////////////
 
 extern PyTypeObject GetViewMapGradientNormF1D_Type;
@@ -24,3 +28,7 @@ typedef struct {
 } BPy_GetViewMapGradientNormF1D;
 
 ///////////////////////////////////////////////////////////////////////////////////////////
+
+#ifdef __cplusplus
+}
+#endif

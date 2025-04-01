@@ -93,7 +93,7 @@ static void rna_CurveProfile_remove_point(CurveProfile *profile,
     return;
   }
 
-  point_ptr->invalidate();
+  RNA_POINTER_INVALIDATE(point_ptr);
 }
 
 static void rna_CurveProfile_evaluate(CurveProfile *profile,

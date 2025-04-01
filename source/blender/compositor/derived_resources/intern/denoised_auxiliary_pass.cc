@@ -81,18 +81,12 @@ DenoisedAuxiliaryPass::DenoisedAuxiliaryPass(Context &context,
     this->denoised_buffer = static_cast<float *>(GPU_texture_read(pass, GPU_DATA_FLOAT, 0));
   }
   else {
-    this->denoised_buffer = static_cast<float *>(MEM_dupallocN(pass.cpu_data().data()));
+    this->denoised_buffer = static_cast<float *>(MEM_dupallocN(pass.float_texture()));
   }
 
   const int width = pass.domain().size.x;
   const int height = pass.domain().size.y;
-
-  /* Float3 results might be stored in 4-component textures due to hardware limitations, so we
-   * need to use the pixel stride of the texture. */
-  const int pixel_stride = sizeof(float) *
-                           (context.use_gpu() ?
-                                GPU_texture_component_len(GPU_texture_format(pass)) :
-                                pass.channels_count());
+  const int pixel_stride = sizeof(float) * 4;
 
   oidn::DeviceRef device = oidn::newDevice(oidn::DeviceType::CPU);
   device.commit();

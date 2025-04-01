@@ -6,14 +6,14 @@
  * \ingroup cmpnodes
  */
 
+#include "GPU_material.hh"
+
+#include "COM_shader_node.hh"
+
 #include "NOD_math_functions.hh"
 #include "NOD_socket_search_link.hh"
 
 #include "RNA_enum_types.hh"
-
-#include "GPU_material.hh"
-
-#include "COM_utilities_gpu_material.hh"
 
 #include "node_composite_util.hh"
 
@@ -70,42 +70,50 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
 
 using namespace blender::compositor;
 
-static NodeMathOperation get_operation(const bNode &node)
-{
-  return static_cast<NodeMathOperation>(node.custom1);
-}
+class MathShaderNode : public ShaderNode {
+ public:
+  using ShaderNode::ShaderNode;
 
-static const char *get_shader_function_name(const bNode &node)
-{
-  return get_float_math_operation_info(get_operation(node))->shader_name.c_str();
-}
+  void compile(GPUMaterial *material) override
+  {
+    GPUNodeStack *inputs = get_inputs_array();
+    GPUNodeStack *outputs = get_outputs_array();
 
-static bool get_should_clamp(const bNode &node)
-{
-  return node.custom2 & SHD_MATH_CLAMP;
-}
+    GPU_stack_link(material, &bnode(), get_shader_function_name(), inputs, outputs);
 
-static int node_gpu_material(GPUMaterial *material,
-                             bNode *node,
-                             bNodeExecData * /*execdata*/,
-                             GPUNodeStack *inputs,
-                             GPUNodeStack *outputs)
-{
-  const bool is_valid = GPU_stack_link(
-      material, node, get_shader_function_name(*node), inputs, outputs);
+    if (!get_should_clamp()) {
+      return;
+    }
 
-  if (!is_valid || !get_should_clamp(*node)) {
-    return is_valid;
+    const float min = 0.0f;
+    const float max = 1.0f;
+    GPU_link(material,
+             "clamp_value",
+             get_output("Value").link,
+             GPU_constant(&min),
+             GPU_constant(&max),
+             &get_output("Value").link);
   }
 
-  const float min = 0.0f;
-  const float max = 1.0f;
-  return GPU_link(material,
-                  "clamp_value",
-                  get_shader_node_output(*node, outputs, "Value").link,
-                  GPU_constant(&min),
-                  GPU_constant(&max),
-                  &get_shader_node_output(*node, outputs, "Value").link);
+  NodeMathOperation get_operation()
+  {
+    return (NodeMathOperation)bnode().custom1;
+  }
+
+  const char *get_shader_function_name()
+  {
+    return get_float_math_operation_info(get_operation())->shader_name.c_str();
+  }
+
+  bool get_should_clamp()
+  {
+    return bnode().custom2 & SHD_MATH_CLAMP;
+  }
+};
+
+static ShaderNode *get_compositor_shader_node(DNode node)
+{
+  return new MathShaderNode(node);
 }
 
 }  // namespace blender::nodes::node_composite_math_cc
@@ -124,9 +132,9 @@ void register_node_type_cmp_math()
   ntype.declare = file_ns::cmp_node_math_declare;
   ntype.labelfunc = node_math_label;
   ntype.updatefunc = node_math_update;
-  ntype.gpu_fn = file_ns::node_gpu_material;
-  ntype.gather_link_search_ops = file_ns::node_gather_link_searches;
+  ntype.get_compositor_shader_node = file_ns::get_compositor_shader_node;
   ntype.build_multi_function = blender::nodes::node_math_build_multi_function;
+  ntype.gather_link_search_ops = file_ns::node_gather_link_searches;
 
-  blender::bke::node_register_type(ntype);
+  blender::bke::node_register_type(&ntype);
 }

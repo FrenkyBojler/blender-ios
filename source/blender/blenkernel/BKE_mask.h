@@ -8,6 +8,10 @@
  * \ingroup bke
  */
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct Depsgraph;
 struct Image;
 struct ImageUser;
@@ -408,3 +412,7 @@ void BKE_maskrasterize_buffer(MaskRasterHandle *mr_handle,
                               float *buffer);
 
 /** \} */
+
+#ifdef __cplusplus
+}
+#endif

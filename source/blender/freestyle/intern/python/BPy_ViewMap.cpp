@@ -13,6 +13,10 @@
 #include "Interface1D/BPy_FEdge.h"
 #include "Interface1D/BPy_ViewEdge.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 using namespace Freestyle;
 
 ///////////////////////////////////////////////////////////////////////////////////////////
@@ -125,16 +129,6 @@ static PyObject *ViewMap_get_closest_fedge(BPy_ViewMap *self, PyObject *args, Py
 
 // static ViewMap *getInstance ();
 
-#ifdef __GNUC__
-#  ifdef __clang__
-#    pragma clang diagnostic push
-#    pragma clang diagnostic ignored "-Wcast-function-type"
-#  else
-#    pragma GCC diagnostic push
-#    pragma GCC diagnostic ignored "-Wcast-function-type"
-#  endif
-#endif
-
 static PyMethodDef BPy_ViewMap_methods[] = {
     {"get_closest_viewedge",
      (PyCFunction)ViewMap_get_closest_viewedge,
@@ -146,14 +140,6 @@ static PyMethodDef BPy_ViewMap_methods[] = {
      ViewMap_get_closest_fedge_doc},
     {nullptr, nullptr, 0, nullptr},
 };
-
-#ifdef __GNUC__
-#  ifdef __clang__
-#    pragma clang diagnostic pop
-#  else
-#    pragma GCC diagnostic pop
-#  endif
-#endif
 
 /*----------------------ViewMap get/setters ----------------------------*/
 
@@ -232,3 +218,7 @@ PyTypeObject ViewMap_Type = {
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////
+
+#ifdef __cplusplus
+}
+#endif

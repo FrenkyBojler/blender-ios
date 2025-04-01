@@ -10,6 +10,10 @@
 
 #include "../BPy_UnaryFunction0D.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 ///////////////////////////////////////////////////////////////////////////////////////////
 
 extern PyTypeObject UnaryFunction0DUnsigned_Type;
@@ -27,3 +31,7 @@ typedef struct {
 int UnaryFunction0DUnsigned_Init(PyObject *module);
 
 ///////////////////////////////////////////////////////////////////////////////////////////
+
+#ifdef __cplusplus
+}
+#endif

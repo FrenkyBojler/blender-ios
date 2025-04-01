@@ -14,6 +14,10 @@
 #include "BLI_compiler_attrs.h"
 #include "BLI_utildefines.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* Buffer size of maximum `uint64` plus commas and terminator. */
 #define BLI_STR_FORMAT_UINT64_GROUPED_SIZE 27
 
@@ -585,6 +589,10 @@ bool BLI_string_elem_split_by_delim(const char *haystack,
  * \note `ARRAY_SIZE` allows pointers on some platforms.
  * \{ */
 
+#ifndef __cplusplus
+#  define STRNCPY(dst, src) BLI_strncpy(dst, src, ARRAY_SIZE(dst))
+#endif
+
 #define STRNCPY_RLEN(dst, src) BLI_strncpy_rlen(dst, src, ARRAY_SIZE(dst))
 #define SNPRINTF(dst, format, ...) BLI_snprintf(dst, ARRAY_SIZE(dst), format, __VA_ARGS__)
 #define SNPRINTF_RLEN(dst, format, ...) \
@@ -666,6 +674,8 @@ void BLI_string_debug_size_after_nil(char *str, size_t str_maxncpy);
 #endif /* !WITH_STRSIZE_DEBUG */
 
 /** \} */
+#ifdef __cplusplus
+}
 
 /**
  * Copy source string str into the destination dst of a size known at a compile time.
@@ -678,3 +688,5 @@ template<size_t N> inline char *STRNCPY(char (&dst)[N], const char *src)
 {
   return BLI_strncpy(dst, src, N);
 }
+
+#endif /* __cplusplus */

@@ -2,6 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "common_math_lib.glsl"
 #include "gpu_shader_compositor_texture_utilities.glsl"
 
 ivec3 compute_saturation_indices(vec3 v)

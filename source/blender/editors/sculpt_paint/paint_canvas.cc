@@ -7,7 +7,6 @@
 #include "DNA_brush_types.h"
 #include "DNA_material_types.h"
 #include "DNA_scene_types.h"
-#include "DNA_userdef_types.h"
 #include "DNA_workspace_types.h"
 
 #include "BKE_context.hh"

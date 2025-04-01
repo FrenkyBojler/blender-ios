@@ -17,7 +17,6 @@
 #include "BKE_duplilist.hh"
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
-#include "BKE_library.hh"
 #include "BKE_object.hh"
 #include "BKE_pointcache.h"
 #include "BKE_rigidbody.h"
@@ -39,8 +38,6 @@
 /* Own include. */
 #include "transform_convert.hh"
 
-namespace blender::ed::transform {
-
 /* -------------------------------------------------------------------- */
 /** \name Object Mode Custom Data
  * \{ */
@@ -52,14 +49,14 @@ struct TransDataObject {
    * Don't add these to transform data because we may want to include child objects
    * which aren't being transformed.
    */
-  object::XFormObjectData_Container *xds;
+  blender::ed::object::XFormObjectData_Container *xds;
 
   /**
    * Transform
    * - The key is object data #Object.
    * - The value is #XFormObjectSkipChild.
    */
-  object::XFormObjectSkipChild_Container *xcs;
+  blender::ed::object::XFormObjectSkipChild_Container *xcs;
 };
 
 static void freeTransObjectCustomData(TransInfo *t,
@@ -70,11 +67,11 @@ static void freeTransObjectCustomData(TransInfo *t,
   custom_data->data = nullptr;
 
   if (t->options & CTX_OBMODE_XFORM_OBDATA) {
-    object::data_xform_container_destroy(tdo->xds);
+    blender::ed::object::data_xform_container_destroy(tdo->xds);
   }
 
   if (t->options & CTX_OBMODE_XFORM_SKIP_CHILDREN) {
-    object::object_xform_skip_child_container_destroy(tdo->xcs);
+    blender::ed::object::object_xform_skip_child_container_destroy(tdo->xcs);
   }
   MEM_freeN(tdo);
 }
@@ -88,7 +85,7 @@ static void freeTransObjectCustomData(TransInfo *t,
  * We need this to be detached from transform data because,
  * unlike transforming regular objects, we need to transform the children.
  *
- * Nearly all of the logic here is in the 'object::data_xform_container_*' API.
+ * Nearly all of the logic here is in the 'blender::ed::object::data_xform_container_*' API.
  * \{ */
 
 static void trans_obdata_in_obmode_update_all(TransInfo *t)
@@ -99,7 +96,7 @@ static void trans_obdata_in_obmode_update_all(TransInfo *t)
   }
 
   Main *bmain = CTX_data_main(t->context);
-  object::data_xform_container_update_all(tdo->xds, bmain, t->depsgraph);
+  blender::ed::object::data_xform_container_update_all(tdo->xds, bmain, t->depsgraph);
 }
 
 /** \} */
@@ -122,7 +119,7 @@ static void trans_obchild_in_obmode_update_all(TransInfo *t)
   }
 
   Main *bmain = CTX_data_main(t->context);
-  object::object_xform_skip_child_container_update_all(tdo->xcs, bmain, t->depsgraph);
+  blender::ed::object::object_xform_skip_child_container_update_all(tdo->xcs, bmain, t->depsgraph);
 }
 
 /** \} */
@@ -261,8 +258,8 @@ static void ObjectToTransData(TransInfo *t, TransData *td, Object *ob)
   }
   td->ext->rotOrder = ob->rotmode;
 
-  td->ext->scale = ob->scale;
-  copy_v3_v3(td->ext->iscale, ob->scale);
+  td->ext->size = ob->scale;
+  copy_v3_v3(td->ext->isize, ob->scale);
   copy_v3_v3(td->ext->dscale, ob->dscale);
 
   copy_v3_v3(td->center, ob->object_to_world().location());
@@ -485,7 +482,7 @@ static void clear_trans_object_base_flags(TransInfo *t)
   BKE_view_layer_synced_ensure(scene, view_layer);
   LISTBASE_FOREACH (Base *, base, BKE_view_layer_object_bases_get(view_layer)) {
     if (base->flag_legacy & BA_WAS_SEL) {
-      object::base_select(base, object::BA_SELECT);
+      blender::ed::object::base_select(base, blender::ed::object::BA_SELECT);
     }
 
     base->flag_legacy &= ~(BA_WAS_SEL | BA_SNAP_FIX_DEPS_FIASCO | BA_TEMP_TAG |
@@ -496,6 +493,7 @@ static void clear_trans_object_base_flags(TransInfo *t)
 
 static void createTransObject(bContext *C, TransInfo *t)
 {
+  using namespace blender::ed;
   Main *bmain = CTX_data_main(C);
   TransData *td = nullptr;
   TransDataExtension *tx;
@@ -602,7 +600,7 @@ static void createTransObject(bContext *C, TransInfo *t)
   }
 
   if (t->options & CTX_OBMODE_XFORM_OBDATA) {
-    Set<Object *> objects_in_transdata;
+    blender::Set<Object *> objects_in_transdata;
     td = tc->data;
     for (int i = 0; i < tc->data_len; i++, td++) {
       if ((td->flag & TD_SKIP) == 0) {
@@ -652,7 +650,7 @@ static void createTransObject(bContext *C, TransInfo *t)
 \
   ((base->flag_legacy & BA_WAS_SEL) && (base->flag & BASE_SELECTED) == 0)
 
-    Set<Object *> objects_in_transdata;
+    blender::Set<Object *> objects_in_transdata;
     GHash *objects_parent_root = BLI_ghash_ptr_new_ex(__func__, tc->data_len);
     td = tc->data;
     for (int i = 0; i < tc->data_len; i++, td++) {
@@ -745,7 +743,7 @@ static bool motionpath_need_update_object(Scene *scene, Object *ob)
    *      this should be a better fix for #24451 and #37755
    */
 
-  if (animrig::autokeyframe_cfra_can_key(scene, &ob->id)) {
+  if (blender::animrig::autokeyframe_cfra_can_key(scene, &ob->id)) {
     return (ob->avs.path_bakeflag & MOTIONPATH_BAKE_HAS_PATHS) != 0;
   }
 
@@ -760,15 +758,15 @@ static bool motionpath_need_update_object(Scene *scene, Object *ob)
 
 /* Given the transform mode `tmode` return a Vector of RNA paths that were possibly modified during
  * that transformation. */
-static Vector<RNAPath> get_affected_rna_paths_from_transform_mode(
+static blender::Vector<RNAPath> get_affected_rna_paths_from_transform_mode(
     const eTfmMode tmode,
     Scene *scene,
     ViewLayer *view_layer,
     Object *ob,
-    const StringRef rotation_path,
+    const blender::StringRef rotation_path,
     const bool transforming_more_than_one_object)
 {
-  Vector<RNAPath> rna_paths;
+  blender::Vector<RNAPath> rna_paths;
 
   /* Handle the cases where we always need to key location, regardless of
    * transform mode. */
@@ -821,22 +819,24 @@ static void autokeyframe_object(bContext *C,
                                 const eTfmMode tmode,
                                 const bool transforming_more_than_one_object)
 {
-  Vector<RNAPath> rna_paths;
+  blender::Vector<RNAPath> rna_paths;
   ViewLayer *view_layer = CTX_data_view_layer(C);
-  const StringRef rotation_path = animrig::get_rotation_mode_path(eRotationModes(ob->rotmode));
+  const blender::StringRef rotation_path = blender::animrig::get_rotation_mode_path(
+      eRotationModes(ob->rotmode));
 
-  if (animrig::is_keying_flag(scene, AUTOKEY_FLAG_INSERTNEEDED)) {
+  if (blender::animrig::is_keying_flag(scene, AUTOKEY_FLAG_INSERTNEEDED)) {
     rna_paths = get_affected_rna_paths_from_transform_mode(
         tmode, scene, view_layer, ob, rotation_path, transforming_more_than_one_object);
   }
   else {
     rna_paths = {{"location"}, {rotation_path}, {"scale"}};
   }
-  animrig::autokeyframe_object(C, scene, ob, rna_paths.as_span());
+  blender::animrig::autokeyframe_object(C, scene, ob, rna_paths.as_span());
 }
 
 static void recalcData_objects(TransInfo *t)
 {
+  using namespace blender::ed;
   bool motionpath_update = false;
 
   if (t->state != TRANS_CANCEL) {
@@ -858,7 +858,7 @@ static void recalcData_objects(TransInfo *t)
 
       /* TODO: auto-keyframe calls need some setting to specify to add samples
        * (FPoints) instead of keyframes? */
-      if ((t->animtimer) && animrig::is_autokey_on(t->scene)) {
+      if ((t->animtimer) && blender::animrig::is_autokey_on(t->scene)) {
         animrecord_check_state(t, &ob->id);
         autokeyframe_object(t->context, t->scene, ob, t->mode, t->data_len_all > 1);
       }
@@ -894,6 +894,7 @@ static void recalcData_objects(TransInfo *t)
 
 static void special_aftertrans_update__object(bContext *C, TransInfo *t)
 {
+  using namespace blender::ed;
   BLI_assert(t->options & CTX_OBJECT);
 
   Object *ob;
@@ -902,7 +903,7 @@ static void special_aftertrans_update__object(bContext *C, TransInfo *t)
   TransDataContainer *tc = TRANS_DATA_CONTAINER_FIRST_SINGLE(t);
   bool motionpath_update = false;
 
-  if (animrig::is_autokey_on(t->scene) && !canceled) {
+  if (blender::animrig::is_autokey_on(t->scene) && !canceled) {
     ANIM_deselect_keys_in_animation_editors(C);
   }
 
@@ -976,5 +977,3 @@ TransConvertTypeInfo TransConvertType_Object = {
     /*recalc_data*/ recalcData_objects,
     /*special_aftertrans_update*/ special_aftertrans_update__object,
 };
-
-}  // namespace blender::ed::transform

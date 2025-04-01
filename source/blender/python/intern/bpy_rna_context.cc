@@ -507,14 +507,9 @@ static PyObject *bpy_rna_context_temp_override_exit(BPyContextTempOverride *self
   Py_RETURN_NONE;
 }
 
-#ifdef __GNUC__
-#  ifdef __clang__
-#    pragma clang diagnostic push
-#    pragma clang diagnostic ignored "-Wcast-function-type"
-#  else
-#    pragma GCC diagnostic push
-#    pragma GCC diagnostic ignored "-Wcast-function-type"
-#  endif
+#if (defined(__GNUC__) && !defined(__clang__))
+#  pragma GCC diagnostic push
+#  pragma GCC diagnostic ignored "-Wcast-function-type"
 #endif
 
 static PyMethodDef bpy_rna_context_temp_override_methods[] = {
@@ -523,12 +518,8 @@ static PyMethodDef bpy_rna_context_temp_override_methods[] = {
     {nullptr},
 };
 
-#ifdef __GNUC__
-#  ifdef __clang__
-#    pragma clang diagnostic pop
-#  else
-#    pragma GCC diagnostic pop
-#  endif
+#if (defined(__GNUC__) && !defined(__clang__))
+#  pragma GCC diagnostic pop
 #endif
 
 static PyTypeObject BPyContextTempOverride_Type = {
@@ -759,14 +750,9 @@ static PyObject *bpy_context_temp_override(PyObject *self, PyObject *args, PyObj
 /** \name Public Type Definition
  * \{ */
 
-#ifdef __GNUC__
-#  ifdef __clang__
-#    pragma clang diagnostic push
-#    pragma clang diagnostic ignored "-Wcast-function-type"
-#  else
-#    pragma GCC diagnostic push
-#    pragma GCC diagnostic ignored "-Wcast-function-type"
-#  endif
+#if (defined(__GNUC__) && !defined(__clang__))
+#  pragma GCC diagnostic push
+#  pragma GCC diagnostic ignored "-Wcast-function-type"
 #endif
 
 PyMethodDef BPY_rna_context_temp_override_method_def = {
@@ -776,12 +762,8 @@ PyMethodDef BPY_rna_context_temp_override_method_def = {
     bpy_context_temp_override_doc,
 };
 
-#ifdef __GNUC__
-#  ifdef __clang__
-#    pragma clang diagnostic pop
-#  else
-#    pragma GCC diagnostic pop
-#  endif
+#if (defined(__GNUC__) && !defined(__clang__))
+#  pragma GCC diagnostic pop
 #endif
 
 void bpy_rna_context_types_init()

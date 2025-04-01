@@ -19,8 +19,6 @@
 #include "transform.hh"
 #include "transform_convert.hh"
 
-namespace blender::ed::transform {
-
 struct TransDataPaintCurve {
   PaintCurvePoint *pcp; /* Initial curve point. */
   char id;
@@ -222,5 +220,3 @@ TransConvertTypeInfo TransConvertType_PaintCurve = {
     /*recalc_data*/ flushTransPaintCurve,
     /*special_aftertrans_update*/ nullptr,
 };
-
-}  // namespace blender::ed::transform

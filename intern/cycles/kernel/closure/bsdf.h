@@ -11,7 +11,6 @@
 #include "kernel/closure/bsdf_phong_ramp.h"
 #include "kernel/closure/bsdf_diffuse_ramp.h"
 #include "kernel/closure/bsdf_microfacet.h"
-#include "kernel/closure/bsdf_burley.h"
 #include "kernel/closure/bsdf_sheen.h"
 #include "kernel/closure/bsdf_transparent.h"
 #include "kernel/closure/bsdf_ray_portal.h"
@@ -57,24 +56,27 @@ ccl_device_inline float bsdf_get_roughness_pass_squared(const ccl_private Shader
   return bsdf_get_specular_roughness_squared(sc);
 }
 
-/* An additional term to smooth illumination on grazing angles when using bump mapping
- * based on "A Microfacet-Based Shadowing Function to Solve the Bump Terminator Problem"
- * by Alejandro Conty Estevez, Pascal Lecocq, and Clifford Stein. It preserves detail
- * close to the shadow terminator, and doesn't "wash out" intermediate bumps using a
- * Cook-Torrance GGX function for shading. */
+/* An additional term to smooth illumination on grazing angles when using bump mapping.
+ * Based on "Taming the Shadow Terminator" by Matt Jen-Yuan Chiang,
+ * Yining Karl Li and Brent Burley. */
 ccl_device_inline float bump_shadowing_term(const int shader_flag,
                                             float3 Ng,
                                             const float3 N,
                                             float3 I)
 {
-  const float cosNgI = dot(Ng, I);
-  const float cosNgN = dot(Ng, N);
   const float cosNI = dot(N, I);
+  if (cosNI < 0.0f) {
+    Ng = -Ng;
+  }
+  const float g = safe_divide(dot(Ng, I), cosNI * dot(Ng, N));
 
-  /* dot(Ng, I) * dot(Ng, N) tells us if I and N are on the same side of the actual geometry.
-   * If incoming(I) and normal(N) are on the same side we reject refractions, dot(N, I) < 0.
-   * If they are on different sides we reject reflections, dot(N, I) > 0. */
-  if (cosNgI * cosNgN * cosNI < 0.0f) {
+  /* If the incoming light is on the unshadowed side, return full brightness. */
+  if (g >= 1.0f) {
+    return 1.0f;
+  }
+
+  /* If the incoming light points away from the surface, return black. */
+  if (g < 0.0f) {
     return 0.0f;
   }
 
@@ -83,22 +85,9 @@ ccl_device_inline float bump_shadowing_term(const int shader_flag,
     return 1.0f;
   }
 
-  /* Get absolute incoming and shader normal deviation from geometric normal, then clamp. */
-  const float cos_i = fabsf(cosNgI);
-  const float cos_d = fabsf(cosNgN);
-  if (cos_d >= 1.0f || cos_i >= 1.0f) {
-    return 1.0f;
-  }
-  if (cos_i < 1e-6f) {
-    return 0.0f;
-  }
-
-  /* Get GGX shading values for final smoothing. */
-  const float tan2_d = 1.0f / sqr(cos_d) - 1.0f;
-  const float bump_alpha2 = saturatef(0.125f * tan2_d);
-
   /* Return smoothed value to avoid discontinuity at perpendicular angle. */
-  return bsdf_G<MicrofacetType::GGX>(bump_alpha2, cos_i);
+  const float g2 = sqr(g);
+  return -g2 * g + g2 + g;
 }
 
 ccl_device_inline float shift_cos_in(float cos_in, const float frequency_multiplier)
@@ -150,11 +139,6 @@ ccl_device_inline int bsdf_sample(KernelGlobals kg,
       *eta = 1.0f;
       break;
 #  ifdef __OSL__
-    case CLOSURE_BSDF_BURLEY_ID:
-      label = bsdf_burley_sample(sc, Ng, sd->wi, rand_xy, eval, wo, pdf);
-      *sampled_roughness = one_float2();
-      *eta = 1.0f;
-      break;
     case CLOSURE_BSDF_PHONG_RAMP_ID:
       label = bsdf_phong_ramp_sample(sc, Ng, sd->wi, rand_xy, eval, wo, pdf, sampled_roughness);
       *eta = 1.0f;
@@ -296,10 +280,6 @@ ccl_device_inline void bsdf_roughness_eta(const KernelGlobals kg,
       *eta = 1.0f;
       break;
 #  ifdef __OSL__
-    case CLOSURE_BSDF_BURLEY_ID:
-      *roughness = one_float2();
-      *eta = 1.0f;
-      break;
     case CLOSURE_BSDF_PHONG_RAMP_ID:
       alpha = phong_ramp_exponent_to_roughness(((const ccl_private PhongRampBsdf *)sc)->exponent);
       *roughness = make_float2(alpha, alpha);
@@ -403,9 +383,6 @@ ccl_device_inline int bsdf_label(const KernelGlobals kg,
       label = LABEL_REFLECT | LABEL_DIFFUSE;
       break;
 #  ifdef __OSL__
-    case CLOSURE_BSDF_BURLEY_ID:
-      label = LABEL_REFLECT | LABEL_DIFFUSE;
-      break;
     case CLOSURE_BSDF_PHONG_RAMP_ID:
       label = LABEL_REFLECT | LABEL_GLOSSY;
       break;
@@ -510,9 +487,6 @@ ccl_device_inline
       eval = bsdf_oren_nayar_eval(sc, sd->wi, wo, pdf);
       break;
 #  ifdef __OSL__
-    case CLOSURE_BSDF_BURLEY_ID:
-      eval = bsdf_burley_eval(sc, sd->wi, wo, pdf);
-      break;
     case CLOSURE_BSDF_PHONG_RAMP_ID:
       eval = bsdf_phong_ramp_eval(sc, sd->wi, wo, pdf);
       break;

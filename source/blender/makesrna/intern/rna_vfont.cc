@@ -19,7 +19,6 @@
 #  include "DNA_object_types.h"
 #  include "DNA_vfont_types.h"
 
-#  include "BKE_library.hh"
 #  include "BKE_vfont.hh"
 
 #  include "DEG_depsgraph.hh"

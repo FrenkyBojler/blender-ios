@@ -174,7 +174,7 @@ static void poselib_keytag_pose(bContext *C, Scene *scene, PoseBlendData *pbd)
 /* Apply the relevant changes to the pose */
 static void poselib_blend_apply(bContext *C, wmOperator *op)
 {
-  PoseBlendData *pbd = static_cast<PoseBlendData *>(op->customdata);
+  PoseBlendData *pbd = (PoseBlendData *)op->customdata;
 
   if (!pbd->needs_redraw) {
     return;
@@ -228,9 +228,7 @@ static void poselib_toggle_flipped(PoseBlendData *pbd)
 }
 
 /* Return operator return value. */
-static wmOperatorStatus poselib_blend_handle_event(bContext * /*C*/,
-                                                   wmOperator *op,
-                                                   const wmEvent *event)
+static int poselib_blend_handle_event(bContext * /*C*/, wmOperator *op, const wmEvent *event)
 {
   PoseBlendData *pbd = static_cast<PoseBlendData *>(op->customdata);
 
@@ -285,9 +283,6 @@ static wmOperatorStatus poselib_blend_handle_event(bContext * /*C*/,
       pbd->state = pbd->state == POSE_BLEND_BLENDING ? POSE_BLEND_ORIGINAL : POSE_BLEND_BLENDING;
       pbd->needs_redraw = true;
       break;
-    default: {
-      break;
-    }
   }
 
   return OPERATOR_RUNNING_MODAL;
@@ -332,14 +327,14 @@ static bAction *poselib_blend_init_get_action(bContext *C, wmOperator *op)
   PoseBlendData *pbd = static_cast<PoseBlendData *>(op->customdata);
 
   pbd->temp_id_consumer = asset::temp_id_consumer_create(asset);
-  return reinterpret_cast<bAction *>(asset::temp_id_consumer_ensure_local_id(
-      pbd->temp_id_consumer, ID_AC, CTX_data_main(C), op->reports));
+  return (bAction *)asset::temp_id_consumer_ensure_local_id(
+      pbd->temp_id_consumer, ID_AC, CTX_data_main(C), op->reports);
 }
 
 static bAction *flip_pose(bContext *C, blender::Span<Object *> objects, bAction *action)
 {
-  bAction *action_copy = reinterpret_cast<bAction *>(
-      BKE_id_copy_ex(nullptr, &action->id, nullptr, LIB_ID_COPY_LOCALIZE));
+  bAction *action_copy = (bAction *)BKE_id_copy_ex(
+      nullptr, &action->id, nullptr, LIB_ID_COPY_LOCALIZE);
 
   /* Lock the window manager while flipping the pose. Flipping requires temporarily modifying the
    * pose, which can cause unwanted visual glitches. */
@@ -371,10 +366,6 @@ static bool poselib_blend_init_data(bContext *C, wmOperator *op, const wmEvent *
 
   pbd->act = poselib_blend_init_get_action(C, op);
   if (pbd->act == nullptr) {
-    return false;
-  }
-  if (pbd->act->wrap().slots().size() == 0) {
-    BKE_report(op->reports, RPT_ERROR, "This pose asset is empty, and thus has no pose");
     return false;
   }
 
@@ -505,7 +496,7 @@ static void poselib_blend_free(wmOperator *op)
   MEM_delete(pbd);
 }
 
-static wmOperatorStatus poselib_blend_exit(bContext *C, wmOperator *op)
+static int poselib_blend_exit(bContext *C, wmOperator *op)
 {
   PoseBlendData *pbd = static_cast<PoseBlendData *>(op->customdata);
   const ePoseBlendState exit_state = pbd->state;
@@ -531,9 +522,9 @@ static void poselib_blend_cancel(bContext *C, wmOperator *op)
 }
 
 /* Main modal status check. */
-static wmOperatorStatus poselib_blend_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static int poselib_blend_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  const wmOperatorStatus operator_result = poselib_blend_handle_event(C, op, event);
+  const int operator_result = poselib_blend_handle_event(C, op, event);
 
   const PoseBlendData *pbd = static_cast<const PoseBlendData *>(op->customdata);
   if (ELEM(pbd->state, POSE_BLEND_CONFIRM, POSE_BLEND_CANCEL)) {
@@ -562,7 +553,7 @@ static wmOperatorStatus poselib_blend_modal(bContext *C, wmOperator *op, const w
 }
 
 /* Modal Operator init. */
-static wmOperatorStatus poselib_blend_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static int poselib_blend_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   if (!poselib_blend_init_data(C, op, event)) {
     poselib_blend_free(op);
@@ -580,7 +571,7 @@ static wmOperatorStatus poselib_blend_invoke(bContext *C, wmOperator *op, const 
 }
 
 /* Single-shot apply. */
-static wmOperatorStatus poselib_blend_exec(bContext *C, wmOperator *op)
+static int poselib_blend_exec(bContext *C, wmOperator *op)
 {
   if (!poselib_blend_init_data(C, op, nullptr)) {
     poselib_blend_free(op);

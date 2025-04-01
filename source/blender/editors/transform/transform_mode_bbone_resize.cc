@@ -27,8 +27,6 @@
 
 #include "transform_mode.hh"
 
-namespace blender::ed::transform {
-
 /* -------------------------------------------------------------------- */
 /** \name Transform (EditBone B-Bone width scaling)
  * \{ */
@@ -184,5 +182,3 @@ TransModeInfo TransMode_bboneresize = {
     /*snap_apply_fn*/ nullptr,
     /*draw_fn*/ nullptr,
 };
-
-}  // namespace blender::ed::transform

@@ -19,6 +19,10 @@
 
 #include "BPy_MediumType.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 using namespace Freestyle;
 
 ///////////////////////////////////////////////////////////////////////////////////////////
@@ -210,16 +214,6 @@ static PyObject *Interface1D_points_end(BPy_Interface1D *self, PyObject *args, P
   return BPy_Interface0DIterator_from_Interface0DIterator(if0D_it, true);
 }
 
-#ifdef __GNUC__
-#  ifdef __clang__
-#    pragma clang diagnostic push
-#    pragma clang diagnostic ignored "-Wcast-function-type"
-#  else
-#    pragma GCC diagnostic push
-#    pragma GCC diagnostic ignored "-Wcast-function-type"
-#  endif
-#endif
-
 static PyMethodDef BPy_Interface1D_methods[] = {
     {"vertices_begin",
      (PyCFunction)Interface1D_vertices_begin,
@@ -239,14 +233,6 @@ static PyMethodDef BPy_Interface1D_methods[] = {
      Interface1D_points_end_doc},
     {nullptr, nullptr, 0, nullptr},
 };
-
-#ifdef __GNUC__
-#  ifdef __clang__
-#    pragma clang diagnostic pop
-#  else
-#    pragma GCC diagnostic pop
-#  endif
-#endif
 
 /*----------------------Interface1D get/setters ----------------------------*/
 
@@ -395,3 +381,7 @@ PyTypeObject Interface1D_Type = {
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////
+
+#ifdef __cplusplus
+}
+#endif

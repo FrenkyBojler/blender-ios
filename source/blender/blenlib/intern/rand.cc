@@ -172,13 +172,14 @@ void BLI_bitmap_randomize(BLI_bitmap *bitmap, uint bits_num, uint seed)
 /* ********* for threaded random ************** */
 
 struct RNG_THREAD_ARRAY {
-  std::array<RNG, BLENDER_MAX_THREADS> rng_tab;
+  RNG rng_tab[BLENDER_MAX_THREADS];
 };
 
 RNG_THREAD_ARRAY *BLI_rng_threaded_new()
 {
   uint i;
-  RNG_THREAD_ARRAY *rngarr = MEM_new<RNG_THREAD_ARRAY>("random_array");
+  RNG_THREAD_ARRAY *rngarr = (RNG_THREAD_ARRAY *)MEM_mallocN(sizeof(RNG_THREAD_ARRAY),
+                                                             "random_array");
 
   for (i = 0; i < BLENDER_MAX_THREADS; i++) {
     BLI_rng_srandom(&rngarr->rng_tab[i], uint(clock()));
@@ -189,12 +190,12 @@ RNG_THREAD_ARRAY *BLI_rng_threaded_new()
 
 void BLI_rng_threaded_free(RNG_THREAD_ARRAY *rngarr)
 {
-  MEM_delete(rngarr);
+  MEM_freeN(rngarr);
 }
 
 int BLI_rng_thread_rand(RNG_THREAD_ARRAY *rngarr, int thread)
 {
-  return BLI_rng_get_int(&rngarr->rng_tab[size_t(thread)]);
+  return BLI_rng_get_int(&rngarr->rng_tab[thread]);
 }
 
 /* ********* Low-discrepancy sequences ************** */

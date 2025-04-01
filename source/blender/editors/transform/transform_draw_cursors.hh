@@ -10,8 +10,6 @@
 
 struct bContext;
 
-namespace blender::ed::transform {
-
 /* Callbacks for #WM_paint_cursor_activate. */
 
 /**
@@ -24,5 +22,3 @@ bool transform_draw_cursor_poll(bContext *C);
  * #WM_paint_cursor_activate
  */
 void transform_draw_cursor_draw(bContext *C, int x, int y, void *customdata);
-
-}  // namespace blender::ed::transform

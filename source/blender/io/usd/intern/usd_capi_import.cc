@@ -75,7 +75,8 @@ static bool gather_objects_paths(const pxr::UsdPrim &object, ListBase *object_pa
     gather_objects_paths(childPrim, object_paths);
   }
 
-  CacheObjectPath *usd_path = MEM_callocN<CacheObjectPath>("CacheObjectPath");
+  void *usd_path_void = MEM_callocN(sizeof(CacheObjectPath), "CacheObjectPath");
+  CacheObjectPath *usd_path = static_cast<CacheObjectPath *>(usd_path_void);
 
   STRNCPY(usd_path->path, object.GetPrimPath().GetString().c_str());
   BLI_addtail(object_paths, usd_path);
@@ -263,7 +264,7 @@ static void import_startjob(void *customdata, wmJobWorkerStatus *worker_status)
     if (!reader) {
       continue;
     }
-    reader->create_object(data->bmain);
+    reader->create_object(data->bmain, 0.0);
     if ((++i & 1023) == 0) {
       *data->do_update = true;
       *data->progress = 0.25f + 0.25f * (i / size);
@@ -314,7 +315,7 @@ static void import_endjob(void *customdata)
   /* Delete objects on cancellation. */
   if (data->was_canceled && data->archive) {
 
-    for (const USDPrimReader *reader : data->archive->readers()) {
+    for (USDPrimReader *reader : data->archive->readers()) {
 
       if (!reader) {
         continue;
@@ -341,7 +342,7 @@ static void import_endjob(void *customdata)
     data->archive->create_proto_collections(data->bmain, lc->collection);
 
     /* Add all objects to the collection. */
-    for (const USDPrimReader *reader : data->archive->readers()) {
+    for (USDPrimReader *reader : data->archive->readers()) {
       if (!reader) {
         continue;
       }
@@ -358,7 +359,7 @@ static void import_endjob(void *customdata)
 
     /* Sync and do the view layer operations. */
     BKE_view_layer_synced_ensure(scene, view_layer);
-    for (const USDPrimReader *reader : data->archive->readers()) {
+    for (USDPrimReader *reader : data->archive->readers()) {
       if (!reader) {
         continue;
       }
@@ -621,7 +622,7 @@ void USD_get_transform(CacheReader *reader, float r_mat_world[4][4], float time,
   if (!reader) {
     return;
   }
-  const USDXformReader *usd_reader = reinterpret_cast<USDXformReader *>(reader);
+  USDXformReader *usd_reader = reinterpret_cast<USDXformReader *>(reader);
 
   bool is_constant = false;
 

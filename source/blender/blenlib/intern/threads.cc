@@ -133,7 +133,7 @@ void BLI_threadpool_init(ListBase *threadbase, void *(*do_thread)(void *), int t
     }
 
     for (a = 0; a < tot; a++) {
-      ThreadSlot *tslot = MEM_callocN<ThreadSlot>("threadslot");
+      ThreadSlot *tslot = static_cast<ThreadSlot *>(MEM_callocN(sizeof(ThreadSlot), "threadslot"));
       BLI_addtail(threadbase, tslot);
       tslot->do_thread = do_thread;
       tslot->avail = 1;
@@ -364,7 +364,7 @@ void BLI_mutex_end(ThreadMutex *mutex)
 
 ThreadMutex *BLI_mutex_alloc()
 {
-  ThreadMutex *mutex = MEM_callocN<ThreadMutex>("ThreadMutex");
+  ThreadMutex *mutex = static_cast<ThreadMutex *>(MEM_callocN(sizeof(ThreadMutex), "ThreadMutex"));
   BLI_mutex_init(mutex);
   return mutex;
 }
@@ -486,7 +486,8 @@ void BLI_rw_mutex_end(ThreadRWMutex *mutex)
 
 ThreadRWMutex *BLI_rw_mutex_alloc()
 {
-  ThreadRWMutex *mutex = MEM_callocN<ThreadRWMutex>("ThreadRWMutex");
+  ThreadRWMutex *mutex = static_cast<ThreadRWMutex *>(
+      MEM_callocN(sizeof(ThreadRWMutex), "ThreadRWMutex"));
   BLI_rw_mutex_init(mutex);
   return mutex;
 }
@@ -509,7 +510,8 @@ struct TicketMutex {
 
 TicketMutex *BLI_ticket_mutex_alloc()
 {
-  TicketMutex *ticket = MEM_callocN<TicketMutex>("TicketMutex");
+  TicketMutex *ticket = static_cast<TicketMutex *>(
+      MEM_callocN(sizeof(TicketMutex), "TicketMutex"));
 
   pthread_cond_init(&ticket->cond, nullptr);
   pthread_mutex_init(&ticket->mutex, nullptr);
@@ -617,7 +619,7 @@ ThreadQueue *BLI_thread_queue_init()
 {
   ThreadQueue *queue;
 
-  queue = MEM_callocN<ThreadQueue>("ThreadQueue");
+  queue = static_cast<ThreadQueue *>(MEM_callocN(sizeof(ThreadQueue), "ThreadQueue"));
   queue->queue = BLI_gsqueue_new(sizeof(void *));
 
   pthread_mutex_init(&queue->mutex, nullptr);

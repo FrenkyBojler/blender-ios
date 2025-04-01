@@ -8,8 +8,6 @@
 
 #include "DNA_scene_types.h"
 
-#include "BLI_listbase.h"
-
 #include "BKE_context.hh"
 #include "BKE_global.hh"
 #include "BKE_report.hh"
@@ -31,8 +29,6 @@
 /* Own include. */
 #include "sequencer_intern.hh"
 
-namespace blender::ed::vse {
-
 /* -------------------------------------------------------------------- */
 /** \name Rebuild Proxy and Timecode Indices Operator
  * \{ */
@@ -40,20 +36,20 @@ namespace blender::ed::vse {
 static void seq_proxy_build_job(const bContext *C, ReportList *reports)
 {
   Scene *scene = CTX_data_scene(C);
-  Editing *ed = seq::editing_get(scene);
+  Editing *ed = SEQ_editing_get(scene);
   ScrArea *area = CTX_wm_area(C);
 
   if (ed == nullptr) {
     return;
   }
 
-  wmJob *wm_job = seq::ED_seq_proxy_wm_job_get(C);
-  seq::ProxyJob *pj = seq::ED_seq_proxy_job_get(C, wm_job);
+  wmJob *wm_job = ED_seq_proxy_wm_job_get(C);
+  ProxyJob *pj = ED_seq_proxy_job_get(C, wm_job);
 
   blender::Set<std::string> processed_paths;
   bool selected = false; /* Check for no selected strips */
 
-  LISTBASE_FOREACH (Strip *, seq, seq::active_seqbase_get(ed)) {
+  LISTBASE_FOREACH (Strip *, seq, SEQ_active_seqbase_get(ed)) {
     if (!ELEM(seq->type, STRIP_TYPE_MOVIE, STRIP_TYPE_IMAGE) || (seq->flag & SELECT) == 0) {
       continue;
     }
@@ -68,7 +64,7 @@ static void seq_proxy_build_job(const bContext *C, ReportList *reports)
       continue;
     }
 
-    bool success = seq::proxy_rebuild_context(
+    bool success = SEQ_proxy_rebuild_context(
         pj->main, pj->depsgraph, pj->scene, seq, &processed_paths, &pj->queue, false);
 
     if (!success && (seq->data->proxy->build_flags & SEQ_PROXY_SKIP_EXISTING) != 0) {
@@ -89,21 +85,19 @@ static void seq_proxy_build_job(const bContext *C, ReportList *reports)
   ED_area_tag_redraw(area);
 }
 
-static wmOperatorStatus sequencer_rebuild_proxy_invoke(bContext *C,
-                                                       wmOperator *op,
-                                                       const wmEvent * /*event*/)
+static int sequencer_rebuild_proxy_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
   seq_proxy_build_job(C, op->reports);
 
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus sequencer_rebuild_proxy_exec(bContext *C, wmOperator * /*o*/)
+static int sequencer_rebuild_proxy_exec(bContext *C, wmOperator * /*o*/)
 {
   Main *bmain = CTX_data_main(C);
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   Scene *scene = CTX_data_scene(C);
-  Editing *ed = seq::editing_get(scene);
+  Editing *ed = SEQ_editing_get(scene);
 
   if (ed == nullptr) {
     return OPERATOR_CANCELLED;
@@ -111,19 +105,19 @@ static wmOperatorStatus sequencer_rebuild_proxy_exec(bContext *C, wmOperator * /
 
   blender::Set<std::string> processed_paths;
 
-  LISTBASE_FOREACH (Strip *, seq, seq::active_seqbase_get(ed)) {
+  LISTBASE_FOREACH (Strip *, seq, SEQ_active_seqbase_get(ed)) {
     if (seq->flag & SELECT) {
       ListBase queue = {nullptr, nullptr};
 
-      seq::proxy_rebuild_context(bmain, depsgraph, scene, seq, &processed_paths, &queue, false);
+      SEQ_proxy_rebuild_context(bmain, depsgraph, scene, seq, &processed_paths, &queue, false);
 
       wmJobWorkerStatus worker_status = {};
       LISTBASE_FOREACH (LinkData *, link, &queue) {
-        seq::IndexBuildContext *context = static_cast<seq::IndexBuildContext *>(link->data);
-        seq::proxy_rebuild(context, &worker_status);
-        seq::proxy_rebuild_finish(context, false);
+        SeqIndexBuildContext *context = static_cast<SeqIndexBuildContext *>(link->data);
+        SEQ_proxy_rebuild(context, &worker_status);
+        SEQ_proxy_rebuild_finish(context, false);
       }
-      seq::relations_free_imbuf(scene, &ed->seqbase, false);
+      SEQ_relations_free_imbuf(scene, &ed->seqbase, false);
     }
   }
 
@@ -151,18 +145,16 @@ void SEQUENCER_OT_rebuild_proxy(wmOperatorType *ot)
 /** \name Set Selected Strip Proxies Operator
  * \{ */
 
-static wmOperatorStatus sequencer_enable_proxies_invoke(bContext *C,
-                                                        wmOperator *op,
-                                                        const wmEvent * /*event*/)
+static int sequencer_enable_proxies_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
   return WM_operator_props_dialog_popup(
       C, op, 200, IFACE_("Set Selected Strip Proxies"), IFACE_("Set"));
 }
 
-static wmOperatorStatus sequencer_enable_proxies_exec(bContext *C, wmOperator *op)
+static int sequencer_enable_proxies_exec(bContext *C, wmOperator *op)
 {
   Scene *scene = CTX_data_scene(C);
-  Editing *ed = seq::editing_get(scene);
+  Editing *ed = SEQ_editing_get(scene);
   bool proxy_25 = RNA_boolean_get(op->ptr, "proxy_25");
   bool proxy_50 = RNA_boolean_get(op->ptr, "proxy_50");
   bool proxy_75 = RNA_boolean_get(op->ptr, "proxy_75");
@@ -174,10 +166,10 @@ static wmOperatorStatus sequencer_enable_proxies_exec(bContext *C, wmOperator *o
     turnon = false;
   }
 
-  LISTBASE_FOREACH (Strip *, seq, seq::active_seqbase_get(ed)) {
+  LISTBASE_FOREACH (Strip *, seq, SEQ_active_seqbase_get(ed)) {
     if (seq->flag & SELECT) {
       if (ELEM(seq->type, STRIP_TYPE_MOVIE, STRIP_TYPE_IMAGE)) {
-        seq::proxy_set(seq, turnon);
+        SEQ_proxy_set(seq, turnon);
         if (seq->data->proxy == nullptr) {
           continue;
         }
@@ -247,5 +239,3 @@ void SEQUENCER_OT_enable_proxies(wmOperatorType *ot)
 }
 
 /** \} */
-
-}  // namespace blender::ed::vse

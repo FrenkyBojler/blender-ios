@@ -2,10 +2,6 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-/** \file
- * \ingroup bke
- */
-
 #pragma once
 
 #include "DNA_node_tree_interface_types.h"
@@ -292,8 +288,8 @@ template<typename T> const T &get_socket_data_as(const bNodeTreeInterfaceSocket 
 bNodeTreeInterfaceSocket *add_interface_socket_from_node(bNodeTree &ntree,
                                                          const bNode &from_node,
                                                          const bNodeSocket &from_sock,
-                                                         StringRef socket_type,
-                                                         StringRef name);
+                                                         const StringRef socket_type,
+                                                         const StringRef name);
 
 inline bNodeTreeInterfaceSocket *add_interface_socket_from_node(bNodeTree &ntree,
                                                                 const bNode &from_node,

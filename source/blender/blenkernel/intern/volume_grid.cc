@@ -392,22 +392,22 @@ VolumeTreeAccessToken::~VolumeTreeAccessToken()
 
 #endif /* WITH_OPENVDB */
 
-std::string get_name(const VolumeGridData &grid)
+std::string get_name(const VolumeGridData &volume_grid)
 {
 #ifdef WITH_OPENVDB
-  return grid.name();
+  return volume_grid.name();
 #else
-  UNUSED_VARS(grid);
+  UNUSED_VARS(volume_grid);
   return "density";
 #endif
 }
 
-VolumeGridType get_type(const VolumeGridData &grid)
+VolumeGridType get_type(const VolumeGridData &volume_grid)
 {
 #ifdef WITH_OPENVDB
-  return grid.grid_type();
+  return volume_grid.grid_type();
 #else
-  UNUSED_VARS(grid);
+  UNUSED_VARS(volume_grid);
   return VOLUME_GRID_UNKNOWN;
 #endif
 }

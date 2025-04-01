@@ -9,6 +9,10 @@
  * \brief display list (or rather multi purpose list) stuff.
  */
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /** #DispList.type */
 enum {
   /** A closed polygon (that can be filled). */
@@ -88,3 +92,7 @@ float BKE_displist_calc_taper(struct Depsgraph *depsgraph,
                               int tot);
 
 void BKE_displist_minmax(const struct ListBase *dispbase, float min[3], float max[3]);
+
+#ifdef __cplusplus
+}
+#endif

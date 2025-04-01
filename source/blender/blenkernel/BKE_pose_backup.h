@@ -18,6 +18,10 @@
 #include "BLI_listbase.h"
 #include "BLI_span.hh"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct PoseBackup;
 struct Object;
 
@@ -62,3 +66,7 @@ bool BKE_pose_backup_restore_on_object(struct Object *ob);
  * Free the pose backup that was stored on this object's runtime data.
  */
 void BKE_pose_backup_clear(struct Object *ob);
+
+#ifdef __cplusplus
+}
+#endif

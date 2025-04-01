@@ -10,7 +10,9 @@
 
 namespace blender::draw::overlay {
 
-StaticShader ShaderModule::shader_clippable(const char *create_info_name)
+ShaderModule *ShaderModule::g_shader_modules[2][2] = {{nullptr}};
+
+ShaderModule::ShaderPtr ShaderModule::shader_clippable(const char *create_info_name)
 {
   std::string name = create_info_name;
 
@@ -18,10 +20,10 @@ StaticShader ShaderModule::shader_clippable(const char *create_info_name)
     name += "_clipped";
   }
 
-  return StaticShader(name);
+  return ShaderPtr(GPU_shader_create_from_info_name(name.c_str()));
 }
 
-StaticShader ShaderModule::shader_selectable(const char *create_info_name)
+ShaderModule::ShaderPtr ShaderModule::shader_selectable(const char *create_info_name)
 {
   std::string name = create_info_name;
 
@@ -33,10 +35,10 @@ StaticShader ShaderModule::shader_selectable(const char *create_info_name)
     name += "_clipped";
   }
 
-  return StaticShader(name);
+  return ShaderPtr(GPU_shader_create_from_info_name(name.c_str()));
 }
 
-StaticShader ShaderModule::shader_selectable_no_clip(const char *create_info_name)
+ShaderModule::ShaderPtr ShaderModule::shader_selectable_no_clip(const char *create_info_name)
 {
   std::string name = create_info_name;
 
@@ -44,7 +46,7 @@ StaticShader ShaderModule::shader_selectable_no_clip(const char *create_info_nam
     name += "_selectable";
   }
 
-  return StaticShader(name);
+  return ShaderPtr(GPU_shader_create_from_info_name(name.c_str()));
 }
 
 using namespace blender::gpu::shader;
@@ -52,15 +54,23 @@ using namespace blender::gpu::shader;
 ShaderModule &ShaderModule::module_get(SelectionType selection_type, bool clipping_enabled)
 {
   int selection_index = selection_type == SelectionType::DISABLED ? 0 : 1;
-  return get_static_cache()[selection_index][clipping_enabled].get(selection_type,
-                                                                   clipping_enabled);
+  ShaderModule *&g_shader_module = g_shader_modules[selection_index][clipping_enabled];
+  if (g_shader_module == nullptr) {
+    /* TODO(@fclem) thread-safety. */
+    g_shader_module = new ShaderModule(selection_type, clipping_enabled);
+  }
+  return *g_shader_module;
 }
 
 void ShaderModule::module_free()
 {
   for (int i : IndexRange(2)) {
     for (int j : IndexRange(2)) {
-      get_static_cache()[i][j].release();
+      if (g_shader_modules[i][j] != nullptr) {
+        /* TODO(@fclem) thread-safety. */
+        delete g_shader_modules[i][j];
+        g_shader_modules[i][j] = nullptr;
+      }
     }
   }
 }

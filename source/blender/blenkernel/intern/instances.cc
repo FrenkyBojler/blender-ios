@@ -171,7 +171,7 @@ Instances::Instances(const Instances &other)
 
 Instances::~Instances()
 {
-  CustomData_free(&attributes_);
+  CustomData_free(&attributes_, instances_num_);
 }
 
 Instances &Instances::operator=(const Instances &other)

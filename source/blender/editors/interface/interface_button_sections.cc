@@ -9,7 +9,6 @@
  * separated by a separator spacer button.
  */
 
-#include "BLI_listbase.h"
 #include "BLI_math_vector_types.hh"
 #include "BLI_rect.h"
 #include "BLI_span.hh"
@@ -75,7 +74,7 @@ static Vector<rcti> button_section_bounds_calc(const ARegion *region, const bool
         continue;
       }
 
-      for (const std::unique_ptr<uiBut> &but : block->buttons) {
+      LISTBASE_FOREACH (uiBut *, but, &block->buttons) {
         if (but->type == UI_BTYPE_SEPR_SPACER) {
           /* Start a new section. */
           if (has_section_content) {
@@ -89,7 +88,7 @@ static Vector<rcti> button_section_bounds_calc(const ARegion *region, const bool
         }
 
         rcti but_pixelrect;
-        ui_but_to_pixelrect(&but_pixelrect, region, block, but.get());
+        ui_but_to_pixelrect(&but_pixelrect, region, block, but);
         BLI_rcti_do_minmax_rcti(&cur_section_bounds, &but_pixelrect);
         has_section_content = true;
       }

@@ -14,7 +14,7 @@
 
 #include "effects.hh"
 
-namespace blender::seq {
+using namespace blender;
 
 struct CrossEffectOp {
   template<typename T> void apply(const T *src1, const T *src2, T *dst, int64_t size) const
@@ -44,7 +44,7 @@ struct CrossEffectOp {
   float factor;
 };
 
-static ImBuf *do_cross_effect(const RenderData *context,
+static ImBuf *do_cross_effect(const SeqRenderData *context,
                               Strip * /*seq*/,
                               float /*timeline_frame*/,
                               float fac,
@@ -97,7 +97,7 @@ struct GammaCrossEffectOp {
   float factor;
 };
 
-static ImBuf *do_gammacross_effect(const RenderData *context,
+static ImBuf *do_gammacross_effect(const SeqRenderData *context,
                                    Strip * /*seq*/,
                                    float /*timeline_frame*/,
                                    float fac,
@@ -111,18 +111,16 @@ static ImBuf *do_gammacross_effect(const RenderData *context,
   return dst;
 }
 
-void cross_effect_get_handle(EffectHandle &rval)
+void cross_effect_get_handle(SeqEffectHandle &rval)
 {
   rval.execute = do_cross_effect;
   rval.early_out = early_out_fade;
   rval.get_default_fac = get_default_fac_fade;
 }
 
-void gamma_cross_effect_get_handle(EffectHandle &rval)
+void gamma_cross_effect_get_handle(SeqEffectHandle &rval)
 {
   rval.early_out = early_out_fade;
   rval.get_default_fac = get_default_fac_fade;
   rval.execute = do_gammacross_effect;
 }
-
-}  // namespace blender::seq

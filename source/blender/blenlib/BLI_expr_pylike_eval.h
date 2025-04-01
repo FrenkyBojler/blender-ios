@@ -8,6 +8,10 @@
  * \ingroup bli
  */
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /** Opaque structure containing pre-parsed data for evaluation. */
 typedef struct ExprPyLike_Parsed ExprPyLike_Parsed;
 
@@ -55,3 +59,7 @@ eExprPyLike_EvalStatus BLI_expr_pylike_eval(struct ExprPyLike_Parsed *expr,
                                             const double *param_values,
                                             int param_values_len,
                                             double *r_result);
+
+#ifdef __cplusplus
+}
+#endif

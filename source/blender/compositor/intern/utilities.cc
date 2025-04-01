@@ -58,13 +58,8 @@ ResultType get_node_socket_result_type(const bNodeSocket *socket)
       return ResultType::Float;
     case SOCK_INT:
       return ResultType::Int;
-    case SOCK_BOOLEAN:
-      return ResultType::Bool;
     case SOCK_VECTOR:
-      /* Vector sockets can also be ResultType::Float4 or ResultType::Float2, but the
-       * developer is expected to define that manually since there is no way to distinguish them
-       * from the socket. */
-      return ResultType::Float3;
+      return ResultType::Vector;
     case SOCK_RGBA:
       return ResultType::Color;
     default:
@@ -105,28 +100,7 @@ int number_of_inputs_linked_to_output_conditioned(DOutputSocket output,
 
 bool is_pixel_node(DNode node)
 {
-  BLI_assert(bool(node->typeinfo->gpu_fn) == bool(node->typeinfo->build_multi_function));
-  return node->typeinfo->gpu_fn && node->typeinfo->build_multi_function;
-}
-
-static ImplicitInput get_implicit_input(const nodes::SocketDeclaration *socket_declaration)
-{
-  /* We only support implicit textures coordinates, though this can be expanded in the future. */
-  if (socket_declaration->input_field_type == nodes::InputSocketFieldType::Implicit) {
-    return ImplicitInput::TextureCoordinates;
-  }
-  return ImplicitInput::None;
-}
-
-static int get_domain_priority(const bNodeSocket *input,
-                               const nodes::SocketDeclaration *socket_declaration)
-{
-  /* Negative priority means no priority is set and we fallback to the index, that is, we
-   * prioritize inputs according to their order. */
-  if (socket_declaration->compositor_domain_priority() < 0) {
-    return input->index();
-  }
-  return socket_declaration->compositor_domain_priority();
+  return node->typeinfo->get_compositor_shader_node;
 }
 
 InputDescriptor input_descriptor_from_input_socket(const bNodeSocket *socket)
@@ -134,23 +108,17 @@ InputDescriptor input_descriptor_from_input_socket(const bNodeSocket *socket)
   using namespace nodes;
   InputDescriptor input_descriptor;
   input_descriptor.type = get_node_socket_result_type(socket);
-
-  /* Default to the index of the input as its domain priority in case the node does not have a
-   * declaration. */
-  input_descriptor.domain_priority = socket->index();
-
+  const NodeDeclaration *node_declaration = socket->owner_node().declaration();
   /* Not every node has a declaration, in which case we assume the default values for the rest of
    * the properties. */
-  const NodeDeclaration *node_declaration = socket->owner_node().declaration();
   if (!node_declaration) {
     return input_descriptor;
   }
   const SocketDeclaration *socket_declaration = node_declaration->inputs[socket->index()];
-  input_descriptor.domain_priority = get_domain_priority(socket, socket_declaration);
+  input_descriptor.domain_priority = socket_declaration->compositor_domain_priority();
   input_descriptor.expects_single_value = socket_declaration->compositor_expects_single_value();
   input_descriptor.realization_mode = static_cast<InputRealizationMode>(
       socket_declaration->compositor_realization_mode());
-  input_descriptor.implicit_input = get_implicit_input(socket_declaration);
 
   return input_descriptor;
 }
@@ -192,10 +160,6 @@ DOutputSocket find_preview_output_socket(const DNode &node)
   }
 
   for (const bNodeSocket *output : node->output_sockets()) {
-    if (!output->is_available()) {
-      continue;
-    }
-
     if (output->is_logically_linked()) {
       return DOutputSocket(node.context(), output);
     }

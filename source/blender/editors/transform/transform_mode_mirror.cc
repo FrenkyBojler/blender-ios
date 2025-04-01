@@ -24,8 +24,6 @@
 
 #include "transform_mode.hh"
 
-namespace blender::ed::transform {
-
 /* -------------------------------------------------------------------- */
 /** \name Transform (Mirror)
  * \{ */
@@ -43,21 +41,21 @@ static void ElementMirror(TransInfo *t, TransDataContainer *tc, TransData *td, i
 {
   if ((t->flag & T_V3D_ALIGN) == 0 && td->ext) {
     /* Size checked needed since the 3D cursor only uses rotation fields. */
-    if (td->ext->scale) {
-      float fscale[] = {1.0, 1.0, 1.0};
+    if (td->ext->size) {
+      float fsize[] = {1.0, 1.0, 1.0};
 
       if (axis >= 0) {
-        fscale[axis] = -fscale[axis];
+        fsize[axis] = -fsize[axis];
       }
       if (flip) {
-        negate_v3(fscale);
+        negate_v3(fsize);
       }
 
-      protectedScaleBits(td->protectflag, fscale);
+      protectedSizeBits(td->protectflag, fsize);
 
-      mul_v3_v3v3(td->ext->scale, td->ext->iscale, fscale);
+      mul_v3_v3v3(td->ext->size, td->ext->isize, fsize);
 
-      constraintScaleLim(t, tc, td);
+      constraintSizeLim(t, tc, td);
     }
 
     float rmat[3][3];
@@ -233,5 +231,3 @@ TransModeInfo TransMode_mirror = {
     /*snap_apply_fn*/ nullptr,
     /*draw_fn*/ nullptr,
 };
-
-}  // namespace blender::ed::transform

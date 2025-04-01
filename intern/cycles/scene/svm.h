@@ -30,6 +30,8 @@ class SVMShaderManager : public ShaderManager {
   SVMShaderManager();
   ~SVMShaderManager() override;
 
+  void reset(Scene *scene) override;
+
   void device_update_specific(Device *device,
                               DeviceScene *dscene,
                               Scene *scene,

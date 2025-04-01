@@ -24,6 +24,7 @@
 struct Ipo;
 struct MovieClip;
 struct Scene;
+struct StripLookup;
 struct VFont;
 struct bSound;
 
@@ -32,23 +33,14 @@ namespace blender::seq {
 struct MediaPresence;
 struct ThumbnailCache;
 struct TextVarsRuntime;
-struct PrefetchJob;
-struct StripLookup;
-struct SeqCache;
 }  // namespace blender::seq
 using MediaPresence = blender::seq::MediaPresence;
 using ThumbnailCache = blender::seq::ThumbnailCache;
 using TextVarsRuntime = blender::seq::TextVarsRuntime;
-using PrefetchJob = blender::seq::PrefetchJob;
-using StripLookup = blender::seq::StripLookup;
-using SeqCache = blender::seq::SeqCache;
 #else
 typedef struct MediaPresence MediaPresence;
 typedef struct ThumbnailCache ThumbnailCache;
 typedef struct TextVarsRuntime TextVarsRuntime;
-typedef struct PrefetchJob PrefetchJob;
-typedef struct StripLookup StripLookup;
-typedef struct SeqCache SeqCache;
 #endif
 
 /* -------------------------------------------------------------------- */
@@ -331,7 +323,7 @@ typedef struct StripConnection {
 } StripConnection;
 
 typedef struct EditingRuntime {
-  StripLookup *strip_lookup;
+  struct StripLookup *strip_lookup;
   MediaPresence *media_presence;
   ThumbnailCache *thumbnail_cache;
   void *_pad;
@@ -365,13 +357,13 @@ typedef struct Editing {
   int show_missing_media_flag;
   int _pad1;
 
-  SeqCache *cache;
+  struct SeqCache *cache;
 
   /* Cache control */
   float recycle_max_cost; /* UNUSED only for versioning. */
   int cache_flag;
 
-  PrefetchJob *prefetch_job;
+  struct PrefetchJob *prefetch_job;
 
   /* Must be initialized only by seq_cache_create() */
   int64_t disk_cache_timestamp;
@@ -753,8 +745,7 @@ typedef enum StripType {
   STRIP_TYPE_ALPHAUNDER = 12,
   STRIP_TYPE_GAMCROSS = 13,
   STRIP_TYPE_MUL = 14,
-  STRIP_TYPE_OVERDROP_REMOVED =
-      15, /* Removed (behavior was the same as alpha-over), only used when reading old files. */
+  STRIP_TYPE_OVERDROP = 15,
   /* STRIP_TYPE_PLUGIN      = 24, */ /* Deprecated */
   STRIP_TYPE_WIPE = 25,
   STRIP_TYPE_GLOW = 26,

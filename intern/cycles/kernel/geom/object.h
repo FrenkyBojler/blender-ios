@@ -40,6 +40,16 @@ ccl_device_inline Transform object_fetch_transform(KernelGlobals kg,
   return kernel_data_fetch(objects, object).tfm;
 }
 
+/* Lamp to world space transformation */
+
+ccl_device_inline Transform lamp_fetch_transform(KernelGlobals kg, const int lamp, bool inverse)
+{
+  if (inverse) {
+    return kernel_data_fetch(lights, lamp).itfm;
+  }
+  return kernel_data_fetch(lights, lamp).tfm;
+}
+
 /* Object to world space transformation for motion vectors */
 
 ccl_device_inline Transform object_fetch_motion_pass_transform(KernelGlobals kg,
@@ -121,13 +131,6 @@ ccl_device_inline Transform object_get_inverse_transform(KernelGlobals kg,
   return object_fetch_transform(kg, sd->object, OBJECT_INVERSE_TRANSFORM);
 #endif
 }
-
-ccl_device_inline Transform lamp_get_inverse_transform(KernelGlobals kg,
-                                                       const ccl_global KernelLight *klight)
-{
-  return object_fetch_transform(kg, klight->object_id, OBJECT_INVERSE_TRANSFORM);
-}
-
 /* Transform position from object to world space */
 
 ccl_device_inline void object_position_transform(KernelGlobals kg,
@@ -170,7 +173,7 @@ ccl_device_inline void object_inverse_normal_transform(KernelGlobals kg,
 {
 #ifdef __OBJECT_MOTION__
   if (sd->object_flag & SD_OBJECT_MOTION) {
-    if (sd->object != OBJECT_NONE) {
+    if ((sd->object != OBJECT_NONE) || (sd->type == PRIMITIVE_LAMP)) {
       *N = safe_normalize(transform_direction_transposed_auto(&sd->ob_tfm_motion, *N));
     }
     return;
@@ -179,6 +182,10 @@ ccl_device_inline void object_inverse_normal_transform(KernelGlobals kg,
 
   if (sd->object != OBJECT_NONE) {
     const Transform tfm = object_fetch_transform(kg, sd->object, OBJECT_TRANSFORM);
+    *N = safe_normalize(transform_direction_transposed(&tfm, *N));
+  }
+  else if (sd->type == PRIMITIVE_LAMP) {
+    const Transform tfm = lamp_fetch_transform(kg, sd->lamp, false);
     *N = safe_normalize(transform_direction_transposed(&tfm, *N));
   }
 }
@@ -198,6 +205,10 @@ ccl_device_inline void object_normal_transform(KernelGlobals kg,
 
   if (sd->object != OBJECT_NONE) {
     const Transform tfm = object_fetch_transform(kg, sd->object, OBJECT_INVERSE_TRANSFORM);
+    *N = normalize(transform_direction_transposed(&tfm, *N));
+  }
+  else if (sd->type == PRIMITIVE_LAMP) {
+    const Transform tfm = lamp_fetch_transform(kg, sd->lamp, true);
     *N = normalize(transform_direction_transposed(&tfm, *N));
   }
 }
@@ -293,6 +304,17 @@ ccl_device_inline float object_pass_id(KernelGlobals kg, const int object)
   return kernel_data_fetch(objects, object).pass_id;
 }
 
+/* Light-group of lamp. */
+
+ccl_device_inline int lamp_lightgroup(KernelGlobals kg, const int lamp)
+{
+  if (lamp == LAMP_NONE) {
+    return LIGHTGROUP_NONE;
+  }
+
+  return kernel_data_fetch(lights, lamp).lightgroup;
+}
+
 /* Light-group of object. */
 
 ccl_device_inline int object_lightgroup(KernelGlobals kg, const int object)
@@ -302,6 +324,17 @@ ccl_device_inline int object_lightgroup(KernelGlobals kg, const int object)
   }
 
   return kernel_data_fetch(objects, object).lightgroup;
+}
+
+/* Per lamp random number for shader variation */
+
+ccl_device_inline float lamp_random_number(KernelGlobals kg, const int lamp)
+{
+  if (lamp == LAMP_NONE) {
+    return 0.0f;
+  }
+
+  return kernel_data_fetch(lights, lamp).random;
 }
 
 /* Per object random number for shader variation */
@@ -349,6 +382,17 @@ ccl_device_inline float3 object_dupli_uv(KernelGlobals kg, const int object)
 
   const ccl_global KernelObject *kobject = &kernel_data_fetch(objects, object);
   return make_float3(kobject->dupli_uv[0], kobject->dupli_uv[1], 0.0f);
+}
+
+/* Offset to an objects patch map */
+
+ccl_device_inline uint object_patch_map_offset(KernelGlobals kg, const int object)
+{
+  if (object == OBJECT_NONE) {
+    return 0;
+  }
+
+  return kernel_data_fetch(objects, object).patch_map_offset;
 }
 
 /* Volume step size */
@@ -452,7 +496,7 @@ ccl_device_inline float3 bvh_clamp_direction(const float3 dir)
 
 ccl_device_inline float3 bvh_inverse_direction(const float3 dir)
 {
-  return reciprocal(dir);
+  return rcp(dir);
 }
 
 /* Transform ray into object space to enter static object in BVH */

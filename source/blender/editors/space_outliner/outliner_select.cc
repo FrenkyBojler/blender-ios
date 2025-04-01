@@ -735,20 +735,20 @@ static void tree_element_strip_activate(bContext *C,
 {
   const TreeElementStrip *te_strip = tree_element_cast<TreeElementStrip>(te);
   Strip *strip = &te_strip->get_strip();
-  Editing *ed = seq::editing_get(scene);
+  Editing *ed = SEQ_editing_get(scene);
 
   if (BLI_findindex(ed->seqbasep, strip) != -1) {
     if (set == OL_SETSEL_EXTEND) {
-      seq::select_active_set(scene, nullptr);
+      SEQ_select_active_set(scene, nullptr);
     }
-    vse::deselect_all_strips(scene);
+    ED_sequencer_deselect_all(scene);
 
     if ((set == OL_SETSEL_EXTEND) && strip->flag & SELECT) {
       strip->flag &= ~SELECT;
     }
     else {
       strip->flag |= SELECT;
-      seq::select_active_set(scene, strip);
+      SEQ_select_active_set(scene, strip);
     }
   }
 
@@ -757,7 +757,7 @@ static void tree_element_strip_activate(bContext *C,
 
 static void tree_element_strip_dup_activate(Scene *scene, TreeElement * /*te*/)
 {
-  Editing *ed = seq::editing_get(scene);
+  Editing *ed = SEQ_editing_get(scene);
 
 #if 0
   select_single_seq(strip, 1);
@@ -1762,12 +1762,12 @@ static bool outliner_is_co_within_active_mode_column(bContext *C,
  *
  * May expend/collapse branches or activate items.
  */
-static wmOperatorStatus outliner_item_do_activate_from_cursor(bContext *C,
-                                                              const int mval[2],
-                                                              const bool extend,
-                                                              const bool use_range,
-                                                              const bool deselect_all,
-                                                              const bool recurse)
+static int outliner_item_do_activate_from_cursor(bContext *C,
+                                                 const int mval[2],
+                                                 const bool extend,
+                                                 const bool use_range,
+                                                 const bool deselect_all,
+                                                 const bool recurse)
 {
   ARegion *region = CTX_wm_region(C);
   SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
@@ -1887,9 +1887,7 @@ static wmOperatorStatus outliner_item_do_activate_from_cursor(bContext *C,
 }
 
 /* Event can enter-key, then it opens/closes. */
-static wmOperatorStatus outliner_item_activate_invoke(bContext *C,
-                                                      wmOperator *op,
-                                                      const wmEvent *event)
+static int outliner_item_activate_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   ARegion *region = CTX_wm_region(C);
 
@@ -1953,7 +1951,7 @@ static void outliner_box_select(bContext *C,
   });
 }
 
-static wmOperatorStatus outliner_box_select_exec(bContext *C, wmOperator *op)
+static int outliner_box_select_exec(bContext *C, wmOperator *op)
 {
   Scene *scene = CTX_data_scene(C);
   SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
@@ -1980,9 +1978,7 @@ static wmOperatorStatus outliner_box_select_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus outliner_box_select_invoke(bContext *C,
-                                                   wmOperator *op,
-                                                   const wmEvent *event)
+static int outliner_box_select_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
   ARegion *region = CTX_wm_region(C);
@@ -2212,9 +2208,7 @@ static void outliner_walk_scroll(SpaceOutliner *space_outliner, ARegion *region,
   }
 }
 
-static wmOperatorStatus outliner_walk_select_invoke(bContext *C,
-                                                    wmOperator *op,
-                                                    const wmEvent * /*event*/)
+static int outliner_walk_select_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
   SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
   ARegion *region = CTX_wm_region(C);

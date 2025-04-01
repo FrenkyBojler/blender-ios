@@ -134,7 +134,7 @@ BLI_NOINLINE static void calc_neighbor_influence(const Span<float3> positions,
                                                  const Set<BMVert *, 0> &verts,
                                                  const MutableSpan<float3> translations)
 {
-  BMeshNeighborVerts neighbors;
+  Vector<BMVert *, 64> neighbors;
   int i = 0;
   for (BMVert *vert : verts) {
     const float3 &position = positions[i];
@@ -331,7 +331,7 @@ void do_topology_slide_brush(const Depsgraph &depsgraph,
     }
   }
   pbvh.tag_positions_changed(node_mask);
-  pbvh.flush_bounds_to_parents();
+  bke::pbvh::flush_bounds_to_parents(pbvh);
 }
 
 }  // namespace blender::ed::sculpt_paint

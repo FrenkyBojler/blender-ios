@@ -213,7 +213,7 @@ bool imb_is_a_iris(const uchar *mem, size_t size)
   return ((GS(mem) == IMAGIC) || (GSS(mem) == IMAGIC));
 }
 
-ImBuf *imb_loadiris(const uchar *mem, size_t size, int flags, ImFileColorSpace & /*r_colorspace*/)
+ImBuf *imb_loadiris(const uchar *mem, size_t size, int flags, char colorspace[IM_MAX_SPACE])
 {
   uint *base, *lptr = nullptr;
   float *fbase, *fptr = nullptr;
@@ -234,6 +234,9 @@ ImBuf *imb_loadiris(const uchar *mem, size_t size, int flags, ImFileColorSpace &
   if (size < HEADER_SIZE) {
     return nullptr;
   }
+
+  /* OCIO_TODO: only tested with 1 byte per pixel, not sure how to test with other settings */
+  colorspace_set_default_role(colorspace, IM_MAX_SPACE, COLOR_ROLE_DEFAULT_BYTE);
 
   readheader(inf, &image);
   if (image.imagic != IMAGIC) {
@@ -270,8 +273,8 @@ ImBuf *imb_loadiris(const uchar *mem, size_t size, int flags, ImFileColorSpace &
     size_t tablen = size_t(ysize) * size_t(zsize_file) * sizeof(int);
     MFILE_SEEK(inf, HEADER_SIZE);
 
-    uint *starttab = MEM_malloc_arrayN<uint>(tablen, "iris starttab");
-    uint *lengthtab = MEM_malloc_arrayN<uint>(tablen, "iris endtab");
+    uint *starttab = static_cast<uint *>(MEM_mallocN(tablen, "iris starttab"));
+    uint *lengthtab = static_cast<uint *>(MEM_mallocN(tablen, "iris endtab"));
 
 #define MFILE_CAPACITY_AT_PTR_OK_OR_FAIL(p) \
   if (UNLIKELY((p) > mem_end)) { \
@@ -303,7 +306,7 @@ ImBuf *imb_loadiris(const uchar *mem, size_t size, int flags, ImFileColorSpace &
 
     if (bpp == 1) {
 
-      ibuf = IMB_allocImBuf(xsize, ysize, 8 * zsize_read, IB_byte_data);
+      ibuf = IMB_allocImBuf(xsize, ysize, 8 * zsize_read, IB_rect);
       if (!ibuf) {
         goto fail_rle;
       }
@@ -351,7 +354,7 @@ ImBuf *imb_loadiris(const uchar *mem, size_t size, int flags, ImFileColorSpace &
     }
     else { /* bpp == 2 */
 
-      ibuf = IMB_allocImBuf(xsize, ysize, 32, (flags & IB_byte_data) | IB_float_data);
+      ibuf = IMB_allocImBuf(xsize, ysize, 32, (flags & IB_rect) | IB_rectfloat);
       if (!ibuf) {
         goto fail_rle;
       }
@@ -411,7 +414,7 @@ ImBuf *imb_loadiris(const uchar *mem, size_t size, int flags, ImFileColorSpace &
 
     if (bpp == 1) {
 
-      ibuf = IMB_allocImBuf(xsize, ysize, 8 * zsize_read, IB_byte_data);
+      ibuf = IMB_allocImBuf(xsize, ysize, 8 * zsize_read, IB_rect);
       if (!ibuf) {
         goto fail_uncompressed;
       }
@@ -443,7 +446,7 @@ ImBuf *imb_loadiris(const uchar *mem, size_t size, int flags, ImFileColorSpace &
     }
     else { /* bpp == 2 */
 
-      ibuf = IMB_allocImBuf(xsize, ysize, 32, (flags & IB_byte_data) | IB_float_data);
+      ibuf = IMB_allocImBuf(xsize, ysize, 32, (flags & IB_rect) | IB_rectfloat);
       if (!ibuf) {
         goto fail_uncompressed;
       }
@@ -531,8 +534,8 @@ ImBuf *imb_loadiris(const uchar *mem, size_t size, int flags, ImFileColorSpace &
       }
     }
 
-    if (flags & IB_byte_data) {
-      IMB_byte_from_float(ibuf);
+    if (flags & IB_rect) {
+      IMB_rect_from_float(ibuf);
     }
   }
 
@@ -778,12 +781,12 @@ static bool output_iris(const char *filepath,
 
   tablen = ysize * zsize * sizeof(int);
 
-  image = MEM_mallocN<IMAGE>("iris image");
-  starttab = MEM_malloc_arrayN<uint>(size_t(tablen), "iris starttab");
-  lengthtab = MEM_malloc_arrayN<uint>(size_t(tablen), "iris lengthtab");
+  image = (IMAGE *)MEM_mallocN(sizeof(IMAGE), "iris image");
+  starttab = (uint *)MEM_mallocN(tablen, "iris starttab");
+  lengthtab = (uint *)MEM_mallocN(tablen, "iris lengthtab");
   rlebuflen = 1.05 * xsize + 10;
-  rlebuf = MEM_malloc_arrayN<uchar>(size_t(rlebuflen), "iris rlebuf");
-  lumbuf = MEM_malloc_arrayN<uint>(size_t(xsize), "iris lumbuf");
+  rlebuf = (uchar *)MEM_mallocN(rlebuflen, "iris rlebuf");
+  lumbuf = (uint *)MEM_mallocN(xsize * sizeof(int), "iris lumbuf");
 
   memset(image, 0, sizeof(IMAGE));
   image->imagic = IMAGIC;

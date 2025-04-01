@@ -14,7 +14,6 @@
 #include "AS_asset_library.hh"
 
 #include "BLI_function_ref.hh"
-#include "BLI_listbase.h"
 #include "BLI_string.h"
 
 #include "BKE_context.hh"
@@ -513,7 +512,7 @@ void region_layout(const bContext *C, ARegion *region)
     return;
   }
 
-  uiBlock *block = UI_block_begin(C, region, __func__, blender::ui::EmbossType::Emboss);
+  uiBlock *block = UI_block_begin(C, region, __func__, UI_EMBOSS);
 
   const uiStyle *style = UI_style_get_dpi();
   const int padding_y = main_region_padding_y();
@@ -841,9 +840,9 @@ static void asset_shelf_header_draw(const bContext *C, Header *header)
 
   list::storage_fetch(library_ref, C);
 
-  UI_block_emboss_set(block, blender::ui::EmbossType::None);
+  UI_block_emboss_set(block, UI_EMBOSS_NONE);
   uiItemPopoverPanel(layout, C, "ASSETSHELF_PT_catalog_selector", "", ICON_COLLAPSEMENU);
-  UI_block_emboss_set(block, blender::ui::EmbossType::Emboss);
+  UI_block_emboss_set(block, UI_EMBOSS);
 
   uiItemS(layout);
 
@@ -863,7 +862,7 @@ static void asset_shelf_header_draw(const bContext *C, Header *header)
 
 static void header_regiontype_register(ARegionType *region_type, const int space_type)
 {
-  HeaderType *ht = MEM_callocN<HeaderType>(__func__);
+  HeaderType *ht = MEM_cnew<HeaderType>(__func__);
   STRNCPY(ht->idname, "ASSETSHELF_HT_settings");
   ht->space_type = space_type;
   ht->region_type = RGN_TYPE_ASSET_SHELF_HEADER;

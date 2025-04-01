@@ -980,14 +980,10 @@ GHOST_TSuccess GHOST_SystemCocoa::getButtons(GHOST_Buttons &buttons) const
 
 GHOST_TCapabilityFlag GHOST_SystemCocoa::getCapabilities() const
 {
-  return GHOST_TCapabilityFlag(
-      GHOST_CAPABILITY_FLAG_ALL &
-      ~(
-          /* Cocoa has no support for a primary selection clipboard. */
-          GHOST_kCapabilityPrimaryClipboard |
-          /* Cocoa doesn't define a Hyper modifier key,
-           * it's possible another modifier could be optionally used in it's place. */
-          GHOST_kCapabilityKeyboardHyperKey));
+  return GHOST_TCapabilityFlag(GHOST_CAPABILITY_FLAG_ALL &
+                               ~(
+                                   /* Cocoa has no support for a primary selection clipboard. */
+                                   GHOST_kCapabilityPrimaryClipboard));
 }
 
 /* --------------------------------------------------------------------
@@ -1251,7 +1247,7 @@ static NSSize getNSImagePixelSize(NSImage *image)
 static ImBuf *NSImageToImBuf(NSImage *image)
 {
   const NSSize imageSize = getNSImagePixelSize(image);
-  ImBuf *ibuf = IMB_allocImBuf(imageSize.width, imageSize.height, 32, IB_byte_data);
+  ImBuf *ibuf = IMB_allocImBuf(imageSize.width, imageSize.height, 32, IB_rect);
 
   if (!ibuf) {
     return nullptr;
@@ -1482,9 +1478,7 @@ GHOST_TSuccess GHOST_SystemCocoa::handleTabletEvent(void *eventPtr, short eventT
 
       ct.Pressure = event.pressure;
       ct.Xtilt = event.tilt.x;
-      /* On macOS, the y tilt behavior is inverted; an increase in the tilt
-       * value corresponds to tilting the device away from the user. */
-      ct.Ytilt = -event.tilt.y;
+      ct.Ytilt = event.tilt.y;
       break;
 
     case NSEventTypeTabletProximity:

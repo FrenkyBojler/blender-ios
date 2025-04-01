@@ -157,7 +157,7 @@ static Mesh *generate_bounding_box_mesh(const std::optional<Bounds<float3>> &bou
     result->totcol = totcol;
   }
 
-  bke::mesh_translate(*result, math::midpoint(bounds->min, bounds->max), false);
+  BKE_mesh_translate(result, math::midpoint(bounds->min, bounds->max), false);
 
   return result;
 }
@@ -208,7 +208,7 @@ static void modify_geometry_set(ModifierData *md,
           pointcloud->bounds_min_max(), pointcloud->mat, pointcloud->totcol);
     }
 
-    *geometry_set = bke::GeometrySet::from_mesh(bbox);
+    *geometry_set = bke::GeometrySet::from_mesh(bbox, bke::GeometryOwnershipType::Editable);
     return;
   }
 

@@ -10,6 +10,10 @@
 
 #include "../BPy_UnaryPredicate1D.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 ///////////////////////////////////////////////////////////////////////////////////////////
 
 extern PyTypeObject EqualToChainingTimeStampUP1D_Type;
@@ -24,3 +28,7 @@ typedef struct {
 } BPy_EqualToChainingTimeStampUP1D;
 
 ///////////////////////////////////////////////////////////////////////////////////////////
+
+#ifdef __cplusplus
+}
+#endif

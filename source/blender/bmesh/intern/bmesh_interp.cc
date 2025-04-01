@@ -27,8 +27,6 @@
 #include "bmesh.hh"
 #include "intern/bmesh_private.hh"
 
-using blender::StringRef;
-
 /* edge and vertex share, currently there's no need to have different logic */
 static void bm_data_interp_from_elem(CustomData *data_layer,
                                      const BMElem *ele_src_1,
@@ -852,7 +850,7 @@ void BM_data_layer_add(BMesh *bm, CustomData *data, int type)
   }
 }
 
-void BM_data_layer_add_named(BMesh *bm, CustomData *data, int type, const StringRef name)
+void BM_data_layer_add_named(BMesh *bm, CustomData *data, int type, const char *name)
 {
   CustomData olddata = *data;
   olddata.layers = (olddata.layers) ?
@@ -869,14 +867,14 @@ void BM_data_layer_add_named(BMesh *bm, CustomData *data, int type, const String
   }
 }
 
-void BM_data_layer_ensure_named(BMesh *bm, CustomData *data, int type, const StringRef name)
+void BM_data_layer_ensure_named(BMesh *bm, CustomData *data, int type, const char *name)
 {
   if (CustomData_get_named_layer_index(data, eCustomDataType(type), name) == -1) {
     BM_data_layer_add_named(bm, data, type, name);
   }
 }
 
-void BM_uv_map_attr_select_and_pin_ensure(BMesh *bm)
+void BM_uv_map_ensure_select_and_pin_attrs(BMesh *bm)
 {
   const int nr_uv_layers = CustomData_number_of_layers(&bm->ldata, CD_PROP_FLOAT2);
   for (int l = 0; l < nr_uv_layers; l++) {
@@ -903,39 +901,25 @@ void BM_uv_map_attr_select_and_pin_ensure(BMesh *bm)
   }
 }
 
-void BM_uv_map_attr_vert_select_ensure(BMesh *bm, const StringRef uv_map_name)
+void BM_uv_map_ensure_vert_select_attr(BMesh *bm, const char *uv_map_name)
 {
   char name[MAX_CUSTOMDATA_LAYER_NAME];
   BM_data_layer_ensure_named(
       bm, &bm->ldata, CD_PROP_BOOL, BKE_uv_map_vert_select_name_get(uv_map_name, name));
 }
 
-void BM_uv_map_attr_edge_select_ensure(BMesh *bm, const StringRef uv_map_name)
+void BM_uv_map_ensure_edge_select_attr(BMesh *bm, const char *uv_map_name)
 {
   char name[MAX_CUSTOMDATA_LAYER_NAME];
   BM_data_layer_ensure_named(
       bm, &bm->ldata, CD_PROP_BOOL, BKE_uv_map_edge_select_name_get(uv_map_name, name));
 }
 
-void BM_uv_map_attr_pin_ensure(BMesh *bm, const StringRef uv_map_name)
+void BM_uv_map_ensure_pin_attr(BMesh *bm, const char *uv_map_name)
 {
   char name[MAX_CUSTOMDATA_LAYER_NAME];
   BM_data_layer_ensure_named(
       bm, &bm->ldata, CD_PROP_BOOL, BKE_uv_map_pin_name_get(uv_map_name, name));
-}
-
-bool BM_uv_map_attr_vert_select_exists(const BMesh *bm, const StringRef uv_map_name)
-{
-  char name[MAX_CUSTOMDATA_LAYER_NAME];
-  return (CustomData_get_named_layer_index(
-              &bm->ldata, CD_PROP_BOOL, BKE_uv_map_vert_select_name_get(uv_map_name, name)) != -1);
-}
-
-bool BM_uv_map_attr_pin_exists(const BMesh *bm, const StringRef uv_map_name)
-{
-  char name[MAX_CUSTOMDATA_LAYER_NAME];
-  return (CustomData_get_named_layer_index(
-              &bm->ldata, CD_PROP_BOOL, BKE_uv_map_pin_name_get(uv_map_name, name)) != -1);
 }
 
 void BM_data_layer_free(BMesh *bm, CustomData *data, int type)
@@ -947,7 +931,7 @@ void BM_data_layer_free(BMesh *bm, CustomData *data, int type)
   /* The pool is now owned by `olddata` and must not be shared. */
   data->pool = nullptr;
 
-  const bool had_layer = CustomData_free_layer_active(data, eCustomDataType(type));
+  const bool had_layer = CustomData_free_layer_active(data, eCustomDataType(type), 0);
   /* Assert because its expensive to realloc - better not do if layer isn't present. */
   BLI_assert(had_layer != false);
   UNUSED_VARS_NDEBUG(had_layer);
@@ -958,7 +942,7 @@ void BM_data_layer_free(BMesh *bm, CustomData *data, int type)
   }
 }
 
-bool BM_data_layer_free_named(BMesh *bm, CustomData *data, StringRef name)
+bool BM_data_layer_free_named(BMesh *bm, CustomData *data, const char *name)
 {
   CustomData olddata = *data;
   olddata.layers = (olddata.layers) ?
@@ -967,7 +951,7 @@ bool BM_data_layer_free_named(BMesh *bm, CustomData *data, StringRef name)
   /* The pool is now owned by `olddata` and must not be shared. */
   data->pool = nullptr;
 
-  const bool had_layer = CustomData_free_layer_named(data, name);
+  const bool had_layer = CustomData_free_layer_named(data, name, 0);
 
   if (had_layer) {
     update_data_blocks(bm, &olddata, data);
@@ -994,7 +978,10 @@ void BM_data_layer_free_n(BMesh *bm, CustomData *data, int type, int n)
   data->pool = nullptr;
 
   const bool had_layer = CustomData_free_layer(
-      data, eCustomDataType(type), CustomData_get_layer_index_n(data, eCustomDataType(type), n));
+      data,
+      eCustomDataType(type),
+      0,
+      CustomData_get_layer_index_n(data, eCustomDataType(type), n));
   /* Assert because its expensive to realloc - better not do if layer isn't present. */
   BLI_assert(had_layer != false);
   UNUSED_VARS_NDEBUG(had_layer);

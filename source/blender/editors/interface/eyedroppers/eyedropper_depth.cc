@@ -49,21 +49,21 @@
  * \note #DepthDropper is only internal name to avoid confusion with other kinds of eye-droppers.
  */
 struct DepthDropper {
-  PointerRNA ptr = {};
-  PropertyRNA *prop = nullptr;
-  bool is_undo = false;
+  PointerRNA ptr;
+  PropertyRNA *prop;
+  bool is_undo;
 
-  bool is_set = false;
-  float init_depth = 0.0f; /* For resetting on cancel. */
+  bool is_set;
+  float init_depth; /* For resetting on cancel. */
 
-  bool accum_start = false; /* Has mouse been pressed. */
-  float accum_depth = 0.0f;
-  int accum_tot = 0;
+  bool accum_start; /* Has mouse been pressed. */
+  float accum_depth;
+  int accum_tot;
 
-  ARegionType *art = nullptr;
-  void *draw_handle_pixel = nullptr;
-  int name_pos[2] = {};
-  char name[200] = {};
+  ARegionType *art;
+  void *draw_handle_pixel;
+  int name_pos[2];
+  char name[200];
 };
 
 static void depthdropper_draw_cb(const bContext * /*C*/, ARegion * /*region*/, void *arg)
@@ -156,7 +156,7 @@ static int depthdropper_init(bContext *C, wmOperator *op)
     char *prop_data_path = RNA_string_get_alloc(op->ptr, "prop_data_path", nullptr, 0, nullptr);
     BLI_SCOPED_DEFER([&] { MEM_SAFE_FREE(prop_data_path); });
     if (!prop_data_path) {
-      MEM_delete(ddr);
+      MEM_freeN(ddr);
       return false;
     }
     PointerRNA ctx_ptr = RNA_pointer_create_discrete(nullptr, &RNA_Context, C);
@@ -266,7 +266,7 @@ static void depthdropper_depth_sample_pt(bContext *C,
         /* Unfortunately it's necessary to always draw otherwise we leave stale text. */
         ED_region_tag_redraw(region);
 
-        view3d_operator_needs_gpu(C);
+        view3d_operator_needs_opengl(C);
 
         /* Ensure the depth buffer is updated for #ED_view3d_autodist. */
         ED_view3d_depth_override(
@@ -348,7 +348,7 @@ static void depthdropper_cancel(bContext *C, wmOperator *op)
 }
 
 /* main modal status check */
-static wmOperatorStatus depthdropper_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static int depthdropper_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   DepthDropper *ddr = static_cast<DepthDropper *>(op->customdata);
 
@@ -395,7 +395,7 @@ static wmOperatorStatus depthdropper_modal(bContext *C, wmOperator *op, const wm
 }
 
 /* Modal Operator init */
-static wmOperatorStatus depthdropper_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+static int depthdropper_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
   if (!depthdropper_test(C, op)) {
     /* If the operator can't be executed, make sure to not consume the event. */
@@ -417,7 +417,7 @@ static wmOperatorStatus depthdropper_invoke(bContext *C, wmOperator *op, const w
 }
 
 /* Repeat operator */
-static wmOperatorStatus depthdropper_exec(bContext *C, wmOperator *op)
+static int depthdropper_exec(bContext *C, wmOperator *op)
 {
   /* init */
   if (depthdropper_init(C, op)) {

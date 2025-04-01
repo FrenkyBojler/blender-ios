@@ -51,15 +51,15 @@ static auto &get_gizmo_type_map()
   return map;
 }
 
-const wmGizmoType *WM_gizmotype_find(const StringRef idname, bool quiet)
+const wmGizmoType *WM_gizmotype_find(const char *idname, bool quiet)
 {
-  if (!idname.is_empty()) {
-    if (wmGizmoType *const *gzt = get_gizmo_type_map().lookup_key_ptr_as(idname)) {
+  if (idname[0]) {
+    if (wmGizmoType *const *gzt = get_gizmo_type_map().lookup_key_ptr_as(StringRef(idname))) {
       return *gzt;
     }
 
     if (!quiet) {
-      printf("search for unknown gizmo '%s'\n", std::string(idname).c_str());
+      printf("search for unknown gizmo '%s'\n", idname);
     }
   }
   else {
@@ -73,7 +73,7 @@ const wmGizmoType *WM_gizmotype_find(const StringRef idname, bool quiet)
 
 static wmGizmoType *wm_gizmotype_append__begin()
 {
-  wmGizmoType *gzt = MEM_callocN<wmGizmoType>("gizmotype");
+  wmGizmoType *gzt = static_cast<wmGizmoType *>(MEM_callocN(sizeof(wmGizmoType), "gizmotype"));
   gzt->srna = RNA_def_struct_ptr(&BLENDER_RNA, "", &RNA_GizmoProperties);
 #if 0
   /* Set the default i18n context now, so that opfunc can redefine it if needed! */
@@ -159,9 +159,9 @@ void WM_gizmotype_remove_ptr(bContext *C, Main *bmain, wmGizmoType *gzt)
   gizmotype_unlink(C, bmain, gzt);
 }
 
-bool WM_gizmotype_remove(bContext *C, Main *bmain, const StringRef idname)
+bool WM_gizmotype_remove(bContext *C, Main *bmain, const char *idname)
 {
-  wmGizmoType *const *gzt = get_gizmo_type_map().lookup_key_ptr_as(idname);
+  wmGizmoType *const *gzt = get_gizmo_type_map().lookup_key_ptr_as(StringRef(idname));
   if (gzt == nullptr) {
     return false;
   }

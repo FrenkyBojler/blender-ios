@@ -40,8 +40,7 @@ struct SnapGizmo3D {
 /** \name ED_gizmo_library specific API
  * \{ */
 
-blender::ed::transform::SnapObjectContext *ED_gizmotypes_snap_3d_context_ensure(Scene *scene,
-                                                                                wmGizmo * /*gz*/)
+SnapObjectContext *ED_gizmotypes_snap_3d_context_ensure(Scene *scene, wmGizmo * /*gz*/)
 {
   return ED_view3d_cursor_snap_context_ensure(scene);
 }
@@ -278,17 +277,15 @@ static int snap_gizmo_test_select(bContext *C, wmGizmo *gz, const int mval[2])
   return -1;
 }
 
-static wmOperatorStatus snap_gizmo_modal(bContext * /*C*/,
-                                         wmGizmo * /*gz*/,
-                                         const wmEvent * /*event*/,
-                                         eWM_GizmoFlagTweak /*tweak_flag*/)
+static int snap_gizmo_modal(bContext * /*C*/,
+                            wmGizmo * /*gz*/,
+                            const wmEvent * /*event*/,
+                            eWM_GizmoFlagTweak /*tweak_flag*/)
 {
   return OPERATOR_RUNNING_MODAL;
 }
 
-static wmOperatorStatus snap_gizmo_invoke(bContext * /*C*/,
-                                          wmGizmo * /*gz*/,
-                                          const wmEvent * /*event*/)
+static int snap_gizmo_invoke(bContext * /*C*/, wmGizmo * /*gz*/, const wmEvent * /*event*/)
 {
   return OPERATOR_RUNNING_MODAL;
 }

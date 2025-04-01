@@ -46,10 +46,10 @@ static const EnumPropertyItem region_draw_mode_items[] = {
 
 static void cb_region_draw(const bContext *C, ARegion * /*region*/, void *customdata)
 {
-  PyGILState_STATE gilstate;
-  bpy_context_set((bContext *)C, &gilstate);
-
   PyObject *cb_func, *cb_args, *result;
+  PyGILState_STATE gilstate;
+
+  bpy_context_set((bContext *)C, &gilstate);
 
   cb_func = PyTuple_GET_ITEM((PyObject *)customdata, 1);
   cb_args = PyTuple_GET_ITEM((PyObject *)customdata, 2);
@@ -82,10 +82,11 @@ static PyObject *PyC_Tuple_CopySized(PyObject *src, int len_dst)
 
 static void cb_wm_cursor_draw(bContext *C, int x, int y, void *customdata)
 {
+  PyObject *cb_func, *cb_args, *result;
   PyGILState_STATE gilstate;
+
   bpy_context_set(C, &gilstate);
 
-  PyObject *cb_func, *cb_args, *result;
   cb_func = PyTuple_GET_ITEM((PyObject *)customdata, 1);
   cb_args = PyTuple_GET_ITEM((PyObject *)customdata, 2);
 
@@ -470,12 +471,19 @@ PyObject *pyrna_callback_classmethod_remove(PyObject * /*self*/, PyObject *args)
 
 static void cb_customdata_free(void *customdata)
 {
-  PyGILState_STATE gilstate = PyGILState_Ensure();
-
   PyObject *tuple = static_cast<PyObject *>(customdata);
+  bool use_gil = true; /* !PyC_IsInterpreterActive(); */
+
+  PyGILState_STATE gilstate;
+  if (use_gil) {
+    gilstate = PyGILState_Ensure();
+  }
+
   Py_DECREF(tuple);
 
-  PyGILState_Release(gilstate);
+  if (use_gil) {
+    PyGILState_Release(gilstate);
+  }
 }
 
 void BPY_callback_screen_free(ARegionType *art)

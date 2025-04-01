@@ -4,7 +4,6 @@
 
 #include "pipeline.h"
 
-#include "BLI_listbase.h"
 #include "BLI_time.h"
 
 #include "BKE_global.hh"

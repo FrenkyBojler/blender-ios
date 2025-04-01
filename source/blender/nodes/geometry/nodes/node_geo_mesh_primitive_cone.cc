@@ -69,7 +69,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeGeometryMeshCone *node_storage = MEM_callocN<NodeGeometryMeshCone>(__func__);
+  NodeGeometryMeshCone *node_storage = MEM_cnew<NodeGeometryMeshCone>(__func__);
 
   node_storage->fill_type = GEO_NODE_MESH_CIRCLE_FILL_NGON;
 
@@ -131,7 +131,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   BKE_id_material_eval_ensure_default_slot(&mesh->id);
 
   /* Transform the mesh so that the base of the cone is at the origin. */
-  bke::mesh_translate(*mesh, float3(0.0f, 0.0f, depth * 0.5f), false);
+  BKE_mesh_translate(mesh, float3(0.0f, 0.0f, depth * 0.5f), false);
 
   params.set_output("Mesh", GeometrySet::from_mesh(mesh));
 }
@@ -160,11 +160,11 @@ static void node_register()
   ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.initfunc = node_init;
   blender::bke::node_type_storage(
-      ntype, "NodeGeometryMeshCone", node_free_standard_storage, node_copy_standard_storage);
+      &ntype, "NodeGeometryMeshCone", node_free_standard_storage, node_copy_standard_storage);
   ntype.geometry_node_execute = node_geo_exec;
   ntype.draw_buttons = node_layout;
   ntype.declare = node_declare;
-  blender::bke::node_register_type(ntype);
+  blender::bke::node_register_type(&ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

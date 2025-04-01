@@ -4,8 +4,6 @@
 
 #include "WM_api.hh"
 
-#include "BLI_listbase.h"
-
 #include "BKE_context.hh"
 #include "BKE_global.hh"
 #include "BKE_main.hh"
@@ -19,15 +17,13 @@
 
 namespace blender::ed::geometry {
 
-static wmOperatorStatus geometry_randomization_invoke(bContext *C,
-                                                      wmOperator *op,
-                                                      const wmEvent *event)
+static int geometry_randomization_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   RNA_boolean_set(op->ptr, "value", G.randomize_geometry_element_order);
   return WM_operator_props_popup(C, op, event);
 }
 
-static wmOperatorStatus geometry_randomization_exec(bContext *C, wmOperator *op)
+static int geometry_randomization_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
 

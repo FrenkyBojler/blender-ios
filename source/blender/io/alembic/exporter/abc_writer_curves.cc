@@ -165,7 +165,9 @@ void ABCCurveWriter::do_write(HierarchyContext &context)
   const Span<float3> positions = curves.positions();
   const Span<float> nurbs_weights = curves.nurbs_weights();
   const VArray<int8_t> nurbs_orders = curves.nurbs_orders();
-  const VArray<float> radii = curves.radius();
+  const bke::AttributeAccessor curve_attributes = curves.attributes();
+  const VArray<float> radii = *curve_attributes.lookup_or_default<float>(
+      "radius", bke::AttrDomain::Point, 0.01f);
 
   vert_counts.resize(curves.curves_num());
   const OffsetIndices points_by_curve = curves.points_by_curve();

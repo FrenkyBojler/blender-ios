@@ -354,21 +354,21 @@ const DTreeContext &DerivedNodeTree::active_context() const
 }
 
 /* Each nested node group gets its own cluster. Just as node groups, clusters can be nested. */
-static dot_export::Cluster *get_dot_cluster_for_context(
-    dot_export::DirectedGraph &digraph,
+static dot::Cluster *get_dot_cluster_for_context(
+    dot::DirectedGraph &digraph,
     const DTreeContext *context,
-    Map<const DTreeContext *, dot_export::Cluster *> &dot_clusters)
+    Map<const DTreeContext *, dot::Cluster *> &dot_clusters)
 {
-  return dot_clusters.lookup_or_add_cb(context, [&]() -> dot_export::Cluster * {
+  return dot_clusters.lookup_or_add_cb(context, [&]() -> dot::Cluster * {
     const DTreeContext *parent_context = context->parent_context();
     if (parent_context == nullptr) {
       return nullptr;
     }
-    dot_export::Cluster *parent_cluster = get_dot_cluster_for_context(
+    dot::Cluster *parent_cluster = get_dot_cluster_for_context(
         digraph, parent_context, dot_clusters);
     std::string cluster_name = StringRef(context->btree().id.name + 2) + " / " +
                                context->parent_node()->name;
-    dot_export::Cluster &cluster = digraph.new_cluster(cluster_name);
+    dot::Cluster &cluster = digraph.new_cluster(cluster_name);
     cluster.set_parent_cluster(parent_cluster);
     return &cluster;
   });
@@ -376,14 +376,12 @@ static dot_export::Cluster *get_dot_cluster_for_context(
 
 std::string DerivedNodeTree::to_dot() const
 {
-  namespace dot = dot_export;
+  dot::DirectedGraph digraph;
+  digraph.set_rankdir(dot::Attr_rankdir::LeftToRight);
 
-  dot_export::DirectedGraph digraph;
-  digraph.set_rankdir(dot_export::Attr_rankdir::LeftToRight);
-
-  Map<const DTreeContext *, dot_export::Cluster *> dot_clusters;
-  Map<DInputSocket, dot_export::NodePort> dot_input_sockets;
-  Map<DOutputSocket, dot_export::NodePort> dot_output_sockets;
+  Map<const DTreeContext *, dot::Cluster *> dot_clusters;
+  Map<DInputSocket, dot::NodePort> dot_input_sockets;
+  Map<DOutputSocket, dot::NodePort> dot_output_sockets;
 
   this->foreach_node([&](DNode node) {
     /* Ignore nodes that should not show up in the final output. */
@@ -396,14 +394,13 @@ std::string DerivedNodeTree::to_dot() const
       }
     }
 
-    dot_export::Cluster *cluster = get_dot_cluster_for_context(
-        digraph, node.context(), dot_clusters);
+    dot::Cluster *cluster = get_dot_cluster_for_context(digraph, node.context(), dot_clusters);
 
-    dot_export::Node &dot_node = digraph.new_node("");
+    dot::Node &dot_node = digraph.new_node("");
     dot_node.set_parent_cluster(cluster);
     dot_node.set_background_color("white");
 
-    dot_export::NodeWithSockets dot_node_with_sockets;
+    dot::NodeWithSockets dot_node_with_sockets;
     for (const bNodeSocket *socket : node->input_sockets()) {
       if (socket->is_available()) {
         dot_node_with_sockets.add_input(socket->name);
@@ -415,7 +412,7 @@ std::string DerivedNodeTree::to_dot() const
       }
     }
 
-    dot_export::NodeWithSocketsRef dot_node_with_sockets_ref = dot_export::NodeWithSocketsRef(
+    dot::NodeWithSocketsRef dot_node_with_sockets_ref = dot::NodeWithSocketsRef(
         dot_node, dot_node_with_sockets);
 
     int input_index = 0;
@@ -437,24 +434,23 @@ std::string DerivedNodeTree::to_dot() const
   });
 
   /* Floating inputs are used for example to visualize unlinked group node inputs. */
-  Map<DSocket, dot_export::Node *> dot_floating_inputs;
+  Map<DSocket, dot::Node *> dot_floating_inputs;
 
   for (const auto item : dot_input_sockets.items()) {
     DInputSocket to_socket = item.key;
-    dot_export::NodePort dot_to_port = item.value;
+    dot::NodePort dot_to_port = item.value;
     to_socket.foreach_origin_socket([&](DSocket from_socket) {
       if (from_socket->is_output()) {
-        dot_export::NodePort *dot_from_port = dot_output_sockets.lookup_ptr(
-            DOutputSocket(from_socket));
+        dot::NodePort *dot_from_port = dot_output_sockets.lookup_ptr(DOutputSocket(from_socket));
         if (dot_from_port != nullptr) {
           digraph.new_edge(*dot_from_port, dot_to_port);
           return;
         }
       }
-      dot_export::Node &dot_node = *dot_floating_inputs.lookup_or_add_cb(from_socket, [&]() {
-        dot_export::Node &dot_node = digraph.new_node(from_socket->name);
+      dot::Node &dot_node = *dot_floating_inputs.lookup_or_add_cb(from_socket, [&]() {
+        dot::Node &dot_node = digraph.new_node(from_socket->name);
         dot_node.set_background_color("white");
-        dot_node.set_shape(dot_export::Attr_shape::Ellipse);
+        dot_node.set_shape(dot::Attr_shape::Ellipse);
         dot_node.set_parent_cluster(
             get_dot_cluster_for_context(digraph, from_socket.context(), dot_clusters));
         return &dot_node;

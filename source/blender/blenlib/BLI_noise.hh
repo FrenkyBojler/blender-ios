@@ -2,10 +2,6 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-/** \file
- * \ingroup bli
- */
-
 #pragma once
 
 #include "BLI_math_matrix_types.hh"

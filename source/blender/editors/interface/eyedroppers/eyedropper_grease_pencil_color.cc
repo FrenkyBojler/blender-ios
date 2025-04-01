@@ -61,17 +61,17 @@ enum class MaterialMode : int8_t {
 };
 
 struct EyedropperGreasePencil {
-  ColorManagedDisplay *display = nullptr;
+  ColorManagedDisplay *display;
 
-  bool accum_start = false; /* has mouse been pressed */
-  float3 accum_col = {};
-  int accum_tot = 0;
-  float3 color = {};
+  bool accum_start; /* has mouse been pressed */
+  float3 accum_col;
+  int accum_tot;
+  float3 color;
 
   /** Mode */
-  EyeMode mode = EyeMode::Material;
+  EyeMode mode;
   /** Material Mode */
-  MaterialMode mat_mode = MaterialMode::Stroke;
+  MaterialMode mat_mode;
 };
 
 /* Helper: Draw status message while the user is running the operator */
@@ -359,9 +359,7 @@ static void eyedropper_grease_pencil_cancel(bContext *C, wmOperator *op)
 }
 
 /* Main modal status check. */
-static wmOperatorStatus eyedropper_grease_pencil_modal(bContext *C,
-                                                       wmOperator *op,
-                                                       const wmEvent *event)
+static int eyedropper_grease_pencil_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   eyedropper_grease_pencil_status_indicators(C, op, event);
   EyedropperGreasePencil *eye = static_cast<EyedropperGreasePencil *>(op->customdata);
@@ -416,9 +414,7 @@ static wmOperatorStatus eyedropper_grease_pencil_modal(bContext *C,
   return OPERATOR_RUNNING_MODAL;
 }
 
-static wmOperatorStatus eyedropper_grease_pencil_invoke(bContext *C,
-                                                        wmOperator *op,
-                                                        const wmEvent *event)
+static int eyedropper_grease_pencil_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   if (eyedropper_grease_pencil_init(C, op)) {
     /* Add modal temp handler. */
@@ -432,7 +428,7 @@ static wmOperatorStatus eyedropper_grease_pencil_invoke(bContext *C,
 }
 
 /* Repeat operator */
-static wmOperatorStatus eyedropper_grease_pencil_exec(bContext *C, wmOperator *op)
+static int eyedropper_grease_pencil_exec(bContext *C, wmOperator *op)
 {
   if (eyedropper_grease_pencil_init(C, op)) {
 

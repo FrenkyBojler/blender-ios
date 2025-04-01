@@ -11,6 +11,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_alloca.h"
+#include "BLI_bitmap.h"
 #include "BLI_linklist_stack.h"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
@@ -36,7 +37,7 @@
 
 #include "transform_convert.hh"
 
-namespace blender::ed::transform {
+using namespace blender;
 
 /* -------------------------------------------------------------------- */
 /** \name Container TransCustomData Creation
@@ -1329,7 +1330,7 @@ void transform_convert_mesh_crazyspace_detect(TransInfo *t,
   float(*quats)[4] = nullptr;
   const int prop_mode = (t->flag & T_PROP_EDIT) ? (t->flag & T_PROP_EDIT_ALL) : 0;
   if (BKE_modifiers_get_cage_index(t->scene, tc->obedit, nullptr, true) != -1) {
-    Array<float3, 0> defcos;
+    blender::Array<blender::float3, 0> defcos;
     int totleft = -1;
     if (BKE_modifiers_is_correctable_deformed(t->scene, tc->obedit)) {
       BKE_scene_graph_evaluated_ensure(t->depsgraph, CTX_data_main(t->context));
@@ -1354,8 +1355,8 @@ void transform_convert_mesh_crazyspace_detect(TransInfo *t,
     if (totleft > 0)
 #endif
     {
-      const Array<float3> mappedcos = BKE_crazyspace_get_mapped_editverts(t->depsgraph,
-                                                                          tc->obedit);
+      const blender::Array<blender::float3> mappedcos = BKE_crazyspace_get_mapped_editverts(
+          t->depsgraph, tc->obedit);
       quats = static_cast<float(*)[4]>(
           MEM_mallocN(em->bm->totvert * sizeof(*quats), "crazy quats"));
       BKE_crazyspace_set_quats_editmesh(em, defcos, mappedcos, quats, !prop_mode);
@@ -1474,7 +1475,7 @@ static void VertsToTransData(TransInfo *t,
   td->extra = eve;
   if (t->mode == TFM_SHRINKFATTEN) {
     td->ext = tx;
-    tx->iscale[0] = BM_vert_calc_shell_factor_ex(eve, no, BM_ELEM_SELECT);
+    tx->isize[0] = BM_vert_calc_shell_factor_ex(eve, no, BM_ELEM_SELECT);
   }
 }
 
@@ -1496,7 +1497,9 @@ static void createTransEditVerts(bContext * /*C*/, TransInfo *t)
     TransMeshDataCrazySpace crazyspace_data = {};
 
     /* Avoid editing locked shapes. */
-    if (t->mode != TFM_DUMMY && object::shape_key_report_if_locked(tc->obedit, t->reports)) {
+    if (t->mode != TFM_DUMMY &&
+        blender::ed::object::shape_key_report_if_locked(tc->obedit, t->reports))
+    {
       continue;
     }
 
@@ -1772,15 +1775,16 @@ static BMPartialUpdate *mesh_partial_ensure(TransInfo *t,
   BM_mesh_elem_index_ensure(em->bm, BM_VERT);
 
   /* Only use `verts_group` or `verts_mask`. */
-  Array<int> verts_group;
+  int *verts_group = nullptr;
   int verts_group_count = 0; /* Number of non-zero elements in `verts_group`. */
 
-  blender::BitVector<> verts_mask;
+  BLI_bitmap *verts_mask = nullptr;
   int verts_mask_count = 0; /* Number of elements enabled in `verts_mask`. */
 
   if ((partial_type == PARTIAL_TYPE_GROUP) && ((t->flag & T_PROP_EDIT) || tc->use_mirror_axis_any))
   {
-    verts_group = Array<int>(em->bm->totvert, 0);
+    verts_group = static_cast<int *>(
+        MEM_callocN(sizeof(*verts_group) * em->bm->totvert, __func__));
     int i;
     TransData *td;
     for (i = 0, td = tc->data; i < tc->data_len; i++, td++) {
@@ -1836,7 +1840,7 @@ static BMPartialUpdate *mesh_partial_ensure(TransInfo *t,
   }
   else {
     /* See the body of the comments in the previous block for details. */
-    verts_mask.resize(em->bm->totvert);
+    verts_mask = BLI_BITMAP_NEW(em->bm->totvert, __func__);
     int i;
     TransData *td;
     for (i = 0, td = tc->data; i < tc->data_len; i++, td++) {
@@ -1845,22 +1849,24 @@ static BMPartialUpdate *mesh_partial_ensure(TransInfo *t,
       }
       const BMVert *v = (BMVert *)td->extra;
       const int v_index = BM_elem_index_get(v);
-      BLI_assert(!verts_mask[v_index]);
-      verts_mask[v_index].set();
+      BLI_assert(!BLI_BITMAP_TEST(verts_mask, v_index));
+      BLI_BITMAP_ENABLE(verts_mask, v_index);
       verts_mask_count += 1;
     }
 
     TransDataMirror *td_mirror = tc->data_mirror;
     for (i = 0; i < tc->data_mirror_len; i++, td_mirror++) {
       BMVert *v_mirr = (BMVert *)POINTER_OFFSET(td_mirror->loc_src, -offsetof(BMVert, co));
-      if (!verts_mask[BM_elem_index_get(v_mirr)] && equals_v3v3(td_mirror->loc, td_mirror->iloc)) {
+      if (!BLI_BITMAP_TEST(verts_mask, BM_elem_index_get(v_mirr)) &&
+          equals_v3v3(td_mirror->loc, td_mirror->iloc))
+      {
         continue;
       }
 
       BMVert *v_mirr_other = (BMVert *)td_mirror->extra;
-      BLI_assert(!verts_mask[BM_elem_index_get(v_mirr_other)]);
+      BLI_assert(!BLI_BITMAP_TEST(verts_mask, BM_elem_index_get(v_mirr_other)));
       const int v_mirr_other_index = BM_elem_index_get(v_mirr_other);
-      verts_mask[v_mirr_other_index].set();
+      BLI_BITMAP_ENABLE(verts_mask, v_mirr_other_index);
       verts_mask_count += 1;
     }
   }
@@ -1871,23 +1877,29 @@ static BMPartialUpdate *mesh_partial_ensure(TransInfo *t,
       params.do_tessellate = true;
       params.do_normals = true;
       pupdate->cache = BM_mesh_partial_create_from_verts(
-          *em->bm, params, verts_mask, verts_mask_count);
+          em->bm, &params, verts_mask, verts_mask_count);
       break;
     }
     case PARTIAL_TYPE_GROUP: {
       BMPartialUpdate_Params params{};
       params.do_tessellate = true;
       params.do_normals = true;
-      pupdate->cache = (!verts_group.is_empty() ?
-                            BM_mesh_partial_create_from_verts_group_multi(
-                                *em->bm, params, verts_group, verts_group_count) :
-                            BM_mesh_partial_create_from_verts_group_single(
-                                *em->bm, params, verts_mask, verts_mask_count));
+      pupdate->cache = (verts_group ? BM_mesh_partial_create_from_verts_group_multi(
+                                          em->bm, &params, verts_group, verts_group_count) :
+                                      BM_mesh_partial_create_from_verts_group_single(
+                                          em->bm, &params, verts_mask, verts_mask_count));
       break;
     }
     case PARTIAL_NONE: {
       BLI_assert_unreachable();
     }
+  }
+
+  if (verts_group) {
+    MEM_freeN(verts_group);
+  }
+  else {
+    MEM_freeN(verts_mask);
   }
 
   pupdate->prop_size_prev = t->prop_size;
@@ -2633,5 +2645,3 @@ TransConvertTypeInfo TransConvertType_Mesh = {
     /*recalc_data*/ recalcData_mesh,
     /*special_aftertrans_update*/ special_aftertrans_update__mesh,
 };
-
-}  // namespace blender::ed::transform

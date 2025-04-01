@@ -352,11 +352,11 @@ static void uilist_free_dyn_data(uiList *ui_list)
 
   if (dyn_data->custom_activate_opptr) {
     WM_operator_properties_free(dyn_data->custom_activate_opptr);
-    MEM_delete(dyn_data->custom_activate_opptr);
+    MEM_freeN(dyn_data->custom_activate_opptr);
   }
   if (dyn_data->custom_drag_opptr) {
     WM_operator_properties_free(dyn_data->custom_drag_opptr);
-    MEM_delete(dyn_data->custom_drag_opptr);
+    MEM_freeN(dyn_data->custom_drag_opptr);
   }
 
   MEM_SAFE_FREE(dyn_data->items_filter_flags);
@@ -370,7 +370,7 @@ static void uilist_free_dyn_data(uiList *ui_list)
  *
  * \return false if the input data isn't valid. Will also raise an RNA warning in that case.
  */
-static bool ui_template_list_data_retrieve(const StringRef listtype_name,
+static bool ui_template_list_data_retrieve(const char *listtype_name,
                                            const char *list_id,
                                            PointerRNA *dataptr,
                                            const StringRefNull propname,
@@ -383,7 +383,7 @@ static bool ui_template_list_data_retrieve(const StringRef listtype_name,
   *r_input_data = {};
 
   /* Forbid default UI_UL_DEFAULT_CLASS_NAME list class without a custom list_id! */
-  if ((UI_UL_DEFAULT_CLASS_NAME == listtype_name) && !(list_id && list_id[0])) {
+  if (STREQ(UI_UL_DEFAULT_CLASS_NAME, listtype_name) && !(list_id && list_id[0])) {
     RNA_warning("template_list using default '%s' UIList class must provide a custom list_id",
                 UI_UL_DEFAULT_CLASS_NAME);
     return false;
@@ -429,7 +429,7 @@ static bool ui_template_list_data_retrieve(const StringRef listtype_name,
 
   /* Find the uiList type. */
   if (!(*r_list_type = WM_uilisttype_find(listtype_name, false))) {
-    RNA_warning("List type %s not found", std::string(listtype_name).c_str());
+    RNA_warning("List type %s not found", listtype_name);
     return false;
   }
 
@@ -639,11 +639,11 @@ static void *uilist_item_use_dynamic_tooltip(PointerRNA *itemptr, const char *pr
   return nullptr;
 }
 
-static std::string uilist_item_tooltip_func(bContext * /*C*/, void *argN, const StringRef tip)
+static std::string uilist_item_tooltip_func(bContext * /*C*/, void *argN, const char *tip)
 {
   char *dyn_tooltip = static_cast<char *>(argN);
   std::string tooltip_string = dyn_tooltip;
-  if (!tip.is_empty()) {
+  if (tip && tip[0]) {
     tooltip_string += '\n';
     tooltip_string += tip;
   }
@@ -941,7 +941,7 @@ static void ui_template_list_layout_draw(const bContext *C,
                                0,
                                0,
                                org_i,
-                               std::nullopt);
+                               nullptr);
           UI_but_drawflag_enable(but, UI_BUT_NO_TOOLTIP);
 
           sub = uiLayoutRow(overlap, false);
@@ -1041,7 +1041,7 @@ static void ui_template_list_layout_draw(const bContext *C,
                                0,
                                0,
                                org_i,
-                               std::nullopt);
+                               nullptr);
           UI_but_drawflag_enable(but, UI_BUT_NO_TOOLTIP);
 
           col = uiLayoutColumn(overlap, false);
@@ -1113,7 +1113,7 @@ static void ui_template_list_layout_draw(const bContext *C,
 
     row = uiLayoutRow(glob, true);
     uiBlock *subblock = uiLayoutGetBlock(row);
-    UI_block_emboss_set(subblock, blender::ui::EmbossType::None);
+    UI_block_emboss_set(subblock, UI_EMBOSS_NONE);
 
     if (ui_list->filter_flag & UILST_FLT_SHOW) {
       but = uiDefIconButBitI(subblock,
@@ -1147,7 +1147,7 @@ static void ui_template_list_layout_draw(const bContext *C,
         UI_but_func_set(but, [ui_list](bContext &C) { uilist_resize_update(&C, ui_list); });
       }
 
-      UI_block_emboss_set(subblock, blender::ui::EmbossType::Emboss);
+      UI_block_emboss_set(subblock, UI_EMBOSS);
 
       col = uiLayoutColumn(glob, false);
       subblock = uiLayoutGetBlock(col);
@@ -1198,7 +1198,7 @@ static void ui_template_list_layout_draw(const bContext *C,
         UI_but_func_set(but, [ui_list](bContext &C) { uilist_resize_update(&C, ui_list); });
       }
 
-      UI_block_emboss_set(subblock, blender::ui::EmbossType::Emboss);
+      UI_block_emboss_set(subblock, UI_EMBOSS);
     }
   }
 }

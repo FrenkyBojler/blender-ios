@@ -133,7 +133,8 @@ LinkNode *BLO_blendhandle_get_datablock_info(BlendHandle *bh,
       if (skip_datablock) {
         continue;
       }
-      BLODataBlockInfo *info = MEM_mallocN<BLODataBlockInfo>(__func__);
+      BLODataBlockInfo *info = static_cast<BLODataBlockInfo *>(
+          MEM_mallocN(sizeof(*info), __func__));
 
       /* Lastly, read asset data from the following blocks. */
       if (asset_meta_data) {

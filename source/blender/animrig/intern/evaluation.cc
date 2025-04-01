@@ -90,14 +90,7 @@ void evaluate_and_apply_action(PointerRNA &animated_id_ptr,
 /* Copy of the same-named function in anim_sys.cc, with the check on action groups removed. */
 static bool is_fcurve_evaluatable(const FCurve *fcu)
 {
-  if (fcu->rna_path == nullptr) {
-    return false;
-  }
-
-  /* Not checking for FCURVE_DISABLED here, because those FCurves may still be evaluatable for
-   * other users of the same slot. See #135666. This is safe to do since this function isn't called
-   * for drivers. */
-  if (fcu->flag & FCURVE_MUTED) {
+  if (fcu->flag & (FCURVE_MUTED | FCURVE_DISABLED)) {
     return false;
   }
   if (BKE_fcurve_is_empty(fcu)) {

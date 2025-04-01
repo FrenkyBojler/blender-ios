@@ -13,7 +13,6 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_lasso_2d.hh"
-#include "BLI_listbase.h"
 #include "BLI_math_vector.h"
 
 #include "DNA_anim_types.h"
@@ -418,7 +417,7 @@ void deselect_graph_keys(bAnimContext *ac, bool test, eEditKeyframes_Select sel,
 
 /* ------------------- */
 
-static wmOperatorStatus graphkeys_deselectall_exec(bContext *C, wmOperator *op)
+static int graphkeys_deselectall_exec(bContext *C, wmOperator *op)
 {
   bAnimContext ac;
   bAnimListElem *ale_active = nullptr;
@@ -685,7 +684,7 @@ static int rectf_curve_zone_y(const FCurve *fcu,
                               const float unit_scale,
                               const float eval_x)
 {
-  const float fcurve_y = (evaluate_fcurve_only_curve(fcu, eval_x) + offset) * unit_scale;
+  const float fcurve_y = (evaluate_fcurve(fcu, eval_x) + offset) * unit_scale;
   return fcurve_y < rectf->ymin ? BELOW : fcurve_y <= rectf->ymax ? INSIDE : ABOVE;
 }
 
@@ -814,9 +813,7 @@ static void box_select_graphcurves(bAnimContext *ac,
 
 /* ------------------- */
 
-static wmOperatorStatus graphkeys_box_select_invoke(bContext *C,
-                                                    wmOperator *op,
-                                                    const wmEvent *event)
+static int graphkeys_box_select_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   bAnimContext ac;
   if (ANIM_animdata_get_context(C, &ac) == 0) {
@@ -840,7 +837,7 @@ static wmOperatorStatus graphkeys_box_select_invoke(bContext *C,
   return WM_gesture_box_invoke(C, op, event);
 }
 
-static wmOperatorStatus graphkeys_box_select_exec(bContext *C, wmOperator *op)
+static int graphkeys_box_select_exec(bContext *C, wmOperator *op)
 {
   bAnimContext ac;
   rcti rect;
@@ -947,7 +944,7 @@ void GRAPH_OT_select_box(wmOperatorType *ot)
 
 /* ------------------- */
 
-static wmOperatorStatus graphkeys_lassoselect_exec(bContext *C, wmOperator *op)
+static int graphkeys_lassoselect_exec(bContext *C, wmOperator *op)
 {
   bAnimContext ac;
 
@@ -1034,7 +1031,7 @@ void GRAPH_OT_select_lasso(wmOperatorType *ot)
 
 /* ------------------- */
 
-static wmOperatorStatus graph_circle_select_exec(bContext *C, wmOperator *op)
+static int graph_circle_select_exec(bContext *C, wmOperator *op)
 {
   bAnimContext ac;
   bool incl_handles = false;
@@ -1276,7 +1273,7 @@ static void columnselect_graph_keys(bAnimContext *ac, short mode)
 
 /* ------------------- */
 
-static wmOperatorStatus graphkeys_columnselect_exec(bContext *C, wmOperator *op)
+static int graphkeys_columnselect_exec(bContext *C, wmOperator *op)
 {
   bAnimContext ac;
   short mode;
@@ -1327,7 +1324,7 @@ void GRAPH_OT_select_column(wmOperatorType *ot)
 /** \name Select Linked Operator
  * \{ */
 
-static wmOperatorStatus graphkeys_select_linked_exec(bContext *C, wmOperator * /*op*/)
+static int graphkeys_select_linked_exec(bContext *C, wmOperator * /*op*/)
 {
   bAnimContext ac;
 
@@ -1433,7 +1430,7 @@ static void select_moreless_graph_keys(bAnimContext *ac, short mode)
 
 /* ----------------- */
 
-static wmOperatorStatus graphkeys_select_more_exec(bContext *C, wmOperator * /*op*/)
+static int graphkeys_select_more_exec(bContext *C, wmOperator * /*op*/)
 {
   bAnimContext ac;
 
@@ -1468,7 +1465,7 @@ void GRAPH_OT_select_more(wmOperatorType *ot)
 
 /* ----------------- */
 
-static wmOperatorStatus graphkeys_select_less_exec(bContext *C, wmOperator * /*op*/)
+static int graphkeys_select_less_exec(bContext *C, wmOperator * /*op*/)
 {
   bAnimContext ac;
 
@@ -1573,7 +1570,7 @@ static void graphkeys_select_leftright(bAnimContext *ac,
 
 /* ----------------- */
 
-static wmOperatorStatus graphkeys_select_leftright_exec(bContext *C, wmOperator *op)
+static int graphkeys_select_leftright_exec(bContext *C, wmOperator *op)
 {
   bAnimContext ac;
   short leftright = RNA_enum_get(op->ptr, "mode");
@@ -1607,9 +1604,7 @@ static wmOperatorStatus graphkeys_select_leftright_exec(bContext *C, wmOperator 
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus graphkeys_select_leftright_invoke(bContext *C,
-                                                          wmOperator *op,
-                                                          const wmEvent *event)
+static int graphkeys_select_leftright_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   bAnimContext ac;
   short leftright = RNA_enum_get(op->ptr, "mode");
@@ -1681,12 +1676,12 @@ void GRAPH_OT_select_leftright(wmOperatorType *ot)
  * \{ */
 
 /* option 1) select keyframe directly under mouse */
-static wmOperatorStatus mouse_graph_keys(bAnimContext *ac,
-                                         const int mval[2],
-                                         eEditKeyframes_Select select_mode,
-                                         const bool deselect_all,
-                                         const bool curves_only,
-                                         bool wait_to_deselect_others)
+static int mouse_graph_keys(bAnimContext *ac,
+                            const int mval[2],
+                            eEditKeyframes_Select select_mode,
+                            const bool deselect_all,
+                            const bool curves_only,
+                            bool wait_to_deselect_others)
 {
   SpaceGraph *sipo = (SpaceGraph *)ac->sl;
   tNearestVertInfo *nvi;
@@ -1856,10 +1851,10 @@ static wmOperatorStatus mouse_graph_keys(bAnimContext *ac,
 /* (see graphkeys_select_leftright) */
 
 /* Option 3) Selects all visible keyframes in the same frame as the mouse click */
-static wmOperatorStatus graphkeys_mselect_column(bAnimContext *ac,
-                                                 const int mval[2],
-                                                 eEditKeyframes_Select select_mode,
-                                                 bool wait_to_deselect_others)
+static int graphkeys_mselect_column(bAnimContext *ac,
+                                    const int mval[2],
+                                    eEditKeyframes_Select select_mode,
+                                    bool wait_to_deselect_others)
 {
   ListBase anim_data = {nullptr, nullptr};
   int filter;
@@ -1937,7 +1932,7 @@ static wmOperatorStatus graphkeys_mselect_column(bAnimContext *ac,
 /** \name Click Select Operator
  * \{ */
 
-static wmOperatorStatus graphkeys_clickselect_exec(bContext *C, wmOperator *op)
+static int graphkeys_clickselect_exec(bContext *C, wmOperator *op)
 {
   bAnimContext ac;
 
@@ -1953,7 +1948,7 @@ static wmOperatorStatus graphkeys_clickselect_exec(bContext *C, wmOperator *op)
    * this. */
   const bool wait_to_deselect_others = RNA_boolean_get(op->ptr, "wait_to_deselect_others");
   int mval[2];
-  wmOperatorStatus ret_val;
+  int ret_val;
 
   mval[0] = RNA_int_get(op->ptr, "mouse_x");
   mval[1] = RNA_int_get(op->ptr, "mouse_y");
@@ -2133,7 +2128,7 @@ static void graphkeys_select_key_handles(
   ANIM_animdata_freelist(&anim_data);
 }
 
-static wmOperatorStatus graphkeys_select_key_handles_exec(bContext *C, wmOperator *op)
+static int graphkeys_select_key_handles_exec(bContext *C, wmOperator *op)
 {
   bAnimContext ac;
 

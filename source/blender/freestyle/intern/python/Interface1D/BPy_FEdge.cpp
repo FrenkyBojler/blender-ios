@@ -14,6 +14,10 @@
 #include "../Interface0D/BPy_SVertex.h"
 #include "../Interface1D/BPy_ViewEdge.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 using namespace Freestyle;
 
 ///////////////////////////////////////////////////////////////////////////////////////////
@@ -394,3 +398,7 @@ PyTypeObject FEdge_Type = {
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////
+
+#ifdef __cplusplus
+}
+#endif

@@ -294,7 +294,7 @@ static bool workspace_context_poll(bContext *C)
   return workspace_context_get(C) != nullptr;
 }
 
-static wmOperatorStatus workspace_new_exec(bContext *C, wmOperator * /*op*/)
+static int workspace_new_exec(bContext *C, wmOperator * /*op*/)
 {
   Main *bmain = CTX_data_main(C);
   wmWindow *win = CTX_wm_window(C);
@@ -319,7 +319,7 @@ static void WORKSPACE_OT_duplicate(wmOperatorType *ot)
   ot->exec = workspace_new_exec;
 }
 
-static wmOperatorStatus workspace_delete_exec(bContext *C, wmOperator * /*op*/)
+static int workspace_delete_exec(bContext *C, wmOperator * /*op*/)
 {
   WorkSpace *workspace = workspace_context_get(C);
   WM_event_add_notifier(C, NC_SCREEN | ND_WORKSPACE_DELETE, workspace);
@@ -340,7 +340,7 @@ static void WORKSPACE_OT_delete(wmOperatorType *ot)
   ot->exec = workspace_delete_exec;
 }
 
-static wmOperatorStatus workspace_append_activate_exec(bContext *C, wmOperator *op)
+static int workspace_append_activate_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   char idname[MAX_ID_NAME - 2], filepath[FILE_MAX];
@@ -514,9 +514,7 @@ static void workspace_add_menu(bContext * /*C*/, uiLayout *layout, void *templat
   }
 }
 
-static wmOperatorStatus workspace_add_invoke(bContext *C,
-                                             wmOperator *op,
-                                             const wmEvent * /*event*/)
+static int workspace_add_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
   uiPopupMenu *pup = UI_popup_menu_begin(
       C, CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, op->type->name), ICON_ADD);
@@ -563,7 +561,7 @@ static void WORKSPACE_OT_add(wmOperatorType *ot)
   ot->invoke = workspace_add_invoke;
 }
 
-static wmOperatorStatus workspace_reorder_to_back_exec(bContext *C, wmOperator * /*op*/)
+static int workspace_reorder_to_back_exec(bContext *C, wmOperator * /*op*/)
 {
   Main *bmain = CTX_data_main(C);
   WorkSpace *workspace = workspace_context_get(C);
@@ -586,7 +584,7 @@ static void WORKSPACE_OT_reorder_to_back(wmOperatorType *ot)
   ot->exec = workspace_reorder_to_back_exec;
 }
 
-static wmOperatorStatus workspace_reorder_to_front_exec(bContext *C, wmOperator * /*op*/)
+static int workspace_reorder_to_front_exec(bContext *C, wmOperator * /*op*/)
 {
   Main *bmain = CTX_data_main(C);
   WorkSpace *workspace = workspace_context_get(C);
@@ -609,7 +607,7 @@ static void WORKSPACE_OT_reorder_to_front(wmOperatorType *ot)
   ot->exec = workspace_reorder_to_front_exec;
 }
 
-static wmOperatorStatus workspace_scene_pin_toggle_exec(bContext *C, wmOperator * /*op*/)
+static int workspace_scene_pin_toggle_exec(bContext *C, wmOperator * /*op*/)
 {
   WorkSpace *workspace = workspace_context_get(C);
 

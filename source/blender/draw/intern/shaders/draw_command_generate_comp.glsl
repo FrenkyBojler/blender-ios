@@ -8,6 +8,8 @@
 
 #include "draw_view_info.hh"
 
+#include "common_math_lib.glsl"
+
 COMPUTE_SHADER_CREATE_INFO(draw_command_generate)
 
 #define atomicAddAndGet(dst, val) (atomicAdd(dst, val) + val)

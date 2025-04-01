@@ -7,6 +7,10 @@
  * \ingroup bke
  */
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct DerivedMesh;
 struct ImBuf;
 struct Mesh;
@@ -29,3 +33,7 @@ void RE_generate_texturemargin_adjacentfaces(struct ImBuf *ibuf,
 
 void RE_generate_texturemargin_adjacentfaces_dm(
     struct ImBuf *ibuf, char *mask, int margin, struct DerivedMesh *dm, const float uv_offset[2]);
+
+#ifdef __cplusplus
+}
+#endif

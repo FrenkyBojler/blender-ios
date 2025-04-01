@@ -7,6 +7,10 @@
  * \ingroup bke
  */
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct Brush;
 struct ColorBand;
 struct FreestyleLineStyle;
@@ -86,3 +90,7 @@ void BKE_texture_get_value(struct Tex *texture,
  * Make sure all images used by texture are loaded into pool.
  */
 void BKE_texture_fetch_images_for_pool(struct Tex *texture, struct ImagePool *pool);
+
+#ifdef __cplusplus
+}
+#endif

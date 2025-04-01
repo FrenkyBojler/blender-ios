@@ -35,11 +35,11 @@ void UI_but_drag_attach_image(uiBut *but, const ImBuf *imb, const float scale)
 
 void UI_but_drag_set_asset(uiBut *but,
                            const blender::asset_system::AssetRepresentation *asset,
-                           const AssetImportSettings &import_settings,
+                           int import_method,
                            BIFIconID icon,
                            BIFIconID preview_icon)
 {
-  wmDragAsset *asset_drag = WM_drag_create_asset_data(asset, import_settings);
+  wmDragAsset *asset_drag = WM_drag_create_asset_data(asset, import_method);
 
   but->dragtype = WM_DRAG_ASSET;
   ui_def_but_icon(but, icon, 0); /* no flag UI_HAS_ICON, so icon doesn't draw in button */

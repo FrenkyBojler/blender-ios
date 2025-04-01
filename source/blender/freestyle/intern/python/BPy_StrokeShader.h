@@ -16,6 +16,10 @@ extern "C" {
 
 #include "../stroke/StrokeShader.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 ///////////////////////////////////////////////////////////////////////////////////////////
 
 extern PyTypeObject StrokeShader_Type;
@@ -34,3 +38,7 @@ typedef struct {
 int StrokeShader_Init(PyObject *module);
 
 ///////////////////////////////////////////////////////////////////////////////////////////
+
+#ifdef __cplusplus
+}
+#endif

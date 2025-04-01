@@ -344,7 +344,7 @@ typedef struct bPoseChannel {
 
   /** Transforms - written in by actions or transform. */
   float loc[3];
-  float scale[3];
+  float size[3];
 
   /**
    * Rotations - written in by actions or transform
@@ -431,7 +431,7 @@ typedef enum ePchan_Flag {
   /* has transforms */
   POSE_LOC = (1 << 0),
   POSE_ROT = (1 << 1),
-  POSE_SCALE = (1 << 2),
+  POSE_SIZE = (1 << 2),
 
   /* old IK/cache stuff
    * - used to be here from (1 << 3) to (1 << 8)
@@ -842,11 +842,11 @@ typedef enum eAction_Flags {
 } eAction_Flags;
 
 /* ************************************************ */
-/* Action/Dope-sheet Editor */
+/* Action/Dopesheet Editor */
 
-/** Storage for Dope-sheet/Grease-Pencil Editor data. */
+/** Storage for Dopesheet/Grease-Pencil Editor data. */
 typedef struct bDopeSheet {
-  /** Currently ID_SCE (for Dope-sheet), and ID_SC (for Grease Pencil). */
+  /** Currently ID_SCE (for Dopesheet), and ID_SC (for Grease Pencil). */
   ID *source;
   /** Cache for channels (only initialized when pinned). */ /* XXX not used! */
   ListBase chanbase;

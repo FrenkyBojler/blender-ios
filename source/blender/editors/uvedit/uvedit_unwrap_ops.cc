@@ -31,6 +31,7 @@
 #include "BLI_string.h"
 #include "BLI_time.h"
 #include "BLI_utildefines.h"
+#include "BLI_uvproject.h"
 #include "BLI_vector.hh"
 
 #include "BLT_translation.hh"
@@ -49,7 +50,6 @@
 #include "BKE_subdiv.hh"
 #include "BKE_subdiv_mesh.hh"
 #include "BKE_subdiv_modifier.hh"
-#include "BKE_uvproject.h"
 
 #include "DEG_depsgraph.hh"
 
@@ -84,7 +84,7 @@ using blender::geometry::ParamSlimOptions;
 /** \name Utility Functions
  * \{ */
 
-static bool uvedit_ensure_uvs(Object *obedit)
+static bool ED_uvedit_ensure_uvs(Object *obedit)
 {
   if (ED_uvedit_test(obedit)) {
     return true;
@@ -104,9 +104,9 @@ static bool uvedit_ensure_uvs(Object *obedit)
   }
 
   const char *active_uv_name = CustomData_get_active_layer_name(&em->bm->ldata, CD_PROP_FLOAT2);
-  BM_uv_map_attr_vert_select_ensure(em->bm, active_uv_name);
-  BM_uv_map_attr_edge_select_ensure(em->bm, active_uv_name);
-  const BMUVOffsets offsets = BM_uv_map_offsets_get(em->bm);
+  BM_uv_map_ensure_vert_select_attr(em->bm, active_uv_name);
+  BM_uv_map_ensure_edge_select_attr(em->bm, active_uv_name);
+  const BMUVOffsets offsets = BM_uv_map_get_offsets(em->bm);
 
   /* select new UVs (ignore UV_SYNC_SELECTION in this case) */
   BM_ITER_MESH (efa, &iter, em->bm, BM_FACES_OF_MESH) {
@@ -444,7 +444,7 @@ static bool uvedit_have_selection(const Scene *scene, BMEditMesh *em, const Unwr
   BMFace *efa;
   BMLoop *l;
   BMIter iter, liter;
-  const BMUVOffsets offsets = BM_uv_map_offsets_get(em->bm);
+  const BMUVOffsets offsets = BM_uv_map_get_offsets(em->bm);
 
   if (offsets.uv == -1) {
     return (em->bm->totfacesel != 0);
@@ -534,7 +534,7 @@ float ED_uvedit_get_aspect_y(Object *ob)
 static bool uvedit_is_face_affected(const Scene *scene,
                                     BMFace *efa,
                                     const UnwrapOptions *options,
-                                    const BMUVOffsets &offsets)
+                                    const BMUVOffsets offsets)
 {
   if (BM_elem_flag_test(efa, BM_ELEM_HIDDEN)) {
     return false;
@@ -564,7 +564,7 @@ static void uvedit_prepare_pinned_indices(ParamHandle *handle,
                                           const Scene *scene,
                                           BMFace *efa,
                                           const UnwrapOptions *options,
-                                          const BMUVOffsets &offsets)
+                                          const BMUVOffsets offsets)
 {
   BMIter liter;
   BMLoop *l;
@@ -586,7 +586,7 @@ static void construct_param_handle_face_add(ParamHandle *handle,
                                             BMFace *efa,
                                             blender::geometry::ParamKey face_index,
                                             const UnwrapOptions *options,
-                                            const BMUVOffsets &offsets,
+                                            const BMUVOffsets offsets,
                                             const int cd_weight_offset,
                                             const int cd_weight_index)
 {
@@ -646,7 +646,7 @@ static void construct_param_edge_set_seams(ParamHandle *handle,
     return; /* Seams are not required with these options. */
   }
 
-  const BMUVOffsets offsets = BM_uv_map_offsets_get(bm);
+  const BMUVOffsets offsets = BM_uv_map_get_offsets(bm);
   if (offsets.uv == -1) {
     return; /* UVs aren't present on BMesh. Nothing to do. */
   }
@@ -699,7 +699,7 @@ static ParamHandle *construct_param_handle(const Scene *scene,
   /* we need the vert indices */
   BM_mesh_elem_index_ensure(bm, BM_VERT);
 
-  const BMUVOffsets offsets = BM_uv_map_offsets_get(bm);
+  const BMUVOffsets offsets = BM_uv_map_get_offsets(bm);
   const int cd_weight_offset = CustomData_get_offset(&bm->vdata, CD_MDEFORMVERT);
   const int cd_weight_index = BKE_object_defgroup_name_index(ob, options->weight_group);
 
@@ -751,7 +751,7 @@ static ParamHandle *construct_param_handle_multi(const Scene *scene,
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
     BMesh *bm = em->bm;
 
-    const BMUVOffsets offsets = BM_uv_map_offsets_get(em->bm);
+    const BMUVOffsets offsets = BM_uv_map_get_offsets(em->bm);
 
     if (offsets.uv == -1) {
       continue;
@@ -785,7 +785,7 @@ static ParamHandle *construct_param_handle_multi(const Scene *scene,
 }
 
 static void texface_from_original_index(const Scene *scene,
-                                        const BMUVOffsets &offsets,
+                                        const BMUVOffsets offsets,
                                         BMFace *efa,
                                         int index,
                                         float **r_uv,
@@ -869,7 +869,7 @@ static ParamHandle *construct_param_handle_subsurfed(const Scene *scene,
   /* Similar to the above, we need a way to map edges to their original ones. */
   BMEdge **edgeMap;
 
-  const BMUVOffsets offsets = BM_uv_map_offsets_get(em->bm);
+  const BMUVOffsets offsets = BM_uv_map_get_offsets(em->bm);
   const int cd_weight_index = BKE_object_defgroup_name_index(ob, options->weight_group);
 
   ParamHandle *handle = new blender::geometry::ParamHandle();
@@ -1171,7 +1171,7 @@ static void minimize_stretch_exit(bContext *C, wmOperator *op, bool cancel)
   op->customdata = nullptr;
 }
 
-static wmOperatorStatus minimize_stretch_exec(bContext *C, wmOperator *op)
+static int minimize_stretch_exec(bContext *C, wmOperator *op)
 {
   int i, iterations;
 
@@ -1188,9 +1188,7 @@ static wmOperatorStatus minimize_stretch_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus minimize_stretch_invoke(bContext *C,
-                                                wmOperator *op,
-                                                const wmEvent * /*event*/)
+static int minimize_stretch_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
   if (!minimize_stretch_init(C, op)) {
     return OPERATOR_CANCELLED;
@@ -1205,7 +1203,7 @@ static wmOperatorStatus minimize_stretch_invoke(bContext *C,
   return OPERATOR_RUNNING_MODAL;
 }
 
-static wmOperatorStatus minimize_stretch_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static int minimize_stretch_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   MinStretch *ms = static_cast<MinStretch *>(op->customdata);
 
@@ -1250,9 +1248,6 @@ static wmOperatorStatus minimize_stretch_modal(bContext *C, wmOperator *op, cons
         } while (BLI_time_now_seconds() - start < 0.01);
       }
       break;
-    default: {
-      break;
-    }
   }
 
   if (ms->iterations && ms->i >= ms->iterations) {
@@ -1457,7 +1452,7 @@ static void uvedit_pack_islands_multi(const Scene *scene,
     }
     BLI_assert(bm);
 
-    const BMUVOffsets offsets = BM_uv_map_offsets_get(bm);
+    const BMUVOffsets offsets = BM_uv_map_get_offsets(bm);
     if (offsets.uv == -1) {
       continue;
     }
@@ -1717,7 +1712,7 @@ static void pack_islands_freejob(void *pidv)
   MEM_delete(pid);
 }
 
-static wmOperatorStatus pack_islands_exec(bContext *C, wmOperator *op)
+static int pack_islands_exec(bContext *C, wmOperator *op)
 {
   ViewLayer *view_layer = CTX_data_view_layer(C);
   const Scene *scene = CTX_data_scene(C);
@@ -1917,7 +1912,7 @@ static void uv_pack_islands_ui(bContext * /*C*/, wmOperator *op)
   uiItemS(layout);
 }
 
-static wmOperatorStatus uv_pack_islands_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static int uv_pack_islands_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   return WM_operator_props_popup_confirm_ex(C, op, event, IFACE_("Pack Islands"), IFACE_("Pack"));
 }
@@ -2007,7 +2002,7 @@ void UV_OT_pack_islands(wmOperatorType *ot)
 /** \name Average UV Islands Scale Operator
  * \{ */
 
-static wmOperatorStatus average_islands_scale_exec(bContext *C, wmOperator *op)
+static int average_islands_scale_exec(bContext *C, wmOperator *op)
 {
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
@@ -2598,7 +2593,7 @@ static void uv_map_clip_correct(const Scene *scene,
 
   for (Object *ob : objects) {
     BMEditMesh *em = BKE_editmesh_from_object(ob);
-    const BMUVOffsets offsets = BM_uv_map_offsets_get(em->bm);
+    const BMUVOffsets offsets = BM_uv_map_get_offsets(em->bm);
 
     /* Correct for image aspect ratio. */
     if (correct_aspect) {
@@ -2665,7 +2660,7 @@ static void uv_map_clip_correct(const Scene *scene,
 
     for (Object *ob : objects) {
       BMEditMesh *em = BKE_editmesh_from_object(ob);
-      const BMUVOffsets offsets = BM_uv_map_offsets_get(em->bm);
+      const BMUVOffsets offsets = BM_uv_map_get_offsets(em->bm);
 
       BM_ITER_MESH (efa, &iter, em->bm, BM_FACES_OF_MESH) {
         if (!BM_elem_flag_test(efa, BM_ELEM_SELECT)) {
@@ -2771,7 +2766,7 @@ enum {
   UNWRAP_ERROR_NEGATIVE = (1 << 1),
 };
 
-static wmOperatorStatus unwrap_exec(bContext *C, wmOperator *op)
+static int unwrap_exec(bContext *C, wmOperator *op)
 {
   ViewLayer *view_layer = CTX_data_view_layer(C);
   const Scene *scene = CTX_data_scene(C);
@@ -2806,7 +2801,7 @@ static wmOperatorStatus unwrap_exec(bContext *C, wmOperator *op)
     float obsize[3];
     bool use_subsurf_final;
 
-    if (!uvedit_ensure_uvs(obedit)) {
+    if (!ED_uvedit_ensure_uvs(obedit)) {
       continue;
     }
 
@@ -3154,7 +3149,7 @@ static blender::Vector<blender::float3> smart_uv_project_calculate_project_norma
   return project_normal_array;
 }
 
-static wmOperatorStatus smart_project_exec(bContext *C, wmOperator *op)
+static int smart_project_exec(bContext *C, wmOperator *op)
 {
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
@@ -3191,11 +3186,11 @@ static wmOperatorStatus smart_project_exec(bContext *C, wmOperator *op)
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
     bool changed = false;
 
-    if (!uvedit_ensure_uvs(obedit)) {
+    if (!ED_uvedit_ensure_uvs(obedit)) {
       continue;
     }
 
-    const BMUVOffsets offsets = BM_uv_map_offsets_get(em->bm);
+    const BMUVOffsets offsets = BM_uv_map_get_offsets(em->bm);
     BLI_assert(offsets.uv >= 0);
     ThickFace *thick_faces = static_cast<ThickFace *>(
         MEM_mallocN(sizeof(*thick_faces) * em->bm->totface, __func__));
@@ -3333,7 +3328,7 @@ static wmOperatorStatus smart_project_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus smart_project_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static int smart_project_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   return WM_operator_props_popup_confirm_ex(
       C, op, event, IFACE_("Smart UV Project"), IFACE_("Unwrap"));
@@ -3410,9 +3405,9 @@ void UV_OT_smart_project(wmOperatorType *ot)
 /** \name Project UV From View Operator
  * \{ */
 
-static wmOperatorStatus uv_from_view_exec(bContext *C, wmOperator *op);
+static int uv_from_view_exec(bContext *C, wmOperator *op);
 
-static wmOperatorStatus uv_from_view_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+static int uv_from_view_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
   View3D *v3d = CTX_wm_view3d(C);
   RegionView3D *rv3d = CTX_wm_region_view3d(C);
@@ -3431,7 +3426,7 @@ static wmOperatorStatus uv_from_view_invoke(bContext *C, wmOperator *op, const w
   return uv_from_view_exec(C, op);
 }
 
-static wmOperatorStatus uv_from_view_exec(bContext *C, wmOperator *op)
+static int uv_from_view_exec(bContext *C, wmOperator *op)
 {
   ViewLayer *view_layer = CTX_data_view_layer(C);
   const Scene *scene = CTX_data_scene(C);
@@ -3470,7 +3465,7 @@ static wmOperatorStatus uv_from_view_exec(bContext *C, wmOperator *op)
     bool changed = false;
 
     /* add uvs if they don't exist yet */
-    if (!uvedit_ensure_uvs(obedit)) {
+    if (!ED_uvedit_ensure_uvs(obedit)) {
       continue;
     }
 
@@ -3486,14 +3481,14 @@ static wmOperatorStatus uv_from_view_exec(bContext *C, wmOperator *op)
 
         BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
           float *luv = BM_ELEM_CD_GET_FLOAT_P(l, cd_loop_uv_offset);
-          BKE_uvproject_from_view_ortho(luv, l->v->co, rotmat);
+          BLI_uvproject_from_view_ortho(luv, l->v->co, rotmat);
         }
         changed = true;
       }
     }
     else if (camera) {
       const bool camera_bounds = RNA_boolean_get(op->ptr, "camera_bounds");
-      ProjCameraInfo *uci = BKE_uvproject_camera_info(
+      ProjCameraInfo *uci = BLI_uvproject_camera_info(
           v3d->camera,
           obedit->object_to_world().ptr(),
           camera_bounds ? (scene->r.xsch * scene->r.xasp) : 1.0f,
@@ -3507,12 +3502,12 @@ static wmOperatorStatus uv_from_view_exec(bContext *C, wmOperator *op)
 
           BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
             float *luv = BM_ELEM_CD_GET_FLOAT_P(l, cd_loop_uv_offset);
-            BKE_uvproject_from_camera(luv, l->v->co, uci);
+            BLI_uvproject_from_camera(luv, l->v->co, uci);
           }
           changed = true;
         }
 
-        BKE_uvproject_camera_info_free(uci);
+        MEM_freeN(uci);
       }
     }
     else {
@@ -3525,7 +3520,7 @@ static wmOperatorStatus uv_from_view_exec(bContext *C, wmOperator *op)
 
         BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
           float *luv = BM_ELEM_CD_GET_FLOAT_P(l, cd_loop_uv_offset);
-          BKE_uvproject_from_view(
+          BLI_uvproject_from_view(
               luv, l->v->co, rv3d->persmat, rotmat, region->winx, region->winy);
         }
         changed = true;
@@ -3590,7 +3585,7 @@ void UV_OT_project_from_view(wmOperatorType *ot)
 /** \name Reset UV Operator
  * \{ */
 
-static wmOperatorStatus reset_exec(bContext *C, wmOperator * /*op*/)
+static int reset_exec(bContext *C, wmOperator * /*op*/)
 {
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
@@ -3607,7 +3602,7 @@ static wmOperatorStatus reset_exec(bContext *C, wmOperator * /*op*/)
     }
 
     /* add uvs if they don't exist yet */
-    if (!uvedit_ensure_uvs(obedit)) {
+    if (!ED_uvedit_ensure_uvs(obedit)) {
       continue;
     }
 
@@ -3768,7 +3763,7 @@ static float uv_sphere_project(const Scene *scene,
                                const float center[3],
                                const float rotmat[3][3],
                                const bool fan,
-                               const BMUVOffsets &offsets,
+                               const BMUVOffsets offsets,
                                const bool only_selected_uvs,
                                const bool use_seams,
                                const float branch_init)
@@ -3845,7 +3840,7 @@ static float uv_sphere_project(const Scene *scene,
   return max_u;
 }
 
-static wmOperatorStatus sphere_project_exec(bContext *C, wmOperator *op)
+static int sphere_project_exec(bContext *C, wmOperator *op)
 {
   const Scene *scene = CTX_data_scene(C);
   View3D *v3d = CTX_wm_view3d(C);
@@ -3869,11 +3864,11 @@ static wmOperatorStatus sphere_project_exec(bContext *C, wmOperator *op)
     }
 
     /* add uvs if they don't exist yet */
-    if (!uvedit_ensure_uvs(obedit)) {
+    if (!ED_uvedit_ensure_uvs(obedit)) {
       continue;
     }
 
-    const BMUVOffsets offsets = BM_uv_map_offsets_get(em->bm);
+    const BMUVOffsets offsets = BM_uv_map_get_offsets(em->bm);
     float center[3], rotmat[3][3];
 
     uv_map_transform(C, op, rotmat);
@@ -3942,7 +3937,7 @@ static float uv_cylinder_project(const Scene *scene,
                                  const float center[3],
                                  const float rotmat[3][3],
                                  const bool fan,
-                                 const BMUVOffsets &offsets,
+                                 const BMUVOffsets offsets,
                                  const bool only_selected_uvs,
                                  const bool use_seams,
                                  const float branch_init)
@@ -4023,7 +4018,7 @@ static float uv_cylinder_project(const Scene *scene,
   return max_u;
 }
 
-static wmOperatorStatus cylinder_project_exec(bContext *C, wmOperator *op)
+static int cylinder_project_exec(bContext *C, wmOperator *op)
 {
   const Scene *scene = CTX_data_scene(C);
   View3D *v3d = CTX_wm_view3d(C);
@@ -4047,11 +4042,11 @@ static wmOperatorStatus cylinder_project_exec(bContext *C, wmOperator *op)
     }
 
     /* add uvs if they don't exist yet */
-    if (!uvedit_ensure_uvs(obedit)) {
+    if (!ED_uvedit_ensure_uvs(obedit)) {
       continue;
     }
 
-    const BMUVOffsets offsets = BM_uv_map_offsets_get(em->bm);
+    const BMUVOffsets offsets = BM_uv_map_get_offsets(em->bm);
     float center[3], rotmat[3][3];
 
     uv_map_transform(C, op, rotmat);
@@ -4136,7 +4131,7 @@ static void uvedit_unwrap_cube_project(const Scene *scene,
   float loc[3];
   int cox, coy;
 
-  const BMUVOffsets offsets = BM_uv_map_offsets_get(bm);
+  const BMUVOffsets offsets = BM_uv_map_get_offsets(bm);
 
   if (center) {
     copy_v3_v3(loc, center);
@@ -4171,7 +4166,7 @@ static void uvedit_unwrap_cube_project(const Scene *scene,
   }
 }
 
-static wmOperatorStatus cube_project_exec(bContext *C, wmOperator *op)
+static int cube_project_exec(bContext *C, wmOperator *op)
 {
   const Scene *scene = CTX_data_scene(C);
   View3D *v3d = CTX_wm_view3d(C);
@@ -4197,7 +4192,7 @@ static wmOperatorStatus cube_project_exec(bContext *C, wmOperator *op)
     }
 
     /* add uvs if they don't exist yet */
-    if (!uvedit_ensure_uvs(obedit)) {
+    if (!ED_uvedit_ensure_uvs(obedit)) {
       continue;
     }
 

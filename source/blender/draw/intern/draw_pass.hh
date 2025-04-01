@@ -46,9 +46,7 @@
 
 #include "BKE_image.hh"
 
-#include "GPU_batch.hh"
 #include "GPU_debug.hh"
-#include "GPU_index_buffer.hh"
 #include "GPU_material.hh"
 
 #include "DRW_gpu_wrapper.hh"
@@ -56,6 +54,7 @@
 #include "draw_command.hh"
 #include "draw_handle.hh"
 #include "draw_manager.hh"
+#include "draw_pass.hh"
 #include "draw_shader_shared.hh"
 #include "draw_state.hh"
 
@@ -618,13 +617,13 @@ template<class T> inline gpu::Batch *PassBase<T>::procedural_batch_get(GPUPrimTy
 {
   switch (primitive) {
     case GPU_PRIM_POINTS:
-      return GPU_batch_procedural_points_get();
+      return drw_cache_procedural_points_get();
     case GPU_PRIM_LINES:
-      return GPU_batch_procedural_lines_get();
+      return drw_cache_procedural_lines_get();
     case GPU_PRIM_TRIS:
-      return GPU_batch_procedural_triangles_get();
+      return drw_cache_procedural_triangles_get();
     case GPU_PRIM_TRI_STRIP:
-      return GPU_batch_procedural_triangle_strips_get();
+      return drw_cache_procedural_triangle_strips_get();
     default:
       /* Add new one as needed. */
       BLI_assert_unreachable();

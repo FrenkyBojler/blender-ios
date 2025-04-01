@@ -335,8 +335,7 @@ static void rna_LineStyleGeometryModifier_name_set(PointerRNA *ptr, const char *
 static void rna_LineStyle_mtex_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
 {
   FreestyleLineStyle *linestyle = (FreestyleLineStyle *)ptr->owner_id;
-  rna_iterator_array_begin(
-      iter, ptr, (void *)linestyle->mtex, sizeof(MTex *), MAX_MTEX, 0, nullptr);
+  rna_iterator_array_begin(iter, (void *)linestyle->mtex, sizeof(MTex *), MAX_MTEX, 0, nullptr);
 }
 
 static PointerRNA rna_LineStyle_active_texture_get(PointerRNA *ptr)
@@ -345,7 +344,7 @@ static PointerRNA rna_LineStyle_active_texture_get(PointerRNA *ptr)
   Tex *tex;
 
   tex = give_current_linestyle_texture(linestyle);
-  return RNA_id_pointer_create(reinterpret_cast<ID *>(tex));
+  return rna_pointer_inherit_refine(ptr, &RNA_Texture, tex);
 }
 
 static void rna_LineStyle_active_texture_set(PointerRNA *ptr,
@@ -405,7 +404,7 @@ static void rna_LineStyle_color_modifier_remove(FreestyleLineStyle *linestyle,
     return;
   }
 
-  modifier_ptr->invalidate();
+  RNA_POINTER_INVALIDATE(modifier_ptr);
 
   DEG_id_tag_update(&linestyle->id, 0);
   WM_main_add_notifier(NC_LINESTYLE, linestyle);
@@ -440,7 +439,7 @@ static void rna_LineStyle_alpha_modifier_remove(FreestyleLineStyle *linestyle,
     return;
   }
 
-  modifier_ptr->invalidate();
+  RNA_POINTER_INVALIDATE(modifier_ptr);
 
   DEG_id_tag_update(&linestyle->id, 0);
   WM_main_add_notifier(NC_LINESTYLE, linestyle);
@@ -476,7 +475,7 @@ static void rna_LineStyle_thickness_modifier_remove(FreestyleLineStyle *linestyl
     return;
   }
 
-  modifier_ptr->invalidate();
+  RNA_POINTER_INVALIDATE(modifier_ptr);
 
   DEG_id_tag_update(&linestyle->id, 0);
   WM_main_add_notifier(NC_LINESTYLE, linestyle);
@@ -511,7 +510,7 @@ static void rna_LineStyle_geometry_modifier_remove(FreestyleLineStyle *linestyle
     return;
   }
 
-  modifier_ptr->invalidate();
+  RNA_POINTER_INVALIDATE(modifier_ptr);
 
   DEG_id_tag_update(&linestyle->id, 0);
   WM_main_add_notifier(NC_LINESTYLE, linestyle);

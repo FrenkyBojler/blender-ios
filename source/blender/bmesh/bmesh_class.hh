@@ -31,7 +31,13 @@ struct MLoopNorSpaceArray;
 
 struct BLI_mempool;
 
-// #pragma GCC diagnostic push
+/* NOTE: it is very important for BMHeader to start with two
+ * pointers. this is a requirement of mempool's method of
+ * iteration.
+ *
+ * hrm. it doesn't but still works ok, remove the comment above? - campbell.
+ */
+
 // #pragma GCC diagnostic error "-Wpadded"
 
 /**
@@ -47,12 +53,6 @@ struct BLI_mempool;
  * 4: some elements for internal record keeping.
  */
 struct BMHeader {
-
-  /* NOTE: it its essential the #BMHeader is at least the size of two pointers.
-   * This is a requirement of mempool's method of iteration.
-   *
-   * Even though there is only a single pointer, the struct will be padded to two. */
-
   /** CustomData layers. */
   void *data;
 
@@ -89,10 +89,9 @@ BLI_STATIC_ASSERT((sizeof(BMHeader) <= 16), "BMHeader size has grown!");
 
 struct BMVert {
   BMHeader head;
-  /** Vertex coordinate. */
-  float co[3];
-  /** Vertex normal. */
-  float no[3];
+
+  float co[3]; /* vertex coordinates */
+  float no[3]; /* vertex normal */
 
   /**
    * Pointer to (any) edge using this vertex (for disk cycles).
@@ -109,10 +108,7 @@ struct BMVert_OFlag {
   struct BMFlagLayer *oflags;
 };
 
-/**
- * Disk link structure (the element in a circular linked list),
- * only used by edges to reference connected edges for the first & second vertices.
- */
+/* disk link structure, only used by edges */
 struct BMDiskLink {
   struct BMEdge *next, *prev;
 };
@@ -153,7 +149,7 @@ struct BMEdge_OFlag {
 
 struct BMLoop {
   BMHeader head;
-  /* Notice no #BMFlagLayer, making this different from other elements. */
+  /* notice no flags layer */
 
   /**
    * The vertex this loop points to.
@@ -243,27 +239,18 @@ struct BMLoop {
   struct BMLoop *next, *prev;
 };
 
-/**
- * A struct which only (#BMFace, #BMEdge, #BMVert) can be cast to.
- * But *not* #BMLoop, since these don't have a flag layer.
- */
+/* can cast BMFace/BMEdge/BMVert, but NOT BMLoop, since these don't have a flag layer */
 struct BMElemF {
   BMHeader head;
 };
 
-/**
- * A struct which any element type can be cast to:
- * (#BMFace, #BMLoop, #BMEdge, #BMVert).
- */
+/* can cast anything to this, including BMLoop */
 struct BMElem {
   BMHeader head;
 };
 
 #ifdef USE_BMESH_HOLES
-/**
- * NOTE(@ideasman42): this structure was planned for supporting holes in faces.
- * although there are no near term plans for this.
- */
+/* eventually, this structure will be used for supporting holes in faces */
 struct BMLoopList {
   struct BMLoopList *next, *prev;
   struct BMLoop *first, *last;
@@ -274,8 +261,7 @@ struct BMFace {
   BMHeader head;
 
 #ifdef USE_BMESH_HOLES
-  /** Total boundaries, is one plus the number of holes in the face. */
-  int totbounds;
+  int totbounds; /* Total boundaries, is one plus the number of holes in the face. */
   ListBase loops;
 #else
   BMLoop *l_first;
@@ -311,7 +297,7 @@ struct BMFlagLayer {
   short f; /* flags */
 };
 
-// #pragma GCC diagnostic pop
+// #pragma GCC diagnostic ignored "-Wpadded"
 
 struct BMesh {
   int totvert, totedge, totloop, totface;
@@ -330,28 +316,24 @@ struct BMesh {
    */
   char elem_table_dirty;
 
-  /** Element pools. */
+  /* element pools */
   struct BLI_mempool *vpool, *epool, *lpool, *fpool;
 
-  /* #BLI_mempool lookup tables (optional).
-   * Map indices to elements via #BM_mesh_elem_table_ensure and associated functions.
-   * Don't touch this or read it directly.
-   * Use #BM_mesh_elem_table_ensure(), `BM_vert/edge/face_at_index()`. */
-
-  /** Vertex table. */
+  /* mempool lookup tables (optional)
+   * index tables, to map indices to elements via
+   * BM_mesh_elem_table_ensure and associated functions.  don't
+   * touch this or read it directly.\
+   * Use BM_mesh_elem_table_ensure(), BM_vert/edge/face_at_index() */
   BMVert **vtable;
-  /** Edge table. */
   BMEdge **etable;
-  /** Face table. */
   BMFace **ftable;
 
-  /* Size of allocated tables. */
-
+  /* size of allocated tables */
   int vtable_tot;
   int etable_tot;
   int ftable_tot;
 
-  /** Operator API stuff (must be all null or all allocated). */
+  /* Operator API stuff (must be all null or all allocated). */
   struct BLI_mempool *vtoolflagpool, *etoolflagpool, *ftoolflagpool;
 
   uint use_toolflags : 1;
@@ -367,15 +349,13 @@ struct BMesh {
   struct MLoopNorSpaceArray *lnor_spacearr;
   char spacearr_dirty;
 
-  /**
-   * Should be copy of scene select mode.
-   *
-   * NOTE(@ideasman42): Stored in #BMEditMesh too, a bit confusing, make sure they're in sync!
-   * Only use when the edit mesh can't be accessed.
-   */
+  /* Should be copy of scene select mode. */
+  /* Stored in #BMEditMesh too, this is a bit confusing,
+   * make sure they're in sync!
+   * Only use when the edit mesh can't be accessed - campbell */
   short selectmode;
 
-  /** 1-based index of the shape key's #Key::block this #BMesh came from. */
+  /* ID of the shape key this bmesh came from */
   int shapenr;
 
   int totflags;
@@ -484,8 +464,7 @@ enum {
 #define BM_CHECK_TYPE_FACE(ele) \
   CHECK_TYPE_ANY(ele, _BM_GENERIC_TYPE_FACE_NONCONST, _BM_GENERIC_TYPE_FACE_CONST)
 
-/**
- * Assignment from a void* to a typed pointer is not allowed in C++,
+/* Assignment from a void* to a typed pointer is not allowed in C++,
  * casting the LHS to void works fine though.
  */
 #define BM_CHECK_TYPE_ELEM_ASSIGN(ele) (BM_CHECK_TYPE_ELEM(ele)), *((void **)&ele)
@@ -679,9 +658,10 @@ using BMLoopPairFilterFunc = bool (*)(const BMLoop *, const BMLoop *, void *user
  */
 #define BM_DEFAULT_ITER_STACK_SIZE 16
 
-/** Avoid an eternal loop, this value is arbitrary but should not error on valid cases. */
+/* avoid inf loop, this value is arbitrary
+ * but should not error on valid cases */
 #define BM_LOOP_RADIAL_MAX 10000
 #define BM_NGON_MAX 100000
 
-/** Minimum number of elements before using threading. */
+/* Minimum number of elements before using threading. */
 #define BM_THREAD_LIMIT 10000

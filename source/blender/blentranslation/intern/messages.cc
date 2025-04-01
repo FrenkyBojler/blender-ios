@@ -461,19 +461,14 @@ class MOMessages {
     }
   }
 
-  std::optional<StringRefNull> translate(const int domain,
-                                         const StringRef context,
-                                         const StringRef str) const
+  const char *translate(const int domain, const StringRef context, const StringRef str) const
   {
     if (domain < 0 || domain >= catalogs_.size()) {
-      return std::nullopt;
+      return nullptr;
     }
     const MessageKeyRef key{context, str};
     const std::string *result = catalogs_[domain].lookup_ptr_as(key);
-    if (!result) {
-      return std::nullopt;
-    }
-    return *result;
+    return (result) ? result->c_str() : nullptr;
   }
 
   const std::string &error()
@@ -603,12 +598,10 @@ void free()
   global_full_name = "";
 }
 
-std::optional<StringRefNull> translate(const int domain,
-                                       const StringRef context,
-                                       const StringRef key)
+const char *translate(const int domain, const StringRef context, const StringRef key)
 {
   if (!global_messages) {
-    return std::nullopt;
+    return nullptr;
   }
 
   return global_messages->translate(domain, context, key);

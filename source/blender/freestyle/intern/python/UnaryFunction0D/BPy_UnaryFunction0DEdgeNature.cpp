@@ -13,6 +13,10 @@
 
 #include "UnaryFunction0D_Nature_EdgeNature/BPy_CurveNatureF0D.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 using namespace Freestyle;
 
 ///////////////////////////////////////////////////////////////////////////////////////////
@@ -150,3 +154,7 @@ PyTypeObject UnaryFunction0DEdgeNature_Type = {
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////
+
+#ifdef __cplusplus
+}
+#endif

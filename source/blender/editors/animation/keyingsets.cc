@@ -15,8 +15,6 @@
 #include "DNA_anim_types.h"
 #include "DNA_scene_types.h"
 
-#include "BLI_listbase.h"
-
 #include "BKE_animsys.h"
 #include "BKE_context.hh"
 #include "BKE_report.hh"
@@ -87,7 +85,7 @@ static bool keyingset_poll_activePath_edit(bContext *C)
 
 /* Add a Default (Empty) Keying Set ------------------------- */
 
-static wmOperatorStatus add_default_keyingset_exec(bContext *C, wmOperator * /*op*/)
+static int add_default_keyingset_exec(bContext *C, wmOperator * /*op*/)
 {
   Scene *scene = CTX_data_scene(C);
 
@@ -122,7 +120,7 @@ void ANIM_OT_keying_set_add(wmOperatorType *ot)
 
 /* Remove 'Active' Keying Set ------------------------- */
 
-static wmOperatorStatus remove_active_keyingset_exec(bContext *C, wmOperator *op)
+static int remove_active_keyingset_exec(bContext *C, wmOperator *op)
 {
   Scene *scene = CTX_data_scene(C);
 
@@ -169,7 +167,7 @@ void ANIM_OT_keying_set_remove(wmOperatorType *ot)
 
 /* Add Empty Keying Set Path ------------------------- */
 
-static wmOperatorStatus add_empty_ks_path_exec(bContext *C, wmOperator *op)
+static int add_empty_ks_path_exec(bContext *C, wmOperator *op)
 {
   Scene *scene = CTX_data_scene(C);
 
@@ -212,7 +210,7 @@ void ANIM_OT_keying_set_path_add(wmOperatorType *ot)
 
 /* Remove Active Keying Set Path ------------------------- */
 
-static wmOperatorStatus remove_active_ks_path_exec(bContext *C, wmOperator *op)
+static int remove_active_ks_path_exec(bContext *C, wmOperator *op)
 {
   Scene *scene = CTX_data_scene(C);
   KeyingSet *keyingset = static_cast<KeyingSet *>(
@@ -257,7 +255,7 @@ void ANIM_OT_keying_set_path_remove(wmOperatorType *ot)
 
 /* Add to KeyingSet Button Operator ------------------------ */
 
-static wmOperatorStatus add_keyingset_button_exec(bContext *C, wmOperator *op)
+static int add_keyingset_button_exec(bContext *C, wmOperator *op)
 {
   PropertyRNA *prop = nullptr;
   PointerRNA ptr = {};
@@ -350,7 +348,7 @@ void ANIM_OT_keyingset_button_add(wmOperatorType *ot)
 
 /* Remove from KeyingSet Button Operator ------------------------ */
 
-static wmOperatorStatus remove_keyingset_button_exec(bContext *C, wmOperator *op)
+static int remove_keyingset_button_exec(bContext *C, wmOperator *op)
 {
   PropertyRNA *prop = nullptr;
   PointerRNA ptr = {};
@@ -424,9 +422,7 @@ void ANIM_OT_keyingset_button_remove(wmOperatorType *ot)
 /* This operator checks if a menu should be shown
  * for choosing the KeyingSet to make the active one. */
 
-static wmOperatorStatus keyingset_active_menu_invoke(bContext *C,
-                                                     wmOperator *op,
-                                                     const wmEvent * /*event*/)
+static int keyingset_active_menu_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
   uiPopupMenu *pup;
   uiLayout *layout;
@@ -440,7 +436,7 @@ static wmOperatorStatus keyingset_active_menu_invoke(bContext *C,
   return OPERATOR_INTERFACE;
 }
 
-static wmOperatorStatus keyingset_active_menu_exec(bContext *C, wmOperator *op)
+static int keyingset_active_menu_exec(bContext *C, wmOperator *op)
 {
   Scene *scene = CTX_data_scene(C);
   const int type = RNA_enum_get(op->ptr, "type");

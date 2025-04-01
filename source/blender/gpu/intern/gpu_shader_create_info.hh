@@ -885,6 +885,10 @@ struct ShaderCreateInfo {
    */
   Vector<StringRefNull> additional_infos_;
 
+  /* Transform feedback properties. */
+  eGPUShaderTFBType tf_type_ = GPU_SHADER_TFB_NONE;
+  Vector<const char *> tf_names_;
+
   /* Api-specific parameters. */
 #  ifdef WITH_METAL_BACKEND
   ushort mtl_max_threads_per_threadgroup_ = 0;
@@ -1252,6 +1256,27 @@ struct ShaderCreateInfo {
     return *(Self *)this;
   }
 
+  /** \} */
+
+  /* -------------------------------------------------------------------- */
+  /** \name Transform feedback properties
+   *
+   * Transform feedback enablement and output binding assignment.
+   * \{ */
+
+  Self &transform_feedback_mode(eGPUShaderTFBType tf_mode)
+  {
+    BLI_assert(tf_mode != GPU_SHADER_TFB_NONE);
+    tf_type_ = tf_mode;
+    return *(Self *)this;
+  }
+
+  Self &transform_feedback_output_name(const char *name)
+  {
+    BLI_assert(tf_type_ != GPU_SHADER_TFB_NONE);
+    tf_names_.append(name);
+    return *(Self *)this;
+  }
   /** \} */
 
   /* -------------------------------------------------------------------- */

@@ -163,12 +163,6 @@ TEST(string_ref, StdStringConstructor)
   EXPECT_EQ(ref.data(), str.data());
 }
 
-TEST(string_ref, SpanConstructor)
-{
-  EXPECT_EQ(StringRef(Span<char>("hello", 5)), "hello");
-  EXPECT_EQ(StringRef(Span<char>("hello", 2)), "he");
-}
-
 TEST(string_ref, SubscriptOperator)
 {
   StringRef ref("hello");

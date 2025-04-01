@@ -13,12 +13,10 @@
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_lib_override.hh"
-#include "BKE_library.hh"
 #include "BKE_main.hh"
 #include "BKE_main_invariants.hh"
 #include "BKE_packedFile.hh"
 
-#include "BLI_listbase.h"
 #include "BLI_string.h"
 #include "BLI_string_search.hh"
 
@@ -385,7 +383,7 @@ ID *ui_template_id_liboverride_hierarchy_make(
    * NOTE: do not attempt to perform such hierarchy override at all cost, if there is not enough
    * context, better to abort than create random overrides all over the place. */
   if (!ID_IS_OVERRIDABLE_LIBRARY_HIERARCHY(id)) {
-    WM_global_reportf(RPT_ERROR, "The data-block %s is not overridable", id->name);
+    WM_reportf(RPT_ERROR, "The data-block %s is not overridable", id->name);
     return nullptr;
   }
 
@@ -574,16 +572,16 @@ ID *ui_template_id_liboverride_hierarchy_make(
     case ID_MA:
     case ID_TE:
     case ID_IM:
-      WM_global_reportf(RPT_WARNING, "The type of data-block %s is not yet implemented", id->name);
+      WM_reportf(RPT_WARNING, "The type of data-block %s is not yet implemented", id->name);
       break;
     case ID_WO:
-      WM_global_reportf(RPT_WARNING, "The type of data-block %s is not yet implemented", id->name);
+      WM_reportf(RPT_WARNING, "The type of data-block %s is not yet implemented", id->name);
       break;
     case ID_PA:
-      WM_global_reportf(RPT_WARNING, "The type of data-block %s is not yet implemented", id->name);
+      WM_reportf(RPT_WARNING, "The type of data-block %s is not yet implemented", id->name);
       break;
     default:
-      WM_global_reportf(RPT_WARNING, "The type of data-block %s is not yet implemented", id->name);
+      WM_reportf(RPT_WARNING, "The type of data-block %s is not yet implemented", id->name);
       break;
   }
 
@@ -657,7 +655,7 @@ static void template_id_liboverride_hierarchy_make(bContext *C,
     }
   }
   else {
-    WM_global_reportf(RPT_ERROR, "The data-block %s could not be overridden", id->name);
+    WM_reportf(RPT_ERROR, "The data-block %s could not be overridden", id->name);
   }
 }
 
@@ -790,7 +788,7 @@ static void template_id_cb(bContext *C, void *arg_litem, void *arg_event)
   }
 }
 
-static StringRef template_id_browse_tip(const StructRNA *type)
+static const char *template_id_browse_tip(const StructRNA *type)
 {
   if (type) {
     switch ((ID_Type)RNA_type_to_ID_code(type)) {
@@ -985,7 +983,7 @@ static uiBut *template_id_def_new_but(uiBlock *block,
                             0,
                             w,
                             but_height,
-                            std::nullopt);
+                            nullptr);
     UI_but_funcN_set(but,
                      template_id_cb,
                      MEM_new<TemplateID>(__func__, template_ui),
@@ -995,7 +993,7 @@ static uiBut *template_id_def_new_but(uiBlock *block,
   }
   else {
     but = uiDefIconTextBut(
-        block, but_type, 0, icon, button_text, 0, 0, w, but_height, nullptr, 0, 0, std::nullopt);
+        block, but_type, 0, icon, button_text, 0, 0, w, but_height, nullptr, 0, 0, nullptr);
     UI_but_funcN_set(but,
                      template_id_cb,
                      MEM_new<TemplateID>(__func__, template_ui),
@@ -1238,7 +1236,7 @@ static void template_ID(const bContext *C,
                       0,
                       UI_UNIT_X,
                       UI_UNIT_Y,
-                      std::nullopt);
+                      nullptr);
       }
       else if (!ELEM(GS(id->name), ID_GR, ID_SCE, ID_SCR, ID_OB, ID_WS) && (hide_buttons == false))
       {
@@ -1255,7 +1253,7 @@ static void template_ID(const bContext *C,
                       -1,
                       0,
                       0,
-                      std::nullopt);
+                      nullptr);
       }
     }
   }
@@ -1307,7 +1305,7 @@ static void template_ID(const bContext *C,
                               0,
                               w,
                               UI_UNIT_Y,
-                              std::nullopt);
+                              nullptr);
       UI_but_funcN_set(but,
                        template_id_cb,
                        MEM_new<TemplateID>(__func__, template_ui),
@@ -1328,7 +1326,7 @@ static void template_ID(const bContext *C,
                              nullptr,
                              0,
                              0,
-                             std::nullopt);
+                             nullptr);
       UI_but_funcN_set(but,
                        template_id_cb,
                        MEM_new<TemplateID>(__func__, template_ui),
@@ -1358,7 +1356,7 @@ static void template_ID(const bContext *C,
                           0,
                           UI_UNIT_X,
                           UI_UNIT_Y,
-                          std::nullopt);
+                          nullptr);
       /* so we can access the template from operators, font unlinking needs this */
       UI_but_funcN_set(but,
                        template_id_cb,
@@ -1616,12 +1614,9 @@ void uiTemplateAction(uiLayout *layout,
   /* Construct a pointer with the animated ID as owner, even when `adt` may be `nullptr`.
    * This way it is possible to use this RNA pointer to get/set `adt->action`, as that RNA property
    * has a `getter` & `setter` that only need the owner ID and are null-safe regarding the `adt`
-   * itself.
-   * FIXME: This is a very dirty hack, would be good to find a way to not rely on typed-but-null
-   * PointerRNA.
-   */
+   * itself. */
   AnimData *adt = BKE_animdata_from_id(id);
-  PointerRNA adt_ptr = PointerRNA{id, &RNA_AnimData, adt, RNA_id_pointer_create(id)};
+  PointerRNA adt_ptr = RNA_pointer_create_discrete(id, &RNA_AnimData, adt);
 
   TemplateID template_ui = {};
   template_ui.ptr = adt_ptr;

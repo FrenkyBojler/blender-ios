@@ -11,6 +11,10 @@
 
 #include "BKE_lib_query.hh" /* For LibraryForeachIDCallbackFlag enum. */
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct BlendDataReader;
 struct GpencilModifierData;
 struct ID;
@@ -49,3 +53,7 @@ void BKE_gpencil_modifiers_foreach_ID_link(struct Object *ob,
 void BKE_gpencil_modifier_blend_read_data(struct BlendDataReader *reader,
                                           struct ListBase *lb,
                                           struct Object *ob);
+
+#ifdef __cplusplus
+}
+#endif

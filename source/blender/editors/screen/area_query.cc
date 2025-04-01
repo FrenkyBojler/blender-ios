@@ -8,7 +8,6 @@
  * Query functions for area/region.
  */
 
-#include "BLI_listbase.h"
 #include "BLI_math_base.h"
 #include "BLI_utildefines.h"
 

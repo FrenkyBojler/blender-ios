@@ -292,7 +292,7 @@ static ImBuf *ibJpegImageFromCinfo(
       jpeg_abort_decompress(cinfo);
       ibuf = IMB_allocImBuf(x, y, 8 * depth, 0);
     }
-    else if ((ibuf = IMB_allocImBuf(x, y, 8 * depth, IB_byte_data | IB_uninitialized_pixels)) ==
+    else if ((ibuf = IMB_allocImBuf(x, y, 8 * depth, IB_rect | IB_uninitialized_pixels)) ==
              nullptr)
     {
       jpeg_abort_decompress(cinfo);
@@ -438,10 +438,7 @@ static ImBuf *ibJpegImageFromCinfo(
   return ibuf;
 }
 
-ImBuf *imb_load_jpeg(const uchar *buffer,
-                     size_t size,
-                     int flags,
-                     ImFileColorSpace & /*r_colorspace*/)
+ImBuf *imb_load_jpeg(const uchar *buffer, size_t size, int flags, char colorspace[IM_MAX_SPACE])
 {
   jpeg_decompress_struct _cinfo, *cinfo = &_cinfo;
   my_error_mgr jerr;
@@ -450,6 +447,8 @@ ImBuf *imb_load_jpeg(const uchar *buffer,
   if (!imb_is_a_jpeg(buffer, size)) {
     return nullptr;
   }
+
+  colorspace_set_default_role(colorspace, IM_MAX_SPACE, COLOR_ROLE_DEFAULT_BYTE);
 
   cinfo->err = jpeg_std_error(&jerr.pub);
   jerr.pub.error_exit = jpeg_error;
@@ -480,13 +479,15 @@ ImBuf *imb_load_jpeg(const uchar *buffer,
 ImBuf *imb_thumbnail_jpeg(const char *filepath,
                           const int flags,
                           const size_t max_thumb_size,
-                          ImFileColorSpace &r_colorspace,
+                          char colorspace[IM_MAX_SPACE],
                           size_t *r_width,
                           size_t *r_height)
 {
   jpeg_decompress_struct _cinfo, *cinfo = &_cinfo;
   my_error_mgr jerr;
   FILE *infile = nullptr;
+
+  colorspace_set_default_role(colorspace, IM_MAX_SPACE, COLOR_ROLE_DEFAULT_BYTE);
 
   cinfo->err = jpeg_std_error(&jerr.pub);
   jerr.pub.error_exit = jpeg_error;
@@ -520,12 +521,12 @@ ImBuf *imb_thumbnail_jpeg(const char *filepath,
     if (i > 0 && !feof(infile)) {
       /* We found a JPEG thumbnail inside this image. */
       ImBuf *ibuf = nullptr;
-      uchar *buffer = MEM_calloc_arrayN<uchar>(JPEG_APP1_MAX, "thumbbuffer");
+      uchar *buffer = static_cast<uchar *>(MEM_callocN(JPEG_APP1_MAX, "thumbbuffer"));
       /* Just put SOI directly in buffer rather than seeking back 2 bytes. */
       buffer[0] = JPEG_MARKER_MSB;
       buffer[1] = JPEG_MARKER_SOI;
       if (fread(buffer + 2, JPEG_APP1_MAX - 2, 1, infile) == 1) {
-        ibuf = imb_load_jpeg(buffer, JPEG_APP1_MAX, flags, r_colorspace);
+        ibuf = imb_load_jpeg(buffer, JPEG_APP1_MAX, flags, colorspace);
       }
       MEM_SAFE_FREE(buffer);
       if (ibuf) {
@@ -572,23 +573,22 @@ static void write_jpeg(jpeg_compress_struct *cinfo, ImBuf *ibuf)
 
     /* Static storage array for the short metadata. */
     char static_text[1024];
-    const size_t static_text_size = ARRAY_SIZE(static_text);
+    const int static_text_size = ARRAY_SIZE(static_text);
     LISTBASE_FOREACH (IDProperty *, prop, &ibuf->metadata->data.group) {
       if (prop->type == IDP_STRING) {
-        size_t text_len;
+        int text_len;
         if (STREQ(prop->name, "None")) {
           jpeg_write_marker(cinfo, JPEG_COM, (JOCTET *)IDP_String(prop), prop->len);
         }
 
         char *text = static_text;
-        size_t text_size = static_text_size;
+        int text_size = static_text_size;
         /* 7 is for Blender, 2 colon separators, length of property
          * name and property value, followed by the nullptr-terminator
          * which isn't needed by JPEG but #BLI_snprintf_rlen requires it. */
-        const size_t text_length_required = 7 + 2 + strlen(prop->name) + strlen(IDP_String(prop)) +
-                                            1;
-        if (text_length_required > static_text_size) {
-          text = MEM_malloc_arrayN<char>(text_length_required, "jpeg metadata field");
+        const int text_length_required = 7 + 2 + strlen(prop->name) + strlen(IDP_String(prop)) + 1;
+        if (text_length_required <= static_text_size) {
+          text = static_cast<char *>(MEM_mallocN(text_length_required, "jpeg metadata field"));
           text_size = text_length_required;
         }
 
@@ -604,7 +604,7 @@ static void write_jpeg(jpeg_compress_struct *cinfo, ImBuf *ibuf)
         text_len = BLI_snprintf_rlen(
             text, text_size, "Blender:%s:%s", prop->name, IDP_String(prop));
         /* Don't write the null byte (not expected by the JPEG format). */
-        jpeg_write_marker(cinfo, JPEG_COM, (JOCTET *)text, uint(text_len));
+        jpeg_write_marker(cinfo, JPEG_COM, (JOCTET *)text, text_len);
 
         /* TODO(sergey): Ideally we will try to re-use allocation as
          * much as possible. In practice, such long fields don't happen
@@ -616,8 +616,8 @@ static void write_jpeg(jpeg_compress_struct *cinfo, ImBuf *ibuf)
     }
   }
 
-  row_pointer[0] = MEM_malloc_arrayN<std::remove_pointer_t<JSAMPROW>>(
-      size_t(cinfo->input_components) * size_t(cinfo->image_width), "jpeg row_pointer");
+  row_pointer[0] = static_cast<JSAMPROW>(MEM_mallocN(
+      sizeof(JSAMPLE) * cinfo->input_components * cinfo->image_width, "jpeg row_pointer"));
 
   for (y = ibuf->y - 1; y >= 0; y--) {
     rect = ibuf->byte_buffer.data + 4 * y * size_t(ibuf->x);

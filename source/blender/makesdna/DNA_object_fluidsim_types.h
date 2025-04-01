@@ -70,7 +70,7 @@ typedef struct FluidsimSettings {
   /* values are initialized during derived mesh display. */
   float bbStart[3], bbSize[3];
 
-  /** Animated parameters. */
+  /* animated params */
   struct Ipo *ipo;
 
   /* additional flags depending on the type, lower short contains flags
@@ -118,7 +118,7 @@ typedef struct FluidsimSettings {
 
   int lastgoodframe;
 
-  /** Simulation/flow rate control. */
+  /** Simulation/flow rate control (i.e. old "Fac-Time"). */
   float animRate;
 } FluidsimSettings;
 

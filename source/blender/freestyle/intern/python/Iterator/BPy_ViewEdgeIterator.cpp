@@ -11,6 +11,10 @@
 #include "../BPy_Convert.h"
 #include "../Interface1D/BPy_ViewEdge.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 using namespace Freestyle;
 
 ///////////////////////////////////////////////////////////////////////////////////////////
@@ -93,16 +97,6 @@ static PyObject *ViewEdgeIterator_change_orientation(BPy_ViewEdgeIterator *self)
   Py_RETURN_NONE;
 }
 
-#ifdef __GNUC__
-#  ifdef __clang__
-#    pragma clang diagnostic push
-#    pragma clang diagnostic ignored "-Wcast-function-type"
-#  else
-#    pragma GCC diagnostic push
-#    pragma GCC diagnostic ignored "-Wcast-function-type"
-#  endif
-#endif
-
 static PyMethodDef BPy_ViewEdgeIterator_methods[] = {
     {"change_orientation",
      (PyCFunction)ViewEdgeIterator_change_orientation,
@@ -110,14 +104,6 @@ static PyMethodDef BPy_ViewEdgeIterator_methods[] = {
      ViewEdgeIterator_change_orientation_doc},
     {nullptr, nullptr, 0, nullptr},
 };
-
-#ifdef __GNUC__
-#  ifdef __clang__
-#    pragma clang diagnostic pop
-#  else
-#    pragma GCC diagnostic pop
-#  endif
-#endif
 
 /*----------------------ViewEdgeIterator get/setters ----------------------------*/
 
@@ -293,3 +279,7 @@ PyTypeObject ViewEdgeIterator_Type = {
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////
+
+#ifdef __cplusplus
+}
+#endif

@@ -19,6 +19,10 @@
 #include "UnaryFunction0D/BPy_UnaryFunction0DVectorViewShape.h"
 #include "UnaryFunction0D/BPy_UnaryFunction0DViewShape.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 using namespace Freestyle;
 
 ///////////////////////////////////////////////////////////////////////////////////////////
@@ -150,3 +154,7 @@ PyTypeObject UnaryFunction0D_Type = {
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////
+
+#ifdef __cplusplus
+}
+#endif

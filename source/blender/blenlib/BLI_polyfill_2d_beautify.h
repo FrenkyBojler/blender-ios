@@ -10,6 +10,10 @@
 
 #include <stdbool.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct Heap;
 struct MemArena;
 
@@ -59,3 +63,7 @@ float BLI_polyfill_edge_calc_rotate_beauty__area(const float v1[3],
 
 /* avoid realloc's when creating new structures for polyfill ngons */
 #define BLI_POLYFILL_ALLOC_NGON_RESERVE 64
+
+#ifdef __cplusplus
+}
+#endif

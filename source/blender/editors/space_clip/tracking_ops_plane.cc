@@ -31,7 +31,7 @@
 
 /********************** Create plane track operator *********************/
 
-static wmOperatorStatus create_plane_track_tracks_exec(bContext *C, wmOperator *op)
+static int create_plane_track_tracks_exec(bContext *C, wmOperator *op)
 {
   SpaceClip *sc = CTX_wm_space_clip(C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
@@ -146,7 +146,7 @@ static SlidePlaneMarkerData *slide_plane_marker_customdata(bContext *C, const wm
   if (plane_track) {
     MovieTrackingPlaneMarker *plane_marker;
 
-    customdata = MEM_callocN<SlidePlaneMarkerData>("slide plane marker data");
+    customdata = MEM_cnew<SlidePlaneMarkerData>("slide plane marker data");
 
     customdata->launch_event = WM_userdef_event_type_from_keymap_type(event->type);
 
@@ -170,9 +170,7 @@ static SlidePlaneMarkerData *slide_plane_marker_customdata(bContext *C, const wm
   return customdata;
 }
 
-static wmOperatorStatus slide_plane_marker_invoke(bContext *C,
-                                                  wmOperator *op,
-                                                  const wmEvent *event)
+static int slide_plane_marker_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   SlidePlaneMarkerData *slidedata = slide_plane_marker_customdata(C, event);
 
@@ -215,7 +213,7 @@ static void slide_plane_marker_update_homographies(SpaceClip *sc, SlidePlaneMark
   BKE_tracking_track_plane_from_existing_motion(data->plane_track, framenr);
 }
 
-static wmOperatorStatus slide_plane_marker_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static int slide_plane_marker_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   SpaceClip *sc = CTX_wm_space_clip(C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
@@ -329,9 +327,6 @@ static wmOperatorStatus slide_plane_marker_modal(bContext *C, wmOperator *op, co
       WM_event_add_notifier(C, NC_MOVIECLIP | NA_EDITED, clip);
 
       return OPERATOR_CANCELLED;
-    default: {
-      break;
-    }
   }
 
   return OPERATOR_RUNNING_MODAL;

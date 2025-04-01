@@ -4,14 +4,11 @@
 
 #pragma once
 
-#include <cstdint>
-
 #include "DNA_node_types.h"
 
 namespace blender::compositor {
 class RenderContext;
 class Profiler;
-enum class OutputTypes : uint8_t;
 }  // namespace blender::compositor
 
 struct Render;
@@ -55,8 +52,7 @@ void COM_execute(Render *render,
                  bNodeTree *node_tree,
                  const char *view_name,
                  blender::compositor::RenderContext *render_context,
-                 blender::compositor::Profiler *profiler,
-                 blender::compositor::OutputTypes needed_outputs);
+                 blender::compositor::Profiler *profiler);
 
 /**
  * \brief Deinitialize the compositor caches and allocated memory.

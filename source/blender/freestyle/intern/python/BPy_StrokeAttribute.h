@@ -14,6 +14,10 @@ extern "C" {
 
 #include "../stroke/Stroke.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 ///////////////////////////////////////////////////////////////////////////////////////////
 
 extern PyTypeObject StrokeAttribute_Type;
@@ -34,3 +38,7 @@ int StrokeAttribute_Init(PyObject *module);
 void StrokeAttribute_mathutils_register_callback();
 
 ///////////////////////////////////////////////////////////////////////////////////////////
+
+#ifdef __cplusplus
+}
+#endif

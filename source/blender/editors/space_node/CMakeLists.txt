@@ -6,10 +6,6 @@ set(INC
   ../include
   ../io
   ../../compositor
-  ../../compositor/algorithms
-  ../../compositor/cached_resources
-  ../../compositor/derived_resources
-  ../../compositor/utilities
   ../../makesrna
 
   # RNA_prototypes.hh

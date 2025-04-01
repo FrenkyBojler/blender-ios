@@ -149,6 +149,7 @@ class Attribute {
   }
 
   void zero_data(void *dst);
+  void add_with_weight(void *dst, void *src, const float weight);
 
   void add(const float &f);
   void add(const float2 &f);
@@ -192,8 +193,6 @@ class AttributeSet {
   Attribute *find(AttributeStandard std) const;
   void remove(AttributeStandard std);
 
-  Attribute &copy(const Attribute &attr);
-
   Attribute *find(AttributeRequest &req);
   Attribute *find_matching(const Attribute &other);
 
@@ -234,8 +233,8 @@ class AttributeRequest {
   AttributeStandard std;
 
   /* temporary variables used by GeometryManager */
-  TypeDesc type;
-  AttributeDescriptor desc;
+  TypeDesc type, subd_type;
+  AttributeDescriptor desc, subd_desc;
 
   explicit AttributeRequest(ustring name_);
   explicit AttributeRequest(AttributeStandard std);

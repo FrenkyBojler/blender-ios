@@ -11,7 +11,6 @@
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
 
-#include "BLI_listbase.h"
 #include "BLI_math_geom.h"
 #include "BLI_math_vector.h"
 #include "BLI_set.hh"
@@ -76,7 +75,7 @@ static bool add_marker(const bContext *C, float x, float y)
   return true;
 }
 
-static wmOperatorStatus add_marker_exec(bContext *C, wmOperator *op)
+static int add_marker_exec(bContext *C, wmOperator *op)
 {
   SpaceClip *sc = CTX_wm_space_clip(C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
@@ -98,7 +97,7 @@ static wmOperatorStatus add_marker_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus add_marker_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static int add_marker_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   SpaceClip *sc = CTX_wm_space_clip(C);
   ARegion *region = CTX_wm_region(C);
@@ -147,9 +146,7 @@ void CLIP_OT_add_marker(wmOperatorType *ot)
 /** \name Add Marker Operator
  * \{ */
 
-static wmOperatorStatus add_marker_at_click_invoke(bContext *C,
-                                                   wmOperator *op,
-                                                   const wmEvent * /*event*/)
+static int add_marker_at_click_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
   WorkspaceStatus status(C);
   status.item(IFACE_("Cancel"), ICON_EVENT_ESC);
@@ -161,9 +158,7 @@ static wmOperatorStatus add_marker_at_click_invoke(bContext *C,
   return OPERATOR_RUNNING_MODAL;
 }
 
-static wmOperatorStatus add_marker_at_click_modal(bContext *C,
-                                                  wmOperator * /*op*/,
-                                                  const wmEvent *event)
+static int add_marker_at_click_modal(bContext *C, wmOperator * /*op*/, const wmEvent *event)
 {
   switch (event->type) {
     case MOUSEMOVE:
@@ -195,9 +190,6 @@ static wmOperatorStatus add_marker_at_click_modal(bContext *C,
     case EVT_ESCKEY:
       ED_workspace_status_text(C, nullptr);
       return OPERATOR_CANCELLED;
-    default: {
-      break;
-    }
   }
 
   return OPERATOR_PASS_THROUGH;
@@ -225,7 +217,7 @@ void CLIP_OT_add_marker_at_click(wmOperatorType *ot)
 /** \name Delete Track Operator
  * \{ */
 
-static wmOperatorStatus delete_track_exec(bContext *C, wmOperator * /*op*/)
+static int delete_track_exec(bContext *C, wmOperator * /*op*/)
 {
   SpaceClip *sc = CTX_wm_space_clip(C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
@@ -256,7 +248,7 @@ static wmOperatorStatus delete_track_exec(bContext *C, wmOperator * /*op*/)
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus delete_track_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+static int delete_track_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
   if (RNA_boolean_get(op->ptr, "confirm")) {
     return WM_operator_confirm_ex(C,
@@ -293,7 +285,7 @@ void CLIP_OT_delete_track(wmOperatorType *ot)
 /** \name Delete Marker Operator
  * \{ */
 
-static wmOperatorStatus delete_marker_exec(bContext *C, wmOperator * /*op*/)
+static int delete_marker_exec(bContext *C, wmOperator * /*op*/)
 {
   SpaceClip *sc = CTX_wm_space_clip(C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
@@ -336,9 +328,7 @@ static wmOperatorStatus delete_marker_exec(bContext *C, wmOperator * /*op*/)
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus delete_marker_invoke(bContext *C,
-                                             wmOperator *op,
-                                             const wmEvent * /*event*/)
+static int delete_marker_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
   if (RNA_boolean_get(op->ptr, "confirm")) {
     return WM_operator_confirm_ex(C,
@@ -417,7 +407,7 @@ static SlideMarkerData *create_slide_marker_data(SpaceClip *sc,
                                                  int width,
                                                  int height)
 {
-  SlideMarkerData *data = MEM_callocN<SlideMarkerData>("slide marker data");
+  SlideMarkerData *data = MEM_cnew<SlideMarkerData>("slide marker data");
   int framenr = ED_space_clip_get_clip_frame_number(sc);
 
   marker = BKE_tracking_marker_ensure(track, framenr);
@@ -604,7 +594,7 @@ static SlideMarkerData *slide_marker_customdata(bContext *C, const wmEvent *even
   return customdata;
 }
 
-static wmOperatorStatus slide_marker_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static int slide_marker_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   SlideMarkerData *slidedata = slide_marker_customdata(C, event);
   if (slidedata != nullptr) {
@@ -671,7 +661,7 @@ static void free_slide_data(SlideMarkerData *data)
   MEM_freeN(data);
 }
 
-static wmOperatorStatus slide_marker_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static int slide_marker_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   SpaceClip *sc = CTX_wm_space_clip(C);
 
@@ -833,9 +823,6 @@ static wmOperatorStatus slide_marker_modal(bContext *C, wmOperator *op, const wm
       WM_event_add_notifier(C, NC_MOVIECLIP | NA_EDITED, nullptr);
 
       return OPERATOR_CANCELLED;
-    default: {
-      break;
-    }
   }
 
   return OPERATOR_RUNNING_MODAL;
@@ -875,7 +862,7 @@ void CLIP_OT_slide_marker(wmOperatorType *ot)
 /** \name Clear Track Operator
  * \{ */
 
-static wmOperatorStatus clear_track_path_exec(bContext *C, wmOperator *op)
+static int clear_track_path_exec(bContext *C, wmOperator *op)
 {
   SpaceClip *sc = CTX_wm_space_clip(C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
@@ -954,7 +941,7 @@ enum {
   MARKER_OP_TOGGLE = 2,
 };
 
-static wmOperatorStatus disable_markers_exec(bContext *C, wmOperator *op)
+static int disable_markers_exec(bContext *C, wmOperator *op)
 {
   SpaceClip *sc = CTX_wm_space_clip(C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
@@ -1017,7 +1004,7 @@ void CLIP_OT_disable_markers(wmOperatorType *ot)
 /** \name Hide Tracks Operator
  * \{ */
 
-static wmOperatorStatus hide_tracks_exec(bContext *C, wmOperator *op)
+static int hide_tracks_exec(bContext *C, wmOperator *op)
 {
   SpaceClip *sc = CTX_wm_space_clip(C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
@@ -1085,7 +1072,7 @@ void CLIP_OT_hide_tracks(wmOperatorType *ot)
 /** \name Hide Tracks Clear Operator
  * \{ */
 
-static wmOperatorStatus hide_tracks_clear_exec(bContext *C, wmOperator * /*op*/)
+static int hide_tracks_clear_exec(bContext *C, wmOperator * /*op*/)
 {
   SpaceClip *sc = CTX_wm_space_clip(C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
@@ -1135,7 +1122,7 @@ static bool frame_jump_poll(bContext *C)
   return space_clip != nullptr;
 }
 
-static wmOperatorStatus frame_jump_exec(bContext *C, wmOperator *op)
+static int frame_jump_exec(bContext *C, wmOperator *op)
 {
   Scene *scene = CTX_data_scene(C);
   SpaceClip *sc = CTX_wm_space_clip(C);
@@ -1229,7 +1216,7 @@ void CLIP_OT_frame_jump(wmOperatorType *ot)
 /** \name Join Tracks Operator
  * \{ */
 
-static wmOperatorStatus join_tracks_exec(bContext *C, wmOperator *op)
+static int join_tracks_exec(bContext *C, wmOperator *op)
 {
   SpaceClip *sc = CTX_wm_space_clip(C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
@@ -1322,7 +1309,7 @@ void CLIP_OT_join_tracks(wmOperatorType *ot)
 /** \name Average Tracks Operator
  * \{ */
 
-static wmOperatorStatus average_tracks_exec(bContext *C, wmOperator *op)
+static int average_tracks_exec(bContext *C, wmOperator *op)
 {
   SpaceClip *space_clip = CTX_wm_space_clip(C);
   MovieClip *clip = ED_space_clip_get_clip(space_clip);
@@ -1371,9 +1358,7 @@ static wmOperatorStatus average_tracks_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus average_tracks_invoke(bContext *C,
-                                              wmOperator *op,
-                                              const wmEvent * /*event*/)
+static int average_tracks_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
   PropertyRNA *prop_keep_original = RNA_struct_find_property(op->ptr, "keep_original");
   if (!RNA_property_is_set(op->ptr, prop_keep_original)) {
@@ -1426,7 +1411,7 @@ enum {
   TRACK_ACTION_TOGGLE = 2,
 };
 
-static wmOperatorStatus lock_tracks_exec(bContext *C, wmOperator *op)
+static int lock_tracks_exec(bContext *C, wmOperator *op)
 {
   SpaceClip *sc = CTX_wm_space_clip(C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
@@ -1490,7 +1475,7 @@ enum {
   SOLVER_KEYFRAME_B = 1,
 };
 
-static wmOperatorStatus set_solver_keyframe_exec(bContext *C, wmOperator *op)
+static int set_solver_keyframe_exec(bContext *C, wmOperator *op)
 {
   SpaceClip *sc = CTX_wm_space_clip(C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
@@ -1541,7 +1526,7 @@ void CLIP_OT_set_solver_keyframe(wmOperatorType *ot)
 /** \name Track Copy Color Operator
  * \{ */
 
-static wmOperatorStatus track_copy_color_exec(bContext *C, wmOperator * /*op*/)
+static int track_copy_color_exec(bContext *C, wmOperator * /*op*/)
 {
   SpaceClip *sc = CTX_wm_space_clip(C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
@@ -1598,7 +1583,7 @@ static bool is_track_clean(MovieTrackingTrack *track, int frames, int del)
   int markersnr = track->markersnr;
 
   if (del) {
-    new_markers = MEM_calloc_arrayN<MovieTrackingMarker>(markersnr, "track cleaned markers");
+    new_markers = MEM_cnew_array<MovieTrackingMarker>(markersnr, "track cleaned markers");
   }
 
   for (int a = 0; a < markersnr; a++) {
@@ -1698,7 +1683,7 @@ static bool is_track_clean(MovieTrackingTrack *track, int frames, int del)
   return ok;
 }
 
-static wmOperatorStatus clean_tracks_exec(bContext *C, wmOperator *op)
+static int clean_tracks_exec(bContext *C, wmOperator *op)
 {
   SpaceClip *sc = CTX_wm_space_clip(C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
@@ -1752,7 +1737,7 @@ static wmOperatorStatus clean_tracks_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus clean_tracks_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+static int clean_tracks_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
   SpaceClip *sc = CTX_wm_space_clip(C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
@@ -1827,7 +1812,7 @@ void CLIP_OT_clean_tracks(wmOperatorType *ot)
 /** \name Add Tracking Object
  * \{ */
 
-static wmOperatorStatus tracking_object_new_exec(bContext *C, wmOperator * /*op*/)
+static int tracking_object_new_exec(bContext *C, wmOperator * /*op*/)
 {
   SpaceClip *sc = CTX_wm_space_clip(C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
@@ -1862,7 +1847,7 @@ void CLIP_OT_tracking_object_new(wmOperatorType *ot)
 /** \name Remove Tracking Object
  * \{ */
 
-static wmOperatorStatus tracking_object_remove_exec(bContext *C, wmOperator *op)
+static int tracking_object_remove_exec(bContext *C, wmOperator *op)
 {
   SpaceClip *sc = CTX_wm_space_clip(C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
@@ -1903,7 +1888,7 @@ void CLIP_OT_tracking_object_remove(wmOperatorType *ot)
 /** \name Copy Tracks to Clipboard Operator
  * \{ */
 
-static wmOperatorStatus copy_tracks_exec(bContext *C, wmOperator * /*op*/)
+static int copy_tracks_exec(bContext *C, wmOperator * /*op*/)
 {
   SpaceClip *sc = CTX_wm_space_clip(C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
@@ -1947,7 +1932,7 @@ static bool paste_tracks_poll(bContext *C)
   return false;
 }
 
-static wmOperatorStatus paste_tracks_exec(bContext *C, wmOperator * /*op*/)
+static int paste_tracks_exec(bContext *C, wmOperator * /*op*/)
 {
   SpaceClip *sc = CTX_wm_space_clip(C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
@@ -2032,7 +2017,7 @@ static void keyframe_set_flag(bContext *C, bool set)
   WM_event_add_notifier(C, NC_MOVIECLIP | NA_EDITED, clip);
 }
 
-static wmOperatorStatus keyframe_insert_exec(bContext *C, wmOperator * /*op*/)
+static int keyframe_insert_exec(bContext *C, wmOperator * /*op*/)
 {
   keyframe_set_flag(C, true);
   return OPERATOR_FINISHED;
@@ -2059,7 +2044,7 @@ void CLIP_OT_keyframe_insert(wmOperatorType *ot)
 /** \name Delete Track Keyframe Operator
  * \{ */
 
-static wmOperatorStatus keyframe_delete_exec(bContext *C, wmOperator * /*op*/)
+static int keyframe_delete_exec(bContext *C, wmOperator * /*op*/)
 {
   keyframe_set_flag(C, false);
   return OPERATOR_FINISHED;
@@ -2128,7 +2113,7 @@ static bool new_image_from_plane_marker_poll(bContext *C)
   return true;
 }
 
-static wmOperatorStatus new_image_from_plane_marker_exec(bContext *C, wmOperator * /*op*/)
+static int new_image_from_plane_marker_exec(bContext *C, wmOperator * /*op*/)
 {
   SpaceClip *space_clip = CTX_wm_space_clip(C);
   MovieClip *clip = ED_space_clip_get_clip(space_clip);
@@ -2186,7 +2171,7 @@ static bool update_image_from_plane_marker_poll(bContext *C)
   return image->type == IMA_TYPE_IMAGE && ELEM(image->source, IMA_SRC_FILE, IMA_SRC_GENERATED);
 }
 
-static wmOperatorStatus update_image_from_plane_marker_exec(bContext *C, wmOperator * /*op*/)
+static int update_image_from_plane_marker_exec(bContext *C, wmOperator * /*op*/)
 {
   SpaceClip *space_clip = CTX_wm_space_clip(C);
   MovieClip *clip = ED_space_clip_get_clip(space_clip);

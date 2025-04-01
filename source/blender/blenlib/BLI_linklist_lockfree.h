@@ -8,6 +8,10 @@
  * \ingroup bli
  */
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct LockfreeLinkNode {
   struct LockfreeLinkNode *next;
   /* NOTE: "Subclass" this structure to add custom-defined data. */
@@ -50,3 +54,7 @@ LockfreeLinkNode *BLI_linklist_lockfree_begin(LockfreeLinkList *list);
 /* NOTE: These functions are safe for use from threads. */
 
 void BLI_linklist_lockfree_insert(LockfreeLinkList *list, LockfreeLinkNode *node);
+
+#ifdef __cplusplus
+}
+#endif

@@ -139,26 +139,14 @@ class VExportTree:
             for blender_object in [obj.original for obj in scene_eval.objects if obj.parent is None]:
                 self.recursive_node_traverse(blender_object, None, None, Matrix.Identity(4), False, blender_children)
         else:
-            if self.export_settings['gltf_collection']:
-                # Collection exporter
-                self.recursive_node_traverse(
-                    bpy.data.collections[self.export_settings['gltf_collection']],
-                    None,
-                    None,
-                    Matrix.Identity(4),
-                    False,
-                    blender_children,
-                    is_collection=True)
-            else:
-                # Scene / classic export
-                self.recursive_node_traverse(
-                    blender_scene.collection,
-                    None,
-                    None,
-                    Matrix.Identity(4),
-                    False,
-                    blender_children,
-                    is_collection=True)
+            self.recursive_node_traverse(
+                blender_scene.collection,
+                None,
+                None,
+                Matrix.Identity(4),
+                False,
+                blender_children,
+                is_collection=True)
 
     def recursive_node_traverse(
             self,
@@ -772,12 +760,6 @@ class VExportTree:
 
                 for bone in armature.data.edit_bones:
                     if len(bone.children) == 0:
-
-                        # If we are exporting only deform bones, we need to check if this bone is a def bone
-                        if self.export_settings['gltf_def_bones'] is True \
-                            and bone.use_deform is False:
-                                continue
-
                         self.nodes[self.nodes[obj_uuid].bones[bone.name]
                                    ].matrix_world_tail = armature.matrix_world @ Matrix.Translation(bone.tail) @ self.axis_basis_change
 
@@ -785,11 +767,6 @@ class VExportTree:
 
         for bone_uuid in [n for n in self.nodes if self.nodes[n].blender_type == VExportNode.BONE
                           and len(self.nodes[n].children) == 0]:
-
-            # If we are exporting only deform bones, we need to check if this bone is a def bone
-            if self.export_settings['gltf_def_bones'] is True \
-                and self.nodes[bone_uuid].use_deform is False:
-                    continue
 
             bone_node = self.nodes[bone_uuid]
 

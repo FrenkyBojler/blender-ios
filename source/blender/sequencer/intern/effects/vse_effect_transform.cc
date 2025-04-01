@@ -19,7 +19,7 @@
 
 #include "effects.hh"
 
-namespace blender::seq {
+using namespace blender;
 
 static void init_transform_effect(Strip *strip)
 {
@@ -27,8 +27,9 @@ static void init_transform_effect(Strip *strip)
     MEM_freeN(strip->effectdata);
   }
 
-  TransformVars *transform = MEM_callocN<TransformVars>("transformvars");
-  strip->effectdata = transform;
+  strip->effectdata = MEM_callocN(sizeof(TransformVars), "transformvars");
+
+  TransformVars *transform = (TransformVars *)strip->effectdata;
 
   transform->ScalexIni = 1.0f;
   transform->ScaleyIni = 1.0f;
@@ -129,7 +130,7 @@ static void transform_image(int x,
   }
 }
 
-static ImBuf *do_transform_effect(const RenderData *context,
+static ImBuf *do_transform_effect(const SeqRenderData *context,
                                   Strip *strip,
                                   float /*timeline_frame*/,
                                   float /*fac*/,
@@ -159,7 +160,7 @@ static ImBuf *do_transform_effect(const RenderData *context,
     /* Compensate text size for preview render size. */
     double proxy_size_comp = context->scene->r.size / 100.0;
     if (context->preview_render_size != SEQ_RENDER_SIZE_SCENE) {
-      proxy_size_comp = rendersize_to_scale_factor(context->preview_render_size);
+      proxy_size_comp = SEQ_rendersize_to_scale_factor(context->preview_render_size);
     }
 
     translate_x = transform->xIni * proxy_size_comp + (x / 2.0f);
@@ -191,7 +192,7 @@ static ImBuf *do_transform_effect(const RenderData *context,
   return dst;
 }
 
-void transform_effect_get_handle(EffectHandle &rval)
+void transform_effect_get_handle(SeqEffectHandle &rval)
 {
   rval.init = init_transform_effect;
   rval.num_inputs = num_inputs_transform;
@@ -199,5 +200,3 @@ void transform_effect_get_handle(EffectHandle &rval)
   rval.copy = copy_transform_effect;
   rval.execute = do_transform_effect;
 }
-
-}  // namespace blender::seq

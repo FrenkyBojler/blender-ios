@@ -41,16 +41,16 @@
 namespace blender::ui {
 
 struct EyedropperColorband {
-  int event_xy_last[2] = {};
+  int event_xy_last[2];
   /* Alpha is currently fixed at 1.0, may support in future. */
-  Vector<float4> color_buffer = {};
-  bool sample_start = false;
-  ColorBand init_color_band = {};
-  ColorBand *color_band = nullptr;
-  PointerRNA ptr = {};
-  PropertyRNA *prop = nullptr;
-  bool is_undo = false;
-  bool is_set = false;
+  Vector<float4> color_buffer;
+  bool sample_start;
+  ColorBand init_color_band;
+  ColorBand *color_band;
+  PointerRNA ptr;
+  PropertyRNA *prop;
+  bool is_undo;
+  bool is_set;
 };
 
 /* For user-data only. */
@@ -105,7 +105,7 @@ static bool eyedropper_colorband_init(bContext *C, wmOperator *op)
     return false;
   }
 
-  EyedropperColorband *eye = MEM_new<EyedropperColorband>(__func__);
+  EyedropperColorband *eye = MEM_new<EyedropperColorband>(__func__, EyedropperColorband{});
   eye->color_band = band;
   eye->init_color_band = *eye->color_band;
   eye->ptr = rna_update_ptr;
@@ -191,9 +191,7 @@ static void eyedropper_colorband_cancel(bContext *C, wmOperator *op)
 }
 
 /* main modal status check */
-static wmOperatorStatus eyedropper_colorband_modal(bContext *C,
-                                                   wmOperator *op,
-                                                   const wmEvent *event)
+static int eyedropper_colorband_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   EyedropperColorband *eye = static_cast<EyedropperColorband *>(op->customdata);
   /* handle modal keymap */
@@ -230,9 +228,7 @@ static wmOperatorStatus eyedropper_colorband_modal(bContext *C,
   return OPERATOR_RUNNING_MODAL;
 }
 
-static wmOperatorStatus eyedropper_colorband_point_modal(bContext *C,
-                                                         wmOperator *op,
-                                                         const wmEvent *event)
+static int eyedropper_colorband_point_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   EyedropperColorband *eye = static_cast<EyedropperColorband *>(op->customdata);
   /* handle modal keymap */
@@ -272,9 +268,7 @@ static wmOperatorStatus eyedropper_colorband_point_modal(bContext *C,
 }
 
 /* Modal Operator init */
-static wmOperatorStatus eyedropper_colorband_invoke(bContext *C,
-                                                    wmOperator *op,
-                                                    const wmEvent * /*event*/)
+static int eyedropper_colorband_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
   /* init */
   if (eyedropper_colorband_init(C, op)) {
@@ -292,7 +286,7 @@ static wmOperatorStatus eyedropper_colorband_invoke(bContext *C,
 }
 
 /* Repeat operator */
-static wmOperatorStatus eyedropper_colorband_exec(bContext *C, wmOperator *op)
+static int eyedropper_colorband_exec(bContext *C, wmOperator *op)
 {
   /* init */
   if (eyedropper_colorband_init(C, op)) {

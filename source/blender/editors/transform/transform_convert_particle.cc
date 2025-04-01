@@ -27,8 +27,6 @@
 /* Own include. */
 #include "transform_convert.hh"
 
-namespace blender::ed::transform {
-
 /* -------------------------------------------------------------------- */
 /** \name Particle Edit Transform Creation
  * \{ */
@@ -148,13 +146,13 @@ static void createTransParticleVerts(bContext * /*C*/, TransInfo *t)
         if (t->mode == TFM_BAKE_TIME) {
           td->val = key->time;
           td->ival = *(key->time);
-          /* Abuse scale and quat for min/max values. */
+          /* Abuse size and quat for min/max values. */
           td->flag |= TD_NO_EXT;
           if (k == 0) {
-            tx->scale = nullptr;
+            tx->size = nullptr;
           }
           else {
-            tx->scale = (key - 1)->time;
+            tx->size = (key - 1)->time;
           }
 
           if (k == point->totkey - 1) {
@@ -258,5 +256,3 @@ TransConvertTypeInfo TransConvertType_Particle = {
     /*recalc_data*/ recalcData_particles,
     /*special_aftertrans_update*/ nullptr,
 };
-
-}  // namespace blender::ed::transform

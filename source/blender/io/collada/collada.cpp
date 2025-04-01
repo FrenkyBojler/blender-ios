@@ -16,6 +16,8 @@
 
 #include "BLI_linklist.h"
 
+extern "C" {
+
 static void print_import_header(ImportSettings &import_settings)
 {
   fprintf(stderr, "+-- Collada Import parameters------\n");
@@ -92,4 +94,7 @@ int collada_export(bContext *C, ExportSettings *export_settings)
   BLI_linklist_free(export_settings->export_set, nullptr);
 
   return (status) ? -1 : export_count;
+}
+
+/* end extern C */
 }

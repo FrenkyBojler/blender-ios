@@ -7,6 +7,10 @@
  * \ingroup bke
  */
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct ListBase;
 struct bAddon;
 
@@ -35,3 +39,7 @@ struct bAddon *BKE_addon_find(const struct ListBase *addon_list, const char *mod
 struct bAddon *BKE_addon_ensure(struct ListBase *addon_list, const char *module);
 bool BKE_addon_remove_safe(struct ListBase *addon_list, const char *module);
 void BKE_addon_free(struct bAddon *addon);
+
+#ifdef __cplusplus
+}
+#endif

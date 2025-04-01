@@ -14,7 +14,6 @@
 
 #include "DNA_scene_types.h"
 #include "DNA_sequence_types.h"
-#include "DNA_userdef_types.h"
 
 #include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
@@ -61,8 +60,6 @@
  * User can exclude caching of some images. Such entries will have is_temp_cache set.
  */
 
-namespace blender::seq {
-
 struct SeqCache {
   Main *bmain;
   GHash *hash;
@@ -80,7 +77,7 @@ struct SeqCacheItem {
 
 static ThreadMutex cache_create_lock = BLI_MUTEX_INITIALIZER;
 
-static bool seq_cmp_render_data(const RenderData *a, const RenderData *b)
+static bool seq_cmp_render_data(const SeqRenderData *a, const SeqRenderData *b)
 {
   return ((a->preview_render_size != b->preview_render_size) || (a->rectx != b->rectx) ||
           (a->recty != b->recty) || (a->bmain != b->bmain) || (a->scene != b->scene) ||
@@ -89,7 +86,7 @@ static bool seq_cmp_render_data(const RenderData *a, const RenderData *b)
           (a->scene->r.views_format != b->scene->r.views_format) || (a->view_id != b->view_id));
 }
 
-static uint seq_hash_render_data(const RenderData *a)
+static uint seq_hash_render_data(const SeqRenderData *a)
 {
   uint rval = a->rectx + a->recty;
 
@@ -134,15 +131,15 @@ static float seq_cache_timeline_frame_to_frame_index(const Scene *scene,
    * treatment in converting frame index to timeline_frame is needed. */
   bool is_effect = strip->type & STRIP_TYPE_EFFECT;
   if (!is_effect && type == SEQ_CACHE_STORE_RAW) {
-    return give_frame_index(scene, strip, timeline_frame);
+    return SEQ_give_frame_index(scene, strip, timeline_frame);
   }
 
-  return timeline_frame - time_start_frame_get(strip);
+  return timeline_frame - SEQ_time_start_frame_get(strip);
 }
 
 float seq_cache_frame_index_to_timeline_frame(Strip *strip, float frame_index)
 {
-  return frame_index + time_start_frame_get(strip);
+  return frame_index + SEQ_time_start_frame_get(strip);
 }
 
 static SeqCache *seq_cache_get_from_scene(Scene *scene)
@@ -492,7 +489,7 @@ static void seq_cache_create(Main *bmain, Scene *scene)
 {
   BLI_mutex_lock(&cache_create_lock);
   if (scene->ed->cache == nullptr) {
-    SeqCache *cache = MEM_callocN<SeqCache>("SeqCache");
+    SeqCache *cache = static_cast<SeqCache *>(MEM_callocN(sizeof(SeqCache), "SeqCache"));
     cache->keys_pool = BLI_mempool_create(sizeof(SeqCacheKey), 0, 64, BLI_MEMPOOL_NOP);
     cache->items_pool = BLI_mempool_create(sizeof(SeqCacheItem), 0, 64, BLI_MEMPOOL_NOP);
     cache->hash = BLI_ghash_new(seq_cache_hashhash, seq_cache_hashcmp, "SeqCache hash");
@@ -509,7 +506,7 @@ static void seq_cache_create(Main *bmain, Scene *scene)
 }
 
 static void seq_cache_populate_key(SeqCacheKey *key,
-                                   const RenderData *context,
+                                   const SeqRenderData *context,
                                    Strip *strip,
                                    const float timeline_frame,
                                    const int type)
@@ -528,7 +525,7 @@ static void seq_cache_populate_key(SeqCacheKey *key,
 }
 
 static SeqCacheKey *seq_cache_allocate_key(SeqCache *cache,
-                                           const RenderData *context,
+                                           const SeqRenderData *context,
                                            Strip *strip,
                                            const float timeline_frame,
                                            const int type)
@@ -561,8 +558,8 @@ void seq_cache_free_temp_cache(Scene *scene, short id, int timeline_frame)
       float frame_index = seq_cache_timeline_frame_to_frame_index(
           scene, key->strip, timeline_frame, key->type);
       if (frame_index != key->frame_index ||
-          timeline_frame > time_right_handle_frame_get(scene, key->strip) ||
-          timeline_frame < time_left_handle_frame_get(scene, key->strip))
+          timeline_frame > SEQ_time_right_handle_frame_get(scene, key->strip) ||
+          timeline_frame < SEQ_time_left_handle_frame_get(scene, key->strip))
       {
         seq_cache_key_unlink(key);
         BLI_ghash_remove(cache->hash, key, seq_cache_keyfree, seq_cache_valfree);
@@ -595,9 +592,9 @@ void seq_cache_destruct(Scene *scene)
   scene->ed->cache = nullptr;
 }
 
-void cache_cleanup(Scene *scene)
+void SEQ_cache_cleanup(Scene *scene)
 {
-  prefetch_stop(scene);
+  SEQ_prefetch_stop(scene);
 
   SeqCache *cache = seq_cache_get_from_scene(scene);
   if (!cache) {
@@ -639,18 +636,18 @@ void seq_cache_cleanup_sequence(Scene *scene,
   seq_cache_lock(scene);
 
   const int range_start_seq_changed = seq_cache_timeline_frame_to_frame_index(
-      scene, strip, time_left_handle_frame_get(scene, strip_changed), invalidate_types);
+      scene, strip, SEQ_time_left_handle_frame_get(scene, strip_changed), invalidate_types);
   const int range_end_seq_changed = seq_cache_timeline_frame_to_frame_index(
-      scene, strip, time_right_handle_frame_get(scene, strip_changed), invalidate_types);
+      scene, strip, SEQ_time_right_handle_frame_get(scene, strip_changed), invalidate_types);
 
   int range_start = range_start_seq_changed;
   int range_end = range_end_seq_changed;
 
   if (!force_seq_changed_range) {
     const int range_start_seq = seq_cache_timeline_frame_to_frame_index(
-        scene, strip, time_left_handle_frame_get(scene, strip), invalidate_types);
+        scene, strip, SEQ_time_left_handle_frame_get(scene, strip), invalidate_types);
     const int range_end_seq = seq_cache_timeline_frame_to_frame_index(
-        scene, strip, time_right_handle_frame_get(scene, strip), invalidate_types);
+        scene, strip, SEQ_time_right_handle_frame_get(scene, strip), invalidate_types);
 
     range_start = max_ii(range_start, range_start_seq);
     range_end = min_ii(range_end, range_end_seq);
@@ -686,7 +683,7 @@ void seq_cache_cleanup_sequence(Scene *scene,
   seq_cache_unlock(scene);
 }
 
-ImBuf *seq_cache_get(const RenderData *context, Strip *strip, float timeline_frame, int type)
+ImBuf *seq_cache_get(const SeqRenderData *context, Strip *strip, float timeline_frame, int type)
 {
 
   if (context->skip_cache || context->is_proxy_render || !strip) {
@@ -752,7 +749,7 @@ ImBuf *seq_cache_get(const RenderData *context, Strip *strip, float timeline_fra
 }
 
 bool seq_cache_put_if_possible(
-    const RenderData *context, Strip *strip, float timeline_frame, int type, ImBuf *ibuf)
+    const SeqRenderData *context, Strip *strip, float timeline_frame, int type, ImBuf *ibuf)
 {
   Scene *scene = context->scene;
 
@@ -780,7 +777,7 @@ bool seq_cache_put_if_possible(
 }
 
 void seq_cache_put(
-    const RenderData *context, Strip *strip, float timeline_frame, int type, ImBuf *i)
+    const SeqRenderData *context, Strip *strip, float timeline_frame, int type, ImBuf *i)
 {
   if (i == nullptr || context->skip_cache || context->is_proxy_render || !strip) {
     return;
@@ -828,7 +825,7 @@ void seq_cache_put(
   }
 }
 
-void cache_iterate(
+void SEQ_cache_iterate(
     Scene *scene,
     void *userdata,
     bool callback_init(void *userdata, size_t item_count),
@@ -863,7 +860,7 @@ void cache_iterate(
        * convert RAW frames like that to a timeline frame, we skip doing this as visualizing these
        * are a developer option that not many people will see.
        */
-      timeline_frame = key->frame_index + time_start_frame_get(key->strip);
+      timeline_frame = key->frame_index + SEQ_time_start_frame_get(key->strip);
     }
 
     interrupt = callback_iter(userdata, key->strip, timeline_frame, key->type);
@@ -877,5 +874,3 @@ bool seq_cache_is_full()
 {
   return seq_cache_get_mem_total() < MEM_get_memory_in_use();
 }
-
-}  // namespace blender::seq

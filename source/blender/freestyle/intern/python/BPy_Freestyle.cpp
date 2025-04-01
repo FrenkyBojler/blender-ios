@@ -46,6 +46,10 @@
 #include "BKE_colortools.hh" /* BKE_curvemapping_evaluateF() */
 #include "BKE_material.hh"   /* ramp_blend() */
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 ///////////////////////////////////////////////////////////////////////////////////////////
 
 //------------------------ MODULE FUNCTIONS ----------------------------------
@@ -501,16 +505,6 @@ PyDoc_STRVAR(
 
 /*-----------------------Freestyle module method def---------------------------*/
 
-#ifdef __GNUC__
-#  ifdef __clang__
-#    pragma clang diagnostic push
-#    pragma clang diagnostic ignored "-Wcast-function-type"
-#  else
-#    pragma GCC diagnostic push
-#    pragma GCC diagnostic ignored "-Wcast-function-type"
-#  endif
-#endif
-
 static PyMethodDef module_functions[] = {
     {"getCurrentScene",
      (PyCFunction)Freestyle_getCurrentScene,
@@ -527,14 +521,6 @@ static PyMethodDef module_functions[] = {
      Freestyle_evaluateCurveMappingF___doc__},
     {nullptr, nullptr, 0, nullptr},
 };
-
-#ifdef __GNUC__
-#  ifdef __clang__
-#    pragma clang diagnostic pop
-#  else
-#    pragma GCC diagnostic pop
-#  endif
-#endif
 
 /*-----------------------Freestyle module definition---------------------------*/
 
@@ -613,3 +599,7 @@ PyObject *Freestyle_Init()
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////
+
+#ifdef __cplusplus
+}
+#endif

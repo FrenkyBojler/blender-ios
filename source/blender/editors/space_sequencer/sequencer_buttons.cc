@@ -27,8 +27,6 @@
 
 #include "sequencer_intern.hh"
 
-namespace blender::ed::vse {
-
 /* **************************** buttons ********************************* */
 
 #if 0
@@ -37,7 +35,7 @@ static bool sequencer_grease_pencil_panel_poll(const bContext *C, PanelType * /*
   SpaceSeq *sseq = CTX_wm_space_seq(C);
 
   /* Don't show the gpencil if we are not showing the image. */
-  return check_show_imbuf(sseq);
+  return ED_space_sequencer_check_show_imbuf(sseq);
 }
 #endif
 
@@ -47,7 +45,7 @@ static bool metadata_panel_context_poll(const bContext *C, PanelType * /*pt*/)
   if (space_sequencer == nullptr) {
     return false;
   }
-  return check_show_imbuf(space_sequencer);
+  return ED_space_sequencer_check_show_imbuf(space_sequencer);
 }
 
 static void metadata_panel_context_draw(const bContext *C, Panel *panel)
@@ -92,7 +90,7 @@ void sequencer_buttons_register(ARegionType *art)
   BLI_addtail(&art->paneltypes, pt);
 #endif
 
-  pt = MEM_callocN<PanelType>("spacetype sequencer panel metadata");
+  pt = MEM_cnew<PanelType>("spacetype sequencer panel metadata");
   STRNCPY(pt->idname, "SEQUENCER_PT_metadata");
   STRNCPY(pt->label, N_("Metadata"));
   STRNCPY(pt->category, "Metadata");
@@ -102,5 +100,3 @@ void sequencer_buttons_register(ARegionType *art)
   pt->order = 10;
   BLI_addtail(&art->paneltypes, pt);
 }
-
-}  // namespace blender::ed::vse

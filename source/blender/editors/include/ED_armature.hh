@@ -11,8 +11,6 @@
 #include "BLI_compiler_attrs.h"
 #include "BLI_span.hh"
 
-#include "DNA_windowmanager_enums.h"
-
 struct Base;
 struct Bone;
 struct Depsgraph;
@@ -134,7 +132,7 @@ void ED_keymap_armature(wmKeyConfig *keyconf);
 /**
  * Join armature exec is exported for use in object->join objects operator.
  */
-wmOperatorStatus ED_armature_join_objects_exec(bContext *C, wmOperator *op);
+int ED_armature_join_objects_exec(bContext *C, wmOperator *op);
 
 /* `armature_select.cc` */
 

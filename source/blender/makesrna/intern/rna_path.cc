@@ -13,7 +13,6 @@
 
 #include "BLI_alloca.h"
 #include "BLI_dynstr.h"
-#include "BLI_hash.hh"
 #include "BLI_listbase.h"
 #include "BLI_string.h"
 #include "BLI_string_ref.hh"
@@ -34,14 +33,6 @@
 
 #include "rna_access_internal.hh"
 #include "rna_internal.hh"
-
-int64_t RNAPath::hash() const
-{
-  if (key.has_value()) {
-    return blender::get_default_hash(path, key.value());
-  }
-  return blender::get_default_hash(path, index.value_or(0));
-};
 
 bool operator==(const RNAPath &left, const RNAPath &right)
 {
@@ -79,7 +70,8 @@ static char *rna_path_token(const char **path, char *fixedbuf, int fixedlen)
   }
 
   /* Try to use fixed buffer if possible. */
-  char *buf = (len + 1 < fixedlen) ? fixedbuf : MEM_malloc_arrayN<char>(size_t(len) + 1, __func__);
+  char *buf = (len + 1 < fixedlen) ? fixedbuf :
+                                     (char *)MEM_mallocN(sizeof(char) * (len + 1), __func__);
   memcpy(buf, *path, sizeof(char) * len);
   buf[len] = '\0';
 
@@ -158,7 +150,8 @@ static char *rna_path_token_in_brackets(const char **path,
   }
 
   /* Try to use fixed buffer if possible. */
-  char *buf = (len + 1 < fixedlen) ? fixedbuf : MEM_malloc_arrayN<char>(size_t(len) + 1, __func__);
+  char *buf = (len + 1 < fixedlen) ? fixedbuf :
+                                     (char *)MEM_mallocN(sizeof(char) * (len + 1), __func__);
 
   /* Copy string, taking into account escaped ']' */
   if (quoted) {
@@ -392,7 +385,7 @@ static bool rna_path_parse(const PointerRNA *ptr,
   const bool do_item_ptr = r_item_ptr != nullptr && !eval_pointer;
 
   if (do_item_ptr) {
-    nextptr.invalidate();
+    RNA_POINTER_INVALIDATE(&nextptr);
   }
 
   prop = nullptr;
@@ -404,7 +397,7 @@ static bool rna_path_parse(const PointerRNA *ptr,
 
   while (*path) {
     if (do_item_ptr) {
-      nextptr.invalidate();
+      RNA_POINTER_INVALIDATE(&nextptr);
     }
 
     const bool use_id_prop = (*path == '[');

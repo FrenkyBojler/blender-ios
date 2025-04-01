@@ -120,7 +120,7 @@ static void wm_xr_session_update_screen_on_exit_cb(const wmXrData *xr_data)
   wm_xr_session_update_screen(G_MAIN, xr_data);
 }
 
-static wmOperatorStatus wm_xr_session_toggle_exec(bContext *C, wmOperator * /*op*/)
+static int wm_xr_session_toggle_exec(bContext *C, wmOperator * /*op*/)
 {
   Main *bmain = CTX_data_main(C);
   wmWindowManager *wm = CTX_wm_manager(C);
@@ -177,7 +177,7 @@ static void wm_xr_grab_init(wmOperator *op)
 {
   BLI_assert(op->customdata == nullptr);
 
-  op->customdata = MEM_callocN<XrGrabData>(__func__);
+  op->customdata = MEM_callocN(sizeof(XrGrabData), __func__);
 }
 
 static void wm_xr_grab_uninit(wmOperator *op)
@@ -401,9 +401,7 @@ static void wm_xr_grab_compute_bimanual(const wmXrActionData *actiondata,
  * Navigates the scene by grabbing with XR controllers.
  * \{ */
 
-static wmOperatorStatus wm_xr_navigation_grab_invoke(bContext *C,
-                                                     wmOperator *op,
-                                                     const wmEvent *event)
+static int wm_xr_navigation_grab_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   if (!wm_xr_operator_test_event(op, event)) {
     return OPERATOR_PASS_THROUGH;
@@ -419,7 +417,7 @@ static wmOperatorStatus wm_xr_navigation_grab_invoke(bContext *C,
   return OPERATOR_RUNNING_MODAL;
 }
 
-static wmOperatorStatus wm_xr_navigation_grab_exec(bContext * /*C*/, wmOperator * /*op*/)
+static int wm_xr_navigation_grab_exec(bContext * /*C*/, wmOperator * /*op*/)
 {
   return OPERATOR_CANCELLED;
 }
@@ -527,9 +525,7 @@ static void wm_xr_navigation_grab_bimanual_state_update(const wmXrActionData *ac
   }
 }
 
-static wmOperatorStatus wm_xr_navigation_grab_modal(bContext *C,
-                                                    wmOperator *op,
-                                                    const wmEvent *event)
+static int wm_xr_navigation_grab_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   if (!wm_xr_operator_test_event(op, event)) {
     return OPERATOR_PASS_THROUGH;
@@ -667,7 +663,7 @@ static void wm_xr_raycast_init(wmOperator *op)
 {
   BLI_assert(op->customdata == nullptr);
 
-  op->customdata = MEM_callocN<XrRaycastData>(__func__);
+  op->customdata = MEM_callocN(sizeof(XrRaycastData), __func__);
 
   SpaceType *st = BKE_spacetype_from_id(SPACE_VIEW3D);
   if (!st) {
@@ -743,26 +739,25 @@ static void wm_xr_raycast(Scene *scene,
                           float r_obmat[4][4])
 {
   /* Uses same raycast method as Scene.ray_cast(). */
-  blender::ed::transform::SnapObjectContext *sctx =
-      blender::ed::transform::snap_object_context_create(scene, 0);
+  SnapObjectContext *sctx = ED_transform_snap_object_context_create(scene, 0);
 
-  blender::ed::transform::SnapObjectParams params{};
+  SnapObjectParams params{};
   params.snap_target_select = (selectable_only ? SCE_SNAP_TARGET_ONLY_SELECTABLE :
                                                  SCE_SNAP_TARGET_ALL);
-  blender::ed::transform::snap_object_project_ray_ex(sctx,
-                                                     depsgraph,
-                                                     nullptr,
-                                                     &params,
-                                                     origin,
-                                                     direction,
-                                                     ray_dist,
-                                                     r_location,
-                                                     r_normal,
-                                                     r_index,
-                                                     r_ob,
-                                                     r_obmat);
+  ED_transform_snap_object_project_ray_ex(sctx,
+                                          depsgraph,
+                                          nullptr,
+                                          &params,
+                                          origin,
+                                          direction,
+                                          ray_dist,
+                                          r_location,
+                                          r_normal,
+                                          r_index,
+                                          r_ob,
+                                          r_obmat);
 
-  blender::ed::transform::snap_object_context_destroy(sctx);
+  ED_transform_snap_object_context_destroy(sctx);
 }
 
 /** \} */
@@ -775,6 +770,7 @@ static void wm_xr_raycast(Scene *scene,
  * \{ */
 
 #define XR_DEFAULT_FLY_SPEED_MOVE 0.054f
+#define XR_DEFAULT_FLY_SPEED_TURN 0.03f
 
 enum eXrFlyMode {
   XR_FLY_FORWARD = 0,
@@ -801,8 +797,8 @@ static void wm_xr_fly_init(wmOperator *op, const wmXrData *xr)
 {
   BLI_assert(op->customdata == nullptr);
 
-  XrFlyData *data = MEM_callocN<XrFlyData>(__func__);
-  op->customdata = data;
+  XrFlyData *data = static_cast<XrFlyData *>(
+      op->customdata = MEM_callocN(sizeof(XrFlyData), __func__));
 
   WM_xr_session_state_viewer_pose_rotation_get(xr, data->viewer_rot);
   data->time_prev = BLI_time_now_seconds();
@@ -917,9 +913,7 @@ static void wm_xr_basenav_rotation_calc(const wmXrData *xr,
   mul_qt_qtqt(r_rotation, nav_rotation, base_quatz);
 }
 
-static wmOperatorStatus wm_xr_navigation_fly_invoke(bContext *C,
-                                                    wmOperator *op,
-                                                    const wmEvent *event)
+static int wm_xr_navigation_fly_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   if (!wm_xr_operator_test_event(op, event)) {
     return OPERATOR_PASS_THROUGH;
@@ -934,14 +928,12 @@ static wmOperatorStatus wm_xr_navigation_fly_invoke(bContext *C,
   return OPERATOR_RUNNING_MODAL;
 }
 
-static wmOperatorStatus wm_xr_navigation_fly_exec(bContext * /*C*/, wmOperator * /*op*/)
+static int wm_xr_navigation_fly_exec(bContext * /*C*/, wmOperator * /*op*/)
 {
   return OPERATOR_CANCELLED;
 }
 
-static wmOperatorStatus wm_xr_navigation_fly_modal(bContext *C,
-                                                   wmOperator *op,
-                                                   const wmEvent *event)
+static int wm_xr_navigation_fly_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   if (!wm_xr_operator_test_event(op, event)) {
     return OPERATOR_PASS_THROUGH;
@@ -1296,9 +1288,7 @@ static void wm_xr_navigation_teleport(bContext *C,
   }
 }
 
-static wmOperatorStatus wm_xr_navigation_teleport_invoke(bContext *C,
-                                                         wmOperator *op,
-                                                         const wmEvent *event)
+static int wm_xr_navigation_teleport_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   if (!wm_xr_operator_test_event(op, event)) {
     return OPERATOR_PASS_THROUGH;
@@ -1306,24 +1296,21 @@ static wmOperatorStatus wm_xr_navigation_teleport_invoke(bContext *C,
 
   wm_xr_raycast_init(op);
 
-  const wmOperatorStatus retval = op->type->modal(C, op, event);
-  OPERATOR_RETVAL_CHECK(retval);
+  int retval = op->type->modal(C, op, event);
 
-  if (retval & OPERATOR_RUNNING_MODAL) {
+  if ((retval & OPERATOR_RUNNING_MODAL) != 0) {
     WM_event_add_modal_handler(C, op);
   }
 
   return retval;
 }
 
-static wmOperatorStatus wm_xr_navigation_teleport_exec(bContext * /*C*/, wmOperator * /*op*/)
+static int wm_xr_navigation_teleport_exec(bContext * /*C*/, wmOperator * /*op*/)
 {
   return OPERATOR_CANCELLED;
 }
 
-static wmOperatorStatus wm_xr_navigation_teleport_modal(bContext *C,
-                                                        wmOperator *op,
-                                                        const wmEvent *event)
+static int wm_xr_navigation_teleport_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   if (!wm_xr_operator_test_event(op, event)) {
     return OPERATOR_PASS_THROUGH;
@@ -1457,7 +1444,7 @@ static void WM_OT_xr_navigation_teleport(wmOperatorType *ot)
  * Resets XR navigation deltas relative to session base pose.
  * \{ */
 
-static wmOperatorStatus wm_xr_navigation_reset_exec(bContext *C, wmOperator *op)
+static int wm_xr_navigation_reset_exec(bContext *C, wmOperator *op)
 {
   wmWindowManager *wm = CTX_wm_manager(C);
   wmXrData *xr = &wm->xr;

@@ -17,6 +17,8 @@
 
 #include "GPU_material.hh"
 
+#include "COM_shader_node.hh"
+
 #include "node_composite_util.hh"
 
 /* **************** Pre-multiply and Key Alpha Convert ******************** */
@@ -43,20 +45,27 @@ static CMPNodeAlphaConvertMode get_mode(const bNode &node)
   return static_cast<CMPNodeAlphaConvertMode>(node.custom1);
 }
 
-static int node_gpu_material(GPUMaterial *material,
-                             bNode *node,
-                             bNodeExecData * /*execdata*/,
-                             GPUNodeStack *inputs,
-                             GPUNodeStack *outputs)
-{
-  switch (get_mode(*node)) {
-    case CMP_NODE_ALPHA_CONVERT_PREMULTIPLY:
-      return GPU_stack_link(material, node, "color_alpha_premultiply", inputs, outputs);
-    case CMP_NODE_ALPHA_CONVERT_UNPREMULTIPLY:
-      return GPU_stack_link(material, node, "color_alpha_unpremultiply", inputs, outputs);
-  }
+class AlphaConvertShaderNode : public ShaderNode {
+ public:
+  using ShaderNode::ShaderNode;
 
-  return false;
+  void compile(GPUMaterial *material) override
+  {
+    GPUNodeStack *inputs = get_inputs_array();
+    GPUNodeStack *outputs = get_outputs_array();
+
+    if (get_mode(bnode()) == CMP_NODE_ALPHA_CONVERT_PREMULTIPLY) {
+      GPU_stack_link(material, &bnode(), "color_alpha_premultiply", inputs, outputs);
+      return;
+    }
+
+    GPU_stack_link(material, &bnode(), "color_alpha_unpremultiply", inputs, outputs);
+  }
+};
+
+static ShaderNode *get_compositor_shader_node(DNode node)
+{
+  return new AlphaConvertShaderNode(node);
 }
 
 static void node_build_multi_function(blender::nodes::NodeMultiFunctionBuilder &builder)
@@ -101,8 +110,8 @@ void register_node_type_cmp_premulkey()
   ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.declare = file_ns::cmp_node_premulkey_declare;
   ntype.draw_buttons = file_ns::node_composit_buts_premulkey;
-  ntype.gpu_fn = file_ns::node_gpu_material;
+  ntype.get_compositor_shader_node = file_ns::get_compositor_shader_node;
   ntype.build_multi_function = file_ns::node_build_multi_function;
 
-  blender::bke::node_register_type(ntype);
+  blender::bke::node_register_type(&ntype);
 }

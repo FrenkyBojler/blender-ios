@@ -10,6 +10,10 @@
 
 #include "../BPy_UnaryFunction0DFloat.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 ///////////////////////////////////////////////////////////////////////////////////////////
 
 extern PyTypeObject ReadSteerableViewMapPixelF0D_Type;
@@ -24,3 +28,7 @@ typedef struct {
 } BPy_ReadSteerableViewMapPixelF0D;
 
 ///////////////////////////////////////////////////////////////////////////////////////////
+
+#ifdef __cplusplus
+}
+#endif

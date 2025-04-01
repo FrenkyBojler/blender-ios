@@ -18,6 +18,8 @@
 
 #include "GPU_material.hh"
 
+#include "COM_shader_node.hh"
+
 #include "node_composite_util.hh"
 
 /* **************** ALPHAOVER ******************** */
@@ -45,7 +47,7 @@ static void cmp_node_alphaover_declare(NodeDeclarationBuilder &b)
 
 static void node_alphaover_init(bNodeTree * /*ntree*/, bNode *node)
 {
-  node->storage = MEM_callocN<NodeTwoFloats>(__func__);
+  node->storage = MEM_cnew<NodeTwoFloats>(__func__);
 }
 
 static void node_composit_buts_alphaover(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
@@ -69,27 +71,38 @@ static float get_premultiply_factor(const bNode &node)
   return node_storage(node).x;
 }
 
-static int node_gpu_material(GPUMaterial *material,
-                             bNode *node,
-                             bNodeExecData * /*execdata*/,
-                             GPUNodeStack *inputs,
-                             GPUNodeStack *outputs)
+class AlphaOverShaderNode : public ShaderNode {
+ public:
+  using ShaderNode::ShaderNode;
+
+  void compile(GPUMaterial *material) override
+  {
+    GPUNodeStack *inputs = get_inputs_array();
+    GPUNodeStack *outputs = get_outputs_array();
+
+    const float premultiply_factor = get_premultiply_factor(bnode());
+    if (premultiply_factor != 0.0f) {
+      GPU_stack_link(material,
+                     &bnode(),
+                     "node_composite_alpha_over_mixed",
+                     inputs,
+                     outputs,
+                     GPU_uniform(&premultiply_factor));
+      return;
+    }
+
+    if (get_use_premultiply(bnode())) {
+      GPU_stack_link(material, &bnode(), "node_composite_alpha_over_key", inputs, outputs);
+      return;
+    }
+
+    GPU_stack_link(material, &bnode(), "node_composite_alpha_over_premultiply", inputs, outputs);
+  }
+};
+
+static ShaderNode *get_compositor_shader_node(DNode node)
 {
-  const float premultiply_factor = get_premultiply_factor(*node);
-  if (premultiply_factor != 0.0f) {
-    return GPU_stack_link(material,
-                          node,
-                          "node_composite_alpha_over_mixed",
-                          inputs,
-                          outputs,
-                          GPU_uniform(&premultiply_factor));
-  }
-
-  if (get_use_premultiply(*node)) {
-    return GPU_stack_link(material, node, "node_composite_alpha_over_key", inputs, outputs);
-  }
-
-  return GPU_stack_link(material, node, "node_composite_alpha_over_premultiply", inputs, outputs);
+  return new AlphaOverShaderNode(node);
 }
 
 static float4 alpha_over_mixed(const float factor,
@@ -193,9 +206,9 @@ void register_node_type_cmp_alphaover()
   ntype.draw_buttons = file_ns::node_composit_buts_alphaover;
   ntype.initfunc = file_ns::node_alphaover_init;
   blender::bke::node_type_storage(
-      ntype, "NodeTwoFloats", node_free_standard_storage, node_copy_standard_storage);
-  ntype.gpu_fn = file_ns::node_gpu_material;
+      &ntype, "NodeTwoFloats", node_free_standard_storage, node_copy_standard_storage);
+  ntype.get_compositor_shader_node = file_ns::get_compositor_shader_node;
   ntype.build_multi_function = file_ns::node_build_multi_function;
 
-  blender::bke::node_register_type(ntype);
+  blender::bke::node_register_type(&ntype);
 }

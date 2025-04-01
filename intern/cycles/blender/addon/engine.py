@@ -37,8 +37,7 @@ def _parse_command_line():
 
     if args.cycles_device:
         import _cycles
-        if not _cycles.set_device_override(args.cycles_device):
-            sys.exit(1)
+        _cycles.set_device_override(args.cycles_device)
 
 
 def init():

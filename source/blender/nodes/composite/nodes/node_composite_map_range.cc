@@ -17,6 +17,8 @@
 
 #include "GPU_material.hh"
 
+#include "COM_shader_node.hh"
+
 #include "node_composite_util.hh"
 
 /* **************** Map Range ******************** */
@@ -68,15 +70,29 @@ static bool get_should_clamp(const bNode &node)
   return node.custom1;
 }
 
-static int node_gpu_material(GPUMaterial *material,
-                             bNode *node,
-                             bNodeExecData * /*execdata*/,
-                             GPUNodeStack *inputs,
-                             GPUNodeStack *outputs)
+class MapRangeShaderNode : public ShaderNode {
+ public:
+  using ShaderNode::ShaderNode;
+
+  void compile(GPUMaterial *material) override
+  {
+    GPUNodeStack *inputs = get_inputs_array();
+    GPUNodeStack *outputs = get_outputs_array();
+
+    const float should_clamp = get_should_clamp(bnode());
+
+    GPU_stack_link(material,
+                   &bnode(),
+                   "node_composite_map_range",
+                   inputs,
+                   outputs,
+                   GPU_constant(&should_clamp));
+  }
+};
+
+static ShaderNode *get_compositor_shader_node(DNode node)
 {
-  const float should_clamp = get_should_clamp(*node);
-  return GPU_stack_link(
-      material, node, "node_composite_map_range", inputs, outputs, GPU_constant(&should_clamp));
+  return new MapRangeShaderNode(node);
 }
 
 /* An arbitrary value determined by Blender. */
@@ -166,8 +182,8 @@ void register_node_type_cmp_map_range()
   ntype.nclass = NODE_CLASS_OP_VECTOR;
   ntype.declare = file_ns::cmp_node_map_range_declare;
   ntype.draw_buttons = file_ns::node_composit_buts_map_range;
-  ntype.gpu_fn = file_ns::node_gpu_material;
+  ntype.get_compositor_shader_node = file_ns::get_compositor_shader_node;
   ntype.build_multi_function = file_ns::node_build_multi_function;
 
-  blender::bke::node_register_type(ntype);
+  blender::bke::node_register_type(&ntype);
 }

@@ -64,8 +64,6 @@ struct RNAPath {
    */
   std::optional<std::string> key = std::nullopt;
   std::optional<int> index = std::nullopt;
-
-  int64_t hash() const;
 };
 
 /**

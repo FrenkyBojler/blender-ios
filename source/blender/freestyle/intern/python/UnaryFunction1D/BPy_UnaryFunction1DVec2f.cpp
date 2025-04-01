@@ -15,6 +15,10 @@
 #include "UnaryFunction1D_Vec2f/BPy_Normal2DF1D.h"
 #include "UnaryFunction1D_Vec2f/BPy_Orientation2DF1D.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 using namespace Freestyle;
 
 ///////////////////////////////////////////////////////////////////////////////////////////
@@ -204,3 +208,7 @@ PyTypeObject UnaryFunction1DVec2f_Type = {
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////
+
+#ifdef __cplusplus
+}
+#endif

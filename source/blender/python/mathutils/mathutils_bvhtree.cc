@@ -694,7 +694,7 @@ static PyObject *C_BVHTree_FromPolygons(PyObject * /*cls*/, PyObject *args, PyOb
   if (valid) {
     PyObject **py_coords_fast_items = PySequence_Fast_ITEMS(py_coords_fast);
     coords_len = uint(PySequence_Fast_GET_SIZE(py_coords_fast));
-    coords = MEM_malloc_arrayN<float[3]>(size_t(coords_len), __func__);
+    coords = static_cast<float(*)[3]>(MEM_mallocN(size_t(coords_len) * sizeof(*coords), __func__));
 
     for (i = 0; i < coords_len; i++) {
       PyObject *py_vert = py_coords_fast_items[i];
@@ -713,7 +713,7 @@ static PyObject *C_BVHTree_FromPolygons(PyObject * /*cls*/, PyObject *args, PyOb
     /* all triangles, simple case */
     PyObject **py_tris_fast_items = PySequence_Fast_ITEMS(py_tris_fast);
     tris_len = uint(PySequence_Fast_GET_SIZE(py_tris_fast));
-    tris = MEM_malloc_arrayN<uint[3]>(size_t(tris_len), __func__);
+    tris = static_cast<uint(*)[3]>(MEM_mallocN(size_t(tris_len) * sizeof(*tris), __func__));
 
     for (i = 0; i < tris_len; i++) {
       PyObject *py_tricoords = py_tris_fast_items[i];
@@ -819,10 +819,11 @@ static PyObject *C_BVHTree_FromPolygons(PyObject * /*cls*/, PyObject *args, PyOb
     /* All NGON's are parsed, now tessellate. */
 
     pf_arena = BLI_memarena_new(BLI_POLYFILL_ARENA_SIZE, __func__);
-    tris = MEM_malloc_arrayN<uint[3]>(size_t(tris_len), __func__);
+    tris = static_cast<uint(*)[3]>(MEM_mallocN(sizeof(*tris) * size_t(tris_len), __func__));
 
-    orig_index = MEM_malloc_arrayN<int>(size_t(tris_len), __func__);
-    orig_normal = MEM_malloc_arrayN<float[3]>(size_t(polys_len), __func__);
+    orig_index = static_cast<int *>(MEM_mallocN(sizeof(*orig_index) * size_t(tris_len), __func__));
+    orig_normal = static_cast<float(*)[3]>(
+        MEM_mallocN(sizeof(*orig_normal) * size_t(polys_len), __func__));
 
     for (plink = plink_first, poly_index = 0, i = 0; plink; plink = plink->next, poly_index++) {
       if (plink->len == 3) {
@@ -965,8 +966,8 @@ static PyObject *C_BVHTree_FromBMesh(PyObject * /*cls*/, PyObject *args, PyObjec
   coords_len = uint(bm->totvert);
   tris_len = uint(poly_to_tri_count(bm->totface, bm->totloop));
 
-  coords = MEM_malloc_arrayN<float[3]>(size_t(coords_len), __func__);
-  tris = MEM_malloc_arrayN<uint[3]>(size_t(tris_len), __func__);
+  coords = static_cast<float(*)[3]>(MEM_mallocN(sizeof(*coords) * size_t(coords_len), __func__));
+  tris = static_cast<uint(*)[3]>(MEM_mallocN(sizeof(*tris) * size_t(tris_len), __func__));
 
   blender::Array<std::array<BMLoop *, 3>> corner_tris(tris_len);
   BM_mesh_calc_tessellation(bm, corner_tris);
@@ -984,8 +985,10 @@ static PyObject *C_BVHTree_FromBMesh(PyObject * /*cls*/, PyObject *args, PyObjec
       BMFace *f;
       BMVert *v;
 
-      orig_index = MEM_malloc_arrayN<int>(size_t(tris_len), __func__);
-      orig_normal = MEM_malloc_arrayN<float[3]>(size_t(bm->totface), __func__);
+      orig_index = static_cast<int *>(
+          MEM_mallocN(sizeof(*orig_index) * size_t(tris_len), __func__));
+      orig_normal = static_cast<float(*)[3]>(
+          MEM_mallocN(sizeof(*orig_normal) * size_t(bm->totface), __func__));
 
       BM_ITER_MESH_INDEX (v, &iter, bm, BM_VERTS_OF_MESH, i) {
         copy_v3_v3(coords[i], v->co);
@@ -1034,7 +1037,6 @@ static const Mesh *bvh_get_mesh(const char *funcname,
   const CustomData_MeshMasks data_masks = CD_MASK_BAREMESH;
   const bool use_render = DEG_get_mode(depsgraph) == DAG_EVAL_RENDER;
   *r_free_mesh = false;
-  Mesh *mesh;
 
   /* Write the display mesh into the dummy mesh */
   if (use_deform) {
@@ -1047,33 +1049,15 @@ static const Mesh *bvh_get_mesh(const char *funcname,
         return nullptr;
       }
 
-      mesh = blender::bke::mesh_create_eval_final(depsgraph, scene, ob, &data_masks);
-      if (mesh == nullptr) {
-        PyErr_Format(PyExc_ValueError,
-                     "%s(...): Cannot get a mesh from object '%s'",
-                     ob->id.name + 2,
-                     funcname);
-        return nullptr;
-      }
-
       *r_free_mesh = true;
-      return mesh;
+      return blender::bke::mesh_create_eval_final(depsgraph, scene, ob, &data_masks);
     }
     if (ob_eval != nullptr) {
       if (use_cage) {
-        mesh = blender::bke::mesh_get_eval_deform(depsgraph, scene, ob_eval, &data_masks);
+        return blender::bke::mesh_get_eval_deform(depsgraph, scene, ob_eval, &data_masks);
       }
-      else {
-        mesh = BKE_object_get_evaluated_mesh(ob_eval);
-      }
-      if (mesh == nullptr) {
-        PyErr_Format(PyExc_ValueError,
-                     "%s(...): Cannot get a mesh from object '%s'",
-                     ob->id.name + 2,
-                     funcname);
-        return nullptr;
-      }
-      return mesh;
+
+      return BKE_object_get_evaluated_mesh(ob_eval);
     }
 
     PyErr_Format(PyExc_ValueError,
@@ -1091,16 +1075,9 @@ static const Mesh *bvh_get_mesh(const char *funcname,
           funcname);
       return nullptr;
     }
-    mesh = blender::bke::mesh_create_eval_no_deform_render(depsgraph, scene, ob, &data_masks);
-    if (mesh == nullptr) {
-      PyErr_Format(PyExc_ValueError,
-                   "%s(...): Cannot get a mesh from object '%s'",
-                   ob->id.name + 2,
-                   funcname);
-      return nullptr;
-    }
+
     *r_free_mesh = true;
-    return mesh;
+    return blender::bke::mesh_create_eval_no_deform_render(depsgraph, scene, ob, &data_masks);
   }
 
   if (use_cage) {
@@ -1111,16 +1088,8 @@ static const Mesh *bvh_get_mesh(const char *funcname,
     return nullptr;
   }
 
-  mesh = blender::bke::mesh_create_eval_no_deform(depsgraph, scene, ob, &data_masks);
-  if (mesh == nullptr) {
-    PyErr_Format(PyExc_ValueError,
-                 "%s(...): Cannot get a mesh from object '%s'",
-                 ob->id.name + 2,
-                 funcname);
-    return nullptr;
-  }
   *r_free_mesh = true;
-  return mesh;
+  return blender::bke::mesh_create_eval_no_deform(depsgraph, scene, ob, &data_masks);
 }
 
 PyDoc_STRVAR(
@@ -1188,8 +1157,10 @@ static PyObject *C_BVHTree_FromObject(PyObject * /*cls*/, PyObject *args, PyObje
 
   const uint coords_len = uint(mesh->verts_num);
 
-  float(*coords)[3] = MEM_malloc_arrayN<float[3]>(size_t(coords_len), __func__);
-  uint(*tris)[3] = MEM_malloc_arrayN<uint[3]>(size_t(corner_tris.size()), __func__);
+  float(*coords)[3] = static_cast<float(*)[3]>(
+      MEM_mallocN(sizeof(*coords) * size_t(coords_len), __func__));
+  uint(*tris)[3] = static_cast<uint(*)[3]>(
+      MEM_mallocN(sizeof(*tris) * size_t(corner_tris.size()), __func__));
   memcpy(coords, mesh->vert_positions().data(), sizeof(float[3]) * size_t(mesh->verts_num));
 
   BVHTree *tree;
@@ -1200,10 +1171,12 @@ static PyObject *C_BVHTree_FromObject(PyObject * /*cls*/, PyObject *args, PyObje
   tree = BLI_bvhtree_new(
       int(corner_tris.size()), epsilon, PY_BVH_TREE_TYPE_DEFAULT, PY_BVH_AXIS_DEFAULT);
   if (tree) {
-    orig_index = MEM_malloc_arrayN<int>(size_t(corner_tris.size()), __func__);
+    orig_index = static_cast<int *>(
+        MEM_mallocN(sizeof(*orig_index) * size_t(corner_tris.size()), __func__));
     if (!BKE_mesh_face_normals_are_dirty(mesh)) {
       const blender::Span<blender::float3> face_normals = mesh->face_normals();
-      orig_normal = MEM_malloc_arrayN<blender::float3>(size_t(mesh->faces_num), __func__);
+      orig_normal = static_cast<blender::float3 *>(
+          MEM_malloc_arrayN(size_t(mesh->faces_num), sizeof(blender::float3), __func__));
       blender::MutableSpan(orig_normal, face_normals.size()).copy_from(face_normals);
     }
 
@@ -1246,14 +1219,9 @@ static PyObject *C_BVHTree_FromObject(PyObject * /*cls*/, PyObject *args, PyObje
 /** \name Module & Type definition
  * \{ */
 
-#ifdef __GNUC__
-#  ifdef __clang__
-#    pragma clang diagnostic push
-#    pragma clang diagnostic ignored "-Wcast-function-type"
-#  else
-#    pragma GCC diagnostic push
-#    pragma GCC diagnostic ignored "-Wcast-function-type"
-#  endif
+#if (defined(__GNUC__) && !defined(__clang__))
+#  pragma GCC diagnostic push
+#  pragma GCC diagnostic ignored "-Wcast-function-type"
 #endif
 
 static PyMethodDef py_bvhtree_methods[] = {
@@ -1289,12 +1257,8 @@ static PyMethodDef py_bvhtree_methods[] = {
     {nullptr, nullptr, 0, nullptr},
 };
 
-#ifdef __GNUC__
-#  ifdef __clang__
-#    pragma clang diagnostic pop
-#  else
-#    pragma GCC diagnostic pop
-#  endif
+#if (defined(__GNUC__) && !defined(__clang__))
+#  pragma GCC diagnostic pop
 #endif
 
 PyTypeObject PyBVHTree_Type = {

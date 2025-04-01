@@ -3,18 +3,10 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-"""
-Run CPPCHECK on Blender's source files,
-writing results to a log as well as a summary of all checks.
-
-Existing logs are renamed to ``.old.log`` so they can be compared.
-"""
-
 __all__ = (
     "main",
 )
 
-import argparse
 import project_source_info
 import subprocess
 import sys
@@ -51,7 +43,7 @@ CHECKER_EXCLUDE_SOURCE_FILES_EXT = (
 
 # To add files use a relative path.
 CHECKER_EXCLUDE_SOURCE_FILES = set(os.path.join(*f.split("/")) for f in (
-    "source/blender/draw/engines/eevee/eevee_lut.cc",
+    "source/blender/draw/engines/eevee_next/eevee_lut.cc",
     # Hangs for hours CPPCHECK-2.14.0.
     "intern/cycles/blender/output_driver.cpp",
 ))
@@ -360,59 +352,9 @@ def cppcheck_generate_summary(
             log_summary_fh.write(line)
 
 
-def argparse_create() -> argparse.ArgumentParser:
-
-    parser = argparse.ArgumentParser(
-        description=__doc__,
-        formatter_class=argparse.RawTextHelpFormatter,
-    )
-
-    parser.add_argument(
-        "--build-dir",
-        dest="build_dir",
-        metavar='BUILD_DIR',
-        type=str,
-        help=(
-            "The build directory (containing CMakeCache.txt).\n"
-            "\n"
-            "Defaults to the \".\"."
-        ),
-        default=".",
-        required=False,
-    )
-
-    parser.add_argument(
-        "--output-dir",
-        dest="output_dir",
-        metavar='OUTPUT_DIR',
-        type=str,
-        help=(
-            "Specify the directory where CPPCHECK logs will be written to.\n"
-            "Using this may be preferred so the build directory can be cleared\n"
-            "without loosing the result of previous checks.\n"
-            "\n"
-            "Defaults to {BUILD_DIR}/cppcheck/"
-        ),
-        default="",
-        required=False,
-    )
-
-    return parser
-
-
 def main() -> None:
-    args = argparse_create().parse_args()
-
-    project_source_info.cmake_dir_set(args.build_dir)
-
-    cppcheck_dir = args.output_dir
-
-    if cppcheck_dir:
-        cppcheck_dir = os.path.normpath(os.path.abspath(cppcheck_dir))
-    else:
-        cppcheck_dir = os.path.join(os.path.normpath(os.path.abspath(project_source_info.CMAKE_DIR)), "cppcheck")
-
-    del args
+    cmake_dir = os.path.normpath(os.path.abspath(project_source_info.CMAKE_DIR))
+    cppcheck_dir = os.path.join(cmake_dir, "cppcheck")
 
     filepath_output_log = os.path.join(cppcheck_dir, "cppcheck.part.log")
     filepath_output_summary_log = os.path.join(cppcheck_dir, "cppcheck_summary.part.log")

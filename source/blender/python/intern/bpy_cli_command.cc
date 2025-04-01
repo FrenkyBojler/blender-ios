@@ -62,10 +62,9 @@ static int bpy_cli_command_exec(bContext *C,
                                 const int argc,
                                 const char **argv)
 {
+  int exit_code = EXIT_FAILURE;
   PyGILState_STATE gilstate;
   bpy_context_set(C, &gilstate);
-
-  int exit_code = EXIT_FAILURE;
 
   /* For the most part `sys.argv[-argc:]` is sufficient & less trouble than re-creating this
    * list. Don't do this because:
@@ -288,14 +287,9 @@ static PyObject *bpy_cli_command_unregister(PyObject * /*self*/, PyObject *value
   Py_RETURN_NONE;
 }
 
-#ifdef __GNUC__
-#  ifdef __clang__
-#    pragma clang diagnostic push
-#    pragma clang diagnostic ignored "-Wcast-function-type"
-#  else
-#    pragma GCC diagnostic push
-#    pragma GCC diagnostic ignored "-Wcast-function-type"
-#  endif
+#if (defined(__GNUC__) && !defined(__clang__))
+#  pragma GCC diagnostic push
+#  pragma GCC diagnostic ignored "-Wcast-function-type"
 #endif
 
 PyMethodDef BPY_cli_command_register_def = {
@@ -311,12 +305,8 @@ PyMethodDef BPY_cli_command_unregister_def = {
     bpy_cli_command_unregister_doc,
 };
 
-#ifdef __GNUC__
-#  ifdef __clang__
-#    pragma clang diagnostic pop
-#  else
-#    pragma GCC diagnostic pop
-#  endif
+#if (defined(__GNUC__) && !defined(__clang__))
+#  pragma GCC diagnostic pop
 #endif
 
 /** \} */

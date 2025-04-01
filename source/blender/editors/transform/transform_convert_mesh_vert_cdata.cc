@@ -19,8 +19,6 @@
 
 #include "transform_convert.hh"
 
-namespace blender::ed::transform {
-
 /* -------------------------------------------------------------------- */
 /** \name Edit Mesh Bevel Weight and Crease Transform Creation
  * \{ */
@@ -230,5 +228,3 @@ TransConvertTypeInfo TransConvertType_MeshVertCData = {
     /*recalc_data*/ recalcData_mesh_cdata,
     /*special_aftertrans_update*/ nullptr,
 };
-
-}  // namespace blender::ed::transform

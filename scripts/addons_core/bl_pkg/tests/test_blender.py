@@ -135,6 +135,8 @@ def blender_test_run(temp_dir_local: str) -> None:
         remote_url=remote_url,
     )
 
+    bpy.ops.extensions.dummy_progress()
+
     bpy.ops.extensions.repo_sync(
         repo_directory=temp_dir_local,
     )

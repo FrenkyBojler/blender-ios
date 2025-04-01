@@ -75,17 +75,17 @@ class LoadFactor {
   uint8_t denominator_;
 
  public:
-  constexpr LoadFactor(uint8_t numerator, uint8_t denominator)
+  LoadFactor(uint8_t numerator, uint8_t denominator)
       : numerator_(numerator), denominator_(denominator)
   {
     BLI_assert(numerator > 0);
     BLI_assert(numerator < denominator);
   }
 
-  constexpr void compute_total_and_usable_slots(int64_t min_total_slots,
-                                                int64_t min_usable_slots,
-                                                int64_t *r_total_slots,
-                                                int64_t *r_usable_slots) const
+  void compute_total_and_usable_slots(int64_t min_total_slots,
+                                      int64_t min_usable_slots,
+                                      int64_t *r_total_slots,
+                                      int64_t *r_usable_slots) const
   {
     BLI_assert(is_power_of_2(int(min_total_slots)));
 

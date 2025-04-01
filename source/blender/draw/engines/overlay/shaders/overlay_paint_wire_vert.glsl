@@ -2,12 +2,8 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "infos/overlay_paint_info.hh"
-
-VERTEX_SHADER_CREATE_INFO(overlay_paint_wire)
-
+#include "common_view_clipping_lib.glsl"
 #include "draw_model_lib.glsl"
-#include "draw_view_clipping_lib.glsl"
 #include "draw_view_lib.glsl"
 
 void main()

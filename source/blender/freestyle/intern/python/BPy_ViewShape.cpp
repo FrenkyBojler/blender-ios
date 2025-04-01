@@ -15,7 +15,9 @@
 
 #include "BLI_sys_types.h"
 
-#include "../generic/py_capi_utils.hh"
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 using namespace Freestyle;
 
@@ -152,16 +154,6 @@ static PyObject *ViewShape_add_vertex(BPy_ViewShape *self, PyObject *args, PyObj
 
 // virtual ViewShape *duplicate()
 
-#ifdef __GNUC__
-#  ifdef __clang__
-#    pragma clang diagnostic push
-#    pragma clang diagnostic ignored "-Wcast-function-type"
-#  else
-#    pragma GCC diagnostic push
-#    pragma GCC diagnostic ignored "-Wcast-function-type"
-#  endif
-#endif
-
 static PyMethodDef BPy_ViewShape_methods[] = {
     {"add_edge",
      (PyCFunction)ViewShape_add_edge,
@@ -173,14 +165,6 @@ static PyMethodDef BPy_ViewShape_methods[] = {
      ViewShape_add_vertex_doc},
     {nullptr, nullptr, 0, nullptr},
 };
-
-#ifdef __GNUC__
-#  ifdef __clang__
-#    pragma clang diagnostic pop
-#  else
-#    pragma GCC diagnostic pop
-#  endif
-#endif
 
 /*----------------------ViewShape get/setters ----------------------------*/
 
@@ -317,7 +301,7 @@ PyDoc_STRVAR(
 
 static PyObject *ViewShape_name_get(BPy_ViewShape *self, void * /*closure*/)
 {
-  return PyC_UnicodeFromStdStr(self->vs->getName());
+  return PyUnicode_FromString(self->vs->getName().c_str());
 }
 
 PyDoc_STRVAR(
@@ -329,7 +313,7 @@ PyDoc_STRVAR(
 
 static PyObject *ViewShape_library_path_get(BPy_ViewShape *self, void * /*closure*/)
 {
-  return PyC_UnicodeFromStdStr(self->vs->getLibraryPath());
+  return PyUnicode_FromString(self->vs->getLibraryPath().c_str());
 }
 
 PyDoc_STRVAR(
@@ -415,3 +399,7 @@ PyTypeObject ViewShape_Type = {
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////
+
+#ifdef __cplusplus
+}
+#endif

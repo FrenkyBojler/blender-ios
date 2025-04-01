@@ -2,10 +2,6 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "infos/overlay_extra_info.hh"
-
-FRAGMENT_SHADER_CREATE_INFO(overlay_extra_loose_point_base)
-
 void main()
 {
   vec2 centered = abs(gl_PointCoord - vec2(0.5));

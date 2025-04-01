@@ -264,7 +264,7 @@ static bool buttons_context_path_data(ButsContextPath *path, int type)
   if (RNA_struct_is_a(ptr->type, &RNA_Curves) && ELEM(type, -1, OB_CURVES)) {
     return true;
   }
-#ifdef WITH_POINTCLOUD
+#ifdef WITH_POINT_CLOUD
   if (RNA_struct_is_a(ptr->type, &RNA_PointCloud) && ELEM(type, -1, OB_POINTCLOUD)) {
     return true;
   }
@@ -344,13 +344,6 @@ static bool buttons_context_path_material(ButsContextPath *path)
 
     if (ob && OB_TYPE_SUPPORT_MATERIAL(ob->type)) {
       Material *ma = BKE_object_material_get(ob, ob->actcol);
-
-      const int slot = blender::math::max(ob->actcol - 1, 0);
-      if (ob->matbits && ob->matbits[slot] == 0) {
-        /* When material from active slot is stored in object data, include it in context path, see
-         * !134968. */
-        buttons_context_path_data(path, -1);
-      }
       if (ma != nullptr) {
         path->ptr[path->len] = RNA_id_pointer_create(&ma->id);
         path->len++;
@@ -437,10 +430,9 @@ static bool buttons_context_path_particle(ButsContextPath *path)
 
     if (ob && ob->type == OB_MESH) {
       ParticleSystem *psys = psys_get_current(ob);
-      if (psys != nullptr) {
-        path->ptr[path->len] = RNA_pointer_create_discrete(&ob->id, &RNA_ParticleSystem, psys);
-        path->len++;
-      }
+
+      path->ptr[path->len] = RNA_pointer_create_discrete(&ob->id, &RNA_ParticleSystem, psys);
+      path->len++;
       return true;
     }
   }
@@ -850,7 +842,7 @@ const char *buttons_context_dir[] = {
     "gpencil",
     "grease_pencil",
     "curves",
-#ifdef WITH_POINTCLOUD
+#ifdef WITH_POINT_CLOUD
     "pointcloud",
 #endif
     "volume",
@@ -947,7 +939,7 @@ int /*eContextResult*/ buttons_context(const bContext *C,
     set_pointer_type(path, result, &RNA_Curves);
     return CTX_RESULT_OK;
   }
-#ifdef WITH_POINTCLOUD
+#ifdef WITH_POINT_CLOUD
   if (CTX_data_equals(member, "pointcloud")) {
     set_pointer_type(path, result, &RNA_PointCloud);
     return CTX_RESULT_OK;
@@ -1227,13 +1219,13 @@ static void buttons_panel_context_draw(const bContext *C, Panel *panel)
       continue;
     }
 
-    if (ptr->data == nullptr) {
-      continue;
-    }
-
     /* Add > triangle. */
     if (!first) {
       uiItemL(row, "", ICON_RIGHTARROW);
+    }
+
+    if (ptr->data == nullptr) {
+      continue;
     }
 
     /* Add icon and name. */
@@ -1258,7 +1250,7 @@ static void buttons_panel_context_draw(const bContext *C, Panel *panel)
   uiLayout *pin_row = uiLayoutRow(row, false);
   uiLayoutSetAlignment(pin_row, UI_LAYOUT_ALIGN_RIGHT);
   uiItemSpacer(pin_row);
-  uiLayoutSetEmboss(pin_row, blender::ui::EmbossType::None);
+  uiLayoutSetEmboss(pin_row, UI_EMBOSS_NONE);
   uiItemO(pin_row,
           "",
           (sbuts->flag & SB_PIN_CONTEXT) ? ICON_PINNED : ICON_UNPINNED,

@@ -2,17 +2,13 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-/** \file
- * \ingroup bli
- */
-
 #include <iomanip>
 
 #include "BLI_dot_export.hh"
 
 #include <sstream>
 
-namespace blender::dot_export {
+namespace blender::dot {
 
 /* Graph Building
  ************************************************/
@@ -319,4 +315,4 @@ NodeWithSocketsRef::NodeWithSocketsRef(Node &node, const NodeWithSockets &data) 
   node_->set_shape(Attr_shape::Rectangle);
 }
 
-}  // namespace blender::dot_export
+}  // namespace blender::dot

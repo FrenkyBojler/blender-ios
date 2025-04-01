@@ -272,8 +272,8 @@ static void stitch_preview_delete(StitchPreviewer *stitch_preview)
 static void stitch_update_header(StitchStateContainer *ssc, bContext *C)
 {
   WorkspaceStatus status(C);
-  status.item(IFACE_("Confirm"), ICON_MOUSE_LMB);
   status.item(IFACE_("Cancel"), ICON_EVENT_ESC);
+  status.item(IFACE_("Confirm"), ICON_MOUSE_LMB);
   status.item(fmt::format("{} {}",
                           IFACE_("Select"),
                           (ssc->mode == STITCH_VERT ? IFACE_("Vertices") : IFACE_("Edges"))),
@@ -903,7 +903,7 @@ static void stitch_propagate_uv_final_position(Scene *scene,
   BMesh *bm = state->em->bm;
   StitchPreviewer *preview = state->stitch_preview;
 
-  const BMUVOffsets offsets = BM_uv_map_offsets_get(bm);
+  const BMUVOffsets offsets = BM_uv_map_get_offsets(bm);
 
   if (element->flag & STITCH_STITCHABLE) {
     UvElement *element_iter = element;
@@ -1847,9 +1847,9 @@ static StitchState *stitch_init(bContext *C,
   ToolSettings *ts = scene->toolsettings;
 
   BMEditMesh *em = BKE_editmesh_from_object(obedit);
-  const BMUVOffsets offsets = BM_uv_map_offsets_get(em->bm);
+  const BMUVOffsets offsets = BM_uv_map_get_offsets(em->bm);
 
-  state = MEM_callocN<StitchState>("stitch state obj");
+  state = MEM_cnew<StitchState>("stitch state obj");
 
   /* initialize state */
   state->obedit = obedit;
@@ -2205,7 +2205,7 @@ static int stitch_init_all(bContext *C, wmOperator *op)
     return 0;
   }
 
-  StitchStateContainer *ssc = MEM_callocN<StitchStateContainer>("stitch collection");
+  StitchStateContainer *ssc = MEM_cnew<StitchStateContainer>("stitch collection");
 
   op->customdata = ssc;
 
@@ -2339,7 +2339,7 @@ static int stitch_init_all(bContext *C, wmOperator *op)
   return 1;
 }
 
-static wmOperatorStatus stitch_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+static int stitch_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
   if (!stitch_init_all(C, op)) {
     return OPERATOR_CANCELLED;
@@ -2458,7 +2458,7 @@ static void stitch_cancel(bContext *C, wmOperator *op)
   stitch_exit(C, op, 0);
 }
 
-static wmOperatorStatus stitch_exec(bContext *C, wmOperator *op)
+static int stitch_exec(bContext *C, wmOperator *op)
 {
   Scene *scene = CTX_data_scene(C);
 
@@ -2528,7 +2528,7 @@ static StitchState *stitch_select(bContext *C,
   return nullptr;
 }
 
-static wmOperatorStatus stitch_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static int stitch_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   StitchStateContainer *ssc;
   Scene *scene = CTX_data_scene(C);

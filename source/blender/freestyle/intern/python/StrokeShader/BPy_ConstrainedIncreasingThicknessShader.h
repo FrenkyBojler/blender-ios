@@ -10,6 +10,10 @@
 
 #include "../BPy_StrokeShader.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 ///////////////////////////////////////////////////////////////////////////////////////////
 
 extern PyTypeObject ConstrainedIncreasingThicknessShader_Type;
@@ -24,3 +28,7 @@ typedef struct {
 } BPy_ConstrainedIncreasingThicknessShader;
 
 ///////////////////////////////////////////////////////////////////////////////////////////
+
+#ifdef __cplusplus
+}
+#endif

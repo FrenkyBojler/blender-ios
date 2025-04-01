@@ -79,7 +79,7 @@ static bool mesh_extract_uv_format_init(GPUVertFormat *format,
   return true;
 }
 
-gpu::VertBufPtr extract_uv_maps(const MeshRenderData &mr, const MeshBatchCache &cache)
+void extract_uv_maps(const MeshRenderData &mr, const MeshBatchCache &cache, gpu::VertBuf &vbo)
 {
   GPUVertFormat format = {0};
 
@@ -92,8 +92,8 @@ gpu::VertBufPtr extract_uv_maps(const MeshRenderData &mr, const MeshBatchCache &
     v_len = 1;
   }
 
-  gpu::VertBufPtr vbo = gpu::VertBufPtr(GPU_vertbuf_create_with_format(format));
-  GPU_vertbuf_data_alloc(*vbo, v_len);
+  GPU_vertbuf_init_with_format(vbo, format);
+  GPU_vertbuf_data_alloc(vbo, v_len);
 
   Vector<int> uv_indices;
   for (const int i : IndexRange(MAX_MTFACE)) {
@@ -102,7 +102,7 @@ gpu::VertBufPtr extract_uv_maps(const MeshRenderData &mr, const MeshBatchCache &
     }
   }
 
-  MutableSpan<float2> uv_data = vbo->data<float2>();
+  MutableSpan<float2> uv_data = vbo.data<float2>();
   threading::memory_bandwidth_bound_task(uv_data.size_in_bytes() * 2, [&]() {
     if (mr.extract_type == MeshExtractType::BMesh) {
       const BMesh &bm = *mr.bm;
@@ -132,11 +132,11 @@ gpu::VertBufPtr extract_uv_maps(const MeshRenderData &mr, const MeshBatchCache &
       }
     }
   });
-  return vbo;
 }
 
-gpu::VertBufPtr extract_uv_maps_subdiv(const DRWSubdivCache &subdiv_cache,
-                                       const MeshBatchCache &cache)
+void extract_uv_maps_subdiv(const DRWSubdivCache &subdiv_cache,
+                            const MeshBatchCache &cache,
+                            gpu::VertBuf &vbo)
 {
   const Mesh *coarse_mesh = subdiv_cache.mesh;
   GPUVertFormat format = {0};
@@ -150,10 +150,10 @@ gpu::VertBufPtr extract_uv_maps_subdiv(const DRWSubdivCache &subdiv_cache,
     v_len = 1;
   }
 
-  gpu::VertBufPtr vbo = gpu::VertBufPtr(GPU_vertbuf_create_on_device(format, v_len));
+  GPU_vertbuf_init_build_on_device(vbo, format, v_len);
 
   if (uv_layers == 0) {
-    return vbo;
+    return;
   }
 
   /* Index of the UV layer in the compact buffer. Used UV layers are stored in a single buffer. */
@@ -161,10 +161,9 @@ gpu::VertBufPtr extract_uv_maps_subdiv(const DRWSubdivCache &subdiv_cache,
   for (int i = 0; i < MAX_MTFACE; i++) {
     if (uv_layers & (1 << i)) {
       const int offset = int(subdiv_cache.num_subdiv_loops) * pack_layer_index++;
-      draw_subdiv_extract_uvs(subdiv_cache, vbo.get(), i, offset);
+      draw_subdiv_extract_uvs(subdiv_cache, &vbo, i, offset);
     }
   }
-  return vbo;
 }
 
 }  // namespace blender::draw

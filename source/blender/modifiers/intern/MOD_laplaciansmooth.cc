@@ -31,33 +31,28 @@
 
 #include "eigen_capi.h"
 
-/* Prevent naming collision. */
-namespace {
-
 struct LaplacianSystem {
-  float *eweights = nullptr;      /* Length weights per Edge */
-  float (*fweights)[3] = nullptr; /* Cotangent weights per face */
-  float *ring_areas = nullptr;    /* Total area per ring. */
-  float *vlengths = nullptr;      /* Total sum of lengths(edges) per vertex. */
-  float *vweights = nullptr;      /* Total sum of weights per vertex. */
-  int verts_num = 0;              /* Number of verts. */
-  short *ne_fa_num = nullptr;     /* Number of neighbors faces around vertex. */
-  short *ne_ed_num = nullptr;     /* Number of neighbors Edges around vertex. */
-  bool *zerola = nullptr;         /* Is zero area or length. */
+  float *eweights;      /* Length weights per Edge */
+  float (*fweights)[3]; /* Cotangent weights per face */
+  float *ring_areas;    /* Total area per ring. */
+  float *vlengths;      /* Total sum of lengths(edges) per vertex. */
+  float *vweights;      /* Total sum of weights per vertex. */
+  int verts_num;        /* Number of verts. */
+  short *ne_fa_num;     /* Number of neighbors faces around vertex. */
+  short *ne_ed_num;     /* Number of neighbors Edges around vertex. */
+  bool *zerola;         /* Is zero area or length. */
 
   /* Pointers to data. */
-  float (*vertexCos)[3] = nullptr;
-  blender::Span<blender::int2> edges = {};
-  blender::OffsetIndices<int> faces = {};
-  blender::Span<int> corner_verts = {};
-  LinearSolver *context = nullptr;
+  float (*vertexCos)[3];
+  blender::Span<blender::int2> edges;
+  blender::OffsetIndices<int> faces;
+  blender::Span<int> corner_verts;
+  LinearSolver *context;
 
   /* Data. */
-  float min_area = 0.0f;
-  float vert_centroid[3] = {};
+  float min_area;
+  float vert_centroid[3];
 };
-
-};  // namespace
 
 static void delete_laplacian_system(LaplacianSystem *sys)
 {
@@ -74,7 +69,7 @@ static void delete_laplacian_system(LaplacianSystem *sys)
     EIG_linear_solver_delete(sys->context);
   }
   sys->vertexCos = nullptr;
-  MEM_delete(sys);
+  MEM_freeN(sys);
 }
 
 static void memset_laplacian_system(LaplacianSystem *sys, int val)
@@ -92,17 +87,17 @@ static void memset_laplacian_system(LaplacianSystem *sys, int val)
 static LaplacianSystem *init_laplacian_system(int a_numEdges, int a_numLoops, int a_numVerts)
 {
   LaplacianSystem *sys;
-  sys = MEM_new<LaplacianSystem>(__func__);
+  sys = static_cast<LaplacianSystem *>(MEM_callocN(sizeof(LaplacianSystem), __func__));
   sys->verts_num = a_numVerts;
 
-  sys->eweights = MEM_calloc_arrayN<float>(a_numEdges, __func__);
-  sys->fweights = MEM_calloc_arrayN<float[3]>(a_numLoops, __func__);
-  sys->ne_ed_num = MEM_calloc_arrayN<short>(sys->verts_num, __func__);
-  sys->ne_fa_num = MEM_calloc_arrayN<short>(sys->verts_num, __func__);
-  sys->ring_areas = MEM_calloc_arrayN<float>(sys->verts_num, __func__);
-  sys->vlengths = MEM_calloc_arrayN<float>(sys->verts_num, __func__);
-  sys->vweights = MEM_calloc_arrayN<float>(sys->verts_num, __func__);
-  sys->zerola = MEM_calloc_arrayN<bool>(sys->verts_num, __func__);
+  sys->eweights = MEM_cnew_array<float>(a_numEdges, __func__);
+  sys->fweights = MEM_cnew_array<float[3]>(a_numLoops, __func__);
+  sys->ne_ed_num = MEM_cnew_array<short>(sys->verts_num, __func__);
+  sys->ne_fa_num = MEM_cnew_array<short>(sys->verts_num, __func__);
+  sys->ring_areas = MEM_cnew_array<float>(sys->verts_num, __func__);
+  sys->vlengths = MEM_cnew_array<float>(sys->verts_num, __func__);
+  sys->vweights = MEM_cnew_array<float>(sys->verts_num, __func__);
+  sys->zerola = MEM_cnew_array<bool>(sys->verts_num, __func__);
 
   return sys;
 }

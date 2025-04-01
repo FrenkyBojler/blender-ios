@@ -22,9 +22,7 @@ static void gizmo_blank_draw(const bContext * /*C*/, wmGizmo * /*gz*/)
   /* pass */
 }
 
-static wmOperatorStatus gizmo_blank_invoke(bContext * /*C*/,
-                                           wmGizmo * /*gz*/,
-                                           const wmEvent * /*event*/)
+static int gizmo_blank_invoke(bContext * /*C*/, wmGizmo * /*gz*/, const wmEvent * /*event*/)
 {
   return OPERATOR_RUNNING_MODAL;
 }

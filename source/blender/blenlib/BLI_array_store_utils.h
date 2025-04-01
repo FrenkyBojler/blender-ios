@@ -10,6 +10,10 @@
 
 #include <stddef.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct BArrayStore;
 
 struct BArrayStore_AtSize {
@@ -28,3 +32,7 @@ void BLI_array_store_at_size_clear(struct BArrayStore_AtSize *bs_stride);
 void BLI_array_store_at_size_calc_memory_usage(const struct BArrayStore_AtSize *bs_stride,
                                                size_t *r_size_expanded,
                                                size_t *r_size_compacted);
+
+#ifdef __cplusplus
+}
+#endif

@@ -51,9 +51,7 @@ static const EnumPropertyItem ply_vertex_colors_mode[] = {
      "Vertex colors in the file are in linear color space"},
     {0, nullptr, 0, nullptr, nullptr}};
 
-static wmOperatorStatus wm_ply_export_invoke(bContext *C,
-                                             wmOperator *op,
-                                             const wmEvent * /*event*/)
+static int wm_ply_export_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
   ED_fileselect_ensure_default_filepath(C, op, ".ply");
 
@@ -61,7 +59,7 @@ static wmOperatorStatus wm_ply_export_invoke(bContext *C,
   return OPERATOR_RUNNING_MODAL;
 }
 
-static wmOperatorStatus wm_ply_export_exec(bContext *C, wmOperator *op)
+static int wm_ply_export_exec(bContext *C, wmOperator *op)
 {
   if (!RNA_struct_property_is_set_ex(op->ptr, "filepath", false)) {
     BKE_report(op->reports, RPT_ERROR, "No filepath given");
@@ -91,12 +89,7 @@ static wmOperatorStatus wm_ply_export_exec(bContext *C, wmOperator *op)
 
   PLY_export(C, export_params);
 
-  if (BKE_reports_contain(op->reports, RPT_ERROR)) {
-    return OPERATOR_CANCELLED;
-  }
-
-  BKE_report(op->reports, RPT_INFO, "File exported successfully");
-  return OPERATOR_FINISHED;
+  return BKE_reports_contain(op->reports, RPT_ERROR) ? OPERATOR_CANCELLED : OPERATOR_FINISHED;
 }
 
 static void wm_ply_export_draw(bContext *C, wmOperator *op)
@@ -252,7 +245,7 @@ void WM_OT_ply_export(wmOperatorType *ot)
   RNA_def_property_flag(prop, PROP_HIDDEN);
 }
 
-static wmOperatorStatus wm_ply_import_exec(bContext *C, wmOperator *op)
+static int wm_ply_import_exec(bContext *C, wmOperator *op)
 {
   PLYImportParams params;
   params.forward_axis = eIOAxis(RNA_enum_get(op->ptr, "forward_axis"));

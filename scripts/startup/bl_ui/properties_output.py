@@ -71,7 +71,7 @@ class RENDER_PT_format(RenderOutputButtonsPanel, Panel):
             fps_rate = round(fps / fps_base, 2)
 
         # TODO: Change the following to iterate over existing presets
-        custom_framerate = (fps_rate not in {6, 8, 12, 23.98, 24, 25, 29.97, 30, 50, 59.94, 60, 120, 240})
+        custom_framerate = (fps_rate not in {23.98, 24, 25, 29.97, 30, 50, 59.94, 60, 120, 240})
 
         if custom_framerate is True:
             fps_label_text = iface_("Custom ({:.4g} fps)").format(fps_rate)
@@ -466,41 +466,31 @@ class RENDER_PT_encoding_video(RenderOutputButtonsPanel, Panel):
         if use_crf:
             layout.prop(ffmpeg, "constant_rate_factor")
 
-        use_encoding_speed = needs_codec and ffmpeg.codec not in {'DNXHD', 'FFV1', 'HUFFYUV', 'PNG', 'QTRLE'}
-        use_bitrate = needs_codec and ffmpeg.codec not in {'FFV1', 'HUFFYUV', 'PNG', 'QTRLE'}
-        use_min_max_bitrate = ffmpeg.codec not in {'DNXHD'}
-        use_gop = needs_codec and ffmpeg.codec not in {'DNXHD', 'HUFFYUV', 'PNG'}
-        use_b_frames = needs_codec and use_gop and ffmpeg.codec not in {'FFV1', 'QTRLE'}
-
         # Encoding speed
-        if use_encoding_speed:
-            layout.prop(ffmpeg, "ffmpeg_preset")
+        layout.prop(ffmpeg, "ffmpeg_preset")
         # I-frames
-        if use_gop:
-            layout.prop(ffmpeg, "gopsize")
+        layout.prop(ffmpeg, "gopsize")
         # B-Frames
-        if use_b_frames:
-            row = layout.row(align=True, heading="Max B-frames")
-            row.prop(ffmpeg, "use_max_b_frames", text="")
-            sub = row.row(align=True)
-            sub.active = ffmpeg.use_max_b_frames
-            sub.prop(ffmpeg, "max_b_frames", text="")
+        row = layout.row(align=True, heading="Max B-frames")
+        row.prop(ffmpeg, "use_max_b_frames", text="")
+        sub = row.row(align=True)
+        sub.active = ffmpeg.use_max_b_frames
+        sub.prop(ffmpeg, "max_b_frames", text="")
 
-        if (not use_crf or ffmpeg.constant_rate_factor == 'NONE') and use_bitrate:
+        if not use_crf or ffmpeg.constant_rate_factor == 'NONE':
             col = layout.column()
 
             sub = col.column(align=True)
             sub.prop(ffmpeg, "video_bitrate")
-            if use_min_max_bitrate:
-                sub.prop(ffmpeg, "minrate", text="Minimum")
-                sub.prop(ffmpeg, "maxrate", text="Maximum")
+            sub.prop(ffmpeg, "minrate", text="Minimum")
+            sub.prop(ffmpeg, "maxrate", text="Maximum")
 
-                col.prop(ffmpeg, "buffersize", text="Buffer")
+            col.prop(ffmpeg, "buffersize", text="Buffer")
 
-                col.separator()
+            col.separator()
 
-                col.prop(ffmpeg, "muxrate", text="Mux Rate")
-                col.prop(ffmpeg, "packetsize", text="Mux Packet Size")
+            col.prop(ffmpeg, "muxrate", text="Mux Rate")
+            col.prop(ffmpeg, "packetsize", text="Mux Packet Size")
 
 
 class RENDER_PT_encoding_audio(RenderOutputButtonsPanel, Panel):

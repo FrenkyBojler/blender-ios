@@ -22,6 +22,10 @@
 #include "UnaryPredicate1D/BPy_TrueUP1D.h"
 #include "UnaryPredicate1D/BPy_WithinImageBoundaryUP1D.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 using namespace Freestyle;
 
 ///////////////////////////////////////////////////////////////////////////////////////////
@@ -242,3 +246,7 @@ PyTypeObject UnaryPredicate1D_Type = {
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////
+
+#ifdef __cplusplus
+}
+#endif

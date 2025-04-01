@@ -22,20 +22,19 @@ namespace blender::draw {
 
 static const GPUVertFormat &edituv_data_format()
 {
-  static const GPUVertFormat format = []() {
-    GPUVertFormat format{};
+  static GPUVertFormat format = {0};
+  if (format.attr_len == 0) {
     /* WARNING: Adjust #EditLoopData struct accordingly. */
     GPU_vertformat_attr_add(&format, "data", GPU_COMP_U8, 4, GPU_FETCH_INT);
     GPU_vertformat_alias_add(&format, "flag");
-    return format;
-  }();
+  }
   return format;
 }
 
 static void extract_edituv_data_bm(const MeshRenderData &mr, MutableSpan<EditLoopData> vbo_data)
 {
   const BMesh &bm = *mr.bm;
-  const BMUVOffsets offsets = BM_uv_map_offsets_get(&bm);
+  const BMUVOffsets offsets = BM_uv_map_get_offsets(&bm);
   threading::parallel_for(IndexRange(bm.totface), 2048, [&](const IndexRange range) {
     for (const int face_index : range) {
       const BMFace &face = *BM_face_at_index(&const_cast<BMesh &>(bm), face_index);
@@ -56,7 +55,7 @@ static void extract_edituv_data_bm(const MeshRenderData &mr, MutableSpan<EditLoo
 static void extract_edituv_data_mesh(const MeshRenderData &mr, MutableSpan<EditLoopData> vbo_data)
 {
   const BMesh &bm = *mr.bm;
-  const BMUVOffsets offsets = BM_uv_map_offsets_get(&bm);
+  const BMUVOffsets offsets = BM_uv_map_get_offsets(&bm);
   const OffsetIndices faces = mr.faces;
   const Span<int> corner_verts = mr.corner_verts;
   const Span<int> corner_edges = mr.corner_edges;
@@ -97,11 +96,11 @@ static void extract_edituv_data_mesh(const MeshRenderData &mr, MutableSpan<EditL
   });
 }
 
-gpu::VertBufPtr extract_edituv_data(const MeshRenderData &mr)
+void extract_edituv_data(const MeshRenderData &mr, gpu::VertBuf &vbo)
 {
-  gpu::VertBufPtr vbo = gpu::VertBufPtr(GPU_vertbuf_create_with_format(edituv_data_format()));
-  GPU_vertbuf_data_alloc(*vbo, mr.corners_num);
-  MutableSpan vbo_data = vbo->data<EditLoopData>();
+  GPU_vertbuf_init_with_format(vbo, edituv_data_format());
+  GPU_vertbuf_data_alloc(vbo, mr.corners_num);
+  MutableSpan vbo_data = vbo.data<EditLoopData>();
 
   if (mr.extract_type == MeshExtractType::BMesh) {
     extract_edituv_data_bm(mr, vbo_data);
@@ -109,11 +108,10 @@ gpu::VertBufPtr extract_edituv_data(const MeshRenderData &mr)
   else {
     extract_edituv_data_mesh(mr, vbo_data);
   }
-  return vbo;
 }
 
 static void extract_edituv_data_iter_subdiv_bm(const MeshRenderData &mr,
-                                               const BMUVOffsets &offsets,
+                                               const BMUVOffsets offsets,
                                                const Span<int> subdiv_loop_vert_index,
                                                const Span<int> subdiv_loop_edge_index,
                                                const int subdiv_quad_index,
@@ -166,7 +164,7 @@ static void extract_edituv_subdiv_data_bm(const MeshRenderData &mr,
   /* NOTE: #subdiv_loop_edge_index already has the origindex layer baked in. */
   const Span<int> subdiv_loop_edge_index = subdiv_cache.edges_orig_index->data<int>();
 
-  const BMUVOffsets offsets = BM_uv_map_offsets_get(mr.bm);
+  const BMUVOffsets offsets = BM_uv_map_get_offsets(mr.bm);
   threading::parallel_for(IndexRange(subdiv_cache.num_subdiv_quads), 2048, [&](IndexRange range) {
     for (const int subdiv_quad : range) {
       const int coarse_face = subdiv_loop_face_index[subdiv_quad * 4];
@@ -191,7 +189,7 @@ static void extract_edituv_subdiv_data_mesh(const MeshRenderData &mr,
   /* NOTE: #subdiv_loop_edge_index already has the origindex layer baked in. */
   const Span<int> subdiv_loop_edge_index = subdiv_cache.edges_orig_index->data<int>();
 
-  const BMUVOffsets offsets = BM_uv_map_offsets_get(mr.bm);
+  const BMUVOffsets offsets = BM_uv_map_get_offsets(mr.bm);
   threading::parallel_for(IndexRange(subdiv_cache.num_subdiv_quads), 2048, [&](IndexRange range) {
     for (const int subdiv_quad : range) {
       const int coarse_face = subdiv_loop_face_index[subdiv_quad * 4];
@@ -206,13 +204,14 @@ static void extract_edituv_subdiv_data_mesh(const MeshRenderData &mr,
   });
 }
 
-gpu::VertBufPtr extract_edituv_data_subdiv(const MeshRenderData &mr,
-                                           const DRWSubdivCache &subdiv_cache)
+void extract_edituv_data_subdiv(const MeshRenderData &mr,
+                                const DRWSubdivCache &subdiv_cache,
+                                gpu::VertBuf &vbo)
 {
-  gpu::VertBufPtr vbo = gpu::VertBufPtr(GPU_vertbuf_create_with_format(edituv_data_format()));
+  GPU_vertbuf_init_with_format(vbo, edituv_data_format());
   const int size = subdiv_cache.num_subdiv_loops;
-  GPU_vertbuf_data_alloc(*vbo, size);
-  MutableSpan vbo_data = vbo->data<EditLoopData>();
+  GPU_vertbuf_data_alloc(vbo, size);
+  MutableSpan vbo_data = vbo.data<EditLoopData>();
 
   if (mr.extract_type == MeshExtractType::BMesh) {
     extract_edituv_subdiv_data_bm(mr, subdiv_cache, vbo_data);
@@ -220,7 +219,6 @@ gpu::VertBufPtr extract_edituv_data_subdiv(const MeshRenderData &mr,
   else {
     extract_edituv_subdiv_data_mesh(mr, subdiv_cache, vbo_data);
   }
-  return vbo;
 }
 
 }  // namespace blender::draw

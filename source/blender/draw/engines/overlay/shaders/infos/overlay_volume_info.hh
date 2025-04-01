@@ -2,19 +2,6 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#ifdef GPU_SHADER
-#  pragma once
-#  include "gpu_glsl_cpp_stubs.hh"
-
-#  include "draw_common_shader_shared.hh"
-#  include "draw_object_infos_info.hh"
-#  include "draw_view_info.hh"
-#  include "overlay_common_info.hh"
-
-#  define USE_MAC
-#  define SHOW_RANGE
-#endif
-
 #include "gpu_shader_create_info.hh"
 
 /* -------------------------------------------------------------------- */
@@ -49,7 +36,7 @@ GPU_SHADER_CREATE_END()
 
 GPU_SHADER_CREATE_INFO(overlay_volume_velocity_streamline)
 DO_STATIC_COMPILATION()
-ADDITIONAL_INFO(draw_volume)
+ADDITIONAL_INFO(draw_volume_new)
 ADDITIONAL_INFO(draw_view)
 ADDITIONAL_INFO(overlay_volume_velocity)
 GPU_SHADER_CREATE_END()
@@ -62,7 +49,7 @@ DEFINE("USE_MAC")
 PUSH_CONSTANT(BOOL, drawMACX)
 PUSH_CONSTANT(BOOL, drawMACY)
 PUSH_CONSTANT(BOOL, drawMACZ)
-ADDITIONAL_INFO(draw_volume)
+ADDITIONAL_INFO(draw_volume_new)
 ADDITIONAL_INFO(draw_view)
 ADDITIONAL_INFO(overlay_volume_velocity)
 GPU_SHADER_CREATE_END()
@@ -72,7 +59,7 @@ OVERLAY_INFO_SELECT_VARIATION(overlay_volume_velocity_mac)
 GPU_SHADER_CREATE_INFO(overlay_volume_velocity_needle)
 DO_STATIC_COMPILATION()
 DEFINE("USE_NEEDLE")
-ADDITIONAL_INFO(draw_volume)
+ADDITIONAL_INFO(draw_volume_new)
 ADDITIONAL_INFO(draw_view)
 ADDITIONAL_INFO(overlay_volume_velocity)
 GPU_SHADER_CREATE_END()
@@ -109,7 +96,7 @@ GPU_SHADER_CREATE_END()
 
 GPU_SHADER_CREATE_INFO(overlay_volume_gridlines_flat)
 DO_STATIC_COMPILATION()
-ADDITIONAL_INFO(draw_volume)
+ADDITIONAL_INFO(draw_volume_new)
 ADDITIONAL_INFO(draw_view)
 ADDITIONAL_INFO(overlay_volume_gridlines)
 GPU_SHADER_CREATE_END()
@@ -120,7 +107,7 @@ GPU_SHADER_CREATE_INFO(overlay_volume_gridlines_flags)
 DO_STATIC_COMPILATION()
 DEFINE("SHOW_FLAGS")
 SAMPLER(0, UINT_3D, flagTexture)
-ADDITIONAL_INFO(draw_volume)
+ADDITIONAL_INFO(draw_volume_new)
 ADDITIONAL_INFO(draw_view)
 ADDITIONAL_INFO(overlay_volume_gridlines)
 GPU_SHADER_CREATE_END()
@@ -136,7 +123,7 @@ PUSH_CONSTANT(VEC4, rangeColor)
 PUSH_CONSTANT(INT, cellFilter)
 SAMPLER(0, UINT_3D, flagTexture)
 SAMPLER(1, FLOAT_3D, fieldTexture)
-ADDITIONAL_INFO(draw_volume)
+ADDITIONAL_INFO(draw_volume_new)
 ADDITIONAL_INFO(draw_view)
 ADDITIONAL_INFO(overlay_volume_gridlines)
 GPU_SHADER_CREATE_END()

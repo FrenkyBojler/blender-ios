@@ -21,6 +21,7 @@
 #include "scene/stats.h"
 #include "scene/volume.h"
 
+#include "subd/patch_table.h"
 #include "subd/split.h"
 
 #ifdef WITH_OSL
@@ -267,6 +268,7 @@ void GeometryManager::geom_calc_offset(Scene *scene, BVHLayout bvh_layout)
 
   size_t point_size = 0;
 
+  size_t patch_size = 0;
   size_t face_size = 0;
   size_t corner_size = 0;
 
@@ -281,11 +283,23 @@ void GeometryManager::geom_calc_offset(Scene *scene, BVHLayout bvh_layout)
       mesh->vert_offset = vert_size;
       mesh->prim_offset = tri_size;
 
+      mesh->patch_offset = patch_size;
       mesh->face_offset = face_size;
       mesh->corner_offset = corner_size;
 
       vert_size += mesh->verts.size();
       tri_size += mesh->num_triangles();
+
+      if (mesh->get_num_subd_faces()) {
+        const Mesh::SubdFace last = mesh->get_subd_face(mesh->get_num_subd_faces() - 1);
+        patch_size += (last.ptex_offset + last.num_ptex_faces()) * 8;
+
+        /* patch tables are stored in same array so include them in patch_size */
+        if (mesh->patch_table) {
+          mesh->patch_table_offset = patch_size;
+          patch_size += mesh->patch_table->total_size();
+        }
+      }
 
       face_size += mesh->get_num_subd_faces();
       corner_size += mesh->subd_face_corners.size();
@@ -498,7 +512,10 @@ void GeometryManager::device_update_preprocess(Device *device, Scene *scene, Pro
       dscene->tri_verts.tag_realloc();
       dscene->tri_vnormal.tag_realloc();
       dscene->tri_vindex.tag_realloc();
+      dscene->tri_patch.tag_realloc();
+      dscene->tri_patch_uv.tag_realloc();
       dscene->tri_shader.tag_realloc();
+      dscene->patches.tag_realloc();
     }
 
     if (device_update_flags & DEVICE_CURVE_DATA_NEEDS_REALLOC) {
@@ -696,7 +713,7 @@ void GeometryManager::device_update(Device *device,
 
   bool true_displacement_used = false;
   bool curve_shadow_transparency_used = false;
-  size_t num_tessellation = 0;
+  size_t total_tess_needed = 0;
 
   {
     const scoped_callback_timer timer([scene](double time) {
@@ -716,17 +733,19 @@ void GeometryManager::device_update(Device *device,
 
           /* Test if we need tessellation and setup normals if required. */
           if (mesh->need_tesselation()) {
-            num_tessellation++;
+            total_tess_needed++;
             /* OPENSUBDIV Catmull-Clark does not make use of input normals and will overwrite them.
              */
 #ifdef WITH_OPENSUBDIV
             if (mesh->get_subdivision_type() != Mesh::SUBDIVISION_CATMULL_CLARK)
 #endif
             {
+              mesh->add_face_normals();
               mesh->add_vertex_normals();
             }
           }
           else {
+            mesh->add_face_normals();
             mesh->add_vertex_normals();
           }
 
@@ -754,65 +773,53 @@ void GeometryManager::device_update(Device *device,
   }
 
   /* Tessellate meshes that are using subdivision */
-  const scoped_callback_timer timer([scene, num_tessellation](double time) {
-    if (scene->update_stats) {
-      scene->update_stats->geometry.times.add_entry(
-          {(num_tessellation) ? "device_update (tessellation and tangents)" :
-                                "device_update (tangents)",
-           time});
-    }
-  });
+  if (total_tess_needed) {
+    const scoped_callback_timer timer([scene](double time) {
+      if (scene->update_stats) {
+        scene->update_stats->geometry.times.add_entry(
+            {"device_update (adaptive subdivision)", time});
+      }
+    });
 
-  Camera *dicing_camera = scene->dicing_camera;
-  if (num_tessellation) {
+    Camera *dicing_camera = scene->dicing_camera;
     dicing_camera->set_screen_size(dicing_camera->get_full_width(),
                                    dicing_camera->get_full_height());
     dicing_camera->update(scene);
-  }
 
-  size_t i = 0;
-  for (Geometry *geom : scene->geometry) {
-    if (!(geom->is_modified() && geom->is_mesh())) {
-      continue;
-    }
-
-    Mesh *mesh = static_cast<Mesh *>(geom);
-
-    if (num_tessellation && mesh->need_tesselation()) {
-      string msg = "Tessellating ";
-      if (mesh->name.empty()) {
-        msg += string_printf("%u/%u", (uint)(i + 1), (uint)num_tessellation);
-      }
-      else {
-        msg += string_printf(
-            "%s %u/%u", mesh->name.c_str(), (uint)(i + 1), (uint)num_tessellation);
+    size_t i = 0;
+    for (Geometry *geom : scene->geometry) {
+      if (!(geom->is_modified() && geom->is_mesh())) {
+        continue;
       }
 
-      progress.set_status("Updating Mesh", msg);
+      Mesh *mesh = static_cast<Mesh *>(geom);
+      if (mesh->need_tesselation()) {
+        string msg = "Tessellating ";
+        if (mesh->name.empty()) {
+          msg += string_printf("%u/%u", (uint)(i + 1), (uint)total_tess_needed);
+        }
+        else {
+          msg += string_printf(
+              "%s %u/%u", mesh->name.c_str(), (uint)(i + 1), (uint)total_tess_needed);
+        }
 
-      SubdParams subd_params(mesh);
-      subd_params.dicing_rate = mesh->get_subd_dicing_rate();
-      subd_params.max_level = mesh->get_subd_max_level();
-      subd_params.objecttoworld = mesh->get_subd_objecttoworld();
-      subd_params.camera = dicing_camera;
+        progress.set_status("Updating Mesh", msg);
 
-      mesh->tessellate(subd_params);
+        mesh->subd_params->camera = dicing_camera;
+        DiagSplit dsplit(*mesh->subd_params);
+        mesh->tessellate(&dsplit);
 
-      i++;
+        i++;
+
+        if (progress.get_cancel()) {
+          return;
+        }
+      }
     }
-
-    /* Apply generated attribute if needed or remove if not needed */
-    mesh->update_generated(scene);
-    /* Apply tangents for generated and UVs (if any need them) or remove if not needed */
-    mesh->update_tangents(scene);
 
     if (progress.get_cancel()) {
       return;
     }
-  }
-
-  if (progress.get_cancel()) {
-    return;
   }
 
   /* Update images needed for true displacement. */
@@ -842,24 +849,6 @@ void GeometryManager::device_update(Device *device,
     });
     device_update_mesh(device, dscene, scene, progress);
   }
-
-  if (progress.get_cancel()) {
-    return;
-  }
-
-  /* Apply transforms, to prepare for static BVH building. */
-  if (scene->params.bvh_type == BVH_TYPE_STATIC) {
-    const scoped_callback_timer timer([scene](double time) {
-      if (scene->update_stats) {
-        scene->update_stats->object.times.add_entry(
-            {"device_update (apply static transforms)", time});
-      }
-    });
-
-    progress.set_status("Updating Objects", "Applying Static Transformations");
-    scene->object_manager->apply_static_transforms(dscene, scene, progress);
-  }
-
   if (progress.get_cancel()) {
     return;
   }
@@ -879,6 +868,7 @@ void GeometryManager::device_update(Device *device,
   /* Update displacement and hair shadow transparency. */
   bool displacement_done = false;
   bool curve_shadow_transparency_done = false;
+  size_t num_bvh = 0;
 
   {
     /* Copy constant data needed by shader evaluation. */
@@ -906,6 +896,12 @@ void GeometryManager::device_update(Device *device,
         }
       }
 
+      if (geom->is_modified() || geom->need_update_bvh_for_offset) {
+        if (geom->need_build_bvh(bvh_layout)) {
+          num_bvh++;
+        }
+      }
+
       if (progress.get_cancel()) {
         return;
       }
@@ -916,7 +912,7 @@ void GeometryManager::device_update(Device *device,
     return;
   }
 
-  /* Device re-update after applying transforms and displacement. */
+  /* Device re-update after displacement. */
   if (displacement_done || curve_shadow_transparency_done) {
     const scoped_callback_timer timer([scene](double time) {
       if (scene->update_stats) {
@@ -947,29 +943,15 @@ void GeometryManager::device_update(Device *device,
     });
     TaskPool pool;
 
-    /* Work around Embree/oneAPI bug #129596 with BVH updates. */
-    const bool use_multithreaded_build = first_bvh_build ||
-                                         !device->info.contains_device_type(DEVICE_ONEAPI);
-    first_bvh_build = false;
-
     size_t i = 0;
-    size_t num_bvh = 0;
     for (Geometry *geom : scene->geometry) {
       if (geom->is_modified() || geom->need_update_bvh_for_offset) {
         need_update_scene_bvh = true;
-
+        pool.push([geom, device, dscene, scene, &progress, i, num_bvh] {
+          geom->compute_bvh(device, dscene, &scene->params, &progress, i, num_bvh);
+        });
         if (geom->need_build_bvh(bvh_layout)) {
           i++;
-          num_bvh++;
-        }
-
-        if (use_multithreaded_build) {
-          pool.push([geom, device, dscene, scene, &progress, i, &num_bvh] {
-            geom->compute_bvh(device, dscene, &scene->params, &progress, i, num_bvh);
-          });
-        }
-        else {
-          geom->compute_bvh(device, dscene, &scene->params, &progress, i, num_bvh);
         }
       }
     }
@@ -1059,12 +1041,15 @@ void GeometryManager::device_update(Device *device,
   dscene->tri_verts.clear_modified();
   dscene->tri_shader.clear_modified();
   dscene->tri_vindex.clear_modified();
+  dscene->tri_patch.clear_modified();
   dscene->tri_vnormal.clear_modified();
+  dscene->tri_patch_uv.clear_modified();
   dscene->curves.clear_modified();
   dscene->curve_keys.clear_modified();
   dscene->curve_segments.clear_modified();
   dscene->points.clear_modified();
   dscene->points_shader.clear_modified();
+  dscene->patches.clear_modified();
   dscene->attributes_map.clear_modified();
   dscene->attributes_float.clear_modified();
   dscene->attributes_float2.clear_modified();
@@ -1087,11 +1072,14 @@ void GeometryManager::device_free(Device *device, DeviceScene *dscene, bool forc
   dscene->tri_shader.free_if_need_realloc(force_free);
   dscene->tri_vnormal.free_if_need_realloc(force_free);
   dscene->tri_vindex.free_if_need_realloc(force_free);
+  dscene->tri_patch.free_if_need_realloc(force_free);
+  dscene->tri_patch_uv.free_if_need_realloc(force_free);
   dscene->curves.free_if_need_realloc(force_free);
   dscene->curve_keys.free_if_need_realloc(force_free);
   dscene->curve_segments.free_if_need_realloc(force_free);
   dscene->points.free_if_need_realloc(force_free);
   dscene->points_shader.free_if_need_realloc(force_free);
+  dscene->patches.free_if_need_realloc(force_free);
   dscene->attributes_map.free_if_need_realloc(force_free);
   dscene->attributes_float.free_if_need_realloc(force_free);
   dscene->attributes_float2.free_if_need_realloc(force_free);

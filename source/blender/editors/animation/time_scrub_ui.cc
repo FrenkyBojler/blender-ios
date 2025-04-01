@@ -25,7 +25,6 @@
 
 #include "DNA_scene_types.h"
 
-#include "BLI_math_base.h"
 #include "BLI_rect.h"
 #include "BLI_string.h"
 #include "BLI_timecode.h"
@@ -77,8 +76,7 @@ static void draw_current_frame(const Scene *scene,
                                bool display_seconds,
                                const View2D *v2d,
                                const rcti *scrub_region_rect,
-                               int current_frame,
-                               bool display_stalk = true)
+                               int current_frame)
 {
   const uiFontStyle *fstyle = UI_FSTYLE_WIDGET;
   int frame_x = UI_view2d_view_to_region_x(v2d, current_frame);
@@ -93,32 +91,31 @@ static void draw_current_frame(const Scene *scene,
   float bg_color[4];
   UI_GetThemeColorShade4fv(TH_CFRAME, -5, bg_color);
 
-  if (display_stalk) {
-    /* Draw vertical line from the bottom of the current frame box to the bottom of the screen. */
-    const float subframe_x = UI_view2d_view_to_region_x(v2d, BKE_scene_ctime_get(scene));
-    GPUVertFormat *format = immVertexFormat();
-    uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
-    GPU_blend(GPU_BLEND_ALPHA);
-    immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
+  /* Draw vertical line from the bottom of the current frame box to the bottom of the screen. */
+  const float subframe_x = UI_view2d_view_to_region_x(v2d, BKE_scene_ctime_get(scene));
+  GPUVertFormat *format = immVertexFormat();
+  uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
 
-    /* Outline. */
-    immUniformThemeColorShadeAlpha(TH_BACK, -25, -100);
-    immRectf(pos,
-             subframe_x - (line_outline + U.pixelsize),
-             scrub_region_rect->ymax - box_padding,
-             subframe_x + (line_outline + U.pixelsize),
-             0.0f);
+  GPU_blend(GPU_BLEND_ALPHA);
+  immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
-    /* Line. */
-    immUniformThemeColor(TH_CFRAME);
-    immRectf(pos,
-             subframe_x - U.pixelsize,
-             scrub_region_rect->ymax - box_padding,
-             subframe_x + U.pixelsize,
-             0.0f);
-    immUnbindProgram();
-    GPU_blend(GPU_BLEND_NONE);
-  }
+  /* Outline. */
+  immUniformThemeColorShadeAlpha(TH_BACK, -25, -100);
+  immRectf(pos,
+           subframe_x - (line_outline + U.pixelsize),
+           scrub_region_rect->ymax - box_padding,
+           subframe_x + (line_outline + U.pixelsize),
+           0.0f);
+
+  /* Line. */
+  immUniformThemeColor(TH_CFRAME);
+  immRectf(pos,
+           subframe_x - U.pixelsize,
+           scrub_region_rect->ymax - box_padding,
+           subframe_x + U.pixelsize,
+           0.0f);
+  immUnbindProgram();
+  GPU_blend(GPU_BLEND_NONE);
 
   UI_draw_roundbox_corner_set(UI_CNR_ALL);
 
@@ -144,8 +141,7 @@ static void draw_current_frame(const Scene *scene,
 
 void ED_time_scrub_draw_current_frame(const ARegion *region,
                                       const Scene *scene,
-                                      bool display_seconds,
-                                      bool display_stalk)
+                                      bool display_seconds)
 {
   const View2D *v2d = &region->v2d;
   GPU_matrix_push_projection();
@@ -154,8 +150,7 @@ void ED_time_scrub_draw_current_frame(const ARegion *region,
   rcti scrub_region_rect;
   ED_time_scrub_region_rect_get(region, &scrub_region_rect);
 
-  draw_current_frame(
-      scene, display_seconds, v2d, &scrub_region_rect, scene->r.cfra, display_stalk);
+  draw_current_frame(scene, display_seconds, v2d, &scrub_region_rect, scene->r.cfra);
   GPU_matrix_pop_projection();
 }
 
@@ -233,7 +228,7 @@ void ED_time_scrub_channel_search_draw(const bContext *C, ARegion *region, bDope
   const float padding_x = 2 * UI_SCALE_FAC;
   const float padding_y = UI_SCALE_FAC;
 
-  uiBlock *block = UI_block_begin(C, region, __func__, blender::ui::EmbossType::Emboss);
+  uiBlock *block = UI_block_begin(C, region, __func__, UI_EMBOSS);
   uiLayout *layout = UI_block_layout(block,
                                      UI_LAYOUT_VERTICAL,
                                      UI_LAYOUT_HEADER,

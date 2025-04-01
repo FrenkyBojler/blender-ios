@@ -199,6 +199,7 @@ void HdCyclesMesh::PopulatePoints(HdSceneDelegate *sceneDelegate)
 
 void HdCyclesMesh::PopulateNormals(HdSceneDelegate *sceneDelegate)
 {
+  _geom->attributes.remove(ATTR_STD_FACE_NORMAL);
   _geom->attributes.remove(ATTR_STD_VERTEX_NORMAL);
 
   // Authored normals should only exist on triangle meshes
@@ -254,7 +255,13 @@ void HdCyclesMesh::PopulateNormals(HdSceneDelegate *sceneDelegate)
   }
   else if (interpolation == HdInterpolationUniform) {
     TF_VERIFY(normals.size() == static_cast<size_t>(_topology.GetNumFaces()));
-    /* Nothing to do, face normals are computed on demand in the kernel. */
+
+    float3 *const N = _geom->attributes.add(ATTR_STD_FACE_NORMAL)->data_float3();
+    for (size_t i = 0; i < _geom->num_triangles(); ++i) {
+      const int faceIndex = HdMeshUtil::DecodeFaceIndexFromCoarseFaceParam(_primitiveParams[i]);
+
+      N[i] = make_float3(normals[faceIndex][0], normals[faceIndex][1], normals[faceIndex][2]);
+    }
   }
   else if (interpolation == HdInterpolationVertex || interpolation == HdInterpolationVarying) {
     TF_VERIFY(normals.size() == static_cast<size_t>(_topology.GetNumPoints()) &&
@@ -268,8 +275,6 @@ void HdCyclesMesh::PopulateNormals(HdSceneDelegate *sceneDelegate)
   else if (interpolation == HdInterpolationFaceVarying) {
     TF_VERIFY(normals.size() == static_cast<size_t>(_topology.GetNumFaceVaryings()));
 
-    // TODO: Cycles has no per-corner normals, so ignore until supported.
-#if 0
     if (!_util.ComputeTriangulatedFaceVaryingPrimvar(
             normals.data(), normals.size(), HdTypeFloatVec3, &value))
     {
@@ -277,7 +282,16 @@ void HdCyclesMesh::PopulateNormals(HdSceneDelegate *sceneDelegate)
     }
 
     const auto &normalsTriangulated = value.UncheckedGet<VtVec3fArray>();
-#endif
+
+    // Cycles has no standard attribute for face-varying normals, so this is a lossy transformation
+    float3 *const N = _geom->attributes.add(ATTR_STD_FACE_NORMAL)->data_float3();
+    for (size_t i = 0; i < _geom->num_triangles(); ++i) {
+      GfVec3f averageNormal = normalsTriangulated[i * 3] + normalsTriangulated[i * 3 + 1] +
+                              normalsTriangulated[i * 3 + 2];
+      GfNormalize(&averageNormal);
+
+      N[i] = make_float3(averageNormal[0], averageNormal[1], averageNormal[2]);
+    }
   }
 }
 
@@ -443,12 +457,14 @@ void HdCyclesMesh::PopulateTopology(HdSceneDelegate *sceneDelegate)
     const PxOsdSubdivTags subdivTags = GetSubdivTags(sceneDelegate);
     _topology.SetSubdivTags(subdivTags);
 
+    size_t numNgons = 0;
     size_t numCorners = 0;
     for (const int vertCount : vertCounts) {
+      numNgons += (vertCount == 4) ? 0 : 1;
       numCorners += vertCount;
     }
 
-    _geom->reserve_subd_faces(_topology.GetNumFaces(), numCorners);
+    _geom->reserve_subd_faces(_topology.GetNumFaces(), numNgons, numCorners);
 
     // TODO: Handle hole indices
     size_t faceIndex = 0;

@@ -7,6 +7,10 @@
  * \ingroup bke
  */
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct CurveCache;
 struct Object;
 
@@ -38,3 +42,7 @@ bool BKE_where_on_path(const struct Object *ob,
                        float r_quat[4],
                        float *r_radius,
                        float *r_weight);
+
+#ifdef __cplusplus
+}
+#endif

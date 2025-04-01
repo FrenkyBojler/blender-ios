@@ -1101,15 +1101,7 @@ NodeItem NodeItem::arithmetic(const NodeItem &other,
     }
   }
   else {
-#if !(MATERIALX_MAJOR_VERSION <= 1 && MATERIALX_MINOR_VERSION <= 38)
-    if (category == "atan2") {
-      res = create_node(category, to_type, {{"iny", item1}, {"inx", item2}});
-    }
-    else
-#endif
-    {
-      res = create_node(category, to_type, {{"in1", item1}, {"in2", item2}});
-    }
+    res = create_node(category, to_type, {{"in1", item1}, {"in2", item2}});
   }
   return res;
 }

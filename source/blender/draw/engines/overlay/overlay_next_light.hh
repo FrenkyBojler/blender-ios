@@ -86,7 +86,7 @@ class Lights : Overlay {
     float &clip_start = matrix[2].w;
     float &clip_end = matrix[3].w;
 
-    const Light &la = DRW_object_get_data_for_drawing<Light>(*ob_ref.object);
+    const Light &la = *static_cast<Light *>(ob_ref.object->data);
     const select::ID select_id = res.select_id(ob_ref);
 
     /* FIXME / TODO: clip_end has no meaning nowadays.
@@ -167,7 +167,6 @@ class Lights : Overlay {
                                 DRW_STATE_DEPTH_LESS_EQUAL;
     ps_.init();
     ps_.bind_ubo(OVERLAY_GLOBALS_SLOT, &res.globals_buf);
-    ps_.bind_ubo(DRW_CLIPPING_UBO_SLOT, &res.clip_planes_buf);
     res.select_bind(ps_);
 
     {
@@ -175,7 +174,7 @@ class Lights : Overlay {
       sub_pass.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_BLEND_ALPHA |
                              DRW_STATE_DEPTH_LESS_EQUAL | DRW_STATE_CULL_FRONT,
                          state.clipping_plane_count);
-      sub_pass.shader_set(res.shaders->light_spot_cone.get());
+      sub_pass.shader_set(res.shaders.light_spot_cone.get());
       call_buffers_.spot_cone_front_buf.end_sync(sub_pass, res.shapes.light_spot_volume.get());
     }
     {
@@ -183,13 +182,13 @@ class Lights : Overlay {
       sub_pass.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_BLEND_ALPHA |
                              DRW_STATE_DEPTH_LESS_EQUAL | DRW_STATE_CULL_BACK,
                          state.clipping_plane_count);
-      sub_pass.shader_set(res.shaders->light_spot_cone.get());
+      sub_pass.shader_set(res.shaders.light_spot_cone.get());
       call_buffers_.spot_cone_back_buf.end_sync(sub_pass, res.shapes.light_spot_volume.get());
     }
     {
       PassSimple::Sub &sub_pass = ps_.sub("light_shapes");
       sub_pass.state_set(pass_state, state.clipping_plane_count);
-      sub_pass.shader_set(res.shaders->extra_shape.get());
+      sub_pass.shader_set(res.shaders.extra_shape.get());
       call_buffers_.icon_inner_buf.end_sync(sub_pass, res.shapes.light_icon_outer_lines.get());
       call_buffers_.icon_outer_buf.end_sync(sub_pass, res.shapes.light_icon_inner_lines.get());
       call_buffers_.icon_sun_rays_buf.end_sync(sub_pass, res.shapes.light_icon_sun_rays.get());
@@ -202,7 +201,7 @@ class Lights : Overlay {
     {
       PassSimple::Sub &sub_pass = ps_.sub("ground_line");
       sub_pass.state_set(pass_state | DRW_STATE_BLEND_ALPHA, state.clipping_plane_count);
-      sub_pass.shader_set(res.shaders->extra_ground_line.get());
+      sub_pass.shader_set(res.shaders.extra_ground_line.get());
       call_buffers_.ground_line_buf.end_sync(sub_pass, res.shapes.ground_line.get());
     }
   }

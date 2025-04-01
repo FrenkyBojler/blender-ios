@@ -12,7 +12,6 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_listbase.h"
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
@@ -926,7 +925,7 @@ static bool add_driver_button_poll(bContext *C)
 
 /* Wrapper for creating a driver without knowing what the targets will be yet
  * (i.e. "manual/add later"). */
-static wmOperatorStatus add_driver_button_none(bContext *C, wmOperator *op, short mapping_type)
+static int add_driver_button_none(bContext *C, wmOperator *op, short mapping_type)
 {
   PointerRNA ptr = {};
   PropertyRNA *prop = nullptr;
@@ -959,7 +958,7 @@ static wmOperatorStatus add_driver_button_none(bContext *C, wmOperator *op, shor
   return OPERATOR_CANCELLED;
 }
 
-static wmOperatorStatus add_driver_button_menu_exec(bContext *C, wmOperator *op)
+static int add_driver_button_menu_exec(bContext *C, wmOperator *op)
 {
   short mapping_type = RNA_enum_get(op->ptr, "mapping_type");
   if (ELEM(mapping_type, CREATEDRIVER_MAPPING_NONE, CREATEDRIVER_MAPPING_NONE_ALL)) {
@@ -978,9 +977,7 @@ static wmOperatorStatus add_driver_button_menu_exec(bContext *C, wmOperator *op)
 }
 
 /* Show menu or create drivers */
-static wmOperatorStatus add_driver_button_menu_invoke(bContext *C,
-                                                      wmOperator *op,
-                                                      const wmEvent * /*event*/)
+static int add_driver_button_menu_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
   PropertyRNA *prop;
 
@@ -1024,9 +1021,7 @@ static void UNUSED_FUNCTION(ANIM_OT_driver_button_add_menu)(wmOperatorType *ot)
 
 /* Add Driver Button Operator ------------------------ */
 
-static wmOperatorStatus add_driver_button_invoke(bContext *C,
-                                                 wmOperator *op,
-                                                 const wmEvent * /*event*/)
+static int add_driver_button_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
   PointerRNA ptr = {};
   PropertyRNA *prop = nullptr;
@@ -1079,7 +1074,7 @@ void ANIM_OT_driver_button_add(wmOperatorType *ot)
 
 /* Remove Driver Button Operator ------------------------ */
 
-static wmOperatorStatus remove_driver_button_exec(bContext *C, wmOperator *op)
+static int remove_driver_button_exec(bContext *C, wmOperator *op)
 {
   PointerRNA ptr = {};
   PropertyRNA *prop = nullptr;
@@ -1130,7 +1125,7 @@ void ANIM_OT_driver_button_remove(wmOperatorType *ot)
 
 /* Edit Driver Button Operator ------------------------ */
 
-static wmOperatorStatus edit_driver_button_exec(bContext *C, wmOperator *op)
+static int edit_driver_button_exec(bContext *C, wmOperator *op)
 {
   PointerRNA ptr = {};
   PropertyRNA *prop = nullptr;
@@ -1163,7 +1158,7 @@ void ANIM_OT_driver_button_edit(wmOperatorType *ot)
 
 /* Copy Driver Button Operator ------------------------ */
 
-static wmOperatorStatus copy_driver_button_exec(bContext *C, wmOperator *op)
+static int copy_driver_button_exec(bContext *C, wmOperator *op)
 {
   PointerRNA ptr = {};
   PropertyRNA *prop = nullptr;
@@ -1202,7 +1197,7 @@ void ANIM_OT_copy_driver_button(wmOperatorType *ot)
 
 /* Paste Driver Button Operator ------------------------ */
 
-static wmOperatorStatus paste_driver_button_exec(bContext *C, wmOperator *op)
+static int paste_driver_button_exec(bContext *C, wmOperator *op)
 {
   PointerRNA ptr = {};
   PropertyRNA *prop = nullptr;

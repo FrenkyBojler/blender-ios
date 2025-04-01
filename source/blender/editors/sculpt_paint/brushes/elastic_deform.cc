@@ -282,7 +282,7 @@ void do_elastic_deform_brush(const Depsgraph &depsgraph,
     } break;
   }
   pbvh.tag_positions_changed(node_mask);
-  pbvh.flush_bounds_to_parents();
+  bke::pbvh::flush_bounds_to_parents(pbvh);
 }
 
 }  // namespace blender::ed::sculpt_paint

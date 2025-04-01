@@ -12,6 +12,10 @@
 
 #include "../../winged_edge/Nature.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 ///////////////////////////////////////////////////////////////////////////////////////////
 
 extern PyTypeObject UnaryFunction1DEdgeNature_Type;
@@ -29,3 +33,7 @@ typedef struct {
 int UnaryFunction1DEdgeNature_Init(PyObject *module);
 
 ///////////////////////////////////////////////////////////////////////////////////////////
+
+#ifdef __cplusplus
+}
+#endif

@@ -13,6 +13,10 @@
 #include "UnaryPredicate0D/BPy_FalseUP0D.h"
 #include "UnaryPredicate0D/BPy_TrueUP0D.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 using namespace Freestyle;
 
 ///////////////////////////////////////////////////////////////////////////////////////////
@@ -192,3 +196,7 @@ PyTypeObject UnaryPredicate0D_Type = {
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////
+
+#ifdef __cplusplus
+}
+#endif

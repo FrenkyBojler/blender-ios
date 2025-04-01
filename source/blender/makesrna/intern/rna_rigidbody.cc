@@ -159,9 +159,9 @@ static void rna_RigidBodyWorld_num_solver_iterations_set(PointerRNA *ptr, int va
   rbw->num_solver_iterations = value;
 
 #  ifdef WITH_BULLET
-  rbDynamicsWorld *physics_world = BKE_rigidbody_world_physics(rbw);
-  if (physics_world) {
-    RB_dworld_set_solver_iterations(physics_world, value);
+  if (rbw->shared->physics_world) {
+    RB_dworld_set_solver_iterations(static_cast<rbDynamicsWorld *>(rbw->shared->physics_world),
+                                    value);
   }
 #  endif
 }
@@ -173,9 +173,8 @@ static void rna_RigidBodyWorld_split_impulse_set(PointerRNA *ptr, bool value)
   SET_FLAG_FROM_TEST(rbw->flag, value, RBW_FLAG_USE_SPLIT_IMPULSE);
 
 #  ifdef WITH_BULLET
-  rbDynamicsWorld *physics_world = BKE_rigidbody_world_physics(rbw);
-  if (physics_world) {
-    RB_dworld_set_split_impulse(physics_world, value);
+  if (rbw->shared->physics_world) {
+    RB_dworld_set_split_impulse(static_cast<rbDynamicsWorld *>(rbw->shared->physics_world), value);
   }
 #  endif
 }
@@ -827,10 +826,9 @@ static void rna_RigidBodyWorld_convex_sweep_test(RigidBodyWorld *rbw,
 {
 #  ifdef WITH_BULLET
   RigidBodyOb *rob = object->rigidbody_object;
-  rbDynamicsWorld *physics_world = BKE_rigidbody_world_physics(rbw);
 
-  if (physics_world != nullptr && rob->shared->physics_object != nullptr) {
-    RB_world_convex_sweep_test(physics_world,
+  if (rbw->shared->physics_world != nullptr && rob->shared->physics_object != nullptr) {
+    RB_world_convex_sweep_test(static_cast<rbDynamicsWorld *>(rbw->shared->physics_world),
                                static_cast<rbRigidBody *>(rob->shared->physics_object),
                                ray_start,
                                ray_end,
@@ -859,7 +857,7 @@ static void rna_RigidBodyWorld_convex_sweep_test(RigidBodyWorld *rbw,
 static PointerRNA rna_RigidBodyWorld_PointCache_get(PointerRNA *ptr)
 {
   RigidBodyWorld *rbw = static_cast<RigidBodyWorld *>(ptr->data);
-  return RNA_pointer_create_with_parent(*ptr, &RNA_PointCache, rbw->shared->pointcache);
+  return rna_pointer_inherit_refine(ptr, &RNA_PointCache, rbw->shared->pointcache);
 }
 
 #else

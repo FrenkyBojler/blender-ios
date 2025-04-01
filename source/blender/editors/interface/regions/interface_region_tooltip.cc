@@ -25,8 +25,6 @@
 
 #include <fmt/format.h>
 
-#include "AS_essentials_library.hh"
-
 #include "MEM_guardedalloc.h"
 
 #include "DNA_userdef_types.h"
@@ -43,7 +41,6 @@
 #include "BKE_context.hh"
 #include "BKE_idtype.hh"
 #include "BKE_image.hh"
-#include "BKE_library.hh"
 #include "BKE_main.hh"
 #include "BKE_paint.hh"
 #include "BKE_screen.hh"
@@ -84,14 +81,12 @@
 #include "interface_intern.hh"
 #include "interface_regions_intern.hh"
 
-/* Portions of line height. */
 #define UI_TIP_SPACER 0.3f
-#define UI_TIP_PADDING_X 1.95f
-#define UI_TIP_PADDING_Y 1.28f
-
+#define UI_TIP_PADDING int(1.3f * UI_UNIT_Y)
 #define UI_TIP_MAXWIDTH 600
 #define UI_TIP_MAXIMAGEWIDTH 500
 #define UI_TIP_MAXIMAGEHEIGHT 300
+#define UI_TIP_STR_MAX 1024
 
 struct uiTooltipFormat {
   uiTooltipStyle style;
@@ -165,9 +160,8 @@ static void color_blend_f3_f3(float dest[3], const float source[3], const float 
 
 static void ui_tooltip_region_draw_cb(const bContext * /*C*/, ARegion *region)
 {
+  const float pad_px = UI_TIP_PADDING;
   uiTooltipData *data = static_cast<uiTooltipData *>(region->regiondata);
-  const float pad_x = data->lineh * UI_TIP_PADDING_X;
-  const float pad_y = data->lineh * UI_TIP_PADDING_Y;
   const uiWidgetColors *theme = ui_tooltip_get_theme();
   rcti bbox = data->bbox;
   float tip_colors[UI_TIP_LC_MAX][3];
@@ -210,24 +204,17 @@ static void ui_tooltip_region_draw_cb(const bContext * /*C*/, ARegion *region)
   color_blend_f3_f3(active_color, main_color, 0.3f);
 
   /* `alert_color` is red, push a bit toward text color. */
-  UI_GetThemeColor3fv(TH_REDALERT, alert_color);
+  alert_color[0] = 0.7f;
+  alert_color[1] = 0.0f;
+  alert_color[2] = 0.0f;
   color_blend_f3_f3(alert_color, main_color, 0.3f);
 
   /* Draw text. */
+  BLF_wordwrap(data->fstyle.uifont_id, data->wrap_width);
+  BLF_wordwrap(blf_mono_font, data->wrap_width);
 
-  /* Wrap most text typographically with hard width limit. */
-  BLF_wordwrap(data->fstyle.uifont_id,
-               data->wrap_width,
-               BLFWrapMode(int(BLFWrapMode::Typographical) | int(BLFWrapMode::HardLimit)));
-
-  /* Wrap paths with path-specific wrapping with hard width limit. */
-  BLF_wordwrap(blf_mono_font,
-               data->wrap_width,
-               BLFWrapMode(int(BLFWrapMode::Path) | int(BLFWrapMode::HardLimit)));
-
-  bbox.xmin += 0.5f * pad_x; /* add padding to the text */
-  bbox.ymax -= 0.5f * pad_y;
-  bbox.ymax -= BLF_descender(data->fstyle.uifont_id);
+  bbox.xmin += 0.5f * pad_px; /* add padding to the text */
+  bbox.ymax -= 0.25f * pad_px;
 
   for (int i = 0; i < data->fields.size(); i++) {
     const uiTooltipField *field = &data->fields[i];
@@ -814,26 +801,27 @@ static std::string ui_tooltip_color_string(const blender::float4 &color,
     rgba_float_to_uchar(hex, color);
     if (show_alpha) {
       return fmt::format("{}: #{:02X}{:02X}{:02X}{:02X}",
-                         TIP_(title),
+                         TIP_(title.c_str()),
                          int(hex[0]),
                          int(hex[1]),
                          int(hex[2]),
                          int(hex[3]));
     }
     return fmt::format(
-        "{}: #{:02X}{:02X}{:02X}", TIP_(title), int(hex[0]), int(hex[1]), int(hex[2]));
+        "{}: #{:02X}{:02X}{:02X}", TIP_(title.c_str()), int(hex[0]), int(hex[1]), int(hex[2]));
   }
 
   if (show_alpha) {
     return fmt::format("{}:  {:.3f}  {:.3f}  {:.3f}  {:.3f}",
-                       TIP_(title),
+                       TIP_(title.c_str()),
                        color[0],
                        color[1],
                        color[2],
                        color[3]);
   }
 
-  return fmt::format("{}:  {:.3f}  {:.3f}  {:.3f}", TIP_(title), color[0], color[1], color[2]);
+  return fmt::format(
+      "{}:  {:.3f}  {:.3f}  {:.3f}", TIP_(title.c_str()), color[0], color[1], color[2]);
 };
 
 static std::unique_ptr<uiTooltipData> ui_tooltip_data_from_button_or_extra_icon(
@@ -1016,15 +1004,33 @@ static std::unique_ptr<uiTooltipData> ui_tooltip_data_from_button_or_extra_icon(
     if (but->rnapoin.owner_id) {
       const ID *id = but->rnapoin.owner_id;
       if (ID_IS_LINKED(id)) {
-        blender::StringRefNull assets_path = blender::asset_system::essentials_directory_path();
-        const bool is_builtin = BLI_path_contains(assets_path.c_str(), id->lib->filepath);
-        const blender::StringRef title = is_builtin ? TIP_("Built-in Asset") : TIP_("Library");
-        const blender::StringRef lib_path = id->lib->filepath;
-        const blender::StringRef path = is_builtin ? lib_path.substr(assets_path.size()) :
-                                                     id->lib->filepath;
         UI_tooltip_text_field_add(
-            *data, fmt::format("{}: {}", title, path), {}, UI_TIP_STYLE_NORMAL, UI_TIP_LC_NORMAL);
+            *data,
+            fmt::format(fmt::runtime(TIP_("Library: {}")), id->lib->filepath),
+            {},
+            UI_TIP_STYLE_NORMAL,
+            UI_TIP_LC_NORMAL);
       }
+    }
+  }
+  else if (optype) {
+    PointerRNA *opptr = extra_icon ? UI_but_extra_operator_icon_opptr_get(extra_icon) :
+                                     /* Allocated when needed, the button owns it. */
+                                     UI_but_operator_ptr_ensure(but);
+
+    /* So the context is passed to field functions (some Python field functions use it). */
+    WM_operator_properties_sanitize(opptr, false);
+
+    std::string str = ui_tooltip_text_python_from_op(C, optype, opptr);
+
+    /* Operator info. */
+    if (U.flag & USER_TOOLTIPS_PYTHON) {
+      UI_tooltip_text_field_add(*data,
+                                fmt::format(fmt::runtime(TIP_("Python: {}")), str),
+                                {},
+                                UI_TIP_STYLE_MONO,
+                                UI_TIP_LC_PYTHON,
+                                true);
     }
   }
 
@@ -1063,25 +1069,6 @@ static std::unique_ptr<uiTooltipData> ui_tooltip_data_from_button_or_extra_icon(
     }
   }
 
-  if (U.flag & USER_TOOLTIPS_PYTHON && optype && !rnaprop) {
-    PointerRNA *opptr = extra_icon ? UI_but_extra_operator_icon_opptr_get(extra_icon) :
-                                     /* Allocated when needed, the button owns it. */
-                                     UI_but_operator_ptr_ensure(but);
-
-    /* So the context is passed to field functions (some Python field functions use it). */
-    WM_operator_properties_sanitize(opptr, false);
-
-    std::string str = ui_tooltip_text_python_from_op(C, optype, opptr);
-
-    /* Operator info. */
-    UI_tooltip_text_field_add(*data,
-                              fmt::format(fmt::runtime(TIP_("Python: {}")), str),
-                              {},
-                              UI_TIP_STYLE_MONO,
-                              UI_TIP_LC_PYTHON,
-                              true);
-  }
-
   if ((U.flag & USER_TOOLTIPS_PYTHON) && !optype && !rna_struct.empty()) {
     {
       UI_tooltip_text_field_add(
@@ -1112,7 +1099,7 @@ static std::unique_ptr<uiTooltipData> ui_tooltip_data_from_button_or_extra_icon(
 
     if (but->rnaprop) {
       BLI_assert(but->rnaindex == -1);
-      has_alpha = RNA_property_array_length(&but->rnapoin, but->rnaprop) >= 4;
+      has_alpha = RNA_property_array_length(&but->rnapoin, but->rnaprop) == 4;
       if (has_alpha) {
         color[3] = RNA_property_float_get_index(&but->rnapoin, but->rnaprop, 3);
       }
@@ -1140,7 +1127,7 @@ static std::unique_ptr<uiTooltipData> ui_tooltip_data_from_button_or_extra_icon(
     uiTooltipImage image_data;
     image_data.width = int(w);
     image_data.height = int(w / (has_alpha ? 4.0f : 3.0f));
-    image_data.ibuf = IMB_allocImBuf(image_data.width, image_data.height, 32, IB_byte_data);
+    image_data.ibuf = IMB_allocImBuf(image_data.width, image_data.height, 32, IB_rect);
     image_data.border = true;
     image_data.premultiplied = false;
 
@@ -1273,8 +1260,10 @@ static ARegion *ui_tooltip_create_with_data(bContext *C,
                                             const float init_position[2],
                                             const rcti *init_rect_overlap)
 {
+  const float pad_px = UI_TIP_PADDING;
   wmWindow *win = CTX_wm_window(C);
   const blender::int2 win_size = WM_window_native_pixel_size(win);
+  const uiStyle *style = UI_style_get();
   rcti rect_i;
   int font_flag = 0;
 
@@ -1294,26 +1283,23 @@ static ARegion *ui_tooltip_create_with_data(bContext *C,
   uiTooltipData *data = static_cast<uiTooltipData *>(region->regiondata);
 
   /* Set font, get bounding-box. */
-  const uiStyle *style = UI_style_get();
   data->fstyle = style->tooltip; /* copy struct */
-  BLF_size(data->fstyle.uifont_id, data->fstyle.points * UI_SCALE_FAC);
-  int h = BLF_height_max(data->fstyle.uifont_id);
-  const float pad_x = h * UI_TIP_PADDING_X;
-  const float pad_y = h * UI_TIP_PADDING_Y;
 
   UI_fontstyle_set(&data->fstyle);
 
-  data->wrap_width = min_ii(UI_TIP_MAXWIDTH * UI_SCALE_FAC, win_size[0] - pad_x);
+  data->wrap_width = min_ii(UI_TIP_MAXWIDTH * U.pixelsize, win_size[0] - (UI_TIP_PADDING * 2));
 
   font_flag |= BLF_WORD_WRAP;
   BLF_enable(data->fstyle.uifont_id, font_flag);
   BLF_enable(blf_mono_font, font_flag);
-  BLF_wordwrap(data->fstyle.uifont_id,
-               data->wrap_width,
-               BLFWrapMode(int(BLFWrapMode::Typographical) | int(BLFWrapMode::HardLimit)));
-  BLF_wordwrap(blf_mono_font,
-               data->wrap_width,
-               BLFWrapMode(int(BLFWrapMode::Path) | int(BLFWrapMode::HardLimit)));
+  BLF_wordwrap(data->fstyle.uifont_id, data->wrap_width);
+  BLF_wordwrap(blf_mono_font, data->wrap_width);
+
+  /* These defines tweaked depending on font. */
+#define TIP_BORDER_X (16.0f)
+#define TIP_BORDER_Y (6.0f)
+
+  int h = BLF_height_max(data->fstyle.uifont_id);
 
   int i, fonth, fontw;
   for (i = 0, fontw = 0, fonth = 0; i < data->fields.size(); i++) {
@@ -1338,9 +1324,8 @@ static ARegion *ui_tooltip_create_with_data(bContext *C,
     /* check for suffix (enum label) */
     if (!field->text_suffix.empty()) {
       x_pos = info.width;
-      w = max_ii(w,
-                 x_pos + BLF_width(font_id, ": ", BLF_DRAW_STR_DUMMY_MAX) +
-                     BLF_width(font_id, field->text_suffix.c_str(), BLF_DRAW_STR_DUMMY_MAX));
+      w = max_ii(
+          w, x_pos + BLF_width(font_id, field->text_suffix.c_str(), field->text_suffix.size()));
     }
 
     fonth += h * info.lines;
@@ -1369,18 +1354,21 @@ static ARegion *ui_tooltip_create_with_data(bContext *C,
   /* Compute position. */
   {
     rctf rect_fl;
-    rect_fl.xmin = init_position[0] - (h * 0.2f) - (pad_x * 0.5f);
-    rect_fl.xmax = rect_fl.xmin + fontw;
-    rect_fl.ymax = init_position[1] - (h * 0.2f) - (pad_y * 0.5f);
-    rect_fl.ymin = rect_fl.ymax - fonth;
+    rect_fl.xmin = init_position[0] - TIP_BORDER_X;
+    rect_fl.xmax = rect_fl.xmin + fontw + pad_px;
+    rect_fl.ymax = init_position[1] - TIP_BORDER_Y;
+    rect_fl.ymin = rect_fl.ymax - fonth - TIP_BORDER_Y;
     BLI_rcti_rctf_copy(&rect_i, &rect_fl);
   }
+
+#undef TIP_BORDER_X
+#undef TIP_BORDER_Y
 
   // #define USE_ALIGN_Y_CENTER
 
   /* Clamp to window bounds. */
   {
-    /* Ensure at least 5 pixels above screen bounds.
+    /* Ensure at least 5 px above screen bounds.
      * #UI_UNIT_Y is just a guess to be above the menu item. */
     if (init_rect_overlap != nullptr) {
       const int pad = max_ff(1.0f, U.pixelsize) * 5;
@@ -1472,13 +1460,12 @@ static ARegion *ui_tooltip_create_with_data(bContext *C,
       }
     }
     else {
-      const int clamp_pad_x = int((5.0f * UI_SCALE_FAC) + (pad_x * 0.5f));
-      const int clamp_pad_y = int((7.0f * UI_SCALE_FAC) + (pad_y * 0.5f));
+      const int pad = max_ff(1.0f, U.pixelsize) * 5;
       rcti rect_clamp;
-      rect_clamp.xmin = clamp_pad_x;
-      rect_clamp.xmax = win_size[0] - clamp_pad_x;
-      rect_clamp.ymin = clamp_pad_y;
-      rect_clamp.ymax = win_size[1] - clamp_pad_y;
+      rect_clamp.xmin = pad;
+      rect_clamp.xmax = win_size[0] - pad;
+      rect_clamp.ymin = pad + (UI_UNIT_Y * 2);
+      rect_clamp.ymax = win_size[1] - pad;
       int offset_dummy[2];
       BLI_rcti_clamp(&rect_i, &rect_clamp, offset_dummy);
     }
@@ -1487,7 +1474,7 @@ static ARegion *ui_tooltip_create_with_data(bContext *C,
 #undef USE_ALIGN_Y_CENTER
 
   /* add padding */
-  BLI_rcti_resize(&rect_i, BLI_rcti_size_x(&rect_i) + pad_x, BLI_rcti_size_y(&rect_i) + pad_y);
+  BLI_rcti_resize(&rect_i, BLI_rcti_size_x(&rect_i) + pad_px, BLI_rcti_size_y(&rect_i) + pad_px);
 
   /* widget rect, in region coords */
   {
@@ -1498,9 +1485,9 @@ static ARegion *ui_tooltip_create_with_data(bContext *C,
     }
 
     data->bbox.xmin = margin;
-    data->bbox.xmax = BLI_rcti_size_x(&rect_i) + margin;
+    data->bbox.xmax = BLI_rcti_size_x(&rect_i) - margin;
     data->bbox.ymin = margin;
-    data->bbox.ymax = BLI_rcti_size_y(&rect_i) + margin;
+    data->bbox.ymax = BLI_rcti_size_y(&rect_i);
 
     /* region bigger for shadow */
     region->winrct.xmin = rect_i.xmin - margin;
@@ -1535,7 +1522,7 @@ ARegion *UI_tooltip_create_from_button_or_extra_icon(
   }
   std::unique_ptr<uiTooltipData> data = nullptr;
 
-  if (!is_label && but->tip_custom_func) {
+  if (but->tip_custom_func) {
     data = ui_tooltip_data_from_custom_func(C, but);
   }
 
@@ -1733,7 +1720,7 @@ static void ui_tooltip_from_clip(MovieClip &clip, uiTooltipData &data)
       /* Resize. */
       float scale = (200.0f * UI_SCALE_FAC) / float(std::max(ibuf->x, ibuf->y));
       IMB_scale(ibuf, scale * ibuf->x, scale * ibuf->y, IMBScaleFilter::Box, false);
-      IMB_byte_from_float(ibuf);
+      IMB_rect_from_float(ibuf);
 
       uiTooltipImage image_data;
       image_data.width = ibuf->x;

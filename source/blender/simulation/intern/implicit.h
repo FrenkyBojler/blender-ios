@@ -12,6 +12,10 @@
 
 #include <cstdio>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 // #define IMPLICIT_SOLVER_EIGEN
 #define IMPLICIT_SOLVER_BLENDER
 
@@ -273,3 +277,7 @@ void SIM_hair_volume_vertex_grid_forces(struct HairGrid *grid,
                                         float f[3],
                                         float dfdx[3][3],
                                         float dfdv[3][3]);
+
+#ifdef __cplusplus
+}
+#endif

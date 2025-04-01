@@ -55,6 +55,7 @@ struct TexDelegate {
   TexCallData *cdata;
   TexFn fn;
   bNode *node;
+  bNodePreview *preview;
   bNodeStack *in[MAX_SOCKET];
   int type;
 };

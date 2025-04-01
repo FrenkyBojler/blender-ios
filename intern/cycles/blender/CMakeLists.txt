@@ -4,6 +4,7 @@
 
 set(INC
   ..
+  ../../mikktspace
   ../../../source/blender/makesrna
   ${CMAKE_BINARY_DIR}/source/blender/makesrna/intern
 )
@@ -69,6 +70,8 @@ set(LIB
   cycles_session
   cycles_subd
   cycles_util
+
+  bf_intern_mikktspace
 
   ${Epoxy_LIBRARIES}
   ${PYTHON_LINKFLAGS}

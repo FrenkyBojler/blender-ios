@@ -2,10 +2,6 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-/** \file
- * \ingroup bke
- */
-
 #pragma once
 
 #include <optional>
@@ -40,8 +36,8 @@ struct BakePath {
 };
 
 std::string frame_to_file_name(const SubFrame &frame);
-std::optional<SubFrame> file_name_to_frame(StringRef file_name);
+std::optional<SubFrame> file_name_to_frame(const StringRef file_name);
 
-Vector<MetaFile> find_sorted_meta_files(StringRefNull meta_dir);
+Vector<MetaFile> find_sorted_meta_files(const StringRefNull meta_dir);
 
 }  // namespace blender::bke::bake

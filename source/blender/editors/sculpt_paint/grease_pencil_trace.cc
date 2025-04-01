@@ -260,9 +260,6 @@ static void trace_start_job(void *customdata, wmJobWorkerStatus *worker_status)
       BKE_image_release_ibuf(trace_job.image, ibuf, lock);
       *(trace_job.progress) = 1.0f;
     }
-    /* If source type is not sequence, override `trace_job.mode` to single because we need the
-     * correct mode for finalization. */
-    trace_job.mode = TraceMode::Single;
   }
   /* Image sequence. */
   else if (trace_job.image->type == IMA_TYPE_IMAGE) {
@@ -377,7 +374,7 @@ static bool grease_pencil_trace_image_poll(bContext *C)
   return true;
 }
 
-static wmOperatorStatus grease_pencil_trace_image_exec(bContext *C, wmOperator *op)
+static int grease_pencil_trace_image_exec(bContext *C, wmOperator *op)
 {
   TraceJob *job = MEM_new<TraceJob>("TraceJob");
   job->C = C;
@@ -448,9 +445,7 @@ static wmOperatorStatus grease_pencil_trace_image_exec(bContext *C, wmOperator *
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus grease_pencil_trace_image_invoke(bContext *C,
-                                                         wmOperator *op,
-                                                         const wmEvent * /*event*/)
+static int grease_pencil_trace_image_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
   /* Show popup dialog to allow editing. */
   /* FIXME: hard-coded dimensions here are just arbitrary. */

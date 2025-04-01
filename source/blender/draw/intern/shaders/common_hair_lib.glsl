@@ -20,26 +20,53 @@
 #ifdef HAIR_SHADER
 #  define COMMON_HAIR_LIB
 
-#  ifndef DRW_HAIR_INFO
-#    error Ensure createInfo includes draw_hair for general use or eevee_legacy_hair_lib for EEVEE.
-#  endif
+/* TODO(fclem): Keep documentation but remove the uniform declaration. */
+#  ifndef USE_GPU_SHADER_CREATE_INFO
 
-struct CurvePoint {
-  vec3 position;
-  /* Position along the curve length. O at root, 1 at the tip. */
-  float time;
-};
+/**
+ * hairStrandsRes: Number of points per hair strand.
+ * 2 - no subdivision
+ * 3+ - 1 or more interpolated points per hair.
+ */
+uniform int hairStrandsRes = 8;
 
-CurvePoint hair_get_point(int point_id)
-{
-  SHADER_LIBRARY_CREATE_INFO(draw_hair)
+/**
+ * hairThicknessRes : Subdivide around the hair.
+ * 1 - Wire Hair: Only one pixel thick, independent of view distance.
+ * 2 - Poly-strip Hair: Correct width, flat if camera is parallel.
+ * 3+ - Cylinder Hair: Massive calculation but potentially perfect. Still need proper support.
+ */
+uniform int hairThicknessRes = 1;
 
-  vec4 data = texelFetch(hairPointBuffer, point_id);
-  CurvePoint pt;
-  pt.position = data.xyz;
-  pt.time = data.w;
-  return pt;
-}
+/* Hair thickness shape. */
+uniform float hairRadRoot = 0.01;
+uniform float hairRadTip = 0.0;
+uniform float hairRadShape = 0.5;
+uniform bool hairCloseTip = true;
+
+uniform mat4 hairDupliMatrix;
+
+/* Strand batch offset when used in compute shaders. */
+uniform int hairStrandOffset = 0;
+
+/* -- Per control points -- */
+uniform samplerBuffer hairPointBuffer; /* RGBA32F */
+
+/* -- Per strands data -- */
+uniform usamplerBuffer hairStrandBuffer;    /* R32UI */
+uniform usamplerBuffer hairStrandSegBuffer; /* R16UI */
+
+/* Not used, use one buffer per uv layer */
+// uniform samplerBuffer hairUVBuffer; /* RG32F */
+// uniform samplerBuffer hairColBuffer; /* RGBA16 linear color */
+#  else
+#    ifndef DRW_HAIR_INFO
+#      error Ensure createInfo includes draw_hair for general use or eevee_legacy_hair_lib for EEVEE.
+#    endif
+#  endif /* !USE_GPU_SHADER_CREATE_INFO */
+
+#  define point_position xyz
+#  define point_time w /* Position along the hair length */
 
 /* -- Subdivision stage -- */
 /**
@@ -53,7 +80,7 @@ CurvePoint hair_get_point(int point_id)
 float hair_get_local_time()
 {
 #  ifdef GPU_VERTEX_SHADER
-  VERTEX_SHADER_CREATE_INFO(draw_hair)
+  VERTEX_SHADER_CREATE_INFO(draw_hair_new)
   return float(gl_VertexID % hairStrandsRes) / float(hairStrandsRes - 1);
 #  elif defined(GPU_COMPUTE_SHADER)
   COMPUTE_SHADER_CREATE_INFO(draw_hair_refine_compute)
@@ -66,7 +93,7 @@ float hair_get_local_time()
 int hair_get_id()
 {
 #  ifdef GPU_VERTEX_SHADER
-  VERTEX_SHADER_CREATE_INFO(draw_hair)
+  VERTEX_SHADER_CREATE_INFO(draw_hair_new)
   return gl_VertexID / hairStrandsRes;
 #  elif defined(GPU_COMPUTE_SHADER)
   COMPUTE_SHADER_CREATE_INFO(draw_hair_refine_compute)
@@ -124,7 +151,7 @@ void hair_get_interp_attrs(
  */
 
 #  if !defined(HAIR_PHASE_SUBDIV) && defined(GPU_VERTEX_SHADER)
-VERTEX_SHADER_CREATE_INFO(draw_hair)
+VERTEX_SHADER_CREATE_INFO(draw_hair_new)
 
 int hair_get_strand_id()
 {
@@ -169,9 +196,9 @@ void hair_get_center_pos_tan_binor_time(bool is_persp,
                                         out float thickness)
 {
   int id = hair_get_base_id();
-  CurvePoint data = hair_get_point(id);
-  wpos = data.position;
-  time = data.time;
+  vec4 data = texelFetch(hairPointBuffer, id);
+  wpos = data.point_position;
+  time = data.point_time;
 
 #    if defined(OS_MAC) && defined(GPU_OPENGL)
   /* Generate a dummy read to avoid the driver bug with shaders having no
@@ -181,10 +208,10 @@ void hair_get_center_pos_tan_binor_time(bool is_persp,
 
   if (time == 0.0) {
     /* Hair root */
-    wtan = hair_get_point(id + 1).position - wpos;
+    wtan = texelFetch(hairPointBuffer, id + 1).point_position - wpos;
   }
   else {
-    wtan = wpos - hair_get_point(id - 1).position;
+    wtan = wpos - texelFetch(hairPointBuffer, id - 1).point_position;
   }
 
   mat4 obmat = hairDupliMatrix;
@@ -252,7 +279,7 @@ vec4 hair_get_customdata_vec4(const samplerBuffer cd_buf)
 vec3 hair_get_strand_pos()
 {
   int id = hair_get_strand_id() * hairStrandsRes;
-  return hair_get_point(id).position;
+  return texelFetch(hairPointBuffer, id).point_position;
 }
 
 vec2 hair_get_barycentric()

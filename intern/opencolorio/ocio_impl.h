@@ -25,9 +25,6 @@ class IOCIOImpl {
                                                          const char *name) = 0;
   virtual int configGetIndexForColorSpace(OCIO_ConstConfigRcPtr *config, const char *name) = 0;
 
-  virtual const char *getColorSpaceFromFilepath(OCIO_ConstConfigRcPtr *config,
-                                                const char *filepath) = 0;
-
   virtual int colorSpaceIsInvertible(OCIO_ConstColorSpaceRcPtr *cs) = 0;
   virtual int colorSpaceIsData(OCIO_ConstColorSpaceRcPtr *cs) = 0;
   virtual void colorSpaceIsBuiltin(OCIO_ConstConfigRcPtr *config,
@@ -153,9 +150,6 @@ class FallbackImpl : public IOCIOImpl {
                                                  const char *name) override;
   int configGetIndexForColorSpace(OCIO_ConstConfigRcPtr *config, const char *name) override;
 
-  const char *getColorSpaceFromFilepath(OCIO_ConstConfigRcPtr *config,
-                                        const char *filepath) override;
-
   int colorSpaceIsInvertible(OCIO_ConstColorSpaceRcPtr *cs) override;
   int colorSpaceIsData(OCIO_ConstColorSpaceRcPtr *cs) override;
   void colorSpaceIsBuiltin(OCIO_ConstConfigRcPtr *config,
@@ -256,9 +250,6 @@ class OCIOImpl : public IOCIOImpl {
   OCIO_ConstColorSpaceRcPtr *configGetColorSpace(OCIO_ConstConfigRcPtr *config,
                                                  const char *name) override;
   int configGetIndexForColorSpace(OCIO_ConstConfigRcPtr *config, const char *name) override;
-
-  const char *getColorSpaceFromFilepath(OCIO_ConstConfigRcPtr *config,
-                                        const char *filepath) override;
 
   int colorSpaceIsInvertible(OCIO_ConstColorSpaceRcPtr *cs) override;
   int colorSpaceIsData(OCIO_ConstColorSpaceRcPtr *cs) override;

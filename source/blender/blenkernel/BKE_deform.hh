@@ -136,10 +136,7 @@ float BKE_defvert_find_weight(const MDeformVert *dvert, int defgroup);
  *
  * This is a bit confusing, just saves some checks from the caller.
  */
-float BKE_defvert_array_find_weight_safe(const MDeformVert *dvert,
-                                         int index,
-                                         int defgroup,
-                                         bool invert);
+float BKE_defvert_array_find_weight_safe(const MDeformVert *dvert, int index, int defgroup);
 
 /**
  * \return The total weight in all groups marked in the selection mask.

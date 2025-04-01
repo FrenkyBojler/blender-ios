@@ -32,25 +32,25 @@ struct PolyCornerIndex {
 };
 
 struct MultiresDisplacementData {
-  Subdiv *subdiv = nullptr;
-  int grid_size = 0;
+  Subdiv *subdiv;
+  int grid_size;
   /* Mesh is used to read external displacement. */
-  Mesh *mesh = nullptr;
-  const MultiresModifierData *mmd = nullptr;
-  OffsetIndices<int> faces = {};
-  const MDisps *mdisps = nullptr;
+  Mesh *mesh;
+  const MultiresModifierData *mmd;
+  OffsetIndices<int> faces;
+  const MDisps *mdisps;
   /* Indexed by PTEX face index, contains face/corner which corresponds
    * to it.
    *
    * NOTE: For quad face this is an index of first corner only, since
    * there we only have one PTEX. */
-  PolyCornerIndex *ptex_face_corner = nullptr;
+  PolyCornerIndex *ptex_face_corner;
   /* Indexed by coarse face index, returns first PTEX face index corresponding
    * to that coarse face. */
-  int *face_ptex_offset = nullptr;
+  int *face_ptex_offset;
   /* Sanity check, is used in debug builds.
    * Controls that initialize() was called prior to eval_displacement(). */
-  bool is_initialized = false;
+  bool is_initialized;
 };
 
 /* Denotes which grid to use to average value of the displacement read from the
@@ -359,7 +359,7 @@ static void free_displacement(Displacement *displacement)
   MultiresDisplacementData *data = static_cast<MultiresDisplacementData *>(
       displacement->user_data);
   MEM_freeN(data->ptex_face_corner);
-  MEM_delete(data);
+  MEM_freeN(data);
 }
 
 /* TODO(sergey): This seems to be generally used information, which almost
@@ -381,8 +381,8 @@ static void displacement_data_init_mapping(Displacement *displacement, const Mes
   const OffsetIndices faces = mesh->faces();
   const int num_ptex_faces = count_num_ptex_faces(mesh);
   /* Allocate memory. */
-  data->ptex_face_corner = MEM_malloc_arrayN<PolyCornerIndex>(size_t(num_ptex_faces),
-                                                              "PTEX face corner");
+  data->ptex_face_corner = static_cast<PolyCornerIndex *>(
+      MEM_malloc_arrayN(num_ptex_faces, sizeof(*data->ptex_face_corner), "PTEX face corner"));
   /* Fill in offsets. */
   int ptex_face_index = 0;
   PolyCornerIndex *ptex_face_corner = data->ptex_face_corner;
@@ -438,8 +438,9 @@ void displacement_attach_from_multires(Subdiv *subdiv, Mesh *mesh, const Multire
     return;
   }
   /* Allocate all required memory. */
-  Displacement *displacement = MEM_callocN<Displacement>("multires displacement");
-  displacement->user_data = MEM_new<MultiresDisplacementData>("multires displacement data");
+  Displacement *displacement = MEM_cnew<Displacement>("multires displacement");
+  displacement->user_data = MEM_callocN(sizeof(MultiresDisplacementData),
+                                        "multires displacement data");
   displacement_init_data(displacement, subdiv, mesh, mmd);
   displacement_init_functions(displacement);
   /* Finish. */

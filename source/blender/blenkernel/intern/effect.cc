@@ -24,7 +24,6 @@
 #include "DNA_texture_types.h"
 
 #include "BLI_ghash.h"
-#include "BLI_listbase.h"
 #include "BLI_math_base_safe.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
@@ -57,7 +56,8 @@
 
 EffectorWeights *BKE_effector_add_weights(Collection *collection)
 {
-  EffectorWeights *weights = MEM_callocN<EffectorWeights>("EffectorWeights");
+  EffectorWeights *weights = static_cast<EffectorWeights *>(
+      MEM_callocN(sizeof(EffectorWeights), "EffectorWeights"));
   for (int i = 0; i < NUM_PFIELD_TYPES; i++) {
     weights->weight[i] = 1.0f;
   }
@@ -72,7 +72,7 @@ PartDeflect *BKE_partdeflect_new(int type)
 {
   PartDeflect *pd;
 
-  pd = MEM_callocN<PartDeflect>("PartDeflect");
+  pd = static_cast<PartDeflect *>(MEM_callocN(sizeof(PartDeflect), "PartDeflect"));
 
   pd->forcefield = type;
   pd->pdef_sbdamp = 0.1f;
@@ -166,7 +166,8 @@ static void add_effector_relation(ListBase *relations,
                                   ParticleSystem *psys,
                                   PartDeflect *pd)
 {
-  EffectorRelation *relation = MEM_callocN<EffectorRelation>("EffectorRelation");
+  EffectorRelation *relation = static_cast<EffectorRelation *>(
+      MEM_callocN(sizeof(EffectorRelation), "EffectorRelation"));
   relation->ob = ob;
   relation->psys = psys;
   relation->pd = pd;
@@ -182,10 +183,11 @@ static void add_effector_evaluation(ListBase **effectors,
                                     PartDeflect *pd)
 {
   if (*effectors == nullptr) {
-    *effectors = MEM_callocN<ListBase>("effector effectors");
+    *effectors = static_cast<ListBase *>(MEM_callocN(sizeof(ListBase), "effector effectors"));
   }
 
-  EffectorCache *eff = MEM_callocN<EffectorCache>("EffectorCache");
+  EffectorCache *eff = static_cast<EffectorCache *>(
+      MEM_callocN(sizeof(EffectorCache), "EffectorCache"));
   eff->depsgraph = depsgraph;
   eff->scene = scene;
   eff->ob = ob;
@@ -206,7 +208,8 @@ ListBase *BKE_effector_relations_create(Depsgraph *depsgraph,
   const bool for_render = (DEG_get_mode(depsgraph) == DAG_EVAL_RENDER);
   const int base_flag = (for_render) ? BASE_ENABLED_RENDER : BASE_ENABLED_VIEWPORT;
 
-  ListBase *relations = MEM_callocN<ListBase>("effector relations");
+  ListBase *relations = static_cast<ListBase *>(
+      MEM_callocN(sizeof(ListBase), "effector relations"));
 
   for (; base; base = base->next) {
     if (!(base->flag & base_flag)) {
@@ -1259,7 +1262,8 @@ void BKE_sim_debug_data_set_enabled(bool enable)
 {
   if (enable) {
     if (!_sim_debug_data) {
-      _sim_debug_data = MEM_callocN<SimDebugData>("sim debug data");
+      _sim_debug_data = static_cast<SimDebugData *>(
+          MEM_callocN(sizeof(SimDebugData), "sim debug data"));
       _sim_debug_data->gh = BLI_ghash_new(
           debug_element_hash, debug_element_compare, "sim debug element hash");
     }
@@ -1319,7 +1323,8 @@ void BKE_sim_debug_data_add_element(int type,
     }
   }
 
-  elem = MEM_callocN<SimDebugElement>("sim debug data element");
+  elem = static_cast<SimDebugElement *>(
+      MEM_callocN(sizeof(SimDebugElement), "sim debug data element"));
   elem->type = type;
   elem->category_hash = category_hash;
   elem->hash = hash;

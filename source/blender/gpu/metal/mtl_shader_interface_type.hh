@@ -50,8 +50,6 @@ enum eMTLDataType {
   MTL_DATATYPE_FLOAT2,
   MTL_DATATYPE_FLOAT3,
   MTL_DATATYPE_FLOAT4,
-  MTL_DATATYPE_PACKED_FLOAT2,
-  MTL_DATATYPE_PACKED_FLOAT3,
 
   MTL_DATATYPE_LONG,
   MTL_DATATYPE_LONG2,
@@ -127,11 +125,9 @@ inline uint mtl_get_data_type_size(eMTLDataType type)
     case MTL_DATATYPE_LONG:
     case MTL_DATATYPE_ULONG:
     case MTL_DATATYPE_HALF2x2:
-    case MTL_DATATYPE_PACKED_FLOAT2:
       return 8;
 
     case MTL_DATATYPE_HALF3x2:
-    case MTL_DATATYPE_PACKED_FLOAT3:
       return 12;
 
     case MTL_DATATYPE_INT3:
@@ -215,7 +211,6 @@ inline uint mtl_get_data_type_alignment(eMTLDataType type)
     case MTL_DATATYPE_INT2:
     case MTL_DATATYPE_UINT2:
     case MTL_DATATYPE_FLOAT2:
-    case MTL_DATATYPE_PACKED_FLOAT2:
     case MTL_DATATYPE_LONG:
     case MTL_DATATYPE_ULONG:
     case MTL_DATATYPE_HALF2x3:
@@ -234,7 +229,6 @@ inline uint mtl_get_data_type_alignment(eMTLDataType type)
     case MTL_DATATYPE_UINT3:
     case MTL_DATATYPE_UINT4:
     case MTL_DATATYPE_FLOAT3:
-    case MTL_DATATYPE_PACKED_FLOAT3:
     case MTL_DATATYPE_FLOAT4:
     case MTL_DATATYPE_LONG2:
     case MTL_DATATYPE_ULONG2:

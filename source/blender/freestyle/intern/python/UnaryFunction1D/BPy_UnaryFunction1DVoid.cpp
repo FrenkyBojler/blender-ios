@@ -16,6 +16,10 @@
 #include "UnaryFunction1D_void/BPy_IncrementChainingTimeStampF1D.h"
 #include "UnaryFunction1D_void/BPy_TimeStampF1D.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 using namespace Freestyle;
 
 ///////////////////////////////////////////////////////////////////////////////////////////
@@ -209,3 +213,7 @@ PyTypeObject UnaryFunction1DVoid_Type = {
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////
+
+#ifdef __cplusplus
+}
+#endif

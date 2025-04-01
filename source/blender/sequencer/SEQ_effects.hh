@@ -15,12 +15,9 @@
 
 struct ImBuf;
 struct Scene;
+struct SeqRenderData;
 struct Strip;
 struct TextVars;
-
-namespace blender::seq {
-
-struct RenderData;
 
 enum class StripEarlyOut {
   NoInput = -1,  /* No input needed. */
@@ -39,7 +36,7 @@ enum {
   DO_CLOCK_WIPE,
 };
 
-struct EffectHandle {
+struct SeqEffectHandle {
   /* constructors & destructor */
   /* init is _only_ called on first creation */
   void (*init)(Strip *strip);
@@ -67,7 +64,7 @@ struct EffectHandle {
                           float *fac);
 
   /* execute the effect */
-  ImBuf *(*execute)(const RenderData *context,
+  ImBuf *(*execute)(const SeqRenderData *context,
                     Strip *strip,
                     float timeline_frame,
                     float fac,
@@ -75,11 +72,13 @@ struct EffectHandle {
                     ImBuf *ibuf2);
 };
 
-EffectHandle effect_handle_get(Strip *strip);
-int effect_get_num_inputs(int strip_type);
-void effect_text_font_unload(TextVars *data, bool do_id_user);
-void effect_text_font_load(TextVars *data, bool do_id_user);
-bool effects_can_render_text(const Strip *strip);
+SeqEffectHandle SEQ_effect_handle_get(Strip *strip);
+int SEQ_effect_get_num_inputs(int strip_type);
+void SEQ_effect_text_font_unload(TextVars *data, bool do_id_user);
+void SEQ_effect_text_font_load(TextVars *data, bool do_id_user);
+bool SEQ_effects_can_render_text(const Strip *strip);
+
+namespace blender::seq {
 
 struct CharInfo {
   int index = 0;

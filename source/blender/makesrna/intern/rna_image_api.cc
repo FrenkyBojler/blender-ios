@@ -29,7 +29,6 @@
 #  include "BKE_image.hh"
 #  include "BKE_image_format.hh"
 #  include "BKE_image_save.hh"
-#  include "BKE_library.hh"
 #  include "BKE_main.hh"
 #  include "BKE_report.hh"
 #  include "BKE_scene.hh"
@@ -93,8 +92,7 @@ static void rna_Image_save(Image *image,
                            bContext *C,
                            ReportList *reports,
                            const char *path,
-                           const int quality,
-                           const bool save_copy)
+                           const int quality)
 {
   Scene *scene = CTX_data_scene(C);
   ImageSaveOptions opts;
@@ -106,7 +104,6 @@ static void rna_Image_save(Image *image,
     if (quality != 0) {
       opts.im_format.quality = clamp_i(quality, 0, 100);
     }
-    opts.save_copy = save_copy;
     if (!BKE_image_save(reports, bmain, image, nullptr, &opts)) {
       BKE_reportf(reports,
                   RPT_ERROR,
@@ -130,7 +127,8 @@ static void rna_Image_pack(
   BKE_image_free_packedfiles(image);
 
   if (data) {
-    char *data_dup = MEM_malloc_arrayN<char>(size_t(data_len), __func__);
+    char *data_dup = static_cast<char *>(
+        MEM_mallocN(sizeof(*data_dup) * (size_t)data_len, __func__));
     memcpy(data_dup, data, size_t(data_len));
     BKE_image_packfiles_from_mem(reports, image, data_dup, size_t(data_len));
   }
@@ -181,7 +179,7 @@ static void rna_Image_update(Image *image, ReportList *reports)
   }
 
   if (ibuf->byte_buffer.data) {
-    IMB_byte_from_float(ibuf);
+    IMB_rect_from_float(ibuf);
   }
 
   ibuf->userflags |= IB_DISPLAY_BUFFER_INVALID;
@@ -319,11 +317,6 @@ void RNA_api_image(StructRNA *srna)
               "not specified",
               0,
               100);
-  RNA_def_boolean(func,
-                  "save_copy",
-                  false,
-                  "Save Copy",
-                  "Save the image as a copy, without updating current image's filepath");
 
   func = RNA_def_function(srna, "pack", "rna_Image_pack");
   RNA_def_function_ui_description(func, "Pack an image as embedded data into the .blend file");

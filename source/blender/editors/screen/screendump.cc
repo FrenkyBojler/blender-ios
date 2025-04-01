@@ -98,7 +98,7 @@ static void screenshot_data_free(wmOperator *op)
   }
 }
 
-static wmOperatorStatus screenshot_exec(bContext *C, wmOperator *op)
+static int screenshot_exec(bContext *C, wmOperator *op)
 {
   const bool use_crop = STREQ(op->idname, "SCREEN_OT_screenshot_area");
   ScreenshotData *scd = static_cast<ScreenshotData *>(op->customdata);
@@ -150,7 +150,7 @@ static wmOperatorStatus screenshot_exec(bContext *C, wmOperator *op)
   return ok ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
 }
 
-static wmOperatorStatus screenshot_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static int screenshot_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   const bool use_crop = STREQ(op->idname, "SCREEN_OT_screenshot_area");
   ScrArea *area = nullptr;

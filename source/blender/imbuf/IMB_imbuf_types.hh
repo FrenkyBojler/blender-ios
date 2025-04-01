@@ -1,15 +1,8 @@
 /* SPDX-FileCopyrightText: 2001-2002 NaN Holding BV. All rights reserved.
- * SPDX-FileCopyrightText: 2025 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
-
-/** \file
- * \ingroup imbuf
- *
- * Image buffer types.
- */
 
 #include "DNA_vec_types.h" /* for rcti */
 
@@ -19,6 +12,22 @@ struct ColormanageCache;
 struct ColorSpace;
 struct GPUTexture;
 struct IDProperty;
+
+/** \file
+ * \ingroup imbuf
+ * \brief Contains defines and structs used throughout the imbuf module.
+ * \todo Clean up includes.
+ *
+ * Types needed for using the image buffer.
+ *
+ * ImBuf is external code, slightly adapted to live in the Blender
+ * context. It requires an external JPEG module, and the AVI-module
+ * (also external code) in order to function correctly.
+ *
+ * This file contains types and some constants that go with them. Most
+ * are self-explanatory (e.g. IS_amiga tests whether the buffer
+ * contains an Amiga-format file).
+ */
 
 #define IMB_MIPMAP_LEVELS 20
 #define IMB_FILEPATH_SIZE 1024
@@ -78,12 +87,10 @@ struct ImbFormatOptions {
  * \{ */
 
 enum eImBufFlags {
-  /** Image has byte data (unsigned 0..1 range in a byte, always 4 channels). */
-  IB_byte_data = 1 << 0,
+  IB_rect = 1 << 0,
   IB_test = 1 << 1,
   IB_mem = 1 << 4,
-  /** Image has float data (usually 1..4 channels, 32 bit float per channel). */
-  IB_float_data = 1 << 5,
+  IB_rectfloat = 1 << 5,
   IB_multilayer = 1 << 7,
   IB_metadata = 1 << 8,
   IB_animdeinterlace = 1 << 9,
@@ -102,6 +109,8 @@ enum eImBufFlags {
   /** ignore alpha on load and substitute it with 1.0f */
   IB_alphamode_ignore = 1 << 15,
   IB_thumbnail = 1 << 16,
+  IB_multiview = 1 << 17,
+  IB_halffloat = 1 << 18,
 };
 
 /** \} */
@@ -213,7 +222,8 @@ struct ImBuf {
   /** Resolution in pixels per meter. Multiply by `0.0254` for DPI. */
   double ppm[2];
 
-  /** Amount of dithering to apply, when converting float -> byte. */
+  /* parameters used by conversion between byte and float */
+  /** random dither value, for conversion from float -> byte rect */
   float dither;
 
   /* mipmapping */

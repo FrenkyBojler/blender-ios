@@ -36,8 +36,6 @@
 #  include "BKE_cloth.hh"
 #  include "BKE_context.hh"
 
-#  include "BLT_translation.hh"
-
 #  include "DEG_depsgraph.hh"
 #  include "DEG_depsgraph_build.hh"
 
@@ -448,7 +446,7 @@ static int rna_ClothSettings_internal_editable(const PointerRNA *ptr, const char
   ClothSimSettings *sim = (ClothSimSettings *)ptr->data;
 
   if (sim && (sim->bending_model == CLOTH_BENDING_LINEAR)) {
-    *r_info = N_("Only available with angular bending springs.");
+    *r_info = "Only available with angular bending springs.";
     return 0;
   }
 

@@ -8,7 +8,6 @@
 
 #include "BKE_context.hh"
 #include "BKE_curveprofile.h"
-#include "BKE_library.hh"
 
 #include "BLI_rect.h"
 #include "BLI_string_ref.hh"
@@ -35,7 +34,7 @@ static uiBlock *curve_profile_presets_fn(bContext *C, ARegion *region, void *cb_
   CurveProfile *profile = static_cast<CurveProfile *>(profile_ptr.data);
   short yco = 0;
 
-  uiBlock *block = UI_block_begin(C, region, __func__, blender::ui::EmbossType::Emboss);
+  uiBlock *block = UI_block_begin(C, region, __func__, UI_EMBOSS);
 
   for (const auto &item :
        {std::pair<StringRef, eCurveProfilePresets>(IFACE_("Default"), PROF_PRESET_LINE),
@@ -85,7 +84,7 @@ static uiBlock *curve_profile_tools_fn(bContext *C, ARegion *region, void *cb_v)
   CurveProfile *profile = static_cast<CurveProfile *>(profile_ptr.data);
   short yco = 0;
 
-  uiBlock *block = UI_block_begin(C, region, __func__, blender::ui::EmbossType::Emboss);
+  uiBlock *block = UI_block_begin(C, region, __func__, UI_EMBOSS);
 
   {
     uiBut *but = uiDefIconTextBut(block,
@@ -209,7 +208,7 @@ static void CurveProfile_buttons_layout(uiLayout *layout, PointerRNA *ptr, const
 
   uiBlock *block = uiLayoutGetBlock(layout);
 
-  UI_block_emboss_set(block, blender::ui::EmbossType::Emboss);
+  UI_block_emboss_set(block, UI_EMBOSS);
 
   uiLayoutSetPropSep(layout, false);
 

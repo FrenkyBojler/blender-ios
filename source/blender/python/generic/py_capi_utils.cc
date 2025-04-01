@@ -1614,8 +1614,8 @@ bool PyC_RunString_AsStringAndSize(const char *imports[],
       ok = false;
     }
     else {
-      char *val_alloc = MEM_malloc_arrayN<char>(size_t(val_len) + 1, __func__);
-      memcpy(val_alloc, val, (size_t(val_len) + 1) * sizeof(*val_alloc));
+      char *val_alloc = static_cast<char *>(MEM_mallocN(val_len + 1, __func__));
+      memcpy(val_alloc, val, val_len + 1);
       *r_value = val_alloc;
       *r_value_size = val_len;
       ok = true;
@@ -1658,8 +1658,8 @@ bool PyC_RunString_AsStringAndSizeOrNone(const char *imports[],
         ok = false;
       }
       else {
-        char *val_alloc = MEM_malloc_arrayN<char>(size_t(val_len) + 1, __func__);
-        memcpy(val_alloc, val, (size_t(val_len) + 1) * sizeof(val_alloc));
+        char *val_alloc = static_cast<char *>(MEM_mallocN(val_len + 1, __func__));
+        memcpy(val_alloc, val, val_len + 1);
         *r_value = val_alloc;
         *r_value_size = val_len;
         ok = true;
@@ -1695,10 +1695,9 @@ bool PyC_RunString_AsStringOrNone(const char *imports[],
  * \{ */
 
 /* Compiler optimizes out redundant checks. */
-#if defined(__GNUC__) && !defined(__clang__)
-#  pragma GCC diagnostic push
+#ifdef __GNUC__
+#  pragma warning(push)
 #  pragma GCC diagnostic ignored "-Wtype-limits"
-
 #endif
 
 /* #PyLong_AsUnsignedLong, unlike #PyLong_AsLong, does not fall back to calling #PyNumber_Index
@@ -1833,8 +1832,8 @@ uint64_t PyC_Long_AsU64(PyObject *value)
   return to_return;
 }
 
-#if defined(__GNUC__) && !defined(__clang__)
-#  pragma GCC diagnostic pop
+#ifdef __GNUC__
+#  pragma warning(pop)
 #endif
 
 /** \} */

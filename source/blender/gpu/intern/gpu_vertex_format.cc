@@ -10,7 +10,6 @@
 
 #include "GPU_vertex_format.hh"
 #include "BLI_assert.h"
-#include "BLI_math_base.h"
 #include "GPU_capabilities.hh"
 
 #include "gpu_shader_create_info.hh"
@@ -20,7 +19,7 @@
 #include <cstddef>
 #include <cstring>
 
-#include "BLI_hash_mm2a.hh"
+#include "BLI_ghash.h"
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
@@ -30,7 +29,6 @@
 #  include <stdio.h>
 #endif
 
-using blender::StringRef;
 using namespace blender::gpu;
 using namespace blender::gpu::shader;
 
@@ -94,22 +92,31 @@ uint vertex_buffer_size(const GPUVertFormat *format, uint vertex_len)
   return format->stride * vertex_len;
 }
 
-static uchar copy_attr_name(GPUVertFormat *format, const StringRef name)
+static uchar copy_attr_name(GPUVertFormat *format, const char *name)
 {
-  const uchar name_offset = format->name_offset;
-  /* Subtract one to make sure there's enough space for the last null terminator. */
-  const int64_t available = GPU_VERT_ATTR_NAMES_BUF_LEN - name_offset - 1;
-  const int64_t chars_to_copy = std::min(name.size(), available);
+  /* `strncpy` does 110% of what we need; let's do exactly 100% */
+  uchar name_offset = format->name_offset;
+  char *name_copy = format->names + name_offset;
+  uint available = GPU_VERT_ATTR_NAMES_BUF_LEN - name_offset;
+  bool terminated = false;
 
-  name.substr(0, available).copy_unsafe(format->names + name_offset);
-  format->name_offset += chars_to_copy + 1;
-
+  for (uint i = 0; i < available; i++) {
+    const char c = name[i];
+    name_copy[i] = c;
+    if (c == '\0') {
+      terminated = true;
+      format->name_offset += (i + 1);
+      break;
+    }
+  }
+  BLI_assert(terminated);
   BLI_assert(format->name_offset <= GPU_VERT_ATTR_NAMES_BUF_LEN);
+  UNUSED_VARS_NDEBUG(terminated);
   return name_offset;
 }
 
 uint GPU_vertformat_attr_add(GPUVertFormat *format,
-                             const StringRef name,
+                             const char *name,
                              GPUVertCompType comp_type,
                              uint comp_len,
                              GPUVertFetchMode fetch_mode)
@@ -158,23 +165,13 @@ uint GPU_vertformat_attr_add(GPUVertFormat *format,
   return attr_id;
 }
 
-void GPU_vertformat_alias_add(GPUVertFormat *format, const StringRef alias)
+void GPU_vertformat_alias_add(GPUVertFormat *format, const char *alias)
 {
   GPUVertAttr *attr = &format->attrs[format->attr_len - 1];
   BLI_assert(format->name_len < GPU_VERT_FORMAT_MAX_NAMES); /* there's room for more */
   BLI_assert(attr->name_len < GPU_VERT_ATTR_MAX_NAMES);
   format->name_len++; /* Multi-name support. */
   attr->names[attr->name_len++] = copy_attr_name(format, alias);
-}
-
-GPUVertFormat GPU_vertformat_from_attribute(const StringRef name,
-                                            const GPUVertCompType comp_type,
-                                            const uint comp_len,
-                                            const GPUVertFetchMode fetch_mode)
-{
-  GPUVertFormat format{};
-  GPU_vertformat_attr_add(&format, name, comp_type, comp_len, fetch_mode);
-  return format;
 }
 
 void GPU_vertformat_multiload_enable(GPUVertFormat *format, int load_count)
@@ -207,13 +204,13 @@ void GPU_vertformat_multiload_enable(GPUVertFormat *format, int load_count)
   }
 }
 
-int GPU_vertformat_attr_id_get(const GPUVertFormat *format, const StringRef name)
+int GPU_vertformat_attr_id_get(const GPUVertFormat *format, const char *name)
 {
   for (int i = 0; i < format->attr_len; i++) {
     const GPUVertAttr *attr = &format->attrs[i];
     for (int j = 0; j < attr->name_len; j++) {
       const char *attr_name = GPU_vertformat_attr_name_get(format, attr, j);
-      if (name == attr_name) {
+      if (STREQ(name, attr_name)) {
         return i;
       }
     }
@@ -247,25 +244,27 @@ static void safe_bytes(char out[11], const char data[8])
   }
 }
 
-void GPU_vertformat_safe_attr_name(const StringRef attr_name, char *r_safe_name, uint /*max_len*/)
+void GPU_vertformat_safe_attr_name(const char *attr_name, char *r_safe_name, uint /*max_len*/)
 {
   char data[8] = {0};
-  uint len = attr_name.size();
+  uint len = strlen(attr_name);
 
   if (len > 8) {
     /* Start with the first 4 chars of the name. */
-    memcpy(data, attr_name.data(), 4);
+    for (int i = 0; i < 4; i++) {
+      data[i] = attr_name[i];
+    }
     /* We use a hash to identify each data layer based on its name.
      * NOTE: This is still prone to hash collision but the risks are very low. */
     /* Start hashing after the first 2 chars. */
-    const StringRef to_hash = attr_name.drop_prefix(4);
-    *(uint *)&data[4] = BLI_hash_mm2(
-        reinterpret_cast<const uchar *>(to_hash.data()), to_hash.size(), 0);
+    *(uint *)&data[4] = BLI_ghashutil_strhash_p_murmur(attr_name + 4);
   }
   else {
     /* Copy the whole name. Collision is barely possible
      * (hash would have to be equal to the last 4 bytes). */
-    memcpy(data, attr_name.data(), std::min<int>(8, len));
+    for (int i = 0; i < 8 && attr_name[i] != '\0'; i++) {
+      data[i] = attr_name[i];
+    }
   }
   /* Convert to safe bytes characters. */
   safe_bytes(r_safe_name, data);

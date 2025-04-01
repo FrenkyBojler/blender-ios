@@ -11,6 +11,10 @@
 #include "../BPy_Convert.h"
 #include "../Interface0D/BPy_ViewVertex.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 using namespace Freestyle;
 
 ///////////////////////////////////////////////////////////////////////////////////////////
@@ -215,3 +219,7 @@ PyTypeObject AdjacencyIterator_Type = {
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////
+
+#ifdef __cplusplus
+}
+#endif

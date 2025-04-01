@@ -11,6 +11,10 @@
 #include "BLI_math_inline.h"
 #include "BLI_sys_types.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #ifdef BLI_MATH_GCC_WARN_PRAGMA
 #  pragma GCC diagnostic push
 #  pragma GCC diagnostic ignored "-Wredundant-decls"
@@ -57,3 +61,7 @@ void BLI_covariance_m3_v3n(const float (*cos_v3)[3],
 #endif
 
 /** \} */
+
+#ifdef __cplusplus
+}
+#endif

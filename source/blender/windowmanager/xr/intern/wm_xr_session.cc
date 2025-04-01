@@ -754,7 +754,7 @@ static void wm_xr_session_modal_action_test_add(ListBase *active_modal_actions,
 {
   bool found;
   if (wm_xr_session_modal_action_test(active_modal_actions, action, &found) && !found) {
-    LinkData *ld = MEM_callocN<LinkData>(__func__);
+    LinkData *ld = static_cast<LinkData *>(MEM_callocN(sizeof(LinkData), __func__));
     ld->data = (void *)action;
     BLI_addtail(active_modal_actions, ld);
   }
@@ -795,7 +795,7 @@ static void wm_xr_session_haptic_action_add(ListBase *active_haptic_actions,
     ha->time_start = time_now;
   }
   else {
-    ha = MEM_callocN<wmXrHapticAction>(__func__);
+    ha = static_cast<wmXrHapticAction *>(MEM_callocN(sizeof(wmXrHapticAction), __func__));
     ha->action = (wmXrAction *)action;
     ha->subaction_path = subaction_path;
     ha->time_start = time_now;
@@ -1040,7 +1040,8 @@ static wmXrActionData *wm_xr_session_event_create(const char *action_set_name,
                                                   uint subaction_idx_other,
                                                   bool bimanual)
 {
-  wmXrActionData *data = MEM_callocN<wmXrActionData>(__func__);
+  wmXrActionData *data = static_cast<wmXrActionData *>(
+      MEM_callocN(sizeof(wmXrActionData), __func__));
   STRNCPY(data->action_set, action_set_name);
   STRNCPY(data->action, action->name);
   STRNCPY(data->user_path, action->subaction_paths[subaction_idx]);
@@ -1120,7 +1121,8 @@ static void wm_xr_session_events_dispatch(wmXrData *xr,
   ListBase *active_modal_actions = &action_set->active_modal_actions;
   ListBase *active_haptic_actions = &action_set->active_haptic_actions;
 
-  wmXrAction **actions = MEM_calloc_arrayN<wmXrAction *>(count, __func__);
+  wmXrAction **actions = static_cast<wmXrAction **>(
+      MEM_calloc_arrayN(count, sizeof(*actions), __func__));
 
   GHOST_XrGetActionCustomdataArray(xr_context, action_set_name, (void **)actions);
 
@@ -1266,7 +1268,8 @@ void wm_xr_session_controller_data_populate(const wmXrAction *grip_action,
   wm_xr_session_controller_data_free(state);
 
   for (uint i = 0; i < count; ++i) {
-    wmXrController *controller = MEM_callocN<wmXrController>(__func__);
+    wmXrController *controller = static_cast<wmXrController *>(
+        MEM_callocN(sizeof(*controller), __func__));
 
     BLI_assert(STREQ(grip_action->subaction_paths[i], aim_action->subaction_paths[i]));
     STRNCPY(controller->subaction_path, grip_action->subaction_paths[i]);
@@ -1363,7 +1366,7 @@ bool wm_xr_session_surface_offscreen_ensure(wmXrSurfaceData *surface_data,
 {
   wmXrViewportPair *vp = nullptr;
   if (draw_view->view_idx >= BLI_listbase_count(&surface_data->viewports)) {
-    vp = MEM_callocN<wmXrViewportPair>(__func__);
+    vp = static_cast<wmXrViewportPair *>(MEM_callocN(sizeof(*vp), __func__));
     BLI_addtail(&surface_data->viewports, vp);
   }
   else {
@@ -1462,9 +1465,11 @@ static wmSurface *wm_xr_session_surface_create()
     return g_xr_surface;
   }
 
-  wmSurface *surface = MEM_callocN<wmSurface>(__func__);
-  wmXrSurfaceData *data = MEM_callocN<wmXrSurfaceData>("XrSurfaceData");
-  data->controller_art = MEM_callocN<ARegionType>("XrControllerRegionType");
+  wmSurface *surface = static_cast<wmSurface *>(MEM_callocN(sizeof(*surface), __func__));
+  wmXrSurfaceData *data = static_cast<wmXrSurfaceData *>(
+      MEM_callocN(sizeof(*data), "XrSurfaceData"));
+  data->controller_art = static_cast<ARegionType *>(
+      MEM_callocN(sizeof(*(data->controller_art)), "XrControllerRegionType"));
 
   surface->draw = wm_xr_session_surface_draw;
   surface->do_depsgraph = wm_xr_session_do_depsgraph;

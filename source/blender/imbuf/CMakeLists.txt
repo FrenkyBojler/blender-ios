@@ -21,7 +21,7 @@ set(SRC
   intern/allocimbuf.cc
   intern/colormanagement.cc
   intern/colormanagement_inline.h
-  intern/conversion.cc
+  intern/divers.cc
   intern/filetype.cc
   intern/filter.cc
   intern/format_bmp.cc

@@ -13,7 +13,7 @@ namespace blender::nodes {
 struct NodeExtraInfoRow {
   std::string text;
   int icon = 0;
-  StringRef tooltip;
+  const char *tooltip = nullptr;
 
   uiButToolTipFunc tooltip_fn = nullptr;
   void *tooltip_fn_arg = nullptr;

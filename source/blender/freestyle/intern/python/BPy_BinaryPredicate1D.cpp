@@ -17,6 +17,10 @@
 #include "BinaryPredicate1D/BPy_TrueBP1D.h"
 #include "BinaryPredicate1D/BPy_ViewMapGradientNormBP1D.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 using namespace Freestyle;
 
 ///////////////////////////////////////////////////////////////////////////////////////////
@@ -205,3 +209,7 @@ PyTypeObject BinaryPredicate1D_Type = {
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////
+
+#ifdef __cplusplus
+}
+#endif

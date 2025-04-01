@@ -2,16 +2,8 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "infos/overlay_edit_mode_info.hh"
-
-VERTEX_SHADER_CREATE_INFO(overlay_edit_mesh_edge)
-
-#ifdef GLSL_CPP_STUBS
-#  define EDGE
-#endif
-
+#include "common_view_clipping_lib.glsl"
 #include "draw_model_lib.glsl"
-#include "draw_view_clipping_lib.glsl"
 #include "draw_view_lib.glsl"
 #include "gpu_shader_attribute_load_lib.glsl"
 #include "gpu_shader_index_load_lib.glsl"
@@ -114,7 +106,7 @@ void geometry_main(VertOut geom_in[2], uint out_vert_id, uint out_prim_id, uint 
   ss_pos[1] = pos1.xy / pos1.w;
 
   vec2 line = ss_pos[0] - ss_pos[1];
-  line = abs(line) * sizeViewport;
+  line = abs(line) * sizeViewport.xy;
 
   geometry_flat_out.finalColorOuter = geom_in[0].final_color_outer;
   float half_size = sizeEdge;

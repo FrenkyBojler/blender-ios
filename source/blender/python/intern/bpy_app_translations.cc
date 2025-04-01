@@ -139,7 +139,7 @@ static void _build_translations_cache(PyObject *py_messages, const char *locale)
   BLT_lang_locale_explode(
       locale, &language, nullptr, nullptr, &language_country, &language_variant);
 
-  /* Clear the cached #blender::Map if needed, and create a new one. */
+  /* Clear the cached ghash if needed, and create a new one. */
   _clear_translations_cache();
   get_translations_cache() = std::make_unique<blender::Map<MessageKey, std::string>>();
 
@@ -185,7 +185,7 @@ static void _build_translations_cache(PyObject *py_messages, const char *locale)
         continue;
       }
 
-      /* Iterate over all translations of the found language dict and populate our cache. */
+      /* Iterate over all translations of the found language dict, and populate our ghash cache. */
       while (PyDict_Next(lang_dict, &ppos, &pykey, &trans)) {
         const char *msgctxt = nullptr, *msgid = nullptr;
         bool invalid_key = false;
@@ -236,7 +236,7 @@ static void _build_translations_cache(PyObject *py_messages, const char *locale)
         }
 
         /* Do not overwrite existing keys! */
-        if (!BPY_app_translations_py_pgettext(msgctxt, msgid).has_value()) {
+        if (BPY_app_translations_py_pgettext(msgctxt, msgid) == msgid) {
           MessageKey key;
           key.context = BLT_is_default_context(msgctxt) ? BLT_I18NCONTEXT_DEFAULT_BPYRNA : msgctxt;
           key.str = msgid;
@@ -254,8 +254,7 @@ static void _build_translations_cache(PyObject *py_messages, const char *locale)
   MEM_SAFE_FREE(language_variant);
 }
 
-std::optional<StringRefNull> BPY_app_translations_py_pgettext(const StringRef msgctxt,
-                                                              const StringRef msgid)
+const char *BPY_app_translations_py_pgettext(const char *msgctxt, const char *msgid)
 {
 #  define STATIC_LOCALE_SIZE 32 /* Should be more than enough! */
 
@@ -264,17 +263,19 @@ std::optional<StringRefNull> BPY_app_translations_py_pgettext(const StringRef ms
 
   /* Just in case, should never happen! */
   if (!_translations) {
-    return std::nullopt;
+    return msgid;
   }
 
   tmp = BLT_lang_get();
   if (!STREQ(tmp, locale) || !get_translations_cache()) {
-    /* This function may be called from C (i.e. outside of python interpreter 'context'). */
-    PyGILState_STATE _py_state = PyGILState_Ensure();
+    PyGILState_STATE _py_state;
 
     STRNCPY(locale, tmp);
 
     /* Locale changed or cache does not exist, refresh the whole cache! */
+    /* This func may be called from C (i.e. outside of python interpreter 'context'). */
+    _py_state = PyGILState_Ensure();
+
     _build_translations_cache(_translations->py_messages, locale);
 
     PyGILState_Release(_py_state);
@@ -287,9 +288,9 @@ std::optional<StringRefNull> BPY_app_translations_py_pgettext(const StringRef ms
 
   const std::string *result = get_translations_cache()->lookup_ptr_as(key);
   if (!result) {
-    return std::nullopt;
+    return msgid;
   }
-  return *result;
+  return result->c_str();
 
 #  undef STATIC_LOCALE_SIZE
 }
@@ -388,7 +389,7 @@ static PyObject *app_translations_py_messages_unregister(BlenderAppTranslations 
 
   if (PyDict_Contains(self->py_messages, module_name)) {
     PyDict_DelItem(self->py_messages, module_name);
-    /* Clear cached messages map. */
+    /* Clear cached messages ghash! */
     _clear_translations_cache();
   }
 #else
@@ -787,14 +788,9 @@ static PyObject *app_translations_locale_explode(BlenderAppTranslations * /*self
   return ret_tuple;
 }
 
-#ifdef __GNUC__
-#  ifdef __clang__
-#    pragma clang diagnostic push
-#    pragma clang diagnostic ignored "-Wcast-function-type"
-#  else
-#    pragma GCC diagnostic push
-#    pragma GCC diagnostic ignored "-Wcast-function-type"
-#  endif
+#if (defined(__GNUC__) && !defined(__clang__))
+#  pragma GCC diagnostic push
+#  pragma GCC diagnostic ignored "-Wcast-function-type"
 #endif
 
 static PyMethodDef app_translations_methods[] = {
@@ -838,12 +834,8 @@ static PyMethodDef app_translations_methods[] = {
     {nullptr},
 };
 
-#ifdef __GNUC__
-#  ifdef __clang__
-#    pragma clang diagnostic pop
-#  else
-#    pragma GCC diagnostic pop
-#  endif
+#if (defined(__GNUC__) && !defined(__clang__))
+#  pragma GCC diagnostic pop
 #endif
 
 static PyObject *app_translations_new(PyTypeObject *type, PyObject * /*args*/, PyObject * /*kw*/)
@@ -895,7 +887,7 @@ PyDoc_STRVAR(
     "\n");
 static PyTypeObject BlenderAppTranslationsType = {
     /*ob_base*/ PyVarObject_HEAD_INIT(nullptr, 0)
-    /*tp_name*/ "bpy_app_translations",
+    /*tp_name*/ "bpy.app._translations_type",
     /*tp_basicsize*/ sizeof(BlenderAppTranslations),
     /*tp_itemsize*/ 0,
     /*tp_dealloc*/ nullptr,

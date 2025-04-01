@@ -883,9 +883,7 @@ static void view3d_interactive_add_begin(bContext *C, wmOperator *op, const wmEv
   }
 }
 
-static wmOperatorStatus view3d_interactive_add_invoke(bContext *C,
-                                                      wmOperator *op,
-                                                      const wmEvent *event)
+static int view3d_interactive_add_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   const bool wait_for_input = RNA_boolean_get(op->ptr, "wait_for_input");
 
@@ -970,9 +968,7 @@ void viewplace_modal_keymap(wmKeyConfig *keyconf)
   WM_modalkeymap_assign(keymap, "VIEW3D_OT_interactive_add");
 }
 
-static wmOperatorStatus view3d_interactive_add_modal(bContext *C,
-                                                     wmOperator *op,
-                                                     const wmEvent *event)
+static int view3d_interactive_add_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   UNUSED_VARS(C, op);
 
@@ -1028,9 +1024,6 @@ static wmOperatorStatus view3d_interactive_add_modal(bContext *C,
       }
       case MOUSEMOVE: {
         do_cursor_update = true;
-        break;
-      }
-      default: {
         break;
       }
     }

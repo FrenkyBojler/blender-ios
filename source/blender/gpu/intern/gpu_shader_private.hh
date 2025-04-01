@@ -98,6 +98,11 @@ class Shader {
    * See `GPU_shader_warm_cache(..)` in `GPU_shader.hh` for more information. */
   virtual void warm_cache(int limit) = 0;
 
+  virtual void transform_feedback_names_set(Span<const char *> name_list,
+                                            eGPUShaderTFBType geom_type) = 0;
+  virtual bool transform_feedback_enable(VertBuf *) = 0;
+  virtual void transform_feedback_disable() = 0;
+
   virtual void bind() = 0;
   virtual void unbind() = 0;
 
@@ -191,7 +196,8 @@ class ShaderCompiler {
   };
 };
 
-/* Generic (fully synchronous) implementation used as fallback. */
+/* Generic (fully synchronous) implementation for backends that don't implement their own
+ * ShaderCompiler. Used by Vulkan and Metal. */
 class ShaderCompilerGeneric : public ShaderCompiler {
  private:
   struct Batch {
@@ -201,7 +207,6 @@ class ShaderCompilerGeneric : public ShaderCompiler {
   };
   BatchHandle next_batch_handle = 1;
   Map<BatchHandle, Batch> batches;
-  std::mutex mutex_;
 
  public:
   ~ShaderCompilerGeneric() override;

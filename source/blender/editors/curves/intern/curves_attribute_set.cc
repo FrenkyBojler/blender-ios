@@ -88,14 +88,13 @@ static void validate_value(const bke::AttributeAccessor attributes,
   type.copy_assign(validated_buffer, buffer);
 }
 
-static wmOperatorStatus set_attribute_exec(bContext *C, wmOperator *op)
+static int set_attribute_exec(bContext *C, wmOperator *op)
 {
   Object *active_object = CTX_data_active_object(C);
   Curves &active_curves_id = *static_cast<Curves *>(active_object->data);
 
-  AttributeOwner active_owner = AttributeOwner::from_id(&active_curves_id.id);
-  CustomDataLayer *active_attribute = BKE_attributes_active_get(active_owner);
-  const StringRef name = active_attribute->name;
+  AttributeOwner owner = AttributeOwner::from_id(&active_curves_id.id);
+  CustomDataLayer *active_attribute = BKE_attributes_active_get(owner);
   const eCustomDataType active_type = eCustomDataType(active_attribute->type);
   const CPPType &type = *bke::custom_data_type_to_cpp_type(active_type);
 
@@ -108,11 +107,12 @@ static wmOperatorStatus set_attribute_exec(bContext *C, wmOperator *op)
 
   for (Curves *curves_id : get_unique_editable_curves(*C)) {
     bke::CurvesGeometry &curves = curves_id->geometry.wrap();
-    bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
-    bke::GSpanAttributeWriter attribute = attributes.lookup_for_write_span(name);
-    if (!attribute) {
+    CustomDataLayer *layer = BKE_attributes_active_get(owner);
+    if (!layer) {
       continue;
     }
+    bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
+    bke::GSpanAttributeWriter attribute = attributes.lookup_for_write_span(layer->name);
 
     /* Use implicit conversions to try to handle the case where the active attribute has a
      * different type on multiple objects. */
@@ -124,7 +124,7 @@ static wmOperatorStatus set_attribute_exec(bContext *C, wmOperator *op)
     BLI_SCOPED_DEFER([&]() { dst_type.destruct(dst_buffer); });
     conversions.convert_to_uninitialized(type, dst_type, value.get(), dst_buffer);
 
-    validate_value(attributes, name, dst_type, dst_buffer);
+    validate_value(attributes, layer->name, dst_type, dst_buffer);
     const GPointer dst_value(type, dst_buffer);
 
     IndexMaskMemory memory;
@@ -143,7 +143,7 @@ static wmOperatorStatus set_attribute_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus set_attribute_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static int set_attribute_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   Object *active_object = CTX_data_active_object(C);
   Curves &active_curves_id = *static_cast<Curves *>(active_object->data);

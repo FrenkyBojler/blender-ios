@@ -9,6 +9,10 @@
 
 #pragma once
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /**
  * Return an indication of time, expressed as seconds since some fixed point.
  * Successive calls are guaranteed to generate values greater than or equal to the last call.
@@ -23,3 +27,7 @@ extern long int BLI_time_now_seconds_i(void);
  * \param ms: Number of milliseconds to sleep
  */
 void BLI_time_sleep_ms(int ms);
+
+#ifdef __cplusplus
+}
+#endif

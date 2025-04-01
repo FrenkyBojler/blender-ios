@@ -20,14 +20,17 @@ bool imb_is_a_tiff(const uchar *mem, size_t size)
   return imb_oiio_check(mem, size, "tif");
 }
 
-ImBuf *imb_load_tiff(const uchar *mem, size_t size, int flags, ImFileColorSpace &r_colorspace)
+ImBuf *imb_load_tiff(const uchar *mem, size_t size, int flags, char colorspace[IM_MAX_SPACE])
 {
   ImageSpec config, spec;
   config.attribute("oiio:UnassociatedAlpha", 1);
 
   ReadContext ctx{mem, size, "tif", IMB_FTYPE_TIF, flags};
 
-  ImBuf *ibuf = imb_oiio_read(ctx, config, r_colorspace, spec);
+  /* All TIFFs should be in default byte colorspace. */
+  ctx.use_colorspace_role = COLOR_ROLE_DEFAULT_BYTE;
+
+  ImBuf *ibuf = imb_oiio_read(ctx, config, colorspace, spec);
   if (ibuf) {
     if (flags & IB_alphamode_detect) {
       if (spec.nchannels == 4 && spec.format == TypeDesc::UINT16) {
@@ -35,9 +38,6 @@ ImBuf *imb_load_tiff(const uchar *mem, size_t size, int flags, ImFileColorSpace 
       }
     }
   }
-
-  /* All TIFFs should be in default byte colorspace. */
-  r_colorspace.is_hdr_float = false;
 
   return ibuf;
 }

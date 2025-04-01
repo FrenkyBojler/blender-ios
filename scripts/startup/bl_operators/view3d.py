@@ -25,7 +25,8 @@ class VIEW3D_OT_edit_mesh_extrude_individual_move(Operator):
 
     @classmethod
     def poll(cls, context):
-        return context.mode == 'EDIT_MESH'
+        obj = context.active_object
+        return (obj is not None and obj.mode == 'EDIT')
 
     def execute(self, context):
         from bpy_extras.object_utils import object_report_if_active_shape_key_is_locked
@@ -93,7 +94,8 @@ class VIEW3D_OT_edit_mesh_extrude_move(Operator):
 
     @classmethod
     def poll(cls, context):
-        return context.mode == 'EDIT_MESH'
+        obj = context.active_object
+        return (obj is not None and obj.mode == 'EDIT')
 
     @staticmethod
     def extrude_region(operator, context, use_vert_normals, dissolve_and_intersect):
@@ -177,7 +179,8 @@ class VIEW3D_OT_edit_mesh_extrude_shrink_fatten(Operator):
 
     @classmethod
     def poll(cls, context):
-        return context.mode == 'EDIT_MESH'
+        obj = context.active_object
+        return (obj is not None and obj.mode == 'EDIT')
 
     def execute(self, context):
         return VIEW3D_OT_edit_mesh_extrude_move.extrude_region(self, context, True, False)
@@ -193,7 +196,8 @@ class VIEW3D_OT_edit_mesh_extrude_manifold_normal(Operator):
 
     @classmethod
     def poll(cls, context):
-        return context.mode == 'EDIT_MESH'
+        obj = context.active_object
+        return (obj is not None and obj.mode == 'EDIT')
 
     def execute(self, context):
         from bpy_extras.object_utils import object_report_if_active_shape_key_is_locked

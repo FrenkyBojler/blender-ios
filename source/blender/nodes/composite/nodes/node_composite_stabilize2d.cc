@@ -74,12 +74,12 @@ class Stabilize2DOperation : public NodeOperation {
 
   void execute() override
   {
-    const Result &input = this->get_input("Image");
+    Result &input = this->get_input("Image");
     Result &output = this->get_result("Image");
 
     MovieClip *movie_clip = get_movie_clip();
     if (input.is_single_value() || !movie_clip) {
-      output.share_data(input);
+      input.pass_through(output);
       return;
     }
 
@@ -99,7 +99,7 @@ class Stabilize2DOperation : public NodeOperation {
       transformation = math::invert(transformation);
     }
 
-    output.share_data(input);
+    input.pass_through(output);
     output.transform(transformation);
     output.get_realization_options().interpolation = this->get_interpolation();
   }
@@ -153,5 +153,5 @@ void register_node_type_cmp_stabilize2d()
   ntype.initfunc_api = file_ns::init;
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
 
-  blender::bke::node_register_type(ntype);
+  blender::bke::node_register_type(&ntype);
 }

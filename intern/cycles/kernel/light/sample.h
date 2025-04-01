@@ -8,7 +8,6 @@
 
 #include "kernel/light/distribution.h"
 #include "kernel/light/light.h"
-#include "kernel/types.h"
 
 #ifdef __LIGHT_TREE__
 #  include "kernel/light/tree.h"
@@ -57,7 +56,7 @@ light_sample_shader_eval(KernelGlobals kg,
                                ls->t,
                                time,
                                false,
-                               ls->type != LIGHT_TRIANGLE);
+                               ls->lamp);
 
       ls->Ng = emission_sd->Ng;
     }
@@ -81,8 +80,8 @@ light_sample_shader_eval(KernelGlobals kg,
 
   eval *= ls->eval_fac;
 
-  if (ls->type != LIGHT_TRIANGLE) {
-    const ccl_global KernelLight *klight = &kernel_data_fetch(lights, ls->prim);
+  if (ls->lamp != LAMP_NONE) {
+    const ccl_global KernelLight *klight = &kernel_data_fetch(lights, ls->lamp);
     eval *= rgb_to_spectrum(
         make_float3(klight->strength[0], klight->strength[1], klight->strength[2]));
   }
@@ -233,7 +232,7 @@ ccl_device_inline void shadow_ray_setup(const ccl_private ShaderData *ccl_restri
     else {
       /* other lights, avoid self-intersection */
       ray->D = ls->P - P;
-      ray->D = safe_normalize_len(ray->D, &ray->tmax);
+      ray->D = normalize_len(ray->D, &ray->tmax);
     }
   }
   else {
@@ -252,6 +251,7 @@ ccl_device_inline void shadow_ray_setup(const ccl_private ShaderData *ccl_restri
   ray->self.prim = (skip_self) ? sd->prim : PRIM_NONE;
   ray->self.light_object = ls->object;
   ray->self.light_prim = ls->prim;
+  ray->self.light = ls->lamp;
 }
 
 /* Create shadow ray towards light sample. */
@@ -392,13 +392,13 @@ ccl_device_forceinline void light_sample_update(KernelGlobals kg,
                                                 const float3 N,
                                                 const uint32_t path_flag)
 {
-  const ccl_global KernelLight *klight = &kernel_data_fetch(lights, ls->prim);
+  const ccl_global KernelLight *klight = &kernel_data_fetch(lights, ls->lamp);
 
   if (ls->type == LIGHT_POINT) {
-    point_light_mnee_sample_update(kg, klight, ls, P, N, path_flag);
+    point_light_mnee_sample_update(klight, ls, P, N, path_flag);
   }
   else if (ls->type == LIGHT_SPOT) {
-    spot_light_mnee_sample_update(kg, klight, ls, P, N, path_flag);
+    spot_light_mnee_sample_update(klight, ls, P, N, path_flag);
   }
   else if (ls->type == LIGHT_AREA) {
     area_light_mnee_sample_update(klight, ls, P);
@@ -487,7 +487,7 @@ ccl_device_inline float light_sample_mis_weight_forward_lamp(KernelGlobals kg,
                           dt,
                           path_flag,
                           0,
-                          kernel_data_fetch(light_to_tree, ls->prim),
+                          kernel_data_fetch(light_to_tree, ls->lamp),
                           light_link_receiver_forward(kg, state));
   }
   else

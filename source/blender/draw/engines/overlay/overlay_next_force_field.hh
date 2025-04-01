@@ -65,8 +65,7 @@ class ForceFields : Overlay {
     const select::ID select_id = res.select_id(ob_ref);
     const Object *ob = ob_ref.object;
     PartDeflect *pd = ob->pd;
-    Curve *cu = (ob->type == OB_CURVES_LEGACY) ? &DRW_object_get_data_for_drawing<Curve>(*ob) :
-                                                 nullptr;
+    Curve *cu = (ob->type == OB_CURVES_LEGACY) ? static_cast<Curve *>(ob->data) : nullptr;
 
     ExtraInstanceData data(
         ob->object_to_world(), res.object_background_blend_color(ob_ref, state), 1.0f);
@@ -158,9 +157,8 @@ class ForceFields : Overlay {
     res.select_bind(ps_);
     ps_.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_LESS_EQUAL,
                   state.clipping_plane_count);
-    ps_.shader_set(res.shaders->extra_shape.get());
+    ps_.shader_set(res.shaders.extra_shape.get());
     ps_.bind_ubo(OVERLAY_GLOBALS_SLOT, &res.globals_buf);
-    ps_.bind_ubo(DRW_CLIPPING_UBO_SLOT, &res.clip_planes_buf);
 
     call_buffers_.field_force_buf.end_sync(ps_, res.shapes.field_force.get());
     call_buffers_.field_wind_buf.end_sync(ps_, res.shapes.field_wind.get());

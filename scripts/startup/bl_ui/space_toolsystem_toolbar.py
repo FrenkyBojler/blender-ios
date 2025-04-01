@@ -2940,7 +2940,7 @@ class _defs_sequencer_generic:
                 "Set the cursor location, drag to transform"
             ),
             icon="ops.generic.cursor",
-            keymap="Preview Tool: Cursor",
+            keymap="Sequencer Tool: Cursor",
         )
 
     @ToolDef.from_fn
@@ -2969,7 +2969,7 @@ class _defs_sequencer_generic:
                 "Sample pixel values under the cursor"
             ),
             icon="ops.paint.weight_sample",  # XXX, needs own icon.
-            keymap="Preview Tool: Sample",
+            keymap="Sequencer Tool: Sample",
         )
 
     @ToolDef.from_fn
@@ -2980,7 +2980,7 @@ class _defs_sequencer_generic:
             icon="ops.transform.translate",
             widget="SEQUENCER_GGT_gizmo2d_translate",
             operator="transform.translate",
-            keymap="Preview Tool: Move",
+            keymap="Sequencer Tool: Move",
         )
 
     @ToolDef.from_fn
@@ -2991,7 +2991,7 @@ class _defs_sequencer_generic:
             icon="ops.transform.rotate",
             widget="SEQUENCER_GGT_gizmo2d_rotate",
             operator="transform.rotate",
-            keymap="Preview Tool: Rotate",
+            keymap="Sequencer Tool: Rotate",
         )
 
     @ToolDef.from_fn
@@ -3002,7 +3002,7 @@ class _defs_sequencer_generic:
             icon="ops.transform.resize",
             widget="SEQUENCER_GGT_gizmo2d_resize",
             operator="transform.resize",
-            keymap="Preview Tool: Scale",
+            keymap="Sequencer Tool: Scale",
         )
 
     @ToolDef.from_fn
@@ -3027,7 +3027,7 @@ class _defs_sequencer_select:
             label="Tweak",
             icon="ops.generic.select",
             widget=None,
-            keymap="Preview Tool: Tweak",
+            keymap="Sequencer Preview Tool: Tweak",
         )
 
     @ToolDef.from_fn
@@ -3042,7 +3042,7 @@ class _defs_sequencer_select:
             label="Select Box",
             icon="ops.generic.select_box",
             widget=None,
-            keymap="Sequencer Tool: Select Box",
+            keymap="Sequencer Timeline Tool: Select Box",
             draw_settings=draw_settings,
         )
 
@@ -3058,7 +3058,7 @@ class _defs_sequencer_select:
             label="Select Box",
             icon="ops.generic.select_box",
             widget=None,
-            keymap="Preview Tool: Select Box",
+            keymap="Sequencer Preview Tool: Select Box",
             draw_settings=draw_settings,
         )
 
@@ -3477,15 +3477,6 @@ class VIEW3D_PT_tools_active(ToolSelectPanelHelper, Panel):
             _defs_grease_pencil_edit.texture_gradient,
             None,
             *_tools_annotate,
-        ],
-        'EDIT_POINTCLOUD': [
-            *_tools_select,
-            _defs_view3d_generic.cursor,
-            None,
-            *_tools_transform,
-            None,
-            *_tools_annotate,
-            _defs_view3d_generic.ruler,
         ],
         'PARTICLE': [
             *_tools_select,

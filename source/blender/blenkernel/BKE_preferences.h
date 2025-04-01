@@ -2,11 +2,15 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#pragma once
+
 /** \file
  * \ingroup bke
  */
 
-#pragma once
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #include "BLI_compiler_attrs.h"
 #include "BLI_sys_types.h"
@@ -177,3 +181,7 @@ bool BKE_preferences_asset_shelf_settings_ensure_catalog_path_enabled(UserDef *u
                                                                       const char *catalog_path);
 
 /** \} */
+
+#ifdef __cplusplus
+}
+#endif

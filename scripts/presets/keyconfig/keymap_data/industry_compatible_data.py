@@ -1752,10 +1752,10 @@ def km_text(params):
     return keymap
 
 
-def km_sequencer_generic(_params):
+def km_sequencercommon(_params):
     items = []
     keymap = (
-        "Video Sequence Editor",
+        "SequencerCommon",
         {"space_type": 'SEQUENCE_EDITOR', "region_type": 'WINDOW'},
         {"items": items},
     )
@@ -1887,10 +1887,10 @@ def km_sequencer(params):
     return keymap
 
 
-def km_sequencer_preview(params):
+def km_sequencerpreview(params):
     items = []
     keymap = (
-        "Preview",
+        "SequencerPreview",
         {"space_type": 'SEQUENCE_EDITOR', "region_type": 'WINDOW'},
         {"items": items},
     )
@@ -3417,30 +3417,6 @@ def km_sculpt_curves(params):
     return keymap
 
 
-# Point cloud edit mode.
-def km_pointcloud(params):
-    items = []
-    keymap = (
-        "Point Cloud",
-        {"space_type": 'EMPTY', "region_type": 'WINDOW'},
-        {"items": items},
-    )
-
-    items.extend([
-        # Selection Operators
-        ("pointcloud.select_all", {"type": 'A', "value": 'PRESS',
-         "ctrl": True}, {"properties": [("action", 'SELECT')]}),
-        ("pointcloud.select_all", {"type": 'A', "value": 'PRESS', "shift": True,
-         "ctrl": True}, {"properties": [("action", 'DESELECT')]}),
-        ("pointcloud.select_all", {"type": 'I', "value": 'PRESS',
-         "ctrl": True}, {"properties": [("action", 'INVERT')]}),
-        # Delete
-        ("pointcloud.delete", {"type": 'DEL', "value": 'PRESS'}, None),
-    ])
-
-    return keymap
-
-
 def km_object_non_modal(params):
     items = []
     keymap = (
@@ -3635,7 +3611,7 @@ def km_image_editor_tool_uv_select(params):
 
 def km_sequencer_editor_tool_select_preview(params):
     return (
-        "Preview Tool: Select Box",
+        "Sequencer Preview Tool: Select Box",
         {"space_type": 'SEQUENCE_EDITOR', "region_type": 'WINDOW'},
         {"items": _template_items_tool_select(params, "sequencer.select", extend="toggle")}
     )
@@ -3643,7 +3619,7 @@ def km_sequencer_editor_tool_select_preview(params):
 
 def km_sequencer_editor_tool_select_timeline(params):
     return (
-        "Sequencer Tool: Select Box",
+        "Sequencer Timeline Tool: Select Box",
         {"space_type": 'SEQUENCE_EDITOR', "region_type": 'WINDOW'},
         {"items": _template_items_tool_select(params, "sequencer.select", extend="toggle")}
     )
@@ -3759,9 +3735,9 @@ def generate_keymaps_impl(params=None):
         km_nla_editor(params),
         km_text_generic(params),
         km_text(params),
-        km_sequencer_generic(params),
+        km_sequencercommon(params),
         km_sequencer(params),
-        km_sequencer_preview(params),
+        km_sequencerpreview(params),
         km_sequencer_channels(params),
         km_console(params),
         km_clip(params),
@@ -3794,7 +3770,6 @@ def generate_keymaps_impl(params=None):
         km_font(params),
         km_curves(params),
         km_sculpt_curves(params),
-        km_pointcloud(params),
         km_object_non_modal(params),
 
         # Modal maps.

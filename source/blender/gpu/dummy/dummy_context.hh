@@ -22,7 +22,7 @@ class DummyContext : public Context {
   }
   ~DummyContext() override
   {
-    free_resources();
+    free_framebuffers();
   }
   void activate() override {}
   void deactivate() override {}

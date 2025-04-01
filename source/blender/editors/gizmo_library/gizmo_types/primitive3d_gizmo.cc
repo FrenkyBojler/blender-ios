@@ -13,13 +13,10 @@
  * Currently only plane primitive supported without its own handling, use with operator only.
  */
 
-#include "BLI_math_vector.h"
-
 #include "MEM_guardedalloc.h"
 
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
-#include "DNA_userdef_types.h"
 
 #include "GPU_immediate.hh"
 #include "GPU_matrix.hh"
@@ -229,9 +226,7 @@ static void gizmo_primitive_setup(wmGizmo *gz)
   gz_prim->draw_inner = true;
 }
 
-static wmOperatorStatus gizmo_primitive_invoke(bContext * /*C*/,
-                                               wmGizmo *gz,
-                                               const wmEvent * /*event*/)
+static int gizmo_primitive_invoke(bContext * /*C*/, wmGizmo *gz, const wmEvent * /*event*/)
 {
   GizmoInteraction *inter = static_cast<GizmoInteraction *>(
       MEM_callocN(sizeof(GizmoInteraction), __func__));

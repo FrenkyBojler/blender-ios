@@ -201,11 +201,6 @@ class GreasePencilStrokeOperationCommon : public GreasePencilStrokeOperation {
                        const IndexMask &points,
                        const DeltaProjectionFunc &projection_fn)> fn) const;
 
-  void foreach_editable_drawing(
-      const bContext &C,
-      FunctionRef<bool(const GreasePencilStrokeParams &params,
-                       const DeltaProjectionFunc &projection_fn)> fn) const;
-
   /** Used in vertex paint mode. */
   void foreach_editable_drawing(
       const bContext &C, FunctionRef<bool(const GreasePencilStrokeParams &params)> fn) const;
@@ -219,7 +214,7 @@ class GreasePencilStrokeOperationCommon : public GreasePencilStrokeOperation {
 
 std::unique_ptr<GreasePencilStrokeOperation> new_paint_operation(bool temp_draw = false);
 std::unique_ptr<GreasePencilStrokeOperation> new_erase_operation(bool temp_eraser = false);
-std::unique_ptr<GreasePencilStrokeOperation> new_tint_operation(bool temp_eraser = false);
+std::unique_ptr<GreasePencilStrokeOperation> new_tint_operation();
 std::unique_ptr<GreasePencilStrokeOperation> new_weight_paint_draw_operation(
     const BrushStrokeMode &stroke_mode);
 std::unique_ptr<GreasePencilStrokeOperation> new_weight_paint_blur_operation();

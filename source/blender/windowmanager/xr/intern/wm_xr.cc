@@ -22,7 +22,9 @@
 
 #include "GHOST_C-api.h"
 
-#include "GPU_context.hh"
+#ifdef WIN32
+#  include "GPU_platform.hh"
+#endif
 
 #include "MEM_guardedalloc.h"
 
@@ -43,7 +45,7 @@ static void wm_xr_error_handler(const GHOST_XrError *error)
   wmWindow *root_win = wm->xr.runtime ? wm->xr.runtime->session_root_win : nullptr;
 
   BKE_reports_clear(&wm->runtime->reports);
-  WM_global_report(RPT_ERROR, error->user_message);
+  WM_report(RPT_ERROR, error->user_message);
   /* Rely on the fallback when `root_win` is nullptr. */
   WM_report_banner_show(wm, root_win);
 
@@ -65,30 +67,15 @@ bool wm_xr_init(wmWindowManager *wm)
   GHOST_XrErrorHandler(wm_xr_error_handler, &error_customdata);
 
   {
-    blender::Vector<GHOST_TXrGraphicsBinding> gpu_bindings_candidates;
-    switch (GPU_backend_get_type()) {
-#ifdef WITH_OPENGL_BACKEND
-      case GPU_BACKEND_OPENGL:
-        gpu_bindings_candidates.append(GHOST_kXrGraphicsOpenGL);
-#  ifdef WIN32
-        gpu_bindings_candidates.append(GHOST_kXrGraphicsD3D11);
-#  endif
-        break;
+    const GHOST_TXrGraphicsBinding gpu_bindings_candidates[] = {
+        GHOST_kXrGraphicsOpenGL,
+#ifdef WIN32
+        GHOST_kXrGraphicsD3D11,
 #endif
-
-#ifdef WITH_VULKAN_BACKEND
-      case GPU_BACKEND_VULKAN:
-        gpu_bindings_candidates.append(GHOST_kXrGraphicsVulkan);
-        break;
-#endif
-
-      default:
-        break;
-    }
-
+    };
     GHOST_XrContextCreateInfo create_info{
-        /*gpu_binding_candidates*/ gpu_bindings_candidates.data(),
-        /*gpu_binding_candidates_count*/ uint32_t(gpu_bindings_candidates.size()),
+        /*gpu_binding_candidates*/ gpu_bindings_candidates,
+        /*gpu_binding_candidates_count*/ ARRAY_SIZE(gpu_bindings_candidates),
     };
     GHOST_XrContextHandle context;
 
@@ -161,7 +148,8 @@ bool wm_xr_events_handle(wmWindowManager *wm)
 
 wmXrRuntimeData *wm_xr_runtime_data_create()
 {
-  wmXrRuntimeData *runtime = MEM_callocN<wmXrRuntimeData>(__func__);
+  wmXrRuntimeData *runtime = static_cast<wmXrRuntimeData *>(
+      MEM_callocN(sizeof(*runtime), __func__));
   return runtime;
 }
 

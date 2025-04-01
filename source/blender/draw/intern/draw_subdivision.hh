@@ -45,7 +45,7 @@ struct DRWPatchMap {
   int min_patch_face;
   int max_patch_face;
   int max_depth;
-  bool patches_are_triangular;
+  int patches_are_triangular;
 };
 
 /** \} */
@@ -155,10 +155,9 @@ void DRW_create_subdivision(Object &ob,
                             Mesh &mesh,
                             MeshBatchCache &batch_cache,
                             MeshBufferCache &mbc,
-                            Span<IBOType> ibo_requests,
-                            Span<VBOType> vbo_requests,
                             bool is_editmode,
                             bool is_paint_mode,
+                            const float4x4 &object_to_world,
                             bool do_final,
                             bool do_uvedit,
                             bool do_cage,
@@ -169,9 +168,10 @@ void DRW_subdivide_loose_geom(DRWSubdivCache &subdiv_cache, const MeshBufferCach
 
 void DRW_subdiv_cache_free(bke::subdiv::Subdiv *subdiv);
 
-gpu::VertBufPtr draw_subdiv_init_origindex_buffer(int32_t *vert_origindex,
-                                                  uint num_loops,
-                                                  uint loose_len);
+void draw_subdiv_init_origindex_buffer(gpu::VertBuf &buffer,
+                                       int32_t *vert_origindex,
+                                       uint num_loops,
+                                       uint loose_len);
 
 gpu::VertBuf *draw_subdiv_build_origindex_buffer(int *vert_origindex, uint num_loops);
 
@@ -206,7 +206,7 @@ void draw_subdiv_extract_pos_nor(const DRWSubdivCache &cache,
 void draw_subdiv_interp_custom_data(const DRWSubdivCache &cache,
                                     gpu::VertBuf &src_data,
                                     gpu::VertBuf &dst_data,
-                                    GPUVertCompType comp_type,
+                                    int comp_type, /*GPUVertCompType*/
                                     int dimensions,
                                     int dst_offset);
 

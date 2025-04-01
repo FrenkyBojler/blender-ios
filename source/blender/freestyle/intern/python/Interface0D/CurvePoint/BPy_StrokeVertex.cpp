@@ -13,6 +13,10 @@
 #include "../../BPy_StrokeAttribute.h"
 #include "../../Interface0D/BPy_SVertex.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 using namespace Freestyle;
 
 ///////////////////////////////////////////////////////////////////////////////////////////
@@ -396,3 +400,7 @@ PyTypeObject StrokeVertex_Type = {
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////
+
+#ifdef __cplusplus
+}
+#endif

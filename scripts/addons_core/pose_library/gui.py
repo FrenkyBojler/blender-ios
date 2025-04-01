@@ -18,16 +18,6 @@ from bpy.types import (
 from bl_ui_utils.layout import operator_context
 
 
-class VIEW3D_MT_pose_modify(Menu):
-    bl_label = "Modify Pose Asset"
-
-    def draw(self, _context):
-        layout = self.layout
-
-        layout.operator("poselib.asset_modify", text="Replace").mode = "REPLACE"
-        layout.operator("poselib.asset_modify", text="Add Selected Bones").mode = "ADD"
-        layout.operator("poselib.asset_modify", text="Remove Selected Bones").mode = "REMOVE"
-
 class PoseLibraryPanel:
     @classmethod
     def pose_library_panel_poll(cls, context: Context) -> bool:
@@ -68,11 +58,6 @@ class VIEW3D_AST_pose_library(bpy.types.AssetShelf):
         props.select = False
 
         layout.separator()
-        layout.operator("poselib.asset_modify", text="Adjust Pose Asset").mode = 'ADJUST'
-        layout.menu("VIEW3D_MT_pose_modify")
-        layout.operator("poselib.asset_delete")
-
-        layout.separator()
         layout.operator("asset.open_containing_blend_file")
 
 
@@ -107,12 +92,6 @@ def pose_library_asset_browser_context_menu(self: UIList, context: Context) -> N
     props.select = False
 
     layout.separator()
-    layout.operator("poselib.asset_modify", text="Adjust Pose Asset").mode = 'ADJUST'
-    layout.menu("VIEW3D_MT_pose_modify")
-    with operator_context(layout, 'INVOKE_DEFAULT'):
-        layout.operator("poselib.asset_delete")
-
-    layout.separator()
     layout.operator("asset.assign_action")
 
     layout.separator()
@@ -128,7 +107,7 @@ class DOPESHEET_PT_asset_panel(PoseLibraryPanel, Panel):
         layout = self.layout
         col = layout.column(align=True)
         row = col.row(align=True)
-        row.operator("poselib.create_pose_asset")
+        row.operator("poselib.create_pose_asset").activate_new_action = True
         if bpy.types.POSELIB_OT_restore_previous_action.poll(context):
             row.operator("poselib.restore_previous_action", text="", icon='LOOP_BACK')
         col.operator("poselib.copy_as_asset", icon="COPYDOWN")
@@ -155,7 +134,7 @@ class ASSETBROWSER_MT_asset(Menu):
 
         layout.operator("poselib.paste_asset", icon='PASTEDOWN')
         layout.separator()
-        layout.operator("poselib.create_pose_asset")
+        layout.operator("poselib.create_pose_asset").activate_new_action = False
 
 
 # Messagebus subscription to monitor asset library changes.
@@ -202,7 +181,6 @@ def _on_blendfile_load_post(none, other_none) -> None:
 classes = (
     DOPESHEET_PT_asset_panel,
     ASSETBROWSER_MT_asset,
-    VIEW3D_MT_pose_modify,
     VIEW3D_AST_pose_library,
 )
 

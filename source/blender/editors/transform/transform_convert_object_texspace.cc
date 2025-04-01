@@ -23,8 +23,6 @@
 /* Own include. */
 #include "transform_convert.hh"
 
-namespace blender::ed::transform {
-
 /* -------------------------------------------------------------------- */
 /** \name Texture Space Transform Creation
  *
@@ -75,14 +73,14 @@ static void createTransTexspace(bContext * /*C*/, TransInfo *t)
   normalize_m3(td->axismtx);
   pseudoinverse_m3_m3(td->smtx, td->mtx, PSEUDOINVERSE_EPSILON);
 
-  if (BKE_object_obdata_texspace_get(ob, &texspace_flag, &td->loc, &td->ext->scale)) {
+  if (BKE_object_obdata_texspace_get(ob, &texspace_flag, &td->loc, &td->ext->size)) {
     ob->dtx |= OB_TEXSPACE;
     *texspace_flag &= ~ME_TEXSPACE_FLAG_AUTO;
   }
 
   copy_v3_v3(td->iloc, td->loc);
   copy_v3_v3(td->center, td->loc);
-  copy_v3_v3(td->ext->iscale, td->ext->scale);
+  copy_v3_v3(td->ext->isize, td->ext->size);
 }
 
 /** \} */
@@ -119,5 +117,3 @@ TransConvertTypeInfo TransConvertType_ObjectTexSpace = {
     /*recalc_data*/ recalcData_texspace,
     /*special_aftertrans_update*/ nullptr,
 };
-
-}  // namespace blender::ed::transform

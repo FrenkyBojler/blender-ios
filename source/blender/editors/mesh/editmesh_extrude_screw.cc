@@ -34,7 +34,7 @@ using blender::Vector;
 /** \name Screw Operator
  * \{ */
 
-static wmOperatorStatus edbm_screw_exec(bContext *C, wmOperator *op)
+static int edbm_screw_exec(bContext *C, wmOperator *op)
 {
   BMEdge *eed;
   BMVert *eve, *v1, *v2;
@@ -160,7 +160,7 @@ static wmOperatorStatus edbm_screw_exec(bContext *C, wmOperator *op)
 }
 
 /* get center and axis, in global coords */
-static wmOperatorStatus edbm_screw_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+static int edbm_screw_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
   Scene *scene = CTX_data_scene(C);
   RegionView3D *rv3d = ED_view3d_context_rv3d(C);

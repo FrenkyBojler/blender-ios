@@ -19,15 +19,9 @@
 #include "BLI_map.hh"
 #include "BLI_string_ref.hh"
 
-#include "gpu_capabilities_private.hh"
 #include "gpu_material_library.hh"
 #include "gpu_shader_create_info.hh"
 #include "gpu_shader_dependency_private.hh"
-
-#ifdef WITH_OPENSUBDIV
-#  include "opensubdiv_capi_type.hh"
-#  include "opensubdiv_evaluator_capi.hh"
-#endif
 
 #include "../glsl_preprocess/glsl_preprocess.hh"
 
@@ -38,9 +32,6 @@ extern "C" {
 #include "glsl_gpu_source_list.h"
 #ifdef WITH_OCIO
 #  include "glsl_ocio_source_list.h"
-#endif
-#ifdef WITH_OPENSUBDIV
-#  include "glsl_osd_source_list.h"
 #endif
 #undef SHADER_SOURCE
 }
@@ -55,7 +46,6 @@ struct GPUSource {
   StringRefNull fullpath;
   StringRefNull filename;
   StringRefNull source;
-  std::string patched_source;
   Vector<StringRef> dependencies_names;
   Vector<GPUSource *> dependencies;
   bool dependencies_init = false;
@@ -455,21 +445,7 @@ void gpu_shader_dependency_init()
 #ifdef WITH_OCIO
 #  include "glsl_ocio_source_list.h"
 #endif
-#ifdef WITH_OPENSUBDIV
-#  include "glsl_osd_source_list.h"
-#endif
 #undef SHADER_SOURCE
-#ifdef WITH_OPENSUBDIV
-  const blender::StringRefNull patch_basis_source = openSubdiv_getGLSLPatchBasisSource();
-  static std::string osd_patch_basis_glsl =
-      "//__blender_metadata_sta\n//__blender_metadata_end\n" + patch_basis_source;
-  g_sources->add_new("osd_patch_basis.glsl",
-                     new GPUSource("osd_patch_basis.glsl",
-                                   "osd_patch_basis.glsl",
-                                   osd_patch_basis_glsl.c_str(),
-                                   g_functions,
-                                   g_formats));
-#endif
 
   int errors = 0;
   for (auto *value : g_sources->values()) {
@@ -492,18 +468,6 @@ void gpu_shader_dependency_init()
     }
   }
 #endif
-
-  if (GCaps.line_directive_workaround) {
-    for (auto *value : g_sources->values()) {
-      value->patched_source = value->source;
-      value->source = value->patched_source.c_str();
-      size_t start_pos = 0;
-      while ((start_pos = value->patched_source.find("#line ", start_pos)) != std::string::npos) {
-        value->patched_source[start_pos] = '/';
-        value->patched_source[start_pos + 1] = '/';
-      }
-    }
-  }
 }
 
 void gpu_shader_dependency_exit()

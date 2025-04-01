@@ -12,7 +12,6 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_listbase.h"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
@@ -26,7 +25,6 @@
 #include "BKE_fcurve.hh"
 #include "BKE_global.hh"
 #include "BKE_lib_id.hh"
-#include "BKE_library.hh"
 #include "BKE_main.hh"
 #include "BKE_packedFile.hh"
 #include "BKE_report.hh"
@@ -58,7 +56,7 @@
 
 static void sound_open_cancel(bContext * /*C*/, wmOperator *op)
 {
-  MEM_delete(static_cast<PropertyPointerRNA *>(op->customdata));
+  MEM_freeN(op->customdata);
   op->customdata = nullptr;
 }
 
@@ -66,12 +64,13 @@ static void sound_open_init(bContext *C, wmOperator *op)
 {
   PropertyPointerRNA *pprop;
 
-  op->customdata = pprop = MEM_new<PropertyPointerRNA>(__func__);
+  op->customdata = pprop = static_cast<PropertyPointerRNA *>(
+      MEM_callocN(sizeof(PropertyPointerRNA), "OpenPropertyPointerRNA"));
   UI_context_active_but_prop_get_templateID(C, &pprop->ptr, &pprop->prop);
 }
 
 #ifdef WITH_AUDASPACE
-static wmOperatorStatus sound_open_exec(bContext *C, wmOperator *op)
+static int sound_open_exec(bContext *C, wmOperator *op)
 {
   char filepath[FILE_MAX];
   bSound *sound;
@@ -108,13 +107,13 @@ static wmOperatorStatus sound_open_exec(bContext *C, wmOperator *op)
 
   DEG_relations_tag_update(bmain);
 
-  MEM_delete(pprop);
+  MEM_freeN(op->customdata);
   return OPERATOR_FINISHED;
 }
 
 #else /* WITH_AUDASPACE */
 
-static wmOperatorStatus sound_open_exec(bContext * /*C*/, wmOperator *op)
+static int sound_open_exec(bContext * /*C*/, wmOperator *op)
 {
   BKE_report(op->reports, RPT_ERROR, "Compiled without sound support");
 
@@ -123,7 +122,7 @@ static wmOperatorStatus sound_open_exec(bContext * /*C*/, wmOperator *op)
 
 #endif
 
-static wmOperatorStatus sound_open_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static int sound_open_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   if (RNA_struct_property_is_set(op->ptr, "filepath")) {
     return sound_open_exec(C, op);
@@ -243,7 +242,7 @@ static void sound_update_animation_flags(Scene *scene)
   scene->id.tag |= ID_TAG_DOIT;
 
   if (scene->ed != nullptr) {
-    blender::seq::for_each_callback(&scene->ed->seqbase, sound_update_animation_flags_fn, scene);
+    SEQ_for_each_callback(&scene->ed->seqbase, sound_update_animation_flags_fn, scene);
   }
 
   fcu = id_data_find_fcurve(&scene->id, scene, &RNA_Scene, "audio_volume", 0, &driven);
@@ -255,7 +254,7 @@ static void sound_update_animation_flags(Scene *scene)
   }
 }
 
-static wmOperatorStatus sound_update_animation_flags_exec(bContext *C, wmOperator * /*op*/)
+static int sound_update_animation_flags_exec(bContext *C, wmOperator * /*op*/)
 {
   Scene *scene = CTX_data_scene(C);
 
@@ -288,7 +287,7 @@ static void SOUND_OT_update_animation_flags(wmOperatorType *ot)
 
 /* ******************************************************* */
 
-static wmOperatorStatus sound_bake_animation_exec(bContext *C, wmOperator * /*op*/)
+static int sound_bake_animation_exec(bContext *C, wmOperator * /*op*/)
 {
   Scene *scene = CTX_data_scene(C);
   /* NOTE: We will be forcefully evaluating dependency graph at every frame, so no need to ensure
@@ -328,7 +327,7 @@ static void SOUND_OT_bake_animation(wmOperatorType *ot)
 
 /******************** mixdown operator ********************/
 
-static wmOperatorStatus sound_mixdown_exec(bContext *C, wmOperator *op)
+static int sound_mixdown_exec(bContext *C, wmOperator *op)
 {
 #ifdef WITH_AUDASPACE
   char filepath[FILE_MAX];
@@ -433,7 +432,6 @@ static const char *snd_ext_sound[] = {
     ".mp3",
     ".ogg",
     ".wav",
-    ".aac",
     nullptr,
 };
 
@@ -448,7 +446,7 @@ static bool sound_mixdown_check(bContext * /*C*/, wmOperator *op)
     if (item->value == container) {
       const char **ext = snd_ext_sound;
       while (*ext != nullptr) {
-        if (STRCASEEQ(*ext + 1, item->name)) {
+        if (STREQ(*ext + 1, item->name)) {
           extension = *ext;
           break;
         }
@@ -488,7 +486,7 @@ static bool sound_mixdown_check(bContext * /*C*/, wmOperator *op)
 
 #endif /* WITH_AUDASPACE */
 
-static wmOperatorStatus sound_mixdown_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static int sound_mixdown_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   if (RNA_struct_property_is_set(op->ptr, "filepath")) {
     return sound_mixdown_exec(C, op);
@@ -785,7 +783,7 @@ static bool sound_poll(bContext *C)
 }
 /********************* pack operator *********************/
 
-static wmOperatorStatus sound_pack_exec(bContext *C, wmOperator *op)
+static int sound_pack_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   Editing *ed = CTX_data_scene(C)->ed;
@@ -826,7 +824,7 @@ static void SOUND_OT_pack(wmOperatorType *ot)
 
 /********************* unpack operator *********************/
 
-static wmOperatorStatus sound_unpack_exec(bContext *C, wmOperator *op)
+static int sound_unpack_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   int method = RNA_enum_get(op->ptr, "method");
@@ -859,7 +857,7 @@ static wmOperatorStatus sound_unpack_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus sound_unpack_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+static int sound_unpack_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
   Editing *ed = CTX_data_scene(C)->ed;
   bSound *sound;

@@ -689,15 +689,19 @@ static void bb_allocateData(FluidObjectBB *bb, bool use_velocity, bool use_influ
   bb->total_cells = res[0] * res[1] * res[2];
   copy_v3_v3_int(bb->res, res);
 
-  bb->numobjs = MEM_calloc_arrayN<float>(size_t(bb->total_cells), "fluid_bb_numobjs");
+  bb->numobjs = static_cast<float *>(
+      MEM_calloc_arrayN(bb->total_cells, sizeof(float), "fluid_bb_numobjs"));
   if (use_influence) {
-    bb->influence = MEM_calloc_arrayN<float>(size_t(bb->total_cells), "fluid_bb_influence");
+    bb->influence = static_cast<float *>(
+        MEM_calloc_arrayN(bb->total_cells, sizeof(float), "fluid_bb_influence"));
   }
   if (use_velocity) {
-    bb->velocity = MEM_calloc_arrayN<float>(3 * size_t(bb->total_cells), "fluid_bb_velocity");
+    bb->velocity = static_cast<float *>(
+        MEM_calloc_arrayN(bb->total_cells, sizeof(float[3]), "fluid_bb_velocity"));
   }
 
-  bb->distances = MEM_malloc_arrayN<float>(size_t(bb->total_cells), "fluid_bb_distances");
+  bb->distances = static_cast<float *>(
+      MEM_malloc_arrayN(bb->total_cells, sizeof(float), "fluid_bb_distances"));
   copy_vn_fl(bb->distances, bb->total_cells, FLT_MAX);
 
   bb->valid = true;
@@ -1019,14 +1023,16 @@ static void obstacles_from_mesh(Object *coll_ob,
 
     /* TODO(sebbas): Make initialization of vertex velocities optional? */
     {
-      vert_vel = MEM_calloc_arrayN<float>(3 * size_t(numverts), "manta_obs_velocity");
+      vert_vel = static_cast<float *>(
+          MEM_callocN(sizeof(float[3]) * numverts, "manta_obs_velocity"));
 
       if (fes->numverts != numverts || !fes->verts_old) {
         if (fes->verts_old) {
           MEM_freeN(fes->verts_old);
         }
 
-        fes->verts_old = MEM_calloc_arrayN<float>(3 * size_t(numverts), "manta_obs_verts_old");
+        fes->verts_old = static_cast<float *>(
+            MEM_callocN(sizeof(float[3]) * numverts, "manta_obs_verts_old"));
         fes->numverts = numverts;
       }
       else {
@@ -1054,8 +1060,6 @@ static void obstacles_from_mesh(Object *coll_ob,
       /* Calculate emission map bounds. */
       bb_boundInsert(bb, positions[i]);
     }
-
-    mesh->tag_positions_changed();
 
     /* Set emission map.
      * Use 3 cell diagonals as margin (3 * 1.732 = 5.196). */
@@ -1301,7 +1305,8 @@ static void update_obstacles(Depsgraph *depsgraph,
   ensure_obstaclefields(fds);
 
   /* Allocate effector map for each effector object. */
-  bb_maps = MEM_calloc_arrayN<FluidObjectBB>(numeffecobjs, "fluid_effector_bb_maps");
+  bb_maps = static_cast<FluidObjectBB *>(
+      MEM_callocN(sizeof(FluidObjectBB) * numeffecobjs, "fluid_effector_bb_maps"));
 
   /* Initialize effector map for each effector object. */
   compute_obstaclesemission(scene,
@@ -1549,10 +1554,10 @@ static void emit_from_particles(Object *flow_ob,
       totchild = psys->totchild * psys->part->disp / 100;
     }
 
-    particle_pos = MEM_calloc_arrayN<float>(3 * size_t(totpart + totchild),
-                                            "manta_flow_particles_pos");
-    particle_vel = MEM_calloc_arrayN<float>(3 * size_t(totpart + totchild),
-                                            "manta_flow_particles_vel");
+    particle_pos = static_cast<float *>(
+        MEM_callocN(sizeof(float[3]) * (totpart + totchild), "manta_flow_particles_pos"));
+    particle_vel = static_cast<float *>(
+        MEM_callocN(sizeof(float[3]) * (totpart + totchild), "manta_flow_particles_vel"));
 
     /* setup particle radius emission if enabled */
     if (ffs->flags & FLUID_FLOW_USE_PART_SIZE) {
@@ -2078,13 +2083,15 @@ static void emit_from_mesh(
         CustomData_get_layer_named(&mesh->corner_data, CD_PROP_FLOAT2, ffs->uvlayer_name));
 
     if (ffs->flags & FLUID_FLOW_INITVELOCITY) {
-      vert_vel = MEM_calloc_arrayN<float>(3 * size_t(numverts), "manta_flow_velocity");
+      vert_vel = static_cast<float *>(
+          MEM_callocN(sizeof(float[3]) * numverts, "manta_flow_velocity"));
 
       if (ffs->numverts != numverts || !ffs->verts_old) {
         if (ffs->verts_old) {
           MEM_freeN(ffs->verts_old);
         }
-        ffs->verts_old = MEM_calloc_arrayN<float>(3 * size_t(numverts), "manta_flow_verts_old");
+        ffs->verts_old = static_cast<float *>(
+            MEM_callocN(sizeof(float[3]) * numverts, "manta_flow_verts_old"));
         ffs->numverts = numverts;
       }
       else {
@@ -2796,7 +2803,8 @@ static void update_flowsfluids(Depsgraph *depsgraph,
   ensure_flowsfields(fds);
 
   /* Allocate emission map for each flow object. */
-  bb_maps = MEM_calloc_arrayN<FluidObjectBB>(numflowobjs, "fluid_flow_bb_maps");
+  bb_maps = static_cast<FluidObjectBB *>(
+      MEM_callocN(sizeof(FluidObjectBB) * numflowobjs, "fluid_flow_bb_maps"));
 
   /* Initialize emission map for each flow object. */
   compute_flowsemission(scene,
@@ -3926,7 +3934,7 @@ static void fluid_modifier_processDomain(FluidModifierData *fmd,
         has_config = manta_read_config(fds->fluid, fmd, data_frame);
       }
 
-      if (with_smoke || with_liquid) {
+      if (with_smoke) {
         /* Read config and realloc fluid object if needed. */
         if (has_config && manta_needs_realloc(fds->fluid, fmd)) {
           BKE_fluid_reallocate_fluid(fds, fds->res, 1);
@@ -4412,7 +4420,7 @@ void BKE_fluid_particle_system_create(Main *bmain,
 
   /* add particle system */
   part = BKE_particlesettings_add(bmain, pset_name);
-  psys = MEM_callocN<ParticleSystem>(__func__);
+  psys = MEM_cnew<ParticleSystem>(__func__);
 
   part->type = psys_type;
   part->totpart = 0;

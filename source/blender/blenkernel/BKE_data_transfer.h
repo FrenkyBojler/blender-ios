@@ -8,6 +8,10 @@
 
 #pragma once
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct Depsgraph;
 struct Object;
 struct ReportList;
@@ -183,3 +187,7 @@ bool BKE_object_data_transfer_ex(struct Depsgraph *depsgraph,
                                  const char *vgroup_name,
                                  bool invert_vgroup,
                                  struct ReportList *reports);
+
+#ifdef __cplusplus
+}
+#endif

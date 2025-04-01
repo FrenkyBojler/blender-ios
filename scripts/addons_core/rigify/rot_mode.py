@@ -144,8 +144,6 @@ def convert_curves_of_bone_in_action(obj, action, bone, order):
                     bone_prefix = fcurve.data_path[:-len('rotation_euler')]
                     break
 
-    fcurves_to_remove = []
-
     # If To-Euler conversion
     if to_euler and order != 'QUATERNION':
         # Converts the group/bone from Quaternion to Euler
@@ -154,7 +152,7 @@ def convert_curves_of_bone_in_action(obj, action, bone, order):
         # Removes quaternion fcurves
         for key in action.fcurves:
             if key.data_path == 'pose.bones["' + bone.name + '"].rotation_quaternion':
-                fcurves_to_remove.append(key)
+                action.fcurves.remove(key)
 
     # If To-Quaternion conversion
     elif to_euler:
@@ -164,10 +162,7 @@ def convert_curves_of_bone_in_action(obj, action, bone, order):
         # Removes euler fcurves
         for key in action.fcurves:
             if key.data_path == 'pose.bones["' + bone.name + '"].rotation_euler':
-                fcurves_to_remove.append(key)
-
-    for fcurve in fcurves_to_remove:
-        action.fcurves.remove(fcurve)
+                action.fcurves.remove(key)
 
     # Changes rotation mode to new one
     bone.rotation_mode = order

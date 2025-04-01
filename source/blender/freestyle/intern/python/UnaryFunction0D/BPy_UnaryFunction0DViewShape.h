@@ -12,6 +12,10 @@
 
 #include "../../view_map/ViewMap.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 ///////////////////////////////////////////////////////////////////////////////////////////
 
 extern PyTypeObject UnaryFunction0DViewShape_Type;
@@ -29,3 +33,7 @@ typedef struct {
 int UnaryFunction0DViewShape_Init(PyObject *module);
 
 ///////////////////////////////////////////////////////////////////////////////////////////
+
+#ifdef __cplusplus
+}
+#endif

@@ -25,8 +25,6 @@
 
 #include "transform_mode.hh"
 
-namespace blender::ed::transform {
-
 /* -------------------------------------------------------------------- */
 /** \name Transform (Mask Shrink/Fatten)
  * \{ */
@@ -137,5 +135,3 @@ TransModeInfo TransMode_maskshrinkfatten = {
     /*snap_apply_fn*/ nullptr,
     /*draw_fn*/ nullptr,
 };
-
-}  // namespace blender::ed::transform

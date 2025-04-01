@@ -127,7 +127,7 @@ static uiBut *ui_popup_menu_memory__internal(uiBlock *block, uiBut *but)
   }
 
   /* get */
-  for (const std::unique_ptr<uiBut> &but_iter : block->buttons) {
+  LISTBASE_FOREACH (uiBut *, but_iter, &block->buttons) {
     /* Prevent labels (typically headings), from being returned in the case the text
      * happens to matches one of the menu items.
      * Skip separators too as checking them is redundant. */
@@ -136,7 +136,7 @@ static uiBut *ui_popup_menu_memory__internal(uiBlock *block, uiBut *but)
     }
     if (mem[hash_mod] == ui_popup_string_hash(but_iter->str, but_iter->flag & UI_BUT_HAS_SEP_CHAR))
     {
-      return but_iter.get();
+      return but_iter;
     }
   }
 
@@ -185,7 +185,7 @@ static void ui_popup_menu_create_block(bContext *C,
 {
   const uiStyle *style = UI_style_get_dpi();
 
-  pup->block = UI_block_begin(C, nullptr, block_name, blender::ui::EmbossType::Pulldown);
+  pup->block = UI_block_begin(C, nullptr, block_name, UI_EMBOSS_PULLDOWN);
 
   /* A title is only provided when a Menu has a label, this is not always the case, see e.g.
    * `VIEW3D_MT_edit_mesh_context_menu` -- this specifies its own label inside the draw function
@@ -318,16 +318,16 @@ static uiBlock *ui_block_func_POPUP(bContext *C, uiPopupBlockHandle *handle, voi
         /* position mouse at 0.8*width of the button and below the tile
          * on the first item */
         offset[0] = 0;
-        for (const std::unique_ptr<uiBut> &but_iter : block->buttons) {
+        LISTBASE_FOREACH (uiBut *, but_iter, &block->buttons) {
           offset[0] = min_ii(offset[0],
                              -(but_iter->rect.xmin + 0.8f * BLI_rctf_size_x(&but_iter->rect)));
         }
 
         offset[1] = 2.1 * UI_UNIT_Y;
 
-        for (const std::unique_ptr<uiBut> &but_iter : block->buttons) {
-          if (ui_but_is_editable(but_iter.get())) {
-            but_activate = but_iter.get();
+        LISTBASE_FOREACH (uiBut *, but_iter, &block->buttons) {
+          if (ui_but_is_editable(but_iter)) {
+            but_activate = but_iter;
             break;
           }
         }
@@ -478,7 +478,7 @@ uiPopupMenu *UI_popup_menu_begin_ex(bContext *C,
   ui_popup_menu_create_block(C, pup, title, block_name);
 
   /* create in advance so we can let buttons point to retval already */
-  pup->block->handle = MEM_new<uiPopupBlockHandle>(__func__);
+  pup->block->handle = MEM_cnew<uiPopupBlockHandle>(__func__);
 
   if (title[0]) {
     create_title_button(pup->layout, title, icon);
@@ -530,7 +530,7 @@ bool UI_popup_menu_end_or_cancel(bContext *C, uiPopupMenu *pup)
     return true;
   }
   UI_block_layout_resolve(pup->block, nullptr, nullptr);
-  MEM_delete(pup->block->handle);
+  MEM_freeN(pup->block->handle);
   UI_block_free(C, pup->block);
   MEM_delete(pup);
   return false;
@@ -629,7 +629,7 @@ static void ui_popup_menu_create_from_menutype(bContext *C,
   }
 }
 
-wmOperatorStatus UI_popup_menu_invoke(bContext *C, const char *idname, ReportList *reports)
+int UI_popup_menu_invoke(bContext *C, const char *idname, ReportList *reports)
 {
   MenuType *mt = WM_menutype_find(idname, true);
 
@@ -812,7 +812,7 @@ void UI_popup_block_template_confirm_op(uiLayout *layout,
       return nullptr;
     }
     uiBlock *block = uiLayoutGetBlock(row);
-    const uiBut *but_ref = block->last_but();
+    const uiBut *but_ref = (uiBut *)block->buttons.last;
     uiItemFullO_ptr(row,
                     ot,
                     confirm_text,
@@ -822,10 +822,10 @@ void UI_popup_block_template_confirm_op(uiLayout *layout,
                     UI_ITEM_NONE,
                     r_ptr);
 
-    if (block->buttons.is_empty() || but_ref == block->buttons.last().get()) {
+    if (but_ref == block->buttons.last) {
       return nullptr;
     }
-    return block->buttons.last().get();
+    return static_cast<uiBut *>(block->buttons.last);
   };
 
   auto cancel_fn = [&row, &cancel_text, &show_cancel]() -> uiBut * {

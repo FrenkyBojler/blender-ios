@@ -441,10 +441,6 @@ static std::shared_ptr<DictionaryValue> write_blob_simple_gspan(BlobWriter &blob
     return read_blob_raw_data_with_endian(
         blob_reader, io_data, sizeof(int32_t), r_data.size() * 2, r_data.data());
   }
-  if (type.is_any<short2>()) {
-    return read_blob_raw_data_with_endian(
-        blob_reader, io_data, sizeof(short), r_data.size() * 2, r_data.data());
-  }
   if (type.is<float3>()) {
     return read_blob_raw_data_with_endian(
         blob_reader, io_data, sizeof(float), r_data.size() * 3, r_data.data());
@@ -612,7 +608,7 @@ static PointCloud *try_load_pointcloud(const DictionaryValue &io_geometry,
     return nullptr;
   }
   PointCloud *pointcloud = BKE_pointcloud_new_nomain(0);
-  CustomData_free_layer_named(&pointcloud->pdata, "position");
+  CustomData_free_layer_named(&pointcloud->pdata, "position", 0);
   pointcloud->totpoint = io_pointcloud->lookup_int("num_points").value_or(0);
 
   auto cancel = [&]() {
@@ -643,7 +639,7 @@ static std::optional<CurvesGeometry> try_load_curves_geometry(const DictionaryVa
   }
 
   CurvesGeometry curves;
-  CustomData_free_layer_named(&curves.point_data, "position");
+  CustomData_free_layer_named(&curves.point_data, "position", 0);
   curves.point_num = io_curves.lookup_int("num_points").value_or(0);
   curves.curve_num = io_curves.lookup_int("num_curves").value_or(0);
 
@@ -832,10 +828,10 @@ static Mesh *try_load_mesh(const DictionaryValue &io_geometry,
   }
 
   Mesh *mesh = BKE_mesh_new_nomain(0, 0, 0, 0);
-  CustomData_free_layer_named(&mesh->vert_data, "position");
-  CustomData_free_layer_named(&mesh->edge_data, ".edge_verts");
-  CustomData_free_layer_named(&mesh->corner_data, ".corner_vert");
-  CustomData_free_layer_named(&mesh->corner_data, ".corner_edge");
+  CustomData_free_layer_named(&mesh->vert_data, "position", 0);
+  CustomData_free_layer_named(&mesh->edge_data, ".edge_verts", 0);
+  CustomData_free_layer_named(&mesh->corner_data, ".corner_vert", 0);
+  CustomData_free_layer_named(&mesh->corner_data, ".corner_edge", 0);
   mesh->verts_num = io_mesh->lookup_int("num_vertices").value_or(0);
   mesh->edges_num = io_mesh->lookup_int("num_edges").value_or(0);
   mesh->faces_num = io_mesh->lookup_int("num_polygons").value_or(0);
@@ -869,7 +865,7 @@ static Mesh *try_load_mesh(const DictionaryValue &io_geometry,
       if (value->type() != io::serialize::eValueType::String) {
         return cancel();
       }
-      bDeformGroup *defgroup = MEM_callocN<bDeformGroup>(__func__);
+      bDeformGroup *defgroup = MEM_cnew<bDeformGroup>(__func__);
       STRNCPY(defgroup->name, value->as_string_value()->value().c_str());
       BLI_addtail(&mesh->vertex_group_names, defgroup);
     }

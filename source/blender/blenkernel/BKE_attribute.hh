@@ -2,10 +2,6 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-/** \file
- * \ingroup bke
- */
-
 #pragma once
 
 #include <functional>
@@ -525,12 +521,12 @@ class AttributeAccessor {
   /**
    * \return True, when the attribute is available.
    */
-  bool contains(StringRef attribute_id) const;
+  bool contains(const StringRef attribute_id) const;
 
   /**
    * \return Information about the attribute if it exists.
    */
-  std::optional<AttributeMetaData> lookup_meta_data(StringRef attribute_id) const;
+  std::optional<AttributeMetaData> lookup_meta_data(const StringRef attribute_id) const;
 
   /**
    * \return True, when attributes can exist on that domain.

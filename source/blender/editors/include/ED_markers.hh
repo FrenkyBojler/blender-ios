@@ -71,12 +71,10 @@ int ED_markers_post_apply_transform(
     ListBase *markers, Scene *scene, int mode, float value, char side);
 
 /**
- * \return the marker that is closest to `frame`.
- * Non-empty `markers` is guaranteed to return a marker.
- *
- * \note For selecting, the caller is expected to exclude markers beyond a small threshold.
+ * Get the marker that is closest to this point.
+ * XXX: for select, the min_dist should be small.
  */
-TimeMarker *ED_markers_find_nearest_marker(ListBase *markers, float frame);
+TimeMarker *ED_markers_find_nearest_marker(ListBase *markers, float x);
 /**
  * Return the time of the marker that occurs on a frame closest to the given time.
  */

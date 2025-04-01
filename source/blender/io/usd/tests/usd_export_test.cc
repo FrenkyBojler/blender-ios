@@ -5,34 +5,36 @@
 #include "testing/testing.h"
 #include "tests/blendfile_loading_base_test.h"
 
+#include <pxr/base/plug/registry.h>
 #include <pxr/base/tf/stringUtils.h>
 #include <pxr/base/vt/types.h>
 #include <pxr/base/vt/value.h>
 #include <pxr/usd/sdf/types.h>
-#include <pxr/usd/usd/common.h>
 #include <pxr/usd/usd/prim.h>
 #include <pxr/usd/usd/stage.h>
 #include <pxr/usd/usdGeom/mesh.h>
+#include <pxr/usd/usdGeom/subset.h>
+#include <pxr/usd/usdGeom/tokens.h>
 
 #include "DNA_image_types.h"
 #include "DNA_material_types.h"
-#include "DNA_mesh_types.h"
 #include "DNA_node_types.h"
 
 #include "BKE_context.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
-
+#include "BKE_mesh.hh"
+#include "BKE_node.hh"
 #include "BLI_fileops.h"
-#include "BLI_listbase.h"
 #include "BLI_math_vector_types.hh"
 #include "BLI_path_utils.hh"
-
 #include "BLO_readfile.hh"
 
 #include "BKE_node_runtime.hh"
 
 #include "DEG_depsgraph.hh"
+
+#include "WM_api.hh"
 
 #include "usd.hh"
 #include "usd_utils.hh"
@@ -313,11 +315,9 @@ TEST_F(UsdExportTest, usd_export_material)
 
 TEST(utilities, make_safe_name)
 {
-  /* ASCII variations. */
   ASSERT_EQ(make_safe_name("", false), std::string("_"));
-  ASSERT_EQ(make_safe_name("|", false), std::string("_"));
-  ASSERT_EQ(make_safe_name("1", false), std::string("_1"));
-  ASSERT_EQ(make_safe_name("1Test", false), std::string("_1Test"));
+  ASSERT_EQ(make_safe_name("1", false), std::string("_"));
+  ASSERT_EQ(make_safe_name("1Test", false), std::string("_Test"));
 
   ASSERT_EQ(make_safe_name("Test", false), std::string("Test"));
   ASSERT_EQ(make_safe_name("Test|$bézier @ world", false), std::string("Test__b__zier___world"));
@@ -327,17 +327,17 @@ TEST(utilities, make_safe_name)
             std::string("Test___________________________"));
   ASSERT_EQ(make_safe_name("Test|∧hello ○ wórld", false), std::string("Test____hello_____w__rld"));
 
-  /* Unicode variations. */
+#if PXR_VERSION >= 2403
   ASSERT_EQ(make_safe_name("", true), std::string("_"));
-  ASSERT_EQ(make_safe_name("|", true), std::string("_"));
-  ASSERT_EQ(make_safe_name("1", true), std::string("_1"));
-  ASSERT_EQ(make_safe_name("1Test", true), std::string("_1Test"));
+  ASSERT_EQ(make_safe_name("1", true), std::string("_"));
+  ASSERT_EQ(make_safe_name("1Test", true), std::string("_Test"));
 
   ASSERT_EQ(make_safe_name("Test", true), std::string("Test"));
   ASSERT_EQ(make_safe_name("Test|$bézier @ world", true), std::string("Test__bézier___world"));
   ASSERT_EQ(make_safe_name("Test|ハローワールド", true), std::string("Test_ハローワールド"));
   ASSERT_EQ(make_safe_name("Test|Γεια σου κόσμε", true), std::string("Test_Γεια_σου_κόσμε"));
   ASSERT_EQ(make_safe_name("Test|∧hello ○ wórld", true), std::string("Test__hello___wórld"));
+#endif
 }
 
 }  // namespace blender::io::usd

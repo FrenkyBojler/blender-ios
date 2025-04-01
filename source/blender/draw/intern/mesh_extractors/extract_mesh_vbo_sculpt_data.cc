@@ -7,7 +7,6 @@
  */
 
 #include "BLI_array_utils.hh"
-#include "BLI_math_vector.h"
 
 #include "BKE_attribute.hh"
 #include "BKE_mesh.hh"
@@ -20,26 +19,25 @@ namespace blender::draw {
 
 static const GPUVertFormat &get_sculpt_data_format()
 {
-  static const GPUVertFormat format = []() {
-    GPUVertFormat format{};
+  static GPUVertFormat format = {0};
+  if (format.attr_len == 0) {
     GPU_vertformat_attr_add(&format, "fset", GPU_COMP_U8, 4, GPU_FETCH_INT_TO_FLOAT_UNIT);
     GPU_vertformat_attr_add(&format, "msk", GPU_COMP_F32, 1, GPU_FETCH_FLOAT);
-    return format;
-  }();
+  }
   return format;
 }
 
-gpu::VertBufPtr extract_sculpt_data(const MeshRenderData &mr)
+void extract_sculpt_data(const MeshRenderData &mr, gpu::VertBuf &vbo)
 {
-  gpu::VertBufPtr vbo = gpu::VertBufPtr(GPU_vertbuf_create_with_format(get_sculpt_data_format()));
-  GPU_vertbuf_data_alloc(*vbo, mr.corners_num);
+  GPU_vertbuf_init_with_format(vbo, get_sculpt_data_format());
+  GPU_vertbuf_data_alloc(vbo, mr.corners_num);
 
   struct gpuSculptData {
     uchar4 face_set_color;
     float mask;
   };
 
-  MutableSpan vbo_data = vbo->data<gpuSculptData>();
+  MutableSpan vbo_data = vbo.data<gpuSculptData>();
 
   const int default_face_set = mr.mesh->face_sets_color_default;
   const int face_set_seed = mr.mesh->face_sets_color_seed;
@@ -100,11 +98,11 @@ gpu::VertBufPtr extract_sculpt_data(const MeshRenderData &mr)
       }
     });
   }
-  return vbo;
 }
 
-gpu::VertBufPtr extract_sculpt_data_subdiv(const MeshRenderData &mr,
-                                           const DRWSubdivCache &subdiv_cache)
+void extract_sculpt_data_subdiv(const MeshRenderData &mr,
+                                const DRWSubdivCache &subdiv_cache,
+                                gpu::VertBuf &vbo)
 {
   const Mesh &coarse_mesh = *mr.mesh;
   const int subdiv_corners_num = subdiv_cache.num_subdiv_loops;
@@ -171,17 +169,14 @@ gpu::VertBufPtr extract_sculpt_data_subdiv(const MeshRenderData &mr,
   }
 
   /* Finally, interleave mask and face sets. */
-  gpu::VertBufPtr vbo = gpu::VertBufPtr(
-      GPU_vertbuf_create_on_device(get_sculpt_data_format(), subdiv_corners_num));
-
-  draw_subdiv_build_sculpt_data_buffer(subdiv_cache, subdiv_mask_vbo, face_set_vbo, vbo.get());
+  GPU_vertbuf_init_build_on_device(vbo, get_sculpt_data_format(), subdiv_corners_num);
+  draw_subdiv_build_sculpt_data_buffer(subdiv_cache, subdiv_mask_vbo, face_set_vbo, &vbo);
 
   if (mask_vbo) {
     GPU_vertbuf_discard(mask_vbo);
     GPU_vertbuf_discard(subdiv_mask_vbo);
   }
   GPU_vertbuf_discard(face_set_vbo);
-  return vbo;
 }
 
 }  // namespace blender::draw

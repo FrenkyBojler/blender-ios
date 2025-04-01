@@ -25,9 +25,7 @@ struct wmGizmoGroupType;
 struct wmKeyConfig;
 struct wmOperatorType;
 
-namespace blender::ed::transform {
-
-void keymap_transform(wmKeyConfig *keyconf);
+void ED_keymap_transform(wmKeyConfig *keyconf);
 void transform_operatortypes();
 
 /* ******************** Macros & Prototypes *********************** */
@@ -126,10 +124,10 @@ int BIF_countTransformOrientation(const bContext *C);
 /* For properties performed when confirming the transformation. */
 #define P_POST_TRANSFORM (1 << 18)
 
-void properties_register(wmOperatorType *ot, int flags);
+void Transform_Properties(wmOperatorType *ot, int flags);
 
 /* `transform_orientations.cc` */
-void calc_orientation_from_type(const bContext *C, float r_mat[3][3]);
+void ED_transform_calc_orientation_from_type(const bContext *C, float r_mat[3][3]);
 /**
  * \note The resulting matrix may not be orthogonal,
  * callers that depend on `r_mat` to be orthogonal should use #orthogonalize_m3.
@@ -139,17 +137,17 @@ void calc_orientation_from_type(const bContext *C, float r_mat[3][3]);
  * - #V3D_ORIENT_LOCAL may contain shear from non-uniform scale in parent/child relationships.
  * - #V3D_ORIENT_CUSTOM may have been created from #V3D_ORIENT_LOCAL.
  */
-short calc_orientation_from_type_ex(const Scene *scene,
-                                    ViewLayer *view_layer,
-                                    const View3D *v3d,
-                                    const RegionView3D *rv3d,
-                                    Object *ob,
-                                    Object *obedit,
-                                    short orientation_index,
-                                    int pivot_point,
-                                    float r_mat[3][3]);
+short ED_transform_calc_orientation_from_type_ex(const Scene *scene,
+                                                 ViewLayer *view_layer,
+                                                 const View3D *v3d,
+                                                 const RegionView3D *rv3d,
+                                                 Object *ob,
+                                                 Object *obedit,
+                                                 short orientation_index,
+                                                 int pivot_point,
+                                                 float r_mat[3][3]);
 
-bool calc_pivot_pos(const bContext *C, const short pivot_type, float r_pivot_pos[3]);
+bool ED_transform_calc_pivot_pos(const bContext *C, const short pivot_type, float r_pivot_pos[3]);
 
 /* transform gizmos */
 
@@ -201,10 +199,10 @@ struct TransformCalcParams {
  *
  * Returns total items selected.
  */
-int calc_gizmo_stats(const bContext *C,
-                     const TransformCalcParams *params,
-                     TransformBounds *tbounds,
-                     RegionView3D *rv3d);
+int ED_transform_calc_gizmo_stats(const bContext *C,
+                                  const TransformCalcParams *params,
+                                  TransformBounds *tbounds,
+                                  RegionView3D *rv3d);
 
 /**
  * Iterates over all the strips and finds the closest snapping candidate of either \a frame_1 or \a
@@ -212,13 +210,11 @@ int calc_gizmo_stats(const bContext *C,
  * strip.
  * \returns True if there was anything to snap to.
  */
-bool snap_sequencer_to_closest_strip_calc(Scene *scene,
-                                          ARegion *region,
-                                          int frame_1,
-                                          int frame_2,
-                                          int *r_snap_distance,
-                                          float *r_snap_frame);
+bool ED_transform_snap_sequencer_to_closest_strip_calc(Scene *scene,
+                                                       ARegion *region,
+                                                       int frame_1,
+                                                       int frame_2,
+                                                       int *r_snap_distance,
+                                                       float *r_snap_frame);
 
-void sequencer_snap_point(ARegion *region, float snap_point);
-
-}  // namespace blender::ed::transform
+void ED_draw_sequencer_snap_point(ARegion *region, float snap_point);

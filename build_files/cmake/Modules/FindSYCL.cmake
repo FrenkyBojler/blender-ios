@@ -64,9 +64,6 @@ endif()
 
 find_library(SYCL_LIBRARY
   NAMES
-    sycl10
-    sycl9
-    sycl8
     sycl7
     sycl6
     sycl
@@ -79,9 +76,6 @@ find_library(SYCL_LIBRARY
 if(WIN32)
   find_library(SYCL_LIBRARY_DEBUG
     NAMES
-      sycl10d
-      sycl9d
-      sycl8d
       sycl7d
       sycl6d
       sycld

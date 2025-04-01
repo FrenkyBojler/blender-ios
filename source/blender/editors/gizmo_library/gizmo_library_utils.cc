@@ -18,7 +18,6 @@
 #include "BKE_main.hh"
 #include "BKE_screen.hh"
 
-#include "BLI_listbase.h"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"

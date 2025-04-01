@@ -12,6 +12,10 @@
 #include "../../BPy_Convert.h"
 #include "../../BPy_IntegrationType.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 using namespace Freestyle;
 
 ///////////////////////////////////////////////////////////////////////////////////////////
@@ -115,3 +119,7 @@ PyTypeObject GetSteerableViewMapDensityF1D_Type = {
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////
+
+#ifdef __cplusplus
+}
+#endif

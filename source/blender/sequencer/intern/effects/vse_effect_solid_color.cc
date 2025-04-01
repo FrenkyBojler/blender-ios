@@ -15,7 +15,7 @@
 
 #include "effects.hh"
 
-namespace blender::seq {
+using namespace blender;
 
 static void init_solid_color(Strip *strip)
 {
@@ -23,9 +23,9 @@ static void init_solid_color(Strip *strip)
     MEM_freeN(strip->effectdata);
   }
 
-  SolidColorVars *cv = MEM_callocN<SolidColorVars>("solidcolor");
-  strip->effectdata = cv;
+  strip->effectdata = MEM_callocN(sizeof(SolidColorVars), "solidcolor");
 
+  SolidColorVars *cv = (SolidColorVars *)strip->effectdata;
   cv->col[0] = cv->col[1] = cv->col[2] = 0.5;
 }
 
@@ -49,7 +49,7 @@ static StripEarlyOut early_out_color(const Strip * /*strip*/, float /*fac*/)
   return StripEarlyOut::NoInput;
 }
 
-static ImBuf *do_solid_color(const RenderData *context,
+static ImBuf *do_solid_color(const SeqRenderData *context,
                              Strip *strip,
                              float /*timeline_frame*/,
                              float /*fac*/,
@@ -97,7 +97,7 @@ static ImBuf *do_solid_color(const RenderData *context,
   return out;
 }
 
-void solid_color_effect_get_handle(EffectHandle &rval)
+void solid_color_effect_get_handle(SeqEffectHandle &rval)
 {
   rval.init = init_solid_color;
   rval.num_inputs = num_inputs_color;
@@ -106,5 +106,3 @@ void solid_color_effect_get_handle(EffectHandle &rval)
   rval.copy = copy_solid_color;
   rval.execute = do_solid_color;
 }
-
-}  // namespace blender::seq

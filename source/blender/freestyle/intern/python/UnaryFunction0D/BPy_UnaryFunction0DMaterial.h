@@ -12,6 +12,10 @@
 
 #include "../../scene_graph/FrsMaterial.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 ///////////////////////////////////////////////////////////////////////////////////////////
 
 extern PyTypeObject UnaryFunction0DMaterial_Type;
@@ -29,3 +33,7 @@ typedef struct {
 int UnaryFunction0DMaterial_Init(PyObject *module);
 
 ///////////////////////////////////////////////////////////////////////////////////////////
+
+#ifdef __cplusplus
+}
+#endif

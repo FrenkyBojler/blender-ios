@@ -1027,73 +1027,79 @@ bool GLShader::do_geometry_shader_injection(const shader::ShaderCreateInfo *info
 static StringRefNull glsl_patch_default_get()
 {
   /** Used for shader patching. Init once. */
-  static std::string patch = []() {
-    std::stringstream ss;
-    /* Version need to go first. */
-    if (epoxy_gl_version() >= 43) {
-      ss << "#version 430\n";
-    }
-    else {
-      ss << "#version 330\n";
-    }
+  static std::string patch;
+  if (!patch.empty()) {
+    return patch;
+  }
 
-    /* Enable extensions for features that are not part of our base GLSL version
-     * don't use an extension for something already available! */
-    if (GLContext::shader_draw_parameters_support) {
-      ss << "#extension GL_ARB_shader_draw_parameters : enable\n";
-      ss << "#define GPU_ARB_shader_draw_parameters\n";
-      ss << "#define gpu_BaseInstance gl_BaseInstanceARB\n";
-    }
-    if (GLContext::layered_rendering_support) {
-      ss << "#extension GL_ARB_shader_viewport_layer_array: enable\n";
-    }
-    if (GLContext::native_barycentric_support) {
-      ss << "#extension GL_AMD_shader_explicit_vertex_parameter: enable\n";
-    }
-    if (GLContext::framebuffer_fetch_support) {
-      ss << "#extension GL_EXT_shader_framebuffer_fetch: enable\n";
-    }
-    if (GPU_stencil_export_support()) {
-      ss << "#extension GL_ARB_shader_stencil_export: enable\n";
-      ss << "#define GPU_ARB_shader_stencil_export\n";
-    }
+  std::stringstream ss;
+  /* Version need to go first. */
+  if (epoxy_gl_version() >= 43) {
+    ss << "#version 430\n";
+  }
+  else {
+    ss << "#version 330\n";
+  }
 
-    /* Fallbacks. */
-    if (!GLContext::shader_draw_parameters_support) {
-      ss << "uniform int gpu_BaseInstance;\n";
-    }
+  /* Enable extensions for features that are not part of our base GLSL version
+   * don't use an extension for something already available! */
+  if (GLContext::shader_draw_parameters_support) {
+    ss << "#extension GL_ARB_shader_draw_parameters : enable\n";
+    ss << "#define GPU_ARB_shader_draw_parameters\n";
+    ss << "#define gpu_BaseInstance gl_BaseInstanceARB\n";
+  }
+  if (GLContext::layered_rendering_support) {
+    ss << "#extension GL_ARB_shader_viewport_layer_array: enable\n";
+  }
+  if (GLContext::native_barycentric_support) {
+    ss << "#extension GL_AMD_shader_explicit_vertex_parameter: enable\n";
+  }
+  if (GLContext::framebuffer_fetch_support) {
+    ss << "#extension GL_EXT_shader_framebuffer_fetch: enable\n";
+  }
+  if (GPU_stencil_export_support()) {
+    ss << "#extension GL_ARB_shader_stencil_export: enable\n";
+    ss << "#define GPU_ARB_shader_stencil_export\n";
+  }
 
-    /* Vulkan GLSL compatibility. */
-    ss << "#define gpu_InstanceIndex (gl_InstanceID + gpu_BaseInstance)\n";
-    ss << "#define gpu_EmitVertex EmitVertex\n";
+  /* Fallbacks. */
+  if (!GLContext::shader_draw_parameters_support) {
+    ss << "uniform int gpu_BaseInstance;\n";
+  }
 
-    /* Array compatibility. */
-    ss << "#define gpu_Array(_type) _type[]\n";
+  /* Vulkan GLSL compatibility. */
+  ss << "#define gpu_InstanceIndex (gl_InstanceID + gpu_BaseInstance)\n";
+  ss << "#define gpu_EmitVertex EmitVertex\n";
 
-    /* GLSL Backend Lib. */
-    ss << datatoc_glsl_shader_defines_glsl;
+  /* Array compatibility. */
+  ss << "#define gpu_Array(_type) _type[]\n";
 
-    return ss.str();
-  }();
+  /* GLSL Backend Lib. */
+  ss << datatoc_glsl_shader_defines_glsl;
+
+  patch = ss.str();
   return patch;
 }
 
 static StringRefNull glsl_patch_compute_get()
 {
   /** Used for shader patching. Init once. */
-  static std::string patch = []() {
-    std::stringstream ss;
-    /* Version need to go first. */
-    ss << "#version 430\n";
-    ss << "#extension GL_ARB_compute_shader :enable\n";
+  static std::string patch;
+  if (!patch.empty()) {
+    return patch;
+  }
 
-    /* Array compatibility. */
-    ss << "#define gpu_Array(_type) _type[]\n";
+  std::stringstream ss;
+  /* Version need to go first. */
+  ss << "#version 430\n";
+  ss << "#extension GL_ARB_compute_shader :enable\n";
 
-    ss << datatoc_glsl_shader_defines_glsl;
+  /* Array compatibility. */
+  ss << "#define gpu_Array(_type) _type[]\n";
 
-    return ss.str();
-  }();
+  ss << datatoc_glsl_shader_defines_glsl;
+
+  patch = ss.str();
   return patch;
 }
 
@@ -1305,6 +1311,59 @@ void GLShader::unbind()
 #ifndef NDEBUG
   glUseProgram(0);
 #endif
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Transform feedback
+ *
+ * TODO(fclem): Should be replaced by compute shaders.
+ * \{ */
+
+void GLShader::transform_feedback_names_set(Span<const char *> name_list,
+                                            const eGPUShaderTFBType geom_type)
+{
+  glTransformFeedbackVaryings(
+      program_get(), name_list.size(), name_list.data(), GL_INTERLEAVED_ATTRIBS);
+  transform_feedback_type_ = geom_type;
+}
+
+bool GLShader::transform_feedback_enable(blender::gpu::VertBuf *buf_)
+{
+  if (transform_feedback_type_ == GPU_SHADER_TFB_NONE) {
+    return false;
+  }
+
+  GLVertBuf *buf = static_cast<GLVertBuf *>(buf_);
+
+  if (buf->vbo_id_ == 0) {
+    buf->bind();
+  }
+
+  BLI_assert(buf->vbo_id_ != 0);
+
+  glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, 0, buf->vbo_id_);
+
+  switch (transform_feedback_type_) {
+    case GPU_SHADER_TFB_POINTS:
+      glBeginTransformFeedback(GL_POINTS);
+      break;
+    case GPU_SHADER_TFB_LINES:
+      glBeginTransformFeedback(GL_LINES);
+      break;
+    case GPU_SHADER_TFB_TRIANGLES:
+      glBeginTransformFeedback(GL_TRIANGLES);
+      break;
+    default:
+      return false;
+  }
+  return true;
+}
+
+void GLShader::transform_feedback_disable()
+{
+  glEndTransformFeedback();
 }
 
 /** \} */

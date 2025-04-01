@@ -2,10 +2,6 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-/** \file
- * \ingroup bke
- */
-
 #include "BLI_span.hh"
 #include "BLI_string_ref.hh"
 #include "BLI_vector.hh"
@@ -50,7 +46,7 @@ struct FileHandlerType {
   /**
    * Generate a default file name for use with this file handler.
    */
-  std::string get_default_filename(StringRefNull name);
+  std::string get_default_filename(const StringRefNull name);
 };
 
 /**

@@ -5,7 +5,7 @@
 
 #include "DNA_modifier_types.h"
 
-#include "BLI_vector.hh"
+#include <set>
 
 struct Depsgraph;
 struct ModifierData;
@@ -28,10 +28,8 @@ namespace blender::io {
 class SubdivModifierDisabler final {
  private:
   Depsgraph *depsgraph_;
-
-  /* TODO: Track the object and its disabled modifier in a single struct and use just 1 Vector. */
-  blender::Vector<ModifierData *> disabled_modifiers_;
-  blender::Vector<Object *> modified_objects_;
+  std::set<ModifierData *> disabled_modifiers_;
+  std::set<Object *> modified_objects_;
 
  public:
   explicit SubdivModifierDisabler(Depsgraph *depsgraph);

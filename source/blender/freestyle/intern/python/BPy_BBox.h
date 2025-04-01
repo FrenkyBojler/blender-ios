@@ -15,6 +15,10 @@ extern "C" {
 #include "../geometry/BBox.h"
 #include "../geometry/Geom.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 ///////////////////////////////////////////////////////////////////////////////////////////
 
 extern PyTypeObject BBox_Type;
@@ -32,3 +36,7 @@ typedef struct {
 int BBox_Init(PyObject *module);
 
 ///////////////////////////////////////////////////////////////////////////////////////////
+
+#ifdef __cplusplus
+}
+#endif

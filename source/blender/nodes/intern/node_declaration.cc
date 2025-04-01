@@ -6,7 +6,6 @@
 #include "NOD_socket_declarations.hh"
 #include "NOD_socket_declarations_geometry.hh"
 
-#include "BLI_assert.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_geometry_fields.hh"
@@ -496,22 +495,6 @@ int PanelDeclaration::depth() const
   return count;
 }
 
-const nodes::SocketDeclaration *PanelDeclaration::panel_input_decl() const
-{
-  if (this->items.is_empty()) {
-    return nullptr;
-  }
-  const nodes::ItemDeclaration *item_decl = this->items.first();
-  if (const auto *socket_decl = dynamic_cast<const nodes::SocketDeclaration *>(item_decl)) {
-    if (socket_decl->is_panel_toggle && (socket_decl->in_out & SOCK_IN) &&
-        (socket_decl->socket_type & SOCK_BOOLEAN))
-    {
-      return socket_decl;
-    }
-  }
-  return nullptr;
-}
-
 BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::supports_field()
 {
   BLI_assert(this->is_input());
@@ -706,14 +689,6 @@ BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::propagate_all()
   return *this;
 }
 
-BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::propagate_all_instance_attributes()
-{
-  /* We can't distinguish between actually propagating everything or just instance attributes
-   * currently. It's still nice to be more explicit at the node declaration level. */
-  this->propagate_all();
-  return *this;
-}
-
 BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::compositor_realization_mode(
     CompositorInputRealizationMode value)
 {
@@ -724,7 +699,6 @@ BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::compositor_realizati
 BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::compositor_domain_priority(
     int priority)
 {
-  BLI_assert(priority >= 0);
   decl_base_->compositor_domain_priority_ = priority;
   return *this;
 }
@@ -767,12 +741,6 @@ BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::socket_name_ptr(
                                                            const_cast<StructRNA *>(srna),
                                                            const_cast<void *>(data)),
                                property_name);
-}
-
-BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::panel_toggle(const bool value)
-{
-  decl_base_->is_panel_toggle = value;
-  return *this;
 }
 
 OutputFieldDependency OutputFieldDependency::ForFieldSource()

@@ -15,13 +15,11 @@
 #elif defined(__APPLE__)
 /* Pass. */
 #else
-#  ifdef WITH_PYTHON
-#    include "BLI_string.h"
+#  include "BLI_string.h"
 
-#    include "BKE_context.hh"
+#  include "BKE_context.hh"
 
-#    include "BPY_extern_run.hh"
-#  endif
+#  include "BPY_extern_run.hh"
 #endif
 
 /* -------------------------------------------------------------------- */
@@ -56,7 +54,6 @@ bool WM_platform_associate_set(bool do_register, bool all_users, char **r_error_
   UNUSED_VARS(do_register, all_users);
 #else
   {
-#  ifdef WITH_PYTHON
     BPy_RunErrInfo err_info = {};
     err_info.use_single_line_error = true;
     err_info.r_string = r_error_msg;
@@ -80,10 +77,6 @@ bool WM_platform_associate_set(bool do_register, bool all_users, char **r_error_
     }
     /* Else `r_error_msg` will be set to a single line exception. */
     CTX_free(C_temp);
-#  else
-    /* Pass. */
-    UNUSED_VARS(do_register, all_users);
-#  endif
   }
 #endif
   return result;

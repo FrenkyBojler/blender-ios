@@ -6,7 +6,6 @@
 
 #include "GHOST_NDOFManagerCocoa.hh"
 #include "GHOST_SystemCocoa.hh"
-#import <Cocoa/Cocoa.h>
 
 #include <dlfcn.h>
 #include <stdint.h>
@@ -22,23 +21,19 @@ static GHOST_NDOFManager *ndof_manager = nullptr;
 static uint16_t clientID = 0;
 
 static bool driver_loaded = false;
-
-/* 3DxMacCore version >= minimal_version is considered "new".
- * It was firstly introduced in 3DxWare v10.8.4 r3716 and can process
- * (not yet documented in SDK manual) kConnexionCmdAppEvent events. */
-static NSString *new_driver_minimal_version = @"1.3.4.473";
+static bool has_old_driver =
+    false; /* 3Dconnexion drivers before 10 beta 4 are "old", not all buttons will work. */
+static bool has_new_driver =
+    false; /* drivers >= 10.2.2 are "new", and can process events on a separate thread. */
 
 /* Replicate just enough of the 3Dx API for our uses, not everything the driver provides. */
 
 #define kConnexionClientModeTakeOver 1
 #define kConnexionMaskAll 0x3fff
-#define kConnexionMaskAxis 0x3f00
-#define kConnexionMaskNoButtons 0x0
 #define kConnexionMaskAllButtons 0xffffffff
 #define kConnexionCmdHandleButtons 2
 #define kConnexionCmdHandleAxis 3
 #define kConnexionCmdAppSpecific 10
-#define kConnexionCmdAppEvent 11
 #define kConnexionMsgDeviceState '3dSR'
 #define kConnexionCtlGetDeviceID '3did'
 
@@ -51,8 +46,8 @@ struct ConnexionDeviceState {
   int32_t value;
   uint64_t time;
   uint8_t report[8];
-  uint16_t appEventPressed;
-  int16_t axis[6]; /* TX, TY, TZ, RX, RY, RZ. */
+  uint16_t buttons8; /* Obsolete! (pre-10.x drivers). */
+  int16_t axis[6];   /* TX, TY, TZ, RX, RY, RZ. */
   uint16_t address;
   uint32_t buttons;
 };
@@ -65,6 +60,7 @@ typedef void (*MessageHandler)(uint32_t, uint32_t msg_type, void *msg_arg);
 
 /* Driver functions: */
 typedef int16_t (*SetConnexionHandlers_ptr)(MessageHandler, AddedHandler, RemovedHandler, bool);
+typedef int16_t (*InstallConnexionHandlers_ptr)(MessageHandler, AddedHandler, RemovedHandler);
 typedef void (*CleanupConnexionHandlers_ptr)();
 typedef uint16_t (*RegisterConnexionClient_ptr)(uint32_t signature,
                                                 const char *name,
@@ -80,6 +76,7 @@ typedef int16_t (*ConnexionClientControl_ptr)(uint16_t clientID,
 #define DECLARE_FUNC(name) name##_ptr name = nullptr
 
 DECLARE_FUNC(SetConnexionHandlers);
+DECLARE_FUNC(InstallConnexionHandlers);
 DECLARE_FUNC(CleanupConnexionHandlers);
 DECLARE_FUNC(RegisterConnexionClient);
 DECLARE_FUNC(SetConnexionClientButtonMask);
@@ -120,6 +117,12 @@ static bool load_driver_functions()
 
     if (SetConnexionHandlers != nullptr) {
       driver_loaded = true;
+      has_new_driver = true;
+    }
+    else {
+      LOAD_FUNC(InstallConnexionHandlers);
+
+      driver_loaded = (InstallConnexionHandlers != nullptr);
     }
 
     if (driver_loaded) {
@@ -128,6 +131,8 @@ static bool load_driver_functions()
       LOAD_FUNC(SetConnexionClientButtonMask);
       LOAD_FUNC(UnregisterConnexionClient);
       LOAD_FUNC(ConnexionClientControl);
+
+      has_old_driver = (SetConnexionClientButtonMask == nullptr);
     }
   }
 #if DEBUG_NDOF_DRIVER
@@ -136,6 +141,8 @@ static bool load_driver_functions()
   }
 
   printf("loaded: %s\n", driver_loaded ? "YES" : "NO");
+  printf("old: %s\n", has_old_driver ? "YES" : "NO");
+  printf("new: %s\n", has_new_driver ? "YES" : "NO");
 #endif
 
   return driver_loaded;
@@ -155,8 +162,8 @@ static void DeviceAdded(uint32_t /*unused*/)
   /* Determine exactly which device is plugged in. */
   int32_t result;
   ConnexionClientControl(clientID, kConnexionCtlGetDeviceID, 0, &result);
-  const int16_t vendorID = result >> 16;
-  const int16_t productID = result & 0xffff;
+  int16_t vendorID = result >> 16;
+  int16_t productID = result & 0xffff;
 
   ndof_manager->setDevice(vendorID, productID);
 }
@@ -176,7 +183,7 @@ static void DeviceEvent(uint32_t /*unused*/, uint32_t msg_type, void *msg_arg)
     /* Device state is broadcast to all clients; only react if sent to us. */
     if (s->client == clientID) {
       /* TODO: is s->time compatible with GHOST timestamps? if so use that instead. */
-      const uint64_t now = ghost_system->getMilliSeconds();
+      uint64_t now = ghost_system->getMilliSeconds();
 
       switch (s->command) {
         case kConnexionCmdHandleAxis: {
@@ -191,21 +198,11 @@ static void DeviceEvent(uint32_t /*unused*/, uint32_t msg_type, void *msg_arg)
           break;
         }
         case kConnexionCmdHandleButtons: {
-          const int button_bits = s->buttons;
+          int button_bits = has_old_driver ? s->buttons8 : s->buttons;
 #ifdef DEBUG_NDOF_BUTTONS
           printf("button bits: 0x%08x\n", button_bits);
 #endif
           ndof_manager->updateButtonsBitmask(button_bits, now);
-          ghost_system->notifyExternalEventProcessed();
-          break;
-        }
-        case kConnexionCmdAppEvent: {
-          const int button_number = s->value;
-          const bool pressed = s->appEventPressed;
-#ifdef DEBUG_NDOF_BUTTONS
-          printf("button number: %d, pressed: %d\n", button_number, pressed);
-#endif
-          ndof_manager->updateButton(GHOST_NDOF_ButtonT(button_number), pressed, now);
           ghost_system->notifyExternalEventProcessed();
           break;
         }
@@ -229,7 +226,14 @@ GHOST_NDOFManagerCocoa::GHOST_NDOFManagerCocoa(GHOST_System &sys) : GHOST_NDOFMa
     ghost_system = dynamic_cast<GHOST_SystemCocoa *>(&sys);
     ndof_manager = this;
 
-    const uint16_t error = SetConnexionHandlers(DeviceEvent, DeviceAdded, DeviceRemoved, true);
+    uint16_t error;
+    if (has_new_driver) {
+      const bool separate_thread = false; /* TODO: rework Mac event handler to allow this. */
+      error = SetConnexionHandlers(DeviceEvent, DeviceAdded, DeviceRemoved, separate_thread);
+    }
+    else {
+      error = InstallConnexionHandlers(DeviceEvent, DeviceAdded, DeviceRemoved);
+    }
 
     if (error) {
 #if DEBUG_NDOF_DRIVER
@@ -238,27 +242,13 @@ GHOST_NDOFManagerCocoa::GHOST_NDOFManagerCocoa(GHOST_System &sys) : GHOST_NDOFMa
       return;
     }
 
-    const NSDictionary *dictInfos =
-        [NSBundle bundleWithPath:@"/Library/Frameworks/3DconnexionClient.framework"]
-            .infoDictionary;
-    NSString *strVersion = [dictInfos objectForKey:(NSString *)kCFBundleVersionKey];
-    const auto compare = [strVersion compare:new_driver_minimal_version];
-    const bool has_new_driver = compare != NSOrderedAscending;
-
-    /* New driver makes use of kConnexionCmdAppEvent events, which require to have all buttons
-     * unmasked. Basically, this means that driver consumes all NDOF device input and then sends
-     * appropriate app events based on its configuration instead of forwarding raw data to the
-     * application. When using an older driver, the old solution with all buttons forwarded
-     * (masked) is preferred. */
-    const uint32_t client_mask = has_new_driver ? kConnexionMaskAxis : kConnexionMaskAll;
-    const uint32_t button_mask = has_new_driver ? kConnexionMaskNoButtons :
-                                                  kConnexionMaskAllButtons;
-
     /* Pascal string *and* a four-letter constant. How old-school. */
     clientID = RegisterConnexionClient(
-        'blnd', "\007blender", kConnexionClientModeTakeOver, client_mask);
+        'blnd', "\007blender", kConnexionClientModeTakeOver, kConnexionMaskAll);
 
-    SetConnexionClientButtonMask(clientID, button_mask);
+    if (!has_old_driver) {
+      SetConnexionClientButtonMask(clientID, kConnexionMaskAllButtons);
+    }
   }
 }
 

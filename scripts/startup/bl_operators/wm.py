@@ -46,8 +46,7 @@ def _rna_path_prop_search_for_context_impl(context, edit_text, unique_attrs):
                 ".bl_rna", ".rna_type",
         )):
             continue
-        # If we type/paste in complete attributes, intellisense expands with a ".", remove that again (see #134092)
-        attr_full = (prefix + attr.lstrip()).removesuffix(".")
+        attr_full = prefix + attr.lstrip()
         if attr_full in unique_attrs:
             continue
         unique_attrs.add(attr_full)
@@ -2610,7 +2609,7 @@ class WM_OT_toolbar_prompt(Operator):
         # Pressing entry even again exists, as long as it's not mapped to a key (for convenience).
         if event_type == self._init_event_type:
             if event_value == 'RELEASE':
-                if not (event.ctrl or event.alt or event.shift or event.oskey or event.hyper):
+                if not (event.ctrl or event.alt or event.shift or event.oskey):
                     context.workspace.status_text_set(None)
                     return {'CANCELLED'}
 

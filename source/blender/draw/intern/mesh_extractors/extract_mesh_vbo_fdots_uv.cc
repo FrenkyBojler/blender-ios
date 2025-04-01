@@ -63,18 +63,17 @@ static void extract_face_dots_uv_bm(const MeshRenderData &mr, MutableSpan<float2
   });
 }
 
-gpu::VertBufPtr extract_face_dots_uv(const MeshRenderData &mr)
+void extract_face_dots_uv(const MeshRenderData &mr, gpu::VertBuf &vbo)
 {
-  static const GPUVertFormat format = []() {
-    GPUVertFormat format{};
+  static GPUVertFormat format = {0};
+  if (format.attr_len == 0) {
     GPU_vertformat_attr_add(&format, "u", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
     GPU_vertformat_alias_add(&format, "au");
     GPU_vertformat_alias_add(&format, "pos");
-    return format;
-  }();
-  gpu::VertBufPtr vbo = gpu::VertBufPtr(GPU_vertbuf_create_with_format(format));
-  GPU_vertbuf_data_alloc(*vbo, mr.faces_num);
-  MutableSpan<float2> vbo_data = vbo->data<float2>();
+  }
+  GPU_vertbuf_init_with_format(vbo, format);
+  GPU_vertbuf_data_alloc(vbo, mr.faces_num);
+  MutableSpan<float2> vbo_data = vbo.data<float2>();
 
   if (mr.extract_type == MeshExtractType::Mesh) {
     extract_face_dots_uv_mesh(mr, vbo_data);
@@ -82,7 +81,6 @@ gpu::VertBufPtr extract_face_dots_uv(const MeshRenderData &mr)
   else {
     extract_face_dots_uv_bm(mr, vbo_data);
   }
-  return vbo;
 }
 
 }  // namespace blender::draw

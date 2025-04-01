@@ -2,15 +2,13 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-/** \file
- * \ingroup bke
- */
-
 #pragma once
 
 struct Mesh;
 
-#include "BLI_virtual_array_fwd.hh"
+/** \file
+ * \ingroup bke
+ */
 
 #include "BKE_attribute_filter.hh"
 
@@ -30,7 +28,6 @@ class CurvesGeometry;
  */
 Mesh *curve_to_mesh_sweep(const CurvesGeometry &main,
                           const CurvesGeometry &profile,
-                          const VArray<float> &scales,
                           bool fill_caps,
                           const bke::AttributeFilter &attribute_filter = {});
 /**

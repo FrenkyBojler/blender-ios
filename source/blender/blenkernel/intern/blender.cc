@@ -82,7 +82,7 @@ void BKE_blender_free()
   BKE_callback_global_finalize();
 
   IMB_moviecache_destruct();
-  blender::seq::fontmap_clear();
+  SEQ_fontmap_clear();
   MOV_exit();
 
   blender::bke::node_system_exit();
@@ -207,8 +207,6 @@ void BKE_blender_globals_init()
 #endif
 
   G.log.level = 1;
-
-  G.profile_gpu = false;
 }
 
 void BKE_blender_globals_clear()

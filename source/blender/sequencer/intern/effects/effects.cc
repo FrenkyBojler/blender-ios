@@ -23,9 +23,9 @@
 #include "effects.hh"
 #include "render.hh"
 
-namespace blender::seq {
+using namespace blender;
 
-ImBuf *prepare_effect_imbufs(const RenderData *context,
+ImBuf *prepare_effect_imbufs(const SeqRenderData *context,
                              ImBuf *ibuf1,
                              ImBuf *ibuf2,
                              bool uninitialized_pixels)
@@ -38,14 +38,14 @@ ImBuf *prepare_effect_imbufs(const RenderData *context,
 
   if (!ibuf1 && !ibuf2) {
     /* Hmm, global float option? */
-    out = IMB_allocImBuf(x, y, 32, IB_byte_data | base_flags);
+    out = IMB_allocImBuf(x, y, 32, IB_rect | base_flags);
   }
   else if ((ibuf1 && ibuf1->float_buffer.data) || (ibuf2 && ibuf2->float_buffer.data)) {
     /* if any inputs are float, output is float too */
-    out = IMB_allocImBuf(x, y, 32, IB_float_data | base_flags);
+    out = IMB_allocImBuf(x, y, 32, IB_rectfloat | base_flags);
   }
   else {
-    out = IMB_allocImBuf(x, y, 32, IB_byte_data | base_flags);
+    out = IMB_allocImBuf(x, y, 32, IB_rect | base_flags);
   }
 
   if (out->float_buffer.data) {
@@ -61,11 +61,11 @@ ImBuf *prepare_effect_imbufs(const RenderData *context,
   }
   else {
     if (ibuf1 && !ibuf1->byte_buffer.data) {
-      IMB_byte_from_float(ibuf1);
+      IMB_rect_from_float(ibuf1);
     }
 
     if (ibuf2 && !ibuf2->byte_buffer.data) {
-      IMB_byte_from_float(ibuf2);
+      IMB_rect_from_float(ibuf2);
     }
   }
 
@@ -151,14 +151,14 @@ static void get_default_fac_noop(const Scene * /*scene*/,
 
 void get_default_fac_fade(const Scene *scene, const Strip *strip, float timeline_frame, float *fac)
 {
-  *fac = float(timeline_frame - time_left_handle_frame_get(scene, strip));
-  *fac /= time_strip_length_get(scene, strip);
+  *fac = float(timeline_frame - SEQ_time_left_handle_frame_get(scene, strip));
+  *fac /= SEQ_time_strip_length_get(scene, strip);
   *fac = math::clamp(*fac, 0.0f, 1.0f);
 }
 
-EffectHandle get_sequence_effect_impl(int strip_type)
+SeqEffectHandle get_sequence_effect_impl(int strip_type)
 {
-  EffectHandle rval;
+  SeqEffectHandle rval;
 
   rval.init = init_noop;
   rval.num_inputs = num_inputs_default;
@@ -211,6 +211,9 @@ EffectHandle get_sequence_effect_impl(int strip_type)
     case STRIP_TYPE_ALPHAOVER:
       alpha_over_effect_get_handle(rval);
       break;
+    case STRIP_TYPE_OVERDROP:
+      over_drop_effect_get_handle(rval);
+      break;
     case STRIP_TYPE_ALPHAUNDER:
       alpha_under_effect_get_handle(rval);
       break;
@@ -246,9 +249,9 @@ EffectHandle get_sequence_effect_impl(int strip_type)
   return rval;
 }
 
-EffectHandle effect_handle_get(Strip *strip)
+SeqEffectHandle SEQ_effect_handle_get(Strip *strip)
 {
-  EffectHandle rval = {};
+  SeqEffectHandle rval = {};
 
   if (strip->type & STRIP_TYPE_EFFECT) {
     rval = get_sequence_effect_impl(strip->type);
@@ -261,9 +264,9 @@ EffectHandle effect_handle_get(Strip *strip)
   return rval;
 }
 
-EffectHandle strip_effect_get_sequence_blend(Strip *strip)
+SeqEffectHandle strip_effect_get_sequence_blend(Strip *strip)
 {
-  EffectHandle rval = {};
+  SeqEffectHandle rval = {};
 
   if (strip->blend_mode != 0) {
     if ((strip->flag & SEQ_EFFECT_NOT_LOADED) != 0) {
@@ -283,9 +286,9 @@ EffectHandle strip_effect_get_sequence_blend(Strip *strip)
   return rval;
 }
 
-int effect_get_num_inputs(int strip_type)
+int SEQ_effect_get_num_inputs(int strip_type)
 {
-  EffectHandle rval = get_sequence_effect_impl(strip_type);
+  SeqEffectHandle rval = get_sequence_effect_impl(strip_type);
 
   int count = rval.num_inputs();
   if (rval.execute) {
@@ -293,5 +296,3 @@ int effect_get_num_inputs(int strip_type)
   }
   return 0;
 }
-
-}  // namespace blender::seq

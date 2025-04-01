@@ -50,9 +50,7 @@
 #include "sequencer.hh"
 #include "utils.hh"
 
-namespace blender::seq {
-
-struct IndexBuildContext {
+struct SeqIndexBuildContext {
   MovieProxyBuilder *proxy_builder;
 
   int tc_flags;
@@ -68,7 +66,7 @@ struct IndexBuildContext {
   SessionUID orig_seq_uid;
 };
 
-int rendersize_to_proxysize(int render_size)
+int SEQ_rendersize_to_proxysize(int render_size)
 {
   switch (render_size) {
     case SEQ_RENDER_SIZE_PROXY_25:
@@ -83,7 +81,7 @@ int rendersize_to_proxysize(int render_size)
   return IMB_PROXY_NONE;
 }
 
-double rendersize_to_scale_factor(int render_size)
+double SEQ_rendersize_to_scale_factor(int render_size)
 {
   switch (render_size) {
     case SEQ_RENDER_SIZE_PROXY_25:
@@ -133,7 +131,7 @@ static bool seq_proxy_get_filepath(Scene *scene,
 {
   char dirpath[PROXY_MAXFILE];
   char suffix[24] = {'\0'};
-  Editing *ed = editing_get(scene);
+  Editing *ed = SEQ_editing_get(scene);
   StripProxy *proxy = strip->data->proxy;
 
   if (proxy == nullptr) {
@@ -175,20 +173,20 @@ static bool seq_proxy_get_filepath(Scene *scene,
   }
 
   /* Proxy size number to be used in path. */
-  int proxy_size_number = rendersize_to_scale_factor(render_size) * 100;
+  int proxy_size_number = SEQ_rendersize_to_scale_factor(render_size) * 100;
 
   BLI_snprintf(filepath,
                PROXY_MAXFILE,
                "%s" SEP_STR "images" SEP_STR "%d" SEP_STR "%s_proxy%s.jpg",
                dirpath,
                proxy_size_number,
-               render_give_stripelem(scene, strip, timeline_frame)->filename,
+               SEQ_render_give_stripelem(scene, strip, timeline_frame)->filename,
                suffix);
   BLI_path_abs(filepath, BKE_main_blendfile_path_from_global());
   return true;
 }
 
-bool can_use_proxy(const RenderData *context, const Strip *strip, int psize)
+bool SEQ_can_use_proxy(const SeqRenderData *context, const Strip *strip, int psize)
 {
   if (strip->data->proxy == nullptr || !context->use_proxies) {
     return false;
@@ -199,7 +197,7 @@ bool can_use_proxy(const RenderData *context, const Strip *strip, int psize)
          (size_flags & psize) != 0;
 }
 
-ImBuf *seq_proxy_fetch(const RenderData *context, Strip *strip, int timeline_frame)
+ImBuf *seq_proxy_fetch(const SeqRenderData *context, Strip *strip, int timeline_frame)
 {
   char filepath[PROXY_MAXFILE];
   StripProxy *proxy = strip->data->proxy;
@@ -208,12 +206,12 @@ ImBuf *seq_proxy_fetch(const RenderData *context, Strip *strip, int timeline_fra
   StripAnim *sanim;
 
   /* only use proxies, if they are enabled (even if present!) */
-  if (!can_use_proxy(context, strip, rendersize_to_proxysize(psize))) {
+  if (!SEQ_can_use_proxy(context, strip, SEQ_rendersize_to_proxysize(psize))) {
     return nullptr;
   }
 
   if (proxy->storage & SEQ_STORAGE_PROXY_CUSTOM_FILE) {
-    int frameno = round_fl_to_int(give_frame_index(context->scene, strip, timeline_frame)) +
+    int frameno = round_fl_to_int(SEQ_give_frame_index(context->scene, strip, timeline_frame)) +
                   strip->anim_startofs;
     if (proxy->anim == nullptr) {
       if (seq_proxy_get_filepath(
@@ -222,7 +220,7 @@ ImBuf *seq_proxy_fetch(const RenderData *context, Strip *strip, int timeline_fra
         return nullptr;
       }
 
-      proxy->anim = openanim(filepath, IB_byte_data, 0, strip->data->colorspace_settings.name);
+      proxy->anim = openanim(filepath, IB_rect, 0, strip->data->colorspace_settings.name);
     }
     if (proxy->anim == nullptr) {
       return nullptr;
@@ -244,7 +242,7 @@ ImBuf *seq_proxy_fetch(const RenderData *context, Strip *strip, int timeline_fra
   }
 
   if (BLI_exists(filepath)) {
-    ImBuf *ibuf = IMB_load_image_from_filepath(filepath, IB_byte_data | IB_metadata);
+    ImBuf *ibuf = IMB_loadiffname(filepath, IB_rect | IB_metadata, nullptr);
 
     if (ibuf) {
       seq_imbuf_assign_spaces(context->scene, ibuf);
@@ -256,7 +254,7 @@ ImBuf *seq_proxy_fetch(const RenderData *context, Strip *strip, int timeline_fra
   return nullptr;
 }
 
-static void seq_proxy_build_frame(const RenderData *context,
+static void seq_proxy_build_frame(const SeqRenderData *context,
                                   SeqRenderState *state,
                                   Strip *strip,
                                   int timeline_frame,
@@ -311,7 +309,7 @@ static void seq_proxy_build_frame(const RenderData *context,
   }
   BLI_file_ensure_parent_dir_exists(filepath);
 
-  const bool ok = IMB_save_image(ibuf, filepath, save_float ? IB_float_data : IB_byte_data);
+  const bool ok = IMB_saveiff(ibuf, filepath, save_float ? IB_rectfloat : IB_rect);
   if (ok == false) {
     perror(filepath);
   }
@@ -422,15 +420,15 @@ static bool seq_proxy_need_rebuild(Strip *strip, MovieReader *anim)
   return (required_proxies & built_proxies) != required_proxies;
 }
 
-bool proxy_rebuild_context(Main *bmain,
-                           Depsgraph *depsgraph,
-                           Scene *scene,
-                           Strip *strip,
-                           blender::Set<std::string> *processed_paths,
-                           ListBase *queue,
-                           bool build_only_on_bad_performance)
+bool SEQ_proxy_rebuild_context(Main *bmain,
+                               Depsgraph *depsgraph,
+                               Scene *scene,
+                               Strip *strip,
+                               blender::Set<std::string> *processed_paths,
+                               ListBase *queue,
+                               bool build_only_on_bad_performance)
 {
-  IndexBuildContext *context;
+  SeqIndexBuildContext *context;
   Strip *nseq;
   LinkData *link;
   int num_files;
@@ -460,11 +458,12 @@ bool proxy_rebuild_context(Main *bmain,
       continue;
     }
 
-    relations_sequence_free_anim(strip);
+    SEQ_relations_sequence_free_anim(strip);
 
-    context = MEM_callocN<IndexBuildContext>("strip proxy rebuild context");
+    context = static_cast<SeqIndexBuildContext *>(
+        MEM_callocN(sizeof(SeqIndexBuildContext), "strip proxy rebuild context"));
 
-    nseq = sequence_dupli_recursive(scene, scene, nullptr, strip, 0);
+    nseq = SEQ_sequence_dupli_recursive(scene, scene, nullptr, strip, 0);
 
     context->tc_flags = nseq->data->proxy->build_tc_flags;
     context->size_flags = nseq->data->proxy->build_size_flags;
@@ -506,10 +505,10 @@ bool proxy_rebuild_context(Main *bmain,
   return true;
 }
 
-void proxy_rebuild(IndexBuildContext *context, wmJobWorkerStatus *worker_status)
+void SEQ_proxy_rebuild(SeqIndexBuildContext *context, wmJobWorkerStatus *worker_status)
 {
   const bool overwrite = context->overwrite;
-  RenderData render_context;
+  SeqRenderData render_context;
   Strip *strip = context->strip;
   Scene *scene = context->scene;
   Main *bmain = context->bmain;
@@ -539,7 +538,7 @@ void proxy_rebuild(IndexBuildContext *context, wmJobWorkerStatus *worker_status)
   int width, height;
   BKE_render_resolution(&scene->r, false, &width, &height);
 
-  render_new_render_data(
+  SEQ_render_new_render_data(
       bmain, context->depsgraph, context->scene, width, height, 100, false, &render_context);
 
   render_context.skip_cache = true;
@@ -548,8 +547,8 @@ void proxy_rebuild(IndexBuildContext *context, wmJobWorkerStatus *worker_status)
 
   SeqRenderState state;
 
-  for (timeline_frame = time_left_handle_frame_get(scene, strip);
-       timeline_frame < time_right_handle_frame_get(scene, strip);
+  for (timeline_frame = SEQ_time_left_handle_frame_get(scene, strip);
+       timeline_frame < SEQ_time_right_handle_frame_get(scene, strip);
        timeline_frame++)
   {
     if (context->size_flags & IMB_PROXY_25) {
@@ -565,9 +564,10 @@ void proxy_rebuild(IndexBuildContext *context, wmJobWorkerStatus *worker_status)
       seq_proxy_build_frame(&render_context, &state, strip, timeline_frame, 100, overwrite);
     }
 
-    worker_status->progress = float(timeline_frame - time_left_handle_frame_get(scene, strip)) /
-                              (time_right_handle_frame_get(scene, strip) -
-                               time_left_handle_frame_get(scene, strip));
+    worker_status->progress = float(timeline_frame -
+                                    SEQ_time_left_handle_frame_get(scene, strip)) /
+                              (SEQ_time_right_handle_frame_get(scene, strip) -
+                               SEQ_time_left_handle_frame_get(scene, strip));
     worker_status->do_update = true;
 
     if (worker_status->stop || G.is_break) {
@@ -576,7 +576,7 @@ void proxy_rebuild(IndexBuildContext *context, wmJobWorkerStatus *worker_status)
   }
 }
 
-void proxy_rebuild_finish(IndexBuildContext *context, bool stop)
+void SEQ_proxy_rebuild_finish(SeqIndexBuildContext *context, bool stop)
 {
   if (context->proxy_builder) {
     LISTBASE_FOREACH (StripAnim *, sanim, &context->strip->anims) {
@@ -591,7 +591,7 @@ void proxy_rebuild_finish(IndexBuildContext *context, bool stop)
   MEM_freeN(context);
 }
 
-void proxy_set(Strip *strip, bool value)
+void SEQ_proxy_set(Strip *strip, bool value)
 {
   if (value) {
     strip->flag |= SEQ_USE_PROXY;
@@ -621,5 +621,3 @@ void free_proxy_seq(Strip *strip)
     strip->data->proxy->anim = nullptr;
   }
 }
-
-}  // namespace blender::seq

@@ -8,7 +8,9 @@
 
 #include "graph/node.h"
 
-#include "scene/geometry.h"
+/* included as Light::set_shader defined through NODE_SOCKET_API does not select
+ * the right Node::set overload as it does not know that Shader is a Node */
+#include "scene/shader.h"
 
 #include "util/ies.h"
 #include "util/thread.h"
@@ -20,12 +22,11 @@ CCL_NAMESPACE_BEGIN
 
 class Device;
 class DeviceScene;
-class Object;
 class Progress;
 class Scene;
 class Shader;
 
-class Light : public Geometry {
+class Light : public Node {
  public:
   NODE_DECLARE;
 
@@ -42,6 +43,8 @@ class Light : public Geometry {
   NODE_SOCKET_API(bool, ellipse)
   NODE_SOCKET_API(float, spread)
 
+  NODE_SOCKET_API(Transform, tfm)
+
   NODE_SOCKET_API(int, map_resolution)
   NODE_SOCKET_API(float, average_radiance)
 
@@ -52,12 +55,24 @@ class Light : public Geometry {
 
   NODE_SOCKET_API(bool, cast_shadow)
   NODE_SOCKET_API(bool, use_mis)
+  NODE_SOCKET_API(bool, use_camera)
+  NODE_SOCKET_API(bool, use_diffuse)
+  NODE_SOCKET_API(bool, use_glossy)
+  NODE_SOCKET_API(bool, use_transmission)
+  NODE_SOCKET_API(bool, use_scatter)
   NODE_SOCKET_API(bool, use_caustics)
 
+  NODE_SOCKET_API(bool, is_shadow_catcher)
   NODE_SOCKET_API(bool, is_portal)
   NODE_SOCKET_API(bool, is_enabled)
 
+  NODE_SOCKET_API(Shader *, shader)
   NODE_SOCKET_API(int, max_bounces)
+  NODE_SOCKET_API(uint, random_id)
+
+  NODE_SOCKET_API(ustring, lightgroup)
+  NODE_SOCKET_API(uint64_t, light_set_membership);
+  NODE_SOCKET_API(uint64_t, shadow_set_membership);
 
   /* Normalize power by the surface area of the light. */
   NODE_SOCKET_API(bool, normalize)
@@ -65,16 +80,17 @@ class Light : public Geometry {
   void tag_update(Scene *scene);
 
   /* Check whether the light has contribution the scene. */
-  bool has_contribution(const Scene *scene, const Object *object);
+  bool has_contribution(Scene *scene);
 
-  /* Shader */
-  Shader *get_shader() const;
+  /* Check whether this light participates in light or shadow linking. */
+  bool has_light_linking() const;
+  bool has_shadow_linking() const;
 
-  /* Geometry */
-  void compute_bounds() override;
-  void apply_transform(const Transform &tfm, const bool apply_to_motion) override;
-  void get_uv_tiles(ustring map, unordered_set<int> &tiles) override;
-  PrimitiveType primitive_type() const override;
+  /* Convenience access to transform. */
+  float3 get_co() const;
+  float3 get_dir() const;
+  float3 get_axisu() const;
+  float3 get_axisv() const;
 
   friend class LightManager;
   friend class LightTree;

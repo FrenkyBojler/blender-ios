@@ -29,8 +29,6 @@
 
 #include "transform_mode.hh"
 
-namespace blender::ed::transform {
-
 /* -------------------------------------------------------------------- */
 /** \name Transform (Animation Time Slide)
  * \{ */
@@ -236,5 +234,3 @@ TransModeInfo TransMode_timeslide = {
     /*snap_apply_fn*/ nullptr,
     /*draw_fn*/ nullptr,
 };
-
-}  // namespace blender::ed::transform

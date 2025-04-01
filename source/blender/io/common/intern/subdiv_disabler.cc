@@ -103,7 +103,7 @@ void SubdivModifierDisabler::disable_modifiers()
      * moving to a different frame is also going to be faster, so in the end this is probably
      * a good thing to do. */
     disable_modifier(mod);
-    modified_objects_.append(object);
+    modified_objects_.insert(object);
     DEG_id_tag_update(&object->id, ID_RECALC_GEOMETRY);
   }
 }
@@ -111,7 +111,7 @@ void SubdivModifierDisabler::disable_modifiers()
 void SubdivModifierDisabler::disable_modifier(ModifierData *mod)
 {
   mod->mode |= eModifierMode_DisableTemporary;
-  disabled_modifiers_.append(mod);
+  disabled_modifiers_.insert(mod);
 }
 
 }  // namespace blender::io
