@@ -17,7 +17,6 @@ enum class Interpolation : uint8_t {
   Nearest,
   Bilinear,
   Bicubic,
-  Anisotropic,
 };
 
 /* ------------------------------------------------------------------------------------------------
