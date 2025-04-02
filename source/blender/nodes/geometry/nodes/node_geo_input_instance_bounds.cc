@@ -2,6 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BKE_geometry_set_instances.hh"
 #include "BKE_instances.hh"
 
 #include "node_geometry_util.hh"
@@ -56,10 +57,8 @@ class InstanceBoundsField final : public bke::InstancesFieldInput {
       }
     }
 
-    for (int i = 0; i < mask.size(); ++i) {
-      int mask_index = mask[i];
-      output_bounds[mask_index] = bounds[handles[mask_index]];
-    }
+    mask.foreach_index(
+        [&](const int i, const int start_pos) { output_bounds[start_pos] = bounds[handles[i]]; });
 
     return VArray<float3>::ForContainer(std::move(output_bounds));
   }
