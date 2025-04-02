@@ -5437,7 +5437,7 @@ void MOD_lineart_gpencil_generate_v3(const LineartCache *cache,
       }
 
       if (src_deform_group >= 0) {
-        size_t vindex = eci->index - cwi.chain->index_offset;
+        const int64_t vindex = eci->index - cwi.chain->index_offset;
         if (UNLIKELY(vindex >= src_mesh->verts_num)) {
           vgroup_weights.span[point_i] = 0;
           continue;
