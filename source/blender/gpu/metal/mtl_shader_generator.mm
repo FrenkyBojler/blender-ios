@@ -1289,9 +1289,7 @@ void MSLGeneratorInterface::prepare_from_createinfo(const shader::ShaderCreateIn
     /* Populate MSLGenerator attribute. */
     MSLFragmentTileInputAttribute mtl_frag_in;
     mtl_frag_in.layout_location = frag_tile_in.index;
-    mtl_frag_in.layout_index = (frag_tile_in.blend != DualBlend::NONE) ?
-                                   ((frag_tile_in.blend == DualBlend::SRC_0) ? 0 : 1) :
-                                   -1;
+    mtl_frag_in.layout_index = -1;
     mtl_frag_in.type = frag_tile_in.type;
     mtl_frag_in.name = frag_tile_in.name;
     mtl_frag_in.raster_order_group = frag_tile_in.raster_order_group;
@@ -1302,27 +1300,13 @@ void MSLGeneratorInterface::prepare_from_createinfo(const shader::ShaderCreateIn
     if (!MTLBackend::capabilities.supports_native_tile_inputs) {
       /* Determine type: */
       bool is_layered_fb = bool(create_info_->builtins_ & BuiltinBits::LAYER);
-      /* Start with invalid value to detect failure cases. */
-      ImageType image_type = ImageType::FLOAT_BUFFER;
-      switch (frag_tile_in.type) {
-        case Type::FLOAT:
-          image_type = is_layered_fb ? ImageType::FLOAT_2D_ARRAY : ImageType::FLOAT_2D;
-          break;
-        case Type::INT:
-          image_type = is_layered_fb ? ImageType::INT_2D_ARRAY : ImageType::INT_2D;
-          break;
-        case Type::UINT:
-          image_type = is_layered_fb ? ImageType::UINT_2D_ARRAY : ImageType::UINT_2D;
-          break;
-        default:
-          break;
-      }
-      BLI_assert(image_type != ImageType::FLOAT_BUFFER);
+      bool is_layered_input = ELEM(
+          input.img_type, ImageType::UINT_2D_ARRAY, ImageType::FLOAT_2D_ARRAY);
 
       /* Generate texture binding resource. */
       MSLTextureResource msl_image;
       msl_image.stage = ShaderStage::FRAGMENT;
-      msl_image.type = image_type;
+      msl_image.type = frag_tile_in.img_type;
       msl_image.name = frag_tile_in.name + "_subpass_img";
       msl_image.access = MSLTextureSamplerAccess::TEXTURE_ACCESS_READ;
       msl_image.slot = texture_slot_id++;
