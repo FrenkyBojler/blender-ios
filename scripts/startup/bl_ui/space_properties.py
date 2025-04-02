@@ -13,24 +13,24 @@ class PROPERTIES_HT_header(Header):
     @staticmethod
     def _search_poll(space):
         return (space.show_properties_tool or
-            space.show_properties_render or
-            space.show_properties_output or
-            space.show_properties_view_layer or
-            space.show_properties_scene or
-            space.show_properties_world or
-            space.show_properties_collection or
-            space.show_properties_object or
-            space.show_properties_modifiers or
-            space.show_properties_effects or
-            space.show_properties_particles or
-            space.show_properties_physics or
-            space.show_properties_constraints or
-            space.show_properties_data or
-            space.show_properties_bone or
-            space.show_properties_bone_constraints or
-            space.show_properties_material or
-            space.show_properties_texture
-        )
+                space.show_properties_render or
+                space.show_properties_output or
+                space.show_properties_view_layer or
+                space.show_properties_scene or
+                space.show_properties_world or
+                space.show_properties_collection or
+                space.show_properties_object or
+                space.show_properties_modifiers or
+                space.show_properties_effects or
+                space.show_properties_particles or
+                space.show_properties_physics or
+                space.show_properties_constraints or
+                space.show_properties_data or
+                space.show_properties_bone or
+                space.show_properties_bone_constraints or
+                space.show_properties_material or
+                space.show_properties_texture
+                )
 
     def draw(self, context):
         layout = self.layout
