@@ -1264,7 +1264,6 @@ void MSLGeneratorInterface::prepare_from_createinfo(const shader::ShaderCreateIn
 
   /** Fragment outputs. */
   for (const shader::ShaderCreateInfo::FragOut &frag_out : create_info_->fragment_outputs_) {
-
     /* Validate input. */
     BLI_assert(frag_out.name.is_empty() == false);
     BLI_assert(frag_out.index >= 0);
@@ -1272,9 +1271,7 @@ void MSLGeneratorInterface::prepare_from_createinfo(const shader::ShaderCreateIn
     /* Populate MSLGenerator attribute. */
     MSLFragmentOutputAttribute mtl_frag_out;
     mtl_frag_out.layout_location = frag_out.index;
-    mtl_frag_out.layout_index = (frag_out.blend != DualBlend::NONE) ?
-                                    ((frag_out.blend == DualBlend::SRC_0) ? 0 : 1) :
-                                    -1;
+    mtl_frag_out.layout_index = -1;
     mtl_frag_out.type = frag_out.type;
     mtl_frag_out.name = frag_out.name;
     mtl_frag_out.raster_order_group = frag_out.raster_order_group;
