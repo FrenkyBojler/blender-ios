@@ -17,7 +17,11 @@
 #include "BLI_string_utf8_symbols.h"
 #include "BLI_sys_types.h" /* size_t */
 #include "BLI_utildefines.h"
+
+#include "DNA_userdef_types.h"
+
 #include "UI_interface_icons.hh"
+
 #include "WM_types.hh"
 
 #include "MEM_guardedalloc.h"
@@ -121,24 +125,27 @@ struct uiTooltipData;
 /** Use for clamping popups within the screen. */
 #define UI_SCREEN_MARGIN 10
 
+namespace blender::ui {
 /** #uiBlock.emboss and #uiBut.emboss */
-enum eUIEmbossType {
+enum class EmbossType : uint8_t {
   /** Use widget style for drawing. */
-  UI_EMBOSS = 0,
+  Emboss = 0,
   /** Nothing, only icon and/or text */
-  UI_EMBOSS_NONE = 1,
+  None = 1,
   /** Pull-down menu style */
-  UI_EMBOSS_PULLDOWN = 2,
+  Pulldown = 2,
   /** Pie Menu */
-  UI_EMBOSS_PIE_MENU = 3,
+  PieMenu = 3,
   /**
-   * The same as #UI_EMBOSS_NONE, unless the button has
+   * The same as #EmbossType::None, unless the button has
    * a coloring status like an animation state or red alert.
    */
-  UI_EMBOSS_NONE_OR_STATUS = 4,
+  NoneOrStatus = 4,
   /** For layout engine, use emboss from block. */
-  UI_EMBOSS_UNDEFINED = 255,
+  Undefined = 255,
 };
+
+}  // namespace blender::ui
 
 /** #uiBlock::direction */
 enum {
@@ -291,6 +298,9 @@ enum {
 /** Larger size used for title text. */
 #define UI_DEFAULT_TITLE_POINTS 11.0f
 
+/** Size of tooltip text. */
+#define UI_DEFAULT_TOOLTIP_POINTS 11.0f
+
 #define UI_PANEL_WIDTH 340
 #define UI_COMPACT_PANEL_WIDTH 160
 #define UI_SIDEBAR_PANEL_WIDTH 280
@@ -331,6 +341,8 @@ enum {
   UI_BUT_HAS_TOOLTIP_LABEL = 1 << 5,
   /** Do not add the usual horizontal padding for text drawing. */
   UI_BUT_NO_TEXT_PADDING = 1 << 6,
+  /** Do not add the usual padding around preview image drawing, use the size of the button. */
+  UI_BUT_NO_PREVIEW_PADDING = 1 << 7,
 
   /* Button align flag, for drawing groups together.
    * Used in 'uiBlock.flag', take care! */
@@ -609,9 +621,9 @@ using uiButSearchTooltipFn =
 using uiButSearchListenFn = void (*)(const wmRegionListenerParams *params, void *arg);
 
 /** Must return an allocated string. */
-using uiButToolTipFunc = std::string (*)(bContext *C, void *argN, const char *tip);
+using uiButToolTipFunc = std::string (*)(bContext *C, void *argN, blender::StringRef tip);
 
-using uiButToolTipCustomFunc = void (*)(bContext *C, uiTooltipData *data, void *argN);
+using uiButToolTipCustomFunc = void (*)(bContext &C, uiTooltipData &data, void *argN);
 
 using uiBlockHandleFunc = void (*)(bContext *C, void *arg, int event);
 
@@ -728,7 +740,8 @@ bool UI_popup_menu_end_or_cancel(bContext *C, uiPopupMenu *pup);
 uiLayout *UI_popup_menu_layout(uiPopupMenu *pup);
 
 void UI_popup_menu_reports(bContext *C, ReportList *reports) ATTR_NONNULL();
-int UI_popup_menu_invoke(bContext *C, const char *idname, ReportList *reports) ATTR_NONNULL(1, 2);
+wmOperatorStatus UI_popup_menu_invoke(bContext *C, const char *idname, ReportList *reports)
+    ATTR_NONNULL(1, 2);
 
 /**
  * If \a block is displayed in a popup menu, tag it for closing.
@@ -761,7 +774,10 @@ void UI_popup_menu_but_set(uiPopupMenu *pup, ARegion *butregion, uiBut *but);
 
 struct uiPopover;
 
-int UI_popover_panel_invoke(bContext *C, const char *idname, bool keep_open, ReportList *reports);
+wmOperatorStatus UI_popover_panel_invoke(bContext *C,
+                                         const char *idname,
+                                         bool keep_open,
+                                         ReportList *reports);
 
 /**
  * Only return handler, and set optional title.
@@ -769,7 +785,8 @@ int UI_popover_panel_invoke(bContext *C, const char *idname, bool keep_open, Rep
  * \param from_active_button: Use the active button for positioning,
  * use when the popover is activated from an operator instead of directly from the button.
  */
-uiPopover *UI_popover_begin(bContext *C, int menu_width, bool from_active_button) ATTR_NONNULL(1);
+uiPopover *UI_popover_begin(bContext *C, int ui_menu_width, bool from_active_button)
+    ATTR_NONNULL(1);
 /**
  * Set the whole structure to work.
  */
@@ -782,16 +799,16 @@ void UI_popover_once_clear(uiPopover *pup);
 /* Pie menus */
 struct uiPieMenu;
 
-int UI_pie_menu_invoke(bContext *C, const char *idname, const wmEvent *event);
-int UI_pie_menu_invoke_from_operator_enum(bContext *C,
-                                          const char *title,
-                                          const char *opname,
-                                          const char *propname,
-                                          const wmEvent *event);
-int UI_pie_menu_invoke_from_rna_enum(bContext *C,
-                                     const char *title,
-                                     const char *path,
-                                     const wmEvent *event);
+wmOperatorStatus UI_pie_menu_invoke(bContext *C, const char *idname, const wmEvent *event);
+wmOperatorStatus UI_pie_menu_invoke_from_operator_enum(bContext *C,
+                                                       blender::StringRefNull title,
+                                                       blender::StringRefNull opname,
+                                                       blender::StringRefNull propname,
+                                                       const wmEvent *event);
+wmOperatorStatus UI_pie_menu_invoke_from_rna_enum(bContext *C,
+                                                  const char *title,
+                                                  const char *path,
+                                                  const wmEvent *event);
 
 uiPieMenu *UI_pie_menu_begin(bContext *C, const char *title, int icon, const wmEvent *event)
     ATTR_NONNULL();
@@ -842,8 +859,8 @@ void UI_popup_block_template_confirm(uiBlock *block,
  */
 void UI_popup_block_template_confirm_op(uiLayout *layout,
                                         wmOperatorType *ot,
-                                        const char *confirm_text,
-                                        const char *cancel_text,
+                                        std::optional<blender::StringRef> confirm_text,
+                                        std::optional<blender::StringRef> cancel_text,
                                         const int icon,
                                         bool cancel_default,
                                         PointerRNA *r_ptr);
@@ -872,8 +889,22 @@ bool UI_popup_block_name_exists(const bScreen *screen, blender::StringRef name);
 uiBlock *UI_block_begin(const bContext *C,
                         ARegion *region,
                         std::string name,
-                        eUIEmbossType emboss);
-void UI_block_end_ex(const bContext *C, uiBlock *block, const int xy[2], int r_xy[2]);
+                        blender::ui::EmbossType emboss);
+uiBlock *UI_block_begin(const bContext *C,
+                        Scene *scene,
+                        wmWindow *window,
+                        ARegion *region,
+                        std::string name,
+                        blender::ui::EmbossType emboss);
+void UI_block_end_ex(const bContext *C,
+                     Main *bmain,
+                     wmWindow *window,
+                     Scene *scene,
+                     ARegion *region,
+                     Depsgraph *depsgraph,
+                     uiBlock *block,
+                     const int xy[2] = nullptr,
+                     int r_xy[2] = nullptr);
 void UI_block_end(const bContext *C, uiBlock *block);
 /**
  * Uses local copy of style, to scale things down, and allow widgets to change stuff.
@@ -889,8 +920,8 @@ enum {
   UI_BLOCK_THEME_STYLE_POPUP = 1,
 };
 void UI_block_theme_style_set(uiBlock *block, char theme_style);
-eUIEmbossType UI_block_emboss_get(uiBlock *block);
-void UI_block_emboss_set(uiBlock *block, eUIEmbossType emboss);
+blender::ui::EmbossType UI_block_emboss_get(uiBlock *block);
+void UI_block_emboss_set(uiBlock *block, blender::ui::EmbossType emboss);
 bool UI_block_is_search_only(const uiBlock *block);
 /**
  * Use when a block must be searched to give accurate results
@@ -920,7 +951,7 @@ void UI_blocklist_free_inactive(const bContext *C, ARegion *region);
  * Is called by notifier.
  */
 void UI_screen_free_active_but_highlight(const bContext *C, bScreen *screen);
-void UI_region_free_active_but_all(bContext *context, ARegion *region);
+void UI_region_free_active_but_all(bContext *C, ARegion *region);
 
 void UI_block_region_set(uiBlock *block, ARegion *region);
 
@@ -993,7 +1024,7 @@ void UI_block_direction_set(uiBlock *block, char direction);
  */
 void UI_block_flag_enable(uiBlock *block, int flag);
 void UI_block_flag_disable(uiBlock *block, int flag);
-void UI_block_translate(uiBlock *block, int x, int y);
+void UI_block_translate(uiBlock *block, float x, float y);
 
 int UI_but_return_value_get(uiBut *but);
 
@@ -1019,6 +1050,12 @@ void UI_but_dragflag_disable(uiBut *but, int flag);
 void UI_but_disable(uiBut *but, const char *disabled_hint);
 
 void UI_but_type_set_menu_from_pulldown(uiBut *but);
+
+/**
+ * Sets the button's color, normally only used to recolor the icon. In the
+ * special case of UI_BTYPE_LABEL without icon this is used as text color.
+ */
+void UI_but_color_set(uiBut *but, const uchar color[4]);
 
 /**
  * Set at hint that describes the expected value when empty.
@@ -1072,7 +1109,7 @@ uiBut *uiDefBut(uiBlock *block,
                 void *poin,
                 float min,
                 float max,
-                const char *tip);
+                std::optional<blender::StringRef> tip);
 uiBut *uiDefButF(uiBlock *block,
                  int type,
                  int retval,
@@ -1084,7 +1121,7 @@ uiBut *uiDefButF(uiBlock *block,
                  float *poin,
                  float min,
                  float max,
-                 const char *tip);
+                 std::optional<blender::StringRef> tip);
 uiBut *uiDefButI(uiBlock *block,
                  int type,
                  int retval,
@@ -1096,7 +1133,7 @@ uiBut *uiDefButI(uiBlock *block,
                  int *poin,
                  float min,
                  float max,
-                 const char *tip);
+                 std::optional<blender::StringRef> tip);
 uiBut *uiDefButBitI(uiBlock *block,
                     int type,
                     int bit,
@@ -1109,7 +1146,7 @@ uiBut *uiDefButBitI(uiBlock *block,
                     int *poin,
                     float min,
                     float max,
-                    const char *tip);
+                    std::optional<blender::StringRef> tip);
 uiBut *uiDefButS(uiBlock *block,
                  int type,
                  int retval,
@@ -1121,7 +1158,7 @@ uiBut *uiDefButS(uiBlock *block,
                  short *poin,
                  float min,
                  float max,
-                 const char *tip);
+                 std::optional<blender::StringRef> tip);
 uiBut *uiDefButBitS(uiBlock *block,
                     int type,
                     int bit,
@@ -1134,7 +1171,7 @@ uiBut *uiDefButBitS(uiBlock *block,
                     short *poin,
                     float min,
                     float max,
-                    const char *tip);
+                    std::optional<blender::StringRef> tip);
 uiBut *uiDefButC(uiBlock *block,
                  int type,
                  int retval,
@@ -1146,7 +1183,7 @@ uiBut *uiDefButC(uiBlock *block,
                  char *poin,
                  float min,
                  float max,
-                 const char *tip);
+                 std::optional<blender::StringRef> tip);
 uiBut *uiDefButBitC(uiBlock *block,
                     int type,
                     int bit,
@@ -1159,25 +1196,25 @@ uiBut *uiDefButBitC(uiBlock *block,
                     char *poin,
                     float min,
                     float max,
-                    const char *tip);
+                    std::optional<blender::StringRef> tip);
 uiBut *uiDefButR(uiBlock *block,
                  int type,
                  int retval,
-                 const char *str,
+                 std::optional<blender::StringRefNull> str,
                  int x,
                  int y,
                  short width,
                  short height,
                  PointerRNA *ptr,
-                 const char *propname,
+                 blender::StringRefNull propname,
                  int index,
                  float min,
                  float max,
-                 const char *tip);
+                 std::optional<blender::StringRef> tip);
 uiBut *uiDefButR_prop(uiBlock *block,
                       int type,
                       int retval,
-                      const char *str,
+                      std::optional<blender::StringRefNull> str,
                       int x,
                       int y,
                       short width,
@@ -1187,17 +1224,17 @@ uiBut *uiDefButR_prop(uiBlock *block,
                       int index,
                       float min,
                       float max,
-                      const char *tip);
+                      std::optional<blender::StringRef> tip);
 uiBut *uiDefButO(uiBlock *block,
                  int type,
-                 const char *opname,
+                 blender::StringRefNull opname,
                  wmOperatorCallContext opcontext,
-                 const char *str,
+                 const std::optional<blender::StringRef> str,
                  int x,
                  int y,
                  short width,
                  short height,
-                 const char *tip);
+                 std::optional<blender::StringRef> tip);
 uiBut *uiDefButO_ptr(uiBlock *block,
                      int type,
                      wmOperatorType *ot,
@@ -1207,7 +1244,7 @@ uiBut *uiDefButO_ptr(uiBlock *block,
                      int y,
                      short width,
                      short height,
-                     const char *tip);
+                     std::optional<blender::StringRef> tip);
 
 uiBut *uiDefIconBut(uiBlock *block,
                     int type,
@@ -1220,7 +1257,7 @@ uiBut *uiDefIconBut(uiBlock *block,
                     void *poin,
                     float min,
                     float max,
-                    const char *tip);
+                    std::optional<blender::StringRef> tip);
 uiBut *uiDefIconButI(uiBlock *block,
                      int type,
                      int retval,
@@ -1232,7 +1269,7 @@ uiBut *uiDefIconButI(uiBlock *block,
                      int *poin,
                      float min,
                      float max,
-                     const char *tip);
+                     std::optional<blender::StringRef> tip);
 uiBut *uiDefIconButBitI(uiBlock *block,
                         int type,
                         int bit,
@@ -1245,7 +1282,7 @@ uiBut *uiDefIconButBitI(uiBlock *block,
                         int *poin,
                         float min,
                         float max,
-                        const char *tip);
+                        std::optional<blender::StringRef> tip);
 uiBut *uiDefIconButS(uiBlock *block,
                      int type,
                      int retval,
@@ -1257,7 +1294,7 @@ uiBut *uiDefIconButS(uiBlock *block,
                      short *poin,
                      float min,
                      float max,
-                     const char *tip);
+                     std::optional<blender::StringRef> tip);
 uiBut *uiDefIconButBitS(uiBlock *block,
                         int type,
                         int bit,
@@ -1270,7 +1307,7 @@ uiBut *uiDefIconButBitS(uiBlock *block,
                         short *poin,
                         float min,
                         float max,
-                        const char *tip);
+                        std::optional<blender::StringRef> tip);
 uiBut *uiDefIconButBitC(uiBlock *block,
                         int type,
                         int bit,
@@ -1283,7 +1320,7 @@ uiBut *uiDefIconButBitC(uiBlock *block,
                         char *poin,
                         float min,
                         float max,
-                        const char *tip);
+                        std::optional<blender::StringRef> tip);
 uiBut *uiDefIconButR(uiBlock *block,
                      int type,
                      int retval,
@@ -1293,11 +1330,11 @@ uiBut *uiDefIconButR(uiBlock *block,
                      short width,
                      short height,
                      PointerRNA *ptr,
-                     const char *propname,
+                     blender::StringRefNull propname,
                      int index,
                      float min,
                      float max,
-                     const char *tip);
+                     std::optional<blender::StringRef> tip);
 uiBut *uiDefIconButR_prop(uiBlock *block,
                           int type,
                           int retval,
@@ -1311,17 +1348,17 @@ uiBut *uiDefIconButR_prop(uiBlock *block,
                           int index,
                           float min,
                           float max,
-                          const char *tip);
+                          std::optional<blender::StringRef> tip);
 uiBut *uiDefIconButO(uiBlock *block,
                      int type,
-                     const char *opname,
+                     blender::StringRefNull opname,
                      wmOperatorCallContext opcontext,
                      int icon,
                      int x,
                      int y,
                      short width,
                      short height,
-                     const char *tip);
+                     std::optional<blender::StringRef> tip);
 uiBut *uiDefIconButO_ptr(uiBlock *block,
                          int type,
                          wmOperatorType *ot,
@@ -1331,7 +1368,19 @@ uiBut *uiDefIconButO_ptr(uiBlock *block,
                          int y,
                          short width,
                          short height,
-                         const char *tip);
+                         std::optional<blender::StringRef> tip);
+uiBut *uiDefIconPreviewBut(uiBlock *block,
+                           int type,
+                           int retval,
+                           int icon,
+                           int x,
+                           int y,
+                           short width,
+                           short height,
+                           void *poin,
+                           float min,
+                           float max,
+                           std::optional<blender::StringRef> tip);
 uiBut *uiDefButImage(
     uiBlock *block, void *imbuf, int x, int y, short width, short height, const uchar color[4]);
 uiBut *uiDefButAlert(uiBlock *block, int icon, int x, int y, short width, short height);
@@ -1348,7 +1397,7 @@ uiBut *uiDefIconTextBut(uiBlock *block,
                         void *poin,
                         float min,
                         float max,
-                        const char *tip);
+                        std::optional<blender::StringRef> tip);
 uiBut *uiDefIconTextButI(uiBlock *block,
                          int type,
                          int retval,
@@ -1361,27 +1410,27 @@ uiBut *uiDefIconTextButI(uiBlock *block,
                          int *poin,
                          float min,
                          float max,
-                         const char *tip);
+                         std::optional<blender::StringRef> tip);
 uiBut *uiDefIconTextButR(uiBlock *block,
                          int type,
                          int retval,
                          int icon,
-                         const char *str,
+                         std::optional<blender::StringRefNull> str,
                          int x,
                          int y,
                          short width,
                          short height,
                          PointerRNA *ptr,
-                         const char *propname,
+                         blender::StringRefNull propname,
                          int index,
                          float min,
                          float max,
-                         const char *tip);
+                         std::optional<blender::StringRef> tip);
 uiBut *uiDefIconTextButR_prop(uiBlock *block,
                               int type,
                               int retval,
                               int icon,
-                              const char *str,
+                              std::optional<blender::StringRefNull> str,
                               int x,
                               int y,
                               short width,
@@ -1391,10 +1440,10 @@ uiBut *uiDefIconTextButR_prop(uiBlock *block,
                               int index,
                               float min,
                               float max,
-                              const char *tip);
+                              std::optional<blender::StringRef> tip);
 uiBut *uiDefIconTextButO(uiBlock *block,
                          int type,
-                         const char *opname,
+                         blender::StringRefNull,
                          wmOperatorCallContext opcontext,
                          int icon,
                          blender::StringRef str,
@@ -1402,7 +1451,7 @@ uiBut *uiDefIconTextButO(uiBlock *block,
                          int y,
                          short width,
                          short height,
-                         const char *tip);
+                         std::optional<blender::StringRef> tip);
 uiBut *uiDefIconTextButO_ptr(uiBlock *block,
                              int type,
                              wmOperatorType *ot,
@@ -1413,7 +1462,7 @@ uiBut *uiDefIconTextButO_ptr(uiBlock *block,
                              int y,
                              short width,
                              short height,
-                             const char *tip);
+                             std::optional<blender::StringRef> tip);
 
 void UI_but_operator_set(uiBut *but,
                          wmOperatorType *optype,
@@ -1429,12 +1478,17 @@ void UI_but_operator_set_never_call(uiBut *but);
 /** For passing inputs to ButO buttons. */
 PointerRNA *UI_but_operator_ptr_ensure(uiBut *but);
 
-void UI_but_context_ptr_set(uiBlock *block, uiBut *but, const char *name, const PointerRNA *ptr);
+void UI_but_context_ptr_set(uiBlock *block,
+                            uiBut *but,
+                            blender::StringRef name,
+                            const PointerRNA *ptr);
+void UI_but_context_int_set(uiBlock *block, uiBut *but, blender::StringRef name, int64_t value);
 const PointerRNA *UI_but_context_ptr_get(const uiBut *but,
-                                         const char *name,
+                                         blender::StringRef name,
                                          const StructRNA *type = nullptr);
 std::optional<blender::StringRefNull> UI_but_context_string_get(const uiBut *but,
-                                                                const char *name);
+                                                                blender::StringRef name);
+std::optional<int64_t> UI_but_context_int_get(const uiBut *but, blender::StringRef name);
 const bContextStore *UI_but_context_get(const uiBut *but);
 
 void UI_but_unit_type_set(uiBut *but, int unit_type);
@@ -1524,7 +1578,7 @@ int UI_icon_colorid_from_report_type(int type);
 int UI_text_colorid_from_report_type(int type);
 
 int UI_icon_from_event_type(short event_type, short event_value);
-int UI_icon_from_keymap_item(const wmKeyMapItem *kmi, int r_icon_mod[4]);
+int UI_icon_from_keymap_item(const wmKeyMapItem *kmi, int r_icon_mod[KM_MOD_NUM]);
 
 uiBut *uiDefMenuBut(uiBlock *block,
                     uiMenuCreateFunc func,
@@ -1534,7 +1588,7 @@ uiBut *uiDefMenuBut(uiBlock *block,
                     int y,
                     short width,
                     short height,
-                    const char *tip);
+                    std::optional<blender::StringRef> tip);
 uiBut *uiDefIconTextMenuBut(uiBlock *block,
                             uiMenuCreateFunc func,
                             void *arg,
@@ -1544,7 +1598,7 @@ uiBut *uiDefIconTextMenuBut(uiBlock *block,
                             int y,
                             short width,
                             short height,
-                            const char *tip);
+                            std::optional<blender::StringRef> tip);
 uiBut *uiDefIconMenuBut(uiBlock *block,
                         uiMenuCreateFunc func,
                         void *arg,
@@ -1553,7 +1607,7 @@ uiBut *uiDefIconMenuBut(uiBlock *block,
                         int y,
                         short width,
                         short height,
-                        const char *tip);
+                        std::optional<blender::StringRef> tip);
 
 uiBut *uiDefBlockBut(uiBlock *block,
                      uiBlockCreateFunc func,
@@ -1563,7 +1617,7 @@ uiBut *uiDefBlockBut(uiBlock *block,
                      int y,
                      short width,
                      short height,
-                     const char *tip);
+                     std::optional<blender::StringRef> tip);
 uiBut *uiDefBlockButN(uiBlock *block,
                       uiBlockCreateFunc func,
                       void *argN,
@@ -1572,7 +1626,7 @@ uiBut *uiDefBlockButN(uiBlock *block,
                       int y,
                       short width,
                       short height,
-                      const char *tip,
+                      std::optional<blender::StringRef> tip,
                       uiButArgNFree func_argN_free_fn = MEM_freeN,
                       uiButArgNCopy func_argN_copy_fn = MEM_dupallocN);
 
@@ -1588,7 +1642,7 @@ uiBut *uiDefIconBlockBut(uiBlock *block,
                          int y,
                          short width,
                          short height,
-                         const char *tip);
+                         std::optional<blender::StringRef> tip);
 
 /**
  * \param arg: A pointer to string/name, use #UI_but_func_search_set() below to make this work.
@@ -1597,12 +1651,12 @@ uiBut *uiDefSearchBut(uiBlock *block,
                       void *arg,
                       int retval,
                       int icon,
-                      int maxlen,
+                      int maxncpy,
                       int x,
                       int y,
                       short width,
                       short height,
-                      const char *tip);
+                      std::optional<blender::StringRef> tip);
 /**
  * Same parameters as for #uiDefSearchBut, with additional operator type and properties,
  * used by callback to call again the right op with the right options (properties values).
@@ -1613,12 +1667,12 @@ uiBut *uiDefSearchButO_ptr(uiBlock *block,
                            void *arg,
                            int retval,
                            int icon,
-                           int maxlen,
+                           int maxncpy,
                            int x,
                            int y,
                            short width,
                            short height,
-                           const char *tip);
+                           std::optional<blender::StringRef> tip);
 
 /** For #uiDefAutoButsRNA. */
 enum eButLabelAlign {
@@ -1644,7 +1698,7 @@ uiBut *uiDefAutoButR(uiBlock *block,
                      PointerRNA *ptr,
                      PropertyRNA *prop,
                      int index,
-                     const char *name,
+                     std::optional<blender::StringRefNull> name,
                      int icon,
                      int x,
                      int y,
@@ -1701,7 +1755,7 @@ void UI_but_func_identity_compare_set(uiBut *but, uiButIdentityCompareFunc cmp_f
  * \return false if there is nothing to add.
  */
 bool UI_search_item_add(uiSearchItems *items,
-                        const char *name,
+                        blender::StringRef name,
                         void *poin,
                         int iconid,
                         int but_flag,
@@ -1770,6 +1824,10 @@ void UI_but_label_alpha_factor_set(uiBut *but, float alpha_factor);
 
 void UI_but_search_preview_grid_size_set(uiBut *but, int rows, int cols);
 
+void UI_but_view_item_draw_size_set(uiBut *but,
+                                    const std::optional<int> draw_width = std::nullopt,
+                                    const std::optional<int> draw_height = std::nullopt);
+
 void UI_block_func_handle_set(uiBlock *block, uiBlockHandleFunc func, void *arg);
 void UI_block_func_set(uiBlock *block, uiButHandleFunc func, void *arg1, void *arg2);
 void UI_block_funcN_set(uiBlock *block,
@@ -1780,6 +1838,8 @@ void UI_block_funcN_set(uiBlock *block,
                         uiButArgNCopy func_argN_copy_fn = MEM_dupallocN);
 
 void UI_but_func_rename_set(uiBut *but, uiButHandleRenameFunc func, void *arg1);
+void UI_but_func_rename_full_set(uiBut *but,
+                                 std::function<void(std::string &new_name)> rename_full_func);
 void UI_but_func_set(uiBut *but, uiButHandleFunc func, void *arg1, void *arg2);
 void UI_but_funcN_set(uiBut *but,
                       uiButHandleNFunc funcN,
@@ -1791,11 +1851,16 @@ void UI_but_funcN_set(uiBut *but,
 void UI_but_func_complete_set(uiBut *but, uiButCompleteFunc func, void *arg);
 
 void UI_but_func_drawextra_set(uiBlock *block,
-                               void (*func)(const bContext *C, void *, void *, void *, rcti *rect),
-                               void *arg1,
-                               void *arg2);
+                               std::function<void(const bContext *C, rcti *rect)> func);
 
 void UI_but_func_menu_step_set(uiBut *but, uiMenuStepFunc func);
+
+/**
+ * When a button displays a menu, hovering another button that can display one will switch to that
+ * menu instead. In some cases that's unexpected, so the feature can be disabled here (as in, this
+ * button will not spawn its menu on hover and the previously spawned menu will remain open).
+ */
+void UI_but_menu_disable_hover_open(uiBut *but);
 
 void UI_but_func_tooltip_set(uiBut *but, uiButToolTipFunc func, void *arg, uiFreeArgFunc free_arg);
 /**
@@ -1848,7 +1913,7 @@ void UI_but_func_tooltip_custom_set(uiBut *but,
  * \param text: Allocated text (transfer ownership to `data`) or null.
  * \param suffix: Allocated text (transfer ownership to `data`) or null.
  */
-void UI_tooltip_text_field_add(uiTooltipData *data,
+void UI_tooltip_text_field_add(uiTooltipData &data,
                                std::string text,
                                std::string suffix,
                                const uiTooltipStyle style,
@@ -1859,7 +1924,7 @@ void UI_tooltip_text_field_add(uiTooltipData *data,
  * \param image: Image buffer (duplicated, ownership is *not* transferred to `data`).
  * \param image_size: Display size for the image (pixels without UI scale applied).
  */
-void UI_tooltip_image_field_add(uiTooltipData *data, const uiTooltipImage &image_data);
+void UI_tooltip_image_field_add(uiTooltipData &data, const uiTooltipImage &image_data);
 
 /**
  * Recreate tool-tip (use to update dynamic tips)
@@ -1875,7 +1940,7 @@ bool UI_textbutton_activate_rna(const bContext *C,
                                 ARegion *region,
                                 const void *rna_poin_data,
                                 const char *rna_prop_id);
-bool UI_textbutton_activate_but(const bContext *C, uiBut *but);
+bool UI_textbutton_activate_but(const bContext *C, uiBut *actbut);
 
 /**
  * push a new event onto event queue to activate the given button
@@ -1886,7 +1951,7 @@ void UI_but_focus_on_enter_event(wmWindow *win, uiBut *but);
 void UI_but_func_hold_set(uiBut *but, uiButHandleHoldFunc func, void *argN);
 
 PointerRNA *UI_but_extra_operator_icon_add(uiBut *but,
-                                           const char *opname,
+                                           blender::StringRefNull opname,
                                            wmOperatorCallContext opcontext,
                                            int icon);
 wmOperatorType *UI_but_extra_operator_icon_optype_get(const uiButExtraOpIcon *extra_icon);
@@ -1912,8 +1977,8 @@ struct AutoComplete;
 #define AUTOCOMPLETE_FULL_MATCH 1
 #define AUTOCOMPLETE_PARTIAL_MATCH 2
 
-AutoComplete *UI_autocomplete_begin(const char *startname, size_t maxlen);
-void UI_autocomplete_update_name(AutoComplete *autocpl, const char *name);
+AutoComplete *UI_autocomplete_begin(const char *startname, size_t maxncpy);
+void UI_autocomplete_update_name(AutoComplete *autocpl, blender::StringRef name);
 int UI_autocomplete_end(AutoComplete *autocpl, char *autoname);
 
 /* Button drag-data (interface_drag.cc).
@@ -1933,13 +1998,15 @@ void UI_but_drag_attach_image(uiBut *but, const ImBuf *imb, float scale);
 /**
  * Sets #UI_BUT_DRAG_FULL_BUT so the full button can be dragged.
  * \param asset: May be passed from a temporary variable, drag data only stores a copy of this.
+ * \param icon: Small icon that will be drawn while dragging.
+ * \param preview_icon: Bigger preview size icon that will be drawn while dragging instead of \a
+ * icon.
  */
 void UI_but_drag_set_asset(uiBut *but,
                            const blender::asset_system::AssetRepresentation *asset,
-                           int import_method, /* eAssetImportMethod */
+                           const AssetImportSettings &import_settings,
                            int icon,
-                           const ImBuf *imb,
-                           float scale);
+                           int preview_icon);
 
 void UI_but_drag_set_rna(uiBut *but, PointerRNA *ptr);
 /**
@@ -2031,6 +2098,8 @@ void UI_panel_category_clear_all(ARegion *region);
  * Draw vertical tabs on the left side of the region, one tab per category.
  */
 void UI_panel_category_draw_all(ARegion *region, const char *category_id_active);
+
+void UI_panel_stop_animation(const bContext *C, Panel *panel);
 
 /* Panel custom data. */
 PointerRNA *UI_panel_custom_data_get(const Panel *panel);
@@ -2178,6 +2247,9 @@ ENUM_OPERATORS(eUI_Item_Flag, UI_ITEM_R_TEXT_BUT_FORCE_SEMI_MODAL_ACTIVE)
 
 #define UI_HEADER_OFFSET ((void)0, 0.4f * UI_UNIT_X)
 
+#define UI_AZONESPOTW UI_HEADER_OFFSET       /* Width of corner action zone #AZone. */
+#define UI_AZONESPOTH (0.6f * U.widget_unit) /* Height of corner action zone #AZone. */
+
 /* uiLayoutOperatorButs flags */
 enum {
   UI_TEMPLATE_OP_PROPS_SHOW_TITLE = 1 << 0,
@@ -2241,8 +2313,9 @@ void UI_region_message_subscribe(ARegion *region, wmMsgBus *mbus);
 uiBlock *uiLayoutGetBlock(uiLayout *layout);
 
 void uiLayoutSetFunc(uiLayout *layout, uiMenuHandleFunc handlefunc, void *argv);
-void uiLayoutSetContextPointer(uiLayout *layout, const char *name, PointerRNA *ptr);
-void uiLayoutSetContextString(uiLayout *layout, const char *name, blender::StringRef value);
+void uiLayoutSetContextPointer(uiLayout *layout, blender::StringRef name, PointerRNA *ptr);
+void uiLayoutSetContextString(uiLayout *layout, blender::StringRef name, blender::StringRef value);
+void uiLayoutSetContextInt(uiLayout *layout, blender::StringRef name, int64_t value);
 bContextStore *uiLayoutGetContextStore(uiLayout *layout);
 void uiLayoutContextCopy(uiLayout *layout, const bContextStore *context);
 
@@ -2301,7 +2374,7 @@ void uiLayoutSetScaleX(uiLayout *layout, float scale);
 void uiLayoutSetScaleY(uiLayout *layout, float scale);
 void uiLayoutSetUnitsX(uiLayout *layout, float unit);
 void uiLayoutSetUnitsY(uiLayout *layout, float unit);
-void uiLayoutSetEmboss(uiLayout *layout, eUIEmbossType emboss);
+void uiLayoutSetEmboss(uiLayout *layout, blender::ui::EmbossType emboss);
 void uiLayoutSetPropSep(uiLayout *layout, bool is_sep);
 void uiLayoutSetPropDecorate(uiLayout *layout, bool is_sep);
 int uiLayoutGetLocalDir(const uiLayout *layout);
@@ -2321,11 +2394,14 @@ float uiLayoutGetScaleX(uiLayout *layout);
 float uiLayoutGetScaleY(uiLayout *layout);
 float uiLayoutGetUnitsX(uiLayout *layout);
 float uiLayoutGetUnitsY(uiLayout *layout);
-eUIEmbossType uiLayoutGetEmboss(uiLayout *layout);
+blender::ui::EmbossType uiLayoutGetEmboss(uiLayout *layout);
 bool uiLayoutGetPropSep(uiLayout *layout);
 bool uiLayoutGetPropDecorate(uiLayout *layout);
 Panel *uiLayoutGetRootPanel(uiLayout *layout);
 float uiLayoutGetSearchWeight(uiLayout *layout);
+
+int uiLayoutListItemPaddingWidth();
+void uiLayoutListItemAddPadding(uiLayout *layout);
 
 /* Layout create functions. */
 
@@ -2356,7 +2432,14 @@ struct PanelLayout {
 PanelLayout uiLayoutPanelProp(const bContext *C,
                               uiLayout *layout,
                               PointerRNA *open_prop_owner,
-                              const char *open_prop_name);
+                              blender::StringRefNull open_prop_name);
+PanelLayout uiLayoutPanelPropWithBoolHeader(const bContext *C,
+                                            uiLayout *layout,
+                                            PointerRNA *open_prop_owner,
+                                            blender::StringRefNull open_prop_name,
+                                            PointerRNA *bool_prop_owner,
+                                            blender::StringRefNull bool_prop_name,
+                                            std::optional<blender::StringRefNull> label);
 
 /**
  * Variant of #uiLayoutPanelProp that automatically creates the header row with the
@@ -2370,8 +2453,8 @@ PanelLayout uiLayoutPanelProp(const bContext *C,
 uiLayout *uiLayoutPanelProp(const bContext *C,
                             uiLayout *layout,
                             PointerRNA *open_prop_owner,
-                            const char *open_prop_name,
-                            const char *label);
+                            blender::StringRefNull open_prop_name,
+                            blender::StringRef label);
 
 /**
  * Variant of #uiLayoutPanelProp that automatically stores the open-close-state in the root
@@ -2382,7 +2465,7 @@ uiLayout *uiLayoutPanelProp(const bContext *C,
  */
 PanelLayout uiLayoutPanel(const bContext *C,
                           uiLayout *layout,
-                          const char *idname,
+                          blender::StringRef idname,
                           bool default_closed);
 
 /**
@@ -2396,16 +2479,16 @@ PanelLayout uiLayoutPanel(const bContext *C,
  */
 uiLayout *uiLayoutPanel(const bContext *C,
                         uiLayout *layout,
-                        const char *idname,
+                        blender::StringRef idname,
                         bool default_closed,
-                        const char *label);
+                        blender::StringRef label);
 
 bool uiLayoutEndsWithPanelHeader(const uiLayout &layout);
 
 /**
  * See #uiLayoutColumnWithHeading().
  */
-uiLayout *uiLayoutRowWithHeading(uiLayout *layout, bool align, const char *heading);
+uiLayout *uiLayoutRowWithHeading(uiLayout *layout, bool align, blender::StringRef heading);
 uiLayout *uiLayoutColumn(uiLayout *layout, bool align);
 /**
  * Variant of #uiLayoutColumn() that sets a heading label for the layout if the first item is
@@ -2413,7 +2496,7 @@ uiLayout *uiLayoutColumn(uiLayout *layout, bool align);
  * first split-column, the heading is added there instead. Otherwise the heading inserted with a
  * new row.
  */
-uiLayout *uiLayoutColumnWithHeading(uiLayout *layout, bool align, const char *heading);
+uiLayout *uiLayoutColumnWithHeading(uiLayout *layout, bool align, blender::StringRef heading);
 uiLayout *uiLayoutColumnFlow(uiLayout *layout, int number, bool align);
 uiLayout *uiLayoutGridFlow(uiLayout *layout,
                            bool row_major,
@@ -2438,43 +2521,43 @@ void uiTemplateHeader(uiLayout *layout, bContext *C);
 void uiTemplateID(uiLayout *layout,
                   const bContext *C,
                   PointerRNA *ptr,
-                  const char *propname,
+                  blender::StringRefNull propname,
                   const char *newop,
                   const char *openop,
                   const char *unlinkop,
-                  int filter,
-                  bool live_icon,
-                  const char *text);
+                  int filter = UI_TEMPLATE_ID_FILTER_ALL,
+                  bool live_icon = false,
+                  std::optional<blender::StringRef> text = std::nullopt);
 void uiTemplateIDBrowse(uiLayout *layout,
                         bContext *C,
                         PointerRNA *ptr,
-                        const char *propname,
+                        blender::StringRefNull propname,
                         const char *newop,
                         const char *openop,
                         const char *unlinkop,
-                        int filter,
-                        const char *text);
+                        int filter = UI_TEMPLATE_ID_FILTER_ALL,
+                        const char *text = nullptr);
 void uiTemplateIDPreview(uiLayout *layout,
                          bContext *C,
                          PointerRNA *ptr,
-                         const char *propname,
+                         blender::StringRefNull propname,
                          const char *newop,
                          const char *openop,
                          const char *unlinkop,
                          int rows,
                          int cols,
-                         int filter,
-                         bool hide_buttons);
+                         int filter = UI_TEMPLATE_ID_FILTER_ALL,
+                         bool hide_buttons = false);
 /**
  * Version of #uiTemplateID using tabs.
  */
 void uiTemplateIDTabs(uiLayout *layout,
                       bContext *C,
                       PointerRNA *ptr,
-                      const char *propname,
+                      blender::StringRefNull propname,
                       const char *newop,
                       const char *menu,
-                      int filter);
+                      int filter = UI_TEMPLATE_ID_FILTER_ALL);
 /**
  * This is for selecting the type of ID-block to use,
  * and then from the relevant type choosing the block to use.
@@ -2485,31 +2568,50 @@ void uiTemplateIDTabs(uiLayout *layout,
  */
 void uiTemplateAnyID(uiLayout *layout,
                      PointerRNA *ptr,
-                     const char *propname,
-                     const char *proptypename,
-                     const char *text);
+                     blender::StringRefNull propname,
+                     blender::StringRefNull proptypename,
+                     std::optional<blender::StringRef> text);
+
+/**
+ * Action selector.
+ *
+ * This is a specialization of #uiTemplateID, hard-coded to assign Actions to the given ID.
+ * Such a specialization is necessary, as the RNA property (`id.animation_data.action`) does not
+ * exist when the ID's `adt` pointer is `nullptr`. In that case uiTemplateID will not be able
+ * to find the RNA type of that property, which in turn it needs to determine the type of IDs to
+ * show.
+ */
+void uiTemplateAction(uiLayout *layout,
+                      const bContext *C,
+                      ID *id,
+                      const char *newop,
+                      const char *unlinkop,
+                      std::optional<blender::StringRef> text);
+
 /**
  * Search menu to pick an item from a collection.
  * A version of uiTemplateID that works for non-ID types.
  */
 void uiTemplateSearch(uiLayout *layout,
-                      bContext *C,
+                      const bContext *C,
                       PointerRNA *ptr,
-                      const char *propname,
+                      blender::StringRefNull propname,
                       PointerRNA *searchptr,
                       const char *searchpropname,
                       const char *newop,
-                      const char *unlinkop);
+                      const char *unlinkop,
+                      std::optional<blender::StringRef> text = std::nullopt);
 void uiTemplateSearchPreview(uiLayout *layout,
                              bContext *C,
                              PointerRNA *ptr,
-                             const char *propname,
+                             blender::StringRefNull propname,
                              PointerRNA *searchptr,
                              const char *searchpropname,
                              const char *newop,
                              const char *unlinkop,
                              int rows,
-                             int cols);
+                             int cols,
+                             std::optional<blender::StringRef> text = std::nullopt);
 /**
  * This is creating/editing RNA-Paths
  *
@@ -2519,11 +2621,10 @@ void uiTemplateSearchPreview(uiLayout *layout,
  */
 void uiTemplatePathBuilder(uiLayout *layout,
                            PointerRNA *ptr,
-                           const char *propname,
+                           blender::StringRefNull propname,
                            PointerRNA *root_ptr,
-                           const char *text);
+                           std::optional<blender::StringRefNull> text);
 void uiTemplateModifiers(uiLayout *layout, bContext *C);
-void uiTemplateGpencilModifiers(uiLayout *layout, bContext *C);
 /**
  * Check if the shader effect panels don't match the data and rebuild the panels if so.
  */
@@ -2537,7 +2638,7 @@ uiLayout *uiTemplateGpencilModifier(uiLayout *layout, bContext *C, PointerRNA *p
 void uiTemplateGpencilColorPreview(uiLayout *layout,
                                    bContext *C,
                                    PointerRNA *ptr,
-                                   const char *propname,
+                                   blender::StringRefNull propname,
                                    int rows,
                                    int cols,
                                    float scale,
@@ -2553,7 +2654,10 @@ void uiTemplatePreview(uiLayout *layout,
                        ID *parent,
                        MTex *slot,
                        const char *preview_id);
-void uiTemplateColorRamp(uiLayout *layout, PointerRNA *ptr, const char *propname, bool expand);
+void uiTemplateColorRamp(uiLayout *layout,
+                         PointerRNA *ptr,
+                         blender::StringRefNull propname,
+                         bool expand);
 /**
  * \param icon_scale: Scale of the icon, 1x == button height.
  */
@@ -2563,16 +2667,16 @@ void uiTemplateIcon(uiLayout *layout, int icon_value, float icon_scale);
  */
 void uiTemplateIconView(uiLayout *layout,
                         PointerRNA *ptr,
-                        const char *propname,
+                        blender::StringRefNull propname,
                         bool show_labels,
                         float icon_scale,
                         float icon_scale_popup);
-void uiTemplateHistogram(uiLayout *layout, PointerRNA *ptr, const char *propname);
-void uiTemplateWaveform(uiLayout *layout, PointerRNA *ptr, const char *propname);
-void uiTemplateVectorscope(uiLayout *layout, PointerRNA *ptr, const char *propname);
+void uiTemplateHistogram(uiLayout *layout, PointerRNA *ptr, blender::StringRefNull propname);
+void uiTemplateWaveform(uiLayout *layout, PointerRNA *ptr, blender::StringRefNull propname);
+void uiTemplateVectorscope(uiLayout *layout, PointerRNA *ptr, blender::StringRefNull propname);
 void uiTemplateCurveMapping(uiLayout *layout,
                             PointerRNA *ptr,
-                            const char *propname,
+                            blender::StringRefNull propname,
                             int type,
                             bool levels,
                             bool brush,
@@ -2582,33 +2686,39 @@ void uiTemplateCurveMapping(uiLayout *layout,
  * Template for a path creation widget intended for custom bevel profiles.
  * This section is quite similar to #uiTemplateCurveMapping, but with reduced complexity.
  */
-void uiTemplateCurveProfile(uiLayout *layout, PointerRNA *ptr, const char *propname);
+void uiTemplateCurveProfile(uiLayout *layout, PointerRNA *ptr, blender::StringRefNull propname);
 /**
  * This template now follows User Preference for type - name is not correct anymore.
  */
 void uiTemplateColorPicker(uiLayout *layout,
                            PointerRNA *ptr,
-                           const char *propname,
+                           blender::StringRefNull propname,
                            bool value_slider,
                            bool lock,
                            bool lock_luminosity,
                            bool cubic);
-void uiTemplatePalette(uiLayout *layout, PointerRNA *ptr, const char *propname, bool colors);
-void uiTemplateCryptoPicker(uiLayout *layout, PointerRNA *ptr, const char *propname, int icon);
+void uiTemplatePalette(uiLayout *layout,
+                       PointerRNA *ptr,
+                       blender::StringRefNull propname,
+                       bool colors);
+void uiTemplateCryptoPicker(uiLayout *layout,
+                            PointerRNA *ptr,
+                            blender::StringRefNull propname,
+                            int icon);
 /**
- * \todo for now, grouping of layers is determined by dividing up the length of
- * the array of layer bitflags
+ * TODO: for now, grouping of layers is determined by dividing up the length of
+ * the array of layer bit-flags.
  */
 void uiTemplateLayers(uiLayout *layout,
                       PointerRNA *ptr,
-                      const char *propname,
+                      blender::StringRefNull propname,
                       PointerRNA *used_ptr,
                       const char *used_propname,
                       int active_layer);
 void uiTemplateImage(uiLayout *layout,
                      bContext *C,
                      PointerRNA *ptr,
-                     const char *propname,
+                     blender::StringRefNull propname,
                      PointerRNA *userptr,
                      bool compact,
                      bool multiview);
@@ -2640,7 +2750,7 @@ void uiTemplateStatusInfo(uiLayout *layout, bContext *C);
 void uiTemplateKeymapItemProperties(uiLayout *layout, PointerRNA *ptr);
 
 bool uiTemplateEventFromKeymapItem(uiLayout *layout,
-                                   const char *text,
+                                   blender::StringRefNull text,
                                    const wmKeyMapItem *kmi,
                                    bool text_fallback);
 
@@ -2652,8 +2762,8 @@ int uiTemplateStatusBarModalItem(uiLayout *layout,
 
 void uiTemplateComponentMenu(uiLayout *layout,
                              PointerRNA *ptr,
-                             const char *propname,
-                             const char *name);
+                             blender::StringRefNull propname,
+                             blender::StringRef name);
 void uiTemplateNodeSocket(uiLayout *layout, bContext *C, const float color[4]);
 
 /**
@@ -2663,14 +2773,16 @@ void uiTemplateNodeSocket(uiLayout *layout, bContext *C, const float color[4]);
 void uiTemplateCacheFile(uiLayout *layout,
                          const bContext *C,
                          PointerRNA *ptr,
-                         const char *propname);
+                         blender::StringRefNull propname);
 
 /**
  * Lookup the CacheFile PointerRNA of the given pointer and return it in the output parameter.
  * Returns true if `ptr` has a RNACacheFile, false otherwise. If false, the output parameter is not
  * initialized.
  */
-bool uiTemplateCacheFilePointer(PointerRNA *ptr, const char *propname, PointerRNA *r_file_ptr);
+bool uiTemplateCacheFilePointer(PointerRNA *ptr,
+                                blender::StringRefNull propname,
+                                PointerRNA *r_file_ptr);
 
 /**
  * Draw the velocity related properties of the CacheFile.
@@ -2715,7 +2827,7 @@ void uiTemplateList(uiLayout *layout,
                     const char *listtype_name,
                     const char *list_id,
                     PointerRNA *dataptr,
-                    const char *propname,
+                    blender::StringRefNull propname,
                     PointerRNA *active_dataptr,
                     const char *active_propname,
                     const char *item_dyntip_propname,
@@ -2729,9 +2841,9 @@ uiList *uiTemplateList_ex(uiLayout *layout,
                           const char *listtype_name,
                           const char *list_id,
                           PointerRNA *dataptr,
-                          const char *propname,
+                          blender::StringRefNull propname,
                           PointerRNA *active_dataptr,
-                          const char *active_propname,
+                          blender::StringRefNull active_propname,
                           const char *item_dyntip_propname,
                           int rows,
                           int maxrows,
@@ -2754,24 +2866,26 @@ void uiTemplateTextureShow(uiLayout *layout,
                            PropertyRNA *prop);
 
 void uiTemplateMovieClip(
-    uiLayout *layout, bContext *C, PointerRNA *ptr, const char *propname, bool compact);
-void uiTemplateTrack(uiLayout *layout, PointerRNA *ptr, const char *propname);
+    uiLayout *layout, bContext *C, PointerRNA *ptr, blender::StringRefNull propname, bool compact);
+void uiTemplateTrack(uiLayout *layout, PointerRNA *ptr, blender::StringRefNull propname);
 void uiTemplateMarker(uiLayout *layout,
                       PointerRNA *ptr,
-                      const char *propname,
+                      blender::StringRefNull propname,
                       PointerRNA *userptr,
                       PointerRNA *trackptr,
                       bool compact);
 void uiTemplateMovieclipInformation(uiLayout *layout,
                                     PointerRNA *ptr,
-                                    const char *propname,
+                                    blender::StringRefNull propname,
                                     PointerRNA *userptr);
 
-void uiTemplateColorspaceSettings(uiLayout *layout, PointerRNA *ptr, const char *propname);
+void uiTemplateColorspaceSettings(uiLayout *layout,
+                                  PointerRNA *ptr,
+                                  blender::StringRefNull propname);
 void uiTemplateColormanagedViewSettings(uiLayout *layout,
                                         bContext *C,
                                         PointerRNA *ptr,
-                                        const char *propname);
+                                        blender::StringRefNull propname);
 
 int uiTemplateRecentFiles(uiLayout *layout, int rows);
 void uiTemplateFileSelectPath(uiLayout *layout, bContext *C, FileSelectParams *params);
@@ -2799,23 +2913,21 @@ void uiTemplateAssetView(uiLayout *layout,
 
 namespace blender::ui {
 
-void template_asset_shelf_popover(uiLayout &layout,
-                                  const bContext &C,
-                                  StringRefNull asset_shelf_id,
-                                  StringRefNull name,
-                                  int icon);
+void template_asset_shelf_popover(
+    uiLayout &layout, const bContext &C, StringRefNull asset_shelf_id, StringRef name, int icon);
 
 }
 
 void uiTemplateLightLinkingCollection(uiLayout *layout,
+                                      bContext *C,
                                       uiLayout *context_layout,
                                       PointerRNA *ptr,
-                                      const char *propname);
+                                      blender::StringRefNull propname);
 
 void uiTemplateBoneCollectionTree(uiLayout *layout, bContext *C);
 void uiTemplateGreasePencilLayerTree(uiLayout *layout, bContext *C);
 
-void uiTemplateNodeTreeInterface(uiLayout *layout, PointerRNA *ptr);
+void uiTemplateNodeTreeInterface(uiLayout *layout, bContext *C, PointerRNA *ptr);
 /**
  * Draw all node buttons and socket default values with the same panel structure used by the node.
  */
@@ -2833,81 +2945,86 @@ bool UI_list_item_index_is_filtered_visible(const struct uiList *ui_list, int it
  * \return An RNA pointer for the operator properties.
  */
 PointerRNA *UI_list_custom_activate_operator_set(uiList *ui_list,
-                                                 const char *opname,
+                                                 blender::StringRefNull opname,
                                                  bool create_properties);
 /**
  * \return An RNA pointer for the operator properties.
  */
 PointerRNA *UI_list_custom_drag_operator_set(uiList *ui_list,
-                                             const char *opname,
+                                             blender::StringRefNull opname,
                                              bool create_properties);
 
 /* items */
-void uiItemO(uiLayout *layout, const char *name, int icon, const char *opname);
+void uiItemO(uiLayout *layout,
+             std::optional<blender::StringRef> name,
+             int icon,
+             blender::StringRefNull opname);
 void uiItemEnumO_ptr(uiLayout *layout,
                      wmOperatorType *ot,
-                     const char *name,
+                     std::optional<blender::StringRef> name,
                      int icon,
-                     const char *propname,
+                     blender::StringRefNull propname,
                      int value);
 void uiItemEnumO(uiLayout *layout,
-                 const char *opname,
-                 const char *name,
+                 blender::StringRefNull opname,
+                 std::optional<blender::StringRef> name,
                  int icon,
-                 const char *propname,
+                 blender::StringRefNull propname,
                  int value);
 /**
  * For use in cases where we have.
  */
 void uiItemEnumO_value(uiLayout *layout,
-                       const char *name,
+                       blender::StringRefNull name,
                        int icon,
-                       const char *opname,
-                       const char *propname,
+                       blender::StringRefNull opname,
+                       blender::StringRefNull propname,
                        int value);
 void uiItemEnumO_string(uiLayout *layout,
-                        const char *name,
+                        blender::StringRef name,
                         int icon,
-                        const char *opname,
-                        const char *propname,
-                        const char *value);
-void uiItemsEnumO(uiLayout *layout, const char *opname, const char *propname);
+                        blender::StringRefNull opname,
+                        blender::StringRefNull propname,
+                        const char *value_str);
+void uiItemsEnumO(uiLayout *layout,
+                  blender::StringRefNull opname,
+                  blender::StringRefNull propname);
 void uiItemBooleanO(uiLayout *layout,
-                    const char *name,
+                    std::optional<blender::StringRef> name,
                     int icon,
-                    const char *opname,
-                    const char *propname,
+                    blender::StringRefNull opname,
+                    blender::StringRefNull propname,
                     int value);
 void uiItemIntO(uiLayout *layout,
-                const char *name,
+                std::optional<blender::StringRef> name,
                 int icon,
-                const char *opname,
-                const char *propname,
+                blender::StringRefNull opname,
+                blender::StringRefNull propname,
                 int value);
 void uiItemFloatO(uiLayout *layout,
-                  const char *name,
+                  std::optional<blender::StringRef> name,
                   int icon,
-                  const char *opname,
-                  const char *propname,
+                  blender::StringRefNull opname,
+                  blender::StringRefNull propname,
                   float value);
 void uiItemStringO(uiLayout *layout,
-                   const char *name,
+                   std::optional<blender::StringRef> name,
                    int icon,
-                   const char *opname,
-                   const char *propname,
+                   blender::StringRefNull opname,
+                   blender::StringRefNull propname,
                    const char *value);
 
 void uiItemFullO_ptr(uiLayout *layout,
                      wmOperatorType *ot,
-                     const char *name,
+                     std::optional<blender::StringRef> name,
                      int icon,
                      IDProperty *properties,
                      wmOperatorCallContext context,
                      eUI_Item_Flag flag,
                      PointerRNA *r_opptr);
 void uiItemFullO(uiLayout *layout,
-                 const char *opname,
-                 const char *name,
+                 blender::StringRefNull opname,
+                 std::optional<blender::StringRef> name,
                  int icon,
                  IDProperty *properties,
                  wmOperatorCallContext context,
@@ -2915,7 +3032,7 @@ void uiItemFullO(uiLayout *layout,
                  PointerRNA *r_opptr);
 void uiItemFullOMenuHold_ptr(uiLayout *layout,
                              wmOperatorType *ot,
-                             const char *name,
+                             std::optional<blender::StringRef> name,
                              int icon,
                              IDProperty *properties,
                              wmOperatorCallContext context,
@@ -2925,9 +3042,9 @@ void uiItemFullOMenuHold_ptr(uiLayout *layout,
 
 void uiItemR(uiLayout *layout,
              PointerRNA *ptr,
-             const char *propname,
+             blender::StringRefNull propname,
              eUI_Item_Flag flag,
-             const char *name,
+             std::optional<blender::StringRefNull> name,
              int icon);
 void uiItemFullR(uiLayout *layout,
                  PointerRNA *ptr,
@@ -2935,9 +3052,9 @@ void uiItemFullR(uiLayout *layout,
                  int index,
                  int value,
                  eUI_Item_Flag flag,
-                 const char *name,
+                 std::optional<blender::StringRefNull> name_opt,
                  int icon,
-                 const char *placeholder = nullptr);
+                 std::optional<blender::StringRefNull> placeholder = std::nullopt);
 /**
  * Use a wrapper function since re-implementing all the logic in this function would be messy.
  */
@@ -2947,7 +3064,7 @@ void uiItemFullR_with_popover(uiLayout *layout,
                               int index,
                               int value,
                               eUI_Item_Flag flag,
-                              const char *name,
+                              std::optional<blender::StringRefNull> name,
                               int icon,
                               const char *panel_type);
 void uiItemFullR_with_menu(uiLayout *layout,
@@ -2956,44 +3073,42 @@ void uiItemFullR_with_menu(uiLayout *layout,
                            int index,
                            int value,
                            eUI_Item_Flag flag,
-                           const char *name,
+                           std::optional<blender::StringRefNull> name,
                            int icon,
                            const char *menu_type);
-void uiItemEnumR_prop(
-    uiLayout *layout, const char *name, int icon, PointerRNA *ptr, PropertyRNA *prop, int value);
-void uiItemEnumR(uiLayout *layout,
-                 const char *name,
-                 int icon,
-                 PointerRNA *ptr,
-                 const char *propname,
-                 int value);
+void uiItemEnumR_prop(uiLayout *layout,
+                      std::optional<blender::StringRefNull> name,
+                      int icon,
+                      PointerRNA *ptr,
+                      PropertyRNA *prop,
+                      int value);
 void uiItemEnumR_string_prop(uiLayout *layout,
                              PointerRNA *ptr,
                              PropertyRNA *prop,
                              const char *value,
-                             const char *name,
+                             std::optional<blender::StringRefNull> name,
                              int icon);
 void uiItemEnumR_string(uiLayout *layout,
                         PointerRNA *ptr,
-                        const char *propname,
+                        blender::StringRefNull propname,
                         const char *value,
-                        const char *name,
+                        std::optional<blender::StringRefNull> name,
                         int icon);
-void uiItemsEnumR(uiLayout *layout, PointerRNA *ptr, const char *propname);
+void uiItemsEnumR(uiLayout *layout, PointerRNA *ptr, blender::StringRefNull propname);
 void uiItemPointerR_prop(uiLayout *layout,
                          PointerRNA *ptr,
                          PropertyRNA *prop,
                          PointerRNA *searchptr,
                          PropertyRNA *searchprop,
-                         const char *name,
+                         std::optional<blender::StringRefNull> name,
                          int icon,
                          bool results_are_suggestions);
 void uiItemPointerR(uiLayout *layout,
                     PointerRNA *ptr,
-                    const char *propname,
+                    blender::StringRefNull propname,
                     PointerRNA *searchptr,
-                    const char *searchpropname,
-                    const char *name,
+                    blender::StringRefNull searchpropname,
+                    std::optional<blender::StringRefNull> name,
                     int icon);
 
 /**
@@ -3002,8 +3117,8 @@ void uiItemPointerR(uiLayout *layout,
  * \param active: an optional item to highlight.
  */
 void uiItemsFullEnumO(uiLayout *layout,
-                      const char *opname,
-                      const char *propname,
+                      blender::StringRefNull opname,
+                      blender::StringRefNull propname,
                       IDProperty *properties,
                       wmOperatorCallContext context,
                       eUI_Item_Flag flag,
@@ -3028,6 +3143,9 @@ void uiItemsFullEnumO_items(uiLayout *layout,
 struct uiPropertySplitWrapper {
   uiLayout *label_column;
   uiLayout *property_row;
+  /**
+   * Column for decorators. Note that this may be null, see #uiItemPropertySplitWrapperCreate().
+   */
   uiLayout *decorate_column;
 };
 
@@ -3035,28 +3153,39 @@ struct uiPropertySplitWrapper {
  * Normally, we handle the split layout in #uiItemFullR(), but there are other cases where the
  * logic is needed. Ideally, #uiItemFullR() could just call this, but it currently has too many
  * special needs.
+ *
+ * The returned #uiPropertySplitWrapper.decorator_column may be null when decorators are disabled
+ * (#uiLayoutGetPropDecorate() returns false).
  */
 uiPropertySplitWrapper uiItemPropertySplitWrapperCreate(uiLayout *parent_layout);
 
-void uiItemL(uiLayout *layout, const char *name, int icon); /* label */
-uiBut *uiItemL_ex(uiLayout *layout, const char *name, int icon, bool highlight, bool redalert);
+void uiItemL(uiLayout *layout, blender::StringRef name, int icon); /* label */
+uiBut *uiItemL_ex(
+    uiLayout *layout, blender::StringRef name, int icon, bool highlight, bool redalert);
 /**
- * Helper to add a label and creates a property split layout if needed.
+ * Helper to add a label using a property split layout if needed. After calling this the
+ * active layout will be the one to place the labeled items in. An additional layout may be
+ * returned to place decorator buttons in.
+ *
+ * \return the layout to place decorators in, if #UI_ITEM_PROP_SEP is enabled. Otherwise null.
  */
-uiLayout *uiItemL_respect_property_split(uiLayout *layout, const char *text, int icon);
+uiLayout *uiItemL_respect_property_split(uiLayout *layout, blender::StringRef text, int icon);
 /**
  * Label icon for dragging.
  */
-void uiItemLDrag(uiLayout *layout, PointerRNA *ptr, const char *name, int icon);
+void uiItemLDrag(uiLayout *layout, PointerRNA *ptr, blender::StringRef name, int icon);
 /**
  * Menu.
  */
-void uiItemM_ptr(uiLayout *layout, MenuType *mt, const char *name, int icon);
-void uiItemM(uiLayout *layout, const char *menuname, const char *name, int icon);
+void uiItemM_ptr(uiLayout *layout, MenuType *mt, std::optional<blender::StringRef> name, int icon);
+void uiItemM(uiLayout *layout,
+             blender::StringRef menuname,
+             std::optional<blender::StringRef> name,
+             int icon);
 /**
  * Menu contents.
  */
-void uiItemMContents(uiLayout *layout, const char *menuname);
+void uiItemMContents(uiLayout *layout, blender::StringRef menuname);
 
 /* Decorators. */
 
@@ -3069,7 +3198,10 @@ void uiItemDecoratorR_prop(uiLayout *layout, PointerRNA *ptr, PropertyRNA *prop,
  * Insert a decorator item for a button with the same property as \a prop.
  * To force inserting a blank dummy element, NULL can be passed for \a ptr and \a propname.
  */
-void uiItemDecoratorR(uiLayout *layout, PointerRNA *ptr, const char *propname, int index);
+void uiItemDecoratorR(uiLayout *layout,
+                      PointerRNA *ptr,
+                      std::optional<blender::StringRefNull> propname,
+                      int index);
 /** Separator item */
 void uiItemS(uiLayout *layout);
 /** Separator item */
@@ -3085,10 +3217,16 @@ void uiItemProgressIndicator(uiLayout *layout,
                              enum eButProgressType progress_type);
 
 /* popover */
-void uiItemPopoverPanel_ptr(
-    uiLayout *layout, const bContext *C, PanelType *pt, const char *name, int icon);
-void uiItemPopoverPanel(
-    uiLayout *layout, const bContext *C, const char *panel_type, const char *name, int icon);
+void uiItemPopoverPanel_ptr(uiLayout *layout,
+                            const bContext *C,
+                            PanelType *pt,
+                            std::optional<blender::StringRef> name_opt,
+                            int icon);
+void uiItemPopoverPanel(uiLayout *layout,
+                        const bContext *C,
+                        blender::StringRef panel_type,
+                        std::optional<blender::StringRef> name_opt,
+                        int icon);
 void uiItemPopoverPanelFromGroup(uiLayout *layout,
                                  bContext *C,
                                  int space_id,
@@ -3099,35 +3237,38 @@ void uiItemPopoverPanelFromGroup(uiLayout *layout,
 /**
  * Level items.
  */
-void uiItemMenuF(uiLayout *layout, const char *name, int icon, uiMenuCreateFunc func, void *arg);
+void uiItemMenuF(
+    uiLayout *layout, blender::StringRefNull, int icon, uiMenuCreateFunc func, void *arg);
 /**
  * Version of #uiItemMenuF that free's `argN`.
  */
-void uiItemMenuFN(uiLayout *layout, const char *name, int icon, uiMenuCreateFunc func, void *argN);
+void uiItemMenuFN(
+    uiLayout *layout, blender::StringRefNull, int icon, uiMenuCreateFunc func, void *argN);
 void uiItemMenuEnumFullO_ptr(uiLayout *layout,
                              const bContext *C,
                              wmOperatorType *ot,
-                             const char *propname,
-                             const char *name,
+                             blender::StringRefNull propname,
+                             std::optional<blender::StringRefNull> name,
                              int icon,
                              PointerRNA *r_opptr);
 void uiItemMenuEnumFullO(uiLayout *layout,
                          const bContext *C,
-                         const char *opname,
-                         const char *propname,
-                         const char *name,
+                         blender::StringRefNull opname,
+                         blender::StringRefNull propname,
+                         blender::StringRefNull name,
                          int icon,
                          PointerRNA *r_opptr);
 void uiItemMenuEnumO(uiLayout *layout,
                      const bContext *C,
-                     const char *opname,
-                     const char *propname,
-                     const char *name,
+                     blender::StringRefNull opname,
+                     blender::StringRefNull propname,
+                     blender::StringRefNull name,
                      int icon);
-void uiItemMenuEnumR_prop(
-    uiLayout *layout, PointerRNA *ptr, PropertyRNA *prop, const char *name, int icon);
-void uiItemMenuEnumR(
-    uiLayout *layout, PointerRNA *ptr, const char *propname, const char *name, int icon);
+void uiItemMenuEnumR_prop(uiLayout *layout,
+                          PointerRNA *ptr,
+                          PropertyRNA *prop,
+                          std::optional<blender::StringRefNull>,
+                          int icon);
 void uiItemTabsEnumR_prop(uiLayout *layout,
                           bContext *C,
                           PointerRNA *ptr,
@@ -3155,8 +3296,9 @@ uiLayout *uiItemsAlertBox(uiBlock *block, const int size, const eAlertIcon icon)
 
 /* UI Operators */
 struct uiDragColorHandle {
-  float color[3];
+  float color[4];
   bool gamma_corrected;
+  bool has_alpha;
 };
 
 void ED_operatortypes_ui();
@@ -3230,7 +3372,7 @@ void UI_context_active_but_prop_get_filebrowser(const bContext *C,
  *
  * This is for browsing and editing the ID-blocks used.
  */
-void UI_context_active_but_prop_get_templateID(bContext *C,
+void UI_context_active_but_prop_get_templateID(const bContext *C,
                                                PointerRNA *r_ptr,
                                                PropertyRNA **r_prop);
 ID *UI_context_active_but_get_tab_ID(bContext *C);
@@ -3311,9 +3453,9 @@ int UI_fontstyle_string_width(const uiFontStyle *fs, const char *str) ATTR_WARN_
  * returning the result scaled back to 1:1. See #92361.
  */
 int UI_fontstyle_string_width_with_block_aspect(const uiFontStyle *fs,
-                                                const char *str,
+                                                blender::StringRef str,
                                                 float aspect) ATTR_WARN_UNUSED_RESULT
-    ATTR_NONNULL(1, 2);
+    ATTR_NONNULL(1);
 int UI_fontstyle_height_max(const uiFontStyle *fs);
 
 /**
@@ -3353,7 +3495,6 @@ void UI_but_ensure_in_view(const bContext *C, ARegion *region, const uiBut *but)
 
 /* UI_butstore_ helpers */
 struct uiButStore;
-struct uiButStoreElem;
 
 /**
  * Create a new button store, the caller must manage and run #UI_butstore_free
@@ -3367,8 +3508,8 @@ void UI_butstore_clear(uiBlock *block);
  * Map freed buttons from the old block and update pointers.
  */
 void UI_butstore_update(uiBlock *block);
-void UI_butstore_free(uiBlock *block, uiButStore *bs);
-bool UI_butstore_is_valid(uiButStore *bs);
+void UI_butstore_free(uiBlock *block, uiButStore *bs_handle);
+bool UI_butstore_is_valid(uiButStore *bs_handle);
 bool UI_butstore_is_registered(uiBlock *block, uiBut *but);
 void UI_butstore_register(uiButStore *bs_handle, uiBut **but_p);
 /**
@@ -3385,7 +3526,7 @@ void UI_butstore_unregister(uiButStore *bs_handle, uiBut **but_p);
  * Without this those shortcuts aren't discoverable for users.
  */
 std::optional<std::string> UI_key_event_operator_string(const bContext *C,
-                                                        const char *opname,
+                                                        blender::StringRefNull opname,
                                                         IDProperty *properties,
                                                         bool is_strict);
 
@@ -3418,13 +3559,26 @@ ARegion *UI_tooltip_create_from_search_item_generic(bContext *C,
 #define UI_TOOLTIP_DELAY_LABEL 0.2
 
 /* Float precision helpers */
+
+/* Maximum number of digits of precision (not number of decimal places)
+ * to display for float values. Note that the UI_FLOAT_VALUE_DISPLAY_*
+ * defines that follow depend on this. */
 #define UI_PRECISION_FLOAT_MAX 6
+
+/* Values exceeding this range are displayed as "inf" / "-inf".
+ * This range is almost FLT_MAX to -FLT_MAX, but each is truncated
+ * to our display precision, set by UI_PRECISION_FLOAT_MAX. Each
+ * is approximately `FLT_MAX / 1.000001` but that calculation does
+ * not give us the explicit zeros needed for this exact range. */
+#define UI_FLOAT_VALUE_DISPLAY_MAX 3.402820000e+38F
+#define UI_FLOAT_VALUE_DISPLAY_MIN -3.402820000e+38F
+
 /* For float buttons the 'step', is scaled */
 #define UI_PRECISION_FLOAT_SCALE 0.01f
 
 /* Typical UI text */
 #define UI_FSTYLE_WIDGET (const uiFontStyle *)&(UI_style_get()->widget)
-#define UI_FSTYLE_WIDGET_LABEL (const uiFontStyle *)&(UI_style_get()->widgetlabel)
+#define UI_FSTYLE_TOOLTIP (const uiFontStyle *)&(UI_style_get()->tooltip)
 
 /**
  * Returns the best "UI" precision for given floating value,

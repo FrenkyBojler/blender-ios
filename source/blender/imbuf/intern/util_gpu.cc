@@ -33,11 +33,9 @@ static bool imb_is_grayscale_texture_format_compatible(const ImBuf *ibuf)
        * and can therefore be optimized. */
       return true;
     }
-    else {
-      /* TODO: Support gray-scale byte buffers.
-       * The challenge is that Blender always stores byte images as RGBA. */
-      return false;
-    }
+    /* TODO: Support gray-scale byte buffers.
+     * The challenge is that Blender always stores byte images as RGBA. */
+    return false;
   }
 
   /* Only #IMBuf's with color-space that do not modify the chrominance of the texture data relative
@@ -61,7 +59,7 @@ static void imb_gpu_get_format(const ImBuf *ibuf,
 
   if (float_rect) {
     /* Float. */
-    const bool use_high_bitdepth = (!(ibuf->flags & IB_halffloat) && high_bitdepth);
+    const bool use_high_bitdepth = (!(ibuf->foptions.flag & OPENEXR_HALF) && high_bitdepth);
     *r_texture_format = is_grayscale ? (use_high_bitdepth ? GPU_R32F : GPU_R16F) :
                                        (use_high_bitdepth ? GPU_RGBA32F : GPU_RGBA16F);
   }
@@ -134,7 +132,7 @@ static void *imb_gpu_get_data(const ImBuf *ibuf,
      * convention, no colorspace conversion needed. But we do require 4 channels
      * currently. */
     if (ibuf->channels != 4 || !store_premultiplied) {
-      data_rect = MEM_mallocN(sizeof(float[4]) * ibuf->x * ibuf->y, __func__);
+      data_rect = MEM_malloc_arrayN<float>(4 * size_t(ibuf->x) * size_t(ibuf->y), __func__);
       *r_freedata = freedata = true;
 
       if (data_rect == nullptr) {
@@ -183,7 +181,7 @@ static void *imb_gpu_get_data(const ImBuf *ibuf,
     }
     else {
       /* Other colorspace, store as float texture to avoid precision loss. */
-      data_rect = MEM_mallocN(sizeof(float[4]) * ibuf->x * ibuf->y, __func__);
+      data_rect = MEM_malloc_arrayN<float>(4 * size_t(ibuf->x) * size_t(ibuf->y), __func__);
       *r_freedata = freedata = true;
       is_float_rect = true;
 
@@ -206,7 +204,7 @@ static void *imb_gpu_get_data(const ImBuf *ibuf,
     const float *rect_float = (is_float_rect) ? (float *)data_rect : nullptr;
 
     ImBuf *scale_ibuf = IMB_allocFromBuffer(rect, rect_float, ibuf->x, ibuf->y, 4);
-    IMB_scaleImBuf(scale_ibuf, UNPACK2(rescale_size));
+    IMB_scale(scale_ibuf, UNPACK2(rescale_size), IMBScaleFilter::Box, false);
 
     if (freedata) {
       MEM_freeN(data_rect);

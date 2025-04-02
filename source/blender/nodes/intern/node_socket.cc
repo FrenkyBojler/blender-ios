@@ -13,8 +13,6 @@
 #include "BLI_color.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_euler.hh"
-#include "BLI_math_matrix.h"
-#include "BLI_math_matrix.hh"
 #include "BLI_math_quaternion_types.hh"
 #include "BLI_math_vector.h"
 #include "BLI_math_vector_types.hh"
@@ -24,6 +22,7 @@
 #include "BKE_geometry_set.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_node.hh"
+#include "BKE_node_legacy_types.hh"
 #include "BKE_node_runtime.hh"
 #include "BKE_node_socket_value.hh"
 #include "BKE_node_tree_update.hh"
@@ -37,8 +36,6 @@
 
 #include "NOD_node_declaration.hh"
 #include "NOD_socket.hh"
-#include "NOD_socket_declarations.hh"
-#include "NOD_socket_declarations_geometry.hh"
 
 using namespace blender;
 using blender::bke::SocketValueVariant;
@@ -49,8 +46,8 @@ bNodeSocket *node_add_socket_from_template(bNodeTree *ntree,
                                            bke::bNodeSocketTemplate *stemp,
                                            eNodeSocketInOut in_out)
 {
-  bNodeSocket *sock = bke::nodeAddStaticSocket(
-      ntree, node, in_out, stemp->type, stemp->subtype, stemp->identifier, stemp->name);
+  bNodeSocket *sock = bke::node_add_static_socket(
+      *ntree, *node, in_out, stemp->type, stemp->subtype, stemp->identifier, stemp->name);
 
   sock->flag |= stemp->flag;
 
@@ -112,7 +109,7 @@ static bNodeSocket *verify_socket_template(bNodeTree *ntree,
   }
   if (sock) {
     if (sock->type != stemp->type) {
-      bke::nodeModifySocketTypeStatic(ntree, node, sock, stemp->type, stemp->subtype);
+      bke::node_modify_socket_type_static(ntree, node, sock, stemp->type, stemp->subtype);
     }
     sock->flag |= stemp->flag;
   }
@@ -141,7 +138,7 @@ static void verify_socket_template_list(bNodeTree *ntree,
   if (stemp_first == nullptr) {
     for (sock = (bNodeSocket *)socklist->first; sock; sock = nextsock) {
       nextsock = sock->next;
-      bke::nodeRemoveSocket(ntree, node, sock);
+      bke::node_remove_socket(*ntree, *node, *sock);
     }
   }
   else {
@@ -154,7 +151,7 @@ static void verify_socket_template_list(bNodeTree *ntree,
     /* leftovers are removed */
     for (sock = (bNodeSocket *)socklist->first; sock; sock = nextsock) {
       nextsock = sock->next;
-      bke::nodeRemoveSocket(ntree, node, sock);
+      bke::node_remove_socket(*ntree, *node, *sock);
     }
 
     /* and we put back the verified sockets */
@@ -328,7 +325,7 @@ static const char *get_current_socket_identifier_for_future_socket(
     const bNodeSocket &socket,
     const Span<const SocketDeclaration *> socket_decls)
 {
-  switch (node.type) {
+  switch (node.type_legacy) {
     case FN_NODE_RANDOM_VALUE: {
       return get_identifier_from_decl({"Min", "Max", "Value"}, socket, socket_decls);
     }
@@ -422,7 +419,7 @@ static void refresh_node_sockets_and_panels(bNodeTree &ntree,
 
   /* Count panels */
   int new_num_panels = 0;
-  for (const ItemDeclarationPtr &item_decl : node_decl.items) {
+  for (const ItemDeclarationPtr &item_decl : node_decl.all_items) {
     if (dynamic_cast<const PanelDeclaration *>(item_decl.get())) {
       ++new_num_panels;
     }
@@ -445,13 +442,13 @@ static void refresh_node_sockets_and_panels(bNodeTree &ntree,
   /* New panel states buffer. */
   MEM_SAFE_FREE(node.panel_states_array);
   node.num_panel_states = new_num_panels;
-  node.panel_states_array = MEM_cnew_array<bNodePanelState>(new_num_panels, __func__);
+  node.panel_states_array = MEM_calloc_arrayN<bNodePanelState>(new_num_panels, __func__);
 
   /* Find list of sockets to add, mixture of old and new sockets. */
   VectorSet<bNodeSocket *> new_inputs;
   VectorSet<bNodeSocket *> new_outputs;
   bNodePanelState *new_panel = node.panel_states_array;
-  for (const ItemDeclarationPtr &item_decl : node_decl.items) {
+  for (const ItemDeclarationPtr &item_decl : node_decl.all_items) {
     if (const SocketDeclaration *socket_decl = dynamic_cast<const SocketDeclaration *>(
             item_decl.get()))
     {
@@ -473,12 +470,12 @@ static void refresh_node_sockets_and_panels(bNodeTree &ntree,
   /* Destroy any remaining sockets that are no longer in the declaration. */
   LISTBASE_FOREACH_MUTABLE (bNodeSocket *, old_socket, &node.inputs) {
     if (!new_inputs.contains(old_socket)) {
-      blender::bke::nodeRemoveSocketEx(&ntree, &node, old_socket, do_id_user);
+      blender::bke::node_remove_socket_ex(ntree, node, *old_socket, do_id_user);
     }
   }
   LISTBASE_FOREACH_MUTABLE (bNodeSocket *, old_socket, &node.outputs) {
     if (!new_outputs.contains(old_socket)) {
-      blender::bke::nodeRemoveSocketEx(&ntree, &node, old_socket, do_id_user);
+      blender::bke::node_remove_socket_ex(ntree, node, *old_socket, do_id_user);
     }
   }
 
@@ -504,7 +501,7 @@ static void refresh_node(bNodeTree &ntree,
   if (!node_decl.matches(node)) {
     refresh_node_sockets_and_panels(ntree, node, node_decl, do_id_user);
   }
-  blender::bke::nodeSocketDeclarationsUpdate(&node);
+  blender::bke::node_socket_declarations_update(&node);
 }
 
 void update_node_declaration_and_sockets(bNodeTree &ntree, bNode &node)
@@ -547,7 +544,7 @@ void node_verify_sockets(bNodeTree *ntree, bNode *node, bool do_id_user)
     return;
   }
   if (ntype->declare) {
-    blender::bke::nodeDeclarationEnsureOnOutdatedNode(ntree, node);
+    blender::bke::node_declaration_ensure_on_outdated_node(*ntree, *node);
     refresh_node(*ntree, *node, *node->runtime->declaration, do_id_user);
     return;
   }
@@ -560,7 +557,7 @@ void node_verify_sockets(bNodeTree *ntree, bNode *node, bool do_id_user)
     if (ntype->inputs && ntype->inputs[0].type >= 0) {
       verify_socket_template_list(ntree, node, SOCK_IN, &node->inputs, ntype->inputs);
     }
-    if (ntype->outputs && ntype->outputs[0].type >= 0 && node->type != CMP_NODE_R_LAYERS) {
+    if (ntype->outputs && ntype->outputs[0].type >= 0 && node->type_legacy != CMP_NODE_R_LAYERS) {
       verify_socket_template_list(ntree, node, SOCK_OUT, &node->outputs, ntype->outputs);
     }
   }
@@ -574,7 +571,7 @@ void node_socket_init_default_value_data(eNodeSocketDatatype datatype, int subty
 
   switch (datatype) {
     case SOCK_FLOAT: {
-      bNodeSocketValueFloat *dval = MEM_cnew<bNodeSocketValueFloat>("node socket value float");
+      bNodeSocketValueFloat *dval = MEM_callocN<bNodeSocketValueFloat>("node socket value float");
       dval->subtype = subtype;
       dval->value = 0.0f;
       dval->min = -FLT_MAX;
@@ -584,7 +581,7 @@ void node_socket_init_default_value_data(eNodeSocketDatatype datatype, int subty
       break;
     }
     case SOCK_INT: {
-      bNodeSocketValueInt *dval = MEM_cnew<bNodeSocketValueInt>("node socket value int");
+      bNodeSocketValueInt *dval = MEM_callocN<bNodeSocketValueInt>("node socket value int");
       dval->subtype = subtype;
       dval->value = 0;
       dval->min = INT_MIN;
@@ -594,20 +591,22 @@ void node_socket_init_default_value_data(eNodeSocketDatatype datatype, int subty
       break;
     }
     case SOCK_BOOLEAN: {
-      bNodeSocketValueBoolean *dval = MEM_cnew<bNodeSocketValueBoolean>("node socket value bool");
+      bNodeSocketValueBoolean *dval = MEM_callocN<bNodeSocketValueBoolean>(
+          "node socket value bool");
       dval->value = false;
 
       *data = dval;
       break;
     }
     case SOCK_ROTATION: {
-      bNodeSocketValueRotation *dval = MEM_cnew<bNodeSocketValueRotation>(__func__);
+      bNodeSocketValueRotation *dval = MEM_callocN<bNodeSocketValueRotation>(__func__);
       *data = dval;
       break;
     }
     case SOCK_VECTOR: {
       static float default_value[] = {0.0f, 0.0f, 0.0f};
-      bNodeSocketValueVector *dval = MEM_cnew<bNodeSocketValueVector>("node socket value vector");
+      bNodeSocketValueVector *dval = MEM_callocN<bNodeSocketValueVector>(
+          "node socket value vector");
       dval->subtype = subtype;
       copy_v3_v3(dval->value, default_value);
       dval->min = -FLT_MAX;
@@ -618,14 +617,15 @@ void node_socket_init_default_value_data(eNodeSocketDatatype datatype, int subty
     }
     case SOCK_RGBA: {
       static float default_value[] = {0.0f, 0.0f, 0.0f, 1.0f};
-      bNodeSocketValueRGBA *dval = MEM_cnew<bNodeSocketValueRGBA>("node socket value color");
+      bNodeSocketValueRGBA *dval = MEM_callocN<bNodeSocketValueRGBA>("node socket value color");
       copy_v4_v4(dval->value, default_value);
 
       *data = dval;
       break;
     }
     case SOCK_STRING: {
-      bNodeSocketValueString *dval = MEM_cnew<bNodeSocketValueString>("node socket value string");
+      bNodeSocketValueString *dval = MEM_callocN<bNodeSocketValueString>(
+          "node socket value string");
       dval->subtype = subtype;
       dval->value[0] = '\0';
 
@@ -633,28 +633,29 @@ void node_socket_init_default_value_data(eNodeSocketDatatype datatype, int subty
       break;
     }
     case SOCK_MENU: {
-      bNodeSocketValueMenu *dval = MEM_cnew<bNodeSocketValueMenu>("node socket value menu");
+      bNodeSocketValueMenu *dval = MEM_callocN<bNodeSocketValueMenu>("node socket value menu");
       dval->value = -1;
 
       *data = dval;
       break;
     }
     case SOCK_OBJECT: {
-      bNodeSocketValueObject *dval = MEM_cnew<bNodeSocketValueObject>("node socket value object");
+      bNodeSocketValueObject *dval = MEM_callocN<bNodeSocketValueObject>(
+          "node socket value object");
       dval->value = nullptr;
 
       *data = dval;
       break;
     }
     case SOCK_IMAGE: {
-      bNodeSocketValueImage *dval = MEM_cnew<bNodeSocketValueImage>("node socket value image");
+      bNodeSocketValueImage *dval = MEM_callocN<bNodeSocketValueImage>("node socket value image");
       dval->value = nullptr;
 
       *data = dval;
       break;
     }
     case SOCK_COLLECTION: {
-      bNodeSocketValueCollection *dval = MEM_cnew<bNodeSocketValueCollection>(
+      bNodeSocketValueCollection *dval = MEM_callocN<bNodeSocketValueCollection>(
           "node socket value object");
       dval->value = nullptr;
 
@@ -662,7 +663,7 @@ void node_socket_init_default_value_data(eNodeSocketDatatype datatype, int subty
       break;
     }
     case SOCK_TEXTURE: {
-      bNodeSocketValueTexture *dval = MEM_cnew<bNodeSocketValueTexture>(
+      bNodeSocketValueTexture *dval = MEM_callocN<bNodeSocketValueTexture>(
           "node socket value texture");
       dval->value = nullptr;
 
@@ -670,7 +671,7 @@ void node_socket_init_default_value_data(eNodeSocketDatatype datatype, int subty
       break;
     }
     case SOCK_MATERIAL: {
-      bNodeSocketValueMaterial *dval = MEM_cnew<bNodeSocketValueMaterial>(
+      bNodeSocketValueMaterial *dval = MEM_callocN<bNodeSocketValueMaterial>(
           "node socket value material");
       dval->value = nullptr;
 
@@ -745,35 +746,35 @@ void node_socket_copy_default_value_data(eNodeSocketDatatype datatype, void *to,
       bNodeSocketValueObject *toval = (bNodeSocketValueObject *)to;
       bNodeSocketValueObject *fromval = (bNodeSocketValueObject *)from;
       *toval = *fromval;
-      id_us_plus(&toval->value->id);
+      id_us_plus(reinterpret_cast<ID *>(toval->value));
       break;
     }
     case SOCK_IMAGE: {
       bNodeSocketValueImage *toval = (bNodeSocketValueImage *)to;
       bNodeSocketValueImage *fromval = (bNodeSocketValueImage *)from;
       *toval = *fromval;
-      id_us_plus(&toval->value->id);
+      id_us_plus(reinterpret_cast<ID *>(toval->value));
       break;
     }
     case SOCK_COLLECTION: {
       bNodeSocketValueCollection *toval = (bNodeSocketValueCollection *)to;
       bNodeSocketValueCollection *fromval = (bNodeSocketValueCollection *)from;
       *toval = *fromval;
-      id_us_plus(&toval->value->id);
+      id_us_plus(reinterpret_cast<ID *>(toval->value));
       break;
     }
     case SOCK_TEXTURE: {
       bNodeSocketValueTexture *toval = (bNodeSocketValueTexture *)to;
       bNodeSocketValueTexture *fromval = (bNodeSocketValueTexture *)from;
       *toval = *fromval;
-      id_us_plus(&toval->value->id);
+      id_us_plus(reinterpret_cast<ID *>(toval->value));
       break;
     }
     case SOCK_MATERIAL: {
       bNodeSocketValueMaterial *toval = (bNodeSocketValueMaterial *)to;
       bNodeSocketValueMaterial *fromval = (bNodeSocketValueMaterial *)from;
       *toval = *fromval;
-      id_us_plus(&toval->value->id);
+      id_us_plus(reinterpret_cast<ID *>(toval->value));
       break;
     }
 
@@ -825,7 +826,7 @@ static void standard_node_socket_interface_init_socket(
     const bNodeTreeInterfaceSocket *interface_socket,
     bNode * /*node*/,
     bNodeSocket *sock,
-    const char * /*data_path*/)
+    StringRefNull /*data_path*/)
 {
   /* initialize the type value */
   sock->type = sock->typeinfo->type;
@@ -849,28 +850,29 @@ void ED_init_standard_node_socket_type(bke::bNodeSocketType *);
 
 static bke::bNodeSocketType *make_standard_socket_type(int type, int subtype)
 {
-  const char *socket_idname = bke::nodeStaticSocketType(type, subtype);
-  const char *interface_idname = bke::nodeStaticSocketInterfaceTypeNew(type, subtype);
-  const char *socket_label = bke::nodeStaticSocketLabel(type, subtype);
-  const char *socket_subtype_label = blender::bke::nodeSocketSubTypeLabel(subtype);
+  const StringRefNull socket_idname = *bke::node_static_socket_type(type, subtype);
+  const StringRefNull interface_idname = *bke::node_static_socket_interface_type_new(type,
+                                                                                     subtype);
+  const StringRefNull socket_label = *bke::node_static_socket_label(type, subtype);
+  const StringRefNull socket_subtype_label = blender::bke::node_socket_sub_type_label(subtype);
   bke::bNodeSocketType *stype;
   StructRNA *srna;
 
-  stype = MEM_cnew<bke::bNodeSocketType>("node socket C type");
-  stype->free_self = (void (*)(bke::bNodeSocketType *stype))MEM_freeN;
-  STRNCPY(stype->idname, socket_idname);
-  STRNCPY(stype->label, socket_label);
-  STRNCPY(stype->subtype_label, socket_subtype_label);
+  stype = MEM_new<bke::bNodeSocketType>(__func__);
+  stype->free_self = [](bke::bNodeSocketType *type) { MEM_delete(type); };
+  stype->idname = socket_idname;
+  stype->label = socket_label;
+  stype->subtype_label = socket_subtype_label;
 
   /* set the RNA type
    * uses the exact same identifier as the socket type idname */
-  srna = stype->ext_socket.srna = RNA_struct_find(socket_idname);
+  srna = stype->ext_socket.srna = RNA_struct_find(socket_idname.c_str());
   BLI_assert(srna != nullptr);
   /* associate the RNA type with the socket type */
   RNA_struct_blender_type_set(srna, stype);
 
   /* set the interface RNA type */
-  srna = stype->ext_interface.srna = RNA_struct_find(interface_idname);
+  srna = stype->ext_interface.srna = RNA_struct_find(interface_idname.c_str());
   BLI_assert(srna != nullptr);
   /* associate the RNA type with the socket type */
   RNA_struct_blender_type_set(srna, stype);
@@ -900,9 +902,9 @@ static bke::bNodeSocketType *make_socket_type_virtual()
   bke::bNodeSocketType *stype;
   StructRNA *srna;
 
-  stype = MEM_cnew<bke::bNodeSocketType>("node socket C type");
-  stype->free_self = (void (*)(bke::bNodeSocketType *stype))MEM_freeN;
-  STRNCPY(stype->idname, socket_idname);
+  stype = MEM_new<bke::bNodeSocketType>(__func__);
+  stype->free_self = [](bke::bNodeSocketType *type) { MEM_delete(type); };
+  stype->idname = socket_idname;
 
   /* set the RNA type
    * uses the exact same identifier as the socket type idname */
@@ -1155,54 +1157,55 @@ void register_standard_node_socket_types()
 {
   /* Draw callbacks are set in `drawnode.cc` to avoid bad-level calls. */
 
-  bke::nodeRegisterSocketType(make_socket_type_float(PROP_NONE));
-  bke::nodeRegisterSocketType(make_socket_type_float(PROP_UNSIGNED));
-  bke::nodeRegisterSocketType(make_socket_type_float(PROP_PERCENTAGE));
-  bke::nodeRegisterSocketType(make_socket_type_float(PROP_FACTOR));
-  bke::nodeRegisterSocketType(make_socket_type_float(PROP_ANGLE));
-  bke::nodeRegisterSocketType(make_socket_type_float(PROP_TIME));
-  bke::nodeRegisterSocketType(make_socket_type_float(PROP_TIME_ABSOLUTE));
-  bke::nodeRegisterSocketType(make_socket_type_float(PROP_DISTANCE));
-  bke::nodeRegisterSocketType(make_socket_type_float(PROP_WAVELENGTH));
-  bke::nodeRegisterSocketType(make_socket_type_float(PROP_COLOR_TEMPERATURE));
+  bke::node_register_socket_type(*make_socket_type_float(PROP_NONE));
+  bke::node_register_socket_type(*make_socket_type_float(PROP_UNSIGNED));
+  bke::node_register_socket_type(*make_socket_type_float(PROP_PERCENTAGE));
+  bke::node_register_socket_type(*make_socket_type_float(PROP_FACTOR));
+  bke::node_register_socket_type(*make_socket_type_float(PROP_ANGLE));
+  bke::node_register_socket_type(*make_socket_type_float(PROP_TIME));
+  bke::node_register_socket_type(*make_socket_type_float(PROP_TIME_ABSOLUTE));
+  bke::node_register_socket_type(*make_socket_type_float(PROP_DISTANCE));
+  bke::node_register_socket_type(*make_socket_type_float(PROP_WAVELENGTH));
+  bke::node_register_socket_type(*make_socket_type_float(PROP_COLOR_TEMPERATURE));
+  bke::node_register_socket_type(*make_socket_type_float(PROP_FREQUENCY));
 
-  bke::nodeRegisterSocketType(make_socket_type_int(PROP_NONE));
-  bke::nodeRegisterSocketType(make_socket_type_int(PROP_UNSIGNED));
-  bke::nodeRegisterSocketType(make_socket_type_int(PROP_PERCENTAGE));
-  bke::nodeRegisterSocketType(make_socket_type_int(PROP_FACTOR));
+  bke::node_register_socket_type(*make_socket_type_int(PROP_NONE));
+  bke::node_register_socket_type(*make_socket_type_int(PROP_UNSIGNED));
+  bke::node_register_socket_type(*make_socket_type_int(PROP_PERCENTAGE));
+  bke::node_register_socket_type(*make_socket_type_int(PROP_FACTOR));
 
-  bke::nodeRegisterSocketType(make_socket_type_bool());
-  bke::nodeRegisterSocketType(make_socket_type_rotation());
-  bke::nodeRegisterSocketType(make_socket_type_matrix());
+  bke::node_register_socket_type(*make_socket_type_bool());
+  bke::node_register_socket_type(*make_socket_type_rotation());
+  bke::node_register_socket_type(*make_socket_type_matrix());
 
-  bke::nodeRegisterSocketType(make_socket_type_vector(PROP_NONE));
-  bke::nodeRegisterSocketType(make_socket_type_vector(PROP_TRANSLATION));
-  bke::nodeRegisterSocketType(make_socket_type_vector(PROP_DIRECTION));
-  bke::nodeRegisterSocketType(make_socket_type_vector(PROP_VELOCITY));
-  bke::nodeRegisterSocketType(make_socket_type_vector(PROP_ACCELERATION));
-  bke::nodeRegisterSocketType(make_socket_type_vector(PROP_EULER));
-  bke::nodeRegisterSocketType(make_socket_type_vector(PROP_XYZ));
+  bke::node_register_socket_type(*make_socket_type_vector(PROP_NONE));
+  bke::node_register_socket_type(*make_socket_type_vector(PROP_TRANSLATION));
+  bke::node_register_socket_type(*make_socket_type_vector(PROP_DIRECTION));
+  bke::node_register_socket_type(*make_socket_type_vector(PROP_VELOCITY));
+  bke::node_register_socket_type(*make_socket_type_vector(PROP_ACCELERATION));
+  bke::node_register_socket_type(*make_socket_type_vector(PROP_EULER));
+  bke::node_register_socket_type(*make_socket_type_vector(PROP_XYZ));
 
-  bke::nodeRegisterSocketType(make_socket_type_rgba());
+  bke::node_register_socket_type(*make_socket_type_rgba());
 
-  bke::nodeRegisterSocketType(make_socket_type_string(PROP_NONE));
-  bke::nodeRegisterSocketType(make_socket_type_string(PROP_FILEPATH));
+  bke::node_register_socket_type(*make_socket_type_string(PROP_NONE));
+  bke::node_register_socket_type(*make_socket_type_string(PROP_FILEPATH));
 
-  bke::nodeRegisterSocketType(make_socket_type_menu());
+  bke::node_register_socket_type(*make_socket_type_menu());
 
-  bke::nodeRegisterSocketType(make_standard_socket_type(SOCK_SHADER, PROP_NONE));
+  bke::node_register_socket_type(*make_standard_socket_type(SOCK_SHADER, PROP_NONE));
 
-  bke::nodeRegisterSocketType(make_socket_type_object());
+  bke::node_register_socket_type(*make_socket_type_object());
 
-  bke::nodeRegisterSocketType(make_socket_type_geometry());
+  bke::node_register_socket_type(*make_socket_type_geometry());
 
-  bke::nodeRegisterSocketType(make_socket_type_collection());
+  bke::node_register_socket_type(*make_socket_type_collection());
 
-  bke::nodeRegisterSocketType(make_socket_type_texture());
+  bke::node_register_socket_type(*make_socket_type_texture());
 
-  bke::nodeRegisterSocketType(make_socket_type_image());
+  bke::node_register_socket_type(*make_socket_type_image());
 
-  bke::nodeRegisterSocketType(make_socket_type_material());
+  bke::node_register_socket_type(*make_socket_type_material());
 
-  bke::nodeRegisterSocketType(make_socket_type_virtual());
+  bke::node_register_socket_type(*make_socket_type_virtual());
 }

@@ -47,25 +47,24 @@ class USDShapeReader : public USDGeomReader {
                        pxr::VtIntArray &face_indices,
                        pxr::VtIntArray &face_counts) const;
 
-  Mesh *read_mesh(Mesh *existing_mesh, USDMeshReadParams params, const char ** /*err_str*/);
+  Mesh *read_mesh(Mesh *existing_mesh, USDMeshReadParams params, const char ** /*r_err_str*/);
 
  public:
   USDShapeReader(const pxr::UsdPrim &prim,
                  const USDImportParams &import_params,
                  const ImportSettings &settings);
 
-  void create_object(Main *bmain, double /*motionSampleTime*/) override;
+  void create_object(Main *bmain) override;
   void read_object_data(Main *bmain, double motionSampleTime) override;
   void read_geometry(bke::GeometrySet & /*geometry_set*/,
                      USDMeshReadParams /*params*/,
-                     const char ** /*err_str*/) override;
+                     const char ** /*r_err_str*/) override;
 
   /* Returns the generated mesh might be affected by time-varying attributes.
    * This assumes mesh_from_prim() has been called.  */
   bool is_time_varying();
 
-  virtual bool topology_changed(const Mesh * /*existing_mesh*/,
-                                double /*motionSampleTime*/) override
+  bool topology_changed(const Mesh * /*existing_mesh*/, double /*motionSampleTime*/) override
   {
     return false;
   };

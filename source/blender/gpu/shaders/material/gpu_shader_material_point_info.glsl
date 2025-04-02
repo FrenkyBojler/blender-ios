@@ -2,15 +2,15 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#pragma BLENDER_REQUIRE(gpu_shader_common_hash.glsl)
+#include "gpu_shader_common_hash.glsl"
 
 void node_point_info(out vec3 position, out float radius, out float random)
 {
-#ifdef MAT_GEOM_POINT_CLOUD
+#ifdef MAT_GEOM_POINTCLOUD
   /* EEVEE-Next case. */
-  position = point_cloud_interp.position;
-  radius = point_cloud_interp.radius;
-  random = wang_hash_noise(uint(point_cloud_interp_flat.id));
+  position = pointcloud_interp.position;
+  radius = pointcloud_interp.radius;
+  random = wang_hash_noise(uint(pointcloud_interp_flat.id));
 #elif defined(POINTCLOUD_SHADER)
   /* EEVEE-Legacy case. */
   position = pointPosition;

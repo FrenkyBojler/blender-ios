@@ -13,6 +13,8 @@
 
 #pragma once
 
+#include <cstdint>
+
 /** #wmEvent.customdata type. */
 enum {
   EVT_DATA_TIMER = 2,
@@ -38,7 +40,7 @@ enum {
  * \note Also used for #wmKeyMapItem.type which is saved in key-map files,
  * do not change the values of existing values which can be used in key-maps.
  */
-enum {
+enum wmEventType : int16_t {
   /* Non-event, for example disabled timer. */
   EVENT_NONE = 0x0000,
 
@@ -67,7 +69,7 @@ enum {
   /* Defaults from ghost. */
   WHEELUPMOUSE = 0x000a,
   WHEELDOWNMOUSE = 0x000b,
-  /* Mapped with userdef. */
+  /* Mapped based on #USER_WHEELZOOMDIR. */
   WHEELINMOUSE = 0x000c,
   WHEELOUTMOUSE = 0x000d,
   /* Successive MOUSEMOVE's are converted to this, so we can easily
@@ -166,8 +168,9 @@ enum {
   EVT_ENDKEY = 0x00aa,      /* 170 */
   /* Note that 'PADPERIOD' is defined out-of-order. */
   EVT_UNKNOWNKEY = 0x00ab, /* 171 */
-  EVT_OSKEY = 0x00ac,      /* 172 */
-  EVT_GRLESSKEY = 0x00ad,  /* 173 */
+  /** OS modifier, see: #KM_OSKEY for details. */
+  EVT_OSKEY = 0x00ac,     /* 172 */
+  EVT_GRLESSKEY = 0x00ad, /* 173 */
   /* Media keys. */
   EVT_MEDIAPLAY = 0x00ae,  /* 174 */
   EVT_MEDIASTOP = 0x00af,  /* 175 */
@@ -175,6 +178,9 @@ enum {
   EVT_MEDIALAST = 0x00b1,  /* 177 */
   /* Menu/App key. */
   EVT_APPKEY = 0x00b2, /* 178 */
+
+  /** Additional modifier, see: #KM_HYPER for details. */
+  EVT_HYPER = 0x00b3, /* 179 */
 
   EVT_PADPERIOD = 0x00c7, /* 199 */
 
@@ -281,7 +287,7 @@ enum {
   NDOF_BUTTON_DOMINANT = 0x01a3, /* 419 */
   NDOF_BUTTON_PLUS = 0x01a4,     /* 420 */
   NDOF_BUTTON_MINUS = 0x01a5,    /* 421 */
-  /* Store/restore views. */
+  /* Restore views. */
   NDOF_BUTTON_V1 = 0x01a6, /* 422 */
   NDOF_BUTTON_V2 = 0x01a7, /* 423 */
   NDOF_BUTTON_V3 = 0x01a8, /* 424 */
@@ -297,9 +303,8 @@ enum {
   NDOF_BUTTON_9 = 0x01b2,  /* 434 */
   NDOF_BUTTON_10 = 0x01b3, /* 435 */
   /* More general-purpose buttons. */
-  NDOF_BUTTON_A = 0x01b4, /* 436 */
-  NDOF_BUTTON_B = 0x01b5, /* 437 */
-  NDOF_BUTTON_C = 0x01b6, /* 438 */
+  NDOF_BUTTON_11 = 0x01b4, /* 436 */
+  NDOF_BUTTON_12 = 0x01b5, /* 437 */
 
 /* Disabled as GHOST converts these to keyboard events
  * which use regular keyboard event handling logic. */
@@ -315,8 +320,13 @@ enum {
   NDOF_BUTTON_CTRL = 0x01bd,   /* 445 */
 #endif
 
-#define _NDOF_MAX NDOF_BUTTON_C
-#define _NDOF_BUTTON_MAX NDOF_BUTTON_C
+  /* Store views. */
+  NDOF_BUTTON_SAVE_V1 = 0x01be, /* 446 */
+  NDOF_BUTTON_SAVE_V2 = 0x01bf, /* 447 */
+  NDOF_BUTTON_SAVE_V3 = 0x01c0, /* 448 */
+
+#define _NDOF_MAX NDOF_BUTTON_SAVE_V3
+#define _NDOF_BUTTON_MAX NDOF_BUTTON_SAVE_V3
 
   /* ********** End of Input devices. ********** */
 
@@ -391,7 +401,7 @@ enum {
 /** Test whether the event is a modifier key. */
 #define ISKEYMODIFIER(event_type) \
   (((event_type) >= EVT_LEFTCTRLKEY && (event_type) <= EVT_LEFTSHIFTKEY) || \
-   (event_type) == EVT_OSKEY)
+   ELEM((event_type), EVT_OSKEY, EVT_HYPER))
 
 /**
  * Test whether the event is any kind:
@@ -456,8 +466,6 @@ enum eEventType_Mask {
 #define EVT_TYPE_MASK_HOTKEY_INCLUDE \
   (EVT_TYPE_MASK_KEYBOARD | EVT_TYPE_MASK_MOUSE | EVT_TYPE_MASK_NDOF)
 #define EVT_TYPE_MASK_HOTKEY_EXCLUDE EVT_TYPE_MASK_KEYBOARD_MODIFIER
-
-#define NDOF_BUTTON_INDEX_AS_EVENT(i) (_NDOF_BUTTON_MIN + (i))
 
 bool WM_event_type_mask_test(int event_type, enum eEventType_Mask mask);
 

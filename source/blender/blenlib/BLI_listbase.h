@@ -8,15 +8,12 @@
  * \ingroup bli
  */
 
-#include "BLI_compiler_attrs.h"
-#include "BLI_utildefines.h"
-#include "DNA_listBase.h"
-// struct ListBase;
-// struct LinkData;
+#include <cstddef>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include "BLI_compiler_attrs.h"
+#include "BLI_compiler_compat.h"
+
+#include "DNA_listBase.h"
 
 /**
  * Returns the position of \a vlink within \a listbase, numbering from 0, or -1 if not found.
@@ -223,6 +220,17 @@ void BLI_freelist(struct ListBase *listbase) ATTR_NONNULL(1);
 int BLI_listbase_count_at_most(const struct ListBase *listbase,
                                int count_max) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL(1);
 /**
+ * Returns true when the number of items in `listbase` matches `count_cmp`.
+ *
+ * \note Use to avoid redundant looping.
+ */
+BLI_INLINE bool BLI_listbase_count_is_equal_to(const struct ListBase *listbase,
+                                               const int count_cmp)
+{
+  return BLI_listbase_count_at_most(listbase, count_cmp + 1) == count_cmp;
+}
+
+/**
  * Returns the number of elements in \a listbase.
  */
 int BLI_listbase_count(const struct ListBase *listbase) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL(1);
@@ -257,7 +265,7 @@ void BLI_movelisttolist_reverse(struct ListBase *dst, struct ListBase *src) ATTR
  * Split `original_listbase` after given `vlink`, putting the remaining of the list into given
  * `split_listbase`.
  *
- * \note If `vlink` is nullptr, it is considered as 'the item before the first item', so the whole
+ * \note If `vlink` is NULL, it is considered as 'the item before the first item', so the whole
  * list is moved from `original_listbase` to `split_listbase`.
  */
 void BLI_listbase_split_after(struct ListBase *original_listbase,
@@ -286,11 +294,11 @@ BLI_INLINE bool BLI_listbase_is_single(const struct ListBase *lb)
 }
 BLI_INLINE bool BLI_listbase_is_empty(const struct ListBase *lb)
 {
-  return (lb->first == (void *)0);
+  return (lb->first == (void *)nullptr);
 }
 BLI_INLINE void BLI_listbase_clear(struct ListBase *lb)
 {
-  lb->first = lb->last = (void *)0;
+  lb->first = lb->last = (void *)nullptr;
 }
 
 /**
@@ -307,10 +315,10 @@ bool BLI_listbase_validate(struct ListBase *lb);
  */
 BLI_INLINE bool BLI_listbase_equal(const struct ListBase *a, const struct ListBase *b)
 {
-  if (a == NULL) {
-    return b == NULL;
+  if (a == nullptr) {
+    return b == nullptr;
   }
-  if (b == NULL) {
+  if (b == nullptr) {
     return false;
   }
   return a->first == b->first && a->last == b->last;
@@ -359,7 +367,7 @@ struct LinkData *BLI_genericNodeN(void *data);
   ((void)0)
 
 #define LISTBASE_FOREACH(type, var, list) \
-  for (type var = (type)((list)->first); var != NULL; var = (type)(((Link *)(var))->next))
+  for (type var = (type)((list)->first); var != nullptr; var = (type)(((Link *)(var))->next))
 
 /**
  * A version of #LISTBASE_FOREACH that supports incrementing an index variable at every step.
@@ -367,18 +375,18 @@ struct LinkData *BLI_genericNodeN(void *data);
  * incrementation.
  */
 #define LISTBASE_FOREACH_INDEX(type, var, list, index_var) \
-  for (type var = (((void)(index_var = 0)), (type)((list)->first)); var != NULL; \
+  for (type var = (((void)(index_var = 0)), (type)((list)->first)); var != nullptr; \
        var = (type)(((Link *)(var))->next), index_var++)
 
 #define LISTBASE_FOREACH_BACKWARD(type, var, list) \
-  for (type var = (type)((list)->last); var != NULL; var = (type)(((Link *)(var))->prev))
+  for (type var = (type)((list)->last); var != nullptr; var = (type)(((Link *)(var))->prev))
 
 /**
  * A version of #LISTBASE_FOREACH that supports removing the item we're looping over.
  */
 #define LISTBASE_FOREACH_MUTABLE(type, var, list) \
   for (type var = (type)((list)->first), *var##_iter_next; \
-       ((var != NULL) ? ((void)(var##_iter_next = (type)(((Link *)(var))->next)), 1) : 0); \
+       ((var != nullptr) ? ((void)(var##_iter_next = (type)(((Link *)(var))->next)), 1) : 0); \
        var = var##_iter_next)
 
 /**
@@ -386,16 +394,21 @@ struct LinkData *BLI_genericNodeN(void *data);
  */
 #define LISTBASE_FOREACH_BACKWARD_MUTABLE(type, var, list) \
   for (type var = (type)((list)->last), *var##_iter_prev; \
-       ((var != NULL) ? ((void)(var##_iter_prev = (type)(((Link *)(var))->prev)), 1) : 0); \
+       ((var != nullptr) ? ((void)(var##_iter_prev = (type)(((Link *)(var))->prev)), 1) : 0); \
        var = var##_iter_prev)
 
-#ifdef __cplusplus
-}
-#endif
-
-#ifdef __cplusplus
 BLI_INLINE bool operator==(const ListBase &a, const ListBase &b)
 {
   return BLI_listbase_equal(&a, &b);
 }
-#endif
+
+template<typename T, typename Fn> T *BLI_listbase_find(const ListBase &listbase, Fn &&predicate)
+{
+  LISTBASE_FOREACH (T *, link, &listbase) {
+    const T &value = *static_cast<const T *>(link);
+    if (predicate(value)) {
+      return link;
+    }
+  }
+  return nullptr;
+}

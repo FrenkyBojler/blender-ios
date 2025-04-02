@@ -17,8 +17,6 @@
 
 #include "gpu_context_private.hh" /* TODO: remove. */
 
-#include "GPU_vertex_buffer.hh"
-
 #include <cstring>
 
 /* -------------------------------------------------------------------- */
@@ -151,12 +149,19 @@ void GPU_vertbuf_init_build_on_device(VertBuf &verts, const GPUVertFormat &forma
   GPU_vertbuf_data_alloc(verts, v_len);
 }
 
+VertBuf *GPU_vertbuf_create_on_device(const GPUVertFormat &format, uint v_len)
+{
+  VertBuf *verts = GPU_vertbuf_create_with_format_ex(format, GPU_USAGE_DEVICE_ONLY);
+  GPU_vertbuf_data_alloc(*verts, v_len);
+  return verts;
+}
+
 VertBuf *GPU_vertbuf_duplicate(VertBuf *verts)
 {
   return verts->duplicate();
 }
 
-void GPU_vertbuf_read(VertBuf *verts, void *data)
+void GPU_vertbuf_read(const VertBuf *verts, void *data)
 {
   verts->read(data);
 }

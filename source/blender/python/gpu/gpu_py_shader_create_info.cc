@@ -16,15 +16,15 @@
 #include "GPU_shader.hh"
 #include "intern/gpu_shader_create_info.hh"
 
-#include "../generic/py_capi_utils.h"
-#include "../generic/python_compat.h"
+#include "../generic/py_capi_utils.hh"
+#include "../generic/python_compat.hh"
 
-#include "gpu_py.hh"
 #include "gpu_py_shader.hh" /* own include */
 #include "gpu_py_texture.hh"
 
 #define USE_PYGPU_SHADER_INFO_IMAGE_METHOD
 
+using blender::gpu::shader::DepthWrite;
 using blender::gpu::shader::DualBlend;
 using blender::gpu::shader::Frequency;
 using blender::gpu::shader::ImageType;
@@ -164,6 +164,14 @@ static const PyC_StringEnumItems pygpu_dualblend_items[] = {
     {0, nullptr},
 };
 
+static const PyC_StringEnumItems pygpu_depth_write_items[] = {
+    {int(DepthWrite::UNCHANGED), "UNCHANGED"},
+    {int(DepthWrite::ANY), "ANY"},
+    {int(DepthWrite::GREATER), "GREATER"},
+    {int(DepthWrite::LESS), "LESS"},
+    {0, nullptr},
+};
+
 #define PYDOC_TEX_FORMAT_ITEMS \
   "      - ``RGBA8UI``\n" \
   "      - ``RGBA8I``\n" \
@@ -234,7 +242,7 @@ static bool pygpu_interface_info_get_args(BPyGPUStageInterfaceInfo *self,
   }
 
 #ifdef USE_GPU_PY_REFERENCES
-  PyList_Append(self->references, (PyObject *)py_name);
+  PyList_Append(self->references, py_name);
 #endif
 
   *r_type = (Type)pygpu_type.value_found;
@@ -247,7 +255,7 @@ PyDoc_STRVAR(
     pygpu_interface_info_smooth_doc,
     ".. method:: smooth(type, name)\n"
     "\n"
-    "   Add an attribute with qualifier of type `smooth` to the interface block.\n"
+    "   Add an attribute with qualifier of type *smooth* to the interface block.\n"
     "\n"
     "   :arg type: One of these types:\n"
     "\n" PYDOC_TYPE_LIST
@@ -273,7 +281,7 @@ PyDoc_STRVAR(
     pygpu_interface_info_flat_doc,
     ".. method:: flat(type, name)\n"
     "\n"
-    "   Add an attribute with qualifier of type `flat` to the interface block.\n"
+    "   Add an attribute with qualifier of type ``flat`` to the interface block.\n"
     "\n"
     "   :arg type: One of these types:\n"
     "\n" PYDOC_TYPE_LIST
@@ -299,7 +307,7 @@ PyDoc_STRVAR(
     pygpu_interface_info_no_perspective_doc,
     ".. method:: no_perspective(type, name)\n"
     "\n"
-    "   Add an attribute with qualifier of type `no_perspective` to the interface block.\n"
+    "   Add an attribute with qualifier of type ``no_perspective`` to the interface block.\n"
     "\n"
     "   :arg type: One of these types:\n"
     "\n" PYDOC_TYPE_LIST
@@ -349,7 +357,7 @@ PyDoc_STRVAR(
 static PyObject *pygpu_interface_info_name_get(BPyGPUStageInterfaceInfo *self, void * /*closure*/)
 {
   StageInterfaceInfo *interface = reinterpret_cast<StageInterfaceInfo *>(self->interface);
-  return PyUnicode_FromString(interface->name.c_str());
+  return PyC_UnicodeFromStdStr(interface->name);
 }
 
 static PyGetSetDef pygpu_interface_info__tp_getseters[] = {
@@ -426,7 +434,7 @@ static void pygpu_interface_info__tp_dealloc(PyObject *self)
   }
 #endif
 
-  Py_TYPE(self)->tp_free((PyObject *)self);
+  Py_TYPE(self)->tp_free(self);
 }
 
 PyDoc_STRVAR(
@@ -635,15 +643,58 @@ static PyObject *pygpu_shader_info_fragment_out(BPyGPUShaderCreateInfo *self,
 
 PyDoc_STRVAR(
     /* Wrap. */
+    pygpu_shader_info_depth_write_doc,
+    ".. method:: depth_write(value)\n"
+    "\n"
+    "   Specify a depth write behavior when modifying gl_FragDepth.\n"
+    "\n"
+    "   There is a common optimization for GPUs that relies on an early depth\n"
+    "   test to be run before the fragment shader so that the shader evaluation\n"
+    "   can be skipped if the fragment ends up being discarded because it is occluded.\n"
+    "\n"
+    "   This optimization does not affect the final rendering, and is typically\n"
+    "   possible when the fragment does not change the depth programmatically.\n"
+    "   There are, however a class of operations on the depth in the shader which\n"
+    "   could still be performed while allowing the early depth test to operate.\n"
+    "\n"
+    "   This function alters the behavior of the optimization to allow those operations\n"
+    "   to be performed.\n"
+    "\n"
+    "   :arg value: Depth write value. It can be 'UNCHANGED', 'ANY', 'GREATER' or 'LESS'.\n"
+    "       'UNCHANGED' disables depth write in a fragment shader and execution of the\n"
+    "                   fragments can be optimized away. (Default)"
+    "       'ANY'       enables depth write in a fragment shader for any fragments\n"
+    "       'GREATER'   enables depth write in a fragment shader for depth values that\n"
+    "                   are greater than the depth value in the output buffer.\n"
+    "       'LESS'      enables depth write in a fragment shader for depth values that\n"
+    "                   are less than the depth value in the output buffer.\n"
+    "   :type blend: str\n");
+static PyObject *pygpu_shader_info_depth_write(BPyGPUShaderCreateInfo *self, PyObject *args)
+{
+  PyC_StringEnum depth_write = {pygpu_depth_write_items, int(DepthWrite::UNCHANGED)};
+  if (!PyC_ParseStringEnum(args, &depth_write)) {
+    return nullptr;
+  }
+
+  ShaderCreateInfo *info = reinterpret_cast<ShaderCreateInfo *>(self->info);
+  info->depth_write(DepthWrite(depth_write.value_found));
+
+  Py_RETURN_NONE;
+}
+
+PyDoc_STRVAR(
+    /* Wrap. */
     pygpu_shader_info_uniform_buf_doc,
     ".. method:: uniform_buf(slot, type_name, name)\n"
     "\n"
-    "   Specify a uniform variable whose type can be one of those declared in `typedef_source`.\n"
+    "   Specify a uniform variable whose type can be one of those declared in "
+    ":meth:`gpu.types.GPUShaderCreateInfo.typedef_source`.\n"
     "\n"
     "   :arg slot: The uniform variable index.\n"
     "   :type slot: int\n"
-    "   :arg type_name: Name of the data type. It can be a struct type defined in the source "
-    "passed through the :meth:`gpu.types.GPUShaderCreateInfo.typedef_source`.\n"
+    "   :arg type_name: Name of the data type. "
+    "It can be a struct type defined in the source passed through the "
+    ":meth:`gpu.types.GPUShaderCreateInfo.typedef_source`.\n"
     "   :type type_name: str\n"
     "   :arg name: The uniform variable name.\n"
     "   :type name: str\n");
@@ -692,7 +743,7 @@ PyDoc_STRVAR(
     "read or written. Possible values are:\n"
     "" PYDOC_QUALIFIERS
     ""
-    "   :type qualifiers: set\n");
+    "   :type qualifiers: set[str]\n");
 static PyObject *pygpu_shader_info_image(BPyGPUShaderCreateInfo *self,
                                          PyObject *args,
                                          PyObject *kwds)
@@ -891,9 +942,8 @@ PyDoc_STRVAR(
     "   :type type: str\n"
     "   :arg name: Name of the constant.\n"
     "   :type name: str\n"
-    "   :arg size: If not zero, indicates that the constant is an array with the "
-    "specified size.\n"
-    "   :type size: uint\n");
+    "   :arg size: If not zero, indicates that the constant is an array with the specified size.\n"
+    "   :type size: int\n");
 static PyObject *pygpu_shader_info_push_constant(BPyGPUShaderCreateInfo *self,
                                                  PyObject *args,
                                                  PyObject *kwds)
@@ -1189,6 +1239,10 @@ static PyMethodDef pygpu_shader_info__tp_methods[] = {
      (PyCFunction)pygpu_shader_info_vertex_out,
      METH_O,
      pygpu_shader_info_vertex_out_doc},
+    {"depth_write",
+     (PyCFunction)(void *)pygpu_shader_info_depth_write,
+     METH_O,
+     pygpu_shader_info_depth_write_doc},
     {"fragment_out",
      (PyCFunction)(void *)pygpu_shader_info_fragment_out,
      METH_VARARGS | METH_KEYWORDS,
@@ -1296,7 +1350,7 @@ static void pygpu_shader_info__tp_dealloc(PyObject *self)
 
 #endif
 
-  Py_TYPE(self)->tp_free((PyObject *)self);
+  Py_TYPE(self)->tp_free(self);
 }
 
 PyDoc_STRVAR(

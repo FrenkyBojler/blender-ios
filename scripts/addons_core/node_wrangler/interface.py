@@ -6,7 +6,6 @@ import bpy
 from bpy.types import Panel, Menu
 from bpy.props import StringProperty
 from bpy.app.translations import contexts as i18n_contexts
-from nodeitems_utils import node_categories_iter, NodeItemCustom
 
 from . import operators
 
@@ -60,7 +59,7 @@ def drawlayout(context, layout, mode='non-panel'):
     col.separator()
 
     col = layout.column(align=True)
-    col.operator(operators.NWFrameSelected.bl_idname, icon='STICKY_UVS_LOC')
+    col.operator('node.join', icon='STICKY_UVS_LOC')
     col.separator()
 
     col = layout.column(align=True)
@@ -132,7 +131,7 @@ class NWMergeGeometryMenu(Menu, NWBaseMenu):
         layout = self.layout
         # The boolean node + Join Geometry node
         for type, name, description in geo_combine_operations:
-            props = layout.operator(operators.NWMergeNodes.bl_idname, text=name, text_ctxt=i18n_contexts.default)
+            props = layout.operator(operators.NWMergeNodes.bl_idname, text=name, text_ctxt=i18n_contexts.id_nodetree)
             props.mode = type
             props.merge_type = 'GEOMETRY'
 
@@ -157,7 +156,7 @@ class NWMergeMixMenu(Menu, NWBaseMenu):
     def draw(self, context):
         layout = self.layout
         for type, name, description in blend_types:
-            props = layout.operator(operators.NWMergeNodes.bl_idname, text=name, text_ctxt=i18n_contexts.default)
+            props = layout.operator(operators.NWMergeNodes.bl_idname, text=name, text_ctxt=i18n_contexts.id_nodetree)
             props.mode = type
             props.merge_type = 'MIX'
 
@@ -214,7 +213,7 @@ class NWMergeMathMenu(Menu, NWBaseMenu):
     def draw(self, context):
         layout = self.layout
         for type, name, description in operations:
-            props = layout.operator(operators.NWMergeNodes.bl_idname, text=name, text_ctxt=i18n_contexts.default)
+            props = layout.operator(operators.NWMergeNodes.bl_idname, text=name, text_ctxt=i18n_contexts.id_nodetree)
             props.mode = type
             props.merge_type = 'MATH'
 
@@ -239,7 +238,7 @@ class NWBatchChangeBlendTypeMenu(Menu, NWBaseMenu):
             props = layout.operator(
                 operators.NWBatchChangeNodes.bl_idname,
                 text=name,
-                text_ctxt=i18n_contexts.default
+                text_ctxt=i18n_contexts.id_nodetree,
             )
             props.blend_type = type
             props.operation = 'CURRENT'
@@ -252,7 +251,7 @@ class NWBatchChangeOperationMenu(Menu, NWBaseMenu):
     def draw(self, context):
         layout = self.layout
         for type, name, description in operations:
-            props = layout.operator(operators.NWBatchChangeNodes.bl_idname, text=name, text_ctxt=i18n_contexts.default)
+            props = layout.operator(operators.NWBatchChangeNodes.bl_idname, text=name, text_ctxt=i18n_contexts.id_nodetree)
             props.blend_type = 'CURRENT'
             props.operation = type
 

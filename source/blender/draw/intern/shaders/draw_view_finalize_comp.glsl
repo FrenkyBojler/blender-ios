@@ -6,7 +6,12 @@
  * Compute culling data for each views of a given view buffer.
  */
 
-#pragma BLENDER_REQUIRE(common_math_lib.glsl)
+#include "draw_view_info.hh"
+
+#include "draw_view_lib.glsl"
+#include "gpu_shader_math_matrix_lib.glsl"
+
+COMPUTE_SHADER_CREATE_INFO(draw_view_finalize)
 
 void projmat_dimensions(mat4 winmat,
                         out float r_left,
@@ -38,7 +43,7 @@ void projmat_dimensions(mat4 winmat,
 
 void frustum_boundbox_calc(mat4 winmat, mat4 viewinv, out FrustumCorners frustum_corners)
 {
-  float left, right, bottom, top, near, far;
+  float left = 0.0, right = 0.0, bottom = 0.0, top = 0.0, near = 0.0, far = 0.0;
   bool is_persp = winmat[3][3] == 0.0;
 
   projmat_dimensions(winmat, left, right, bottom, top, near, far);
@@ -118,7 +123,7 @@ void main()
   drw_view_id = gl_LocalInvocationID.x;
 
   /* Invalid views are disabled. */
-  if (all(equal(drw_view.viewinv[2].xyz, vec3(0.0)))) {
+  if (all(equal(drw_view().viewinv[2].xyz, vec3(0.0)))) {
     /* Views with negative radius are treated as disabled. */
     view_culling_buf[drw_view_id].bound_sphere = vec4(-1.0);
     return;
@@ -126,12 +131,12 @@ void main()
 
   /* Read frustom_corners from device memory, update, and write back. */
   FrustumCorners frustum_corners = view_culling_buf[drw_view_id].frustum_corners;
-  frustum_boundbox_calc(drw_view.winmat, drw_view.viewinv, frustum_corners);
+  frustum_boundbox_calc(drw_view().winmat, drw_view().viewinv, frustum_corners);
   view_culling_buf[drw_view_id].frustum_corners = frustum_corners;
 
   /* Read frustum_planes from device memory, update, and write back. */
   FrustumPlanes frustum_planes = view_culling_buf[drw_view_id].frustum_planes;
-  frustum_culling_planes_calc(drw_view.winmat, drw_view.viewmat, frustum_planes);
+  frustum_culling_planes_calc(drw_view().winmat, drw_view().viewmat, frustum_planes);
 
   view_culling_buf[drw_view_id].frustum_planes = frustum_planes;
   view_culling_buf[drw_view_id].bound_sphere = frustum_culling_sphere_calc(frustum_corners);

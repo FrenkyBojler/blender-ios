@@ -13,6 +13,7 @@
 #include "BLI_span.hh"
 #include "BLI_utildefines.h"
 
+#include "GPU_common.hh"
 #include "GPU_vertex_format.hh"
 
 enum GPUVertBufStatus {
@@ -168,7 +169,7 @@ blender::gpu::VertBuf *GPU_vertbuf_create_with_format_ex(const GPUVertFormat &fo
  * (Download and) fill data with the data from the vertex buffer.
  * NOTE: caller is responsible to reserve enough memory of the data parameter.
  */
-void GPU_vertbuf_read(blender::gpu::VertBuf *verts, void *data);
+void GPU_vertbuf_read(const blender::gpu::VertBuf *verts, void *data);
 /** Same as discard but does not free. */
 void GPU_vertbuf_clear(blender::gpu::VertBuf *verts);
 void GPU_vertbuf_discard(blender::gpu::VertBuf *);
@@ -186,6 +187,8 @@ void GPU_vertbuf_init_with_format_ex(blender::gpu::VertBuf &verts,
 void GPU_vertbuf_init_build_on_device(blender::gpu::VertBuf &verts,
                                       const GPUVertFormat &format,
                                       uint v_len);
+
+blender::gpu::VertBuf *GPU_vertbuf_create_on_device(const GPUVertFormat &format, uint v_len);
 
 #define GPU_vertbuf_init_with_format(verts, format) \
   GPU_vertbuf_init_with_format_ex(verts, format, GPU_USAGE_STATIC)
@@ -254,7 +257,7 @@ GPU_INLINE void *GPU_vertbuf_raw_step(GPUVertBufRaw *a)
   return (void *)data;
 }
 
-GPU_INLINE uint GPU_vertbuf_raw_used(GPUVertBufRaw *a)
+GPU_INLINE uint GPU_vertbuf_raw_used(const GPUVertBufRaw *a)
 {
   return ((a->data - a->data_init) / a->stride);
 }
@@ -294,3 +297,17 @@ uint GPU_vertbuf_get_memory_usage();
       verts = nullptr; \
     } \
   } while (0)
+
+namespace blender::gpu {
+
+class VertBufDeleter {
+ public:
+  void operator()(VertBuf *vbo)
+  {
+    GPU_vertbuf_discard(vbo);
+  }
+};
+
+using VertBufPtr = std::unique_ptr<gpu::VertBuf, gpu::VertBufDeleter>;
+
+}  // namespace blender::gpu

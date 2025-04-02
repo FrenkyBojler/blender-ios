@@ -2,6 +2,10 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+/** \file
+ * \ingroup bke
+ */
+
 #pragma once
 
 /**
@@ -117,6 +121,35 @@ class RepeatZoneComputeContext : public ComputeContext {
   int iteration() const
   {
     return iteration_;
+  }
+
+ private:
+  void print_current_in_line(std::ostream &stream) const override;
+};
+
+class ForeachGeometryElementZoneComputeContext : public ComputeContext {
+ private:
+  static constexpr const char *s_static_type = "FOREACH_GEOMETRY_ELEMENT_ZONE";
+
+  int32_t output_node_id_;
+  int index_;
+
+ public:
+  ForeachGeometryElementZoneComputeContext(const ComputeContext *parent,
+                                           int32_t output_node_id,
+                                           int index);
+  ForeachGeometryElementZoneComputeContext(const ComputeContext *parent,
+                                           const bNode &node,
+                                           int index);
+
+  int32_t output_node_id() const
+  {
+    return output_node_id_;
+  }
+
+  int index() const
+  {
+    return index_;
   }
 
  private:
