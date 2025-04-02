@@ -78,6 +78,15 @@ void main()
 
   ivec2 out_texel = ivec2(gl_FragCoord.xy);
 
+#ifdef MAT_SUBSURFACE
+  const bool use_sss = true;
+#else
+  const bool use_sss = false;
+#endif
+
+  ObjectInfos object_infos = drw_infos[drw_resource_id()];
+  bool use_light_linking = receiver_light_set_get(object_infos) != 0;
+
   /* ----- Render Passes output ----- */
 
 #ifdef MAT_RENDER_PASS_SUPPORT /* Needed because node_tree isn't present in test shaders. */
@@ -103,6 +112,7 @@ void main()
 #endif
   gbuf_data.surface_N = g_data.N;
   gbuf_data.thickness = g_thickness;
+  gbuf_data.use_light_linking = use_light_linking;
 
   GBufferWriter gbuf = gbuffer_pack(gbuf_data, g_data.Ng);
 
@@ -122,7 +132,7 @@ void main()
     imageStoreFast(out_gbuf_normal_img, ivec3(out_texel, layer - 1), gbuf.N[layer].xyyy);
   }
   /* NOTE: The image view start at layer 1 so all destination layer is `layer - 1`. */
-  if (true /* TODO(fclem): if light linking on, or sss on, or shadow terminator on. */) {
+  if (use_sss || use_light_linking) {
     imageStoreFast(out_gbuf_header_img, ivec3(out_texel, 1 - 1), uvec4(drw_resource_id()));
   }
 

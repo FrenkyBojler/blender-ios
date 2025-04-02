@@ -43,6 +43,8 @@
 
 struct GBufferData {
   ClosureUndetermined closure[GBUFFER_LAYER_MAX];
+  /* True if surface uses a dedicated light linking group. Otherwise, assume group is 0. */
+  bool use_light_linking;
   /* Additional object information if any closure needs it. */
   float thickness;
   /* First world normal stored in the gbuffer. Only valid if `has_any_surface` is true. */
@@ -338,6 +340,17 @@ vec3 gbuffer_geometry_normal_unpack(uint data, vec3 N)
   vec3 Ng = vec3((uint3(data) >> (uint3(0, 1, 2) + 20u)) & 1u) -
             vec3((uint3(data) >> (uint3(3, 4, 5) + 20u)) & 1u);
   return normalize(Ng);
+}
+
+/* Light Linking flag. */
+uint gbuffer_light_linking_pack(bool use_light_linking)
+{
+  return int(use_light_linking) << 31u;
+}
+
+bool gbuffer_light_linking_unpack(uint header)
+{
+  return flag_test(header, 1u << 31u);
 }
 
 uint gbuffer_header_pack(GBufferMode mode, uint bin)
@@ -888,6 +901,7 @@ GBufferWriter gbuffer_pack(GBufferData data_in, vec3 Ng)
 
   /* Pack geometric normal into the header if needed. */
   gbuf.header |= gbuffer_geometry_normal_pack(Ng, gbuf.surface_N);
+  gbuf.header |= gbuffer_light_linking_pack(data_in.use_light_linking);
 
   if (has_additional_data) {
     gbuffer_additional_info_pack(gbuf, data_in.thickness);
