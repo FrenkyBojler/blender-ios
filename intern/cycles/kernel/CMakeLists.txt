@@ -647,13 +647,13 @@ endif()
 # Issue #136138
 function(get_hip_math_flag arch math_flag)
   if(WIN32 AND (${arch} MATCHES "gfx1030|gfx1031|gfx1032|gfx1033|gfx1034|gfx1035|gfx1036"))
-      set(result
-        -fhip-fp32-correctly-rounded-divide-sqrt
-        -fno-gpu-approx-transcendentals
-        -fgpu-flush-denormals-to-zero
-        -ffp-contract=off)
+    set(result
+      -fhip-fp32-correctly-rounded-divide-sqrt
+      -fno-gpu-approx-transcendentals
+      -fgpu-flush-denormals-to-zero
+      -ffp-contract=off)
   else()
-      set(result "")
+    set(result "")
   endif()
   set(${math_flag} "${result}" PARENT_SCOPE)
 endfunction()
@@ -968,12 +968,7 @@ if(WITH_CYCLES_DEVICE_ONEAPI)
     -shared
     -DWITH_ONEAPI
     -O2
-    -fno-fast-math
-    -ffp-contract=fast
-    -fassociative-math
-    -freciprocal-math
-    -fno-signed-zeros
-    -ffinite-math-only
+    -ffast-math
     -D__KERNEL_LOCAL_ATOMIC_SORT__
     -o"${cycles_kernel_oneapi_lib}"
     -I"${CMAKE_CURRENT_SOURCE_DIR}/.."
@@ -1115,7 +1110,6 @@ if(WITH_CYCLES_DEVICE_ONEAPI)
 
   if(WIN32) # Add Windows specific compiler flags.
     list(APPEND sycl_compiler_flags
-      -fuse-ld=link
       -fms-extensions
       -fms-compatibility
       -D_WINDLL
