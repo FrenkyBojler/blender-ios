@@ -1,3 +1,4 @@
 Referenced by commit da511f55738, Fix: Incorrect freeing in depsgraph RNA objects iterator
 Referenced by issue #117424, Sculpt undo does not revert changes propagated to dependent shape keys.
 Referenced by issue #136835, Crazyspace Sculpting (with deform modifiers such as lattice, cast, curve, displace, ...) only considers the unmodified object
+Referenced by commit 84b6c303174834100b8405090d6ef5ae4d987ce3, Fix #136835: Sculpting with certain modifiers uses original positions
