@@ -167,7 +167,7 @@ void AbstractTreeView::filter(std::optional<StringRef> filter_str)
   this->foreach_filter_item([&](AbstractTreeViewItem &item) {
     item.is_filtered_visible_ = is_empty ||
                                 item.should_be_filtered_visible(StringRefNull(*filter_str));
-    });
+  });
 }
 
 std::optional<uiViewState> AbstractTreeView::persistent_state() const
