@@ -133,6 +133,10 @@
 
 #include <zstd.h>
 
+#ifdef __BIG_ENDIAN__
+#  include "BLI_endian_switch.h"
+#endif
+
 /* Make preferences read-only. */
 #define U (*((const UserDef *)&U))
 
