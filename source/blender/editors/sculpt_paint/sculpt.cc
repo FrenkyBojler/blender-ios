@@ -2464,8 +2464,7 @@ bool node_in_sphere(const bke::pbvh::Node &node,
                     const float radius_sq,
                     const bool original)
 {
-  const Bounds<float3> bounds = original ? bke::pbvh::original_node_bounds(node) :
-                                           bke::pbvh::node_bounds(node);
+  const Bounds<float3> bounds = original ? node.bounds_orig() : node.bounds();
   const float3 nearest = math::clamp(location, bounds.min, bounds.max);
   return math::distance_squared(location, nearest) < radius_sq;
 }
@@ -2475,8 +2474,7 @@ bool node_in_cylinder(const DistRayAABB_Precalc &ray_dist_precalc,
                       const float radius_sq,
                       const bool original)
 {
-  const Bounds<float3> bounds = (original) ? bke::pbvh::original_node_bounds(node) :
-                                             bke::pbvh::node_bounds(node);
+  const Bounds<float3> bounds = (original) ? node.bounds_orig() : node.bounds();
 
   float dummy_co[3], dummy_depth;
   const float dist_sq = dist_squared_ray_to_aabb_v3(

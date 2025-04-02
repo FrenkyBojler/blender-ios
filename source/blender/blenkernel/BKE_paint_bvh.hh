@@ -106,6 +106,16 @@ class Node : NonCopyable {
 
   /** \todo Move storage of image painting data to #Tree or elsewhere. */
   pixels::NodeData *pixels_ = nullptr;
+
+  Bounds<float3> bounds() const
+  {
+    return bounds_;
+  }
+
+  Bounds<float3> bounds_orig() const
+  {
+    return bounds_orig_;
+  }
 };
 
 ENUM_OPERATORS(Node::Flags, Node::Flags::TopologyUpdated);
@@ -496,9 +506,6 @@ namespace blender::bke::pbvh {
 Span<int> node_face_indices_calc_grids(const SubdivCCG &subdiv_ccg,
                                        const GridsNode &node,
                                        Vector<int> &faces);
-
-Bounds<float3> node_bounds(const Node &node);
-Bounds<float3> original_node_bounds(const Node &node);
 
 }  // namespace blender::bke::pbvh
 

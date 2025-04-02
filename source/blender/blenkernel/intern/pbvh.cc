@@ -1590,20 +1590,6 @@ Span<int> node_face_indices_calc_grids(const SubdivCCG &subdiv_ccg,
 
 }  // namespace blender::bke::pbvh
 
-namespace blender::bke::pbvh {
-
-Bounds<float3> node_bounds(const Node &node)
-{
-  return node.bounds_;
-}
-
-Bounds<float3> original_node_bounds(const Node &node)
-{
-  return node.bounds_orig_;
-}
-
-}  // namespace blender::bke::pbvh
-
 void BKE_pbvh_node_get_bm_orco_data(const blender::bke::pbvh::BMeshNode &node,
                                     blender::Span<blender::float3> &r_orig_positions,
                                     blender::Span<blender::int3> &r_orig_tris)
@@ -2015,10 +2001,10 @@ void clip_ray_ortho(
   const float offset_vec[3] = {1e-3f, 1e-3f, 1e-3f};
 
   if (original) {
-    bb_root = original_node_bounds(first_node(pbvh));
+    bb_root = first_node(pbvh).bounds_orig();
   }
   else {
-    bb_root = node_bounds(first_node(pbvh));
+    bb_root = first_node(pbvh).bounds();
   }
 
   /* Calc rough clipping to avoid overflow later. See #109555. */
