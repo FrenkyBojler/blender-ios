@@ -3455,6 +3455,7 @@ static wmOperatorStatus radial_control_modal(bContext *C, wmOperator *op, const 
   if (!handled && (event->val == KM_RELEASE) && (rc->init_event == event->type) &&
       RNA_boolean_get(op->ptr, "release_confirm"))
   {
+    RNA_property_update(C, &rc->ptr, rc->prop);
     ret = OPERATOR_FINISHED;
   }
 
