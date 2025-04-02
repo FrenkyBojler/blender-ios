@@ -129,6 +129,7 @@ set(LIB
   PRIVATE bf::imbuf
   PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
+  PRIVATE bf::intern::optional::openvdb
   PRIVATE bf::animrig
   bf_python_gpu
 
@@ -327,13 +328,6 @@ endif()
 
 if(WITH_OPENCOLORIO)
   add_definitions(-DWITH_OCIO)
-endif()
-
-if(WITH_OPENVDB)
-  add_definitions(-DWITH_OPENVDB)
-  list(APPEND INC
-    ../../../../intern/openvdb
-  )
 endif()
 
 if(WITH_ALEMBIC)

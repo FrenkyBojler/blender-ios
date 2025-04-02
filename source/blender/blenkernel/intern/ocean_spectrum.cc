@@ -6,7 +6,10 @@
  * \ingroup bke
  */
 
+#include "BLI_math_constants.h"
+
 #include "BKE_ocean.h"
+
 #include "ocean_intern.h"
 
 #include <algorithm>

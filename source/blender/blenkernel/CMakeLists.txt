@@ -572,6 +572,7 @@ set(LIB
   PRIVATE bf::intern::clog
   bf_intern_ghost
   PRIVATE bf::intern::guardedalloc
+  PRIVATE bf::intern::optional::openvdb
   bf_intern_libmv  # Uses stub when disabled.
   bf_intern_mikktspace
   bf_intern_opensubdiv  # Uses stub when disabled.
@@ -769,20 +770,6 @@ if(WITH_OPENSUBDIV)
     ${OPENSUBDIV_LIBRARIES}
   )
   add_definitions(-DWITH_OPENSUBDIV)
-endif()
-
-if(WITH_OPENVDB)
-  list(APPEND INC
-    ../../../intern/openvdb
-  )
-  list(APPEND INC_SYS
-    ${OPENVDB_INCLUDE_DIRS}
-  )
-  list(APPEND LIB
-    bf_intern_openvdb
-    ${OPENVDB_LIBRARIES}
-  )
-  add_definitions(-DWITH_OPENVDB ${OPENVDB_DEFINITIONS})
 endif()
 
 if(WITH_QUADRIFLOW)

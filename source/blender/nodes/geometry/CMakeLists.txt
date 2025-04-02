@@ -260,6 +260,7 @@ set(LIB
   PRIVATE bf::imbuf
   PRIVATE bf::imbuf::movie
   PRIVATE bf::intern::guardedalloc
+  PRIVATE bf::intern::optional::openvdb
   bf_nodes
   PRIVATE bf::intern::atomic
   PRIVATE bf::extern::fmtlib
@@ -337,16 +338,6 @@ if(WITH_GMP)
   list(APPEND LIB
     ${GMP_LIBRARIES}
   )
-endif()
-
-if(WITH_OPENVDB)
-  list(APPEND INC
-    ../../../../intern/openvdb
-  )
-  list(APPEND INC_SYS
-    ${OPENVDB_INCLUDE_DIRS}
-  )
-  add_definitions(-DWITH_OPENVDB ${OPENVDB_DEFINITIONS})
 endif()
 
 add_node_discovery(

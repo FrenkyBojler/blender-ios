@@ -15,6 +15,8 @@ add_subdirectory(mikktspace)
 add_subdirectory(eigen)
 add_subdirectory(sky)
 
+add_subdirectory(openvdb)
+
 if(WITH_AUDASPACE)
   add_subdirectory(audaspace)
 endif()
@@ -54,10 +56,6 @@ endif()
 
 if(WITH_UV_SLIM)
   add_subdirectory(slim)
-endif()
-
-if(WITH_OPENVDB)
-  add_subdirectory(openvdb)
 endif()
 
 if(WITH_QUADRIFLOW)

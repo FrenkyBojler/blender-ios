@@ -106,6 +106,7 @@ set(LIB
   PRIVATE bf::functions
   PRIVATE bf::intern::atomic
   PRIVATE bf::intern::guardedalloc
+  PRIVATE bf::intern::optional::openvdb
   PRIVATE bf::extern::fmtlib
 )
 
@@ -114,20 +115,6 @@ if(WITH_UV_SLIM)
     ../../../intern/slim
   )
   add_definitions(-DWITH_UV_SLIM)
-endif()
-
-if(WITH_OPENVDB)
-  list(APPEND INC
-    ../../../intern/openvdb
-  )
-  list(APPEND INC_SYS
-    ${OPENVDB_INCLUDE_DIRS}
-  )
-  list(APPEND LIB
-    bf_intern_openvdb
-    ${OPENVDB_LIBRARIES}
-  )
-  add_definitions(-DWITH_OPENVDB ${OPENVDB_DEFINITIONS})
 endif()
 
 if(WITH_GMP)
