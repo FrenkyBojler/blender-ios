@@ -4231,7 +4231,6 @@ static void mesh_separate_material_assign_mat_nr(Main *bmain, Object *ob, const 
     }
 
     BKE_id_material_clear(bmain, obdata);
-    BKE_object_material_resize(bmain, ob, 1, true);
     BKE_id_material_resize(bmain, obdata, 1, true);
     BKE_objects_materials_sync_length_all(bmain, obdata);
 
