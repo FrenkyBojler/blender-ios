@@ -282,7 +282,7 @@ class VKDevice : public NonCopyable {
     return *queue_mutex_;
   }
 
-  const uint32_t queue_family_get() const
+  uint32_t queue_family_get() const
   {
     return vk_queue_family_;
   }
@@ -351,7 +351,11 @@ class VKDevice : public NonCopyable {
   TimelineValue render_graph_submit(render_graph::VKRenderGraph *render_graph,
                                     VKDiscardPool &context_discard_pool,
                                     bool submit_to_device,
-                                    bool wait_for_completion);
+                                    bool wait_for_completion,
+                                    VkPipelineStageFlags wait_dst_stage_mask,
+                                    VkSemaphore wait_semaphore,
+                                    VkSemaphore signal_semaphore,
+                                    VkFence signal_fence);
   void wait_for_timeline(TimelineValue timeline);
 
   /**
