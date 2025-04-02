@@ -126,6 +126,7 @@ enum class IBOType : int8_t {
   FaceDots,
   LinesPaintMask,
   LinesAdjacency,
+  UVLines,
   EditUVTris,
   EditUVLines,
   EditUVPoints,
@@ -179,6 +180,7 @@ struct MeshBatchList {
   gpu::Batch *wire_loops;
   /* Same as wire_loops but only has uvs. */
   gpu::Batch *wire_loops_uvs;
+  gpu::Batch *wire_loops_edituvs;
   gpu::Batch *sculpt_overlays;
   gpu::Batch *surface_viewer_attribute;
 };
@@ -216,6 +218,7 @@ enum DRWBatchFlag {
   MBC_WIRE_EDGES = (1u << MBC_BATCH_INDEX(wire_edges)),
   MBC_WIRE_LOOPS = (1u << MBC_BATCH_INDEX(wire_loops)),
   MBC_WIRE_LOOPS_UVS = (1u << MBC_BATCH_INDEX(wire_loops_uvs)),
+  MBC_WIRE_LOOPS_EDITUVS = (1u << MBC_BATCH_INDEX(wire_loops_edituvs)),
   MBC_SCULPT_OVERLAYS = (1u << MBC_BATCH_INDEX(sculpt_overlays)),
   MBC_VIEWER_ATTRIBUTE_OVERLAY = (1u << MBC_BATCH_INDEX(surface_viewer_attribute)),
   MBC_SURFACE_PER_MAT = (1u << MBC_BATCH_LEN),
@@ -287,7 +290,6 @@ struct MeshBatchCache {
   bool is_dirty;
   bool is_editmode;
   bool is_uvsyncsel;
-  bool is_editing_uvs;
 
   DRW_MeshWeightState weight_state;
 
@@ -313,7 +315,8 @@ struct MeshBatchCache {
 
 #define MBC_EDITUV \
   (MBC_EDITUV_FACES_STRETCH_AREA | MBC_EDITUV_FACES_STRETCH_ANGLE | MBC_EDITUV_FACES | \
-   MBC_EDITUV_EDGES | MBC_EDITUV_VERTS | MBC_EDITUV_FACEDOTS | MBC_UV_FACES | MBC_WIRE_LOOPS_UVS)
+   MBC_EDITUV_EDGES | MBC_EDITUV_VERTS | MBC_EDITUV_FACEDOTS | MBC_UV_FACES | \
+   MBC_WIRE_LOOPS_UVS | MBC_WIRE_LOOPS_EDITUVS)
 
 void mesh_buffer_cache_create_requested(TaskGraph &task_graph,
                                         const Scene &scene,
@@ -327,8 +330,7 @@ void mesh_buffer_cache_create_requested(TaskGraph &task_graph,
                                         bool is_paint_mode,
                                         bool do_final,
                                         bool do_uvedit,
-                                        bool use_hide,
-                                        bool is_editing_uvs);
+                                        bool use_hide);
 
 void mesh_buffer_cache_create_requested_subdiv(MeshBatchCache &cache,
                                                MeshBufferCache &mbc,

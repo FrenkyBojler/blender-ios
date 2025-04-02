@@ -84,8 +84,7 @@ void mesh_buffer_cache_create_requested(TaskGraph & /*task_graph*/,
                                         const bool is_paint_mode,
                                         const bool do_final,
                                         const bool do_uvedit,
-                                        const bool use_hide,
-                                        const bool is_editing_uvs)
+                                        const bool use_hide)
 {
   if (ibo_requests.is_empty() && vbo_requests.is_empty()) {
     return;
@@ -115,15 +114,8 @@ void mesh_buffer_cache_create_requested(TaskGraph & /*task_graph*/,
   SCOPED_TIMER(__func__);
 #endif
 
-  MeshRenderData mr = mesh_render_data_create(object,
-                                              mesh,
-                                              is_editmode,
-                                              is_paint_mode,
-                                              do_final,
-                                              do_uvedit,
-                                              use_hide,
-                                              is_editing_uvs,
-                                              scene.toolsettings);
+  MeshRenderData mr = mesh_render_data_create(
+      object, mesh, is_editmode, is_paint_mode, do_final, do_uvedit, use_hide, scene.toolsettings);
 
   ensure_dependency_data(mr, ibo_requests, vbo_requests, mbc);
 
@@ -166,11 +158,14 @@ void mesh_buffer_cache_create_requested(TaskGraph & /*task_graph*/,
       case IBOType::LinesAdjacency:
         created_ibos[i] = extract_lines_adjacency(mr, cache.is_manifold);
         break;
+      case IBOType::UVLines:
+        created_ibos[i] = extract_edituv_lines(mr, false);
+        break;
       case IBOType::EditUVTris:
         created_ibos[i] = extract_edituv_tris(mr);
         break;
       case IBOType::EditUVLines:
-        created_ibos[i] = extract_edituv_lines(mr);
+        created_ibos[i] = extract_edituv_lines(mr, true);
         break;
       case IBOType::EditUVPoints:
         created_ibos[i] = extract_edituv_points(mr);
@@ -426,6 +421,9 @@ void mesh_buffer_cache_create_requested_subdiv(MeshBatchCache &cache,
     /* Make sure UVs are computed before edituv stuffs. */
     buffers.vbos.add_new(VBOType::UVs, extract_uv_maps_subdiv(subdiv_cache, cache));
   }
+  if (ibos_to_create.contains(IBOType::UVLines)) {
+    buffers.ibos.add_new(IBOType::UVLines, extract_edituv_lines_subdiv(mr, subdiv_cache, false));
+  }
   if (vbos_to_create.contains(VBOType::EditUVStretchArea)) {
     buffers.vbos.add_new(
         VBOType::EditUVStretchArea,
@@ -442,7 +440,8 @@ void mesh_buffer_cache_create_requested_subdiv(MeshBatchCache &cache,
     buffers.ibos.add_new(IBOType::EditUVTris, extract_edituv_tris_subdiv(mr, subdiv_cache));
   }
   if (ibos_to_create.contains(IBOType::EditUVLines)) {
-    buffers.ibos.add_new(IBOType::EditUVLines, extract_edituv_lines_subdiv(mr, subdiv_cache));
+    buffers.ibos.add_new(IBOType::EditUVLines,
+                         extract_edituv_lines_subdiv(mr, subdiv_cache, true));
   }
   if (ibos_to_create.contains(IBOType::EditUVPoints)) {
     buffers.ibos.add_new(IBOType::EditUVPoints, extract_edituv_points_subdiv(mr, subdiv_cache));

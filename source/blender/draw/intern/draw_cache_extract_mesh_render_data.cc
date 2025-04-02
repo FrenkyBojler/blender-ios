@@ -529,7 +529,6 @@ MeshRenderData mesh_render_data_create(Object &object,
                                        const bool do_final,
                                        const bool do_uvedit,
                                        const bool use_hide,
-                                       const bool is_editing_uvs,
                                        const ToolSettings *ts)
 {
   MeshRenderData mr{};
@@ -537,7 +536,6 @@ MeshRenderData mesh_render_data_create(Object &object,
   mr.materials_num = BKE_object_material_used_with_fallback_eval(object);
 
   mr.use_hide = use_hide;
-  mr.is_editing_uvs = is_editing_uvs;
 
   const Mesh *editmesh_orig = BKE_object_get_pre_modified_mesh(&object);
   if (is_editmode && editmesh_orig) {

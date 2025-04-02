@@ -761,7 +761,7 @@ class MeshUVs : Overlay {
 
     if (show_wireframe_ && has_active_object_uvmap) {
       wireframe_ps_.push_constant("alpha", opacity);
-      gpu::Batch *geom = DRW_mesh_batch_cache_get_uv_edges(*ob, mesh);
+      gpu::Batch *geom = DRW_mesh_batch_cache_get_uv_wireframe(*ob, mesh);
       wireframe_ps_.draw_expand(geom, GPU_PRIM_TRIS, 2, 1, res_handle);
     }
 
@@ -841,8 +841,14 @@ class MeshUVs : Overlay {
       /* When an object is actively being modified in an edit mode, don't modify the opactiy to be
        * less opaque. */
       wireframe_ps_.push_constant("alpha", space_image->uv_opacity);
-      gpu::Batch *geom = DRW_mesh_batch_cache_get_uv_edges(ob, mesh);
-      wireframe_ps_.draw_expand(geom, GPU_PRIM_TRIS, 2, 1, res_handle);
+      if (is_uv_editable) {
+        gpu::Batch *geom = DRW_mesh_batch_cache_get_edituv_wireframe(ob, mesh);
+        wireframe_ps_.draw_expand(geom, GPU_PRIM_TRIS, 2, 1, res_handle);
+      }
+      else {
+        gpu::Batch *geom = DRW_mesh_batch_cache_get_uv_wireframe(ob, mesh);
+        wireframe_ps_.draw_expand(geom, GPU_PRIM_TRIS, 2, 1, res_handle);
+      }
     }
   }
 

@@ -163,8 +163,7 @@ void DRW_create_subdivision(Object &ob,
                             bool do_uvedit,
                             bool do_cage,
                             const ToolSettings *ts,
-                            bool use_hide,
-                            bool is_editing_uvs);
+                            bool use_hide);
 
 void DRW_subdivide_loose_geom(DRWSubdivCache &subdiv_cache, const MeshBufferCache &cache);
 

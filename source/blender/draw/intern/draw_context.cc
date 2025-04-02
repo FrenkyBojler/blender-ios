@@ -382,20 +382,6 @@ template<> Mesh &DRW_object_get_data_for_drawing(const Object &object)
   return *BKE_mesh_wrapper_ensure_subdivision(&mesh);
 }
 
-bool DRW_space_data_is_uv_editor(const DRWContext *draw_ctx)
-{
-  if (!draw_ctx->space_data) {
-    return false;
-  }
-  const bool is_space_image = draw_ctx->space_data->spacetype == SPACE_IMAGE;
-  /* Space can only be UV Editor when its the SPACE_IMAGE type */
-  if (!is_space_image) {
-    return false;
-  }
-  const SpaceImage *space_image = reinterpret_cast<const SpaceImage *>(draw_ctx->space_data);
-  return space_image->mode == SI_MODE_UV;
-}
-
 /** \} */
 
 /* -------------------------------------------------------------------- */

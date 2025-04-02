@@ -182,8 +182,7 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
                                            Mesh &mesh,
                                            const Scene &scene,
                                            bool is_paint_mode,
-                                           bool use_hide,
-                                           bool is_editing_uvs);
+                                           bool use_hide);
 
 blender::gpu::Batch *DRW_mesh_batch_cache_get_all_verts(Mesh &mesh);
 blender::gpu::Batch *DRW_mesh_batch_cache_get_all_edges(Mesh &mesh);
@@ -256,6 +255,7 @@ blender::gpu::Batch *DRW_mesh_batch_cache_get_edituv_faces_stretch_area(Object &
 blender::gpu::Batch *DRW_mesh_batch_cache_get_edituv_faces_stretch_angle(Object &object,
                                                                          Mesh &mesh);
 blender::gpu::Batch *DRW_mesh_batch_cache_get_edituv_faces(Object &object, Mesh &mesh);
+blender::gpu::Batch *DRW_mesh_batch_cache_get_edituv_wireframe(Object &object, Mesh &mesh);
 blender::gpu::Batch *DRW_mesh_batch_cache_get_edituv_edges(Object &object, Mesh &mesh);
 blender::gpu::Batch *DRW_mesh_batch_cache_get_edituv_verts(Object &object, Mesh &mesh);
 blender::gpu::Batch *DRW_mesh_batch_cache_get_edituv_facedots(Object &object, Mesh &mesh);
@@ -267,7 +267,7 @@ blender::gpu::Batch *DRW_mesh_batch_cache_get_edituv_facedots(Object &object, Me
  * \{ */
 
 blender::gpu::Batch *DRW_mesh_batch_cache_get_uv_faces(Object &object, Mesh &mesh);
-blender::gpu::Batch *DRW_mesh_batch_cache_get_uv_edges(Object &object, Mesh &mesh);
+blender::gpu::Batch *DRW_mesh_batch_cache_get_uv_wireframe(Object &object, Mesh &mesh);
 blender::gpu::Batch *DRW_mesh_batch_cache_get_edit_mesh_analysis(Mesh &mesh);
 
 /** \} */

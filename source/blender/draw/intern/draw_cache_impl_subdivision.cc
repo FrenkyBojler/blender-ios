@@ -1596,8 +1596,7 @@ static bool draw_subdiv_create_requested_buffers(Object &ob,
                                                  const bool do_uvedit,
                                                  const bool do_cage,
                                                  const ToolSettings *ts,
-                                                 const bool use_hide,
-                                                 const bool is_editing_uvs)
+                                                 const bool use_hide)
 {
   SubsurfRuntimeData *runtime_data = mesh.runtime->subsurf_runtime_data;
   BLI_assert(runtime_data && runtime_data->has_gpu_subdiv);
@@ -1686,7 +1685,7 @@ static bool draw_subdiv_create_requested_buffers(Object &ob,
   }
 
   MeshRenderData mr = mesh_render_data_create(
-      ob, mesh, is_editmode, is_paint_mode, do_final, do_uvedit, use_hide, is_editing_uvs, ts);
+      ob, mesh, is_editmode, is_paint_mode, do_final, do_uvedit, use_hide, ts);
   draw_cache.use_hide = use_hide;
 
   /* Used for setting loop normals flags. Mapped extraction is only used during edit mode.
@@ -1771,8 +1770,7 @@ void DRW_create_subdivision(Object &ob,
                             const bool do_uvedit,
                             const bool do_cage,
                             const ToolSettings *ts,
-                            const bool use_hide,
-                            const bool is_editing_uvs)
+                            const bool use_hide)
 {
 
 #undef TIME_SUBDIV
@@ -1793,8 +1791,7 @@ void DRW_create_subdivision(Object &ob,
                                             do_uvedit,
                                             do_cage,
                                             ts,
-                                            use_hide,
-                                            is_editing_uvs))
+                                            use_hide))
   {
     /* Did not run*/
     return;

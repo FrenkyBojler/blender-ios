@@ -1050,12 +1050,20 @@ gpu::Batch *DRW_mesh_batch_cache_get_uv_faces(Object &object, Mesh &mesh)
   return DRW_batch_request(&cache.batch.uv_faces);
 }
 
-gpu::Batch *DRW_mesh_batch_cache_get_uv_edges(Object &object, Mesh &mesh)
+gpu::Batch *DRW_mesh_batch_cache_get_uv_wireframe(Object &object, Mesh &mesh)
 {
   MeshBatchCache &cache = *mesh_batch_cache_get(mesh);
   edituv_request_active_uv(cache, object, mesh);
   mesh_batch_cache_add_request(cache, MBC_WIRE_LOOPS_UVS);
   return DRW_batch_request(&cache.batch.wire_loops_uvs);
+}
+
+gpu::Batch *DRW_mesh_batch_cache_get_edituv_wireframe(Object &object, Mesh &mesh)
+{
+  MeshBatchCache &cache = *mesh_batch_cache_get(mesh);
+  edituv_request_active_uv(cache, object, mesh);
+  mesh_batch_cache_add_request(cache, MBC_WIRE_LOOPS_EDITUVS);
+  return DRW_batch_request(&cache.batch.wire_loops_edituvs);
 }
 
 gpu::Batch *DRW_mesh_batch_cache_get_surface_edges(Mesh &mesh)
@@ -1114,8 +1122,7 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
                                            Mesh &mesh,
                                            const Scene &scene,
                                            const bool is_paint_mode,
-                                           const bool use_hide,
-                                           const bool is_editing_uvs)
+                                           const bool use_hide)
 {
   const ToolSettings *ts = scene.toolsettings;
 
@@ -1149,9 +1156,10 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
     }
   }
 
-  if (batch_requested & (MBC_SURFACE | MBC_SURFACE_PER_MAT | MBC_WIRE_LOOPS_UVS | MBC_UV_FACES |
-                         MBC_EDITUV_FACES_STRETCH_AREA | MBC_EDITUV_FACES_STRETCH_ANGLE |
-                         MBC_EDITUV_FACES | MBC_EDITUV_EDGES | MBC_EDITUV_VERTS))
+  if (batch_requested &
+      (MBC_SURFACE | MBC_SURFACE_PER_MAT | MBC_WIRE_LOOPS_UVS | MBC_WIRE_LOOPS_EDITUVS |
+       MBC_UV_FACES | MBC_EDITUV_FACES_STRETCH_AREA | MBC_EDITUV_FACES_STRETCH_ANGLE |
+       MBC_EDITUV_FACES | MBC_EDITUV_EDGES | MBC_EDITUV_VERTS))
   {
     /* Modifiers will only generate an orco layer if the mesh is deformed. */
     if (cache.cd_needed.orco != 0) {
@@ -1213,14 +1221,10 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
   }
 
   if (batch_requested & MBC_EDITUV) {
-    /* Discard UV batches if sync_selection changes. Also discard if is_editing_uvs changes due to
-     * Image Editor type changing.*/
+    /* Discard UV batches if sync_selection changes.*/
     const bool is_uvsyncsel = ts && (ts->uv_flag & UV_SYNC_SELECTION);
-    if (cd_uv_update || (cache.is_uvsyncsel != is_uvsyncsel) ||
-        (cache.is_editing_uvs != is_editing_uvs))
-    {
+    if (cd_uv_update || (cache.is_uvsyncsel != is_uvsyncsel)) {
       cache.is_uvsyncsel = is_uvsyncsel;
-      cache.is_editing_uvs = is_editing_uvs;
       FOREACH_MESH_BUFFER_CACHE (cache, mbc) {
         mbc->buff.vbos.remove(VBOType::EditUVData);
         mbc->buff.vbos.remove(VBOType::FaceDotUV);
@@ -1234,6 +1238,7 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
        * referenced. */
       GPU_BATCH_CLEAR_SAFE(cache.batch.uv_faces);
       GPU_BATCH_CLEAR_SAFE(cache.batch.wire_loops_uvs);
+      GPU_BATCH_CLEAR_SAFE(cache.batch.wire_loops_edituvs);
       GPU_BATCH_CLEAR_SAFE(cache.batch.edituv_faces_stretch_area);
       GPU_BATCH_CLEAR_SAFE(cache.batch.edituv_faces_stretch_angle);
       GPU_BATCH_CLEAR_SAFE(cache.batch.edituv_faces);
@@ -1379,7 +1384,15 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
     }
     if (batches_to_create & MBC_WIRE_LOOPS_UVS) {
       BatchCreateData batch{
-          *cache.batch.wire_loops_uvs, GPU_PRIM_LINES, list, IBOType::EditUVLines, {}};
+          *cache.batch.wire_loops_uvs, GPU_PRIM_LINES, list, IBOType::UVLines, {}};
+      if (cache.cd_used.uv != 0) {
+        batch.vbos.append(VBOType::UVs);
+      }
+      batch_info.append(std::move(batch));
+    }
+    if (batches_to_create & MBC_WIRE_LOOPS_EDITUVS) {
+      BatchCreateData batch{
+          *cache.batch.wire_loops_edituvs, GPU_PRIM_LINES, list, IBOType::EditUVLines, {}};
       if (cache.cd_used.uv != 0) {
         batch.vbos.append(VBOType::UVs);
       }
@@ -1674,7 +1687,6 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
                                        is_paint_mode,
                                        false,
                                        true,
-                                       true,
                                        true);
   }
 
@@ -1691,7 +1703,6 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
                                        is_paint_mode,
                                        false,
                                        false,
-                                       true,
                                        true);
   }
 
@@ -1708,8 +1719,7 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
                            false,
                            do_cage,
                            ts,
-                           use_hide,
-                           is_editing_uvs);
+                           use_hide);
   }
   else {
     /* The subsurf modifier may have been recently removed, or another modifier was added after it,
@@ -1729,8 +1739,7 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
                                      is_paint_mode,
                                      true,
                                      false,
-                                     use_hide,
-                                     is_editing_uvs);
+                                     use_hide);
 
   std::array<MeshBufferCache *, 3> caches{&cache.final, &cache.cage, &cache.uv_cage};
   for (const BatchCreateData &batch : batch_info) {

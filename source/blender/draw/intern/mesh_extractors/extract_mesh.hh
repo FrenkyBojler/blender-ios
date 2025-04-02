@@ -59,7 +59,6 @@ struct MeshRenderData {
   int materials_num;
 
   bool use_hide;
-  bool is_editing_uvs;
   bool use_subsurf_fdots;
   bool hide_unmapped_edges;
   bool use_simplify_normals;
@@ -187,7 +186,6 @@ MeshRenderData mesh_render_data_create(Object &object,
                                        bool do_final,
                                        bool do_uvedit,
                                        bool use_hide,
-                                       bool is_editing_uvs,
                                        const ToolSettings *ts);
 void mesh_render_data_update_corner_normals(MeshRenderData &mr);
 void mesh_render_data_update_face_normals(MeshRenderData &mr);
@@ -345,9 +343,10 @@ gpu::VertBufPtr extract_edituv_data_subdiv(const MeshRenderData &mr,
 gpu::IndexBufPtr extract_edituv_tris(const MeshRenderData &mr);
 gpu::IndexBufPtr extract_edituv_tris_subdiv(const MeshRenderData &mr,
                                             const DRWSubdivCache &subdiv_cache);
-gpu::IndexBufPtr extract_edituv_lines(const MeshRenderData &mr);
+gpu::IndexBufPtr extract_edituv_lines(const MeshRenderData &mr, bool edit_uvs);
 gpu::IndexBufPtr extract_edituv_lines_subdiv(const MeshRenderData &mr,
-                                             const DRWSubdivCache &subdiv_cache);
+                                             const DRWSubdivCache &subdiv_cache,
+                                             bool edit_uvs);
 gpu::IndexBufPtr extract_edituv_points(const MeshRenderData &mr);
 gpu::IndexBufPtr extract_edituv_points_subdiv(const MeshRenderData &mr,
                                               const DRWSubdivCache &subdiv_cache);
