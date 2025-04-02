@@ -2417,20 +2417,20 @@ static void freezetrans_evaluate(bConstraint *con, bConstraintOb *cob, ListBase 
   float parentmat[4][4];
   float parentinv[4][4];
 
-  if (cob->pchan) {
-    /* TODO: bone parent matrix */
-    BLI_assert(false);
+  if (cob->pchan && cob->pchan->parent) {
+    /* Bone parent. */
+    copy_m4_m4(parentmat, cob->pchan->parent->pose_mat);
+    unit_m4(parentinv);
+  }
+  else if (cob->ob->parent) {
+    /* Object parent. */
+    copy_m4_m4(parentmat, cob->ob->parent->object_to_world().ptr());
+    copy_m4_m4(parentinv, cob->ob->parentinv);
   }
   else {
-    /* Object parent. */
-    if (cob->ob->parent) {
-      copy_m4_m4(parentmat, cob->ob->parent->object_to_world().ptr());
-      copy_m4_m4(parentinv, cob->ob->parentinv);
-    }
-    else {
-      unit_m4(parentmat);
-      unit_m4(parentinv);
-    }
+    /* No parent.*/
+    unit_m4(parentmat);
+    unit_m4(parentinv);
   }
 
   /* While running the freeze operator... */
