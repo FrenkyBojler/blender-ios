@@ -150,40 +150,41 @@ void USDLightWriter::do_write(HierarchyContext &context)
   set_attribute(
       usd_light_api.CreateExposureAttr(pxr::VtValue(), true), 0.0f, timecode, usd_value_writer_);
 
-  switch (light->color_mode)
-  {
-  case LA_COLOR:
-    set_attribute(usd_light_api.CreateEnableColorTemperatureAttr(pxr::VtValue(), true),
-                false,
-                timecode,
-                usd_value_writer_);
-    set_attribute(
-      usd_light_api.CreateColorAttr(pxr::VtValue(), true), color, timecode, usd_value_writer_);
-    break;
-  case LA_TEMPERATURE:
-    set_attribute(usd_light_api.CreateEnableColorTemperatureAttr(pxr::VtValue(), true),
-                true,
-                timecode,
-                usd_value_writer_);
-    set_attribute(
-      usd_light_api.CreateColorAttr(pxr::VtValue(), true), fake_color, timecode, usd_value_writer_);
-    set_attribute(usd_light_api.CreateColorTemperatureAttr(pxr::VtValue(), true),
-                light->temperature,
-                timecode,
-                usd_value_writer_);
-    break;
-  case LA_BOTH:
-    set_attribute(usd_light_api.CreateEnableColorTemperatureAttr(pxr::VtValue(), true),
-                true,
-                timecode,
-                usd_value_writer_);
-    set_attribute(
-      usd_light_api.CreateColorAttr(pxr::VtValue(), true), color, timecode, usd_value_writer_);
-    set_attribute(usd_light_api.CreateColorTemperatureAttr(pxr::VtValue(), true),
-                light->temperature,
-                timecode,
-                usd_value_writer_);
-    break;
+  switch (light->color_mode) {
+    case LA_COLOR:
+      set_attribute(usd_light_api.CreateEnableColorTemperatureAttr(pxr::VtValue(), true),
+                    false,
+                    timecode,
+                    usd_value_writer_);
+      set_attribute(
+          usd_light_api.CreateColorAttr(pxr::VtValue(), true), color, timecode, usd_value_writer_);
+      break;
+    case LA_TEMPERATURE:
+      set_attribute(usd_light_api.CreateEnableColorTemperatureAttr(pxr::VtValue(), true),
+                    true,
+                    timecode,
+                    usd_value_writer_);
+      set_attribute(usd_light_api.CreateColorAttr(pxr::VtValue(), true),
+                    fake_color,
+                    timecode,
+                    usd_value_writer_);
+      set_attribute(usd_light_api.CreateColorTemperatureAttr(pxr::VtValue(), true),
+                    light->temperature,
+                    timecode,
+                    usd_value_writer_);
+      break;
+    case LA_BOTH:
+      set_attribute(usd_light_api.CreateEnableColorTemperatureAttr(pxr::VtValue(), true),
+                    true,
+                    timecode,
+                    usd_value_writer_);
+      set_attribute(
+          usd_light_api.CreateColorAttr(pxr::VtValue(), true), color, timecode, usd_value_writer_);
+      set_attribute(usd_light_api.CreateColorTemperatureAttr(pxr::VtValue(), true),
+                    light->temperature,
+                    timecode,
+                    usd_value_writer_);
+      break;
   }
 
   set_attribute(usd_light_api.CreateDiffuseAttr(pxr::VtValue(), true),

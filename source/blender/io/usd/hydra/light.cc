@@ -89,22 +89,21 @@ void LightData::init()
   pxr::GfVec3f color(light->r, light->g, light->b);
   pxr::GfVec3f fake_color(1.0f, 1.0f, 1.0f);  // This color is used to multiply Temperature by 1 To enable Only Temperature
 
-  switch (light->color_mode)
-  {
-  case LA_COLOR:
-    data_[pxr::HdLightTokens->enableColorTemperature] = false;
-    data_[pxr::HdLightTokens->color] = color;
-    break;
-  case LA_TEMPERATURE:
-    data_[pxr::HdLightTokens->enableColorTemperature] = true;
-    data_[pxr::HdLightTokens->color] = fake_color; // We multiply the Temperature by 1
-    data_[pxr::HdLightTokens->colorTemperature] = light->temperature;
-    break;
-  case LA_BOTH:
-    data_[pxr::HdLightTokens->enableColorTemperature] = true;
-    data_[pxr::HdLightTokens->color] = color;
-    data_[pxr::HdLightTokens->colorTemperature] = light->temperature;
-    break;
+  switch (light->color_mode) {
+    case LA_COLOR:
+      data_[pxr::HdLightTokens->enableColorTemperature] = false;
+      data_[pxr::HdLightTokens->color] = color;
+      break;
+    case LA_TEMPERATURE:
+      data_[pxr::HdLightTokens->enableColorTemperature] = true;
+      data_[pxr::HdLightTokens->color] = fake_color;  // We multiply the Temperature by 1
+      data_[pxr::HdLightTokens->colorTemperature] = light->temperature;
+      break;
+    case LA_BOTH:
+      data_[pxr::HdLightTokens->enableColorTemperature] = true;
+      data_[pxr::HdLightTokens->color] = color;
+      data_[pxr::HdLightTokens->colorTemperature] = light->temperature;
+      break;
   }
 
   data_[pxr::HdLightTokens->intensity] = intensity;

@@ -42,7 +42,7 @@ from .fbx_utils import (
     FBX_ANIM_PROPSGROUP_NAME,
     FBX_KTIME,
     BLENDER_OTHER_OBJECT_TYPES, BLENDER_OBJECT_TYPES_MESHLIKE,
-    FBX_LIGHT_TYPES, FBX_LIGHT_DECAY_TYPES,
+    FBX_LIGHT_TYPES, FBX_LIGHT_COLOR_MODE, FBX_LIGHT_DECAY_TYPES,
     RIGHT_HAND_AXES, FBX_FRAMERATES,
     # Miscellaneous utils.
     PerfMon,
@@ -201,8 +201,11 @@ def fbx_template_def_light(scene, settings, override_defaults=None, nbr_users=0)
     gscale = settings.global_scale
     props = {
         b"LightType": (0, "p_enum", False),  # Point light.
+        b"LightColorMode": (0, "p_enum", False), # COLOR
         b"CastLight": (True, "p_bool", False),
         b"Color": ((1.0, 1.0, 1.0), "p_color", True),
+        b"Temperature": (6500, "p_number", True), # In Kelvin
+        b"UseTemperature":(True, "p_bool", False ),
         b"Intensity": (100.0, "p_number", True),  # Times 100 compared to Blender values...
         b"DecayType": (2, "p_enum", False),  # Quadratic.
         b"DecayStart": (30.0 * gscale, "p_double", False),
@@ -604,8 +607,11 @@ def fbx_data_light_elements(root, lamp, scene_data):
     tmpl = elem_props_template_init(scene_data.templates, b"Light")
     props = elem_properties(light)
     elem_props_template_set(tmpl, props, "p_enum", b"LightType", FBX_LIGHT_TYPES[lamp.type])
+    elem_props_template_set(tmpl, props, "p_enum", b"LightColorMode", FBX_LIGHT_COLOR_MODE[lamp.color_mode])
     elem_props_template_set(tmpl, props, "p_bool", b"CastLight", do_light)
     elem_props_template_set(tmpl, props, "p_color", b"Color", lamp.color)
+    elem_props_template_set(tmpl, props, "p_number", b"Temperature", lamp.temperature)
+    elem_props_template_set(tmpl, props, "p_bool", b"UseTemperature", lamp.use_temperature)
     elem_props_template_set(tmpl, props, "p_number", b"Intensity", lamp.energy * 100.0)
     elem_props_template_set(tmpl, props, "p_enum", b"DecayType", FBX_LIGHT_DECAY_TYPES['INVERSE_SQUARE'])
     elem_props_template_set(tmpl, props, "p_double", b"DecayStart", 25.0 * gscale)  # 25 is old Blender default

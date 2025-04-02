@@ -224,19 +224,18 @@ def elem_props_get_vector_3d(elem, elem_prop_id, default=None):
 def elem_props_get_number(elem, elem_prop_id, default=None):
     elem_prop = elem_props_find_first(elem, elem_prop_id)
     if elem_prop is not None:
+        if len(elem_prop.props) < 5 or len(elem_prop.props_type) < 5:
+            return default
         assert(elem_prop.props[0] == elem_prop_id)
         if elem_prop.props[1] == b'double':
-            assert(elem_prop.props[1] == b'double')
             assert(elem_prop.props[2] == b'Number')
         else:
             assert(elem_prop.props[1] == b'Number')
             assert(elem_prop.props[2] == b'')
-
-        # we could allow other number types
         assert(elem_prop.props_type[4] == data_types.FLOAT64)
-
         return elem_prop.props[4]
     return default
+
 
 
 def elem_props_get_integer(elem, elem_prop_id, default=None):
@@ -2217,8 +2216,14 @@ def blen_read_light(fbx_tmpl, fbx_obj, settings):
         0: 'POINT',
         1: 'SUN',
         2: 'SPOT'}.get(elem_props_get_enum(fbx_props, b'LightType', 0), 'POINT')
+    
+    light_color_mode = {
+        0: 'COLOR',
+        1: 'TEMPERATURE',
+        2: 'BOTH'}.get(elem_props_get_enum(fbx_props, b'LightColorMode', 0), 'COLOR')
 
     lamp = bpy.data.lights.new(name=elem_name_utf8, type=light_type)
+    # lamp = bpy.data.lights.new(name=elem_name_utf8, type=light_color_mode)
 
     if light_type == 'SPOT':
         spot_size = elem_props_get_number(fbx_props, b'OuterAngle', None)
@@ -2234,7 +2239,10 @@ def blen_read_light(fbx_tmpl, fbx_obj, settings):
         lamp.spot_blend = 1.0 - (spot_blend / spot_size)
 
     # TODO, cycles nodes???
+    lamp.color_mode = light_color_mode
     lamp.color = elem_props_get_color_rgb(fbx_props, b'Color', (1.0, 1.0, 1.0))
+    lamp.temperature = elem_props_get_number(fbx_props, b'Temperature', 6500)
+    lamp.use_temperature = elem_props_get_bool(fbx_props, b'UseTemperature', True)
     lamp.energy = elem_props_get_number(fbx_props, b'Intensity', 100.0) / 100.0
     lamp.use_shadow = elem_props_get_bool(fbx_props, b'CastShadow', True)
     if hasattr(lamp, "cycles"):

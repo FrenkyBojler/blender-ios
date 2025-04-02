@@ -195,10 +195,11 @@ void USDLightReader::read_object_data(Main *bmain, const double motionSampleTime
     }
   }
 
-  blight->color_mode = (enableColorTemperature)
-    ? ((has_color && has_temperature) ? LA_BOTH :
-      (has_temperature ? LA_TEMPERATURE : LA_COLOR))
-    : LA_COLOR;
+  blight->color_mode = (enableColorTemperature) ?
+                           ((has_color && has_temperature) ?
+                                LA_BOTH :
+                                (has_temperature ? LA_TEMPERATURE : LA_COLOR)) :
+                           LA_COLOR;
 
   if (blight->color_mode == LA_COLOR || blight->color_mode == LA_BOTH) {
     blight->r = color[0];
