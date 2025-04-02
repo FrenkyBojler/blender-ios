@@ -248,7 +248,7 @@ void UI_fontstyle_draw_multiline_clipped_ex(const uiFontStyle *fs,
                                             ResultBLF *r_info)
 {
   int xofs = 0, yofs;
-  int font_flag = BLF_CLIPPING | BLF_WORD_WRAP;
+  int font_flag = BLF_CLIPPING;
 
   /* Recommended for testing: Results should be the same with or without BLF clipping since the
    * string is wrapped and shortened to fit. Disabling it can help spot issues. */

@@ -1542,7 +1542,7 @@ float UI_text_clip_middle_ex(const uiFontStyle *fstyle,
 
     const size_t l_end = BLF_width_to_strlen(
         fstyle->uifont_id, str, max_len, parts_strwidth, nullptr);
-    if (l_end < 10 || min_ff(parts_strwidth, strwidth - okwidth) < minwidth) {
+    if (l_end < 4 || min_ff(parts_strwidth, strwidth - okwidth) < minwidth) {
       /* If we really have no place, or we would clip a very small piece of string in the middle,
        * only show start of string.
        */
@@ -1682,41 +1682,39 @@ blender::Vector<blender::StringRef> UI_text_clip_multiline_middle(
     BLI_strncpy(clipped_str_buf, str, max_len_clipped_str_buf);
 
     UI_text_clip_middle_ex(
-        fstyle, clipped_str_buf, max_line_width, UI_ICON_SIZE, sizeof(clipped_str_buf), '\0');
+        fstyle, clipped_str_buf, max_line_width, UI_ICON_SIZE, max_len_clipped_str_buf, '\0');
+    clipped_lines.append(clipped_str_buf);
+    return clipped_lines;
+  }
+  if (max_lines == 2) {
+    clipped_lines.append(lines[0]);
+    BLI_strncpy(clipped_str_buf, str + lines[0].size(), max_len_clipped_str_buf);
+    UI_text_clip_middle_ex(
+        fstyle, clipped_str_buf, max_line_width, UI_ICON_SIZE, max_len_clipped_str_buf, '\0');
     clipped_lines.append(clipped_str_buf);
     return clipped_lines;
   }
 
-  /* The line in the middle that will get the "..." (or the last line of the first half if the
-   * number of lines is even) */
-  const int middle_index = (max_lines - 1) / 2;
+  /* The line in the middle that will get the "..." (rounded upwards, so will use the first line of
+   * the second half if the number of lines is even) */
+  const int middle_index = max_lines / 2;
 
-  /* Take the lines before the middle line with the "..." as is. */
+  /* Take the lines until the middle line with the "..." as is. */
   for (int i = 0; i < middle_index; i++) {
     clipped_lines.append(lines[i]);
   }
 
-  /* Let the middle line end with "...". */
+  /* Clip the middle of the middle line. */
   {
-    const char sep[] = BLI_STR_UTF8_HORIZONTAL_ELLIPSIS;
-    const int sep_len = sizeof(sep) - 1;
-    const float sep_strwidth = BLF_width(fstyle->uifont_id, sep, sep_len + 1);
-
     lines[middle_index].copy_utf8_truncated(clipped_str_buf, max_len_clipped_str_buf);
-    ui_text_clip_right_ex(fstyle,
-                          clipped_str_buf,
-                          max_len_clipped_str_buf,
-                          max_line_width,
-                          sep,
-                          sizeof(sep) - 1,
-                          sep_strwidth,
-                          nullptr);
+    UI_text_clip_middle_ex(
+        fstyle, clipped_str_buf, max_line_width, UI_ICON_SIZE, max_len_clipped_str_buf, '\0');
     clipped_lines.append(clipped_str_buf);
   }
 
   /* All remaining lines should be completely filled, including the last one. So fill lines
    * backwards, and append them to #clipped_lines in the correct order afterwards. */
-  {
+  if ((middle_index + 1) < max_lines) {
     const char *last_segment = lines[middle_index + 1].data();
     size_t remaining_len = strlen(last_segment);
     std::list<StringRef> last_lines;
