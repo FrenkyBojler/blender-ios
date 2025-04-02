@@ -545,7 +545,6 @@ void update_normals_from_eval(Object &object_eval, Tree &pbvh);
 
 }  // namespace blender::bke::pbvh
 
-blender::Bounds<blender::float3> BKE_pbvh_redraw_BB(const blender::bke::pbvh::Tree &pbvh);
 namespace blender::bke::pbvh {
 IndexMask nodes_to_face_selection_grids(const SubdivCCG &subdiv_ccg,
                                         Span<GridsNode> nodes,
