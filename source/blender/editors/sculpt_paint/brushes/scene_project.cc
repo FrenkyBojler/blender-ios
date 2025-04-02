@@ -132,8 +132,8 @@ static void object_raycast(const Object &active_object,
     return;
   }
 
-  const float4x4 active_to_target_mat = active_object.object_to_world() *
-                                        target_object.world_to_object();
+  const float4x4 active_to_target_mat = target_object.world_to_object() *
+                                        active_object.object_to_world();
 
   Array<float3> ray_origins(positions.size());
 
@@ -217,8 +217,8 @@ static float calc_center_projection_distance(const Object &active_object,
       continue;
     }
 
-    const float4x4 active_to_target_mat = active_object.object_to_world() *
-                                          target_objects[i]->world_to_object();
+    const float4x4 active_to_target_mat = target_objects[i]->world_to_object() *
+                                          active_object.object_to_world();
 
     const float3 ray_origin = math::transform_point(active_to_target_mat, center);
     const float3 ray_direction = math::transform_direction(active_to_target_mat, normal);
