@@ -285,6 +285,19 @@ static float3 calc_normal(const Brush &brush, const StrokeCache &cache)
   return normal;
 }
 
+static void calc_normal2(const Brush& brush, const StrokeCache& cache, const MutableSpan<float3> normals)
+{
+  switch (brush.project_direction_type) {
+  case BRUSH_PROJECT_DIRECTION_VIEW_NORMAL:
+    for (const int i : normals.index_range()) {
+
+    }
+    break;
+  case BRUSH_PROJECT_DIRECTION_PLANE_NORMAL:
+    break;
+  }
+}
+
 static void calc_faces(const Depsgraph &depsgraph,
                        const Sculpt &sd,
                        const Brush &brush,
