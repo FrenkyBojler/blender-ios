@@ -158,31 +158,65 @@ void UI_fontstyle_draw_ex(const uiFontStyle *fs,
 
   BLF_enable(fs->uifont_id, font_flag);
 
+  /* TODO This should all bee cleaned up. Maybe move multi-line alignment to BLF? */
+
+  const int max_width = BLI_rcti_size_x(rect);
+  const int max_height = BLI_rcti_size_y(rect);
+  const int line_height = BLF_height_max(fs->uifont_id);
+
   if (fs_params->word_wrap == 1) {
     /* Draw from bound-box top. */
-    yofs = BLI_rcti_size_y(rect) - BLF_height_max(fs->uifont_id);
+    yofs = max_height - line_height;
   }
   else {
     /* Draw from bound-box center. */
     const int height = BLF_ascender(fs->uifont_id) + BLF_descender(fs->uifont_id);
-    yofs = ceil(0.5f * (BLI_rcti_size_y(rect) - height));
-  }
-
-  if (fs_params->align == UI_STYLE_TEXT_CENTER) {
-    xofs = floor(0.5f * (BLI_rcti_size_x(rect) - BLF_width(fs->uifont_id, str, str_len)));
-  }
-  else if (fs_params->align == UI_STYLE_TEXT_RIGHT) {
-    xofs = BLI_rcti_size_x(rect) - BLF_width(fs->uifont_id, str, str_len);
+    yofs = ceil(0.5f * (max_height - height));
   }
 
   yofs = std::max(0, yofs);
-  xofs = std::max(0, xofs);
 
   BLF_clipping(fs->uifont_id, rect->xmin, rect->ymin, rect->xmax, rect->ymax);
-  BLF_position(fs->uifont_id, rect->xmin + xofs, rect->ymin + yofs, 0.0f);
   BLF_color4ubv(fs->uifont_id, col);
 
-  BLF_draw(fs->uifont_id, str, str_len, r_info);
+  if (fs_params->word_wrap == 1 && fs_params->align != UI_STYLE_TEXT_LEFT) {
+    /* Draw each line with the given alignment. */
+
+    blender::Vector<blender::StringRef> lines = BLF_string_wrap(fs->uifont_id, str, max_width);
+    ResultBLF line_result = {0, 0};
+    for (StringRef line : lines) {
+      /* String wrapping might have trailing/leading whitespace. */
+      line.trim();
+
+      if (fs_params->align == UI_STYLE_TEXT_CENTER) {
+        xofs = floor(0.5f * (max_width - BLF_width(fs->uifont_id, line.data(), line.size())));
+      }
+      else if (fs_params->align == UI_STYLE_TEXT_RIGHT) {
+        xofs = max_width - BLF_width(fs->uifont_id, line.data(), line.size());
+      }
+      xofs = std::max(0, xofs);
+
+      BLF_position(fs->uifont_id, rect->xmin + xofs, rect->ymin + yofs, 0.0f);
+      BLF_draw(fs->uifont_id, line.data(), line.size(), &line_result);
+      yofs -= line_height;
+    }
+    if (r_info) {
+      r_info->width = line_result.width;
+      r_info->lines = lines.size();
+    }
+  }
+  else {
+    if (fs_params->align == UI_STYLE_TEXT_CENTER) {
+      xofs = floor(0.5f * (max_width - BLF_width(fs->uifont_id, str, str_len)));
+    }
+    else if (fs_params->align == UI_STYLE_TEXT_RIGHT) {
+      xofs = max_width - BLF_width(fs->uifont_id, str, str_len);
+    }
+    xofs = std::max(0, xofs);
+
+    BLF_position(fs->uifont_id, rect->xmin + xofs, rect->ymin + yofs, 0.0f);
+    BLF_draw(fs->uifont_id, str, str_len, r_info);
+  }
 
   BLF_disable(fs->uifont_id, font_flag);
 
@@ -202,6 +236,114 @@ void UI_fontstyle_draw(const uiFontStyle *fs,
                        const uiFontStyleDraw_Params *fs_params)
 {
   UI_fontstyle_draw_ex(fs, rect, str, str_len, col, fs_params, nullptr, nullptr, nullptr);
+}
+
+void UI_fontstyle_draw_multiline_clipped_ex(const uiFontStyle *fs,
+                                            const rcti *rect,
+                                            const char *str,
+                                            const uchar col[4],
+                                            const eFontStyle_Align align,
+                                            int *r_xofs,
+                                            int *r_yofs,
+                                            ResultBLF *r_info)
+{
+  int xofs = 0, yofs;
+  int font_flag = BLF_CLIPPING | BLF_WORD_WRAP;
+
+  /* Recommended for testing: Results should be the same with or without BLF clipping since the
+   * string is wrapped and shortened to fit. Disabling it can help spot issues. */
+  // font_flag &= ~BLF_CLIPPING;
+
+  UI_fontstyle_set(fs);
+
+  /* set the flag */
+  if (fs->shadow) {
+    font_flag |= BLF_SHADOW;
+    const float shadow_color[4] = {
+        fs->shadowcolor, fs->shadowcolor, fs->shadowcolor, fs->shadowalpha};
+    BLF_shadow(fs->uifont_id, FontShadowType(fs->shadow), shadow_color);
+    BLF_shadow_offset(fs->uifont_id, fs->shadx, fs->shady);
+  }
+  if (fs->bold) {
+    font_flag |= BLF_BOLD;
+  }
+  if (fs->italic) {
+    font_flag |= BLF_ITALIC;
+  }
+
+  BLF_enable(fs->uifont_id, font_flag);
+
+  const int max_width = BLI_rcti_size_x(rect);
+  const int max_height = BLI_rcti_size_y(rect);
+  const int line_height = BLF_height_max(fs->uifont_id);
+  const int max_line_count = max_height / line_height;
+
+  /* Draw from bound-box top. */
+  yofs = max_height - line_height;
+  yofs = std::max(0, yofs);
+
+  BLF_clipping(fs->uifont_id, rect->xmin, rect->ymin, rect->xmax, rect->ymax);
+  BLF_color4ubv(fs->uifont_id, col);
+
+  /* First, try if mixed-wrapping (soft wrapping plus hard wrapping for overflowing lines) gives a
+   * result that fits. */
+  BLF_wordwrap(fs->uifont_id, max_width, BLFWrapMode::Typographical);
+  blender::Vector<blender::StringRef> lines = BLF_string_wrap(fs->uifont_id, str, max_width);
+
+  char str_buf[UI_MAX_DRAW_STR];
+  /* If soft-wrapping doesn't fit, apply hard wrapping and clip the string if necessary. */
+  if (lines.size() > max_line_count) {
+    lines = UI_text_clip_multiline_middle(
+        fs, str, str_buf, sizeof(str_buf), max_width, max_line_count);
+  }
+
+  BLI_assert(lines.size() <= max_line_count);
+
+  /* Manually draw lines without BLF wrapping.  */
+  BLF_disable(fs->uifont_id, BLF_WORD_WRAP);
+
+  ResultBLF line_result = {0, 0};
+  /* Draw each line with the given alignment. */
+  for (StringRef line : lines) {
+    /* String wrapping might have trailing/leading whitespace. */
+    line.trim();
+
+    if (align == UI_STYLE_TEXT_CENTER) {
+      xofs = floor(0.5f * (max_width - BLF_width(fs->uifont_id, line.data(), line.size())));
+    }
+    else if (align == UI_STYLE_TEXT_RIGHT) {
+      xofs = max_width - BLF_width(fs->uifont_id, line.data(), line.size());
+    }
+    xofs = std::max(0, xofs);
+
+    BLF_position(fs->uifont_id, rect->xmin + xofs, rect->ymin + yofs, 0.0f);
+    BLF_draw(fs->uifont_id, line.data(), line.size(), &line_result);
+
+    yofs -= line_height;
+  }
+
+  if (r_info) {
+    r_info->width = rect->xmin + xofs + line_result.width;
+    r_info->lines = lines.size();
+  }
+
+  BLF_disable(fs->uifont_id, font_flag);
+
+  if (r_xofs) {
+    *r_xofs = xofs;
+  }
+  if (r_yofs) {
+    *r_yofs = yofs;
+  }
+}
+
+void UI_fontstyle_draw_multiline_clipped(const uiFontStyle *fs,
+                                         const rcti *rect,
+                                         const char *str,
+                                         const uchar col[4],
+                                         const eFontStyle_Align align)
+{
+  UI_fontstyle_draw_multiline_clipped_ex(fs, rect, str, col, align, nullptr, nullptr, nullptr);
 }
 
 void UI_fontstyle_draw_rotated(const uiFontStyle *fs,

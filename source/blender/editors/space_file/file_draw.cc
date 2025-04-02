@@ -475,6 +475,40 @@ static uiBut *file_add_overlay_icon_but(uiBlock *block, int pos_x, int pos_y, in
   return but;
 }
 
+/**
+ * Draw the string over at max \a line_count lines, clipping in the middle so it fits. Wraps at
+ * individual characters, not just whitespace or newline characters, like
+ * #file_draw_string_multiline() would.
+ * \param sx, sy: The upper left corner of the text bounding box.
+ */
+static void file_draw_string_mulitline_clipped(int sx,
+                                               int sy,
+                                               const char *string,
+                                               float width,
+                                               int line_height,
+                                               int line_count,
+                                               eFontStyle_Align align,
+                                               const uchar col[4])
+{
+  rcti rect;
+
+  if (string[0] == '\0' || width < 1) {
+    return;
+  }
+
+  const uiStyle *style = UI_style_get();
+  uiFontStyle fs = style->widget;
+
+  /* no text clipping needed, UI_fontstyle_draw does it but is a bit too strict
+   * (for buttons it works) */
+  rect.xmin = sx;
+  rect.xmax = sx + round_fl_to_int(width);
+  rect.ymax = sy;
+  rect.ymin = sy - line_height * line_count;
+
+  UI_fontstyle_draw_multiline_clipped(&fs, &rect, string, col, align);
+}
+
 static void file_draw_string(int sx,
                              int sy,
                              const char *string,
@@ -483,31 +517,7 @@ static void file_draw_string(int sx,
                              eFontStyle_Align align,
                              const uchar col[4])
 {
-  uiFontStyle fs;
-  rcti rect;
-  char filename[FILE_MAXFILE];
-
-  if (string[0] == '\0' || width < 1) {
-    return;
-  }
-
-  const uiStyle *style = UI_style_get();
-  fs = style->widget;
-
-  STRNCPY(filename, string);
-  UI_text_clip_middle_ex(&fs, filename, width, UI_ICON_SIZE, sizeof(filename), '\0');
-
-  /* no text clipping needed, UI_fontstyle_draw does it but is a bit too strict
-   * (for buttons it works) */
-  rect.xmin = sx;
-  rect.xmax = sx + round_fl_to_int(width);
-  rect.ymin = sy - height;
-  rect.ymax = sy;
-
-  uiFontStyleDraw_Params font_style_params{};
-  font_style_params.align = align;
-
-  UI_fontstyle_draw(&fs, &rect, filename, sizeof(filename), col, &font_style_params);
+  file_draw_string_mulitline_clipped(sx, sy, string, width, height, 1, align, col);
 }
 
 /**
@@ -824,6 +834,7 @@ static void file_draw_loading_icon(const rcti *tile_draw_rect,
 
 static void file_draw_indicator_icons(const FileList *files,
                                       const FileDirEntry *file,
+                                      const FileLayout *layout,
                                       const rcti *tile_draw_rect,
                                       const float preview_icon_aspect,
                                       const int file_type_icon,
@@ -837,7 +848,7 @@ static void file_draw_indicator_icons(const FileList *files,
    * cover the preview. */
   if (preview_icon_aspect < 2.0f) {
     const float icon_x = float(tile_draw_rect->xmin) + (3.0f * UI_SCALE_FAC);
-    const float icon_y = float(tile_draw_rect->ymin) + (17.0f * UI_SCALE_FAC);
+    const float icon_y = float(tile_draw_rect->ymax) - layout->prv_border_y - layout->prv_h;
     const uchar light[4] = {255, 255, 255, 255};
     if (is_offline) {
       /* Icon at bottom to indicate the file is offline. */
@@ -1231,7 +1242,7 @@ void file_draw_list(const bContext *C, ARegion *region)
   int numfiles;
   int numfiles_layout;
   int offset;
-  int column_width, textheight;
+  int column_width;
   int i;
   eFontStyle_Align align;
   bool do_drag;
@@ -1265,7 +1276,6 @@ void file_draw_list(const bContext *C, ARegion *region)
   column_width = (FILE_IMGDISPLAY == params->display) ?
                      layout->tile_w :
                      round_fl_to_int(layout->attribute_columns[COLUMN_NAME].width);
-  textheight = int(layout->textheight * 3.0 / 2.0 + 0.5);
 
   align = (FILE_IMGDISPLAY == params->display) ? UI_STYLE_TEXT_CENTER : UI_STYLE_TEXT_LEFT;
 
@@ -1355,8 +1365,13 @@ void file_draw_list(const bContext *C, ARegion *region)
         has_special_file_image = true;
       }
 
-      file_draw_indicator_icons(
-          files, file, &tile_draw_rect, thumb_icon_aspect, file_type_icon, has_special_file_image);
+      file_draw_indicator_icons(files,
+                                file,
+                                layout,
+                                &tile_draw_rect,
+                                thumb_icon_aspect,
+                                file_type_icon,
+                                has_special_file_image);
 
       if (do_drag) {
         file_add_preview_drag_but(
@@ -1442,9 +1457,11 @@ void file_draw_list(const bContext *C, ARegion *region)
                             "",
                             tile_draw_rect.xmin + icon_ofs,
                             tile_draw_rect.ymin + layout->tile_border_y +
-                                ((layout->tile_h - textheight) / 2.0f) - 0.15f * UI_UNIT_X,
+                                /* First line only, when name is displayed in multiple lines. */
+                                layout->text_line_height * (layout->text_lines_count - 1) -
+                                0.15f * UI_UNIT_X,
                             width - icon_ofs,
-                            textheight,
+                            layout->text_line_height,
                             params->renamefile,
                             1.0f,
                             float(sizeof(params->renamefile)),
@@ -1474,14 +1491,20 @@ void file_draw_list(const bContext *C, ARegion *region)
       const int txpos = (params->display == FILE_IMGDISPLAY) ? tile_draw_rect.xmin :
                                                                tile_draw_rect.xmin + 1 + icon_ofs;
       const int typos = (params->display == FILE_IMGDISPLAY) ?
-                            tile_draw_rect.ymin + layout->tile_border_y + layout->textheight :
+                            tile_draw_rect.ymin + layout->tile_border_y +
+                                (layout->text_line_height * layout->text_lines_count) :
                             tile_draw_rect.ymax - layout->tile_border_y;
       const int twidth = (params->display == FILE_IMGDISPLAY) ?
                              column_width :
                              column_width - 1 - icon_ofs - padx - layout->tile_border_x;
-      const int theight = (params->display == FILE_IMGDISPLAY) ? textheight : layout->tile_h;
-
-      file_draw_string(txpos, typos, file->name, float(twidth), theight, align, text_col);
+      file_draw_string_mulitline_clipped(txpos,
+                                         typos,
+                                         file->name,
+                                         float(twidth),
+                                         layout->text_line_height,
+                                         layout->text_lines_count,
+                                         align,
+                                         text_col);
     }
 
     if (params->display != FILE_IMGDISPLAY) {
@@ -1549,7 +1572,7 @@ static void file_draw_invalid_asset_library_hint(const bContext *C,
   const View2D *v2d = &region->v2d;
   const int pad = sfile->layout->tile_border_x;
   const int width = BLI_rctf_size_x(&v2d->tot) - (2 * pad);
-  const int line_height = sfile->layout->textheight;
+  const int line_height = sfile->layout->text_line_height;
   int sx = v2d->tot.xmin + pad;
   /* For some reason no padding needed. */
   int sy = v2d->tot.ymax;
@@ -1607,7 +1630,7 @@ static void file_draw_invalid_library_hint(const bContext * /*C*/,
   const View2D *v2d = &region->v2d;
   const int pad = sfile->layout->tile_border_x;
   const int width = BLI_rctf_size_x(&v2d->tot) - (2 * pad);
-  const int line_height = sfile->layout->textheight;
+  const int line_height = sfile->layout->text_line_height;
   int sx = v2d->tot.xmin + pad;
   /* For some reason no padding needed. */
   int sy = v2d->tot.ymax;

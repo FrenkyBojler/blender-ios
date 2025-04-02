@@ -10,6 +10,7 @@
 #include <climits>
 #include <cstdlib>
 #include <cstring>
+#include <list>
 
 #include "DNA_brush_types.h"
 #include "DNA_screen_types.h"
@@ -1651,6 +1652,85 @@ static void ui_text_clip_middle_protect_right(const uiFontStyle *fstyle,
   const size_t max_len = sizeof(new_drawstr);
   but->strwidth = UI_text_clip_middle_ex(fstyle, new_drawstr, okwidth, minwidth, max_len, rsep);
   but->drawstr = new_drawstr;
+}
+
+blender::Vector<blender::StringRef> UI_text_clip_multiline_middle(
+    const uiFontStyle *fstyle,
+    const char *str,
+    char *clipped_str_buf,
+    const size_t max_len_clipped_str_buf,
+    const float max_line_width,
+    const int max_lines)
+{
+  using namespace blender;
+  BLI_assert(max_lines > 0);
+
+  BLF_wordwrap(fstyle->uifont_id, max_line_width, BLFWrapMode::HardLimit);
+  const Vector<StringRef> lines = BLF_string_wrap(fstyle->uifont_id, str, max_line_width);
+
+  if (lines.size() <= max_lines) {
+    return lines;
+  }
+
+  Vector<StringRef> clipped_lines;
+  clipped_lines.reserve(max_lines);
+
+  if (max_lines == 1) {
+    BLI_strncpy(clipped_str_buf, str, max_len_clipped_str_buf);
+
+    UI_text_clip_middle_ex(
+        fstyle, clipped_str_buf, max_line_width, UI_ICON_SIZE, sizeof(clipped_str_buf), '\0');
+    clipped_lines.append(clipped_str_buf);
+    return clipped_lines;
+  }
+
+  /* The line in the middle that will get the "..." (or the last line of the first half if the
+   * number of lines is even) */
+  const int middle_index = (max_lines - 1) / 2;
+
+  /* Take the lines before the middle line with the "..." as is. */
+  for (int i = 0; i < middle_index; i++) {
+    clipped_lines.append(lines[i]);
+  }
+
+  /* Let the middle line end with "...". */
+  {
+    const char sep[] = BLI_STR_UTF8_HORIZONTAL_ELLIPSIS;
+    const int sep_len = sizeof(sep) - 1;
+    const float sep_strwidth = BLF_width(fstyle->uifont_id, sep, sep_len + 1);
+
+    lines[middle_index].copy_utf8_truncated(clipped_str_buf, max_len_clipped_str_buf);
+    ui_text_clip_right_ex(fstyle,
+                          clipped_str_buf,
+                          max_len_clipped_str_buf,
+                          max_line_width,
+                          sep,
+                          sizeof(sep) - 1,
+                          sep_strwidth,
+                          nullptr);
+    clipped_lines.append(clipped_str_buf);
+  }
+
+  /* All remaining lines should be completely filled, including the last one. So fill lines
+   * backwards, and append them to #clipped_lines in the correct order afterwards. */
+  {
+    const char *last_segment = lines[middle_index + 1].data();
+    size_t remaining_len = strlen(last_segment);
+    std::list<StringRef> last_lines;
+    for (int i = 0; i < max_lines - (middle_index + 1) && remaining_len; i++) {
+      size_t offset = BLF_width_to_rstrlen(
+          fstyle->uifont_id, last_segment, remaining_len, max_line_width, nullptr);
+      size_t line_len = remaining_len - offset;
+      last_lines.emplace_front(last_segment + offset, int64_t(line_len));
+      remaining_len = offset;
+    }
+
+    for (StringRef line : last_lines) {
+      clipped_lines.append(line);
+    }
+  }
+
+  return clipped_lines;
 }
 
 /**
