@@ -539,11 +539,13 @@ static int remap_crf_to_h265_crf(int crf, bool is_10_or_12_bpp)
 
 static const AVCodec *get_prores_encoder(RenderData *rd, int rectx, int recty)
 {
-  /* prores_aw currently (march 2025) have issue with around higher resolution than HD when
-   encoding alpha, but in all cases is faster for similar quality use it instead of prores_ks if
-   possible */
+  /* prores_aw currently (April 2025) have issue when encoding alpha with high resolution
+   but in all cases is faster for similar quality use it instead of prores_ks if
+   possible
+   https://trac.ffmpeg.org/ticket/11536
+   */
   if (rd->im_format.planes == R_IMF_PLANES_RGBA) {
-    if ((rectx * recty) > (1920 * 1080)) {
+    if ((rectx * recty) > (3840 * 2160)) {
       return avcodec_find_encoder_by_name("prores_ks");
     }
   }
@@ -974,7 +976,7 @@ static bool start_ffmpeg_impl(MovieWriter *context,
   context->ffmpeg_autosplit = (rd->ffcodecdata.flags & FFMPEG_AUTOSPLIT_OUTPUT) != 0;
   context->ffmpeg_crf = rd->ffcodecdata.constant_rate_factor;
   context->ffmpeg_preset = rd->ffcodecdata.ffmpeg_preset;
-  context->ffmpeg_profile = 0;  //
+  context->ffmpeg_profile = 0;
 
   if ((rd->ffcodecdata.flags & FFMPEG_USE_MAX_B_FRAMES) != 0) {
     context->ffmpeg_max_b_frames = rd->ffcodecdata.max_b_frames;
