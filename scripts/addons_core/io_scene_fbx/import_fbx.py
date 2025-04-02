@@ -2223,7 +2223,6 @@ def blen_read_light(fbx_tmpl, fbx_obj, settings):
         2: 'BOTH'}.get(elem_props_get_enum(fbx_props, b'LightColorMode', 0), 'COLOR')
 
     lamp = bpy.data.lights.new(name=elem_name_utf8, type=light_type)
-    # lamp = bpy.data.lights.new(name=elem_name_utf8, type=light_color_mode)
 
     if light_type == 'SPOT':
         spot_size = elem_props_get_number(fbx_props, b'OuterAngle', None)

@@ -86,9 +86,9 @@ typedef struct Light {
   float _pad2;
 
   /* Temperature color. */
-  float temperature; /* Value in Kelvin */
+  float temperature;
   short use_temperature;
-  short color_mode; /* Memory alignment */
+  short color_mode;
 
 } Light;
 
