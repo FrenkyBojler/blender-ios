@@ -1295,8 +1295,10 @@ void MSLGeneratorInterface::prepare_from_createinfo(const shader::ShaderCreateIn
     mtl_frag_in.type = frag_tile_in.type;
     mtl_frag_in.name = frag_tile_in.name;
     mtl_frag_in.raster_order_group = frag_tile_in.raster_order_group;
-    mtl_frag_in.is_layered_input = ELEM(
-        frag_tile_in.img_type, ImageType::UINT_2D_ARRAY, ImageType::FLOAT_2D_ARRAY);
+    mtl_frag_in.is_layered_input = ELEM(frag_tile_in.img_type,
+                                        ImageType::UINT_2D_ARRAY,
+                                        ImageType::INT_2D_ARRAY,
+                                        ImageType::FLOAT_2D_ARRAY);
 
     fragment_tile_inputs.append(mtl_frag_in);
 

@@ -800,8 +800,10 @@ std::string GLShader::fragment_interface_declare(const ShaderCreateInfo &info) c
       /* IMPORTANT: We assume that the frame-buffer will be layered or not based on the layer
        * built-in flag. */
       bool is_layered_fb = bool(info.builtins_ & BuiltinBits::LAYER);
-      bool is_layered_input = ELEM(
-          input.img_type, ImageType::UINT_2D_ARRAY, ImageType::FLOAT_2D_ARRAY);
+      bool is_layered_input = ELEM(input.img_type,
+                                   ImageType::UINT_2D_ARRAY,
+                                   ImageType::INT_2D_ARRAY,
+                                   ImageType::FLOAT_2D_ARRAY);
 
       /* Declare image. */
       using Resource = ShaderCreateInfo::Resource;
