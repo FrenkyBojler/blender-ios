@@ -68,8 +68,6 @@ class AbstractView {
   /* Search/filter string from the previous redraw, stored to detect changes. */
   std::string prev_filter_string_;
 
-  bool needs_filtering_ = true;
-
   /* See #get_bounds(). */
   std::optional<rcti> bounds_;
 
@@ -161,6 +159,7 @@ class AbstractView {
   void set_serach_string(char *search_string);
 
  protected:
+  bool needs_filtering_ = true;
   AbstractView() = default;
 
   /**
@@ -187,7 +186,7 @@ class AbstractView {
    */
   bool is_reconstructed() const;
 
-  void filter(std::optional<StringRef> filter_str);
+  virtual void filter(std::optional<StringRef> filter_str);
   const AbstractViewItem *search_highlight_item() const;
 };
 
@@ -301,6 +300,7 @@ class AbstractViewItem {
   virtual std::optional<std::string> debug_name() const;
 
   bool is_filtered_visible() const;
+  void set_filtered_visible();
 
   /** Get the view this item is registered for using #AbstractView::register_item(). */
   AbstractView &get_view() const;

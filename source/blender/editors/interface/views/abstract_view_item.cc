@@ -287,6 +287,11 @@ bool AbstractViewItem::is_filtered_visible() const
   return is_filtered_visible_;
 }
 
+void AbstractViewItem::set_filtered_visible()
+{
+  is_filtered_visible_ = true;
+}
+
 /** \} */
 
 /* ---------------------------------------------------------------------- */

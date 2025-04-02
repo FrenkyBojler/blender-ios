@@ -97,6 +97,17 @@ void TreeViewItemContainer::foreach_parent(ItemIterFn iter_fn) const
   }
 }
 
+void TreeViewItemContainer::foreach_filter_item(ItemIterFn iter_fn)
+{
+  for (const auto &child : children_) {
+    iter_fn(*child);
+    if (child->is_filtered_visible()) {
+      child->foreach_parent([&](AbstractTreeViewItem &item) { item.set_filtered_visible(); });
+    }
+    child->foreach_filter_item(iter_fn);
+  }
+}
+
 /* ---------------------------------------------------------------------- */
 
 void AbstractTreeView::foreach_view_item(FunctionRef<void(AbstractViewItem &)> iter_fn) const
@@ -143,6 +154,20 @@ void AbstractTreeView::set_default_rows(int default_rows)
                  "Default value is smaller than the minimum rows. Limit is required to prevent "
                  "resizing below specific height.");
   custom_height_ = std::make_unique<int>(default_rows * padded_item_height());
+}
+
+void AbstractTreeView::filter(std::optional<StringRef> filter_str)
+{
+  needs_filtering_ = false;
+  if (!filter_str.has_value()) {
+    return;
+  }
+
+  const bool is_empty = filter_str->is_empty();
+  this->foreach_filter_item([&](AbstractTreeViewItem &item) {
+    item.is_filtered_visible_ = is_empty ||
+                                item.should_be_filtered_visible(StringRefNull(*filter_str));
+    });
 }
 
 std::optional<uiViewState> AbstractTreeView::persistent_state() const

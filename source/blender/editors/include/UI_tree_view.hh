@@ -99,6 +99,7 @@ class TreeViewItemContainer {
  protected:
   void foreach_item_recursive(ItemIterFn iter_fn, IterOptions options = IterOptions::None) const;
   void foreach_parent(ItemIterFn iter_fn) const;
+  void foreach_filter_item(ItemIterFn iter_fn);
 };
 
 ENUM_OPERATORS(TreeViewItemContainer::IterOptions,
@@ -163,6 +164,8 @@ class AbstractTreeView : public AbstractView, public TreeViewItemContainer {
    * \note Value should be greater than #MIN_ROWS. This is to prevent resizing below certain
    * height. */
   void set_default_rows(int default_rows);
+
+  void filter(std::optional<StringRef> filter_str) override;
 
  protected:
   virtual void build_tree() = 0;
