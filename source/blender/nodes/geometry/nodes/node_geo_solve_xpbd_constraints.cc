@@ -411,7 +411,10 @@ static void warm_start_solver(const ConstraintEvalParams &eval_params,
   }
 }
 
-static void estimate_velocity(const ConstraintEvalParams &params, ConstraintVariables &vars)
+static void estimate_velocity(ConstraintEvalParams &params,
+                              Array<float3> &orig_velocities,
+                              Array<float3> &orig_angular_velocities,
+                              ConstraintVariables &vars)
 {
   const Span<float3> old_positions = params.old_positions;
   const Span<math::Quaternion> old_rotations = params.old_rotations;
@@ -422,6 +425,11 @@ static void estimate_velocity(const ConstraintEvalParams &params, ConstraintVari
   const IndexMask positions_mask = vars.positions.index_range();
   const IndexMask rotations_mask = vars.rotations.index_range();
   const float inv_dt = params.inv_delta_time;
+
+  orig_velocities = vars.velocities;
+  orig_angular_velocities = vars.angular_velocities;
+  params.orig_velocities = orig_velocities;
+  params.orig_angular_velocities = orig_angular_velocities;
 
   positions_mask.foreach_index(GrainSize(1024), [&](const int index) {
     velocities[index] = inv_dt * (positions[index] - old_positions[index]);
@@ -448,14 +456,17 @@ static void init_constraints(const ConstraintInit init_mode,
 }
 
 static void execute_solver_method_on_geometry(const SolverMethod method,
-                                              const ConstraintEvalParams &eval_params,
+                                              ConstraintEvalParams &eval_params,
                                               MutableSpan<ConstraintEvalData> constraint_data,
                                               ConstraintVariables &variables,
                                               const int gauss_seidel_iterations,
                                               const int jacobi_iterations)
 {
+  Array<float3> orig_velocities;
+  Array<float3> orig_angular_velocities;
+
   switch (method) {
-    case SolverMethod::GaussSeidel:
+    case SolverMethod::GaussSeidel: {
       if (eval_params.debug_recorder) {
         const std::string label = fmt::format("Initialize Gauss-Seidel, ");
         eval_params.debug_recorder->record_step(label, nullptr, -1, {}, variables);
@@ -466,13 +477,14 @@ static void execute_solver_method_on_geometry(const SolverMethod method,
             EvaluationTarget::Positions, eval_params, constraint_data, variables);
       }
 
-      estimate_velocity(eval_params, variables);
+      estimate_velocity(eval_params, orig_velocities, orig_angular_velocities, variables);
 
       do_gauss_seidel_iteration(
           EvaluationTarget::Velocities, eval_params, constraint_data, variables);
       break;
+    }
 
-    case SolverMethod::Jacobi:
+    case SolverMethod::Jacobi: {
       if (eval_params.debug_recorder) {
         const std::string label = fmt::format("Initialize Jacobi, ");
         eval_params.debug_recorder->record_step(label, nullptr, -1, {}, variables);
@@ -482,13 +494,14 @@ static void execute_solver_method_on_geometry(const SolverMethod method,
         do_jacobi_iteration(EvaluationTarget::Positions, eval_params, constraint_data, variables);
       }
 
-      estimate_velocity(eval_params, variables);
+      estimate_velocity(eval_params, orig_velocities, orig_angular_velocities, variables);
 
       do_gauss_seidel_iteration(
           EvaluationTarget::Velocities, eval_params, constraint_data, variables);
       break;
+    }
 
-    case SolverMethod::GaussSeidelJacobi:
+    case SolverMethod::GaussSeidelJacobi: {
       if (eval_params.debug_recorder) {
         const std::string label = fmt::format("Initialize Gauss-Seidel/Jacobi, ");
         eval_params.debug_recorder->record_step(label, nullptr, -1, {}, variables);
@@ -502,13 +515,14 @@ static void execute_solver_method_on_geometry(const SolverMethod method,
         do_jacobi_iteration(EvaluationTarget::Positions, eval_params, constraint_data, variables);
       }
 
-      estimate_velocity(eval_params, variables);
+      estimate_velocity(eval_params, orig_velocities, orig_angular_velocities, variables);
 
       do_gauss_seidel_iteration(
           EvaluationTarget::Velocities, eval_params, constraint_data, variables);
       break;
+    }
 
-    case SolverMethod::ProjectiveDynamics:
+    case SolverMethod::ProjectiveDynamics: {
       if (eval_params.debug_recorder) {
         const std::string label = fmt::format("Initialize Projective Dynamics, ");
         eval_params.debug_recorder->record_step(label, nullptr, -1, {}, variables);
@@ -516,14 +530,16 @@ static void execute_solver_method_on_geometry(const SolverMethod method,
 
       do_global_solve(EvaluationTarget::Positions, eval_params, constraint_data, variables);
 
-      estimate_velocity(eval_params, variables);
+      estimate_velocity(eval_params, orig_velocities, orig_angular_velocities, variables);
 
       do_gauss_seidel_iteration(
           EvaluationTarget::Velocities, eval_params, constraint_data, variables);
       break;
+    }
 
-    case SolverMethod::ADMM:
+    case SolverMethod::ADMM: {
       break;
+    }
   }
 }
 

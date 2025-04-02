@@ -44,9 +44,9 @@ struct ConstraintEvalParams {
   VArraySpan<math::Quaternion> old_rotations;
 
   /** Velocities derived after positional constraints. */
-  VArraySpan<float3> orig_velocities;
+  Span<float3> orig_velocities;
   /** Angular velocities derived after positional constraints. */
-  VArraySpan<float3> orig_angular_velocities;
+  Span<float3> orig_angular_velocities;
 
   /* Linear point masses. */
   VArraySpan<float> masses;
