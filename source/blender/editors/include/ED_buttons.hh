@@ -20,7 +20,7 @@ struct PointerRNA;
 
 namespace blender::ed::properties {
 
-const std::array<blender::StringRefNull, BCONTEXT_TOT> filter_items = {
+constexpr std::array<blender::StringRefNull, BCONTEXT_TOT> filter_items = {
     "show_properties_tool",
     "show_properties_scene",
     "show_properties_render",
