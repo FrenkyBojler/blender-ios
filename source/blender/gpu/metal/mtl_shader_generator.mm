@@ -1271,7 +1271,9 @@ void MSLGeneratorInterface::prepare_from_createinfo(const shader::ShaderCreateIn
     /* Populate MSLGenerator attribute. */
     MSLFragmentOutputAttribute mtl_frag_out;
     mtl_frag_out.layout_location = frag_out.index;
-    mtl_frag_out.layout_index = -1;
+    mtl_frag_out.layout_index = (frag_out.blend != DualBlend::NONE) ?
+                                    ((frag_out.blend == DualBlend::SRC_0) ? 0 : 1) :
+                                    -1;
     mtl_frag_out.type = frag_out.type;
     mtl_frag_out.name = frag_out.name;
     mtl_frag_out.raster_order_group = frag_out.raster_order_group;
@@ -1293,16 +1295,13 @@ void MSLGeneratorInterface::prepare_from_createinfo(const shader::ShaderCreateIn
     mtl_frag_in.type = frag_tile_in.type;
     mtl_frag_in.name = frag_tile_in.name;
     mtl_frag_in.raster_order_group = frag_tile_in.raster_order_group;
+    mtl_frag_in.is_layered_input = ELEM(
+        frag_tile_in.img_type, ImageType::UINT_2D_ARRAY, ImageType::FLOAT_2D_ARRAY);
 
     fragment_tile_inputs.append(mtl_frag_in);
 
     /* If we do not support native tile inputs, generate an image-binding per input. */
     if (!MTLBackend::capabilities.supports_native_tile_inputs) {
-      /* Determine type: */
-      bool is_layered_fb = bool(create_info_->builtins_ & BuiltinBits::LAYER);
-      bool is_layered_input = ELEM(
-          input.img_type, ImageType::UINT_2D_ARRAY, ImageType::FLOAT_2D_ARRAY);
-
       /* Generate texture binding resource. */
       MSLTextureResource msl_image;
       msl_image.stage = ShaderStage::FRAGMENT;
@@ -2126,9 +2125,14 @@ std::string MSLGeneratorInterface::generate_msl_fragment_tile_input_population()
       swizzle[to_component_count(tile_input.type)] = '\0';
 
       bool is_layered_fb = bool(create_info_->builtins_ & BuiltinBits::LAYER);
-      std::string texel_co = (is_layered_fb) ?
-                                 "ivec3(ivec2(v_in._default_position_.xy), int(v_in.gpu_Layer))" :
-                                 "ivec2(v_in._default_position_.xy)";
+      std::string texel_co =
+          (tile_input.is_layered_input) ?
+              ((is_layered_fb)  ? "ivec3(ivec2(v_in._default_position_.xy), int(v_in.gpu_Layer))" :
+                                  /* This should fetch the attached layer.
+                                   * But this is not simple to set. For now
+                                   * assume it is always the first layer. */
+                                  "ivec3(ivec2(v_in._default_position_.xy), 0)") :
+              "ivec2(v_in._default_position_.xy)";
 
       out << "\t" << get_shader_stage_instance_name(ShaderStage::FRAGMENT) << "."
           << tile_input.name << " = imageLoad("
