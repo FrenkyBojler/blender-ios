@@ -27,9 +27,9 @@ static void node_declare(NodeDeclarationBuilder &b)
   if (const bNode *node = b.node_or_null()) {
     switch (Mode(node->custom1)) {
       case Mode::Sharpness:
+        b.add_input<decl::Bool>("Remove Custom").default_value(true);
         b.add_input<decl::Bool>("Edge Sharpness").supports_field();
         b.add_input<decl::Bool>("Face Sharpness").supports_field();
-        b.add_input<decl::Bool>("Remove Custom").default_value(true);
         break;
       case Mode::Free:
       case Mode::CornerFanSpace:
