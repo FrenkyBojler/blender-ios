@@ -75,7 +75,7 @@ void main()
 
   vec4 final_color = mix(outer_color, inner_color, 1.0 - mix_w * outer_color.a);
   final_color.a *= 1.0 - (outer_color.a > 0.0 ? mix_w_outer : mix_w);
-  
+
   eObjectInfoFlag ob_flag = drw_object_infos().flag;
   bool is_active = flag_test(ob_flag, OBJECT_ACTIVE);
   final_color.a *= is_active ? alpha : (alpha * 0.25);
