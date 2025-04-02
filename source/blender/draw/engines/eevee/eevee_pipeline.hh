@@ -247,7 +247,8 @@ struct DeferredLayerBase {
                              (CLOSURE_REFRACTION | CLOSURE_REFLECTION | CLOSURE_CLEARCOAT |
                               CLOSURE_DIFFUSE | CLOSURE_TRANSLUCENT));
     /* Count the additional infos layer needed by some closures. */
-    count += count_bits_i(closure_bits_ & (CLOSURE_SSS | CLOSURE_TRANSLUCENT));
+    count += count_bits_i(closure_bits_ &
+                          (CLOSURE_SSS | CLOSURE_TRANSLUCENT | CLOSURE_REFRACTION));
     return count;
   }
 
