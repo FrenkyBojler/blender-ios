@@ -4105,7 +4105,6 @@ static Base *mesh_separate_tagged(
 
   BM_mesh_free(bm_new);
   ((Mesh *)base_new->object->data)->runtime->edit_mesh = nullptr;
-  printf("Separate_tagged %p\n", base_new->object->data);
 
   return base_new;
 }
@@ -4173,7 +4172,6 @@ static Base *mesh_separate_arrays(Main *bmain,
 
   BM_mesh_free(bm_new);
   ((Mesh *)base_new->object->data)->runtime->edit_mesh = nullptr;
-  printf("Separate_arrays %p\n", base_new->object->data);
 
   return base_new;
 }

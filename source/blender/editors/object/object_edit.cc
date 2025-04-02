@@ -828,7 +828,6 @@ bool editmode_enter_ex(Main *bmain, Scene *scene, Object *ob, int flag)
     const bool use_key_index = mesh_needs_keyindex(bmain, static_cast<const Mesh *>(ob->data));
 
     EDBM_mesh_make(ob, scene->toolsettings->selectmode, use_key_index);
-    printf("MADE EDIT MESH! -> %p\n", ob->data);
 
     BMEditMesh *em = BKE_editmesh_from_object(ob);
     if (LIKELY(em)) {

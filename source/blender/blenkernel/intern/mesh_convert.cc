@@ -885,7 +885,6 @@ Mesh *BKE_mesh_new_from_object(Depsgraph *depsgraph,
    * Here we are constructing a mesh which is supposed to be independent, which means no shared
    * ownership is allowed, so we make sure edit mesh is reset to nullptr (which is similar to as if
    * one duplicates the objects and applies all the modifiers). */
-  printf("New from object: %p\n", new_mesh);
   new_mesh->runtime->edit_mesh = nullptr;
 
   return new_mesh;

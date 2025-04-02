@@ -76,7 +76,6 @@ static PyObject *bpy_bm_from_edit_mesh(PyObject * /*self*/, PyObject *value)
 {
   BMesh *bm;
   Mesh *mesh = static_cast<Mesh *>(PyC_RNA_AsPointer(value, "Mesh"));
-  printf("Requesting from %p!\n", mesh);
 
   if (mesh == nullptr) {
     return nullptr;
