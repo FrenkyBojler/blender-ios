@@ -116,7 +116,6 @@ static void convert_positions(const float4x4 &mat,
  *
  * Therefore, `d` also represents the parametric distance in the new coordinate system.
  */
-
 static void object_raycast(const Object &active_object,
                            const Object &target_object,
                            const bool bidirectional,
@@ -137,9 +136,9 @@ static void object_raycast(const Object &active_object,
 
   Array<float3> ray_origins(positions.size());
 
-  /* Normal and positions are in the coordinate system of the active object. Convert them to the
+  /* Direction and origins are in the coordinate system of the active object. Convert them to the
    * coordinate system of the target. */
-  const float3 ray_normal = math::transform_direction(active_to_target_mat, normal);
+  const float3 ray_direction = math::transform_direction(active_to_target_mat, normal);
   convert_positions(active_to_target_mat, positions, ray_origins);
 
   threading::isolate_task([&]() {
@@ -150,11 +149,11 @@ static void object_raycast(const Object &active_object,
         }
 
         BVHTreeRayHit hit;
-        raycast(ray_origins[i], ray_normal, tree_data, hit);
+        raycast(ray_origins[i], ray_direction, tree_data, hit);
         best_hit_distances[i] = absolute_min_distance(best_hit_distances[i], hit.dist);
 
         if (bidirectional) {
-          raycast(ray_origins[i], -ray_normal, tree_data, hit);
+          raycast(ray_origins[i], -ray_direction, tree_data, hit);
           best_hit_distances[i] = absolute_min_distance(best_hit_distances[i], -hit.dist);
         }
       }
