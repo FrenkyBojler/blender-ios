@@ -1394,6 +1394,9 @@ std::optional<int> Mesh::material_index_max() const
         this->attributes()
             .lookup_or_default<int>("material_index", blender::bke::AttrDomain::Face, 0)
             .varray);
+    if (value.has_value()) {
+      value = std::clamp(*value, 0, MAXMAT);
+    }
   });
   return this->runtime->max_material_index.data();
 }
