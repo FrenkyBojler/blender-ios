@@ -23,6 +23,8 @@
 #  include "BKE_volume_enums.hh"
 #  include "BKE_volume_grid_fwd.hh"
 
+#  include "openvdb_fwd.hh"
+
 struct Volume;
 
 blender::bke::VolumeGridData *BKE_volume_grid_add_vdb(Volume &volume,
