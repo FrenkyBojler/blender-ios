@@ -91,6 +91,7 @@ set(SRC
   intern/socket_search_link.cc
   intern/socket_usage_inference.cc
   intern/value_elem.cc
+  intern/volume_grid_function_eval.cc
 
   NOD_common.hh
   NOD_composite.hh
@@ -129,6 +130,7 @@ set(SRC
   intern/node_common.h
   intern/node_exec.hh
   intern/node_util.hh
+  intern/volume_grid_function_eval.hh
 )
 
 set(LIB
