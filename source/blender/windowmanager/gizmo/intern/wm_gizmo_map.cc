@@ -712,8 +712,11 @@ static wmGizmo *gizmo_find_intersected_3d(bContext *C,
     GPU_framebuffer_bind(depth_read_fb);
 
     wmWindow *win = CTX_wm_window(C);
-    const int test_min = ((win->event_last_handled->tablet.active) ? 6.0f : 4.0f) * UI_SCALE_FAC;
-    const int test_max = ((win->event_last_handled->tablet.active) ? 12.0f : 10.0f) * UI_SCALE_FAC;
+    const float gizmo_ratio = float(U.gizmo_size) / 75.0f;
+    const int test_min = ((win->event_last_handled->tablet.active) ? 6.0f : 4.0f) * UI_SCALE_FAC *
+                         gizmo_ratio;
+    const int test_max = ((win->event_last_handled->tablet.active) ? 12.0f : 10.0f) *
+                         UI_SCALE_FAC * gizmo_ratio;
 
     const int hotspot_radii[] = {
         test_min,
