@@ -994,7 +994,7 @@ static wmOperatorStatus sculpt_mask_filter_exec(bContext *C, wmOperator *op)
 
   undo::push_end(ob);
 
-  flush_update_step(C, UpdateType::Mask, pbvh.calc_bounds(node_mask));
+  flush_update_step(C, UpdateType::Mask);
   flush_update_done(C, ob, UpdateType::Mask);
 
   SCULPT_tag_update_overlays(C);

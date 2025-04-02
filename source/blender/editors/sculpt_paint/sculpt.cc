@@ -17,7 +17,6 @@
 
 #include "BLI_array_utils.hh"
 #include "BLI_atomic_disjoint_set.hh"
-#include "BLI_bounds.hh"
 #include "BLI_dial_2d.h"
 #include "BLI_enumerable_thread_specific.hh"
 #include "BLI_listbase.h"
@@ -3517,9 +3516,6 @@ static void do_brush_action(const Depsgraph &depsgraph,
   ups.average_stroke_counter++;
   /* Update last stroke position. */
   ups.last_stroke_valid = true;
-
-  /* Update the redraw bounds with the bounds of the BVH nodes from the current symmetry pass. */
-  ss.cache->redraw_bounds = bounds::merge(ss.cache->redraw_bounds, pbvh.calc_bounds(node_mask));
 }
 
 }  // namespace blender::ed::sculpt_paint
@@ -5188,9 +5184,7 @@ static void tag_mesh_positions_changed(Object &object, const bool use_pbvh_draw)
   }
 }
 
-void flush_update_step(const bContext *C,
-                       const UpdateType update_type,
-                       const Bounds<float3> &redraw_bounds)
+void flush_update_step(const bContext *C, const UpdateType update_type)
 {
   Object &ob = *CTX_data_active_object(C);
   RegionView3D *rv3d = CTX_wm_region_view3d(C);
@@ -5229,34 +5223,15 @@ void flush_update_step(const bContext *C,
     ED_region_tag_redraw(&region);
   }
   else {
-    /* Fast path where we just update the BVH nodes that changed, and redraw
-     * only the part of the 3D viewport where changes happened. */
-    rcti r;
-
-    if (rv3d &&
-        paint_convert_bb_to_rect(&r, redraw_bounds.min, redraw_bounds.max, region, *rv3d, ob))
-    {
-      r.xmin += region.winrct.xmin - 2;
-      r.xmax += region.winrct.xmin + 2;
-      r.ymin += region.winrct.ymin - 2;
-      r.ymax += region.winrct.ymin + 2;
-      ED_region_tag_redraw_partial(&region, &r, true);
-    }
+    /* TODO: partial redrawing. */
+    ED_region_tag_redraw(&region);
   }
-
   const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(ob);
   if (update_type == UpdateType::Position && !ss.shapekey_active) {
     if (pbvh.type() == bke::pbvh::Type::Mesh) {
       tag_mesh_positions_changed(ob, use_pbvh_draw);
     }
   }
-}
-
-void flush_update_step(const bContext *C, const UpdateType update_type)
-{
-  const Bounds redraw_bounds{float3(std::numeric_limits<float>::lowest()),
-                             float3(std::numeric_limits<float>::max())};
-  flush_update_step(C, update_type, redraw_bounds);
 }
 
 void flush_update_done(const bContext *C, Object &ob, const UpdateType update_type)
@@ -5648,18 +5623,18 @@ static void stroke_update_step(bContext *C,
 
   /* Cleanup. */
   if (brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_MASK) {
-    flush_update_step(C, UpdateType::Mask, ss.cache->redraw_bounds);
+    flush_update_step(C, UpdateType::Mask);
   }
   else if (brush_type_is_paint(brush.sculpt_brush_type)) {
     if (SCULPT_use_image_paint_brush(tool_settings.paint_mode, ob)) {
-      flush_update_step(C, UpdateType::Image, ss.cache->redraw_bounds);
+      flush_update_step(C, UpdateType::Image);
     }
     else {
-      flush_update_step(C, UpdateType::Color, ss.cache->redraw_bounds);
+      flush_update_step(C, UpdateType::Color);
     }
   }
   else {
-    flush_update_step(C, UpdateType::Position, ss.cache->redraw_bounds);
+    flush_update_step(C, UpdateType::Position);
   }
 }
 

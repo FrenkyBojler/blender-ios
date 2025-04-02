@@ -1388,19 +1388,6 @@ void Tree::update_visibility(const Object &object)
   }
 }
 
-Bounds<float3> Tree::calc_bounds(const IndexMask &node_mask)
-{
-  return std::visit(
-      [node_mask](auto &nodes) -> Bounds<float3> {
-        Bounds<float3> bounds = negative_bounds();
-        node_mask.foreach_index(
-            [&](const int i) { bounds = bounds::merge(bounds, nodes[i].bounds_); });
-
-        return bounds;
-      },
-      nodes_);
-}
-
 int count_grid_quads(const BitGroupVector<> &grid_hidden,
                      const Span<int> grid_indices,
                      int gridsize,

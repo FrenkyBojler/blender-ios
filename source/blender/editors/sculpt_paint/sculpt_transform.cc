@@ -573,8 +573,7 @@ void update_modal_transform(bContext *C, Object &ob)
   copy_v4_v4(ss.prev_pivot_rot, ss.pivot_rot);
   copy_v3_v3(ss.prev_pivot_scale, ss.pivot_scale);
 
-  bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(ob);
-  flush_update_step(C, UpdateType::Position, pbvh.calc_bounds(ss.filter_cache->node_mask));
+  flush_update_step(C, UpdateType::Position);
 }
 
 void cancel_modal_transform(bContext *C, Object &ob)

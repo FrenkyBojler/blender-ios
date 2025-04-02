@@ -1580,25 +1580,22 @@ static void write_mask_data(Object &object, const Span<float> mask)
  * operation. */
 static void restore_original_state(bContext *C, Object &ob, Cache &expand_cache)
 {
-  bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(ob);
-  const Bounds<float3> redraw_bounds = pbvh.calc_bounds(expand_cache.node_mask);
-
   switch (expand_cache.target) {
     case TargetType::Mask:
       write_mask_data(ob, expand_cache.original_mask);
-      flush_update_step(C, UpdateType::Mask, redraw_bounds);
+      flush_update_step(C, UpdateType::Mask);
       flush_update_done(C, ob, UpdateType::Mask);
       SCULPT_tag_update_overlays(C);
       break;
     case TargetType::FaceSets:
       restore_face_set_data(ob, expand_cache);
-      flush_update_step(C, UpdateType::FaceSet, redraw_bounds);
+      flush_update_step(C, UpdateType::FaceSet);
       flush_update_done(C, ob, UpdateType::FaceSet);
       SCULPT_tag_update_overlays(C);
       break;
     case TargetType::Colors:
       restore_color_data(ob, expand_cache);
-      flush_update_step(C, UpdateType::Color, redraw_bounds);
+      flush_update_step(C, UpdateType::Color);
       flush_update_done(C, ob, UpdateType::Color);
       break;
   }
@@ -1976,12 +1973,12 @@ static void update_for_vert(bContext *C, Object &ob, const std::optional<int> ve
           break;
         }
       }
-      flush_update_step(C, UpdateType::Mask, pbvh.calc_bounds(node_mask));
+      flush_update_step(C, UpdateType::Mask);
       break;
     }
     case TargetType::FaceSets:
       face_sets_update(ob, expand_cache);
-      flush_update_step(C, UpdateType::FaceSet, pbvh.calc_bounds(node_mask));
+      flush_update_step(C, UpdateType::FaceSet);
       break;
     case TargetType::Colors: {
       Mesh &mesh = *static_cast<Mesh *>(ob.data);
@@ -2015,7 +2012,7 @@ static void update_for_vert(bContext *C, Object &ob, const std::optional<int> ve
                                  mesh.active_color_attribute);
 
       color_attribute.finish();
-      flush_update_step(C, UpdateType::Color, pbvh.calc_bounds(node_mask));
+      flush_update_step(C, UpdateType::Color);
       break;
     }
   }

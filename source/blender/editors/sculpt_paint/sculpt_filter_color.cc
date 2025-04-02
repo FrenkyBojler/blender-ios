@@ -419,7 +419,7 @@ static void sculpt_color_filter_apply(bContext *C, wmOperator *op, Object &ob)
   });
   pbvh.tag_attribute_changed(node_mask, mesh.active_color_attribute);
   color_attribute.finish();
-  flush_update_step(C, UpdateType::Color, pbvh.calc_bounds(node_mask));
+  flush_update_step(C, UpdateType::Color);
 }
 
 static void sculpt_color_filter_end(bContext *C, Object &ob)
