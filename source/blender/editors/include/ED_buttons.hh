@@ -8,15 +8,15 @@
 
 #pragma once
 
-#include "BKE_screen.hh"
 #include "BLI_vector.hh"
+
 #include "DNA_space_types.h"
-#include "DNA_workspace_types.h"
 
 struct ScrArea;
 struct SpaceProperties;
 struct bContext;
 struct PointerRNA;
+struct uiLayout;
 
 namespace blender::ed::properties {
 

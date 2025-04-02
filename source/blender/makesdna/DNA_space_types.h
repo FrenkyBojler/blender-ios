@@ -182,7 +182,7 @@ typedef struct SpaceProperties {
 
   /** Context tabs. */
   short mainb, mainbo, mainbuser;
-  unsigned int visible_tabs;
+  uint32_t visible_tabs;
   /** Preview is signal to refresh. */
   short preview;
   char flag;
@@ -238,9 +238,6 @@ enum {
 
 /** #SpaceProperties.mainb new */
 typedef enum eSpaceButtons_Context {
-  /* Only for UI drawing. */
-  BCONTEXT_SPACER = -1,
-
   BCONTEXT_RENDER = 0,
   BCONTEXT_SCENE = 1,
   BCONTEXT_WORLD = 2,
