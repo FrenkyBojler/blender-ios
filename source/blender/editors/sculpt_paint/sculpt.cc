@@ -5220,12 +5220,10 @@ void flush_update_step(const bContext *C, const UpdateType update_type)
     /* Slow update with full dependency graph update and all that comes with it.
      * Needed when there are modifiers or full shading in the 3D viewport. */
     DEG_id_tag_update(&ob.id, ID_RECALC_GEOMETRY);
-    ED_region_tag_redraw(&region);
   }
-  else {
-    /* TODO: partial redrawing. */
-    ED_region_tag_redraw(&region);
-  }
+
+  ED_region_tag_redraw(&region);
+
   const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(ob);
   if (update_type == UpdateType::Position && !ss.shapekey_active) {
     if (pbvh.type() == bke::pbvh::Type::Mesh) {
