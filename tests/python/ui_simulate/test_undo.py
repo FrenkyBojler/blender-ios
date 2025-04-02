@@ -654,7 +654,8 @@ def view3d_multi_mode_multi_window():
     yield from _call_menu(e_b, "New Scene")
     yield e_b.ret()
     if _MENU_CONFIRM_HACK:
-        yield datetime.timedelta(seconds=1/60)
+        # We wait for a brief period of time after confirming to ensure that each main window has a different view layer
+        yield datetime.timedelta(seconds=1 / 60)
 
     t.assertNotEqual(window_a.view_layer, window_b.view_layer, "Windows should have different view layers")
 
@@ -812,7 +813,8 @@ def view3d_edit_mode_multi_window():
     yield from _call_menu(e_b, "New Scene")
     yield e_b.ret()
     if _MENU_CONFIRM_HACK:
-        yield datetime.timedelta(seconds=1/60)
+        # We wait for a brief period of time after confirming to ensure that each main window has a different view layer
+        yield datetime.timedelta(seconds=1 / 60)
 
     t.assertNotEqual(window_a.view_layer, window_b.view_layer, "Windows should have different view layers")
 
