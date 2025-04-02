@@ -1665,8 +1665,11 @@ blender::Vector<blender::StringRef> UI_text_clip_multiline_middle(
   using namespace blender;
   BLI_assert(max_lines > 0);
 
-  BLF_wordwrap(fstyle->uifont_id, max_line_width, BLFWrapMode::HardLimit);
-  const Vector<StringRef> lines = BLF_string_wrap(fstyle->uifont_id, str, max_line_width);
+  const Vector<StringRef> lines = BLF_string_wrap(
+      fstyle->uifont_id,
+      str,
+      max_line_width,
+      BLFWrapMode(int(BLFWrapMode::Typographical) | int(BLFWrapMode::HardLimit)));
 
   if (lines.size() <= max_lines) {
     return lines;

@@ -287,8 +287,11 @@ void UI_fontstyle_draw_multiline_clipped_ex(const uiFontStyle *fs,
 
   /* First, try if mixed-wrapping (soft wrapping plus hard wrapping for overflowing lines) gives a
    * result that fits. */
-  BLF_wordwrap(fs->uifont_id, max_width, BLFWrapMode::Typographical);
-  blender::Vector<blender::StringRef> lines = BLF_string_wrap(fs->uifont_id, str, max_width);
+  blender::Vector<blender::StringRef> lines = BLF_string_wrap(
+      fs->uifont_id,
+      str,
+      max_width,
+      BLFWrapMode(int(BLFWrapMode::Typographical) | int(BLFWrapMode::HardLimit)));
 
   char str_buf[UI_MAX_DRAW_STR];
   /* If soft-wrapping doesn't fit, apply hard wrapping and clip the string if necessary. */
@@ -306,7 +309,7 @@ void UI_fontstyle_draw_multiline_clipped_ex(const uiFontStyle *fs,
   /* Draw each line with the given alignment. */
   for (StringRef line : lines) {
     /* String wrapping might have trailing/leading whitespace. */
-    line.trim();
+    line = line.trim();
 
     if (align == UI_STYLE_TEXT_CENTER) {
       xofs = floor(0.5f * (max_width - BLF_width(fs->uifont_id, line.data(), line.size())));
