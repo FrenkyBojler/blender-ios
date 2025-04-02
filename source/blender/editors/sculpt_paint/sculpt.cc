@@ -62,6 +62,7 @@
 #include "BKE_report.hh"
 #include "BKE_subdiv_ccg.hh"
 #include "BKE_subsurf.hh"
+#include "BLI_math_rotation_legacy.hh"
 #include "BLI_math_vector.hh"
 
 #include "NOD_texture.h"
@@ -2680,32 +2681,32 @@ static void calc_brush_local_mat(const float rotation,
   invert_m4_m4(local_mat, tmat);
 }
 
-}  // namespace blender::ed::sculpt_paint
-
-#define SCULPT_TILT_SENSITIVITY 0.7f
-void SCULPT_tilt_apply_to_normal(float r_normal[3],
-                                 blender::ed::sculpt_paint::StrokeCache *cache,
-                                 const float tilt_strength)
+float3 tilt_apply_to_normal(const float3 &normal,
+                            const StrokeCache &cache,
+                            const float tilt_strength)
 {
   if (!USER_EXPERIMENTAL_TEST(&U, use_sculpt_tools_tilt)) {
-    return;
+    return normal;
   }
-  const float rot_max = M_PI_2 * tilt_strength * SCULPT_TILT_SENSITIVITY;
-  mul_v3_mat3_m4v3(r_normal, cache->vc->obact->object_to_world().ptr(), r_normal);
-  float normal_tilt_y[3];
-  rotate_v3_v3v3fl(normal_tilt_y, r_normal, cache->vc->rv3d->viewinv[0], cache->tilt.y * rot_max);
-  float normal_tilt_xy[3];
-  rotate_v3_v3v3fl(
-      normal_tilt_xy, normal_tilt_y, cache->vc->rv3d->viewinv[1], cache->tilt.x * rot_max);
-  mul_v3_mat3_m4v3(r_normal, cache->vc->obact->world_to_object().ptr(), normal_tilt_xy);
-  normalize_v3(r_normal);
+  const float3 world_space = math::transform_direction(cache.vc->obact->object_to_world(), normal);
+
+  constexpr float tilt_sensitivity = 0.7f;
+  const float rot_max = M_PI_2 * tilt_strength * tilt_sensitivity;
+  const float3 normal_tilt_y = math::rotate_direction_around_axis(
+      world_space, cache.vc->rv3d->viewinv[0], cache.tilt.y * rot_max);
+  const float3 normal_tilt_xy = math::rotate_direction_around_axis(
+      normal_tilt_y, cache.vc->rv3d->viewinv[1], cache.tilt.x * rot_max);
+
+  return math::normalize(
+      math::transform_direction(cache.vc->obact->world_to_object(), normal_tilt_xy));
 }
 
-void SCULPT_tilt_effective_normal_get(const SculptSession &ss, const Brush &brush, float r_no[3])
+float3 tilt_effective_normal_get(const SculptSession &ss, const Brush &brush)
 {
-  copy_v3_v3(r_no, ss.cache->sculpt_normal_symm);
-  SCULPT_tilt_apply_to_normal(r_no, ss.cache, brush.tilt_strength_factor);
+  return tilt_apply_to_normal(ss.cache->sculpt_normal_symm, *ss.cache, brush.tilt_strength_factor);
 }
+
+}  // namespace blender::ed::sculpt_paint
 
 static void update_brush_local_mat(const Sculpt &sd, Object &ob)
 {
@@ -5219,21 +5220,9 @@ void flush_update_step(const bContext *C, const UpdateType update_type)
     /* Slow update with full dependency graph update and all that comes with it.
      * Needed when there are modifiers or full shading in the 3D viewport. */
     DEG_id_tag_update(&ob.id, ID_RECALC_GEOMETRY);
-    ED_region_tag_redraw(&region);
   }
-  else {
-    /* Fast path where we just update the BVH nodes that changed, and redraw
-     * only the part of the 3D viewport where changes happened. */
-    rcti r;
 
-    if (rv3d && SCULPT_get_redraw_rect(region, *rv3d, ob, r)) {
-      r.xmin += region.winrct.xmin - 2;
-      r.xmax += region.winrct.xmin + 2;
-      r.ymin += region.winrct.ymin - 2;
-      r.ymax += region.winrct.ymin + 2;
-      ED_region_tag_redraw_partial(&region, &r, true);
-    }
-  }
+  ED_region_tag_redraw(&region);
 
   const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(ob);
   if (update_type == UpdateType::Position && !ss.shapekey_active) {
