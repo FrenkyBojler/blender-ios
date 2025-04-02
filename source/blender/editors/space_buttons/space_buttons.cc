@@ -169,7 +169,29 @@ void ED_buttons_visible_tabs_menu(bContext *C, uiLayout *layout, void * /*arg*/)
   PointerRNA ptr = RNA_pointer_create_discrete(
       reinterpret_cast<ID *>(CTX_wm_screen(C)), &RNA_SpaceProperties, CTX_wm_space_properties(C));
 
-  for (blender::StringRefNull item : blender::ed::properties::filter_items) {
+  /* These can be reordered freely. */
+  constexpr std::array<blender::StringRefNull, BCONTEXT_TOT> filter_items = {
+      "show_properties_tool",
+      "show_properties_render",
+      "show_properties_output",
+      "show_properties_view_layer",
+      "show_properties_scene",
+      "show_properties_world",
+      "show_properties_collection",
+      "show_properties_object",
+      "show_properties_modifiers",
+      "show_properties_effects",
+      "show_properties_particles",
+      "show_properties_physics",
+      "show_properties_constraints",
+      "show_properties_data",
+      "show_properties_bone",
+      "show_properties_bone_constraints",
+      "show_properties_material",
+      "show_properties_texture",
+  };
+
+  for (blender::StringRefNull item : filter_items) {
     uiItemR(layout, &ptr, item, UI_ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
   }
 }
