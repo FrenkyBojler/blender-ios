@@ -488,18 +488,16 @@ void Instance::object_sync(ObjectRef &ob_ref, Manager &manager)
     layer.particles.edit_object_sync(manager, ob_ref, resources, state);
   }
 
-  /* For wire-frames. */
-  if (!state.hide_overlays) {
+  /* For 2D UV overlays. */
+  if (!state.hide_overlays && state.is_space_image()) {
     switch (ob_ref.object->type) {
       case OB_MESH:
-        if (in_object_mode &&
-            (object_is_selected(ob_ref) || (ob_ref.object == state.object_active)))
-        {
-          layer.mesh_uvs.object_sync(manager, ob_ref, resources, state);
-        }
-        else if (in_edit_paint_mode) {
+        if (in_edit_paint_mode) {
           /* TODO(fclem): Find a better place / condition. */
           layer.mesh_uvs.edit_object_sync(manager, ob_ref, resources, state);
+        }
+        else if (in_object_mode) {
+          layer.mesh_uvs.object_sync(manager, ob_ref, resources, state);
         }
       default:
         break;
