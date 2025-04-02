@@ -4289,7 +4289,7 @@ static wmOperatorStatus area_join_modal(bContext *C, wmOperator *op, const wmEve
       WM_event_add_notifier(C, NC_WINDOW, nullptr);
 
       WorkspaceStatus status(C);
-      if (jd->sa1 &&jd->sa1 == jd->sa2) {
+      if (jd->sa1 && jd->sa1 == jd->sa2) {
         if (jd->split_fac == 0.0f) {
           status.item(IFACE_("Split/Dock"), ICON_MOUSE_LMB_DRAG);
           status.item(IFACE_("Cancel"), ICON_EVENT_ESC);
