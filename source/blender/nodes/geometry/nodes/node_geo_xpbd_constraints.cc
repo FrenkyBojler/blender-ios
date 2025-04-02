@@ -881,29 +881,31 @@ static void node_geo_exec(GeoNodeExecParams params)
   const bke::CurvesGeometry &curves = component.get()->geometry.wrap();
   const OffsetIndices points_by_curve = curves.points_by_curve();
 
-  /* Skip end points of curves, these cannot have stretch/shear constraints. */
-  Array<bool> point_bools(curves.points_num(), true);
-  IndexMask(curves.curves_range()).foreach_index(GrainSize(128), [&](const int curve_i) {
-    const IndexRange points = points_by_curve[curve_i];
-    if (!points.is_empty()) {
-      point_bools[points.last()] = false;
-    }
-  });
-  IndexMaskMemory memory;
-  const IndexMask point_mask = IndexMask::from_bools(point_bools, memory);
-
   bke::GeometryFieldContext context{component, AttrDomain::Point};
-  fn::FieldEvaluator evaluator{context, &point_mask};
-  evaluator.set_selection(selection_field);
+  fn::FieldEvaluator evaluator{context, curves.points_num()};
+  /* Note: selection is not used to limit the evaluation, because attributes from unselected points
+   * may be needed to compute constraint properties (edge length). */
+  evaluator.add(selection_field);
   evaluator.add(compliance_field);
   evaluator.add(damping_field);
   evaluator.add(rest_position_field);
   evaluator.evaluate();
 
-  const IndexMask selection = evaluator.get_evaluated_selection_as_mask();
-  const VArray<float> compliance = evaluator.get_evaluated<float>(0);
-  const VArray<float> damping = evaluator.get_evaluated<float>(1);
-  const VArraySpan<float3> rest_position = evaluator.get_evaluated<float3>(2);
+  /* Skip end points of curves, these cannot have stretch/shear constraints. */
+  Array<bool> point_valid(curves.points_num(), true);
+  IndexMask(curves.curves_range()).foreach_index(GrainSize(256), [&](const int curve_i) {
+    const IndexRange points = points_by_curve[curve_i];
+    if (!points.is_empty()) {
+      point_valid[points.last()] = false;
+    }
+  });
+
+  IndexMaskMemory memory;
+  const IndexMask selection = IndexMask::from_bools(
+      evaluator.get_evaluated_as_mask(0), point_valid, memory);
+  const VArray<float> compliance = evaluator.get_evaluated<float>(1);
+  const VArray<float> damping = evaluator.get_evaluated<float>(2);
+  const VArraySpan<float3> rest_position = evaluator.get_evaluated<float3>(3);
 
   PointCloud *points = BKE_pointcloud_new_nomain(selection.size());
   MutableAttributeAccessor attributes = points->attributes_for_write();
@@ -1215,24 +1217,101 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Geometry>("Curves").supported_type(GeometryComponent::Type::Curve);
   b.add_input<decl::Bool>("Selection").default_value(true).hide_value().field_on_all();
 
-  b.add_input<decl::Int>("Point 1").min(0).field_on_all().description(
-      "Index of the first point the constraint applies to");
-  b.add_input<decl::Int>("Point 2").min(0).field_on_all().description(
-      "Index of the second point the constraint applies to");
   b.add_input<decl::Float>("Compliance").min(0.0f).field_on_all();
   b.add_input<decl::Float>("Damping").min(0.0f).field_on_all();
-  b.add_input<decl::Rotation>("Relative Rotation")
+  b.add_input<decl::Rotation>("Rest Rotation")
       .field_on_all()
-      .description("Relative rotation between points");
-  b.add_input<decl::Float>("Edge Length")
-      .min(0.0f)
-      .field_on_all()
-      .description("Distance between points");
+      .description("Rest rotation defining the relative orientation of segments");
 
   b.add_output<decl::Geometry>("Constraints");
 }
 
-static void node_geo_exec(GeoNodeExecParams params) {}
+static void node_geo_exec(GeoNodeExecParams params)
+{
+  GeometrySet geometry = params.extract_input<GeometrySet>("Curves");
+  const Field<bool> selection_field = params.extract_input<Field<bool>>("Selection");
+
+  const Field<float> compliance_field = params.extract_input<Field<float>>("Compliance");
+  const Field<float> damping_field = params.extract_input<Field<float>>("Damping");
+  const Field<math::Quaternion> rest_rotation_field =
+      params.extract_input<Field<math::Quaternion>>("Rest Rotation");
+
+  if (!geometry.has_curves()) {
+    params.set_default_remaining_outputs();
+    return;
+  }
+
+  const CurveComponent &component = *geometry.get_component<CurveComponent>();
+  const bke::CurvesGeometry &curves = component.get()->geometry.wrap();
+  const OffsetIndices points_by_curve = curves.points_by_curve();
+
+  bke::GeometryFieldContext context{component, AttrDomain::Point};
+  fn::FieldEvaluator evaluator{context, curves.points_num()};
+  /* Note: selection is not used to limit the evaluation, because attributes from unselected points
+   * may be needed to compute constraint properties (edge length). */
+  evaluator.add(selection_field);
+  evaluator.add(compliance_field);
+  evaluator.add(damping_field);
+  evaluator.add(rest_rotation_field);
+  evaluator.evaluate();
+
+  /* Skip end points of curves, these cannot have bend/twist constraints. */
+  Array<bool> point_valid(curves.points_num(), true);
+  IndexMask(curves.curves_range()).foreach_index(GrainSize(256), [&](const int curve_i) {
+    const IndexRange points = points_by_curve[curve_i];
+    if (!points.is_empty()) {
+      point_valid[points.last()] = false;
+    }
+  });
+
+  IndexMaskMemory memory;
+  const IndexMask selection = IndexMask::from_bools(
+      evaluator.get_evaluated_as_mask(0), point_valid, memory);
+  const VArray<float> compliance = evaluator.get_evaluated<float>(1);
+  const VArray<float> damping = evaluator.get_evaluated<float>(2);
+  const VArraySpan<math::Quaternion> rest_rotation = evaluator.get_evaluated<math::Quaternion>(3);
+
+  PointCloud *points = BKE_pointcloud_new_nomain(selection.size());
+  MutableAttributeAccessor attributes = points->attributes_for_write();
+  SpanAttributeWriter<int> output_point1 = attributes.lookup_or_add_for_write_only_span<int>(
+      ATTR_POINT1, AttrDomain::Point);
+  SpanAttributeWriter<int> output_point2 = attributes.lookup_or_add_for_write_only_span<int>(
+      ATTR_POINT2, AttrDomain::Point);
+  SpanAttributeWriter<float> output_compliance =
+      attributes.lookup_or_add_for_write_only_span<float>(ATTR_ALPHA, AttrDomain::Point);
+  SpanAttributeWriter<float> output_damping = attributes.lookup_or_add_for_write_only_span<float>(
+      ATTR_BETA, AttrDomain::Point);
+  SpanAttributeWriter<float3> output_darboux_vector =
+      attributes.lookup_or_add_for_write_only_span<float3>("darboux_vector", AttrDomain::Point);
+  SpanAttributeWriter<int> output_solver_group = attributes.lookup_or_add_for_write_only_span<int>(
+      ATTR_SOLVER_GROUP, AttrDomain::Point);
+
+  selection.foreach_index(GrainSize(256), [&](const int index, const int pos) {
+    /* Curve end points have been excluded, so index + 1 is safe. */
+    output_point1.span[pos] = index;
+    output_point2.span[pos] = index + 1;
+    /* Use rest rotation difference to compute a Darboux vector. */
+    output_darboux_vector.span[pos] = (math::invert_normalized(rest_rotation[index]) *
+                                       rest_rotation[index + 1])
+                                          .imaginary_part();
+    /* Alternating by odd/even index separates curve constraints into independent groups. */
+    output_solver_group.span[pos] = index % 2;
+  });
+  compliance.materialize_compressed(selection, output_compliance.span);
+  damping.materialize_compressed(selection, output_damping.span);
+
+  output_point1.finish();
+  output_point2.finish();
+  output_compliance.finish();
+  output_damping.finish();
+  output_darboux_vector.finish();
+  output_solver_group.finish();
+
+  points->positions_for_write().fill(float3(0.0f));
+  points->tag_positions_changed();
+
+  params.set_output("Constraints", GeometrySet::from_pointcloud(points));
+}
 
 static void node_register()
 {
@@ -1682,9 +1761,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Geometry>("Curves").supported_type(GeometryComponent::Type::Curve);
   b.add_input<decl::Bool>("Selection").default_value(true).hide_value().field_on_all();
 
-  b.add_input<decl::Int>("Point").min(0).field_on_all().description(
-      "Index of the point the constraint applies to");
-  b.add_input<decl::Int>("Collider").min(0).field_on_all().description("Index of the collider");
+  b.add_input<decl::Int>("Collider").min(0).description("Index of the collider");
   b.add_input<decl::Float>("Friction")
       .min(0.0f)
       .field_on_all()
@@ -1695,6 +1772,11 @@ static void node_declare(NodeDeclarationBuilder &b)
       .subtype(PROP_FACTOR)
       .field_on_all()
       .description("Amount the point bounces back after colliding");
+  b.add_input<decl::Float>("Threshold Normal Velocity")
+      .min(0.0f)
+      .default_value(0.5f)
+      .field_on_all()
+      .description("No bouncing occurs when normal velocity is below this threshold");
   b.add_input<decl::Vector>("Local Position")
       .field_on_all()
       .description("Contact position relative to the point");
@@ -1706,7 +1788,100 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Geometry>("Constraints");
 }
 
-static void node_geo_exec(GeoNodeExecParams params) {}
+static void node_geo_exec(GeoNodeExecParams params)
+{
+  GeometrySet geometry = params.extract_input<GeometrySet>("Curves");
+  const Field<bool> selection_field = params.extract_input<Field<bool>>("Selection");
+
+  const int collider_index = params.extract_input<int>("Collider");
+  const Field<float> friction_field = params.extract_input<Field<float>>("Friction");
+  const Field<float> restitution_field = params.extract_input<Field<float>>("Restitution");
+  const Field<float> threshold_normal_velocity_field = params.extract_input<Field<float>>(
+      "Threshold Normal Velocity");
+  const Field<float3> local_position_field = params.extract_input<Field<float3>>("Local Position");
+  const Field<float3> collider_position_field = params.extract_input<Field<float3>>(
+      "Collider Position");
+  const Field<float3> normal_field = params.extract_input<Field<float3>>("Normal");
+
+  if (!geometry.has_curves()) {
+    params.set_default_remaining_outputs();
+    return;
+  }
+
+  const CurveComponent &component = *geometry.get_component<CurveComponent>();
+  const bke::CurvesGeometry &curves = component.get()->geometry.wrap();
+
+  bke::GeometryFieldContext context{component, AttrDomain::Point};
+  fn::FieldEvaluator evaluator{context, curves.points_num()};
+  evaluator.set_selection(selection_field);
+  evaluator.add(friction_field);
+  evaluator.add(restitution_field);
+  evaluator.add(threshold_normal_velocity_field);
+  evaluator.add(local_position_field);
+  evaluator.add(collider_position_field);
+  evaluator.add(normal_field);
+  evaluator.evaluate();
+
+  const IndexMask selection = evaluator.get_evaluated_selection_as_mask();
+  const VArray<float> friction = evaluator.get_evaluated<float>(0);
+  const VArray<float> restitution = evaluator.get_evaluated<float>(1);
+  const VArray<float> threshold_normal_velocity = evaluator.get_evaluated<float>(2);
+  const VArray<float3> local_position = evaluator.get_evaluated<float3>(3);
+  const VArray<float3> collider_position = evaluator.get_evaluated<float3>(4);
+  const VArraySpan<float3> normal = evaluator.get_evaluated<float3>(5);
+
+  PointCloud *points = BKE_pointcloud_new_nomain(selection.size());
+  MutableAttributeAccessor attributes = points->attributes_for_write();
+  SpanAttributeWriter<int> output_point1 = attributes.lookup_or_add_for_write_only_span<int>(
+      ATTR_POINT1, AttrDomain::Point);
+  SpanAttributeWriter<int> output_collider_index =
+      attributes.lookup_or_add_for_write_only_span<int>("collider_index", AttrDomain::Point);
+  SpanAttributeWriter<float> output_friction = attributes.lookup_or_add_for_write_only_span<float>(
+      "friction", AttrDomain::Point);
+  SpanAttributeWriter<float> output_restitution =
+      attributes.lookup_or_add_for_write_only_span<float>("restitituion", AttrDomain::Point);
+  SpanAttributeWriter<float> output_threshold_normal_velocity =
+      attributes.lookup_or_add_for_write_only_span<float>("threshold_normal_velocity",
+                                                          AttrDomain::Point);
+  SpanAttributeWriter<float3> output_local_position1 =
+      attributes.lookup_or_add_for_write_only_span<float3>("local_position1", AttrDomain::Point);
+  SpanAttributeWriter<float3> output_local_position2 =
+      attributes.lookup_or_add_for_write_only_span<float3>("local_position2", AttrDomain::Point);
+  SpanAttributeWriter<float3> output_normal = attributes.lookup_or_add_for_write_only_span<float3>(
+      "normal", AttrDomain::Point);
+  SpanAttributeWriter<int> output_solver_group = attributes.lookup_or_add_for_write_only_span<int>(
+      ATTR_SOLVER_GROUP, AttrDomain::Point);
+
+  selection.to_indices(output_point1.span);
+  output_collider_index.span.fill(collider_index);
+  friction.materialize_compressed(selection, output_friction.span);
+  restitution.materialize_compressed(selection, output_restitution.span);
+  threshold_normal_velocity.materialize_compressed(selection,
+                                                   output_threshold_normal_velocity.span);
+  local_position.materialize_compressed(selection, output_local_position1.span);
+  collider_position.materialize_compressed(selection, output_local_position2.span);
+  selection.foreach_index(GrainSize(256), [&](const int index, const int pos) {
+    output_normal.span[pos] = math::normalize(normal[index]);
+  });
+  /* There should only be one contact per point/collider pair, so the collider index can be used
+   * to separate constraint groups. */
+  output_solver_group.span.fill(collider_index);
+
+  output_point1.finish();
+  output_collider_index.finish();
+  output_friction.finish();
+  output_restitution.finish();
+  output_threshold_normal_velocity.finish();
+  output_local_position1.finish();
+  output_local_position2.finish();
+  output_normal.finish();
+  output_solver_group.finish();
+
+  points->positions_for_write().fill(float3(0.0f));
+  points->tag_positions_changed();
+
+  params.set_output("Constraints", GeometrySet::from_pointcloud(points));
+}
 
 static void node_register()
 {
