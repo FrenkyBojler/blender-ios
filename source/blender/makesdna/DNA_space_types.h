@@ -238,6 +238,7 @@ enum {
 
 /** #SpaceProperties.mainb new */
 typedef enum eSpaceButtons_Context {
+  BCONTEXT_SEPARATOR = -1,
   BCONTEXT_RENDER = 0,
   BCONTEXT_SCENE = 1,
   BCONTEXT_WORLD = 2,

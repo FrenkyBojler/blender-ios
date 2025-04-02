@@ -203,8 +203,8 @@ blender::Vector<eSpaceButtons_Context> ED_buttons_tabs_list(const SpacePropertie
   const int filter = sbuts->visible_tabs;
 
   auto add_spacer = [&]() {
-    if (!tabs.is_empty() && tabs.last() != eSpaceButtons_Context(-1)) {
-      tabs.append(eSpaceButtons_Context(-1));
+    if (!tabs.is_empty() && tabs.last() != BCONTEXT_SEPARATOR) {
+      tabs.append(BCONTEXT_SEPARATOR);
     }
   };
 
@@ -501,16 +501,15 @@ static eSpaceButtons_Context find_new_properties_tab(const SpaceProperties *sbut
   const int old_index = tabs_array_no_filter.first_index_of(eSpaceButtons_Context(sbuts->mainb));
 
   /* Try to find next tab to switch to. */
-  eSpaceButtons_Context new_tab = eSpaceButtons_Context(-1);
+  eSpaceButtons_Context new_tab = BCONTEXT_SEPARATOR;
   for (int i = old_index; i < tabs_array_no_filter.size(); i += iter_step) {
     const eSpaceButtons_Context candidate_tab = tabs_array_no_filter[i];
 
-    if (candidate_tab == eSpaceButtons_Context(-1)) {
+    if (candidate_tab == BCONTEXT_SEPARATOR) {
       continue;
     }
 
-    const int found_tab_index = tabs_array.first_index_of_try(
-        eSpaceButtons_Context(candidate_tab));
+    const int found_tab_index = tabs_array.first_index_of_try(candidate_tab);
 
     if (found_tab_index != -1) {
       new_tab = tabs_array[found_tab_index];
