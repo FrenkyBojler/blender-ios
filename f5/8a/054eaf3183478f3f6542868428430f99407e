@@ -1,1 +1,1 @@
-Referenced by pull request #136012, Fix: Use non-zero timer value for UI test event simulation
+Referenced by pull request #136012, Fix: Multi-window UI tests can produce inconsistent results
