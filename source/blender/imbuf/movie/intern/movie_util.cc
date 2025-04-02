@@ -513,7 +513,7 @@ bool MOV_codec_supports_alpha(int av_codec_id, int prores_profile)
               AV_CODEC_ID_VP9,
               AV_CODEC_ID_HUFFYUV);
 #else
-  UNUSED_VARS(av_codec_id, profile);
+  UNUSED_VARS(av_codec_id, prores_profile);
   return false;
 #endif
 }
