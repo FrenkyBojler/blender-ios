@@ -1,2 +1,2 @@
 Referenced by issue #114706, 4.0: Candidates for corrective releases
-Referenced by issue #136835, Sculpting on lattice modified object considers the unmodified object
+Referenced by issue #136835, Crazyspace Sculpting (with deform modifiers such as lattice, cast, curve, displace, ...) only considers the unmodified object
