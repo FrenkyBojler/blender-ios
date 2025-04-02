@@ -63,9 +63,8 @@ class Node : NonCopyable {
 
  public:
   enum Flags : uint32_t {
+    None = 0,
     Leaf = 1 << 0,
-
-    UpdateRedraw = 1 << 5,
 
     FullyHidden = 1 << 10,
     FullyMasked = 1 << 11,
@@ -89,7 +88,7 @@ class Node : NonCopyable {
 
   /* Indicates whether this node is a leaf or not; also used for
    * marking various updates that need to be applied. */
-  Flags flag_ = UpdateRedraw;
+  Flags flag_ = None;
 
   /**
    * Used for ray-casting: how close the bounding-box is to the ray point.
