@@ -6492,12 +6492,12 @@ static void rna_def_scene_ffmpeg_settings(BlenderRNA *brna)
   };
 
   static const EnumPropertyItem ffmpeg_prores_profiles_items[] = {
-      {FFM_PRORES_PROFILE_422_PROXY, "422_PROXY", 0, "Prores 422 Proxy", ""},
-      {FFM_PRORES_PROFILE_422_LT, "422_LT", 0, "Prores 422 LT", ""},
-      {FFM_PRORES_PROFILE_422_STD, "422_STD", 0, "Prores 422", ""},
-      {FFM_PRORES_PROFILE_422_HQ, "422_HQ", 0, "Prores 422 HQ", ""},
-      {FFM_PRORES_PROFILE_4444, "4444", 0, "Prores 4444", ""},
-      {FFM_PRORES_PROFILE_4444_XQ, "4444_XQ", 0, "Prores 4444 XQ", ""},
+      {FFM_PRORES_PROFILE_422_PROXY, "422_PROXY", 0, "ProRes 422 Proxy", ""},
+      {FFM_PRORES_PROFILE_422_LT, "422_LT", 0, "ProRes 422 LT", ""},
+      {FFM_PRORES_PROFILE_422_STD, "422_STD", 0, "ProRes 422", ""},
+      {FFM_PRORES_PROFILE_422_HQ, "422_HQ", 0, "ProRes 422 HQ", ""},
+      {FFM_PRORES_PROFILE_4444, "4444", 0, "ProRes 4444", ""},
+      {FFM_PRORES_PROFILE_4444_XQ, "4444_XQ", 0, "ProRes 4444 XQ", ""},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
@@ -6664,7 +6664,7 @@ static void rna_def_scene_ffmpeg_settings(BlenderRNA *brna)
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_enum_items(prop, ffmpeg_prores_profiles_items);
   RNA_def_property_enum_default(prop, FFM_PRORES_PROFILE_422_STD);
-  RNA_def_property_ui_text(prop, "Profile", "Prores Profile");
+  RNA_def_property_ui_text(prop, "Profile", "ProRes Profile");
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
 
   prop = RNA_def_property(srna, "use_autosplit", PROP_BOOLEAN, PROP_NONE);
