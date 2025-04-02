@@ -377,7 +377,7 @@ void Mesh::tag_sharpness_changed()
 
 void Mesh::tag_custom_normals_changed()
 {
-  this->runtime->corner_normals_cache.tag_dirty();
+  this->runtime->vert_normals_cache.tag_dirty();
   this->runtime->face_normals_cache.tag_dirty();
   this->runtime->corner_normals_cache.tag_dirty();
 }
