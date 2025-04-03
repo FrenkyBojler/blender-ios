@@ -60,8 +60,8 @@ void Instance::antialiasing_init()
   }
 
   SceneGpencil gpencil_settings = this->scene->grease_pencil_settings;
-  float luma_weight = this->is_viewport ? gpencil_settings.smaa_threshold :
-                                          gpencil_settings.smaa_threshold_render;
+  const float luma_weight = this->is_viewport ? gpencil_settings.smaa_threshold :
+                                                gpencil_settings.smaa_threshold_render;
 
   {
     /* Stage 1: Edge detection. */

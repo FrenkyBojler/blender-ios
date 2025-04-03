@@ -275,7 +275,7 @@ void Engine::render_to_image(RenderEngine *engine, RenderLayer *render_layer, co
      * This diminishes after each new sample as we want all samples to be equally weighted inside
      * the final result (inside the combined buffer). This weighting scheme allows to always store
      * the resolved result making it ready for in-progress display or readback. */
-    float weight = 1.0f / (1.0f + i);
+    const float weight = 1.0f / (1.0f + i);
     inst.antialiasing_accumulate(manager, weight);
   }
 
