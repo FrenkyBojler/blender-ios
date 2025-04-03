@@ -974,8 +974,10 @@ static bool has_external_files(Main *bmain, ReportList *reports)
 
 struct ScreenshotOperatorData {
   void *draw_handle;
-  blender::int2 start, end;
+  blender::int2 start, end, last_cursor;
   bool dragging;
+  /* Move the existing screenshot area when moving the cursor instead of placing p2. */
+  bool shift_area;
   bool force_square;
 };
 
@@ -1095,9 +1097,6 @@ static wmOperatorStatus screenshot_preview_exec(bContext *C, wmOperator *op)
 static void screenshot_preview_draw(const wmWindow *window, void *operator_data)
 {
   ScreenshotOperatorData *data = static_cast<ScreenshotOperatorData *>(operator_data);
-  if (!data->dragging) {
-    return;
-  }
   blender::int2 p1 = data->start;
   blender::int2 p2 = data->end;
   if (data->force_square) {
@@ -1110,7 +1109,7 @@ static void screenshot_preview_draw(const wmWindow *window, void *operator_data)
       float(p1.x - 1), float(p2.x + 1), float(p1.y - 1), float(p2.y + 1)};
 
   /* Drawing a semi-transparent mask to highlight the area that will be captured. */
-  blender::float4 mask_color = {1, 1, 1, 0.5};
+  blender::float4 mask_color = {1, 1, 1, 0.25};
   const rctf mask_rect_bottom = {0, float(window->sizex), 0, screenshot_rect.ymin};
   UI_draw_roundbox_aa(&mask_rect_bottom, true, 0, mask_color);
   const rctf mask_rect_top = {0, float(window->sizex), screenshot_rect.ymax, float(window->sizey)};
@@ -1142,30 +1141,58 @@ static wmOperatorStatus screenshot_preview_modal(bContext *C, wmOperator *op, co
 
   ScreenshotOperatorData *data = static_cast<ScreenshotOperatorData *>(op->customdata);
 
-  blender::int2 screen_space_mouse = {
+  blender::int2 screen_space_cursor = {
       event->mval[0] + region->winrct.xmin,
       event->mval[1] + region->winrct.ymin,
   };
   if (event->type == LEFTMOUSE) {
     switch (event->val) {
       case KM_PRESS: {
-        RNA_int_set_array(op->ptr, "p1", screen_space_mouse);
-        data->start = screen_space_mouse;
+        RNA_int_set_array(op->ptr, "p1", screen_space_cursor);
+        data->start = screen_space_cursor;
         data->dragging = true;
         return OPERATOR_RUNNING_MODAL;
       }
       case KM_RELEASE: {
-        RNA_int_set_array(op->ptr, "p2", screen_space_mouse);
+        RNA_int_set_array(op->ptr, "p2", screen_space_cursor);
+        data->dragging = false;
         screenshot_preview_exec(C, op);
         screenshot_preview_exit(C, op);
         return OPERATOR_FINISHED;
       }
     }
   }
+  if (event->type == EVT_SPACEKEY) {
+    switch (event->val) {
+      case KM_PRESS:
+        data->shift_area = true;
+        break;
+      case KM_RELEASE:
+        data->shift_area = false;
+        break;
+
+      default:
+        break;
+    }
+  }
+
+  if (ELEM(event->type, EVT_PADENTER, EVT_RETKEY)) {
+    screenshot_preview_exec(C, op);
+    screenshot_preview_exit(C, op);
+    return OPERATOR_FINISHED;
+  }
 
   if (event->type == MOUSEMOVE) {
-    data->end = screen_space_mouse;
+    if (data->shift_area) {
+      blender::int2 delta = screen_space_cursor - data->last_cursor;
+      data->start += delta;
+      data->end += delta;
+    }
+    else if (data->dragging) {
+      data->end = screen_space_cursor;
+    }
     CTX_wm_screen(C)->do_draw = true;
+    data->last_cursor = screen_space_cursor;
   }
 
   if (ELEM(event->type, RIGHTMOUSE, EVT_ESCKEY)) {
@@ -1188,11 +1215,14 @@ static wmOperatorStatus screenshot_preview_invoke(bContext *C,
   ScreenshotOperatorData *data = static_cast<ScreenshotOperatorData *>(op->customdata);
   data->draw_handle = WM_draw_cb_activate(win, screenshot_preview_draw, data);
   data->dragging = false;
-  data->start = {0, 0};
-  data->end = {0, 0};
+  RNA_int_get_array(op->ptr, "p1", data->start);
+  RNA_int_get_array(op->ptr, "p2", data->end);
+  data->last_cursor = data->start;
+  data->shift_area = false;
   data->force_square = RNA_boolean_get(op->ptr, "force_square");
 
   WM_event_add_modal_handler(C, op);
+  CTX_wm_screen(C)->do_draw = true;
 
   return OPERATOR_RUNNING_MODAL;
 }
