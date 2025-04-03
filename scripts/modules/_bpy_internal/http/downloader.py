@@ -124,7 +124,13 @@ class CachingDownloader:
 
     _reporter: CachingDownloadReporter = _DummyReporter()
 
-    def __init__(self, metadata_cache_location: Path, http_session: requests.Session, chunk_size: int = 8192):
+    def __init__(
+            self,
+            metadata_cache_location: Path,
+            *,
+            http_session: requests.Session = _http_session,
+            chunk_size: int = 8192,
+    ) -> None:
         self.metadata_cache_location = metadata_cache_location
         self.http_session = http_session
         self.chunk_size = chunk_size
@@ -145,6 +151,7 @@ class CachingDownloader:
 
         # Download to a temporary file first.
         temp_path = local_path.with_suffix(local_path.suffix + "~")
+        temp_path.parent.mkdir(exist_ok=True, parents=True)
 
         try:
             http_meta = self._stream_to_file(http_req_descr, temp_path, http_meta)
@@ -193,7 +200,7 @@ class CachingDownloader:
 
             if stream.status_code == 304:  # 304 Not Modified
                 # The remote file matches what we have locally. Don't bother streaming.
-                print(f"   Local copy is fresh, no need to download")
+                self._reporter.already_downloaded(http_req_descr, local_path)
                 return None
 
             # Determine how many bytes are expected.
