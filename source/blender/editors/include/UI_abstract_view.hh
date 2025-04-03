@@ -75,6 +75,7 @@ class AbstractView {
   std::string context_menu_title;
   /** See #set_popup_keep_open(). */
   bool popup_keep_open_ = false;
+  /* See `TreeViewItemContainer::SortOrder` */
   uint8_t invert_sort_order = false;
   bool filtering_collapsed_state = true;
 
@@ -148,9 +149,9 @@ class AbstractView {
 
   void clear_search_highlight();
 
-  void set_sort_inverted();
-  void set_sort_inverted(bool value);
-  uint8_t is_sort_inverted() const;
+  void set_sort_order();
+  void set_sort_order(bool value);
+  uint8_t get_sort_order() const;
 
   void set_filtering_collapsed();
   void set_filtering_collapsed(bool value);
@@ -158,6 +159,7 @@ class AbstractView {
 
  protected:
   AbstractView() = default;
+
   /**
    * Items may want to do additional work when state changes. But these state changes can only be
    * reliably detected after the view has completed reconstruction (see #is_reconstructed()). So

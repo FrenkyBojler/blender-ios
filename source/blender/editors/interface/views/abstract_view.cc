@@ -245,17 +245,17 @@ void AbstractView::clear_search_highlight()
   this->foreach_view_item([](AbstractViewItem &item) { item.is_highlighted_search_ = false; });
 }
 
-void AbstractView::set_sort_inverted()
+void AbstractView::set_sort_order()
 {
   this->invert_sort_order = (this->invert_sort_order + 1) % 3;
 }
 
-void AbstractView::set_sort_inverted(bool value)
+void AbstractView::set_sort_order(bool value)
 {
   this->invert_sort_order = value;
 }
 
-uint8_t AbstractView::is_sort_inverted() const
+uint8_t AbstractView::get_sort_order() const
 {
   return this->invert_sort_order;
 }

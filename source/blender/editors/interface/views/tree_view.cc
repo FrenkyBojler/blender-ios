@@ -159,7 +159,7 @@ std::optional<uiViewState> AbstractTreeView::persistent_state() const
   if (scroll_value_) {
     state.scroll_offset = *scroll_value_;
   }
-  state.invert_sort_order = is_sort_inverted();
+  state.invert_sort_order = get_sort_order();
   state.filtering_collapsed_state = is_filtering_collapsed();
   return state;
 }
@@ -174,7 +174,7 @@ void AbstractTreeView::persistent_state_apply(const uiViewState &state)
   }
 
   set_filtering_collapsed(state.filtering_collapsed_state);
-  set_sort_inverted(state.invert_sort_order);
+  set_sort_order(state.invert_sort_order);
 }
 
 int AbstractTreeView::count_visible_descendants(const AbstractTreeViewItem &parent) const
@@ -260,10 +260,11 @@ void AbstractTreeView::get_hierarchy_lines(const ARegion &region,
 
 void AbstractTreeView::sort_inverted()
 {
-  if (SortOrder(this->is_sort_inverted()) == SortOrder::None) {
+  SortOrder order = SortOrder(this->get_sort_order());
+  if (order == SortOrder::None) {
     return;
   }
-  this->foreach_sort_invert(SortOrder(this->is_sort_inverted()));
+  this->foreach_sort_invert(order);
 }
 
 static uiButViewItem *find_first_view_item_but(const uiBlock &block, const AbstractTreeView &view)
@@ -834,7 +835,7 @@ static AbstractView *get_abstractview(bContext *C, const int pad = 0)
 static void set_sort_order_fn(bContext *C, void * /*but_arg1*/, void * /*arg2*/)
 {
   if (AbstractView *view = get_abstractview(C)) {
-    view->set_sort_inverted();
+    view->set_sort_order();
   }
 }
 
@@ -875,12 +876,12 @@ void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
     uiLayoutSetAlignment(filter_layout, UI_LAYOUT_ALIGN_RIGHT);
     icon = ICON_SORT_DESC;
 
-    switch (AbstractTreeView::SortOrder(tree_view.is_sort_inverted())) {
+    switch (AbstractTreeView::SortOrder(tree_view.get_sort_order())) {
       case AbstractTreeView::SortOrder::Invert:
-        icon = ICON_SORT_ASC;
+        icon = ICON_DOWNARROW_HLT;
         break;
       case AbstractTreeView::SortOrder::InvertNested:
-        icon = ICON_DOWNARROW_HLT;
+        icon = ICON_SORT_ASC;
        break;
     default:
         break;
