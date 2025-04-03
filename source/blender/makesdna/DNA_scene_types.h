@@ -736,9 +736,24 @@ typedef struct RenderData {
    */
   float xasp, yasp;
 
-  /** Pixels per meter (factor of PPM base). */
+  /**
+   * Pixels per meter (factor of PPM base).
+   * The final calculated PPM is stored as a pair of doubles,
+   * taking the render aspect into support separate X/Y density.
+   * Editing the final PPM directly isn't practical as common DPI
+   * values often result the fractional part having many decimal places.
+   * So expose the factor & base, where the base is used to set the "preset" in the GUI,
+   * (Inch CM, MM... etc).
+   *
+   * Once calculated the final PPM is stored in the #ImBuf & #RenderResult
+   * which are saved/loaded through #ImBuf API's or multi-layer EXR's in the case
+   * of the render-result.
+   *
+   * Note that storing the X/Y density means it's possible know the aspect
+   * used to render the image which may be useful in some cases.
+   */
   float ppm_factor;
-  /** Pixels per meter base (0.0254 for DPI). */
+  /** Pixels per meter base (0.0254 for DPI), a multiplier for `ppm_factor`. */
   float ppm_base;
 
   float frs_sec_base;
