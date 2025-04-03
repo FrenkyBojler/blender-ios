@@ -36,9 +36,9 @@ class InstanceBoundsField final : public bke::InstancesFieldInput {
   GVArray get_varray_for_context(const bke::Instances &instances,
                                  const IndexMask &mask) const final
   {
-    Span<int> handles = instances.reference_handles();
+    const Span<int> handles = instances.reference_handles();
     Array<float3> bounds(instances.references().size());
-    Array<float3> output_bounds(mask.size());
+    Array<float3> output_bounds(mask.min_array_size());
 
     bke::Instances &const_instances = const_cast<bke::Instances &>(instances);
     const_instances.ensure_geometry_instances();
@@ -57,8 +57,9 @@ class InstanceBoundsField final : public bke::InstancesFieldInput {
       }
     }
 
-    mask.foreach_index(
-        [&](const int i, const int start_pos) { output_bounds[start_pos] = bounds[handles[i]]; });
+    mask.foreach_index([&](const int instance_index) {
+      output_bounds[instance_index] = bounds[handles[instance_index]];
+    });
 
     return VArray<float3>::ForContainer(std::move(output_bounds));
   }
