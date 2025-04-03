@@ -21,12 +21,19 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.allow_any_socket_order();
   b.add_default_layout();
   const bNode *node = b.node_or_null();
+  /* Hardcode field structure types because the inputs are evaluated on the context goemetry. */
   if (node != nullptr) {
     const eCustomDataType data_type = eCustomDataType(node->custom2);
-    b.add_input(data_type, "Value").hide_value().supports_field();
-    b.add_output(data_type, "Value").field_source_reference_all().align_with_previous();
+    b.add_input(data_type, "Value")
+        .hide_value()
+        .supports_field()
+        .structure_type(StructureType::Field);
+    b.add_output(data_type, "Value")
+        .field_source_reference_all()
+        .structure_type(StructureType::Dynamic)
+        .align_with_previous();
   }
-  b.add_input<decl::Int>("Index").min(0).supports_field();
+  b.add_input<decl::Int>("Index").min(0).supports_field().structure_type(StructureType::Field);
 }
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)

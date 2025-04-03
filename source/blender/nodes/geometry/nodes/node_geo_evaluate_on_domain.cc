@@ -24,10 +24,14 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_default_layout();
   const bNode *node = b.node_or_null();
 
+  /* Hardcode field structure types because the input is evaluated on the context goemetry. */
   if (node != nullptr) {
     const eCustomDataType data_type = eCustomDataType(node->custom2);
-    b.add_input(data_type, "Value").supports_field();
-    b.add_output(data_type, "Value").field_source_reference_all().align_with_previous();
+    b.add_input(data_type, "Value").supports_field().structure_type(StructureType::Field);
+    b.add_output(data_type, "Value")
+        .field_source_reference_all()
+        .structure_type(StructureType::Dynamic)
+        .align_with_previous();
   }
 }
 
