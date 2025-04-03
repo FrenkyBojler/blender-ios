@@ -289,11 +289,11 @@ class CornerPinOperation : public NodeOperation {
   const char *get_realization_shader_name() const
   {
     switch (this->get_interpolation()) {
-      case CMP_NODE_CORNER_PIN_INTERPOLATION_BICUBIC:
-      case CMP_NODE_CORNER_PIN_INTERPOLATION_BILINEAR:
-        return "compositor_plane_deform_bicubic";
       case CMP_NODE_CORNER_PIN_INTERPOLATION_NEAREST:
-        return "compositor_plane_deform_nearest";
+      case CMP_NODE_CORNER_PIN_INTERPOLATION_BILINEAR:
+        return "compositor_plane_deform";
+      case CMP_NODE_CORNER_PIN_INTERPOLATION_BICUBIC:
+      return "compositor_plane_deform_bicubic";
       case CMP_NODE_CORNER_PIN_INTERPOLATION_ANISOTROPIC:
         return "compositor_plane_deform_anisotropic";
     }
