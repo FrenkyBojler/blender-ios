@@ -496,10 +496,6 @@ static std::pair<WindingState, WindingState> LR_states_from_segment(
     state_L.add_to_curve(curve_i, int((winding_twice_i + 1) / 2));
     state_R.add_to_curve(curve_i, int((winding_twice_i - 1) / 2));
   }
-  else {
-    /* TODO: Remove. */
-    state_L.add_to_curve(curve_i, 1);
-  }
 
   float2 first_point = points[segment.start_point()];
 
@@ -624,6 +620,7 @@ static int get_next_segment(const int current_i,
                             const bool current_reversed,
                             const Span<Segment> all_segments,
                             const Span<IntersectionPoint> intersections,
+                            const VArray<bool> &is_fill,
                             const Span<bool> all_inside_left,
                             const Span<bool> all_inside_right)
 {
@@ -641,6 +638,26 @@ static int get_next_segment(const int current_i,
 
   const SegmentEndPoint all_ends[4] = {
       end_int.start_a, end_int.end_a, end_int.start_b, end_int.end_b};
+
+  if (!is_fill[current_segment.curve]) {
+    return -1;
+
+    for (const int i : IndexRange(2)) {
+      const SegmentEndPoint &nex_end = all_ends[i];
+      const int seg_i = nex_end.segment_index();
+
+      if (nex_end == endpoint) {
+        continue;
+      }
+
+      BLI_assert(all_inside_left[seg_i] == all_inside_right[seg_i]);
+      if (!all_inside_left[seg_i]) {
+        return seg_i;
+      }
+    }
+
+    return -1;
+  }
 
   for (const int i : IndexRange(4)) {
     const SegmentEndPoint &nex_end = all_ends[i];
@@ -710,10 +727,18 @@ void check_segments(const CurveBooleanOpParameters &op_params,
   for (const int seg_i : segments) {
     const Segment &this_segment = all_segments[seg_i];
 
-    all_inside_left[seg_i] = state_L.is_contributing(
-        op_params, shapes, subj_shape_id, clipping_shapes);
-    all_inside_right[seg_i] = state_R.is_contributing(
-        op_params, shapes, subj_shape_id, clipping_shapes);
+    if (is_fill[curve_k]) {
+      all_inside_left[seg_i] = state_L.is_contributing(
+          op_params, shapes, subj_shape_id, clipping_shapes);
+      all_inside_right[seg_i] = state_R.is_contributing(
+          op_params, shapes, subj_shape_id, clipping_shapes);
+    }
+    else {
+      all_inside_left[seg_i] = state_L.is_in_shapes(
+          clipping_shapes, shapes, op_params.clipping_rule);
+      all_inside_right[seg_i] = state_R.is_in_shapes(
+          clipping_shapes, shapes, op_params.clipping_rule);
+    }
 
     if (!this_segment.has_end_intersection()) {
       continue;
@@ -1016,8 +1041,17 @@ BooleanResult execute_single_boolean(const CurveBooleanOpParameters op_params,
 
   /* Remove all noncontributing segments. */
   for (const int segment_i : all_segments.index_range()) {
-    if (!all_inside_left[segment_i] ^ all_inside_right[segment_i]) {
-      processed_segments[segment_i] = true;
+    const Segment &segment = all_segments[segment_i];
+    if (is_fill[segment.curve]) {
+      if (!all_inside_left[segment_i] ^ all_inside_right[segment_i]) {
+        processed_segments[segment_i] = true;
+      }
+    }
+    else {
+      BLI_assert(all_inside_left[segment_i] == all_inside_right[segment_i]);
+      if (all_inside_left[segment_i]) {
+        processed_segments[segment_i] = true;
+      }
     }
   }
 
@@ -1048,6 +1082,7 @@ BooleanResult execute_single_boolean(const CurveBooleanOpParameters op_params,
                                                 last_reversed,
                                                 all_segments,
                                                 intersections,
+                                                is_fill,
                                                 all_inside_left,
                                                 all_inside_right);
 
