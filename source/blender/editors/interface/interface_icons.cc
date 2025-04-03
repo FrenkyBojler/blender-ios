@@ -1630,7 +1630,7 @@ static void icon_draw_size(float x,
                            const float desaturate,
                            const uchar mono_rgba[4],
                            const bool mono_border,
-                           const IconTextOverlay *text_overlay,
+                           const IconDecoration *decoration,
                            const bool inverted = false)
 {
   if (icon_id == ICON_NONE) {
@@ -1753,8 +1753,8 @@ static void icon_draw_size(float x,
                         nullptr);
     }
 
-    if (text_overlay && text_overlay->icon) {
-      BLF_draw_svg_icon(uint(text_overlay->icon),
+    if (decoration && decoration->icon_overlay.has_value()) {
+      BLF_draw_svg_icon(uint(decoration->icon_overlay->icon_id),
                         x + (float(draw_size) * 0.35f / aspect),
                         y + (float(draw_size) * 0.35f / aspect),
                         float(draw_size) * 0.75f / aspect,
@@ -1763,11 +1763,11 @@ static void icon_draw_size(float x,
                         true);
     }
 
-    if (text_overlay && text_overlay->text[0] != '\0') {
+    if (decoration && decoration->text[0] != '\0') {
       /* Handle the little numbers on top of the icon. */
       uchar text_color[4];
-      if (text_overlay->color[3]) {
-        copy_v4_v4_uchar(text_color, text_overlay->color);
+      if (decoration->text_color[3]) {
+        copy_v4_v4_uchar(text_color, decoration->text_color);
       }
       else {
         UI_GetThemeColor4ubv(TH_TEXT, text_color);
@@ -1783,8 +1783,8 @@ static void icon_draw_size(float x,
       uiFontStyleDraw_Params params = {UI_STYLE_TEXT_RIGHT, 0};
       UI_fontstyle_draw(&fstyle_small,
                         &text_rect,
-                        text_overlay->text,
-                        sizeof(text_overlay->text),
+                        decoration->text,
+                        sizeof(decoration->text),
                         text_color,
                         &params);
     }
@@ -2179,7 +2179,7 @@ void UI_icon_draw_ex(float x,
                      float desaturate,
                      const uchar mono_color[4],
                      const bool mono_border,
-                     const IconTextOverlay *text_overlay,
+                     const IconDecoration *decoration,
                      const bool inverted)
 {
   const int draw_size = get_draw_size(ICON_SIZE_ICON);
@@ -2193,7 +2193,7 @@ void UI_icon_draw_ex(float x,
                  desaturate,
                  mono_color,
                  mono_border,
-                 text_overlay,
+                 decoration,
                  inverted);
 }
 
@@ -2229,15 +2229,15 @@ ImBuf *UI_svg_icon_bitmap(uint icon_id, float size, bool multicolor)
   return ibuf;
 }
 
-void UI_icon_text_overlay_init_from_count(IconTextOverlay *text_overlay,
+void UI_icon_text_overlay_init_from_count(IconDecoration *decoration,
                                           const int icon_indicator_number)
 {
   /* The icon indicator is used as an aggregator, no need to show if it is 1. */
   if (icon_indicator_number < 2) {
-    text_overlay->text[0] = '\0';
+    decoration->text[0] = '\0';
     return;
   }
-  BLI_str_format_integer_unit(text_overlay->text, icon_indicator_number);
+  BLI_str_format_integer_unit(decoration->text, icon_indicator_number);
 }
 
 /* ********** Alert Icons ********** */

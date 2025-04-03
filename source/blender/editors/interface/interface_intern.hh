@@ -32,7 +32,7 @@ struct CurveProfile;
 namespace blender::gpu {
 class Batch;
 }
-struct IconTextOverlay;
+struct IconDecoration;
 struct ID;
 struct ImBuf;
 struct LayoutPanelHeader;
@@ -325,7 +325,7 @@ struct uiBut {
   std::function<bool(const uiBut &)> pushed_state_func;
 
   /** Little indicator (e.g., counter) displayed on top of some icons. */
-  IconTextOverlay icon_overlay_text = {};
+  IconDecoration icon_decoration = {};
 
   /* pointer back */
   uiBlock *block = nullptr;

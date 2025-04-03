@@ -21,10 +21,30 @@ struct PreviewImage;
 struct Scene;
 struct bContext;
 
-struct IconTextOverlay {
+struct IconDecorationIcon {
+  int icon_id;
+  uchar icon_color[4] = {0};
+};
+
+struct IconDecorationBackground {
+  float radius;        /* 0 (sharp corners) - 1 (circle). */
+  float outline_width; /* 1 = regular line width. */
+  uchar inner_color[4] = {0};
+  uchar outline_color[4] = {0};
+};
+
+struct IconDecorationRing {
+  float progress;   /* 0-1. From 12 O'clock. */
+  float ring_width; /* 1 = regular line width. */
+  uchar ring_color[4] = {0};
+};
+
+struct IconDecoration {
   char text[5];
-  uchar color[4] = {0};
-  int icon = 0;
+  uchar text_color[4] = {0};
+  std::optional<IconDecorationIcon> icon_overlay;
+  std::optional<IconDecorationBackground> background;
+  std::optional<IconDecorationRing> ring;
 };
 
 #define UI_NO_ICON_OVERLAY_TEXT NULL
@@ -95,7 +115,7 @@ void UI_icon_draw_ex(float x,
                      float desaturate,
                      const uchar mono_color[4],
                      bool mono_border,
-                     const IconTextOverlay *text_overlay,
+                     const IconDecoration *decoration,
                      const bool inverted = false);
 
 ImBuf *UI_svg_icon_bitmap(uint icon_id, float size, bool multicolor = false);
@@ -111,5 +131,5 @@ int UI_icon_from_library(const ID *id);
 int UI_icon_from_object_mode(int mode);
 int UI_icon_color_from_collection(const Collection *collection);
 
-void UI_icon_text_overlay_init_from_count(IconTextOverlay *text_overlay,
+void UI_icon_text_overlay_init_from_count(IconDecoration *decoration,
                                           const int icon_indicator_number);

@@ -2932,8 +2932,8 @@ static bool tselem_draw_icon(uiBlock *block,
   }
 
   const bool is_collection = outliner_is_collection_tree_element(te);
-  IconTextOverlay text_overlay;
-  UI_icon_text_overlay_init_from_count(&text_overlay, num_elements);
+  IconDecoration decoration;
+  UI_icon_text_overlay_init_from_count(&decoration, num_elements);
 
   /* Collection colors and icons covered by restrict buttons. */
   if (!is_clickable || x >= xmax || is_collection) {
@@ -2954,7 +2954,7 @@ static bool tselem_draw_icon(uiBlock *block,
                         0.0f,
                         btheme->collection_color[collection->color_tag].color,
                         btheme->tui.icon_border_intensity > 0.0f,
-                        &text_overlay);
+                        &decoration);
         return true;
       }
     }
@@ -2973,11 +2973,10 @@ static bool tselem_draw_icon(uiBlock *block,
                       0.0f,
                       color,
                       btheme->tui.icon_border_intensity > 0.0f,
-                      &text_overlay);
+                      &decoration);
     }
     else {
-      UI_icon_draw_ex(
-          x, y, data.icon, UI_INV_SCALE_FAC, alpha, 0.0f, nullptr, false, &text_overlay);
+      UI_icon_draw_ex(x, y, data.icon, UI_INV_SCALE_FAC, alpha, 0.0f, nullptr, false, &decoration);
     }
   }
   else {

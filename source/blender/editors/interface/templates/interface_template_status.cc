@@ -428,7 +428,7 @@ void uiTemplateStatusInfo(uiLayout *layout, bContext *C)
       UI_GetThemeColor4ubv(TH_TEXT, color);
       copy_v4_v4_uchar(but->col, color);
 
-      BLI_str_format_integer_unit(but->icon_overlay_text.text, wm->extensions_blocked);
+      BLI_str_format_integer_unit(but->icon_decoration.text, wm->extensions_blocked);
       UI_but_icon_indicator_color_set(but, color);
 
       uiItemS_ex(row, 1.0f);
@@ -478,7 +478,7 @@ void uiTemplateStatusInfo(uiLayout *layout, bContext *C)
       copy_v4_v4_uchar(but->col, color);
 
       if (wm->extensions_updates > 0) {
-        BLI_str_format_integer_unit(but->icon_overlay_text.text, wm->extensions_updates);
+        BLI_str_format_integer_unit(but->icon_decoration.text, wm->extensions_updates);
         UI_but_icon_indicator_color_set(but, color);
       }
 
