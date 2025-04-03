@@ -801,15 +801,25 @@ typedef struct {
    * GHOST_kVulkanXRModeCPU).
    */
   VkExtent2D extent;
-  /**
-   * Host accessible data containing the image data. Data is stored in the selected swapchain
-   * format. Only used when data_transfer_mode == GHOST_kVulkanXRModeCPU.
-   */
-  // NOTE: This is a temporary solution with quite a large performance overhead. The solution we
-  // would like to implement would use VK_KHR_external_memory. The documentation/samples around
-  // using this in our situation is scarce. We will start prototyping in a smaller scale and when
-  // experience is gained, we will implement the solution.
-  void *image_data;
+
+  union {
+    struct {
+
+      /**
+       * Host accessible data containing the image data. Data is stored in the selected swapchain
+       * format. Only used when data_transfer_mode == GHOST_kVulkanXRModeCPU.
+       */
+      // NOTE: This is a temporary solution with quite a large performance overhead. The solution
+      // we would like to implement would use VK_KHR_external_memory. The documentation/samples
+      // around using this in our situation is scarce. We will start prototyping in a smaller scale
+      // and when experience is gained, we will implement the solution.
+      void *image_data;
+    } cpu;
+    struct {
+      uint64_t image_handle;
+    } fd;
+  };
+
 } GHOST_VulkanOpenXRData;
 
 typedef struct {

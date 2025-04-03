@@ -1293,7 +1293,8 @@ void GHOST_SetVulkanSwapBuffersCallbacks(
   context->setVulkanSwapBuffersCallbacks(swap_buffers_pre_callback,
                                          swap_buffers_post_callback,
                                          openxr_acquire_image_callback,
-                                         openxr_release_image_callback);
+                                         openxr_release_image_callback,
+                                         openxr_update_swapchain_image_callback);
 }
 
 void GHOST_GetVulkanSwapChainFormat(GHOST_WindowHandle windowhandle,

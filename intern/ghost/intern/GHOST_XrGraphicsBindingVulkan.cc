@@ -423,7 +423,7 @@ void GHOST_XrGraphicsBindingVulkan::submitToSwapchainImageCpu(
     XrSwapchainImageVulkan2KHR &swapchain_image, const GHOST_XrDrawViewInfo &draw_info)
 {
   /* Acquire frame buffer image. */
-  GHOST_VulkanOpenXRData openxr_data;
+  GHOST_VulkanOpenXRData openxr_data = {GHOST_kVulkanXRModeCPU};
   m_ghost_ctx->openxr_acquire_framebuffer_image_callback_(&openxr_data);
 
   /* Import render result. */
@@ -465,7 +465,8 @@ void GHOST_XrGraphicsBindingVulkan::submitToSwapchainImageCpu(
     vmaMapMemory(
         m_vma_allocator, m_vk_buffer_allocation, &m_vk_buffer_allocation_info.pMappedData);
   }
-  std::memcpy(m_vk_buffer_allocation_info.pMappedData, openxr_data.image_data, image_data_size);
+  std::memcpy(
+      m_vk_buffer_allocation_info.pMappedData, openxr_data.cpu.image_data, image_data_size);
 
   /* Copy frame buffer image to swapchain image. */
   VkCommandBuffer vk_command_buffer = m_vk_command_buffer;
@@ -541,6 +542,12 @@ void GHOST_XrGraphicsBindingVulkan::submitToSwapchainImageCpu(
 void GHOST_XrGraphicsBindingVulkan::submitToSwapchainImageFd(
     XrSwapchainImageVulkan2KHR &swapchain_image, const GHOST_XrDrawViewInfo &draw_info)
 {
+  uint64_t image_handle = 0;
+  GHOST_VulkanOpenXRData openxr_data = {GHOST_kVulkanXRModeFD,
+                                        {draw_info.ofsx, draw_info.ofsy},
+                                        {uint32_t(draw_info.width), uint32_t(draw_info.height)}};
+  openxr_data.fd.image_handle = image_handle;
+  m_ghost_ctx->openxr_update_swapchain_image_callback_(&openxr_data);
 }
 
 /* \} */

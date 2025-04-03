@@ -174,7 +174,8 @@ class GHOST_ContextVK : public GHOST_Context {
       std::function<void(const GHOST_VulkanSwapChainData *)> swap_buffers_pre_callback,
       std::function<void(void)> swap_buffers_post_callback,
       std::function<void(GHOST_VulkanOpenXRData *)> openxr_acquire_framebuffer_image_callback,
-      std::function<void(GHOST_VulkanOpenXRData *)> openxr_release_framebuffer_image_callback)
+      std::function<void(GHOST_VulkanOpenXRData *)> openxr_release_framebuffer_image_callback,
+      std::function<void(GHOST_VulkanOpenXRData *)> openxr_update_swapchain_image_callback)
       override;
 
   /**
@@ -247,6 +248,7 @@ class GHOST_ContextVK : public GHOST_Context {
   std::function<void(void)> swap_buffers_post_callback_;
   std::function<void(GHOST_VulkanOpenXRData *)> openxr_acquire_framebuffer_image_callback_;
   std::function<void(GHOST_VulkanOpenXRData *)> openxr_release_framebuffer_image_callback_;
+  std::function<void(GHOST_VulkanOpenXRData *)> openxr_update_swapchain_image_callback_;
 
   const char *getPlatformSpecificSurfaceExtension() const;
   GHOST_TSuccess recreateSwapchain();

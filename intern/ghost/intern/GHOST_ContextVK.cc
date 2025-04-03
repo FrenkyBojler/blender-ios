@@ -680,12 +680,14 @@ GHOST_TSuccess GHOST_ContextVK::setVulkanSwapBuffersCallbacks(
     std::function<void(const GHOST_VulkanSwapChainData *)> swap_buffers_pre_callback,
     std::function<void(void)> swap_buffers_post_callback,
     std::function<void(GHOST_VulkanOpenXRData *)> openxr_acquire_framebuffer_image_callback,
-    std::function<void(GHOST_VulkanOpenXRData *)> openxr_release_framebuffer_image_callback)
+    std::function<void(GHOST_VulkanOpenXRData *)> openxr_release_framebuffer_image_callback,
+    std::function<void(GHOST_VulkanOpenXRData *)> openxr_update_swapchain_image_callback)
 {
   swap_buffers_pre_callback_ = swap_buffers_pre_callback;
   swap_buffers_post_callback_ = swap_buffers_post_callback;
   openxr_acquire_framebuffer_image_callback_ = openxr_acquire_framebuffer_image_callback;
   openxr_release_framebuffer_image_callback_ = openxr_release_framebuffer_image_callback;
+  openxr_update_swapchain_image_callback_ = openxr_update_swapchain_image_callback;
   return GHOST_kSuccess;
 }
 
