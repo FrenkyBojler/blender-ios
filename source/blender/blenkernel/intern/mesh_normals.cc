@@ -301,10 +301,6 @@ blender::bke::MeshNormalDomain Mesh::normals_domain(const bool support_sharp_fac
 {
   using namespace blender;
   using namespace blender::bke;
-  if (this->faces_num == 0) {
-    return MeshNormalDomain::Point;
-  }
-
   const bke::AttributeAccessor attributes = this->attributes();
   if (const std::optional<AttributeMetaData> custom = attributes.lookup_meta_data("custom_normal"))
   {
@@ -384,6 +380,7 @@ blender::Span<blender::float3> Mesh::vert_normals() const
                                          this->vert_to_face_map(),
                                          this->corner_normals(),
                                          r_data.ensure_vector_size(this->verts_num));
+        return;
       }
     }
     r_data.store_span(this->vert_normals_true());
@@ -435,6 +432,7 @@ blender::Span<blender::float3> Mesh::face_normals() const
       else if (custom.varray.type().is<short2>() && custom.domain == AttrDomain::Corner) {
         mesh::mix_normals_corner_to_face(
             this->faces(), this->corner_normals(), r_data.ensure_vector_size(this->faces_num));
+        return;
       }
     }
     r_data.store_span(this->face_normals_true());

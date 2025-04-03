@@ -369,6 +369,8 @@ void Mesh::tag_edges_split()
 
 void Mesh::tag_sharpness_changed()
 {
+  this->runtime->vert_normals_cache.tag_dirty();
+  this->runtime->face_normals_cache.tag_dirty();
   this->runtime->corner_normals_cache.tag_dirty();
 }
 
