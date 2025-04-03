@@ -2171,7 +2171,7 @@ void ED_preview_kill_jobs(wmWindowManager *wm, Main * /*bmain*/)
   }
 }
 
-void ED_preview_kill_jobs_for_id(wmWindowManager* wm, const ID* id)
+void ED_preview_kill_jobs_for_id(wmWindowManager *wm, const ID *id)
 {
   const PreviewImage *preview = BKE_previewimg_id_get(id);
   if (wm && preview) {
