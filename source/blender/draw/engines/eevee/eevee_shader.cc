@@ -127,7 +127,7 @@ bool ShaderModule::request_specializations(bool block_until_ready,
 
   std::lock_guard lock(mutex_);
 
-  SpecializationBatchHandle specialization_handle = specialization_handles_.lookup_or_add_cb(
+  specialization_handles_.lookup_or_add_cb(
       {render_buffers_shadow_id, shadow_ray_count, shadow_ray_step_count}, [&]() {
         Vector<ShaderSpecialization> specializations;
         for (int i = 0; i < 3; i++) {
@@ -150,14 +150,18 @@ bool ShaderModule::request_specializations(bool block_until_ready,
         return GPU_shader_batch_specializations(specializations);
       });
 
-  if (specialization_handle) {
-    while (!GPU_shader_batch_specializations_is_ready(specialization_handle) && block_until_ready)
-    {
+  /* Setting specialization constants is not thread safe,
+   * so we disable rendering until all specialization batches are ready. */
+  bool all_ready = true;
+
+  for (SpecializationBatchHandle &handle : specialization_handles_.values()) {
+    while (!GPU_shader_batch_specializations_is_ready(handle) && block_until_ready) {
       /* Block until ready. */
     }
+    all_ready = all_ready && handle == 0;
   }
 
-  return specialization_handle == 0;
+  return all_ready;
 }
 
 const char *ShaderModule::static_shader_create_info_name_get(eShaderType shader_type)
