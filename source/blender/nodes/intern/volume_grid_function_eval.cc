@@ -2,10 +2,6 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-/** \file
- * \ingroup nodes
- */
-
 #include "FN_multi_function.hh"
 
 #include "BKE_anonymous_attribute_make.hh"
@@ -547,8 +543,7 @@ void execute_multi_function_on_value_variant__volume_grid(
     bke::SocketValueVariant &value_variant = *input_values[input_i];
     if (value_variant.is_volume_grid()) {
       const bke::GVolumeGrid g_volume_grid = value_variant.get<bke::GVolumeGrid>();
-      const openvdb::GridBase &grid_base = g_volume_grid->grid(input_volume_tokens[input_i]);
-      input_grids[input_i] = &grid_base;
+      input_grids[input_i] = &g_volume_grid->grid(input_volume_tokens[input_i]);
     }
     else if (value_variant.is_context_dependent_field()) {
       /* Nothing to do here. */
