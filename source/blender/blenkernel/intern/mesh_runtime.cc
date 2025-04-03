@@ -344,7 +344,6 @@ void Mesh::tag_edges_split()
   free_bvh_caches(*this->runtime);
   this->runtime->vert_normals_cache.tag_dirty();
   this->runtime->corner_normals_cache.tag_dirty();
-  this->runtime->corner_normals_true_cache.tag_dirty();
   this->runtime->subdiv_ccg.reset();
   this->runtime->vert_to_face_offset_cache.tag_dirty();
   this->runtime->vert_to_face_map_cache.tag_dirty();
@@ -372,7 +371,6 @@ void Mesh::tag_edges_split()
 void Mesh::tag_sharpness_changed()
 {
   this->runtime->corner_normals_cache.tag_dirty();
-  this->runtime->corner_normals_true_cache.tag_dirty();
 }
 
 void Mesh::tag_custom_normals_changed()

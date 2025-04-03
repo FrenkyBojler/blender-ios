@@ -508,42 +508,12 @@ blender::Span<blender::float3> Mesh::corner_normals_true() const
   this->runtime->corner_normals_true_cache.ensure([&](Vector<float3> &r_data) {
     r_data.reinitialize(this->corners_num);
     const OffsetIndices<int> faces = this->faces();
-    switch (this->normals_domain()) {
-      case MeshNormalDomain::Point: {
-        array_utils::gather(
-            this->vert_normals_true(), this->corner_verts(), r_data.as_mutable_span());
-        break;
+    const Span<float3> face_normals = this->face_normals_true();
+    threading::parallel_for(faces.index_range(), 1024, [&](const IndexRange range) {
+      for (const int i : range) {
+        r_data.as_mutable_span().slice(faces[i]).fill(face_normals[i]);
       }
-      case MeshNormalDomain::Face: {
-        const Span<float3> face_normals = this->face_normals_true();
-        threading::parallel_for(faces.index_range(), 1024, [&](const IndexRange range) {
-          for (const int i : range) {
-            r_data.as_mutable_span().slice(faces[i]).fill(face_normals[i]);
-          }
-        });
-        break;
-      }
-      case MeshNormalDomain::Corner: {
-        const AttributeAccessor attributes = this->attributes();
-        const VArraySpan sharp_edges = *attributes.lookup<bool>("sharp_edge", AttrDomain::Edge);
-        const VArraySpan sharp_faces = *attributes.lookup<bool>("sharp_face", AttrDomain::Face);
-        const VArraySpan custom_normals = *attributes.lookup<short2>("custom_normal",
-                                                                     AttrDomain::Corner);
-        mesh::normals_calc_corners(this->vert_positions(),
-                                   this->edges(),
-                                   this->faces(),
-                                   this->corner_verts(),
-                                   this->corner_edges(),
-                                   this->corner_to_face_map(),
-                                   this->face_normals(),
-                                   sharp_edges,
-                                   sharp_faces,
-                                   custom_normals,
-                                   nullptr,
-                                   r_data);
-        break;
-      }
-    }
+    });
   });
   return this->runtime->corner_normals_true_cache.data();
 }
