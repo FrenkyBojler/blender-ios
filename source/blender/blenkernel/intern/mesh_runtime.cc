@@ -381,6 +381,8 @@ void Mesh::tag_custom_normals_changed()
 
 void Mesh::tag_face_winding_changed()
 {
+  this->runtime->vert_normals_cache.tag_dirty();
+  this->runtime->face_normals_cache.tag_dirty();
   this->runtime->vert_normals_true_cache.tag_dirty();
   this->runtime->face_normals_true_cache.tag_dirty();
   this->runtime->corner_normals_cache.tag_dirty();
@@ -390,6 +392,8 @@ void Mesh::tag_face_winding_changed()
 
 void Mesh::tag_positions_changed()
 {
+  this->runtime->vert_normals_cache.tag_dirty();
+  this->runtime->face_normals_cache.tag_dirty();
   this->runtime->vert_normals_true_cache.tag_dirty();
   this->runtime->face_normals_true_cache.tag_dirty();
   this->runtime->corner_normals_cache.tag_dirty();
