@@ -410,7 +410,7 @@ int WM_event_drag_threshold(const wmEvent *event)
         /* Decrease threshold as pen pressure is increased. */
         const float bias = std::min(event->tablet.pressure * 2.0f, 1.0f);
         drag_threshold = std::max(int((1.0f - bias) * float(U.drag_threshold_tablet)), 0);
-        /* Return without multiplying by resoltion scale. */
+        /* Return without multiplying by resolution scale. */
         return drag_threshold;
       }
       else {
