@@ -1129,10 +1129,11 @@ static void screenshot_preview_draw(const wmWindow *window, void *operator_data)
 static void screenshot_preview_exit(bContext *C, wmOperator *op)
 {
   wmWindow *win = CTX_wm_window(C);
-  WM_cursor_set(win, WM_CURSOR_DEFAULT);
+  WM_cursor_modal_restore(win);
   ScreenshotOperatorData *data = static_cast<ScreenshotOperatorData *>(op->customdata);
   WM_draw_cb_exit(win, data->draw_handle);
   MEM_freeN(data);
+  ED_workspace_status_text(C, nullptr);
 }
 
 static wmOperatorStatus screenshot_preview_modal(bContext *C, wmOperator *op, const wmEvent *event)
@@ -1201,6 +1202,16 @@ static wmOperatorStatus screenshot_preview_modal(bContext *C, wmOperator *op, co
     return OPERATOR_CANCELLED;
   }
 
+  WorkspaceStatus status(C);
+  if (data->dragging) {
+    status.item(IFACE_("Cancel"), ICON_EVENT_ESC, ICON_MOUSE_RMB);
+  }
+  else {
+    status.item(IFACE_("Start"), ICON_MOUSE_LMB_DRAG);
+  }
+  status.item(IFACE_("Confirm"), ICON_MOUSE_LMB, ICON_EVENT_RETURN);
+  status.item(IFACE_("Move"), ICON_EVENT_SPACEKEY);
+
   return OPERATOR_RUNNING_MODAL;
 }
 
@@ -1209,7 +1220,7 @@ static wmOperatorStatus screenshot_preview_invoke(bContext *C,
                                                   const wmEvent * /* event */)
 {
   wmWindow *win = CTX_wm_window(C);
-  WM_cursor_set(win, WM_CURSOR_CROSS);
+  WM_cursor_modal_set(win, WM_CURSOR_CROSS);
 
   op->customdata = MEM_callocN(sizeof(ScreenshotOperatorData), __func__);
   ScreenshotOperatorData *data = static_cast<ScreenshotOperatorData *>(op->customdata);
