@@ -70,8 +70,8 @@ static void node_geo_exec(GeoNodeExecParams params)
   switch (mode) {
     case Mode::Sharpness: {
       const bool remove_custom = params.extract_input<bool>("Remove Custom");
-      fn::Field<bool> sharp_edge = params.extract_input<fn::Field<bool>>("Edge Sharpness");
-      fn::Field<bool> sharp_face = params.extract_input<fn::Field<bool>>("Face Sharpness");
+      const fn::Field sharp_edge = params.extract_input<fn::Field<bool>>("Edge Sharpness");
+      const fn::Field sharp_face = params.extract_input<fn::Field<bool>>("Face Sharpness");
       geometry_set.modify_geometry_sets([&](GeometrySet &geometry_set) {
         if (Mesh *mesh = geometry_set.get_mesh_for_write()) {
           /* Evaluate both fields before storing the result to avoid one attribute change
@@ -113,7 +113,7 @@ static void node_geo_exec(GeoNodeExecParams params)
       break;
     }
     case Mode::Free: {
-      fn::Field<float3> custom_normal = params.extract_input<fn::Field<float3>>("Custom Normal");
+      const fn::Field custom_normal = params.extract_input<fn::Field<float3>>("Custom Normal");
       geometry_set.modify_geometry_sets([&](GeometrySet &geometry_set) {
         if (Mesh *mesh = geometry_set.get_mesh_for_write()) {
           const bke::AttrDomain domain = bke::AttrDomain(node.custom2);
@@ -128,7 +128,7 @@ static void node_geo_exec(GeoNodeExecParams params)
       break;
     }
     case Mode::CornerFanSpace: {
-      fn::Field<float3> custom_normal = params.extract_input<fn::Field<float3>>("Custom Normal");
+      const fn::Field custom_normal = params.extract_input<fn::Field<float3>>("Custom Normal");
       geometry_set.modify_geometry_sets([&](GeometrySet &geometry_set) {
         if (Mesh *mesh = geometry_set.get_mesh_for_write()) {
           const bke::MeshFieldContext context(*mesh, bke::AttrDomain::Corner);
