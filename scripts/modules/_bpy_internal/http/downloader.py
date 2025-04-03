@@ -200,7 +200,6 @@ class CachingDownloader:
 
             if stream.status_code == 304:  # 304 Not Modified
                 # The remote file matches what we have locally. Don't bother streaming.
-                self._reporter.already_downloaded(http_req_descr, local_path)
                 return None
 
             # Determine how many bytes are expected.
