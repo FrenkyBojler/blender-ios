@@ -236,6 +236,9 @@ struct MeshNormalInfo {
 
   void add_no_custom_normals(const bke::MeshNormalDomain domain)
   {
+    if (result_type == Output::None) {
+      return;
+    }
     this->add_free_normals(normal_domain_to_domain(domain));
   }
 
