@@ -30,14 +30,15 @@ struct IconDecorationBackground {
   float radius;        /* 0 (sharp corners) - 1 (circle). */
   float padding;       /* Pixels. */
   float outline_width; /* 1 = regular line width. */
-  uchar inner_color[4] = {0};
-  uchar outline_color[4] = {0};
+  float inner_color[4] = {0};
+  float outline_color[4] = {0};
 };
 
 struct IconDecorationRing {
   float progress;   /* 0-1. From 12 O'clock. */
+  float padding;    /* Pixels. */
   float ring_width; /* 1 = regular line width. */
-  uchar ring_color[4] = {0};
+  float ring_color[4] = {0};
 };
 
 struct IconDecoration {
