@@ -218,27 +218,27 @@ void GHOST_XrGraphicsBindingVulkan::initFromGhostContext(GHOST_Context &ghost_ct
 
   vkGetDeviceQueue(m_vk_device, m_graphics_queue_family, 0, &m_vk_queue);
 
+  /* Command buffer pool */
+  VkCommandPoolCreateInfo vk_command_pool_create_info = {
+      VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+      nullptr,
+      VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
+      m_graphics_queue_family};
+  vkCreateCommandPool(m_vk_device, &vk_command_pool_create_info, nullptr, &m_vk_command_pool);
+
+  /* Command buffer */
+  VkCommandBufferAllocateInfo vk_command_buffer_allocate_info = {
+      VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+      nullptr,
+      m_vk_command_pool,
+      VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+      1};
+  vkAllocateCommandBuffers(m_vk_device, &vk_command_buffer_allocate_info, &m_vk_command_buffer);
+
   /* Select the best data transfer mode based on the OpenXR device and ContextVK. */
   m_data_transfer_mode = choseDataTransferMode();
 
   if (m_data_transfer_mode == GHOST_kVulkanXRModeCPU) {
-    /* Command buffer pool */
-    VkCommandPoolCreateInfo vk_command_pool_create_info = {
-        VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
-        nullptr,
-        VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
-        m_graphics_queue_family};
-    vkCreateCommandPool(m_vk_device, &vk_command_pool_create_info, nullptr, &m_vk_command_pool);
-
-    /* Command buffer */
-    VkCommandBufferAllocateInfo vk_command_buffer_allocate_info = {
-        VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
-        nullptr,
-        m_vk_command_pool,
-        VK_COMMAND_BUFFER_LEVEL_PRIMARY,
-        1};
-    vkAllocateCommandBuffers(m_vk_device, &vk_command_buffer_allocate_info, &m_vk_command_buffer);
-
     /* VMA */
     VmaAllocatorCreateInfo allocator_create_info = {};
     allocator_create_info.flags = VMA_ALLOCATOR_CREATE_EXT_MEMORY_BUDGET_BIT;
@@ -542,12 +542,14 @@ void GHOST_XrGraphicsBindingVulkan::submitToSwapchainImageCpu(
 void GHOST_XrGraphicsBindingVulkan::submitToSwapchainImageFd(
     XrSwapchainImageVulkan2KHR &swapchain_image, const GHOST_XrDrawViewInfo &draw_info)
 {
-  uint64_t image_handle = 0;
   GHOST_VulkanOpenXRData openxr_data = {GHOST_kVulkanXRModeFD,
                                         {draw_info.ofsx, draw_info.ofsy},
                                         {uint32_t(draw_info.width), uint32_t(draw_info.height)}};
-  openxr_data.fd.image_handle = image_handle;
-  // m_ghost_ctx->openxr_update_swapchain_image_callback_(&openxr_data);
+  m_ghost_ctx->openxr_acquire_framebuffer_image_callback_(&openxr_data);
+
+  
+
+  m_ghost_ctx->openxr_release_framebuffer_image_callback_(&openxr_data);
 }
 
 /* \} */

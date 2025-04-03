@@ -432,12 +432,22 @@ void VKContext::openxr_acquire_framebuffer_image_handler(GHOST_VulkanOpenXRData 
   openxr_data.cpu.image_data = color_attachment->read(0, GPU_DATA_HALF_FLOAT);
   openxr_data.extent.width = color_attachment->width_get();
   openxr_data.extent.height = color_attachment->height_get();
+
+  switch (openxr_data.data_transfer_mode) {
+    case GHOST_kVulkanXRModeCPU:
+      openxr_data.cpu.image_data = color_attachment->read(0, GPU_DATA_HALF_FLOAT);
+      break;
+  }
 }
 
 void VKContext::openxr_release_framebuffer_image_handler(GHOST_VulkanOpenXRData &openxr_data)
 {
-  MEM_freeN(openxr_data.cpu.image_data);
-  openxr_data.cpu.image_data = nullptr;
+  switch (openxr_data.data_transfer_mode) {
+    case GHOST_kVulkanXRModeCPU:
+      MEM_freeN(openxr_data.cpu.image_data);
+      openxr_data.cpu.image_data = nullptr;
+      break;
+  }
 }
 
 /** \} */

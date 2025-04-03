@@ -785,20 +785,12 @@ typedef enum {
 typedef struct {
   /**
    * Mode to use for data transfer between the application rendered result and the OpenXR
-   * swapchain.
+   * swapchain. This is set by the GHOST and should be respected by the application.
    */
   GHOST_TVulkanXRModes data_transfer_mode;
 
   /**
-   * Offset of the view inside the XR swapchain image.
-   *
-   * Application should consider this when updating the XR swapchain image directly.
-   */
-  VkOffset2D offset;
-
-  /**
-   * Resolution of the full XR swapchain image or the render result (in case data_transfer_mode ==
-   * GHOST_kVulkanXRModeCPU).
+   * Resolution of view render result.
    */
   VkExtent2D extent;
 
