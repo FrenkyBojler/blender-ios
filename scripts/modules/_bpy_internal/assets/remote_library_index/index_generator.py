@@ -31,7 +31,7 @@ DEFAULT_METADATA = api_models.AssetLibraryMeta(
     ),
 )
 
-logger = logging.getLogger()
+logger = logging.getLogger(__name__)
 
 
 class CLIArguments(pydantic.BaseModel):

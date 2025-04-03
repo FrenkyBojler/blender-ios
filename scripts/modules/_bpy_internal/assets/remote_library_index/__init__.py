@@ -24,17 +24,17 @@ import bpy
 _cli_command_handles = []
 
 
-def main(args: list[str]) -> int:
-    """Run the asset_index command.
+def asset_index_main(args: list[str]) -> int:
+    """Run the `blender -c asset_index` CLI command.
 
-    This is late-importing the __main__ module, so that it (and its
-    dependencies) are imported when actually used.
+    This is late-importing the index_generator module, so that it (and its
+    dependencies) are only imported when actually used.
     """
     import traceback
-    from . import __main__
+    from . import index_generator
 
     try:
-        __main__.main(args)
+        index_generator.main(args)
     except Exception as ex:
         traceback.print_exc()
         return 1
@@ -42,7 +42,7 @@ def main(args: list[str]) -> int:
 
 
 def register() -> None:
-    handle = bpy.utils.register_cli_command("asset_index", main)
+    handle = bpy.utils.register_cli_command("asset_index", asset_index_main)
     _cli_command_handles.append(handle)
 
 
