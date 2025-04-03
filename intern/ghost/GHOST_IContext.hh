@@ -88,15 +88,12 @@ class GHOST_IContext {
    *     image needs to be acquired to be drawn to an OpenXR swap chain.
    * \param openxr_release_image_callback: Function to be called after an image has been drawn to
    *     the OpenXR swap chain.
-   * \param openxr_update_swapchain_image_callback: Function to be called to update the swapchain
-   *     image directly.
    */
   virtual GHOST_TSuccess setVulkanSwapBuffersCallbacks(
       std::function<void(const GHOST_VulkanSwapChainData *)> swap_buffers_pre_callback,
       std::function<void(void)> swap_buffers_post_callback,
       std::function<void(GHOST_VulkanOpenXRData *)> openxr_acquire_framebuffer_image_callback,
-      std::function<void(GHOST_VulkanOpenXRData *)> openxr_release_framebuffer_image_callback,
-      std::function<void(GHOST_VulkanOpenXRData *)> openxr_update_swapchain_image_callback) = 0;
+      std::function<void(GHOST_VulkanOpenXRData *)> openxr_release_framebuffer_image_callback) = 0;
 #endif
 
   MEM_CXX_CLASS_ALLOC_FUNCS("GHOST:GHOST_IContext")

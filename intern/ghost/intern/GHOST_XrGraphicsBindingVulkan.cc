@@ -283,7 +283,7 @@ GHOST_TVulkanXRModes GHOST_XrGraphicsBindingVulkan::choseDataTransferMode()
    * If not we fall back to CPU based data transfer.*/
   const bool is_same_physical_device = memcmp(&vk_physical_device_vulkan11_properties,
                                               &xr_physical_device_vulkan11_properties,
-                                              sizeof(VkPhysicalDeviceVulkan11Properties) == 0);
+                                              sizeof(VkPhysicalDeviceVulkan11Properties)) == 0;
   if (!is_same_physical_device) {
     return GHOST_kVulkanXRModeCPU;
   }
@@ -547,7 +547,7 @@ void GHOST_XrGraphicsBindingVulkan::submitToSwapchainImageFd(
                                         {draw_info.ofsx, draw_info.ofsy},
                                         {uint32_t(draw_info.width), uint32_t(draw_info.height)}};
   openxr_data.fd.image_handle = image_handle;
-  m_ghost_ctx->openxr_update_swapchain_image_callback_(&openxr_data);
+  // m_ghost_ctx->openxr_update_swapchain_image_callback_(&openxr_data);
 }
 
 /* \} */

@@ -131,7 +131,6 @@ class VKContext : public Context, NonCopyable {
   static void swap_buffers_post_callback();
   static void openxr_acquire_framebuffer_image_callback(GHOST_VulkanOpenXRData *data);
   static void openxr_release_framebuffer_image_callback(GHOST_VulkanOpenXRData *data);
-  static void openxr_update_swapchain_image_callback(GHOST_VulkanOpenXRData *data);
 
  private:
   void swap_buffers_pre_handler(const GHOST_VulkanSwapChainData &data);
@@ -139,7 +138,6 @@ class VKContext : public Context, NonCopyable {
 
   void openxr_acquire_framebuffer_image_handler(GHOST_VulkanOpenXRData &data);
   void openxr_release_framebuffer_image_handler(GHOST_VulkanOpenXRData &data);
-  void openxr_update_swapchain_image_handler(GHOST_VulkanOpenXRData &data);
 
   void update_pipeline_data(VKShader &shader,
                             VkPipeline vk_pipeline,

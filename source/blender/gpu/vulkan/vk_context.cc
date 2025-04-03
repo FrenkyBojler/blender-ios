@@ -425,13 +425,6 @@ void VKContext::openxr_release_framebuffer_image_callback(GHOST_VulkanOpenXRData
   context->openxr_release_framebuffer_image_handler(*openxr_data);
 }
 
-void VKContext::openxr_update_swapchain_image_callback(GHOST_VulkanOpenXRData *openxr_data)
-{
-  VKContext *context = VKContext::get();
-  BLI_assert(context);
-  context->openxr_update_swapchain_image_handler(*openxr_data);
-}
-
 void VKContext::openxr_acquire_framebuffer_image_handler(GHOST_VulkanOpenXRData &openxr_data)
 {
   VKFrameBuffer &framebuffer = *unwrap(active_fb);
@@ -446,8 +439,6 @@ void VKContext::openxr_release_framebuffer_image_handler(GHOST_VulkanOpenXRData 
   MEM_freeN(openxr_data.cpu.image_data);
   openxr_data.cpu.image_data = nullptr;
 }
-
-void VKContext::openxr_update_swapchain_image_handler(GHOST_VulkanOpenXRData &openxr_data) {}
 
 /** \} */
 

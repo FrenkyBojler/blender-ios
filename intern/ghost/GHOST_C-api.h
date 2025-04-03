@@ -1304,16 +1304,13 @@ void GHOST_GetVulkanHandles(GHOST_ContextHandle context, GHOST_VulkanHandles *r_
  *     to be drawn to an OpenXR swap chain.
  * \param openxr_release_image_callback: Function to be called after an image has been drawn to the
  *     OpenXR swap chain.
- * \param openxr_update_swapchain_image_callback: Function to be called to update the swapchain
- *     image directly.
  */
 void GHOST_SetVulkanSwapBuffersCallbacks(
     GHOST_ContextHandle context,
     void (*swap_buffers_pre_callback)(const GHOST_VulkanSwapChainData *),
     void (*swap_buffers_post_callback)(void),
     void (*openxr_acquire_image_callback)(GHOST_VulkanOpenXRData *),
-    void (*openxr_release_image_callback)(GHOST_VulkanOpenXRData *),
-    void (*openxr_update_swapchain_image_callback)(GHOST_VulkanOpenXRData *));
+    void (*openxr_release_image_callback)(GHOST_VulkanOpenXRData *));
 
 /**
  * Acquire the current swap chain format.
