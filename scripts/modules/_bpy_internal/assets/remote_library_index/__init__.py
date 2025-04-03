@@ -42,15 +42,11 @@ def main(args: list[str]) -> int:
 
 
 def register() -> None:
-    print(f"\033[92m{__name__}.register()\033[0m")
-
     handle = bpy.utils.register_cli_command("asset_index", main)
     _cli_command_handles.append(handle)
 
 
 def unregister() -> None:
-    print(f"\033[92m{__name__}.unregister()\033[0m")
-
     for handle in _cli_command_handles:
         bpy.utils.unregister_cli_command(handle)
     _cli_command_handles.clear()
