@@ -28,6 +28,15 @@ struct VKPipelineData {
   const void *push_constants_data;
 };
 
+/**
+ * Container for storing viewport and scissor data used for
+ * draw nodes.
+ */
+struct VKViewportData {
+  Vector<VkViewport> viewports;
+  Vector<VkRect2D> scissors;
+};
+
 /** Resources bound for a compute/graphics pipeline. */
 struct VKBoundPipeline {
   VkPipeline vk_pipeline;
@@ -90,6 +99,13 @@ struct VKBoundPipelines {
  * guardedalloc.
  */
 void vk_pipeline_data_copy(VKPipelineData &dst, const VKPipelineData &src);
+
+/**
+ * Record commands that set the viewport and scissor.
+ * 
+ */
+void vk_pipeline_viewport_set_commands(VKCommandBufferInterface &command_buffer,
+                                       const VKViewportData &viewport_data);
 
 /**
  * Record the commands to the given command buffer to bind the descriptor set, pipeline and push
