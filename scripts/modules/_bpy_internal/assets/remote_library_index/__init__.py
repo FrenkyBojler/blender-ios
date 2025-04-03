@@ -27,15 +27,15 @@ _cli_command_handles = []
 def asset_index_main(args: list[str]) -> int:
     """Run the `blender -c asset_index` CLI command.
 
-    This is late-importing the index_generator module, so that it (and its
+    This is late-importing the cli module, so that it (and its
     dependencies) are only imported when actually used.
     """
     import traceback
-    from . import index_generator
+    from . import cli
 
     try:
-        index_generator.main(args)
-    except Exception as ex:
+        cli.main(args)
+    except BaseException:
         traceback.print_exc()
         return 1
     return 0

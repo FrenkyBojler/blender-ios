@@ -2,15 +2,12 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-"""Blender Online Asset Repository Index Generator.
+"""Blender Online Asset Repository Index Generator."""
 
-Run: python -m index-generate <blender_executable>
-
-"""
-
+import argparse
 import logging
+import typing
 import sys
-from argparse import ArgumentParser
 from pathlib import Path
 
 import pydantic
@@ -40,21 +37,13 @@ class CLIArguments(pydantic.BaseModel):
     repository: Path
     limit: int
     page_size: int
-    verbose: bool
 
 
-def main(args: list[str]) -> None:
+def cli_main(arguments_raw: argparse.Namespace) -> None:
     """Generate the index for the passed-on-the-CLI asset library path."""
 
     # Parse CLI arguments.
-    arguments = _parse_arguments(args)
-    _validate_inputs(arguments)
-
-    # Set up logging.
-    logging.basicConfig(
-        level=logging.DEBUG if arguments.verbose else logging.INFO,
-        format="%(asctime)-15s %(levelname)8s %(module)16s %(message)s",
-    )
+    arguments = _parse_cli_args(arguments_raw)
 
     # Find all .blend files.
     filepaths: list[Path] = []
@@ -155,12 +144,11 @@ def _toplevel_metadata(json_path: Path) -> api_models.AssetLibraryMeta:
     return metadata
 
 
-def _parse_arguments(args: list[str]) -> CLIArguments:
-    """Parse command-line arguments."""
-    parser = ArgumentParser(
-        prog="blender -c asset_index",
-        description="Create an index file listing all the assets.",
-    )
+def add_cli_parser(subparsers: argparse._SubParsersAction) -> None:
+    """Add argparser for this subcommand."""
+
+    parser = subparsers.add_parser("generate", help="Generate files necessary to serve an asset library")
+    parser.set_defaults(func=cli_main)
 
     parser.add_argument(
         "repository",
@@ -186,28 +174,22 @@ def _parse_arguments(args: list[str]) -> CLIArguments:
         help="Number of assets per JSON file, set to 0 to disable pagination",
     )
 
-    parser.add_argument("-v", "--verbose", action='store_true',
-                        help="Log DEBUG level messages as well")
 
-    arguments_raw = parser.parse_args(args)
+def _parse_cli_args(arguments_raw: argparse.Namespace) -> CLIArguments:
+    """Make sure the passed arguments are valid."""
 
     repository = arguments_raw.repository.absolute()
+    if not repository.is_dir():
+        print(f"Error: Repository specified is not a folder: {repository}")
+        sys.exit(1)
+
     arguments = CLIArguments(
         repository=repository,
         limit=arguments_raw.limit or 0,
         page_size=arguments_raw.page or 0,
-        verbose=arguments_raw.verbose,
     )
+
     return arguments
-
-
-def _validate_inputs(arguments: CLIArguments) -> None:
-    """Make sure the passed arguments are valid."""
-
-    repository = arguments.repository
-    if not repository.is_dir():
-        print(f"Error: Repository specified is not a folder: {repository}")
-        sys.exit(1)
 
 
 def _total_files_to_process(arguments: CLIArguments, files_total: int) -> int:
