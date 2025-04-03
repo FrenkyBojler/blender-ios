@@ -277,10 +277,64 @@ static bool inside(const float2 &point, const Span<float2> poly)
   return isect_point_poly_v2(point, reinterpret_cast<const float(*)[2]>(poly.data()), poly.size());
 }
 
-static int point_in_polygon_winding_order(const float2 &point, const Span<float2> poly)
+static float point_in_tri_winding(const float2 pt,
+                                  const float2 v1,
+                                  const float2 v2,
+                                  const float2 v3)
 {
-  /* TODO */
-  return int(inside(point, poly));
+  const float side12 = line_point_side_v2(v1, v2, pt);
+  const float side23 = line_point_side_v2(v2, v3, pt);
+  const float side31 = line_point_side_v2(v3, v1, pt);
+
+  /* The point is on a corner. */
+  if ((side12 == 0.0f && side23 == 0.0f) || (side23 == 0.0f && side31 == 0.0f) ||
+      (side12 == 0.0f && side31 == 0.0f))
+  {
+    BLI_assert_unreachable();
+    /* Note: The correct value would be the corner's signed angle, but the landing on an point is
+     * error for the rest of the algorithm. */
+    return 0.0f;
+  }
+
+  /* The point is on an edge. */
+  if ((side12 == 0.0f && side23 >= 0.0f && side31 >= 0.0f) ||
+      (side12 >= 0.0f && side23 == 0.0f && side31 >= 0.0f) ||
+      (side12 >= 0.0f && side23 >= 0.0f && side31 == 0.0f))
+  {
+    return 0.5f;
+  }
+  if ((side12 == 0.0f && side23 <= 0.0f && side31 <= 0.0f) ||
+      (side12 <= 0.0f && side23 == 0.0f && side31 <= 0.0f) ||
+      (side12 <= 0.0f && side23 <= 0.0f && side31 == 0.0f))
+  {
+    return -0.5f;
+  }
+
+  /* The point is inside. */
+  if (side12 >= 0.0f && side23 >= 0.0f && side31 >= 0.0f) {
+    return 1.0f;
+  }
+  if (side12 <= 0.0f && side23 <= 0.0f && side31 <= 0.0f) {
+    return -1.0f;
+  }
+
+  /* The point is outside. */
+  return 0.0f;
+}
+
+static int point_in_polygon_winding(const float2 &point, const Span<float2> poly)
+{
+  int winding = 0;
+  const float2 &tri_p1 = poly[0];
+  for (const int i : poly.index_range().drop_front(1).drop_back(1)) {
+    const float2 &tri_p2 = poly[i];
+    const float2 &tri_p3 = poly[i + 1];
+
+    winding += int(point_in_tri_winding(point, tri_p1, tri_p2, tri_p3) * 2);
+  }
+
+  BLI_assert(winding % 2 == 0);
+  return int(winding / 2);
 }
 
 class WindingState {
@@ -442,7 +496,7 @@ static std::pair<WindingState, WindingState> LR_states_from_segment(
 
       if (is_fill[curve_j]) {
         const Span<float2> poly_j = points.slice(points_by_curve[curve_j]);
-        const int winding_j = point_in_polygon_winding_order(first_point, poly_j);
+        const int winding_j = point_in_polygon_winding(first_point, poly_j);
         state_L.add_to_curve(curve_j, winding_j);
         state_R.add_to_curve(curve_j, winding_j);
       }
