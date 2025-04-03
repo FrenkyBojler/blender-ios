@@ -764,12 +764,46 @@ typedef struct {
   VkFence submission_fence;
 } GHOST_VulkanSwapChainData;
 
+typedef enum {
+  /**
+   * Use RAM to transfer the render result to the XR swapchain.
+   *
+   * Application renders an eye, downloads the result to CPU RAM, XRGraphicContext will upload it
+   * to the GPU and copies it to the XR swapchain.
+   */
+  GHOST_kVulkanXRModeCPU,
+
+  /**
+   * Use Linux FD to transfer the swapchain image to the application.
+   *
+   * XRGraphicsContext will export the swapchain image to a fd handle. Application will import the
+   * handle and blits the render result to the imported memory.
+   */
+  GHOST_kVulkanXRModeFD,
+} GHOST_TVulkanXRModes;
+
 typedef struct {
-  /** Resolution of the frame-buffer image. */
+  /**
+   * Mode to use for data transfer between the application rendered result and the OpenXR
+   * swapchain.
+   */
+  GHOST_TVulkanXRModes data_transfer_mode;
+
+  /**
+   * Offset of the view inside the XR swapchain image.
+   *
+   * Application should consider this when updating the XR swapchain image directly.
+   */
+  VkOffset2D offset;
+
+  /**
+   * Resolution of the full XR swapchain image or the render result (in case data_transfer_mode ==
+   * GHOST_kVulkanXRModeCPU).
+   */
   VkExtent2D extent;
   /**
    * Host accessible data containing the image data. Data is stored in the selected swapchain
-   * format.
+   * format. Only used when data_transfer_mode == GHOST_kVulkanXRModeCPU.
    */
   // NOTE: This is a temporary solution with quite a large performance overhead. The solution we
   // would like to implement would use VK_KHR_external_memory. The documentation/samples around

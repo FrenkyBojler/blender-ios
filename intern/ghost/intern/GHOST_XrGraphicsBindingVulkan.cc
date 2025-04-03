@@ -218,22 +218,36 @@ void GHOST_XrGraphicsBindingVulkan::initFromGhostContext(GHOST_Context &ghost_ct
 
   vkGetDeviceQueue(m_vk_device, m_graphics_queue_family, 0, &m_vk_queue);
 
-  /* Command buffer pool */
-  VkCommandPoolCreateInfo vk_command_pool_create_info = {
-      VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
-      nullptr,
-      VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
-      m_graphics_queue_family};
-  vkCreateCommandPool(m_vk_device, &vk_command_pool_create_info, nullptr, &m_vk_command_pool);
+  /* Select the best data transfer mode based on the OpenXR device and ContextVK. */
+  m_data_transfer_mode = choseDataTransferMode();
 
-  /* Command buffer */
-  VkCommandBufferAllocateInfo vk_command_buffer_allocate_info = {
-      VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
-      nullptr,
-      m_vk_command_pool,
-      VK_COMMAND_BUFFER_LEVEL_PRIMARY,
-      1};
-  vkAllocateCommandBuffers(m_vk_device, &vk_command_buffer_allocate_info, &m_vk_command_buffer);
+  if (m_data_transfer_mode == GHOST_kVulkanXRModeCPU) {
+    /* Command buffer pool */
+    VkCommandPoolCreateInfo vk_command_pool_create_info = {
+        VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+        nullptr,
+        VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
+        m_graphics_queue_family};
+    vkCreateCommandPool(m_vk_device, &vk_command_pool_create_info, nullptr, &m_vk_command_pool);
+
+    /* Command buffer */
+    VkCommandBufferAllocateInfo vk_command_buffer_allocate_info = {
+        VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+        nullptr,
+        m_vk_command_pool,
+        VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+        1};
+    vkAllocateCommandBuffers(m_vk_device, &vk_command_buffer_allocate_info, &m_vk_command_buffer);
+
+    /* VMA */
+    VmaAllocatorCreateInfo allocator_create_info = {};
+    allocator_create_info.flags = VMA_ALLOCATOR_CREATE_EXT_MEMORY_BUDGET_BIT;
+    allocator_create_info.vulkanApiVersion = VK_API_VERSION_1_2;
+    allocator_create_info.physicalDevice = m_vk_physical_device;
+    allocator_create_info.device = m_vk_device;
+    allocator_create_info.instance = m_vk_instance;
+    vmaCreateAllocator(&allocator_create_info, &m_vma_allocator);
+  }
 
   /* Update the binding struct */
   oxr_binding.vk.type = XR_TYPE_GRAPHICS_BINDING_VULKAN_KHR;
@@ -243,15 +257,40 @@ void GHOST_XrGraphicsBindingVulkan::initFromGhostContext(GHOST_Context &ghost_ct
   oxr_binding.vk.device = m_vk_device;
   oxr_binding.vk.queueFamilyIndex = m_graphics_queue_family;
   oxr_binding.vk.queueIndex = 0;
+}
 
-  /* VMA */
-  VmaAllocatorCreateInfo allocator_create_info = {};
-  allocator_create_info.flags = VMA_ALLOCATOR_CREATE_EXT_MEMORY_BUDGET_BIT;
-  allocator_create_info.vulkanApiVersion = VK_API_VERSION_1_2;
-  allocator_create_info.physicalDevice = m_vk_physical_device;
-  allocator_create_info.device = m_vk_device;
-  allocator_create_info.instance = m_vk_instance;
-  vmaCreateAllocator(&allocator_create_info, &m_vma_allocator);
+GHOST_TVulkanXRModes GHOST_XrGraphicsBindingVulkan::choseDataTransferMode()
+{
+  GHOST_VulkanHandles vulkan_handles;
+  m_ghost_ctx->getVulkanHandles(vulkan_handles);
+
+  /* Retrieve the Context physical device properties. */
+  VkPhysicalDeviceVulkan11Properties vk_physical_device_vulkan11_properties = {
+      VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_PROPERTIES};
+  VkPhysicalDeviceProperties2 vk_physical_device_properties = {
+      VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2, &vk_physical_device_vulkan11_properties};
+  vkGetPhysicalDeviceProperties2(vulkan_handles.physical_device, &vk_physical_device_properties);
+
+  /* Retrieve OpenXR physical device properties. */
+  VkPhysicalDeviceVulkan11Properties xr_physical_device_vulkan11_properties = {
+      VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_PROPERTIES};
+  VkPhysicalDeviceProperties2 xr_physical_device_properties = {
+      VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2, &xr_physical_device_vulkan11_properties};
+  vkGetPhysicalDeviceProperties2(m_vk_physical_device, &xr_physical_device_properties);
+
+  /* When the physical device properties match between the Vulkan device and the Xr devices we
+   * assume that they are the same physical device in the machine and we can use shared memory.
+   * If not we fall back to CPU based data transfer.*/
+  const bool is_same_physical_device = memcmp(&vk_physical_device_vulkan11_properties,
+                                              &xr_physical_device_vulkan11_properties,
+                                              sizeof(VkPhysicalDeviceVulkan11Properties) == 0);
+  if (!is_same_physical_device) {
+    return GHOST_kVulkanXRModeCPU;
+  }
+
+  // TODO: check device enabled extensions when not matching we should fall back to CPU as well.
+
+  return GHOST_kVulkanXRModeFD;
 }
 
 static std::optional<int64_t> choose_swapchain_format_from_candidates(
@@ -336,6 +375,25 @@ void GHOST_XrGraphicsBindingVulkan::submitToSwapchainImage(
 {
   XrSwapchainImageVulkan2KHR &vulkan_image = *reinterpret_cast<XrSwapchainImageVulkan2KHR *>(
       &swapchain_image);
+
+  switch (m_data_transfer_mode) {
+    case GHOST_kVulkanXRModeFD:
+      submitToSwapchainImageFd(vulkan_image, draw_info);
+      break;
+
+    case GHOST_kVulkanXRModeCPU:
+      submitToSwapchainImageCpu(vulkan_image, draw_info);
+      break;
+
+    default:
+      // assert(false);
+      break;
+  }
+}
+
+void GHOST_XrGraphicsBindingVulkan::submitToSwapchainImageCpu(
+    XrSwapchainImageVulkan2KHR &swapchain_image, const GHOST_XrDrawViewInfo &draw_info)
+{
   /* Acquire frame buffer image. */
   GHOST_VulkanOpenXRData openxr_data;
   m_ghost_ctx->openxr_acquire_framebuffer_image_callback_(&openxr_data);
@@ -401,7 +459,7 @@ void GHOST_XrGraphicsBindingVulkan::submitToSwapchainImage(
                                                   VK_IMAGE_LAYOUT_GENERAL,
                                                   VK_QUEUE_FAMILY_IGNORED,
                                                   VK_QUEUE_FAMILY_IGNORED,
-                                                  vulkan_image.image,
+                                                  swapchain_image.image,
                                                   {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1}};
   vkCmdPipelineBarrier(vk_command_buffer,
                        VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
@@ -424,7 +482,7 @@ void GHOST_XrGraphicsBindingVulkan::submitToSwapchainImage(
       {openxr_data.extent.width, openxr_data.extent.height, 1}};
   vkCmdCopyBufferToImage(vk_command_buffer,
                          m_vk_buffer,
-                         vulkan_image.image,
+                         swapchain_image.image,
                          VK_IMAGE_LAYOUT_GENERAL,
                          1,
                          &vk_buffer_image_copy);
@@ -444,6 +502,11 @@ void GHOST_XrGraphicsBindingVulkan::submitToSwapchainImage(
 
   /* Release frame buffer image. */
   m_ghost_ctx->openxr_release_framebuffer_image_callback_(&openxr_data);
+}
+
+void GHOST_XrGraphicsBindingVulkan::submitToSwapchainImageFd(
+    XrSwapchainImageVulkan2KHR &swapchain_image, const GHOST_XrDrawViewInfo &draw_info)
+{
 }
 
 bool GHOST_XrGraphicsBindingVulkan::needsUpsideDownDrawing(GHOST_Context &ghost_ctx) const
