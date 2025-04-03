@@ -29,8 +29,8 @@
 #include "ED_screen.hh"
 /* XXX needs access to the file list, should all be done via the asset system in future. */
 #include "ED_fileselect.hh"
-#include "ED_util.hh"
 #include "ED_render.hh"
+#include "ED_util.hh"
 
 #include "BLT_translation.hh"
 
