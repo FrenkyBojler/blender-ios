@@ -510,6 +510,11 @@ add_blender_test(
 )
 
 add_blender_test(
+  bl_animation_bake
+  --python ${CMAKE_CURRENT_LIST_DIR}/bl_animation_bake.py
+)
+
+add_blender_test(
   bl_pose_assets
   --python ${CMAKE_CURRENT_LIST_DIR}/bl_pose_assets.py
   --
@@ -818,7 +823,7 @@ if(WITH_CYCLES OR WITH_GPU_RENDER_TESTS)
           )
         endif()
       endif()
-      
+
       if(WITH_HYDRA)
         # Hydra Storm
         foreach(render_test ${gpu_render_tests})
