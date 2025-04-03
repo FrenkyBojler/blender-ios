@@ -902,7 +902,6 @@ static void restore_list(bContext *C, Depsgraph *depsgraph, StepData &step_data)
          * `pbvh.tag_positions_changed`) won't recalculate the face corner normals.
          * We need to manually clear that cache. */
         mesh.runtime->corner_normals_cache.tag_dirty();
-        mesh.runtime->corner_normals_true_cache.tag_dirty();
       }
       pbvh.update_bounds(*depsgraph, object);
       bke::pbvh::store_bounds_orig(pbvh);

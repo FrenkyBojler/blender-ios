@@ -400,10 +400,11 @@ typedef struct Mesh {
    * normals, the `sharp_edge` and `sharp_face` attributes, and potentially by custom normals.
    *
    * \note Because of the large memory requirements of storing normals per face corner, prefer
-   * using #face_normals() or #vert_normals() when possible (see #normals_domain()).
+   * using #face_normals() or #vert_normals() when possible (see #normals_domain()). For this
+   * reason, the "true" face corner normals aren't cached, since they're just the same as the
+   * corresponding face normals.
    */
   blender::Span<blender::float3> corner_normals() const;
-  blender::Span<blender::float3> corner_normals_true() const;
 
   blender::bke::BVHTreeFromMesh bvh_verts() const;
   blender::bke::BVHTreeFromMesh bvh_edges() const;

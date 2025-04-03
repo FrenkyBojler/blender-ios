@@ -5143,7 +5143,6 @@ static void tag_mesh_positions_changed(Object &object, const bool use_pbvh_draw)
     mesh.tag_positions_changed_no_normals();
     /* Sculpt mode does not use or recalculate face corner normals, so they are cleared. */
     mesh.runtime->corner_normals_cache.tag_dirty();
-    mesh.runtime->corner_normals_true_cache.tag_dirty();
   }
   else {
     /* Drawing happens from the modifier stack evaluation result.

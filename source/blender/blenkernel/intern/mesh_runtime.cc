@@ -325,7 +325,6 @@ void BKE_mesh_runtime_clear_geometry(Mesh *mesh)
   mesh->runtime->face_normals_cache.tag_dirty();
   mesh->runtime->face_normals_true_cache.tag_dirty();
   mesh->runtime->corner_normals_cache.tag_dirty();
-  mesh->runtime->corner_normals_true_cache.tag_dirty();
   mesh->runtime->loose_edges_cache.tag_dirty();
   mesh->runtime->loose_verts_cache.tag_dirty();
   mesh->runtime->verts_no_face_cache.tag_dirty();
@@ -384,7 +383,6 @@ void Mesh::tag_face_winding_changed()
 {
   this->runtime->vert_normals_true_cache.tag_dirty();
   this->runtime->face_normals_true_cache.tag_dirty();
-  this->runtime->corner_normals_true_cache.tag_dirty();
   this->runtime->corner_normals_cache.tag_dirty();
   this->runtime->vert_to_corner_map_cache.tag_dirty();
   this->runtime->shrinkwrap_boundary_cache.tag_dirty();
@@ -395,7 +393,6 @@ void Mesh::tag_positions_changed()
   this->runtime->vert_normals_true_cache.tag_dirty();
   this->runtime->face_normals_true_cache.tag_dirty();
   this->runtime->corner_normals_cache.tag_dirty();
-  this->runtime->corner_normals_true_cache.tag_dirty();
   this->runtime->shrinkwrap_boundary_cache.tag_dirty();
   this->tag_positions_changed_no_normals();
 }

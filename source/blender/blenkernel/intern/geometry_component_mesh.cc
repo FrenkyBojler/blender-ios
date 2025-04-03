@@ -152,14 +152,13 @@ VArray<float3> mesh_normals_varray(const Mesh &mesh,
       return VArray<float3>::ForContainer(std::move(edge_normals));
     }
     case AttrDomain::Corner: {
-      if (no_corner_normals) {
+      if (no_corner_normals || true_normals) {
         return mesh.attributes().adapt_domain(
             VArray<float3>::ForSpan(true_normals ? mesh.face_normals_true() : mesh.face_normals()),
             AttrDomain::Face,
             AttrDomain::Corner);
       }
-      return VArray<float3>::ForSpan(true_normals ? mesh.corner_normals_true() :
-                                                    mesh.corner_normals());
+      return VArray<float3>::ForSpan(mesh.corner_normals());
     }
     default:
       return {};

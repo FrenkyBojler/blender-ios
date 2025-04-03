@@ -224,7 +224,6 @@ struct MeshRuntime {
   SharedCache<Vector<float3>> face_normals_true_cache;
   /** Lazily computed face corner normals (#Mesh::corner_normals()). */
   SharedCache<NormalsCache> corner_normals_cache;
-  SharedCache<Vector<float3>> corner_normals_true_cache;
 
   /**
    * Cache of offsets for vert to face/corner maps. The same offsets array is used to group

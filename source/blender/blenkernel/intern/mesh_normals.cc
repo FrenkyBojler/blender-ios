@@ -501,22 +501,6 @@ blender::Span<blender::float3> Mesh::corner_normals() const
   return this->runtime->corner_normals_cache.data().get_span();
 }
 
-blender::Span<blender::float3> Mesh::corner_normals_true() const
-{
-  using namespace blender;
-  using namespace blender::bke;
-  this->runtime->corner_normals_true_cache.ensure([&](Vector<float3> &r_data) {
-    r_data.reinitialize(this->corners_num);
-    const OffsetIndices<int> faces = this->faces();
-    const Span<float3> face_normals = this->face_normals_true();
-    threading::parallel_for(faces.index_range(), 1024, [&](const IndexRange range) {
-      for (const int i : range) {
-        r_data.as_mutable_span().slice(faces[i]).fill(face_normals[i]);
-      }
-    });
-  });
-  return this->runtime->corner_normals_true_cache.data();
-}
 
 void BKE_lnor_spacearr_init(MLoopNorSpaceArray *lnors_spacearr,
                             const int numLoops,

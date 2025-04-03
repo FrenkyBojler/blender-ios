@@ -145,7 +145,6 @@ static void mesh_copy_data(Main *bmain,
   mesh_dst->runtime->face_normals_cache = mesh_src->runtime->face_normals_cache;
   mesh_dst->runtime->face_normals_true_cache = mesh_src->runtime->face_normals_true_cache;
   mesh_dst->runtime->corner_normals_cache = mesh_src->runtime->corner_normals_cache;
-  mesh_dst->runtime->corner_normals_true_cache = mesh_src->runtime->corner_normals_true_cache;
   mesh_dst->runtime->loose_verts_cache = mesh_src->runtime->loose_verts_cache;
   mesh_dst->runtime->verts_no_face_cache = mesh_src->runtime->verts_no_face_cache;
   mesh_dst->runtime->loose_edges_cache = mesh_src->runtime->loose_edges_cache;
