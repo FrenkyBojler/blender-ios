@@ -40,8 +40,6 @@ class InstanceBoundsField final : public bke::InstancesFieldInput {
     Array<float3> bounds(instances.references().size());
     Array<float3> output_bounds(mask.min_array_size());
 
-    // const_instances.ensure_geometry_instances();
-
     IndexMaskMemory memory;
     IndexMask handles_mask = handles.index_range();
 
@@ -64,6 +62,8 @@ class InstanceBoundsField final : public bke::InstancesFieldInput {
           instance_geometry = blender::bke::object_get_evaluated_geometry_set(reference.object());
           break;
         case blender::bke::InstanceReference::Type::Collection:
+          break;
+        case blender::bke::InstanceReference::Type::None:
           break;
       }
 
