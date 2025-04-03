@@ -42,7 +42,7 @@ struct NodeFieldEvalData {
   fn::GField field;
 };
 
-std::shared_ptr<NodeFieldEvalData> prepare_field_eval_data(const Scene &scene,
+std::unique_ptr<NodeFieldEvalData> prepare_field_eval_data(const Scene &scene,
                                                            const ARegion &region,
                                                            const Depsgraph &depsgraph,
                                                            const Object &object,

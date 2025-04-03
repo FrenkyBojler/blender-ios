@@ -386,12 +386,12 @@ struct StrokeCache {
 
   std::unique_ptr<auto_mask::Cache> automasking;
 
-  /* Use shared_ptr to avoid the need for full definition in header. */
-  std::shared_ptr<NodeFieldEvalData> node_field_eval_data;
+  std::unique_ptr<NodeFieldEvalData> node_field_eval_data;
 
   float4x4 stroke_local_mat;
   float multiplane_scrape_angle;
 
+  StrokeCache();
   ~StrokeCache();
 };
 

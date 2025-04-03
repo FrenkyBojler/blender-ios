@@ -84,7 +84,7 @@ static Depsgraph *build_extra_depsgraph(const Depsgraph &depsgraph_active, const
  *
  * Outputs a field that can be evaluated later for a specific node.
  */
-static std::shared_ptr<NodeFieldEvalData> prepare_field_eval_data(const Scene &scene,
+static std::unique_ptr<NodeFieldEvalData> prepare_field_eval_data(const Scene &scene,
                                                                   const ARegion &region,
                                                                   const Depsgraph &depsgraph,
                                                                   const Object &object,
@@ -141,7 +141,7 @@ static std::shared_ptr<NodeFieldEvalData> prepare_field_eval_data(const Scene &s
     return {};
   }
 
-  auto output = std::make_shared<NodeFieldEvalData>();
+  auto output = std::make_unique<NodeFieldEvalData>();
 
   Array<GMutablePointer> param_inputs(num_inputs);
   Array<std::optional<lf::ValueUsage>> param_input_usages(num_inputs);
@@ -280,7 +280,7 @@ static std::shared_ptr<NodeFieldEvalData> prepare_field_eval_data(const Scene &s
   return output;
 }
 
-std::shared_ptr<NodeFieldEvalData> prepare_field_eval_data(const Scene &scene,
+std::unique_ptr<NodeFieldEvalData> prepare_field_eval_data(const Scene &scene,
                                                            const ARegion &region,
                                                            const Depsgraph &depsgraph,
                                                            const Object &object,
