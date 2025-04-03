@@ -677,7 +677,7 @@ BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::implicit_field(Impli
 {
   BLI_assert(this->is_input());
   this->hide_value();
-  this->structure_type(StructureType::Field);
+  this->structure_type(StructureType::Dynamic);
   decl_base_->input_field_type = InputSocketFieldType::Implicit;
   decl_base_->implicit_input_fn = std::make_unique<ImplicitInputValueFn>(std::move(fn));
   return *this;
