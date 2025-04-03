@@ -4389,7 +4389,7 @@ static void asset_browser_add_list_view(Main *bmain)
 /* Turns all instances of "{" and "}" in a string into "{{" and "}}", escaping
  * them for strings that are processed with Blender Variables so that they don't
  * erroneously get interepreted as variables. */
-static void escape_curley_braces(char string[], const int string_array_length)
+static void escape_curly_braces(char string[], const int string_array_length)
 {
   int bytes_processed = 0;
   while (bytes_processed < string_array_length && string[bytes_processed] != '\0') {
@@ -4413,7 +4413,7 @@ static void escape_curley_braces(char string[], const int string_array_length)
  * File Output nodes.
  *
  * If the passed node tree is not a compositor node tree, does nothing. */
-static void escape_curley_braces_in_compositor_file_output_nodes(bNodeTree &nodetree)
+static void escape_curly_braces_in_compositor_file_output_nodes(bNodeTree &nodetree)
 {
   if (nodetree.type != NTREE_COMPOSIT) {
     return;
@@ -4425,12 +4425,12 @@ static void escape_curley_braces_in_compositor_file_output_nodes(bNodeTree &node
     }
 
     NodeImageMultiFile *node_data = static_cast<NodeImageMultiFile *>(node->storage);
-    escape_curley_braces(node_data->base_path, FILE_MAX);
+    escape_curly_braces(node_data->base_path, FILE_MAX);
 
     LISTBASE_FOREACH (bNodeSocket *, sock, &node->inputs) {
       NodeImageMultiFileSocket *socket_data = static_cast<NodeImageMultiFileSocket *>(
           sock->storage);
-      escape_curley_braces(socket_data->path, FILE_MAX);
+      escape_curly_braces(socket_data->path, FILE_MAX);
     }
   }
 }
@@ -6623,14 +6623,14 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
      * the File Output compositor node) to escape curely braces. */
     {
       LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-        escape_curley_braces(scene->r.pic, FILE_MAX);
+        escape_curly_braces(scene->r.pic, FILE_MAX);
         if (scene->nodetree) {
-          escape_curley_braces_in_compositor_file_output_nodes(*scene->nodetree);
+          escape_curly_braces_in_compositor_file_output_nodes(*scene->nodetree);
         }
       }
 
       LISTBASE_FOREACH (bNodeTree *, nodetree, &bmain->nodetrees) {
-        escape_curley_braces_in_compositor_file_output_nodes(*nodetree);
+        escape_curly_braces_in_compositor_file_output_nodes(*nodetree);
       }
     }
   }
