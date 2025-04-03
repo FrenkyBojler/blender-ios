@@ -95,7 +95,18 @@ void TreeViewItemContainer::foreach_parent(ItemIterFn iter_fn) const
     iter_fn(*item);
   }
 }
-
+void TreeViewItemContainer::foreach_sort_invert(SortOrder order)
+{
+  auto new_order = std::move(children_);
+  children_.clear();
+  for (auto iter = new_order.rbegin(); iter != new_order.rend(); iter++) {
+    if (order == SortOrder::InvertNested) {
+      iter->get()->foreach_sort_invert(order);
+    }
+    this->children_.append(std::move(*iter));
+  }
+  new_order.clear();
+}
 /* ---------------------------------------------------------------------- */
 
 void AbstractTreeView::foreach_view_item(FunctionRef<void(AbstractViewItem &)> iter_fn) const
@@ -249,16 +260,10 @@ void AbstractTreeView::get_hierarchy_lines(const ARegion &region,
 
 void AbstractTreeView::sort_inverted()
 {
-  if (!this->is_sort_inverted()) {
+  if (SortOrder(this->is_sort_inverted()) == SortOrder::None) {
     return;
   }
-
-  auto new_order = std::move(this->children_);
-  this->children_.clear();
-  for (auto iter = new_order.rbegin(); iter != new_order.rend(); iter++) {
-    this->children_.append(std::move(*iter));
-  }
-  new_order.clear();
+  this->foreach_sort_invert(SortOrder(this->is_sort_inverted()));
 }
 
 static uiButViewItem *find_first_view_item_but(const uiBlock &block, const AbstractTreeView &view)
@@ -868,7 +873,19 @@ void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
   if (!tree_view.is_filtering_collapsed()) {
     uiLayout *filter_layout = uiLayoutRow(col, false);
     uiLayoutSetAlignment(filter_layout, UI_LAYOUT_ALIGN_RIGHT);
-    icon = tree_view.is_sort_inverted() ? ICON_SORT_ASC : ICON_SORT_DESC;
+    icon = ICON_SORT_DESC;
+
+    switch (AbstractTreeView::SortOrder(tree_view.is_sort_inverted())) {
+      case AbstractTreeView::SortOrder::Invert:
+        icon = ICON_SORT_ASC;
+        break;
+      case AbstractTreeView::SortOrder::InvertNested:
+        icon = ICON_DOWNARROW_HLT;
+       break;
+    default:
+        break;
+    }
+
     but = uiDefIconBut(
         block, UI_BTYPE_ICON_TOGGLE, 0, icon, 0, 0, UI_UNIT_X, UI_UNIT_Y, nullptr, 0, 0, "");
     UI_but_func_set(but, set_sort_order_fn, nullptr, nullptr);

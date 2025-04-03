@@ -68,6 +68,11 @@ class TreeViewItemContainer {
 
     /* Keep ENUM_OPERATORS() below updated! */
   };
+  enum class SortOrder : uint8_t {
+    None = 0,
+    Invert = 1,
+    InvertNested = 2,
+  };
   using ItemIterFn = FunctionRef<void(AbstractTreeViewItem &)>;
 
   /**
@@ -93,6 +98,7 @@ class TreeViewItemContainer {
  protected:
   void foreach_item_recursive(ItemIterFn iter_fn, IterOptions options = IterOptions::None) const;
   void foreach_parent(ItemIterFn iter_fn) const;
+  void foreach_sort_invert(SortOrder order);
 };
 
 ENUM_OPERATORS(TreeViewItemContainer::IterOptions,

@@ -75,7 +75,7 @@ class AbstractView {
   std::string context_menu_title;
   /** See #set_popup_keep_open(). */
   bool popup_keep_open_ = false;
-  bool invert_sort_order = false;
+  uint8_t invert_sort_order = false;
   bool filtering_collapsed_state = true;
 
  public:
@@ -150,7 +150,7 @@ class AbstractView {
 
   void set_sort_inverted();
   void set_sort_inverted(bool value);
-  bool is_sort_inverted() const;
+  uint8_t is_sort_inverted() const;
 
   void set_filtering_collapsed();
   void set_filtering_collapsed(bool value);

@@ -247,7 +247,7 @@ void AbstractView::clear_search_highlight()
 
 void AbstractView::set_sort_inverted()
 {
-  this->invert_sort_order = !this->invert_sort_order;
+  this->invert_sort_order = (this->invert_sort_order + 1) % 3;
 }
 
 void AbstractView::set_sort_inverted(bool value)
@@ -255,7 +255,7 @@ void AbstractView::set_sort_inverted(bool value)
   this->invert_sort_order = value;
 }
 
-bool AbstractView::is_sort_inverted() const
+uint8_t AbstractView::is_sort_inverted() const
 {
   return this->invert_sort_order;
 }
