@@ -24,6 +24,7 @@
 
 #include "BLF_api.hh"
 
+#include "BLI_array_utils.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_geom.h"
 #include "BLI_span.hh"
@@ -316,6 +317,15 @@ static void stats_object_edit(Object *obedit, SceneStats *stats)
       bp++;
     }
   }
+  else if (obedit->type == OB_CURVES) {
+    using namespace blender;
+    const Curves &curves_id = *static_cast<Curves *>(obedit->data);
+    const bke::CurvesGeometry &curves = curves_id.geometry.wrap();
+    const VArray<bool> selection = *curves.attributes().lookup_or_default<bool>(
+        ".selection", bke::AttrDomain::Point, true);
+    stats->totvertsel += array_utils::count_booleans(selection);
+    stats->totvert += curves.points_num();
+  }
 }
 
 static void stats_object_pose(const Object *ob, SceneStats *stats)
@@ -342,26 +352,39 @@ static bool stats_is_object_dynamic_topology_sculpt(const Object *ob)
 
 static void stats_object_sculpt(const Object *ob, SceneStats *stats)
 {
-  const SculptSession *ss = ob->sculpt;
-  const blender::bke::pbvh::Tree *pbvh = blender::bke::object::pbvh_get(*ob);
-  if (ss == nullptr || pbvh == nullptr) {
-    return;
-  }
+  switch (ob->type) {
+    case OB_MESH: {
+      const SculptSession *ss = ob->sculpt;
+      const blender::bke::pbvh::Tree *pbvh = blender::bke::object::pbvh_get(*ob);
+      if (ss == nullptr || pbvh == nullptr) {
+        return;
+      }
 
-  switch (pbvh->type()) {
-    case blender::bke::pbvh::Type::Mesh: {
-      const Mesh &mesh = *static_cast<const Mesh *>(ob->data);
-      stats->totvertsculpt = mesh.verts_num;
-      stats->totfacesculpt = mesh.faces_num;
+      switch (pbvh->type()) {
+        case blender::bke::pbvh::Type::Mesh: {
+          const Mesh &mesh = *static_cast<const Mesh *>(ob->data);
+          stats->totvertsculpt = mesh.verts_num;
+          stats->totfacesculpt = mesh.faces_num;
+          break;
+        }
+        case blender::bke::pbvh::Type::BMesh:
+          stats->totvertsculpt = ob->sculpt->bm->totvert;
+          stats->tottri = ob->sculpt->bm->totface;
+          break;
+        case blender::bke::pbvh::Type::Grids:
+          stats->totvertsculpt = BKE_pbvh_get_grid_num_verts(*ob);
+          stats->totfacesculpt = BKE_pbvh_get_grid_num_faces(*ob);
+          break;
+      }
       break;
     }
-    case blender::bke::pbvh::Type::BMesh:
-      stats->totvertsculpt = ob->sculpt->bm->totvert;
-      stats->tottri = ob->sculpt->bm->totface;
+    case OB_CURVES: {
+      const Curves &curves_id = *static_cast<Curves *>(ob->data);
+      const blender::bke::CurvesGeometry &curves = curves_id.geometry.wrap();
+      stats->totvertsculpt += curves.points_num();
       break;
-    case blender::bke::pbvh::Type::Grids:
-      stats->totvertsculpt = BKE_pbvh_get_grid_num_verts(*ob);
-      stats->totfacesculpt = BKE_pbvh_get_grid_num_faces(*ob);
+    }
+    default:
       break;
   }
 }
@@ -418,7 +441,7 @@ static void stats_update(Depsgraph *depsgraph,
     }
     FOREACH_OBJECT_END;
   }
-  else if (ob && (ob->mode & OB_MODE_SCULPT)) {
+  else if (ob && ELEM(ob->mode, OB_MODE_SCULPT, OB_MODE_SCULPT_CURVES)) {
     /* Sculpt Mode. */
     stats_object_sculpt(ob, stats);
   }
@@ -524,7 +547,6 @@ static void get_stats_string(char *info,
 {
   BKE_view_layer_synced_ensure(scene, view_layer);
   Object *ob = BKE_view_layer_active_object_get(view_layer);
-  Object *obedit = OBEDIT_FROM_OBACT(ob);
   eObjectMode object_mode = ob ? (eObjectMode)ob->mode : OB_MODE_OBJECT;
   LayerCollection *layer_collection = BKE_view_layer_active_collection_get(view_layer);
 
@@ -539,12 +561,12 @@ static void get_stats_string(char *info,
     *ofs += BLI_snprintf_rlen(info + *ofs, len - *ofs, "%s | ", ob->id.name + 2);
   }
 
-  if (obedit) {
-    if (BKE_keyblock_from_object(obedit)) {
+  if (ob && ob->mode == OB_MODE_EDIT) {
+    if (BKE_keyblock_from_object(ob)) {
       *ofs += BLI_strncpy_rlen(info + *ofs, IFACE_("(Key) "), len - *ofs);
     }
 
-    if (obedit->type == OB_MESH) {
+    if (ob->type == OB_MESH) {
       *ofs += BLI_snprintf_rlen(info + *ofs,
                                 len - *ofs,
 
@@ -557,7 +579,7 @@ static void get_stats_string(char *info,
                                 stats_fmt->totface,
                                 stats_fmt->tottri);
     }
-    else if (obedit->type == OB_ARMATURE) {
+    else if (ob->type == OB_ARMATURE) {
       *ofs += BLI_snprintf_rlen(info + *ofs,
                                 len - *ofs,
 
@@ -752,7 +774,6 @@ void ED_info_draw_stats(
 
   BKE_view_layer_synced_ensure(scene, view_layer);
   Object *ob = BKE_view_layer_active_object_get(view_layer);
-  Object *obedit = OBEDIT_FROM_OBACT(ob);
   eObjectMode object_mode = ob ? (eObjectMode)ob->mode : OB_MODE_OBJECT;
   const int font_id = BLF_default();
 
@@ -813,7 +834,7 @@ void ED_info_draw_stats(
     stats_row(col1, labels[TRIS], col2, stats_fmt.tottri, nullptr, y, height);
     return;
   }
-  else if (!(object_mode & OB_MODE_SCULPT)) {
+  else if (!ELEM(object_mode, OB_MODE_SCULPT, OB_MODE_SCULPT_CURVES)) {
     /* No objects in scene. */
     stats_row(col1, labels[OBJ], col2, stats_fmt.totobj, nullptr, y, height);
     return;
@@ -825,18 +846,18 @@ void ED_info_draw_stats(
     stats_row(col1, labels[STROKES], col2, stats_fmt.totgpstroke, nullptr, y, height);
     stats_row(col1, labels[POINTS], col2, stats_fmt.totgppoint, nullptr, y, height);
   }
-  else if (obedit) {
-    if (obedit->type == OB_MESH) {
+  else if (ob && ob->mode == OB_MODE_EDIT) {
+    if (ob->type == OB_MESH) {
       stats_row(col1, labels[VERTS], col2, stats_fmt.totvertsel, stats_fmt.totvert, y, height);
       stats_row(col1, labels[EDGES], col2, stats_fmt.totedgesel, stats_fmt.totedge, y, height);
       stats_row(col1, labels[FACES], col2, stats_fmt.totfacesel, stats_fmt.totface, y, height);
       stats_row(col1, labels[TRIS], col2, stats_fmt.tottri, nullptr, y, height);
     }
-    else if (obedit->type == OB_ARMATURE) {
+    else if (ob->type == OB_ARMATURE) {
       stats_row(col1, labels[JOINTS], col2, stats_fmt.totvertsel, stats_fmt.totvert, y, height);
       stats_row(col1, labels[BONES], col2, stats_fmt.totbonesel, stats_fmt.totbone, y, height);
     }
-    else if (obedit->type != OB_FONT) {
+    else if (ob->type != OB_FONT) {
       stats_row(col1, labels[VERTS], col2, stats_fmt.totvertsel, stats_fmt.totvert, y, height);
     }
   }
@@ -849,6 +870,9 @@ void ED_info_draw_stats(
       stats_row(col1, labels[VERTS], col2, stats_fmt.totvertsculpt, nullptr, y, height);
       stats_row(col1, labels[FACES], col2, stats_fmt.totfacesculpt, nullptr, y, height);
     }
+  }
+  else if (ob && (object_mode & OB_MODE_SCULPT_CURVES)) {
+    stats_row(col1, labels[VERTS], col2, stats_fmt.totvertsculpt, nullptr, y, height);
   }
   else if (ob && (object_mode & OB_MODE_POSE)) {
     stats_row(col1, labels[BONES], col2, stats_fmt.totbonesel, stats_fmt.totbone, y, height);

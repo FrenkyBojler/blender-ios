@@ -388,9 +388,6 @@ struct StrokeCache {
   float4x4 stroke_local_mat;
   float multiplane_scrape_angle;
 
-  rcti previous_r; /* previous redraw rectangle */
-  rcti current_r;  /* current redraw rectangle */
-
   ~StrokeCache();
 };
 
@@ -554,8 +551,9 @@ namespace blender::ed::sculpt_paint {
  */
 Span<float3> vert_positions_for_grab_active_get(const Depsgraph &depsgraph, const Object &object);
 
-Span<BMVert *> vert_neighbors_get_bmesh(BMVert &vert, Vector<BMVert *, 64> &r_neighbors);
-Span<BMVert *> vert_neighbors_get_interior_bmesh(BMVert &vert, Vector<BMVert *, 64> &r_neighbors);
+using BMeshNeighborVerts = Vector<BMVert *, 64>;
+Span<BMVert *> vert_neighbors_get_bmesh(BMVert &vert, BMeshNeighborVerts &r_neighbors);
+Span<BMVert *> vert_neighbors_get_interior_bmesh(BMVert &vert, BMeshNeighborVerts &r_neighbors);
 
 Span<int> vert_neighbors_get_mesh(OffsetIndices<int> faces,
                                   Span<int> corner_verts,
@@ -645,7 +643,6 @@ bool SCULPT_is_vertex_inside_brush_radius_symm(const float vertex[3],
                                                const float br_co[3],
                                                float radius,
                                                char symm);
-bool SCULPT_is_symmetry_iteration_valid(char i, char symm);
 blender::float3 SCULPT_flip_v3_by_symm_area(const blender::float3 &vector,
                                             ePaintSymmetryFlags symm,
                                             ePaintSymmetryAreas symmarea,
@@ -708,17 +705,17 @@ void SCULPT_calc_vertex_displacement(const SculptSession &ss,
                                      const Brush &brush,
                                      float translation[3]);
 
+namespace blender::ed::sculpt_paint {
 /**
  * Tilts a normal by the x and y tilt values using the view axis.
  */
-void SCULPT_tilt_apply_to_normal(float r_normal[3],
-                                 blender::ed::sculpt_paint::StrokeCache *cache,
-                                 float tilt_strength);
+float3 tilt_apply_to_normal(const float3 &normal, const StrokeCache &cache, float tilt_strength);
 
 /**
  * Get effective surface normal with pen tilt and tilt strength applied to it.
  */
-void SCULPT_tilt_effective_normal_get(const SculptSession &ss, const Brush &brush, float r_no[3]);
+float3 tilt_effective_normal_get(const SculptSession &ss, const Brush &brush);
+}  // namespace blender::ed::sculpt_paint
 
 /** \} */
 
@@ -804,14 +801,6 @@ std::optional<Span<float>> orig_mask_data_lookup_grids(const Object &object,
 }  // namespace blender::ed::sculpt_paint
 
 /** \} */
-
-/**
- * Get a screen-space rectangle of the modified area.
- */
-bool SCULPT_get_redraw_rect(const ARegion &region,
-                            const RegionView3D &rv3d,
-                            const Object &ob,
-                            rcti &rect);
 
 /* Operators. */
 
@@ -986,6 +975,16 @@ inline bool brush_uses_vector_displacement(const Brush &brush)
   return brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_DRAW &&
          brush.flag2 & BRUSH_USE_COLOR_AS_DISPLACEMENT &&
          brush.mtex.brush_map_mode == MTEX_MAP_MODE_AREA;
+}
+
+inline bool brush_type_supports_gravity(const int tool)
+{
+  return !brush_type_is_attribute_only(tool) && !ELEM(tool,
+                                                      SCULPT_BRUSH_TYPE_BOUNDARY,
+                                                      SCULPT_BRUSH_TYPE_SMOOTH,
+                                                      SCULPT_BRUSH_TYPE_SIMPLIFY,
+                                                      SCULPT_BRUSH_TYPE_DISPLACEMENT_SMEAR,
+                                                      SCULPT_BRUSH_TYPE_DISPLACEMENT_ERASER);
 }
 
 }  // namespace blender::ed::sculpt_paint

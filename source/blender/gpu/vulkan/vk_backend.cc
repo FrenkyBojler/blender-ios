@@ -183,7 +183,7 @@ bool VKBackend::is_supported()
     return false;
   }
 
-  // go over all the devices
+  /* Go over all the devices. */
   uint32_t physical_devices_count = 0;
   vkEnumeratePhysicalDevices(vk_instance, &physical_devices_count, nullptr);
   Array<VkPhysicalDevice> vk_physical_devices(physical_devices_count);
@@ -342,6 +342,7 @@ void VKBackend::platform_init(const VKDevice &device)
 void VKBackend::detect_workarounds(VKDevice &device)
 {
   VKWorkarounds workarounds;
+  VKExtensions extensions;
 
   if (G.debug & G_DEBUG_GPU_FORCE_WORKAROUNDS) {
     printf("\n");
@@ -349,35 +350,36 @@ void VKBackend::detect_workarounds(VKDevice &device)
     printf("    Vendor: %s\n", device.vendor_name().c_str());
     printf("    Device: %s\n", device.physical_device_properties_get().deviceName);
     printf("    Driver: %s\n", device.driver_version().c_str());
-    /* Force workarounds. */
+    /* Force workarounds and disable extensions. */
     workarounds.not_aligned_pixel_formats = true;
-    workarounds.shader_output_layer = true;
-    workarounds.shader_output_viewport_index = true;
     workarounds.vertex_formats.r8g8b8 = true;
-    workarounds.fragment_shader_barycentric = true;
-    workarounds.dynamic_rendering = true;
-    workarounds.dynamic_rendering_local_read = true;
-    workarounds.dynamic_rendering_unused_attachments = true;
+    extensions.shader_output_layer = false;
+    extensions.shader_output_viewport_index = false;
+    extensions.fragment_shader_barycentric = false;
+    extensions.dynamic_rendering = false;
+    extensions.dynamic_rendering_local_read = false;
+    extensions.dynamic_rendering_unused_attachments = false;
 
     GCaps.render_pass_workaround = true;
 
     device.workarounds_ = workarounds;
+    device.extensions_ = extensions;
     return;
   }
 
-  workarounds.shader_output_layer =
-      !device.physical_device_vulkan_12_features_get().shaderOutputLayer;
-  workarounds.shader_output_viewport_index =
-      !device.physical_device_vulkan_12_features_get().shaderOutputViewportIndex;
-  workarounds.fragment_shader_barycentric = !device.supports_extension(
+  extensions.shader_output_layer =
+      device.physical_device_vulkan_12_features_get().shaderOutputLayer;
+  extensions.shader_output_viewport_index =
+      device.physical_device_vulkan_12_features_get().shaderOutputViewportIndex;
+  extensions.fragment_shader_barycentric = device.supports_extension(
       VK_KHR_FRAGMENT_SHADER_BARYCENTRIC_EXTENSION_NAME);
-  workarounds.dynamic_rendering = !device.supports_extension(
+  extensions.dynamic_rendering = device.supports_extension(
       VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME);
-  workarounds.dynamic_rendering_local_read = !device.supports_extension(
+  extensions.dynamic_rendering_local_read = device.supports_extension(
       VK_KHR_DYNAMIC_RENDERING_LOCAL_READ_EXTENSION_NAME);
-  workarounds.dynamic_rendering_unused_attachments = !device.supports_extension(
+  extensions.dynamic_rendering_unused_attachments = device.supports_extension(
       VK_EXT_DYNAMIC_RENDERING_UNUSED_ATTACHMENTS_EXTENSION_NAME);
-  workarounds.logic_ops = !device.physical_device_features_get().logicOp;
+  extensions.logic_ops = device.physical_device_features_get().logicOp;
 
   /* AMD GPUs don't support texture formats that use are aligned to 24 or 48 bits. */
   if (GPU_type_matches(GPU_DEVICE_ATI, GPU_OS_ANY, GPU_DRIVER_ANY) ||
@@ -399,7 +401,7 @@ void VKBackend::detect_workarounds(VKDevice &device)
   if ((G.debug & G_DEBUG_GPU_FORCE_VULKAN_LOCAL_READ) == 0 &&
       !GPU_type_matches(GPU_DEVICE_QUALCOMM, GPU_OS_ANY, GPU_DRIVER_ANY))
   {
-    workarounds.dynamic_rendering_local_read = true;
+    extensions.dynamic_rendering_local_read = false;
   }
 
   VkFormatProperties format_properties = {};
@@ -408,13 +410,7 @@ void VKBackend::detect_workarounds(VKDevice &device)
   workarounds.vertex_formats.r8g8b8 = (format_properties.bufferFeatures &
                                        VK_FORMAT_FEATURE_VERTEX_BUFFER_BIT) == 0;
 
-  workarounds.fragment_shader_barycentric = !device.supports_extension(
-      VK_KHR_FRAGMENT_SHADER_BARYCENTRIC_EXTENSION_NAME);
-
-  GCaps.render_pass_workaround = workarounds.dynamic_rendering = !device.supports_extension(
-      VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME);
-  workarounds.dynamic_rendering_unused_attachments = !device.supports_extension(
-      VK_EXT_DYNAMIC_RENDERING_UNUSED_ATTACHMENTS_EXTENSION_NAME);
+  GCaps.render_pass_workaround = !extensions.dynamic_rendering;
 
 #ifdef __APPLE__
   /* Due to a limitation in MoltenVK, attachments should be sequential even when using
@@ -425,26 +421,8 @@ void VKBackend::detect_workarounds(VKDevice &device)
   }
 #endif
 
-  /* Fix #123787: Multi viewport creates small triangle discard on RDNA2 GPUs with official
-   * drivers. Using geometry shader workaround fixes the issue. */
-  if (GPU_type_matches(GPU_DEVICE_ATI, GPU_OS_ANY, GPU_DRIVER_OFFICIAL)) {
-    const char *renderer = device.physical_device_properties_get().deviceName;
-    if (strstr(renderer, "RX 6300") || strstr(renderer, "RX 6400") ||
-        strstr(renderer, "RX 6450") || strstr(renderer, "RX 6500") ||
-        strstr(renderer, "RX 6550") || strstr(renderer, "RX 6600") ||
-        strstr(renderer, "RX 6650") || strstr(renderer, "RX 6700") ||
-        strstr(renderer, "RX 6750") || strstr(renderer, "RX 6800") ||
-        strstr(renderer, "RX 6850") || strstr(renderer, "RX 6900") ||
-        strstr(renderer, "RX 6950") || strstr(renderer, "W6300") || strstr(renderer, "W6400") ||
-        strstr(renderer, "W6500") || strstr(renderer, "W6600") ||
-        /* NOTE: `W6700` was never released, so it's not in this list. */
-        strstr(renderer, "W6800") || strstr(renderer, "W6900"))
-    {
-      workarounds.shader_output_viewport_index = true;
-    }
-  }
-
   device.workarounds_ = workarounds;
+  device.extensions_ = extensions;
 }
 
 void VKBackend::platform_exit()
@@ -507,7 +485,10 @@ Context *VKBackend::context_alloc(void *ghost_window, void *ghost_context)
   device.context_register(*context);
   GHOST_SetVulkanSwapBuffersCallbacks((GHOST_ContextHandle)ghost_context,
                                       VKContext::swap_buffers_pre_callback,
-                                      VKContext::swap_buffers_post_callback);
+                                      VKContext::swap_buffers_post_callback,
+                                      VKContext::openxr_acquire_framebuffer_image_callback,
+                                      VKContext::openxr_release_framebuffer_image_callback);
+
   return context;
 }
 

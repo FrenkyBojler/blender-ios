@@ -49,8 +49,7 @@ namespace blender::nodes::node_geo_simulation_cc {
 
 static const CPPType &get_simulation_item_cpp_type(const eNodeSocketDatatype socket_type)
 {
-  const StringRefNull socket_idname = *bke::node_static_socket_type(socket_type, 0);
-  const bke::bNodeSocketType *typeinfo = bke::node_socket_type_find(socket_idname);
+  const bke::bNodeSocketType *typeinfo = bke::node_socket_type_find_static(socket_type);
   BLI_assert(typeinfo);
   BLI_assert(typeinfo->geometry_nodes_cpp_type);
   return *typeinfo->geometry_nodes_cpp_type;
@@ -302,7 +301,7 @@ class LazyFunctionForSimulationInputNode final : public LazyFunction {
       this->set_default_outputs(params);
       return;
     }
-    if (found_id->is_in_loop) {
+    if (found_id->is_in_loop || found_id->is_in_closure) {
       this->set_default_outputs(params);
       return;
     }
@@ -574,7 +573,7 @@ class LazyFunctionForSimulationOutputNode final : public LazyFunction {
       this->set_default_outputs(params);
       return;
     }
-    if (found_id->is_in_loop) {
+    if (found_id->is_in_loop || found_id->is_in_closure) {
       this->set_default_outputs(params);
       return;
     }

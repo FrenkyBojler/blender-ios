@@ -244,7 +244,7 @@ ImBuf *seq_proxy_fetch(const RenderData *context, Strip *strip, int timeline_fra
   }
 
   if (BLI_exists(filepath)) {
-    ImBuf *ibuf = IMB_loadiffname(filepath, IB_byte_data | IB_metadata, nullptr);
+    ImBuf *ibuf = IMB_load_image_from_filepath(filepath, IB_byte_data | IB_metadata);
 
     if (ibuf) {
       seq_imbuf_assign_spaces(context->scene, ibuf);
@@ -311,7 +311,7 @@ static void seq_proxy_build_frame(const RenderData *context,
   }
   BLI_file_ensure_parent_dir_exists(filepath);
 
-  const bool ok = IMB_saveiff(ibuf, filepath, save_float ? IB_float_data : IB_byte_data);
+  const bool ok = IMB_save_image(ibuf, filepath, save_float ? IB_float_data : IB_byte_data);
   if (ok == false) {
     perror(filepath);
   }
@@ -462,8 +462,7 @@ bool proxy_rebuild_context(Main *bmain,
 
     relations_sequence_free_anim(strip);
 
-    context = static_cast<IndexBuildContext *>(
-        MEM_callocN(sizeof(IndexBuildContext), "strip proxy rebuild context"));
+    context = MEM_callocN<IndexBuildContext>("strip proxy rebuild context");
 
     nseq = sequence_dupli_recursive(scene, scene, nullptr, strip, 0);
 

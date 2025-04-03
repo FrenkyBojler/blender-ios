@@ -278,7 +278,7 @@ static bool open_anim_file_multiview(Scene *scene, Strip *strip, const char *fil
     char filepath_view[FILE_MAX];
     SNPRINTF(filepath_view, "%s%s%s", prefix, suffix, ext);
 
-    StripAnim *sanim = static_cast<StripAnim *>(MEM_mallocN(sizeof(StripAnim), "Strip Anim"));
+    StripAnim *sanim = MEM_mallocN<StripAnim>("Strip Anim");
     /* Multiview files must be loaded, otherwise it is not possible to detect failure. */
     open_anim_filepath(strip, sanim, filepath_view, true);
 
@@ -321,7 +321,7 @@ void strip_open_anim_file(Scene *scene, Strip *strip, bool openfile)
   }
 
   if (!is_multiview || !multiview_is_loaded) {
-    StripAnim *sanim = static_cast<StripAnim *>(MEM_mallocN(sizeof(StripAnim), "Strip Anim"));
+    StripAnim *sanim = MEM_mallocN<StripAnim>("Strip Anim");
     BLI_addtail(&strip->anims, sanim);
     open_anim_filepath(strip, sanim, filepath, openfile);
     index_dir_set(ed, strip, sanim);
@@ -367,7 +367,7 @@ ListBase *get_seqbase_by_seq(const Scene *scene, Strip *strip)
 {
   Editing *ed = editing_get(scene);
   ListBase *main_seqbase = &ed->seqbase;
-  Strip *strip_meta = SEQ_lookup_meta_by_strip(ed, strip);
+  Strip *strip_meta = lookup_meta_by_strip(ed, strip);
 
   if (strip_meta != nullptr) {
     return &strip_meta->seqbase;

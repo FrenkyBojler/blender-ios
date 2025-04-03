@@ -800,28 +800,17 @@ std::string GLShader::fragment_interface_declare(const ShaderCreateInfo &info) c
       /* IMPORTANT: We assume that the frame-buffer will be layered or not based on the layer
        * built-in flag. */
       bool is_layered_fb = bool(info.builtins_ & BuiltinBits::LAYER);
+      bool is_layered_input = ELEM(input.img_type,
+                                   ImageType::UINT_2D_ARRAY,
+                                   ImageType::INT_2D_ARRAY,
+                                   ImageType::FLOAT_2D_ARRAY);
 
-      /* Start with invalid value to detect failure cases. */
-      ImageType image_type = ImageType::FLOAT_BUFFER;
-      switch (to_component_type(input.type)) {
-        case Type::FLOAT:
-          image_type = is_layered_fb ? ImageType::FLOAT_2D_ARRAY : ImageType::FLOAT_2D;
-          break;
-        case Type::INT:
-          image_type = is_layered_fb ? ImageType::INT_2D_ARRAY : ImageType::INT_2D;
-          break;
-        case Type::UINT:
-          image_type = is_layered_fb ? ImageType::UINT_2D_ARRAY : ImageType::UINT_2D;
-          break;
-        default:
-          break;
-      }
       /* Declare image. */
       using Resource = ShaderCreateInfo::Resource;
       /* NOTE(fclem): Using the attachment index as resource index might be problematic as it might
        * collide with other resources. */
       Resource res(Resource::BindType::SAMPLER, input.index);
-      res.sampler.type = image_type;
+      res.sampler.type = input.img_type;
       res.sampler.sampler = GPUSamplerState::default_sampler();
       res.sampler.name = image_name;
       print_resource(ss, res, false);
@@ -829,8 +818,13 @@ std::string GLShader::fragment_interface_declare(const ShaderCreateInfo &info) c
       char swizzle[] = "xyzw";
       swizzle[to_component_count(input.type)] = '\0';
 
-      std::string texel_co = (is_layered_fb) ? "ivec3(gl_FragCoord.xy, gpu_Layer)" :
-                                               "ivec2(gl_FragCoord.xy)";
+      std::string texel_co = (is_layered_input) ?
+                                 ((is_layered_fb)  ? "ivec3(gl_FragCoord.xy, gpu_Layer)" :
+                                                     /* This should fetch the attached layer.
+                                                      * But this is not simple to set. For now
+                                                      * assume it is always the first layer. */
+                                                     "ivec3(gl_FragCoord.xy, 0)") :
+                                 "ivec2(gl_FragCoord.xy)";
 
       std::stringstream ss_pre;
       /* Populate the global before main using imageLoad. */
@@ -1027,79 +1021,73 @@ bool GLShader::do_geometry_shader_injection(const shader::ShaderCreateInfo *info
 static StringRefNull glsl_patch_default_get()
 {
   /** Used for shader patching. Init once. */
-  static std::string patch;
-  if (!patch.empty()) {
-    return patch;
-  }
+  static std::string patch = []() {
+    std::stringstream ss;
+    /* Version need to go first. */
+    if (epoxy_gl_version() >= 43) {
+      ss << "#version 430\n";
+    }
+    else {
+      ss << "#version 330\n";
+    }
 
-  std::stringstream ss;
-  /* Version need to go first. */
-  if (epoxy_gl_version() >= 43) {
-    ss << "#version 430\n";
-  }
-  else {
-    ss << "#version 330\n";
-  }
+    /* Enable extensions for features that are not part of our base GLSL version
+     * don't use an extension for something already available! */
+    if (GLContext::shader_draw_parameters_support) {
+      ss << "#extension GL_ARB_shader_draw_parameters : enable\n";
+      ss << "#define GPU_ARB_shader_draw_parameters\n";
+      ss << "#define gpu_BaseInstance gl_BaseInstanceARB\n";
+    }
+    if (GLContext::layered_rendering_support) {
+      ss << "#extension GL_ARB_shader_viewport_layer_array: enable\n";
+    }
+    if (GLContext::native_barycentric_support) {
+      ss << "#extension GL_AMD_shader_explicit_vertex_parameter: enable\n";
+    }
+    if (GLContext::framebuffer_fetch_support) {
+      ss << "#extension GL_EXT_shader_framebuffer_fetch: enable\n";
+    }
+    if (GPU_stencil_export_support()) {
+      ss << "#extension GL_ARB_shader_stencil_export: enable\n";
+      ss << "#define GPU_ARB_shader_stencil_export\n";
+    }
 
-  /* Enable extensions for features that are not part of our base GLSL version
-   * don't use an extension for something already available! */
-  if (GLContext::shader_draw_parameters_support) {
-    ss << "#extension GL_ARB_shader_draw_parameters : enable\n";
-    ss << "#define GPU_ARB_shader_draw_parameters\n";
-    ss << "#define gpu_BaseInstance gl_BaseInstanceARB\n";
-  }
-  if (GLContext::layered_rendering_support) {
-    ss << "#extension GL_ARB_shader_viewport_layer_array: enable\n";
-  }
-  if (GLContext::native_barycentric_support) {
-    ss << "#extension GL_AMD_shader_explicit_vertex_parameter: enable\n";
-  }
-  if (GLContext::framebuffer_fetch_support) {
-    ss << "#extension GL_EXT_shader_framebuffer_fetch: enable\n";
-  }
-  if (GPU_stencil_export_support()) {
-    ss << "#extension GL_ARB_shader_stencil_export: enable\n";
-    ss << "#define GPU_ARB_shader_stencil_export\n";
-  }
+    /* Fallbacks. */
+    if (!GLContext::shader_draw_parameters_support) {
+      ss << "uniform int gpu_BaseInstance;\n";
+    }
 
-  /* Fallbacks. */
-  if (!GLContext::shader_draw_parameters_support) {
-    ss << "uniform int gpu_BaseInstance;\n";
-  }
+    /* Vulkan GLSL compatibility. */
+    ss << "#define gpu_InstanceIndex (gl_InstanceID + gpu_BaseInstance)\n";
+    ss << "#define gpu_EmitVertex EmitVertex\n";
 
-  /* Vulkan GLSL compatibility. */
-  ss << "#define gpu_InstanceIndex (gl_InstanceID + gpu_BaseInstance)\n";
-  ss << "#define gpu_EmitVertex EmitVertex\n";
+    /* Array compatibility. */
+    ss << "#define gpu_Array(_type) _type[]\n";
 
-  /* Array compatibility. */
-  ss << "#define gpu_Array(_type) _type[]\n";
+    /* GLSL Backend Lib. */
+    ss << datatoc_glsl_shader_defines_glsl;
 
-  /* GLSL Backend Lib. */
-  ss << datatoc_glsl_shader_defines_glsl;
-
-  patch = ss.str();
+    return ss.str();
+  }();
   return patch;
 }
 
 static StringRefNull glsl_patch_compute_get()
 {
   /** Used for shader patching. Init once. */
-  static std::string patch;
-  if (!patch.empty()) {
-    return patch;
-  }
+  static std::string patch = []() {
+    std::stringstream ss;
+    /* Version need to go first. */
+    ss << "#version 430\n";
+    ss << "#extension GL_ARB_compute_shader :enable\n";
 
-  std::stringstream ss;
-  /* Version need to go first. */
-  ss << "#version 430\n";
-  ss << "#extension GL_ARB_compute_shader :enable\n";
+    /* Array compatibility. */
+    ss << "#define gpu_Array(_type) _type[]\n";
 
-  /* Array compatibility. */
-  ss << "#define gpu_Array(_type) _type[]\n";
+    ss << datatoc_glsl_shader_defines_glsl;
 
-  ss << datatoc_glsl_shader_defines_glsl;
-
-  patch = ss.str();
+    return ss.str();
+  }();
   return patch;
 }
 
