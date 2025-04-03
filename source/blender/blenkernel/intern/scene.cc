@@ -195,9 +195,6 @@ static void scene_init_data(ID *id)
   scene->unit.temperature_unit = uchar(
       BKE_unit_base_of_type_get(USER_UNIT_METRIC, B_UNIT_TEMPERATURE));
 
-  /* Anti-Aliasing threshold. */
-  scene->grease_pencil_settings.smaa_threshold = 1.0f;
-
   {
     ParticleEditSettings *pset;
     pset = &scene->toolsettings->particle;
@@ -397,8 +394,6 @@ static void scene_free_data(ID *id)
 {
   Scene *scene = (Scene *)id;
   const bool do_id_user = false;
-
-  DRW_drawdata_free(id);
 
   blender::seq::editing_free(scene, do_id_user);
 
@@ -3358,7 +3353,7 @@ Depsgraph *BKE_scene_ensure_depsgraph(Main *bmain, Scene *scene, ViewLayer *view
 static char *scene_undo_depsgraph_gen_key(Scene *scene, ViewLayer *view_layer, char *key_full)
 {
   if (key_full == nullptr) {
-    key_full = static_cast<char *>(MEM_callocN(MAX_ID_NAME + FILE_MAX + MAX_NAME, __func__));
+    key_full = MEM_calloc_arrayN<char>(MAX_ID_NAME + FILE_MAX + MAX_NAME, __func__);
   }
 
   size_t key_full_offset = BLI_strncpy_rlen(key_full, scene->id.name, MAX_ID_NAME);

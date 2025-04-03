@@ -912,7 +912,7 @@ std::string VKShader::fragment_interface_declare(const shader::ShaderCreateInfo 
 {
   std::stringstream ss;
   std::string pre_main;
-  const VKWorkarounds &workarounds = VKBackend::get().device.workarounds_get();
+  const VKExtensions &extensions = VKBackend::get().device.extensions_get();
 
   ss << "\n/* Interfaces. */\n";
   const Span<StageInterfaceInfo *> in_interfaces = info.geometry_source_.is_empty() ?
@@ -929,7 +929,7 @@ std::string VKShader::fragment_interface_declare(const shader::ShaderCreateInfo 
     ss << "#define gpu_ViewportIndex gl_ViewportIndex\n";
   }
 
-  if (workarounds.fragment_shader_barycentric &&
+  if (!extensions.fragment_shader_barycentric &&
       bool(info.builtins_ & BuiltinBits::BARYCENTRIC_COORD))
   {
     ss << "layout(location=" << (location++) << ") smooth in vec3 gpu_BaryCoord;\n";
@@ -947,8 +947,8 @@ std::string VKShader::fragment_interface_declare(const shader::ShaderCreateInfo 
 
   ss << "\n/* Sub-pass Inputs. */\n";
   const VKShaderInterface &interface = interface_get();
-  const bool use_local_read = !workarounds.dynamic_rendering_local_read;
-  const bool use_dynamic_rendering = !workarounds.dynamic_rendering;
+  const bool use_local_read = extensions.dynamic_rendering_local_read;
+  const bool use_dynamic_rendering = extensions.dynamic_rendering;
 
   if (use_local_read) {
     uint32_t subpass_input_binding_index = 0;
@@ -997,28 +997,16 @@ std::string VKShader::fragment_interface_declare(const shader::ShaderCreateInfo 
       /* IMPORTANT: We assume that the frame-buffer will be layered or not based on the layer
        * built-in flag. */
       bool is_layered_fb = bool(info.builtins_ & BuiltinBits::LAYER);
-
-      /* Start with invalid value to detect failure cases. */
-      ImageType image_type = ImageType::FLOAT_BUFFER;
-      switch (to_component_type(input.type)) {
-        case Type::FLOAT:
-          image_type = is_layered_fb ? ImageType::FLOAT_2D_ARRAY : ImageType::FLOAT_2D;
-          break;
-        case Type::INT:
-          image_type = is_layered_fb ? ImageType::INT_2D_ARRAY : ImageType::INT_2D;
-          break;
-        case Type::UINT:
-          image_type = is_layered_fb ? ImageType::UINT_2D_ARRAY : ImageType::UINT_2D;
-          break;
-        default:
-          break;
-      }
+      bool is_layered_input = ELEM(input.img_type,
+                                   ImageType::UINT_2D_ARRAY,
+                                   ImageType::INT_2D_ARRAY,
+                                   ImageType::FLOAT_2D_ARRAY);
       /* Declare image. */
       using Resource = ShaderCreateInfo::Resource;
       /* NOTE(fclem): Using the attachment index as resource index might be problematic as it might
        * collide with other resources. */
       Resource res(Resource::BindType::SAMPLER, input.index);
-      res.sampler.type = image_type;
+      res.sampler.type = input.img_type;
       res.sampler.sampler = GPUSamplerState::default_sampler();
       res.sampler.name = image_name;
       print_resource(ss, interface, res);
@@ -1026,8 +1014,13 @@ std::string VKShader::fragment_interface_declare(const shader::ShaderCreateInfo 
       char swizzle[] = "xyzw";
       swizzle[to_component_count(input.type)] = '\0';
 
-      std::string texel_co = (is_layered_fb) ? "ivec3(gl_FragCoord.xy, gpu_Layer)" :
-                                               "ivec2(gl_FragCoord.xy)";
+      std::string texel_co = (is_layered_input) ?
+                                 ((is_layered_fb)  ? "ivec3(gl_FragCoord.xy, gpu_Layer)" :
+                                                     /* This should fetch the attached layer.
+                                                      * But this is not simple to set. For now
+                                                      * assume it is always the first layer. */
+                                                     "ivec3(gl_FragCoord.xy, 0)") :
+                                 "ivec2(gl_FragCoord.xy)";
 
       std::stringstream ss_pre;
       /* Populate the global before main using imageLoad. */
@@ -1202,11 +1195,11 @@ std::string VKShader::workaround_geometry_shader_source_create(
     const shader::ShaderCreateInfo &info)
 {
   std::stringstream ss;
-  const VKWorkarounds &workarounds = VKBackend::get().device.workarounds_get();
+  const VKExtensions &extensions = VKBackend::get().device.extensions_get();
 
   const bool do_layer_output = bool(info.builtins_ & BuiltinBits::LAYER);
   const bool do_viewport_output = bool(info.builtins_ & BuiltinBits::VIEWPORT_INDEX);
-  const bool do_barycentric_workaround = workarounds.fragment_shader_barycentric &&
+  const bool do_barycentric_workaround = !extensions.fragment_shader_barycentric &&
                                          bool(info.builtins_ & BuiltinBits::BARYCENTRIC_COORD);
 
   shader::ShaderCreateInfo info_modified = info;
@@ -1269,15 +1262,15 @@ std::string VKShader::workaround_geometry_shader_source_create(
 
 bool VKShader::do_geometry_shader_injection(const shader::ShaderCreateInfo *info) const
 {
-  const VKWorkarounds &workarounds = VKBackend::get().device.workarounds_get();
+  const VKExtensions &extensions = VKBackend::get().device.extensions_get();
   BuiltinBits builtins = info->builtins_;
-  if (workarounds.fragment_shader_barycentric && bool(builtins & BuiltinBits::BARYCENTRIC_COORD)) {
+  if (!extensions.fragment_shader_barycentric && bool(builtins & BuiltinBits::BARYCENTRIC_COORD)) {
     return true;
   }
-  if (workarounds.shader_output_layer && bool(builtins & BuiltinBits::LAYER)) {
+  if (!extensions.shader_output_layer && bool(builtins & BuiltinBits::LAYER)) {
     return true;
   }
-  if (workarounds.shader_output_viewport_index && bool(builtins & BuiltinBits::VIEWPORT_INDEX)) {
+  if (!extensions.shader_output_viewport_index && bool(builtins & BuiltinBits::VIEWPORT_INDEX)) {
     return true;
   }
   return false;
