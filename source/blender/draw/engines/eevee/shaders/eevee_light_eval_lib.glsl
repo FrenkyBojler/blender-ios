@@ -126,7 +126,8 @@ void light_eval_single(uint l_idx,
                        vec3 Ng,
                        vec3 V,
                        float thickness,
-                       uchar receiver_light_set)
+                       uchar receiver_light_set,
+                       float shadow_terminator_normal_offset)
 {
   LightData light = light_buf[l_idx];
 
@@ -169,6 +170,8 @@ void light_eval_single(uint l_idx,
                          thickness,
                          P,
                          Ng,
+                         stack.cl[0].N,
+                         shadow_terminator_normal_offset,
                          ray_count,
                          ray_step_count);
   }
@@ -201,37 +204,79 @@ void light_eval_transmission(inout ClosureLightStack stack,
                              vec3 V,
                              float vPz,
                              float thickness,
-                             uchar receiver_light_set)
+                             uchar receiver_light_set,
+                             float shadow_terminator_normal_offset)
 {
 #ifdef SKIP_LIGHT_EVAL
   return;
 #endif
 
   LIGHT_FOREACH_BEGIN_DIRECTIONAL (light_cull_buf, l_idx) {
-    light_eval_single(l_idx, true, true, stack, P, Ng, V, thickness, receiver_light_set);
+    light_eval_single(l_idx,
+                      true,
+                      true,
+                      stack,
+                      P,
+                      Ng,
+                      V,
+                      thickness,
+                      receiver_light_set,
+                      shadow_terminator_normal_offset);
   }
   LIGHT_FOREACH_END
 
   LIGHT_FOREACH_BEGIN_LOCAL (light_cull_buf, light_zbin_buf, light_tile_buf, PIXEL, vPz, l_idx) {
-    light_eval_single(l_idx, false, true, stack, P, Ng, V, thickness, receiver_light_set);
+    light_eval_single(l_idx,
+                      false,
+                      true,
+                      stack,
+                      P,
+                      Ng,
+                      V,
+                      thickness,
+                      receiver_light_set,
+                      shadow_terminator_normal_offset);
   }
   LIGHT_FOREACH_END
 }
 
-void light_eval_reflection(
-    inout ClosureLightStack stack, vec3 P, vec3 Ng, vec3 V, float vPz, uchar receiver_light_set)
+void light_eval_reflection(inout ClosureLightStack stack,
+                           vec3 P,
+                           vec3 Ng,
+                           vec3 V,
+                           float vPz,
+                           uchar receiver_light_set,
+                           float shadow_terminator_normal_offset)
 {
 #ifdef SKIP_LIGHT_EVAL
   return;
 #endif
 
   LIGHT_FOREACH_BEGIN_DIRECTIONAL (light_cull_buf, l_idx) {
-    light_eval_single(l_idx, true, false, stack, P, Ng, V, 0.0, receiver_light_set);
+    light_eval_single(l_idx,
+                      true,
+                      false,
+                      stack,
+                      P,
+                      Ng,
+                      V,
+                      0.0,
+                      receiver_light_set,
+                      shadow_terminator_normal_offset);
   }
   LIGHT_FOREACH_END
 
   LIGHT_FOREACH_BEGIN_LOCAL (light_cull_buf, light_zbin_buf, light_tile_buf, PIXEL, vPz, l_idx) {
-    light_eval_single(l_idx, false, false, stack, P, Ng, V, 0.0, receiver_light_set);
+    light_eval_single(l_idx,
+                      false,
+                      false,
+                      stack,
+                      P,
+                      Ng,
+                      V,
+                      0.0,
+                      receiver_light_set,
+                      shadow_terminator_normal_offset);
   }
   LIGHT_FOREACH_END
 }

@@ -559,6 +559,25 @@ class OBJECT_PT_shadow_linking(ObjectButtonsPanel, Panel):
         sub.menu("OBJECT_MT_shadow_linking_context_menu", icon='DOWNARROW_HLT', text="")
 
 
+class OBJECT_PT_shadow_terminator(ObjectButtonsPanel, Panel):
+    bl_label = "Shadow Terminator"
+    bl_parent_id = "OBJECT_PT_shading"
+    bl_context = "object"
+
+    @classmethod
+    def poll(cls, context):
+        return context.object.type != 'LIGHT'
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+
+        flow = layout.grid_flow(row_major=False, columns=0, even_columns=True, even_rows=False, align=True)
+
+        ob = context.object
+        flow.prop(ob, "shadow_terminator_normal_offset", text="Normal Offset")
+
+
 class OBJECT_PT_animation(ObjectButtonsPanel, PropertiesAnimationMixin, PropertyPanel, Panel):
     _animated_id_context_property = "object"
 
@@ -589,6 +608,7 @@ classes = (
     OBJECT_PT_light_linking,
     OBJECT_MT_shadow_linking_context_menu,
     OBJECT_PT_shadow_linking,
+    OBJECT_PT_shadow_terminator,
     OBJECT_PT_visibility,
     OBJECT_PT_lineart,
     OBJECT_PT_animation,

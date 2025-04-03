@@ -162,6 +162,10 @@ struct ObjectInfos {
   uint light_and_shadow_set_membership;
   float random;
   eObjectInfoFlag flag;
+  float shadow_terminator_normal_offset;
+  float _pad0;
+  float _pad1;
+  float _pad2;
 
 #if !defined(GPU_SHADER) && defined(__cplusplus)
   void sync();
