@@ -10,16 +10,14 @@
 
 #include <Python.h>
 
-#include "BLI_rect.h"
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
-#include "py_capi_utils.h"
+#include "py_capi_utils.hh"
 
-#include "python_compat.h"
-#include "python_utildefines.h"
+#include "python_compat.hh"
 
-#include "imbuf_py_api.h" /* own include */
+#include "imbuf_py_api.hh" /* own include */
 
 #include "../../imbuf/IMB_imbuf.hh"
 #include "../../imbuf/IMB_imbuf_types.hh"
@@ -29,7 +27,7 @@
 #include <cerrno>
 #include <fcntl.h>
 
-static PyObject *BPyInit_imbuf_types(void);
+static PyObject *BPyInit_imbuf_types();
 
 static PyObject *Py_ImBuf_CreatePyObject(ImBuf *ibuf);
 
@@ -79,7 +77,7 @@ PyDoc_STRVAR(
     "   Resize the image.\n"
     "\n"
     "   :arg size: New size.\n"
-    "   :type size: pair of ints\n"
+    "   :type size: tuple[int, int]\n"
     "   :arg method: Method of resizing ('FAST', 'BILINEAR')\n"
     "   :type method: str\n");
 static PyObject *py_imbuf_resize(Py_ImBuf *self, PyObject *args, PyObject *kw)
@@ -136,9 +134,9 @@ PyDoc_STRVAR(
     "   Crop the image.\n"
     "\n"
     "   :arg min: X, Y minimum.\n"
-    "   :type min: pair of ints\n"
+    "   :type min: tuple[int, int]\n"
     "   :arg max: X, Y maximum.\n"
-    "   :type max: pair of ints\n");
+    "   :type max: tuple[int, int]\n");
 static PyObject *py_imbuf_crop(Py_ImBuf *self, PyObject *args, PyObject *kw)
 {
   PY_IMBUF_CHECK_OBJ(self);
@@ -220,9 +218,14 @@ static PyObject *py_imbuf_free(Py_ImBuf *self)
   Py_RETURN_NONE;
 }
 
-#if (defined(__GNUC__) && !defined(__clang__))
-#  pragma GCC diagnostic push
-#  pragma GCC diagnostic ignored "-Wcast-function-type"
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic push
+#    pragma clang diagnostic ignored "-Wcast-function-type"
+#  else
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wcast-function-type"
+#  endif
 #endif
 
 static PyMethodDef Py_ImBuf_methods[] = {
@@ -235,8 +238,12 @@ static PyMethodDef Py_ImBuf_methods[] = {
     {nullptr, nullptr, 0, nullptr},
 };
 
-#if (defined(__GNUC__) && !defined(__clang__))
-#  pragma GCC diagnostic pop
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic pop
+#  else
+#    pragma GCC diagnostic pop
+#  endif
 #endif
 
 /** \} */
@@ -296,7 +303,7 @@ PyDoc_STRVAR(
     py_imbuf_filepath_doc,
     "filepath associated with this image.\n"
     "\n"
-    ":type: string");
+    ":type: str");
 static PyObject *py_imbuf_filepath_get(Py_ImBuf *self, void * /*closure*/)
 {
   PY_IMBUF_CHECK_OBJ(self);
@@ -472,7 +479,7 @@ PyDoc_STRVAR(
     "   Load a new image.\n"
     "\n"
     "   :arg size: The size of the image in pixels.\n"
-    "   :type size: pair of ints\n"
+    "   :type size: tuple[int, int]\n"
     "   :return: the newly loaded image.\n"
     "   :rtype: :class:`ImBuf`\n");
 static PyObject *M_imbuf_new(PyObject * /*self*/, PyObject *args, PyObject *kw)
@@ -495,8 +502,8 @@ static PyObject *M_imbuf_new(PyObject * /*self*/, PyObject *args, PyObject *kw)
   }
 
   /* TODO: make options. */
-  const uchar planes = 4;
-  const uint flags = IB_rect;
+  const uchar planes = 32;
+  const uint flags = IB_byte_data;
 
   ImBuf *ibuf = IMB_allocImBuf(UNPACK2(size), planes, flags);
   if (ibuf == nullptr) {
@@ -514,7 +521,7 @@ static PyObject *imbuf_load_impl(const char *filepath)
     return nullptr;
   }
 
-  ImBuf *ibuf = IMB_loadifffile(file, IB_rect, nullptr, filepath);
+  ImBuf *ibuf = IMB_load_image_from_file_descriptor(file, IB_byte_data, filepath);
 
   close(file);
 
@@ -537,7 +544,7 @@ PyDoc_STRVAR(
     "   Load an image from a file.\n"
     "\n"
     "   :arg filepath: the filepath of the image.\n"
-    "   :type filepath: string or bytes\n"
+    "   :type filepath: str | bytes\n"
     "   :return: the newly loaded image.\n"
     "   :rtype: :class:`ImBuf`\n");
 static PyObject *M_imbuf_load(PyObject * /*self*/, PyObject *args, PyObject *kw)
@@ -565,7 +572,7 @@ static PyObject *M_imbuf_load(PyObject * /*self*/, PyObject *args, PyObject *kw)
 
 static PyObject *imbuf_write_impl(ImBuf *ibuf, const char *filepath)
 {
-  const bool ok = IMB_saveiff(ibuf, filepath, IB_rect);
+  const bool ok = IMB_save_image(ibuf, filepath, IB_byte_data);
   if (ok == false) {
     PyErr_Format(
         PyExc_IOError, "write: Unable to write image file (%s) '%s'", strerror(errno), filepath);
@@ -584,7 +591,7 @@ PyDoc_STRVAR(
     "   :arg image: the image to write.\n"
     "   :type image: :class:`ImBuf`\n"
     "   :arg filepath: Optional filepath of the image (fallback to the images file path).\n"
-    "   :type filepath: string, bytes or NoneType\n");
+    "   :type filepath: str | bytes | None\n");
 static PyObject *M_imbuf_write(PyObject * /*self*/, PyObject *args, PyObject *kw)
 {
   Py_ImBuf *py_imb;
@@ -627,9 +634,14 @@ static PyObject *M_imbuf_write(PyObject * /*self*/, PyObject *args, PyObject *kw
 /** \name Module Definition (`imbuf`)
  * \{ */
 
-#if (defined(__GNUC__) && !defined(__clang__))
-#  pragma GCC diagnostic push
-#  pragma GCC diagnostic ignored "-Wcast-function-type"
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic push
+#    pragma clang diagnostic ignored "-Wcast-function-type"
+#  else
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wcast-function-type"
+#  endif
 #endif
 
 static PyMethodDef IMB_methods[] = {
@@ -639,8 +651,12 @@ static PyMethodDef IMB_methods[] = {
     {nullptr, nullptr, 0, nullptr},
 };
 
-#if (defined(__GNUC__) && !defined(__clang__))
-#  pragma GCC diagnostic pop
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic pop
+#  else
+#    pragma GCC diagnostic pop
+#  endif
 #endif
 
 PyDoc_STRVAR(
@@ -719,6 +735,24 @@ PyObject *BPyInit_imbuf_types()
   PyModule_AddType(submodule, &Py_ImBuf_Type);
 
   return submodule;
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Public API
+ * \{ */
+
+ImBuf *BPy_ImBuf_FromPyObject(PyObject *py_imbuf)
+{
+  /* The caller must ensure this. */
+  BLI_assert(Py_TYPE(py_imbuf) == &Py_ImBuf_Type);
+
+  if (py_imbuf_valid_check((Py_ImBuf *)py_imbuf) == -1) {
+    return nullptr;
+  }
+
+  return ((Py_ImBuf *)py_imbuf)->ibuf;
 }
 
 /** \} */

@@ -7,6 +7,7 @@
 #include "BLI_math_matrix.hh"
 #include "BLI_math_vector.h"
 #include "BLI_ordered_edge.hh"
+#include "BLI_rect.h"
 
 #include "pbvh_uv_islands.hh"
 
@@ -198,11 +199,13 @@ static void mesh_data_init(MeshData &mesh_data)
   mesh_data.uv_island_len = mesh_data_init_primitive_uv_island_ids(mesh_data);
 }
 
-MeshData::MeshData(const Span<int3> corner_tris,
+MeshData::MeshData(const OffsetIndices<int> faces,
+                   const Span<int3> corner_tris,
                    const Span<int> corner_verts,
                    const Span<float2> uv_map,
                    const Span<float3> vert_positions)
-    : corner_tris(corner_tris),
+    : faces(faces),
+      corner_tris(corner_tris),
       corner_verts(corner_verts),
       uv_map(uv_map),
       vert_positions(vert_positions),
@@ -848,7 +851,7 @@ static int find_fill_primitive(const MeshData &mesh_data, UVBorderCorner &corner
   if (corner.first->get_uv_vertex(0) == corner.second->get_uv_vertex(1)) {
     return -1;
   }
-  UVVertex *shared_vert = corner.second->get_uv_vertex(0);
+  const UVVertex *shared_vert = corner.second->get_uv_vertex(0);
   for (const int edge_i : mesh_data.vert_to_edge_map[shared_vert->vertex]) {
     const int2 &edge = mesh_data.edges[edge_i];
     if (corner.first->edge->has_same_vertices(edge)) {
@@ -1307,10 +1310,10 @@ bool UVPrimitive::has_shared_edge(const UVPrimitive &other) const
   return false;
 }
 
-bool UVPrimitive::has_shared_edge(const MeshData &mesh_data, const int primitive_i) const
+bool UVPrimitive::has_shared_edge(const MeshData &mesh_data, const int other_triangle_index) const
 {
   for (const UVEdge *uv_edge : edges) {
-    const int3 &tri = mesh_data.corner_tris[primitive_i];
+    const int3 &tri = mesh_data.corner_tris[other_triangle_index];
     int loop_1 = tri[2];
     for (int i = 0; i < 3; i++) {
       int loop_2 = tri[i];

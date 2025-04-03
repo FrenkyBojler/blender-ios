@@ -201,7 +201,7 @@ static void get_origin_and_normal(gesture::GestureData &gesture_data,
   }
 }
 
-/* Calculates the depth of the drawn shape inside the scene.*/
+/* Calculates the depth of the drawn shape inside the scene. */
 static void calculate_depth(gesture::GestureData &gesture_data,
                             float &r_depth_front,
                             float &r_depth_back)
@@ -452,53 +452,53 @@ static void generate_geometry(gesture::GestureData &gesture_data)
   MutableSpan<int> face_offsets = trim_operation->mesh->face_offsets_for_write();
   MutableSpan<int> corner_verts = trim_operation->mesh->corner_verts_for_write();
   int face_index = 0;
-  int loop_index = 0;
+  int corner = 0;
   for (const int i : tris.index_range()) {
-    face_offsets[face_index] = loop_index;
-    corner_verts[loop_index + 0] = tris[i][0];
-    corner_verts[loop_index + 1] = tris[i][1];
-    corner_verts[loop_index + 2] = tris[i][2];
+    face_offsets[face_index] = corner;
+    corner_verts[corner + 0] = tris[i][0];
+    corner_verts[corner + 1] = tris[i][1];
+    corner_verts[corner + 2] = tris[i][2];
     face_index++;
-    loop_index += 3;
+    corner += 3;
   }
 
   /* Write the back face triangle indices. */
   for (const int i : tris.index_range()) {
-    face_offsets[face_index] = loop_index;
-    corner_verts[loop_index + 0] = tris[i][0] + screen_points.size();
-    corner_verts[loop_index + 1] = tris[i][1] + screen_points.size();
-    corner_verts[loop_index + 2] = tris[i][2] + screen_points.size();
+    face_offsets[face_index] = corner;
+    corner_verts[corner + 0] = tris[i][0] + screen_points.size();
+    corner_verts[corner + 1] = tris[i][1] + screen_points.size();
+    corner_verts[corner + 2] = tris[i][2] + screen_points.size();
     face_index++;
-    loop_index += 3;
+    corner += 3;
   }
 
   /* Write the indices for the lateral triangles. */
   for (const int i : screen_points.index_range()) {
-    face_offsets[face_index] = loop_index;
+    face_offsets[face_index] = corner;
     int current_index = i;
     int next_index = current_index + 1;
     if (next_index >= screen_points.size()) {
       next_index = 0;
     }
-    corner_verts[loop_index + 0] = next_index + screen_points.size();
-    corner_verts[loop_index + 1] = next_index;
-    corner_verts[loop_index + 2] = current_index;
+    corner_verts[corner + 0] = next_index + screen_points.size();
+    corner_verts[corner + 1] = next_index;
+    corner_verts[corner + 2] = current_index;
     face_index++;
-    loop_index += 3;
+    corner += 3;
   }
 
   for (const int i : screen_points.index_range()) {
-    face_offsets[face_index] = loop_index;
+    face_offsets[face_index] = corner;
     int current_index = i;
     int next_index = current_index + 1;
     if (next_index >= screen_points.size()) {
       next_index = 0;
     }
-    corner_verts[loop_index + 0] = current_index;
-    corner_verts[loop_index + 1] = current_index + screen_points.size();
-    corner_verts[loop_index + 2] = next_index + screen_points.size();
+    corner_verts[corner + 0] = current_index;
+    corner_verts[corner + 1] = current_index + screen_points.size();
+    corner_verts[corner + 2] = next_index + screen_points.size();
     face_index++;
-    loop_index += 3;
+    corner += 3;
   }
 
   bke::mesh_smooth_set(*trim_operation->mesh, false);
@@ -508,10 +508,12 @@ static void generate_geometry(gesture::GestureData &gesture_data)
 
 static void gesture_begin(bContext &C, wmOperator &op, gesture::GestureData &gesture_data)
 {
+  const Scene &scene = *CTX_data_scene(&C);
   Object *object = gesture_data.vc.obact;
   SculptSession &ss = *object->sculpt;
+  const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(*object);
 
-  switch (ss.pbvh->type()) {
+  switch (pbvh.type()) {
     case bke::pbvh::Type::Mesh:
       face_set::create_face_sets_mesh(*object);
       break;
@@ -519,11 +521,9 @@ static void gesture_begin(bContext &C, wmOperator &op, gesture::GestureData &ges
       BLI_assert_unreachable();
   }
 
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(&C);
   generate_geometry(gesture_data);
   islands::invalidate(ss);
-  BKE_sculpt_update_object_for_edit(depsgraph, gesture_data.vc.obact, false);
-  undo::geometry_begin(*gesture_data.vc.obact, &op);
+  undo::geometry_begin(scene, *gesture_data.vc.obact, &op);
 }
 
 static int bm_face_isect_pair(BMFace *f, void * /*user_data*/)
@@ -659,6 +659,7 @@ static void gesture_end(bContext & /*C*/, gesture::GestureData &gesture_data)
   free_geometry(gesture_data);
 
   undo::geometry_end(*object);
+  BKE_sculptsession_free_pbvh(*object);
   BKE_mesh_batch_cache_dirty_tag(mesh, BKE_MESH_BATCH_DIRTY_ALL);
   DEG_id_tag_update(&gesture_data.vc.obact->id, ID_RECALC_GEOMETRY);
 }
@@ -759,14 +760,14 @@ static void report_invalid_mode(const blender::bke::pbvh::Type pbvh_type, Report
 static bool can_exec(const bContext &C, ReportList &reports)
 {
   const Object &object = *CTX_data_active_object(&C);
-  const SculptSession &ss = *object.sculpt;
-  if (ss.pbvh->type() != bke::pbvh::Type::Mesh) {
+  const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
+  if (pbvh.type() != bke::pbvh::Type::Mesh) {
     /* Not supported in Multires and Dyntopo. */
-    report_invalid_mode(ss.pbvh->type(), reports);
+    report_invalid_mode(pbvh.type(), reports);
     return false;
   }
 
-  if (ss.totvert == 0) {
+  if (static_cast<const Mesh *>(object.data)->faces_num == 0) {
     /* No geometry to trim or to detect a valid position for the trimming shape. */
     return false;
   }
@@ -778,10 +779,9 @@ static void initialize_cursor_info(bContext &C,
                                    const wmOperator &op,
                                    gesture::GestureData &gesture_data)
 {
-  const Object &ob = *CTX_data_active_object(&C);
-  SculptSession &ss = *ob.sculpt;
+  Object &ob = *CTX_data_active_object(&C);
 
-  SCULPT_vertex_random_access_ensure(ss);
+  SCULPT_vertex_random_access_ensure(ob);
 
   int mval[2];
   RNA_int_get_array(op.ptr, "location", mval);
@@ -797,7 +797,7 @@ static void initialize_cursor_info(bContext &C,
   }
 }
 
-static int gesture_box_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus gesture_box_exec(bContext *C, wmOperator *op)
 {
   if (!can_exec(*C, *op->reports)) {
     return OPERATOR_CANCELLED;
@@ -809,7 +809,7 @@ static int gesture_box_exec(bContext *C, wmOperator *op)
   }
 
   gesture_data->operation = reinterpret_cast<gesture::Operation *>(
-      MEM_cnew<TrimOperation>(__func__));
+      MEM_callocN<TrimOperation>(__func__));
   initialize_cursor_info(*C, *op, *gesture_data);
   init_operation(*gesture_data, *op);
 
@@ -817,7 +817,7 @@ static int gesture_box_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static int gesture_box_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus gesture_box_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   if (!can_invoke(*C)) {
     return OPERATOR_CANCELLED;
@@ -828,7 +828,7 @@ static int gesture_box_invoke(bContext *C, wmOperator *op, const wmEvent *event)
   return WM_gesture_box_invoke(C, op, event);
 }
 
-static int gesture_lasso_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus gesture_lasso_exec(bContext *C, wmOperator *op)
 {
   if (!can_exec(*C, *op->reports)) {
     return OPERATOR_CANCELLED;
@@ -840,7 +840,7 @@ static int gesture_lasso_exec(bContext *C, wmOperator *op)
   }
 
   gesture_data->operation = reinterpret_cast<gesture::Operation *>(
-      MEM_cnew<TrimOperation>(__func__));
+      MEM_callocN<TrimOperation>(__func__));
   initialize_cursor_info(*C, *op, *gesture_data);
   init_operation(*gesture_data, *op);
 
@@ -848,7 +848,7 @@ static int gesture_lasso_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static int gesture_lasso_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus gesture_lasso_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   if (!can_invoke(*C)) {
     return OPERATOR_CANCELLED;
@@ -859,7 +859,7 @@ static int gesture_lasso_invoke(bContext *C, wmOperator *op, const wmEvent *even
   return WM_gesture_lasso_invoke(C, op, event);
 }
 
-static int gesture_line_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus gesture_line_exec(bContext *C, wmOperator *op)
 {
   if (!can_exec(*C, *op->reports)) {
     return OPERATOR_CANCELLED;
@@ -871,7 +871,7 @@ static int gesture_line_exec(bContext *C, wmOperator *op)
   }
 
   gesture_data->operation = reinterpret_cast<gesture::Operation *>(
-      MEM_cnew<TrimOperation>(__func__));
+      MEM_callocN<TrimOperation>(__func__));
 
   initialize_cursor_info(*C, *op, *gesture_data);
   init_operation(*gesture_data, *op);
@@ -879,7 +879,7 @@ static int gesture_line_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static int gesture_line_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus gesture_line_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   if (!can_invoke(*C)) {
     return OPERATOR_CANCELLED;
@@ -890,7 +890,7 @@ static int gesture_line_invoke(bContext *C, wmOperator *op, const wmEvent *event
   return WM_gesture_straightline_active_side_invoke(C, op, event);
 }
 
-static int gesture_polyline_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus gesture_polyline_exec(bContext *C, wmOperator *op)
 {
   if (!can_exec(*C, *op->reports)) {
     return OPERATOR_CANCELLED;
@@ -902,7 +902,7 @@ static int gesture_polyline_exec(bContext *C, wmOperator *op)
   }
 
   gesture_data->operation = reinterpret_cast<gesture::Operation *>(
-      MEM_cnew<TrimOperation>(__func__));
+      MEM_callocN<TrimOperation>(__func__));
   initialize_cursor_info(*C, *op, *gesture_data);
   init_operation(*gesture_data, *op);
 
@@ -910,7 +910,7 @@ static int gesture_polyline_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static int gesture_polyline_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus gesture_polyline_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   if (!can_invoke(*C)) {
     return OPERATOR_CANCELLED;

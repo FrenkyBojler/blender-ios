@@ -47,7 +47,11 @@ def gather_image(
         uri, factor_uri = __gather_uri(image_data, mime_type, name, export_settings)
     else:
         # Retrieve URI relative to exported glTF files
-        uri = __gather_original_uri(image_data.original.filepath, export_settings)
+        uri = __gather_original_uri(
+            image_data.original.filepath,
+            blender_shader_sockets[0].socket.id_data.library,
+            export_settings
+        )
         # In case we can't retrieve image (for example packed images, with original moved)
         # We don't create invalid image without uri
         factor_uri = None
@@ -74,9 +78,9 @@ def gather_image(
     return image, image_data, factor, None
 
 
-def __gather_original_uri(original_uri, export_settings):
+def __gather_original_uri(original_uri, library, export_settings):
+    path_to_image = bpy.path.abspath(original_uri, library=library)
 
-    path_to_image = bpy.path.abspath(original_uri)
     if not os.path.exists(path_to_image):
         return None
     try:
@@ -359,6 +363,17 @@ def __get_image_data_mapping(sockets, results, use_tile, export_settings) -> Exp
                     composed_image.fill_white(Channel.G)
                 elif socket.socket.name == 'Roughness' and not composed_image.is_filled(Channel.B):
                     composed_image.fill_white(Channel.B)
+
+                # Since Alpha is always used together with BaseColor in glTF, make sure
+                # the other channels are filled.
+                # All these channels may be overwritten later by BaseColor socket
+                if socket.socket.name == 'Alpha' and not composed_image.is_filled(Channel.R):
+                    composed_image.fill_white(Channel.R)
+                if socket.socket.name == 'Alpha' and not composed_image.is_filled(Channel.G):
+                    composed_image.fill_white(Channel.G)
+                if socket.socket.name == 'Alpha' and not composed_image.is_filled(Channel.B):
+                    composed_image.fill_white(Channel.B)
+
             else:
                 # copy full image...eventually following sockets might overwrite things
                 if use_tile is None:
@@ -408,7 +423,7 @@ def __get_image_data_grayscale_anisotropy(sockets, results, export_settings) -> 
 
 
 def __is_blender_image_a_jpeg(image: bpy.types.Image) -> bool:
-    if image.source != 'FILE':
+    if image.source not in ['FILE', 'TILED']:
         return False
     if image.filepath_raw == '' and image.packed_file:
         return image.packed_file.data[:3] == b'\xff\xd8\xff'
@@ -418,7 +433,7 @@ def __is_blender_image_a_jpeg(image: bpy.types.Image) -> bool:
 
 
 def __is_blender_image_a_webp(image: bpy.types.Image) -> bool:
-    if image.source != 'FILE':
+    if image.source not in ['FILE', 'TILED']:
         return False
     if image.filepath_raw == '' and image.packed_file:
         return image.packed_file.data[8:12] == b'WEBP'

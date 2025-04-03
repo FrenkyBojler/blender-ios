@@ -6,8 +6,6 @@
  * \ingroup openexr
  */
 
-#include "openexr_api.h"
-
 #include "IMB_openexr.hh"
 
 void *IMB_exr_get_handle()
@@ -42,18 +40,10 @@ bool IMB_exr_begin_write(void * /*handle*/,
                          int /*width*/,
                          int /*height*/,
                          int /*compress*/,
+                         int /*quality*/,
                          const StampData * /*stamp*/)
 {
   return false;
-}
-void IMB_exrtile_begin_write(void * /*handle*/,
-                             const char * /*filepath*/,
-                             int /*mipmap*/,
-                             int /*width*/,
-                             int /*height*/,
-                             int /*tilex*/,
-                             int /*tiley*/)
-{
 }
 
 bool IMB_exr_set_channel(void * /*handle*/,
@@ -65,25 +55,9 @@ bool IMB_exr_set_channel(void * /*handle*/,
 {
   return false;
 }
-float *IMB_exr_channel_rect(void * /*handle*/,
-                            const char * /*layname*/,
-                            const char * /*passname*/,
-                            const char * /*view*/)
-{
-  return nullptr;
-}
 
 void IMB_exr_read_channels(void * /*handle*/) {}
 void IMB_exr_write_channels(void * /*handle*/) {}
-void IMB_exrtile_write_channels(void * /*handle*/,
-                                int /*partx*/,
-                                int /*party*/,
-                                int /*level*/,
-                                const char * /*viewname*/,
-                                bool /*empty*/)
-{
-}
-void IMB_exr_clear_channels(void * /*handle*/) {}
 
 void IMB_exr_multilayer_convert(void * /*handle*/,
                                 void * /*base*/,

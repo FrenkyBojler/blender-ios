@@ -20,7 +20,7 @@
 
 namespace blender::io::usd {
 
-void USDLightReader::create_object(Main *bmain, const double /*motionSampleTime*/)
+void USDLightReader::create_object(Main *bmain)
 {
   Light *blight = BKE_light_add(bmain, name_.c_str());
 
@@ -36,15 +36,7 @@ void USDLightReader::read_object_data(Main *bmain, const double motionSampleTime
     return;
   }
 
-  if (!prim_) {
-    return;
-  }
-#if PXR_VERSION >= 2111
   pxr::UsdLuxLightAPI light_api(prim_);
-#else
-  pxr::UsdLuxLight light_api(prim_);
-#endif
-
   if (!light_api) {
     return;
   }

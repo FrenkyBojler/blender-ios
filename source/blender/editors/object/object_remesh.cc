@@ -14,6 +14,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
 #include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
@@ -27,6 +28,7 @@
 #include "BKE_context.hh"
 #include "BKE_global.hh"
 #include "BKE_lib_id.hh"
+#include "BKE_library.hh"
 #include "BKE_main.hh"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_mirror.hh"
@@ -36,6 +38,7 @@
 #include "BKE_object_types.hh"
 #include "BKE_paint.hh"
 #include "BKE_report.hh"
+#include "BKE_screen.hh"
 #include "BKE_shrinkwrap.hh"
 #include "BKE_unit.hh"
 
@@ -103,8 +106,9 @@ static bool object_remesh_poll(bContext *C)
   return ED_operator_object_active_editable_mesh(C);
 }
 
-static int voxel_remesh_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus voxel_remesh_exec(bContext *C, wmOperator *op)
 {
+  const Scene &scene = *CTX_data_scene(C);
   Object *ob = CTX_data_active_object(C);
 
   Mesh *mesh = static_cast<Mesh *>(ob->data);
@@ -124,7 +128,7 @@ static int voxel_remesh_exec(bContext *C, wmOperator *op)
   }
 
   Mesh *new_mesh = BKE_mesh_remesh_voxel(
-      mesh, mesh->remesh_voxel_size, mesh->remesh_voxel_adaptivity, isovalue);
+      mesh, mesh->remesh_voxel_size, mesh->remesh_voxel_adaptivity, isovalue, op->reports);
 
   if (!new_mesh) {
     BKE_report(op->reports, RPT_ERROR, "Voxel remesher failed to create mesh");
@@ -132,7 +136,7 @@ static int voxel_remesh_exec(bContext *C, wmOperator *op)
   }
 
   if (ob->mode == OB_MODE_SCULPT) {
-    sculpt_paint::undo::geometry_begin(*ob, op);
+    sculpt_paint::undo::geometry_begin(scene, *ob, op);
   }
 
   if (mesh->flag & ME_REMESH_FIX_POLES && mesh->remesh_voxel_adaptivity <= 0.0f) {
@@ -158,6 +162,7 @@ static int voxel_remesh_exec(bContext *C, wmOperator *op)
 
   if (ob->mode == OB_MODE_SCULPT) {
     sculpt_paint::undo::geometry_end(*ob);
+    BKE_sculptsession_free_pbvh(*ob);
   }
 
   BKE_mesh_batch_cache_dirty_tag(static_cast<Mesh *>(ob->data), BKE_MESH_BATCH_DIRTY_ALL);
@@ -199,12 +204,13 @@ struct VoxelSizeEditCustomData {
   float init_mval[2];
   float slow_mval[2];
 
-  bool relative_mode;
   bool slow_mode;
 
   float init_voxel_size;
   float slow_voxel_size;
   float voxel_size;
+  float voxel_size_min;
+  float voxel_size_max;
 
   float preview_plane[4][3];
 
@@ -315,21 +321,17 @@ static void voxel_size_edit_draw(const bContext *C, ARegion * /*region*/, void *
   char str[VOXEL_SIZE_EDIT_MAX_STR_LEN];
   short strdrawlen = 0;
   Scene *scene = CTX_data_scene(C);
-  const UnitSettings *unit = &scene->unit;
-  BKE_unit_value_as_string(str,
-                           VOXEL_SIZE_EDIT_MAX_STR_LEN,
-                           double(cd->voxel_size * unit->scale_length),
-                           -3,
-                           B_UNIT_LENGTH,
-                           unit,
-                           true);
+  const UnitSettings &unit = scene->unit;
+
+  BKE_unit_value_as_string_scaled(str, sizeof(str), cd->voxel_size, -3, B_UNIT_LENGTH, unit, true);
   strdrawlen = BLI_strlen_utf8(str);
 
   immUnbindProgram();
 
   GPU_matrix_push();
   GPU_matrix_mul(cd->text_mat);
-  BLF_size(fontid, 10.0f * fstyle_points * UI_SCALE_FAC);
+  /* (Constant viewport) scale is already accounted for in 'text_mat'. */
+  BLF_size(fontid, 10.0f * fstyle_points);
   BLF_color3f(fontid, 1.0f, 1.0f, 1.0f);
   BLF_width_and_height(fontid, str, strdrawlen, &strwidth, &strheight);
   BLF_position(fontid, -0.5f * strwidth, -0.5f * strheight, 0.0f);
@@ -347,7 +349,7 @@ static void voxel_size_edit_cancel(bContext *C, wmOperator *op)
   ARegion *region = CTX_wm_region(C);
   VoxelSizeEditCustomData *cd = static_cast<VoxelSizeEditCustomData *>(op->customdata);
 
-  ED_region_draw_cb_exit(region->type, cd->draw_handle);
+  ED_region_draw_cb_exit(region->runtime->type, cd->draw_handle);
 
   MEM_freeN(op->customdata);
 
@@ -361,11 +363,10 @@ static void voxel_size_edit_update_header(wmOperator *op, bContext *C)
   status.item(IFACE_("Confirm"), ICON_EVENT_RETURN, ICON_MOUSE_LMB);
   status.item(IFACE_("Cancel"), ICON_EVENT_ESC, ICON_MOUSE_RMB);
   status.item(IFACE_("Change Size"), ICON_MOUSE_MOVE);
-  status.item_bool(IFACE_("Relative Mode"), cd->relative_mode, ICON_EVENT_CTRL);
   status.item_bool(IFACE_("Precision Mode"), cd->slow_mode, ICON_EVENT_SHIFT);
 }
 
-static int voxel_size_edit_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus voxel_size_edit_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   ARegion *region = CTX_wm_region(C);
   VoxelSizeEditCustomData *cd = static_cast<VoxelSizeEditCustomData *>(op->customdata);
@@ -386,7 +387,7 @@ static int voxel_size_edit_modal(bContext *C, wmOperator *op, const wmEvent *eve
       (event->type == EVT_RETKEY && event->val == KM_PRESS) ||
       (event->type == EVT_PADENTER && event->val == KM_PRESS))
   {
-    ED_region_draw_cb_exit(region->type, cd->draw_handle);
+    ED_region_draw_cb_exit(region->runtime->type, cd->draw_handle);
     mesh->remesh_voxel_size = cd->voxel_size;
     MEM_freeN(op->customdata);
     ED_region_tag_redraw(region);
@@ -403,18 +404,8 @@ static int voxel_size_edit_modal(bContext *C, wmOperator *op, const wmEvent *eve
     d = cd->slow_mval[0] - mval[0];
   }
 
-  if (event->modifier & KM_CTRL) {
-    /* Multiply d by the initial voxel size to prevent uncontrollable speeds when using low voxel
-     * sizes. */
-    /* When the voxel size is slower, it needs more precision. */
-    d = d * min_ff(pow2f(cd->init_voxel_size), 0.1f) * 0.05f;
-    cd->relative_mode = true;
-  }
-  else {
-    /* Linear mode, enables jumping to any voxel size. */
-    d = d * 0.0005f;
-    cd->relative_mode = false;
-  }
+  d *= cd->voxel_size_min * 0.25f;
+
   if (cd->slow_mode) {
     cd->voxel_size = cd->slow_voxel_size + d * 0.05f;
   }
@@ -432,7 +423,8 @@ static int voxel_size_edit_modal(bContext *C, wmOperator *op, const wmEvent *eve
     cd->slow_voxel_size = 0.0f;
   }
 
-  cd->voxel_size = clamp_f(cd->voxel_size, 0.0001f, 1.0f);
+  cd->voxel_size = clamp_f(
+      cd->voxel_size, max_ff(cd->voxel_size_min, 0.0001f), cd->voxel_size_max);
 
   ED_region_tag_redraw(region);
 
@@ -440,24 +432,23 @@ static int voxel_size_edit_modal(bContext *C, wmOperator *op, const wmEvent *eve
   return OPERATOR_RUNNING_MODAL;
 }
 
-static int voxel_size_edit_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus voxel_size_edit_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   ARegion *region = CTX_wm_region(C);
   Object *active_object = CTX_data_active_object(C);
   Mesh *mesh = (Mesh *)active_object->data;
 
-  VoxelSizeEditCustomData *cd = MEM_cnew<VoxelSizeEditCustomData>(
+  VoxelSizeEditCustomData *cd = MEM_callocN<VoxelSizeEditCustomData>(
       "Voxel Size Edit OP Custom Data");
 
   /* Initial operator Custom Data setup. */
   cd->draw_handle = ED_region_draw_cb_activate(
-      region->type, voxel_size_edit_draw, cd, REGION_DRAW_POST_VIEW);
+      region->runtime->type, voxel_size_edit_draw, cd, REGION_DRAW_POST_VIEW);
   cd->active_object = active_object;
   cd->init_mval[0] = event->mval[0];
   cd->init_mval[1] = event->mval[1];
   cd->init_voxel_size = mesh->remesh_voxel_size;
   cd->voxel_size = mesh->remesh_voxel_size;
-  cd->relative_mode = false;
   cd->slow_mode = false;
   op->customdata = cd;
 
@@ -515,6 +506,13 @@ static int voxel_size_edit_invoke(bContext *C, wmOperator *op, const wmEvent *ev
       copy_v3_v3(cd->preview_plane[3], bb.vec[BB_faces[i][3]]);
     }
   }
+
+  /* Cap the max/min voxel size based on the point where we cant visually display any more info
+   * with grid lines. */
+  cd->voxel_size_max = max_ff(len_v3v3(cd->preview_plane[1], cd->preview_plane[0]),
+                              len_v3v3(cd->preview_plane[3], cd->preview_plane[0])) *
+                       0.5f;
+  cd->voxel_size_min = cd->voxel_size_max / VOXEL_SIZE_EDIT_MAX_GRIDS_LINES;
 
   /* Matrix calculation to position the text in 3D space. */
   float text_pos[3];
@@ -590,7 +588,7 @@ static int voxel_size_edit_invoke(bContext *C, wmOperator *op, const wmEvent *ev
   /* Scale the text to constant viewport size. */
   float text_pos_word_space[3];
   mul_v3_m4v3(text_pos_word_space, active_object->object_to_world().ptr(), text_pos);
-  const float pixelsize = ED_view3d_pixel_size(rv3d, text_pos_word_space);
+  const float pixelsize = ED_view3d_pixel_size_no_ui_scale(rv3d, text_pos_word_space);
   scale_m4_fl(scale_mat, pixelsize * 0.5f);
   mul_m4_m4_post(cd->text_mat, scale_mat);
 
@@ -638,6 +636,13 @@ enum {
   QUADRIFLOW_REMESH_FACES,
 };
 
+enum eQuadreFlowStatus {
+  QUADRIFLOW_STATUS_SUCCESS = 1,
+  QUADRIFLOW_STATUS_FAIL = 0,
+  QUADRIFLOW_STATUS_CANCELED = -1,
+  QUADRIFLOW_STATUS_NONMANIFOLD = -2,
+};
+
 enum eSymmetryAxes {
   SYMMETRY_AXES_X = (1 << 0),
   SYMMETRY_AXES_Y = (1 << 1),
@@ -647,8 +652,7 @@ enum eSymmetryAxes {
 struct QuadriFlowJob {
   /* from wmJob */
   Object *owner;
-  bool *stop, *do_update;
-  float *progress;
+  wmJobWorkerStatus *worker_status;
 
   const wmOperator *op;
   Scene *scene;
@@ -664,7 +668,7 @@ struct QuadriFlowJob {
   bool preserve_attributes;
   bool smooth_normals;
 
-  int success;
+  eQuadreFlowStatus status;
   bool is_nonblocking_job;
 };
 
@@ -741,12 +745,15 @@ static int quadriflow_break_job(void *customdata)
   // return *(qj->stop);
 
   /* this is not nice yet, need to make the jobs list template better
-   * for identifying/acting upon various different jobs */
+   * for identifying/acting upon various different jobs canceled */
   /* but for now we'll reuse the render break... */
-  bool should_break = (G.is_break);
+  bool should_break = false;
 
-  if (should_break) {
-    qj->success = -1;
+  if (qj->is_nonblocking_job) {
+    bool should_break = (G.is_break);
+    if (should_break) {
+      qj->status = QUADRIFLOW_STATUS_CANCELED;
+    }
   }
 
   return should_break;
@@ -764,8 +771,8 @@ static void quadriflow_update_job(void *customdata, float progress, int *cancel)
     *cancel = 0;
   }
 
-  *(qj->do_update) = true;
-  *(qj->progress) = progress;
+  qj->worker_status->do_update = true;
+  qj->worker_status->progress = progress;
 }
 
 static Mesh *remesh_symmetry_bisect(Mesh *mesh, eSymmetryAxes symmetry_axes)
@@ -834,10 +841,8 @@ static void quadriflow_start_job(void *customdata, wmJobWorkerStatus *worker_sta
 {
   QuadriFlowJob *qj = static_cast<QuadriFlowJob *>(customdata);
 
-  qj->stop = &worker_status->stop;
-  qj->do_update = &worker_status->do_update;
-  qj->progress = &worker_status->progress;
-  qj->success = 1;
+  qj->worker_status = worker_status;
+  qj->status = QUADRIFLOW_STATUS_SUCCESS;
 
   if (qj->is_nonblocking_job) {
     G.is_break = false; /* XXX shared with render - replace with job 'stop' switch */
@@ -845,12 +850,13 @@ static void quadriflow_start_job(void *customdata, wmJobWorkerStatus *worker_sta
 
   Object *ob = qj->owner;
   Mesh *mesh = static_cast<Mesh *>(ob->data);
+  Scene &scene = *qj->scene;
   Mesh *new_mesh;
   Mesh *bisect_mesh;
 
   /* Check if the mesh is manifold. Quadriflow requires manifold meshes */
   if (!mesh_is_manifold_consistent(mesh)) {
-    qj->success = -2;
+    qj->status = QUADRIFLOW_STATUS_NONMANIFOLD;
     return;
   }
 
@@ -879,9 +885,9 @@ static void quadriflow_start_job(void *customdata, wmJobWorkerStatus *worker_sta
   if (new_mesh == nullptr) {
     worker_status->do_update = true;
     worker_status->stop = false;
-    if (qj->success == 1) {
+    if (qj->status == QUADRIFLOW_STATUS_SUCCESS) {
       /* This is not a user cancellation event. */
-      qj->success = 0;
+      qj->status = QUADRIFLOW_STATUS_FAIL;
     }
     return;
   }
@@ -890,7 +896,7 @@ static void quadriflow_start_job(void *customdata, wmJobWorkerStatus *worker_sta
   new_mesh = remesh_symmetry_mirror(qj->owner, new_mesh, qj->symmetry_axes);
 
   if (ob->mode == OB_MODE_SCULPT) {
-    sculpt_paint::undo::geometry_begin(*ob, qj->op);
+    sculpt_paint::undo::geometry_begin(scene, *ob, qj->op);
   }
 
   if (qj->preserve_attributes) {
@@ -903,6 +909,7 @@ static void quadriflow_start_job(void *customdata, wmJobWorkerStatus *worker_sta
 
   if (ob->mode == OB_MODE_SCULPT) {
     sculpt_paint::undo::geometry_end(*ob);
+    BKE_sculptsession_free_pbvh(*ob);
   }
 
   BKE_mesh_batch_cache_dirty_tag(static_cast<Mesh *>(ob->data), BKE_MESH_BATCH_DIRTY_ALL);
@@ -921,26 +928,28 @@ static void quadriflow_end_job(void *customdata)
     WM_set_locked_interface(static_cast<wmWindowManager *>(G_MAIN->wm.first), false);
   }
 
-  switch (qj->success) {
-    case 1:
+  ReportList *reports = qj->worker_status->reports;
+  switch (qj->status) {
+    case QUADRIFLOW_STATUS_SUCCESS:
       DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-      WM_reportf(RPT_INFO, "QuadriFlow: Remeshing completed");
+      BKE_reportf(reports, RPT_INFO, "QuadriFlow: Remeshing completed");
       break;
-    case 0:
-      WM_reportf(RPT_ERROR, "QuadriFlow: Remeshing failed");
+    case QUADRIFLOW_STATUS_FAIL:
+      BKE_reportf(reports, RPT_ERROR, "QuadriFlow: Remeshing failed");
       break;
-    case -1:
-      WM_report(RPT_WARNING, "QuadriFlow: Remeshing canceled");
+    case QUADRIFLOW_STATUS_CANCELED:
+      BKE_report(reports, RPT_WARNING, "QuadriFlow: Remeshing canceled");
       break;
-    case -2:
-      WM_report(RPT_WARNING,
-                "QuadriFlow: The mesh needs to be manifold and have face normals that point in a "
-                "consistent direction");
+    case QUADRIFLOW_STATUS_NONMANIFOLD:
+      BKE_report(reports,
+                 RPT_WARNING,
+                 "QuadriFlow: The mesh needs to be manifold and have face normals that point in a "
+                 "consistent direction");
       break;
   }
 }
 
-static int quadriflow_remesh_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus quadriflow_remesh_exec(bContext *C, wmOperator *op)
 {
   QuadriFlowJob *job = (QuadriFlowJob *)MEM_mallocN(sizeof(QuadriFlowJob), "QuadriFlowJob");
 
@@ -980,11 +989,15 @@ static int quadriflow_remesh_exec(bContext *C, wmOperator *op)
     job->symmetry_axes = (eSymmetryAxes)0;
   }
 
-  if (op->flag == 0) {
+  eQuadreFlowStatus status = QUADRIFLOW_STATUS_SUCCESS;
+  if ((op->flag & OP_IS_INVOKE) == 0) {
     /* This is called directly from the exec operator, this operation is now blocking */
     job->is_nonblocking_job = false;
     wmJobWorkerStatus worker_status = {};
+    worker_status.reports = op->reports;
     quadriflow_start_job(job, &worker_status);
+
+    status = job->status;
     quadriflow_end_job(job);
     quadriflow_free_job(job);
   }
@@ -1007,7 +1020,12 @@ static int quadriflow_remesh_exec(bContext *C, wmOperator *op)
 
     WM_jobs_start(CTX_wm_manager(C), wm_job);
   }
-  return OPERATOR_FINISHED;
+
+  if (status == QUADRIFLOW_STATUS_SUCCESS) {
+    return OPERATOR_FINISHED;
+  }
+  /* Only ever runs with immediate execution. */
+  return OPERATOR_CANCELLED;
 }
 
 static bool quadriflow_check(bContext *C, wmOperator *op)
@@ -1094,7 +1112,7 @@ static const EnumPropertyItem mode_type_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-static int quadriflow_remesh_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus quadriflow_remesh_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   return WM_operator_props_popup_confirm_ex(
       C, op, event, IFACE_("QuadriFlow Remesh the Selected Mesh"), IFACE_("Remesh"));
@@ -1204,7 +1222,7 @@ void OBJECT_OT_quadriflow_remesh(wmOperatorType *ot)
       "This property is only used to cache the object area for later calculations",
       0.0f,
       FLT_MAX);
-  RNA_def_property_flag(prop, static_cast<PropertyFlag>(PROP_HIDDEN | PROP_SKIP_SAVE));
+  RNA_def_property_flag(prop, (PROP_HIDDEN | PROP_SKIP_SAVE));
 
   RNA_def_int(ot->srna,
               "seed",

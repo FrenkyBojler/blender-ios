@@ -2,6 +2,10 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "infos/gpu_shader_text_info.hh"
+
+VERTEX_SHADER_CREATE_INFO(gpu_shader_text)
+
 void main()
 {
   color_flat = col;
@@ -10,7 +14,7 @@ void main()
   glyph_flags = flags;
 
   /* Depending on shadow outline / blur level, we might need to expand the quad. */
-  uint shadow_type = flags & 0xF;
+  uint shadow_type = flags & 0xFu;
   int interp_size = shadow_type > 4 ? 2 : (shadow_type > 0 ? 1 : 0);
 
   /* Quad expansion using instanced rendering. */

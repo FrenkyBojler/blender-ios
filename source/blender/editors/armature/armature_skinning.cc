@@ -18,7 +18,7 @@
 #include "BLI_math_vector.h"
 #include "BLI_string_utils.hh"
 
-#include "BKE_action.h"
+#include "BKE_action.hh"
 #include "BKE_armature.hh"
 #include "BKE_attribute.hh"
 #include "BKE_deform.hh"
@@ -400,7 +400,7 @@ static void add_verts_to_dgroups(ReportList *reports,
   }
 
   /* create verts */
-  mesh = (Mesh *)ob->data;
+  mesh = static_cast<Mesh *>(ob->data);
   verts = static_cast<float(*)[3]>(
       MEM_callocN(mesh->verts_num * sizeof(*verts), "closestboneverts"));
 

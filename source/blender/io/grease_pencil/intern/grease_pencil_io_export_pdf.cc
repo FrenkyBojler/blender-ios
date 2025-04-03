@@ -2,19 +2,15 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BKE_attribute.hh"
-#include "BKE_curves.hh"
+#include "BLI_bounds.hh"
+
 #include "BKE_grease_pencil.hh"
-#include "BKE_material.h"
 #include "BKE_scene.hh"
 
 #include "DEG_depsgraph_query.hh"
 
 #include "DNA_grease_pencil_types.h"
-#include "DNA_material_types.h"
 #include "DNA_scene_types.h"
-
-#include "ED_view3d.hh"
 
 #include "grease_pencil_io.hh"
 #include "grease_pencil_io_intern.hh"
@@ -58,8 +54,8 @@ static bool is_selected_frame(const GreasePencil &grease_pencil, const int frame
 {
   for (const bke::greasepencil::Layer *layer : grease_pencil.layers()) {
     if (layer->is_visible()) {
-      const GreasePencilFrame *frame = layer->frame_at(frame_number);
-      if ((frame != nullptr) && (frame->is_selected())) {
+      const GreasePencilFrame *frame = layer->frames().lookup_ptr(frame_number);
+      if ((frame != nullptr) && frame->is_selected()) {
         return true;
       }
     }
@@ -190,8 +186,14 @@ bool PDFExporter::add_page()
     return false;
   }
 
-  HPDF_Page_SetWidth(page_, render_rect_.size().x);
-  HPDF_Page_SetHeight(page_, render_rect_.size().y);
+  if (camera_persmat_) {
+    HPDF_Page_SetWidth(page_, camera_rect_.size().x);
+    HPDF_Page_SetHeight(page_, camera_rect_.size().y);
+  }
+  else {
+    HPDF_Page_SetWidth(page_, screen_rect_.size().x);
+    HPDF_Page_SetHeight(page_, screen_rect_.size().y);
+  }
 
   return true;
 }

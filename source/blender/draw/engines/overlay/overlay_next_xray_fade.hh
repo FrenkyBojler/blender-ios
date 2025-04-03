@@ -4,31 +4,27 @@
 
 /** \file
  * \ingroup draw_engine
- *
- * Overlay Xray Fade:
- *
- * Full-screen pass that dim overlays that are behind scene geometry.
- * This allows to have a nice transition between opaque (or 100% xray) and wire-frame only mode.
- * This is only available if Xray mode is enabled or in wire-frame mode.
  */
 
 #pragma once
 
-#include "overlay_next_private.hh"
+#include "overlay_next_base.hh"
 
 namespace blender::draw::overlay {
 
-class XrayFade {
+/**
+ * Fade overlays that are behind scene geometry.
+ * This allows to have a nice transition between opaque (or 100% X-ray) and wire-frame only mode.
+ * This is only available if X-ray mode is enabled or in wire-frame mode.
+ */
+class XrayFade : Overlay {
  private:
   PassSimple xray_fade_ps_ = {"XrayFade"};
 
-  bool enabled_ = false;
-
  public:
-  void begin_sync(Resources &res, State &state)
+  void begin_sync(Resources &res, const State &state) final
   {
-    enabled_ = state.xray_enabled && (state.xray_opacity > 0.0f) &&
-               (res.selection_type == SelectionType::DISABLED);
+    enabled_ = state.xray_enabled && (state.xray_opacity > 0.0f) && !res.is_selection();
 
     if (!enabled_) {
       return;
@@ -39,22 +35,25 @@ class XrayFade {
       pass.init();
       pass.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_BLEND_MUL);
       pass.framebuffer_set(&res.overlay_color_only_fb);
-      pass.shader_set(res.shaders.xray_fade.get());
+      pass.shader_set(res.shaders->xray_fade.get());
       /* TODO(fclem): Confusing. The meaning of xray depth texture changed between legacy engine
        * and overlay next. To be renamed after shaders are not shared anymore. */
       pass.bind_texture("depthTex", &res.xray_depth_tx);
+      pass.bind_texture("depthTexInfront", &res.xray_depth_in_front_tx);
       pass.bind_texture("xrayDepthTex", &res.depth_tx);
+      pass.bind_texture("xrayDepthTexInfront", &res.depth_in_front_tx);
       pass.push_constant("opacity", 1.0f - state.xray_opacity);
       pass.draw_procedural(GPU_PRIM_TRIS, 1, 3);
     }
   }
 
-  void draw(Manager &manager)
+  void draw_color_only(Framebuffer &framebuffer, Manager &manager, View & /*view*/) final
   {
     if (!enabled_) {
       return;
     }
 
+    GPU_framebuffer_bind(framebuffer);
     manager.submit(xray_fade_ps_);
   }
 };

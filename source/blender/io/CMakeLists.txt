@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-if(WITH_IO_WAVEFRONT_OBJ OR WITH_IO_PLY OR WITH_IO_STL OR WITH_IO_GREASE_PENCIL OR WITH_ALEMBIC OR WITH_USD)
+if(WITH_IO_WAVEFRONT_OBJ OR WITH_IO_PLY OR WITH_IO_STL OR WITH_IO_GREASE_PENCIL OR WITH_ALEMBIC OR WITH_USD OR WITH_IO_CSV)
   add_subdirectory(common)
 endif()
 
@@ -19,7 +19,6 @@ if(WITH_IO_STL)
 endif()
 
 if(WITH_IO_GREASE_PENCIL)
-  add_subdirectory(gpencil_legacy)
   add_subdirectory(grease_pencil)
 endif()
 
@@ -33,4 +32,8 @@ endif()
 
 if(WITH_USD)
   add_subdirectory(usd)
+endif()
+
+if(WITH_IO_CSV)
+  add_subdirectory(csv)
 endif()

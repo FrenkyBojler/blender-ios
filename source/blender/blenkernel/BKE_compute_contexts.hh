@@ -2,6 +2,10 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+/** \file
+ * \ingroup bke
+ */
+
 #pragma once
 
 /**
@@ -117,6 +121,63 @@ class RepeatZoneComputeContext : public ComputeContext {
   int iteration() const
   {
     return iteration_;
+  }
+
+ private:
+  void print_current_in_line(std::ostream &stream) const override;
+};
+
+class ForeachGeometryElementZoneComputeContext : public ComputeContext {
+ private:
+  static constexpr const char *s_static_type = "FOREACH_GEOMETRY_ELEMENT_ZONE";
+
+  int32_t output_node_id_;
+  int index_;
+
+ public:
+  ForeachGeometryElementZoneComputeContext(const ComputeContext *parent,
+                                           int32_t output_node_id,
+                                           int index);
+  ForeachGeometryElementZoneComputeContext(const ComputeContext *parent,
+                                           const bNode &node,
+                                           int index);
+
+  int32_t output_node_id() const
+  {
+    return output_node_id_;
+  }
+
+  int index() const
+  {
+    return index_;
+  }
+
+ private:
+  void print_current_in_line(std::ostream &stream) const override;
+};
+
+class EvaluateClosureComputeContext : public ComputeContext {
+ private:
+  static constexpr const char *s_static_type = "CLOSURE";
+
+  int32_t node_id_;
+
+  /**
+   * Extra information that might not always be available.
+   */
+  const bNode *evaluate_node_ = nullptr;
+
+ public:
+  EvaluateClosureComputeContext(const ComputeContext *parent, int32_t node_id);
+  EvaluateClosureComputeContext(const ComputeContext *parent, const bNode &evaluate_node);
+
+  int32_t node_id() const
+  {
+    return node_id_;
+  }
+  const bNode *evaluate_node() const
+  {
+    return evaluate_node_;
   }
 
  private:

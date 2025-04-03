@@ -19,7 +19,7 @@ endfunction()
 #
 # \param envvars_list: A list of extra environment variables to define for that test.
 #                      Note that this does no check for (re-)definition of a same variable.
-function(blender_test_set_envvars testname envvars_list)
+function(blender_test_set_envvars testname envvar_list)
   if(PLATFORM_ENV_INSTALL)
     list(APPEND envvar_list "${PLATFORM_ENV_INSTALL}")
   endif()
@@ -104,9 +104,6 @@ macro(blender_src_gtest_ex)
     if(DEFINED PTHREADS_LIBRARIES) # Needed for GLOG.
       target_link_libraries(${TARGET_NAME} PRIVATE ${PTHREADS_LIBRARIES})
     endif()
-    if(WITH_OPENMP AND WITH_OPENMP_STATIC)
-      target_link_libraries(${TARGET_NAME} PRIVATE ${OpenMP_LIBRARIES})
-    endif()
     if(UNIX AND NOT APPLE)
       target_link_libraries(${TARGET_NAME} PRIVATE bf_intern_libc_compat)
     endif()
@@ -126,10 +123,8 @@ macro(blender_src_gtest_ex)
       set_target_properties(${TARGET_NAME} PROPERTIES VS_GLOBAL_VcpkgEnabled "false")
 
       if(WITH_WINDOWS_EXTERNAL_MANIFEST)
-        install(
-          FILES ${CMAKE_BINARY_DIR}/tests.exe.manifest
-          DESTINATION ${TESTS_OUTPUT_DIR}
-          RENAME ${TARGET_NAME}.exe.manifest
+        add_custom_command(TARGET ${TARGET_NAME} POST_BUILD
+          COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_BINARY_DIR}/tests.exe.manifest ${TESTS_OUTPUT_DIR}/${TARGET_NAME}.exe.manifest
         )
       endif()
     endif()
@@ -230,7 +225,7 @@ function(blender_add_test_suite_lib
     )
 
     blender_add_lib__impl(${name}_tests
-        "${sources};${common_sources}" "${includes}" "${includes_sys}" "${library_deps}")
+      "${sources};${common_sources}" "${includes}" "${includes_sys}" "${library_deps}")
 
     target_compile_definitions(${name}_tests PRIVATE ${GFLAGS_DEFINES})
     target_compile_definitions(${name}_tests PRIVATE ${GLOG_DEFINES})
@@ -331,7 +326,7 @@ function(blender_add_test_suite_executable
       "${library_deps}"
       ADD_CTESTS TRUE
       DISCOVER_TESTS TRUE
-     )
+    )
   else()
     foreach(source ${sources})
       get_filename_component(_source_ext ${source} LAST_EXT)
@@ -352,7 +347,7 @@ function(blender_add_test_suite_executable
           "${library_deps}"
           ADD_CTESTS TRUE
           DISCOVER_TESTS FALSE
-         )
+        )
 
         # Work-around run-time dynamic loader error
         #   symbol not found in flat namespace '_PyBaseObject_Type'

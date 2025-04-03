@@ -9,16 +9,18 @@
  */
 
 struct BlendDataReader;
-struct BlendLibReader;
 struct BlendWriter;
 struct ImBuf;
 struct ListBase;
-struct Scene;
-struct SeqRenderData;
-struct Sequence;
+struct Strip;
 struct SequenceModifierData;
 
-struct SequenceModifierTypeInfo {
+namespace blender::seq {
+
+struct StripScreenQuad;
+struct RenderData;
+
+struct StripModifierTypeInfo {
   /* default name for the modifier */
   char name[64]; /* MAX_NAME */
 
@@ -40,23 +42,26 @@ struct SequenceModifierTypeInfo {
   /* copy data from one modifier to another */
   void (*copy_data)(SequenceModifierData *smd, SequenceModifierData *target);
 
-  /* apply modifier on a given image buffer */
-  void (*apply)(SequenceModifierData *smd, ImBuf *ibuf, ImBuf *mask);
+  /* Apply modifier on an image buffer.
+   * quad contains four corners of the (pre-transform) strip rectangle in pixel space. */
+  void (*apply)(const StripScreenQuad &quad, SequenceModifierData *smd, ImBuf *ibuf, ImBuf *mask);
 };
 
-const SequenceModifierTypeInfo *SEQ_modifier_type_info_get(int type);
-SequenceModifierData *SEQ_modifier_new(Sequence *seq, const char *name, int type);
-bool SEQ_modifier_remove(Sequence *seq, SequenceModifierData *smd);
-void SEQ_modifier_clear(Sequence *seq);
-void SEQ_modifier_free(SequenceModifierData *smd);
-void SEQ_modifier_unique_name(Sequence *seq, SequenceModifierData *smd);
-SequenceModifierData *SEQ_modifier_find_by_name(Sequence *seq, const char *name);
-ImBuf *SEQ_modifier_apply_stack(const SeqRenderData *context,
-                                Sequence *seq,
-                                ImBuf *ibuf,
-                                int timeline_frame);
-void SEQ_modifier_list_copy(Sequence *seqn, Sequence *seq);
-int SEQ_sequence_supports_modifiers(Sequence *seq);
+const StripModifierTypeInfo *modifier_type_info_get(int type);
+SequenceModifierData *modifier_new(Strip *strip, const char *name, int type);
+bool modifier_remove(Strip *strip, SequenceModifierData *smd);
+void modifier_clear(Strip *strip);
+void modifier_free(SequenceModifierData *smd);
+void modifier_unique_name(Strip *strip, SequenceModifierData *smd);
+SequenceModifierData *modifier_find_by_name(Strip *strip, const char *name);
+void modifier_apply_stack(const RenderData *context,
+                          const Strip *strip,
+                          ImBuf *ibuf,
+                          int timeline_frame);
+void modifier_list_copy(Strip *seqn, Strip *strip);
+int sequence_supports_modifiers(Strip *strip);
 
-void SEQ_modifier_blend_write(BlendWriter *writer, ListBase *modbase);
-void SEQ_modifier_blend_read_data(BlendDataReader *reader, ListBase *lb);
+void modifier_blend_write(BlendWriter *writer, ListBase *modbase);
+void modifier_blend_read_data(BlendDataReader *reader, ListBase *lb);
+
+}  // namespace blender::seq

@@ -37,6 +37,8 @@
 
 #include "meshlaplacian.h"
 
+#include <algorithm>
+
 /* ************* XXX *************** */
 static void waitcursor(int /*val*/) {}
 static void progress_bar(int /*dummy_val*/, const char * /*dummy*/) {}
@@ -369,7 +371,7 @@ struct BVHCallbackUserData {
 
 static void bvh_callback(void *userdata, int index, const BVHTreeRay *ray, BVHTreeRayHit *hit)
 {
-  BVHCallbackUserData *data = (BVHCallbackUserData *)userdata;
+  BVHCallbackUserData *data = static_cast<BVHCallbackUserData *>(userdata);
   const blender::int3 &tri = data->sys->heat.corner_tris[index];
   const blender::Span<int> corner_verts = data->sys->heat.corner_verts;
   float(*verts)[3] = data->sys->heat.verts;
@@ -514,9 +516,7 @@ static void heat_set_H(LaplacianSystem *sys, int vertex)
   for (j = 0; j < sys->heat.numsource; j++) {
     dist = heat_source_distance(sys, vertex, j);
 
-    if (dist < mindist) {
-      mindist = dist;
-    }
+    mindist = std::min(dist, mindist);
   }
 
   sys->heat.mindist[vertex] = mindist;
@@ -915,8 +915,8 @@ struct MeshDeformBind {
   /* direct solver */
   int *varidx;
 
-  BVHTree *bvhtree;
-  BVHTreeFromMesh bvhdata;
+  const BVHTree *bvhtree;
+  blender::bke::BVHTreeFromMesh bvhdata;
 
   /* avoid DM function calls during intersections */
   struct {
@@ -1604,8 +1604,8 @@ static void harmonic_coordinates_bind(MeshDeformModifierData *mmd, MeshDeformBin
   mdb->boundisect = static_cast<MDefBoundIsect *(*)[6]>(
       MEM_callocN(sizeof(*mdb->boundisect) * mdb->size3, "MDefBoundIsect"));
   mdb->semibound = static_cast<int *>(MEM_callocN(sizeof(int) * mdb->size3, "MDefSemiBound"));
-  mdb->bvhtree = BKE_bvhtree_from_mesh_get(
-      &mdb->bvhdata, mdb->cagemesh, BVHTREE_FROM_CORNER_TRIS, 4);
+  mdb->bvhdata = mdb->cagemesh->bvh_corner_tris();
+  mdb->bvhtree = mdb->bvhdata.tree;
   mdb->inside = static_cast<int *>(MEM_callocN(sizeof(int) * mdb->verts_num, "MDefInside"));
 
   if (mmd->flag & MOD_MDEF_DYNAMIC_BIND) {
@@ -1634,9 +1634,7 @@ static void harmonic_coordinates_bind(MeshDeformModifierData *mmd, MeshDeformBin
    * width of the cells */
   maxwidth = -1.0f;
   for (a = 0; a < 3; a++) {
-    if (mdb->max[a] - mdb->min[a] > maxwidth) {
-      maxwidth = mdb->max[a] - mdb->min[a];
-    }
+    maxwidth = std::max(mdb->max[a] - mdb->min[a], maxwidth);
   }
 
   for (a = 0; a < 3; a++) {
@@ -1751,7 +1749,6 @@ static void harmonic_coordinates_bind(MeshDeformModifierData *mmd, MeshDeformBin
   MEM_freeN(mdb->boundisect);
   MEM_freeN(mdb->semibound);
   BLI_memarena_free(mdb->memarena);
-  free_bvhtree_from_mesh(&mdb->bvhdata);
 }
 
 void ED_mesh_deform_bind_callback(Object *object,
@@ -1761,8 +1758,8 @@ void ED_mesh_deform_bind_callback(Object *object,
                                   int verts_num,
                                   float cagemat[4][4])
 {
-  MeshDeformModifierData *mmd_orig = (MeshDeformModifierData *)BKE_modifier_get_original(
-      object, &mmd->modifier);
+  MeshDeformModifierData *mmd_orig = reinterpret_cast<MeshDeformModifierData *>(
+      BKE_modifier_get_original(object, &mmd->modifier));
   MeshDeformBind mdb{};
   int a;
 
@@ -1809,7 +1806,7 @@ void ED_mesh_deform_bind_callback(Object *object,
   MEM_freeN(mdb.vertexcos);
 
   /* compact weights */
-  BKE_modifier_mdef_compact_influences((ModifierData *)mmd_orig);
+  BKE_modifier_mdef_compact_influences(reinterpret_cast<ModifierData *>(mmd_orig));
 
   end_progress_bar();
   waitcursor(0);

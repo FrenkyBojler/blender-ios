@@ -11,7 +11,7 @@
 #include "BLI_array.hh"
 #include "BLI_index_mask_fwd.hh"
 #include "BLI_map.hh"
-#include "BLI_math_vector.hh"
+#include "BLI_math_vector_types.hh"
 #include "BLI_vector.hh"
 
 #include "BKE_collision.h"
@@ -114,9 +114,7 @@ std::unique_ptr<SimulationData> brush_simulation_create(const Depsgraph &depsgra
                                                         bool use_collisions,
                                                         bool needs_deform_coords);
 
-void sim_activate_nodes(const Object &object,
-                        SimulationData &cloth_sim,
-                        const IndexMask &node_mask);
+void sim_activate_nodes(Object &object, SimulationData &cloth_sim, const IndexMask &node_mask);
 
 void brush_store_simulation_state(const Depsgraph &depsgraph,
                                   const Object &object,
@@ -129,7 +127,7 @@ void do_simulation_step(const Depsgraph &depsgraph,
                         const IndexMask &node_mask);
 
 void ensure_nodes_constraints(const Sculpt &sd,
-                              const Object &ob,
+                              Object &ob,
                               const IndexMask &node_mask,
                               SimulationData &cloth_sim,
                               const float3 &initial_location,
@@ -151,7 +149,7 @@ void plane_falloff_preview_draw(uint gpuattr,
                                 const float outline_col[3],
                                 float outline_alpha);
 
-IndexMask brush_affected_nodes_gather(SculptSession &ss,
+IndexMask brush_affected_nodes_gather(const Object &object,
                                       const Brush &brush,
                                       IndexMaskMemory &memory);
 

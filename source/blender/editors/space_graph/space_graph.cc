@@ -15,8 +15,10 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_blenlib.h"
+#include "BLI_listbase.h"
 #include "BLI_math_color.h"
+#include "BLI_math_vector.h"
+#include "BLI_string.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_context.hh"
@@ -70,14 +72,14 @@ static SpaceLink *graph_create(const ScrArea * /*area*/, const Scene *scene)
   sipo->flag |= SIPO_SHOW_MARKERS;
 
   /* header */
-  region = static_cast<ARegion *>(MEM_callocN(sizeof(ARegion), "header for graphedit"));
+  region = BKE_area_region_new();
 
   BLI_addtail(&sipo->regionbase, region);
   region->regiontype = RGN_TYPE_HEADER;
   region->alignment = (U.uiflag & USER_HEADER_BOTTOM) ? RGN_ALIGN_BOTTOM : RGN_ALIGN_TOP;
 
   /* channels */
-  region = static_cast<ARegion *>(MEM_callocN(sizeof(ARegion), "channels region for graphedit"));
+  region = BKE_area_region_new();
 
   BLI_addtail(&sipo->regionbase, region);
   region->regiontype = RGN_TYPE_CHANNELS;
@@ -86,14 +88,14 @@ static SpaceLink *graph_create(const ScrArea * /*area*/, const Scene *scene)
   region->v2d.scroll = (V2D_SCROLL_RIGHT | V2D_SCROLL_BOTTOM);
 
   /* ui buttons */
-  region = static_cast<ARegion *>(MEM_callocN(sizeof(ARegion), "buttons region for graphedit"));
+  region = BKE_area_region_new();
 
   BLI_addtail(&sipo->regionbase, region);
   region->regiontype = RGN_TYPE_UI;
   region->alignment = RGN_ALIGN_RIGHT;
 
   /* main region */
-  region = static_cast<ARegion *>(MEM_callocN(sizeof(ARegion), "main region for graphedit"));
+  region = BKE_area_region_new();
 
   BLI_addtail(&sipo->regionbase, region);
   region->regiontype = RGN_TYPE_WINDOW;
@@ -139,7 +141,7 @@ static void graph_init(wmWindowManager *wm, ScrArea *area)
 {
   SpaceGraph *sipo = (SpaceGraph *)area->spacedata.first;
 
-  /* init dopesheet data if non-existent (i.e. for old files) */
+  /* Init dope-sheet if non-existent (i.e. for old files). */
   if (sipo->ads == nullptr) {
     wmWindow *win = WM_window_find_by_area(wm, area);
     sipo->ads = static_cast<bDopeSheet *>(MEM_callocN(sizeof(bDopeSheet), "GraphEdit DopeSheet"));
@@ -176,9 +178,10 @@ static void graph_main_region_init(wmWindowManager *wm, ARegion *region)
 
   /* own keymap */
   keymap = WM_keymap_ensure(wm->defaultconf, "Graph Editor", SPACE_GRAPH, RGN_TYPE_WINDOW);
-  WM_event_add_keymap_handler_v2d_mask(&region->handlers, keymap);
+  WM_event_add_keymap_handler_poll(
+      &region->runtime->handlers, keymap, WM_event_handler_region_v2d_mask_no_marker_poll);
   keymap = WM_keymap_ensure(wm->defaultconf, "Graph Editor Generic", SPACE_GRAPH, RGN_TYPE_WINDOW);
-  WM_event_add_keymap_handler(&region->handlers, keymap);
+  WM_event_add_keymap_handler(&region->runtime->handlers, keymap);
 }
 
 /* Draw a darker area above 1 and below -1. */
@@ -210,16 +213,19 @@ static void graph_main_region_draw(const bContext *C, ARegion *region)
   Scene *scene = CTX_data_scene(C);
   bAnimContext ac;
   View2D *v2d = &region->v2d;
+  const bool minimized = (region->winy <= HEADERY * UI_SCALE_FAC * 1.1f);
 
   /* clear and setup matrix */
-  UI_ThemeClearColor(TH_BACK);
+  UI_ThemeClearColor(minimized ? TH_TIME_SCRUB_BACKGROUND : TH_BACK);
 
   UI_view2d_view_ortho(v2d);
 
   /* grid */
   bool display_seconds = (sipo->mode == SIPO_MODE_ANIMATION) && (sipo->flag & SIPO_DRAWTIME);
-  UI_view2d_draw_lines_x__frames_or_seconds(v2d, scene, display_seconds);
-  UI_view2d_draw_lines_y__values(v2d);
+  if (!minimized) {
+    UI_view2d_draw_lines_x__frames_or_seconds(v2d, scene, display_seconds);
+    UI_view2d_draw_lines_y__values(v2d);
+  }
 
   ED_region_draw_cb_draw(C, region, REGION_DRAW_PRE_VIEW);
 
@@ -323,6 +329,7 @@ static void graph_main_region_draw_overlay(const bContext *C, ARegion *region)
 {
   /* draw entirely, view changes should be handled here */
   const SpaceGraph *sipo = CTX_wm_space_graph(C);
+  const bool minimized = (region->winy <= HEADERY * UI_SCALE_FAC * 1.1f);
 
   const Scene *scene = CTX_data_scene(C);
   View2D *v2d = &region->v2d;
@@ -330,13 +337,14 @@ static void graph_main_region_draw_overlay(const bContext *C, ARegion *region)
   /* Driver Editor's X axis is not time. */
   if (sipo->mode != SIPO_MODE_DRIVERS) {
     /* scrubbing region */
-    ED_time_scrub_draw_current_frame(region, scene, sipo->flag & SIPO_DRAWTIME);
+    ED_time_scrub_draw_current_frame(region, scene, sipo->flag & SIPO_DRAWTIME, !minimized);
   }
 
-  if (region->winy > HEADERY * UI_SCALE_FAC) {
+  if (!minimized) {
     /* scrollers */
     const rcti scroller_mask = ED_time_scrub_clamp_scroller_mask(v2d->mask);
     /* FIXME: args for scrollers depend on the type of data being shown. */
+    region->v2d.scroll |= V2D_SCROLL_BOTTOM;
     UI_view2d_scrollers_draw(v2d, &scroller_mask);
 
     /* scale numbers */
@@ -346,6 +354,9 @@ static void graph_main_region_draw_overlay(const bContext *C, ARegion *region)
           &rect, 0, 15 * UI_SCALE_FAC, 15 * UI_SCALE_FAC, region->winy - UI_TIME_SCRUB_MARGIN_Y);
       UI_view2d_draw_scale_y__values(region, v2d, &rect, TH_SCROLL_TEXT);
     }
+  }
+  else {
+    region->v2d.scroll &= ~V2D_SCROLL_BOTTOM;
   }
 }
 
@@ -366,9 +377,9 @@ static void graph_channel_region_init(wmWindowManager *wm, ARegion *region)
 
   /* own keymap */
   keymap = WM_keymap_ensure(wm->defaultconf, "Animation Channels", SPACE_EMPTY, RGN_TYPE_WINDOW);
-  WM_event_add_keymap_handler_v2d_mask(&region->handlers, keymap);
+  WM_event_add_keymap_handler_v2d_mask(&region->runtime->handlers, keymap);
   keymap = WM_keymap_ensure(wm->defaultconf, "Graph Editor Generic", SPACE_GRAPH, RGN_TYPE_WINDOW);
-  WM_event_add_keymap_handler(&region->handlers, keymap);
+  WM_event_add_keymap_handler(&region->runtime->handlers, keymap);
 }
 
 static void set_v2d_height(View2D *v2d, const size_t item_count)
@@ -431,7 +442,7 @@ static void graph_buttons_region_init(wmWindowManager *wm, ARegion *region)
   ED_region_panels_init(wm, region);
 
   keymap = WM_keymap_ensure(wm->defaultconf, "Graph Editor Generic", SPACE_GRAPH, RGN_TYPE_WINDOW);
-  WM_event_add_keymap_handler_v2d_mask(&region->handlers, keymap);
+  WM_event_add_keymap_handler_v2d_mask(&region->runtime->handlers, keymap);
 }
 
 static void graph_buttons_region_draw(const bContext *C, ARegion *region)
@@ -533,14 +544,14 @@ static void graph_region_message_subscribe(const wmRegionMessageSubscribeParams 
     }
   }
 
-  /* All dopesheet filter settings, etc. affect the drawing of this editor,
+  /* All dope-sheet filter settings, etc. affect the drawing of this editor,
    * also same applies for all animation-related data-types that may appear here,
    * so just whitelist the entire structs for updates
    */
   {
-    wmMsgParams_RNA msg_key_params = {{nullptr}};
+    wmMsgParams_RNA msg_key_params = {{}};
     StructRNA *type_array[] = {
-        &RNA_DopeSheet, /* dopesheet filters */
+        &RNA_DopeSheet, /* dope-sheet filters */
 
         &RNA_ActionGroup, /* channel groups */
         &RNA_FCurve,      /* F-Curve */
@@ -827,7 +838,7 @@ static void graph_id_remap(ScrArea * /*area*/,
   }
 
   mappings.apply(reinterpret_cast<ID **>(&sgraph->ads->filter_grp), ID_REMAP_APPLY_DEFAULT);
-  mappings.apply(reinterpret_cast<ID **>(&sgraph->ads->source), ID_REMAP_APPLY_DEFAULT);
+  mappings.apply((&sgraph->ads->source), ID_REMAP_APPLY_DEFAULT);
 }
 
 static void graph_foreach_id(SpaceLink *space_link, LibraryForeachIDData *data)

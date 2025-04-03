@@ -41,15 +41,14 @@
  * starts again.
  */
 
+#include <atomic>
 #include <mutex>
-#include <sstream>
 
-#include "BLI_compute_context.hh"
 #include "BLI_enumerable_thread_specific.hh"
 #include "BLI_function_ref.hh"
+#include "BLI_stack.hh"
 #include "BLI_task.h"
 #include "BLI_task.hh"
-#include "BLI_timeit.hh"
 
 #include "FN_lazy_function_graph_executor.hh"
 
@@ -1461,6 +1460,19 @@ inline void Executor::execute_node(const FunctionNode &node,
 }
 
 GraphExecutor::GraphExecutor(const Graph &graph,
+                             const Logger *logger,
+                             const SideEffectProvider *side_effect_provider,
+                             const NodeExecuteWrapper *node_execute_wrapper)
+    : GraphExecutor(graph,
+                    Vector<const GraphInputSocket *>(graph.graph_inputs()),
+                    Vector<const GraphOutputSocket *>(graph.graph_outputs()),
+                    logger,
+                    side_effect_provider,
+                    node_execute_wrapper)
+{
+}
+
+GraphExecutor::GraphExecutor(const Graph &graph,
                              Vector<const GraphInputSocket *> graph_inputs,
                              Vector<const GraphOutputSocket *> graph_outputs,
                              const Logger *logger,
@@ -1475,6 +1487,8 @@ GraphExecutor::GraphExecutor(const Graph &graph,
       side_effect_provider_(side_effect_provider),
       node_execute_wrapper_(node_execute_wrapper)
 {
+  debug_name_ = graph.name().c_str();
+
   /* The graph executor can handle partial execution when there are still missing inputs. */
   allow_missing_requested_inputs_ = true;
 
