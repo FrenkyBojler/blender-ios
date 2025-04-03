@@ -32,19 +32,18 @@ def cli_main(arguments_raw: argparse.Namespace) -> None:
     # Parse CLI arguments.
     arguments = _parse_cli_args(arguments_raw)
 
-    downloader = CachingDownloader(
-        metadata_cache_location=Path("./local-meta-cache"),
-    )
-    downloader.add_reporter(DownloadReporter())
-
     base_url = arguments.url
     base_path = Path(".").resolve() / "_asset_download_location"  # TODO: be sensible.
+
+    downloader = CachingDownloader(metadata_cache_location=base_path / "_local-meta-cache")
+    downloader.add_reporter(DownloadReporter())
 
     # Download the metadata.
     metadata_local_path = base_path / _urlpath_library_meta
     metadata_remote_url = urllib.parse.urljoin(base_url, _urlpath_library_meta)
     metadata = _download_and_parse_metadata(downloader, metadata_remote_url, metadata_local_path)
 
+    # Show what we downloaded.
     logger.info("    API version       : %d", metadata.api_version)
     logger.info("    Asset Library Name: %s", metadata.name)
     if metadata.contact:
