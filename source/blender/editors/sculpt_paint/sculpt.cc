@@ -1183,29 +1183,6 @@ static void restore_from_undo_step(const Depsgraph &depsgraph, const Sculpt &sd,
 
 }  // namespace blender::ed::sculpt_paint
 
-/*** BVH Tree ***/
-
-bool SCULPT_get_redraw_rect(const ARegion &region,
-                            const RegionView3D &rv3d,
-                            const Object &ob,
-                            rcti &rect)
-{
-  using namespace blender;
-  const bke::pbvh::Tree *pbvh = bke::object::pbvh_get(ob);
-  if (!pbvh) {
-    return false;
-  }
-
-  const Bounds<float3> bounds = BKE_pbvh_redraw_BB(*pbvh);
-
-  /* Convert 3D bounding box to screen space. */
-  if (!paint_convert_bb_to_rect(&rect, bounds.min, bounds.max, region, rv3d, ob)) {
-    return false;
-  }
-
-  return true;
-}
-
 const float *SCULPT_brush_frontface_normal_from_falloff_shape(const SculptSession &ss,
                                                               char falloff_shape)
 {
@@ -2465,8 +2442,7 @@ bool node_in_sphere(const bke::pbvh::Node &node,
                     const float radius_sq,
                     const bool original)
 {
-  const Bounds<float3> bounds = original ? BKE_pbvh_node_get_original_BB(&node) :
-                                           bke::pbvh::node_bounds(node);
+  const Bounds<float3> &bounds = original ? node.bounds_orig() : node.bounds();
   const float3 nearest = math::clamp(location, bounds.min, bounds.max);
   return math::distance_squared(location, nearest) < radius_sq;
 }
@@ -2476,8 +2452,7 @@ bool node_in_cylinder(const DistRayAABB_Precalc &ray_dist_precalc,
                       const float radius_sq,
                       const bool original)
 {
-  const Bounds<float3> bounds = (original) ? BKE_pbvh_node_get_original_BB(&node) :
-                                             bke::pbvh::node_bounds(node);
+  const Bounds<float3> &bounds = original ? node.bounds_orig() : node.bounds();
 
   float dummy_co[3], dummy_depth;
   const float dist_sq = dist_squared_ray_to_aabb_v3(
@@ -5220,21 +5195,9 @@ void flush_update_step(const bContext *C, const UpdateType update_type)
     /* Slow update with full dependency graph update and all that comes with it.
      * Needed when there are modifiers or full shading in the 3D viewport. */
     DEG_id_tag_update(&ob.id, ID_RECALC_GEOMETRY);
-    ED_region_tag_redraw(&region);
   }
-  else {
-    /* Fast path where we just update the BVH nodes that changed, and redraw
-     * only the part of the 3D viewport where changes happened. */
-    rcti r;
 
-    if (rv3d && SCULPT_get_redraw_rect(region, *rv3d, ob, r)) {
-      r.xmin += region.winrct.xmin - 2;
-      r.xmax += region.winrct.xmin + 2;
-      r.ymin += region.winrct.ymin - 2;
-      r.ymax += region.winrct.ymin + 2;
-      ED_region_tag_redraw_partial(&region, &r, true);
-    }
-  }
+  ED_region_tag_redraw(&region);
 
   const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(ob);
   if (update_type == UpdateType::Position && !ss.shapekey_active) {
