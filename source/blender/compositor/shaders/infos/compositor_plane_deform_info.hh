@@ -35,7 +35,6 @@ COMPUTE_SOURCE("compositor_plane_deform.glsl")
 DO_STATIC_COMPILATION()
 GPU_SHADER_CREATE_END()
 
-
 GPU_SHADER_CREATE_INFO(compositor_plane_deform_anisotropic)
 ADDITIONAL_INFO(compositor_plane_deform_shared)
 COMPUTE_SOURCE("compositor_plane_deform_anisotropic.glsl")
