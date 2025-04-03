@@ -322,19 +322,26 @@ static float point_in_tri_winding(const float2 pt,
   return 0.0f;
 }
 
-static int point_in_polygon_winding(const float2 &point, const Span<float2> poly)
+/* Point must not be on a corner, but can be on an edge. */
+static int point_in_polygon_winding_twice(const float2 &point, const Span<float2> poly)
 {
-  int winding = 0;
+  /* Double and store as a int to avoid float rounding. */
+  int twice_winding = 0;
   const float2 &tri_p1 = poly[0];
   for (const int i : poly.index_range().drop_front(1).drop_back(1)) {
     const float2 &tri_p2 = poly[i];
     const float2 &tri_p3 = poly[i + 1];
-
-    winding += int(point_in_tri_winding(point, tri_p1, tri_p2, tri_p3) * 2);
+    twice_winding += int(point_in_tri_winding(point, tri_p1, tri_p2, tri_p3) * 2);
   }
+  return twice_winding;
+}
 
-  BLI_assert(winding % 2 == 0);
-  return int(winding / 2);
+/* Point must not be on a corner or edge. */
+static int point_in_polygon_winding_int(const float2 &point, const Span<float2> poly)
+{
+  const int twice_winding = point_in_polygon_winding_twice(point, poly);
+  BLI_assert(math::abs(twice_winding) % 2 == 0);
+  return int(twice_winding / 2);
 }
 
 class WindingState {
@@ -477,7 +484,22 @@ static std::pair<WindingState, WindingState> LR_states_from_segment(
 
   const int curve_i = segment.curve;
 
-  state_L.add_to_curve(curve_i, 1); /* TODO. */
+  if (is_fill[curve_i]) {
+    const float2 first_point_i = math::interpolate(
+        points[segment.start_edge().x], points[segment.start_edge().y], segment.start_alpha());
+    const Span<float2> poly_i = points.slice(points_by_curve[curve_i]);
+    const int winding_twice_i = point_in_polygon_winding_twice(first_point_i, poly_i);
+
+    /* The point should be exactly on the edge. */
+    BLI_assert(math::abs(winding_twice_i) % 2 == 1);
+    /* Each state represents a point infinitesimally offset to the left and right. */
+    state_L.add_to_curve(curve_i, int((winding_twice_i + 1) / 2));
+    state_R.add_to_curve(curve_i, int((winding_twice_i - 1) / 2));
+  }
+  else {
+    /* TODO: Remove. */
+    state_L.add_to_curve(curve_i, 1);
+  }
 
   float2 first_point = points[segment.start_point()];
 
@@ -496,7 +518,7 @@ static std::pair<WindingState, WindingState> LR_states_from_segment(
 
       if (is_fill[curve_j]) {
         const Span<float2> poly_j = points.slice(points_by_curve[curve_j]);
-        const int winding_j = point_in_polygon_winding(first_point, poly_j);
+        const int winding_j = point_in_polygon_winding_int(first_point, poly_j);
         state_L.add_to_curve(curve_j, winding_j);
         state_R.add_to_curve(curve_j, winding_j);
       }
