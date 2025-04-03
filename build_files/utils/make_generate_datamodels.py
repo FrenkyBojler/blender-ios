@@ -44,6 +44,9 @@ COMMON_ARGS = [
 
     # Because we use Pydantic v2:
     "--output-model-type", "pydantic_v2.BaseModel",
+
+    # Work around https://github.com/koxudaxi/datamodel-code-generator/issues/1870#issuecomment-2775689249
+    "--use-annotated",
 ]
 
 
