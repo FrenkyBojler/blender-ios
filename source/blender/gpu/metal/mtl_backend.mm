@@ -41,7 +41,7 @@ thread_local int g_autoreleasepool_depth = 0;
 /** \name Metal Backend
  * \{ */
 
-void MTLBackend::samplers_update() {
+void MTLBackend::samplers_update(){
   /* Placeholder -- Handled in MTLContext. */
 };
 

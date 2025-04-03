@@ -339,6 +339,10 @@ void VKBackend::platform_init(const VKDevice &device)
     GPG.device_luid = Array<uint8_t, 8>(Span<uint8_t>(id_properties.deviceUUID, VK_LUID_SIZE));
     GPG.device_luid_node_mask = id_properties.deviceNodeMask;
   }
+  else {
+    GPG.device_luid.reinitialize(0);
+    GPG.device_luid_node_mask = 0;
+  }
 
   CLOG_INFO(&LOG,
             0,

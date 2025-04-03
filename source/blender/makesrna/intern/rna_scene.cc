@@ -6841,7 +6841,7 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
        "GPU",
        0,
        "GPU",
-       "Use the GPU to process the denoise node if available, fallback to CPU otherwise"},
+       "Use the GPU to process the denoise node if available, otherwise fallback to CPU"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 

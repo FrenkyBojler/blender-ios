@@ -234,6 +234,10 @@ void GLBackend::platform_init()
            version,
            GPU_ARCHITECTURE_IMR);
 
+  GPG.device_uuid.reinitialize(0);
+  GPG.device_luid.reinitialize(0);
+  GPG.device_luid_node_mask = 0;
+
   if (epoxy_has_gl_extension("GL_EXT_memory_object")) {
     GLint number_of_devices = 0;
     glGetIntegerv(GL_NUM_DEVICE_UUIDS_EXT, &number_of_devices);

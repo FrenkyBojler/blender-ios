@@ -28,35 +28,41 @@ oidn::DeviceRef create_oidn_gpu_device(const Context &context)
     return oidn::newDevice(oidn::DeviceType::Default);
   }
 
-  const Span<uint8_t> platform_uuid = GPU_platform_uuid();
+  /* Try to select the device that is used by the currently active GPU context. First, try to
+   * select the device based on the device LUID. */
   const Span<uint8_t> platform_luid = GPU_platform_luid();
   const uint32_t platform_luid_node_mask = GPU_platform_luid_node_mask();
-
-  /* Try to select the device that is used by the currently active GPU context. We rely on multiply
-   * selection methods, UUID and LUID. That's because not all platforms support both UUID and LUID,
-   * but all platforms support either one of them. UUID supports all except MacOS Metal, while LUID
-   * only supports Windows and MacOS Metal. */
   const int devices_count = oidn::getNumPhysicalDevices();
   for (int i = 0; i < devices_count; i++) {
     oidn::PhysicalDeviceRef physical_device(i);
-
-    /* Try to match the device with the platform UUID. */
-    if (physical_device.get<bool>("uuidSupported")) {
-      oidn::UUID uuid = physical_device.get<oidn::UUID>("uuid");
-      if (platform_uuid == Span<uint8_t>(uuid.bytes, sizeof(uuid.bytes))) {
-        return physical_device.newDevice();
-      }
+    if (!physical_device.get<bool>("luidSupported")) {
+      continue;
     }
 
-    /* Try to match the device with the platform LUID. */
-    if (physical_device.get<bool>("luidSupported")) {
-      oidn::LUID luid = physical_device.get<oidn::LUID>("luid");
-      uint32_t luid_node_mask = physical_device.get<uint32_t>("nodeMask");
-      if (platform_luid == Span<uint8_t>(luid.bytes, sizeof(luid.bytes)) &&
-          platform_luid_node_mask == luid_node_mask)
-      {
-        return physical_device.newDevice();
-      }
+    oidn::LUID luid = physical_device.get<oidn::LUID>("luid");
+    uint32_t luid_node_mask = physical_device.get<uint32_t>("nodeMask");
+    if (platform_luid == Span<uint8_t>(luid.bytes, sizeof(luid.bytes)) &&
+        platform_luid_node_mask == luid_node_mask)
+    {
+      return physical_device.newDevice();
+    }
+  }
+
+  /* If LUID matching was unsuccessful, try to match based on UUID. We rely on multiple selection
+   * methods because not all platforms support both UUID and LUID, but all platforms support either
+   * one of them. UUID supports all except MacOS Metal, while LUID only supports Windows and MacOS
+   * Metal. Note that we prefer LUID as a first match because UUID is unreliable in practice as
+   * some implementations report the same UUID for different devices in the same machine. */
+  const Span<uint8_t> platform_uuid = GPU_platform_uuid();
+  for (int i = 0; i < devices_count; i++) {
+    oidn::PhysicalDeviceRef physical_device(i);
+    if (!physical_device.get<bool>("uuidSupported")) {
+      continue;
+    }
+
+    oidn::UUID uuid = physical_device.get<oidn::UUID>("uuid");
+    if (platform_uuid == Span<uint8_t>(uuid.bytes, sizeof(uuid.bytes))) {
+      return physical_device.newDevice();
     }
   }
 
