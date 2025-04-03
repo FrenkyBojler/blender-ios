@@ -4386,6 +4386,55 @@ static void asset_browser_add_list_view(Main *bmain)
   }
 }
 
+/* Turns all instances of "{" and "}" in a string into "{{" and "}}", escaping
+ * them for strings that are processed with Blender Variables so that they don't
+ * erroneously get interepreted as variables. */
+static void escape_curley_braces(char string[], const int string_array_length)
+{
+  int bytes_processed = 0;
+  while (bytes_processed < string_array_length && string[bytes_processed] != '\0') {
+    if (string[bytes_processed] == '{') {
+      BLI_string_replace_range(
+          string, string_array_length, bytes_processed, bytes_processed + 1, "{{");
+      bytes_processed += 2;
+      continue;
+    }
+    if (string[bytes_processed] == '}') {
+      BLI_string_replace_range(
+          string, string_array_length, bytes_processed, bytes_processed + 1, "}}");
+      bytes_processed += 2;
+      continue;
+    }
+    bytes_processed++;
+  }
+}
+
+/* Escapes all instances of "{" and "}" in the paths in a compositor node tree's
+ * File Output nodes.
+ *
+ * If the passed node tree is not a compositor node tree, does nothing. */
+static void escape_curley_braces_in_compositor_file_output_nodes(bNodeTree &nodetree)
+{
+  if (nodetree.type != NTREE_COMPOSIT) {
+    return;
+  }
+
+  LISTBASE_FOREACH (bNode *, node, &nodetree.nodes) {
+    if (strcmp(node->idname, "CompositorNodeOutputFile") != 0) {
+      continue;
+    }
+
+    NodeImageMultiFile *node_data = static_cast<NodeImageMultiFile *>(node->storage);
+    escape_curley_braces(node_data->base_path, FILE_MAX);
+
+    LISTBASE_FOREACH (bNodeSocket *, sock, &node->inputs) {
+      NodeImageMultiFileSocket *socket_data = static_cast<NodeImageMultiFileSocket *>(
+          sock->storage);
+      escape_curley_braces(socket_data->path, FILE_MAX);
+    }
+  }
+}
+
 void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
 {
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 1)) {
@@ -6565,6 +6614,23 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
             sfile->asset_params->import_flags |= FILE_ASSET_IMPORT_INSTANCE_COLLECTIONS_ON_LINK;
           }
         }
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 14)) {
+    /* Version render output paths (both primary on scene as well as those in
+     * the File Output compositor node) to escape curely braces. */
+    {
+      LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+        escape_curley_braces(scene->r.pic, FILE_MAX);
+        if (scene->nodetree) {
+          escape_curley_braces_in_compositor_file_output_nodes(*scene->nodetree);
+        }
+      }
+
+      LISTBASE_FOREACH (bNodeTree *, nodetree, &bmain->nodetrees) {
+        escape_curley_braces_in_compositor_file_output_nodes(*nodetree);
       }
     }
   }
