@@ -1088,6 +1088,7 @@ static wmOperatorStatus screenshot_preview_exec(bContext *C, wmOperator *op)
 
   IMB_freeImBuf(image_buffer);
   asset::list::storage_tag_main_data_dirty();
+  asset::refresh_asset_library_from_asset(C, *asset_handle);
 
   WM_main_add_notifier(NC_ASSET | NA_EDITED, nullptr);
 
@@ -1160,13 +1161,11 @@ static wmOperatorStatus screenshot_preview_modal(bContext *C, wmOperator *op, co
   if (event->type == LEFTMOUSE) {
     switch (event->val) {
       case KM_PRESS: {
-        // RNA_int_set_array(op->ptr, "p1", screen_space_cursor);
         data->start = screen_space_cursor;
         data->dragging = true;
         return OPERATOR_RUNNING_MODAL;
       }
       case KM_RELEASE: {
-        // RNA_int_set_array(op->ptr, "p2", screen_space_cursor);
         data->dragging = false;
         data->end = screen_space_cursor;
         screenshot_area_transfer_to_rna(op, data);
