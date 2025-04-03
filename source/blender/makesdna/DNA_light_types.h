@@ -84,6 +84,10 @@ typedef struct Light {
   struct Ipo *ipo DNA_DEPRECATED; /* Old animation system. */
   float energy_deprecated DNA_DEPRECATED;
   float _pad2;
+
+  short normalize;
+  short _pad3;
+  float _pad4;
 } Light;
 
 /* **************** LIGHT ********************* */

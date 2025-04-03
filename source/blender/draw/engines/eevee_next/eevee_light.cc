@@ -66,7 +66,55 @@ void Light::sync(ShadowModule &shadows,
     shadow_discard_safe(shadows);
   }
 
-  this->color = float3(&la->r) * la->energy;
+   /* Initialize area to normalize energy*/
+  float area = 1.0f;
+
+  switch (this->type) {
+    /* Sun light*/
+    case LIGHT_SUN: {
+      float radians = (float(M_PI) / 180.0f);
+      float theta = la->sun_angle * radians * 0.5f;
+      theta = clamp(theta, 0.0f, float(M_PI));
+      if (theta == 0.0f) {
+        area = 1.0f;
+      }
+      else if (theta <= float(M_PI_2)) {
+        area = square(sinf(theta)) * float(M_PI);
+      }
+      else {
+        area = (2.0f - square(sinf(theta))) * float(M_PI);
+      }
+      break;
+    }
+    case LIGHT_SUN_ORTHO:
+    /* Point light */
+    case LIGHT_OMNI_SPHERE:
+    case LIGHT_OMNI_DISK: {
+      area = float(4.0f * M_PI);
+      break;
+    }
+    /* Spot light */
+    case LIGHT_SPOT_SPHERE:
+    case LIGHT_SPOT_DISK: {
+      area = float(4.0f * M_PI) * square(this->local.shape_radius);
+      break;
+    }
+    /* Are light */
+    case LIGHT_RECT: {
+      area = this->area.size.x * this->area.size.y * 4.0f;
+      break;
+    }
+    case LIGHT_ELLIPSE: {
+      area = this->area.size.x * this->area.size.y * 4.0f;
+      area *= M_PI / 4.0f;
+      break;
+    }
+  }
+  if (la->normalize)
+    this->color = float3(&la->r) * la->energy;
+  else {
+    this->color = float3(&la->r) * la->energy * area;
+  }
 
   float3 scale;
   object_to_world.view<3, 3>() = normalize_and_get_size(object_to_world.view<3, 3>(), scale);

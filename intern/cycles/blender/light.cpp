@@ -74,6 +74,10 @@ void BlenderSync::sync_light(BL::Depsgraph /*b_depsgraph*/, BObjectInfo &b_ob_in
     }
   }
 
+  /* normalize */
+  const bool normalize = b_light.normalize();
+  light->set_normalize(normalize);
+
   /* strength */
   const float3 strength = get_float3(b_light.color()) * BL::PointLight(b_light).energy();
   light->set_strength(strength);
