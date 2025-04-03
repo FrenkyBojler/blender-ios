@@ -1143,6 +1143,9 @@ static wmOperatorStatus change_frame_modal(bContext *C, wmOperator *op, const wm
         return OPERATOR_FINISHED;
       }
       break;
+    default: {
+      break;
+    }
   }
 
   return OPERATOR_RUNNING_MODAL;
@@ -1250,13 +1253,11 @@ static void do_movie_proxy(void *pjv,
   const int efra = clip->len;
 
   if (build_undistort_count) {
-    int threads = BLI_system_thread_count();
     int width, height;
 
     BKE_movieclip_get_size(clip, nullptr, &width, &height);
 
     distortion = BKE_tracking_distortion_new(&clip->tracking, width, height);
-    BKE_tracking_distortion_set_threads(distortion, threads);
   }
 
   for (int cfra = sfra; cfra <= efra; cfra++) {
@@ -1700,6 +1701,9 @@ static wmOperatorStatus clip_prefetch_modal(bContext *C, wmOperator * /*op*/, co
   switch (event->type) {
     case EVT_ESCKEY:
       return OPERATOR_RUNNING_MODAL;
+    default: {
+      break;
+    }
   }
 
   return OPERATOR_PASS_THROUGH;
