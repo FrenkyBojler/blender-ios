@@ -45,7 +45,7 @@
 #define CERES_USE_EIGEN_SPARSE
 
 // If defined, Ceres was compiled without LAPACK.
-// #define CERES_NO_LAPACK
+#define CERES_NO_LAPACK
 
 // If defined, Ceres was compiled without SuiteSparse.
 #define CERES_NO_SUITESPARSE
@@ -54,7 +54,7 @@
 #define CERES_NO_CUDA
 
 // If defined, Ceres was compiled without Apple's Accelerate framework solvers.
- #define CERES_NO_ACCELERATE_SPARSE
+#define CERES_NO_ACCELERATE_SPARSE
 
 #if defined(CERES_NO_SUITESPARSE) &&              \
     defined(CERES_NO_ACCELERATE_SPARSE) &&        \
@@ -79,7 +79,9 @@
 // If defined, Ceres was compiled with a version MSVC >= 2005 which
 // deprecated the standard POSIX names for bessel functions, replacing them
 // with underscore prefixed versions (e.g. j0() -> _j0()).
-// #define CERES_MSVC_USE_UNDERSCORE_PREFIXED_BESSEL_FUNCTIONS
+#ifdef _MSC_VER
+#define CERES_MSVC_USE_UNDERSCORE_PREFIXED_BESSEL_FUNCTIONS
+#endif
 
 // CERES_NO_SPARSE should be automatically defined by config.h if Ceres was
 // compiled without any sparse back-end.  Verify that it has not subsequently
