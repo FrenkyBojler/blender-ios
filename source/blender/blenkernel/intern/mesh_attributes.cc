@@ -249,7 +249,7 @@ void adapt_mesh_domain_face_to_point_impl(const Mesh &mesh,
                                           const VArray<bool> &src,
                                           MutableSpan<bool> r_dst)
 {
-  BLI_assert(r_values.size() == mesh.verts_num);
+  BLI_assert(r_dst.size() == mesh.verts_num);
   const GroupedSpan<int> vert_to_face_map = mesh.vert_to_face_map();
 
   threading::parallel_for(vert_to_face_map.index_range(), 2048, [&](const IndexRange range) {
