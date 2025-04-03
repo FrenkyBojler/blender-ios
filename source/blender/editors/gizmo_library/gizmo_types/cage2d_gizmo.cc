@@ -18,8 +18,8 @@
 #include "BLI_dial_2d.h"
 #include "BLI_math_base_safe.h"
 #include "BLI_math_matrix.h"
-#include "BLI_math_vector.h"
 #include "BLI_math_rotation.h"
+#include "BLI_math_vector.h"
 #include "BLI_math_vector_types.hh"
 #include "BLI_rect.h"
 
@@ -1118,7 +1118,7 @@ static wmOperatorStatus gizmo_cage2d_modal(bContext *C,
     }
   }
 
-  float point_local[2] = {float(event->mval[0]), float(event->mval[1])};
+  float point_local[2];
 
   float dims[2];
   RNA_float_get_array(gz->ptr, "dimensions", dims);
@@ -1130,7 +1130,8 @@ static wmOperatorStatus gizmo_cage2d_modal(bContext *C,
 
     /* The mouse coords are projected into the matrix so we don't need to worry about axis
      * alignment. */
-    bool ok = gizmo_window_project_2d(C, gz, point_local, 2, false, point_local);
+    bool ok = gizmo_window_project_2d(
+        C, gz, blender::float2(blender::int2(event->mval)), 2, false, point_local);
     copy_m4_m4(gz->matrix_offset, matrix_back);
     if (!ok) {
       return OPERATOR_RUNNING_MODAL;
