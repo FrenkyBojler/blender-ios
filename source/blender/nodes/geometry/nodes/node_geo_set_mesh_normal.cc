@@ -67,6 +67,8 @@ static void node_geo_exec(GeoNodeExecParams params)
   const Mode mode = static_cast<Mode>(node.custom1);
   GeometrySet geometry_set = params.extract_input<GeometrySet>("Mesh");
 
+  bool add_sharpness_and_corner_fan_info = false;
+
   switch (mode) {
     case Mode::Sharpness: {
       const bool remove_custom = params.extract_input<bool>("Remove Custom");
@@ -108,6 +110,17 @@ static void node_geo_exec(GeoNodeExecParams params)
           if (remove_custom) {
             attributes.remove("custom_normal");
           }
+          else {
+            if (const std::optional<bke::AttributeMetaData> meta_data =
+                    attributes.lookup_meta_data("custom_normal"))
+            {
+              if (meta_data->domain == bke::AttrDomain::Corner &&
+                  meta_data->data_type == CD_PROP_INT16_2D)
+              {
+                add_sharpness_and_corner_fan_info = true;
+              }
+            }
+          }
         }
       });
       break;
@@ -141,6 +154,12 @@ static void node_geo_exec(GeoNodeExecParams params)
       });
       break;
     }
+  }
+
+  if (add_sharpness_and_corner_fan_info) {
+    params.error_message_add(NodeWarningType::Info,
+                             "Adjusting sharpness with \"Tangent Space\" custom normals "
+                             "may lead to unexpected results");
   }
 
   params.set_output("Mesh", std::move(geometry_set));
