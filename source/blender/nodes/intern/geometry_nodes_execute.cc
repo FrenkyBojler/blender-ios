@@ -255,6 +255,8 @@ std::unique_ptr<IDProperty, bke::idprop::IDPropertyDeleter> id_property_create_f
     case SOCK_CUSTOM:
     case SOCK_GEOMETRY:
     case SOCK_SHADER:
+    case SOCK_BUNDLE:
+    case SOCK_CLOSURE:
       return nullptr;
   }
   return nullptr;
@@ -420,6 +422,8 @@ static bool old_id_property_type_matches_socket_convert_to_new(
     case SOCK_MATRIX:
     case SOCK_GEOMETRY:
     case SOCK_SHADER:
+    case SOCK_BUNDLE:
+    case SOCK_CLOSURE:
       return false;
   }
   BLI_assert_unreachable();
