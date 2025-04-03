@@ -35,6 +35,10 @@ def asset_index_main(args: list[str]) -> int:
 
     try:
         cli.main(args)
+    except SystemExit as ex:
+        if isinstance(ex.code, int):
+            return ex.code
+        return 2
     except BaseException:
         traceback.print_exc()
         return 1
