@@ -195,6 +195,15 @@ static FunctionRef<void(int, MutableSpan<float>)> powered_rcp_for_values(const i
   }
 }
 
+template<typename T>
+static void more_reordered(MutableSpan<T> data, MutableSpan<T> buffer, const int start, const int new_start)
+{
+  const IndexRange moved_range = IndexRange::from_begin_end(new_start, start);
+  buffer.take_front(moved_range.size()).copy_from(data.as_span().slice(moved_range));
+  data.slice(moved_range).copy_from(data.take_back(moved_range.size()));
+  data.take_back(moved_range.size()).copy_from(buffer.take_front(moved_range.size()).as_span());
+}
+
 void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
                          const int total_depth,
                          const Span<float> src_joints_min_distance,
@@ -277,20 +286,13 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
       const int depth_i = depth_stack.pop_last();
       const int joint_i = joint_stack.pop_last();
 
-      const MutableSpan<float> batch_positions_x =
-          batch_positions_x_buffer.as_mutable_span().take_front(prefix_to_visit);
-      const MutableSpan<float> batch_positions_y =
-          batch_positions_y_buffer.as_mutable_span().take_front(prefix_to_visit);
-      const MutableSpan<float> batch_positions_z =
-          batch_positions_z_buffer.as_mutable_span().take_front(prefix_to_visit);
+      const MutableSpan<float> batch_positions_x = batch_positions_x_buffer.as_mutable_span().take_front(prefix_to_visit);
+      const MutableSpan<float> batch_positions_y = batch_positions_y_buffer.as_mutable_span().take_front(prefix_to_visit);
+      const MutableSpan<float> batch_positions_z = batch_positions_z_buffer.as_mutable_span().take_front(prefix_to_visit);
+      const MutableSpan<int> batch_indices = batch_indices_buffer.as_mutable_span().take_front(prefix_to_visit);
 
-      const MutableSpan<float> batch_distances =
-          batch_distances_buffer.as_mutable_span().take_front(prefix_to_visit);
-      const MutableSpan<int> batch_indices = batch_indices_buffer.as_mutable_span().take_front(
-          prefix_to_visit);
-
-      const MutableSpan<int> partition = partition_buffer.as_mutable_span().take_front(
-          prefix_to_visit);
+      const MutableSpan<float> batch_distances = batch_distances_buffer.as_mutable_span().take_front(prefix_to_visit);
+      const MutableSpan<int> partition = partition_buffer.as_mutable_span().take_front(prefix_to_visit);
 
       const IndexRange joints_range = akdbh::joints_range_at_depth(depth_i);
 
@@ -301,13 +303,13 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
                             batch_positions_y.data(),
                             batch_positions_z.data(),
                             joint_position,
-                            batch_distances.size(),
+                            prefix_to_visit,
                             batch_distances.data(),
                             offset_value);
 
       const float joint_min_distance = src_joints_min_distance[joint_index];
 
-      const int total_next = ispc::float_more_then_single_count(
+      const int total_next = ispc::count_float_less_than(
           batch_distances.data(),
           math::square(joint_min_distance - offset_value),
           prefix_to_visit);
@@ -321,7 +323,7 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
                                   batch_positions_y.data(),
                                   batch_positions_z.data(),
                                   bucket_position,
-                                  batch_distances.size(),
+                                  prefix_to_visit,
                                   batch_distances.data(),
                                   offset_value);
 
@@ -397,16 +399,14 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
 
       if (LIKELY(total_next > 0)) {
         if (value_type.is<float>()) {
-          const MutableSpan<float> batch_values =
-              batch_values_buffer[0].as_mutable_span().take_front(prefix_to_visit);
+          const MutableSpan<float> batch_values = batch_values_buffer[0].as_mutable_span().take_front(prefix_to_visit);
           ispc::parition_as_gather(batch_values.cast<int>().data(),
                                    partition.data(),
                                    buffer.data(),
                                    pertition_mapping_total);
         }
         else {
-          MutableSpan<float> batch_values = batch_values_buffer[0].as_mutable_span().take_front(
-              prefix_to_visit);
+          MutableSpan<float> batch_values = batch_values_buffer[0].as_mutable_span().take_front(prefix_to_visit);
           ispc::parition_as_gather(batch_values.cast<int>().data(),
                                    partition.data(),
                                    buffer.data(),
@@ -429,8 +429,7 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
       if (value_type.is<float>()) {
         const float joint_value = src_joints_value.typed<float>()[joint_index];
 
-        const MutableSpan<float> batch_values =
-            batch_values_buffer[0].as_mutable_span().take_front(prefix_to_visit);
+        const MutableSpan<float> batch_values = batch_values_buffer[0].as_mutable_span().take_front(prefix_to_visit);
         ispc::one_mul_add_n(batch_values.data() + total_next,
                             batch_distances.data(),
                             joint_value,
@@ -439,8 +438,7 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
       else {
         const float3 joint_value = src_joints_value.typed<float3>()[joint_index];
 
-        MutableSpan<float> batch_values = batch_values_buffer[0].as_mutable_span().take_front(
-            prefix_to_visit);
+        MutableSpan<float> batch_values = batch_values_buffer[0].as_mutable_span().take_front(prefix_to_visit);
         ispc::one_mul_add_n(batch_values.data() + total_next,
                             batch_distances.data(),
                             joint_value.x,
@@ -479,48 +477,6 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
       }
 
       if (UNLIKELY(depth_i == total_depth - 1)) {
-        const int aligned_pass_start = (total_next / 16) * 16;
-        
-        const int total_off = prefix_to_visit - total_next;
-        
-        std::copy(batch_positions_x.begin() + aligned_pass_start, batch_positions_x.begin() + total_next, buffer.cast<float>().begin());
-        std::copy(batch_positions_x.end() - (total_next - aligned_pass_start), batch_positions_x.end(), batch_positions_x.begin() + aligned_pass_start);
-        std::copy(buffer.cast<float>().begin(), buffer.cast<float>().begin() + (total_next - aligned_pass_start), batch_positions_x.end() - (total_next - aligned_pass_start));
-        
-        std::copy(batch_positions_y.begin() + aligned_pass_start, batch_positions_y.begin() + total_next, buffer.cast<float>().begin());
-        std::copy(batch_positions_y.end() - (total_next - aligned_pass_start), batch_positions_y.end(), batch_positions_y.begin() + aligned_pass_start);
-        std::copy(buffer.cast<float>().begin(), buffer.cast<float>().begin() + (total_next - aligned_pass_start), batch_positions_y.end() - (total_next - aligned_pass_start));
-        
-        std::copy(batch_positions_z.begin() + aligned_pass_start, batch_positions_z.begin() + total_next, buffer.cast<float>().begin());
-        std::copy(batch_positions_z.end() - (total_next - aligned_pass_start), batch_positions_z.end(), batch_positions_z.begin() + aligned_pass_start);
-        std::copy(buffer.cast<float>().begin(), buffer.cast<float>().begin() + (total_next - aligned_pass_start), batch_positions_z.end() - (total_next - aligned_pass_start));
-        
-        std::copy(batch_indices.begin() + aligned_pass_start, batch_indices.begin() + total_next, buffer.begin());
-        std::copy(batch_indices.end() - (total_next - aligned_pass_start), batch_indices.end(), batch_indices.begin() + aligned_pass_start);
-        std::copy(buffer.begin(), buffer.begin() + (total_next - aligned_pass_start), batch_indices.end() - (total_next - aligned_pass_start));
-
-        if (value_type.is<float>()) {
-          const MutableSpan<float> batch_values = batch_values_buffer[0].as_mutable_span().take_front(prefix_to_visit);
-          std::copy(batch_values.begin() + aligned_pass_start, batch_values.begin() + total_next, buffer.cast<float>().begin());
-          std::copy(batch_values.end() - (total_next - aligned_pass_start), batch_values.end(), batch_values.begin() + aligned_pass_start);
-          std::copy(buffer.cast<float>().begin(), buffer.cast<float>().begin() + (total_next - aligned_pass_start), batch_values.end() - (total_next - aligned_pass_start));
-        } else {
-          MutableSpan<float> batch_values = batch_values_buffer[0].as_mutable_span().take_front(prefix_to_visit);
-          std::copy(batch_values.begin() + aligned_pass_start, batch_values.begin() + total_next, buffer.cast<float>().begin());
-          std::copy(batch_values.end() - (total_next - aligned_pass_start), batch_values.end(), batch_values.begin() + aligned_pass_start);
-          std::copy(buffer.cast<float>().begin(), buffer.cast<float>().begin() + (total_next - aligned_pass_start), batch_values.end() - (total_next - aligned_pass_start));
-
-          batch_values = batch_values_buffer[1].as_mutable_span().take_front(prefix_to_visit);
-          std::copy(batch_values.begin() + aligned_pass_start, batch_values.begin() + total_next, buffer.cast<float>().begin());
-          std::copy(batch_values.end() - (total_next - aligned_pass_start), batch_values.end(), batch_values.begin() + aligned_pass_start);
-          std::copy(buffer.cast<float>().begin(), buffer.cast<float>().begin() + (total_next - aligned_pass_start), batch_values.end() - (total_next - aligned_pass_start));
-
-          batch_values = batch_values_buffer[2].as_mutable_span().take_front(prefix_to_visit);
-          std::copy(batch_values.begin() + aligned_pass_start, batch_values.begin() + total_next, buffer.cast<float>().begin());
-          std::copy(batch_values.end() - (total_next - aligned_pass_start), batch_values.end(), batch_values.begin() + aligned_pass_start);
-          std::copy(buffer.cast<float>().begin(), buffer.cast<float>().begin() + (total_next - aligned_pass_start), batch_values.end() - (total_next - aligned_pass_start));
-        }
-
         const IndexRange joint_backet = buckets_offsets[joint_i];
         for (const int bucket_item : joint_backet) {
           const float3 bucket_position = src_bucket_position[bucket_item];
@@ -528,46 +484,46 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
                                 batch_positions_y.data(),
                                 batch_positions_z.data(),
                                 bucket_position,
-                                total_off,
+                                total_next,
                                 batch_distances.data(),
                                 offset_value);
 
-          ispc::sqrt_n_add_single(batch_distances.data(), total_off, offset_value);
+          ispc::sqrt_n_add_single(batch_distances.data(), total_next, offset_value);
           distance_invertion(power_value, batch_distances);
 
           if (sampler_to_bucket_range->contains(bucket_item)) {
             ispc::zero_if_in_index_n(batch_indices.data(),
                                      batch_distances.data(),
                                      bucket_item - sampler_to_bucket_range->start(),
-                                     total_off);
+                                     total_next);
           }
 
           if (value_type.is<float>()) {
             const float bucket_value = src_bucket_value.typed<float>()[bucket_item];
-            const MutableSpan<float> batch_values = batch_values_buffer[0].as_mutable_span().take_front(total_off);
+            const MutableSpan<float> batch_values = batch_values_buffer[0].as_mutable_span().take_front(prefix_to_visit);
             ispc::one_mul_add_n(batch_values.data(),
                                 batch_distances.data(),
                                 bucket_value,
-                                total_off);
+                                total_next);
           } else {
             const float3 bucket_value = src_bucket_value.typed<float3>()[bucket_item];
-            MutableSpan<float> batch_values = batch_values_buffer[0].as_mutable_span().take_front(total_off);
+            MutableSpan<float> batch_values = batch_values_buffer[0].as_mutable_span().take_front(prefix_to_visit);
             ispc::one_mul_add_n(batch_values.data(),
                                 batch_distances.data(),
                                 bucket_value.x,
-                                total_off);
+                                total_next);
 
-            batch_values = batch_values_buffer[1].as_mutable_span().take_front(total_off);
+            batch_values = batch_values_buffer[1].as_mutable_span().take_front(prefix_to_visit);
             ispc::one_mul_add_n(batch_values.data(),
                                 batch_distances.data(),
                                 bucket_value.y,
-                                total_off);
+                                total_next);
 
-            batch_values = batch_values_buffer[2].as_mutable_span().take_front(total_off);
+            batch_values = batch_values_buffer[2].as_mutable_span().take_front(prefix_to_visit);
             ispc::one_mul_add_n(batch_values.data(),
                                 batch_distances.data(),
                                 bucket_value.z,
-                                total_off);
+                                total_next);
           }
         }
 

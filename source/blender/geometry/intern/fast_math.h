@@ -63,6 +63,7 @@ struct IndicesStruct {
 #if defined(__cplusplus) && (! defined(__ISPC_NO_EXTERN_C) || !__ISPC_NO_EXTERN_C )
 extern "C" {
 #endif // __cplusplus
+    extern int32_t count_float_less_than(float * values, float min_predicate_value, int32_t count);
     extern void distances(const float positions[][3], const float * target, const int32_t count, float * distances, const float offset);
     extern void distances_split(const float * positions_x, const float * positions_y, const float * positions_z, const float * target, const int32_t count, float * distances, const float offset);
     extern float fixed_safe_0_rpow_n(float * values, const int32_t count);
@@ -85,7 +86,6 @@ extern "C" {
     extern float float_dot_product(const float * values, const float * factors, const int32_t count);
     extern float float_gather_dot_product(const int32_t * indices, const float * values, const float * factors, const int32_t count);
     extern enum ePredicateStatisics float_more_then_single(float * values, float min_predicate_value, int32_t count);
-    extern int32_t float_more_then_single_count(float * values, float min_predicate_value, int32_t count);
     extern void gather_distances(const int32_t * indices, const float positions[][3], const float * target, const int32_t count, float * distances, const float offset);
     extern int32_t gather_ints_buffer(int32_t * values, int32_t * indices, int32_t * buffer, int32_t count, int32_t front_self_range);
     extern int32_t gather_ints_buffer_segmented(int32_t * values, int32_t * indices, int32_t * buffer, int32_t count, struct IndicesStruct * more_or_equal, struct IndicesStruct * smaller);

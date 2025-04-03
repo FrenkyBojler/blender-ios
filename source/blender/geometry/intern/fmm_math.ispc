@@ -803,7 +803,7 @@ export void parition_as_gather_front(
 //     scatter_ints(buffer, indices, values, 0, mapping_half);
 // }
 
-export uniform int float_more_then_single_count(
+export uniform int count_float_less_than(
     uniform float values[],
     uniform float min_predicate_value,
     uniform int count)
