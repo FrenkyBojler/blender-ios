@@ -28,10 +28,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   if (node != nullptr) {
     const eCustomDataType data_type = eCustomDataType(node->custom2);
     b.add_input(data_type, "Value").supports_field().structure_type(StructureType::Field);
-    b.add_output(data_type, "Value")
-        .field_source_reference_all()
-        .structure_type(StructureType::Dynamic)
-        .align_with_previous();
+    b.add_output(data_type, "Value").field_source_reference_all().align_with_previous();
   }
 }
 

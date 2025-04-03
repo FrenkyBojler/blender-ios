@@ -28,10 +28,7 @@ static void node_declare(NodeDeclarationBuilder &b)
         .hide_value()
         .supports_field()
         .structure_type(StructureType::Field);
-    b.add_output(data_type, "Value")
-        .field_source_reference_all()
-        .structure_type(StructureType::Dynamic)
-        .align_with_previous();
+    b.add_output(data_type, "Value").field_source_reference_all().align_with_previous();
   }
   b.add_input<decl::Int>("Index").min(0).supports_field().structure_type(StructureType::Field);
 }
