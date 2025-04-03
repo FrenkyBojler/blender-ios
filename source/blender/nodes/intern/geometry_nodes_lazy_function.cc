@@ -4217,6 +4217,9 @@ std::optional<FoundNestedNodeID> find_nested_node_id(const GeoNodesLFUserData &u
     {
       found.is_in_loop = true;
     }
+    else if (dynamic_cast<const bke::EvaluateClosureComputeContext *>(context) != nullptr) {
+      found.is_in_closure = true;
+    }
   }
   std::reverse(node_ids.begin(), node_ids.end());
   node_ids.append(node_id);

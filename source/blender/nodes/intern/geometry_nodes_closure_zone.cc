@@ -286,6 +286,7 @@ class LazyFunctionForEvaluateClosureNode : public LazyFunction {
   {
     const ScopedNodeTimer node_timer{context, bnode_};
 
+    auto &user_data = *static_cast<GeoNodesLFUserData *>(context.user_data);
     auto &eval_storage = *static_cast<EvaluateClosureEvalStorage *>(context.storage);
 
     if (!eval_storage.graph_executor) {
@@ -303,8 +304,13 @@ class LazyFunctionForEvaluateClosureNode : public LazyFunction {
       this->initialize_execution_graph(eval_storage);
     }
 
+    bke::EvaluateClosureComputeContext closure_compute_context{user_data.compute_context, bnode_};
+    GeoNodesLFUserData closure_user_data = user_data;
+    closure_user_data.compute_context = &closure_compute_context;
+    GeoNodesLFLocalUserData closure_local_user_data{closure_user_data};
+
     lf::Context eval_graph_context{
-        eval_storage.graph_executor_storage, context.user_data, context.local_user_data};
+        eval_storage.graph_executor_storage, &closure_user_data, &closure_local_user_data};
     eval_storage.graph_executor->execute(params, eval_graph_context);
   }
 

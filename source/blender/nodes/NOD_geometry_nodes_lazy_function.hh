@@ -464,6 +464,7 @@ struct FoundNestedNodeID {
   int id;
   bool is_in_simulation = false;
   bool is_in_loop = false;
+  bool is_in_closure = false;
 };
 
 std::optional<FoundNestedNodeID> find_nested_node_id(const GeoNodesLFUserData &user_data,
