@@ -40,6 +40,7 @@ class CLIArguments(pydantic.BaseModel):
     repository: Path
     limit: int
     page_size: int
+    verbose: bool
 
 
 def main(args: list[str]) -> None:
@@ -50,7 +51,10 @@ def main(args: list[str]) -> None:
     _validate_inputs(arguments)
 
     # Set up logging.
-    logging.basicConfig(level=logging.DEBUG)
+    logging.basicConfig(
+        level=logging.DEBUG if arguments.verbose else logging.INFO,
+        format="%(asctime)-15s %(levelname)8s %(module)16s %(message)s",
+    )
 
     # Find all .blend files.
     filepaths: list[Path] = []
@@ -181,6 +185,9 @@ def _parse_arguments(args: list[str]) -> CLIArguments:
         help="Number of assets per JSON file, set to 0 to disable pagination",
     )
 
+    parser.add_argument("-v", "--verbose", action='store_true',
+                        help="Log DEBUG level messages as well")
+
     arguments_raw = parser.parse_args(args)
 
     repository = arguments_raw.repository.absolute()
@@ -188,6 +195,7 @@ def _parse_arguments(args: list[str]) -> CLIArguments:
         repository=repository,
         limit=arguments_raw.limit or 0,
         page_size=arguments_raw.page or 0,
+        verbose=arguments_raw.verbose,
     )
     return arguments
 
