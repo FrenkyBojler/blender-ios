@@ -159,7 +159,6 @@ def _parse_arguments(args: list[str]) -> CLIArguments:
     """Parse command-line arguments."""
     parser = ArgumentParser(
         prog="blender -c asset_index",
-        add_help=False,
         description="Create an index file listing all the assets.",
     )
 
@@ -172,6 +171,7 @@ def _parse_arguments(args: list[str]) -> CLIArguments:
     parser.add_argument(
         "--limit",
         "-l",
+        metavar="NUM_BLEND_FILES",
         type=int,
         default=None,
         help="Limit the number of files to process",
@@ -180,6 +180,7 @@ def _parse_arguments(args: list[str]) -> CLIArguments:
     parser.add_argument(
         "--page",
         "-p",
+        metavar="ASSETS_PER_PAGE",
         type=int,
         default=1000,
         help="Number of assets per JSON file, set to 0 to disable pagination",
