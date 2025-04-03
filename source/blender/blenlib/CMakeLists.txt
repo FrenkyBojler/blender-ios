@@ -15,7 +15,6 @@ set(INC_SYS
   ../../../extern/wcwidth
   ../../../extern/json/include
 
-  ${EIGEN3_INCLUDE_DIRS}
   ${ZLIB_INCLUDE_DIRS}
   ${ZSTD_INCLUDE_DIRS}
 )
@@ -422,6 +421,7 @@ set(LIB
   PRIVATE bf::intern::atomic
   PRIVATE extern_fmtlib
   PUBLIC bf::dependencies::optional::tbb
+  PRIVATE bf::dependencies::eigen
   ${ZLIB_LIBRARIES}
   ${ZSTD_LIBRARIES}
 )
@@ -458,9 +458,6 @@ if(WITH_FFTW3)
     ${FFTW3_LIBRARIES}
   )
   add_definitions(-DWITH_FFTW3)
-  if(WITH_FFTW3_THREADS_F_SUPPORT)
-    add_definitions(-DWITH_FFTW3_THREADS_F_SUPPORT)
-  endif()
 endif()
 
 if(WIN32)
