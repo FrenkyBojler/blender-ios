@@ -23,6 +23,8 @@
 #include "intern/GHOST_CallbackEventConsumer.hh"
 #include "intern/GHOST_XrException.hh"
 
+static thread_local GHOST_IContext *active_context = nullptr;
+
 GHOST_SystemHandle GHOST_CreateSystem()
 {
   GHOST_ISystem::createSystem(true, false);
@@ -48,6 +50,7 @@ void GHOST_SystemInitDebug(GHOST_SystemHandle systemhandle, GHOST_Debug debug)
 
 GHOST_TSuccess GHOST_DisposeSystem(GHOST_SystemHandle /*systemhandle*/)
 {
+  active_context = nullptr;
   return GHOST_ISystem::disposeSystem();
 }
 
@@ -143,7 +146,9 @@ GHOST_ContextHandle GHOST_CreateGPUContext(GHOST_SystemHandle systemhandle,
 {
   GHOST_ISystem *system = (GHOST_ISystem *)systemhandle;
 
-  return (GHOST_ContextHandle)system->createOffscreenContext(gpuSettings);
+  active_context = system->createOffscreenContext(gpuSettings);
+
+  return (GHOST_ContextHandle)active_context;
 }
 
 GHOST_TSuccess GHOST_DisposeGPUContext(GHOST_SystemHandle systemhandle,
@@ -151,6 +156,8 @@ GHOST_TSuccess GHOST_DisposeGPUContext(GHOST_SystemHandle systemhandle,
 {
   GHOST_ISystem *system = (GHOST_ISystem *)systemhandle;
   GHOST_IContext *context = (GHOST_IContext *)contexthandle;
+
+  active_context = nullptr;
 
   return system->disposeContext(context);
 }
@@ -168,16 +175,20 @@ GHOST_WindowHandle GHOST_CreateWindow(GHOST_SystemHandle systemhandle,
 {
   GHOST_ISystem *system = (GHOST_ISystem *)systemhandle;
 
-  return (GHOST_WindowHandle)system->createWindow(title,
-                                                  left,
-                                                  top,
-                                                  width,
-                                                  height,
-                                                  state,
-                                                  gpuSettings,
-                                                  false,
-                                                  is_dialog,
-                                                  (GHOST_IWindow *)parent_windowhandle);
+  GHOST_IWindow *window = system->createWindow(title,
+                                               left,
+                                               top,
+                                               width,
+                                               height,
+                                               state,
+                                               gpuSettings,
+                                               false,
+                                               is_dialog,
+                                               (GHOST_IWindow *)parent_windowhandle);
+
+  active_context = window->getDrawingContext();
+
+  return (GHOST_WindowHandle)window;
 }
 
 GHOST_TUserDataPtr GHOST_GetWindowUserData(GHOST_WindowHandle windowhandle)
@@ -752,6 +763,8 @@ GHOST_TSuccess GHOST_ActivateWindowDrawingContext(GHOST_WindowHandle windowhandl
 {
   GHOST_IWindow *window = (GHOST_IWindow *)windowhandle;
 
+  active_context = window->getDrawingContext();
+
   return window->activateDrawingContext();
 }
 
@@ -759,6 +772,7 @@ GHOST_TSuccess GHOST_ActivateGPUContext(GHOST_ContextHandle contexthandle)
 {
   GHOST_IContext *context = (GHOST_IContext *)contexthandle;
   if (context) {
+    active_context = context;
     return context->activateDrawingContext();
   }
   GHOST_PRINTF("%s: Context not valid\n", __func__);
@@ -769,7 +783,14 @@ GHOST_TSuccess GHOST_ReleaseGPUContext(GHOST_ContextHandle contexthandle)
 {
   GHOST_IContext *context = (GHOST_IContext *)contexthandle;
 
+  active_context = nullptr;
+
   return context->releaseDrawingContext();
+}
+
+GHOST_ContextHandle GHOST_GetActiveGPUContext()
+{
+  return (GHOST_ContextHandle)active_context;
 }
 
 uint GHOST_GetContextDefaultGPUFramebuffer(GHOST_ContextHandle contexthandle)
