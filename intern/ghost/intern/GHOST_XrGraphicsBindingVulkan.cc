@@ -288,9 +288,33 @@ GHOST_TVulkanXRModes GHOST_XrGraphicsBindingVulkan::choseDataTransferMode()
     return GHOST_kVulkanXRModeCPU;
   }
 
-  // TODO: check device enabled extensions when not matching we should fall back to CPU as well.
+  /* Check for available extensions. We assume that the needed extensions are enabled when
+   * available during construction. */
+  uint32_t device_extension_count;
+  vkEnumerateDeviceExtensionProperties(
+      vulkan_handles.physical_device, nullptr, &device_extension_count, nullptr);
+  std::vector<VkExtensionProperties> available_device_extensions(device_extension_count);
+  vkEnumerateDeviceExtensionProperties(vulkan_handles.physical_device,
+                                       nullptr,
+                                       &device_extension_count,
+                                       available_device_extensions.data());
 
-  return GHOST_kVulkanXRModeFD;
+  auto has_extension = [=](const char *extension_name) {
+    for (const auto &extension : available_device_extensions) {
+      if (strcmp(extension_name, extension.extensionName) == 0) {
+        return true;
+      }
+    }
+    return false;
+  };
+
+  bool has_vk_khr_external_memory_fd_extension = has_extension(
+      VK_KHR_EXTERNAL_MEMORY_FD_EXTENSION_NAME);
+  if (has_vk_khr_external_memory_fd_extension) {
+    return GHOST_kVulkanXRModeFD;
+  }
+
+  return GHOST_kVulkanXRModeCPU;
 }
 
 static std::optional<int64_t> choose_swapchain_format_from_candidates(
@@ -390,6 +414,10 @@ void GHOST_XrGraphicsBindingVulkan::submitToSwapchainImage(
       break;
   }
 }
+
+/* -------------------------------------------------------------------- */
+/** \name Data transfer CPU
+ * \{ */
 
 void GHOST_XrGraphicsBindingVulkan::submitToSwapchainImageCpu(
     XrSwapchainImageVulkan2KHR &swapchain_image, const GHOST_XrDrawViewInfo &draw_info)
@@ -504,10 +532,18 @@ void GHOST_XrGraphicsBindingVulkan::submitToSwapchainImageCpu(
   m_ghost_ctx->openxr_release_framebuffer_image_callback_(&openxr_data);
 }
 
+/* \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Data transfer FD
+ * \{ */
+
 void GHOST_XrGraphicsBindingVulkan::submitToSwapchainImageFd(
     XrSwapchainImageVulkan2KHR &swapchain_image, const GHOST_XrDrawViewInfo &draw_info)
 {
 }
+
+/* \} */
 
 bool GHOST_XrGraphicsBindingVulkan::needsUpsideDownDrawing(GHOST_Context &ghost_ctx) const
 {
