@@ -974,9 +974,15 @@ static bool has_external_files(Main *bmain, ReportList *reports)
 
 struct ScreenshotOperatorData {
   void *draw_handle;
-  blender::int2 start, end, last_cursor;
+  blender::int2 drag_start, drag_end, last_cursor;
+  /* Screenshot points may not be set immediately to allow for clicking to create a screenshot with
+   * the previous size. */
+  blender::int2 p1, p2;
+
   bool dragging;
-  /* Move the existing screenshot area when moving the cursor instead of placing p2. */
+  /* Dragged far enough to create the screenshot are instead of registering as a click. */
+  bool crossed_threshold;
+  /* Move the whole screenshot area when moving the cursor instead of placing `drag_end`. */
   bool shift_area;
   bool force_square;
 };
@@ -1011,8 +1017,6 @@ static inline void square_points(blender::int2 &p1, blender::int2 &p2)
 
 static wmOperatorStatus screenshot_preview_exec(bContext *C, wmOperator *op)
 {
-  ED_preview_kill_jobs(CTX_wm_manager(C), CTX_data_main(C));
-
   blender::int2 p1, p2;
   RNA_int_get_array(op->ptr, "p1", p1);
   RNA_int_get_array(op->ptr, "p2", p2);
@@ -1076,6 +1080,7 @@ static wmOperatorStatus screenshot_preview_exec(bContext *C, wmOperator *op)
     preview_image->rect[size_type] = (uint *)MEM_dupallocN(scaled_imbuf->byte_buffer.data);
     preview_image->w[size_type] = width;
     preview_image->h[size_type] = height;
+    preview_image->flag[size_type] |= PRV_USER_EDITED;
     IMB_freeImBuf(scaled_imbuf);
   }
 
@@ -1098,8 +1103,8 @@ static wmOperatorStatus screenshot_preview_exec(bContext *C, wmOperator *op)
 static void screenshot_preview_draw(const wmWindow *window, void *operator_data)
 {
   ScreenshotOperatorData *data = static_cast<ScreenshotOperatorData *>(operator_data);
-  blender::int2 p1 = data->start;
-  blender::int2 p2 = data->end;
+  blender::int2 p1 = data->p1;
+  blender::int2 p2 = data->p2;
   if (data->force_square) {
     square_points(p1, p2);
   }
@@ -1141,10 +1146,10 @@ static inline void screenshot_area_transfer_to_rna(wmOperator *op, ScreenshotOpe
 {
   /* Only set the rna values if the chosen rect is large enough. This allows to just click to
    * confirm an existing rect. */
-  blender::int2 size = data->end - data->start;
-  if (abs(size.x) > 4 && abs(size.y) > 4) {
-    RNA_int_set_array(op->ptr, "p1", data->start);
-    RNA_int_set_array(op->ptr, "p2", data->end);
+  blender::int2 size = data->p2 - data->p1;
+  if (std::abs(size.x) > 4 && std::abs(size.y) > 4) {
+    RNA_int_set_array(op->ptr, "p1", data->p1);
+    RNA_int_set_array(op->ptr, "p2", data->p2);
   }
 }
 
@@ -1158,61 +1163,100 @@ static wmOperatorStatus screenshot_preview_modal(bContext *C, wmOperator *op, co
       event->mval[0] + region->winrct.xmin,
       event->mval[1] + region->winrct.ymin,
   };
-  if (event->type == LEFTMOUSE) {
-    switch (event->val) {
-      case KM_PRESS: {
-        data->start = screen_space_cursor;
-        data->dragging = true;
-        return OPERATOR_RUNNING_MODAL;
+  switch (event->type) {
+    case LEFTMOUSE: {
+      switch (event->val) {
+        case KM_PRESS: {
+          data->dragging = true;
+          data->crossed_threshold = false;
+          data->drag_start = screen_space_cursor;
+          break;
+        }
+        case KM_RELEASE: {
+          data->dragging = false;
+          data->drag_end = screen_space_cursor;
+          screenshot_area_transfer_to_rna(op, data);
+          screenshot_preview_exec(C, op);
+          screenshot_preview_exit(C, op);
+          return OPERATOR_FINISHED;
+        }
       }
-      case KM_RELEASE: {
-        data->dragging = false;
-        data->end = screen_space_cursor;
-        screenshot_area_transfer_to_rna(op, data);
-        screenshot_preview_exec(C, op);
-        screenshot_preview_exit(C, op);
-        return OPERATOR_FINISHED;
+      break;
+    }
+
+    case EVT_PADENTER:
+    case EVT_RETKEY: {
+      screenshot_area_transfer_to_rna(op, data);
+      screenshot_preview_exec(C, op);
+      screenshot_preview_exit(C, op);
+      return OPERATOR_FINISHED;
+    }
+
+    case RIGHTMOUSE:
+    case EVT_ESCKEY: {
+      screenshot_preview_exit(C, op);
+      CTX_wm_screen(C)->do_draw = true;
+      return OPERATOR_CANCELLED;
+    }
+
+    case EVT_SPACEKEY: {
+      switch (event->val) {
+        case KM_PRESS:
+          data->shift_area = true;
+          break;
+        case KM_RELEASE:
+          data->shift_area = false;
+          break;
+
+        default:
+          break;
       }
+      break;
     }
-  }
-  if (event->type == EVT_SPACEKEY) {
-    switch (event->val) {
-      case KM_PRESS:
-        data->shift_area = true;
-        break;
-      case KM_RELEASE:
-        data->shift_area = false;
-        break;
 
-      default:
-        break;
+    case EVT_LEFTSHIFTKEY:
+    case EVT_RIGHTSHIFTKEY: {
+      switch (event->val) {
+        case KM_PRESS:
+          data->force_square = false;
+          break;
+        case KM_RELEASE:
+          data->force_square = true;
+          break;
+
+        default:
+          break;
+      }
+      break;
     }
-  }
 
-  if (ELEM(event->type, EVT_PADENTER, EVT_RETKEY)) {
-    screenshot_area_transfer_to_rna(op, data);
-    screenshot_preview_exec(C, op);
-    screenshot_preview_exit(C, op);
-    return OPERATOR_FINISHED;
-  }
+    case MOUSEMOVE: {
+      if (!data->crossed_threshold) {
+        blender::int2 delta = data->drag_end - data->drag_start;
+        if (std::abs(delta.x) > 4 && std::abs(delta.y) > 4) {
+          data->crossed_threshold = true;
+          data->p1 = data->drag_start;
+        }
+      }
 
-  if (event->type == MOUSEMOVE) {
-    if (data->shift_area) {
-      blender::int2 delta = screen_space_cursor - data->last_cursor;
-      data->start += delta;
-      data->end += delta;
+      if (data->shift_area) {
+        blender::int2 delta = screen_space_cursor - data->last_cursor;
+        data->p1 += delta;
+        data->p2 += delta;
+      }
+      else if (data->dragging) {
+        data->drag_end = screen_space_cursor;
+        if (data->crossed_threshold) {
+          data->p2 = screen_space_cursor;
+        }
+      }
+      CTX_wm_screen(C)->do_draw = true;
+      data->last_cursor = screen_space_cursor;
+      break;
     }
-    else if (data->dragging) {
-      data->end = screen_space_cursor;
-    }
-    CTX_wm_screen(C)->do_draw = true;
-    data->last_cursor = screen_space_cursor;
-  }
 
-  if (ELEM(event->type, RIGHTMOUSE, EVT_ESCKEY)) {
-    screenshot_preview_exit(C, op);
-    CTX_wm_screen(C)->do_draw = true;
-    return OPERATOR_CANCELLED;
+    default:
+      break;
   }
 
   WorkspaceStatus status(C);
@@ -1224,6 +1268,7 @@ static wmOperatorStatus screenshot_preview_modal(bContext *C, wmOperator *op, co
   }
   status.item(IFACE_("Confirm"), ICON_MOUSE_LMB, ICON_EVENT_RETURN);
   status.item(IFACE_("Move"), ICON_EVENT_SPACEKEY);
+  status.item(IFACE_("Unlock Aspect Ratio"), ICON_EVENT_SHIFT);
 
   return OPERATOR_RUNNING_MODAL;
 }
@@ -1239,10 +1284,11 @@ static wmOperatorStatus screenshot_preview_invoke(bContext *C,
   ScreenshotOperatorData *data = static_cast<ScreenshotOperatorData *>(op->customdata);
   data->draw_handle = WM_draw_cb_activate(win, screenshot_preview_draw, data);
   data->dragging = false;
-  RNA_int_get_array(op->ptr, "p1", data->start);
-  RNA_int_get_array(op->ptr, "p2", data->end);
-  data->last_cursor = data->start;
+  RNA_int_get_array(op->ptr, "p1", data->p1);
+  RNA_int_get_array(op->ptr, "p2", data->p2);
+  data->last_cursor = data->p1;
   data->shift_area = false;
+  data->crossed_threshold = false;
   data->force_square = RNA_boolean_get(op->ptr, "force_square");
 
   WM_event_add_modal_handler(C, op);
