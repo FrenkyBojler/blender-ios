@@ -1136,6 +1136,17 @@ static void screenshot_preview_exit(bContext *C, wmOperator *op)
   ED_workspace_status_text(C, nullptr);
 }
 
+static inline void screenshot_area_transfer_to_rna(wmOperator *op, ScreenshotOperatorData *data)
+{
+  /* Only set the rna values if the chosen rect is large enough. This allows to just click to
+   * confirm an existing rect. */
+  blender::int2 size = data->end - data->start;
+  if (abs(size.x) > 4 && abs(size.y) > 4) {
+    RNA_int_set_array(op->ptr, "p1", data->start);
+    RNA_int_set_array(op->ptr, "p2", data->end);
+  }
+}
+
 static wmOperatorStatus screenshot_preview_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   ARegion *region = CTX_wm_region(C);
@@ -1149,14 +1160,16 @@ static wmOperatorStatus screenshot_preview_modal(bContext *C, wmOperator *op, co
   if (event->type == LEFTMOUSE) {
     switch (event->val) {
       case KM_PRESS: {
-        RNA_int_set_array(op->ptr, "p1", screen_space_cursor);
+        // RNA_int_set_array(op->ptr, "p1", screen_space_cursor);
         data->start = screen_space_cursor;
         data->dragging = true;
         return OPERATOR_RUNNING_MODAL;
       }
       case KM_RELEASE: {
-        RNA_int_set_array(op->ptr, "p2", screen_space_cursor);
+        // RNA_int_set_array(op->ptr, "p2", screen_space_cursor);
         data->dragging = false;
+        data->end = screen_space_cursor;
+        screenshot_area_transfer_to_rna(op, data);
         screenshot_preview_exec(C, op);
         screenshot_preview_exit(C, op);
         return OPERATOR_FINISHED;
@@ -1178,6 +1191,7 @@ static wmOperatorStatus screenshot_preview_modal(bContext *C, wmOperator *op, co
   }
 
   if (ELEM(event->type, EVT_PADENTER, EVT_RETKEY)) {
+    screenshot_area_transfer_to_rna(op, data);
     screenshot_preview_exec(C, op);
     screenshot_preview_exit(C, op);
     return OPERATOR_FINISHED;
