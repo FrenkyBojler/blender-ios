@@ -440,8 +440,12 @@ static std::optional<Token> next_token(char *path, const int path_allocation_siz
       return variable;
     }
 
-    /* Check for escaped "}". */
-    if ((byte_index + 1) < path_allocation_size && path[byte_index] == '}' &&
+    /* Check for escaped "}".
+     *
+     * Note that we only do this check when not already inside a variable, since
+     * it could be a valid closing "}" followed by additional escaped closing
+     * braces. */
+    if (start == -1 && (byte_index + 1) < path_allocation_size && path[byte_index] == '}' &&
         path[byte_index + 1] == '}')
     {
       Token variable;

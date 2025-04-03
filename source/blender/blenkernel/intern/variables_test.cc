@@ -180,9 +180,9 @@ TEST(blender_variables, path_apply_variables)
 
   /* Escaping. "{{" and "}}" are the escape codes for literal "{" and "}". */
   {
-    char path[FILE_MAX] = "{hi}_{{hi}}_{bye}";
+    char path[FILE_MAX] = "{hi}_{{hi}}_{{{bye}}}_{bye}";
     BKE_path_apply_variables(path, variables);
-    EXPECT_EQ(blender::StringRef(path), "hello_{hi}_goodbye");
+    EXPECT_EQ(blender::StringRef(path), "hello_{hi}_{goodbye}_goodbye");
   }
 
   /* Malformed syntax: unclosed variable. */
