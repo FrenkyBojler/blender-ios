@@ -107,15 +107,8 @@ class Node : NonCopyable {
   /** \todo Move storage of image painting data to #Tree or elsewhere. */
   pixels::NodeData *pixels_ = nullptr;
 
-  Bounds<float3> bounds() const
-  {
-    return bounds_;
-  }
-
-  Bounds<float3> bounds_orig() const
-  {
-    return bounds_orig_;
-  }
+  const Bounds<float3> &bounds() const;
+  const Bounds<float3> &bounds_orig() const;
 };
 
 ENUM_OPERATORS(Node::Flags, Node::Flags::TopologyUpdated);
@@ -617,6 +610,16 @@ void node_update_visibility_bmesh(BMeshNode &node);
 void update_node_bounds_mesh(Span<float3> positions, MeshNode &node);
 void update_node_bounds_grids(int grid_area, Span<float3> positions, GridsNode &node);
 void update_node_bounds_bmesh(BMeshNode &node);
+
+inline const Bounds<float3> &Node::bounds() const
+{
+  return bounds_;
+}
+
+inline const Bounds<float3> &Node::bounds_orig() const
+{
+  return bounds_orig_;
+}
 
 inline Span<int> MeshNode::faces() const
 {
