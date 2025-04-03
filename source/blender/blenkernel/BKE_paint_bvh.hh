@@ -63,9 +63,8 @@ class Node : NonCopyable {
 
  public:
   enum Flags : uint32_t {
+    None = 0,
     Leaf = 1 << 0,
-
-    UpdateRedraw = 1 << 5,
 
     FullyHidden = 1 << 10,
     FullyMasked = 1 << 11,
@@ -89,7 +88,7 @@ class Node : NonCopyable {
 
   /* Indicates whether this node is a leaf or not; also used for
    * marking various updates that need to be applied. */
-  Flags flag_ = UpdateRedraw;
+  Flags flag_ = None;
 
   /**
    * Used for ray-casting: how close the bounding-box is to the ray point.
@@ -369,15 +368,15 @@ bool node_raycast_grids(const SubdivCCG &subdiv_ccg,
 bool node_raycast_bmesh(BMeshNode &node,
                         const float3 &ray_start,
                         const float3 &ray_normal,
-                        IsectRayPrecalc *isect_precalc,
+                        const IsectRayPrecalc *isect_precalc,
                         float *depth,
                         bool use_original,
                         BMVert **r_active_vertex,
                         float3 &r_face_normal);
 
-bool raycast_node_detail_bmesh(BMeshNode &node,
+bool raycast_node_detail_bmesh(const BMeshNode &node,
                                const float3 &ray_start,
-                               IsectRayPrecalc *isect_precalc,
+                               const IsectRayPrecalc *isect_precalc,
                                float *depth,
                                float *r_edge_length);
 
@@ -466,8 +465,8 @@ bool bmesh_update_topology(BMesh &bm,
                            PBVHTopologyUpdateMode mode,
                            float min_edge_len,
                            float max_edge_len,
-                           const float center[3],
-                           const float view_normal[3],
+                           const float3 &center,
+                           const std::optional<float3> &view_normal,
                            float radius,
                            bool use_frontface,
                            bool use_projected);
@@ -545,7 +544,6 @@ void update_normals_from_eval(Object &object_eval, Tree &pbvh);
 
 }  // namespace blender::bke::pbvh
 
-blender::Bounds<blender::float3> BKE_pbvh_redraw_BB(const blender::bke::pbvh::Tree &pbvh);
 namespace blender::bke::pbvh {
 IndexMask nodes_to_face_selection_grids(const SubdivCCG &subdiv_ccg,
                                         Span<GridsNode> nodes,

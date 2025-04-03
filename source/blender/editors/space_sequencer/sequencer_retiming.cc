@@ -339,6 +339,8 @@ static bool freeze_frame_add_new_for_seq(const bContext *C,
   }
 
   deselect_all_strips(scene);
+  sequencer_select_do_updates(C, scene);
+
   seq::retiming_selection_append(freeze);
 
   seq::relations_invalidate_cache_raw(scene, strip);
@@ -463,6 +465,8 @@ static bool transition_add_new_for_seq(const bContext *C,
   }
 
   deselect_all_strips(scene);
+  sequencer_select_do_updates(C, scene);
+
   seq::retiming_selection_append(transition);
 
   seq::relations_invalidate_cache_raw(scene, strip);
@@ -603,7 +607,7 @@ void SEQUENCER_OT_retiming_key_delete(wmOperatorType *ot)
   /* Identifiers. */
   ot->name = "Delete Retiming Keys";
   ot->idname = "SEQUENCER_OT_retiming_key_delete";
-  ot->description = "Delete selected strips from the sequencer";
+  ot->description = "Delete selected retiming keys from the sequencer";
 
   /* Api callbacks. */
   ot->invoke = sequencer_retiming_key_delete_invoke;
