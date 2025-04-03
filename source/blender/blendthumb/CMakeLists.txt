@@ -42,7 +42,8 @@ if(WIN32)
   # blenthumb, but will cause load issues since the debug linker will not eleminate them.
   # Link with /OPT:ref to force elmination of those unused dependencies this is already
   # enabled by default on the release mode flags.
-  set_target_properties(BlendThumb PROPERTIES LINK_FLAGS_DEBUG "/NODEFAULTLIB:msvcrt /OPT:ref")
+  set_target_properties(BlendThumb PROPERTIES LINK_FLAGS "/OPT:ref")
+  set_target_properties(BlendThumb PROPERTIES LINK_FLAGS_DEBUG "/NODEFAULTLIB:msvcrt")
   set_target_properties(BlendThumb PROPERTIES VS_GLOBAL_VcpkgEnabled "false")
 
 elseif(APPLE)
