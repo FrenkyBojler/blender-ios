@@ -857,13 +857,13 @@ void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
   /* Header */
   uiLayout *header = uiLayoutRow(col, false);
   uiLayoutSetAlignment(header, UI_LAYOUT_ALIGN_LEFT);
-  UI_block_emboss_set(block, UI_EMBOSS_NONE);
+  UI_block_emboss_set(block, ui::EmbossType::None);
   int icon = tree_view.is_filtering_collapsed() ? ICON_DISCLOSURE_TRI_RIGHT :
                                                   ICON_DISCLOSURE_TRI_DOWN;
   uiBut *but = uiDefIconBut(
       block, UI_BTYPE_ICON_TOGGLE, 0, icon, 0, 0, UI_UNIT_X, UI_UNIT_Y * 0.5, nullptr, 0, 0, "");
   UI_but_func_set(but, set_filtering_collapsed_fn, nullptr, nullptr);
-  UI_block_emboss_set(block, UI_EMBOSS);
+  UI_block_emboss_set(block, ui::EmbossType::Emboss);
 
   if (!tree_view.is_filtering_collapsed()) {
     uiLayout *filter_layout = uiLayoutRow(col, false);
