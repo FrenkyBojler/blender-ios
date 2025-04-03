@@ -353,6 +353,16 @@ static StructureType merge_status_left_to_right(const StructureType a, const Str
   {
     return StructureType::Field;
   }
+  if ((a == StructureType::Dynamic && b == StructureType::Grid) ||
+      (a == StructureType::Grid && b == StructureType::Dynamic))
+  {
+    return StructureType::Grid;
+  }
+  if ((a == StructureType::Field && b == StructureType::Grid) ||
+      (a == StructureType::Grid && b == StructureType::Field))
+  {
+    return StructureType::Grid;
+  }
   if ((a == StructureType::Single && b == StructureType::Field) ||
       (a == StructureType::Field && b == StructureType::Single))
   {
