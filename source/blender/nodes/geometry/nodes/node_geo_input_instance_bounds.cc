@@ -43,19 +43,30 @@ class InstanceBoundsField final : public bke::InstancesFieldInput {
     bke::Instances &const_instances = const_cast<bke::Instances &>(instances);
     const_instances.ensure_geometry_instances();
 
-    for (const int handle : instances.references().index_range()) {
-      const blender::bke::InstanceReference &reference = instances.references()[handle];
+    IndexMaskMemory memory;
+    IndexMask handles_mask = handles.index_range();
+
+    if (mask.to_range() != handles.index_range()) {
+      Array<bool> reference_is_in_mask(instances.references_num());
+      mask.foreach_index(GrainSize(2048),
+                         [&](const int index) { reference_is_in_mask[handles[index]] = true; });
+      handles_mask = IndexMask::from_bools(reference_is_in_mask.as_span(), memory);
+    }
+
+    handles_mask.foreach_index(GrainSize(1024), [&](const int reference_index) {
+      const blender::bke::InstanceReference &reference = instances.references()[reference_index];
       if (reference.type() == blender::bke::InstanceReference::Type::GeometrySet) {
-        GeometrySet &instance_geometry = const_instances.geometry_set_from_reference(handle);
+        GeometrySet &instance_geometry = const_instances.geometry_set_from_reference(
+            reference_index);
 
         std::optional<Bounds<float3>> sub_bounds =
             instance_geometry.compute_boundbox_without_instances(use_radius_);
 
         if (sub_bounds) {
-          bounds[handle] = return_max_ ? sub_bounds->min : sub_bounds->max;
+          bounds[reference_index] = return_max_ ? sub_bounds->min : sub_bounds->max;
         }
       }
-    }
+    });
 
     mask.foreach_index([&](const int instance_index) {
       output_bounds[instance_index] = bounds[handles[instance_index]];
