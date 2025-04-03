@@ -21,6 +21,16 @@ from . import blender_asset_library_openapi as api_models
 API_VERSION = 1
 SCHEMA_VERSION = "1.0.0"
 
+DEFAULT_METADATA = api_models.AssetLibraryMeta(
+    api_version=API_VERSION,
+    name="Your Asset Library",
+    contact=api_models.Contact(
+        name="Your Name",
+        url="https://example.org/",
+        email="example@example.org",
+    ),
+)
+
 logger = logging.getLogger()
 
 
@@ -72,27 +82,26 @@ def _write_json_files(
 ) -> None:
     outdir = arguments.repository
 
-    def _save_json(model: pydantic.BaseModel, filename: str) -> None:
+    def _save_json(model: pydantic.BaseModel, json_path: str | Path) -> None:
         as_json = model.model_dump_json(indent=2, exclude_defaults=True)
 
-        json_path = outdir / filename
+        if isinstance(json_path, str):
+            json_path = outdir / json_path
         json_path.parent.mkdir(exist_ok=True, parents=True)
 
         logger.info("Writing %s", json_path)
         with json_path.open("wt") as json_file:
             json_file.write(as_json)
 
-    # Metadata file /asset-library-meta.json:
-    metadata = api_models.AssetLibraryMeta(
-        api_version=API_VERSION,
-        name="Your Asset Library",  # TODO: get from CLI/config? or load from pre-existing JSON?
-        contact=api_models.Contact(
-            name="Your Local Admin",  # TODO: get from CLI/config? or load from pre-existing JSON?
-            url="https://awesomesauce.blender.org/",  # TODO: get from CLI/config? or load from pre-existing JSON?
-            email="example@example.org",
-        ),
-    )
-    _save_json(metadata, "asset-library-meta.json")
+    # Metadata file /asset-library-meta.json. This gets loaded if it exists.
+    meta_json_path = outdir / "asset-library-meta.json"
+    try:
+        metadata = _toplevel_metadata(meta_json_path)
+    except pydantic.ValidationError as ex:
+        msg = "Metadata file {} could not be parsed as JSON: {}"
+        logger.error(msg.format(meta_json_path, ex))
+    else:
+        _save_json(metadata, meta_json_path)
 
     total_asset_count = sum(len(page.assets) for page in asset_index_pages)
 
@@ -115,6 +124,31 @@ def _write_json_files(
     # Library Index Page /v1/assets-{page}.json
     for page_index, page in enumerate(asset_index_pages):
         _save_json(page, f"v{API_VERSION}/assets-{page_index:05}.json")
+
+
+def _toplevel_metadata(json_path: Path) -> api_models.AssetLibraryMeta:
+    """Construct the top-level metadata.
+
+    Returns the metadata, or raises a pydantic.ValidationError if it is not
+    valid JSON.
+
+    Writing is considered safe, except when the file exists but does not contain
+    valid JSON. In that case, it's better to warn about this and keep the file
+    as-is, so that the user can either delete or fix it.
+    """
+    try:
+        json_data = json_path.read_bytes()
+    except IOError:
+        # Ignore any read errors, as this likely means the file simply doesn't exist.
+        return DEFAULT_METADATA
+
+    metadata = api_models.AssetLibraryMeta.model_validate_json(json_data)
+
+    # Update the metadata to declare the API version for which we're going to
+    # write the data.
+    metadata.api_version = API_VERSION
+
+    return metadata
 
 
 def _parse_arguments(args: list[str]) -> CLIArguments:
