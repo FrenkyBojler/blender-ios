@@ -23,11 +23,12 @@ struct bContext;
 
 struct IconDecorationIcon {
   int icon_id;
-  uchar icon_color[4] = {0};
+  float icon_color[4] = {0};
 };
 
 struct IconDecorationBackground {
   float radius;        /* 0 (sharp corners) - 1 (circle). */
+  float padding;       /* Pixels. */
   float outline_width; /* 1 = regular line width. */
   uchar inner_color[4] = {0};
   uchar outline_color[4] = {0};

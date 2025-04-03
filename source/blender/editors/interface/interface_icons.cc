@@ -1732,6 +1732,20 @@ static void icon_draw_size(float x,
 
     color[3] *= alpha;
 
+    if (decoration && decoration->background.has_value()) {
+      rctf rect = {x, x + w, y, y + h};
+      BLI_rctf_pad(&rect, decoration->background->padding, decoration->background->padding);
+      const float radius = (float(h) / 2.0f) + decoration->background->padding;
+      UI_draw_roundbox_corner_set(UI_CNR_ALL);
+      UI_draw_roundbox_4fv_ex(&rect,
+                              decoration->background->inner_color,
+                              nullptr,
+                              1.0f,
+                              decoration->background->outline_color,
+                              decoration->background->outline_width * U.pixelsize,
+                              radius);
+    }
+
     if (di->type == ICON_TYPE_SVG_COLOR) {
       BLF_draw_svg_icon(uint(icon_id),
                         x,
@@ -1758,7 +1772,9 @@ static void icon_draw_size(float x,
                         x + (float(draw_size) * 0.35f / aspect),
                         y + (float(draw_size) * 0.35f / aspect),
                         float(draw_size) * 0.75f / aspect,
-                        nullptr,
+                        decoration->icon_overlay->icon_color[3] != 0.0f ?
+                            decoration->icon_overlay->icon_color :
+                            nullptr,
                         outline_intensity,
                         true);
     }
