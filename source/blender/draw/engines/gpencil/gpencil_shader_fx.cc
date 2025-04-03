@@ -24,8 +24,6 @@
 
 namespace blender::draw::gpencil {
 
-using namespace blender::draw;
-
 /* verify if this fx is active */
 static bool effect_is_active(ShaderFxData *fx, bool is_edit, bool is_viewport)
 {
@@ -46,53 +44,36 @@ static bool effect_is_active(ShaderFxData *fx, bool is_edit, bool is_viewport)
   return false;
 }
 
-struct gpIterVfxData {
-  Instance *inst;
-  GPENCIL_tObject *tgp_ob;
-  GPUFrameBuffer **target_fb;
-  GPUFrameBuffer **source_fb;
-  GPUTexture **target_color_tx;
-  GPUTexture **source_color_tx;
-  GPUTexture **target_reveal_tx;
-  GPUTexture **source_reveal_tx;
-};
-
-static PassSimple &gpencil_vfx_pass_create(
-    const char *name,
-    DRWState state,
-    gpIterVfxData *iter,
-    GPUShader *sh,
-    GPUSamplerState sampler = GPUSamplerState::internal_sampler())
+PassSimple &Instance::vfx_pass_create(
+    const char *name, DRWState state, GPUShader *sh, tObject *tgp_ob, GPUSamplerState sampler)
 {
   UNUSED_VARS(name);
 
-  int64_t id = iter->inst->gp_vfx_pool->append_and_get_index({});
-  GPENCIL_tVfx *tgp_vfx = &(*iter->inst->gp_vfx_pool)[id];
-  tgp_vfx->target_fb = iter->target_fb;
+  int64_t id = gp_vfx_pool->append_and_get_index({});
+  tVfx &tgp_vfx = (*gp_vfx_pool)[id];
+  tgp_vfx.target_fb = vfx_swapchain_.next().fb;
 
-  PassSimple &pass = *tgp_vfx->vfx_ps;
+  PassSimple &pass = *tgp_vfx.vfx_ps;
   pass.init();
   pass.state_set(state);
   pass.shader_set(sh);
-  pass.bind_texture("colorBuf", iter->source_color_tx, sampler);
-  pass.bind_texture("revealBuf", iter->source_reveal_tx, sampler);
+  pass.bind_texture("colorBuf", vfx_swapchain_.current().color_tx, sampler);
+  pass.bind_texture("revealBuf", vfx_swapchain_.current().reveal_tx, sampler);
 
-  std::swap(iter->target_fb, iter->source_fb);
-  std::swap(iter->target_color_tx, iter->source_color_tx);
-  std::swap(iter->target_reveal_tx, iter->source_reveal_tx);
+  vfx_swapchain_.swap();
 
-  BLI_LINKS_APPEND(&iter->tgp_ob->vfx, tgp_vfx);
+  BLI_LINKS_APPEND(&tgp_ob->vfx, &tgp_vfx);
 
   return pass;
 }
 
-static void gpencil_vfx_blur(BlurShaderFxData *fx, Object *ob, gpIterVfxData *iter)
+void Instance::vfx_blur_sync(BlurShaderFxData *fx, Object *ob, tObject *tgp_ob)
 {
   if ((fx->samples == 0.0f) || (fx->radius[0] == 0.0f && fx->radius[1] == 0.0f)) {
     return;
   }
 
-  if ((fx->flag & FX_BLUR_DOF_MODE) && iter->inst->camera == nullptr) {
+  if ((fx->flag & FX_BLUR_DOF_MODE) && this->camera == nullptr) {
     /* No blur outside camera view (or when DOF is disabled on the camera). */
     return;
   }
@@ -102,18 +83,18 @@ static void gpencil_vfx_blur(BlurShaderFxData *fx, Object *ob, gpIterVfxData *it
 
   float4x4 winmat, persmat;
   float blur_size[2] = {fx->radius[0], fx->radius[1]};
-  persmat = blender::draw::View::default_get().persmat();
+  persmat = View::default_get().persmat();
   const float w = fabsf(mul_project_m4_v3_zfac(persmat.ptr(), ob->object_to_world().location()));
 
   if (fx->flag & FX_BLUR_DOF_MODE) {
     /* Compute circle of confusion size. */
-    float coc = (iter->inst->dof_params[0] / -w) - iter->inst->dof_params[1];
+    float coc = (this->dof_params[0] / -w) - this->dof_params[1];
     copy_v2_fl(blur_size, fabsf(coc));
   }
   else {
     /* Modify by distance to camera and object scale. */
-    winmat = blender::draw::View::default_get().winmat();
-    const float2 vp_size = DRW_viewport_size_get();
+    winmat = View::default_get().winmat();
+    const float2 vp_size = this->draw_ctx->viewport_size_get();
     float world_pixel_scale = 1.0f / GPENCIL_PIXEL_FACTOR;
     float scale = mat4_to_scale(ob->object_to_world().ptr());
     float distance_factor = world_pixel_scale * scale * winmat[1][1] * vp_size[1] / w;
@@ -124,25 +105,25 @@ static void gpencil_vfx_blur(BlurShaderFxData *fx, Object *ob, gpIterVfxData *it
 
   DRWState state = DRW_STATE_WRITE_COLOR;
   if (blur_size[0] > 0.0f) {
-    auto &grp = gpencil_vfx_pass_create("Fx Blur H", state, iter, sh);
+    auto &grp = vfx_pass_create("Fx Blur H", state, sh, tgp_ob);
     grp.push_constant("offset", float2(blur_size[0] * c, blur_size[0] * s));
     grp.push_constant("sampCount", max_ii(1, min_ii(fx->samples, blur_size[0])));
     grp.draw_procedural(GPU_PRIM_TRIS, 1, 3);
   }
   if (blur_size[1] > 0.0f) {
-    auto &grp = gpencil_vfx_pass_create("Fx Blur V", state, iter, sh);
+    auto &grp = vfx_pass_create("Fx Blur V", state, sh, tgp_ob);
     grp.push_constant("offset", float2(-blur_size[1] * s, blur_size[1] * c));
     grp.push_constant("sampCount", max_ii(1, min_ii(fx->samples, blur_size[1])));
     grp.draw_procedural(GPU_PRIM_TRIS, 1, 3);
   }
 }
 
-static void gpencil_vfx_colorize(ColorizeShaderFxData *fx, Object * /*ob*/, gpIterVfxData *iter)
+void Instance::vfx_colorize_sync(ColorizeShaderFxData *fx, Object * /*ob*/, tObject *tgp_ob)
 {
   GPUShader *sh = ShaderCache::get().fx_colorize.get();
 
   DRWState state = DRW_STATE_WRITE_COLOR;
-  auto &grp = gpencil_vfx_pass_create("Fx Colorize", state, iter, sh);
+  auto &grp = vfx_pass_create("Fx Colorize", state, sh, tgp_ob);
   grp.push_constant("lowColor", float3(fx->low_color));
   grp.push_constant("highColor", float3(fx->high_color));
   grp.push_constant("factor", fx->factor);
@@ -150,7 +131,7 @@ static void gpencil_vfx_colorize(ColorizeShaderFxData *fx, Object * /*ob*/, gpIt
   grp.draw_procedural(GPU_PRIM_TRIS, 1, 3);
 }
 
-static void gpencil_vfx_flip(FlipShaderFxData *fx, Object * /*ob*/, gpIterVfxData *iter)
+void Instance::vfx_flip_sync(FlipShaderFxData *fx, Object * /*ob*/, tObject *tgp_ob)
 {
   float axis_flip[2];
   axis_flip[0] = (fx->flag & FX_FLIP_HORIZONTAL) ? -1.0f : 1.0f;
@@ -159,21 +140,21 @@ static void gpencil_vfx_flip(FlipShaderFxData *fx, Object * /*ob*/, gpIterVfxDat
   GPUShader *sh = ShaderCache::get().fx_transform.get();
 
   DRWState state = DRW_STATE_WRITE_COLOR;
-  auto &grp = gpencil_vfx_pass_create("Fx Flip", state, iter, sh);
+  auto &grp = vfx_pass_create("Fx Flip", state, sh, tgp_ob);
   grp.push_constant("axisFlip", float2(axis_flip));
   grp.push_constant("waveOffset", float2(0.0f, 0.0f));
   grp.push_constant("swirlRadius", 0.0f);
   grp.draw_procedural(GPU_PRIM_TRIS, 1, 3);
 }
 
-static void gpencil_vfx_rim(RimShaderFxData *fx, Object *ob, gpIterVfxData *iter)
+void Instance::vfx_rim_sync(RimShaderFxData *fx, Object *ob, tObject *tgp_ob)
 {
   float4x4 winmat, persmat;
   float offset[2] = {float(fx->offset[0]), float(fx->offset[1])};
   float blur_size[2] = {float(fx->blur[0]), float(fx->blur[1])};
-  winmat = blender::draw::View::default_get().winmat();
-  persmat = blender::draw::View::default_get().persmat();
-  const float2 vp_size = DRW_viewport_size_get();
+  winmat = View::default_get().winmat();
+  persmat = View::default_get().persmat();
+  const float2 vp_size = this->draw_ctx->viewport_size_get();
   const float2 vp_size_inv = 1.0f / vp_size;
 
   const float w = fabsf(mul_project_m4_v3_zfac(persmat.ptr(), ob->object_to_world().location()));
@@ -190,7 +171,7 @@ static void gpencil_vfx_rim(RimShaderFxData *fx, Object *ob, gpIterVfxData *iter
 
   {
     DRWState state = DRW_STATE_WRITE_COLOR;
-    auto &grp = gpencil_vfx_pass_create("Fx Rim H", state, iter, sh);
+    auto &grp = vfx_pass_create("Fx Rim H", state, sh, tgp_ob);
     grp.push_constant("blurDir", float2(blur_size[0] * vp_size_inv[0], 0.0f));
     grp.push_constant("uvOffset", float2(offset));
     grp.push_constant("sampCount", max_ii(1, min_ii(fx->samples, blur_size[0])));
@@ -220,7 +201,7 @@ static void gpencil_vfx_rim(RimShaderFxData *fx, Object *ob, gpIterVfxData *iter
 
     zero_v2(offset);
 
-    auto &grp = gpencil_vfx_pass_create("Fx Rim V", state, iter, sh);
+    auto &grp = vfx_pass_create("Fx Rim V", state, sh, tgp_ob);
     grp.push_constant("blurDir", float2(0.0f, blur_size[1] * vp_size_inv[1]));
     grp.push_constant("uvOffset", float2(offset));
     grp.push_constant("rimColor", float3(fx->rim_rgb));
@@ -239,13 +220,13 @@ static void gpencil_vfx_rim(RimShaderFxData *fx, Object *ob, gpIterVfxData *iter
   }
 }
 
-static void gpencil_vfx_pixelize(PixelShaderFxData *fx, Object *ob, gpIterVfxData *iter)
+void Instance::vfx_pixelize_sync(PixelShaderFxData *fx, Object *ob, tObject *tgp_ob)
 {
   float4x4 persmat, winmat;
   float ob_center[3], pixsize_uniform[2];
-  winmat = blender::draw::View::default_get().winmat();
-  persmat = blender::draw::View::default_get().persmat();
-  const float2 vp_size = DRW_viewport_size_get();
+  winmat = View::default_get().winmat();
+  persmat = View::default_get().persmat();
+  const float2 vp_size = this->draw_ctx->viewport_size_get();
   const float2 vp_size_inv = 1.0f / vp_size;
   float pixel_size[2] = {float(fx->size[0]), float(fx->size[1])};
   mul_v2_v2(pixel_size, vp_size_inv);
@@ -279,7 +260,7 @@ static void gpencil_vfx_pixelize(PixelShaderFxData *fx, Object *ob, gpIterVfxDat
     GPUSamplerState sampler = (use_antialiasing) ? GPUSamplerState::internal_sampler() :
                                                    GPUSamplerState::default_sampler();
 
-    auto &grp = gpencil_vfx_pass_create("Fx Pixelize X", state, iter, sh, sampler);
+    auto &grp = vfx_pass_create("Fx Pixelize X", state, sh, tgp_ob, sampler);
     grp.push_constant("targetPixelSize", float2(pixsize_uniform));
     grp.push_constant("targetPixelOffset", float2(ob_center));
     grp.push_constant("accumOffset", float2(pixel_size[0], 0.0f));
@@ -292,7 +273,7 @@ static void gpencil_vfx_pixelize(PixelShaderFxData *fx, Object *ob, gpIterVfxDat
     GPUSamplerState sampler = (use_antialiasing) ? GPUSamplerState::internal_sampler() :
                                                    GPUSamplerState::default_sampler();
     copy_v2_fl2(pixsize_uniform, vp_size_inv[0], pixel_size[1]);
-    auto &grp = gpencil_vfx_pass_create("Fx Pixelize Y", state, iter, sh, sampler);
+    auto &grp = vfx_pass_create("Fx Pixelize Y", state, sh, tgp_ob, sampler);
     grp.push_constant("targetPixelSize", float2(pixsize_uniform));
     grp.push_constant("accumOffset", float2(0.0f, pixel_size[1]));
     int samp_count = (pixel_size[1] / vp_size_inv[1] > 3.0) ? 2 : 1;
@@ -301,7 +282,7 @@ static void gpencil_vfx_pixelize(PixelShaderFxData *fx, Object *ob, gpIterVfxDat
   }
 }
 
-static void gpencil_vfx_shadow(ShadowShaderFxData *fx, Object *ob, gpIterVfxData *iter)
+void Instance::vfx_shadow_sync(ShadowShaderFxData *fx, Object *ob, tObject *tgp_ob)
 {
   const bool use_obj_pivot = (fx->flag & FX_SHADOW_USE_OBJECT) != 0;
   const bool use_wave = (fx->flag & FX_SHADOW_USE_WAVE) != 0;
@@ -311,9 +292,9 @@ static void gpencil_vfx_shadow(ShadowShaderFxData *fx, Object *ob, gpIterVfxData
   float wave_ofs[3], wave_dir[3], wave_phase, blur_dir[2], tmp[2];
   float offset[2] = {float(fx->offset[0]), float(fx->offset[1])};
   float blur_size[2] = {float(fx->blur[0]), float(fx->blur[1])};
-  winmat = blender::draw::View::default_get().winmat();
-  persmat = blender::draw::View::default_get().persmat();
-  const float2 vp_size = DRW_viewport_size_get();
+  winmat = View::default_get().winmat();
+  persmat = View::default_get().persmat();
+  const float2 vp_size = this->draw_ctx->viewport_size_get();
   const float2 vp_size_inv = 1.0f / vp_size;
   const float ratio = vp_size_inv[1] / vp_size_inv[0];
 
@@ -339,11 +320,11 @@ static void gpencil_vfx_shadow(ShadowShaderFxData *fx, Object *ob, gpIterVfxData
   /* UV transform matrix. (loc, rot, scale) Sent to shader as 2x3 matrix. */
   unit_m4(uv_mat.ptr());
   translate_m4(uv_mat.ptr(), rot_center[0], rot_center[1], 0.0f);
-  rescale_m4(uv_mat.ptr(), blender::float3{1.0f / fx->scale[0], 1.0f / fx->scale[1], 1.0f});
+  rescale_m4(uv_mat.ptr(), float3{1.0f / fx->scale[0], 1.0f / fx->scale[1], 1.0f});
   translate_m4(uv_mat.ptr(), -offset[0], -offset[1], 0.0f);
-  rescale_m4(uv_mat.ptr(), blender::float3{1.0f / ratio, 1.0f, 1.0f});
+  rescale_m4(uv_mat.ptr(), float3{1.0f / ratio, 1.0f, 1.0f});
   rotate_m4(uv_mat.ptr(), 'Z', fx->rotation);
-  rescale_m4(uv_mat.ptr(), blender::float3{ratio, 1.0f, 1.0f});
+  rescale_m4(uv_mat.ptr(), float3{ratio, 1.0f, 1.0f});
   translate_m4(uv_mat.ptr(), -rot_center[0], -rot_center[1], 0.0f);
 
   if (use_wave) {
@@ -382,7 +363,7 @@ static void gpencil_vfx_shadow(ShadowShaderFxData *fx, Object *ob, gpIterVfxData
 
   {
     DRWState state = DRW_STATE_WRITE_COLOR;
-    auto &grp = gpencil_vfx_pass_create("Fx Shadow H", state, iter, sh);
+    auto &grp = vfx_pass_create("Fx Shadow H", state, sh, tgp_ob);
     grp.push_constant("blurDir", float2(blur_dir));
     grp.push_constant("waveDir", float2(wave_dir));
     grp.push_constant("waveOffset", float2(wave_ofs));
@@ -405,7 +386,7 @@ static void gpencil_vfx_shadow(ShadowShaderFxData *fx, Object *ob, gpIterVfxData
 
   {
     DRWState state = DRW_STATE_WRITE_COLOR | DRW_STATE_BLEND_ALPHA_PREMUL;
-    auto &grp = gpencil_vfx_pass_create("Fx Shadow V", state, iter, sh);
+    auto &grp = vfx_pass_create("Fx Shadow V", state, sh, tgp_ob);
     grp.push_constant("shadowColor", float4(fx->shadow_rgba));
     grp.push_constant("blurDir", float2(blur_dir));
     grp.push_constant("waveOffset", float2(wave_ofs));
@@ -418,7 +399,7 @@ static void gpencil_vfx_shadow(ShadowShaderFxData *fx, Object *ob, gpIterVfxData
   }
 }
 
-static void gpencil_vfx_glow(GlowShaderFxData *fx, Object * /*ob*/, gpIterVfxData *iter)
+void Instance::vfx_glow_sync(GlowShaderFxData *fx, Object * /*ob*/, tObject *tgp_ob)
 {
   const bool use_glow_under = (fx->flag & FX_GLOW_USE_ALPHA) != 0;
   const float s = sin(fx->rotation);
@@ -442,7 +423,7 @@ static void gpencil_vfx_glow(GlowShaderFxData *fx, Object * /*ob*/, gpIterVfxDat
   }
 
   DRWState state = DRW_STATE_WRITE_COLOR;
-  auto &grp = gpencil_vfx_pass_create("Fx Glow H", state, iter, sh);
+  auto &grp = vfx_pass_create("Fx Glow H", state, sh, tgp_ob);
   grp.push_constant("offset", float2(fx->blur[0] * c, fx->blur[0] * s));
   grp.push_constant("sampCount", max_ii(1, min_ii(fx->samples, fx->blur[0])));
   grp.push_constant("threshold", float4(ref_col));
@@ -473,29 +454,29 @@ static void gpencil_vfx_glow(GlowShaderFxData *fx, Object * /*ob*/, gpIterVfxDat
    * revealage in alpha channel. */
   if (fx->blend_mode == eGplBlendMode_Subtract || use_glow_under) {
     /* For this effect to propagate, we need a signed floating point buffer. */
-    iter->inst->use_signed_fb = true;
+    this->use_signed_fb = true;
   }
 
   {
-    auto &grp = gpencil_vfx_pass_create("Fx Glow V", state, iter, sh);
+    auto &grp = vfx_pass_create("Fx Glow V", state, sh, tgp_ob);
     grp.push_constant("offset", float2(-fx->blur[1] * s, fx->blur[1] * c));
     grp.push_constant("sampCount", max_ii(1, min_ii(fx->samples, fx->blur[0])));
-    grp.push_constant("threshold", blender::float4{-1.0f, -1.0f, -1.0f, -1.0});
-    grp.push_constant("glowColor", blender::float4{1.0f, 1.0f, 1.0f, fx->glow_color[3]});
+    grp.push_constant("threshold", float4{-1.0f, -1.0f, -1.0f, -1.0});
+    grp.push_constant("glowColor", float4{1.0f, 1.0f, 1.0f, fx->glow_color[3]});
     grp.push_constant("firstPass", false);
     grp.push_constant("blendMode", fx->blend_mode);
     grp.draw_procedural(GPU_PRIM_TRIS, 1, 3);
   }
 }
 
-static void gpencil_vfx_wave(WaveShaderFxData *fx, Object *ob, gpIterVfxData *iter)
+void Instance::vfx_wave_sync(WaveShaderFxData *fx, Object *ob, tObject *tgp_ob)
 {
   float4x4 winmat, persmat;
   float wave_center[3];
   float wave_ofs[3], wave_dir[3], wave_phase;
-  winmat = blender::draw::View::default_get().winmat();
-  persmat = blender::draw::View::default_get().persmat();
-  const float2 vp_size = DRW_viewport_size_get();
+  winmat = View::default_get().winmat();
+  persmat = View::default_get().persmat();
+  const float2 vp_size = this->draw_ctx->viewport_size_get();
   const float2 vp_size_inv = 1.0f / vp_size;
 
   const float w = fabsf(mul_project_m4_v3_zfac(persmat.ptr(), ob->object_to_world().location()));
@@ -533,7 +514,7 @@ static void gpencil_vfx_wave(WaveShaderFxData *fx, Object *ob, gpIterVfxData *it
   GPUShader *sh = ShaderCache::get().fx_transform.get();
 
   DRWState state = DRW_STATE_WRITE_COLOR;
-  auto &grp = gpencil_vfx_pass_create("Fx Wave", state, iter, sh);
+  auto &grp = vfx_pass_create("Fx Wave", state, sh, tgp_ob);
   grp.push_constant("axisFlip", float2(1.0f, 1.0f));
   grp.push_constant("waveDir", float2(wave_dir));
   grp.push_constant("waveOffset", float2(wave_ofs));
@@ -542,7 +523,7 @@ static void gpencil_vfx_wave(WaveShaderFxData *fx, Object *ob, gpIterVfxData *it
   grp.draw_procedural(GPU_PRIM_TRIS, 1, 3);
 }
 
-static void gpencil_vfx_swirl(SwirlShaderFxData *fx, Object * /*ob*/, gpIterVfxData *iter)
+void Instance::vfx_swirl_sync(SwirlShaderFxData *fx, Object * /*ob*/, tObject *tgp_ob)
 {
   if (fx->object == nullptr) {
     return;
@@ -550,9 +531,9 @@ static void gpencil_vfx_swirl(SwirlShaderFxData *fx, Object * /*ob*/, gpIterVfxD
 
   float4x4 winmat, persmat;
   float swirl_center[3];
-  winmat = blender::draw::View::default_get().winmat();
-  persmat = blender::draw::View::default_get().persmat();
-  const float2 vp_size = DRW_viewport_size_get();
+  winmat = View::default_get().winmat();
+  persmat = View::default_get().persmat();
+  const float2 vp_size = this->draw_ctx->viewport_size_get();
 
   copy_v3_v3(swirl_center, fx->object->object_to_world().location());
 
@@ -577,7 +558,7 @@ static void gpencil_vfx_swirl(SwirlShaderFxData *fx, Object * /*ob*/, gpIterVfxD
   GPUShader *sh = ShaderCache::get().fx_transform.get();
 
   DRWState state = DRW_STATE_WRITE_COLOR;
-  auto &grp = gpencil_vfx_pass_create("Fx Flip", state, iter, sh);
+  auto &grp = vfx_pass_create("Fx Flip", state, sh, tgp_ob);
   grp.push_constant("axisFlip", float2(1.0f, 1.0f));
   grp.push_constant("waveOffset", float2(0.0f, 0.0f));
   grp.push_constant("swirlCenter", float2(swirl_center));
@@ -586,53 +567,49 @@ static void gpencil_vfx_swirl(SwirlShaderFxData *fx, Object * /*ob*/, gpIterVfxD
   grp.draw_procedural(GPU_PRIM_TRIS, 1, 3);
 }
 
-void gpencil_vfx_cache_populate(Instance *inst,
-                                Object *ob,
-                                GPENCIL_tObject *tgp_ob,
-                                const bool is_edit_mode)
+void Instance::vfx_sync(Object *ob, tObject *tgp_ob)
 {
-  /* These may not be allocated yet, use address of future pointer. */
-  gpIterVfxData iter{};
-  iter.inst = inst;
-  iter.tgp_ob = tgp_ob;
-  iter.target_fb = &inst->layer_fb;
-  iter.source_fb = &inst->object_fb;
-  iter.target_color_tx = &inst->color_layer_tx;
-  iter.source_color_tx = &inst->color_object_tx;
-  iter.target_reveal_tx = &inst->reveal_layer_tx;
-  iter.source_reveal_tx = &inst->reveal_object_tx;
+  const bool is_edit_mode = ELEM(
+      ob->mode, OB_MODE_EDIT, OB_MODE_SCULPT_GREASE_PENCIL, OB_MODE_WEIGHT_GREASE_PENCIL);
+
+  vfx_swapchain_.next().fb = &layer_fb;
+  vfx_swapchain_.next().color_tx = &color_layer_tx;
+  vfx_swapchain_.next().reveal_tx = &reveal_layer_tx;
+  vfx_swapchain_.current().fb = &object_fb;
+  vfx_swapchain_.current().color_tx = &color_object_tx;
+  vfx_swapchain_.current().reveal_tx = &reveal_object_tx;
 
   /* If simplify enabled, nothing more to do. */
-  if (!inst->simplify_fx) {
+  if (!this->simplify_fx) {
     LISTBASE_FOREACH (ShaderFxData *, fx, &ob->shader_fx) {
-      if (effect_is_active(fx, is_edit_mode, inst->is_viewport)) {
+      if (effect_is_active(fx, is_edit_mode, this->is_viewport)) {
         switch (fx->type) {
           case eShaderFxType_Blur:
-            gpencil_vfx_blur((BlurShaderFxData *)fx, ob, &iter);
+            vfx_blur_sync((BlurShaderFxData *)fx, ob, tgp_ob);
             break;
           case eShaderFxType_Colorize:
-            gpencil_vfx_colorize((ColorizeShaderFxData *)fx, ob, &iter);
+            vfx_colorize_sync((ColorizeShaderFxData *)fx, ob, tgp_ob);
             break;
           case eShaderFxType_Flip:
-            gpencil_vfx_flip((FlipShaderFxData *)fx, ob, &iter);
+            vfx_flip_sync((FlipShaderFxData *)fx, ob, tgp_ob);
             break;
           case eShaderFxType_Pixel:
-            gpencil_vfx_pixelize((PixelShaderFxData *)fx, ob, &iter);
+            vfx_pixelize_sync((PixelShaderFxData *)fx, ob, tgp_ob);
             break;
           case eShaderFxType_Rim:
-            gpencil_vfx_rim((RimShaderFxData *)fx, ob, &iter);
+            vfx_rim_sync((RimShaderFxData *)fx, ob, tgp_ob);
             break;
           case eShaderFxType_Shadow:
-            gpencil_vfx_shadow((ShadowShaderFxData *)fx, ob, &iter);
+            vfx_shadow_sync((ShadowShaderFxData *)fx, ob, tgp_ob);
             break;
           case eShaderFxType_Glow:
-            gpencil_vfx_glow((GlowShaderFxData *)fx, ob, &iter);
+            vfx_glow_sync((GlowShaderFxData *)fx, ob, tgp_ob);
             break;
           case eShaderFxType_Swirl:
-            gpencil_vfx_swirl((SwirlShaderFxData *)fx, ob, &iter);
+            vfx_swirl_sync((SwirlShaderFxData *)fx, ob, tgp_ob);
             break;
           case eShaderFxType_Wave:
-            gpencil_vfx_wave((WaveShaderFxData *)fx, ob, &iter);
+            vfx_wave_sync((WaveShaderFxData *)fx, ob, tgp_ob);
             break;
           default:
             break;
@@ -641,14 +618,14 @@ void gpencil_vfx_cache_populate(Instance *inst,
     }
   }
 
-  if ((!inst->simplify_fx && tgp_ob->vfx.first != nullptr) || tgp_ob->do_mat_holdout) {
+  if ((!this->simplify_fx && tgp_ob->vfx.first != nullptr) || tgp_ob->do_mat_holdout) {
     /* We need an extra pass to combine result to main buffer. */
-    iter.target_fb = &inst->gpencil_fb;
+    vfx_swapchain_.next().fb = &this->gpencil_fb;
 
     GPUShader *sh = ShaderCache::get().fx_composite.get();
 
     DRWState state = DRW_STATE_WRITE_COLOR | DRW_STATE_BLEND_MUL;
-    auto &grp = gpencil_vfx_pass_create("GPencil Object Compose", state, &iter, sh);
+    auto &grp = vfx_pass_create("GPencil Object Compose", state, sh, tgp_ob);
     grp.push_constant("isFirstPass", true);
     grp.draw_procedural(GPU_PRIM_TRIS, 1, 3);
 
@@ -658,8 +635,8 @@ void gpencil_vfx_cache_populate(Instance *inst,
     grp.push_constant("isFirstPass", false);
     grp.draw_procedural(GPU_PRIM_TRIS, 1, 3);
 
-    inst->use_object_fb = true;
-    inst->use_layer_fb = true;
+    this->use_object_fb = true;
+    this->use_layer_fb = true;
   }
 }
 

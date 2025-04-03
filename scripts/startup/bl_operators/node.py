@@ -233,6 +233,17 @@ class NODE_OT_add_foreach_geometry_element_zone(NodeAddZoneOperator, Operator):
     add_default_geometry_link = False
 
 
+class NODE_OT_add_closure_zone(NodeAddZoneOperator, Operator):
+    """Add a Closure zone"""
+    bl_idname = "node.add_closure_zone"
+    bl_label = "Add Closure Zone"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    input_node_type = "GeometryNodeClosureInput"
+    output_node_type = "GeometryNodeClosureOutput"
+    add_default_geometry_link = False
+
+
 class NODE_OT_collapse_hide_unused_toggle(Operator):
     """Toggle collapsed nodes and hide unused sockets"""
     bl_idname = "node.collapse_hide_unused_toggle"
@@ -314,7 +325,7 @@ class NODE_OT_interface_item_new(NodeInterfaceOperator, Operator):
 
         active_item = interface.active
         # Panels have the extra option to add a toggle.
-        if active_item and active_item.item_type == 'PANEL' and tree.type in {'GEOMETRY', 'SHADER'}:
+        if active_item and active_item.item_type == 'PANEL':
             items.append(('PANEL_TOGGLE', "Panel Toggle", ""))
 
         return items
@@ -569,7 +580,6 @@ class NODE_OT_viewer_shortcut_set(Operator):
         )
 
     def execute(self, context):
-        nodes = context.space_data.edit_tree.nodes
         selected_nodes = context.selected_nodes
 
         if len(selected_nodes) == 0:
@@ -651,7 +661,7 @@ class NODE_OT_viewer_shortcut_get(Operator):
 class NODE_FH_image_node(FileHandler):
     bl_idname = "NODE_FH_image_node"
     bl_label = "Image node"
-    bl_import_operator = "node.add_file"
+    bl_import_operator = "node.add_image"
     bl_file_extensions = ";".join((*bpy.path.extensions_image, *bpy.path.extensions_movie))
 
     @classmethod
@@ -673,6 +683,7 @@ classes = (
     NODE_OT_add_simulation_zone,
     NODE_OT_add_repeat_zone,
     NODE_OT_add_foreach_geometry_element_zone,
+    NODE_OT_add_closure_zone,
     NODE_OT_collapse_hide_unused_toggle,
     NODE_OT_interface_item_new,
     NODE_OT_interface_item_duplicate,

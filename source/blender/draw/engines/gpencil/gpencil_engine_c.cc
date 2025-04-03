@@ -52,12 +52,11 @@
 
 namespace blender::draw::gpencil {
 
-using namespace blender::draw;
-
 void Instance::init()
 {
-  const DRWContext *ctx = DRW_context_get();
-  const View3D *v3d = ctx->v3d;
+  this->draw_ctx = DRW_context_get();
+
+  const View3D *v3d = draw_ctx->v3d;
 
   if (!dummy_texture.is_valid()) {
     const float pixels[1][4] = {{1.0f, 0.0f, 1.0f, 1.0f}};
@@ -70,23 +69,16 @@ void Instance::init()
   }
 
   /* Resize and reset memory-blocks. */
-  BLI_memblock_clear(vldata.gp_light_pool, ViewLayerData::light_pool_free);
-  BLI_memblock_clear(vldata.gp_material_pool, ViewLayerData::material_pool_free);
-  BLI_memblock_clear(vldata.gp_object_pool, nullptr);
-  vldata.gp_layer_pool->clear();
-  vldata.gp_vfx_pool->clear();
-  BLI_memblock_clear(vldata.gp_maskbit_pool, nullptr);
+  BLI_memblock_clear(this->gp_light_pool, light_pool_free);
+  BLI_memblock_clear(this->gp_material_pool, material_pool_free);
+  BLI_memblock_clear(this->gp_object_pool, nullptr);
+  this->gp_layer_pool->clear();
+  this->gp_vfx_pool->clear();
+  BLI_memblock_clear(this->gp_maskbit_pool, nullptr);
 
-  /* TODO remove */
-  this->gp_light_pool = vldata.gp_light_pool;
-  this->gp_material_pool = vldata.gp_material_pool;
-  this->gp_maskbit_pool = vldata.gp_maskbit_pool;
-  this->gp_object_pool = vldata.gp_object_pool;
-  this->gp_layer_pool = vldata.gp_layer_pool;
-  this->gp_vfx_pool = vldata.gp_vfx_pool;
-  this->view_layer = ctx->view_layer;
-  this->scene = ctx->scene;
-  this->v3d = ctx->v3d;
+  this->view_layer = draw_ctx->view_layer;
+  this->scene = draw_ctx->scene;
+  this->v3d = draw_ctx->v3d;
   this->last_light_pool = nullptr;
   this->last_material_pool = nullptr;
   this->tobjects.first = nullptr;
@@ -117,8 +109,8 @@ void Instance::init()
 
     this->v3d_color_type = (v3d->shading.type == OB_SOLID) ? v3d->shading.color_type : -1;
     /* Special case: If we're in Vertex Paint mode, enforce #V3D_SHADING_VERTEX_COLOR setting. */
-    if (v3d->shading.type == OB_SOLID && ctx->obact &&
-        (ctx->obact->mode & OB_MODE_VERTEX_GREASE_PENCIL) != 0)
+    if (v3d->shading.type == OB_SOLID && draw_ctx->obact &&
+        (draw_ctx->obact->mode & OB_MODE_VERTEX_GREASE_PENCIL) != 0)
     {
       this->v3d_color_type = V3D_SHADING_VERTEX_COLOR;
     }
@@ -146,9 +138,9 @@ void Instance::init()
   this->use_lighting = (v3d && v3d->shading.type > OB_SOLID) || this->is_render;
   this->use_lights = use_scene_lights;
 
-  gpencil_light_ambient_add(this->shadeless_light_pool, blender::float3{1.0f, 1.0f, 1.0f});
+  gpencil_light_ambient_add(this->shadeless_light_pool, float3{1.0f, 1.0f, 1.0f});
 
-  World *world = ctx->scene->world;
+  World *world = draw_ctx->scene->world;
   if (world != nullptr && use_scene_world) {
     gpencil_light_ambient_add(this->global_light_pool, &world->horr);
   }
@@ -158,13 +150,13 @@ void Instance::init()
     gpencil_light_ambient_add(this->global_light_pool, world_light);
   }
 
-  float4x4 viewmatinv = blender::draw::View::default_get().viewinv();
+  float4x4 viewmatinv = View::default_get().viewinv();
   copy_v3_v3(this->camera_z_axis, viewmatinv[2]);
   copy_v3_v3(this->camera_pos, viewmatinv[3]);
   this->camera_z_offset = dot_v3v3(viewmatinv[3], viewmatinv[2]);
 
-  if (ctx && ctx->rv3d && v3d) {
-    this->camera = (ctx->rv3d->persp == RV3D_CAMOB) ? v3d->camera : nullptr;
+  if (draw_ctx && draw_ctx->rv3d && v3d) {
+    this->camera = (draw_ctx->rv3d->persp == RV3D_CAMOB) ? v3d->camera : nullptr;
   }
   else {
     this->camera = nullptr;
@@ -173,7 +165,6 @@ void Instance::init()
 
 void Instance::begin_sync()
 {
-  const DRWContext *draw_ctx = DRW_context_get();
   this->cfra = int(DEG_get_ctime(draw_ctx->depsgraph));
   this->simplify_antialias = GPENCIL_SIMPLIFY_AA(draw_ctx->scene);
   this->use_layer_fb = false;
@@ -233,7 +224,7 @@ void Instance::begin_sync()
 
   if (this->do_fast_drawing) {
     this->snapshot_buffer_dirty = !this->snapshot_depth_tx.is_valid();
-    const float2 size = DRW_viewport_size_get();
+    const float2 size = draw_ctx->viewport_size_get();
 
     eGPUTextureUsage usage = GPU_TEXTURE_USAGE_ATTACHMENT;
     this->snapshot_depth_tx.ensure_2d(GPU_DEPTH24_STENCIL8, int2(size), usage);
@@ -252,7 +243,7 @@ void Instance::begin_sync()
   }
 
   {
-    blender::draw::PassSimple &pass = this->merge_depth_ps;
+    PassSimple &pass = this->merge_depth_ps;
     pass.init();
     pass.state_set(DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_LESS);
     pass.shader_set(ShaderCache::get().depth_merge.get());
@@ -262,7 +253,7 @@ void Instance::begin_sync()
     pass.draw_procedural(GPU_PRIM_TRIS, 1, 3);
   }
   {
-    blender::draw::PassSimple &pass = this->mask_invert_ps;
+    PassSimple &pass = this->mask_invert_ps;
     pass.init();
     pass.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_LOGIC_INVERT);
     pass.shader_set(ShaderCache::get().mask_invert.get());
@@ -274,7 +265,7 @@ void Instance::begin_sync()
 
   /* Pseudo DOF setup. */
   if (cam && (cam->dof.flag & CAM_DOF_ENABLED)) {
-    const float2 vp_size = DRW_viewport_size_get();
+    const float2 vp_size = draw_ctx->viewport_size_get();
     float fstop = cam->dof.aperture_fstop;
     float sensor = BKE_camera_sensor_size(cam->sensor_fit, cam->sensor_x, cam->sensor_y);
     float focus_dist = BKE_camera_object_dof_distance(this->camera);
@@ -302,12 +293,11 @@ void Instance::begin_sync()
 
 #define DISABLE_BATCHING 0
 
-/* Check if the passed in layer is used by any other layer as a mask (in the viewlayer). */
-static bool is_used_as_layer_mask_in_viewlayer(const GreasePencil &grease_pencil,
-                                               const blender::bke::greasepencil::Layer &mask_layer,
-                                               const ViewLayer &view_layer)
+bool Instance::is_used_as_layer_mask_in_viewlayer(const GreasePencil &grease_pencil,
+                                                  const bke::greasepencil::Layer &mask_layer,
+                                                  const ViewLayer &view_layer)
 {
-  using namespace blender::bke::greasepencil;
+  using namespace bke::greasepencil;
   for (const Layer *layer : grease_pencil.layers()) {
     if (layer->view_layer_name().is_empty() ||
         !STREQ(view_layer.name, layer->view_layer_name().c_str()))
@@ -328,11 +318,10 @@ static bool is_used_as_layer_mask_in_viewlayer(const GreasePencil &grease_pencil
   return false;
 }
 
-/* Returns true if this layer should be rendered (as part of the viewlayer). */
-static bool use_layer_in_render(const GreasePencil &grease_pencil,
-                                const blender::bke::greasepencil::Layer &layer,
-                                const ViewLayer &view_layer,
-                                bool &r_is_used_as_mask)
+bool Instance::use_layer_in_render(const GreasePencil &grease_pencil,
+                                   const bke::greasepencil::Layer &layer,
+                                   const ViewLayer &view_layer,
+                                   bool &r_is_used_as_mask)
 {
   if (!layer.view_layer_name().is_empty() &&
       !STREQ(view_layer.name, layer.view_layer_name().c_str()))
@@ -349,32 +338,29 @@ static bool use_layer_in_render(const GreasePencil &grease_pencil,
   return true;
 }
 
-static GPENCIL_tObject *grease_pencil_object_cache_populate(
-    Instance *inst, Object *ob, blender::draw::ResourceHandle res_handle)
+tObject *Instance::object_sync_do(Object *ob, ResourceHandle res_handle)
 {
-  using namespace blender;
-  using namespace blender::ed::greasepencil;
-  using namespace blender::bke::greasepencil;
-  GreasePencil &grease_pencil = *static_cast<GreasePencil *>(ob->data);
+  using namespace ed::greasepencil;
+  using namespace bke::greasepencil;
+  GreasePencil &grease_pencil = DRW_object_get_data_for_drawing<GreasePencil>(*ob);
   const bool is_vertex_mode = (ob->mode & OB_MODE_VERTEX_PAINT) != 0;
-  const blender::Bounds<float3> bounds = grease_pencil.bounds_min_max_eval().value_or(
-      blender::Bounds(float3(0)));
+  const Bounds<float3> bounds = grease_pencil.bounds_min_max_eval().value_or(Bounds(float3(0)));
 
-  const bool do_onion = !inst->is_render && inst->do_onion;
-  const bool do_multi_frame = (((inst->scene->toolsettings->gpencil_flags &
+  const bool do_onion = !this->is_render && this->do_onion;
+  const bool do_multi_frame = (((this->scene->toolsettings->gpencil_flags &
                                  GP_USE_MULTI_FRAME_EDITING) != 0) &&
                                (ob->mode != OB_MODE_OBJECT));
-  const bool use_stroke_order_3d = inst->force_stroke_order_3d ||
+  const bool use_stroke_order_3d = this->force_stroke_order_3d ||
                                    ((grease_pencil.flag & GREASE_PENCIL_STROKE_ORDER_3D) != 0);
-  GPENCIL_tObject *tgp_ob = gpencil_object_cache_add(inst, ob, use_stroke_order_3d, bounds);
+  tObject *tgp_ob = gpencil_object_cache_add(this, ob, use_stroke_order_3d, bounds);
 
   int mat_ofs = 0;
-  GPENCIL_MaterialPool *matpool = gpencil_material_pool_create(inst, ob, &mat_ofs, is_vertex_mode);
+  MaterialPool *matpool = gpencil_material_pool_create(this, ob, &mat_ofs, is_vertex_mode);
 
-  GPUTexture *tex_fill = inst->dummy_tx;
-  GPUTexture *tex_stroke = inst->dummy_tx;
+  GPUTexture *tex_fill = this->dummy_tx;
+  GPUTexture *tex_stroke = this->dummy_tx;
 
-  blender::gpu::Batch *iter_geom = nullptr;
+  gpu::Batch *iter_geom = nullptr;
   PassSimple *last_pass = nullptr;
   int vfirst = 0;
   int vcount = 0;
@@ -391,7 +377,7 @@ static GPENCIL_tObject *grease_pencil_object_cache_populate(
   };
 
   const auto drawcall_add =
-      [&](PassSimple &pass, blender::gpu::Batch *draw_geom, const int v_first, const int v_count) {
+      [&](PassSimple &pass, gpu::Batch *draw_geom, const int v_first, const int v_count) {
 #if DISABLE_BATCHING
         pass.draw(iter_geom, 1, vcount, vfirst, res_handle);
         return;
@@ -412,7 +398,7 @@ static GPENCIL_tObject *grease_pencil_object_cache_populate(
   /* Note that we loop over all the drawings (including the onion skinned ones) to make sure we
    * match the offsets of the batch cache. */
   const Vector<DrawingInfo> drawings = retrieve_visible_drawings(
-      *inst->scene, grease_pencil, true);
+      *this->scene, grease_pencil, true);
   const Span<const Layer *> layers = grease_pencil.layers();
   for (const DrawingInfo info : drawings) {
     const Layer &layer = *layers[info.layer_index];
@@ -447,7 +433,7 @@ static GPENCIL_tObject *grease_pencil_object_cache_populate(
 
     bool is_layer_used_as_mask = false;
     const bool show_drawing_in_render = use_layer_in_render(
-        grease_pencil, layer, *inst->view_layer, is_layer_used_as_mask);
+        grease_pencil, layer, *this->view_layer, is_layer_used_as_mask);
     if (!show_drawing_in_render) {
       /* Skip over the entire drawing. */
       t_offset += total_num_triangles;
@@ -459,17 +445,17 @@ static GPENCIL_tObject *grease_pencil_object_cache_populate(
       drawcall_flush(*last_pass);
     }
 
-    GPENCIL_tLayer *tgp_layer = grease_pencil_layer_cache_add(
-        inst, ob, layer, info.onion_id, is_layer_used_as_mask, tgp_ob);
+    tLayer *tgp_layer = grease_pencil_layer_cache_add(
+        this, ob, layer, info.onion_id, is_layer_used_as_mask, tgp_ob);
     PassSimple &pass = *tgp_layer->geom_ps;
     last_pass = &pass;
 
-    const bool use_lights = inst->use_lighting &&
+    const bool use_lights = this->use_lighting &&
                             ((layer.base.flag & GP_LAYER_TREE_NODE_USE_LIGHTS) != 0) &&
                             (ob->dtx & OB_USE_GPENCIL_LIGHTS);
 
-    GPUUniformBuf *lights_ubo = (use_lights) ? inst->global_light_pool->ubo :
-                                               inst->shadeless_light_pool->ubo;
+    GPUUniformBuf *lights_ubo = (use_lights) ? this->global_light_pool->ubo :
+                                               this->shadeless_light_pool->ubo;
 
     GPUUniformBuf *ubo_mat;
     gpencil_material_resources_get(matpool, 0, nullptr, nullptr, &ubo_mat);
@@ -481,7 +467,7 @@ static GPENCIL_tObject *grease_pencil_object_cache_populate(
     pass.push_constant("gpMaterialOffset", mat_ofs);
     /* Since we don't use the sbuffer in GPv3, this is always 0. */
     pass.push_constant("gpStrokeIndexOffset", 0.0f);
-    pass.push_constant("viewportSize", float2(DRW_viewport_size_get()));
+    pass.push_constant("viewportSize", float2(draw_ctx->viewport_size_get()));
 
     const VArray<int> stroke_materials = *attributes.lookup_or_default<int>(
         "material_index", bke::AttrDomain::Curve, 0);
@@ -490,7 +476,7 @@ static GPENCIL_tObject *grease_pencil_object_cache_populate(
                                   OB_MODE_PAINT_GREASE_PENCIL,
                                   OB_MODE_WEIGHT_GREASE_PENCIL,
                                   OB_MODE_VERTEX_GREASE_PENCIL) &&
-                            info.frame_number != inst->cfra && inst->use_multiedit_lines_only &&
+                            info.frame_number != this->cfra && this->use_multiedit_lines_only &&
                             do_multi_frame;
     const bool is_onion = info.onion_id != 0;
 
@@ -506,7 +492,7 @@ static GPENCIL_tObject *grease_pencil_object_cache_populate(
       const bool show_stroke = ((gp_style->flag & GP_MATERIAL_STROKE_SHOW) != 0);
       const bool show_fill = (points.size() >= 3) &&
                              ((gp_style->flag & GP_MATERIAL_FILL_SHOW) != 0) &&
-                             (!inst->simplify_fill);
+                             (!this->simplify_fill);
       const bool hide_onion = is_onion && ((gp_style->flag & GP_MATERIAL_HIDE_ONIONSKIN) != 0 ||
                                            (!do_onion && !do_multi_frame));
       const bool skip_stroke = hide_material || (!show_stroke && !show_fill) ||
@@ -545,14 +531,12 @@ static GPENCIL_tObject *grease_pencil_object_cache_populate(
         }
       }
 
-      blender::gpu::Batch *geom = draw::DRW_cache_grease_pencil_get(inst->scene, ob);
+      gpu::Batch *geom = DRW_cache_grease_pencil_get(this->scene, ob);
       if (iter_geom != geom) {
         drawcall_flush(pass);
 
-        blender::gpu::VertBuf *position_tx = draw::DRW_cache_grease_pencil_position_buffer_get(
-            inst->scene, ob);
-        blender::gpu::VertBuf *color_tx = draw::DRW_cache_grease_pencil_color_buffer_get(
-            inst->scene, ob);
+        gpu::VertBuf *position_tx = DRW_cache_grease_pencil_position_buffer_get(this->scene, ob);
+        gpu::VertBuf *color_tx = DRW_cache_grease_pencil_color_buffer_get(this->scene, ob);
         pass.bind_texture("gp_pos_tx", position_tx);
         pass.bind_texture("gp_col_tx", color_tx);
       }
@@ -592,14 +576,10 @@ void Instance::object_sync(ObjectRef &ob_ref, Manager &manager)
   }
 
   if (ob->data && (ob->type == OB_GREASE_PENCIL) && (ob->dt >= OB_SOLID)) {
-    blender::draw::ResourceHandle res_handle = manager.unique_handle(ob_ref);
+    ResourceHandle res_handle = manager.unique_handle(ob_ref);
 
-    GPENCIL_tObject *tgp_ob = grease_pencil_object_cache_populate(this, ob, res_handle);
-    gpencil_vfx_cache_populate(
-        this,
-        ob,
-        tgp_ob,
-        ELEM(ob->mode, OB_MODE_EDIT, OB_MODE_SCULPT_GREASE_PENCIL, OB_MODE_WEIGHT_GREASE_PENCIL));
+    tObject *tgp_ob = object_sync_do(ob, res_handle);
+    vfx_sync(ob, tgp_ob);
   }
 
   if (ob->type == OB_LAMP && this->use_lights) {
@@ -612,14 +592,14 @@ void Instance::end_sync()
   /* Upload UBO data. */
   BLI_memblock_iter iter;
   BLI_memblock_iternew(this->gp_material_pool, &iter);
-  GPENCIL_MaterialPool *pool;
-  while ((pool = (GPENCIL_MaterialPool *)BLI_memblock_iterstep(&iter))) {
+  MaterialPool *pool;
+  while ((pool = (MaterialPool *)BLI_memblock_iterstep(&iter))) {
     GPU_uniformbuf_update(pool->ubo, pool->mat_data);
   }
 
   BLI_memblock_iternew(this->gp_light_pool, &iter);
-  GPENCIL_LightPool *lpool;
-  while ((lpool = (GPENCIL_LightPool *)BLI_memblock_iterstep(&iter))) {
+  LightPool *lpool;
+  while ((lpool = (LightPool *)BLI_memblock_iterstep(&iter))) {
     GPU_uniformbuf_update(lpool->ubo, lpool->light_data);
   }
 }
@@ -631,7 +611,7 @@ void Instance::acquire_resources()
     return;
   }
 
-  const int2 size = int2(DRW_viewport_size_get());
+  const int2 size = int2(draw_ctx->viewport_size_get());
 
   eGPUTextureFormat format = this->use_signed_fb ? GPU_RGBA16F : GPU_R11F_G11F_B10F;
 
@@ -692,12 +672,9 @@ void Instance::release_resources()
   this->smaa_weight_tx.release();
 }
 
-static void gpencil_draw_mask(Instance *inst,
-                              blender::draw::View &view,
-                              GPENCIL_tObject *ob,
-                              GPENCIL_tLayer *layer)
+void Instance::draw_mask(View &view, tObject *ob, tLayer *layer)
 {
-  blender::draw::Manager *manager = DRW_manager_get();
+  Manager *manager = DRW_manager_get();
 
   const float clear_col[4] = {1.0f, 1.0f, 1.0f, 1.0f};
   float clear_depth = ob->is_drawmode3d ? 1.0f : 0.0f;
@@ -708,7 +685,7 @@ static void gpencil_draw_mask(Instance *inst,
 
   GPU_debug_group_begin("GPencil Mask");
 
-  GPU_framebuffer_bind(inst->mask_fb);
+  GPU_framebuffer_bind(this->mask_fb);
 
   for (int i = 0; i < GP_MAX_MASKBITS; i++) {
     if (!BLI_BITMAP_TEST(layer->mask_bits, i)) {
@@ -717,17 +694,17 @@ static void gpencil_draw_mask(Instance *inst,
 
     if (BLI_BITMAP_TEST_BOOL(layer->mask_invert_bits, i) != inverted) {
       if (cleared) {
-        manager->submit(inst->mask_invert_ps);
+        manager->submit(this->mask_invert_ps);
       }
       inverted = !inverted;
     }
 
     if (!cleared) {
       cleared = true;
-      GPU_framebuffer_clear_color_depth(inst->mask_fb, clear_col, clear_depth);
+      GPU_framebuffer_clear_color_depth(this->mask_fb, clear_col, clear_depth);
     }
 
-    GPENCIL_tLayer *mask_layer = grease_pencil_layer_cache_get(ob, i, true);
+    tLayer *mask_layer = grease_pencil_layer_cache_get(ob, i, true);
     /* When filtering by view-layer, the mask could be null and must be ignored. */
     if (mask_layer == nullptr) {
       continue;
@@ -738,21 +715,21 @@ static void gpencil_draw_mask(Instance *inst,
 
   if (!inverted) {
     /* Blend shader expect an opacity mask not a reavealage buffer. */
-    manager->submit(inst->mask_invert_ps);
+    manager->submit(this->mask_invert_ps);
   }
 
   GPU_debug_group_end();
 }
 
-static void GPENCIL_draw_object(Instance *inst, blender::draw::View &view, GPENCIL_tObject *ob)
+void Instance::draw_object(View &view, tObject *ob)
 {
-  blender::draw::Manager *manager = DRW_manager_get();
+  Manager *manager = DRW_manager_get();
 
   const float clear_cols[2][4] = {{0.0f, 0.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 1.0f, 1.0f}};
 
   GPU_debug_group_begin("GPencil Object");
 
-  GPUFrameBuffer *fb_object = (ob->vfx.first) ? inst->object_fb : inst->gpencil_fb;
+  GPUFrameBuffer *fb_object = (ob->vfx.first) ? this->object_fb : this->gpencil_fb;
 
   GPU_framebuffer_bind(fb_object);
   GPU_framebuffer_clear_depth_stencil(fb_object, ob->is_drawmode3d ? 1.0f : 0.0f, 0x00);
@@ -761,14 +738,14 @@ static void GPENCIL_draw_object(Instance *inst, blender::draw::View &view, GPENC
     GPU_framebuffer_multi_clear(fb_object, clear_cols);
   }
 
-  LISTBASE_FOREACH (GPENCIL_tLayer *, layer, &ob->layers) {
+  LISTBASE_FOREACH (tLayer *, layer, &ob->layers) {
     if (layer->mask_bits) {
-      gpencil_draw_mask(inst, view, ob, layer);
+      draw_mask(view, ob, layer);
     }
 
     if (layer->blend_ps) {
-      GPU_framebuffer_bind(inst->layer_fb);
-      GPU_framebuffer_multi_clear(inst->layer_fb, clear_cols);
+      GPU_framebuffer_bind(this->layer_fb);
+      GPU_framebuffer_multi_clear(this->layer_fb, clear_cols);
     }
     else {
       GPU_framebuffer_bind(fb_object);
@@ -782,57 +759,57 @@ static void GPENCIL_draw_object(Instance *inst, blender::draw::View &view, GPENC
     }
   }
 
-  LISTBASE_FOREACH (GPENCIL_tVfx *, vfx, &ob->vfx) {
+  LISTBASE_FOREACH (tVfx *, vfx, &ob->vfx) {
     GPU_framebuffer_bind(*(vfx->target_fb));
     manager->submit(*vfx->vfx_ps);
   }
 
-  inst->object_bound_mat = float4x4(ob->plane_mat);
-  inst->is_stroke_order_3d = ob->is_drawmode3d;
+  this->object_bound_mat = float4x4(ob->plane_mat);
+  this->is_stroke_order_3d = ob->is_drawmode3d;
 
-  if (inst->scene_fb) {
-    GPU_framebuffer_bind(inst->scene_fb);
-    manager->submit(inst->merge_depth_ps, view);
+  if (this->scene_fb) {
+    GPU_framebuffer_bind(this->scene_fb);
+    manager->submit(this->merge_depth_ps, view);
   }
 
   GPU_debug_group_end();
 }
 
-static void GPENCIL_fast_draw_start(Instance *inst)
+void Instance::fast_draw_start()
 {
-  DefaultFramebufferList *dfbl = DRW_viewport_framebuffer_list_get();
+  DefaultFramebufferList *dfbl = this->draw_ctx->viewport_framebuffer_list_get();
 
-  if (!inst->snapshot_buffer_dirty) {
+  if (!this->snapshot_buffer_dirty) {
     /* Copy back cached render. */
-    GPU_framebuffer_blit(inst->snapshot_fb, 0, dfbl->default_fb, 0, GPU_DEPTH_BIT);
-    GPU_framebuffer_blit(inst->snapshot_fb, 0, inst->gpencil_fb, 0, GPU_COLOR_BIT);
-    GPU_framebuffer_blit(inst->snapshot_fb, 1, inst->gpencil_fb, 1, GPU_COLOR_BIT);
+    GPU_framebuffer_blit(this->snapshot_fb, 0, dfbl->default_fb, 0, GPU_DEPTH_BIT);
+    GPU_framebuffer_blit(this->snapshot_fb, 0, this->gpencil_fb, 0, GPU_COLOR_BIT);
+    GPU_framebuffer_blit(this->snapshot_fb, 1, this->gpencil_fb, 1, GPU_COLOR_BIT);
     /* Bypass drawing. */
-    inst->tobjects.first = inst->tobjects.last = nullptr;
+    this->tobjects.first = this->tobjects.last = nullptr;
   }
 }
 
-static void GPENCIL_fast_draw_end(Instance *inst, blender::draw::View &view)
+void Instance::fast_draw_end(View &view)
 {
-  DefaultFramebufferList *dfbl = DRW_viewport_framebuffer_list_get();
+  DefaultFramebufferList *dfbl = this->draw_ctx->viewport_framebuffer_list_get();
 
-  if (inst->snapshot_buffer_dirty) {
+  if (this->snapshot_buffer_dirty) {
     /* Save to snapshot buffer. */
-    GPU_framebuffer_blit(dfbl->default_fb, 0, inst->snapshot_fb, 0, GPU_DEPTH_BIT);
-    GPU_framebuffer_blit(inst->gpencil_fb, 0, inst->snapshot_fb, 0, GPU_COLOR_BIT);
-    GPU_framebuffer_blit(inst->gpencil_fb, 1, inst->snapshot_fb, 1, GPU_COLOR_BIT);
-    inst->snapshot_buffer_dirty = false;
+    GPU_framebuffer_blit(dfbl->default_fb, 0, this->snapshot_fb, 0, GPU_DEPTH_BIT);
+    GPU_framebuffer_blit(this->gpencil_fb, 0, this->snapshot_fb, 0, GPU_COLOR_BIT);
+    GPU_framebuffer_blit(this->gpencil_fb, 1, this->snapshot_fb, 1, GPU_COLOR_BIT);
+    this->snapshot_buffer_dirty = false;
   }
   /* Draw the sbuffer stroke(s). */
-  LISTBASE_FOREACH (GPENCIL_tObject *, ob, &inst->sbuffer_tobjects) {
-    GPENCIL_draw_object(inst, view, ob);
+  LISTBASE_FOREACH (tObject *, ob, &this->sbuffer_tobjects) {
+    draw_object(view, ob);
   }
 }
 
-void Instance::draw(Manager & /*manager*/)
+void Instance::draw(Manager &manager)
 {
-  DefaultTextureList *dtxl = DRW_viewport_texture_list_get();
-  DefaultFramebufferList *dfbl = DRW_viewport_framebuffer_list_get();
+  DefaultTextureList *dtxl = draw_ctx->viewport_texture_list_get();
+  DefaultFramebufferList *dfbl = draw_ctx->viewport_framebuffer_list_get();
 
   if (this->render_depth_tx.is_valid()) {
     this->scene_depth_tx = this->render_depth_tx;
@@ -867,12 +844,12 @@ void Instance::draw(Manager & /*manager*/)
 
   DRW_submission_start();
 
-  GPENCIL_antialiasing_init(this);
+  antialiasing_init();
 
   this->acquire_resources();
 
   if (this->do_fast_drawing) {
-    GPENCIL_fast_draw_start(this);
+    fast_draw_start();
   }
 
   if (this->tobjects.first) {
@@ -880,23 +857,19 @@ void Instance::draw(Manager & /*manager*/)
     GPU_framebuffer_multi_clear(this->gpencil_fb, clear_cols);
   }
 
-  blender::draw::View &view = blender::draw::View::default_get();
+  View &view = View::default_get();
 
-  LISTBASE_FOREACH (GPENCIL_tObject *, ob, &this->tobjects) {
-    GPENCIL_draw_object(this, view, ob);
+  LISTBASE_FOREACH (tObject *, ob, &this->tobjects) {
+    draw_object(view, ob);
   }
 
   if (this->do_fast_drawing) {
-    GPENCIL_fast_draw_end(this, view);
+    fast_draw_end(view);
   }
 
   if (this->scene_fb) {
-    GPENCIL_antialiasing_draw(this);
+    antialiasing_draw(manager);
   }
-
-  this->gp_object_pool = this->gp_maskbit_pool = nullptr;
-  this->gp_vfx_pool = nullptr;
-  this->gp_layer_pool = nullptr;
 
   this->release_resources();
 

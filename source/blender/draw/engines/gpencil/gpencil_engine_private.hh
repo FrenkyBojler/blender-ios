@@ -9,6 +9,7 @@
 #pragma once
 
 #include "BLI_memblock.h"
+#include "DNA_shader_fx_types.h"
 #include "DRW_render.hh"
 
 #include "BLI_bitmap.h"
@@ -26,11 +27,6 @@
 #include "gpencil_shader.hh"
 #include "gpencil_shader_shared.h"
 
-struct GPENCIL_Data;
-struct GPENCIL_StorageList;
-namespace blender::gpu {
-class Batch;
-}
 struct GpencilBatchCache;
 struct Object;
 struct RenderEngine;
@@ -47,20 +43,9 @@ struct View3D;
 
 namespace blender::draw::gpencil {
 
-using namespace blender::draw;
-
-struct GPENCIL_tVfx;
-struct GPENCIL_tLayer;
-
-/* NOTE: These do not preserve the PassSimple memory across frames.
- * If that becomes a bottleneck, these containers can be improved. */
-using GPENCIL_tVfx_Pool = blender::draw::detail::SubPassVector<GPENCIL_tVfx>;
-using GPENCIL_tLayer_Pool = blender::draw::detail::SubPassVector<GPENCIL_tLayer>;
-
-/* *********** Draw Data *********** */
-typedef struct GPENCIL_MaterialPool {
+struct MaterialPool {
   /* Single linked-list. */
-  struct GPENCIL_MaterialPool *next;
+  struct MaterialPool *next;
   /* GPU representation of materials. */
   gpMaterial mat_data[GPENCIL_MATERIAL_BUFFER_LEN];
   /* Matching ubo. */
@@ -70,30 +55,30 @@ typedef struct GPENCIL_MaterialPool {
   struct GPUTexture *tex_stroke[GPENCIL_MATERIAL_BUFFER_LEN];
   /* Number of material used in this pool. */
   int used_count;
-} GPENCIL_MaterialPool;
+};
 
-typedef struct GPENCIL_LightPool {
+struct LightPool {
   /* GPU representation of materials. */
   gpLight light_data[GPENCIL_LIGHT_BUFFER_LEN];
   /* Matching ubo. */
   struct GPUUniformBuf *ubo;
   /* Number of light in the pool. */
   int light_used;
-} GPENCIL_LightPool;
+};
 
-/* *********** GPencil  *********** */
-
-struct GPENCIL_tVfx {
+/* Temporary gpencil FX reflection used by the gpencil::Instance. */
+struct tVfx {
   /** Single linked-list. */
-  struct GPENCIL_tVfx *next = nullptr;
+  struct tVfx *next = nullptr;
   std::unique_ptr<PassSimple> vfx_ps = std::make_unique<PassSimple>("vfx");
   /* Frame-buffer reference since it may not be allocated yet. */
   GPUFrameBuffer **target_fb = nullptr;
 };
 
-typedef struct GPENCIL_tLayer {
+/* Temporary gpencil layer reflection used by the gpencil::Instance. */
+struct tLayer {
   /** Single linked-list. */
-  struct GPENCIL_tLayer *next;
+  struct tLayer *next;
   /** Geometry pass (draw all strokes). */
   std::unique_ptr<PassSimple> geom_ps;
   /** Blend pass to composite onto the target buffer (blends modes). NULL if not needed. */
@@ -105,18 +90,19 @@ typedef struct GPENCIL_tLayer {
   int layer_id;
   /** True if this pass is part of the onion skinning. */
   bool is_onion;
-} GPENCIL_tLayer;
+};
 
-typedef struct GPENCIL_tObject {
+/* Temporary object reflection used by the gpencil::Instance. */
+struct tObject {
   /** Single linked-list. */
-  struct GPENCIL_tObject *next;
+  struct tObject *next;
 
   struct {
-    GPENCIL_tLayer *first, *last;
+    tLayer *first, *last;
   } layers;
 
   struct {
-    GPENCIL_tVfx *first, *last;
+    tVfx *first, *last;
   } vfx;
 
   /* Distance to camera. Used for sorting. */
@@ -130,49 +116,11 @@ typedef struct GPENCIL_tObject {
 
   /* Use Material Holdout. */
   bool do_mat_holdout;
-
-} GPENCIL_tObject;
-
-struct ViewLayerData {
-  /* GPENCIL_tObject */
-  struct BLI_memblock *gp_object_pool = BLI_memblock_create(sizeof(GPENCIL_tObject));
-  /* GPENCIL_tLayer */
-  GPENCIL_tLayer_Pool *gp_layer_pool = new GPENCIL_tLayer_Pool();
-  /* GPENCIL_tVfx */
-  GPENCIL_tVfx_Pool *gp_vfx_pool = new GPENCIL_tVfx_Pool();
-  /* GPENCIL_MaterialPool */
-  struct BLI_memblock *gp_material_pool = BLI_memblock_create(sizeof(GPENCIL_MaterialPool));
-  /* GPENCIL_LightPool */
-  struct BLI_memblock *gp_light_pool = BLI_memblock_create(sizeof(GPENCIL_LightPool));
-  /* BLI_bitmap */
-  struct BLI_memblock *gp_maskbit_pool = BLI_memblock_create(BLI_BITMAP_SIZE(GP_MAX_MASKBITS));
-
-  ~ViewLayerData()
-  {
-    BLI_memblock_destroy(gp_light_pool, light_pool_free);
-    BLI_memblock_destroy(gp_material_pool, material_pool_free);
-    BLI_memblock_destroy(gp_maskbit_pool, nullptr);
-    BLI_memblock_destroy(gp_object_pool, nullptr);
-    delete gp_layer_pool;
-    delete gp_vfx_pool;
-  }
-
-  static void material_pool_free(void *storage)
-  {
-    GPENCIL_MaterialPool *matpool = (GPENCIL_MaterialPool *)storage;
-    GPU_UBO_FREE_SAFE(matpool->ubo);
-  }
-
-  static void light_pool_free(void *storage)
-  {
-    GPENCIL_LightPool *lightpool = (GPENCIL_LightPool *)storage;
-    GPU_UBO_FREE_SAFE(lightpool->ubo);
-  }
 };
 
 /* *********** LISTS *********** */
 
-struct Instance : public DrawEngine {
+struct Instance final : public DrawEngine {
   PassSimple smaa_edge_ps = {"smaa_edge"};
   PassSimple smaa_weight_ps = {"smaa_weight"};
   PassSimple smaa_resolve_ps = {"smaa_resolve"};
@@ -193,7 +141,7 @@ struct Instance : public DrawEngine {
   Texture snapshot_depth_tx = {"snapshot_depth_tx"};
   Texture snapshot_color_tx = {"snapshot_color_tx"};
   Texture snapshot_reveal_tx = {"snapshot_reveal_tx"};
-  /* Textures used by Antialiasing. */
+  /* Textures used by Anti-aliasing. */
   Texture smaa_area_tx = {"smaa_area_tx"};
   Texture smaa_search_tx = {"smaa_search_tx"};
 
@@ -223,26 +171,37 @@ struct Instance : public DrawEngine {
   Framebuffer smaa_edge_fb = {"smaa_edge_fb"};
   Framebuffer smaa_weight_fb = {"smaa_weight_fb"};
 
-  ViewLayerData vldata;
+  /* NOTE: These do not preserve the PassSimple memory across frames.
+   * If that becomes a bottleneck, these containers can be improved. */
+  using tVfx_Pool = draw::detail::SubPassVector<tVfx>;
+  using tLayer_Pool = draw::detail::SubPassVector<tLayer>;
 
-  /* Pointers copied from blender::draw::gpencil::ViewLayerData. */
-  struct BLI_memblock *gp_object_pool;
-  GPENCIL_tLayer_Pool *gp_layer_pool;
-  GPENCIL_tVfx_Pool *gp_vfx_pool;
-  struct BLI_memblock *gp_material_pool;
-  struct BLI_memblock *gp_light_pool;
-  struct BLI_memblock *gp_maskbit_pool;
+  /* tObject */
+  struct BLI_memblock *gp_object_pool = BLI_memblock_create(sizeof(tObject));
+  /* tLayer */
+  tLayer_Pool *gp_layer_pool = new tLayer_Pool();
+  /* tVfx */
+  tVfx_Pool *gp_vfx_pool = new tVfx_Pool();
+  /* MaterialPool */
+  struct BLI_memblock *gp_material_pool = BLI_memblock_create(sizeof(MaterialPool));
+  /* LightPool */
+  struct BLI_memblock *gp_light_pool = BLI_memblock_create(sizeof(LightPool));
+  /* BLI_bitmap */
+  struct BLI_memblock *gp_maskbit_pool = BLI_memblock_create(BLI_BITMAP_SIZE(GP_MAX_MASKBITS));
+
+  const DRWContext *draw_ctx = nullptr;
+
   /* Last used material pool. */
-  GPENCIL_MaterialPool *last_material_pool;
+  MaterialPool *last_material_pool;
   /* Last used light pool. */
-  GPENCIL_LightPool *last_light_pool;
+  LightPool *last_light_pool;
   /* Common lightpool containing all lights in the scene. */
-  GPENCIL_LightPool *global_light_pool;
+  LightPool *global_light_pool;
   /* Common lightpool containing one ambient white light. */
-  GPENCIL_LightPool *shadeless_light_pool;
+  LightPool *shadeless_light_pool;
   /* Linked list of tObjects. */
   struct {
-    GPENCIL_tObject *first, *last;
+    tObject *first, *last;
   } tobjects, tobjects_infront;
   /* Pointer to dtxl->depth */
   GPUTexture *scene_depth_tx;
@@ -283,11 +242,11 @@ struct Instance : public DrawEngine {
   Object *obact;
   /* List of temp objects containing the stroke. */
   struct {
-    GPENCIL_tObject *first, *last;
+    tObject *first, *last;
   } sbuffer_tobjects;
   /* Batches containing the temp stroke. */
-  blender::gpu::Batch *stroke_batch;
-  blender::gpu::Batch *fill_batch;
+  gpu::Batch *stroke_batch;
+  gpu::Batch *fill_batch;
   bool do_fast_drawing;
   bool snapshot_buffer_dirty;
 
@@ -329,10 +288,20 @@ struct Instance : public DrawEngine {
   /* Force 3D depth rendering. */
   bool force_stroke_order_3d;
 
+  ~Instance() final
+  {
+    BLI_memblock_destroy(gp_light_pool, light_pool_free);
+    BLI_memblock_destroy(gp_material_pool, material_pool_free);
+    BLI_memblock_destroy(gp_maskbit_pool, nullptr);
+    BLI_memblock_destroy(gp_object_pool, nullptr);
+    delete gp_layer_pool;
+    delete gp_vfx_pool;
+  }
+
   void acquire_resources();
   void release_resources();
 
-  blender::StringRefNull name_get() final
+  StringRefNull name_get() final
   {
     return "Grease Pencil";
   }
@@ -340,10 +309,72 @@ struct Instance : public DrawEngine {
   void init() final;
 
   void begin_sync() final;
-  void object_sync(blender::draw::ObjectRef &ob_ref, blender::draw::Manager &manager) final;
+  void object_sync(ObjectRef &ob_ref, Manager &manager) final;
   void end_sync() final;
 
-  void draw(blender::draw::Manager &manager) final;
+  void draw(Manager &manager) final;
+
+ private:
+  tObject *object_sync_do(Object *ob, ResourceHandle res_handle);
+
+  /* Check if the passed in layer is used by any other layer as a mask (in the viewlayer). */
+  bool is_used_as_layer_mask_in_viewlayer(const GreasePencil &grease_pencil,
+                                          const bke::greasepencil::Layer &mask_layer,
+                                          const ViewLayer &view_layer);
+
+  /* Returns true if this layer should be rendered (as part of the viewlayer). */
+  bool use_layer_in_render(const GreasePencil &grease_pencil,
+                           const bke::greasepencil::Layer &layer,
+                           const ViewLayer &view_layer,
+                           bool &r_is_used_as_mask);
+
+  void draw_mask(View &view, tObject *ob, tLayer *layer);
+  void draw_object(View &view, tObject *ob);
+
+  void fast_draw_start();
+  void fast_draw_end(View &view);
+
+  void antialiasing_init();
+  void antialiasing_draw(Manager &manager);
+
+  struct VfxFramebufferRef {
+    /* These may not be allocated yet, use address of future pointer. */
+    GPUFrameBuffer **fb;
+    GPUTexture **color_tx;
+    GPUTexture **reveal_tx;
+  };
+
+  SwapChain<VfxFramebufferRef, 2> vfx_swapchain_;
+
+  PassSimple &vfx_pass_create(const char *name,
+                              DRWState state,
+                              GPUShader *sh,
+                              tObject *tgp_ob,
+                              GPUSamplerState sampler = GPUSamplerState::internal_sampler());
+
+  void vfx_blur_sync(BlurShaderFxData *fx, Object *ob, tObject *tgp_ob);
+  void vfx_colorize_sync(ColorizeShaderFxData *fx, Object *ob, tObject *tgp_ob);
+  void vfx_flip_sync(FlipShaderFxData *fx, Object *ob, tObject *tgp_ob);
+  void vfx_rim_sync(RimShaderFxData *fx, Object *ob, tObject *tgp_ob);
+  void vfx_pixelize_sync(PixelShaderFxData *fx, Object *ob, tObject *tgp_ob);
+  void vfx_shadow_sync(ShadowShaderFxData *fx, Object *ob, tObject *tgp_ob);
+  void vfx_glow_sync(GlowShaderFxData *fx, Object *ob, tObject *tgp_ob);
+  void vfx_wave_sync(WaveShaderFxData *fx, Object *ob, tObject *tgp_ob);
+  void vfx_swirl_sync(SwirlShaderFxData *fx, Object *ob, tObject *tgp_ob);
+
+  void vfx_sync(Object *ob, tObject *tgp_ob);
+
+  static void material_pool_free(void *storage)
+  {
+    MaterialPool *matpool = (MaterialPool *)storage;
+    GPU_UBO_FREE_SAFE(matpool->ubo);
+  }
+
+  static void light_pool_free(void *storage)
+  {
+    LightPool *lightpool = (LightPool *)storage;
+    GPU_UBO_FREE_SAFE(lightpool->ubo);
+  }
 };
 
 struct GPENCIL_Data {
@@ -356,55 +387,41 @@ struct GPENCIL_Data {
 /* geometry batch cache functions */
 struct GpencilBatchCache *gpencil_batch_cache_get(struct Object *ob, int cfra);
 
-GPENCIL_tObject *gpencil_object_cache_add(Instance *inst,
-                                          Object *ob,
-                                          bool is_stroke_order_3d,
-                                          blender::Bounds<float3> bounds);
+tObject *gpencil_object_cache_add(Instance *inst,
+                                  Object *ob,
+                                  bool is_stroke_order_3d,
+                                  Bounds<float3> bounds);
 void gpencil_object_cache_sort(Instance *inst);
 
-GPENCIL_tLayer *grease_pencil_layer_cache_get(GPENCIL_tObject *tgp_ob,
-                                              int layer_id,
-                                              bool skip_onion);
+tLayer *grease_pencil_layer_cache_get(tObject *tgp_ob, int layer_id, bool skip_onion);
 
-GPENCIL_tLayer *grease_pencil_layer_cache_add(Instance *inst,
-                                              const Object *ob,
-                                              const blender::bke::greasepencil::Layer &layer,
-                                              int onion_id,
-                                              bool is_used_as_mask,
-                                              GPENCIL_tObject *tgp_ob);
+tLayer *grease_pencil_layer_cache_add(Instance *inst,
+                                      const Object *ob,
+                                      const bke::greasepencil::Layer &layer,
+                                      int onion_id,
+                                      bool is_used_as_mask,
+                                      tObject *tgp_ob);
 /**
  * Creates a linked list of material pool containing all materials assigned for a given object.
  * We merge the material pools together if object does not contain a huge amount of materials.
  * Also return an offset to the first material of the object in the UBO.
  */
-GPENCIL_MaterialPool *gpencil_material_pool_create(Instance *inst,
-                                                   Object *ob,
-                                                   int *ofs,
-                                                   bool is_vertex_mode);
-void gpencil_material_resources_get(GPENCIL_MaterialPool *first_pool,
+MaterialPool *gpencil_material_pool_create(Instance *inst,
+                                           Object *ob,
+                                           int *ofs,
+                                           bool is_vertex_mode);
+void gpencil_material_resources_get(MaterialPool *first_pool,
                                     int mat_id,
                                     struct GPUTexture **r_tex_stroke,
                                     struct GPUTexture **r_tex_fill,
                                     struct GPUUniformBuf **r_ubo_mat);
 
-void gpencil_light_ambient_add(GPENCIL_LightPool *lightpool, const float color[3]);
-void gpencil_light_pool_populate(GPENCIL_LightPool *lightpool, Object *ob);
-GPENCIL_LightPool *gpencil_light_pool_add(Instance *inst);
+void gpencil_light_ambient_add(LightPool *lightpool, const float color[3]);
+void gpencil_light_pool_populate(LightPool *lightpool, Object *ob);
+LightPool *gpencil_light_pool_add(Instance *inst);
 /**
  * Creates a single pool containing all lights assigned (light linked) for a given object.
  */
-GPENCIL_LightPool *gpencil_light_pool_create(Instance *inst, Object *ob);
-
-/* effects */
-void gpencil_vfx_cache_populate(Instance *inst,
-                                Object *ob,
-                                GPENCIL_tObject *tgp_ob,
-                                const bool is_edit_mode);
-
-/* Antialiasing */
-void GPENCIL_antialiasing_init(Instance *inst);
-void GPENCIL_antialiasing_draw(Instance *inst);
-
-/* render */
+LightPool *gpencil_light_pool_create(Instance *inst, Object *ob);
 
 }  // namespace blender::draw::gpencil

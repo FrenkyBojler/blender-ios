@@ -18,7 +18,7 @@
 #include "draw_context_private.hh"
 
 #include "engines/compositor/compositor_engine.h"
-#include "engines/eevee_next/eevee_engine.h"
+#include "engines/eevee/eevee_engine.h"
 #include "engines/external/external_engine.h"
 #include "engines/gpencil/gpencil_engine.hh"
 #include "engines/image/image_engine.h"
@@ -100,7 +100,7 @@ struct DRWViewData {
   {
     /* IMPORTANT: Order here defines the draw order. */
 
-    /* Render engines. Output to the render result framebuffer. Mutually exclusive. */
+    /* Render engines. Output to the render result frame-buffer. Mutually exclusive. */
     callback(eevee);
     callback(workbench);
     callback(external);
@@ -108,11 +108,11 @@ struct DRWViewData {
 #ifdef WITH_DRAW_DEBUG
     callback(edit_select_debug);
 #endif
-    /* Grease pencil. Merge its output to the render result framebuffer. */
+    /* Grease pencil. Merge its output to the render result frame-buffer. */
     callback(grease_pencil);
-    /* GPU compositor. Processes render result and output to the render result framebuffer. */
+    /* GPU compositor. Processes render result and output to the render result frame-buffer. */
     callback(compositor);
-    /* Overlays. Draw on a separate overlay framebuffer. Can read render result. */
+    /* Overlays. Draw on a separate overlay frame-buffer. Can read render result. */
     callback(overlay);
 
     /* Selection. Are always enabled alone and have no interaction with other engines. */

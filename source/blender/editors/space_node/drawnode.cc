@@ -1097,7 +1097,17 @@ static const float std_node_socket_colors[][4] = {
     {0.65, 0.39, 0.78, 1.0}, /* SOCK_ROTATION */
     {0.40, 0.40, 0.40, 1.0}, /* SOCK_MENU */
     {0.72, 0.20, 0.52, 1.0}, /* SOCK_MATRIX */
+    {0.30, 0.50, 0.50, 1.0}, /* SOCK_BUNDLE */
+    {0.50, 0.60, 0.40, 1.0}, /* SOCK_CLOSURE */
 };
+
+void std_node_socket_colors_get(int socket_type, float *r_color)
+{
+  BLI_assert(socket_type >= 0);
+  BLI_assert(socket_type < std::size(std_node_socket_colors));
+
+  copy_v4_v4(r_color, std_node_socket_colors[socket_type]);
+}
 
 /* Callback for colors that does not depend on the socket pointer argument to get the type. */
 template<int socket_type>
@@ -1116,23 +1126,16 @@ static void std_node_socket_color_simple_fn(const bke::bNodeSocketType *type, fl
 using SocketColorFn = void (*)(bContext *C, PointerRNA *ptr, PointerRNA *node_ptr, float *r_color);
 /* Callbacks for all built-in socket types. */
 static const SocketColorFn std_node_socket_color_funcs[] = {
-    std_node_socket_color_fn<SOCK_FLOAT>,
-    std_node_socket_color_fn<SOCK_VECTOR>,
-    std_node_socket_color_fn<SOCK_RGBA>,
-    std_node_socket_color_fn<SOCK_SHADER>,
-    std_node_socket_color_fn<SOCK_BOOLEAN>,
-    nullptr /* UNUSED. */,
-    std_node_socket_color_fn<SOCK_INT>,
-    std_node_socket_color_fn<SOCK_STRING>,
-    std_node_socket_color_fn<SOCK_OBJECT>,
-    std_node_socket_color_fn<SOCK_IMAGE>,
-    std_node_socket_color_fn<SOCK_GEOMETRY>,
-    std_node_socket_color_fn<SOCK_COLLECTION>,
-    std_node_socket_color_fn<SOCK_TEXTURE>,
-    std_node_socket_color_fn<SOCK_MATERIAL>,
-    std_node_socket_color_fn<SOCK_ROTATION>,
-    std_node_socket_color_fn<SOCK_MENU>,
-    std_node_socket_color_fn<SOCK_MATRIX>,
+    std_node_socket_color_fn<SOCK_FLOAT>,    std_node_socket_color_fn<SOCK_VECTOR>,
+    std_node_socket_color_fn<SOCK_RGBA>,     std_node_socket_color_fn<SOCK_SHADER>,
+    std_node_socket_color_fn<SOCK_BOOLEAN>,  nullptr /* UNUSED. */,
+    std_node_socket_color_fn<SOCK_INT>,      std_node_socket_color_fn<SOCK_STRING>,
+    std_node_socket_color_fn<SOCK_OBJECT>,   std_node_socket_color_fn<SOCK_IMAGE>,
+    std_node_socket_color_fn<SOCK_GEOMETRY>, std_node_socket_color_fn<SOCK_COLLECTION>,
+    std_node_socket_color_fn<SOCK_TEXTURE>,  std_node_socket_color_fn<SOCK_MATERIAL>,
+    std_node_socket_color_fn<SOCK_ROTATION>, std_node_socket_color_fn<SOCK_MENU>,
+    std_node_socket_color_fn<SOCK_MATRIX>,   std_node_socket_color_fn<SOCK_BUNDLE>,
+    std_node_socket_color_fn<SOCK_CLOSURE>,
 };
 
 /* draw function for file output node sockets,
@@ -1174,9 +1177,9 @@ static void node_file_output_socket_draw(bContext *C,
     RNA_property_enum_name(
         C, &imfptr, imtype_prop, RNA_property_enum_get(&imfptr, imtype_prop), &imtype_name);
     block = uiLayoutGetBlock(row);
-    UI_block_emboss_set(block, UI_EMBOSS_PULLDOWN);
+    UI_block_emboss_set(block, blender::ui::EmbossType::Pulldown);
     uiItemL(row, imtype_name, ICON_NONE);
-    UI_block_emboss_set(block, UI_EMBOSS_NONE);
+    UI_block_emboss_set(block, blender::ui::EmbossType::None);
   }
 }
 
@@ -1207,7 +1210,7 @@ static void draw_node_socket_name_editable(uiLayout *layout,
 {
   if (sock->runtime->declaration) {
     if (sock->runtime->declaration->socket_name_rna) {
-      uiLayoutSetEmboss(layout, UI_EMBOSS_NONE);
+      uiLayoutSetEmboss(layout, blender::ui::EmbossType::None);
       uiItemR(layout,
               (&sock->runtime->declaration->socket_name_rna->owner),
               sock->runtime->declaration->socket_name_rna->property_name,
@@ -1408,8 +1411,18 @@ static void std_node_socket_draw(
       }
       break;
     }
-    case SOCK_OBJECT: {
-      uiItemR(layout, ptr, "default_value", DEFAULT_FLAGS, text, ICON_NONE);
+    case SOCK_COLLECTION:
+    case SOCK_OBJECT:
+    case SOCK_MATERIAL: {
+      uiItemFullR(layout,
+                  ptr,
+                  RNA_struct_find_property(ptr, "default_value"),
+                  -1,
+                  0,
+                  DEFAULT_FLAGS,
+                  text,
+                  ICON_NONE,
+                  text.is_empty() ? std::optional(label) : std::nullopt);
       break;
     }
     case SOCK_IMAGE: {
@@ -1430,10 +1443,6 @@ static void std_node_socket_draw(
       }
       break;
     }
-    case SOCK_COLLECTION: {
-      uiItemR(layout, ptr, "default_value", DEFAULT_FLAGS, text, ICON_NONE);
-      break;
-    }
     case SOCK_TEXTURE: {
       if (text.is_empty()) {
         uiTemplateID(layout, C, ptr, "default_value", "texture.new", nullptr, nullptr);
@@ -1445,10 +1454,6 @@ static void std_node_socket_draw(
         uiTemplateID(row, C, ptr, "default_value", "texture.new", nullptr, nullptr);
       }
 
-      break;
-    }
-    case SOCK_MATERIAL: {
-      uiItemR(layout, ptr, "default_value", DEFAULT_FLAGS, text, ICON_NONE);
       break;
     }
     default:
@@ -1522,6 +1527,8 @@ static void std_node_socket_interface_draw(ID *id,
     case SOCK_SHADER:
     case SOCK_GEOMETRY:
     case SOCK_MATRIX:
+    case SOCK_BUNDLE:
+    case SOCK_CLOSURE:
       break;
 
     case SOCK_CUSTOM:
