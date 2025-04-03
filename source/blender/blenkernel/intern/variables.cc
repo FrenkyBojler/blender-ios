@@ -2,6 +2,8 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BLT_translation.hh"
+
 #include "BKE_scene.hh"
 #include "BKE_variables.hh"
 
@@ -96,16 +98,19 @@ VariableMap BKE_build_blender_variables(const char *blend_file_path, const Rende
   /* Blend file name. */
   if (blend_file_path) {
     const char *file_name = BLI_path_basename(blend_file_path);
-    if (file_name[0] != '\0') {
-      const char *file_name_end = BLI_path_extension_or_end(file_name);
-      if (file_name_end == file_name) {
-        /* When the filename has no extension, but starts with a period. */
-        variables.add_string("blend_name", blender::StringRef(file_name));
-      }
-      else {
-        /* Normal case. */
-        variables.add_string("blend_name", blender::StringRef(file_name, file_name_end));
-      }
+    const char *file_name_end = BLI_path_extension_or_end(file_name);
+    if (file_name[0] == '\0') {
+      /* If the file has never been saved (indicated by an empty file name),
+       * default to "Untitled". */
+      variables.add_string("blend_name", blender::StringRef(DATA_("Untitled")));
+    }
+    else if (file_name_end == file_name) {
+      /* When the filename has no extension, but starts with a period. */
+      variables.add_string("blend_name", blender::StringRef(file_name));
+    }
+    else {
+      /* Normal case. */
+      variables.add_string("blend_name", blender::StringRef(file_name, file_name_end));
     }
   }
 
