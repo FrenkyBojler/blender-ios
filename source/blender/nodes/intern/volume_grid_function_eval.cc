@@ -580,7 +580,7 @@ void execute_multi_function_on_value_variant__volume_grid(
   openvdb::MaskTree mask_tree;
   {
 #ifdef DEBUG_TIME
-    SCOPED_TIMER(__func__);
+    SCOPED_TIMER("create_mask_tree");
 #endif
     for (const openvdb::GridBase *grid : input_grids) {
       if (!grid) {
@@ -590,10 +590,10 @@ void execute_multi_function_on_value_variant__volume_grid(
     }
   }
 
-  Vector<openvdb::GridBase::Ptr> output_grids;
+  Array<openvdb::GridBase::Ptr> output_grids(output_values.size());
   {
 #ifdef DEBUG_TIME
-    SCOPED_TIMER(__func__);
+    SCOPED_TIMER("create_output_grids");
 #endif
     for (const int i : output_values.index_range()) {
       const int param_index = input_values.size() + i;
@@ -613,7 +613,7 @@ void execute_multi_function_on_value_variant__volume_grid(
       });
 
       grid->setTransform(transform->copy());
-      output_grids.append(std::move(grid));
+      output_grids[i] = std::move(grid);
     }
   }
 
