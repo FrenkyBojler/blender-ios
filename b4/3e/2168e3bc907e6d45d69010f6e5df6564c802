@@ -5,3 +5,4 @@ Referenced by commit eb093640302, glTF: Update after recent Blender changes on b
 Referenced by issue #132855, Nodes: remove unused NOD_static_types.h file
 Referenced by issue #132708, Refactor: Nodes: Move UI name out of NOD_static_types.h header
 Referenced by commit e3f9f36681bd38388af55f16a0cfc7301508c4ce, Fix #136891: Diffuse BSDF node legacy enum name changed mistakenly
+Referenced by pull request #136928, Fix changed legacy enum names for some compositor nodes #136891
