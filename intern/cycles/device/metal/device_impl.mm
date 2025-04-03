@@ -98,7 +98,11 @@ MetalDevice::MetalDevice(const DeviceInfo &info, Stats &stats, Profiler &profile
      * Requires Apple9 support (https://developer.apple.com/metal/Metal-Feature-Set-Tables.pdf). */
     if (use_metalrt && [mtlDevice supportsFamily:MTLGPUFamilyApple9]) {
       if (@available(macos 15.0, *)) {
-        use_motion_srt_transforms = true;
+        /* TODO: Enable per-component motion interpolation by default when "multi step velocity
+         * motion blur" failure is fixed.
+         *
+         * use_motion_srt_transforms = true;
+         */
         if (auto motion_srt_transforms = getenv("CYCLES_METALRT_MOTION_SRT")) {
           use_motion_srt_transforms = (atoi(motion_srt_transforms) != 0);
         }
