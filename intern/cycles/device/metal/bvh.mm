@@ -946,40 +946,28 @@ bool BVHMetal::build_BLAS(Progress &progress,
 
 #  if defined(MAC_OS_VERSION_15_0)
 
-/* Set MTLComponentTransform from a DecomposedTransform (or to identity if src is null). */
-static void populate_decomposed_transform(MTLComponentTransform &srt_data,
-                                          DecomposedTransform const *src)
+/* Return MTLComponentTransform from a DecomposedTransform. */
+static MTLComponentTransform decomposed_to_component_transform(const DecomposedTransform &src)
 {
-  if (@available(macos 15.0, *)) {
-    /* Scale. */
-    srt_data.scale.x = src ? src->y.w : 1.0f;
-    srt_data.scale.y = src ? src->z.w : 1.0f;
-    srt_data.scale.z = src ? src->w.w : 1.0f;
+  MTLComponentTransform tfm;
+  tfm.scale = MTLPackedFloat3Make(src.y.w, src.z.w, src.w.w);
+  tfm.shear = MTLPackedFloat3Make(src.z.x, src.z.y, src.w.x);
+  tfm.pivot = MTLPackedFloat3Make(0.0f, 0.0f, 0.0f);
+  tfm.rotation = MTLPackedFloatQuaternionMake(src.x.x, src.x.y, src.x.z, src.x.w);
+  tfm.translation = MTLPackedFloat3Make(src.y.x, src.y.y, src.y.z);
+  return tfm;
+}
 
-    /* Shear. */
-    srt_data.shear.x = src ? src->z.x : 0.0f;
-    srt_data.shear.y = src ? src->z.y : 0.0f;
-    srt_data.shear.z = src ? src->w.x : 0.0f;
-    assert(src[i].z.z == 0.0f);
-    assert(src[i].w.y == 0.0f);
-    assert(src[i].w.z == 0.0f);
-
-    /* Pivot point. */
-    srt_data.pivot.x = 0.0f;
-    srt_data.pivot.y = 0.0f;
-    srt_data.pivot.z = 0.0f;
-
-    /* Rotation. */
-    srt_data.rotation.x = src ? src->x.x : 0.0f;
-    srt_data.rotation.y = src ? src->x.y : 0.0f;
-    srt_data.rotation.z = src ? src->x.z : 0.0f;
-    srt_data.rotation.w = src ? src->x.w : 1.0f;
-
-    /* Translation. */
-    srt_data.translation.x = src ? src->y.x : 0.0f;
-    srt_data.translation.y = src ? src->y.y : 0.0f;
-    srt_data.translation.z = src ? src->y.z : 0.0f;
-  }
+/* Return unit MTLComponentTransform. */
+static MTLComponentTransform component_transform_make_unit()
+{
+  MTLComponentTransform tfm;
+  tfm.scale = MTLPackedFloat3Make(1.0f, 1.0f, 1.0f);
+  tfm.shear = MTLPackedFloat3Make(0.0f, 0.0f, 0.0f);
+  tfm.pivot = MTLPackedFloat3Make(0.0f, 0.0f, 0.0f);
+  tfm.rotation = MTLPackedFloatQuaternionMake(0.0f, 0.0f, 0.0f, 1.0f);
+  tfm.translation = MTLPackedFloat3Make(0.0f, 0.0f, 0.0f);
+  return tfm;
 }
 
 #  endif
@@ -1207,8 +1195,8 @@ bool BVHMetal::build_TLAS(Progress &progress,
 #  if defined(MAC_OS_VERSION_15_0)
           if (use_motion_srt_transforms) {
             for (int i = 0; i < key_count; i++) {
-              populate_decomposed_transform(decomposed_motion_transforms[motion_transform_index++],
-                                            &decomp[i]);
+              decomposed_motion_transforms[motion_transform_index++] =
+                  decomposed_to_component_transform(decomp[i]);
             }
           }
           else
@@ -1231,12 +1219,12 @@ bool BVHMetal::build_TLAS(Progress &progress,
 #  if defined(MAC_OS_VERSION_15_0)
           if (use_motion_srt_transforms) {
             if (ob->get_geometry()->is_instanced()) {
-              populate_decomposed_transform(decomposed_motion_transforms[motion_transform_index++],
-                                            &decomp[0]);
+              decomposed_motion_transforms[motion_transform_index++] =
+                  decomposed_to_component_transform(decomp[0]);
             }
             else {
-              populate_decomposed_transform(decomposed_motion_transforms[motion_transform_index++],
-                                            nullptr);
+              decomposed_motion_transforms[motion_transform_index++] =
+                  component_transform_make_unit();
             }
           }
           else
