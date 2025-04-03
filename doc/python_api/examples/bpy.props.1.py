@@ -20,11 +20,7 @@ class OBJECT_OT_property_example(bpy.types.Operator):
     my_string: bpy.props.StringProperty(name="String Value")
 
     def execute(self, context):
-        self.report(
-            {'INFO'}, "F: {:.2f}  B: {:s}  S: {!r}".format(
-                self.my_float, self.my_bool, self.my_string,
-            )
-        )
+        self.report({'INFO'}, f"F: {self.my_float:.2f}  B: {self.my_bool!s}  S: {self.my_string!r}")
         print('My float:', self.my_float)
         print('My bool:', self.my_bool)
         print('My string:', self.my_string)
