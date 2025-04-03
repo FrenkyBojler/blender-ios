@@ -734,7 +734,7 @@ std::string NormalFieldInput::socket_inspection_name() const
 
 uint64_t NormalFieldInput::hash() const
 {
-  return get_default_hash(213980475983, legacy_corner_normals_, true_normals_);
+  return get_default_hash(2980541, legacy_corner_normals_, true_normals_);
 }
 
 bool NormalFieldInput::is_equal_to(const fn::FieldNode &other) const
