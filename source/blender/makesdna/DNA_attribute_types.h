@@ -26,6 +26,7 @@ typedef struct AttributeStorageRuntimeHandle AttributeStorageRuntimeHandle;
 /** DNA data for bke::Attribute::ArrayData. */
 struct AttributeArrayDNA {
   void *data;
+  void *_pad;
   int64_t size;
   const ImplicitSharingInfoHandle *sharing_info;
 };
