@@ -386,7 +386,7 @@ static bool image_save_single(ReportList *reports,
      * this signifies no valid PPM is set. */
     double ppm[2] = {0, 0};
     if (opts->scene) {
-      BKE_image_format_ppm_get(&opts->scene->r.im_format, &opts->scene->r.xasp, ppm);
+      BKE_scene_ppm_get(&opts->scene->r, ppm);
     }
     copy_v2_v2_db(rr_ppm_prev, rr->ppm);
     copy_v2_v2_db(rr->ppm, ppm);

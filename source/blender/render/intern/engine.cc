@@ -21,7 +21,6 @@
 
 #include "BKE_camera.h"
 #include "BKE_global.hh"
-#include "BKE_image_format.hh"
 #include "BKE_node.hh"
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
@@ -201,7 +200,7 @@ static RenderResult *render_result_from_bake(
   rr->tilerect.xmax = x + w;
   rr->tilerect.ymax = y + h;
 
-  BKE_image_format_ppm_get(&engine->re->r.bake.im_format, &engine->re->r.xasp, rr->ppm);
+  BKE_scene_ppm_get(&engine->re->r, rr->ppm);
 
   /* Add single baking render layer. */
   RenderLayer *rl = MEM_callocN<RenderLayer>("bake render layer");

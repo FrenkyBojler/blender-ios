@@ -68,11 +68,6 @@ ARegion *do_versions_ensure_region(ListBase *regionbase,
  */
 ID *do_versions_rename_id(Main *bmain, short id_type, const char *name_src, const char *name_dst);
 
-/**
- * Runs `version_fn` on all #ImageFormatData structs.
- */
-void do_versions_foreach_imformat(Main *bmain, FunctionRef<void(ImageFormatData &imf)> version_fn);
-
 bool version_node_socket_is_used(bNodeSocket *sock);
 
 void version_node_socket_name(bNodeTree *ntree,

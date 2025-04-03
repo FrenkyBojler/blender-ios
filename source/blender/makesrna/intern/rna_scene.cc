@@ -6312,22 +6312,6 @@ static void rna_def_scene_image_format_data(BlenderRNA *brna)
                            "100 = maximum lossless compression with slow file output");
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
 
-  /* Pixels per meters (also DPI). */
-  prop = RNA_def_property(srna, "ppm_factor", PROP_FLOAT, PROP_NONE);
-  RNA_def_property_float_sdna(prop, nullptr, "ppm_factor");
-  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
-  RNA_def_property_range(prop, 1e-5f, 1e6f);
-  RNA_def_property_ui_range(prop, 0.0001f, 10000.0f, 2, 2);
-  RNA_def_property_ui_text(prop, "PPM Factor", "The unit multiplier for pixels per meter");
-
-  prop = RNA_def_property(srna, "ppm_base", PROP_FLOAT, PROP_NONE);
-  RNA_def_property_float_sdna(prop, nullptr, "ppm_base");
-  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
-  RNA_def_property_range(prop, 1e-5f, 1e6f);
-  /* Important to show at least 3 decimal points because multiple presets set this to 1.001. */
-  RNA_def_property_ui_range(prop, 0.0001f, 10000.0f, 2, 4);
-  RNA_def_property_ui_text(prop, "PPM Base", "The unit multiplier for pixels per meter");
-
   prop = RNA_def_property(srna, "use_preview", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", R_IMF_FLAG_PREVIEW_JPG);
   RNA_def_property_ui_text(
@@ -6918,6 +6902,22 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop, "Pixel Aspect Y", "Vertical aspect ratio - for anamorphic or non-square pixel output");
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, "rna_SceneCamera_update");
+
+  /* Pixels per meters (also DPI). */
+  prop = RNA_def_property(srna, "ppm_factor", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, nullptr, "ppm_factor");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_range(prop, 1e-5f, 1e6f);
+  RNA_def_property_ui_range(prop, 0.0001f, 10000.0f, 2, 2);
+  RNA_def_property_ui_text(prop, "PPM Factor", "The unit multiplier for pixels per meter");
+
+  prop = RNA_def_property(srna, "ppm_base", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, nullptr, "ppm_base");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_range(prop, 1e-5f, 1e6f);
+  /* Important to show at least 3 decimal points because multiple presets set this to 1.001. */
+  RNA_def_property_ui_range(prop, 0.0001f, 10000.0f, 2, 4);
+  RNA_def_property_ui_text(prop, "PPM Base", "The unit multiplier for pixels per meter");
 
   prop = RNA_def_property(srna, "ffmpeg", PROP_POINTER, PROP_NONE);
   RNA_def_property_struct_type(prop, "FFmpegSettings");

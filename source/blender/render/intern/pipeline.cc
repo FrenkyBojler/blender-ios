@@ -925,8 +925,7 @@ void RE_InitState(Render *re,
     re->result = MEM_callocN<RenderResult>("new render result");
     re->result->rectx = re->rectx;
     re->result->recty = re->recty;
-
-    BKE_image_format_ppm_get(&re->r.im_format, &re->r.xasp, re->result->ppm);
+    BKE_scene_ppm_get(&re->r, re->result->ppm);
     render_result_view_new(re->result, "");
   }
 

@@ -433,15 +433,6 @@ typedef struct ImageFormatData {
   char views_format;
   Stereo3dFormat stereo3d_format;
 
-  /* NOTE: currently the pixel density is only used from renders
-   * to initialize the #RenderResult::ppm, this is not used when saving.
-   * Instead, the PPM from the #ImBuf will be used. */
-
-  /** Pixels per meter (factor of PPM base). */
-  float ppm_factor;
-  /** Pixels per meter base (0.0254 for DPI). */
-  float ppm_base;
-
   /* Color management members. */
 
   char color_management;
@@ -744,6 +735,11 @@ typedef struct RenderData {
    * Adjustment factors for the aspect ratio in the x direction, was a short in 2.45
    */
   float xasp, yasp;
+
+  /** Pixels per meter (factor of PPM base). */
+  float ppm_factor;
+  /** Pixels per meter base (0.0254 for DPI). */
+  float ppm_base;
 
   float frs_sec_base;
 

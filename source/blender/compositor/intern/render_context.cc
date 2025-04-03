@@ -22,7 +22,6 @@
 #include "DNA_windowmanager_types.h"
 
 #include "BKE_image.hh"
-#include "BKE_image_format.hh"
 #include "BKE_image_save.hh"
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
@@ -139,11 +138,8 @@ void FileOutput::save(Scene *scene)
 
   /* NOTE: without this the file will be written without any density information.
    * So always write this. */
-  if (save_as_render_) {
-    BKE_image_format_ppm_get(&scene->r.im_format, &scene->r.xasp, render_result_->ppm);
-  }
-  else {
-    BKE_image_format_ppm_get(&format_, &scene->r.xasp, render_result_->ppm);
+  if (save_as_render_ || true) {
+    BKE_scene_ppm_get(&scene->r, render_result_->ppm);
   }
 
   BKE_image_render_write(

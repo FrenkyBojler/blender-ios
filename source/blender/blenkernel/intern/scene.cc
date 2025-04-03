@@ -3192,24 +3192,24 @@ int BKE_scene_multiview_num_videos_get(const RenderData *rd)
   return BKE_scene_multiview_num_views_get(rd);
 }
 
-void BKE_image_format_ppm_get(const ImageFormatData *imf, const float aspect[2], double r_ppm[2])
+void BKE_scene_ppm_get(const RenderData *rd, double r_ppm[2])
 {
   /* Should not be zero, prevent divide by zero if it is. */
-  if (UNLIKELY(imf->ppm_base == 0.0f)) {
+  if (UNLIKELY(rd->ppm_base == 0.0f)) {
     /* Zero PPM should be ignored. */
     r_ppm[0] = 0.0;
     r_ppm[1] = 0.0;
   }
   double xasp = 1.0, yasp = 1.0;
-  if (aspect[0] < aspect[1]) {
-    yasp = double(aspect[1]) / double(aspect[0]);
+  if (rd->xasp < rd->yasp) {
+    yasp = double(rd->yasp) / double(rd->xasp);
   }
-  else if (aspect[0] > aspect[1]) {
-    xasp = double(aspect[0]) / double(aspect[1]);
+  else if (rd->xasp > rd->yasp) {
+    xasp = double(rd->xasp) / double(rd->yasp);
   }
 
-  const double ppm_base = imf->ppm_base;
-  const double ppm_factor = imf->ppm_factor;
+  const double ppm_base = rd->ppm_base;
+  const double ppm_factor = rd->ppm_factor;
 
   r_ppm[0] = (ppm_factor / ppm_base) * xasp;
   r_ppm[1] = (ppm_factor / ppm_base) * yasp;

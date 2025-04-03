@@ -292,7 +292,7 @@ RenderResult *render_result_new(Render *re,
   rr->rectx = rectx;
   rr->recty = recty;
 
-  BKE_image_format_ppm_get(&re->r.im_format, &re->r.xasp, rr->ppm);
+  BKE_scene_ppm_get(&re->r, rr->ppm);
 
   /* tilerect is relative coordinates within render disprect. do not subtract crop yet */
   rr->tilerect.xmin = partrct->xmin - re->disprect.xmin;
