@@ -4,7 +4,7 @@
 
 try:
     # Introduced in Python 3.12:
-    from itertools import batched
+    from itertools import batched  # type: ignore
 except ImportError:
     import itertools
 
