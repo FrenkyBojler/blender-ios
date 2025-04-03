@@ -501,7 +501,6 @@ blender::Span<blender::float3> Mesh::corner_normals() const
   return this->runtime->corner_normals_cache.data().get_span();
 }
 
-
 void BKE_lnor_spacearr_init(MLoopNorSpaceArray *lnors_spacearr,
                             const int numLoops,
                             const char data_type)
