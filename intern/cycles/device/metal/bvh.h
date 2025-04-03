@@ -32,8 +32,8 @@ class BVHMetal : public BVH {
 
   bool motion_blur = false;
 
-  /* Scale/Rotate/Translate motion interpolation available in macOS 15. */
-  bool use_motion_srt_transforms = false;
+  /* Per-component Motion Interpolation in macOS 15. */
+  bool use_pcmi = false;
 
   bool build(Progress &progress, id<MTLDevice> device, id<MTLCommandQueue> queue, bool refit);
 

@@ -1090,7 +1090,7 @@ bool BVHMetal::build_TLAS(Progress &progress,
 #  endif
     if (use_instance_motion && num_motion_transforms) {
 #  if defined(MAC_OS_VERSION_15_0)
-      if (use_motion_srt_transforms) {
+      if (use_pcmi) {
         if (@available(macos 15.0, *)) {
           motion_transforms_buf = [mtl_device
               newBufferWithLength:num_motion_transforms * sizeof(MTLComponentTransform)
@@ -1193,7 +1193,7 @@ bool BVHMetal::build_TLAS(Progress &progress,
           desc.motionTransformsCount = key_count;
 
 #  if defined(MAC_OS_VERSION_15_0)
-          if (use_motion_srt_transforms) {
+          if (use_pcmi) {
             for (int i = 0; i < key_count; i++) {
               decomposed_motion_transforms[motion_transform_index++] =
                   decomposed_to_component_transform(decomp[i]);
@@ -1217,7 +1217,7 @@ bool BVHMetal::build_TLAS(Progress &progress,
           desc.motionTransformsCount = 1;
 
 #  if defined(MAC_OS_VERSION_15_0)
-          if (use_motion_srt_transforms) {
+          if (use_pcmi) {
             if (ob->get_geometry()->is_instanced()) {
               decomposed_motion_transforms[motion_transform_index++] =
                   decomposed_to_component_transform(decomp[0]);
@@ -1299,8 +1299,7 @@ bool BVHMetal::build_TLAS(Progress &progress,
 #  if defined(MAC_OS_VERSION_15_0)
       if (@available(macos 15.0, *)) {
         accelDesc.motionTransformStride = 0;
-        accelDesc.motionTransformType = use_motion_srt_transforms ? MTLTransformTypeComponent :
-                                                                    MTLTransformTypePackedFloat4x3;
+        accelDesc.motionTransformType = use_pcmi ? MTLTransformTypeComponent : MTLTransformTypePackedFloat4x3;
       }
 #  endif
     }
