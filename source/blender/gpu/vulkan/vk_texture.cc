@@ -393,6 +393,19 @@ uint VKTexture::gl_bindcode_get() const
   return 0;
 }
 
+int VKTexture::export_memory(VkExternalMemoryHandleTypeFlagBits handle_type)
+{
+  const VKDevice &device = VKBackend::get().device;
+  VkMemoryGetFdInfoKHR vk_memory_get_fd_info = {VK_STRUCTURE_TYPE_MEMORY_GET_FD_INFO_KHR,
+                                                nullptr,
+                                                allocation_info_.deviceMemory,
+                                                handle_type};
+
+  int fd_handle = 0;
+  // device.  vkGetMemoryFdKHR(device.vk_handle(), &vk_memory_get_fd_info, &fd_handle);
+  return fd_handle;
+}
+
 bool VKTexture::init_internal()
 {
   const VKDevice &device = VKBackend::get().device;
@@ -572,7 +585,7 @@ bool VKTexture::allocate()
                           &allocCreateInfo,
                           &vk_image_,
                           &allocation_,
-                          nullptr);
+                          &allocation_info_);
   if (result != VK_SUCCESS) {
     return false;
   }

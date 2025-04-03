@@ -542,12 +542,8 @@ void GHOST_XrGraphicsBindingVulkan::submitToSwapchainImageCpu(
 void GHOST_XrGraphicsBindingVulkan::submitToSwapchainImageFd(
     XrSwapchainImageVulkan2KHR &swapchain_image, const GHOST_XrDrawViewInfo &draw_info)
 {
-  GHOST_VulkanOpenXRData openxr_data = {GHOST_kVulkanXRModeFD,
-                                        {draw_info.ofsx, draw_info.ofsy},
-                                        {uint32_t(draw_info.width), uint32_t(draw_info.height)}};
+  GHOST_VulkanOpenXRData openxr_data = {GHOST_kVulkanXRModeFD};
   m_ghost_ctx->openxr_acquire_framebuffer_image_callback_(&openxr_data);
-
-  
 
   m_ghost_ctx->openxr_release_framebuffer_image_callback_(&openxr_data);
 }

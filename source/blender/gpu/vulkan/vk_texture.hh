@@ -51,6 +51,7 @@ class VKTexture : public Texture {
   VKVertexBuffer *source_buffer_ = nullptr;
   VkImage vk_image_ = VK_NULL_HANDLE;
   VmaAllocation allocation_ = VK_NULL_HANDLE;
+  VmaAllocationInfo allocation_info_ = {};
 
   /**
    * Image views are owned by VKTexture. When a specific image view is needed it will be created
@@ -111,6 +112,7 @@ class VKTexture : public Texture {
 
   /* TODO(fclem): Legacy. Should be removed at some point. */
   uint gl_bindcode_get() const override;
+  int export_memory(VkExternalMemoryHandleTypeFlagBits handle_type);
 
   VkImage vk_image_handle() const
   {

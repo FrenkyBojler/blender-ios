@@ -437,6 +437,11 @@ void VKContext::openxr_acquire_framebuffer_image_handler(GHOST_VulkanOpenXRData 
     case GHOST_kVulkanXRModeCPU:
       openxr_data.cpu.image_data = color_attachment->read(0, GPU_DATA_HALF_FLOAT);
       break;
+
+    case GHOST_kVulkanXRModeFD:
+      openxr_data.fd.image_handle = color_attachment->export_memory(
+          VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT);
+      break;
   }
 }
 
@@ -446,6 +451,13 @@ void VKContext::openxr_release_framebuffer_image_handler(GHOST_VulkanOpenXRData 
     case GHOST_kVulkanXRModeCPU:
       MEM_freeN(openxr_data.cpu.image_data);
       openxr_data.cpu.image_data = nullptr;
+      break;
+
+    case GHOST_kVulkanXRModeFD:
+      /* Nothing to do as import of the handle by the XrInstance removes the ownership of the
+       * handle. Ref
+       * https://registry.khronos.org/vulkan/specs/latest/man/html/VK_KHR_external_memory_fd.html#_issues
+       */
       break;
   }
 }
