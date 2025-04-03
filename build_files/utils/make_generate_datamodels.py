@@ -19,7 +19,7 @@ import warnings
 # The generated Python files will be written to the same path,
 # just with the `.py` suffix.
 YAML_PATHS = [
-    "scripts/modules/bl_assets/blender_asset_library_openapi.yaml",
+    "scripts/modules/_bpy_internal/assets/remote_library_index/blender_asset_library_openapi.yaml",
 ]
 
 # These arguments are quite likely to be used for all code generated with this
@@ -96,7 +96,7 @@ def _generate_datamodel(in_path: Path, in_type: str, out_path: Path) -> None:
     match status:
         case Exit.OK:
             return
-        case Exit.Error:
+        case Exit.ERROR:
             raise SystemExit("code generation failed")
         case Exit.KeyboardInterrupt:
             raise KeyboardInterrupt()
@@ -163,8 +163,8 @@ def _install_dependencies() -> None:
     """Install required dependencies into the virtual environment."""
     print("Installing dependencies")
     # Pip doesn't like to be used as Python library, invoking it via the CLI is the best option.
-    _run_command(VENV_PYTHON, "-m", "pip", "install", "--upgrade", "pip")
-    _run_command(VENV_PYTHON, "-m", "pip", "install", "--upgrade", *REQUIREMENTS)
+    _run_command(str(VENV_PYTHON), "-m", "pip", "install", "--upgrade", "pip")
+    _run_command(str(VENV_PYTHON), "-m", "pip", "install", "--upgrade", *REQUIREMENTS)
 
 
 def _is_dependency_installed(package: str) -> bool:
