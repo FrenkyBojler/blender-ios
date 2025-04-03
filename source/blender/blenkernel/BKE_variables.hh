@@ -130,20 +130,17 @@ class VariableMap {
  * example, if the context is a linked ID then this path should (very likely) be
  * the path to that ID's library blend file, not the currently opened one.
  *
- * \param frame_number: the current frame.
- *
- * \param render_data: start/end frame, output resolution, and fps. Note: the
- * current frame in this is *not* used. Use the `frame_number` parameter for
- * that. The reasons for this are a little esoteric, but boil down to the fact
- * that the callers of this function sometimes have the current frame defined
- * separately from the available RenderData (see e.g. `do_makepicstring()`).
+ * \param render_data: used for output resolution and fps. Note for the future:
+ * when we add a "current frame number" variable it should *not* come from this
+ * parameter, but be passed separately. This is because the callers of this
+ * function sometimes have the current frame defined separately from the
+ * available RenderData (see e.g. `do_makepicstring()`).
  *
  * \see BKE_path_apply_variables()
  *
  * \see BLI_path_abs()
  */
 VariableMap BKE_build_blender_variables(const char *blend_file_path,
-                                        std::optional<uint64_t> frame_number,
                                         const RenderData *render_data);
 
 /**

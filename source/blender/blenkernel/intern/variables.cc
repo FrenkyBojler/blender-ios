@@ -89,9 +89,7 @@ std::optional<double> VariableMap::get_float(blender::StringRef name) const
 
 /* -------------------------------------------------------------------- */
 
-VariableMap BKE_build_blender_variables(const char *blend_file_path,
-                                        const std::optional<uint64_t> frame_number,
-                                        const RenderData *render_data)
+VariableMap BKE_build_blender_variables(const char *blend_file_path, const RenderData *render_data)
 {
   VariableMap variables;
 
@@ -111,16 +109,8 @@ VariableMap BKE_build_blender_variables(const char *blend_file_path,
     }
   }
 
-  /* Frame number. */
-  if (frame_number.has_value()) {
-    variables.add_integer("frame_number", *frame_number);
-  }
-
-  /* Start/end frame, render resolution, and fps. */
+  /* Render resolution and fps. */
   if (render_data) {
-    variables.add_integer("frame_start", render_data->sfra);
-    variables.add_integer("frame_end", render_data->efra);
-
     int res_x, res_y;
     BKE_render_resolution(render_data, false, &res_x, &res_y);
     variables.add_integer("resolution_x", res_x);
