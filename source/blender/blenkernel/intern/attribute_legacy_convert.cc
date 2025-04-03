@@ -135,7 +135,7 @@ AttributeStorage attribute_legacy_convert_customdata_to_storage(
   for (AttributeToAdd &attribute : attributes_to_add) {
     bke::Attribute::ArrayData array_data;
     array_data.data = attribute.array_data;
-    array_data.elements_num = attribute.array_size;
+    array_data.size = attribute.array_size;
     array_data.sharing_info = ImplicitSharingPtr<>(attribute.sharing_info);
     storage.add(attribute.name, attribute.domain, attribute.type, std::move(array_data));
   }
@@ -193,7 +193,7 @@ void attribute_legacy_convert_storage_to_customdata(
       CustomData_add_layer_named_with_data(custom_data,
                                            *data_type,
                                            array_data->data,
-                                           array_data->elements_num,
+                                           array_data->size,
                                            attribute.name(),
                                            array_data->sharing_info.get());
     }

@@ -25,7 +25,7 @@ TEST(attribute_storage, Single)
   Attribute::ArrayData data{};
   data.sharing_info = ImplicitSharingPtr<>(sharing_info);
   data.data = sharing_info->data.data();
-  data.elements_num = 4;
+  data.size = 4;
   storage.add("foo", AttrDomain::Corner, AttrType::Float, std::move(data));
 
   EXPECT_TRUE(storage.lookup("foo"));
@@ -49,7 +49,7 @@ TEST(attribute_storage, GetForWrite)
   Attribute::ArrayData data{};
   data.sharing_info = ImplicitSharingPtr<>(sharing_info);
   data.data = sharing_info->data.data();
-  data.elements_num = 4;
+  data.size = 4;
   storage.add("foo", AttrDomain::Corner, AttrType::Float, std::move(data));
   {
     const auto &data = std::get<Attribute::ArrayData>(storage.lookup("foo")->data_for_write());
@@ -84,7 +84,7 @@ TEST(attribute_storage, MultipleShared)
   Attribute::ArrayData data{};
   data.sharing_info = ImplicitSharingPtr<>(sharing_info);
   data.data = sharing_info->data.data();
-  data.elements_num = 4;
+  data.size = 4;
   storage.add("we", AttrDomain::Corner, AttrType::Float, data);
   storage.add("need", AttrDomain::Point, AttrType::Float, data);
   storage.add("more", AttrDomain::Face, AttrType::Float, data);

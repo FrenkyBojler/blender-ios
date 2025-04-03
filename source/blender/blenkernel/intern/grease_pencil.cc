@@ -264,8 +264,8 @@ static void grease_pencil_blend_write(BlendWriter *writer, ID *id, const void *i
 
   blender::Vector<CustomDataLayer, 16> layers_data_layers;
   CustomData_blend_write_prepare(grease_pencil->layers_data, layers_data_layers);
-  blender::bke::AttributeStorage::BlendWriteData attribute_data =
-      grease_pencil->attribute_storage.wrap().blend_write_prepare();
+  blender::bke::AttributeStorage::BlendWriteData attribute_data;
+  grease_pencil->attribute_storage.wrap().blend_write_prepare(*writer, attribute_data);
 
   /* Write LibData */
   BLO_write_id_struct(writer, GreasePencil, id_address, &grease_pencil->id);
@@ -4225,7 +4225,7 @@ static void write_drawing_array(GreasePencil &grease_pencil, BlendWriter *writer
       case GP_DRAWING: {
         GreasePencilDrawing *drawing = reinterpret_cast<GreasePencilDrawing *>(drawing_base);
         bke::CurvesGeometry::BlendWriteData write_data =
-            drawing->wrap().strokes_for_write().blend_write_prepare();
+            drawing->wrap().strokes_for_write().blend_write_prepare(*writer);
         BLO_write_struct(writer, GreasePencilDrawing, drawing);
         drawing->wrap().strokes_for_write().blend_write(*writer, grease_pencil.id, write_data);
         break;

@@ -463,7 +463,7 @@ typedef struct GreasePencil {
    */
   CustomData layers_data;
 
-  AttributeStorage attribute_storage;
+  struct AttributeStorage attribute_storage;
 
   /**
    * The index of the active attribute in the UI.

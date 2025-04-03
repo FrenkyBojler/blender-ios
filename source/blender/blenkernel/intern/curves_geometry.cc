@@ -1879,12 +1879,12 @@ void CurvesGeometry::blend_read(BlendDataReader &reader)
   this->update_curve_types();
 }
 
-CurvesGeometry::BlendWriteData CurvesGeometry::blend_write_prepare()
+CurvesGeometry::BlendWriteData CurvesGeometry::blend_write_prepare(BlendWriter &writer)
 {
   CurvesGeometry::BlendWriteData write_data;
   CustomData_blend_write_prepare(this->point_data, write_data.point_layers);
   CustomData_blend_write_prepare(this->curve_data, write_data.curve_layers);
-  write_data.attribute_data = this->attribute_storage.wrap().blend_write_prepare();
+  this->attribute_storage.wrap().blend_write_prepare(writer, write_data.attribute_data);
   return write_data;
 }
 

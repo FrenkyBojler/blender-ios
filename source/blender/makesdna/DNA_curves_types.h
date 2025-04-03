@@ -118,7 +118,7 @@ typedef struct CurvesGeometry {
   int *curve_offsets;
 
   /** Curve and point domain attributes. */
-  AttributeStorage attribute_storage;
+  struct AttributeStorage attribute_storage;
 
   /**
    * All attributes stored on control points (#AttrDomain::Point).

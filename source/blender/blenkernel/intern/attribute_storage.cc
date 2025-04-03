@@ -389,7 +389,7 @@ void AttributeStorage::blend_write_prepare(BlendWriter &writer,
     dna_attr.storage_type = int8_t(attr.storage_type_);
 
     if (const auto *data = std::get_if<Attribute::ArrayData>(&attr.data_)) {
-      write_data.arrays[i] = {data->data, data->size, data->sharing_info.get()};
+      write_data.arrays[i] = {data->data, data->sharing_info.get(), data->size};
       dna_attr.data = &write_data.arrays[i];
       write_shared_array(writer, attr.type_, data->data, data->size, *data->sharing_info);
     }

@@ -109,7 +109,7 @@ static void curves_blend_write(BlendWriter *writer, ID *id, const void *id_addre
   curves->attributes_active_index_legacy = curves->geometry.attributes_active_index;
 
   blender::bke::CurvesGeometry::BlendWriteData write_data =
-      curves->geometry.wrap().blend_write_prepare();
+      curves->geometry.wrap().blend_write_prepare(*writer);
 
   /* Write LibData */
   BLO_write_id_struct(writer, Curves, id_address, &curves->id);
