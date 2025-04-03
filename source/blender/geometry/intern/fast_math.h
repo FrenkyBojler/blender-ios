@@ -99,6 +99,8 @@ extern "C" {
     extern int32_t scatter_ints_buffer(int32_t * values, int32_t * indices, int32_t * buffer, int32_t count, int32_t front_self_range);
     extern void split_float3_to_3_float(const float xyz_values[][3], float * x_components, float * y_components, float * z_components, int32_t count);
     extern void sqrt_n_add_single(float * values, const int32_t count, const float offset);
+    extern void zero_if_in_index_n(const int32_t * indices, float * values, const int32_t index_value, const int32_t count);
+    extern void zero_if_in_range_n(const int32_t * indices, float * values, const int32_t range_start, const int32_t range_size, const int32_t count);
     extern int32_t zip_if_larger_or_equal(int32_t * values, const float * predicates, const int32_t count, const float min_predicate_value);
 #if defined(__cplusplus) && (! defined(__ISPC_NO_EXTERN_C) || !__ISPC_NO_EXTERN_C )
 } /* end extern C */

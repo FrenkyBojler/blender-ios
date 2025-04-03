@@ -101,6 +101,63 @@ export void gather_distances(const uniform int indices[],
   }
 }
 
+export void zero_if_in_range_n(const uniform int indices[],
+                               uniform float values[],
+                               const uniform int range_start,
+                               const uniform int range_size,
+                               const uniform int count)
+{
+    const uniform int range_end = range_start + range_size;
+
+    const uniform int batch_count = (count / programCount) * programCount;
+    for (uniform int index = 0; index < batch_count; index += programCount) {
+        varying int indices_batch = streaming_load(&indices[index]);
+        varying float values_batch = streaming_load(&values[index]);
+        const varying bool mask = indices_batch >= range_start && indices_batch < range_end;
+        values[index + programIndex] = mask ? values_batch : 0.0f;
+    }
+
+    uniform int indices_sufix[programCount];
+    uniform float values_sufix[programCount];
+
+    memcpy(&indices_sufix[0], (uniform int * uniform)&indices[batch_count], sizeof(uniform int) * (count - batch_count));
+    memcpy(&values_sufix[0], (uniform float * uniform)&values[batch_count], sizeof(uniform float) * (count - batch_count));
+
+    uniform float sufix_result[programCount];
+
+    const varying bool mask = indices_sufix[programIndex] >= range_start && indices_sufix[programIndex] < range_end;
+    sufix_result[programIndex] = mask ? values_sufix[programIndex] : 0.0f;
+
+    memcpy((uniform float * uniform)&values[batch_count], &sufix_result[0], sizeof(uniform float) * (count - batch_count));
+}
+
+export void zero_if_in_index_n(const uniform int indices[],
+                               uniform float values[],
+                               const uniform int index_value,
+                               const uniform int count)
+{
+    const uniform int batch_count = (count / programCount) * programCount;
+    for (uniform int index = 0; index < batch_count; index += programCount) {
+        varying int indices_batch = streaming_load(&indices[index]);
+        varying float values_batch = streaming_load(&values[index]);
+        const varying bool mask = indices_batch != index_value;
+        values[index + programIndex] = mask ? values_batch : 0.0f;
+    }
+
+    uniform int indices_sufix[programCount];
+    uniform float values_sufix[programCount];
+
+    memcpy(&indices_sufix[0], (uniform int * uniform)&indices[batch_count], sizeof(uniform int) * (count - batch_count));
+    memcpy(&values_sufix[0], (uniform float * uniform)&values[batch_count], sizeof(uniform float) * (count - batch_count));
+
+    uniform float sufix_result[programCount];
+
+    const varying bool mask = indices_sufix[programIndex] != index_value;
+    sufix_result[programIndex] = mask ? values_sufix[programIndex] : 0.0f;
+
+    memcpy((uniform float * uniform)&values[batch_count], &sufix_result[0], sizeof(uniform float) * (count - batch_count));
+}
+
 // static void distances_exec(uniform float * uniform positions,
 //                            const uniform float target[3],
 //                            const uniform int count,
@@ -187,7 +244,7 @@ export void distances_split(const uniform float positions_x[],
     for (uniform int index = 0; index < batch_count; index += programCount) {
         varying float<3> batch = {streaming_load(&positions_x[index]),
                                   streaming_load(&positions_y[index]),
-                                  streaming_load(&positions_z[index])};
+                                  positions_z[index + programIndex]};
         batch -= targets;
         batch *= batch;
         distances[index + programIndex] = batch.x + batch.y + batch.z;
@@ -1017,8 +1074,8 @@ export uniform int one_mul_add_n(
     const uniform int batch_count = (count / programCount) * programCount;
     for (uniform int index = 0; index < batch_count; index += programCount) {
         const varying float value = values[index + programIndex];
-        const varying float factor = factors[index + programIndex];
-        // const varying float factor = streaming_load(&factors[index]);
+        // const varying float factor = factors[index + programIndex];
+        const varying float factor = streaming_load(&factors[index]);
         values[index + programIndex] = value + factor * other;
     }
     for (uniform int index = batch_count; index < count; index++) {

@@ -314,8 +314,59 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
 
       if (UNLIKELY(total_next == prefix_to_visit)) {
         if (depth_i == total_depth - 1) {
+          const IndexRange joint_backet = buckets_offsets[joint_i];
+          for (const int bucket_item : joint_backet) {
+            const float3 bucket_position = src_bucket_position[bucket_item];
+            ispc::distances_split(batch_positions_x.data(),
+                                  batch_positions_y.data(),
+                                  batch_positions_z.data(),
+                                  bucket_position,
+                                  batch_distances.size(),
+                                  batch_distances.data(),
+                                  offset_value);
+
+            ispc::sqrt_n_add_single(batch_distances.data(), prefix_to_visit, offset_value);
+            distance_invertion(power_value, batch_distances);
+
+            if (sampler_to_bucket_range->contains(bucket_item)) {
+              ispc::zero_if_in_index_n(batch_indices.data(),
+                                       batch_distances.data(),
+                                       bucket_item - sampler_to_bucket_range->start(),
+                                       prefix_to_visit);
+            }
+
+            if (value_type.is<float>()) {
+              const float bucket_value = src_bucket_value.typed<float>()[bucket_item];
+              const MutableSpan<float> batch_values = batch_values_buffer[0].as_mutable_span().take_front(prefix_to_visit);
+              ispc::one_mul_add_n(batch_values.data(),
+                                  batch_distances.data(),
+                                  bucket_value,
+                                  prefix_to_visit);
+              continue;
+            }
+
+            const float3 bucket_value = src_bucket_value.typed<float3>()[bucket_item];
+            MutableSpan<float> batch_values = batch_values_buffer[0].as_mutable_span().take_front(prefix_to_visit);
+            ispc::one_mul_add_n(batch_values.data(),
+                                batch_distances.data(),
+                                bucket_value.x,
+                                prefix_to_visit);
+
+            batch_values = batch_values_buffer[1].as_mutable_span().take_front(prefix_to_visit);
+            ispc::one_mul_add_n(batch_values.data(),
+                                batch_distances.data(),
+                                bucket_value.y,
+                                prefix_to_visit);
+
+            batch_values = batch_values_buffer[2].as_mutable_span().take_front(prefix_to_visit);
+            ispc::one_mul_add_n(batch_values.data(),
+                                batch_distances.data(),
+                                bucket_value.z,
+                                prefix_to_visit);
+          }
           continue;
         }
+        
         depth_stack.extend_unchecked({depth_i + 1, depth_i + 1});
         joint_stack.extend_unchecked({joint_i * 2 + 1, joint_i * 2 + 0});
         prefix_to_visit_stack.extend_unchecked({prefix_to_visit, prefix_to_visit});
@@ -427,11 +478,103 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
                                  pertition_mapping_total);
       }
 
-      if (UNLIKELY(total_next == 0)) {
+      if (UNLIKELY(depth_i == total_depth - 1)) {
+        const int aligned_pass_start = (total_next / 16) * 16;
+        
+        const int total_off = prefix_to_visit - total_next;
+        
+        std::copy(batch_positions_x.begin() + aligned_pass_start, batch_positions_x.begin() + total_next, buffer.cast<float>().begin());
+        std::copy(batch_positions_x.end() - (total_next - aligned_pass_start), batch_positions_x.end(), batch_positions_x.begin() + aligned_pass_start);
+        std::copy(buffer.cast<float>().begin(), buffer.cast<float>().begin() + (total_next - aligned_pass_start), batch_positions_x.end() - (total_next - aligned_pass_start));
+        
+        std::copy(batch_positions_y.begin() + aligned_pass_start, batch_positions_y.begin() + total_next, buffer.cast<float>().begin());
+        std::copy(batch_positions_y.end() - (total_next - aligned_pass_start), batch_positions_y.end(), batch_positions_y.begin() + aligned_pass_start);
+        std::copy(buffer.cast<float>().begin(), buffer.cast<float>().begin() + (total_next - aligned_pass_start), batch_positions_y.end() - (total_next - aligned_pass_start));
+        
+        std::copy(batch_positions_z.begin() + aligned_pass_start, batch_positions_z.begin() + total_next, buffer.cast<float>().begin());
+        std::copy(batch_positions_z.end() - (total_next - aligned_pass_start), batch_positions_z.end(), batch_positions_z.begin() + aligned_pass_start);
+        std::copy(buffer.cast<float>().begin(), buffer.cast<float>().begin() + (total_next - aligned_pass_start), batch_positions_z.end() - (total_next - aligned_pass_start));
+        
+        std::copy(batch_indices.begin() + aligned_pass_start, batch_indices.begin() + total_next, buffer.begin());
+        std::copy(batch_indices.end() - (total_next - aligned_pass_start), batch_indices.end(), batch_indices.begin() + aligned_pass_start);
+        std::copy(buffer.begin(), buffer.begin() + (total_next - aligned_pass_start), batch_indices.end() - (total_next - aligned_pass_start));
+
+        if (value_type.is<float>()) {
+          const MutableSpan<float> batch_values = batch_values_buffer[0].as_mutable_span().take_front(prefix_to_visit);
+          std::copy(batch_values.begin() + aligned_pass_start, batch_values.begin() + total_next, buffer.cast<float>().begin());
+          std::copy(batch_values.end() - (total_next - aligned_pass_start), batch_values.end(), batch_values.begin() + aligned_pass_start);
+          std::copy(buffer.cast<float>().begin(), buffer.cast<float>().begin() + (total_next - aligned_pass_start), batch_values.end() - (total_next - aligned_pass_start));
+        } else {
+          MutableSpan<float> batch_values = batch_values_buffer[0].as_mutable_span().take_front(prefix_to_visit);
+          std::copy(batch_values.begin() + aligned_pass_start, batch_values.begin() + total_next, buffer.cast<float>().begin());
+          std::copy(batch_values.end() - (total_next - aligned_pass_start), batch_values.end(), batch_values.begin() + aligned_pass_start);
+          std::copy(buffer.cast<float>().begin(), buffer.cast<float>().begin() + (total_next - aligned_pass_start), batch_values.end() - (total_next - aligned_pass_start));
+
+          batch_values = batch_values_buffer[1].as_mutable_span().take_front(prefix_to_visit);
+          std::copy(batch_values.begin() + aligned_pass_start, batch_values.begin() + total_next, buffer.cast<float>().begin());
+          std::copy(batch_values.end() - (total_next - aligned_pass_start), batch_values.end(), batch_values.begin() + aligned_pass_start);
+          std::copy(buffer.cast<float>().begin(), buffer.cast<float>().begin() + (total_next - aligned_pass_start), batch_values.end() - (total_next - aligned_pass_start));
+
+          batch_values = batch_values_buffer[2].as_mutable_span().take_front(prefix_to_visit);
+          std::copy(batch_values.begin() + aligned_pass_start, batch_values.begin() + total_next, buffer.cast<float>().begin());
+          std::copy(batch_values.end() - (total_next - aligned_pass_start), batch_values.end(), batch_values.begin() + aligned_pass_start);
+          std::copy(buffer.cast<float>().begin(), buffer.cast<float>().begin() + (total_next - aligned_pass_start), batch_values.end() - (total_next - aligned_pass_start));
+        }
+
+        const IndexRange joint_backet = buckets_offsets[joint_i];
+        for (const int bucket_item : joint_backet) {
+          const float3 bucket_position = src_bucket_position[bucket_item];
+          ispc::distances_split(batch_positions_x.data(),
+                                batch_positions_y.data(),
+                                batch_positions_z.data(),
+                                bucket_position,
+                                total_off,
+                                batch_distances.data(),
+                                offset_value);
+
+          ispc::sqrt_n_add_single(batch_distances.data(), total_off, offset_value);
+          distance_invertion(power_value, batch_distances);
+
+          if (sampler_to_bucket_range->contains(bucket_item)) {
+            ispc::zero_if_in_index_n(batch_indices.data(),
+                                     batch_distances.data(),
+                                     bucket_item - sampler_to_bucket_range->start(),
+                                     total_off);
+          }
+
+          if (value_type.is<float>()) {
+            const float bucket_value = src_bucket_value.typed<float>()[bucket_item];
+            const MutableSpan<float> batch_values = batch_values_buffer[0].as_mutable_span().take_front(total_off);
+            ispc::one_mul_add_n(batch_values.data(),
+                                batch_distances.data(),
+                                bucket_value,
+                                total_off);
+          } else {
+            const float3 bucket_value = src_bucket_value.typed<float3>()[bucket_item];
+            MutableSpan<float> batch_values = batch_values_buffer[0].as_mutable_span().take_front(total_off);
+            ispc::one_mul_add_n(batch_values.data(),
+                                batch_distances.data(),
+                                bucket_value.x,
+                                total_off);
+
+            batch_values = batch_values_buffer[1].as_mutable_span().take_front(total_off);
+            ispc::one_mul_add_n(batch_values.data(),
+                                batch_distances.data(),
+                                bucket_value.y,
+                                total_off);
+
+            batch_values = batch_values_buffer[2].as_mutable_span().take_front(total_off);
+            ispc::one_mul_add_n(batch_values.data(),
+                                batch_distances.data(),
+                                bucket_value.z,
+                                total_off);
+          }
+        }
+
         continue;
       }
 
-      if (UNLIKELY(depth_i == total_depth - 1)) {
+      if (UNLIKELY(total_next == 0)) {
         continue;
       }
 
@@ -454,67 +597,6 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
       }
     }
   }
-
-  // Vector<float, 0, GuardedAlignedAllocator<>> buffer;
-  //
-  // to_static_type(src_joints_value.type(), [&](auto dummy) {
-  //   // SCOPED_TIMER_AVERAGED("  bucket_to_batch_samples");
-  //   using T = decltype(dummy);
-  //
-  //   const Span<T> typed_src_joints_value = src_joints_value.typed<T>();
-  //   const Span<T> typed_src_bucket_value = src_bucket_value.typed<T>();
-  //   MutableSpan<T> typed_dst_buckets_data = dst_buckets_data.typed<T>();
-  //
-  //   buffer.resize(std::accumulate(bucket_to_batch_samples.begin(),
-  //   bucket_to_batch_samples.end(), 0, [&](const int size, const auto &item) {
-  //     return size + item.first.size() * item.second.size();
-  //   }));
-  //
-  //   int offset_iter = 0;
-  //   for (const auto &[bucket_range, batch_samples] : bucket_to_batch_samples) {
-  //
-  //     for (const int sample_index : batch_samples) {
-  //       MutableSpan<float> buffer_section = buffer.as_mutable_span().slice(offset_iter,
-  //       bucket_range.size()); offset_iter += bucket_range.size();
-  //
-  //       const float3 position = sample_position[sample_index];
-  //
-  //       ispc::distances(const_cast<float (*)[3]
-  //       >(src_bucket_position.slice(bucket_range).cast<float [3]>().data()),
-  //                       position,
-  //                       buffer_section.size(),
-  //                       buffer_section.data(),
-  //                       offset_value);
-  //     }
-  //   }
-  //
-  //   offset_iter = 0;
-  //   for (const auto &[bucket_range, batch_samples] : bucket_to_batch_samples) {
-  //
-  //     for (const int sample_index : batch_samples) {
-  //       MutableSpan<float> buffer_section = buffer.as_mutable_span().slice(offset_iter,
-  //       bucket_range.size()); offset_iter += bucket_range.size();
-  //
-  //       if (bucket_range.contains(sampler_to_bucket_range.value()[sample_index])) {
-  //         const int sampler_in_bucket_index = sampler_to_bucket_range.value()[sample_index] -
-  //                                             bucket_range.start();
-  //         buffer_section[sampler_in_bucket_index] = 0.0f;
-  //       }
-  //     }
-  //   }
-  //
-  //   distance_invertion(power_value, buffer.as_mutable_span());
-  //
-  //   offset_iter = 0;
-  //   for (const auto &[bucket_range, batch_samples] : bucket_to_batch_samples) {
-  //     for (const int sample_index : batch_samples) {
-  //       const Span<float> buffer_section = buffer.as_span().slice(offset_iter,
-  //       bucket_range.size()); offset_iter += bucket_range.size();
-  //       typed_dst_buckets_data[sample_index] +=
-  //       dot_product<T>(typed_src_bucket_value.slice(bucket_range), buffer_section);
-  //     }
-  //   }
-  // });
 }
 
 }  // namespace blender::geometry::fmm
