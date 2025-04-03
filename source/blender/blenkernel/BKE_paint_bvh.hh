@@ -271,10 +271,7 @@ class Tree {
   template<typename NodeT> Span<NodeT> nodes() const;
   template<typename NodeT> MutableSpan<NodeT> nodes();
 
-  Type type() const
-  {
-    return type_;
-  }
+  Type type() const;
 
   /**
    * Mark data based on positions for specific BVH nodes dirty. In particular: bounds, normals,
@@ -613,15 +610,15 @@ void update_node_bounds_bmesh(BMeshNode &node);
 
 inline Span<int> MeshNode::faces() const
 {
-  return this->face_indices_;
+  return face_indices_;
 }
 inline Span<int> MeshNode::verts() const
 {
-  return this->vert_indices_.as_span().slice(0, this->unique_verts_num_);
+  return vert_indices_.as_span().slice(0, unique_verts_num_);
 }
 inline Span<int> MeshNode::all_verts() const
 {
-  return this->vert_indices_;
+  return vert_indices_;
 }
 inline int MeshNode::corners_num() const
 {
@@ -630,7 +627,12 @@ inline int MeshNode::corners_num() const
 
 inline Span<int> GridsNode::grids() const
 {
-  return this->prim_indices_;
+  return prim_indices_;
+}
+
+inline Type Tree::type() const
+{
+  return type_;
 }
 
 }  // namespace blender::bke::pbvh
