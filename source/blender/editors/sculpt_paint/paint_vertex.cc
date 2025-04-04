@@ -538,10 +538,6 @@ void update_cache_variants(bContext *C, VPaint &vp, Object &ob, PointerRNA *ptr)
   }
 
   cache->radius_squared = cache->radius * cache->radius;
-
-  //if (bke::pbvh::Tree *pbvh = bke::object::pbvh_get(ob)) {
-  //  pbvh->update_bounds(depsgraph, ob);
-  //}
 }
 
 void get_brush_alpha_data(const Scene &scene,
