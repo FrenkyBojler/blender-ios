@@ -860,7 +860,14 @@ static void check_property_socket_sync(const Object *ob,
   nmd->node_group->ensure_interface_cache();
   for (const int i : nmd->node_group->interface_inputs().index_range()) {
     const bNodeTreeInterfaceSocket *socket = nmd->node_group->interface_inputs()[i];
+
     const bke::bNodeSocketType *typeinfo = socket->socket_typeinfo();
+    if (typeinfo->geometry_nodes_cpp_type == nullptr) {
+      BKE_modifier_set_error(
+            ob, md, "Unrecognized socket type \"%s\"", socket->name ? socket->name : "");
+      continue;
+    }
+
     const eNodeSocketDatatype type = typeinfo ? eNodeSocketDatatype(typeinfo->type) : SOCK_CUSTOM;
     if (type == SOCK_GEOMETRY) {
       geometry_socket_count++;
