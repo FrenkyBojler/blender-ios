@@ -1,1 +1,1 @@
-Referenced by issue #136967, Action -> Merge Animation when Slot name exists in target causes crash.
+Referenced by issue #136967, Crash on Merge Animation when Slot has no Channelbag
