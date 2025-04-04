@@ -594,7 +594,7 @@ void GHOST_XrGraphicsBindingVulkan::submitToSwapchainImageFd(
   /* Copy frame buffer image to swapchain image. */
   VkCommandBuffer vk_command_buffer = m_vk_command_buffer;
 
-  /* - Begin command recording */
+  /* Begin command recording */
   VkCommandBufferBeginInfo vk_command_buffer_begin_info = {
       VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
       nullptr,
@@ -648,17 +648,17 @@ void GHOST_XrGraphicsBindingVulkan::submitToSwapchainImageFd(
                  1,
                  &vk_image_copy);
 
-  /* - End command recording */
+  /* End command recording. */
   vkEndCommandBuffer(vk_command_buffer);
-  /* - Submit command buffer to queue. */
+  /* Submit command buffer to queue. */
   VkSubmitInfo vk_submit_info = {
       VK_STRUCTURE_TYPE_SUBMIT_INFO, nullptr, 0, nullptr, nullptr, 1, &vk_command_buffer};
   vkQueueSubmit(m_vk_queue, 1, &vk_submit_info, VK_NULL_HANDLE);
 
-  /* - Wait until device is idle. */
+  /* Wait until device is idle. */
   vkQueueWaitIdle(m_vk_queue);
 
-  /* - Reset command buffer for next eye/frame */
+  /* Reset command buffer for next eye/frame. */
   vkResetCommandBuffer(vk_command_buffer, 0);
 
   vkDestroyImage(m_vk_device, vk_image, nullptr);
