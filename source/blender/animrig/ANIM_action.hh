@@ -1116,6 +1116,24 @@ class Channelbag : public ::ActionChannelbag {
   FCurve *fcurve_create_unique(Main *bmain, const FCurveDescriptor &fcurve_descriptor);
 
   /**
+   * Create many F-Curves at once.
+   *
+   * Conceptually the same as adding many curves in a loop:
+   * ```
+   * Vector<FCurve*> res(fcurve_descriptors.size(), nullptr);
+   * for (int64_t i = 0; i < fcurve_descriptors.size(); i++) {
+   *  const FCurveDescriptor &desc = fcurve_descriptors[i];
+   *  res[i] = this->fcurve_create_unique(bmain, desc);
+   * }
+   * return res;
+   * ```
+   *
+   * However that is quadratic complexity due to each curve uniqueness check being
+   * a linear scan, plus invariants rebuilding after each curve.
+   */
+  Vector<FCurve *> fcurve_create_many(Main *bmain, Span<FCurveDescriptor> fcurve_descriptors);
+
+  /**
    * Append an F-Curve to this Channelbag.
    *
    * This transfers ownership of the F-Curve to this Channelbag, and it is up to

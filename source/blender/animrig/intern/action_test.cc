@@ -1449,6 +1449,45 @@ class ChannelbagTest : public testing::Test {
   }
 };
 
+TEST_F(ChannelbagTest, fcurve_create_many)
+{
+  channelbag->fcurve_ensure(nullptr, {"fcu0", 0, {}, {}, "group0"});
+  channelbag->fcurve_ensure(nullptr, {"fcu0", 1, {}, {}, "group0"});
+  channelbag->fcurve_ensure(nullptr, {"fcu1", 1, {}, {}, "group1"});
+  channelbag->fcurve_ensure(nullptr, {"fcu_", 0});
+  ASSERT_EQ(2, channelbag->channel_groups().size());
+  ASSERT_EQ(4, channelbag->fcurves().size());
+
+  FCurveDescriptor desc[] = {
+      /* New group. */
+      {"fcu2", 0, {}, {}, "group2"},
+      {"fcu2", 1, {}, {}, "group2"},
+      {"fcu2", 2, {}, {}, "group2"},
+      /* Existing groups. */
+      {"fcu3", 0, {}, {}, "group1"},
+      {"fcu4", 0, {}, {}, "group0"},
+      {"fcu5", 0, {}, {}, "group1"},
+      /* No group. */
+      {"fcu6", 0},
+      {"fcu6", 1},
+      /* Should return null since such curves already exist. */
+      {"fcu0", 1, {}, {}, "irrelevant"},
+      {"fcu5", 0, {}, {}, "also unused"},
+      {"fcu2", 0, {}, {}, "group2"},
+      {"fcu6", 0},
+  };
+  Vector<FCurve *> res = channelbag->fcurve_create_many(nullptr, {desc, ARRAY_SIZE(desc)});
+  ASSERT_EQ(12, res.size());
+
+  EXPECT_EQ(nullptr, res[8]);
+  EXPECT_EQ(nullptr, res[9]);
+  EXPECT_EQ(nullptr, res[10]);
+  EXPECT_EQ(nullptr, res[11]);
+
+  EXPECT_EQ(3, channelbag->channel_groups().size());
+  EXPECT_EQ(12, channelbag->fcurves().size());
+}
+
 TEST_F(ChannelbagTest, fcurve_move_to_index)
 {
   FCurve &fcu0 = channelbag->fcurve_ensure(nullptr, {"fcu0", 0, {}, {}, "group0"});

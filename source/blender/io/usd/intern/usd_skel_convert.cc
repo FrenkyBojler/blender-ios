@@ -145,17 +145,15 @@ void import_skeleton_curves(Main *bmain,
   blender::animrig::Channelbag &channelbag = blender::animrig::action_channelbag_ensure(
       *act, arm_obj->id);
 
-  /* Create the curves. */
-
   /* Get the joint paths. */
   const pxr::VtTokenArray joint_order = skel_query.GetJointOrder();
 
-  blender::Vector<FCurve *> loc_curves;
-  blender::Vector<FCurve *> rot_curves;
-  blender::Vector<FCurve *> scale_curves;
-  loc_curves.reserve(joint_order.size() * 3);
-  rot_curves.reserve(joint_order.size() * 4);
-  scale_curves.reserve(joint_order.size() * 3);
+  /* Create the curves. */
+  blender::Vector<char> curve_names_buf;
+  blender::Vector<std::pair<int64_t, int64_t>> curve_names;
+  curve_names.reserve(joint_order.size() * 10);
+  blender::Vector<blender::animrig::FCurveDescriptor> curve_desc;
+  curve_desc.reserve(joint_order.size() * 10);
 
   /* Iterate over the joints and create the corresponding curves for the bones. */
   for (const pxr::TfToken &joint : joint_order) {
@@ -163,46 +161,56 @@ void import_skeleton_curves(Main *bmain,
     if (name == nullptr) {
       /* This joint doesn't correspond to any bone we created.
        * Add null placeholders for the channel curves. */
-      loc_curves.append_n_times(nullptr, 3);
-      rot_curves.append_n_times(nullptr, 4);
-      scale_curves.append_n_times(nullptr, 3);
+      curve_desc.append_n_times({}, 10);
+      curve_names.append_n_times({0, 0}, 10);
       continue;
     }
 
-    /* Add translation curves. */
+    /* Translation curves. */
     std::string rna_path = "pose.bones[\"" + *name + "\"].location";
-    loc_curves.append(create_fcurve(channelbag, {rna_path, 0, {}, {}, *name}, num_samples));
-    loc_curves.append(create_fcurve(channelbag, {rna_path, 1, {}, {}, *name}, num_samples));
-    loc_curves.append(create_fcurve(channelbag, {rna_path, 2, {}, {}, *name}, num_samples));
+    std::pair<int64_t, int64_t> name_desc = {curve_names_buf.size(), rna_path.size()};
+    curve_names_buf.extend(rna_path.c_str(), rna_path.size() + 1);
+    curve_names.append_n_times(name_desc, 3);
+    curve_desc.append({{}, 0, {}, {}, *name});
+    curve_desc.append({{}, 1, {}, {}, *name});
+    curve_desc.append({{}, 2, {}, {}, *name});
 
-    /* Add rotation curves. */
+    /* Rotation curves. */
     rna_path = "pose.bones[\"" + *name + "\"].rotation_quaternion";
-    rot_curves.append(create_fcurve(channelbag, {rna_path, 0, {}, {}, *name}, num_samples));
-    rot_curves.append(create_fcurve(channelbag, {rna_path, 1, {}, {}, *name}, num_samples));
-    rot_curves.append(create_fcurve(channelbag, {rna_path, 2, {}, {}, *name}, num_samples));
-    rot_curves.append(create_fcurve(channelbag, {rna_path, 3, {}, {}, *name}, num_samples));
+    name_desc = {curve_names_buf.size(), rna_path.size()};
+    curve_names_buf.extend(rna_path.c_str(), rna_path.size() + 1);
+    curve_names.append_n_times(name_desc, 4);
+    curve_desc.append({{}, 0, {}, {}, *name});
+    curve_desc.append({{}, 1, {}, {}, *name});
+    curve_desc.append({{}, 2, {}, {}, *name});
+    curve_desc.append({{}, 3, {}, {}, *name});
 
-    /* Add scale curves. */
+    /* Scale curves. */
     rna_path = "pose.bones[\"" + *name + "\"].scale";
-    scale_curves.append(create_fcurve(channelbag, {rna_path, 0, {}, {}, *name}, num_samples));
-    scale_curves.append(create_fcurve(channelbag, {rna_path, 1, {}, {}, *name}, num_samples));
-    scale_curves.append(create_fcurve(channelbag, {rna_path, 2, {}, {}, *name}, num_samples));
+    name_desc = {curve_names_buf.size(), rna_path.size()};
+    curve_names_buf.extend(rna_path.c_str(), rna_path.size() + 1);
+    curve_names.append_n_times(name_desc, 3);
+    curve_desc.append({{}, 0, {}, {}, *name});
+    curve_desc.append({{}, 1, {}, {}, *name});
+    curve_desc.append({{}, 2, {}, {}, *name});
   }
 
-  /* Sanity checks: make sure we have a curve entry for each joint. */
-  if (loc_curves.size() != joint_order.size() * 3) {
-    CLOG_ERROR(&LOG, "Location curve count mismatch");
-    return;
+  for (int64_t i = 0; i < curve_names.size(); i++) {
+    if (curve_names[i].second != 0) {
+      curve_desc[i].rna_path = blender::StringRefNull(
+          curve_names_buf.data() + curve_names[i].first, curve_names[i].second);
+    }
   }
 
-  if (rot_curves.size() != joint_order.size() * 4) {
-    CLOG_ERROR(&LOG, "Rotation curve count mismatch");
+  blender::Vector<FCurve *> fcurves = channelbag.fcurve_create_many(nullptr, curve_desc.as_span());
+  if (fcurves.size() != curve_desc.size()) {
+    CLOG_ERROR(&LOG, "USD: animation curve count mismatch");
     return;
   }
-
-  if (scale_curves.size() != joint_order.size() * 3) {
-    CLOG_ERROR(&LOG, "Scale curve count mismatch");
-    return;
+  for (FCurve *fcu : fcurves) {
+    if (fcu != nullptr) {
+      BKE_fcurve_bezt_resize(fcu, num_samples);
+    }
   }
 
   /* The curve for each joint represents the transform relative
@@ -289,23 +297,23 @@ void import_skeleton_curves(Main *bmain,
       const pxr::GfVec3f &im = qrot.GetImaginary();
 
       for (int j = 0; j < 3; ++j) {
-        const int k = 3 * i + j;
-        if (k >= loc_curves.size()) {
+        const int k = 10 * i + j;
+        if (k >= fcurves.size()) {
           CLOG_ERROR(&LOG, "Out of bounds translation curve index %d", k);
           break;
         }
-        if (FCurve *fcu = loc_curves[k]) {
+        if (FCurve *fcu = fcurves[k]) {
           add_bezt(fcu, bezt_index, frame, t[j]);
         }
       }
 
       for (int j = 0; j < 4; ++j) {
-        const int k = 4 * i + j;
-        if (k >= rot_curves.size()) {
+        const int k = 10 * i + j + 3;
+        if (k >= fcurves.size()) {
           CLOG_ERROR(&LOG, "Out of bounds rotation curve index %d", k);
           break;
         }
-        if (FCurve *fcu = rot_curves[k]) {
+        if (FCurve *fcu = fcurves[k]) {
           if (j == 0) {
             add_bezt(fcu, bezt_index, frame, re);
           }
@@ -316,12 +324,12 @@ void import_skeleton_curves(Main *bmain,
       }
 
       for (int j = 0; j < 3; ++j) {
-        const int k = 3 * i + j;
-        if (k >= scale_curves.size()) {
+        const int k = 10 * i + j + 7;
+        if (k >= fcurves.size()) {
           CLOG_ERROR(&LOG, "Out of bounds scale curve index %d", k);
           break;
         }
-        if (FCurve *fcu = scale_curves[k]) {
+        if (FCurve *fcu = fcurves[k]) {
           add_bezt(fcu, bezt_index, frame, s[j]);
         }
       }
@@ -331,13 +339,12 @@ void import_skeleton_curves(Main *bmain,
   }
 
   /* Recalculate curve handles. */
-  auto recalc_handles = [bezt_index](FCurve *fcu) {
-    resize_fcurve(fcu, bezt_index);
-    BKE_fcurve_handles_recalc(fcu);
-  };
-  std::for_each(loc_curves.begin(), loc_curves.end(), recalc_handles);
-  std::for_each(rot_curves.begin(), rot_curves.end(), recalc_handles);
-  std::for_each(scale_curves.begin(), scale_curves.end(), recalc_handles);
+  for (FCurve *fcu : fcurves) {
+    if (fcu != nullptr) {
+      resize_fcurve(fcu, bezt_index);
+      BKE_fcurve_handles_recalc(fcu);
+    }
+  }
 }
 
 /* Set the skeleton path and bind transform on the given mesh. */
