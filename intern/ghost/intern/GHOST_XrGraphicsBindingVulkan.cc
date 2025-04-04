@@ -550,7 +550,6 @@ void GHOST_XrGraphicsBindingVulkan::submitToSwapchainImageFd(
   m_ghost_ctx->openxr_acquire_framebuffer_image_callback_(&openxr_data);
 
   /* Create an image handle */
-  // assert(draw_info.swapchain_format == GHOST_kXrSwapchainFormatRGBA16F);
   VkExternalMemoryImageCreateInfo vk_external_memory_image_info = {
       VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO,
       nullptr,
