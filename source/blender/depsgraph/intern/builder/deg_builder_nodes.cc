@@ -1974,13 +1974,6 @@ void DepsgraphNodeBuilder::build_nodetree(bNodeTree *ntree)
     if (id_type == ID_MA) {
       build_material((Material *)id);
     }
-    else if (id_type == ID_GR) {
-      /* Make sure the collection node is built. There is no relations created to this collection
-       * in second stage of deg building. Actual relation will be add by modifier in case will be
-       * required. So node will be there if needed and will be ignored while flushing if not used.
-       */
-      build_collection(nullptr, (Collection *)id);
-    }
     else if (id_type == ID_TE) {
       build_texture((Tex *)id);
     }
@@ -2014,6 +2007,9 @@ void DepsgraphNodeBuilder::build_nodetree(bNodeTree *ntree)
     }
     else if (id_type == ID_VF) {
       build_vfont((VFont *)id);
+    }
+    else if (id_type == ID_GR) {
+      build_collection(nullptr, reinterpret_cast<Collection *>(id));
     }
     else if (bnode->is_group()) {
       bNodeTree *group_ntree = (bNodeTree *)id;
