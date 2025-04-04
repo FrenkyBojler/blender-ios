@@ -503,8 +503,8 @@ bool MOV_codec_supports_alpha(const FFMpegCodecData &ff_codec_data)
 {
 #ifdef WITH_FFMPEG
   if (ff_codec_data.codec == AV_CODEC_ID_PRORES) {
-    return (ff_codec_data.ffmpeg_prores_profile == FFM_PRORES_PROFILE_4444) ||
-           (ff_codec_data.ffmpeg_prores_profile == FFM_PRORES_PROFILE_4444_XQ);
+    return ELEM(
+        ff_codec_data.ffmpeg_prores_profile, FFM_PRORES_PROFILE_4444, FFM_PRORES_PROFILE_4444_XQ);
   }
   return ELEM(ff_codec_data.codec,
               AV_CODEC_ID_FFV1,
