@@ -833,6 +833,8 @@ if(WITH_BLENDER)
       split_horizontal
       split_vertical
       spreadsheet
+      star_off
+      star_on
       statusbar
       sticky_uvs_disable
       sticky_uvs_loc
