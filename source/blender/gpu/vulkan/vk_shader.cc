@@ -1346,7 +1346,6 @@ VkPipeline VKShader::ensure_and_get_graphics_pipeline(GPUPrimType primitive,
   graphics_info.fragment_out.color_attachment_size = framebuffer.color_attachment_size;
 
   VKDevice &device = VKBackend::get().device;
-  device.debug_print();
   /* Store result in local variable to ensure thread safety. */
   VkPipeline vk_pipeline = device.pipelines.get_or_create_graphics_pipeline(
       graphics_info, is_static_shader_, vk_pipeline_base_);
