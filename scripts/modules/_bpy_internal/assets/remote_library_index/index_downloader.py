@@ -174,7 +174,10 @@ class DownloadReporter(pydantic.BaseModel):
         return self.pending_downloads == 0
 
 
-def add_cli_parser(subparsers: argparse._SubParsersAction) -> None:
+# Ignore the type of the `subparsers` argument, because there doesn't seem
+# to be a way to make both static mypy and the runtime Python happy at the
+# same time.
+def add_cli_parser(subparsers: argparse._SubParsersAction) -> None:  # type: ignore[type-arg]
     """Add argparser for this subcommand."""
 
     parser = subparsers.add_parser("download", help="Download and parse a remote asset library index")

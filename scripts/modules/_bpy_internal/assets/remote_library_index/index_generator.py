@@ -144,7 +144,10 @@ def _toplevel_metadata(json_path: Path) -> api_models.AssetLibraryMeta:
     return metadata
 
 
-def add_cli_parser(subparsers: argparse._SubParsersAction) -> None:
+# Ignore the type of the `subparsers` argument, because there doesn't seem
+# to be a way to make both static mypy and the runtime Python happy at the
+# same time.
+def add_cli_parser(subparsers: argparse._SubParsersAction) -> None:  # type: ignore[type-arg]
     """Add argparser for this subcommand."""
 
     parser = subparsers.add_parser("generate", help="Generate files necessary to serve an asset library")

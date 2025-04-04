@@ -132,7 +132,7 @@ class ThreadBridgingReporter(CachingDownloadReporter):
         self._queue = queue.Queue()
         self._logger = logger.getChild(self.__class__.__name__)
 
-    def update(self, *, limit_num_calls=100) -> bool:
+    def update(self, *, limit_num_calls: int = 100) -> bool:
         """Handle queued function calls on the thread that calls this function.
 
         Only a finite number of queued calls is processed, to avoid blocking the
