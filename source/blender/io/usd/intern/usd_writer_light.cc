@@ -156,8 +156,10 @@ void USDLightWriter::do_write(HierarchyContext &context)
                 light->spec_fac,
                 timecode,
                 usd_value_writer_);
-  set_attribute(
-      usd_light_api.CreateNormalizeAttr(pxr::VtValue(), true), true, timecode, usd_value_writer_);
+  set_attribute(usd_light_api.CreateNormalizeAttr(pxr::VtValue(), true),
+                bool(light->normalize),
+                timecode,
+                usd_value_writer_);
 
   pxr::UsdPrim prim = usd_light_api.GetPrim();
   write_id_properties(prim, light->id, timecode);
