@@ -163,21 +163,6 @@ TEST(blender_variables, path_apply_variables)
     EXPECT_EQ(blender::StringRef(path), "03_0003_30_002");
   }
 
-  /* Missing variable. Substitution should continue on, simply ignoring the
-   * missing variable. */
-  {
-    char path[FILE_MAX] = "{hi}_{missing}_{bye}";
-    BKE_path_apply_variables(path, variables);
-    EXPECT_EQ(blender::StringRef(path), "hello_{missing}_goodbye");
-  }
-
-  /* Variables with invalid format specifiers should be skipped. */
-  {
-    char path[FILE_MAX] = "{prime:}_{prime:.}_{prime:#.#.#}_{prime:sup}_{prime}";
-    BKE_path_apply_variables(path, variables);
-    EXPECT_EQ(blender::StringRef(path), "{prime:}_{prime:.}_{prime:#.#.#}_{prime:sup}_7");
-  }
-
   /* Escaping. "{{" and "}}" are the escape codes for literal "{" and "}". */
   {
     char path[FILE_MAX] = "{hi}_{{hi}}_{{{bye}}}_{bye}";
@@ -185,18 +170,33 @@ TEST(blender_variables, path_apply_variables)
     EXPECT_EQ(blender::StringRef(path), "hello_{hi}_{goodbye}_goodbye");
   }
 
-  /* Malformed syntax: unclosed variable. */
+  /* Error: missing variable. Substitution should continue on, simply ignoring the
+   * missing variable. */
+  {
+    char path[FILE_MAX] = "{hi}_{missing}_{bye}";
+    BKE_path_apply_variables(path, variables);
+    EXPECT_EQ(blender::StringRef(path), "{hi}_{missing}_{bye}");
+  }
+
+  /* Error: invalid format specifiers. */
+  {
+    char path[FILE_MAX] = "{prime:}_{prime:.}_{prime:#.#.#}_{prime:sup}_{prime}";
+    BKE_path_apply_variables(path, variables);
+    EXPECT_EQ(blender::StringRef(path), "{prime:}_{prime:.}_{prime:#.#.#}_{prime:sup}_{prime}");
+  }
+
+  /* Error: unclosed variable. */
   {
     char path[FILE_MAX] = "{hi_{hi}_{bye}";
     BKE_path_apply_variables(path, variables);
-    EXPECT_EQ(blender::StringRef(path), "{hi_hello_goodbye");
+    EXPECT_EQ(blender::StringRef(path), "{hi_{hi}_{bye}");
   }
 
-  /* Malformed syntax: escaped braces inside variable. */
+  /* Error: escaped braces inside variable. */
   {
     char path[FILE_MAX] = "{hi_{{hi}}_{bye}";
     BKE_path_apply_variables(path, variables);
-    EXPECT_EQ(blender::StringRef(path), "{hi_{hi}_goodbye");
+    EXPECT_EQ(blender::StringRef(path), "{hi_{{hi}}_{bye}");
   }
 
   /* Test what happens when the path would expand to a string that's longer than

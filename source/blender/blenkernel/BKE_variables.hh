@@ -143,6 +143,17 @@ class VariableMap {
 VariableMap BKE_build_blender_variables(const char *blend_file_path,
                                         const RenderData *render_data);
 
+enum class VariableResult {
+  SUCCESS,
+
+  /* Indicates there was a fundamental variable syntax error in the path. */
+  SYNTAX_ERROR,
+
+  /* Indicates there was a variable referenced in the path that could not be
+   * found. */
+  MISSING_VARIABLE,
+};
+
 /**
  * Perform variable substitution on the given path.
  *
@@ -176,6 +187,6 @@ VariableMap BKE_build_blender_variables(const char *blend_file_path,
  * that this substitution only happens *outside* of the variable syntax, and
  * therefore cannot e.g. be used inside variable names.
  */
-bool BKE_path_apply_variables(char path[FILE_MAX], const VariableMap &variables);
+VariableResult BKE_path_apply_variables(char path[FILE_MAX], const VariableMap &variables);
 
 /** \} */

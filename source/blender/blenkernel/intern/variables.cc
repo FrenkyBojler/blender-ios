@@ -152,7 +152,7 @@ enum class FormatSpecifierType {
   FLOAT,
 
   /* The format specifier was invalid due to incorrect syntax. */
-  INVALID_SYNTAX,
+  SYNTAX_ERROR,
 };
 
 /**
@@ -176,6 +176,9 @@ enum class TokenType {
 
   /* "}}", which is an escaped "}". */
   RIGHT_CURLY_BRACE,
+
+  /* Encountered a syntax error while trying to parse the next token. */
+  SYNTAX_ERROR,
 };
 
 /**
@@ -216,7 +219,7 @@ static int format_int_to_string(const FormatSpecifier &format,
                                 const int64_t integer_value,
                                 char r_output_string[FORMAT_BUFFER_SIZE])
 {
-  BLI_assert(format.type != FormatSpecifierType::INVALID_SYNTAX);
+  BLI_assert(format.type != FormatSpecifierType::SYNTAX_ERROR);
 
   r_output_string[0] = '\0';
   int output_length = 0;
@@ -265,7 +268,7 @@ static int format_int_to_string(const FormatSpecifier &format,
       break;
     }
 
-    case FormatSpecifierType::INVALID_SYNTAX: {
+    case FormatSpecifierType::SYNTAX_ERROR: {
       BLI_assert_msg(
           false,
           "Format specifiers with invalid syntax should have been rejected before getting here.");
@@ -288,7 +291,7 @@ static int format_float_to_string(const FormatSpecifier &format,
                                   const double float_value,
                                   char r_output_string[FORMAT_BUFFER_SIZE])
 {
-  BLI_assert(format.type != FormatSpecifierType::INVALID_SYNTAX);
+  BLI_assert(format.type != FormatSpecifierType::SYNTAX_ERROR);
 
   r_output_string[0] = '\0';
   int output_length = 0;
@@ -342,7 +345,7 @@ static int format_float_to_string(const FormatSpecifier &format,
       break;
     }
 
-    case FormatSpecifierType::INVALID_SYNTAX: {
+    case FormatSpecifierType::SYNTAX_ERROR: {
       BLI_assert_msg(
           false,
           "Format specifiers with invalid syntax should have been rejected before getting here.");
@@ -359,7 +362,7 @@ static FormatSpecifier parse_path_variable_format(blender::StringRef format_spec
 
   /* A ":" was used, but no format specifier was given, which is invalid. */
   if (format_specifier.is_empty()) {
-    format.type = FormatSpecifierType::INVALID_SYNTAX;
+    format.type = FormatSpecifierType::SYNTAX_ERROR;
     return format;
   }
 
@@ -383,7 +386,7 @@ static FormatSpecifier parse_path_variable_format(blender::StringRef format_spec
     /* We currently require that the fractional digits are specified, so bail if
      * they aren't. */
     if (right.is_empty()) {
-      format.type = FormatSpecifierType::INVALID_SYNTAX;
+      format.type = FormatSpecifierType::SYNTAX_ERROR;
       return format;
     }
 
@@ -397,7 +400,7 @@ static FormatSpecifier parse_path_variable_format(blender::StringRef format_spec
     return format;
   }
 
-  format.type = FormatSpecifierType::INVALID_SYNTAX;
+  format.type = FormatSpecifierType::SYNTAX_ERROR;
   return format;
 }
 
@@ -415,8 +418,10 @@ static FormatSpecifier parse_path_variable_format(blender::StringRef format_spec
  */
 static std::optional<Token> next_token(char *path, const int path_allocation_size)
 {
+  Token token;
+
   /* We use the magic number -1 here to indicate that a component hasn't been
-   * found yet. When a component is found, the respective variable here is set
+   * found yet. When a component is found, the respective token here is set
    * to the byte offset it was found at. */
   int start = -1;                  /* "{" */
   int format_specifier_split = -1; /* ":" */
@@ -426,13 +431,13 @@ static std::optional<Token> next_token(char *path, const int path_allocation_siz
        byte_index++)
   {
     /* Check for escaped "{". */
-    if ((byte_index + 1) < path_allocation_size && path[byte_index] == '{' &&
+    if (start == -1 && (byte_index + 1) < path_allocation_size && path[byte_index] == '{' &&
         path[byte_index + 1] == '{')
     {
-      Token variable;
-      variable.type = TokenType::LEFT_CURLY_BRACE;
-      variable.replacement_range = blender::IndexRange::from_begin_end(byte_index, byte_index + 2);
-      return variable;
+      Token token;
+      token.type = TokenType::LEFT_CURLY_BRACE;
+      token.replacement_range = blender::IndexRange::from_begin_end(byte_index, byte_index + 2);
+      return token;
     }
 
     /* Check for escaped "}".
@@ -443,19 +448,26 @@ static std::optional<Token> next_token(char *path, const int path_allocation_siz
     if (start == -1 && (byte_index + 1) < path_allocation_size && path[byte_index] == '}' &&
         path[byte_index + 1] == '}')
     {
-      Token variable;
-      variable.type = TokenType::RIGHT_CURLY_BRACE;
-      variable.replacement_range = blender::IndexRange::from_begin_end(byte_index, byte_index + 2);
-      return variable;
+      token.type = TokenType::RIGHT_CURLY_BRACE;
+      token.replacement_range = blender::IndexRange::from_begin_end(byte_index, byte_index + 2);
+      return token;
     }
 
-    /* Check if we've found a starting "{".
-     *
-     * Note that if we're already inside a variable reference, this restarts
-     * from the new one we've just found. This is okay, since it's not valid to
-     * have `{` inside a variable reference, and this just treats such
-     * situations as an incomplete (and thus invalid) variable reference. */
+    /* Check for unescaped "}", which outside of a variable is illegal. */
+    if (start == -1 && path[byte_index] == '}') {
+      token.type = TokenType::SYNTAX_ERROR;
+      token.replacement_range = blender::IndexRange::from_begin_end(byte_index, byte_index + 1);
+      return token;
+    }
+
+    /* Check if we've found a starting "{". */
     if (path[byte_index] == '{') {
+      if (start != -1) {
+        /* Already inside a variable. */
+        token.type = TokenType::SYNTAX_ERROR;
+        token.replacement_range = blender::IndexRange::from_begin_end(byte_index, byte_index + 1);
+        return token;
+      }
       start = byte_index;
       format_specifier_split = -1;
       continue;
@@ -469,14 +481,14 @@ static std::optional<Token> next_token(char *path, const int path_allocation_siz
 
     /* Check if we've found a format splitter. */
     if (path[byte_index] == ':') {
-      if (format_specifier_split == -1) {
-        format_specifier_split = byte_index;
+      if (format_specifier_split != -1) {
+        /* Found a second format specifier split. Syntax error. */
+        token.type = TokenType::SYNTAX_ERROR;
+        token.replacement_range = blender::IndexRange::from_begin_end(byte_index, byte_index + 1);
+        return token;
       }
-      else {
-        /* Found a second format specifier split. Invalid! Restart. */
-        start = -1;
-        format_specifier_split = -1;
-      }
+
+      format_specifier_split = byte_index;
       byte_index++;
       continue;
     }
@@ -494,29 +506,38 @@ static std::optional<Token> next_token(char *path, const int path_allocation_siz
   }
 
   /* Parse the variable reference we found. */
-  Token variable;
-  variable.replacement_range = blender::IndexRange::from_begin_end(start, end);
+  token.replacement_range = blender::IndexRange::from_begin_end(start, end);
   if (format_specifier_split == -1) {
     /* No format specifier. */
-    variable.variable_name = blender::StringRef(path + start + 1, path + end - 1);
+    token.variable_name = blender::StringRef(path + start + 1, path + end - 1);
   }
   else {
     /* Found format specifier. */
-    variable.variable_name = blender::StringRef(path + start + 1, path + format_specifier_split);
-    variable.format = parse_path_variable_format(
+    token.variable_name = blender::StringRef(path + start + 1, path + format_specifier_split);
+    token.format = parse_path_variable_format(
         blender::StringRef(path + format_specifier_split + 1, path + end - 1));
+
+    if (token.format.type == FormatSpecifierType::SYNTAX_ERROR) {
+      token.type = TokenType::SYNTAX_ERROR;
+      return token;
+    }
   }
 
-  return variable;
+  return token;
 }
 
-bool BKE_path_apply_variables(char path[FILE_MAX], const VariableMap &variables)
+VariableResult BKE_path_apply_variables(char path[FILE_MAX], const VariableMap &variables)
 {
-  bool was_modified = false;
+  VariableResult result = VariableResult::SUCCESS;
+
+  /* We work on a copy, so that if an error occurs we can bail without the
+   * original path getting modified. */
+  char path_modified[FILE_MAX] = "";
+  strcpy(path_modified, path);
 
   int bytes_processed = 0;
-  while (bytes_processed < FILE_MAX && path[bytes_processed] != '\0') {
-    const std::optional<Token> token = next_token(path + bytes_processed,
+  while (bytes_processed < FILE_MAX && path_modified[bytes_processed] != '\0') {
+    const std::optional<Token> token = next_token(path_modified + bytes_processed,
                                                   FILE_MAX - bytes_processed);
 
     if (!token.has_value()) {
@@ -524,39 +545,36 @@ bool BKE_path_apply_variables(char path[FILE_MAX], const VariableMap &variables)
     }
 
     /* Skip variables with invalid format specifier syntax. */
-    if (token->format.type == FormatSpecifierType::INVALID_SYNTAX) {
-      bytes_processed += token->replacement_range.one_after_last();
-      continue;
+    if (token->format.type == FormatSpecifierType::SYNTAX_ERROR) {
+      return VariableResult::SYNTAX_ERROR;
     }
 
     /* Check for escapes. */
     if (token->type == TokenType::LEFT_CURLY_BRACE) {
-      BLI_string_replace_range(path + bytes_processed,
+      BLI_string_replace_range(path_modified + bytes_processed,
                                FILE_MAX - bytes_processed,
                                token->replacement_range.start(),
                                token->replacement_range.one_after_last(),
                                "{");
 
       bytes_processed += token->replacement_range.start() + 1;
-      was_modified = true;
       continue;
     }
     if (token->type == TokenType::RIGHT_CURLY_BRACE) {
-      BLI_string_replace_range(path + bytes_processed,
+      BLI_string_replace_range(path_modified + bytes_processed,
                                FILE_MAX - bytes_processed,
                                token->replacement_range.start(),
                                token->replacement_range.one_after_last(),
                                "}");
 
       bytes_processed += token->replacement_range.start() + 1;
-      was_modified = true;
       continue;
     }
 
     /* For formatting integer and float variables into strings. */
     char format_buffer[FORMAT_BUFFER_SIZE];
 
-    /* Points to the string that will replace the "{variable}" in `path`. If no
+    /* Points to the string that will replace the "{variable}" in `path_modified`. If no
      * corresponding variable is found, or if the format specification is
      * invalid, this is left null to indicate that no replacement should be
      * done. */
@@ -585,7 +603,7 @@ bool BKE_path_apply_variables(char path[FILE_MAX], const VariableMap &variables)
 
     /* Perform the replacement if we found a matching variable, otherwise skip. */
     if (replacement_string != nullptr) {
-      BLI_string_replace_range(path + bytes_processed,
+      BLI_string_replace_range(path_modified + bytes_processed,
                                FILE_MAX - bytes_processed,
                                token->replacement_range.start(),
                                token->replacement_range.one_after_last(),
@@ -594,14 +612,13 @@ bool BKE_path_apply_variables(char path[FILE_MAX], const VariableMap &variables)
       bytes_processed += token->replacement_range.one_after_last();
       bytes_processed -= token->replacement_range.size();
       bytes_processed += strlen(replacement_string);
-
-      was_modified = true;
     }
     else {
-      /* No matching variable, so skip. */
-      bytes_processed += token->replacement_range.one_after_last();
+      /* No matching variable: error. */
+      return VariableResult::SYNTAX_ERROR;
     }
   }
 
-  return was_modified;
+  strcpy(path, path_modified);
+  return result;
 }
