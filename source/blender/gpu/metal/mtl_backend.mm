@@ -42,7 +42,7 @@ thread_local int g_autoreleasepool_depth = 0;
  * \{ */
 
 void MTLBackend::samplers_update(){
-  /* Placeholder -- Handled in MTLContext. */
+    /* Placeholder -- Handled in MTLContext. */
 };
 
 Context *MTLBackend::context_alloc(void *ghost_window, void *ghost_context)
