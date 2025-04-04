@@ -4,3 +4,4 @@ Referenced by issue #122786, Multiresolution > Apply Base produces garbled meshe
 Referenced by issue #122057, Blender crashes in Sculpt mode when invoking the sculpt tools pop up menu
 Referenced by issue #121954, Keyboard input is not working with HSV color
 Referenced by issue #121700, Brush icons are missing in every editor in 4.2
+Referenced by issue #136919, Screw modifier edge doesn't appear sometimes
