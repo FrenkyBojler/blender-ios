@@ -1343,20 +1343,13 @@ static void vgroup_levels_subset(Object *ob,
 static bool vgroup_normalize_all(Object *ob,
                                  const bool *vgroup_validmap,
                                  const int vgroup_tot,
-                                 const int subset_count,
                                  const bool lock_active,
                                  ReportList *reports)
 {
   MDeformVert *dv, **dvert_array = nullptr;
   int i, dvert_tot = 0;
   const int def_nr = BKE_object_defgroup_active_index_get(ob) - 1;
-
   const bool use_vert_sel = vertex_group_use_vert_sel(ob);
-
-  if (subset_count == 0) {
-    BKE_report(reports, RPT_ERROR, "No vertex groups to operate on");
-    return false;
-  }
 
   vgroup_parray_alloc(static_cast<ID *>(ob->data), &dvert_array, &dvert_tot, use_vert_sel);
 
@@ -2727,7 +2720,7 @@ static wmOperatorStatus vertex_group_assign_exec(bContext *C, wmOperator *op)
     const bool *vgroup_validmap = BKE_object_defgroup_subset_from_select_type(
         ob, WT_VGROUP_BONE_DEFORM, &vgroup_tot, &subset_count);
 
-    vgroup_normalize_all(ob, vgroup_validmap, vgroup_tot, subset_count, true, op->reports);
+    vgroup_normalize_all(ob, vgroup_validmap, vgroup_tot, true, op->reports);
     MEM_SAFE_FREE(vgroup_validmap);
   }
 
@@ -2834,7 +2827,7 @@ static wmOperatorStatus vertex_group_remove_from_exec(bContext *C, wmOperator *o
     const bool *vgroup_validmap = BKE_object_defgroup_subset_from_select_type(
         ob, WT_VGROUP_BONE_DEFORM, &vgroup_tot, &subset_count);
 
-    vgroup_normalize_all(ob, vgroup_validmap, vgroup_tot, subset_count, false, op->reports);
+    vgroup_normalize_all(ob, vgroup_validmap, vgroup_tot, false, op->reports);
     MEM_SAFE_FREE(vgroup_validmap);
   }
 
@@ -3116,8 +3109,15 @@ static wmOperatorStatus vertex_group_normalize_all_exec(bContext *C, wmOperator 
   const bool *vgroup_validmap = BKE_object_defgroup_subset_from_select_type(
       ob, subset_type, &vgroup_tot, &subset_count);
 
-  changed = vgroup_normalize_all(
-      ob, vgroup_validmap, vgroup_tot, subset_count, lock_active, op->reports);
+  if (subset_count == 0) {
+    BKE_report(op->reports, RPT_ERROR, "No vertex groups to operate on");
+    changed = false;
+  }
+  else {
+    changed = vgroup_normalize_all(
+      ob, vgroup_validmap, vgroup_tot, lock_active, op->reports);
+  }
+
   MEM_freeN((void *)vgroup_validmap);
 
   if (changed) {
