@@ -3104,13 +3104,15 @@ void move_slot(Main &bmain, Slot &source_slot, Action &from_action, Action &to_a
     StripKeyframeData &to_strip_data = to_action.layer(0)->strip(0)->data<StripKeyframeData>(
         to_action);
     Channelbag *channelbag = from_strip_data.channelbag_for_slot(source_slot.handle);
-    BLI_assert(channelbag != nullptr);
-    channelbag->slot_handle = target_slot.handle;
-    grow_array_and_append<ActionChannelbag *>(
-        &to_strip_data.channelbag_array, &to_strip_data.channelbag_array_num, channelbag);
-    int index = from_strip_data.find_channelbag_index(*channelbag);
-    shrink_array_and_remove<ActionChannelbag *>(
-        &from_strip_data.channelbag_array, &from_strip_data.channelbag_array_num, index);
+    /* It's perfectly fine for a slot to not have a channelbag on each keyframe strip. */
+    if (channelbag) {
+      channelbag->slot_handle = target_slot.handle;
+      grow_array_and_append<ActionChannelbag *>(
+          &to_strip_data.channelbag_array, &to_strip_data.channelbag_array_num, channelbag);
+      const int index = from_strip_data.find_channelbag_index(*channelbag);
+      shrink_array_and_remove<ActionChannelbag *>(
+          &from_strip_data.channelbag_array, &from_strip_data.channelbag_array_num, index);
+    }
   }
 
   /* Reassign all users of `source_slot` to the action `to_action` and the slot `target_slot`. */
