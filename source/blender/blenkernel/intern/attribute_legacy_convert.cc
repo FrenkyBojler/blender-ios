@@ -41,7 +41,6 @@ static std::optional<AttrType> custom_data_type_to_attribute_type(const eCustomD
     case CD_CUSTOMLOOPNORMAL:
     case CD_SCULPT_FACE_SETS:
     case CD_NUMTYPES:
-      BLI_assert_unreachable();
       return std::nullopt;
     case CD_MDEFORMVERT:
     case CD_MFACE:
@@ -121,6 +120,7 @@ AttributeStorage attribute_legacy_convert_customdata_to_storage(
         layer.sharing_info = nullptr;
       }
       else {
+        layer.sharing_info->add_user();
         kept_layers.append(layer);
       }
     }
@@ -189,7 +189,7 @@ void attribute_legacy_convert_storage_to_customdata(
     CustomData *custom_data = custom_data_domains.lookup(attribute.domain()).first;
     const int domain_size = custom_data_domains.lookup(attribute.domain()).second;
     if (const auto *array_data = std::get_if<Attribute::ArrayData>(&attribute.data())) {
-      BLI_assert(array_data->elements_num == domain_size);
+      BLI_assert(array_data->size == domain_size);
       CustomData_add_layer_named_with_data(custom_data,
                                            *data_type,
                                            array_data->data,
