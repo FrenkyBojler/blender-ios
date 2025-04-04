@@ -32,6 +32,7 @@ class ObjectsChildrenBuilder {
 
   SpaceOutliner &outliner_;
   ObjectTreeElementsMap object_tree_elements_map_;
+  Vector<Object *> ordered_objects;
 
  public:
   ObjectsChildrenBuilder(SpaceOutliner &space_outliner);
@@ -42,6 +43,7 @@ class ObjectsChildrenBuilder {
  private:
   void object_tree_elements_lookup_create_recursive(TreeElement *te_parent);
   void make_object_parent_hierarchy_collections();
+  void foreach_object_add_parent_recursive(Object *ob);
 };
 
 /* -------------------------------------------------------------------- */
@@ -221,7 +223,7 @@ void ObjectsChildrenBuilder::object_tree_elements_lookup_create_recursive(TreeEl
       Object *ob = (Object *)tselem->id;
       /* Lookup children or add new, empty children vector. */
       Vector<TreeElement *> &tree_elements = object_tree_elements_map_.lookup_or_add(ob, {});
-
+      foreach_object_add_parent_recursive(ob);
       tree_elements.append(te);
       object_tree_elements_lookup_create_recursive(te);
     }
@@ -234,16 +236,16 @@ void ObjectsChildrenBuilder::object_tree_elements_lookup_create_recursive(TreeEl
  */
 void ObjectsChildrenBuilder::make_object_parent_hierarchy_collections()
 {
-  for (ObjectTreeElementsMap::MutableItem item : object_tree_elements_map_.items()) {
-    Object *child = item.key;
-
-    if (child->parent == nullptr) {
+  for (Object *ob : ordered_objects)
+  {
+    if (ob->parent == nullptr) {
       continue;
     }
 
-    Vector<TreeElement *> &child_ob_tree_elements = item.value;
     Vector<TreeElement *> *parent_ob_tree_elements = object_tree_elements_map_.lookup_ptr(
-        child->parent);
+        ob->parent);
+    Vector<TreeElement *> &child_ob_tree_elements = *object_tree_elements_map_.lookup_ptr(ob);
+    ;
     if (parent_ob_tree_elements == nullptr) {
       continue;
     }
@@ -279,7 +281,7 @@ void ObjectsChildrenBuilder::make_object_parent_hierarchy_collections()
         TreeElement *child_ob_tree_element = AbstractTreeDisplay::add_element(
             &outliner_,
             &parent_ob_tree_element->subtree,
-            reinterpret_cast<ID *>(child),
+            reinterpret_cast<ID *>(ob),
             nullptr,
             parent_ob_tree_element,
             TSE_SOME_ID,
@@ -290,6 +292,14 @@ void ObjectsChildrenBuilder::make_object_parent_hierarchy_collections()
       }
     }
   }
+}
+
+void ObjectsChildrenBuilder::foreach_object_add_parent_recursive(Object *ob)
+{
+  if (Object *parent = ob->parent) {
+    foreach_object_add_parent_recursive(parent);
+  }
+  ordered_objects.append_non_duplicates(ob);
 }
 
 /** \} */
