@@ -808,7 +808,9 @@ typedef struct {
       void *image_data;
     } cpu;
     struct {
-      uint64_t image_handle;
+      int image_handle;
+      VkDeviceSize memory_size;
+      VkDeviceSize memory_offset;
     } fd;
   };
 

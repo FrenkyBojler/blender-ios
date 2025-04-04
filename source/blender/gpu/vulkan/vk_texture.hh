@@ -12,6 +12,7 @@
 
 #include "vk_context.hh"
 #include "vk_image_view.hh"
+#include "vk_memory.hh"
 
 namespace blender::gpu {
 
@@ -112,7 +113,13 @@ class VKTexture : public Texture {
 
   /* TODO(fclem): Legacy. Should be removed at some point. */
   uint gl_bindcode_get() const override;
-  int export_memory(VkExternalMemoryHandleTypeFlagBits handle_type);
+  /**
+   * Export the memory associated with this texture to be imported by a different
+   * API/Process/Instance.
+   *
+   * Returns the handle + offset of the image inside the handle.
+   */
+  VKMemoryExport export_memory(VkExternalMemoryHandleTypeFlagBits handle_type);
 
   VkImage vk_image_handle() const
   {

@@ -545,7 +545,120 @@ void GHOST_XrGraphicsBindingVulkan::submitToSwapchainImageFd(
   GHOST_VulkanOpenXRData openxr_data = {GHOST_kVulkanXRModeFD};
   m_ghost_ctx->openxr_acquire_framebuffer_image_callback_(&openxr_data);
 
-  m_ghost_ctx->openxr_release_framebuffer_image_callback_(&openxr_data);
+  /* Create an image handle */
+  // assert(draw_info.swapchain_format == GHOST_kXrSwapchainFormatRGBA16F);
+  VkFormat format = VK_FORMAT_R16G16B16A16_SFLOAT;
+  VkExternalMemoryImageCreateInfo vk_external_memory_image_info = {
+      VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO,
+      nullptr,
+      VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT};
+
+  VkImageCreateInfo vk_image_info = {VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
+                                     &vk_external_memory_image_info,
+                                     0,
+                                     VK_IMAGE_TYPE_2D,
+                                     format,
+                                     {openxr_data.extent.width, openxr_data.extent.height, 1},
+                                     1,
+                                     1,
+                                     VK_SAMPLE_COUNT_1_BIT,
+                                     VK_IMAGE_TILING_OPTIMAL,
+                                     VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
+                                     VK_SHARING_MODE_EXCLUSIVE,
+                                     0,
+                                     nullptr,
+                                     VK_IMAGE_LAYOUT_UNDEFINED};
+
+  VkImage vk_image;
+  vkCreateImage(m_vk_device, &vk_image_info, nullptr, &vk_image);
+
+  /* Import the memory */
+  VkMemoryDedicatedAllocateInfo vk_memory_dedicated_allocation_info = {
+      VK_STRUCTURE_TYPE_MEMORY_DEDICATED_ALLOCATE_INFO, nullptr, vk_image, VK_NULL_HANDLE};
+  VkImportMemoryFdInfoKHR import_memory_info = {VK_STRUCTURE_TYPE_IMPORT_MEMORY_FD_INFO_KHR,
+                                                &vk_memory_dedicated_allocation_info,
+                                                VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT,
+                                                openxr_data.fd.image_handle};
+  VkMemoryAllocateInfo allocate_info = {
+      VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO, &import_memory_info, openxr_data.fd.memory_size};
+  VkDeviceMemory device_memory;
+  vkAllocateMemory(m_vk_device, &allocate_info, nullptr, &device_memory);
+
+  /* Bind the imported memory to the image. */
+  vkBindImageMemory(m_vk_device, vk_image, device_memory, openxr_data.fd.memory_offset);
+
+  /* Copy frame buffer image to swapchain image. */
+  VkCommandBuffer vk_command_buffer = m_vk_command_buffer;
+
+  /* - Begin command recording */
+  VkCommandBufferBeginInfo vk_command_buffer_begin_info = {
+      VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+      nullptr,
+      VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
+      nullptr};
+  vkBeginCommandBuffer(vk_command_buffer, &vk_command_buffer_begin_info);
+
+  /* Transfer imported render result & swap chain image (UNDEFINED -> GENERAL) */
+  VkImageMemoryBarrier vk_image_memory_barrier[] = {{VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+                                                     nullptr,
+                                                     0,
+                                                     VK_ACCESS_TRANSFER_READ_BIT,
+                                                     VK_IMAGE_LAYOUT_UNDEFINED,
+                                                     VK_IMAGE_LAYOUT_GENERAL,
+                                                     VK_QUEUE_FAMILY_IGNORED,
+                                                     VK_QUEUE_FAMILY_IGNORED,
+                                                     vk_image,
+                                                     {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1}},
+                                                    {VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+                                                     nullptr,
+                                                     0,
+                                                     VK_ACCESS_TRANSFER_WRITE_BIT,
+                                                     VK_IMAGE_LAYOUT_UNDEFINED,
+                                                     VK_IMAGE_LAYOUT_GENERAL,
+                                                     VK_QUEUE_FAMILY_IGNORED,
+                                                     VK_QUEUE_FAMILY_IGNORED,
+                                                     swapchain_image.image,
+                                                     {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1}}};
+  vkCmdPipelineBarrier(vk_command_buffer,
+                       VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+                       VK_PIPELINE_STAGE_TRANSFER_BIT,
+                       0,
+                       0,
+                       nullptr,
+                       0,
+                       nullptr,
+                       2,
+                       vk_image_memory_barrier);
+
+  /* Copy image to swapchain */
+  VkImageCopy vk_image_copy = {{VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1},
+                               {0, 0, 0},
+                               {VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1},
+                               {draw_info.ofsx, draw_info.ofsy, 0},
+                               {openxr_data.extent.width, openxr_data.extent.height, 1}};
+  vkCmdCopyImage(vk_command_buffer,
+                 vk_image,
+                 VK_IMAGE_LAYOUT_GENERAL,
+                 swapchain_image.image,
+                 VK_IMAGE_LAYOUT_GENERAL,
+                 1,
+                 &vk_image_copy);
+
+  /* - End command recording */
+  vkEndCommandBuffer(vk_command_buffer);
+  /* - Submit command buffer to queue. */
+  VkSubmitInfo vk_submit_info = {
+      VK_STRUCTURE_TYPE_SUBMIT_INFO, nullptr, 0, nullptr, nullptr, 1, &vk_command_buffer};
+  vkQueueSubmit(m_vk_queue, 1, &vk_submit_info, VK_NULL_HANDLE);
+
+  /* - Wait until device is idle. */
+  vkQueueWaitIdle(m_vk_queue);
+
+  /* - Reset command buffer for next eye/frame */
+  vkResetCommandBuffer(vk_command_buffer, 0);
+
+  vkDestroyImage(m_vk_device, vk_image, nullptr);
+  vkFreeMemory(m_vk_device, device_memory, nullptr);
 }
 
 /* \} */

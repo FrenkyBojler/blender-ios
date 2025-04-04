@@ -429,7 +429,6 @@ void VKContext::openxr_acquire_framebuffer_image_handler(GHOST_VulkanOpenXRData 
 {
   VKFrameBuffer &framebuffer = *unwrap(active_fb);
   VKTexture *color_attachment = unwrap(unwrap(framebuffer.color_tex(0)));
-  openxr_data.cpu.image_data = color_attachment->read(0, GPU_DATA_HALF_FLOAT);
   openxr_data.extent.width = color_attachment->width_get();
   openxr_data.extent.height = color_attachment->height_get();
 
@@ -438,10 +437,14 @@ void VKContext::openxr_acquire_framebuffer_image_handler(GHOST_VulkanOpenXRData 
       openxr_data.cpu.image_data = color_attachment->read(0, GPU_DATA_HALF_FLOAT);
       break;
 
-    case GHOST_kVulkanXRModeFD:
-      openxr_data.fd.image_handle = color_attachment->export_memory(
+    case GHOST_kVulkanXRModeFD: {
+      VKMemoryExport exported_memory = color_attachment->export_memory(
           VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT);
+      openxr_data.fd.image_handle = exported_memory.handle;
+      openxr_data.fd.memory_size = exported_memory.memory_size;
+      openxr_data.fd.memory_offset = exported_memory.memory_offset;
       break;
+    }
   }
 }
 

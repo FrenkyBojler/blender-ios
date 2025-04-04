@@ -393,8 +393,13 @@ uint VKTexture::gl_bindcode_get() const
   return 0;
 }
 
-int VKTexture::export_memory(VkExternalMemoryHandleTypeFlagBits handle_type)
+VKMemoryExport VKTexture::export_memory(VkExternalMemoryHandleTypeFlagBits handle_type)
 {
+  BLI_assert_msg(
+      bool(gpu_image_usage_flags_ & GPU_TEXTURE_USAGE_MEMORY_EXPORT),
+      "Can only import external memory when usage flag contains GPU_TEXTURE_USAGE_MEMORY_EXPORT.");
+  BLI_assert_msg(allocation_ != nullptr,
+                 "Cannot export memory when the texture is not backed by any device memory.");
   const VKDevice &device = VKBackend::get().device;
   VkMemoryGetFdInfoKHR vk_memory_get_fd_info = {VK_STRUCTURE_TYPE_MEMORY_GET_FD_INFO_KHR,
                                                 nullptr,
@@ -402,8 +407,8 @@ int VKTexture::export_memory(VkExternalMemoryHandleTypeFlagBits handle_type)
                                                 handle_type};
 
   int fd_handle = 0;
-  // device.  vkGetMemoryFdKHR(device.vk_handle(), &vk_memory_get_fd_info, &fd_handle);
-  return fd_handle;
+  device.functions.vkGetMemoryFd(device.vk_handle(), &vk_memory_get_fd_info, &fd_handle);
+  return {fd_handle, allocation_info_.size, allocation_info_.offset};
 }
 
 bool VKTexture::init_internal()
@@ -480,8 +485,8 @@ static VkImageUsageFlags to_vk_image_usage(const eGPUTextureUsage usage,
   }
   if (usage & GPU_TEXTURE_USAGE_ATTACHMENT) {
     if (format_flag & GPU_FORMAT_COMPRESSED) {
-      /* These formats aren't supported as an attachment. When using GPU_TEXTURE_USAGE_DEFAULT they
-       * are still being evaluated to be attachable. So we need to skip them. */
+      /* These formats aren't supported as an attachment. When using GPU_TEXTURE_USAGE_DEFAULT
+       * they are still being evaluated to be attachable. So we need to skip them. */
     }
     else {
       if (format_flag & (GPU_FORMAT_DEPTH | GPU_FORMAT_STENCIL)) {
@@ -522,7 +527,8 @@ static VkImageCreateFlags to_vk_image_create(const eGPUTextureType texture_type,
     result |= VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
   }
 
-  /* sRGB textures needs to be mutable as they can be used as non-sRGB frame-buffer attachments. */
+  /* sRGB textures needs to be mutable as they can be used as non-sRGB frame-buffer attachments.
+   */
   if (usage & GPU_TEXTURE_USAGE_ATTACHMENT && format_flag & GPU_FORMAT_SRGB) {
     result |= VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT;
   }
@@ -542,10 +548,12 @@ bool VKTexture::allocate()
     return false;
   }
 
+  const eGPUTextureUsage texture_usage = usage_get();
+
   VKDevice &device = VKBackend::get().device;
   VkImageCreateInfo image_info = {};
   image_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-  image_info.flags = to_vk_image_create(type_, format_flag_, usage_get());
+  image_info.flags = to_vk_image_create(type_, format_flag_, texture_usage);
   image_info.imageType = to_vk_image_type(type_);
   image_info.extent = vk_extent;
   image_info.mipLevels = max_ii(mipmaps_, 1);
@@ -577,9 +585,19 @@ bool VKTexture::allocate()
     }
   }
 
+  VkExternalMemoryImageCreateInfo external_memory_create_info = {
+      VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO,
+      nullptr,
+      VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT};
+
   VmaAllocationCreateInfo allocCreateInfo = {};
   allocCreateInfo.usage = VMA_MEMORY_USAGE_AUTO;
   allocCreateInfo.priority = 1.0f;
+
+  if (bool(texture_usage & GPU_TEXTURE_USAGE_MEMORY_EXPORT)) {
+    image_info.pNext = &external_memory_create_info;
+    allocCreateInfo.pool = device.vma_pools.external_memory;
+  }
   result = vmaCreateImage(device.mem_allocator_get(),
                           &image_info,
                           &allocCreateInfo,
