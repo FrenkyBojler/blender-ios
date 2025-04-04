@@ -24,10 +24,13 @@ void vk_pipeline_data_copy(VKPipelineData &dst, const VKPipelineData &src)
 }
 
 void vk_pipeline_viewport_set_commands(VKCommandBufferInterface &command_buffer,
-                                       const VKViewportData &viewport_data)
+                                       const VKViewportData &viewport_data,
+                                       VKViewportData &r_viewport_state)
 {
-  command_buffer.set_viewport(viewport_data.viewports);
-  command_buffer.set_scissor(viewport_data.scissors);
+  if (assign_if_different(r_viewport_state, viewport_data)) {
+    command_buffer.set_viewport(viewport_data.viewports);
+    command_buffer.set_scissor(viewport_data.scissors);
+  }
 }
 
 void vk_pipeline_data_build_commands(VKCommandBufferInterface &command_buffer,
