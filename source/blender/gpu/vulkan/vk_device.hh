@@ -193,6 +193,7 @@ class VKDevice : public NonCopyable {
   /** Limits of the device linked to this context. */
   VkPhysicalDeviceProperties vk_physical_device_properties_ = {};
   VkPhysicalDeviceDriverProperties vk_physical_device_driver_properties_ = {};
+  VkPhysicalDeviceIDProperties vk_physical_device_id_properties_ = {};
   VkPhysicalDeviceMemoryProperties vk_physical_device_memory_properties_ = {};
   /** Features support. */
   VkPhysicalDeviceFeatures vk_physical_device_features_ = {};
@@ -248,6 +249,11 @@ class VKDevice : public NonCopyable {
     return vk_physical_device_properties_;
   }
 
+  const VkPhysicalDeviceIDProperties &physical_device_id_properties_get() const
+  {
+    return vk_physical_device_id_properties_;
+  }
+
   const VkPhysicalDeviceFeatures &physical_device_features_get() const
   {
     return vk_physical_device_features_;
@@ -282,7 +288,7 @@ class VKDevice : public NonCopyable {
     return *queue_mutex_;
   }
 
-  const uint32_t queue_family_get() const
+  uint32_t queue_family_get() const
   {
     return vk_queue_family_;
   }
@@ -354,7 +360,8 @@ class VKDevice : public NonCopyable {
                                     bool wait_for_completion,
                                     VkPipelineStageFlags wait_dst_stage_mask,
                                     VkSemaphore wait_semaphore,
-                                    VkSemaphore signal_semaphore);
+                                    VkSemaphore signal_semaphore,
+                                    VkFence signal_fence);
   void wait_for_timeline(TimelineValue timeline);
 
   /**
