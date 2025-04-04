@@ -992,6 +992,7 @@ enum eBlockBoundsCalc {
   UI_BLOCK_BOUNDS_POPUP_MENU,
   UI_BLOCK_BOUNDS_POPUP_CENTER,
   UI_BLOCK_BOUNDS_PIE_CENTER,
+  UI_BLOCK_BOUNDS_POPUP_ABSOLUTE,
 };
 
 /**
@@ -1015,6 +1016,12 @@ void UI_block_bounds_set_menu(uiBlock *block, int addval, const int bounds_offse
  */
 void UI_block_bounds_set_centered(uiBlock *block, int addval);
 void UI_block_bounds_set_explicit(uiBlock *block, int minx, int miny, int maxx, int maxy);
+
+/**
+ * Place a popup block at an absolute position.
+ */
+void UI_block_bounds_set_absolute(
+    uiBlock *block, int x, int y, int *save_x = nullptr, int *save_y = nullptr);
 
 int UI_blocklist_min_y_get(ListBase *lb);
 

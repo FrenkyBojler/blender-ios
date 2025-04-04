@@ -542,6 +542,17 @@ static void ui_block_bounds_calc_post_centered(uiBlock *block)
   ui_block_bounds_calc(block);
 }
 
+static void ui_block_bounds_calc_absolute(wmWindow *window, uiBlock *block)
+{
+  ui_block_bounds_calc(block);
+  const int move_x = block->bounds_offset[0] - block->rect.xmin;
+  const int move_y = block->bounds_offset[1] - block->rect.ymin;
+  UI_block_translate(block, move_x, move_y);
+
+  /* now recompute bounds and safety */
+  ui_block_bounds_calc(block);
+}
+
 static void ui_block_bounds_calc_centered_pie(uiBlock *block)
 {
   const int xy[2] = {
@@ -677,6 +688,16 @@ void UI_block_bounds_set_explicit(uiBlock *block, int minx, int miny, int maxx, 
   block->rect.xmax = maxx;
   block->rect.ymax = maxy;
   block->bounds_type = UI_BLOCK_BOUNDS_NONE;
+}
+
+void UI_block_bounds_set_absolute(uiBlock *block, int x, int y, int *save_x, int *save_y)
+{
+  block->bounds = 7 * UI_SCALE_FAC;
+  block->pos_x = save_x;
+  block->pos_y = save_y;
+  block->bounds_offset[0] = (save_x && *save_x) ? *save_x : x;
+  block->bounds_offset[1] = (save_y && *save_y) ? *save_y : y;
+  block->bounds_type = UI_BLOCK_BOUNDS_POPUP_ABSOLUTE;
 }
 
 static float ui_but_get_float_precision(uiBut *but)
@@ -2122,6 +2143,14 @@ void UI_block_end_ex(const bContext *C,
     case UI_BLOCK_BOUNDS_POPUP_CENTER:
       if (block->handle->grab_xy_prev[0] == 0 && block->handle->grab_xy_prev[1] == 0) {
         ui_block_bounds_calc_centered(window, block);
+      }
+      else {
+        ui_block_bounds_calc_post_centered(block);
+      }
+      break;
+    case UI_BLOCK_BOUNDS_POPUP_ABSOLUTE:
+      if (block->handle->grab_xy_prev[0] == 0 && block->handle->grab_xy_prev[1] == 0) {
+        ui_block_bounds_calc_absolute(window, block);
       }
       else {
         ui_block_bounds_calc_post_centered(block);

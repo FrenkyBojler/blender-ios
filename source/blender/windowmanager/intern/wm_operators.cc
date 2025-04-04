@@ -1434,7 +1434,7 @@ static uiBlock *wm_block_create_redo(bContext *C, ARegion *region, void *arg_op)
   UI_block_theme_style_set(block, UI_BLOCK_THEME_STYLE_REGULAR);
 
   /* #UI_BLOCK_NUMSELECT for layer buttons. */
-  UI_block_flag_enable(block, UI_BLOCK_NUMSELECT | UI_BLOCK_KEEP_OPEN | UI_BLOCK_MOVEMOUSE_QUIT);
+  UI_block_flag_enable(block, UI_BLOCK_NUMSELECT | UI_BLOCK_KEEP_OPEN);
 
   /* If register is not enabled, the operator gets freed on #OPERATOR_FINISHED
    * ui_apply_but_funcs_after calls #ED_undo_operator_repeate_cb and crashes. */
@@ -1451,14 +1451,15 @@ static uiBlock *wm_block_create_redo(bContext *C, ARegion *region, void *arg_op)
     }
   }
 
-  uiItemL_ex(layout, WM_operatortype_name(op->type, op->ptr), ICON_NONE, true, false);
+  uiItemL_ex(
+      layout, WM_operatortype_description_or_name(C, op->type, op->ptr), ICON_NONE, true, false);
   uiItemS_ex(layout, 0.2f, LayoutSeparatorType::Line);
   uiItemS_ex(layout, 0.5f);
 
   uiLayout *col = uiLayoutColumn(layout, false);
   uiTemplateOperatorPropertyButs(C, col, op, UI_BUT_LABEL_ALIGN_NONE, 0);
-
-  UI_block_bounds_set_popup(block, 7 * UI_SCALE_FAC, nullptr);
+  UI_block_bounds_set_absolute(
+      block, 20 * UI_SCALE_FAC, 20 * UI_SCALE_FAC, &U.redo_pos_x, &U.redo_pos_y);
 
   return block;
 }

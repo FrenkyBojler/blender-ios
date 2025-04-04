@@ -10807,6 +10807,14 @@ static int ui_handle_menu_event(bContext *C,
       }
     }
 
+    /* Save our position if applicable. */
+    if (block->pos_x && block->pos_y) {
+      const int margin = int(12.0f * UI_SCALE_FAC);
+      *block->pos_x = region->winrct.xmin + margin;
+      *block->pos_y = region->winrct.ymin + margin;
+      U.runtime.is_dirty = true;
+    }
+
     /* first block own event func */
     if (block->block_event_func && block->block_event_func(C, block, event)) {
       /* pass */

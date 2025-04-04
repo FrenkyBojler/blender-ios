@@ -999,6 +999,10 @@ typedef struct UserDef {
   /** Control the rotation step of the view when PAD2, PAD4, PAD6&PAD8 is use. */
   float pad_rot_angle;
   char _pad12[4];
+
+  int redo_pos_x;
+  int redo_pos_y;
+
   /** Rotating view icon size. */
   short rvisize;
   /** Rotating view icon brightness. */

@@ -610,6 +610,10 @@ struct uiBlock {
   /** Custom extra draw function for custom blocks. */
   std::function<void(const bContext *, rcti *)> drawextra;
 
+  /* Pointer to where we can optionally store position. */
+  int *pos_x = nullptr;
+  int *pos_y = nullptr;
+
   int flag;
   short alignnr;
   /** Hints about the buttons of this block. Used to avoid iterating over
