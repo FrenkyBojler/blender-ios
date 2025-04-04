@@ -15,6 +15,11 @@
 
 namespace blender::nodes::node_geo_set_grease_pencil_color_cc {
 
+enum class Mode : int8_t {
+  Stroke = 0,
+  Fill = 1,
+};
+
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_output<decl::Geometry>("Grease Pencil").propagate_all();
@@ -36,13 +41,14 @@ static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 }
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  node->custom1 = int(AttrDomain::Point);
+  node->custom1 = int(Mode::Stroke);
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
   const bNode &node = params.node();
-  const AttrDomain domain = AttrDomain(node.custom1);
+  const AttrDomain domain = Mode(node.custom1) == Mode::Stroke ? AttrDomain::Point :
+                                                                 AttrDomain::Curve;
 
   GeometrySet geometry_set = params.extract_input<GeometrySet>("Grease Pencil");
   const Field<bool> selection = params.extract_input<Field<bool>>("Selection");
@@ -91,22 +97,21 @@ static void node_geo_exec(GeoNodeExecParams params)
 
 static void node_rna(StructRNA *srna)
 {
-  static const EnumPropertyItem color_mode_items[] = {
-      {int(AttrDomain::Point),
-       "POINT",
+  static const EnumPropertyItem mode_items[] = {
+      {int(Mode::Stroke),
+       "STROKE",
        ICON_NONE,
-       "Point",
-       "Set the color and opacity for individual points"},
-      {int(AttrDomain::Curve),
-       "CURVE",
+       "Stroke",
+       "Set the color and opacity for the points of the stroke"},
+      {int(Mode::Fill),
+       "FILL",
        ICON_NONE,
        "Fill",
-       "Set the color and opacity for fills (curves)"},
+       "Set the color and opacity for the stroke fills"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
-  RNA_def_node_enum(
-      srna, "mode", "Mode", "", color_mode_items, NOD_inline_enum_accessors(custom1));
+  RNA_def_node_enum(srna, "mode", "Mode", "", mode_items, NOD_inline_enum_accessors(custom1));
 }
 
 static void node_register()
