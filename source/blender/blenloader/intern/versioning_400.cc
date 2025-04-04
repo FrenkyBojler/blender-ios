@@ -6654,27 +6654,6 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
     rename_mesh_uv_seam_attribute(*mesh);
   }
 
-  /* Test #AttributeStorage <-> #CustomData conversion. */
-#if 1
-  LISTBASE_FOREACH (Mesh *, mesh, &bmain->meshes) {
-    blender::bke::mesh_convert_customdata_to_storage(*mesh);
-    blender::bke::mesh_convert_storage_to_customdata(*mesh);
-  }
-  LISTBASE_FOREACH (Curves *, curves_id, &bmain->hair_curves) {
-    blender::bke::CurvesGeometry &curves = curves_id->geometry.wrap();
-    blender::bke::curves_convert_customdata_to_storage(curves);
-    blender::bke::curves_convert_storage_to_customdata(curves);
-  }
-  LISTBASE_FOREACH (PointCloud *, pointcloud, &bmain->pointclouds) {
-    blender::bke::pointcloud_convert_customdata_to_storage(*pointcloud);
-    blender::bke::pointcloud_convert_storage_to_customdata(*pointcloud);
-  }
-  LISTBASE_FOREACH (GreasePencil *, grease_pencil, &bmain->grease_pencils) {
-    blender::bke::grease_pencil_convert_customdata_to_storage(*grease_pencil);
-    blender::bke::grease_pencil_convert_storage_to_customdata(*grease_pencil);
-  }
-#endif
-
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a MAIN_VERSION_FILE_ATLEAST check.

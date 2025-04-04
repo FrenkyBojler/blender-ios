@@ -362,20 +362,19 @@ static void mesh_blend_write(BlendWriter *writer, ID *id, const void *id_address
     CustomData_blend_write_prepare(mesh->edge_data, edge_layers, {});
     CustomData_blend_write_prepare(mesh->corner_data, loop_layers, {});
     CustomData_blend_write_prepare(mesh->face_data, face_layers, {});
-    mesh->attribute_storage.wrap().blend_write_prepare(*writer, attribute_data);
-    if (!is_undo) {
+    if (is_undo) {
+      mesh->attribute_storage.wrap().blend_write_prepare(*writer, attribute_data);
+    }
+    else {
       /* Write forward compatible format. To be removed in 5.0. */
       rename_seam_layer_to_old_name(
           mesh->vertex_group_names, vert_layers, edge_layers, face_layers, loop_layers);
       mesh_sculpt_mask_to_legacy(vert_layers);
       mesh_custom_normals_to_legacy(loop_layers);
-
-      /* Forward compatibility: Convert future #AttributeStorage DNA data to #CustomData. */
-      mesh_convert_storage_to_customdata(*mesh);
+      mesh_convert_storage_to_customdata_for_file_write(
+          mesh->attribute_storage.wrap(), vert_layers, edge_layers, face_layers, loop_layers);
     }
   }
-
-  mesh->attribute_storage.wrap().blend_write(*writer, attribute_data);
 
   const blender::bke::MeshRuntime *mesh_runtime = mesh->runtime;
   mesh->runtime = nullptr;
@@ -401,6 +400,8 @@ static void mesh_blend_write(BlendWriter *writer, ID *id, const void *id_address
       writer, &mesh->corner_data, loop_layers, mesh->corners_num, CD_MASK_MESH.lmask, &mesh->id);
   CustomData_blend_write(
       writer, &mesh->face_data, face_layers, mesh->faces_num, CD_MASK_MESH.pmask, &mesh->id);
+
+  mesh->attribute_storage.wrap().blend_write(*writer, attribute_data);
 
   if (mesh->face_offset_indices) {
     BLO_write_shared(
@@ -448,6 +449,9 @@ static void mesh_blend_read_data(BlendDataReader *reader, ID *id)
   }
   BLO_read_string(reader, &mesh->active_color_attribute);
   BLO_read_string(reader, &mesh->default_color_attribute);
+
+  /* Forward compatibility. To be removed when runtime format changes. */
+  blender::bke::mesh_convert_storage_to_customdata(*mesh);
 
   mesh->texspace_flag &= ~ME_TEXSPACE_FLAG_AUTO_EVALUATED;
 

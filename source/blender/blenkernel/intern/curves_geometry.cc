@@ -1882,6 +1882,14 @@ void CurvesGeometry::blend_read(BlendDataReader &reader)
 CurvesGeometry::BlendWriteData CurvesGeometry::blend_write_prepare(BlendWriter &writer)
 {
   CurvesGeometry::BlendWriteData write_data;
+  if (BLO_write_is_undo(&writer)) {
+    this->attribute_storage.wrap().blend_write_prepare(writer, write_data.attribute_data);
+  }
+  else {
+    /* Write forward compatible format. To be removed in 5.0. */
+    curves_convert_storage_to_customdata_for_file_write(
+        this->attribute_storage.wrap(), write_data.point_layers, write_data.curve_layers);
+  }
   CustomData_blend_write_prepare(this->point_data, write_data.point_layers);
   CustomData_blend_write_prepare(this->curve_data, write_data.curve_layers);
   this->attribute_storage.wrap().blend_write_prepare(writer, write_data.attribute_data);

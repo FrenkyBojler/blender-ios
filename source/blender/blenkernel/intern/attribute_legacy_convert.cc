@@ -176,8 +176,8 @@ static std::optional<eCustomDataType> attribute_to_to_custom_data_type(const Att
   return std::nullopt;
 }
 
-void attribute_legacy_convert_storage_to_customdata(
-    AttributeStorage &storage,
+static void convert_storage_to_customdata(
+    const AttributeStorage &storage,
     const Map<AttrDomain, std::pair<CustomData *, int>> &custom_data_domains)
 {
   storage.foreach ([&](const Attribute &attribute) {
@@ -205,7 +205,6 @@ void attribute_legacy_convert_storage_to_customdata(
           custom_data, *data_type, value->data.data(), domain_size, attribute.name(), value);
     }
   });
-  storage = AttributeStorage();
 }
 
 static auto mesh_domains(Mesh &mesh)
@@ -217,10 +216,65 @@ static auto mesh_domains(Mesh &mesh)
       {AttrDomain::Corner, {&mesh.corner_data, mesh.corners_num}}};
 }
 
+static std::optional<CustomDataLayer> create_layer_for_file_write(const Attribute &attribute)
+{
+  const std::optional<eCustomDataType> data_type = attribute_to_to_custom_data_type(
+      attribute.data_type());
+  if (!data_type) {
+    return std::nullopt;
+  }
+  const auto *array_data = std::get_if<Attribute::ArrayData>(&attribute.data());
+  if (!array_data) {
+    return std::nullopt;
+  }
+
+  CustomDataLayer layer;
+  BLI_strncpy(layer.name, attribute.name().c_str(), MAX_CUSTOMDATA_LAYER_NAME);
+  layer.type = *data_type;
+  layer.data = array_data->data;
+  layer.sharing_info = array_data->sharing_info.get();
+  return layer;
+}
+
+void mesh_convert_storage_to_customdata_for_file_write(const AttributeStorage &storage,
+                                                       Vector<CustomDataLayer, 16> &vert_layers,
+                                                       Vector<CustomDataLayer, 16> &edge_layers,
+                                                       Vector<CustomDataLayer, 16> &face_layers,
+                                                       Vector<CustomDataLayer, 16> &loop_layers)
+{
+  storage.foreach ([&](const Attribute &attribute) {
+    const std::optional<eCustomDataType> data_type = attribute_to_to_custom_data_type(
+        attribute.data_type());
+    if (!data_type) {
+      return;
+    }
+    const auto *array_data = std::get_if<Attribute::ArrayData>(&attribute.data());
+    if (!array_data) {
+      return;
+    }
+    Vector<CustomDataLayer, 16> *layers = nullptr;
+    switch (attribute.domain()) {
+      case AttrDomain::Point:
+        layers = &vert_layers;
+        break;
+      case AttrDomain::Edge:
+        layers = &edge_layers;
+        break;
+      case AttrDomain::Face:
+        layers = &face_layers;
+        break;
+      case AttrDomain::Corner:
+        layers = &loop_layers;
+        break;
+      default:
+        return;
+    }
+    layers->append(create_layer_for_file_write(attribute).value());
+  });
+}
 void mesh_convert_storage_to_customdata(Mesh &mesh)
 {
-  attribute_legacy_convert_storage_to_customdata(mesh.attribute_storage.wrap(),
-                                                 mesh_domains(mesh));
+  convert_storage_to_customdata(mesh.attribute_storage.wrap(), mesh_domains(mesh));
 }
 void mesh_convert_customdata_to_storage(Mesh &mesh)
 {
@@ -237,8 +291,35 @@ static auto curves_domains(CurvesGeometry &curves)
 
 void curves_convert_storage_to_customdata(CurvesGeometry &curves)
 {
-  attribute_legacy_convert_storage_to_customdata(curves.attribute_storage.wrap(),
-                                                 curves_domains(curves));
+  convert_storage_to_customdata(curves.attribute_storage.wrap(), curves_domains(curves));
+}
+void curves_convert_storage_to_customdata_for_file_write(const AttributeStorage &storage,
+                                                         Vector<CustomDataLayer, 16> &point_layers,
+                                                         Vector<CustomDataLayer, 16> &curve_layers)
+{
+  storage.foreach ([&](const Attribute &attribute) {
+    const std::optional<eCustomDataType> data_type = attribute_to_to_custom_data_type(
+        attribute.data_type());
+    if (!data_type) {
+      return;
+    }
+    const auto *array_data = std::get_if<Attribute::ArrayData>(&attribute.data());
+    if (!array_data) {
+      return;
+    }
+    Vector<CustomDataLayer, 16> *layers = nullptr;
+    switch (attribute.domain()) {
+      case AttrDomain::Point:
+        layers = &point_layers;
+        break;
+      case AttrDomain::Curve:
+        layers = &curve_layers;
+        break;
+      default:
+        return;
+    }
+    layers->append(create_layer_for_file_write(attribute).value());
+  });
 }
 void curves_convert_customdata_to_storage(CurvesGeometry &curves)
 {
@@ -254,8 +335,24 @@ static auto pointcloud_domains(PointCloud &pointcloud)
 
 void pointcloud_convert_storage_to_customdata(PointCloud &pointcloud)
 {
-  attribute_legacy_convert_storage_to_customdata(pointcloud.attribute_storage.wrap(),
-                                                 pointcloud_domains(pointcloud));
+  convert_storage_to_customdata(pointcloud.attribute_storage.wrap(),
+                                pointcloud_domains(pointcloud));
+}
+void pointcloud_convert_storage_to_customdata_for_file_write(
+    const AttributeStorage &storage, Vector<CustomDataLayer, 16> &point_layers)
+{
+  storage.foreach ([&](const Attribute &attribute) {
+    const std::optional<eCustomDataType> data_type = attribute_to_to_custom_data_type(
+        attribute.data_type());
+    if (!data_type) {
+      return;
+    }
+    const auto *array_data = std::get_if<Attribute::ArrayData>(&attribute.data());
+    if (!array_data) {
+      return;
+    }
+    point_layers.append(create_layer_for_file_write(attribute).value());
+  });
 }
 void pointcloud_convert_customdata_to_storage(PointCloud &pointcloud)
 {
@@ -271,8 +368,24 @@ static auto grease_pencil_domains(GreasePencil &grease_pencil)
 
 void grease_pencil_convert_storage_to_customdata(GreasePencil &grease_pencil)
 {
-  attribute_legacy_convert_storage_to_customdata(grease_pencil.attribute_storage.wrap(),
-                                                 grease_pencil_domains(grease_pencil));
+  convert_storage_to_customdata(grease_pencil.attribute_storage.wrap(),
+                                grease_pencil_domains(grease_pencil));
+}
+void grease_pencil_convert_storage_to_customdata_for_file_write(
+    const AttributeStorage &storage, Vector<CustomDataLayer, 16> &layers)
+{
+  storage.foreach ([&](const Attribute &attribute) {
+    const std::optional<eCustomDataType> data_type = attribute_to_to_custom_data_type(
+        attribute.data_type());
+    if (!data_type) {
+      return;
+    }
+    const auto *array_data = std::get_if<Attribute::ArrayData>(&attribute.data());
+    if (!array_data) {
+      return;
+    }
+    layers.append(create_layer_for_file_write(attribute).value());
+  });
 }
 void grease_pencil_convert_customdata_to_storage(GreasePencil &grease_pencil)
 {

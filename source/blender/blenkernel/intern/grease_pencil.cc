@@ -265,7 +265,14 @@ static void grease_pencil_blend_write(BlendWriter *writer, ID *id, const void *i
   blender::Vector<CustomDataLayer, 16> layers_data_layers;
   CustomData_blend_write_prepare(grease_pencil->layers_data, layers_data_layers);
   blender::bke::AttributeStorage::BlendWriteData attribute_data;
-  grease_pencil->attribute_storage.wrap().blend_write_prepare(*writer, attribute_data);
+  if (BLO_write_is_undo(writer)) {
+    grease_pencil->attribute_storage.wrap().blend_write_prepare(*writer, attribute_data);
+  }
+  else {
+    /* Write forward compatible format. To be removed in 5.0. */
+    blender::bke::grease_pencil_convert_storage_to_customdata_for_file_write(
+        grease_pencil->attribute_storage.wrap(), layers_data_layers);
+  }
 
   /* Write LibData */
   BLO_write_id_struct(writer, GreasePencil, id_address, &grease_pencil->id);
