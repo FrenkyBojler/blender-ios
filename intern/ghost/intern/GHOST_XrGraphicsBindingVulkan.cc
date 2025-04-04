@@ -551,7 +551,6 @@ void GHOST_XrGraphicsBindingVulkan::submitToSwapchainImageFd(
 
   /* Create an image handle */
   // assert(draw_info.swapchain_format == GHOST_kXrSwapchainFormatRGBA16F);
-  VkFormat format = VK_FORMAT_R16G16B16A16_SFLOAT;
   VkExternalMemoryImageCreateInfo vk_external_memory_image_info = {
       VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO,
       nullptr,
@@ -561,7 +560,7 @@ void GHOST_XrGraphicsBindingVulkan::submitToSwapchainImageFd(
                                      &vk_external_memory_image_info,
                                      0,
                                      VK_IMAGE_TYPE_2D,
-                                     format,
+                                     openxr_data.gpu.image_format,
                                      {openxr_data.extent.width, openxr_data.extent.height, 1},
                                      1,
                                      1,

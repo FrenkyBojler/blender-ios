@@ -444,6 +444,7 @@ void VKContext::openxr_acquire_framebuffer_image_handler(GHOST_VulkanOpenXRData 
       VKMemoryExport exported_memory = color_attachment->export_memory(
           VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT);
       openxr_data.gpu.image_handle = exported_memory.handle;
+      openxr_data.gpu.image_format = to_vk_format(color_attachment->device_format_get());
       openxr_data.gpu.memory_size = exported_memory.memory_size;
       openxr_data.gpu.memory_offset = exported_memory.memory_offset;
       break;

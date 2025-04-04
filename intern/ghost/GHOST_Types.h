@@ -811,6 +811,11 @@ typedef struct {
       uint64_t image_handle;
 
       /**
+       * Data format of the image.
+       */
+      VkFormat image_format;
+
+      /**
        * Allocation size of the exported memory.
        */
       VkDeviceSize memory_size;
