@@ -69,5 +69,5 @@ def config_logging(args):
 
     logging.basicConfig(
         level=args.loglevel,
-        format="%(asctime)-15s %(levelname)8s %(module)16s %(message)s",
+        format="%(asctime)-15s %(levelname)8s %(threadName)10s %(name)16s %(message)s",
     )

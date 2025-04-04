@@ -5,13 +5,18 @@
 from __future__ import annotations
 
 import hashlib
+import logging
+import queue
+import threading
 from pathlib import Path
-from typing import Protocol
+from typing import Protocol, TypeAlias, Any
 
 import pydantic
 import requests
 import requests.adapters
 import urllib3.util.retry
+
+logger = logging.getLogger(__name__)
 
 
 _http_retries = urllib3.util.retry.Retry(
@@ -58,6 +63,7 @@ class CachingDownloadReporter(Protocol):
 
 
 class _DummyReporter(CachingDownloadReporter):
+
     """Dummy CachingDownloadReporter.
 
     This is mostly used to avoid None checks in the CachingDownloader. The print
@@ -101,6 +107,93 @@ class _DummyReporter(CachingDownloadReporter):
         print(f"Download finished, stored at {local_file}")
 
 
+class ThreadBridgingReporter(CachingDownloadReporter):
+    """DownloadReporter that can bridge threads.
+
+    Bridging two threads T1 and T2 requires two reporters and the downloader itself:
+
+    - Create a CachingDownloadReporter that should get called on T1.
+    - Create this ThreadBridgingReporter, passing it the above reporter.
+    - Create the CachingDownloader, and put in the thread-bridging reporter.
+    - Start the CachingDownloader in T2.
+    - Call ThreadBridgingReporter.update() from T1.
+    """
+
+    FunctionCall: TypeAlias = tuple[str, tuple[Any, ...]]
+    """Tuple of the function name and the positional arguments."""
+
+    _queue: queue.Queue[FunctionCall]
+    """Queue of function calls."""
+
+    _logger: logging.Logger
+
+    def __init__(self, reporter: CachingDownloadReporter) -> None:
+        self.reporter = reporter
+        self._queue = queue.Queue()
+        self._logger = logger.getChild(self.__class__.__name__)
+
+    def update(self, *, limit_num_calls=100) -> bool:
+        """Handle queued function calls on the thread that calls this function.
+
+        Only a finite number of queued calls is processed, to avoid blocking the
+        calling thread completely.
+
+        Returns whether there are still function calls left to process.
+        """
+
+        for _ in range(limit_num_calls):
+            try:
+                # Wait 1ms for any calls to arrive. This slows down this thread
+                # a little bit, to give other threads a chance to run.
+                queued_call = self._queue.get(block=True, timeout=0.001)
+            except queue.Empty:
+                # Not having anything to do is fine.
+                return False
+
+            function_name, function_arguments = queued_call
+            function = getattr(self.reporter, function_name)
+            function(*function_arguments)
+
+        return self._queue.empty()
+
+    def download_starts(self, http_req_descr: RequestDescription) -> None:
+        self._queue_call('download_starts', http_req_descr)
+
+    def already_downloaded(
+        self,
+        http_req_descr: RequestDescription,
+        local_file: Path,
+    ) -> None:
+        self._queue_call('already_downloaded', http_req_descr, local_file)
+
+    def download_error(
+        self,
+        http_req_descr: RequestDescription,
+        error: Exception,
+    ) -> None:
+        self._queue_call('download_error', http_req_descr, error)
+
+    def download_progress(
+        self,
+        http_req_descr: RequestDescription,
+        content_length_bytes: int,
+        downloaded_bytes: int,
+    ) -> None:
+        self._queue_call('download_progress', http_req_descr, content_length_bytes, downloaded_bytes)
+
+    def download_finished(
+        self,
+        http_req_descr: RequestDescription,
+        local_file: Path,
+    ) -> None:
+        self._queue_call('download_finished', http_req_descr, local_file)
+
+    def _queue_call(self, function_name: str, *function_args: Any) -> None:
+        """Put a function call in the queue."""
+        self._logger.debug(f"{function_name}{function_args}")
+        self._queue.put((function_name, function_args))
+
+
 class CachingDownloader:
     """Caching file downloader.
 
@@ -124,6 +217,8 @@ class CachingDownloader:
 
     _reporter: CachingDownloadReporter = _DummyReporter()
 
+    _cancel_download_event: threading.Event
+
     def __init__(
             self,
             metadata_cache_location: Path,
@@ -134,6 +229,7 @@ class CachingDownloader:
         self.metadata_cache_location = metadata_cache_location
         self.http_session = http_session
         self.chunk_size = chunk_size
+        self._cancel_download_event = threading.Event()
 
     def download_to_file(
         self, url: str, local_path: Path, *, http_method: str = "GET"
@@ -142,7 +238,10 @@ class CachingDownloader:
 
         The download is streamed to 'local_path + "~"' first. When succesful, it
         is renamed to the given path, overwriting any pre-existing file.
+
+        Raises a HTTPRequestDownloadError for specific HTTP errors.
         """
+
         http_req_descr = RequestDescription(http_method=http_method, url=url)
 
         self._reporter.download_starts(http_req_descr)
@@ -160,6 +259,10 @@ class CachingDownloader:
             temp_path.unlink(missing_ok=True)
             self._reporter.download_error(http_req_descr, ex)
             raise
+        finally:
+            # One way or the other, the download is no longer running, so any
+            # pending cancellation can be cleared.
+            self._cancel_download_event.clear()
 
         if http_meta is None:
             # Local file is already fresh, no need to re-download.
@@ -189,6 +292,10 @@ class CachingDownloader:
             metadata matches the URL (a "304 Not Modified" was returned).
         """
 
+        # Don't bother doing anything when the download was cancelled already.
+        if self._cancel_download_event.is_set():
+            raise DownloadCancelled(http_req_descr)
+
         req = requests.Request(http_req_descr.http_method, http_req_descr.url)
         prepped: requests.PreparedRequest = self.http_session.prepare_request(req)
         if meta:
@@ -202,6 +309,10 @@ class CachingDownloader:
                 # The remote file matches what we have locally. Don't bother streaming.
                 return None
 
+            # Avoid reporting any progress when the download was cancelled.
+            if self._cancel_download_event.is_set():
+                raise DownloadCancelled(http_req_descr)
+
             # Determine how many bytes are expected.
             content_length_str: str = stream.headers.get("Content-Length") or ""
             try:
@@ -214,6 +325,10 @@ class CachingDownloader:
             num_downloaded_bytes = 0
             with local_path.open("wb") as file:
                 for chunk in stream.iter_content(chunk_size=self.chunk_size):
+
+                    if self._cancel_download_event.is_set():
+                        raise DownloadCancelled(http_req_descr)
+
                     file.write(chunk)
                     num_downloaded_bytes += len(chunk)
 
@@ -290,6 +405,17 @@ class CachingDownloader:
     def has_reporter(self) -> bool:
         return not isinstance(self._reporter, _DummyReporter)
 
+    def cancel_download(self) -> None:
+        """Cancel any running download.
+
+        Thread-safe, can be called from a different thread than the download
+        call itself.
+
+        If there is no active download when this function is called, the next
+        download will be cancelled.
+        """
+        self._cancel_download_event.set()
+
 
 class HTTPMetadata(pydantic.BaseModel):
     """HTTP headers, stored so they can be used for conditional requests later."""
@@ -325,6 +451,12 @@ class HTTPRequestDownloadError(RuntimeError):
         super().__init__()
         self.http_req_desc = http_req_desc
 
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}({self.http_req_desc})"
+
+    def __str__(self) -> str:
+        return repr(self)
+
 
 class ContentLengthUnknownError(HTTPRequestDownloadError):
     """Raised when a HTTP response does not have a Content-Length header.
@@ -335,3 +467,12 @@ class ContentLengthUnknownError(HTTPRequestDownloadError):
 
 class ResponseTooLargeError(HTTPRequestDownloadError):
     """Raised when a HTTP response body is larger than its Content-Length header indicates."""
+
+
+class DownloadCancelled(HTTPRequestDownloadError):
+    """Raised when the CachingDownloader.cancel_download() function was called.
+
+    This exception is raised in the thread that called
+    CachingDownloader.download_to_file(), and not from the thread doing the
+    cancellation.
+    """
