@@ -85,7 +85,6 @@ GHOST_TSuccess GHOST_ContextGLX::activateDrawingContext()
   if (m_display == nullptr) {
     return GHOST_kFailure;
   }
-  active_context_ = this;
   return ::glXMakeCurrent(m_display, m_window, m_context) ? GHOST_kSuccess : GHOST_kFailure;
 }
 
@@ -94,7 +93,6 @@ GHOST_TSuccess GHOST_ContextGLX::releaseDrawingContext()
   if (m_display == nullptr) {
     return GHOST_kFailure;
   }
-  active_context_ = nullptr;
   return ::glXMakeCurrent(m_display, None, nullptr) ? GHOST_kSuccess : GHOST_kFailure;
 }
 
@@ -297,7 +295,7 @@ GHOST_TSuccess GHOST_ContextGLX::initializeDrawingContext()
   }
 
   GHOST_X11_ERROR_HANDLERS_RESTORE(handler_store);
-  active_context_ = this;
+
   return success;
 }
 

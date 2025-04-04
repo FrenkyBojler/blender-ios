@@ -23,22 +23,11 @@
  * \see GHOST_ISystem#createOffscreenContext
  */
 class GHOST_IContext {
- protected:
-  static thread_local inline GHOST_IContext *active_context_;
-
  public:
   /**
    * Destructor.
    */
   virtual ~GHOST_IContext() = default;
-
-  /**
-   * Returns the thread's currently active drawing context.
-   */
-  static inline GHOST_IContext *getActiveDrawingContext()
-  {
-    return active_context_;
-  }
 
   /**
    * Activates the drawing context.

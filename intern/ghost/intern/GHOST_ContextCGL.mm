@@ -155,13 +155,11 @@ GHOST_TSuccess GHOST_ContextCGL::getSwapInterval(int &intervalOut)
 
 GHOST_TSuccess GHOST_ContextCGL::activateDrawingContext()
 {
-  active_context_ = this;
   return GHOST_kSuccess;
 }
 
 GHOST_TSuccess GHOST_ContextCGL::releaseDrawingContext()
 {
-  active_context_ = nullptr;
   return GHOST_kSuccess;
 }
 
@@ -215,7 +213,6 @@ GHOST_TSuccess GHOST_ContextCGL::initializeDrawingContext()
       metalInitFramebuffer();
     }
   }
-  active_context_ = this;
   return GHOST_kSuccess;
 }
 
