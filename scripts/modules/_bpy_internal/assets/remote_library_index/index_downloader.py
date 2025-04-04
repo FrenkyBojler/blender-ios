@@ -48,25 +48,28 @@ def cli_main(arguments_raw: argparse.Namespace) -> None:
     bg_downloader = BackgroundDownloader(downloader)
     bg_downloader.start()
 
-    # Download the metadata.
-    metadata_local_path = base_path / _urlpath_library_meta
-    metadata_remote_url = urllib.parse.urljoin(base_url, _urlpath_library_meta)
+    try:
+        # Download the metadata.
+        metadata_local_path = base_path / _urlpath_library_meta
+        metadata_remote_url = urllib.parse.urljoin(base_url, _urlpath_library_meta)
 
-    metadata = _download_and_parse_metadata(
-        bg_downloader,
-        metadata_remote_url,
-        metadata_local_path)
+        metadata = _download_and_parse_metadata(
+            bg_downloader,
+            metadata_remote_url,
+            metadata_local_path)
 
-    # Show what we downloaded.
-    logger.info("    API version       : %d", metadata.api_version)
-    logger.info("    Asset Library Name: %s", metadata.name)
-    if metadata.contact:
-        logger.info(
-            "    Contact           : %s | %s | %s",
-            metadata.contact.name,
-            metadata.contact.url,
-            metadata.contact.email,
-        )
+        # Show what we downloaded.
+        logger.info("    API version       : %d", metadata.api_version)
+        logger.info("    Asset Library Name: %s", metadata.name)
+        if metadata.contact:
+            logger.info(
+                "    Contact           : %s | %s | %s",
+                metadata.contact.name,
+                metadata.contact.url,
+                metadata.contact.email,
+            )
+    finally:
+        bg_downloader.shutdown()
 
 
 def _download_and_parse_metadata(
@@ -149,6 +152,12 @@ class BackgroundDownloader:
     def start(self) -> None:
         self._downloader_thread.start()
 
+    def shutdown(self) -> None:
+        self._shutdown_event.set()
+        self._logger.debug("waiting for download thread to stop")
+        self._downloader_thread.join()
+        self._logger.debug("download thread stopped")
+
     def update(self) -> None:
         """Call frequently to ensure the download progress is reported.
 
@@ -177,6 +186,8 @@ class BackgroundDownloader:
                 logger.warning("download got cancelled: {}".format(remote_url))
             except Exception as ex:
                 logger.exception("could not download {}: {}".format(remote_url, ex))
+
+        self._logger.debug("download thread shutting down")
 
     def download_starts(self, http_req_descr: RequestDescription) -> None:
         self._logger.info(f"Downloading {http_req_descr.http_method} {http_req_descr.url}")
