@@ -184,7 +184,6 @@ void device_hip_info(vector<DeviceInfo> &devices)
 
     /* Disable on RDNA1 due to bug rendering curves in HIP-RT 2.5 or HIP SDK 6.3. */
     info.use_hardware_raytracing = has_hardware_raytracing && hipIsRDNA2OrNewer(num);
-    ;
 
     int pci_location[3] = {0, 0, 0};
     hipDeviceGetAttribute(&pci_location[0], hipDeviceAttributePciDomainID, num);
