@@ -1169,25 +1169,11 @@ static void panel_draw_aligned_widgets(const uiStyle *style,
   if (!is_subpanel && show_background) {
     const int drag_widget_size = header_height * 0.7f;
     const float size = aspect * UI_INV_SCALE_FAC;
-    float x = widget_rect.xmax - scaled_unit * 1.15;
-    float y = widget_rect.ymin + (header_height - drag_widget_size) * 0.5f;
-    GPU_blend(GPU_BLEND_ALPHA);
-    if (panel_custom_pin_to_last_get(panel)) {
-      UI_icon_draw_ex(
-          x, y, ICON_PINNED, size, 1.0f, 0.0f, title_color, false, UI_NO_ICON_OVERLAY_TEXT);
-    }
-    else {
-      const int col_tint = 84;
-      uchar color[4];
-      UI_GetThemeColorShade4ubv(TH_PANEL_BACK, -col_tint, color);
-      y += drag_widget_size * 0.02f;
-      UI_icon_draw_ex(x, y, ICON_GRIP, size, 0.5f, 0.0f, color, false, UI_NO_ICON_OVERLAY_TEXT);
-      x -= trunc(float(drag_widget_size) * 0.025f);
-      y += trunc(std::max(float(drag_widget_size) * 0.04f, 1.0f));
-      UI_GetThemeColorShade4ubv(TH_PANEL_HEADER, col_tint, color);
-      UI_icon_draw_ex(x, y, ICON_GRIP, size, 1.0f, 0.0f, color, false, UI_NO_ICON_OVERLAY_TEXT);
-    }
-    GPU_blend(GPU_BLEND_NONE);
+    const float x = widget_rect.xmax - scaled_unit * 1.15;
+    const float y = widget_rect.ymin + (header_height - drag_widget_size) * 0.5f;
+    const int icon = panel_custom_pin_to_last_get(panel) ? ICON_PINNED : ICON_GRIP;
+    const float alpha = panel_custom_pin_to_last_get(panel) ? 1.0f : 0.5f;
+    UI_icon_draw_ex(x, y, icon, size, alpha, 0.0f, title_color, false, UI_NO_ICON_OVERLAY_TEXT);
   }
 }
 
