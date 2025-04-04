@@ -526,10 +526,9 @@ static std::optional<Token> next_token(char *path, const int path_allocation_siz
   return token;
 }
 
-VariableResult BKE_path_apply_variables(char path[FILE_MAX], const VariableMap &variables)
+blender::Vector<ParseError> BKE_path_apply_variables(char path[FILE_MAX],
+                                                     const VariableMap &variables)
 {
-  VariableResult result = VariableResult::SUCCESS;
-
   /* We work on a copy, so that if an error occurs we can bail without the
    * original path getting modified. */
   char path_modified[FILE_MAX] = "";
@@ -546,7 +545,8 @@ VariableResult BKE_path_apply_variables(char path[FILE_MAX], const VariableMap &
 
     /* Skip variables with invalid format specifier syntax. */
     if (token->format.type == FormatSpecifierType::SYNTAX_ERROR) {
-      return VariableResult::SYNTAX_ERROR;
+      /* TODO: return the error. */
+      return {};
     }
 
     /* Check for escapes. */
@@ -614,11 +614,13 @@ VariableResult BKE_path_apply_variables(char path[FILE_MAX], const VariableMap &
       bytes_processed += strlen(replacement_string);
     }
     else {
-      /* No matching variable: error. */
-      return VariableResult::SYNTAX_ERROR;
+      /* No matching variable: error.
+       *
+       * TODO: return the error. */
+      return {};
     }
   }
 
   strcpy(path, path_modified);
-  return result;
+  return {};
 }

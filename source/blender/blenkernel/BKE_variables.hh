@@ -143,15 +143,16 @@ class VariableMap {
 VariableMap BKE_build_blender_variables(const char *blend_file_path,
                                         const RenderData *render_data);
 
-enum class VariableResult {
-  SUCCESS,
+enum class ParseErrorType {
+  UNESCAPED_CURLY_BRACE,
+  VARIABLE_SYNTAX_ERROR,
+  FORMAT_SPECIFIER_ERROR,
+  UNKNOWN_VARIABLE,
+};
 
-  /* Indicates there was a fundamental variable syntax error in the path. */
-  SYNTAX_ERROR,
-
-  /* Indicates there was a variable referenced in the path that could not be
-   * found. */
-  MISSING_VARIABLE,
+struct ParseError {
+  ParseErrorType type;
+  blender::IndexRange byte_range;
 };
 
 /**
@@ -186,7 +187,12 @@ enum class VariableResult {
  * as escape sequences for "{" and "}", and are substituted appropriately. Note
  * that this substitution only happens *outside* of the variable syntax, and
  * therefore cannot e.g. be used inside variable names.
+ *
+ * \return A vector of any errors encountered. If the vector is empty, that
+ * means success. Otherwise the path is left unaltered and the errors are
+ * returned as a vector.
  */
-VariableResult BKE_path_apply_variables(char path[FILE_MAX], const VariableMap &variables);
+blender::Vector<ParseError> BKE_path_apply_variables(char path[FILE_MAX],
+                                                     const VariableMap &variables);
 
 /** \} */
