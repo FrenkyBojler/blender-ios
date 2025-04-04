@@ -83,9 +83,18 @@ static inline bool hipSupportsMNEE(const int hipDevId)
   hipDeviceGetAttribute(&major, hipDeviceAttributeComputeCapabilityMajor, hipDevId);
   hipDeviceGetAttribute(&minor, hipDeviceAttributeComputeCapabilityMinor, hipDevId);
 
-  /* Disable MNEE on RNDA1 (Major 10, Minor 1) due to bug in HIP SDK 6.3.
-   * Also disable MNEE on RDNA4 (Major 12) as it's not working properly at the moment. */
-  return !((major == 10 && minor == 1) || major == 12);
+  /* Disable MNEE on RNDA1 due to bug in HIP SDK 6.3. */
+  const bool is_rdna1 = (major == 10 && minor == 1);
+
+#  ifdef _WIN32
+  /* Disable MNEE on RDNA4 on Windows as it's not working properly at the moment.
+   * Etiher getting stuck on the first sample, or not rendering properly.
+   * Linux is fine. */
+  const bool is_rdna4 = (major == 12);
+  return !(is_rdna1 || is_rdna4);
+#  endif
+
+  return !(is_rdna1);
 }
 
 static inline bool hipNeedPreciseMath(const std::string &arch)
