@@ -1108,31 +1108,6 @@ void update_node_bounds_bmesh(BMeshNode &node)
   node.bounds_ = bounds;
 }
 
-struct BoundsMergeInfo {
-  Bounds<float3> bounds;
-  bool update;
-};
-
-template<typename NodeT>
-static BoundsMergeInfo merge_child_bounds(MutableSpan<NodeT> nodes,
-                                          const BitSpan dirty,
-                                          const int node_index)
-{
-  NodeT &node = nodes[node_index];
-  if (node.flag_ & Node::Leaf) {
-    const bool update = node_index < dirty.size() && dirty[node_index];
-    return {node.bounds_, update};
-  }
-
-  const BoundsMergeInfo info_0 = merge_child_bounds(nodes, dirty, node.children_offset_ + 0);
-  const BoundsMergeInfo info_1 = merge_child_bounds(nodes, dirty, node.children_offset_ + 1);
-  const bool update = info_0.update || info_1.update;
-  if (update) {
-    node.bounds_ = bounds::merge(info_0.bounds, info_1.bounds);
-  }
-  return {node.bounds_, update};
-}
-
 void Tree::flush_bounds_to_parents(const IndexMask &node_mask)
 {
   std::visit(
