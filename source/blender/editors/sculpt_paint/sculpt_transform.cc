@@ -586,7 +586,7 @@ void cancel_modal_transform(bContext *C, Object &ob)
 
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(ob);
   bke::pbvh::update_normals(depsgraph, ob, pbvh);
-  pbvh.update_bounds(depsgraph, ob);
+  pbvh.update_bounds(depsgraph, ob, ob.sculpt->filter_cache->node_mask);
 }
 
 void end_transform(bContext *C, Object &ob)

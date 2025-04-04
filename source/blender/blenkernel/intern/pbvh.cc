@@ -1118,12 +1118,25 @@ static BoundsMergeInfo merge_child_bounds(MutableSpan<NodeT> nodes,
 
 void Tree::flush_bounds_to_parents(const IndexMask &node_mask)
 {
-  std::visit(
+  /*std::visit(
       [&](auto &nodes) {
-        //nodes.first().bounds_ =
-        //    merge_child_bounds(nodes.as_mutable_span(), bounds_dirty_, 0).bounds;
+      Set<int> nodes_to_update;
+      nodes_to_update.reserve(node_mask.size());
+
+        node_mask.foreach_index([&](int i) {
+          std::optional<int> parent = nodes[i].parent();
+
+          if (parent.has_value()) {
+            nodes_to_update.add(parent.value());
+          }
+        });
+
+        while (!nodes_to_update.is_empty()) {
+          int node_index = *nodes_to_update.begin();
+          nodes_to_update.remove(node_index);
+        }
       },
-      this->nodes_);
+      this->nodes_);*/
 }
 
 void Tree::update_bounds_mesh(const Span<float3> vert_positions, const IndexMask &node_mask)
@@ -1132,12 +1145,14 @@ void Tree::update_bounds_mesh(const Span<float3> vert_positions, const IndexMask
     return;
   }
   MutableSpan<MeshNode> nodes = this->nodes<MeshNode>();
-  node_mask.foreach_index(
-      GrainSize(1), [&](const int i) { update_node_bounds_mesh(vert_positions, nodes[i]); });
+  node_mask.foreach_index(GrainSize(1),
+                          [&](const int i) { update_node_bounds_mesh(vert_positions, nodes[i]); });
   this->flush_bounds_to_parents(node_mask);
 }
 
-void Tree::update_bounds_grids(const Span<float3> positions, const int grid_area, const IndexMask& node_mask)
+void Tree::update_bounds_grids(const Span<float3> positions,
+                               const int grid_area,
+                               const IndexMask &node_mask)
 {
   if (node_mask.is_empty()) {
     return;
@@ -1149,18 +1164,19 @@ void Tree::update_bounds_grids(const Span<float3> positions, const int grid_area
   this->flush_bounds_to_parents(node_mask);
 }
 
-void Tree::update_bounds_bmesh(const BMesh & /*bm*/, const IndexMask& node_mask)
+void Tree::update_bounds_bmesh(const BMesh & /*bm*/, const IndexMask &node_mask)
 {
   if (node_mask.is_empty()) {
     return;
   }
   MutableSpan<BMeshNode> nodes = this->nodes<BMeshNode>();
-  node_mask.foreach_index(GrainSize(1),
-                                [&](const int i) { update_node_bounds_bmesh(nodes[i]); });
+  node_mask.foreach_index(GrainSize(1), [&](const int i) { update_node_bounds_bmesh(nodes[i]); });
   this->flush_bounds_to_parents(node_mask);
 }
 
-void Tree::update_bounds(const Depsgraph &depsgraph, const Object &object, const IndexMask &node_mask)
+void Tree::update_bounds(const Depsgraph &depsgraph,
+                         const Object &object,
+                         const IndexMask &node_mask)
 {
   switch (this->type()) {
     case Type::Mesh: {

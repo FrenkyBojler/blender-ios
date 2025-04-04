@@ -77,6 +77,8 @@ class Node : NonCopyable {
     TopologyUpdated = 1 << 17,
   };
 
+  std::optional<int> parent_;
+
   /** Axis aligned min and max of all vertex positions in the node. */
   Bounds<float3> bounds_ = {};
   /** Bounds from the start of current brush stroke. */
@@ -106,6 +108,7 @@ class Node : NonCopyable {
   /** \todo Move storage of image painting data to #Tree or elsewhere. */
   pixels::NodeData *pixels_ = nullptr;
 
+  const std::optional<int> parent() { return parent_; }
   const Bounds<float3> &bounds() const;
   const Bounds<float3> &bounds_orig() const;
 };
