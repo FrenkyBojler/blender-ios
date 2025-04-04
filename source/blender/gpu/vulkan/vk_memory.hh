@@ -14,7 +14,7 @@ namespace blender::gpu {
 /** Information about an exported buffer/image. */
 struct VKMemoryExport {
   /** Handle that has been exported. */
-  int handle;
+  uint64_t handle;
   /**
    * Allocated memory size. Allocation size can be larger than actually requested due to memory
    * alignment/allocation rules.

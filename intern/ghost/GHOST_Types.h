@@ -768,16 +768,16 @@ typedef enum {
   /**
    * Use RAM to transfer the render result to the XR swapchain.
    *
-   * Application renders an eye, downloads the result to CPU RAM, XRGraphicContext will upload it
-   * to the GPU and copies it to the XR swapchain.
+   * Application renders a view, downloads the result to CPU RAM, GHOST_XrGraphicsBindingVulkan
+   * will upload it to a GPU buffer and copy the buffer to the XR swapchain.
    */
   GHOST_kVulkanXRModeCPU,
 
   /**
-   * Use Linux FD to transfer the swapchain image to the application.
+   * Use Linux FD to transfer the render result to the XR swapchain.
    *
-   * XRGraphicsContext will export the swapchain image to a fd handle. Application will import the
-   * handle and blits the render result to the imported memory.
+   * Application renders a view, export the memory in an FD handle. GHOST_XrGraphicsBindingVulkan
+   * will import the memory and copy the image to the swapchain.
    */
   GHOST_kVulkanXRModeFD,
 } GHOST_TVulkanXRModes;
@@ -801,17 +801,25 @@ typedef struct {
        * Host accessible data containing the image data. Data is stored in the selected swapchain
        * format. Only used when data_transfer_mode == GHOST_kVulkanXRModeCPU.
        */
-      // NOTE: This is a temporary solution with quite a large performance overhead. The solution
-      // we would like to implement would use VK_KHR_external_memory. The documentation/samples
-      // around using this in our situation is scarce. We will start prototyping in a smaller scale
-      // and when experience is gained, we will implement the solution.
       void *image_data;
     } cpu;
     struct {
-      int image_handle;
+      /**
+       * Handle of the exported GPU memory. Depending on the data_transfer_mode the actual handle
+       * type can be different (voidptr/int/..).
+       */
+      uint64_t image_handle;
+
+      /**
+       * Allocation size of the exported memory.
+       */
       VkDeviceSize memory_size;
+
+      /**
+       * Offset of the texture/buffer inside the allocated memory.
+       */
       VkDeviceSize memory_offset;
-    } fd;
+    } gpu;
   };
 
 } GHOST_VulkanOpenXRData;

@@ -408,7 +408,7 @@ VKMemoryExport VKTexture::export_memory(VkExternalMemoryHandleTypeFlagBits handl
 
   int fd_handle = 0;
   device.functions.vkGetMemoryFd(device.vk_handle(), &vk_memory_get_fd_info, &fd_handle);
-  return {fd_handle, allocation_info_.size, allocation_info_.offset};
+  return {uint64_t(fd_handle), allocation_info_.size, allocation_info_.offset};
 }
 
 bool VKTexture::init_internal()

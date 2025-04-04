@@ -578,14 +578,14 @@ void GHOST_XrGraphicsBindingVulkan::submitToSwapchainImageFd(
   VkImportMemoryFdInfoKHR import_memory_info = {VK_STRUCTURE_TYPE_IMPORT_MEMORY_FD_INFO_KHR,
                                                 &vk_memory_dedicated_allocation_info,
                                                 VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT,
-                                                openxr_data.fd.image_handle};
+                                                int(openxr_data.gpu.image_handle)};
   VkMemoryAllocateInfo allocate_info = {
-      VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO, &import_memory_info, openxr_data.fd.memory_size};
+      VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO, &import_memory_info, openxr_data.gpu.memory_size};
   VkDeviceMemory device_memory;
   vkAllocateMemory(m_vk_device, &allocate_info, nullptr, &device_memory);
 
   /* Bind the imported memory to the image. */
-  vkBindImageMemory(m_vk_device, vk_image, device_memory, openxr_data.fd.memory_offset);
+  vkBindImageMemory(m_vk_device, vk_image, device_memory, openxr_data.gpu.memory_offset);
 
   /* Copy frame buffer image to swapchain image. */
   VkCommandBuffer vk_command_buffer = m_vk_command_buffer;

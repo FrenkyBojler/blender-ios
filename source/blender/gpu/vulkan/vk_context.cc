@@ -440,9 +440,9 @@ void VKContext::openxr_acquire_framebuffer_image_handler(GHOST_VulkanOpenXRData 
     case GHOST_kVulkanXRModeFD: {
       VKMemoryExport exported_memory = color_attachment->export_memory(
           VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT);
-      openxr_data.fd.image_handle = exported_memory.handle;
-      openxr_data.fd.memory_size = exported_memory.memory_size;
-      openxr_data.fd.memory_offset = exported_memory.memory_offset;
+      openxr_data.gpu.image_handle = exported_memory.handle;
+      openxr_data.gpu.memory_size = exported_memory.memory_size;
+      openxr_data.gpu.memory_offset = exported_memory.memory_offset;
       break;
     }
   }
