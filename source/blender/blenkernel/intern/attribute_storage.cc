@@ -141,10 +141,6 @@ AttributeStorage &AttributeStorage::operator=(AttributeStorage &&other)
 
 AttributeStorage::~AttributeStorage()
 {
-  /* These pointers are only used in files. */
-  BLI_assert(this->dna_attributes == nullptr);
-  BLI_assert(this->dna_attributes_num == 0);
-
   MEM_delete(this->runtime);
 }
 
