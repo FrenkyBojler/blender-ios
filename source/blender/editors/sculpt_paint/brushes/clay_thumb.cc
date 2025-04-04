@@ -16,16 +16,13 @@
 
 #include "BLI_enumerable_thread_specific.hh"
 #include "BLI_math_geom.h"
-#include "BLI_math_matrix.h"
 #include "BLI_math_matrix.hh"
 #include "BLI_math_rotation.h"
 #include "BLI_math_rotation_legacy.hh"
-#include "BLI_math_vector.h"
 #include "BLI_math_vector.hh"
 #include "BLI_task.hh"
 
 #include "editors/sculpt_paint/mesh_brush_common.hh"
-#include "editors/sculpt_paint/sculpt_automask.hh"
 #include "editors/sculpt_paint/sculpt_intern.hh"
 
 #include "bmesh.hh"
@@ -189,7 +186,7 @@ void do_clay_thumb_brush(const Depsgraph &depsgraph,
 
   /* Scale brush local space matrix. */
   float4x4 scale = math::from_scale<float4x4>(float3(ss.cache->radius));
-  float4x4 tmat = mat * scale;
+  const float4x4 tmat = mat * scale;
 
   const float3 normal_tilt = math::rotate_direction_around_axis(area_position, tmat.x_axis(), DEG2RADF(-ss.cache->clay_thumb_brush.front_angle));
 
