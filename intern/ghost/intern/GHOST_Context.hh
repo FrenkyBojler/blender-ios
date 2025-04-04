@@ -25,7 +25,12 @@ class GHOST_Context : public GHOST_IContext {
   /**
    * Destructor.
    */
-  ~GHOST_Context() override = default;
+  ~GHOST_Context() override
+  {
+    if (active_context_ == this) {
+      active_context_ = nullptr;
+    }
+  };
 
   /**
    * Swaps front and back buffers of a window.
