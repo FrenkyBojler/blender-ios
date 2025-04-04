@@ -90,6 +90,7 @@ class Camera : public Node {
   NODE_SOCKET_API(float, central_cylindrical_range_u_max)
   NODE_SOCKET_API(float, central_cylindrical_range_v_min)
   NODE_SOCKET_API(float, central_cylindrical_range_v_max)
+  NODE_SOCKET_API(float, central_cylindrical_axis)
 
   /* panorama stereo */
   NODE_SOCKET_API(StereoEye, stereo_eye)

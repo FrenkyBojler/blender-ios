@@ -47,22 +47,49 @@ ccl_device float3 equirectangular_to_direction(const float u, const float v)
   return equirectangular_range_to_direction(u, v, make_float4(-M_2PI_F, M_PI_F, -M_PI_F, M_PI_F));
 }
 
-ccl_device float2 direction_to_central_cylindrical(const float3 dir, const float4 range)
+ccl_device float2 direction_to_central_cylindrical(const float3 dir,
+                                                   const float4 range,
+                                                   const float2 h_axis)
 {
-  const float z = dir.z / len(make_float2(dir.x, dir.y));
-  const float theta = atan2f(dir.y, dir.x);
-  const float u = inverse_lerp(range.x, range.y, theta);
-  const float v = inverse_lerp(range.z, range.w, z);
-  return make_float2(u, v);
+  // create perpendicular (theta) axis
+  const float3 th_axis_pre = cross(make_float3(1, 0, 0), make_float3(0, h_axis.x, h_axis.y));
+  const float2 th_axis = make_float2(th_axis_pre.y, th_axis_pre.z);
+  // project dir to camera plane
+  const float2 p = make_float2(dir.y, dir.z);
+  // take components of height and theta axis
+  const float p_h = dot(h_axis, p);
+  const float p_th = dot(th_axis, p);
+  // get h and theta
+  const float h = p_h / len(make_float2(dir.x, p_th));
+  const float theta = atan2f(p_th, dir.x);
+  // lerp and map theta, h to [(-0.5,-0.5), (0.5,0.5)]
+  const float2 c = (inverse_lerp(range.x, range.y, theta) - 0.5f) * th_axis +
+                   (inverse_lerp(range.z, range.w, h) - 0.5f) * h_axis;
+  // mirror over z-axis, then offset origin; yield viewport space
+  return c * make_float2(-1.0f, 1.0) - make_float2(-0.5f, -0.5f);
 }
 
 ccl_device float3 central_cylindrical_to_direction(const float u,
                                                    const float v,
-                                                   const float4 range)
+                                                   const float4 range,
+                                                   const float2 h_axis)
 {
-  const float theta = mix(range.x, range.y, u);
-  const float z = mix(range.z, range.w, v);
-  return make_float3(cosf(theta), sinf(theta), z);
+  // create perpendicular (theta) axis
+  const float3 th_axis_pre = cross(make_float3(1, 0, 0), make_float3(0, h_axis.x, h_axis.y));
+  const float2 th_axis = make_float2(th_axis_pre.y, th_axis_pre.z);
+  // get components of c and unlerp/mix
+  const float2 c = (make_float2(u, v) + make_float2(-0.5f, -0.5f)) * make_float2(-1.0f, 1.0);
+  const float theta = mix(range.x, range.y, dot(c, th_axis) + 0.5f);
+  const float h = mix(range.z, range.w, dot(c, h_axis) + 0.5f);
+  // inverse operations
+  const float x = cosf(theta);
+  const float p_th = sinf(theta);
+  const float p_h = h * len(make_float2(p_th, x));
+  // convert to camera space
+  const float2 p_vec = th_axis * p_th + h_axis * p_h;
+  const float2 yz = make_float2(dot(make_float2(1.0f, 0.0f), p_vec),
+                                dot(make_float2(0.0f, 1.0f), p_vec));
+  return make_float3(x, yz.x, yz.y);
 }
 
 /* Fisheye <-> Cartesian direction */
@@ -274,7 +301,8 @@ ccl_device_inline float3 panorama_to_direction(ccl_constant KernelCamera *cam,
                                                   cam->sensorwidth,
                                                   cam->sensorheight);
     case PANORAMA_CENTRAL_CYLINDRICAL:
-      return central_cylindrical_to_direction(u, v, cam->central_cylindrical_range);
+      return central_cylindrical_to_direction(
+          u, v, cam->central_cylindrical_range, cam->central_cylindrical_axis);
     case PANORAMA_FISHEYE_EQUISOLID:
     default:
       return fisheye_equisolid_to_direction(
@@ -300,7 +328,8 @@ ccl_device_inline float2 direction_to_panorama(ccl_constant KernelCamera *cam, c
                                                   cam->sensorwidth,
                                                   cam->sensorheight);
     case PANORAMA_CENTRAL_CYLINDRICAL:
-      return direction_to_central_cylindrical(dir, cam->central_cylindrical_range);
+      return direction_to_central_cylindrical(
+          dir, cam->central_cylindrical_range, cam->central_cylindrical_axis);
     case PANORAMA_FISHEYE_EQUISOLID:
     default:
       return direction_to_fisheye_equisolid(

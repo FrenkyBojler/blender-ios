@@ -6120,6 +6120,7 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
       camera->central_cylindrical_range_v_min = default_cam.central_cylindrical_range_v_min;
       camera->central_cylindrical_range_v_max = default_cam.central_cylindrical_range_v_max;
       camera->central_cylindrical_radius = default_cam.central_cylindrical_radius;
+      camera->central_cylindrical_axis = default_cam.central_cylindrical_axis;
     }
   }
 

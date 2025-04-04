@@ -59,6 +59,7 @@
     .central_cylindrical_range_v_min = -1.0f,\
     .central_cylindrical_range_v_max = 1.0f,\
     .central_cylindrical_radius = 1.0f,\
+    .central_cylindrical_axis = 0.0f,\
  \
     .dof = _DNA_DEFAULT_CameraDOFSettings, \
  \

@@ -965,6 +965,11 @@ void RNA_def_camera(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Cylinder Radius", "Radius of the virtual cylinder");
   RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Camera_update");
 
+  prop = RNA_def_property(srna, "central_cylindrical_axis", PROP_FLOAT, PROP_ANGLE);
+  RNA_def_property_ui_range(prop, -M_PI / 2, M_PI / 2, 3, 2);
+  RNA_def_property_ui_text(prop, "Cylinder Angle", "Angle of the virtual cylinder");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Camera_update");
+
   /* pointers */
   prop = RNA_def_property(srna, "dof", PROP_POINTER, PROP_NONE);
   RNA_def_property_struct_type(prop, "CameraDOFSettings");

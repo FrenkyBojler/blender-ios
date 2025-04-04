@@ -108,7 +108,7 @@ typedef struct Camera {
   float central_cylindrical_range_v_min;
   float central_cylindrical_range_v_max;
   float central_cylindrical_radius;
-  float _pad2;
+  float central_cylindrical_axis;
 
   /** Old animation system, deprecated for 2.5. */
   struct Ipo *ipo DNA_DEPRECATED;
