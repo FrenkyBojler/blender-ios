@@ -396,7 +396,7 @@ void GPU_shader_cache_dir_clear_old()
 /** \name Binding
  * \{ */
 
-void GPU_shader_bind(GPUShader *gpu_shader)
+void GPU_shader_bind(GPUShader *gpu_shader, GPUShaderSpecializationState *specialization_constants)
 {
   Shader *shader = unwrap(gpu_shader);
 
@@ -404,15 +404,14 @@ void GPU_shader_bind(GPUShader *gpu_shader)
 
   if (ctx->shader != shader) {
     ctx->shader = shader;
-    shader->bind();
+    shader->bind(specialization_constants);
     GPU_matrix_bind(gpu_shader);
     Shader::set_srgb_uniform(gpu_shader);
     shader->constants.is_dirty = false;
   }
   else {
-    if (shader->constants.is_dirty) {
-      shader->bind();
-      shader->constants.is_dirty = false;
+    if (specialization_constants) {
+      shader->bind(specialization_constants);
     }
     if (Shader::srgb_uniform_dirty_get()) {
       Shader::set_srgb_uniform(gpu_shader);
@@ -486,6 +485,15 @@ void GPU_shader_warm_cache(GPUShader *shader, int limit)
 /* -------------------------------------------------------------------- */
 /** \name Assign specialization constants.
  * \{ */
+
+void GPU_shader_specialization_lock_acquire(GPUShader *gpu_shader)
+{
+  Shader *shader = unwrap(gpu_shader);
+  printf("Lock %s\n", shader->name_get().c_str());
+  shader->specialization_lock.lock();
+  /* Notify backend to unlock when this occurs. Otherwise, keep the old behavior. */
+  shader->specialization_lock_acquired = true;
+}
 
 void Shader::specialization_constants_init(const shader::ShaderCreateInfo &info)
 {

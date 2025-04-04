@@ -1895,6 +1895,8 @@ SpecializationBatchHandle MTLParallelShaderCompiler::precompile_specializations(
     work_item->shader = sh;
     work_item->work_type = PARALLELWORKTYPE_BAKE_PSO;
 
+    GPU_shader_specialization_lock_acquire(specialization.shader);
+
     /* Add the specialization constants to the work-item */
     for (const SpecializationConstant &constant : specialization.constants) {
       const ShaderInput *input = sh->interface->constant_get(constant.name.c_str());

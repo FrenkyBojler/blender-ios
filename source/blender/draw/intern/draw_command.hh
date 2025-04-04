@@ -45,6 +45,7 @@ class DrawMultiBuf;
  */
 struct RecordingState {
   GPUShader *shader = nullptr;
+  bool specialization_lock_acquired = false;
   bool front_facing = true;
   bool inverted_view = false;
   DRWState pipeline_state = DRW_STATE_NO_DRAW;
@@ -348,7 +349,7 @@ struct SpecializeConstant {
   SpecializeConstant(GPUShader *sh, int loc, const bool *val)
       : shader(sh), bool_ref(val), location(loc), type(Type::BoolReference){};
 
-  void execute() const;
+  void execute(RecordingState &state) const;
   std::string serialize() const;
 };
 

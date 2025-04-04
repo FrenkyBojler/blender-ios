@@ -56,14 +56,11 @@ class Shader {
     /* Current values set by `GPU_shader_constant_*()` call. The backend can choose to interpret
      * that however it wants (i.e: bind another shader instead). */
     Vector<Value> values;
-
-    /**
-     * OpenGL needs to know if a different program needs to be attached when constants are
-     * changed. Vulkan and Metal uses pipelines and don't have this issue. Attribute can be
-     * removed after the OpenGL backend has been phased out.
-     */
-    bool is_dirty;
   } constants;
+
+  /* Specializations might be modified by multiple thread (since the GPUShaders are shared).
+   * This lock guards . */
+  std::mutex specialization_lock;
 
   /* WORKAROUND: True if this shader is a polyline shader and needs an appropriate setup to render.
    * Eventually, in the future, we should modify the user code instead of relying on such hacks. */

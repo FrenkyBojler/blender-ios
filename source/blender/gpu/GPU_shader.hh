@@ -223,6 +223,8 @@ bool GPU_shader_get_ssbo_input_info(const GPUShader *shader, int ssbo_location, 
  * Otherwise, it will produce undefined behavior.
  * \{ */
 
+void GPU_shader_specialization_lock_acquire(GPUShader *gpu_shader);
+
 void GPU_shader_constant_int_ex(GPUShader *sh, int location, int value);
 void GPU_shader_constant_uint_ex(GPUShader *sh, int location, unsigned int value);
 void GPU_shader_constant_float_ex(GPUShader *sh, int location, float value);

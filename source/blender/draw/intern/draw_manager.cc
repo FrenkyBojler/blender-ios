@@ -239,6 +239,12 @@ void Manager::generate_commands(PassSimple &pass)
   pass.draw_commands_buf_.generate_commands(pass.headers_, pass.commands_, pass.sub_passes_);
 }
 
+void Manager::warm_shader_specialization(PassMain &pass)
+{
+  command::RecordingState state;
+  pass.warm_shader_specialization(state);
+}
+
 void Manager::submit_only(PassMain &pass, View &view)
 {
   BLI_assert_msg(view.manager_fingerprint_ != 0, "compute_visibility was not called on this view");

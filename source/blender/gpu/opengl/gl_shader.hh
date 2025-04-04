@@ -95,16 +95,17 @@ class GLShader : public Shader {
       other.compute_shader = 0;
     }
     ~GLProgram();
+
+    void program_link();
+    bool check_link_status();
   };
 
   using GLProgramCacheKey = Vector<shader::SpecializationConstant::Value>;
+  /** Contains all specialized shader variants. */
   Map<GLProgramCacheKey, GLProgram> program_cache_;
 
-  /**
-   * Points to the active program. When binding a shader the active program is
-   * setup.
-   */
-  GLProgram *program_active_ = nullptr;
+  /** Main program instance. This is the default specialized variant that is first compiled. */
+  GLProgram *main_program_ = nullptr;
 
   /* When true, the shader generates its GLSources but it's not compiled.
    * (Used for batch compilation) */
@@ -133,12 +134,6 @@ class GLShader : public Shader {
   void init_program();
 
   void update_program_and_sources(GLSources &stage_sources, MutableSpan<StringRefNull> sources);
-
-  /**
-   * Link the active program.
-   */
-  void program_link();
-  bool check_link_status();
 
   /**
    * Return a GLProgram program id that reflects the current state of shader.constants.values.
@@ -188,7 +183,7 @@ class GLShader : public Shader {
     if (!compute_sources_.is_empty()) {
       return true;
     }
-    return program_active_->compute_shader != 0;
+    return main_program_->compute_shader != 0;
   }
 
   GLSourcesBaked get_sources();

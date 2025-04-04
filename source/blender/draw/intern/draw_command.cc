@@ -45,8 +45,12 @@ static gpu::Batch *procedural_batch_get(GPUPrimType primitive)
 
 void ShaderBind::execute(RecordingState &state) const
 {
-  if (assign_if_different(state.shader, shader)) {
+  if (assign_if_different(state.shader, shader) || state.specialization_lock_acquired) {
     GPU_shader_bind(shader);
+    if (state.specialization_lock_acquired) {
+      printf("Unlock\n");
+    }
+    state.specialization_lock_acquired = false;
   }
 }
 
@@ -129,10 +133,15 @@ void PushConstant::execute(RecordingState &state) const
   }
 }
 
-void SpecializeConstant::execute() const
+void SpecializeConstant::execute(command::RecordingState &state) const
 {
   /* All specialization constants should exist as they are not optimized out like uniforms. */
   BLI_assert(location != -1);
+
+  if (state.specialization_lock_acquired == false) {
+    GPU_shader_specialization_lock_acquire(shader);
+    state.specialization_lock_acquired = true;
+  }
 
   switch (type) {
     case SpecializeConstant::Type::IntValue:
