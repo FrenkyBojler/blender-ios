@@ -438,6 +438,9 @@ void VKContext::openxr_acquire_framebuffer_image_handler(GHOST_VulkanOpenXRData 
       break;
 
     case GHOST_kVulkanXRModeFD: {
+      flush_render_graph(RenderGraphFlushFlags::SUBMIT |
+                         RenderGraphFlushFlags::WAIT_FOR_COMPLETION |
+                         RenderGraphFlushFlags::RENEW_RENDER_GRAPH);
       VKMemoryExport exported_memory = color_attachment->export_memory(
           VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT);
       openxr_data.gpu.image_handle = exported_memory.handle;

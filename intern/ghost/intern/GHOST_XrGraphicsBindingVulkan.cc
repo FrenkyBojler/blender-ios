@@ -308,11 +308,15 @@ GHOST_TVulkanXRModes GHOST_XrGraphicsBindingVulkan::choseDataTransferMode()
     return false;
   };
 
+#ifdef _WIN32
+#elif defined(__APPLE__)
+#else /* UNIX/Linux */
   bool has_vk_khr_external_memory_fd_extension = has_extension(
       VK_KHR_EXTERNAL_MEMORY_FD_EXTENSION_NAME);
   if (has_vk_khr_external_memory_fd_extension) {
     return GHOST_kVulkanXRModeFD;
   }
+#endif
 
   return GHOST_kVulkanXRModeCPU;
 }

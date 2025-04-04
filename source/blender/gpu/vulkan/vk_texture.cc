@@ -485,8 +485,8 @@ static VkImageUsageFlags to_vk_image_usage(const eGPUTextureUsage usage,
   }
   if (usage & GPU_TEXTURE_USAGE_ATTACHMENT) {
     if (format_flag & GPU_FORMAT_COMPRESSED) {
-      /* These formats aren't supported as an attachment. When using GPU_TEXTURE_USAGE_DEFAULT
-       * they are still being evaluated to be attachable. So we need to skip them. */
+      /* These formats aren't supported as an attachment. When using GPU_TEXTURE_USAGE_DEFAULT they
+       * are still being evaluated to be attachable. So we need to skip them. */
     }
     else {
       if (format_flag & (GPU_FORMAT_DEPTH | GPU_FORMAT_STENCIL)) {
@@ -527,8 +527,7 @@ static VkImageCreateFlags to_vk_image_create(const eGPUTextureType texture_type,
     result |= VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
   }
 
-  /* sRGB textures needs to be mutable as they can be used as non-sRGB frame-buffer attachments.
-   */
+  /* sRGB textures needs to be mutable as they can be used as non-sRGB frame-buffer attachments. */
   if (usage & GPU_TEXTURE_USAGE_ATTACHMENT && format_flag & GPU_FORMAT_SRGB) {
     result |= VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT;
   }
