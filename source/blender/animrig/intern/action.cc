@@ -37,6 +37,7 @@
 
 #include "BLT_translation.hh"
 
+#include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_build.hh"
 
 #include "ANIM_action.hh"
@@ -2128,6 +2129,10 @@ SingleKeyingResult StripKeyframeData::keyframe_insert(Main *bmain,
     return insert_vert_result;
   }
 
+  if (fcurve_descriptor.prop_type) {
+    update_autoflags_fcurve_direct(fcurve, *fcurve_descriptor.prop_type);
+  }
+
   return SingleKeyingResult::SUCCESS;
 }
 
@@ -2696,7 +2701,8 @@ FCurve *action_fcurve_ensure_legacy(Main *bmain,
     return fcu;
   }
 
-  /* Determine the property subtype if we can. */
+  /* Determine the property (sub)type if we can. */
+  std::optional<PropertyType> prop_type = std::nullopt;
   std::optional<PropertySubType> prop_subtype = std::nullopt;
   if (ptr != nullptr) {
     PropertyRNA *resolved_prop;
@@ -2705,15 +2711,19 @@ FCurve *action_fcurve_ensure_legacy(Main *bmain,
     const bool resolved = RNA_path_resolve_property(
         &id_ptr, fcurve_descriptor.rna_path.c_str(), &resolved_ptr, &resolved_prop);
     if (resolved) {
+      prop_type = RNA_property_type(resolved_prop);
       prop_subtype = RNA_property_subtype(resolved_prop);
     }
   }
 
+  BLI_assert_msg(!fcurve_descriptor.prop_type.has_value(),
+                 "Did not expect a prop_type to be passed in. This is fine, but does need some "
+                 "changes to action_fcurve_ensure_legacy() to deal with it");
   BLI_assert_msg(!fcurve_descriptor.prop_subtype.has_value(),
                  "Did not expect a prop_subtype to be passed in. This is fine, but does need some "
                  "changes to action_fcurve_ensure_legacy() to deal with it");
   fcu = create_fcurve_for_channel(
-      {fcurve_descriptor.rna_path, fcurve_descriptor.array_index, prop_subtype});
+      {fcurve_descriptor.rna_path, fcurve_descriptor.array_index, prop_type, prop_subtype});
 
   if (BLI_listbase_is_empty(&act->curves)) {
     fcu->flag |= FCURVE_ACTIVE;
@@ -3090,17 +3100,22 @@ void move_slot(Main &bmain, Slot &source_slot, Action &from_action, Action &to_a
   if (!from_action.layers().is_empty() && !from_action.layer(0)->strips().is_empty()) {
     StripKeyframeData &from_strip_data = from_action.layer(0)->strip(0)->data<StripKeyframeData>(
         from_action);
-    to_action.layer_keystrip_ensure();
-    StripKeyframeData &to_strip_data = to_action.layer(0)->strip(0)->data<StripKeyframeData>(
-        to_action);
     Channelbag *channelbag = from_strip_data.channelbag_for_slot(source_slot.handle);
-    BLI_assert(channelbag != nullptr);
-    channelbag->slot_handle = target_slot.handle;
-    grow_array_and_append<ActionChannelbag *>(
-        &to_strip_data.channelbag_array, &to_strip_data.channelbag_array_num, channelbag);
-    int index = from_strip_data.find_channelbag_index(*channelbag);
-    shrink_array_and_remove<ActionChannelbag *>(
-        &from_strip_data.channelbag_array, &from_strip_data.channelbag_array_num, index);
+    /* It's perfectly fine for a slot to not have a channelbag on each keyframe strip. */
+    if (channelbag) {
+      /* Only create the layer & keyframe strip if there is a channelbag to move
+       * into it. Otherwise it's better to keep the Action lean, and defer their
+       * creation when keys are inserted. */
+      to_action.layer_keystrip_ensure();
+      StripKeyframeData &to_strip_data = to_action.layer(0)->strip(0)->data<StripKeyframeData>(
+          to_action);
+      channelbag->slot_handle = target_slot.handle;
+      grow_array_and_append<ActionChannelbag *>(
+          &to_strip_data.channelbag_array, &to_strip_data.channelbag_array_num, channelbag);
+      const int index = from_strip_data.find_channelbag_index(*channelbag);
+      shrink_array_and_remove<ActionChannelbag *>(
+          &from_strip_data.channelbag_array, &from_strip_data.channelbag_array_num, index);
+    }
   }
 
   /* Reassign all users of `source_slot` to the action `to_action` and the slot `target_slot`. */
@@ -3127,6 +3142,14 @@ void move_slot(Main &bmain, Slot &source_slot, Action &from_action, Action &to_a
         BLI_assert(result == ActionSlotAssignmentResult::OK);
         UNUSED_VARS_NDEBUG(result);
       }
+
+      /* TODO: move the tagging of animated IDs into generic_assign_action() and
+       * generic_assign_action_slot(), as that's closer to the modification of
+       * the animated ID.
+       *
+       * This line was added here for now, to fix #136388 with minimal impact on
+       * other code, so that the fix can be easily back-ported to Blender 4.4. */
+      DEG_id_tag_update(user, ID_RECALC_ANIMATION);
       return true;
     };
     foreach_action_slot_use_with_references(*user, assign_other_action);
