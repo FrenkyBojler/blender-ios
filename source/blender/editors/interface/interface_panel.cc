@@ -1167,12 +1167,12 @@ static void panel_draw_aligned_widgets(const uiStyle *style,
 
   /* Draw drag widget. */
   if (!is_subpanel && show_background) {
-    const int drag_widget_size = header_height * 0.7f;
-    const float size = aspect * UI_INV_SCALE_FAC;
     const float x = widget_rect.xmax - scaled_unit * 1.15;
-    const float y = widget_rect.ymin + (header_height - drag_widget_size) * 0.5f;
-    const int icon = panel_custom_pin_to_last_get(panel) ? ICON_PINNED : ICON_GRIP;
-    const float alpha = panel_custom_pin_to_last_get(panel) ? 1.0f : 0.5f;
+    const float y = widget_rect.ymin + (header_height - (header_height * 0.7f)) * 0.5f;
+    const bool is_pin = panel_custom_pin_to_last_get(panel);
+    const int icon = is_pin ? ICON_PINNED : ICON_GRIP;
+    const float size = aspect * UI_INV_SCALE_FAC;
+    const float alpha = is_pin ? 1.0f : 0.5f;
     UI_icon_draw_ex(x, y, icon, size, alpha, 0.0f, title_color, false, UI_NO_ICON_OVERLAY_TEXT);
   }
 }
