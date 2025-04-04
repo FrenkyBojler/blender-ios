@@ -37,8 +37,7 @@ GPUSecondaryContext::GPUSecondaryContext()
   /* Contexts can only be created on the main thread. */
   BLI_assert(BLI_thread_is_main());
 
-  GHOST_ContextHandle main_thread_ghost_context = GHOST_GetActiveGPUContext();
-  GPUContext *main_thread_gpu_context = GPU_context_active_get();
+  GPUContext *main_thread_context = GPU_context_active_get();
 
   /* GPU settings for context creation. */
   GHOST_GPUSettings gpu_settings = {0};
@@ -67,10 +66,9 @@ GPUSecondaryContext::GPUSecondaryContext()
   GHOST_TSuccess success = GHOST_ReleaseGPUContext(ghost_context_);
   BLI_assert(success);
 
-  /* Restore the main thread contexts.
+  /* Restore the main thread context.
    * (required as the above context creation also makes it active). */
-  GHOST_ActivateGPUContext(main_thread_ghost_context);
-  GPU_context_active_set(main_thread_gpu_context);
+  GPU_context_active_set(main_thread_context);
 }
 
 GPUSecondaryContext::~GPUSecondaryContext()

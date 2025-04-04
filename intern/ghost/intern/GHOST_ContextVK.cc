@@ -691,11 +691,13 @@ GHOST_TSuccess GHOST_ContextVK::setVulkanSwapBuffersCallbacks(
 
 GHOST_TSuccess GHOST_ContextVK::activateDrawingContext()
 {
+  active_context_ = this;
   return GHOST_kSuccess;
 }
 
 GHOST_TSuccess GHOST_ContextVK::releaseDrawingContext()
 {
+  active_context_ = nullptr;
   return GHOST_kSuccess;
 }
 
@@ -1177,6 +1179,7 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
     recreateSwapchain();
   }
 
+  active_context_ = this;
   return GHOST_kSuccess;
 }
 

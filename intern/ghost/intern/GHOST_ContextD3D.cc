@@ -39,11 +39,13 @@ GHOST_TSuccess GHOST_ContextD3D::swapBuffers()
 
 GHOST_TSuccess GHOST_ContextD3D::activateDrawingContext()
 {
+  active_context_ = this;
   return GHOST_kFailure;
 }
 
 GHOST_TSuccess GHOST_ContextD3D::releaseDrawingContext()
 {
+  active_context_ = nullptr;
   return GHOST_kFailure;
 }
 
@@ -98,7 +100,7 @@ GHOST_TSuccess GHOST_ContextD3D::initializeDrawingContext()
       &m_device_ctx);
 
   WIN32_CHK(hres == S_OK);
-
+  active_context_ = this;
   return GHOST_kSuccess;
 }
 
