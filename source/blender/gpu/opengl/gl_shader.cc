@@ -158,7 +158,7 @@ static const char *to_string(const Type &type)
   return "unknown";
 }
 
-static Type to_component_type(const Type &type)
+static Type UNUSED_FUNCTION(to_component_type)(const Type &type)
 {
   switch (type) {
     case Type::FLOAT:
@@ -1353,18 +1353,6 @@ void GLShader::uniform_int(int location, int comp_len, int array_size, const int
       BLI_assert(0);
       break;
   }
-}
-
-/** \} */
-
-/* -------------------------------------------------------------------- */
-/** \name GPUVertFormat from Shader
- * \{ */
-
-int GLShader::program_handle_get() const
-{
-  BLI_assert(program_active_);
-  return program_active_->program_id;
 }
 
 /** \} */
