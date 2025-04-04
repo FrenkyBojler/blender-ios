@@ -187,10 +187,9 @@ enum class TokenType {
 struct Token {
   TokenType type = TokenType::VARIABLE;
 
-  /* Byte index range (exclusive on the right) of the token in the path string.
-   * This is the range that should be replaced during substitution. For example,
-   * for variables this the byte range of the entire "{variable_name}" syntax. */
-  blender::IndexRange replacement_range;
+  /* Byte index range (exclusive on the right) of the token or syntax error in
+   * the path string. */
+  blender::IndexRange byte_range;
 
   /* Reference to the the variable name as written in the path string. Note that
    * this points into the path string, and does not own the value.
@@ -405,9 +404,12 @@ static FormatSpecifier parse_path_variable_format(blender::StringRef format_spec
 }
 
 /**
- * Finds and parses the first valid token in `path`.
+ * Finds and parses the next valid token in `path` starting from index
+ * `from_char`.
  *
  * \param path The path string to parse.
+ *
+ * \param from_char The char index to start from.
  *
  * \param path_allocation_size The total amount of valid memory that `path`
  * points to, in bytes. This is just used as a fail-safe in case path isn't
@@ -416,8 +418,12 @@ static FormatSpecifier parse_path_variable_format(blender::StringRef format_spec
  * \return The parsed token information, or nullopt if no token is found in
  * `path`.
  */
-static std::optional<Token> next_token(char *path, const int path_allocation_size)
+static std::optional<Token> next_token(char *path,
+                                       const int from_char,
+                                       const int path_allocation_size)
 {
+  BLI_assert(from_char <= strlen(path));
+
   Token token;
 
   /* We use the magic number -1 here to indicate that a component hasn't been
@@ -427,7 +433,7 @@ static std::optional<Token> next_token(char *path, const int path_allocation_siz
   int format_specifier_split = -1; /* ":" */
   int end = -1;                    /* "}" */
 
-  for (int byte_index = 0; byte_index < path_allocation_size && path[byte_index] != '\0';
+  for (int byte_index = from_char; byte_index < path_allocation_size && path[byte_index] != '\0';
        byte_index++)
   {
     /* Check for escaped "{". */
@@ -436,7 +442,7 @@ static std::optional<Token> next_token(char *path, const int path_allocation_siz
     {
       Token token;
       token.type = TokenType::LEFT_CURLY_BRACE;
-      token.replacement_range = blender::IndexRange::from_begin_end(byte_index, byte_index + 2);
+      token.byte_range = blender::IndexRange::from_begin_end(byte_index, byte_index + 2);
       return token;
     }
 
@@ -449,14 +455,14 @@ static std::optional<Token> next_token(char *path, const int path_allocation_siz
         path[byte_index + 1] == '}')
     {
       token.type = TokenType::RIGHT_CURLY_BRACE;
-      token.replacement_range = blender::IndexRange::from_begin_end(byte_index, byte_index + 2);
+      token.byte_range = blender::IndexRange::from_begin_end(byte_index, byte_index + 2);
       return token;
     }
 
     /* Check for unescaped "}", which outside of a variable is illegal. */
     if (start == -1 && path[byte_index] == '}') {
       token.type = TokenType::SYNTAX_ERROR;
-      token.replacement_range = blender::IndexRange::from_begin_end(byte_index, byte_index + 1);
+      token.byte_range = blender::IndexRange::from_begin_end(byte_index, byte_index + 1);
       return token;
     }
 
@@ -465,7 +471,7 @@ static std::optional<Token> next_token(char *path, const int path_allocation_siz
       if (start != -1) {
         /* Already inside a variable. */
         token.type = TokenType::SYNTAX_ERROR;
-        token.replacement_range = blender::IndexRange::from_begin_end(byte_index, byte_index + 1);
+        token.byte_range = blender::IndexRange::from_begin_end(byte_index, byte_index + 1);
         return token;
       }
       start = byte_index;
@@ -484,7 +490,7 @@ static std::optional<Token> next_token(char *path, const int path_allocation_siz
       if (format_specifier_split != -1) {
         /* Found a second format specifier split. Syntax error. */
         token.type = TokenType::SYNTAX_ERROR;
-        token.replacement_range = blender::IndexRange::from_begin_end(byte_index, byte_index + 1);
+        token.byte_range = blender::IndexRange::from_begin_end(byte_index, byte_index + 1);
         return token;
       }
 
@@ -506,7 +512,7 @@ static std::optional<Token> next_token(char *path, const int path_allocation_siz
   }
 
   /* Parse the variable reference we found. */
-  token.replacement_range = blender::IndexRange::from_begin_end(start, end);
+  token.byte_range = blender::IndexRange::from_begin_end(start, end);
   if (format_specifier_split == -1) {
     /* No format specifier. */
     token.variable_name = blender::StringRef(path + start + 1, path + end - 1);
@@ -529,98 +535,112 @@ static std::optional<Token> next_token(char *path, const int path_allocation_siz
 blender::Vector<ParseError> BKE_path_apply_variables(char path[FILE_MAX],
                                                      const VariableMap &variables)
 {
-  /* We work on a copy, so that if an error occurs we can bail without the
-   * original path getting modified. */
-  char path_modified[FILE_MAX] = "";
-  strcpy(path_modified, path);
-
-  int bytes_processed = 0;
-  while (bytes_processed < FILE_MAX && path_modified[bytes_processed] != '\0') {
-    const std::optional<Token> token = next_token(path_modified + bytes_processed,
-                                                  FILE_MAX - bytes_processed);
+  blender::Vector<Token> tokens;
+  for (int bytes_read = 0; bytes_read < FILE_MAX && path[bytes_read] != '\0';) {
+    const std::optional<Token> token = next_token(path, bytes_read, FILE_MAX);
 
     if (!token.has_value()) {
       break;
     }
 
-    /* Skip variables with invalid format specifier syntax. */
-    if (token->format.type == FormatSpecifierType::SYNTAX_ERROR) {
-      /* TODO: return the error. */
-      return {};
-    }
-
-    /* Check for escapes. */
-    if (token->type == TokenType::LEFT_CURLY_BRACE) {
-      BLI_string_replace_range(path_modified + bytes_processed,
-                               FILE_MAX - bytes_processed,
-                               token->replacement_range.start(),
-                               token->replacement_range.one_after_last(),
-                               "{");
-
-      bytes_processed += token->replacement_range.start() + 1;
-      continue;
-    }
-    if (token->type == TokenType::RIGHT_CURLY_BRACE) {
-      BLI_string_replace_range(path_modified + bytes_processed,
-                               FILE_MAX - bytes_processed,
-                               token->replacement_range.start(),
-                               token->replacement_range.one_after_last(),
-                               "}");
-
-      bytes_processed += token->replacement_range.start() + 1;
-      continue;
-    }
-
-    /* For formatting integer and float variables into strings. */
-    char format_buffer[FORMAT_BUFFER_SIZE];
-
-    /* Points to the string that will replace the "{variable}" in `path_modified`. If no
-     * corresponding variable is found, or if the format specification is
-     * invalid, this is left null to indicate that no replacement should be
-     * done. */
-    const char *replacement_string = nullptr;
-
-    /* Try to find a matching variable, and construct a string for it. */
-    if (std::optional<blender::StringRefNull> string_value = variables.get_string(
-            token->variable_name))
-    {
-      /* String variable found, but we only process it if there's no format
-       * specifier: string variables do not support format specifiers. */
-      if (token->format.type == FormatSpecifierType::NONE) {
-        replacement_string = string_value->c_str();
-      }
-    }
-    else if (std::optional<int64_t> integer_value = variables.get_integer(token->variable_name)) {
-      /* Integer variable found. */
-      format_int_to_string(token->format, *integer_value, format_buffer);
-      replacement_string = format_buffer;
-    }
-    else if (std::optional<double> float_value = variables.get_float(token->variable_name)) {
-      /* Float variable found. */
-      format_float_to_string(token->format, *float_value, format_buffer);
-      replacement_string = format_buffer;
-    }
-
-    /* Perform the replacement if we found a matching variable, otherwise skip. */
-    if (replacement_string != nullptr) {
-      BLI_string_replace_range(path_modified + bytes_processed,
-                               FILE_MAX - bytes_processed,
-                               token->replacement_range.start(),
-                               token->replacement_range.one_after_last(),
-                               replacement_string);
-
-      bytes_processed += token->replacement_range.one_after_last();
-      bytes_processed -= token->replacement_range.size();
-      bytes_processed += strlen(replacement_string);
-    }
-    else {
-      /* No matching variable: error.
-       *
-       * TODO: return the error. */
-      return {};
-    }
+    bytes_read = token->byte_range.one_after_last();
+    tokens.append(*token);
   }
 
-  strcpy(path, path_modified);
-  return {};
+  if (tokens.is_empty()) {
+    /* No tokens found, so nothing to do. */
+    return {};
+  }
+
+  /* Accumulates errors as we process the tokens. */
+  blender::Vector<ParseError> errors;
+
+  /* We work on a copy of the path, for two reasons:
+   *
+   * 1. So that if there are errors we can leave the original unmodified.
+   * 2. So that the contents of the StringRefs in the Token structs don't change
+   *    out from under us while we're generating the modified path.*/
+  char path_modified[FILE_MAX] = "";
+  strcpy(path_modified, path);
+
+  /* Tracks the change in string length due to the modifications as we go. We
+   * need this to properly map the token byte ranges to the being-modified
+   * string. */
+  int length_diff = 0;
+
+  for (Token token : tokens) {
+    char replacement_string[FORMAT_BUFFER_SIZE];
+
+    switch (token.type) {
+      /* Syntax errors. */
+      case TokenType::SYNTAX_ERROR: {
+        /* TODO: be more specific with the error type here. */
+        errors.append({ParseErrorType::VARIABLE_SYNTAX_ERROR, token.byte_range});
+        continue;
+      }
+
+      /* Curly brace escapes. */
+      case TokenType::LEFT_CURLY_BRACE: {
+        strcpy(replacement_string, "{");
+        break;
+      }
+      case TokenType::RIGHT_CURLY_BRACE: {
+        strcpy(replacement_string, "}");
+        break;
+      }
+
+      /* Variable expansion. */
+      case TokenType::VARIABLE: {
+        if (std::optional<blender::StringRefNull> string_value = variables.get_string(
+                token.variable_name))
+        {
+          /* String variable found, but we only process it if there's no format
+           * specifier: string variables do not support format specifiers. */
+          if (token.format.type != FormatSpecifierType::NONE) {
+            /* String variables don't take format specifiers: error. */
+            errors.append({ParseErrorType::FORMAT_SPECIFIER_ERROR, token.byte_range});
+            continue;
+          }
+          strcpy(replacement_string, string_value->c_str());
+          break;
+        }
+
+        if (std::optional<int64_t> integer_value = variables.get_integer(token.variable_name)) {
+          /* Integer variable found. */
+          format_int_to_string(token.format, *integer_value, replacement_string);
+          break;
+        }
+
+        if (std::optional<double> float_value = variables.get_float(token.variable_name)) {
+          /* Float variable found. */
+          format_float_to_string(token.format, *float_value, replacement_string);
+          break;
+        }
+
+        /* No matching variable found: error. */
+        errors.append({ParseErrorType::UNKNOWN_VARIABLE, token.byte_range});
+        continue;
+      }
+    }
+
+    /* We're off the end of the available space. */
+    if (token.byte_range.start() + length_diff >= FILE_MAX) {
+      break;
+    }
+
+    BLI_string_replace_range(path_modified,
+                             FILE_MAX,
+                             token.byte_range.start() + length_diff,
+                             token.byte_range.one_after_last() + length_diff,
+                             replacement_string);
+
+    length_diff -= token.byte_range.size();
+    length_diff += strlen(replacement_string);
+  }
+
+  if (errors.is_empty()) {
+    /* No errors, so copy the modified path back to the original. */
+    strcpy(path, path_modified);
+  }
+  return errors;
 }
