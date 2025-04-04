@@ -60,6 +60,12 @@ template<typename T>
   return Bounds<T>{b, b};
 }
 
+namespace ispc {
+extern "C" {
+void min_max_float3(const float values[][3], float * min_values, float * max_values, const int32_t count);
+};
+};
+
 /**
  * Find the smallest and largest values element-wise in the span.
  */
@@ -75,8 +81,14 @@ template<typename T> [[nodiscard]] inline std::optional<Bounds<T>> min_max(const
       init,
       [&](const IndexRange range, const Bounds<T> &init) {
         Bounds<T> result = init;
-        for (const int i : range) {
-          math::min_max(values[i], result.min, result.max);
+        
+        // if constexpr (std::is_same_v<T, float3>) {
+        //   ispc::min_max_float3(values.cast<float[3]>().data(), result.min, result.max, range.size());
+        // } else
+        {
+          for (const int i : range) {
+            math::min_max(values[i], result.min, result.max);
+          }
         }
         return result;
       },

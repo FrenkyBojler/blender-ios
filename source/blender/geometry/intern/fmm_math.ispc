@@ -268,6 +268,181 @@ export void distances_split(const uniform float positions_x[],
     memcpy((uniform float * uniform)&distances[batch_count], &sufix_result[0], sizeof(uniform float) * (count - batch_count));
 }
 
+export void table_squared_distances(const uniform float row_x[],
+                                    const uniform float row_y[],
+                                    const uniform float row_z[],
+                                    const uniform int row_count,
+                                    const uniform float col_x[],
+                                    const uniform float col_y[],
+                                    const uniform float col_z[],
+                                    const uniform int col_count,
+                                    float uniform distances[])
+{
+  for (uniform int row_index = 0; row_index < row_count; row_index++) {
+    for (uniform int col_index = 0; col_index < col_count; col_index++) {
+      distances[row_index * col_count + col_index] = square(row_x[row_index] - col_x[col_index]) +
+                                                     square(row_y[row_index] - col_x[col_index]) +
+                                                     square(row_z[row_index] - col_x[col_index]);
+    }
+  }
+}
+
+export void min_max_float3(const uniform float values[][3],
+                           uniform float min_values[3],
+                           uniform float max_values[3],
+                           const uniform int count)
+{
+  assert(false);
+    const uniform float * uniform values_components = &values[0][0];
+
+    const uniform int batch_size = programCount * 3;
+    varying float<3> min_components;
+    varying float<3> max_components;
+
+    const uniform int batch_count = (count / batch_size) * batch_size;
+    for (uniform int index = 0; index < batch_count; index += batch_size) {
+        const varying float<3> batch = {values_components[index + programCount * 0 + programIndex],
+                                        values_components[index + programCount * 1 + programIndex],
+                                        values_components[index + programCount * 2 + programIndex]};
+        
+        for (uniform int component_i = 0; component_i < 3; component_i++) {
+            min_components[component_i] = min(min_components[component_i], batch[component_i]);
+            max_components[component_i] = max(max_components[component_i], batch[component_i]);
+        }
+    }
+
+    min_components[0] = min(min_components[0], shift(min_components[1], -((programCount * 1) % 3)));
+    min_components[0] = min(min_components[0], shift(min_components[2], -((programCount * 2) % 3)));
+
+    max_components[0] = max(max_components[0], shift(max_components[1], -((programCount * 1) % 3)));
+    max_components[0] = max(max_components[0], shift(max_components[2], -((programCount * 2) % 3)));
+
+    for (uniform int component_i = 0; component_i < 3; component_i++) {
+        min_values[component_i] = reduce_min(min_components[component_i] * (float)(programIndex % 3 == component_i));
+        max_values[component_i] = reduce_max(max_components[component_i] * (float)(programIndex % 3 == component_i));
+    }
+
+    // for (uniform int index = batch_count; index < count; index++) {
+    //     min_values[index % 3] = min(min_values[index % 3], values_components[index]);
+    //     max_values[index % 3] = max(max_values[index % 3], values_components[index]);
+    // }
+}
+
+export void min_max_float3_gather(const uniform float values[][3],
+                                  const uniform float indices[],
+                                  uniform float min_values[3],
+                                  uniform float max_values[3],
+                                  const uniform int count)
+{
+  assert(false);
+    const uniform float * uniform values_components = &values[0][0];
+
+    const uniform int batch_size = programCount * 3;
+    varying float<3> min_components;
+    varying float<3> max_components;
+
+    const uniform int batch_count = (count / batch_size) * batch_size;
+    for (uniform int index = 0; index < batch_count; index += batch_size) {
+        const varying float<3> batch = {values_components[index + programCount * 0 + programIndex],
+                                        values_components[index + programCount * 1 + programIndex],
+                                        values_components[index + programCount * 2 + programIndex]};
+        
+        for (uniform int component_i = 0; component_i < 3; component_i++) {
+            min_components[component_i] = min(min_components[component_i], batch[component_i]);
+            max_components[component_i] = max(max_components[component_i], batch[component_i]);
+        }
+    }
+
+    min_components[0] = min(min_components[0], shift(min_components[1], -((programCount * 1) % 3)));
+    min_components[0] = min(min_components[0], shift(min_components[2], -((programCount * 2) % 3)));
+
+    max_components[0] = max(max_components[0], shift(max_components[1], -((programCount * 1) % 3)));
+    max_components[0] = max(max_components[0], shift(max_components[2], -((programCount * 2) % 3)));
+
+    for (uniform int component_i = 0; component_i < 3; component_i++) {
+        min_values[component_i] = reduce_min(min_components[component_i] * (float)(programIndex % 3 == component_i));
+        max_values[component_i] = reduce_max(max_components[component_i] * (float)(programIndex % 3 == component_i));
+    }
+
+    // for (uniform int index = batch_count; index < count; index++) {
+    //     min_values[index % 3] = min(min_values[index % 3], values_components[index]);
+    //     max_values[index % 3] = max(max_values[index % 3], values_components[index]);
+    // }
+}
+
+export void distances_split_(const uniform float positions_x[],
+                            const uniform float positions_y[],
+                            const uniform float positions_z[],
+                            const uniform float target[3],
+                            const uniform int count,
+                            float uniform distances[],
+                            const uniform float offset)
+{
+    const uniform float<3> targets = {target[0], target[1], target[2]};
+    const uniform int batch_count = (count / (programCount * 4)) * (programCount * 4);
+    for (uniform int index = 0; index < batch_count; index += (programCount * 4)) {
+        varying float<3> batch1 = {streaming_load(&positions_x[index + programCount * 0]),
+                                   streaming_load(&positions_y[index + programCount * 0]),
+                                   streaming_load(&positions_z[index + programCount * 0])};
+        varying float<3> batch2 = {streaming_load(&positions_x[index + programCount * 1]),
+                                   streaming_load(&positions_y[index + programCount * 1]),
+                                   streaming_load(&positions_z[index + programCount * 1])};
+        varying float<3> batch3 = {streaming_load(&positions_x[index + programCount * 2]),
+                                   streaming_load(&positions_y[index + programCount * 2]),
+                                   streaming_load(&positions_z[index + programCount * 2])};
+        varying float<3> batch4 = {streaming_load(&positions_x[index + programCount * 3]),
+                                   streaming_load(&positions_y[index + programCount * 3]),
+                                   streaming_load(&positions_z[index + programCount * 3])};
+        batch1 -= targets;
+        batch1 *= batch1;
+        
+        batch2 -= targets;
+        batch2 *= batch2;
+        
+        batch3 -= targets;
+        batch3 *= batch3;
+        
+        batch4 -= targets;
+        batch4 *= batch4;
+        distances[index + programCount * 0 + programIndex] = batch1.x + batch1.y + batch1.z;
+        distances[index + programCount * 1 + programIndex] = batch2.x + batch2.y + batch2.z;
+        distances[index + programCount * 2 + programIndex] = batch3.x + batch3.y + batch3.z;
+        distances[index + programCount * 3 + programIndex] = batch4.x + batch4.y + batch4.z;
+    }
+
+    uniform float sufix_x[programCount * 4];
+    uniform float sufix_y[programCount * 4];
+    uniform float sufix_z[programCount * 4];
+
+    memcpy(&sufix_x[0], (uniform float * uniform)&positions_x[batch_count], sizeof(uniform float) * (count - batch_count));
+    memcpy(&sufix_y[0], (uniform float * uniform)&positions_y[batch_count], sizeof(uniform float) * (count - batch_count));
+    memcpy(&sufix_z[0], (uniform float * uniform)&positions_z[batch_count], sizeof(uniform float) * (count - batch_count));
+
+    uniform float sufix_result[programCount * 4];
+
+    varying float<3> batch1 = {sufix_x[programCount * 0 + programIndex], sufix_y[programCount * 0 + programIndex], sufix_z[programCount * 0 + programIndex]};
+    varying float<3> batch2 = {sufix_x[programCount * 1 + programIndex], sufix_y[programCount * 1 + programIndex], sufix_z[programCount * 1 + programIndex]};
+    varying float<3> batch3 = {sufix_x[programCount * 2 + programIndex], sufix_y[programCount * 2 + programIndex], sufix_z[programCount * 2 + programIndex]};
+    varying float<3> batch4 = {sufix_x[programCount * 3 + programIndex], sufix_y[programCount * 3 + programIndex], sufix_z[programCount * 3 + programIndex]};
+    batch1 -= targets;
+    batch1 *= batch1;
+    
+    batch2 -= targets;
+    batch2 *= batch2;
+    
+    batch3 -= targets;
+    batch3 *= batch3;
+    
+    batch4 -= targets;
+    batch4 *= batch4;
+    sufix_result[programCount * 0 + programIndex] = batch1.x + batch1.y + batch1.z;
+    sufix_result[programCount * 1 + programIndex] = batch2.x + batch2.y + batch2.z;
+    sufix_result[programCount * 2 + programIndex] = batch3.x + batch3.y + batch3.z;
+    sufix_result[programCount * 3 + programIndex] = batch4.x + batch4.y + batch4.z;
+    
+    memcpy((uniform float * uniform)&distances[batch_count], &sufix_result[0], sizeof(uniform float) * (count - batch_count));
+}
+
 export void sqrt_n_add_single(float uniform values[], const uniform int count, const uniform float offset)
 {
     const uniform int batch_count = (count / programCount) * programCount;
