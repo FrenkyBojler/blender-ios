@@ -8,8 +8,7 @@
 
 #pragma once
 
-#include "DNA_scene_types.h"
-
+struct FFMpegCodecData;
 struct ImageFormatData;
 struct RenderData;
 
@@ -28,7 +27,7 @@ void MOV_exit();
  */
 bool MOV_is_movie_file(const char *filepath);
 
-/** Checks whether given FFMPEG video AVCodecID supports alpha channel (RGBA). */
+/** Checks whether given FFMpegCodecData supports alpha channel (RGBA). */
 bool MOV_codec_supports_alpha(const FFMpegCodecData &ff_codec_data);
 
 /**
