@@ -38,7 +38,7 @@ class CachingDownloadReporter(Protocol):
 
     def download_error(
         self,
-        http_req_desc: RequestDescription,
+        http_req_descr: RequestDescription,
         error: Exception,
     ) -> None: ...
 
@@ -77,7 +77,7 @@ class _DummyReporter(CachingDownloadReporter):
 
     def download_error(
         self,
-        http_req_desc: RequestDescription,
+        http_req_descr: RequestDescription,
         error: Exception,
     ) -> None:
         print(f"Error downloading: {error}")

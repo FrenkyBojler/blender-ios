@@ -83,7 +83,7 @@ class DownloadReporter:
 
     def download_error(
         self,
-        http_req_desc: RequestDescription,
+        http_req_descr: RequestDescription,
         error: Exception,
     ) -> None:
         logger.error(f"Error downloading: {error}")
