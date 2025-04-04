@@ -587,6 +587,12 @@ bool SCULPT_brush_type_needs_all_pbvh_nodes(const Brush &brush);
 
 namespace blender::ed::sculpt_paint {
 
+/**
+ * \warning This call is *not* idempotent and changes values inside the StrokeCache.
+ *
+ * Brushes may behave incorrectly if preserving original plane / normal when this
+ * method is not called.
+ */
 void calc_brush_plane(const Depsgraph &depsgraph,
                       const Brush &brush,
                       Object &ob,
@@ -801,14 +807,6 @@ std::optional<Span<float>> orig_mask_data_lookup_grids(const Object &object,
 }  // namespace blender::ed::sculpt_paint
 
 /** \} */
-
-/**
- * Get a screen-space rectangle of the modified area.
- */
-bool SCULPT_get_redraw_rect(const ARegion &region,
-                            const RegionView3D &rv3d,
-                            const Object &ob,
-                            rcti &rect);
 
 /* Operators. */
 
