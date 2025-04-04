@@ -1143,6 +1143,9 @@ static wmOperatorStatus change_frame_modal(bContext *C, wmOperator *op, const wm
         return OPERATOR_FINISHED;
       }
       break;
+    default: {
+      break;
+    }
   }
 
   return OPERATOR_RUNNING_MODAL;
@@ -1250,13 +1253,11 @@ static void do_movie_proxy(void *pjv,
   const int efra = clip->len;
 
   if (build_undistort_count) {
-    int threads = BLI_system_thread_count();
     int width, height;
 
     BKE_movieclip_get_size(clip, nullptr, &width, &height);
 
     distortion = BKE_tracking_distortion_new(&clip->tracking, width, height);
-    BKE_tracking_distortion_set_threads(distortion, threads);
   }
 
   for (int cfra = sfra; cfra <= efra; cfra++) {
@@ -1368,11 +1369,12 @@ static void proxy_task_func(TaskPool *__restrict pool, void *task_data)
   while ((mem = proxy_thread_next_frame(queue, data->clip, &size, &cfra))) {
     ImBuf *ibuf;
 
-    ibuf = IMB_ibImageFromMemory(mem,
-                                 size,
-                                 IB_byte_data | IB_multilayer | IB_alphamode_detect,
-                                 data->clip->colorspace_settings.name,
-                                 "proxy frame");
+    ibuf = IMB_load_image_from_memory(mem,
+                                      size,
+                                      IB_byte_data | IB_multilayer | IB_alphamode_detect,
+                                      "proxy frame",
+                                      nullptr,
+                                      data->clip->colorspace_settings.name);
 
     BKE_movieclip_build_proxy_frame_for_ibuf(
         data->clip, ibuf, nullptr, cfra, data->build_sizes, data->build_count, false);
@@ -1699,6 +1701,9 @@ static wmOperatorStatus clip_prefetch_modal(bContext *C, wmOperator * /*op*/, co
   switch (event->type) {
     case EVT_ESCKEY:
       return OPERATOR_RUNNING_MODAL;
+    default: {
+      break;
+    }
   }
 
   return OPERATOR_PASS_THROUGH;

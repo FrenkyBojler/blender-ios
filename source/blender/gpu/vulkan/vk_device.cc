@@ -149,7 +149,9 @@ void VKDevice::init_physical_device_properties()
   vk_physical_device_properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
   vk_physical_device_driver_properties_.sType =
       VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DRIVER_PROPERTIES;
+  vk_physical_device_id_properties_.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ID_PROPERTIES;
   vk_physical_device_properties.pNext = &vk_physical_device_driver_properties_;
+  vk_physical_device_driver_properties_.pNext = &vk_physical_device_id_properties_;
 
   vkGetPhysicalDeviceProperties2(vk_physical_device_, &vk_physical_device_properties);
   vk_physical_device_properties_ = vk_physical_device_properties.properties;
@@ -401,26 +403,6 @@ VKThreadData &VKDevice::current_thread_data()
   thread_data_.append(thread_data);
   return *thread_data;
 }
-
-#if 0
-VKDiscardPool &VKDevice::discard_pool_for_current_thread(bool thread_safe)
-{
-  std::unique_lock lock(resources.mutex, std::defer_lock);
-  if (!thread_safe) {
-    lock.lock();
-  }
-  pthread_t current_thread_id = pthread_self();
-  if (BLI_thread_is_main()) {
-    for (VKThreadData *thread_data : thread_data_) {
-      if (pthread_equal(thread_data->thread_id, current_thread_id)) {
-        return thread_data->resource_pool_get().discard_pool;
-      }
-    }
-  }
-
-  return orphaned_data;
-}
-#endif
 
 void VKDevice::context_register(VKContext &context)
 {
