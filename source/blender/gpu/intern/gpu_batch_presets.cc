@@ -200,39 +200,6 @@ static blender::gpu::Batch *batch_sphere_wire(int lat_res, int lon_res)
   return GPU_batch_create_ex(GPU_PRIM_LINES, vbo, nullptr, GPU_BATCH_OWNS_VBO);
 }
 
-/** \} */
-
-/* -------------------------------------------------------------------- */
-/** \name Panel Drag Widget
- * \{ */
-
-static void gpu_batch_preset_rectf_tris_color_ex(GPUVertBufRaw *pos_step,
-                                                 float x1,
-                                                 float y1,
-                                                 float x2,
-                                                 float y2,
-                                                 GPUVertBufRaw *col_step,
-                                                 const float color[4])
-{
-  copy_v2_v2(static_cast<float *>(GPU_vertbuf_raw_step(pos_step)), blender::float2{x1, y1});
-  copy_v4_v4(static_cast<float *>(GPU_vertbuf_raw_step(col_step)), color);
-
-  copy_v2_v2(static_cast<float *>(GPU_vertbuf_raw_step(pos_step)), blender::float2{x2, y1});
-  copy_v4_v4(static_cast<float *>(GPU_vertbuf_raw_step(col_step)), color);
-
-  copy_v2_v2(static_cast<float *>(GPU_vertbuf_raw_step(pos_step)), blender::float2{x2, y2});
-  copy_v4_v4(static_cast<float *>(GPU_vertbuf_raw_step(col_step)), color);
-
-  copy_v2_v2(static_cast<float *>(GPU_vertbuf_raw_step(pos_step)), blender::float2{x1, y1});
-  copy_v4_v4(static_cast<float *>(GPU_vertbuf_raw_step(col_step)), color);
-
-  copy_v2_v2(static_cast<float *>(GPU_vertbuf_raw_step(pos_step)), blender::float2{x2, y2});
-  copy_v4_v4(static_cast<float *>(GPU_vertbuf_raw_step(col_step)), color);
-
-  copy_v2_v2(static_cast<float *>(GPU_vertbuf_raw_step(pos_step)), blender::float2{x1, y2});
-  copy_v4_v4(static_cast<float *>(GPU_vertbuf_raw_step(col_step)), color);
-}
-
 blender::gpu::Batch *GPU_batch_preset_quad()
 {
   if (!g_presets_2d.batch.quad) {
