@@ -112,6 +112,7 @@ wmKeyMap *WM_keymap_find_all_spaceid_or_empty(wmWindowManager *wm,
                                               int spaceid,
                                               int regionid);
 wmKeyMap *WM_keymap_active(const wmWindowManager *wm, wmKeyMap *keymap);
+wmKeyMap *WM_keymap_operator_from_context(const bContext *C, wmOperator *op);
 void WM_keymap_remove(wmKeyConfig *keyconf, wmKeyMap *keymap);
 bool WM_keymap_poll(bContext *C, wmKeyMap *keymap);
 
@@ -175,7 +176,8 @@ void WM_keymap_fix_linking();
 std::optional<std::string> WM_modalkeymap_items_to_string(const wmKeyMap *km,
                                                           int propvalue,
                                                           bool compact);
-std::optional<std::string> WM_modalkeymap_operator_items_to_string(wmOperatorType *ot,
+std::optional<std::string> WM_modalkeymap_operator_items_to_string(const bContext *C,
+                                                                   wmOperator *op,
                                                                    int propvalue,
                                                                    bool compact);
 

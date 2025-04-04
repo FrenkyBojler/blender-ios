@@ -1474,55 +1474,48 @@ static void walk_draw_status(bContext *C, wmOperator *op)
 
   WorkspaceStatus status(C);
 
-  status.opmodal(IFACE_("Confirm"), op->type, WALK_MODAL_CONFIRM);
-  status.opmodal(IFACE_("Cancel"), op->type, WALK_MODAL_CANCEL);
+  status.opmodal(IFACE_("Confirm"), op, WALK_MODAL_CONFIRM);
+  status.opmodal(IFACE_("Cancel"), op, WALK_MODAL_CANCEL);
 
+  status.opmodal("", op, WALK_MODAL_DIR_FORWARD, walk->active_directions & WALK_BIT_LOCAL_FORWARD);
+  status.opmodal("", op, WALK_MODAL_DIR_LEFT, walk->active_directions & WALK_BIT_LOCAL_LEFT);
   status.opmodal(
-      "", op->type, WALK_MODAL_DIR_FORWARD, walk->active_directions & WALK_BIT_LOCAL_FORWARD);
-  status.opmodal("", op->type, WALK_MODAL_DIR_LEFT, walk->active_directions & WALK_BIT_LOCAL_LEFT);
-  status.opmodal(
-      "", op->type, WALK_MODAL_DIR_BACKWARD, walk->active_directions & WALK_BIT_LOCAL_BACKWARD);
-  status.opmodal(
-      "", op->type, WALK_MODAL_DIR_RIGHT, walk->active_directions & WALK_BIT_LOCAL_RIGHT);
+      "", op, WALK_MODAL_DIR_BACKWARD, walk->active_directions & WALK_BIT_LOCAL_BACKWARD);
+  status.opmodal("", op, WALK_MODAL_DIR_RIGHT, walk->active_directions & WALK_BIT_LOCAL_RIGHT);
   status.item(IFACE_("Move"), ICON_NONE);
 
-  status.opmodal("", op->type, WALK_MODAL_DIR_UP, walk->active_directions & WALK_BIT_GLOBAL_UP);
-  status.opmodal(
-      "", op->type, WALK_MODAL_DIR_DOWN, walk->active_directions & WALK_BIT_GLOBAL_DOWN);
+  status.opmodal("", op, WALK_MODAL_DIR_UP, walk->active_directions & WALK_BIT_GLOBAL_UP);
+  status.opmodal("", op, WALK_MODAL_DIR_DOWN, walk->active_directions & WALK_BIT_GLOBAL_DOWN);
   status.item(IFACE_("Up/Down"), ICON_NONE);
 
-  status.opmodal(
-      "", op->type, WALK_MODAL_DIR_LOCAL_UP, walk->active_directions & WALK_BIT_LOCAL_UP);
-  status.opmodal(
-      "", op->type, WALK_MODAL_DIR_LOCAL_DOWN, walk->active_directions & WALK_BIT_LOCAL_DOWN);
+  status.opmodal("", op, WALK_MODAL_DIR_LOCAL_UP, walk->active_directions & WALK_BIT_LOCAL_UP);
+  status.opmodal("", op, WALK_MODAL_DIR_LOCAL_DOWN, walk->active_directions & WALK_BIT_LOCAL_DOWN);
   status.item(IFACE_("Local Up/Down"), ICON_NONE);
 
   status.opmodal(
-      IFACE_("Jump"), op->type, WALK_MODAL_JUMP, walk->gravity_state == WALK_GRAVITY_STATE_JUMP);
+      IFACE_("Jump"), op, WALK_MODAL_JUMP, walk->gravity_state == WALK_GRAVITY_STATE_JUMP);
 
-  status.opmodal(IFACE_("Teleport"),
-                 op->type,
-                 WALK_MODAL_TELEPORT,
-                 walk->teleport.state == WALK_TELEPORT_STATE_ON);
+  status.opmodal(
+      IFACE_("Teleport"), op, WALK_MODAL_TELEPORT, walk->teleport.state == WALK_TELEPORT_STATE_ON);
 
-  status.opmodal(IFACE_("Fast"), op->type, WALK_MODAL_FAST_ENABLE, walk->is_fast);
-  status.opmodal(IFACE_("Slow"), op->type, WALK_MODAL_SLOW_ENABLE, walk->is_slow);
+  status.opmodal(IFACE_("Fast"), op, WALK_MODAL_FAST_ENABLE, walk->is_fast);
+  status.opmodal(IFACE_("Slow"), op, WALK_MODAL_SLOW_ENABLE, walk->is_slow);
 
   status.opmodal(IFACE_("Gravity"),
-                 op->type,
+                 op,
                  WALK_MODAL_GRAVITY_TOGGLE,
                  walk->navigation_mode == WALK_MODE_GRAVITY);
 
-  status.opmodal("", op->type, WALK_MODAL_ACCELERATE);
-  status.opmodal("", op->type, WALK_MODAL_DECELERATE);
+  status.opmodal("", op, WALK_MODAL_ACCELERATE);
+  status.opmodal("", op, WALK_MODAL_DECELERATE);
   status.item(fmt::format("{} ({:.2f})", IFACE_("Acceleration"), g_walk.base_speed), ICON_NONE);
 
-  status.opmodal("", op->type, WALK_MODAL_INCREASE_JUMP);
-  status.opmodal("", op->type, WALK_MODAL_DECREASE_JUMP);
+  status.opmodal("", op, WALK_MODAL_INCREASE_JUMP);
+  status.opmodal("", op, WALK_MODAL_DECREASE_JUMP);
   status.item(fmt::format("{} ({:.2f})", IFACE_("Jump Height"), g_walk.jump_height), ICON_NONE);
 
   status.opmodal(IFACE_("Z Axis Correction"),
-                 op->type,
+                 op,
                  WALK_MODAL_AXIS_LOCK_Z,
                  walk->zlock != WALK_AXISLOCK_STATE_OFF);
 }

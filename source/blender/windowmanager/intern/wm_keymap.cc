@@ -1284,12 +1284,12 @@ std::optional<std::string> WM_modalkeymap_items_to_string(const wmKeyMap *km,
   return result;
 }
 
-std::optional<std::string> WM_modalkeymap_operator_items_to_string(wmOperatorType *ot,
+std::optional<std::string> WM_modalkeymap_operator_items_to_string(const bContext *C,
+                                                                   wmOperator *op,
                                                                    const int propvalue,
                                                                    const bool compact)
 {
-  wmWindowManager *wm = static_cast<wmWindowManager *>(G_MAIN->wm.first);
-  wmKeyMap *keymap = WM_keymap_active(wm, ot->modalkeymap);
+  wmKeyMap *keymap = WM_keymap_operator_from_context(C, op);
   return WM_modalkeymap_items_to_string(keymap, propvalue, compact);
 }
 
@@ -2026,6 +2026,18 @@ wmKeyMap *WM_keymap_active(const wmWindowManager *wm, wmKeyMap *keymap)
   }
 
   return keymap;
+}
+
+wmKeyMap *WM_keymap_operator_from_context(const bContext *C, wmOperator *op)
+{
+  const wmOperatorType *ot = op->type;
+  if (ot->modalkeymap) {
+    return WM_keymap_active(CTX_wm_manager(C), ot->modalkeymap);
+  }
+  if (ot->get_keymap) {
+    return WM_keymap_active(CTX_wm_manager(C), ot->get_keymap(*C, *op));
+  }
+  return nullptr;
 }
 
 /** \} */

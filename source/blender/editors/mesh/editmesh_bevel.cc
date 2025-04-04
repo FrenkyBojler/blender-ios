@@ -174,52 +174,45 @@ static void edbm_bevel_update_status_text(bContext *C, wmOperator *op)
       C, op->ptr, prop, RNA_property_enum_get(op->ptr, prop), &affect_str);
 
   WorkspaceStatus status(C);
-  status.opmodal(IFACE_("Confirm"), op->type, BEV_MODAL_CONFIRM);
-  status.opmodal(IFACE_("Cancel"), op->type, BEV_MODAL_CANCEL);
-  status.opmodal(IFACE_("Width Type"), op->type, BEV_MODAL_OFFSET_MODE_CHANGE);
+  status.opmodal(IFACE_("Confirm"), op, BEV_MODAL_CONFIRM);
+  status.opmodal(IFACE_("Cancel"), op, BEV_MODAL_CANCEL);
+  status.opmodal(IFACE_("Width Type"), op, BEV_MODAL_OFFSET_MODE_CHANGE);
 
+  status.opmodal(IFACE_("Width"), op, BEV_MODAL_VALUE_OFFSET, opdata->value_mode == OFFSET_VALUE);
   status.opmodal(
-      IFACE_("Width"), op->type, BEV_MODAL_VALUE_OFFSET, opdata->value_mode == OFFSET_VALUE);
-  status.opmodal(IFACE_("Segments"),
-                 op->type,
-                 BEV_MODAL_VALUE_SEGMENTS,
-                 opdata->value_mode == SEGMENTS_VALUE);
-  status.opmodal(IFACE_("Profile Shape"),
-                 op->type,
-                 BEV_MODAL_VALUE_PROFILE,
-                 opdata->value_mode == PROFILE_VALUE);
+      IFACE_("Segments"), op, BEV_MODAL_VALUE_SEGMENTS, opdata->value_mode == SEGMENTS_VALUE);
+  status.opmodal(
+      IFACE_("Profile Shape"), op, BEV_MODAL_VALUE_PROFILE, opdata->value_mode == PROFILE_VALUE);
 
   status.opmodal(IFACE_("Clamp"),
-                 op->type,
+                 op,
                  BEV_MODAL_CLAMP_OVERLAP_TOGGLE,
                  RNA_boolean_get(op->ptr, "clamp_overlap"));
   status.opmodal(IFACE_("Harden"),
-                 op->type,
+                 op,
                  BEV_MODAL_HARDEN_NORMALS_TOGGLE,
                  RNA_boolean_get(op->ptr, "harden_normals"));
   status.opmodal(
-      IFACE_("Seam"), op->type, BEV_MODAL_MARK_SEAM_TOGGLE, RNA_boolean_get(op->ptr, "mark_seam"));
-  status.opmodal(IFACE_("Sharp"),
-                 op->type,
-                 BEV_MODAL_MARK_SHARP_TOGGLE,
-                 RNA_boolean_get(op->ptr, "mark_sharp"));
+      IFACE_("Seam"), op, BEV_MODAL_MARK_SEAM_TOGGLE, RNA_boolean_get(op->ptr, "mark_seam"));
+  status.opmodal(
+      IFACE_("Sharp"), op, BEV_MODAL_MARK_SHARP_TOGGLE, RNA_boolean_get(op->ptr, "mark_sharp"));
 
   std::string desc;
 
   desc = fmt::format("{} ({}) ", IFACE_("Affect"), affect_str);
-  status.opmodal(desc, op->type, BEV_MODAL_AFFECT_CHANGE);
+  status.opmodal(desc, op, BEV_MODAL_AFFECT_CHANGE);
 
   desc = fmt::format("{} ({}) ", IFACE_("Outer"), omiter_str);
-  status.opmodal(desc, op->type, BEV_MODAL_OUTER_MITER_CHANGE);
+  status.opmodal(desc, op, BEV_MODAL_OUTER_MITER_CHANGE);
 
   desc = fmt::format("{} ({}) ", IFACE_("Inner"), imiter_str);
-  status.opmodal(desc, op->type, BEV_MODAL_INNER_MITER_CHANGE);
+  status.opmodal(desc, op, BEV_MODAL_INNER_MITER_CHANGE);
 
   desc = fmt::format("{} ({}) ", IFACE_("Profile Type"), profile_type_str);
-  status.opmodal(desc, op->type, BEV_MODAL_PROFILE_TYPE_CHANGE);
+  status.opmodal(desc, op, BEV_MODAL_PROFILE_TYPE_CHANGE);
 
   desc = fmt::format("{} ({}) ", IFACE_("Intersection"), vmesh_str);
-  status.opmodal(desc, op->type, BEV_MODAL_VERTEX_MESH_CHANGE);
+  status.opmodal(desc, op, BEV_MODAL_VERTEX_MESH_CHANGE);
 }
 
 static bool edbm_bevel_init(bContext *C, wmOperator *op, const bool is_modal)

@@ -2466,8 +2466,7 @@ static void wm_event_modalkeymap_begin(const bContext *C,
 
   event_backup->dbl_click_disabled = false;
 
-  if (op->type->modalkeymap) {
-    wmKeyMap *keymap = WM_keymap_active(CTX_wm_manager(C), op->type->modalkeymap);
+  if (wmKeyMap *keymap = WM_keymap_operator_from_context(C, op)) {
     wmKeyMapItem *kmi = nullptr;
 
     const wmEvent *event_match = nullptr;
@@ -6652,7 +6651,6 @@ void WM_window_cursor_keymap_status_refresh(bContext *C, wmWindow *win)
 
 bool WM_window_modal_keymap_status_draw(bContext *C, wmWindow *win, uiLayout *layout)
 {
-  wmWindowManager *wm = CTX_wm_manager(C);
   wmKeyMap *keymap = nullptr;
   wmOperator *op = nullptr;
   LISTBASE_FOREACH (wmEventHandler *, handler_base, &win->modalhandlers) {
@@ -6661,7 +6659,7 @@ bool WM_window_modal_keymap_status_draw(bContext *C, wmWindow *win, uiLayout *la
       if (handler->op != nullptr) {
         /* 'handler->keymap' could be checked too, seems not to be used. */
         wmOperator *op_test = handler->op->opm ? handler->op->opm : handler->op;
-        wmKeyMap *keymap_test = WM_keymap_active(wm, op_test->type->modalkeymap);
+        wmKeyMap *keymap_test = WM_keymap_operator_from_context(C, op_test);
         if (keymap_test && keymap_test->modal_items) {
           keymap = keymap_test;
           op = op_test;
@@ -6692,7 +6690,7 @@ bool WM_window_modal_keymap_status_draw(bContext *C, wmWindow *win, uiLayout *la
       i += num_items_used - 1;
     }
     else if (std::optional<std::string> str = WM_modalkeymap_operator_items_to_string(
-                 op->type, items[i].value, true))
+                 C, op, items[i].value, true))
     {
       /*  Show text instead */
       uiItemL(row, fmt::format("{}: {}", *str, items[i].name), ICON_NONE);

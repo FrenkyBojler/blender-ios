@@ -461,6 +461,7 @@ bool ED_workspace_layout_cycle(WorkSpace *workspace, short direction, bContext *
 void ED_workspace_status_text(bContext *C, const char *str);
 
 class WorkspaceStatus {
+  bContext *C_;
   WorkSpace *workspace_;
   wmWindowManager *wm_;
 
@@ -494,7 +495,7 @@ class WorkspaceStatus {
    * Example:
    *   [V] X-Ray
    */
-  void opmodal(std::string text, const wmOperatorType *ot, int propvalue, bool inverted = false);
+  void opmodal(std::string text, wmOperator *op, int propvalue, bool inverted = false);
 };
 
 void ED_workspace_do_listen(bContext *C, const wmNotifier *note);

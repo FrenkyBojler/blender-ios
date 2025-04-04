@@ -1071,31 +1071,31 @@ static void fly_draw_status(bContext *C, wmOperator *op)
 
   WorkspaceStatus status(C);
 
-  status.opmodal(IFACE_("Confirm"), op->type, FLY_MODAL_CONFIRM);
-  status.opmodal(IFACE_("Cancel"), op->type, FLY_MODAL_CANCEL);
+  status.opmodal(IFACE_("Confirm"), op, FLY_MODAL_CONFIRM);
+  status.opmodal(IFACE_("Cancel"), op, FLY_MODAL_CANCEL);
 
-  status.opmodal("", op->type, FLY_MODAL_DIR_FORWARD);
-  status.opmodal("", op->type, FLY_MODAL_DIR_LEFT);
-  status.opmodal("", op->type, FLY_MODAL_DIR_BACKWARD);
-  status.opmodal("", op->type, FLY_MODAL_DIR_RIGHT);
+  status.opmodal("", op, FLY_MODAL_DIR_FORWARD);
+  status.opmodal("", op, FLY_MODAL_DIR_LEFT);
+  status.opmodal("", op, FLY_MODAL_DIR_BACKWARD);
+  status.opmodal("", op, FLY_MODAL_DIR_RIGHT);
   status.item(IFACE_("Move"), ICON_NONE);
 
-  status.opmodal("", op->type, FLY_MODAL_DIR_UP);
-  status.opmodal("", op->type, FLY_MODAL_DIR_DOWN);
+  status.opmodal("", op, FLY_MODAL_DIR_UP);
+  status.opmodal("", op, FLY_MODAL_DIR_DOWN);
   status.item(IFACE_("Up/Down"), ICON_NONE);
 
-  status.opmodal(IFACE_("Pan"), op->type, FLY_MODAL_PAN_ENABLE);
-  status.opmodal(IFACE_("Speed"), op->type, FLY_MODAL_SPEED);
+  status.opmodal(IFACE_("Pan"), op, FLY_MODAL_PAN_ENABLE);
+  status.opmodal(IFACE_("Speed"), op, FLY_MODAL_SPEED);
 
-  status.opmodal("", op->type, FLY_MODAL_AXIS_LOCK_X, fly->xlock != FLY_AXISLOCK_STATE_OFF);
-  status.opmodal("", op->type, FLY_MODAL_AXIS_LOCK_Z, fly->zlock != FLY_AXISLOCK_STATE_OFF);
+  status.opmodal("", op, FLY_MODAL_AXIS_LOCK_X, fly->xlock != FLY_AXISLOCK_STATE_OFF);
+  status.opmodal("", op, FLY_MODAL_AXIS_LOCK_Z, fly->zlock != FLY_AXISLOCK_STATE_OFF);
   status.item(IFACE_("Axis Lock"), ICON_NONE);
 
-  status.opmodal(IFACE_("Precision"), op->type, FLY_MODAL_PRECISION_ENABLE, fly->use_precision);
-  status.opmodal(IFACE_("Free Look"), op->type, FLY_MODAL_FREELOOK_ENABLE, fly->use_freelook);
+  status.opmodal(IFACE_("Precision"), op, FLY_MODAL_PRECISION_ENABLE, fly->use_precision);
+  status.opmodal(IFACE_("Free Look"), op, FLY_MODAL_FREELOOK_ENABLE, fly->use_freelook);
 
-  status.opmodal("", op->type, FLY_MODAL_ACCELERATE);
-  status.opmodal("", op->type, FLY_MODAL_DECELERATE);
+  status.opmodal("", op, FLY_MODAL_ACCELERATE);
+  status.opmodal("", op, FLY_MODAL_DECELERATE);
   status.item(fmt::format("{} ({:.2f})", IFACE_("Acceleration"), fly->speed), ICON_NONE);
 }
 

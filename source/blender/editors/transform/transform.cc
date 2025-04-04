@@ -1955,7 +1955,7 @@ bool initTransform(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
 
   if (event) {
     /* Keymap for shortcut header prints. */
-    t->keymap = WM_keymap_active(CTX_wm_manager(C), op->type->modalkeymap);
+    t->keymap = WM_keymap_operator_from_context(C, op);
 
     /* Stupid code to have Ctrl-Click on gizmo work ok.
      *

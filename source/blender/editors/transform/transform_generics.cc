@@ -683,8 +683,7 @@ void initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
            TFM_EDGE_SLIDE,
            TFM_VERT_SLIDE))
   {
-    wmWindowManager *wm = CTX_wm_manager(C);
-    wmKeyMap *keymap = WM_keymap_active(wm, op->type->modalkeymap);
+    wmKeyMap *keymap = WM_keymap_operator_from_context(C, op);
     const wmKeyMapItem *kmi_passthrough = nullptr;
     LISTBASE_FOREACH (const wmKeyMapItem *, kmi, &keymap->items) {
       if (kmi->flag & KMI_INACTIVE) {

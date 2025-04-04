@@ -1060,28 +1060,27 @@ static void knifetool_draw(const bContext * /*C*/, ARegion * /*region*/, void *a
 static void knife_update_header(bContext *C, wmOperator *op, KnifeTool_OpData *kcd)
 {
   auto get_modal_key_str = [&](int id) {
-    return WM_modalkeymap_operator_items_to_string(op->type, id, true).value_or("");
+    return WM_modalkeymap_operator_items_to_string(C, op, id, true).value_or("");
   };
 
   WorkspaceStatus status(C);
-  status.opmodal(IFACE_("Cut"), op->type, KNF_MODAL_ADD_CUT);
-  status.opmodal(IFACE_("Close"), op->type, KNF_MODAL_ADD_CUT_CLOSED);
-  status.opmodal(IFACE_("Stop"), op->type, KNF_MODAL_NEW_CUT);
-  status.opmodal(IFACE_("Confirm"), op->type, KNF_MODAL_CONFIRM);
-  status.opmodal(IFACE_("Cancel"), op->type, KNF_MODAL_CANCEL);
-  status.opmodal(IFACE_("Undo"), op->type, KNF_MODAL_UNDO);
-  status.opmodal(IFACE_("Pan View"), op->type, KNF_MODAL_PANNING);
-  status.opmodal(IFACE_("Midpoint Snap"), op->type, KNF_MODAL_MIDPOINT_ON, kcd->snap_midpoints);
-  status.opmodal(
-      IFACE_("Ignore Snap"), op->type, KNF_MODAL_IGNORE_SNAP_ON, kcd->ignore_edge_snapping);
-  status.opmodal(IFACE_("Cut Through"), op->type, KNF_MODAL_CUT_THROUGH_TOGGLE, kcd->cut_through);
-  status.opmodal({}, op->type, KNF_MODAL_X_AXIS, kcd->constrain_axis == 1);
-  status.opmodal({}, op->type, KNF_MODAL_Y_AXIS, kcd->constrain_axis == 2);
-  status.opmodal({}, op->type, KNF_MODAL_Z_AXIS, kcd->constrain_axis == 3);
+  status.opmodal(IFACE_("Cut"), op, KNF_MODAL_ADD_CUT);
+  status.opmodal(IFACE_("Close"), op, KNF_MODAL_ADD_CUT_CLOSED);
+  status.opmodal(IFACE_("Stop"), op, KNF_MODAL_NEW_CUT);
+  status.opmodal(IFACE_("Confirm"), op, KNF_MODAL_CONFIRM);
+  status.opmodal(IFACE_("Cancel"), op, KNF_MODAL_CANCEL);
+  status.opmodal(IFACE_("Undo"), op, KNF_MODAL_UNDO);
+  status.opmodal(IFACE_("Pan View"), op, KNF_MODAL_PANNING);
+  status.opmodal(IFACE_("Midpoint Snap"), op, KNF_MODAL_MIDPOINT_ON, kcd->snap_midpoints);
+  status.opmodal(IFACE_("Ignore Snap"), op, KNF_MODAL_IGNORE_SNAP_ON, kcd->ignore_edge_snapping);
+  status.opmodal(IFACE_("Cut Through"), op, KNF_MODAL_CUT_THROUGH_TOGGLE, kcd->cut_through);
+  status.opmodal({}, op, KNF_MODAL_X_AXIS, kcd->constrain_axis == 1);
+  status.opmodal({}, op, KNF_MODAL_Y_AXIS, kcd->constrain_axis == 2);
+  status.opmodal({}, op, KNF_MODAL_Z_AXIS, kcd->constrain_axis == 3);
   status.item(IFACE_("Axis"), ICON_NONE);
   status.opmodal(
-      IFACE_("Measure"), op->type, KNF_MODAL_SHOW_DISTANCE_ANGLE_TOGGLE, kcd->show_dist_angle);
-  status.opmodal(IFACE_("X-Ray"), op->type, KNF_MODAL_DEPTH_TEST_TOGGLE, !kcd->depth_test);
+      IFACE_("Measure"), op, KNF_MODAL_SHOW_DISTANCE_ANGLE_TOGGLE, kcd->show_dist_angle);
+  status.opmodal(IFACE_("X-Ray"), op, KNF_MODAL_DEPTH_TEST_TOGGLE, !kcd->depth_test);
 
   const std::string angle = fmt::format(
       "{}: {:.2f}({:.2f}) ({}{}{}{})",
@@ -1100,7 +1099,7 @@ static void knife_update_header(bContext *C, wmOperator *op, KnifeTool_OpData *k
           "",
       (kcd->angle_snapping_mode == KNF_CONSTRAIN_ANGLE_MODE_RELATIVE) ? ": cycle edge" : "");
 
-  status.opmodal(angle, op->type, KNF_MODAL_ANGLE_SNAP_TOGGLE);
+  status.opmodal(angle, op, KNF_MODAL_ANGLE_SNAP_TOGGLE);
 }
 
 /** \} */

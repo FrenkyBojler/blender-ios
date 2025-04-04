@@ -8255,34 +8255,29 @@ static void point_normals_update_statusbar(bContext *C, wmOperator *op)
 {
   WorkspaceStatus status(C);
 
-  status.opmodal(IFACE_("Confirm"), op->type, EDBM_CLNOR_MODAL_CONFIRM);
-  status.opmodal(IFACE_("Cancel"), op->type, EDBM_CLNOR_MODAL_CANCEL);
-  status.opmodal(IFACE_("Reset"), op->type, EDBM_CLNOR_MODAL_POINTTO_RESET);
+  status.opmodal(IFACE_("Confirm"), op, EDBM_CLNOR_MODAL_CONFIRM);
+  status.opmodal(IFACE_("Cancel"), op, EDBM_CLNOR_MODAL_CANCEL);
+  status.opmodal(IFACE_("Reset"), op, EDBM_CLNOR_MODAL_POINTTO_RESET);
 
-  status.opmodal(IFACE_("Invert"),
-                 op->type,
-                 EDBM_CLNOR_MODAL_POINTTO_INVERT,
-                 RNA_boolean_get(op->ptr, "invert"));
+  status.opmodal(
+      IFACE_("Invert"), op, EDBM_CLNOR_MODAL_POINTTO_INVERT, RNA_boolean_get(op->ptr, "invert"));
   status.opmodal(IFACE_("Spherize"),
-                 op->type,
+                 op,
                  EDBM_CLNOR_MODAL_POINTTO_SPHERIZE,
                  RNA_boolean_get(op->ptr, "spherize"));
-  status.opmodal(IFACE_("Align"),
-                 op->type,
-                 EDBM_CLNOR_MODAL_POINTTO_ALIGN,
-                 RNA_boolean_get(op->ptr, "align"));
+  status.opmodal(
+      IFACE_("Align"), op, EDBM_CLNOR_MODAL_POINTTO_ALIGN, RNA_boolean_get(op->ptr, "align"));
 
   status.opmodal(IFACE_("Use mouse"),
-                 op->type,
+                 op,
                  EDBM_CLNOR_MODAL_POINTTO_USE_MOUSE,
                  RNA_enum_get(op->ptr, "mode") == EDBM_CLNOR_POINTTO_MODE_MOUSE);
 
-  status.opmodal(IFACE_("Use Pivot"), op->type, EDBM_CLNOR_MODAL_POINTTO_USE_PIVOT);
-  status.opmodal(IFACE_("Use Object"), op->type, EDBM_CLNOR_MODAL_POINTTO_USE_OBJECT);
+  status.opmodal(IFACE_("Use Pivot"), op, EDBM_CLNOR_MODAL_POINTTO_USE_PIVOT);
+  status.opmodal(IFACE_("Use Object"), op, EDBM_CLNOR_MODAL_POINTTO_USE_OBJECT);
+  status.opmodal(IFACE_("Set and use 3D cursor"), op, EDBM_CLNOR_MODAL_POINTTO_SET_USE_3DCURSOR);
   status.opmodal(
-      IFACE_("Set and use 3D cursor"), op->type, EDBM_CLNOR_MODAL_POINTTO_SET_USE_3DCURSOR);
-  status.opmodal(
-      IFACE_("Select and use mesh item"), op->type, EDBM_CLNOR_MODAL_POINTTO_SET_USE_SELECTED);
+      IFACE_("Select and use mesh item"), op, EDBM_CLNOR_MODAL_POINTTO_SET_USE_SELECTED);
 }
 
 /* TODO: move that to generic function in BMesh? */

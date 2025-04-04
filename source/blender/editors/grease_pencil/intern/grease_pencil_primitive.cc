@@ -661,12 +661,12 @@ static void grease_pencil_primitive_status_indicators(bContext *C,
                                                       PrimitiveToolOperation &ptd)
 {
   WorkspaceStatus status(C);
-  status.opmodal(IFACE_("Confirm"), op->type, int(ModalKeyMode::Confirm));
-  status.opmodal(IFACE_("Cancel"), op->type, int(ModalKeyMode::Cancel));
-  status.opmodal(IFACE_("Panning"), op->type, int(ModalKeyMode::Panning));
+  status.opmodal(IFACE_("Confirm"), op, int(ModalKeyMode::Confirm));
+  status.opmodal(IFACE_("Cancel"), op, int(ModalKeyMode::Cancel));
+  status.opmodal(IFACE_("Panning"), op, int(ModalKeyMode::Panning));
   status.item(IFACE_("Align"), ICON_EVENT_SHIFT);
-  status.opmodal("", op->type, int(ModalKeyMode::IncreaseSubdivision));
-  status.opmodal("", op->type, int(ModalKeyMode::DecreaseSubdivision));
+  status.opmodal("", op, int(ModalKeyMode::IncreaseSubdivision));
+  status.opmodal("", op, int(ModalKeyMode::DecreaseSubdivision));
   status.item(fmt::format("{} ({})", IFACE_("subdivisions"), ptd.subdivision), ICON_NONE);
 
   if (ptd.segments == 1) {
@@ -679,12 +679,12 @@ static void grease_pencil_primitive_status_indicators(bContext *C,
            PrimitiveType::Arc,
            PrimitiveType::Curve))
   {
-    status.opmodal(IFACE_("Extrude"), op->type, int(ModalKeyMode::Extrude));
+    status.opmodal(IFACE_("Extrude"), op, int(ModalKeyMode::Extrude));
   }
 
-  status.opmodal(IFACE_("Grab"), op->type, int(ModalKeyMode::Grab));
-  status.opmodal(IFACE_("Rotate"), op->type, int(ModalKeyMode::Rotate));
-  status.opmodal(IFACE_("Scale"), op->type, int(ModalKeyMode::Scale));
+  status.opmodal(IFACE_("Grab"), op, int(ModalKeyMode::Grab));
+  status.opmodal(IFACE_("Rotate"), op, int(ModalKeyMode::Rotate));
+  status.opmodal(IFACE_("Scale"), op, int(ModalKeyMode::Scale));
 }
 
 static void grease_pencil_primitive_update_view(bContext *C, PrimitiveToolOperation &ptd)

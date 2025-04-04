@@ -869,6 +869,7 @@ static void ed_workspace_status_space(WorkSpace *workspace, const float space_fa
 
 WorkspaceStatus::WorkspaceStatus(bContext *C)
 {
+  C_ = C;
   workspace_ = CTX_wm_workspace(C);
   wm_ = CTX_wm_manager(C);
   if (workspace_) {
@@ -940,11 +941,11 @@ void WorkspaceStatus::item_bool(std::string text,
 }
 
 void WorkspaceStatus::opmodal(std::string text,
-                              const wmOperatorType *ot,
+                              wmOperator *op,
                               const int propvalue,
                               const bool inverted)
 {
-  wmKeyMap *keymap = WM_keymap_active(wm_, ot->modalkeymap);
+  wmKeyMap *keymap = WM_keymap_operator_from_context(C_, op);
   if (keymap) {
     const wmKeyMapItem *kmi = WM_modalkeymap_find_propvalue(keymap, propvalue);
     if (kmi) {

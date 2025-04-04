@@ -819,15 +819,15 @@ static void applyEdgeSlide(TransInfo *t)
     slp->update_status_bar = false;
 
     WorkspaceStatus status(t->context);
-    status.opmodal(IFACE_("Confirm"), op->type, TFM_MODAL_CONFIRM);
-    status.opmodal(IFACE_("Cancel"), op->type, TFM_MODAL_CANCEL);
-    status.opmodal(IFACE_("Snap"), op->type, TFM_MODAL_SNAP_TOGGLE, is_snap);
-    status.opmodal(IFACE_("Snap Invert"), op->type, TFM_MODAL_SNAP_INV_ON, is_snap_invert);
-    status.opmodal(IFACE_("Set Snap Base"), op->type, TFM_MODAL_EDIT_SNAP_SOURCE_ON);
-    status.opmodal(IFACE_("Move"), op->type, TFM_MODAL_TRANSLATE);
-    status.opmodal(IFACE_("Rotate"), op->type, TFM_MODAL_ROTATE);
-    status.opmodal(IFACE_("Resize"), op->type, TFM_MODAL_RESIZE);
-    status.opmodal(IFACE_("Precision Mode"), op->type, TFM_MODAL_PRECISION, is_precision);
+    status.opmodal(IFACE_("Confirm"), op, TFM_MODAL_CONFIRM);
+    status.opmodal(IFACE_("Cancel"), op, TFM_MODAL_CANCEL);
+    status.opmodal(IFACE_("Snap"), op, TFM_MODAL_SNAP_TOGGLE, is_snap);
+    status.opmodal(IFACE_("Snap Invert"), op, TFM_MODAL_SNAP_INV_ON, is_snap_invert);
+    status.opmodal(IFACE_("Set Snap Base"), op, TFM_MODAL_EDIT_SNAP_SOURCE_ON);
+    status.opmodal(IFACE_("Move"), op, TFM_MODAL_TRANSLATE);
+    status.opmodal(IFACE_("Rotate"), op, TFM_MODAL_ROTATE);
+    status.opmodal(IFACE_("Resize"), op, TFM_MODAL_RESIZE);
+    status.opmodal(IFACE_("Precision Mode"), op, TFM_MODAL_PRECISION, is_precision);
     status.item_bool(IFACE_("Clamp"), is_clamp, ICON_EVENT_C, ICON_EVENT_ALT);
     status.item_bool(IFACE_("Even"), use_even, ICON_EVENT_E);
     if (use_even) {

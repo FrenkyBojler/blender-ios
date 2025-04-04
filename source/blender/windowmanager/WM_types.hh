@@ -1140,6 +1140,13 @@ struct wmOperatorType {
   /** Pointer to modal keymap. Do not free! */
   wmKeyMap *modalkeymap;
 
+  /**
+   * Optionally, returns the keymap used by the operator based on the context.
+   * Only used to retrieve the keymap if the `modalkeymap` is not set (see
+   * #WM_modalkeymap_assign).
+   */
+  wmKeyMap *(*get_keymap)(const bContext &C, wmOperator &op);
+
   /** Python needs the operator type as well. */
   bool (*pyop_poll)(bContext *C, wmOperatorType *ot) ATTR_WARN_UNUSED_RESULT;
 
