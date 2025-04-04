@@ -3276,7 +3276,6 @@ static void do_brush_action(const Depsgraph &depsgraph,
   }
 
   if (sculpt_brush_needs_normal(ss, sd, brush)) {
-    printf("aaa");
     update_sculpt_normal(depsgraph, sd, ob, node_mask);
   }
 
