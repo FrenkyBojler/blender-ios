@@ -310,7 +310,7 @@ class Tree {
 
   /**
    * Recalculate node bounding boxes based on the current coordinates. Calculation is only done for
-   * affected nodes that have been tagged by #PBVH::tag_positions_changed().
+   * affected nodes indicated by `node_mask`.
    */
   void update_bounds(const Depsgraph &depsgraph, const Object &object, const IndexMask &node_mask);
   void update_bounds_mesh(Span<float3> vert_positions, const IndexMask &node_mask);
