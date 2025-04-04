@@ -125,12 +125,17 @@ class ThreadBridgingReporter(CachingDownloadReporter):
     _queue: queue.Queue[FunctionCall]
     """Queue of function calls."""
 
+    _reporters: list[CachingDownloadReporter]
+
     _logger: logging.Logger
 
-    def __init__(self, reporter: CachingDownloadReporter) -> None:
-        self.reporter = reporter
+    def __init__(self) -> None:
+        self._reporters = []
         self._queue = queue.Queue()
         self._logger = logger.getChild(self.__class__.__name__)
+
+    def add_reporter(self, reporter: CachingDownloadReporter) -> None:
+        self._reporters.append(reporter)
 
     def update(self, *, limit_num_calls: int = 100) -> bool:
         """Handle queued function calls on the thread that calls this function.
@@ -151,8 +156,9 @@ class ThreadBridgingReporter(CachingDownloadReporter):
                 return False
 
             function_name, function_arguments = queued_call
-            function = getattr(self.reporter, function_name)
-            function(*function_arguments)
+            for reporter in self._reporters:
+                function = getattr(reporter, function_name)
+                function(*function_arguments)
 
         return self._queue.empty()
 
