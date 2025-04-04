@@ -101,6 +101,7 @@
 #include "DEG_depsgraph_build.hh"
 
 #include "SEQ_iterator.hh"
+#include "SEQ_relations.hh"
 #include "SEQ_sequencer.hh"
 
 #include "intern/builder/deg_builder.h"
@@ -2285,6 +2286,14 @@ void DepsgraphNodeBuilder::build_scene_sequencer(Scene *scene)
                      [scene_cow](::Depsgraph *depsgraph) {
                        seq::eval_sequences(depsgraph, scene_cow, &scene_cow->ed->seqbase);
                      });
+
+  add_operation_node(&scene->id,
+                     NodeType::SEQUENCER,
+                     OperationCode::SEQUENCES_CACHE,
+                     [main = bmain_, scene](::Depsgraph * /*depsgraph*/) {
+                       blender::seq::relations_invalidate_scene_strips(main, scene);
+                     });
+
   /* Make sure data for sequences is in the graph. */
   seq::for_each_callback(&scene->ed->seqbase, strip_node_build_cb, this);
 }

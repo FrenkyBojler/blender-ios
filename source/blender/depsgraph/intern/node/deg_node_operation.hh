@@ -200,6 +200,7 @@ enum class OperationCode {
   /* Sequencer. ----------------------------------------------------------- */
 
   SEQUENCES_EVAL,
+  SEQUENCES_CACHE,
 
   /* instancing system. --------------------------------------------------- */
 
