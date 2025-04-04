@@ -242,66 +242,126 @@ static Image *load_texture_image(Main *bmain, const std::string &file_dir, const
   return image;
 }
 
-static const char *ufbx_map_to_node_socket[] = {
-    nullptr,                 /* UFBX_MATERIAL_PBR_BASE_FACTOR */
-    "Base Color",            /* UFBX_MATERIAL_PBR_BASE_COLOR */
-    "Roughness",             /* UFBX_MATERIAL_PBR_ROUGHNESS */
-    "Metallic",              /* UFBX_MATERIAL_PBR_METALNESS */
-    "Diffuse Roughness",     /* UFBX_MATERIAL_PBR_DIFFUSE_ROUGHNESS */
-    "Specular IOR Level",    /* UFBX_MATERIAL_PBR_SPECULAR_FACTOR */
-    "Specular Tint",         /* UFBX_MATERIAL_PBR_SPECULAR_COLOR */
-    "IOR",                   /* UFBX_MATERIAL_PBR_SPECULAR_IOR */
-    "Anisotropic",           /* UFBX_MATERIAL_PBR_SPECULAR_ANISOTROPY */
-    "Anisotropic Rotation",  /* UFBX_MATERIAL_PBR_SPECULAR_ROTATION */
-    "Transmission Weight",   /* UFBX_MATERIAL_PBR_TRANSMISSION_FACTOR */
-    nullptr,                 /* UFBX_MATERIAL_PBR_TRANSMISSION_COLOR */
-    nullptr,                 /* UFBX_MATERIAL_PBR_TRANSMISSION_DEPTH */
-    nullptr,                 /* UFBX_MATERIAL_PBR_TRANSMISSION_SCATTER */
-    nullptr,                 /* UFBX_MATERIAL_PBR_TRANSMISSION_SCATTER_ANISOTROPY */
-    nullptr,                 /* UFBX_MATERIAL_PBR_TRANSMISSION_DISPERSION */
-    nullptr,                 /* UFBX_MATERIAL_PBR_TRANSMISSION_ROUGHNESS */
-    nullptr,                 /* UFBX_MATERIAL_PBR_TRANSMISSION_EXTRA_ROUGHNESS */
-    nullptr,                 /* UFBX_MATERIAL_PBR_TRANSMISSION_PRIORITY */
-    nullptr,                 /* UFBX_MATERIAL_PBR_TRANSMISSION_ENABLE_IN_AOV */
-    "Subsurface Weight",     /* UFBX_MATERIAL_PBR_SUBSURFACE_FACTOR */
-    nullptr,                 /* UFBX_MATERIAL_PBR_SUBSURFACE_COLOR */
-    nullptr,                 /* UFBX_MATERIAL_PBR_SUBSURFACE_RADIUS */
-    "Subsurface Scale",      /* UFBX_MATERIAL_PBR_SUBSURFACE_SCALE */
-    "Subsurface Anisotropy", /* UFBX_MATERIAL_PBR_SUBSURFACE_ANISOTROPY */
-    nullptr,                 /* UFBX_MATERIAL_PBR_SUBSURFACE_TINT_COLOR */
-    nullptr,                 /* UFBX_MATERIAL_PBR_SUBSURFACE_TYPE */
-    "Sheen Weight",          /* UFBX_MATERIAL_PBR_SHEEN_FACTOR */
-    "Sheen Tint",            /* UFBX_MATERIAL_PBR_SHEEN_COLOR */
-    "Sheen Roughness",       /* UFBX_MATERIAL_PBR_SHEEN_ROUGHNESS */
-    "Coat Weight",           /* UFBX_MATERIAL_PBR_COAT_FACTOR */
-    "Coat Tint",             /* UFBX_MATERIAL_PBR_COAT_COLOR */
-    "Coat Roughness",        /* UFBX_MATERIAL_PBR_COAT_ROUGHNESS */
-    "Coat IOR",              /* UFBX_MATERIAL_PBR_COAT_IOR */
-    nullptr,                 /* UFBX_MATERIAL_PBR_COAT_ANISOTROPY */
-    nullptr,                 /* UFBX_MATERIAL_PBR_COAT_ROTATION */
-    "Coat Normal",           /* UFBX_MATERIAL_PBR_COAT_NORMAL */
-    nullptr,                 /* UFBX_MATERIAL_PBR_COAT_AFFECT_BASE_COLOR */
-    nullptr,                 /* UFBX_MATERIAL_PBR_COAT_AFFECT_BASE_ROUGHNESS */
-    nullptr,                 /* UFBX_MATERIAL_PBR_THIN_FILM_FACTOR */
-    "Thin Film Thickness",   /* UFBX_MATERIAL_PBR_THIN_FILM_THICKNESS */
-    "Thin Film IOR",         /* UFBX_MATERIAL_PBR_THIN_FILM_IOR */
-    "Emission Strength",     /* UFBX_MATERIAL_PBR_EMISSION_FACTOR */
-    "Emission Color",        /* UFBX_MATERIAL_PBR_EMISSION_COLOR */
-    "Alpha",                 /* UFBX_MATERIAL_PBR_OPACITY */
-    nullptr,                 /* UFBX_MATERIAL_PBR_INDIRECT_DIFFUSE */
-    nullptr,                 /* UFBX_MATERIAL_PBR_INDIRECT_SPECULAR */
-    "Normal",                /* UFBX_MATERIAL_PBR_NORMAL_MAP */
-    "Tangent",               /* UFBX_MATERIAL_PBR_TANGENT_MAP */
-    nullptr,                 /* UFBX_MATERIAL_PBR_DISPLACEMENT_MAP */
-    nullptr,                 /* UFBX_MATERIAL_PBR_MATTE_FACTOR */
-    nullptr,                 /* UFBX_MATERIAL_PBR_MATTE_COLOR */
-    nullptr,                 /* UFBX_MATERIAL_PBR_AMBIENT_OCCLUSION */
-    nullptr,                 /* UFBX_MATERIAL_PBR_GLOSSINESS */
-    nullptr,                 /* UFBX_MATERIAL_PBR_COAT_GLOSSINESS */
-    nullptr,                 /* UFBX_MATERIAL_PBR_TRANSMISSION_GLOSSINESS */
+struct FbxPbrTextureToSocket {
+  ufbx_material_pbr_map slot;
+  const char *socket;
 };
-static_assert(sizeof(ufbx_map_to_node_socket) / sizeof(ufbx_map_to_node_socket[0]) ==
-              UFBX_MATERIAL_PBR_MAP_COUNT);
+static const FbxPbrTextureToSocket fbx_pbr_to_socket[] = {
+    {UFBX_MATERIAL_PBR_BASE_COLOR, "Base Color"},
+    {UFBX_MATERIAL_PBR_ROUGHNESS, "Roughness"},
+    {UFBX_MATERIAL_PBR_METALNESS, "Metallic"},
+    {UFBX_MATERIAL_PBR_DIFFUSE_ROUGHNESS, "Diffuse Roughness"},
+    {UFBX_MATERIAL_PBR_SPECULAR_FACTOR, "Specular IOR Level"},
+    {UFBX_MATERIAL_PBR_SPECULAR_COLOR, "Specular Tint"},
+    {UFBX_MATERIAL_PBR_SPECULAR_IOR, "IOR"},
+    {UFBX_MATERIAL_PBR_SPECULAR_ANISOTROPY, "Anisotropic"},
+    {UFBX_MATERIAL_PBR_SPECULAR_ROTATION, "Anisotropic Rotation"},
+    {UFBX_MATERIAL_PBR_TRANSMISSION_FACTOR, "Transmission Weight"},
+    {UFBX_MATERIAL_PBR_SUBSURFACE_FACTOR, "Subsurface Weight"},
+    {UFBX_MATERIAL_PBR_SUBSURFACE_SCALE, "Subsurface Scale"},
+    {UFBX_MATERIAL_PBR_SUBSURFACE_ANISOTROPY, "Subsurface Anisotropy"},
+    {UFBX_MATERIAL_PBR_SHEEN_FACTOR, "Sheen Weight"},
+    {UFBX_MATERIAL_PBR_SHEEN_COLOR, "Sheen Tint"},
+    {UFBX_MATERIAL_PBR_SHEEN_ROUGHNESS, "Sheen Roughness"},
+    {UFBX_MATERIAL_PBR_COAT_FACTOR, "Coat Weight"},
+    {UFBX_MATERIAL_PBR_COAT_COLOR, "Coat Tint"},
+    {UFBX_MATERIAL_PBR_COAT_ROUGHNESS, "Coat Roughness"},
+    {UFBX_MATERIAL_PBR_COAT_IOR, "Coat IOR"},
+    {UFBX_MATERIAL_PBR_COAT_NORMAL, "Coat Normal"},
+    {UFBX_MATERIAL_PBR_THIN_FILM_THICKNESS, "Thin Film Thickness"},
+    {UFBX_MATERIAL_PBR_THIN_FILM_IOR, "Thin Film IOR"},
+    {UFBX_MATERIAL_PBR_EMISSION_FACTOR, "Emission Strength"},
+    {UFBX_MATERIAL_PBR_EMISSION_COLOR, "Emission Color"},
+    {UFBX_MATERIAL_PBR_OPACITY, "Alpha"},
+    {UFBX_MATERIAL_PBR_NORMAL_MAP, "Normal"},
+    {UFBX_MATERIAL_PBR_TANGENT_MAP, "Tangent"},
+};
+
+struct FbxStdTextureToSocket {
+  ufbx_material_fbx_map slot;
+  const char *socket;
+};
+static const FbxStdTextureToSocket fbx_std_to_socket[] = {
+    {UFBX_MATERIAL_FBX_TRANSPARENCY_FACTOR, "Alpha"},
+    {UFBX_MATERIAL_FBX_TRANSPARENCY_COLOR, "Alpha"},
+    {UFBX_MATERIAL_FBX_BUMP, "Normal"},
+};
+
+static void add_image_texture(Main *bmain,
+                              const std::string &file_dir,
+                              bNodeTree *ntree,
+                              bNode *bsdf,
+                              const ufbx_material &fmat,
+                              const ufbx_texture *ftex,
+                              const char *socket_name,
+                              float node_locy)
+{
+  Image *image = load_texture_image(bmain, file_dir, *ftex);
+  BLI_assert(image != nullptr);
+
+  /* Add texture node and any UV transformations if needed. */
+  bNode *image_node = add_node(ntree, SH_NODE_TEX_IMAGE, node_locx_image, node_locy);
+  BLI_assert(image_node);
+  image_node->id = &image->id;
+  NodeTexImage *tex_image = static_cast<NodeTexImage *>(image_node->storage);
+
+  /* Wrap mode. */
+  tex_image->extension = SHD_IMAGE_EXTENSION_REPEAT;
+  if (ftex->wrap_u == UFBX_WRAP_CLAMP || ftex->wrap_v == UFBX_WRAP_CLAMP) {
+    tex_image->extension = SHD_IMAGE_EXTENSION_EXTEND;
+  }
+
+  /* UV transform. */
+  if (ftex->has_uv_transform) {
+    /*@TODO: which UV set to use. */
+    bNode *uvmap = add_node(ntree, SH_NODE_UVMAP, node_locx_texcoord, node_locy);
+    bNode *mapping = add_node(ntree, SH_NODE_MAPPING, node_locx_mapping, node_locy);
+    mapping->custom1 = TEXMAP_TYPE_TEXTURE;
+    set_socket_vector("Location",
+                      ftex->uv_transform.translation.x,
+                      ftex->uv_transform.translation.y,
+                      ftex->uv_transform.translation.z,
+                      mapping);
+    ufbx_vec3 rot = ufbx_quat_to_euler(ftex->uv_transform.rotation, UFBX_ROTATION_ORDER_XYZ);
+    set_socket_vector("Rotation", -rot.x, -rot.y, -rot.z, mapping);
+    set_socket_vector("Scale",
+                      1.0f / ftex->uv_transform.scale.x,
+                      1.0f / ftex->uv_transform.scale.y,
+                      1.0f / ftex->uv_transform.scale.z,
+                      mapping);
+
+    link_sockets(ntree, uvmap, "UV", mapping, "Vector");
+    link_sockets(ntree, mapping, "Vector", image_node, "Vector");
+  }
+
+  if (STREQ(socket_name, "Normal")) {
+    bNode *normal_node = add_node(ntree, SH_NODE_NORMAL_MAP, node_locx_normalmap, node_locy);
+    link_sockets(ntree, image_node, "Color", normal_node, "Color");
+    link_sockets(ntree, normal_node, "Normal", bsdf, "Normal");
+
+    /* Normal strength: Blender exports it as BumpFactor in FBX built-in properties. */
+    float normal_strength = 1.0f;
+    if (fmat.fbx.bump_factor.has_value) {
+      normal_strength = fmat.fbx.bump_factor.value_real;
+    }
+    set_socket_float("Strength", normal_strength, normal_node);
+  }
+  else {
+    link_sockets(ntree, image_node, "Color", bsdf, socket_name);
+
+    if (STREQ(socket_name, "Base Color")) {
+      /* Link base color alpha (if we have one) to output alpha. */
+      void *lock;
+      ImBuf *ibuf = BKE_image_acquire_ibuf(image, nullptr, &lock);
+      bool has_alpha = ibuf != nullptr && ibuf->planes == R_IMF_PLANES_RGBA;
+      BKE_image_release_ibuf(image, ibuf, lock);
+
+      if (has_alpha) {
+        link_sockets(ntree, image_node, "Alpha", bsdf, "Alpha");
+      }
+    }
+  }
+}
 
 static void add_image_textures(Main *bmain,
                                const std::string &file_dir,
@@ -310,89 +370,33 @@ static void add_image_textures(Main *bmain,
                                const ufbx_material &fmat)
 {
   float node_locy = node_locy_top;
-  for (int slot = 0; slot < UFBX_MATERIAL_PBR_MAP_COUNT; slot++) {
-    const char *socket_name = ufbx_map_to_node_socket[slot];
-    if (socket_name == nullptr) {
-      /* We do not support this texture. */
-      continue;
-    }
 
-    const ufbx_texture *ftex = fmat.pbr.maps[slot].texture;
-    if (ftex == nullptr || !fmat.pbr.maps[slot].texture_enabled) {
+  /* We primarily use images from "PBR" FBX mapping. */
+  for (const FbxPbrTextureToSocket &entry : fbx_pbr_to_socket) {
+    BLI_assert(entry.socket != nullptr);
+
+    const ufbx_texture *ftex = fmat.pbr.maps[entry.slot].texture;
+    if (ftex == nullptr || !fmat.pbr.maps[entry.slot].texture_enabled) {
       /* No texture used for this slot. */
       continue;
     }
 
-    Image *image = load_texture_image(bmain, file_dir, *ftex);
-    if (image == nullptr) {
-      /* Texture not found. */
+    add_image_texture(bmain, file_dir, ntree, bsdf, fmat, ftex, entry.socket, node_locy);
+    node_locy -= node_locy_step;
+  }
+
+  /* But also support several from the legacy/standard "FBX" material model,
+   * mostly to match behavior of python importer. */
+  for (const FbxStdTextureToSocket &entry : fbx_std_to_socket) {
+    BLI_assert(entry.socket != nullptr);
+
+    const ufbx_texture *ftex = fmat.fbx.maps[entry.slot].texture;
+    if (ftex == nullptr || !fmat.fbx.maps[entry.slot].texture_enabled) {
+      /* No texture used for this slot. */
       continue;
     }
 
-    /* We have a valid texture, add node for it and any UV transformations if needed. */
-    bNode *image_node = add_node(ntree, SH_NODE_TEX_IMAGE, node_locx_image, node_locy);
-    BLI_assert(image_node);
-    image_node->id = &image->id;
-    NodeTexImage *tex_image = static_cast<NodeTexImage *>(image_node->storage);
-
-    /* Wrap mode. */
-    tex_image->extension = SHD_IMAGE_EXTENSION_REPEAT;
-    if (ftex->wrap_u == UFBX_WRAP_CLAMP || ftex->wrap_v == UFBX_WRAP_CLAMP) {
-      tex_image->extension = SHD_IMAGE_EXTENSION_EXTEND;
-    }
-
-    /* UV transform. */
-    if (ftex->has_uv_transform) {
-      /*@TODO: which UV set to use. */
-      bNode *uvmap = add_node(ntree, SH_NODE_UVMAP, node_locx_texcoord, node_locy);
-      bNode *mapping = add_node(ntree, SH_NODE_MAPPING, node_locx_mapping, node_locy);
-      mapping->custom1 = TEXMAP_TYPE_TEXTURE;
-      set_socket_vector("Location",
-                        ftex->uv_transform.translation.x,
-                        ftex->uv_transform.translation.y,
-                        ftex->uv_transform.translation.z,
-                        mapping);
-      ufbx_vec3 rot = ufbx_quat_to_euler(ftex->uv_transform.rotation, UFBX_ROTATION_ORDER_XYZ);
-      set_socket_vector("Rotation", -rot.x, -rot.y, -rot.z, mapping);
-      set_socket_vector("Scale",
-                        1.0f / ftex->uv_transform.scale.x,
-                        1.0f / ftex->uv_transform.scale.y,
-                        1.0f / ftex->uv_transform.scale.z,
-                        mapping);
-
-      link_sockets(ntree, uvmap, "UV", mapping, "Vector");
-      link_sockets(ntree, mapping, "Vector", image_node, "Vector");
-    }
-
-    if (STREQ(socket_name, "Normal")) {
-      bNode *normal_node = add_node(ntree, SH_NODE_NORMAL_MAP, node_locx_normalmap, node_locy);
-      link_sockets(ntree, image_node, "Color", normal_node, "Color");
-      link_sockets(ntree, normal_node, "Normal", bsdf, "Normal");
-
-      /* Normal strength: Blender exports it as BumpFactor in FBX built-in properties. */
-      float normal_strength = 1.0f;
-      if (fmat.fbx.bump_factor.has_value) {
-        normal_strength = fmat.fbx.bump_factor.value_real;
-      }
-      set_socket_float("Strength", normal_strength, normal_node);
-    }
-    else {
-      link_sockets(ntree, image_node, "Color", bsdf, socket_name);
-
-      if (STREQ(socket_name, "Base Color")) {
-        /* Link base color alpha (if we have one) to output alpha. */
-        void *lock;
-        ImBuf *ibuf = BKE_image_acquire_ibuf(image, nullptr, &lock);
-        bool has_alpha = ibuf != nullptr && ibuf->planes == R_IMF_PLANES_RGBA;
-        BKE_image_release_ibuf(image, ibuf, lock);
-
-        if (has_alpha) {
-          link_sockets(ntree, image_node, "Alpha", bsdf, "Alpha");
-        }
-      }
-    }
-
-    /* Next layout row: goes downwards on the screen. */
+    add_image_texture(bmain, file_dir, ntree, bsdf, fmat, ftex, entry.socket, node_locy);
     node_locy -= node_locy_step;
   }
 }
