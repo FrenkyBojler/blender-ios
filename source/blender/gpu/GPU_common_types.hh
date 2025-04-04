@@ -9,6 +9,7 @@
 #pragma once
 
 #include "BLI_string_ref.hh"
+#include "BLI_vector.hh"
 
 /**
  * Describes the load operation of a frame-buffer attachment at the start of a render pass.
@@ -217,6 +218,17 @@ struct SpecializationConstant {
   {
     return this->type == b.type && this->name == b.name && this->value == b.value;
   }
+};
+
+/**
+ * Specialization constants as a Struct-of-Arrays. Allow simpler comparison and reset.
+ * The backend is free to implement their support as they see fit.
+ */
+struct SpecializationConstants {
+  Vector<gpu::shader::Type> types;
+  /* Current values set by `GPU_shader_constant_*()` call. The backend can choose to interpret
+   * that however it wants (i.e: bind another shader instead). */
+  Vector<SpecializationConstant::Value> values;
 };
 
 }  // namespace blender::gpu::shader

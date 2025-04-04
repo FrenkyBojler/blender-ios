@@ -116,7 +116,8 @@ void GPU_shader_free(GPUShader *shader);
  * Uniform functions need to have the shader bound in order to work. (TODO: until we use
  * glProgramUniform)
  */
-void GPU_shader_bind(GPUShader *shader);
+void GPU_shader_bind(GPUShader *shader,
+                     blender::gpu::shader::SpecializationConstants *constants_state = nullptr);
 
 /**
  * Unbind the active shader.
@@ -223,7 +224,8 @@ bool GPU_shader_get_ssbo_input_info(const GPUShader *shader, int ssbo_location, 
  * Otherwise, it will produce undefined behavior.
  * \{ */
 
-void GPU_shader_specialization_lock_acquire(GPUShader *gpu_shader);
+blender::gpu::shader::SpecializationConstants *GPU_shader_get_constant_state_template(
+    GPUShader *sh);
 
 void GPU_shader_constant_int_ex(GPUShader *sh, int location, int value);
 void GPU_shader_constant_uint_ex(GPUShader *sh, int location, unsigned int value);

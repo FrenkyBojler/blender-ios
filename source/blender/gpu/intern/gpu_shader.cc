@@ -396,7 +396,7 @@ void GPU_shader_cache_dir_clear_old()
 /** \name Binding
  * \{ */
 
-void GPU_shader_bind(GPUShader *gpu_shader, GPUShaderSpecializationState *specialization_constants)
+void GPU_shader_bind(GPUShader *gpu_shader, shader::SpecializationConstants *constants_state)
 {
   Shader *shader = unwrap(gpu_shader);
 
@@ -404,14 +404,13 @@ void GPU_shader_bind(GPUShader *gpu_shader, GPUShaderSpecializationState *specia
 
   if (ctx->shader != shader) {
     ctx->shader = shader;
-    shader->bind(specialization_constants);
+    shader->bind(constants_state);
     GPU_matrix_bind(gpu_shader);
     Shader::set_srgb_uniform(gpu_shader);
-    shader->constants.is_dirty = false;
   }
   else {
-    if (specialization_constants) {
-      shader->bind(specialization_constants);
+    if (constants_state) {
+      shader->bind(constants_state);
     }
     if (Shader::srgb_uniform_dirty_get()) {
       Shader::set_srgb_uniform(gpu_shader);
@@ -486,13 +485,12 @@ void GPU_shader_warm_cache(GPUShader *shader, int limit)
 /** \name Assign specialization constants.
  * \{ */
 
-void GPU_shader_specialization_lock_acquire(GPUShader *gpu_shader)
+shader::SpecializationConstants *GPU_shader_get_constant_state_template(GPUShader *sh)
 {
-  Shader *shader = unwrap(gpu_shader);
-  printf("Lock %s\n", shader->name_get().c_str());
-  shader->specialization_lock.lock();
-  /* Notify backend to unlock when this occurs. Otherwise, keep the old behavior. */
-  shader->specialization_lock_acquired = true;
+  Shader &shader = *unwrap(sh);
+  shader::SpecializationConstants *state = MEM_new<shader::SpecializationConstants>(__func__);
+  *state = shader.constants;
+  return state;
 }
 
 void Shader::specialization_constants_init(const shader::ShaderCreateInfo &info)
@@ -502,33 +500,31 @@ void Shader::specialization_constants_init(const shader::ShaderCreateInfo &info)
     constants.types.append(sc.type);
     constants.values.append(sc.value);
   }
-  constants.is_dirty = true;
 }
 
 void GPU_shader_constant_int_ex(GPUShader *sh, int location, int value)
 {
   Shader &shader = *unwrap(sh);
   BLI_assert(shader.constants.types[location] == gpu::shader::Type::INT);
-  shader.constants.is_dirty |= assign_if_different(shader.constants.values[location].i, value);
+  shader.constants.values[location].i = value;
 }
 void GPU_shader_constant_uint_ex(GPUShader *sh, int location, uint value)
 {
   Shader &shader = *unwrap(sh);
   BLI_assert(shader.constants.types[location] == gpu::shader::Type::UINT);
-  shader.constants.is_dirty |= assign_if_different(shader.constants.values[location].u, value);
+  shader.constants.values[location].u = value;
 }
 void GPU_shader_constant_float_ex(GPUShader *sh, int location, float value)
 {
   Shader &shader = *unwrap(sh);
   BLI_assert(shader.constants.types[location] == gpu::shader::Type::FLOAT);
-  shader.constants.is_dirty |= assign_if_different(shader.constants.values[location].f, value);
+  shader.constants.values[location].f = value;
 }
 void GPU_shader_constant_bool_ex(GPUShader *sh, int location, bool value)
 {
   Shader &shader = *unwrap(sh);
   BLI_assert(shader.constants.types[location] == gpu::shader::Type::BOOL);
-  shader.constants.is_dirty |= assign_if_different(shader.constants.values[location].u,
-                                                   uint32_t(value));
+  shader.constants.values[location].u = uint32_t(value);
 }
 
 void GPU_shader_constant_int(GPUShader *sh, const char *name, int value)

@@ -282,7 +282,7 @@ class MTLShader : public Shader {
   std::string geometry_layout_declare(const shader::ShaderCreateInfo &info) const override;
   std::string compute_layout_declare(const shader::ShaderCreateInfo &info) const override;
 
-  void bind() override;
+  void bind(const shader::SpecializationConstants *constants_state) override;
   void unbind() override;
 
   void uniform_float(int location, int comp_len, int array_size, const float *data) override;
@@ -333,7 +333,7 @@ class MTLParallelShaderCompiler {
     const shader::ShaderCreateInfo *info = nullptr;
     class MTLShaderCompiler *shader_compiler = nullptr;
     MTLShader *shader = nullptr;
-    Vector<Shader::Constants::Value> specialization_values;
+    Vector<shader::SpecializationConstant::Value> specialization_values;
 
     ParallelWorkType work_type = PARALLELWORKTYPE_UNSPECIFIED;
     bool is_ready = false;

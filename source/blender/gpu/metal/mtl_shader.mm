@@ -470,7 +470,7 @@ bool MTLShader::finalize(const shader::ShaderCreateInfo *info)
 /** \name Shader Binding.
  * \{ */
 
-void MTLShader::bind()
+void MTLShader::bind(const shader::SpecializationConstants *constants_state)
 {
   MTLContext *ctx = MTLContext::get();
   if (interface == nullptr || !this->is_valid()) {
@@ -763,11 +763,11 @@ void MTLShader::set_interface(MTLShaderInterface *interface)
  */
 static void populate_specialization_constant_values(
     MTLFunctionConstantValues *values,
-    const Shader::Constants &shader_constants,
+    const shader::SpecializationConstants &shader_constants,
     const SpecializationStateDescriptor &specialization_descriptor)
 {
   for (auto i : shader_constants.types.index_range()) {
-    const Shader::Constants::Value &value = specialization_descriptor.values[i];
+    const shader::SpecializationConstant &value = specialization_descriptor.values[i];
 
     uint index = i + MTL_SHADER_SPECIALIZATION_CONSTANT_BASE_ID;
     switch (shader_constants.types[i]) {
@@ -1895,15 +1895,13 @@ SpecializationBatchHandle MTLParallelShaderCompiler::precompile_specializations(
     work_item->shader = sh;
     work_item->work_type = PARALLELWORKTYPE_BAKE_PSO;
 
-    GPU_shader_specialization_lock_acquire(specialization.shader);
-
     /* Add the specialization constants to the work-item */
+    work_item->specialization_values.resize(sh->constants.values.size());
     for (const SpecializationConstant &constant : specialization.constants) {
       const ShaderInput *input = sh->interface->constant_get(constant.name.c_str());
       BLI_assert_msg(input != nullptr, "The specialization constant doesn't exists");
       work_item->specialization_values[input->location].u = constant.value.u;
     }
-    sh->constants.is_dirty = true;
 
     add_parallel_item_to_queue(work_item, batch_handle);
   }

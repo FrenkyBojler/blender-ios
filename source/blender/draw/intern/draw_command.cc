@@ -45,13 +45,12 @@ static gpu::Batch *procedural_batch_get(GPUPrimType primitive)
 
 void ShaderBind::execute(RecordingState &state) const
 {
-  if (assign_if_different(state.shader, shader) || state.specialization_lock_acquired) {
-    GPU_shader_bind(shader);
-    if (state.specialization_lock_acquired) {
-      printf("Unlock\n");
-    }
-    state.specialization_lock_acquired = false;
+  if (assign_if_different(state.shader, shader) || state.specialization_constants != nullptr) {
+    GPU_shader_bind(shader, state.specialization_constants);
   }
+
+  MEM_delete(state.specialization_constants);
+  state.specialization_constants = nullptr;
 }
 
 void FramebufferBind::execute() const
@@ -138,35 +137,42 @@ void SpecializeConstant::execute(command::RecordingState &state) const
   /* All specialization constants should exist as they are not optimized out like uniforms. */
   BLI_assert(location != -1);
 
-  if (state.specialization_lock_acquired == false) {
-    GPU_shader_specialization_lock_acquire(shader);
-    state.specialization_lock_acquired = true;
+  if (state.specialization_constants == nullptr) {
+    state.specialization_constants = GPU_shader_get_constant_state_template(this->shader);
   }
 
   switch (type) {
     case SpecializeConstant::Type::IntValue:
-      GPU_shader_constant_int_ex(shader, location, int_value);
+      BLI_assert(state.specialization_constants->types[location] == gpu::shader::Type::INT);
+      state.specialization_constants->values[location].i = int_value;
       break;
     case SpecializeConstant::Type::IntReference:
-      GPU_shader_constant_int_ex(shader, location, *int_ref);
+      BLI_assert(state.specialization_constants->types[location] == gpu::shader::Type::INT);
+      state.specialization_constants->values[location].i = *int_ref;
       break;
     case SpecializeConstant::Type::UintValue:
-      GPU_shader_constant_uint_ex(shader, location, uint_value);
+      BLI_assert(state.specialization_constants->types[location] == gpu::shader::Type::UINT);
+      state.specialization_constants->values[location].u = uint_value;
       break;
     case SpecializeConstant::Type::UintReference:
-      GPU_shader_constant_uint_ex(shader, location, *uint_ref);
+      BLI_assert(state.specialization_constants->types[location] == gpu::shader::Type::UINT);
+      state.specialization_constants->values[location].u = *uint_ref;
       break;
     case SpecializeConstant::Type::FloatValue:
-      GPU_shader_constant_float_ex(shader, location, float_value);
+      BLI_assert(state.specialization_constants->types[location] == gpu::shader::Type::FLOAT);
+      state.specialization_constants->values[location].f = float_value;
       break;
     case SpecializeConstant::Type::FloatReference:
-      GPU_shader_constant_float_ex(shader, location, *float_ref);
+      BLI_assert(state.specialization_constants->types[location] == gpu::shader::Type::FLOAT);
+      state.specialization_constants->values[location].f = *float_ref;
       break;
     case SpecializeConstant::Type::BoolValue:
-      GPU_shader_constant_bool_ex(shader, location, bool_value);
+      BLI_assert(state.specialization_constants->types[location] == gpu::shader::Type::BOOL);
+      state.specialization_constants->values[location].u = bool_value;
       break;
     case SpecializeConstant::Type::BoolReference:
-      GPU_shader_constant_bool_ex(shader, location, *bool_ref);
+      BLI_assert(state.specialization_constants->types[location] == gpu::shader::Type::BOOL);
+      state.specialization_constants->values[location].u = *bool_ref;
       break;
   }
 }

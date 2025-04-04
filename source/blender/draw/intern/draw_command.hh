@@ -44,8 +44,8 @@ class DrawMultiBuf;
  * Keep track of several states and avoid redundant state changes.
  */
 struct RecordingState {
+  gpu::shader::SpecializationConstants *specialization_constants = nullptr;
   GPUShader *shader = nullptr;
-  bool specialization_lock_acquired = false;
   bool front_facing = true;
   bool inverted_view = false;
   DRWState pipeline_state = DRW_STATE_NO_DRAW;

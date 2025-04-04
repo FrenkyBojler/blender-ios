@@ -76,7 +76,7 @@ class VKShader : public Shader {
   bool is_ready() const;
   void warm_cache(int limit) override;
 
-  void bind() override;
+  void bind(const shader::SpecializationConstants *constants_state) override;
   void unbind() override;
 
   void uniform_float(int location, int comp_len, int array_size, const float *data) override;
