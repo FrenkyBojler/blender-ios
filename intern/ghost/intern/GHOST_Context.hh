@@ -15,6 +15,9 @@
 #include <cstdlib>  // for nullptr
 
 class GHOST_Context : public GHOST_IContext {
+ protected:
+  static thread_local inline GHOST_Context *active_context_;
+
  public:
   /**
    * Constructor.
@@ -31,6 +34,14 @@ class GHOST_Context : public GHOST_IContext {
       active_context_ = nullptr;
     }
   };
+
+  /**
+   * Returns the thread's currently active drawing context.
+   */
+  static inline GHOST_Context *getActiveDrawingContext()
+  {
+    return active_context_;
+  }
 
   /**
    * Swaps front and back buffers of a window.
