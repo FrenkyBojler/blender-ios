@@ -857,6 +857,7 @@ bke::GeometrySet execute_geometry_nodes_on_geometry(const bNodeTree &btree,
   btree.ensure_interface_cache();
 
   /* Prepare main inputs. */
+  int lf_input_index = 0;
   for (const int i : btree.interface_inputs().index_range()) {
     const bNodeTreeInterfaceSocket &interface_socket = *btree.interface_inputs()[i];
     const bke::bNodeSocketType *typeinfo = interface_socket.socket_typeinfo();
@@ -864,15 +865,19 @@ bke::GeometrySet execute_geometry_nodes_on_geometry(const bNodeTree &btree,
                                                        SOCK_CUSTOM;
     if (socket_type == SOCK_GEOMETRY && i == 0) {
       param_inputs[function.inputs.main[0]] = &input_geometry;
+      lf_input_index++;
       continue;
     }
-
     const CPPType *type = typeinfo->geometry_nodes_cpp_type;
-    BLI_assert(type != nullptr);
+    /* ignore non geometry-node socket types */
+    if (type == nullptr) {
+      continue;
+    }
     void *value = allocator.allocate(type->size(), type->alignment());
     initialize_group_input(btree, properties_set, i, value);
-    param_inputs[function.inputs.main[i]] = {type, value};
+    param_inputs[function.inputs.main[lf_input_index]] = {type, value};
     inputs_to_destruct.append({type, value});
+    lf_input_index++;
   }
 
   /* Prepare used-outputs inputs. */
@@ -939,6 +944,10 @@ void update_input_properties_from_node_tree(const bNodeTree &tree,
     const bNodeTreeInterfaceSocket &socket = *tree_inputs[i];
     const StringRefNull socket_identifier = socket.identifier;
     const bke::bNodeSocketType *typeinfo = socket.socket_typeinfo();
+    /* ignore non geometry-node socket types */
+    if (typeinfo->geometry_nodes_cpp_type == nullptr) {
+      continue;
+    }
     const eNodeSocketDatatype socket_type = typeinfo ? eNodeSocketDatatype(typeinfo->type) :
                                                        SOCK_CUSTOM;
     IDProperty *new_prop = id_property_create_from_socket(socket, use_name_for_ids).release();
