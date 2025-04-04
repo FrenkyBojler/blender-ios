@@ -126,8 +126,6 @@ struct VKGraphicsInfo {
       uint64_t hash = uint64_t(vk_fragment_module);
       hash = hash * 33 ^ uint64_t(viewports.size());
       hash = hash * 33 ^ uint64_t(scissors.size());
-      // hash = hash * 33 ^ XXH3_64bits(viewports.data(), viewports.size() * sizeof(VkViewport));
-      // hash = hash * 33 ^ XXH3_64bits(scissors.data(), scissors.size() * sizeof(VkRect2D));
 
       return hash;
     }
