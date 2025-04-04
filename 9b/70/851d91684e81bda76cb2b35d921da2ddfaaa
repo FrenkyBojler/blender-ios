@@ -5,3 +5,4 @@ Referenced by issue #136670, UV: vertices selection not drawn in the UV Editor i
 Referenced by commit ec2cdce657e3e724983cef8c8f06d0232ef1f758, Fix #136625: Crash switching to Texture Paint workspace
 Referenced by commit ebe7259c658cf664bc356f158286092a5efca94e, Fix #136670: Missing update after UV editor selection
 Referenced by issue #136837, Objects with a GPU subdivision surface modifier always render with smooth shading
+Referenced by pull request #137000, Fix #136837: Mesh incorrectly renders smooth with GPU subdivision in some cases
