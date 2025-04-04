@@ -2093,6 +2093,8 @@ static void pbvh_bmesh_create_nodes_fast_recursive(Vector<BMeshNode> &nodes,
                                                    const int node_index,
                                                    const std::optional<int> parent_index)
 {
+  nodes[node_index].parent_ = parent_index;
+
   /* Two cases, node does not have children or does have children. */
   if (node->child1) {
     int children_offset_ = nodes.size();
@@ -2121,7 +2123,6 @@ static void pbvh_bmesh_create_nodes_fast_recursive(Vector<BMeshNode> &nodes,
      * this is an expensive part but it's not so easily thread-able due to vertex node indices. */
 
     nodes[node_index].flag_ |= Node::Leaf;
-    nodes[node_index].parent_ = parent_index;
     nodes[node_index].bm_faces_.reserve(node->totface);
 
     const int end = node->start + node->totface;

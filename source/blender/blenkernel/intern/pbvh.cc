@@ -150,13 +150,14 @@ static void build_nodes_recursive_mesh(const Span<int> material_indices,
                                        MutableSpan<int> faces,
                                        Vector<MeshNode> &nodes)
 {
+  MeshNode &node = nodes[node_index];
+  node.parent_ = parent_index;
+
   /* Decide whether this is a leaf or not */
   const bool below_leaf_limit = faces.size() <= leaf_limit || depth >= STACK_FIXED_DEPTH - 1;
   if (below_leaf_limit) {
     if (!leaf_needs_material_split(faces, material_indices)) {
-      MeshNode &node = nodes[node_index];
       node.flag_ |= Node::Leaf;
-      node.parent_ = parent_index;
       node.face_indices_ = faces;
       return;
     }
@@ -314,13 +315,14 @@ static void build_nodes_recursive_grids(const Span<int> material_indices,
                                         MutableSpan<int> faces,
                                         Vector<GridsNode> &nodes)
 {
+  GridsNode &node = nodes[node_index];
+  node.parent_ = parent_index;
+
   /* Decide whether this is a leaf or not */
   const bool below_leaf_limit = faces.size() <= leaf_limit || depth >= STACK_FIXED_DEPTH - 1;
   if (below_leaf_limit) {
     if (!leaf_needs_material_split(faces, material_indices)) {
-      GridsNode &node = nodes[node_index];
       node.flag_ |= Node::Leaf;
-      node.parent_ = parent_index;
       node.prim_indices_ = faces;
       return;
     }
@@ -1147,8 +1149,23 @@ void Tree::flush_bounds_to_parents(const IndexMask &node_mask)
         });
 
         while (!nodes_to_update.is_empty()) {
-          int node_index = *nodes_to_update.begin();
+          const int node_index = *nodes_to_update.begin();
           nodes_to_update.remove(node_index);
+
+          auto &node = nodes[node_index];
+          const Bounds<float3> old_bounds = node.bounds_;
+
+          const Bounds<float3> bounds1 = nodes[node.children_offset_].bounds_;
+          const Bounds<float3> bounds2 = nodes[node.children_offset_ + 1].bounds_;
+          node.bounds_ = bounds::merge(bounds1, bounds2);
+
+          const std::optional<int> parent = node.parent();
+          const bool bounds_changed = node.bounds_.min != old_bounds.min ||
+                                      node.bounds_.max != old_bounds.max;
+
+          if (bounds_changed && parent.has_value()) {
+            nodes_to_update.add(parent.value());
+          }
         }
       },
       this->nodes_);

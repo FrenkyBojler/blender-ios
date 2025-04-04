@@ -77,7 +77,7 @@ class Node : NonCopyable {
     TopologyUpdated = 1 << 17,
   };
 
-  std::optional<int> parent_;
+  std::optional<int> parent_ = std::nullopt;
 
   /** Axis aligned min and max of all vertex positions in the node. */
   Bounds<float3> bounds_ = {};
@@ -108,7 +108,10 @@ class Node : NonCopyable {
   /** \todo Move storage of image painting data to #Tree or elsewhere. */
   pixels::NodeData *pixels_ = nullptr;
 
-  const std::optional<int> parent() { return parent_; }
+  const std::optional<int> parent()
+  {
+    return parent_;
+  }
   const Bounds<float3> &bounds() const;
   const Bounds<float3> &bounds_orig() const;
 };
@@ -237,7 +240,7 @@ class Tree {
    * \note Values are only meaningful for leaf nodes.
    * \note The vector's size may not match the size of the nodes array.
    */
-  //BitVector<> bounds_dirty_;
+  // BitVector<> bounds_dirty_;
 
   /**
    * If true, the normals for the corresponding node index are out of date.
@@ -316,10 +319,10 @@ class Tree {
    * Recalculate node bounding boxes based on the current coordinates. Calculation is only done for
    * affected nodes that have been tagged by #PBVH::tag_positions_changed().
    */
-  void update_bounds(const Depsgraph &depsgraph, const Object &object, const IndexMask& node_mask);
-  void update_bounds_mesh(Span<float3> vert_positions, const IndexMask& node_mask);
-  void update_bounds_grids(Span<float3> positions, int grid_area, const IndexMask& node_mask);
-  void update_bounds_bmesh(const BMesh &bm, const IndexMask& node_mask);
+  void update_bounds(const Depsgraph &depsgraph, const Object &object, const IndexMask &node_mask);
+  void update_bounds_mesh(Span<float3> vert_positions, const IndexMask &node_mask);
+  void update_bounds_grids(Span<float3> positions, int grid_area, const IndexMask &node_mask);
+  void update_bounds_bmesh(const BMesh &bm, const IndexMask &node_mask);
 
   void update_normals(Object &object_orig, Object &object_eval);
 
