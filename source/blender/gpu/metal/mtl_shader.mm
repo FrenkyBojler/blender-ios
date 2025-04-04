@@ -472,6 +472,10 @@ bool MTLShader::finalize(const shader::ShaderCreateInfo *info)
 
 void MTLShader::bind(const shader::SpecializationConstants *constants_state)
 {
+  if (constants_state) {
+    this->constants = *constants_state;
+  }
+
   MTLContext *ctx = MTLContext::get();
   if (interface == nullptr || !this->is_valid()) {
     MTL_LOG_WARNING(
@@ -767,7 +771,7 @@ static void populate_specialization_constant_values(
     const SpecializationStateDescriptor &specialization_descriptor)
 {
   for (auto i : shader_constants.types.index_range()) {
-    const shader::SpecializationConstant &value = specialization_descriptor.values[i];
+    const shader::SpecializationConstant::Value &value = specialization_descriptor.values[i];
 
     uint index = i + MTL_SHADER_SPECIALIZATION_CONSTANT_BASE_ID;
     switch (shader_constants.types[i]) {
