@@ -388,14 +388,14 @@ static void data_transfer_dtdata_type_postprocess(Mesh *me_dst,
                                                   me_dst->corner_verts(),
                                                   me_dst->corner_edges(),
                                                   me_dst->vert_normals(),
-                                                  me_dst->face_normals(),
+                                                  me_dst->face_normals_true(),
                                                   sharp_faces,
                                                   sharp_edges.span,
                                                   {loop_nors_dst, me_dst->corners_num},
                                                   custom_nors_dst.span);
     custom_nors_dst.finish();
     sharp_edges.finish();
-    CustomData_free_layers(ldata_dst, CD_NORMAL, me_dst->corners_num);
+    CustomData_free_layers(ldata_dst, CD_NORMAL);
   }
 }
 
@@ -468,7 +468,7 @@ void data_transfer_layersmapping_add_item(ListBase *r_map,
                                           cd_datatransfer_interp interp,
                                           void *interp_data)
 {
-  CustomDataTransferLayerMap *item = MEM_cnew<CustomDataTransferLayerMap>(__func__);
+  CustomDataTransferLayerMap *item = MEM_callocN<CustomDataTransferLayerMap>(__func__);
 
   BLI_assert(data_dst != nullptr);
 
@@ -563,7 +563,7 @@ static bool data_transfer_layersmapping_cdlayers_multisrc_to_dst(ListBase *r_map
     if (use_delete) {
       idx_dst = tot_dst;
       while (idx_dst--) {
-        CustomData_free_layer(cd_dst, cddata_type, num_elem_dst, idx_dst);
+        CustomData_free_layer(cd_dst, cddata_type, idx_dst);
       }
     }
     return true;
@@ -594,7 +594,7 @@ static bool data_transfer_layersmapping_cdlayers_multisrc_to_dst(ListBase *r_map
       }
       else if (use_delete && idx_dst > idx_src) {
         while (idx_dst-- > idx_src) {
-          CustomData_free_layer(cd_dst, cddata_type, num_elem_dst, idx_dst);
+          CustomData_free_layer(cd_dst, cddata_type, idx_dst);
         }
       }
       if (r_map) {
@@ -619,8 +619,7 @@ static bool data_transfer_layersmapping_cdlayers_multisrc_to_dst(ListBase *r_map
     case DT_LAYERS_NAME_DST:
       if (use_delete) {
         if (tot_dst) {
-          data_dst_to_delete = static_cast<bool *>(
-              MEM_mallocN(sizeof(*data_dst_to_delete) * size_t(tot_dst), __func__));
+          data_dst_to_delete = MEM_malloc_arrayN<bool>(size_t(tot_dst), __func__);
           memset(data_dst_to_delete, true, sizeof(*data_dst_to_delete) * size_t(tot_dst));
         }
       }
@@ -671,7 +670,7 @@ static bool data_transfer_layersmapping_cdlayers_multisrc_to_dst(ListBase *r_map
          * from index shifting when deleting a layer. */
         for (idx_dst = tot_dst; idx_dst--;) {
           if (data_dst_to_delete[idx_dst]) {
-            CustomData_free_layer(cd_dst, cddata_type, num_elem_dst, idx_dst);
+            CustomData_free_layer(cd_dst, cddata_type, idx_dst);
           }
         }
 
@@ -706,7 +705,7 @@ static bool data_transfer_layersmapping_cdlayers(ListBase *r_map,
     const void *data_src = CustomData_get_layer(cd_src, cddata_type);
     if (!data_src) {
       if (use_delete) {
-        CustomData_free_layer(cd_dst, cddata_type, num_elem_dst, 0);
+        CustomData_free_layer(cd_dst, cddata_type, 0);
       }
       return true;
     }
@@ -817,9 +816,7 @@ static bool data_transfer_layersmapping_cdlayers(ListBase *r_map,
   }
   else if (fromlayers == DT_LAYERS_ALL_SRC) {
     int num_src = CustomData_number_of_layers(cd_src, eCustomDataType(cddata_type));
-    bool *use_layers_src = num_src ? static_cast<bool *>(MEM_mallocN(
-                                         sizeof(*use_layers_src) * size_t(num_src), __func__)) :
-                                     nullptr;
+    bool *use_layers_src = num_src ? MEM_malloc_arrayN<bool>(size_t(num_src), __func__) : nullptr;
     bool ret;
 
     if (use_layers_src) {
@@ -1473,8 +1470,7 @@ bool BKE_object_data_transfer_ex(Depsgraph *depsgraph,
       }
 
       if (mdef && vg_idx != -1 && !weights[VDATA]) {
-        weights[VDATA] = static_cast<float *>(
-            MEM_mallocN(sizeof(*(weights[VDATA])) * size_t(num_verts_dst), __func__));
+        weights[VDATA] = MEM_malloc_arrayN<float>(size_t(num_verts_dst), __func__);
         BKE_defvert_extract_vgroup_to_vertweights(
             mdef, vg_idx, num_verts_dst, invert_vgroup, weights[VDATA]);
       }
@@ -1552,8 +1548,7 @@ bool BKE_object_data_transfer_ex(Depsgraph *depsgraph,
       }
 
       if (mdef && vg_idx != -1 && !weights[EDATA]) {
-        weights[EDATA] = static_cast<float *>(
-            MEM_mallocN(sizeof(*weights[EDATA]) * size_t(edges_dst.size()), __func__));
+        weights[EDATA] = MEM_malloc_arrayN<float>(size_t(edges_dst.size()), __func__);
         BKE_defvert_extract_vgroup_to_edgeweights(mdef,
                                                   vg_idx,
                                                   num_verts_dst,
@@ -1642,8 +1637,7 @@ bool BKE_object_data_transfer_ex(Depsgraph *depsgraph,
       }
 
       if (mdef && vg_idx != -1 && !weights[LDATA]) {
-        weights[LDATA] = static_cast<float *>(
-            MEM_mallocN(sizeof(*weights[LDATA]) * size_t(corner_verts_dst.size()), __func__));
+        weights[LDATA] = MEM_malloc_arrayN<float>(size_t(corner_verts_dst.size()), __func__);
         BKE_defvert_extract_vgroup_to_loopweights(mdef,
                                                   vg_idx,
                                                   num_verts_dst,
@@ -1726,8 +1720,7 @@ bool BKE_object_data_transfer_ex(Depsgraph *depsgraph,
       }
 
       if (mdef && vg_idx != -1 && !weights[PDATA]) {
-        weights[PDATA] = static_cast<float *>(
-            MEM_mallocN(sizeof(*weights[PDATA]) * faces_dst.size(), __func__));
+        weights[PDATA] = MEM_malloc_arrayN<float>(size_t(faces_dst.size()), __func__);
         BKE_defvert_extract_vgroup_to_faceweights(mdef,
                                                   vg_idx,
                                                   num_verts_dst,

@@ -71,7 +71,7 @@ static uiBlock *colorband_tools_fn(bContext *C, ARegion *region, void *cb_v)
   short yco = 0;
   const short menuwidth = 10 * UI_UNIT_X;
 
-  uiBlock *block = UI_block_begin(C, region, __func__, UI_EMBOSS_PULLDOWN);
+  uiBlock *block = UI_block_begin(C, region, __func__, blender::ui::EmbossType::Pulldown);
 
   uiLayout *layout = UI_block_layout(block,
                                      UI_LAYOUT_VERTICAL,
@@ -230,7 +230,7 @@ static void colorband_buttons_layout(uiLayout *layout,
 
   uiLayout *split = uiLayoutSplit(layout, 0.4f, false);
 
-  UI_block_emboss_set(block, UI_EMBOSS_NONE);
+  UI_block_emboss_set(block, blender::ui::EmbossType::None);
   UI_block_align_begin(block);
   uiLayout *row = uiLayoutRow(split, false);
 
@@ -290,7 +290,7 @@ static void colorband_buttons_layout(uiLayout *layout,
       but_func_argN_copy<RNAUpdateCb>);
 
   UI_block_align_end(block);
-  UI_block_emboss_set(block, UI_EMBOSS);
+  UI_block_emboss_set(block, blender::ui::EmbossType::Emboss);
 
   row = uiLayoutRow(split, false);
 
@@ -370,7 +370,8 @@ static void colorband_buttons_layout(uiLayout *layout,
     }
 
     /* Some special (rather awkward) treatment to update UI state on certain property changes. */
-    LISTBASE_FOREACH_BACKWARD (uiBut *, but, &block->buttons) {
+    for (int i = block->buttons.size() - 1; i >= 0; i--) {
+      uiBut *but = block->buttons[i].get();
       if (but->rnapoin.data != ptr.data) {
         continue;
       }

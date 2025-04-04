@@ -23,25 +23,6 @@ if(CMAKE_C_COMPILER_ID MATCHES "Clang")
   else()
     message("Unable to detect the Visual Studio redist directory, copying of the runtime dlls will not work, try running from the visual studio developer prompt.")
   endif()
-  # 1) CMake has issues detecting openmp support in clang-cl so we have to provide
-  #    the right switches here.
-  # 2) While the /openmp switch *should* work, it currently doesn't as for clang 9.0.0
-  # 3) Using the registry to locate llvmroot doesn't work on some installs. When this happens,
-  #    attempt to locate openmp in the lib directory of the parent of the clang-cl binary
-  if(WITH_OPENMP)
-    set(OPENMP_CUSTOM ON)
-    set(OPENMP_FOUND ON)
-    set(OpenMP_C_FLAGS "/clang:-fopenmp")
-    set(OpenMP_CXX_FLAGS "/clang:-fopenmp")
-    get_filename_component(LLVMBIN ${CMAKE_CXX_COMPILER} DIRECTORY)
-    get_filename_component(LLVMROOT ${LLVMBIN} DIRECTORY)
-    set(CLANG_OPENMP_DLL "${LLVMROOT}/bin/libomp.dll")
-    set(CLANG_OPENMP_LIB "${LLVMROOT}/lib/libomp.lib")
-    if(NOT EXISTS "${CLANG_OPENMP_DLL}")
-      message(FATAL_ERROR "Clang OpenMP library (${CLANG_OPENMP_DLL}) not found.")
-    endif()
-    set(OpenMP_LINKER_FLAGS "\"${CLANG_OPENMP_LIB}\"")
-  endif()
   if(WITH_WINDOWS_STRIPPED_PDB)
     message(WARNING "stripped pdb not supported with clang, disabling..")
     set(WITH_WINDOWS_STRIPPED_PDB OFF)
@@ -55,6 +36,22 @@ else()
        CMAKE_CXX_COMPILER_VERSION VERSION_LESS 19.37.32705)             # But it is fixed in 2022 17.7 preview 1
       message(FATAL_ERROR "Compiler is unsupported, MSVC 2022 17.6.x has codegen issues and cannot be used to build blender. Please upgrade to 17.7 or newer.")
     endif()
+  endif()
+endif()
+
+set(WINDOWS_ARM64_MIN_VSCMD_VER 17.12.3)
+# We have a minimum version of VSCMD for ARM64 (ie, the version the libs were compiled against)
+# This checks for the version on initial run, and caches it, so users do not have to run the VS CMD window every time
+if(CMAKE_SYSTEM_PROCESSOR STREQUAL "ARM64")
+  set(VC_VSCMD_VER $ENV{VSCMD_VER} CACHE STRING "Version of the VSCMD initially run from")
+  mark_as_advanced(VC_VSCMD_VER)
+  set(VSCMD_VER ${VC_VSCMD_VER})
+  if(DEFINED VSCMD_VER)
+    if(VSCMD_VER VERSION_LESS WINDOWS_ARM64_MIN_VSCMD_VER)
+      message(FATAL_ERROR "Windows ARM64 requires VS2022 version ${WINDOWS_ARM64_MIN_VSCMD_VER} or greater - please update your VS2022 install!")
+    endif()
+  else()
+    message(FATAL_ERROR "Unable to detect the Visual Studio CMD version, try running from the visual studio developer prompt.")
   endif()
 endif()
 
@@ -137,7 +134,6 @@ configure_file(
 # Always detect CRT paths, but only manually install with WITH_WINDOWS_BUNDLE_CRT.
 set(CMAKE_INSTALL_SYSTEM_RUNTIME_LIBS_SKIP TRUE)
 set(CMAKE_INSTALL_UCRT_LIBRARIES TRUE)
-set(CMAKE_INSTALL_OPENMP_LIBRARIES ${WITH_OPENMP})
 include(InstallRequiredSystemLibraries)
 
 if(WITH_WINDOWS_BUNDLE_CRT)
@@ -178,8 +174,8 @@ remove_cc_flag(
 )
 
 if(MSVC_CLANG) # Clangs version of cl doesn't support all flags
-  string(APPEND CMAKE_CXX_FLAGS " ${CXX_WARN_FLAGS} /MP /nologo /J /Gd /showFilenames /EHsc -Wno-unused-command-line-argument -Wno-microsoft-enum-forward-reference /clang:-funsigned-char /clang:-fno-strict-aliasing /clang:-ffp-contract=off")
-  string(APPEND CMAKE_C_FLAGS   " /MP /nologo /J /Gd /showFilenames -Wno-unused-command-line-argument -Wno-microsoft-enum-forward-reference /clang:-funsigned-char /clang:-fno-strict-aliasing /clang:-ffp-contract=off")
+  string(APPEND CMAKE_CXX_FLAGS " ${CXX_WARN_FLAGS} /Gy /MP /nologo /J /Gd /showFilenames /EHsc -Wno-unused-command-line-argument -Wno-microsoft-enum-forward-reference /clang:-funsigned-char /clang:-fno-strict-aliasing /clang:-ffp-contract=off")
+  string(APPEND CMAKE_C_FLAGS   " /MP /nologo /J /Gy /Gd /showFilenames -Wno-unused-command-line-argument -Wno-microsoft-enum-forward-reference /clang:-funsigned-char /clang:-fno-strict-aliasing /clang:-ffp-contract=off")
 else()
   string(APPEND CMAKE_CXX_FLAGS " /nologo /J /Gd /MP /EHsc /bigobj")
   string(APPEND CMAKE_C_FLAGS   " /nologo /J /Gd /MP /bigobj")
@@ -213,9 +209,8 @@ if(NOT MSVC_CLANG)
   string(APPEND CMAKE_CXX_FLAGS " /permissive- /Zc:__cplusplus /Zc:inline")
   string(APPEND CMAKE_C_FLAGS   " /Zc:inline")
 
-  # For ARM64 devices, we need to tell MSVC to use the new preprocessor
-  # This is because sse2neon requires it.
-  if(CMAKE_SYSTEM_PROCESSOR STREQUAL "ARM64")
+  # For VS2022+ we can enable the the new preprocessor
+  if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 19.30.30423)
     string(APPEND CMAKE_CXX_FLAGS " /Zc:preprocessor")
     string(APPEND CMAKE_C_FLAGS " /Zc:preprocessor")
   endif()
@@ -251,8 +246,8 @@ else()
   unset(CMAKE_C_COMPILER_LAUNCHER)
   unset(CMAKE_CXX_COMPILER_LAUNCHER)
   if(MSVC_ASAN)
-    set(SYMBOL_FORMAT /Z7)
-    set(SYMBOL_FORMAT_RELEASE /Z7)
+    set(SYMBOL_FORMAT /Zi)
+    set(SYMBOL_FORMAT_RELEASE /Zi)
   else()
     set(SYMBOL_FORMAT /ZI)
     set(SYMBOL_FORMAT_RELEASE /Zi)
@@ -282,7 +277,12 @@ endif()
 
 string(APPEND PLATFORM_LINKFLAGS " /SUBSYSTEM:CONSOLE /STACK:2097152")
 set(PLATFORM_LINKFLAGS_RELEASE "/NODEFAULTLIB:libcmt.lib /NODEFAULTLIB:libcmtd.lib /NODEFAULTLIB:msvcrtd.lib")
-string(APPEND PLATFORM_LINKFLAGS_DEBUG "/debug:fastlink /IGNORE:4099 /NODEFAULTLIB:libcmt.lib /NODEFAULTLIB:msvcrt.lib /NODEFAULTLIB:libcmtd.lib")
+
+if(NOT WITH_COMPILER_ASAN)
+  # Asan is incompatible with fastlink, it will appear to work, but will not resolve symbols which makes it somewhat useless
+  string(APPEND PLATFORM_LINKFLAGS_DEBUG "/debug:fastlink ")
+endif()
+string(APPEND PLATFORM_LINKFLAGS_DEBUG " /IGNORE:4099 /NODEFAULTLIB:libcmt.lib /NODEFAULTLIB:msvcrt.lib /NODEFAULTLIB:libcmtd.lib")
 
 # Ignore meaningless for us linker warnings.
 string(APPEND PLATFORM_LINKFLAGS " /ignore:4049 /ignore:4217 /ignore:4221")
@@ -446,14 +446,9 @@ if(WITH_FFTW3)
   set(FFTW3_LIBRARIES
     ${FFTW3}/lib/fftw3.lib
     ${FFTW3}/lib/fftw3f.lib
+    ${FFTW3}/lib/fftw3_threads.lib
+    ${FFTW3}/lib/fftw3f_threads.lib
   )
-  if(EXISTS ${FFTW3}/lib/fftw3_threads.lib)
-    list(APPEND FFTW3_LIBRARIES
-      ${FFTW3}/lib/fftw3_threads.lib
-      ${FFTW3}/lib/fftw3f_threads.lib
-    )
-    set(WITH_FFTW3_THREADS_SUPPORT ON)
-  endif()
   set(FFTW3_INCLUDE_DIRS ${FFTW3}/include)
   set(FFTW3_LIBPATH ${FFTW3}/lib)
 endif()

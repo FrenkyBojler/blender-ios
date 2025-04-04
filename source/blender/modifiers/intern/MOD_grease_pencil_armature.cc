@@ -165,7 +165,7 @@ static void modify_curves(ModifierData &md,
       edit_hints->deform_mats.emplace(drawing.strokes().points_num(), float3x3::identity());
     }
     deform_mats = edit_hints->deform_mats->as_mutable_span();
-    if (has_bezier_curves) {
+    if (edit_hints->positions()) {
       deform_positions = edit_hints->positions_for_write();
     }
   }
@@ -180,24 +180,39 @@ static void modify_curves(ModifierData &md,
       deform_mats_for_curve = deform_mats->slice(points);
     }
 
-    BKE_armature_deform_coords_with_curves(*amd.object,
-                                           *ctx.object,
-                                           &curves.vertex_group_names,
-                                           positions.slice(points),
-                                           old_positions_for_curve,
-                                           deform_mats_for_curve,
-                                           dverts.slice(points),
-                                           deformflag,
-                                           amd.influence.vertex_group_name);
     if (deform_positions) {
-      const IndexRange orig_points = orig_points_by_curve[curve_i];
+      if (has_bezier_curves) {
+        const IndexRange orig_points = orig_points_by_curve[curve_i];
+        BKE_armature_deform_coords_with_curves(*amd.object,
+                                               *ctx.object,
+                                               &curves.vertex_group_names,
+                                               deform_positions->slice(orig_points),
+                                               {},
+                                               {},
+                                               orig_dverts.as_span().slice(orig_points),
+                                               deformflag,
+                                               amd.influence.vertex_group_name);
+      }
+      else {
+        BKE_armature_deform_coords_with_curves(*amd.object,
+                                               *ctx.object,
+                                               &curves.vertex_group_names,
+                                               deform_positions->slice(points),
+                                               old_positions_for_curve,
+                                               deform_mats_for_curve,
+                                               dverts.slice(points),
+                                               deformflag,
+                                               amd.influence.vertex_group_name);
+      }
+    }
+    else {
       BKE_armature_deform_coords_with_curves(*amd.object,
                                              *ctx.object,
                                              &curves.vertex_group_names,
-                                             deform_positions->slice(orig_points),
-                                             {},
-                                             {},
-                                             orig_dverts.as_span().slice(orig_points),
+                                             positions.slice(points),
+                                             old_positions_for_curve,
+                                             deform_mats_for_curve,
+                                             dverts.slice(points),
                                              deformflag,
                                              amd.influence.vertex_group_name);
     }
@@ -220,20 +235,17 @@ static void modify_geometry_set(ModifierData *md,
   bke::GeometryComponentEditData::remember_deformed_positions_if_necessary(*geometry_set);
 
   GreasePencil &grease_pencil = *geometry_set->get_grease_pencil_for_write();
-  const GreasePencil &grease_pencil_orig = *reinterpret_cast<GreasePencil *>(
-      DEG_get_original_id(&grease_pencil.id));
   const int frame = grease_pencil.runtime->eval_frame;
 
   MutableSpan<bke::GreasePencilDrawingEditHints> edit_hints = {};
   if (geometry_set->has_component<bke::GeometryComponentEditData>()) {
     bke::GeometryComponentEditData &edit_component =
         geometry_set->get_component_for_write<bke::GeometryComponentEditData>();
-    if (edit_component.grease_pencil_edit_hints_) {
-      if (!edit_component.grease_pencil_edit_hints_->drawing_hints) {
-        edit_component.grease_pencil_edit_hints_->drawing_hints.emplace(
-            grease_pencil_orig.layers().size());
+    if (auto &hints = edit_component.grease_pencil_edit_hints_) {
+      if (!hints->drawing_hints) {
+        hints->drawing_hints.emplace(hints->grease_pencil_id_orig.layers().size());
       }
-      edit_hints = *edit_component.grease_pencil_edit_hints_->drawing_hints;
+      edit_hints = *hints->drawing_hints;
     }
   }
 

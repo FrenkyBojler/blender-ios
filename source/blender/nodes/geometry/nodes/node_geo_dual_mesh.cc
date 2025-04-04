@@ -15,13 +15,15 @@ namespace blender::nodes::node_geo_dual_mesh_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
+  b.use_custom_socket_order();
+  b.allow_any_socket_order();
   b.add_input<decl::Geometry>("Mesh").supported_type(GeometryComponent::Type::Mesh);
+  b.add_output<decl::Geometry>("Dual Mesh").propagate_all().align_with_previous();
   b.add_input<decl::Bool>("Keep Boundaries")
       .default_value(false)
       .description(
           "Keep non-manifold boundaries of the input mesh in place by avoiding the dual "
           "transformation there");
-  b.add_output<decl::Geometry>("Dual Mesh").propagate_all();
 }
 
 enum class EdgeType : int8_t {
@@ -937,7 +939,7 @@ static void node_register()
   ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

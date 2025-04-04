@@ -980,10 +980,14 @@ GHOST_TSuccess GHOST_SystemCocoa::getButtons(GHOST_Buttons &buttons) const
 
 GHOST_TCapabilityFlag GHOST_SystemCocoa::getCapabilities() const
 {
-  return GHOST_TCapabilityFlag(GHOST_CAPABILITY_FLAG_ALL &
-                               ~(
-                                   /* Cocoa has no support for a primary selection clipboard. */
-                                   GHOST_kCapabilityPrimaryClipboard));
+  return GHOST_TCapabilityFlag(
+      GHOST_CAPABILITY_FLAG_ALL &
+      ~(
+          /* Cocoa has no support for a primary selection clipboard. */
+          GHOST_kCapabilityPrimaryClipboard |
+          /* Cocoa doesn't define a Hyper modifier key,
+           * it's possible another modifier could be optionally used in it's place. */
+          GHOST_kCapabilityKeyboardHyperKey));
 }
 
 /* --------------------------------------------------------------------
@@ -1247,7 +1251,7 @@ static NSSize getNSImagePixelSize(NSImage *image)
 static ImBuf *NSImageToImBuf(NSImage *image)
 {
   const NSSize imageSize = getNSImagePixelSize(image);
-  ImBuf *ibuf = IMB_allocImBuf(imageSize.width, imageSize.height, 32, IB_rect);
+  ImBuf *ibuf = IMB_allocImBuf(imageSize.width, imageSize.height, 32, IB_byte_data);
 
   if (!ibuf) {
     return nullptr;

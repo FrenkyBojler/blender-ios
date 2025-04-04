@@ -335,18 +335,18 @@ void OneapiDevice::free_device(void *device_pointer)
   usm_free(device_queue_, device_pointer);
 }
 
-bool OneapiDevice::alloc_host(void *&shared_pointer, const size_t size)
+bool OneapiDevice::shared_alloc(void *&shared_pointer, const size_t size)
 {
   shared_pointer = usm_aligned_alloc_host(device_queue_, size, 64);
   return shared_pointer != nullptr;
 }
 
-void OneapiDevice::free_host(void *shared_pointer)
+void OneapiDevice::shared_free(void *shared_pointer)
 {
   usm_free(device_queue_, shared_pointer);
 }
 
-void *OneapiDevice::transform_host_to_device_pointer(const void *shared_pointer)
+void *OneapiDevice::shared_to_device_pointer(const void *shared_pointer)
 {
   /* Device and host pointer are in the same address space
    * as we're using Unified Shared Memory. */
@@ -379,6 +379,43 @@ void *OneapiDevice::kernel_globals_device_pointer()
   return kg_memory_device_;
 }
 
+void *OneapiDevice::host_alloc(const MemoryType type, const size_t size)
+{
+  void *host_pointer = GPUDevice::host_alloc(type, size);
+
+#  ifdef SYCL_EXT_ONEAPI_COPY_OPTIMIZE
+  if (host_pointer) {
+    /* Import host_pointer into USM memory for faster host<->device data transfers. */
+    if (type == MEM_READ_WRITE || type == MEM_READ_ONLY) {
+      sycl::queue *queue = reinterpret_cast<sycl::queue *>(device_queue_);
+      /* This API is properly implemented only in Level-Zero backend at the moment and we don't
+       * want it to fail at runtime, so we conservatively use it only for L0. */
+      if (queue->get_backend() == sycl::backend::ext_oneapi_level_zero) {
+        sycl::ext::oneapi::experimental::prepare_for_device_copy(host_pointer, size, *queue);
+      }
+    }
+  }
+#  endif
+
+  return host_pointer;
+}
+
+void OneapiDevice::host_free(const MemoryType type, void *host_pointer, const size_t size)
+{
+#  ifdef SYCL_EXT_ONEAPI_COPY_OPTIMIZE
+  if (type == MEM_READ_WRITE || type == MEM_READ_ONLY) {
+    sycl::queue *queue = reinterpret_cast<sycl::queue *>(device_queue_);
+    /* This API is properly implemented only in Level-Zero backend at the moment and we don't
+     * want it to fail at runtime, so we conservatively use it only for L0. */
+    if (queue->get_backend() == sycl::backend::ext_oneapi_level_zero) {
+      sycl::ext::oneapi::experimental::release_from_device_copy(host_pointer, *queue);
+    }
+  }
+#  endif
+
+  GPUDevice::host_free(type, host_pointer, size);
+}
+
 void OneapiDevice::mem_alloc(device_memory &mem)
 {
   if (mem.type == MEM_TEXTURE) {
@@ -394,14 +431,6 @@ void OneapiDevice::mem_alloc(device_memory &mem)
                  << string_human_readable_size(mem.memory_size()) << ")";
     }
     generic_alloc(mem);
-#  ifdef SYCL_EXT_ONEAPI_COPY_OPTIMIZE
-    /* Import host_pointer into USM memory for faster host<->device data transfers. */
-    if (mem.type == MEM_READ_WRITE || mem.type == MEM_READ_ONLY) {
-      sycl::queue *queue = reinterpret_cast<sycl::queue *>(device_queue_);
-      sycl::ext::oneapi::experimental::prepare_for_device_copy(
-          mem.host_pointer, mem.memory_size(), *queue);
-    }
-#  endif
   }
 }
 
@@ -543,12 +572,6 @@ void OneapiDevice::mem_free(device_memory &mem)
     tex_free((device_texture &)mem);
   }
   else {
-#  ifdef SYCL_EXT_ONEAPI_COPY_OPTIMIZE
-    if (mem.type == MEM_READ_WRITE || mem.type == MEM_READ_ONLY) {
-      sycl::queue *queue = reinterpret_cast<sycl::queue *>(device_queue_);
-      sycl::ext::oneapi::experimental::release_from_device_copy(mem.host_pointer, *queue);
-    }
-#  endif
     generic_free(mem);
   }
 }
@@ -879,7 +902,7 @@ void OneapiDevice::tex_free(device_texture &mem)
           (sycl::ext::oneapi::experimental::image_mem_handle::raw_handle_type)cmem.array};
 
       try {
-        /* We have allocated only standard textures, so we also dellocate only them. */
+        /* We have allocated only standard textures, so we also deallocate only them. */
         sycl::ext::oneapi::experimental::free_image_mem(
             imgHandle, sycl::ext::oneapi::experimental::image_type::standard, *queue);
       }
@@ -1576,7 +1599,7 @@ int OneapiDevice::get_num_multiprocessors()
   if (device.has(sycl::aspect::ext_intel_gpu_eu_count)) {
     return device.get_info<sycl::ext::intel::info::device::gpu_eu_count>();
   }
-  return 0;
+  return device.get_info<sycl::info::device::max_compute_units>();
 }
 
 int OneapiDevice::get_max_num_threads_per_multiprocessor()
@@ -1588,7 +1611,9 @@ int OneapiDevice::get_max_num_threads_per_multiprocessor()
     return device.get_info<sycl::ext::intel::info::device::gpu_eu_simd_width>() *
            device.get_info<sycl::ext::intel::info::device::gpu_hw_threads_per_eu>();
   }
-  return 0;
+  /* We'd want sycl::info::device::max_threads_per_compute_unit which doesn't exist yet.
+   * max_work_group_size is the closest approximation but it can still be several times off. */
+  return device.get_info<sycl::info::device::max_work_group_size>();
 }
 
 CCL_NAMESPACE_END

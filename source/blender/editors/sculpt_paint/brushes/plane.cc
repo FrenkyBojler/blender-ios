@@ -141,7 +141,7 @@ static void scale_factors_by_height_and_depth(const float height,
                                               const MutableSpan<float3> local_positions,
                                               const MutableSpan<float> factors)
 {
-  if (height != 1.0f && height != 0.0f) {
+  if (!ELEM(height, 1.0f, 0.0f)) {
     for (const int i : factors.index_range()) {
       if (local_positions[i].z > 0.0f) {
         factors[i] *= height;
@@ -373,7 +373,7 @@ void do_plane_brush(const Depsgraph &depsgraph,
   float3 normal = plane_normal;
   float3 center = plane_center;
 
-  SCULPT_tilt_apply_to_normal(normal, ss.cache, brush.tilt_strength_factor);
+  normal = tilt_apply_to_normal(normal, *ss.cache, brush.tilt_strength_factor);
 
   const bool flip = ss.cache->initial_direction_flipped;
   const float offset = SCULPT_brush_plane_offset_get(sd, ss);

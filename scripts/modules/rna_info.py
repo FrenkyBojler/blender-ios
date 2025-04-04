@@ -196,7 +196,7 @@ class InfoStructRNA:
         import types
         functions = []
         for identifier, attr in self._get_py_visible_attrs():
-            # Methods may be python wrappers to C functions.
+            # Methods may be Python wrappers to C-API functions.
             ok = False
             if (attr_func := getattr(attr, "__func__", None)) is not None:
                 if type(attr_func) == types.FunctionType:
@@ -212,7 +212,7 @@ class InfoStructRNA:
         import types
         functions = []
         for identifier, attr in self._get_py_visible_attrs():
-            # Methods may be python wrappers to C functions.
+            # Methods may be Python wrappers to C-API functions.
             ok = False
             if (attr_func := getattr(attr, "__func__", None)) is not None:
                 if type(attr_func) == types.BuiltinFunctionType:
@@ -395,6 +395,8 @@ class InfoPropertyRNA:
         type_str = ""
         if self.fixed_type is None:
             type_str += self.type
+            if self.type == "string" and self.subtype == "BYTE_STRING":
+                type_str = "byte string"
             if self.array_length:
                 if self.array_dimensions[1] != 0:
                     dimension_str = " of {:s} items".format(

@@ -269,14 +269,12 @@ std::optional<StringRefNull> BPY_app_translations_py_pgettext(const StringRef ms
 
   tmp = BLT_lang_get();
   if (!STREQ(tmp, locale) || !get_translations_cache()) {
-    PyGILState_STATE _py_state;
+    /* This function may be called from C (i.e. outside of python interpreter 'context'). */
+    PyGILState_STATE _py_state = PyGILState_Ensure();
 
     STRNCPY(locale, tmp);
 
     /* Locale changed or cache does not exist, refresh the whole cache! */
-    /* This func may be called from C (i.e. outside of python interpreter 'context'). */
-    _py_state = PyGILState_Ensure();
-
     _build_translations_cache(_translations->py_messages, locale);
 
     PyGILState_Release(_py_state);
@@ -789,9 +787,14 @@ static PyObject *app_translations_locale_explode(BlenderAppTranslations * /*self
   return ret_tuple;
 }
 
-#if (defined(__GNUC__) && !defined(__clang__))
-#  pragma GCC diagnostic push
-#  pragma GCC diagnostic ignored "-Wcast-function-type"
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic push
+#    pragma clang diagnostic ignored "-Wcast-function-type"
+#  else
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wcast-function-type"
+#  endif
 #endif
 
 static PyMethodDef app_translations_methods[] = {
@@ -835,8 +838,12 @@ static PyMethodDef app_translations_methods[] = {
     {nullptr},
 };
 
-#if (defined(__GNUC__) && !defined(__clang__))
-#  pragma GCC diagnostic pop
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic pop
+#  else
+#    pragma GCC diagnostic pop
+#  endif
 #endif
 
 static PyObject *app_translations_new(PyTypeObject *type, PyObject * /*args*/, PyObject * /*kw*/)

@@ -170,11 +170,12 @@
  */
 #define USE_BHEAD_READ_ON_DEMAND
 
-/** Use #GHash for restoring pointers by name. */
-#define USE_GHASH_RESTORE_POINTER
-
 static CLG_LogRef LOG = {"blo.readfile"};
 static CLG_LogRef LOG_UNDO = {"blo.readfile.undo"};
+
+#if ENDIAN_ORDER == B_ENDIAN
+#  warning "Support for Big Endian endianness is deprecated and will be removed in Blender 5.0"
+#endif
 
 /* local prototypes */
 static void read_libraries(FileData *basefd, ListBase *mainlist);
@@ -359,7 +360,7 @@ void blo_join_main(ListBase *mainlist)
   }
 
   /* Will no longer be valid after joining. */
-  BKE_main_namemap_clear(mainl);
+  BKE_main_namemap_clear(*mainl);
 
   while ((tojoin = mainl->next)) {
     BLI_assert(((tojoin->curlib->runtime->tag & LIBRARY_IS_ASSET_EDIT_FILE) != 0) ==
@@ -409,12 +410,11 @@ void blo_split_main(ListBase *mainlist, Main *main)
   }
 
   /* Will no longer be valid after splitting. */
-  BKE_main_namemap_clear(main);
+  BKE_main_namemap_clear(*main);
 
   /* (Library.temp_index -> Main), lookup table */
   const uint lib_main_array_len = BLI_listbase_count(&main->libraries);
-  Main **lib_main_array = static_cast<Main **>(
-      MEM_malloc_arrayN(lib_main_array_len, sizeof(*lib_main_array), __func__));
+  Main **lib_main_array = MEM_malloc_arrayN<Main *>(lib_main_array_len, __func__);
 
   int i = 0;
   for (Library *lib = static_cast<Library *>(main->libraries.first); lib;
@@ -752,7 +752,7 @@ static BHeadN *get_bhead(FileData *fd)
 #ifdef USE_BHEAD_READ_ON_DEMAND
       else if (fd->file->seek != nullptr && BHEAD_USE_READ_ON_DEMAND(&bhead)) {
         /* Delay reading bhead content. */
-        new_bhead = static_cast<BHeadN *>(MEM_mallocN(sizeof(BHeadN), "new_bhead"));
+        new_bhead = MEM_mallocN<BHeadN>("new_bhead");
         if (new_bhead) {
           new_bhead->next = new_bhead->prev = nullptr;
           new_bhead->file_offset = fd->file->offset;
@@ -1197,6 +1197,22 @@ static FileData *blo_decode_and_check(FileData *fd, ReportList *reports)
     else if (is_minversion_older_than_blender(fd, reports)) {
       blo_filedata_free(fd);
       fd = nullptr;
+    }
+    else if (fd->flags & FD_FLAGS_SWITCH_ENDIAN) {
+      if (ENDIAN_ORDER == L_ENDIAN) {
+        if (!BKE_reports_print_test(reports, RPT_WARNING)) {
+          CLOG_WARN(
+              &LOG,
+              "Blend file '%s' created by a Big Endian version of Blender, support for these "
+              "files will be removed in Blender 5.0",
+              fd->relabase);
+        }
+        BKE_reportf(reports,
+                    RPT_WARNING,
+                    "Blend file '%s' created by a Big Endian version of Blender, support for "
+                    "these files will be removed in Blender 5.0",
+                    fd->relabase);
+      }
     }
   }
   else if (fd->flags & FD_FLAGS_FILE_FUTURE) {
@@ -1647,8 +1663,7 @@ void blo_cache_storage_init(FileData *fd, Main *bmain)
 {
   if (fd->flags & FD_FLAGS_IS_MEMFILE) {
     BLI_assert(fd->cache_storage == nullptr);
-    fd->cache_storage = static_cast<BLOCacheStorage *>(
-        MEM_mallocN(sizeof(*fd->cache_storage), __func__));
+    fd->cache_storage = MEM_mallocN<BLOCacheStorage>(__func__);
     fd->cache_storage->memarena = BLI_memarena_new(BLI_MEMARENA_STD_BUFSIZE, __func__);
     fd->cache_storage->cache_map = BLI_ghash_new(
         BKE_idtype_cache_key_hash, BKE_idtype_cache_key_cmp, __func__);
@@ -2122,7 +2137,7 @@ static void readfile_id_runtime_data_ensure(ID &id)
   if (id.runtime.readfile_data) {
     return;
   }
-  id.runtime.readfile_data = MEM_cnew<ID_Readfile_Data>(__func__);
+  id.runtime.readfile_data = MEM_callocN<ID_Readfile_Data>(__func__);
 }
 
 ID_Readfile_Data::Tags BLO_readfile_id_runtime_tags(ID &id)
@@ -2271,11 +2286,6 @@ static void direct_link_id_common(BlendDataReader *reader,
       }
       id->override_library->runtime = nullptr;
     }
-  }
-
-  DrawDataList *drawdata = DRW_drawdatalist_from_id(id);
-  if (drawdata) {
-    BLI_listbase_clear((ListBase *)drawdata);
   }
 
   /* Handle 'private IDs'. */
@@ -2471,7 +2481,7 @@ static ID *create_placeholder(Main *mainvar,
                               const bool was_liboverride)
 {
   ListBase *lb = which_libbase(mainvar, idcode);
-  ID *ph_id = static_cast<ID *>(BKE_libblock_alloc_notest(idcode));
+  ID *ph_id = BKE_libblock_alloc_notest(idcode);
 
   *((short *)ph_id->name) = idcode;
   BLI_strncpy(ph_id->name + 2, idname, sizeof(ph_id->name) - 2);
@@ -3264,7 +3274,7 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
   }
 
   /* WATCH IT!!!: pointers from libdata have not been converted yet here! */
-  /* WATCH IT 2!: Userdef struct init see do_versions_userdef() above! */
+  /* WATCH IT 2!: #UserDef struct init see #do_versions_userdef() above! */
 
   /* don't forget to set version number in BKE_blender_version.h! */
 
@@ -3422,7 +3432,7 @@ static void after_liblink_merged_bmain_process(Main *bmain, BlendFileReadReport 
   /* We only expect a merged Main here, not a split one. */
   BLI_assert((bmain->prev == nullptr) && (bmain->next == nullptr));
 
-  if (!BKE_main_namemap_validate_and_fix(bmain)) {
+  if (!BKE_main_namemap_validate_and_fix(*bmain)) {
     BKE_report(
         reports ? reports->reports : nullptr,
         RPT_ERROR,
@@ -3881,7 +3891,7 @@ BlendFileData *blo_read_file_internal(FileData *fd, const char *filepath)
     /* After all data has been read and versioned, uses ID_TAG_NEW. Theoretically this should
      * not be calculated in the undo case, but it is currently needed even on undo to recalculate
      * a cache. */
-    blender::bke::node_tree_update_all_new(bfd->main);
+    blender::bke::node_tree_update_all_new(*bfd->main);
 
     placeholders_ensure_valid(bfd->main);
 
@@ -3986,8 +3996,7 @@ static void sort_bhead_old_map(FileData *fd)
     return;
   }
 
-  bhs = fd->bheadmap = static_cast<BHeadSort *>(
-      MEM_malloc_arrayN(tot, sizeof(BHeadSort), "BHeadSort"));
+  bhs = fd->bheadmap = MEM_malloc_arrayN<BHeadSort>(tot, "BHeadSort");
 
   for (bhead = blo_bhead_first(fd); bhead; bhead = blo_bhead_next(fd, bhead), bhs++) {
     bhs->bhead = bhead;
@@ -4370,7 +4379,7 @@ static Main *library_link_begin(Main *mainvar,
 
   fd->id_tag_extra = id_tag_extra;
 
-  fd->mainlist = static_cast<ListBase *>(MEM_callocN(sizeof(ListBase), "FileData.mainlist"));
+  fd->mainlist = MEM_callocN<ListBase>("FileData.mainlist");
 
   /* make mains */
   blo_split_main(fd->mainlist, mainvar);
@@ -4533,7 +4542,7 @@ static void library_link_end(Main *mainl, FileData **fd, const int flag)
   BKE_main_id_refcount_recompute(mainvar, false);
 
   /* After all data has been read and versioned, uses ID_TAG_NEW. */
-  blender::bke::node_tree_update_all_new(mainvar);
+  blender::bke::node_tree_update_all_new(*mainvar);
 
   placeholders_ensure_valid(mainvar);
 

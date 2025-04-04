@@ -29,7 +29,7 @@ static int64_t memory_read_raw(FileReader *reader, void *buffer, size_t size)
   MemoryReader *mem = (MemoryReader *)reader;
 
   /* Don't read more bytes than there are available in the buffer. */
-  size_t readsize = std::min(size, (size_t)(mem->length - mem->reader.offset));
+  size_t readsize = std::min(size, size_t(mem->length - mem->reader.offset));
 
   memcpy(buffer, mem->data + mem->reader.offset, readsize);
   mem->reader.offset += readsize;
@@ -70,7 +70,7 @@ static void memory_close_raw(FileReader *reader)
 
 FileReader *BLI_filereader_new_memory(const void *data, size_t len)
 {
-  MemoryReader *mem = MEM_cnew<MemoryReader>(__func__);
+  MemoryReader *mem = MEM_callocN<MemoryReader>(__func__);
 
   mem->data = (const char *)data;
   mem->length = len;
@@ -93,7 +93,7 @@ static int64_t memory_read_mmap(FileReader *reader, void *buffer, size_t size)
   MemoryReader *mem = (MemoryReader *)reader;
 
   /* Don't read more bytes than there are available in the buffer. */
-  size_t readsize = std::min(size, (size_t)(mem->length - mem->reader.offset));
+  size_t readsize = std::min(size, size_t(mem->length - mem->reader.offset));
 
   if (!BLI_mmap_read(mem->mmap, buffer, mem->reader.offset, readsize)) {
     return 0;
@@ -118,7 +118,7 @@ FileReader *BLI_filereader_new_mmap(int filedes)
     return nullptr;
   }
 
-  MemoryReader *mem = MEM_cnew<MemoryReader>(__func__);
+  MemoryReader *mem = MEM_callocN<MemoryReader>(__func__);
 
   mem->mmap = mmap;
   mem->length = BLI_mmap_get_length(mmap);

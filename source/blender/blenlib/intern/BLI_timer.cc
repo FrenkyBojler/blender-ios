@@ -15,7 +15,7 @@
 #define GET_TIME() BLI_time_now_seconds()
 
 struct TimedFunction {
-  struct TimedFunction *next, *prev;
+  TimedFunction *next, *prev;
   BLI_timer_func func;
   BLI_timer_data_free user_data_free;
   void *user_data;
@@ -38,7 +38,7 @@ void BLI_timer_register(uintptr_t uuid,
                         double first_interval,
                         bool persistent)
 {
-  TimedFunction *timed_func = MEM_cnew<TimedFunction>(__func__);
+  TimedFunction *timed_func = MEM_callocN<TimedFunction>(__func__);
   timed_func->func = func;
   timed_func->user_data_free = user_data_free;
   timed_func->user_data = user_data;
@@ -117,13 +117,13 @@ static void remove_tagged_functions()
   }
 }
 
-void BLI_timer_execute(void)
+void BLI_timer_execute()
 {
   execute_functions_if_necessary();
   remove_tagged_functions();
 }
 
-void BLI_timer_free(void)
+void BLI_timer_free()
 {
   LISTBASE_FOREACH (TimedFunction *, timed_func, &GlobalTimer.funcs) {
     timed_func->tag_removal = true;

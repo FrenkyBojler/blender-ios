@@ -219,8 +219,8 @@ intended for use by file-managers to extract PNG images from `.blend` files."
   )
 elseif(APPLE)
   option(WITH_BLENDER_THUMBNAILER "\
-Build \"blender-thumbnailer.appex\" extension for macOS Finder/ QuickLook to support viewing \
-thumbnails from `.blend` files."
+Build \"blender-thumbnailer.appex\" extension for Finder/ QuickLook thumbnail \
+support for blend files."
     ON
   )
 endif()
@@ -406,16 +406,6 @@ mark_as_advanced(WITH_AUDASPACE)
 mark_as_advanced(WITH_SYSTEM_AUDASPACE)
 
 set_and_warn_dependency(WITH_AUDASPACE WITH_SYSTEM_AUDASPACE OFF)
-
-option(WITH_OPENMP "Enable OpenMP (has to be supported by the compiler)" ON)
-if(UNIX AND NOT APPLE)
-  option(WITH_OPENMP_STATIC "Link OpenMP statically (only used by the release environment)" OFF)
-  mark_as_advanced(WITH_OPENMP_STATIC)
-elseif(WIN32 AND CMAKE_C_COMPILER_ID MATCHES "Clang" AND CMAKE_SYSTEM_PROCESSOR STREQUAL "ARM64")
-  # At time of testing (LLVM 18.1.6) OMP is not included in public LLVM builds for Windows ARM64
-  set(WITH_OPENMP OFF)
-  set(WITH_OPENMP_STATIC OFF)
-endif()
 
 if(WITH_GHOST_X11)
   option(WITH_X11_XINPUT "Enable X11 Xinput (tablet support and unicode input)" ON)
@@ -711,7 +701,8 @@ if(NOT APPLE AND NOT (WIN32 AND CMAKE_SYSTEM_PROCESSOR STREQUAL "ARM64"))
   set(CYCLES_HIP_BINARIES_ARCH
     gfx1010 gfx1011 gfx1012
     gfx1030 gfx1031 gfx1032 gfx1034 gfx1035 gfx1036
-    gfx1100 gfx1101 gfx1102 gfx1103 gfx1150 gfx1151
+    gfx1100 gfx1101 gfx1102 gfx1103 gfx1150 gfx1151 gfx1152
+    gfx1200 gfx1201
     CACHE STRING "AMD HIP architectures to build binaries for"
   )
   mark_as_advanced(WITH_CYCLES_DEVICE_HIP)
@@ -823,6 +814,13 @@ Run GPU render tests silently (finished tests will pass). \
 Generated report will show failing tests"
   ON
 )
+option(WITH_GPU_RENDER_TESTS_HEADED "\
+Enable GPU render related unit testing that doesn't work in background mode. \
+These tests require an environment with a display server to run. \
+Requires WITH_GPU_RENDER_TESTS "
+  OFF
+)
+mark_as_advanced(WITH_GPU_RENDER_TESTS_HEADED)
 option(WITH_GPU_BACKEND_TESTS "\
 Enable GPU backend related unit testing"
   OFF
@@ -832,23 +830,36 @@ Enable GPU drawing related unit testing (draw manager)"
   OFF
 )
 option(WITH_GPU_COMPOSITOR_TESTS "Enable regression testing for GPU compositor" OFF)
+option(WITH_GPU_MESH_PAINT_TESTS "Enable visual render-based regression testing for mesh painting" OFF)
+option(WITH_UI_TESTS "\
+Enable user-interface tests (Experimental)"
+  OFF
+)
 if(UNIX AND NOT (APPLE OR HAIKU))
-  option(WITH_UI_TESTS "\
+  # Headless is preferable as opening windows on the developers computer
+  # prevents the system being used while tests run. It's also unreliable,
+  # where tiling compositors ignore the window size causing some tests to fail.
+  set(_option_default OFF)
+  if(WITH_GHOST_WAYLAND)
+    set(_option_default ON)
+  endif()
+  option(WITH_UI_TESTS_HEADLESS "\
 Enable user-interface tests using a headless display server. \
 Currently this depends on WITH_GHOST_WAYLAND and the weston compositor \
 (Experimental)"
-    OFF
+    ${_option_default}
   )
+  unset(_option_default)
+
   option(WITH_LINUX_OFFICIAL_RELEASE_TESTS "\
 Enable sanity check tests for the linux official release. \
-These test are only relevant for checking that our offical Linux releases are portable and \
+These test are only relevant for checking that our official Linux releases are portable and \
 packaged properly. For example that we don't link to any unexpected system libraries."
     OFF
   )
 else()
-  # TODO: support running GUI tests on other platforms.
-  set(WITH_UI_TESTS OFF)
-  # TODO: We should probaby add more sanity checks for Windows and Mac as well
+  set(WITH_UI_TESTS_HEADLESS OFF)
+  # TODO: We should probably add more sanity checks for Windows and Mac as well
   set(WITH_LINUX_OFFICIAL_RELEASE_TESTS OFF)
 endif()
 
@@ -1332,8 +1343,8 @@ endif()
 set_and_warn_incompatible(WITH_HEADLESS WITH_XR_OPENXR OFF)
 set_and_warn_incompatible(WITH_GHOST_SDL WITH_XR_OPENXR OFF)
 
-if(WITH_UI_TESTS)
-  set_and_warn_dependency(WITH_GHOST_WAYLAND WITH_UI_TESTS OFF)
+if(WITH_UI_TESTS_HEADLESS)
+  set_and_warn_dependency(WITH_GHOST_WAYLAND WITH_UI_TESTS_HEADLESS OFF)
 endif()
 
 if(WITH_BUILDINFO)
@@ -1408,7 +1419,7 @@ set(PLATFORM_CFLAGS)
 set(C_WARNINGS)
 set(CXX_WARNINGS)
 
-# NOTE: These flags are intended for situations where where it's impractical to
+# NOTE: These flags are intended for situations where it's impractical to
 # suppress warnings by modifying the code or for code which is maintained externally.
 # For GCC this typically means adding `-Wno-*` arguments to negate warnings
 # that are useful in the general case.
@@ -1635,45 +1646,6 @@ if(WITH_METAL_BACKEND)
   # No need to add frameworks here, all the ones we need for Metal and
   # Metal-OpenGL Interop are already being added by
   # build_files/cmake/platform/platform_apple.cmake
-endif()
-
-
-# -----------------------------------------------------------------------------
-# Configure OpenMP
-
-if(WITH_OPENMP)
-  if(NOT OPENMP_CUSTOM)
-    find_package(OpenMP)
-  endif()
-
-  set_and_warn_library_found("OpenMP" OPENMP_FOUND WITH_OPENMP)
-
-  if(OPENMP_FOUND)
-    if(NOT WITH_OPENMP_STATIC)
-      string(APPEND CMAKE_C_FLAGS " ${OpenMP_C_FLAGS}")
-      string(APPEND CMAKE_CXX_FLAGS " ${OpenMP_CXX_FLAGS}")
-      if(DEFINED OpenMP_LINKER_FLAGS)
-        string(APPEND CMAKE_EXE_LINKER_FLAGS " ${OpenMP_LINKER_FLAGS}")
-        string(APPEND CMAKE_MODULE_LINKER_FLAGS " ${OpenMP_LINKER_FLAGS}")
-      endif()
-    else()
-      # Typically avoid adding flags as defines but we can't
-      # pass OpenMP flags to the linker for static builds, meaning
-      # we can't add any OpenMP related flags to CFLAGS variables
-      # since they're passed to the linker as well.
-      add_definitions("${OpenMP_C_FLAGS}")
-
-      find_library_static(OpenMP_LIBRARIES gomp ${CMAKE_CXX_IMPLICIT_LINK_DIRECTORIES})
-      mark_as_advanced(
-        OpenMP_LIBRARIES
-      )
-    endif()
-  endif()
-
-  mark_as_advanced(
-    OpenMP_C_FLAGS
-    OpenMP_CXX_FLAGS
-  )
 endif()
 
 
@@ -2009,7 +1981,8 @@ if(CMAKE_COMPILER_IS_GNUCC)
     CXX_WARN_NO_COMMENT -Wno-comment
     CXX_WARN_NO_UNUSED_TYPEDEFS -Wno-unused-local-typedefs
     CXX_WARN_NO_UNUSED_VARIABLE -Wno-unused-variable
-    CXX_WARN_NO_UNUSED_VARIABLE -Wno-uninitialized
+    CXX_WARN_NO_UNINITIALIZED -Wno-uninitialized
+    CXX_WARN_NO_REORDER -Wno-reorder
   )
 
 
@@ -2231,6 +2204,8 @@ elseif(CMAKE_C_COMPILER_ID MATCHES "Clang")
       # And some additional ones that came up when using LLVM 18.1.8 on Windows ARM64
       C_WARN_CLANG_CL_SWITCH_DEFAULT -Wno-switch-default
       C_WARN_CLANG_CL_NAN_INFINITY_DISABLED -Wno-nan-infinity-disabled
+      # And another from 19.1.5
+      C_WARN_CLANG_CL_PRE_C11_COMPAT -Wno-pre-c11-compat
     )
 
     add_check_cxx_compiler_flags(
@@ -2365,6 +2340,8 @@ elseif(CMAKE_C_COMPILER_ID MATCHES "Clang")
       # And some additional ones that came up when using LLVM 18.1.8 on Windows ARM64
       CXX_WARN_CLANG_CL_SWITCH_DEFAULT -Wno-switch-default
       CXX_WARN_CLANG_CL_NAN_INFINITY_DISABLED -Wno-nan-infinity-disabled
+      # And another from 19.1.5
+      CXX_WARN_CLANG_CL_PRE_C11_COMPAT -Wno-pre-c11-compat
     )
   endif()
 
@@ -2695,14 +2672,6 @@ include(build_files/cmake/packaging.cmake)
 
 
 # -----------------------------------------------------------------------------
-# Use Dynamic Loading for OpenMP
-
-if(WITH_BLENDER)
-  openmp_delayload(blender)
-endif()
-
-
-# -----------------------------------------------------------------------------
 # Print Final Configuration
 
 if(FIRST_RUN)
@@ -2762,7 +2731,6 @@ if(FIRST_RUN)
 
   info_cfg_text("Compiler Options:")
   info_cfg_option(WITH_BUILDINFO)
-  info_cfg_option(WITH_OPENMP)
 
   info_cfg_text("System Options:")
   info_cfg_option(WITH_INSTALL_PORTABLE)

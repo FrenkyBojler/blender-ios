@@ -310,6 +310,8 @@ struct MSLFragmentOutputAttribute {
    * subsequent draws. If a subsequent draw requires reading data from a GBuffer, raster order
    * groups should be used to ensure all writes occur before reading. */
   int raster_order_group;
+  /* Used for lack of ROG support workaround. */
+  bool is_layered_input;
 
   bool operator==(const MSLFragmentOutputAttribute &right) const
   {
@@ -529,6 +531,8 @@ inline bool is_builtin_type(std::string type)
       {"uchar4", MTL_DATATYPE_UCHAR4},
       {"vec3_1010102_Unorm", MTL_DATATYPE_UINT1010102_NORM},
       {"vec3_1010102_Inorm", MTL_DATATYPE_INT1010102_NORM},
+      {"packed_float2", MTL_DATATYPE_PACKED_FLOAT2},
+      {"packed_float3", MTL_DATATYPE_PACKED_FLOAT3},
   };
   return (glsl_builtin_types.find(type) != glsl_builtin_types.end());
 }

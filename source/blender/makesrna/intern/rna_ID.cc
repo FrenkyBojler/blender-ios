@@ -219,6 +219,8 @@ const IDFilterEnumPropertyItem rna_enum_id_type_filter_items[] = {
 #  include "BKE_lib_override.hh"
 #  include "BKE_lib_query.hh"
 #  include "BKE_lib_remap.hh"
+#  include "BKE_library.hh"
+#  include "BKE_main_invariants.hh"
 #  include "BKE_material.hh"
 #  include "BKE_preview_image.hh"
 #  include "BKE_vfont.hh"
@@ -595,9 +597,9 @@ int rna_ID_is_runtime_editable(const PointerRNA *ptr, const char **r_info)
   if (id->tag & (ID_TAG_NO_MAIN | ID_TAG_TEMP_MAIN | ID_TAG_LOCALIZED |
                  ID_TAG_COPIED_ON_EVAL_FINAL_RESULT | ID_TAG_COPIED_ON_EVAL))
   {
-    *r_info =
+    *r_info = N_(
         "Cannot edit 'runtime' status of non-blendfile data-blocks, as they are by definition "
-        "always runtime";
+        "always runtime");
     return 0;
   }
 
@@ -714,6 +716,7 @@ static ID *rna_ID_copy(ID *id, Main *bmain)
   }
 
   WM_main_add_notifier(NC_ID | NA_ADDED, nullptr);
+  BKE_main_ensure_invariants(*bmain, *newid);
 
   return newid;
 }
@@ -1280,8 +1283,8 @@ static void rna_ImagePreview_size_set(PointerRNA *ptr, const int *values, enum e
   BKE_previewimg_clear_single(prv_img, size);
 
   if (values[0] && values[1]) {
-    prv_img->rect[size] = static_cast<unsigned int *>(
-        MEM_callocN(values[0] * values[1] * sizeof(uint), "prv_rect"));
+    prv_img->rect[size] = MEM_calloc_arrayN<uint>(size_t(values[0]) * size_t(values[1]),
+                                                  "prv_rect");
 
     prv_img->w[size] = values[0];
     prv_img->h[size] = values[1];
@@ -2669,12 +2672,10 @@ static void rna_def_library_weak_reference(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "filepath", PROP_STRING, PROP_FILEPATH);
   RNA_def_property_string_sdna(prop, nullptr, "library_filepath");
-  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
   RNA_def_property_ui_text(prop, "File Path", "Path to the library .blend file");
 
   prop = RNA_def_property(srna, "id_name", PROP_STRING, PROP_FILEPATH);
   RNA_def_property_string_sdna(prop, nullptr, "library_id_name");
-  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
   RNA_def_property_ui_text(
       prop,
       "ID name",

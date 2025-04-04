@@ -236,6 +236,13 @@
     .flag = SCE_EEVEE_TAA_REPROJECTION, \
   }
 
+#define _DNA_DEFAULT_SceneGreasePencil \
+  { \
+    .smaa_threshold = 1.0f, \
+    .smaa_threshold_render = 0.25f, \
+    .aa_samples = 8, \
+  }
+
 #define _DNA_DEFAULT_SceneHydra \
   { \
     .export_method = SCE_HYDRA_EXPORT_HYDRA, \
@@ -254,6 +261,8 @@
     .safe_areas = _DNA_DEFAULT_DisplaySafeAreas, \
  \
     .eevee = _DNA_DEFAULT_SceneEEVEE, \
+ \
+    .grease_pencil_settings = _DNA_DEFAULT_SceneGreasePencil, \
  \
     .hydra = _DNA_DEFAULT_SceneHydra, \
     .simulation_frame_start = 1, \
@@ -280,6 +289,7 @@
     .paint.flags = PAINT_SHOW_BRUSH, \
     .normal_angle = 80, \
     .seam_bleed = 2, \
+    .clone_alpha = 0.5f, \
   }
 
 #define _DNA_DEFAULTS_ParticleBrushData \

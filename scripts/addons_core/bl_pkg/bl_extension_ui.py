@@ -532,7 +532,7 @@ def addons_panel_draw_items(
             del value
 
             if show_expanded:
-                item_maintainer = value.split("<", 1)[0].rstrip() if (value := bl_info["author"]) else ""
+                item_maintainer = value if (value := bl_info["author"]) else ""
                 item_version = ".".join(str(x) for x in value) if (value := bl_info["version"]) else ""
                 item_doc_url = bl_info["doc_url"]
                 item_tracker_url = bl_info.get("tracker_url")
@@ -1220,14 +1220,18 @@ def extensions_panel_draw_online_extensions_request_impl(
     row = box.row(align=True)
     row.alignment = 'LEFT'
     row.label(text="While offline, use \"Install from Disk\" instead.")
-    # TODO: the URL must be updated before release,
-    # this could be constructed using a function to account for Blender version & locale.
     row.operator(
         "wm.url_open",
         text="",
         icon='URL',
         emboss=False,
-    ).url = "https://docs.blender.org/manual/en/dev/editors/preferences/extensions.html#install"
+    ).url = (
+        "https://docs.blender.org/manual/"
+        "{:s}/{:d}.{:d}/editors/preferences/extensions.html#installing-extensions"
+    ).format(
+        bpy.utils.manual_language_code(),
+        *bpy.app.version[:2],
+    )
 
     row = box.row()
     props = row.operator("wm.context_set_boolean", text="Continue Offline", icon='X')
@@ -2198,9 +2202,9 @@ def tags_current(wm, tags_attr):
     active_theme_info = None
 
     # Currently only add-ons can make use of enabled by type (usefully) for tags.
-    if filter_by_type == "add-on":
+    if filter_by_type in {"", "add-on"}:
         addons_enabled = {addon.module for addon in prefs.addons}
-    elif filter_by_type == "theme":
+    if filter_by_type in {"", "theme"}:
         active_theme_info = pkg_repo_and_id_from_theme_path(repos_all, prefs.themes[0].filepath)
 
     params = ExtensionUI_FilterParams(

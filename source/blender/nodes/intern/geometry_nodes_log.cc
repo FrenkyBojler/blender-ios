@@ -2,9 +2,13 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "NOD_geometry_nodes_bundle.hh"
+#include "NOD_geometry_nodes_closure.hh"
 #include "NOD_geometry_nodes_log.hh"
 
 #include "BLI_listbase.h"
+#include "BLI_string_ref.hh"
+#include "BLI_string_utf8.h"
 
 #include "BKE_anonymous_attribute_id.hh"
 #include "BKE_compute_contexts.hh"
@@ -40,6 +44,19 @@ using fn::FieldInputs;
 GenericValueLog::~GenericValueLog()
 {
   this->value.destruct();
+}
+
+StringLog::StringLog(StringRef string, LinearAllocator<> &allocator)
+{
+  /* Avoid logging the entirety of long strings, to avoid unnecessary memory usage. */
+  if (string.size() <= 100) {
+    this->truncated = false;
+    this->value = allocator.copy_string(string);
+    return;
+  }
+  this->truncated = true;
+  const char *end = BLI_str_find_prev_char_utf8(string.data() + 100, string.data());
+  this->value = allocator.copy_string(StringRef(string.data(), end));
 }
 
 FieldInfoLog::FieldInfoLog(const GField &field) : type(field.cpp_type())
@@ -198,6 +215,13 @@ GeometryInfoLog::GeometryInfoLog(const bke::GVolumeGrid &grid)
 #endif
 }
 
+BundleValueLog::BundleValueLog(Vector<Item> items) : items(std::move(items)) {}
+
+ClosureValueLog::ClosureValueLog(Vector<Item> inputs, Vector<Item> outputs)
+    : inputs(std::move(inputs)), outputs(std::move(outputs))
+{
+}
+
 /* Avoid generating these in every translation unit. */
 GeoModifierLog::GeoModifierLog() = default;
 GeoModifierLog::~GeoModifierLog() = default;
@@ -253,10 +277,40 @@ void GeoTreeLogger::log_value(const bNode &node, const bNodeSocket &socket, cons
       store_logged_value(this->allocator->construct<GeometryInfoLog>(grid));
     }
 #endif
+    else if (value_variant.valid_for_socket(SOCK_BUNDLE)) {
+      Vector<BundleValueLog::Item> items;
+      if (const BundlePtr bundle = value_variant.extract<BundlePtr>()) {
+        for (const Bundle::StoredItem &item : bundle->items()) {
+          items.append({item.key, item.type});
+        }
+      }
+      store_logged_value(this->allocator->construct<BundleValueLog>(std::move(items)));
+    }
+    else if (value_variant.valid_for_socket(SOCK_CLOSURE)) {
+      Vector<ClosureValueLog::Item> inputs;
+      Vector<ClosureValueLog::Item> outputs;
+      if (const ClosurePtr closure = value_variant.extract<ClosurePtr>()) {
+        const ClosureSignature &signature = closure->signature();
+        for (const ClosureSignature::Item &item : signature.inputs) {
+          inputs.append({item.key, item.type});
+        }
+        for (const ClosureSignature::Item &item : signature.outputs) {
+          outputs.append({item.key, item.type});
+        }
+      }
+      store_logged_value(
+          this->allocator->construct<ClosureValueLog>(std::move(inputs), std::move(outputs)));
+    }
     else {
       value_variant.convert_to_single();
       const GPointer value = value_variant.get_single_ptr();
-      log_generic_value(*value.type(), value.get());
+      if (value.type()->is<std::string>()) {
+        const std::string &string = *value.get<std::string>();
+        store_logged_value(this->allocator->construct<StringLog>(string, *this->allocator));
+      }
+      else {
+        log_generic_value(*value.type(), value.get());
+      }
     }
   }
   else {
@@ -654,6 +708,11 @@ static void find_tree_zone_hash_recursive(
       compute_context_builder.push<bke::ForeachGeometryElementZoneComputeContext>(
           *zone.output_node, storage.inspection_index);
       break;
+    }
+    case GEO_NODE_CLOSURE_OUTPUT: {
+      /* Can't find hashes for closure zones. Nodes in these zones may be evaluated in different
+       * contexts based on where the closures are called. */
+      return;
     }
   }
   r_hash_by_zone.add_new(&zone, compute_context_builder.hash());

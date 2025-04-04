@@ -18,7 +18,7 @@
 
 #define USE_TOTELEM
 
-#define CHUNK_EMPTY ((size_t)-1)
+#define CHUNK_EMPTY size_t(-1)
 /* target chunks size: 64kb */
 #define CHUNK_SIZE_DEFAULT (1 << 16)
 /* ensure we get at least this many elems per chunk */
@@ -69,7 +69,7 @@ BLI_Stack *BLI_stack_new_ex(const size_t elem_size,
                             const char *description,
                             const size_t chunk_size)
 {
-  BLI_Stack *stack = MEM_cnew<BLI_Stack>(description);
+  BLI_Stack *stack = MEM_callocN<BLI_Stack>(description);
 
   stack->chunk_elem_max = stack_chunk_elem_max_calc(elem_size, chunk_size);
   stack->elem_size = elem_size;

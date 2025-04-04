@@ -211,7 +211,12 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
   }
 
   if (!USER_VERSION_ATLEAST(404, 7)) {
-    FROM_DEFAULT_V4_UCHAR(space_view3d.face_front);
+    if (btheme->space_view3d.face_front[0] == 0 && btheme->space_view3d.face_front[1] == 0 &&
+        btheme->space_view3d.face_front[2] == 0xFF && btheme->space_view3d.face_front[3] == 0xB3)
+    {
+      /* Use new default value only if currently set to the old default value. */
+      FROM_DEFAULT_V4_UCHAR(space_view3d.face_front);
+    }
   }
 
   if (!USER_VERSION_ATLEAST(404, 12)) {
@@ -224,6 +229,10 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
     FROM_DEFAULT_V4_UCHAR(tui.wcol_state.warning);
     FROM_DEFAULT_V4_UCHAR(tui.wcol_state.info);
     FROM_DEFAULT_V4_UCHAR(tui.wcol_state.success);
+  }
+
+  if (!USER_VERSION_ATLEAST(405, 14)) {
+    FROM_DEFAULT_V4_UCHAR(space_node.node_zone_closure);
   }
 
   /**
@@ -1216,8 +1225,8 @@ void blo_do_versions_userdef(UserDef *userdef)
 
   if (!USER_VERSION_ATLEAST(306, 5)) {
     if (userdef->pythondir_legacy[0]) {
-      bUserScriptDirectory *script_dir = static_cast<bUserScriptDirectory *>(
-          MEM_callocN(sizeof(*script_dir), "Versioning user script path"));
+      bUserScriptDirectory *script_dir = MEM_callocN<bUserScriptDirectory>(
+          "Versioning user script path");
 
       STRNCPY(script_dir->dir_path, userdef->pythondir_legacy);
       STRNCPY_UTF8(script_dir->name, DATA_("Untitled"));
@@ -1406,6 +1415,53 @@ void blo_do_versions_userdef(UserDef *userdef)
 
   if (!USER_VERSION_ATLEAST(404, 28)) {
     userdef->ndof_flag |= NDOF_SHOW_GUIDE_ORBIT_CENTER | NDOF_ORBIT_CENTER_AUTO;
+  }
+
+  if (!USER_VERSION_ATLEAST(405, 10)) {
+    static const blender::Map<std::string, std::string> keymap_renames = {
+        {"SequencerCommon", "Video Sequence Editor"},
+        {"SequencerPreview", "Preview"},
+
+        {"Sequencer Tool: Cursor", "Preview Tool: Cursor"},
+        {"Sequencer Tool: Sample", "Preview Tool: Sample"},
+        {"Sequencer Tool: Move", "Preview Tool: Move"},
+        {"Sequencer Tool: Rotate", "Preview Tool: Rotate"},
+        {"Sequencer Tool: Scale", "Preview Tool: Scale"},
+
+        {"Sequencer Timeline Tool: Select Box", "Sequencer Tool: Select Box"},
+        {"Sequencer Timeline Tool: Select Box (fallback)",
+         "Sequencer Tool: Select Box (fallback)"},
+
+        {"Sequencer Preview Tool: Tweak", "Preview Tool: Tweak"},
+        {"Sequencer Preview Tool: Tweak (fallback)", "Preview Tool: Tweak (fallback)"},
+        {"Sequencer Preview Tool: Select Box", "Preview Tool: Select Box"},
+        {"Sequencer Preview Tool: Select Box (fallback)", "Preview Tool: Select Box (fallback)"},
+    };
+
+    LISTBASE_FOREACH (wmKeyMap *, keymap, &userdef->user_keymaps) {
+      std::string old_name(keymap->idname);
+      if (const std::string *new_name = keymap_renames.lookup_ptr(old_name)) {
+        STRNCPY(keymap->idname, new_name->c_str());
+      }
+    }
+  }
+
+  if (!USER_VERSION_ATLEAST(405, 11)) {
+    wmKeyConfigFilterItemParams params{};
+    params.check_item = true;
+    params.check_diff_item_add = true;
+    BKE_keyconfig_pref_filter_items(
+        userdef,
+        &params,
+        [](wmKeyMapItem *kmi, void * /*user_data*/) -> bool {
+          if (kmi->shift == KM_ANY && kmi->ctrl == KM_ANY && kmi->alt == KM_ANY &&
+              kmi->oskey == KM_ANY)
+          {
+            kmi->hyper = KM_ANY;
+          }
+          return false;
+        },
+        nullptr);
   }
 
   /**
