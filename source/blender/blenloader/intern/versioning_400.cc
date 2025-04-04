@@ -6691,7 +6691,7 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
     }
   }
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 14)) {
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 17)) {
     /* Version render output paths (both primary on scene as well as those in
      * the File Output compositor node) to escape curely braces. */
     {
