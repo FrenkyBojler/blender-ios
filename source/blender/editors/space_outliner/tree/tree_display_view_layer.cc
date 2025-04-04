@@ -236,8 +236,7 @@ void ObjectsChildrenBuilder::object_tree_elements_lookup_create_recursive(TreeEl
  */
 void ObjectsChildrenBuilder::make_object_parent_hierarchy_collections()
 {
-  for (Object *ob : ordered_objects)
-  {
+  for (Object *ob : ordered_objects) {
     if (ob->parent == nullptr) {
       continue;
     }
