@@ -2195,10 +2195,18 @@ static std::string node_socket_get_tooltip(const SpaceNode *snode,
     }
 
     if (ntree.type == NTREE_GEOMETRY && !is_extend) {
-      output << ".\n\n";
-      output << TIP_(
-          "Unknown socket value. Either the socket was not used or its value was not logged "
-          "during the last evaluation");
+      const bke::bNodeSocketType *typeinfo = socket.typeinfo;
+      if (typeinfo && typeinfo->geometry_nodes_cpp_type == nullptr) {
+        output << ".\n\n";
+        output << TIP_("Unknown socket type. This socket will be ignored by geometry "
+            "nodes during node tree evaluation");
+      }
+      else {
+        output << ".\n\n";
+        output << TIP_(
+            "Unknown socket value. Either the socket was not used or its value was not logged "
+            "during the last evaluation");
+      }
     }
   }
 
