@@ -5876,6 +5876,12 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
     version_sequencer_update_overdrop(bmain);
   }
 
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 14)) {
+    LISTBASE_FOREACH (Light *, light, &bmain->lights) {
+      light->normalize = true;
+    }
+  }
+
   /* Always run this versioning; meshes are written with the legacy format which always needs to
    * be converted to the new format on file load. Can be moved to a subversion check in a larger
    * breaking release. */
