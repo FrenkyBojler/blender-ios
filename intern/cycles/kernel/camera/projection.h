@@ -55,47 +55,45 @@ ccl_device_inline float cc_rotation_scalar(const float2 vec) {
 
 ccl_device float2 direction_to_central_cylindrical(const float3 dir,
                                                    const float4 range,
-                                                   const float2 h_axis)
+                                                   const float4 axis)
 {
-  // create perpendicular (theta) axis
-  const float3 th_axis_pre = cross(make_float3(1, 0, 0), make_float3(0, h_axis.x, h_axis.y));
-  const float2 th_axis = make_float2(th_axis_pre.y, th_axis_pre.z);
-  // scalar to fit ranges to max border extent
+  const float2 h_axis = make_float2(axis.x, axis.y);
+  const float2 th_axis = make_float2(axis.z, axis.w);
+  /* scalar for fitting ranges to max border extent */
   const float rscale = cc_rotation_scalar(h_axis);
-  // project dir to camera plane
+  /* project dir to camera plane */
   const float2 p = make_float2(dir.y, dir.z);
-  // take components of height and theta axis
+  /* take components of height and theta axis */
   const float p_h = dot(h_axis, p);
   const float p_th = dot(th_axis, p);
-  // get h and theta
+  /* get h and theta */
   const float h = p_h / len(make_float2(dir.x, p_th));
   const float theta = atan2f(p_th, dir.x);
-  // lerp and map theta, h to [(-0.5,-0.5), (0.5,0.5)]
+  /* lerp and map theta, h to [(-0.5,-0.5), (0.5,0.5)] */
   const float2 c = (inverse_lerp(range.x, range.y, theta * rscale) - 0.5f) * th_axis +
                    (inverse_lerp(range.z, range.w, h * rscale) - 0.5f) * h_axis;
-  // mirror over z-axis, then offset origin; yield viewport space
+  /* mirror over z-axis, then offset origin; yield viewport space */
   return c * make_float2(-1.0f, 1.0) - make_float2(-0.5f, -0.5f);
 }
 
 ccl_device float3 central_cylindrical_to_direction(const float u,
                                                    const float v,
                                                    const float4 range,
-                                                   const float2 h_axis)
+                                                   const float4 axis)
 {
-  // create perpendicular (theta) axis
-  const float3 th_axis_pre = cross(make_float3(1, 0, 0), make_float3(0, h_axis.x, h_axis.y));
-  const float2 th_axis = make_float2(th_axis_pre.y, th_axis_pre.z);
-  // scalar to fit ranges to max border extent
+  const float2 h_axis = make_float2(axis.x, axis.y);
+  const float2 th_axis = make_float2(axis.z, axis.w);
+  /* scalar for fitting ranges to max border extent */
   const float rscale = 1.0f / cc_rotation_scalar(h_axis);
-  // get components of c and unlerp/mix
+  /* get components of c and unlerp/mix */
   const float2 c = (make_float2(u, v) + make_float2(-0.5f, -0.5f)) * make_float2(-1.0f, 1.0);
   const float theta = mix(range.x, range.y, dot(c, th_axis) + 0.5f) * rscale;
   const float h = mix(range.z, range.w, dot(c, h_axis) + 0.5f) * rscale;
-  // inverse operations
+  /* inverse operations */
   const float x = cosf(theta);
   const float p_th = sinf(theta);
   const float p_h = h * len(make_float2(p_th, x));
-  // convert to camera space
+  /* convert to camera space */
   const float2 p_vec = th_axis * p_th + h_axis * p_h;
   const float2 yz = make_float2(dot(make_float2(1.0f, 0.0f), p_vec),
                                 dot(make_float2(0.0f, 1.0f), p_vec));

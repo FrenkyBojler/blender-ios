@@ -1281,7 +1281,7 @@ struct KernelCamera {
   float4 equirectangular_range;
   float4 fisheye_lens_polynomial_coefficients;
   float4 central_cylindrical_range;
-  float2 central_cylindrical_axis;
+  float4 central_cylindrical_axis;
 
   /* stereo */
   float interocular_offset;

@@ -430,8 +430,10 @@ void Camera::update(Scene *scene)
                                                 central_cylindrical_range_u_max,
                                                 central_cylindrical_range_v_min,
                                                 central_cylindrical_range_v_max);
-  kcam->central_cylindrical_axis = make_float2(-sinf(central_cylindrical_axis),
-                                               cosf(central_cylindrical_axis));
+  kcam->central_cylindrical_axis = make_float4(-sinf(central_cylindrical_axis),
+                                               cosf(central_cylindrical_axis),
+                                               -cosf(central_cylindrical_axis),
+                                               -sinf(central_cylindrical_axis));
 
   switch (stereo_eye) {
     case STEREO_LEFT:
