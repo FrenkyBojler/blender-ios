@@ -1151,4 +1151,77 @@ TEST(boolean_curves, Four_Shapes)
   draw_divider_end();
 }
 
+TEST(boolean_curves, Shape_Mask)
+{
+  draw_divider_start("Shape Mask");
+
+  const Array<float2> points = {{0, 5},
+                                {0, 9},
+                                {4, 9},
+                                {4, 5},
+
+                                {5, 0},
+                                {5, 4},
+                                {9, 4},
+                                {9, 0},
+
+                                {3, 3},
+                                {3, 10},
+                                {10, 10},
+                                {10, 3}};
+  const Array<int> points_by_curve = {0, 4, 8, 12};
+  const Array<bool> is_fill = {true, true, true};
+  const Array<bool> is_cyclic = {true, true, true};
+  const Array<int> shape_ids = {0, 1, 2};
+  const IndexRange shapes_mask = IndexRange::from_begin_end(1, 3);
+  const IndexRange clipping_shapes = IndexRange::from_begin_end(2, 3);
+
+  const bke::CurvesGeometry src_curves = create_test_curves(
+      points_by_curve, points, shape_ids, is_cyclic, is_fill);
+
+  geometry::boolean::CurveBooleanOpParameters op_params;
+  op_params.subject_rule = FillRule::EvenOdd;
+  op_params.clipping_rule = FillRule::EvenOdd;
+  op_params.output_rule = FillRule::EvenOdd;
+
+  {
+    op_params.boolean_mode = Operation::Intersect;
+    const bke::CurvesGeometry dst_curves = curve_boolean(op_params, src_curves, clipping_shapes);
+
+    /* TODO. */
+    // const Array<Vector<float2>> expected_points = {
+    //     {{1, 7}, {5, 7}, {5, 6}, {5, 3}, {5, 2}, {3, 2}, {3, 3}, {1, 3}},
+    //     {{2, 3}, {2, 5}, {3, 5}, {6, 5}, {7, 5}, {7, 1}, {3, 1}, {3, 3}}};
+    // expect_boolean_result_coord(dst_curves, expected_points);
+
+    draw_results("Intersection", "polygon", src_curves, dst_curves, clipping_shapes, op_params);
+  }
+  {
+    op_params.boolean_mode = Operation::Union;
+    const bke::CurvesGeometry dst_curves = curve_boolean(op_params, src_curves, clipping_shapes);
+
+    /* TODO. */
+    // const Array<Vector<float2>> expected_points = {
+    //     {{3, 2}, {0, 2}, {0, 7}, {1, 7}, {1, 3}, {3, 3}},
+    //     {{7, 1}, {7, 0}, {2, 0}, {2, 3}, {3, 3}, {3, 1}}};
+    // expect_boolean_result_coord(dst_curves, expected_points);
+
+    draw_results("Union", "polygon", src_curves, dst_curves, clipping_shapes, op_params);
+  }
+  {
+    op_params.boolean_mode = Operation::Difference;
+    const bke::CurvesGeometry dst_curves = curve_boolean(op_params, src_curves, clipping_shapes);
+
+    /* TODO. */
+    // const Array<Vector<float2>> expected_points = {
+    //     {{3, 2}, {0, 2}, {0, 7}, {1, 7}, {1, 3}, {3, 3}},
+    //     {{7, 1}, {7, 0}, {2, 0}, {2, 3}, {3, 3}, {3, 1}}};
+    // expect_boolean_result_coord(dst_curves, expected_points);
+
+    draw_results("Difference", "polygon", src_curves, dst_curves, clipping_shapes, op_params);
+  }
+
+  draw_divider_end();
+}
+
 }  // namespace blender::geometry::tests
