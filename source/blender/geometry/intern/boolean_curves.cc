@@ -770,6 +770,20 @@ struct BooleanResult {
   Vector<bool> cyclic;
   Vector<int> point_offsets;
   Vector<int> shape_ids;
+
+  void append_result(const BooleanResult &other_result, const int shape_id)
+  {
+    for (const int i : other_result.segment_offsets.index_range().drop_front(1)) {
+      segment_offsets.append(other_result.segment_offsets[i] + segments.size());
+    }
+    cyclic.extend(other_result.cyclic);
+    segment_reversed.extend(other_result.segment_reversed);
+    shape_ids.append_n_times(shape_id, other_result.cyclic.size());
+
+    for (const int i : other_result.segments.index_range()) {
+      segments.append(std::move(other_result.segments[i]));
+    }
+  }
 };
 
 void find_intersections_between_curves(const Span<float2> points_i,
@@ -1163,17 +1177,7 @@ static BooleanResult execute_boolean(const CurveBooleanOpParameters op_params,
                                                           is_fill,
                                                           is_cyclic);
 
-      for (const int i : result.segment_offsets.index_range().drop_front(1)) {
-        results_all.segment_offsets.append(result.segment_offsets[i] +
-                                           results_all.segments.size());
-      }
-      results_all.cyclic.extend(result.cyclic);
-      results_all.segment_reversed.extend(result.segment_reversed);
-      results_all.shape_ids.append_n_times(subj_shape_id, result.cyclic.size());
-
-      for (const int i : result.segments.index_range()) {
-        results_all.segments.append(std::move(result.segments[i]));
-      }
+      results_all.append_result(result, subj_shape_id);
     });
   }
   else {
@@ -1192,17 +1196,7 @@ static BooleanResult execute_boolean(const CurveBooleanOpParameters op_params,
                                                             is_fill,
                                                             is_cyclic);
 
-        for (const int i : result.segment_offsets.index_range().drop_front(1)) {
-          results_all.segment_offsets.append(result.segment_offsets[i] +
-                                             results_all.segments.size());
-        }
-        results_all.cyclic.extend(result.cyclic);
-        results_all.segment_reversed.extend(result.segment_reversed);
-        results_all.shape_ids.append_n_times(subj_shape_id, result.cyclic.size());
-
-        for (const int i : result.segments.index_range()) {
-          results_all.segments.append(std::move(result.segments[i]));
-        }
+        results_all.append_result(result, subj_shape_id);
       }
       else {
         BooleanResult result;
@@ -1216,17 +1210,7 @@ static BooleanResult execute_boolean(const CurveBooleanOpParameters op_params,
           result.segment_reversed.append(false);
         });
 
-        for (const int i : result.segment_offsets.index_range().drop_front(1)) {
-          results_all.segment_offsets.append(result.segment_offsets[i] +
-                                             results_all.segments.size());
-        }
-        results_all.cyclic.extend(result.cyclic);
-        results_all.segment_reversed.extend(result.segment_reversed);
-        results_all.shape_ids.append_n_times(subj_shape_id, result.cyclic.size());
-
-        for (const int i : result.segments.index_range()) {
-          results_all.segments.append(std::move(result.segments[i]));
-        }
+        results_all.append_result(result, subj_shape_id);
       }
     });
   }
