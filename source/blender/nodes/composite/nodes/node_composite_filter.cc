@@ -41,7 +41,7 @@ static void node_composit_buts_filter(uiLayout *layout, bContext * /*C*/, Pointe
   uiItemR(layout, ptr, "filter_type", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
 }
 
-using namespace blender::realtime_compositor;
+using namespace blender::compositor;
 
 class FilterOperation : public NodeOperation {
  public:
@@ -49,6 +49,13 @@ class FilterOperation : public NodeOperation {
 
   void execute() override
   {
+    const Result &input_image = this->get_input("Image");
+    if (input_image.is_single_value()) {
+      Result &output_image = this->get_result("Image");
+      output_image.share_data(input_image);
+      return;
+    }
+
     if (this->context().use_gpu()) {
       this->execute_gpu();
     }
@@ -125,7 +132,8 @@ class FilterOperation : public NodeOperation {
         /* Mix the channel-wise magnitude with the original color at the center of the kernel using
          * the input factor. */
         float4 color = input.load_pixel<float4>(texel);
-        magnitude = math::interpolate(color.xyz(), magnitude, factor.load_pixel<float>(texel));
+        magnitude = math::interpolate(
+            color.xyz(), magnitude, factor.load_pixel<float, true>(texel));
 
         /* Store the channel-wise magnitude with the original alpha of the input. */
         output.store_pixel(texel, float4(magnitude, color.w));
@@ -143,7 +151,7 @@ class FilterOperation : public NodeOperation {
 
         /* Mix with the original color at the center of the kernel using the input factor. */
         color = math::interpolate(
-            input.load_pixel<float4>(texel), color, factor.load_pixel<float>(texel));
+            input.load_pixel<float4>(texel), color, factor.load_pixel<float, true>(texel));
 
         /* Store the color making sure it is not negative. */
         output.store_pixel(texel, math::max(color, float4(0.0f)));
@@ -239,12 +247,16 @@ void register_node_type_cmp_filter()
 
   static blender::bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, CMP_NODE_FILTER, "Filter", NODE_CLASS_OP_FILTER);
+  cmp_node_type_base(&ntype, "CompositorNodeFilter", CMP_NODE_FILTER);
+  ntype.ui_name = "Filter";
+  ntype.ui_description = "Apply common image enhancement filters";
+  ntype.enum_name_legacy = "FILTER";
+  ntype.nclass = NODE_CLASS_OP_FILTER;
   ntype.declare = file_ns::cmp_node_filter_declare;
   ntype.draw_buttons = file_ns::node_composit_buts_filter;
   ntype.labelfunc = node_filter_label;
   ntype.flag |= NODE_PREVIEW;
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
 
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }

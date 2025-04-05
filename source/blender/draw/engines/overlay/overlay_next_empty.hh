@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include "DRW_render.hh"
 #include "overlay_next_base.hh"
 #include "overlay_next_image.hh"
 
@@ -68,9 +69,10 @@ class Empties : Overlay {
     auto init_pass = [&](PassMain &pass, DRWState draw_state) {
       pass.init();
       pass.state_set(draw_state, state.clipping_plane_count);
-      pass.shader_set(res.shaders.image_plane_depth_bias.get());
+      pass.shader_set(res.shaders->image_plane_depth_bias.get());
       pass.push_constant("depth_bias_winmat", &depth_bias_winmat_);
       pass.bind_ubo(OVERLAY_GLOBALS_SLOT, &res.globals_buf);
+      pass.bind_ubo(DRW_CLIPPING_UBO_SLOT, &res.clip_planes_buf);
       res.select_bind(pass);
     };
 
@@ -183,8 +185,9 @@ class Empties : Overlay {
   {
     ps.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_LESS_EQUAL,
                  state.clipping_plane_count);
-    ps.shader_set(res.shaders.extra_shape.get());
+    ps.shader_set(res.shaders->extra_shape.get());
     ps.bind_ubo(OVERLAY_GLOBALS_SLOT, &res.globals_buf);
+    ps.bind_ubo(DRW_CLIPPING_UBO_SLOT, &res.clip_planes_buf);
 
     call_buffers.plain_axes_buf.end_sync(ps, res.shapes.plain_axes.get());
     call_buffers.single_arrow_buf.end_sync(ps, res.shapes.single_arrow.get());
@@ -298,8 +301,8 @@ class Empties : Overlay {
       mat = ob->object_to_world();
       mat.x_axis() *= image_aspect.x * 0.5f * ob->empty_drawsize;
       mat.y_axis() *= image_aspect.y * 0.5f * ob->empty_drawsize;
-      mat[3] += float4(mat.x_axis() * (ob->ima_ofs[0] * 2.0f + 1.0f) +
-                       mat.y_axis() * (ob->ima_ofs[1] * 2.0f + 1.0f));
+      mat.location() += (mat.x_axis() * (ob->ima_ofs[0] * 2.0f + 1.0f) +
+                         mat.y_axis() * (ob->ima_ofs[1] * 2.0f + 1.0f));
     }
 
     if (show_frame) {
@@ -358,13 +361,14 @@ class Empties : Overlay {
     const float z = -math::dot(state.camera_forward, tmp);
     PassMain::Sub &sub = parent.sub("Sub", z);
     if (depth_bias) {
-      sub.shader_set(res.shaders.image_plane_depth_bias.get());
-      sub.push_constant("depth_bias_winmat", depth_bias_winmat_);
+      sub.shader_set(res.shaders->image_plane_depth_bias.get());
+      sub.push_constant("depth_bias_winmat", &depth_bias_winmat_);
     }
     else {
-      sub.shader_set(res.shaders.image_plane.get());
+      sub.shader_set(res.shaders->image_plane.get());
     }
     sub.bind_ubo(OVERLAY_GLOBALS_SLOT, &res.globals_buf);
+    sub.bind_ubo(DRW_CLIPPING_UBO_SLOT, &res.clip_planes_buf);
     return sub;
   };
 

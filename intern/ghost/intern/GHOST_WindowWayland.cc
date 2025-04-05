@@ -2052,7 +2052,13 @@ GHOST_WindowWayland::GHOST_WindowWayland(GHOST_SystemWayland *system,
       const int format_size = 4;
       const int buffer_size = (window_->frame.size[0] * window_->frame.size[1]) * format_size;
       const int fd = memfd_create_sealed_for_vulkan_hack("ghost-wl-dummy-buffer");
-      ftruncate(fd, buffer_size);
+
+      const int truncate_result = ftruncate(fd, buffer_size);
+      GHOST_ASSERT(truncate_result == 0, "expecting ftruncate of the dummy buffer to work");
+#    ifndef NDEBUG
+      (void)truncate_result;
+#    endif
+
       wl_shm *shm = system_->wl_shm_get();
       wl_shm_pool *pool = wl_shm_create_pool(shm, fd, buffer_size);
       dummy_buffer = wl_shm_pool_create_buffer(pool,
@@ -2895,7 +2901,7 @@ bool GHOST_WindowWayland::outputs_leave(GWL_Output *output)
 
 #ifdef USE_EVENT_BACKGROUND_THREAD
 
-const void GHOST_WindowWayland::pending_actions_handle()
+void GHOST_WindowWayland::pending_actions_handle()
 {
   /* Caller must lock `server_mutex`, while individual actions could lock,
    * it's simpler to lock once when handling all window actions. */

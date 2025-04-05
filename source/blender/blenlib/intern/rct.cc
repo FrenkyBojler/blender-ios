@@ -16,13 +16,11 @@
 #include <cstdlib>
 
 #include "BLI_math_base.h"
+#include "BLI_math_matrix.h"
 #include "BLI_rect.h"
 #include "BLI_utildefines.h"
 
 #include "DNA_vec_types.h"
-
-/* avoid including BLI_math */
-static void unit_m4(float m[4][4]);
 
 bool BLI_rcti_is_empty(const rcti *rect)
 {
@@ -205,17 +203,15 @@ bool BLI_rcti_inside_rcti(const rcti *rct_a, const rcti *rct_b)
  * but in modified so corner cases are treated as intersections */
 static int isect_segments_i(const int v1[2], const int v2[2], const int v3[2], const int v4[2])
 {
-  const double div = (double)((v2[0] - v1[0]) * (v4[1] - v3[1]) -
-                              (v2[1] - v1[1]) * (v4[0] - v3[0]));
+  const double div = double((v2[0] - v1[0]) * (v4[1] - v3[1]) - (v2[1] - v1[1]) * (v4[0] - v3[0]));
   if (div == 0.0) {
     return 1; /* co-linear */
   }
 
-  const double lambda = (double)((v1[1] - v3[1]) * (v4[0] - v3[0]) -
-                                 (v1[0] - v3[0]) * (v4[1] - v3[1])) /
+  const double lambda = double((v1[1] - v3[1]) * (v4[0] - v3[0]) -
+                               (v1[0] - v3[0]) * (v4[1] - v3[1])) /
                         div;
-  const double mu = (double)((v1[1] - v3[1]) * (v2[0] - v1[0]) -
-                             (v1[0] - v3[0]) * (v2[1] - v1[1])) /
+  const double mu = double((v1[1] - v3[1]) * (v2[0] - v1[0]) - (v1[0] - v3[0]) * (v2[1] - v1[1])) /
                     div;
   return (lambda >= 0.0 && lambda <= 1.0 && mu >= 0.0 && mu <= 1.0);
 }
@@ -224,17 +220,15 @@ static int isect_segments_fl(const float v1[2],
                              const float v3[2],
                              const float v4[2])
 {
-  const double div = (double)((v2[0] - v1[0]) * (v4[1] - v3[1]) -
-                              (v2[1] - v1[1]) * (v4[0] - v3[0]));
+  const double div = double((v2[0] - v1[0]) * (v4[1] - v3[1]) - (v2[1] - v1[1]) * (v4[0] - v3[0]));
   if (div == 0.0) {
     return 1; /* co-linear */
   }
 
-  const double lambda = (double)((v1[1] - v3[1]) * (v4[0] - v3[0]) -
-                                 (v1[0] - v3[0]) * (v4[1] - v3[1])) /
+  const double lambda = double((v1[1] - v3[1]) * (v4[0] - v3[0]) -
+                               (v1[0] - v3[0]) * (v4[1] - v3[1])) /
                         div;
-  const double mu = (double)((v1[1] - v3[1]) * (v2[0] - v1[0]) -
-                             (v1[0] - v3[0]) * (v2[1] - v1[1])) /
+  const double mu = double((v1[1] - v3[1]) * (v2[0] - v1[0]) - (v1[0] - v3[0]) * (v2[1] - v1[1])) /
                     div;
   return (lambda >= 0.0 && lambda <= 1.0 && mu >= 0.0 && mu <= 1.0);
 }
@@ -555,6 +549,16 @@ void BLI_rctf_transform_calc_m4_pivot_min_ex(
 void BLI_rctf_transform_calc_m4_pivot_min(const rctf *dst, const rctf *src, float matrix[4][4])
 {
   BLI_rctf_transform_calc_m4_pivot_min_ex(dst, src, matrix, 0, 1);
+}
+
+void BLI_rctf_transform_calc_m3_pivot_min(const rctf *dst, const rctf *src, float matrix[3][3])
+{
+  unit_m3(matrix);
+
+  matrix[0][0] = BLI_rctf_size_x(src) / BLI_rctf_size_x(dst);
+  matrix[1][1] = BLI_rctf_size_y(src) / BLI_rctf_size_y(dst);
+  matrix[2][0] = (src->xmin - dst->xmin) * matrix[1][1];
+  matrix[2][1] = (src->ymin - dst->ymin) * matrix[0][0];
 }
 
 void BLI_rcti_translate(rcti *rect, int x, int y)
@@ -1123,12 +1127,3 @@ void BLI_rctf_rotate_expand(rctf *dst, const rctf *src, const float angle)
 #undef ROTATE_SINCOS
 
 /** \} */
-
-static void unit_m4(float m[4][4])
-{
-  m[0][0] = m[1][1] = m[2][2] = m[3][3] = 1.0f;
-  m[0][1] = m[0][2] = m[0][3] = 0.0f;
-  m[1][0] = m[1][2] = m[1][3] = 0.0f;
-  m[2][0] = m[2][1] = m[2][3] = 0.0f;
-  m[3][0] = m[3][1] = m[3][2] = 0.0f;
-}

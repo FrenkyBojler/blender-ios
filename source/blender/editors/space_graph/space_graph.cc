@@ -15,8 +15,10 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_blenlib.h"
+#include "BLI_listbase.h"
 #include "BLI_math_color.h"
+#include "BLI_math_vector.h"
+#include "BLI_string.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_context.hh"
@@ -139,7 +141,7 @@ static void graph_init(wmWindowManager *wm, ScrArea *area)
 {
   SpaceGraph *sipo = (SpaceGraph *)area->spacedata.first;
 
-  /* init dopesheet data if non-existent (i.e. for old files) */
+  /* Init dope-sheet if non-existent (i.e. for old files). */
   if (sipo->ads == nullptr) {
     wmWindow *win = WM_window_find_by_area(wm, area);
     sipo->ads = static_cast<bDopeSheet *>(MEM_callocN(sizeof(bDopeSheet), "GraphEdit DopeSheet"));
@@ -211,16 +213,19 @@ static void graph_main_region_draw(const bContext *C, ARegion *region)
   Scene *scene = CTX_data_scene(C);
   bAnimContext ac;
   View2D *v2d = &region->v2d;
+  const bool minimized = (region->winy <= HEADERY * UI_SCALE_FAC * 1.1f);
 
   /* clear and setup matrix */
-  UI_ThemeClearColor(TH_BACK);
+  UI_ThemeClearColor(minimized ? TH_TIME_SCRUB_BACKGROUND : TH_BACK);
 
   UI_view2d_view_ortho(v2d);
 
   /* grid */
   bool display_seconds = (sipo->mode == SIPO_MODE_ANIMATION) && (sipo->flag & SIPO_DRAWTIME);
-  UI_view2d_draw_lines_x__frames_or_seconds(v2d, scene, display_seconds);
-  UI_view2d_draw_lines_y__values(v2d);
+  if (!minimized) {
+    UI_view2d_draw_lines_x__frames_or_seconds(v2d, scene, display_seconds);
+    UI_view2d_draw_lines_y__values(v2d);
+  }
 
   ED_region_draw_cb_draw(C, region, REGION_DRAW_PRE_VIEW);
 
@@ -324,6 +329,7 @@ static void graph_main_region_draw_overlay(const bContext *C, ARegion *region)
 {
   /* draw entirely, view changes should be handled here */
   const SpaceGraph *sipo = CTX_wm_space_graph(C);
+  const bool minimized = (region->winy <= HEADERY * UI_SCALE_FAC * 1.1f);
 
   const Scene *scene = CTX_data_scene(C);
   View2D *v2d = &region->v2d;
@@ -331,10 +337,10 @@ static void graph_main_region_draw_overlay(const bContext *C, ARegion *region)
   /* Driver Editor's X axis is not time. */
   if (sipo->mode != SIPO_MODE_DRIVERS) {
     /* scrubbing region */
-    ED_time_scrub_draw_current_frame(region, scene, sipo->flag & SIPO_DRAWTIME);
+    ED_time_scrub_draw_current_frame(region, scene, sipo->flag & SIPO_DRAWTIME, !minimized);
   }
 
-  if (region->winy > HEADERY * UI_SCALE_FAC) {
+  if (!minimized) {
     /* scrollers */
     const rcti scroller_mask = ED_time_scrub_clamp_scroller_mask(v2d->mask);
     /* FIXME: args for scrollers depend on the type of data being shown. */
@@ -538,14 +544,14 @@ static void graph_region_message_subscribe(const wmRegionMessageSubscribeParams 
     }
   }
 
-  /* All dopesheet filter settings, etc. affect the drawing of this editor,
+  /* All dope-sheet filter settings, etc. affect the drawing of this editor,
    * also same applies for all animation-related data-types that may appear here,
    * so just whitelist the entire structs for updates
    */
   {
     wmMsgParams_RNA msg_key_params = {{}};
     StructRNA *type_array[] = {
-        &RNA_DopeSheet, /* dopesheet filters */
+        &RNA_DopeSheet, /* dope-sheet filters */
 
         &RNA_ActionGroup, /* channel groups */
         &RNA_FCurve,      /* F-Curve */
@@ -832,7 +838,7 @@ static void graph_id_remap(ScrArea * /*area*/,
   }
 
   mappings.apply(reinterpret_cast<ID **>(&sgraph->ads->filter_grp), ID_REMAP_APPLY_DEFAULT);
-  mappings.apply(reinterpret_cast<ID **>(&sgraph->ads->source), ID_REMAP_APPLY_DEFAULT);
+  mappings.apply((&sgraph->ads->source), ID_REMAP_APPLY_DEFAULT);
 }
 
 static void graph_foreach_id(SpaceLink *space_link, LibraryForeachIDData *data)

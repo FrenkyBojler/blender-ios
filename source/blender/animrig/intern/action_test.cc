@@ -302,6 +302,22 @@ TEST_F(ActionLayersTest, add_slot)
     EXPECT_STREQ(cube->id.name, slot.identifier);
     EXPECT_EQ(ID_OB, slot.idtype);
   }
+
+  { /* Creating a Slot for a specific ID that already had a slot assigned before should name it
+     * after that previous slot. This should also ensure that the first two characters are actually
+     * correct for the ID type. */
+    AnimData *adt = BKE_animdata_ensure_id(&cube->id);
+    STRNCPY_UTF8(adt->last_slot_identifier, "$$Kübuš 😹");
+    Slot &slot = action->slot_add_for_id(cube->id);
+    EXPECT_EQ(DNA_DEFAULT_ACTION_LAST_SLOT_HANDLE + 3, action->last_slot_handle);
+    EXPECT_EQ(DNA_DEFAULT_ACTION_LAST_SLOT_HANDLE + 3, slot.handle);
+
+    EXPECT_STREQ("Kübuš 😹", slot.identifier + 2)
+        << "The last-assigned slot name should be reused";
+    EXPECT_STREQ("OBKübuš 😹", slot.identifier)
+        << "The ID type encoded in the slot identifier should be correct";
+    EXPECT_EQ(ID_OB, slot.idtype);
+  }
 }
 
 TEST_F(ActionLayersTest, add_slot__reset_idroot)
@@ -430,6 +446,96 @@ TEST_F(ActionLayersTest, slot_remove)
     EXPECT_EQ(5, slot2.handle);
     EXPECT_EQ(5, action->last_slot_handle);
   }
+}
+
+TEST_F(ActionLayersTest, slot_move_to_index)
+{
+  Slot &slot_a = action->slot_add_for_id_type(ID_ME);
+  Slot &slot_b = action->slot_add_for_id_type(ID_CA);
+  Slot &slot_cube = action->slot_add_for_id(cube->id);
+  Slot &slot_suzanne = action->slot_add_for_id(suzanne->id);
+
+  assign_action_and_slot(action, &slot_cube, cube->id);
+  assign_action_and_slot(action, &slot_suzanne, suzanne->id);
+
+  const slot_handle_t handle_a = slot_a.handle;
+  const slot_handle_t handle_b = slot_b.handle;
+  const slot_handle_t handle_cube = slot_cube.handle;
+  const slot_handle_t handle_suzanne = slot_suzanne.handle;
+
+  ASSERT_EQ(action->slot(0)->handle, handle_a);
+  ASSERT_EQ(action->slot(0)->idtype_string(), "ME");
+  ASSERT_EQ(action->slot(1)->handle, handle_b);
+  ASSERT_EQ(action->slot(1)->idtype_string(), "CA");
+  ASSERT_EQ(action->slot(2)->handle, handle_cube);
+  ASSERT_EQ(action->slot(2)->idtype_string(), "OB");
+  ASSERT_EQ(action->slot(2)->users(*bmain)[0], &cube->id);
+  ASSERT_EQ(action->slot(3)->handle, handle_suzanne);
+  ASSERT_EQ(action->slot(3)->idtype_string(), "OB");
+  ASSERT_EQ(action->slot(3)->users(*bmain)[0], &suzanne->id);
+
+  /* First "move" a slot to its own location, which should do nothing. */
+  action->slot_move_to_index(slot_b, 1);
+  EXPECT_EQ(action->slot(0)->handle, handle_a);
+  EXPECT_EQ(action->slot(0)->idtype_string(), "ME");
+  EXPECT_EQ(action->slot(1)->handle, handle_b);
+  EXPECT_EQ(action->slot(1)->idtype_string(), "CA");
+  EXPECT_EQ(action->slot(2)->handle, handle_cube);
+  EXPECT_EQ(action->slot(2)->idtype_string(), "OB");
+  EXPECT_EQ(action->slot(2)->users(*bmain)[0], &cube->id);
+  EXPECT_EQ(action->slot(3)->handle, handle_suzanne);
+  EXPECT_EQ(action->slot(3)->idtype_string(), "OB");
+  EXPECT_EQ(action->slot(3)->users(*bmain)[0], &suzanne->id);
+
+  /* Then move slots around in various ways. */
+
+  action->slot_move_to_index(slot_a, 2);
+  EXPECT_EQ(action->slot(0)->handle, handle_b);
+  EXPECT_EQ(action->slot(0)->idtype_string(), "CA");
+  EXPECT_EQ(action->slot(1)->handle, handle_cube);
+  EXPECT_EQ(action->slot(1)->idtype_string(), "OB");
+  EXPECT_EQ(action->slot(1)->users(*bmain)[0], &cube->id);
+  EXPECT_EQ(action->slot(2)->handle, handle_a);
+  EXPECT_EQ(action->slot(2)->idtype_string(), "ME");
+  EXPECT_EQ(action->slot(3)->handle, handle_suzanne);
+  EXPECT_EQ(action->slot(3)->idtype_string(), "OB");
+  EXPECT_EQ(action->slot(3)->users(*bmain)[0], &suzanne->id);
+
+  action->slot_move_to_index(slot_suzanne, 1);
+  EXPECT_EQ(action->slot(0)->handle, handle_b);
+  EXPECT_EQ(action->slot(0)->idtype_string(), "CA");
+  EXPECT_EQ(action->slot(1)->handle, handle_suzanne);
+  EXPECT_EQ(action->slot(1)->idtype_string(), "OB");
+  EXPECT_EQ(action->slot(1)->users(*bmain)[0], &suzanne->id);
+  EXPECT_EQ(action->slot(2)->handle, handle_cube);
+  EXPECT_EQ(action->slot(2)->idtype_string(), "OB");
+  EXPECT_EQ(action->slot(2)->users(*bmain)[0], &cube->id);
+  EXPECT_EQ(action->slot(3)->handle, handle_a);
+  EXPECT_EQ(action->slot(3)->idtype_string(), "ME");
+
+  action->slot_move_to_index(slot_cube, 3);
+  EXPECT_EQ(action->slot(0)->handle, handle_b);
+  EXPECT_EQ(action->slot(0)->idtype_string(), "CA");
+  EXPECT_EQ(action->slot(1)->handle, handle_suzanne);
+  EXPECT_EQ(action->slot(1)->idtype_string(), "OB");
+  EXPECT_EQ(action->slot(1)->users(*bmain)[0], &suzanne->id);
+  EXPECT_EQ(action->slot(2)->handle, handle_a);
+  EXPECT_EQ(action->slot(2)->idtype_string(), "ME");
+  EXPECT_EQ(action->slot(3)->handle, handle_cube);
+  EXPECT_EQ(action->slot(3)->idtype_string(), "OB");
+  EXPECT_EQ(action->slot(3)->users(*bmain)[0], &cube->id);
+
+  action->slot_move_to_index(slot_suzanne, 0);
+  EXPECT_EQ(action->slot(0)->handle, handle_suzanne);
+  EXPECT_EQ(action->slot(0)->idtype_string(), "OB");
+  EXPECT_EQ(action->slot(0)->users(*bmain)[0], &suzanne->id);
+  EXPECT_EQ(action->slot(1)->handle, handle_b);
+  EXPECT_EQ(action->slot(1)->idtype_string(), "CA");
+  EXPECT_EQ(action->slot(2)->handle, handle_a);
+  EXPECT_EQ(action->slot(2)->idtype_string(), "ME");
+  EXPECT_EQ(action->slot(3)->handle, handle_cube);
+  EXPECT_EQ(action->slot(3)->idtype_string(), "OB");
+  EXPECT_EQ(action->slot(3)->users(*bmain)[0], &cube->id);
 }
 
 TEST_F(ActionLayersTest, action_assign_id)
@@ -591,10 +697,16 @@ TEST_F(ActionLayersTest, slot_identifier_ensure_prefix)
 TEST_F(ActionLayersTest, slot_identifier_prefix)
 {
   Slot &slot = action->slot_add();
-  EXPECT_EQ("XX", slot.identifier_prefix_for_idtype());
+  EXPECT_EQ("XX", slot.idtype_string());
+  EXPECT_EQ("XX", slot.identifier_prefix());
 
   slot.idtype = ID_CA;
-  EXPECT_EQ("CA", slot.identifier_prefix_for_idtype());
+  EXPECT_EQ("CA", slot.idtype_string());
+  EXPECT_EQ("XX", slot.identifier_prefix());
+
+  slot.identifier_ensure_prefix();
+  EXPECT_EQ("CA", slot.idtype_string());
+  EXPECT_EQ("CA", slot.identifier_prefix());
 }
 
 TEST_F(ActionLayersTest, rename_slot_identifier_collision)
@@ -608,11 +720,11 @@ TEST_F(ActionLayersTest, rename_slot_identifier_collision)
   EXPECT_STREQ("New Slot Name.001", slot2.identifier);
 }
 
-TEST_F(ActionLayersTest, find_suitable_slot)
+TEST_F(ActionLayersTest, generic_slot_for_autoassign)
 {
   /* ===
    * Empty case, no slots exist yet and the ID doesn't even have an AnimData. */
-  EXPECT_EQ(nullptr, action->find_suitable_slot_for(cube->id));
+  EXPECT_EQ(nullptr, generic_slot_for_autoassign(cube->id, *this->action, ""));
 
   /* ===
    * Slot exists with the same name & type as the ID, but the ID doesn't have any AnimData yet.
@@ -621,7 +733,7 @@ TEST_F(ActionLayersTest, find_suitable_slot)
   slot.handle = 327;
   STRNCPY_UTF8(slot.identifier, "OBKüüübus");
   slot.idtype = GS(cube->id.name);
-  EXPECT_EQ(&slot, action->find_suitable_slot_for(cube->id));
+  EXPECT_EQ(&slot, generic_slot_for_autoassign(cube->id, *this->action, ""));
 
   /* ===
    * Slot exists with the same name & type as the ID, and the ID has an AnimData with the same
@@ -638,22 +750,55 @@ TEST_F(ActionLayersTest, find_suitable_slot)
   /* Configure adt to use the handle of one slot, and the identifier of the other. */
   adt->slot_handle = other_slot.handle;
   STRNCPY_UTF8(adt->last_slot_identifier, slot.identifier);
-  EXPECT_EQ(&slot, action->find_suitable_slot_for(cube->id));
+  EXPECT_EQ(&slot,
+            generic_slot_for_autoassign(cube->id, *this->action, cube->adt->last_slot_identifier));
 
   /* ===
-   * Same situation as above (AnimData has identifier of one slot, but the handle of another),
-   * except that the Action has already been assigned. In this case the handle should take
-   * precedence. */
-  adt->action = action;
-  id_us_plus(&action->id);
-  EXPECT_EQ(&other_slot, action->find_suitable_slot_for(cube->id));
-
-  /* ===
-   * A slot exists, but doesn't match anything in the action data of the cube. This should fall
-   * back to using the ID name. */
+   * Assigned slot info exists, but doesn't match anything in the action data of the cube. This
+   * should fall back to using the ID name. */
   adt->slot_handle = 161;
   STRNCPY_UTF8(adt->last_slot_identifier, "¿¿What's this??");
-  EXPECT_EQ(&slot, action->find_suitable_slot_for(cube->id));
+  EXPECT_EQ(&slot,
+            generic_slot_for_autoassign(cube->id, *this->action, cube->adt->last_slot_identifier));
+}
+
+TEST_F(ActionLayersTest, generic_slot_for_autoassign_untyped_wildcarding)
+{
+  /* Test the untyped slot "wildcard" behavior, where OBSlot should be chosen when the last slot
+   * identifier was "XXSlot", and vice versa. */
+
+  /* ===
+   * Action has OBSlot, last-used slot is XXSlot. Should pick OBSlot. */
+  AnimData *adt = BKE_animdata_ensure_id(&cube->id);
+  STRNCPY_UTF8(adt->last_slot_identifier, "XXSlot");
+  Slot &ob_slot = action->slot_add_for_id_type(ID_OB);
+  action->slot_identifier_define(ob_slot, "OBSlot");
+
+  EXPECT_EQ(&ob_slot,
+            generic_slot_for_autoassign(cube->id, *this->action, adt->last_slot_identifier));
+
+  /* ===
+   * Action has OBSlot and XXSlot, last-used slot is XXSlot. Should pick OBSlot. */
+  Slot &xx_slot = action->slot_add();
+  action->slot_identifier_define(xx_slot, "XXSlot");
+  ASSERT_FALSE(xx_slot.has_idtype());
+  ASSERT_STREQ("XXSlot", xx_slot.identifier);
+  ASSERT_STREQ("XXSlot", adt->last_slot_identifier);
+  EXPECT_EQ(&ob_slot,
+            generic_slot_for_autoassign(cube->id, *this->action, adt->last_slot_identifier));
+
+  /* ===
+   * Action has OBSlot and XXSlot, last-used slot is OBSlot. Should pick OBSlot. */
+  STRNCPY_UTF8(adt->last_slot_identifier, "OBSlot");
+  EXPECT_EQ(&ob_slot,
+            generic_slot_for_autoassign(cube->id, *this->action, adt->last_slot_identifier));
+
+  /* ===
+   * Action has XXSlot, last-used slot is OBSlot. Should pick XXSlot. */
+  action->slot_remove(ob_slot);
+  ASSERT_STREQ("OBSlot", adt->last_slot_identifier);
+  EXPECT_EQ(&xx_slot,
+            generic_slot_for_autoassign(cube->id, *this->action, adt->last_slot_identifier));
 }
 
 TEST_F(ActionLayersTest, active_slot)
@@ -709,6 +854,63 @@ TEST_F(ActionLayersTest, active_slot)
     EXPECT_FALSE(slot_cube.is_active());
     EXPECT_FALSE(slot_suz.is_active());
     EXPECT_FALSE(slot_bob.is_active());
+  }
+}
+
+TEST_F(ActionLayersTest, assign_action_ensure_slot_for_keying)
+{
+  { /* Slotless Action, should create a typed slot. */
+    Action &action = action_add(*this->bmain, "ACEmpty");
+    Slot *chosen_slot = assign_action_ensure_slot_for_keying(action, cube->id);
+    ASSERT_NE(nullptr, chosen_slot);
+    EXPECT_EQ(ID_OB, chosen_slot->idtype);
+    EXPECT_STREQ("OBKüüübus", chosen_slot->identifier);
+  }
+
+  { /* Single slot with same name as ID, Action not yet assigned. Should assign the Action and the
+       slot. */
+    Action &action = action_add(*this->bmain, "ACAction");
+    const Slot &slot_for_id = action.slot_add_for_id(cube->id);
+    Slot *chosen_slot = assign_action_ensure_slot_for_keying(action, cube->id);
+    ASSERT_NE(nullptr, chosen_slot);
+    EXPECT_EQ(&slot_for_id, chosen_slot) << "The expected slot should be chosen";
+    EXPECT_EQ(cube->adt->action, &action) << "The Action should be assigned";
+    EXPECT_EQ(cube->adt->slot_handle, chosen_slot->handle) << "The chosen slot should be assigned";
+  }
+
+  { /* Single slot with same name as ID, Action already assigned but not the slot. Should create
+     * new slot. */
+    Action &action = action_add(*this->bmain, "ACAction");
+    const Slot &slot_for_id = action.slot_add_for_id(cube->id);
+    ASSERT_EQ(ActionSlotAssignmentResult::OK, assign_action_and_slot(&action, nullptr, cube->id));
+
+    Slot *chosen_slot = assign_action_ensure_slot_for_keying(action, cube->id);
+    ASSERT_NE(nullptr, chosen_slot);
+    EXPECT_NE(&slot_for_id, chosen_slot) << "A new slot should be chosen";
+    EXPECT_STREQ("OBKüüübus.001", chosen_slot->identifier);
+    EXPECT_EQ(cube->adt->action, &action) << "The Action should be assigned";
+    EXPECT_EQ(cube->adt->slot_handle, chosen_slot->handle) << "The chosen slot should be assigned";
+  }
+
+  { /* Single untyped slot, Action already assigned but not the slot. Should assign the untyped
+     * slot. */
+    Action &action = action_add(*this->bmain, "ACAction");
+
+    /* Assign the Action before adding the untyped slot, otherwise the slot gets assigned & thus
+     * typed. */
+    ASSERT_EQ(ActionSlotAssignmentResult::OK, assign_action_and_slot(&action, nullptr, cube->id));
+
+    Slot &untyped_slot = action.slot_add();
+    action.slot_identifier_define(untyped_slot, "XXJust A Slot");
+
+    Slot *chosen_slot = assign_action_ensure_slot_for_keying(action, cube->id);
+
+    ASSERT_NE(nullptr, chosen_slot);
+    EXPECT_EQ(&untyped_slot, chosen_slot) << "The untyped slot should be chosen";
+    EXPECT_TRUE(untyped_slot.has_idtype()) << "Slot should have gotten an ID type";
+    EXPECT_STREQ("OBJust A Slot", untyped_slot.identifier);
+    EXPECT_EQ(cube->adt->action, &action) << "The Action should be assigned";
+    EXPECT_EQ(cube->adt->slot_handle, chosen_slot->handle) << "The chosen slot should be assigned";
   }
 }
 
@@ -1006,11 +1208,11 @@ TEST_F(ActionLayersTest, action_move_slot)
   PointerRNA cube_rna_pointer = RNA_id_pointer_create(&cube->id);
   PointerRNA suzanne_rna_pointer = RNA_id_pointer_create(&suzanne->id);
 
-  action_fcurve_ensure(bmain, action, "Test", &cube_rna_pointer, {"location", 0});
-  action_fcurve_ensure(bmain, action, "Test", &cube_rna_pointer, {"rotation_euler", 1});
+  action_fcurve_ensure_ex(bmain, action, "Test", &cube_rna_pointer, {"location", 0});
+  action_fcurve_ensure_ex(bmain, action, "Test", &cube_rna_pointer, {"rotation_euler", 1});
 
-  action_fcurve_ensure(bmain, action_2, "Test_2", &suzanne_rna_pointer, {"location", 0});
-  action_fcurve_ensure(bmain, action_2, "Test_2", &suzanne_rna_pointer, {"rotation_euler", 1});
+  action_fcurve_ensure_ex(bmain, action_2, "Test_2", &suzanne_rna_pointer, {"location", 0});
+  action_fcurve_ensure_ex(bmain, action_2, "Test_2", &suzanne_rna_pointer, {"rotation_euler", 1});
 
   ASSERT_EQ(action->layer_array_num, 1);
   ASSERT_EQ(action_2->layer_array_num, 1);
@@ -1046,12 +1248,64 @@ TEST_F(ActionLayersTest, action_move_slot)
   ASSERT_EQ(action, suzanne->adt->action);
 }
 
+TEST_F(ActionLayersTest, action_move_slot_without_channelbag)
+{
+  Action *action_2 = static_cast<Action *>(BKE_id_new(bmain, ID_AC, "Action 2"));
+  EXPECT_TRUE(action->is_empty());
+
+  Slot &slot_cube = action->slot_add();
+  Slot &slot_suzanne = action_2->slot_add();
+  EXPECT_EQ(assign_action_and_slot(action, &slot_cube, cube->id), ActionSlotAssignmentResult::OK);
+  EXPECT_EQ(assign_action_and_slot(action_2, &slot_suzanne, suzanne->id),
+            ActionSlotAssignmentResult::OK);
+
+  PointerRNA cube_rna_pointer = RNA_id_pointer_create(&cube->id);
+  PointerRNA suzanne_rna_pointer = RNA_id_pointer_create(&suzanne->id);
+
+  action_fcurve_ensure_ex(bmain, action, "Test", &cube_rna_pointer, {"location", 0});
+  action_fcurve_ensure_ex(bmain, action, "Test", &cube_rna_pointer, {"rotation_euler", 1});
+
+  /* Make sure action_2 has a keyframe strip, but without a channelbag. */
+  action_2->layer_add("Bagless").strip_add(*action_2, Strip::Type::Keyframe);
+
+  ASSERT_EQ(action->layer_array_num, 1);
+  ASSERT_EQ(action_2->layer_array_num, 1);
+
+  Layer *layer_1 = action->layer(0);
+  Layer *layer_2 = action_2->layer(0);
+
+  ASSERT_EQ(layer_1->strip_array_num, 1);
+  ASSERT_EQ(layer_2->strip_array_num, 1);
+
+  StripKeyframeData &strip_data_1 = layer_1->strip(0)->data<StripKeyframeData>(*action);
+  StripKeyframeData &strip_data_2 = layer_2->strip(0)->data<StripKeyframeData>(*action_2);
+
+  ASSERT_EQ(strip_data_1.channelbag_array_num, 1);
+  ASSERT_EQ(strip_data_2.channelbag_array_num, 0)
+      << "the keyframe strip of action_2 should NOT have a channelbag in this test";
+
+  Channelbag *bag_1 = strip_data_1.channelbag(0);
+  ASSERT_EQ(bag_1->fcurve_array_num, 2);
+
+  move_slot(*bmain, slot_suzanne, *action_2, *action);
+
+  ASSERT_EQ(strip_data_1.channelbag_array_num, 1);
+  ASSERT_EQ(strip_data_2.channelbag_array_num, 0);
+
+  ASSERT_EQ(action->slot_array_num, 2);
+  ASSERT_EQ(action_2->slot_array_num, 0);
+
+  /* Action should have been reassigned. */
+  ASSERT_EQ(action, cube->adt->action);
+  ASSERT_EQ(action, suzanne->adt->action);
+}
+
 /*-----------------------------------------------------------*/
 
 /* Allocate fcu->bezt, and also return a unique_ptr to it for easily freeing the memory. */
 static void allocate_keyframes(FCurve &fcu, const size_t num_keyframes)
 {
-  fcu.bezt = MEM_cnew_array<BezTriple>(num_keyframes, __func__);
+  fcu.bezt = MEM_calloc_arrayN<BezTriple>(num_keyframes, __func__);
 }
 
 /* Append keyframe, assumes that fcu->bezt is allocated and has enough space. */
@@ -1126,7 +1380,7 @@ TEST_F(ActionQueryTest, BKE_action_frame_range_calc)
 
   /* One curve with one key. */
   {
-    FCurve &fcu = *MEM_cnew<FCurve>(__func__);
+    FCurve &fcu = *MEM_callocN<FCurve>(__func__);
     allocate_keyframes(fcu, 1);
     add_keyframe(fcu, 1.0f, 2.0f);
 
@@ -1140,8 +1394,8 @@ TEST_F(ActionQueryTest, BKE_action_frame_range_calc)
 
   /* Two curves with one key each on different frames. */
   {
-    FCurve &fcu1 = *MEM_cnew<FCurve>(__func__);
-    FCurve &fcu2 = *MEM_cnew<FCurve>(__func__);
+    FCurve &fcu1 = *MEM_callocN<FCurve>(__func__);
+    FCurve &fcu2 = *MEM_callocN<FCurve>(__func__);
     allocate_keyframes(fcu1, 1);
     allocate_keyframes(fcu2, 1);
     add_keyframe(fcu1, 1.0f, 2.0f);
@@ -1158,7 +1412,7 @@ TEST_F(ActionQueryTest, BKE_action_frame_range_calc)
 
   /* One curve with two keys. */
   {
-    FCurve &fcu = *MEM_cnew<FCurve>(__func__);
+    FCurve &fcu = *MEM_callocN<FCurve>(__func__);
     allocate_keyframes(fcu, 2);
     add_keyframe(fcu, 1.0f, 2.0f);
     add_keyframe(fcu, 1.5f, 2.0f);
@@ -1195,13 +1449,13 @@ class ChannelbagTest : public testing::Test {
   }
 };
 
-TEST_F(ChannelbagTest, fcurve_move)
+TEST_F(ChannelbagTest, fcurve_move_to_index)
 {
-  FCurve &fcu0 = channelbag->fcurve_ensure(nullptr, {"fcu0", 0, std::nullopt, "group0"});
-  FCurve &fcu1 = channelbag->fcurve_ensure(nullptr, {"fcu1", 0, std::nullopt, "group0"});
-  FCurve &fcu2 = channelbag->fcurve_ensure(nullptr, {"fcu2", 0, std::nullopt, "group1"});
-  FCurve &fcu3 = channelbag->fcurve_ensure(nullptr, {"fcu3", 0, std::nullopt, "group1"});
-  FCurve &fcu4 = channelbag->fcurve_ensure(nullptr, {"fcu4", 0, std::nullopt, std::nullopt});
+  FCurve &fcu0 = channelbag->fcurve_ensure(nullptr, {"fcu0", 0, {}, {}, "group0"});
+  FCurve &fcu1 = channelbag->fcurve_ensure(nullptr, {"fcu1", 0, {}, {}, "group0"});
+  FCurve &fcu2 = channelbag->fcurve_ensure(nullptr, {"fcu2", 0, {}, {}, "group1"});
+  FCurve &fcu3 = channelbag->fcurve_ensure(nullptr, {"fcu3", 0, {}, {}, "group1"});
+  FCurve &fcu4 = channelbag->fcurve_ensure(nullptr, {"fcu4", 0});
 
   ASSERT_EQ(5, channelbag->fcurves().size());
   ASSERT_EQ(2, channelbag->channel_groups().size());
@@ -1210,7 +1464,7 @@ TEST_F(ChannelbagTest, fcurve_move)
   bActionGroup &group1 = *channelbag->channel_group(1);
 
   /* Moving an fcurve to where it already is should be fine. */
-  channelbag->fcurve_move(fcu0, 0);
+  channelbag->fcurve_move_to_index(fcu0, 0);
   EXPECT_EQ(&fcu0, channelbag->fcurve(0));
   EXPECT_EQ(&fcu1, channelbag->fcurve(1));
   EXPECT_EQ(&fcu2, channelbag->fcurve(2));
@@ -1223,7 +1477,7 @@ TEST_F(ChannelbagTest, fcurve_move)
   EXPECT_EQ(nullptr, fcu4.grp);
 
   /* Move to first. */
-  channelbag->fcurve_move(fcu4, 0);
+  channelbag->fcurve_move_to_index(fcu4, 0);
   EXPECT_EQ(0, group0.fcurve_range_start);
   EXPECT_EQ(2, group0.fcurve_range_length);
   EXPECT_EQ(2, group1.fcurve_range_start);
@@ -1240,7 +1494,7 @@ TEST_F(ChannelbagTest, fcurve_move)
   EXPECT_EQ(nullptr, fcu3.grp);
 
   /* Move to last. */
-  channelbag->fcurve_move(fcu1, 4);
+  channelbag->fcurve_move_to_index(fcu1, 4);
   EXPECT_EQ(0, group0.fcurve_range_start);
   EXPECT_EQ(2, group0.fcurve_range_length);
   EXPECT_EQ(2, group1.fcurve_range_start);
@@ -1257,7 +1511,7 @@ TEST_F(ChannelbagTest, fcurve_move)
   EXPECT_EQ(nullptr, fcu1.grp);
 
   /* Move to middle. */
-  channelbag->fcurve_move(fcu4, 2);
+  channelbag->fcurve_move_to_index(fcu4, 2);
   EXPECT_EQ(0, group0.fcurve_range_start);
   EXPECT_EQ(2, group0.fcurve_range_length);
   EXPECT_EQ(2, group1.fcurve_range_start);
@@ -1315,11 +1569,11 @@ TEST_F(ChannelbagTest, channel_group_remove)
   bActionGroup &group1 = channelbag->channel_group_create("Group1");
   bActionGroup &group2 = channelbag->channel_group_create("Group2");
 
-  FCurve &fcu0 = channelbag->fcurve_ensure(nullptr, {"fcu0", 0, std::nullopt, "Group0"});
-  FCurve &fcu1 = channelbag->fcurve_ensure(nullptr, {"fcu1", 0, std::nullopt, "Group0"});
-  FCurve &fcu2 = channelbag->fcurve_ensure(nullptr, {"fcu2", 0, std::nullopt, "Group2"});
-  FCurve &fcu3 = channelbag->fcurve_ensure(nullptr, {"fcu3", 0, std::nullopt, "Group2"});
-  FCurve &fcu4 = channelbag->fcurve_ensure(nullptr, {"fcu4", 0, std::nullopt, std::nullopt});
+  FCurve &fcu0 = channelbag->fcurve_ensure(nullptr, {"fcu0", 0, {}, {}, "Group0"});
+  FCurve &fcu1 = channelbag->fcurve_ensure(nullptr, {"fcu1", 0, {}, {}, "Group0"});
+  FCurve &fcu2 = channelbag->fcurve_ensure(nullptr, {"fcu2", 0, {}, {}, "Group2"});
+  FCurve &fcu3 = channelbag->fcurve_ensure(nullptr, {"fcu3", 0, {}, {}, "Group2"});
+  FCurve &fcu4 = channelbag->fcurve_ensure(nullptr, {"fcu4", 0});
 
   ASSERT_EQ(3, channelbag->channel_groups().size());
   ASSERT_EQ(5, channelbag->fcurves().size());
@@ -1431,14 +1685,14 @@ TEST_F(ChannelbagTest, channel_group_ensure)
 
 TEST_F(ChannelbagTest, channel_group_fcurve_creation)
 {
-  FCurve &fcu0 = channelbag->fcurve_ensure(nullptr, {"fcu0", 0, std::nullopt, std::nullopt});
+  FCurve &fcu0 = channelbag->fcurve_ensure(nullptr, {"fcu0", 0});
   EXPECT_EQ(1, channelbag->fcurves().size());
   EXPECT_TRUE(channelbag->channel_groups().is_empty());
 
   /* If an fcurve already exists, then ensuring it with a channel group in the
    * fcurve descriptor should NOT add it that group, nor should the group be
    * created if it doesn't already exist. */
-  channelbag->fcurve_ensure(nullptr, {"fcu0", 0, std::nullopt, "group0"});
+  channelbag->fcurve_ensure(nullptr, {"fcu0", 0, {}, {}, "group0"});
   EXPECT_EQ(1, channelbag->fcurves().size());
   EXPECT_EQ(nullptr, fcu0.grp);
   EXPECT_TRUE(channelbag->channel_groups().is_empty());
@@ -1446,7 +1700,7 @@ TEST_F(ChannelbagTest, channel_group_fcurve_creation)
   /* Creating a new fcurve with a channel group in the fcurve descriptor should
    * create the group and put the fcurve in it.  This also implies that the
    * fcurve will be added before any non-grouped fcurves in the array. */
-  FCurve &fcu1 = channelbag->fcurve_ensure(nullptr, {"fcu1", 0, std::nullopt, "group0"});
+  FCurve &fcu1 = channelbag->fcurve_ensure(nullptr, {"fcu1", 0, {}, {}, "group0"});
   ASSERT_EQ(2, channelbag->fcurves().size());
   ASSERT_EQ(1, channelbag->channel_groups().size());
   bActionGroup &group0 = *channelbag->channel_group(0);
@@ -1461,7 +1715,7 @@ TEST_F(ChannelbagTest, channel_group_fcurve_creation)
    * should create the group and put the fcurve in it.  This also implies that
    * the fcurve will be added before non-grouped fcurves, but after other
    * grouped ones. */
-  FCurve &fcu2 = channelbag->fcurve_ensure(nullptr, {"fcu2", 0, std::nullopt, "group1"});
+  FCurve &fcu2 = channelbag->fcurve_ensure(nullptr, {"fcu2", 0, {}, {}, "group1"});
   ASSERT_EQ(3, channelbag->fcurves().size());
   ASSERT_EQ(2, channelbag->channel_groups().size());
   EXPECT_EQ(&group0, channelbag->channel_group(0));
@@ -1479,7 +1733,7 @@ TEST_F(ChannelbagTest, channel_group_fcurve_creation)
 
   /* Creating a new fcurve with the first channel group again should put it at
    * the end of that group. */
-  FCurve &fcu3 = channelbag->fcurve_ensure(nullptr, {"fcu3", 0, std::nullopt, "group0"});
+  FCurve &fcu3 = channelbag->fcurve_ensure(nullptr, {"fcu3", 0, {}, {}, "group0"});
   ASSERT_EQ(4, channelbag->fcurves().size());
   ASSERT_EQ(2, channelbag->channel_groups().size());
   EXPECT_EQ(&group0, channelbag->channel_group(0));
@@ -1499,7 +1753,7 @@ TEST_F(ChannelbagTest, channel_group_fcurve_creation)
 
   /* Finally, creating a new fcurve with the second channel group again should
    * also put it at the end of that group. */
-  FCurve &fcu4 = channelbag->fcurve_ensure(nullptr, {"fcu4", 0, std::nullopt, "group1"});
+  FCurve &fcu4 = channelbag->fcurve_ensure(nullptr, {"fcu4", 0, {}, {}, "group1"});
   ASSERT_EQ(5, channelbag->fcurves().size());
   ASSERT_EQ(2, channelbag->channel_groups().size());
   EXPECT_EQ(&group0, channelbag->channel_group(0));
@@ -1522,11 +1776,11 @@ TEST_F(ChannelbagTest, channel_group_fcurve_creation)
 
 TEST_F(ChannelbagTest, channel_group_fcurve_removal)
 {
-  FCurve &fcu0 = channelbag->fcurve_ensure(nullptr, {"fcu0", 0, std::nullopt, "group0"});
-  FCurve &fcu1 = channelbag->fcurve_ensure(nullptr, {"fcu1", 0, std::nullopt, "group0"});
-  FCurve &fcu2 = channelbag->fcurve_ensure(nullptr, {"fcu2", 0, std::nullopt, "group1"});
-  FCurve &fcu3 = channelbag->fcurve_ensure(nullptr, {"fcu3", 0, std::nullopt, "group1"});
-  FCurve &fcu4 = channelbag->fcurve_ensure(nullptr, {"fcu4", 0, std::nullopt, std::nullopt});
+  FCurve &fcu0 = channelbag->fcurve_ensure(nullptr, {"fcu0", 0, {}, {}, "group0"});
+  FCurve &fcu1 = channelbag->fcurve_ensure(nullptr, {"fcu1", 0, {}, {}, "group0"});
+  FCurve &fcu2 = channelbag->fcurve_ensure(nullptr, {"fcu2", 0, {}, {}, "group1"});
+  FCurve &fcu3 = channelbag->fcurve_ensure(nullptr, {"fcu3", 0, {}, {}, "group1"});
+  FCurve &fcu4 = channelbag->fcurve_ensure(nullptr, {"fcu4", 0});
 
   ASSERT_EQ(5, channelbag->fcurves().size());
   ASSERT_EQ(2, channelbag->channel_groups().size());
@@ -1593,13 +1847,13 @@ TEST_F(ChannelbagTest, channel_group_fcurve_removal)
   ASSERT_EQ(0, channelbag->channel_groups().size());
 }
 
-TEST_F(ChannelbagTest, channel_group_move)
+TEST_F(ChannelbagTest, channel_group_move_to_index)
 {
-  FCurve &fcu0 = channelbag->fcurve_ensure(nullptr, {"fcu0", 0, std::nullopt, "group0"});
-  FCurve &fcu1 = channelbag->fcurve_ensure(nullptr, {"fcu1", 0, std::nullopt, "group1"});
-  FCurve &fcu2 = channelbag->fcurve_ensure(nullptr, {"fcu2", 0, std::nullopt, "group1"});
-  FCurve &fcu3 = channelbag->fcurve_ensure(nullptr, {"fcu3", 0, std::nullopt, "group2"});
-  FCurve &fcu4 = channelbag->fcurve_ensure(nullptr, {"fcu4", 0, std::nullopt, std::nullopt});
+  FCurve &fcu0 = channelbag->fcurve_ensure(nullptr, {"fcu0", 0, {}, {}, "group0"});
+  FCurve &fcu1 = channelbag->fcurve_ensure(nullptr, {"fcu1", 0, {}, {}, "group1"});
+  FCurve &fcu2 = channelbag->fcurve_ensure(nullptr, {"fcu2", 0, {}, {}, "group1"});
+  FCurve &fcu3 = channelbag->fcurve_ensure(nullptr, {"fcu3", 0, {}, {}, "group2"});
+  FCurve &fcu4 = channelbag->fcurve_ensure(nullptr, {"fcu4", 0});
 
   ASSERT_EQ(5, channelbag->fcurves().size());
   ASSERT_EQ(3, channelbag->channel_groups().size());
@@ -1608,7 +1862,7 @@ TEST_F(ChannelbagTest, channel_group_move)
   bActionGroup &group1 = *channelbag->channel_group(1);
   bActionGroup &group2 = *channelbag->channel_group(2);
 
-  channelbag->channel_group_move(group0, 2);
+  channelbag->channel_group_move_to_index(group0, 2);
   EXPECT_EQ(&group1, channelbag->channel_group(0));
   EXPECT_EQ(&group2, channelbag->channel_group(1));
   EXPECT_EQ(&group0, channelbag->channel_group(2));
@@ -1629,7 +1883,7 @@ TEST_F(ChannelbagTest, channel_group_move)
   EXPECT_EQ(&group0, fcu0.grp);
   EXPECT_EQ(nullptr, fcu4.grp);
 
-  channelbag->channel_group_move(group1, 1);
+  channelbag->channel_group_move_to_index(group1, 1);
   EXPECT_EQ(&group2, channelbag->channel_group(0));
   EXPECT_EQ(&group1, channelbag->channel_group(1));
   EXPECT_EQ(&group0, channelbag->channel_group(2));
@@ -1650,7 +1904,7 @@ TEST_F(ChannelbagTest, channel_group_move)
   EXPECT_EQ(&group0, fcu0.grp);
   EXPECT_EQ(nullptr, fcu4.grp);
 
-  channelbag->channel_group_move(group0, 0);
+  channelbag->channel_group_move_to_index(group0, 0);
   EXPECT_EQ(&group0, channelbag->channel_group(0));
   EXPECT_EQ(&group2, channelbag->channel_group(1));
   EXPECT_EQ(&group1, channelbag->channel_group(2));
@@ -1674,9 +1928,9 @@ TEST_F(ChannelbagTest, channel_group_move)
 
 TEST_F(ChannelbagTest, channel_group_move_fcurve_into)
 {
-  FCurve &fcu0 = channelbag->fcurve_ensure(nullptr, {"fcu0", 0, std::nullopt, std::nullopt});
-  FCurve &fcu1 = channelbag->fcurve_ensure(nullptr, {"fcu1", 0, std::nullopt, std::nullopt});
-  FCurve &fcu2 = channelbag->fcurve_ensure(nullptr, {"fcu2", 0, std::nullopt, std::nullopt});
+  FCurve &fcu0 = channelbag->fcurve_ensure(nullptr, {"fcu0", 0});
+  FCurve &fcu1 = channelbag->fcurve_ensure(nullptr, {"fcu1", 0});
+  FCurve &fcu2 = channelbag->fcurve_ensure(nullptr, {"fcu2", 0});
   bActionGroup &group0 = channelbag->channel_group_create("group0");
   bActionGroup &group1 = channelbag->channel_group_create("group1");
 
@@ -1740,11 +1994,11 @@ TEST_F(ChannelbagTest, channel_group_move_fcurve_into)
 
 TEST_F(ChannelbagTest, channel_group_fcurve_ungroup)
 {
-  FCurve &fcu0 = channelbag->fcurve_ensure(nullptr, {"fcu0", 0, std::nullopt, "group0"});
-  FCurve &fcu1 = channelbag->fcurve_ensure(nullptr, {"fcu1", 0, std::nullopt, "group0"});
-  FCurve &fcu2 = channelbag->fcurve_ensure(nullptr, {"fcu2", 0, std::nullopt, "group1"});
-  FCurve &fcu3 = channelbag->fcurve_ensure(nullptr, {"fcu3", 0, std::nullopt, "group1"});
-  FCurve &fcu4 = channelbag->fcurve_ensure(nullptr, {"fcu4", 0, std::nullopt, std::nullopt});
+  FCurve &fcu0 = channelbag->fcurve_ensure(nullptr, {"fcu0", 0, {}, {}, "group0"});
+  FCurve &fcu1 = channelbag->fcurve_ensure(nullptr, {"fcu1", 0, {}, {}, "group0"});
+  FCurve &fcu2 = channelbag->fcurve_ensure(nullptr, {"fcu2", 0, {}, {}, "group1"});
+  FCurve &fcu3 = channelbag->fcurve_ensure(nullptr, {"fcu3", 0, {}, {}, "group1"});
+  FCurve &fcu4 = channelbag->fcurve_ensure(nullptr, {"fcu4", 0});
 
   ASSERT_EQ(5, channelbag->fcurves().size());
   ASSERT_EQ(2, channelbag->channel_groups().size());
@@ -1867,12 +2121,12 @@ TEST_F(ActionFCurveMoveTest, test_fcurve_move_legacy)
   Action &action_dst = action_add(*this->bmain, "DestinationAction");
 
   /* Add F-Curves to source Action. */
-  BLI_addtail(&action_src.curves, this->fcurve_create("source_prop", 0));
-  FCurve *fcurve_to_move = this->fcurve_create("source_prop", 2);
+  BLI_addtail(&action_src.curves, fcurve_create("source_prop", 0));
+  FCurve *fcurve_to_move = fcurve_create("source_prop", 2);
   BLI_addtail(&action_src.curves, fcurve_to_move);
 
   /* Add F-Curves to destination Action. */
-  BLI_addtail(&action_dst.curves, this->fcurve_create("dest_prop", 0));
+  BLI_addtail(&action_dst.curves, fcurve_create("dest_prop", 0));
 
   ASSERT_TRUE(action_src.is_action_legacy());
   ASSERT_TRUE(action_dst.is_action_legacy());

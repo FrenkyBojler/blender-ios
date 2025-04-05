@@ -41,15 +41,14 @@
  * starts again.
  */
 
+#include <atomic>
 #include <mutex>
-#include <sstream>
 
-#include "BLI_compute_context.hh"
 #include "BLI_enumerable_thread_specific.hh"
 #include "BLI_function_ref.hh"
+#include "BLI_stack.hh"
 #include "BLI_task.h"
 #include "BLI_task.hh"
-#include "BLI_timeit.hh"
 
 #include "FN_lazy_function_graph_executor.hh"
 
@@ -1458,6 +1457,19 @@ inline void Executor::execute_node(const FunctionNode &node,
   if (self_.logger_ != nullptr) {
     self_.logger_->log_after_node_execute(node, node_params, fn_context);
   }
+}
+
+GraphExecutor::GraphExecutor(const Graph &graph,
+                             const Logger *logger,
+                             const SideEffectProvider *side_effect_provider,
+                             const NodeExecuteWrapper *node_execute_wrapper)
+    : GraphExecutor(graph,
+                    Vector<const GraphInputSocket *>(graph.graph_inputs()),
+                    Vector<const GraphOutputSocket *>(graph.graph_outputs()),
+                    logger,
+                    side_effect_provider,
+                    node_execute_wrapper)
+{
 }
 
 GraphExecutor::GraphExecutor(const Graph &graph,

@@ -6,19 +6,15 @@
  * \ingroup cmpnodes
  */
 
-#include "BLI_math_base.h"
 #include "BLI_math_color.h"
-#include "BLI_math_vector.h"
 #include "BLI_math_vector_types.hh"
 
-#include "DNA_movieclip_types.h"
 #include "DNA_scene_types.h"
 
 #include "UI_interface.hh"
 #include "UI_resources.hh"
 
 #include "GPU_shader.hh"
-#include "GPU_texture.hh"
 
 #include "COM_algorithm_morphological_distance.hh"
 #include "COM_algorithm_morphological_distance_feather.hh"
@@ -51,7 +47,7 @@ static void cmp_node_keying_declare(NodeDeclarationBuilder &b)
 
 static void node_composit_init_keying(bNodeTree * /*ntree*/, bNode *node)
 {
-  NodeKeyingData *data = MEM_cnew<NodeKeyingData>(__func__);
+  NodeKeyingData *data = MEM_callocN<NodeKeyingData>(__func__);
 
   data->screen_balance = 0.5f;
   data->despill_balance = 0.5f;
@@ -67,21 +63,22 @@ static void node_composit_buts_keying(uiLayout *layout, bContext * /*C*/, Pointe
 {
   // bNode *node = (bNode*)ptr->data; /* UNUSED */
 
-  uiItemR(layout, ptr, "blur_pre", UI_ITEM_R_SPLIT_EMPTY_NAME, nullptr, ICON_NONE);
-  uiItemR(layout, ptr, "screen_balance", UI_ITEM_R_SPLIT_EMPTY_NAME, nullptr, ICON_NONE);
-  uiItemR(layout, ptr, "despill_factor", UI_ITEM_R_SPLIT_EMPTY_NAME, nullptr, ICON_NONE);
-  uiItemR(layout, ptr, "despill_balance", UI_ITEM_R_SPLIT_EMPTY_NAME, nullptr, ICON_NONE);
-  uiItemR(layout, ptr, "edge_kernel_radius", UI_ITEM_R_SPLIT_EMPTY_NAME, nullptr, ICON_NONE);
-  uiItemR(layout, ptr, "edge_kernel_tolerance", UI_ITEM_R_SPLIT_EMPTY_NAME, nullptr, ICON_NONE);
-  uiItemR(layout, ptr, "clip_black", UI_ITEM_R_SPLIT_EMPTY_NAME, nullptr, ICON_NONE);
-  uiItemR(layout, ptr, "clip_white", UI_ITEM_R_SPLIT_EMPTY_NAME, nullptr, ICON_NONE);
-  uiItemR(layout, ptr, "dilate_distance", UI_ITEM_R_SPLIT_EMPTY_NAME, nullptr, ICON_NONE);
-  uiItemR(layout, ptr, "feather_falloff", UI_ITEM_R_SPLIT_EMPTY_NAME, nullptr, ICON_NONE);
-  uiItemR(layout, ptr, "feather_distance", UI_ITEM_R_SPLIT_EMPTY_NAME, nullptr, ICON_NONE);
-  uiItemR(layout, ptr, "blur_post", UI_ITEM_R_SPLIT_EMPTY_NAME, nullptr, ICON_NONE);
+  uiItemR(layout, ptr, "blur_pre", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+  uiItemR(layout, ptr, "screen_balance", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+  uiItemR(layout, ptr, "despill_factor", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+  uiItemR(layout, ptr, "despill_balance", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+  uiItemR(layout, ptr, "edge_kernel_radius", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+  uiItemR(
+      layout, ptr, "edge_kernel_tolerance", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+  uiItemR(layout, ptr, "clip_black", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+  uiItemR(layout, ptr, "clip_white", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+  uiItemR(layout, ptr, "dilate_distance", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+  uiItemR(layout, ptr, "feather_falloff", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+  uiItemR(layout, ptr, "feather_distance", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+  uiItemR(layout, ptr, "blur_post", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
 }
 
-using namespace blender::realtime_compositor;
+using namespace blender::compositor;
 
 class KeyingOperation : public NodeOperation {
  public:
@@ -89,6 +86,23 @@ class KeyingOperation : public NodeOperation {
 
   void execute() override
   {
+    const Result &input_image = get_result("Image");
+    Result &output_image = get_result("Image");
+    Result &output_matte = get_result("Matte");
+    Result &output_edges = get_result("Edges");
+    if (input_image.is_single_value()) {
+      if (output_image.should_compute()) {
+        output_image.share_data(input_image);
+      }
+      if (output_matte.should_compute()) {
+        output_matte.allocate_invalid();
+      }
+      if (output_edges.should_compute()) {
+        output_edges.allocate_invalid();
+      }
+      return;
+    }
+
     Result blurred_input = compute_blurred_input();
 
     Result matte = compute_matte(blurred_input);
@@ -98,8 +112,6 @@ class KeyingOperation : public NodeOperation {
     Result tweaked_matte = compute_tweaked_matte(matte);
     matte.release();
 
-    Result &output_image = get_result("Image");
-    Result &output_matte = get_result("Matte");
     if (output_image.should_compute() || output_matte.should_compute()) {
       Result blurred_matte = compute_blurred_matte(tweaked_matte);
       tweaked_matte.release();
@@ -120,6 +132,9 @@ class KeyingOperation : public NodeOperation {
       else {
         feathered_matte.release();
       }
+    }
+    else {
+      tweaked_matte.release();
     }
   }
 
@@ -339,7 +354,7 @@ class KeyingOperation : public NodeOperation {
         return;
       }
 
-      float4 key_color = key.load_pixel<float4>(texel);
+      float4 key_color = key.load_pixel<float4, true>(texel);
       int3 key_saturation_indices = compute_saturation_indices(key_color.xyz());
       float input_saturation = compute_saturation(input_color, key_saturation_indices);
       float key_saturation = compute_saturation(key_color, key_saturation_indices);
@@ -367,8 +382,6 @@ class KeyingOperation : public NodeOperation {
 
   Result compute_tweaked_matte(Result &input_matte)
   {
-    Result &output_edges = get_result("Edges");
-
     const float black_level = node_storage(bnode()).clip_black;
     const float white_level = node_storage(bnode()).clip_white;
 
@@ -379,6 +392,7 @@ class KeyingOperation : public NodeOperation {
     /* The edges output is not needed and the matte is not tweaked, so return the original matte.
      * We also increment the reference count of the input because the caller will release it after
      * the call, and we want to extend its life since it is now returned as the output. */
+    Result &output_edges = get_result("Edges");
     if (!output_edges.should_compute() && (black_level == 0.0f && white_level == 1.0f) &&
         !core_matte_exists && !garbage_matte_exists)
     {
@@ -395,15 +409,13 @@ class KeyingOperation : public NodeOperation {
 
   Result compute_tweaked_matte_gpu(Result &input_matte)
   {
-    GPUShader *shader = context().get_shader("compositor_keying_tweak_matte");
+    GPUShader *shader = context().get_shader(this->get_tweak_matte_shader_name());
     GPU_shader_bind(shader);
 
-    Result &output_edges = get_result("Edges");
     const bool core_matte_exists = node().input_by_identifier("Core Matte")->is_logically_linked();
     const bool garbage_matte_exists =
         node().input_by_identifier("Garbage Matte")->is_logically_linked();
 
-    GPU_shader_uniform_1b(shader, "compute_edges", output_edges.should_compute());
     GPU_shader_uniform_1b(shader, "apply_core_matte", core_matte_exists);
     GPU_shader_uniform_1b(shader, "apply_garbage_matte", garbage_matte_exists);
     GPU_shader_uniform_1i(shader, "edge_search_radius", node_storage(bnode()).edge_kernel_radius);
@@ -423,8 +435,11 @@ class KeyingOperation : public NodeOperation {
     output_matte.allocate_texture(input_matte.domain());
     output_matte.bind_as_image(shader, "output_matte_img");
 
-    output_edges.allocate_texture(input_matte.domain());
-    output_edges.bind_as_image(shader, "output_edges_img");
+    Result &output_edges = get_result("Edges");
+    if (output_edges.should_compute()) {
+      output_edges.allocate_texture(input_matte.domain());
+      output_edges.bind_as_image(shader, "output_edges_img");
+    }
 
     compute_dispatch_threads_at_least(shader, input_matte.domain().size);
 
@@ -433,9 +448,18 @@ class KeyingOperation : public NodeOperation {
     garbage_matte.unbind_as_texture();
     core_matte.unbind_as_texture();
     output_matte.unbind_as_image();
-    output_edges.unbind_as_image();
+    if (output_edges.should_compute()) {
+      output_edges.unbind_as_image();
+    }
 
     return output_matte;
+  }
+
+  const char *get_tweak_matte_shader_name()
+  {
+    Result &output_edges = get_result("Edges");
+    return output_edges.should_compute() ? "compositor_keying_tweak_matte_with_edges" :
+                                           "compositor_keying_tweak_matte_without_edges";
   }
 
   Result compute_tweaked_matte_cpu(Result &input_matte)
@@ -458,7 +482,9 @@ class KeyingOperation : public NodeOperation {
 
     Result &output_edges = this->get_result("Edges");
     const bool compute_edges = output_edges.should_compute();
-    output_edges.allocate_texture(input_matte.domain());
+    if (compute_edges) {
+      output_edges.allocate_texture(input_matte.domain());
+    }
 
     parallel_for(input_matte.domain().size, [&](const int2 texel) {
       float matte = input_matte.load_pixel<float>(texel);
@@ -631,7 +657,7 @@ class KeyingOperation : public NodeOperation {
     };
 
     parallel_for(input.domain().size, [&](const int2 texel) {
-      float4 key_color = key.load_pixel<float4>(texel);
+      float4 key_color = key.load_pixel<float4, true>(texel);
       float4 color = input.load_pixel<float4>(texel);
       float matte = matte_image.load_pixel<float>(texel);
 
@@ -662,13 +688,19 @@ void register_node_type_cmp_keying()
 
   static blender::bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, CMP_NODE_KEYING, "Keying", NODE_CLASS_MATTE);
+  cmp_node_type_base(&ntype, "CompositorNodeKeying", CMP_NODE_KEYING);
+  ntype.ui_name = "Keying";
+  ntype.ui_description =
+      "Perform both chroma keying (to remove the backdrop) and despill (to correct color cast "
+      "from the backdrop)";
+  ntype.enum_name_legacy = "KEYING";
+  ntype.nclass = NODE_CLASS_MATTE;
   ntype.declare = file_ns::cmp_node_keying_declare;
   ntype.draw_buttons = file_ns::node_composit_buts_keying;
   ntype.initfunc = file_ns::node_composit_init_keying;
   blender::bke::node_type_storage(
-      &ntype, "NodeKeyingData", node_free_standard_storage, node_copy_standard_storage);
+      ntype, "NodeKeyingData", node_free_standard_storage, node_copy_standard_storage);
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
 
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }

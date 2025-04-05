@@ -25,43 +25,6 @@
 
 AUD_NAMESPACE_BEGIN
 
-PulseAudioDevice::PulseAudioSynchronizer::PulseAudioSynchronizer(PulseAudioDevice* device) : m_device(device)
-{
-}
-
-void PulseAudioDevice::PulseAudioSynchronizer::play()
-{
-	/* Make sure that our start time is up to date. */
-	AUD_pa_stream_get_time(m_device->m_stream, &m_time_start);
-	m_playing = true;
-}
-
-void PulseAudioDevice::PulseAudioSynchronizer::stop()
-{
-	std::shared_ptr<IHandle> dummy_handle;
-	m_seek_pos = getPosition(dummy_handle);
-	m_playing = false;
-}
-
-void PulseAudioDevice::PulseAudioSynchronizer::seek(std::shared_ptr<IHandle> handle, double time)
-{
-	/* Update start time here as we might update the seek position while playing back. */
-	AUD_pa_stream_get_time(m_device->m_stream, &m_time_start);
-	m_seek_pos = time;
-	handle->seek(time);
-}
-
-double PulseAudioDevice::PulseAudioSynchronizer::getPosition(std::shared_ptr<IHandle> /*handle*/)
-{
-	pa_usec_t time;
-	if(!m_playing)
-	{
-		return m_seek_pos;
-	}
-	AUD_pa_stream_get_time(m_device->m_stream, &time);
-	return (time - m_time_start) * 1.0e-6 + m_seek_pos;
-}
-
 void PulseAudioDevice::updateRingBuffer()
 {
 	unsigned int samplesize = AUD_DEVICE_SAMPLE_SIZE(m_specs);
@@ -94,12 +57,13 @@ void PulseAudioDevice::updateRingBuffer()
 			}
 			else
 			{
-				if(m_ring_buffer.getReadSize() == 0)
+				if(m_ring_buffer.getReadSize() == 0 && !m_corked)
 				{
 					AUD_pa_threaded_mainloop_lock(m_mainloop);
 					AUD_pa_stream_cork(m_stream, 1, nullptr, nullptr);
 					AUD_pa_stream_flush(m_stream, nullptr, nullptr);
 					AUD_pa_threaded_mainloop_unlock(m_mainloop);
+					m_corked = true;
 				}
 			}
 		}
@@ -163,15 +127,12 @@ void PulseAudioDevice::playing(bool playing)
 		AUD_pa_threaded_mainloop_lock(m_mainloop);
 		AUD_pa_stream_cork(m_stream, 0, nullptr, nullptr);
 		AUD_pa_threaded_mainloop_unlock(m_mainloop);
+		m_corked = false;
 	}
 }
 
-PulseAudioDevice::PulseAudioDevice(const std::string &name, DeviceSpecs specs, int buffersize) :
-	m_synchronizer(this),
-	m_playback(false),
-	m_state(PA_CONTEXT_UNCONNECTED),
-	m_valid(true),
-	m_underflows(0)
+PulseAudioDevice::PulseAudioDevice(const std::string& name, DeviceSpecs specs, int buffersize) :
+    m_playback(false), m_corked(true), m_state(PA_CONTEXT_UNCONNECTED), m_valid(true), m_underflows(0)
 {
 	m_mainloop = AUD_pa_threaded_mainloop_new();
 
@@ -324,9 +285,37 @@ PulseAudioDevice::~PulseAudioDevice()
 	destroy();
 }
 
-ISynchronizer *PulseAudioDevice::getSynchronizer()
+void PulseAudioDevice::seekSynchronizer(double time)
 {
-	return &m_synchronizer;
+	/* Update start time here as we might update the seek position while playing back. */
+	AUD_pa_stream_get_time(m_stream, &m_synchronizerStartTime);
+	m_synchronizerStartPosition = time;
+
+	SoftwareDevice::seekSynchronizer(time);
+}
+
+double PulseAudioDevice::getSynchronizerPosition()
+{
+	pa_usec_t time;
+	if(!isSynchronizerPlaying())
+	{
+		return m_synchronizerStartPosition;
+	}
+	AUD_pa_stream_get_time(m_stream, &time);
+	return (time - m_synchronizerStartTime) * 1.0e-6 + m_synchronizerStartPosition;
+}
+
+void PulseAudioDevice::playSynchronizer()
+{
+	/* Make sure that our start time is up to date. */
+	AUD_pa_stream_get_time(m_stream, &m_synchronizerStartTime);
+	SoftwareDevice::playSynchronizer();
+}
+
+void PulseAudioDevice::stopSynchronizer()
+{
+	m_synchronizerStartPosition = getSynchronizerPosition();
+	SoftwareDevice::stopSynchronizer();
 }
 
 class PulseAudioDeviceFactory : public IDeviceFactory

@@ -439,6 +439,9 @@ function(blender_add_lib__impl
   # Not for system includes because they can resolve to the same path
   # list_assert_duplicates("${includes_sys}")
 
+  # blenders dependency loops are longer than cmake expects and we need additional loops to
+  # properly link.
+  set_property(TARGET ${name} APPEND PROPERTY LINK_INTERFACE_MULTIPLICITY 3)
 endfunction()
 
 
@@ -569,7 +572,13 @@ macro(TEST_SSE_SUPPORT
     check_c_source_runs("
       #include <nmmintrin.h>
       #include <emmintrin.h>
-      int main(void) { __m128i v = _mm_setzero_si128(); v = _mm_cmpgt_epi64(v,v); return 0; }"
+      #include <smmintrin.h>
+      int main(void) {
+        __m128i v = _mm_setzero_si128();
+        v = _mm_cmpgt_epi64(v,v);
+        if (_mm_test_all_zeros(v, v)) return 0;
+        return 1;
+      }"
     SUPPORT_SSE42_BUILD)
   endif()
 
@@ -685,6 +694,10 @@ macro(remove_strict_flags)
   endif()
 
   if(MSVC)
+    add_cxx_flag(
+      # Warning C5038: data member 'foo' will be initialized after data member 'bar'.
+      "/wd5038"
+    )
     remove_cc_flag(
       # Restore warn C4100 (unreferenced formal parameter) back to w4.
       "/w34100"
@@ -1262,39 +1275,9 @@ endmacro()
 function(print_all_vars)
   get_cmake_property(_vars VARIABLES)
   foreach(_var ${_vars})
-    message("${_var}=${${_var}}")
+    message(STATUS "${_var}=${${_var}}")
   endforeach()
 endfunction()
-
-macro(openmp_delayload
-  projectname
-  )
-  if(MSVC)
-    if(WITH_OPENMP)
-      if(MSVC_CLANG)
-        set(OPENMP_DLL_NAME "libomp")
-      else()
-        set(OPENMP_DLL_NAME "vcomp140")
-      endif()
-      set_property(
-        TARGET ${projectname} APPEND_STRING PROPERTY
-        LINK_FLAGS_RELEASE " /DELAYLOAD:${OPENMP_DLL_NAME}.dll delayimp.lib"
-      )
-      set_property(
-        TARGET ${projectname} APPEND_STRING PROPERTY
-        LINK_FLAGS_DEBUG " /DELAYLOAD:${OPENMP_DLL_NAME}d.dll delayimp.lib"
-      )
-      set_property(
-        TARGET ${projectname} APPEND_STRING PROPERTY
-        LINK_FLAGS_RELWITHDEBINFO " /DELAYLOAD:${OPENMP_DLL_NAME}.dll delayimp.lib"
-      )
-      set_property(
-        TARGET ${projectname} APPEND_STRING PROPERTY
-        LINK_FLAGS_MINSIZEREL " /DELAYLOAD:${OPENMP_DLL_NAME}.dll delayimp.lib"
-      )
-    endif()
-  endif()
-endmacro()
 
 macro(set_and_warn_dependency
   _dependency _setting _val)
@@ -1483,11 +1466,49 @@ macro(windows_process_platform_bundled_libraries library_deps)
         set(next_library_mode "${library_upper}")
       else()
         windows_install_shared_manifest(
-            FILES ${library}
-            ${next_library_mode}
+          FILES ${library}
+          ${next_library_mode}
         )
         set(next_library_mode "ALL")
       endif()
     endforeach()
   endif()
 endmacro()
+
+macro(with_shader_cpp_compilation_config)
+  # avoid noisy warnings
+  if(CMAKE_COMPILER_IS_GNUCC OR CMAKE_C_COMPILER_ID MATCHES "Clang")
+    add_c_flag("-Wno-unused-result")
+    remove_cc_flag("-Wmissing-declarations")
+    # Would be nice to enable the warning once we support references.
+    add_cxx_flag("-Wno-uninitialized")
+    # Would be nice to enable the warning once we support nameless parameters.
+    add_cxx_flag("-Wno-unused-parameter")
+    # To compile libraries.
+    add_cxx_flag("-Wno-pragma-once-outside-header")
+  elseif(MSVC)
+    # Equivalent to "-Wno-uninitialized"
+    add_cxx_flag("/wd4700")
+    # Equivalent to "-Wno-unused-parameter"
+    add_cxx_flag("/wd4100")
+    # Disable "potential divide by 0" warning
+    add_cxx_flag("/wd4723")
+  endif()
+  add_definitions(-DGPU_SHADER)
+endmacro()
+
+function(compile_sources_as_cpp
+  executable
+  sources
+  define
+  )
+
+  foreach(glsl_file ${sources})
+    set_source_files_properties(${glsl_file} PROPERTIES LANGUAGE CXX)
+  endforeach()
+
+  add_library(${executable} OBJECT ${sources})
+  set_target_properties(${executable} PROPERTIES LINKER_LANGUAGE CXX)
+  target_include_directories(${executable} PUBLIC ${INC_GLSL})
+  target_compile_definitions(${executable} PRIVATE ${define})
+endfunction()

@@ -13,7 +13,6 @@
 
 #include "BLI_generic_array.hh"
 #include "BLI_generic_span.hh"
-#include "BLI_timeit.hh"
 #include "BLI_virtual_array.hh"
 
 namespace blender {
@@ -101,7 +100,6 @@ class GVArrayCommon {
   const GVArrayImpl *impl_ = nullptr;
   Storage storage_;
 
- protected:
   GVArrayCommon() = default;
   GVArrayCommon(const GVArrayCommon &other);
   GVArrayCommon(GVArrayCommon &&other) noexcept;
@@ -270,6 +268,7 @@ class GVArraySpan : public GSpan {
  public:
   GVArraySpan();
   GVArraySpan(GVArray varray);
+  template<typename T> GVArraySpan(VArray<T> varray) : GVArraySpan(GVArray(varray)) {}
   GVArraySpan(GVArraySpan &&other);
   ~GVArraySpan();
   GVArraySpan &operator=(GVArraySpan &&other);
@@ -595,12 +594,11 @@ class GVArrayImpl_For_GSpan : public GVMutableArrayImpl {
 
   CommonVArrayInfo common_info() const override;
 
-  virtual void materialize(const IndexMask &mask, void *dst) const override;
-  virtual void materialize_to_uninitialized(const IndexMask &mask, void *dst) const override;
+  void materialize(const IndexMask &mask, void *dst) const override;
+  void materialize_to_uninitialized(const IndexMask &mask, void *dst) const override;
 
-  virtual void materialize_compressed(const IndexMask &mask, void *dst) const override;
-  virtual void materialize_compressed_to_uninitialized(const IndexMask &mask,
-                                                       void *dst) const override;
+  void materialize_compressed(const IndexMask &mask, void *dst) const override;
+  void materialize_compressed_to_uninitialized(const IndexMask &mask, void *dst) const override;
 };
 
 class GVArrayImpl_For_GSpan_final final : public GVArrayImpl_For_GSpan {

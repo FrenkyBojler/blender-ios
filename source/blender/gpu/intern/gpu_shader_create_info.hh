@@ -81,18 +81,30 @@
 #elif !defined(GPU_SHADER_CREATE_INFO)
 /* Helps intellisense / auto-completion inside info files. */
 #  define GPU_SHADER_NAMED_INTERFACE_INFO(_interface, _inst_name) \
-    StageInterfaceInfo _interface(#_interface, _inst_name); \
-    _interface
+    static inline void autocomplete_helper_interface_##_interface() \
+    { \
+      StageInterfaceInfo _interface(#_interface, _inst_name); \
+      _interface
 #  define GPU_SHADER_INTERFACE_INFO(_interface) \
-    StageInterfaceInfo _interface(#_interface); \
-    _interface
+    static inline void autocomplete_helper_interface_##_interface() \
+    { \
+      StageInterfaceInfo _interface(#_interface); \
+      _interface
 #  define GPU_SHADER_CREATE_INFO(_info) \
-    ShaderCreateInfo _info(#_info); \
-    _info
+    static inline void autocomplete_helper_info_##_info() \
+    { \
+      ShaderCreateInfo _info(#_info); \
+      _info
 
-#  define GPU_SHADER_NAMED_INTERFACE_END(_inst_name) ;
-#  define GPU_SHADER_INTERFACE_END() ;
-#  define GPU_SHADER_CREATE_END() ;
+#  define GPU_SHADER_NAMED_INTERFACE_END(_inst_name) \
+    ; \
+    }
+#  define GPU_SHADER_INTERFACE_END() \
+    ; \
+    }
+#  define GPU_SHADER_CREATE_END() \
+    ; \
+    }
 
 #endif
 
@@ -110,7 +122,8 @@
 #  define GEOMETRY_LAYOUT(...) .geometry_layout(__VA_ARGS__)
 #  define GEOMETRY_OUT(stage_interface) .geometry_out(stage_interface)
 
-#  define SUBPASS_IN(slot, type, name, rog) .subpass_in(slot, Type::type, #name, rog)
+#  define SUBPASS_IN(slot, type, img_type, name, rog) \
+    .subpass_in(slot, Type::type, ImageType::img_type, #name, rog)
 
 #  define FRAGMENT_OUT(slot, type, name) .fragment_out(slot, Type::type, #name)
 #  define FRAGMENT_OUT_DUAL(slot, type, name, blend) \
@@ -148,7 +161,6 @@
 #  define BUILTINS(builtin) .builtins(builtin)
 
 #  define VERTEX_SOURCE(filename) .vertex_source(filename)
-#  define GEOMETRY_SOURCE(filename) .geometry_source(filename)
 #  define FRAGMENT_SOURCE(filename) .fragment_source(filename)
 #  define COMPUTE_SOURCE(filename) .compute_source(filename)
 
@@ -228,7 +240,7 @@
 #  define GEOMETRY_LAYOUT(...)
 #  define GEOMETRY_OUT(stage_interface) using namespace interface::stage_interface;
 
-#  define SUBPASS_IN(slot, type, name, rog) const type name = {};
+#  define SUBPASS_IN(slot, type, img_type, name, rog) const type name = {};
 
 #  define FRAGMENT_OUT(slot, type, name) \
     namespace gl_FragmentShader { \
@@ -588,7 +600,7 @@ struct StageInterfaceInfo {
 
   StageInterfaceInfo(const char *name_, const char *instance_name_ = "")
       : name(name_), instance_name(instance_name_){};
-  ~StageInterfaceInfo(){};
+  ~StageInterfaceInfo() = default;
 
   using Self = StageInterfaceInfo;
 
@@ -630,8 +642,6 @@ struct ShaderCreateInfo {
   bool auto_resource_location_ = false;
   /** If true, force depth and stencil tests to always happen before fragment shader invocation. */
   bool early_fragment_test_ = false;
-  /** If true, force the use of the GL shader introspection for resource location. */
-  bool legacy_resource_location_ = false;
   /** Allow optimization when fragment shader writes to `gl_FragDepth`. */
   DepthWrite depth_write_ = DepthWrite::UNCHANGED;
   /** GPU Backend compatibility flag. Temporary requirement until Metal enablement is fully
@@ -645,11 +655,11 @@ struct ShaderCreateInfo {
   /** Manually set builtins. */
   BuiltinBits builtins_ = BuiltinBits::NONE;
   /** Manually set generated code. */
-  std::string vertex_source_generated = "";
-  std::string fragment_source_generated = "";
-  std::string compute_source_generated = "";
-  std::string geometry_source_generated = "";
-  std::string typedef_source_generated = "";
+  std::string vertex_source_generated;
+  std::string fragment_source_generated;
+  std::string compute_source_generated;
+  std::string geometry_source_generated;
+  std::string typedef_source_generated;
   /** Manually set generated dependencies. */
   Vector<StringRefNull, 0> dependencies_generated;
 
@@ -732,7 +742,24 @@ struct ShaderCreateInfo {
   };
   Vector<FragOut> fragment_outputs_;
 
-  using SubpassIn = FragOut;
+  struct SubpassIn {
+    int index;
+    Type type;
+    ImageType img_type;
+    StringRefNull name;
+    /* NOTE: Currently only supported by Metal. */
+    int raster_order_group;
+
+    bool operator==(const SubpassIn &b) const
+    {
+      TEST_EQUAL(*this, b, index);
+      TEST_EQUAL(*this, b, type);
+      TEST_EQUAL(*this, b, img_type);
+      TEST_EQUAL(*this, b, name);
+      TEST_EQUAL(*this, b, raster_order_group);
+      return true;
+    }
+  };
   Vector<SubpassIn> subpass_inputs_;
 
   Vector<SpecializationConstant> specialization_constants_;
@@ -873,10 +900,6 @@ struct ShaderCreateInfo {
    */
   Vector<StringRefNull> additional_infos_;
 
-  /* Transform feedback properties. */
-  eGPUShaderTFBType tf_type_ = GPU_SHADER_TFB_NONE;
-  Vector<const char *> tf_names_;
-
   /* Api-specific parameters. */
 #  ifdef WITH_METAL_BACKEND
   ushort mtl_max_threads_per_threadgroup_ = 0;
@@ -884,7 +907,7 @@ struct ShaderCreateInfo {
 
  public:
   ShaderCreateInfo(const char *name) : name_(name){};
-  ~ShaderCreateInfo(){};
+  ~ShaderCreateInfo() = default;
 
   using Self = ShaderCreateInfo;
 
@@ -971,9 +994,10 @@ struct ShaderCreateInfo {
    * be difficult to inject implicitly and will require more high level changes.
    * TODO(fclem): OpenGL can emulate that using `GL_EXT_shader_framebuffer_fetch`.
    */
-  Self &subpass_in(int slot, Type type, StringRefNull name, int raster_order_group = -1)
+  Self &subpass_in(
+      int slot, Type type, ImageType img_type, StringRefNull name, int raster_order_group = -1)
   {
-    subpass_inputs_.append({slot, type, DualBlend::NONE, name, raster_order_group});
+    subpass_inputs_.append({slot, type, img_type, name, raster_order_group});
     return *(Self *)this;
   }
 
@@ -1012,14 +1036,14 @@ struct ShaderCreateInfo {
     constant.name = name;
     switch (type) {
       case Type::INT:
-        constant.value.i = static_cast<int>(default_value);
+        constant.value.i = int(default_value);
         break;
       case Type::BOOL:
       case Type::UINT:
-        constant.value.u = static_cast<uint>(default_value);
+        constant.value.u = uint(default_value);
         break;
       case Type::FLOAT:
-        constant.value.f = static_cast<float>(default_value);
+        constant.value.f = float(default_value);
         break;
       default:
         BLI_assert_msg(0, "Only scalar types can be used as constants");
@@ -1114,12 +1138,6 @@ struct ShaderCreateInfo {
     return *(Self *)this;
   }
 
-  Self &geometry_source(StringRefNull filename)
-  {
-    geometry_source_ = filename;
-    return *(Self *)this;
-  }
-
   Self &fragment_source(StringRefNull filename)
   {
     fragment_source_ = filename;
@@ -1195,12 +1213,6 @@ struct ShaderCreateInfo {
     return *(Self *)this;
   }
 
-  Self &legacy_resource_location(bool value)
-  {
-    legacy_resource_location_ = value;
-    return *(Self *)this;
-  }
-
   Self &metal_backend_only(bool flag)
   {
     metal_backend_only_ = flag;
@@ -1244,27 +1256,6 @@ struct ShaderCreateInfo {
     return *(Self *)this;
   }
 
-  /** \} */
-
-  /* -------------------------------------------------------------------- */
-  /** \name Transform feedback properties
-   *
-   * Transform feedback enablement and output binding assignment.
-   * \{ */
-
-  Self &transform_feedback_mode(eGPUShaderTFBType tf_mode)
-  {
-    BLI_assert(tf_mode != GPU_SHADER_TFB_NONE);
-    tf_type_ = tf_mode;
-    return *(Self *)this;
-  }
-
-  Self &transform_feedback_output_name(const char *name)
-  {
-    BLI_assert(tf_type_ != GPU_SHADER_TFB_NONE);
-    tf_names_.append(name);
-    return *(Self *)this;
-  }
   /** \} */
 
   /* -------------------------------------------------------------------- */
@@ -1371,13 +1362,13 @@ struct ShaderCreateInfo {
     };
 
     /* TODO(@fclem): Order the resources. */
-    for (auto &res : info.batch_resources_) {
+    for (const auto &res : info.batch_resources_) {
       print_resource(res);
     }
-    for (auto &res : info.pass_resources_) {
+    for (const auto &res : info.pass_resources_) {
       print_resource(res);
     }
-    for (auto &res : info.geometry_resources_) {
+    for (const auto &res : info.geometry_resources_) {
       print_resource(res);
     }
     return stream;
@@ -1385,17 +1376,17 @@ struct ShaderCreateInfo {
 
   bool has_resource_type(Resource::BindType bind_type) const
   {
-    for (auto &res : batch_resources_) {
+    for (const auto &res : batch_resources_) {
       if (res.bind_type == bind_type) {
         return true;
       }
     }
-    for (auto &res : pass_resources_) {
+    for (const auto &res : pass_resources_) {
       if (res.bind_type == bind_type) {
         return true;
       }
     }
-    for (auto &res : geometry_resources_) {
+    for (const auto &res : geometry_resources_) {
       if (res.bind_type == bind_type) {
         return true;
       }

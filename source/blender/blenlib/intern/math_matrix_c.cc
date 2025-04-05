@@ -16,9 +16,9 @@
 #  include "eigen_capi.h"
 #endif
 
-#include <string.h>
+#include <cstring>
 
-#include "BLI_strict_flags.h" /* Keep last. */
+#include "BLI_strict_flags.h" /* IWYU pragma: keep. Keep last. */
 
 /********************************* Init **************************************/
 
@@ -994,13 +994,6 @@ float determinant_m3_array(const float m[3][3])
 }
 
 float determinant_m4_mat3_array(const float m[4][4])
-{
-  return (m[0][0] * (m[1][1] * m[2][2] - m[1][2] * m[2][1]) -
-          m[1][0] * (m[0][1] * m[2][2] - m[0][2] * m[2][1]) +
-          m[2][0] * (m[0][1] * m[1][2] - m[0][2] * m[1][1]));
-}
-
-double determinant_m3_array_db(const double m[3][3])
 {
   return (m[0][0] * (m[1][1] * m[2][2] - m[1][2] * m[2][1]) -
           m[1][0] * (m[0][1] * m[2][2] - m[0][2] * m[2][1]) +
@@ -2731,7 +2724,7 @@ void svd_m4(float U[4][4], float s[4], float V[4][4], float A_[4][4])
 
         for (j = k; j < p - 1; j++) {
           float t = hypotf(f, g);
-          /* division by zero checks added to avoid NaN (brecht) */
+          /* NOTE(@brecht): division by zero checks added to avoid NaN. */
           float cs = (t == 0.0f) ? 0.0f : f / t;
           float sn = (t == 0.0f) ? 0.0f : g / t;
           if (j != k) {
@@ -2749,7 +2742,7 @@ void svd_m4(float U[4][4], float s[4], float V[4][4], float A_[4][4])
           }
 
           t = hypotf(f, g);
-          /* division by zero checks added to avoid NaN (brecht) */
+          /* NOTE(@brecht): division by zero checks added to avoid NaN. */
           cs = (t == 0.0f) ? 0.0f : f / t;
           sn = (t == 0.0f) ? 0.0f : g / t;
           s[j] = t;

@@ -8,8 +8,10 @@
 #include "BKE_compute_contexts.hh"
 #include "BKE_context.hh"
 #include "BKE_main.hh"
+#include "BKE_node_legacy_types.hh"
 #include "BKE_node_runtime.hh"
 #include "BKE_node_tree_zones.hh"
+#include "BKE_viewer_path.hh"
 #include "BKE_workspace.hh"
 
 #include "BLI_listbase.h"
@@ -31,7 +33,7 @@ using bke::bNodeTreeZones;
 
 static ViewerPathElem *viewer_path_elem_for_zone(const bNodeTreeZone &zone)
 {
-  switch (zone.output_node->type) {
+  switch (zone.output_node->type_legacy) {
     case GEO_NODE_SIMULATION_OUTPUT: {
       SimulationZoneViewerPathElem *node_elem = BKE_viewer_path_elem_new_simulation_zone();
       node_elem->sim_output_node_id = zone.output_node->identifier;
@@ -52,6 +54,9 @@ static ViewerPathElem *viewer_path_elem_for_zone(const bNodeTreeZone &zone)
       node_elem->zone_output_node_id = zone.output_node->identifier;
       node_elem->index = storage.inspection_index;
       return &node_elem->base;
+    }
+    case GEO_NODE_CLOSURE_OUTPUT: {
+      return nullptr;
     }
   }
   BLI_assert_unreachable();
@@ -107,7 +112,7 @@ static void viewer_path_for_geometry_node(const SpaceNode &snode,
     bNodeTree *tree = tree_path[i]->nodetree;
     /* The tree path contains the name of the node but not its ID. */
     const char *node_name = tree_path[i + 1]->node_name;
-    const bNode *node = bke::node_find_node_by_name(tree, node_name);
+    const bNode *node = bke::node_find_node_by_name(*tree, node_name);
     /* The name in the tree path should match a group node in the tree. Sometimes, the tree-path is
      * out of date though. */
     if (node == nullptr) {
@@ -123,6 +128,9 @@ static void viewer_path_for_geometry_node(const SpaceNode &snode,
         node->identifier);
     for (const bNodeTreeZone *zone : zone_stack) {
       ViewerPathElem *zone_elem = viewer_path_elem_for_zone(*zone);
+      if (!zone_elem) {
+        return;
+      }
       BLI_addtail(&r_dst.path, zone_elem);
     }
 
@@ -141,6 +149,9 @@ static void viewer_path_for_geometry_node(const SpaceNode &snode,
       node.identifier);
   for (const bNodeTreeZone *zone : zone_stack) {
     ViewerPathElem *zone_elem = viewer_path_elem_for_zone(*zone);
+    if (!zone_elem) {
+      return;
+    }
     BLI_addtail(&r_dst.path, zone_elem);
   }
 
@@ -157,7 +168,7 @@ void activate_geometry_node(Main &bmain, SpaceNode &snode, bNode &node)
     return;
   }
   for (bNode *iter_node : snode.edittree->all_nodes()) {
-    if (iter_node->type == GEO_NODE_VIEWER) {
+    if (iter_node->type_legacy == GEO_NODE_VIEWER) {
       SET_FLAG_FROM_TEST(iter_node->flag, iter_node == &node, NODE_DO_OUTPUT);
     }
   }

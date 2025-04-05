@@ -16,9 +16,9 @@
 
 #include "eigen_capi.h"
 
-#include <string.h>
+#include <cstring>
 
-#include "BLI_strict_flags.h" /* Keep last. */
+#include "BLI_strict_flags.h" /* IWYU pragma: keep. Keep last. */
 
 /********************************** Eigen Solvers *********************************/
 
@@ -39,7 +39,7 @@ bool BLI_eigen_solve_selfadjoint_m3(const float m3[3][3],
 
 void BLI_svd_m3(const float m3[3][3], float r_U[3][3], float r_S[3], float r_V[3][3])
 {
-  EIG_svd_square_matrix(3, (const float *)m3, (float *)r_U, (float *)r_S, (float *)r_V);
+  EIG_svd_square_matrix(3, (const float *)m3, (float *)r_U, r_S, (float *)r_V);
 }
 
 /***************************** Simple Solvers ************************************/
@@ -51,8 +51,7 @@ bool BLI_tridiagonal_solve(
     return false;
   }
 
-  size_t bytes = sizeof(double) * (uint)count;
-  double *c1 = (double *)MEM_mallocN(bytes * 2, "tridiagonal_c1d1");
+  double *c1 = MEM_malloc_arrayN<double>(size_t(count) * 2, "tridiagonal_c1d1");
   if (!c1) {
     return false;
   }
@@ -63,8 +62,8 @@ bool BLI_tridiagonal_solve(
 
   /* forward pass */
 
-  c1[0] = c_prev = ((double)c[0]) / b[0];
-  d1[0] = d_prev = ((double)d[0]) / b[0];
+  c1[0] = c_prev = double(c[0]) / b[0];
+  d1[0] = d_prev = double(d[0]) / b[0];
 
   for (i = 1; i < count; i++) {
     double denum = b[i] - a[i] * c_prev;
@@ -76,11 +75,11 @@ bool BLI_tridiagonal_solve(
   /* back pass */
 
   x_prev = d_prev;
-  r_x[--i] = ((float)x_prev);
+  r_x[--i] = float(x_prev);
 
   while (--i >= 0) {
     x_prev = d1[i] - c1[i] * x_prev;
-    r_x[i] = ((float)x_prev);
+    r_x[i] = float(x_prev);
   }
 
   MEM_freeN(c1);
@@ -117,8 +116,8 @@ bool BLI_tridiagonal_solve_cyclic(
     return BLI_tridiagonal_solve(a, b, c, d, r_x, count);
   }
 
-  size_t bytes = sizeof(float) * (uint)count;
-  float *tmp = (float *)MEM_mallocN(bytes * 2, "tridiagonal_ex");
+  size_t bytes = sizeof(float) * uint(count);
+  float *tmp = MEM_malloc_arrayN<float>(size_t(count) * 2, "tridiagonal_ex");
   if (!tmp) {
     return false;
   }

@@ -583,10 +583,14 @@ GHOST_TSuccess GHOST_SystemWin32::getButtons(GHOST_Buttons &buttons) const
 
 GHOST_TCapabilityFlag GHOST_SystemWin32::getCapabilities() const
 {
-  return GHOST_TCapabilityFlag(GHOST_CAPABILITY_FLAG_ALL &
-                               ~(
-                                   /* WIN32 has no support for a primary selection clipboard. */
-                                   GHOST_kCapabilityPrimaryClipboard));
+  return GHOST_TCapabilityFlag(
+      GHOST_CAPABILITY_FLAG_ALL &
+      ~(
+          /* WIN32 has no support for a primary selection clipboard. */
+          GHOST_kCapabilityPrimaryClipboard |
+          /* WIN32 doesn't define a Hyper modifier key,
+           * it's possible another modifier could be optionally used in it's place. */
+          GHOST_kCapabilityKeyboardHyperKey));
 }
 
 GHOST_TSuccess GHOST_SystemWin32::init()
@@ -1258,6 +1262,19 @@ GHOST_EventKey *GHOST_SystemWin32::processKeyEvent(GHOST_WindowWin32 *window, RA
   GHOST_TKey key = system->hardKey(raw, &key_down);
   GHOST_EventKey *event;
 
+  /* Scan code (device-dependent identifier for the key on the keyboard) for the Alt key.
+   * https://learn.microsoft.com/en-us/windows/win32/inputdev/about-keyboard-input#scan-codes */
+  constexpr USHORT ALTGR_MAKE_CODE = 0x38;
+
+  /* If the keyboard layout includes AltGr and the virtual key is Control, yet the
+   * scan-code is actually for Right Alt (ALTGR_MAKE_CODE scan code with E0 prefix).
+   * Ignore these, so treating AltGR as regular Alt. #68256 */
+  if (system->m_hasAltGr && vk == VK_CONTROL && raw.data.keyboard.MakeCode == ALTGR_MAKE_CODE &&
+      (raw.data.keyboard.Flags & RI_KEY_E0))
+  {
+    return nullptr;
+  }
+
   /* NOTE(@ideasman42): key repeat in WIN32 also applies to modifier-keys.
    * Check for this case and filter out modifier-repeat.
    * Typically keyboard events are *not* filtered as part of GHOST's event handling.
@@ -1283,12 +1300,16 @@ GHOST_EventKey *GHOST_SystemWin32::processKeyEvent(GHOST_WindowWin32 *window, RA
     const BOOL has_state = GetKeyboardState((PBYTE)state);
     const bool ctrl_pressed = has_state && state[VK_CONTROL] & 0x80;
     const bool alt_pressed = has_state && state[VK_MENU] & 0x80;
+    const bool win_pressed = has_state && (state[VK_LWIN] | state[VK_RWIN]) & 0x80;
 
     /* We can be here with !key_down if processing dead keys (diacritics). See #103119. */
 
     /* No text with control key pressed (Alt can be used to insert special characters though!). */
     if (ctrl_pressed && !alt_pressed) {
       /* Pass. */
+    }
+    else if (win_pressed) {
+      /* Pass. No text if either Win key is pressed. #79702. */
     }
     /* Don't call #ToUnicodeEx on dead keys as it clears the buffer and so won't allow diacritical
      * composition. XXX: we are not checking return of MapVirtualKeyW for high bit set, which is
@@ -1363,6 +1384,9 @@ GHOST_Event *GHOST_SystemWin32::processWindowEvent(GHOST_TEventType type,
 
   if (type == GHOST_kEventWindowActivate) {
     system->getWindowManager()->setActiveWindow(window);
+  }
+  else if (type == GHOST_kEventWindowDeactivate) {
+    system->getWindowManager()->setWindowInactive(window);
   }
 
   return new GHOST_Event(getMessageTime(system), type, window);
@@ -2412,7 +2436,8 @@ GHOST_TSuccess GHOST_SystemWin32::hasClipboardImage(void) const
             WCHAR lpszFile[MAX_PATH] = {0};
             DragQueryFileW(hDrop, 0, lpszFile, MAX_PATH);
             char *filepath = alloc_utf_8_from_16(lpszFile, 0);
-            ImBuf *ibuf = IMB_testiffname(filepath, IB_rect | IB_multilayer);
+            ImBuf *ibuf = IMB_load_image_from_filepath(filepath,
+                                                       IB_byte_data | IB_multilayer | IB_test);
             free(filepath);
             if (ibuf) {
               IMB_freeImBuf(ibuf);
@@ -2448,7 +2473,7 @@ static uint *getClipboardImageFilepath(int *r_width, int *r_height)
   }
 
   if (filepath) {
-    ImBuf *ibuf = IMB_loadiffname(filepath, IB_rect | IB_multilayer, nullptr);
+    ImBuf *ibuf = IMB_load_image_from_filepath(filepath, IB_byte_data | IB_multilayer);
     free(filepath);
     if (ibuf) {
       *r_width = ibuf->x;
@@ -2566,8 +2591,8 @@ static uint *getClipboardImageImBuf(int *r_width, int *r_height, UINT format)
 
   uint *rgba = nullptr;
 
-  ImBuf *ibuf = IMB_ibImageFromMemory(
-      (uchar *)pMem, GlobalSize(hGlobal), IB_rect, nullptr, "<clipboard>");
+  ImBuf *ibuf = IMB_load_image_from_memory(
+      (uchar *)pMem, GlobalSize(hGlobal), IB_byte_data, "<clipboard>");
 
   if (ibuf) {
     *r_width = ibuf->x;
@@ -2678,7 +2703,7 @@ static bool putClipboardImagePNG(uint *rgba, int width, int height)
   ImBuf *ibuf = IMB_allocFromBuffer(reinterpret_cast<uint8_t *>(rgba), nullptr, width, height, 32);
   ibuf->ftype = IMB_FTYPE_PNG;
   ibuf->foptions.quality = 15;
-  if (!IMB_saveiff(ibuf, "<memory>", IB_rect | IB_mem)) {
+  if (!IMB_save_image(ibuf, "<memory>", IB_byte_data | IB_mem)) {
     IMB_freeImBuf(ibuf);
     return false;
   }

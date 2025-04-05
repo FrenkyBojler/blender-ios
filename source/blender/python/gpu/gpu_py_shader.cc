@@ -685,7 +685,20 @@ PyDoc_STRVAR(
 static PyObject *pygpu_shader_format_calc(BPyGPUShader *self, PyObject * /*arg*/)
 {
   BPyGPUVertFormat *ret = (BPyGPUVertFormat *)BPyGPUVertFormat_CreatePyObject(nullptr);
-  GPU_vertformat_from_shader(&ret->fmt, self->shader);
+  if (bpygpu_shader_is_polyline(self->shader)) {
+    GPU_vertformat_clear(&ret->fmt);
+
+    /* WORKAROUND: Special case for POLYLINE shader. */
+    if (GPU_shader_get_ssbo_binding(self->shader, "pos") >= 0) {
+      GPU_vertformat_attr_add(&ret->fmt, "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
+    }
+    if (GPU_shader_get_ssbo_binding(self->shader, "color") >= 0) {
+      GPU_vertformat_attr_add(&ret->fmt, "color", GPU_COMP_F32, 4, GPU_FETCH_FLOAT);
+    }
+  }
+  else {
+    GPU_vertformat_from_shader(&ret->fmt, self->shader);
+  }
   return (PyObject *)ret;
 }
 
@@ -700,37 +713,79 @@ PyDoc_STRVAR(
     "   :rtype: tuple[tuple[str, str | None], ...]\n");
 static PyObject *pygpu_shader_attrs_info_get(BPyGPUShader *self, PyObject * /*arg*/)
 {
-  uint attr_len = GPU_shader_get_attribute_len(self->shader);
+  using namespace blender::gpu::shader;
+  PyObject *ret;
+  int type;
   int location_test = 0, attrs_added = 0;
+  char name[256];
 
-  PyObject *ret = PyTuple_New(attr_len);
-  while (attrs_added < attr_len) {
-    char name[256];
-    int type;
-    if (!GPU_shader_get_attribute_info(self->shader, location_test++, name, &type)) {
-      continue;
-    }
-    PyObject *py_type;
-    if (type != -1) {
-      py_type = PyUnicode_InternFromString(
-          PyC_StringEnum_FindIDFromValue(pygpu_attrtype_items, type));
-    }
-    else {
-      py_type = Py_None;
-      Py_INCREF(py_type);
-    }
+  if (bpygpu_shader_is_polyline(self->shader)) {
+    /* WORKAROUND: Special case for POLYLINE shader. Check the SSBO inputs as attributes. */
+    uint input_len = GPU_shader_get_ssbo_input_len(self->shader);
 
-    PyObject *attr_info = PyTuple_New(2);
-    PyTuple_SET_ITEMS(attr_info, PyUnicode_FromString(name), py_type);
-    PyTuple_SetItem(ret, attrs_added, attr_info);
-    attrs_added++;
+    /* Skip "gpu_index_buf". */
+    input_len -= 1;
+    ret = PyTuple_New(input_len);
+    while (attrs_added < input_len) {
+      if (!GPU_shader_get_ssbo_input_info(self->shader, location_test++, name)) {
+        continue;
+      }
+      if (STREQ(name, "gpu_index_buf")) {
+        continue;
+      }
+
+      type = STREQ(name, "pos") ? int(Type::VEC3) : STREQ(name, "color") ? int(Type::VEC4) : -1;
+      PyObject *py_type;
+      if (type != -1) {
+        py_type = PyUnicode_InternFromString(
+            PyC_StringEnum_FindIDFromValue(pygpu_attrtype_items, type));
+      }
+      else {
+        py_type = Py_None;
+        Py_INCREF(py_type);
+      }
+
+      PyObject *attr_info = PyTuple_New(2);
+      PyTuple_SET_ITEMS(attr_info, PyUnicode_FromString(name), py_type);
+      PyTuple_SetItem(ret, attrs_added, attr_info);
+      attrs_added++;
+    }
+  }
+  else {
+    uint attr_len = GPU_shader_get_attribute_len(self->shader);
+
+    ret = PyTuple_New(attr_len);
+    while (attrs_added < attr_len) {
+      if (!GPU_shader_get_attribute_info(self->shader, location_test++, name, &type)) {
+        continue;
+      }
+      PyObject *py_type;
+      if (type != -1) {
+        py_type = PyUnicode_InternFromString(
+            PyC_StringEnum_FindIDFromValue(pygpu_attrtype_items, type));
+      }
+      else {
+        py_type = Py_None;
+        Py_INCREF(py_type);
+      }
+
+      PyObject *attr_info = PyTuple_New(2);
+      PyTuple_SET_ITEMS(attr_info, PyUnicode_FromString(name), py_type);
+      PyTuple_SetItem(ret, attrs_added, attr_info);
+      attrs_added++;
+    }
   }
   return ret;
 }
 
-#if (defined(__GNUC__) && !defined(__clang__))
-#  pragma GCC diagnostic push
-#  pragma GCC diagnostic ignored "-Wcast-function-type"
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic push
+#    pragma clang diagnostic ignored "-Wcast-function-type"
+#  else
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wcast-function-type"
+#  endif
 #endif
 
 static PyMethodDef pygpu_shader__tp_methods[] = {
@@ -787,8 +842,12 @@ static PyMethodDef pygpu_shader__tp_methods[] = {
     {nullptr, nullptr, 0, nullptr},
 };
 
-#if (defined(__GNUC__) && !defined(__clang__))
-#  pragma GCC diagnostic pop
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic pop
+#  else
+#    pragma GCC diagnostic pop
+#  endif
 #endif
 
 PyDoc_STRVAR(
@@ -806,11 +865,14 @@ PyDoc_STRVAR(
     /* Wrap. */
     pygpu_shader_program_doc,
     "The name of the program object for use by the OpenGL API (read-only).\n"
+    "This is deprecated and will always return -1.\n"
     "\n"
     ":type: int");
-static PyObject *pygpu_shader_program_get(BPyGPUShader *self, void * /*closure*/)
+static PyObject *pygpu_shader_program_get(BPyGPUShader * /*self*/, void * /*closure*/)
 {
-  return PyLong_FromLong(GPU_shader_get_program(self->shader));
+  PyErr_WarnEx(
+      PyExc_DeprecationWarning, "'program' is deprecated. No valid handle will be returned.", 1);
+  return PyLong_FromLong(-1);
 }
 
 static PyGetSetDef pygpu_shader__tp_getseters[] = {
@@ -988,6 +1050,11 @@ static PyObject *pygpu_shader_from_builtin(PyObject * /*self*/, PyObject *args, 
       eGPUBuiltinShader(pygpu_bultinshader.value_found),
       eGPUShaderConfig(pygpu_config.value_found));
 
+  if (shader == nullptr) {
+    PyErr_Format(PyExc_ValueError, "Builtin shader doesn't exist in the requested config");
+    return nullptr;
+  }
+
   return BPyGPUShader_CreatePyObject(shader, true);
 }
 
@@ -1026,9 +1093,14 @@ static PyObject *pygpu_shader_create_from_info(BPyGPUShader * /*self*/, BPyGPUSh
   return BPyGPUShader_CreatePyObject(shader, false);
 }
 
-#if (defined(__GNUC__) && !defined(__clang__))
-#  pragma GCC diagnostic push
-#  pragma GCC diagnostic ignored "-Wcast-function-type"
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic push
+#    pragma clang diagnostic ignored "-Wcast-function-type"
+#  else
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wcast-function-type"
+#  endif
 #endif
 
 static PyMethodDef pygpu_shader_module__tp_methods[] = {
@@ -1044,8 +1116,12 @@ static PyMethodDef pygpu_shader_module__tp_methods[] = {
     {nullptr, nullptr, 0, nullptr},
 };
 
-#if (defined(__GNUC__) && !defined(__clang__))
-#  pragma GCC diagnostic pop
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic pop
+#  else
+#    pragma GCC diagnostic pop
+#  endif
 #endif
 
 PyDoc_STRVAR(
@@ -1097,6 +1173,14 @@ PyObject *bpygpu_shader_init()
   submodule = PyModule_Create(&pygpu_shader_module_def);
 
   return submodule;
+}
+
+bool bpygpu_shader_is_polyline(GPUShader *shader)
+{
+  return ELEM(shader,
+              GPU_shader_get_builtin_shader(GPU_SHADER_3D_POLYLINE_FLAT_COLOR),
+              GPU_shader_get_builtin_shader(GPU_SHADER_3D_POLYLINE_SMOOTH_COLOR),
+              GPU_shader_get_builtin_shader(GPU_SHADER_3D_POLYLINE_UNIFORM_COLOR));
 }
 
 /** \} */

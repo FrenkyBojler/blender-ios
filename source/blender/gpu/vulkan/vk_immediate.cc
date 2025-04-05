@@ -52,8 +52,9 @@ uchar *VKImmediate::begin()
   const VKDevice &device = VKBackend::get().device;
   const VKWorkarounds &workarounds = device.workarounds_get();
   vertex_format_converter.init(&vertex_format, workarounds);
+  uint add_vertex = prim_type == GPU_PRIM_LINE_LOOP ? 1 : 0;
   const size_t bytes_needed = vertex_buffer_size(&vertex_format_converter.device_format_get(),
-                                                 vertex_len);
+                                                 vertex_len + add_vertex);
   size_t offset_alignment = GPU_storage_buffer_alignment();
   VKBuffer &buffer = ensure_space(bytes_needed, offset_alignment);
 
@@ -82,6 +83,17 @@ void VKImmediate::end()
     uchar *data = static_cast<uchar *>(active_buffers_.last()->mapped_memory_get()) +
                   buffer_offset_;
     vertex_format_converter.convert(data, data, vertex_idx);
+  }
+
+  if (prim_type == GPU_PRIM_LINE_LOOP) {
+    uchar *first_vertex_ptr = static_cast<uchar *>(active_buffers_.last()->mapped_memory_get()) +
+                              buffer_offset_;
+    size_t vertex_stride = current_subbuffer_len_ / (vertex_len + 1);
+    uchar *last_vertex_ptr = first_vertex_ptr + vertex_stride * vertex_len;
+    memcpy(last_vertex_ptr, first_vertex_ptr, vertex_stride);
+
+    prim_type = GPU_PRIM_LINE_STRIP;
+    vertex_idx += 1;
   }
 
   VKContext &context = *VKContext::get();
@@ -117,7 +129,7 @@ void VKImmediate::end()
     vertex_attributes_.bind(draw.node_data.vertex_buffers);
     context.update_pipeline_data(prim_type, vertex_attributes_, draw.node_data.pipeline_data);
 
-    context.render_graph.add_node(draw);
+    context.render_graph().add_node(draw);
   }
 
   buffer_offset_ += current_subbuffer_len_;
@@ -167,9 +179,12 @@ VKBuffer &VKImmediate::ensure_space(VkDeviceSize bytes_needed, VkDeviceSize offs
   active_buffers_.append(std::make_unique<VKBuffer>());
   VKBuffer &result = *active_buffers_.last();
   result.create(alloc_size,
-                GPU_USAGE_DYNAMIC,
                 VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT |
-                    VK_BUFFER_USAGE_TRANSFER_DST_BIT);
+                    VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
+                VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+                VMA_ALLOCATION_CREATE_MAPPED_BIT |
+                    VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT);
   debug::object_label(result.vk_handle(), "Immediate");
 
   return result;

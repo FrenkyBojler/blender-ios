@@ -9,15 +9,12 @@
 #pragma once
 
 #include <optional>
-#include <queue>
 
-#include "BKE_attribute.hh"
 #include "BKE_paint.hh"
 #include "BKE_paint_bvh.hh"
 #include "BKE_subdiv_ccg.hh"
 
 #include "BLI_array.hh"
-#include "BLI_generic_array.hh"
 #include "BLI_math_matrix_types.hh"
 #include "BLI_math_quaternion_types.hh"
 #include "BLI_math_vector_types.hh"
@@ -26,6 +23,7 @@
 #include "BLI_vector.hh"
 
 #include "DNA_brush_enums.h"
+#include "DNA_brush_types.h"
 
 #include "ED_view3d.hh"
 
@@ -47,6 +45,7 @@ struct Node;
 enum class Type : int8_t;
 }  // namespace undo
 }  // namespace blender::ed::sculpt_paint
+struct bContext;
 struct BMLog;
 struct Dial;
 struct DistRayAABB_Precalc;
@@ -55,8 +54,8 @@ struct ImageUser;
 struct Key;
 struct KeyBlock;
 struct Object;
-struct bContext;
 struct PaintModeSettings;
+struct ReportList;
 struct wmKeyConfig;
 struct wmKeyMap;
 struct wmOperatorType;
@@ -153,6 +152,8 @@ enum class TransformDisplacementMode {
 /* Defines how transform tools are going to apply its displacement. */
 
 namespace blender::ed::sculpt_paint {
+
+static constexpr int plane_brush_max_rolling_average_num = 20;
 
 /**
  * This structure contains all the temporary data
@@ -324,6 +325,26 @@ struct StrokeCache {
 
   } clay_thumb_brush;
 
+  /* Plane Brush */
+  struct {
+    std::optional<float3> last_normal;
+    std::optional<float3> last_center;
+    Array<float3> normals;
+    Array<float3> centers;
+    int normal_index;
+    int center_index;
+
+    /**
+     * True if the current step is the first time the Plane brush is being evaluated.
+     *
+     * We cannot use the generic `first_time` variable used by other brushes because
+     * the Plane brush uses `grab_delta` to compute its local matrix. Since `grab_delta` requires
+     * at least two stroke steps, the first step (and successive steps if the user does not move
+     * the cursor) of the Plane brush is always skipped.
+     */
+    bool first_time;
+  } plane_brush;
+
   /* Cloth brush */
   std::unique_ptr<cloth::SimulationData> cloth_sim;
   float3 initial_location_symm;
@@ -367,9 +388,6 @@ struct StrokeCache {
   float4x4 stroke_local_mat;
   float multiplane_scrape_angle;
 
-  rcti previous_r; /* previous redraw rectangle */
-  rcti current_r;  /* current redraw rectangle */
-
   ~StrokeCache();
 };
 
@@ -393,17 +411,16 @@ bool SCULPT_poll(bContext *C);
  */
 bool SCULPT_brush_cursor_poll(bContext *C);
 
+namespace blender::ed::sculpt_paint {
 /**
- * Returns true if sculpt session can handle color attributes
- * (pbvh->type() == bke::pbvh::Type::Mesh).  If false an error
- * message will be shown to the user.  Operators should return
- * OPERATOR_CANCELLED in this case.
+ * Returns true if the current Mesh type can handle color attributes. If false an error message
+ * will be shown to the user.  Operators should return OPERATOR_CANCELLED in this case.
  *
- * NOTE: Does not check if a color attribute actually exists.
- * Calling code must handle this itself; in most cases a call to
- * BKE_sculpt_color_layer_create_if_needed() is sufficient.
+ * NOTE: Does not check if a color attribute actually exists. Calling code must handle this itself;
+ * in most cases a call to BKE_sculpt_color_layer_create_if_needed() is sufficient.
  */
-bool SCULPT_handles_colors_report(const Object &object, ReportList *reports);
+bool color_supported_check(const Scene &scene, Object &object, ReportList *reports);
+}  // namespace blender::ed::sculpt_paint
 
 /** \} */
 
@@ -416,7 +433,7 @@ namespace blender::ed::sculpt_paint {
 /**
  * Triggers redraws, updates, and dependency graph tags as necessary after each brush calculation.
  */
-void flush_update_step(bContext *C, UpdateType update_type);
+void flush_update_step(const bContext *C, UpdateType update_type);
 /**
  * Triggers redraws, updates, and dependency graph tags as necessary when a brush stroke finishes.
  */
@@ -452,7 +469,7 @@ bool SCULPT_stroke_get_location_ex(bContext *C,
 
 bool SCULPT_stroke_get_location(bContext *C,
                                 float out[3],
-                                const float mouse[2],
+                                const float mval[2],
                                 bool force_original);
 /**
  * Gets the normal, location and active vertex location of the geometry under the cursor. This also
@@ -460,7 +477,7 @@ bool SCULPT_stroke_get_location(bContext *C,
  */
 bool SCULPT_cursor_geometry_info_update(bContext *C,
                                         SculptCursorGeometryInfo *out,
-                                        const float mouse[2],
+                                        const float mval[2],
                                         bool use_sampled_normal);
 
 namespace blender::ed::sculpt_paint {
@@ -534,8 +551,9 @@ namespace blender::ed::sculpt_paint {
  */
 Span<float3> vert_positions_for_grab_active_get(const Depsgraph &depsgraph, const Object &object);
 
-Span<BMVert *> vert_neighbors_get_bmesh(BMVert &vert, Vector<BMVert *, 64> &r_neighbors);
-Span<BMVert *> vert_neighbors_get_interior_bmesh(BMVert &vert, Vector<BMVert *, 64> &r_neighbors);
+using BMeshNeighborVerts = Vector<BMVert *, 64>;
+Span<BMVert *> vert_neighbors_get_bmesh(BMVert &vert, BMeshNeighborVerts &r_neighbors);
+Span<BMVert *> vert_neighbors_get_interior_bmesh(BMVert &vert, BMeshNeighborVerts &r_neighbors);
 
 Span<int> vert_neighbors_get_mesh(OffsetIndices<int> faces,
                                   Span<int> corner_verts,
@@ -569,6 +587,12 @@ bool SCULPT_brush_type_needs_all_pbvh_nodes(const Brush &brush);
 
 namespace blender::ed::sculpt_paint {
 
+/**
+ * \warning This call is *not* idempotent and changes values inside the StrokeCache.
+ *
+ * Brushes may behave incorrectly if preserving original plane / normal when this
+ * method is not called.
+ */
 void calc_brush_plane(const Depsgraph &depsgraph,
                       const Brush &brush,
                       Object &ob,
@@ -625,7 +649,6 @@ bool SCULPT_is_vertex_inside_brush_radius_symm(const float vertex[3],
                                                const float br_co[3],
                                                float radius,
                                                char symm);
-bool SCULPT_is_symmetry_iteration_valid(char i, char symm);
 blender::float3 SCULPT_flip_v3_by_symm_area(const blender::float3 &vector,
                                             ePaintSymmetryFlags symm,
                                             ePaintSymmetryAreas symmarea,
@@ -661,7 +684,7 @@ bool node_in_sphere(const bke::pbvh::Node &node,
                     const float3 &location,
                     float radius_sq,
                     bool original);
-bool node_in_cylinder(const DistRayAABB_Precalc &dist_ray_precalc,
+bool node_in_cylinder(const DistRayAABB_Precalc &ray_dist_precalc,
                       const bke::pbvh::Node &node,
                       float radius_sq,
                       bool original);
@@ -686,22 +709,19 @@ void sculpt_apply_texture(const SculptSession &ss,
  */
 void SCULPT_calc_vertex_displacement(const SculptSession &ss,
                                      const Brush &brush,
-                                     float rgba[3],
-                                     float r_offset[3]);
+                                     float translation[3]);
 
+namespace blender::ed::sculpt_paint {
 /**
  * Tilts a normal by the x and y tilt values using the view axis.
  */
-void SCULPT_tilt_apply_to_normal(float r_normal[3],
-                                 blender::ed::sculpt_paint::StrokeCache *cache,
-                                 float tilt_strength);
+float3 tilt_apply_to_normal(const float3 &normal, const StrokeCache &cache, float tilt_strength);
 
 /**
  * Get effective surface normal with pen tilt and tilt strength applied to it.
  */
-void SCULPT_tilt_effective_normal_get(const SculptSession &ss, const Brush &brush, float r_no[3]);
-
-/** \} */
+float3 tilt_effective_normal_get(const SculptSession &ss, const Brush &brush);
+}  // namespace blender::ed::sculpt_paint
 
 namespace blender::ed::sculpt_paint {
 /**
@@ -782,145 +802,52 @@ std::optional<Span<float>> orig_mask_data_lookup_mesh(const Object &object,
 std::optional<Span<float>> orig_mask_data_lookup_grids(const Object &object,
                                                        const bke::pbvh::GridsNode &node);
 
+inline bool brush_type_is_paint(const int tool)
+{
+  return ELEM(tool, SCULPT_BRUSH_TYPE_PAINT, SCULPT_BRUSH_TYPE_SMEAR);
+}
+
+inline bool brush_type_is_mask(const int tool)
+{
+  return ELEM(tool, SCULPT_BRUSH_TYPE_MASK);
+}
+
+BLI_INLINE bool brush_type_is_attribute_only(const int tool)
+{
+  return brush_type_is_paint(tool) || brush_type_is_mask(tool) ||
+         ELEM(tool, SCULPT_BRUSH_TYPE_DRAW_FACE_SETS);
+}
+
+inline bool brush_uses_vector_displacement(const Brush &brush)
+{
+  return brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_DRAW &&
+         brush.flag2 & BRUSH_USE_COLOR_AS_DISPLACEMENT &&
+         brush.mtex.brush_map_mode == MTEX_MAP_MODE_AREA;
+}
+
+inline bool brush_type_supports_gravity(const int tool)
+{
+  return !brush_type_is_attribute_only(tool) && !ELEM(tool,
+                                                      SCULPT_BRUSH_TYPE_BOUNDARY,
+                                                      SCULPT_BRUSH_TYPE_SMOOTH,
+                                                      SCULPT_BRUSH_TYPE_SIMPLIFY,
+                                                      SCULPT_BRUSH_TYPE_DISPLACEMENT_SMEAR,
+                                                      SCULPT_BRUSH_TYPE_DISPLACEMENT_ERASER);
+}
+
+void ensure_valid_pivot(const Object &ob, Scene &scene);
+float sculpt_calc_radius(const ViewContext &vc,
+                         const Brush &brush,
+                         const Scene &scene,
+                         float3 location);
 }  // namespace blender::ed::sculpt_paint
 
 /** \} */
 
-/**
- * Get a screen-space rectangle of the modified area.
- */
-bool SCULPT_get_redraw_rect(const ARegion &region,
-                            const RegionView3D &rv3d,
-                            const Object &ob,
-                            rcti &rect);
-
-/* Operators. */
-
 /* -------------------------------------------------------------------- */
-/** \name Expand Operator
+/** \name 3D Texture Paint (Experimental)
  * \{ */
 
-namespace blender::ed::sculpt_paint::expand {
-
-void SCULPT_OT_expand(wmOperatorType *ot);
-void modal_keymap(wmKeyConfig *keyconf);
-
-}  // namespace blender::ed::sculpt_paint::expand
-
-/** \} */
-
-namespace blender::ed::sculpt_paint::project {
-void SCULPT_OT_project_line_gesture(wmOperatorType *ot);
-}
-
-namespace blender::ed::sculpt_paint::trim {
-void SCULPT_OT_trim_lasso_gesture(wmOperatorType *ot);
-void SCULPT_OT_trim_box_gesture(wmOperatorType *ot);
-void SCULPT_OT_trim_line_gesture(wmOperatorType *ot);
-void SCULPT_OT_trim_polyline_gesture(wmOperatorType *ot);
-}  // namespace blender::ed::sculpt_paint::trim
-
-/** \} */
-
-/* -------------------------------------------------------------------- */
-/** \name Face Set Operators
- * \{ */
-
-namespace blender::ed::sculpt_paint::face_set {
-
-void SCULPT_OT_face_sets_randomize_colors(wmOperatorType *ot);
-void SCULPT_OT_face_set_change_visibility(wmOperatorType *ot);
-void SCULPT_OT_face_sets_init(wmOperatorType *ot);
-void SCULPT_OT_face_sets_create(wmOperatorType *ot);
-void SCULPT_OT_face_sets_edit(wmOperatorType *ot);
-
-void SCULPT_OT_face_set_lasso_gesture(wmOperatorType *ot);
-void SCULPT_OT_face_set_box_gesture(wmOperatorType *ot);
-void SCULPT_OT_face_set_line_gesture(wmOperatorType *ot);
-void SCULPT_OT_face_set_polyline_gesture(wmOperatorType *ot);
-
-}  // namespace blender::ed::sculpt_paint::face_set
-
-/** \} */
-
-/* -------------------------------------------------------------------- */
-/** \name Transform Operators
- * \{ */
-
-namespace blender::ed::sculpt_paint {
-
-void SCULPT_OT_set_pivot_position(wmOperatorType *ot);
-
-}
-
-/** \} */
-
-/* -------------------------------------------------------------------- */
-/** \name Filter Operators
- * \{ */
-
-namespace blender::ed::sculpt_paint::filter {
-
-void SCULPT_OT_mesh_filter(wmOperatorType *ot);
-wmKeyMap *modal_keymap(wmKeyConfig *keyconf);
-
-}  // namespace blender::ed::sculpt_paint::filter
-
-namespace blender::ed::sculpt_paint::cloth {
-void SCULPT_OT_cloth_filter(wmOperatorType *ot);
-}
-
-namespace blender::ed::sculpt_paint::color {
-void SCULPT_OT_color_filter(wmOperatorType *ot);
-}
-
-/** \} */
-
-/* -------------------------------------------------------------------- */
-/** \name Interactive Mask Operators
- * \{ */
-
-namespace blender::ed::sculpt_paint::mask {
-
-void SCULPT_OT_mask_filter(wmOperatorType *ot);
-void SCULPT_OT_mask_init(wmOperatorType *ot);
-
-}  // namespace blender::ed::sculpt_paint::mask
-
-/** \} */
-
-/* Detail size. */
-
-/* -------------------------------------------------------------------- */
-/** \name Dyntopo/Retopology Operators
- * \{ */
-
-namespace blender::ed::sculpt_paint::dyntopo {
-
-void SCULPT_OT_detail_flood_fill(wmOperatorType *ot);
-void SCULPT_OT_sample_detail_size(wmOperatorType *ot);
-void SCULPT_OT_dyntopo_detail_size_edit(wmOperatorType *ot);
-void SCULPT_OT_dynamic_topology_toggle(wmOperatorType *ot);
-
-}  // namespace blender::ed::sculpt_paint::dyntopo
-
-/** \} */
-
-/* sculpt_brush_types.cc */
-
-/* -------------------------------------------------------------------- */
-/** \name Brushes
- * \{ */
-
-namespace blender::ed::sculpt_paint {
-
-void multiplane_scrape_preview_draw(uint gpuattr,
-                                    const Brush &brush,
-                                    const SculptSession &ss,
-                                    const float outline_col[3],
-                                    float outline_alpha);
-
-}
 /**
  * \brief Get the image canvas for painting on the given object.
  *
@@ -940,37 +867,102 @@ void SCULPT_do_paint_brush_image(const Scene &scene,
                                  const blender::IndexMask &node_mask);
 bool SCULPT_use_image_paint_brush(PaintModeSettings &settings, Object &ob);
 
-namespace blender::ed::sculpt_paint {
+/** \} */
 
-float clay_thumb_get_stabilized_pressure(const blender::ed::sculpt_paint::StrokeCache &cache);
+/* -------------------------------------------------------------------- */
+/** \name Brush Specific Functionality
+ * \{ */
+
+namespace blender::ed::sculpt_paint {
+void multiplane_scrape_preview_draw(uint gpuattr,
+                                    const Brush &brush,
+                                    const SculptSession &ss,
+                                    const float outline_col[3],
+                                    float outline_alpha);
+
+float clay_thumb_get_stabilized_pressure(const StrokeCache &cache);
+}  // namespace blender::ed::sculpt_paint
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Operators
+ * \{ */
+
+namespace blender::ed::sculpt_paint {
 
 void SCULPT_OT_brush_stroke(wmOperatorType *ot);
 
-}  // namespace blender::ed::sculpt_paint
-
-inline bool SCULPT_brush_type_is_paint(int tool)
-{
-  return ELEM(tool, SCULPT_BRUSH_TYPE_PAINT, SCULPT_BRUSH_TYPE_SMEAR);
 }
 
-inline bool SCULPT_brush_type_is_mask(int tool)
-{
-  return ELEM(tool, SCULPT_BRUSH_TYPE_MASK);
+namespace blender::ed::sculpt_paint::expand {
+
+void SCULPT_OT_expand(wmOperatorType *ot);
+void modal_keymap(wmKeyConfig *keyconf);
+
+}  // namespace blender::ed::sculpt_paint::expand
+
+namespace blender::ed::sculpt_paint::project {
+void SCULPT_OT_project_line_gesture(wmOperatorType *ot);
 }
 
-BLI_INLINE bool SCULPT_brush_type_is_attribute_only(int tool)
-{
-  return SCULPT_brush_type_is_paint(tool) || SCULPT_brush_type_is_mask(tool) ||
-         ELEM(tool, SCULPT_BRUSH_TYPE_DRAW_FACE_SETS);
-}
+namespace blender::ed::sculpt_paint::trim {
+void SCULPT_OT_trim_lasso_gesture(wmOperatorType *ot);
+void SCULPT_OT_trim_box_gesture(wmOperatorType *ot);
+void SCULPT_OT_trim_line_gesture(wmOperatorType *ot);
+void SCULPT_OT_trim_polyline_gesture(wmOperatorType *ot);
+}  // namespace blender::ed::sculpt_paint::trim
+
+namespace blender::ed::sculpt_paint::face_set {
+
+void SCULPT_OT_face_sets_randomize_colors(wmOperatorType *ot);
+void SCULPT_OT_face_set_change_visibility(wmOperatorType *ot);
+void SCULPT_OT_face_sets_init(wmOperatorType *ot);
+void SCULPT_OT_face_sets_create(wmOperatorType *ot);
+void SCULPT_OT_face_sets_edit(wmOperatorType *ot);
+
+void SCULPT_OT_face_set_lasso_gesture(wmOperatorType *ot);
+void SCULPT_OT_face_set_box_gesture(wmOperatorType *ot);
+void SCULPT_OT_face_set_line_gesture(wmOperatorType *ot);
+void SCULPT_OT_face_set_polyline_gesture(wmOperatorType *ot);
+
+}  // namespace blender::ed::sculpt_paint::face_set
 
 namespace blender::ed::sculpt_paint {
-void ensure_valid_pivot(const Object &ob, Scene &scene);
+
+void SCULPT_OT_set_pivot_position(wmOperatorType *ot);
+
 }
 
-namespace blender::ed::sculpt_paint {
-float sculpt_calc_radius(const ViewContext &vc,
-                         const Brush &brush,
-                         const Scene &scene,
-                         float3 location);
+namespace blender::ed::sculpt_paint::filter {
+
+void SCULPT_OT_mesh_filter(wmOperatorType *ot);
+wmKeyMap *modal_keymap(wmKeyConfig *keyconf);
+
+}  // namespace blender::ed::sculpt_paint::filter
+
+namespace blender::ed::sculpt_paint::cloth {
+void SCULPT_OT_cloth_filter(wmOperatorType *ot);
 }
+
+namespace blender::ed::sculpt_paint::color {
+void SCULPT_OT_color_filter(wmOperatorType *ot);
+}
+
+namespace blender::ed::sculpt_paint::mask {
+
+void SCULPT_OT_mask_filter(wmOperatorType *ot);
+void SCULPT_OT_mask_init(wmOperatorType *ot);
+
+}  // namespace blender::ed::sculpt_paint::mask
+
+namespace blender::ed::sculpt_paint::dyntopo {
+
+void SCULPT_OT_detail_flood_fill(wmOperatorType *ot);
+void SCULPT_OT_sample_detail_size(wmOperatorType *ot);
+void SCULPT_OT_dyntopo_detail_size_edit(wmOperatorType *ot);
+void SCULPT_OT_dynamic_topology_toggle(wmOperatorType *ot);
+
+}  // namespace blender::ed::sculpt_paint::dyntopo
+
+/** \} */

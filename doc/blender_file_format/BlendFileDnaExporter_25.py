@@ -15,7 +15,7 @@
 #        Jeroen Bakker
 #
 #    Version:
-#        v0.1 (12-05-2009) - migration of original source code to python.
+#        v0.1 (12-05-2009) - migration of original source code to Python.
 #           Added code to support blender 2.5 branch
 #        v0.2 (25-05-2009) - integrated with BlendFileReader.py
 #
@@ -229,7 +229,7 @@ class DNACatalogHTML:
 
         return structure_field
 
-    def indent(self, input, dent, startswith=''):
+    def indent(self, input, dent):
         output = ''
         if dent < 0:
             for line in input.split('\n'):

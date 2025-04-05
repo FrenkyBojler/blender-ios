@@ -7,29 +7,20 @@
 #include "BLI_memory_counter.hh"
 #include "BLI_task.hh"
 
-#include "BLT_translation.hh"
-
 #include "BKE_attribute.hh"
 #include "BKE_curves.hh"
 #include "BKE_geometry_set.hh"
 #include "BKE_geometry_set_instances.hh"
 #include "BKE_grease_pencil.hh"
 #include "BKE_instances.hh"
-#include "BKE_lib_id.hh"
 #include "BKE_mesh.hh"
-#include "BKE_mesh_wrapper.hh"
 #include "BKE_modifier.hh"
 #include "BKE_object_types.hh"
-#include "BKE_pointcloud.hh"
+#include "BKE_subdiv_modifier.hh"
 #include "BKE_volume.hh"
 
-#include "DNA_collection_types.h"
 #include "DNA_object_types.h"
 #include "DNA_pointcloud_types.h"
-
-#include "BLI_rand.hh"
-
-#include "MEM_guardedalloc.h"
 
 namespace blender::bke {
 
@@ -203,11 +194,12 @@ Vector<const GeometryComponent *> GeometrySet::get_components() const
   return components;
 }
 
-std::optional<Bounds<float3>> GeometrySet::compute_boundbox_without_instances() const
+std::optional<Bounds<float3>> GeometrySet::compute_boundbox_without_instances(
+    const bool use_radius) const
 {
   std::optional<Bounds<float3>> bounds;
   if (const PointCloud *pointcloud = this->get_pointcloud()) {
-    bounds = bounds::merge(bounds, pointcloud->bounds_min_max());
+    bounds = bounds::merge(bounds, pointcloud->bounds_min_max(use_radius));
   }
   if (const Mesh *mesh = this->get_mesh()) {
     bounds = bounds::merge(bounds, mesh->bounds_min_max());
@@ -216,10 +208,10 @@ std::optional<Bounds<float3>> GeometrySet::compute_boundbox_without_instances() 
     bounds = bounds::merge(bounds, BKE_volume_min_max(volume));
   }
   if (const Curves *curves_id = this->get_curves()) {
-    bounds = bounds::merge(bounds, curves_id->geometry.wrap().bounds_min_max());
+    bounds = bounds::merge(bounds, curves_id->geometry.wrap().bounds_min_max(use_radius));
   }
   if (const GreasePencil *grease_pencil = this->get_grease_pencil()) {
-    bounds = bounds::merge(bounds, grease_pencil->bounds_min_max_eval());
+    bounds = bounds::merge(bounds, grease_pencil->bounds_min_max_eval(use_radius));
   }
   return bounds;
 }
@@ -232,6 +224,17 @@ std::ostream &operator<<(std::ostream &stream, const GeometrySet &geometry_set)
     parts.append(std::to_string(mesh->edges_num) + " edges");
     parts.append(std::to_string(mesh->faces_num) + " faces");
     parts.append(std::to_string(mesh->corners_num) + " corners");
+    if (mesh->runtime->subsurf_runtime_data) {
+      const int resolution = mesh->runtime->subsurf_runtime_data->resolution;
+      if (is_power_of_2_i(resolution - 1)) {
+        /* Display the resolution as subdiv levels if possible because that's more common.*/
+        const int level = log2_floor(resolution - 1);
+        parts.append(std::to_string(level) + " subdiv levels");
+      }
+      else {
+        parts.append(std::to_string(resolution) + " subdiv resolution");
+      }
+    }
   }
   if (const Curves *curves = geometry_set.get_curves()) {
     parts.append(std::to_string(curves->geometry.point_num) + " control points");
@@ -240,8 +243,8 @@ std::ostream &operator<<(std::ostream &stream, const GeometrySet &geometry_set)
   if (const GreasePencil *grease_pencil = geometry_set.get_grease_pencil()) {
     parts.append(std::to_string(grease_pencil->layers().size()) + " Grease Pencil layers");
   }
-  if (const PointCloud *point_cloud = geometry_set.get_pointcloud()) {
-    parts.append(std::to_string(point_cloud->totpoint) + " points");
+  if (const PointCloud *pointcloud = geometry_set.get_pointcloud()) {
+    parts.append(std::to_string(pointcloud->totpoint) + " points");
   }
   if (const Volume *volume = geometry_set.get_volume()) {
     parts.append(std::to_string(BKE_volume_num_grids(volume)) + " volume grids");
@@ -305,6 +308,15 @@ bool GeometrySet::owns_direct_data() const
   return true;
 }
 
+void GeometrySet::ensure_no_shared_components()
+{
+  for (const int i : IndexRange(this->components_.size())) {
+    if (components_[i]) {
+      this->get_component_for_write(GeometryComponent::Type(i));
+    }
+  }
+}
+
 const Mesh *GeometrySet::get_mesh() const
 {
   const MeshComponent *component = this->get_component<MeshComponent>();
@@ -345,6 +357,12 @@ const CurvesEditHints *GeometrySet::get_curve_edit_hints() const
 {
   const GeometryComponentEditData *component = this->get_component<GeometryComponentEditData>();
   return (component == nullptr) ? nullptr : component->curves_edit_hints_.get();
+}
+
+const GreasePencilEditHints *GeometrySet::get_grease_pencil_edit_hints() const
+{
+  const GeometryComponentEditData *component = this->get_component<GeometryComponentEditData>();
+  return (component == nullptr) ? nullptr : component->grease_pencil_edit_hints_.get();
 }
 
 const GizmoEditHints *GeometrySet::get_gizmo_edit_hints() const
@@ -574,6 +592,16 @@ CurvesEditHints *GeometrySet::get_curve_edit_hints_for_write()
   GeometryComponentEditData &component =
       this->get_component_for_write<GeometryComponentEditData>();
   return component.curves_edit_hints_.get();
+}
+
+GreasePencilEditHints *GeometrySet::get_grease_pencil_edit_hints_for_write()
+{
+  if (!this->has<GeometryComponentEditData>()) {
+    return nullptr;
+  }
+  GeometryComponentEditData &component =
+      this->get_component_for_write<GeometryComponentEditData>();
+  return component.grease_pencil_edit_hints_.get();
 }
 
 GizmoEditHints *GeometrySet::get_gizmo_edit_hints_for_write()

@@ -4,9 +4,14 @@
 
 #include "testing/testing.h"
 
+#include "GPU_batch.hh"
 #include "GPU_context.hh"
 #include "GPU_framebuffer.hh"
 #include "GPU_shader.hh"
+#include "GPU_state.hh"
+#include "GPU_vertex_buffer.hh"
+#include "GPU_vertex_format.hh"
+
 #include "gpu_testing.hh"
 
 #include "BLI_math_vector.hh"
@@ -356,7 +361,7 @@ static void test_framebuffer_subpass_input()
   create_info_read.define("READ");
   create_info_read.vertex_source("gpu_framebuffer_subpass_input_test.glsl");
   create_info_read.fragment_source("gpu_framebuffer_subpass_input_test.glsl");
-  create_info_read.subpass_in(0, Type::INT, "in_value", 0);
+  create_info_read.subpass_in(0, Type::INT, ImageType::INT_2D, "in_value", 0);
   create_info_read.fragment_out(1, Type::INT, "out_value");
 
   GPUShader *shader_read = GPU_shader_create_from_info(

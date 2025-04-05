@@ -8,6 +8,8 @@
 
 #pragma once
 
+#include "BLI_utildefines.h"
+
 #include "gpu_context_private.hh"
 
 #include "GHOST_Types.h"
@@ -26,10 +28,18 @@ class VKStateManager;
 class VKShader;
 class VKThreadData;
 
+enum RenderGraphFlushFlags {
+  NONE = 0,
+  RENEW_RENDER_GRAPH = 1 << 0,
+  SUBMIT = 1 << 1,
+  WAIT_FOR_COMPLETION = 1 << 2,
+};
+ENUM_OPERATORS(RenderGraphFlushFlags, RenderGraphFlushFlags::WAIT_FOR_COMPLETION);
+
 class VKContext : public Context, NonCopyable {
  private:
   VkExtent2D vk_extent_ = {};
-  VkFormat swap_chain_format_ = {};
+  VkSurfaceFormatKHR swap_chain_format_ = {};
   GPUTexture *surface_texture_ = nullptr;
   void *ghost_context_;
 
@@ -37,13 +47,21 @@ class VKContext : public Context, NonCopyable {
   render_graph::VKResourceAccessInfo access_info_ = {};
 
   std::optional<std::reference_wrapper<VKThreadData>> thread_data_;
+  std::optional<std::reference_wrapper<render_graph::VKRenderGraph>> render_graph_;
 
  public:
-  render_graph::VKRenderGraph render_graph;
+  VKDiscardPool discard_pool;
 
-  VKContext(void *ghost_window,
-            void *ghost_context,
-            render_graph::VKResourceStateTracker &resources);
+  const render_graph::VKRenderGraph &render_graph() const
+  {
+    return render_graph_.value().get();
+  }
+  render_graph::VKRenderGraph &render_graph()
+  {
+    return render_graph_.value().get();
+  }
+
+  VKContext(void *ghost_window, void *ghost_context);
   virtual ~VKContext();
 
   void activate() override;
@@ -52,7 +70,13 @@ class VKContext : public Context, NonCopyable {
   void end_frame() override;
 
   void flush() override;
-  void flush_render_graph();
+
+  TimelineValue flush_render_graph(
+      RenderGraphFlushFlags flags,
+      VkPipelineStageFlags wait_dst_stage_mask = VK_PIPELINE_STAGE_NONE,
+      VkSemaphore wait_semaphore = VK_NULL_HANDLE,
+      VkSemaphore signal_semaphore = VK_NULL_HANDLE,
+      VkFence signal_fence = VK_NULL_HANDLE);
   void finish() override;
 
   void memory_statistics_get(int *r_total_mem_kb, int *r_free_mem_kb) override;
@@ -105,10 +129,15 @@ class VKContext : public Context, NonCopyable {
 
   static void swap_buffers_pre_callback(const GHOST_VulkanSwapChainData *data);
   static void swap_buffers_post_callback();
+  static void openxr_acquire_framebuffer_image_callback(GHOST_VulkanOpenXRData *data);
+  static void openxr_release_framebuffer_image_callback(GHOST_VulkanOpenXRData *data);
 
  private:
   void swap_buffers_pre_handler(const GHOST_VulkanSwapChainData &data);
   void swap_buffers_post_handler();
+
+  void openxr_acquire_framebuffer_image_handler(GHOST_VulkanOpenXRData &data);
+  void openxr_release_framebuffer_image_handler(GHOST_VulkanOpenXRData &data);
 
   void update_pipeline_data(VKShader &shader,
                             VkPipeline vk_pipeline,

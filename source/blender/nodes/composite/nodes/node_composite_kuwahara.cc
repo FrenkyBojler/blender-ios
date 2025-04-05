@@ -44,7 +44,7 @@ static void cmp_node_kuwahara_declare(NodeDeclarationBuilder &b)
 
 static void node_composit_init_kuwahara(bNodeTree * /*ntree*/, bNode *node)
 {
-  NodeKuwaharaData *data = MEM_cnew<NodeKuwaharaData>(__func__);
+  NodeKuwaharaData *data = MEM_callocN<NodeKuwaharaData>(__func__);
   node->storage = data;
 
   /* Set defaults. */
@@ -59,21 +59,21 @@ static void node_composit_buts_kuwahara(uiLayout *layout, bContext * /*C*/, Poin
 
   col = uiLayoutColumn(layout, false);
 
-  uiItemR(col, ptr, "variation", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(col, ptr, "variation", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   const int variation = RNA_enum_get(ptr, "variation");
 
   if (variation == CMP_NODE_KUWAHARA_CLASSIC) {
-    uiItemR(col, ptr, "use_high_precision", UI_ITEM_NONE, nullptr, ICON_NONE);
+    uiItemR(col, ptr, "use_high_precision", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
   else if (variation == CMP_NODE_KUWAHARA_ANISOTROPIC) {
-    uiItemR(col, ptr, "uniformity", UI_ITEM_NONE, nullptr, ICON_NONE);
-    uiItemR(col, ptr, "sharpness", UI_ITEM_NONE, nullptr, ICON_NONE);
-    uiItemR(col, ptr, "eccentricity", UI_ITEM_NONE, nullptr, ICON_NONE);
+    uiItemR(col, ptr, "uniformity", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    uiItemR(col, ptr, "sharpness", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    uiItemR(col, ptr, "eccentricity", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 }
 
-using namespace blender::realtime_compositor;
+using namespace blender::compositor;
 
 class ConvertKuwaharaOperation : public NodeOperation {
  public:
@@ -81,8 +81,10 @@ class ConvertKuwaharaOperation : public NodeOperation {
 
   void execute() override
   {
-    if (get_input("Image").is_single_value()) {
-      get_input("Image").pass_through(get_result("Image"));
+    const Result &input = this->get_input("Image");
+    if (input.is_single_value()) {
+      Result &output = this->get_result("Image");
+      output.share_data(input);
       return;
     }
 
@@ -101,7 +103,7 @@ class ConvertKuwaharaOperation : public NodeOperation {
      * is enabled, since summed area tables are less precise. */
     Result &size_input = get_input("Size");
     if (!node_storage(bnode()).high_precision &&
-        (!size_input.is_single_value() || size_input.get_float_value() > 5.0f))
+        (!size_input.is_single_value() || size_input.get_single_value<float>() > 5.0f))
     {
       this->execute_classic_summed_area_table();
     }
@@ -130,7 +132,7 @@ class ConvertKuwaharaOperation : public NodeOperation {
 
     Result &size_input = get_input("Size");
     if (size_input.is_single_value()) {
-      GPU_shader_uniform_1i(shader, "size", int(size_input.get_float_value()));
+      GPU_shader_uniform_1i(shader, "size", int(size_input.get_single_value<float>()));
     }
     else {
       size_input.bind_as_texture(shader, "size_tx");
@@ -195,7 +197,7 @@ class ConvertKuwaharaOperation : public NodeOperation {
 
     Result &size_input = get_input("Size");
     if (size_input.is_single_value()) {
-      GPU_shader_uniform_1i(shader, "size", int(size_input.get_float_value()));
+      GPU_shader_uniform_1i(shader, "size", int(size_input.get_single_value<float>()));
     }
     else {
       size_input.bind_as_texture(shader, "size_tx");
@@ -247,7 +249,7 @@ class ConvertKuwaharaOperation : public NodeOperation {
                        const int2 size)
   {
     parallel_for(size, [&](const int2 texel) {
-      int radius = math::max(0, int(size_input.load_pixel<float>(texel)));
+      int radius = math::max(0, int(size_input.load_pixel<float, true>(texel)));
 
       float4 mean_of_squared_color_of_quadrants[4] = {
           float4(0.0f), float4(0.0f), float4(0.0f), float4(0.0f)};
@@ -345,7 +347,7 @@ class ConvertKuwaharaOperation : public NodeOperation {
 
     Result &size_input = get_input("Size");
     if (size_input.is_single_value()) {
-      GPU_shader_uniform_1f(shader, "size", size_input.get_float_value());
+      GPU_shader_uniform_1f(shader, "size", size_input.get_single_value<float>());
     }
     else {
       size_input.bind_as_texture(shader, "size_tx");
@@ -434,7 +436,7 @@ class ConvertKuwaharaOperation : public NodeOperation {
       float eigenvalue_difference = first_eigenvalue - second_eigenvalue;
       float anisotropy = eigenvalue_sum > 0.0f ? eigenvalue_difference / eigenvalue_sum : 0.0f;
 
-      float radius = math::max(0.0f, size.load_pixel<float>(texel));
+      float radius = math::max(0.0f, size.load_pixel<float, true>(texel));
       if (radius == 0.0f) {
         output.store_pixel(texel, input.load_pixel<float4>(texel));
         return;
@@ -785,13 +787,18 @@ void register_node_type_cmp_kuwahara()
 
   static blender::bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, CMP_NODE_KUWAHARA, "Kuwahara", NODE_CLASS_OP_FILTER);
+  cmp_node_type_base(&ntype, "CompositorNodeKuwahara", CMP_NODE_KUWAHARA);
+  ntype.ui_name = "Kuwahara";
+  ntype.ui_description =
+      "Apply smoothing filter that preserves edges, for stylized and painterly effects";
+  ntype.enum_name_legacy = "KUWAHARA";
+  ntype.nclass = NODE_CLASS_OP_FILTER;
   ntype.declare = file_ns::cmp_node_kuwahara_declare;
   ntype.draw_buttons = file_ns::node_composit_buts_kuwahara;
   ntype.initfunc = file_ns::node_composit_init_kuwahara;
   blender::bke::node_type_storage(
-      &ntype, "NodeKuwaharaData", node_free_standard_storage, node_copy_standard_storage);
+      ntype, "NodeKuwaharaData", node_free_standard_storage, node_copy_standard_storage);
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
 
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }
