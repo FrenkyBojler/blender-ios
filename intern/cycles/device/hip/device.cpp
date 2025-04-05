@@ -170,7 +170,7 @@ void device_hip_info(vector<DeviceInfo> &devices)
 
     const bool is_rdna2_or_newer = hipIsRDNA2OrNewer(num);
 
-    /* Disable MNEE on devices that don't work propeerly with it. */
+    /* Disable MNEE on devices that don't work properly with it. */
 #  ifdef _WIN32
     /* MNEE either has rendering aftifacts or gets stuck on sample 1 on RDNA4 on Windows. */
     info.has_mnee = is_rdna2_or_newer && !hipIsRDNA4OrNewer(num);
