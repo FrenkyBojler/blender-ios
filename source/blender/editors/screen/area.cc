@@ -2902,7 +2902,7 @@ static void ed_panel_draw(const bContext *C,
   else {
     STRNCPY(block_name, pt->idname);
   }
-  uiBlock *block = UI_block_begin(C, region, block_name, UI_EMBOSS);
+  uiBlock *block = UI_block_begin(C, region, block_name, blender::ui::EmbossType::Emboss);
 
   bool open;
   panel = UI_panel_begin(region, lb, block, pt, panel, &open);
@@ -3164,7 +3164,15 @@ void ED_region_panels_layout_ex(const bContext *C,
   v2d->keepofs |= V2D_LOCKOFS_X | V2D_KEEPOFS_Y;
   v2d->keepofs &= ~(V2D_LOCKOFS_Y | V2D_KEEPOFS_X);
   v2d->scroll &= ~V2D_SCROLL_BOTTOM;
-  v2d->scroll |= V2D_SCROLL_RIGHT;
+
+  if (region->alignment & RGN_ALIGN_LEFT) {
+    region->v2d.scroll &= ~V2D_SCROLL_RIGHT;
+    region->v2d.scroll |= V2D_SCROLL_LEFT;
+  }
+  else {
+    region->v2d.scroll &= ~V2D_SCROLL_LEFT;
+    region->v2d.scroll |= V2D_SCROLL_RIGHT;
+  }
 
   /* collect categories */
   if (use_category_tabs) {
@@ -3409,7 +3417,7 @@ static bool panel_property_search(const bContext *C,
                                   PanelType *panel_type,
                                   const char *search_filter)
 {
-  uiBlock *block = UI_block_begin(C, region, panel_type->idname, UI_EMBOSS);
+  uiBlock *block = UI_block_begin(C, region, panel_type->idname, blender::ui::EmbossType::Emboss);
   UI_block_set_search_only(block, true);
 
   /* Skip panels that give meaningless search results. */
@@ -3592,7 +3600,7 @@ void ED_region_header_layout(const bContext *C, ARegion *region)
       continue;
     }
 
-    uiBlock *block = UI_block_begin(C, region, ht->idname, UI_EMBOSS);
+    uiBlock *block = UI_block_begin(C, region, ht->idname, blender::ui::EmbossType::Emboss);
     uiLayout *layout = UI_block_layout(
         block, UI_LAYOUT_HORIZONTAL, UI_LAYOUT_HEADER, xco, yco, buttony, 1, 0, style);
 
