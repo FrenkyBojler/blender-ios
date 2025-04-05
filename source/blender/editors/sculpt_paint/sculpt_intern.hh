@@ -812,7 +812,7 @@ inline bool brush_type_is_mask(const int tool)
   return ELEM(tool, SCULPT_BRUSH_TYPE_MASK);
 }
 
-inline bool brush_type_is_attribute_only(const int tool)
+BLI_INLINE bool brush_type_is_attribute_only(const int tool)
 {
   return brush_type_is_paint(tool) || brush_type_is_mask(tool) ||
          ELEM(tool, SCULPT_BRUSH_TYPE_DRAW_FACE_SETS);
