@@ -46,6 +46,7 @@ struct CurveBooleanOpParameters {
 
 bke::CurvesGeometry curve_boolean(const CurveBooleanOpParameters op_params,
                                   const bke::CurvesGeometry &curves,
+                                  const IndexMask &mask_shapes,
                                   const IndexMask &clipping_shapes);
 
 }  // namespace blender::geometry::boolean

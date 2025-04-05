@@ -1120,6 +1120,8 @@ static BooleanResult execute_boolean(const CurveBooleanOpParameters op_params,
                                      const Span<float2> points,
                                      const OffsetIndices<int> points_by_curve,
                                      const IndexMask &clipping_shapes,
+                                     const IndexMask &mask_shapes,
+                                     const bool mask_only,
                                      const VArray<int> &shape_ids,
                                      const VArray<bool> &is_fill,
                                      const VArray<bool> &is_cyclic)
@@ -1127,7 +1129,6 @@ static BooleanResult execute_boolean(const CurveBooleanOpParameters op_params,
   IndexMaskMemory memory;
   VectorSet<int> shape_indexing;
   const Vector<IndexMask> shapes = IndexMask::from_group_ids(shape_ids, memory, shape_indexing);
-  const IndexMask subject_shapes = clipping_shapes.complement(shapes.index_range(), memory);
 
   Vector<IntersectionPoint> intersections;
 
@@ -1147,30 +1148,88 @@ static BooleanResult execute_boolean(const CurveBooleanOpParameters op_params,
   BooleanResult results_all;
   results_all.segment_offsets.append(0);
 
-  /* Calculate all intersections. */
-  subject_shapes.foreach_index([&](const int subj_shape_id) {
-    const BooleanResult result = execute_single_boolean(op_params,
-                                                        subj_shape_id,
-                                                        points,
-                                                        shapes,
-                                                        points_by_curve,
-                                                        clipping_shapes,
-                                                        self_clipping_inters_per_curves,
-                                                        intersections,
-                                                        is_fill,
-                                                        is_cyclic);
+  if (mask_only) {
+    const IndexMask subject_shapes = clipping_shapes.complement(mask_shapes, memory);
 
-    for (const int i : result.segment_offsets.index_range().drop_front(1)) {
-      results_all.segment_offsets.append(result.segment_offsets[i] + results_all.segments.size());
-    }
-    results_all.cyclic.extend(result.cyclic);
-    results_all.segment_reversed.extend(result.segment_reversed);
-    results_all.shape_ids.append_n_times(subj_shape_id, result.cyclic.size());
+    subject_shapes.foreach_index([&](const int subj_shape_id) {
+      const BooleanResult result = execute_single_boolean(op_params,
+                                                          subj_shape_id,
+                                                          points,
+                                                          shapes,
+                                                          points_by_curve,
+                                                          clipping_shapes,
+                                                          self_clipping_inters_per_curves,
+                                                          intersections,
+                                                          is_fill,
+                                                          is_cyclic);
 
-    for (const int i : result.segments.index_range()) {
-      results_all.segments.append(std::move(result.segments[i]));
-    }
-  });
+      for (const int i : result.segment_offsets.index_range().drop_front(1)) {
+        results_all.segment_offsets.append(result.segment_offsets[i] +
+                                           results_all.segments.size());
+      }
+      results_all.cyclic.extend(result.cyclic);
+      results_all.segment_reversed.extend(result.segment_reversed);
+      results_all.shape_ids.append_n_times(subj_shape_id, result.cyclic.size());
+
+      for (const int i : result.segments.index_range()) {
+        results_all.segments.append(std::move(result.segments[i]));
+      }
+    });
+  }
+  else {
+    const IndexMask subject_shapes = clipping_shapes.complement(shapes.index_range(), memory);
+
+    subject_shapes.foreach_index([&](const int subj_shape_id) {
+      if (mask_shapes.contains(subj_shape_id)) {
+        const BooleanResult result = execute_single_boolean(op_params,
+                                                            subj_shape_id,
+                                                            points,
+                                                            shapes,
+                                                            points_by_curve,
+                                                            clipping_shapes,
+                                                            self_clipping_inters_per_curves,
+                                                            intersections,
+                                                            is_fill,
+                                                            is_cyclic);
+
+        for (const int i : result.segment_offsets.index_range().drop_front(1)) {
+          results_all.segment_offsets.append(result.segment_offsets[i] +
+                                             results_all.segments.size());
+        }
+        results_all.cyclic.extend(result.cyclic);
+        results_all.segment_reversed.extend(result.segment_reversed);
+        results_all.shape_ids.append_n_times(subj_shape_id, result.cyclic.size());
+
+        for (const int i : result.segments.index_range()) {
+          results_all.segments.append(std::move(result.segments[i]));
+        }
+      }
+      else {
+        BooleanResult result;
+        result.segment_offsets.append(0);
+
+        shapes[subj_shape_id].foreach_index([&](const int curve_i) {
+          result.segments.append(
+              Segment::from_curve(curve_i, points_by_curve[curve_i], is_cyclic[curve_i]));
+          result.cyclic.append(is_cyclic[curve_i]);
+          result.segment_offsets.append(1);
+          result.segment_reversed.append(false);
+        });
+
+        for (const int i : result.segment_offsets.index_range().drop_front(1)) {
+          results_all.segment_offsets.append(result.segment_offsets[i] +
+                                             results_all.segments.size());
+        }
+        results_all.cyclic.extend(result.cyclic);
+        results_all.segment_reversed.extend(result.segment_reversed);
+        results_all.shape_ids.append_n_times(subj_shape_id, result.cyclic.size());
+
+        for (const int i : result.segments.index_range()) {
+          results_all.segments.append(std::move(result.segments[i]));
+        }
+      }
+    });
+  }
 
   results_all.point_offsets.resize(results_all.segment_offsets.size());
   calculate_offsets_from_segments(results_all.segments,
@@ -1228,6 +1287,7 @@ bke::CurvesGeometry remove_holes(const bke::CurvesGeometry &curves,
 
 bke::CurvesGeometry curve_boolean(const CurveBooleanOpParameters op_params,
                                   const bke::CurvesGeometry &curves,
+                                  const IndexMask &mask_shapes,
                                   const IndexMask &clipping_shapes)
 {
   const bke::AttributeAccessor src_attributes = curves.attributes();
@@ -1244,6 +1304,8 @@ bke::CurvesGeometry curve_boolean(const CurveBooleanOpParameters op_params,
                                                src_positions_2d,
                                                curves.points_by_curve(),
                                                clipping_shapes,
+                                               mask_shapes,
+                                               false,
                                                shape_ids,
                                                is_fills,
                                                curves.cyclic());
