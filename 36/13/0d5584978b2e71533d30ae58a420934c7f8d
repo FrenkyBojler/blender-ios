@@ -1,1 +1,2 @@
 Referenced by pull request #137000, Fix #136837: Mesh incorrectly renders smooth with GPU subdivision in some cases
+Referenced by issue #136837, Objects with a GPU subdivision surface modifier always render with smooth shading
