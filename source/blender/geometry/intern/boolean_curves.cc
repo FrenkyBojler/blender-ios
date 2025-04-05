@@ -863,6 +863,30 @@ void find_intersections_between_shapes(const Span<float2> points,
   });
 }
 
+bool check_and_join_segments(Segment &first, const Segment &second)
+{
+  if (first.curve != second.curve) {
+    return false;
+  }
+
+  if (first.intersection_index[1] == second.intersection_index[0]) {
+    first.point_2 = second.point_2;
+    first.alpha_2 = second.alpha_2;
+
+    first.intersection_index[1] = second.intersection_index[1];
+    return true;
+  }
+  if (first.intersection_index[0] == second.intersection_index[1]) {
+    first.point_1 = second.point_1;
+    first.alpha_1 = second.alpha_1;
+
+    first.intersection_index[0] = second.intersection_index[0];
+    return true;
+  }
+
+  return false;
+}
+
 BooleanResult execute_single_boolean(const CurveBooleanOpParameters op_params,
                                      const int subj_shape_id,
                                      const Span<float2> points,
@@ -1089,8 +1113,11 @@ BooleanResult execute_single_boolean(const CurveBooleanOpParameters op_params,
       const Segment &current_segment = all_segments[current_i];
       processed_segments[current_i] = true;
 
-      result.segments.append(current_segment);
-      result.segment_reversed.append(last_reversed);
+      /* Check if the last segment can be joined with this one. */
+      if (!check_and_join_segments(result.segments.last(), current_segment)) {
+        result.segments.append(current_segment);
+        result.segment_reversed.append(last_reversed);
+      }
 
       const int next_segment = get_next_segment(current_i,
                                                 last_reversed,
@@ -1109,6 +1136,16 @@ BooleanResult execute_single_boolean(const CurveBooleanOpParameters op_params,
       if (next_segment == start_segment) {
         PolygonDone = true;
         PolygonClosed = true;
+
+        /* Check if the last segment can be joined to the first one. */
+        if (result.segment_offsets.last() != result.segments.index_range().last()) {
+          if (check_and_join_segments(result.segments[result.segment_offsets.last()],
+                                      result.segments.last()))
+          {
+            result.segments.remove_last();
+          }
+        }
+
         break;
       }
 

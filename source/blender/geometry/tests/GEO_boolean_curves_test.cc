@@ -1100,7 +1100,7 @@ TEST(boolean_curves, Multiple_Shapes)
         op_params, src_curves, shapes_mask, clipping_shapes);
 
     const Array<Vector<float2>> expected_points = {
-        {{5, 3}, {3, 3}, {3, 5}, {3, 7}, {5, 7}, {5, 5}, {7, 5}, {7, 3}}};
+        {{3, 3}, {3, 7}, {5, 7}, {5, 5}, {7, 5}, {7, 3}}};
     expect_boolean_result_coord(dst_curves, expected_points);
 
     draw_results(
@@ -1167,10 +1167,9 @@ TEST(boolean_curves, Four_Shapes)
     const bke::CurvesGeometry dst_curves = curve_boolean(
         op_params, src_curves, shapes_mask, clipping_shapes);
 
-    /* TODO(@casey-bianco-davis): Remove the unneeded clipping/clipping points. */
     const Array<Vector<float2>> expected_points = {
-        {{1, 7}, {5, 7}, {5, 6}, {5, 3}, {5, 2}, {3, 2}, {3, 3}, {1, 3}},
-        {{2, 3}, {2, 5}, {3, 5}, {6, 5}, {7, 5}, {7, 1}, {3, 1}, {3, 3}}};
+        {{1, 7}, {5, 7}, {5, 2}, {3, 2}, {3, 3}, {1, 3}},
+        {{2, 3}, {2, 5}, {7, 5}, {7, 1}, {3, 1}, {3, 3}}};
     expect_boolean_result_coord(dst_curves, expected_points);
 
     draw_results("Intersection", "polygon", src_curves, dst_curves, clipping_shapes, op_params);
