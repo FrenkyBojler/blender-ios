@@ -423,7 +423,6 @@ static void gizmo_node_box_mask_prop_matrix_get(const wmGizmo *gz,
   loc[1] = (mask_node->y - 0.5) * dims.y + offset.y;
   loc[2] = 0;
 
-  /* Prevent the matrix from becoming singular. */
   size[0] = mask_node->width;
   size[1] = mask_node->height * aspect;
   size[2] = 1;
@@ -456,8 +455,12 @@ static void gizmo_node_box_mask_prop_matrix_set(const wmGizmo *gz,
   mat4_to_loc_rot_size(loc, rot, size, matrix);
 
   float eul[3];
-  mat4_to_eul(eul, matrix);
-  mask_node->rotation = eul[2];
+
+  /* Rotation can't be extracted from matrix when the gizmo width or height is zero. */
+  if (size[0] != 0 and size[1] != 0) {
+    mat4_to_eul(eul, matrix);
+    mask_node->rotation = eul[2];
+  }
 
   BLI_rctf_resize(&rct, fabsf(size[0]), fabsf(size[1]) / aspect);
   BLI_rctf_recenter(
