@@ -21,7 +21,11 @@ if(CMAKE_C_COMPILER_ID MATCHES "Clang")
   if(DEFINED MSVC_REDIST_DIR)
     file(TO_CMAKE_PATH ${MSVC_REDIST_DIR} MSVC_REDIST_DIR)
   else()
-    message("Unable to detect the Visual Studio redist directory, copying of the runtime dlls will not work, try running from the visual studio developer prompt.")
+    message(WARNING
+      "Unable to detect the Visual Studio redist directory, "
+      "copying of the runtime dlls will not work, "
+      "try running from the visual studio developer prompt."
+    )
   endif()
   if(WITH_WINDOWS_STRIPPED_PDB)
     message(WARNING "stripped pdb not supported with clang, disabling..")
@@ -191,7 +195,7 @@ if(WITH_COMPILER_ASAN AND MSVC AND NOT MSVC_CLANG)
     string(APPEND CMAKE_EXE_LINKER_FLAGS_DEBUG " /INCREMENTAL:NO")
     string(APPEND CMAKE_SHARED_LINKER_FLAGS_DEBUG " /INCREMENTAL:NO")
   else()
-    message("-- ASAN not supported on MSVC ${CMAKE_CXX_COMPILER_VERSION}")
+    message(WARNING "-- ASAN not supported on MSVC ${CMAKE_CXX_COMPILER_VERSION}")
   endif()
 endif()
 
