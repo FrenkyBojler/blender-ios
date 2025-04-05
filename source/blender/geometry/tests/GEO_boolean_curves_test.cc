@@ -1230,11 +1230,9 @@ TEST(boolean_curves, Shape_Mask)
     const bke::CurvesGeometry dst_curves = curve_boolean(
         op_params, src_curves, shapes_mask, clipping_shapes);
 
-    /* TODO. */
-    // const Array<Vector<float2>> expected_points = {
-    //     {{1, 7}, {5, 7}, {5, 6}, {5, 3}, {5, 2}, {3, 2}, {3, 3}, {1, 3}},
-    //     {{2, 3}, {2, 5}, {3, 5}, {6, 5}, {7, 5}, {7, 1}, {3, 1}, {3, 3}}};
-    // expect_boolean_result_coord(dst_curves, expected_points);
+    const Array<Vector<float2>> expected_points = {{{0, 5}, {0, 9}, {4, 9}, {4, 5}},
+                                                   {{5, 3}, {5, 4}, {9, 4}, {9, 3}}};
+    expect_boolean_result_coord(dst_curves, expected_points);
 
     draw_results("Intersection", "polygon", src_curves, dst_curves, clipping_shapes, op_params);
   }
@@ -1243,11 +1241,10 @@ TEST(boolean_curves, Shape_Mask)
     const bke::CurvesGeometry dst_curves = curve_boolean(
         op_params, src_curves, shapes_mask, clipping_shapes);
 
-    /* TODO. */
-    // const Array<Vector<float2>> expected_points = {
-    //     {{3, 2}, {0, 2}, {0, 7}, {1, 7}, {1, 3}, {3, 3}},
-    //     {{7, 1}, {7, 0}, {2, 0}, {2, 3}, {3, 3}, {3, 1}}};
-    // expect_boolean_result_coord(dst_curves, expected_points);
+    const Array<Vector<float2>> expected_points = {
+        {{0, 5}, {0, 9}, {4, 9}, {4, 5}},
+        {{3, 3}, {3, 10}, {10, 10}, {10, 3}, {9, 3}, {9, 0}, {5, 0}, {5, 3}}};
+    expect_boolean_result_coord(dst_curves, expected_points);
 
     draw_results("Union", "polygon", src_curves, dst_curves, clipping_shapes, op_params);
   }
@@ -1256,11 +1253,9 @@ TEST(boolean_curves, Shape_Mask)
     const bke::CurvesGeometry dst_curves = curve_boolean(
         op_params, src_curves, shapes_mask, clipping_shapes);
 
-    /* TODO. */
-    // const Array<Vector<float2>> expected_points = {
-    //     {{3, 2}, {0, 2}, {0, 7}, {1, 7}, {1, 3}, {3, 3}},
-    //     {{7, 1}, {7, 0}, {2, 0}, {2, 3}, {3, 3}, {3, 1}}};
-    // expect_boolean_result_coord(dst_curves, expected_points);
+    const Array<Vector<float2>> expected_points = {{{0, 5}, {0, 9}, {4, 9}, {4, 5}},
+                                                   {{5, 0}, {5, 3}, {9, 3}, {9, 0}}};
+    expect_boolean_result_coord(dst_curves, expected_points);
 
     draw_results("Difference", "polygon", src_curves, dst_curves, clipping_shapes, op_params);
   }
