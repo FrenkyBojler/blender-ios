@@ -19,6 +19,7 @@ set(SRC
   importer/fbx_import_anim.cc
   importer/fbx_import_armature.cc
   importer/fbx_import_material.cc
+  importer/fbx_import_mesh.cc
   importer/fbx_import_util.cc
 
   IO_fbx.hh
@@ -26,6 +27,7 @@ set(SRC
   importer/fbx_import_anim.hh
   importer/fbx_import_armature.hh
   importer/fbx_import_material.hh
+  importer/fbx_import_mesh.hh
   importer/fbx_import_util.hh
 )
 
