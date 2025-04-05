@@ -31,6 +31,7 @@
 #include "BKE_object_deform.h"
 #include "BKE_report.hh"
 
+#include "BLI_linear_allocator.hh"
 #include "BLI_listbase.h"
 #include "BLI_map.hh"
 #include "BLI_math_vector.h"
@@ -149,9 +150,7 @@ void import_skeleton_curves(Main *bmain,
   const pxr::VtTokenArray joint_order = skel_query.GetJointOrder();
 
   /* Create the curves. */
-  blender::Vector<char> curve_names_buf;
-  blender::Vector<std::pair<int64_t, int64_t>> curve_names;
-  curve_names.reserve(joint_order.size() * 10);
+  blender::LinearAllocator path_alloc;
   blender::Vector<blender::animrig::FCurveDescriptor> curve_desc;
   curve_desc.reserve(joint_order.size() * 10);
 
@@ -162,44 +161,30 @@ void import_skeleton_curves(Main *bmain,
       /* This joint doesn't correspond to any bone we created.
        * Add null placeholders for the channel curves. */
       curve_desc.append_n_times({}, 10);
-      curve_names.append_n_times({0, 0}, 10);
       continue;
     }
 
     /* Translation curves. */
     std::string rna_path = "pose.bones[\"" + *name + "\"].location";
-    std::pair<int64_t, int64_t> name_desc = {curve_names_buf.size(), rna_path.size()};
-    curve_names_buf.extend(rna_path.c_str(), rna_path.size() + 1);
-    curve_names.append_n_times(name_desc, 3);
-    curve_desc.append({{}, 0, {}, {}, *name});
-    curve_desc.append({{}, 1, {}, {}, *name});
-    curve_desc.append({{}, 2, {}, {}, *name});
+    blender::StringRefNull path_desc = path_alloc.copy_string(rna_path);
+    curve_desc.append({path_desc, 0, {}, {}, *name});
+    curve_desc.append({path_desc, 1, {}, {}, *name});
+    curve_desc.append({path_desc, 2, {}, {}, *name});
 
     /* Rotation curves. */
     rna_path = "pose.bones[\"" + *name + "\"].rotation_quaternion";
-    name_desc = {curve_names_buf.size(), rna_path.size()};
-    curve_names_buf.extend(rna_path.c_str(), rna_path.size() + 1);
-    curve_names.append_n_times(name_desc, 4);
-    curve_desc.append({{}, 0, {}, {}, *name});
-    curve_desc.append({{}, 1, {}, {}, *name});
-    curve_desc.append({{}, 2, {}, {}, *name});
-    curve_desc.append({{}, 3, {}, {}, *name});
+    path_desc = path_alloc.copy_string(rna_path);
+    curve_desc.append({path_desc, 0, {}, {}, *name});
+    curve_desc.append({path_desc, 1, {}, {}, *name});
+    curve_desc.append({path_desc, 2, {}, {}, *name});
+    curve_desc.append({path_desc, 3, {}, {}, *name});
 
     /* Scale curves. */
     rna_path = "pose.bones[\"" + *name + "\"].scale";
-    name_desc = {curve_names_buf.size(), rna_path.size()};
-    curve_names_buf.extend(rna_path.c_str(), rna_path.size() + 1);
-    curve_names.append_n_times(name_desc, 3);
-    curve_desc.append({{}, 0, {}, {}, *name});
-    curve_desc.append({{}, 1, {}, {}, *name});
-    curve_desc.append({{}, 2, {}, {}, *name});
-  }
-
-  for (int64_t i = 0; i < curve_names.size(); i++) {
-    if (curve_names[i].second != 0) {
-      curve_desc[i].rna_path = blender::StringRefNull(
-          curve_names_buf.data() + curve_names[i].first, curve_names[i].second);
-    }
+    path_desc = path_alloc.copy_string(rna_path);
+    curve_desc.append({path_desc, 0, {}, {}, *name});
+    curve_desc.append({path_desc, 1, {}, {}, *name});
+    curve_desc.append({path_desc, 2, {}, {}, *name});
   }
 
   blender::Vector<FCurve *> fcurves = channelbag.fcurve_create_many(nullptr, curve_desc.as_span());
