@@ -1060,33 +1060,36 @@ static wmOperatorStatus node_resize_modal(bContext *C, wmOperator *op, const wmE
       WM_event_drag_start_mval(event, region, mval);
       float mx, my;
       UI_view2d_region_to_view(&region->v2d, mval.x, mval.y, &mx, &my);
-      float dx = (mx - nsw->mxstart) / UI_SCALE_FAC;
+      const float dx = (mx - nsw->mxstart) / UI_SCALE_FAC;
       const float dy = (my - nsw->mystart) / UI_SCALE_FAC;
 
       if (node) {
-        float *pwidth = &node->width;
         float oldwidth = nsw->oldwidth;
         float widthmin = node->typeinfo->minwidth;
         float widthmax = node->typeinfo->maxwidth;
 
         {
           if (nsw->directions & NODE_RESIZE_RIGHT) {
-            *pwidth = oldwidth + dx;
+            node->width = oldwidth + dx;
 
             if (nsw->snap_to_grid) {
-              *pwidth = nearest_node_grid_coord(*pwidth);
+              node->width = nearest_node_grid_coord(node->width);
             }
-            CLAMP(*pwidth, widthmin, widthmax);
+            CLAMP(node->width, widthmin, widthmax);
           }
           if (nsw->directions & NODE_RESIZE_LEFT) {
-            float locmax = nsw->oldlocx + oldwidth;
+            float loc_x_max = nsw->oldlocx + oldwidth;
+
+            const float target_location_x = nsw->oldlocx + dx;
+            float width = loc_x_max - target_location_x;
 
             if (nsw->snap_to_grid) {
-              dx = nearest_node_grid_coord(dx);
+              width = nearest_node_grid_coord(width);
             }
-            node->location[0] = nsw->oldlocx + dx;
-            CLAMP(node->location[0], locmax - widthmax, locmax - widthmin);
-            *pwidth = locmax - node->location[0];
+
+            CLAMP(width, widthmin, widthmax);
+            node->location[0] = loc_x_max - width;
+            node->width = width;
           }
         }
 
@@ -1095,14 +1098,24 @@ static wmOperatorStatus node_resize_modal(bContext *C, wmOperator *op, const wmE
           float heightmin = UI_SCALE_FAC * node->typeinfo->minheight;
           float heightmax = UI_SCALE_FAC * node->typeinfo->maxheight;
           if (nsw->directions & NODE_RESIZE_TOP) {
-            float locmin = nsw->oldlocy - nsw->oldheight;
+            float loc_y_min = nsw->oldlocy - nsw->oldheight;
 
-            node->location[1] = nsw->oldlocy + dy;
-            CLAMP(node->location[1], locmin + heightmin, locmin + heightmax);
-            node->height = node->location[1] - locmin;
+            const float target_location_y = nsw->oldlocy + dy;
+            float height = target_location_y - loc_y_min;
+
+            if (nsw->snap_to_grid) {
+              height = nearest_node_grid_coord(height);
+            }
+            CLAMP(height, heightmin, heightmax);
+
+            node->location[1] = loc_y_min + height;
+            node->height = height;
           }
           if (nsw->directions & NODE_RESIZE_BOTTOM) {
             node->height = nsw->oldheight - dy;
+            if (nsw->snap_to_grid) {
+              node->height = nearest_node_grid_coord(node->height);
+            }
             CLAMP(node->height, heightmin, heightmax);
           }
         }
