@@ -69,6 +69,7 @@ Object *ArmatureImportContext::create_armature_for_node(const ufbx_node *node)
 
   bArmature *arm = BKE_armature_add(&this->bmain, arm_name);
   obj = BKE_object_add_only_object(&this->bmain, OB_ARMATURE, obj_name);
+  obj->dtx |= OB_DRAW_IN_FRONT;
   obj->data = arm;
   if (node != nullptr) {
     this->mapping.el_to_object.add(&node->element, obj);
