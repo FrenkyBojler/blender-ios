@@ -12,6 +12,7 @@
 #include "BKE_camera.h"
 #include "BKE_key.hh"
 #include "BKE_layer.hh"
+#include "BKE_lib_id.hh"
 #include "BKE_light.h"
 #include "BKE_material.hh"
 #include "BKE_mesh.hh"
@@ -436,7 +437,7 @@ void FbxImportContext::import_meshes()
           /* Add armature modifier. */
           if (parent_to_arm) {
             ModifierData *md = BKE_modifier_new(eModifierType_Armature);
-            STRNCPY(md->name, get_fbx_name(skin->name, "Armature"));
+            STRNCPY(md->name, BKE_id_name(parent_to_arm->id));
             BLI_addtail(&obj->modifiers, md);
             BKE_modifiers_persistent_uid_init(*obj, *md);
             ArmatureModifierData *ad = reinterpret_cast<ArmatureModifierData *>(md);
