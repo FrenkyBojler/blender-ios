@@ -170,9 +170,11 @@ void device_hip_info(vector<DeviceInfo> &devices)
 
     const bool is_rdna2_or_newer = hipIsRDNA2OrNewer(num);
 
-    /* Disable MNEE on devices that don't work properly with it. */
+    /* Disable MNEE on devices that don't work properly with it.
+     * Common symptoms are either rendering artifacts,
+     * or renders that get stuck in the MNEE kernel.
+     * These are most likely compiler bugs and can be re-enabled in the future. */
 #  ifdef _WIN32
-    /* MNEE either has rendering aftifacts or gets stuck on sample 1 on RDNA4 on Windows. */
     info.has_mnee = is_rdna2_or_newer && !hipIsRDNA4OrNewer(num);
 #  else
     info.has_mnee = is_rdna2_or_newer;
