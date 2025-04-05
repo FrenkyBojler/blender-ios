@@ -56,7 +56,7 @@ def prepare_sculpt_scene(context: any, mode: SculptMode):
     group_output_node = group.nodes.new('NodeGroupOutput')
 
     if mode == SculptMode.MULTIRES:
-        size = 150
+        size = 10
     else:
         size = 1500
 
@@ -81,7 +81,7 @@ def prepare_sculpt_scene(context: any, mode: SculptMode):
     bpy.ops.object.mode_set(mode='SCULPT')
 
     if mode == SculptMode.MULTIRES:
-        bpy.ops.object.subdivision_set(level=3)
+        bpy.ops.object.subdivision_set(level=6)
 
 
 def generate_stroke(context):

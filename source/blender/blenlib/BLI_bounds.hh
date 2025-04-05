@@ -82,9 +82,9 @@ template<typename T> [[nodiscard]] inline std::optional<Bounds<T>> min_max(const
       [&](const IndexRange range, const Bounds<T> &init) {
         Bounds<T> result = init;
         
-        // if constexpr (std::is_same_v<T, float3>) {
-        //   ispc::min_max_float3(values.cast<float[3]>().data(), result.min, result.max, range.size());
-        // } else
+        if constexpr (std::is_same_v<T, float3>) {
+          ispc::min_max_float3(values.cast<float[3]>().data(), result.min, result.max, range.size());
+        } else
         {
           for (const int i : range) {
             math::min_max(values[i], result.min, result.max);

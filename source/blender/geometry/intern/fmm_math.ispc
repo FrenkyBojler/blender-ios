@@ -292,14 +292,13 @@ export void min_max_float3(const uniform float values[][3],
                            uniform float max_values[3],
                            const uniform int count)
 {
-  assert(false);
     const uniform float * uniform values_components = &values[0][0];
 
     const uniform int batch_size = programCount * 3;
     varying float<3> min_components;
     varying float<3> max_components;
 
-    const uniform int batch_count = (count / batch_size) * batch_size;
+    const uniform int batch_count = ((count * 3) / batch_size) * batch_size;
     for (uniform int index = 0; index < batch_count; index += batch_size) {
         const varying float<3> batch = {values_components[index + programCount * 0 + programIndex],
                                         values_components[index + programCount * 1 + programIndex],
@@ -317,57 +316,19 @@ export void min_max_float3(const uniform float values[][3],
     max_components[0] = max(max_components[0], shift(max_components[1], -((programCount * 1) % 3)));
     max_components[0] = max(max_components[0], shift(max_components[2], -((programCount * 2) % 3)));
 
-    for (uniform int component_i = 0; component_i < 3; component_i++) {
-        min_values[component_i] = reduce_min(min_components[component_i] * (float)(programIndex % 3 == component_i));
-        max_values[component_i] = reduce_max(max_components[component_i] * (float)(programIndex % 3 == component_i));
-    }
-
-    // for (uniform int index = batch_count; index < count; index++) {
-    //     min_values[index % 3] = min(min_values[index % 3], values_components[index]);
-    //     max_values[index % 3] = max(max_values[index % 3], values_components[index]);
-    // }
-}
-
-export void min_max_float3_gather(const uniform float values[][3],
-                                  const uniform float indices[],
-                                  uniform float min_values[3],
-                                  uniform float max_values[3],
-                                  const uniform int count)
-{
-  assert(false);
-    const uniform float * uniform values_components = &values[0][0];
-
-    const uniform int batch_size = programCount * 3;
-    varying float<3> min_components;
-    varying float<3> max_components;
-
-    const uniform int batch_count = (count / batch_size) * batch_size;
-    for (uniform int index = 0; index < batch_count; index += batch_size) {
-        const varying float<3> batch = {values_components[index + programCount * 0 + programIndex],
-                                        values_components[index + programCount * 1 + programIndex],
-                                        values_components[index + programCount * 2 + programIndex]};
-        
-        for (uniform int component_i = 0; component_i < 3; component_i++) {
-            min_components[component_i] = min(min_components[component_i], batch[component_i]);
-            max_components[component_i] = max(max_components[component_i], batch[component_i]);
-        }
-    }
-
-    min_components[0] = min(min_components[0], shift(min_components[1], -((programCount * 1) % 3)));
-    min_components[0] = min(min_components[0], shift(min_components[2], -((programCount * 2) % 3)));
-
-    max_components[0] = max(max_components[0], shift(max_components[1], -((programCount * 1) % 3)));
-    max_components[0] = max(max_components[0], shift(max_components[2], -((programCount * 2) % 3)));
+    const uniform float limit_min = -FLT_MAX;
+    const uniform float limit_max = FLT_MAX;
 
     for (uniform int component_i = 0; component_i < 3; component_i++) {
-        min_values[component_i] = reduce_min(min_components[component_i] * (float)(programIndex % 3 == component_i));
-        max_values[component_i] = reduce_max(max_components[component_i] * (float)(programIndex % 3 == component_i));
+        const varying bool mask = programIndex % 3 == component_i;
+        min_values[component_i] = reduce_min(min_components[component_i] * (float)(mask) + limit_max * (float)(!mask));
+        max_values[component_i] = reduce_max(max_components[component_i] * (float)(mask) + limit_min * (float)(!mask));
     }
 
-    // for (uniform int index = batch_count; index < count; index++) {
-    //     min_values[index % 3] = min(min_values[index % 3], values_components[index]);
-    //     max_values[index % 3] = max(max_values[index % 3], values_components[index]);
-    // }
+    for (uniform int index = batch_count; index < count; index++) {
+        min_values[index % 3] = min(min_values[index % 3], values_components[index]);
+        max_values[index % 3] = max(max_values[index % 3], values_components[index]);
+    }
 }
 
 export void distances_split_(const uniform float positions_x[],
