@@ -54,8 +54,6 @@
 #    include "GPU_compilation_subprocess.hh"
 #  endif
 
-#  include "MB_tornavis.h"
-
 #  ifdef WITH_PYTHON
 #    include "BPY_extern_python.hh"
 #    include "BPY_extern_run.hh"
@@ -1789,15 +1787,6 @@ static int arg_handle_start_with_console(int /*argc*/, const char ** /*argv*/, v
   return 0;
 }
 
-static const char arg_handle_tornavis_info_doc[] =
-    "\n\t"
-    "Shows Tornavis project info on loading.";
-static int arg_handle_tornavis_info(int /*argc*/, const char ** /*argv*/, void * /*data*/)
-{
-  MB_print_info();
-  return 0;
-}
-
 static bool arg_handle_extension_registration(const bool do_register, const bool all_users)
 {
   /* Logic runs in #main_args_handle_registration. */
@@ -2943,8 +2932,6 @@ void main_args_setup(bContext *C, bArgs *ba, bool all)
   BLI_args_add(ba, "-x", "--use-extension", CB(arg_handle_extension_set), C);
 
   BLI_args_add(ba, nullptr, "--open-last", CB(arg_handle_load_last_file), C);
-
-  BLI_args_add(ba, nullptr, "--tornavis-info", CB(arg_handle_tornavis_info), nullptr);
 
 #  undef CB
 #  undef CB_EX

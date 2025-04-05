@@ -54,8 +54,6 @@
 #include "BKE_vfont.hh"
 #include "BKE_volume.hh"
 
-#include "MB_tornavis.h"
-
 #ifndef WITH_PYTHON_MODULE
 #  include "BLI_args.h"
 #endif
@@ -464,8 +462,6 @@ int main(int argc,
 
   /* Initialize FFTW threading support. */
   blender::fftw::initialize_float();
-
-  MB_init();
 
 #ifndef WITH_PYTHON_MODULE
   /* The settings pass includes:

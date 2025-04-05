@@ -9,7 +9,6 @@ set(INC
   ../../makesrna
   ../../../../intern/mantaflow/extern
   ../../../../intern/opencolorio
-  ../../tornavis
   # RNA_prototypes.hh
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
@@ -34,7 +33,6 @@ set(SRC
   bpy_app_timers.cc
   bpy_app_translations.cc
   bpy_app_usd.cc
-  bpy_app_tornavis.cc
   bpy_capi_utils.cc
   bpy_cli_command.cc
   bpy_driver.cc
@@ -84,7 +82,6 @@ set(SRC
   bpy_app_timers.hh
   bpy_app_translations.hh
   bpy_app_usd.hh
-  bpy_app_tornavis.h
   bpy_capi_utils.hh
   bpy_cli_command.hh
   bpy_driver.hh
@@ -134,7 +131,6 @@ set(LIB
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::animrig
   bf_python_gpu
-  tornavis
 
   ${PYTHON_LINKFLAGS}
   ${PYTHON_LIBRARIES}
