@@ -137,6 +137,15 @@ CurveMapping *BKE_sculpt_default_cavity_curve()
   return cumap;
 }
 
+CurveMapping *BKE_paint_default_curve()
+{
+  CurveMapping *cumap = BKE_curvemapping_add(1, 0, 0, 1, 1);
+  BKE_curvemap_reset(cumap->cm, &cumap->clipr, CURVE_PRESET_LINE, CURVEMAP_SLOPE_POSITIVE);
+  BKE_curvemapping_init(cumap);
+
+  return cumap;
+}
+
 void BKE_sculpt_check_cavity_curves(Sculpt *sd)
 {
   if (!sd->automasking_cavity_curve) {
@@ -172,6 +181,10 @@ static void scene_init_data(ID *id)
   scene->toolsettings = DNA_struct_default_alloc(ToolSettings);
 
   scene->toolsettings->autokey_mode = uchar(U.autokey_mode);
+
+  scene->toolsettings->unified_paint_settings.curve_hue_jitter = BKE_paint_default_curve();
+  scene->toolsettings->unified_paint_settings.curve_sat_jitter = BKE_paint_default_curve();
+  scene->toolsettings->unified_paint_settings.curve_val_jitter = BKE_paint_default_curve();
 
   /* Grease pencil multi-frame falloff curve. */
   scene->toolsettings->gp_sculpt.cur_falloff = BKE_curvemapping_add(1, 0.0f, 0.0f, 1.0f, 1.0f);
@@ -1209,6 +1222,10 @@ static void scene_blend_read_data(BlendDataReader *reader, ID *id)
     zero_v3(ups->last_location);
     ups->last_hit = 0;
 
+    ups->curve_hue_jitter = BKE_paint_default_curve();
+    ups->curve_sat_jitter = BKE_paint_default_curve();
+    ups->curve_val_jitter = BKE_paint_default_curve();
+
     direct_link_paint_helper(reader, sce, (Paint **)&sce->toolsettings->sculpt);
     direct_link_paint_helper(reader, sce, (Paint **)&sce->toolsettings->vpaint);
     direct_link_paint_helper(reader, sce, (Paint **)&sce->toolsettings->wpaint);
@@ -1657,6 +1674,14 @@ ToolSettings *BKE_toolsettings_copy(ToolSettings *toolsettings, const int flag)
     BKE_paint_copy(&ts->curves_sculpt->paint, &ts->curves_sculpt->paint, flag);
   }
 
+  /* Color jitter curves in unified paint settings. */
+  ts->unified_paint_settings.curve_hue_jitter = BKE_curvemapping_copy(
+      ts->unified_paint_settings.curve_hue_jitter);
+  ts->unified_paint_settings.curve_sat_jitter = BKE_curvemapping_copy(
+      ts->unified_paint_settings.curve_sat_jitter);
+  ts->unified_paint_settings.curve_val_jitter = BKE_curvemapping_copy(
+      ts->unified_paint_settings.curve_val_jitter);
+
   BKE_paint_copy(&ts->imapaint.paint, &ts->imapaint.paint, flag);
   ts->particle.paintcursor = nullptr;
   ts->particle.scene = nullptr;
@@ -1722,6 +1747,17 @@ void BKE_toolsettings_free(ToolSettings *toolsettings)
     MEM_freeN(toolsettings->curves_sculpt);
   }
   BKE_paint_free(&toolsettings->imapaint.paint);
+
+  /* Color jitter curves in unified paint settings. */
+  if (toolsettings->unified_paint_settings.curve_hue_jitter) {
+    BKE_curvemapping_free(toolsettings->unified_paint_settings.curve_hue_jitter);
+  }
+  if (toolsettings->unified_paint_settings.curve_sat_jitter) {
+    BKE_curvemapping_free(toolsettings->unified_paint_settings.curve_sat_jitter);
+  }
+  if (toolsettings->unified_paint_settings.curve_val_jitter) {
+    BKE_curvemapping_free(toolsettings->unified_paint_settings.curve_val_jitter);
+  }
 
   /* free Grease Pencil interpolation curve */
   if (toolsettings->gp_interpolate.custom_ipo) {

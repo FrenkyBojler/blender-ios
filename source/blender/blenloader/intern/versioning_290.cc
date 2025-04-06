@@ -876,11 +876,11 @@ void blo_do_versions_290(FileData *fd, Library * /*lib*/, Main *bmain)
           brush->gpencil_settings->curve_rand_strength = BKE_curvemapping_add(
               1, 0.0f, 0.0f, 1.0f, 1.0f);
           brush->gpencil_settings->curve_rand_uv = BKE_curvemapping_add(1, 0.0f, 0.0f, 1.0f, 1.0f);
-          brush->gpencil_settings->curve_rand_hue = BKE_curvemapping_add(
+          brush->gpencil_settings->curve_hue_jitter = BKE_curvemapping_add(
               1, 0.0f, 0.0f, 1.0f, 1.0f);
-          brush->gpencil_settings->curve_rand_saturation = BKE_curvemapping_add(
+          brush->gpencil_settings->curve_sat_jitter = BKE_curvemapping_add(
               1, 0.0f, 0.0f, 1.0f, 1.0f);
-          brush->gpencil_settings->curve_rand_value = BKE_curvemapping_add(
+          brush->gpencil_settings->curve_val_jitter = BKE_curvemapping_add(
               1, 0.0f, 0.0f, 1.0f, 1.0f);
         }
       }

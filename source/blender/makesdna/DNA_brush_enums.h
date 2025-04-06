@@ -102,30 +102,18 @@ typedef enum eGPDbrush_Flag {
 } eGPDbrush_Flag;
 
 typedef enum eGPDbrush_Flag2 {
-  /* Brush use random Hue at stroke level */
-  GP_BRUSH_USE_HUE_AT_STROKE = (1 << 0),
-  /* Brush use random Saturation at stroke level */
-  GP_BRUSH_USE_SAT_AT_STROKE = (1 << 1),
-  /* Brush use random Value at stroke level */
-  GP_BRUSH_USE_VAL_AT_STROKE = (1 << 2),
   /* Brush use random Pressure at stroke level */
-  GP_BRUSH_USE_PRESS_AT_STROKE = (1 << 3),
+  GP_BRUSH_USE_PRESS_AT_STROKE = (1 << 0),
   /* Brush use random Strength at stroke level */
-  GP_BRUSH_USE_STRENGTH_AT_STROKE = (1 << 4),
+  GP_BRUSH_USE_STRENGTH_AT_STROKE = (1 << 1),
   /* Brush use random UV at stroke level */
-  GP_BRUSH_USE_UV_AT_STROKE = (1 << 5),
-  /* Brush use Hue random pressure */
-  GP_BRUSH_USE_HUE_RAND_PRESS = (1 << 6),
-  /* Brush use Saturation random pressure */
-  GP_BRUSH_USE_SAT_RAND_PRESS = (1 << 7),
-  /* Brush use Value random pressure */
-  GP_BRUSH_USE_VAL_RAND_PRESS = (1 << 8),
+  GP_BRUSH_USE_UV_AT_STROKE = (1 << 2),
   /* Brush use Pressure random pressure */
-  GP_BRUSH_USE_PRESSURE_RAND_PRESS = (1 << 9),
+  GP_BRUSH_USE_PRESSURE_RAND_PRESS = (1 << 3),
   /* Brush use Strength random pressure */
-  GP_BRUSH_USE_STRENGTH_RAND_PRESS = (1 << 10),
+  GP_BRUSH_USE_STRENGTH_RAND_PRESS = (1 << 4),
   /* Brush use UV random pressure */
-  GP_BRUSH_USE_UV_RAND_PRESS = (1 << 11),
+  GP_BRUSH_USE_UV_RAND_PRESS = (1 << 5),
 } eGPDbrush_Flag2;
 
 /* BrushGpencilSettings->fill_draw_mode */

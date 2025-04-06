@@ -1848,7 +1848,6 @@ void BKE_paint_stroke_get_average(const Scene *scene, const Object *ob, float st
   }
 }
 
-/* TODO: merge this functionality with greasepencil PaintOperationExecutor::randomize_color */
 blender::float3 BKE_paint_randomize_color(const BrushColorJitterSettings &color_jitter,
                                           const blender::float3 &initial_hsv_jitter,
                                           const float distance,
@@ -1874,15 +1873,15 @@ blender::float3 BKE_paint_randomize_color(const BrushColorJitterSettings &color_
 
   float hue_jitter_scale = color_jitter.hue;
   if ((color_jitter.flag & BRUSH_COLOR_JITTER_USE_HUE_RAND_PRESS)) {
-    hue_jitter_scale *= pressure;
+    hue_jitter_scale *= BKE_curvemapping_evaluateF(color_jitter.curve_hue_jitter, 0, pressure);
   }
   float sat_jitter_scale = color_jitter.saturation;
   if ((color_jitter.flag & BRUSH_COLOR_JITTER_USE_SAT_RAND_PRESS)) {
-    sat_jitter_scale *= pressure;
+    sat_jitter_scale *= BKE_curvemapping_evaluateF(color_jitter.curve_sat_jitter, 0, pressure);
   }
   float val_jitter_scale = color_jitter.value;
   if ((color_jitter.flag & BRUSH_COLOR_JITTER_USE_VAL_RAND_PRESS)) {
-    val_jitter_scale *= pressure;
+    val_jitter_scale *= BKE_curvemapping_evaluateF(color_jitter.curve_val_jitter, 0, pressure);
   }
 
   blender::float3 hsv;

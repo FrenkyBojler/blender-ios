@@ -450,8 +450,19 @@ static void blo_update_defaults_scene(Main *bmain, Scene *scene)
 
   const UnifiedPaintSettings &default_ups = *DNA_struct_default_get(UnifiedPaintSettings);
   ts->unified_paint_settings.flag = default_ups.flag;
+
   copy_v3_v3(ts->unified_paint_settings.rgb, default_ups.rgb);
   copy_v3_v3(ts->unified_paint_settings.secondary_rgb, default_ups.secondary_rgb);
+
+  if (ts->unified_paint_settings.curve_hue_jitter == nullptr) {
+    ts->unified_paint_settings.curve_hue_jitter = BKE_paint_default_curve();
+  }
+  if (ts->unified_paint_settings.curve_sat_jitter == nullptr) {
+    ts->unified_paint_settings.curve_sat_jitter = BKE_paint_default_curve();
+  }
+  if (ts->unified_paint_settings.curve_val_jitter == nullptr) {
+    ts->unified_paint_settings.curve_val_jitter = BKE_paint_default_curve();
+  }
 }
 
 void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
