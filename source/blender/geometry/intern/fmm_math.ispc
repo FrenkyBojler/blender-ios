@@ -301,11 +301,48 @@ export void chunked_squared_distances_table(const uniform float row_x[][16],
                                             const uniform float row_y[][16],
                                             const uniform float row_z[][16],
                                             const uniform int row_count,
-                                            const uniform float col_x[][16],
-                                            const uniform float col_y[][16],
-                                            const uniform float col_z[][16],
+                                            const uniform float col_x[],
+                                            const uniform float col_y[],
+                                            const uniform float col_z[],
                                             const uniform int col_count,
                                             float uniform distances[][16])
+{
+  for (uniform int row_index = 0; row_index < row_count; row_index++) {
+    const varying float<3> row_pos = {streaming_load(&row_x[row_index][0]),
+                                      streaming_load(&row_y[row_index][0]),
+                                      streaming_load(&row_z[row_index][0])};
+    for (uniform int col_index = 0; colt_index < col_count; col_index++) {
+      uniform float<3> col_pos = {col_x[col_index],
+                                  col_y[col_index],
+                                  col_z[col_index]};
+      row_pos -= targets;
+      row_pos *= row_pos;
+      const uniform int distance_index = row_index * col_count + col_index;
+      distances[distance_index * programCount + programIndex] = row_pos.x + row_pos.y + row_pos.z;
+    }
+  }
+}
+
+export uniform int chunked_mul_add_n_to(
+    uniform float values[16],
+    uniform float factors[][16],
+    uniform float others[],
+    const uniform int count)
+{
+  for (uniform int index = 0; index < count; index++) {
+    values[programIndex] += others[index] * streaming_load(&factors[index][0]);
+  }
+}
+
+export void squared_distances_table(const uniform float row_x[],
+                                    const uniform float row_y[],
+                                    const uniform float row_z[],
+                                    const uniform int row_count,
+                                    const uniform float col_x[],
+                                    const uniform float col_y[],
+                                    const uniform float col_z[],
+                                    const uniform int col_count,
+                                    float uniform distances[])
 {
 }
 
