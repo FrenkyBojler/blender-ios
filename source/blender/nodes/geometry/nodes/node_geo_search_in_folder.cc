@@ -2,14 +2,12 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include <filesystem>
+
 #include "BLI_fileops.h"
 #include "BLI_string_utf8.h"
 
-#include "BLI_string_utf8.h"
-
 #include "node_geometry_util.hh"
-
-#include <filesystem>
 
 namespace blender::nodes::node_geo_search_in_folder_cc {
 
@@ -36,6 +34,7 @@ void append_path_to_string(std::string &target, const std::string &entry_path)
     target += "\n" + entry_path;
   }
 }
+
 void fliter_path_2s(const std::filesystem::directory_entry &entry,
                     const std::string &extension,
                     std::string &filepaths,
@@ -48,37 +47,35 @@ void fliter_path_2s(const std::filesystem::directory_entry &entry,
     append_path_to_string(folders, entry.path().string());
   }
 }
+
 void search_in_folder(const std::string &path,
                       const std::string &lastname,
                       bool deep,
                       std::string &filepaths,
                       std::string &folders)
 {
-  namespace fs = std::filesystem;
-
   std::string extension = lastname;
   if (!extension.empty() && extension[0] != '.') {
     extension = "." + extension;
   }
-
   try {
     if (deep) {
-      for (const std::filesystem::directory_entry &entry : fs::recursive_directory_iterator(path))
+      for (const std::filesystem::directory_entry &entry : std::filesystem::recursive_directory_iterator(path))
       {
         fliter_path_2s(entry, extension, filepaths, folders);
       }
     }
     else {
-      for (const std::filesystem::directory_entry &entry : fs::directory_iterator(path)) {
+      for (const std::filesystem::directory_entry &entry : std::filesystem::directory_iterator(path)) {
         fliter_path_2s(entry, extension, filepaths, folders);
       }
     }
   }
-  catch (const fs::filesystem_error &e) {
+  catch (const std::filesystem::filesystem_error &e) {
     filepaths += "error";
   }
 }
-//////////////////////////////////////////////
+
 static void node_geo_exec(GeoNodeExecParams params)
 {
   const std::optional<std::string> path = params.ensure_absolute_path(
@@ -90,8 +87,11 @@ static void node_geo_exec(GeoNodeExecParams params)
   std::string files;
   std::string folders;
 
-  search_in_folder(*path, params.extract_input<std::string>("File Last Name"),
-                   params.extract_input<bool>("Deep Search"), files, folders);
+  search_in_folder(*path,
+                   params.extract_input<std::string>("File Last Name"),
+                   params.extract_input<bool>("Deep Search"),
+                   files,
+                   folders);
 
   params.set_output("Files", files);
   params.set_output("Folders", folders);
