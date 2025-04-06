@@ -275,8 +275,12 @@ static void pbvh_bmesh_node_split(Vector<BMeshNode> &nodes,
 
   /* Initialize children */
   BMeshNode *c1 = &nodes[children], *c2 = &nodes[children + 1];
-  c1->flag_ |= Node::Leaf;
-  c2->flag_ |= Node::Leaf;
+  c1->flag_ |= Node::Leaf | Node::GPU;
+  c2->flag_ |= Node::Leaf | Node::GPU;
+  c1->gpu_inner_index_ = children;
+  c2->gpu_inner_index_ = children + 1;
+  c1->leaf_nodes_.append(children);
+  c2->leaf_nodes_.append(children + 1);
   c1->bm_faces_.reserve(nodes[node_index].bm_faces_.size() / 2);
   c2->bm_faces_.reserve(nodes[node_index].bm_faces_.size() / 2);
 
@@ -324,6 +328,8 @@ static void pbvh_bmesh_node_split(Vector<BMeshNode> &nodes,
   nodes[node_index].bm_faces_.clear();
 
   nodes[node_index].flag_ &= ~Node::Leaf;
+  nodes[node_index].flag_ &= ~Node::GPU;
+  nodes[node_index].leaf_nodes_.clear();
   node_changed[node_index] = true;
 
   /* Recurse. */
@@ -2115,7 +2121,9 @@ static void pbvh_bmesh_create_nodes_fast_recursive(Vector<BMeshNode> &nodes,
     /* Node does not have children so it's a leaf node, populate with faces and tag accordingly
      * this is an expensive part but it's not so easily thread-able due to vertex node indices. */
 
-    nodes[node_index].flag_ |= Node::Leaf;
+    nodes[node_index].flag_ |= Node::Leaf | Node::GPU;
+    nodes[node_index].gpu_inner_index_ = node_index;
+    nodes[node_index].leaf_nodes_.append(node_index);
     nodes[node_index].bm_faces_.reserve(node->totface);
 
     const int end = node->start + node->totface;

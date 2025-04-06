@@ -352,7 +352,9 @@ static void build_nodes_recursive_grids(const Span<int> material_indices,
   if (below_leaf_limit) {
     if (!leaf_needs_material_split(faces, material_indices)) {
       GridsNode &node = nodes[node_index];
-      node.flag_ |= Node::Leaf;
+      node.flag_ |= Node::Leaf | Node::GPU;
+      node.gpu_inner_index_ = node_index;
+      node.leaf_nodes_.append(node_index);
       node.prim_indices_ = faces;
       return;
     }
@@ -2645,8 +2647,11 @@ IndexMask get_GPU_mask_from_leaf_mask(const Tree &pbvh,
 
   std::visit(
       [&](const auto &nodes) {
-        leaf_nodes.foreach_index(
-            [&](const int i) { gpu_nodes.add(nodes[i].gpu_inner_index_.value()); });
+        leaf_nodes.foreach_index([&](const int i) {
+          if (nodes[i].gpu_inner_index_.has_value()) {
+            gpu_nodes.add(nodes[i].gpu_inner_index_.value());
+          }
+        });
       },
       pbvh.nodes_);
 
