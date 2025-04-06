@@ -1170,7 +1170,7 @@ def brush_shared_settings(layout, context, brush, popover=False):
         layout.row().prop(brush, "direction", expand=True)
 
 
-def color_jitter_panel(layout, context, default_closed=True):
+def color_jitter_panel(layout, context, brush, default_closed=True):
     mode = UnifiedPaintPanel.get_brush_mode(context)
     ups = context.scene.tool_settings.unified_paint_settings
 
@@ -1215,7 +1215,7 @@ def brush_settings_advanced(layout, context, settings, brush, popover=False):
         layout.separator()
         layout.label(text="Advanced")
 
-        color_jitter_panel(layout, context, default_closed=False)
+        color_jitter_panel(layout, context, brush, default_closed=False)
 
     # These options are shared across many modes.
     use_accumulate = False
@@ -1429,7 +1429,7 @@ def draw_color_settings(context, layout, brush, color_type=False):
         row.operator("paint.brush_colors_flip", icon='FILE_REFRESH', text="", emboss=False)
         row.prop(ups, "use_unified_color", text="", icon='BRUSHES_ALL')
 
-        color_jitter_panel(layout, context)
+        color_jitter_panel(layout, context, brush)
 
     # Gradient
     elif brush.color_type == 'GRADIENT':
