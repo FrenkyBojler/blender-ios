@@ -148,7 +148,7 @@ class DATA_PT_lens(CameraButtonsPanel, Panel):
                     sub.prop(cam, "custom_filepath", text=" ")
                 else:
                     sub.prop(cam, "custom_shader", text=" ")
-                sub.operator("cycles.custom_camera_shader_update", icon='FILE_REFRESH', text="")
+                sub.operator("object.camera_custom_update", icon='FILE_REFRESH', text="")
 
         col = layout.column()
         col.separator()

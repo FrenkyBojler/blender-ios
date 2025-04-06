@@ -367,17 +367,6 @@ def update_pause(self, context):
     context.area.tag_redraw()
 
 
-def update_camera_script(self, context):
-    # TODO: Where to get report here?
-    def report(*_, **__): pass
-
-    if engine.with_osl():
-        from . import osl
-        osl.update_camera_script(context.camera, report)
-    else:
-        report({'ERROR'}, "OSL support disabled in this build")
-
-
 class CyclesRenderSettings(bpy.types.PropertyGroup):
 
     device: EnumProperty(

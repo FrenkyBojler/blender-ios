@@ -35,6 +35,8 @@
 
 #  include "SEQ_relations.hh"
 
+#  include "RE_engine.h"
+
 static float rna_Camera_angle_get(PointerRNA *ptr)
 {
   const Camera *cam = (const Camera *)ptr->owner_id;
@@ -84,6 +86,21 @@ static void rna_Camera_dependency_update(Main *bmain, Scene * /*scene*/, Pointer
 {
   Camera *camera = (Camera *)ptr->owner_id;
   DEG_relations_tag_update(bmain);
+  DEG_id_tag_update(&camera->id, 0);
+}
+
+static void rna_Camera_custom_update(Main * /*bmain*/, Scene *scene, PointerRNA *ptr)
+{
+  Camera *camera = (Camera *)ptr->owner_id;
+  RenderEngineType *engine_type = (scene != nullptr) ? RE_engines_find(scene->r.engine) : nullptr;
+
+  if (engine_type && engine_type->update_custom_camera) {
+    /* auto update camera */
+    RenderEngine *engine = RE_engine_create(engine_type);
+    engine_type->update_custom_camera(engine, camera);
+    RE_engine_free(engine);
+  }
+
   DEG_id_tag_update(&camera->id, 0);
 }
 
@@ -1034,13 +1051,13 @@ void RNA_def_camera(BlenderRNA *brna)
   prop = RNA_def_property(srna, "custom_filepath", PROP_STRING, PROP_FILEPATH);
   RNA_def_property_ui_text(
       prop, "Custom File Path", "Path to the shader defining the custom camera");
-  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Camera_update");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Camera_custom_update");
 
   prop = RNA_def_property(srna, "custom_shader", PROP_POINTER, PROP_NONE);
   RNA_def_property_struct_type(prop, "Text");
   RNA_def_property_flag(prop, PROP_EDITABLE | PROP_ID_REFCOUNT);
   RNA_def_property_ui_text(prop, "Custom Shader", "Shader defining the custom camera");
-  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Camera_update");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Camera_custom_update");
 
   prop = RNA_def_property(srna, "custom_mode", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_funcs(prop, nullptr, "rna_Camera_custom_mode_set", nullptr);

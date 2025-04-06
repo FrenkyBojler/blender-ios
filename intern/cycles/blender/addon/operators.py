@@ -155,37 +155,10 @@ class CYCLES_OT_merge_images(Operator):
         return {'FINISHED'}
 
 
-class CYCLES_OT_custom_camera_shader_update(Operator):
-    """Update the parameters of a Custom Camera's Shader"""
-    bl_idname = "cycles.custom_camera_shader_update"
-    bl_label = "Update Custom Camera Shader"
-
-    @classmethod
-    def poll(cls, context):
-        if not engine.with_osl():
-            return False
-
-        cam = getattr(context, "camera", False)
-        if not cam:
-            return False
-        if cam.type != 'PANO' or cam.panorama_type != 'CUSTOM':
-            return False
-        if cam.custom_mode == 'EXTERNAL':
-            return bool(cam.custom_filepath)
-        else:
-            return bool(cam.custom_shader)
-
-    def execute(self, context):
-        from . import osl
-        osl.update_custom_camera_shader(context.camera, self.report)
-        return {'FINISHED'}
-
-
 classes = (
     CYCLES_OT_use_shading_nodes,
     CYCLES_OT_denoise_animation,
     CYCLES_OT_merge_images,
-    CYCLES_OT_custom_camera_shader_update,
 )
 
 
