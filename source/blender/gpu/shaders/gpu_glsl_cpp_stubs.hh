@@ -908,11 +908,6 @@ template<int C, int R> float determinant(MatBase<C, R>) RET;
 template<int C, int R> MatBase<C, R> inverse(MatBase<C, R>) RET;
 template<int C, int R> MatBase<R, C> transpose(MatBase<C, R>) RET;
 
-/* TODO(@fclem): Should be in a lib instead of being implemented by each backend. */
-bool is_zero(vec2) RET;
-bool is_zero(vec3) RET;
-bool is_zero(vec4) RET;
-
 #undef RET
 
 /** \} */
@@ -1016,7 +1011,33 @@ void groupMemoryBarrier() {}
 #define bool4_array(...) { __VA_ARGS__ }
 /* clang-format on */
 
+#define METAL_CONSTRUCTOR_1(class_name, t1, m1) \
+  class_name() = default; \
+  class_name(t1 m1##_) : m1(m1##_){};
+
+#define METAL_CONSTRUCTOR_2(class_name, t1, m1, t2, m2) \
+  class_name() = default; \
+  class_name(t1 m1##_, t2 m2##_) : m1(m1##_), m2(m2##_){};
+
+#define METAL_CONSTRUCTOR_3(class_name, t1, m1, t2, m2, t3, m3) \
+  class_name() = default; \
+  class_name(t1 m1##_, t2 m2##_, t3 m3##_) : m1(m1##_), m2(m2##_), m3(m3##_){};
+
+#define METAL_CONSTRUCTOR_4(class_name, t1, m1, t2, m2, t3, m3, t4, m4) \
+  class_name() = default; \
+  class_name(t1 m1##_, t2 m2##_, t3 m3##_, t4 m4##_) \
+      : m1(m1##_), m2(m2##_), m3(m3##_), m4(m4##_){};
+
 /** \} */
+
+/* Use to suppress '-Wimplicit-fallthrough' (in place of 'break'). */
+#ifndef ATTR_FALLTHROUGH
+#  ifdef __GNUC__
+#    define ATTR_FALLTHROUGH __attribute__((fallthrough))
+#  else
+#    define ATTR_FALLTHROUGH ((void)0)
+#  endif
+#endif
 
 /* GLSL main function must return void. C++ need to return int.
  * Inject real main (C++) inside the GLSL main definition. */

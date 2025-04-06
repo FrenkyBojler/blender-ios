@@ -40,6 +40,8 @@
 #include "BKE_node_tree_zones.hh"
 #include "BKE_volume_grid_fwd.hh"
 
+#include "NOD_geometry_nodes_bundle.hh"
+
 #include "FN_field.hh"
 
 #include "DNA_node_types.h"
@@ -120,6 +122,12 @@ class FieldInfoLog : public ValueLog {
   FieldInfoLog(const GField &field);
 };
 
+struct StringLog : public ValueLog {
+  StringRef value;
+  bool truncated;
+  StringLog(StringRef string, LinearAllocator<> &allocator);
+};
+
 struct GeometryAttributeInfo {
   std::string name;
   /** Can be empty when #name does not actually exist on a geometry yet. */
@@ -176,6 +184,31 @@ class GeometryInfoLog : public ValueLog {
 
   GeometryInfoLog(const bke::GeometrySet &geometry_set);
   GeometryInfoLog(const bke::GVolumeGrid &grid);
+};
+
+class BundleValueLog : public ValueLog {
+ public:
+  struct Item {
+    SocketInterfaceKey key;
+    const bke::bNodeSocketType *type;
+  };
+
+  Vector<Item> items;
+
+  BundleValueLog(Vector<Item> items);
+};
+
+class ClosureValueLog : public ValueLog {
+ public:
+  struct Item {
+    SocketInterfaceKey key;
+    const bke::bNodeSocketType *type;
+  };
+
+  Vector<Item> inputs;
+  Vector<Item> outputs;
+
+  ClosureValueLog(Vector<Item> inputs, Vector<Item> outputs);
 };
 
 /**
