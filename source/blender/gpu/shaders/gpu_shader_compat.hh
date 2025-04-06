@@ -34,8 +34,15 @@
   } \
   ;
 
+#define SRD_RESOURCE_SPECIALIZATION_CONSTANT(srd, type, name, default) \
+  static constexpr type name = default;
 #define SRD_RESOURCE_PUSH_CONSTANT(srd, type, name) type name;
 #define SRD_RESOURCE_SAMPLER(srd, binding, type, name) type name;
+#define SRD_RESOURCE_STORAGE_BUF(srd, binding, access, type, name, array) type(*name) array;
+#define SRD_RESOURCE_UNIFORM_BUF(srd, binding, type, name, array) type(*name) array;
+#define SRD_RESOURCE_STRUCT(srd, type, name) type name;
+
+#define buffer_read(buffer, offset) (*buffer)[offset]
 
 /* Create pseudo shader program for type checking. */
 #define SRD_GRAPHIC_PIPELINE( \

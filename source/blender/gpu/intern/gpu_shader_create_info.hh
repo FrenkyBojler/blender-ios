@@ -485,7 +485,6 @@ enum class ImageType {
   FLOAT_1D,
   FLOAT_1D_ARRAY,
   FLOAT_2D,
-  sampler2D = FLOAT_2D,
   FLOAT_2D_ARRAY,
   FLOAT_3D,
   FLOAT_CUBE,
@@ -528,7 +527,11 @@ enum class ImageType {
   UINT_3D_ATOMIC,
   INT_2D_ATOMIC,
   INT_2D_ARRAY_ATOMIC,
-  INT_3D_ATOMIC
+  INT_3D_ATOMIC,
+
+  sampler2D = FLOAT_2D,
+  sampler2DArray = FLOAT_2D_ARRAY,
+  sampler1DArray = FLOAT_1D_ARRAY,
 };
 
 /* Storage qualifiers. */
