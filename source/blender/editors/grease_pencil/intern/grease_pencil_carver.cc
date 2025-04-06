@@ -166,8 +166,14 @@ static bool execute_carver_on_drawing(const int layer_index,
       bke::attribute_filter_from_skip_ref({"is_fill", "cyclic", "curve_type"}),
       clipping_curves);
 
+  geometry::boolean::CurveBooleanOpParameters op_params;
+  op_params.subject_rule = geometry::boolean::FillRule::EvenOdd;
+  op_params.clipping_rule = geometry::boolean::FillRule::EvenOdd;
+  op_params.output_rule = geometry::boolean::FillRule::EvenOdd;
+  op_params.boolean_mode = geometry::boolean::Operation::Difference;
+
   bke::CurvesGeometry carved_strokes = geometry::boolean::curve_boolean(
-      geometry::boolean::Operation::Difference, input_curves, clipping_curves);
+      op_params, input_curves, input_curves.curves_range(), clipping_curves);
 
   /* TODO. */
   // placement.reproject(carved_strokes.positions(), carved_strokes.positions_for_write());
@@ -184,7 +190,7 @@ static bool execute_carver_on_drawing(const int layer_index,
 /**
  * Apply the stroke carver to all layers.
  */
-static int stroke_carver_execute(const bContext *C, const Span<int2> mcoords)
+static wmOperatorStatus stroke_carver_execute(const bContext *C, const Span<int2> mcoords)
 {
   const Scene *scene = CTX_data_scene(C);
   const ARegion *region = CTX_wm_region(C);
@@ -275,7 +281,7 @@ static int stroke_carver_execute(const bContext *C, const Span<int2> mcoords)
   return OPERATOR_FINISHED;
 }
 
-static int grease_pencil_stroke_carver(bContext *C, wmOperator *op)
+static wmOperatorStatus grease_pencil_stroke_carver(bContext *C, wmOperator *op)
 {
   const Array<int2> mcoords = WM_gesture_lasso_path_to_array(C, op);
 
