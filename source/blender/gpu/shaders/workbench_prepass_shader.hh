@@ -15,7 +15,7 @@
 #  define WB_CURVES_UV_SLOT 5
 #  define WB_CURVES_COLOR_SLOT 6
 
-/* UBOs (Storage buffers in Workbench Next). */
+/* UBOs (Storage buffers in WB_ Next). */
 #  define WB_MATERIAL_SLOT 0
 #  define WB_WORLD_SLOT 1
 
@@ -123,20 +123,20 @@ SRD_FRAGMENT_OUT(FragmentOut, 1, float2, normal)
 SRD_FRAGMENT_OUT(FragmentOut, 2, uint, object_id)
 SRD_FRAGMENT_OUT_END(FragmentOut)
 
-SRD_RESOURCE_BEGIN(DrawView)
-SRD_RESOURCE_UNIFORM_BUF(DrawView, DRW_VIEW_UBO_SLOT, ViewMatrices, drw_view_buf, [DRW_VIEW_LEN])
-SRD_RESOURCE_END(DrawView)
+SRD_RESOURCE_BEGIN(DRW_View)
+SRD_RESOURCE_UNIFORM_BUF(DRW_View, DRW_VIEW_UBO_SLOT, ViewMatrices, drw_view_buf, [DRW_VIEW_LEN])
+SRD_RESOURCE_END(DRW_View)
 
-SRD_RESOURCE_BEGIN(DrawClipping)
-SRD_RESOURCE_UNIFORM_BUF(DrawClipping, DRW_CLIPPING_UBO_SLOT, float4, drw_clipping_, [6])
-SRD_RESOURCE_END(DrawClipping)
+SRD_RESOURCE_BEGIN(DRW_Clipping)
+SRD_RESOURCE_UNIFORM_BUF(DRW_Clipping, DRW_CLIPPING_UBO_SLOT, float4, drw_clipping_, [6])
+SRD_RESOURCE_END(DRW_Clipping)
 
-#define WORKBENCH_COLOR_TEXTURE (1 << 0)
-#define WORKBENCH_COLOR_MATERIAL (1 << 1)
-#define WORKBENCH_COLOR_VERTEX (1 << 2)
-#define WORKBENCH_LIGHTING_FLAT 1
-#define WORKBENCH_LIGHTING_STUDIO 2
-#define WORKBENCH_LIGHTING_MATCAP 3
+#define WB_COLOR_TEXTURE (1 << 0)
+#define WB_COLOR_MATERIAL (1 << 1)
+#define WB_COLOR_VERTEX (1 << 2)
+#define WB_LIGHTING_FLAT 1
+#define WB_LIGHTING_STUDIO 2
+#define WB_LIGHTING_MATCAP 3
 
 /* Input to common function needs to be redeclared with own binding points, or use common slot. */
 SRD_RESOURCE_BEGIN(ImageTileData)
@@ -144,40 +144,38 @@ SRD_RESOURCE_SAMPLER(ImageTileData, WB_TILE_ARRAY_SLOT, sampler2DArray, tile_tx)
 SRD_RESOURCE_SAMPLER(ImageTileData, WB_TILE_DATA_SLOT, sampler1DArray, map)
 SRD_RESOURCE_END(ImageTileData)
 
-/* clang-format off */
-SRD_RESOURCE_BEGIN(WorkbenchPrepassCommon)
-SRD_RESOURCE_SPECIALIZATION_CONSTANT(WorkbenchPrepassCommon, int, color_mode, WORKBENCH_COLOR_TEXTURE)
-SRD_RESOURCE_SPECIALIZATION_CONSTANT(WorkbenchPrepassCommon, int, shading_mode, WORKBENCH_LIGHTING_MATCAP)
-SRD_RESOURCE_UNIFORM_BUF(WorkbenchPrepassCommon, WB_WORLD_SLOT, WorldData, world_data,)
-SRD_RESOURCE_SAMPLER(WorkbenchPrepassCommon, WB_MATCAP_SLOT, sampler2DArray, matcap_tx)
-SRD_RESOURCE_SAMPLER(WorkbenchPrepassCommon, WB_TEXTURE_SLOT, sampler2D, imageTexture)
-SRD_RESOURCE_STRUCT(WorkbenchPrepassCommon, ImageTileData, image_tile_data)
-SRD_RESOURCE_PUSH_CONSTANT(WorkbenchPrepassCommon, bool,  isImageTile)
-SRD_RESOURCE_PUSH_CONSTANT(WorkbenchPrepassCommon, bool,  imagePremult)
-SRD_RESOURCE_PUSH_CONSTANT(WorkbenchPrepassCommon, float,  imageTransparencyCutoff)
-SRD_RESOURCE_STORAGE_BUF(WorkbenchPrepassCommon, WB_MATERIAL_SLOT, READ, float4, materials_data, [])
-SRD_RESOURCE_END(WorkbenchPrepassCommon)
-/* clang-format on */
+SRD_RESOURCE_BEGIN(WB_PrepassCommon)
+SRD_RESOURCE_SPECIALIZATION_CONSTANT(WB_PrepassCommon, int, color_mode, WB_COLOR_TEXTURE)
+SRD_RESOURCE_SPECIALIZATION_CONSTANT(WB_PrepassCommon, int, shading_mode, WB_LIGHTING_MATCAP)
+SRD_RESOURCE_UNIFORM_BUF(WB_PrepassCommon, WB_WORLD_SLOT, WorldData, world_data, )
+SRD_RESOURCE_SAMPLER(WB_PrepassCommon, WB_MATCAP_SLOT, sampler2DArray, matcap_tx)
+SRD_RESOURCE_SAMPLER(WB_PrepassCommon, WB_TEXTURE_SLOT, sampler2D, imageTexture)
+SRD_RESOURCE_STRUCT(WB_PrepassCommon, ImageTileData, image_tile_data)
+SRD_RESOURCE_PUSH_CONSTANT(WB_PrepassCommon, bool, isImageTile)
+SRD_RESOURCE_PUSH_CONSTANT(WB_PrepassCommon, bool, imagePremult)
+SRD_RESOURCE_PUSH_CONSTANT(WB_PrepassCommon, float, imageTransparencyCutoff)
+SRD_RESOURCE_STORAGE_BUF(WB_PrepassCommon, WB_MATERIAL_SLOT, READ, float4, materials_data, [])
+SRD_RESOURCE_END(WB_PrepassCommon)
 
-SRD_RESOURCE_BEGIN(DrawResCustomId)
-SRD_RESOURCE_STORAGE_BUF(DrawResCustomId, DRW_RESOURCE_ID_SLOT, READ, uint2, resource_id_buf, [])
-SRD_RESOURCE_END(DrawResCustomId)
+SRD_RESOURCE_BEGIN(DRW_ResCustomId)
+SRD_RESOURCE_STORAGE_BUF(DRW_ResCustomId, DRW_RESOURCE_ID_SLOT, READ, uint2, resource_id_buf, [])
+SRD_RESOURCE_END(DRW_ResCustomId)
 
-SRD_RESOURCE_BEGIN(DrawModelMat)
-SRD_RESOURCE_STORAGE_BUF(DrawModelMat, DRW_OBJ_MAT_SLOT, READ, ObjectMatrices, drw_matrix_buf, [])
-SRD_RESOURCE_END(DrawModelMat)
+SRD_RESOURCE_BEGIN(DRW_ModelMat)
+SRD_RESOURCE_STORAGE_BUF(DRW_ModelMat, DRW_OBJ_MAT_SLOT, READ, ObjectMatrices, drw_matrix_buf, [])
+SRD_RESOURCE_END(DRW_ModelMat)
 
-SRD_RESOURCE_BEGIN(DrawModelMatWithCustomId)
-SRD_RESOURCE_STRUCT(DrawModelMatWithCustomId, DrawModelMat, mat)
-SRD_RESOURCE_STRUCT(DrawModelMatWithCustomId, DrawResCustomId, res_id)
-SRD_RESOURCE_END(DrawModelMatWithCustomId)
+SRD_RESOURCE_BEGIN(DRW_ModelMatWithCustomId)
+SRD_RESOURCE_STRUCT(DRW_ModelMatWithCustomId, DRW_ModelMat, mat)
+SRD_RESOURCE_STRUCT(DRW_ModelMatWithCustomId, DRW_ResCustomId, res_id)
+SRD_RESOURCE_END(DRW_ModelMatWithCustomId)
 
-SRD_RESOURCE_BEGIN(WorkbenchPrepassOpaqueMesh)
-SRD_RESOURCE_STRUCT(WorkbenchPrepassOpaqueMesh, DrawView, view)
-SRD_RESOURCE_STRUCT(WorkbenchPrepassOpaqueMesh, DrawModelMatWithCustomId, model)
-SRD_RESOURCE_STRUCT(WorkbenchPrepassOpaqueMesh, DrawClipping, clipping)
-SRD_RESOURCE_STRUCT(WorkbenchPrepassOpaqueMesh, WorkbenchPrepassCommon, prepass)
-SRD_RESOURCE_END(WorkbenchPrepassOpaqueMesh)
+SRD_RESOURCE_BEGIN(WB_PrepassOpaqueMesh)
+SRD_RESOURCE_STRUCT(WB_PrepassOpaqueMesh, DRW_View, view)
+SRD_RESOURCE_STRUCT(WB_PrepassOpaqueMesh, DRW_ModelMatWithCustomId, model)
+SRD_RESOURCE_STRUCT(WB_PrepassOpaqueMesh, DRW_Clipping, clipping)
+SRD_RESOURCE_STRUCT(WB_PrepassOpaqueMesh, WB_PrepassCommon, prepass)
+SRD_RESOURCE_END(WB_PrepassOpaqueMesh)
 
 /* Preprocessor outputs this for GLSL compatibility. */
 #ifdef GPU_LANG_GLSL
@@ -193,32 +191,32 @@ SRD_SAMPLER_DECLARE_DUMMY(ImageCommon, 0, sampler2D, image)
  * overhead. This also allow arbitrary placement of the code w.r.t. the SRD. */
 #ifndef NO_SHADER_CODE
 
-uint drw_resource_id_raw(DrawResCustomId res_id)
+uint drw_resource_id_raw(DRW_ResCustomId res_id)
 {
   return buffer_read(res_id.resource_id_buf, /*gpu_BaseInstance + gl_InstanceID*/ 0).x;
 }
 
-uint drw_resource_id(DrawResCustomId res_id)
+uint drw_resource_id(DRW_ResCustomId res_id)
 {
   return drw_resource_id_raw(res_id) >> DRW_VIEW_SHIFT;
 }
 
-uint drw_custom_id(DrawResCustomId res_id)
+uint drw_custom_id(DRW_ResCustomId res_id)
 {
   return buffer_read(res_id.resource_id_buf, /*gpu_BaseInstance + gl_InstanceID*/ 0).y;
 }
 
-float4x4 drw_modelmat(DrawModelMatWithCustomId model)
+float4x4 drw_modelmat(DRW_ModelMatWithCustomId model)
 {
   return buffer_read(model.mat.drw_matrix_buf, drw_resource_id(model.res_id)).model;
 }
 
-float4x4 drw_modelinv(DrawModelMatWithCustomId model)
+float4x4 drw_modelinv(DRW_ModelMatWithCustomId model)
 {
   return buffer_read(model.mat.drw_matrix_buf, drw_resource_id(model.res_id)).model_inverse;
 }
 
-float3 drw_point_object_to_world(DrawModelMatWithCustomId model, float3 lP)
+float3 drw_point_object_to_world(DRW_ModelMatWithCustomId model, float3 lP)
 {
   return (drw_modelmat(model) * float4(lP, 1.0)).xyz;
 }
@@ -226,17 +224,17 @@ float3 drw_point_object_to_world(DrawModelMatWithCustomId model, float3 lP)
 /* TODO(fclem): Needs to be decorated / set into */
 uint drw_view_id = 0;
 /* Returns the current active view. */
-ViewMatrices drw_view(DrawView view)
+ViewMatrices drw_view(DRW_View view)
 {
   return buffer_read(view.drw_view_buf, drw_view_id);
 }
 
-float4 drw_point_world_to_homogenous(DrawView view, float3 P)
+float4 drw_point_world_to_homogenous(DRW_View view, float3 P)
 {
   return (drw_view(view).winmat * (drw_view(view).viewmat * float4(P, 1.0)));
 }
 
-void view_clipping_distances(DrawClipping /*srd*/, float3 /*wpos*/)
+void view_clipping_distances(DRW_Clipping /*srd*/, float3 /*wpos*/)
 {
   /* ... */
 }
@@ -253,21 +251,21 @@ void view_clipping_distances(DrawClipping /*srd*/, float3 /*wpos*/)
  * NOTE: This is only valid because we are only using the mat3 of the ViewMatrixInverse.
  * ViewMatrix * transpose(ModelMatrixInverse)
  */
-float3x3 drw_normat(DrawModelMatWithCustomId model)
+float3x3 drw_normat(DRW_ModelMatWithCustomId model)
 {
   return transpose(to_float3x3(drw_modelinv(model)));
 }
-float3x3 drw_norinv(DrawModelMatWithCustomId model)
+float3x3 drw_norinv(DRW_ModelMatWithCustomId model)
 {
   return transpose(to_float3x3(drw_modelmat(model)));
 }
 
-float3 drw_normal_object_to_view(DrawView view, DrawModelMatWithCustomId model, float3 lN)
+float3 drw_normal_object_to_view(DRW_View view, DRW_ModelMatWithCustomId model, float3 lN)
 {
   return (to_float3x3(drw_view(view).viewmat) * (drw_normat(model) * lN));
 }
 
-void workbench_material_data_get(WorkbenchPrepassCommon srd,
+void workbench_material_data_get(WB_PrepassCommon srd,
                                  int handle,
                                  float3 vertex_color,
                                  float3 &color,
@@ -276,7 +274,7 @@ void workbench_material_data_get(WorkbenchPrepassCommon srd,
                                  float &metallic)
 {
   float4 data = float4(0.0);
-  if ((srd.color_mode & WORKBENCH_COLOR_MATERIAL) != 0) {
+  if ((srd.color_mode & WB_COLOR_MATERIAL) != 0) {
     data = buffer_read(srd.materials_data, handle);
   }
   color = (data.r == -1) ? vertex_color : data.rgb;
@@ -287,7 +285,7 @@ void workbench_material_data_get(WorkbenchPrepassCommon srd,
   metallic = float(encoded_data & 0xFFu) * (1.0 / 255.0);
 }
 
-VertexOut prepass_mesh_vertex(VertexInMesh in, WorkbenchPrepassOpaqueMesh srd)
+VertexOut prepass_mesh_vertex(VertexInMesh in, WB_PrepassOpaqueMesh srd)
 {
   VertexOut out;
 
@@ -362,7 +360,7 @@ bool node_tex_tile_lookup(float3 &co, ImageTileData srd)
   return true;
 }
 
-float3 workbench_image_color(WorkbenchPrepassCommon srd, float2 uvs)
+float3 workbench_image_color(WB_PrepassCommon srd, float2 uvs)
 {
   float4 color;
 
@@ -391,18 +389,19 @@ float3 workbench_image_color(WorkbenchPrepassCommon srd, float2 uvs)
   return color.rgb;
 }
 
-FragmentOut prepass_fragment(FragmentIn in, WorkbenchPrepassOpaqueMesh srd)
+FragmentOut prepass_fragment(FragmentIn in, WB_PrepassOpaqueMesh srd)
 {
   FragmentOut out;
-  out.object_id = uint(in.object_id);
-  out.normal = workbench_normal_encode(in.front_facing, in.normal);
-  out.material = float4(in.color, workbench_float_pair_encode(in.roughness, in.metallic));
+  out.object_id = uint(in.v_out.object_id);
+  out.normal = workbench_normal_encode(in.front_facing, in.v_out.normal);
+  out.material = float4(in.v_out.color,
+                        workbench_float_pair_encode(in.v_out.roughness, in.v_out.metallic));
 
-  if (srd.prepass.color_mode == WORKBENCH_COLOR_TEXTURE) {
-    out.material.rgb = workbench_image_color(srd.prepass, in.uv);
+  if (srd.prepass.color_mode == WB_COLOR_TEXTURE) {
+    out.material.rgb = workbench_image_color(srd.prepass, in.v_out.uv);
   }
 
-  if (srd.prepass.shading_mode == WORKBENCH_LIGHTING_MATCAP) {
+  if (srd.prepass.shading_mode == WB_LIGHTING_MATCAP) {
     /* For matcaps, save front facing in alpha channel. */
     out.material.a = float(in.front_facing);
   }
@@ -412,12 +411,12 @@ FragmentOut prepass_fragment(FragmentIn in, WorkbenchPrepassOpaqueMesh srd)
 #endif
 
 SRD_GRAPHIC_PIPELINE(__FILE__,
-                     WorkbenchOpaquePrepass,
+                     WB_OpaquePrepass,
                      VertexInMesh,
                      VertexOut,
                      FragmentIn,
                      FragmentOut,
                      prepass_mesh_vertex,
-                     WorkbenchPrepassOpaqueMesh,
+                     WB_PrepassOpaqueMesh,
                      prepass_fragment,
-                     WorkbenchPrepassOpaqueMesh)
+                     WB_PrepassOpaqueMesh)
