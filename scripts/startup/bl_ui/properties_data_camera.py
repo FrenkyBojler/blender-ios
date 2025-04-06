@@ -163,31 +163,6 @@ class DATA_PT_lens(CameraButtonsPanel, Panel):
         sub.prop(cam, "clip_end", text="End", text_ctxt=i18n_contexts.id_camera)
 
 
-class DATA_PT_lens_custom_parameters(CameraButtonsPanel, Panel):
-    bl_label = "Parameters"
-    bl_parent_id = "DATA_PT_lens"
-    COMPAT_ENGINES = {'BLENDER_RENDER'}
-
-    @classmethod
-    def poll(cls, context):
-        cam = context.camera
-        return (super().poll(context) and
-                cam.type == 'CUSTOM' and
-                context.engine == 'CYCLES' and
-                len(cam.cycles_custom.keys()) > 0)
-
-    def draw(self, context):
-        layout = self.layout
-        layout.use_property_split = True
-
-        cam = context.camera
-        ccam = cam.cycles_custom
-
-        col = layout.column()
-        for key in ccam.keys():
-            col.prop(ccam, f'["{key}"]')
-
-
 class DATA_PT_camera_stereoscopy(CameraButtonsPanel, Panel):
     bl_label = "Stereoscopy"
     COMPAT_ENGINES = {
@@ -606,7 +581,6 @@ classes = (
     CAMERA_PT_safe_areas_presets,
     DATA_PT_context_camera,
     DATA_PT_lens,
-    DATA_PT_lens_custom_parameters,
     DATA_PT_camera_dof,
     DATA_PT_camera_dof_aperture,
     DATA_PT_camera,

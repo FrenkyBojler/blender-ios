@@ -10,8 +10,6 @@ from bpy.props import StringProperty
 
 from bpy.app.translations import pgettext_tip as tip_
 
-from . import engine
-
 
 class CYCLES_OT_use_shading_nodes(Operator):
     """Enable nodes on a material, world or light"""
@@ -158,7 +156,7 @@ class CYCLES_OT_merge_images(Operator):
 classes = (
     CYCLES_OT_use_shading_nodes,
     CYCLES_OT_denoise_animation,
-    CYCLES_OT_merge_images,
+    CYCLES_OT_merge_images
 )
 
 
