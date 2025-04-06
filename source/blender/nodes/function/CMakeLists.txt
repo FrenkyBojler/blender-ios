@@ -50,6 +50,7 @@ set(SRC
   nodes/node_fn_rotation_to_axis_angle.cc
   nodes/node_fn_rotation_to_euler.cc
   nodes/node_fn_rotation_to_quaternion.cc
+  nodes/node_fn_search_in_folder.cc
   nodes/node_fn_separate_color.cc
   nodes/node_fn_separate_matrix.cc
   nodes/node_fn_separate_transform.cc

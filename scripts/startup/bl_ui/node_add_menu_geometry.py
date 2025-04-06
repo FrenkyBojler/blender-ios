@@ -599,6 +599,7 @@ class NODE_MT_category_GEO_TEXT(Menu):
         layout.separator()
         node_add_menu.add_node_type(layout, "FunctionNodeStringLength")
         node_add_menu.add_node_type(layout, "FunctionNodeFindInString")
+        node_add_menu.add_node_type(layout, "FunctionNodeSearchInFolder")
         node_add_menu.add_node_type(layout, "GeometryNodeStringToCurves")
         node_add_menu.add_node_type(layout, "FunctionNodeValueToString")
         layout.separator()
