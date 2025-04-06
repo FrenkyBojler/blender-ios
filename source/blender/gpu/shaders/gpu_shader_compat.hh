@@ -39,9 +39,9 @@
 
 /* Create pseudo shader program for type checking. */
 #define SRD_GRAPHIC_PIPELINE( \
-    pipe, vert_in, state_inout, frag_out, vert_func, vert_res, frag_func, frag_res) \
+    file, pipe, vert_in, stage_inout, frag_out, vert_func, vert_res, frag_func, frag_res) \
   frag_out pipe() \
   { \
-    state_inout inout = vert_func(vert_in{}, vert_res{}); \
+    stage_inout inout = vert_func(vert_in{}, vert_res{}); \
     return frag_func(inout, frag_res{}); \
   }

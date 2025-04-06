@@ -485,6 +485,7 @@ enum class ImageType {
   FLOAT_1D,
   FLOAT_1D_ARRAY,
   FLOAT_2D,
+  sampler2D = FLOAT_2D,
   FLOAT_2D_ARRAY,
   FLOAT_3D,
   FLOAT_CUBE,
@@ -892,6 +893,11 @@ struct ShaderCreateInfo {
   Vector<StringRefNull> typedef_sources_;
 
   StringRefNull vertex_source_, geometry_source_, fragment_source_, compute_source_;
+
+  StringRefNull vertex_entry_point_;
+  StringRefNull geometry_entry_point_;
+  StringRefNull fragment_entry_point_;
+  StringRefNull compute_entry_point_;
 
   Vector<std::array<StringRefNull, 2>> defines_;
   /**

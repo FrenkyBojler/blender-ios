@@ -27,6 +27,11 @@
 #include "gpu_shader_dependency_private.hh"
 #include "gpu_testing.hh"
 
+namespace blender::gpu::shader::Image {
+#define SHADER_REFLECTION
+#include "gpu_image_shader.hh"
+}  // namespace blender::gpu::shader::Image
+
 namespace blender::gpu::tests {
 
 using namespace blender::gpu::shader;
@@ -427,5 +432,16 @@ static void test_eevee_lib()
 #endif
 }
 GPU_TEST(eevee_lib)
+
+static void test_srd_shader()
+{
+  ShaderCreateInfo create_info = shader::Image::ImageSimple::create_info();
+  std::cerr << create_info << std::endl;
+  std::cerr << create_info.vertex_source_ << std::endl;
+  std::cerr << create_info.fragment_source_ << std::endl;
+  std::cerr << create_info.vertex_entry_point_ << std::endl;
+  std::cerr << create_info.fragment_entry_point_ << std::endl;
+}
+GPU_TEST(srd_shader)
 
 }  // namespace blender::gpu::tests

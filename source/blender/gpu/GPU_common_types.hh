@@ -92,6 +92,23 @@ enum class Type {
   IVEC3,
   IVEC4,
   BOOL,
+
+  float1 = FLOAT,
+  float2 = VEC2,
+  float3 = VEC3,
+  float4 = VEC4,
+  float3x3 = MAT3,
+  float4x4 = MAT4,
+  uint1 = UINT,
+  uint2 = UVEC2,
+  uint3 = UVEC3,
+  uint4 = UVEC4,
+  int1 = INT,
+  int2 = IVEC2,
+  int3 = IVEC3,
+  int4 = IVEC4,
+  bool1 = BOOL,
+
   /* Additionally supported types to enable data optimization and native
    * support in some GPU back-ends.
    * NOTE: These types must be representable in all APIs. E.g. `VEC3_101010I2` is aliased as vec3
