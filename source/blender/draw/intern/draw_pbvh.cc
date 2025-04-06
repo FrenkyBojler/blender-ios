@@ -177,9 +177,9 @@ class DrawCacheImpl : public DrawCache {
   BitSpan ensure_use_flat_layout(const Object &object, const OrigMeshData &orig_mesh_data);
 
   Span<gpu::VertBufPtr> ensure_attribute_data(const Object &object,
-                                             const OrigMeshData &orig_mesh_data,
-                                             const AttributeRequest &attr,
-                                             const IndexMask &gpu_node_mask);
+                                              const OrigMeshData &orig_mesh_data,
+                                              const AttributeRequest &attr,
+                                              const IndexMask &gpu_node_mask);
 
   Span<gpu::IndexBufPtr> ensure_tri_indices(const Object &object,
                                             const OrigMeshData &orig_mesh_data,
@@ -1181,9 +1181,9 @@ BLI_NOINLINE static void update_generic_attribute_bmesh(const Object &object,
 }
 
 static gpu::IndexBufPtr create_lines_index_faces(const Span<bke::pbvh::MeshNode> nodes,
-                                               const OffsetIndices<int> faces,
-                                               const Span<bool> hide_poly,
-                                               const bke::pbvh::MeshNode &gpu_node)
+                                                 const OffsetIndices<int> faces,
+                                                 const Span<bool> hide_poly,
+                                                 const bke::pbvh::MeshNode &gpu_node)
 {
   const Span<int> leaf_nodes = gpu_node.leaf_nodes();
   int corners_count = 0;
@@ -1473,16 +1473,20 @@ static Array<int> calc_material_indices(const Object &object, const OrigMeshData
       if (!material_indices) {
         return {};
       }
+
+      IndexMaskMemory memory;
+      const IndexMask gpu_nodes = bke::pbvh::all_GPU_nodes(pbvh, memory);
+
       Array<int> node_materials(nodes.size());
-      threading::parallel_for(nodes.index_range(), 64, [&](const IndexRange range) {
-        for (const int i : range) {
-          const Span<int> face_indices = nodes[i].faces();
-          if (face_indices.is_empty()) {
-            continue;
-          }
-          node_materials[i] = material_indices[face_indices.first()];
-        }
+
+      gpu_nodes.foreach_index(GrainSize(64), [&](const int i) {
+        /* All the faces of all leaf nodes of a GPU node have the same material.
+         * We can use the material of the first face of the first leaf. */
+        const int first_leaf_index = nodes[i].leaf_nodes().first();
+        const Span<int> face_indices = nodes[first_leaf_index].faces();
+        node_materials[i] = material_indices[face_indices.first()];
       });
+
       return node_materials;
     }
     case bke::pbvh::Type::Grids: {
@@ -1557,10 +1561,10 @@ static BitVector<> calc_use_flat_layout(const Object &object, const OrigMeshData
 }
 
 static gpu::IndexBufPtr create_tri_index_mesh(const Span<bke::pbvh::MeshNode> nodes,
-                                            const OffsetIndices<int> faces,
-                                            const Span<int3> corner_tris,
-                                            const Span<bool> hide_poly,
-                                            const bke::pbvh::MeshNode &gpu_node)
+                                              const OffsetIndices<int> faces,
+                                              const Span<int3> corner_tris,
+                                              const Span<bool> hide_poly,
+                                              const bke::pbvh::MeshNode &gpu_node)
 {
   int tris_num = 0;
   const Span<int> leaf_nodes = gpu_node.leaf_nodes();
@@ -1755,9 +1759,9 @@ BLI_NOINLINE static void flush_vbo_data(const Span<gpu::VertBufPtr> vbos,
 }
 
 Span<gpu::VertBufPtr> DrawCacheImpl::ensure_attribute_data(const Object &object,
-                                                          const OrigMeshData &orig_mesh_data,
-                                                          const AttributeRequest &attr,
-                                                          const IndexMask &gpu_node_mask)
+                                                           const OrigMeshData &orig_mesh_data,
+                                                           const AttributeRequest &attr,
+                                                           const IndexMask &gpu_node_mask)
 {
   if (!pbvh_attr_supported(attr)) {
     return {};
@@ -1872,9 +1876,9 @@ Span<gpu::VertBufPtr> DrawCacheImpl::ensure_attribute_data(const Object &object,
 }
 
 Span<gpu::IndexBufPtr> DrawCacheImpl::ensure_tri_indices(const Object &object,
-                                                        const OrigMeshData &orig_mesh_data,
-                                                        const IndexMask &gpu_node_mask,
-                                                        const bool coarse)
+                                                         const OrigMeshData &orig_mesh_data,
+                                                         const IndexMask &gpu_node_mask,
+                                                         const bool coarse)
 {
   const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   switch (pbvh.type()) {
