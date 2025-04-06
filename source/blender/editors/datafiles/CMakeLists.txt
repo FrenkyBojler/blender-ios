@@ -492,6 +492,17 @@ if(WITH_BLENDER)
       lattice_data
       layer_active
       layer_used
+      layout_10
+      layout_20
+      layout_21
+      layout_30
+      layout_312
+      layout_321
+      layout_422
+      layout_4112
+      layout_5212
+      layout_6222
+      layout_7313
       library_data_broken
       library_data_direct
       library_data_override

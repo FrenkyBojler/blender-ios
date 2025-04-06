@@ -523,6 +523,29 @@ class TOPBAR_MT_edit(Menu):
         layout.operator("screen.userpref_show", text="Preferences...", icon='PREFERENCES')
 
 
+class TOPBAR_MT_window_layout(Menu):
+    bl_label = "Layout"
+
+    def draw(self, _context):
+        layout = self.layout
+
+        layout.operator("screen.area_layout", text="1 Area", icon='LAYOUT_10').layout = '10'
+        layout.separator()
+        layout.operator("screen.area_layout", text="2 Areas - Vertical", icon='LAYOUT_20').layout = '20'
+        layout.operator("screen.area_layout", text="2 Areas - Horizontal", icon='LAYOUT_21').layout = '21'
+        layout.separator()
+        layout.operator("screen.area_layout", text="3 Areas - Vertical", icon='LAYOUT_30').layout = '30'
+        layout.operator("screen.area_layout", text="3 Areas - 1+2", icon='LAYOUT_312').layout = '312'
+        layout.operator("screen.area_layout", text="3 Areas - 2+1", icon='LAYOUT_321').layout = '321'
+        layout.separator()
+        layout.operator("screen.area_layout", text="4 Areas - 2+2", icon='LAYOUT_422').layout = '422'
+        layout.operator("screen.area_layout", text="4 Areas - 1+1+2", icon='LAYOUT_4112').layout = '4112'
+        layout.separator()
+        layout.operator("screen.area_layout", text="5 Areas - 2+1+2", icon='LAYOUT_5212').layout = '5212'
+        layout.operator("screen.area_layout", text="6 Areas - 2+2+2", icon='LAYOUT_6222').layout = '6222'
+        layout.operator("screen.area_layout", text="7 Areas - 3+1+3", icon='LAYOUT_7313').layout = '7313'
+
+
 class TOPBAR_MT_window(Menu):
     bl_label = "Window"
 
@@ -534,6 +557,9 @@ class TOPBAR_MT_window(Menu):
 
         layout.operator("wm.window_new")
         layout.operator("wm.window_new_main")
+
+        layout.separator()
+        layout.menu("TOPBAR_MT_window_layout")
 
         layout.separator()
 
@@ -838,6 +864,7 @@ classes = (
     TOPBAR_MT_edit,
     TOPBAR_MT_render,
     TOPBAR_MT_window,
+    TOPBAR_MT_window_layout,
     TOPBAR_MT_help,
     TOPBAR_PT_tool_fallback,
     TOPBAR_PT_tool_settings_extra,
