@@ -12695,7 +12695,6 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("FunctionNode", "FunctionNodeRotationToAxisAngle");
   define("FunctionNode", "FunctionNodeRotationToEuler");
   define("FunctionNode", "FunctionNodeRotationToQuaternion");
-  define("FunctionNode", "FunctionNodeSearchInFolder");
   define("FunctionNode", "FunctionNodeSeparateColor");
   define("FunctionNode", "FunctionNodeSeparateMatrix");
   define("FunctionNode", "FunctionNodeSeparateTransform");
@@ -12859,6 +12858,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("GeometryNode", "GeometryNodeScaleElements");
   define("GeometryNode", "GeometryNodeScaleInstances");
   define("GeometryNode", "GeometryNodeSDFGridBoolean");
+  define("GeometryNode", "GeometryNodeSearchInFolder");
   define("GeometryNode", "GeometryNodeSelfObject");
   define("GeometryNode", "GeometryNodeSeparateComponents");
   define("GeometryNode", "GeometryNodeSeparateGeometry");

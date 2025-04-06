@@ -522,6 +522,7 @@ class NODE_MT_category_import(Menu):
         node_add_menu.add_node_type(layout, "GeometryNodeImportPLY", label="Stanford PLY (.ply)")
         node_add_menu.add_node_type(layout, "GeometryNodeImportSTL", label="STL (.stl)")
         node_add_menu.add_node_type(layout, "GeometryNodeImportText", label="Text (.txt)")
+        node_add_menu.add_node_type(layout, "GeometryNodeSearchInFolder")
         node_add_menu.draw_assets_for_catalog(layout, "Input/Import")
 
 
@@ -599,7 +600,6 @@ class NODE_MT_category_GEO_TEXT(Menu):
         layout.separator()
         node_add_menu.add_node_type(layout, "FunctionNodeStringLength")
         node_add_menu.add_node_type(layout, "FunctionNodeFindInString")
-        node_add_menu.add_node_type(layout, "FunctionNodeSearchInFolder")
         node_add_menu.add_node_type(layout, "GeometryNodeStringToCurves")
         node_add_menu.add_node_type(layout, "FunctionNodeValueToString")
         layout.separator()
