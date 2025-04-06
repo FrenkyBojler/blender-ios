@@ -1,1 +1,2 @@
 Referenced by commit 0710ec485e4, Cleanup: Remove unused IMB tile cache code (part 2)
+Referenced by commit cf55a0acdc11ecae2b0ffa19fb03210e25858bf9, ImBuf: remove ".tx" extension from the list of supported images
