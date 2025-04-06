@@ -23,7 +23,10 @@ file(MAKE_DIRECTORY ${TEST_OUT_DIR}/blendfile_io)
 
 if(WITH_SYSTEM_PYTHON_TESTS)
   if(NOT EXISTS "${TEST_SYSTEM_PYTHON_EXE}")
-    message(ERROR "'System Python' tests requested but no valid system python path, set TEST_SYSTEM_PYTHON_EXE.")
+    message(ERROR
+      "'System Python' tests requested but no valid system python path, "
+      "set TEST_SYSTEM_PYTHON_EXE."
+    )
     set(WITH_SYSTEM_PYTHON_TESTS OFF)
   endif()
 endif()
@@ -63,56 +66,74 @@ function(add_blender_test_io testname)
 endfunction()
 
 if(WITH_UI_TESTS)
-  set(_blender_headless_env_vars "BLENDER_BIN=${TEST_BLENDER_EXE}")
+  if(WITH_UI_TESTS_HEADLESS)
+    set(_blender_headless_env_vars "BLENDER_BIN=${TEST_BLENDER_EXE}")
 
-  # Currently only WAYLAND is supported, support for others may be added later.
-  # In this case none of the WESTON environment variables will be used.
-  if(WITH_GHOST_WAYLAND)
-    set(_weston_bin_in_libdir OFF)
-    if(DEFINED LIBDIR)
-      set(_weston_bin_default "${LIBDIR}/wayland_weston/bin/weston")
-    else()
-      set(_weston_bin_default "weston")
-    endif()
-    set(WESTON_BIN "${_weston_bin_default}" CACHE STRING "\
-The location of weston, leave blank for the default location."
-    )
-    mark_as_advanced(WESTON_BIN)
-    if((DEFINED LIBDIR) AND ("${WESTON_BIN}" STREQUAL "${_weston_bin_default}"))
-      set(_weston_bin_in_libdir ON)
-    endif()
-
-    list(APPEND _blender_headless_env_vars
-      "WESTON_BIN=${WESTON_BIN}"
-    )
-
-    if(_weston_bin_in_libdir)
-      list(APPEND _blender_headless_env_vars
-        "WAYLAND_ROOT_DIR=${LIBDIR}/wayland"
-        "WESTON_ROOT_DIR=${LIBDIR}/wayland_weston"
+    # Currently only WAYLAND is supported, support for others may be added later.
+    # In this case none of the WESTON environment variables will be used.
+    if(WITH_GHOST_WAYLAND)
+      set(_weston_bin_in_libdir OFF)
+      if(DEFINED LIBDIR)
+        set(_weston_bin_default "${LIBDIR}/wayland_weston/bin/weston")
+      else()
+        set(_weston_bin_default "weston")
+      endif()
+      set(WESTON_BIN "${_weston_bin_default}" CACHE STRING "\
+  The location of weston, leave blank for the default location."
       )
-    endif()
-  endif()
+      mark_as_advanced(WESTON_BIN)
+      if((DEFINED LIBDIR) AND ("${WESTON_BIN}" STREQUAL "${_weston_bin_default}"))
+        set(_weston_bin_in_libdir ON)
+      endif()
 
-  function(add_blender_test_headless testname)
-    # Remove `--background` so headless execution uses a GUI
-    # (within a headless graphical environment).
-    set(EXE_PARAMS ${TEST_BLENDER_EXE_PARAMS})
-    list(REMOVE_ITEM EXE_PARAMS --background)
-    add_blender_test_impl(
-      "${testname}"
-      "${_blender_headless_env_vars}"
-      "${TEST_PYTHON_EXE}"
-      "${CMAKE_SOURCE_DIR}/tests/utils/blender_headless.py"
-      # NOTE: attempting to maximize the window causes problems with a headless `weston`,
-      # while this could be investigated, use windowed mode instead.
-      # Use a window size that balances software GPU rendering with enough room to use the UI.
-      --factory-startup
-      -p 0 0 800 600
-      "${EXE_PARAMS}"
-      "${ARGN}"
-    )
-  endfunction()
+      list(APPEND _blender_headless_env_vars
+        "WESTON_BIN=${WESTON_BIN}"
+      )
+
+      if(_weston_bin_in_libdir)
+        list(APPEND _blender_headless_env_vars
+          "WAYLAND_ROOT_DIR=${LIBDIR}/wayland"
+          "WESTON_ROOT_DIR=${LIBDIR}/wayland_weston"
+        )
+      endif()
+    endif()
+
+    function(add_blender_test_ui testname)
+      # Remove `--background` so headless execution uses a GUI
+      # (within a headless graphical environment).
+      set(EXE_PARAMS ${TEST_BLENDER_EXE_PARAMS})
+      list(REMOVE_ITEM EXE_PARAMS --background)
+      add_blender_test_impl(
+        "${testname}"
+        "${_blender_headless_env_vars}"
+        "${TEST_PYTHON_EXE}"
+        "${CMAKE_SOURCE_DIR}/tests/utils/blender_headless.py"
+        # NOTE: attempting to maximize the window causes problems with a headless `weston`,
+        # while this could be investigated, use windowed mode instead.
+        # Use a window size that balances software GPU rendering with enough room to use the UI.
+        --factory-startup
+        -p 0 0 800 600
+        "${EXE_PARAMS}"
+        "${ARGN}"
+      )
+    endfunction()
+  else()
+    function(add_blender_test_ui testname)
+      # Remove `--background`
+      set(EXE_PARAMS ${TEST_BLENDER_EXE_PARAMS})
+      list(REMOVE_ITEM EXE_PARAMS --background)
+
+      add_blender_test_impl(
+        "${testname}"
+        ""
+        "${TEST_BLENDER_EXE}"
+        --factory-startup
+        -p 0 0 800 600
+        ${EXE_PARAMS}
+        ${ARGN}
+      )
+    endfunction()
+  endif()
 endif()
 
 # Run Python script outside Blender.
@@ -492,6 +513,11 @@ add_blender_test(
 )
 
 add_blender_test(
+  bl_animation_bake
+  --python ${CMAKE_CURRENT_LIST_DIR}/bl_animation_bake.py
+)
+
+add_blender_test(
   bl_pose_assets
   --python ${CMAKE_CURRENT_LIST_DIR}/bl_pose_assets.py
   --
@@ -654,7 +680,8 @@ if(WITH_CYCLES OR WITH_GPU_RENDER_TESTS)
           if(WITH_CYCLES_TEST_OSL AND WITH_CYCLES_OSL)
             # OSL is only supported with CPU and OptiX
             # TODO: Enable OptiX support once it's more stable
-            if(("${_cycles_device_lower}" STREQUAL "cpu") OR ("${_cycles_device_lower}" STREQUAL "optix"))
+            if(("${_cycles_device_lower}" STREQUAL "cpu") OR
+               ("${_cycles_device_lower}" STREQUAL "optix"))
               add_render_test(
                 ${_cycles_test_name}_osl
                 ${CMAKE_CURRENT_LIST_DIR}/cycles_render_tests.py
@@ -800,7 +827,7 @@ if(WITH_CYCLES OR WITH_GPU_RENDER_TESTS)
           )
         endif()
       endif()
-      
+
       if(WITH_HYDRA)
         # Hydra Storm
         foreach(render_test ${gpu_render_tests})
@@ -993,7 +1020,10 @@ foreach(geo_node_test ${geo_node_tests})
       )
     endforeach()
   else()
-    message(STATUS "Directory named ${TEST_SRC_DIR}/modeling/geometry_nodes/${geo_node_test}/ Not Found, disabling test.")
+    message(STATUS
+      "Directory named ${TEST_SRC_DIR}/modeling/geometry_nodes/${geo_node_test}/ "
+      "Not Found, disabling test."
+    )
   endif()
 endforeach()
 
@@ -1009,7 +1039,10 @@ if(EXISTS "${TEST_SRC_DIR}/modeling/geometry_nodes/simulation/")
     )
   endforeach()
 else()
-  message(STATUS "Directory named ${TEST_SRC_DIR}/modeling/geometry_nodes/simulation/ not found, disabling tests")
+  message(STATUS
+    "Directory named ${TEST_SRC_DIR}/modeling/geometry_nodes/simulation/ "
+    "Not found, disabling tests."
+  )
 endif()
 
 if(WITH_GPU_RENDER_TESTS)
@@ -1243,7 +1276,7 @@ if(WITH_UI_TESTS)
     test_undo.view3d_texture_paint_simple
   )
   foreach(ui_test ${_undo_tests})
-    add_blender_test_headless(
+    add_blender_test_ui(
       "ui_${ui_test}"
       --enable-event-simulate
       --python "${CMAKE_CURRENT_LIST_DIR}/ui_simulate/run_blender_setup.py"

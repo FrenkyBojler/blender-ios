@@ -34,6 +34,7 @@
 #include "ED_anim_api.hh"
 #include "ED_keyframes_keylist.hh"
 
+#include "ANIM_action.hh"
 #include "ANIM_action_legacy.hh"
 #include "ANIM_bone_collections.hh"
 
@@ -236,9 +237,10 @@ static void motionpath_get_global_framerange(blender::Span<MPathTarget *> target
   }
 }
 
-/* TODO(jbakker): Remove complexity, keylists are ordered. */
 static int motionpath_get_prev_keyframe(MPathTarget *mpt, AnimKeylist *keylist, int current_frame)
 {
+  /* TODO(jbakker): Remove complexity, key-lists are ordered. */
+
   if (current_frame <= mpt->mpath->start_frame) {
     return mpt->mpath->start_frame;
   }
@@ -365,7 +367,7 @@ void animviz_motionpath_compute_range(Object *ob, Scene *scene)
 
   const bool has_action = ob->adt && ob->adt->action;
   if (avs->path_range == MOTIONPATH_RANGE_SCENE || !has_action ||
-      BLI_listbase_is_empty(&ob->adt->action->curves))
+      !blender::animrig::legacy::assigned_action_has_keyframes(ob->adt))
   {
     /* Default to the scene (preview) range if there is no animation data to
      * find selected keys in. */
@@ -408,6 +410,7 @@ void animviz_calc_motionpaths(Depsgraph *depsgraph,
                               bool restore)
 {
   /* TODO: include reports pointer? */
+  using namespace blender::animrig;
 
   if (targets.is_empty()) {
     return;
@@ -471,7 +474,15 @@ void animviz_calc_motionpaths(Depsgraph *depsgraph,
        * unless an option is set to always use the whole action.
        */
       if ((mpt->pchan) && (avs->path_viewflag & MOTIONPATH_VIEW_KFACT) == 0) {
-        bActionGroup *agrp = BKE_action_group_find_name(adt->action, mpt->pchan->name);
+        Action &action = adt->action->wrap();
+        bActionGroup *agrp = nullptr;
+        if (action.is_action_layered()) {
+          Channelbag *cbag = channelbag_for_action_slot(action, adt->slot_handle);
+          agrp = cbag ? cbag->channel_group_find(mpt->pchan->name) : nullptr;
+        }
+        else {
+          agrp = BKE_action_group_find_name(adt->action, mpt->pchan->name);
+        }
 
         if (agrp) {
           fcurve_list = &agrp->channels;

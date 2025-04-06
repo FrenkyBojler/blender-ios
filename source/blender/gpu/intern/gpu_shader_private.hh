@@ -25,7 +25,7 @@ class GPULogParser;
 class Context;
 
 /* Set to 1 to log the full source of shaders that fail to compile. */
-#define DEBUG_LOG_SHADER_SRC_ON_ERROR 1
+#define DEBUG_LOG_SHADER_SRC_ON_ERROR 0
 
 /**
  * Compilation is done on a list of GLSL sources. This list contains placeholders that should be
@@ -114,9 +114,6 @@ class Shader {
   virtual std::string geometry_interface_declare(const shader::ShaderCreateInfo &info) const = 0;
   virtual std::string geometry_layout_declare(const shader::ShaderCreateInfo &info) const = 0;
   virtual std::string compute_layout_declare(const shader::ShaderCreateInfo &info) const = 0;
-
-  /* DEPRECATED: Kept only because of BGL API. */
-  virtual int program_handle_get() const = 0;
 
   StringRefNull name_get() const
   {

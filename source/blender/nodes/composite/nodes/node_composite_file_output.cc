@@ -9,6 +9,8 @@
 #include <cstring>
 
 #include "BLI_assert.h"
+#include "BLI_cpp_type.hh"
+#include "BLI_generic_pointer.hh"
 #include "BLI_index_range.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_vector.h"
@@ -146,7 +148,7 @@ bNodeSocket *ntreeCompositOutputFileAddSocket(bNodeTree *ntree,
       *ntree, *node, SOCK_IN, SOCK_RGBA, PROP_NONE, "", name);
 
   /* create format data for the input socket */
-  NodeImageMultiFileSocket *sockdata = MEM_cnew<NodeImageMultiFileSocket>(__func__);
+  NodeImageMultiFileSocket *sockdata = MEM_callocN<NodeImageMultiFileSocket>(__func__);
   sock->storage = sockdata;
 
   STRNCPY_UTF8(sockdata->path, name);
@@ -220,7 +222,7 @@ static void init_output_file(const bContext *C, PointerRNA *ptr)
   Scene *scene = CTX_data_scene(C);
   bNodeTree *ntree = (bNodeTree *)ptr->owner_id;
   bNode *node = (bNode *)ptr->data;
-  NodeImageMultiFile *nimf = MEM_cnew<NodeImageMultiFile>(__func__);
+  NodeImageMultiFile *nimf = MEM_callocN<NodeImageMultiFile>(__func__);
   nimf->save_as_render = true;
   ImageFormatData *format = nullptr;
   node->storage = nimf;
@@ -507,6 +509,10 @@ class FileOutputOperation : public NodeOperation {
   FileOutputOperation(Context &context, DNode node) : NodeOperation(context, node)
   {
     for (const bNodeSocket *input : node->input_sockets()) {
+      if (!input->is_available()) {
+        continue;
+      }
+
       InputDescriptor &descriptor = this->get_input_descriptor(input->identifier);
       /* Inputs for multi-layer files need to be the same size, while they can be different for
        * individual file outputs. */
@@ -534,6 +540,10 @@ class FileOutputOperation : public NodeOperation {
   void execute_single_layer()
   {
     for (const bNodeSocket *input : this->node()->input_sockets()) {
+      if (!input->is_available()) {
+        continue;
+      }
+
       const Result &result = get_input(input->identifier);
       /* We only write images, not single values. */
       if (result.is_single_value()) {
@@ -628,6 +638,10 @@ class FileOutputOperation : public NodeOperation {
     file_output.add_view(pass_view);
 
     for (const bNodeSocket *input : this->node()->input_sockets()) {
+      if (!input->is_available()) {
+        continue;
+      }
+
       const Result &input_result = get_input(input->identifier);
       const char *pass_name = (static_cast<NodeImageMultiFileSocket *>(input->storage))->layer;
       add_pass_for_result(file_output, input_result, pass_name, pass_view);
@@ -694,10 +708,16 @@ class FileOutputOperation : public NodeOperation {
         file_output.add_pass(pass_name, view_name, "V", buffer);
         break;
       case ResultType::Float2:
+        file_output.add_pass(pass_name, view_name, "XY", buffer);
+        break;
       case ResultType::Int2:
+        file_output.add_pass(pass_name, view_name, "XY", buffer);
+        break;
       case ResultType::Int:
-        /* Not supported. */
-        BLI_assert_unreachable();
+        file_output.add_pass(pass_name, view_name, "V", buffer);
+        break;
+      case ResultType::Bool:
+        file_output.add_pass(pass_name, view_name, "V", buffer);
         break;
     }
   }
@@ -708,51 +728,35 @@ class FileOutputOperation : public NodeOperation {
   {
     BLI_assert(result.is_single_value());
 
+    const int64_t length = int64_t(size.x) * size.y;
+    const int64_t buffer_size = length * result.channels_count();
+    float *buffer = MEM_malloc_arrayN<float>(buffer_size, "File Output Inflated Buffer.");
+
     switch (result.type()) {
-      case ResultType::Float: {
-        float *buffer = static_cast<float *>(MEM_malloc_arrayN(
-            size_t(size.x) * size.y, sizeof(float), "File Output Inflated Buffer."));
-
-        const float value = result.get_single_value<float>();
-        parallel_for(
-            size, [&](const int2 texel) { buffer[int64_t(texel.y) * size.x + texel.x] = value; });
-        return buffer;
-      }
-      case ResultType::Color: {
-        float *buffer = static_cast<float *>(MEM_malloc_arrayN(
-            size_t(size.x) * size.y, sizeof(float[4]), "File Output Inflated Buffer."));
-
-        const float4 value = result.get_single_value<float4>();
-        parallel_for(size, [&](const int2 texel) {
-          copy_v4_v4(buffer + ((int64_t(texel.y) * size.x + texel.x) * 4), value);
-        });
-        return buffer;
-      }
-      case ResultType::Float4: {
-        float *buffer = static_cast<float *>(MEM_malloc_arrayN(
-            size_t(size.x) * size.y, sizeof(float[4]), "File Output Inflated Buffer."));
-
-        const float4 value = result.get_single_value<float4>();
-        parallel_for(size, [&](const int2 texel) {
-          copy_v4_v4(buffer + ((int64_t(texel.y) * size.x + texel.x) * 4), value);
-        });
-        return buffer;
-      }
-      case ResultType::Float3: {
-        float *buffer = static_cast<float *>(MEM_malloc_arrayN(
-            size_t(size.x) * size.y, sizeof(float[3]), "File Output Inflated Buffer."));
-
-        const float3 value = result.get_single_value<float3>();
-        parallel_for(size, [&](const int2 texel) {
-          copy_v3_v3(buffer + ((int64_t(texel.y) * size.x + texel.x) * 3), value);
-        });
-        return buffer;
-      }
-      case ResultType::Int:
-      case ResultType::Int2:
+      case ResultType::Float:
       case ResultType::Float2:
-        /* Not supported. */
-        break;
+      case ResultType::Float3:
+      case ResultType::Float4:
+      case ResultType::Color: {
+        const GPointer single_value = result.single_value();
+        single_value.type()->fill_assign_n(single_value.get(), buffer, length);
+        return buffer;
+      }
+      case ResultType::Int: {
+        const float value = float(result.get_single_value<int32_t>());
+        CPPType::get<float>().fill_assign_n(&value, buffer, length);
+        return buffer;
+      }
+      case ResultType::Int2: {
+        const float2 value = float2(result.get_single_value<int2>());
+        CPPType::get<float2>().fill_assign_n(&value, buffer, length);
+        return buffer;
+      }
+      case ResultType::Bool: {
+        const float value = float(result.get_single_value<bool>());
+        CPPType::get<float>().fill_assign_n(&value, buffer, length);
+        return buffer;
+      }
     }
 
     BLI_assert_unreachable();
@@ -798,6 +802,7 @@ class FileOutputOperation : public NodeOperation {
       case ResultType::Float2:
       case ResultType::Int2:
       case ResultType::Int:
+      case ResultType::Bool:
         /* Not supported. */
         BLI_assert_unreachable();
         break;
@@ -808,8 +813,8 @@ class FileOutputOperation : public NodeOperation {
    * input image is freed. */
   float *float4_to_float3_image(int2 size, float *float4_image)
   {
-    float *float3_image = static_cast<float *>(MEM_malloc_arrayN(
-        size_t(size.x) * size.y, sizeof(float[3]), "File Output Vector Buffer."));
+    float *float3_image = MEM_malloc_arrayN<float>(3 * size_t(size.x) * size_t(size.y),
+                                                   "File Output Vector Buffer.");
 
     parallel_for(size, [&](const int2 texel) {
       for (int i = 0; i < 3; i++) {

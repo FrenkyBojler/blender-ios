@@ -142,10 +142,18 @@ Environment Variables
 Documentation Targets
    Not associated with building Blender.
 
-   * doc_py:        Generate sphinx python api docs.
-   * doc_doxy:      Generate doxygen C/C++ docs.
-   * doc_dna:       Generate blender file format reference.
-   * doc_man:       Generate manpage.
+   * doc_py:
+     Generate sphinx Python API docs.
+
+     Set the environment variable BLENDER_DOC_OFFLINE=1
+     to prevent download data at build time.
+
+   * doc_doxy:
+     Generate doxygen C/C++ docs.
+   * doc_dna:
+     Generate blender file format reference.
+   * doc_man:
+     Generate manpage.
 
 Information
 
@@ -155,9 +163,10 @@ Information
 endef
 # HELP_TEXT (end)
 
-# This makefile is not meant for Windows
+# This makefile is not meant for Windows,
+# Note that a TAB indent prevents the message from showing, no indentation is intended.
 ifeq ($(OS),Windows_NT)
-	$(error On Windows, use "cmd //c make.bat" instead of "make")
+$(error On Windows, use "cmd //c make.bat" instead of "make")
 endif
 
 # System Vars
@@ -578,6 +587,8 @@ source_archive_complete: .FORCE
 	    -DCMAKE_BUILD_TYPE_INIT:STRING=$(BUILD_TYPE) -DPACKAGE_USE_UPSTREAM_SOURCES=OFF
 # This assumes CMake is still using a default `PACKAGE_DIR` variable:
 	@$(PYTHON) ./build_files/utils/make_source_archive.py --include-packages "$(BUILD_DIR)/source_archive/packages"
+# We assume that the tests will not change for minor releases so only package them for major versions
+	@$(PYTHON) ./build_files/utils/make_source_archive.py --package-test-data
 
 icons_geom: .FORCE
 	@BLENDER_BIN=$(BLENDER_BIN) \
