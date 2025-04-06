@@ -454,14 +454,14 @@ static void blo_update_defaults_scene(Main *bmain, Scene *scene)
   copy_v3_v3(ts->unified_paint_settings.rgb, default_ups.rgb);
   copy_v3_v3(ts->unified_paint_settings.secondary_rgb, default_ups.secondary_rgb);
 
-  if (ts->unified_paint_settings.curve_hue_jitter == nullptr) {
-    ts->unified_paint_settings.curve_hue_jitter = BKE_paint_default_curve();
+  if (ts->unified_paint_settings.curve_rand_hue == nullptr) {
+    ts->unified_paint_settings.curve_rand_hue = BKE_paint_default_curve();
   }
-  if (ts->unified_paint_settings.curve_sat_jitter == nullptr) {
-    ts->unified_paint_settings.curve_sat_jitter = BKE_paint_default_curve();
+  if (ts->unified_paint_settings.curve_rand_saturation == nullptr) {
+    ts->unified_paint_settings.curve_rand_saturation = BKE_paint_default_curve();
   }
-  if (ts->unified_paint_settings.curve_val_jitter == nullptr) {
-    ts->unified_paint_settings.curve_val_jitter = BKE_paint_default_curve();
+  if (ts->unified_paint_settings.curve_rand_value == nullptr) {
+    ts->unified_paint_settings.curve_rand_value = BKE_paint_default_curve();
   }
 }
 

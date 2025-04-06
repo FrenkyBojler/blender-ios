@@ -1431,9 +1431,9 @@ typedef struct UnifiedPaintSettings {
   float hsv_jitter[3];
 
   /** Color jitter pressure curves. */
-  struct CurveMapping *curve_hue_jitter;
-  struct CurveMapping *curve_sat_jitter;
-  struct CurveMapping *curve_val_jitter;
+  struct CurveMapping *curve_rand_hue;
+  struct CurveMapping *curve_rand_saturation;
+  struct CurveMapping *curve_rand_value;
 
   /** Unified brush stroke input samples. */
   int input_samples;

@@ -112,9 +112,9 @@ typedef struct BrushGpencilSettings {
   struct CurveMapping *curve_rand_pressure;
   struct CurveMapping *curve_rand_strength;
   struct CurveMapping *curve_rand_uv;
-  struct CurveMapping *curve_hue_jitter;
-  struct CurveMapping *curve_sat_jitter;
-  struct CurveMapping *curve_val_jitter;
+  struct CurveMapping *curve_rand_hue;
+  struct CurveMapping *curve_rand_saturation;
+  struct CurveMapping *curve_rand_value;
 
   /** Factor for external line thickness conversion to outline. */
   float outline_fac;
@@ -224,9 +224,9 @@ typedef struct Brush {
   float hsv_jitter[3];
 
   /** Color jitter pressure curves. */
-  struct CurveMapping *curve_hue_jitter;
-  struct CurveMapping *curve_sat_jitter;
-  struct CurveMapping *curve_val_jitter;
+  struct CurveMapping *curve_rand_hue;
+  struct CurveMapping *curve_rand_saturation;
+  struct CurveMapping *curve_rand_value;
 
   /** Opacity. */
   float alpha;

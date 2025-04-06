@@ -1081,9 +1081,9 @@ void PaintOperation::on_stroke_begin(const bContext &C, const InputSample &start
   BKE_curvemapping_init(settings->curve_rand_pressure);
   BKE_curvemapping_init(settings->curve_rand_strength);
   BKE_curvemapping_init(settings->curve_rand_uv);
-  BKE_curvemapping_init(settings->curve_hue_jitter);
-  BKE_curvemapping_init(settings->curve_sat_jitter);
-  BKE_curvemapping_init(settings->curve_val_jitter);
+  BKE_curvemapping_init(settings->curve_rand_hue);
+  BKE_curvemapping_init(settings->curve_rand_saturation);
+  BKE_curvemapping_init(settings->curve_rand_value);
 
   BLI_assert(grease_pencil->has_active_layer());
   const bke::greasepencil::Layer &layer = *grease_pencil->get_active_layer();
