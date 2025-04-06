@@ -197,10 +197,12 @@ set(SRC
   nodes/node_geo_set_curve_radius.cc
   nodes/node_geo_set_curve_tilt.cc
   nodes/node_geo_set_geometry_name.cc
+  nodes/node_geo_set_grease_pencil_color.cc
   nodes/node_geo_set_id.cc
   nodes/node_geo_set_instance_transform.cc
   nodes/node_geo_set_material.cc
   nodes/node_geo_set_material_index.cc
+  nodes/node_geo_set_mesh_normal.cc
   nodes/node_geo_set_point_radius.cc
   nodes/node_geo_set_position.cc
   nodes/node_geo_set_shade_smooth.cc

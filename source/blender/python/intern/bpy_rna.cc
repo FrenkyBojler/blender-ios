@@ -25,6 +25,7 @@
 #include "BLI_listbase.h"
 #include "BLI_math_rotation.h"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 #include "BLI_vector.hh"
 
@@ -1770,12 +1771,12 @@ static int pyrna_py_to_prop(
             return -1;
           }
 
-          /* Same as bytes. */
+          /* Same as bytes (except for UTF8 string copy). */
           /* XXX, this is suspect, but needed for function calls,
            * need to see if there's a better way. */
           if (data) {
             if (RNA_property_flag(prop) & PROP_THICK_WRAP) {
-              BLI_strncpy((char *)data, (char *)param, RNA_property_string_maxlength(prop));
+              BLI_strncpy_utf8((char *)data, (char *)param, RNA_property_string_maxlength(prop));
             }
             else {
               *((char **)data) = (char *)param;
@@ -8351,8 +8352,8 @@ PyObject *pyrna_struct_CreatePyObject(PointerRNA *ptr)
 
   BPy_StructRNA *pyrna = nullptr;
 
-  /* New in 2.8x, since not many types support instancing
-   * we may want to use a flag to avoid looping over all classes. - campbell */
+  /* NOTE(@ideasman42): New in 2.8x, since not many types support instancing
+   * we may want to use a flag to avoid looping over all classes. */
   void **instance = ptr->data ? RNA_struct_instance(ptr) : nullptr;
   if (instance && *instance) {
     pyrna = static_cast<BPy_StructRNA *>(*instance);
