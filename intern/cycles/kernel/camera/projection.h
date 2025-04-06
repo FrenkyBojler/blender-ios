@@ -47,10 +47,12 @@ ccl_device float3 equirectangular_to_direction(const float u, const float v)
   return equirectangular_range_to_direction(u, v, make_float4(-M_2PI_F, M_PI_F, -M_PI_F, M_PI_F));
 }
 
-ccl_device_inline float cc_rotation_scalar(const float2 vec) {
-  const float sec = 1.0f / fabsf(dot(vec, make_float2(1, 0)));
-  const float csc = 1.0f / fabsf(dot(vec, make_float2(0, 1)));
-  return fminf(sec, csc);
+ccl_device_inline float cc_rotation_scalar(const float2 vec)
+{
+  const float cos_abs = fabsf(dot(vec, make_float2(1.0f, 0.0f)));
+  const float sin_abs = fabsf(dot(vec, make_float2(0.0f, 1.0f)));
+  /* return distance from box center to box bounds along `vec` */
+  return 1.0f / fmaxf(cos_abs, sin_abs);
 }
 
 ccl_device float2 direction_to_central_cylindrical(const float3 dir,
@@ -73,7 +75,7 @@ ccl_device float2 direction_to_central_cylindrical(const float3 dir,
   const float2 c = (inverse_lerp(range.x, range.y, theta * rscale) - 0.5f) * th_axis +
                    (inverse_lerp(range.z, range.w, h * rscale) - 0.5f) * h_axis;
   /* mirror over z-axis, then offset origin; yield viewport space */
-  return c * make_float2(-1.0f, 1.0) - make_float2(-0.5f, -0.5f);
+  return c * make_float2(-1.0f, 1.0f) - make_float2(-0.5f, -0.5f);
 }
 
 ccl_device float3 central_cylindrical_to_direction(const float u,
@@ -86,7 +88,7 @@ ccl_device float3 central_cylindrical_to_direction(const float u,
   /* scalar for fitting ranges to max border extent */
   const float rscale = 1.0f / cc_rotation_scalar(h_axis);
   /* get components of c and unlerp/mix */
-  const float2 c = (make_float2(u, v) + make_float2(-0.5f, -0.5f)) * make_float2(-1.0f, 1.0);
+  const float2 c = (make_float2(u, v) + make_float2(-0.5f, -0.5f)) * make_float2(-1.0f, 1.0f);
   const float theta = mix(range.x, range.y, dot(c, th_axis) + 0.5f) * rscale;
   const float h = mix(range.z, range.w, dot(c, h_axis) + 0.5f) * rscale;
   /* inverse operations */
