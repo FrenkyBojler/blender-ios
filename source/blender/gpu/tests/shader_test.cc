@@ -27,7 +27,8 @@
 #include "gpu_shader_dependency_private.hh"
 #include "gpu_testing.hh"
 
-#define SHADER_REFLECTION
+#include "gpu_shader_srd_info.hh"
+
 namespace blender::gpu::shader::Image {
 #include "gpu_image_shader.hh"
 }  // namespace blender::gpu::shader::Image

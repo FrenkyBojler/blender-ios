@@ -2,12 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#ifdef SHADER_REFLECTION
-#  include "gpu_shader_reflection.hh"
-#else
-#  include "gpu_shader_compat.hh"
-#  include "gpu_shader_compat_glsl.hh"
-#endif
+#include "gpu_shader_srd_cpp.hh"
 
 SRD_VERTEX_IN_BEGIN(VertexIn)
 SRD_VERTEX_IN(VertexIn, 0, float2, pos)
