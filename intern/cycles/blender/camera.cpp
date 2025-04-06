@@ -154,8 +154,6 @@ static PanoramaType blender_panorama_type_to_cycles(const BL::Camera::panorama_t
       return PANORAMA_FISHEYE_LENS_POLYNOMIAL;
     case BL::Camera::panorama_type_CENTRAL_CYLINDRICAL:
       return PANORAMA_CENTRAL_CYLINDRICAL;
-    case BL::Camera::panorama_type_CUSTOM:
-      return PANORAMA_CUSTOM;
   }
   /* Could happen if loading a newer file that has an unsupported type. */
   return PANORAMA_FISHEYE_EQUISOLID;
@@ -179,13 +177,11 @@ static void blender_camera_from_object(BlenderCamera *bcam,
       case BL::Camera::type_ORTHO:
         bcam->type = CAMERA_ORTHOGRAPHIC;
         break;
+      case BL::Camera::type_CUSTOM:
+        bcam->type = skip_panorama ? CAMERA_PERSPECTIVE : CAMERA_CUSTOM;
+        break;
       case BL::Camera::type_PANO:
-        if (!skip_panorama) {
-          bcam->type = CAMERA_PANORAMA;
-        }
-        else {
-          bcam->type = CAMERA_PERSPECTIVE;
-        }
+        bcam->type = skip_panorama ? CAMERA_PERSPECTIVE : CAMERA_PANORAMA;
         break;
       case BL::Camera::type_PERSP:
       default:
@@ -275,7 +271,7 @@ static void blender_camera_from_object(BlenderCamera *bcam,
       bcam->sensor_fit = BlenderCamera::VERTICAL;
     }
 
-    if ((bcam->type == CAMERA_PANORAMA) && (bcam->panorama_type == PANORAMA_CUSTOM)) {
+    if (bcam->type == CAMERA_CUSTOM) {
       bcam->custom_props = RNA_pointer_get(&b_camera.ptr, "cycles_custom");
       bcam->custom_bytecode_hash = b_camera.custom_bytecode_hash();
       if (!bcam->custom_bytecode_hash.empty()) {
@@ -312,10 +308,6 @@ static Transform blender_camera_matrix(const Transform &tfm,
        */
       result = tfm * make_transform(
                          1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f);
-    }
-    else if (panorama_type == PANORAMA_CUSTOM) {
-      /* Note the blender camera points along the negative z-axis. */
-      result = tfm * transform_scale(1.0f, 1.0f, -1.0f);
     }
     else {
       /* Make it so environment camera needs to be pointed in the direction
@@ -394,8 +386,8 @@ static void blender_camera_viewplane(BlenderCamera *bcam,
     }
   }
 
-  if (bcam->type == CAMERA_PANORAMA) {
-    /* Set viewplane for panoramic camera. */
+  if (bcam->type == CAMERA_PANORAMA || bcam->type == CAMERA_CUSTOM) {
+    /* Set viewplane for panoramic or custom camera. */
     if (viewplane != nullptr) {
       *viewplane = bcam->pano_viewplane;
 
@@ -534,10 +526,10 @@ static void blender_camera_sync(Camera *cam,
   cam->set_full_width(width);
   cam->set_full_height(height);
 
-  /* panorama sensor */
+  /* Set panorama or custom sensor. */
   if (bcam->type == CAMERA_PANORAMA && (bcam->panorama_type == PANORAMA_FISHEYE_EQUISOLID ||
-                                        bcam->panorama_type == PANORAMA_FISHEYE_LENS_POLYNOMIAL ||
-                                        bcam->panorama_type == PANORAMA_CUSTOM))
+                                        bcam->panorama_type == PANORAMA_FISHEYE_LENS_POLYNOMIAL) ||
+      bcam->type == CAMERA_CUSTOM)
   {
     const float fit_xratio = (float)bcam->render_width * bcam->pixelaspect.x;
     const float fit_yratio = (float)bcam->render_height * bcam->pixelaspect.y;
@@ -569,7 +561,7 @@ static void blender_camera_sync(Camera *cam,
 
   /* Sync custom camera parameters. */
   if (scene != nullptr) {
-    if ((bcam->type == CAMERA_PANORAMA) && (bcam->panorama_type == PANORAMA_CUSTOM)) {
+    if (bcam->type == CAMERA_CUSTOM) {
       BlenderCameraParamQuery params(bcam->custom_props);
       cam->set_osl_camera(
           scene, params, bcam->custom_filepath, bcam->custom_bytecode_hash, bcam->custom_bytecode);
@@ -862,8 +854,8 @@ static void blender_camera_from_view(BlenderCamera *bcam,
     if (b_ob) {
       blender_camera_from_object(bcam, b_engine, b_ob, b_data, skip_panorama);
 
-      if (!skip_panorama && bcam->type == CAMERA_PANORAMA) {
-        /* in panorama camera view, we map viewplane to camera border */
+      if (!skip_panorama && (bcam->type == CAMERA_PANORAMA || bcam->type == CAMERA_CUSTOM)) {
+        /* in panorama or custom camera view, we map viewplane to camera border */
         BoundBox2D view_box;
         BoundBox2D cam_box;
         float view_aspect;

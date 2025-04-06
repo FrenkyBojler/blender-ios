@@ -30,6 +30,7 @@
 #include "BLI_utildefines.h"
 
 #include "BKE_action.hh"
+#include "BKE_bpath.hh"
 #include "BKE_camera.h"
 #include "BKE_idprop.hh"
 #include "BKE_idtype.hh"
@@ -119,6 +120,16 @@ static void camera_foreach_id(ID *id, LibraryForeachIDData *data)
   }
 
   BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, camera->custom_shader, IDWALK_CB_NOP);
+}
+
+static void camera_foreach_path(ID *id, BPathForeachPathData *bpath_data)
+{
+  Camera *camera = reinterpret_cast<Camera *>(id);
+
+  if (camera->custom_filepath[0]) {
+    BKE_bpath_foreach_path_fixed_process(
+        bpath_data, camera->custom_filepath, sizeof(camera->custom_filepath));
+  }
 }
 
 struct CameraCyclesCompatibilityData {
@@ -257,7 +268,7 @@ IDTypeInfo IDType_ID_CA = {
     /*make_local*/ nullptr,
     /*foreach_id*/ camera_foreach_id,
     /*foreach_cache*/ nullptr,
-    /*foreach_path*/ nullptr,
+    /*foreach_path*/ camera_foreach_path,
     /*owner_pointer_get*/ nullptr,
 
     /*blend_write*/ camera_blend_write,
@@ -1092,7 +1103,8 @@ bool BKE_camera_multiview_spherical_stereo(const RenderData *rd, const Object *c
 
   const Camera *cam = static_cast<const Camera *>(camera->data);
 
-  if ((rd->views_format == SCE_VIEWS_FORMAT_STEREO_3D) && ELEM(cam->type, CAM_PANO, CAM_PERSP) &&
+  if ((rd->views_format == SCE_VIEWS_FORMAT_STEREO_3D) &&
+      ELEM(cam->type, CAM_PANO, CAM_PERSP, CAM_CUSTOM) &&
       ((cam->stereo.flag & CAM_S3D_SPHERICAL) != 0))
   {
     return true;

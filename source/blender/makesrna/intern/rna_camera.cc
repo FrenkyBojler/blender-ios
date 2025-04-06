@@ -636,6 +636,7 @@ void RNA_def_camera(BlenderRNA *brna)
       {CAM_PERSP, "PERSP", 0, "Perspective", ""},
       {CAM_ORTHO, "ORTHO", 0, "Orthographic", ""},
       {CAM_PANO, "PANO", 0, "Panoramic", ""},
+      {CAM_CUSTOM, "CUSTOM", 0, "Custom", ""},
       {0, nullptr, 0, nullptr, nullptr},
   };
   static const EnumPropertyItem prop_lens_unit_items[] = {
@@ -696,11 +697,6 @@ void RNA_def_camera(BlenderRNA *brna)
        "Central Cylindrical",
        "Projection onto a virtual cylinder from its center, similar as a rotating panoramic "
        "camera"},
-      {CAM_PANORAMA_CUSTOM,
-       "CUSTOM",
-       0,
-       "Custom",
-       "Custom camera type implemented in Open Shading Language"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 

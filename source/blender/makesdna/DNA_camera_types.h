@@ -75,7 +75,7 @@ typedef struct Camera {
   /** Animation data (must be immediately after id for utilities to use it). */
   struct AnimData *adt;
 
-  /** CAM_PERSP, CAM_ORTHO or CAM_PANO. */
+  /** CAM_PERSP, CAM_ORTHO, CAM_PANO or CAM_CUSTOM. */
   char type;
   /** Draw type extra. */
   char dtx;
@@ -145,6 +145,7 @@ enum {
   CAM_PERSP = 0,
   CAM_ORTHO = 1,
   CAM_PANO = 2,
+  CAM_CUSTOM = 3,
 };
 
 /* panorama_type */
@@ -156,7 +157,6 @@ enum {
   CAM_PANORAMA_FISHEYE_LENS_POLYNOMIAL = 4,
   CAM_PANORAMA_EQUIANGULAR_CUBEMAP_FACE = 5,
   CAM_PANORAMA_CENTRAL_CYLINDRICAL = 6,
-  CAM_PANORAMA_CUSTOM = 7,
 };
 
 /* custom_mode */

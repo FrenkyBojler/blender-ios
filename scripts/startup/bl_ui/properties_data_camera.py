@@ -129,16 +129,6 @@ class DATA_PT_lens(CameraButtonsPanel, Panel):
                     sub.prop(cam, "central_cylindrical_range_u_max", text="Max")
                     sub = col.column(align=True)
                     sub.prop(cam, "central_cylindrical_radius", text="Cylinder radius")
-                elif cam.panorama_type == 'CUSTOM':
-                    sub = col.row()
-                    sub.prop(cam, "custom_mode", text=" ", expand=True)
-
-                    sub = col.row(align=True)
-                    if cam.custom_mode == 'EXTERNAL':
-                        sub.prop(cam, "custom_filepath", text=" ")
-                    else:
-                        sub.prop(cam, "custom_shader", text=" ")
-                    sub.operator("cycles.custom_camera_shader_update", icon='FILE_REFRESH', text="")
 
             elif engine in {'BLENDER_RENDER', 'BLENDER_EEVEE_NEXT', 'BLENDER_WORKBENCH'}:
                 if cam.lens_unit == 'MILLIMETERS':
@@ -146,6 +136,19 @@ class DATA_PT_lens(CameraButtonsPanel, Panel):
                 elif cam.lens_unit == 'FOV':
                     col.prop(cam, "angle")
                 col.prop(cam, "lens_unit")
+
+        elif cam.type == 'CUSTOM':
+            engine = context.engine
+            if engine == 'CYCLES':
+                sub = col.row()
+                sub.prop(cam, "custom_mode", text=" ", expand=True)
+
+                sub = col.row(align=True)
+                if cam.custom_mode == 'EXTERNAL':
+                    sub.prop(cam, "custom_filepath", text=" ")
+                else:
+                    sub.prop(cam, "custom_shader", text=" ")
+                sub.operator("cycles.custom_camera_shader_update", icon='FILE_REFRESH', text="")
 
         col = layout.column()
         col.separator()
@@ -160,8 +163,8 @@ class DATA_PT_lens(CameraButtonsPanel, Panel):
         sub.prop(cam, "clip_end", text="End", text_ctxt=i18n_contexts.id_camera)
 
 
-class DATA_PT_lens_script_parameters(CameraButtonsPanel, Panel):
-    bl_label = "Custom parameters"
+class DATA_PT_lens_custom_parameters(CameraButtonsPanel, Panel):
+    bl_label = "Parameters"
     bl_parent_id = "DATA_PT_lens"
     COMPAT_ENGINES = {'BLENDER_RENDER'}
 
@@ -169,9 +172,8 @@ class DATA_PT_lens_script_parameters(CameraButtonsPanel, Panel):
     def poll(cls, context):
         cam = context.camera
         return (super().poll(context) and
-                cam.type == 'PANO' and
+                cam.type == 'CUSTOM' and
                 context.engine == 'CYCLES' and
-                cam.panorama_type == 'CUSTOM' and
                 len(cam.cycles_custom.keys()) > 0)
 
     def draw(self, context):
@@ -604,7 +606,7 @@ classes = (
     CAMERA_PT_safe_areas_presets,
     DATA_PT_context_camera,
     DATA_PT_lens,
-    DATA_PT_lens_script_parameters,
+    DATA_PT_lens_custom_parameters,
     DATA_PT_camera_dof,
     DATA_PT_camera_dof_aperture,
     DATA_PT_camera,
