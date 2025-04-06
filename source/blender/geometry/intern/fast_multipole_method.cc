@@ -240,10 +240,11 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
     Array<float, 0, GuardedAlignedAllocator<>> batch_positions_y_buffer(batch_size);
     Array<float, 0, GuardedAlignedAllocator<>> batch_positions_z_buffer(batch_size);
     Array<int, 0, GuardedAlignedAllocator<>> batch_indices_buffer(batch_size);
-    Vector<float, 0, GuardedAlignedAllocator<>> batch_distances_buffer(batch_size);
     Array<Array<float, 0, GuardedAlignedAllocator<>>, 3> batch_values_buffer;
 
     Array<int, 0, GuardedAlignedAllocator<>> partition_buffer(batch_size);
+
+    Vector<float, 0, GuardedAlignedAllocator<>> batch_distances_buffer(batch_size);
 
     static_assert(sizeof(int) == sizeof(float));
     static_assert(alignof(int) == alignof(float));
@@ -314,76 +315,86 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
           prefix_to_visit);
 
       if (UNLIKELY(total_next == prefix_to_visit)) {
-        if (depth_i == total_depth - 1) {
-          const IndexRange joint_backet = buckets_offsets[joint_i];
-          
-          Array<float, 0> backet_positions_x(joint_backet.size());
-          Array<float, 0> backet_positions_y(joint_backet.size());
-          Array<float, 0> backet_positions_z(joint_backet.size());
-
-          ispc::split_float3_to_3_float(src_bucket_position.slice(joint_backet).cast<float[3]>().data(),
-                                        backet_positions_x.as_mutable_span().data(),
-                                        backet_positions_y.as_mutable_span().data(),
-                                        backet_positions_z.as_mutable_span().data(),
-                                        joint_backet.size());
-
-          batch_distances_buffer.resize(joint_backet.size() * prefix_to_visit);
-          ispc::table_squared_distances(backet_positions_x.as_mutable_span().data(),
-                                        backet_positions_y.as_mutable_span().data(),
-                                        backet_positions_z.as_mutable_span().data(),
-                                        joint_backet.size(),
-                                        batch_positions_x.data(),
-                                        batch_positions_y.data(),
-                                        batch_positions_z.data(),
-                                        prefix_to_visit,
-                                        batch_distances_buffer.data());
-
-          ispc::sqrt_n_add_single(batch_distances_buffer.data(), joint_backet.size() * prefix_to_visit, offset_value);
-          distance_invertion(power_value, batch_distances_buffer.as_mutable_span().take_front(joint_backet.size() * prefix_to_visit));
-          
-          // if (sampler_to_bucket_range->contains(bucket_item)) {
-          //   ispc::zero_if_in_index_n(batch_indices.data(),
-          //                            batch_distances_buffer.data(),
-          //                            bucket_item - sampler_to_bucket_range->start(),
-          //                            prefix_to_visit);
-          // }
-          
-          for (const int bucket_item : joint_backet) {
-            if (value_type.is<float>()) {
-              const float bucket_value = src_bucket_value.typed<float>()[bucket_item];
-              const MutableSpan<float> batch_values = batch_values_buffer[0].as_mutable_span().take_front(prefix_to_visit);
-              ispc::one_mul_add_n(batch_values.data(),
-                                  batch_distances_buffer.data(),
-                                  bucket_value,
-                                  prefix_to_visit);
-              continue;
-            }
-
-            const float3 bucket_value = src_bucket_value.typed<float3>()[bucket_item];
-            MutableSpan<float> batch_values = batch_values_buffer[0].as_mutable_span().take_front(prefix_to_visit);
-            ispc::one_mul_add_n(batch_values.data(),
-                                batch_distances_buffer.data(),
-                                bucket_value.x,
-                                prefix_to_visit);
-
-            batch_values = batch_values_buffer[1].as_mutable_span().take_front(prefix_to_visit);
-            ispc::one_mul_add_n(batch_values.data(),
-                                batch_distances_buffer.data(),
-                                bucket_value.y,
-                                prefix_to_visit);
-
-            batch_values = batch_values_buffer[2].as_mutable_span().take_front(prefix_to_visit);
-            ispc::one_mul_add_n(batch_values.data(),
-                                batch_distances_buffer.data(),
-                                bucket_value.z,
-                                prefix_to_visit);
-          }
+        if (depth_i < total_depth - 1) {
+          depth_stack.extend_unchecked({depth_i + 1, depth_i + 1});
+          joint_stack.extend_unchecked({joint_i * 2 + 1, joint_i * 2 + 0});
+          prefix_to_visit_stack.extend_unchecked({prefix_to_visit, prefix_to_visit});
           continue;
         }
+
+        const IndexRange joint_backet = buckets_offsets[joint_i];
         
-        depth_stack.extend_unchecked({depth_i + 1, depth_i + 1});
-        joint_stack.extend_unchecked({joint_i * 2 + 1, joint_i * 2 + 0});
-        prefix_to_visit_stack.extend_unchecked({prefix_to_visit, prefix_to_visit});
+        Array<float, 0, GuardedAlignedAllocator<>> backet_positions_x(joint_backet.size());
+        Array<float, 0, GuardedAlignedAllocator<>> backet_positions_y(joint_backet.size());
+        Array<float, 0, GuardedAlignedAllocator<>> backet_positions_z(joint_backet.size());
+
+        ispc::split_float3_to_3_float(src_bucket_position.slice(joint_backet).cast<float[3]>().data(),
+                                      backet_positions_x.as_mutable_span().data(),
+                                      backet_positions_y.as_mutable_span().data(),
+                                      backet_positions_z.as_mutable_span().data(),
+                                      joint_backet.size());
+
+        batch_distances_buffer.resize(joint_backet.size() * prefix_to_visit);
+
+        ispc::chunked_squared_distances_table(backet_positions_x.as_mutable_span().cast<float[16]>().data(),
+                                              backet_positions_y.as_mutable_span().cast<float[16]>().data(),
+                                              backet_positions_z.as_mutable_span().cast<float[16]>().data(),
+                                              joint_backet.size() / 16,
+                                              batch_positions_x.cast<float[16]>().data(),
+                                              batch_positions_y.cast<float[16]>().data(),
+                                              batch_positions_z.cast<float[16]>().data(),
+                                              prefix_to_visit / 16,
+                                              batch_distances_buffer.cast<float[16]>().data());
+
+        ispc::sqrt_n_add_single(batch_distances_buffer.data(), joint_backet.size() * prefix_to_visit, offset_value);
+        distance_invertion(power_value, batch_distances_buffer.as_mutable_span().take_front(joint_backet.size() * prefix_to_visit));
+
+        // if (sampler_to_bucket_range->contains(bucket_item)) {
+        //   ispc::zero_if_in_index_n(batch_indices.data(),
+        //                            batch_distances_buffer.data(),
+        //                            bucket_item - sampler_to_bucket_range->start(),
+        //                            prefix_to_visit);
+        // }
+
+        Array<float, 0, GuardedAlignedAllocator<>> backet_values_x(joint_backet.size());
+        Array<float, 0, GuardedAlignedAllocator<>> backet_values_y(joint_backet.size());
+        Array<float, 0, GuardedAlignedAllocator<>> backet_values_z(joint_backet.size());
+        if (value_type.is<float>()) {
+          backet_values_x.copy_from(src_bucket_value.typed<float>().slice(joint_backet));
+        } else if (value_type.is<float3>()) {
+          ispc::split_float3_to_3_float(src_bucket_value.typed<float3>().slice(joint_backet).cast<float[3]>().data(),
+                                        backet_values_x.as_mutable_span().data(),
+                                        backet_values_y.as_mutable_span().data(),
+                                        backet_values_z.as_mutable_span().data(),
+                                        joint_backet.size());
+        }
+
+        if (value_type.is<float>()) {
+          const MutableSpan<float> batch_values = batch_values_buffer[0].as_mutable_span().take_front(prefix_to_visit);
+          ispc::mul_add_n(batch_values.data(),
+                          batch_distances_buffer.data(),
+                          bucket_value,
+                          prefix_to_visit);
+        } else if (value_type.is<float3>()) {
+          const float3 bucket_value = src_bucket_value.typed<float3>()[bucket_item];
+          MutableSpan<float> batch_values = batch_values_buffer[0].as_mutable_span().take_front(prefix_to_visit);
+          ispc::one_mul_add_n(batch_values.data(),
+                              batch_distances_buffer.data(),
+                              bucket_value.x,
+                              prefix_to_visit);
+
+          batch_values = batch_values_buffer[1].as_mutable_span().take_front(prefix_to_visit);
+          ispc::one_mul_add_n(batch_values.data(),
+                              batch_distances_buffer.data(),
+                              bucket_value.y,
+                              prefix_to_visit);
+
+          batch_values = batch_values_buffer[2].as_mutable_span().take_front(prefix_to_visit);
+          ispc::one_mul_add_n(batch_values.data(),
+                              batch_distances_buffer.data(),
+                              bucket_value.z,
+                              prefix_to_visit);
+        }
         continue;
       }
 

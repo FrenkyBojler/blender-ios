@@ -63,6 +63,7 @@ struct IndicesStruct {
 #if defined(__cplusplus) && (! defined(__ISPC_NO_EXTERN_C) || !__ISPC_NO_EXTERN_C )
 extern "C" {
 #endif // __cplusplus
+    extern void chunked_squared_distances_table(const float row_x[][16], const float row_y[][16], const float row_z[][16], const int32_t row_count, const float col_x[][16], const float col_y[][16], const float col_z[][16], const int32_t col_count, float distances[][16]);
     extern int32_t count_float_less_than(float * values, float min_predicate_value, int32_t count);
     extern void distances(const float positions[][3], const float * target, const int32_t count, float * distances, const float offset);
     extern void distances_split(const float * positions_x, const float * positions_y, const float * positions_z, const float * target, const int32_t count, float * distances, const float offset);
@@ -91,6 +92,7 @@ extern "C" {
     extern int32_t gather_ints_buffer(int32_t * values, int32_t * indices, int32_t * buffer, int32_t count, int32_t front_self_range);
     extern int32_t gather_ints_buffer_segmented(int32_t * values, int32_t * indices, int32_t * buffer, int32_t count, struct IndicesStruct * more_or_equal, struct IndicesStruct * smaller);
     extern void min_max_float3(const float values[][3], float * min_values, float * max_values, const int32_t count);
+    extern int32_t mul_add_n(float * values, float * factors, float * others, const int32_t count);
     extern int32_t one_mul_add_n(float * values, float * factors, const float other, const int32_t count);
     extern void parition_as_gather(int32_t * values, int32_t * indices, int32_t * buffer, int32_t mapping_total);
     extern void parition_as_gather_front(int32_t * values, int32_t * indices, int32_t * buffer, const int32_t mapping_total, const int32_t count, const int32_t total_front_size);

@@ -287,6 +287,28 @@ export void table_squared_distances(const uniform float row_x[],
   }
 }
 
+
+/**
+ * For 9 rows, columns and chunk size = 4:
+ * A, B, C, D, E, F, G, H, I
+ * 1, 2, 3, 4, 5, 6, 7, 8, 9
+ *
+ * A1, B1, C1, D1 | A2, B2, C2, D2 | A3, B3, C3, D3 | A4, B4, C4, D4 | A5, B5, C5, D5 | A6, B6, C6, D6 | A7, B7, C7, D7 | A8, B8, C8, D8 | A9, B9, C9, D9,
+ * E1, F1, G1, H1 | E2, F2, G2, H2 | E3, F3, G3, H3 | E4, F4, G4, H4 | E5, F5, G5, H5 | E6, F6, G6, H6 | E7, F7, G7, H7 | E8, F8, G8, H8 | E9, F9, G9, H9,
+ * I1, I2, I3, I4, I5, I6, I7, I8, I9
+ */
+export void chunked_squared_distances_table(const uniform float row_x[][16],
+                                            const uniform float row_y[][16],
+                                            const uniform float row_z[][16],
+                                            const uniform int row_count,
+                                            const uniform float col_x[][16],
+                                            const uniform float col_y[][16],
+                                            const uniform float col_z[][16],
+                                            const uniform int col_count,
+                                            float uniform distances[][16])
+{
+}
+
 export void min_max_float3(const uniform float values[][3],
                            uniform float min_values[3],
                            uniform float max_values[3],
@@ -1217,6 +1239,29 @@ export uniform int one_mul_add_n(
     for (uniform int index = batch_count; index < count; index++) {
         const uniform float value = values[index];
         const uniform float factor = factors[index];
+        values[index] = value + factor * other;
+    }
+    return buffer_index;
+}
+
+export uniform int mul_add_n(
+    uniform float values[],
+    uniform float factors[],
+    uniform float others[],
+    const uniform int count)
+{
+    uniform int buffer_index = 0;
+    const uniform int batch_count = (count / programCount) * programCount;
+    for (uniform int index = 0; index < batch_count; index += programCount) {
+        const varying float value = values[index + programIndex];
+        const varying float factor = factors[index + programIndex];
+        const varying float other = others[index + programIndex];
+        values[index + programIndex] = value + factor * other;
+    }
+    for (uniform int index = batch_count; index < count; index++) {
+        const uniform float value = values[index];
+        const uniform float factor = factors[index];
+        const uniform float other = others[index];
         values[index] = value + factor * other;
     }
     return buffer_index;
