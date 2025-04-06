@@ -106,17 +106,21 @@ SRD_VERTEX_IN(VertexInMesh, 2, float4, ac)
 SRD_VERTEX_IN(VertexInMesh, 3, float2, au)
 SRD_VERTEX_IN_END(VertexInMesh)
 
-SRD_STAGE_INOUT_BEGIN(VertexOut)
-SRD_STAGE_INOUT(VertexOut, position, float4, position)
-SRD_STAGE_INOUT(VertexOut, smooth, float3, normal)
-SRD_STAGE_INOUT(VertexOut, smooth, float3, color)
-SRD_STAGE_INOUT(VertexOut, smooth, float, alpha)
-SRD_STAGE_INOUT(VertexOut, smooth, float2, uv)
-SRD_STAGE_INOUT(VertexOut, flat, int, object_id)
-SRD_STAGE_INOUT(VertexOut, flat, float, roughness)
-SRD_STAGE_INOUT(VertexOut, flat, float, metallic)
-SRD_STAGE_INOUT(VertexOut, front_facing, bool, front_facing)
-SRD_STAGE_INOUT_END(VertexOut)
+SRD_VERTEX_OUT_BEGIN(VertexOut)
+SRD_VERTEX_OUT(VertexOut, position, float4, position)
+SRD_VERTEX_OUT(VertexOut, smooth, float3, normal)
+SRD_VERTEX_OUT(VertexOut, smooth, float3, color)
+SRD_VERTEX_OUT(VertexOut, smooth, float, alpha)
+SRD_VERTEX_OUT(VertexOut, smooth, float2, uv)
+SRD_VERTEX_OUT(VertexOut, flat, int, object_id)
+SRD_VERTEX_OUT(VertexOut, flat, float, roughness)
+SRD_VERTEX_OUT(VertexOut, flat, float, metallic)
+SRD_VERTEX_OUT_END(VertexOut)
+
+SRD_FRAGMENT_IN_BEGIN(FragmentIn)
+SRD_FRAGMENT_IN(FragmentIn, struct, VertexOut, v_out)
+SRD_FRAGMENT_IN(FragmentIn, front_facing, bool, front_facing)
+SRD_FRAGMENT_IN_END(FragmentIn)
 
 SRD_FRAGMENT_OUT_BEGIN(FragmentOut)
 SRD_FRAGMENT_OUT(FragmentOut, 0, float4, material)
@@ -392,7 +396,7 @@ float3 workbench_image_color(WorkbenchPrepassCommon srd, float2 uvs)
   return color.rgb;
 }
 
-FragmentOut prepass_fragment(VertexOut in, WorkbenchPrepassOpaqueMesh srd)
+FragmentOut prepass_fragment(FragmentIn in, WorkbenchPrepassOpaqueMesh srd)
 {
   FragmentOut out;
   out.object_id = uint(in.object_id);
@@ -416,6 +420,7 @@ SRD_GRAPHIC_PIPELINE(__FILE__,
                      WorkbenchOpaquePrepass,
                      VertexInMesh,
                      VertexOut,
+                     FragmentIn,
                      FragmentOut,
                      prepass_mesh_vertex,
                      WorkbenchPrepassOpaqueMesh,

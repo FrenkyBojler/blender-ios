@@ -12,13 +12,20 @@
 #define SRD_INTERP_smooth [[center_perspective]]
 #define SRD_INTERP_no_perspective [[center_perspective]]
 #define SRD_INTERP_flat [[flat]]
-#define SRD_INTERP_front_facing /* [[front_facing]] Doesn't compile. Need specific struct. */
+#define SRD_INTERP_front_facing [[front_facing]]
+#define SRD_INTERP_struct
 
-#define SRD_STAGE_INOUT_BEGIN(srd) struct srd {
-#define SRD_STAGE_INOUT_END(srd) \
+#define SRD_VERTEX_OUT_BEGIN(srd) struct srd {
+#define SRD_VERTEX_OUT_END(srd) \
   } \
   ;
-#define SRD_STAGE_INOUT(srd, qual, type, name) type name SRD_INTERP_##qual;
+#define SRD_VERTEX_OUT(srd, qual, type, name) type name SRD_INTERP_##qual;
+
+#define SRD_FRAGMENT_IN_BEGIN(srd) struct srd {
+#define SRD_FRAGMENT_IN_END(srd) \
+  } \
+  ;
+#define SRD_FRAGMENT_IN(srd, qual, type, name) type name SRD_INTERP_##qual;
 
 #define SRD_FRAGMENT_OUT_BEGIN(srd) struct srd {
 #define SRD_FRAGMENT_OUT_END(srd) \
@@ -46,13 +53,13 @@
 #define buffer_read(buffer, offset) (buffer)[offset]
 
 #define SRD_GRAPHIC_PIPELINE( \
-    file, pipe, vert_in, stage_inout, frag_out, vert_func, vert_res, frag_func, frag_res) \
-  [[vertex]] stage_inout vert_func##_entry_point(vert_in in [[stage_in]], \
-                                                 constant vert_res &srd [[buffer(0)]]) \
+    file, pipe, vert_in, vert_out, frag_in, frag_out, vert_func, vert_res, frag_func, frag_res) \
+  [[vertex]] vert_out vert_func##_entry_point(vert_in in [[stage_in]], \
+                                              constant vert_res &srd [[buffer(0)]]) \
   { \
     return vert_func(in, srd); \
   } \
-  [[fragment]] frag_out frag_func##_entry_point(stage_inout in [[stage_in]], \
+  [[fragment]] frag_out frag_func##_entry_point(frag_in in [[stage_in]], \
                                                 constant frag_res &srd [[buffer(1)]]) \
   { \
     return frag_func(in, srd); \

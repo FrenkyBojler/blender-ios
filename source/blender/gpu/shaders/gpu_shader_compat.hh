@@ -17,11 +17,17 @@
   ;
 #define SRD_VERTEX_IN(srd, binding, type, name) type name;
 
-#define SRD_STAGE_INOUT_BEGIN(srd) struct srd {
-#define SRD_STAGE_INOUT_END(srd) \
+#define SRD_VERTEX_OUT_BEGIN(srd) struct srd {
+#define SRD_VERTEX_OUT_END(srd) \
   } \
   ;
-#define SRD_STAGE_INOUT(srd, qual, type, name) type name;
+#define SRD_VERTEX_OUT(srd, qual, type, name) type name;
+
+#define SRD_FRAGMENT_IN_BEGIN(srd) struct srd {
+#define SRD_FRAGMENT_IN_END(srd) \
+  } \
+  ;
+#define SRD_FRAGMENT_IN(srd, qual, type, name) type name;
 
 #define SRD_FRAGMENT_OUT_BEGIN(srd) struct srd {
 #define SRD_FRAGMENT_OUT_END(srd) \
@@ -45,9 +51,10 @@
 
 /* Create pseudo shader program for type checking. */
 #define SRD_GRAPHIC_PIPELINE( \
-    file, pipe, vert_in, stage_inout, frag_out, vert_func, vert_res, frag_func, frag_res) \
+    file, pipe, vert_in, vert_out, frag_in, frag_out, vert_func, vert_res, frag_func, frag_res) \
   frag_out pipe() \
   { \
-    stage_inout inout = vert_func(vert_in{}, vert_res{}); \
-    return frag_func(inout, frag_res{}); \
+    vert_out v_out = vert_func(vert_in{}, vert_res{}); \
+    (void)v_out; \
+    return frag_func(frag_in{}, frag_res{}); \
   }

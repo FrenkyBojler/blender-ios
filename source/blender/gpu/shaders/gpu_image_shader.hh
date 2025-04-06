@@ -14,10 +14,10 @@ SRD_VERTEX_IN(VertexIn, 0, float2, pos)
 SRD_VERTEX_IN(VertexIn, 1, float2, uv)
 SRD_VERTEX_IN_END(VertexIn)
 
-SRD_STAGE_INOUT_BEGIN(VertexOut)
-SRD_STAGE_INOUT(VertexOut, position, float4, position)
-SRD_STAGE_INOUT(VertexOut, smooth, float2, uv)
-SRD_STAGE_INOUT_END(VertexOut)
+SRD_VERTEX_OUT_BEGIN(VertexOut)
+SRD_VERTEX_OUT(VertexOut, position, float4, position)
+SRD_VERTEX_OUT(VertexOut, smooth, float2, uv)
+SRD_VERTEX_OUT_END(VertexOut)
 
 SRD_FRAGMENT_OUT_BEGIN(FragmentOut)
 SRD_FRAGMENT_OUT(FragmentOut, 0, float4, fragColor)
@@ -62,6 +62,7 @@ FragmentOut image_fragment(VertexOut in, ImageCommon srd)
 SRD_GRAPHIC_PIPELINE(__FILE__,
                      ImageSimple,
                      VertexIn,
+                     VertexOut,
                      VertexOut,
                      FragmentOut,
                      image_vertex,
