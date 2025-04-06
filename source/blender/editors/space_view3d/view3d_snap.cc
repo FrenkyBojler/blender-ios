@@ -601,19 +601,6 @@ bool ED_view3d_snap_selected_to_location(bContext *C,
 /** \name Snap Selection to Cursor Operator
  * \{ */
 
-enum {
-  SNAP_LOC = 0,
-  SNAP_ROT,
-  SNAP_LOC_ROT,
-};
-
-static const EnumPropertyItem snap_transform_mode_items[] = {
-    {SNAP_LOC, "LOC", 0, "Location", ""},
-    {SNAP_ROT, "ROT", 0, "Rotation", ""},
-    {SNAP_LOC_ROT, "LOC_ROT", 0, "Location & Rotation", ""},
-    {0, nullptr, 0, nullptr, nullptr},
-};
-
 static int snap_selected_to_cursor_exec(bContext *C, wmOperator *op)
 {
   const bool use_offset = RNA_boolean_get(op->ptr, "use_offset");
@@ -955,33 +942,22 @@ static int snap_curs_to_active_exec(bContext *C, wmOperator *op)
 {
   Scene *scene = CTX_data_scene(C);
   const int snap_mode = RNA_enum_get(op->ptr, "snap_mode");
-  bool is_snap_done = false, is_loc_done = false, is_rot_done = false;
+  const bool is_loc_on = RNA_boolean_get(op->ptr, "location");
+  const bool is_rot_on = RNA_boolean_get(op->ptr, "rotation");
+  bool is_snap_done = false;
   float r_center[3], r_rot[3][3];
-  switch (snap_mode) {
-    case SNAP_LOC:
-      is_loc_done = is_snap_done = snap_calc_active_center(C, false, r_center);
-      break;
-    case SNAP_ROT:
-      is_rot_done = is_snap_done = snap_calc_active_rot(C, false, r_rot);
-      break;
-    case SNAP_LOC_ROT:
-      is_loc_done = is_rot_done = is_snap_done = snap_calc_active_center(C, false, r_center) &
-                                                 snap_calc_active_rot(C, false, r_rot);
-      break;
-
-    default:
-      break;
+  if (is_loc_on && snap_calc_active_center(C, false, r_center)) {
+    copy_v3_v3(scene->cursor.location, r_center);
+    is_snap_done = true;
   }
-  if (is_snap_done) {
-    if (is_loc_done) {
-      copy_v3_v3(scene->cursor.location, r_center);
-    }
-    if (is_rot_done) {
-      scene->cursor.set_matrix((blender::float3x3)r_rot, false);
-    }
-    WM_event_add_notifier(C, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
-    DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
+  if (is_rot_on && snap_calc_active_rot(C, false, r_rot)) {
+    scene->cursor.set_matrix((blender::float3x3)r_rot, false);
+    is_snap_done = true;
+  }
+  WM_event_add_notifier(C, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
+  DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
 
+  if (is_snap_done) {
     return OPERATOR_FINISHED;
   }
   return OPERATOR_CANCELLED;
@@ -1002,7 +978,16 @@ void VIEW3D_OT_snap_cursor_to_active(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
   /* properties */
-  ot->prop = RNA_def_enum(ot->srna, "snap_mode", snap_transform_mode_items, 0, "Snap Mode", "");
+  ot->prop = RNA_def_boolean(ot->srna,
+                             "location",
+                             true,
+                             "Location",
+                             "Whether or not snap the location of the 3d cursor.");
+  ot->prop = RNA_def_boolean(ot->srna,
+                             "rotation",
+                             true,
+                             "Rotation",
+                             "Whether or not snap the rotation of the 3d cursor.");
 }
 
 /** \} */
