@@ -1,0 +1,1 @@
+Referenced by issue #137052, Crash on startup using certain addons that make use of Python GPU shaders
