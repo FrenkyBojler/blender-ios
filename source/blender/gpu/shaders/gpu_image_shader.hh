@@ -42,18 +42,18 @@ SRD_SAMPLER_DECLARE_DUMMY(ImageCommon, 0, sampler2D, image)
  * overhead. This also allow arbitrary placement of the code w.r.t. the SRD. */
 #ifndef NO_SHADER_CODE
 
-VertexOut image_vertex(VertexIn in, ImageCommon common)
+VertexOut image_vertex(VertexIn in, ImageCommon srd)
 {
   VertexOut out;
-  out.position = common.ModelViewProjectionMatrix * vec4(in.pos.xy, 0.0f, 1.0f);
+  out.position = srd.ModelViewProjectionMatrix * float4(in.pos.xy, 0.0f, 1.0f);
   out.uv = in.uv;
   return out;
 }
 
-FragmentOut image_fragment(VertexOut in, ImageCommon common)
+FragmentOut image_fragment(VertexOut in, ImageCommon srd)
 {
   FragmentOut out;
-  out.fragColor = texture(common.image, in.uv);
+  out.fragColor = texture(srd.image, in.uv);
   return out;
 }
 

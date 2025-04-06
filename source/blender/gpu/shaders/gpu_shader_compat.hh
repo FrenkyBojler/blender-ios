@@ -34,8 +34,7 @@
   } \
   ;
 
-#define SRD_RESOURCE_SPECIALIZATION_CONSTANT(srd, type, name, default) \
-  static constexpr type name = default;
+#define SRD_RESOURCE_SPECIALIZATION_CONSTANT(srd, type, name, default) type name;
 #define SRD_RESOURCE_PUSH_CONSTANT(srd, type, name) type name;
 #define SRD_RESOURCE_SAMPLER(srd, binding, type, name) type name;
 #define SRD_RESOURCE_STORAGE_BUF(srd, binding, access, type, name, array) type(*name) array;

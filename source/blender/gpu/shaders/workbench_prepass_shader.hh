@@ -156,7 +156,7 @@ SRD_RESOURCE_STRUCT(WorkbenchPrepassCommon, ImageTileData, image_tile_data)
 SRD_RESOURCE_PUSH_CONSTANT(WorkbenchPrepassCommon, bool,  isImageTile)
 SRD_RESOURCE_PUSH_CONSTANT(WorkbenchPrepassCommon, bool,  imagePremult)
 SRD_RESOURCE_PUSH_CONSTANT(WorkbenchPrepassCommon, float,  imageTransparencyCutoff)
-SRD_RESOURCE_STORAGE_BUF(WorkbenchPrepassCommon, WB_MATERIAL_SLOT, READ, vec4, materials_data, [])
+SRD_RESOURCE_STORAGE_BUF(WorkbenchPrepassCommon, WB_MATERIAL_SLOT, READ, float4, materials_data, [])
 SRD_RESOURCE_END(WorkbenchPrepassCommon)
 /* clang-format on */
 
@@ -209,21 +209,22 @@ uint drw_custom_id(DrawResCustomId res_id)
   return buffer_read(res_id.resource_id_buf, /*gpu_BaseInstance + gl_InstanceID*/ 0).y;
 }
 
-mat4x4 drw_modelmat(DrawModelMatWithCustomId model)
+float4x4 drw_modelmat(DrawModelMatWithCustomId model)
 {
   return buffer_read(model.mat.drw_matrix_buf, drw_resource_id(model.res_id)).model;
 }
 
-mat4x4 drw_modelinv(DrawModelMatWithCustomId model)
+float4x4 drw_modelinv(DrawModelMatWithCustomId model)
 {
   return buffer_read(model.mat.drw_matrix_buf, drw_resource_id(model.res_id)).model_inverse;
 }
 
-vec3 drw_point_object_to_world(DrawModelMatWithCustomId model, vec3 lP)
+float3 drw_point_object_to_world(DrawModelMatWithCustomId model, float3 lP)
 {
-  return (drw_modelmat(model) * vec4(lP, 1.0)).xyz;
+  return (drw_modelmat(model) * float4(lP, 1.0)).xyz;
 }
 
+/* TODO(fclem): Needs to be decorated / set into */
 uint drw_view_id = 0;
 /* Returns the current active view. */
 ViewMatrices drw_view(DrawView view)
@@ -231,12 +232,12 @@ ViewMatrices drw_view(DrawView view)
   return buffer_read(view.drw_view_buf, drw_view_id);
 }
 
-vec4 drw_point_world_to_homogenous(DrawView view, vec3 P)
+float4 drw_point_world_to_homogenous(DrawView view, float3 P)
 {
-  return (drw_view(view).winmat * (drw_view(view).viewmat * vec4(P, 1.0)));
+  return (drw_view(view).winmat * (drw_view(view).viewmat * float4(P, 1.0)));
 }
 
-void view_clipping_distances(DrawClipping /*srd*/, vec3 /*wpos*/)
+void view_clipping_distances(DrawClipping /*srd*/, float3 /*wpos*/)
 {
   /* ... */
 }
@@ -253,29 +254,29 @@ void view_clipping_distances(DrawClipping /*srd*/, vec3 /*wpos*/)
  * NOTE: This is only valid because we are only using the mat3 of the ViewMatrixInverse.
  * ViewMatrix * transpose(ModelMatrixInverse)
  */
-mat3x3 drw_normat(DrawModelMatWithCustomId model)
+float3x3 drw_normat(DrawModelMatWithCustomId model)
 {
   return transpose(to_float3x3(drw_modelinv(model)));
 }
-mat3x3 drw_norinv(DrawModelMatWithCustomId model)
+float3x3 drw_norinv(DrawModelMatWithCustomId model)
 {
   return transpose(to_float3x3(drw_modelmat(model)));
 }
 
-vec3 drw_normal_object_to_view(DrawView view, DrawModelMatWithCustomId model, vec3 lN)
+float3 drw_normal_object_to_view(DrawView view, DrawModelMatWithCustomId model, float3 lN)
 {
   return (to_float3x3(drw_view(view).viewmat) * (drw_normat(model) * lN));
 }
 
 void workbench_material_data_get(WorkbenchPrepassCommon srd,
                                  int handle,
-                                 vec3 vertex_color,
-                                 vec3 &color,
+                                 float3 vertex_color,
+                                 float3 &color,
                                  float &alpha,
                                  float &roughness,
                                  float &metallic)
 {
-  vec4 data = vec4(0.0);
+  float4 data = float4(0.0);
   if ((srd.color_mode & WORKBENCH_COLOR_MATERIAL) != 0) {
     data = buffer_read(srd.materials_data, handle);
   }
@@ -291,7 +292,7 @@ VertexOut prepass_mesh_vertex(VertexInMesh in, WorkbenchPrepassOpaqueMesh srd)
 {
   VertexOut out;
 
-  vec3 world_pos = drw_point_object_to_world(srd.model, in.pos);
+  float3 world_pos = drw_point_object_to_world(srd.model, in.pos);
   out.position = drw_point_world_to_homogenous(srd.view, world_pos);
 
   view_clipping_distances(srd.clipping, world_pos);
@@ -312,7 +313,7 @@ VertexOut prepass_mesh_vertex(VertexInMesh in, WorkbenchPrepassOpaqueMesh srd)
 
 /* From http://aras-p.info/texts/CompactNormalStorage.html
  * Using Method #4: Sphere-map Transform */
-vec2 workbench_normal_encode(bool front_face, vec3 n)
+float2 workbench_normal_encode(bool front_face, float3 n)
 {
   n = normalize(front_face ? n : -n);
   float p = sqrt(n.z * 8.0 + 8.0);
@@ -337,9 +338,9 @@ float workbench_float_pair_encode(float v1, float v2)
   return float(iv1 | iv2);
 }
 
-bool node_tex_tile_lookup(vec3 &co, ImageTileData srd)
+bool node_tex_tile_lookup(float3 &co, ImageTileData srd)
 {
-  vec2 tile_pos = floor(co.xy);
+  float2 tile_pos = floor(co.xy);
 
   if (tile_pos.x < 0 || tile_pos.y < 0 || tile_pos.x >= 10) {
     return false;
@@ -351,28 +352,28 @@ bool node_tex_tile_lookup(vec3 &co, ImageTileData srd)
   }
 
   /* Fetch tile information. */
-  float tile_layer = texelFetch(srd.map, ivec2(tile, 0), 0).x;
+  float tile_layer = texelFetch(srd.map, int2(tile, 0), 0).x;
   if (tile_layer < 0.0) {
     return false;
   }
 
-  vec4 tile_info = texelFetch(srd.map, ivec2(tile, 1), 0);
+  float4 tile_info = texelFetch(srd.map, int2(tile, 1), 0);
 
-  co = vec3(((co.xy - tile_pos) * tile_info.zw) + tile_info.xy, tile_layer);
+  co = float3(((co.xy - tile_pos) * tile_info.zw) + tile_info.xy, tile_layer);
   return true;
 }
 
-vec3 workbench_image_color(WorkbenchPrepassCommon srd, vec2 uvs)
+float3 workbench_image_color(WorkbenchPrepassCommon srd, float2 uvs)
 {
-  vec4 color;
+  float4 color;
 
-  vec3 co = vec3(uvs, 0.0);
+  float3 co = float3(uvs, 0.0);
   if (srd.isImageTile) {
     if (node_tex_tile_lookup(co, srd.image_tile_data)) {
       color = texture(srd.image_tile_data.tile_tx, co);
     }
     else {
-      color = vec4(1.0, 0.0, 1.0, 1.0);
+      color = float4(1.0, 0.0, 1.0, 1.0);
     }
   }
   else {
@@ -396,13 +397,13 @@ FragmentOut prepass_fragment(VertexOut in, WorkbenchPrepassOpaqueMesh srd)
   FragmentOut out;
   out.object_id = uint(in.object_id);
   out.normal = workbench_normal_encode(in.front_facing, in.normal);
-  out.material = vec4(in.color, workbench_float_pair_encode(in.roughness, in.metallic));
+  out.material = float4(in.color, workbench_float_pair_encode(in.roughness, in.metallic));
 
-  if (WorkbenchPrepassCommon::color_mode == WORKBENCH_COLOR_TEXTURE) {
+  if (srd.prepass.color_mode == WORKBENCH_COLOR_TEXTURE) {
     out.material.rgb = workbench_image_color(srd.prepass, in.uv);
   }
 
-  if (WorkbenchPrepassCommon::shading_mode == WORKBENCH_LIGHTING_MATCAP) {
+  if (srd.prepass.shading_mode == WORKBENCH_LIGHTING_MATCAP) {
     /* For matcaps, save front facing in alpha channel. */
     out.material.a = float(in.front_facing);
   }
