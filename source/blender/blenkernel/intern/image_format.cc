@@ -617,7 +617,10 @@ static void do_makepicstring(char filepath[FILE_MAX],
     return;
   }
   BLI_strncpy(filepath, base, FILE_MAX - 10); /* weak assumption */
-  BKE_path_apply_variables(filepath, BKE_build_blender_variables(relbase, render_data));
+
+  const blender::Vector<VariableParseError> variable_errors = BKE_path_apply_variables(
+      filepath, BKE_build_blender_variables(relbase, render_data));
+
   BLI_path_abs(filepath, relbase);
 
   if (use_frames) {

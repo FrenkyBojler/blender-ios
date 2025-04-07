@@ -8,30 +8,30 @@
 
 namespace blender::bke::tests {
 
-static void debug_print_error(const ParseError &error)
+static void debug_print_error(const VariableParseError &error)
 {
   const char *type;
   switch (error.type) {
-    case ParseErrorType::UNESCAPED_CURLY_BRACE:
+    case VariableParseErrorType::UNESCAPED_CURLY_BRACE:
       type = "UNESCAPED_CURLY_BRACE";
       break;
-    case ParseErrorType::VARIABLE_SYNTAX:
+    case VariableParseErrorType::VARIABLE_SYNTAX:
       type = "VARIABLE_SYNTAX";
       break;
-    case ParseErrorType::FORMAT_SPECIFIER:
+    case VariableParseErrorType::FORMAT_SPECIFIER:
       type = "FORMAT_SPECIFIER";
       break;
-    case ParseErrorType::UNKNOWN_VARIABLE:
+    case VariableParseErrorType::UNKNOWN_VARIABLE:
       type = "UNKNOWN_VARIABLE";
       break;
   }
   printf("(%s, (%ld, %ld))", type, error.byte_range.start(), error.byte_range.size());
 }
 
-static void debug_print_errors(Span<ParseError> errors)
+static void debug_print_errors(Span<VariableParseError> errors)
 {
   printf("[");
-  for (const ParseError &error : errors) {
+  for (const VariableParseError &error : errors) {
     debug_print_error(error);
     printf(", ");
   }
@@ -127,7 +127,7 @@ TEST(blender_variables, path_apply_variables)
     char path[FILE_MAX] =
         "{hi}_{bye}_{the_answer}_{prime}_{i_negative}_{pi}_{e}_{ntsc}_{two}_{f_negative}_{huge}_{"
         "tiny}";
-    const Vector<ParseError> errors = BKE_path_apply_variables(path, variables);
+    const Vector<VariableParseError> errors = BKE_path_apply_variables(path, variables);
 
     EXPECT_TRUE(errors.is_empty());
     EXPECT_EQ(blender::StringRef(path),
@@ -138,7 +138,7 @@ TEST(blender_variables, path_apply_variables)
   /* Integer formatting. */
   {
     char path[FILE_MAX] = "{the_answer:#}_{the_answer:##}_{the_answer:####}_{i_negative:####}";
-    const Vector<ParseError> errors = BKE_path_apply_variables(path, variables);
+    const Vector<VariableParseError> errors = BKE_path_apply_variables(path, variables);
 
     EXPECT_TRUE(errors.is_empty());
     EXPECT_EQ(blender::StringRef(path), "42_42_0042_-007");
@@ -148,7 +148,7 @@ TEST(blender_variables, path_apply_variables)
   {
     char path[FILE_MAX] =
         "{the_answer:.###}_{the_answer:#.##}_{the_answer:###.##}_{i_negative:###.####}";
-    const Vector<ParseError> errors = BKE_path_apply_variables(path, variables);
+    const Vector<VariableParseError> errors = BKE_path_apply_variables(path, variables);
 
     EXPECT_TRUE(errors.is_empty());
     EXPECT_EQ(blender::StringRef(path), "42.000_42.00_042.00_-07.0000");
@@ -158,7 +158,7 @@ TEST(blender_variables, path_apply_variables)
   {
     char path[FILE_MAX] =
         "{pi:.####}_{e:.###}_{ntsc:.########}_{two:.##}_{f_negative:.##}_{huge:.##}_{tiny:.##}";
-    const Vector<ParseError> errors = BKE_path_apply_variables(path, variables);
+    const Vector<VariableParseError> errors = BKE_path_apply_variables(path, variables);
 
     EXPECT_TRUE(errors.is_empty());
     EXPECT_EQ(blender::StringRef(path),
@@ -170,7 +170,7 @@ TEST(blender_variables, path_apply_variables)
     char path[FILE_MAX] =
         "{pi:##.####}_{e:####.###}_{ntsc:#.########}_{two:###.##}_{f_negative:###.##}_{huge:###.##"
         "}_{tiny:###.##}";
-    const Vector<ParseError> errors = BKE_path_apply_variables(path, variables);
+    const Vector<VariableParseError> errors = BKE_path_apply_variables(path, variables);
 
     EXPECT_TRUE(errors.is_empty());
     EXPECT_EQ(
@@ -181,7 +181,7 @@ TEST(blender_variables, path_apply_variables)
   /* Float formatting: format as integer. */
   {
     char path[FILE_MAX] = "{pi:##}_{e:####}_{ntsc:#}_{two:###}";
-    const Vector<ParseError> errors = BKE_path_apply_variables(path, variables);
+    const Vector<VariableParseError> errors = BKE_path_apply_variables(path, variables);
 
     EXPECT_TRUE(errors.is_empty());
     EXPECT_EQ(blender::StringRef(path), "03_0003_30_002");
@@ -190,7 +190,7 @@ TEST(blender_variables, path_apply_variables)
   /* Escaping. "{{" and "}}" are the escape codes for literal "{" and "}". */
   {
     char path[FILE_MAX] = "{hi}_{{hi}}_{{{bye}}}_{bye}";
-    const Vector<ParseError> errors = BKE_path_apply_variables(path, variables);
+    const Vector<VariableParseError> errors = BKE_path_apply_variables(path, variables);
 
     EXPECT_TRUE(errors.is_empty());
     EXPECT_EQ(blender::StringRef(path), "hello_{hi}_{goodbye}_goodbye");
@@ -199,10 +199,10 @@ TEST(blender_variables, path_apply_variables)
   /* Error: string variables do not support format specifiers. */
   {
     char path[FILE_MAX] = "{hi:##}_{bye:#}";
-    const Vector<ParseError> errors = BKE_path_apply_variables(path, variables);
-    const Vector<ParseError> expected_errors = {
-        {ParseErrorType::FORMAT_SPECIFIER, IndexRange(0, 7)},
-        {ParseErrorType::FORMAT_SPECIFIER, IndexRange(8, 7)},
+    const Vector<VariableParseError> errors = BKE_path_apply_variables(path, variables);
+    const Vector<VariableParseError> expected_errors = {
+        {VariableParseErrorType::FORMAT_SPECIFIER, IndexRange(0, 7)},
+        {VariableParseErrorType::FORMAT_SPECIFIER, IndexRange(8, 7)},
     };
 
     EXPECT_EQ(errors, expected_errors);
@@ -214,15 +214,15 @@ TEST(blender_variables, path_apply_variables)
   {
     char path[FILE_MAX] =
         "{pi:##.}_{e:####.}_{ntsc:#.}_{two:###.}_{f_negative:###.}_{huge:###.}_{tiny:###.}";
-    const Vector<ParseError> errors = BKE_path_apply_variables(path, variables);
-    const Vector<ParseError> expected_errors = {
-        {ParseErrorType::FORMAT_SPECIFIER, IndexRange(0, 8)},
-        {ParseErrorType::FORMAT_SPECIFIER, IndexRange(9, 9)},
-        {ParseErrorType::FORMAT_SPECIFIER, IndexRange(19, 9)},
-        {ParseErrorType::FORMAT_SPECIFIER, IndexRange(29, 10)},
-        {ParseErrorType::FORMAT_SPECIFIER, IndexRange(40, 17)},
-        {ParseErrorType::FORMAT_SPECIFIER, IndexRange(58, 11)},
-        {ParseErrorType::FORMAT_SPECIFIER, IndexRange(70, 11)},
+    const Vector<VariableParseError> errors = BKE_path_apply_variables(path, variables);
+    const Vector<VariableParseError> expected_errors = {
+        {VariableParseErrorType::FORMAT_SPECIFIER, IndexRange(0, 8)},
+        {VariableParseErrorType::FORMAT_SPECIFIER, IndexRange(9, 9)},
+        {VariableParseErrorType::FORMAT_SPECIFIER, IndexRange(19, 9)},
+        {VariableParseErrorType::FORMAT_SPECIFIER, IndexRange(29, 10)},
+        {VariableParseErrorType::FORMAT_SPECIFIER, IndexRange(40, 17)},
+        {VariableParseErrorType::FORMAT_SPECIFIER, IndexRange(58, 11)},
+        {VariableParseErrorType::FORMAT_SPECIFIER, IndexRange(70, 11)},
     };
 
     EXPECT_EQ(errors, expected_errors);
@@ -234,9 +234,9 @@ TEST(blender_variables, path_apply_variables)
    * missing variable. */
   {
     char path[FILE_MAX] = "{hi}_{missing}_{bye}";
-    const Vector<ParseError> errors = BKE_path_apply_variables(path, variables);
-    const Vector<ParseError> expected_errors = {
-        {ParseErrorType::UNKNOWN_VARIABLE, IndexRange(5, 9)},
+    const Vector<VariableParseError> errors = BKE_path_apply_variables(path, variables);
+    const Vector<VariableParseError> expected_errors = {
+        {VariableParseErrorType::UNKNOWN_VARIABLE, IndexRange(5, 9)},
     };
 
     EXPECT_EQ(errors, expected_errors);
@@ -246,12 +246,12 @@ TEST(blender_variables, path_apply_variables)
   /* Error: invalid format specifiers. */
   {
     char path[FILE_MAX] = "{prime:}_{prime:.}_{prime:#.#.#}_{prime:sup}_{prime}";
-    const Vector<ParseError> errors = BKE_path_apply_variables(path, variables);
-    const Vector<ParseError> expected_errors = {
-        {ParseErrorType::FORMAT_SPECIFIER, IndexRange(0, 8)},
-        {ParseErrorType::FORMAT_SPECIFIER, IndexRange(9, 9)},
-        {ParseErrorType::FORMAT_SPECIFIER, IndexRange(19, 13)},
-        {ParseErrorType::FORMAT_SPECIFIER, IndexRange(33, 11)},
+    const Vector<VariableParseError> errors = BKE_path_apply_variables(path, variables);
+    const Vector<VariableParseError> expected_errors = {
+        {VariableParseErrorType::FORMAT_SPECIFIER, IndexRange(0, 8)},
+        {VariableParseErrorType::FORMAT_SPECIFIER, IndexRange(9, 9)},
+        {VariableParseErrorType::FORMAT_SPECIFIER, IndexRange(19, 13)},
+        {VariableParseErrorType::FORMAT_SPECIFIER, IndexRange(33, 11)},
     };
 
     EXPECT_EQ(errors, expected_errors);
@@ -261,9 +261,9 @@ TEST(blender_variables, path_apply_variables)
   /* Error: unclosed variable. */
   {
     char path[FILE_MAX] = "{hi_{hi}_{bye}";
-    const Vector<ParseError> errors = BKE_path_apply_variables(path, variables);
-    const Vector<ParseError> expected_errors = {
-        {ParseErrorType::VARIABLE_SYNTAX, IndexRange(0, 4)},
+    const Vector<VariableParseError> errors = BKE_path_apply_variables(path, variables);
+    const Vector<VariableParseError> expected_errors = {
+        {VariableParseErrorType::VARIABLE_SYNTAX, IndexRange(0, 4)},
     };
 
     EXPECT_EQ(errors, expected_errors);
@@ -273,9 +273,9 @@ TEST(blender_variables, path_apply_variables)
   /* Error: escaped braces inside variable. */
   {
     char path[FILE_MAX] = "{hi_{{hi}}_{bye}";
-    const Vector<ParseError> errors = BKE_path_apply_variables(path, variables);
-    const Vector<ParseError> expected_errors = {
-        {ParseErrorType::VARIABLE_SYNTAX, IndexRange(0, 4)},
+    const Vector<VariableParseError> errors = BKE_path_apply_variables(path, variables);
+    const Vector<VariableParseError> expected_errors = {
+        {VariableParseErrorType::VARIABLE_SYNTAX, IndexRange(0, 4)},
     };
 
     EXPECT_EQ(errors, expected_errors);
@@ -317,7 +317,7 @@ TEST(blender_variables, path_apply_variables)
         "bytes.This string is exactly 32 bytes.This string is exactly 32 bytes.This string is "
         "exactly 32 bytes.This string is exactly 32 bytes.This string is exactly 32 bytes.This "
         "string is exactly 32 bytes.This string is exactly 32 bytes.This string is exactly 32 by";
-    const Vector<ParseError> errors = BKE_path_apply_variables(path, variables);
+    const Vector<VariableParseError> errors = BKE_path_apply_variables(path, variables);
 
     EXPECT_TRUE(errors.is_empty());
     EXPECT_EQ(blender::StringRef(path), blender::StringRef(result));

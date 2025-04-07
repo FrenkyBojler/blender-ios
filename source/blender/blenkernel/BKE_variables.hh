@@ -143,19 +143,19 @@ class VariableMap {
 VariableMap BKE_build_blender_variables(const char *blend_file_path,
                                         const RenderData *render_data);
 
-enum class ParseErrorType {
+enum class VariableParseErrorType {
   UNESCAPED_CURLY_BRACE,
   VARIABLE_SYNTAX,
   FORMAT_SPECIFIER,
   UNKNOWN_VARIABLE,
 };
 
-struct ParseError {
-  ParseErrorType type;
+struct VariableParseError {
+  VariableParseErrorType type;
   blender::IndexRange byte_range;
 };
 
-bool operator==(const ParseError &left, const ParseError &right);
+bool operator==(const VariableParseError &left, const VariableParseError &right);
 
 /**
  * Perform variable substitution on the given path.
@@ -194,7 +194,7 @@ bool operator==(const ParseError &left, const ParseError &right);
  * means success. Otherwise the path is left unaltered and the errors are
  * returned as a vector.
  */
-blender::Vector<ParseError> BKE_path_apply_variables(char path[FILE_MAX],
-                                                     const VariableMap &variables);
+blender::Vector<VariableParseError> BKE_path_apply_variables(char path[FILE_MAX],
+                                                             const VariableMap &variables);
 
 /** \} */

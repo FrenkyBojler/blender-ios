@@ -136,7 +136,7 @@ VariableMap BKE_build_blender_variables(const char *blend_file_path, const Rende
 
 /* -------------------------------------------------------------------- */
 
-bool operator==(const ParseError &left, const ParseError &right)
+bool operator==(const VariableParseError &left, const VariableParseError &right)
 {
   return left.type == right.type && left.byte_range == right.byte_range;
 }
@@ -539,8 +539,8 @@ static std::optional<Token> next_token(char *path,
   return token;
 }
 
-blender::Vector<ParseError> BKE_path_apply_variables(char path[FILE_MAX],
-                                                     const VariableMap &variables)
+blender::Vector<VariableParseError> BKE_path_apply_variables(char path[FILE_MAX],
+                                                             const VariableMap &variables)
 {
   blender::Vector<Token> tokens;
   for (int bytes_read = 0; bytes_read < FILE_MAX && path[bytes_read] != '\0';) {
@@ -560,7 +560,7 @@ blender::Vector<ParseError> BKE_path_apply_variables(char path[FILE_MAX],
   }
 
   /* Accumulates errors as we process the tokens. */
-  blender::Vector<ParseError> errors;
+  blender::Vector<VariableParseError> errors;
 
   /* We work on a copy of the path, for two reasons:
    *
@@ -582,15 +582,15 @@ blender::Vector<ParseError> BKE_path_apply_variables(char path[FILE_MAX],
       /* Syntax errors. */
       case TokenType::VARIABLE_SYNTAX_ERROR: {
         if (token.format.type == FormatSpecifierType::SYNTAX_ERROR) {
-          errors.append({ParseErrorType::FORMAT_SPECIFIER, token.byte_range});
+          errors.append({VariableParseErrorType::FORMAT_SPECIFIER, token.byte_range});
         }
         else {
-          errors.append({ParseErrorType::VARIABLE_SYNTAX, token.byte_range});
+          errors.append({VariableParseErrorType::VARIABLE_SYNTAX, token.byte_range});
         }
         continue;
       }
       case TokenType::UNESCAPED_CURLY_BRACE_ERROR: {
-        errors.append({ParseErrorType::UNESCAPED_CURLY_BRACE, token.byte_range});
+        errors.append({VariableParseErrorType::UNESCAPED_CURLY_BRACE, token.byte_range});
         continue;
       }
 
@@ -613,7 +613,7 @@ blender::Vector<ParseError> BKE_path_apply_variables(char path[FILE_MAX],
            * specifier: string variables do not support format specifiers. */
           if (token.format.type != FormatSpecifierType::NONE) {
             /* String variables don't take format specifiers: error. */
-            errors.append({ParseErrorType::FORMAT_SPECIFIER, token.byte_range});
+            errors.append({VariableParseErrorType::FORMAT_SPECIFIER, token.byte_range});
             continue;
           }
           strcpy(replacement_string, string_value->c_str());
@@ -633,7 +633,7 @@ blender::Vector<ParseError> BKE_path_apply_variables(char path[FILE_MAX],
         }
 
         /* No matching variable found: error. */
-        errors.append({ParseErrorType::UNKNOWN_VARIABLE, token.byte_range});
+        errors.append({VariableParseErrorType::UNKNOWN_VARIABLE, token.byte_range});
         continue;
       }
     }
