@@ -26,32 +26,15 @@
 
 namespace blender::draw {
 
-#if 0 /* The debug module is currently broken. Needs an overhaul (see #135521). */
-/* Shortcuts to avoid boilerplate code and match shader API. */
-#  define drw_debug_line(...) DRW_debug_get()->draw_line(__VA_ARGS__)
-#  define drw_debug_polygon(...) DRW_debug_get()->draw_polygon(__VA_ARGS__)
-#  define drw_debug_bbox(...) DRW_debug_get()->draw_bbox(__VA_ARGS__)
-#  define drw_debug_sphere(...) DRW_debug_get()->draw_sphere(__VA_ARGS__)
-#  define drw_debug_point(...) DRW_debug_get()->draw_point(__VA_ARGS__)
-#  define drw_debug_matrix(...) DRW_debug_get()->draw_matrix(__VA_ARGS__)
-#  define drw_debug_matrix_as_bbox(...) DRW_debug_get()->draw_matrix_as_bbox(__VA_ARGS__)
-#else
-#  define drw_debug_line(...)
-#  define drw_debug_polygon(...)
-#  define drw_debug_bbox(...)
-#  define drw_debug_sphere(...)
-#  define drw_debug_point(...)
-#  define drw_debug_matrix(...)
-#  define drw_debug_matrix_as_bbox(...)
-#endif
+class View;
 
 class DebugDraw {
  private:
   using DebugDrawBuf = StorageBuffer<DRWDebugDrawBuffer>;
 
   /** Data buffers containing all verts or chars to draw. */
-  DebugDrawBuf cpu_draw_buf_ = {"DebugDrawBuf-CPU"};
-  DebugDrawBuf gpu_draw_buf_ = {"DebugDrawBuf-GPU"};
+  DebugDrawBuf *cpu_draw_buf_ = nullptr;
+  DebugDrawBuf *gpu_draw_buf_ = nullptr;
   /** True if the gpu buffer have been requested and may contain data to draw. */
   bool gpu_draw_buf_used = false;
   /** Matrix applied to all points before drawing. Could be a stack if needed. */
@@ -59,6 +42,13 @@ class DebugDraw {
   /** Precomputed shapes verts. */
   Vector<float3> sphere_verts_;
   Vector<float3> point_verts_;
+
+  std::mutex usage_mutex_;
+
+  /* Reference counter used by GPUContext to allow freeing of DebugDrawBuf before the last
+   * context is destroyed. */
+  int ref_count_ = 0;
+  std::mutex ref_count_mutex_;
 
  public:
   DebugDraw();
@@ -100,12 +90,35 @@ class DebugDraw {
    * Will draw all debug shapes and text cached up until now to the current view / frame-buffer.
    * Draw buffers will be emptied and ready for new debug data.
    */
-  void display_to_view();
+  void display_to_view(View &view);
 
   /**
    * Not to be called by user. Should become private.
    */
   GPUStorageBuf *gpu_draw_buf_get();
+
+  static DebugDraw &get()
+  {
+    static DebugDraw module;
+    return module;
+  }
+
+  void acquire()
+  {
+    std::scoped_lock lock(ref_count_mutex_);
+    ref_count_++;
+  }
+
+  void release()
+  {
+    std::scoped_lock lock(ref_count_mutex_);
+    ref_count_--;
+    if (ref_count_ == 0) {
+      clear_gpu_data();
+    }
+  }
+
+  void clear_gpu_data();
 
  private:
   uint color_pack(float4 color);
@@ -113,14 +126,37 @@ class DebugDraw {
 
   void draw_line(float3 v1, float3 v2, uint color);
 
-  void display_lines();
+  void display_lines(View &view);
 };
 
-}  // namespace blender::draw
+/* Shortcuts to avoid boilerplate code and match shader API. */
+template<class... Types> void drw_debug_line(Types... args)
+{
+  DebugDraw::get().draw_line(args...);
+}
+template<class... Types> void drw_debug_polygon(Types... args)
+{
+  DebugDraw::get().draw_polygon(args...);
+}
+template<class... Types> void drw_debug_bbox(Types... args)
+{
+  DebugDraw::get().draw_bbox(args...);
+}
+template<class... Types> void drw_debug_sphere(Types... args)
+{
+  DebugDraw::get().draw_sphere(args...);
+}
+template<class... Types> void drw_debug_point(Types... args)
+{
+  DebugDraw::get().draw_point(args...);
+}
+template<class... Types> void drw_debug_matrix(Types... args)
+{
+  DebugDraw::get().draw_matrix(args...);
+}
+template<class... Types> void drw_debug_matrix_as_bbox(Types... args)
+{
+  DebugDraw::get().draw_matrix_as_bbox(args...);
+}
 
-/**
- * Ease of use function to get the debug module.
- * TODO(fclem): Should be removed once DRWContext is no longer global.
- * IMPORTANT: Can return nullptr if storage buffer is not supported.
- */
-blender::draw::DebugDraw *DRW_debug_get();
+}  // namespace blender::draw

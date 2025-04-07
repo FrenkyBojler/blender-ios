@@ -13,6 +13,7 @@
 
 #include "BKE_paint.hh"
 
+#include "draw_debug.hh"
 #include "overlay_next_instance.hh"
 
 namespace blender::draw::overlay {
@@ -856,6 +857,8 @@ void Instance::draw_v3d(Manager &manager, View &view)
         GPU_framebuffer_clear_color(resources.overlay_line_fb, clear_color);
       }
     }
+
+    DebugDraw::get().display_to_view(view);
 
     regular.prepass.draw_line(resources.overlay_line_fb, manager, view);
 

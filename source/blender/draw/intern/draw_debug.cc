@@ -50,19 +50,26 @@ DebugDraw::DebugDraw()
       }
     }
   }
+
+  init();
 };
 
 void DebugDraw::init()
 {
-  cpu_draw_buf_.command.vertex_len = 0;
-  cpu_draw_buf_.command.vertex_first = 0;
-  cpu_draw_buf_.command.instance_len = 1;
-  cpu_draw_buf_.command.instance_first_array = 0;
+  if (cpu_draw_buf_ == nullptr) {
+    cpu_draw_buf_ = MEM_new<DebugDrawBuf>("DebugDrawBuf-CPU", "DebugDrawBuf-CPU");
+    gpu_draw_buf_ = MEM_new<DebugDrawBuf>("DebugDrawBuf-GPU", "DebugDrawBuf-GPU");
+  }
 
-  gpu_draw_buf_.command.vertex_len = 0;
-  gpu_draw_buf_.command.vertex_first = 0;
-  gpu_draw_buf_.command.instance_len = 1;
-  gpu_draw_buf_.command.instance_first_array = 0;
+  cpu_draw_buf_->command.vertex_len = 0;
+  cpu_draw_buf_->command.vertex_first = 0;
+  cpu_draw_buf_->command.instance_len = 1;
+  cpu_draw_buf_->command.instance_first_array = 0;
+
+  gpu_draw_buf_->command.vertex_len = 0;
+  gpu_draw_buf_->command.vertex_first = 0;
+  gpu_draw_buf_->command.instance_len = 1;
+  gpu_draw_buf_->command.instance_first_array = 0;
   gpu_draw_buf_used = false;
 
   modelmat_reset();
@@ -80,11 +87,21 @@ void DebugDraw::modelmat_set(const float modelmat[4][4])
 
 GPUStorageBuf *DebugDraw::gpu_draw_buf_get()
 {
+#ifdef WITH_DRAW_DEBUG
   if (!gpu_draw_buf_used) {
     gpu_draw_buf_used = true;
-    gpu_draw_buf_.push_update();
+    gpu_draw_buf_->push_update();
   }
-  return gpu_draw_buf_;
+  return *gpu_draw_buf_;
+#else
+  return nullptr;
+#endif
+}
+
+void DebugDraw::clear_gpu_data()
+{
+  MEM_SAFE_DELETE(cpu_draw_buf_);
+  MEM_SAFE_DELETE(gpu_draw_buf_);
 }
 
 /** \} */
@@ -189,7 +206,7 @@ void DebugDraw::draw_point(const float3 center, float radius, const float4 color
 
 void DebugDraw::draw_line(float3 v1, float3 v2, uint color)
 {
-  DebugDrawBuf &buf = cpu_draw_buf_;
+  DebugDrawBuf &buf = *cpu_draw_buf_;
   uint index = buf.command.vertex_len;
   if (index + 2 < DRW_DEBUG_DRAW_VERT_MAX) {
     buf.verts[index + 0] = vert_pack(math::transform_point(model_mat_, v1), color);
@@ -227,15 +244,16 @@ DRWDebugVert DebugDraw::vert_pack(float3 pos, uint color)
 /** \name Display
  * \{ */
 
-void DebugDraw::display_lines()
+void DebugDraw::display_lines(View &view)
 {
-  if (cpu_draw_buf_.command.vertex_len == 0 && gpu_draw_buf_used == false) {
+  if (cpu_draw_buf_->command.vertex_len == 0 && gpu_draw_buf_used == false) {
     return;
   }
-  GPU_debug_group_begin("Lines");
-  cpu_draw_buf_.push_update();
 
-  float4x4 persmat = View::default_get().persmat();
+  GPU_debug_group_begin("Lines");
+  cpu_draw_buf_->push_update();
+
+  float4x4 persmat = view.persmat();
 
   command::StateSet::set(DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_LESS);
 
@@ -246,26 +264,26 @@ void DebugDraw::display_lines()
 
   if (gpu_draw_buf_used) {
     GPU_debug_group_begin("GPU");
-    GPU_storagebuf_bind(gpu_draw_buf_, DRW_DEBUG_DRAW_SLOT);
-    GPU_batch_draw_indirect(batch, gpu_draw_buf_, 0);
-    GPU_storagebuf_unbind(gpu_draw_buf_);
+    GPU_storagebuf_bind(*gpu_draw_buf_, DRW_DEBUG_DRAW_SLOT);
+    GPU_batch_draw_indirect(batch, *gpu_draw_buf_, 0);
+    GPU_storagebuf_unbind(*gpu_draw_buf_);
     GPU_debug_group_end();
   }
 
   GPU_debug_group_begin("CPU");
-  GPU_storagebuf_bind(cpu_draw_buf_, DRW_DEBUG_DRAW_SLOT);
-  GPU_batch_draw_indirect(batch, cpu_draw_buf_, 0);
-  GPU_storagebuf_unbind(cpu_draw_buf_);
+  GPU_storagebuf_bind(*cpu_draw_buf_, DRW_DEBUG_DRAW_SLOT);
+  GPU_batch_draw_indirect(batch, *cpu_draw_buf_, 0);
+  GPU_storagebuf_unbind(*cpu_draw_buf_);
   GPU_debug_group_end();
 
   GPU_debug_group_end();
 }
 
-void DebugDraw::display_to_view()
+void DebugDraw::display_to_view(View &view)
 {
   GPU_debug_group_begin("DebugDraw");
 
-  display_lines();
+  display_lines(view);
   /* Init again so we don't draw the same thing twice. */
   init();
 
@@ -275,66 +293,3 @@ void DebugDraw::display_to_view()
 /** \} */
 
 }  // namespace blender::draw
-
-/* -------------------------------------------------------------------- */
-/** \name DebugDraw Access
- * \{ */
-
-blender::draw::DebugDraw *DRW_debug_get()
-{
-  /* This module is currently not in working state. Some refactor is needed (see #135521). */
-  BLI_assert_unreachable();
-#ifdef WITH_DRAW_DEBUG
-  return reinterpret_cast<blender::draw::DebugDraw *>(drw_get().debug);
-#endif
-  return nullptr;
-}
-
-/** \} */
-
-/* -------------------------------------------------------------------- */
-/** \name C-API private
- * \{ */
-
-void drw_debug_draw()
-{
-#ifdef WITH_DRAW_DEBUG
-  if (drw_get().debug == nullptr) {
-    return;
-  }
-  /* TODO(@fclem): Convenience for now. Will have to move to #DRWContext. */
-  reinterpret_cast<blender::draw::DebugDraw *>(drw_get().debug)->display_to_view();
-#endif
-}
-
-void drw_debug_init()
-{
-  /* NOTE: Init is once per draw manager cycle. */
-
-  /* Module should not be used in release builds. */
-  /* TODO(@fclem): Hide the functions declarations without using `ifdefs` everywhere. */
-#ifdef WITH_DRAW_DEBUG
-  /* TODO(@fclem): Convenience for now. Will have to move to #DRWContext. */
-  if (drw_get().debug == nullptr) {
-    drw_get().debug = reinterpret_cast<DRWDebugModule *>(new blender::draw::DebugDraw());
-  }
-  reinterpret_cast<blender::draw::DebugDraw *>(drw_get().debug)->init();
-#endif
-}
-
-void drw_debug_module_free(DRWDebugModule *module)
-{
-  if (module != nullptr) {
-    delete reinterpret_cast<blender::draw::DebugDraw *>(module);
-  }
-}
-
-GPUStorageBuf *drw_debug_gpu_draw_buf_get()
-{
-#ifdef WITH_DRAW_DEBUG
-  return reinterpret_cast<blender::draw::DebugDraw *>(drw_get().debug)->gpu_draw_buf_get();
-#endif
-  return nullptr;
-}
-
-/** \} */
