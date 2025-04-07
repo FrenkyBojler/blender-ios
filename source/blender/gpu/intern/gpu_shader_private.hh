@@ -234,6 +234,8 @@ class ShaderCompilerGeneric : public ShaderCompiler {
 
   std::unique_ptr<GPUWorker> compilation_worker_;
 
+  bool support_specializations_;
+
   void run_thread();
 
  protected:
@@ -241,7 +243,8 @@ class ShaderCompilerGeneric : public ShaderCompiler {
 
  public:
   ShaderCompilerGeneric(bool multithreaded = false,
-                        GPUWorker::ContextType context_type = GPUWorker::ContextType::PerThread);
+                        GPUWorker::ContextType context_type = GPUWorker::ContextType::PerThread,
+                        bool support_specializations = false);
   ~ShaderCompilerGeneric() override;
 
   virtual Shader *compile_shader(const shader::ShaderCreateInfo &info);

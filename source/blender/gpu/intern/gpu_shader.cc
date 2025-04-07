@@ -955,8 +955,11 @@ Shader *ShaderCompiler::compile(const shader::ShaderCreateInfo &info, bool is_ba
  * \{ */
 
 ShaderCompilerGeneric::ShaderCompilerGeneric(bool multithreaded,
-                                             GPUWorker::ContextType context_type)
+                                             GPUWorker::ContextType context_type,
+                                             bool support_specializations)
 {
+  support_specializations_ = support_specializations;
+
   if (!GPU_use_main_context_workaround()) {
     compilation_worker_ = std::make_unique<GPUWorker>(
         multithreaded ? GPU_max_parallel_compilations() : 1, context_type, [this]() {
@@ -1062,7 +1065,7 @@ Vector<Shader *> ShaderCompilerGeneric::batch_finalize(BatchHandle &handle)
 SpecializationBatchHandle ShaderCompilerGeneric::precompile_specializations(
     Span<ShaderSpecialization> specializations)
 {
-  if (!compilation_worker_) {
+  if (!compilation_worker_ || !support_specializations_) {
     return 0;
   }
 
