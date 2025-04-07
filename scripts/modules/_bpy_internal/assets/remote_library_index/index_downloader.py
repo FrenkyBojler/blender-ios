@@ -123,6 +123,7 @@ class BackgroundDownloader:
         self._thread_bridge.add_reporter(self)
 
         if reporter is not None:
+            # TODO: remove this parameter, add an 'add_reporter()' method.
             self._thread_bridge.add_reporter(reporter)
 
         self._queue = queue.Queue()
@@ -154,6 +155,7 @@ class BackgroundDownloader:
 
     def shutdown(self) -> None:
         self._shutdown_event.set()
+        self._downloader.cancel_download()
         self._logger.debug("waiting for download thread to stop")
         self._downloader_thread.join()
         self._logger.debug("download thread stopped")
