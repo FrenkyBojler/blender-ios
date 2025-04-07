@@ -426,7 +426,7 @@ static GHash *ghash_new(GHashHashFP hashfp,
 
   ghash_buckets_reset(gh, nentries_reserve);
   gh->entrypool = BLI_mempool_create(
-      GHASH_ENTRY_SIZE(flag & GHASH_FLAG_IS_GSET), 64, 64, BLI_MEMPOOL_NOP);
+      GHASH_ENTRY_SIZE(flag & GHASH_FLAG_IS_GSET), 256, 256, BLI_MEMPOOL_NOP);
 
   return gh;
 }

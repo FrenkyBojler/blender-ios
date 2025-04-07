@@ -110,8 +110,8 @@ struct uiTooltipData;
 #define UI_MENU_ARROW_SEP BLI_STR_UTF8_BLACK_RIGHT_POINTING_SMALL_TRIANGLE
 
 /* names */
-#define UI_MAX_DRAW_STR 400
-#define UI_MAX_NAME_STR 128
+#define UI_MAX_DRAW_STR 550
+#define UI_MAX_NAME_STR 256
 #define UI_MAX_SHORTCUT_STR 64
 
 /**

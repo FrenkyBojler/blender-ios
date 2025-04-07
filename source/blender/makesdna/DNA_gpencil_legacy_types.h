@@ -456,7 +456,7 @@ typedef struct bGPDlayer {
   /** Inverse matrix (only used if parented). */
   float inverse[4][4];
   /** String describing sub-object info, `MAX_ID_NAME - 2`. */
-  char parsubstr[64];
+  char parsubstr[256];
   short partype;
 
   /** Thickness adjustment. */
@@ -466,7 +466,7 @@ typedef struct bGPDlayer {
   /** Opacity of the layer. */
   float opacity;
   /** Name of the layer used to filter render output. */
-  char viewlayername[64];
+  char viewlayername[256];
 
   /** Blend modes. */
   int blend_mode;

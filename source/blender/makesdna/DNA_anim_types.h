@@ -767,7 +767,7 @@ typedef struct NlaStrip {
    * \note Most code should not write to this field directly, but use functions from
    * `blender::animrig::nla` instead, see ANIM_nla.hh.
    */
-  char last_slot_identifier[66]; /* MAX_ID_NAME */
+  char last_slot_identifier[258]; /* MAX_ID_NAME */
   char _pad0[2];
 
   /** F-Curves for controlling this strip's influence and timing */ /* TODO: move out? */
@@ -776,7 +776,7 @@ typedef struct NlaStrip {
   ListBase modifiers;
 
   /** User-Visible Identifier for Strip - `MAX_ID_NAME - 2`. */
-  char name[64];
+  char name[256];
 
   /** Influence of strip. */
   float influence;
@@ -1169,7 +1169,7 @@ typedef struct AnimData {
    *
    * \see #ActionSlot::name
    */
-  char last_slot_identifier[66]; /* MAX_ID_NAME */
+  char last_slot_identifier[258]; /* MAX_ID_NAME */
   uint8_t _pad0[2];
 
   /**
@@ -1178,7 +1178,7 @@ typedef struct AnimData {
    */
   bAction *tmpact;
   int32_t tmp_slot_handle;
-  char tmp_last_slot_identifier[66]; /* MAX_ID_NAME */
+  char tmp_last_slot_identifier[258]; /* MAX_ID_NAME */
   uint8_t _pad1[2];
 
   /* nla-tracks */

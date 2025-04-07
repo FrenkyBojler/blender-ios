@@ -318,7 +318,7 @@ typedef struct View3D {
   struct View3D *localvd;
 
   /** Optional string for armature bone to define center, MAXBONENAME. */
-  char ob_center_bone[64];
+  char ob_center_bone[256];
 
   unsigned short local_view_uid;
   char _pad6[2];

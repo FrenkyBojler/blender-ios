@@ -290,7 +290,7 @@ typedef struct bPoseChannel {
   /** Constraints that act on this PoseChannel. */
   ListBase constraints;
   /** Need to match bone name length: MAXBONENAME. */
-  char name[64];
+  char name[256];
 
   /** Dynamic, for detecting transform changes. */
   short flag;
@@ -1170,7 +1170,7 @@ typedef struct ActionSlot {
    *
    * \see #AnimData::slot_name
    */
-  char identifier[66]; /* MAX_ID_NAME */
+  char identifier[258]; /* MAX_ID_NAME */
 
   /**
    * Type of ID-block that this slot is intended for.
