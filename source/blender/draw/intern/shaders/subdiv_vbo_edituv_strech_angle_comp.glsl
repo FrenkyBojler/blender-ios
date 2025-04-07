@@ -43,9 +43,9 @@ void main()
     vec2 norm_uv_edge1 = normalize(cur_uv - next_uv);
 
     /* Compute 3d edge vectors from positions. */
-    vec3 cur_pos = positions[cur_loop_index];
-    vec3 next_pos = positions[next_loop_index];
-    vec3 prev_pos = positions[prev_loop_index];
+    vec3 cur_pos = subdiv_get_vertex_pos(positions[cur_loop_index]);
+    vec3 next_pos = subdiv_get_vertex_pos(positions[next_loop_index]);
+    vec3 prev_pos = subdiv_get_vertex_pos(positions[prev_loop_index]);
 
     vec3 norm_pos_edge0 = normalize(prev_pos - cur_pos);
     vec3 norm_pos_edge1 = normalize(cur_pos - next_pos);

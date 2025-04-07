@@ -43,6 +43,12 @@ uint get_index(uint i)
   return (i >> 2) & 0x3FFFFFFFu;
 }
 
+vec3 subdiv_get_vertex_pos(Position position)
+{
+  return vec3(position.x, position.y, position.z);
+}
+
+
 void add_newell_cross_v3_v3v3(inout vec3 n, vec3 v_prev, vec3 v_curr)
 {
   n[0] += (v_prev[1] - v_curr[1]) * (v_prev[2] + v_curr[2]);

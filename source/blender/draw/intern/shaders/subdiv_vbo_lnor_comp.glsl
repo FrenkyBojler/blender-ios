@@ -24,19 +24,15 @@ void main()
     /* Face is smooth, use vertex normals. */
     for (int i = 0; i < 4; i++) {
       uint subdiv_vert_index = vert_loop_map[start_loop_index + i];
-      vec3 vert_normal = vert_normals[subdiv_vert_index];
-      Normal nor;
-      nor.x = vert_normal.x;
-      nor.y = vert_normal.y;
-      nor.z = vert_normal.z;
-      output_lnor[start_loop_index + i] = nor;
+      Normal vert_normal = vert_normals[subdiv_vert_index];
+      output_lnor[start_loop_index + i] = vert_normal;
     }
   }
   else {
-    vec3 v0 = positions[start_loop_index + 0];
-    vec3 v1 = positions[start_loop_index + 1];
-    vec3 v2 = positions[start_loop_index + 2];
-    vec3 v3 = positions[start_loop_index + 3];
+    vec3 v0 = subdiv_get_vertex_pos(positions[start_loop_index + 0]);
+    vec3 v1 = subdiv_get_vertex_pos(positions[start_loop_index + 1]);
+    vec3 v2 = subdiv_get_vertex_pos(positions[start_loop_index + 2]);
+    vec3 v3 = subdiv_get_vertex_pos(positions[start_loop_index + 3]);
 
     vec3 face_normal = vec3(0.0);
     add_newell_cross_v3_v3v3(face_normal, v0, v1);
