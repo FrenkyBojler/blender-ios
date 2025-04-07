@@ -400,6 +400,9 @@ void import_meshes(Main &bmain,
     for (const ufbx_node *node : fmesh->instances) {
       Object *obj = BKE_object_add_only_object(&bmain, OB_MESH, get_fbx_name(node->name));
       obj->data = mesh_main;
+      if (!node->visible) {
+        obj->visibility_flag |= OB_HIDE_VIEWPORT;
+      }
 
       if (any_shapes) {
         obj->shapenr = 1;

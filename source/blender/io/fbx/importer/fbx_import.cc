@@ -150,7 +150,9 @@ void FbxImportContext::import_cameras()
 
     Object *obj = BKE_object_add_only_object(this->bmain, OB_CAMERA, get_fbx_name(node->name));
     obj->data = bcam;
-
+    if (!node->visible) {
+      obj->visibility_flag |= OB_HIDE_VIEWPORT;
+    }
     if (this->params.use_custom_props) {
       read_custom_properties(node->props, obj->id, this->params.props_enum_as_string);
     }
@@ -198,6 +200,9 @@ void FbxImportContext::import_lights()
 
     Object *obj = BKE_object_add_only_object(this->bmain, OB_LAMP, get_fbx_name(node->name));
     obj->data = lamp;
+    if (!node->visible) {
+      obj->visibility_flag |= OB_HIDE_VIEWPORT;
+    }
 
     if (this->params.use_custom_props) {
       read_custom_properties(node->props, obj->id, this->params.props_enum_as_string);
@@ -222,6 +227,9 @@ void FbxImportContext::import_empties()
     }
     Object *obj = BKE_object_add_only_object(this->bmain, OB_EMPTY, get_fbx_name(node->name));
     obj->data = nullptr;
+    if (!node->visible) {
+      obj->visibility_flag |= OB_HIDE_VIEWPORT;
+    }
     if (this->params.use_custom_props) {
       read_custom_properties(node->props, obj->id, this->params.props_enum_as_string);
     }
