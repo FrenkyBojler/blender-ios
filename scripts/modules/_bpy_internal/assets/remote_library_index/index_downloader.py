@@ -281,7 +281,9 @@ class BackgroundDownloader:
         self.num_downloads_ok += 1
 
     def _mark_download_done(self) -> None:
-        self._num_pending_downloads = max(0, self._num_pending_downloads - 1)
+        """Reduce the number of pending downloads."""
+        self._num_pending_downloads -= 1
+        assert self._num_pending_downloads >= 0, "downloaded more files than were queued"
 
 
 # Ignore the type of the `subparsers` argument, because there doesn't seem
