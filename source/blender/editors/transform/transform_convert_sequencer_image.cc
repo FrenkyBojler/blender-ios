@@ -38,6 +38,8 @@ struct TransDataSeq {
   float orig_translation[2];
   float orig_scale[2];
   float orig_rotation;
+  float2 orig_mirror;
+  int orig_flag;
 };
 
 static TransData *SeqToTransData(const Scene *scene,
@@ -50,6 +52,7 @@ static TransData *SeqToTransData(const Scene *scene,
   const StripTransform *transform = strip->data->transform;
   const float2 origin = seq::image_transform_origin_offset_pixelspace_get(scene, strip);
   float vertex[2] = {origin[0], origin[1]};
+  const float2 mirror = seq::image_transform_mirror_factor_get(strip);
 
   /* Add control vertex, so rotation and scale can be calculated.
    * All three vertices will form a "L" shape that is aligned to the local strip axis.
@@ -85,6 +88,8 @@ static TransData *SeqToTransData(const Scene *scene,
   tdseq->orig_scale[0] = transform->scale_x;
   tdseq->orig_scale[1] = transform->scale_y;
   tdseq->orig_rotation = transform->rotation;
+  tdseq->orig_mirror = mirror;
+  tdseq->orig_flag = strip->flag;
 
   td->extra = (void *)tdseq;
   td->ext = nullptr;
@@ -245,6 +250,45 @@ static void recalcData_sequencer_image(TransInfo *t)
       transform->rotation = tdseq->orig_rotation - t->values_final[0];
     }
 
+    if (t->mode == TFM_MIRROR) {
+
+      switch (t->orient_curr) {
+        case O_DEFAULT:
+          transform->xofs = tdseq->orig_translation[0];
+          transform->yofs = tdseq->orig_translation[1];
+          transform->rotation = tdseq->orig_rotation;
+          strip->flag = tdseq->orig_flag;
+          break;
+
+        case O_SET:
+          transform->xofs *= t->values_final[0];
+          transform->yofs *= t->values_final[1];
+          transform->rotation = -tdseq->orig_rotation;
+          break;
+
+        default:
+          if (t->values_final[0] == -1 && tdseq->orig_mirror[0] == mirror[0]) {
+            strip->flag = tdseq->orig_flag;
+            strip->flag ^= SEQ_FLIPX;
+          }
+          if (t->values_final[1] == -1 && tdseq->orig_mirror[1] == mirror[1]) {
+            strip->flag = tdseq->orig_flag;
+            strip->flag ^= SEQ_FLIPY;
+          }
+          if ((strip->flag & SEQ_FLIPX) != (tdseq->orig_flag & SEQ_FLIPX)) {
+            transform->xofs = -transform->xofs;
+            transform->yofs = transform->yofs;
+            transform->rotation = tdseq->orig_rotation;
+          }
+          if ((strip->flag & SEQ_FLIPY) != (tdseq->orig_flag & SEQ_FLIPY)) {
+            transform->xofs = transform->xofs;
+            transform->yofs = -transform->yofs;
+            transform->rotation = tdseq->orig_rotation;
+          }
+          break;
+      }
+    }
+
     if ((t->animtimer) && animrig::is_autokey_on(t->scene)) {
       animrecord_check_state(t, &t->scene->id);
       autokeyframe_sequencer_image(t->context, t->scene, transform, t->mode);
@@ -269,6 +313,12 @@ static void special_aftertrans_update__sequencer_image(bContext * /*C*/, TransIn
     if (t->state == TRANS_CANCEL) {
       if (t->mode == TFM_ROTATION) {
         transform->rotation = tdseq->orig_rotation;
+      }
+      if (t->mode == TFM_MIRROR) {
+        transform->xofs = tdseq->orig_translation[0];
+        transform->yofs = tdseq->orig_translation[1];
+        transform->rotation = tdseq->orig_rotation;
+        strip->flag = tdseq->orig_flag;
       }
       continue;
     }
