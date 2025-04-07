@@ -101,8 +101,8 @@ VariableMap BKE_build_blender_variables(const char *blend_file_path, const Rende
     const char *file_name_end = BLI_path_extension_or_end(file_name);
     if (file_name[0] == '\0') {
       /* If the file has never been saved (indicated by an empty file name),
-       * default to "Untitled". */
-      variables.add_string("blend_name", blender::StringRef(DATA_("Untitled")));
+       * default to "Unsaved". */
+      variables.add_string("blend_name", blender::StringRef(DATA_("Unsaved")));
     }
     else if (file_name_end == file_name) {
       /* When the filename has no extension, but starts with a period. */
