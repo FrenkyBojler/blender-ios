@@ -153,6 +153,10 @@ struct Depsgraph {
    * to read stuff from. */
   bool is_active;
 
+  /* Allow adding write callbacks that write back to original data. If this flag is not set any
+   * callbacks will be discarded. */
+  bool use_writeback_callbacks;
+
   /* Optimize out evaluation of operations which affect hidden objects or disabled modifiers. */
   bool use_visibility_optimization;
 

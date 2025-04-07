@@ -14,7 +14,7 @@ namespace blender::deg::sync_writeback {
 void add(::Depsgraph &depsgraph, std::function<void()> fn)
 {
   deg::Depsgraph &deg_graph = reinterpret_cast<deg::Depsgraph &>(depsgraph);
-  if (!deg_graph.is_active) {
+  if (!deg_graph.is_active || !deg_graph.use_writeback_callbacks) {
     return;
   }
 
