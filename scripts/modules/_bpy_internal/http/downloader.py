@@ -160,7 +160,7 @@ class ThreadBridgingReporter(CachingDownloadReporter):
                 function = getattr(reporter, function_name)
                 function(*function_arguments)
 
-        return self._queue.empty()
+        return not self._queue.empty()
 
     def download_starts(self, http_req_descr: RequestDescription) -> None:
         self._queue_call('download_starts', http_req_descr)
