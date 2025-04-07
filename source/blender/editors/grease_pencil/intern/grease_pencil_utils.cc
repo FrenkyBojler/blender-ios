@@ -741,7 +741,6 @@ Array<Vector<MutableDrawingInfo>> retrieve_editable_drawings_grouped_per_frame(
 
   /* Get a set of unique frame numbers with editable drawings on them. */
   VectorSet<int> selected_frames;
-  int frame_min = current_frame, frame_max = current_frame;
   Span<const Layer *> layers = grease_pencil.layers();
   if (use_multi_frame_editing) {
     for (const int layer_i : layers.index_range()) {
@@ -752,24 +751,11 @@ Array<Vector<MutableDrawingInfo>> retrieve_editable_drawings_grouped_per_frame(
       for (const auto [frame_number, frame] : layer.frames().items()) {
         if (frame_number != current_frame && frame.is_selected()) {
           selected_frames.add(frame_number);
-          frame_min = math::min(frame_min, frame_number);
-          frame_max = math::max(frame_max, frame_number);
         }
       }
     }
   }
   selected_frames.add(current_frame);
-
-  /* Get multi frame falloff factor per selected frame. */
-  Array<float> falloff_per_selected_frame(selected_frames.size(), 1.0f);
-  if (use_multi_frame_falloff) {
-    int frame_group = 0;
-    for (const int frame_number : selected_frames) {
-      falloff_per_selected_frame[frame_group] = get_multi_frame_falloff(
-          frame_number, current_frame, frame_min, frame_max, toolsettings->gp_sculpt.cur_falloff);
-      frame_group++;
-    }
-  }
 
   /* Get drawings grouped per frame. */
   Array<Vector<MutableDrawingInfo>> drawings_grouped_per_frame(selected_frames.size());
@@ -779,6 +765,9 @@ Array<Vector<MutableDrawingInfo>> retrieve_editable_drawings_grouped_per_frame(
     if (!layer.is_editable()) {
       continue;
     }
+    const std::optional<Bounds<int>> frame_bounds = get_selected_frame_number_bounds(layer);
+    const int active_frame = get_active_frame_for_falloff(layer, frame_bounds, current_frame);
+
     /* In multi frame editing mode, add drawings at selected frames. */
     if (use_multi_frame_editing) {
       for (const auto [frame_number, frame] : layer.frames().items()) {
@@ -786,9 +775,15 @@ Array<Vector<MutableDrawingInfo>> retrieve_editable_drawings_grouped_per_frame(
         if (!frame.is_selected() || drawing == nullptr || added_drawings.contains(drawing)) {
           continue;
         }
+        const float falloff = frame_bounds ?
+                                  get_multi_frame_falloff(frame_number,
+                                                          active_frame,
+                                                          frame_bounds->min,
+                                                          frame_bounds->max,
+                                                          toolsettings->gp_sculpt.cur_falloff) :
+                                  1.0f;
         const int frame_group = selected_frames.index_of(frame_number);
-        drawings_grouped_per_frame[frame_group].append(
-            {*drawing, layer_i, frame_number, falloff_per_selected_frame[frame_group]});
+        drawings_grouped_per_frame[frame_group].append({*drawing, layer_i, frame_number, falloff});
         added_drawings.add_new(drawing);
       }
     }
@@ -796,9 +791,16 @@ Array<Vector<MutableDrawingInfo>> retrieve_editable_drawings_grouped_per_frame(
     /* Add drawing at current frame. */
     Drawing *current_drawing = grease_pencil.get_drawing_at(layer, current_frame);
     if (current_drawing != nullptr && !added_drawings.contains(current_drawing)) {
+      const float falloff = frame_bounds ?
+                                get_multi_frame_falloff(current_frame,
+                                                        active_frame,
+                                                        frame_bounds->min,
+                                                        frame_bounds->max,
+                                                        toolsettings->gp_sculpt.cur_falloff) :
+                                1.0f;
       const int frame_group = selected_frames.index_of(current_frame);
       drawings_grouped_per_frame[frame_group].append(
-          {*current_drawing, layer_i, current_frame, falloff_per_selected_frame[frame_group]});
+          {*current_drawing, layer_i, current_frame, falloff});
       added_drawings.add_new(current_drawing);
     }
   }
