@@ -171,9 +171,7 @@ void channel_draw_context_init(const bContext *C,
 
 /* `sequencer_edit.cc` */
 
-void strip_rectf(const Scene *scene, const Strip *strip, rctf *r_rect);
-Strip *find_neighboring_sequence(Scene *scene, Strip *test, int lr, int sel);
-void recurs_sel_seq(Strip *strip_meta);
+void slip_modal_keymap(wmKeyConfig *keyconf);
 bool strip_effect_get_new_inputs(Scene *scene,
                                  bool ignore_active,
                                  int num_inputs,
@@ -260,6 +258,10 @@ void SEQUENCER_OT_cursor_set(wmOperatorType *ot);
 void SEQUENCER_OT_scene_frame_range_update(wmOperatorType *ot);
 
 /* `sequencer_select.cc` */
+
+void strip_rectf(const Scene *scene, const Strip *strip, rctf *r_rect);
+Strip *find_neighboring_sequence(Scene *scene, Strip *test, int lr, int sel);
+void recurs_sel_seq(Strip *strip_meta);
 
 void SEQUENCER_OT_select_all(wmOperatorType *ot);
 void SEQUENCER_OT_select(wmOperatorType *ot);
