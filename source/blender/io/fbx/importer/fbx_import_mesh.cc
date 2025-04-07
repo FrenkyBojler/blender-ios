@@ -406,10 +406,10 @@ void import_meshes(Main &bmain,
       }
 
       bool matrix_already_set = false;
-      Object *parent_to_arm = nullptr;
 
       /* Skinned mesh. */
       if (skin != nullptr && skin->clusters.count > 0) {
+        Object *parent_to_arm = nullptr;
         /* Add vertex groups to the object. */
         for (const ufbx_skin_cluster *fcluster : skin->clusters) {
           if (fcluster->num_weights == 0) { /* Do not add groups for empty clusters. */

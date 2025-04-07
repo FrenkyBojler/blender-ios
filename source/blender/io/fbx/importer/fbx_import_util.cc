@@ -74,44 +74,37 @@ void ufbx_matrix_to_obj(const ufbx_matrix &mtx, Object *obj)
 
 void node_matrix_to_obj(const ufbx_node *node, Object *obj, const FbxElementMapping &mapping)
 {
-  /* Handle case of an object parented to a bone. */
-  if (obj->parent == nullptr && node->parent && node->parent->bone) {
-    Object *arm = mapping.bone_to_armature.lookup_default(node->parent, nullptr);
+  ufbx_matrix mtx = ufbx_matrix_mul(node->node_depth < 2 ? &node->node_to_world :
+                                                           &node->node_to_parent,
+                                    &node->geometry_to_node);
+
+  /* Handle case of an object parented to a bone: need to set
+   * bone as parent, and make transform be at the end of the bone. */
+  const ufbx_node *parbone = node->parent;
+  if (obj->parent == nullptr && parbone && parbone->bone) {
+    Object *arm = mapping.bone_to_armature.lookup_default(parbone, nullptr);
     if (arm != nullptr) {
-      ufbx_matrix bone_to_world = mapping.bone_to_bind_matrix.lookup_default(node->parent,
-                                                                             ufbx_identity_matrix);
-      ufbx_matrix world_to_bone = ufbx_matrix_invert(&bone_to_world);
-      ufbx_matrix mtx = ufbx_matrix_mul(&node->node_to_world, &node->geometry_to_node);
-      mtx = ufbx_matrix_mul(&world_to_bone, &mtx);
-
       ufbx_matrix offset_mtx = ufbx_identity_matrix;
-      offset_mtx.cols[3].y = -mapping.bone_to_length.lookup_default(node->parent, 0.0);
-
+      offset_mtx.cols[3].y = -mapping.bone_to_length.lookup_default(parbone, 0.0);
       mtx = ufbx_matrix_mul(&offset_mtx, &mtx);
+
+      obj->parent = arm;
+      obj->partype = PARBONE;
+      STRNCPY(obj->parsubstr, get_fbx_name(parbone->name));
 
 #ifdef FBX_DEBUG_PRINT
       fprintf(g_debug_file,
               "parent CHILD %s to ARM %s BONE %s bone_child_mtx:\n",
               node->name.data,
               arm->id.name + 2,
-              node->parent->name.data);
+              parbone->name.data);
       print_matrix(offset_mtx);
       fprintf(g_debug_file, "- child matrix:\n");
       print_matrix(mtx);
 #endif
-
-      ufbx_matrix_to_obj(mtx, obj);
-
-      obj->parent = arm;
-      obj->partype = PARBONE;
-      STRNCPY(obj->parsubstr, get_fbx_name(node->parent->name));
-      return;
     }
   }
 
-  ufbx_matrix mtx = ufbx_matrix_mul(node->node_depth < 2 ? &node->node_to_world :
-                                                           &node->node_to_parent,
-                                    &node->geometry_to_node);
   ufbx_matrix_to_obj(mtx, obj);
 }
 
