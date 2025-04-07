@@ -2,3 +2,4 @@ Referenced by issue #136645, When marking multiple objects as assets, only the l
 Referenced by issue #136842, Blender 4.4 Mac/Linux - Blender hanging indefinitely trying to generate a preview
 Referenced by pull request #136918, Fix #136645: Regression: Preview generation fails for multiple IDs
 Referenced by commit b2950de4a2a7ebee058ee3b202b1c4998ed032ec, Fix #136645: Regression: Preview generation fails for multiple IDs
+Referenced by pull request #137110, Fix #136645: Regression: Preview generation fails for multiple IDs
