@@ -37,11 +37,6 @@ class DebugDraw {
   DebugDrawBuf *gpu_draw_buf_ = nullptr;
   /** True if the gpu buffer have been requested and may contain data to draw. */
   bool gpu_draw_buf_used = false;
-  /** Matrix applied to all points before drawing. Could be a stack if needed. */
-  float4x4 model_mat_;
-  /** Precomputed shapes verts. */
-  Vector<float3> sphere_verts_;
-  Vector<float3> point_verts_;
 
   /**
    * Ensure thread-safety when adding geometry to the CPU debug buffer.
@@ -65,32 +60,6 @@ class DebugDraw {
   void init();
 
   /**
-   * Resets model matrix state to identity.
-   */
-  void modelmat_reset();
-  /**
-   * Sets model matrix transform to apply to any vertex passed to drawing functions.
-   */
-  void modelmat_set(const float modelmat[4][4]);
-
-  /**
-   * Drawing functions that will draw wire-frames with the given color.
-   */
-  void draw_line(float3 v1, float3 v2, float4 color = {1, 0, 0, 1});
-  void draw_polygon(Span<float3> face_verts, float4 color = {1, 0, 0, 1});
-  void draw_bbox(const BoundBox &bbox, const float4 color = {1, 0, 0, 1});
-  void draw_sphere(const float3 center, float radius, const float4 color = {1, 0, 0, 1});
-  void draw_point(const float3 center, float radius = 0.01f, const float4 color = {1, 0, 0, 1});
-  /**
-   * Draw a matrix transformation as 3 colored axes.
-   */
-  void draw_matrix(const float4x4 &m4);
-  /**
-   * Draw a matrix as a 2 units length bounding box, centered on origin.
-   */
-  void draw_matrix_as_bbox(const float4x4 &mat, const float4 color = {1, 0, 0, 1});
-
-  /**
    * Will draw all debug shapes and text cached up until now to the current view / frame-buffer.
    * Draw buffers will be emptied and ready for new debug data.
    */
@@ -100,12 +69,6 @@ class DebugDraw {
    * Not to be called by user. Should become private.
    */
   GPUStorageBuf *gpu_draw_buf_get();
-
-  static DebugDraw &get()
-  {
-    static DebugDraw module;
-    return module;
-  }
 
   void acquire()
   {
@@ -122,45 +85,39 @@ class DebugDraw {
     }
   }
 
-  void clear_gpu_data();
-
- private:
-  uint color_pack(float4 color);
-  DRWDebugVert vert_pack(float3 pos, uint color);
+  static DebugDraw &get()
+  {
+    static DebugDraw module;
+    return module;
+  }
 
   void draw_line(float3 v1, float3 v2, uint color);
 
+  static uint color_pack(float4 color);
+
+ private:
+  DRWDebugVert vert_pack(float3 pos, uint color);
+
   void display_lines(View &view);
+
+  void clear_gpu_data();
 };
 
-/* Shortcuts to avoid boilerplate code and match shader API. */
-template<class... Types> void drw_debug_line(Types... args)
-{
-  DebugDraw::get().draw_line(args...);
-}
-template<class... Types> void drw_debug_polygon(Types... args)
-{
-  DebugDraw::get().draw_polygon(args...);
-}
-template<class... Types> void drw_debug_bbox(Types... args)
-{
-  DebugDraw::get().draw_bbox(args...);
-}
-template<class... Types> void drw_debug_sphere(Types... args)
-{
-  DebugDraw::get().draw_sphere(args...);
-}
-template<class... Types> void drw_debug_point(Types... args)
-{
-  DebugDraw::get().draw_point(args...);
-}
-template<class... Types> void drw_debug_matrix(Types... args)
-{
-  DebugDraw::get().draw_matrix(args...);
-}
-template<class... Types> void drw_debug_matrix_as_bbox(Types... args)
-{
-  DebugDraw::get().draw_matrix_as_bbox(args...);
-}
+/**
+ * Drawing functions that will draw wire-frames with the given color.
+ */
+void drw_debug_line(float3 v1, float3 v2, float4 color = {1, 0, 0, 1});
+void drw_debug_polygon(Span<float3> face_verts, float4 color = {1, 0, 0, 1});
+void drw_debug_bbox(const BoundBox &bbox, const float4 color = {1, 0, 0, 1});
+void drw_debug_sphere(const float3 center, float radius, const float4 color = {1, 0, 0, 1});
+void drw_debug_point(const float3 center, float radius = 0.01f, const float4 color = {1, 0, 0, 1});
+/**
+ * Draw a matrix transformation as 3 colored axes.
+ */
+void drw_debug_matrix(const float4x4 &m4);
+/**
+ * Draw a matrix as a 2 units length bounding box, centered on origin.
+ */
+void drw_debug_matrix_as_bbox(const float4x4 &mat, const float4 color = {1, 0, 0, 1});
 
 }  // namespace blender::draw

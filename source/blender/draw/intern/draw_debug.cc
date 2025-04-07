@@ -27,30 +27,6 @@ namespace blender::draw {
 
 DebugDraw::DebugDraw()
 {
-  constexpr int circle_resolution = 16;
-  for (auto axis : IndexRange(3)) {
-    for (auto edge : IndexRange(circle_resolution)) {
-      for (auto vert : IndexRange(2)) {
-        const float angle = (2 * M_PI) * (edge + vert) / float(circle_resolution);
-        const float point[3] = {cosf(angle), sinf(angle), 0.0f};
-        sphere_verts_.append(
-            float3(point[(0 + axis) % 3], point[(1 + axis) % 3], point[(2 + axis) % 3]));
-      }
-    }
-  }
-
-  constexpr int point_resolution = 4;
-  for (auto axis : IndexRange(3)) {
-    for (auto edge : IndexRange(point_resolution)) {
-      for (auto vert : IndexRange(2)) {
-        const float angle = (2 * M_PI) * (edge + vert) / float(point_resolution);
-        const float point[3] = {cosf(angle), sinf(angle), 0.0f};
-        point_verts_.append(
-            float3(point[(0 + axis) % 3], point[(1 + axis) % 3], point[(2 + axis) % 3]));
-      }
-    }
-  }
-
   init();
 };
 
@@ -73,18 +49,6 @@ void DebugDraw::init()
   gpu_draw_buf_->command.instance_len = 1;
   gpu_draw_buf_->command.instance_first_array = 0;
   gpu_draw_buf_used = false;
-
-  modelmat_reset();
-}
-
-void DebugDraw::modelmat_reset()
-{
-  model_mat_ = float4x4::identity();
-}
-
-void DebugDraw::modelmat_set(const float modelmat[4][4])
-{
-  model_mat_ = float4x4_view(modelmat);
 }
 
 GPUStorageBuf *DebugDraw::gpu_draw_buf_get()
@@ -112,61 +76,104 @@ void DebugDraw::clear_gpu_data()
 /** \name Draw functions
  * \{ */
 
-void DebugDraw::draw_line(float3 v1, float3 v2, float4 color)
+/**
+ * Drawing functions that will draw wire-frames with the given color.
+ */
+void drw_debug_line(float3 v1, float3 v2, float4 color)
 {
-  draw_line(v1, v2, color_pack(color));
+  DebugDraw &dd = DebugDraw::get();
+  dd.draw_line(v1, v2, DebugDraw::color_pack(color));
 }
 
-void DebugDraw::draw_polygon(Span<float3> face_verts, float4 color)
+void drw_debug_polygon(Span<float3> face_verts, float4 color)
 {
   BLI_assert(!face_verts.is_empty());
-
-  uint col = color_pack(color);
-  float3 v0 = math::transform_point(model_mat_, face_verts.last());
+  DebugDraw &dd = DebugDraw::get();
+  uint col = DebugDraw::color_pack(color);
+  float3 v0 = face_verts.last();
   for (auto vert : face_verts) {
-    float3 v1 = math::transform_point(model_mat_, vert);
-    draw_line(v0, v1, col);
+    float3 v1 = vert;
+    dd.draw_line(v0, v1, col);
     v0 = v1;
   }
 }
 
-void DebugDraw::draw_matrix(const float4x4 &m4)
+void drw_debug_bbox(const BoundBox &bbox, const float4 color)
 {
-  float3 v0 = float3(0.0f, 0.0f, 0.0f);
-  float3 v1 = float3(1.0f, 0.0f, 0.0f);
-  float3 v2 = float3(0.0f, 1.0f, 0.0f);
-  float3 v3 = float3(0.0f, 0.0f, 1.0f);
+  DebugDraw &dd = DebugDraw::get();
+  uint col = DebugDraw::color_pack(color);
+  dd.draw_line(bbox.vec[0], bbox.vec[1], col);
+  dd.draw_line(bbox.vec[1], bbox.vec[2], col);
+  dd.draw_line(bbox.vec[2], bbox.vec[3], col);
+  dd.draw_line(bbox.vec[3], bbox.vec[0], col);
 
-  mul_project_m4_v3(m4.ptr(), v0);
-  mul_project_m4_v3(m4.ptr(), v1);
-  mul_project_m4_v3(m4.ptr(), v2);
-  mul_project_m4_v3(m4.ptr(), v3);
+  dd.draw_line(bbox.vec[4], bbox.vec[5], col);
+  dd.draw_line(bbox.vec[5], bbox.vec[6], col);
+  dd.draw_line(bbox.vec[6], bbox.vec[7], col);
+  dd.draw_line(bbox.vec[7], bbox.vec[4], col);
 
-  draw_line(v0, v1, float4(1.0f, 0.0f, 0.0f, 1.0f));
-  draw_line(v0, v2, float4(0.0f, 1.0f, 0.0f, 1.0f));
-  draw_line(v0, v3, float4(0.0f, 0.0f, 1.0f, 1.0f));
+  dd.draw_line(bbox.vec[0], bbox.vec[4], col);
+  dd.draw_line(bbox.vec[1], bbox.vec[5], col);
+  dd.draw_line(bbox.vec[2], bbox.vec[6], col);
+  dd.draw_line(bbox.vec[3], bbox.vec[7], col);
 }
 
-void DebugDraw::draw_bbox(const BoundBox &bbox, const float4 color)
+static Vector<float3> precompute_sphere_points(int circle_resolution)
 {
-  uint col = color_pack(color);
-  draw_line(bbox.vec[0], bbox.vec[1], col);
-  draw_line(bbox.vec[1], bbox.vec[2], col);
-  draw_line(bbox.vec[2], bbox.vec[3], col);
-  draw_line(bbox.vec[3], bbox.vec[0], col);
-
-  draw_line(bbox.vec[4], bbox.vec[5], col);
-  draw_line(bbox.vec[5], bbox.vec[6], col);
-  draw_line(bbox.vec[6], bbox.vec[7], col);
-  draw_line(bbox.vec[7], bbox.vec[4], col);
-
-  draw_line(bbox.vec[0], bbox.vec[4], col);
-  draw_line(bbox.vec[1], bbox.vec[5], col);
-  draw_line(bbox.vec[2], bbox.vec[6], col);
-  draw_line(bbox.vec[3], bbox.vec[7], col);
+  Vector<float3> result;
+  for (auto axis : IndexRange(3)) {
+    for (auto edge : IndexRange(circle_resolution)) {
+      for (auto vert : IndexRange(2)) {
+        const float angle = (2 * M_PI) * (edge + vert) / float(circle_resolution);
+        const float point[3] = {cosf(angle), sinf(angle), 0.0f};
+        result.append(float3(point[(0 + axis) % 3], point[(1 + axis) % 3], point[(2 + axis) % 3]));
+      }
+    }
+  }
+  return result;
 }
 
-void DebugDraw::draw_matrix_as_bbox(const float4x4 &mat, const float4 color)
+void drw_debug_sphere(const float3 center, float radius, const float4 color)
+{
+  /** Precomputed shapes verts. */
+  static Vector<float3> sphere_verts = precompute_sphere_points(16);
+
+  DebugDraw &dd = DebugDraw::get();
+  uint col = DebugDraw::color_pack(color);
+  for (auto i : IndexRange(sphere_verts.size() / 2)) {
+    float3 v0 = sphere_verts[i * 2] * radius + center;
+    float3 v1 = sphere_verts[i * 2 + 1] * radius + center;
+    dd.draw_line(v0, v1, col);
+  }
+}
+
+void drw_debug_point(const float3 center, float radius, const float4 color)
+{
+  static Vector<float3> point_verts = precompute_sphere_points(4);
+
+  DebugDraw &dd = DebugDraw::get();
+  uint col = DebugDraw::color_pack(color);
+  for (auto i : IndexRange(point_verts.size() / 2)) {
+    float3 v0 = point_verts[i * 2] * radius + center;
+    float3 v1 = point_verts[i * 2 + 1] * radius + center;
+    dd.draw_line(v0, v1, col);
+  }
+}
+
+void drw_debug_matrix(const float4x4 &m4)
+{
+  float3 v0 = math::transform_point(m4, float3(0.0f, 0.0f, 0.0f));
+  float3 v1 = math::transform_point(m4, float3(1.0f, 0.0f, 0.0f));
+  float3 v2 = math::transform_point(m4, float3(0.0f, 1.0f, 0.0f));
+  float3 v3 = math::transform_point(m4, float3(0.0f, 0.0f, 1.0f));
+
+  DebugDraw &dd = DebugDraw::get();
+  dd.draw_line(v0, v1, DebugDraw::color_pack(float4(1.0f, 0.0f, 0.0f, 1.0f)));
+  dd.draw_line(v0, v2, DebugDraw::color_pack(float4(0.0f, 1.0f, 0.0f, 1.0f)));
+  dd.draw_line(v0, v3, DebugDraw::color_pack(float4(0.0f, 0.0f, 1.0f, 1.0f)));
+}
+
+void drw_debug_matrix_as_bbox(const float4x4 &mat, const float4 color)
 {
   BoundBox bb;
   const float min[3] = {-1.0f, -1.0f, -1.0f}, max[3] = {1.0f, 1.0f, 1.0f};
@@ -174,27 +181,7 @@ void DebugDraw::draw_matrix_as_bbox(const float4x4 &mat, const float4 color)
   for (auto i : IndexRange(8)) {
     mul_project_m4_v3(mat.ptr(), bb.vec[i]);
   }
-  draw_bbox(bb, color);
-}
-
-void DebugDraw::draw_sphere(const float3 center, float radius, const float4 color)
-{
-  uint col = color_pack(color);
-  for (auto i : IndexRange(sphere_verts_.size() / 2)) {
-    float3 v0 = sphere_verts_[i * 2] * radius + center;
-    float3 v1 = sphere_verts_[i * 2 + 1] * radius + center;
-    draw_line(v0, v1, col);
-  }
-}
-
-void DebugDraw::draw_point(const float3 center, float radius, const float4 color)
-{
-  uint col = color_pack(color);
-  for (auto i : IndexRange(point_verts_.size() / 2)) {
-    float3 v0 = point_verts_[i * 2] * radius + center;
-    float3 v1 = point_verts_[i * 2 + 1] * radius + center;
-    draw_line(v0, v1, col);
-  }
+  drw_debug_bbox(bb, color);
 }
 
 /** \} */
@@ -211,8 +198,8 @@ void DebugDraw::draw_line(float3 v1, float3 v2, uint color)
   DebugDrawBuf &buf = *cpu_draw_buf_;
   uint index = vertex_len_.fetch_add(2);
   if (index + 2 < DRW_DEBUG_DRAW_VERT_MAX) {
-    buf.verts[index + 0] = vert_pack(math::transform_point(model_mat_, v1), color);
-    buf.verts[index + 1] = vert_pack(math::transform_point(model_mat_, v2), color);
+    buf.verts[index + 0] = vert_pack(v1, color);
+    buf.verts[index + 1] = vert_pack(v2, color);
     buf.command.vertex_len += 2;
   }
 }
