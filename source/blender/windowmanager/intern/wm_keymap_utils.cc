@@ -410,6 +410,9 @@ wmKeyMap *WM_keymap_guess_opname(const bContext *C, const char *opname)
         km = nullptr;
       }
     }
+    else if (sl->spacetype == SPACE_PROPERTIES) {
+      km = WM_keymap_find_all(wm, "User Interface", SPACE_EMPTY, RGN_TYPE_WINDOW);
+    }
 
     if (!km) {
       km = WM_keymap_find_all(wm, "Animation", SPACE_EMPTY, RGN_TYPE_WINDOW);
