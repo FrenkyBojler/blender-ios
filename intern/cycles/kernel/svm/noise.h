@@ -706,8 +706,9 @@ ccl_device_inline float noise_1d(const float p)
 
 ccl_device_inline float snoise_2d(float2 p)
 {
-  const float2 precision_correction = 0.5f * make_float2(float(fabsf(p.x) >= 1000000.0f),
-                                                         float(fabsf(p.y) >= 1000000.0f));
+  const float2 abs_p = fabs(p);
+  const float2 precision_correction = 0.5f * make_float2(float(abs_p.x >= 1000000.0f),
+                                                         float(abs_p.y >= 1000000.0f));
   /* Repeat Perlin noise texture every 100000.0f on each axis to prevent floating point
    * representation issues. This causes discontinuities every 100000.0f, however at such scales
    * this usually shouldn't be noticeable. */
@@ -723,9 +724,10 @@ ccl_device_inline float noise_2d(const float2 p)
 
 ccl_device_inline float snoise_3d(float3 p)
 {
-  const float3 precision_correction = 0.5f * make_float3(float(fabsf(p.x) >= 1000000.0f),
-                                                         float(fabsf(p.y) >= 1000000.0f),
-                                                         float(fabsf(p.z) >= 1000000.0f));
+  const float3 abs_p = fabs(p);
+  const float3 precision_correction = 0.5f * make_float3(float(abs_p.x >= 1000000.0f),
+                                                         float(abs_p.y >= 1000000.0f),
+                                                         float(abs_p.z >= 1000000.0f));
   /* Repeat Perlin noise texture every 100000.0f on each axis to prevent floating point
    * representation issues. This causes discontinuities every 100000.0f, however at such scales
    * this usually shouldn't be noticeable. */
@@ -741,10 +743,11 @@ ccl_device_inline float noise_3d(const float3 p)
 
 ccl_device_inline float snoise_4d(float4 p)
 {
-  const float4 precision_correction = 0.5f * make_float4(float(fabsf(p.x) >= 1000000.0f),
-                                                         float(fabsf(p.y) >= 1000000.0f),
-                                                         float(fabsf(p.z) >= 1000000.0f),
-                                                         float(fabsf(p.w) >= 1000000.0f));
+  const float4 abs_p = fabs(p);
+  const float4 precision_correction = 0.5f * make_float4(float(abs_p.x >= 1000000.0f),
+                                                         float(abs_p.y >= 1000000.0f),
+                                                         float(abs_p.z >= 1000000.0f),
+                                                         float(abs_p.w >= 1000000.0f));
   /* Repeat Perlin noise texture every 100000.0f on each axis to prevent floating point
    * representation issues. This causes discontinuities every 100000.0f, however at such scales
    * this usually shouldn't be noticeable. */
