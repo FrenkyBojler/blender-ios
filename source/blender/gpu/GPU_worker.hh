@@ -28,8 +28,11 @@ class GPUWorker {
 
  public:
   enum class ContextType {
+    /* Use the main GPU context on the worker threads. */
     Main,
+    /* Use the same secondary GPU context on all the worker threads. */
     Shared,
+    /* Use a different secondary GPU context for each worker thread. */
     PerThread,
   };
 
