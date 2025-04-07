@@ -2094,15 +2094,17 @@ void RE_RenderFrame(Render *re,
       }
       else {
         char filepath_override[FILE_MAX];
+        const char *relbase = BKE_main_blendfile_path(bmain);
+        const VariableMap variables = BKE_build_blender_variables(relbase, &scene->r);
         BKE_image_path_from_imformat(filepath_override,
                                      rd.pic,
-                                     BKE_main_blendfile_path(bmain),
+                                     relbase,
+                                     &variables,
                                      scene->r.cfra,
                                      &rd.im_format,
                                      (rd.scemode & R_EXTENSION) != 0,
                                      false,
-                                     nullptr,
-                                     &scene->r);
+                                     nullptr);
         do_write_image_or_movie(re, bmain, scene, 0, filepath_override);
       }
     }
@@ -2316,15 +2318,17 @@ static bool do_write_image_or_movie(
         STRNCPY(filepath, filepath_override);
       }
       else {
+        const char *relbase = BKE_main_blendfile_path(bmain);
+        const VariableMap variables = BKE_build_blender_variables(relbase, &scene->r);
         BKE_image_path_from_imformat(filepath,
                                      scene->r.pic,
-                                     BKE_main_blendfile_path(bmain),
+                                     relbase,
+                                     &variables,
                                      scene->r.cfra,
                                      &scene->r.im_format,
                                      (scene->r.scemode & R_EXTENSION) != 0,
                                      true,
-                                     nullptr,
-                                     &scene->r);
+                                     nullptr);
       }
 
       /* write images as individual images or stereo */
@@ -2510,15 +2514,17 @@ void RE_RenderAnim(Render *re,
     /* Touch/NoOverwrite options are only valid for image's */
     if (is_movie == false && do_write_file) {
       if (rd.mode & (R_NO_OVERWRITE | R_TOUCH)) {
+        const char *relbase = BKE_main_blendfile_path(bmain);
+        const VariableMap variables = BKE_build_blender_variables(relbase, &rd);
         BKE_image_path_from_imformat(filepath,
                                      rd.pic,
                                      BKE_main_blendfile_path(bmain),
+                                     &variables,
                                      scene->r.cfra,
                                      &rd.im_format,
                                      (rd.scemode & R_EXTENSION) != 0,
                                      true,
-                                     nullptr,
-                                     &scene->r);
+                                     nullptr);
       }
 
       if (rd.mode & R_NO_OVERWRITE) {

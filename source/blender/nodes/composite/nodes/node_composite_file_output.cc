@@ -878,31 +878,37 @@ class FileOutputOperation : public NodeOperation {
                                    const ImageFormatData &format,
                                    char *image_path)
   {
+    const RenderData &render_data = context().get_render_data();
+    const char *relbase = BKE_main_blendfile_path_from_global();
+    const VariableMap variables = BKE_build_blender_variables(relbase, &render_data);
     BKE_image_path_from_imformat(image_path,
                                  base_path,
-                                 BKE_main_blendfile_path_from_global(),
+                                 relbase,
+                                 &variables,
                                  context().get_frame_number(),
                                  &format,
                                  use_file_extension(),
                                  true,
-                                 nullptr,
-                                 &context().get_render_data());
+                                 nullptr);
   }
 
   /* Get the path of the EXR image to be saved. If the given view is not empty, its corresponding
    * file suffix will be appended to the name. */
   void get_multi_layer_exr_image_path(const char *base_path, const char *view, char *image_path)
   {
-    const char *suffix = BKE_scene_multiview_view_suffix_get(&context().get_render_data(), view);
+    const RenderData &render_data = context().get_render_data();
+    const char *suffix = BKE_scene_multiview_view_suffix_get(&render_data, view);
+    const char *relbase = BKE_main_blendfile_path_from_global();
+    const VariableMap variables = BKE_build_blender_variables(relbase, &render_data);
     BKE_image_path_from_imtype(image_path,
                                base_path,
                                BKE_main_blendfile_path_from_global(),
+                               &variables,
                                context().get_frame_number(),
                                R_IMF_IMTYPE_MULTILAYER,
                                use_file_extension(),
                                true,
-                               suffix,
-                               &context().get_render_data());
+                               suffix);
   }
 
   bool is_multi_layer()

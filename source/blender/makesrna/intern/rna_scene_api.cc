@@ -111,15 +111,17 @@ static void rna_SceneRender_get_frame_path(
     MOV_filepath_from_settings(filepath, rd, preview != 0, suffix);
   }
   else {
+    const char *relbase = BKE_main_blendfile_path(bmain);
+    const VariableMap variables = BKE_build_blender_variables(relbase, rd);
     BKE_image_path_from_imformat(filepath,
                                  rd->pic,
-                                 BKE_main_blendfile_path(bmain),
+                                 relbase,
+                                 &variables,
                                  (frame == INT_MIN) ? rd->cfra : frame,
                                  &rd->im_format,
                                  (rd->scemode & R_EXTENSION) != 0,
                                  true,
-                                 suffix,
-                                 rd);
+                                 suffix);
   }
 }
 

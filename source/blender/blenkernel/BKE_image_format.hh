@@ -10,6 +10,8 @@
 
 #include <cstddef>
 
+#include "BKE_variables.hh"
+
 struct BlendDataReader;
 struct BlendWriter;
 struct ID;
@@ -37,24 +39,24 @@ void BKE_image_format_set(ImageFormatData *imf, ID *owner_id, const char imtype)
 
 /* File Paths */
 
-void BKE_image_path_from_imformat(char *filepath,
-                                  const char *base,
-                                  const char *relbase,
-                                  int frame,
-                                  const ImageFormatData *im_format,
-                                  bool use_ext,
-                                  bool use_frames,
-                                  const char *suffix,
-                                  const RenderData *render_data);
-void BKE_image_path_from_imtype(char *filepath,
-                                const char *base,
-                                const char *relbase,
-                                int frame,
-                                char imtype,
-                                bool use_ext,
-                                bool use_frames,
-                                const char *suffix,
-                                const RenderData *render_data);
+blender::Vector<VariableParseError> BKE_image_path_from_imformat(char *filepath,
+                                                                 const char *base,
+                                                                 const char *relbase,
+                                                                 const VariableMap *variables,
+                                                                 int frame,
+                                                                 const ImageFormatData *im_format,
+                                                                 bool use_ext,
+                                                                 bool use_frames,
+                                                                 const char *suffix);
+blender::Vector<VariableParseError> BKE_image_path_from_imtype(char *filepath,
+                                                               const char *base,
+                                                               const char *relbase,
+                                                               const VariableMap *variables,
+                                                               int frame,
+                                                               char imtype,
+                                                               bool use_ext,
+                                                               bool use_frames,
+                                                               const char *suffix);
 
 /**
  * The number of extensions an image may have (`.jpg`, `.jpeg` for example).

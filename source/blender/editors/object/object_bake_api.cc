@@ -927,11 +927,11 @@ static bool bake_targets_output_external(const BakeAPIRender *bkr,
     BKE_image_path_from_imtype(filepath,
                                bkr->filepath,
                                BKE_main_blendfile_path(bkr->main),
+                               nullptr,
                                0,
                                bake->im_format.imtype,
                                true,
                                false,
-                               nullptr,
                                nullptr);
 
     if (bkr->is_automatic_name) {

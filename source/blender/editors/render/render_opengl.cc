@@ -415,15 +415,17 @@ static void screen_opengl_render_write(OGLRender *oglrender)
 
   rr = RE_AcquireResultRead(oglrender->re);
 
+  const char *relbase = BKE_main_blendfile_path(oglrender->bmain);
+  const VariableMap variables = BKE_build_blender_variables(relbase, &scene->r);
   BKE_image_path_from_imformat(filepath,
                                scene->r.pic,
-                               BKE_main_blendfile_path(oglrender->bmain),
+                               relbase,
+                               &variables,
                                scene->r.cfra,
                                &scene->r.im_format,
                                (scene->r.scemode & R_EXTENSION) != 0,
                                false,
-                               nullptr,
-                               &scene->r);
+                               nullptr);
 
   /* write images as individual images or stereo */
   BKE_render_result_stamp_info(scene, scene->camera, rr, false);
@@ -1037,15 +1039,17 @@ static void write_result(TaskPool *__restrict pool, WriteTaskData *task_data)
      * calculate file name again here.
      */
     char filepath[FILE_MAX];
+    const char *relbase = BKE_main_blendfile_path(oglrender->bmain);
+    const VariableMap variables = BKE_build_blender_variables(relbase, &scene->r);
     BKE_image_path_from_imformat(filepath,
                                  scene->r.pic,
-                                 BKE_main_blendfile_path(oglrender->bmain),
+                                 relbase,
+                                 &variables,
                                  cfra,
                                  &scene->r.im_format,
                                  (scene->r.scemode & R_EXTENSION) != 0,
                                  true,
-                                 nullptr,
-                                 &scene->r);
+                                 nullptr);
 
     BKE_render_result_stamp_info(scene, scene->camera, rr, false);
     ok = BKE_image_render_write(nullptr, rr, scene, true, filepath);
@@ -1127,15 +1131,17 @@ static bool screen_opengl_render_anim_step(OGLRender *oglrender)
   is_movie = BKE_imtype_is_movie(scene->r.im_format.imtype);
 
   if (!is_movie) {
+    const char *relbase = BKE_main_blendfile_path(oglrender->bmain);
+    const VariableMap variables = BKE_build_blender_variables(relbase, &scene->r);
     BKE_image_path_from_imformat(filepath,
                                  scene->r.pic,
-                                 BKE_main_blendfile_path(oglrender->bmain),
+                                 relbase,
+                                 &variables,
                                  scene->r.cfra,
                                  &scene->r.im_format,
                                  (scene->r.scemode & R_EXTENSION) != 0,
                                  true,
-                                 nullptr,
-                                 &scene->r);
+                                 nullptr);
 
     if ((scene->r.mode & R_NO_OVERWRITE) && BLI_exists(filepath)) {
       {

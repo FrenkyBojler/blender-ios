@@ -602,24 +602,31 @@ int BKE_image_path_ext_from_imtype_ensure(char *filepath,
   return do_ensure_image_extension(filepath, filepath_maxncpy, imtype, nullptr);
 }
 
-static void do_makepicstring(char filepath[FILE_MAX],
-                             const char *base,
-                             const char *relbase,
-                             int frame,
-                             const char imtype,
-                             const ImageFormatData *im_format,
-                             const bool use_ext,
-                             const bool use_frames,
-                             const char *suffix,
-                             const RenderData *render_data)
+static blender::Vector<VariableParseError> do_makepicstring(char filepath[FILE_MAX],
+                                                            const char *base,
+                                                            const char *relbase,
+                                                            const VariableMap *variables,
+                                                            int frame,
+                                                            const char imtype,
+                                                            const ImageFormatData *im_format,
+                                                            const bool use_ext,
+                                                            const bool use_frames,
+                                                            const char *suffix)
 {
+  blender::Vector<VariableParseError> variable_errors;
+
   if (filepath == nullptr) {
-    return;
+    return {};
   }
   BLI_strncpy(filepath, base, FILE_MAX - 10); /* weak assumption */
 
-  const blender::Vector<VariableParseError> variable_errors = BKE_path_apply_variables(
-      filepath, BKE_build_blender_variables(relbase, render_data));
+  if (variables) {
+    const blender::Vector<VariableParseError> variable_errors = BKE_path_apply_variables(
+        filepath, *variables);
+    if (!variable_errors.is_empty()) {
+      return variable_errors;
+    }
+  }
 
   BLI_path_abs(filepath, relbase);
 
@@ -634,42 +641,44 @@ static void do_makepicstring(char filepath[FILE_MAX],
   if (use_ext) {
     do_ensure_image_extension(filepath, FILE_MAX, imtype, im_format);
   }
+
+  return {};
 }
 
-void BKE_image_path_from_imformat(char *filepath,
-                                  const char *base,
-                                  const char *relbase,
-                                  int frame,
-                                  const ImageFormatData *im_format,
-                                  const bool use_ext,
-                                  const bool use_frames,
-                                  const char *suffix,
-                                  const RenderData *render_data)
+blender::Vector<VariableParseError> BKE_image_path_from_imformat(char *filepath,
+                                                                 const char *base,
+                                                                 const char *relbase,
+                                                                 const VariableMap *variables,
+                                                                 int frame,
+                                                                 const ImageFormatData *im_format,
+                                                                 const bool use_ext,
+                                                                 const bool use_frames,
+                                                                 const char *suffix)
 {
-  do_makepicstring(filepath,
-                   base,
-                   relbase,
-                   frame,
-                   im_format->imtype,
-                   im_format,
-                   use_ext,
-                   use_frames,
-                   suffix,
-                   render_data);
+  return do_makepicstring(filepath,
+                          base,
+                          relbase,
+                          variables,
+                          frame,
+                          im_format->imtype,
+                          im_format,
+                          use_ext,
+                          use_frames,
+                          suffix);
 }
 
-void BKE_image_path_from_imtype(char *filepath,
-                                const char *base,
-                                const char *relbase,
-                                int frame,
-                                const char imtype,
-                                const bool use_ext,
-                                const bool use_frames,
-                                const char *suffix,
-                                const RenderData *render_data)
+blender::Vector<VariableParseError> BKE_image_path_from_imtype(char *filepath,
+                                                               const char *base,
+                                                               const char *relbase,
+                                                               const VariableMap *variables,
+                                                               int frame,
+                                                               const char imtype,
+                                                               const bool use_ext,
+                                                               const bool use_frames,
+                                                               const char *suffix)
 {
-  do_makepicstring(
-      filepath, base, relbase, frame, imtype, nullptr, use_ext, use_frames, suffix, render_data);
+  return do_makepicstring(
+      filepath, base, relbase, variables, frame, imtype, nullptr, use_ext, use_frames, suffix);
 }
 
 /* ImBuf Conversion */
