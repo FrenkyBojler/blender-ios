@@ -38,15 +38,15 @@ static void deg_flush_updates_and_refresh(deg::Depsgraph *deg_graph,
   deg::graph_tag_ids_for_visible_update(deg_graph);
   deg::deg_graph_flush_updates(deg_graph);
   BLI_assert(deg_graph->sync_writeback_callbacks.is_empty());
-  deg_graph->use_writeback_callbacks = (sync_writeback == DEG_EVALUATE_SYNC_WRITEBACK_YES);
+  deg_graph->sync_writeback = sync_writeback;
   deg::deg_evaluate_on_refresh(deg_graph);
 
-  if (deg_graph->use_writeback_callbacks && deg_graph->is_active) {
+  if ((deg_graph->sync_writeback == DEG_EVALUATE_SYNC_WRITEBACK_YES) && deg_graph->is_active) {
     for (std::function<void()> &fn : deg_graph->sync_writeback_callbacks) {
       fn();
     }
   }
-  deg_graph->use_writeback_callbacks = false;
+  deg_graph->sync_writeback = DEG_EVALUATE_SYNC_WRITEBACK_NO;
   deg_graph->sync_writeback_callbacks.clear();
 }
 

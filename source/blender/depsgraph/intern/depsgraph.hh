@@ -153,10 +153,6 @@ struct Depsgraph {
    * to read stuff from. */
   bool is_active;
 
-  /* Allow adding write callbacks that write back to original data. If this flag is not set any
-   * callbacks will be discarded. */
-  bool use_writeback_callbacks;
-
   /* Optimize out evaluation of operations which affect hidden objects or disabled modifiers. */
   bool use_visibility_optimization;
 
@@ -182,6 +178,8 @@ struct Depsgraph {
   /* The number of times this graph has been evaluated. */
   uint64_t update_count;
 
+  /* If this mode does not allow writing back to original data any callbacks will be discarded. */
+  DepsgraphEvaluateSyncWriteback sync_writeback;
   /**
    * Stores functions that can be called after depsgraph evaluation to writeback some changes to
    * original data. Also see `DEG_depsgraph_writeback_sync.hh`.
