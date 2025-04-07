@@ -196,13 +196,28 @@ void ArmatureImportContext::create_armature_bones(const ufbx_node *node,
           adjf(bone->tail[2]));
 #endif
 
-  /* Mark bone as connected to parent if head approximately in the same place as parent tail. */
+  /* Mark bone as connected to parent if head approximately in the same place as parent tail, in
+   * both rest pose and current pose. */
   if (parent_bone != nullptr) {
-    float3 self_head(bone->head);
-    float3 par_tail(parent_bone->tail);
+    float3 self_head_rest(bone->head);
+    float3 par_tail_rest(parent_bone->tail);
     const float connect_dist = 1.0e-6f;
-    if (math::distance_squared(self_head, par_tail) < connect_dist * connect_dist) {
-      bone->flag |= BONE_CONNECTED;
+    const float connect_dist_sq = connect_dist * connect_dist;
+    float dist_sq_rest = math::distance_squared(self_head_rest, par_tail_rest);
+    if (dist_sq_rest < connect_dist_sq) {
+
+      /* Bones seem connected in rest pose, now check their current transforms. */
+      ufbx_vec3 self_head_cur_u = node->node_to_world.cols[3];
+      ufbx_vec3 par_tail_cur_u = ufbx_transform_position(&node->parent->node_to_world,
+                                                         {0, parent_bone_size, 0});
+      float3 self_head_cur(self_head_cur_u.x, self_head_cur_u.y, self_head_cur_u.z);
+      float3 par_tail_cur(par_tail_cur_u.x, par_tail_cur_u.y, par_tail_cur_u.z);
+      float dist_sq_cur = math::distance_squared(self_head_cur, par_tail_cur);
+
+      if (dist_sq_cur < connect_dist_sq) {
+        /* Connected in both cases. */
+        bone->flag |= BONE_CONNECTED;
+      }
     }
   }
 
