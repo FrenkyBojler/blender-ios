@@ -4,10 +4,6 @@
 
 #include "GPU_worker.hh"
 
-#include "BKE_global.hh"
-#include "BLI_assert.h"
-#include "BLI_threads.h"
-
 namespace blender::gpu {
 
 GPUWorker::GPUWorker(uint32_t threads_count, bool share_context, std::function<void()> run_cb)
