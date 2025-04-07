@@ -63,30 +63,28 @@ class CachingDownloadReporter(Protocol):
 
 
 class _DummyReporter(CachingDownloadReporter):
-
     """Dummy CachingDownloadReporter.
 
-    This is mostly used to avoid None checks in the CachingDownloader. The print
-    statements here are ok-ish for debugging/demo purposes, but in the final
-    code, they should be removed.
+    Does not do anything. This is mostly used to avoid None checks in the
+    CachingDownloader.
     """
 
     def download_starts(self, http_req_descr: RequestDescription) -> None:
-        print(f"Downloading {http_req_descr.http_method} {http_req_descr.url}")
+        pass
 
     def already_downloaded(
         self,
         http_req_descr: RequestDescription,
         local_file: Path,
     ) -> None:
-        print(f"Local file is fresh, no need to re-download: {local_file}")
+        pass
 
     def download_error(
         self,
         http_req_descr: RequestDescription,
         error: Exception,
     ) -> None:
-        print(f"Error downloading: {error}")
+        pass
 
     def download_progress(
         self,
@@ -94,17 +92,14 @@ class _DummyReporter(CachingDownloadReporter):
         content_length_bytes: int,
         downloaded_bytes: int,
     ) -> None:
-        print(
-            f"Download progress: {downloaded_bytes} of {content_length_bytes}: "
-            f"{downloaded_bytes/content_length_bytes*100:.0f}%"
-        )
+        pass
 
     def download_finished(
         self,
         http_req_descr: RequestDescription,
         local_file: Path,
     ) -> None:
-        print(f"Download finished, stored at {local_file}")
+        pass
 
 
 class ThreadBridgingReporter(CachingDownloadReporter):
