@@ -19,4 +19,7 @@ void main()
 
   interp.color = col;
   gl_Position = persmat * vec4(pos, 1.0);
+
+  interp.edge_start = interp.edge_pos = (0.5 * (gl_Position.xy / gl_Position.w) + 0.5) *
+                                        size_viewport;
 }

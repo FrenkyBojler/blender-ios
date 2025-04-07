@@ -26,6 +26,8 @@ STORAGE_BUF(DRW_DEBUG_DRAW_SLOT, READ_WRITE, DRWDebugVert, drw_debug_verts_buf[]
 GPU_SHADER_CREATE_END()
 
 GPU_SHADER_NAMED_INTERFACE_INFO(draw_debug_draw_display_iface, interp)
+NO_PERSPECTIVE(VEC2, edge_pos)
+FLAT(VEC2, edge_start)
 FLAT(VEC4, color)
 GPU_SHADER_NAMED_INTERFACE_END(interp)
 
@@ -35,7 +37,9 @@ TYPEDEF_SOURCE("draw_shader_shared.hh")
 STORAGE_BUF(DRW_DEBUG_DRAW_SLOT, READ, DRWDebugVert, drw_debug_verts_buf[])
 VERTEX_OUT(draw_debug_draw_display_iface)
 FRAGMENT_OUT(0, VEC4, out_color)
+FRAGMENT_OUT(1, VEC4, out_line_data)
 PUSH_CONSTANT(MAT4, persmat)
+PUSH_CONSTANT(VEC2, size_viewport)
 VERTEX_SOURCE("draw_debug_draw_display_vert.glsl")
 FRAGMENT_SOURCE("draw_debug_draw_display_frag.glsl")
 GPU_SHADER_CREATE_END()
