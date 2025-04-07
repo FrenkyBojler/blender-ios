@@ -1098,24 +1098,14 @@ static wmOperatorStatus node_resize_modal(bContext *C, wmOperator *op, const wmE
           float heightmin = UI_SCALE_FAC * node->typeinfo->minheight;
           float heightmax = UI_SCALE_FAC * node->typeinfo->maxheight;
           if (nsw->directions & NODE_RESIZE_TOP) {
-            float locy_min = nsw->oldlocy - nsw->oldheight;
+            float locmin = nsw->oldlocy - nsw->oldheight;
 
-            const float target_locy = nsw->oldlocy + dy;
-            float height = target_locy - locy_min;
-
-            if (nsw->snap_to_grid) {
-              height = nearest_node_grid_coord(height);
-            }
-            CLAMP(height, heightmin, heightmax);
-
-            node->location[1] = locy_min + height;
-            node->height = height;
+            node->location[1] = nsw->oldlocy + dy;
+            CLAMP(node->location[1], locmin + heightmin, locmin + heightmax);
+            node->height = node->location[1] - locmin;
           }
           if (nsw->directions & NODE_RESIZE_BOTTOM) {
             node->height = nsw->oldheight - dy;
-            if (nsw->snap_to_grid) {
-              node->height = nearest_node_grid_coord(node->height);
-            }
             CLAMP(node->height, heightmin, heightmax);
           }
         }
