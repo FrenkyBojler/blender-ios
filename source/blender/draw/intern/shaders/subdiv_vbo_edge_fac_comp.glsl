@@ -54,12 +54,9 @@ float compute_line_factor(uint corner_index, vec3 face_normal)
   }
 
   uint start_corner_index_other = quad_other * 4;
-  PosNorLoop pos_nor0 = pos_nor[start_corner_index_other + 0];
-  PosNorLoop pos_nor1 = pos_nor[start_corner_index_other + 1];
-  PosNorLoop pos_nor2 = pos_nor[start_corner_index_other + 2];
-  vec3 v0 = subdiv_get_vertex_pos(pos_nor0);
-  vec3 v1 = subdiv_get_vertex_pos(pos_nor1);
-  vec3 v2 = subdiv_get_vertex_pos(pos_nor2);
+  vec3 v0 = positions[start_corner_index_other + 0];
+  vec3 v1 = positions[start_corner_index_other + 1;
+  vec3 v2 = positions[start_corner_index_other + 2];
   vec3 face_normal_other = normalize(cross(v1 - v0, v2 - v0));
 
   return loop_edge_factor_get(face_normal, face_normal_other);
@@ -77,12 +74,9 @@ void main()
   uint start_loop_index = quad_index * 4;
 
   /* First compute the face normal, we need it to compute the bihedral edge angle. */
-  PosNorLoop pos_nor0 = pos_nor[start_loop_index + 0];
-  PosNorLoop pos_nor1 = pos_nor[start_loop_index + 1];
-  PosNorLoop pos_nor2 = pos_nor[start_loop_index + 2];
-  vec3 v0 = subdiv_get_vertex_pos(pos_nor0);
-  vec3 v1 = subdiv_get_vertex_pos(pos_nor1);
-  vec3 v2 = subdiv_get_vertex_pos(pos_nor2);
+  vec3 v0 = positions(start_loop_index + 0);
+  vec3 v1 = positions(start_loop_index + 1);
+  vec3 v2 = positions(start_loop_index + 2);
   vec3 face_normal = normalize(cross(v1 - v0, v2 - v0));
 
   vec4 edge_facs = vec4(0.0);

@@ -93,6 +93,9 @@ void write_vertex(uint index, Vertex v)
   uint base_index = shader_data.dst_offset + index * DIMENSIONS;
   for (int i = 0; i < DIMENSIONS; i++) {
     dst_data[base_index + i] = v.vertex_data[i];
+#ifdef NORMALIZE
+    dst_data[base_index + i] = normalize(dst_data[base_index + i]);
+#endif
   }
 #endif
 }
