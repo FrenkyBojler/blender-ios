@@ -59,10 +59,10 @@ class GLBackend : public GPUBackend {
   void init_resources() override
   {
     if (GPU_use_parallel_compilation()) {
-      compiler_ = new GLShaderCompiler();
+      compiler_ = MEM_new<GLShaderCompiler>(__func__);
     }
     else {
-      compiler_ = new ShaderCompilerGeneric();
+      compiler_ = MEM_new<ShaderCompilerGeneric>(__func__);
     }
   };
 
@@ -70,7 +70,7 @@ class GLBackend : public GPUBackend {
   {
     /* Delete any resources with context active. */
     GLTexture::samplers_free();
-    delete compiler_;
+    MEM_delete(compiler_);
   }
 
   static GLBackend *get()
