@@ -55,6 +55,9 @@ static ViewerPathElem *viewer_path_elem_for_zone(const bNodeTreeZone &zone)
       node_elem->index = storage.inspection_index;
       return &node_elem->base;
     }
+    case GEO_NODE_CLOSURE_OUTPUT: {
+      return nullptr;
+    }
   }
   BLI_assert_unreachable();
   return nullptr;
@@ -109,7 +112,7 @@ static void viewer_path_for_geometry_node(const SpaceNode &snode,
     bNodeTree *tree = tree_path[i]->nodetree;
     /* The tree path contains the name of the node but not its ID. */
     const char *node_name = tree_path[i + 1]->node_name;
-    const bNode *node = bke::node_find_node_by_name(tree, node_name);
+    const bNode *node = bke::node_find_node_by_name(*tree, node_name);
     /* The name in the tree path should match a group node in the tree. Sometimes, the tree-path is
      * out of date though. */
     if (node == nullptr) {
@@ -125,6 +128,9 @@ static void viewer_path_for_geometry_node(const SpaceNode &snode,
         node->identifier);
     for (const bNodeTreeZone *zone : zone_stack) {
       ViewerPathElem *zone_elem = viewer_path_elem_for_zone(*zone);
+      if (!zone_elem) {
+        return;
+      }
       BLI_addtail(&r_dst.path, zone_elem);
     }
 
@@ -143,6 +149,9 @@ static void viewer_path_for_geometry_node(const SpaceNode &snode,
       node.identifier);
   for (const bNodeTreeZone *zone : zone_stack) {
     ViewerPathElem *zone_elem = viewer_path_elem_for_zone(*zone);
+    if (!zone_elem) {
+      return;
+    }
     BLI_addtail(&r_dst.path, zone_elem);
   }
 

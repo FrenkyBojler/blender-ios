@@ -8,6 +8,7 @@
 
 #include "DNA_windowmanager_types.h"
 
+#include "BLI_listbase.h"
 #include "BLI_string.h"
 
 #include "BKE_context.hh"
@@ -60,7 +61,7 @@ static bool text_properties_poll(bContext *C)
   return (CTX_wm_space_text(C) != nullptr);
 }
 
-static int text_text_search_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus text_text_search_exec(bContext *C, wmOperator * /*op*/)
 {
   ScrArea *area = CTX_wm_area(C);
   ARegion *region = text_has_properties_region(area);

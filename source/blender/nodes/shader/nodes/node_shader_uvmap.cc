@@ -29,15 +29,14 @@ static void node_shader_buts_uvmap(uiLayout *layout, bContext *C, PointerRNA *pt
 
   if (!RNA_boolean_get(ptr, "from_instancer")) {
     PointerRNA obptr = CTX_data_pointer_get(C, "active_object");
+    Object *object = static_cast<Object *>(obptr.data);
 
-    if (obptr.data && RNA_enum_get(&obptr, "type") == OB_MESH) {
-      PointerRNA eval_obptr;
-
+    if (object && object->type == OB_MESH) {
       Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
 
       if (depsgraph) {
-        DEG_get_evaluated_rna_pointer(depsgraph, &obptr, &eval_obptr);
-        PointerRNA dataptr = RNA_pointer_get(&eval_obptr, "data");
+        Object *object_eval = DEG_get_evaluated_object(depsgraph, object);
+        PointerRNA dataptr = RNA_id_pointer_create(static_cast<ID *>(object_eval->data));
         uiItemPointerR(layout, ptr, "uv_map", &dataptr, "uv_layers", "", ICON_GROUP_UVS);
         return;
       }
@@ -49,7 +48,7 @@ static void node_shader_buts_uvmap(uiLayout *layout, bContext *C, PointerRNA *pt
 
 static void node_shader_init_uvmap(bNodeTree * /*ntree*/, bNode *node)
 {
-  NodeShaderUVMap *attr = MEM_cnew<NodeShaderUVMap>("NodeShaderUVMap");
+  NodeShaderUVMap *attr = MEM_callocN<NodeShaderUVMap>("NodeShaderUVMap");
   node->storage = attr;
 }
 
@@ -101,12 +100,12 @@ void register_node_type_sh_uvmap()
   ntype.nclass = NODE_CLASS_INPUT;
   ntype.declare = file_ns::node_declare;
   ntype.draw_buttons = file_ns::node_shader_buts_uvmap;
-  blender::bke::node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::Middle);
+  blender::bke::node_type_size_preset(ntype, blender::bke::eNodeSizePreset::Middle);
   ntype.initfunc = file_ns::node_shader_init_uvmap;
   blender::bke::node_type_storage(
-      &ntype, "NodeShaderUVMap", node_free_standard_storage, node_copy_standard_storage);
+      ntype, "NodeShaderUVMap", node_free_standard_storage, node_copy_standard_storage);
   ntype.gpu_fn = file_ns::node_shader_gpu_uvmap;
   ntype.materialx_fn = file_ns::node_shader_materialx;
 
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }

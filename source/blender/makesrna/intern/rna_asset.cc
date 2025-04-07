@@ -79,9 +79,9 @@ static bool rna_AssetMetaData_editable_from_owner_id(const ID *owner_id,
   }
 
   if (r_info) {
-    *r_info =
+    *r_info = N_(
         "Asset metadata from external asset libraries can't be edited, only assets stored in the "
-        "current file can";
+        "current file can");
   }
   return false;
 }
@@ -165,7 +165,7 @@ static void rna_AssetMetaData_tag_remove(ID *id,
   }
 
   BKE_asset_metadata_tag_remove(asset_data, tag);
-  RNA_POINTER_INVALIDATE(tag_ptr);
+  tag_ptr->invalidate();
 }
 
 static IDProperty **rna_AssetMetaData_idprops(PointerRNA *ptr)
@@ -376,8 +376,8 @@ static PointerRNA rna_AssetHandle_file_data_get(PointerRNA *ptr)
 {
   AssetHandle *asset_handle = static_cast<AssetHandle *>(ptr->data);
   /* Have to cast away const, but the file entry API doesn't allow modifications anyway. */
-  return rna_pointer_inherit_refine(
-      ptr, &RNA_FileSelectEntry, (FileDirEntry *)asset_handle->file_data);
+  return RNA_pointer_create_with_parent(
+      *ptr, &RNA_FileSelectEntry, (FileDirEntry *)asset_handle->file_data);
 }
 
 static void rna_AssetHandle_file_data_set(PointerRNA *ptr,
@@ -414,10 +414,10 @@ static PointerRNA rna_AssetRepresentation_metadata_get(PointerRNA *ptr)
 
   if (asset->is_local_id()) {
     PointerRNA id_ptr = RNA_id_pointer_create(asset->local_id());
-    return rna_pointer_inherit_refine(&id_ptr, &RNA_AssetMetaData, &asset_data);
+    return RNA_pointer_create_with_parent(id_ptr, &RNA_AssetMetaData, &asset_data);
   }
 
-  return rna_pointer_inherit_refine(ptr, &RNA_AssetMetaData, &asset_data);
+  return RNA_pointer_create_with_parent(*ptr, &RNA_AssetMetaData, &asset_data);
 }
 
 static int rna_AssetRepresentation_id_type_get(PointerRNA *ptr)

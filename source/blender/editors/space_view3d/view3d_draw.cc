@@ -959,7 +959,7 @@ float ED_view3d_grid_view_scale(const Scene *scene,
 
 static void draw_view_axis(RegionView3D *rv3d, const rcti *rect)
 {
-  const float k = U.rvisize * U.pixelsize; /* axis size */
+  const float k = U.rvisize * UI_SCALE_FAC; /* axis size */
   /* axis alpha offset (rvibright has range 0-10) */
   const int bright = -20 * (10 - U.rvibright);
 
@@ -1389,6 +1389,14 @@ static void draw_selected_name(
   if (ob) {
     info_array[i++] = msg_space;
     info_array[i++] = ob->id.name + 2;
+
+    /* Show object data name when not in object mode. */
+    if (ob->mode != OB_MODE_OBJECT) {
+      if (const ID *data_id = static_cast<const ID *>(ob->data)) {
+        info_array[i++] = " | ";
+        info_array[i++] = data_id->name + 2;
+      }
+    }
 
     /* name(s) to display depends on type of object */
     if (ob->type == OB_ARMATURE) {
@@ -1995,7 +2003,7 @@ ImBuf *ED_view3d_draw_offscreen_imbuf(Depsgraph *depsgraph,
   float winmat[4][4];
 
   /* Guess format based on output buffer. */
-  eGPUTextureFormat desired_format = (imbuf_flag & IB_rectfloat) ? GPU_RGBA16F : GPU_RGBA8;
+  eGPUTextureFormat desired_format = (imbuf_flag & IB_float_data) ? GPU_RGBA16F : GPU_RGBA8;
 
   if (ofs && ((GPU_offscreen_width(ofs) != sizex) || (GPU_offscreen_height(ofs) != sizey))) {
     /* If offscreen has already been created, recreate with the same format. */
@@ -2125,7 +2133,7 @@ ImBuf *ED_view3d_draw_offscreen_imbuf(Depsgraph *depsgraph,
   }
 
   if (ibuf->float_buffer.data && ibuf->byte_buffer.data) {
-    IMB_rect_from_float(ibuf);
+    IMB_byte_from_float(ibuf);
   }
 
   return ibuf;
@@ -2415,7 +2423,7 @@ void view3d_depths_rect_create(ARegion *region, rcti *rect, ViewDepths *r_d)
 /* NOTE: with NOUVEAU drivers the #glReadPixels() is very slow. #24339. */
 static ViewDepths *view3d_depths_create(ARegion *region)
 {
-  ViewDepths *d = MEM_cnew<ViewDepths>("ViewDepths");
+  ViewDepths *d = MEM_callocN<ViewDepths>("ViewDepths");
 
   {
     GPUViewport *viewport = WM_draw_region_get_viewport(region);
@@ -2463,7 +2471,7 @@ float view3d_depth_near(ViewDepths *d)
 void ED_view3d_depth_override(Depsgraph *depsgraph,
                               ARegion *region,
                               View3D *v3d,
-                              Object *obact,
+                              Object * /* obact */,
                               eV3DDepthOverrideMode mode,
                               bool use_overlay,
                               ViewDepths **r_depths)
@@ -2518,20 +2526,19 @@ void ED_view3d_depth_override(Depsgraph *depsgraph,
   if (viewport != nullptr) {
     switch (mode) {
       case V3D_DEPTH_ALL:
-        DRW_draw_depth_loop(depsgraph, region, v3d, viewport, true, false);
+        DRW_draw_depth_loop(depsgraph, region, v3d, viewport, true, false, false);
         break;
       case V3D_DEPTH_NO_GPENCIL:
-        DRW_draw_depth_loop(depsgraph, region, v3d, viewport, false, false);
+        DRW_draw_depth_loop(depsgraph, region, v3d, viewport, false, false, false);
         break;
       case V3D_DEPTH_GPENCIL_ONLY:
-        DRW_draw_depth_loop(depsgraph, region, v3d, viewport, true, false);
+        DRW_draw_depth_loop(depsgraph, region, v3d, viewport, true, false, false);
         break;
       case V3D_DEPTH_OBJECT_ONLY:
-        DRW_draw_depth_object(
-            scene, region, v3d, viewport, DEG_get_evaluated_object(depsgraph, obact));
+        DRW_draw_depth_loop(depsgraph, region, v3d, viewport, false, false, true);
         break;
       case V3D_DEPTH_SELECTED_ONLY:
-        DRW_draw_depth_loop(depsgraph, region, v3d, viewport, false, true);
+        DRW_draw_depth_loop(depsgraph, region, v3d, viewport, false, true, false);
         break;
     }
 
@@ -2707,6 +2714,11 @@ void ED_view3d_mats_rv3d_restore(RegionView3D *rv3d, RV3DMatrixStore *rv3dmat_pt
   rv3d->pixsize = rv3dmat->pixsize;
 }
 
+void ED_view3D_mats_rv3d_free(RV3DMatrixStore *rv3d_mat)
+{
+  MEM_freeN(rv3d_mat);
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -2734,7 +2746,15 @@ void ED_scene_draw_fps(const Scene *scene, int xoffset, int *yoffset)
   if (state.fps_average + 0.5f < state.fps_target) {
     /* Always show fractional when under performing. */
     show_fractional = true;
-    BLF_color4ub(font_id, 225, 36, 36, 255);
+    float alert_rgb[4];
+    float alert_hsv[4];
+    UI_GetThemeColor4fv(TH_REDALERT, alert_rgb);
+    /* Brighten since we favor dark shadows to increase contrast.
+     * This gives similar results to the old hardcoded 225, 36, 36. */
+    rgb_to_hsv_v(alert_rgb, alert_hsv);
+    alert_hsv[2] = 1.0;
+    hsv_to_rgb_v(alert_hsv, alert_rgb);
+    BLF_color4fv(font_id, alert_rgb);
   }
 
   if (show_fractional) {

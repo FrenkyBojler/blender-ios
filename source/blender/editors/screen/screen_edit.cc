@@ -15,6 +15,7 @@
 #include "DNA_scene_types.h"
 #include "DNA_userdef_types.h"
 
+#include "BLI_listbase.h"
 #include "BLI_rect.h"
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
@@ -26,6 +27,7 @@
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
+#include "BKE_report.hh"
 #include "BKE_scene.hh"
 #include "BKE_screen.hh"
 #include "BKE_sound.h"
@@ -367,7 +369,8 @@ static void screen_verts_valign(const wmWindow *win,
 }
 
 /* Test if two adjoining areas can be aligned by having their screen edges adjusted. */
-static bool screen_areas_can_align(bScreen *screen, ScrArea *sa1, ScrArea *sa2, eScreenDir dir)
+static bool screen_areas_can_align(
+    ReportList *reports, bScreen *screen, ScrArea *sa1, ScrArea *sa2, eScreenDir dir)
 {
   if (dir == SCREEN_DIR_NONE) {
     return false;
@@ -394,7 +397,7 @@ static bool screen_areas_can_align(bScreen *screen, ScrArea *sa1, ScrArea *sa2, 
       if (area->v3->vec.x - area->v1->vec.x < tolerance &&
           (area->v1->vec.x == xmin || area->v3->vec.x == xmax))
       {
-        WM_report(RPT_ERROR, "A narrow vertical area interferes with this operation");
+        BKE_report(reports, RPT_ERROR, "A narrow vertical area interferes with this operation");
         return false;
       }
     }
@@ -409,7 +412,7 @@ static bool screen_areas_can_align(bScreen *screen, ScrArea *sa1, ScrArea *sa2, 
       if (area->v3->vec.y - area->v1->vec.y < tolerance &&
           (area->v1->vec.y == ymin || area->v3->vec.y == ymax))
       {
-        WM_report(RPT_ERROR, "A narrow horizontal area interferes with this operation");
+        BKE_report(reports, RPT_ERROR, "A narrow horizontal area interferes with this operation");
         return false;
       }
     }
@@ -420,10 +423,14 @@ static bool screen_areas_can_align(bScreen *screen, ScrArea *sa1, ScrArea *sa2, 
 
 /* Adjust all screen edges to allow joining two areas. 'dir' value is like area_getorientation().
  */
-static bool screen_areas_align(
-    bContext *C, bScreen *screen, ScrArea *sa1, ScrArea *sa2, const eScreenDir dir)
+static bool screen_areas_align(bContext *C,
+                               ReportList *reports,
+                               bScreen *screen,
+                               ScrArea *sa1,
+                               ScrArea *sa2,
+                               const eScreenDir dir)
 {
-  if (!screen_areas_can_align(screen, sa1, sa2, dir)) {
+  if (!screen_areas_can_align(reports, screen, sa1, sa2, dir)) {
     return false;
   }
 
@@ -460,12 +467,13 @@ static bool screen_areas_align(
 }
 
 /* Simple join of two areas without any splitting. Will return false if not possible. */
-static bool screen_area_join_aligned(bContext *C, bScreen *screen, ScrArea *sa1, ScrArea *sa2)
+static bool screen_area_join_aligned(
+    bContext *C, ReportList *reports, bScreen *screen, ScrArea *sa1, ScrArea *sa2)
 {
   const eScreenDir dir = area_getorientation(sa1, sa2);
 
   /* Ensure that the area edges are exactly aligned. */
-  if (!screen_areas_align(C, screen, sa1, sa2, dir)) {
+  if (!screen_areas_align(C, reports, screen, sa1, sa2, dir)) {
     return false;
   }
 
@@ -529,8 +537,12 @@ static ScrArea *screen_area_trim(
 }
 
 /* Join any two neighboring areas. Might create new areas, kept if over min_remainder. */
-static bool screen_area_join_ex(
-    bContext *C, bScreen *screen, ScrArea *sa1, ScrArea *sa2, bool close_all_remainders)
+static bool screen_area_join_ex(bContext *C,
+                                ReportList *reports,
+                                bScreen *screen,
+                                ScrArea *sa1,
+                                ScrArea *sa2,
+                                bool close_all_remainders)
 {
   const eScreenDir dir = area_getorientation(sa1, sa2);
   if (dir == SCREEN_DIR_NONE) {
@@ -548,12 +560,12 @@ static bool screen_area_join_ex(
   ScrArea *side2 = screen_area_trim(C, screen, (offset2 > 0) ? &sa1 : &sa2, offset2, dir, true);
 
   /* The two areas now line up, so join them. */
-  screen_area_join_aligned(C, screen, sa1, sa2);
+  screen_area_join_aligned(C, reports, screen, sa1, sa2);
 
   if (close_all_remainders || offset1 < 0 || offset2 > 0) {
     /* Close both if trimming `sa1`. */
-    screen_area_close(C, screen, side1);
-    screen_area_close(C, screen, side2);
+    screen_area_close(C, reports, screen, side1);
+    screen_area_close(C, reports, screen, side2);
   }
   else {
     /* Force full rebuild. #130732 */
@@ -571,12 +583,12 @@ static bool screen_area_join_ex(
   return true;
 }
 
-int screen_area_join(bContext *C, bScreen *screen, ScrArea *sa1, ScrArea *sa2)
+int screen_area_join(bContext *C, ReportList *reports, bScreen *screen, ScrArea *sa1, ScrArea *sa2)
 {
-  return screen_area_join_ex(C, screen, sa1, sa2, false);
+  return screen_area_join_ex(C, reports, screen, sa1, sa2, false);
 }
 
-bool screen_area_close(bContext *C, bScreen *screen, ScrArea *area)
+bool screen_area_close(bContext *C, ReportList *reports, bScreen *screen, ScrArea *area)
 {
   if (area == nullptr) {
     return false;
@@ -605,7 +617,7 @@ bool screen_area_close(bContext *C, bScreen *screen, ScrArea *area)
   }
 
   /* Join from neighbor into this area to close it. */
-  return screen_area_join_ex(C, screen, sa2, area, true);
+  return screen_area_join_ex(C, reports, screen, sa2, area, true);
 }
 
 void screen_area_spacelink_add(const Scene *scene, ScrArea *area, eSpace_Type space_type)
@@ -847,7 +859,13 @@ void ED_screen_refresh(bContext *C, wmWindowManager *wm, wmWindow *win)
 
 void ED_screens_init(bContext *C, Main *bmain, wmWindowManager *wm)
 {
+  wmWindow *prev_ctx_win = CTX_wm_window(C);
+  BLI_SCOPED_DEFER([&]() { CTX_wm_window_set(C, prev_ctx_win); });
+
   LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
+    /* Region polls may need window/screen context. */
+    CTX_wm_window_set(C, win);
+
     if (BKE_workspace_active_get(win->workspace_hook) == nullptr) {
       BKE_workspace_active_set(win->workspace_hook,
                                static_cast<WorkSpace *>(bmain->workspaces.first));
@@ -1026,9 +1044,9 @@ static void screen_cursor_set(wmWindow *win, const int xy[2])
 
   LISTBASE_FOREACH (ScrArea *, area_iter, &screen->areabase) {
     az = ED_area_actionzone_find_xy(area_iter, xy);
-    /* Scrollers use default cursor and their zones extend outside of their
-     * areas. Ignore here so we can always detect screen edges - #110085. */
-    if (az && az->type != AZONE_REGION_SCROLL) {
+    /* We used to exclude AZONE_REGION_SCROLL as those used
+     * to overlap screen edges, but they no longer do so. */
+    if (az) {
       area = area_iter;
       break;
     }
@@ -1037,6 +1055,9 @@ static void screen_cursor_set(wmWindow *win, const int xy[2])
   if (area) {
     if (az->type == AZONE_AREA) {
       WM_cursor_set(win, WM_CURSOR_EDIT);
+    }
+    else if (az->type == AZONE_REGION_SCROLL) {
+      WM_cursor_set(win, WM_CURSOR_DEFAULT);
     }
     else if (az->type == AZONE_REGION) {
       if (ELEM(az->edge, AE_LEFT_TO_TOPRIGHT, AE_RIGHT_TO_TOPLEFT)) {
@@ -1835,26 +1856,17 @@ void ED_screen_animation_timer(bContext *C, int redraws, int sync, int enable)
     screen->animtimer = WM_event_timer_add(wm, win, TIMER0, (1.0 / FPS));
 
     sad->region = CTX_wm_region(C);
-    /* If start-frame is larger than current frame, we put current-frame on start-frame.
-     * NOTE(ton): first frame then is not drawn! */
-    if (PRVRANGEON) {
-      if (scene->r.psfra > scene->r.cfra) {
-        sad->sfra = scene->r.cfra;
-        scene->r.cfra = scene->r.psfra;
-      }
-      else {
-        sad->sfra = scene->r.cfra;
-      }
+    sad->sfra = scene->r.cfra;
+    /* Make sure that were are inside the scene or preview frame range. */
+    CLAMP(scene->r.cfra, PSFRA, PEFRA);
+    if (scene->r.cfra != sad->sfra) {
+      sad->flag |= ANIMPLAY_FLAG_JUMPED;
     }
-    else {
-      if (scene->r.sfra > scene->r.cfra) {
-        sad->sfra = scene->r.cfra;
-        scene->r.cfra = scene->r.sfra;
-      }
-      else {
-        sad->sfra = scene->r.cfra;
-      }
+
+    if (sad->flag & ANIMPLAY_FLAG_JUMPED) {
+      DEG_id_tag_update(&scene->id, ID_RECALC_FRAME_CHANGE);
     }
+
     sad->redraws = redraws;
     sad->flag |= (enable < 0) ? ANIMPLAY_FLAG_REVERSE : 0;
     sad->flag |= (sync == 0) ? ANIMPLAY_FLAG_NO_SYNC : (sync == 1) ? ANIMPLAY_FLAG_SYNC : 0;
@@ -1912,27 +1924,6 @@ void ED_screen_animation_timer_update(bScreen *screen, int redraws)
   }
 }
 
-void ED_screen_animation_timer_reset(bScreen *screen, wmWindowManager *wm)
-{
-  BLI_assert(screen);
-  BLI_assert(screen->animtimer);
-  wmTimer *old_timer = screen->animtimer;
-  /* Simply recreate the timer as we will otherwise run into race condition issues as other
-   * timer functions will write to most of the timer variables.
-   */
-  wmWindow *win = old_timer->win;
-  const double time_step = old_timer->time_step;
-  const int event_type = old_timer->event_type;
-  ScreenAnimData *sad = static_cast<ScreenAnimData *>(
-      MEM_callocN(sizeof(ScreenAnimData), "ScreenAnimData"));
-  memcpy(sad, old_timer->customdata, sizeof(ScreenAnimData));
-
-  WM_event_timer_remove(wm, win, old_timer);
-
-  screen->animtimer = WM_event_timer_add(wm, win, event_type, time_step);
-  screen->animtimer->customdata = sad;
-}
-
 void ED_update_for_newframe(Main *bmain, Depsgraph *depsgraph)
 {
   Scene *scene = DEG_get_input_scene(depsgraph);
@@ -1947,7 +1938,7 @@ void ED_update_for_newframe(Main *bmain, Depsgraph *depsgraph)
     LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
       BKE_screen_view3d_scene_sync(screen, scene);
     }
-    DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
+    DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL | ID_RECALC_PARAMETERS);
   }
 #endif
 

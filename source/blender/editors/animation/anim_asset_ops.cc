@@ -2,6 +2,8 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BLI_listbase.h"
+
 #include "BKE_asset.hh"
 #include "BKE_asset_edit.hh"
 #include "BKE_context.hh"
@@ -221,10 +223,10 @@ static blender::Vector<Object *> get_selected_pose_objects(bContext *C)
   return selected_pose_objects;
 }
 
-static int create_pose_asset_local(bContext *C,
-                                   wmOperator *op,
-                                   const StringRefNull name,
-                                   const AssetLibraryReference lib_ref)
+static wmOperatorStatus create_pose_asset_local(bContext *C,
+                                                wmOperator *op,
+                                                const StringRefNull name,
+                                                const AssetLibraryReference lib_ref)
 {
   blender::Vector<Object *> selected_pose_objects = get_selected_pose_objects(C);
 
@@ -242,22 +244,23 @@ static int create_pose_asset_local(bContext *C,
   BKE_id_rename(*bmain, pose_action.id, name);
 
   /* Add asset to catalog. */
-  char catalog_path[MAX_NAME];
-  RNA_string_get(op->ptr, "catalog_path", catalog_path);
+  char catalog_path_c[MAX_NAME];
+  RNA_string_get(op->ptr, "catalog_path", catalog_path_c);
 
   AssetMetaData &meta_data = *pose_action.id.asset_data;
   asset_system::AssetLibrary *library = AS_asset_library_load(bmain, lib_ref);
   /* NOTE(@ChrisLend): I don't know if a local library can fail to load.
    * Just being defensive here. */
   BLI_assert(library);
-  if (catalog_path[0] && library) {
-    const asset_system::AssetCatalog &catalog = asset::library_ensure_catalogs_in_path(
-        *library, catalog_path);
+  if (catalog_path_c[0] && library) {
+    const asset_system::AssetCatalogPath catalog_path(catalog_path_c);
+    asset_system::AssetCatalog &catalog = asset::library_ensure_catalogs_in_path(*library,
+                                                                                 catalog_path);
     BKE_asset_metadata_catalog_id_set(&meta_data, catalog.catalog_id, catalog.simple_name.c_str());
   }
 
   ensure_asset_ui_visible(*C);
-  asset::shelf::show_catalog_in_visible_shelves(*C, catalog_path);
+  asset::shelf::show_catalog_in_visible_shelves(*C, catalog_path_c);
 
   asset::refresh_asset_library(C, lib_ref);
 
@@ -266,10 +269,10 @@ static int create_pose_asset_local(bContext *C,
   return OPERATOR_FINISHED;
 }
 
-static int create_pose_asset_user_library(bContext *C,
-                                          wmOperator *op,
-                                          const char name[MAX_NAME],
-                                          const AssetLibraryReference lib_ref)
+static wmOperatorStatus create_pose_asset_user_library(bContext *C,
+                                                       wmOperator *op,
+                                                       const char name[MAX_NAME],
+                                                       const AssetLibraryReference lib_ref)
 {
   BLI_assert(lib_ref.type == ASSET_LIBRARY_CUSTOM);
   Main *bmain = CTX_data_main(C);
@@ -301,11 +304,12 @@ static int create_pose_asset_user_library(bContext *C,
   }
 
   /* Add asset to catalog. */
-  char catalog_path[MAX_NAME];
-  RNA_string_get(op->ptr, "catalog_path", catalog_path);
+  char catalog_path_c[MAX_NAME];
+  RNA_string_get(op->ptr, "catalog_path", catalog_path_c);
 
   AssetMetaData &meta_data = *pose_action.id.asset_data;
-  if (catalog_path[0]) {
+  if (catalog_path_c[0]) {
+    const asset_system::AssetCatalogPath catalog_path(catalog_path_c);
     const asset_system::AssetCatalog &catalog = asset::library_ensure_catalogs_in_path(
         *library, catalog_path);
     BKE_asset_metadata_catalog_id_set(&meta_data, catalog.catalog_id, catalog.simple_name.c_str());
@@ -317,7 +321,7 @@ static int create_pose_asset_user_library(bContext *C,
 
   library->catalog_service().write_to_disk(*final_full_asset_filepath);
   ensure_asset_ui_visible(*C);
-  asset::shelf::show_catalog_in_visible_shelves(*C, catalog_path);
+  asset::shelf::show_catalog_in_visible_shelves(*C, catalog_path_c);
 
   BKE_id_free(bmain, &pose_action.id);
 
@@ -328,7 +332,7 @@ static int create_pose_asset_user_library(bContext *C,
   return OPERATOR_FINISHED;
 }
 
-static int pose_asset_create_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus pose_asset_create_exec(bContext *C, wmOperator *op)
 {
   char name[MAX_NAME] = "";
   PropertyRNA *name_prop = RNA_struct_find_property(op->ptr, "pose_name");
@@ -361,7 +365,9 @@ static int pose_asset_create_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static int pose_asset_create_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+static wmOperatorStatus pose_asset_create_invoke(bContext *C,
+                                                 wmOperator *op,
+                                                 const wmEvent * /*event*/)
 {
   /* If the library isn't saved from the operator's last execution, use the first library. */
   if (!RNA_struct_property_is_set_ex(op->ptr, "asset_library_reference", false)) {
@@ -528,7 +534,7 @@ static inline void replace_pose_key(Main &bmain,
                                     blender::animrig::StripKeyframeData &strip_data,
                                     const blender::animrig::Slot &slot,
                                     const float2 time_value,
-                                    const blender::animrig::FCurveDescriptor fcurve_descriptor)
+                                    const blender::animrig::FCurveDescriptor &fcurve_descriptor)
 {
   using namespace blender::animrig;
   Channelbag &channelbag = strip_data.channelbag_for_slot_ensure(slot);
@@ -628,7 +634,7 @@ static void update_pose_action_from_scene(Main *bmain,
   }
 }
 
-static int pose_asset_modify_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus pose_asset_modify_exec(bContext *C, wmOperator *op)
 {
   bAction *action = get_action_of_selected_asset(C);
   BLI_assert_msg(action, "Poll should have checked action exists");
@@ -739,12 +745,16 @@ static bool pose_asset_delete_poll(bContext *C)
   return true;
 }
 
-static int pose_asset_delete_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus pose_asset_delete_exec(bContext *C, wmOperator *op)
 {
   bAction *action = get_action_of_selected_asset(C);
   if (!action) {
     return OPERATOR_CANCELLED;
   }
+
+  const blender::asset_system::AssetRepresentation *asset = CTX_wm_asset(C);
+  std::optional<AssetLibraryReference> library_ref =
+      asset->owner_asset_library().library_reference();
 
   if (ID_IS_LINKED(action)) {
     bke::asset_edit_id_delete(*CTX_data_main(C), action->id, *op->reports);
@@ -753,14 +763,16 @@ static int pose_asset_delete_exec(bContext *C, wmOperator *op)
     asset::clear_id(&action->id);
   }
 
-  const blender::asset_system::AssetRepresentation *asset = CTX_wm_asset(C);
-  asset::refresh_asset_library_from_asset(C, *asset);
+  asset::refresh_asset_library(C, library_ref.value());
+
   WM_main_add_notifier(NC_ASSET | ND_ASSET_LIST | NA_REMOVED, nullptr);
 
   return OPERATOR_FINISHED;
 }
 
-static int pose_asset_delete_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+static wmOperatorStatus pose_asset_delete_invoke(bContext *C,
+                                                 wmOperator *op,
+                                                 const wmEvent * /*event*/)
 {
   bAction *action = get_action_of_selected_asset(C);
 

@@ -11,6 +11,8 @@
 
 #include <fmt/format.h>
 
+#include "BLI_listbase.h"
+
 #include "BLT_translation.hh"
 
 #include "DNA_collection_types.h"
@@ -306,7 +308,7 @@ class CollectionViewItem : public BasicTreeViewItem {
                                   0,
                                   0.0f,
                                   0.0f,
-                                  nullptr);
+                                  std::nullopt);
 
     UI_but_func_set(button, [&collection_light_linking = collection_light_linking_](bContext &) {
       link_state_toggle(collection_light_linking);
@@ -403,7 +405,7 @@ void uiTemplateLightLinkingCollection(uiLayout *layout,
       "Light Linking Collection Tree View",
       std::make_unique<blender::ui::light_linking::CollectionView>(*context_layout, *collection));
   tree_view->set_context_menu_title("Light Linking");
-  tree_view->set_default_rows(3);
+  tree_view->set_default_rows(5);
 
   blender::ui::TreeViewBuilder::build_tree_view(*C, *tree_view, *layout);
 }

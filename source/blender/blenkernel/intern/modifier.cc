@@ -54,6 +54,7 @@
 #include "BKE_key.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
+#include "BKE_library.hh"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_topology_state.hh"
 #include "BKE_mesh_wrapper.hh"
@@ -552,7 +553,7 @@ CDMaskLink *BKE_modifier_calc_data_masks(const Scene *scene,
   for (; md; md = md->next) {
     const ModifierTypeInfo *mti = BKE_modifier_get_info(ModifierType(md->type));
 
-    curr = MEM_cnew<CDMaskLink>(__func__);
+    curr = MEM_callocN<CDMaskLink>(__func__);
 
     if (BKE_modifier_is_enabled(scene, md, required_mode)) {
       if (mti->type == ModifierTypeType::OnlyDeform) {
@@ -1015,13 +1016,13 @@ void BKE_modifiers_persistent_uid_init(const Object &object, ModifierData &md)
   uint64_t hash = blender::get_default_hash(blender::StringRef(md.name));
   if (ID_IS_LINKED(&object)) {
     hash = blender::get_default_hash(hash,
-                                     blender::StringRef(object.id.lib->runtime.filepath_abs));
+                                     blender::StringRef(object.id.lib->runtime->filepath_abs));
   }
   if (ID_IS_OVERRIDE_LIBRARY_REAL(&object)) {
     BLI_assert(ID_IS_LINKED(object.id.override_library->reference));
     hash = blender::get_default_hash(
         hash,
-        blender::StringRef(object.id.override_library->reference->lib->runtime.filepath_abs));
+        blender::StringRef(object.id.override_library->reference->lib->runtime->filepath_abs));
   }
   blender::RandomNumberGenerator rng{uint32_t(hash)};
   while (true) {
