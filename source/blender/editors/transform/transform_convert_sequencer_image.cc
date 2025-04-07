@@ -38,7 +38,6 @@ struct TransDataSeq {
   float orig_translation[2];
   float orig_scale[2];
   float orig_rotation;
-  float2 orig_mirror;
   int orig_flag;
 };
 
@@ -52,7 +51,6 @@ static TransData *SeqToTransData(const Scene *scene,
   const StripTransform *transform = strip->data->transform;
   const float2 origin = seq::image_transform_origin_offset_pixelspace_get(scene, strip);
   float vertex[2] = {origin[0], origin[1]};
-  const float2 mirror = seq::image_transform_mirror_factor_get(strip);
 
   /* Add control vertex, so rotation and scale can be calculated.
    * All three vertices will form a "L" shape that is aligned to the local strip axis.
@@ -88,7 +86,6 @@ static TransData *SeqToTransData(const Scene *scene,
   tdseq->orig_scale[0] = transform->scale_x;
   tdseq->orig_scale[1] = transform->scale_y;
   tdseq->orig_rotation = transform->rotation;
-  tdseq->orig_mirror = mirror;
   tdseq->orig_flag = strip->flag;
 
   td->extra = (void *)tdseq;
@@ -267,24 +264,21 @@ static void recalcData_sequencer_image(TransInfo *t)
           break;
 
         default:
-          if (t->values_final[0] == -1 && tdseq->orig_mirror[0] == mirror[0]) {
+          if (t->values_final[0] == -1) {
             strip->flag = tdseq->orig_flag;
             strip->flag ^= SEQ_FLIPX;
           }
-          if (t->values_final[1] == -1 && tdseq->orig_mirror[1] == mirror[1]) {
+          if (t->values_final[1] == -1) {
             strip->flag = tdseq->orig_flag;
             strip->flag ^= SEQ_FLIPY;
           }
           if ((strip->flag & SEQ_FLIPX) != (tdseq->orig_flag & SEQ_FLIPX)) {
             transform->xofs = -transform->xofs;
-            transform->yofs = transform->yofs;
-            transform->rotation = tdseq->orig_rotation;
           }
           if ((strip->flag & SEQ_FLIPY) != (tdseq->orig_flag & SEQ_FLIPY)) {
-            transform->xofs = transform->xofs;
             transform->yofs = -transform->yofs;
-            transform->rotation = tdseq->orig_rotation;
           }
+          transform->rotation = tdseq->orig_rotation;
           break;
       }
     }

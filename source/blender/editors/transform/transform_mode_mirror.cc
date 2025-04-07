@@ -206,8 +206,8 @@ static void applyMirror(TransInfo *t)
   }
   else {
     if (t->options & CTX_SEQUENCER_IMAGE) {
-      t->values_final[0] = 1.0f; /* Not a flip operation */
-      t->values_final[1] = 1.0f; /* Not a flip operation */
+      t->values_final[0] = 1.0f;
+      t->values_final[1] = 1.0f;
     }
     FOREACH_TRANS_DATA_CONTAINER (t, tc) {
       TransData *td = tc->data;
