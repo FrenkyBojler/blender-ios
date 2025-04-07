@@ -2,8 +2,6 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include <filesystem>
-
 #include "BLI_fileops.h"
 #include "BLI_string_utf8.h"
 
@@ -34,45 +32,39 @@ void append_path_to_string(std::string &target, const std::string &entry_path)
     target += "\n" + entry_path;
   }
 }
-
-void fliter_path_2s(const std::filesystem::directory_entry &entry,
-                    const std::string &extension,
-                    std::string &filepaths,
-                    std::string &folders)
+void bli_search_in_folder(const StringRef path,
+                          const StringRef lastname,
+                          bool deep,
+                          std::string &filepaths,
+                          std::string &folders)
 {
-  if (entry.is_regular_file() && entry.path().extension() == extension) {
-    append_path_to_string(filepaths, entry.path().string());
-  }
-  else if (entry.is_directory()) {
-    append_path_to_string(folders, entry.path().string());
-  }
-}
 
-void search_in_folder(const std::string &path,
-                      const std::string &lastname,
-                      bool deep,
-                      std::string &filepaths,
-                      std::string &folders)
-{
-  std::string extension = lastname;
-  if (!extension.empty() && extension[0] != '.') {
-    extension = "." + extension;
+  direntry *filelist = nullptr;
+  uint num_files = BLI_filelist_dir_contents(path.data(), &filelist);
+
+  if (num_files == 0) {
+    return;
   }
-  try {
-    if (deep) {
-      for (const std::filesystem::directory_entry &entry : std::filesystem::recursive_directory_iterator(path))
-      {
-        fliter_path_2s(entry, extension, filepaths, folders);
+
+  for (uint i = 0; i < num_files; i++) {
+    direntry *entry = &filelist[i];
+    const char *filename = entry->relname;
+    const char *suffix = lastname.data();
+    size_t suffix_len = strlen(suffix);
+    size_t filename_len = strlen(filename);
+
+    if (S_ISREG(entry->type) && filename_len >= suffix_len &&
+        strcmp(filename + (filename_len - suffix_len), suffix) == 0)
+    {
+      append_path_to_string(filepaths, path + entry->relname);
+    }
+    else if (S_ISDIR(entry->type) && strcmp(filename, ".") != 0 && strcmp(filename, "..") != 0) {
+      std::string sub_path = path + entry->relname + "/";
+      append_path_to_string(folders, sub_path);
+      if (deep) {
+        bli_search_in_folder(sub_path, lastname, deep, filepaths, folders);
       }
     }
-    else {
-      for (const std::filesystem::directory_entry &entry : std::filesystem::directory_iterator(path)) {
-        fliter_path_2s(entry, extension, filepaths, folders);
-      }
-    }
-  }
-  catch (const std::filesystem::filesystem_error &e) {
-    filepaths += "error";
   }
 }
 
@@ -87,11 +79,11 @@ static void node_geo_exec(GeoNodeExecParams params)
   std::string files;
   std::string folders;
 
-  search_in_folder(*path,
-                   params.extract_input<std::string>("File Last Name"),
-                   params.extract_input<bool>("Deep Search"),
-                   files,
-                   folders);
+  bli_search_in_folder(*path,
+                       params.extract_input<std::string>("File Last Name"),
+                       params.extract_input<bool>("Deep Search"),
+                       files,
+                       folders);
 
   params.set_output("Files", files);
   params.set_output("Folders", folders);
