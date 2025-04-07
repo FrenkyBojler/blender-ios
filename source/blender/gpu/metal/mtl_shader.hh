@@ -401,6 +401,7 @@ class MTLShaderCompiler : public ShaderCompiler {
   virtual ~MTLShaderCompiler() override;
 
   virtual BatchHandle batch_compile(Span<const shader::ShaderCreateInfo *> &infos) override;
+  virtual void batch_cancel(BatchHandle &handle) override;
   virtual bool batch_is_ready(BatchHandle handle) override;
   virtual Vector<Shader *> batch_finalize(BatchHandle &handle) override;
 
