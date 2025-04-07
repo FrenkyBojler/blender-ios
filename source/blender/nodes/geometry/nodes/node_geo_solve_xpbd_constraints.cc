@@ -151,14 +151,10 @@ static void node_declare(NodeDeclarationBuilder &b)
       .field_on({geometry_in})
       .description("Principal moments of inertia");
 
-  for (const ConstraintTypeInfo &info : xpbd_constraints::get_constraint_info(false)) {
-    b.add_input<decl::Geometry>(info.ui_name)
-        .supported_type(GeometryComponent::Type::PointCloud)
-        .description(info.ui_description);
-    b.add_output<decl::Geometry>(info.ui_name)
-        .description(info.ui_description)
-        .align_with_previous();
-  }
+  b.add_input<decl::Bundle>("Constraints").description("Bundle of constraint geometries");
+  b.add_output<decl::Bundle>("Constraints")
+      .description("Bundle of constraint geometries")
+      .align_with_previous();
 
   b.add_input<decl::Geometry>("Colliders")
       .only_instances()
@@ -612,14 +608,26 @@ static void get_constraint_data(GeoNodeExecParams params,
                                 Vector<ConstraintEvalData> &constraint_data,
                                 IndexMaskMemory &memory)
 {
+  const BundlePtr constraints_ptr = params.extract_input<BundlePtr>("Constraints");
+
   const Span<ConstraintTypeInfo> constraint_infos = xpbd_constraints::get_constraint_info_ordered(
       debug_output);
   constraint_data.reinitialize(constraint_infos.size());
+
   for (const int i : constraint_infos.index_range()) {
     const ConstraintTypeInfo &info = constraint_infos[i];
     constraint_data[i].type = &info;
 
-    GeometrySet geometry_set = params.extract_input<GeometrySet>(info.ui_name);
+    if (!constraints_ptr) {
+      continue;
+    }
+    const std::optional<Bundle::Item> item = constraints_ptr->lookup(
+        SocketInterfaceKey(info.ui_name));
+    if (!item || item->type != bke::node_socket_type_find_static(SOCK_GEOMETRY)) {
+      continue;
+    }
+
+    const GeometrySet &geometry_set = *static_cast<const GeometrySet *>(item->value);
     if (geometry_set.has_component<PointCloudComponent>()) {
       const AttributeAccessor attributes =
           *geometry_set.get_component<PointCloudComponent>()->attributes();
@@ -629,7 +637,7 @@ static void get_constraint_data(GeoNodeExecParams params,
       IndexMask constraints_mask = IndexRange(attributes.domain_size(AttrDomain::Point));
       Vector<IndexMask> group_masks = build_group_masks(
           constraints_mask, std::move(solver_groups), memory);
-      constraint_data[i].geometry = std::move(geometry_set);
+      constraint_data[i].geometry = geometry_set;
       constraint_data[i].constraints = std::move(constraints_mask);
       constraint_data[i].group_masks = std::move(group_masks);
     }
@@ -644,14 +652,19 @@ static void get_constraint_data(GeoNodeExecParams params,
 static void set_constraint_data_output(GeoNodeExecParams params,
                                        const Span<ConstraintEvalData> constraint_data)
 {
+  BundlePtr constraints_ptr = Bundle::create();
+  BLI_assert(constraints_ptr->is_mutable());
+  Bundle &constraints = const_cast<Bundle &>(*constraints_ptr);
+
   for (const ConstraintEvalData &data : constraint_data) {
+    const bke::bNodeSocketType *stype = bke::node_socket_type_find_static(SOCK_GEOMETRY);
+
     if (data.geometry) {
-      params.set_output(data.type->ui_name, *data.geometry);
-    }
-    else {
-      params.set_output(data.type->ui_name, GeometrySet{});
+      constraints.add(SocketInterfaceKey(data.type->ui_name), *stype, &(*data.geometry));
     }
   }
+
+  params.set_output("Constraints", std::move(constraints_ptr));
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
