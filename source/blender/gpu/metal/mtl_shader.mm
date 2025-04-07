@@ -1655,6 +1655,10 @@ BatchHandle MTLShaderCompiler::batch_compile(Span<const shader::ShaderCreateInfo
   BLI_assert(parallel_shader_compiler);
   return parallel_shader_compiler->batch_compile(this, infos);
 }
+void MTLShaderCompiler::batch_cancel(BatchHandle& handle)
+{
+  return parallel_shader_compiler->batch_cancel(handle);
+}
 bool MTLShaderCompiler::batch_is_ready(BatchHandle handle)
 {
   return parallel_shader_compiler->batch_is_ready(handle);
