@@ -249,37 +249,21 @@ static void recalcData_sequencer_image(TransInfo *t)
 
     if (t->mode == TFM_MIRROR) {
 
-      switch (t->orient_curr) {
-        case O_DEFAULT:
-          transform->xofs = tdseq->orig_translation[0];
-          transform->yofs = tdseq->orig_translation[1];
-          transform->rotation = tdseq->orig_rotation;
-          strip->flag = tdseq->orig_flag;
-          break;
+      transform->xofs *= t->values_final[0];
+      transform->yofs *= t->values_final[1];
 
-        case O_SET:
-          transform->xofs *= t->values_final[0];
-          transform->yofs *= t->values_final[1];
-          transform->rotation = -tdseq->orig_rotation;
-          break;
-
-        default:
-          if (t->values_final[0] == -1) {
-            strip->flag = tdseq->orig_flag;
-            strip->flag ^= SEQ_FLIPX;
-          }
-          if (t->values_final[1] == -1) {
-            strip->flag = tdseq->orig_flag;
-            strip->flag ^= SEQ_FLIPY;
-          }
-          if ((strip->flag & SEQ_FLIPX) != (tdseq->orig_flag & SEQ_FLIPX)) {
-            transform->xofs = -transform->xofs;
-          }
-          if ((strip->flag & SEQ_FLIPY) != (tdseq->orig_flag & SEQ_FLIPY)) {
-            transform->yofs = -transform->yofs;
-          }
-          transform->rotation = tdseq->orig_rotation;
-          break;
+      if (t->orient_curr == O_SET) {
+        transform->rotation = -tdseq->orig_rotation;
+      }
+      else {
+        strip->flag = tdseq->orig_flag;
+        if (t->values_final[0] == -1) {
+          strip->flag ^= SEQ_FLIPX;
+        }
+        if (t->values_final[1] == -1) {
+          strip->flag ^= SEQ_FLIPY;
+        }
+        transform->rotation = tdseq->orig_rotation;
       }
     }
 
