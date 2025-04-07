@@ -6,15 +6,12 @@ from __future__ import annotations
 
 import argparse
 import logging
-import queue
-import threading
 import urllib.parse
 from pathlib import Path
-from typing import TypeAlias
 
 import pydantic
 
-from _bpy_internal.http.downloader import CachingDownloader, CachingDownloadReporter, RequestDescription, ThreadBridgingReporter, DownloadCancelled
+from _bpy_internal.http.downloader import CachingDownloader, BackgroundDownloader
 from . import blender_asset_library_openapi as api_models
 
 logger = logging.getLogger(__name__)
