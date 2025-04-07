@@ -113,7 +113,7 @@ class BackgroundDownloader:
     """Tuple of URL to download, and path to download it to."""
     _queue: queue.Queue[QueuedDownload]
 
-    def __init__(self, downloader: CachingDownloader, reporter: CachingDownloadReporter | None = None) -> None:
+    def __init__(self, downloader: CachingDownloader) -> None:
         self.num_downloads_ok = 0
         self.num_downloads_error = 0
         self._num_pending_downloads = 0
@@ -121,10 +121,6 @@ class BackgroundDownloader:
         # Set up a thread bridge, so that updates are received on the main thread.
         self._thread_bridge = ThreadBridgingReporter()
         self._thread_bridge.add_reporter(self)
-
-        if reporter is not None:
-            # TODO: remove this parameter, add an 'add_reporter()' method.
-            self._thread_bridge.add_reporter(reporter)
 
         self._queue = queue.Queue()
         self._shutdown_event = threading.Event()
@@ -137,6 +133,10 @@ class BackgroundDownloader:
             target=self._download_queued_items,
             daemon=True,
         )
+
+    def add_reporter(self, reporter: CachingDownloadReporter) -> None:
+        """Add a reporter to receive updates when .update() is called."""
+        self._thread_bridge.add_reporter(reporter)
 
     def queue_download(self, remote_url: str, local_path: Path) -> None:
         self._num_pending_downloads += 1
