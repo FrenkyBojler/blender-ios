@@ -150,9 +150,6 @@ void ED_screen_draw_edges(wmWindow *win)
     }
   }
 
-  float col[4];
-  int verts_per_corner = 0;
-
   rcti scissor_rect;
   BLI_rcti_init_minmax(&scissor_rect);
   LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
@@ -172,6 +169,7 @@ void ED_screen_draw_edges(wmWindow *win)
               BLI_rcti_size_y(&scissor_rect) + 1);
   GPU_scissor_test(true);
 
+  float col[4];
   UI_GetThemeColor4fv(TH_EDITOR_BORDER, col);
 
   const float edge_thickness = float(U.border_width) * UI_SCALE_FAC;
@@ -184,7 +182,9 @@ void ED_screen_draw_edges(wmWindow *win)
 
   GPU_blend(GPU_BLEND_ALPHA);
 
+  int verts_per_corner = 0;
   blender::gpu::Batch *batch = batch_screen_edges_get(&verts_per_corner);
+
   GPU_batch_program_set_builtin(batch, GPU_SHADER_2D_AREA_BORDERS);
   GPU_batch_uniform_1i(batch, "cornerLen", verts_per_corner);
   GPU_batch_uniform_1f(batch, "scale", shader_scale);

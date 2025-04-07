@@ -1812,6 +1812,7 @@ static void area_calc_totrct(const bScreen *screen, ScrArea *area, const rcti *w
   area->totrct.ymin = area->v1->vec.y;
   area->totrct.ymax = area->v2->vec.y;
 
+  /* Scale down totrct by the border size on all sides not at window edges. */
   if (!ED_area_is_global(area) && screen->state != SCREENFULL &&
       !(screen->temp && BLI_listbase_is_single(&screen->areabase)))
   {
@@ -1829,6 +1830,7 @@ static void area_calc_totrct(const bScreen *screen, ScrArea *area, const rcti *w
       area->totrct.ymax -= px;
     }
     else if (!BLI_listbase_is_single(&screen->areabase)) {
+      /* Small gap below Top Bar. */
       area->totrct.ymax -= U.pixelsize;
     }
   }

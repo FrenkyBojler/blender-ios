@@ -857,7 +857,10 @@ typedef struct UserDef {
   short dbl_click_time;
 
   char _pad0[2];
+
+  /** Space around each area. Inter-editor gap width. */
   char border_width;
+
   char mini_axis_type;
   /** #eUserpref_UI_Flag. */
   int uiflag;
