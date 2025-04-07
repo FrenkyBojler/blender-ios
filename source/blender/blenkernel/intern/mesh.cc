@@ -243,6 +243,7 @@ static void mesh_free_data(ID *id)
   CustomData_free(&mesh->fdata_legacy);
   CustomData_free(&mesh->corner_data);
   CustomData_free(&mesh->face_data);
+  BLI_freelistN(&mesh->vertex_group_names);
   mesh->attribute_storage.wrap().~AttributeStorage();
   if (mesh->face_offset_indices) {
     blender::implicit_sharing::free_shared_data(&mesh->face_offset_indices,
