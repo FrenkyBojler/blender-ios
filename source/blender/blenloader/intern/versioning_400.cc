@@ -136,6 +136,34 @@ static void version_fcurve_noise_modifier(FCurve &fcurve)
   }
 }
 
+static void version_fix_fcurve_noise_offset(FCurve &fcurve)
+{
+  LISTBASE_FOREACH (FModifier *, fcurve_modifier, &fcurve.modifiers) {
+    if (fcurve_modifier->type != FMODIFIER_TYPE_NOISE) {
+      continue;
+    }
+    FMod_Noise *data = static_cast<FMod_Noise *>(fcurve_modifier->data);
+    if (data->legacy_noise) {
+      /* We don't want to modify anything if the noise is set to legacy, because the issue only
+       * occurred on the new style noise. */
+      continue;
+    }
+    data->offset *= data->size;
+  }
+}
+
+static void nlastrips_apply_fcurve_versioning(ListBase &strips)
+{
+  LISTBASE_FOREACH (NlaStrip *, strip, &strips) {
+    LISTBASE_FOREACH (FCurve *, fcurve, &strip->fcurves) {
+      version_fix_fcurve_noise_offset(*fcurve);
+    }
+
+    /* Check sub-strips (if meta-strips). */
+    nlastrips_apply_fcurve_versioning(strip->strips);
+  }
+}
+
 /* Move bone-group color to the individual bones. */
 static void version_bonegroup_migrate_color(Main *bmain)
 {
@@ -2134,6 +2162,23 @@ void do_versions_after_linking_400(FileData *fd, Main *bmain)
         });
       }
     }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 14)) {
+    LISTBASE_FOREACH (bAction *, dna_action, &bmain->actions) {
+      blender::animrig::Action &action = dna_action->wrap();
+      blender::animrig::foreach_fcurve_in_action(
+          action, [&](FCurve &fcurve) { version_fix_fcurve_noise_offset(fcurve); });
+    }
+
+    BKE_animdata_main_cb(bmain, [](ID * /* id */, AnimData *adt) {
+      LISTBASE_FOREACH (FCurve *, fcurve, &adt->drivers) {
+        version_fix_fcurve_noise_offset(*fcurve);
+      }
+      LISTBASE_FOREACH (NlaTrack *, track, &adt->nla_tracks) {
+        nlastrips_apply_fcurve_versioning(track->strips);
+      }
+    });
   }
 
   /**
@@ -4386,6 +4431,43 @@ static void asset_browser_add_list_view(Main *bmain)
   }
 }
 
+static void version_show_texpaint_to_show_uv(Main *bmain)
+{
+  LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
+    LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+      LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
+        if (sl->spacetype == SPACE_IMAGE) {
+          SpaceImage *sima = reinterpret_cast<SpaceImage *>(sl);
+          if (sima->flag & SI_NO_DRAW_TEXPAINT) {
+            sima->flag |= SI_NO_DRAW_UV_GUIDE;
+          }
+        }
+      }
+    }
+  }
+}
+
+static void version_set_uv_face_overlay_defaults(Main *bmain)
+{
+  LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
+    LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+      LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
+        if (sl->spacetype == SPACE_IMAGE) {
+          SpaceImage *sima = reinterpret_cast<SpaceImage *>(sl);
+          /* Remove ID Code from screen name */
+          const char *workspace_name = screen->id.name + 2;
+          /* Don't set uv_face_opacity for Texture Paint or Shading since these are workspaces
+           * where it's important to have unobstructed view of the Image Editor to see Image
+           * Textures. UV Editing is the only other default workspace with an Image Editor.*/
+          if (STREQ(workspace_name, "UV Editing")) {
+            sima->uv_face_opacity = 1.0f;
+          }
+        }
+      }
+    }
+  }
+}
+
 void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
 {
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 1)) {
@@ -6569,6 +6651,39 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
     }
   }
 
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 15)) {
+    FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
+      if (ntree->type != NTREE_COMPOSIT) {
+        continue;
+      }
+      LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
+        if (node->type_legacy != CMP_NODE_SCALE) {
+          continue;
+        }
+        if (node->storage != nullptr) {
+          continue;
+        }
+        NodeScaleData *data = MEM_callocN<NodeScaleData>(__func__);
+        data->interpolation = CMP_NODE_INTERPOLATION_BILINEAR;
+        node->storage = data;
+      }
+    }
+    FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 16)) {
+    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+      scene->grease_pencil_settings.smaa_threshold_render =
+          scene->grease_pencil_settings.smaa_threshold;
+      scene->grease_pencil_settings.aa_samples = 1;
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 17)) {
+    version_show_texpaint_to_show_uv(bmain);
+    version_set_uv_face_overlay_defaults(bmain);
+  }
+
   /* Always run this versioning; meshes are written with the legacy format which always needs to
    * be converted to the new format on file load. Can be moved to a subversion check in a larger
    * breaking release. */
@@ -6576,6 +6691,16 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
     blender::bke::mesh_sculpt_mask_to_generic(*mesh);
     blender::bke::mesh_custom_normals_to_generic(*mesh);
     rename_mesh_uv_seam_attribute(*mesh);
+  }
+
+  /* TODO: define version bump. */
+  {
+    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+      if (scene->r.ppm_factor == 0.0f && scene->r.ppm_base == 0.0f) {
+        scene->r.ppm_factor = 72.0f;
+        scene->r.ppm_base = 0.0254f;
+      }
+    }
   }
 
   /**

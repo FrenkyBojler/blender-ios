@@ -841,7 +841,7 @@ static void area_actionzone_get_rect(AZone *az, rcti *r_rect)
     const bool is_right = is_vertical && bool(az->region->v2d.scroll & V2D_SCROLL_RIGHT);
     const bool is_left = is_vertical && bool(az->region->v2d.scroll & V2D_SCROLL_LEFT);
     const bool is_top = is_horizontal && bool(az->region->v2d.scroll & V2D_SCROLL_TOP);
-    const bool is_botton = is_horizontal && bool(az->region->v2d.scroll & V2D_SCROLL_BOTTOM);
+    const bool is_bottom = is_horizontal && bool(az->region->v2d.scroll & V2D_SCROLL_BOTTOM);
     /* For scroll azones use the area around the region's scroll-bar location. */
     rcti scroller_vert = is_horizontal ? az->region->v2d.hor : az->region->v2d.vert;
     BLI_rcti_translate(&scroller_vert, az->region->winrct.xmin, az->region->winrct.ymin);
@@ -851,7 +851,7 @@ static void area_actionzone_get_rect(AZone *az, rcti *r_rect)
     r_rect->xmin = scroller_vert.xmin - (is_right ? V2D_SCROLL_HIDE_HEIGHT : edge_padding);
     r_rect->ymin = scroller_vert.ymin - (is_top ? V2D_SCROLL_HIDE_WIDTH : edge_padding);
     r_rect->xmax = scroller_vert.xmax + (is_left ? V2D_SCROLL_HIDE_HEIGHT : edge_padding);
-    r_rect->ymax = scroller_vert.ymax + (is_botton ? V2D_SCROLL_HIDE_WIDTH : edge_padding);
+    r_rect->ymax = scroller_vert.ymax + (is_bottom ? V2D_SCROLL_HIDE_WIDTH : edge_padding);
   }
   else {
     azone_clipped_rect_calc(az, r_rect);
@@ -4215,6 +4215,7 @@ static void area_join_update_data(bContext *C, sAreaJoinData *jd, const wmEvent 
     {
       /* We haven't moved enough to start a split. */
       jd->dir = SCREEN_DIR_NONE;
+      jd->split_fac = 0.0f;
       jd->dock_target = AreaDockTarget::None;
       return;
     }
@@ -4269,17 +4270,23 @@ static wmOperatorStatus area_join_modal(bContext *C, wmOperator *op, const wmEve
 
       WorkspaceStatus status(C);
       if (jd->sa1 && jd->sa1 == jd->sa2) {
-        status.item(IFACE_("Select Split"), ICON_MOUSE_LMB);
-        status.item(IFACE_("Cancel"), ICON_EVENT_ESC);
-        status.item_bool(IFACE_("Snap"), event->modifier & KM_CTRL, ICON_EVENT_CTRL);
-      }
-      else {
-        if (jd->dock_target == AreaDockTarget::None) {
-          status.item(IFACE_("Select Area"), ICON_MOUSE_LMB);
+        if (jd->split_fac == 0.0f) {
+          status.item(IFACE_("Split/Dock"), ICON_MOUSE_LMB_DRAG);
           status.item(IFACE_("Cancel"), ICON_EVENT_ESC);
         }
         else {
-          status.item(IFACE_("Select Location"), ICON_MOUSE_LMB);
+          status.item(IFACE_("Select Split"), ICON_MOUSE_LMB_DRAG);
+          status.item(IFACE_("Cancel"), ICON_EVENT_ESC);
+          status.item_bool(IFACE_("Snap"), event->modifier & KM_CTRL, ICON_EVENT_CTRL);
+        }
+      }
+      else {
+        if (jd->dock_target == AreaDockTarget::None) {
+          status.item(IFACE_("Select Area"), ICON_MOUSE_LMB_DRAG);
+          status.item(IFACE_("Cancel"), ICON_EVENT_ESC);
+        }
+        else {
+          status.item(IFACE_("Select Location"), ICON_MOUSE_LMB_DRAG);
           status.item(IFACE_("Cancel"), ICON_EVENT_ESC);
           status.item_bool(CTX_IFACE_(BLT_I18NCONTEXT_ID_SCREEN, "Precision"),
                            event->modifier & KM_ALT,
