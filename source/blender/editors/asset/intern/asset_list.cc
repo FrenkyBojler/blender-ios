@@ -95,6 +95,7 @@ class AssetList : NonCopyable {
   void setup();
   void fetch(const bContext &C);
   void clear(wmWindowManager *wm);
+  void clear_current_file_assets(wmWindowManager *wm);
 
   AssetHandle asset_get_by_index(int index) const;
 
@@ -221,6 +222,19 @@ void AssetList::clear(wmWindowManager *wm)
   filelist_freelib(files);
   filelist_clear(files);
   filelist_tag_force_reset(files);
+
+  WM_main_add_notifier(NC_ASSET | ND_ASSET_LIST, nullptr);
+}
+
+void AssetList::clear_current_file_assets(wmWindowManager *wm)
+{
+  /* Based on #ED_fileselect_clear() */
+
+  FileList *files = filelist_;
+  filelist_readjob_stop(files, wm);
+  filelist_freelib(files);
+  filelist_tag_force_reset_mainfiles(files);
+  filelist_clear_from_reset_tag(files);
 
   WM_main_add_notifier(NC_ASSET | ND_ASSET_LIST, nullptr);
 }
@@ -456,7 +470,15 @@ void clear(const AssetLibraryReference *library_reference, wmWindowManager *wm)
   /* Always clear the all library when clearing a nested one. */
   if (library_reference->type != ASSET_LIBRARY_ALL) {
     const AssetLibraryReference all_lib_ref = asset_system::all_library_reference();
-    clear(&all_lib_ref, wm);
+
+    if (AssetList *all_lib_list = lookup_list(all_lib_ref)) {
+      if (library_reference->type == ASSET_LIBRARY_LOCAL) {
+        all_lib_list->clear_current_file_assets(wm);
+      }
+      else {
+        all_lib_list->clear(wm);
+      }
+    }
   }
 }
 
