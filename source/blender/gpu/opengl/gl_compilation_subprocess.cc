@@ -157,6 +157,7 @@ void GPU_compilation_subprocess_run(const char *subprocess_name)
   CLG_init();
   BLI_threadapi_init();
 
+  /* Prevent the ShaderCompiler from spawning extra threads/contexts, we don't need them. */
   GCaps.use_main_context_workaround = true;
 
   std::string name = subprocess_name;
