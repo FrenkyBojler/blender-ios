@@ -8,6 +8,9 @@
 
 #include "GPU_capabilities.hh"
 
+/* vk_common needs to be included first to ensure win32 vulkan API is fully initialized, before working with it. */
+#include "vk_common.hh"
+
 #include "vk_texture.hh"
 
 #include "vk_buffer.hh"
@@ -412,15 +415,13 @@ VKMemoryExport VKTexture::export_memory(VkExternalMemoryHandleTypeFlagBits handl
   }
 
   if (handle_type == VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT) {
-    /*
     VkMemoryGetWin32HandleInfoKHR vk_memory_get_win32_handle_info =
     {VK_STRUCTURE_TYPE_MEMORY_GET_WIN32_HANDLE_INFO_KHR, nullptr, allocation_info_.deviceMemory,
     handle_type};
-    void* win32_handle = nullptr;
-    device.functions.vkGetMemoryWin32Handle(device.vk_handle(), &vk_memory_get_win32_handle_info,
-    &win32_handle); return {uint64_t(win32_handle), allocation_info_.size,
+    HANDLE win32_handle = nullptr;
+    //device.functions.vkGetMemoryWin32Handle(device.vk_handle(), &vk_memory_get_win32_handle_info, &win32_handle); 
+    return {uint64_t(win32_handle), allocation_info_.size,
     allocation_info_.offset};
-    */
   }
   BLI_assert_unreachable();
   return {};
