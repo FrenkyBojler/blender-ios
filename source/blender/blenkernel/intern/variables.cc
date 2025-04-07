@@ -136,6 +136,11 @@ VariableMap BKE_build_blender_variables(const char *blend_file_path, const Rende
 
 /* -------------------------------------------------------------------- */
 
+bool operator==(const ParseError &left, const ParseError &right)
+{
+  return left.type == right.type && left.byte_range == right.byte_range;
+}
+
 #define FORMAT_BUFFER_SIZE 128
 
 namespace {
@@ -577,7 +582,12 @@ blender::Vector<ParseError> BKE_path_apply_variables(char path[FILE_MAX],
     switch (token.type) {
       /* Syntax errors. */
       case TokenType::VARIABLE_SYNTAX_ERROR: {
-        errors.append({ParseErrorType::VARIABLE_SYNTAX, token.byte_range});
+        if (token.format.type == FormatSpecifierType::SYNTAX_ERROR) {
+          errors.append({ParseErrorType::FORMAT_SPECIFIER, token.byte_range});
+        }
+        else {
+          errors.append({ParseErrorType::VARIABLE_SYNTAX, token.byte_range});
+        }
         continue;
       }
       case TokenType::UNESCAPED_CURLY_BRACE_ERROR: {

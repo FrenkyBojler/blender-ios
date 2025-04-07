@@ -155,6 +155,8 @@ struct ParseError {
   blender::IndexRange byte_range;
 };
 
+bool operator==(const ParseError &left, const ParseError &right);
+
 /**
  * Perform variable substitution on the given path.
  *
