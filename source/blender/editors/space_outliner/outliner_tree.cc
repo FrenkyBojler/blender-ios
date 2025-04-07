@@ -27,6 +27,7 @@
 #include "BKE_screen.hh"
 
 #include "ED_screen.hh"
+#include "ED_outliner.hh"
 
 #include "UI_interface.hh"
 
@@ -829,7 +830,8 @@ static int outliner_exclude_filter_get(const SpaceOutliner *space_outliner)
 {
   int exclude_filter = space_outliner->filter & ~SO_FILTER_OB_STATE;
 
-  if (space_outliner->search_string[0] != 0) {
+  if ((space_outliner->search_string[0] != 0) && ED_outliner_support_searching(space_outliner))
+  {
     exclude_filter |= SO_FILTER_SEARCH;
   }
   else {
