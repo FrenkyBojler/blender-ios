@@ -41,15 +41,16 @@ const char *imb_ext_image[] = {
     /* #IMB_FTYPE_JPG */
     ".jpg",
     ".jpeg",
-    /* #IMB_FTYPE_IMAGIC */
+    /* #IMB_FTYPE_IRIS */
     ".sgi",
     ".rgb",
     ".rgba",
     /* #IMB_FTYPE_TIF */
     ".tif",
     ".tiff",
-    /* A convention for naming tiled images at different resolutions (MIP-mapped).
-     * These are typically TIFF or EXR images. See the tool `maketx` from Arnold. */
+    /* A convention for naming tiled images at different resolutions (MIP-mapped),
+     * supported by various render engines texture caching systems.
+     * These are typically TIFF or EXR images. See the tool `maketx` from OpenImageIO. */
     ".tx",
 #ifdef WITH_OPENJPEG
     /* #IMB_FTYPE_JP2 */
