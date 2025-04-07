@@ -254,8 +254,6 @@ TEST(blender_variables, path_apply_variables)
         {ParseErrorType::FORMAT_SPECIFIER, IndexRange(33, 11)},
     };
 
-    debug_print_errors(errors);
-
     EXPECT_EQ(errors, expected_errors);
     EXPECT_EQ(blender::StringRef(path), "{prime:}_{prime:.}_{prime:#.#.#}_{prime:sup}_{prime}");
   }
@@ -268,8 +266,6 @@ TEST(blender_variables, path_apply_variables)
         {ParseErrorType::VARIABLE_SYNTAX, IndexRange(0, 4)},
     };
 
-    debug_print_errors(errors);
-
     EXPECT_EQ(errors, expected_errors);
     EXPECT_EQ(blender::StringRef(path), "{hi_{hi}_{bye}");
   }
@@ -281,8 +277,6 @@ TEST(blender_variables, path_apply_variables)
     const Vector<ParseError> expected_errors = {
         {ParseErrorType::VARIABLE_SYNTAX, IndexRange(0, 4)},
     };
-
-    debug_print_errors(errors);
 
     EXPECT_EQ(errors, expected_errors);
     EXPECT_EQ(blender::StringRef(path), "{hi_{{hi}}_{bye}");

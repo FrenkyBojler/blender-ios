@@ -479,7 +479,7 @@ static std::optional<Token> next_token(char *path,
       if (start != -1) {
         /* Already inside a variable. */
         token.type = TokenType::VARIABLE_SYNTAX_ERROR;
-        token.byte_range = blender::IndexRange::from_begin_end(byte_index, byte_index + 1);
+        token.byte_range = blender::IndexRange::from_begin_end(start, byte_index);
         return token;
       }
       start = byte_index;
@@ -503,7 +503,6 @@ static std::optional<Token> next_token(char *path,
       }
 
       format_specifier_split = byte_index;
-      byte_index++;
       continue;
     }
 
