@@ -61,8 +61,7 @@ void VKBatch::draw(int vertex_first, int vertex_count, int instance_first, int i
     draw.node_data.instance_count = instance_count;
     draw.node_data.first_vertex = vertex_first;
     draw.node_data.first_instance = instance_first;
-    context.active_framebuffer_get()->vk_viewports_append(
-        draw.node_data.viewport_data.viewports);
+    context.active_framebuffer_get()->vk_viewports_append(draw.node_data.viewport_data.viewports);
     context.active_framebuffer_get()->vk_render_areas_append(
         draw.node_data.viewport_data.scissors);
 
@@ -132,8 +131,7 @@ void VKBatch::multi_draw_indirect(const VkBuffer indirect_buffer,
     draw.node_data.offset = offset;
     draw.node_data.draw_count = count;
     draw.node_data.stride = stride;
-    context.active_framebuffer_get()->vk_viewports_append(
-        draw.node_data.viewport_data.viewports);
+    context.active_framebuffer_get()->vk_viewports_append(draw.node_data.viewport_data.viewports);
     context.active_framebuffer_get()->vk_render_areas_append(
         draw.node_data.viewport_data.scissors);
 

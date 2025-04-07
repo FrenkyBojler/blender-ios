@@ -9,7 +9,6 @@
 #pragma once
 
 #include <mutex>
-#include <vulkan/vulkan_core.h>
 
 #include "xxhash.h"
 

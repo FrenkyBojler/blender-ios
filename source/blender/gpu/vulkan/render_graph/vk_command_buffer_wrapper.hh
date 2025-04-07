@@ -9,7 +9,6 @@
 #pragma once
 
 #include "vk_common.hh"
-#include <vulkan/vulkan_core.h>
 
 namespace blender::gpu {
 struct VKExtensions;

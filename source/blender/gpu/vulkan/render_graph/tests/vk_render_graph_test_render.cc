@@ -5,7 +5,6 @@
 #include "testing/testing.h"
 
 #include "vk_render_graph_test_types.hh"
-#include <vulkan/vulkan_core.h>
 
 namespace blender::gpu::render_graph {
 

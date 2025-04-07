@@ -9,7 +9,6 @@
 #include "vk_command_buffer_wrapper.hh"
 #include "vk_backend.hh"
 #include "vk_device.hh"
-#include <vulkan/vulkan_core.h>
 
 namespace blender::gpu::render_graph {
 VKCommandBufferWrapper::VKCommandBufferWrapper(VkCommandBuffer vk_command_buffer,
@@ -257,11 +256,13 @@ void VKCommandBufferWrapper::push_constants(VkPipelineLayout layout,
   vkCmdPushConstants(vk_command_buffer_, layout, stage_flags, offset, size, p_values);
 }
 
-void VKCommandBufferWrapper::set_viewport(const Vector<VkViewport> viewports) {
+void VKCommandBufferWrapper::set_viewport(const Vector<VkViewport> viewports)
+{
   vkCmdSetViewport(vk_command_buffer_, 0, viewports.size(), viewports.data());
 }
 
-void VKCommandBufferWrapper::set_scissor(const Vector<VkRect2D> scissors) {
+void VKCommandBufferWrapper::set_scissor(const Vector<VkRect2D> scissors)
+{
   vkCmdSetScissor(vk_command_buffer_, 0, scissors.size(), scissors.data());
 }
 

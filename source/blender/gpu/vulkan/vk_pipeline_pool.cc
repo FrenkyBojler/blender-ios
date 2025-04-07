@@ -14,7 +14,6 @@
 #include "CLG_log.h"
 
 #include "vk_backend.hh"
-#include <vulkan/vulkan_core.h>
 #include "vk_pipeline_pool.hh"
 
 #ifdef WITH_BUILDINFO
@@ -103,7 +102,9 @@ VKPipelinePool::VKPipelinePool()
       VK_PROVOKING_VERTEX_MODE_LAST_VERTEX_EXT;
 
   vk_dynamic_states_ = {VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR};
-  vk_pipeline_dynamic_state_create_info_.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+  vk_pipeline_dynamic_state_create_info_ = {};
+  vk_pipeline_dynamic_state_create_info_.sType =
+      VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
 
   vk_pipeline_viewport_state_create_info_ = {};
   vk_pipeline_viewport_state_create_info_.sType =
