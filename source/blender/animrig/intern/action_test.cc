@@ -1344,6 +1344,39 @@ TEST_F(ActionLayersTest, action_duplicate_slot)
   EXPECT_EQ(slot_cube.handle, cube->adt->slot_handle);
 }
 
+TEST_F(ActionLayersTest, action_duplicate_slot_without_channelbag)
+{
+  ASSERT_TRUE(action->is_empty());
+
+  Slot &slot_cube = action->slot_add();
+  ASSERT_EQ(assign_action_and_slot(action, &slot_cube, cube->id), ActionSlotAssignmentResult::OK);
+
+  /* Create a keyframe strip, but without any channelbags. */
+  action->layer_keystrip_ensure();
+
+  ASSERT_EQ(action->layer_array_num, 1);
+  Layer *layer = action->layer(0);
+
+  ASSERT_EQ(layer->strip_array_num, 1);
+  StripKeyframeData &strip_data = layer->strip(0)->data<StripKeyframeData>(*action);
+
+  ASSERT_EQ(strip_data.channelbag_array_num, 0);
+
+  /* Duplicate the slot and check it for uniqueness within the Action. */
+  Slot &dupli_slot = duplicate_slot(*action, slot_cube);
+  EXPECT_NE(dupli_slot.identifier, slot_cube.identifier);
+  EXPECT_NE(dupli_slot.handle, slot_cube.handle);
+  ASSERT_EQ(action->slot_array_num, 2);
+  EXPECT_EQ(&dupli_slot, action->slot(1));
+
+  /* Check there are still no channelbags. */
+  EXPECT_EQ(strip_data.channelbag_array_num, 0);
+
+  /* The slot should NOT have been reassigned. */
+  EXPECT_EQ(action, cube->adt->action);
+  EXPECT_EQ(slot_cube.handle, cube->adt->slot_handle);
+}
+
 /*-----------------------------------------------------------*/
 
 /* Allocate fcu->bezt, and also return a unique_ptr to it for easily freeing the memory. */
