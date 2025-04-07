@@ -1306,6 +1306,9 @@ void DepsgraphRelationBuilder::build_object_shading(Object *object)
   const OperationKey shading_key(&object->id, NodeType::SHADING, OperationCode::SHADING);
   add_relation(shading_key, shading_done_key, "Shading -> Done");
 
+  OperationKey seq_cache_key(&scene_->id, NodeType::SEQUENCER, OperationCode::SEQUENCES_CACHE);
+  add_relation(shading_key, seq_cache_key, "Transform Init -> Seq Cache");
+
   /* Hook up shading component to the instance, so that if the object is instanced by a visible
    * object the shading component is ensured to be evaluated.
    * Don't to flushing to avoid re-evaluation of geometry when the object is used as part of a

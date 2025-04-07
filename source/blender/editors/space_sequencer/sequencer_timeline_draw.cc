@@ -1958,7 +1958,6 @@ void draw_timeline_seq(const bContext *C, ARegion *region)
   ED_time_scrub_draw(region, ctx.scene, !(ctx.sseq->flag & SEQ_DRAWFRAMES), true);
 
   seq_prefetch_wm_notify(C, ctx.scene);
-  WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, nullptr);  // XXX
 }
 
 void draw_timeline_seq_display(const bContext *C, ARegion *region)
