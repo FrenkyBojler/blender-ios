@@ -5,3 +5,4 @@ Referenced by issue #48375, Spin tool
 Referenced by issue #48364, Shape key problem
 Referenced by issue #48365, Bridge tool fails in a few cases
 Referenced by issue #48356, Bridge tool creates self-intersecting loop bridges
+Referenced by issue #137068, Bridge edge loops not working as expected
