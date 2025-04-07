@@ -7,8 +7,6 @@
 #include "BLI_vector.hh"
 #include "GPU_context.hh"
 
-#include "GHOST_C-api.h"
-
 #include <atomic>
 #include <condition_variable>
 #include <functional>
@@ -17,21 +15,6 @@
 #include <thread>
 
 namespace blender::gpu {
-
-/* Abstracts secondary GHOST and GPU context creation, activation and deletion.
- * Must be created from the main thread and destructed from the thread they where activated in. */
-class GPUSecondaryContext {
- private:
-  GHOST_ContextHandle ghost_context_;
-  GPUContext *gpu_context_;
-
- public:
-  GPUSecondaryContext();
-  ~GPUSecondaryContext();
-
-  /* Must be called from a secondary thread.*/
-  void activate();
-};
 
 /* Abstracts the creation and management of secondary threads with GPU contexts.
  * Must be created from the main thread.
