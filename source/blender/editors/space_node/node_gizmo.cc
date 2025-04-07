@@ -576,6 +576,114 @@ void NODE_GGT_backdrop_box_mask(wmGizmoGroupType *gzgt)
 /** \} */
 
 /* -------------------------------------------------------------------- */
+/** \name Box Mask
+ * \{ */
+
+static bool WIDGETGROUP_node_ellipse_mask_poll(const bContext *C, wmGizmoGroupType * /*gzgt*/)
+{
+  SpaceNode *snode = CTX_wm_space_node(C);
+
+  if ((snode->flag & SNODE_BACKDRAW) == 0) {
+    return false;
+  }
+
+  if (snode && snode->edittree && snode->edittree->type == NTREE_COMPOSIT) {
+    bNode *node = bke::node_get_active(*snode->edittree);
+
+    if (node && node->is_type("CompositorNodeEllipseMask")) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+static void WIDGETGROUP_node_ellipse_mask_setup(const bContext * /*C*/, wmGizmoGroup *gzgroup)
+{
+  NodeBBoxWidgetGroup *mask_group = MEM_new<NodeBBoxWidgetGroup>(__func__);
+  mask_group->border = WM_gizmo_new("GIZMO_GT_cage_2d", gzgroup, nullptr);
+
+  RNA_enum_set(mask_group->border->ptr,
+               "transform",
+               ED_GIZMO_CAGE_XFORM_FLAG_TRANSLATE | ED_GIZMO_CAGE_XFORM_FLAG_ROTATE |
+                   ED_GIZMO_CAGE_XFORM_FLAG_SCALE);
+  RNA_enum_set(mask_group->border->ptr, "draw_style", ED_GIZMO_CAGE2D_STYLE_CIRCLE);
+  RNA_enum_set(
+      mask_group->border->ptr, "draw_options", ED_GIZMO_CAGE_DRAW_FLAG_XFORM_CENTER_HANDLE);
+
+  gzgroup->customdata = mask_group;
+  gzgroup->customdata_free = [](void *customdata) {
+    MEM_delete(static_cast<NodeBBoxWidgetGroup *>(customdata));
+  };
+}
+
+static void WIDGETGROUP_node_ellipse_mask_refresh(const bContext *C, wmGizmoGroup *gzgroup)
+{
+  Main *bmain = CTX_data_main(C);
+  NodeBBoxWidgetGroup *mask_group = (NodeBBoxWidgetGroup *)gzgroup->customdata;
+  wmGizmo *gz = mask_group->border;
+
+  void *lock;
+  Image *ima = BKE_image_ensure_viewer(bmain, IMA_TYPE_COMPOSITE, "Render Result");
+  ImBuf *ibuf = BKE_image_acquire_ibuf(ima, nullptr, &lock);
+
+  if (ibuf) {
+    mask_group->state.dims[0] = (ibuf->x > 0) ? ibuf->x : 64.0f;
+    mask_group->state.dims[1] = (ibuf->y > 0) ? ibuf->y : 64.0f;
+    copy_v2_v2(mask_group->state.offset, ima->runtime.backdrop_offset);
+
+    RNA_float_set_array(gz->ptr, "dimensions", mask_group->state.dims);
+    WM_gizmo_set_flag(gz, WM_GIZMO_HIDDEN, false);
+
+    SpaceNode *snode = CTX_wm_space_node(C);
+    bNode *node = bke::node_get_active(*snode->edittree);
+
+    mask_group->update_data.context = (bContext *)C;
+    mask_group->update_data.ptr = RNA_pointer_create_discrete(
+        (ID *)snode->edittree, &RNA_CompositorNodeCrop, node);
+    mask_group->update_data.prop = RNA_struct_find_property(&mask_group->update_data.ptr, "x");
+
+    wmGizmoPropertyFnParams params{};
+    params.value_get_fn = gizmo_node_box_mask_prop_matrix_get;
+    params.value_set_fn = gizmo_node_box_mask_prop_matrix_set;
+    params.range_get_fn = nullptr;
+    params.user_data = node;
+    WM_gizmo_target_property_def_func(gz, "matrix", &params);
+  }
+  else {
+    WM_gizmo_set_flag(gz, WM_GIZMO_HIDDEN, true);
+  }
+
+  BKE_image_release_ibuf(ima, ibuf, lock);
+}
+
+static void WIDGETGROUP_node_ellipse_mask_draw_prepare(const bContext *C, wmGizmoGroup *gzgroup)
+{
+  ARegion *region = CTX_wm_region(C);
+  wmGizmo *gz = (wmGizmo *)gzgroup->gizmos.first;
+
+  SpaceNode *snode = CTX_wm_space_node(C);
+
+  node_gizmo_calc_matrix_space(snode, region, gz->matrix_space);
+}
+
+void NODE_GGT_backdrop_ellipse_mask(wmGizmoGroupType *gzgt)
+{
+  gzgt->name = "Backdrop Ellipse Mask Widget";
+  gzgt->idname = "NODE_GGT_backdrop_ellipse_mask";
+
+  gzgt->flag |= WM_GIZMOGROUPTYPE_PERSISTENT;
+
+  gzgt->poll = WIDGETGROUP_node_ellipse_mask_poll;
+  gzgt->setup = WIDGETGROUP_node_ellipse_mask_setup;
+  gzgt->setup_keymap = WM_gizmogroup_setup_keymap_generic_maybe_drag;
+  gzgt->draw_prepare = WIDGETGROUP_node_ellipse_mask_draw_prepare;
+  gzgt->refresh = WIDGETGROUP_node_ellipse_mask_refresh;
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
 /** \name Sun Beams
  * \{ */
 
