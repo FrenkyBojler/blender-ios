@@ -295,11 +295,8 @@ void draw_results(const std::string &label,
 
   IndexMaskMemory memory;
   VectorSet<int> src_shape_indexing;
-  VectorSet<int> dst_shape_indexing;
   const Vector<IndexMask> src_shapes = IndexMask::from_group_ids(
       src_shape_ids, memory, src_shape_indexing);
-  const Vector<IndexMask> dst_shapes = IndexMask::from_group_ids(
-      dst_shape_ids, memory, dst_shape_indexing);
   const IndexMask subject_shapes = clipping_shapes.complement(src_shapes.index_range(), memory);
 
   BLI_assert(src_points.is_span());
@@ -326,15 +323,22 @@ void draw_results(const std::string &label,
                src_cyclic,
                op_params.clipping_rule,
                mapping);
-  SVG_add_path(f,
-               type + "-C",
-               dst_points,
-               dst_shapes,
-               dst_shapes.index_range(),
-               dst_points_by_curve,
-               dst_cyclic,
-               op_params.output_rule,
-               mapping);
+
+  if (dst_curves.curves_num() != 0) {
+    VectorSet<int> dst_shape_indexing;
+    const Vector<IndexMask> dst_shapes = IndexMask::from_group_ids(
+        dst_shape_ids, memory, dst_shape_indexing);
+
+    SVG_add_path(f,
+                 type + "-C",
+                 dst_points,
+                 dst_shapes,
+                 dst_shapes.index_range(),
+                 dst_points_by_curve,
+                 dst_cyclic,
+                 op_params.output_rule,
+                 mapping);
+  }
 
   f << "</svg>\n";
   f << "<h2>" << label << "</h2>\n";
