@@ -1064,32 +1064,29 @@ static wmOperatorStatus node_resize_modal(bContext *C, wmOperator *op, const wmE
       const float dy = (my - nsw->mystart) / UI_SCALE_FAC;
 
       if (node) {
+        float *pwidth = &node->width;
         float oldwidth = nsw->oldwidth;
         float widthmin = node->typeinfo->minwidth;
         float widthmax = node->typeinfo->maxwidth;
 
         {
           if (nsw->directions & NODE_RESIZE_RIGHT) {
-            node->width = oldwidth + dx;
+            *pwidth = oldwidth + dx;
 
             if (nsw->snap_to_grid) {
-              node->width = nearest_node_grid_coord(node->width);
+              *pwidth = nearest_node_grid_coord(*pwidth);
             }
-            CLAMP(node->width, widthmin, widthmax);
+            CLAMP(*pwidth, widthmin, widthmax);
           }
           if (nsw->directions & NODE_RESIZE_LEFT) {
-            float locx_max = nsw->oldlocx + oldwidth;
-
-            const float target_locx = nsw->oldlocx + dx;
-            float width = locx_max - target_locx;
+            float locmax = nsw->oldlocx + oldwidth;
+            *pwidth = oldwidth - dx;
 
             if (nsw->snap_to_grid) {
-              width = nearest_node_grid_coord(width);
+              *pwidth = nearest_node_grid_coord(*pwidth);
             }
-            CLAMP(width, widthmin, widthmax);
-
-            node->location[0] = locx_max - width;
-            node->width = width;
+            CLAMP(*pwidth, widthmin, widthmax);
+            node->location[0] = locmax - *pwidth;
           }
         }
 
