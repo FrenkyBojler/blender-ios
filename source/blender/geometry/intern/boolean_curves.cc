@@ -485,16 +485,21 @@ static std::pair<WindingState, WindingState> LR_states_from_segment(
   const int curve_i = segment.curve;
 
   if (is_fill[curve_i]) {
-    const float2 first_point_i = math::interpolate(
-        points[segment.start_edge().x], points[segment.start_edge().y], segment.start_alpha());
-    const Span<float2> poly_i = points.slice(points_by_curve[curve_i]);
-    const int winding_twice_i = point_in_polygon_winding_twice(first_point_i, poly_i);
+    if (!segment.is_loop()) {
+      const float2 first_point_i = math::interpolate(
+          points[segment.start_edge().x], points[segment.start_edge().y], segment.start_alpha());
+      const Span<float2> poly_i = points.slice(points_by_curve[curve_i]);
+      const int winding_twice_i = point_in_polygon_winding_twice(first_point_i, poly_i);
 
-    /* The point should be exactly on the edge. */
-    BLI_assert(math::abs(winding_twice_i) % 2 == 1);
-    /* Each state represents a point infinitesimally offset to the left and right. */
-    state_L.add_to_curve(curve_i, int((winding_twice_i + 1) / 2));
-    state_R.add_to_curve(curve_i, int((winding_twice_i - 1) / 2));
+      /* The point should be exactly on the edge. */
+      BLI_assert(math::abs(winding_twice_i) % 2 == 1);
+      /* Each state represents a point infinitesimally offset to the left and right. */
+      state_L.add_to_curve(curve_i, int((winding_twice_i + 1) / 2));
+      state_R.add_to_curve(curve_i, int((winding_twice_i - 1) / 2));
+    }
+    else {
+      state_L.add_to_curve(curve_i, 1);
+    }
   }
 
   float2 first_point = points[segment.start_point()];
