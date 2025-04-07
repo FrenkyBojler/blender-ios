@@ -96,18 +96,6 @@ def _write_json_files(
     else:
         _save_json(metadata, meta_json_path)
 
-    total_asset_count = sum(len(page.assets) for page in asset_index_pages)
-
-    # Library Index file /v1/asset-index.json:
-    index = api_models.AssetLibraryIndex(
-        schema_version=SCHEMA_VERSION,
-        asset_size_bytes=0,  # TODO: collect this info.
-        asset_count=total_asset_count,
-        page_count=len(asset_index_pages),
-        catalogs=[],  # TODO: collect catalogs.
-    )
-    _save_json(index, f"v{API_VERSION}/asset-index.json")
-
     # Remove old pages, in case the number of assets per page was increased and
     # so less page files are needed.
     existing_pages = (outdir / f"v{API_VERSION}").glob("assets-*.json")
@@ -115,8 +103,23 @@ def _write_json_files(
         filepath.unlink()
 
     # Library Index Page /v1/assets-{page}.json
+    page_urls = []
     for page_index, page in enumerate(asset_index_pages):
-        _save_json(page, f"v{API_VERSION}/assets-{page_index:05}.json")
+        page_relpath = f"v{API_VERSION}/assets-{page_index:05}.json"
+        page_urls.append(page_relpath)
+
+        _save_json(page, page_relpath)
+
+    # Library Index file /v1/asset-index.json:
+    total_asset_count = sum(len(page.assets) for page in asset_index_pages)
+    index = api_models.AssetLibraryIndex(
+        schema_version=SCHEMA_VERSION,
+        asset_size_bytes=0,  # TODO: collect this info.
+        asset_count=total_asset_count,
+        page_urls=page_urls,
+        catalogs=[],  # TODO: collect catalogs.
+    )
+    _save_json(index, f"v{API_VERSION}/asset-index.json")
 
 
 def _toplevel_metadata(json_path: Path) -> api_models.AssetLibraryMeta:

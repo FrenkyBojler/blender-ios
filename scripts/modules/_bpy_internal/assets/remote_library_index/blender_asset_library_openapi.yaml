@@ -130,9 +130,15 @@ components:
           description: >
             Total number of assets in this index. This is the sum of all
             `asset_count` fields of each page.
-        "page_count":
-          type: integer
-          description: Number of pages of assets in this index.
+        "page_urls":
+          type: array
+          items:
+            type: string
+            format: url
+          description: >
+            URLs of the individual asset index pages. When relative, these are
+            taken as relative to the main server URL (i.e. the root of all paths
+            defined in this OpenAPI spec).
         "catalogs":
           type: array
           items: { $ref: "#/components/schemas/Catalog" }
