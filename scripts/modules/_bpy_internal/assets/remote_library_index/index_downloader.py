@@ -139,6 +139,7 @@ class BackgroundDownloader:
         self._thread_bridge.add_reporter(reporter)
 
     def queue_download(self, remote_url: str, local_path: Path) -> None:
+        """Queue up a download of some URL to a location on disk."""
         self._num_pending_downloads += 1
         self._queue.put((remote_url, local_path))
 
@@ -147,17 +148,44 @@ class BackgroundDownloader:
 
     def clear_download_counts(self) -> None:
         """Resets the number of ok/error downloads."""
+
         self.num_downloads_ok = 0
         self.num_downloads_error = 0
 
     def start(self) -> None:
+        """Start the downloaded thread.
+
+        This MUST be called before calling .update().
+        """
+        if self._shutdown_event.is_set():
+            raise ValueError("BackgroundDownloader was shut down, cannot start again")
         self._downloader_thread.start()
 
     def shutdown(self) -> None:
+        """Cancel any pending downloads and shut down the background thread.
+
+        Blocks until the background thread has stopped and all queued updates
+        have been processed.
+
+        NOTE: call this from the same thread as used to call .update().
+        """
+        if self._shutdown_event.is_set() and not self._downloader_thread.is_alive():
+            self._logger.debug("shutdown already completed")
+            return
+
+        self._logger.debug("shutting down")
         self._shutdown_event.set()
+
+        self._logger.debug("cancelling any running download")
         self._downloader.cancel_download()
+
         self._logger.debug("waiting for download thread to stop")
         self._downloader_thread.join()
+
+        self._logger.debug("processing any pending updates")
+        while self._thread_bridge.update():
+            pass
+
         self._logger.debug("download thread stopped")
 
     def update(self) -> None:
@@ -192,6 +220,10 @@ class BackgroundDownloader:
         self._logger.debug("download thread shutting down")
 
     def download_starts(self, http_req_descr: RequestDescription) -> None:
+        """CachingDownloadReporter interface function.
+
+        Keeps track of internal bookkeeping.
+        """
         self._logger.info(f"Downloading {http_req_descr.http_method} {http_req_descr.url}")
 
     def already_downloaded(
@@ -199,6 +231,10 @@ class BackgroundDownloader:
         http_req_descr: RequestDescription,
         local_file: Path,
     ) -> None:
+        """CachingDownloadReporter interface function.
+
+        Keeps track of internal bookkeeping.
+        """
         self._logger.debug(f"Local file is fresh, no need to re-download: {local_file}")
         self._mark_download_done()
         self.num_downloads_ok += 1
@@ -208,6 +244,10 @@ class BackgroundDownloader:
         http_req_descr: RequestDescription,
         error: Exception,
     ) -> None:
+        """CachingDownloadReporter interface function.
+
+        Keeps track of internal bookkeeping.
+        """
         self._logger.error(f"Error downloading (ex={error!r})")
         self._mark_download_done()
         self.num_downloads_error += 1
@@ -218,19 +258,24 @@ class BackgroundDownloader:
         content_length_bytes: int,
         downloaded_bytes: int,
     ) -> None:
+        """CachingDownloadReporter interface function.
+
+        Keeps track of internal bookkeeping.
+        """
         self._logger.debug(
             f"Download progress: {downloaded_bytes} of {content_length_bytes}: "
             f"{downloaded_bytes/content_length_bytes*100:.0f}%"
         )
-
-        # self._logger.warning("going to cancel the download, just for shits and giggles")
-        # self._downloader.cancel_download()
 
     def download_finished(
         self,
         http_req_descr: RequestDescription,
         local_file: Path,
     ) -> None:
+        """CachingDownloadReporter interface function.
+
+        Keeps track of internal bookkeeping.
+        """
         self._logger.info(f"Download finished, stored at {local_file}")
         self._mark_download_done()
         self.num_downloads_ok += 1
