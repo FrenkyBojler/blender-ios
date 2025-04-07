@@ -1,1 +1,2 @@
 Referenced by issue #137052, Crash on startup using certain addons that make use of Python GPU shaders
+Referenced by commit 9d0650883762afe22feb06f7bafa4c83e388c4a3, Fix #137052: GPU: Crash on startup caused by legacy pyGPU API
