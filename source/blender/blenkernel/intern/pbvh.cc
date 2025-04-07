@@ -147,7 +147,7 @@ BLI_NOINLINE static void build_mesh_leaf_nodes(const int verts_num,
   }
 }
 
-static bool leaf_needs_material_split(const Span<int> faces, const Span<int> material_indices)
+static bool node_needs_material_split(const Span<int> faces, const Span<int> material_indices)
 {
   if (material_indices.is_empty()) {
     return false;
@@ -171,7 +171,7 @@ static void build_nodes_recursive_mesh(const Span<int> material_indices,
   bool needs_material_split = false;
 
   if (!gpu_inner_index.has_value() && faces.size() <= gpu_limit) {
-    needs_material_split = leaf_needs_material_split(faces, material_indices);
+    needs_material_split = node_needs_material_split(faces, material_indices);
 
     if (!needs_material_split) {
       MeshNode &node = nodes[node_index];
@@ -350,7 +350,7 @@ static void build_nodes_recursive_grids(const Span<int> material_indices,
   /* Decide whether this is a leaf or not */
   const bool below_leaf_limit = faces.size() <= leaf_limit || depth >= STACK_FIXED_DEPTH - 1;
   if (below_leaf_limit) {
-    if (!leaf_needs_material_split(faces, material_indices)) {
+    if (!node_needs_material_split(faces, material_indices)) {
       GridsNode &node = nodes[node_index];
       node.flag_ |= Node::Leaf | Node::GPU;
       node.gpu_inner_index_ = node_index;
