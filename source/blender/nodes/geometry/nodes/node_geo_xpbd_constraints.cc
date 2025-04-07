@@ -1007,16 +1007,12 @@ static void init_step(bke::GeometrySet &constraints)
   PointCloudComponent &component = constraints.get_component_for_write<PointCloudComponent>();
   std::optional<bke::MutableAttributeAccessor> attributes = component.attributes_for_write();
 
-  SpanAttributeWriter<float> lambda_w_writer = attributes->lookup_or_add_for_write_span<float>(
-      "lambda_w", AttrDomain::Point);
-  SpanAttributeWriter<float3> lambda_xyz_writer = attributes->lookup_or_add_for_write_span<float3>(
-      "lambda_xyz", AttrDomain::Point);
+  SpanAttributeWriter<float3> lambda_writer = attributes->lookup_or_add_for_write_span<float3>(
+      "lambda", AttrDomain::Point);
 
-  lambda_w_writer.span.fill(0.0f);
-  lambda_xyz_writer.span.fill(float3(0.0f));
+  lambda_writer.span.fill(float3(0.0f));
 
-  lambda_w_writer.finish();
-  lambda_xyz_writer.finish();
+  lambda_writer.finish();
 }
 
 template<bool debug_output>
