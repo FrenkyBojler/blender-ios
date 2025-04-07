@@ -36,6 +36,10 @@ typedef struct WindowManagerRuntimeHandle WindowManagerRuntimeHandle;
 typedef struct WindowRuntimeHandle WindowRuntimeHandle;
 #endif  // __cplusplus
 
+#ifdef hyper /* MSVC defines. */
+#  undef hyper
+#endif
+
 /* Defined here: */
 
 struct wmNotifier;
@@ -378,7 +382,7 @@ typedef struct wmWindow {
 
   /**
    * Input Method Editor data - complex character input (especially for Asian character input)
-   * Currently WIN32 and APPLE, runtime-only data.
+   * Only used when `WITH_INPUT_IME` is defined, runtime-only data.
    */
   const struct wmIMEData *ime_data;
   char ime_data_is_composing;
@@ -472,6 +476,10 @@ typedef struct wmKeyMapItem {
   int8_t alt;
   /** Also known as "Apple", "Windows-Key" or "Super. */
   int8_t oskey;
+  /** See #KM_HYPER for details. */
+  int8_t hyper;
+
+  char _pad0[7];
 
   /** Raw-key modifier. */
   short keymodifier;

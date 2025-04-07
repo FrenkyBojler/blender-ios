@@ -7,8 +7,6 @@
 #include "BLI_vector.hh"
 #include "GPU_context.hh"
 
-#include "GHOST_C-api.h"
-
 #include <atomic>
 #include <condition_variable>
 #include <functional>
@@ -18,19 +16,9 @@
 
 namespace blender::gpu {
 
-class GPUSecondaryContext {
- private:
-  GHOST_ContextHandle ghost_context_;
-  GPUContext *gpu_context_;
-
- public:
-  GPUSecondaryContext();
-  ~GPUSecondaryContext();
-
-  /* Must be called from a secondary thread.*/
-  void activate();
-};
-
+/* Abstracts the creation and management of secondary threads with GPU contexts.
+ * Must be created from the main thread.
+ * Threads and their context remain alive until destruction. */
 class GPUWorker {
  private:
   Vector<std::unique_ptr<std::thread>> threads_;
@@ -45,9 +33,15 @@ class GPUWorker {
     PerThread,
   };
 
+  /**
+   * \param threads_count: Number of threads to span.
+   * \param context_type: The type of context each thread uses.
+   * \param run_cb: The callback function that will be called by a thread on `wake_up()`.
+   */
   GPUWorker(uint32_t threads_count, ContextType context_type, std::function<void()> run_cb);
   ~GPUWorker();
 
+  /* Wake up a single thread. */
   void wake_up()
   {
     condition_var_.notify_one();

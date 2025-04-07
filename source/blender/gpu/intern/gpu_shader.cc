@@ -664,17 +664,6 @@ bool GPU_shader_get_ssbo_input_info(const GPUShader *shader, int ssbo_location, 
 /** \} */
 
 /* -------------------------------------------------------------------- */
-/** \name Getters
- * \{ */
-
-int GPU_shader_get_program(GPUShader *shader)
-{
-  return unwrap(shader)->program_handle_get();
-}
-
-/** \} */
-
-/* -------------------------------------------------------------------- */
 /** \name Uniforms setters
  * \{ */
 
@@ -857,9 +846,7 @@ Shader *ShaderCompiler::compile(const shader::ShaderCreateInfo &info, bool is_ba
   std::string defines = shader->defines_declare(info);
   std::string resources = shader->resources_declare(info);
 
-  if (info.legacy_resource_location_ == false) {
-    defines += "#define USE_GPU_SHADER_CREATE_INFO\n";
-  }
+  defines += "#define USE_GPU_SHADER_CREATE_INFO\n";
 
   Vector<StringRefNull> typedefs;
   if (!info.typedef_sources_.is_empty() || !info.typedef_source_generated.empty()) {
@@ -972,7 +959,7 @@ ShaderCompilerGeneric::ShaderCompilerGeneric(bool multithreaded,
 {
   if (!GPU_use_main_context_workaround()) {
     compilation_worker_ = std::make_unique<GPUWorker>(
-        multithreaded ? GPU_max_parallel_compilations() : 1, context_type, [=]() {
+        multithreaded ? GPU_max_parallel_compilations() : 1, context_type, [this]() {
           this->run_thread();
         });
   }
@@ -980,6 +967,8 @@ ShaderCompilerGeneric::ShaderCompilerGeneric(bool multithreaded,
 
 ShaderCompilerGeneric::~ShaderCompilerGeneric()
 {
+  compilation_worker_.reset();
+
   /* Ensure all the requested batches have been retrieved. */
   BLI_assert(batches_.is_empty());
 }
@@ -991,7 +980,7 @@ Shader *ShaderCompilerGeneric::compile_shader(const shader::ShaderCreateInfo &in
 
 BatchHandle ShaderCompilerGeneric::batch_compile(Span<const shader::ShaderCreateInfo *> &infos)
 {
-  std::lock_guard lock(mutex_);
+  std::unique_lock lock(mutex_);
 
   Batch *batch = MEM_new<Batch>(__func__);
   batch->infos = infos;

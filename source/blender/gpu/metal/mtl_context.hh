@@ -776,7 +776,7 @@ class MTLContext : public Context {
   GPUVertFormat dummy_vertformat_[GPU_SAMPLER_TYPE_MAX];
   VertBuf *dummy_verts_[GPU_SAMPLER_TYPE_MAX] = {nullptr};
 
-  MTLShaderCompiler compiler;
+  ShaderCompiler *compiler;
 
  public:
   /* GPUContext interface. */
@@ -795,7 +795,7 @@ class MTLContext : public Context {
 
   ShaderCompiler *get_compiler() override
   {
-    return &compiler;
+    return compiler;
   }
 
   void memory_statistics_get(int *r_total_mem, int *r_free_mem) override;

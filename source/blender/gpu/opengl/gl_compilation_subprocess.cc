@@ -15,6 +15,7 @@
 #  include "GHOST_C-api.h"
 #  include "GPU_context.hh"
 #  include "GPU_init_exit.hh"
+#  include "gpu_capabilities_private.hh"
 #  include <iostream>
 #  include <string>
 
@@ -155,6 +156,9 @@ void GPU_compilation_subprocess_run(const char *subprocess_name)
 
   CLG_init();
   BLI_threadapi_init();
+
+  /* Prevent the ShaderCompiler from spawning extra threads/contexts, we don't need them. */
+  GCaps.use_main_context_workaround = true;
 
   std::string name = subprocess_name;
   SharedMemory shared_mem(name, compilation_subprocess_shared_memory_size, false);
