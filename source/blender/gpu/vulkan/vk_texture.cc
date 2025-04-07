@@ -401,14 +401,29 @@ VKMemoryExport VKTexture::export_memory(VkExternalMemoryHandleTypeFlagBits handl
   BLI_assert_msg(allocation_ != nullptr,
                  "Cannot export memory when the texture is not backed by any device memory.");
   const VKDevice &device = VKBackend::get().device;
-  VkMemoryGetFdInfoKHR vk_memory_get_fd_info = {VK_STRUCTURE_TYPE_MEMORY_GET_FD_INFO_KHR,
-                                                nullptr,
-                                                allocation_info_.deviceMemory,
-                                                handle_type};
+  if (handle_type == VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT) {
+    VkMemoryGetFdInfoKHR vk_memory_get_fd_info = {VK_STRUCTURE_TYPE_MEMORY_GET_FD_INFO_KHR,
+                                                  nullptr,
+                                                  allocation_info_.deviceMemory,
+                                                  handle_type};
+    int fd_handle = 0;
+    device.functions.vkGetMemoryFd(device.vk_handle(), &vk_memory_get_fd_info, &fd_handle);
+    return {uint64_t(fd_handle), allocation_info_.size, allocation_info_.offset};
+  }
 
-  int fd_handle = 0;
-  device.functions.vkGetMemoryFd(device.vk_handle(), &vk_memory_get_fd_info, &fd_handle);
-  return {uint64_t(fd_handle), allocation_info_.size, allocation_info_.offset};
+  if (handle_type == VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT) {
+    /*
+    VkMemoryGetWin32HandleInfoKHR vk_memory_get_win32_handle_info =
+    {VK_STRUCTURE_TYPE_MEMORY_GET_WIN32_HANDLE_INFO_KHR, nullptr, allocation_info_.deviceMemory,
+    handle_type};
+    void* win32_handle = nullptr;
+    device.functions.vkGetMemoryWin32Handle(device.vk_handle(), &vk_memory_get_win32_handle_info,
+    &win32_handle); return {uint64_t(win32_handle), allocation_info_.size,
+    allocation_info_.offset};
+    */
+  }
+  BLI_assert_unreachable();
+  return {};
 }
 
 bool VKTexture::init_internal()

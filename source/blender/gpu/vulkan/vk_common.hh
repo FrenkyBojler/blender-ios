@@ -17,6 +17,9 @@
 #ifdef __APPLE__
 #  include <MoltenVK/vk_mvk_moltenvk.h>
 #else
+#  ifdef _WIN32
+#    define VK_USE_PLATFORM_WIN32_KHR
+#  endif
 #  include <vulkan/vulkan.h>
 #  ifdef _WIN32
 #    include <vulkan/vulkan_win32.h>

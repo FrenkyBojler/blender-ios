@@ -10,6 +10,10 @@
 #include <cstring>
 #include <sstream>
 
+#ifdef _WIN32
+#  define VK_USE_PLATFORM_WIN32_KHR
+#endif
+
 #include "GHOST_ContextVK.hh"
 #include "GHOST_XrException.hh"
 #include "GHOST_XrGraphicsBindingVulkan.hh"
@@ -311,6 +315,11 @@ GHOST_TVulkanXRModes GHOST_XrGraphicsBindingVulkan::choseDataTransferMode()
   };
 
 #ifdef _WIN32
+  bool has_vk_khr_external_memory_win32_extension = has_extension(
+      VK_KHR_EXTERNAL_MEMORY_WIN32_EXTENSION_NAME);
+  if (has_vk_khr_external_memory_win32_extension) {
+    return GHOST_kVulkanXRModeWin32;
+  }
 #elif defined(__APPLE__)
 #else /* UNIX/Linux */
   bool has_vk_khr_external_memory_fd_extension = has_extension(
