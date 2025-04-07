@@ -733,6 +733,8 @@ void Instance::draw(Manager &manager)
 
   resources.acquire(DRW_context_get(), this->state);
 
+  DRW_submission_start();
+
   /* TODO(fclem): Would be better to have a v2d overlay class instead of these conditions. */
   switch (state.space_type) {
     case SPACE_NODE:
@@ -747,6 +749,8 @@ void Instance::draw(Manager &manager)
     default:
       BLI_assert_unreachable();
   }
+
+  DRW_submission_end();
 
   resources.release();
 
@@ -858,7 +862,9 @@ void Instance::draw_v3d(Manager &manager, View &view)
       }
     }
 
-    DebugDraw::get().display_to_view(view);
+    if (BLI_thread_is_main()) {
+      DebugDraw::get().display_to_view(view);
+    }
 
     regular.prepass.draw_line(resources.overlay_line_fb, manager, view);
 

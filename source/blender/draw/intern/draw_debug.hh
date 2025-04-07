@@ -43,7 +43,11 @@ class DebugDraw {
   Vector<float3> sphere_verts_;
   Vector<float3> point_verts_;
 
-  std::mutex usage_mutex_;
+  /**
+   * Ensure thread-safety when adding geometry to the CPU debug buffer.
+   * GPU debug buffer currently expects draw submission to be externally synchronized.
+   */
+  std::atomic<int> vertex_len_;
 
   /* Reference counter used by GPUContext to allow freeing of DebugDrawBuf before the last
    * context is destroyed. */

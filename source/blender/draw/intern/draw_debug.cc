@@ -61,6 +61,8 @@ void DebugDraw::init()
     gpu_draw_buf_ = MEM_new<DebugDrawBuf>("DebugDrawBuf-GPU", "DebugDrawBuf-GPU");
   }
 
+  vertex_len_.store(0);
+
   cpu_draw_buf_->command.vertex_len = 0;
   cpu_draw_buf_->command.vertex_first = 0;
   cpu_draw_buf_->command.instance_len = 1;
@@ -207,7 +209,7 @@ void DebugDraw::draw_point(const float3 center, float radius, const float4 color
 void DebugDraw::draw_line(float3 v1, float3 v2, uint color)
 {
   DebugDrawBuf &buf = *cpu_draw_buf_;
-  uint index = buf.command.vertex_len;
+  uint index = vertex_len_.fetch_add(2);
   if (index + 2 < DRW_DEBUG_DRAW_VERT_MAX) {
     buf.verts[index + 0] = vert_pack(math::transform_point(model_mat_, v1), color);
     buf.verts[index + 1] = vert_pack(math::transform_point(model_mat_, v2), color);
@@ -251,16 +253,23 @@ void DebugDraw::display_lines(View &view)
   }
 
   GPU_debug_group_begin("Lines");
+  /* We might have race condition here (a writer thread might still be outputing vertices).
+   * But that is fine. At worse, we will be missing some vertex data and show 1 corrupted line. */
+  cpu_draw_buf_->command.vertex_len = vertex_len_.load();
   cpu_draw_buf_->push_update();
 
   float4x4 persmat = view.persmat();
 
   command::StateSet::set(DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_LESS);
 
+  float viewport_size[4];
+  GPU_viewport_size_get_f(viewport_size);
+
   gpu::Batch *batch = GPU_batch_procedural_lines_get();
   GPUShader *shader = DRW_shader_debug_draw_display_get();
   GPU_batch_set_shader(batch, shader);
   GPU_shader_uniform_mat4(shader, "persmat", persmat.ptr());
+  GPU_shader_uniform_2f(shader, "size_viewport", viewport_size[2], viewport_size[3]);
 
   if (gpu_draw_buf_used) {
     GPU_debug_group_begin("GPU");
@@ -281,6 +290,9 @@ void DebugDraw::display_lines(View &view)
 
 void DebugDraw::display_to_view(View &view)
 {
+  /* Display only on the main thread. Avoid concurent usage of the resource. */
+  BLI_assert(BLI_thread_is_main());
+
   GPU_debug_group_begin("DebugDraw");
 
   display_lines(view);
