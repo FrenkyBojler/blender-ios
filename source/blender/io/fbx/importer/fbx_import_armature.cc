@@ -97,6 +97,7 @@ void ArmatureImportContext::create_armature_bones(const ufbx_node *node,
   bArmature *arm = static_cast<bArmature *>(arm_obj->data);
 
   EditBone *bone = ED_armature_ebone_add(arm, get_fbx_name(node->name, "Bone"));
+  this->mapping.node_to_name.add(node, bone->name);
   arm_bones.add(node);
   /* For all bone nodes, record the whole armature as the owning object. */
   this->mapping.el_to_object.add(&node->element, arm_obj);
@@ -288,7 +289,8 @@ void ArmatureImportContext::find_armatures(const ufbx_node *node)
 
     /* Setup pose on the object, and custom properties on the pose bones. */
     for (const ufbx_node *fbone : arm_bones) {
-      bPoseChannel *pchan = BKE_pose_channel_find_name(arm_obj->pose, fbone->name.data);
+      bPoseChannel *pchan = BKE_pose_channel_find_name(
+          arm_obj->pose, this->mapping.node_to_name.lookup_default(fbone, "").c_str());
       if (pchan == nullptr) {
         continue;
       }

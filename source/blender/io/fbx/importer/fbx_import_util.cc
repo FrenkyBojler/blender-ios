@@ -90,7 +90,7 @@ void node_matrix_to_obj(const ufbx_node *node, Object *obj, const FbxElementMapp
 
       obj->parent = arm;
       obj->partype = PARBONE;
-      STRNCPY(obj->parsubstr, get_fbx_name(parbone->name));
+      STRNCPY(obj->parsubstr, mapping.node_to_name.lookup_default(parbone, "").c_str());
 
 #ifdef FBX_DEBUG_PRINT
       fprintf(g_debug_file,

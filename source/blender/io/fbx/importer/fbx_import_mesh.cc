@@ -421,8 +421,8 @@ void import_meshes(Main &bmain,
           if (parent_to_arm == nullptr) {
             parent_to_arm = mapping.bone_to_armature.lookup_default(fcluster->bone_node, nullptr);
           }
-          const char *bone_name = get_fbx_name(fcluster->bone_node->name, "Bone");
-          BKE_object_defgroup_add_name(obj, bone_name);
+          std::string bone_name = mapping.node_to_name.lookup_default(fcluster->bone_node, "");
+          BKE_object_defgroup_add_name(obj, bone_name.c_str());
         }
 
         /* Add armature modifier. */

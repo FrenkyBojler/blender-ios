@@ -28,11 +28,14 @@ struct FbxElementMapping {
   Map<const ufbx_element *, Key *> el_to_shape_key;
   Map<const ufbx_material *, Material *> mat_to_material;
   Map<const ufbx_node *, Object *> bone_to_armature;
-  /** Bone node to "bind matrix", i.e. matrix that transforms from bone (in skin bind pose) local
+  /* Mapping of ufbx node to object name used within blender. If names are too long
+   * or duplicate, they might not match what was in FBX file. */
+  Map<const ufbx_node *, std::string> node_to_name;
+  /* Bone node to "bind matrix", i.e. matrix that transforms from bone (in skin bind pose) local
    * space to world space. */
   Map<const ufbx_node *, ufbx_matrix> bone_to_bind_matrix;
   Map<const ufbx_node *, ufbx_real> bone_to_length;
-  /** Which bones actually have pose or skin cluster bind matrices in the FBX file (the others
+  /* Which bones actually have pose or skin cluster bind matrices in the FBX file (the others
    * would just use their world transform). */
   Set<const ufbx_node *> bone_has_pose_or_skin_matrix;
   Set<const ufbx_node *> bone_is_skinned;
