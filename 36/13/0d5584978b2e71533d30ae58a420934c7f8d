@@ -1,3 +1,3 @@
 Referenced by pull request #137000, Fix #136837: Mesh incorrectly renders smooth with GPU subdivision in some cases
 Referenced by issue #136837, Objects with a GPU subdivision surface modifier always render with smooth shading
-Referenced by pull request #137104, Fix: EEVEE motin blur broken after recent fix
+Referenced by pull request #137104, Fix: EEVEE motion blur broken after recent fix
