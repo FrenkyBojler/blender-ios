@@ -266,6 +266,13 @@ MTLContext::MTLContext(void *ghost_window, void *ghost_context)
 
   /* Initialize samplers. */
   this->sampler_state_cache_init();
+
+  if (GPU_use_parallel_compilation()) {
+    compiler = new MTLShaderCompiler();
+  }
+  else {
+    compiler = new ShaderCompilerGeneric();
+  }
 }
 
 MTLContext::~MTLContext()
@@ -374,6 +381,8 @@ MTLContext::~MTLContext()
   if (this->device) {
     [this->device release];
   }
+
+  delete compiler;
 }
 
 void MTLContext::begin_frame()
