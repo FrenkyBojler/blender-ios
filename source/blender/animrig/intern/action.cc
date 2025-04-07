@@ -3205,7 +3205,7 @@ Slot &duplicate_slot(Action &action, const Slot &slot)
   }
 
   /* The ID has changed, and so it needs to be re-evaluated. Animation does not
-   * have to be flushed since othing is using this slot yet. */
+   * have to be flushed since nothing is using this slot yet. */
   DEG_id_tag_update(&action.id, ID_RECALC_ANIMATION_NO_FLUSH);
 
   return cloned_slot;
