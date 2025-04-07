@@ -177,8 +177,11 @@ enum class TokenType {
   /* "}}", which is an escaped "}". */
   RIGHT_CURLY_BRACE,
 
-  /* Encountered a syntax error while trying to parse the next token. */
-  SYNTAX_ERROR,
+  /* Encountered a syntax error while trying to parse a variable. */
+  VARIABLE_SYNTAX_ERROR,
+
+  /* Encountered an unescaped curly brace in an invalid position. */
+  UNESCAPED_CURLY_BRACE_ERROR,
 };
 
 /**
@@ -461,7 +464,7 @@ static std::optional<Token> next_token(char *path,
 
     /* Check for unescaped "}", which outside of a variable is illegal. */
     if (start == -1 && path[byte_index] == '}') {
-      token.type = TokenType::SYNTAX_ERROR;
+      token.type = TokenType::UNESCAPED_CURLY_BRACE_ERROR;
       token.byte_range = blender::IndexRange::from_begin_end(byte_index, byte_index + 1);
       return token;
     }
@@ -470,7 +473,7 @@ static std::optional<Token> next_token(char *path,
     if (path[byte_index] == '{') {
       if (start != -1) {
         /* Already inside a variable. */
-        token.type = TokenType::SYNTAX_ERROR;
+        token.type = TokenType::VARIABLE_SYNTAX_ERROR;
         token.byte_range = blender::IndexRange::from_begin_end(byte_index, byte_index + 1);
         return token;
       }
@@ -489,7 +492,7 @@ static std::optional<Token> next_token(char *path,
     if (path[byte_index] == ':') {
       if (format_specifier_split != -1) {
         /* Found a second format specifier split. Syntax error. */
-        token.type = TokenType::SYNTAX_ERROR;
+        token.type = TokenType::VARIABLE_SYNTAX_ERROR;
         token.byte_range = blender::IndexRange::from_begin_end(byte_index, byte_index + 1);
         return token;
       }
@@ -524,7 +527,7 @@ static std::optional<Token> next_token(char *path,
         blender::StringRef(path + format_specifier_split + 1, path + end - 1));
 
     if (token.format.type == FormatSpecifierType::SYNTAX_ERROR) {
-      token.type = TokenType::SYNTAX_ERROR;
+      token.type = TokenType::VARIABLE_SYNTAX_ERROR;
       return token;
     }
   }
@@ -573,9 +576,12 @@ blender::Vector<ParseError> BKE_path_apply_variables(char path[FILE_MAX],
 
     switch (token.type) {
       /* Syntax errors. */
-      case TokenType::SYNTAX_ERROR: {
-        /* TODO: be more specific with the error type here. */
-        errors.append({ParseErrorType::VARIABLE_SYNTAX_ERROR, token.byte_range});
+      case TokenType::VARIABLE_SYNTAX_ERROR: {
+        errors.append({ParseErrorType::VARIABLE_SYNTAX, token.byte_range});
+        continue;
+      }
+      case TokenType::UNESCAPED_CURLY_BRACE_ERROR: {
+        errors.append({ParseErrorType::UNESCAPED_CURLY_BRACE, token.byte_range});
         continue;
       }
 
@@ -598,7 +604,7 @@ blender::Vector<ParseError> BKE_path_apply_variables(char path[FILE_MAX],
            * specifier: string variables do not support format specifiers. */
           if (token.format.type != FormatSpecifierType::NONE) {
             /* String variables don't take format specifiers: error. */
-            errors.append({ParseErrorType::FORMAT_SPECIFIER_ERROR, token.byte_range});
+            errors.append({ParseErrorType::FORMAT_SPECIFIER, token.byte_range});
             continue;
           }
           strcpy(replacement_string, string_value->c_str());

@@ -145,8 +145,8 @@ VariableMap BKE_build_blender_variables(const char *blend_file_path,
 
 enum class ParseErrorType {
   UNESCAPED_CURLY_BRACE,
-  VARIABLE_SYNTAX_ERROR,
-  FORMAT_SPECIFIER_ERROR,
+  VARIABLE_SYNTAX,
+  FORMAT_SPECIFIER,
   UNKNOWN_VARIABLE,
 };
 
