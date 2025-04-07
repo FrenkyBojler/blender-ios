@@ -691,11 +691,13 @@ GHOST_TSuccess GHOST_ContextVK::setVulkanSwapBuffersCallbacks(
 
 GHOST_TSuccess GHOST_ContextVK::activateDrawingContext()
 {
+  active_context_ = this;
   return GHOST_kSuccess;
 }
 
 GHOST_TSuccess GHOST_ContextVK::releaseDrawingContext()
 {
+  active_context_ = nullptr;
   return GHOST_kSuccess;
 }
 
@@ -1064,6 +1066,15 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
 
     required_device_extensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
   }
+
+  /* External memory extensions. */
+  required_device_extensions.push_back(VK_KHR_EXTERNAL_MEMORY_EXTENSION_NAME);
+#ifdef _WIN32
+  /* Placeholder to add VK_KHR_external_memory_win32  */
+#elif not defined(__APPLE__)
+  optional_device_extensions.push_back(VK_KHR_EXTERNAL_MEMORY_FD_EXTENSION_NAME);
+#endif
+
 #ifdef __APPLE__
   optional_device_extensions.push_back(VK_EXT_PROVOKING_VERTEX_EXTENSION_NAME);
 #else
@@ -1182,6 +1193,7 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
     recreateSwapchain();
   }
 
+  active_context_ = this;
   return GHOST_kSuccess;
 }
 
