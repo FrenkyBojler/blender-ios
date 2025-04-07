@@ -1707,19 +1707,6 @@ void Strip::slot_data_remove(Action &owning_action, const slot_handle_t slot_han
   }
 }
 
-void Strip::slot_data_duplicate(Action &owning_action,
-                                const slot_handle_t source_slot_handle,
-                                const slot_handle_t target_slot_handle)
-{
-  BLI_assert(source_slot_handle != target_slot_handle);
-
-  switch (this->type()) {
-    case Type::Keyframe:
-      this->data<StripKeyframeData>(owning_action)
-          .slot_data_duplicate(source_slot_handle, target_slot_handle);
-  }
-}
-
 /* ----- ActionStripKeyframeData implementation ----------- */
 
 StripKeyframeData::StripKeyframeData(const StripKeyframeData &other)
@@ -3198,10 +3185,9 @@ Slot &duplicate_slot(Action &action, const Slot &slot)
   slot_identifier_ensure_unique(action, cloned_slot);
 
   /* Duplicate each Channelbag for the source slot. */
-  for (Layer *layer : action.layers()) {
-    for (Strip *strip : layer->strips()) {
-      strip->slot_data_duplicate(action, slot.handle, cloned_slot.handle);
-    }
+  for (int i = 0; i < action.strip_keyframe_data_array_num; i++) {
+    StripKeyframeData &strip_data = action.strip_keyframe_data_array[i]->wrap();
+    strip_data.slot_data_duplicate(slot.handle, cloned_slot.handle);
   }
 
   /* The ID has changed, and so it needs to be re-evaluated. Animation does not

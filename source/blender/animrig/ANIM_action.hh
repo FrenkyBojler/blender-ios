@@ -657,18 +657,6 @@ class Strip : public ::ActionStrip {
    * This is typically only called from #Layer::slot_data_remove().
    */
   void slot_data_remove(Action &owning_action, slot_handle_t slot_handle);
-
-  /**
-   * Clone all data belonging to the source slot, and assign it to the target slot.
-   *
-   * There should not be a channelbag for the target slot yet. It is fine if
-   * there is no channelbag for the source slot.
-   *
-   * This is typically only called from #duplicate_slot(action, slot).
-   */
-  void slot_data_duplicate(Action &owning_action,
-                           slot_handle_t source_slot_handle,
-                           slot_handle_t target_slot_handle);
 };
 static_assert(sizeof(Strip) == sizeof(::ActionStrip),
               "DNA struct and its C++ wrapper must have the same size");
@@ -1059,7 +1047,7 @@ class StripKeyframeData : public ::ActionStripKeyframeData {
   /**
    * Clone the channelbag belonging to the source slot, and assign it to the target slot.
    *
-   * This is typically only called from #Strip::slot_data_duplicate().
+   * This is typically only called from #duplicate_slot().
    */
   void slot_data_duplicate(slot_handle_t source_slot_handle, slot_handle_t target_slot_handle);
 
