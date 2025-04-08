@@ -679,7 +679,7 @@ void BKE_path_application_errors_to_report(ReportList *reports,
 
   std::string error_message;
 
-  error_message.append("parse errors in path '");
+  error_message.append("Parse errors in path '");
   error_message.append(path);
   error_message.append("':");
 
