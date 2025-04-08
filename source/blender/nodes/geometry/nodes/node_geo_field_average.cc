@@ -215,7 +215,7 @@ class FieldAverageInput final : public bke::GeometryFieldInput {
         else {
           if (group_indices.is_single()) {
             Array<T> sorted_values(values);
-            T median = calculate_median(MutableSpan<T>(sorted_values));
+            T median = calculate_median<T>(sorted_values);
             g_outputs = VArray<T>::ForSingle(median, domain_size);
           }
           else {
@@ -226,7 +226,7 @@ class FieldAverageInput final : public bke::GeometryFieldInput {
 
             Map<int, T> medians;
             for (MutableMapItem<int, Vector<T>> group : groups.items()) {
-              medians.add(group.key, calculate_median(MutableSpan<T>(group.value)));
+              medians.add(group.key, calculate_median<T>(group.value));
             }
 
             Array<T> outputs(domain_size);
