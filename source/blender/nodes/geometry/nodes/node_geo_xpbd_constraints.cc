@@ -1835,7 +1835,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   SpanAttributeWriter<float> output_friction = attributes.lookup_or_add_for_write_only_span<float>(
       "friction", AttrDomain::Point);
   SpanAttributeWriter<float> output_restitution =
-      attributes.lookup_or_add_for_write_only_span<float>("restitituion", AttrDomain::Point);
+      attributes.lookup_or_add_for_write_only_span<float>("restitution", AttrDomain::Point);
   SpanAttributeWriter<float> output_threshold_normal_velocity =
       attributes.lookup_or_add_for_write_only_span<float>("threshold_normal_velocity",
                                                           AttrDomain::Point);
