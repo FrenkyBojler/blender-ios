@@ -76,10 +76,33 @@ def cli_main(arguments_raw: argparse.Namespace) -> None:
             index_local_path,
             api_models.AssetLibraryIndex,
         )
+        if asset_index.page_urls is None:
+            asset_index.page_urls = []
 
         logger.info("    Schema version    : %s", asset_index.schema_version)
         logger.info("    Asset count       : %d", asset_index.asset_count)
-        logger.info("    Pages             : %d", len(asset_index.page_urls or []))
+        logger.info("    Pages             : %d", len(asset_index.page_urls))
+
+        # Download the index pages.
+        for page_index, page_url in enumerate(asset_index.page_urls):
+            # These URLs may be absolute or they may be relative. In any case,
+            # do not assume that they can be used direclty as local filesystem path.
+            local_path = base_path / index_common.API_VERSIONED_SUBDIR / f"assets-{page_index:05}.json"
+            remote_url = urllib.parse.urljoin(base_url, page_url)
+
+            page = _download_and_parse(
+                bg_downloader,
+                remote_url,
+                local_path,
+                api_models.AssetLibraryIndexPage,
+            )
+
+            logger.info("    Page              : #%d", page_index)
+            if page.asset_count != len(page.assets):
+                logger.info("    Asset count       : %d (declared) / %d (actual)", page.asset_count, len(page.assets))
+            else:
+                logger.info("    Asset count       : %d", page.asset_count)
+
     finally:
         bg_downloader.shutdown()
 
