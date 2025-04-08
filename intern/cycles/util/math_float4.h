@@ -537,7 +537,7 @@ template<class MaskType>
 ccl_device_inline float4 select(const MaskType mask, const float4 a, const float4 b)
 {
 #if defined(__KERNEL_METAL__)
-  return metal::select(b, a, bool3(mask));
+  return metal::select(b, a, bool4(mask));
 #elif defined(__KERNEL_SSE__)
 #  ifdef __KERNEL_SSE42__
   return float4(_mm_blendv_ps(b.m128, a.m128, _mm_castsi128_ps(mask.m128)));
