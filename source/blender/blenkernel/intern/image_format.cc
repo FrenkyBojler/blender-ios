@@ -94,7 +94,7 @@ void BKE_image_format_set(ImageFormatData *imf, ID *owner_id, const char imtype)
 
   const bool is_render = (owner_id && GS(owner_id->name) == ID_SCE);
   /* see note below on why this is */
-  const char chan_flag = BKE_imtype_valid_channels(imf->imtype, true) |
+  const char chan_flag = BKE_imtype_valid_channels(imf->imtype) |
                          (is_render ? IMA_CHAN_FLAG_BW : 0);
 
   /* ensure depth and color settings match */
@@ -136,7 +136,7 @@ int BKE_imtype_to_ftype(const char imtype, ImbFormatOptions *r_options)
     return IMB_FTYPE_TGA;
   }
   if (imtype == R_IMF_IMTYPE_IRIS) {
-    return IMB_FTYPE_IMAGIC;
+    return IMB_FTYPE_IRIS;
   }
   if (imtype == R_IMF_IMTYPE_RADHDR) {
     return IMB_FTYPE_RADHDR;
@@ -189,7 +189,7 @@ char BKE_ftype_to_imtype(const int ftype, const ImbFormatOptions *options)
   if (ftype == IMB_FTYPE_NONE) {
     return R_IMF_IMTYPE_TARGA;
   }
-  if (ftype == IMB_FTYPE_IMAGIC) {
+  if (ftype == IMB_FTYPE_IRIS) {
     return R_IMF_IMTYPE_IRIS;
   }
   if (ftype == IMB_FTYPE_RADHDR) {
@@ -288,17 +288,13 @@ bool BKE_imtype_requires_linear_float(const char imtype)
   return false;
 }
 
-char BKE_imtype_valid_channels(const char imtype, bool write_file)
+char BKE_imtype_valid_channels(const char imtype)
 {
   char chan_flag = IMA_CHAN_FLAG_RGB; /* Assume all support RGB. */
 
   /* Alpha. */
   switch (imtype) {
     case R_IMF_IMTYPE_BMP:
-      if (write_file) {
-        break;
-      }
-      ATTR_FALLTHROUGH;
     case R_IMF_IMTYPE_TARGA:
     case R_IMF_IMTYPE_RAWTGA:
     case R_IMF_IMTYPE_IRIS:
@@ -694,7 +690,7 @@ void BKE_image_format_to_imbuf(ImBuf *ibuf, const ImageFormatData *imf)
   ibuf->foptions.flag = 0;
 
   if (imtype == R_IMF_IMTYPE_IRIS) {
-    ibuf->ftype = IMB_FTYPE_IMAGIC;
+    ibuf->ftype = IMB_FTYPE_IRIS;
   }
   else if (imtype == R_IMF_IMTYPE_RADHDR) {
     ibuf->ftype = IMB_FTYPE_RADHDR;
@@ -893,7 +889,7 @@ void BKE_image_format_from_imbuf(ImageFormatData *im_format, const ImBuf *imbuf)
   BKE_image_format_init(im_format, false);
 
   /* file type */
-  if (ftype == IMB_FTYPE_IMAGIC) {
+  if (ftype == IMB_FTYPE_IRIS) {
     im_format->imtype = R_IMF_IMTYPE_IRIS;
   }
   else if (ftype == IMB_FTYPE_RADHDR) {
