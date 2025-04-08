@@ -9,7 +9,6 @@
 #include "GHOST_ContextVK.hh"
 
 #ifdef _WIN32
-#  define VK_USE_PLATFORM_WIN32_KHR
 #  include <vulkan/vulkan_win32.h>
 #elif defined(__APPLE__)
 #  include <MoltenVK/vk_mvk_moltenvk.h>

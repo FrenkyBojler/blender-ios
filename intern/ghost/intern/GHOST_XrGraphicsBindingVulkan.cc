@@ -10,14 +10,14 @@
 #include <cstring>
 #include <sstream>
 
-#ifdef _WIN32
-#  define VK_USE_PLATFORM_WIN32_KHR
-#endif
-
 #include "GHOST_ContextVK.hh"
 #include "GHOST_XrException.hh"
 #include "GHOST_XrGraphicsBindingVulkan.hh"
 #include "GHOST_Xr_intern.hh"
+
+#ifdef _WIN32
+#  include <vulkan/vulkan_win32.h>
+#endif
 
 /** OpenXR/Vulkan specific function pointers. */
 PFN_xrGetVulkanGraphicsRequirements2KHR
