@@ -7,6 +7,7 @@ from __future__ import annotations
 import argparse
 import logging
 import urllib.parse
+from typing import Type, TypeVar
 from pathlib import Path
 
 import pydantic
@@ -46,10 +47,12 @@ def cli_main(arguments_raw: argparse.Namespace) -> None:
         metadata_local_path = base_path / index_common.ASSET_TOP_METADATA_FILENAME
         metadata_remote_url = urllib.parse.urljoin(base_url, index_common.ASSET_TOP_METADATA_FILENAME)
 
-        metadata = _download_and_parse_metadata(
+        metadata = _download_and_parse(
             bg_downloader,
             metadata_remote_url,
-            metadata_local_path)
+            metadata_local_path,
+            api_models.AssetLibraryMeta,
+        )
 
         # Show what we downloaded.
         logger.info("    API version       : %d", metadata.api_version)
@@ -61,19 +64,37 @@ def cli_main(arguments_raw: argparse.Namespace) -> None:
                 metadata.contact.url,
                 metadata.contact.email,
             )
+
+        # Download the main index.
+        index_local_path = base_path / index_common.API_VERSIONED_SUBDIR / index_common.ASSET_INDEX_JSON_FILENAME
+        index_remote_url = urllib.parse.urljoin(
+            base_url, f"{index_common.API_VERSIONED_SUBDIR}/{index_common.ASSET_INDEX_JSON_FILENAME}")
+
+        asset_index = _download_and_parse(
+            bg_downloader,
+            index_remote_url,
+            index_local_path,
+            api_models.AssetLibraryIndex,
+        )
+
+        logger.info("    Schema version    : %s", asset_index.schema_version)
+        logger.info("    Asset count       : %d", asset_index.asset_count)
+        logger.info("    Pages             : %d", len(asset_index.page_urls or []))
     finally:
         bg_downloader.shutdown()
 
 
-def _download_and_parse_metadata(
-    downloader: BackgroundDownloader,
-    metadata_remote_url: str,
-    metadata_local_path: Path,
-) -> api_models.AssetLibraryMeta:
+M = TypeVar('M', bound=pydantic.BaseModel)
 
-    # This has to be set on the main thread,
+
+def _download_and_parse(
+    downloader: BackgroundDownloader,
+    remote_url: str,
+    local_path: Path,
+    model_class: Type[M],
+) -> M:
     downloader.clear_download_counts()
-    downloader.queue_download(metadata_remote_url, metadata_local_path)
+    downloader.queue_download(remote_url, local_path)
 
     # Normally this would happen in a timer on a modal operator.
     while not downloader.all_downloads_done():
@@ -84,8 +105,8 @@ def _download_and_parse_metadata(
         # We just need to stop any further processing.
         raise RuntimeError("download failed, stopping everything")
 
-    json_data = metadata_local_path.read_bytes()
-    return api_models.AssetLibraryMeta.model_validate_json(json_data)
+    json_data = local_path.read_bytes()
+    return model_class.model_validate_json(json_data)
 
 
 # Ignore the type of the `subparsers` argument, because there doesn't seem
