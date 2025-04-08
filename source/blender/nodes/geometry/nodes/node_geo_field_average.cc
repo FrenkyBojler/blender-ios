@@ -6,6 +6,7 @@
 
 #include "BLI_array.hh"
 #include "BLI_generic_virtual_array.hh"
+#include "BLI_math_vector.h"
 #include "BLI_vector.hh"
 #include "BLI_virtual_array.hh"
 
@@ -119,7 +120,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
   }
 }
 
-template<typename T> T calculate_median(Vector<T> &values)
+template<typename T> static T calculate_median(Vector<T> &values)
 {
   if constexpr (std::is_same<T, float3>::value) {
     Vector<float> x_vals, y_vals, z_vals;
@@ -143,7 +144,7 @@ template<typename T> T calculate_median(Vector<T> &values)
     std::nth_element(values.begin(), middle_itr, values.end());
     if (values.size() % 2 == 0) {
       const auto left_middle_itr = std::max_element(values.begin(), middle_itr);
-      return (*left_middle_itr + *middle_itr) / 2;
+      return math::midpoint<T>(*left_middle_itr, *middle_itr);
     }
     return *middle_itr;
   }
