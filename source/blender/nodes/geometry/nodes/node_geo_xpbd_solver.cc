@@ -478,7 +478,7 @@ static void read_constraint_attributes(const Span<ConstraintEvalData> constraint
 {
   for (const int constraint_i : constraint_data.index_range()) {
     const ConstraintEvalData &data = constraint_data[constraint_i];
-    if (!data.geometry || !data.geometry->has_component<PointCloudComponent>()) {
+    if (!data.geometry || !data.geometry->has_pointcloud()) {
       continue;
     }
 
@@ -513,7 +513,7 @@ static void write_constraint_attributes(MutableSpan<ConstraintEvalData> constrai
 {
   for (const int constraint_i : constraint_data.index_range()) {
     ConstraintEvalData &data = constraint_data[constraint_i];
-    if (!data.geometry || !data.geometry->has_component<PointCloudComponent>()) {
+    if (!data.geometry || !data.geometry->has_pointcloud()) {
       continue;
     }
 
@@ -552,7 +552,7 @@ void read_constraint_topology(const Span<ConstraintEvalData> constraint_data,
     if (!data.type->get_size || !data.type->get_variable_indices) {
       continue;
     }
-    if (!data.geometry || !data.geometry->has_component<PointCloudComponent>()) {
+    if (!data.geometry || !data.geometry->has_pointcloud()) {
       continue;
     }
 
@@ -593,7 +593,7 @@ static void debug_check_constraint_topology(const ConstraintEvalParams &params,
 {
   for (const int constraint_i : constraint_data.index_range()) {
     const ConstraintEvalData &data = constraint_data[constraint_i];
-    if (!data.geometry || !data.geometry->has_component<PointCloudComponent>()) {
+    if (!data.geometry || !data.geometry->has_pointcloud()) {
       continue;
     }
 
@@ -781,7 +781,7 @@ static void set_global_solve_elements(const ConstraintEvalParams &params,
   // using PosGradT = MatBase<float, num_components, 3>;
   // using RotGradT = MatBase<float, num_components, 4>;
 
-  if (!data.geometry || !data.geometry->has_component<PointCloudComponent>()) {
+  if (!data.geometry || !data.geometry->has_pointcloud()) {
     return;
   }
   const int num_constraints = data.constraints.size();

@@ -628,7 +628,7 @@ static void get_constraint_data(GeoNodeExecParams params,
     }
 
     const GeometrySet &geometry_set = *static_cast<const GeometrySet *>(item->value);
-    if (geometry_set.has_component<PointCloudComponent>()) {
+    if (geometry_set.has_pointcloud()) {
       const AttributeAccessor attributes =
           *geometry_set.get_component<PointCloudComponent>()->attributes();
       const VArray<int> solver_groups = *attributes.lookup_or_default<int>(
