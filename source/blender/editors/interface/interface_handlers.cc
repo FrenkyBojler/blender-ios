@@ -3217,10 +3217,8 @@ static void ui_textedit_set_cursor_select(uiBut *but, uiHandleButtonData *data, 
   ui_but_update(but);
 }
 
-static void ui_numedit_but_inc(uiBut *but, uiTextEdit &text_edit, const int mod = 1)
+static void ui_numedit_but_inc(uiBut *but, uiTextEdit &text_edit, const int increment)
 {
-  const int str_len = strlen(text_edit.edit_string);
-
   std::string str_edit{text_edit.edit_string};
 
   if (!isdigit(text_edit.edit_string[but->pos]))
@@ -3234,24 +3232,17 @@ static void ui_numedit_but_inc(uiBut *but, uiTextEdit &text_edit, const int mod 
 
     for (int i = but->pos; i >= 0; i--) {
       char c = text_edit.edit_string[i];
-      if (c == '.') {
-        if (dot_pos == 0) {
-          dot_pos = but->pos - i;
-        }
-        else {
-          break;
-        }
+      if ((c == '.') && (dot_pos != 0)) {
+        break;
       }
-      else if (c == '-') {
+      if (c == '-') {
         num_str_start = i;
         break;
       }
-      else if (!isdigit(c)) {
+      if (!isdigit(c)) {
         break;
       }
-      else {
-        num_str_start = i;
-      }
+      num_str_start = i;
     }
 
     double fadd = 10;
@@ -3263,7 +3254,7 @@ static void ui_numedit_but_inc(uiBut *but, uiTextEdit &text_edit, const int mod 
     std::string str_num{str_edit.substr(num_str_start, but->pos - num_str_start + 1)};
 
     double prev_result = std::stod(str_num);
-    double result = prev_result + fadd * mod;
+    double result = prev_result + fadd * increment;
 
     int is_positive = 0;
 
@@ -4065,6 +4056,7 @@ static int ui_do_but_textedit(
           ui_numedit_but_inc(but, text_edit, -1);
           changed = true;
           update = true;
+          retval = WM_UI_HANDLER_BREAK;
           break;
         }
         if (data->searchbox) {
@@ -4089,6 +4081,7 @@ static int ui_do_but_textedit(
           ui_numedit_but_inc(but, text_edit, 1);
           changed = true;
           update = true;
+          retval = WM_UI_HANDLER_BREAK;
           break;
         }
         if (data->searchbox) {
