@@ -89,7 +89,8 @@ bool hasNumInput(const NumInput *n);
 bool applyNumInput(NumInput *n, float *vec);
 bool handleNumInput(bContext *C, NumInput *n, const wmEvent *event);
 
-/** Share with `TFM_MODAL_CANCEL` in `transform.h`. */
+/** Share with `TFM_MODAL_CANCEL` in `transform.hh`. */
+#define NUM_MODAL_TAB_REVERSE 8
 #define NUM_MODAL_INCREMENT_UP 18
 #define NUM_MODAL_INCREMENT_DOWN 19
 

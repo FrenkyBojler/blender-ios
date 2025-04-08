@@ -356,6 +356,8 @@ bool handleNumInput(bContext *C, NumInput *n, const wmEvent *event)
         n->val_flag[idx] |= NUM_EDITED;
         updated = true;
       }
+      else if(event->val == NUM_MODAL_TAB_REVERSE)
+        goto tab;
       else {
         /* might be a char too... */
         utf8_buf = event->utf8_buf;
@@ -450,11 +452,12 @@ bool handleNumInput(bContext *C, NumInput *n, const wmEvent *event)
       }
       return false;
     case EVT_TABKEY:
+    tab:
 #ifdef USE_FAKE_EDIT
       n->val_flag[idx] &= ~(NUM_NEGATE | NUM_INVERSE);
 #endif
 
-      idx = (idx + idx_max + ((event->modifier & KM_CTRL) ? 0 : 2)) % (idx_max + 1);
+      idx = (idx + idx_max + ((event->modifier & KM_SHIFT) ? 0 : 2)) % (idx_max + 1);
       n->idx = idx;
       if (n->val_flag[idx] & NUM_EDITED) {
         value_to_editstr(n, idx);

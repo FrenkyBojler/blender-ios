@@ -284,7 +284,7 @@ enum {
   TFM_MODAL_RESIZE = 5,
   TFM_MODAL_SNAP_INV_ON = 6,
   TFM_MODAL_SNAP_INV_OFF = 7,
-  TFM_MODAL_SNAP_TOGGLE = 8,
+  TFM_MODAL_SNAP_TOGGLE = 8, /* also used by number-input as NUM_MODAL_TAB_REVERSE, defined in `ED_numinput.hh`. */
   TFM_MODAL_AXIS_X = 9,
   TFM_MODAL_AXIS_Y = 10,
   TFM_MODAL_AXIS_Z = 11,
