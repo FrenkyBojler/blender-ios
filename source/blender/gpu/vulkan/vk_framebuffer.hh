@@ -16,7 +16,6 @@
 #include "gpu_framebuffer_private.hh"
 
 #include "render_graph/vk_render_graph.hh"
-#include "vk_common.hh"
 #include "vk_image_view.hh"
 
 namespace blender::gpu {

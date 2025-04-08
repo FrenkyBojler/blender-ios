@@ -11,6 +11,7 @@
 #include "gpu_context_private.hh"
 
 #include "BLI_utility_mixins.hh"
+
 #include "vk_common.hh"
 
 namespace blender::gpu {

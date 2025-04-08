@@ -19,7 +19,6 @@
 #include "BLI_utility_mixins.hh"
 #include "BLI_vector.hh"
 
-#include "vk_common.hh"
 #include "vk_resource_state_tracker.hh"
 
 namespace blender::gpu::render_graph {

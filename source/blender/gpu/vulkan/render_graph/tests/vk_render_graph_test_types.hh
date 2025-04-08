@@ -8,7 +8,6 @@
 #include <sstream>
 
 #include "render_graph/vk_render_graph.hh"
-#include "vk_common.hh"
 #include "vk_to_string.hh"
 
 namespace blender::gpu::render_graph {

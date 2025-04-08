@@ -11,7 +11,6 @@
 #include "../vk_command_buffer_wrapper.hh"
 #include "../vk_render_graph_links.hh"
 #include "../vk_resource_state_tracker.hh"
-#include "vk_common.hh"
 #include "vk_node_info.hh"
 
 namespace blender::gpu::render_graph {

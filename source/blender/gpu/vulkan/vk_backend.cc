@@ -18,6 +18,7 @@
 #include "gpu_platform_private.hh"
 
 #include "vk_batch.hh"
+#include "vk_common.hh"
 #include "vk_context.hh"
 #include "vk_fence.hh"
 #include "vk_framebuffer.hh"

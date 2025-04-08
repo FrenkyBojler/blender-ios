@@ -8,7 +8,6 @@
 
 #include "render_graph/vk_render_graph.hh"
 #include "vk_buffer.hh"
-#include "vk_common.hh"
 
 #include "BLI_vector.hh"
 

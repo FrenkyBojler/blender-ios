@@ -11,8 +11,6 @@
 #include "BLI_utility_mixins.hh"
 #include "BLI_vector.hh"
 
-#include "vk_common.hh"
-
 namespace blender::gpu {
 namespace render_graph {
 class VKRenderGraph;

@@ -12,8 +12,6 @@
 #include "BLI_set.hh"
 #include "BLI_string.h"
 
-#include "vk_common.hh"
-
 #include <typeindex>
 
 namespace blender::gpu {

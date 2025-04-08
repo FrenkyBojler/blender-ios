@@ -12,8 +12,6 @@
 
 #include "gpu_texture_private.hh"
 
-#include "vk_common.hh"
-
 namespace blender::gpu {
 struct VKWorkarounds;
 

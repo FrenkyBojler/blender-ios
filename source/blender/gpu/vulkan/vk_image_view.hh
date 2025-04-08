@@ -8,10 +8,10 @@
 
 #pragma once
 
-#include "vk_common.hh"
-
 #include "BLI_string_ref.hh"
 #include "BLI_utility_mixins.hh"
+
+#include "vk_common.hh"
 
 namespace blender::gpu {
 class VKTexture;

@@ -14,7 +14,8 @@
 #  ifdef __APPLE__
 #    include <MoltenVK/vk_mvk_moltenvk.h>
 #  else
-#    include <vulkan/vulkan.h>
+/* Only include the core data types. We don't want to hide any platform specific extension. */
+#    include <vulkan/vulkan_core.h>
 #  endif
 #endif
 

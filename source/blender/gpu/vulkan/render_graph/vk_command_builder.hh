@@ -10,7 +10,6 @@
 
 #include "BLI_set.hh"
 
-#include "vk_common.hh"
 #include "vk_render_graph_node.hh"
 #include "vk_scheduler.hh"
 

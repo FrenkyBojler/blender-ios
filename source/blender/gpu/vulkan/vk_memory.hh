@@ -8,8 +8,6 @@
 
 #pragma once
 
-#include "vk_common.hh"
-
 namespace blender::gpu {
 /** Information about an exported buffer/image. */
 struct VKMemoryExport {

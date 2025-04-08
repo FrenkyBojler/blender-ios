@@ -17,8 +17,6 @@
 
 #include "gpu_state_private.hh"
 
-#include "vk_common.hh"
-
 namespace blender {
 namespace gpu {
 

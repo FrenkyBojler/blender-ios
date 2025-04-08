@@ -8,7 +8,6 @@
 
 #include "vk_fence.hh"
 #include "vk_backend.hh"
-#include "vk_common.hh"
 #include "vk_context.hh"
 
 namespace blender::gpu {

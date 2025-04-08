@@ -12,10 +12,11 @@
 
 #include "gpu_context_private.hh"
 
+#include "vk_common.hh"
+
 #include "GHOST_Types.h"
 
 #include "render_graph/vk_render_graph.hh"
-#include "vk_common.hh"
 #include "vk_debug.hh"
 #include "vk_descriptor_pools.hh"
 #include "vk_resource_pool.hh"

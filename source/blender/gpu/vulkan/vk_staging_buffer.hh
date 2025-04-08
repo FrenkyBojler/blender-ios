@@ -9,7 +9,6 @@
 #pragma once
 
 #include "vk_buffer.hh"
-#include "vk_common.hh"
 
 namespace blender::gpu {
 

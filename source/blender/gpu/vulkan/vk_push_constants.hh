@@ -24,7 +24,6 @@
 
 #include "gpu_shader_create_info.hh"
 
-#include "vk_common.hh"
 #include "vk_descriptor_set.hh"
 
 namespace blender::gpu {

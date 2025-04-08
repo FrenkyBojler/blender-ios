@@ -10,6 +10,15 @@
 
 #include <typeinfo>
 
+#ifdef _WIN32
+#  if defined(VULKAN_H_) && !defined(VK_USE_PLATFORM_WIN32_KHR)
+#    error \
+        "Vulkan headers have already been included but without enabling windows specific extensions."
+#  endif
+#  include "BLI_winstuff.h"
+#  define VK_USE_PLATFORM_WIN32_KHR
+#endif
+
 #ifdef __APPLE__
 #  include <MoltenVK/vk_mvk_moltenvk.h>
 #else
@@ -32,8 +41,8 @@ using TimelineValue = uint64_t;
  * Based on the usage of an Image View a different image view type should be created.
  *
  * When using a GPU_TEXTURE_CUBE as an frame buffer attachment it will be used as a
- * GPU_TEXTURE_2D_ARRAY. eg only a single side of the cube map will be attached. But when bound as
- * a shader resource the cube-map will be used.
+ * GPU_TEXTURE_2D_ARRAY. eg only a single side of the cube map will be attached. But when bound
+ * as a shader resource the cube-map will be used.
  */
 enum class eImageViewUsage {
   /** Image View will be used as a bindable shader resource. */

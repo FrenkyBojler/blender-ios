@@ -21,6 +21,12 @@
 
 #include "DNA_userdef_types.h"
 
+#ifdef WITH_VULKAN_BACKEND
+/* vk_common needs to be included before GHOST, otherwise windows extensions won't be defined. This
+ * is due GHOST_Types includes vulkan headers without windows extensions. */
+#  include "vk_common.hh"
+#endif
+
 #include "GHOST_C-api.h"
 #include "GHOST_Types.h"
 

@@ -8,8 +8,6 @@
 
 #pragma once
 
-#include "vk_common.hh"
-
 #include "vk_descriptor_pools.hh"
 #include "vk_immediate.hh"
 

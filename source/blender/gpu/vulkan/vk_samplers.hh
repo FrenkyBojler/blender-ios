@@ -8,6 +8,8 @@
 
 #pragma once
 
+#include "vk_common.hh"
+
 #include "vk_sampler.hh"
 
 #include "BLI_map.hh"

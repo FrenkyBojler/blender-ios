@@ -18,7 +18,6 @@
 #include "render_graph/vk_render_graph.hh"
 #include "render_graph/vk_resource_state_tracker.hh"
 #include "vk_buffer.hh"
-#include "vk_common.hh"
 #include "vk_debug.hh"
 #include "vk_descriptor_pools.hh"
 #include "vk_descriptor_set_layouts.hh"
@@ -235,6 +234,11 @@ class VKDevice : public NonCopyable {
 
     /* Extension: VK_KHR_external_memory_fd */
     PFN_vkGetMemoryFdKHR vkGetMemoryFd = nullptr;
+
+#ifdef _WIN32
+    /* Extension: VK_KHR_external_memory_win32 */
+    PFN_vkGetMemoryWin32HandleKHR vkGetMemoryWin32Handle = nullptr;
+#endif
   } functions;
 
   struct {

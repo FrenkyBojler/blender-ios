@@ -51,8 +51,6 @@
 
 #include "BKE_global.hh"
 
-#include "vk_common.hh"
-
 #include "vk_command_buffer_wrapper.hh"
 #include "vk_command_builder.hh"
 #include "vk_render_graph_links.hh"
