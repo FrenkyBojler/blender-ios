@@ -77,7 +77,8 @@ class Node : NonCopyable {
     TopologyUpdated = 1 << 17,
   };
 
-  std::optional<int> parent_ = std::nullopt;
+  /* Index of the parent node. A value of -1 indicates that the node has no parent. */
+  int parent_ = -1;
 
   /** Axis aligned min and max of all vertex positions in the node. */
   Bounds<float3> bounds_ = {};
@@ -108,8 +109,12 @@ class Node : NonCopyable {
   /** \todo Move storage of image painting data to #Tree or elsewhere. */
   pixels::NodeData *pixels_ = nullptr;
 
-  const std::optional<int> parent()
+  std::optional<int> parent() const
   {
+    if (parent_ == -1) {
+      return std::nullopt;
+    }
+
     return parent_;
   }
   const Bounds<float3> &bounds() const;

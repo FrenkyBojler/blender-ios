@@ -2091,7 +2091,7 @@ static void pbvh_bmesh_create_nodes_fast_recursive(Vector<BMeshNode> &nodes,
                                                    const Span<Bounds<float3>> face_bounds,
                                                    const FastNodeBuildInfo *node,
                                                    const int node_index,
-                                                   const std::optional<int> parent_index)
+                                                   const int parent_index)
 {
   nodes[node_index].parent_ = parent_index;
 
@@ -2211,14 +2211,8 @@ Tree Tree::from_bmesh(BMesh &bm)
   /* Take root node and visit and populate children recursively. */
   Vector<BMeshNode> &nodes = std::get<Vector<BMeshNode>>(pbvh.nodes_);
   nodes.resize(1);
-  pbvh_bmesh_create_nodes_fast_recursive(nodes,
-                                         cd_vert_node_offset,
-                                         cd_face_node_offset,
-                                         nodeinfo,
-                                         face_bounds,
-                                         &rootnode,
-                                         0,
-                                         std::nullopt);
+  pbvh_bmesh_create_nodes_fast_recursive(
+      nodes, cd_vert_node_offset, cd_face_node_offset, nodeinfo, face_bounds, &rootnode, 0, -1);
 
   const IndexRange all_nodes = nodes.index_range();
   pbvh.tag_positions_changed(all_nodes);

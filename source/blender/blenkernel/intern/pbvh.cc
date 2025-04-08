@@ -143,7 +143,7 @@ static bool leaf_needs_material_split(const Span<int> faces, const Span<int> mat
 static void build_nodes_recursive_mesh(const Span<int> material_indices,
                                        const int leaf_limit,
                                        const int node_index,
-                                       const std::optional<int> parent_index,
+                                       const int parent_index,
                                        const std::optional<Bounds<float3>> &bounds_precalc,
                                        const Span<float3> face_centers,
                                        const int depth,
@@ -274,15 +274,8 @@ Tree Tree::from_mesh(const Mesh &mesh)
 #ifdef DEBUG_BUILD_TIME
     SCOPED_TIMER_AVERAGED("build_nodes_recursive_mesh");
 #endif
-    build_nodes_recursive_mesh(material_index,
-                               leaf_limit,
-                               0,
-                               std::nullopt,
-                               bounds,
-                               face_centers,
-                               0,
-                               pbvh.prim_indices_,
-                               nodes);
+    build_nodes_recursive_mesh(
+        material_index, leaf_limit, 0, -1, bounds, face_centers, 0, pbvh.prim_indices_, nodes);
   }
 
   build_mesh_leaf_nodes(mesh.verts_num, faces, corner_verts, nodes);
@@ -308,7 +301,7 @@ Tree Tree::from_mesh(const Mesh &mesh)
 static void build_nodes_recursive_grids(const Span<int> material_indices,
                                         const int leaf_limit,
                                         const int node_index,
-                                        const std::optional<int> parent_index,
+                                        const int parent_index,
                                         const std::optional<Bounds<float3>> &bounds_precalc,
                                         const Span<float3> face_centers,
                                         const int depth,
@@ -443,7 +436,7 @@ Tree Tree::from_grids(const Mesh &base_mesh, const SubdivCCG &subdiv_ccg)
     SCOPED_TIMER_AVERAGED("build_nodes_recursive_grids");
 #endif
     build_nodes_recursive_grids(
-        material_index, leaf_limit, 0, std::nullopt, bounds, face_centers, 0, face_indices, nodes);
+        material_index, leaf_limit, 0, -1, bounds, face_centers, 0, face_indices, nodes);
   }
 
   /* Convert face indices into grid indices. */
