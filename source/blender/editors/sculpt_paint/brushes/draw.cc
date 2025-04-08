@@ -172,7 +172,7 @@ static void offset_positions(const Depsgraph &depsgraph,
     }
   }
   pbvh.tag_positions_changed(node_mask);
-  pbvh.flush_bounds_to_parents(node_mask);
+  pbvh.flush_bounds_to_parents();
 }
 
 void do_draw_brush(const Depsgraph &depsgraph,

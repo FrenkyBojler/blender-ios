@@ -5409,7 +5409,7 @@ void store_mesh_from_eval(const wmOperator &op,
       }
 
       pbvh.tag_positions_changed(leaf_nodes);
-      pbvh.update_bounds(depsgraph, object, leaf_nodes);
+      pbvh.update_bounds(depsgraph, object);
       tag_mesh_positions_changed(object, use_pbvh_draw);
       BKE_mesh_copy_parameters(&mesh, new_mesh);
       BKE_id_free(nullptr, new_mesh);

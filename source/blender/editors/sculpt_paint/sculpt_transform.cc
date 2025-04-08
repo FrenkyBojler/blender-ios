@@ -334,7 +334,7 @@ static void sculpt_transform_all_vertices(const Depsgraph &depsgraph, const Scul
     }
   }
   pbvh.tag_positions_changed(node_mask);
-  pbvh.flush_bounds_to_parents(node_mask);
+  pbvh.flush_bounds_to_parents();
 }
 
 BLI_NOINLINE static void calc_transform_translations(const float4x4 &elastic_transform_mat,
@@ -532,7 +532,7 @@ static void transform_radius_elastic(const Depsgraph &depsgraph,
     }
   }
   pbvh.tag_positions_changed(node_mask);
-  pbvh.flush_bounds_to_parents(node_mask);
+  pbvh.flush_bounds_to_parents();
 }
 
 void update_modal_transform(bContext *C, Object &ob)
@@ -586,7 +586,7 @@ void cancel_modal_transform(bContext *C, Object &ob)
 
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(ob);
   bke::pbvh::update_normals(depsgraph, ob, pbvh);
-  pbvh.update_bounds(depsgraph, ob, ob.sculpt->filter_cache->node_mask);
+  pbvh.update_bounds(depsgraph, ob);
 }
 
 void end_transform(bContext *C, Object &ob)
