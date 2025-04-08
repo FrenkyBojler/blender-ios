@@ -1585,6 +1585,7 @@ def brush_basic__draw_color_selector(context, layout, brush, gp_settings):
             sub_row.enabled = show_vertex_color
             sub_row.scale_x = 0.8
             sub_row.prop_with_popover(brush, "color", text="", panel="TOPBAR_PT_grease_pencil_vertex_color")
+            sub_row.prop_with_popover(brush, "secondary_color", text="", panel="TOPBAR_PT_grease_pencil_vertex_color")
         row.prop(gp_settings, "pin_draw_mode", text="")
 
 

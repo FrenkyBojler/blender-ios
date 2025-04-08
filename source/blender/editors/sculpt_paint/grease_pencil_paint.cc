@@ -239,14 +239,19 @@ struct PaintOperationExecutor {
     use_settings_random_ = (settings_->flag & GP_BRUSH_GROUP_RANDOM) != 0;
     use_vertex_color_ = brush_using_vertex_color(scene_->toolsettings->gp_paint, brush_);
     if (use_vertex_color_) {
-      ColorGeometry4f color_base;
-      srgb_to_linearrgb_v3_v3(color_base, brush_->rgb);
-      color_base.a = settings_->vertex_factor;
+      ColorGeometry4f vertex_color;
+      srgb_to_linearrgb_v3_v3(vertex_color, brush_->rgb);
+      vertex_color.a = settings_->vertex_factor;
+
+      ColorGeometry4f fill_color;
+      srgb_to_linearrgb_v3_v3(fill_color, brush_->secondary_rgb);
+      fill_color.a = settings_->vertex_factor;
+
       if (ELEM(settings_->vertex_mode, GPPAINT_MODE_STROKE, GPPAINT_MODE_BOTH)) {
-        vertex_color_ = color_base;
+        vertex_color_ = vertex_color;
       }
       if (ELEM(settings_->vertex_mode, GPPAINT_MODE_FILL, GPPAINT_MODE_BOTH)) {
-        fill_color_ = color_base;
+        fill_color_ = fill_color;
       }
     }
     softness_ = 1.0f - settings_->hardness;
@@ -338,7 +343,7 @@ struct PaintOperationExecutor {
       point_attributes_to_skip.add("vertex_color");
     }
 
-    if (attributes.contains("fill_color")) {
+    if (use_vertex_color_ || attributes.contains("fill_color")) {
       self.drawing_->fill_colors_for_write()[active_curve] = fill_color_;
       curve_attributes_to_skip.add("fill_color");
     }

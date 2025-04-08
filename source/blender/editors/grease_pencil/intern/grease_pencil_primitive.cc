@@ -806,14 +806,19 @@ static wmOperatorStatus grease_pencil_primitive_invoke(bContext *C,
   const bool use_vertex_color = (vc.scene->toolsettings->gp_paint->mode ==
                                  GPPAINT_FLAG_USE_VERTEXCOLOR);
   if (use_vertex_color) {
-    ColorGeometry4f color_base;
-    srgb_to_linearrgb_v3_v3(color_base, ptd.brush->rgb);
-    color_base.a = ptd.settings->vertex_factor;
+    ColorGeometry4f vertex_color;
+    srgb_to_linearrgb_v3_v3(vertex_color, ptd.brush->rgb);
+    vertex_color.a = ptd.settings->vertex_factor;
+
+    ColorGeometry4f fill_color;
+    srgb_to_linearrgb_v3_v3(fill_color, ptd.brush->secondary_rgb);
+    fill_color.a = ptd.settings->vertex_factor;
+
     ptd.vertex_color = ELEM(ptd.settings->vertex_mode, GPPAINT_MODE_STROKE, GPPAINT_MODE_BOTH) ?
-                           std::make_optional(color_base) :
+                           std::make_optional(vertex_color) :
                            std::nullopt;
     ptd.fill_color = ELEM(ptd.settings->vertex_mode, GPPAINT_MODE_FILL, GPPAINT_MODE_BOTH) ?
-                         std::make_optional(color_base) :
+                         std::make_optional(fill_color) :
                          std::nullopt;
   }
   else {
