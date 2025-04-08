@@ -1694,14 +1694,14 @@ def brush_basic_grease_pencil_paint_settings(layout, context, brush, props, *, c
     tool = context.workspace.tools.from_space_view3d_mode(context.mode, create=False)
     if gp_settings is None:
         return
-    
+
     is_primitive_tool = tool.idname in {
-            "builtin.arc",
-            "builtin.curve",
-            "builtin.line",
-            "builtin.box",
-            "builtin.circle",
-            "builtin.polyline",
+        "builtin.arc",
+        "builtin.curve",
+        "builtin.line",
+        "builtin.box",
+        "builtin.circle",
+        "builtin.polyline",
     }
 
     grease_pencil_tool = brush.gpencil_tool
