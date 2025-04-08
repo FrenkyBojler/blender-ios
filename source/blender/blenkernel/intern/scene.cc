@@ -43,6 +43,7 @@
 #include "DNA_world_types.h"
 
 #include "BLI_listbase.h"
+#include "BLI_math_base.h"
 #include "BLI_math_rotation.h"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
@@ -87,6 +88,8 @@
 #include "BKE_sound.h"
 #include "BKE_unit.hh"
 #include "BKE_workspace.hh"
+
+#include "ANIM_action.hh"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_build.hh"
@@ -192,9 +195,6 @@ static void scene_init_data(ID *id)
   scene->unit.time_unit = uchar(BKE_unit_base_of_type_get(USER_UNIT_METRIC, B_UNIT_TIME));
   scene->unit.temperature_unit = uchar(
       BKE_unit_base_of_type_get(USER_UNIT_METRIC, B_UNIT_TEMPERATURE));
-
-  /* Anti-Aliasing threshold. */
-  scene->grease_pencil_settings.smaa_threshold = 1.0f;
 
   {
     ParticleEditSettings *pset;
@@ -395,8 +395,6 @@ static void scene_free_data(ID *id)
 {
   Scene *scene = (Scene *)id;
   const bool do_id_user = false;
-
-  DRW_drawdata_free(id);
 
   blender::seq::editing_free(scene, do_id_user);
 
@@ -1600,14 +1598,26 @@ const char *RE_engine_id_CYCLES = "CYCLES";
 
 static void remove_sequencer_fcurves(Scene *sce)
 {
-  AnimData *adt = BKE_animdata_from_id(&sce->id);
+  using namespace blender;
 
-  if (adt && adt->action) {
-    LISTBASE_FOREACH_MUTABLE (FCurve *, fcu, &adt->action->curves) {
-      if ((fcu->rna_path) && strstr(fcu->rna_path, "sequences_all")) {
-        action_groups_remove_channel(adt->action, fcu);
-        BKE_fcurve_free(fcu);
-      }
+  std::optional<std::pair<animrig::Action *, animrig::Slot *>> action_and_slot =
+      animrig::get_action_slot_pair(sce->id);
+  if (!action_and_slot) {
+    return;
+  }
+
+  animrig::Channelbag *channelbag = channelbag_for_action_slot(*action_and_slot->first,
+                                                               action_and_slot->second->handle);
+  if (!channelbag) {
+    return;
+  }
+
+  /* Create a copy of the F-Curve pointers, so iteration is safe while they are removed. */
+  Vector<FCurve *> fcurves = channelbag->fcurves();
+
+  for (FCurve *fcurve : fcurves) {
+    if ((fcurve->rna_path) && strstr(fcurve->rna_path, "sequence_editor.strips_all")) {
+      channelbag->fcurve_remove(*fcurve);
     }
   }
 }
@@ -2203,7 +2213,7 @@ bool BKE_scene_camera_switch_update(Scene *scene)
   Object *camera = BKE_scene_camera_switch_find(scene);
   if (camera && (camera != scene->camera)) {
     scene->camera = camera;
-    DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
+    DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL | ID_RECALC_PARAMETERS);
     return true;
   }
 #else
@@ -3179,6 +3189,32 @@ int BKE_scene_multiview_num_videos_get(const RenderData *rd)
   return BKE_scene_multiview_num_views_get(rd);
 }
 
+void BKE_scene_ppm_get(const RenderData *rd, double r_ppm[2])
+{
+  /* Should not be zero, prevent divide by zero if it is. */
+  if (UNLIKELY(rd->ppm_base == 0.0f)) {
+    /* Zero PPM should be ignored. */
+    r_ppm[0] = 0.0;
+    r_ppm[1] = 0.0;
+  }
+  /* Non-square aspects result in a lower density on one dimension to indicate
+   * the image should be stretched to match the original size causing the pixel
+   * density to be lower on that dimension. */
+  double xasp = 1.0, yasp = 1.0;
+  if (rd->xasp < rd->yasp) {
+    yasp = double(rd->xasp) / double(rd->yasp);
+  }
+  else if (rd->xasp > rd->yasp) {
+    xasp = double(rd->yasp) / double(rd->xasp);
+  }
+
+  const double ppm_base = rd->ppm_base;
+  const double ppm_factor = rd->ppm_factor;
+
+  r_ppm[0] = (ppm_factor / ppm_base) * xasp;
+  r_ppm[1] = (ppm_factor / ppm_base) * yasp;
+}
+
 /* Manipulation of depsgraph storage. */
 
 /* This is a key which identifies depsgraph. */
@@ -3344,7 +3380,7 @@ Depsgraph *BKE_scene_ensure_depsgraph(Main *bmain, Scene *scene, ViewLayer *view
 static char *scene_undo_depsgraph_gen_key(Scene *scene, ViewLayer *view_layer, char *key_full)
 {
   if (key_full == nullptr) {
-    key_full = static_cast<char *>(MEM_callocN(MAX_ID_NAME + FILE_MAX + MAX_NAME, __func__));
+    key_full = MEM_calloc_arrayN<char>(MAX_ID_NAME + FILE_MAX + MAX_NAME, __func__);
   }
 
   size_t key_full_offset = BLI_strncpy_rlen(key_full, scene->id.name, MAX_ID_NAME);

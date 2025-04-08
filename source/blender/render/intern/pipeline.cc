@@ -398,6 +398,8 @@ void RE_AcquireResultImageViews(Render *re, RenderResult *rr)
       rr->rectx = re->result->rectx;
       rr->recty = re->result->recty;
 
+      copy_v2_v2_db(rr->ppm, re->result->ppm);
+
       /* creates a temporary duplication of views */
       render_result_views_shallowcopy(rr, re->result);
 
@@ -449,6 +451,8 @@ void RE_AcquireResultImage(Render *re, RenderResult *rr, const int view_id)
 
       rr->rectx = re->result->rectx;
       rr->recty = re->result->recty;
+
+      copy_v2_v2_db(rr->ppm, re->result->ppm);
 
       /* `scene.rd.actview` view. */
       rv = RE_RenderViewGetById(re->result, view_id);
@@ -921,6 +925,7 @@ void RE_InitState(Render *re,
     re->result = MEM_callocN<RenderResult>("new render result");
     re->result->rectx = re->rectx;
     re->result->recty = re->recty;
+    BKE_scene_ppm_get(&re->r, re->result->ppm);
     render_result_view_new(re->result, "");
   }
 
@@ -1373,6 +1378,14 @@ static void do_render_compositor(Render *re)
           /* If we have consistent depsgraph now would be a time to update them. */
         }
 
+        blender::compositor::OutputTypes needed_outputs =
+            blender::compositor::OutputTypes::Composite |
+            blender::compositor::OutputTypes::FileOutput;
+        if (!G.background) {
+          needed_outputs |= blender::compositor::OutputTypes::Viewer |
+                            blender::compositor::OutputTypes::Previews;
+        }
+
         blender::compositor::RenderContext compositor_render_context;
         LISTBASE_FOREACH (RenderView *, rv, &re->result->views) {
           COM_execute(re,
@@ -1382,8 +1395,7 @@ static void do_render_compositor(Render *re)
                       rv->name,
                       &compositor_render_context,
                       nullptr,
-                      blender::compositor::OutputTypes::Composite |
-                          blender::compositor::OutputTypes::FileOutput);
+                      needed_outputs);
         }
         compositor_render_context.save_file_outputs(re->pipeline_scene_eval);
 
@@ -1429,14 +1441,17 @@ static void renderresult_stampinfo(Render *re)
     RE_SetActiveRenderView(re, rv->name);
     RE_AcquireResultImage(re, &rres, nr);
 
-    Object *ob_camera_eval = DEG_get_evaluated_object(re->pipeline_depsgraph, RE_GetCamera(re));
-    BKE_image_stamp_buf(re->scene,
-                        ob_camera_eval,
-                        (re->scene->r.stamp & R_STAMP_STRIPMETA) ? rres.stamp_data : nullptr,
-                        rres.ibuf->byte_buffer.data,
-                        rres.ibuf->float_buffer.data,
-                        rres.rectx,
-                        rres.recty);
+    if (rres.ibuf != nullptr) {
+      Object *ob_camera_eval = DEG_get_evaluated_object(re->pipeline_depsgraph, RE_GetCamera(re));
+      BKE_image_stamp_buf(re->scene,
+                          ob_camera_eval,
+                          (re->scene->r.stamp & R_STAMP_STRIPMETA) ? rres.stamp_data : nullptr,
+                          rres.ibuf->byte_buffer.data,
+                          rres.ibuf->float_buffer.data,
+                          rres.rectx,
+                          rres.recty);
+    }
+
     RE_ReleaseResultImage(re);
     nr++;
   }
@@ -2439,7 +2454,6 @@ void RE_RenderAnim(Render *re,
     }
 
     if (is_error) {
-      BKE_report(re->reports, RPT_ERROR, "Movie format unsupported");
       re_movie_free_all(re);
       render_pipeline_free(re);
       return;
@@ -2743,7 +2757,7 @@ void RE_layer_load_from_file(
   }
 
   /* OCIO_TODO: assume layer was saved in default color space */
-  ImBuf *ibuf = IMB_loadiffname(filepath, IB_byte_data, nullptr);
+  ImBuf *ibuf = IMB_load_image_from_filepath(filepath, IB_byte_data);
   RenderPass *rpass = nullptr;
 
   /* multi-view: since the API takes no 'view', we use the first combined pass found */

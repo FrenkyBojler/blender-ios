@@ -18,6 +18,8 @@
 
 #include "BLT_translation.hh"
 
+#include "sequencer.hh"
+
 #include "SEQ_channels.hh"
 #include "SEQ_sequencer.hh"
 
@@ -37,8 +39,7 @@ void channels_ensure(ListBase *channels)
 {
   /* Allocate channels. Channel 0 is never used, but allocated to prevent off by 1 issues. */
   for (int i = 0; i < MAX_CHANNELS + 1; i++) {
-    SeqTimelineChannel *channel = static_cast<SeqTimelineChannel *>(
-        MEM_callocN(sizeof(SeqTimelineChannel), "seq timeline channel"));
+    SeqTimelineChannel *channel = MEM_callocN<SeqTimelineChannel>("seq timeline channel");
     SNPRINTF(channel->name, DATA_("Channel %d"), i);
     channel->index = i;
     BLI_addtail(channels, channel);
@@ -87,20 +88,14 @@ bool channel_is_muted(const SeqTimelineChannel *channel)
   return (channel->flag & SEQ_CHANNEL_MUTE) != 0;
 }
 
-ListBase *get_channels_by_seq(ListBase *seqbase, ListBase *channels, const Strip *strip)
+ListBase *get_channels_by_seq(Editing *ed, const Strip *strip)
 {
-  ListBase *lb = nullptr;
-
-  LISTBASE_FOREACH (Strip *, istrip, seqbase) {
-    if (strip == istrip) {
-      return channels;
-    }
-    if ((lb = get_channels_by_seq(&istrip->seqbase, &istrip->channels, strip))) {
-      return lb;
-    }
+  Strip *strip_owner = lookup_meta_by_strip(ed, strip);
+  if (strip_owner != nullptr) {
+    return &strip_owner->channels;
   }
 
-  return nullptr;
+  return &ed->channels;
 }
 
 }  // namespace blender::seq

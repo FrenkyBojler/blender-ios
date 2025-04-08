@@ -40,6 +40,8 @@ namespace blender::ed::transform {
 #define STRIP_EDGE_PAN_DELAY 1.0f
 #define STRIP_EDGE_PAN_ZOOM_INFLUENCE 0.5f
 
+namespace {
+
 /** Used for sequencer transform. */
 struct TransDataSeq {
   Strip *strip;
@@ -67,6 +69,8 @@ struct TransSeq {
   /* Strips that aren't selected, but their position entirely depends on transformed strips. */
   VectorSet<Strip *> time_dependent_strips;
 };
+
+}  // namespace
 
 /* -------------------------------------------------------------------- */
 /** \name Sequencer Transform Creation
@@ -596,8 +600,7 @@ static void flushTransSeq(TransInfo *t)
             max_offset = offset;
           }
         }
-        strip->machine = round_fl_to_int(td->loc[1] + edge_pan_offset[1]);
-        CLAMP(strip->machine, 1, seq::MAX_CHANNELS);
+        seq::strip_channel_set(strip, round_fl_to_int(td->loc[1] + edge_pan_offset[1]));
         break;
       }
       case SEQ_LEFTSEL: { /* No vertical transform. */
