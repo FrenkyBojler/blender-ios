@@ -1,1 +1,2 @@
 Referenced by issue #137084, Image Editor shifts the displayed images when Pixel Aspect Ratio is not 1.0
+Referenced by commit 44fdc7cf8bdde5f464df0ff63afe750ff5184a57, Fix #137082: Wrong pixel aspect ratio for rendered output
