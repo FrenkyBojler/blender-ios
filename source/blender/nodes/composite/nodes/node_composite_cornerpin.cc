@@ -128,8 +128,7 @@ class CornerPinOperation : public NodeOperation {
     /* The texture sampler should use bilinear interpolation for both the bilinear and bicubic
      * cases, as the logic used by the bicubic realization shader expects textures to use bilinear
      * interpolation. */
-    const CMPNodeCornerPinInterpolation interpolation = static_cast<CMPNodeCornerPinInterpolation>(
-        bnode().custom1);
+    const CMPNodeCornerPinInterpolation interpolation = this->get_interpolation();
     const bool use_bilinear = ELEM(interpolation,
                                    CMP_NODE_CORNER_PIN_INTERPOLATION_BICUBIC,
                                    CMP_NODE_CORNER_PIN_INTERPOLATION_BILINEAR);
