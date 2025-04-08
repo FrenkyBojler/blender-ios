@@ -12,36 +12,29 @@
 #  undef out
 #  undef inout
 
-#  define SRD_ENABLED(srd) 1
-
-#  define SRD_VERTEX_IN_BEGIN(srd) struct srd {
-#  define SRD_VERTEX_IN_END(srd) \
+#  define SRD_STRUCT_BEGIN(srd) struct srd {
+#  define SRD_STRUCT_END(srd) \
     } \
     ;
+
+#  define SRD_VERTEX_IN_BEGIN(srd) SRD_STRUCT_BEGIN(srd)
+#  define SRD_VERTEX_IN_END(srd) SRD_STRUCT_END(srd)
 #  define SRD_VERTEX_IN(srd, binding, type, name) type name;
 
-#  define SRD_VERTEX_OUT_BEGIN(srd) struct srd {
-#  define SRD_VERTEX_OUT_END(srd) \
-    } \
-    ;
+#  define SRD_VERTEX_OUT_BEGIN(srd) SRD_STRUCT_BEGIN(srd)
+#  define SRD_VERTEX_OUT_END(srd) SRD_STRUCT_END(srd)
 #  define SRD_VERTEX_OUT(srd, qual, type, name) type name;
 
-#  define SRD_FRAGMENT_IN_BEGIN(srd) struct srd {
-#  define SRD_FRAGMENT_IN_END(srd) \
-    } \
-    ;
+#  define SRD_FRAGMENT_IN_BEGIN(srd) SRD_STRUCT_BEGIN(srd)
+#  define SRD_FRAGMENT_IN_END(srd) SRD_STRUCT_END(srd)
 #  define SRD_FRAGMENT_IN(srd, qual, type, name) type name;
 
-#  define SRD_FRAGMENT_OUT_BEGIN(srd) struct srd {
-#  define SRD_FRAGMENT_OUT_END(srd) \
-    } \
-    ;
+#  define SRD_FRAGMENT_OUT_BEGIN(srd) SRD_STRUCT_BEGIN(srd)
+#  define SRD_FRAGMENT_OUT_END(srd) SRD_STRUCT_END(srd)
 #  define SRD_FRAGMENT_OUT(srd, binding, type, name) type name;
 
-#  define SRD_RESOURCE_BEGIN(srd) struct srd {
-#  define SRD_RESOURCE_END(srd) \
-    } \
-    ;
+#  define SRD_RESOURCE_BEGIN(srd) SRD_STRUCT_BEGIN(srd)
+#  define SRD_RESOURCE_END(srd) SRD_STRUCT_END(srd)
 
 #  define SRD_RESOURCE_SPECIALIZATION_CONSTANT(srd, type, name, default) type name;
 #  define SRD_RESOURCE_PUSH_CONSTANT(srd, type, name) type name;

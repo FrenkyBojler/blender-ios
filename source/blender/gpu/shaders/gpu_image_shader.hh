@@ -2,6 +2,24 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+/* Preprocessor outputs this for GLSL compatibility. */
+#ifndef SRD_IMPL_VertexIn
+#  define SRD_IMPL_VertexIn DUMMY
+#endif
+#ifndef SRD_IMPL_VertexOut
+#  define SRD_IMPL_VertexOut DUMMY
+#endif
+#ifndef SRD_IMPL_FragmentOut
+#  define SRD_IMPL_FragmentOut DUMMY
+#endif
+#ifndef SRD_IMPL_ImageCommon
+#  define SRD_IMPL_ImageCommon DUMMY
+#endif
+
+#define SRD_DECLARE_ImageCommon() SRD_DECLARE_SAMPLER(ImageCommon, 0, sampler2D, image)
+
+/* Start of file. */
+
 #include "gpu_shader_srd_cpp.hh"
 
 SRD_VERTEX_IN_BEGIN(VertexIn)
@@ -23,33 +41,24 @@ SRD_RESOURCE_PUSH_CONSTANT(ImageCommon, float4x4, ModelViewProjectionMatrix)
 SRD_RESOURCE_SAMPLER(ImageCommon, 0, sampler2D, image)
 SRD_RESOURCE_END(ImageCommon)
 
-/* Preprocessor outputs this for GLSL compatibility. */
-#ifdef GPU_LANG_GLSL
-#  if SRD_ENABLED(ImageCommon)
-SRD_SAMPLER_DECLARE(ImageCommon, 0, sampler2D, image)
-#  else
-SRD_SAMPLER_DECLARE_DUMMY(ImageCommon, 0, sampler2D, image)
-#  endif
-#endif
-
 /* Shader code is not wanted when this file is included for shader reflections.
  * Guard all usage explicitly. This way, this can be included in many places without too much
  * overhead. This also allow arbitrary placement of the code w.r.t. the SRD. */
 #ifndef NO_SHADER_CODE
 
-VertexOut image_vertex(VertexIn in, ImageCommon srd)
+VertexOut image_vertex(VertexIn v_in, ImageCommon srd)
 {
-  VertexOut out;
-  out.position = srd.ModelViewProjectionMatrix * float4(in.pos.xy, 0.0f, 1.0f);
-  out.uv = in.uv;
-  return out;
+  VertexOut v_out;
+  v_out.position = srd.ModelViewProjectionMatrix * float4(v_in.pos.xy, 0.0f, 1.0f);
+  v_out.uv = v_in.uv;
+  return v_out;
 }
 
-FragmentOut image_fragment(VertexOut in, ImageCommon srd)
+FragmentOut image_fragment(VertexOut f_in, ImageCommon srd)
 {
-  FragmentOut out;
-  out.fragColor = texture(srd.image, in.uv);
-  return out;
+  FragmentOut f_out;
+  f_out.fragColor = texture(srd.image, f_in.uv);
+  return f_out;
 }
 
 #endif

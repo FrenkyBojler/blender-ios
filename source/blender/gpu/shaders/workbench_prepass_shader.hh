@@ -2,6 +2,69 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+/* Preprocessor outputs this for GLSL compatibility. */
+#ifndef SRD_IMPL_VertexInMesh
+#  define SRD_IMPL_VertexInMesh DUMMY
+#endif
+#ifndef SRD_IMPL_VertexOut
+#  define SRD_IMPL_VertexOut DUMMY
+#endif
+#ifndef SRD_IMPL_FragmentIn
+#  define SRD_IMPL_FragmentIn DUMMY
+#endif
+#ifndef SRD_IMPL_FragmentOut
+#  define SRD_IMPL_FragmentOut DUMMY
+#endif
+#ifndef SRD_IMPL_DRW_View
+#  define SRD_IMPL_DRW_View DUMMY
+#endif
+#ifndef SRD_IMPL_DRW_Clipping
+#  define SRD_IMPL_DRW_Clipping DUMMY
+#endif
+#ifndef SRD_IMPL_ImageTileData
+#  define SRD_IMPL_ImageTileData DUMMY
+#endif
+#ifndef SRD_IMPL_WB_PrepassCommon
+#  define SRD_IMPL_WB_PrepassCommon DUMMY
+#endif
+#ifndef SRD_IMPL_DRW_ResCustomId
+#  define SRD_IMPL_DRW_ResCustomId DUMMY
+#endif
+#ifndef SRD_IMPL_DRW_ModelMat
+#  define SRD_IMPL_DRW_ModelMat DUMMY
+#endif
+#ifndef SRD_IMPL_DRW_ModelMatWithCustomId
+#  define SRD_IMPL_DRW_ModelMatWithCustomId DUMMY
+#endif
+#ifndef SRD_IMPL_WB_PrepassOpaqueMesh
+#  define SRD_IMPL_WB_PrepassOpaqueMesh DUMMY
+#endif
+
+#define SRD_DECLARE_DRW_View() \
+  SRD_DECLARE_UNIFORM_BUF(DRW_View, DRW_VIEW_UBO_SLOT, ViewMatrices, drw_view_buf, [DRW_VIEW_LEN])
+
+#define SRD_DECLARE_DRW_Clipping() \
+  SRD_DECLARE_UNIFORM_BUF(DRW_Clipping, DRW_CLIPPING_UBO_SLOT, float4, drw_clipping_, [6])
+#define SRD_DECLARE_ImageTileData() \
+  SRD_DECLARE_SAMPLER(ImageTileData, WB_TILE_ARRAY_SLOT, sampler2DArray, tile_tx) \
+  SRD_DECLARE_SAMPLER(ImageTileData, WB_TILE_DATA_SLOT, sampler1DArray, map)
+
+#define SRD_DECLARE_WB_PrepassCommon() \
+  SRD_DECLARE_UNIFORM_BUF(WB_PrepassCommon, WB_WORLD_SLOT, WorldData, world_data, [1]) \
+  SRD_DECLARE_SAMPLER(WB_PrepassCommon, WB_MATCAP_SLOT, sampler2DArray, matcap_tx) \
+  SRD_DECLARE_SAMPLER(WB_PrepassCommon, WB_TEXTURE_SLOT, sampler2D, imageTexture) \
+  SRD_DECLARE_STORAGE_BUF(WB_PrepassCommon, WB_MATERIAL_SLOT, READ, float4, materials_data, [])
+
+#define SRD_DECLARE_DRW_ResCustomId() \
+  SRD_DECLARE_STORAGE_BUF(DRW_ResCustomId, DRW_RESOURCE_ID_SLOT, READ, uint2, resource_id_buf, [])
+
+#define SRD_DECLARE_DRW_ModelMat() \
+  SRD_DECLARE_STORAGE_BUF(DRW_ModelMat, DRW_OBJ_MAT_SLOT, READ, ObjectMatrices, drw_matrix_buf, [])
+
+#define SRD_DECLARE_DRW_ModelMatWithCustomId()
+
+#define SRD_DECLARE_WB_PrepassOpaqueMesh()
+
 #include "gpu_shader_srd_cpp.hh"
 
 #if 1 /* For prototyping purpose. */
@@ -147,7 +210,7 @@ SRD_RESOURCE_END(ImageTileData)
 SRD_RESOURCE_BEGIN(WB_PrepassCommon)
 SRD_RESOURCE_SPECIALIZATION_CONSTANT(WB_PrepassCommon, int, color_mode, WB_COLOR_TEXTURE)
 SRD_RESOURCE_SPECIALIZATION_CONSTANT(WB_PrepassCommon, int, shading_mode, WB_LIGHTING_MATCAP)
-SRD_RESOURCE_UNIFORM_BUF(WB_PrepassCommon, WB_WORLD_SLOT, WorldData, world_data, )
+SRD_RESOURCE_UNIFORM_BUF(WB_PrepassCommon, WB_WORLD_SLOT, WorldData, world_data, [1])
 SRD_RESOURCE_SAMPLER(WB_PrepassCommon, WB_MATCAP_SLOT, sampler2DArray, matcap_tx)
 SRD_RESOURCE_SAMPLER(WB_PrepassCommon, WB_TEXTURE_SLOT, sampler2D, imageTexture)
 SRD_RESOURCE_STRUCT(WB_PrepassCommon, ImageTileData, image_tile_data)
@@ -176,15 +239,6 @@ SRD_RESOURCE_STRUCT(WB_PrepassOpaqueMesh, DRW_ModelMatWithCustomId, model)
 SRD_RESOURCE_STRUCT(WB_PrepassOpaqueMesh, DRW_Clipping, clipping)
 SRD_RESOURCE_STRUCT(WB_PrepassOpaqueMesh, WB_PrepassCommon, prepass)
 SRD_RESOURCE_END(WB_PrepassOpaqueMesh)
-
-/* Preprocessor outputs this for GLSL compatibility. */
-#ifdef GPU_LANG_GLSL
-#  if SRD_ENABLED(ImageCommon)
-SRD_SAMPLER_DECLARE(ImageCommon, 0, sampler2D, image)
-#  else
-SRD_SAMPLER_DECLARE_DUMMY(ImageCommon, 0, sampler2D, image)
-#  endif
-#endif
 
 /* Shader code is not wanted when this file is included for shader reflections.
  * Guard all usage explicitly. This way, this can be included in many places without too much
@@ -285,27 +339,32 @@ void workbench_material_data_get(WB_PrepassCommon srd,
   metallic = float(encoded_data & 0xFFu) * (1.0 / 255.0);
 }
 
-VertexOut prepass_mesh_vertex(VertexInMesh in, WB_PrepassOpaqueMesh srd)
+VertexOut prepass_mesh_vertex(VertexInMesh v_in, WB_PrepassOpaqueMesh srd)
 {
-  VertexOut out;
+  VertexOut v_out;
 
-  float3 world_pos = drw_point_object_to_world(srd.model, in.pos);
-  out.position = drw_point_world_to_homogenous(srd.view, world_pos);
+  float3 world_pos = drw_point_object_to_world(srd.model, v_in.pos);
+  v_out.position = drw_point_world_to_homogenous(srd.view, world_pos);
 
   view_clipping_distances(srd.clipping, world_pos);
 
-  out.uv = in.au;
+  v_out.uv = v_in.au;
 
-  out.normal = normalize(drw_normal_object_to_view(srd.view, srd.model, in.nor));
+  v_out.normal = normalize(drw_normal_object_to_view(srd.view, srd.model, v_in.nor));
 
   int resource_id = drw_resource_id(srd.model.res_id);
   int custom_id = int(drw_custom_id(srd.model.res_id));
 
-  out.object_id = int(uint(resource_id) & 0xFFFFu) + 1;
+  v_out.object_id = int(uint(resource_id) & 0xFFFFu) + 1;
 
-  workbench_material_data_get(
-      srd.prepass, custom_id, in.ac.rgb, out.color, out.alpha, out.roughness, out.metallic);
-  return out;
+  workbench_material_data_get(srd.prepass,
+                              custom_id,
+                              v_in.ac.rgb,
+                              v_out.color,
+                              v_out.alpha,
+                              v_out.roughness,
+                              v_out.metallic);
+  return v_out;
 }
 
 /* From http://aras-p.info/texts/CompactNormalStorage.html
@@ -389,23 +448,23 @@ float3 workbench_image_color(WB_PrepassCommon srd, float2 uvs)
   return color.rgb;
 }
 
-FragmentOut prepass_fragment(FragmentIn in, WB_PrepassOpaqueMesh srd)
+FragmentOut prepass_fragment(FragmentIn f_in, WB_PrepassOpaqueMesh srd)
 {
-  FragmentOut out;
-  out.object_id = uint(in.v_out.object_id);
-  out.normal = workbench_normal_encode(in.front_facing, in.v_out.normal);
-  out.material = float4(in.v_out.color,
-                        workbench_float_pair_encode(in.v_out.roughness, in.v_out.metallic));
+  FragmentOut f_out;
+  f_out.object_id = uint(f_in.v_out.object_id);
+  f_out.normal = workbench_normal_encode(f_in.front_facing, f_in.v_out.normal);
+  f_out.material = float4(f_in.v_out.color,
+                          workbench_float_pair_encode(f_in.v_out.roughness, f_in.v_out.metallic));
 
   if (srd.prepass.color_mode == WB_COLOR_TEXTURE) {
-    out.material.rgb = workbench_image_color(srd.prepass, in.v_out.uv);
+    f_out.material.rgb = workbench_image_color(srd.prepass, f_in.v_out.uv);
   }
 
   if (srd.prepass.shading_mode == WB_LIGHTING_MATCAP) {
     /* For matcaps, save front facing in alpha channel. */
-    out.material.a = float(in.front_facing);
+    f_out.material.a = float(f_in.front_facing);
   }
-  return out;
+  return f_out;
 }
 
 #endif
