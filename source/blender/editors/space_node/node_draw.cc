@@ -4995,12 +4995,10 @@ static void draw_nodetree(const bContext &C,
   BLI_SCOPED_DEFER([&]() { ntree.runtime->sockets_on_active_gizmo_paths.clear(); });
   if (ntree.type == NTREE_GEOMETRY) {
     tree_draw_ctx.tree_logs = geo_log::GeoModifierLog::get_contextual_tree_logs(*snode);
-    for (Span<geo_log::GeoTreeLog *> logs : tree_draw_ctx.tree_logs.tree_logs_by_zone.values()) {
-      for (geo_log::GeoTreeLog *log : logs) {
-        log->ensure_node_warnings(&ntree);
-        log->ensure_execution_times();
-      }
-    }
+    tree_draw_ctx.tree_logs.foreach_tree_log([&](geo_log::GeoTreeLog &log) {
+      log.ensure_node_warnings(&ntree);
+      log.ensure_execution_times();
+    });
     const WorkSpace *workspace = CTX_wm_workspace(&C);
     tree_draw_ctx.active_geometry_nodes_viewer = viewer_path::find_geometry_nodes_viewer(
         workspace->viewer_path, *snode);

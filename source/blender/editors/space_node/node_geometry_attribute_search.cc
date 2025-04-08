@@ -75,21 +75,19 @@ static Vector<const GeometryAttributeInfo *> get_attribute_info_from_context(
   /* For the attribute input node, collect attribute information from all nodes in the group. */
   if (node->type_legacy == GEO_NODE_INPUT_NAMED_ATTRIBUTE) {
     Vector<const GeometryAttributeInfo *> attributes;
-    for (Span<GeoTreeLog *> logs : tree_logs.tree_logs_by_zone.values()) {
-      for (GeoTreeLog *tree_log : logs) {
-        tree_log->ensure_socket_values();
-        tree_log->ensure_existing_attributes();
-        for (const GeometryAttributeInfo *attribute : tree_log->existing_attributes) {
-          if (!names.add(attribute->name)) {
-            continue;
-          }
-          if (!bke::allow_procedural_attribute_access(attribute->name)) {
-            continue;
-          }
-          attributes.append(attribute);
+    tree_logs.foreach_tree_log([&](GeoTreeLog &tree_log) {
+      tree_log.ensure_socket_values();
+      tree_log.ensure_existing_attributes();
+      for (const GeometryAttributeInfo *attribute : tree_log.existing_attributes) {
+        if (!names.add(attribute->name)) {
+          continue;
         }
+        if (!bke::allow_procedural_attribute_access(attribute->name)) {
+          continue;
+        }
+        attributes.append(attribute);
       }
-    }
+    });
     return attributes;
   }
   GeoTreeLog *tree_log = tree_logs.get_main_tree_log(*node);

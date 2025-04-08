@@ -377,39 +377,23 @@ class GeoTreeLog {
 };
 
 class ContextualGeoTreeLogs {
+ private:
+  Map<const bke::bNodeTreeZone *, GeoTreeLog *> tree_logs_by_zone_;
+
  public:
-  MultiValueMap<const bke::bNodeTreeZone *, GeoTreeLog *> tree_logs_by_zone;
+  ContextualGeoTreeLogs(Map<const bke::bNodeTreeZone *, GeoTreeLog *> tree_logs_by_zone = {});
 
-  GeoTreeLog *get_main_tree_log(const bke::bNodeTreeZone *zone) const
-  {
-    const Span<GeoTreeLog *> tree_logs = this->tree_logs_by_zone.lookup(zone);
-    if (tree_logs.is_empty()) {
-      return nullptr;
-    }
-    return tree_logs.first();
-  }
+  /**
+   * Get a tree log for the given zone/node/socket if available.
+   */
+  GeoTreeLog *get_main_tree_log(const bke::bNodeTreeZone *zone) const;
+  GeoTreeLog *get_main_tree_log(const bNode &node) const;
+  GeoTreeLog *get_main_tree_log(const bNodeSocket &socket) const;
 
-  GeoTreeLog *get_main_tree_log(const bNode &node) const
-  {
-    const bNodeTree &tree = node.owner_tree();
-    const bke::bNodeTreeZones *zones = tree.zones();
-    if (!zones) {
-      return nullptr;
-    }
-    const bke::bNodeTreeZone *zone = zones->get_zone_by_node(node.identifier);
-    return this->get_main_tree_log(zone);
-  }
-
-  GeoTreeLog *get_main_tree_log(const bNodeSocket &socket) const
-  {
-    const bNodeTree &tree = socket.owner_tree();
-    const bke::bNodeTreeZones *zones = tree.zones();
-    if (!zones) {
-      return nullptr;
-    }
-    const bke::bNodeTreeZone *zone = zones->get_zone_by_socket(socket);
-    return this->get_main_tree_log(zone);
-  }
+  /**
+   * Runs a callback for each tree log that may be returned above.
+   */
+  void foreach_tree_log(FunctionRef<void(GeoTreeLog &)> callback) const;
 };
 
 /**
