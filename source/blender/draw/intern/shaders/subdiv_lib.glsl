@@ -43,7 +43,7 @@ uint get_index(uint i)
   return (i >> 2) & 0x3FFFFFFFu;
 }
 
-vec3 subdiv_get_vertex_pos(Position position)
+vec3 subdiv_position_to_vec3(Position position)
 {
   return vec3(position.x, position.y, position.z);
 }

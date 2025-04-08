@@ -6,6 +6,28 @@
 
 COMPUTE_SHADER_CREATE_INFO(subdiv_loop_normals)
 
+bool is_face_selected(uint coarse_quad_index)
+{
+  return (extra_coarse_face_data[coarse_quad_index] & shader_data.coarse_face_select_mask) != 0;
+}
+
+bool is_face_hidden(uint coarse_quad_index)
+{
+  return (extra_coarse_face_data[coarse_quad_index] & shader_data.coarse_face_hidden_mask) != 0;
+}
+
+/* Flag for paint mode overlay and normals drawing in edit-mode. */
+float get_loop_flag(uint coarse_quad_index, int vert_origindex)
+{
+  if (is_face_hidden(coarse_quad_index) || (shader_data.is_edit_mode && vert_origindex == -1)) {
+    return -1.0;
+  }
+  if (is_face_selected(coarse_quad_index)) {
+    return 1.0;
+  }
+  return 0.0;
+}
+
 void main()
 {
   /* We execute for each quad. */
@@ -25,14 +47,24 @@ void main()
     for (int i = 0; i < 4; i++) {
       uint subdiv_vert_index = vert_loop_map[start_loop_index + i];
       Normal vert_normal = vert_normals[subdiv_vert_index];
-      output_lnor[start_loop_index + i] = vert_normal;
+
+      int origindex = input_vert_origindex[start_loop_index + i];
+      float flag = get_loop_flag(coarse_quad_index, origindex);
+
+      LoopNormal loop_normal;
+      loop_normal.nx = vert_normal.x;
+      loop_normal.ny = vert_normal.y;
+      loop_normal.nz = vert_normal.z;
+      loop_normal.flag = flag;
+
+      output_lnor[start_loop_index + i] = loop_normal;
     }
   }
   else {
-    vec3 v0 = subdiv_get_vertex_pos(positions[start_loop_index + 0]);
-    vec3 v1 = subdiv_get_vertex_pos(positions[start_loop_index + 1]);
-    vec3 v2 = subdiv_get_vertex_pos(positions[start_loop_index + 2]);
-    vec3 v3 = subdiv_get_vertex_pos(positions[start_loop_index + 3]);
+    vec3 v0 = subdiv_position_to_vec3(positions[start_loop_index + 0]);
+    vec3 v1 = subdiv_position_to_vec3(positions[start_loop_index + 1]);
+    vec3 v2 = subdiv_position_to_vec3(positions[start_loop_index + 2]);
+    vec3 v3 = subdiv_position_to_vec3(positions[start_loop_index + 3]);
 
     vec3 face_normal = vec3(0.0);
     add_newell_cross_v3_v3v3(face_normal, v0, v1);
@@ -42,12 +74,16 @@ void main()
 
     face_normal = normalize(face_normal);
 
-    Normal nor;
-    nor.x = face_normal.x;
-    nor.y = face_normal.y;
-    nor.z = face_normal.z;
+    LoopNormal loop_normal;
+    loop_normal.nx = face_normal.x;
+    loop_normal.ny = face_normal.y;
+    loop_normal.nz = face_normal.z;
+
     for (int i = 0; i < 4; i++) {
-      output_lnor[start_loop_index + i] = nor;
+      int origindex = input_vert_origindex[start_loop_index + i];
+      loop_normal.flag = get_loop_flag(coarse_quad_index, origindex);
+
+      output_lnor[start_loop_index + i] = loop_normal;
     }
   }
 }

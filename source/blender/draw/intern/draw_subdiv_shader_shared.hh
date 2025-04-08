@@ -73,13 +73,12 @@ struct Position {
   float z;
 };
 
-struct Normal {
-  float x;
-  float y;
-  float z;
+struct LoopNormal {
+  float nx, ny, nz;
+  float flag;
 };
 
-struct CustomNormal {
+struct Normal {
   float x;
   float y;
   float z;

@@ -1374,6 +1374,7 @@ void draw_subdiv_build_lnor_buffer(const DRWSubdivCache &cache,
   GPU_vertbuf_bind_as_ssbo(pos, LOOP_NORMALS_POS_SLOT);
   GPU_vertbuf_bind_as_ssbo(cache.extra_coarse_face_data,
                            LOOP_NORMALS_EXTRA_COARSE_FACE_DATA_BUF_SLOT);
+  GPU_vertbuf_bind_as_ssbo(cache.verts_orig_index, LOOP_NORMALS_INPUT_VERT_ORIG_INDEX_BUF_SLOT);
   GPU_vertbuf_bind_as_ssbo(vert_normals, LOOP_NORMALS_VERT_NORMALS_BUF_SLOT);
   GPU_vertbuf_bind_as_ssbo(subdiv_corner_verts, LOOP_NORMALS_VERTEX_LOOP_MAP_BUF_SLOT);
 
