@@ -138,6 +138,7 @@ void ED_keylist_prepare_for_direct_access(AnimKeylist *keylist);
 const ActKeyColumn *ED_keylist_find_exact(const AnimKeylist *keylist, float cfra);
 const ActKeyColumn *ED_keylist_find_next(const AnimKeylist *keylist, float cfra);
 const ActKeyColumn *ED_keylist_find_prev(const AnimKeylist *keylist, float cfra);
+const ActKeyColumn *ED_keylist_find_closest(const AnimKeylist *keylist, float cfra);
 const ActKeyColumn *ED_keylist_find_any_between(const AnimKeylist *keylist,
                                                 const blender::Bounds<float> frame_range);
 bool ED_keylist_is_empty(const AnimKeylist *keylist);

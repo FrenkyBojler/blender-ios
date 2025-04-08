@@ -264,6 +264,39 @@ const ActKeyColumn *ED_keylist_find_prev(const AnimKeylist *keylist, const float
   return prev_column;
 }
 
+const ActKeyColumn *ED_keylist_find_closest(const AnimKeylist *keylist, const float cfra)
+{
+  BLI_assert_msg(keylist->is_runtime_initialized,
+                 "ED_keylist_prepare_for_direct_access needs to be called before searching.");
+  if (ED_keylist_is_empty(keylist)) {
+    return nullptr;
+  }
+  if (cfra <= keylist->runtime.key_columns.first().cfra) {
+    return &keylist->runtime.key_columns.first();
+  }
+  if (cfra >= keylist->runtime.key_columns.last().cfra) {
+    keylist->runtime.key_columns.last();
+  }
+  const ActKeyColumn *prev = ED_keylist_find_prev(keylist, cfra);
+  BLI_assert_msg(prev != nullptr,
+                 "This should exist since we checked for cfra bounds just before");
+  /* This could be a nullptr though. */
+  const ActKeyColumn *next = prev->next;
+
+  if (!next) {
+    return prev;
+  }
+
+  const float prev_delta = cfra - prev->cfra;
+  const float next_delta = next->cfra - cfra;
+  BLI_assert(prev_delta >= 0 && next_delta >= 0);
+
+  if (prev_delta <= next_delta) {
+    return prev;
+  }
+  return next;
+}
+
 const ActKeyColumn *ED_keylist_find_any_between(const AnimKeylist *keylist,
                                                 const Bounds<float> frame_range)
 {
