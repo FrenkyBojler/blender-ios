@@ -207,7 +207,8 @@ class ArmatureBoneDrawStrategy {
   virtual void draw_bone(const Armatures::DrawContext *ctx,
                          const UnifiedBonePtr bone,
                          const eBone_Flag boneflag,
-                         const int select_id) const = 0;
+                         const int select_id,
+                         const float max_width) const = 0;
 
   /** Should the relationship line between this bone and its parent be drawn? */
   virtual bool should_draw_relation_to_parent(const UnifiedBonePtr bone,
@@ -618,11 +619,26 @@ static void drw_shgroup_bone_sphere(const Armatures::DrawContext *ctx,
                                     const float bone_color[4],
                                     const float hint_color[4],
                                     const float outline_color[4],
-                                    const int select_id)
+                                    const int select_id,
+                                    float max_width)
 {
   auto sel_id = (ctx->bone_buf) ? ctx->res->select_id(*ctx->ob_ref, select_id) :
                                   draw::select::SelectMap::select_invalid_id();
   float4x4 mat = ctx->ob->object_to_world() * float4x4(bone_mat);
+
+  max_width *= 2.0f;
+  float3 &x_axis = mat.x_axis();
+  float3 &y_axis = mat.y_axis();
+  float3 &z_axis = mat.z_axis();
+  const float width_sq = math::max(
+      math::max(math::length_squared(x_axis), math::length_squared(y_axis)),
+      math::length_squared(z_axis));
+  if (width_sq > max_width * max_width && width_sq > 1.0e-6f) {
+    const float width_scale = max_width / math::sqrt(width_sq);
+    x_axis *= width_scale;
+    y_axis *= width_scale;
+    z_axis *= width_scale;
+  }
 
   if (ctx->is_filled) {
     ctx->bone_buf->sphere_fill_buf.append({mat, bone_color, hint_color}, sel_id);
@@ -635,11 +651,27 @@ static void drw_shgroup_bone_sphere(const Armatures::DrawContext *ctx,
 /* Axes */
 static void drw_shgroup_bone_axes(const Armatures::DrawContext *ctx,
                                   const float (*bone_mat)[4],
-                                  const float color[4])
+                                  const float color[4],
+                                  float max_width)
 {
   float4x4 mat = ctx->ob->object_to_world() * float4x4(bone_mat);
   /* Move to bone tail. */
   mat[3] += mat[1];
+
+  max_width *= 2.0f;
+  float3 &x_axis = mat.x_axis();
+  float3 &y_axis = mat.y_axis();
+  float3 &z_axis = mat.z_axis();
+  const float width_sq = math::max(
+      math::max(math::length_squared(x_axis), math::length_squared(y_axis)),
+      math::length_squared(z_axis));
+  if (width_sq > max_width * max_width && width_sq > 1.0e-6f) {
+    const float width_scale = max_width / math::sqrt(width_sq);
+    x_axis *= width_scale;
+    y_axis *= width_scale;
+    z_axis *= width_scale;
+  }
+
   ExtraInstanceData data(mat, color, 0.25f);
   /* NOTE: Axes are not drawn in bone selection (pose or edit mode).
    * They are only drawn and selectable in object mode. So only load the object select ID. */
@@ -1240,13 +1272,13 @@ static void draw_axes(const Armatures::DrawContext *ctx,
     rescale_m4(axis_mat, length_vec);
     translate_m4(axis_mat, 0.0, arm.axes_position - 1.0, 0.0);
 
-    drw_shgroup_bone_axes(ctx, axis_mat, final_col);
+    drw_shgroup_bone_axes(ctx, axis_mat, final_col, arm.max_bone_width);
   }
   else {
     float disp_mat[4][4];
     copy_m4_m4(disp_mat, bone.disp_mat());
     translate_m4(disp_mat, 0.0, arm.axes_position - 1.0, 0.0);
-    drw_shgroup_bone_axes(ctx, disp_mat, final_col);
+    drw_shgroup_bone_axes(ctx, disp_mat, final_col, arm.max_bone_width);
   }
 }
 
@@ -1254,7 +1286,8 @@ static void draw_points(const Armatures::DrawContext *ctx,
                         const UnifiedBonePtr bone,
                         const eBone_Flag boneflag,
                         const float col_solid[4],
-                        const int select_id)
+                        const int select_id,
+                        const float max_width)
 {
   float col_wire_root[4], col_wire_tail[4];
   float col_hint_root[4], col_hint_tail[4];
@@ -1306,8 +1339,13 @@ static void draw_points(const Armatures::DrawContext *ctx,
                                 select_id | BONESEL_ROOT);
     }
     else {
-      drw_shgroup_bone_sphere(
-          ctx, bone.disp_mat(), col_solid, col_hint_root, col_wire_root, select_id | BONESEL_ROOT);
+      drw_shgroup_bone_sphere(ctx,
+                              bone.disp_mat(),
+                              col_solid,
+                              col_hint_root,
+                              col_wire_root,
+                              select_id | BONESEL_ROOT,
+                              max_width);
     }
   }
 
@@ -1328,7 +1366,8 @@ static void draw_points(const Armatures::DrawContext *ctx,
                             col_solid,
                             col_hint_tail,
                             col_wire_tail,
-                            select_id | BONESEL_TIP);
+                            select_id | BONESEL_TIP,
+                            max_width);
   }
 }
 
@@ -1590,7 +1629,8 @@ class ArmatureBoneDrawStrategyEmpty : public ArmatureBoneDrawStrategy {
   void draw_bone(const Armatures::DrawContext * /*ctx*/,
                  const UnifiedBonePtr /*bone*/,
                  const eBone_Flag /*boneflag*/,
-                 const int /*select_id*/) const override
+                 const int /*select_id*/,
+                 const float /*max_width*/) const override
   {
   }
 };
@@ -1639,7 +1679,8 @@ class ArmatureBoneDrawStrategyCustomShape : public ArmatureBoneDrawStrategy {
   void draw_bone(const Armatures::DrawContext *ctx,
                  const UnifiedBonePtr bone,
                  const eBone_Flag boneflag,
-                 const int select_id) const override
+                 const int select_id,
+                 const float /*max_width*/) const override
   {
     const float *col_solid = get_bone_solid_color(ctx, boneflag);
     const float *col_wire = get_bone_wire_color(ctx, boneflag);
@@ -1693,7 +1734,8 @@ class ArmatureBoneDrawStrategyOcta : public ArmatureBoneDrawStrategy {
   void draw_bone(const Armatures::DrawContext *ctx,
                  const UnifiedBonePtr bone,
                  const eBone_Flag boneflag,
-                 const int select_id) const override
+                 const int select_id,
+                 const float max_width) const override
   {
     const float *col_solid = get_bone_solid_with_consts_color(ctx, bone, boneflag);
     const float *col_wire = get_bone_wire_color(ctx, boneflag);
@@ -1702,6 +1744,15 @@ class ArmatureBoneDrawStrategyOcta : public ArmatureBoneDrawStrategy {
     auto sel_id = ctx->res->select_id(*ctx->ob_ref, select_id | BONESEL_BONE);
     float4x4 bone_mat = ctx->ob->object_to_world() * float4x4(bone.disp_mat());
 
+    float3 &x_axis = bone_mat.x_axis();
+    float3 &z_axis = bone_mat.z_axis();
+    const float width_sq = math::max(math::length_squared(x_axis), math::length_squared(z_axis));
+    if (width_sq > max_width * max_width && width_sq > 1.0e-6f) {
+      const float width_scale = max_width / math::sqrt(width_sq);
+      x_axis *= width_scale;
+      z_axis *= width_scale;
+    }
+
     if (ctx->is_filled) {
       ctx->bone_buf->octahedral_fill_buf.append({bone_mat, col_solid, col_hint}, sel_id);
     }
@@ -1709,7 +1760,7 @@ class ArmatureBoneDrawStrategyOcta : public ArmatureBoneDrawStrategy {
       ctx->bone_buf->octahedral_outline_buf.append({bone_mat, col_wire}, sel_id);
     }
 
-    draw_points(ctx, bone, boneflag, col_solid, select_id);
+    draw_points(ctx, bone, boneflag, col_solid, select_id, max_width);
   }
 };
 
@@ -1730,7 +1781,8 @@ class ArmatureBoneDrawStrategyLine : public ArmatureBoneDrawStrategy {
   void draw_bone(const Armatures::DrawContext *ctx,
                  const UnifiedBonePtr bone,
                  const eBone_Flag boneflag,
-                 const int select_id) const override
+                 const int select_id,
+                 const float /*max_width*/) const override
   {
     const float *col_bone = get_bone_solid_with_consts_color(ctx, bone, boneflag);
     const float *col_wire = get_bone_wire_color(ctx, boneflag);
@@ -1814,7 +1866,8 @@ class ArmatureBoneDrawStrategyBBone : public ArmatureBoneDrawStrategy {
   void draw_bone(const Armatures::DrawContext *ctx,
                  const UnifiedBonePtr bone,
                  const eBone_Flag boneflag,
-                 const int select_id) const override
+                 const int select_id,
+                 const float max_width) const override
   {
     const float *col_solid = get_bone_solid_with_consts_color(ctx, bone, boneflag);
     const float *col_wire = get_bone_wire_color(ctx, boneflag);
@@ -1845,7 +1898,7 @@ class ArmatureBoneDrawStrategyBBone : public ArmatureBoneDrawStrategy {
     }
 
     if (ctx->draw_mode == ARM_DRAW_MODE_EDIT) {
-      draw_points(ctx, bone, boneflag, col_solid, select_id);
+      draw_points(ctx, bone, boneflag, col_solid, select_id, max_width);
     }
   }
 };
@@ -1867,7 +1920,8 @@ class ArmatureBoneDrawStrategyEnvelope : public ArmatureBoneDrawStrategy {
   void draw_bone(const Armatures::DrawContext *ctx,
                  const UnifiedBonePtr bone,
                  const eBone_Flag boneflag,
-                 const int select_id) const override
+                 const int select_id,
+                 const float max_width) const override
   {
     const float *col_solid = get_bone_solid_with_consts_color(ctx, bone, boneflag);
     const float *col_wire = get_bone_wire_color(ctx, boneflag);
@@ -1905,7 +1959,7 @@ class ArmatureBoneDrawStrategyEnvelope : public ArmatureBoneDrawStrategy {
                               rad_tail,
                               select_id | BONESEL_BONE);
 
-    draw_points(ctx, bone, boneflag, col_solid, select_id);
+    draw_points(ctx, bone, boneflag, col_solid, select_id, max_width);
   }
 };
 
@@ -1927,7 +1981,8 @@ class ArmatureBoneDrawStrategyWire : public ArmatureBoneDrawStrategy {
   void draw_bone(const Armatures::DrawContext *ctx,
                  const UnifiedBonePtr bone,
                  const eBone_Flag boneflag,
-                 const int select_id) const override
+                 const int select_id,
+                 const float max_width) const override
   {
     using namespace blender::math;
 
@@ -1957,7 +2012,7 @@ class ArmatureBoneDrawStrategyWire : public ArmatureBoneDrawStrategy {
 
     if (bone.is_editbone()) {
       const float *col_solid = get_bone_solid_with_consts_color(ctx, bone, boneflag);
-      draw_points(ctx, bone, boneflag, col_solid, select_id);
+      draw_points(ctx, bone, boneflag, col_solid, select_id, max_width);
     }
   }
 };
@@ -2066,7 +2121,7 @@ void Armatures::draw_armature_edit(Armatures::DrawContext *ctx)
     }
 
     draw_strat.update_display_matrix(bone);
-    draw_strat.draw_bone(ctx, bone, boneflag, select_id);
+    draw_strat.draw_bone(ctx, bone, boneflag, select_id, arm.max_bone_width);
 
     if (!is_select) {
       if (show_text && (arm.flag & ARM_DRAWNAMES)) {
@@ -2201,7 +2256,7 @@ void Armatures::draw_armature_pose(Armatures::DrawContext *ctx)
     }
 
     draw_strat.update_display_matrix(bone_ptr);
-    draw_strat.draw_bone(ctx, bone_ptr, boneflag, select_id);
+    draw_strat.draw_bone(ctx, bone_ptr, boneflag, select_id, arm.max_bone_width);
 
     /* Below this point nothing is used for selection queries. */
     if (is_pose_select) {

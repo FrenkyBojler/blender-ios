@@ -2272,6 +2272,12 @@ static void rna_def_armature(BlenderRNA *brna)
                            "closer to the tip; decreasing moves it closer to the root.");
   RNA_def_property_update(prop, 0, "rna_Armature_redraw_data");
 
+  prop = RNA_def_property(srna, "max_bone_width", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, nullptr, "max_bone_width");
+  RNA_def_property_ui_range(prop, 0.0f, 1000.0f, 1, 2);
+  RNA_def_property_ui_text(prop, "Max Bone Width", "");
+  RNA_def_property_update(prop, 0, "rna_Armature_redraw_data");
+
   RNA_define_verify_sdna(false); /* This property does not live in DNA. */
   prop = RNA_def_property(srna, "relation_line_position", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_items(prop, prop_relation_lines_items);

@@ -219,6 +219,10 @@ typedef struct bArmature {
   /** Relative position of the axes on the bone, from head (0.0f) to tail (1.0f). */
   float axes_position;
 
+  /** Maximum bone viewport visualization width (for octahedral, endpoint spheres, bone axes). */
+  float max_bone_width;
+  char _pad2[4];
+
   /** Keep last, for consistency with the position of other DNA runtime structures. */
   struct bArmature_Runtime runtime;
 

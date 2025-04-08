@@ -72,6 +72,9 @@ class DATA_PT_display(ArmatureButtonsPanel, Panel):
         if ob:
             col.prop(ob, "show_in_front", text="In Front")
 
+        row = col.row(align=True)
+        row.prop(arm, "max_bone_width")
+
         col = layout.column(align=False, heading="Axes")
         row = col.row(align=True)
         row.prop(arm, "show_axes", text="")

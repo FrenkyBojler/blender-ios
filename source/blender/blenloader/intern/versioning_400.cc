@@ -4469,6 +4469,13 @@ static void version_set_uv_face_overlay_defaults(Main *bmain)
   }
 }
 
+static void version_set_arm_max_bone_width_defaults(Main *bmain)
+{
+  LISTBASE_FOREACH (bArmature *, arm, &bmain->armatures) {
+    arm->max_bone_width = 0.1f;
+  }
+}
+
 void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
 {
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 1)) {
@@ -6710,6 +6717,10 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
         }
       }
     }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 20)) {
+    version_set_arm_max_bone_width_defaults(bmain);
   }
 
   /* Always run this versioning; meshes are written with the legacy format which always needs to
