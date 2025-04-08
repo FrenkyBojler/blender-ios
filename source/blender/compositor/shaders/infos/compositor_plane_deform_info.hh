@@ -18,7 +18,6 @@ PUSH_CONSTANT(MAT4, homography_matrix)
 SAMPLER(0, FLOAT_2D, input_tx)
 SAMPLER(1, FLOAT_2D, mask_tx)
 IMAGE(0, GPU_RGBA16F, WRITE, FLOAT_2D, output_img)
-DO_STATIC_COMPILATION()
 GPU_SHADER_CREATE_END()
 
 GPU_SHADER_CREATE_INFO(compositor_plane_deform)
