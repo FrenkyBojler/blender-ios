@@ -5824,14 +5824,7 @@ class VIEW3D_MT_edit_greasepencil_stroke(Menu):
         layout.separator()
 
         # Set stroke mode
-        props = layout.operator("grease_pencil.set_stroke_mode", text="Toggle Stroke")
-        props.action = 'TOGGLE'
-        props.stroke = True
-        props.fill = False
-        props = layout.operator("grease_pencil.set_stroke_mode", text="Toggle Fill")
-        props.action = 'TOGGLE'
-        props.stroke = False
-        props.fill = True
+        layout.operator_menu_enum("grease_pencil.set_stroke_mode", "mode", text="Set Stroke Mode")
 
         layout.separator()
 
@@ -8229,14 +8222,7 @@ class VIEW3D_MT_greasepencil_edit_context_menu(Menu):
             col.separator()
 
             # Set stroke mode
-            props = col.operator("grease_pencil.set_stroke_mode", text="Toggle Stroke")
-            props.action = 'TOGGLE'
-            props.stroke = True
-            props.fill = False
-            props = col.operator("grease_pencil.set_stroke_mode", text="Toggle Fill")
-            props.action = 'TOGGLE'
-            props.stroke = False
-            props.fill = True
+            col.operator_menu_enum("grease_pencil.set_stroke_mode", "mode", text="Set Stroke Mode")
 
             col.separator()
 
