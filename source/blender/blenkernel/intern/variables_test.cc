@@ -230,8 +230,7 @@ TEST(blender_variables, path_apply_variables)
               "{pi:##.}_{e:####.}_{ntsc:#.}_{two:###.}_{f_negative:###.}_{huge:###.}_{tiny:###.}");
   }
 
-  /* Error: missing variable. Substitution should continue on, simply ignoring the
-   * missing variable. */
+  /* Error: missing variable. */
   {
     char path[FILE_MAX] = "{hi}_{missing}_{bye}";
     const Vector<VariableParseError> errors = BKE_path_apply_variables(path, variables);
@@ -241,6 +240,18 @@ TEST(blender_variables, path_apply_variables)
 
     EXPECT_EQ(errors, expected_errors);
     EXPECT_EQ(blender::StringRef(path), "{hi}_{missing}_{bye}");
+  }
+
+  /* Error: incomplete variable reference. */
+  {
+    char path[FILE_MAX] = "foo{hi";
+    const Vector<VariableParseError> errors = BKE_path_apply_variables(path, variables);
+    const Vector<VariableParseError> expected_errors = {
+        {VariableParseErrorType::VARIABLE_SYNTAX, IndexRange(3, 3)},
+    };
+
+    EXPECT_EQ(errors, expected_errors);
+    EXPECT_EQ(blender::StringRef(path), "foo{hi");
   }
 
   /* Error: invalid format specifiers. */

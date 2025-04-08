@@ -514,8 +514,15 @@ static std::optional<Token> next_token(char *path,
   }
 
   /* No variable reference found. */
-  if (start == -1 || end == -1) {
+  if (start == -1) {
     return std::nullopt;
+  }
+
+  /* Unclosed variable reference. Syntax error. */
+  if (end == -1) {
+    token.type = TokenType::VARIABLE_SYNTAX_ERROR;
+    token.byte_range = blender::IndexRange::from_begin_end(start, strlen(path));
+    return token;
   }
 
   /* Parse the variable reference we found. */
