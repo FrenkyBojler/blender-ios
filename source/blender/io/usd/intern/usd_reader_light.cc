@@ -168,7 +168,7 @@ void USDLightReader::read_object_data(Main *bmain, const double motionSampleTime
   /* Color. */
   if (pxr::UsdAttribute color_attr = light_api.GetColorAttr()) {
     pxr::GfVec3f color;
-    if (color_attr && color_attr.HasAuthoredValueOpinion()) {
+    if (color_attr.Get(&color, motionSampleTime)) {
       blight->r = color[0];
       blight->g = color[1];
       blight->b = color[2];
