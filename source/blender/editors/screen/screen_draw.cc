@@ -276,36 +276,34 @@ void screen_draw_move_highlight(const wmWindow *win, bScreen *screen, eScreenAxi
 
 void screen_draw_region_scale_highlight(ARegion *region)
 {
-  rctf rect = {float(region->winrct.xmin),
-               float(region->winrct.xmax),
-               float(region->winrct.ymin),
-               float(region->winrct.ymax)};
+  rctf rect;
+  BLI_rctf_rcti_copy(&rect, &region->winrct);
   UI_draw_roundbox_corner_set(UI_CNR_ALL);
 
   switch (region->alignment) {
     case RGN_ALIGN_RIGHT:
       rect.xmax = rect.xmin - U.pixelsize;
       rect.xmin = rect.xmax - (4.0f * U.pixelsize);
-      rect.ymax -= (6.0f * UI_SCALE_FAC);
-      rect.ymin += (6.0f * UI_SCALE_FAC);
+      rect.ymax -= EDITORRADIUS;
+      rect.ymin += EDITORRADIUS;
       break;
     case RGN_ALIGN_LEFT:
       rect.xmin = rect.xmax + U.pixelsize;
       rect.xmax = rect.xmin + (4.0f * U.pixelsize);
-      rect.ymax -= (6.0f * UI_SCALE_FAC);
-      rect.ymin += (6.0f * UI_SCALE_FAC);
+      rect.ymax -= EDITORRADIUS;
+      rect.ymin += EDITORRADIUS;
       break;
     case RGN_ALIGN_TOP:
       rect.ymax = rect.ymin - U.pixelsize;
       rect.ymin = rect.ymax - (4.0f * U.pixelsize);
-      rect.xmax -= (6.0f * UI_SCALE_FAC);
-      rect.xmin += (6.0f * UI_SCALE_FAC);
+      rect.xmax -= EDITORRADIUS;
+      rect.xmin += EDITORRADIUS;
       break;
     case RGN_ALIGN_BOTTOM:
       rect.ymin = rect.ymax + U.pixelsize;
       rect.ymax = rect.ymin + (4.0f * U.pixelsize);
-      rect.xmax -= (6.0f * UI_SCALE_FAC);
-      rect.xmin += (6.0f * UI_SCALE_FAC);
+      rect.xmax -= EDITORRADIUS;
+      rect.xmin += EDITORRADIUS;
       break;
     default:
       return;

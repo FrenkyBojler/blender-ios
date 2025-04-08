@@ -1111,11 +1111,12 @@ static void region_azone_edge(const ScrArea *area, AZone *az, const ARegion *reg
   const bool transparent = !is_header && region->overlap &&
                            region_background_is_transparent(area, region);
 
-  const int pad_out = (is_header ? 2.0f : 3.0f) * UI_SCALE_FAC;
-
   /* Only scale the padding inside the region, not outside. */
   const float aspect = BLI_rctf_size_y(&region->v2d.cur) /
                        (BLI_rcti_size_y(&region->v2d.mask) + 1);
+
+  /* Different padding inside and outside the region. */
+  const int pad_out = (is_header ? 2.0f : 3.0f) * UI_SCALE_FAC;
   const int pad_in = (is_header ? 1.0f : (transparent ? 8.0f : 4.0f)) * UI_SCALE_FAC / aspect;
 
   switch (az->edge) {
