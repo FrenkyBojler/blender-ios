@@ -598,10 +598,12 @@ void Tree::tag_positions_changed(const IndexMask &node_mask)
 
 void Tree::tag_visibility_changed(const IndexMask &node_mask)
 {
-  visibility_dirty_.resize(std::max(visibility_dirty_.size(), node_mask.min_array_size()), false);
-  node_mask.set_bits(visibility_dirty_);
+  IndexMaskMemory memory;
+  const IndexMask gpu_mask = get_GPU_mask_from_leaf_mask(*this, node_mask, memory);
+  visibility_dirty_.resize(std::max(visibility_dirty_.size(), gpu_mask.min_array_size()), false);
+  gpu_mask.set_bits(visibility_dirty_);
   if (this->draw_data) {
-    this->draw_data->tag_visibility_changed(node_mask);
+    this->draw_data->tag_visibility_changed(gpu_mask);
   }
 }
 
