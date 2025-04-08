@@ -637,7 +637,6 @@ static void cage2d_draw_rect_corner_handles(const rctf *r,
                                             bool solid)
 {
   uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
-  const int resolu = 12;
   const float rad[2] = {margin[0] / 3, margin[1] / 3};
 
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
