@@ -122,8 +122,7 @@ static bool node_insert_link(bNodeTree *ntree, bNode *node, bNodeLink *link)
 
 static const CPPType &get_item_cpp_type(const eNodeSocketDatatype socket_type)
 {
-  const StringRefNull socket_idname = *bke::node_static_socket_type(socket_type, 0);
-  const bke::bNodeSocketType *typeinfo = bke::node_socket_type_find(socket_idname);
+  const bke::bNodeSocketType *typeinfo = bke::node_socket_type_find_static(socket_type);
   BLI_assert(typeinfo);
   BLI_assert(typeinfo->geometry_nodes_cpp_type);
   return *typeinfo->geometry_nodes_cpp_type;
@@ -252,7 +251,7 @@ class LazyFunctionForBakeNode final : public LazyFunction {
       this->set_default_outputs(params);
       return;
     }
-    if (found_id->is_in_loop) {
+    if (found_id->is_in_loop || found_id->is_in_closure) {
       DummyDataBlockMap data_block_map;
       this->pass_through(params, user_data, &data_block_map);
       return;

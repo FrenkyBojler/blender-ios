@@ -383,9 +383,9 @@ void UI_view2d_region_reinit(View2D *v2d, short type, int winx, int winy)
  * Ensure View2D rects remain in a viable configuration
  * 'cur' is not allowed to be: larger than max, smaller than min, or outside of 'tot'
  */
-/* XXX pre2.5 -> this used to be called #test_view2d() */
 static void ui_view2d_curRect_validate_resize(View2D *v2d, bool resize)
 {
+  /* NOTE: #calculateZfac uses this logic, keep in sync. */
   float totwidth, totheight, curwidth, curheight, width, height;
   float winx, winy;
   rctf *cur, *tot;
@@ -1097,7 +1097,7 @@ void UI_view2d_view_ortho(const View2D *v2d)
    * correspondence with pixels for smooth UI drawing,
    * but only applied where requested.
    */
-  /* XXX brecht: instead of zero at least use a tiny offset, otherwise
+  /* XXX(@brecht): instead of zero at least use a tiny offset, otherwise
    * pixel rounding is effectively random due to float inaccuracy */
   if (sizex > 0) {
     xofs = eps * BLI_rctf_size_x(&v2d->cur) / sizex;
@@ -1392,7 +1392,7 @@ void view2d_scrollers_calc(View2D *v2d, const rcti *mask_custom, View2DScrollers
   vert = v2d->vert;
   hor = v2d->hor;
 
-  /* Pad scrollbar drawing away from region edges. */
+  /* Pad scroll-bar drawing away from region edges. */
   const int edge_pad = int(0.1f * U.widget_unit);
   if (scroll & V2D_SCROLL_BOTTOM) {
     hor.ymin += edge_pad;
