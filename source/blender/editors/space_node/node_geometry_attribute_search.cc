@@ -68,31 +68,31 @@ static Vector<const GeometryAttributeInfo *> get_attribute_info_from_context(
   if (!tree_zones) {
     return {};
   }
-  const Map<const bke::bNodeTreeZone *, GeoTreeLog *> log_by_zone =
-      GeoModifierLog::get_tree_log_by_zone_for_node_editor(*snode);
+  const ContextualGeoTreeLogs tree_logs = GeoModifierLog::get_contextual_tree_logs(*snode);
 
   Set<StringRef> names;
 
   /* For the attribute input node, collect attribute information from all nodes in the group. */
   if (node->type_legacy == GEO_NODE_INPUT_NAMED_ATTRIBUTE) {
     Vector<const GeometryAttributeInfo *> attributes;
-    for (GeoTreeLog *tree_log : log_by_zone.values()) {
-      tree_log->ensure_socket_values();
-      tree_log->ensure_existing_attributes();
-      for (const GeometryAttributeInfo *attribute : tree_log->existing_attributes) {
-        if (!names.add(attribute->name)) {
-          continue;
+    for (Span<GeoTreeLog *> logs : tree_logs.tree_logs_by_zone.values()) {
+      for (GeoTreeLog *tree_log : logs) {
+        tree_log->ensure_socket_values();
+        tree_log->ensure_existing_attributes();
+        for (const GeometryAttributeInfo *attribute : tree_log->existing_attributes) {
+          if (!names.add(attribute->name)) {
+            continue;
+          }
+          if (!bke::allow_procedural_attribute_access(attribute->name)) {
+            continue;
+          }
+          attributes.append(attribute);
         }
-        if (!bke::allow_procedural_attribute_access(attribute->name)) {
-          continue;
-        }
-        attributes.append(attribute);
       }
     }
     return attributes;
   }
-  const bke::bNodeTreeZone *zone = tree_zones->get_zone_by_node(node->identifier);
-  GeoTreeLog *tree_log = log_by_zone.lookup_default(zone, nullptr);
+  GeoTreeLog *tree_log = tree_logs.get_main_tree_log(*node);
   if (!tree_log) {
     return {};
   }

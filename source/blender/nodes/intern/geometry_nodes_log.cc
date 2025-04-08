@@ -755,8 +755,7 @@ Map<const bNodeTreeZone *, ComputeContextHash> GeoModifierLog::
   return get_context_hash_by_zone_for_node_editor(snode, compute_context_builder);
 }
 
-Map<const bNodeTreeZone *, GeoTreeLog *> GeoModifierLog::get_tree_log_by_zone_for_node_editor(
-    const SpaceNode &snode)
+ContextualGeoTreeLogs GeoModifierLog::get_contextual_tree_logs(const SpaceNode &snode)
 {
   switch (SpaceNodeGeometryNodesType(snode.geometry_nodes_type)) {
     case SNODE_GEOMETRY_MODIFIER: {
@@ -772,12 +771,12 @@ Map<const bNodeTreeZone *, GeoTreeLog *> GeoModifierLog::get_tree_log_by_zone_fo
       const Map<const bNodeTreeZone *, ComputeContextHash> hash_by_zone =
           GeoModifierLog::get_context_hash_by_zone_for_node_editor(
               snode, object_and_modifier->nmd->modifier.name);
-      Map<const bNodeTreeZone *, GeoTreeLog *> log_by_zone;
+      ContextualGeoTreeLogs tree_logs;
       for (const auto item : hash_by_zone.items()) {
         GeoTreeLog &tree_log = modifier_log->get_tree_log(item.value);
-        log_by_zone.add(item.key, &tree_log);
+        tree_logs.tree_logs_by_zone.add(item.key, &tree_log);
       }
-      return log_by_zone;
+      return tree_logs;
     }
     case SNODE_GEOMETRY_TOOL: {
       const ed::geometry::GeoOperatorLog &log =
@@ -789,12 +788,12 @@ Map<const bNodeTreeZone *, GeoTreeLog *> GeoModifierLog::get_tree_log_by_zone_fo
       compute_context_builder.push<bke::OperatorComputeContext>();
       const Map<const bNodeTreeZone *, ComputeContextHash> hash_by_zone =
           GeoModifierLog::get_context_hash_by_zone_for_node_editor(snode, compute_context_builder);
-      Map<const bNodeTreeZone *, GeoTreeLog *> log_by_zone;
+      ContextualGeoTreeLogs tree_logs;
       for (const auto item : hash_by_zone.items()) {
         GeoTreeLog &tree_log = log.log->get_tree_log(item.value);
-        log_by_zone.add(item.key, &tree_log);
+        tree_logs.tree_logs_by_zone.add(item.key, &tree_log);
       }
-      return log_by_zone;
+      return tree_logs;
     }
   }
   BLI_assert_unreachable();
