@@ -479,19 +479,16 @@ enum {
 
 struct SlipData {
   NumInput num_input;
-  // int previous_offset;
-  // float previous_subframe_offset;
   float init_mouse_co[2];
   float prev_offset;
-  int init_mouse_x;
-  int prev_mouse_x_offset;
-  float virtual_mouse_x_offset;
-  // float subframe_restore;
   VectorSet<Strip *> strips;
   bool precision;
-  // int precision_offset; /* Offset at the point where offset was turned on. */
   bool clamp;
   bool show_subframe;
+  /* Regionspace mouse x coordinate when toggling on precision. */
+  int precision_toggle_loc;
+  /* Distance in subframes to nearest whole frame, set when toggling precision. */
+  float subframe_offset;
 };
 
 void slip_modal_keymap(wmKeyConfig *keyconf)
@@ -546,19 +543,14 @@ static void slip_update_header(Scene *scene, ScrArea *area, SlipData *data, floa
     SNPRINTF(msg, IFACE_("Slip offset: %s"), num_str);
   }
   else {
-    int frame_offset = std::trunc(offset);
+    int frame_offset = round_fl_to_int(offset);
     if (data->show_subframe) {
       float subframe_offset_sec = (offset - frame_offset) / FPS;
       SNPRINTF(msg,
-               IFACE_("Slip offset: %.2ff prev_offset:%f (%.0df + %.3fs) TODO 143 init_mouse_x:%d "
-                      "prev_mouse_x_offset:%d virtual_mouse_x_offset:%f"),
+               IFACE_("Slip offset: %.2ff (%df + %.3fs)"),
                offset,
-               data->prev_offset,
                frame_offset,
-               subframe_offset_sec,
-               data->init_mouse_x,
-               data->prev_mouse_x_offset,
-               data->virtual_mouse_x_offset);
+               subframe_offset_sec);
     }
     else {
       SNPRINTF(msg, IFACE_("Slip offset: %d"), frame_offset);
@@ -612,13 +604,10 @@ static wmOperatorStatus sequencer_slip_invoke(bContext *C, wmOperator *op, const
   op->customdata = static_cast<void *>(data);
 
   initNumInput(&data->num_input);
-  data->init_mouse_x = event->mval[0];
   UI_view2d_region_to_view(
       v2d, event->mval[0], event->mval[1], &data->init_mouse_co[0], &data->init_mouse_co[1]);
   data->precision = false;
   data->prev_offset = 0.0f;
-  data->prev_mouse_x_offset = 0;
-  data->virtual_mouse_x_offset = 0.0f;
 
   slip_draw_status(C, op);
   slip_update_header(scene, area, data, 0.0f);
@@ -631,30 +620,29 @@ static wmOperatorStatus sequencer_slip_invoke(bContext *C, wmOperator *op, const
   return OPERATOR_RUNNING_MODAL;
 }
 
-static void slip_strips_delta(Scene *scene, SlipData *data, float delta, bool slip_keyframes)
+static void slip_strips_delta(wmOperator *op, Scene *scene, SlipData *data, float delta)
 {
-  /* We could also do the check for slip_keyframes in here because we always do it beforehand
-   * without fail anyways*/
-
-  float new_offset = data->prev_offset;
-  float old_offset = data->prev_offset - delta;
-  // TODO 143, could be round_fl_to_int?
-  /* Calculate whole frames between offsets, which cannot be determined from `delta` alone.
-   * For example, 0.9 -> 1.0 would have a `delta` of 0.1 and a `frame_delta` of 1. */
-  int frame_delta = std::trunc(new_offset) - std::trunc(old_offset);
+  float new_offset = data->prev_offset + delta;
+  /* Calculate rounded whole frames between offsets, which cannot be determined from `delta` alone.
+   * For example, 0.4 -> 0.5 would have a `delta` of 0.1 and a `frame_delta` of 1. */
+  int frame_delta = round_fl_to_int(new_offset) - round_fl_to_int(data->prev_offset);
 
   float subframe_delta = 0.0f;
   /* Only apply subframe delta if the input is not an integer. */
-  if (std::trunc(delta) != delta) {
+  if (std::trunc(delta) != delta && (data->precision || hasNumInput(&data->num_input))) {
     /* Note that `subframe_delta` has opposite sign from `frame_delta`
-     * when `delta` < 1 and `frame_delta` > 0 to undo its effect.  */
+     * when `abs(delta)` < 1 and `abs(frame_delta)` >= 1 to undo its effect.  */
     subframe_delta = delta - frame_delta;
   }
 
+  bool slip_keyframes = RNA_boolean_get(op->ptr, "slip_keyframes");
   for (Strip *strip : data->strips) {
     seq::time_slip_strip(scene, strip, frame_delta, subframe_delta, slip_keyframes);
     seq::relations_invalidate_cache_preprocessed(scene, strip);
   }
+
+  RNA_float_set(op->ptr, "offset", new_offset);
+  data->prev_offset = new_offset;
 }
 
 static void slip_cleanup(bContext *C, wmOperator *op, Scene *scene)
@@ -713,7 +701,7 @@ static float slip_apply_clamp(const Scene *scene, SlipData *data, float *offset)
     *offset += diff;
     offset_delta += diff;
   }
-  data->prev_offset = *offset;
+  // data->prev_offset = *offset;
 
   return offset_delta;
 }
@@ -731,8 +719,7 @@ static wmOperatorStatus sequencer_slip_exec(bContext *C, wmOperator *op)
   float offset = RNA_float_get(op->ptr, "offset");
   slip_apply_clamp(scene, data, &offset);
 
-  bool slip_keyframes = RNA_boolean_get(op->ptr, "slip_keyframes");
-  slip_strips_delta(scene, data, offset, slip_keyframes);
+  slip_strips_delta(op, scene, data, offset);
   slip_cleanup(C, op, scene);
   return OPERATOR_FINISHED;
 }
@@ -747,105 +734,105 @@ static void slip_handle_num_input(
   slip_update_header(scene, area, data, offset);
   RNA_float_set(op->ptr, "offset", offset);
 
-  bool slip_keyframes = RNA_boolean_get(op->ptr, "slip_keyframes");
-  slip_strips_delta(scene, data, offset_delta, slip_keyframes);
+  slip_strips_delta(op, scene, data, offset_delta);
 
   WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
 }
 
 static wmOperatorStatus sequencer_slip_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
+  View2D *v2d = UI_view2d_fromcontext(C);
   Scene *scene = CTX_data_scene(C);
   SlipData *data = static_cast<SlipData *>(op->customdata);
   ScrArea *area = CTX_wm_area(C);
   const bool has_num_input = hasNumInput(&data->num_input);
+  bool handled = true;
 
-  /* Modal numerical input is active. */
-  if (has_num_input && event->val == KM_PRESS && handleNumInput(C, &data->num_input, event)) {
-    slip_handle_num_input(C, op, area, data, scene);
-    return OPERATOR_RUNNING_MODAL;
-  }
-
-  if (event->type == MOUSEMOVE) {
-    if (!has_num_input) {
-      float mouse_x_delta = event->mval[0] - data->init_mouse_x - data->prev_mouse_x_offset;
-      data->prev_mouse_x_offset += mouse_x_delta;
-      if (data->precision) {
-        mouse_x_delta *= 0.1f;
-      }
-      data->virtual_mouse_x_offset += mouse_x_delta;
-
-      View2D *v2d = UI_view2d_fromcontext(C);
-      float mouse_co[2];
-      UI_view2d_region_to_view(
-          v2d, data->init_mouse_x + data->virtual_mouse_x_offset, 0, &mouse_co[0], &mouse_co[1]);
-
-      float offset = mouse_co[0] - data->init_mouse_co[0];
-
-      float clamped_offset_delta = slip_apply_clamp(scene, data, &offset);
-      RNA_float_set(op->ptr, "offset", offset);
-      slip_update_header(scene, area, data, offset);
-
-      // if (!data->precision) {
-      //   clamped_offset_delta = std::trunc(clamped_offset_delta);  // TODO 143 could be round
-      // }
-
-      bool slip_keyframes = RNA_boolean_get(op->ptr, "slip_keyframes");
-      slip_strips_delta(scene, data, clamped_offset_delta, slip_keyframes);
-
-      WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
+  if (event->val == KM_PRESS && handleNumInput(C, &data->num_input, event)) {
+    if (has_num_input) {
+      /* Modal numerical input is active. */
+      slip_handle_num_input(C, op, area, data, scene);
+      return OPERATOR_RUNNING_MODAL;
+    }
+    else {
+      /* Modal numerical input is inactive, try to handle numeric inputs from key press events. */
+      /* Always remove the previous sub-frame adjustments we have potentially made
+       * with the mouse input when the user starts entering values by hand. */
+      float subframe_offset = data->prev_offset - std::trunc(data->prev_offset);
+      slip_strips_delta(op, scene, data, -subframe_offset);
+      slip_handle_num_input(C, op, area, data, scene);
     }
   }
-  else if (event->type == EVT_MODAL_MAP) {
+
+  if (event->type == EVT_MODAL_MAP) {
     switch (event->val) {
       case SLIP_MODAL_CONFIRM: {
         slip_cleanup(C, op, scene);
         return OPERATOR_FINISHED;
       }
       case SLIP_MODAL_CANCEL: {
-        bool slip_keyframes = RNA_boolean_get(op->ptr, "slip_keyframes");
-        slip_strips_delta(scene, data, -data->prev_offset, slip_keyframes);
+        slip_strips_delta(op, scene, data, -data->prev_offset);
         slip_cleanup(C, op, scene);
         return OPERATOR_CANCELLED;
       }
       case SLIP_MODAL_PRECISION_ENABLE:
         if (!has_num_input) {
           data->precision = true;
+          data->precision_toggle_loc = event->mval[0];
+
+          data->subframe_offset = data->prev_offset - round_fl_to_int(data->prev_offset);
+          data->prev_offset -= data->subframe_offset;
         }
         break;
       case SLIP_MODAL_PRECISION_DISABLE:
         if (!has_num_input) {
-          data->precision = false;
           /* If we exit precision mode, make sure we undo the fractional adjustments. */
           float subframe_offset = data->prev_offset - std::trunc(data->prev_offset);
-          bool slip_keyframes = RNA_boolean_get(op->ptr, "slip_keyframes");
-          slip_strips_delta(scene, data, -subframe_offset, slip_keyframes);
-          // data->prev_offset -= subframe_offset;
+          if (subframe_offset != 0.0f) {
+            slip_strips_delta(op, scene, data, -subframe_offset);
+          }
+          data->subframe_offset = 0;
+          data->precision = false;
         }
         break;
-        // case SLIP_MODAL_CLAMP_TOGGLE:
-        //   data->clamp = !data->clamp;
-        //   if (data->clamp) {
-        //     const int offset_delta = slip_apply_clamp(scene, data, data->prev_offset);
-        //     float offset = data->prev_offset + offset_delta;
-        //     RNA_float_set(op->ptr, "offset", offset);
-        //     slip_update_header(scene, area, data, offset);
-        //     bool slip_keyframes = RNA_boolean_get(op->ptr, "slip_keyframes");
-        //     slip_strips_delta(scene, data, offset_delta, 0.0f, slip_keyframes);
-        //     WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
-        //   }
-        //   break;
+      case SLIP_MODAL_CLAMP_TOGGLE:
+        data->clamp = !data->clamp;
+        // if (data->clamp) {
+        //   const int clamped_offset_delta = slip_apply_clamp(scene, data, &data->prev_offset);
+
+        //   slip_strips_delta(op, scene, data, clamped_offset_delta);
+        //   slip_update_header(scene, area, data, data->prev_offset);
+        //   WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
+        // }
+        break;
+      default:
+        handled = false;
+        break;
     }
   }
-  else {
-    /* Modal numerical input is inactive, try to handle numeric inputs from key press events. */
-    if (event->val == KM_PRESS && handleNumInput(C, &data->num_input, event)) {
-      /* Always remove the previous sub-frame adjustments we have potentially made
-       * with the mouse input when the user starts entering values by hand. */
-      float subframe_offset = data->prev_offset - std::trunc(data->prev_offset);
-      bool slip_keyframes = RNA_boolean_get(op->ptr, "slip_keyframes");
-      slip_strips_delta(scene, data, -subframe_offset, slip_keyframes);
-      slip_handle_num_input(C, op, area, data, scene);
+
+  if (event->type == MOUSEMOVE || event->val == SLIP_MODAL_PRECISION_DISABLE ||
+      event->val == SLIP_MODAL_CLAMP_TOGGLE)
+  {
+    if (!has_num_input) {
+      float mouse_x = event->mval[0];
+      if (data->precision) {
+        /* Calculate "virtual" regionspace coordinates, which may be sub-pixel. */
+        mouse_x -= data->precision_toggle_loc;
+        mouse_x *= 0.1f;
+        mouse_x += data->precision_toggle_loc;
+      }
+
+      float mouse_co[2];
+      UI_view2d_region_to_view(v2d, mouse_x, 0, &mouse_co[0], &mouse_co[1]);
+      /* Make sure virtual mouse starts at the nearest full frame when precision was enabled. */
+      float offset = mouse_co[0] - data->init_mouse_co[0] - data->subframe_offset;
+
+      float clamped_offset_delta = slip_apply_clamp(scene, data, &offset);
+      slip_strips_delta(op, scene, data, clamped_offset_delta);
+      slip_update_header(scene, area, data, offset);
+
+      WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
     }
   }
 
