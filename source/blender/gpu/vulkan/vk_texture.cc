@@ -8,7 +8,8 @@
 
 #include "GPU_capabilities.hh"
 
-/* vk_common needs to be included first to ensure win32 vulkan API is fully initialized, before working with it. */
+/* vk_common needs to be included first to ensure win32 vulkan API is fully initialized, before
+ * working with it. */
 #include "vk_common.hh"
 
 #include "vk_texture.hh"
@@ -414,15 +415,19 @@ VKMemoryExport VKTexture::export_memory(VkExternalMemoryHandleTypeFlagBits handl
     return {uint64_t(fd_handle), allocation_info_.size, allocation_info_.offset};
   }
 
+#ifdef _WIN32
   if (handle_type == VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT) {
-    VkMemoryGetWin32HandleInfoKHR vk_memory_get_win32_handle_info =
-    {VK_STRUCTURE_TYPE_MEMORY_GET_WIN32_HANDLE_INFO_KHR, nullptr, allocation_info_.deviceMemory,
-    handle_type};
+    VkMemoryGetWin32HandleInfoKHR vk_memory_get_win32_handle_info = {
+        VK_STRUCTURE_TYPE_MEMORY_GET_WIN32_HANDLE_INFO_KHR,
+        nullptr,
+        allocation_info_.deviceMemory,
+        handle_type};
     HANDLE win32_handle = nullptr;
-    //device.functions.vkGetMemoryWin32Handle(device.vk_handle(), &vk_memory_get_win32_handle_info, &win32_handle); 
-    return {uint64_t(win32_handle), allocation_info_.size,
-    allocation_info_.offset};
+    device.functions.vkGetMemoryWin32Handle(
+        device.vk_handle(), &vk_memory_get_win32_handle_info, &win32_handle);
+    return {uint64_t(win32_handle), allocation_info_.size, allocation_info_.offset};
   }
+#endif
   BLI_assert_unreachable();
   return {};
 }
@@ -601,9 +606,7 @@ bool VKTexture::allocate()
   }
 
   VkExternalMemoryImageCreateInfo external_memory_create_info = {
-      VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO,
-      nullptr,
-      VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT};
+      VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO, nullptr, 0};
 
   VmaAllocationCreateInfo allocCreateInfo = {};
   allocCreateInfo.usage = VMA_MEMORY_USAGE_AUTO;
@@ -611,6 +614,11 @@ bool VKTexture::allocate()
 
   if (bool(texture_usage & GPU_TEXTURE_USAGE_MEMORY_EXPORT)) {
     image_info.pNext = &external_memory_create_info;
+#ifdef _WIN32
+    external_memory_create_info.handleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT;
+#else
+    external_memory_create_info.handleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT;
+#endif
     allocCreateInfo.pool = device.vma_pools.external_memory;
   }
   result = vmaCreateImage(device.mem_allocator_get(),

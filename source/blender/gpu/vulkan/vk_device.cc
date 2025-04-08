@@ -217,10 +217,16 @@ void VKDevice::init_memory_allocator()
   /* External memory pool */
   /* Initialize a dummy image create info to find the memory type index that will be used for
    * allocating. */
+  VkExternalMemoryHandleTypeFlags vk_external_memory_handle_type = 0;
+#ifdef _WIN32
+  vk_external_memory_handle_type = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT;
+#else
+  vk_external_memory_handle_type = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT;
+#endif
   VkExternalMemoryImageCreateInfo external_image_create_info = {
       VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO,
       nullptr,
-      VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT};
+      vk_external_memory_handle_type};
   VkImageCreateInfo image_create_info = {VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
                                          &external_image_create_info,
                                          0,
@@ -244,7 +250,7 @@ void VKDevice::init_memory_allocator()
   vmaFindMemoryTypeIndexForImageInfo(
       mem_allocator_, &image_create_info, &allocation_create_info, &memory_type_index);
 
-  vma_pools.external_memory_info.handleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT;
+  vma_pools.external_memory_info.handleTypes = vk_external_memory_handle_type;
   VmaPoolCreateInfo pool_create_info = {};
   pool_create_info.memoryTypeIndex = memory_type_index;
   pool_create_info.pMemoryAllocateNext = &vma_pools.external_memory_info;

@@ -237,8 +237,8 @@ class VKDevice : public NonCopyable {
     PFN_vkGetMemoryFdKHR vkGetMemoryFd = nullptr;
 
 #ifdef _WIN32
-/* Extension: VK_KHR_external_memory_win32 */
-// PFN_vkGetMemoryWin32HandleKHR vkGetMemoryWin32Handle = nullptr;
+    /* Extension: VK_KHR_external_memory_win32 */
+    PFN_vkGetMemoryWin32HandleKHR vkGetMemoryWin32Handle = nullptr;
 #endif
   } functions;
 
