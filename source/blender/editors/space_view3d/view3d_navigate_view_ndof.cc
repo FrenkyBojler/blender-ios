@@ -261,14 +261,10 @@ static void view3d_ndof_orbit(const wmNDOFMotionData *ndof,
   if (apply_dyn_ofs) {
     /* Use NDOF center as a dynamic offset. */
     if (ndof_orbit_center_is_auto(v3d, rv3d)) {
-      if (rv3d->ndof_flag & RV3D_NDOF_OFS_IS_VALID) {
-        if (ndof_orbit_center_is_valid(vod->rv3d, -float3(rv3d->ndof_ofs))) {
-          vod->use_dyn_ofs = true;
-          copy_v3_v3(vod->dyn_ofs, rv3d->ndof_ofs);
-        }
-        else {
-          rv3d->ndof_flag &= ~RV3D_NDOF_OFS_IS_VALID;
-        }
+      vod->use_dyn_ofs = true;
+      copy_v3_v3(vod->dyn_ofs, rv3d->ndof_ofs);
+      if (!ndof_orbit_center_is_valid(vod->rv3d, -float3(rv3d->ndof_ofs))) {
+        rv3d->ndof_flag &= ~RV3D_NDOF_OFS_IS_DRAWABLE;
       }
     }
     viewrotate_apply_dyn_ofs(vod, rv3d->viewquat);
@@ -561,7 +557,7 @@ static std::optional<float3> ndof_orbit_center_calc(Depsgraph *depsgraph,
    *    4a) Use that depth to unproject a point from the middle of the region to the 3D space
    *    4b) Store that point as the Center of Rotation
    * 5) Since no candidates were found, use the last stored value
-   *    (when #RV3D_NDOF_OFS_IS_VALID is set).
+   *    (when #RV3D_NDOF_OFS_IS_DRAWABLE is set).
    */
 
   std::optional<float3> center_test = ndof_orbit_center_calc_from_bounds(depsgraph, area, region);
@@ -759,7 +755,7 @@ static wmOperatorStatus ndof_orbit_zoom_invoke_impl(bContext *C,
               vod->depsgraph, vod->area, vod->region))
       {
         negate_v3_v3(rv3d->ndof_ofs, center_test.value());
-        rv3d->ndof_flag |= RV3D_NDOF_OFS_IS_VALID;
+        rv3d->ndof_flag |= RV3D_NDOF_OFS_IS_DRAWABLE;
       }
     }
   }
