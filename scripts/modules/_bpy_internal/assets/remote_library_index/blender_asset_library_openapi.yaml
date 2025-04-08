@@ -153,7 +153,10 @@ components:
       properties:
         "asset_count":
           type: integer
-          description: Number of assets in this page.
+          description: >
+            Number of assets in this page. This is declared separately, so that
+            a partial JSON parser has this information before the entire file is
+            downloaded and parsed.
         "assets":
           type: array
           items: { $ref: "#/components/schemas/Asset" }

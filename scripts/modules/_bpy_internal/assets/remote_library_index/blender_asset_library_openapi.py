@@ -132,5 +132,10 @@ class AssetLibraryIndexPage(BaseModel):
     model_config = ConfigDict(
         extra="allow",
     )
-    asset_count: Annotated[int, Field(description="Number of assets in this page.")]
+    asset_count: Annotated[
+        int,
+        Field(
+            description="Number of assets in this page. This is declared separately, so that a partial JSON parser has this information before the entire file is downloaded and parsed.\n"
+        ),
+    ]
     assets: list[Asset]
