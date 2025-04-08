@@ -157,6 +157,18 @@ static bool node_needs_material_split(const Span<int> faces, const Span<int> mat
       faces.begin(), faces.end(), [&](const int face) { return material_indices[face] != first; });
 }
 
+static void init_leaf_node_mesh(const int leaf_index,
+                                const int gpu_inner_index,
+                                const MutableSpan<int> faces,
+                                Vector<MeshNode> &nodes)
+{
+  MeshNode &node = nodes[leaf_index];
+  node.flag_ |= Node::Leaf;
+  node.gpu_inner_index_ = gpu_inner_index;
+  nodes[gpu_inner_index].leaf_nodes_.append(leaf_index);
+  node.face_indices_ = faces;
+}
+
 static void build_nodes_recursive_mesh(const Span<int> material_indices,
                                        const int leaf_limit,
                                        const int gpu_limit,
@@ -168,25 +180,37 @@ static void build_nodes_recursive_mesh(const Span<int> material_indices,
                                        MutableSpan<int> faces,
                                        Vector<MeshNode> &nodes)
 {
+  MeshNode &node = nodes[node_index];
+  const bool max_depth_reached = depth >= STACK_FIXED_DEPTH - 1;
   bool needs_material_split = false;
 
-  if (!gpu_inner_index.has_value() && faces.size() <= gpu_limit) {
+  if (max_depth_reached) {
     needs_material_split = node_needs_material_split(faces, material_indices);
 
     if (!needs_material_split) {
-      MeshNode &node = nodes[node_index];
-      node.flag_ |= Node::GPU;
-      gpu_inner_index = node_index;
+      if (!gpu_inner_index.has_value()) {
+        node.flag_ |= Node::GPU;
+        gpu_inner_index = node_index;
+      }
+
+      init_leaf_node_mesh(node_index, gpu_inner_index.value(), faces, nodes);
+      return;
     }
   }
+  else {
+    if (!gpu_inner_index.has_value() && faces.size() <= gpu_limit) {
+      needs_material_split = node_needs_material_split(faces, material_indices);
 
-  if (gpu_inner_index.has_value() && faces.size() <= leaf_limit) {
-    MeshNode &node = nodes[node_index];
-    node.flag_ |= Node::Leaf;
-    node.gpu_inner_index_ = gpu_inner_index;
-    nodes[gpu_inner_index.value()].leaf_nodes_.append(node_index);
-    node.face_indices_ = faces;
-    return;
+      if (!needs_material_split) {
+        node.flag_ |= Node::GPU;
+        gpu_inner_index = node_index;
+      }
+    }
+
+    if (gpu_inner_index.has_value() && faces.size() <= leaf_limit) {
+      init_leaf_node_mesh(node_index, gpu_inner_index.value(), faces, nodes);
+      return;
+    }
   }
 
   /* Add two child nodes */
