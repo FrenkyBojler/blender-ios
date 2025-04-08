@@ -4166,7 +4166,7 @@ static void GREASE_PENCIL_OT_stroke_split(wmOperatorType *ot)
 
 enum class StrokeModeAction : int8_t { Toggle = 0, Set = 1, Unset = 2 };
 
-static int grease_pencil_set_stroke_mode_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus grease_pencil_set_stroke_mode_exec(bContext *C, wmOperator *op)
 {
   const Scene *scene = CTX_data_scene(C);
   Object *object = CTX_data_active_object(C);

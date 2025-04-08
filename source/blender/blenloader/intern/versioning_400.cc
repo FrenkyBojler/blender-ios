@@ -2253,7 +2253,7 @@ void do_versions_after_linking_400(FileData *fd, Main *bmain)
     });
   }
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 15)) {
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 19)) {
     convert_grease_pencil_material_stroke_fill_toggle_to_attributes(*bmain);
     LISTBASE_FOREACH (Brush *, brush, &bmain->brushes) {
       if (BrushGpencilSettings *settings = brush->gpencil_settings) {
