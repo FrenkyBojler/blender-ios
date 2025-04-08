@@ -1875,7 +1875,8 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
   bke::MeshComponent &mesh_component = geometry_set.get_component_for_write<bke::MeshComponent>();
   if (mesh_component.get() != mesh) {
     /* If this is the same as the input mesh, it's not necessary to make a copy of it even if it's
-     * not owned by the geometry set. */
+     * not owned by the geometry set. That's because we know that the caller manages the ownership
+     * of the mesh. */
     mesh_component.ensure_owns_direct_data();
   }
   Mesh *new_mesh = mesh_component.release();
