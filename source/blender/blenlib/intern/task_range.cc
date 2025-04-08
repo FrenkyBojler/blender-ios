@@ -286,6 +286,11 @@ void parallel_for_impl(const IndexRange range,
 #endif
 }
 
+int hyper_threading_disable_num_threads()
+{
+  return BLI_task_scheduler_num_cores();
+}
+
 void memory_bandwidth_bound_task_impl(const FunctionRef<void()> function)
 {
 #ifdef WITH_TBB

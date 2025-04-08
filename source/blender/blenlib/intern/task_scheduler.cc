@@ -27,6 +27,7 @@
 /* Task Scheduler */
 
 static int task_scheduler_num_threads = 1;
+static int task_scheduler_num_cores = 1;
 #ifdef WITH_TBB_GLOBAL_CONTROL
 static tbb::global_control *task_scheduler_global_control = nullptr;
 #endif
@@ -50,8 +51,14 @@ void BLI_task_scheduler_init()
      * at all. */
     task_scheduler_num_threads = BLI_system_thread_count();
   }
+
+  /* Compute the number of cores, to disable hyper-threading. */
+  task_scheduler_num_cores = std::min(
+      tbb::info::default_concurrency(tbb::task_arena::constraints{}.set_max_threads_per_core(1)),
+      task_scheduler_num_threads);
 #else
   task_scheduler_num_threads = BLI_system_thread_count();
+  task_scheduler_num_cores = task_scheduler_num_threads;
 #endif
 }
 
@@ -65,6 +72,11 @@ void BLI_task_scheduler_exit()
 int BLI_task_scheduler_num_threads()
 {
   return task_scheduler_num_threads;
+}
+
+int BLI_task_scheduler_num_cores()
+{
+  return task_scheduler_num_cores;
 }
 
 void BLI_task_isolate(void (*func)(void *userdata), void *userdata)

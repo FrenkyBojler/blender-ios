@@ -70,6 +70,7 @@ void parallel_for_impl(IndexRange range,
                        FunctionRef<void(IndexRange)> function,
                        const TaskSizeHints &size_hints);
 void memory_bandwidth_bound_task_impl(FunctionRef<void()> function);
+int hyper_threading_disable_num_threads();
 }  // namespace detail
 
 /**
@@ -261,7 +262,7 @@ template<typename Function> inline void isolate_task(const Function &function)
 template<typename Function> inline void disable_hyperthreading(const Function &function)
 {
 #ifdef WITH_TBB
-  tbb::task_arena arena(tbb::task_arena::constraints{}.set_max_threads_per_core(1));
+  tbb::task_arena arena(detail::hyper_threading_disable_num_threads());
   arena.execute(function);
 #else
   function();

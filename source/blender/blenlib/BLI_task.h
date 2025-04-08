@@ -30,6 +30,7 @@ struct BLI_mempool;
 void BLI_task_scheduler_init(void);
 void BLI_task_scheduler_exit(void);
 int BLI_task_scheduler_num_threads(void);
+int BLI_task_scheduler_num_cores(void);
 
 /** \} */
 
