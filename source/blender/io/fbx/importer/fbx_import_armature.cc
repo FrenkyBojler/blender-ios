@@ -6,8 +6,6 @@
  * \ingroup fbx
  */
 
-#include <cstdio>
-
 #include "BKE_action.hh"
 #include "BKE_armature.hh"
 #include "BKE_object.hh"
@@ -202,11 +200,10 @@ void ArmatureImportContext::create_armature_bones(const ufbx_node *node,
   if (parent_bone != nullptr) {
     float3 self_head_rest(bone->head);
     float3 par_tail_rest(parent_bone->tail);
-    const float connect_dist = 1.0e-6f;
+    const float connect_dist = 1.0e-4f;
     const float connect_dist_sq = connect_dist * connect_dist;
     float dist_sq_rest = math::distance_squared(self_head_rest, par_tail_rest);
     if (dist_sq_rest < connect_dist_sq) {
-
       /* Bones seem connected in rest pose, now check their current transforms. */
       ufbx_vec3 self_head_cur_u = node->node_to_world.cols[3];
       ufbx_vec3 par_tail_cur_u = ufbx_transform_position(&node->parent->node_to_world,

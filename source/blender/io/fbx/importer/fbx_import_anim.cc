@@ -424,7 +424,7 @@ static void create_material_curves(const ElementAnimations &anim,
   Material *target_mat = (Material *)anim.target_id;
   ID *target_ntree = (ID *)target_mat->nodetree;
   animrig::Action &act = action->wrap();
-  animrig::Slot *slot = animrig::assign_action_ensure_slot_for_keying(act, *target_ntree);
+  const animrig::Slot *slot = animrig::assign_action_ensure_slot_for_keying(act, *target_ntree);
   BLI_assert(slot != nullptr);
   UNUSED_VARS_NDEBUG(slot);
   animrig::Channelbag &chbag_node = animrig::action_channelbag_ensure(*action, *target_ntree);
@@ -507,7 +507,7 @@ void import_animations(Main &bmain,
         }
 
         /* Assign this action & slot to ID if they are not assigned yet. */
-        AnimData *adt = BKE_animdata_ensure_id(anim.target_id);
+        const AnimData *adt = BKE_animdata_ensure_id(anim.target_id);
         BLI_assert_msg(adt != nullptr, "fbx: could not create animation data for an ID");
         if (adt->action == nullptr) {
           bool ok = animrig::assign_action(&action, *anim.target_id);

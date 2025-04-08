@@ -6,8 +6,6 @@
  * \ingroup fbx
  */
 
-#include <cstdio>
-
 #include "BKE_camera.h"
 #include "BKE_layer.hh"
 #include "BKE_light.h"
@@ -15,9 +13,7 @@
 #include "BKE_report.hh"
 
 #include "BLI_fileops.h"
-#include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
-#include "BLI_math_vector.hh"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_build.hh"
@@ -78,7 +74,7 @@ struct FbxImportContext {
 #endif
   }
 
-  void import_globals(Scene *scene);
+  void import_globals(Scene *scene) const;
   void import_materials();
   void import_meshes();
   void import_cameras();
@@ -90,7 +86,7 @@ struct FbxImportContext {
   void setup_hierarchy();
 };
 
-void FbxImportContext::import_globals(Scene *scene)
+void FbxImportContext::import_globals(Scene *scene) const
 {
   /* Set scene framerate to that of FBX file. */
   double fps = this->fbx.settings.frames_per_second;
@@ -116,7 +112,7 @@ void FbxImportContext::import_meshes()
 
 void FbxImportContext::import_cameras()
 {
-  for (ufbx_camera *fcam : this->fbx.cameras) {
+  for (const ufbx_camera *fcam : this->fbx.cameras) {
     if (fcam->instances.count == 0) {
       continue; /* Ignore if not used by any objects. */
     }
@@ -272,8 +268,6 @@ void FbxImportContext::setup_hierarchy()
 
 void importer_main(Main *bmain, Scene *scene, ViewLayer *view_layer, const FBXImportParams &params)
 {
-  UNUSED_VARS(bmain, view_layer, params);
-
   FILE *file = BLI_fopen(params.filepath, "rb");
   if (!file) {
     CLOG_ERROR(&LOG, "Failed to open FBX file '%s'\n", params.filepath);
