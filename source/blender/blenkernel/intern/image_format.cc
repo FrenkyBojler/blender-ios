@@ -93,7 +93,7 @@ void BKE_image_format_set(ImageFormatData *imf, ID *owner_id, const char imtype)
 
   const bool is_render = (owner_id && GS(owner_id->name) == ID_SCE);
   /* see note below on why this is */
-  const char chan_flag = BKE_imtype_valid_channels(imf->imtype, true) |
+  const char chan_flag = BKE_imtype_valid_channels(imf->imtype) |
                          (is_render ? IMA_CHAN_FLAG_BW : 0);
 
   /* ensure depth and color settings match */
@@ -135,7 +135,7 @@ int BKE_imtype_to_ftype(const char imtype, ImbFormatOptions *r_options)
     return IMB_FTYPE_TGA;
   }
   if (imtype == R_IMF_IMTYPE_IRIS) {
-    return IMB_FTYPE_IMAGIC;
+    return IMB_FTYPE_IRIS;
   }
   if (imtype == R_IMF_IMTYPE_RADHDR) {
     return IMB_FTYPE_RADHDR;
@@ -188,7 +188,7 @@ char BKE_ftype_to_imtype(const int ftype, const ImbFormatOptions *options)
   if (ftype == IMB_FTYPE_NONE) {
     return R_IMF_IMTYPE_TARGA;
   }
-  if (ftype == IMB_FTYPE_IMAGIC) {
+  if (ftype == IMB_FTYPE_IRIS) {
     return R_IMF_IMTYPE_IRIS;
   }
   if (ftype == IMB_FTYPE_RADHDR) {
@@ -287,17 +287,13 @@ bool BKE_imtype_requires_linear_float(const char imtype)
   return false;
 }
 
-char BKE_imtype_valid_channels(const char imtype, bool write_file)
+char BKE_imtype_valid_channels(const char imtype)
 {
   char chan_flag = IMA_CHAN_FLAG_RGB; /* Assume all support RGB. */
 
   /* Alpha. */
   switch (imtype) {
     case R_IMF_IMTYPE_BMP:
-      if (write_file) {
-        break;
-      }
-      ATTR_FALLTHROUGH;
     case R_IMF_IMTYPE_TARGA:
     case R_IMF_IMTYPE_RAWTGA:
     case R_IMF_IMTYPE_IRIS:
@@ -668,7 +664,7 @@ void BKE_image_format_to_imbuf(ImBuf *ibuf, const ImageFormatData *imf)
   ibuf->foptions.flag = 0;
 
   if (imtype == R_IMF_IMTYPE_IRIS) {
-    ibuf->ftype = IMB_FTYPE_IMAGIC;
+    ibuf->ftype = IMB_FTYPE_IRIS;
   }
   else if (imtype == R_IMF_IMTYPE_RADHDR) {
     ibuf->ftype = IMB_FTYPE_RADHDR;
@@ -818,17 +814,56 @@ void BKE_image_format_to_imbuf(ImBuf *ibuf, const ImageFormatData *imf)
   }
 }
 
+static char imtype_best_depth(const ImBuf *ibuf, const char imtype)
+{
+  const char depth_ok = BKE_imtype_valid_depths(imtype);
+
+  if (ibuf->float_buffer.data) {
+    if (depth_ok & R_IMF_CHAN_DEPTH_32) {
+      return R_IMF_CHAN_DEPTH_32;
+    }
+    if (depth_ok & R_IMF_CHAN_DEPTH_24) {
+      return R_IMF_CHAN_DEPTH_24;
+    }
+    if (depth_ok & R_IMF_CHAN_DEPTH_16) {
+      return R_IMF_CHAN_DEPTH_16;
+    }
+    if (depth_ok & R_IMF_CHAN_DEPTH_12) {
+      return R_IMF_CHAN_DEPTH_12;
+    }
+    return R_IMF_CHAN_DEPTH_8;
+  }
+
+  if (depth_ok & R_IMF_CHAN_DEPTH_8) {
+    return R_IMF_CHAN_DEPTH_8;
+  }
+  if (depth_ok & R_IMF_CHAN_DEPTH_12) {
+    return R_IMF_CHAN_DEPTH_12;
+  }
+  if (depth_ok & R_IMF_CHAN_DEPTH_16) {
+    return R_IMF_CHAN_DEPTH_16;
+  }
+  if (depth_ok & R_IMF_CHAN_DEPTH_24) {
+    return R_IMF_CHAN_DEPTH_24;
+  }
+  if (depth_ok & R_IMF_CHAN_DEPTH_32) {
+    return R_IMF_CHAN_DEPTH_32;
+  }
+  return R_IMF_CHAN_DEPTH_8; /* fallback, should not get here */
+}
+
 void BKE_image_format_from_imbuf(ImageFormatData *im_format, const ImBuf *imbuf)
 {
   /* Read from ImBuf after file read. */
   int ftype = imbuf->ftype;
   int custom_flags = imbuf->foptions.flag;
   char quality = imbuf->foptions.quality;
+  bool is_depth_set = false;
 
   BKE_image_format_init(im_format, false);
 
   /* file type */
-  if (ftype == IMB_FTYPE_IMAGIC) {
+  if (ftype == IMB_FTYPE_IRIS) {
     im_format->imtype = R_IMF_IMTYPE_IRIS;
   }
   else if (ftype == IMB_FTYPE_RADHDR) {
@@ -839,6 +874,7 @@ void BKE_image_format_from_imbuf(ImageFormatData *im_format, const ImBuf *imbuf)
 
     if (custom_flags & PNG_16BIT) {
       im_format->depth = R_IMF_CHAN_DEPTH_16;
+      is_depth_set = true;
     }
 
     im_format->compress = quality;
@@ -853,6 +889,7 @@ void BKE_image_format_from_imbuf(ImageFormatData *im_format, const ImBuf *imbuf)
     im_format->imtype = R_IMF_IMTYPE_TIFF;
     if (custom_flags & TIF_16BIT) {
       im_format->depth = R_IMF_CHAN_DEPTH_16;
+      is_depth_set = true;
     }
     if (custom_flags & TIF_COMPRESS_NONE) {
       im_format->tiff_codec = R_IMF_TIFF_CODEC_NONE;
@@ -871,11 +908,17 @@ void BKE_image_format_from_imbuf(ImageFormatData *im_format, const ImBuf *imbuf)
 #ifdef WITH_OPENEXR
   else if (ftype == IMB_FTYPE_OPENEXR) {
     im_format->imtype = R_IMF_IMTYPE_OPENEXR;
+    char exr_codec = custom_flags & OPENEXR_CODEC_MASK;
     if (custom_flags & OPENEXR_HALF) {
       im_format->depth = R_IMF_CHAN_DEPTH_16;
+      is_depth_set = true;
     }
-    if (custom_flags & OPENEXR_CODEC_MASK) {
-      im_format->exr_codec = R_IMF_EXR_CODEC_ZIP; /* Can't determine compression */
+    else if (ELEM(exr_codec, R_IMF_EXR_CODEC_B44, R_IMF_EXR_CODEC_B44A)) {
+      /* B44 and B44A are only selectable for half precision images, default to ZIP compression */
+      exr_codec = R_IMF_EXR_CODEC_ZIP;
+    }
+    if (exr_codec < R_IMF_EXR_CODEC_MAX) {
+      im_format->exr_codec = exr_codec;
     }
   }
 #endif
@@ -903,9 +946,11 @@ void BKE_image_format_from_imbuf(ImageFormatData *im_format, const ImBuf *imbuf)
 
     if (custom_flags & JP2_16BIT) {
       im_format->depth = R_IMF_CHAN_DEPTH_16;
+      is_depth_set = true;
     }
     else if (custom_flags & JP2_12BIT) {
       im_format->depth = R_IMF_CHAN_DEPTH_12;
+      is_depth_set = true;
     }
 
     if (custom_flags & JP2_YCC) {
@@ -940,6 +985,11 @@ void BKE_image_format_from_imbuf(ImageFormatData *im_format, const ImBuf *imbuf)
   else {
     im_format->imtype = R_IMF_IMTYPE_JPEG90;
     im_format->quality = quality;
+  }
+
+  /* Default depth, accounting for float buffer and format support */
+  if (!is_depth_set) {
+    im_format->depth = imtype_best_depth(imbuf, im_format->imtype);
   }
 
   /* planes */
