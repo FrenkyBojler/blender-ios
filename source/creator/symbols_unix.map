@@ -37,8 +37,8 @@ global:
   sched_*;
   valloc;
   /* needed on FreeBSD */
-  __progname;
-  environ;
+  __progname*;
+  environ*;
 local:
   *;
 };
