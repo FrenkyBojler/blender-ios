@@ -8325,12 +8325,6 @@ static void def_cmp_glare(BlenderRNA * /*brna*/, StructRNA *srna)
   RNA_def_property_ui_text(
       prop, "Fade", "Streak fade-out factor. (Deprecated: Use Fade input instead)");
 
-  prop = RNA_def_property(srna, "use_rotate_45", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "star_45", 0);
-  RNA_def_property_ui_text(
-      prop, "Rotate 45°", "Simple star filter: add 45 degree rotation offset");
-  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
-
   prop = RNA_def_property(srna, "size", PROP_INT, PROP_NONE);
   RNA_def_property_int_funcs(prop, "rna_NodeGlare_size_get", "rna_NodeGlare_size_set", nullptr);
   RNA_def_property_range(prop, 1, 9);

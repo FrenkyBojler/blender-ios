@@ -15,9 +15,12 @@
 #include <cstring>
 #include <optional>
 
+#include <fmt/format.h>
+
 /* Allow using deprecated functionality for .blend file I/O. */
 #define DNA_DEPRECATED_ALLOW
 
+#include "DNA_anim_types.h"
 #include "DNA_collection_types.h"
 #include "DNA_gpencil_legacy_types.h"
 #include "DNA_light_types.h"
@@ -666,6 +669,43 @@ static void update_node_location_legacy(bNodeTree &ntree)
   }
 }
 
+/* Some node properties were turned into inputs, so we write the input values and transfer their
+ * animations back to the properties upon write to maintain forward compatibility. */
+static void write_compositor_legacy_properties(bNodeTree &node_tree)
+{
+  if (node_tree.type != NTREE_COMPOSIT) {
+    return;
+  }
+
+  Map<std::string, std::string> fcurves_rna_path_map;
+  for (bNode *node : node_tree.all_nodes()) {
+    /* Compute the RNA path of the node. */
+    char escaped_node_name[sizeof(node->name) * 2 + 1];
+    BLI_str_escape(escaped_node_name, node->name, sizeof(escaped_node_name));
+    const std::string node_rna_path = fmt::format("nodes[\"{}\"]", escaped_node_name);
+
+    /* The Rotate Star 45 option was converted into an input. */
+    if (node->type_legacy == CMP_NODE_GLARE) {
+      bNodeSocket *input = blender::bke::node_find_socket(*node, SOCK_IN, "Diagonal Star");
+      NodeGlare *storage = static_cast<NodeGlare *>(node->storage);
+      if (storage && input) {
+        storage->star_45 = input->default_value_typed<bNodeSocketValueBoolean>()->value;
+
+        fcurves_rna_path_map.add_new(node_rna_path + "." + "inputs[14].default_value",
+                                     node_rna_path + "." + "use_rotate_45");
+      }
+    }
+  }
+
+  BKE_fcurves_id_cb(&node_tree.id, [&](ID * /*id*/, FCurve *fcurve) {
+    std::string *target_path = fcurves_rna_path_map.lookup_ptr(fcurve->rna_path);
+    if (target_path) {
+      MEM_freeN(fcurve->rna_path);
+      fcurve->rna_path = BLI_strdup(target_path->c_str());
+    }
+  });
+}
+
 }  // namespace forward_compat
 
 static void write_node_socket_default_value(BlendWriter *writer, const bNodeSocket *sock)
@@ -750,6 +790,7 @@ void node_tree_blend_write(BlendWriter *writer, bNodeTree *ntree)
 
   if (!BLO_write_is_undo(writer)) {
     forward_compat::update_node_location_legacy(*ntree);
+    forward_compat::write_compositor_legacy_properties(*ntree);
   }
 
   for (bNode *node : ntree->all_nodes()) {

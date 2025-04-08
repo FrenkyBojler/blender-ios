@@ -1753,6 +1753,46 @@ static void do_version_new_glare_suppress_input(bNodeTree *node_tree)
   }
 }
 
+/* The Rotate Star 45 option was converted into a Diagonal Star input. */
+static void do_version_glare_node_star_45_option_to_inputs(bNodeTree *node_tree, bNode *node)
+{
+  NodeGlare *storage = static_cast<NodeGlare *>(node->storage);
+  if (!storage) {
+    return;
+  }
+
+  /* Get the newly added input. */
+  bNodeSocket *diagonal_star = version_node_add_socket_if_not_exist(
+      node_tree, node, SOCK_IN, SOCK_BOOLEAN, PROP_NONE, "Diagonal Star", "Diagonal");
+
+  /* Assign the input the value from the old deprecated properties. */
+  diagonal_star->default_value_typed<bNodeSocketValueBoolean>()->value = storage->star_45;
+
+  /* Compute the RNA path of the node. */
+  char escaped_node_name[sizeof(node->name) * 2 + 1];
+  BLI_str_escape(escaped_node_name, node->name, sizeof(escaped_node_name));
+  const std::string node_rna_path = fmt::format("nodes[\"{}\"]", escaped_node_name);
+
+  BKE_fcurves_id_cb(&node_tree->id, [&](ID * /*id*/, FCurve *fcurve) {
+    /* The FCurve does not belong to the node since its RNA path doesn't start with the node's RNA
+     * path. */
+    if (!blender::StringRef(fcurve->rna_path).startswith(node_rna_path)) {
+      return;
+    }
+
+    /* Change the RNA path of the FCurve from the old property to the new input. */
+    char *old_rna_path = fcurve->rna_path;
+    if (BLI_str_endswith(fcurve->rna_path, "use_rotate_45")) {
+      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[14].default_value");
+    }
+
+    /* The RNA path was changed, free the old path. */
+    if (fcurve->rna_path != old_rna_path) {
+      MEM_freeN(old_rna_path);
+    }
+  });
+}
+
 static void do_version_viewer_shortcut(bNodeTree *node_tree)
 {
   LISTBASE_FOREACH_MUTABLE (bNode *, node, &node_tree->nodes) {
@@ -2179,6 +2219,23 @@ void do_versions_after_linking_400(FileData *fd, Main *bmain)
         nlastrips_apply_fcurve_versioning(track->strips);
       }
     });
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 18)) {
+    FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
+      if (node_tree->type != NTREE_COMPOSIT) {
+        continue;
+      }
+
+      LISTBASE_FOREACH (bNode *, node, &node_tree->nodes) {
+        if (node->type_legacy != CMP_NODE_GLARE) {
+          continue;
+        }
+
+        do_version_glare_node_star_45_option_to_inputs(node_tree, node);
+      }
+    }
+    FOREACH_NODETREE_END;
   }
 
   /**
