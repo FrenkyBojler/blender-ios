@@ -21,6 +21,8 @@
 #include "BLI_ordered_edge.hh"
 #include "BLI_string.h"
 
+#include "BLT_translation.hh"
+
 #include "DNA_key_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
@@ -289,8 +291,7 @@ static void import_skin_vertex_groups(const ufbx_mesh *fmesh,
     const ufbx_skin_vertex &fvertex = skin->vertices[i];
     int num_weights = fvertex.num_weights;
     if (num_weights > 0) {
-      dverts[i].dw = static_cast<MDeformWeight *>(
-          MEM_mallocN(sizeof(MDeformWeight) * num_weights, __func__));
+      dverts[i].dw = MEM_malloc_arrayN<MDeformWeight>(num_weights, __func__);
       dverts[i].totweight = num_weights;
       for (int j = 0; j < num_weights; j++) {
         const ufbx_skin_weight &fweight = skin->weights[fvertex.weight_begin + j];
@@ -322,14 +323,14 @@ static bool import_blend_shapes(Main &bmain,
         mesh_key->type = KEY_RELATIVE;
         mesh->key = mesh_key;
 
-        KeyBlock *kb = BKE_keyblock_add(mesh_key, "Basis");
+        KeyBlock *kb = BKE_keyblock_add(mesh_key, nullptr);
         BKE_keyblock_convert_from_mesh(mesh, mesh_key, kb);
       }
 
       KeyBlock *kb = BKE_keyblock_add(mesh_key, fchan->target_shape->name.data);
       kb->curval = fchan->weight;
       BKE_keyblock_convert_from_mesh(mesh, mesh_key, kb);
-      float3 *kb_data = (float3 *)kb->data;
+      float3 *kb_data = static_cast<float3 *>(kb->data);
       for (int i = 0; i < fchan->target_shape->num_offsets; i++) {
         int idx = fchan->target_shape->offset_vertices[i];
         const ufbx_vec3 &delta = fchan->target_shape->position_offsets[i];
@@ -477,7 +478,7 @@ void import_meshes(Main &bmain,
           (fmesh->subdivision_preview_levels > 0 || fmesh->subdivision_render_levels > 0))
       {
         ModifierData *md = BKE_modifier_new(eModifierType_Subsurf);
-        STRNCPY(md->name, "subsurf");
+        STRNCPY(md->name, DATA_("subsurf"));
         BLI_addtail(&obj->modifiers, md);
         BKE_modifiers_persistent_uid_init(*obj, *md);
 
