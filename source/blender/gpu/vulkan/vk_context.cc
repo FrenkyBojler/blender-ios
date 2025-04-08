@@ -32,8 +32,6 @@ VKContext::VKContext(void *ghost_window, void *ghost_context)
   back_left = new VKFrameBuffer("back_left");
   front_left = new VKFrameBuffer("front_left");
   active_fb = back_left;
-
-  compiler = &VKBackend::get().shader_compiler;
 }
 
 VKContext::~VKContext()
@@ -48,7 +46,6 @@ VKContext::~VKContext()
   VKBackend::get().device.context_unregister(*this);
 
   imm = nullptr;
-  compiler = nullptr;
 }
 
 void VKContext::sync_backbuffer(bool cycle_resource_pool)
@@ -183,6 +180,11 @@ TimelineValue VKContext::flush_render_graph(RenderGraphFlushFlags flags,
 }
 
 void VKContext::finish() {}
+
+ShaderCompiler *VKContext::get_compiler()
+{
+  return &VKBackend::get().shader_compiler;
+}
 
 void VKContext::memory_statistics_get(int *r_total_mem_kb, int *r_free_mem_kb)
 {
@@ -449,6 +451,19 @@ void VKContext::openxr_acquire_framebuffer_image_handler(GHOST_VulkanOpenXRData 
       openxr_data.gpu.memory_offset = exported_memory.memory_offset;
       break;
     }
+
+    case GHOST_kVulkanXRModeWin32: {
+      flush_render_graph(RenderGraphFlushFlags::SUBMIT |
+                         RenderGraphFlushFlags::WAIT_FOR_COMPLETION |
+                         RenderGraphFlushFlags::RENEW_RENDER_GRAPH);
+      VKMemoryExport exported_memory = color_attachment->export_memory(
+          VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT);
+      openxr_data.gpu.image_handle = exported_memory.handle;
+      openxr_data.gpu.image_format = to_vk_format(color_attachment->device_format_get());
+      openxr_data.gpu.memory_size = exported_memory.memory_size;
+      openxr_data.gpu.memory_offset = exported_memory.memory_offset;
+      break;
+    }
   }
 }
 
@@ -465,6 +480,14 @@ void VKContext::openxr_release_framebuffer_image_handler(GHOST_VulkanOpenXRData 
        * handle. Ref
        * https://registry.khronos.org/vulkan/specs/latest/man/html/VK_KHR_external_memory_fd.html#_issues
        */
+      break;
+
+    case GHOST_kVulkanXRModeWin32:
+#ifdef _WIN32
+      /* Exported handle isn't consumed during import and should be freed after use. */
+      CloseHandle(HANDLE(openxr_data.gpu.image_handle));
+      openxr_data.gpu.image_handle = 0;
+#endif
       break;
   }
 }
