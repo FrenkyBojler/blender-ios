@@ -16,6 +16,7 @@
 #include "BLI_function_ref.hh"
 #include "BLI_gsqueue.h"
 #include "BLI_task.h"
+#include "BLI_task.hh"
 #include "BLI_time.h"
 
 #include "BKE_global.hh"
@@ -431,30 +432,32 @@ void deg_evaluate_on_refresh(Depsgraph *graph)
    *
    * - Single-threaded pass of all remaining operations. */
 
-  TaskPool *task_pool = deg_evaluate_task_pool_create(&state);
+  blender::threading::run_in_high_priority([&] {
+    TaskPool *task_pool = deg_evaluate_task_pool_create(&state);
 
-  evaluate_graph_threaded_stage(&state, task_pool, EvaluationStage::COPY_ON_EVAL);
+    evaluate_graph_threaded_stage(&state, task_pool, EvaluationStage::COPY_ON_EVAL);
 
-  if (graph->has_animated_visibility || graph->need_update_nodes_visibility) {
-    /* Update pending parents including only the ones which are affecting operations which are
-     * affecting visibility. */
-    state.need_update_pending_parents = true;
+    if (graph->has_animated_visibility || graph->need_update_nodes_visibility) {
+      /* Update pending parents including only the ones which are affecting operations which are
+       * affecting visibility. */
+      state.need_update_pending_parents = true;
 
-    evaluate_graph_threaded_stage(&state, task_pool, EvaluationStage::DYNAMIC_VISIBILITY);
+      evaluate_graph_threaded_stage(&state, task_pool, EvaluationStage::DYNAMIC_VISIBILITY);
 
-    deg_graph_flush_visibility_flags_if_needed(graph);
+      deg_graph_flush_visibility_flags_if_needed(graph);
 
-    /* Update parents to an updated visibility and evaluation stage.
-     *
-     * Need to do it regardless of whether visibility is actually changed or not: current state of
-     * the pending parents are all zeroes because it was previously calculated for only visibility
-     * related nodes and those are fully evaluated by now. */
-    state.need_update_pending_parents = true;
-  }
+      /* Update parents to an updated visibility and evaluation stage.
+       *
+       * Need to do it regardless of whether visibility is actually changed or not: current state
+       * of the pending parents are all zeroes because it was previously calculated for only
+       * visibility related nodes and those are fully evaluated by now. */
+      state.need_update_pending_parents = true;
+    }
 
-  evaluate_graph_threaded_stage(&state, task_pool, EvaluationStage::THREADED_EVALUATION);
+    evaluate_graph_threaded_stage(&state, task_pool, EvaluationStage::THREADED_EVALUATION);
 
-  BLI_task_pool_free(task_pool);
+    BLI_task_pool_free(task_pool);
+  });
 
   evaluate_graph_single_threaded_if_needed(&state);
 

@@ -255,6 +255,19 @@ template<typename Function> inline void isolate_task(const Function &function)
 #endif
 }
 
+/** See #BLI_task_isolate for a description of what isolating a task means. */
+template<typename Function> inline void run_in_high_priority(const Function &function)
+{
+#ifdef WITH_TBB
+  tbb::task_arena arena(tbb::task_arena::automatic,
+                        1 /* TODO: what's the right reserved_for_masters value?*/,
+                        tbb::task_arena::priority::high);
+  arena.execute(function);
+#else
+  function();
+#endif
+}
+
 /**
  * Should surround parallel code that is highly bandwidth intensive, e.g. it just fills a buffer
  * with no or just few additional operations. If the buffers are large, it's beneficial to limit
