@@ -12039,7 +12039,7 @@ static int ui_handle_region_semi_modal_buttons(bContext *C, const wmEvent *event
 }
 
 /* Return true if we should open another menu while one is already open. */
-static bool ui_can_activate_other_menu(uiBut *but, uiBut *but_other, const wmEvent *event)
+static bool ui_can_activate_other_menu(uiBut *but, uiBut *but_other)
 {
   if (but_other->flag & UI_BUT_DISABLED) {
     return false;
@@ -12096,7 +12096,7 @@ static int ui_handler_region_menu(bContext *C, const wmEvent *event, void * /*us
     {
       /* if mouse moves to a different root-level menu button,
        * open it to replace the current menu */
-      if (ui_can_activate_other_menu(but, but_other, event)) {
+      if (ui_can_activate_other_menu(but, but_other)) {
         ui_handle_button_activate(C, region, but_other, BUTTON_ACTIVATE_OVER);
         button_activate_state(C, but_other, BUTTON_STATE_MENU_OPEN);
         retval = WM_UI_HANDLER_BREAK;
