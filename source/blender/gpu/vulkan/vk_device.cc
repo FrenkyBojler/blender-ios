@@ -138,6 +138,11 @@ void VKDevice::init_functions()
   /* VK_KHR_external_memory_fd */
   functions.vkGetMemoryFd = LOAD_FUNCTION(vkGetMemoryFdKHR);
 
+#ifdef _WIN32
+  /* VK_KHR_external_memory_win32 */
+  functions.vkGetMemoryWin32Handle = LOAD_FUNCTION(vkGetMemoryWin32HandleKHR);
+#endif
+
 #undef LOAD_FUNCTION
 }
 
