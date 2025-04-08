@@ -549,6 +549,25 @@ static void *view3d_main_region_duplicate(void *poin)
   return nullptr;
 }
 
+/* concept is to retrieve cursor type context-less */
+static void view3d_main_region_cursor(wmWindow *win, ScrArea *area, ARegion *region)
+{
+  if (WM_cursor_set_from_tool(win, area, region)) {
+    return;
+  }
+
+  Scene *scene = WM_window_get_active_scene(win);
+  ViewLayer *view_layer = WM_window_get_active_view_layer(win);
+  BKE_view_layer_synced_ensure(scene, view_layer);
+  Object *obedit = BKE_view_layer_edit_object_get(view_layer);
+  if (obedit) {
+    WM_cursor_set(win, WM_CURSOR_EDIT);
+  }
+  else {
+    WM_cursor_set(win, WM_CURSOR_DEFAULT);
+  }
+}
+
 static void view3d_main_region_listener(const wmRegionListenerParams *params)
 {
   wmWindow *window = params->window;
@@ -598,7 +617,13 @@ static void view3d_main_region_listener(const wmRegionListenerParams *params)
         case ND_SCENEBROWSE:
         case ND_LAYER_CONTENT:
           ED_region_tag_redraw(region);
-          WM_gizmomap_tag_refresh(gzmap);
+          /* Dont just call WM_gizmomap_tag_refresh() since having deleted an object would not
+           * update the GizmoMap fully [e.g. gzmap_context.highlight] while hovering a gizmo until
+           * the next MOUSEMOVE event. This could cause crashes, see #136563. Instead reinit fully.
+           */
+          WM_gizmomap_reinit(gzmap);
+          view3d_main_region_cursor(window, area, region);
+
           if (v3d->localvd && v3d->localvd->runtime.flag & V3D_RUNTIME_LOCAL_MAYBE_EMPTY) {
             ED_area_tag_refresh(area);
           }
@@ -947,25 +972,6 @@ static void view3d_main_region_message_subscribe(const wmRegionMessageSubscribeP
     msg_sub_value_region_tag_refresh.notify = WM_toolsystem_do_msg_notify_tag_refresh;
     WM_msg_subscribe_rna_anon_prop(mbus, Object, mode, &msg_sub_value_region_tag_refresh);
     WM_msg_subscribe_rna_anon_prop(mbus, LayerObjects, active, &msg_sub_value_region_tag_refresh);
-  }
-}
-
-/* concept is to retrieve cursor type context-less */
-static void view3d_main_region_cursor(wmWindow *win, ScrArea *area, ARegion *region)
-{
-  if (WM_cursor_set_from_tool(win, area, region)) {
-    return;
-  }
-
-  Scene *scene = WM_window_get_active_scene(win);
-  ViewLayer *view_layer = WM_window_get_active_view_layer(win);
-  BKE_view_layer_synced_ensure(scene, view_layer);
-  Object *obedit = BKE_view_layer_edit_object_get(view_layer);
-  if (obedit) {
-    WM_cursor_set(win, WM_CURSOR_EDIT);
-  }
-  else {
-    WM_cursor_set(win, WM_CURSOR_DEFAULT);
   }
 }
 
