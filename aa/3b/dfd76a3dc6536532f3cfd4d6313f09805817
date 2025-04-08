@@ -9,3 +9,4 @@ Referenced by issue #107212, Regression: Image thumbnails in file browser someti
 Referenced by issue #85097, uint16 mipmap tif files are not showing in EEVEE but work in cycles
 Referenced by issue #53969, Cycles is not rendering .dds file format correctly
 Referenced by pull request #137122, Fix: regression storing density in the BMP image format
+Referenced by commit 5d3496625d8d70b8f54d8ccd456dcbace8acf423, Fix: regression storing density in BMP I/O
