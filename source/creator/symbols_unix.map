@@ -36,7 +36,7 @@ global:
   realpath;
   sched_*;
   valloc;
-  /* needed on FreeBSD */
+  /* Needed on FreeBSD. Uses wildcard to avoid linker error when symbols are not found. */
   __progname*;
   environ*;
 local:
