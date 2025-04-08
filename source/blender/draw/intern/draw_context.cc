@@ -16,6 +16,7 @@
 #include "BLI_rect.h"
 #include "BLI_string.h"
 #include "BLI_task.h"
+#include "BLI_task.hh"
 #include "BLI_threads.h"
 
 #include "BLF_api.hh"
@@ -1295,7 +1296,8 @@ void DRW_draw_view(const bContext *C)
     draw_ctx.options.draw_background = (scene->r.alphamode == R_ADDSKY) ||
                                        (draw_ctx.v3d->shading.type != OB_RENDER);
 
-    drw_draw_render_loop_3d(draw_ctx, engine_type);
+    blender::threading::disable_hyperthreading(
+        [&] { drw_draw_render_loop_3d(draw_ctx, engine_type); });
   }
   else {
     drw_draw_render_loop_2d(draw_ctx);
@@ -1339,7 +1341,8 @@ void DRW_draw_render_loop_offscreen(Depsgraph *depsgraph,
   /* Init modules ahead of time because the begin_sync happens before DRW_render_object_iter. */
   draw_ctx.data->modules_init();
 
-  drw_draw_render_loop_3d(draw_ctx, engine_type);
+  blender::threading::disable_hyperthreading(
+      [&] { drw_draw_render_loop_3d(draw_ctx, engine_type); });
 
   draw_ctx.release_data();
 

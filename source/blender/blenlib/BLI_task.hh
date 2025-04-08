@@ -256,6 +256,18 @@ template<typename Function> inline void isolate_task(const Function &function)
 }
 
 /**
+ * Can be used for tasks where hyper-threading is known to harm performance.
+ */
+template<typename Function> inline void disable_hyperthreading(const Function &function)
+{
+#ifdef WITH_TBB
+  tbb::task_arena arena(tbb::task_arena::constraints{}.set_max_threads_per_core(1));
+  arena.execute(function);
+#else
+  function();
+#endif
+}
+/**
  * Should surround parallel code that is highly bandwidth intensive, e.g. it just fills a buffer
  * with no or just few additional operations. If the buffers are large, it's beneficial to limit
  * the number of threads doing the work because that just creates more overhead on the hardware
