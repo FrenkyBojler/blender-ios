@@ -228,12 +228,13 @@ void AssetList::clear(wmWindowManager *wm)
 
 void AssetList::clear_current_file_assets(wmWindowManager *wm)
 {
-  /* Based on #ED_fileselect_clear() */
+  /* Based on #ED_fileselect_clear_main_assets() */
 
   FileList *files = filelist_;
   filelist_readjob_stop(files, wm);
   filelist_freelib(files);
   filelist_tag_force_reset_mainfiles(files);
+  filelist_tag_reload_asset_library(files);
   filelist_clear_from_reset_tag(files);
 
   WM_main_add_notifier(NC_ASSET | ND_ASSET_LIST, nullptr);
@@ -470,14 +471,24 @@ void clear(const AssetLibraryReference *library_reference, wmWindowManager *wm)
   /* Always clear the all library when clearing a nested one. */
   if (library_reference->type != ASSET_LIBRARY_ALL) {
     const AssetLibraryReference all_lib_ref = asset_system::all_library_reference();
+    AssetList *all_lib_list = lookup_list(all_lib_ref);
 
-    if (AssetList *all_lib_list = lookup_list(all_lib_ref)) {
-      if (library_reference->type == ASSET_LIBRARY_LOCAL) {
+    /* If the cleared nested library is the current file one, only clear current file assets. */
+    if (library_reference->type == ASSET_LIBRARY_LOCAL) {
+      if (all_lib_list) {
         all_lib_list->clear_current_file_assets(wm);
       }
-      else {
+
+      foreach_visible_asset_browser_showing_library(
+          all_lib_ref, wm, [&](SpaceFile &sfile) { ED_fileselect_clear_main_assets(wm, &sfile); });
+    }
+    else {
+      if (all_lib_list) {
         all_lib_list->clear(wm);
       }
+
+      foreach_visible_asset_browser_showing_library(
+          all_lib_ref, wm, [&](SpaceFile &sfile) { ED_fileselect_clear(wm, &sfile); });
     }
   }
 }
