@@ -18,6 +18,7 @@ set(LIB
 )
 
 add_definitions(
+  # Turn off ufbx features that Blender does not use
   -DUFBX_NO_SUBDIVISION
   -DUFBX_NO_TESSELLATION
   -DUFBX_NO_GEOMETRY_CACHE
