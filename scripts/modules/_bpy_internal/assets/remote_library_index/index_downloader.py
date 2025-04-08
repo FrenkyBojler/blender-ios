@@ -116,8 +116,9 @@ def _download_and_parse(
     local_path: Path,
     model_class: Type[M],
 ) -> M:
+    temp_local_path = local_path.with_stem(local_path.stem + "-before-validation")
     downloader.clear_download_counts()
-    downloader.queue_download(remote_url, local_path)
+    downloader.queue_download(remote_url, temp_local_path)
 
     # Normally this would happen in a timer on a modal operator.
     while not downloader.all_downloads_done():
@@ -128,8 +129,17 @@ def _download_and_parse(
         # We just need to stop any further processing.
         raise RuntimeError("download failed, stopping everything")
 
-    json_data = local_path.read_bytes()
-    return model_class.model_validate_json(json_data)
+    json_data = temp_local_path.read_bytes()
+    model = model_class.model_validate_json(json_data)
+
+    # Re-write the parsed JSON with the now-validated model, for extra trustworthyness.
+    json_data = model.model_dump_json(indent=2, exclude_defaults=True)
+    local_path.write_bytes(json_data.encode())
+
+    # Remove the temp path now it's no longer necessary.
+    temp_local_path.unlink()
+
+    return model
 
 
 # Ignore the type of the `subparsers` argument, because there doesn't seem
