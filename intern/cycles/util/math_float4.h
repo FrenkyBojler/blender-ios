@@ -470,10 +470,12 @@ ccl_device_inline float4 fabs(const float4 a)
 ccl_device_inline float4 fmod(const float4 a, const float b)
 {
 #  if defined(__KERNEL_NEON__)
+  /* Use native Neon instructions.
+   * The logic is the same as the SSE code below, but on Apple M2 Ultra this seems to be faster.
+   * Possibly due to some runtime checks in _mm_round_ps which do not get properly inlined. */
   const float32x4_t iquot = vrndq_f32(a / b);
   return float4(vsubq_f32(a, vmulq_f32(iquot, vdupq_n_f32(b))));
-#  elif defined(__KERNEL_SSE42__) && 0
-  /* TODO(sergey): Check whether it helps performance on x64. */
+#  elif defined(__KERNEL_SSE42__) && defined(__KERNEL_SSE__)
   const __m128 iquot = _mm_round_ps(a / b, _MM_FROUND_TRUNC);
   return float4(_mm_sub_ps(a, _mm_mul_ps(iquot, _mm_set1_ps(b))));
 #  else
