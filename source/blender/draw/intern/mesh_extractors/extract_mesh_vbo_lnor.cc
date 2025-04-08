@@ -398,10 +398,16 @@ gpu::VertBufPtr extract_normals_subdiv(const MeshRenderData &mr,
 
   if (subdiv_cache.use_custom_loop_normals) {
     const Mesh *coarse_mesh = subdiv_cache.mesh;
-    gpu::VertBufPtr src = gpu::VertBufPtr(GPU_vertbuf_create_with_format(get_normals_format()));
+    static GPUVertFormat src_normals_format = GPU_vertformat_from_attribute(
+        "vnor", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
+    gpu::VertBufPtr src = gpu::VertBufPtr(GPU_vertbuf_create_with_format(src_normals_format));
     GPU_vertbuf_data_alloc(*src, coarse_mesh->corners_num);
     src->data<float3>().copy_from(coarse_mesh->corner_normals());
-    draw_subdiv_interp_corner_normals(subdiv_cache, *src, *lnor, 0);
+    gpu::VertBufPtr dst = gpu::VertBufPtr(
+        GPU_vertbuf_create_on_device(src_normals_format, vbo_size));
+    draw_subdiv_interp_corner_normals(subdiv_cache, *src, *dst);
+
+    draw_subdiv_build_lnor_buffer_from_custom_normals(subdiv_cache, *dst, *lnor);
 
     update_loose_normals(mr, subdiv_cache, *lnor);
     return lnor;

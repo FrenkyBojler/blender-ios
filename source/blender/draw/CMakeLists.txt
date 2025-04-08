@@ -551,6 +551,7 @@ set(GLSL_SRC
   intern/shaders/subdiv_ibo_tris_comp.glsl
   intern/shaders/subdiv_lib.glsl
   intern/shaders/subdiv_normals_accumulate_comp.glsl
+  intern/shaders/subdiv_normals_finalize_comp.glsl
   intern/shaders/subdiv_patch_evaluation_comp.glsl
   intern/shaders/subdiv_vbo_edge_fac_comp.glsl
   intern/shaders/subdiv_vbo_edituv_strech_angle_comp.glsl
