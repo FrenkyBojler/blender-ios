@@ -123,10 +123,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
 template<typename T> static T calculate_median(MutableSpan<T> values)
 {
   if constexpr (std::is_same<T, float3>::value) {
-    Vector<float> x_vals, y_vals, z_vals;
-    x_vals.resize(values.size());
-    y_vals.resize(values.size());
-    z_vals.resize(values.size());
+    Array<float> x_vals(values.size()), y_vals(values.size()), z_vals(values.size());
 
     for (const int i : values.index_range()) {
       float3 value = values[i];
@@ -135,9 +132,9 @@ template<typename T> static T calculate_median(MutableSpan<T> values)
       z_vals[i] = value.z;
     }
 
-    return float3(calculate_median<float>(MutableSpan<float>(x_vals)),
-                  calculate_median<float>(MutableSpan<float>(y_vals)),
-                  calculate_median<float>(MutableSpan<float>(z_vals)));
+    return float3(calculate_median<float>(x_vals),
+                  calculate_median<float>(y_vals),
+                  calculate_median<float>(z_vals));
   }
   else {
     const auto middle_itr = values.begin() + values.size() / 2;
@@ -217,7 +214,7 @@ class FieldAverageInput final : public bke::GeometryFieldInput {
         }
         else {
           if (group_indices.is_single()) {
-            Vector<T> sorted_values(values.begin(), values.end());
+            Array<T> sorted_values(values);
             T median = calculate_median(MutableSpan<T>(sorted_values));
             g_outputs = VArray<T>::ForSingle(median, domain_size);
           }
