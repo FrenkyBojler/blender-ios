@@ -473,12 +473,11 @@ void import_meshes(Main &bmain,
       }
 
       /* Subdivision. */
-      if (params.use_subsurf &&
+      if (params.import_subdivision &&
           fmesh->subdivision_display_mode != UFBX_SUBDIVISION_DISPLAY_DISABLED &&
           (fmesh->subdivision_preview_levels > 0 || fmesh->subdivision_render_levels > 0))
       {
         ModifierData *md = BKE_modifier_new(eModifierType_Subsurf);
-        STRNCPY(md->name, DATA_("subsurf"));
         BLI_addtail(&obj->modifiers, md);
         BKE_modifiers_persistent_uid_init(*obj, *md);
 

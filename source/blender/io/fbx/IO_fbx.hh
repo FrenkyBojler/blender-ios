@@ -30,7 +30,7 @@ struct FBXImportParams {
   eFBXVertexColorMode vertex_colors = eFBXVertexColorMode::sRGB;
   bool validate_meshes = true;
   bool use_custom_normals = true;
-  bool use_subsurf = false;
+  bool import_subdivision = false;
   bool use_custom_props = true;
   bool props_enum_as_string = true;
   bool ignore_leaf_bones = false;

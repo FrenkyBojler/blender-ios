@@ -53,7 +53,7 @@ static wmOperatorStatus wm_fbx_import_exec(bContext *C, wmOperator *op)
   params.use_custom_props = RNA_boolean_get(op->ptr, "use_custom_props");
   params.props_enum_as_string = RNA_boolean_get(op->ptr, "use_custom_props_enum_as_string");
   params.ignore_leaf_bones = RNA_boolean_get(op->ptr, "ignore_leaf_bones");
-  params.use_subsurf = RNA_boolean_get(op->ptr, "use_subsurf");
+  params.import_subdivision = RNA_boolean_get(op->ptr, "import_subdivision");
   params.validate_meshes = RNA_boolean_get(op->ptr, "validate_meshes");
   params.use_anim = RNA_boolean_get(op->ptr, "use_anim");
   params.anim_offset = RNA_float_get(op->ptr, "anim_offset");
@@ -103,7 +103,7 @@ static void ui_fbx_import_settings(const bContext *C, uiLayout *layout, PointerR
   {
     uiLayout *col = uiLayoutColumn(panel, false);
     uiItemR(col, ptr, "use_custom_normals", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-    uiItemR(col, ptr, "use_subsurf", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    uiItemR(col, ptr, "import_subdivision", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     uiItemR(col, ptr, "import_colors", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     uiItemR(col, ptr, "validate_meshes", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
@@ -179,7 +179,7 @@ void WM_OT_fbx_import(wmOperatorType *ot)
                   "Enums As Strings",
                   "Store custom property enumeration values as strings");
   RNA_def_boolean(ot->srna,
-                  "use_subsurf",
+                  "import_subdivision",
                   false,
                   "Subdivision Data",
                   "Import FBX subdivision information as subdivision surface modifiers");
