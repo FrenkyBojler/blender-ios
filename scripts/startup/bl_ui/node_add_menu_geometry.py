@@ -172,6 +172,7 @@ class NODE_MT_geometry_node_GEO_GREASE_PENCIL_WRITE(Menu):
 
     def draw(self, _context):
         layout = self.layout
+        node_add_menu.add_node_type(layout, "GeometryNodeSetGreasePencilColor")
         node_add_menu.add_node_type(layout, "GeometryNodeSetGreasePencilDepth")
         node_add_menu.draw_assets_for_catalog(layout, "Grease Pencil/Write")
 
@@ -339,6 +340,7 @@ class NODE_MT_geometry_node_GEO_INPUT_SCENE(Menu):
         if context.space_data.geometry_nodes_type == 'TOOL':
             node_add_menu.add_node_type(layout, "GeometryNodeTool3DCursor")
         node_add_menu.add_node_type(layout, "GeometryNodeInputActiveCamera")
+        node_add_menu.add_node_type(layout, "GeometryNodeCameraInfo")
         node_add_menu.add_node_type(layout, "GeometryNodeCollectionInfo")
         node_add_menu.add_node_type(layout, "GeometryNodeImageInfo")
         node_add_menu.add_node_type(layout, "GeometryNodeIsViewport")
@@ -461,6 +463,7 @@ class NODE_MT_geometry_node_GEO_MESH_WRITE(Menu):
         layout = self.layout
         if context.space_data.geometry_nodes_type == 'TOOL':
             node_add_menu.add_node_type(layout, "GeometryNodeToolSetFaceSet")
+        node_add_menu.add_node_type(layout, "GeometryNodeSetMeshNormal")
         node_add_menu.add_node_type(layout, "GeometryNodeSetShadeSmooth")
         node_add_menu.draw_assets_for_catalog(layout, "Mesh/Write")
 
@@ -591,6 +594,7 @@ class NODE_MT_category_GEO_TEXT(Menu):
     def draw(self, _context):
         layout = self.layout
         node_add_menu.add_node_type(layout, "GeometryNodeStringJoin")
+        node_add_menu.add_node_type(layout, "FunctionNodeMatchString")
         node_add_menu.add_node_type(layout, "FunctionNodeReplaceString")
         node_add_menu.add_node_type(layout, "FunctionNodeSliceString")
         layout.separator()
@@ -638,12 +642,18 @@ class NODE_MT_category_GEO_UTILITIES(Menu):
         layout.menu("NODE_MT_category_GEO_UTILITIES_ROTATION")
         layout.menu("NODE_MT_category_GEO_UTILITIES_DEPRECATED")
         layout.separator()
+        if context.preferences.experimental.use_bundle_and_closure_nodes:
+            node_add_menu.add_closure_zone(layout, label="Closure")
+            node_add_menu.add_node_type(layout, "GeometryNodeEvaluateClosure")
         node_add_menu.add_foreach_geometry_element_zone(layout, label="For Each Element")
         node_add_menu.add_node_type(layout, "GeometryNodeIndexSwitch")
         node_add_menu.add_node_type(layout, "GeometryNodeMenuSwitch")
         node_add_menu.add_node_type(layout, "FunctionNodeRandomValue")
         node_add_menu.add_repeat_zone(layout, label="Repeat")
         node_add_menu.add_node_type(layout, "GeometryNodeSwitch")
+        if context.preferences.experimental.use_bundle_and_closure_nodes:
+            node_add_menu.add_node_type(layout, "GeometryNodeCombineBundle")
+            node_add_menu.add_node_type(layout, "GeometryNodeSeparateBundle")
         node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
 
 
