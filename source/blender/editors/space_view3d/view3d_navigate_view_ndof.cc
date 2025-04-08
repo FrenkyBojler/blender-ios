@@ -37,6 +37,28 @@ static bool ndof_orbit_center_is_auto(const View3D *v3d, const RegionView3D *rv3
 
 #ifdef WITH_INPUT_NDOF
 
+static float ndof_calc_zfac(const RegionView3D *rv3d, const float co[3])
+{
+  const float min_zfac = 0.01f;
+  float zfac = mul_project_m4_v3_zfac(rv3d->persmat, co);
+
+  /* Negative zfac means x, y, z was behind the camera (in perspective).
+   * This gives flipped directions, so revert back to ok default case. */
+  if (zfac < 0.0f) {
+    zfac = -zfac;
+  }
+
+  /* if x,y,z is too close the viewport offset, we want to set zfac to
+   * some reasonable constant to allow for passing through the orbit center.
+   * The main use case is moving through the wall on which center of
+   * rotation has been set (very common scenario for the auto center algorithm) */
+  if (zfac < min_zfac) {
+    zfac = min_zfac;
+  }
+
+  return zfac;
+}
+
 /** Test if the bounding box is in view3d camera frustum. */
 static bool is_bounding_box_in_frustum(const float projmat[4][4],
                                        const Bounds<float3> &bounding_box)
@@ -79,6 +101,20 @@ static float view3d_ndof_pan_speed_calc_ex(RegionView3D *rv3d, const float depth
   return speed;
 }
 
+/**
+ * \param depth_pt: A point to calculate the depth (in perspective mode)
+ */
+static float view3d_ndof_translation_speed_calc_ex(RegionView3D *rv3d, const float depth_pt[3])
+{
+  float speed = rv3d->pixsize * NDOF_PIXELS_PER_SECOND;
+
+  if (rv3d->is_persp) {
+      speed *= ndof_calc_zfac(rv3d, depth_pt);
+  }
+
+  return speed;
+}
+
 static float view3d_ndof_pan_speed_calc_from_dist(RegionView3D *rv3d, const float dist)
 {
   float viewinv[4];
@@ -98,19 +134,18 @@ static float view3d_ndof_pan_speed_calc_from_dist(RegionView3D *rv3d, const floa
   return view3d_ndof_pan_speed_calc_ex(rv3d, tvec);
 }
 
-static float view3d_ndof_pan_speed_calc(RegionView3D *rv3d)
+static float view3d_ndof_translate_speed_calc(RegionView3D *rv3d)
 {
   float tvec[3];
-  if ((U.ndof_flag & NDOF_MODE_ORBIT) && (U.ndof_flag & NDOF_ORBIT_CENTER_AUTO) &&
-      (rv3d->ndof_flag & RV3D_NDOF_OFS_IS_VALID))
+  if ((U.ndof_flag & NDOF_MODE_ORBIT) && (U.ndof_flag & NDOF_ORBIT_CENTER_AUTO))
   {
     negate_v3_v3(tvec, rv3d->ndof_ofs);
+    return view3d_ndof_translation_speed_calc_ex(rv3d, tvec);
   }
   else {
     negate_v3_v3(tvec, rv3d->ofs);
+    return view3d_ndof_pan_speed_calc_ex(rv3d, tvec);
   }
-
-  return view3d_ndof_pan_speed_calc_ex(rv3d, tvec);
 }
 
 /**
@@ -166,7 +201,7 @@ static void view3d_ndof_pan_zoom(const wmNDOFMotionData *ndof,
   }
 
   if (has_translate) {
-    const float speed = view3d_ndof_pan_speed_calc(rv3d);
+    const float speed = view3d_ndof_translate_speed_calc(rv3d);
 
     mul_v3_fl(pan_vec, speed * ndof->dt);
 
