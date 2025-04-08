@@ -2096,16 +2096,23 @@ void RE_RenderFrame(Render *re,
         char filepath_override[FILE_MAX];
         const char *relbase = BKE_main_blendfile_path(bmain);
         const VariableMap variables = BKE_build_blender_variables(relbase, &scene->r);
-        BKE_image_path_from_imformat(filepath_override,
-                                     rd.pic,
-                                     relbase,
-                                     &variables,
-                                     scene->r.cfra,
-                                     &rd.im_format,
-                                     (rd.scemode & R_EXTENSION) != 0,
-                                     false,
-                                     nullptr);
-        do_write_image_or_movie(re, bmain, scene, 0, filepath_override);
+        const blender::Vector<VariableParseError> errors = BKE_image_path_from_imformat(
+            filepath_override,
+            rd.pic,
+            relbase,
+            &variables,
+            scene->r.cfra,
+            &rd.im_format,
+            (rd.scemode & R_EXTENSION) != 0,
+            false,
+            nullptr);
+
+        if (errors.is_empty()) {
+          do_write_image_or_movie(re, bmain, scene, 0, filepath_override);
+        }
+        else if (re->reports) {
+          BKE_path_application_errors_to_report(re->reports, RPT_ERROR, rd.pic, errors);
+        }
       }
     }
 
@@ -2320,19 +2327,26 @@ static bool do_write_image_or_movie(
       else {
         const char *relbase = BKE_main_blendfile_path(bmain);
         const VariableMap variables = BKE_build_blender_variables(relbase, &scene->r);
-        BKE_image_path_from_imformat(filepath,
-                                     scene->r.pic,
-                                     relbase,
-                                     &variables,
-                                     scene->r.cfra,
-                                     &scene->r.im_format,
-                                     (scene->r.scemode & R_EXTENSION) != 0,
-                                     true,
-                                     nullptr);
+        const blender::Vector<VariableParseError> errors = BKE_image_path_from_imformat(
+            filepath,
+            scene->r.pic,
+            relbase,
+            &variables,
+            scene->r.cfra,
+            &scene->r.im_format,
+            (scene->r.scemode & R_EXTENSION) != 0,
+            true,
+            nullptr);
+        if (!errors.is_empty()) {
+          BKE_path_application_errors_to_report(re->reports, RPT_ERROR, scene->r.pic, errors);
+          ok = false;
+        }
       }
 
       /* write images as individual images or stereo */
-      ok = BKE_image_render_write(re->reports, &rres, scene, true, filepath);
+      if (ok) {
+        ok = BKE_image_render_write(re->reports, &rres, scene, true, filepath);
+      }
     }
 
     RE_ReleaseResultImageViews(re, &rres);
@@ -2344,7 +2358,7 @@ static bool do_write_image_or_movie(
   BLI_timecode_string_from_time_simple(filepath, sizeof(filepath), re->i.lastframetime);
   std::string message = fmt::format("Time: {}", filepath);
 
-  if (do_write_file) {
+  if (do_write_file && ok) {
     BLI_timecode_string_from_time_simple(
         filepath, sizeof(filepath), re->i.lastframetime - render_time);
     message = fmt::format("{} (Saving: {})", message, filepath);
@@ -2516,15 +2530,26 @@ void RE_RenderAnim(Render *re,
       if (rd.mode & (R_NO_OVERWRITE | R_TOUCH)) {
         const char *relbase = BKE_main_blendfile_path(bmain);
         const VariableMap variables = BKE_build_blender_variables(relbase, &rd);
-        BKE_image_path_from_imformat(filepath,
-                                     rd.pic,
-                                     BKE_main_blendfile_path(bmain),
-                                     &variables,
-                                     scene->r.cfra,
-                                     &rd.im_format,
-                                     (rd.scemode & R_EXTENSION) != 0,
-                                     true,
-                                     nullptr);
+        const blender::Vector<VariableParseError> errors = BKE_image_path_from_imformat(
+            filepath,
+            rd.pic,
+            BKE_main_blendfile_path(bmain),
+            &variables,
+            scene->r.cfra,
+            &rd.im_format,
+            (rd.scemode & R_EXTENSION) != 0,
+            true,
+            nullptr);
+
+        /* The filepath cannot be parsed, so we can't save the renders anywhere.
+         * So we just cancel. */
+        if (!errors.is_empty() && re->reports) {
+          BKE_path_application_errors_to_report(re->reports, RPT_ERROR, rd.pic, errors);
+          /* We have to set the `is_break` flag here so that final cleanup code
+           * recognizes that the render as failed. */
+          G.is_break = true;
+          break;
+        }
       }
 
       if (rd.mode & R_NO_OVERWRITE) {

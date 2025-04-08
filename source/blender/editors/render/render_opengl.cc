@@ -417,21 +417,29 @@ static void screen_opengl_render_write(OGLRender *oglrender)
 
   const char *relbase = BKE_main_blendfile_path(oglrender->bmain);
   const VariableMap variables = BKE_build_blender_variables(relbase, &scene->r);
-  BKE_image_path_from_imformat(filepath,
-                               scene->r.pic,
-                               relbase,
-                               &variables,
-                               scene->r.cfra,
-                               &scene->r.im_format,
-                               (scene->r.scemode & R_EXTENSION) != 0,
-                               false,
-                               nullptr);
+  const blender::Vector<VariableParseError> errors = BKE_image_path_from_imformat(
+      filepath,
+      scene->r.pic,
+      relbase,
+      &variables,
+      scene->r.cfra,
+      &scene->r.im_format,
+      (scene->r.scemode & R_EXTENSION) != 0,
+      false,
+      nullptr);
 
-  /* write images as individual images or stereo */
-  BKE_render_result_stamp_info(scene, scene->camera, rr, false);
-  ok = BKE_image_render_write(oglrender->reports, rr, scene, false, filepath);
+  if (!errors.is_empty()) {
+    std::unique_lock lock(oglrender->reports_mutex);
+    BKE_path_application_errors_to_report(oglrender->reports, RPT_ERROR, scene->r.pic, errors);
+    ok = false;
+  }
+  else {
+    /* write images as individual images or stereo */
+    BKE_render_result_stamp_info(scene, scene->camera, rr, false);
+    ok = BKE_image_render_write(oglrender->reports, rr, scene, false, filepath);
 
-  RE_ReleaseResultImage(oglrender->re);
+    RE_ReleaseResultImage(oglrender->re);
+  }
 
   if (ok) {
     printf("OpenGL Render written to '%s'\n", filepath);
@@ -1041,18 +1049,26 @@ static void write_result(TaskPool *__restrict pool, WriteTaskData *task_data)
     char filepath[FILE_MAX];
     const char *relbase = BKE_main_blendfile_path(oglrender->bmain);
     const VariableMap variables = BKE_build_blender_variables(relbase, &scene->r);
-    BKE_image_path_from_imformat(filepath,
-                                 scene->r.pic,
-                                 relbase,
-                                 &variables,
-                                 cfra,
-                                 &scene->r.im_format,
-                                 (scene->r.scemode & R_EXTENSION) != 0,
-                                 true,
-                                 nullptr);
+    const blender::Vector<VariableParseError> errors = BKE_image_path_from_imformat(
+        filepath,
+        scene->r.pic,
+        relbase,
+        &variables,
+        cfra,
+        &scene->r.im_format,
+        (scene->r.scemode & R_EXTENSION) != 0,
+        true,
+        nullptr);
 
-    BKE_render_result_stamp_info(scene, scene->camera, rr, false);
-    ok = BKE_image_render_write(nullptr, rr, scene, true, filepath);
+    if (!errors.is_empty()) {
+      BKE_path_application_errors_to_report(&reports, RPT_ERROR, scene->r.pic, errors);
+      ok = false;
+    }
+    else {
+      BKE_render_result_stamp_info(scene, scene->camera, rr, false);
+      ok = BKE_image_render_write(nullptr, rr, scene, true, filepath);
+    }
+
     if (!ok) {
       BKE_reportf(&reports, RPT_ERROR, "Write error: cannot save %s", filepath);
     }
@@ -1133,17 +1149,23 @@ static bool screen_opengl_render_anim_step(OGLRender *oglrender)
   if (!is_movie) {
     const char *relbase = BKE_main_blendfile_path(oglrender->bmain);
     const VariableMap variables = BKE_build_blender_variables(relbase, &scene->r);
-    BKE_image_path_from_imformat(filepath,
-                                 scene->r.pic,
-                                 relbase,
-                                 &variables,
-                                 scene->r.cfra,
-                                 &scene->r.im_format,
-                                 (scene->r.scemode & R_EXTENSION) != 0,
-                                 true,
-                                 nullptr);
+    const blender::Vector<VariableParseError> errors = BKE_image_path_from_imformat(
+        filepath,
+        scene->r.pic,
+        relbase,
+        &variables,
+        scene->r.cfra,
+        &scene->r.im_format,
+        (scene->r.scemode & R_EXTENSION) != 0,
+        true,
+        nullptr);
 
-    if ((scene->r.mode & R_NO_OVERWRITE) && BLI_exists(filepath)) {
+    if (!errors.is_empty()) {
+      std::unique_lock lock(oglrender->reports_mutex);
+      BKE_path_application_errors_to_report(oglrender->reports, RPT_ERROR, scene->r.pic, errors);
+      ok = false;
+    }
+    else if ((scene->r.mode & R_NO_OVERWRITE) && BLI_exists(filepath)) {
       {
         std::unique_lock lock(oglrender->reports_mutex);
         BKE_reportf(oglrender->reports, RPT_INFO, "Skipping existing frame \"%s\"", filepath);

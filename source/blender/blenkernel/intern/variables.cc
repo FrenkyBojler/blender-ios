@@ -664,3 +664,59 @@ blender::Vector<VariableParseError> BKE_path_apply_variables(char path[FILE_MAX]
   }
   return errors;
 }
+
+void BKE_path_application_errors_to_report(ReportList *reports,
+                                           const eReportType report_type,
+                                           const char path[FILE_MAX],
+                                           blender::Span<VariableParseError> errors)
+{
+  BLI_assert(reports);
+  BLI_assert(!errors.is_empty());
+
+  if (!reports) {
+    return;
+  }
+
+  std::string error_message;
+
+  error_message.append("parse errors in path '");
+  error_message.append(path);
+  error_message.append("':");
+
+  for (const VariableParseError &error : errors) {
+    std::string subpath = blender::StringRef(path + error.byte_range.start(),
+                                             error.byte_range.size());
+
+    switch (error.type) {
+      case VariableParseErrorType::UNESCAPED_CURLY_BRACE: {
+        error_message.append("\n- Unescaped curly brace '");
+        error_message.append(subpath);
+        error_message.append("'.");
+        break;
+      }
+
+      case VariableParseErrorType::VARIABLE_SYNTAX: {
+        error_message.append("\n- Invalid or incomplete variable reference '");
+        error_message.append(subpath);
+        error_message.append("'.");
+        break;
+      }
+
+      case VariableParseErrorType::FORMAT_SPECIFIER: {
+        error_message.append("\n- Invalid format specifier in variable reference '");
+        error_message.append(subpath);
+        error_message.append("'.");
+        break;
+      }
+
+      case VariableParseErrorType::UNKNOWN_VARIABLE: {
+        error_message.append("\n- Unknown variable referenced in '");
+        error_message.append(subpath);
+        error_message.append("'.");
+        break;
+      }
+    }
+  }
+
+  BKE_report(reports, report_type, error_message.c_str());
+}

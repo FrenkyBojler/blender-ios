@@ -18,6 +18,8 @@
 #include "BLI_string_ref.hh"
 #include "BLI_string_utils.hh"
 
+#include "BKE_report.hh"
+
 #include "DNA_scene_types.h"
 
 /* -------------------------------------------------------------------- */
@@ -196,5 +198,10 @@ bool operator==(const VariableParseError &left, const VariableParseError &right)
  */
 blender::Vector<VariableParseError> BKE_path_apply_variables(char path[FILE_MAX],
                                                              const VariableMap &variables);
+
+void BKE_path_application_errors_to_report(ReportList *reports,
+                                           eReportType report_type,
+                                           const char path[FILE_MAX],
+                                           blender::Span<VariableParseError> errors);
 
 /** \} */

@@ -54,11 +54,12 @@ static void ffmpeg_dict_set_int(AVDictionary **dict, const char *key, int value)
 }
 
 static void ffmpeg_movie_close(MovieWriter *context);
-static void ffmpeg_filepath_get(MovieWriter *context,
+static bool ffmpeg_filepath_get(MovieWriter *context,
                                 char filepath[FILE_MAX],
                                 const RenderData *rd,
                                 bool preview,
-                                const char *suffix);
+                                const char *suffix,
+                                ReportList *reports);
 
 static AVFrame *alloc_frame(AVPixelFormat pix_fmt, int width, int height)
 {
@@ -992,7 +993,9 @@ static bool start_ffmpeg_impl(MovieWriter *context,
   }
 
   /* Determine the correct filename */
-  ffmpeg_filepath_get(context, filepath, rd, context->ffmpeg_preview, suffix);
+  if (!ffmpeg_filepath_get(context, filepath, rd, context->ffmpeg_preview, suffix, reports)) {
+    return false;
+  }
   FF_DEBUG_PRINT(
       "ffmpeg: starting output to %s:\n"
       "  type=%d, codec=%d, audio_codec=%d,\n"
@@ -1225,12 +1228,19 @@ static void flush_delayed_frames(AVCodecContext *c, AVStream *stream, AVFormatCo
   av_packet_free(&packet);
 }
 
-/* Get the output filename-- similar to the other output formats */
-static void ffmpeg_filepath_get(MovieWriter *context,
+/**
+ * Get the output filename-- similar to the other output formats.
+ *
+ * \param reports If non-null, will report errors with `RPT_ERROR` level reports.
+ *
+ * \return true on success, false on failure due to errors.
+ */
+static bool ffmpeg_filepath_get(MovieWriter *context,
                                 char filepath[FILE_MAX],
                                 const RenderData *rd,
                                 bool preview,
-                                const char *suffix)
+                                const char *suffix,
+                                ReportList *reports)
 {
   char autosplit[20];
 
@@ -1239,7 +1249,7 @@ static void ffmpeg_filepath_get(MovieWriter *context,
   int sfra, efra;
 
   if (!filepath || !exts) {
-    return;
+    return false;
   }
 
   if (preview) {
@@ -1252,8 +1262,16 @@ static void ffmpeg_filepath_get(MovieWriter *context,
   }
 
   BLI_strncpy(filepath, rd->pic, FILE_MAX);
-  BKE_path_apply_variables(filepath,
-                           BKE_build_blender_variables(BKE_main_blendfile_path_from_global(), rd));
+
+  const blender::Vector<VariableParseError> errors = BKE_path_apply_variables(
+      filepath, BKE_build_blender_variables(BKE_main_blendfile_path_from_global(), rd));
+  if (!errors.is_empty()) {
+    if (reports) {
+      BKE_path_application_errors_to_report(reports, RPT_ERROR, filepath, errors);
+    }
+    return false;
+  }
+
   BLI_path_abs(filepath, BKE_main_blendfile_path_from_global());
 
   BLI_file_ensure_parent_dir_exists(filepath);
@@ -1295,14 +1313,17 @@ static void ffmpeg_filepath_get(MovieWriter *context,
   }
 
   BLI_path_suffix(filepath, FILE_MAX, suffix, "");
+
+  return true;
 }
 
 static void ffmpeg_get_filepath(char filepath[/*FILE_MAX*/ 1024],
                                 const RenderData *rd,
                                 bool preview,
-                                const char *suffix)
+                                const char *suffix,
+                                ReportList *reports)
 {
-  ffmpeg_filepath_get(nullptr, filepath, rd, preview, suffix);
+  ffmpeg_filepath_get(nullptr, filepath, rd, preview, suffix, reports);
 }
 
 static MovieWriter *ffmpeg_movie_open(const Scene *scene,
@@ -1531,15 +1552,16 @@ void MOV_write_end(MovieWriter *writer)
 void MOV_filepath_from_settings(char filepath[/*FILE_MAX*/ 1024],
                                 const RenderData *rd,
                                 bool preview,
-                                const char *suffix)
+                                const char *suffix,
+                                ReportList *reports)
 {
 #ifdef WITH_FFMPEG
   if (is_imtype_ffmpeg(rd->im_format.imtype)) {
-    ffmpeg_get_filepath(filepath, rd, preview, suffix);
+    ffmpeg_get_filepath(filepath, rd, preview, suffix, reports);
     return;
   }
 #else
-  UNUSED_VARS(rd, preview, suffix);
+  UNUSED_VARS(rd, preview, suffix, reports);
 #endif
   filepath[0] = '\0';
 }
