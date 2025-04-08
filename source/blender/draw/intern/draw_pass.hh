@@ -681,7 +681,7 @@ template<class T> inline PassBase<T> &PassBase<T>::sub(const char *name)
 
 template<class T> void PassBase<T>::submit(command::RecordingState &state) const
 {
-  if (is_empty()) {
+  if (headers_.is_empty()) {
     return;
   }
 
