@@ -795,7 +795,7 @@ static bool rna_Property_is_path_output_flag_get(PointerRNA *ptr)
   return (prop->flag & PROP_PATH_OUTPUT) != 0;
 }
 
-static bool rna_Property_is_path_blend_relative_flag_get(PointerRNA *ptr)
+static bool rna_Property_is_path_blend_relative_supported_flag_get(PointerRNA *ptr)
 {
   PropertyRNA *prop = (PropertyRNA *)ptr->data;
   return (prop->flag & PROP_PATH_BLEND_RELATIVE) != 0;
@@ -3304,9 +3304,9 @@ static void rna_def_property(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop, "Path Output", "Property is a filename, filepath or directory output");
 
-  prop = RNA_def_property(srna, "is_path_blend_relative", PROP_BOOLEAN, PROP_NONE);
+  prop = RNA_def_property(srna, "is_path_blend_relative_supported", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-  RNA_def_property_boolean_funcs(prop, "rna_Property_is_path_blend_relative_flag_get", nullptr);
+  RNA_def_property_boolean_funcs(prop, "rna_Property_is_path_blend_relative_supported_flag_get", nullptr);
   RNA_def_property_ui_text(
       prop,
       "Path Relative",

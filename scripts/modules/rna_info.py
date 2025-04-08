@@ -277,7 +277,7 @@ class InfoPropertyRNA:
         "is_required",
         "is_readonly",
         "is_never_none",
-        "is_path_blend_relative",
+        "is_path_blend_relative_supported",
     )
     global_lookup = {}
 
@@ -302,7 +302,7 @@ class InfoPropertyRNA:
         self.is_readonly = rna_prop.is_readonly
         self.is_never_none = rna_prop.is_never_none
         self.is_argument_optional = rna_prop.is_argument_optional
-        self.is_path_blend_relative = rna_prop.is_path_blend_relative
+        self.is_path_blend_relative_supported = rna_prop.is_path_blend_relative_supported
 
         self.type = rna_prop.type.lower()
         fixed_type = getattr(rna_prop, "fixed_type", "")
@@ -480,7 +480,7 @@ class InfoPropertyRNA:
         if self.is_never_none:
             type_info.append("never None")
 
-        if self.is_path_blend_relative:
+        if self.is_path_blend_relative_supported:
             type_info.append("blend relative ``//`` prefix supported")
 
         if type_info:
