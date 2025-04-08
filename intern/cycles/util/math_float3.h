@@ -207,6 +207,15 @@ ccl_device_inline bool operator!=(const float3 a, const float3 b)
   return !(a == b);
 }
 
+ccl_device_inline int3 operator>=(const float3 a, const float3 b)
+{
+#  ifdef __KERNEL_SSE__
+  return int3(_mm_castps_si128(_mm_cmpge_ps(a.m128, b.m128)));
+#  else
+  return make_int3(a.x >= b.x, a.y >= b.y, a.z >= b.z);
+#  endif
+}
+
 ccl_device_inline float dot(const float3 a, const float3 b)
 {
 #  if defined(__KERNEL_SSE42__) && defined(__KERNEL_SSE__)
@@ -498,6 +507,30 @@ ccl_device_inline bool isequal(const float3 a, const float3 b)
   return a == b;
 #endif
 }
+
+#ifndef __KERNEL_GPU__
+
+ccl_device_inline float3 select(const int3 mask, const float3 a, const float3 b)
+{
+#  ifdef __KERNEL_SSE__
+#    ifdef __KERNEL_SSE42__
+  return float3(_mm_blendv_ps(b.m128, a.m128, _mm_castsi128_ps(mask.m128)));
+#    else
+  return float4(
+      _mm_or_ps(_mm_and_ps(_mm_castsi128_ps(mask), a), _mm_andnot_ps(_mm_castsi128_ps(mask), b)));
+#    endif
+#  else
+  return make_float3((mask.x) ? a.x : b.x, (mask.y) ? a.y : b.y, (mask.z) ? a.z : b.z);
+#  endif
+}
+
+ccl_device_inline float3 mask(const int3 mask, const float3 a)
+{
+  /* Replace elements of x with zero where mask isn't set. */
+  return select(mask, a, zero_float3());
+}
+
+#endif /* !__KERNEL_GPU__ */
 
 /* Consistent name for this would be pow, but HIP compiler crashes in name mangling. */
 ccl_device_inline float3 power(const float3 v, const float e)
