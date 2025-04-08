@@ -473,7 +473,7 @@ TEST(xpbd_constraints, BendTwist)
       (math::invert(target_rotation1) * target_rotation2).imaginary_part();
   EXPECT_V3_NEAR(float3(x, 0, 0), darboux_vector, 1.e-5f);
 
-  const float alpha = 0.0f;
+  const float3 alpha = float3(0.0f);
 
   /* Rotation 1 only. */
   {

@@ -111,7 +111,7 @@ template<typename ExecPreset> static auto bend_twist_multifunction(ExecPreset ex
                                            mf_input<float>,
                                            mf_input<float>,
                                            mf_input<float3>,
-                                           mf_input<float>,
+                                           mf_input<float3>,
                                            mf_output<float3>,
                                            mf_output<math::Quaternion>,
                                            mf_output<math::Quaternion>>();
@@ -123,7 +123,7 @@ template<typename ExecPreset> static auto bend_twist_multifunction(ExecPreset ex
          const float weight_rot1,
          const float weight_rot2,
          const float3 &darboux_vector,
-         const float alpha,
+         const float3 &alpha,
          float3 &lambda_out,
          math::Quaternion &rotation_out1,
          math::Quaternion &rotation_out2) -> void {
@@ -283,7 +283,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       b.add_separator();
       b.add_input<decl::Float>("Edge Length");
       b.add_input<decl::Vector>("Darboux Vector");
-      b.add_input<decl::Float>("Alpha");
+      b.add_input<decl::Vector>("Alpha");
       break;
     case ConstraintType::ContactPosition:
       b.add_input<decl::Float>("Lambda");

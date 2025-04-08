@@ -374,8 +374,8 @@ static void eval_positions(const ConstraintEvalParams &params,
 
   VArraySpan<int> points = *lookup_or_warn<int>(
       *attributes, ATTR_POINT1, AttrDomain::Point, 0, params.error_message_add);
-  VArraySpan<float> alphas = *attributes->lookup_or_default<float>(
-      ATTR_ALPHA, AttrDomain::Point, 0.0f);
+  VArraySpan<float3> alphas = *attributes->lookup_or_default<float3>(
+      ATTR_ALPHA, AttrDomain::Point, float3(0.0f));
   VArraySpan<float> betas = *attributes->lookup_or_default<float>(
       ATTR_BETA, AttrDomain::Point, 0.0f);
   VArraySpan<math::Quaternion> goal_rotations = *lookup_or_warn<math::Quaternion>(
@@ -417,8 +417,8 @@ static void eval_positions(const ConstraintEvalParams &params,
     float3 delta_lambda;
     float4 delta_rotation;
     if constexpr (use_damping) {
-      const float alpha = alphas[index] * params.inv_delta_time_squared;
-      const float gamma = alphas[index] * betas[index] * params.inv_delta_time;
+      const float3 alpha = alphas[index] * params.inv_delta_time_squared;
+      const float3 gamma = alphas[index] * betas[index] * params.inv_delta_time;
       xpbd_constraints::eval_rotation_goal2<linearized_quaternion>(goal,
                                                                    alpha,
                                                                    gamma,
@@ -1034,8 +1034,8 @@ static void eval_positions(const ConstraintEvalParams &params,
       *attributes, ATTR_POINT1, AttrDomain::Point, 0, params.error_message_add);
   VArraySpan<int> points2 = *lookup_or_warn<int>(
       *attributes, ATTR_POINT2, AttrDomain::Point, 0, params.error_message_add);
-  VArraySpan<float> alphas = *attributes->lookup_or_default<float>(
-      ATTR_ALPHA, AttrDomain::Point, 0.0f);
+  VArraySpan<float3> alphas = *attributes->lookup_or_default<float3>(
+      ATTR_ALPHA, AttrDomain::Point, float3(0.0f));
   VArraySpan<float> betas = *attributes->lookup_or_default<float>(
       ATTR_BETA, AttrDomain::Point, 0.0f);
   /* XXX plain float4 attribute is not supported, have to store it as float + float3. */
@@ -1084,8 +1084,8 @@ static void eval_positions(const ConstraintEvalParams &params,
     float3 delta_lambda;
     float4 delta_rotation1, delta_rotation2;
     if constexpr (use_damping) {
-      const float alpha = alphas[index] * params.inv_delta_time_squared;
-      const float gamma = alphas[index] * betas[index] * params.inv_delta_time;
+      const float3 alpha = alphas[index] * params.inv_delta_time_squared;
+      const float3 gamma = alphas[index] * betas[index] * params.inv_delta_time;
       xpbd_constraints::eval_position_bend_twist<linearized_quaternion>(weight_rot1,
                                                                         weight_rot2,
                                                                         darboux_vector,
@@ -1213,7 +1213,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Geometry>("Curves").supported_type(GeometryComponent::Type::Curve);
   b.add_input<decl::Bool>("Selection").default_value(true).hide_value().field_on_all();
 
-  b.add_input<decl::Float>("Compliance").min(0.0f).field_on_all();
+  b.add_input<decl::Vector>("Compliance").min(0.0f).field_on_all();
   b.add_input<decl::Float>("Damping").min(0.0f).field_on_all();
   b.add_input<decl::Rotation>("Rest Rotation")
       .field_on_all()
@@ -1227,7 +1227,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   GeometrySet geometry = params.extract_input<GeometrySet>("Curves");
   const Field<bool> selection_field = params.extract_input<Field<bool>>("Selection");
 
-  const Field<float> compliance_field = params.extract_input<Field<float>>("Compliance");
+  const Field<float3> compliance_field = params.extract_input<Field<float3>>("Compliance");
   const Field<float> damping_field = params.extract_input<Field<float>>("Damping");
   const Field<math::Quaternion> rest_rotation_field =
       params.extract_input<Field<math::Quaternion>>("Rest Rotation");
@@ -1263,7 +1263,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   IndexMaskMemory memory;
   const IndexMask selection = IndexMask::from_bools(
       evaluator.get_evaluated_as_mask(0), point_valid, memory);
-  const VArray<float> compliance = evaluator.get_evaluated<float>(1);
+  const VArray<float3> compliance = evaluator.get_evaluated<float3>(1);
   const VArray<float> damping = evaluator.get_evaluated<float>(2);
   const VArraySpan<math::Quaternion> rest_rotation = evaluator.get_evaluated<math::Quaternion>(3);
 
@@ -1273,8 +1273,8 @@ static void node_geo_exec(GeoNodeExecParams params)
       ATTR_POINT1, AttrDomain::Point);
   SpanAttributeWriter<int> output_point2 = attributes.lookup_or_add_for_write_only_span<int>(
       ATTR_POINT2, AttrDomain::Point);
-  SpanAttributeWriter<float> output_compliance =
-      attributes.lookup_or_add_for_write_only_span<float>(ATTR_ALPHA, AttrDomain::Point);
+  SpanAttributeWriter<float3> output_compliance =
+      attributes.lookup_or_add_for_write_only_span<float3>(ATTR_ALPHA, AttrDomain::Point);
   SpanAttributeWriter<float> output_damping = attributes.lookup_or_add_for_write_only_span<float>(
       ATTR_BETA, AttrDomain::Point);
   SpanAttributeWriter<float3> output_darboux_vector =
