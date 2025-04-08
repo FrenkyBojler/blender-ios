@@ -13,13 +13,9 @@ import pydantic
 
 from _bpy_internal.http.downloader import CachingDownloader, BackgroundDownloader
 from . import blender_asset_library_openapi as api_models
+from . import index_common
 
 logger = logging.getLogger(__name__)
-
-_urlpath_library_meta = "asset-library-meta.json"
-_urlpath_asset_index = "v1/asset-index.json"
-# TODO: unify this with the generator, maybe do not use leading zeroes:
-_urlpath_asset_index_page = "v1/assets-{:05}.json"
 
 
 class CLIArguments(pydantic.BaseModel):
@@ -47,8 +43,8 @@ def cli_main(arguments_raw: argparse.Namespace) -> None:
 
     try:
         # Download the metadata.
-        metadata_local_path = base_path / _urlpath_library_meta
-        metadata_remote_url = urllib.parse.urljoin(base_url, _urlpath_library_meta)
+        metadata_local_path = base_path / index_common.ASSET_TOP_METADATA_FILENAME
+        metadata_remote_url = urllib.parse.urljoin(base_url, index_common.ASSET_TOP_METADATA_FILENAME)
 
         metadata = _download_and_parse_metadata(
             bg_downloader,

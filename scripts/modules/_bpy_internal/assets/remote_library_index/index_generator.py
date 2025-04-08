@@ -6,7 +6,6 @@
 
 import argparse
 import logging
-import typing
 import sys
 from pathlib import Path
 
@@ -14,12 +13,12 @@ import pydantic
 
 from . import asset_finder, pagination
 from . import blender_asset_library_openapi as api_models
+from . import index_common
 
-API_VERSION = 1
 SCHEMA_VERSION = "1.0.0"
 
 DEFAULT_METADATA = api_models.AssetLibraryMeta(
-    api_version=API_VERSION,
+    api_version=index_common.API_VERSION,
     name="Your Asset Library",
     contact=api_models.Contact(
         name="Your Name",
@@ -73,21 +72,20 @@ def _write_json_files(
     arguments: CLIArguments,
     asset_index_pages: list[api_models.AssetLibraryIndexPage],
 ) -> None:
-    outdir = arguments.repository
+    outdir_root = arguments.repository
+    outdir_versioned = outdir_root / index_common.API_VERSIONED_SUBDIR
 
-    def _save_json(model: pydantic.BaseModel, json_path: str | Path) -> None:
+    def _save_json(model: pydantic.BaseModel, json_path: Path) -> None:
         as_json = model.model_dump_json(indent=2, exclude_defaults=True)
 
-        if isinstance(json_path, str):
-            json_path = outdir / json_path
         json_path.parent.mkdir(exist_ok=True, parents=True)
 
         logger.info("Writing %s", json_path)
         with json_path.open("wt") as json_file:
             json_file.write(as_json)
 
-    # Metadata file /asset-library-meta.json. This gets loaded if it exists.
-    meta_json_path = outdir / "asset-library-meta.json"
+    # Metadata file /_asset-library-meta.json. This gets loaded if it exists.
+    meta_json_path = outdir_root / index_common.ASSET_TOP_METADATA_FILENAME
     try:
         metadata = _toplevel_metadata(meta_json_path)
     except pydantic.ValidationError as ex:
@@ -98,17 +96,21 @@ def _write_json_files(
 
     # Remove old pages, in case the number of assets per page was increased and
     # so less page files are needed.
-    existing_pages = (outdir / f"v{API_VERSION}").glob("assets-*.json")
+    existing_pages = outdir_versioned.glob("assets-*.json")
     for filepath in existing_pages:
         filepath.unlink()
 
     # Library Index Page /v1/assets-{page}.json
+    #
+    # Note that these paths are determined by the generator, and their URLs are
+    # listed explicitly in the index file, so there is no need to have those in
+    # the index_common.py file.
     page_urls = []
     for page_index, page in enumerate(asset_index_pages):
-        page_relpath = f"v{API_VERSION}/assets-{page_index:05}.json"
-        page_urls.append(page_relpath)
+        page_relpath = outdir_versioned.relative_to(outdir_root) / f"assets-{page_index:05}.json"
+        page_urls.append(page_relpath.as_posix())
 
-        _save_json(page, page_relpath)
+        _save_json(page, outdir_root / page_relpath)
 
     # Library Index file /v1/asset-index.json:
     total_asset_count = sum(len(page.assets) for page in asset_index_pages)
@@ -119,7 +121,7 @@ def _write_json_files(
         page_urls=page_urls,
         catalogs=[],  # TODO: collect catalogs.
     )
-    _save_json(index, f"v{API_VERSION}/asset-index.json")
+    _save_json(index, outdir_versioned / index_common.ASSET_INDEX_JSON_FILENAME)
 
 
 def _toplevel_metadata(json_path: Path) -> api_models.AssetLibraryMeta:
@@ -142,7 +144,7 @@ def _toplevel_metadata(json_path: Path) -> api_models.AssetLibraryMeta:
 
     # Update the metadata to declare the API version for which we're going to
     # write the data.
-    metadata.api_version = API_VERSION
+    metadata.api_version = index_common.API_VERSION
 
     return metadata
 
