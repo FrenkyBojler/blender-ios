@@ -47,6 +47,10 @@ COMMON_ARGS = [
 
     # Work around https://github.com/koxudaxi/datamodel-code-generator/issues/1870#issuecomment-2775689249
     "--use-annotated",
+
+    # Remove the "generated on" timestamp from the output, so that running the
+    # generator is idempotent.
+    "--disable-timestamp",
 ]
 
 
