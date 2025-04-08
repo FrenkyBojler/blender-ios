@@ -1693,26 +1693,21 @@ def brush_basic_grease_pencil_paint_settings(layout, context, brush, props, *, c
     tool = context.workspace.tools.from_space_view3d_mode(context.mode, create=False)
     if gp_settings is None:
         return
+    
+    is_primitive_tool = tool.idname in {
+            "builtin.arc",
+            "builtin.curve",
+            "builtin.line",
+            "builtin.box",
+            "builtin.circle",
+            "builtin.polyline",
+    }
 
     grease_pencil_tool = brush.gpencil_tool
 
-    if grease_pencil_tool in {'DRAW', 'ERASE', 'TINT'} or tool.idname in {
-            "builtin.arc",
-            "builtin.curve",
-            "builtin.line",
-            "builtin.box",
-            "builtin.circle",
-            "builtin.polyline",
-    }:
+    if grease_pencil_tool in {'DRAW', 'ERASE', 'TINT'} or is_primitive_tool:
         size = "size"
-        if brush.use_locked_size == 'SCENE' and (grease_pencil_tool == 'DRAW' or tool.idname in {
-            "builtin.arc",
-            "builtin.curve",
-            "builtin.line",
-            "builtin.box",
-            "builtin.circle",
-            "builtin.polyline",
-        }):
+        if brush.use_locked_size == 'SCENE' and (grease_pencil_tool == 'DRAW' or is_primitive_tool):
             size = "unprojected_radius"
         row = layout.row(align=True)
         row.prop(brush, size, slider=True, text="Radius")
@@ -1730,27 +1725,27 @@ def brush_basic_grease_pencil_paint_settings(layout, context, brush, props, *, c
             col = layout.column()
             col.template_curve_mapping(gp_settings, "curve_strength", brush=True, use_negative_slope=True)
 
-    if props:
-        layout.prop(props, "subdivision")
-
-    # Brush details
-    if tool.idname in {
-            "builtin.arc",
-            "builtin.curve",
-            "builtin.line",
-            "builtin.box",
-            "builtin.circle",
-            "builtin.polyline",
-    }:
+    if grease_pencil_tool in {'DRAW'} or is_primitive_tool:
         row = layout.row(align=True)
-        if context.region.type == 'TOOL_HEADER':
+        if compact:
+            row.prop(brush.gpencil_settings, "stroke_mode", expand=True, icon_only=True)
+        else:
+            row.prop(brush.gpencil_settings, "stroke_mode", expand=True)
+
+        row = layout.row(align=True)
+        if compact:
             row.prop(gp_settings, "caps_type", text="", expand=True)
         else:
             row.prop(gp_settings, "caps_type", text="Caps Type")
 
+    # Brush details
+    if is_primitive_tool:
+        if props:
+            layout.prop(props, "subdivision")
+
+        row = layout.row(align=True)
         settings = context.tool_settings.gpencil_sculpt
         if compact:
-            row = layout.row(align=True)
             row.prop(settings, "use_thickness_curve", text="", icon='SPHERECURVE')
             sub = row.row(align=True)
             sub.active = settings.use_thickness_curve
@@ -1759,18 +1754,11 @@ def brush_basic_grease_pencil_paint_settings(layout, context, brush, props, *, c
                 text="Thickness Profile",
             )
         else:
-            row = layout.row(align=True)
             row.prop(settings, "use_thickness_curve", text="Use Thickness Profile")
             sub = row.row(align=True)
             if settings.use_thickness_curve:
                 # Pressure curve.
                 layout.template_curve_mapping(settings, "thickness_primitive_curve", brush=True)
-    elif grease_pencil_tool == 'DRAW':
-        row = layout.row(align=True)
-        if compact:
-            row.prop(gp_settings, "caps_type", text="", expand=True)
-        else:
-            row.prop(gp_settings, "caps_type", text="Caps Type")
     elif brush.gpencil_tool == 'FILL':
         use_property_split_prev = layout.use_property_split
         if compact:

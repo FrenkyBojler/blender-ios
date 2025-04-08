@@ -2197,9 +2197,8 @@ class _defs_grease_pencil_paint:
 
         gp_settings = brush.gpencil_settings
 
-        is_header = context.region.type == 'TOOL_HEADER'
-
         row = layout.row(align=True)
+
         BrushAssetShelf.draw_popup_selector(row, context, brush)
 
         from bl_ui.properties_paint_common import (
@@ -2208,13 +2207,6 @@ class _defs_grease_pencil_paint:
         )
 
         brush_basic__draw_color_selector(context, layout, brush, gp_settings)
-
-        if is_header:
-            row = layout.row(align=True)
-            row.prop(brush.gpencil_settings, "stroke_mode", expand=True, icon_only=True)
-        else:
-            layout.prop(brush.gpencil_settings, "stroke_mode", expand=True)
-
         brush_basic_grease_pencil_paint_settings(layout, context, brush, props, compact=True)
         return True
 

@@ -1404,6 +1404,7 @@ static void rna_def_gpencil_options(BlenderRNA *brna)
   static const EnumPropertyItem rna_enum_gpencil_brush_stroke_mode_items[] = {
       {GP_BRUSH_USE_STROKE, "STROKE", ICON_RADIOBUT_OFF, "Stroke", ""},
       {GP_BRUSH_USE_FILL, "FILL", ICON_RADIOBUT_ON, "Fill", ""},
+      {GP_BRUSH_USE_FILL | GP_BRUSH_USE_STROKE, "BOTH", ICON_KEY_RING_FILLED, "Both", ""},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
@@ -1876,7 +1877,6 @@ static void rna_def_gpencil_options(BlenderRNA *brna)
   RNA_def_property_enum_items(prop, rna_enum_gpencil_brush_stroke_mode_items);
   RNA_def_property_ui_text(prop, "Stroke Mode", "Mode to use when creating strokes");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
-  RNA_def_property_flag(prop, PROP_ENUM_FLAG);
   RNA_def_property_update(prop, NC_GPENCIL | ND_DATA, "rna_BrushGpencilSettings_update");
 
   prop = RNA_def_property(srna, "use_settings_stabilizer", PROP_BOOLEAN, PROP_NONE);
