@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -10,12 +10,9 @@
 
 #include "DNA_ID.h"
 #include "DNA_customdata_types.h"
+#include "DNA_listBase.h"
 
 #include "BLI_utildefines.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 #ifdef __cplusplus
 namespace blender::bke {
@@ -77,6 +74,7 @@ typedef enum KnotsMode {
   NURBS_KNOT_MODE_ENDPOINT = 1,
   NURBS_KNOT_MODE_BEZIER = 2,
   NURBS_KNOT_MODE_ENDPOINT_BEZIER = 3,
+  NURBS_KNOT_MODE_CUSTOM = 4,
 } KnotsMode;
 
 /** Method used to calculate the normals of a curve's evaluated points. */
@@ -88,6 +86,8 @@ typedef enum NormalMode {
    * is vertical, the X axis is used.
    */
   NORMAL_MODE_Z_UP = 1,
+  /** Interpolate the stored "custom_normal" attribute for the final normals. */
+  NORMAL_MODE_FREE = 2,
 } NormalMode;
 
 /**
@@ -117,13 +117,13 @@ typedef struct CurvesGeometry {
   int *curve_offsets;
 
   /**
-   * All attributes stored on control points (#ATTR_DOMAIN_POINT).
+   * All attributes stored on control points (#AttrDomain::Point).
    * This might not contain a layer for positions if there are no points.
    */
   CustomData point_data;
 
   /**
-   * All attributes stored on curves (#ATTR_DOMAIN_CURVE).
+   * All attributes stored on curves (#AttrDomain::Curve).
    */
   CustomData curve_data;
 
@@ -137,9 +137,31 @@ typedef struct CurvesGeometry {
   int curve_num;
 
   /**
+   * List of vertex group (#bDeformGroup) names and flags only.
+   */
+  ListBase vertex_group_names;
+  /** The active index in the #vertex_group_names list. */
+  int vertex_group_active_index;
+
+  /** Set to -1 when none is active. */
+  int attributes_active_index;
+
+  /**
    * Runtime data for curves, stored as a pointer to allow defining this as a C++ class.
    */
   CurvesGeometryRuntimeHandle *runtime;
+
+  /**
+   * Knot values for NURBS curves with NURBS_KNOT_MODE_CUSTOM mode.
+   * Array is allocated with bke::CurvesGeometry::nurbs_custom_knots_update_size() or
+   * bke::CurvesGeometry::nurbs_custom_knots_resize().
+   * Indexed with bke::CurvesGeometry::nurbs_custom_knots_by_curve().
+   */
+  float *custom_knots;
+
+  int custom_knot_num;
+
+  char _pad[4];
 
 #ifdef __cplusplus
   blender::bke::CurvesGeometry &wrap();
@@ -161,7 +183,7 @@ typedef struct Curves {
   CurvesGeometry geometry;
 
   int flag;
-  int attributes_active_index;
+  int attributes_active_index_legacy;
 
   /* Materials. */
   struct Material **mat;
@@ -173,7 +195,7 @@ typedef struct Curves {
    */
   char symmetry;
   /**
-   * #eAttrDomain. The active domain for edit/sculpt mode selection. Only one selection mode can
+   * #AttrDomain. The active domain for edit/sculpt mode selection. Only one selection mode can
    * be active at a time.
    */
   char selection_domain;
@@ -195,6 +217,10 @@ typedef struct Curves {
    */
   char *surface_uv_map;
 
+  /* Distance to keep the curves away from the surface. */
+  float surface_collision_distance;
+  char _pad2[4];
+
   /* Draw cache to store data used for viewport drawing. */
   void *batch_cache;
 } Curves;
@@ -215,7 +241,3 @@ ENUM_OPERATORS(eCurvesSymmetryType, CURVES_SYMMETRY_Z)
 
 /* Only one material supported currently. */
 #define CURVES_MATERIAL_NR 1
-
-#ifdef __cplusplus
-}
-#endif

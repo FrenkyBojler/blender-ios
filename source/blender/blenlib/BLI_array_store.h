@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -9,9 +9,7 @@
  * \brief Efficient in-memory storage of multiple similar arrays.
  */
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include "BLI_sys_types.h"
 
 typedef struct BArrayState BArrayState;
 typedef struct BArrayStore BArrayStore;
@@ -88,7 +86,7 @@ size_t BLI_array_store_state_size_get(BArrayState *state);
 /**
  * Fill in existing allocated memory with the contents of \a state.
  */
-void BLI_array_store_state_data_get(BArrayState *state, void *data);
+void BLI_array_store_state_data_get(const BArrayState *state, void *data);
 /**
  * Allocate an array for \a state and return it.
  */
@@ -98,7 +96,3 @@ void *BLI_array_store_state_data_get_alloc(BArrayState *state, size_t *r_data_le
  * \note Only for tests.
  */
 bool BLI_array_store_is_valid(BArrayStore *bs);
-
-#ifdef __cplusplus
-}
-#endif

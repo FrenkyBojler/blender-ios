@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: Blender Foundation
+/* SPDX-FileCopyrightText: Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -7,10 +7,6 @@
 /** \file
  * \ingroup bke
  */
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 struct Depsgraph;
 struct FluidDomainSettings;
@@ -27,7 +23,7 @@ struct Mesh *BKE_fluid_modifier_do(struct FluidModifierData *fmd,
                                    struct Depsgraph *depsgraph,
                                    struct Scene *scene,
                                    struct Object *ob,
-                                   struct Mesh *me);
+                                   struct Mesh *mesh);
 
 void BKE_fluid_modifier_free(struct FluidModifierData *fmd);
 void BKE_fluid_modifier_reset(struct FluidModifierData *fmd);
@@ -86,7 +82,3 @@ void BKE_fluid_fields_sanitize(struct FluidDomainSettings *settings);
 void BKE_fluid_flow_behavior_set(struct Object *object,
                                  struct FluidFlowSettings *settings,
                                  int behavior);
-
-#ifdef __cplusplus
-}
-#endif

@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -9,10 +9,6 @@
  */
 
 #include "BLI_utildefines.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 /**
  * Jenkins Lookup3 Hash Functions.
@@ -108,7 +104,3 @@ BLI_INLINE void BLI_hash_pointer_to_color(const void *ptr, int *r, int *g, int *
   *g = (hash & 0x00ff00) >> 8;
   *b = hash & 0x0000ff;
 }
-
-#ifdef __cplusplus
-}
-#endif

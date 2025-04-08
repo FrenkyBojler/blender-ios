@@ -1,11 +1,12 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
-#include "BLI_listbase.h"
-#include "BLI_utildefines.h"
+#include "DNA_listBase.h"
+
+#include <stdint.h>
 
 struct ID;
 
@@ -16,6 +17,7 @@ typedef enum ViewerPathElemType {
   VIEWER_PATH_ELEM_TYPE_SIMULATION_ZONE = 3,
   VIEWER_PATH_ELEM_TYPE_VIEWER_NODE = 4,
   VIEWER_PATH_ELEM_TYPE_REPEAT_ZONE = 5,
+  VIEWER_PATH_ELEM_TYPE_FOREACH_GEOMETRY_ELEMENT_ZONE = 6,
 } ViewerPathElemType;
 
 typedef struct ViewerPathElem {
@@ -55,6 +57,13 @@ typedef struct RepeatZoneViewerPathElem {
   int repeat_output_node_id;
   int iteration;
 } RepeatZoneViewerPathElem;
+
+typedef struct ForeachGeometryElementZoneViewerPathElem {
+  ViewerPathElem base;
+
+  int zone_output_node_id;
+  int index;
+} ForeachGeometryElementZoneViewerPathElem;
 
 typedef struct ViewerNodeViewerPathElem {
   ViewerPathElem base;

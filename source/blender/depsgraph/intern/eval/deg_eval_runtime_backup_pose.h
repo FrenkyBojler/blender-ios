@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2019 Blender Foundation
+/* SPDX-FileCopyrightText: 2019 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -7,10 +7,6 @@
  */
 
 #pragma once
-
-#include "intern/depsgraph_type.h"
-
-#include "DNA_action_types.h"
 
 namespace blender::deg {
 

@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2020-2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2020-2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -62,7 +62,7 @@ GHOST_XrSwapchain::GHOST_XrSwapchain(GHOST_IXrGraphicsBinding &gpu_binding,
         "Error: No format matching OpenXR runtime supported swapchain formats found.");
   }
 
-  create_info.usageFlags = XR_SWAPCHAIN_USAGE_SAMPLED_BIT |
+  create_info.usageFlags = XR_SWAPCHAIN_USAGE_SAMPLED_BIT | XR_SWAPCHAIN_USAGE_TRANSFER_DST_BIT |
                            XR_SWAPCHAIN_USAGE_COLOR_ATTACHMENT_BIT;
   create_info.format = *chosen_format;
   create_info.sampleCount = view_config.recommendedSwapchainSampleCount;

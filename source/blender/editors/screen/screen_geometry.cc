@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -14,7 +14,7 @@
 #include "BLI_math_vector.h"
 #include "BLI_rect.h"
 
-#include "BKE_screen.h"
+#include "BKE_screen.hh"
 
 #include "DNA_screen_types.h"
 #include "DNA_windowmanager_types.h"
@@ -25,7 +25,7 @@
 
 #include "WM_api.hh"
 
-#include "screen_intern.h"
+#include "screen_intern.hh"
 
 int screen_geom_area_height(const ScrArea *area)
 {
@@ -71,21 +71,17 @@ bool screen_geom_edge_is_horizontal(ScrEdge *se)
   return (se->v1->vec.y == se->v2->vec.y);
 }
 
-ScrEdge *screen_geom_area_map_find_active_scredge(const ScrAreaMap *area_map,
-                                                  const rcti *bounds_rect,
-                                                  const int mx,
-                                                  const int my)
+ScrEdge *screen_geom_area_map_find_active_scredge(
+    const ScrAreaMap *area_map, const rcti *bounds_rect, const int mx, const int my, int safety)
 {
-  int safety = BORDERPADDING;
-
   CLAMP_MIN(safety, 2);
 
   LISTBASE_FOREACH (ScrEdge *, se, &area_map->edgebase) {
     if (screen_geom_edge_is_horizontal(se)) {
       if ((se->v1->vec.y > bounds_rect->ymin) && (se->v1->vec.y < (bounds_rect->ymax - 1))) {
         short min, max;
-        min = MIN2(se->v1->vec.x, se->v2->vec.x);
-        max = MAX2(se->v1->vec.x, se->v2->vec.x);
+        min = std::min(se->v1->vec.x, se->v2->vec.x);
+        max = std::max(se->v1->vec.x, se->v2->vec.x);
 
         if (abs(my - se->v1->vec.y) <= safety && mx >= min && mx <= max) {
           return se;
@@ -95,8 +91,8 @@ ScrEdge *screen_geom_area_map_find_active_scredge(const ScrAreaMap *area_map,
     else {
       if ((se->v1->vec.x > bounds_rect->xmin) && (se->v1->vec.x < (bounds_rect->xmax - 1))) {
         short min, max;
-        min = MIN2(se->v1->vec.y, se->v2->vec.y);
-        max = MAX2(se->v1->vec.y, se->v2->vec.y);
+        min = std::min(se->v1->vec.y, se->v2->vec.y);
+        max = std::max(se->v1->vec.y, se->v2->vec.y);
 
         if (abs(mx - se->v1->vec.x) <= safety && my >= min && my <= max) {
           return se;
@@ -121,13 +117,14 @@ ScrEdge *screen_geom_find_active_scredge(const wmWindow *win,
   rcti screen_rect;
   WM_window_screen_rect_calc(win, &screen_rect);
   ScrEdge *se = screen_geom_area_map_find_active_scredge(
-      AREAMAP_FROM_SCREEN(screen), &screen_rect, mx, my);
+      AREAMAP_FROM_SCREEN(screen), &screen_rect, mx, my, BORDERPADDING);
 
   if (!se) {
     /* Use entire window size (screen including global areas) for global area edges */
     rcti win_rect;
     WM_window_rect_calc(win, &win_rect);
-    se = screen_geom_area_map_find_active_scredge(&win->global_areas, &win_rect, mx, my);
+    se = screen_geom_area_map_find_active_scredge(
+        &win->global_areas, &win_rect, mx, my, int(BORDERPADDING_GLOBAL));
   }
   return se;
 }
@@ -173,13 +170,13 @@ static bool screen_geom_vertices_scale_pass(const wmWindow *win,
     /* test for collapsed areas. This could happen in some blender version... */
     /* ton: removed option now, it needs Context... */
 
-    int headery = ED_area_headersize() + (U.pixelsize * 2);
+    int headery = ED_area_headersize();
 
     if (facy > 1) {
       /* Keep timeline small in video edit workspace. */
       LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
         if (area->spacetype == SPACE_ACTION && area->v1->vec.y == screen_rect->ymin &&
-            screen_geom_area_height(area) <= headery * facy + 1)
+            area->winy <= headery * facy)
         {
           ScrEdge *se = BKE_screen_find_edge(screen, area->v2, area->v3);
           if (se) {
@@ -205,7 +202,7 @@ static bool screen_geom_vertices_scale_pass(const wmWindow *win,
     if (facy < 1) {
       /* make each window at least ED_area_headersize() high */
       LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
-        if (screen_geom_area_height(area) < headery) {
+        if (area->winy < headery) {
           /* lower edge */
           ScrEdge *se = BKE_screen_find_edge(screen, area->v4, area->v1);
           if (se && area->v1 != area->v2) {

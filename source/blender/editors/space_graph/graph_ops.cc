@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2008 Blender Foundation
+/* SPDX-FileCopyrightText: 2008 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -6,30 +6,28 @@
  * \ingroup spgraph
  */
 
-#include <cmath>
 #include <cstdlib>
 
 #include "DNA_scene_types.h"
 
-#include "BLI_blenlib.h"
+#include "BLI_listbase.h"
 #include "BLI_math_base.h"
 #include "BLI_utildefines.h"
 
-#include "BKE_context.h"
-#include "BKE_global.h"
+#include "BKE_context.hh"
+#include "BKE_global.hh"
 
 #include "UI_view2d.hh"
 
 #include "ED_anim_api.hh"
 #include "ED_screen.hh"
-#include "ED_transform.hh"
 
-#include "graph_intern.h"
+#include "graph_intern.hh"
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
 
-#include "DEG_depsgraph.h"
+#include "DEG_depsgraph.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -101,7 +99,7 @@ static void graphview_cursor_apply(bContext *C, wmOperator *op)
 /* ... */
 
 /* Non-modal callback for running operator without user input */
-static int graphview_cursor_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus graphview_cursor_exec(bContext *C, wmOperator *op)
 {
   graphview_cursor_apply(C, op);
   return OPERATOR_FINISHED;
@@ -130,7 +128,7 @@ static void graphview_cursor_setprops(bContext *C, wmOperator *op, const wmEvent
 }
 
 /* Modal Operator init */
-static int graphview_cursor_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus graphview_cursor_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   bScreen *screen = CTX_wm_screen(C);
 
@@ -152,7 +150,7 @@ static int graphview_cursor_invoke(bContext *C, wmOperator *op, const wmEvent *e
 }
 
 /* Modal event handling of cursor changing */
-static int graphview_cursor_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus graphview_cursor_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   bScreen *screen = CTX_wm_screen(C);
   Scene *scene = CTX_data_scene(C);
@@ -186,6 +184,9 @@ static int graphview_cursor_modal(bContext *C, wmOperator *op, const wmEvent *ev
         return OPERATOR_FINISHED;
       }
       break;
+    default: {
+      break;
+    }
   }
 
   return OPERATOR_RUNNING_MODAL;
@@ -218,7 +219,7 @@ static void GRAPH_OT_cursor_set(wmOperatorType *ot)
 /** \name Hide/Reveal
  * \{ */
 
-static int graphview_curves_hide_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus graphview_curves_hide_exec(bContext *C, wmOperator *op)
 {
   bAnimContext ac;
   ListBase anim_data = {nullptr, nullptr};
@@ -333,7 +334,7 @@ static void GRAPH_OT_hide(wmOperatorType *ot)
 
 /* ........ */
 
-static int graphview_curves_reveal_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus graphview_curves_reveal_exec(bContext *C, wmOperator *op)
 {
   bAnimContext ac;
   ListBase anim_data = {nullptr, nullptr};
@@ -447,6 +448,7 @@ void graphedit_operatortypes()
   WM_operatortype_append(GRAPH_OT_select_more);
   WM_operatortype_append(GRAPH_OT_select_less);
   WM_operatortype_append(GRAPH_OT_select_leftright);
+  WM_operatortype_append(GRAPH_OT_select_key_handles);
 
   /* editing */
   WM_operatortype_append(GRAPH_OT_snap);
@@ -459,19 +461,25 @@ void graphedit_operatortypes()
   WM_operatortype_append(GRAPH_OT_interpolation_type);
   WM_operatortype_append(GRAPH_OT_extrapolation_type);
   WM_operatortype_append(GRAPH_OT_easing_type);
-  WM_operatortype_append(GRAPH_OT_sample);
-  WM_operatortype_append(GRAPH_OT_bake);
-  WM_operatortype_append(GRAPH_OT_unbake);
-  WM_operatortype_append(GRAPH_OT_sound_bake);
+  WM_operatortype_append(GRAPH_OT_bake_keys);
+  WM_operatortype_append(GRAPH_OT_keys_to_samples);
+  WM_operatortype_append(GRAPH_OT_samples_to_keys);
+  WM_operatortype_append(GRAPH_OT_sound_to_samples);
   WM_operatortype_append(GRAPH_OT_smooth);
   WM_operatortype_append(GRAPH_OT_clean);
   WM_operatortype_append(GRAPH_OT_decimate);
   WM_operatortype_append(GRAPH_OT_blend_to_neighbor);
   WM_operatortype_append(GRAPH_OT_breakdown);
   WM_operatortype_append(GRAPH_OT_ease);
+  WM_operatortype_append(GRAPH_OT_shear);
+  WM_operatortype_append(GRAPH_OT_scale_average);
+  WM_operatortype_append(GRAPH_OT_scale_from_neighbor);
   WM_operatortype_append(GRAPH_OT_blend_offset);
   WM_operatortype_append(GRAPH_OT_blend_to_ease);
+  WM_operatortype_append(GRAPH_OT_match_slope);
+  WM_operatortype_append(GRAPH_OT_time_offset);
   WM_operatortype_append(GRAPH_OT_blend_to_default);
+  WM_operatortype_append(GRAPH_OT_push_pull);
   WM_operatortype_append(GRAPH_OT_gaussian_smooth);
   WM_operatortype_append(GRAPH_OT_butterworth_smooth);
   WM_operatortype_append(GRAPH_OT_euler_filter);
@@ -506,7 +514,7 @@ void ED_operatormacros_graph()
                                     OPTYPE_UNDO | OPTYPE_REGISTER);
   WM_operatortype_macro_define(ot, "GRAPH_OT_duplicate");
   otmacro = WM_operatortype_macro_define(ot, "TRANSFORM_OT_translate");
-  RNA_boolean_set(otmacro->ptr, "use_automerge_and_split", true);
+  RNA_boolean_set(otmacro->ptr, "use_duplicated_keyframes", true);
   RNA_boolean_set(otmacro->ptr, "use_proportional_edit", false);
 }
 
@@ -519,7 +527,7 @@ void ED_operatormacros_graph()
 void graphedit_keymap(wmKeyConfig *keyconf)
 {
   /* keymap for all regions */
-  WM_keymap_ensure(keyconf, "Graph Editor Generic", SPACE_GRAPH, 0);
+  WM_keymap_ensure(keyconf, "Graph Editor Generic", SPACE_GRAPH, RGN_TYPE_WINDOW);
 
   /* channels */
   /* Channels are not directly handled by the Graph Editor module,
@@ -530,7 +538,7 @@ void graphedit_keymap(wmKeyConfig *keyconf)
    */
 
   /* keyframes */
-  WM_keymap_ensure(keyconf, "Graph Editor", SPACE_GRAPH, 0);
+  WM_keymap_ensure(keyconf, "Graph Editor", SPACE_GRAPH, RGN_TYPE_WINDOW);
 }
 
 /** \} */

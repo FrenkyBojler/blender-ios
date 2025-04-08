@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2009 Blender Foundation
+/* SPDX-FileCopyrightText: 2009 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -8,11 +8,16 @@
 
 #pragma once
 
+#include "BLI_span.hh"
+
+#include "DNA_windowmanager_enums.h"
+
 struct BPoint;
 struct Base;
 struct BezTriple;
 struct Curve;
 struct EditNurb;
+struct KeyBlock;
 struct ListBase;
 struct Main;
 struct Nurb;
@@ -35,6 +40,8 @@ void ED_keymap_curve(wmKeyConfig *keyconf);
 
 ListBase *object_editcurve_get(Object *ob);
 
+KeyBlock *ED_curve_get_edit_shape_key(const Curve *cu);
+
 /**
  * Load editNurb in object.
  */
@@ -47,12 +54,10 @@ void ED_curve_editnurb_free(Object *obedit);
 
 /**
  * \param dist_px: Maximum distance to pick (in pixels).
- * \param vert_without_handles: When true, selecting the knot doesn't select the handles.
  */
 bool ED_curve_editnurb_select_pick(bContext *C,
                                    const int mval[2],
                                    int dist_px,
-                                   bool vert_without_handles,
                                    const SelectPick_Params *params);
 
 Nurb *ED_curve_add_nurbs_primitive(
@@ -67,19 +72,19 @@ bool ED_curve_nurb_deselect_all(const Nurb *nu);
  * This is used externally, by #OBJECT_OT_join.
  * TODO: shape keys - as with meshes.
  */
-int ED_curve_join_objects_exec(bContext *C, wmOperator *op);
+wmOperatorStatus ED_curve_join_objects_exec(bContext *C, wmOperator *op);
 
 /* `editcurve_select.cc` */
 
 bool ED_curve_select_check(const View3D *v3d, const EditNurb *editnurb);
 bool ED_curve_deselect_all(EditNurb *editnurb);
-bool ED_curve_deselect_all_multi_ex(Base **bases, int bases_len);
+bool ED_curve_deselect_all_multi_ex(blender::Span<Base *> bases);
 bool ED_curve_deselect_all_multi(bContext *C);
 bool ED_curve_select_all(EditNurb *editnurb);
 bool ED_curve_select_swap(EditNurb *editnurb, bool hide_handles);
 int ED_curve_select_count(const View3D *v3d, const EditNurb *editnurb);
 
-/* editcurve_undo.cc */
+/* `editcurve_undo.cc` */
 
 /** Export for ED_undo_sys */
 void ED_curve_undosys_type(UndoType *ut);

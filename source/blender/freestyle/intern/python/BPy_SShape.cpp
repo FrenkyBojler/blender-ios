@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2004-2022 Blender Foundation
+/* SPDX-FileCopyrightText: 2004-2022 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -16,9 +16,7 @@
 
 #include "BLI_sys_types.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include "../generic/py_capi_utils.hh"
 
 using namespace Freestyle;
 
@@ -34,8 +32,7 @@ int SShape_Init(PyObject *module)
   if (PyType_Ready(&SShape_Type) < 0) {
     return -1;
   }
-  Py_INCREF(&SShape_Type);
-  PyModule_AddObject(module, "SShape", (PyObject *)&SShape_Type);
+  PyModule_AddObjectRef(module, "SShape", (PyObject *)&SShape_Type);
 
   return 0;
 }
@@ -43,6 +40,7 @@ int SShape_Init(PyObject *module)
 /*----------------------SShape methods ----------------------------*/
 
 PyDoc_STRVAR(
+    /* Wrap. */
     SShape_doc,
     "Class to define a feature shape. It is the gathering of feature\n"
     "elements from an identified input shape.\n"
@@ -106,14 +104,16 @@ static PyObject *SShape_add_edge(BPy_SShape *self, PyObject *args, PyObject *kwd
   Py_RETURN_NONE;
 }
 
-PyDoc_STRVAR(SShape_add_vertex_doc,
-             ".. method:: add_vertex(vertex)\n"
-             "\n"
-             "   Adds an SVertex to the list of SVertex of this Shape. The SShape\n"
-             "   attribute of the SVertex is also set to this SShape.\n"
-             "\n"
-             "   :arg vertex: An SVertex object.\n"
-             "   :type vertex: :class:`SVertex`");
+PyDoc_STRVAR(
+    /* Wrap. */
+    SShape_add_vertex_doc,
+    ".. method:: add_vertex(vertex)\n"
+    "\n"
+    "   Adds an SVertex to the list of SVertex of this Shape. The SShape\n"
+    "   attribute of the SVertex is also set to this SShape.\n"
+    "\n"
+    "   :arg vertex: An SVertex object.\n"
+    "   :type vertex: :class:`SVertex`");
 
 static PyObject *SShape_add_vertex(BPy_SShape *self, PyObject *args, PyObject *kwds)
 {
@@ -127,10 +127,12 @@ static PyObject *SShape_add_vertex(BPy_SShape *self, PyObject *args, PyObject *k
   Py_RETURN_NONE;
 }
 
-PyDoc_STRVAR(SShape_compute_bbox_doc,
-             ".. method:: compute_bbox()\n"
-             "\n"
-             "   Compute the bbox of the SShape.");
+PyDoc_STRVAR(
+    /* Wrap. */
+    SShape_compute_bbox_doc,
+    ".. method:: compute_bbox()\n"
+    "\n"
+    "   Compute the bbox of the SShape.");
 
 static PyObject *SShape_compute_bbox(BPy_SShape *self)
 {
@@ -142,6 +144,16 @@ static PyObject *SShape_compute_bbox(BPy_SShape *self)
 // const vector< Material > &   materials () const
 // void     SetMaterials (const vector< Material > &iMaterials)
 
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic push
+#    pragma clang diagnostic ignored "-Wcast-function-type"
+#  else
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wcast-function-type"
+#  endif
+#endif
+
 static PyMethodDef BPy_SShape_methods[] = {
     {"add_edge", (PyCFunction)SShape_add_edge, METH_VARARGS | METH_KEYWORDS, SShape_add_edge_doc},
     {"add_vertex",
@@ -152,12 +164,22 @@ static PyMethodDef BPy_SShape_methods[] = {
     {nullptr, nullptr, 0, nullptr},
 };
 
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic pop
+#  else
+#    pragma GCC diagnostic pop
+#  endif
+#endif
+
 /*----------------------SShape get/setters ----------------------------*/
 
-PyDoc_STRVAR(SShape_id_doc,
-             "The Id of this SShape.\n"
-             "\n"
-             ":type: :class:`Id`");
+PyDoc_STRVAR(
+    /* Wrap. */
+    SShape_id_doc,
+    "The Id of this SShape.\n"
+    "\n"
+    ":type: :class:`Id`");
 
 static PyObject *SShape_id_get(BPy_SShape *self, void * /*closure*/)
 {
@@ -175,14 +197,16 @@ static int SShape_id_set(BPy_SShape *self, PyObject *value, void * /*closure*/)
   return 0;
 }
 
-PyDoc_STRVAR(SShape_name_doc,
-             "The name of the SShape.\n"
-             "\n"
-             ":type: str");
+PyDoc_STRVAR(
+    /* Wrap. */
+    SShape_name_doc,
+    "The name of the SShape.\n"
+    "\n"
+    ":type: str");
 
 static PyObject *SShape_name_get(BPy_SShape *self, void * /*closure*/)
 {
-  return PyUnicode_FromString(self->ss->getName().c_str());
+  return PyC_UnicodeFromStdStr(self->ss->getName());
 }
 
 static int SShape_name_set(BPy_SShape *self, PyObject *value, void * /*closure*/)
@@ -196,10 +220,12 @@ static int SShape_name_set(BPy_SShape *self, PyObject *value, void * /*closure*/
   return 0;
 }
 
-PyDoc_STRVAR(SShape_bbox_doc,
-             "The bounding box of the SShape.\n"
-             "\n"
-             ":type: :class:`BBox`");
+PyDoc_STRVAR(
+    /* Wrap. */
+    SShape_bbox_doc,
+    "The bounding box of the SShape.\n"
+    "\n"
+    ":type: :class:`BBox`");
 
 static PyObject *SShape_bbox_get(BPy_SShape *self, void * /*closure*/)
 {
@@ -217,10 +243,12 @@ static int SShape_bbox_set(BPy_SShape *self, PyObject *value, void * /*closure*/
   return 0;
 }
 
-PyDoc_STRVAR(SShape_vertices_doc,
-             "The list of vertices constituting this SShape.\n"
-             "\n"
-             ":type: List of :class:`SVertex` objects");
+PyDoc_STRVAR(
+    /* Wrap. */
+    SShape_vertices_doc,
+    "The list of vertices constituting this SShape.\n"
+    "\n"
+    ":type: List of :class:`SVertex`");
 
 static PyObject *SShape_vertices_get(BPy_SShape *self, void * /*closure*/)
 {
@@ -237,10 +265,12 @@ static PyObject *SShape_vertices_get(BPy_SShape *self, void * /*closure*/)
   return py_vertices;
 }
 
-PyDoc_STRVAR(SShape_edges_doc,
-             "The list of edges constituting this SShape.\n"
-             "\n"
-             ":type: List of :class:`FEdge` objects");
+PyDoc_STRVAR(
+    /* Wrap. */
+    SShape_edges_doc,
+    "The list of edges constituting this SShape.\n"
+    "\n"
+    ":type: List of :class:`FEdge`");
 
 static PyObject *SShape_edges_get(BPy_SShape *self, void * /*closure*/)
 {
@@ -310,7 +340,3 @@ PyTypeObject SShape_Type = {
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////
-
-#ifdef __cplusplus
-}
-#endif

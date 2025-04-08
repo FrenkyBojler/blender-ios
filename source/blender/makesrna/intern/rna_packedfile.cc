@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -8,16 +8,12 @@
 
 #include <cstdlib>
 
-#include "BLI_utildefines.h"
-
-#include "DNA_packedFile_types.h"
-
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
 
-#include "BKE_packedFile.h"
+#include "BKE_packedFile.hh"
 
-#include "rna_internal.h"
+#include "rna_internal.hh"
 
 const EnumPropertyItem rna_enum_unpack_method_items[] = {
     {PF_REMOVE, "REMOVE", 0, "Remove Pack", ""},
@@ -29,6 +25,8 @@ const EnumPropertyItem rna_enum_unpack_method_items[] = {
 };
 
 #ifdef RNA_RUNTIME
+
+#  include "DNA_packedFile_types.h"
 
 static void rna_PackedImage_data_get(PointerRNA *ptr, char *value)
 {

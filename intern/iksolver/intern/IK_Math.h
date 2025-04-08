@@ -11,6 +11,7 @@
 #include <Eigen/Core>
 #include <Eigen/Geometry>
 
+#include <algorithm>
 #include <cmath>
 
 using Eigen::Affine3d;
@@ -56,12 +57,13 @@ static inline Eigen::Matrix3d CreateMatrix(double xx,
 
 static inline Eigen::Matrix3d RotationMatrix(double sine, double cosine, int axis)
 {
-  if (axis == 0)
+  if (axis == 0) {
     return CreateMatrix(1.0, 0.0, 0.0, 0.0, cosine, -sine, 0.0, sine, cosine);
-  else if (axis == 1)
+  }
+  if (axis == 1) {
     return CreateMatrix(cosine, 0.0, sine, 0.0, 1.0, 0.0, -sine, 0.0, cosine);
-  else
-    return CreateMatrix(cosine, -sine, 0.0, sine, cosine, 0.0, 0.0, 0.0, 1.0);
+  }
+  return CreateMatrix(cosine, -sine, 0.0, sine, cosine, 0.0, 0.0, 0.0, 1.0);
 }
 
 static inline Eigen::Matrix3d RotationMatrix(double angle, int axis)
@@ -74,32 +76,34 @@ static inline double EulerAngleFromMatrix(const Eigen::Matrix3d &R, int axis)
   double t = sqrt(R(0, 0) * R(0, 0) + R(0, 1) * R(0, 1));
 
   if (t > 16.0 * IK_EPSILON) {
-    if (axis == 0)
+    if (axis == 0) {
       return -atan2(R(1, 2), R(2, 2));
-    else if (axis == 1)
+    }
+    if (axis == 1) {
       return atan2(-R(0, 2), t);
-    else
-      return -atan2(R(0, 1), R(0, 0));
+    }
+    return -atan2(R(0, 1), R(0, 0));
   }
-  else {
-    if (axis == 0)
-      return -atan2(-R(2, 1), R(1, 1));
-    else if (axis == 1)
-      return atan2(-R(0, 2), t);
-    else
-      return 0.0f;
+
+  if (axis == 0) {
+    return -atan2(-R(2, 1), R(1, 1));
   }
+  if (axis == 1) {
+    return atan2(-R(0, 2), t);
+  }
+  return 0.0f;
 }
 
 static inline double safe_acos(double f)
 {
   // acos that does not return NaN with rounding errors
-  if (f <= -1.0)
+  if (f <= -1.0) {
     return M_PI;
-  else if (f >= 1.0)
+  }
+  if (f >= 1.0) {
     return 0.0;
-  else
-    return acos(f);
+  }
+  return acos(f);
 }
 
 static inline Eigen::Vector3d normalize(const Eigen::Vector3d &v)
@@ -152,11 +156,12 @@ static inline Eigen::Vector3d SphericalRangeParameters(const Eigen::Matrix3d &R)
   double num = 2.0 * (1.0 + R(1, 1));
 
   // singularity at pi
-  if (fabs(num) < IK_EPSILON)
+  if (fabs(num) < IK_EPSILON) {
     // TODO: this does now rotation of size pi over z axis, but could
     // be any axis, how to deal with this I'm not sure, maybe don't
     // enforce limits at all then.
     return Eigen::Vector3d(0.0, tau, 1.0);
+  }
 
   num = 1.0 / sqrt(num);
   double ax = -R(2, 1) * num;
@@ -184,13 +189,14 @@ static inline Eigen::Vector3d MatrixToAxisAngle(const Eigen::Matrix3d &R)
   double c = safe_acos((R(0, 0) + R(1, 1) + R(2, 2) - 1) / 2);
   double l = delta.norm();
 
-  if (!FuzzyZero(l))
+  if (!FuzzyZero(l)) {
     delta *= c / l;
+  }
 
   return delta;
 }
 
-static inline bool EllipseClamp(double &ax, double &az, double *amin, double *amax)
+static inline bool EllipseClamp(double &ax, double &az, const double *amin, const double *amax)
 {
   double xlim, zlim, x, z;
 
@@ -213,20 +219,20 @@ static inline bool EllipseClamp(double &ax, double &az, double *amin, double *am
   }
 
   if (FuzzyZero(xlim) || FuzzyZero(zlim)) {
-    if (x <= xlim && z <= zlim)
+    if (x <= xlim && z <= zlim) {
       return false;
+    }
 
-    if (x > xlim)
-      x = xlim;
-    if (z > zlim)
-      z = zlim;
+    x = std::min(x, xlim);
+    z = std::min(z, zlim);
   }
   else {
     double invx = 1.0 / (xlim * xlim);
     double invz = 1.0 / (zlim * zlim);
 
-    if ((x * x * invx + z * z * invz) <= 1.0)
+    if ((x * x * invx + z * z * invz) <= 1.0) {
       return false;
+    }
 
     if (FuzzyZero(x)) {
       x = 0.0;
@@ -236,8 +242,9 @@ static inline bool EllipseClamp(double &ax, double &az, double *amin, double *am
       double rico = z / x;
       double old_x = x;
       x = sqrt(1.0 / (invx + invz * rico * rico));
-      if (old_x < 0.0)
+      if (old_x < 0.0) {
         x = -x;
+      }
       z = rico * x;
     }
   }

@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -6,34 +6,33 @@
  * \ingroup spview3d
  */
 
+#include "BLI_listbase.h"
 #include "BLI_math_base_safe.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
 #include "BLI_utildefines.h"
 
-#include "BKE_context.h"
-#include "BKE_layer.h"
-#include "BKE_object.h"
+#include "BKE_context.hh"
+#include "BKE_layer.hh"
 
-#include "DEG_depsgraph.h"
+#include "DEG_depsgraph.hh"
 
 #include "DNA_light_types.h"
 #include "DNA_object_types.h"
 
 #include "ED_gizmo_library.hh"
-#include "ED_screen.hh"
 
 #include "UI_resources.hh"
 
 #include "MEM_guardedalloc.h"
 
 #include "RNA_access.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
 
-#include "view3d_intern.h" /* own include */
+#include "view3d_intern.hh" /* own include */
 
 /* -------------------------------------------------------------------- */
 /** \name Spot Light Gizmos
@@ -90,8 +89,7 @@ static void gizmo_spot_blend_prop_matrix_set(const wmGizmo * /*gz*/,
 
   float spot_blend = safe_divide(clamp_f(c - a, 0.0f, 1.0f - a), 1.0f - a);
 
-  PointerRNA light_ptr;
-  RNA_pointer_create(&la->id, &RNA_Light, la, &light_ptr);
+  PointerRNA light_ptr = RNA_pointer_create_discrete(&la->id, &RNA_Light, la);
   PropertyRNA *spot_blend_prop = RNA_struct_find_property(&light_ptr, "spot_blend");
   RNA_property_float_set(&light_ptr, spot_blend_prop, spot_blend);
 
@@ -131,8 +129,7 @@ static void gizmo_light_radius_prop_matrix_set(const wmGizmo * /*gz*/,
 
   const float radius = 0.5f * len_v3(matrix[0]);
 
-  PointerRNA light_ptr;
-  RNA_pointer_create(&la->id, &RNA_Light, la, &light_ptr);
+  PointerRNA light_ptr = RNA_pointer_create_discrete(&la->id, &RNA_Light, la);
   PropertyRNA *radius_prop = RNA_struct_find_property(&light_ptr, "shadow_soft_size");
   RNA_property_float_set(&light_ptr, radius_prop, radius);
 
@@ -218,6 +215,11 @@ static void WIDGETGROUP_light_spot_setup(const bContext *C, wmGizmoGroup *gzgrou
     params.user_data = (void *)C;
     WM_gizmo_target_property_def_func(gz, "matrix", &params);
   }
+
+  /* All gizmos must perform undo. */
+  LISTBASE_FOREACH (wmGizmo *, gz, &gzgroup->gizmos) {
+    WM_gizmo_set_flag(gz, WM_GIZMO_NEEDS_UNDO, true);
+  }
 }
 
 static void WIDGETGROUP_light_spot_refresh(const bContext *C, wmGizmoGroup *gzgroup)
@@ -231,14 +233,13 @@ static void WIDGETGROUP_light_spot_refresh(const bContext *C, wmGizmoGroup *gzgr
 
   /* Spot angle gizmo. */
   {
-    PointerRNA lamp_ptr;
-    RNA_pointer_create(&la->id, &RNA_Light, la, &lamp_ptr);
+    PointerRNA lamp_ptr = RNA_pointer_create_discrete(&la->id, &RNA_Light, la);
 
     wmGizmo *gz = ls_gzgroup->spot_angle;
     float dir[3];
-    negate_v3_v3(dir, ob->object_to_world[2]);
+    negate_v3_v3(dir, ob->object_to_world().ptr()[2]);
     WM_gizmo_set_matrix_rotation_from_z_axis(gz, dir);
-    WM_gizmo_set_matrix_location(gz, ob->object_to_world[3]);
+    WM_gizmo_set_matrix_location(gz, ob->object_to_world().location());
 
     const char *propname = "spot_size";
     WM_gizmo_target_property_def_rna(gz, "offset", &lamp_ptr, propname, -1);
@@ -248,11 +249,11 @@ static void WIDGETGROUP_light_spot_refresh(const bContext *C, wmGizmoGroup *gzgr
   {
     wmGizmo *gz = ls_gzgroup->spot_blend;
 
-    copy_m4_m4(gz->matrix_basis, ob->object_to_world);
+    copy_m4_m4(gz->matrix_basis, ob->object_to_world().ptr());
 
     /* Move center to the cone base plane. */
     float dir[3];
-    negate_v3_v3(dir, ob->object_to_world[2]);
+    negate_v3_v3(dir, ob->object_to_world().ptr()[2]);
     mul_v3_fl(dir, CONE_SCALE * cosf(0.5f * la->spotsize));
     add_v3_v3(gz->matrix_basis[3], dir);
   }
@@ -272,7 +273,7 @@ static void WIDGETGROUP_light_spot_draw_prepare(const bContext *C, wmGizmoGroup 
   RegionView3D *rv3d = static_cast<RegionView3D *>(CTX_wm_region(C)->regiondata);
   WM_gizmo_set_matrix_rotation_from_z_axis(gz, rv3d->viewinv[2]);
 
-  WM_gizmo_set_matrix_location(gz, ob->object_to_world[3]);
+  WM_gizmo_set_matrix_location(gz, ob->object_to_world().location());
 }
 
 void VIEW3D_GGT_light_spot(wmGizmoGroupType *gzgt)
@@ -342,6 +343,11 @@ static void WIDGETGROUP_light_point_setup(const bContext *C, wmGizmoGroup *gzgro
   params.range_get_fn = nullptr;
   params.user_data = (void *)C;
   WM_gizmo_target_property_def_func(gz, "matrix", &params);
+
+  /* All gizmos must perform undo. */
+  LISTBASE_FOREACH (wmGizmo *, gz_iter, &gzgroup->gizmos) {
+    WM_gizmo_set_flag(gz_iter, WM_GIZMO_NEEDS_UNDO, true);
+  }
 }
 
 static void WIDGETGROUP_light_point_draw_prepare(const bContext *C, wmGizmoGroup *gzgroup)
@@ -358,7 +364,7 @@ static void WIDGETGROUP_light_point_draw_prepare(const bContext *C, wmGizmoGroup
   const RegionView3D *rv3d = static_cast<const RegionView3D *>(CTX_wm_region(C)->regiondata);
   WM_gizmo_set_matrix_rotation_from_z_axis(gz, rv3d->viewinv[2]);
 
-  WM_gizmo_set_matrix_location(gz, ob->object_to_world[3]);
+  WM_gizmo_set_matrix_location(gz, ob->object_to_world().location());
 }
 
 void VIEW3D_GGT_light_point(wmGizmoGroupType *gzgt)
@@ -410,7 +416,7 @@ static void gizmo_area_light_prop_matrix_set(const wmGizmo * /*gz*/,
     la->area_size = len_v3(matrix[0]);
   }
 
-  DEG_id_tag_update(&la->id, ID_RECALC_COPY_ON_WRITE);
+  DEG_id_tag_update(&la->id, ID_RECALC_PARAMETERS);
   WM_main_add_notifier(NC_LAMP | ND_LIGHTING_DRAW, la);
 }
 
@@ -452,6 +458,11 @@ static void WIDGETGROUP_light_area_setup(const bContext * /*C*/, wmGizmoGroup *g
 
   UI_GetThemeColor3fv(TH_GIZMO_PRIMARY, gz->color);
   UI_GetThemeColor3fv(TH_GIZMO_HI, gz->color_hi);
+
+  /* All gizmos must perform undo. */
+  LISTBASE_FOREACH (wmGizmo *, gz_iter, &gzgroup->gizmos) {
+    WM_gizmo_set_flag(gz_iter, WM_GIZMO_NEEDS_UNDO, true);
+  }
 }
 
 static void WIDGETGROUP_light_area_refresh(const bContext *C, wmGizmoGroup *gzgroup)
@@ -464,7 +475,7 @@ static void WIDGETGROUP_light_area_refresh(const bContext *C, wmGizmoGroup *gzgr
   Light *la = static_cast<Light *>(ob->data);
   wmGizmo *gz = wwrapper->gizmo;
 
-  copy_m4_m4(gz->matrix_basis, ob->object_to_world);
+  copy_m4_m4(gz->matrix_basis, ob->object_to_world().ptr());
 
   int flag = ED_GIZMO_CAGE_XFORM_FLAG_SCALE;
   if (ELEM(la->area_shape, LA_AREA_SQUARE, LA_AREA_DISK)) {
@@ -549,6 +560,8 @@ static void WIDGETGROUP_light_target_setup(const bContext * /*C*/, wmGizmoGroup 
       gz->ptr, "draw_options", ED_GIZMO_MOVE_DRAW_FLAG_FILL | ED_GIZMO_MOVE_DRAW_FLAG_ALIGN_VIEW);
 
   WM_gizmo_operator_set(gz, 0, ot, nullptr);
+
+  /* The operator handles undo, no need to set #WM_GIZMO_NEEDS_UNDO. */
 }
 
 static void WIDGETGROUP_light_target_draw_prepare(const bContext *C, wmGizmoGroup *gzgroup)
@@ -560,7 +573,7 @@ static void WIDGETGROUP_light_target_draw_prepare(const bContext *C, wmGizmoGrou
   Object *ob = BKE_view_layer_active_object_get(view_layer);
   wmGizmo *gz = wwrapper->gizmo;
 
-  normalize_m4_m4(gz->matrix_basis, ob->object_to_world);
+  normalize_m4_m4(gz->matrix_basis, ob->object_to_world().ptr());
   unit_m4(gz->matrix_offset);
 
   if (ob->type == OB_LAMP) {

@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2010-2023 Blender Foundation
+# SPDX-FileCopyrightText: 2010-2023 Blender Authors
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
@@ -66,6 +66,8 @@ def draw_km(display_keymaps, kc, km, children, layout, level):
 
         if km.is_user_modified:
             subrow.operator("preferences.keymap_restore", text="Restore")
+            # Add margin to space the button from the scroll-bar.
+            subrow.separator()
         if km.is_modal:
             subrow.label(text="", icon='LINKED')
         del subrow
@@ -77,7 +79,10 @@ def draw_km(display_keymaps, kc, km, children, layout, level):
             subcol = _indented_layout(col, level + 1)
             subrow = subcol.row(align=True)
             subrow.prop(km, "show_expanded_items", text="", emboss=False)
-            subrow.label(text=iface_("%s (Global)") % iface_(km.name, i18n_contexts.id_windowmanager), translate=False)
+            subrow.label(
+                text=iface_("{:s} (Global)").format(iface_(km.name, i18n_contexts.id_windowmanager)),
+                translate=False,
+            )
         else:
             km.show_expanded_items = True
 
@@ -154,8 +159,14 @@ def draw_kmi(display_keymaps, kc, km, kmi, layout, level):
             icon=('TRACKING_CLEAR_BACKWARDS' if kmi.is_user_defined else 'X')
         ).item_id = kmi.id
 
+    # Add margin to space the buttons from the scroll-bar.
+    row.separator(factor=0.25 if kmi.show_expanded else 1.0)
+
     # Expanded, additional event settings
     if kmi.show_expanded:
+        from _bpy import _wm_capabilities
+        capabilities = _wm_capabilities()
+
         box = col.box()
 
         split = box.split(factor=0.4)
@@ -164,11 +175,11 @@ def draw_kmi(display_keymaps, kc, km, kmi, layout, level):
         if km.is_modal:
             sub.prop(kmi, "propvalue", text="")
         else:
-            # One day...
-            # sub.prop_search(kmi, "idname", bpy.context.window_manager, "operators_all", text="")
             sub.prop(kmi, "idname", text="")
 
         if map_type not in {'TEXTINPUT', 'TIMER'}:
+            from sys import platform
+
             sub = split.column()
             subrow = sub.row(align=True)
 
@@ -189,11 +200,26 @@ def draw_kmi(display_keymaps, kc, km, kmi, layout, level):
             subrow = sub.row()
             subrow.scale_x = 0.75
             subrow.prop(kmi, "any", toggle=True)
+
+            # Match text in `WM_key_event_string`.
+            match platform:
+                case "darwin":
+                    oskey_label = "Cmd"
+                case "win32":
+                    oskey_label = "Win"
+                case _:
+                    oskey_label = "OS"
+
             # Use `*_ui` properties as integers aren't practical.
             subrow.prop(kmi, "shift_ui", toggle=True)
             subrow.prop(kmi, "ctrl_ui", toggle=True)
             subrow.prop(kmi, "alt_ui", toggle=True)
-            subrow.prop(kmi, "oskey_ui", text="Cmd", toggle=True)
+            subrow.prop(kmi, "oskey_ui", text=oskey_label, toggle=True)
+
+            # On systems that don't support Hyper, only show if it's enabled.
+            # Otherwise the user may have a key binding that doesn't work and can't be changed.
+            if capabilities['KEYBOARD_HYPER_KEY'] or kmi.hyper == 1:
+                subrow.prop(kmi, "hyper_ui", text="Hyper", toggle=True)
 
             subrow.prop(kmi, "key_modifier", text="", event=True)
 
@@ -240,7 +266,7 @@ def draw_filtered(display_keymaps, filter_type, filter_text, layout):
                 "MMB": 'MIDDLEMOUSE',
             })
             _EVENT_TYPE_MAP_EXTRA.update({
-                "%d" % i: "NUMPAD_%d" % i for i in range(10)
+                "{:d}".format(i): "NUMPAD_{:d}".format(i) for i in range(10)
             })
         # done with once off init
 
@@ -252,9 +278,15 @@ def draw_filtered(display_keymaps, filter_type, filter_text, layout):
             "ctrl": "ctrl",
             "alt": "alt",
             "shift": "shift",
-            "cmd": "oskey",
             "oskey": "oskey",
+            "hyper": "hyper",
             "any": "any",
+
+            # macOS specific modifiers names
+            "control": "ctrl",
+            "option": "alt",
+            "cmd": "oskey",
+            "command": "oskey",
         }
         # KeyMapItem like dict, use for comparing against
         # attr: {states, ...}
@@ -336,17 +368,16 @@ def draw_filtered(display_keymaps, filter_type, filter_text, layout):
         if filtered_items:
             col = layout.column()
 
-            row = col.row()
+            row = col.row(align=True)
             row.label(text=km.name, icon='DOT',
                       text_ctxt=i18n_contexts.id_windowmanager)
 
-            row.label()
-            row.label()
-
             if km.is_user_modified:
-                row.operator("preferences.keymap_restore", text="Restore")
-            else:
-                row.label()
+                subrow = row.row()
+                subrow.alignment = 'RIGHT'
+                subrow.operator("preferences.keymap_restore", text="Restore")
+                # Add margin to space the button from the scroll-bar.
+                subrow.separator()
 
             for kmi in filtered_items:
                 draw_kmi(display_keymaps, kc, km, kmi, col, 1)
@@ -380,7 +411,7 @@ def draw_keymaps(context, layout):
 
     rowsub.menu("USERPREF_MT_keyconfigs", text=text)
     rowsub.operator("wm.keyconfig_preset_add", text="", icon='ADD')
-    rowsub.operator("wm.keyconfig_preset_add", text="", icon='REMOVE').remove_active = True
+    rowsub.operator("wm.keyconfig_preset_remove", text="", icon='REMOVE')
 
     rowsub = split.row(align=True)
     rowsub.operator("preferences.keyconfig_import", text="Import...", icon='IMPORT')
@@ -411,7 +442,12 @@ def draw_keymaps(context, layout):
     rowsubsub = rowsub.row(align=True)
     if not ok:
         rowsubsub.alert = True
-    rowsubsub.prop(spref, "filter_text", text="", icon='VIEWZOOM')
+    search_placeholder = ""
+    if spref.filter_type == 'NAME':
+        search_placeholder = iface_("Search by Name")
+    elif spref.filter_type == 'KEY':
+        search_placeholder = iface_("Search by Key-Binding")
+    rowsubsub.prop(spref, "filter_text", text="", icon='VIEWZOOM', placeholder=search_placeholder)
 
     if not filter_text:
         # When the keyconfig defines its own preferences.
@@ -436,7 +472,7 @@ def draw_keymaps(context, layout):
                 # Defined by user preset, may contain mistakes out of our control.
                 try:
                     kc_prefs.draw(box)
-                except BaseException:
+                except Exception:
                     import traceback
                     traceback.print_exc()
             del box

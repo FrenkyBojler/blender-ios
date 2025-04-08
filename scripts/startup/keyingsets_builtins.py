@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2010-2023 Blender Foundation
+# SPDX-FileCopyrightText: 2010-2023 Blender Authors
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
@@ -17,6 +17,7 @@ are supported.
 import bpy
 import keyingsets_utils
 from bpy.types import KeyingSetInfo
+from bpy_extras import anim_utils
 
 ###############################
 # Built-In KeyingSets
@@ -355,7 +356,13 @@ class BUILTIN_KSI_Available(KeyingSetInfo):
         ob = context.active_object
         if ob:
             # TODO: this fails if one animation-less object is active, but many others are selected
-            return ob.animation_data and ob.animation_data.action
+            adt = ob.animation_data
+            if not adt:
+                return False
+            cbag = anim_utils.action_get_channelbag_for_slot(adt.action, adt.action_slot)
+            if not cbag:
+                return False
+            return bool(cbag.fcurves)
         else:
             return bool(context.selected_objects)
 
@@ -501,21 +508,27 @@ class WholeCharacterMixin:
     # custom properties
     def doCustomProps(self, ks, bone):
 
-        prop_type_compat = {bpy.types.BoolProperty,
-                            bpy.types.IntProperty,
-                            bpy.types.FloatProperty}
+        prop_type_compat = {
+            bpy.types.BoolProperty,
+            bpy.types.IntProperty,
+            bpy.types.FloatProperty,
+            bpy.types.EnumProperty,
+        }
 
         # go over all custom properties for bone
         for prop in bone.keys():
             # for now, just add all of 'em
             prop_rna = type(bone).bl_rna.properties.get(prop, None)
             if prop_rna is None:
-                prop_path = '["%s"]' % bpy.utils.escape_identifier(prop)
+                prop_path = '["{:s}"]'.format(bpy.utils.escape_identifier(prop))
                 try:
                     rna_property = bone.path_resolve(prop_path, False)
                 except ValueError:
                     # This happens when a custom property is set to None. In that case it cannot
                     # be converted to an FCurve-compatible value, so we can't keyframe it anyway.
+                    continue
+                if not rna_property:
+                    # Failure to resolve property.
                     continue
                 if rna_property.rna_type in prop_type_compat:
                     self.addProp(ks, bone, prop_path)

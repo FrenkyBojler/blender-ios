@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -20,7 +20,7 @@ class TreeElementDeformGroupBase final : public AbstractTreeElement {
 
  public:
   TreeElementDeformGroupBase(TreeElement &legacy_te, Object &object);
-  void expand(SpaceOutliner &) const override;
+  void expand(SpaceOutliner & /*soops*/) const override;
 };
 
 class TreeElementDeformGroup final : public AbstractTreeElement {

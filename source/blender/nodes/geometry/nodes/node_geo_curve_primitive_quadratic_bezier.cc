@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -63,12 +63,17 @@ static void node_geo_exec(GeoNodeExecParams params)
 
 static void node_register()
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
   geo_node_type_base(
-      &ntype, GEO_NODE_CURVE_PRIMITIVE_QUADRATIC_BEZIER, "Quadratic Bezier", NODE_CLASS_GEOMETRY);
+      &ntype, "GeometryNodeCurveQuadraticBezier", GEO_NODE_CURVE_PRIMITIVE_QUADRATIC_BEZIER);
+  ntype.ui_name = "Quadratic Bézier";
+  ntype.ui_description =
+      "Generate a poly spline in a parabola shape with control points positions";
+  ntype.enum_name_legacy = "CURVE_PRIMITIVE_QUADRATIC_BEZIER";
+  ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

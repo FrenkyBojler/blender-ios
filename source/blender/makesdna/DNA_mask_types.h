@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2012 Blender Foundation
+/* SPDX-FileCopyrightText: 2012 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -16,15 +16,14 @@
 #include "DNA_defs.h"
 #include "DNA_listBase.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+typedef struct Mask_Runtime {
+  /* The Depsgraph::update_count when this ID was last updated. Covers any IDRecalcFlag. */
+  uint64_t last_update;
+} Mask_Runtime;
 
 typedef struct Mask {
   ID id;
   struct AnimData *adt;
-  /* runtime (must be immediately after id for utilities to use it). */
-  DrawDataList drawdata;
   /** Mask layers. */
   ListBase masklayers;
   /** Index of active mask layer (-1 == None). */
@@ -38,6 +37,10 @@ typedef struct Mask {
   /** For anim info. */
   int flag;
   char _pad[4];
+
+  void *_pad1;
+
+  Mask_Runtime runtime;
 } Mask;
 
 typedef struct MaskParent {
@@ -148,7 +151,12 @@ typedef struct MaskLayer {
 
   /** Active spline. */
   struct MaskSpline *act_spline;
-  /** Active point. */
+  /**
+   * Active point.
+   *
+   * \note By convention the active-point will be a point in `act_spline` however this isn't
+   * guaranteed and cannot be assumed by logic that validates memory.
+   */
   struct MaskSplinePoint *act_point;
 
   /* blending options */
@@ -261,7 +269,3 @@ enum {
 enum {
   MASK_ANIMF_EXPAND = (1 << 4),
 };
-
-#ifdef __cplusplus
-}
-#endif

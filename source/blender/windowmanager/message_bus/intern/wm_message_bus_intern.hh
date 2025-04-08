@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -9,6 +9,8 @@
 #pragma once
 
 #include "../wm_message_bus.hh"
+
+struct GSet;
 
 struct wmMsgBus {
   GSet *messages_gset[WM_MSG_TYPE_NUM];

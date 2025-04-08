@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2004-2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2004-2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -10,17 +10,15 @@
 
 #include "../../stroke/BasicStrokeShaders.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 using namespace Freestyle;
 
 ///////////////////////////////////////////////////////////////////////////////////////////
 
 //------------------------INSTANCE METHODS ----------------------------------
 
-static char IncreasingColorShader___doc__[] =
+PyDoc_STRVAR(
+    /* Wrap. */
+    IncreasingColorShader___doc__,
     "Class hierarchy: :class:`freestyle.types.StrokeShader` > :class:`IncreasingColorShader`\n"
     "\n"
     "[Color shader]\n"
@@ -54,7 +52,7 @@ static char IncreasingColorShader___doc__[] =
     "   between the first and the last vertex.\n"
     "\n"
     "   :arg stroke: A Stroke object.\n"
-    "   :type stroke: :class:`freestyle.types.Stroke`\n";
+    "   :type stroke: :class:`freestyle.types.Stroke`\n");
 
 static int IncreasingColorShader___init__(BPy_IncreasingColorShader *self,
                                           PyObject *args,
@@ -126,7 +124,3 @@ PyTypeObject IncreasingColorShader_Type = {
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////
-
-#ifdef __cplusplus
-}
-#endif

@@ -1,4 +1,8 @@
-#pragma BLENDER_REQUIRE(gpu_shader_common_color_utils.glsl)
+/* SPDX-FileCopyrightText: 2022 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
+
+#include "gpu_shader_common_color_utils.glsl"
 
 void combine_color_rgb(float r, float g, float b, out vec4 col)
 {

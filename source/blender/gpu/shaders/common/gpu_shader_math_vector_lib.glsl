@@ -1,5 +1,10 @@
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#pragma BLENDER_REQUIRE(gpu_shader_math_base_lib.glsl)
+#pragma once
+
+#include "gpu_shader_math_base_lib.glsl"
 
 /* WORKAROUND: to guard against double include in EEVEE. */
 #ifndef GPU_SHADER_MATH_VECTOR_LIB_GLSL
@@ -40,6 +45,24 @@ vec4 safe_mod(vec4 a, vec4 b);
 vec2 safe_mod(vec2 a, float b);
 vec3 safe_mod(vec3 a, float b);
 vec4 safe_mod(vec4 a, float b);
+
+/**
+ * A version of mod that behaves similar to C++ `std::modf`, and is safe such that it returns 0
+ * when b is also 0.
+ */
+vec2 compatible_mod(vec2 a, vec2 b);
+vec3 compatible_mod(vec3 a, vec3 b);
+vec4 compatible_mod(vec4 a, vec4 b);
+vec2 compatible_mod(vec2 a, float b);
+vec3 compatible_mod(vec3 a, float b);
+vec4 compatible_mod(vec4 a, float b);
+
+/**
+ * Wrap the given value a to fall within the range [b, c].
+ */
+vec2 wrap(vec2 a, vec2 b, vec2 c);
+vec3 wrap(vec3 a, vec3 b, vec3 c);
+vec4 wrap(vec4 a, vec4 b, vec4 c);
 
 /**
  * Returns \a a if it is a multiple of \a b or the next multiple or \a b after \b a .
@@ -139,6 +162,14 @@ vec3 safe_rcp(vec3 a);
 vec4 safe_rcp(vec4 a);
 
 /**
+ * A version of pow that returns a fallback value if the computation is undefined. From the spec:
+ * The result is undefined if x < 0 or if x = 0 and y is less than or equal 0.
+ */
+vec2 fallback_pow(vec2 a, float b, vec2 fallback);
+vec3 fallback_pow(vec3 a, float b, vec3 fallback);
+vec4 fallback_pow(vec4 a, float b, vec4 fallback);
+
+/**
  * Per component linear interpolation.
  */
 vec2 interpolate(vec2 a, vec2 b, float t);
@@ -173,6 +204,7 @@ vec3 orthogonal(vec3 v);
  * \note Returned vector is always rotated 90 degrees counter clock wise.
  */
 vec2 orthogonal(vec2 v);
+ivec2 orthogonal(ivec2 v);
 
 /**
  * Return true if the difference between`a` and `b` is below the `epsilon` value.
@@ -181,13 +213,59 @@ bool is_equal(vec2 a, vec2 b, const float epsilon);
 bool is_equal(vec3 a, vec3 b, const float epsilon);
 bool is_equal(vec4 a, vec4 b, const float epsilon);
 
-#  endif /* GPU_METAL */
+/**
+ * Return the maximum component of a vector.
+ */
+float reduce_max(vec2 a);
+float reduce_max(vec3 a);
+float reduce_max(vec4 a);
+int reduce_max(ivec2 a);
+int reduce_max(ivec3 a);
+int reduce_max(ivec4 a);
+
+/**
+ * Return the minimum component of a vector.
+ */
+float reduce_min(vec2 a);
+float reduce_min(vec3 a);
+float reduce_min(vec4 a);
+int reduce_min(ivec2 a);
+int reduce_min(ivec3 a);
+int reduce_min(ivec4 a);
+
+/**
+ * Return the sum of the components of a vector.
+ */
+float reduce_add(vec2 a);
+float reduce_add(vec3 a);
+float reduce_add(vec4 a);
+int reduce_add(ivec2 a);
+int reduce_add(ivec3 a);
+int reduce_add(ivec4 a);
+
+/**
+ * Return the product of the components of a vector.
+ */
+float reduce_mul(vec2 a);
+float reduce_mul(vec3 a);
+float reduce_mul(vec4 a);
+int reduce_mul(ivec2 a);
+int reduce_mul(ivec3 a);
+int reduce_mul(ivec4 a);
+
+/**
+ * Return the average of the components of a vector.
+ */
+float average(vec2 a);
+float average(vec3 a);
+float average(vec4 a);
+
+#  endif /* !GPU_METAL */
 
 /* ---------------------------------------------------------------------- */
 /** \name Implementation
  * \{ */
 
-#  ifdef GPU_METAL /* Already defined in shader_defines.msl/glsl to move here. */
 bool is_zero(vec2 vec)
 {
   return all(equal(vec, vec2(0.0)));
@@ -200,7 +278,6 @@ bool is_zero(vec4 vec)
 {
   return all(equal(vec, vec4(0.0)));
 }
-#  endif
 
 bool is_any_zero(vec2 vec)
 {
@@ -267,6 +344,51 @@ vec3 safe_mod(vec3 a, float b)
 vec4 safe_mod(vec4 a, float b)
 {
   return (b != 0.0) ? mod(a, vec4(b)) : vec4(0);
+}
+
+vec2 compatible_mod(vec2 a, float b)
+{
+  return vec2(compatible_mod(a.x, b), compatible_mod(a.y, b));
+}
+vec3 compatible_mod(vec3 a, float b)
+{
+  return vec3(compatible_mod(a.x, b), compatible_mod(a.y, b), compatible_mod(a.z, b));
+}
+vec4 compatible_mod(vec4 a, float b)
+{
+  return vec4(compatible_mod(a.x, b),
+              compatible_mod(a.y, b),
+              compatible_mod(a.z, b),
+              compatible_mod(a.w, b));
+}
+
+vec2 compatible_mod(vec2 a, vec2 b)
+{
+  return vec2(compatible_mod(a.x, b.x), compatible_mod(a.y, b.y));
+}
+vec3 compatible_mod(vec3 a, vec3 b)
+{
+  return vec3(compatible_mod(a.x, b.x), compatible_mod(a.y, b.y), compatible_mod(a.z, b.z));
+}
+vec4 compatible_mod(vec4 a, vec4 b)
+{
+  return vec4(compatible_mod(a.x, b.x),
+              compatible_mod(a.y, b.y),
+              compatible_mod(a.z, b.z),
+              compatible_mod(a.w, b.w));
+}
+
+vec2 wrap(vec2 a, vec2 b, vec2 c)
+{
+  return vec2(wrap(a.x, b.x, c.x), wrap(a.y, b.y, c.y));
+}
+vec3 wrap(vec3 a, vec3 b, vec3 c)
+{
+  return vec3(wrap(a.x, b.x, c.x), wrap(a.y, b.y, c.y), wrap(a.z, b.z, c.z));
+}
+vec4 wrap(vec4 a, vec4 b, vec4 c)
+{
+  return vec4(wrap(a.x, b.x, c.x), wrap(a.y, b.y, c.y), wrap(a.z, b.z, c.z), wrap(a.w, b.w, c.w));
 }
 
 ivec2 ceil_to_multiple(ivec2 a, ivec2 b)
@@ -429,7 +551,7 @@ vec2 normalize_and_get_length(vec2 vector, out float out_length)
     out_length = sqrt(out_length);
     return vector / out_length;
   }
-  /* Either the vector is small or one of it's values contained `nan`. */
+  /* Either the vector is small or one of its values contained `nan`. */
   out_length = 0.0;
   return vec2(0.0);
 }
@@ -441,7 +563,7 @@ vec3 normalize_and_get_length(vec3 vector, out float out_length)
     out_length = sqrt(out_length);
     return vector / out_length;
   }
-  /* Either the vector is small or one of it's values contained `nan`. */
+  /* Either the vector is small or one of its values contained `nan`. */
   out_length = 0.0;
   return vec3(0.0);
 }
@@ -453,7 +575,7 @@ vec4 normalize_and_get_length(vec4 vector, out float out_length)
     out_length = sqrt(out_length);
     return vector / out_length;
   }
-  /* Either the vector is small or one of it's values contained `nan`. */
+  /* Either the vector is small or one of its values contained `nan`. */
   out_length = 0.0;
   return vec4(0.0);
 }
@@ -466,7 +588,7 @@ vec2 safe_normalize_and_get_length(vec2 vector, out float out_length)
     out_length = sqrt(out_length);
     return vector / out_length;
   }
-  /* Either the vector is small or one of it's values contained `nan`. */
+  /* Either the vector is small or one of its values contained `nan`. */
   out_length = 0.0;
   return vec2(1.0, 0.0);
 }
@@ -478,7 +600,7 @@ vec3 safe_normalize_and_get_length(vec3 vector, out float out_length)
     out_length = sqrt(out_length);
     return vector / out_length;
   }
-  /* Either the vector is small or one of it's values contained `nan`. */
+  /* Either the vector is small or one of its values contained `nan`. */
   out_length = 0.0;
   return vec3(1.0, 0.0, 0.0);
 }
@@ -490,24 +612,24 @@ vec4 safe_normalize_and_get_length(vec4 vector, out float out_length)
     out_length = sqrt(out_length);
     return vector / out_length;
   }
-  /* Either the vector is small or one of it's values contained `nan`. */
+  /* Either the vector is small or one of its values contained `nan`. */
   out_length = 0.0;
   return vec4(1.0, 0.0, 0.0, 0.0);
 }
 
 vec2 safe_normalize(vec2 vector)
 {
-  float unused_length;
+  float unused_length = 0.0;
   return safe_normalize_and_get_length(vector, unused_length);
 }
 vec3 safe_normalize(vec3 vector)
 {
-  float unused_length;
+  float unused_length = 0.0;
   return safe_normalize_and_get_length(vector, unused_length);
 }
 vec4 safe_normalize(vec4 vector)
 {
-  float unused_length;
+  float unused_length = 0.0;
   return safe_normalize_and_get_length(vector, unused_length);
 }
 
@@ -522,6 +644,24 @@ vec3 safe_rcp(vec3 a)
 vec4 safe_rcp(vec4 a)
 {
   return select(vec4(0.0), (1.0 / a), notEqual(a, vec4(0.0)));
+}
+
+vec2 fallback_pow(vec2 a, float b, vec2 fallback)
+{
+  return vec2(fallback_pow(a.x, b, fallback.x), fallback_pow(a.y, b, fallback.y));
+}
+vec3 fallback_pow(vec3 a, float b, vec3 fallback)
+{
+  return vec3(fallback_pow(a.x, b, fallback.x),
+              fallback_pow(a.y, b, fallback.y),
+              fallback_pow(a.z, b, fallback.z));
+}
+vec4 fallback_pow(vec4 a, float b, vec4 fallback)
+{
+  return vec4(fallback_pow(a.x, b, fallback.x),
+              fallback_pow(a.y, b, fallback.y),
+              fallback_pow(a.z, b, fallback.z),
+              fallback_pow(a.w, b, fallback.w));
 }
 
 vec2 interpolate(vec2 a, vec2 b, float t)
@@ -573,6 +713,10 @@ vec2 orthogonal(vec2 v)
 {
   return vec2(-v.y, v.x);
 }
+ivec2 orthogonal(ivec2 v)
+{
+  return ivec2(-v.y, v.x);
+}
 
 bool is_equal(vec2 a, vec2 b, const float epsilon)
 {
@@ -585,6 +729,119 @@ bool is_equal(vec3 a, vec3 b, const float epsilon)
 bool is_equal(vec4 a, vec4 b, const float epsilon)
 {
   return all(lessThanEqual(abs(a - b), vec4(epsilon)));
+}
+
+float reduce_max(vec2 a)
+{
+  return max(a.x, a.y);
+}
+float reduce_max(vec3 a)
+{
+  return max(a.x, max(a.y, a.z));
+}
+float reduce_max(vec4 a)
+{
+  return max(max(a.x, a.y), max(a.z, a.w));
+}
+int reduce_max(ivec2 a)
+{
+  return max(a.x, a.y);
+}
+int reduce_max(ivec3 a)
+{
+  return max(a.x, max(a.y, a.z));
+}
+int reduce_max(ivec4 a)
+{
+  return max(max(a.x, a.y), max(a.z, a.w));
+}
+
+float reduce_min(vec2 a)
+{
+  return min(a.x, a.y);
+}
+float reduce_min(vec3 a)
+{
+  return min(a.x, min(a.y, a.z));
+}
+float reduce_min(vec4 a)
+{
+  return min(min(a.x, a.y), min(a.z, a.w));
+}
+int reduce_min(ivec2 a)
+{
+  return min(a.x, a.y);
+}
+int reduce_min(ivec3 a)
+{
+  return min(a.x, min(a.y, a.z));
+}
+int reduce_min(ivec4 a)
+{
+  return min(min(a.x, a.y), min(a.z, a.w));
+}
+
+float reduce_add(vec2 a)
+{
+  return a.x + a.y;
+}
+float reduce_add(vec3 a)
+{
+  return a.x + a.y + a.z;
+}
+float reduce_add(vec4 a)
+{
+  return a.x + a.y + a.z + a.w;
+}
+int reduce_add(ivec2 a)
+{
+  return a.x + a.y;
+}
+int reduce_add(ivec3 a)
+{
+  return a.x + a.y + a.z;
+}
+int reduce_add(ivec4 a)
+{
+  return a.x + a.y + a.z + a.w;
+}
+
+float reduce_mul(vec2 a)
+{
+  return a.x * a.y;
+}
+float reduce_mul(vec3 a)
+{
+  return a.x * a.y * a.z;
+}
+float reduce_mul(vec4 a)
+{
+  return a.x * a.y * a.z * a.w;
+}
+int reduce_mul(ivec2 a)
+{
+  return a.x * a.y;
+}
+int reduce_mul(ivec3 a)
+{
+  return a.x * a.y * a.z;
+}
+int reduce_mul(ivec4 a)
+{
+  return a.x * a.y * a.z * a.w;
+}
+
+float average(vec2 a)
+{
+  return reduce_add(a) * (1.0 / 2.0);
+}
+float average(vec3 a)
+{
+  return reduce_add(a) * (1.0 / 3.0);
+}
+float average(vec4 a)
+{
+  return reduce_add(a) * (1.0 / 4.0);
 }
 
 #  define ASSERT_UNIT_EPSILON 0.0002

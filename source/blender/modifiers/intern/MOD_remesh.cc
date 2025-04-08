@@ -12,29 +12,26 @@
 #include "BLI_threads.h"
 #include "BLI_utildefines.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "DNA_defaults.h"
-#include "DNA_mesh_types.h"
-#include "DNA_meshdata_types.h"
 #include "DNA_modifier_types.h"
-#include "DNA_object_types.h"
 #include "DNA_screen_types.h"
 
-#include "BKE_context.h"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_remesh_voxel.hh"
 #include "BKE_mesh_runtime.hh"
-#include "BKE_screen.h"
 
 #include "UI_interface.hh"
 #include "UI_resources.hh"
 
 #include "RNA_access.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "MOD_modifiertypes.hh"
 #include "MOD_ui_common.hh"
+
+#include "GEO_randomize.hh"
 
 #include <cstdlib>
 #include <cstring>
@@ -62,14 +59,14 @@ static void init_dualcon_mesh(DualConInput *input, Mesh *mesh)
 
   input->co = (DualConCo)mesh->vert_positions().data();
   input->co_stride = sizeof(blender::float3);
-  input->totco = mesh->totvert;
+  input->totco = mesh->verts_num;
 
-  input->mloop = (DualConLoop)mesh->corner_verts().data();
-  input->loop_stride = sizeof(int);
+  input->corner_verts = (DualConCornerVerts)mesh->corner_verts().data();
+  input->corner_verts_stride = sizeof(int);
 
-  input->looptri = (DualConTri)mesh->looptris().data();
-  input->tri_stride = sizeof(MLoopTri);
-  input->tottri = BKE_mesh_runtime_looptri_len(mesh);
+  input->corner_tris = (DualConTri)mesh->corner_tris().data();
+  input->tri_stride = sizeof(blender::int3);
+  input->tottri = BKE_mesh_runtime_corner_tris_len(mesh);
 
   const blender::Bounds<blender::float3> bounds = *mesh->bounds_min_max();
   copy_v3_v3(input->min, bounds.min);
@@ -89,9 +86,9 @@ struct DualConOutput {
 /* allocate and initialize a DualConOutput */
 static void *dualcon_alloc_output(int totvert, int totquad)
 {
-  DualConOutput *output;
+  DualConOutput *output = MEM_callocN<DualConOutput>(__func__);
 
-  if (!(output = MEM_cnew<DualConOutput>(__func__))) {
+  if (!output) {
     return nullptr;
   }
 
@@ -107,7 +104,7 @@ static void dualcon_add_vert(void *output_v, const float co[3])
 {
   DualConOutput *output = static_cast<DualConOutput *>(output_v);
 
-  BLI_assert(output->curvert < output->mesh->totvert);
+  BLI_assert(output->curvert < output->mesh->verts_num);
 
   copy_v3_v3(output->vert_positions[output->curvert], co);
   output->curvert++;
@@ -130,28 +127,34 @@ static void dualcon_add_quad(void *output_v, const int vert_indices[4])
   output->curface++;
 }
 
-static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext * /*ctx*/, Mesh *mesh)
+static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh *mesh)
 {
-  RemeshModifierData *rmd;
-  DualConOutput *output;
-  DualConInput input;
+  using namespace blender;
+  RemeshModifierData *rmd = (RemeshModifierData *)md;
   Mesh *result;
-  DualConFlags flags = DualConFlags(0);
-  DualConMode mode = DualConMode(0);
-
-  rmd = (RemeshModifierData *)md;
 
   if (rmd->mode == MOD_REMESH_VOXEL) {
     /* OpenVDB modes. */
     if (rmd->voxel_size == 0.0f) {
+      BKE_modifier_set_error(ctx->object, md, "Zero voxel size cannot be solved");
       return nullptr;
     }
-    result = BKE_mesh_remesh_voxel(mesh, rmd->voxel_size, rmd->adaptivity, 0.0f);
+    result = BKE_mesh_remesh_voxel(mesh, rmd->voxel_size, rmd->adaptivity, 0.0f, ctx->object, md);
     if (result == nullptr) {
       return nullptr;
     }
   }
   else {
+    if (rmd->scale == 0.0f) {
+      BKE_modifier_set_error(ctx->object, md, "Zero scale cannot be solved");
+      return nullptr;
+    }
+
+    DualConOutput *output;
+    DualConInput input;
+    DualConFlags flags = DualConFlags(0);
+    DualConMode mode = DualConMode(0);
+
     /* Dualcon modes. */
     init_dualcon_mesh(&input, mesh);
 
@@ -194,10 +197,13 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext * /*ctx*/, 
     MEM_freeN(output);
   }
 
-  BKE_mesh_smooth_flag_set(result, rmd->flag & MOD_REMESH_SMOOTH_SHADING);
+  bke::mesh_smooth_set(*result, rmd->flag & MOD_REMESH_SMOOTH_SHADING);
 
   BKE_mesh_copy_parameters_for_eval(result, mesh);
-  BKE_mesh_calc_edges(result, true, false);
+  bke::mesh_calc_edges(*result, true, false);
+
+  blender::geometry::debug_randomize_mesh_order(result);
+
   return result;
 }
 
@@ -221,34 +227,34 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
 
   int mode = RNA_enum_get(ptr, "mode");
 
-  uiItemR(layout, ptr, "mode", UI_ITEM_R_EXPAND, nullptr, ICON_NONE);
+  uiItemR(layout, ptr, "mode", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
 
   uiLayoutSetPropSep(layout, true);
 
   col = uiLayoutColumn(layout, false);
   if (mode == MOD_REMESH_VOXEL) {
-    uiItemR(col, ptr, "voxel_size", UI_ITEM_NONE, nullptr, ICON_NONE);
-    uiItemR(col, ptr, "adaptivity", UI_ITEM_NONE, nullptr, ICON_NONE);
+    uiItemR(col, ptr, "voxel_size", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    uiItemR(col, ptr, "adaptivity", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
   else {
-    uiItemR(col, ptr, "octree_depth", UI_ITEM_NONE, nullptr, ICON_NONE);
-    uiItemR(col, ptr, "scale", UI_ITEM_NONE, nullptr, ICON_NONE);
+    uiItemR(col, ptr, "octree_depth", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    uiItemR(col, ptr, "scale", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
     if (mode == MOD_REMESH_SHARP_FEATURES) {
-      uiItemR(col, ptr, "sharpness", UI_ITEM_NONE, nullptr, ICON_NONE);
+      uiItemR(col, ptr, "sharpness", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     }
 
-    uiItemR(layout, ptr, "use_remove_disconnected", UI_ITEM_NONE, nullptr, ICON_NONE);
+    uiItemR(layout, ptr, "use_remove_disconnected", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     row = uiLayoutRow(layout, false);
     uiLayoutSetActive(row, RNA_boolean_get(ptr, "use_remove_disconnected"));
-    uiItemR(layout, ptr, "threshold", UI_ITEM_NONE, nullptr, ICON_NONE);
+    uiItemR(layout, ptr, "threshold", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
-  uiItemR(layout, ptr, "use_smooth_shade", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(layout, ptr, "use_smooth_shade", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   modifier_panel_end(layout, ptr);
 
 #else  /* WITH_MOD_REMESH */
-  uiItemL(layout, TIP_("Built without Remesh modifier"), ICON_NONE);
+  uiItemL(layout, RPT_("Built without Remesh modifier"), ICON_NONE);
 #endif /* WITH_MOD_REMESH */
 }
 
@@ -263,7 +269,7 @@ ModifierTypeInfo modifierType_Remesh = {
     /*struct_name*/ "RemeshModifierData",
     /*struct_size*/ sizeof(RemeshModifierData),
     /*srna*/ &RNA_RemeshModifier,
-    /*type*/ eModifierTypeType_Nonconstructive,
+    /*type*/ ModifierTypeType::Nonconstructive,
     /*flags*/ eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_AcceptsCVs |
         eModifierTypeFlag_SupportsEditmode,
     /*icon*/ ICON_MOD_REMESH,
@@ -290,4 +296,5 @@ ModifierTypeInfo modifierType_Remesh = {
     /*panel_register*/ panel_register,
     /*blend_write*/ nullptr,
     /*blend_read*/ nullptr,
+    /*foreach_cache*/ nullptr,
 };

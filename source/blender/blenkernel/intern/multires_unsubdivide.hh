@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2020 Blender Foundation
+/* SPDX-FileCopyrightText: 2020 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -8,10 +8,11 @@
 
 #pragma once
 
-#include "BLI_sys_types.h"
+#include "BLI_span.hh"
 
 struct BMesh;
 struct Mesh;
+struct MDisps;
 struct MultiresModifierData;
 
 struct MultiresUnsubdivideGrid {
@@ -52,7 +53,7 @@ struct MultiresUnsubdivideContext {
 
   /* Private data. */
   BMesh *bm_original_mesh;
-  blender::Array<int> loop_to_face_map;
+  blender::Span<int> loop_to_face_map;
   const int *base_to_orig_vmap;
 };
 

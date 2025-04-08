@@ -1,5 +1,10 @@
+/* SPDX-FileCopyrightText: 2022-2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#pragma BLENDER_REQUIRE(common_math_geom_lib.glsl)
+#pragma once
+
+#include "gpu_glsl_cpp_stubs.hh"
 
 /**
  * Geometric shape structures.
@@ -199,13 +204,7 @@ struct Cone {
   vec3 direction;
   float angle_cos;
 
-#ifdef GPU_METAL
-  inline Cone() = default;
-  inline Cone(vec3 in_direction, float in_angle_cos)
-      : direction(in_direction), angle_cos(in_angle_cos)
-  {
-  }
-#endif
+  METAL_CONSTRUCTOR_2(Cone, vec3, direction, float, angle_cos)
 };
 
 Cone shape_cone(vec3 direction, float angle_cosine)

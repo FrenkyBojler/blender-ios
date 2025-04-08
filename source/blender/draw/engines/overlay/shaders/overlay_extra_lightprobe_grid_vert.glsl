@@ -1,6 +1,16 @@
+/* SPDX-FileCopyrightText: 2019-2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#pragma BLENDER_REQUIRE(common_view_clipping_lib.glsl)
-#pragma BLENDER_REQUIRE(common_view_lib.glsl)
+#include "infos/overlay_extra_info.hh"
+
+VERTEX_SHADER_CREATE_INFO(overlay_extra_grid_base)
+VERTEX_SHADER_CREATE_INFO(draw_modelmat)
+
+#include "draw_model_lib.glsl"
+#include "draw_view_clipping_lib.glsl"
+#include "draw_view_lib.glsl"
+#include "select_lib.glsl"
 
 vec4 color_from_id(float color_id)
 {
@@ -24,6 +34,7 @@ vec4 color_from_id(float color_id)
 
 void main()
 {
+  select_id_set(drw_custom_id());
   mat4 model_mat = gridModelMatrix;
   model_mat[0][3] = model_mat[1][3] = model_mat[2][3] = 0.0;
   model_mat[3][3] = 1.0;
@@ -37,12 +48,12 @@ void main()
   ls_cell_location.y = float((gl_VertexID / grid_resolution.z) % grid_resolution.y);
   ls_cell_location.x = float(gl_VertexID / (grid_resolution.z * grid_resolution.y));
 
-  ls_cell_location += 0.5;
-  ls_cell_location /= vec3(grid_resolution);
+  ls_cell_location += 1.0;
+  ls_cell_location /= vec3(grid_resolution + 1);
   ls_cell_location = ls_cell_location * 2.0 - 1.0;
 
   vec3 ws_cell_location = (model_mat * vec4(ls_cell_location, 1.0)).xyz;
-  gl_Position = point_world_to_ndc(ws_cell_location);
+  gl_Position = drw_point_world_to_homogenous(ws_cell_location);
   gl_PointSize = sizeVertex * 2.0;
 
   finalColor = color_from_id(color_id);

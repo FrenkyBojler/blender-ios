@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -20,9 +20,7 @@
 
 #include "../winged_edge/Nature.h"
 
-#ifdef WITH_CXX_GUARDEDALLOC
-#  include "MEM_guardedalloc.h"
-#endif
+#include "MEM_guardedalloc.h"
 
 using namespace std;
 
@@ -199,9 +197,7 @@ class Interface1D {
  protected:
   uint _timeStamp;
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("Freestyle:Interface1D")
-#endif
 };
 
 } /* namespace Freestyle */

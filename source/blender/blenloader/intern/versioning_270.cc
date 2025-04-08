@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -6,14 +6,15 @@
  * \ingroup blenloader
  */
 
-#include "BLI_compiler_attrs.h"
 #include "BLI_utildefines.h"
 
-/* for MinGW32 definition of NULL, could use BLI_blenlib.h instead too */
-#include <cstddef>
+#include <string>
 
 /* allow readfile to use deprecated functionality */
 #define DNA_DEPRECATED_ALLOW
+
+/* Define macros in `DNA_genfile.h`. */
+#define DNA_GENFILE_VERSIONING_MACROS
 
 #include "DNA_anim_types.h"
 #include "DNA_armature_types.h"
@@ -28,51 +29,53 @@
 #include "DNA_mask_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_modifier_types.h"
-#include "DNA_object_force_types.h"
 #include "DNA_object_types.h"
 #include "DNA_particle_types.h"
 #include "DNA_pointcache_types.h"
 #include "DNA_rigidbody_types.h"
 #include "DNA_screen_types.h"
-#include "DNA_sdna_types.h"
 #include "DNA_sequence_types.h"
 #include "DNA_space_types.h"
+#include "DNA_userdef_types.h"
 #include "DNA_view3d_types.h"
+#include "DNA_windowmanager_types.h"
 
 #include "DNA_genfile.h"
 
-#include "BKE_anim_data.h"
+#undef DNA_GENFILE_VERSIONING_MACROS
+
+#include "BKE_anim_data.hh"
 #include "BKE_animsys.h"
-#include "BKE_colortools.h"
+#include "BKE_colortools.hh"
+#include "BKE_customdata.hh"
 #include "BKE_fcurve_driver.h"
-#include "BKE_main.h"
+#include "BKE_main.hh"
 #include "BKE_mask.h"
-#include "BKE_modifier.h"
-#include "BKE_node.h"
-#include "BKE_scene.h"
-#include "BKE_screen.h"
-#include "BKE_tracking.h"
+#include "BKE_modifier.hh"
+#include "BKE_node.hh"
+#include "BKE_node_legacy_types.hh"
+#include "BKE_scene.hh"
+#include "BKE_screen.hh"
 #include "DNA_material_types.h"
 
-#include "SEQ_effects.h"
-#include "SEQ_iterator.h"
+#include "SEQ_effects.hh"
+#include "SEQ_iterator.hh"
 
 #include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
 #include "BLI_string.h"
-#include "BLI_string_utils.h"
+#include "BLI_string_utils.hh"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
-#include "BLO_readfile.h"
+#include "BLO_readfile.hh"
 
-#include "NOD_common.h"
-#include "NOD_composite.h"
+#include "NOD_composite.hh"
 #include "NOD_socket.hh"
 
-#include "readfile.h"
+#include "readfile.hh"
 
 #include "MEM_guardedalloc.h"
 
@@ -93,7 +96,7 @@ static bGPDpalette *BKE_gpencil_palette_addnew(bGPdata *gpd, const char *name)
   }
 
   /* allocate memory and add to end of list */
-  palette = static_cast<bGPDpalette *>(MEM_callocN(sizeof(bGPDpalette), "bGPDpalette"));
+  palette = MEM_callocN<bGPDpalette>("bGPDpalette");
 
   /* add to datablock */
   BLI_addtail(&gpd->palettes, palette);
@@ -123,8 +126,7 @@ static bGPDpalettecolor *BKE_gpencil_palettecolor_addnew(bGPDpalette *palette, c
   }
 
   /* allocate memory and add to end of list */
-  palcolor = static_cast<bGPDpalettecolor *>(
-      MEM_callocN(sizeof(bGPDpalettecolor), "bGPDpalettecolor"));
+  palcolor = MEM_callocN<bGPDpalettecolor>("bGPDpalettecolor");
 
   /* add to datablock */
   BLI_addtail(&palette->colors, palcolor);
@@ -230,8 +232,7 @@ static void do_version_action_editor_properties_region(ListBase *regionbase)
     }
     if (region->regiontype == RGN_TYPE_WINDOW) {
       /* add new region here */
-      ARegion *region_new = static_cast<ARegion *>(
-          MEM_callocN(sizeof(ARegion), "buttons for action"));
+      ARegion *region_new = BKE_area_region_new();
 
       BLI_insertlinkbefore(regionbase, region, region_new);
 
@@ -276,18 +277,20 @@ static void do_version_hue_sat_node(bNodeTree *ntree, bNode *node)
 
   /* Convert value from old storage to new sockets. */
   NodeHueSat *nhs = static_cast<NodeHueSat *>(node->storage);
-  bNodeSocket *hue = nodeFindSocket(node, SOCK_IN, "Hue");
-  bNodeSocket *saturation = nodeFindSocket(node, SOCK_IN, "Saturation");
-  bNodeSocket *value = nodeFindSocket(node, SOCK_IN, "Value");
+  bNodeSocket *hue = blender::bke::node_find_socket(*node, SOCK_IN, "Hue");
+  bNodeSocket *saturation = blender::bke::node_find_socket(*node, SOCK_IN, "Saturation");
+  bNodeSocket *value = blender::bke::node_find_socket(*node, SOCK_IN, "Value");
   if (hue == nullptr) {
-    hue = nodeAddStaticSocket(ntree, node, SOCK_IN, SOCK_FLOAT, PROP_FACTOR, "Hue", "Hue");
+    hue = blender::bke::node_add_static_socket(
+        *ntree, *node, SOCK_IN, SOCK_FLOAT, PROP_FACTOR, "Hue", "Hue");
   }
   if (saturation == nullptr) {
-    saturation = nodeAddStaticSocket(
-        ntree, node, SOCK_IN, SOCK_FLOAT, PROP_FACTOR, "Saturation", "Saturation");
+    saturation = blender::bke::node_add_static_socket(
+        *ntree, *node, SOCK_IN, SOCK_FLOAT, PROP_FACTOR, "Saturation", "Saturation");
   }
   if (value == nullptr) {
-    value = nodeAddStaticSocket(ntree, node, SOCK_IN, SOCK_FLOAT, PROP_FACTOR, "Value", "Value");
+    value = blender::bke::node_add_static_socket(
+        *ntree, *node, SOCK_IN, SOCK_FLOAT, PROP_FACTOR, "Value", "Value");
   }
 
   ((bNodeSocketValueFloat *)hue->default_value)->value = nhs->hue;
@@ -322,8 +325,7 @@ static void do_versions_compositor_render_passes_storage(bNode *node)
        sock = static_cast<bNodeSocket *>(sock->next), pass_index++)
   {
     if (sock->storage == nullptr) {
-      NodeImageLayer *sockdata = static_cast<NodeImageLayer *>(
-          MEM_callocN(sizeof(NodeImageLayer), "node image layer"));
+      NodeImageLayer *sockdata = MEM_callocN<NodeImageLayer>("node image layer");
       sock->storage = sockdata;
       STRNCPY(sockdata->pass_name, node_cmp_rlayers_sock_to_pass(pass_index));
 
@@ -344,7 +346,7 @@ static void do_versions_compositor_render_passes_storage(bNode *node)
 static void do_versions_compositor_render_passes(bNodeTree *ntree)
 {
   LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
-    if (node->type == CMP_NODE_R_LAYERS) {
+    if (node->type_legacy == CMP_NODE_R_LAYERS) {
       /* First we make sure existing sockets have proper names.
        * This is important because otherwise verification will
        * drop links from sockets which were renamed.
@@ -380,7 +382,7 @@ static char *replace_bbone_easing_rnapath(char *old_path)
   return old_path;
 }
 
-static void do_version_bbone_easing_fcurve_fix(ID * /*id*/, FCurve *fcu, void * /*user_data*/)
+static void do_version_bbone_easing_fcurve_fix(ID * /*id*/, FCurve *fcu)
 {
   /* F-Curve's path (for bbone_in/out) */
   if (fcu->rna_path) {
@@ -417,39 +419,37 @@ static void do_version_bbone_easing_fcurve_fix(ID * /*id*/, FCurve *fcu, void * 
   }
 }
 
-static bool seq_update_proxy_cb(Sequence *seq, void * /*user_data*/)
+static bool strip_update_proxy_cb(Strip *strip, void * /*user_data*/)
 {
-  seq->stereo3d_format = static_cast<Stereo3dFormat *>(
-      MEM_callocN(sizeof(Stereo3dFormat), "Stereo Display 3d Format"));
+  strip->stereo3d_format = MEM_callocN<Stereo3dFormat>("Stereo Display 3d Format");
 
-#define SEQ_USE_PROXY_CUSTOM_DIR (1 << 19)
-#define SEQ_USE_PROXY_CUSTOM_FILE (1 << 21)
-  if (seq->strip && seq->strip->proxy && !seq->strip->proxy->storage) {
-    if (seq->flag & SEQ_USE_PROXY_CUSTOM_DIR) {
-      seq->strip->proxy->storage = SEQ_STORAGE_PROXY_CUSTOM_DIR;
+#define STRIP_USE_PROXY_CUSTOM_DIR (1 << 19)
+#define STRIP_USE_PROXY_CUSTOM_FILE (1 << 21)
+  if (strip->data && strip->data->proxy && !strip->data->proxy->storage) {
+    if (strip->flag & STRIP_USE_PROXY_CUSTOM_DIR) {
+      strip->data->proxy->storage = SEQ_STORAGE_PROXY_CUSTOM_DIR;
     }
-    if (seq->flag & SEQ_USE_PROXY_CUSTOM_FILE) {
-      seq->strip->proxy->storage = SEQ_STORAGE_PROXY_CUSTOM_FILE;
+    if (strip->flag & STRIP_USE_PROXY_CUSTOM_FILE) {
+      strip->data->proxy->storage = SEQ_STORAGE_PROXY_CUSTOM_FILE;
     }
   }
-#undef SEQ_USE_PROXY_CUSTOM_DIR
-#undef SEQ_USE_PROXY_CUSTOM_FILE
+#undef STRIP_USE_PROXY_CUSTOM_DIR
+#undef STRIP_USE_PROXY_CUSTOM_FILE
   return true;
 }
 
-static bool seq_update_effectdata_cb(Sequence *seq, void * /*user_data*/)
+static bool strip_update_effectdata_cb(Strip *strip, void * /*user_data*/)
 {
-
-  if (seq->type != SEQ_TYPE_TEXT) {
+  if (strip->type != STRIP_TYPE_TEXT) {
     return true;
   }
 
-  if (seq->effectdata == nullptr) {
-    SeqEffectHandle effect_handle = SEQ_effect_handle_get(seq);
-    effect_handle.init(seq);
+  if (strip->effectdata == nullptr) {
+    blender::seq::EffectHandle effect_handle = blender::seq::effect_handle_get(strip);
+    effect_handle.init(strip);
   }
 
-  TextVars *data = static_cast<TextVars *>(seq->effectdata);
+  TextVars *data = static_cast<TextVars *>(strip->effectdata);
   if (data->color[3] == 0.0f) {
     copy_v4_fl(data->color, 1.0f);
     data->shadow_color[3] = 1.0f;
@@ -462,7 +462,7 @@ void blo_do_versions_270(FileData *fd, Library * /*lib*/, Main *bmain)
 {
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 270, 0)) {
 
-    if (!DNA_struct_elem_find(fd->filesdna, "BevelModifierData", "float", "profile")) {
+    if (!DNA_struct_member_exists(fd->filesdna, "BevelModifierData", "float", "profile")) {
       LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
         LISTBASE_FOREACH (ModifierData *, md, &ob->modifiers) {
           if (md->type == eModifierType_Bevel) {
@@ -478,7 +478,7 @@ void blo_do_versions_270(FileData *fd, Library * /*lib*/, Main *bmain)
     FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
       if (ntree->type == NTREE_COMPOSIT) {
         LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
-          if (ELEM(node->type, CMP_NODE_COMPOSITE, CMP_NODE_OUTPUT_FILE)) {
+          if (ELEM(node->type_legacy, CMP_NODE_COMPOSITE, CMP_NODE_OUTPUT_FILE)) {
             node->id = nullptr;
           }
         }
@@ -499,7 +499,9 @@ void blo_do_versions_270(FileData *fd, Library * /*lib*/, Main *bmain)
       }
     }
 
-    if (!DNA_struct_elem_find(fd->filesdna, "MovieTrackingSettings", "float", "default_weight")) {
+    if (!DNA_struct_member_exists(
+            fd->filesdna, "MovieTrackingSettings", "float", "default_weight"))
+    {
       LISTBASE_FOREACH (MovieClip *, clip, &bmain->movieclips) {
         clip->tracking.settings.default_weight = 1.0f;
       }
@@ -521,9 +523,9 @@ void blo_do_versions_270(FileData *fd, Library * /*lib*/, Main *bmain)
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 270, 2)) {
-    /* Mesh smoothresh deg->rad. */
+    /* Mesh smoothresh_legacy deg->rad. */
     LISTBASE_FOREACH (Mesh *, me, &bmain->meshes) {
-      me->smoothresh = DEG2RADF(me->smoothresh);
+      me->smoothresh_legacy = DEG2RADF(me->smoothresh_legacy);
     }
   }
 
@@ -567,7 +569,7 @@ void blo_do_versions_270(FileData *fd, Library * /*lib*/, Main *bmain)
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 271, 0)) {
-    if (!DNA_struct_elem_find(fd->filesdna, "RenderData", "BakeData", "bake")) {
+    if (!DNA_struct_member_exists(fd->filesdna, "RenderData", "BakeData", "bake")) {
       LISTBASE_FOREACH (Scene *, sce, &bmain->scenes) {
         sce->r.bake.flag = R_BAKE_CLEAR;
         sce->r.bake.width = 512;
@@ -587,7 +589,7 @@ void blo_do_versions_270(FileData *fd, Library * /*lib*/, Main *bmain)
       }
     }
 
-    if (!DNA_struct_elem_find(fd->filesdna, "FreestyleLineStyle", "float", "texstep")) {
+    if (!DNA_struct_member_exists(fd->filesdna, "FreestyleLineStyle", "float", "texstep")) {
       LISTBASE_FOREACH (FreestyleLineStyle *, linestyle, &bmain->linestyles) {
         linestyle->flag |= LS_TEXTURE;
         linestyle->texstep = 1.0;
@@ -603,7 +605,7 @@ void blo_do_versions_270(FileData *fd, Library * /*lib*/, Main *bmain)
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 271, 1)) {
-    if (!DNA_struct_elem_find(fd->filesdna, "Material", "float", "line_col[4]")) {
+    if (!DNA_struct_member_exists(fd->filesdna, "Material", "float", "line_col[4]")) {
       LISTBASE_FOREACH (Material *, mat, &bmain->materials) {
         mat->line_col[0] = mat->line_col[1] = mat->line_col[2] = 0.0f;
         mat->line_col[3] = mat->alpha;
@@ -616,7 +618,7 @@ void blo_do_versions_270(FileData *fd, Library * /*lib*/, Main *bmain)
       br->fill_threshold = 0.2f;
     }
 
-    if (!DNA_struct_elem_find(fd->filesdna, "BevelModifierData", "int", "mat")) {
+    if (!DNA_struct_member_exists(fd->filesdna, "BevelModifierData", "int", "mat")) {
       LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
         LISTBASE_FOREACH (ModifierData *, md, &ob->modifiers) {
           if (md->type == eModifierType_Bevel) {
@@ -644,7 +646,7 @@ void blo_do_versions_270(FileData *fd, Library * /*lib*/, Main *bmain)
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 272, 1)) {
     LISTBASE_FOREACH (Brush *, br, &bmain->brushes) {
       if ((br->ob_mode & OB_MODE_SCULPT) &&
-          ELEM(br->sculpt_tool, SCULPT_TOOL_GRAB, SCULPT_TOOL_SNAKE_HOOK))
+          ELEM(br->sculpt_brush_type, SCULPT_BRUSH_TYPE_GRAB, SCULPT_BRUSH_TYPE_SNAKE_HOOK))
       {
         br->alpha = 1.0f;
       }
@@ -652,13 +654,13 @@ void blo_do_versions_270(FileData *fd, Library * /*lib*/, Main *bmain)
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 272, 2)) {
-    if (!DNA_struct_elem_find(fd->filesdna, "Image", "float", "gen_color")) {
+    if (!DNA_struct_member_exists(fd->filesdna, "Image", "float", "gen_color")) {
       LISTBASE_FOREACH (Image *, image, &bmain->images) {
         image->gen_color[3] = 1.0f;
       }
     }
 
-    if (!DNA_struct_elem_find(fd->filesdna, "bStretchToConstraint", "float", "bulge_min")) {
+    if (!DNA_struct_member_exists(fd->filesdna, "bStretchToConstraint", "float", "bulge_min")) {
       /* Update Transform constraint (again :|). */
       LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
         do_version_constraints_stretch_to_limits(&ob->constraints);
@@ -696,7 +698,7 @@ void blo_do_versions_270(FileData *fd, Library * /*lib*/, Main *bmain)
 
   /* Customizable Safe Areas */
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 273, 2)) {
-    if (!DNA_struct_elem_find(fd->filesdna, "Scene", "DisplaySafeAreas", "safe_areas")) {
+    if (!DNA_struct_member_exists(fd->filesdna, "Scene", "DisplaySafeAreas", "safe_areas")) {
       LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
         copy_v2_fl2(scene->safe_areas.title, 3.5f / 100.0f, 3.5f / 100.0f);
         copy_v2_fl2(scene->safe_areas.action, 10.0f / 100.0f, 5.0f / 100.0f);
@@ -718,7 +720,7 @@ void blo_do_versions_270(FileData *fd, Library * /*lib*/, Main *bmain)
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 273, 6)) {
-    if (!DNA_struct_elem_find(fd->filesdna, "ClothSimSettings", "float", "bending_damping")) {
+    if (!DNA_struct_member_exists(fd->filesdna, "ClothSimSettings", "float", "bending_damping")) {
       LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
         LISTBASE_FOREACH (ModifierData *, md, &ob->modifiers) {
           if (md->type == eModifierType_Cloth) {
@@ -735,19 +737,19 @@ void blo_do_versions_270(FileData *fd, Library * /*lib*/, Main *bmain)
       }
     }
 
-    if (!DNA_struct_elem_find(fd->filesdna, "ParticleSettings", "float", "clump_noise_size")) {
+    if (!DNA_struct_member_exists(fd->filesdna, "ParticleSettings", "float", "clump_noise_size")) {
       LISTBASE_FOREACH (ParticleSettings *, part, &bmain->particles) {
         part->clump_noise_size = 1.0f;
       }
     }
 
-    if (!DNA_struct_elem_find(fd->filesdna, "ParticleSettings", "int", "kink_extra_steps")) {
+    if (!DNA_struct_member_exists(fd->filesdna, "ParticleSettings", "int", "kink_extra_steps")) {
       LISTBASE_FOREACH (ParticleSettings *, part, &bmain->particles) {
         part->kink_extra_steps = 4;
       }
     }
 
-    if (!DNA_struct_elem_find(fd->filesdna, "MTex", "float", "kinkampfac")) {
+    if (!DNA_struct_member_exists(fd->filesdna, "MTex", "float", "kinkampfac")) {
       LISTBASE_FOREACH (ParticleSettings *, part, &bmain->particles) {
         for (int a = 0; a < MAX_MTEX; a++) {
           MTex *mtex = part->mtex[a];
@@ -758,7 +760,7 @@ void blo_do_versions_270(FileData *fd, Library * /*lib*/, Main *bmain)
       }
     }
 
-    if (!DNA_struct_elem_find(fd->filesdna, "HookModifierData", "char", "flag")) {
+    if (!DNA_struct_member_exists(fd->filesdna, "HookModifierData", "char", "flag")) {
       LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
         LISTBASE_FOREACH (ModifierData *, md, &ob->modifiers) {
           if (md->type == eModifierType_Hook) {
@@ -769,11 +771,11 @@ void blo_do_versions_270(FileData *fd, Library * /*lib*/, Main *bmain)
       }
     }
 
-    if (!DNA_struct_elem_find(fd->filesdna, "NodePlaneTrackDeformData", "char", "flag")) {
+    if (!DNA_struct_member_exists(fd->filesdna, "NodePlaneTrackDeformData", "char", "flag")) {
       FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
         if (ntree->type == NTREE_COMPOSIT) {
           LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
-            if (ELEM(node->type, CMP_NODE_PLANETRACKDEFORM)) {
+            if (ELEM(node->type_legacy, CMP_NODE_PLANETRACKDEFORM)) {
               NodePlaneTrackDeformData *data = static_cast<NodePlaneTrackDeformData *>(
                   node->storage);
               data->flag = 0;
@@ -786,7 +788,7 @@ void blo_do_versions_270(FileData *fd, Library * /*lib*/, Main *bmain)
       FOREACH_NODETREE_END;
     }
 
-    if (!DNA_struct_elem_find(fd->filesdna, "Camera", "GPUDOFSettings", "gpu_dof")) {
+    if (!DNA_struct_member_exists(fd->filesdna, "Camera", "GPUDOFSettings", "gpu_dof")) {
       LISTBASE_FOREACH (Camera *, ca, &bmain->cameras) {
         ca->gpu_dof.fstop = 128.0f;
         ca->gpu_dof.focal_length = 1.0f;
@@ -799,7 +801,9 @@ void blo_do_versions_270(FileData *fd, Library * /*lib*/, Main *bmain)
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 273, 8)) {
     LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
       LISTBASE_FOREACH (ModifierData *, md, &ob->modifiers) {
-        if (BKE_modifier_unique_name(&ob->modifiers, md)) {
+        const std::string old_name = md->name;
+        BKE_modifier_unique_name(&ob->modifiers, md);
+        if (old_name != md->name) {
           printf(
               "Warning: Object '%s' had several modifiers with the "
               "same name, renamed one of them to '%s'.\n",
@@ -854,7 +858,7 @@ void blo_do_versions_270(FileData *fd, Library * /*lib*/, Main *bmain)
       STRNCPY(srv->suffix, STEREO_RIGHT_SUFFIX);
 
       if (scene->ed) {
-        SEQ_for_each_callback(&scene->ed->seqbase, seq_update_proxy_cb, nullptr);
+        blender::seq::for_each_callback(&scene->ed->seqbase, strip_update_proxy_cb, nullptr);
       }
     }
 
@@ -886,12 +890,10 @@ void blo_do_versions_270(FileData *fd, Library * /*lib*/, Main *bmain)
     }
 
     LISTBASE_FOREACH (Image *, ima, &bmain->images) {
-      ima->stereo3d_format = static_cast<Stereo3dFormat *>(
-          MEM_callocN(sizeof(Stereo3dFormat), "Image Stereo 3d Format"));
+      ima->stereo3d_format = MEM_callocN<Stereo3dFormat>("Image Stereo 3d Format");
 
       if (ima->packedfile) {
-        ImagePackedFile *imapf = static_cast<ImagePackedFile *>(
-            MEM_mallocN(sizeof(ImagePackedFile), "Image Packed File"));
+        ImagePackedFile *imapf = MEM_mallocN<ImagePackedFile>("Image Packed File");
         BLI_addtail(&ima->packedfiles, imapf);
 
         imapf->packedfile = ima->packedfile;
@@ -902,14 +904,13 @@ void blo_do_versions_270(FileData *fd, Library * /*lib*/, Main *bmain)
 
     LISTBASE_FOREACH (wmWindowManager *, wm, &bmain->wm) {
       LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
-        win->stereo3d_format = static_cast<Stereo3dFormat *>(
-            MEM_callocN(sizeof(Stereo3dFormat), "Stereo Display 3d Format"));
+        win->stereo3d_format = MEM_callocN<Stereo3dFormat>("Stereo Display 3d Format");
       }
     }
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 274, 6)) {
-    if (!DNA_struct_elem_find(fd->filesdna, "FileSelectParams", "int", "thumbnail_size")) {
+    if (!DNA_struct_member_exists(fd->filesdna, "FileSelectParams", "int", "thumbnail_size")) {
       LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
         LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
           LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
@@ -925,14 +926,16 @@ void blo_do_versions_270(FileData *fd, Library * /*lib*/, Main *bmain)
       }
     }
 
-    if (!DNA_struct_elem_find(fd->filesdna, "RenderData", "short", "simplify_subsurf_render")) {
+    if (!DNA_struct_member_exists(fd->filesdna, "RenderData", "short", "simplify_subsurf_render"))
+    {
       LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
         scene->r.simplify_subsurf_render = scene->r.simplify_subsurf;
         scene->r.simplify_particles_render = scene->r.simplify_particles;
       }
     }
 
-    if (!DNA_struct_elem_find(fd->filesdna, "DecimateModifierData", "float", "defgrp_factor")) {
+    if (!DNA_struct_member_exists(fd->filesdna, "DecimateModifierData", "float", "defgrp_factor"))
+    {
       LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
         LISTBASE_FOREACH (ModifierData *, md, &ob->modifiers) {
           if (md->type == eModifierType_Decimate) {
@@ -953,7 +956,7 @@ void blo_do_versions_270(FileData *fd, Library * /*lib*/, Main *bmain)
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 276, 2)) {
-    if (!DNA_struct_elem_find(fd->filesdna, "bPoseChannel", "float", "custom_scale")) {
+    if (!DNA_struct_member_exists(fd->filesdna, "bPoseChannel", "float", "custom_scale")) {
       LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
         if (ob->pose) {
           LISTBASE_FOREACH (bPoseChannel *, pchan, &ob->pose->chanbase) {
@@ -996,10 +999,12 @@ void blo_do_versions_270(FileData *fd, Library * /*lib*/, Main *bmain)
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 276, 3)) {
-    if (!DNA_struct_elem_find(fd->filesdna, "RenderData", "CurveMapping", "mblur_shutter_curve")) {
+    if (!DNA_struct_member_exists(
+            fd->filesdna, "RenderData", "CurveMapping", "mblur_shutter_curve"))
+    {
       LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
         CurveMapping *curve_mapping = &scene->r.mblur_shutter_curve;
-        BKE_curvemapping_set_defaults(curve_mapping, 1, 0.0f, 0.0f, 1.0f, 1.0f);
+        BKE_curvemapping_set_defaults(curve_mapping, 1, 0.0f, 0.0f, 1.0f, 1.0f, HD_AUTO);
         BKE_curvemapping_init(curve_mapping);
         BKE_curvemap_reset(
             curve_mapping->cm, &curve_mapping->clipr, CURVE_PRESET_MAX, CURVEMAP_SLOPE_POS_NEG);
@@ -1010,7 +1015,7 @@ void blo_do_versions_270(FileData *fd, Library * /*lib*/, Main *bmain)
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 276, 4)) {
     LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
       ToolSettings *ts = scene->toolsettings;
-      if (!DNA_struct_elem_find(fd->filesdna, "ToolSettings", "char", "gpencil_v3d_align")) {
+      if (!DNA_struct_member_exists(fd->filesdna, "ToolSettings", "char", "gpencil_v3d_align")) {
         ts->gpencil_v3d_align = GP_PROJECT_VIEWSPACE;
         ts->gpencil_v2d_align = GP_PROJECT_VIEWSPACE;
       }
@@ -1019,9 +1024,8 @@ void blo_do_versions_270(FileData *fd, Library * /*lib*/, Main *bmain)
     LISTBASE_FOREACH (bGPdata *, gpd, &bmain->gpencils) {
       bool enabled = false;
 
-      /* Ensure that the datablock's onion-skinning toggle flag
-       * stays in sync with the status of the actual layers
-       */
+      /* Ensure that the data-block's onion-skinning toggle flag
+       * stays in sync with the status of the actual layers. */
       LISTBASE_FOREACH (bGPDlayer *, gpl, &gpd->layers) {
         if (gpl->flag & GP_LAYER_ONIONSKIN) {
           enabled = true;
@@ -1037,15 +1041,23 @@ void blo_do_versions_270(FileData *fd, Library * /*lib*/, Main *bmain)
     }
   }
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 276, 5)) {
-    ListBase *lbarray[INDEX_ID_MAX];
-    int a;
-
     /* Important to clear all non-persistent flags from older versions here,
      * otherwise they could collide with any new persistent flag we may add in the future. */
-    a = set_listbasepointers(bmain, lbarray);
+    MainListsArray lbarray = BKE_main_lists_get(*bmain);
+    int a = lbarray.size();
     while (a--) {
       LISTBASE_FOREACH (ID *, id, lbarray[a]) {
-        id->flag &= LIB_FAKEUSER;
+        id->flag &= ID_FLAG_FAKEUSER;
+
+        /* NOTE: This is added in 4.1 code.
+         *
+         * Original commit (3fcf535d2e) forgot to handle embedded IDs. Fortunately, back then, the
+         * only embedded IDs that existed were the NodeTree ones, and the current API to access
+         * them should still be valid on code from 9 years ago. */
+        bNodeTree *node_tree = blender::bke::node_tree_from_id(id);
+        if (node_tree) {
+          node_tree->id.flag &= ID_FLAG_FAKEUSER;
+        }
       }
     }
   }
@@ -1113,7 +1125,7 @@ void blo_do_versions_270(FileData *fd, Library * /*lib*/, Main *bmain)
 
     LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
       if (scene->ed) {
-        SEQ_for_each_callback(&scene->ed->seqbase, seq_update_effectdata_cb, nullptr);
+        blender::seq::for_each_callback(&scene->ed->seqbase, strip_update_effectdata_cb, nullptr);
       }
     }
 
@@ -1137,12 +1149,12 @@ void blo_do_versions_270(FileData *fd, Library * /*lib*/, Main *bmain)
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 277, 2)) {
-    if (!DNA_struct_elem_find(fd->filesdna, "Bone", "float", "scaleIn")) {
+    if (!DNA_struct_member_exists(fd->filesdna, "Bone", "float", "scale_in_x")) {
       LISTBASE_FOREACH (bArmature *, arm, &bmain->armatures) {
         do_version_bones_super_bbone(&arm->bonebase);
       }
     }
-    if (!DNA_struct_elem_find(fd->filesdna, "bPoseChannel", "float", "scaleIn")) {
+    if (!DNA_struct_member_exists(fd->filesdna, "bPoseChannel", "float", "scale_in_x")) {
       LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
         if (ob->pose) {
           LISTBASE_FOREACH (bPoseChannel *, pchan, &ob->pose->chanbase) {
@@ -1165,13 +1177,14 @@ void blo_do_versions_270(FileData *fd, Library * /*lib*/, Main *bmain)
 
     LISTBASE_FOREACH (Camera *, camera, &bmain->cameras) {
       if (camera->stereo.pole_merge_angle_from == 0.0f &&
-          camera->stereo.pole_merge_angle_to == 0.0f) {
+          camera->stereo.pole_merge_angle_to == 0.0f)
+      {
         camera->stereo.pole_merge_angle_from = DEG2RADF(60.0f);
         camera->stereo.pole_merge_angle_to = DEG2RADF(75.0f);
       }
     }
 
-    if (!DNA_struct_elem_find(fd->filesdna, "NormalEditModifierData", "float", "mix_limit")) {
+    if (!DNA_struct_member_exists(fd->filesdna, "NormalEditModifierData", "float", "mix_limit")) {
       LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
         LISTBASE_FOREACH (ModifierData *, md, &ob->modifiers) {
           if (md->type == eModifierType_NormalEdit) {
@@ -1182,7 +1195,9 @@ void blo_do_versions_270(FileData *fd, Library * /*lib*/, Main *bmain)
       }
     }
 
-    if (!DNA_struct_elem_find(fd->filesdna, "BooleanModifierData", "float", "double_threshold")) {
+    if (!DNA_struct_member_exists(
+            fd->filesdna, "BooleanModifierData", "float", "double_threshold"))
+    {
       LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
         LISTBASE_FOREACH (ModifierData *, md, &ob->modifiers) {
           if (md->type == eModifierType_Boolean) {
@@ -1194,12 +1209,12 @@ void blo_do_versions_270(FileData *fd, Library * /*lib*/, Main *bmain)
     }
 
     LISTBASE_FOREACH (Brush *, br, &bmain->brushes) {
-      if (br->sculpt_tool == SCULPT_TOOL_FLATTEN) {
+      if (br->sculpt_brush_type == SCULPT_BRUSH_TYPE_FLATTEN) {
         br->flag |= BRUSH_ACCUMULATE;
       }
     }
 
-    if (!DNA_struct_elem_find(fd->filesdna, "ClothSimSettings", "float", "time_scale")) {
+    if (!DNA_struct_member_exists(fd->filesdna, "ClothSimSettings", "float", "time_scale")) {
       LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
         LISTBASE_FOREACH (ModifierData *, md, &ob->modifiers) {
           if (md->type == eModifierType_Cloth) {
@@ -1219,7 +1234,7 @@ void blo_do_versions_270(FileData *fd, Library * /*lib*/, Main *bmain)
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 277, 3)) {
     /* ------- init of grease pencil initialization --------------- */
-    if (!DNA_struct_elem_find(fd->filesdna, "bGPDstroke", "bGPDpalettecolor", "*palcolor")) {
+    if (!DNA_struct_member_exists(fd->filesdna, "bGPDstroke", "bGPDpalettecolor", "*palcolor")) {
       /* Convert Grease Pencil to new palettes/brushes
        * Loop all strokes and create the palette and all colors
        */
@@ -1276,7 +1291,7 @@ void blo_do_versions_270(FileData *fd, Library * /*lib*/, Main *bmain)
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 278, 0)) {
-    if (!DNA_struct_elem_find(fd->filesdna, "MovieTrackingTrack", "float", "weight_stab")) {
+    if (!DNA_struct_member_exists(fd->filesdna, "MovieTrackingTrack", "float", "weight_stab")) {
       LISTBASE_FOREACH (MovieClip *, clip, &bmain->movieclips) {
         const MovieTracking *tracking = &clip->tracking;
         LISTBASE_FOREACH (MovieTrackingObject *, tracking_object, &tracking->objects) {
@@ -1290,7 +1305,8 @@ void blo_do_versions_270(FileData *fd, Library * /*lib*/, Main *bmain)
       }
     }
 
-    if (!DNA_struct_elem_find(fd->filesdna, "MovieTrackingStabilization", "int", "tot_rot_track"))
+    if (!DNA_struct_member_exists(
+            fd->filesdna, "MovieTrackingStabilization", "int", "tot_rot_track"))
     {
       LISTBASE_FOREACH (MovieClip *, clip, &bmain->movieclips) {
         if (clip->tracking.stabilization.rot_track_legacy) {
@@ -1311,20 +1327,21 @@ void blo_do_versions_270(FileData *fd, Library * /*lib*/, Main *bmain)
     }
   }
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 278, 2)) {
-    if (!DNA_struct_elem_find(fd->filesdna, "FFMpegCodecData", "int", "ffmpeg_preset")) {
+    if (!DNA_struct_member_exists(fd->filesdna, "FFMpegCodecData", "int", "ffmpeg_preset")) {
       LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
         /* "medium" is the preset FFmpeg uses when no presets are given. */
         scene->r.ffcodecdata.ffmpeg_preset = FFM_PRESET_MEDIUM;
       }
     }
-    if (!DNA_struct_elem_find(fd->filesdna, "FFMpegCodecData", "int", "constant_rate_factor")) {
+    if (!DNA_struct_member_exists(fd->filesdna, "FFMpegCodecData", "int", "constant_rate_factor"))
+    {
       LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
         /* fall back to behavior from before we introduced CRF for old files */
         scene->r.ffcodecdata.constant_rate_factor = FFM_CRF_NONE;
       }
     }
 
-    if (!DNA_struct_elem_find(fd->filesdna, "FluidModifierData", "float", "slice_per_voxel")) {
+    if (!DNA_struct_member_exists(fd->filesdna, "FluidModifierData", "float", "slice_per_voxel")) {
       LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
         LISTBASE_FOREACH (ModifierData *, md, &ob->modifiers) {
           if (md->type == eModifierType_Fluid) {
@@ -1353,7 +1370,8 @@ void blo_do_versions_270(FileData *fd, Library * /*lib*/, Main *bmain)
       }
     }
 
-    if (!DNA_struct_elem_find(fd->filesdna, "RigidBodyCon", "float", "spring_stiffness_ang_x")) {
+    if (!DNA_struct_member_exists(fd->filesdna, "RigidBodyCon", "float", "spring_stiffness_ang_x"))
+    {
       LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
         RigidBodyCon *rbc = ob->rigidbody_constraint;
         if (rbc) {
@@ -1386,10 +1404,9 @@ void blo_do_versions_270(FileData *fd, Library * /*lib*/, Main *bmain)
     }
 
     /* Custom motion paths */
-    if (!DNA_struct_elem_find(fd->filesdna, "bMotionPath", "int", "line_thickness")) {
+    if (!DNA_struct_member_exists(fd->filesdna, "bMotionPath", "int", "line_thickness")) {
       LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
-        bMotionPath *mpath = ob->mpath;
-        if (mpath) {
+        if (bMotionPath *mpath = ob->mpath) {
           mpath->color[0] = 1.0f;
           mpath->color[1] = 0.0f;
           mpath->color[2] = 0.0f;
@@ -1399,8 +1416,7 @@ void blo_do_versions_270(FileData *fd, Library * /*lib*/, Main *bmain)
         /* bones motion path */
         if (ob->pose) {
           LISTBASE_FOREACH (bPoseChannel *, pchan, &ob->pose->chanbase) {
-            bMotionPath *mpath = pchan->mpath;
-            if (mpath) {
+            if (bMotionPath *mpath = pchan->mpath) {
               mpath->color[0] = 1.0f;
               mpath->color[1] = 0.0f;
               mpath->color[2] = 0.0f;
@@ -1430,18 +1446,18 @@ void blo_do_versions_270(FileData *fd, Library * /*lib*/, Main *bmain)
     }
 
     /* Fix for #50736, Glare comp node using same var for two different things. */
-    if (!DNA_struct_elem_find(fd->filesdna, "NodeGlare", "char", "star_45")) {
+    if (!DNA_struct_member_exists(fd->filesdna, "NodeGlare", "char", "star_45")) {
       FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
         if (ntree->type == NTREE_COMPOSIT) {
-          ntreeSetTypes(nullptr, ntree);
+          blender::bke::node_tree_set_type(nullptr, *ntree);
           LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
-            if (node->type == CMP_NODE_GLARE) {
+            if (node->type_legacy == CMP_NODE_GLARE) {
               NodeGlare *ndg = static_cast<NodeGlare *>(node->storage);
               switch (ndg->type) {
-                case 2: /* Grrrr! magic numbers :( */
+                case CMP_NODE_GLARE_STREAKS:
                   ndg->streaks = ndg->angle;
                   break;
-                case 0:
+                case CMP_NODE_GLARE_SIMPLE_STAR:
                   ndg->star_45 = ndg->angle != 0;
                   break;
                 default:
@@ -1454,7 +1470,8 @@ void blo_do_versions_270(FileData *fd, Library * /*lib*/, Main *bmain)
       FOREACH_NODETREE_END;
     }
 
-    if (!DNA_struct_elem_find(fd->filesdna, "SurfaceDeformModifierData", "float", "mat[4][4]")) {
+    if (!DNA_struct_member_exists(fd->filesdna, "SurfaceDeformModifierData", "float", "mat[4][4]"))
+    {
       LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
         LISTBASE_FOREACH (ModifierData *, md, &ob->modifiers) {
           if (md->type == eModifierType_SurfaceDeform) {
@@ -1487,7 +1504,7 @@ void blo_do_versions_270(FileData *fd, Library * /*lib*/, Main *bmain)
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 279, 3)) {
-    if (!DNA_struct_elem_find(fd->filesdna, "FluidDomainSettings", "float", "clipping")) {
+    if (!DNA_struct_member_exists(fd->filesdna, "FluidDomainSettings", "float", "clipping")) {
       LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
         LISTBASE_FOREACH (ModifierData *, md, &ob->modifiers) {
           if (md->type == eModifierType_Fluid) {
@@ -1511,7 +1528,7 @@ void blo_do_versions_270(FileData *fd, Library * /*lib*/, Main *bmain)
       }
     }
 
-    if (!DNA_struct_elem_find(fd->filesdna, "Brush", "float", "falloff_angle")) {
+    if (!DNA_struct_member_exists(fd->filesdna, "Brush", "float", "falloff_angle")) {
       LISTBASE_FOREACH (Brush *, br, &bmain->brushes) {
         br->falloff_angle = DEG2RADF(80);
         /* These flags are used for new features. They are not related to `falloff_angle`. */
@@ -1533,7 +1550,8 @@ void blo_do_versions_270(FileData *fd, Library * /*lib*/, Main *bmain)
 
     /* Simple deform modifier no longer assumes Z axis (X for bend type).
      * Must set previous defaults. */
-    if (!DNA_struct_elem_find(fd->filesdna, "SimpleDeformModifierData", "char", "deform_axis")) {
+    if (!DNA_struct_member_exists(fd->filesdna, "SimpleDeformModifierData", "char", "deform_axis"))
+    {
       LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
         LISTBASE_FOREACH (ModifierData *, md, &ob->modifiers) {
           if (md->type == eModifierType_SimpleDeform) {
@@ -1561,7 +1579,7 @@ void blo_do_versions_270(FileData *fd, Library * /*lib*/, Main *bmain)
       scene->r.ffcodecdata.ffmpeg_preset = preset;
     }
 
-    if (!DNA_struct_elem_find(
+    if (!DNA_struct_member_exists(
             fd->filesdna, "ParticleInstanceModifierData", "float", "particle_amount"))
     {
       LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
@@ -1583,9 +1601,9 @@ void do_versions_after_linking_270(Main *bmain)
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 279, 0)) {
     FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
       if (ntree->type == NTREE_COMPOSIT) {
-        ntreeSetTypes(nullptr, ntree);
+        blender::bke::node_tree_set_type(nullptr, *ntree);
         LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
-          if (node->type == CMP_NODE_HUE_SAT) {
+          if (node->type_legacy == CMP_NODE_HUE_SAT) {
             do_version_hue_sat_node(ntree, node);
           }
         }
@@ -1596,7 +1614,6 @@ void do_versions_after_linking_270(Main *bmain)
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 279, 2)) {
     /* B-Bones (bbone_in/out -> bbone_easein/out) + Stepped FMod Frame Start/End fix */
-    /* if (!DNA_struct_elem_find(fd->filesdna, "Bone", "float", "bbone_easein")) */
-    BKE_fcurves_main_cb(bmain, do_version_bbone_easing_fcurve_fix, nullptr);
+    BKE_fcurves_main_cb(bmain, do_version_bbone_easing_fcurve_fix);
   }
 }

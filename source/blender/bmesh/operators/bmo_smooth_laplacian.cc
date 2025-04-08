@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -15,9 +15,9 @@
 
 #include "eigen_capi.h"
 
-#include "bmesh.h"
+#include "bmesh.hh"
 
-#include "intern/bmesh_operators_private.h" /* own include */
+#include "intern/bmesh_operators_private.hh" /* own include */
 
 // #define SMOOTH_LAPLACIAN_AREA_FACTOR 4.0f  /* UNUSED */
 // #define SMOOTH_LAPLACIAN_EDGE_FACTOR 2.0f  /* UNUSED */
@@ -43,7 +43,7 @@ struct BLaplacianSystem {
   /* Data. */
   float min_area;
 };
-typedef BLaplacianSystem LaplacianSystem;
+using LaplacianSystem = BLaplacianSystem;
 
 static bool vert_is_boundary(BMVert *v);
 static LaplacianSystem *init_laplacian_system(int a_numEdges, int a_numLoops, int a_numVerts);

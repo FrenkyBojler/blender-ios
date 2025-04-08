@@ -7,24 +7,23 @@
  * API's and Operators for selecting armature bones in EditMode.
  */
 
-#include "MEM_guardedalloc.h"
-
 #include "DNA_armature_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
-#include "BLI_blenlib.h"
+#include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
 #include "BLI_rect.h"
-#include "BLI_string_utils.h"
+#include "BLI_string_utils.hh"
 
-#include "BKE_action.h"
-#include "BKE_armature.h"
-#include "BKE_context.h"
-#include "BKE_layer.h"
-#include "BKE_object.h"
-#include "BKE_report.h"
+#include "BKE_action.hh"
+#include "BKE_armature.hh"
+#include "BKE_context.hh"
+#include "BKE_layer.hh"
+#include "BKE_object.hh"
+#include "BKE_object_types.hh"
+#include "BKE_report.hh"
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
@@ -39,11 +38,17 @@
 #include "ED_select_utils.hh"
 #include "ED_view3d.hh"
 
-#include "DEG_depsgraph.h"
+#include "DEG_depsgraph.hh"
 
-#include "GPU_select.h"
+#include "GPU_select.hh"
 
-#include "armature_intern.h"
+#include "ANIM_bone_collections.hh"
+#include "ANIM_bonecolor.hh"
+
+#include "armature_intern.hh"
+
+using blender::Span;
+using blender::Vector;
 
 /* utility macros for storing a temp int in the bone (selection flag) */
 #define EBONE_PREV_FLAG_GET(ebone) ((void)0, (ebone)->temp.i)
@@ -53,8 +58,7 @@
 /** \name Select Buffer Queries for PoseMode & EditMode
  * \{ */
 
-Base *ED_armature_base_and_ebone_from_select_buffer(Base **bases,
-                                                    uint bases_len,
+Base *ED_armature_base_and_ebone_from_select_buffer(const Span<Base *> bases,
                                                     const uint select_id,
                                                     EditBone **r_ebone)
 {
@@ -62,9 +66,9 @@ Base *ED_armature_base_and_ebone_from_select_buffer(Base **bases,
   Base *base = nullptr;
   EditBone *ebone = nullptr;
   /* TODO(@ideasman42): optimize, eg: sort & binary search. */
-  for (uint base_index = 0; base_index < bases_len; base_index++) {
-    if (bases[base_index]->object->runtime.select_id == hit_object) {
-      base = bases[base_index];
+  for (Base *base_iter : bases) {
+    if (base_iter->object->runtime->select_id == hit_object) {
+      base = base_iter;
       break;
     }
   }
@@ -77,8 +81,7 @@ Base *ED_armature_base_and_ebone_from_select_buffer(Base **bases,
   return base;
 }
 
-Object *ED_armature_object_and_ebone_from_select_buffer(Object **objects,
-                                                        uint objects_len,
+Object *ED_armature_object_and_ebone_from_select_buffer(const Span<Object *> objects,
                                                         const uint select_id,
                                                         EditBone **r_ebone)
 {
@@ -86,9 +89,9 @@ Object *ED_armature_object_and_ebone_from_select_buffer(Object **objects,
   Object *ob = nullptr;
   EditBone *ebone = nullptr;
   /* TODO(@ideasman42): optimize, eg: sort & binary search. */
-  for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
-    if (objects[ob_index]->runtime.select_id == hit_object) {
-      ob = objects[ob_index];
+  for (Object *object_iter : objects) {
+    if (object_iter->runtime->select_id == hit_object) {
+      ob = object_iter;
       break;
     }
   }
@@ -101,8 +104,7 @@ Object *ED_armature_object_and_ebone_from_select_buffer(Object **objects,
   return ob;
 }
 
-Base *ED_armature_base_and_pchan_from_select_buffer(Base **bases,
-                                                    uint bases_len,
+Base *ED_armature_base_and_pchan_from_select_buffer(const Span<Base *> bases,
                                                     const uint select_id,
                                                     bPoseChannel **r_pchan)
 {
@@ -110,9 +112,9 @@ Base *ED_armature_base_and_pchan_from_select_buffer(Base **bases,
   Base *base = nullptr;
   bPoseChannel *pchan = nullptr;
   /* TODO(@ideasman42): optimize, eg: sort & binary search. */
-  for (uint base_index = 0; base_index < bases_len; base_index++) {
-    if (bases[base_index]->object->runtime.select_id == hit_object) {
-      base = bases[base_index];
+  for (Base *base_iter : bases) {
+    if (base_iter->object->runtime->select_id == hit_object) {
+      base = base_iter;
       break;
     }
   }
@@ -127,13 +129,12 @@ Base *ED_armature_base_and_pchan_from_select_buffer(Base **bases,
   return base;
 }
 
-Base *ED_armature_base_and_bone_from_select_buffer(Base **bases,
-                                                   uint bases_len,
+Base *ED_armature_base_and_bone_from_select_buffer(const Span<Base *> bases,
                                                    const uint select_id,
                                                    Bone **r_bone)
 {
   bPoseChannel *pchan = nullptr;
-  Base *base = ED_armature_base_and_pchan_from_select_buffer(bases, bases_len, select_id, &pchan);
+  Base *base = ED_armature_base_and_pchan_from_select_buffer(bases, select_id, &pchan);
   *r_bone = pchan ? pchan->bone : nullptr;
   return base;
 }
@@ -152,10 +153,8 @@ Base *ED_armature_base_and_bone_from_select_buffer(Base **bases,
 /* See if there are any selected bones in this buffer */
 /* only bones from base are checked on */
 static void *ed_armature_pick_bone_from_selectbuffer_impl(const bool is_editmode,
-                                                          Base **bases,
-                                                          uint bases_len,
-                                                          const GPUSelectResult *buffer,
-                                                          const short hits,
+                                                          const Span<Base *> bases,
+                                                          const Span<GPUSelectResult> hit_results,
                                                           bool findunsel,
                                                           bool do_nearest,
                                                           Base **r_base)
@@ -164,22 +163,24 @@ static void *ed_armature_pick_bone_from_selectbuffer_impl(const bool is_editmode
   EditBone *ebone;
   void *firstunSel = nullptr, *firstSel = nullptr, *data;
   Base *firstunSel_base = nullptr, *firstSel_base = nullptr;
-  uint hitresult;
   bool takeNext = false;
   int minsel = 0xffffffff, minunsel = 0xffffffff;
 
-  for (short i = 0; i < hits; i++) {
-    hitresult = buffer[i].id;
+  for (const GPUSelectResult &hit_result : hit_results) {
+    uint hit_id = hit_result.id;
 
-    if (hitresult & BONESEL_ANY) { /* to avoid including objects in selection */
+    if (hit_id & BONESEL_ANY) { /* to avoid including objects in selection */
       Base *base = nullptr;
       bool sel;
 
-      hitresult &= ~BONESEL_ANY;
+      hit_id &= ~BONESEL_ANY;
       /* Determine what the current bone is */
       if (is_editmode == false) {
-        base = ED_armature_base_and_pchan_from_select_buffer(bases, bases_len, hitresult, &pchan);
+        base = ED_armature_base_and_pchan_from_select_buffer(bases, hit_id, &pchan);
         if (pchan != nullptr) {
+          if (pchan->bone->flag & BONE_UNSELECTABLE) {
+            continue;
+          }
           if (findunsel) {
             sel = (pchan->bone->flag & BONE_SELECTED);
           }
@@ -195,7 +196,10 @@ static void *ed_armature_pick_bone_from_selectbuffer_impl(const bool is_editmode
         }
       }
       else {
-        base = ED_armature_base_and_ebone_from_select_buffer(bases, bases_len, hitresult, &ebone);
+        base = ED_armature_base_and_ebone_from_select_buffer(bases, hit_id, &ebone);
+        if (ebone->flag & BONE_UNSELECTABLE) {
+          continue;
+        }
         if (findunsel) {
           sel = (ebone->flag & BONE_SELECTED);
         }
@@ -209,10 +213,10 @@ static void *ed_armature_pick_bone_from_selectbuffer_impl(const bool is_editmode
       if (data) {
         if (sel) {
           if (do_nearest) {
-            if (minsel > buffer[i].depth) {
+            if (minsel > hit_result.depth) {
               firstSel = data;
               firstSel_base = base;
-              minsel = buffer[i].depth;
+              minsel = hit_result.depth;
             }
           }
           else {
@@ -225,10 +229,10 @@ static void *ed_armature_pick_bone_from_selectbuffer_impl(const bool is_editmode
         }
         else {
           if (do_nearest) {
-            if (minunsel > buffer[i].depth) {
+            if (minunsel > hit_result.depth) {
               firstunSel = data;
               firstunSel_base = base;
-              minunsel = buffer[i].depth;
+              minunsel = hit_result.depth;
             }
           }
           else {
@@ -254,42 +258,39 @@ static void *ed_armature_pick_bone_from_selectbuffer_impl(const bool is_editmode
   return firstSel;
 }
 
-EditBone *ED_armature_pick_ebone_from_selectbuffer(Base **bases,
-                                                   uint bases_len,
-                                                   const GPUSelectResult *buffer,
-                                                   const short hits,
+EditBone *ED_armature_pick_ebone_from_selectbuffer(const Span<Base *> bases,
+                                                   const GPUSelectResult *hit_results,
+                                                   const int hits,
                                                    bool findunsel,
                                                    bool do_nearest,
                                                    Base **r_base)
 {
   const bool is_editmode = true;
   return static_cast<EditBone *>(ed_armature_pick_bone_from_selectbuffer_impl(
-      is_editmode, bases, bases_len, buffer, hits, findunsel, do_nearest, r_base));
+      is_editmode, bases, {hit_results, hits}, findunsel, do_nearest, r_base));
 }
 
-bPoseChannel *ED_armature_pick_pchan_from_selectbuffer(Base **bases,
-                                                       uint bases_len,
-                                                       const GPUSelectResult *buffer,
-                                                       const short hits,
+bPoseChannel *ED_armature_pick_pchan_from_selectbuffer(const Span<Base *> bases,
+                                                       const GPUSelectResult *hit_results,
+                                                       const int hits,
                                                        bool findunsel,
                                                        bool do_nearest,
                                                        Base **r_base)
 {
   const bool is_editmode = false;
   return static_cast<bPoseChannel *>(ed_armature_pick_bone_from_selectbuffer_impl(
-      is_editmode, bases, bases_len, buffer, hits, findunsel, do_nearest, r_base));
+      is_editmode, bases, {hit_results, hits}, findunsel, do_nearest, r_base));
 }
 
-Bone *ED_armature_pick_bone_from_selectbuffer(Base **bases,
-                                              uint bases_len,
-                                              const GPUSelectResult *buffer,
-                                              const short hits,
+Bone *ED_armature_pick_bone_from_selectbuffer(const Span<Base *> bases,
+                                              const GPUSelectResult *hit_results,
+                                              const int hits,
                                               bool findunsel,
                                               bool do_nearest,
                                               Base **r_base)
 {
   bPoseChannel *pchan = ED_armature_pick_pchan_from_selectbuffer(
-      bases, bases_len, buffer, hits, findunsel, do_nearest, r_base);
+      bases, hit_results, hits, findunsel, do_nearest, r_base);
   return pchan ? pchan->bone : nullptr;
 }
 
@@ -313,12 +314,11 @@ static void *ed_armature_pick_bone_impl(
     const bool is_editmode, bContext *C, const int xy[2], bool findunsel, Base **r_base)
 {
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-  ViewContext vc;
   rcti rect;
-  GPUSelectResult buffer[MAXPICKELEMS];
-  short hits;
+  GPUSelectBuffer buffer;
+  int hits;
 
-  ED_view3d_viewcontext_init(C, &vc, depsgraph);
+  ViewContext vc = ED_view3d_viewcontext_init(C, depsgraph);
   BLI_assert((vc.obedit != nullptr) == is_editmode);
 
   BLI_rcti_init_pt_radius(&rect, xy, 0);
@@ -326,32 +326,23 @@ static void *ed_armature_pick_bone_impl(
   /* Don't use hits with this ID, (armature drawing uses this). */
   const int select_id_ignore = -1;
 
-  hits = view3d_opengl_select_with_id_filter(&vc,
-                                             buffer,
-                                             ARRAY_SIZE(buffer),
-                                             &rect,
-                                             VIEW3D_SELECT_PICK_NEAREST,
-                                             VIEW3D_SELECT_FILTER_NOP,
-                                             select_id_ignore);
+  hits = view3d_gpu_select_with_id_filter(
+      &vc, &buffer, &rect, VIEW3D_SELECT_PICK_NEAREST, VIEW3D_SELECT_FILTER_NOP, select_id_ignore);
 
   *r_base = nullptr;
 
   if (hits > 0) {
-    uint bases_len = 0;
-    Base **bases;
+    Vector<Base *> bases;
 
     if (vc.obedit != nullptr) {
-      bases = BKE_view_layer_array_from_bases_in_edit_mode(
-          vc.scene, vc.view_layer, vc.v3d, &bases_len);
+      bases = BKE_view_layer_array_from_bases_in_edit_mode(vc.scene, vc.view_layer, vc.v3d);
     }
     else {
-      bases = BKE_object_pose_base_array_get(vc.scene, vc.view_layer, vc.v3d, &bases_len);
+      bases = BKE_object_pose_base_array_get(vc.scene, vc.view_layer, vc.v3d);
     }
 
     void *bone = ed_armature_pick_bone_from_selectbuffer_impl(
-        is_editmode, bases, bases_len, buffer, hits, findunsel, true, r_base);
-
-    MEM_freeN(bases);
+        is_editmode, bases, buffer.storage.as_span().take_front(hits), findunsel, true, r_base);
 
     return bone;
   }
@@ -431,7 +422,8 @@ static bool armature_select_linked_impl(Object *ob, const bool select, const boo
 
     /* We have an un-touched link. */
     for (EditBone *ebone = ebone_iter; ebone;
-         ebone = CHECK_PARENT(ebone) ? ebone->parent : nullptr) {
+         ebone = CHECK_PARENT(ebone) ? ebone->parent : nullptr)
+    {
       ED_armature_ebone_select_set(ebone, select);
       changed = true;
 
@@ -461,7 +453,8 @@ static bool armature_select_linked_impl(Object *ob, const bool select, const boo
     /* First check if we're marked. */
     EditBone *ebone_touched_parent = nullptr;
     for (EditBone *ebone = ebone_iter; ebone;
-         ebone = CHECK_PARENT(ebone) ? ebone->parent : nullptr) {
+         ebone = CHECK_PARENT(ebone) ? ebone->parent : nullptr)
+    {
       if (ebone->temp.i & TOUCH) {
         ebone_touched_parent = ebone;
         break;
@@ -484,7 +477,7 @@ static bool armature_select_linked_impl(Object *ob, const bool select, const boo
 
   if (changed) {
     ED_armature_edit_sync_selection(arm->edbo);
-    DEG_id_tag_update(&arm->id, ID_RECALC_COPY_ON_WRITE);
+    DEG_id_tag_update(&arm->id, ID_RECALC_SYNC_TO_EVAL);
     WM_main_add_notifier(NC_GPENCIL | ND_DATA | NA_EDITED, ob);
   }
 
@@ -497,24 +490,23 @@ static bool armature_select_linked_impl(Object *ob, const bool select, const boo
 /** \name Select Linked Operator
  * \{ */
 
-static int armature_select_linked_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus armature_select_linked_exec(bContext *C, wmOperator *op)
 {
   const bool all_forks = RNA_boolean_get(op->ptr, "all_forks");
 
   bool changed_multi = false;
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
-  uint objects_len = 0;
-  Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(C), &objects_len);
-  for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
-    Object *ob = objects[ob_index];
+  Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
+      scene, view_layer, CTX_wm_view3d(C));
+  for (Object *ob : objects) {
     bArmature *arm = static_cast<bArmature *>(ob->data);
 
     bool found = false;
     LISTBASE_FOREACH (EditBone *, ebone, arm->edbo) {
       if (EBONE_VISIBLE(arm, ebone) &&
-          (ebone->flag & (BONE_SELECTED | BONE_ROOTSEL | BONE_TIPSEL))) {
+          (ebone->flag & (BONE_SELECTED | BONE_ROOTSEL | BONE_TIPSEL)))
+      {
         ebone->flag |= BONE_DONE;
         found = true;
       }
@@ -529,7 +521,6 @@ static int armature_select_linked_exec(bContext *C, wmOperator *op)
       }
     }
   }
-  MEM_freeN(objects);
 
   if (changed_multi) {
     ED_outliner_select_sync_from_edit_bone_tag(C);
@@ -561,12 +552,14 @@ void ARMATURE_OT_select_linked(wmOperatorType *ot)
 /** \name Select Linked (Cursor Pick) Operator
  * \{ */
 
-static int armature_select_linked_pick_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus armature_select_linked_pick_invoke(bContext *C,
+                                                           wmOperator *op,
+                                                           const wmEvent *event)
 {
   const bool select = !RNA_boolean_get(op->ptr, "deselect");
   const bool all_forks = RNA_boolean_get(op->ptr, "all_forks");
 
-  view3d_operator_needs_opengl(C);
+  view3d_operator_needs_gpu(C);
   BKE_object_update_select_id(CTX_data_main(C));
 
   Base *base = nullptr;
@@ -626,15 +619,19 @@ void ARMATURE_OT_select_linked_pick(wmOperatorType *ot)
  * \{ */
 
 /* utility function for get_nearest_editbonepoint */
-static int selectbuffer_ret_hits_12(GPUSelectResult * /*buffer*/, const int hits12)
+static int selectbuffer_ret_hits_12(blender::MutableSpan<GPUSelectResult> /*hit_results*/,
+                                    const int hits12)
 {
   return hits12;
 }
 
-static int selectbuffer_ret_hits_5(GPUSelectResult *buffer, const int hits12, const int hits5)
+static int selectbuffer_ret_hits_5(blender::MutableSpan<GPUSelectResult> hit_results,
+                                   const int hits12,
+                                   const int hits5)
 {
   const int ofs = hits12;
-  memcpy(buffer, buffer + ofs, hits5 * sizeof(*buffer));
+  /* Shift results to beginning. */
+  hit_results.slice(0, hits5).copy_from(hit_results.slice(ofs, hits5));
   return hits5;
 }
 
@@ -643,26 +640,26 @@ static int selectbuffer_ret_hits_5(GPUSelectResult *buffer, const int hits12, co
 static EditBone *get_nearest_editbonepoint(
     ViewContext *vc, bool findunsel, bool use_cycle, Base **r_base, int *r_selmask)
 {
-  GPUSelectResult buffer[MAXPICKELEMS];
+  GPUSelectBuffer buffer;
   struct Result {
-    uint hitresult;
+    uint select_id;
     Base *base;
     EditBone *ebone;
   };
   Result *result = nullptr;
   Result result_cycle{};
-  result_cycle.hitresult = -1;
+  result_cycle.select_id = -1;
   result_cycle.base = nullptr;
   result_cycle.ebone = nullptr;
   Result result_bias{};
-  result_bias.hitresult = -1;
+  result_bias.select_id = -1;
   result_bias.base = nullptr;
   result_bias.ebone = nullptr;
 
   /* find the bone after the current active bone, so as to bump up its chances in selection.
    * this way overlapping bones will cycle selection state as with objects. */
   Object *obedit_orig = vc->obedit;
-  EditBone *ebone_active_orig = ((bArmature *)obedit_orig->data)->act_edbone;
+  EditBone *ebone_active_orig = static_cast<bArmature *>(obedit_orig->data)->act_edbone;
   if (ebone_active_orig == nullptr) {
     use_cycle = false;
   }
@@ -679,68 +676,56 @@ static EditBone *get_nearest_editbonepoint(
   const int select_id_ignore = -1;
 
   /* we _must_ end cache before return, use 'goto cache_end' */
-  view3d_opengl_select_cache_begin();
+  view3d_gpu_select_cache_begin();
 
   {
-    const int select_mode = (do_nearest ? VIEW3D_SELECT_PICK_NEAREST : VIEW3D_SELECT_PICK_ALL);
     const eV3DSelectObjectFilter select_filter = VIEW3D_SELECT_FILTER_NOP;
 
+    GPUSelectStorage &storage = buffer.storage;
     rcti rect;
     BLI_rcti_init_pt_radius(&rect, vc->mval, 12);
-    const int hits12 = view3d_opengl_select_with_id_filter(vc,
-                                                           buffer,
-                                                           ARRAY_SIZE(buffer),
-                                                           &rect,
-                                                           eV3DSelectMode(select_mode),
-                                                           select_filter,
-                                                           select_id_ignore);
+    /* VIEW3D_SELECT_PICK_ALL needs to be used or unselectable bones can block selectability of
+     * bones further back. See #123963.  */
+    const int hits12 = view3d_gpu_select_with_id_filter(
+        vc, &buffer, &rect, VIEW3D_SELECT_PICK_ALL, select_filter, select_id_ignore);
 
     if (hits12 == 1) {
-      hits = selectbuffer_ret_hits_12(buffer, hits12);
+      hits = selectbuffer_ret_hits_12(storage.as_mutable_span(), hits12);
       goto cache_end;
     }
     else if (hits12 > 0) {
-      int ofs;
-
-      ofs = hits12;
       BLI_rcti_init_pt_radius(&rect, vc->mval, 5);
-      const int hits5 = view3d_opengl_select_with_id_filter(vc,
-                                                            buffer + ofs,
-                                                            ARRAY_SIZE(buffer) - ofs,
-                                                            &rect,
-                                                            eV3DSelectMode(select_mode),
-                                                            select_filter,
-                                                            select_id_ignore);
+      const int hits5 = view3d_gpu_select_with_id_filter(
+          vc, &buffer, &rect, VIEW3D_SELECT_PICK_ALL, select_filter, select_id_ignore);
 
       if (hits5 == 1) {
-        hits = selectbuffer_ret_hits_5(buffer, hits12, hits5);
+        hits = selectbuffer_ret_hits_5(storage.as_mutable_span(), hits12, hits5);
         goto cache_end;
       }
 
       if (hits5 > 0) {
-        hits = selectbuffer_ret_hits_5(buffer, hits12, hits5);
+        hits = selectbuffer_ret_hits_5(storage.as_mutable_span(), hits12, hits5);
         goto cache_end;
       }
       else {
-        hits = selectbuffer_ret_hits_12(buffer, hits12);
+        hits = selectbuffer_ret_hits_12(storage.as_mutable_span(), hits12);
         goto cache_end;
       }
     }
   }
 
 cache_end:
-  view3d_opengl_select_cache_end();
+  view3d_gpu_select_cache_end();
 
-  uint bases_len;
-  Base **bases = BKE_view_layer_array_from_bases_in_edit_mode_unique_data(
-      vc->scene, vc->view_layer, vc->v3d, &bases_len);
+  Vector<Base *> bases = BKE_view_layer_array_from_bases_in_edit_mode_unique_data(
+      vc->scene, vc->view_layer, vc->v3d);
 
   /* See if there are any selected bones in this group */
   if (hits > 0) {
     if (hits == 1) {
-      result_bias.hitresult = buffer->id;
+      result_bias.select_id = buffer.storage[0].id;
       result_bias.base = ED_armature_base_and_ebone_from_select_buffer(
-          bases, bases_len, result_bias.hitresult, &result_bias.ebone);
+          bases, result_bias.select_id, &result_bias.ebone);
     }
     else {
       int bias_max = INT_MIN;
@@ -767,7 +752,7 @@ cache_end:
 
       if (use_cycle) {
         bArmature *arm = static_cast<bArmature *>(obedit_orig->data);
-        int ob_index = obedit_orig->runtime.select_id & 0xFFFF;
+        int ob_index = obedit_orig->runtime->select_id & 0xFFFF;
         int bone_index = BLI_findindex(arm->edbo, ebone_active_orig);
         /* Offset from the current active bone, so we cycle onto the next. */
         cycle_order.offset.ob = ob_index;
@@ -776,26 +761,32 @@ cache_end:
         cycle_order.best.as_u32 = 0;
       }
 
+      int min_depth = INT_MAX;
       for (int i = 0; i < hits; i++) {
-        const uint hitresult = buffer[i].id;
+        const GPUSelectResult &hit_result = buffer.storage[i];
+        const uint select_id = hit_result.id;
 
         Base *base = nullptr;
         EditBone *ebone;
-        base = ED_armature_base_and_ebone_from_select_buffer(bases, bases_len, hitresult, &ebone);
+        base = ED_armature_base_and_ebone_from_select_buffer(bases, select_id, &ebone);
         /* If this fails, selection code is setting the selection ID's incorrectly. */
         BLI_assert(base && ebone);
+
+        if (ebone->flag & BONE_UNSELECTABLE) {
+          continue;
+        }
 
         /* Prioritized selection. */
         {
           int bias;
           /* clicks on bone points get advantage */
-          if (hitresult & (BONESEL_ROOT | BONESEL_TIP)) {
+          if (select_id & (BONESEL_ROOT | BONESEL_TIP)) {
             /* but also the unselected one */
             if (findunsel) {
-              if ((hitresult & BONESEL_ROOT) && (ebone->flag & BONE_ROOTSEL) == 0) {
+              if ((select_id & BONESEL_ROOT) && (ebone->flag & BONE_ROOTSEL) == 0) {
                 bias = 4;
               }
-              else if ((hitresult & BONESEL_TIP) && (ebone->flag & BONE_TIPSEL) == 0) {
+              else if ((select_id & BONESEL_TIP) && (ebone->flag & BONE_TIPSEL) == 0) {
                 bias = 4;
               }
               else {
@@ -824,16 +815,24 @@ cache_end:
           if (bias > bias_max) {
             bias_max = bias;
 
-            result_bias.hitresult = hitresult;
+            result_bias.select_id = select_id;
             result_bias.base = base;
             result_bias.ebone = ebone;
+          }
+          else if (bias == bias_max && do_nearest) {
+            if (min_depth > hit_result.depth) {
+              min_depth = hit_result.depth;
+              result_bias.select_id = select_id;
+              result_bias.base = base;
+              result_bias.ebone = ebone;
+            }
           }
         }
 
         /* Cycle selected items (objects & bones). */
         if (use_cycle) {
-          cycle_order.test.ob = hitresult & 0xFFFF;
-          cycle_order.test.bone = (hitresult & ~BONESEL_ANY) >> 16;
+          cycle_order.test.ob = select_id & 0xFFFF;
+          cycle_order.test.bone = (select_id & ~BONESEL_ANY) >> 16;
           if (ebone == ebone_active_orig) {
             BLI_assert(cycle_order.test.ob == cycle_order.offset.ob);
             BLI_assert(cycle_order.test.bone == cycle_order.offset.bone);
@@ -852,7 +851,7 @@ cache_end:
               (cycle_order.test.as_u32 && (cycle_order.test.as_u32 < cycle_order.best.as_u32)))
           {
             cycle_order.best = cycle_order.test;
-            result_cycle.hitresult = hitresult;
+            result_cycle.select_id = select_id;
             result_cycle.base = base;
             result_cycle.ebone = ebone;
           }
@@ -862,26 +861,24 @@ cache_end:
 
     result = (use_cycle && result_cycle.ebone) ? &result_cycle : &result_bias;
 
-    if (result->hitresult != -1) {
+    if (result->select_id != -1) {
       *r_base = result->base;
 
       *r_selmask = 0;
-      if (result->hitresult & BONESEL_ROOT) {
+      if (result->select_id & BONESEL_ROOT) {
         *r_selmask |= BONE_ROOTSEL;
       }
-      if (result->hitresult & BONESEL_TIP) {
+      if (result->select_id & BONESEL_TIP) {
         *r_selmask |= BONE_TIPSEL;
       }
-      if (result->hitresult & BONESEL_BONE) {
+      if (result->select_id & BONESEL_BONE) {
         *r_selmask |= BONE_SELECTED;
       }
-      MEM_freeN(bases);
       return result->ebone;
     }
   }
   *r_selmask = 0;
   *r_base = nullptr;
-  MEM_freeN(bases);
   return nullptr;
 }
 
@@ -924,21 +921,21 @@ bool ED_armature_edit_deselect_all_visible(Object *obedit)
   return changed;
 }
 
-bool ED_armature_edit_deselect_all_multi_ex(Base **bases, uint bases_len)
+bool ED_armature_edit_deselect_all_multi_ex(const Span<Base *> bases)
 {
   bool changed_multi = false;
-  for (uint base_index = 0; base_index < bases_len; base_index++) {
-    Object *obedit = bases[base_index]->object;
+  for (Base *base : bases) {
+    Object *obedit = base->object;
     changed_multi |= ED_armature_edit_deselect_all(obedit);
   }
   return changed_multi;
 }
 
-bool ED_armature_edit_deselect_all_visible_multi_ex(Base **bases, uint bases_len)
+bool ED_armature_edit_deselect_all_visible_multi_ex(const Span<Base *> bases)
 {
   bool changed_multi = false;
-  for (uint base_index = 0; base_index < bases_len; base_index++) {
-    Object *obedit = bases[base_index]->object;
+  for (Base *base : bases) {
+    Object *obedit = base->object;
     changed_multi |= ED_armature_edit_deselect_all_visible(obedit);
   }
   return changed_multi;
@@ -947,14 +944,10 @@ bool ED_armature_edit_deselect_all_visible_multi_ex(Base **bases, uint bases_len
 bool ED_armature_edit_deselect_all_visible_multi(bContext *C)
 {
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-  ViewContext vc;
-  ED_view3d_viewcontext_init(C, &vc, depsgraph);
-  uint bases_len = 0;
-  Base **bases = BKE_view_layer_array_from_bases_in_edit_mode_unique_data(
-      vc.scene, vc.view_layer, vc.v3d, &bases_len);
-  bool changed_multi = ED_armature_edit_deselect_all_multi_ex(bases, bases_len);
-  MEM_freeN(bases);
-  return changed_multi;
+  ViewContext vc = ED_view3d_viewcontext_init(C, depsgraph);
+  Vector<Base *> bases = BKE_view_layer_array_from_bases_in_edit_mode_unique_data(
+      vc.scene, vc.view_layer, vc.v3d);
+  return ED_armature_edit_deselect_all_multi_ex(bases);
 }
 
 /** \} */
@@ -981,16 +974,15 @@ bool ED_armature_edit_select_pick_bone(
 
   if (params->sel_op == SEL_OP_SET) {
     if ((found && params->select_passthrough) &&
-        (ED_armature_ebone_selectflag_get(ebone) & selmask)) {
+        (ED_armature_ebone_selectflag_get(ebone) & selmask))
+    {
       found = false;
     }
     else if (found || params->deselect_all) {
       /* Deselect everything. */
-      uint bases_len = 0;
-      Base **bases = BKE_view_layer_array_from_bases_in_edit_mode_unique_data(
-          scene, view_layer, v3d, &bases_len);
-      ED_armature_edit_deselect_all_multi_ex(bases, bases_len);
-      MEM_freeN(bases);
+      Vector<Base *> bases = BKE_view_layer_array_from_bases_in_edit_mode_unique_data(
+          scene, view_layer, v3d);
+      ED_armature_edit_deselect_all_multi_ex(bases);
       changed = true;
     }
   }
@@ -1121,11 +1113,11 @@ bool ED_armature_edit_select_pick_bone(
 
     BKE_view_layer_synced_ensure(scene, view_layer);
     if (BKE_view_layer_active_base_get(view_layer) != basact) {
-      ED_object_base_activate(C, basact);
+      blender::ed::object::base_activate(C, basact);
     }
 
     WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, basact->object);
-    DEG_id_tag_update(&arm->id, ID_RECALC_COPY_ON_WRITE);
+    DEG_id_tag_update(&arm->id, ID_RECALC_SYNC_TO_EVAL);
     changed = true;
   }
 
@@ -1140,12 +1132,11 @@ bool ED_armature_edit_select_pick(bContext *C, const int mval[2], const SelectPi
 
 {
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-  ViewContext vc;
   EditBone *nearBone = nullptr;
   int selmask;
   Base *basact = nullptr;
 
-  ED_view3d_viewcontext_init(C, &vc, depsgraph);
+  ViewContext vc = ED_view3d_viewcontext_init(C, depsgraph);
   vc.mval[0] = mval[0];
   vc.mval[1] = mval[1];
 
@@ -1282,7 +1273,7 @@ bool ED_armature_edit_select_op_from_tagged(bArmature *arm, const int sel_op)
     /* Cleanup flags. */
     LISTBASE_FOREACH (EditBone *, ebone, arm->edbo) {
       if (ebone->flag & BONE_DONE) {
-        SWAP(int, ebone->temp.i, ebone->flag);
+        std::swap(ebone->temp.i, ebone->flag);
         ebone->flag |= BONE_DONE;
         if ((ebone->flag & BONE_CONNECTED) && ebone->parent) {
           if ((ebone->parent->flag & BONE_DONE) == 0) {
@@ -1321,7 +1312,6 @@ bool ED_armature_edit_select_op_from_tagged(bArmature *arm, const int sel_op)
     }
 
     ED_armature_edit_sync_selection(arm->edbo);
-    ED_armature_edit_validate_active(arm);
   }
 
   return changed;
@@ -1333,7 +1323,7 @@ bool ED_armature_edit_select_op_from_tagged(bArmature *arm, const int sel_op)
 /** \name (De)Select All Operator
  * \{ */
 
-static int armature_de_select_all_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus armature_de_select_all_exec(bContext *C, wmOperator *op)
 {
   int action = RNA_enum_get(op->ptr, "action");
 
@@ -1357,7 +1347,7 @@ static int armature_de_select_all_exec(bContext *C, wmOperator *op)
       case SEL_SELECT:
         if ((ebone->flag & BONE_UNSELECTABLE) == 0) {
           ebone->flag |= (BONE_SELECTED | BONE_TIPSEL | BONE_ROOTSEL);
-          if (ebone->parent) {
+          if (ebone->parent && (ebone->flag & BONE_CONNECTED)) {
             ebone->parent->flag |= BONE_TIPSEL;
           }
         }
@@ -1372,7 +1362,7 @@ static int armature_de_select_all_exec(bContext *C, wmOperator *op)
         else {
           if ((ebone->flag & BONE_UNSELECTABLE) == 0) {
             ebone->flag |= (BONE_SELECTED | BONE_TIPSEL | BONE_ROOTSEL);
-            if (ebone->parent) {
+            if (ebone->parent && (ebone->flag & BONE_CONNECTED)) {
               ebone->parent->flag |= BONE_TIPSEL;
             }
           }
@@ -1464,7 +1454,7 @@ static void armature_select_less(bArmature * /*arm*/, EditBone *ebone)
 
 static void armature_select_more_less(Object *ob, bool more)
 {
-  bArmature *arm = (bArmature *)ob->data;
+  bArmature *arm = static_cast<bArmature *>(ob->data);
 
   /* XXX(@ideasman42): eventually we shouldn't need this. */
   ED_armature_edit_sync_selection(arm->edbo);
@@ -1506,20 +1496,17 @@ static void armature_select_more_less(Object *ob, bool more)
 /** \name Select More Operator
  * \{ */
 
-static int armature_de_select_more_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus armature_de_select_more_exec(bContext *C, wmOperator * /*op*/)
 {
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
-  uint objects_len = 0;
-  Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(C), &objects_len);
-  for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
-    Object *ob = objects[ob_index];
+  Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
+      scene, view_layer, CTX_wm_view3d(C));
+  for (Object *ob : objects) {
     armature_select_more_less(ob, true);
     WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, ob);
-    DEG_id_tag_update(&ob->id, ID_RECALC_COPY_ON_WRITE);
+    DEG_id_tag_update(&ob->id, ID_RECALC_SYNC_TO_EVAL);
   }
-  MEM_freeN(objects);
 
   ED_outliner_select_sync_from_edit_bone_tag(C);
   return OPERATOR_FINISHED;
@@ -1546,20 +1533,17 @@ void ARMATURE_OT_select_more(wmOperatorType *ot)
 /** \name Select Less Operator
  * \{ */
 
-static int armature_de_select_less_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus armature_de_select_less_exec(bContext *C, wmOperator * /*op*/)
 {
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
-  uint objects_len = 0;
-  Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(C), &objects_len);
-  for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
-    Object *ob = objects[ob_index];
+  Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
+      scene, view_layer, CTX_wm_view3d(C));
+  for (Object *ob : objects) {
     armature_select_more_less(ob, false);
     WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, ob);
-    DEG_id_tag_update(&ob->id, ID_RECALC_COPY_ON_WRITE);
+    DEG_id_tag_update(&ob->id, ID_RECALC_SYNC_TO_EVAL);
   }
-  MEM_freeN(objects);
 
   ED_outliner_select_sync_from_edit_bone_tag(C);
   return OPERATOR_FINISHED;
@@ -1594,8 +1578,8 @@ enum {
   SIMEDBONE_DIRECTION,
   SIMEDBONE_PREFIX,
   SIMEDBONE_SUFFIX,
-  SIMEDBONE_LAYER,
-  SIMEDBONE_GROUP,
+  SIMEDBONE_COLLECTION,
+  SIMEDBONE_COLOR,
   SIMEDBONE_SHAPE,
 };
 
@@ -1607,8 +1591,8 @@ static const EnumPropertyItem prop_similar_types[] = {
     {SIMEDBONE_DIRECTION, "DIRECTION", 0, "Direction (Y Axis)", ""},
     {SIMEDBONE_PREFIX, "PREFIX", 0, "Prefix", ""},
     {SIMEDBONE_SUFFIX, "SUFFIX", 0, "Suffix", ""},
-    {SIMEDBONE_LAYER, "LAYER", 0, "Layer", ""},
-    {SIMEDBONE_GROUP, "GROUP", 0, "Group", ""},
+    {SIMEDBONE_COLLECTION, "BONE_COLLECTION", 0, "Bone Collection", ""},
+    {SIMEDBONE_COLOR, "COLOR", 0, "Color", ""},
     {SIMEDBONE_SHAPE, "SHAPE", 0, "Shape", ""},
     {0, nullptr, 0, nullptr, nullptr},
 };
@@ -1616,8 +1600,8 @@ static const EnumPropertyItem prop_similar_types[] = {
 static float bone_length_squared_worldspace_get(Object *ob, EditBone *ebone)
 {
   float v1[3], v2[3];
-  mul_v3_mat3_m4v3(v1, ob->object_to_world, ebone->head);
-  mul_v3_mat3_m4v3(v2, ob->object_to_world, ebone->tail);
+  mul_v3_mat3_m4v3(v1, ob->object_to_world().ptr(), ebone->head);
+  mul_v3_mat3_m4v3(v2, ob->object_to_world().ptr(), ebone->tail);
   return len_squared_v3v3(v1, v2);
 }
 
@@ -1633,11 +1617,9 @@ static void select_similar_length(bContext *C, const float thresh)
   const float len_min = len / (1.0f + (thresh - FLT_EPSILON));
   const float len_max = len * (1.0f + (thresh + FLT_EPSILON));
 
-  uint objects_len = 0;
-  Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(C), &objects_len);
-  for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
-    Object *ob = objects[ob_index];
+  Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
+      scene, view_layer, CTX_wm_view3d(C));
+  for (Object *ob : objects) {
     bArmature *arm = static_cast<bArmature *>(ob->data);
     bool changed = false;
 
@@ -1653,10 +1635,9 @@ static void select_similar_length(bContext *C, const float thresh)
 
     if (changed) {
       WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, ob);
-      DEG_id_tag_update(&ob->id, ID_RECALC_COPY_ON_WRITE);
+      DEG_id_tag_update(&ob->id, ID_RECALC_SYNC_TO_EVAL);
     }
   }
-  MEM_freeN(objects);
 }
 
 static void bone_direction_worldspace_get(Object *ob, EditBone *ebone, float *r_dir)
@@ -1665,8 +1646,8 @@ static void bone_direction_worldspace_get(Object *ob, EditBone *ebone, float *r_
   copy_v3_v3(v1, ebone->head);
   copy_v3_v3(v2, ebone->tail);
 
-  mul_m4_v3(ob->object_to_world, v1);
-  mul_m4_v3(ob->object_to_world, v2);
+  mul_m4_v3(ob->object_to_world().ptr(), v1);
+  mul_m4_v3(ob->object_to_world().ptr(), v2);
 
   sub_v3_v3v3(r_dir, v1, v2);
   normalize_v3(r_dir);
@@ -1682,11 +1663,9 @@ static void select_similar_direction(bContext *C, const float thresh)
   float dir_act[3];
   bone_direction_worldspace_get(ob_act, ebone_act, dir_act);
 
-  uint objects_len = 0;
-  Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(C), &objects_len);
-  for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
-    Object *ob = objects[ob_index];
+  Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
+      scene, view_layer, CTX_wm_view3d(C));
+  for (Object *ob : objects) {
     bArmature *arm = static_cast<bArmature *>(ob->data);
     bool changed = false;
 
@@ -1704,42 +1683,85 @@ static void select_similar_direction(bContext *C, const float thresh)
 
     if (changed) {
       WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, ob);
-      DEG_id_tag_update(&ob->id, ID_RECALC_COPY_ON_WRITE);
-      DEG_id_tag_update(&ob->id, ID_RECALC_COPY_ON_WRITE);
+      DEG_id_tag_update(&ob->id, ID_RECALC_SYNC_TO_EVAL);
+      DEG_id_tag_update(&ob->id, ID_RECALC_SYNC_TO_EVAL);
     }
   }
-  MEM_freeN(objects);
 }
 
-static void select_similar_layer(bContext *C)
+static void select_similar_bone_collection(bContext *C)
 {
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   EditBone *ebone_act = CTX_data_active_bone(C);
 
-  uint objects_len = 0;
-  Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(C), &objects_len);
-  for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
-    Object *ob = objects[ob_index];
+  /* Build a set of bone collection names, to allow cross-Armature selection. */
+  blender::Set<std::string> collection_names;
+  LISTBASE_FOREACH (BoneCollectionReference *, bcoll_ref, &ebone_act->bone_collections) {
+    collection_names.add(bcoll_ref->bcoll->name);
+  }
+
+  Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
+      scene, view_layer, CTX_wm_view3d(C));
+  for (Object *ob : objects) {
     bArmature *arm = static_cast<bArmature *>(ob->data);
     bool changed = false;
 
     LISTBASE_FOREACH (EditBone *, ebone, arm->edbo) {
-      if (EBONE_SELECTABLE(arm, ebone)) {
-        if (ebone->layer & ebone_act->layer) {
-          ED_armature_ebone_select_set(ebone, true);
-          changed = true;
+      if (!EBONE_SELECTABLE(arm, ebone)) {
+        continue;
+      }
+
+      LISTBASE_FOREACH (BoneCollectionReference *, bcoll_ref, &ebone->bone_collections) {
+        if (!collection_names.contains(bcoll_ref->bcoll->name)) {
+          continue;
         }
+
+        ED_armature_ebone_select_set(ebone, true);
+        changed = true;
+        break;
       }
     }
 
     if (changed) {
       WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, ob);
-      DEG_id_tag_update(&ob->id, ID_RECALC_COPY_ON_WRITE);
+      DEG_id_tag_update(&ob->id, ID_RECALC_SYNC_TO_EVAL);
     }
   }
-  MEM_freeN(objects);
+}
+static void select_similar_bone_color(bContext *C)
+{
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  EditBone *ebone_act = CTX_data_active_bone(C);
+
+  const blender::animrig::BoneColor &active_bone_color = ebone_act->color.wrap();
+
+  Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
+      scene, view_layer, CTX_wm_view3d(C));
+  for (Object *ob : objects) {
+    bArmature *arm = static_cast<bArmature *>(ob->data);
+    bool changed = false;
+
+    LISTBASE_FOREACH (EditBone *, ebone, arm->edbo) {
+      if (!EBONE_SELECTABLE(arm, ebone)) {
+        continue;
+      }
+
+      const blender::animrig::BoneColor &bone_color = ebone->color.wrap();
+      if (bone_color != active_bone_color) {
+        continue;
+      }
+
+      ED_armature_ebone_select_set(ebone, true);
+      changed = true;
+    }
+
+    if (changed) {
+      WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, ob);
+      DEG_id_tag_update(&ob->id, ID_RECALC_SYNC_TO_EVAL);
+    }
+  }
 }
 
 static void select_similar_prefix(bContext *C)
@@ -1757,11 +1779,9 @@ static void select_similar_prefix(bContext *C)
     return;
   }
 
-  uint objects_len = 0;
-  Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(C), &objects_len);
-  for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
-    Object *ob = objects[ob_index];
+  Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
+      scene, view_layer, CTX_wm_view3d(C));
+  for (Object *ob : objects) {
     bArmature *arm = static_cast<bArmature *>(ob->data);
     bool changed = false;
 
@@ -1779,10 +1799,9 @@ static void select_similar_prefix(bContext *C)
 
     if (changed) {
       WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, ob);
-      DEG_id_tag_update(&ob->id, ID_RECALC_COPY_ON_WRITE);
+      DEG_id_tag_update(&ob->id, ID_RECALC_SYNC_TO_EVAL);
     }
   }
-  MEM_freeN(objects);
 }
 
 static void select_similar_suffix(bContext *C)
@@ -1800,11 +1819,9 @@ static void select_similar_suffix(bContext *C)
     return;
   }
 
-  uint objects_len = 0;
-  Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(C), &objects_len);
-  for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
-    Object *ob = objects[ob_index];
+  Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
+      scene, view_layer, CTX_wm_view3d(C));
+  for (Object *ob : objects) {
     bArmature *arm = static_cast<bArmature *>(ob->data);
     bool changed = false;
 
@@ -1822,10 +1839,9 @@ static void select_similar_suffix(bContext *C)
 
     if (changed) {
       WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, ob);
-      DEG_id_tag_update(&ob->id, ID_RECALC_COPY_ON_WRITE);
+      DEG_id_tag_update(&ob->id, ID_RECALC_SYNC_TO_EVAL);
     }
   }
-  MEM_freeN(objects);
 }
 
 /** Use for matching any pose channel data. */
@@ -1857,7 +1873,7 @@ static void select_similar_data_pchan(bContext *C, const size_t bytes_size, cons
   }
 
   WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, obedit);
-  DEG_id_tag_update(&obedit->id, ID_RECALC_COPY_ON_WRITE);
+  DEG_id_tag_update(&obedit->id, ID_RECALC_SYNC_TO_EVAL);
 }
 
 static void is_ancestor(EditBone *bone, EditBone *ancestor)
@@ -1892,7 +1908,7 @@ static void select_similar_children(bContext *C)
   }
 
   WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, obedit);
-  DEG_id_tag_update(&obedit->id, ID_RECALC_COPY_ON_WRITE);
+  DEG_id_tag_update(&obedit->id, ID_RECALC_SYNC_TO_EVAL);
 }
 
 static void select_similar_children_immediate(bContext *C)
@@ -1908,7 +1924,7 @@ static void select_similar_children_immediate(bContext *C)
   }
 
   WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, obedit);
-  DEG_id_tag_update(&obedit->id, ID_RECALC_COPY_ON_WRITE);
+  DEG_id_tag_update(&obedit->id, ID_RECALC_SYNC_TO_EVAL);
 }
 
 static void select_similar_siblings(bContext *C)
@@ -1928,10 +1944,10 @@ static void select_similar_siblings(bContext *C)
   }
 
   WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, obedit);
-  DEG_id_tag_update(&obedit->id, ID_RECALC_COPY_ON_WRITE);
+  DEG_id_tag_update(&obedit->id, ID_RECALC_SYNC_TO_EVAL);
 }
 
-static int armature_select_similar_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus armature_select_similar_exec(bContext *C, wmOperator *op)
 {
   /* Get props */
   int type = RNA_enum_get(op->ptr, "type");
@@ -1968,11 +1984,11 @@ static int armature_select_similar_exec(bContext *C, wmOperator *op)
     case SIMEDBONE_SUFFIX:
       select_similar_suffix(C);
       break;
-    case SIMEDBONE_LAYER:
-      select_similar_layer(C);
+    case SIMEDBONE_COLLECTION:
+      select_similar_bone_collection(C);
       break;
-    case SIMEDBONE_GROUP:
-      select_similar_data_pchan(C, STRUCT_SIZE_AND_OFFSET(bPoseChannel, agrp_index));
+    case SIMEDBONE_COLOR:
+      select_similar_bone_color(C);
       break;
     case SIMEDBONE_SHAPE:
       select_similar_data_pchan(C, STRUCT_SIZE_AND_OFFSET(bPoseChannel, custom));
@@ -2014,14 +2030,14 @@ void ARMATURE_OT_select_similar(wmOperatorType *ot)
 
 /* No need to convert to multi-objects. Just like we keep the non-active bones
  * selected we then keep the non-active objects untouched (selected/unselected). */
-static int armature_select_hierarchy_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus armature_select_hierarchy_exec(bContext *C, wmOperator *op)
 {
   Object *ob = CTX_data_edit_object(C);
   EditBone *ebone_active;
   int direction = RNA_enum_get(op->ptr, "direction");
   const bool add_to_sel = RNA_boolean_get(op->ptr, "extend");
   bool changed = false;
-  bArmature *arm = (bArmature *)ob->data;
+  bArmature *arm = static_cast<bArmature *>(ob->data);
 
   ebone_active = arm->act_edbone;
   if (ebone_active == nullptr) {
@@ -2086,7 +2102,7 @@ static int armature_select_hierarchy_exec(bContext *C, wmOperator *op)
   ED_armature_edit_sync_selection(arm->edbo);
 
   WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, ob);
-  DEG_id_tag_update(&ob->id, ID_RECALC_COPY_ON_WRITE);
+  DEG_id_tag_update(&ob->id, ID_RECALC_SYNC_TO_EVAL);
 
   return OPERATOR_FINISHED;
 }
@@ -2125,18 +2141,16 @@ void ARMATURE_OT_select_hierarchy(wmOperatorType *ot)
 /**
  * \note clone of #pose_select_mirror_exec keep in sync
  */
-static int armature_select_mirror_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus armature_select_mirror_exec(bContext *C, wmOperator *op)
 {
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   const bool active_only = RNA_boolean_get(op->ptr, "only_active");
   const bool extend = RNA_boolean_get(op->ptr, "extend");
 
-  uint objects_len = 0;
-  Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(C), &objects_len);
-  for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
-    Object *ob = objects[ob_index];
+  Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
+      scene, view_layer, CTX_wm_view3d(C));
+  for (Object *ob : objects) {
     bArmature *arm = static_cast<bArmature *>(ob->data);
 
     EditBone *ebone_mirror_act = nullptr;
@@ -2180,9 +2194,8 @@ static int armature_select_mirror_exec(bContext *C, wmOperator *op)
     ED_armature_edit_sync_selection(arm->edbo);
 
     WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, ob);
-    DEG_id_tag_update(&ob->id, ID_RECALC_COPY_ON_WRITE);
+    DEG_id_tag_update(&ob->id, ID_RECALC_SYNC_TO_EVAL);
   }
-  MEM_freeN(objects);
 
   return OPERATOR_FINISHED;
 }
@@ -2241,7 +2254,9 @@ static bool armature_shortest_path_select(
   return true;
 }
 
-static int armature_shortest_path_pick_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus armature_shortest_path_pick_invoke(bContext *C,
+                                                           wmOperator *op,
+                                                           const wmEvent *event)
 {
   Object *obedit = CTX_data_edit_object(C);
   bArmature *arm = static_cast<bArmature *>(obedit->data);
@@ -2251,7 +2266,7 @@ static int armature_shortest_path_pick_invoke(bContext *C, wmOperator *op, const
   bool changed;
   Base *base_dst = nullptr;
 
-  view3d_operator_needs_opengl(C);
+  view3d_operator_needs_gpu(C);
   BKE_object_update_select_id(CTX_data_main(C));
 
   ebone_src = arm->act_edbone;
@@ -2275,7 +2290,7 @@ static int armature_shortest_path_pick_invoke(bContext *C, wmOperator *op, const
     /* pass */
   }
   else if (ED_armature_ebone_is_child_recursive(ebone_dst, ebone_src)) {
-    SWAP(EditBone *, ebone_src, ebone_dst);
+    std::swap(ebone_src, ebone_dst);
   }
   else if ((ebone_isect_parent = ED_armature_ebone_find_shared_parent(ebone_isect_child, 2))) {
     /* pass */
@@ -2314,7 +2329,7 @@ static int armature_shortest_path_pick_invoke(bContext *C, wmOperator *op, const
     ED_outliner_select_sync_from_edit_bone_tag(C);
     ED_armature_edit_sync_selection(arm->edbo);
     WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, obedit);
-    DEG_id_tag_update(&obedit->id, ID_RECALC_COPY_ON_WRITE);
+    DEG_id_tag_update(&obedit->id, ID_RECALC_SYNC_TO_EVAL);
 
     return OPERATOR_FINISHED;
   }

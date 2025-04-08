@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2010-2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2010-2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -7,33 +7,29 @@
  */
 
 #include <map>
-#include <set>
 
-#include "COLLADAFWColorOrTexture.h"
 #include "COLLADASWEffectProfile.h"
 
-#include "DocumentExporter.h"
 #include "EffectExporter.h"
 #include "MaterialExporter.h"
+#include "Materials.h"
 
 #include "collada_internal.h"
 #include "collada_utils.h"
 
 #include "DNA_mesh_types.h"
-#include "DNA_world_types.h"
 
-#include "BKE_collection.h"
-#include "BKE_customdata.h"
-#include "BKE_material.h"
-#include "BKE_mesh.hh"
+#include "BKE_collection.hh"
+#include "BKE_customdata.hh"
+#include "BKE_material.hh"
 
 static std::string getActiveUVLayerName(Object *ob)
 {
-  Mesh *me = (Mesh *)ob->data;
+  Mesh *mesh = (Mesh *)ob->data;
 
-  int num_layers = CustomData_number_of_layers(&me->loop_data, CD_PROP_FLOAT2);
+  int num_layers = CustomData_number_of_layers(&mesh->corner_data, CD_PROP_FLOAT2);
   if (num_layers) {
-    return std::string(bc_CustomData_get_active_layer_name(&me->loop_data, CD_PROP_FLOAT2));
+    return std::string(bc_CustomData_get_active_layer_name(&mesh->corner_data, CD_PROP_FLOAT2));
   }
 
   return "";

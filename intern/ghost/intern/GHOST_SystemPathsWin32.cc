@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2011 Blender Foundation
+/* SPDX-FileCopyrightText: 2011 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -12,7 +12,7 @@
 #ifndef _WIN32_IE
 #  define _WIN32_IE 0x0501
 #endif
-#include "utfconv.h"
+#include "utfconv.hh"
 #include <shlobj.h>
 
 GHOST_SystemPathsWin32::GHOST_SystemPathsWin32() {}
@@ -21,6 +21,8 @@ GHOST_SystemPathsWin32::~GHOST_SystemPathsWin32() {}
 
 const char *GHOST_SystemPathsWin32::getSystemDir(int, const char *versionstr) const
 {
+  const char *system_dir = nullptr;
+
   /* 1 utf-16 might translate into 3 utf-8. 2 utf-16 translates into 4 utf-8. */
   static char knownpath[MAX_PATH * 3 + 128] = {0};
   PWSTR knownpath_16 = nullptr;
@@ -30,17 +32,19 @@ const char *GHOST_SystemPathsWin32::getSystemDir(int, const char *versionstr) co
 
   if (hResult == S_OK) {
     conv_utf_16_to_8(knownpath_16, knownpath, MAX_PATH * 3);
-    CoTaskMemFree(knownpath_16);
     strcat(knownpath, "\\Blender Foundation\\Blender\\");
     strcat(knownpath, versionstr);
-    return knownpath;
+    system_dir = knownpath;
   }
 
-  return nullptr;
+  CoTaskMemFree(knownpath_16);
+  return system_dir;
 }
 
 const char *GHOST_SystemPathsWin32::getUserDir(int, const char *versionstr) const
 {
+  const char *user_dir = nullptr;
+
   static char knownpath[MAX_PATH * 3 + 128] = {0};
   PWSTR knownpath_16 = nullptr;
 
@@ -49,19 +53,20 @@ const char *GHOST_SystemPathsWin32::getUserDir(int, const char *versionstr) cons
 
   if (hResult == S_OK) {
     conv_utf_16_to_8(knownpath_16, knownpath, MAX_PATH * 3);
-    CoTaskMemFree(knownpath_16);
     strcat(knownpath, "\\Blender Foundation\\Blender\\");
     strcat(knownpath, versionstr);
-    return knownpath;
+    user_dir = knownpath;
   }
 
-  return nullptr;
+  CoTaskMemFree(knownpath_16);
+  return user_dir;
 }
 
 const char *GHOST_SystemPathsWin32::getUserSpecialDir(GHOST_TUserSpecialDirTypes type) const
 {
-  GUID folderid;
+  const char *special_dir = nullptr;
 
+  GUID folderid;
   switch (type) {
     case GHOST_kUserSpecialDirDesktop:
       folderid = FOLDERID_Desktop;
@@ -97,12 +102,11 @@ const char *GHOST_SystemPathsWin32::getUserSpecialDir(GHOST_TUserSpecialDirTypes
 
   if (hResult == S_OK) {
     conv_utf_16_to_8(knownpath_16, knownpath, MAX_PATH * 3);
-    CoTaskMemFree(knownpath_16);
-    return knownpath;
+    special_dir = knownpath;
   }
 
   CoTaskMemFree(knownpath_16);
-  return nullptr;
+  return special_dir;
 }
 
 const char *GHOST_SystemPathsWin32::getBinaryDir() const
@@ -126,8 +130,9 @@ void GHOST_SystemPathsWin32::addToSystemRecentFiles(const char *filepath) const
   IShellItem *shell_item;
 
   HRESULT hr = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
-  if (!SUCCEEDED(hr))
+  if (!SUCCEEDED(hr)) {
     return;
+  }
 
   hr = SHCreateItemFromParsingName(filepath_16, nullptr, IID_PPV_ARGS(&shell_item));
   if (SUCCEEDED(hr)) {

@@ -1,12 +1,18 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
+
+/** \file
+ * \ingroup bli
+ */
 
 #include <iomanip>
 
 #include "BLI_dot_export.hh"
 
-namespace blender::dot {
+#include <sstream>
+
+namespace blender::dot_export {
 
 /* Graph Building
  ************************************************/
@@ -313,4 +319,4 @@ NodeWithSocketsRef::NodeWithSocketsRef(Node &node, const NodeWithSockets &data) 
   node_->set_shape(Attr_shape::Rectangle);
 }
 
-}  // namespace blender::dot
+}  // namespace blender::dot_export

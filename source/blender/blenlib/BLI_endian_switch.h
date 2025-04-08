@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -12,10 +12,6 @@
 
 #include "BLI_compiler_attrs.h"
 #include "BLI_utildefines.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 /* BLI_endian_switch_inline.h */
 
@@ -38,10 +34,6 @@ void BLI_endian_switch_float_array(float *val, int size) ATTR_NONNULL(1);
 void BLI_endian_switch_int64_array(int64_t *val, int size) ATTR_NONNULL(1);
 void BLI_endian_switch_uint64_array(uint64_t *val, int size) ATTR_NONNULL(1);
 void BLI_endian_switch_double_array(double *val, int size) ATTR_NONNULL(1);
-
-#ifdef __cplusplus
-}
-#endif
 
 #include "BLI_endian_switch_inline.h"
 

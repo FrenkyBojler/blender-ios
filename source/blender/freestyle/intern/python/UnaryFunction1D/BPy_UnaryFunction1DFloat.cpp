@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2008-2022 Blender Foundation
+/* SPDX-FileCopyrightText: 2008-2022 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -11,10 +11,6 @@
 #include "../BPy_Convert.h"
 #include "../BPy_IntegrationType.h"
 #include "../BPy_Interface1D.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 using namespace Freestyle;
 
@@ -31,15 +27,16 @@ int UnaryFunction1DFloat_Init(PyObject *module)
   if (PyType_Ready(&UnaryFunction1DFloat_Type) < 0) {
     return -1;
   }
-  Py_INCREF(&UnaryFunction1DFloat_Type);
-  PyModule_AddObject(module, "UnaryFunction1DFloat", (PyObject *)&UnaryFunction1DFloat_Type);
+  PyModule_AddObjectRef(module, "UnaryFunction1DFloat", (PyObject *)&UnaryFunction1DFloat_Type);
 
   return 0;
 }
 
 //------------------------INSTANCE METHODS ----------------------------------
 
-static char UnaryFunction1DFloat___doc__[] =
+PyDoc_STRVAR(
+    /* Wrap. */
+    UnaryFunction1DFloat___doc__,
     "Class hierarchy: :class:`UnaryFunction1D` > :class:`UnaryFunction1DFloat`\n"
     "\n"
     "Base class for unary functions (functors) that work on\n"
@@ -52,7 +49,7 @@ static char UnaryFunction1DFloat___doc__[] =
     "   or the integration method given as an argument.\n"
     "\n"
     "   :arg integration_type: An integration method.\n"
-    "   :type integration_type: :class:`IntegrationType`\n";
+    "   :type integration_type: :class:`IntegrationType`\n");
 
 static int UnaryFunction1DFloat___init__(BPy_UnaryFunction1DFloat *self,
                                          PyObject *args,
@@ -62,7 +59,8 @@ static int UnaryFunction1DFloat___init__(BPy_UnaryFunction1DFloat *self,
   PyObject *obj = nullptr;
 
   if (!PyArg_ParseTupleAndKeywords(
-          args, kwds, "|O!", (char **)kwlist, &IntegrationType_Type, &obj)) {
+          args, kwds, "|O!", (char **)kwlist, &IntegrationType_Type, &obj))
+  {
     return -1;
   }
 
@@ -116,10 +114,12 @@ static PyObject *UnaryFunction1DFloat___call__(BPy_UnaryFunction1DFloat *self,
 
 /*----------------------UnaryFunction1DFloat get/setters ----------------------------*/
 
-PyDoc_STRVAR(integration_type_doc,
-             "The integration method.\n"
-             "\n"
-             ":type: :class:`IntegrationType`");
+PyDoc_STRVAR(
+    /* Wrap. */
+    integration_type_doc,
+    "The integration method.\n"
+    "\n"
+    ":type: :class:`IntegrationType`");
 
 static PyObject *integration_type_get(BPy_UnaryFunction1DFloat *self, void * /*closure*/)
 {
@@ -191,7 +191,3 @@ PyTypeObject UnaryFunction1DFloat_Type = {
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////
-
-#ifdef __cplusplus
-}
-#endif

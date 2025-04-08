@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -7,6 +7,13 @@
  */
 
 #include "ply_file_buffer.hh"
+
+#include "BLI_fileops.hh"
+
+#include <system_error>
+
+#include "CLG_log.h"
+static CLG_LogRef LOG = {"io.ply"};
 
 namespace blender::io::ply {
 
@@ -30,38 +37,37 @@ void FileBuffer::write_to_file()
 
 void FileBuffer::close_file()
 {
+  if (!outfile_) {
+    return;
+  }
   int close_status = std::fclose(outfile_);
   if (close_status == EOF) {
     return;
   }
-  if (outfile_ && close_status) {
-    std::cerr << "Error: could not close the file '" << this->filepath_
-              << "' properly, it may be corrupted." << std::endl;
+  if (close_status) {
+    CLOG_ERROR(&LOG, "Error: could not close file '%s' properly, it may be corrupted.", filepath_);
   }
 }
 
 void FileBuffer::write_header_element(StringRef name, int count)
 {
-  write_fstring("element {} {}\n", std::string_view(name), count);
+  write_fstring("element {} {}\n", name, count);
 }
 void FileBuffer::write_header_scalar_property(StringRef dataType, StringRef name)
 {
-  write_fstring("property {} {}\n", std::string_view(dataType), std::string_view(name));
+  write_fstring("property {} {}\n", dataType, name);
 }
 
 void FileBuffer::write_header_list_property(StringRef countType,
                                             StringRef dataType,
                                             StringRef name)
 {
-  write_fstring("property list {} {} {}\n",
-                std::string_view(countType),
-                std::string_view(dataType),
-                std::string_view(name));
+  write_fstring("property list {} {} {}\n", countType, dataType, name);
 }
 
 void FileBuffer::write_string(StringRef s)
 {
-  write_fstring("{}\n", std::string_view(s));
+  write_fstring("{}\n", s);
 }
 
 void FileBuffer::write_newline()

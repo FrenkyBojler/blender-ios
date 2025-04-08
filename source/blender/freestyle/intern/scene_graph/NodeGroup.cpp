@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2012-2022 Blender Foundation
+/* SPDX-FileCopyrightText: 2012-2022 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -59,7 +59,8 @@ void NodeGroup::accept(SceneVisitor &v)
 
   v.visitNodeGroupBefore(*this);
   for (vector<Node *>::iterator node = _Children.begin(), end = _Children.end(); node != end;
-       ++node) {
+       ++node)
+  {
     (*node)->accept(v);
   }
   v.visitNodeGroupAfter(*this);
@@ -78,14 +79,14 @@ void NodeGroup::DetachChildren()
 
 void NodeGroup::DetachChild(Node *iChild)
 {
-  /* int found = 0; */ /* UNUSED */
+  // int found = 0; /* UNUSED. */
   vector<Node *>::iterator node;
 
   for (node = _Children.begin(); node != _Children.end(); ++node) {
     if ((*node) == iChild) {
       (*node)->release();
       _Children.erase(node);
-      /* found = 1; */ /* UNUSED */
+      // found = 1; /* UNUSED. */
       break;
     }
   }

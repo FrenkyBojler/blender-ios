@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2020 Blender Foundation
+/* SPDX-FileCopyrightText: 2020 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -29,7 +29,7 @@ namespace blender::io::alembic {
  * metadata. */
 class ABCArchive {
  public:
-  typedef std::set<double> Frames;
+  using Frames = std::set<double>;
 
   Alembic::Abc::OArchive *archive;
 

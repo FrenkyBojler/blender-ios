@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -8,7 +8,7 @@
 
 #pragma once
 
-#include "BKE_object.h"
+#include "BKE_object.hh"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
 #include "BlenderTypes.h"

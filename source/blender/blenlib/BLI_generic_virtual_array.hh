@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -13,7 +13,6 @@
 
 #include "BLI_generic_array.hh"
 #include "BLI_generic_span.hh"
-#include "BLI_timeit.hh"
 #include "BLI_virtual_array.hh"
 
 namespace blender {
@@ -101,7 +100,6 @@ class GVArrayCommon {
   const GVArrayImpl *impl_ = nullptr;
   Storage storage_;
 
- protected:
   GVArrayCommon() = default;
   GVArrayCommon(const GVArrayCommon &other);
   GVArrayCommon(GVArrayCommon &&other) noexcept;
@@ -185,11 +183,12 @@ class GVArray : public GVArrayCommon {
   GVArray(const GVArrayImpl *impl);
   GVArray(std::shared_ptr<const GVArrayImpl> impl);
 
-  GVArray(varray_tag::span /* tag */, GSpan span);
-  GVArray(varray_tag::single_ref /* tag */, const CPPType &type, int64_t size, const void *value);
-  GVArray(varray_tag::single /* tag */, const CPPType &type, int64_t size, const void *value);
+  GVArray(varray_tag::span /*tag*/, GSpan span);
+  GVArray(varray_tag::single_ref /*tag*/, const CPPType &type, int64_t size, const void *value);
+  GVArray(varray_tag::single /*tag*/, const CPPType &type, int64_t size, const void *value);
 
   template<typename T> GVArray(const VArray<T> &varray);
+  template<typename T> GVArray(VArray<T> &&varray);
   template<typename T> VArray<T> typed() const;
 
   template<typename ImplT, typename... Args> static GVArray For(Args &&...args);
@@ -229,7 +228,7 @@ class GVMutableArray : public GVArrayCommon {
   static GVMutableArray ForSpan(GMutableSpan span);
 
   operator GVArray() const &;
-  operator GVArray() &&noexcept;
+  operator GVArray() && noexcept;
 
   GVMutableArray &operator=(const GVMutableArray &other);
   GVMutableArray &operator=(GVMutableArray &&other) noexcept;
@@ -269,6 +268,7 @@ class GVArraySpan : public GSpan {
  public:
   GVArraySpan();
   GVArraySpan(GVArray varray);
+  template<typename T> GVArraySpan(VArray<T> varray) : GVArraySpan(GVArray(varray)) {}
   GVArraySpan(GVArraySpan &&other);
   ~GVArraySpan();
   GVArraySpan &operator=(GVArraySpan &&other);
@@ -594,12 +594,11 @@ class GVArrayImpl_For_GSpan : public GVMutableArrayImpl {
 
   CommonVArrayInfo common_info() const override;
 
-  virtual void materialize(const IndexMask &mask, void *dst) const override;
-  virtual void materialize_to_uninitialized(const IndexMask &mask, void *dst) const override;
+  void materialize(const IndexMask &mask, void *dst) const override;
+  void materialize_to_uninitialized(const IndexMask &mask, void *dst) const override;
 
-  virtual void materialize_compressed(const IndexMask &mask, void *dst) const override;
-  virtual void materialize_compressed_to_uninitialized(const IndexMask &mask,
-                                                       void *dst) const override;
+  void materialize_compressed(const IndexMask &mask, void *dst) const override;
+  void materialize_compressed_to_uninitialized(const IndexMask &mask, void *dst) const override;
 };
 
 class GVArrayImpl_For_GSpan_final final : public GVArrayImpl_For_GSpan {
@@ -822,7 +821,7 @@ template<typename T, bool UseSingle, bool UseSpan> struct GVArrayDevirtualizer {
 /** \name Inline methods for #GVArray.
  * \{ */
 
-inline GVArray::GVArray(varray_tag::span /* tag */, const GSpan span)
+inline GVArray::GVArray(varray_tag::span /*tag*/, const GSpan span)
 {
   /* Use const-cast because the underlying virtual array implementation is shared between const
    * and non const data. */
@@ -830,7 +829,7 @@ inline GVArray::GVArray(varray_tag::span /* tag */, const GSpan span)
   this->emplace<GVArrayImpl_For_GSpan_final>(mutable_span);
 }
 
-inline GVArray::GVArray(varray_tag::single_ref /* tag */,
+inline GVArray::GVArray(varray_tag::single_ref /*tag*/,
                         const CPPType &type,
                         const int64_t size,
                         const void *value)
@@ -870,7 +869,11 @@ template<typename ImplT, typename... Args> inline GVArray GVArray::For(Args &&..
   return varray;
 }
 
-template<typename T> inline GVArray::GVArray(const VArray<T> &varray)
+template<typename T> inline GVArray::GVArray(const VArray<T> &varray) : GVArray(VArray<T>(varray))
+{
+}
+
+template<typename T> inline GVArray::GVArray(VArray<T> &&varray)
 {
   if (!varray) {
     return;
@@ -889,7 +892,7 @@ template<typename T> inline GVArray::GVArray(const VArray<T> &varray)
   if (varray.try_assign_GVArray(*this)) {
     return;
   }
-  *this = GVArray::For<GVArrayImpl_For_VArray<T>>(varray);
+  *this = GVArray::For<GVArrayImpl_For_VArray<T>>(std::move(varray));
 }
 
 template<typename T> inline VArray<T> GVArray::typed() const

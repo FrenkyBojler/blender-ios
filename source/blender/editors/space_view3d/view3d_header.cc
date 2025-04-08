@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2004-2008 Blender Foundation
+/* SPDX-FileCopyrightText: 2004-2008 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -6,44 +6,37 @@
  * \ingroup spview3d
  */
 
-#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 
-#include "DNA_gpencil_legacy_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
-#include "BLI_math_base.h"
 #include "BLI_utildefines.h"
 
-#include "BLT_translation.h"
+#include "BKE_context.hh"
+#include "BKE_editmesh.hh"
+#include "BKE_layer.hh"
+#include "BKE_object.hh"
 
-#include "BKE_context.h"
-#include "BKE_editmesh.h"
-#include "BKE_layer.h"
-
-#include "DEG_depsgraph.h"
+#include "DEG_depsgraph.hh"
 
 #include "RNA_access.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
 
-#include "ED_mesh.hh"
-#include "ED_undo.hh"
-
 #include "UI_interface.hh"
 #include "UI_resources.hh"
 
-#include "view3d_intern.h"
+#include "view3d_intern.hh"
 
 /* -------------------------------------------------------------------- */
 /** \name Toggle Matcap Flip Operator
  * \{ */
 
-static int toggle_matcap_flip(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus toggle_matcap_flip_exec(bContext *C, wmOperator * /*op*/)
 {
   View3D *v3d = CTX_wm_view3d(C);
 
@@ -55,7 +48,7 @@ static int toggle_matcap_flip(bContext *C, wmOperator * /*op*/)
   else {
     Scene *scene = CTX_data_scene(C);
     scene->display.shading.flag ^= V3D_SHADING_MATCAP_FLIP_X;
-    DEG_id_tag_update(&scene->id, ID_RECALC_COPY_ON_WRITE);
+    DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
     WM_event_add_notifier(C, NC_SCENE | ND_RENDER_OPTIONS, scene);
   }
 
@@ -70,7 +63,7 @@ void VIEW3D_OT_toggle_matcap_flip(wmOperatorType *ot)
   ot->idname = "VIEW3D_OT_toggle_matcap_flip";
 
   /* api callbacks */
-  ot->exec = toggle_matcap_flip;
+  ot->exec = toggle_matcap_flip_exec;
 }
 
 /** \} */
@@ -130,9 +123,8 @@ static void uiTemplatePaintModeSelection(uiLayout *layout, bContext *C)
   /* Gizmos aren't used in paint modes */
   if (!ELEM(ob->mode, OB_MODE_SCULPT, OB_MODE_PARTICLE_EDIT)) {
     /* masks aren't used for sculpt and particle painting */
-    PointerRNA meshptr;
-
-    RNA_pointer_create(static_cast<ID *>(ob->data), &RNA_Mesh, ob->data, &meshptr);
+    PointerRNA meshptr = RNA_pointer_create_discrete(
+        static_cast<ID *>(ob->data), &RNA_Mesh, ob->data);
     if (ob->mode & OB_MODE_TEXTURE_PAINT) {
       uiItemR(layout, &meshptr, "use_paint_mask", UI_ITEM_R_ICON_ONLY, "", ICON_NONE);
     }
@@ -140,6 +132,12 @@ static void uiTemplatePaintModeSelection(uiLayout *layout, bContext *C)
       uiLayout *row = uiLayoutRow(layout, true);
       uiItemR(row, &meshptr, "use_paint_mask", UI_ITEM_R_ICON_ONLY, "", ICON_NONE);
       uiItemR(row, &meshptr, "use_paint_mask_vertex", UI_ITEM_R_ICON_ONLY, "", ICON_NONE);
+
+      /* Show the bone selection mode icon only if there is a pose mode armature */
+      Object *ob_armature = BKE_object_pose_armature_get(ob);
+      if (ob_armature) {
+        uiItemR(row, &meshptr, "use_paint_bone_selection", UI_ITEM_R_ICON_ONLY, "", ICON_NONE);
+      }
     }
   }
 }
@@ -151,14 +149,12 @@ void uiTemplateHeader3D_mode(uiLayout *layout, bContext *C)
   BKE_view_layer_synced_ensure(scene, view_layer);
   Object *ob = BKE_view_layer_active_object_get(view_layer);
   Object *obedit = CTX_data_edit_object(C);
-  bGPdata *gpd = CTX_data_gpencil_data(C);
 
-  bool is_paint = (ob && !(gpd && (gpd->flag & GP_DATA_STROKE_EDITMODE)) &&
-                   ELEM(ob->mode,
-                        OB_MODE_SCULPT,
-                        OB_MODE_VERTEX_PAINT,
-                        OB_MODE_WEIGHT_PAINT,
-                        OB_MODE_TEXTURE_PAINT));
+  bool is_paint = (ob && ELEM(ob->mode,
+                              OB_MODE_SCULPT,
+                              OB_MODE_VERTEX_PAINT,
+                              OB_MODE_WEIGHT_PAINT,
+                              OB_MODE_TEXTURE_PAINT));
 
   uiTemplateEditModeSelection(layout, C);
   if ((obedit == nullptr) && is_paint) {

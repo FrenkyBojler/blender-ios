@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2011 Blender Foundation
+/* SPDX-FileCopyrightText: 2011 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -12,11 +12,9 @@
 #include "DNA_movieclip_types.h"
 #include "DNA_object_types.h" /* SELECT */
 
-#include "BLI_utildefines.h"
-
 #include "BKE_tracking.h"
 
-#include "IMB_imbuf_types.h"
+#include "IMB_imbuf_types.hh"
 
 #include "libmv-capi.h"
 

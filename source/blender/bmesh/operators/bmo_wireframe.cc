@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -10,14 +10,11 @@
 
 #include "DNA_material_types.h"
 
-#include "BLI_sys_types.h"
-#include "BLI_utildefines.h"
+#include "bmesh.hh"
 
-#include "bmesh.h"
+#include "tools/bmesh_wireframe.hh"
 
-#include "tools/bmesh_wireframe.h"
-
-#include "intern/bmesh_operators_private.h" /* own include */
+#include "intern/bmesh_operators_private.hh" /* own include */
 
 void bmo_wireframe_exec(BMesh *bm, BMOperator *op)
 {

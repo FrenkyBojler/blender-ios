@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -8,7 +8,6 @@
 
 #pragma once
 
-/* Struct members on own line. */
 /* clang-format off */
 
 /* -------------------------------------------------------------------- */
@@ -29,18 +28,20 @@
     .grid_validity_threshold = 0.40f, \
     .grid_dilation_threshold = 0.5f, \
     .grid_dilation_radius = 1.0f, \
-    .surfel_density = 1.0f, \
+    .grid_clamp_direct = 0.0f, \
+    .grid_clamp_indirect = 10.0f, \
+    .grid_surfel_density = 20, \
     .distinf = 2.5f, \
     .distpar = 2.5f, \
     .falloff = 0.2f, \
     .clipsta = 0.8f, \
-    .clipend = 40.0f, \
+    .clipend = 20.0f, \
     .vis_bias = 1.0f, \
     .vis_blur = 0.2f, \
     .intensity = 1.0f, \
     .flag = LIGHTPROBE_FLAG_SHOW_INFLUENCE, \
     .grid_flag = LIGHTPROBE_GRID_CAPTURE_INDIRECT | LIGHTPROBE_GRID_CAPTURE_EMISSION, \
-    .resolution = LIGHT_PROBE_RESOLUTION_1024, \
+    .data_display_size = 0.1f, \
   }
 
 /** \} */

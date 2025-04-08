@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -14,8 +14,8 @@
 // I would like to avoid using deque because including ViewMap.h and <deque> or <vector> separately
 // results in redefinitions of identifiers. ViewMap.h already includes <vector> so it should be a
 // safe fall-back.
-//#include <vector>
-//#include <deque>
+// #include <vector>
+// #include <deque>
 
 #include "GridDensityProvider.h"
 #include "OccluderSource.h"
@@ -29,11 +29,9 @@
 
 #include "../winged_edge/WEdge.h"
 
-#include "BKE_global.h"
+#include "BKE_global.hh"
 
-#ifdef WITH_CXX_GUARDEDALLOC
-#  include "MEM_guardedalloc.h"
-#endif
+#include "MEM_guardedalloc.h"
 
 namespace Freestyle {
 
@@ -50,9 +48,7 @@ class SphericalGrid {
     // temptation to save 4 or 8 bytes.
     WFace *face;
 
-#ifdef WITH_CXX_GUARDEDALLOC
     MEM_CXX_CLASS_ALLOC_FUNCS("Freestyle:SphericalGrid:OccluderData")
-#endif
   };
 
  private:
@@ -115,9 +111,7 @@ class SphericalGrid {
     // deque<OccluderData*>::iterator _current, _occludeeCandidate;
     vector<OccluderData *>::iterator _current, _occludeeCandidate;
 
-#ifdef WITH_CXX_GUARDEDALLOC
     MEM_CXX_CLASS_ALLOC_FUNCS("Freestyle:SphericalGrid:Iterator")
-#endif
   };
 
   class Transform : public GridHelpers::Transform {
@@ -171,9 +165,7 @@ class SphericalGrid {
   Vec3r _viewpoint;
   bool _enableQI;
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("Freestyle:SphericalGrid")
-#endif
 };
 
 inline void SphericalGrid::Iterator::initBeforeTarget()

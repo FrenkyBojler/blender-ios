@@ -6,14 +6,14 @@
  * \ingroup datatoc
  */
 
+#include <algorithm>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 
-/* #define VERBOSE */
+// #define VERBOSE
 
-#define MAX2(x, y) ((x) > (y) ? (x) : (y))
-#define MAX3(x, y, z) MAX2(MAX2((x), (y)), (z))
+#define STRPREFIX(a, b) (strncmp((a), (b), strlen(b)) == 0)
 
 static char *arg_basename(char *string)
 {
@@ -28,7 +28,7 @@ static char *arg_basename(char *string)
     lfslash++;
   }
 
-  return MAX3(string, lfslash, lbslash);
+  return std::max({string, lfslash, lbslash});
 }
 
 int main(int argc, char **argv)
@@ -38,7 +38,7 @@ int main(int argc, char **argv)
   int i;
   int argv_len;
 
-  if (argc < 2) {
+  if (argc != 3) {
     printf("Usage: datatoc <data_file_from> <data_file_to>\n");
     exit(1);
   }
@@ -84,6 +84,7 @@ int main(int argc, char **argv)
 
   fprintf(fpout, "const int datatoc_%s_size = %d;\n", argv[1], int(size));
   fprintf(fpout, "const char datatoc_%s[] = {\n", argv[1]);
+
   while (size--) {
     /* Even though this file is generated and doesn't need new-lines,
      * these files may be loaded by developers when looking up symbols.

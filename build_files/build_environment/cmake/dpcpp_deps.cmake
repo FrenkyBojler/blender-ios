@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2022-2023 Blender Foundation
+# SPDX-FileCopyrightText: 2022-2023 Blender Authors
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
@@ -67,6 +67,22 @@ ExternalProject_Add(external_unifiedruntime
   URL_HASH ${UNIFIED_RUNTIME_HASH_TYPE}=${UNIFIED_RUNTIME_HASH}
   DOWNLOAD_DIR ${DOWNLOAD_DIR}
   PREFIX ${BUILD_DIR}/unifiedruntime
+  PATCH_COMMAND ${PATCH_CMD} -p 1 -d
+    ${BUILD_DIR}/unifiedruntime/src/external_unifiedruntime <
+    ${PATCH_DIR}/unifiedruntime.diff
+  CONFIGURE_COMMAND echo .
+  BUILD_COMMAND echo .
+  INSTALL_COMMAND echo .
+)
+
+ExternalProject_Add(external_unifiedmemoryframework
+  URL file://${PACKAGE_DIR}/${UNIFIED_MEMORY_FRAMEWORK_FILE}
+  URL_HASH ${UNIFIED_MEMORY_FRAMEWORK_HASH_TYPE}=${UNIFIED_MEMORY_FRAMEWORK_HASH}
+  DOWNLOAD_DIR ${DOWNLOAD_DIR}
+  PREFIX ${BUILD_DIR}/unifiedmemoryframework
+  PATCH_COMMAND ${PATCH_CMD} -p 1 -d
+    ${BUILD_DIR}/unifiedmemoryframework/src/external_unifiedmemoryframework <
+    ${PATCH_DIR}/unifiedmemoryframework.diff
   CONFIGURE_COMMAND echo .
   BUILD_COMMAND echo .
   INSTALL_COMMAND echo .

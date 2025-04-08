@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -9,10 +9,6 @@
 #pragma once
 
 #include "../BPy_UnaryFunction0DDouble.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 ///////////////////////////////////////////////////////////////////////////////////////////
 
@@ -26,7 +22,3 @@ typedef struct {
 } BPy_DensityF0D;
 
 ///////////////////////////////////////////////////////////////////////////////////////////
-
-#ifdef __cplusplus
-}
-#endif

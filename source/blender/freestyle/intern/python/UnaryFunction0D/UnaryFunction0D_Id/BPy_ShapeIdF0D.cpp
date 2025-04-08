@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2004-2022 Blender Foundation
+/* SPDX-FileCopyrightText: 2004-2022 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -10,17 +10,15 @@
 
 #include "../../../view_map/Functions0D.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 using namespace Freestyle;
 
 ///////////////////////////////////////////////////////////////////////////////////////////
 
 //------------------------INSTANCE METHODS ----------------------------------
 
-static char ShapeIdF0D___doc__[] =
+PyDoc_STRVAR(
+    /* Wrap. */
+    ShapeIdF0D___doc__,
     "Class hierarchy: :class:`freestyle.types.UnaryFunction0D` > "
     ":class:`freestyle.types.UnaryFunction0DId` > :class:`ShapeIdF0D`\n"
     "\n"
@@ -43,7 +41,7 @@ static char ShapeIdF0D___doc__[] =
     "   :arg it: An Interface0DIterator object.\n"
     "   :type it: :class:`freestyle.types.Interface0DIterator`\n"
     "   :return: The Id of the Shape the pointed Interface0D belongs to.\n"
-    "   :rtype: :class:`freestyle.types.Id`\n";
+    "   :rtype: :class:`freestyle.types.Id`\n");
 
 static int ShapeIdF0D___init__(BPy_ShapeIdF0D *self, PyObject *args, PyObject *kwds)
 {
@@ -101,7 +99,3 @@ PyTypeObject ShapeIdF0D_Type = {
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////
-
-#ifdef __cplusplus
-}
-#endif

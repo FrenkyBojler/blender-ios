@@ -1,5 +1,11 @@
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#pragma BLENDER_REQUIRE(gpu_shader_utildefines_lib.glsl)
+#pragma once
+
+#include "gpu_shader_math_vector_lib.glsl"
+#include "gpu_shader_utildefines_lib.glsl"
 
 /* WORKAROUND: to guard against double include in EEVEE. */
 #ifndef GPU_SHADER_MATH_ROTATION_LIB_GLSL
@@ -13,20 +19,14 @@ struct Angle {
   /* Angle in radian. */
   float angle;
 
-#  ifdef GPU_METAL
-  Angle() = default;
-  Angle(float angle_) : angle(angle_){};
-#  endif
+  METAL_CONSTRUCTOR_1(Angle, float, angle)
 };
 
 struct AxisAngle {
   vec3 axis;
   float angle;
 
-#  ifdef GPU_METAL
-  AxisAngle() = default;
-  AxisAngle(vec3 axis_, float angle_) : axis(axis_), angle(angle_){};
-#  endif
+  METAL_CONSTRUCTOR_2(AxisAngle, vec3, axis, float, angle)
 };
 
 AxisAngle AxisAngle_identity()
@@ -36,10 +36,7 @@ AxisAngle AxisAngle_identity()
 
 struct Quaternion {
   float x, y, z, w;
-#  ifdef GPU_METAL
-  Quaternion() = default;
-  Quaternion(float x_, float y_, float z_, float w_) : x(x_), y(y_), z(z_), w(w_){};
-#  endif
+  METAL_CONSTRUCTOR_4(Quaternion, float, x, float, y, float, z, float, w)
 };
 
 vec4 as_vec4(Quaternion quat)
@@ -54,15 +51,17 @@ Quaternion Quaternion_identity()
 
 struct EulerXYZ {
   float x, y, z;
-#  ifdef GPU_METAL
-  EulerXYZ() = default;
-  EulerXYZ(float x_, float y_, float z_) : x(x_), y(y_), z(z_){};
-#  endif
+  METAL_CONSTRUCTOR_3(EulerXYZ, float, x, float, y, float, z)
 };
 
 vec3 as_vec3(EulerXYZ eul)
 {
   return vec3(eul.x, eul.y, eul.z);
+}
+
+EulerXYZ as_EulerXYZ(vec3 eul)
+{
+  return EulerXYZ(eul.x, eul.y, eul.z);
 }
 
 EulerXYZ EulerXYZ_identity()
@@ -81,7 +80,7 @@ EulerXYZ EulerXYZ_identity()
  * (quaternions and spherical vector coords).
  *
  * \param t: factor in [0..1]
- * \param cosom: dot product from normalized vectors/quats.
+ * \param cosom: dot product from normalized vectors/quaternions.
  * \param r_w: calculated weights.
  */
 vec2 interpolate_dot_slerp(float t, float cosom)

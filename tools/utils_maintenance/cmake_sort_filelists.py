@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# SPDX-FileCopyrightText: 2023 Blender Foundation
+# SPDX-FileCopyrightText: 2023 Blender Authors
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
@@ -8,13 +8,12 @@ Sorts CMake path lists
 - Don't cross blank newline boundaries.
 - Don't cross different path prefix boundaries.
 """
+__all__ = (
+    "main",
+)
 
 import os
 import sys
-
-from typing import (
-    Optional,
-)
 
 PWD = os.path.dirname(__file__)
 sys.path.append(os.path.join(PWD, "modules"))
@@ -37,7 +36,7 @@ SOURCE_EXT = (
 )
 
 
-def sort_cmake_file_lists(fn: str, data_src: str) -> Optional[str]:
+def sort_cmake_file_lists(fn: str, data_src: str) -> str | None:
     fn_dir = os.path.dirname(fn)
     lines = data_src.splitlines(keepends=True)
 
@@ -50,7 +49,7 @@ def sort_cmake_file_lists(fn: str, data_src: str) -> Optional[str]:
         # Headers.
         if l and os.path.isdir(os.path.join(fn_dir, l)):
             return True
-        # Libs.
+        # Libraries.
         if l.startswith(("bf_", "extern_")) and "." not in l and "/" not in l:
             return True
         return False
@@ -97,9 +96,15 @@ def sort_cmake_file_lists(fn: str, data_src: str) -> Optional[str]:
     return None
 
 
-run(
-    directories=[os.path.join(SOURCE_DIR, d) for d in SOURCE_DIRS],
-    is_text=lambda fn: fn.endswith("CMakeLists.txt"),
-    text_operation=sort_cmake_file_lists,
-    use_multiprocess=True,
-)
+def main() -> int:
+    run(
+        directories=[os.path.join(SOURCE_DIR, d) for d in SOURCE_DIRS],
+        is_text=lambda fn: fn.endswith("CMakeLists.txt"),
+        text_operation=sort_cmake_file_lists,
+        use_multiprocess=True,
+    )
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

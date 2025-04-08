@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2018 Blender Foundation
+/* SPDX-FileCopyrightText: 2018 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -7,10 +7,6 @@
 /** \file
  * \ingroup bli
  */
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 typedef struct LockfreeLinkNode {
   struct LockfreeLinkNode *next;
@@ -54,7 +50,3 @@ LockfreeLinkNode *BLI_linklist_lockfree_begin(LockfreeLinkList *list);
 /* NOTE: These functions are safe for use from threads. */
 
 void BLI_linklist_lockfree_insert(LockfreeLinkList *list, LockfreeLinkNode *node);
-
-#ifdef __cplusplus
-}
-#endif

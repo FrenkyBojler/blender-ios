@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -9,11 +9,7 @@
 
 #pragma once
 
-#ifndef __cplusplus
-#  error This is a C++ header
-#endif
-
-#include "BLI_fileops.h"
+#include "BLI_fileops.h"  // IWYU pragma: export
 #include "BLI_string_ref.hh"
 
 #include <fstream>

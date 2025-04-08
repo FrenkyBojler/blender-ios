@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2005 Blender Foundation
+/* SPDX-FileCopyrightText: 2005 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -9,13 +9,16 @@
  * with checks for drivers and GPU support.
  */
 
+#include <cstdint>
+
 #include "MEM_guardedalloc.h"
 
 #include "BLI_dynstr.h"
 #include "BLI_string.h"
-#include "BLI_string_utils.h"
+#include "BLI_string_utils.hh"
+#include "BLI_vector.hh"
 
-#include "GPU_platform.h"
+#include "GPU_platform.hh"
 
 #include "gpu_platform_private.hh"
 
@@ -70,7 +73,8 @@ void GPUPlatformGlobal::init(eGPUDeviceType gpu_device,
                              eGPUBackendType backend,
                              const char *vendor_str,
                              const char *renderer_str,
-                             const char *version_str)
+                             const char *version_str,
+                             GPUArchitectureType arch_type)
 {
   this->clear();
 
@@ -91,6 +95,7 @@ void GPUPlatformGlobal::init(eGPUDeviceType gpu_device,
   this->support_key = create_key(gpu_support_level, vendor, renderer, version);
   this->gpu_name = create_gpu_name(vendor, renderer, version);
   this->backend = backend;
+  this->architecture_type = arch_type;
 }
 
 void GPUPlatformGlobal::clear()
@@ -100,6 +105,10 @@ void GPUPlatformGlobal::clear()
   MEM_SAFE_FREE(version);
   MEM_SAFE_FREE(support_key);
   MEM_SAFE_FREE(gpu_name);
+  devices.clear_and_shrink();
+  device_uuid.reinitialize(0);
+  device_luid.reinitialize(0);
+  device_luid_node_mask = 0;
   initialized = false;
 }
 
@@ -149,6 +158,12 @@ const char *GPU_platform_gpu_name()
   return GPG.gpu_name;
 }
 
+GPUArchitectureType GPU_platform_architecture()
+{
+  BLI_assert(GPG.initialized);
+  return GPG.architecture_type;
+}
+
 bool GPU_type_matches(eGPUDeviceType device, eGPUOSType os, eGPUDriverType driver)
 {
   return GPU_type_matches_ex(device, os, driver, GPU_BACKEND_ANY);
@@ -162,6 +177,26 @@ bool GPU_type_matches_ex(eGPUDeviceType device,
   BLI_assert(GPG.initialized);
   return (GPG.device & device) && (GPG.os & os) && (GPG.driver & driver) &&
          (GPG.backend & backend);
+}
+
+blender::Span<GPUDevice> GPU_platform_devices_list()
+{
+  return GPG.devices.as_span();
+}
+
+blender::Span<uint8_t> GPU_platform_uuid()
+{
+  return GPG.device_uuid.as_span();
+}
+
+blender::Span<uint8_t> GPU_platform_luid()
+{
+  return GPG.device_luid.as_span();
+}
+
+uint32_t GPU_platform_luid_node_mask()
+{
+  return GPG.device_luid_node_mask;
 }
 
 /** \} */

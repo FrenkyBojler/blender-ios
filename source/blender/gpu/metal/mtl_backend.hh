@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -16,7 +16,6 @@
 namespace blender::gpu {
 
 class Batch;
-class DrawList;
 class FrameBuffer;
 class QueryPool;
 class Shader;
@@ -36,9 +35,14 @@ class MTLBackend : public GPUBackend {
     return MTLBackend::capabilities;
   }
 
-  ~MTLBackend()
+  ~MTLBackend() override
   {
     MTLBackend::platform_exit();
+  }
+
+  void init_resources() override
+  {
+    /* Create any resources with context active. */
   }
 
   void delete_resources() override
@@ -56,26 +60,26 @@ class MTLBackend : public GPUBackend {
   void compute_dispatch(int groups_x_len, int groups_y_len, int groups_z_len) override;
   void compute_dispatch_indirect(StorageBuf *indirect_buf) override;
 
-  /* MTL Allocators need to be implemented in separate .mm files, due to allocation of Objective-C
-   * objects. */
+  /* MTL Allocators need to be implemented in separate `.mm` files,
+   * due to allocation of Objective-C objects. */
   Context *context_alloc(void *ghost_window, void *ghost_context) override;
   Batch *batch_alloc() override;
-  DrawList *drawlist_alloc(int list_length) override;
   Fence *fence_alloc() override;
   FrameBuffer *framebuffer_alloc(const char *name) override;
   IndexBuf *indexbuf_alloc() override;
-  PixelBuffer *pixelbuf_alloc(uint size) override;
+  PixelBuffer *pixelbuf_alloc(size_t size) override;
   QueryPool *querypool_alloc() override;
   Shader *shader_alloc(const char *name) override;
   Texture *texture_alloc(const char *name) override;
-  UniformBuf *uniformbuf_alloc(int size, const char *name) override;
-  StorageBuf *storagebuf_alloc(int size, GPUUsageType usage, const char *name) override;
+  UniformBuf *uniformbuf_alloc(size_t size, const char *name) override;
+  StorageBuf *storagebuf_alloc(size_t size, GPUUsageType usage, const char *name) override;
   VertBuf *vertbuf_alloc() override;
+  void shader_cache_dir_clear_old() override {}
 
   /* Render Frame Coordination. */
   void render_begin() override;
   void render_end() override;
-  void render_step() override;
+  void render_step(bool force_resource_release = false) override;
   bool is_inside_render_boundary();
 
  private:

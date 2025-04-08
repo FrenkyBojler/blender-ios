@@ -1,8 +1,15 @@
+/* SPDX-FileCopyrightText: 2020-2022 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /* Based on :
  * McGuire and Bavoil, Weighted Blended Order-Independent Transparency, Journal of
  * Computer Graphics Techniques (JCGT), vol. 2, no. 2, 122–141, 2013
  */
+
+#include "infos/workbench_transparent_resolve_info.hh"
+
+FRAGMENT_SHADER_CREATE_INFO(workbench_transparent_resolve)
 
 void main()
 {

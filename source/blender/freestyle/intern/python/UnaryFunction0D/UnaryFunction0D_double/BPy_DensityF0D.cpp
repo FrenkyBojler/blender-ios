@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2004-2022 Blender Foundation
+/* SPDX-FileCopyrightText: 2004-2022 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -10,17 +10,15 @@
 
 #include "../../../stroke/AdvancedFunctions0D.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 using namespace Freestyle;
 
 ///////////////////////////////////////////////////////////////////////////////////////////
 
 //------------------------INSTANCE METHODS ----------------------------------
 
-static char DensityF0D___doc__[] =
+PyDoc_STRVAR(
+    /* Wrap. */
+    DensityF0D___doc__,
     "Class hierarchy: :class:`freestyle.types.UnaryFunction0D` > "
     ":class:`freestyle.types.UnaryFunction0DDouble` > :class:`DensityF0D`\n"
     "\n"
@@ -45,7 +43,7 @@ static char DensityF0D___doc__[] =
     "   :type it: :class:`freestyle.types.Interface0DIterator`\n"
     "   :return: The density of the image evaluated at the pointed\n"
     "      Interface0D.\n"
-    "   :rtype: float\n";
+    "   :rtype: float\n");
 
 static int DensityF0D___init__(BPy_DensityF0D *self, PyObject *args, PyObject *kwds)
 {
@@ -104,7 +102,3 @@ PyTypeObject DensityF0D_Type = {
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////
-
-#ifdef __cplusplus
-}
-#endif

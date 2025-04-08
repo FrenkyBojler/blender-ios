@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2006 Blender Foundation
+# SPDX-FileCopyrightText: 2006 Blender Authors
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
@@ -6,7 +6,6 @@ remove_extra_strict_flags()
 
 set(INC
   .
-  ../blenkernel
 )
 
 set(INC_SYS
@@ -21,6 +20,7 @@ set(SRC
 )
 
 set(LIB
+  PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
   PRIVATE bf::dna
   PRIVATE bf::intern::guardedalloc
@@ -48,7 +48,6 @@ if(WITH_IK_ITASC)
     ../../../intern/itasc
   )
   list(APPEND INC_SYS
-    ${EIGEN3_INCLUDE_DIRS}
   )
   list(APPEND SRC
     intern/itasc_plugin.cc

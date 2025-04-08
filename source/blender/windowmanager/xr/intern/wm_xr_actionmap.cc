@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -13,20 +13,17 @@
 #include <cmath>
 #include <cstring>
 
-#include "BKE_context.h"
-#include "BKE_idprop.h"
+#include "BKE_idprop.hh"
 
 #include "BLI_listbase.h"
 #include "BLI_string.h"
-
-#include "GHOST_Types.h"
 
 #include "MEM_guardedalloc.h"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
 
-#include "wm_xr_intern.h"
+#include "wm_xr_intern.hh"
 
 #define WM_XR_ACTIONMAP_STR_DEFAULT "actionmap"
 #define WM_XR_ACTIONMAP_ITEM_STR_DEFAULT "action"
@@ -47,8 +44,7 @@ XrActionMapBinding *WM_xr_actionmap_binding_new(XrActionMapItem *ami,
     return amb_prev;
   }
 
-  XrActionMapBinding *amb = static_cast<XrActionMapBinding *>(
-      MEM_callocN(sizeof(XrActionMapBinding), __func__));
+  XrActionMapBinding *amb = MEM_callocN<XrActionMapBinding>(__func__);
   STRNCPY(amb->name, name);
   if (amb_prev) {
     WM_xr_actionmap_binding_ensure_unique(ami, amb);
@@ -180,7 +176,7 @@ static void wm_xr_actionmap_item_properties_free(XrActionMapItem *ami)
 {
   if (ami->op_properties_ptr) {
     WM_operator_properties_free(ami->op_properties_ptr);
-    MEM_freeN(ami->op_properties_ptr);
+    MEM_delete(ami->op_properties_ptr);
     ami->op_properties_ptr = nullptr;
     ami->op_properties = nullptr;
   }
@@ -252,8 +248,7 @@ XrActionMapItem *WM_xr_actionmap_item_new(XrActionMap *actionmap,
     return ami_prev;
   }
 
-  XrActionMapItem *ami = static_cast<XrActionMapItem *>(
-      MEM_callocN(sizeof(XrActionMapItem), __func__));
+  XrActionMapItem *ami = MEM_callocN<XrActionMapItem>(__func__);
   STRNCPY(ami->name, name);
   if (ami_prev) {
     WM_xr_actionmap_item_ensure_unique(actionmap, ami);
@@ -318,8 +313,7 @@ static XrActionMapItem *wm_xr_actionmap_item_copy(XrActionMapItem *ami_src)
   }
 
   if (ami_dst->op_properties) {
-    ami_dst->op_properties_ptr = static_cast<PointerRNA *>(
-        MEM_callocN(sizeof(PointerRNA), "wmOpItemPtr"));
+    ami_dst->op_properties_ptr = MEM_new<PointerRNA>("wmOpItemPtr");
     WM_operator_properties_create(ami_dst->op_properties_ptr, ami_dst->op);
     ami_dst->op_properties = IDP_CopyProperty(ami_src->op_properties);
     ami_dst->op_properties_ptr->data = ami_dst->op_properties;
@@ -395,7 +389,7 @@ XrActionMap *WM_xr_actionmap_new(wmXrRuntimeData *runtime, const char *name, boo
     return am_prev;
   }
 
-  XrActionMap *am = static_cast<XrActionMap *>(MEM_callocN(sizeof(XrActionMap), __func__));
+  XrActionMap *am = MEM_callocN<XrActionMap>(__func__);
   STRNCPY(am->name, name);
   if (am_prev) {
     WM_xr_actionmap_ensure_unique(runtime, am);

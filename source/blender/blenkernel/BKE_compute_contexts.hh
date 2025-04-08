@@ -1,6 +1,10 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
+
+/** \file
+ * \ingroup bke
+ */
 
 #pragma once
 
@@ -13,6 +17,7 @@
 #include "BLI_compute_context.hh"
 
 struct bNode;
+struct bNodeTree;
 
 namespace blender::bke {
 
@@ -21,7 +26,7 @@ class ModifierComputeContext : public ComputeContext {
   static constexpr const char *s_static_type = "MODIFIER";
 
   /**
-   * Use modifier name instead of something like `session_uuid` for now because:
+   * Use modifier name instead of something like `session_uid` for now because:
    * - It's more obvious that the name matches between the original and evaluated object.
    * - We might want that the context hash is consistent between sessions in the future.
    */
@@ -30,29 +35,48 @@ class ModifierComputeContext : public ComputeContext {
  public:
   ModifierComputeContext(const ComputeContext *parent, std::string modifier_name);
 
+  StringRefNull modifier_name() const
+  {
+    return modifier_name_;
+  }
+
  private:
   void print_current_in_line(std::ostream &stream) const override;
 };
 
-class NodeGroupComputeContext : public ComputeContext {
+class GroupNodeComputeContext : public ComputeContext {
  private:
   static constexpr const char *s_static_type = "NODE_GROUP";
 
   int32_t node_id_;
-
-#ifdef DEBUG
-  std::string debug_node_name_;
-#endif
+  /**
+   * The caller node tree and group node are not always necessary or even available, but storing
+   * them here simplifies "walking up" the compute context to the parent node groups.
+   */
+  const bNodeTree *caller_tree_ = nullptr;
+  const bNode *caller_group_node_ = nullptr;
 
  public:
-  NodeGroupComputeContext(const ComputeContext *parent,
+  GroupNodeComputeContext(const ComputeContext *parent,
                           int32_t node_id,
                           const std::optional<ComputeContextHash> &cached_hash = {});
-  NodeGroupComputeContext(const ComputeContext *parent, const bNode &node);
+  GroupNodeComputeContext(const ComputeContext *parent,
+                          const bNode &node,
+                          const bNodeTree &caller_tree);
 
   int32_t node_id() const
   {
     return node_id_;
+  }
+
+  const bNode *caller_group_node() const
+  {
+    return caller_group_node_;
+  }
+
+  const bNodeTree *caller_tree() const
+  {
+    return caller_tree_;
   }
 
  private:
@@ -98,6 +122,75 @@ class RepeatZoneComputeContext : public ComputeContext {
   {
     return iteration_;
   }
+
+ private:
+  void print_current_in_line(std::ostream &stream) const override;
+};
+
+class ForeachGeometryElementZoneComputeContext : public ComputeContext {
+ private:
+  static constexpr const char *s_static_type = "FOREACH_GEOMETRY_ELEMENT_ZONE";
+
+  int32_t output_node_id_;
+  int index_;
+
+ public:
+  ForeachGeometryElementZoneComputeContext(const ComputeContext *parent,
+                                           int32_t output_node_id,
+                                           int index);
+  ForeachGeometryElementZoneComputeContext(const ComputeContext *parent,
+                                           const bNode &node,
+                                           int index);
+
+  int32_t output_node_id() const
+  {
+    return output_node_id_;
+  }
+
+  int index() const
+  {
+    return index_;
+  }
+
+ private:
+  void print_current_in_line(std::ostream &stream) const override;
+};
+
+class EvaluateClosureComputeContext : public ComputeContext {
+ private:
+  static constexpr const char *s_static_type = "CLOSURE";
+
+  int32_t node_id_;
+
+  /**
+   * Extra information that might not always be available.
+   */
+  const bNode *evaluate_node_ = nullptr;
+
+ public:
+  EvaluateClosureComputeContext(const ComputeContext *parent, int32_t node_id);
+  EvaluateClosureComputeContext(const ComputeContext *parent, const bNode &evaluate_node);
+
+  int32_t node_id() const
+  {
+    return node_id_;
+  }
+  const bNode *evaluate_node() const
+  {
+    return evaluate_node_;
+  }
+
+ private:
+  void print_current_in_line(std::ostream &stream) const override;
+};
+
+class OperatorComputeContext : public ComputeContext {
+ private:
+  static constexpr const char *s_static_type = "OPERATOR";
+
+ public:
+  OperatorComputeContext();
+  OperatorComputeContext(const ComputeContext *parent);
 
  private:
   void print_current_in_line(std::ostream &stream) const override;

@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -10,11 +10,10 @@
 
 #include "BLI_utildefines.h"
 
-#include "IMB_filetype.h"
-#include "IMB_imbuf.h"
-#include "IMB_imbuf_types.h"
-
-#include "IMB_colormanagement.h"
+#include "IMB_colormanagement.hh"
+#include "IMB_filetype.hh"
+#include "IMB_imbuf.hh"
+#include "IMB_imbuf_types.hh"
 
 #include "oiio/openimageio_api.h"
 
@@ -80,7 +79,7 @@ const ImFileType IMB_FILE_TYPES[] = {
         /*load_filepath_thumbnail*/ nullptr,
         /*save*/ imb_saveiris,
         /*flag*/ 0,
-        /*filetype*/ IMB_FTYPE_IMAGIC,
+        /*filetype*/ IMB_FTYPE_IRIS,
         /*default_save_role*/ COLOR_ROLE_DEFAULT_BYTE,
     },
 #ifdef WITH_CINEON

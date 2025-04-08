@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2013 Blender Foundation
+/* SPDX-FileCopyrightText: 2013 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -14,7 +14,7 @@
 
 class GHOST_ContextNone : public GHOST_Context {
  public:
-  GHOST_ContextNone(bool stereoVisual) : GHOST_Context(stereoVisual), m_swapInterval(1) {}
+  GHOST_ContextNone(bool stereoVisual) : GHOST_Context(stereoVisual) {}
 
   /**
    * Dummy function
@@ -66,5 +66,5 @@ class GHOST_ContextNone : public GHOST_Context {
   GHOST_TSuccess getSwapInterval(int &intervalOut) override;
 
  private:
-  int m_swapInterval;
+  int m_swapInterval = 1;
 };

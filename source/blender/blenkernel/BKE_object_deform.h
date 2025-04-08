@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -11,10 +11,6 @@
  */
 
 #include "DNA_scene_enums.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 struct ID;
 struct MDeformVert;
@@ -167,7 +163,3 @@ void BKE_object_defgroup_mirror_selection(struct Object *ob,
                                           const bool *selection,
                                           bool *dg_flags_sel,
                                           int *r_dg_flags_sel_tot);
-
-#ifdef __cplusplus
-}
-#endif

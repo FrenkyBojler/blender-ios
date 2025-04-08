@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2004-2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2004-2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -12,17 +12,15 @@
 #include "../../BPy_Convert.h"
 #include "../../BPy_IntegrationType.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 using namespace Freestyle;
 
 ///////////////////////////////////////////////////////////////////////////////////////////
 
 //------------------------INSTANCE METHODS ----------------------------------
 
-static char GetViewMapGradientNormF1D___doc__[] =
+PyDoc_STRVAR(
+    /* Wrap. */
+    GetViewMapGradientNormF1D___doc__,
     "Class hierarchy: :class:`freestyle.types.UnaryFunction1D` > "
     ":class:`freestyle.types.UnaryFunction1DDouble` > :class:`GetViewMapGradientNormF1D`\n"
     "\n"
@@ -52,7 +50,7 @@ static char GetViewMapGradientNormF1D___doc__[] =
     "   :arg inter: An Interface1D object.\n"
     "   :type inter: :class:`freestyle.types.Interface1D`\n"
     "   :return: The density of the ViewMap for a given Interface1D.\n"
-    "   :rtype: float\n";
+    "   :rtype: float\n");
 
 static int GetViewMapGradientNormF1D___init__(BPy_GetViewMapGradientNormF1D *self,
                                               PyObject *args,
@@ -117,7 +115,3 @@ PyTypeObject GetViewMapGradientNormF1D_Type = {
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////
-
-#ifdef __cplusplus
-}
-#endif

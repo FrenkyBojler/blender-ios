@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2020 Blender Foundation
+/* SPDX-FileCopyrightText: 2020 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -10,8 +10,9 @@
 
 #include "gpu_context_private.hh"
 
-#include "GPU_framebuffer.h"
+#include "GPU_framebuffer.hh"
 
+#include "BKE_global.hh"
 #include "BLI_set.hh"
 #include "BLI_vector.hh"
 
@@ -43,19 +44,14 @@ class GLContext : public Context {
   static GLint max_cubemap_size;
   static GLint max_ubo_size;
   static GLint max_ubo_binds;
-  static GLint max_ssbo_size;
   static GLint max_ssbo_binds;
 
   /** Extensions. */
 
-  static bool base_instance_support;
-  static bool clear_texture_support;
-  static bool copy_image_support;
   static bool debug_layer_support;
   static bool direct_state_access_support;
   static bool explicit_location_support;
-  static bool geometry_shader_invocations;
-  static bool fixed_restart_index_support;
+  static bool framebuffer_fetch_support;
   static bool layered_rendering_support;
   static bool native_barycentric_support;
   static bool multi_bind_support;
@@ -63,28 +59,25 @@ class GLContext : public Context {
   static bool multi_draw_indirect_support;
   static bool shader_draw_parameters_support;
   static bool stencil_texturing_support;
-  static bool texture_cube_map_array_support;
+  static bool texture_barrier_support;
   static bool texture_filter_anisotropic_support;
-  static bool texture_gather_support;
-  static bool texture_storage_support;
-  static bool vertex_attrib_binding_support;
 
   /** Workarounds. */
 
   static bool debug_layer_workaround;
   static bool unused_fb_slot_workaround;
   static bool generate_mipmap_workaround;
-  static float derivative_signs[2];
 
-  /** VBO for missing vertex attrib binding. Avoid undefined behavior on some implementation. */
+  /** VBO for missing vertex attribute binding. Avoid undefined behavior on some implementation. */
   GLuint default_attr_vbo_;
 
-  /** Used for debugging purpose. Bitflags of all bound slots. */
+  /** Used for debugging purpose. Bit-flags of all bound slots. */
   uint16_t bound_ubo_slots;
+  uint16_t bound_ssbo_slots;
 
  private:
   /**
-   * #GPUBatch & #GPUFramebuffer have references to the context they are from, in the case the
+   * #Batch & #GPUFramebuffer have references to the context they are from, in the case the
    * context is destroyed, we need to remove any reference to it.
    */
   Set<GLVaoCache *> vao_caches_;
@@ -96,6 +89,25 @@ class GLContext : public Context {
   Vector<GLuint> orphaned_framebuffers_;
   /** #GLBackend owns this data. */
   GLSharedOrphanLists &shared_orphan_list_;
+
+  struct TimeQuery {
+    std::string name;
+    union {
+      GLuint handles[2];
+      struct {
+        GLuint handle_start, handle_end;
+      };
+    };
+    bool finished;
+    int64_t cpu_start;
+    int64_t cpu_end;
+  };
+  struct FrameQueries {
+    Vector<TimeQuery> queries;
+  };
+  Vector<FrameQueries> frame_timings;
+
+  void process_frame_timings();
 
  public:
   GLContext(void *ghost_window, GLSharedOrphanLists &shared_orphan_list);
@@ -111,7 +123,9 @@ class GLContext : public Context {
   void flush() override;
   void finish() override;
 
-  void memory_statistics_get(int *total_mem, int *free_mem) override;
+  ShaderCompiler *get_compiler() override;
+
+  void memory_statistics_get(int *r_total_mem, int *r_free_mem) override;
 
   static GLContext *get()
   {
@@ -136,11 +150,14 @@ class GLContext : public Context {
 
   void debug_group_begin(const char *name, int index) override;
   void debug_group_end() override;
-  bool debug_capture_begin() override;
+  bool debug_capture_begin(const char *title) override;
   void debug_capture_end() override;
   void *debug_capture_scope_create(const char *name) override;
   bool debug_capture_scope_begin(void *scope) override;
   void debug_capture_scope_end(void *scope) override;
+
+  void debug_unbind_all_ubo() override;
+  void debug_unbind_all_ssbo() override;
 
  private:
   static void orphans_add(Vector<GLuint> &orphan_list, std::mutex &list_mutex, GLuint id);

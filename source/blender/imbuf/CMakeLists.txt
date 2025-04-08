@@ -1,14 +1,13 @@
-# SPDX-FileCopyrightText: 2006 Blender Foundation
+# SPDX-FileCopyrightText: 2024 Blender Authors
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
+add_subdirectory(movie)
+
 set(INC
-  .
-  ../blenkernel
-  ../blenloader
-  ../gpu
+  PUBLIC .
+  ./movie
   ../makesrna
-  ../sequencer
   ../../../intern/memutil
 )
 
@@ -20,10 +19,9 @@ set(INC_SYS
 
 set(SRC
   intern/allocimbuf.cc
-  intern/anim_movie.cc
   intern/colormanagement.cc
   intern/colormanagement_inline.h
-  intern/divers.cc
+  intern/conversion.cc
   intern/filetype.cc
   intern/filter.cc
   intern/format_bmp.cc
@@ -35,7 +33,7 @@ set(SRC
   intern/format_targa.cc
   intern/format_tiff.cc
   intern/imageprocess.cc
-  intern/indexer.cc
+  intern/interp.cc
   intern/iris.cc
   intern/jpeg.cc
   intern/metadata.cc
@@ -54,30 +52,28 @@ set(SRC
   intern/util_gpu.cc
   intern/writeimage.cc
 
-  IMB_colormanagement.h
-  IMB_imbuf.h
-  IMB_imbuf_types.h
-  IMB_metadata.h
-  IMB_moviecache.h
-  IMB_openexr.h
-  IMB_thumbs.h
-  intern/IMB_allocimbuf.h
-  intern/IMB_anim.h
-  intern/IMB_colormanagement_intern.h
-  intern/IMB_filetype.h
-  intern/IMB_filter.h
-  intern/IMB_indexer.h
-  intern/imbuf.h
-
-  # orphan include
-  ../../../intern/ffmpeg/ffmpeg_compat.h
+  IMB_colormanagement.hh
+  IMB_imbuf.hh
+  IMB_imbuf_enums.h
+  IMB_imbuf_types.hh
+  IMB_interp.hh
+  IMB_metadata.hh
+  IMB_moviecache.hh
+  IMB_openexr.hh
+  IMB_thumbs.hh
+  intern/IMB_allocimbuf.hh
+  intern/IMB_colormanagement_intern.hh
+  intern/IMB_filetype.hh
+  intern/IMB_filter.hh
+  intern/imbuf.hh
 )
 
 set(LIB
-  bf_blenkernel
+  PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
-  bf_blenloader
+  PRIVATE bf::blenloader
   PRIVATE bf::dna
+  PRIVATE bf::gpu
   bf_imbuf_openimageio
   PRIVATE bf::intern::guardedalloc
   bf_intern_memutil
@@ -85,6 +81,7 @@ set(LIB
   PRIVATE bf::extern::nanosvg
 
   ${JPEG_LIBRARIES}
+  PRIVATE bf::sequencer
 )
 
 if(WITH_IMAGE_OPENEXR)
@@ -95,6 +92,15 @@ if(WITH_IMAGE_OPENEXR)
 else()
   list(APPEND SRC
     intern/openexr/openexr_stub.cpp
+  )
+endif()
+
+# OpenImageIO headers include `Imath` headers when there is no SSE support for
+# matrix operations. This depends on the specific architecture and compiler
+# flags, most reliable is to always include the `Imath` headers if we have them.
+if(DEFINED IMATH_INCLUDE_DIRS)
+  list(APPEND INC_SYS
+    ${IMATH_INCLUDE_DIRS}
   )
 endif()
 
@@ -110,30 +116,6 @@ if(WITH_IMAGE_OPENJPEG)
   )
 
   add_definitions(-DWITH_OPENJPEG ${OPENJPEG_DEFINES})
-endif()
-
-if(WITH_CODEC_AVI)
-  list(APPEND INC
-    ../io/avi
-  )
-  list(APPEND LIB
-    bf_avi
-  )
-  add_definitions(-DWITH_AVI)
-endif()
-
-if(WITH_CODEC_FFMPEG)
-  list(APPEND INC
-    ../../../intern/ffmpeg
-  )
-  list(APPEND INC_SYS
-    ${FFMPEG_INCLUDE_DIRS}
-  )
-  list(APPEND LIB
-    ${FFMPEG_LIBRARIES}
-    ${OPENJPEG_LIBRARIES}
-  )
-  add_definitions(-DWITH_FFMPEG)
 endif()
 
 if(WITH_IMAGE_CINEON)
@@ -159,18 +141,6 @@ if(WITH_IMAGE_WEBP)
   add_definitions(-DWITH_WEBP)
 endif()
 
-if(WITH_TBB)
-  add_definitions(-DWITH_TBB)
-
-  list(APPEND INC_SYS
-    ${TBB_INCLUDE_DIRS}
-  )
-
-  list(APPEND LIB
-    ${TBB_LIBRARIES}
-  )
-endif()
-
 list(APPEND INC
   ../../../intern/opencolorio
 )
@@ -181,6 +151,10 @@ if(WIN32)
   )
 endif()
 
+if(WIN32)
+  add_definitions(-DNOMINMAX)
+endif()
+
 # no need to compile object files for inline headers.
 set_source_files_properties(
   intern/colormanagement_inline.cc
@@ -188,3 +162,13 @@ set_source_files_properties(
 )
 
 blender_add_lib(bf_imbuf "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
+add_library(bf::imbuf ALIAS bf_imbuf)
+
+if(WITH_GTESTS)
+  set(TEST_SRC
+    tests/IMB_scaling_test.cc
+    tests/IMB_transform_test.cc
+  )
+  blender_add_test_suite_lib(imbuf "${TEST_SRC}" "${INC}" "${INC_SYS}" "${LIB}")
+  add_subdirectory(tests/performance)
+endif()

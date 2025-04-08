@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -6,7 +6,7 @@
  * \ingroup gpu
  */
 
-#include "GPU_compute.h"
+#include "GPU_compute.hh"
 
 #include "gpu_backend.hh"
 

@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -14,9 +14,9 @@
 #include "BLI_math_geom.h"
 #include "BLI_math_vector.h"
 
-#include "bmesh.h"
+#include "bmesh.hh"
 
-#include "intern/bmesh_operators_private.h" /* own include */
+#include "intern/bmesh_operators_private.hh" /* own include */
 
 #define ELE_VERT_ADJUST (1 << 0)
 #define ELE_FACE_ADJUST (1 << 1)

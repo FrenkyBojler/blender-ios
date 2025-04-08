@@ -6,6 +6,7 @@
  * \ingroup imbuf
  */
 
+#include <algorithm>
 #include <cstring>
 
 #include "BLI_fileops.h"
@@ -13,13 +14,10 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "IMB_filetype.h"
-#include "IMB_imbuf.h"
-#include "IMB_imbuf_types.h"
-#include "imbuf.h"
-
-#include "IMB_colormanagement.h"
-#include "IMB_colormanagement_intern.h"
+#include "IMB_colormanagement.hh"
+#include "IMB_filetype.hh"
+#include "IMB_imbuf.hh"
+#include "IMB_imbuf_types.hh"
 
 #define IMAGIC 0732
 
@@ -59,9 +57,9 @@ BLI_STATIC_ASSERT(sizeof(IMAGE) == HEADER_SIZE, "Invalid header size");
 #define BPPMASK 0x00ff
 // #define ITYPE_VERBATIM      0x0000 /* UNUSED */
 #define ITYPE_RLE 0x0100
-#define ISRLE(type) (((type)&0xff00) == ITYPE_RLE)
+#define ISRLE(type) (((type) & 0xff00) == ITYPE_RLE)
 // #define ISVERBATIM(type)    (((type) & 0xff00) == ITYPE_VERBATIM)
-#define BPP(type) ((type)&BPPMASK)
+#define BPP(type) ((type) & BPPMASK)
 #define RLE(bpp) (ITYPE_RLE | (bpp))
 // #define VERBATIM(bpp)       (ITYPE_VERBATIM | (bpp)) /* UNUSED */
 // #define IBUFSIZE(pixels)    ((pixels + (pixels >> 6)) << 2) /* UNUSED */
@@ -91,13 +89,13 @@ struct MFileOffset {
 
 /* Functions. */
 static void readheader(MFileOffset *inf, IMAGE *image);
-static int writeheader(FILE *outf, IMAGE *image);
+static int writeheader(FILE *outf, const IMAGE *image);
 
 static ushort getshort(MFileOffset *inf);
 static uint getlong(MFileOffset *mofs);
 static void putshort(FILE *outf, ushort val);
 static int putlong(FILE *outf, uint val);
-static int writetab(FILE *outf, uint *tab, int len);
+static int writetab(FILE *outf, const uint *tab, int len);
 static void readtab(MFileOffset *inf, uint *tab, int len);
 
 static int expandrow(
@@ -164,7 +162,7 @@ static void readheader(MFileOffset *inf, IMAGE *image)
   image->zsize = getshort(inf);
 }
 
-static int writeheader(FILE *outf, IMAGE *image)
+static int writeheader(FILE *outf, const IMAGE *image)
 {
   IMAGE t = {0};
 
@@ -182,7 +180,7 @@ static int writeheader(FILE *outf, IMAGE *image)
   return fwrite("no name", 8, 1, outf);
 }
 
-static int writetab(FILE *outf, uint *tab, int len)
+static int writetab(FILE *outf, const uint *tab, int len)
 {
   int r = 0;
 
@@ -215,7 +213,7 @@ bool imb_is_a_iris(const uchar *mem, size_t size)
   return ((GS(mem) == IMAGIC) || (GSS(mem) == IMAGIC));
 }
 
-ImBuf *imb_loadiris(const uchar *mem, size_t size, int flags, char colorspace[IM_MAX_SPACE])
+ImBuf *imb_loadiris(const uchar *mem, size_t size, int flags, ImFileColorSpace & /*r_colorspace*/)
 {
   uint *base, *lptr = nullptr;
   float *fbase, *fptr = nullptr;
@@ -236,9 +234,6 @@ ImBuf *imb_loadiris(const uchar *mem, size_t size, int flags, char colorspace[IM
   if (size < HEADER_SIZE) {
     return nullptr;
   }
-
-  /* OCIO_TODO: only tested with 1 byte per pixel, not sure how to test with other settings */
-  colorspace_set_default_role(colorspace, IM_MAX_SPACE, COLOR_ROLE_DEFAULT_BYTE);
 
   readheader(inf, &image);
   if (image.imagic != IMAGIC) {
@@ -266,7 +261,7 @@ ImBuf *imb_loadiris(const uchar *mem, size_t size, int flags, char colorspace[IM
   if (flags & IB_test) {
     ibuf = IMB_allocImBuf(image.xsize, image.ysize, 8 * image.zsize, 0);
     if (ibuf) {
-      ibuf->ftype = IMB_FTYPE_IMAGIC;
+      ibuf->ftype = IMB_FTYPE_IRIS;
     }
     return ibuf;
   }
@@ -275,8 +270,8 @@ ImBuf *imb_loadiris(const uchar *mem, size_t size, int flags, char colorspace[IM
     size_t tablen = size_t(ysize) * size_t(zsize_file) * sizeof(int);
     MFILE_SEEK(inf, HEADER_SIZE);
 
-    uint *starttab = static_cast<uint *>(MEM_mallocN(tablen, "iris starttab"));
-    uint *lengthtab = static_cast<uint *>(MEM_mallocN(tablen, "iris endtab"));
+    uint *starttab = MEM_malloc_arrayN<uint>(tablen, "iris starttab");
+    uint *lengthtab = MEM_malloc_arrayN<uint>(tablen, "iris endtab");
 
 #define MFILE_CAPACITY_AT_PTR_OK_OR_FAIL(p) \
   if (UNLIKELY((p) > mem_end)) { \
@@ -308,13 +303,11 @@ ImBuf *imb_loadiris(const uchar *mem, size_t size, int flags, char colorspace[IM
 
     if (bpp == 1) {
 
-      ibuf = IMB_allocImBuf(xsize, ysize, 8 * zsize_read, IB_rect);
+      ibuf = IMB_allocImBuf(xsize, ysize, 8 * zsize_read, IB_byte_data);
       if (!ibuf) {
         goto fail_rle;
       }
-      if (ibuf->planes > 32) {
-        ibuf->planes = 32;
-      }
+      ibuf->planes = std::min<int>(ibuf->planes, 32);
       base = (uint *)ibuf->byte_buffer.data;
 
       if (badorder) {
@@ -358,7 +351,7 @@ ImBuf *imb_loadiris(const uchar *mem, size_t size, int flags, char colorspace[IM
     }
     else { /* bpp == 2 */
 
-      ibuf = IMB_allocImBuf(xsize, ysize, 32, (flags & IB_rect) | IB_rectfloat);
+      ibuf = IMB_allocImBuf(xsize, ysize, 32, (flags & IB_byte_data) | IB_float_data);
       if (!ibuf) {
         goto fail_rle;
       }
@@ -418,13 +411,11 @@ ImBuf *imb_loadiris(const uchar *mem, size_t size, int flags, char colorspace[IM
 
     if (bpp == 1) {
 
-      ibuf = IMB_allocImBuf(xsize, ysize, 8 * zsize_read, IB_rect);
+      ibuf = IMB_allocImBuf(xsize, ysize, 8 * zsize_read, IB_byte_data);
       if (!ibuf) {
         goto fail_uncompressed;
       }
-      if (ibuf->planes > 32) {
-        ibuf->planes = 32;
-      }
+      ibuf->planes = std::min<int>(ibuf->planes, 32);
 
       base = (uint *)ibuf->byte_buffer.data;
 
@@ -452,7 +443,7 @@ ImBuf *imb_loadiris(const uchar *mem, size_t size, int flags, char colorspace[IM
     }
     else { /* bpp == 2 */
 
-      ibuf = IMB_allocImBuf(xsize, ysize, 32, (flags & IB_rect) | IB_rectfloat);
+      ibuf = IMB_allocImBuf(xsize, ysize, 32, (flags & IB_byte_data) | IB_float_data);
       if (!ibuf) {
         goto fail_uncompressed;
       }
@@ -540,15 +531,15 @@ ImBuf *imb_loadiris(const uchar *mem, size_t size, int flags, char colorspace[IM
       }
     }
 
-    if (flags & IB_rect) {
-      IMB_rect_from_float(ibuf);
+    if (flags & IB_byte_data) {
+      IMB_byte_from_float(ibuf);
     }
   }
 
   if (dirty_flag) {
     fprintf(stderr, "longimagedata: corrupt file content (%d)\n", dirty_flag);
   }
-  ibuf->ftype = IMB_FTYPE_IMAGIC;
+  ibuf->ftype = IMB_FTYPE_IRIS;
 
   if (ibuf->byte_buffer.data) {
     IMB_convert_rgba_to_abgr(ibuf);
@@ -787,12 +778,12 @@ static bool output_iris(const char *filepath,
 
   tablen = ysize * zsize * sizeof(int);
 
-  image = (IMAGE *)MEM_mallocN(sizeof(IMAGE), "iris image");
-  starttab = (uint *)MEM_mallocN(tablen, "iris starttab");
-  lengthtab = (uint *)MEM_mallocN(tablen, "iris lengthtab");
+  image = MEM_mallocN<IMAGE>("iris image");
+  starttab = MEM_malloc_arrayN<uint>(size_t(tablen), "iris starttab");
+  lengthtab = MEM_malloc_arrayN<uint>(size_t(tablen), "iris lengthtab");
   rlebuflen = 1.05 * xsize + 10;
-  rlebuf = (uchar *)MEM_mallocN(rlebuflen, "iris rlebuf");
-  lumbuf = (uint *)MEM_mallocN(xsize * sizeof(int), "iris lumbuf");
+  rlebuf = MEM_malloc_arrayN<uchar>(size_t(rlebuflen), "iris rlebuf");
+  lumbuf = MEM_malloc_arrayN<uint>(size_t(xsize), "iris lumbuf");
 
   memset(image, 0, sizeof(IMAGE));
   image->imagic = IMAGIC;
@@ -928,7 +919,7 @@ static int compressrow(const uchar *lbuf, uchar *rlebuf, const int z, const int 
     }
   }
   *optr++ = 0;
-  return optr - (uchar *)rlebuf;
+  return optr - rlebuf;
 }
 
 bool imb_saveiris(ImBuf *ibuf, const char *filepath, int /*flags*/)

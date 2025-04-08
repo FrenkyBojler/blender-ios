@@ -11,7 +11,7 @@
 
 #pragma once
 
-#include <stdlib.h>
+#include <cstdlib>
 
 #include "GHOST_IContext.hh"
 #include "GHOST_ITimerTask.hh"
@@ -161,7 +161,7 @@ class GHOST_ISystem {
    * Destructor.
    * Protected default constructor to force use of static dispose member.
    */
-  virtual ~GHOST_ISystem() {}
+  virtual ~GHOST_ISystem() = default;
 
  public:
   /***************************************************************************************
@@ -170,8 +170,10 @@ class GHOST_ISystem {
 
   /**
    * Returns the system time.
-   * Returns the number of milliseconds since the start of the system process.
-   * Based on ANSI clock() routine.
+   * Returns the number of milliseconds since the start of the system.
+   * \note The exact method used is platform dependent however monotonic methods should be used
+   * instead of wall-clock time.
+   *
    * \return The number of milliseconds.
    */
   virtual uint64_t getMilliSeconds() const = 0;
@@ -277,39 +279,6 @@ class GHOST_ISystem {
   virtual bool validWindow(GHOST_IWindow *window) = 0;
 
   /**
-   * Begins full screen mode.
-   * \param setting: The new setting of the display.
-   * \param window: Window displayed in full screen.
-   *                  This window is invalid after full screen has been ended.
-   * \return Indication of success.
-   */
-  virtual GHOST_TSuccess beginFullScreen(const GHOST_DisplaySetting &setting,
-                                         GHOST_IWindow **window,
-                                         const bool stereoVisual) = 0;
-
-  /**
-   * Updates the resolution while in full-screen mode.
-   * \param setting: The new setting of the display.
-   * \param window: Window displayed in full screen.
-   *
-   * \return Indication of success.
-   */
-  virtual GHOST_TSuccess updateFullScreen(const GHOST_DisplaySetting &setting,
-                                          GHOST_IWindow **window) = 0;
-
-  /**
-   * Ends full screen mode.
-   * \return Indication of success.
-   */
-  virtual GHOST_TSuccess endFullScreen() = 0;
-
-  /**
-   * Returns current full screen mode status.
-   * \return The current status.
-   */
-  virtual bool getFullScreen() = 0;
-
-  /**
    * Native pixel size support (MacBook 'retina').
    */
   virtual bool useNativePixel() = 0;
@@ -332,7 +301,10 @@ class GHOST_ISystem {
   virtual void setAutoFocus(const bool auto_focus) = 0;
 
   /**
-   * Get the Window under the cursor.
+   * Get the Window under the cursor. Although coordinates of the mouse are supplied, platform-
+   * specific implementations are free to ignore these and query the mouse location themselves, due
+   * to them possibly being incorrect under certain conditions, for example when using multiple
+   * monitors that vary in scale and/or DPI.
    * \param x: The x-coordinate of the cursor.
    * \param y: The y-coordinate of the cursor.
    * \return The window under the cursor or nullptr if none.
@@ -441,6 +413,13 @@ class GHOST_ISystem {
    */
   virtual void setTabletAPI(GHOST_TTabletAPI api) = 0;
 
+  /**
+   * Get the color of the pixel at the current mouse cursor location
+   * \param r_color: returned sRGB float colors
+   * \return Success value (true == successful and supported by platform)
+   */
+  virtual GHOST_TSuccess getPixelAtCursor(float r_color[3]) const = 0;
+
 #ifdef WITH_INPUT_NDOF
   /**
    * Sets 3D mouse deadzone
@@ -463,7 +442,6 @@ class GHOST_ISystem {
   /**
    * Returns the selection buffer
    * \return "unsigned char" from X11 XA_CUT_BUFFER0 buffer
-   *
    */
   virtual char *getClipboard(bool selection) const = 0;
 
@@ -475,7 +453,7 @@ class GHOST_ISystem {
   /**
    * Returns GHOST_kSuccess if the clipboard contains an image.
    */
-  virtual GHOST_TSuccess hasClipboardImage(void) const = 0;
+  virtual GHOST_TSuccess hasClipboardImage() const = 0;
 
   /**
    * Get image data from the Clipboard
@@ -549,7 +527,5 @@ class GHOST_ISystem {
   /** Function to call that sets the back-trace. */
   static GHOST_TBacktraceFn m_backtrace_fn;
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("GHOST:GHOST_ISystem")
-#endif
 };

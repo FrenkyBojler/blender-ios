@@ -1,17 +1,17 @@
-/* SPDX-FileCopyrightText: 2021 Blender Foundation
+/* SPDX-FileCopyrightText: 2021 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BLI_string.h"
 
-#include "BKE_action.h"
+#include "BKE_action.hh"
+
+#include "ANIM_action.hh"
 
 #include "DNA_action_types.h"
 #include "DNA_anim_types.h"
 
 #include "BLI_listbase.h"
-
-#include "MEM_guardedalloc.h"
 
 #include "testing/testing.h"
 
@@ -163,13 +163,10 @@ void add_keyframe(FCurve *fcu, float x, float y)
 
 TEST(action_assets, BKE_action_has_single_frame)
 {
-  /* Null action. */
-  EXPECT_FALSE(BKE_action_has_single_frame(nullptr)) << "Null Action cannot have a single frame.";
-
   /* No FCurves. */
   {
     const bAction empty = {{nullptr}};
-    EXPECT_FALSE(BKE_action_has_single_frame(&empty))
+    EXPECT_FALSE(empty.wrap().has_single_frame())
         << "Action without FCurves cannot have a single frame.";
   }
 
@@ -182,7 +179,7 @@ TEST(action_assets, BKE_action_has_single_frame)
     bAction action = {{nullptr}};
     BLI_addtail(&action.curves, &fcu);
 
-    EXPECT_TRUE(BKE_action_has_single_frame(&action))
+    EXPECT_TRUE(action.wrap().has_single_frame())
         << "Action with one FCurve and one key should have single frame.";
   }
 
@@ -199,12 +196,12 @@ TEST(action_assets, BKE_action_has_single_frame)
     BLI_addtail(&action.curves, &fcu1);
     BLI_addtail(&action.curves, &fcu2);
 
-    EXPECT_TRUE(BKE_action_has_single_frame(&action))
+    EXPECT_TRUE(action.wrap().has_single_frame())
         << "Two FCurves with keys on the same frame should have single frame.";
 
     /* Modify the 2nd curve so it's keyed on a different frame. */
     fcu2.bezt[0].vec[1][0] = 2.0f;
-    EXPECT_FALSE(BKE_action_has_single_frame(&action))
+    EXPECT_FALSE(action.wrap().has_single_frame())
         << "Two FCurves with keys on different frames should have animation.";
   }
 
@@ -218,7 +215,7 @@ TEST(action_assets, BKE_action_has_single_frame)
     bAction action = {{nullptr}};
     BLI_addtail(&action.curves, &fcu);
 
-    EXPECT_FALSE(BKE_action_has_single_frame(&action))
+    EXPECT_FALSE(action.wrap().has_single_frame())
         << "Action with one FCurve and two keys must have animation.";
   }
 }

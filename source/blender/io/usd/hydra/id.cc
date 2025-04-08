@@ -1,10 +1,8 @@
-/* SPDX-FileCopyrightText: 2011-2022 Blender Foundation
+/* SPDX-FileCopyrightText: 2011-2022 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "id.h"
-
-#include "BKE_lib_id.h"
+#include "id.hh"
 
 namespace blender::io::hydra {
 

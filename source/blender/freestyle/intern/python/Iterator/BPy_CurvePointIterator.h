@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -11,10 +11,6 @@
 #include "../BPy_Iterator.h"
 
 #include "../../stroke/CurveIterators.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 ///////////////////////////////////////////////////////////////////////////////////////////
 
@@ -30,7 +26,3 @@ typedef struct {
 } BPy_CurvePointIterator;
 
 ///////////////////////////////////////////////////////////////////////////////////////////
-
-#ifdef __cplusplus
-}
-#endif

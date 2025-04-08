@@ -1,43 +1,42 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "testing/testing.h"
 #include "tests/blendfile_loading_base_test.h"
 
-#include <pxr/base/plug/registry.h>
 #include <pxr/base/tf/stringUtils.h>
 #include <pxr/base/vt/types.h>
 #include <pxr/base/vt/value.h>
 #include <pxr/usd/sdf/types.h>
+#include <pxr/usd/usd/common.h>
 #include <pxr/usd/usd/prim.h>
 #include <pxr/usd/usd/stage.h>
 #include <pxr/usd/usdGeom/mesh.h>
-#include <pxr/usd/usdGeom/subset.h>
-#include <pxr/usd/usdGeom/tokens.h>
 
 #include "DNA_image_types.h"
 #include "DNA_material_types.h"
+#include "DNA_mesh_types.h"
 #include "DNA_node_types.h"
 
-#include "BKE_context.h"
-#include "BKE_lib_id.h"
-#include "BKE_main.h"
-#include "BKE_mesh.hh"
-#include "BKE_node.hh"
+#include "BKE_context.hh"
+#include "BKE_lib_id.hh"
+#include "BKE_main.hh"
+
 #include "BLI_fileops.h"
+#include "BLI_listbase.h"
 #include "BLI_math_vector_types.hh"
-#include "BLI_path_util.h"
-#include "BLO_readfile.h"
+#include "BLI_path_utils.hh"
+
+#include "BLO_readfile.hh"
 
 #include "BKE_node_runtime.hh"
 
-#include "DEG_depsgraph.h"
+#include "DEG_depsgraph.hh"
 
-#include "WM_api.hh"
-
-#include "usd.h"
-#include "usd_writer_material.h"
+#include "usd.hh"
+#include "usd_utils.hh"
+#include "usd_writer_material.hh"
 
 namespace blender::io::usd {
 
@@ -50,7 +49,7 @@ static const bNode *find_node_for_type_in_graph(const bNodeTree *nodetree,
 
 class UsdExportTest : public BlendfileLoadingBaseTest {
  protected:
-  struct bContext *context = nullptr;
+  bContext *context = nullptr;
 
  public:
   bool load_file_and_depsgraph(const StringRefNull &filepath,
@@ -68,12 +67,12 @@ class UsdExportTest : public BlendfileLoadingBaseTest {
     return true;
   }
 
-  virtual void SetUp() override
+  void SetUp() override
   {
     BlendfileLoadingBaseTest::SetUp();
   }
 
-  virtual void TearDown() override
+  void TearDown() override
   {
     BlendfileLoadingBaseTest::TearDown();
     CTX_free(context);
@@ -84,7 +83,7 @@ class UsdExportTest : public BlendfileLoadingBaseTest {
     }
   }
 
-  const pxr::UsdPrim get_first_child_mesh(const pxr::UsdPrim prim)
+  pxr::UsdPrim get_first_child_mesh(const pxr::UsdPrim prim)
   {
     for (auto child : prim.GetChildren()) {
       if (child.IsA<pxr::UsdGeomMesh>()) {
@@ -98,13 +97,12 @@ class UsdExportTest : public BlendfileLoadingBaseTest {
    * Loop the sockets on the Blender `bNode`, and fail if any of their values do
    * not match the equivalent Attribute values on the `UsdPrim`.
    */
-  const void compare_blender_node_to_usd_prim(const bNode *bsdf_node,
-                                              const pxr::UsdPrim &bsdf_prim)
+  void compare_blender_node_to_usd_prim(const bNode *bsdf_node, const pxr::UsdPrim &bsdf_prim)
   {
     ASSERT_NE(bsdf_node, nullptr);
     ASSERT_TRUE(bool(bsdf_prim));
 
-    for (auto socket : bsdf_node->input_sockets()) {
+    for (const auto *socket : bsdf_node->input_sockets()) {
       const pxr::TfToken attribute_token = blender::io::usd::token_for_input(socket->name);
       if (attribute_token.IsEmpty()) {
         /* This socket is not translated between Blender and USD. */
@@ -151,8 +149,8 @@ class UsdExportTest : public BlendfileLoadingBaseTest {
     }
   }
 
-  const void compare_blender_image_to_usd_image_shader(const bNode *image_node,
-                                                       const pxr::UsdPrim &image_prim)
+  void compare_blender_image_to_usd_image_shader(const bNode *image_node,
+                                                 const pxr::UsdPrim &image_prim)
   {
     const Image *image = reinterpret_cast<Image *>(image_node->id);
 
@@ -177,7 +175,7 @@ class UsdExportTest : public BlendfileLoadingBaseTest {
    * Determine if a Blender Mesh matches a UsdGeomMesh prim by checking counts
    * on vertices, faces, face indices, and normals.
    */
-  const void compare_blender_mesh_to_usd_prim(const Mesh *mesh, const pxr::UsdGeomMesh &mesh_prim)
+  void compare_blender_mesh_to_usd_prim(const Mesh *mesh, const pxr::UsdGeomMesh &mesh_prim)
   {
     pxr::VtIntArray face_indices;
     pxr::VtIntArray face_counts;
@@ -191,10 +189,10 @@ class UsdExportTest : public BlendfileLoadingBaseTest {
     mesh_prim.GetPointsAttr().Get(&positions, 0.0);
     mesh_prim.GetNormalsAttr().Get(&normals, 0.0);
 
-    EXPECT_EQ(mesh->totvert, positions.size());
+    EXPECT_EQ(mesh->verts_num, positions.size());
     EXPECT_EQ(mesh->faces_num, face_counts.size());
-    EXPECT_EQ(mesh->totloop, face_indices.size());
-    EXPECT_EQ(mesh->totloop, normals.size());
+    EXPECT_EQ(mesh->corners_num, face_indices.size());
+    EXPECT_EQ(mesh->corners_num, normals.size());
   }
 };
 
@@ -214,7 +212,7 @@ TEST_F(UsdExportTest, usd_export_rain_mesh)
   params.export_uvmaps = false;
   params.visible_objects_only = true;
 
-  bool result = USD_export(context, output_filename.c_str(), &params, false);
+  bool result = USD_export(context, output_filename.c_str(), &params, false, nullptr);
   ASSERT_TRUE(result) << "Writing to " << output_filename << " failed!";
 
   pxr::UsdStageRefPtr stage = pxr::UsdStage::Open(output_filename);
@@ -263,9 +261,9 @@ TEST_F(UsdExportTest, usd_export_material)
   }
 
   /* File sanity checks. */
-  EXPECT_EQ(BLI_listbase_count(&bfile->main->objects), 1);
-  /* There are two materials because of the Dots Stroke. */
-  EXPECT_EQ(BLI_listbase_count(&bfile->main->materials), 2);
+  EXPECT_EQ(BLI_listbase_count(&bfile->main->objects), 6);
+  /* There is 1 additional material because of the "Dots Stroke". */
+  EXPECT_EQ(BLI_listbase_count(&bfile->main->materials), 7);
 
   Material *material = reinterpret_cast<Material *>(
       BKE_libblock_find_name(bfile->main, ID_MA, "Material"));
@@ -278,9 +276,11 @@ TEST_F(UsdExportTest, usd_export_material)
   params.export_textures = false;
   params.export_uvmaps = true;
   params.generate_preview_surface = true;
+  params.generate_materialx_network = false;
+  params.convert_world_material = false;
   params.relative_paths = false;
 
-  const bool result = USD_export(context, output_filename.c_str(), &params, false);
+  const bool result = USD_export(context, output_filename.c_str(), &params, false, nullptr);
   ASSERT_TRUE(result) << "Unable to export stage to " << output_filename;
 
   pxr::UsdStageRefPtr stage = pxr::UsdStage::Open(output_filename);
@@ -309,6 +309,35 @@ TEST_F(UsdExportTest, usd_export_material)
                                 << output_filename;
 
   compare_blender_image_to_usd_image_shader(image_node, image_prim);
+}
+
+TEST(utilities, make_safe_name)
+{
+  /* ASCII variations. */
+  ASSERT_EQ(make_safe_name("", false), std::string("_"));
+  ASSERT_EQ(make_safe_name("|", false), std::string("_"));
+  ASSERT_EQ(make_safe_name("1", false), std::string("_1"));
+  ASSERT_EQ(make_safe_name("1Test", false), std::string("_1Test"));
+
+  ASSERT_EQ(make_safe_name("Test", false), std::string("Test"));
+  ASSERT_EQ(make_safe_name("Test|$bézier @ world", false), std::string("Test__b__zier___world"));
+  ASSERT_EQ(make_safe_name("Test|ハローワールド", false),
+            std::string("Test______________________"));
+  ASSERT_EQ(make_safe_name("Test|Γεια σου κόσμε", false),
+            std::string("Test___________________________"));
+  ASSERT_EQ(make_safe_name("Test|∧hello ○ wórld", false), std::string("Test____hello_____w__rld"));
+
+  /* Unicode variations. */
+  ASSERT_EQ(make_safe_name("", true), std::string("_"));
+  ASSERT_EQ(make_safe_name("|", true), std::string("_"));
+  ASSERT_EQ(make_safe_name("1", true), std::string("_1"));
+  ASSERT_EQ(make_safe_name("1Test", true), std::string("_1Test"));
+
+  ASSERT_EQ(make_safe_name("Test", true), std::string("Test"));
+  ASSERT_EQ(make_safe_name("Test|$bézier @ world", true), std::string("Test__bézier___world"));
+  ASSERT_EQ(make_safe_name("Test|ハローワールド", true), std::string("Test_ハローワールド"));
+  ASSERT_EQ(make_safe_name("Test|Γεια σου κόσμε", true), std::string("Test_Γεια_σου_κόσμε"));
+  ASSERT_EQ(make_safe_name("Test|∧hello ○ wórld", true), std::string("Test__hello___wórld"));
 }
 
 }  // namespace blender::io::usd

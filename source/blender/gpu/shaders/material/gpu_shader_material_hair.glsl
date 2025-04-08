@@ -1,3 +1,6 @@
+/* SPDX-FileCopyrightText: 2022-2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 void node_bsdf_hair(vec4 color,
                     float offset,
@@ -7,6 +10,8 @@ void node_bsdf_hair(vec4 color,
                     float weight,
                     out Closure result)
 {
+  color = max(color, vec4(0.0));
+
 #if 0
   /* NOTE(fclem): This is the way it should be. But we don't have proper implementation of the hair
    * closure yet. For now fall back to a simpler diffuse surface so that we have at least a color
@@ -22,8 +27,6 @@ void node_bsdf_hair(vec4 color,
   hair_data.weight = weight;
   hair_data.color = color.rgb;
   hair_data.N = g_data.N;
-  hair_data.sss_radius = vec3(0.0);
-  hair_data.sss_id = 0u;
 #endif
   result = closure_eval(hair_data);
 }
@@ -38,6 +41,10 @@ void node_bsdf_hair_principled(vec4 color,
                                float coat,
                                float ior,
                                float offset,
+                               float aspect_ratio,
+                               float R,
+                               float TT,
+                               float TRT,
                                float random_color,
                                float random_roughness,
                                float random,
@@ -59,8 +66,6 @@ void node_bsdf_hair_principled(vec4 color,
   hair_data.weight = weight;
   hair_data.color = color.rgb;
   hair_data.N = g_data.N;
-  hair_data.sss_radius = vec3(0.0);
-  hair_data.sss_id = 0u;
 #endif
   result = closure_eval(hair_data);
 }

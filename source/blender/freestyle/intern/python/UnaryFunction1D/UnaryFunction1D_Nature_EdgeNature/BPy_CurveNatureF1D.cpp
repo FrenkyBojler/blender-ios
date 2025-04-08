@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2004-2022 Blender Foundation
+/* SPDX-FileCopyrightText: 2004-2022 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -12,17 +12,15 @@
 #include "../../BPy_Convert.h"
 #include "../../BPy_IntegrationType.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 using namespace Freestyle;
 
 ///////////////////////////////////////////////////////////////////////////////////////////
 
 //------------------------INSTANCE METHODS ----------------------------------
 
-static char CurveNatureF1D___doc__[] =
+PyDoc_STRVAR(
+    /* Wrap. */
+    CurveNatureF1D___doc__,
     "Class hierarchy: :class:`freestyle.types.UnaryFunction1D` > "
     ":class:`freestyle.types.UnaryFunction1DEdgeNature` > :class:`CurveNatureF1D`\n"
     "\n"
@@ -47,7 +45,7 @@ static char CurveNatureF1D___doc__[] =
     "   :arg inter: An Interface1D object.\n"
     "   :type inter: :class:`freestyle.types.Interface1D`\n"
     "   :return: The nature of the Interface1D.\n"
-    "   :rtype: :class:`freestyle.types.Nature`\n";
+    "   :rtype: :class:`freestyle.types.Nature`\n");
 
 static int CurveNatureF1D___init__(BPy_CurveNatureF1D *self, PyObject *args, PyObject *kwds)
 {
@@ -55,7 +53,8 @@ static int CurveNatureF1D___init__(BPy_CurveNatureF1D *self, PyObject *args, PyO
   PyObject *obj = nullptr;
 
   if (!PyArg_ParseTupleAndKeywords(
-          args, kwds, "|O!", (char **)kwlist, &IntegrationType_Type, &obj)) {
+          args, kwds, "|O!", (char **)kwlist, &IntegrationType_Type, &obj))
+  {
     return -1;
   }
   IntegrationType t = (obj) ? IntegrationType_from_BPy_IntegrationType(obj) : MEAN;
@@ -107,7 +106,3 @@ PyTypeObject CurveNatureF1D_Type = {
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////
-
-#ifdef __cplusplus
-}
-#endif

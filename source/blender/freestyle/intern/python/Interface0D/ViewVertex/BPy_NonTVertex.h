@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -11,10 +11,6 @@
 #include "../BPy_ViewVertex.h"
 
 #include "../../../view_map/ViewMap.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 ///////////////////////////////////////////////////////////////////////////////////////////
 
@@ -29,7 +25,3 @@ typedef struct {
 } BPy_NonTVertex;
 
 ///////////////////////////////////////////////////////////////////////////////////////////
-
-#ifdef __cplusplus
-}
-#endif

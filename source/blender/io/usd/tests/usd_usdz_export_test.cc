@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -8,18 +8,17 @@
 #include <pxr/usd/usd/prim.h>
 #include <pxr/usd/usd/stage.h>
 
-#include "BKE_appdir.h"
-#include "BKE_context.h"
-#include "BKE_main.h"
+#include "BKE_appdir.hh"
+#include "BKE_context.hh"
+#include "BKE_main.hh"
 #include "BLI_fileops.h"
-#include "BLI_path_util.h"
-#include "BLO_readfile.h"
+#include "BLI_listbase.h"
+#include "BLI_path_utils.hh"
+#include "BLO_readfile.hh"
 
-#include "DEG_depsgraph.h"
+#include "DEG_depsgraph.hh"
 
-#include "WM_api.hh"
-
-#include "usd.h"
+#include "usd.hh"
 
 namespace blender::io::usd {
 
@@ -30,7 +29,7 @@ char output_filepath[FILE_MAX];
 
 class UsdUsdzExportTest : public BlendfileLoadingBaseTest {
  protected:
-  struct bContext *context = nullptr;
+  bContext *context = nullptr;
 
  public:
   bool load_file_and_depsgraph(const StringRefNull &filepath,
@@ -48,7 +47,7 @@ class UsdUsdzExportTest : public BlendfileLoadingBaseTest {
     return true;
   }
 
-  virtual void SetUp() override
+  void SetUp() override
   {
     BlendfileLoadingBaseTest::SetUp();
 
@@ -64,7 +63,7 @@ class UsdUsdzExportTest : public BlendfileLoadingBaseTest {
     BLI_path_join(output_filepath, FILE_MAX, temp_output_dir, "output_новый.usdz");
   }
 
-  virtual void TearDown() override
+  void TearDown() override
   {
     BlendfileLoadingBaseTest::TearDown();
     CTX_free(context);
@@ -96,9 +95,10 @@ TEST_F(UsdUsdzExportTest, usdz_export)
 
   USDExportParams params;
   params.export_materials = false;
+  params.convert_world_material = false;
   params.visible_objects_only = false;
 
-  bool result = USD_export(context, output_filepath, &params, false);
+  bool result = USD_export(context, output_filepath, &params, false, nullptr);
   ASSERT_TRUE(result) << "usd export to " << output_filepath << " failed.";
 
   pxr::UsdStageRefPtr stage = pxr::UsdStage::Open(output_filepath);

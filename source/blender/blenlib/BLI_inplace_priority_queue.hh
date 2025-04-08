@@ -1,11 +1,17 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
+
+/** \file
+ * \ingroup bli
+ */
 
 #pragma once
 
 #include "BLI_array.hh"
 #include "BLI_dot_export.hh"
+
+#include <sstream>
 
 namespace blender {
 
@@ -270,14 +276,14 @@ class InplacePriorityQueue {
 
   std::string partial_to_dot(const int size) const
   {
-    dot::DirectedGraph digraph;
-    Array<dot::Node *> dot_nodes(size);
+    dot_export::DirectedGraph digraph;
+    Array<dot_export::Node *> dot_nodes(size);
     for (const int i : IndexRange(size)) {
       std::stringstream ss;
       ss << data_[heap_to_orig_[i]];
       const std::string name = ss.str();
-      dot::Node &node = digraph.new_node(name);
-      node.set_shape(dot::Attr_shape::Rectangle);
+      dot_export::Node &node = digraph.new_node(name);
+      node.set_shape(dot_export::Attr_shape::Rectangle);
       node.attributes.set("ordering", "out");
       dot_nodes[i] = &node;
       if (i > 0) {

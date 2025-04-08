@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -29,7 +29,8 @@ PropertyRNA *RNA_def_node_enum(StructRNA *srna,
                                const EnumPropertyItem *static_items,
                                const EnumRNAAccessors accessors,
                                std::optional<int> default_value,
-                               const EnumPropertyItemFunc item_func)
+                               const EnumPropertyItemFunc item_func,
+                               const bool allow_animation)
 {
   PropertyRNA *prop = RNA_def_property(srna, identifier, PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_funcs_runtime(prop, accessors.getter, accessors.setter, item_func);
@@ -38,6 +39,34 @@ PropertyRNA *RNA_def_node_enum(StructRNA *srna,
     RNA_def_property_enum_default(prop, *default_value);
   }
   RNA_def_property_ui_text(prop, ui_name, ui_description);
+  if (allow_animation) {
+    RNA_def_property_update_runtime(prop, rna_Node_update);
+  }
+  else {
+    RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+    RNA_def_property_update_runtime(prop, rna_Node_socket_update);
+  }
+  RNA_def_property_update_notifier(prop, NC_NODE | NA_EDITED);
+  return prop;
+}
+
+PropertyRNA *RNA_def_node_boolean(StructRNA *srna,
+                                  const char *identifier,
+                                  const char *ui_name,
+                                  const char *ui_description,
+                                  const BooleanRNAAccessors accessors,
+                                  std::optional<bool> default_value,
+                                  bool allow_animation)
+{
+  PropertyRNA *prop = RNA_def_property(srna, identifier, PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_funcs_runtime(prop, accessors.getter, accessors.setter);
+  if (default_value.has_value()) {
+    RNA_def_property_boolean_default(prop, *default_value);
+  }
+  RNA_def_property_ui_text(prop, ui_name, ui_description);
+  if (!allow_animation) {
+    RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  }
   RNA_def_property_update_runtime(prop, rna_Node_socket_update);
   RNA_def_property_update_notifier(prop, NC_NODE | NA_EDITED);
   return prop;

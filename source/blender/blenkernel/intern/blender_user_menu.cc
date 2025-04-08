@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -17,8 +17,8 @@
 
 #include "DNA_userdef_types.h"
 
-#include "BKE_blender_user_menu.h"
-#include "BKE_idprop.h"
+#include "BKE_blender_user_menu.hh"
+#include "BKE_idprop.hh"
 
 /* -------------------------------------------------------------------- */
 /** \name Menu Type
@@ -38,7 +38,7 @@ bUserMenu *BKE_blender_user_menu_ensure(ListBase *lb, char space_type, const cha
 {
   bUserMenu *um = BKE_blender_user_menu_find(lb, space_type, context);
   if (um == nullptr) {
-    um = static_cast<bUserMenu *>(MEM_callocN(sizeof(bUserMenu), __func__));
+    um = MEM_callocN<bUserMenu>(__func__);
     um->space_type = space_type;
     STRNCPY(um->context, context);
     BLI_addhead(lb, um);
@@ -93,7 +93,8 @@ void BKE_blender_user_menu_item_free(bUserMenuItem *umi)
 void BKE_blender_user_menu_item_free_list(ListBase *lb)
 {
   for (bUserMenuItem *umi = static_cast<bUserMenuItem *>(lb->first), *umi_next; umi;
-       umi = umi_next) {
+       umi = umi_next)
+  {
     umi_next = umi->next;
     BKE_blender_user_menu_item_free(umi);
   }

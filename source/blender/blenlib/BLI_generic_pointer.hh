@@ -1,6 +1,10 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
+
+/** \file
+ * \ingroup bli
+ */
 
 #pragma once
 
@@ -27,7 +31,10 @@ class GMutablePointer {
 
   GMutablePointer(const CPPType &type, void *data = nullptr) : GMutablePointer(&type, data) {}
 
-  template<typename T> GMutablePointer(T *data) : GMutablePointer(&CPPType::get<T>(), data) {}
+  template<typename T, BLI_ENABLE_IF(!std::is_void_v<T>)>
+  GMutablePointer(T *data) : GMutablePointer(&CPPType::get<T>(), data)
+  {
+  }
 
   void *get() const
   {
@@ -37,6 +44,11 @@ class GMutablePointer {
   const CPPType *type() const
   {
     return type_;
+  }
+
+  operator bool() const
+  {
+    return data_ != nullptr;
   }
 
   template<typename T> T *get() const
@@ -89,6 +101,11 @@ class GPointer {
   GPointer(const CPPType &type, const void *data = nullptr) : type_(&type), data_(data) {}
 
   template<typename T> GPointer(T *data) : GPointer(&CPPType::get<T>(), data) {}
+
+  operator bool() const
+  {
+    return data_ != nullptr;
+  }
 
   const void *get() const
   {

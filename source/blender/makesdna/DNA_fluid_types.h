@@ -10,10 +10,6 @@
 
 #include "DNA_listBase.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /**
  * #FluidDomainSettings.flags
  * Domain flags.
@@ -160,6 +156,7 @@ enum {
  * Fluid grid-line display color field types.
  */
 enum {
+  FLUID_GRIDLINE_COLOR_TYPE_NONE = 0,
   FLUID_GRIDLINE_COLOR_TYPE_FLAGS = 1,
   FLUID_GRIDLINE_COLOR_TYPE_RANGE = 2,
 };
@@ -836,7 +833,7 @@ typedef struct FluidEffectorSettings {
 
   /* -- User-accessible fields (from here on). -- */
 
-  float surface_distance; /* Thickness of mesh surface, used in obstacle sdf. */
+  float surface_distance; /* Thickness of mesh surface, used in obstacle SDF. */
   int flags;
   int subframes;
   short type;
@@ -847,7 +844,3 @@ typedef struct FluidEffectorSettings {
   short guide_mode;
   char _pad2[2];
 } FluidEffectorSettings;
-
-#ifdef __cplusplus
-}
-#endif

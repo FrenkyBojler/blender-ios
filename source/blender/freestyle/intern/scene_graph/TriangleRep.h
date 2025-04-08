@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -70,7 +70,7 @@ class TriangleRep : public Rep {
   virtual ~TriangleRep() {}
 
   /** accessors */
-  inline const TRIANGLE_STYLE style() const
+  inline TRIANGLE_STYLE style() const
   {
     return _Style;
   }

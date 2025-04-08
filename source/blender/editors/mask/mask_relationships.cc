@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2012 Blender Foundation
+/* SPDX-FileCopyrightText: 2012 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -10,11 +10,11 @@
 #include "BLI_math_vector.h"
 #include "BLI_string.h"
 
-#include "BKE_context.h"
+#include "BKE_context.hh"
 #include "BKE_mask.h"
 #include "BKE_tracking.h"
 
-#include "DEG_depsgraph.h"
+#include "DEG_depsgraph.hh"
 
 #include "DNA_mask_types.h"
 
@@ -25,9 +25,9 @@
 #include "ED_mask.hh"
 #include "ED_screen.hh"
 
-#include "mask_intern.h" /* own include */
+#include "mask_intern.hh" /* own include */
 
-static int mask_parent_clear_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus mask_parent_clear_exec(bContext *C, wmOperator * /*op*/)
 {
   Mask *mask = CTX_data_edit_mask(C);
 
@@ -69,7 +69,7 @@ void MASK_OT_parent_clear(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-static int mask_parent_set_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus mask_parent_set_exec(bContext *C, wmOperator * /*op*/)
 {
   Mask *mask = CTX_data_edit_mask(C);
 

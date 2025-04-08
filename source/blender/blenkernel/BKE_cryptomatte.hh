@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2020 Blender Foundation
+/* SPDX-FileCopyrightText: 2020 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -8,16 +8,15 @@
 
 #pragma once
 
+#include <algorithm>
 #include <optional>
 #include <string>
 
 #include "BKE_cryptomatte.h"
 
-#include "BLI_hash_mm3.h"
+#include "BLI_hash_mm3.hh"
 #include "BLI_map.hh"
 #include "BLI_string_ref.hh"
-
-#include "BKE_cryptomatte.h"
 
 struct ID;
 
@@ -32,8 +31,7 @@ namespace blender::bke::cryptomatte {
  * The output of this function is:
  * 'cryptomatte/{hash of layer_name}/{key_name}'.
  */
-std::string BKE_cryptomatte_meta_data_key(const StringRef layer_name,
-                                          const StringRefNull key_name);
+std::string BKE_cryptomatte_meta_data_key(StringRef layer_name, StringRefNull key_name);
 
 /**
  * Extract the cryptomatte layer name from the given `render_pass_name`.
@@ -50,7 +48,7 @@ std::string BKE_cryptomatte_meta_data_key(const StringRef layer_name,
  * \note The return type is a sub-string of `render_pass_name` and therefore cannot outlive the
  * `render_pass_name` internal data.
  */
-StringRef BKE_cryptomatte_extract_layer_name(const StringRef render_pass_name);
+StringRef BKE_cryptomatte_extract_layer_name(StringRef render_pass_name);
 
 struct CryptomatteHash {
   uint32_t hash;
@@ -80,8 +78,8 @@ struct CryptomatteHash {
   {
     uint32_t mantissa = hash & ((1 << 23) - 1);
     uint32_t exponent = (hash >> 23) & ((1 << 8) - 1);
-    exponent = MAX2(exponent, uint32_t(1));
-    exponent = MIN2(exponent, uint32_t(254));
+    exponent = std::max(exponent, uint32_t(1));
+    exponent = std::min(exponent, uint32_t(254));
     exponent = exponent << 23;
     uint32_t sign = (hash >> 31);
     sign = sign << 31;
@@ -95,9 +93,7 @@ struct CryptomatteHash {
 struct CryptomatteLayer {
   blender::Map<std::string, CryptomatteHash> hashes;
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("cryptomatte:CryptomatteLayer")
-#endif
 
   static std::unique_ptr<CryptomatteLayer> read_from_manifest(blender::StringRefNull manifest);
   uint32_t add_ID(const ID &id);
@@ -132,8 +128,7 @@ struct CryptomatteStampDataCallbackData {
 
 const blender::Vector<std::string> &BKE_cryptomatte_layer_names_get(
     const CryptomatteSession &session);
-CryptomatteLayer *BKE_cryptomatte_layer_get(CryptomatteSession &session,
-                                            const StringRef layer_name);
+CryptomatteLayer *BKE_cryptomatte_layer_get(CryptomatteSession &session, StringRef layer_name);
 
 struct CryptomatteSessionDeleter {
   void operator()(CryptomatteSession *session)

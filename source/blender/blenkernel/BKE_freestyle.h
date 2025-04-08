@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2013 Blender Foundation
+/* SPDX-FileCopyrightText: 2013 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -7,10 +7,6 @@
 /** \file
  * \ingroup bke
  */
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 struct FreestyleConfig;
 struct FreestyleLineSet;
@@ -51,7 +47,3 @@ short BKE_freestyle_lineset_get_active_index(struct FreestyleConfig *config);
 void BKE_freestyle_lineset_set_active_index(struct FreestyleConfig *config, short index);
 void BKE_freestyle_lineset_unique_name(struct FreestyleConfig *config,
                                        struct FreestyleLineSet *lineset);
-
-#ifdef __cplusplus
-}
-#endif

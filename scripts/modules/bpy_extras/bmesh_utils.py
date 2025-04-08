@@ -1,12 +1,10 @@
-# SPDX-FileCopyrightText: 2022-2023 Blender Foundation
+# SPDX-FileCopyrightText: 2022-2023 Blender Authors
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 __all__ = (
     "bmesh_linked_uv_islands",
 )
-
-import bmesh
 
 
 def match_uv(face, vert, uv, uv_layer):
@@ -27,7 +25,7 @@ def bmesh_linked_uv_islands(bm, uv_layer):
     :arg uv_layer: the UV layer to source UVs from.
     :type bmesh: :class:`BMLayerItem`
     :return: list of lists containing polygon indices
-    :rtype: list
+    :rtype: list[list[int]]
     """
 
     result = []

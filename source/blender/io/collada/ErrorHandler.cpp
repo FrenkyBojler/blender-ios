@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2011-2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2011-2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -58,7 +58,8 @@ bool ErrorHandler::handleError(const COLLADASaxFWL::IError *error)
     }
 
     else if (parserError.getErrorType() ==
-             GeneratedSaxParser::ParserError::ERROR_COULD_NOT_OPEN_FILE) {
+             GeneratedSaxParser::ParserError::ERROR_COULD_NOT_OPEN_FILE)
+    {
       isError = true;
       error_context = "File access";
     }

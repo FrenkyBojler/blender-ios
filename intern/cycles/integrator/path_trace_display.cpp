@@ -16,7 +16,7 @@ PathTraceDisplay::PathTraceDisplay(unique_ptr<DisplayDriver> driver) : driver_(s
 
 void PathTraceDisplay::reset(const BufferParams &buffer_params, const bool reset_rendering)
 {
-  thread_scoped_lock lock(mutex_);
+  const thread_scoped_lock lock(mutex_);
 
   params_.full_offset = make_int2(buffer_params.full_x + buffer_params.window_x,
                                   buffer_params.full_y + buffer_params.window_y);
@@ -39,7 +39,7 @@ void PathTraceDisplay::mark_texture_updated()
  * Update procedure.
  */
 
-bool PathTraceDisplay::update_begin(int texture_width, int texture_height)
+bool PathTraceDisplay::update_begin(const int texture_width, const int texture_height)
 {
   DCHECK(!update_state_.is_active);
 
@@ -53,7 +53,7 @@ bool PathTraceDisplay::update_begin(int texture_width, int texture_height)
    * potential deadlocks due to locks held by the subclass. */
   DisplayDriver::Params params;
   {
-    thread_scoped_lock lock(mutex_);
+    const thread_scoped_lock lock(mutex_);
     params = params_;
     texture_state_.size = make_int2(texture_width, texture_height);
   }
@@ -91,8 +91,11 @@ int2 PathTraceDisplay::get_texture_size() const
  * Texture update from CPU buffer.
  */
 
-void PathTraceDisplay::copy_pixels_to_texture(
-    const half4 *rgba_pixels, int texture_x, int texture_y, int pixels_width, int pixels_height)
+void PathTraceDisplay::copy_pixels_to_texture(const half4 *rgba_pixels,
+                                              const int texture_x,
+                                              const int texture_y,
+                                              const int pixels_width,
+                                              const int pixels_height)
 {
   DCHECK(update_state_.is_active);
 
@@ -127,7 +130,8 @@ void PathTraceDisplay::copy_pixels_to_texture(
     const half4 *rgba_row = rgba_pixels;
     half4 *mapped_rgba_row = mapped_rgba_pixels + texture_y * texture_width + texture_x;
     for (int y = 0; y < pixels_height;
-         ++y, rgba_row += pixels_width, mapped_rgba_row += texture_width) {
+         ++y, rgba_row += pixels_width, mapped_rgba_row += texture_width)
+    {
       memcpy(mapped_rgba_row, rgba_row, sizeof(half4) * pixels_width);
     }
   }
@@ -232,7 +236,7 @@ bool PathTraceDisplay::draw()
   bool is_outdated;
 
   {
-    thread_scoped_lock lock(mutex_);
+    const thread_scoped_lock lock(mutex_);
     params = params_;
     is_outdated = texture_state_.is_outdated;
   }

@@ -1,17 +1,24 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
+#include "BLI_color.hh"
 #include "BLI_math_quaternion_types.hh"
 
 #include "FN_field.hh"
 #include "FN_lazy_function.hh"
 #include "FN_multi_function_builder.hh"
 
+#include "BKE_attribute_filter.hh"
 #include "BKE_geometry_fields.hh"
+#include "BKE_geometry_nodes_reference_set.hh"
 #include "BKE_geometry_set.hh"
+#include "BKE_node_socket_value.hh"
+#include "BKE_volume_grid_fwd.hh"
+#include "NOD_geometry_nodes_bundle_fwd.hh"
+#include "NOD_geometry_nodes_closure_fwd.hh"
 
 #include "DNA_node_types.h"
 
@@ -20,14 +27,12 @@
 
 namespace blender::nodes {
 
-using bke::AnonymousAttributeFieldInput;
-using bke::AnonymousAttributeID;
-using bke::AnonymousAttributeIDPtr;
-using bke::AnonymousAttributePropagationInfo;
+using bke::AttrDomain;
 using bke::AttributeAccessor;
+using bke::AttributeDomainAndType;
 using bke::AttributeFieldInput;
-using bke::AttributeIDRef;
-using bke::AttributeKind;
+using bke::AttributeFilter;
+using bke::AttributeIter;
 using bke::AttributeMetaData;
 using bke::AttributeReader;
 using bke::AttributeWriter;
@@ -36,12 +41,15 @@ using bke::GAttributeReader;
 using bke::GAttributeWriter;
 using bke::GeometryComponent;
 using bke::GeometryComponentEditData;
+using bke::GeometryNodesReferenceSet;
 using bke::GeometrySet;
+using bke::GreasePencilComponent;
 using bke::GSpanAttributeWriter;
 using bke::InstancesComponent;
 using bke::MeshComponent;
 using bke::MutableAttributeAccessor;
 using bke::PointCloudComponent;
+using bke::SocketValueVariant;
 using bke::SpanAttributeWriter;
 using bke::VolumeComponent;
 using fn::Field;
@@ -50,9 +58,18 @@ using fn::FieldEvaluator;
 using fn::FieldInput;
 using fn::FieldOperation;
 using fn::GField;
-using fn::ValueOrField;
 using geo_eval_log::NamedAttributeUsage;
 using geo_eval_log::NodeWarningType;
+
+class NodeAttributeFilter : public AttributeFilter {
+ private:
+  const GeometryNodesReferenceSet &set_;
+
+ public:
+  NodeAttributeFilter(const GeometryNodesReferenceSet &set) : set_(set) {}
+
+  Result filter(StringRef attribute_name) const override;
+};
 
 class GeoNodeExecParams {
  private:
@@ -61,7 +78,7 @@ class GeoNodeExecParams {
   const lf::Context &lf_context_;
   const Span<int> lf_input_for_output_bsocket_usage_;
   const Span<int> lf_input_for_attribute_propagation_to_output_;
-  const FunctionRef<AnonymousAttributeIDPtr(int)> get_output_attribute_id_;
+  const FunctionRef<std::string(int)> get_output_attribute_id_;
 
  public:
   GeoNodeExecParams(const bNode &node,
@@ -69,7 +86,7 @@ class GeoNodeExecParams {
                     const lf::Context &lf_context,
                     const Span<int> lf_input_for_output_bsocket_usage,
                     const Span<int> lf_input_for_attribute_propagation_to_output,
-                    const FunctionRef<AnonymousAttributeIDPtr(int)> get_output_attribute_id)
+                    const FunctionRef<std::string(int)> get_output_attribute_id)
       : node_(node),
         params_(params),
         lf_context_(lf_context),
@@ -81,8 +98,20 @@ class GeoNodeExecParams {
   }
 
   template<typename T>
-  static inline constexpr bool is_field_base_type_v =
-      is_same_any_v<T, float, int, bool, ColorGeometry4f, float3, std::string, math::Quaternion>;
+  static constexpr bool is_field_base_type_v = is_same_any_v<T,
+                                                             float,
+                                                             int,
+                                                             bool,
+                                                             ColorGeometry4f,
+                                                             float3,
+                                                             std::string,
+                                                             math::Quaternion,
+                                                             float4x4>;
+
+  template<typename T>
+  static constexpr bool stored_as_SocketValueVariant_v =
+      is_field_base_type_v<T> || fn::is_field_v<T> || bke::is_VolumeGrid_v<T> ||
+      is_same_any_v<T, GField, bke::GVolumeGrid, nodes::BundlePtr, nodes::ClosurePtr>;
 
   /**
    * Get the input value for the input socket with the given identifier.
@@ -91,24 +120,22 @@ class GeoNodeExecParams {
    */
   template<typename T> T extract_input(StringRef identifier)
   {
-    if constexpr (is_field_base_type_v<T>) {
-      ValueOrField<T> value_or_field = this->extract_input<ValueOrField<T>>(identifier);
-      return value_or_field.as_value();
-    }
-    else if constexpr (fn::is_field_v<T>) {
-      using BaseType = typename T::base_type;
-      ValueOrField<BaseType> value_or_field = this->extract_input<ValueOrField<BaseType>>(
-          identifier);
-      return value_or_field.as_field();
+    if constexpr (stored_as_SocketValueVariant_v<T>) {
+      SocketValueVariant value_variant = this->extract_input<SocketValueVariant>(identifier);
+      return value_variant.extract<T>();
     }
     else {
-#ifdef DEBUG
+#ifndef NDEBUG
       this->check_input_access(identifier, &CPPType::get<T>());
 #endif
       const int index = this->get_input_index(identifier);
       T value = params_.extract_input<T>(index);
       if constexpr (std::is_same_v<T, GeometrySet>) {
         this->check_input_geometry_set(identifier, value);
+      }
+      if constexpr (std::is_same_v<T, SocketValueVariant>) {
+        BLI_assert(value.valid_for_socket(
+            eNodeSocketDatatype(node_.input_by_identifier(identifier).type)));
       }
       return value;
     }
@@ -122,17 +149,12 @@ class GeoNodeExecParams {
    */
   template<typename T> T get_input(StringRef identifier) const
   {
-    if constexpr (is_field_base_type_v<T>) {
-      ValueOrField<T> value_or_field = this->get_input<ValueOrField<T>>(identifier);
-      return value_or_field.as_value();
-    }
-    else if constexpr (fn::is_field_v<T>) {
-      using BaseType = typename T::base_type;
-      ValueOrField<BaseType> value_or_field = this->get_input<ValueOrField<BaseType>>(identifier);
-      return value_or_field.as_field();
+    if constexpr (stored_as_SocketValueVariant_v<T>) {
+      auto value_variant = this->get_input<SocketValueVariant>(identifier);
+      return value_variant.extract<T>();
     }
     else {
-#ifdef DEBUG
+#ifndef NDEBUG
       this->check_input_access(identifier, &CPPType::get<T>());
 #endif
       const int index = this->get_input_index(identifier);
@@ -140,8 +162,22 @@ class GeoNodeExecParams {
       if constexpr (std::is_same_v<T, GeometrySet>) {
         this->check_input_geometry_set(identifier, value);
       }
+      if constexpr (std::is_same_v<T, SocketValueVariant>) {
+        BLI_assert(value.valid_for_socket(
+            eNodeSocketDatatype(node_.input_by_identifier(identifier).type)));
+      }
       return value;
     }
+  }
+
+  /**
+   * Low level access to the parameters. Usually, it's better to use #get_input, #extract_input and
+   * #set_output instead because they are easier to use and more safe. Sometimes it can be
+   * beneficial to have more direct access to the raw values though and avoid the indirection.
+   */
+  lf::Params &low_level_lazy_function_params()
+  {
+    return params_;
   }
 
   /**
@@ -150,17 +186,18 @@ class GeoNodeExecParams {
   template<typename T> void set_output(StringRef identifier, T &&value)
   {
     using StoredT = std::decay_t<T>;
-    if constexpr (is_field_base_type_v<StoredT>) {
-      this->set_output(identifier, ValueOrField<StoredT>(std::forward<T>(value)));
-    }
-    else if constexpr (fn::is_field_v<StoredT>) {
-      using BaseType = typename StoredT::base_type;
-      this->set_output(identifier, ValueOrField<BaseType>(std::forward<T>(value)));
+    if constexpr (stored_as_SocketValueVariant_v<StoredT>) {
+      SocketValueVariant value_variant(std::forward<T>(value));
+      this->set_output(identifier, std::move(value_variant));
     }
     else {
-#ifdef DEBUG
+#ifndef NDEBUG
       const CPPType &type = CPPType::get<StoredT>();
       this->check_output_access(identifier, type);
+      if constexpr (std::is_same_v<StoredT, SocketValueVariant>) {
+        BLI_assert(value.valid_for_socket(
+            eNodeSocketDatatype(node_.output_by_identifier(identifier).type)));
+      }
 #endif
       if constexpr (std::is_same_v<StoredT, GeometrySet>) {
         this->check_output_geometry_set(value);
@@ -172,7 +209,7 @@ class GeoNodeExecParams {
 
   geo_eval_log::GeoTreeLogger *get_local_tree_logger() const
   {
-    return this->local_user_data()->tree_logger;
+    return this->local_user_data()->try_get_tree_logger(*this->user_data());
   }
 
   /**
@@ -204,28 +241,25 @@ class GeoNodeExecParams {
   const Object *self_object() const
   {
     if (const auto *data = this->user_data()) {
-      if (data->modifier_data) {
-        return data->modifier_data->self_object;
+      return data->call_data->self_object();
+    }
+    return nullptr;
+  }
+
+  const Depsgraph *depsgraph() const
+  {
+    if (const auto *data = this->user_data()) {
+      if (data->call_data->modifier_data) {
+        return data->call_data->modifier_data->depsgraph;
       }
-      if (data->operator_data) {
-        return data->operator_data->self_object;
+      if (data->call_data->operator_data) {
+        return data->call_data->operator_data->depsgraphs->active;
       }
     }
     return nullptr;
   }
 
-  Depsgraph *depsgraph() const
-  {
-    if (const auto *data = this->user_data()) {
-      if (data->modifier_data) {
-        return data->modifier_data->depsgraph;
-      }
-      if (data->operator_data) {
-        return data->operator_data->depsgraph;
-      }
-    }
-    return nullptr;
-  }
+  Main *bmain() const;
 
   GeoNodesLFUserData *user_data() const
   {
@@ -262,32 +296,33 @@ class GeoNodeExecParams {
    * Return a new anonymous attribute id for the given output. None is returned if the anonymous
    * attribute is not needed.
    */
-  AnonymousAttributeIDPtr get_output_anonymous_attribute_id_if_needed(
+  std::optional<std::string> get_output_anonymous_attribute_id_if_needed(
       const StringRef output_identifier, const bool force_create = false)
   {
     if (!this->anonymous_attribute_output_is_required(output_identifier) && !force_create) {
-      return {};
+      return std::nullopt;
     }
     const bNodeSocket &output_socket = node_.output_by_identifier(output_identifier);
     return get_output_attribute_id_(output_socket.index());
   }
 
   /**
-   * Get information about which anonymous attributes should be propagated to the given output.
+   * Get information about which attributes should be propagated to the given output.
    */
-  AnonymousAttributePropagationInfo get_output_propagation_info(
-      const StringRef output_identifier) const
+  NodeAttributeFilter get_attribute_filter(const StringRef output_identifier) const
   {
     const int lf_index =
         lf_input_for_attribute_propagation_to_output_[node_.output_by_identifier(output_identifier)
                                                           .index_in_all_outputs()];
-    const bke::AnonymousAttributeSet &set = params_.get_input<bke::AnonymousAttributeSet>(
-        lf_index);
-    AnonymousAttributePropagationInfo info;
-    info.names = set.names;
-    info.propagate_all = false;
-    return info;
+    const GeometryNodesReferenceSet &set = params_.get_input<GeometryNodesReferenceSet>(lf_index);
+    return NodeAttributeFilter(set);
   }
+
+  /**
+   * If the path is relative, attempt to make it absolute. If the current node tree is linked,
+   * the path is relative to the linked file. Otherwise, the path is relative to the current file.
+   */
+  std::optional<std::string> ensure_absolute_path(StringRefNull path) const;
 
  private:
   /* Utilities for detecting common errors at when using this class. */

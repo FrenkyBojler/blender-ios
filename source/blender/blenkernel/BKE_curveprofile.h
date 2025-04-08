@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2019 Blender Foundation
+/* SPDX-FileCopyrightText: 2019 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -9,10 +9,6 @@
  */
 
 #include "DNA_curveprofile_types.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 struct BlendDataReader;
 struct BlendWriter;
@@ -156,7 +152,3 @@ void BKE_curveprofile_blend_write(struct BlendWriter *writer, const struct Curve
  * Expects that the curve profile itself has been read already.
  */
 void BKE_curveprofile_blend_read(struct BlendDataReader *reader, struct CurveProfile *profile);
-
-#ifdef __cplusplus
-}
-#endif

@@ -1,12 +1,8 @@
-/* SPDX-FileCopyrightText: 2018 Blender Foundation
+/* SPDX-FileCopyrightText: 2018 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 /** \file
  * \ingroup bli
@@ -20,7 +16,3 @@ extern "C" {
 
 /* Marker which indicates that colored output is finished. */
 #define TRUECOLOR_ANSI_COLOR_FINISH "\x1b[0m"
-
-#ifdef __cplusplus
-}
-#endif

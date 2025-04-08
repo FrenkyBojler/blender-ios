@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# SPDX-FileCopyrightText: 2010-2023 Blender Foundation
+# SPDX-FileCopyrightText: 2010-2023 Blender Authors
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
@@ -107,8 +107,8 @@ def Align(handle):
 
 class BlendFile:
     '''
-    Reads a blendfile and store the header, all the fileblocks, and catalogue
-    structs found in the DNA fileblock
+    Reads a blend-file and store the header, all the file-blocks, and catalogue
+    structs found in the DNA file-block
 
     - BlendFile.Header  (BlendFileHeader instance)
     - BlendFile.Blocks  (list of BlendFileBlock instances)

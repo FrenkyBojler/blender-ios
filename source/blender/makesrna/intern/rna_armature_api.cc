@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2009 Blender Foundation
+/* SPDX-FileCopyrightText: 2009 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -6,24 +6,31 @@
  * \ingroup RNA
  */
 
-#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
 
 #include "RNA_define.hh"
 
-#include "rna_internal.h" /* own include */
+#include "rna_internal.hh" /* own include */
 
 #ifdef RNA_RUNTIME
 
-#  include <stddef.h>
+#  include <cstddef>
 
 #  include "DNA_armature_types.h"
 
-#  include "BKE_armature.h"
 #  include "BLI_math_matrix.h"
 #  include "BLI_math_vector.h"
+
+#  include "BKE_armature.hh"
+#  include "BKE_report.hh"
+
+#  include "ED_armature.hh"
+
+#  include "ANIM_bone_collections.hh"
+
+#  include "WM_api.hh"
 
 static void rna_EditBone_align_roll(EditBone *ebo, const float no[3])
 {
@@ -96,6 +103,81 @@ static void rna_Bone_AxisRollFromMatrix(const float matrix[9],
     mat3_to_vec_roll(mat, r_axis, r_roll);
   }
 }
+
+using bonecoll_assign_func_bone = bool (*)(BoneCollection *, Bone *);
+using bonecoll_assign_func_ebone = bool (*)(BoneCollection *, EditBone *);
+
+static bool rna_BoneCollection_assign_abstract(BoneCollection *bcoll,
+                                               bContext *C,
+                                               ReportList *reports,
+                                               PointerRNA *bone_ptr,
+                                               bonecoll_assign_func_bone assign_bone,
+                                               bonecoll_assign_func_ebone assign_ebone)
+
+{
+  if (RNA_pointer_is_null(bone_ptr)) {
+    return false;
+  }
+
+  if (RNA_struct_is_a(bone_ptr->type, &RNA_PoseBone)) {
+    bPoseChannel *pchan = static_cast<bPoseChannel *>(bone_ptr->data);
+    const bool made_any_change = assign_bone(bcoll, pchan->bone);
+    if (made_any_change) {
+      WM_event_add_notifier(C, NC_OBJECT | ND_POSE, nullptr);
+    }
+    return made_any_change;
+  }
+
+  if (RNA_struct_is_a(bone_ptr->type, &RNA_Bone)) {
+    Bone *bone = static_cast<Bone *>(bone_ptr->data);
+    const bool made_any_change = assign_bone(bcoll, bone);
+    if (made_any_change) {
+      WM_event_add_notifier(C, NC_OBJECT | ND_POSE, nullptr);
+    }
+    return made_any_change;
+  }
+
+  if (RNA_struct_is_a(bone_ptr->type, &RNA_EditBone)) {
+    EditBone *ebone = static_cast<EditBone *>(bone_ptr->data);
+    const bool made_any_change = assign_ebone(bcoll, ebone);
+    if (made_any_change) {
+      WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, nullptr);
+    }
+    return made_any_change;
+  }
+  BKE_reportf(reports,
+              RPT_ERROR,
+              "%s is not supported, pass a Bone, PoseBone, or EditBone",
+              RNA_struct_identifier(bone_ptr->type));
+  return false;
+}
+
+static bool rna_BoneCollection_assign(BoneCollection *bcoll,
+                                      bContext *C,
+                                      ReportList *reports,
+                                      PointerRNA *bone_ptr)
+{
+  return rna_BoneCollection_assign_abstract(bcoll,
+                                            C,
+                                            reports,
+                                            bone_ptr,
+                                            ANIM_armature_bonecoll_assign,
+                                            ANIM_armature_bonecoll_assign_editbone);
+}
+
+static bool rna_BoneCollection_unassign(BoneCollection *bcoll,
+                                        bContext *C,
+                                        ReportList *reports,
+                                        PointerRNA *bone_ptr)
+{
+  return rna_BoneCollection_assign_abstract(bcoll,
+                                            C,
+                                            reports,
+                                            bone_ptr,
+                                            ANIM_armature_bonecoll_unassign,
+                                            ANIM_armature_bonecoll_unassign_editbone);
+}
+
 #else
 
 void RNA_api_armature_edit_bone(StructRNA *srna)
@@ -162,7 +244,7 @@ void RNA_api_bone(StructRNA *srna)
   RNA_def_property_multi_array(parm, 2, rna_matrix_dimsize_4x4);
   RNA_def_property_ui_text(
       parm, "", "The custom rest matrix of the parent bone (Bone.matrix_local)");
-  parm = RNA_def_boolean(func, "invert", false, "", "Convert from Pose to Local space");
+  RNA_def_boolean(func, "invert", false, "", "Convert from Pose to Local space");
 
   /* Conversions between Matrix and Axis + Roll representations. */
   func = RNA_def_function(srna, "MatrixFromAxisRoll", "rna_Bone_MatrixFromAxisRoll");
@@ -201,6 +283,42 @@ void RNA_api_bone(StructRNA *srna)
   parm = RNA_def_property(func, "result_roll", PROP_FLOAT, PROP_NONE);
   RNA_def_property_ui_text(parm, "", "The roll of the bone");
   RNA_def_function_output(func, parm);
+}
+
+void RNA_api_bonecollection(StructRNA *srna)
+{
+  PropertyRNA *parm;
+  FunctionRNA *func;
+
+  func = RNA_def_function(srna, "assign", "rna_BoneCollection_assign");
+  RNA_def_function_flag(func, FUNC_USE_CONTEXT | FUNC_USE_REPORTS);
+  RNA_def_function_ui_description(func, "Assign the given bone to this collection");
+  parm = RNA_def_pointer(
+      func, "bone", "AnyType", "", "Bone, PoseBone, or EditBone to assign to this collection");
+  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED | PARM_RNAPTR);
+  /* return value */
+  parm = RNA_def_boolean(func,
+                         "assigned",
+                         false,
+                         "Assigned",
+                         "Whether the bone was actually assigned; will be false if the bone was "
+                         "already member of the collection");
+  RNA_def_function_return(func, parm);
+
+  func = RNA_def_function(srna, "unassign", "rna_BoneCollection_unassign");
+  RNA_def_function_flag(func, FUNC_USE_CONTEXT | FUNC_USE_REPORTS);
+  RNA_def_function_ui_description(func, "Remove the given bone from this collection");
+  parm = RNA_def_pointer(
+      func, "bone", "AnyType", "", "Bone, PoseBone, or EditBone to remove from this collection");
+  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED | PARM_RNAPTR);
+  /* return value */
+  parm = RNA_def_boolean(func,
+                         "assigned",
+                         false,
+                         "Unassigned",
+                         "Whether the bone was actually removed; will be false if the bone was "
+                         "not a member of the collection to begin with");
+  RNA_def_function_return(func, parm);
 }
 
 #endif

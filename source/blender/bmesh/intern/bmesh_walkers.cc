@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -33,9 +33,9 @@
 #include "BLI_listbase.h"
 #include "BLI_utildefines.h"
 
-#include "bmesh.h"
+#include "bmesh.hh"
 
-#include "bmesh_walkers_private.h"
+#include "bmesh_walkers_private.hh"
 
 void *BMW_begin(BMWalker *walker, void *start)
 {

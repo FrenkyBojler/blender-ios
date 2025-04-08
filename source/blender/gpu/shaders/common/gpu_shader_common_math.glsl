@@ -1,4 +1,12 @@
-#pragma BLENDER_REQUIRE(gpu_shader_common_math_utils.glsl)
+/* SPDX-FileCopyrightText: 2019-2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
+
+#pragma once
+
+#include "gpu_glsl_cpp_stubs.hh"
+
+#include "gpu_shader_math_base_lib.glsl"
 
 void math_add(float a, float b, float c, out float result)
 {
@@ -108,7 +116,7 @@ void math_fraction(float a, float b, float c, out float result)
 
 void math_modulo(float a, float b, float c, out float result)
 {
-  result = compatible_fmod(a, b);
+  result = compatible_mod(a, b);
 }
 
 void math_floored_modulo(float a, float b, float c, out float result)
@@ -182,9 +190,11 @@ void math_arctangent(float a, float b, float c, out float result)
   result = atan(a);
 }
 
+/* The behavior of `atan2(0, 0)` is undefined on many platforms, to ensure consistent behavior, we
+ * return 0 in this case. See !126951. */
 void math_arctan2(float a, float b, float c, out float result)
 {
-  result = atan(a, b);
+  result = ((a == 0.0 && b == 0.0) ? 0.0 : atan(a, b));
 }
 
 void math_sign(float a, float b, float c, out float result)
@@ -223,4 +233,15 @@ void math_smoothmax(float a, float b, float c, out float result)
 {
   math_smoothmin(-a, -b, c, result);
   result = -result;
+}
+
+/* TODO(fclem): Fix dependency hell one EEVEE legacy is removed. */
+float math_reduce_max(vec3 a)
+{
+  return max(a.x, max(a.y, a.z));
+}
+
+float math_average(vec3 a)
+{
+  return (a.x + a.y + a.z) * (1.0 / 3.0);
 }

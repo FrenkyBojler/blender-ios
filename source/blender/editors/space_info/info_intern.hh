@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2008 Blender Foundation
+/* SPDX-FileCopyrightText: 2008 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -10,6 +10,7 @@
 
 /* internal exports only */
 
+struct ARegion;
 struct ReportList;
 struct SpaceInfo;
 struct wmOperatorType;

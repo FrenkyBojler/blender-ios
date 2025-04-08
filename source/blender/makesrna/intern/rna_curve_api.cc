@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2009 Blender Foundation
+/* SPDX-FileCopyrightText: 2009 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -6,20 +6,21 @@
  * \ingroup RNA
  */
 
-#include <cstdio>
 #include <cstdlib>
 
 #include "RNA_define.hh"
 
-#include "BLI_sys_types.h"
-
-#include "BLI_utildefines.h"
-
-#include "BKE_curve.h"
-
-#include "rna_internal.h" /* own include */
+#include "rna_internal.hh" /* own include */
 
 #ifdef RNA_RUNTIME
+#  include "DNA_curve_types.h"
+
+#  include "BLI_string.h"
+
+#  include "BKE_curve.hh"
+
+#  include "DEG_depsgraph.hh"
+
 static void rna_Curve_transform(Curve *cu, const float mat[16], bool shape_keys)
 {
   BKE_curve_transform(cu, (const float(*)[4])mat, shape_keys, true);

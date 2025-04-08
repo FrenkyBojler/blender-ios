@@ -17,6 +17,8 @@ if(WIN32)
 endif()
 
 set(LEMON_3RD_PATH 3rd/lemon-1.3.1)
+# Needed for the configure script.
+set(PROJECT_VERSION "1.3.1")
 
 set(LEMON_SOURCE_ROOT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/${LEMON_3RD_PATH})
 
@@ -28,6 +30,8 @@ configure_file(
   ${LEMON_SRC}/config.h.in
   ${LEMON_GEN_DIR}/lemon/config.h
 )
+unset(PROJECT_VERSION)
+
 set(LEMON_SOURCES
   ${LEMON_SRC}/arg_parser.cc
   ${LEMON_SRC}/base.cc
@@ -47,11 +51,11 @@ set(INC
 )
 
 set(INC_SYS
-  ${BOOST_INCLUDE_DIR}
   ${EIGEN3_INCLUDE_DIRS}
 )
 
 set(SRC
+  patches/boykov_kolmogorov_max_flow.hpp
   src/adjacent-matrix.cpp
   src/adjacent-matrix.hpp
   src/compare-key.hpp
@@ -79,6 +83,7 @@ set(SRC
   src/parametrizer-scale.cpp
   src/parametrizer-sing.cpp
   src/parametrizer.hpp
+  src/post-solver.hpp
   src/serialize.hpp
   src/subdivide.cpp
   src/subdivide.hpp
@@ -86,7 +91,6 @@ set(SRC
 )
 
 set(LIB
-  ${BOOST_LIBRARIES}
 )
 
 blender_add_lib(extern_quadriflow "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

@@ -1,11 +1,18 @@
+/* SPDX-FileCopyrightText: 2020-2022 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#pragma BLENDER_REQUIRE(gpencil_common_lib.glsl)
+#include "infos/gpencil_info.hh"
+
+FRAGMENT_SHADER_CREATE_INFO(gpencil_layer_blend)
+
+#include "gpencil_common_lib.glsl"
 
 void main()
 {
   vec4 color;
 
-  /* Remember, this is associated alpha (aka. premult). */
+  /* Remember, this is associated alpha (aka. pre-multiply). */
   color.rgb = textureLod(colorBuf, uvcoordsvar.xy, 0).rgb;
   /* Stroke only render mono-chromatic revealage. We convert to alpha. */
   color.a = 1.0 - textureLod(revealBuf, uvcoordsvar.xy, 0).r;

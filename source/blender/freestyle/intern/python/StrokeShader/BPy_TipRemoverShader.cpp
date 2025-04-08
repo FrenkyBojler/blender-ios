@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2004-2022 Blender Foundation
+/* SPDX-FileCopyrightText: 2004-2022 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -10,17 +10,15 @@
 
 #include "../../stroke/BasicStrokeShaders.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 using namespace Freestyle;
 
 ///////////////////////////////////////////////////////////////////////////////////////////
 
 //------------------------INSTANCE METHODS ----------------------------------
 
-static char TipRemoverShader___doc__[] =
+PyDoc_STRVAR(
+    /* Wrap. */
+    TipRemoverShader___doc__,
     "Class hierarchy: :class:`freestyle.types.StrokeShader` > :class:`TipRemoverShader`\n"
     "\n"
     "[Geometry shader]\n"
@@ -38,7 +36,7 @@ static char TipRemoverShader___doc__[] =
     "   Removes the stroke's extremities.\n"
     "\n"
     "   :arg stroke: A Stroke object.\n"
-    "   :type stroke: :class:`freestyle.types.Stroke`\n";
+    "   :type stroke: :class:`freestyle.types.Stroke`\n");
 
 static int TipRemoverShader___init__(BPy_TipRemoverShader *self, PyObject *args, PyObject *kwds)
 {
@@ -96,7 +94,3 @@ PyTypeObject TipRemoverShader_Type = {
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////
-
-#ifdef __cplusplus
-}
-#endif

@@ -13,6 +13,9 @@
 // Constants
 #define FLT_MAX 3.402823466e+38  // max value
 
+/* Default offset of coordinates for evaluating bump node. Unit in pixel. */
+#define BUMP_FILTER_WIDTH 0.1
+
 // Declaration of built-in functions and closures, stdosl.h does not make
 // these available so we have to redefine them.
 #define BUILTIN [[int builtin = 1]]
@@ -25,6 +28,9 @@ closure color glossy_toon(normal N, float size, float smooth) BUILTIN;
 closure color ashikhmin_velvet(normal N, float sigma) BUILTIN;
 closure color sheen(normal N, float roughness) BUILTIN;
 closure color ambient_occlusion() BUILTIN;
+
+closure color microfacet_f82_tint(
+    string distribution, vector N, vector T, float ax, float ay, color f0, color f82) BUILTIN;
 
 /* Needed to pass along the color for multi-scattering saturation adjustment,
  * otherwise could be replaced by microfacet() */
@@ -39,16 +45,31 @@ closure color
 hair_reflection(normal N, float roughnessu, float roughnessv, vector T, float offset) BUILTIN;
 closure color
 hair_transmission(normal N, float roughnessu, float roughnessv, vector T, float offset) BUILTIN;
-closure color principled_hair(normal N,
-                              color sigma,
-                              float roughnessu,
-                              float roughnessv,
-                              float coat,
-                              float alpha,
-                              float eta) BUILTIN;
+closure color hair_chiang(normal N,
+                          color sigma,
+                          float roughnessu,
+                          float roughnessv,
+                          float coat,
+                          float alpha,
+                          float eta) BUILTIN;
+closure color hair_huang(normal N,
+                         color sigma,
+                         float roughness,
+                         float tilt,
+                         float eta,
+                         float aspect_ratio,
+                         float r_lobe,
+                         float tt_lobe,
+                         float trt_lobe) BUILTIN;
 
 // Volume
 closure color henyey_greenstein(float g) BUILTIN;
+closure color fournier_forand(float B, float IOR) BUILTIN;
+closure color draine(float g, float alpha) BUILTIN;
+closure color rayleigh() BUILTIN;
 closure color absorption() BUILTIN;
+
+// Ray Portal
+closure color ray_portal_bsdf(vector position, vector direction) BUILTIN;
 
 #endif /* CCL_STDOSL_H */

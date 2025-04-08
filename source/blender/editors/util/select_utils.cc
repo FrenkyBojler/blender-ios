@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -7,13 +7,12 @@
  */
 
 #include <cfloat>
-#include <math.h>
-#include <string.h>
+#include <cmath>
+#include <cstring>
 
 #include "BLI_kdtree.h"
-#include "BLI_utildefines.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "DNA_windowmanager_types.h"
 
@@ -160,27 +159,44 @@ void ED_select_pick_params_from_operator(PointerRNA *ptr, SelectPick_Params *par
 /** \name Operator Naming Callbacks
  * \{ */
 
-const char *ED_select_pick_get_name(wmOperatorType * /*ot*/, PointerRNA *ptr)
+std::string ED_select_pick_get_name(wmOperatorType * /*ot*/, PointerRNA *ptr)
 {
+  PropertyRNA *prop = RNA_struct_find_property(ptr, "enumerate");
+  const bool enumerate = (prop && RNA_property_boolean_get(ptr, prop));
+
   SelectPick_Params params = {eSelectOp(0)};
   ED_select_pick_params_from_operator(ptr, &params);
   switch (params.sel_op) {
     case SEL_OP_ADD:
-      return CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Select (Extend)");
+      if (enumerate) {
+        return CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Select Extend (List)");
+      }
+      return CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Select Extend");
     case SEL_OP_SUB:
-      return CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Select (Deselect)");
+      if (enumerate) {
+        return CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Deselect (List)");
+      }
+      return CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Deselect");
     case SEL_OP_XOR:
-      return CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Select (Toggle)");
+      if (enumerate) {
+        return CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Select Toggle (List)");
+      }
+      return CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Select Toggle");
     case SEL_OP_AND:
       BLI_assert_unreachable();
       ATTR_FALLTHROUGH;
     case SEL_OP_SET:
       break;
   }
+
+  if (enumerate) {
+    return CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Select (List)");
+  }
+
   return CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Select");
 }
 
-const char *ED_select_circle_get_name(wmOperatorType * /*ot*/, PointerRNA *ptr)
+std::string ED_select_circle_get_name(wmOperatorType * /*ot*/, PointerRNA *ptr)
 {
   /* Matches options in #WM_operator_properties_select_operation_simple */
   const eSelectOp sel_op = eSelectOp(RNA_enum_get(ptr, "mode"));

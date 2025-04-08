@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2013 Blender Foundation
+/* SPDX-FileCopyrightText: 2013 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -10,34 +10,27 @@
 
 #include "intern/builder/deg_builder_nodes.h"
 
-#include <cstdio>
 #include <cstdlib>
 
-#include "MEM_guardedalloc.h"
-
-#include "BLI_blenlib.h"
-#include "BLI_string.h"
-#include "BLI_utildefines.h"
-
-#include "DNA_anim_types.h"
 #include "DNA_armature_types.h"
 #include "DNA_constraint_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
-#include "BKE_action.h"
-#include "BKE_armature.h"
+#include "BLI_listbase.h"
+
+#include "BKE_action.hh"
+#include "BKE_armature.hh"
 #include "BKE_constraint.h"
+#include "BKE_lib_query.hh"
 
-#include "DEG_depsgraph.h"
-#include "DEG_depsgraph_build.h"
+#include "DEG_depsgraph.hh"
+#include "DEG_depsgraph_build.hh"
 
-#include "intern/builder/deg_builder.h"
-#include "intern/depsgraph_type.h"
 #include "intern/eval/deg_eval_copy_on_write.h"
-#include "intern/node/deg_node.h"
-#include "intern/node/deg_node_component.h"
-#include "intern/node/deg_node_operation.h"
+#include "intern/node/deg_node.hh"
+#include "intern/node/deg_node_component.hh"
+#include "intern/node/deg_node_operation.hh"
 
 namespace blender::deg {
 
@@ -48,7 +41,7 @@ void DepsgraphNodeBuilder::build_pose_constraints(Object *object,
   /* Pull indirect dependencies via constraints. */
   BuilderWalkUserData data;
   data.builder = this;
-  BKE_constraints_id_loop(&pchan->constraints, constraint_walk, &data);
+  BKE_constraints_id_loop(&pchan->constraints, constraint_walk, IDWALK_NOP, &data);
 
   /* Create node for constraint stack. */
   Scene *scene_cow = get_cow_datablock(scene_);
@@ -63,7 +56,6 @@ void DepsgraphNodeBuilder::build_pose_constraints(Object *object,
                      });
 }
 
-/* IK Solver Eval Steps */
 void DepsgraphNodeBuilder::build_ik_pose(Object *object, bPoseChannel *pchan, bConstraint *con)
 {
   bKinematicConstraint *data = (bKinematicConstraint *)con->data;
@@ -95,7 +87,6 @@ void DepsgraphNodeBuilder::build_ik_pose(Object *object, bPoseChannel *pchan, bC
                      });
 }
 
-/* Spline IK Eval Steps */
 void DepsgraphNodeBuilder::build_splineik_pose(Object *object,
                                                bPoseChannel *pchan,
                                                bConstraint *con)

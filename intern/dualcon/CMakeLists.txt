@@ -1,14 +1,14 @@
-# SPDX-FileCopyrightText: 2002-2022 Blender Foundation
+# SPDX-FileCopyrightText: 2002-2022 Blender Authors
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 set(INC
   .
   intern
+  ../guardedalloc
 )
 
 set(INC_SYS
-  ${EIGEN3_INCLUDE_DIRS}
 )
 
 set(SRC
@@ -32,6 +32,7 @@ set(SRC
 )
 
 set(LIB
+  PRIVATE bf::dependencies::eigen
 )
 
 blender_add_lib(bf_intern_dualcon "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

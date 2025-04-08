@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -8,33 +8,32 @@
 
 #include "oiio/openimageio_support.hh"
 
-#include "IMB_colormanagement.h"
-#include "IMB_filetype.h"
-#include "IMB_imbuf_types.h"
+#include "IMB_colormanagement.hh"
+#include "IMB_filetype.hh"
+#include "IMB_imbuf_types.hh"
 
 OIIO_NAMESPACE_USING
 using namespace blender::imbuf;
 
-extern "C" {
 bool imb_is_a_dpx(const uchar *mem, size_t size)
 {
   return imb_oiio_check(mem, size, "dpx");
 }
 
-ImBuf *imb_load_dpx(const uchar *mem, size_t size, int flags, char colorspace[IM_MAX_SPACE])
+ImBuf *imb_load_dpx(const uchar *mem, size_t size, int flags, ImFileColorSpace &r_colorspace)
 {
   ImageSpec config, spec;
 
   ReadContext ctx{mem, size, "dpx", IMB_FTYPE_DPX, flags};
 
-  ctx.use_colorspace_role = COLOR_ROLE_DEFAULT_FLOAT;
-
-  ImBuf *ibuf = imb_oiio_read(ctx, config, colorspace, spec);
+  ImBuf *ibuf = imb_oiio_read(ctx, config, r_colorspace, spec);
   if (ibuf) {
     if (flags & IB_alphamode_detect) {
       ibuf->flags |= IB_alphamode_premul;
     }
   }
+
+  r_colorspace.is_hdr_float = true;
 
   return ibuf;
 }
@@ -84,5 +83,4 @@ bool imb_save_dpx(ImBuf *ibuf, const char *filepath, int flags)
   }
 
   return imb_oiio_write(ctx, filepath, file_spec);
-}
 }

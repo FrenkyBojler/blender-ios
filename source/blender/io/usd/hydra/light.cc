@@ -1,8 +1,8 @@
-/* SPDX-FileCopyrightText: 2011-2022 Blender Foundation
+/* SPDX-FileCopyrightText: 2011-2022 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "light.h"
+#include "light.hh"
 
 #include <pxr/imaging/hd/light.h>
 #include <pxr/imaging/hd/tokens.h>
@@ -12,7 +12,7 @@
 
 #include "BLI_math_rotation.h"
 
-#include "hydra_scene_delegate.h"
+#include "hydra_scene_delegate.hh"
 
 namespace blender::io::hydra {
 

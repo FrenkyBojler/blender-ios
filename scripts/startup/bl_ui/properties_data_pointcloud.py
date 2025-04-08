@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2009-2023 Blender Foundation
+# SPDX-FileCopyrightText: 2009-2023 Blender Authors
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
@@ -23,10 +23,9 @@ class DATA_PT_context_pointcloud(DataButtonsPanel, Panel):
     bl_options = {'HIDE_HEADER'}
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
-        'BLENDER_EEVEE',
         'BLENDER_EEVEE_NEXT',
         'BLENDER_WORKBENCH',
-        'BLENDER_WORKBENCH_NEXT'}
+    }
 
     def draw(self, context):
         layout = self.layout
@@ -39,6 +38,15 @@ class DATA_PT_context_pointcloud(DataButtonsPanel, Panel):
             layout.template_ID(ob, "data")
         elif pointcloud:
             layout.template_ID(space, "pin_id")
+
+
+class POINTCLOUD_MT_attribute_context_menu(Menu):
+    bl_label = "Attribute Specials"
+
+    def draw(self, _context):
+        layout = self.layout
+
+        layout.operator("geometry.attribute_convert")
 
 
 class POINTCLOUD_MT_add_attribute(Menu):
@@ -81,13 +89,18 @@ class POINTCLOUD_UL_attributes(UIList):
         # Filtering by name
         if self.filter_name:
             flags = bpy.types.UI_UL_list.filter_items_by_name(
-                self.filter_name, self.bitflag_filter_item, attributes, "name", reverse=self.use_filter_invert)
+                self.filter_name, self.bitflag_filter_item, attributes, "name", reverse=self.use_filter_invert,
+            )
         if not flags:
             flags = [self.bitflag_filter_item] * len(attributes)
 
         # Filtering internal attributes
         for idx, item in enumerate(attributes):
             flags[idx] = 0 if item.is_internal else flags[idx]
+
+        # Reorder by name.
+        if self.use_filter_sort_alpha:
+            indices = bpy.types.UI_UL_list.sort_items_by_name(attributes, "name")
 
         return flags, indices
 
@@ -107,10 +120,9 @@ class DATA_PT_pointcloud_attributes(DataButtonsPanel, Panel):
     bl_label = "Attributes"
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
-        'BLENDER_EEVEE',
         'BLENDER_EEVEE_NEXT',
         'BLENDER_WORKBENCH',
-        'BLENDER_WORKBENCH_NEXT'}
+    }
 
     def draw(self, context):
         pointcloud = context.pointcloud
@@ -133,14 +145,17 @@ class DATA_PT_pointcloud_attributes(DataButtonsPanel, Panel):
         col.menu("POINTCLOUD_MT_add_attribute", icon='ADD', text="")
         col.operator("geometry.attribute_remove", icon='REMOVE', text="")
 
+        col.separator()
+
+        col.menu("POINTCLOUD_MT_attribute_context_menu", icon='DOWNARROW_HLT', text="")
+
 
 class DATA_PT_custom_props_pointcloud(DataButtonsPanel, PropertyPanel, Panel):
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
-        'BLENDER_EEVEE',
         'BLENDER_EEVEE_NEXT',
         'BLENDER_WORKBENCH',
-        'BLENDER_WORKBENCH_NEXT'}
+    }
     _context_path = "object.data"
     _property_type = bpy.types.PointCloud if hasattr(bpy.types, "PointCloud") else None
 
@@ -150,6 +165,7 @@ classes = (
     DATA_PT_pointcloud_attributes,
     DATA_PT_custom_props_pointcloud,
     POINTCLOUD_MT_add_attribute,
+    POINTCLOUD_MT_attribute_context_menu,
     POINTCLOUD_UL_attributes,
 )
 

@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2020-2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2020-2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -24,6 +24,10 @@
 #  include "GHOST_ContextWGL.hh"
 #  include "GHOST_SystemWin32.hh"
 #endif
+#ifdef WITH_VULKAN_BACKEND
+#  include "GHOST_XrGraphicsBindingVulkan.hh"
+#endif
+
 #include "GHOST_C-api.h"
 #include "GHOST_XrException.hh"
 #include "GHOST_Xr_intern.hh"
@@ -123,7 +127,9 @@ class GHOST_XrGraphicsBindingOpenGL : public GHOST_IXrGraphicsBinding {
            (gl_version <= gpu_requirements.maxApiVersionSupported);
   }
 
-  void initFromGhostContext(GHOST_Context &ghost_ctx) override
+  void initFromGhostContext(GHOST_Context &ghost_ctx,
+                            XrInstance /*instance*/,
+                            XrSystemId /*system_id*/) override
   {
 #if defined(WITH_GHOST_X11) || defined(WITH_GHOST_WAYLAND)
     /* WAYLAND/X11 may be dynamically selected at load time but both may also be
@@ -153,7 +159,13 @@ class GHOST_XrGraphicsBindingOpenGL : public GHOST_IXrGraphicsBinding {
 #  if defined(WITH_GHOST_X11)
         /* #GHOST_SystemX11. */
         oxr_binding.egl.type = XR_TYPE_GRAPHICS_BINDING_EGL_MNDX;
-        oxr_binding.egl.getProcAddress = eglGetProcAddress;
+#    if XR_CURRENT_API_VERSION >= XR_MAKE_VERSION(1, 0, 29)
+        oxr_binding.egl.getProcAddress = reinterpret_cast<PFN_xrEglGetProcAddressMNDX>(
+            eglGetProcAddress);
+#    else
+        oxr_binding.egl.getProcAddress = reinterpret_cast<PFNEGLGETPROCADDRESSPROC>(
+            eglGetProcAddress);
+#    endif
         oxr_binding.egl.display = ctx_egl.getDisplay();
         oxr_binding.egl.config = ctx_egl.getConfig();
         oxr_binding.egl.context = ctx_egl.getContext();
@@ -371,14 +383,16 @@ class GHOST_XrGraphicsBindingD3D : public GHOST_IXrGraphicsBinding {
       strstream << "Minimum DirectX 11 Feature Level " << gpu_requirements.minFeatureLevel
                 << std::endl;
 
-      *r_requirement_info = std::move(strstream.str());
+      *r_requirement_info = strstream.str();
     }
 
     return m_ghost_d3d_ctx->m_device->GetFeatureLevel() >= gpu_requirements.minFeatureLevel;
   }
 
   void initFromGhostContext(
-      GHOST_Context & /*ghost_ctx*/ /* Remember: This is the OpenGL context! */
+      GHOST_Context & /*ghost_ctx*/ /* Remember: This is the OpenGL context! */,
+      XrInstance /*instance*/,
+      XrSystemId /*system_id*/
       ) override
   {
     oxr_binding.d3d11.type = XR_TYPE_GRAPHICS_BINDING_D3D11_KHR;
@@ -459,7 +473,7 @@ class GHOST_XrGraphicsBindingD3D : public GHOST_IXrGraphicsBinding {
 #  if 0
     /* Ideally we'd just create a render target view for the OpenXR swap-chain image texture and
      * blit from the OpenGL context into it. The NV_DX_interop extension doesn't want to work with
-     * this though. At least not with Optimus hardware. See:
+     * this though. At least not with OPTIMUS hardware. See:
      * https://github.com/mpv-player/mpv/issues/2949#issuecomment-197262807.
      */
 
@@ -513,6 +527,10 @@ std::unique_ptr<GHOST_IXrGraphicsBinding> GHOST_XrGraphicsBindingCreateFromType(
   switch (type) {
     case GHOST_kXrGraphicsOpenGL:
       return std::make_unique<GHOST_XrGraphicsBindingOpenGL>();
+#ifdef WITH_VULKAN_BACKEND
+    case GHOST_kXrGraphicsVulkan:
+      return std::make_unique<GHOST_XrGraphicsBindingVulkan>();
+#endif
 #ifdef WIN32
     case GHOST_kXrGraphicsD3D11:
       return std::make_unique<GHOST_XrGraphicsBindingD3D>(context);

@@ -1,12 +1,10 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: Apache-2.0 */
 
 #include "draw_testing.hh"
 
-#include "GPU_shader.h"
-
-#include "draw_manager_testing.h"
+#include "GPU_shader.hh"
 
 namespace blender::draw {
 
@@ -15,7 +13,6 @@ namespace blender::draw {
 void DrawOpenGLTest::SetUp()
 {
   GPUOpenGLTest::SetUp();
-  DRW_draw_state_init_gtests(GPU_SHADER_CFG_DEFAULT);
 }
 #endif
 
@@ -23,7 +20,6 @@ void DrawOpenGLTest::SetUp()
 void DrawMetalTest::SetUp()
 {
   GPUMetalTest::SetUp();
-  DRW_draw_state_init_gtests(GPU_SHADER_CFG_DEFAULT);
 }
 #endif
 
@@ -31,7 +27,6 @@ void DrawMetalTest::SetUp()
 void DrawVulkanTest::SetUp()
 {
   GPUVulkanTest::SetUp();
-  DRW_draw_state_init_gtests(GPU_SHADER_CFG_DEFAULT);
 }
 #endif
 

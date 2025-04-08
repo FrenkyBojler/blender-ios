@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -10,23 +10,22 @@
  * 3D Gizmo
  *
  * \brief Gizmo with primitive drawing type (plane, cube, etc.).
- * Currently only plane primitive supported without own handling, use with operator only.
+ * Currently only plane primitive supported without its own handling, use with operator only.
  */
+
+#include "BLI_math_vector.h"
 
 #include "MEM_guardedalloc.h"
 
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
-#include "DNA_view3d_types.h"
+#include "DNA_userdef_types.h"
 
-#include "BKE_context.h"
+#include "GPU_immediate.hh"
+#include "GPU_matrix.hh"
+#include "GPU_select.hh"
+#include "GPU_state.hh"
 
-#include "GPU_immediate.h"
-#include "GPU_matrix.h"
-#include "GPU_select.h"
-#include "GPU_state.h"
-
-#include "RNA_access.hh"
 #include "RNA_define.hh"
 
 #include "WM_api.hh"
@@ -35,7 +34,7 @@
 #include "ED_gizmo_library.hh"
 
 /* own includes */
-#include "../gizmo_library_intern.h"
+#include "../gizmo_library_intern.hh"
 
 static float verts_plane[4][3] = {
     {-1, -1, 0},
@@ -226,11 +225,13 @@ static void gizmo_primitive_setup(wmGizmo *gz)
   /* Default Values. */
   PrimitiveGizmo3D *gz_prim = (PrimitiveGizmo3D *)gz;
   gz_prim->draw_style = ED_GIZMO_PRIMITIVE_STYLE_PLANE;
-  gz_prim->arc_inner_factor = true;
+  gz_prim->arc_inner_factor = 1.0f;
   gz_prim->draw_inner = true;
 }
 
-static int gizmo_primitive_invoke(bContext * /*C*/, wmGizmo *gz, const wmEvent * /*event*/)
+static wmOperatorStatus gizmo_primitive_invoke(bContext * /*C*/,
+                                               wmGizmo *gz,
+                                               const wmEvent * /*event*/)
 {
   GizmoInteraction *inter = static_cast<GizmoInteraction *>(
       MEM_callocN(sizeof(GizmoInteraction), __func__));
@@ -259,7 +260,7 @@ static void GIZMO_GT_primitive_3d(wmGizmoType *gzt)
 
   gzt->struct_size = sizeof(PrimitiveGizmo3D);
 
-  static EnumPropertyItem rna_enum_draw_style[] = {
+  static const EnumPropertyItem rna_enum_draw_style[] = {
       {ED_GIZMO_PRIMITIVE_STYLE_PLANE, "PLANE", 0, "Plane", ""},
       {ED_GIZMO_PRIMITIVE_STYLE_CIRCLE, "CIRCLE", 0, "Circle", ""},
       {ED_GIZMO_PRIMITIVE_STYLE_ANNULUS, "ANNULUS", 0, "Annulus", ""},

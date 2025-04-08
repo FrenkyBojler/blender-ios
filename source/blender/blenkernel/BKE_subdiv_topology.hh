@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2019 Blender Foundation
+/* SPDX-FileCopyrightText: 2019 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -8,6 +8,10 @@
 
 #pragma once
 
+namespace blender::bke::subdiv {
+
 struct Subdiv;
 
-int BKE_subdiv_topology_num_fvar_layers_get(const Subdiv *subdiv);
+int topology_num_fvar_layers_get(const Subdiv *subdiv);
+
+}  // namespace blender::bke::subdiv

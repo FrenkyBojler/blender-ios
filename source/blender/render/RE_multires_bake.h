@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2010 Blender Foundation
+/* SPDX-FileCopyrightText: 2010 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -8,14 +8,14 @@
 
 #pragma once
 
+#include "DNA_listBase.h"
+
+struct Image;
+struct DerivedMesh;
 struct MultiresBakeRender;
 struct Scene;
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-typedef struct MultiresBakeRender {
+struct MultiresBakeRender {
   Scene *scene;
   DerivedMesh *lores_dm, *hires_dm;
   int bake_margin;
@@ -47,10 +47,6 @@ typedef struct MultiresBakeRender {
   bool *stop;
   bool *do_update;
   float *progress;
-} MultiresBakeRender;
+};
 
 void RE_multires_bake_images(struct MultiresBakeRender *bkr);
-
-#ifdef __cplusplus
-}
-#endif

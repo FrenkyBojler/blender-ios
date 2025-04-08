@@ -1,22 +1,29 @@
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
+
+#pragma once
+
+#include "gpu_glsl_cpp_stubs.hh"
 
 /* WORKAROUND: to guard against double include in EEVEE. */
 #ifndef GPU_SHADER_MATH_BASE_LIB_GLSL
-#define GPU_SHADER_MATH_BASE_LIB_GLSL
+#  define GPU_SHADER_MATH_BASE_LIB_GLSL
 
-#define M_PI 3.14159265358979323846      /* pi */
-#define M_TAU 6.28318530717958647692     /* tau = 2*pi */
-#define M_PI_2 1.57079632679489661923    /* pi/2 */
-#define M_PI_4 0.78539816339744830962    /* pi/4 */
-#define M_SQRT2 1.41421356237309504880   /* sqrt(2) */
-#define M_SQRT1_2 0.70710678118654752440 /* 1/sqrt(2) */
-#define M_SQRT3 1.73205080756887729352   /* sqrt(3) */
-#define M_SQRT1_3 0.57735026918962576450 /* 1/sqrt(3) */
-#define M_1_PI 0.318309886183790671538   /* 1/pi */
-#define M_E 2.7182818284590452354        /* e */
-#define M_LOG2E 1.4426950408889634074    /* log_2 e */
-#define M_LOG10E 0.43429448190325182765  /* log_10 e */
-#define M_LN2 0.69314718055994530942     /* log_e 2 */
-#define M_LN10 2.30258509299404568402    /* log_e 10 */
+#  define M_PI 3.14159265358979323846      /* pi */
+#  define M_TAU 6.28318530717958647692     /* tau = 2*pi */
+#  define M_PI_2 1.57079632679489661923    /* pi/2 */
+#  define M_PI_4 0.78539816339744830962    /* pi/4 */
+#  define M_SQRT2 1.41421356237309504880   /* sqrt(2) */
+#  define M_SQRT1_2 0.70710678118654752440 /* 1/sqrt(2) */
+#  define M_SQRT3 1.73205080756887729352   /* sqrt(3) */
+#  define M_SQRT1_3 0.57735026918962576450 /* 1/sqrt(3) */
+#  define M_1_PI 0.318309886183790671538   /* 1/pi */
+#  define M_E 2.7182818284590452354        /* e */
+#  define M_LOG2E 1.4426950408889634074    /* log_2 e */
+#  define M_LOG10E 0.43429448190325182765  /* log_10 e */
+#  define M_LN2 0.69314718055994530942     /* log_e 2 */
+#  define M_LN10 2.30258509299404568402    /* log_e 10 */
 
 /* `powf` is really slow for raising to integer powers. */
 
@@ -57,19 +64,19 @@ uint square_uint(uint v)
 {
   return v * v;
 }
-float square_f(float v)
+float square(float v)
 {
   return v * v;
 }
-vec2 square_f(vec2 v)
+vec2 square(vec2 v)
 {
   return v * v;
 }
-vec3 square_f(vec3 v)
+vec3 square(vec3 v)
 {
   return v * v;
 }
-vec4 square_f(vec4 v)
+vec4 square(vec4 v)
 {
   return v * v;
 }
@@ -92,10 +99,14 @@ float hypot(float x, float y)
   return sqrt(x * x + y * y);
 }
 
-float atan2(float y, float x)
+/* Declared as _atan2 to prevent errors with `WITH_GPU_SHADER_CPP_COMPILATION` on VS2019 due
+ * to `corecrt_math` conflicting functions. */
+
+float _atan2(float y, float x)
 {
   return atan(y, x);
 }
+#  define atan2 _atan2
 
 /**
  * Safe `a` modulo `b`.
@@ -104,6 +115,19 @@ float atan2(float y, float x)
 float safe_mod(float a, float b)
 {
   return (b != 0.0) ? mod(a, b) : 0.0;
+}
+
+/**
+ * A version of mod that behaves similar to C++ `std::modf`, and is safe such that it returns 0
+ * when b is also 0.
+ */
+float compatible_mod(float a, float b)
+{
+  if (b != 0.0) {
+    int N = int(a / b);
+    return a - N * b;
+  }
+  return 0.0;
 }
 
 /**
@@ -161,11 +185,95 @@ float safe_rcp(float a)
 }
 
 /**
+ * Safe square root function. Returns `sqrt(a)`.
+ * If `a` is less or equal to 0 then the result will be 0.
+ */
+float safe_sqrt(float a)
+{
+  return sqrt(max(0.0, a));
+}
+
+/**
+ * Safe `arccosine` function. Returns `acos(a)`.
+ * If `a` is greater than 1, returns 0.
+ * If `a` is less than -1, returns PI.
+ */
+float safe_acos(float a)
+{
+  if (a <= -1.0) {
+    return M_PI;
+  }
+  else if (a >= 1.0) {
+    return 0.0;
+  }
+  return acos(a);
+}
+
+/**
  * Return true if the difference between`a` and `b` is below the `epsilon` value.
  */
 bool is_equal(float a, float b, const float epsilon)
 {
   return abs(a - b) <= epsilon;
+}
+
+float sin_from_cos(float c)
+{
+  return safe_sqrt(1.0 - square(c));
+}
+
+float cos_from_sin(float s)
+{
+  return safe_sqrt(1.0 - square(s));
+}
+
+/**
+ * A version of pow that returns a fallback value if the computation is undefined. From the spec:
+ * The result is undefined if x < 0 or if x = 0 and y is less than or equal 0.
+ */
+float fallback_pow(float x, float y, float fallback)
+{
+  if (x < 0.0 || (x == 0.0 && y <= 0.0)) {
+    return fallback;
+  }
+
+  return pow(x, y);
+}
+
+/**
+ * A version of pow that behaves similar to C++ std::pow.
+ */
+float compatible_pow(float x, float y)
+{
+  if (y == 0.0) { /* x^0 -> 1, including 0^0 */
+    return 1.0;
+  }
+
+  /* GLSL pow doesn't accept negative x. */
+  if (x < 0.0) {
+    if (mod(-y, 2.0) == 0.0) {
+      return pow(-x, y);
+    }
+    else {
+      return -pow(-x, y);
+    }
+  }
+  else if (x == 0.0) {
+    return 0.0;
+  }
+
+  return pow(x, y);
+}
+
+/**
+ * Wrap the given value a to fall within the range [b, c].
+ */
+float wrap(float a, float b, float c)
+{
+  float range = b - c;
+  /* Avoid discrepancy on some hardware due to floating point accuracy and fast math. */
+  float s = (a != b) ? floor((a - c) / range) : 1.0;
+  return (range != 0.0) ? a - range * s : c;
 }
 
 /** \} */

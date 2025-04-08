@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -7,10 +7,6 @@
 /** \file
  * \ingroup freestyle
  */
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 struct FreestyleConfig;
 struct FreestyleLineStyle;
@@ -56,7 +52,3 @@ bool FRS_move_active_lineset(struct FreestyleConfig *config, int direction);
 /* Testing */
 struct Material *FRS_create_stroke_material(struct Main *bmain,
                                             struct FreestyleLineStyle *linestyle);
-
-#ifdef __cplusplus
-}
-#endif

@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2004-2022 Blender Foundation
+/* SPDX-FileCopyrightText: 2004-2022 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -10,17 +10,15 @@
 
 #include "../../../stroke/AdvancedFunctions0D.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 using namespace Freestyle;
 
 ///////////////////////////////////////////////////////////////////////////////////////////
 
 //------------------------INSTANCE METHODS ----------------------------------
 
-static char GetViewMapGradientNormF0D___doc__[] =
+PyDoc_STRVAR(
+    /* Wrap. */
+    GetViewMapGradientNormF0D___doc__,
     "Class hierarchy: :class:`freestyle.types.UnaryFunction0D` > "
     ":class:`freestyle.types.UnaryFunction0DFloat` > :class:`GetViewMapGradientNormF0D`\n"
     "\n"
@@ -41,7 +39,7 @@ static char GetViewMapGradientNormF0D___doc__[] =
     "   :type it: :class:`freestyle.types.Interface0DIterator`\n"
     "   :return: The norm of the gradient of the global viewmap density\n"
     "      image.\n"
-    "   :rtype: float\n";
+    "   :rtype: float\n");
 
 static int GetViewMapGradientNormF0D___init__(BPy_GetViewMapGradientNormF0D *self,
                                               PyObject *args,
@@ -102,7 +100,3 @@ PyTypeObject GetViewMapGradientNormF0D_Type = {
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////
-
-#ifdef __cplusplus
-}
-#endif

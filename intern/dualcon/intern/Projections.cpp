@@ -1,13 +1,11 @@
-/* SPDX-FileCopyrightText: 2002-2022 Blender Foundation
+/* SPDX-FileCopyrightText: 2002-2022 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#ifdef WITH_CXX_GUARDEDALLOC
-#  include "MEM_guardedalloc.h"
-#endif
-
 #include "Projections.h"
-#include <math.h>
+#include <cmath>
+
+#include <algorithm>
 
 const int vertmap[8][3] = {
     {0, 0, 0},
@@ -113,8 +111,9 @@ static void create_projection_axes(int64_t axes[NUM_AXES][3], const int64_t tri[
   /* Get triangle edge vectors */
   int64_t tri_edges[3][3];
   for (int i = 0; i < 3; i++) {
-    for (int j = 0; j < 3; j++)
+    for (int j = 0; j < 3; j++) {
       tri_edges[i][j] = tri[(i + 1) % 3][j] - tri[i][j];
+    }
   }
 
   /* Triangle normal */
@@ -171,8 +170,9 @@ CubeTriangleIsect::CubeTriangleIsect(int64_t cube[2][3],
     cube_proj.origin = dotProduct(axes[axis], cube[0]);
 
     /* 3 direction vectors */
-    for (i = 0; i < 3; i++)
+    for (i = 0; i < 3; i++) {
       cube_proj.edges[i] = dotProduct(axes[axis], cubeedge[i]);
+    }
 
     /* Offsets of 2 ends of cube projection */
     int64_t max = 0;
@@ -180,12 +180,8 @@ CubeTriangleIsect::CubeTriangleIsect(int64_t cube[2][3],
     for (i = 1; i < 8; i++) {
       int64_t proj = (vertmap[i][0] * cube_proj.edges[0] + vertmap[i][1] * cube_proj.edges[1] +
                       vertmap[i][2] * cube_proj.edges[2]);
-      if (proj > max) {
-        max = proj;
-      }
-      if (proj < min) {
-        min = proj;
-      }
+      max = std::max(proj, max);
+      min = std::min(proj, min);
     }
     cube_proj.min = min;
     cube_proj.max = max;
@@ -201,11 +197,8 @@ CubeTriangleIsect::CubeTriangleIsect(int64_t cube[2][3],
     inherit->tri_proj[axis][0] = vts[0];
     inherit->tri_proj[axis][1] = vts[0];
     for (i = 1; i < 3; i++) {
-      if (vts[i] < inherit->tri_proj[axis][0])
-        inherit->tri_proj[axis][0] = vts[i];
-
-      if (vts[i] > inherit->tri_proj[axis][1])
-        inherit->tri_proj[axis][1] = vts[i];
+      inherit->tri_proj[axis][0] = std::min(vts[i], inherit->tri_proj[axis][0]);
+      inherit->tri_proj[axis][1] = std::max(vts[i], inherit->tri_proj[axis][1]);
     }
   }
 }
@@ -223,8 +216,9 @@ CubeTriangleIsect::CubeTriangleIsect(CubeTriangleIsect *parent)
   for (int i = 0; i < NUM_AXES; i++) {
     cubeProj[i].origin = parent->cubeProj[i].origin;
 
-    for (int j = 0; j < 3; j++)
+    for (int j = 0; j < 3; j++) {
       cubeProj[i].edges[j] = parent->cubeProj[i].edges[j] >> 1;
+    }
 
     cubeProj[i].min = parent->cubeProj[i].min >> 1;
     cubeProj[i].max = parent->cubeProj[i].max >> 1;
@@ -268,7 +262,7 @@ unsigned char CubeTriangleIsect::getBoxMask()
 /**
  * Shifting a cube to a new origin
  */
-void CubeTriangleIsect::shift(int off[3])
+void CubeTriangleIsect::shift(const int off[3])
 {
   for (int i = 0; i < NUM_AXES; i++) {
     cubeProj[i].origin += (off[0] * cubeProj[i].edges[0] + off[1] * cubeProj[i].edges[1] +
@@ -337,13 +331,15 @@ float CubeTriangleIsect::getIntersectionPrimary(int edgeInd) const
   int64_t d = proj1 - proj0;
   double alpha;
 
-  if (d == 0)
+  if (d == 0) {
     alpha = 0.5;
+  }
   else {
     alpha = (double)((proj2 - proj0)) / (double)d;
 
-    if (alpha < 0 || alpha > 1)
+    if (alpha < 0 || alpha > 1) {
       alpha = 0.5;
+    }
   }
 
   return (float)alpha;

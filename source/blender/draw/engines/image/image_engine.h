@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2020 Blender Foundation
+/* SPDX-FileCopyrightText: 2020 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -8,12 +8,14 @@
 
 #pragma once
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include "DRW_render.hh"
 
-extern DrawEngineType draw_engine_image_type;
+namespace blender::image_engine {
 
-#ifdef __cplusplus
-}
-#endif
+struct Engine : public DrawEngine::Pointer {
+  DrawEngine *create_instance() final;
+
+  static void free_static();
+};
+
+}  // namespace blender::image_engine

@@ -1,13 +1,9 @@
-# SPDX-FileCopyrightText: 2008 Blender Foundation
+# SPDX-FileCopyrightText: 2008 Blender Authors
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 set(INC
-  .
-  ../blenkernel
-  ../blentranslation
-  ../gpu
-  ../imbuf
+  PUBLIC .
   ../makesrna
 )
 
@@ -23,19 +19,19 @@ set(SRC
   intern/blf_font_default.cc
   intern/blf_glyph.cc
   intern/blf_thumbs.cc
-  intern/blf_util.cc
-
-  BLF_api.h
-  intern/blf_internal.h
-  intern/blf_internal_types.h
+  BLF_api.hh
+  intern/blf_internal.hh
+  intern/blf_internal_types.hh
 )
 
 set(LIB
+  PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
+  PRIVATE bf::blentranslation
   PRIVATE bf::dna
-  bf_gpu
+  PRIVATE bf::gpu
+  PRIVATE bf::imbuf
   PRIVATE bf::intern::guardedalloc
-
   ${FREETYPE_LIBRARIES} ${BROTLI_LIBRARIES}
 )
 
@@ -52,5 +48,28 @@ if(WITH_PYTHON)
   )
 endif()
 
+if(WITH_HEADLESS)
+  add_definitions(-DWITH_HEADLESS)
+else()
+  # SVG icons.
+  list(APPEND LIB
+    PRIVATE bf::extern::nanosvg
+    PRIVATE bf::editor::datafiles
+  )
+
+endif()
 
 blender_add_lib(bf_blenfont "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
+add_library(bf::blenfont ALIAS bf_blenfont)
+
+if(WITH_GTESTS)
+  set(TEST_SRC
+    tests/BLF_tests.cc
+  )
+  set(TEST_INC
+  )
+  set(TEST_LIB
+    bf::blenfont
+  )
+  blender_add_test_suite_lib(blenfont "${TEST_SRC}" "${INC};${TEST_INC}" "${INC_SYS}" "${LIB};${TEST_LIB}")
+endif()

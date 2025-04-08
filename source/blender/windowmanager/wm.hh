@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2007 Blender Foundation
+/* SPDX-FileCopyrightText: 2007 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -8,9 +8,13 @@
 
 #pragma once
 
+struct wmOperator;
+struct wmTimer;
 struct wmWindow;
+struct wmWindowManager;
+struct Main;
 
-#include "gizmo/wm_gizmo_wmapi.h"
+#include "gizmo/wm_gizmo_wmapi.hh"
 
 struct wmPaintCursor {
   wmPaintCursor *next, *prev;
@@ -50,13 +54,9 @@ extern void wm_clear_default_size(bContext *C);
  */
 void wm_operator_register(bContext *C, wmOperator *op);
 
-/* wm_operator.c, for init/exit */
+/* `wm_operator.cc`, for init/exit. */
 
 void wm_operatortype_free();
-/**
- * Called on initialize #WM_init().
- */
-void wm_operatortype_init();
 /**
  * Default key-map for windows and screens, only call once per WM.
  */
@@ -84,7 +84,7 @@ void wm_jobs_timer(wmWindowManager *wm, wmTimer *wt);
  */
 void wm_jobs_timer_end(wmWindowManager *wm, wmTimer *wt);
 
-/* wm_files.cc */
+/* `wm_files.cc`. */
 
 /**
  * Run the auto-save timer action.
@@ -109,8 +109,8 @@ void wm_stereo3d_draw_topbottom(wmWindow *win, int view);
  * so that drawn cursor and handled mouse position are matching visually.
  */
 void wm_stereo3d_mouse_offset_apply(wmWindow *win, int r_mouse_xy[2]);
-int wm_stereo3d_set_exec(bContext *C, wmOperator *op);
-int wm_stereo3d_set_invoke(bContext *C, wmOperator *op, const wmEvent *event);
+wmOperatorStatus wm_stereo3d_set_exec(bContext *C, wmOperator *op);
+wmOperatorStatus wm_stereo3d_set_invoke(bContext *C, wmOperator *op, const wmEvent *event);
 void wm_stereo3d_set_draw(bContext *C, wmOperator *op);
 bool wm_stereo3d_set_check(bContext *C, wmOperator *op);
 void wm_stereo3d_set_cancel(bContext *C, wmOperator *op);

@@ -1,16 +1,12 @@
+/* SPDX-FileCopyrightText: 2020-2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /* Merge overlays texture on top of image texture and transform to display space (assume sRGB) */
 
-#ifndef USE_GPU_SHADER_CREATE_INFO
-uniform sampler2D image_texture;
-uniform sampler2D overlays_texture;
-uniform bool display_transform;
-uniform bool overlay;
+#include "infos/gpu_shader_2D_image_overlays_merge_info.hh"
 
-in vec2 texCoord_interp;
-
-out vec4 fragColor;
-#endif
+FRAGMENT_SHADER_CREATE_INFO(gpu_shader_2D_image_overlays_merge)
 
 float linearrgb_to_srgb(float c)
 {
@@ -37,11 +33,11 @@ void main()
 
   if (overlay) {
     if (!use_hdr) {
-      /* If we're not using an extended colour space, clamp the color 0..1. */
+      /* If we're not using an extended color space, clamp the color 0..1. */
       fragColor = clamp(fragColor, 0.0, 1.0);
     }
     else {
-      /* When using extended colorspace, interpolate towards clamped color to improve display of
+      /* When using extended color-space, interpolate towards clamped color to improve display of
        * alpha-blended overlays. */
       fragColor = mix(max(fragColor, 0.0), clamp(fragColor, 0.0, 1.0), overlay_col.a);
     }

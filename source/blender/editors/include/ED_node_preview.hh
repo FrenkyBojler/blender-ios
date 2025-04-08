@@ -1,19 +1,24 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
 #include "BKE_node_runtime.hh"
+#include "BLI_map.hh"
+
 #include "RE_pipeline.h"
 
-#include "IMB_imbuf.h"
+#include "IMB_imbuf.hh"
 
 #include "DNA_material_types.h"
 
-struct bContext;
-struct bNodeTree;
 struct ImBuf;
+struct SpaceNode;
+struct bContext;
+struct bNode;
+struct bNodeTree;
+struct wmWindowManager;
 struct Render;
 
 namespace blender::ed::space_node {
@@ -65,9 +70,18 @@ struct NestedTreePreviews {
 };
 
 void free_previews(wmWindowManager &wm, SpaceNode &snode);
+/**
+ * \note #node_release_preview_ibuf should be called after this.
+ */
+ImBuf *node_preview_acquire_ibuf(bNodeTree &ntree,
+                                 NestedTreePreviews &tree_previews,
+                                 const bNode &node);
 ImBuf *node_preview_acquire_ibuf(bNodeTree &ntree, NestedTreePreviews &tree_previews, const bNode &node);
 void node_release_preview_ibuf(NestedTreePreviews &tree_previews);
+/**
+ * This function returns the `NestedTreePreviews *` for the node-tree shown in the #SpaceNode.
+ * This is the first function in charge of the previews by calling `ensure_nodetree_previews`.
+ */
 NestedTreePreviews *get_nested_previews(const bContext &C, SpaceNode &snode);
-void stop_preview_job(wmWindowManager &wm);
 
 }  // namespace blender::ed::space_node

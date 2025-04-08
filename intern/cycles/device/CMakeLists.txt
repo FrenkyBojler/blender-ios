@@ -33,8 +33,6 @@ set(SRC_CPU
   cpu/kernel.cpp
   cpu/kernel.h
   cpu/kernel_function.h
-  cpu/kernel_thread_globals.cpp
-  cpu/kernel_thread_globals.h
 )
 
 set(SRC_CUDA
@@ -202,6 +200,13 @@ if(WITH_OPENIMAGEDENOISE)
     ${OPENIMAGEDENOISE_LIBRARIES}
   )
 endif()
+
+if(WITH_CYCLES_OSL)
+  list(APPEND LIB
+    ${OSL_LIBRARIES}
+  )
+endif()
+
 
 include_directories(${INC})
 include_directories(SYSTEM ${INC_SYS})

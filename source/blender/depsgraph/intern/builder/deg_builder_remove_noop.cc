@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2020 Blender Foundation
+/* SPDX-FileCopyrightText: 2020 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -6,17 +6,18 @@
  * \ingroup depsgraph
  */
 
+#include <deque>
+
 #include "intern/builder/deg_builder_remove_noop.h"
 
-#include "MEM_guardedalloc.h"
-
-#include "intern/node/deg_node.h"
-#include "intern/node/deg_node_operation.h"
+#include "intern/node/deg_node.hh"
+#include "intern/node/deg_node_operation.hh"
 
 #include "intern/debug/deg_debug.h"
-#include "intern/depsgraph.h"
-#include "intern/depsgraph_relation.h"
-#include "intern/depsgraph_type.h"
+#include "intern/depsgraph.hh"
+#include "intern/depsgraph_relation.hh"
+
+#include "DEG_depsgraph_debug.hh"
 
 namespace blender::deg {
 
@@ -53,7 +54,7 @@ static inline bool is_removable_relation(const Relation *relation)
 
 void deg_graph_remove_unused_noops(Depsgraph *graph)
 {
-  deque<OperationNode *> queue;
+  std::deque<OperationNode *> queue;
 
   for (OperationNode *node : graph->operations) {
     if (is_unused_noop(node)) {

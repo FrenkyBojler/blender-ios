@@ -1,5 +1,8 @@
-#pragma BLENDER_REQUIRE(gpu_shader_common_hash.glsl)
-#pragma BLENDER_REQUIRE(gpu_shader_common_math_utils.glsl)
+/* SPDX-FileCopyrightText: 2019-2022 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
+
+#include "gpu_shader_common_hash.glsl"
 
 vec2 calc_brick_texture(vec3 p,
                         float mortar_size,
@@ -16,14 +19,14 @@ vec2 calc_brick_texture(vec3 p,
   float offset = 0.0;
   float x, y;
 
-  rownum = floor_to_int(p.y / row_height);
+  rownum = int(floor(p.y / row_height));
 
   if (offset_frequency != 0 && squash_frequency != 0) {
     brick_width *= (rownum % squash_frequency != 0) ? 1.0 : squash_amount;           /* squash */
     offset = (rownum % offset_frequency != 0) ? 0.0 : (brick_width * offset_amount); /* offset */
   }
 
-  bricknum = floor_to_int((p.x + offset) / brick_width);
+  bricknum = int(floor((p.x + offset) / brick_width));
 
   x = (p.x + offset) - brick_width * bricknum;
   y = p.y - row_height * rownum;

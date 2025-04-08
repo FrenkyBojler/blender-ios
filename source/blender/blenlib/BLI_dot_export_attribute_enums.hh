@@ -1,12 +1,16 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
+
+/** \file
+ * \ingroup bli
+ */
 
 #pragma once
 
 #include "BLI_string_ref.hh"
 
-namespace blender ::dot {
+namespace blender::dot_export {
 
 enum class Attr_rankdir {
   LeftToRight,
@@ -105,4 +109,4 @@ inline StringRef dirType_to_string(Attr_dirType value)
   return "";
 }
 
-}  // namespace blender::dot
+}  // namespace blender::dot_export

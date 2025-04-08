@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -6,11 +6,9 @@
  * \ingroup bke
  */
 
-#include <cmath>
 #include <cstdlib>
 #include <cstring>
 
-#include "BLI_sys_types.h" /* for intptr_t support */
 #include "MEM_guardedalloc.h"
 
 #include "BLI_utildefines.h" /* for BLI_assert */
@@ -110,7 +108,7 @@ void *ccg_ehash_lookupWithPrev(EHash *eh, void *key, void ***prevp_r)
 
   for (; (entry = static_cast<EHEntry *>(*prevp)); prevp = (void **)&entry->next) {
     if (entry->key == key) {
-      *prevp_r = (void **)prevp;
+      *prevp_r = prevp;
       return entry;
     }
   }

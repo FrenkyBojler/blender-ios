@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2020 Blender Foundation
+# SPDX-FileCopyrightText: 2020 Blender Authors
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
@@ -41,6 +41,5 @@ if(WITH_GTESTS)
   set(TEST_LIB
     PRIVATE bf_intern_atomic
   )
-  include(GTestTesting)
   blender_add_test_executable(atomic "${TEST_SRC}" "${INC};${TEST_INC}" "${INC_SYS}" "${LIB};${TEST_LIB}")
 endif()

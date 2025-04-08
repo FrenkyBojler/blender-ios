@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -33,6 +33,9 @@
 
 /* -------------------------------------------------------------------- */
 /* Handle External Defines */
+
+#include "BLI_compiler_compat.h"
+#include "BLI_utildefines.h"
 
 /* check we're not building directly */
 #if !defined(SORT_IMPL_LINKTYPE) || !defined(SORT_IMPL_FUNC)
@@ -129,11 +132,11 @@ struct SortInfo {
   list_node *ranks[MAX_RANKS];
 };
 
-BLI_INLINE void init_sort_info(struct SortInfo *si,
-                               CompareFn func
+inline void init_sort_info(struct SortInfo *si,
+                           CompareFn func
 #ifdef SORT_IMPL_USE_THUNK
-                               ,
-                               void *thunk
+                           ,
+                           void *thunk
 #endif
 )
 {
@@ -147,12 +150,12 @@ BLI_INLINE void init_sort_info(struct SortInfo *si,
 #endif
 }
 
-BLI_INLINE list_node *merge_lists(list_node *first,
-                                  list_node *second,
-                                  CompareFn func
+inline list_node *merge_lists(list_node *first,
+                              list_node *second,
+                              CompareFn func
 #ifdef SORT_IMPL_USE_THUNK
-                                  ,
-                                  void *thunk
+                              ,
+                              void *thunk
 #endif
 )
 {

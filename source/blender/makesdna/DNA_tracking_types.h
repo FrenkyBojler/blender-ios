@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2011 Blender Foundation
+/* SPDX-FileCopyrightText: 2011 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -12,10 +12,6 @@
 
 #include "DNA_defs.h"
 #include "DNA_listBase.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 /* match-moving data */
 
@@ -415,7 +411,7 @@ typedef struct MovieTrackingDopesheet {
 
   /** Method to be used to sort tracks. */
   short sort_method;
-  /** Dopesheet building flag such as inverted order of sort. */
+  /** Dope-sheet building flag such as inverted order of sort. */
   short flag;
 
   /* ** runtime stuff ** */
@@ -459,7 +455,7 @@ typedef struct MovieTracking {
   /** Statistics displaying in clip editor. */
   MovieTrackingStats *stats;
 
-  /** Dopesheet data. */
+  /** Dope-sheet data. */
   MovieTrackingDopesheet dopesheet;
 } MovieTracking;
 
@@ -625,7 +621,3 @@ enum {
   PLANE_TRACK_LOCKED = (1 << 2),
   PLANE_TRACK_AUTOKEY = (1 << 3),
 };
-
-#ifdef __cplusplus
-}
-#endif

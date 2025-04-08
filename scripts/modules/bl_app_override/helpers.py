@@ -1,10 +1,14 @@
-# SPDX-FileCopyrightText: 2017-2023 Blender Foundation
+# SPDX-FileCopyrightText: 2017-2023 Blender Authors
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
+__all__ = (
+    "AppOverrideState",
+)
+
+
 # -----------------------------------------------------------------------------
 # AppOverrideState
-
 
 class AppOverrideState:
     """
@@ -111,7 +115,7 @@ class AppOverrideState:
             # (someone else was changing the sys.path), ignore!
             try:
                 sys.path.remove(path)
-            except:
+            except Exception:
                 pass
 
         addons = self._addon_store["addons"]

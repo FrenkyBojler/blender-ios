@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2011 Blender Foundation
+/* SPDX-FileCopyrightText: 2011 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -14,14 +14,11 @@
 #include "DNA_defaults.h"
 #include "DNA_movieclip_types.h"
 
-#include "BLI_threads.h"
-#include "BLI_utildefines.h"
-
 #include "BKE_movieclip.h"
 #include "BKE_tracking.h"
 
-#include "IMB_imbuf.h"
-#include "IMB_imbuf_types.h"
+#include "IMB_imbuf.hh"
+#include "IMB_imbuf_types.hh"
 
 #include "libmv-capi.h"
 #include "tracking_private.h"
@@ -79,7 +76,7 @@ static float *track_get_search_floatbuf(ImBuf *ibuf,
   width = searchibuf->x;
   height = searchibuf->y;
 
-  gray_pixels = MEM_cnew_array<float>(width * height, "tracking floatBuf");
+  gray_pixels = MEM_calloc_arrayN<float>(width * height, "tracking floatBuf");
 
   if (searchibuf->float_buffer.data) {
     float_rgba_to_gray(

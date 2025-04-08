@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2004-2022 Blender Foundation
+/* SPDX-FileCopyrightText: 2004-2022 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -10,17 +10,15 @@
 
 #include "../../stroke/BasicStrokeShaders.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 using namespace Freestyle;
 
 ///////////////////////////////////////////////////////////////////////////////////////////
 
 //------------------------INSTANCE METHODS ----------------------------------
 
-static char PolygonalizationShader___doc__[] =
+PyDoc_STRVAR(
+    /* Wrap. */
+    PolygonalizationShader___doc__,
     "Class hierarchy: :class:`freestyle.types.StrokeShader` > :class:`PolygonalizationShader`\n"
     "\n"
     "[Geometry shader]\n"
@@ -44,7 +42,7 @@ static char PolygonalizationShader___doc__[] =
     "   error is reached.\n"
     "\n"
     "   :arg stroke: A Stroke object.\n"
-    "   :type stroke: :class:`freestyle.types.Stroke`\n";
+    "   :type stroke: :class:`freestyle.types.Stroke`\n");
 
 static int PolygonalizationShader___init__(BPy_PolygonalizationShader *self,
                                            PyObject *args,
@@ -104,7 +102,3 @@ PyTypeObject PolygonalizationShader_Type = {
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////
-
-#ifdef __cplusplus
-}
-#endif

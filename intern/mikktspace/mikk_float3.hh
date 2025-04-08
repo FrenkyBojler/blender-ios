@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2020-2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2020-2023 Blender Authors
  *
  * SPDX-License-Identifier: Apache-2.0 */
 
@@ -64,7 +64,7 @@ struct float3 {
 
   float length() const
   {
-    return sqrt(length_squared());
+    return sqrtf(length_squared());
   }
 
   static float distance(const float3 &a, const float3 &b)

@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2019 Blender Foundation
+/* SPDX-FileCopyrightText: 2019 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -10,7 +10,7 @@
 
 struct MovieClip;
 struct MovieClipCache;
-struct anim;
+struct MovieReader;
 
 namespace blender::deg {
 
@@ -26,7 +26,7 @@ class MovieClipBackup {
   void init_from_movieclip(MovieClip *movieclip);
   void restore_to_movieclip(MovieClip *movieclip);
 
-  struct anim *anim;
+  struct MovieReader *anim;
   struct MovieClipCache *cache;
 };
 

@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -7,12 +7,6 @@
 /** \file
  * \ingroup bke
  */
-
-#include "BLI_utildefines.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 struct Depsgraph;
 struct DynamicPaintCanvasSettings;
@@ -59,7 +53,7 @@ struct Mesh *dynamicPaint_Modifier_do(struct DynamicPaintModifierData *pmd,
                                       struct Depsgraph *depsgraph,
                                       struct Scene *scene,
                                       struct Object *ob,
-                                      struct Mesh *me);
+                                      struct Mesh *mesh);
 /**
  * Free whole dynamic-paint modifier.
  */
@@ -145,7 +139,3 @@ void dynamicPaint_outputSurfaceImage(struct DynamicPaintSurface *surface,
 #define DPAINT_WAVE_NONE 0
 #define DPAINT_WAVE_OBSTACLE 1
 #define DPAINT_WAVE_REFLECT_ONLY 2
-
-#ifdef __cplusplus
-}
-#endif

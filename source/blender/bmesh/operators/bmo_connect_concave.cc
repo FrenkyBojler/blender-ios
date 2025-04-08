@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -26,11 +26,10 @@
 #include "BLI_memarena.h"
 #include "BLI_polyfill_2d.h"
 #include "BLI_polyfill_2d_beautify.h"
-#include "BLI_utildefines.h"
 
-#include "bmesh.h"
+#include "bmesh.hh"
 
-#include "intern/bmesh_operators_private.h" /* own include */
+#include "intern/bmesh_operators_private.hh" /* own include */
 
 #define EDGE_OUT (1 << 0)
 #define FACE_OUT (1 << 1)

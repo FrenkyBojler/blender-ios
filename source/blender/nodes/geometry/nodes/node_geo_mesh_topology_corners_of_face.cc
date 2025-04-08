@@ -1,10 +1,10 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BLI_task.hh"
+#include "BLI_array_utils.hh"
 
-#include "BKE_mesh.hh"
+#include "DNA_mesh_types.h"
 
 #include "node_geometry_util.hh"
 
@@ -44,7 +44,7 @@ class CornersOfFaceInput final : public bke::MeshFieldInput {
   }
 
   GVArray get_varray_for_context(const Mesh &mesh,
-                                 const eAttrDomain domain,
+                                 const AttrDomain domain,
                                  const IndexMask &mask) const final
   {
     const OffsetIndices faces = mesh.faces();
@@ -57,8 +57,8 @@ class CornersOfFaceInput final : public bke::MeshFieldInput {
     const VArray<int> face_indices = evaluator.get_evaluated<int>(0);
     const VArray<int> indices_in_sort = evaluator.get_evaluated<int>(1);
 
-    const bke::MeshFieldContext corner_context{mesh, ATTR_DOMAIN_CORNER};
-    fn::FieldEvaluator corner_evaluator{corner_context, mesh.totloop};
+    const bke::MeshFieldContext corner_context{mesh, AttrDomain::Corner};
+    fn::FieldEvaluator corner_evaluator{corner_context, mesh.corners_num};
     corner_evaluator.add(sort_weight_);
     corner_evaluator.evaluate();
     const VArray<float> all_sort_weights = corner_evaluator.get_evaluated<float>(0);
@@ -92,7 +92,7 @@ class CornersOfFaceInput final : public bke::MeshFieldInput {
            * when accessing values in the sort weights. However, it means a separate array of
            * indices within the compressed array is necessary for sorting. */
           sort_indices.reinitialize(corners.size());
-          std::iota(sort_indices.begin(), sort_indices.end(), 0);
+          array_utils::fill_index_range<int>(sort_indices);
           std::stable_sort(sort_indices.begin(), sort_indices.end(), [&](int a, int b) {
             return sort_weights[a] < sort_weights[b];
           });
@@ -128,9 +128,9 @@ class CornersOfFaceInput final : public bke::MeshFieldInput {
     return false;
   }
 
-  std::optional<eAttrDomain> preferred_domain(const Mesh & /*mesh*/) const final
+  std::optional<AttrDomain> preferred_domain(const Mesh & /*mesh*/) const final
   {
-    return ATTR_DOMAIN_FACE;
+    return AttrDomain::Face;
   }
 };
 
@@ -142,10 +142,10 @@ class CornersOfFaceCountInput final : public bke::MeshFieldInput {
   }
 
   GVArray get_varray_for_context(const Mesh &mesh,
-                                 const eAttrDomain domain,
+                                 const AttrDomain domain,
                                  const IndexMask & /*mask*/) const final
   {
-    if (domain != ATTR_DOMAIN_FACE) {
+    if (domain != AttrDomain::Face) {
       return {};
     }
     const OffsetIndices faces = mesh.faces();
@@ -163,9 +163,9 @@ class CornersOfFaceCountInput final : public bke::MeshFieldInput {
     return dynamic_cast<const CornersOfFaceCountInput *>(&other) != nullptr;
   }
 
-  std::optional<eAttrDomain> preferred_domain(const Mesh & /*mesh*/) const final
+  std::optional<AttrDomain> preferred_domain(const Mesh & /*mesh*/) const final
   {
-    return ATTR_DOMAIN_FACE;
+    return AttrDomain::Face;
   }
 };
 
@@ -174,10 +174,10 @@ static void node_geo_exec(GeoNodeExecParams params)
   const Field<int> face_index = params.extract_input<Field<int>>("Face Index");
   if (params.output_is_required("Total")) {
     params.set_output("Total",
-                      Field<int>(std::make_shared<EvaluateAtIndexInput>(
+                      Field<int>(std::make_shared<bke::EvaluateAtIndexInput>(
                           face_index,
                           Field<int>(std::make_shared<CornersOfFaceCountInput>()),
-                          ATTR_DOMAIN_FACE)));
+                          AttrDomain::Face)));
   }
   if (params.output_is_required("Corner Index")) {
     params.set_output("Corner Index",
@@ -190,12 +190,15 @@ static void node_geo_exec(GeoNodeExecParams params)
 
 static void node_register()
 {
-  static bNodeType ntype;
-  geo_node_type_base(
-      &ntype, GEO_NODE_MESH_TOPOLOGY_CORNERS_OF_FACE, "Corners of Face", NODE_CLASS_INPUT);
+  static blender::bke::bNodeType ntype;
+  geo_node_type_base(&ntype, "GeometryNodeCornersOfFace", GEO_NODE_MESH_TOPOLOGY_CORNERS_OF_FACE);
+  ntype.ui_name = "Corners of Face";
+  ntype.ui_description = "Retrieve corners that make up a face";
+  ntype.enum_name_legacy = "CORNERS_OF_FACE";
+  ntype.nclass = NODE_CLASS_INPUT;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

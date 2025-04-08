@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2011-2022 Blender Foundation
+/* SPDX-FileCopyrightText: 2011-2022 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -6,8 +6,10 @@
  * \ingroup collada
  */
 
-#include "BLI_string.h"
 #include <cstddef>
+#include <vector>
+
+#include "BLI_string.h"
 
 #include "ExtraHandler.h"
 

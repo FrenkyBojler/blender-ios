@@ -1,4 +1,15 @@
-#pragma BLENDER_REQUIRE(gpu_shader_common_math_utils.glsl)
+/* SPDX-FileCopyrightText: 2019-2022 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
+
+#include "gpu_shader_math_vector_lib.glsl"
+
+vec3 vector_math_safe_normalize(vec3 a)
+{
+  /* Match the safe normalize function in Cycles by defaulting to vec3(0.0) */
+  float length_sqr = length_squared(a);
+  return (length_sqr > 1e-35f) ? a * inversesqrt(length_sqr) : vec3(0.0);
+}
 
 void vector_math_add(vec3 a, vec3 b, vec3 c, float scale, out vec3 outVector, out float outValue)
 {
@@ -38,7 +49,7 @@ void vector_math_project(
 void vector_math_reflect(
     vec3 a, vec3 b, vec3 c, float scale, out vec3 outVector, out float outValue)
 {
-  outVector = reflect(a, normalize(b));
+  outVector = reflect(a, vector_math_safe_normalize(b));
 }
 
 void vector_math_dot(vec3 a, vec3 b, vec3 c, float scale, out vec3 outVector, out float outValue)
@@ -92,7 +103,7 @@ void vector_math_ceil(vec3 a, vec3 b, vec3 c, float scale, out vec3 outVector, o
 void vector_math_modulo(
     vec3 a, vec3 b, vec3 c, float scale, out vec3 outVector, out float outValue)
 {
-  outVector = compatible_fmod(a, b);
+  outVector = compatible_mod(a, b);
 }
 
 void vector_math_wrap(vec3 a, vec3 b, vec3 c, float scale, out vec3 outVector, out float outValue)
@@ -144,7 +155,7 @@ void vector_math_tangent(
 void vector_math_refract(
     vec3 a, vec3 b, vec3 c, float scale, out vec3 outVector, out float outValue)
 {
-  outVector = refract(a, normalize(b), scale);
+  outVector = refract(a, vector_math_safe_normalize(b), scale);
 }
 
 void vector_math_faceforward(

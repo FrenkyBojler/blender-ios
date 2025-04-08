@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -13,10 +13,6 @@ extern "C" {
 }
 
 #include "../view_map/Functions1D.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 ///////////////////////////////////////////////////////////////////////////////////////////
 
@@ -36,7 +32,3 @@ typedef struct {
 int UnaryFunction1D_Init(PyObject *module);
 
 ///////////////////////////////////////////////////////////////////////////////////////////
-
-#ifdef __cplusplus
-}
-#endif

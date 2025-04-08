@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2019 Blender Foundation
+/* SPDX-FileCopyrightText: 2019 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -8,9 +8,11 @@
 
 #pragma once
 
-#include "BKE_modifier.h"
+#include <string>
 
-#include "intern/depsgraph_type.h"
+#include "BLI_vector.hh"
+
+struct ID;
 
 namespace blender::deg {
 
@@ -19,7 +21,7 @@ struct Depsgraph;
 class AnimationValueBackup {
  public:
   AnimationValueBackup() = default;
-  AnimationValueBackup(const string &rna_path, int array_index, float value);
+  AnimationValueBackup(const std::string &rna_path, int array_index, float value);
 
   AnimationValueBackup(const AnimationValueBackup &other) = default;
   AnimationValueBackup(AnimationValueBackup &&other) noexcept = default;
@@ -27,7 +29,7 @@ class AnimationValueBackup {
   AnimationValueBackup &operator=(const AnimationValueBackup &other) = default;
   AnimationValueBackup &operator=(AnimationValueBackup &&other) = default;
 
-  string rna_path;
+  std::string rna_path;
   int array_index;
   float value;
 };

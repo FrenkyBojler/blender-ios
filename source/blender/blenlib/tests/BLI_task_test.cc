@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: Apache-2.0 */
 
@@ -9,8 +9,6 @@
 #include "atomic_ops.h"
 
 #include "MEM_guardedalloc.h"
-
-#include "BLI_utildefines.h"
 
 #include "BLI_listbase.h"
 #include "BLI_mempool.h"
@@ -145,7 +143,7 @@ TEST(task, MempoolIter)
 
 /* *** Parallel iterations over mempool items with TLS. *** */
 
-using TaskMemPool_Chunk = struct TaskMemPool_Chunk {
+struct TaskMemPool_Chunk {
   ListBase *accumulate_items;
 };
 
@@ -158,7 +156,7 @@ static void task_mempool_iter_tls_func(void * /*userdata*/,
 
   EXPECT_TRUE(data != nullptr);
   if (task_data->accumulate_items == nullptr) {
-    task_data->accumulate_items = MEM_cnew<ListBase>(__func__);
+    task_data->accumulate_items = MEM_callocN<ListBase>(__func__);
   }
 
   /* Flip to prove this has been touched. */
@@ -176,7 +174,7 @@ static void task_mempool_iter_tls_reduce(const void *__restrict /*userdata*/,
 
   if (data_chunk->accumulate_items != nullptr) {
     if (join_chunk->accumulate_items == nullptr) {
-      join_chunk->accumulate_items = MEM_cnew<ListBase>(__func__);
+      join_chunk->accumulate_items = MEM_callocN<ListBase>(__func__);
     }
     BLI_movelisttolist(join_chunk->accumulate_items, data_chunk->accumulate_items);
   }
@@ -231,55 +229,6 @@ TEST(task, MempoolIterTLS)
   MEM_freeN(tls_data.accumulate_items);
 
   BLI_mempool_destroy(mempool);
-  BLI_threadapi_exit();
-}
-
-/* *** Parallel iterations over double-linked list items. *** */
-
-static void task_listbase_iter_func(void *userdata,
-                                    void *item,
-                                    int index,
-                                    const TaskParallelTLS *__restrict /*tls*/)
-{
-  LinkData *data = (LinkData *)item;
-  int *count = (int *)userdata;
-
-  data->data = POINTER_FROM_INT(POINTER_AS_INT(data->data) + index);
-  atomic_sub_and_fetch_uint32((uint32_t *)count, 1);
-}
-
-TEST(task, ListBaseIter)
-{
-  ListBase list = {nullptr, nullptr};
-  LinkData *items_buffer = (LinkData *)MEM_calloc_arrayN(
-      ITEMS_NUM, sizeof(*items_buffer), __func__);
-  BLI_threadapi_init();
-
-  int i;
-
-  int items_num = 0;
-  for (i = 0; i < ITEMS_NUM; i++) {
-    BLI_addtail(&list, &items_buffer[i]);
-    items_num++;
-  }
-
-  TaskParallelSettings settings;
-  BLI_parallel_range_settings_defaults(&settings);
-
-  BLI_task_parallel_listbase(&list, &items_num, task_listbase_iter_func, &settings);
-
-  /* Those checks should ensure us all items of the listbase were processed once, and only once -
-   * as expected. */
-  EXPECT_EQ(items_num, 0);
-  LinkData *item;
-  for (i = 0, item = (LinkData *)list.first; i < ITEMS_NUM && item != nullptr;
-       i++, item = item->next)
-  {
-    EXPECT_EQ(POINTER_AS_INT(item->data), i);
-  }
-  EXPECT_EQ(ITEMS_NUM, i);
-
-  MEM_freeN(items_buffer);
   BLI_threadapi_exit();
 }
 

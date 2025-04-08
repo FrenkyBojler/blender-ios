@@ -1,3 +1,6 @@
+/* SPDX-FileCopyrightText: 2019-2022 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 void node_eevee_specular(vec4 diffuse,
                          vec4 specular,
@@ -8,14 +11,20 @@ void node_eevee_specular(vec4 diffuse,
                          float clearcoat,
                          float clearcoat_roughness,
                          vec3 CN,
-                         float occlusion,
                          float weight,
                          const float use_clearcoat,
                          out Closure result)
 {
+  diffuse = max(diffuse, vec4(0));
+  specular = max(specular, vec4(0));
+  roughness = saturate(roughness);
+  emissive = max(emissive, vec4(0));
   N = safe_normalize(N);
+  clearcoat = saturate(clearcoat);
+  clearcoat_roughness = saturate(clearcoat_roughness);
   CN = safe_normalize(CN);
-  vec3 V = cameraVec(g_data.P);
+
+  vec3 V = coordinate_incoming(g_data.P);
 
   ClosureEmission emission_data;
   emission_data.weight = weight;
@@ -32,14 +41,6 @@ void node_eevee_specular(vec4 diffuse,
   diffuse_data.weight = alpha;
   diffuse_data.color = diffuse.rgb;
   diffuse_data.N = N;
-  diffuse_data.sss_id = 0u;
-
-  /* WORKAROUND: Nasty workaround to the current interface with the closure evaluation.
-   * Ideally the occlusion input should be move to the output node or removed all-together.
-   * This is temporary to avoid a regression in 3.2 and should be removed after EEVEE-Next rewrite.
-   */
-  diffuse_data.sss_radius.r = occlusion;
-  diffuse_data.sss_radius.g = -1.0; /* Flag */
 
   ClosureReflection reflection_data;
   reflection_data.weight = alpha;
@@ -65,7 +66,7 @@ void node_eevee_specular(vec4 diffuse,
     clearcoat_data.roughness = clearcoat_roughness;
   }
 
-  if (use_clearcoat != 0.0f) {
+  if (use_clearcoat != 0.0) {
     result = closure_eval(diffuse_data, reflection_data, clearcoat_data);
   }
   else {

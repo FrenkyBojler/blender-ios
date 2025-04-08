@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2006 Blender Foundation
+/* SPDX-FileCopyrightText: 2006 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -11,10 +11,6 @@
 #include <pthread.h>
 
 #include "BLI_sys_types.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 /** For tables, button in UI, etc. */
 #define BLENDER_MAX_THREADS 1024
@@ -144,6 +140,7 @@ typedef struct TicketMutex TicketMutex;
 TicketMutex *BLI_ticket_mutex_alloc(void);
 void BLI_ticket_mutex_free(TicketMutex *ticket);
 void BLI_ticket_mutex_lock(TicketMutex *ticket);
+bool BLI_ticket_mutex_lock_check_recursive(TicketMutex *ticket);
 void BLI_ticket_mutex_unlock(TicketMutex *ticket);
 
 /* Condition */
@@ -194,7 +191,3 @@ void BLI_thread_queue_nowait(ThreadQueue *queue);
 #  define BLI_thread_local_get(name) name
 #  define BLI_thread_local_set(name, value) name = value
 #endif /* defined(__APPLE__) */
-
-#ifdef __cplusplus
-}
-#endif

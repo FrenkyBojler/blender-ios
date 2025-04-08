@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -21,3 +21,6 @@
 #define GPENCIL_LIGHT_SLOT 3
 /* UBOs */
 #define GPENCIL_SCENE_SLOT 2
+
+#define GPENCIL_RENDER_FORMAT GPU_RGBA16F
+#define GPENCIL_ACCUM_FORMAT GPU_RGBA16F

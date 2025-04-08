@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2008-2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2008-2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -26,13 +26,13 @@
 
 #include "BLI_sys_types.h"
 
-#include "BKE_global.h"
+#include "BKE_global.hh"
 
 // soc #include <qimage.h>
 // soc #include <QString>
 
-#include "IMB_imbuf.h"
-#include "IMB_imbuf_types.h"
+#include "IMB_imbuf.hh"
+#include "IMB_imbuf_types.hh"
 
 using namespace std;
 
@@ -121,7 +121,8 @@ void Canvas::Clear()
 {
   if (!_Layers.empty()) {
     for (deque<StrokeLayer *>::iterator sl = _Layers.begin(), slend = _Layers.end(); sl != slend;
-         ++sl) {
+         ++sl)
+    {
       if (*sl) {
         delete (*sl);
       }
@@ -151,7 +152,8 @@ void Canvas::Erase()
 {
   if (!_Layers.empty()) {
     for (deque<StrokeLayer *>::iterator sl = _Layers.begin(), slend = _Layers.end(); sl != slend;
-         ++sl) {
+         ++sl)
+    {
       if (*sl) {
         (*sl)->clear();
       }
@@ -336,7 +338,7 @@ void Canvas::loadMap(const char *iFileName, const char *iMapName, uint iNbLevels
   qimg = &newMap;
 #endif
   /* OCIO_TODO: support different input color space */
-  ImBuf *qimg = IMB_loadiffname(filePath.c_str(), 0, nullptr);
+  ImBuf *qimg = IMB_load_image_from_filepath(filePath.c_str(), 0);
   if (qimg == nullptr) {
     cerr << "Could not load image file " << filePath << endl;
     return;
@@ -353,7 +355,7 @@ void Canvas::loadMap(const char *iFileName, const char *iMapName, uint iNbLevels
   ImBuf *scaledImg;
   if ((qimg->x != width()) || (qimg->y != height())) {
     scaledImg = IMB_dupImBuf(qimg);
-    IMB_scaleImBuf(scaledImg, width(), height());
+    IMB_scale(scaledImg, width(), height(), IMBScaleFilter::Box, false);
   }
 
   // deal with color image
@@ -412,7 +414,7 @@ void Canvas::loadMap(const char *iFileName, const char *iMapName, uint iNbLevels
 #endif
 
     // soc  QImage qtmp(ow, oh, QImage::Format_RGB32);
-    ImBuf *qtmp = IMB_allocImBuf(ow, oh, 32, IB_rect);
+    ImBuf *qtmp = IMB_allocImBuf(ow, oh, 32, IB_byte_data);
 
     // int k = (1 << i);
     for (y = 0; y < oh; ++y) {
@@ -428,7 +430,7 @@ void Canvas::loadMap(const char *iFileName, const char *iMapName, uint iNbLevels
     filepath << base;
     filepath << i << ".bmp";
     qtmp->ftype = IMB_FTYPE_BMP;
-    IMB_saveiff(qtmp, const_cast<char *>(filepath.str().c_str()), 0);
+    IMB_save_image(qtmp, const_cast<char *>(filepath.str().c_str()), 0);
   }
 
 #if 0

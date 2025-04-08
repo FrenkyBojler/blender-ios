@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -81,9 +81,7 @@ class BlenderStrokeRenderer : public StrokeRenderer {
 
   vector<StrokeRep *> _strokeReps;
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("Freestyle:BlenderStrokeRenderer")
-#endif
 };
 
 } /* namespace Freestyle */

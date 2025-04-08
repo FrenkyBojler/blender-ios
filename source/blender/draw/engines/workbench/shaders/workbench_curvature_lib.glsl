@@ -1,5 +1,10 @@
+/* SPDX-FileCopyrightText: 2018-2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#pragma BLENDER_REQUIRE(workbench_common_lib.glsl)
+#pragma once
+
+#include "workbench_common_lib.glsl"
 
 #ifdef WORKBENCH_CURVATURE
 #  define USE_CURVATURE

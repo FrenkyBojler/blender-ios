@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2013 Blender Foundation
+/* SPDX-FileCopyrightText: 2013 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -6,14 +6,13 @@
  * \ingroup gpu
  */
 
-#include "GPU_init_exit.h" /* interface */
-#include "BLI_sys_types.h"
-#include "GPU_batch.h"
+#include "GPU_init_exit.hh" /* interface */
+#include "GPU_batch.hh"
 
-#include "intern/gpu_codegen.h"
-#include "intern/gpu_private.h"
+#include "intern/gpu_codegen.hh"
+#include "intern/gpu_private.hh"
 #include "intern/gpu_shader_create_info_private.hh"
-#include "intern/gpu_shader_dependency_private.h"
+#include "intern/gpu_shader_dependency_private.hh"
 
 /**
  * although the order of initialization and shutdown should not matter
@@ -29,6 +28,8 @@ void GPU_init()
   }
 
   initialized = true;
+
+  gpu_backend_init_resources();
 
   gpu_shader_dependency_init();
   gpu_shader_create_info_init();

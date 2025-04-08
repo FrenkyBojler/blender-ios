@@ -1,20 +1,17 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "DNA_collection_types.h"
-
 #include "BLI_array_utils.hh"
-#include "BLI_hash.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_matrix.hh"
 #include "BLI_task.hh"
 
-#include "UI_interface.hh"
-#include "UI_resources.hh"
-
-#include "BKE_attribute_math.hh"
+#include "BKE_curves.hh"
+#include "BKE_grease_pencil.hh"
 #include "BKE_instances.hh"
+
+#include "GEO_join_geometries.hh"
 
 #include "node_geometry_util.hh"
 
@@ -35,10 +32,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .description(
           "Index of the instance used for each point. This is only used when Pick Instances "
           "is on. By default the point index is used");
-  b.add_input<decl::Vector>("Rotation")
-      .subtype(PROP_EULER)
-      .field_on({0})
-      .description("Rotation of the instances");
+  b.add_input<decl::Rotation>("Rotation").field_on({0}).description("Rotation of the instances");
   b.add_input<decl::Vector>("Scale")
       .default_value({1.0f, 1.0f, 1.0f})
       .subtype(PROP_XYZ)
@@ -50,20 +44,20 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void add_instances_from_component(
     bke::Instances &dst_component,
-    const GeometryComponent &src_component,
+    const AttributeAccessor &src_attributes,
     const GeometrySet &instance,
+    const fn::FieldContext &field_context,
     const GeoNodeExecParams &params,
-    const Map<AttributeIDRef, AttributeKind> &attributes_to_propagate)
+    const Map<StringRef, AttributeDomainAndType> &attributes_to_propagate)
 {
-  const eAttrDomain domain = ATTR_DOMAIN_POINT;
-  const int domain_num = src_component.attribute_domain_size(domain);
+  const AttrDomain domain = AttrDomain::Point;
+  const int domain_num = src_attributes.domain_size(domain);
 
   VArray<bool> pick_instance;
   VArray<int> indices;
-  VArray<float3> rotations;
+  VArray<math::Quaternion> rotations;
   VArray<float3> scales;
 
-  const bke::GeometryFieldContext field_context{src_component, domain};
   const Field<bool> selection_field = params.get_input<Field<bool>>("Selection");
   fn::FieldEvaluator evaluator{field_context, domain_num};
   evaluator.set_selection(selection_field);
@@ -71,7 +65,7 @@ static void add_instances_from_component(
    * selected indices should be copied. */
   evaluator.add(params.get_input<Field<bool>>("Pick Instance"), &pick_instance);
   evaluator.add(params.get_input<Field<int>>("Instance Index"), &indices);
-  evaluator.add(params.get_input<Field<float3>>("Rotation"), &rotations);
+  evaluator.add(params.get_input<Field<math::Quaternion>>("Rotation"), &rotations);
   evaluator.add(params.get_input<Field<float3>>("Scale"), &scales);
   evaluator.evaluate();
 
@@ -79,7 +73,6 @@ static void add_instances_from_component(
   if (selection.is_empty()) {
     return;
   }
-  const AttributeAccessor src_attributes = *src_component.attributes();
 
   /* The initial size of the component might be non-zero when this function is called for multiple
    * component types. */
@@ -87,8 +80,10 @@ static void add_instances_from_component(
   const int select_len = selection.index_range().size();
   dst_component.resize(start_len + select_len);
 
-  MutableSpan<int> dst_handles = dst_component.reference_handles().slice(start_len, select_len);
-  MutableSpan<float4x4> dst_transforms = dst_component.transforms().slice(start_len, select_len);
+  MutableSpan<int> dst_handles = dst_component.reference_handles_for_write().slice(start_len,
+                                                                                   select_len);
+  MutableSpan<float4x4> dst_transforms = dst_component.transforms_for_write().slice(start_len,
+                                                                                    select_len);
 
   const VArraySpan positions = *src_attributes.lookup<float3>("position");
 
@@ -116,8 +111,7 @@ static void add_instances_from_component(
   selection.foreach_index(GrainSize(1024), [&](const int64_t i, const int64_t range_i) {
     /* Compute base transform for every instances. */
     float4x4 &dst_transform = dst_transforms[range_i];
-    dst_transform = math::from_loc_rot_scale<float4x4>(
-        positions[i], math::EulerXYZ(rotations[i]), scales[i]);
+    dst_transform = math::from_loc_rot_scale<float4x4>(positions[i], rotations[i], scales[i]);
 
     /* Reference that will be used by this new instance. */
     int dst_handle = empty_reference_handle;
@@ -160,26 +154,29 @@ static void add_instances_from_component(
 
   bke::MutableAttributeAccessor dst_attributes = dst_component.attributes_for_write();
   for (const auto item : attributes_to_propagate.items()) {
-    const AttributeIDRef &id = item.key;
-    const bke::GAttributeReader src = src_attributes.lookup(id, ATTR_DOMAIN_POINT);
+    const StringRef id = item.key;
+    const eCustomDataType data_type = item.value.data_type;
+    const bke::GAttributeReader src = src_attributes.lookup(id, AttrDomain::Point, data_type);
     if (!src) {
       /* Domain interpolation can fail if the source domain is empty. */
       continue;
     }
 
-    const eCustomDataType type = bke::cpp_type_to_custom_data_type(src.varray.type());
-    if (src.varray.size() == dst_component.instances_num() && src.sharing_info &&
-        src.varray.is_span()) {
-      const bke::AttributeInitShared init(src.varray.get_internal_span().data(),
-                                          *src.sharing_info);
-      dst_attributes.add(id, ATTR_DOMAIN_INSTANCE, type, init);
+    if (!dst_attributes.contains(id)) {
+      if (src.varray.size() == dst_component.instances_num() && src.sharing_info &&
+          src.varray.is_span())
+      {
+        const bke::AttributeInitShared init(src.varray.get_internal_span().data(),
+                                            *src.sharing_info);
+        dst_attributes.add(id, AttrDomain::Instance, data_type, init);
+        continue;
+      }
+      dst_attributes.add(id, AttrDomain::Instance, data_type, bke::AttributeInitConstruct());
     }
-    else {
-      GSpanAttributeWriter dst = dst_attributes.lookup_or_add_for_write_only_span(
-          id, ATTR_DOMAIN_INSTANCE, type);
-      array_utils::gather(src.varray, selection, dst.span.slice(start_len, select_len));
-      dst.finish();
-    }
+
+    GSpanAttributeWriter dst = dst_attributes.lookup_for_write_span(id);
+    array_utils::gather(src.varray, selection, dst.span.slice(start_len, select_len));
+    dst.finish();
   }
 }
 
@@ -188,6 +185,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   GeometrySet geometry_set = params.extract_input<GeometrySet>("Points");
   GeometrySet instance = params.get_input<GeometrySet>("Instance");
   instance.ensure_owns_direct_data();
+  const NodeAttributeFilter &attribute_filter = params.get_attribute_filter("Instances");
 
   geometry_set.modify_geometry_sets([&](GeometrySet &geometry_set) {
     /* It's important not to invalidate the existing #InstancesComponent because it owns references
@@ -204,22 +202,75 @@ static void node_geo_exec(GeoNodeExecParams params)
                                                GeometryComponent::Type::PointCloud,
                                                GeometryComponent::Type::Curve};
 
-    Map<AttributeIDRef, AttributeKind> attributes_to_propagate;
+    Map<StringRef, AttributeDomainAndType> attributes_to_propagate;
     geometry_set.gather_attributes_for_propagation(types,
                                                    GeometryComponent::Type::Instance,
                                                    false,
-                                                   params.get_output_propagation_info("Instances"),
+                                                   attribute_filter,
                                                    attributes_to_propagate);
     attributes_to_propagate.remove("position");
+    attributes_to_propagate.remove(".reference_index");
 
     for (const GeometryComponent::Type type : types) {
       if (geometry_set.has(type)) {
+        const GeometryComponent &component = *geometry_set.get_component(type);
+        const bke::GeometryFieldContext field_context{component, AttrDomain::Point};
         add_instances_from_component(*dst_instances,
-                                     *geometry_set.get_component(type),
+                                     *component.attributes(),
                                      instance,
+                                     field_context,
                                      params,
                                      attributes_to_propagate);
       }
+    }
+    if (geometry_set.has_grease_pencil()) {
+      using namespace bke::greasepencil;
+      const GreasePencil &grease_pencil = *geometry_set.get_grease_pencil();
+      bke::Instances *instances = new bke::Instances();
+      for (const int layer_index : grease_pencil.layers().index_range()) {
+        const Layer &layer = grease_pencil.layer(layer_index);
+        const Drawing *drawing = grease_pencil.get_eval_drawing(layer);
+        if (drawing == nullptr) {
+          continue;
+        }
+        const float4x4 &layer_transform = layer.local_transform();
+        const bke::CurvesGeometry &src_curves = drawing->strokes();
+        if (src_curves.is_empty()) {
+          /* Add an empty reference so the number of layers and instances match.
+           * This makes it easy to reconstruct the layers afterwards and keep their attributes.
+           * Although in this particular case we don't propagate the attributes. */
+          const int handle = instances->add_reference(bke::InstanceReference());
+          instances->add_instance(handle, layer_transform);
+          continue;
+        }
+        /* TODO: Attributes are not propagating from the curves or the points. */
+        bke::Instances *layer_instances = new bke::Instances();
+        const bke::GreasePencilLayerFieldContext field_context(
+            grease_pencil, AttrDomain::Point, layer_index);
+        add_instances_from_component(*layer_instances,
+                                     src_curves.attributes(),
+                                     instance,
+                                     field_context,
+                                     params,
+                                     attributes_to_propagate);
+        GeometrySet temp_set = GeometrySet::from_instances(layer_instances);
+        const int handle = instances->add_reference(bke::InstanceReference{temp_set});
+        instances->add_instance(handle, layer_transform);
+      }
+
+      bke::copy_attributes(geometry_set.get_grease_pencil()->attributes(),
+                           bke::AttrDomain::Layer,
+                           bke::AttrDomain::Instance,
+                           attribute_filter,
+                           instances->attributes_for_write());
+      GeometrySet new_instances = geometry::join_geometries(
+          {GeometrySet::from_instances(dst_instances, bke::GeometryOwnershipType::Editable),
+           GeometrySet::from_instances(instances)},
+          attribute_filter);
+      instances_component.replace(
+          new_instances.get_component_for_write<InstancesComponent>().release());
+
+      geometry_set.replace_grease_pencil(nullptr);
     }
     geometry_set.remove_geometry_during_modify();
   });
@@ -237,13 +288,18 @@ static void node_geo_exec(GeoNodeExecParams params)
 
 static void node_register()
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(
-      &ntype, GEO_NODE_INSTANCE_ON_POINTS, "Instance on Points", NODE_CLASS_GEOMETRY);
+  geo_node_type_base(&ntype, "GeometryNodeInstanceOnPoints", GEO_NODE_INSTANCE_ON_POINTS);
+  ntype.ui_name = "Instance on Points";
+  ntype.ui_description =
+      "Generate a reference to geometry at each of the input points, without duplicating its "
+      "underlying data";
+  ntype.enum_name_legacy = "INSTANCE_ON_POINTS";
+  ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

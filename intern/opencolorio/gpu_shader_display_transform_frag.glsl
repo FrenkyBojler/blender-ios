@@ -1,3 +1,7 @@
+/* SPDX-FileCopyrightText: 2013-2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
+
 /* Blender OpenColorIO implementation */
 
 /* -------------------------------------------------------------------- */
@@ -95,29 +99,36 @@ vec4 curvemapping_evaluate_premulRGBF(vec4 col)
 /** \name Dithering
  * \{ */
 
-/* Using a triangle distribution which gives a more final uniform noise.
- * See Banding in Games:A Noisy Rant(revision 5) Mikkel Gjøl, Playdead (slide 27) */
-/* GPUs are rounding before writing to framebuffer so we center the distribution around 0.0. */
-/* Return triangle noise in [-1..1[ range */
-float dither_random_value(vec2 co)
+/* 2D hash (iqint3) recommended from "Hash Functions for GPU Rendering" JCGT Vol. 9, No. 3, 2020
+ * https://jcgt.org/published/0009/03/02/ */
+float hash_iqint3_f(uvec2 x)
 {
-  /* Original code from https://www.shadertoy.com/view/4t2SDh */
-  /* Uniform noise in [0..1[ range */
-  float nrnd0 = fract(sin(dot(co.xy, vec2(12.9898, 78.233))) * 43758.5453);
-  /* Convert uniform distribution into triangle-shaped distribution. */
-  float orig = nrnd0 * 2.0 - 1.0;
-  nrnd0 = orig * inversesqrt(abs(orig));
-  nrnd0 = max(-1.0, nrnd0); /* Removes nan's */
-  return nrnd0 - sign(orig);
+  uvec2 q = 1103515245u * ((x >> 1u) ^ (x.yx));
+  uint n = 1103515245u * ((q.x) ^ (q.y >> 3u));
+  return float(n) * (1.0 / float(0xffffffffu));
 }
 
-vec2 round_to_pixel(sampler2D tex, vec2 uv)
+/* Returns triangle noise in [-1..+1) range, given integer pixel coordinates.
+ * Triangle distribution which gives a more final uniform noise,
+ * see "Banding in Games: A Noisy Rant" by Mikkel Gjoel (slide 27)
+ * https://loopit.dk/banding_in_games.pdf */
+float dither_random_value(uvec2 co)
+{
+  float v = hash_iqint3_f(co);
+  /* Convert uniform distribution into triangle-shaped distribution. Based on
+   * "remap_pdf_tri_unity" from https://www.shadertoy.com/view/WldSRf */
+  v = v * 2.0 - 1.0;
+  v = sign(v) * (1.0 - sqrt(1.0 - abs(v)));
+  return v;
+}
+
+uvec2 get_pixel_coord(sampler2D tex, vec2 uv)
 {
   vec2 size = vec2(textureSize(tex, 0));
-  return floor(uv * size) / size;
+  return uvec2(uv * size);
 }
 
-vec4 apply_dither(vec4 col, vec2 uv)
+vec4 apply_dither(vec4 col, uvec2 uv)
 {
   col.rgb += dither_random_value(uv) * 0.0033 * parameters.dither;
   return col;
@@ -129,7 +140,7 @@ vec4 apply_dither(vec4 col, vec2 uv)
 /** \name Main Processing
  * \{ */
 
-/* Prototypes: Implementation is generaterd and defined after. */
+/* Prototypes: Implementation is generated and defined after. */
 #ifndef GPU_METAL /* Forward declaration invalid in MSL. */
 vec4 OCIO_to_scene_linear(vec4 pixel);
 vec4 OCIO_to_display(vec4 pixel);
@@ -147,7 +158,7 @@ vec4 OCIO_ProcessColor(vec4 col, vec4 col_overlay)
     }
   }
 
-  /* NOTE: This is true we only do de-premul here and NO premul
+  /* NOTE: This is true we only do de-pre-multiply here and NO pre-multiply
    *       and the reason is simple -- opengl is always configured
    *       for straight alpha at this moment
    */
@@ -155,27 +166,27 @@ vec4 OCIO_ProcessColor(vec4 col, vec4 col_overlay)
   /* Convert to scene linear (usually a no-op). */
   col = OCIO_to_scene_linear(col);
 
-  /* Apply exposure in scene linear. */
-  col.rgb *= parameters.scale;
+  /* Apply exposure and white balance in scene linear. */
+  col = parameters.scene_linear_matrix * col;
 
   /* Convert to display space. */
   col = OCIO_to_display(col);
 
-  /* Blend with overlay in UI colorspace.
+  /* Blend with overlay in UI color-space.
    *
-   * UI colorspace here refers to the display linear color space,
+   * UI color-space here refers to the display linear color space,
    * i.e: The linear color space w.r.t. display chromaticity and radiometry.
-   * We separate the colormanagement process into two steps to be able to
+   * We separate the color-management process into two steps to be able to
    * merge UI using alpha blending in the correct color space. */
   if (parameters.use_overlay) {
     col.rgb = pow(col.rgb, vec3(parameters.exponent * 2.2));
 
     if (!parameters.use_hdr) {
-      /* If we're not using an extended colour space, clamp the color 0..1. */
+      /* If we're not using an extended color space, clamp the color 0..1. */
       col = clamp(col, 0.0, 1.0);
     }
     else {
-      /* When using extended colorspace, interpolate towards clamped color to improve display of
+      /* When using extended color-space, interpolate towards clamped color to improve display of
        * alpha-blended overlays. */
       col = mix(max(col, 0.0), clamp(col, 0.0, 1.0), col_overlay.a);
     }
@@ -188,8 +199,8 @@ vec4 OCIO_ProcessColor(vec4 col, vec4 col_overlay)
   }
 
   if (parameters.dither > 0.0) {
-    vec2 noise_uv = round_to_pixel(image_texture, texCoord_interp.st);
-    col = apply_dither(col, noise_uv);
+    uvec2 texel = get_pixel_coord(image_texture, texCoord_interp.st);
+    col = apply_dither(col, texel);
   }
 
   return col;

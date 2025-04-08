@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# SPDX-FileCopyrightText: 2023 Blender Foundation
+# SPDX-FileCopyrightText: 2023 Blender Authors
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
@@ -31,7 +31,7 @@ SOURCE_DIR = cmake_find_source(PROJECT_DIR)
 
 cmd = (
     "python",
-    os.path.join(SOURCE_DIR, "build_files/cmake/cmake_qtcreator_project.py"),
+    os.path.join(SOURCE_DIR, "tools/utils_ide/cmake_qtcreator_project.py"),
     "--build-dir",
     PROJECT_DIR,
 )

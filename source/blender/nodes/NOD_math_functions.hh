@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -13,7 +13,11 @@
 
 #include "FN_multi_function_builder.hh"
 
+#include "NOD_multi_function.hh"
+
 namespace blender::nodes {
+
+void node_math_build_multi_function(NodeMultiFunctionBuilder &builder);
 
 struct FloatMathOperationInfo {
   StringRefNull title_case_name;

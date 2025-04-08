@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -8,8 +8,7 @@
 
 #pragma once
 
-namespace blender {
-namespace gpu {
+namespace blender::gpu {
 
 /*** Derived from: https://developer.apple.com/metal/Metal-Feature-Set-Tables.pdf ***/
 /** Upper Bound/Fixed Limits **/
@@ -21,14 +20,15 @@ namespace gpu {
 /* Total maximum buffers which can be bound to an encoder, for use within a shader.
  * Uniform buffers and storage buffers share the set of available bind buffers.
  * The total number of buffer bindings must be <= MTL_MAX_BUFFER_BINDINGS
- * We also require an additional 3 core buffers for:
+ * We also require an additional 2 core buffers for:
  * - Argument buffer for bindless resources (e.g. samplers)
- * - Transform feedback buffer
  * - Default push constant block
  * Along with up to 6+1 buffers for vertex data, and index data. */
 #define MTL_MAX_BUFFER_BINDINGS 31
 #define MTL_MAX_VERTEX_INPUT_ATTRIBUTES 31
 #define MTL_MAX_UNIFORMS_PER_BLOCK 64
+
+enum AppleGPUType { APPLE_GPU_UNKNOWN = 0, APPLE_GPU_M1 = 1, APPLE_GPU_M2 = 2, APPLE_GPU_M3 = 3 };
 
 /* Context-specific limits -- populated in 'MTLBackend::platform_init' */
 struct MTLCapabilities {
@@ -47,13 +47,19 @@ struct MTLCapabilities {
   bool supports_sampler_border_color = false;
   bool supports_argument_buffers_tier2 = false;
   bool supports_texture_gather = false;
+  bool supports_texture_atomics = false;
+  bool supports_native_tile_inputs = false;
 
   /* GPU Family */
   bool supports_family_mac1 = false;
   bool supports_family_mac2 = false;
   bool supports_family_mac_catalyst1 = false;
   bool supports_family_mac_catalyst2 = false;
+  AppleGPUType gpu = APPLE_GPU_UNKNOWN;
+
+  /* CPU Info */
+  int num_performance_cores = -1;
+  int num_efficiency_cores = -1;
 };
 
-}  // namespace gpu
-}  // namespace blender
+}  // namespace blender::gpu

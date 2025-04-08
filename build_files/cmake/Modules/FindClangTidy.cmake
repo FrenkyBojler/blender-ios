@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2020 Blender Foundation
+# SPDX-FileCopyrightText: 2020 Blender Authors
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
@@ -104,3 +104,5 @@ ${CLANG_TIDY_VERSION_PATCH}")
 else()
   set(CLANG_TIDY_FOUND FALSE)
 endif()
+
+unset(_clang_tidy_SEARCH_DIRS)

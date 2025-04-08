@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2020 Blender Foundation
+/* SPDX-FileCopyrightText: 2020 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -10,10 +10,6 @@
 
 #include "BLI_compiler_attrs.h"
 #include "BLI_utildefines.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 /* Memory-mapped file IO that implements all the OS-specific details and error handling. */
 
@@ -33,9 +29,6 @@ bool BLI_mmap_read(BLI_mmap_file *file, void *dest, size_t offset, size_t length
     ATTR_WARN_UNUSED_RESULT ATTR_NONNULL(1);
 
 void *BLI_mmap_get_pointer(BLI_mmap_file *file) ATTR_WARN_UNUSED_RESULT;
+size_t BLI_mmap_get_length(const BLI_mmap_file *file) ATTR_WARN_UNUSED_RESULT;
 
 void BLI_mmap_free(BLI_mmap_file *file) ATTR_NONNULL(1);
-
-#ifdef __cplusplus
-}
-#endif

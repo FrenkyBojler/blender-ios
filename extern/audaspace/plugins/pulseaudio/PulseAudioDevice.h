@@ -42,23 +42,12 @@ AUD_NAMESPACE_BEGIN
 class AUD_PLUGIN_API PulseAudioDevice : public SoftwareDevice
 {
 private:
-	class PulseAudioSynchronizer : public DefaultSynchronizer
-	{
-		PulseAudioDevice* m_device;
-
-	public:
-		PulseAudioSynchronizer(PulseAudioDevice* device);
-
-		virtual double getPosition(std::shared_ptr<IHandle> handle);
-	};
-
-	/// Synchronizer.
-	PulseAudioSynchronizer m_synchronizer;
-
 	/**
 	 * Whether there is currently playback.
 	 */
 	volatile bool m_playback;
+
+	bool m_corked;
 
 	pa_threaded_mainloop* m_mainloop;
 	pa_context* m_context;
@@ -92,6 +81,10 @@ private:
 	 * Condition for mixing.
 	 */
 	std::condition_variable m_mixingCondition;
+
+	/// Synchronizer.
+	pa_usec_t m_synchronizerStartTime{0};
+	double m_synchronizerStartPosition{0.0};
 
 	/**
 	 * Updates the ring buffer.
@@ -128,14 +121,17 @@ public:
 	 * \note The specification really used for opening the device may differ.
 	 * \exception Exception Thrown if the audio device cannot be opened.
 	 */
-	PulseAudioDevice(std::string name, DeviceSpecs specs, int buffersize = AUD_DEFAULT_BUFFER_SIZE);
+	PulseAudioDevice(const std::string &name, DeviceSpecs specs, int buffersize = AUD_DEFAULT_BUFFER_SIZE);
 
 	/**
 	 * Closes the PulseAudio audio device.
 	 */
 	virtual ~PulseAudioDevice();
 
-	virtual ISynchronizer* getSynchronizer();
+	virtual void seekSynchronizer(double time);
+	virtual double getSynchronizerPosition();
+	virtual void playSynchronizer();
+	virtual void stopSynchronizer();
 
 	/**
 	 * Registers this plugin.

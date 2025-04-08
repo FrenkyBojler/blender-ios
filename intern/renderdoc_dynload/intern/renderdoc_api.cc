@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -31,6 +31,14 @@ void Renderdoc::end_frame_capture(RENDERDOC_DevicePointer device_handle,
     return;
   }
   renderdoc_api_->EndFrameCapture(device_handle, window_handle);
+}
+
+void Renderdoc::set_frame_capture_title(const char *title)
+{
+  if (!check_loaded()) {
+    return;
+  }
+  renderdoc_api_->SetCaptureTitle(title);
 }
 
 bool Renderdoc::check_loaded()

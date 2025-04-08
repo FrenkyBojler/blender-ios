@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -7,10 +7,6 @@
 /** \file
  * \ingroup bli
  */
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 struct MemArena;
 
@@ -44,7 +40,3 @@ void BLI_polyfill_calc(const float (*coords)[2],
 
 /* default size of polyfill arena */
 #define BLI_POLYFILL_ARENA_SIZE MEM_SIZE_OPTIMAL(1 << 14)
-
-#ifdef __cplusplus
-}
-#endif

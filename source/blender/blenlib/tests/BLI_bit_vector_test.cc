@@ -1,12 +1,13 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: Apache-2.0 */
 
+#include "testing/testing.h"
+
 #include "BLI_bit_vector.hh"
 #include "BLI_exception_safety_test_utils.hh"
-#include "BLI_strict_flags.h"
 
-#include "testing/testing.h"
+#include "BLI_strict_flags.h" /* IWYU pragma: keep. Keep last. */
 
 namespace blender::bits::tests {
 

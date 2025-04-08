@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2007 Blender Foundation
+/* SPDX-FileCopyrightText: 2007 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -8,18 +8,16 @@
 
 #pragma once
 
+#include "DNA_node_types.h"
+
 struct bNode;
-struct bNodeInstanceHash;
 struct bNodeTree;
 
 /* data for initializing node execution */
-struct bNodeExecContext {
-  bNodeInstanceHash *previews;
-};
+struct bNodeExecContext {};
 
 struct bNodeExecData {
-  void *data;            /* custom data storage */
-  bNodePreview *preview; /* optional preview image */
+  void *data; /* custom data storage */
 };
 
 /**** Storage Data ****/

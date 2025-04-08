@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -6,18 +6,13 @@
  * \ingroup spview3d
  */
 
-#include "BLI_math_vector.h"
-
-#include "BKE_context.h"
+#include "BKE_context.hh"
 
 #include "WM_api.hh"
 
-#include "RNA_access.hh"
-#include "RNA_define.hh"
-
 #include "ED_screen.hh"
 
-#include "view3d_intern.h"
+#include "view3d_intern.hh"
 #include "view3d_navigate.hh" /* own include */
 
 /* -------------------------------------------------------------------- */
@@ -51,13 +46,13 @@ void viewmove_modal_keymap(wmKeyConfig *keyconf)
   WM_modalkeymap_assign(keymap, "VIEW3D_OT_move");
 }
 
-static int viewmove_modal_impl(bContext *C,
-                               ViewOpsData *vod,
-                               const eV3D_OpEvent event_code,
-                               const int xy[2])
+static wmOperatorStatus viewmove_modal_impl(bContext *C,
+                                            ViewOpsData *vod,
+                                            const eV3D_OpEvent event_code,
+                                            const int xy[2])
 {
   bool use_autokey = false;
-  int ret = OPERATOR_RUNNING_MODAL;
+  wmOperatorStatus ret = OPERATOR_RUNNING_MODAL;
 
   switch (event_code) {
     case VIEW_APPLY: {
@@ -88,10 +83,10 @@ static int viewmove_modal_impl(bContext *C,
   return ret;
 }
 
-static int viewmove_invoke_impl(bContext * /*C*/,
-                                ViewOpsData *vod,
-                                const wmEvent *event,
-                                PointerRNA * /*ptr*/)
+static wmOperatorStatus viewmove_invoke_impl(bContext * /*C*/,
+                                             ViewOpsData *vod,
+                                             const wmEvent *event,
+                                             PointerRNA * /*ptr*/)
 {
   eV3D_OpEvent event_code = event->type == MOUSEPAN ? VIEW_CONFIRM : VIEW_PASS;
 
@@ -106,7 +101,7 @@ static int viewmove_invoke_impl(bContext * /*C*/,
   return OPERATOR_RUNNING_MODAL;
 }
 
-static int viewmove_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus viewmove_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   return view3d_navigate_invoke_impl(C, op, event, &ViewOpsType_move);
 }

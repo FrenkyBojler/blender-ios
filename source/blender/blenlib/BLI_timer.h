@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2018 Blender Foundation
+/* SPDX-FileCopyrightText: 2018 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -9,10 +9,6 @@
 /** \file
  * \ingroup bli
  */
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 /**
  * \return A value of:
@@ -44,7 +40,3 @@ void BLI_timer_free(void);
 /* This function is to be called next to BKE_CB_EVT_LOAD_PRE, to make sure the module
  * is properly configured for the new file. */
 void BLI_timer_on_file_load(void);
-
-#ifdef __cplusplus
-}
-#endif

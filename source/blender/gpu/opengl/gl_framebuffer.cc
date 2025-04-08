@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2020 Blender Foundation
+/* SPDX-FileCopyrightText: 2020 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -6,7 +6,9 @@
  * \ingroup gpu
  */
 
-#include "BKE_global.h"
+#include "BLI_string.h"
+
+#include "BKE_global.hh"
 
 #include "gl_backend.hh"
 #include "gl_debug.hh"
@@ -37,6 +39,7 @@ GLFrameBuffer::GLFrameBuffer(
   immutable_ = true;
   fbo_id_ = fbo;
   gl_attachments_[0] = target;
+  set_color_attachment_bit(GPU_FB_COLOR_ATTACHMENT0, true);
   /* Never update an internal frame-buffer. */
   dirty_attachments_ = false;
   width_ = w;
@@ -224,6 +227,107 @@ void GLFrameBuffer::update_attachments()
   }
 }
 
+void GLFrameBuffer::subpass_transition_impl(const GPUAttachmentState depth_attachment_state,
+                                            Span<GPUAttachmentState> color_attachment_states)
+{
+  GPU_depth_mask(depth_attachment_state == GPU_ATTACHMENT_WRITE);
+
+  bool any_read = false;
+  for (auto attachment : color_attachment_states.index_range()) {
+    if (attachment == GPU_ATTACHMENT_READ) {
+      any_read = true;
+      break;
+    }
+  }
+
+  if (GLContext::framebuffer_fetch_support) {
+    if (any_read) {
+      glFramebufferFetchBarrierEXT();
+    }
+  }
+  else if (GLContext::texture_barrier_support) {
+    if (any_read) {
+      glTextureBarrier();
+    }
+
+    GLenum attachments[GPU_FB_MAX_COLOR_ATTACHMENT] = {GL_NONE};
+    for (int i : color_attachment_states.index_range()) {
+      GPUAttachmentType type = GPU_FB_COLOR_ATTACHMENT0 + i;
+      GPUTexture *attach_tex = this->attachments_[type].tex;
+      if (color_attachment_states[i] == GPU_ATTACHMENT_READ) {
+        tmp_detached_[type] = this->attachments_[type]; /* Bypass feedback loop check. */
+        GPU_texture_bind_ex(attach_tex, GPUSamplerState::default_sampler(), i);
+      }
+      else {
+        tmp_detached_[type] = GPU_ATTACHMENT_NONE;
+      }
+      bool attach_write = color_attachment_states[i] == GPU_ATTACHMENT_WRITE;
+      attachments[i] = (attach_tex && attach_write) ? to_gl(type) : GL_NONE;
+    }
+    /* We have to use `glDrawBuffers` instead of `glColorMaski` because the later is overwritten
+     * by the `GLStateManager`. */
+    /* WATCH(fclem): This modifies the frame-buffer state without setting `dirty_attachments_`. */
+    glDrawBuffers(ARRAY_SIZE(attachments), attachments);
+  }
+  else {
+    /* The only way to have correct visibility without extensions and ensure defined behavior, is
+     * to unbind the textures and update the frame-buffer. This is a slow operation but that's all
+     * we can do to emulate the sub-pass input. */
+    /* TODO(@fclem): Could avoid the frame-buffer reconfiguration by creating multiple
+     * frame-buffers internally. */
+    for (int i : color_attachment_states.index_range()) {
+      GPUAttachmentType type = GPU_FB_COLOR_ATTACHMENT0 + i;
+
+      if (color_attachment_states[i] == GPU_ATTACHMENT_WRITE) {
+        if (tmp_detached_[type].tex != nullptr) {
+          /* Re-attach previous read attachments. */
+          this->attachment_set(type, tmp_detached_[type]);
+          tmp_detached_[type] = GPU_ATTACHMENT_NONE;
+        }
+      }
+      else if (color_attachment_states[i] == GPU_ATTACHMENT_READ) {
+        tmp_detached_[type] = this->attachments_[type];
+        unwrap(tmp_detached_[type].tex)->detach_from(this);
+        GPU_texture_bind_ex(tmp_detached_[type].tex, GPUSamplerState::default_sampler(), i);
+      }
+    }
+    if (dirty_attachments_) {
+      this->update_attachments();
+    }
+  }
+}
+
+void GLFrameBuffer::attachment_set_loadstore_op(GPUAttachmentType type, GPULoadStore ls)
+{
+  BLI_assert(context_->active_fb == this);
+
+  /* TODO(fclem): Add support for other ops. */
+  if (ls.load_action == eGPULoadOp::GPU_LOADACTION_CLEAR) {
+    if (tmp_detached_[type].tex != nullptr) {
+      /* #GPULoadStore is used to define the frame-buffer before it is used for rendering.
+       * Binding back unattached attachment makes its state undefined. This is described by the
+       * documentation and the user-land code should specify a sub-pass at the start of the drawing
+       * to explicitly set attachment state. */
+      if (GLContext::framebuffer_fetch_support) {
+        /* NOOP. */
+      }
+      else if (GLContext::texture_barrier_support) {
+        /* Reset default attachment state. */
+        for (int i : IndexRange(ARRAY_SIZE(tmp_detached_))) {
+          tmp_detached_[i] = GPU_ATTACHMENT_NONE;
+        }
+        glDrawBuffers(ARRAY_SIZE(gl_attachments_), gl_attachments_);
+      }
+      else {
+        tmp_detached_[type] = GPU_ATTACHMENT_NONE;
+        this->attachment_set(type, tmp_detached_[type]);
+        this->update_attachments();
+      }
+    }
+    clear_attachment(type, GPU_DATA_FLOAT, ls.clear_value);
+  }
+}
+
 void GLFrameBuffer::apply_state()
 {
   if (dirty_state_ == false) {
@@ -278,6 +382,12 @@ void GLFrameBuffer::bind(bool enabled_srgb)
     /* Internal frame-buffers have only one color output and needs to be set every time. */
     if (immutable_ && fbo_id_ == 0) {
       glDrawBuffer(gl_attachments_[0]);
+    }
+  }
+
+  if (!GLContext::texture_barrier_support && !GLContext::framebuffer_fetch_support) {
+    for (int index : IndexRange(GPU_FB_MAX_ATTACHMENT)) {
+      tmp_detached_[index] = GPU_ATTACHMENT_NONE;
     }
   }
 
@@ -362,6 +472,8 @@ void GLFrameBuffer::clear_attachment(GPUAttachmentType type,
   /* Save and restore the state. */
   eGPUWriteMask write_mask = GPU_write_mask_get();
   GPU_color_mask(true, true, true, true);
+  bool depth_mask = GPU_depth_mask_get();
+  GPU_depth_mask(true);
 
   context_->state_manager->apply_state();
 
@@ -402,6 +514,7 @@ void GLFrameBuffer::clear_attachment(GPUAttachmentType type,
   }
 
   GPU_write_mask(write_mask);
+  GPU_depth_mask(depth_mask);
 }
 
 void GLFrameBuffer::clear_multi(const float (*clear_cols)[4])

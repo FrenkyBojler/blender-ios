@@ -2,11 +2,9 @@
  *
  * SPDX-License-Identifier: Apache-2.0 */
 
-#ifndef __UTIL_DEBUG_H__
-#define __UTIL_DEBUG_H__
+#pragma once
 
 #include <cassert>
-#include <iostream>
 
 #include "bvh/params.h"
 
@@ -27,23 +25,18 @@ class DebugFlags {
 
     /* Flags describing which instructions sets are allowed for use. */
     bool avx2 = true;
-    bool sse41 = true;
-    bool sse2 = true;
+    bool sse42 = true;
 
     /* Check functions to see whether instructions up to the given one
      * are allowed for use.
      */
     bool has_avx2()
     {
-      return has_sse41() && avx2;
+      return has_sse42() && avx2;
     }
-    bool has_sse41()
+    bool has_sse42()
     {
-      return has_sse2() && sse41;
-    }
-    bool has_sse2()
-    {
-      return sse2;
+      return sse42;
     }
 
     /* Requested BVH layout.
@@ -107,6 +100,11 @@ class DebugFlags {
 
     /* Whether async PSO creation is enabled or not. */
     bool use_async_pso_creation = true;
+
+    /* Whether to use per-component motion interpolation.
+     * TODO: Enable by default when "multi step velocity motion blur" fail is fixed.
+     */
+    bool use_metalrt_pcmi = false;
   };
 
   /* Get instance of debug flags registry. */
@@ -135,15 +133,15 @@ class DebugFlags {
   Metal metal;
 
  private:
-  DebugFlags();
+  DebugFlags() = default;
 
  public:
-  explicit DebugFlags(DebugFlags const & /*other*/) = delete;
-  void operator=(DebugFlags const & /*other*/) = delete;
+  explicit DebugFlags(const DebugFlags & /*other*/) = delete;
+  void operator=(const DebugFlags & /*other*/) = delete;
 };
 
-typedef DebugFlags &DebugFlagsRef;
-typedef const DebugFlags &DebugFlagsConstRef;
+using DebugFlagsRef = DebugFlags &;
+using DebugFlagsConstRef = const DebugFlags &;
 
 inline DebugFlags &DebugFlags()
 {
@@ -151,5 +149,3 @@ inline DebugFlags &DebugFlags()
 }
 
 CCL_NAMESPACE_END
-
-#endif /* __UTIL_DEBUG_H__ */

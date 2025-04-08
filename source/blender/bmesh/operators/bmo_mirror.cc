@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -8,14 +8,12 @@
  * Basic mirror, optionally with UVs's.
  */
 
-#include "MEM_guardedalloc.h"
+#include "BLI_math_base.h"
 
-#include "DNA_meshdata_types.h"
+#include "BKE_customdata.hh"
 
-#include "BKE_customdata.h"
-
-#include "bmesh.h"
-#include "intern/bmesh_operators_private.h" /* own include */
+#include "bmesh.hh"
+#include "intern/bmesh_operators_private.hh" /* own include */
 
 #define ELE_NEW 1
 

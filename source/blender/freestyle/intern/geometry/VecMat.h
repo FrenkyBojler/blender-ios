@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -13,17 +13,14 @@
 #include <math.h>
 #include <vector>
 
-#ifdef WITH_CXX_GUARDEDALLOC
-#  include "MEM_guardedalloc.h"
-#endif
+#include "MEM_guardedalloc.h"
 
 namespace Freestyle {
 
 namespace VecMat {
 
 namespace Internal {
-template<bool B> struct is_false {
-};
+template<bool B> struct is_false {};
 
 template<> struct is_false<false> {
   static inline void ensure() {}
@@ -265,9 +262,7 @@ template<class T, uint N> class Vec {
     _dim = N,
   };
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("Freestyle:VecMat:Vec")
-#endif
 };
 
 //
@@ -738,9 +733,7 @@ template<class T, uint M, uint N> class Matrix {
  protected:
   value_type _coord[_SIZE];
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("Freestyle:VecMat:Matrix")
-#endif
 };
 
 #undef _SIZE

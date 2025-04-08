@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2019 Blender Foundation
+/* SPDX-FileCopyrightText: 2019 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -8,26 +8,57 @@
  * Utilities to read id buffer created in select_engine.
  */
 
+#include <cfloat>
+
+#include "BLI_math_matrix.hh"
 #include "MEM_guardedalloc.h"
 
 #include "BLI_array_utils.h"
 #include "BLI_bitmap.h"
 #include "BLI_bitmap_draw_2d.h"
+#include "BLI_math_matrix.h"
 #include "BLI_rect.h"
 
+#include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
+#include "DNA_view3d_types.h"
 
-#include "GPU_select.h"
+#include "GPU_framebuffer.hh"
+#include "GPU_select.hh"
 
-#include "DEG_depsgraph.h"
-#include "DEG_depsgraph_query.h"
+#include "DEG_depsgraph.hh"
+#include "DEG_depsgraph_query.hh"
 
-#include "DRW_engine.h"
-#include "DRW_select_buffer.h"
+#include "DRW_engine.hh"
+#include "DRW_render.hh"
+#include "DRW_select_buffer.hh"
 
-#include "draw_manager.h"
+#include "../engines/select/select_engine.hh"
 
-#include "../engines/select/select_engine.h"
+using blender::int2;
+using blender::Span;
+
+bool SELECTID_Context::is_dirty(Depsgraph *depsgraph, RegionView3D *rv3d)
+{
+  uint64_t last_update = this->depsgraph_last_update;
+  this->depsgraph_last_update = DEG_get_update_count(depsgraph);
+
+  /* Check if the viewport has changed.
+   * This can happen when triggering the selection operator *while* playing back animation and
+   * looking through an animated camera. */
+  if (!blender::math::is_equal(this->persmat, blender::float4x4(rv3d->persmat), FLT_EPSILON)) {
+    return true;
+  }
+  /* Check if any of the drawn objects have been transformed.
+   * This can happen when triggering the selection operator *while* playing back animation on an
+   * edited mesh. */
+  for (Object *obj_eval : this->objects) {
+    if (obj_eval->runtime->last_update_transform > last_update) {
+      return true;
+    }
+  }
+  return false;
+}
 
 /* -------------------------------------------------------------------- */
 /** \name Buffer of select ID's
@@ -51,12 +82,16 @@ uint *DRW_select_buffer_read(
   rcti rect_clamp = *rect;
   if (BLI_rcti_isect(&r, &rect_clamp, &rect_clamp)) {
     SELECTID_Context *select_ctx = DRW_select_engine_context_get();
+    RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
 
     DRW_gpu_context_enable();
-    /* Update the drawing. */
-    DRW_draw_select_id(depsgraph, region, v3d, rect);
 
-    if (select_ctx->index_drawn_len > 1) {
+    if (select_ctx->is_dirty(depsgraph, rv3d)) {
+      /* Update drawing. */
+      DRW_draw_select_id(depsgraph, region, v3d);
+    }
+
+    if (select_ctx->max_index_drawn_len > 1) {
       BLI_assert(region->winx == GPU_texture_width(DRW_engine_select_texture_get()) &&
                  region->winy == GPU_texture_height(DRW_engine_select_texture_get()));
 
@@ -77,7 +112,7 @@ uint *DRW_select_buffer_read(
                                  r_buf);
 
       if (!BLI_rcti_compare(rect, &rect_clamp)) {
-        /* The rect has been clamped so you need to realign the buffer and fill in the blanks */
+        /* The rect has been clamped so we need to realign the buffer and fill in the blanks */
         GPU_select_buffer_stride_realign(rect, &rect_clamp, r_buf);
       }
     }
@@ -118,8 +153,8 @@ uint *DRW_select_buffer_bitmap_from_rect(
     return nullptr;
   }
 
-  BLI_assert(select_ctx->index_drawn_len > 0);
-  const uint bitmap_len = select_ctx->index_drawn_len - 1;
+  BLI_assert(select_ctx->max_index_drawn_len > 0);
+  const uint bitmap_len = select_ctx->max_index_drawn_len - 1;
 
   BLI_bitmap *bitmap_buf = BLI_BITMAP_NEW(bitmap_len, __func__);
   const uint *buf_iter = buf;
@@ -160,8 +195,8 @@ uint *DRW_select_buffer_bitmap_from_circle(Depsgraph *depsgraph,
     return nullptr;
   }
 
-  BLI_assert(select_ctx->index_drawn_len > 0);
-  const uint bitmap_len = select_ctx->index_drawn_len - 1;
+  BLI_assert(select_ctx->max_index_drawn_len > 0);
+  const uint bitmap_len = select_ctx->max_index_drawn_len - 1;
 
   BLI_bitmap *bitmap_buf = BLI_BITMAP_NEW(bitmap_len, __func__);
   const uint *buf_iter = buf;
@@ -205,8 +240,7 @@ static void drw_select_mask_px_cb(int x, int x_end, int y, void *user_data)
 uint *DRW_select_buffer_bitmap_from_poly(Depsgraph *depsgraph,
                                          ARegion *region,
                                          View3D *v3d,
-                                         const int poly[][2],
-                                         const int face_len,
+                                         const Span<int2> poly,
                                          const rcti *rect,
                                          uint *r_bitmap_len)
 {
@@ -233,12 +267,11 @@ uint *DRW_select_buffer_bitmap_from_poly(Depsgraph *depsgraph,
                                 rect_px.xmax,
                                 rect_px.ymax,
                                 poly,
-                                face_len,
                                 drw_select_mask_px_cb,
                                 &poly_mask_data);
 
-  BLI_assert(select_ctx->index_drawn_len > 0);
-  const uint bitmap_len = select_ctx->index_drawn_len - 1;
+  BLI_assert(select_ctx->max_index_drawn_len > 0);
+  const uint bitmap_len = select_ctx->max_index_drawn_len - 1;
 
   BLI_bitmap *bitmap_buf = BLI_BITMAP_NEW(bitmap_len, __func__);
   const uint *buf_iter = buf;
@@ -365,52 +398,38 @@ uint DRW_select_buffer_find_nearest_to_point(Depsgraph *depsgraph,
  * \{ */
 
 bool DRW_select_buffer_elem_get(const uint sel_id,
-                                uint *r_elem,
-                                uint *r_base_index,
-                                char *r_elem_type)
+                                uint &r_elem,
+                                uint &r_base_index,
+                                char &r_elem_type)
 {
   SELECTID_Context *select_ctx = DRW_select_engine_context_get();
 
-  char elem_type = 0;
-  uint elem_id = 0;
-  uint base_index = 0;
-
-  for (; base_index < select_ctx->objects_drawn_len; base_index++) {
-    ObjectOffsets *base_ofs = &select_ctx->index_offsets[base_index];
-
-    if (base_ofs->face > sel_id) {
-      elem_id = sel_id - base_ofs->face_start;
-      elem_type = SCE_SELECT_FACE;
-      break;
+  for (const auto &item : select_ctx->elem_ranges.items()) {
+    const ElemIndexRanges &ranges = item.value;
+    Object *ob = item.key;
+    if (!ranges.total.contains(sel_id)) {
+      continue;
     }
-    if (base_ofs->edge > sel_id) {
-      elem_id = sel_id - base_ofs->edge_start;
-      elem_type = SCE_SELECT_EDGE;
-      break;
+    if (ranges.face.contains(sel_id)) {
+      r_elem = sel_id - ranges.face.start();
+      r_elem_type = SCE_SELECT_FACE;
+      r_base_index = select_ctx->objects.first_index_of(ob);
+      return true;
     }
-    if (base_ofs->vert > sel_id) {
-      elem_id = sel_id - base_ofs->vert_start;
-      elem_type = SCE_SELECT_VERTEX;
-      break;
+    if (ranges.edge.contains(sel_id)) {
+      r_elem = sel_id - ranges.edge.start();
+      r_elem_type = SCE_SELECT_EDGE;
+      r_base_index = select_ctx->objects.first_index_of(ob);
+      return true;
+    }
+    if (ranges.vert.contains(sel_id)) {
+      r_elem = sel_id - ranges.vert.start();
+      r_elem_type = SCE_SELECT_VERTEX;
+      r_base_index = select_ctx->objects.first_index_of(ob);
+      return true;
     }
   }
-
-  if (base_index == select_ctx->objects_drawn_len) {
-    return false;
-  }
-
-  *r_elem = elem_id;
-
-  if (r_base_index) {
-    Object *obj_orig = DEG_get_original_object(select_ctx->objects_drawn[base_index]);
-    *r_base_index = obj_orig->runtime.select_id;
-  }
-
-  if (r_elem_type) {
-    *r_elem_type = elem_type;
-  }
-
-  return true;
+  return false;
 }
 
 uint DRW_select_buffer_context_offset_for_object_elem(Depsgraph *depsgraph,
@@ -421,23 +440,17 @@ uint DRW_select_buffer_context_offset_for_object_elem(Depsgraph *depsgraph,
 
   Object *ob_eval = DEG_get_evaluated_object(depsgraph, object);
 
-  SELECTID_ObjectData *sel_data = (SELECTID_ObjectData *)DRW_drawdata_get(
-      &ob_eval->id, &draw_engine_select_type);
-
-  if (!sel_data || !sel_data->is_drawn) {
-    return 0;
-  }
-
-  ObjectOffsets *base_ofs = &select_ctx->index_offsets[sel_data->drawn_index];
+  const ElemIndexRanges base_ofs = select_ctx->elem_ranges.lookup_default(ob_eval,
+                                                                          ElemIndexRanges{});
 
   if (elem_type == SCE_SELECT_VERTEX) {
-    return base_ofs->vert_start;
+    return base_ofs.vert.start();
   }
   if (elem_type == SCE_SELECT_EDGE) {
-    return base_ofs->edge_start;
+    return base_ofs.edge.start();
   }
   if (elem_type == SCE_SELECT_FACE) {
-    return base_ofs->face_start;
+    return base_ofs.face.start();
   }
   BLI_assert(0);
   return 0;
@@ -449,30 +462,21 @@ uint DRW_select_buffer_context_offset_for_object_elem(Depsgraph *depsgraph,
 /** \name Context
  * \{ */
 
-void DRW_select_buffer_context_create(Base **bases, const uint bases_len, short select_mode)
+void DRW_select_buffer_context_create(Depsgraph *depsgraph,
+                                      const blender::Span<Base *> bases,
+                                      short select_mode)
 {
   SELECTID_Context *select_ctx = DRW_select_engine_context_get();
 
-  select_ctx->objects = static_cast<Object **>(
-      MEM_reallocN(select_ctx->objects, sizeof(*select_ctx->objects) * bases_len));
+  select_ctx->objects.reinitialize(bases.size());
 
-  select_ctx->index_offsets = static_cast<ObjectOffsets *>(
-      MEM_reallocN(select_ctx->index_offsets, sizeof(*select_ctx->index_offsets) * bases_len));
-
-  select_ctx->objects_drawn = static_cast<Object **>(
-      MEM_reallocN(select_ctx->objects_drawn, sizeof(*select_ctx->objects_drawn) * bases_len));
-
-  for (uint base_index = 0; base_index < bases_len; base_index++) {
-    Object *obj = bases[base_index]->object;
-    select_ctx->objects[base_index] = obj;
-
-    /* Weak but necessary for `DRW_select_buffer_elem_get`. */
-    obj->runtime.select_id = base_index;
+  for (const int i : bases.index_range()) {
+    Object *obj = bases[i]->object;
+    select_ctx->objects[i] = DEG_get_evaluated_object(depsgraph, obj);
   }
 
-  select_ctx->objects_len = bases_len;
   select_ctx->select_mode = select_mode;
-  memset(select_ctx->persmat, 0, sizeof(select_ctx->persmat));
+  select_ctx->persmat = blender::float4x4::zero();
 }
 
 /** \} */

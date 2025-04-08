@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -44,7 +44,7 @@ class VertexRep : public Rep {
   virtual void ComputeBBox();
 
   /** accessors */
-  inline const int vid() const
+  inline int vid() const
   {
     return _vid;
   }

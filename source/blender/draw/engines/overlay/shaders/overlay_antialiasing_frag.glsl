@@ -1,15 +1,21 @@
+/* SPDX-FileCopyrightText: 2019-2022 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#pragma BLENDER_REQUIRE(common_math_lib.glsl)
+#include "infos/overlay_antialiasing_info.hh"
 
-#define M_1_SQRTPI 0.5641895835477563 /* 1/sqrt(pi) */
+FRAGMENT_SHADER_CREATE_INFO(overlay_antialiasing)
 
 /**
  * We want to know how much a pixel is covered by a line.
- * We replace the square pixel with acircle of the same area and try to find the intersection area.
- * The area we search is the circular segment. https://en.wikipedia.org/wiki/Circular_segment
- * The formula for the area uses inverse trig function and is quite complexe. Instead,
- * we approximate it by using the smoothstep function and a 1.05 factor to the disc radius.
+ * We replace the square pixel with a circle of the same area and try to find the intersection
+ * area. The area we search is the circular segment. https://en.wikipedia.org/wiki/Circular_segment
+ * The formula for the area uses inverse trig function and is quite complex. Instead,
+ * we approximate it by using the smooth-step function and a 1.05 factor to the disc radius.
  */
+
+#define M_1_SQRTPI 0.5641895835477563 /* `1/sqrt(pi)`. */
+
 #define DISC_RADIUS (M_1_SQRTPI * 1.05)
 #define LINE_SMOOTH_START (0.5 - DISC_RADIUS)
 #define LINE_SMOOTH_END (0.5 + DISC_RADIUS)
@@ -95,6 +101,11 @@ void main()
 
   float dist_raw = texelFetch(lineTex, center_texel, 0).b;
   float dist = decode_line_dist(dist_raw);
+
+  if (!doSmoothLines && dist <= 1.0f) {
+    /* No expansion or AA should be applied. */
+    return;
+  }
 
   /* TODO: Optimization: use textureGather. */
   vec4 neightbor_col0 = texelFetchOffset(colorTex, center_texel, 0, ivec2(1, 0));

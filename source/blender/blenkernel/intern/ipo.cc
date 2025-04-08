@@ -33,41 +33,49 @@
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_sequence_types.h"
+#include "DNA_texture_types.h"
 #include "DNA_world_types.h"
 
-#include "BLI_blenlib.h"
 #include "BLI_dynstr.h"
 #include "BLI_endian_switch.h"
-#include "BLI_string_utils.h"
+#include "BLI_listbase.h"
+#include "BLI_string.h"
+#include "BLI_string_utils.hh"
 #include "BLI_utildefines.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
-#include "BKE_action.h"
-#include "BKE_anim_data.h"
-#include "BKE_fcurve.h"
+#include "BKE_action.hh"
+#include "BKE_anim_data.hh"
+#include "BKE_fcurve.hh"
 #include "BKE_fcurve_driver.h"
-#include "BKE_global.h"
-#include "BKE_idtype.h"
+#include "BKE_global.hh"
+#include "BKE_idtype.hh"
 #include "BKE_ipo.h"
-#include "BKE_key.h"
-#include "BKE_lib_id.h"
-#include "BKE_main.h"
-#include "BKE_nla.h"
+#include "BKE_key.hh"
+#include "BKE_lib_id.hh"
+#include "BKE_lib_query.hh"
+#include "BKE_main.hh"
+#include "BKE_nla.hh"
+
+#include "ANIM_action.hh"
+#include "ANIM_versioning.hh"
 
 #include "CLG_log.h"
 
 #include "MEM_guardedalloc.h"
 
-#include "SEQ_iterator.h"
+#include "SEQ_iterator.hh"
 
-#include "BLO_read_write.h"
+#include "BLO_read_write.hh"
 
 #ifdef WIN32
 #  include "BLI_math_base.h" /* M_PI */
 #endif
 
 static CLG_LogRef LOG = {"bke.ipo"};
+
+using namespace blender;
 
 static void ipo_free_data(ID *id)
 {
@@ -98,16 +106,30 @@ static void ipo_free_data(ID *id)
   }
 }
 
+static void ipo_foreach_id(ID *id, LibraryForeachIDData *data)
+{
+  Ipo *ipo = reinterpret_cast<Ipo *>(id);
+  const int flag = BKE_lib_query_foreachid_process_flags_get(data);
+
+  if (flag & IDWALK_DO_DEPRECATED_POINTERS) {
+    LISTBASE_FOREACH (IpoCurve *, icu, &ipo->curve) {
+      if (icu->driver) {
+        BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, icu->driver->ob, IDWALK_CB_NOP);
+      }
+    }
+  }
+}
+
 static void ipo_blend_read_data(BlendDataReader *reader, ID *id)
 {
   Ipo *ipo = (Ipo *)id;
 
-  BLO_read_list(reader, &(ipo->curve));
+  BLO_read_struct_list(reader, IpoCurve, &(ipo->curve));
 
   LISTBASE_FOREACH (IpoCurve *, icu, &ipo->curve) {
-    BLO_read_data_address(reader, &icu->bezt);
-    BLO_read_data_address(reader, &icu->bp);
-    BLO_read_data_address(reader, &icu->driver);
+    BLO_read_struct_array(reader, BezTriple, icu->totvert, &icu->bezt);
+    BLO_read_struct_array(reader, BPoint, icu->totvert, &icu->bp);
+    BLO_read_struct(reader, IpoDriver, &icu->driver);
 
     /* Undo generic endian switching. */
     if (BLO_read_requires_endian_switch(reader)) {
@@ -139,35 +161,14 @@ static void ipo_blend_read_data(BlendDataReader *reader, ID *id)
   }
 }
 
-static void ipo_blend_read_lib(BlendLibReader *reader, ID *id)
-{
-  Ipo *ipo = (Ipo *)id;
-
-  LISTBASE_FOREACH (IpoCurve *, icu, &ipo->curve) {
-    if (icu->driver) {
-      BLO_read_id_address(reader, id, &icu->driver->ob);
-    }
-  }
-}
-
-static void ipo_blend_read_expand(BlendExpander *expander, ID *id)
-{
-  Ipo *ipo = (Ipo *)id;
-
-  LISTBASE_FOREACH (IpoCurve *, icu, &ipo->curve) {
-    if (icu->driver) {
-      BLO_expand(expander, icu->driver->ob);
-    }
-  }
-}
-
 IDTypeInfo IDType_ID_IP = {
     /*id_code*/ ID_IP,
-    /*id_filter*/ 0,
+    /*id_filter*/ FILTER_ID_IP,
+    /*dependencies_id_types*/ 0,
     /*main_listbase_index*/ INDEX_ID_IP,
     /*struct_size*/ sizeof(Ipo),
     /*name*/ "Ipo",
-    /*name_plural*/ "ipos",
+    /*name_plural*/ N_("ipos"),
     /*translation_context*/ "",
     /*flags*/ IDTYPE_FLAGS_NO_COPY | IDTYPE_FLAGS_NO_LIBLINKING | IDTYPE_FLAGS_NO_ANIMDATA,
     /*asset_type_info*/ nullptr,
@@ -176,15 +177,14 @@ IDTypeInfo IDType_ID_IP = {
     /*copy_data*/ nullptr,
     /*free_data*/ ipo_free_data,
     /*make_local*/ nullptr,
-    /*foreach_id*/ nullptr,
+    /*foreach_id*/ ipo_foreach_id,
     /*foreach_cache*/ nullptr,
     /*foreach_path*/ nullptr,
     /*owner_pointer_get*/ nullptr,
 
     /*blend_write*/ nullptr,
     /*blend_read_data*/ ipo_blend_read_data,
-    /*blend_read_lib*/ ipo_blend_read_lib,
-    /*blend_read_expand*/ ipo_blend_read_expand,
+    /*blend_read_after_liblink*/ nullptr,
 
     /*blend_read_undo_preserve*/ nullptr,
 
@@ -246,80 +246,80 @@ static AdrBit2Path *adrcode_bitmaps_to_paths(int blocktype, int adrcode, int *to
 /* ADRCODE to RNA-Path Conversion Code  - Standard */
 
 /* Object types */
-static const char *ob_adrcodes_to_paths(int adrcode, int *array_index)
+static const char *ob_adrcodes_to_paths(int adrcode, int *r_array_index)
 {
   /* Set array index like this in-case nothing sets it correctly. */
-  *array_index = 0;
+  *r_array_index = 0;
 
   /* result depends on adrcode */
   switch (adrcode) {
     case OB_LOC_X:
-      *array_index = 0;
+      *r_array_index = 0;
       return "location";
     case OB_LOC_Y:
-      *array_index = 1;
+      *r_array_index = 1;
       return "location";
     case OB_LOC_Z:
-      *array_index = 2;
+      *r_array_index = 2;
       return "location";
     case OB_DLOC_X:
-      *array_index = 0;
+      *r_array_index = 0;
       return "delta_location";
     case OB_DLOC_Y:
-      *array_index = 1;
+      *r_array_index = 1;
       return "delta_location";
     case OB_DLOC_Z:
-      *array_index = 2;
+      *r_array_index = 2;
       return "delta_location";
 
     case OB_ROT_X:
-      *array_index = 0;
+      *r_array_index = 0;
       return "rotation_euler";
     case OB_ROT_Y:
-      *array_index = 1;
+      *r_array_index = 1;
       return "rotation_euler";
     case OB_ROT_Z:
-      *array_index = 2;
+      *r_array_index = 2;
       return "rotation_euler";
     case OB_DROT_X:
-      *array_index = 0;
+      *r_array_index = 0;
       return "delta_rotation_euler";
     case OB_DROT_Y:
-      *array_index = 1;
+      *r_array_index = 1;
       return "delta_rotation_euler";
     case OB_DROT_Z:
-      *array_index = 2;
+      *r_array_index = 2;
       return "delta_rotation_euler";
 
     case OB_SIZE_X:
-      *array_index = 0;
+      *r_array_index = 0;
       return "scale";
     case OB_SIZE_Y:
-      *array_index = 1;
+      *r_array_index = 1;
       return "scale";
     case OB_SIZE_Z:
-      *array_index = 2;
+      *r_array_index = 2;
       return "scale";
     case OB_DSIZE_X:
-      *array_index = 0;
+      *r_array_index = 0;
       return "delta_scale";
     case OB_DSIZE_Y:
-      *array_index = 1;
+      *r_array_index = 1;
       return "delta_scale";
     case OB_DSIZE_Z:
-      *array_index = 2;
+      *r_array_index = 2;
       return "delta_scale";
     case OB_COL_R:
-      *array_index = 0;
+      *r_array_index = 0;
       return "color";
     case OB_COL_G:
-      *array_index = 1;
+      *r_array_index = 1;
       return "color";
     case OB_COL_B:
-      *array_index = 2;
+      *r_array_index = 2;
       return "color";
     case OB_COL_A:
-      *array_index = 3;
+      *r_array_index = 3;
       return "color";
 #if 0
     case OB_PD_FSTR:
@@ -361,54 +361,54 @@ static const char *ob_adrcodes_to_paths(int adrcode, int *array_index)
 /* PoseChannel types
  * NOTE: pchan name comes from 'actname' added earlier...
  */
-static const char *pchan_adrcodes_to_paths(int adrcode, int *array_index)
+static const char *pchan_adrcodes_to_paths(int adrcode, int *r_array_index)
 {
   /* Set array index like this in-case nothing sets it correctly. */
-  *array_index = 0;
+  *r_array_index = 0;
 
   /* result depends on adrcode */
   switch (adrcode) {
     case AC_QUAT_W:
-      *array_index = 0;
+      *r_array_index = 0;
       return "rotation_quaternion";
     case AC_QUAT_X:
-      *array_index = 1;
+      *r_array_index = 1;
       return "rotation_quaternion";
     case AC_QUAT_Y:
-      *array_index = 2;
+      *r_array_index = 2;
       return "rotation_quaternion";
     case AC_QUAT_Z:
-      *array_index = 3;
+      *r_array_index = 3;
       return "rotation_quaternion";
 
     case AC_EUL_X:
-      *array_index = 0;
+      *r_array_index = 0;
       return "rotation_euler";
     case AC_EUL_Y:
-      *array_index = 1;
+      *r_array_index = 1;
       return "rotation_euler";
     case AC_EUL_Z:
-      *array_index = 2;
+      *r_array_index = 2;
       return "rotation_euler";
 
     case AC_LOC_X:
-      *array_index = 0;
+      *r_array_index = 0;
       return "location";
     case AC_LOC_Y:
-      *array_index = 1;
+      *r_array_index = 1;
       return "location";
     case AC_LOC_Z:
-      *array_index = 2;
+      *r_array_index = 2;
       return "location";
 
     case AC_SIZE_X:
-      *array_index = 0;
+      *r_array_index = 0;
       return "scale";
     case AC_SIZE_Y:
-      *array_index = 1;
+      *r_array_index = 1;
       return "scale";
     case AC_SIZE_Z:
-      *array_index = 2;
+      *r_array_index = 2;
       return "scale";
   }
 
@@ -418,10 +418,10 @@ static const char *pchan_adrcodes_to_paths(int adrcode, int *array_index)
 }
 
 /* Constraint types */
-static const char *constraint_adrcodes_to_paths(int adrcode, int *array_index)
+static const char *constraint_adrcodes_to_paths(int adrcode, int *r_array_index)
 {
   /* Set array index like this in-case nothing sets it correctly. */
-  *array_index = 0;
+  *r_array_index = 0;
 
   /* result depends on adrcode */
   switch (adrcode) {
@@ -439,7 +439,7 @@ static const char *constraint_adrcodes_to_paths(int adrcode, int *array_index)
  * NOTE: as we don't have access to the keyblock where the data comes from (for now),
  *       we'll just use numerical indices for now...
  */
-static char *shapekey_adrcodes_to_paths(ID *id, int adrcode, int * /*array_index*/)
+static char *shapekey_adrcodes_to_paths(ID *id, int adrcode, int * /*r_array_index*/)
 {
   static char buf[128];
 
@@ -451,7 +451,7 @@ static char *shapekey_adrcodes_to_paths(ID *id, int adrcode, int * /*array_index
   else {
     /* Find the name of the ShapeKey (i.e. KeyBlock) to look for */
     Key *key = (Key *)id;
-    KeyBlock *kb = BKE_keyblock_from_key(key, adrcode);
+    KeyBlock *kb = BKE_keyblock_find_by_index(key, adrcode);
 
     /* setting that we alter is the "value" (i.e. keyblock.curval) */
     if (kb) {
@@ -469,7 +469,7 @@ static char *shapekey_adrcodes_to_paths(ID *id, int adrcode, int * /*array_index
 }
 
 /* MTex (Texture Slot) types */
-static const char *mtex_adrcodes_to_paths(int adrcode, int * /*array_index*/)
+static const char *mtex_adrcodes_to_paths(int adrcode, int * /*r_array_index*/)
 {
   const char *base = nullptr, *prop = nullptr;
   static char buf[128];
@@ -589,10 +589,10 @@ static const char *mtex_adrcodes_to_paths(int adrcode, int * /*array_index*/)
 }
 
 /* Texture types */
-static const char *texture_adrcodes_to_paths(int adrcode, int *array_index)
+static const char *texture_adrcodes_to_paths(int adrcode, int *r_array_index)
 {
   /* Set array index like this in-case nothing sets it correctly. */
-  *array_index = 0;
+  *r_array_index = 0;
 
   /* result depends on adrcode */
   switch (adrcode) {
@@ -615,16 +615,16 @@ static const char *texture_adrcodes_to_paths(int adrcode, int *array_index)
 
     /* voronoi */
     case TE_VNW1:
-      *array_index = 0;
+      *r_array_index = 0;
       return "feature_weights";
     case TE_VNW2:
-      *array_index = 1;
+      *r_array_index = 1;
       return "feature_weights";
     case TE_VNW3:
-      *array_index = 2;
+      *r_array_index = 2;
       return "feature_weights";
     case TE_VNW4:
-      *array_index = 3;
+      *r_array_index = 3;
       return "feature_weights";
     case TE_VNMEXP:
       return "minkovsky_exponent";
@@ -657,13 +657,13 @@ static const char *texture_adrcodes_to_paths(int adrcode, int *array_index)
       return "gain";
 
     case TE_COL_R:
-      *array_index = 0;
+      *r_array_index = 0;
       return "rgb_factor";
     case TE_COL_G:
-      *array_index = 1;
+      *r_array_index = 1;
       return "rgb_factor";
     case TE_COL_B:
-      *array_index = 2;
+      *r_array_index = 2;
       return "rgb_factor";
 
     case TE_BRIGHT:
@@ -676,41 +676,41 @@ static const char *texture_adrcodes_to_paths(int adrcode, int *array_index)
 }
 
 /* Material Types */
-static const char *material_adrcodes_to_paths(int adrcode, int *array_index)
+static const char *material_adrcodes_to_paths(int adrcode, int *r_array_index)
 {
   /* Set array index like this in-case nothing sets it correctly. */
-  *array_index = 0;
+  *r_array_index = 0;
 
   /* result depends on adrcode */
   switch (adrcode) {
     case MA_COL_R:
-      *array_index = 0;
+      *r_array_index = 0;
       return "diffuse_color";
     case MA_COL_G:
-      *array_index = 1;
+      *r_array_index = 1;
       return "diffuse_color";
     case MA_COL_B:
-      *array_index = 2;
+      *r_array_index = 2;
       return "diffuse_color";
 
     case MA_SPEC_R:
-      *array_index = 0;
+      *r_array_index = 0;
       return "specular_color";
     case MA_SPEC_G:
-      *array_index = 1;
+      *r_array_index = 1;
       return "specular_color";
     case MA_SPEC_B:
-      *array_index = 2;
+      *r_array_index = 2;
       return "specular_color";
 
     case MA_MIR_R:
-      *array_index = 0;
+      *r_array_index = 0;
       return "mirror_color";
     case MA_MIR_G:
-      *array_index = 1;
+      *r_array_index = 1;
       return "mirror_color";
     case MA_MIR_B:
-      *array_index = 2;
+      *r_array_index = 2;
       return "mirror_color";
 
     case MA_ALPHA:
@@ -762,30 +762,30 @@ static const char *material_adrcodes_to_paths(int adrcode, int *array_index)
       return "halo.add";
 
     default: /* for now, we assume that the others were MTex channels */
-      return mtex_adrcodes_to_paths(adrcode, array_index);
+      return mtex_adrcodes_to_paths(adrcode, r_array_index);
   }
 
   return nullptr;
 }
 
 /* Camera Types */
-static const char *camera_adrcodes_to_paths(int adrcode, int *array_index)
+static const char *camera_adrcodes_to_paths(int adrcode, int *r_array_index)
 {
   /* Set array index like this in-case nothing sets it correctly. */
-  *array_index = 0;
+  *r_array_index = 0;
 
   /* result depends on adrcode */
   switch (adrcode) {
     case CAM_LENS:
-#if 0  /* XXX this cannot be resolved easily... \
-        * perhaps we assume camera is perspective (works for most cases... */
+#if 0 /* XXX this cannot be resolved easily... \
+       * perhaps we assume camera is perspective (works for most cases... */
       if (ca->type == CAM_ORTHO) {
         return "ortho_scale";
       }
       else {
         return "lens";
       }
-#else  /* XXX lazy hack for now... */
+#else /* XXX lazy hack for now... */
       return "lens";
 #endif /* XXX this cannot be resolved easily */
 
@@ -814,10 +814,10 @@ static const char *camera_adrcodes_to_paths(int adrcode, int *array_index)
 }
 
 /* Light Types */
-static const char *light_adrcodes_to_paths(int adrcode, int *array_index)
+static const char *light_adrcodes_to_paths(int adrcode, int *r_array_index)
 {
   /* Set array index like this in-case nothing sets it correctly. */
-  *array_index = 0;
+  *r_array_index = 0;
 
   /* result depends on adrcode */
   switch (adrcode) {
@@ -825,13 +825,13 @@ static const char *light_adrcodes_to_paths(int adrcode, int *array_index)
       return "energy";
 
     case LA_COL_R:
-      *array_index = 0;
+      *r_array_index = 0;
       return "color";
     case LA_COL_G:
-      *array_index = 1;
+      *r_array_index = 1;
       return "color";
     case LA_COL_B:
-      *array_index = 2;
+      *r_array_index = 2;
       return "color";
 
     case LA_DIST:
@@ -851,7 +851,7 @@ static const char *light_adrcodes_to_paths(int adrcode, int *array_index)
       return "halo_intensity";
 
     default: /* for now, we assume that the others were MTex channels */
-      return mtex_adrcodes_to_paths(adrcode, array_index);
+      return mtex_adrcodes_to_paths(adrcode, r_array_index);
   }
 
   /* unrecognized adrcode, or not-yet-handled ones! */
@@ -859,10 +859,10 @@ static const char *light_adrcodes_to_paths(int adrcode, int *array_index)
 }
 
 /* Sound Types */
-static const char *sound_adrcodes_to_paths(int adrcode, int *array_index)
+static const char *sound_adrcodes_to_paths(int adrcode, int *r_array_index)
 {
   /* Set array index like this in-case nothing sets it correctly. */
-  *array_index = 0;
+  *r_array_index = 0;
 
   /* result depends on adrcode */
   switch (adrcode) {
@@ -885,30 +885,30 @@ static const char *sound_adrcodes_to_paths(int adrcode, int *array_index)
 }
 
 /* World Types */
-static const char *world_adrcodes_to_paths(int adrcode, int *array_index)
+static const char *world_adrcodes_to_paths(int adrcode, int *r_array_index)
 {
   /* Set array index like this in-case nothing sets it correctly. */
-  *array_index = 0;
+  *r_array_index = 0;
 
   /* result depends on adrcode */
   switch (adrcode) {
     case WO_HOR_R:
-      *array_index = 0;
+      *r_array_index = 0;
       return "horizon_color";
     case WO_HOR_G:
-      *array_index = 1;
+      *r_array_index = 1;
       return "horizon_color";
     case WO_HOR_B:
-      *array_index = 2;
+      *r_array_index = 2;
       return "horizon_color";
     case WO_ZEN_R:
-      *array_index = 0;
+      *r_array_index = 0;
       return "zenith_color";
     case WO_ZEN_G:
-      *array_index = 1;
+      *r_array_index = 1;
       return "zenith_color";
     case WO_ZEN_B:
-      *array_index = 2;
+      *r_array_index = 2;
       return "zenith_color";
 
     case WO_EXPOS:
@@ -924,17 +924,17 @@ static const char *world_adrcodes_to_paths(int adrcode, int *array_index)
       return "mist.height";
 
     default: /* for now, we assume that the others were MTex channels */
-      return mtex_adrcodes_to_paths(adrcode, array_index);
+      return mtex_adrcodes_to_paths(adrcode, r_array_index);
   }
 
   return nullptr;
 }
 
 /* Particle Types */
-static const char *particle_adrcodes_to_paths(int adrcode, int *array_index)
+static const char *particle_adrcodes_to_paths(int adrcode, int *r_array_index)
 {
   /* Set array index like this in-case nothing sets it correctly. */
-  *array_index = 0;
+  *r_array_index = 0;
 
   /* result depends on adrcode */
   switch (adrcode) {
@@ -953,13 +953,13 @@ static const char *particle_adrcodes_to_paths(int adrcode, int *array_index)
     case PART_LENGTH:
       return "settings.length";
     case PART_GRAV_X:
-      *array_index = 0;
+      *r_array_index = 0;
       return "settings.acceleration";
     case PART_GRAV_Y:
-      *array_index = 1;
+      *r_array_index = 1;
       return "settings.acceleration";
     case PART_GRAV_Z:
-      *array_index = 2;
+      *r_array_index = 2;
       return "settings.acceleration";
     case PART_KINK_AMP:
       return "settings.kink_amplitude";
@@ -1023,16 +1023,16 @@ static const char *particle_adrcodes_to_paths(int adrcode, int *array_index)
  *     - blocktype, adrcode      - determines setting to get
  *     - actname, constname, seq - used to build path
  * Output:
- *     - array_index             - index in property's array (if applicable) to use
+ *     - r_array_index           - index in property's array (if applicable) to use
  *     - return                  - the allocated path...
  */
 static char *get_rna_access(ID *id,
                             int blocktype,
                             int adrcode,
-                            char actname[],
-                            char constname[],
-                            Sequence *seq,
-                            int *array_index)
+                            const char actname[],
+                            const char constname[],
+                            Strip *strip,
+                            int *r_array_index)
 {
   DynStr *path = BLI_dynstr_new();
   const char *propname = nullptr;
@@ -1100,15 +1100,15 @@ static char *get_rna_access(ID *id,
 
     /* XXX problematic block-types. */
     case ID_SEQ: /* sequencer strip */
-      /* SEQ_FAC1: */
+      /* STRIP_FAC1: */
       switch (adrcode) {
-        case SEQ_FAC1:
+        case STRIP_FAC1:
           propname = "effect_fader";
           break;
-        case SEQ_FAC_SPEED:
+        case STRIP_FAC_SPEED:
           propname = "speed_fader";
           break;
-        case SEQ_FAC_OPACITY:
+        case STRIP_FAC_OPACITY:
           propname = "blend_alpha";
           break;
       }
@@ -1133,8 +1133,8 @@ static char *get_rna_access(ID *id,
    */
   if ((propname == nullptr) && (blocktype > 0)) {
     /* nothing was found, so exit */
-    if (array_index) {
-      *array_index = 0;
+    if (r_array_index) {
+      *r_array_index = 0;
     }
 
     BLI_dynstr_free(path);
@@ -1142,8 +1142,8 @@ static char *get_rna_access(ID *id,
     return nullptr;
   }
 
-  if (array_index) {
-    *array_index = dummy_index;
+  if (r_array_index) {
+    *r_array_index = dummy_index;
   }
 
   /* 'buf' _must_ be initialized in this block */
@@ -1180,11 +1180,11 @@ static char *get_rna_access(ID *id,
     BLI_str_escape(constname_esc, constname, sizeof(constname_esc));
     SNPRINTF(buf, "constraints[\"%s\"]", constname_esc);
   }
-  else if (seq) {
-    /* Sequence names in Scene */
-    char seq_name_esc[(sizeof(seq->name) - 2) * 2];
-    BLI_str_escape(seq_name_esc, seq->name + 2, sizeof(seq_name_esc));
-    SNPRINTF(buf, "sequence_editor.sequences_all[\"%s\"]", seq_name_esc);
+  else if (strip) {
+    /* Strip names in Scene */
+    char strip_name_esc[(sizeof(strip->name) - 2) * 2];
+    BLI_str_escape(strip_name_esc, strip->name + 2, sizeof(strip_name_esc));
+    SNPRINTF(buf, "sequence_editor.sequences_all[\"%s\"]", strip_name_esc);
   }
   else {
     buf[0] = '\0'; /* empty string */
@@ -1201,7 +1201,7 @@ static char *get_rna_access(ID *id,
   BLI_dynstr_append(path, propname);
 
   /* if there was no array index pointer provided, add it to the path */
-  if (array_index == nullptr) {
+  if (r_array_index == nullptr) {
     SNPRINTF(buf, "[\"%d\"]", dummy_index);
     BLI_dynstr_append(path, buf);
   }
@@ -1253,9 +1253,9 @@ static ChannelDriver *idriver_to_cdriver(IpoDriver *idriver)
   ChannelDriver *cdriver;
 
   /* allocate memory for new driver */
-  cdriver = static_cast<ChannelDriver *>(MEM_callocN(sizeof(ChannelDriver), "ChannelDriver"));
+  cdriver = MEM_callocN<ChannelDriver>("ChannelDriver");
 
-  /* if 'pydriver', just copy data across */
+  /* If `pydriver`, just copy data across. */
   if (idriver->type == IPO_DRIVER_TYPE_PYTHON) {
     /* PyDriver only requires the expression to be copied */
     /* FIXME: expression will be useless due to API changes, but at least not totally lost */
@@ -1271,7 +1271,7 @@ static ChannelDriver *idriver_to_cdriver(IpoDriver *idriver)
     /* this should be ok for all types here... */
     cdriver->type = DRIVER_TYPE_AVERAGE;
 
-    /* what to store depends on the 'blocktype' - object or posechannel */
+    /* What to store depends on the `blocktype` - object or pose-channel. */
     if (idriver->blocktype == ID_AR) { /* PoseChannel */
       if (idriver->adrcode == OB_ROT_DIFF) {
         /* Rotational Difference requires a special type of variable */
@@ -1354,7 +1354,7 @@ static void fcurve_add_to_list(
     /* no matching group, so add one */
     if (agrp == nullptr) {
       /* Add a new group, and make it active */
-      agrp = static_cast<bActionGroup *>(MEM_callocN(sizeof(bActionGroup), "bActionGroup"));
+      agrp = MEM_callocN<bActionGroup>("bActionGroup");
 
       agrp->flag = AGRP_SELECTED;
       if (muteipo) {
@@ -1397,6 +1397,9 @@ static void fcurve_add_to_list(
  * Convert IPO-Curve to F-Curve (including Driver data), and free any of the old data that
  * is not relevant, BUT do not free the IPO-Curve itself...
  *
+ * \param `id`: data-block that the IPO-Curve is attached to and/or which the new
+ * data-paths will start from. May be null, which may impact the data-paths of the
+ * created F-Curves in some cases.
  * \param actname: name of Action-Channel (if applicable) that IPO-Curve's IPO-block belonged to.
  * \param constname: name of Constraint-Channel (if applicable)
  * that IPO-Curve's IPO-block belonged to \a seq.
@@ -1408,7 +1411,7 @@ static void icu_to_fcurves(ID *id,
                            IpoCurve *icu,
                            char *actname,
                            char *constname,
-                           Sequence *seq,
+                           Strip *strip,
                            int muteipo)
 {
   AdrBit2Path *abp;
@@ -1517,8 +1520,7 @@ static void icu_to_fcurves(ID *id,
         BezTriple *dst, *src;
 
         /* allocate new array for keyframes/beztriples */
-        fcurve->bezt = static_cast<BezTriple *>(
-            MEM_callocN(sizeof(BezTriple) * fcurve->totvert, "BezTriples"));
+        fcurve->bezt = MEM_calloc_arrayN<BezTriple>(fcurve->totvert, "BezTriples");
 
         /* loop through copying all BezTriples individually, as we need to modify a few things */
         for (dst = fcurve->bezt, src = icu->bezt, i = 0; i < fcurve->totvert; i++, dst++, src++) {
@@ -1568,7 +1570,7 @@ static void icu_to_fcurves(ID *id,
      * - we will need to set the 'disabled' flag if no path is able to be made (for now)
      */
     fcu->rna_path = get_rna_access(
-        id, icu->blocktype, icu->adrcode, actname, constname, seq, &fcu->array_index);
+        id, icu->blocktype, icu->adrcode, actname, constname, strip, &fcu->array_index);
     if (fcu->rna_path == nullptr) {
       fcu->flag |= FCURVE_DISABLED;
     }
@@ -1584,8 +1586,7 @@ static void icu_to_fcurves(ID *id,
       BezTriple *dst, *src;
 
       /* allocate new array for keyframes/beztriples */
-      fcu->bezt = static_cast<BezTriple *>(
-          MEM_callocN(sizeof(BezTriple) * fcu->totvert, "BezTriples"));
+      fcu->bezt = MEM_calloc_arrayN<BezTriple>(fcu->totvert, "BezTriples");
 
       /* loop through copying all BezTriples individually, as we need to modify a few things */
       for (dst = fcu->bezt, src = icu->bezt, i = 0; i < fcu->totvert; i++, dst++, src++) {
@@ -1617,7 +1618,7 @@ static void icu_to_fcurves(ID *id,
         if (((icu->blocktype == ID_OB) && ELEM(icu->adrcode, OB_ROT_X, OB_ROT_Y, OB_ROT_Z)) ||
             ((icu->blocktype == ID_PO) && ELEM(icu->adrcode, AC_EUL_X, AC_EUL_Y, AC_EUL_Z)))
         {
-          const float fac = float(M_PI) / 18.0f; /* 10.0f * M_PI/180.0f; */
+          const float fac = float(M_PI) / 18.0f; /* `10.0f * M_PI/180.0f`. */
 
           dst->vec[0][1] *= fac;
           dst->vec[1][1] *= fac;
@@ -1628,10 +1629,10 @@ static void icu_to_fcurves(ID *id,
          * - their values were 0-1
          * - we now need as 'frames'
          */
-        if ((id) && (icu->blocktype == GS(id->name)) &&
+        if ((id) && (icu->blocktype == GS(id->name)) && (GS(id->name) == ID_CU_LEGACY) &&
             (fcu->rna_path && STREQ(fcu->rna_path, "eval_time")))
         {
-          Curve *cu = (Curve *)id;
+          const Curve *cu = (const Curve *)id;
 
           dst->vec[0][1] *= cu->pathlen;
           dst->vec[1][1] *= cu->pathlen;
@@ -1644,8 +1645,8 @@ static void icu_to_fcurves(ID *id,
          * - were also degrees/10
          */
         if (fcu->driver && fcu->driver->variables.first) {
-          DriverVar *dvar = static_cast<DriverVar *>(fcu->driver->variables.first);
-          DriverTarget *dtar = &dvar->targets[0];
+          const DriverVar *dvar = static_cast<const DriverVar *>(fcu->driver->variables.first);
+          const DriverTarget *dtar = &dvar->targets[0];
 
           if (ELEM(dtar->transChan, DTAR_TRANSCHAN_ROTX, DTAR_TRANSCHAN_ROTY, DTAR_TRANSCHAN_ROTZ))
           {
@@ -1658,9 +1659,9 @@ static void icu_to_fcurves(ID *id,
         }
 
         /* correct values for sequencer curves, that were not locked to frame */
-        if (seq && (seq->flag & SEQ_IPO_FRAME_LOCKED) == 0) {
-          const float mul = (seq->enddisp - seq->startdisp) / 100.0f;
-          const float offset = seq->startdisp;
+        if (strip && (strip->flag & SEQ_IPO_FRAME_LOCKED) == 0) {
+          const float mul = (strip->enddisp - strip->startdisp) / 100.0f;
+          const float offset = strip->startdisp;
 
           dst->vec[0][0] *= mul;
           dst->vec[0][0] += offset;
@@ -1687,18 +1688,32 @@ static void icu_to_fcurves(ID *id,
 
 /* ------------------------- */
 
-/* Convert IPO-block (i.e. all its IpoCurves) to the new system.
+/**
+ * Convert an IPO block to listbases of Animato data.
+ *
  * This does not assume that any ID or AnimData uses it, but does assume that
  * it is given two lists, which it will perform driver/animation-data separation.
+ *
+ * \param `id`: Data-block that the IPO-Curve is attached to and/or which the
+ * new data-paths will start from. May be null, which may impact the data-paths of
+ * the created F-Curves in some cases.
+ * \param `actname`: Contrary to what you might think, this is not the name of
+ * an action. I (Nathan) don't know what it *is*, but I'm leaving this note here
+ * so people in the future are not misled by the awful parameter name.
+ * \param `animgroups`: List of channel groups that the converted data will be
+ * added to.
+ * \param `anim`: List of FCurves that the converted animation data will be
+ * added to.
+ * \param `drivers`: List of FCurves that converted drivers will be added to.
  */
 static void ipo_to_animato(ID *id,
                            Ipo *ipo,
                            char actname[],
                            char constname[],
-                           Sequence *seq,
-                           ListBase *animgroups,
-                           ListBase *anim,
-                           ListBase *drivers)
+                           Strip *strip,
+                           ListBase /* bActionGroup */ *animgroups,
+                           ListBase /* FCurve */ *anim,
+                           ListBase /* FCurve */ *drivers)
 {
   IpoCurve *icu;
 
@@ -1735,7 +1750,7 @@ static void ipo_to_animato(ID *id,
       /* Blender 2.4x allowed empty drivers,
        * but we don't now, since they cause more trouble than they're worth. */
       if ((icu->driver->ob) || (icu->driver->type == IPO_DRIVER_TYPE_PYTHON)) {
-        icu_to_fcurves(id, nullptr, drivers, icu, actname, constname, seq, ipo->muteipo);
+        icu_to_fcurves(id, nullptr, drivers, icu, actname, constname, strip, ipo->muteipo);
       }
       else {
         MEM_freeN(icu->driver);
@@ -1743,7 +1758,7 @@ static void ipo_to_animato(ID *id,
       }
     }
     else {
-      icu_to_fcurves(id, animgroups, anim, icu, actname, constname, seq, ipo->muteipo);
+      icu_to_fcurves(id, animgroups, anim, icu, actname, constname, strip, ipo->muteipo);
     }
   }
 
@@ -1774,19 +1789,27 @@ static void ipo_to_animato(ID *id,
   }
 }
 
-/* Convert Action-block to new system, separating animation and drivers
+/**
+ * Convert a pre-Animato Action to an Animato Action and drivers.
+ *
  * New curves may not be converted directly into the given Action (i.e. for Actions linked
  * to Objects, where ob->ipo and ob->action need to be combined).
- * NOTE: we need to be careful here, as same data-structs are used for new system too!
+ *
+ * Pre-Animato Actions can contain drivers, which are added to `drivers`.
+ *
+ * Note: this was refactored from older code. In general `groups` and `curves`
+ * should just be from `act`, and `drivers` should be from the adt of `id`.
+ * However, this is not always the case for `drivers`, and diving into the
+ * spaghetti of where this is called it wasn't clear to me (Nathan) if that's
+ * actually *always* the case for `groups` and `curves` either, so I (Nathan)
+ * left them as separate parameters to be on the safe side.
  */
-static void action_to_animato(
+static void convert_pre_animato_action_to_animato_action_in_place(
     ID *id, bAction *act, ListBase *groups, ListBase *curves, ListBase *drivers)
 {
-  bActionChannel *achan, *achann;
-  bConstraintChannel *conchan, *conchann;
-
-  /* only continue if there are Action Channels (indicating unconverted data) */
-  if (BLI_listbase_is_empty(&act->chanbase)) {
+  const bool is_pre_animato_action = !BLI_listbase_is_empty(&act->chanbase);
+  BLI_assert_msg(is_pre_animato_action, "Action is not pre-Animato.");
+  if (!is_pre_animato_action) {
     return;
   }
 
@@ -1797,10 +1820,7 @@ static void action_to_animato(
   }
 
   /* loop through Action-Channels, converting data, freeing as we go */
-  for (achan = static_cast<bActionChannel *>(act->chanbase.first); achan; achan = achann) {
-    /* get pointer to next Action Channel */
-    achann = achan->next;
-
+  LISTBASE_FOREACH_MUTABLE (bActionChannel *, achan, &act->chanbase) {
     /* convert Action Channel's IPO data */
     if (achan->ipo) {
       ipo_to_animato(id, achan->ipo, achan->name, nullptr, nullptr, groups, curves, drivers);
@@ -1809,12 +1829,7 @@ static void action_to_animato(
     }
 
     /* convert constraint channel IPO-data */
-    for (conchan = static_cast<bConstraintChannel *>(achan->constraintChannels.first); conchan;
-         conchan = conchann)
-    {
-      /* get pointer to next Constraint Channel */
-      conchann = conchan->next;
-
+    LISTBASE_FOREACH_MUTABLE (bConstraintChannel *, conchan, &achan->constraintChannels) {
       /* convert Constraint Channel's IPO data */
       if (conchan->ipo) {
         ipo_to_animato(
@@ -1832,6 +1847,45 @@ static void action_to_animato(
   }
 }
 
+/**
+ * Ensure that the action is a modern layered action, upgrading if necessary.
+ *
+ * This deals with both Animato and pre-Animato actions, ensuring that they are
+ * fully upgraded. In the case of a pre-Animato action, it may contain drivers
+ * as well, which are converted and added to `drivers`.
+ *
+ * Much of the behavior of this function, and the reason for most of the
+ * parameters, is due to
+ * `convert_pre_animato_action_to_animato_action_in_place()`. See its
+ * documentation for more details.
+ *
+ * \see convert_pre_animato_action_to_animato_action_in_place()
+ */
+static void ensure_action_is_layered(
+    ID *id, bAction *act, ListBase *groups, ListBase *curves, ListBase *drivers)
+{
+  /* Already converted to the most modern kind of action, so no need to
+   * convert. */
+  if (blender::animrig::versioning::action_is_layered(*act)) {
+    return;
+  }
+
+  /* If there are Action Channels, indicating a pre-Animato action, then convert
+   * to Animato data. Note that pre-Animato actions may include drivers! */
+  const bool is_pre_animato_action = !BLI_listbase_is_empty(&act->chanbase);
+  if (is_pre_animato_action) {
+    convert_pre_animato_action_to_animato_action_in_place(id, act, groups, curves, drivers);
+  }
+
+  /* If there is an animated ID, tag it so that its Action usage also will get converted. */
+  if (id) {
+    blender::animrig::versioning::tag_action_user_for_slotted_actions_conversion(*id);
+  }
+
+  /* Convert to layered action. */
+  blender::animrig::versioning::convert_legacy_animato_action(*act);
+}
+
 /* ------------------------- */
 
 /* Convert IPO-block (i.e. all its IpoCurves) for some ID to the new system
@@ -1839,7 +1893,7 @@ static void action_to_animato(
  * from animation data is accomplished here too...
  */
 static void ipo_to_animdata(
-    Main *bmain, ID *id, Ipo *ipo, char actname[], char constname[], Sequence *seq)
+    Main *bmain, ID *id, Ipo *ipo, char actname[], char constname[], Strip *strip)
 {
   AnimData *adt = BKE_animdata_from_id(id);
   ListBase anim = {nullptr, nullptr};
@@ -1855,12 +1909,12 @@ static void ipo_to_animdata(
   }
 
   if (G.debug & G_DEBUG) {
-    printf("ipo to animdata - ID:%s, IPO:%s, actname:%s constname:%s seqname:%s  curves:%d\n",
+    printf("ipo to animdata - ID:%s, IPO:%s, actname:%s constname:%s stripname:%s  curves:%d\n",
            id->name + 2,
            ipo->id.name + 2,
            (actname) ? actname : "<None>",
            (constname) ? constname : "<None>",
-           (seq) ? (seq->name + 2) : "<None>",
+           (strip) ? (strip->name + 2) : "<None>",
            BLI_listbase_count(&ipo->curve));
   }
 
@@ -1868,7 +1922,7 @@ static void ipo_to_animdata(
    * (separated into separate lists of F-Curves for animation and drivers),
    * and the try to put these lists in the right places, but do not free the lists here. */
   /* XXX there shouldn't be any need for the groups, so don't supply pointer for that now... */
-  ipo_to_animato(id, ipo, actname, constname, seq, nullptr, &anim, &drivers);
+  ipo_to_animato(id, ipo, actname, constname, strip, nullptr, &anim, &drivers);
 
   /* deal with animation first */
   if (anim.first) {
@@ -1881,14 +1935,23 @@ static void ipo_to_animdata(
 
       SNPRINTF(nameBuf, "CDA:%s", ipo->id.name + 2);
 
-      adt->action = BKE_action_add(bmain, nameBuf);
+      bAction *action = BKE_action_add(bmain, nameBuf);
+      id_us_min(&action->id);
+      const bool assign_ok = animrig::assign_action(action, {*id, *adt});
+      BLI_assert_msg(assign_ok, "Expecting the assignment of a new Action to always work");
+      UNUSED_VARS_NDEBUG(assign_ok);
+
       if (G.debug & G_DEBUG) {
         printf("\t\tadded new action - '%s'\n", nameBuf);
       }
     }
 
-    /* add F-Curves to action */
+    /* Add F-Curves to action, creating an Animato action. */
     BLI_movelisttolist(&adt->action->curves, &anim);
+
+    /* Upgrade Animato action to a layered action. */
+    blender::animrig::versioning::tag_action_user_for_slotted_actions_conversion(*id);
+    blender::animrig::versioning::convert_legacy_animato_action(*adt->action);
   }
 
   /* deal with drivers */
@@ -1919,11 +1982,13 @@ static void action_to_animdata(ID *id, bAction *act)
     if (G.debug & G_DEBUG) {
       printf("act_to_adt - set adt action to act\n");
     }
-    adt->action = act;
+    const bool assign_ok = animrig::assign_action(act, {*id, *adt});
+    BLI_assert_msg(assign_ok, "Expecting the assignment of a just-converted Action to work");
+    UNUSED_VARS_NDEBUG(assign_ok);
   }
 
   /* convert Action data */
-  action_to_animato(id, act, &adt->action->groups, &adt->action->curves, &adt->drivers);
+  ensure_action_is_layered(id, act, &adt->action->groups, &adt->action->curves, &adt->drivers);
 }
 
 /* ------------------------- */
@@ -1947,7 +2012,7 @@ static void nlastrips_to_animdata(ID *id, ListBase *strips)
     /* this old strip is only worth something if it had an action... */
     if (as->act) {
       /* convert Action data (if not yet converted), storing the results in the same Action */
-      action_to_animato(id, as->act, &as->act->groups, &as->act->curves, &adt->drivers);
+      ensure_action_is_layered(id, as->act, &as->act->groups, &as->act->curves, &adt->drivers);
 
       /* Create a new-style NLA-strip which references this Action,
        * then copy over relevant settings. */
@@ -1956,7 +2021,7 @@ static void nlastrips_to_animdata(ID *id, ListBase *strips)
          * - no need to muck around with the user-counts, since this is just
          *   passing over the ref to the new owner, not creating an additional ref
          */
-        strip = static_cast<NlaStrip *>(MEM_callocN(sizeof(NlaStrip), "NlaStrip"));
+        strip = MEM_callocN<NlaStrip>("NlaStrip");
         strip->act = as->act;
 
         /* endpoints */
@@ -2034,34 +2099,31 @@ struct Seq_callback_data {
   AnimData *adt;
 };
 
-static bool seq_convert_callback(Sequence *seq, void *userdata)
+static bool strip_convert_callback(Strip *strip, void *userdata)
 {
-  IpoCurve *icu = static_cast<IpoCurve *>((seq->ipo) ? seq->ipo->curve.first : nullptr);
-  short adrcode = SEQ_FAC1;
+  IpoCurve *icu = static_cast<IpoCurve *>((strip->ipo) ? strip->ipo->curve.first : nullptr);
+  short adrcode = STRIP_FAC1;
 
   if (G.debug & G_DEBUG) {
-    printf("\tconverting sequence strip %s\n", seq->name + 2);
+    printf("\tconverting sequence strip %s\n", strip->name + 2);
   }
 
-  if (ELEM(nullptr, seq->ipo, icu)) {
-    seq->flag |= SEQ_USE_EFFECT_DEFAULT_FADE;
+  if (ELEM(nullptr, strip->ipo, icu)) {
+    strip->flag |= SEQ_USE_EFFECT_DEFAULT_FADE;
     return true;
   }
 
-  /* patch adrcode, so that we can map
-   * to different DNA variables later
-   * (semi-hack (tm) )
-   */
-  switch (seq->type) {
-    case SEQ_TYPE_IMAGE:
-    case SEQ_TYPE_META:
-    case SEQ_TYPE_SCENE:
-    case SEQ_TYPE_MOVIE:
-    case SEQ_TYPE_COLOR:
-      adrcode = SEQ_FAC_OPACITY;
+  /* Patch `adrcode`, so that we can map to different DNA variables later (semi-hack (tm)). */
+  switch (strip->type) {
+    case STRIP_TYPE_IMAGE:
+    case STRIP_TYPE_META:
+    case STRIP_TYPE_SCENE:
+    case STRIP_TYPE_MOVIE:
+    case STRIP_TYPE_COLOR:
+      adrcode = STRIP_FAC_OPACITY;
       break;
-    case SEQ_TYPE_SPEED:
-      adrcode = SEQ_FAC_SPEED;
+    case STRIP_TYPE_SPEED:
+      adrcode = STRIP_FAC_SPEED;
       break;
   }
   icu->adrcode = adrcode;
@@ -2069,22 +2131,24 @@ static bool seq_convert_callback(Sequence *seq, void *userdata)
   Seq_callback_data *cd = (Seq_callback_data *)userdata;
 
   /* convert IPO */
-  ipo_to_animdata(cd->bmain, (ID *)cd->scene, seq->ipo, nullptr, nullptr, seq);
+  ipo_to_animdata(cd->bmain, (ID *)cd->scene, strip->ipo, nullptr, nullptr, strip);
 
-  if (cd->adt->action) {
+  if (cd->adt->action && !blender::animrig::versioning::action_is_layered(*cd->adt->action)) {
     cd->adt->action->idroot = ID_SCE; /* scene-rooted */
   }
 
-  id_us_min(&seq->ipo->id);
-  seq->ipo = nullptr;
+  id_us_min(&strip->ipo->id);
+  strip->ipo = nullptr;
   return true;
 }
 
 /* *************************************************** */
 /* External API - Only Called from do_versions() */
 
-void do_versions_ipos_to_animato(Main *bmain)
+void do_versions_ipos_to_layered_actions(Main *bmain)
 {
+  using blender::animrig::versioning::action_is_layered;
+
   ListBase drivers = {nullptr, nullptr};
   ID *id;
 
@@ -2093,13 +2157,47 @@ void do_versions_ipos_to_animato(Main *bmain)
     return;
   }
 
-  /* only convert if version is right */
+  /* Only convert if the bmain version is old enough.
+   *
+   * Note that the mixing of pre-2.50 and post-2.50 animation data is not supported, and so there
+   * is no need to check for the version of library blend files.
+   *
+   * See the check in #BKE_blendfile_link(), that actively warns users that their animation data
+   * will not be converted when linking to a pre-2.50 blend file.
+   *
+   * But even when the main file is newer, it could still link in pre-2.50 Actions, and those need
+   * to be converted in this function as well.
+   */
   if (bmain->versionfile >= 250) {
-    CLOG_WARN(&LOG, "Animation data too new to convert (Version %d)", bmain->versionfile);
+    bool shown_info = false;
+
+    LISTBASE_FOREACH (ID *, id, &bmain->actions) {
+      bAction *action = reinterpret_cast<bAction *>(id);
+
+      const bool is_pre_animato_action = !BLI_listbase_is_empty(&action->chanbase);
+      if (!is_pre_animato_action) {
+        continue;
+      }
+
+      if (G.debug & G_DEBUG) {
+        if (!shown_info) {
+          printf("INFO: Converting IPO Action to modern animation data types...\n");
+          shown_info = true;
+        }
+
+        printf("\tconverting action %s\n", id->name + 2);
+      }
+
+      /* This Action will be object-only. */
+      action->idroot = ID_OB;
+
+      ensure_action_is_layered(nullptr, action, &action->groups, &action->curves, &drivers);
+    }
     return;
   }
+
   if (G.debug & G_DEBUG) {
-    printf("INFO: Converting to Animato...\n");
+    printf("INFO: Converting IPO to modern animation data types...\n");
   }
 
   /* ----------- Animation Attached to Data -------------- */
@@ -2137,18 +2235,14 @@ void do_versions_ipos_to_animato(Main *bmain)
       nlastrips_to_animdata(id, &ob->nlastrips);
     }
     else if ((ob->ipo) || (ob->action)) {
-      /* Add AnimData block */
-      AnimData *adt = BKE_animdata_ensure_id(id);
+      BKE_animdata_ensure_id(id);
 
       /* Action first - so that Action name get conserved */
       if (ob->action) {
         action_to_animdata(id, ob->action);
 
-        /* Only decrease user-count if this Action isn't now being used by AnimData. */
-        if (ob->action != adt->action) {
-          id_us_min(&ob->action->id);
-          ob->action = nullptr;
-        }
+        id_us_min(&ob->action->id);
+        ob->action = nullptr;
       }
 
       /* IPO second... */
@@ -2161,15 +2255,15 @@ void do_versions_ipos_to_animato(Main *bmain)
 
     /* check PoseChannels for constraints with local data */
     if (ob->pose) {
-      /* Verify if there's AnimData block */
-      BKE_animdata_ensure_id(id);
-
       LISTBASE_FOREACH (bPoseChannel *, pchan, &ob->pose->chanbase) {
         LISTBASE_FOREACH (bConstraint *, con, &pchan->constraints) {
-          /* if constraint has own IPO, convert add these to Object
+          /* if constraint has its own IPO, convert add these to Object
            * (NOTE: they're most likely to be drivers too)
            */
           if (con->ipo) {
+            /* Verify if there's AnimData block */
+            BKE_animdata_ensure_id(id);
+
             /* although this was the constraint's local IPO, we still need to provide pchan + con
              * so that drivers can be added properly...
              */
@@ -2183,7 +2277,7 @@ void do_versions_ipos_to_animato(Main *bmain)
 
     /* check constraints for local IPO's */
     LISTBASE_FOREACH (bConstraint *, con, &ob->constraints) {
-      /* if constraint has own IPO, convert add these to Object
+      /* if constraint has its own IPO, convert add these to Object
        * (NOTE: they're most likely to be drivers too)
        */
       if (con->ipo) {
@@ -2204,9 +2298,6 @@ void do_versions_ipos_to_animato(Main *bmain)
 
     /* check constraint channels - we need to remove them anyway... */
     if (ob->constraintChannels.first) {
-      /* Verify if there's AnimData block */
-      BKE_animdata_ensure_id(id);
-
       for (conchan = static_cast<bConstraintChannel *>(ob->constraintChannels.first); conchan;
            conchan = conchann)
       {
@@ -2215,6 +2306,9 @@ void do_versions_ipos_to_animato(Main *bmain)
 
         /* convert Constraint Channel's IPO data */
         if (conchan->ipo) {
+          /* Verify if there's AnimData block */
+          BKE_animdata_ensure_id(id);
+
           ipo_to_animdata(bmain, id, conchan->ipo, nullptr, conchan->name, nullptr);
           id_us_min(&conchan->ipo->id);
           conchan->ipo = nullptr;
@@ -2228,7 +2322,7 @@ void do_versions_ipos_to_animato(Main *bmain)
     /* object's action will always be object-rooted */
     {
       AnimData *adt = BKE_animdata_from_id(id);
-      if (adt && adt->action) {
+      if (adt && adt->action && !action_is_layered(*adt->action)) {
         adt->action->idroot = ID_OB;
       }
     }
@@ -2253,7 +2347,7 @@ void do_versions_ipos_to_animato(Main *bmain)
       /* Convert Shape-key data... */
       ipo_to_animdata(bmain, id, key->ipo, nullptr, nullptr, nullptr);
 
-      if (adt->action) {
+      if (adt->action && !action_is_layered(*adt->action)) {
         adt->action->idroot = key->ipo->blocktype;
       }
 
@@ -2278,7 +2372,7 @@ void do_versions_ipos_to_animato(Main *bmain)
       /* Convert Material data... */
       ipo_to_animdata(bmain, id, ma->ipo, nullptr, nullptr, nullptr);
 
-      if (adt->action) {
+      if (adt->action && !action_is_layered(*adt->action)) {
         adt->action->idroot = ma->ipo->blocktype;
       }
 
@@ -2303,7 +2397,7 @@ void do_versions_ipos_to_animato(Main *bmain)
       /* Convert World data... */
       ipo_to_animdata(bmain, id, wo->ipo, nullptr, nullptr, nullptr);
 
-      if (adt->action) {
+      if (adt->action && !action_is_layered(*adt->action)) {
         adt->action->idroot = wo->ipo->blocktype;
       }
 
@@ -2318,7 +2412,7 @@ void do_versions_ipos_to_animato(Main *bmain)
     Editing *ed = scene->ed;
     if (ed && ed->seqbasep) {
       Seq_callback_data cb_data = {bmain, scene, BKE_animdata_ensure_id(id)};
-      SEQ_for_each_callback(&ed->seqbase, seq_convert_callback, &cb_data);
+      seq::for_each_callback(&ed->seqbase, strip_convert_callback, &cb_data);
     }
   }
 
@@ -2338,7 +2432,7 @@ void do_versions_ipos_to_animato(Main *bmain)
       /* Convert Texture data... */
       ipo_to_animdata(bmain, id, te->ipo, nullptr, nullptr, nullptr);
 
-      if (adt->action) {
+      if (adt->action && !action_is_layered(*adt->action)) {
         adt->action->idroot = te->ipo->blocktype;
       }
 
@@ -2363,7 +2457,7 @@ void do_versions_ipos_to_animato(Main *bmain)
       /* Convert Camera data... */
       ipo_to_animdata(bmain, id, ca->ipo, nullptr, nullptr, nullptr);
 
-      if (adt->action) {
+      if (adt->action && !action_is_layered(*adt->action)) {
         adt->action->idroot = ca->ipo->blocktype;
       }
 
@@ -2388,7 +2482,7 @@ void do_versions_ipos_to_animato(Main *bmain)
       /* Convert Light data... */
       ipo_to_animdata(bmain, id, la->ipo, nullptr, nullptr, nullptr);
 
-      if (adt->action) {
+      if (adt->action && !action_is_layered(*adt->action)) {
         adt->action->idroot = la->ipo->blocktype;
       }
 
@@ -2413,7 +2507,7 @@ void do_versions_ipos_to_animato(Main *bmain)
       /* Convert Curve data... */
       ipo_to_animdata(bmain, id, cu->ipo, nullptr, nullptr, nullptr);
 
-      if (adt->action) {
+      if (adt->action && !action_is_layered(*adt->action)) {
         adt->action->idroot = cu->ipo->blocktype;
       }
 
@@ -2447,7 +2541,7 @@ void do_versions_ipos_to_animato(Main *bmain)
     }
 
     /* be careful! some of the actions we encounter will be converted ones... */
-    action_to_animato(nullptr, act, &act->groups, &act->curves, &drivers);
+    ensure_action_is_layered(nullptr, act, &act->groups, &act->curves, &drivers);
   }
 
   /* ipo's */
@@ -2466,11 +2560,15 @@ void do_versions_ipos_to_animato(Main *bmain)
       new_act = BKE_action_add(bmain, id->name + 2);
       ipo_to_animato(nullptr, ipo, nullptr, nullptr, nullptr, nullptr, &new_act->curves, &drivers);
       new_act->idroot = ipo->blocktype;
+
+      /* Upgrade the resulting Animato action to a layered action. */
+      blender::animrig::versioning::tag_action_user_for_slotted_actions_conversion(*id);
+      blender::animrig::versioning::convert_legacy_animato_action(*new_act);
     }
 
     /* clear fake-users, and set user-count to zero to make sure it is cleared on file-save */
     ipo->id.us = 0;
-    ipo->id.flag &= ~LIB_FAKEUSER;
+    ipo->id.flag &= ~ID_FLAG_FAKEUSER;
   }
 
   /* free unused drivers from actions + ipos */

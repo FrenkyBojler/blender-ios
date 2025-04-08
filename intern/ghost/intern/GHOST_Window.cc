@@ -32,6 +32,8 @@ GHOST_Window::GHOST_Window(uint32_t width,
       m_progressBarVisible(false),
       m_canAcceptDragOperation(false),
       m_isUnsavedChanges(false),
+      m_windowDecorationStyleFlags(GHOST_kDecorationNone),
+      m_windowDecorationStyleSettings(),
       m_wantStereoVisual(wantStereoVisual),
       m_nativePixelSize(1.0f),
       m_context(new GHOST_ContextNone(false))
@@ -53,6 +55,22 @@ GHOST_Window::~GHOST_Window()
 void *GHOST_Window::getOSWindow() const
 {
   return nullptr;
+}
+
+GHOST_TWindowDecorationStyleFlags GHOST_Window::getWindowDecorationStyleFlags()
+{
+  return m_windowDecorationStyleFlags;
+}
+
+void GHOST_Window::setWindowDecorationStyleFlags(GHOST_TWindowDecorationStyleFlags styleFlags)
+{
+  m_windowDecorationStyleFlags = styleFlags;
+}
+
+void GHOST_Window::setWindowDecorationStyleSettings(
+    GHOST_WindowDecorationStyleSettings decorationSettings)
+{
+  m_windowDecorationStyleSettings = decorationSettings;
 }
 
 GHOST_TSuccess GHOST_Window::setDrawingContextType(GHOST_TDrawingContextType type)
@@ -107,11 +125,12 @@ uint GHOST_Window::getDefaultFramebuffer()
   return (m_context) ? m_context->getDefaultFramebuffer() : 0;
 }
 
-GHOST_TSuccess GHOST_Window::getVulkanBackbuffer(
-    void *image, void *framebuffer, void *render_pass, void *extent, uint32_t *fb_id)
+#ifdef WITH_VULKAN_BACKEND
+GHOST_TSuccess GHOST_Window::getVulkanSwapChainFormat(GHOST_VulkanSwapChainData *r_swap_chain_data)
 {
-  return m_context->getVulkanBackbuffer(image, framebuffer, render_pass, extent, fb_id);
+  return m_context->getVulkanSwapChainFormat(r_swap_chain_data);
 }
+#endif
 
 GHOST_TSuccess GHOST_Window::activateDrawingContext()
 {
@@ -172,7 +191,7 @@ GHOST_TSuccess GHOST_Window::setCursorGrab(GHOST_TGrabCursorMode mode,
 
 GHOST_TSuccess GHOST_Window::getCursorGrabBounds(GHOST_Rect &bounds) const
 {
-  if (m_cursorGrab != GHOST_kGrabWrap) {
+  if (!(m_cursorGrab == GHOST_kGrabWrap || m_cursorGrab == GHOST_kGrabHide)) {
     return GHOST_kFailure;
   }
   bounds = m_cursorGrabBounds;

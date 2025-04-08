@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -11,10 +11,6 @@
 #include "../BPy_Iterator.h"
 
 #include "../../view_map/ViewMapIterators.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 ///////////////////////////////////////////////////////////////////////////////////////////
 
@@ -32,7 +28,3 @@ typedef struct {
 } BPy_orientedViewEdgeIterator;
 
 ///////////////////////////////////////////////////////////////////////////////////////////
-
-#ifdef __cplusplus
-}
-#endif

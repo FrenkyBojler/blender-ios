@@ -1,11 +1,20 @@
+/* SPDX-FileCopyrightText: 2017-2022 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
+
+#include "infos/overlay_grid_info.hh"
+
+VERTEX_SHADER_CREATE_INFO(overlay_grid_next)
+
 /**
  * Infinite grid:
- * Draw antialiazed grid and axes of different sizes with smooth blending between Level of details.
- * We draw multiple triangles to avoid float precision issues due to perspective interpolation.
- **/
+ * Draw anti-aliased grid and axes of different sizes with smooth blending between Level of
+ * details. We draw multiple triangles to avoid float precision issues due to perspective
+ * interpolation.
+ */
 
-#pragma BLENDER_REQUIRE(common_view_lib.glsl)
-#pragma BLENDER_REQUIRE(common_math_lib.glsl)
+#include "draw_view_lib.glsl"
+#include "gpu_shader_utildefines_lib.glsl"
 
 void main()
 {
@@ -27,7 +36,7 @@ void main()
 
   local_pos = vert_pos;
 
-  vec3 real_pos = cameraPos * plane_axes + vert_pos * grid_buf.size.xyz;
+  vec3 real_pos = drw_view_position() * plane_axes + vert_pos * grid_buf.size.xyz;
 
   /* Used for additional Z axis */
   if (flag_test(grid_flag, CLIP_ZPOS)) {
@@ -39,5 +48,5 @@ void main()
     local_pos.z = clamp(local_pos.z, -1.0, 0.0);
   }
 
-  gl_Position = drw_view.winmat * (drw_view.viewmat * vec4(real_pos, 1.0));
+  gl_Position = drw_view().winmat * (drw_view().viewmat * vec4(real_pos, 1.0));
 }

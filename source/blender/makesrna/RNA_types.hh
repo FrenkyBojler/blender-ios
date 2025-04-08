@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -10,8 +10,13 @@
 #ifndef __RNA_TYPES_H__
 #define __RNA_TYPES_H__
 
+#include <optional>
+#include <string>
+
+#include "../blenlib/BLI_function_ref.hh"
 #include "../blenlib/BLI_sys_types.h"
 #include "../blenlib/BLI_utildefines.h"
+#include "../blenlib/BLI_vector.hh"
 
 struct BlenderRNA;
 struct FunctionRNA;
@@ -24,6 +29,17 @@ struct StructRNA;
 struct bContext;
 
 /**
+ * An ancestor of a given PointerRNA. The owner ID is not needed here, it is assumed to always be
+ * the same as the owner ID of the PropertyRNA itself.
+ */
+struct AncestorPointerRNA {
+  StructRNA *type;
+  void *data;
+};
+/** Allows to benefit from the `max_full_copy_size` optimization on copy of #blender::Vector. */
+constexpr int64_t ANCESTOR_POINTERRNA_DEFAULT_SIZE = 2;
+
+/**
  * Pointer
  *
  * RNA pointers are not a single C pointer but include the type,
@@ -31,30 +47,92 @@ struct bContext;
  * in some cases this information is needed to correctly get/set
  * the properties and validate them. */
 
-typedef struct PointerRNA {
-  struct ID *owner_id;
-  struct StructRNA *type;
-  void *data;
-} PointerRNA;
+struct PointerRNA {
+  ID *owner_id = nullptr;
+  StructRNA *type = nullptr;
+  void *data = nullptr;
 
-typedef struct PropertyPointerRNA {
-  PointerRNA ptr;
-  struct PropertyRNA *prop;
-} PropertyPointerRNA;
+  /**
+   * A chain of ancestors of this PointerRNA, if known. The last item is the closest ancestor.
+   *
+   * E.g. Parsing `vgroup = C.object.data.vertices[0].groups[0]` would result in the PointerRNA of
+   * `vgroup` having two ancestors: `vertices[0]` and `data` (aka the Mesh ID).
+   *
+   * By definition, PointerRNA of IDs are currently always 'discrete', i.e. do not have ancestors
+   * information, since an ID PointerRNA should always be its own root.
+   *
+   * \note: Currently, it is assumed that embedded or evaluated IDs can also be discrete
+   * PointerRNA. This should be fine, since they should all have their 'owner ID' or 'orig ID'
+   * pointer info. This may become a problem e.g. if in the future we allow embedded IDs into
+   * sub-structs of IDs.
+   *
+   * There is no guarantee that this chain is always (fully) valid and will lead to the root owner
+   * of the wrapped data (an ID). Depending on how the PointerRNA was created, and the available
+   * information at that time, it could be empty or only feature a partial ancestors chain. This
+   * can happen if the initial pointer is created as discrete (e.g. from an operator that does not
+   * have access to/knowledge of the whole ancestor chain), and a sub-struct is accessed through
+   * regular RNA property access (like a call to RNA_property_pointer_get etc.).
+   */
+  blender::Vector<AncestorPointerRNA, ANCESTOR_POINTERRNA_DEFAULT_SIZE> ancestors = {};
+
+  PointerRNA() = default;
+  PointerRNA(const PointerRNA &) = default;
+  PointerRNA(PointerRNA &&) = default;
+  PointerRNA &operator=(const PointerRNA &other) = default;
+  PointerRNA &operator=(PointerRNA &&other) = default;
+
+  PointerRNA(ID *owner_id, StructRNA *type, void *data)
+      : owner_id(owner_id), type(type), data(data), ancestors{}
+  {
+  }
+  PointerRNA(ID *owner_id, StructRNA *type, void *data, const PointerRNA &parent)
+      : owner_id(owner_id), type(type), data(data), ancestors(parent.ancestors)
+  {
+    this->ancestors.append({parent.type, parent.data});
+  }
+  PointerRNA(ID *owner_id, StructRNA *type, void *data, blender::Span<AncestorPointerRNA> parents)
+      : owner_id(owner_id), type(type), data(data), ancestors(parents)
+  {
+  }
+
+  /** Reset the pointer to its initial empty state, such that it equals to PointerRNA_NULL. */
+  void reset()
+  {
+    *this = {};
+  }
+
+  /**
+   * Make the pointer invalid.
+   *
+   * This is especially important for the Python API, as any access to an invalid PointerRNA should
+   * raise an exception in `bpy` code.
+   */
+  void invalidate()
+  {
+    this->reset();
+  }
+};
+
+extern const PointerRNA PointerRNA_NULL;
+
+struct PropertyPointerRNA {
+  PointerRNA ptr = {};
+  PropertyRNA *prop = nullptr;
+};
 
 /**
  * Stored result of a RNA path lookup (as used by anim-system)
  */
-typedef struct PathResolvedRNA {
-  struct PointerRNA ptr;
-  struct PropertyRNA *prop;
+struct PathResolvedRNA {
+  PointerRNA ptr = {};
+  PropertyRNA *prop = nullptr;
   /** -1 for non-array access. */
-  int prop_index;
-} PathResolvedRNA;
+  int prop_index = -1;
+};
 
 /* Property */
 
-typedef enum PropertyType {
+enum PropertyType {
   PROP_BOOLEAN = 0,
   PROP_INT = 1,
   PROP_FLOAT = 2,
@@ -62,24 +140,27 @@ typedef enum PropertyType {
   PROP_ENUM = 4,
   PROP_POINTER = 5,
   PROP_COLLECTION = 6,
-} PropertyType;
+};
 
 /* also update rna_property_subtype_unit when you change this */
-typedef enum PropertyUnit {
+enum PropertyUnit {
   PROP_UNIT_NONE = (0 << 16),
-  PROP_UNIT_LENGTH = (1 << 16),        /* m */
-  PROP_UNIT_AREA = (2 << 16),          /* m^2 */
-  PROP_UNIT_VOLUME = (3 << 16),        /* m^3 */
-  PROP_UNIT_MASS = (4 << 16),          /* kg */
-  PROP_UNIT_ROTATION = (5 << 16),      /* radians */
-  PROP_UNIT_TIME = (6 << 16),          /* frame */
-  PROP_UNIT_TIME_ABSOLUTE = (7 << 16), /* time in seconds (independent of scene) */
-  PROP_UNIT_VELOCITY = (8 << 16),      /* m/s */
-  PROP_UNIT_ACCELERATION = (9 << 16),  /* m/(s^2) */
-  PROP_UNIT_CAMERA = (10 << 16),       /* mm */
-  PROP_UNIT_POWER = (11 << 16),        /* W */
-  PROP_UNIT_TEMPERATURE = (12 << 16),  /* C */
-} PropertyUnit;
+  PROP_UNIT_LENGTH = (1 << 16),             /* m */
+  PROP_UNIT_AREA = (2 << 16),               /* m^2 */
+  PROP_UNIT_VOLUME = (3 << 16),             /* m^3 */
+  PROP_UNIT_MASS = (4 << 16),               /* kg */
+  PROP_UNIT_ROTATION = (5 << 16),           /* radians */
+  PROP_UNIT_TIME = (6 << 16),               /* frame */
+  PROP_UNIT_TIME_ABSOLUTE = (7 << 16),      /* time in seconds (independent of scene) */
+  PROP_UNIT_VELOCITY = (8 << 16),           /* m/s */
+  PROP_UNIT_ACCELERATION = (9 << 16),       /* m/(s^2) */
+  PROP_UNIT_CAMERA = (10 << 16),            /* mm */
+  PROP_UNIT_POWER = (11 << 16),             /* W */
+  PROP_UNIT_TEMPERATURE = (12 << 16),       /* C */
+  PROP_UNIT_WAVELENGTH = (13 << 16),        /* `nm` (independent of scene). */
+  PROP_UNIT_COLOR_TEMPERATURE = (14 << 16), /* K */
+  PROP_UNIT_FREQUENCY = (15 << 16),         /* Hz */
+};
 ENUM_OPERATORS(PropertyUnit, PROP_UNIT_TEMPERATURE)
 
 /**
@@ -93,7 +174,7 @@ ENUM_OPERATORS(PropertyUnit, PROP_UNIT_TEMPERATURE)
  * Sliders with logarithmic scale and value bar must have a range > 0
  * while logarithmic sliders without the value bar can have a range of >= 0.
  */
-typedef enum PropertyScaleType {
+enum PropertyScaleType {
   /** Linear scale (default). */
   PROP_SCALE_LINEAR = 0,
   /**
@@ -106,9 +187,9 @@ typedef enum PropertyScaleType {
    * - Maximum range: `-inf < x < inf`
    */
   PROP_SCALE_CUBIC = 2,
-} PropertyScaleType;
+};
 
-#define RNA_SUBTYPE_UNIT(subtype) ((subtype)&0x00FF0000)
+#define RNA_SUBTYPE_UNIT(subtype) ((subtype) & 0x00FF0000)
 #define RNA_SUBTYPE_VALUE(subtype) ((subtype) & ~0x00FF0000)
 #define RNA_SUBTYPE_UNIT_VALUE(subtype) ((subtype) >> 16)
 
@@ -122,7 +203,7 @@ typedef enum PropertyScaleType {
  * \note Also update enums in `bpy_props.cc` and `rna_rna.cc` when adding items here.
  * Watch it: these values are written to files as part of node socket button sub-types!
  */
-typedef enum PropertySubType {
+enum PropertySubType {
   PROP_NONE = 0,
 
   /* strings */
@@ -175,12 +256,20 @@ typedef enum PropertySubType {
 
   /* temperature */
   PROP_TEMPERATURE = 43 | PROP_UNIT_TEMPERATURE,
-} PropertySubType;
+
+  /* wavelength */
+  PROP_WAVELENGTH = 44 | PROP_UNIT_WAVELENGTH,
+
+  /* wavelength */
+  PROP_COLOR_TEMPERATURE = 45 | PROP_UNIT_COLOR_TEMPERATURE,
+
+  PROP_FREQUENCY = 46 | PROP_UNIT_FREQUENCY,
+};
 
 /* Make sure enums are updated with these */
-/* HIGHEST FLAG IN USE: 1 << 31
- * FREE FLAGS: 9, 11, 13, 14, 15. */
-typedef enum PropertyFlag {
+/* HIGHEST FLAG IN USE: 1u << 31
+ * FREE FLAGS: 13, 14, 15. */
+enum PropertyFlag {
   /**
    * Editable means the property is editable in the user
    * interface, properties are editable by default except
@@ -203,7 +292,7 @@ typedef enum PropertyFlag {
   /**
    * This flag means when the property's widget is in 'text-edit' mode, it will be updated
    * after every typed char, instead of waiting final validation. Used e.g. for text search-box.
-   * It will also cause UI_BUT_VALUE_CLEAR to be set for text buttons. We could add an own flag
+   * It will also cause UI_BUT_VALUE_CLEAR to be set for text buttons. We could add a separate flag
    * for search/filter properties, but this works just fine for now.
    */
   PROP_TEXTEDIT_UPDATE = (1u << 31),
@@ -212,9 +301,18 @@ typedef enum PropertyFlag {
   PROP_ICONS_CONSECUTIVE = (1 << 12),
   PROP_ICONS_REVERSE = (1 << 8),
 
-  /** Hidden in the user interface. */
+  /**
+   * Hide in the user interface. That is, from auto-generated operator property UIs (like the
+   * redo panel) and the outliner "Data API" display mode. Does not hide it in the keymap UI.
+   *
+   * Also don't save in presets, as if #PROP_SKIP_PRESET was set.
+   */
   PROP_HIDDEN = (1 << 19),
-  /** Do not write in presets. */
+  /**
+   * Doesn't preserve the last value for repeated operator calls.
+   *
+   * Also don't save in presets, as if #PROP_SKIP_PRESET was set.
+   */
   PROP_SKIP_SAVE = (1 << 28),
 
   /* numbers */
@@ -301,11 +399,20 @@ typedef enum PropertyFlag {
   PROP_NO_DEG_UPDATE = (1 << 30),
 
   /**
-   * Filepaths that refer to output get a special treatment such
+   * Property needs to ensure evaluated data-blocks are in sync with their original counter-part
+   * but the property does not affect evaluation itself.
+   */
+  PROP_DEG_SYNC_ONLY = (1 << 9),
+
+  /**
+   * File-paths that refer to output get a special treatment such
    * as having the +/- operators available in the file browser.
-   **/
+   */
   PROP_PATH_OUTPUT = (1 << 2),
-} PropertyFlag;
+
+  /** Do not write in presets (#PROP_HIDDEN and #PROP_SKIP_SAVE won't either). */
+  PROP_SKIP_PRESET = (1 << 11),
+};
 ENUM_OPERATORS(PropertyFlag, PROP_TEXTEDIT_UPDATE)
 
 /**
@@ -314,7 +421,7 @@ ENUM_OPERATORS(PropertyFlag, PROP_TEXTEDIT_UPDATE)
  *
  * FREE FLAGS: 2, 3, 4, 5, 6, 7, 8, 9, 12 and above.
  */
-typedef enum PropertyOverrideFlag {
+enum PropertyOverrideFlag {
   /** Means that the property can be overridden by a local override of some linked datablock. */
   PROPOVERRIDE_OVERRIDABLE_LIBRARY = (1 << 0),
 
@@ -346,43 +453,45 @@ typedef enum PropertyOverrideFlag {
   /**
    * Only use indices to compare items in the property, never names (collections only).
    *
-   * Useful when nameprop of the items is generated from other data
+   * Useful when #StructRNA::nameproperty of the items is generated from other data
    * (e.g. name of material slots is actually name of assigned material).
    */
   PROPOVERRIDE_NO_PROP_NAME = (1 << 11),
-} PropertyOverrideFlag;
+};
 ENUM_OPERATORS(PropertyOverrideFlag, PROPOVERRIDE_NO_PROP_NAME);
 
 /**
  * Function parameters flags.
  * \warning 16bits only.
  */
-typedef enum ParameterFlag {
+enum ParameterFlag {
   PARM_REQUIRED = (1 << 0),
   PARM_OUTPUT = (1 << 1),
   PARM_RNAPTR = (1 << 2),
   /**
-   * This allows for non-breaking API updates,
-   * when adding non-critical new parameter to a callback function.
+   * This allows for non-breaking API updates when adding non-critical new parameters
+   * to functions which Python classes register.
    * This way, old Python code defining functions without that parameter would still work.
-   * WARNING: any parameter after the first PYFUNC_OPTIONAL one will be considered as optional!
+   *
+   * WARNING: any parameter after the first #PARM_PYFUNC_REGISTER_OPTIONAL
+   * one will be considered as optional!
    * \note only for input parameters!
    */
-  PARM_PYFUNC_OPTIONAL = (1 << 3),
-} ParameterFlag;
-ENUM_OPERATORS(ParameterFlag, PARM_PYFUNC_OPTIONAL)
+  PARM_PYFUNC_REGISTER_OPTIONAL = (1 << 3),
+};
+ENUM_OPERATORS(ParameterFlag, PARM_PYFUNC_REGISTER_OPTIONAL)
 
 struct CollectionPropertyIterator;
 struct Link;
-typedef int (*IteratorSkipFunc)(struct CollectionPropertyIterator *iter, void *data);
+using IteratorSkipFunc = bool (*)(CollectionPropertyIterator *iter, void *data);
 
-typedef struct ListBaseIterator {
-  struct Link *link;
+struct ListBaseIterator {
+  Link *link;
   int flag;
   IteratorSkipFunc skip;
-} ListBaseIterator;
+};
 
-typedef struct ArrayIterator {
+struct ArrayIterator {
   char *ptr;
   /** Past the last valid pointer, only for comparisons, ignores skipped values. */
   char *endptr;
@@ -402,19 +511,20 @@ typedef struct ArrayIterator {
    * this changes indices so quick array index lookups are not possible when skip function is used.
    */
   IteratorSkipFunc skip;
-} ArrayIterator;
+};
 
-typedef struct CountIterator {
+struct CountIterator {
   void *ptr;
   int item;
-} CountIterator;
+};
 
-typedef struct CollectionPropertyIterator {
+struct CollectionPropertyIterator {
   /* internal */
   PointerRNA parent;
   PointerRNA builtin_parent;
-  struct PropertyRNA *prop;
+  PropertyRNA *prop;
   union {
+    /* Keep biggest object first in the union, for zero-initialization to work properly. */
     ArrayIterator array;
     ListBaseIterator listbase;
     CountIterator count;
@@ -425,20 +535,14 @@ typedef struct CollectionPropertyIterator {
 
   /* external */
   PointerRNA ptr;
-  int valid;
-} CollectionPropertyIterator;
+  bool valid;
+};
 
-typedef struct CollectionPointerLink {
-  struct CollectionPointerLink *next, *prev;
-  PointerRNA ptr;
-} CollectionPointerLink;
+struct CollectionVector {
+  blender::Vector<PointerRNA> items;
+};
 
-/** Copy of ListBase for RNA. */
-typedef struct CollectionListBase {
-  struct CollectionPointerLink *first, *last;
-} CollectionListBase;
-
-typedef enum RawPropertyType {
+enum RawPropertyType {
   PROP_RAW_UNSET = -1,
   PROP_RAW_INT, /* XXX: abused for types that are not set, eg. MFace.verts, needs fixing. */
   PROP_RAW_SHORT,
@@ -446,20 +550,25 @@ typedef enum RawPropertyType {
   PROP_RAW_BOOLEAN,
   PROP_RAW_DOUBLE,
   PROP_RAW_FLOAT,
-} RawPropertyType;
+  PROP_RAW_UINT8,
+  PROP_RAW_UINT16,
+  PROP_RAW_INT64,
+  PROP_RAW_UINT64,
+  PROP_RAW_INT8,
+};
 
-typedef struct RawArray {
+struct RawArray {
   void *array;
   RawPropertyType type;
   int len;
   int stride;
-} RawArray;
+};
 
 /**
  * This struct is are typically defined in arrays which define an *enum* for RNA,
  * which is used by the RNA API both for user-interface and the Python API.
  */
-typedef struct EnumPropertyItem {
+struct EnumPropertyItem {
   /** The internal value of the enum, not exposed to users. */
   int value;
   /**
@@ -475,7 +584,7 @@ typedef struct EnumPropertyItem {
   const char *name;
   /** Longer description used in the interface. */
   const char *description;
-} EnumPropertyItem;
+};
 
 /**
  * Heading for RNA enum items (shown in the UI).
@@ -499,68 +608,46 @@ typedef struct EnumPropertyItem {
 #define RNA_ENUM_ITEM_SEPR_COLUMN RNA_ENUM_ITEM_HEADING("", NULL)
 
 /* extended versions with PropertyRNA argument */
-typedef bool (*BooleanPropertyGetFunc)(struct PointerRNA *ptr, struct PropertyRNA *prop);
-typedef void (*BooleanPropertySetFunc)(struct PointerRNA *ptr,
-                                       struct PropertyRNA *prop,
-                                       bool value);
-typedef void (*BooleanArrayPropertyGetFunc)(struct PointerRNA *ptr,
-                                            struct PropertyRNA *prop,
-                                            bool *values);
-typedef void (*BooleanArrayPropertySetFunc)(struct PointerRNA *ptr,
-                                            struct PropertyRNA *prop,
-                                            const bool *values);
-typedef int (*IntPropertyGetFunc)(struct PointerRNA *ptr, struct PropertyRNA *prop);
-typedef void (*IntPropertySetFunc)(struct PointerRNA *ptr, struct PropertyRNA *prop, int value);
-typedef void (*IntArrayPropertyGetFunc)(struct PointerRNA *ptr,
-                                        struct PropertyRNA *prop,
-                                        int *values);
-typedef void (*IntArrayPropertySetFunc)(struct PointerRNA *ptr,
-                                        struct PropertyRNA *prop,
-                                        const int *values);
-typedef void (*IntPropertyRangeFunc)(struct PointerRNA *ptr,
-                                     struct PropertyRNA *prop,
-                                     int *min,
-                                     int *max,
-                                     int *softmin,
-                                     int *softmax);
-typedef float (*FloatPropertyGetFunc)(struct PointerRNA *ptr, struct PropertyRNA *prop);
-typedef void (*FloatPropertySetFunc)(struct PointerRNA *ptr,
-                                     struct PropertyRNA *prop,
-                                     float value);
-typedef void (*FloatArrayPropertyGetFunc)(struct PointerRNA *ptr,
-                                          struct PropertyRNA *prop,
-                                          float *values);
-typedef void (*FloatArrayPropertySetFunc)(struct PointerRNA *ptr,
-                                          struct PropertyRNA *prop,
-                                          const float *values);
-typedef void (*FloatPropertyRangeFunc)(struct PointerRNA *ptr,
-                                       struct PropertyRNA *prop,
-                                       float *min,
-                                       float *max,
-                                       float *softmin,
-                                       float *softmax);
-typedef void (*StringPropertyGetFunc)(struct PointerRNA *ptr,
-                                      struct PropertyRNA *prop,
-                                      char *value);
-typedef int (*StringPropertyLengthFunc)(struct PointerRNA *ptr, struct PropertyRNA *prop);
-typedef void (*StringPropertySetFunc)(struct PointerRNA *ptr,
-                                      struct PropertyRNA *prop,
-                                      const char *value);
+using BooleanPropertyGetFunc = bool (*)(PointerRNA *ptr, PropertyRNA *prop);
+using BooleanPropertySetFunc = void (*)(PointerRNA *ptr, PropertyRNA *prop, bool value);
+using BooleanArrayPropertyGetFunc = void (*)(PointerRNA *ptr, PropertyRNA *prop, bool *values);
+using BooleanArrayPropertySetFunc = void (*)(PointerRNA *ptr,
+                                             PropertyRNA *prop,
+                                             const bool *values);
+using IntPropertyGetFunc = int (*)(PointerRNA *ptr, PropertyRNA *prop);
+using IntPropertySetFunc = void (*)(PointerRNA *ptr, PropertyRNA *prop, int value);
+using IntArrayPropertyGetFunc = void (*)(PointerRNA *ptr, PropertyRNA *prop, int *values);
+using IntArrayPropertySetFunc = void (*)(PointerRNA *ptr, PropertyRNA *prop, const int *values);
+using IntPropertyRangeFunc =
+    void (*)(PointerRNA *ptr, PropertyRNA *prop, int *min, int *max, int *softmin, int *softmax);
+using FloatPropertyGetFunc = float (*)(PointerRNA *ptr, PropertyRNA *prop);
+using FloatPropertySetFunc = void (*)(PointerRNA *ptr, PropertyRNA *prop, float value);
+using FloatArrayPropertyGetFunc = void (*)(PointerRNA *ptr, PropertyRNA *prop, float *values);
+using FloatArrayPropertySetFunc = void (*)(PointerRNA *ptr,
+                                           PropertyRNA *prop,
+                                           const float *values);
+using FloatPropertyRangeFunc = void (*)(
+    PointerRNA *ptr, PropertyRNA *prop, float *min, float *max, float *softmin, float *softmax);
+using StringPropertyGetFunc = void (*)(PointerRNA *ptr, PropertyRNA *prop, char *value);
+using StringPropertyLengthFunc = int (*)(PointerRNA *ptr, PropertyRNA *prop);
+using StringPropertySetFunc = void (*)(PointerRNA *ptr, PropertyRNA *prop, const char *value);
 
-typedef struct StringPropertySearchVisitParams {
-  /** Text being searched for (never NULL). */
-  const char *text;
-  /** Additional information to display (optional, may be NULL). */
-  const char *info;
-} StringPropertySearchVisitParams;
+struct StringPropertySearchVisitParams {
+  /** Text being searched for. */
+  std::string text;
+  /** Additional information to display. */
+  std::optional<std::string> info;
+  /* Optional icon instead of #ICON_NONE. */
+  std::optional<int> icon_id;
+};
 
-typedef enum eStringPropertySearchFlag {
+enum eStringPropertySearchFlag {
   /**
    * Used so the result of #RNA_property_string_search_flag can be used to check
    * if search is supported.
    */
   PROP_STRING_SEARCH_SUPPORTED = (1 << 0),
-  /** Items resulting from  the search must be sorted. */
+  /** Items resulting from the search must be sorted. */
   PROP_STRING_SEARCH_SORT = (1 << 1),
   /**
    * Allow members besides the ones listed to be entered.
@@ -569,74 +656,75 @@ typedef enum eStringPropertySearchFlag {
    * only be enabled this doesn't cause performance issues.
    */
   PROP_STRING_SEARCH_SUGGESTION = (1 << 2),
-} eStringPropertySearchFlag;
+};
 ENUM_OPERATORS(eStringPropertySearchFlag, PROP_STRING_SEARCH_SUGGESTION)
 
 /**
- * Visit string search candidates, `text` may be freed once this callback has finished,
- * so references to it should not be held.
- */
-typedef void (*StringPropertySearchVisitFunc)(void *visit_user_data,
-                                              const StringPropertySearchVisitParams *params);
-/**
  * \param C: context, may be NULL (in this case all available items should be shown).
  * \param ptr: RNA pointer.
- * \param prop: RNA property. This must have it's #StringPropertyRNA.search callback set,
+ * \param prop: RNA property. This must have its #StringPropertyRNA.search callback set,
  * to check this use `RNA_property_string_search_flag(prop) & PROP_STRING_SEARCH_SUPPORTED`.
  * \param edit_text: Optionally use the string being edited by the user as a basis
  * for the search results (auto-complete Python attributes for e.g.).
  * \param visit_fn: This function is called with every search candidate and is typically
  * responsible for storing the search results.
- * \param visit_user_data: Caller defined data, passed to `visit_fn`.
  */
-typedef void (*StringPropertySearchFunc)(const struct bContext *C,
-                                         struct PointerRNA *ptr,
-                                         struct PropertyRNA *prop,
-                                         const char *edit_text,
-                                         StringPropertySearchVisitFunc visit_fn,
-                                         void *visit_user_data);
+using StringPropertySearchFunc =
+    void (*)(const bContext *C,
+             PointerRNA *ptr,
+             PropertyRNA *prop,
+             const char *edit_text,
+             blender::FunctionRef<void(StringPropertySearchVisitParams)> visit_fn);
 
-typedef int (*EnumPropertyGetFunc)(struct PointerRNA *ptr, struct PropertyRNA *prop);
-typedef void (*EnumPropertySetFunc)(struct PointerRNA *ptr, struct PropertyRNA *prop, int value);
+/**
+ * Returns an optional glob pattern (e.g. `*.png`) that can be passed to the file browser to filter
+ * valid files for this property.
+ */
+using StringPropertyPathFilterFunc = std::optional<std::string> (*)(const bContext *C,
+                                                                    PointerRNA *ptr,
+                                                                    PropertyRNA *prop);
+
+using EnumPropertyGetFunc = int (*)(PointerRNA *ptr, PropertyRNA *prop);
+using EnumPropertySetFunc = void (*)(PointerRNA *ptr, PropertyRNA *prop, int value);
 /* same as PropEnumItemFunc */
-typedef const EnumPropertyItem *(*EnumPropertyItemFunc)(struct bContext *C,
-                                                        PointerRNA *ptr,
-                                                        struct PropertyRNA *prop,
-                                                        bool *r_free);
+using EnumPropertyItemFunc = const EnumPropertyItem *(*)(bContext *C,
+                                                         PointerRNA *ptr,
+                                                         PropertyRNA *prop,
+                                                         bool *r_free);
 
-typedef struct PropertyRNA PropertyRNA;
+struct PropertyRNA;
 
 /* Parameter List */
 
-typedef struct ParameterList {
+struct ParameterList {
   /** Storage for parameters*. */
   void *data;
 
   /** Function passed at creation time. */
-  struct FunctionRNA *func;
+  FunctionRNA *func;
 
   /** Store the parameter size. */
   int alloc_size;
 
   int arg_count, ret_count;
-} ParameterList;
+};
 
-typedef struct ParameterIterator {
-  struct ParameterList *parms;
+struct ParameterIterator {
+  ParameterList *parms;
   // PointerRNA funcptr; /* UNUSED */
   void *data;
   int size, offset;
 
   PropertyRNA *parm;
-  int valid;
-} ParameterIterator;
+  bool valid;
+};
 
 /** Mainly to avoid confusing casts. */
-typedef struct ParameterDynAlloc {
+struct ParameterDynAlloc {
   /** Important, this breaks when set to an int. */
   intptr_t array_tot;
   void *array;
-} ParameterDynAlloc;
+};
 
 /* Function */
 
@@ -653,7 +741,7 @@ typedef struct ParameterDynAlloc {
  *             <other RNA-defined parameters>);
  * </pre>
  */
-typedef enum FunctionFlag {
+enum FunctionFlag {
   /**
    * Pass ID owning 'self' data
    * (i.e. ptr->owner_id, might be same as self in case data is an ID...).
@@ -700,18 +788,15 @@ typedef enum FunctionFlag {
    * and has to free them when deleted.
    */
   FUNC_FREE_POINTERS = (1 << 10),
-} FunctionFlag;
+};
 
-typedef void (*CallFunc)(struct bContext *C,
-                         struct ReportList *reports,
-                         PointerRNA *ptr,
-                         ParameterList *parms);
+using CallFunc = void (*)(bContext *C, ReportList *reports, PointerRNA *ptr, ParameterList *parms);
 
-typedef struct FunctionRNA FunctionRNA;
+struct FunctionRNA;
 
 /* Struct */
 
-typedef enum StructFlag {
+enum StructFlag {
   /** Indicates that this struct is an ID struct, and to use reference-counting. */
   STRUCT_ID = (1 << 0),
   STRUCT_ID_REFCOUNT = (1 << 1),
@@ -738,33 +823,33 @@ typedef enum StructFlag {
    * So accessing the property should not read from the current context to derive values/limits.
    */
   STRUCT_NO_CONTEXT_WITHOUT_OWNER_ID = (1 << 11),
-} StructFlag;
+};
 
-typedef int (*StructValidateFunc)(struct PointerRNA *ptr, void *data, bool *have_function);
-typedef int (*StructCallbackFunc)(struct bContext *C,
-                                  struct PointerRNA *ptr,
-                                  struct FunctionRNA *func,
-                                  ParameterList *list);
-typedef void (*StructFreeFunc)(void *data);
-typedef struct StructRNA *(*StructRegisterFunc)(struct Main *bmain,
-                                                struct ReportList *reports,
-                                                void *data,
-                                                const char *identifier,
-                                                StructValidateFunc validate,
-                                                StructCallbackFunc call,
-                                                StructFreeFunc free);
+using StructValidateFunc = int (*)(PointerRNA *ptr, void *data, bool *have_function);
+using StructCallbackFunc = int (*)(bContext *C,
+                                   PointerRNA *ptr,
+                                   FunctionRNA *func,
+                                   ParameterList *list);
+using StructFreeFunc = void (*)(void *data);
+using StructRegisterFunc = StructRNA *(*)(Main *bmain,
+                                          ReportList *reports,
+                                          void *data,
+                                          const char *identifier,
+                                          StructValidateFunc validate,
+                                          StructCallbackFunc call,
+                                          StructFreeFunc free);
 /** Return true when `type` was successfully unregistered & freed. */
-typedef bool (*StructUnregisterFunc)(struct Main *bmain, struct StructRNA *type);
-typedef void **(*StructInstanceFunc)(PointerRNA *ptr);
+using StructUnregisterFunc = bool (*)(Main *bmain, StructRNA *type);
+using StructInstanceFunc = void **(*)(PointerRNA *ptr);
 
-typedef struct StructRNA StructRNA;
+struct StructRNA;
 
 /**
  * Blender RNA
  *
  * Root RNA data structure that lists all struct types.
  */
-typedef struct BlenderRNA BlenderRNA;
+struct BlenderRNA;
 
 /**
  * Extending
@@ -772,29 +857,29 @@ typedef struct BlenderRNA BlenderRNA;
  * This struct must be embedded in *Type structs in
  * order to make them definable through RNA.
  */
-typedef struct ExtensionRNA {
+struct ExtensionRNA {
   void *data;
   StructRNA *srna;
   StructCallbackFunc call;
   StructFreeFunc free;
-} ExtensionRNA;
+};
 
 /* Primitive types. */
 
-typedef struct PrimitiveStringRNA {
+struct PrimitiveStringRNA {
   const char *value;
-} PrimitiveStringRNA;
+};
 
-typedef struct PrimitiveIntRNA {
+struct PrimitiveIntRNA {
   int value;
-} PrimitiveIntRNA;
+};
 
-typedef struct PrimitiveFloatRNA {
+struct PrimitiveFloatRNA {
   float value;
-} PrimitiveFloatRNA;
+};
 
-typedef struct PrimitiveBooleanRNA {
+struct PrimitiveBooleanRNA {
   bool value;
-} PrimitiveBooleanRNA;
+};
 
 #endif /* __RNA_TYPES_H__ */

@@ -67,13 +67,13 @@ class GHOST_Window : public GHOST_IWindow {
    * Destructor.
    * Closes the window and disposes resources allocated.
    */
-  virtual ~GHOST_Window();
+  ~GHOST_Window() override;
 
   /**
    * Returns indication as to whether the window is valid.
    * \return The validity of the window.
    */
-  virtual bool getValid() const override
+  bool getValid() const override
   {
     return m_context != nullptr;
   }
@@ -82,7 +82,39 @@ class GHOST_Window : public GHOST_IWindow {
    * Returns the associated OS object/handle
    * \return The associated OS object/handle
    */
-  virtual void *getOSWindow() const override;
+  void *getOSWindow() const override;
+
+  GHOST_TSuccess setPath(const char * /*filepath*/) override
+  {
+    return GHOST_kFailure;
+  }
+
+  /**
+   * Return the current window decoration style flags.
+   */
+  virtual GHOST_TWindowDecorationStyleFlags getWindowDecorationStyleFlags() override;
+
+  /**
+   * Set the window decoration style flags.
+   * \param styleFlags: Window decoration style flags.
+   */
+  virtual void setWindowDecorationStyleFlags(
+      GHOST_TWindowDecorationStyleFlags styleFlags) override;
+
+  /**
+   * Set the window decoration style settings.
+   * \param decorationSettings: Window decoration style settings.
+   */
+  virtual void setWindowDecorationStyleSettings(
+      GHOST_WindowDecorationStyleSettings decorationSettings) override;
+
+  /**
+   * Apply the window decoration style using the current flags and settings.
+   */
+  virtual GHOST_TSuccess applyWindowDecorationStyle() override
+  {
+    return GHOST_kSuccess;
+  }
 
   /**
    * Returns the current cursor shape.
@@ -90,7 +122,7 @@ class GHOST_Window : public GHOST_IWindow {
    */
   inline GHOST_TStandardCursor getCursorShape() const override;
 
-  inline bool isDialog() const override
+  bool isDialog() const override
   {
     return false;
   }
@@ -168,7 +200,7 @@ class GHOST_Window : public GHOST_IWindow {
    * Sets the progress bar value displayed in the window/application icon
    * \param progress: The progress percentage (0.0 to 1.0).
    */
-  virtual GHOST_TSuccess setProgressBar(float /*progress*/) override
+  GHOST_TSuccess setProgressBar(float /*progress*/) override
   {
     return GHOST_kFailure;
   }
@@ -176,7 +208,7 @@ class GHOST_Window : public GHOST_IWindow {
   /**
    * Hides the progress bar in the icon
    */
-  virtual GHOST_TSuccess endProgressBar() override
+  GHOST_TSuccess endProgressBar() override
   {
     return GHOST_kFailure;
   }
@@ -195,7 +227,7 @@ class GHOST_Window : public GHOST_IWindow {
   GHOST_TSuccess getSwapInterval(int &intervalOut) override;
 
   /**
-   * Tells if the ongoing drag'n'drop object can be accepted upon mouse drop
+   * Tells if the ongoing drag & drop object can be accepted upon mouse drop.
    */
   void setAcceptDragOperation(bool canAccept) override;
 
@@ -210,13 +242,13 @@ class GHOST_Window : public GHOST_IWindow {
    * \param isUnsavedChanges: Unsaved changes or not.
    * \return Indication of success.
    */
-  virtual GHOST_TSuccess setModifiedState(bool isUnsavedChanges) override;
+  GHOST_TSuccess setModifiedState(bool isUnsavedChanges) override;
 
   /**
    * Gets the window "modified" status, indicating unsaved changes
    * \return True if there are unsaved changes
    */
-  virtual bool getModifiedState() override;
+  bool getModifiedState() override;
 
   /**
    * Returns the type of drawing context used in this window.
@@ -237,19 +269,19 @@ class GHOST_Window : public GHOST_IWindow {
    * Returns the drawing context used in this window.
    * \return The current drawing context.
    */
-  virtual GHOST_IContext *getDrawingContext() override;
+  GHOST_IContext *getDrawingContext() override;
 
   /**
    * Swaps front and back buffers of a window.
    * \return A boolean success indicator.
    */
-  virtual GHOST_TSuccess swapBuffers() override;
+  GHOST_TSuccess swapBuffers() override;
 
   /**
    * Activates the drawing context of this window.
    * \return A boolean success indicator.
    */
-  virtual GHOST_TSuccess activateDrawingContext() override;
+  GHOST_TSuccess activateDrawingContext() override;
 
   /**
    * Updates the drawing context of this window. Needed
@@ -268,21 +300,18 @@ class GHOST_Window : public GHOST_IWindow {
    * Gets the OpenGL frame-buffer associated with the window's contents.
    * \return The ID of an OpenGL frame-buffer object.
    */
-  virtual unsigned int getDefaultFramebuffer() override;
+  unsigned int getDefaultFramebuffer() override;
 
-  /**
-   * Gets the Vulkan framebuffer related resource handles associated with the Vulkan context.
-   * Needs to be called after each swap events as the framebuffer will change.
-   * \return  A boolean success indicator.
-   */
-  virtual GHOST_TSuccess getVulkanBackbuffer(
-      void *image, void *framebuffer, void *render_pass, void *extent, uint32_t *fb_id) override;
+#ifdef WITH_VULKAN_BACKEND
+  virtual GHOST_TSuccess getVulkanSwapChainFormat(
+      GHOST_VulkanSwapChainData *r_swap_chain_data) override;
+#endif
 
   /**
    * Returns the window user data.
    * \return The window user data.
    */
-  inline GHOST_TUserDataPtr getUserData() const override
+  GHOST_TUserDataPtr getUserData() const override
   {
     return m_userData;
   }
@@ -308,19 +337,19 @@ class GHOST_Window : public GHOST_IWindow {
    * Returns the recommended DPI for this window.
    * \return The recommended DPI for this window.
    */
-  virtual inline uint16_t getDPIHint() override
+  uint16_t getDPIHint() override
   {
     return 96;
   }
 
 #ifdef WITH_INPUT_IME
-  virtual void beginIME(
+  void beginIME(
       int32_t /*x*/, int32_t /*y*/, int32_t /*w*/, int32_t /*h*/, bool /*completed*/) override
   {
     /* do nothing temporarily if not in windows */
   }
 
-  virtual void endIME() override
+  void endIME() override
   {
     /* do nothing temporarily if not in windows */
   }
@@ -399,7 +428,7 @@ class GHOST_Window : public GHOST_IWindow {
   /** The presence of progress indicator with the application icon */
   bool m_progressBarVisible;
 
-  /** The acceptance of the "drop candidate" of the current drag'n'drop operation */
+  /** The acceptance of the "drop candidate" of the current drag & drop operation. */
   bool m_canAcceptDragOperation;
 
   /** Modified state : are there unsaved changes */
@@ -407,6 +436,10 @@ class GHOST_Window : public GHOST_IWindow {
 
   /** Stores whether this is a full screen window. */
   bool m_fullScreen;
+
+  /** Window Decoration Styles. */
+  GHOST_TWindowDecorationStyleFlags m_windowDecorationStyleFlags;
+  GHOST_WindowDecorationStyleSettings m_windowDecorationStyleSettings;
 
   /** Whether to attempt to initialize a context with a stereo frame-buffer. */
   bool m_wantStereoVisual;

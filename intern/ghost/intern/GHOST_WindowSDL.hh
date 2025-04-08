@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2011-2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2011-2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -115,17 +115,6 @@ class GHOST_WindowSDL : public GHOST_Window {
   {
     // TODO
     return GHOST_kSuccess;
-  }
-
-  // TODO
-  GHOST_TSuccess beginFullScreen() const override
-  {
-    return GHOST_kFailure;
-  }
-
-  GHOST_TSuccess endFullScreen() const override
-  {
-    return GHOST_kFailure;
   }
 
   uint16_t getDPIHint() override;

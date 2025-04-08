@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -10,16 +10,15 @@
 
 #include "BLI_fileops.h"
 
-#include "IMB_filetype.h"
-#include "IMB_imbuf.h"
-#include "IMB_imbuf_types.h"
-
-#include "IMB_colormanagement.h"
-#include "IMB_colormanagement_intern.h"
+#include "IMB_colormanagement.hh"
+#include "IMB_filetype.hh"
+#include "IMB_imbuf.hh"
+#include "IMB_imbuf_types.hh"
 
 #include "openjpeg.h"
 
-#include <string.h>
+#include <algorithm>
+#include <cstring>
 
 #define JP2_FILEHEADER_SIZE 12
 
@@ -92,7 +91,7 @@ static void warning_callback(const char *msg, void *client_data)
   fprintf(stream, "[WARNING] %s", msg);
 }
 
-#ifdef DEBUG
+#ifndef NDEBUG
 /**
  * sample debug callback expecting no client object
  */
@@ -299,9 +298,9 @@ static opj_stream_t *opj_stream_create_from_file(const char *filepath,
 static ImBuf *imb_load_jp2_stream(opj_stream_t *stream,
                                   OPJ_CODEC_FORMAT p_format,
                                   int flags,
-                                  char colorspace[IM_MAX_SPACE]);
+                                  ImFileColorSpace &r_colorspace);
 
-ImBuf *imb_load_jp2(const uchar *mem, size_t size, int flags, char colorspace[IM_MAX_SPACE])
+ImBuf *imb_load_jp2(const uchar *mem, size_t size, int flags, ImFileColorSpace &r_colorspace)
 {
   const OPJ_CODEC_FORMAT format = (size > JP2_FILEHEADER_SIZE) ? format_from_header(mem, size) :
                                                                  OPJ_CODEC_UNKNOWN;
@@ -311,12 +310,12 @@ ImBuf *imb_load_jp2(const uchar *mem, size_t size, int flags, char colorspace[IM
   buf_wrapper.len = OPJ_OFF_T(size);
   opj_stream_t *stream = opj_stream_create_from_buffer(
       &buf_wrapper, OPJ_J2K_STREAM_CHUNK_SIZE, true);
-  ImBuf *ibuf = imb_load_jp2_stream(stream, format, flags, colorspace);
+  ImBuf *ibuf = imb_load_jp2_stream(stream, format, flags, r_colorspace);
   opj_stream_destroy(stream);
   return ibuf;
 }
 
-ImBuf *imb_load_jp2_filepath(const char *filepath, int flags, char colorspace[IM_MAX_SPACE])
+ImBuf *imb_load_jp2_filepath(const char *filepath, int flags, ImFileColorSpace &r_colorspace)
 {
   FILE *p_file = nullptr;
   uchar mem[JP2_FILEHEADER_SIZE];
@@ -334,7 +333,7 @@ ImBuf *imb_load_jp2_filepath(const char *filepath, int flags, char colorspace[IM
   fseek(p_file, 0, SEEK_SET);
 
   const OPJ_CODEC_FORMAT format = format_from_header(mem, sizeof(mem));
-  ImBuf *ibuf = imb_load_jp2_stream(stream, format, flags, colorspace);
+  ImBuf *ibuf = imb_load_jp2_stream(stream, format, flags, r_colorspace);
   opj_stream_destroy(stream);
   return ibuf;
 }
@@ -342,7 +341,7 @@ ImBuf *imb_load_jp2_filepath(const char *filepath, int flags, char colorspace[IM
 static ImBuf *imb_load_jp2_stream(opj_stream_t *stream,
                                   const OPJ_CODEC_FORMAT format,
                                   int flags,
-                                  char colorspace[IM_MAX_SPACE])
+                                  ImFileColorSpace & /*r_colorspace*/)
 {
   if (format == OPJ_CODEC_UNKNOWN) {
     return nullptr;
@@ -357,15 +356,12 @@ static ImBuf *imb_load_jp2_stream(opj_stream_t *stream,
 
   uint i, i_next, w, h, planes;
   uint y;
-  int *r, *g, *b, *a; /* matching 'opj_image_comp.data' type */
+  const int *r, *g, *b, *a; /* matching 'opj_image_comp.data' type */
 
   opj_dparameters_t parameters; /* decompression parameters */
 
   opj_image_t *image = nullptr;
   opj_codec_t *codec = nullptr; /* handle to a decompressor */
-
-  /* both 8, 12 and 16 bit JP2Ks are default to standard byte colorspace */
-  colorspace_set_default_role(colorspace, IM_MAX_SPACE, COLOR_ROLE_DEFAULT_BYTE);
 
   /* set decoding parameters to default values */
   opj_set_default_decoder_parameters(&parameters);
@@ -378,7 +374,7 @@ static ImBuf *imb_load_jp2_stream(opj_stream_t *stream,
   /* configure the event callbacks (not required) */
   opj_set_error_handler(codec, error_callback, stderr);
   opj_set_warning_handler(codec, warning_callback, stderr);
-#ifdef DEBUG /* too noisy */
+#ifndef NDEBUG /* too noisy */
   opj_set_info_handler(codec, info_callback, stderr);
 #endif
 
@@ -419,9 +415,7 @@ static ImBuf *imb_load_jp2_stream(opj_stream_t *stream,
   }
 
   i = image->numcomps;
-  if (i > 4) {
-    i = 4;
-  }
+  i = std::min<uint>(i, 4);
 
   while (i) {
     i--;
@@ -431,21 +425,21 @@ static ImBuf *imb_load_jp2_stream(opj_stream_t *stream,
     }
 
     if (image->comps[i].sgnd) {
-      signed_offsets[i] = 1 << (image->comps[i].prec - 1);
+      signed_offsets[i] = long(1) << (image->comps[i].prec - 1);
     }
 
     /* only needed for float images but doesn't hurt to calc this */
     float_divs[i] = (1 << image->comps[i].prec) - 1;
   }
 
-  ibuf = IMB_allocImBuf(w, h, planes, use_float ? IB_rectfloat : IB_rect);
+  ibuf = IMB_allocImBuf(w, h, planes, use_float ? IB_float_data : IB_byte_data);
 
   if (ibuf == nullptr) {
     goto finally;
   }
 
   ibuf->ftype = IMB_FTYPE_JP2;
-  if (true /* is_jp2 */) {
+  if (true /*is_jp2*/) {
     ibuf->foptions.flag |= JP2_JP2;
   }
   else {
@@ -457,7 +451,6 @@ static ImBuf *imb_load_jp2_stream(opj_stream_t *stream,
 
     if (image->numcomps < 3) {
       r = image->comps[0].data;
-      a = (use_alpha) ? image->comps[1].data : nullptr;
 
       /* Gray-scale 12bits+ */
       if (use_alpha) {
@@ -510,7 +503,6 @@ static ImBuf *imb_load_jp2_stream(opj_stream_t *stream,
 
     if (image->numcomps < 3) {
       r = image->comps[0].data;
-      a = (use_alpha) ? image->comps[1].data : nullptr;
 
       /* Gray-scale. */
       if (use_alpha) {
@@ -557,8 +549,8 @@ static ImBuf *imb_load_jp2_stream(opj_stream_t *stream,
     }
   }
 
-  if (flags & IB_rect) {
-    IMB_rect_from_float(ibuf);
+  if (flags & IB_byte_data) {
+    IMB_byte_from_float(ibuf);
   }
 
 finally:
@@ -698,9 +690,7 @@ static void cinema_setup_encoder(opj_cparameters_t *parameters,
   switch (parameters->cp_cinema) {
     case OPJ_CINEMA2K_24:
     case OPJ_CINEMA2K_48:
-      if (parameters->numresolution > 6) {
-        parameters->numresolution = 6;
-      }
+      parameters->numresolution = std::min(parameters->numresolution, 6);
       if (!((image->comps[0].w == 2048) || (image->comps[0].h == 1080))) {
         fprintf(stdout,
                 "Image coordinates %u x %u is not 2K compliant.\nJPEG Digital Cinema Profile-3 "
@@ -849,7 +839,7 @@ static opj_image_t *ibuftoimage(ImBuf *ibuf, opj_cparameters_t *parameters)
       }
     }
     if (parameters->cp_cinema) {
-      img_fol.rates = (float *)MEM_mallocN(parameters->tcp_numlayers * sizeof(float), "jp2_rates");
+      img_fol.rates = MEM_malloc_arrayN<float>(size_t(parameters->tcp_numlayers), "jp2_rates");
       for (i = 0; i < parameters->tcp_numlayers; i++) {
         img_fol.rates[i] = parameters->tcp_rates[i];
       }
@@ -1235,7 +1225,7 @@ bool imb_save_jp2_stream(ImBuf *ibuf, opj_stream_t *stream, int /*flags*/)
     /* configure the event callbacks (not required) */
     opj_set_error_handler(codec, error_callback, stderr);
     opj_set_warning_handler(codec, warning_callback, stderr);
-#ifdef DEBUG /* too noisy */
+#ifndef NDEBUG /* too noisy */
     opj_set_info_handler(codec, info_callback, stderr);
 #endif
 

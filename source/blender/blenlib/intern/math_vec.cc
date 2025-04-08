@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -9,8 +9,6 @@
 #include "BLI_hash.hh"
 #include "BLI_math_vector.hh"
 #include "BLI_math_vector_mpq_types.hh"
-#include "BLI_span.hh"
-#include "BLI_utildefines.h"
 
 namespace blender::math {
 

@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2013 Blender Foundation
+/* SPDX-FileCopyrightText: 2013 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -23,13 +23,14 @@
     {                                                                          \
       if (what) {                                                              \
         ((type*)what)->~type();                                                \
-        MEM_freeN(what);                                                       \
+        MEM_freeN(const_cast<void*>(static_cast<const void*>(what)));          \
       }                                                                        \
     }                                                                          \
     (void)0
 #  define LIBMV_STRUCT_NEW(type, count)                                        \
     (type*)MEM_mallocN(sizeof(type) * count, __func__)
-#  define LIBMV_STRUCT_DELETE(what) MEM_freeN(what)
+#  define LIBMV_STRUCT_DELETE(what)                                            \
+    MEM_freeN(const_cast<void*>(static_cast<const void*>(what)))
 #else
 // Need this to keep libmv-capi potentially standalone.
 #  if defined __GNUC__ || defined __sun

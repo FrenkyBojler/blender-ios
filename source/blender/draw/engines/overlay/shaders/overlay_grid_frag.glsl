@@ -1,11 +1,17 @@
+/* SPDX-FileCopyrightText: 2017-2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
+
+#include "infos/overlay_grid_info.hh"
+
+FRAGMENT_SHADER_CREATE_INFO(overlay_grid_next)
+
 /**
  * Infinite grid:
- * Draw antialiased grid and axes of different sizes with smooth blending between levels of detail.
- * We draw multiple triangles to avoid float precision issues due to perspective interpolation.
- **/
-
-#pragma BLENDER_REQUIRE(common_view_lib.glsl)
-#pragma BLENDER_REQUIRE(common_math_lib.glsl)
+ * Draw anti-aliased grid and axes of different sizes with smooth blending between levels of
+ * detail. We draw multiple triangles to avoid float precision issues due to perspective
+ * interpolation.
+ */
 
 /**
  * We want to know how much of a pixel is covered by a line.
@@ -18,11 +24,14 @@
  * For an alternate approach, see:
  * https://developer.nvidia.com/gpugems/gpugems2/part-iii-high-quality-rendering/chapter-22-fast-prefiltered-lines
  */
-#define M_1_SQRTPI 0.5641895835477563 /* 1/sqrt(pi) */
+#define M_1_SQRTPI 0.5641895835477563 /* `1/sqrt(pi)`. */
 #define DISC_RADIUS (M_1_SQRTPI * 1.05)
 #define GRID_LINE_SMOOTH_START (0.5 + DISC_RADIUS)
 #define GRID_LINE_SMOOTH_END (0.5 - DISC_RADIUS)
 #define GRID_LINE_STEP(dist) smoothstep(GRID_LINE_SMOOTH_START, GRID_LINE_SMOOTH_END, dist)
+
+#include "draw_view_lib.glsl"
+#include "gpu_shader_utildefines_lib.glsl"
 
 float get_grid(vec2 co, vec2 fwidthCos, vec2 grid_scale)
 {
@@ -54,12 +63,12 @@ void main()
   vec3 dFdxPos = dFdx(P);
   vec3 dFdyPos = dFdy(P);
   vec3 fwidthPos = abs(dFdxPos) + abs(dFdyPos);
-  P += cameraPos * plane_axes;
+  P += drw_view_position() * plane_axes;
 
   float dist, fade;
-  bool is_persp = drw_view.winmat[3][3] == 0.0;
+  bool is_persp = drw_view().winmat[3][3] == 0.0;
   if (is_persp) {
-    vec3 V = cameraPos - P;
+    vec3 V = drw_view_position() - P;
     dist = length(V);
     V /= dist;
 
@@ -87,7 +96,7 @@ void main()
     dist = 1.0; /* Avoid branch after. */
 
     if (flag_test(grid_flag, PLANE_XY)) {
-      float angle = 1.0 - abs(drw_view.viewinv[2].z);
+      float angle = 1.0 - abs(drw_view().viewinv[2].z);
       dist = 1.0 + angle * 2.0;
       angle *= angle;
       fade *= 1.0 - angle * angle;
@@ -95,9 +104,9 @@ void main()
   }
 
   if (flag_test(grid_flag, SHOW_GRID)) {
-    /* Using `max(dot(dFdxPos, ViewMatrixInverse[0]), dot(dFdyPos, ViewMatrixInverse[1]))`
+    /* Using `max(dot(dFdxPos, drw_view().viewinv[0]), dot(dFdyPos, drw_view().viewinv[1]))`
      * would be more accurate, but not really necessary. */
-    float grid_res = dot(dFdxPos, ViewMatrixInverse[0].xyz);
+    float grid_res = dot(dFdxPos, drw_view().viewinv[0].xyz);
 
     /* The grid begins to appear when it comprises 4 pixels. */
     grid_res *= 4;
@@ -198,7 +207,15 @@ void main()
     }
   }
 
-  float scene_depth = texelFetch(depth_tx, ivec2(gl_FragCoord.xy), 0).r;
+  vec2 uv = gl_FragCoord.xy / vec2(textureSize(depth_tx, 0));
+  float scene_depth = texture(depth_tx, uv, 0).r;
+
+  float scene_depth_infront = texture(depth_infront_tx, uv, 0).r;
+  if (scene_depth_infront != 1.0) {
+    /* Treat in front objects as if they were on the near plane to occlude the grid. */
+    scene_depth = 0.0;
+  }
+
   if (flag_test(grid_flag, GRID_BACK)) {
     fade *= (scene_depth == 1.0) ? 1.0 : 0.0;
   }

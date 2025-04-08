@@ -1,7 +1,10 @@
+/* SPDX-FileCopyrightText: 2015-2022 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#ifndef USE_GPU_SHADER_CREATE_INFO
-out vec4 uvcoordsvar;
-#endif
+#include "draw_fullscreen_info.hh"
+
+VERTEX_SHADER_CREATE_INFO(draw_fullscreen)
 
 void main()
 {

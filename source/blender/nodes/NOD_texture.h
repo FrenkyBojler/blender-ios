@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2005 Blender Foundation
+/* SPDX-FileCopyrightText: 2005 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -8,13 +8,9 @@
 
 #pragma once
 
-#include "BKE_node.h"
+#include "BKE_node.hh"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-extern struct bNodeTreeType *ntreeType_Texture;
+extern struct blender::bke::bNodeTreeType *ntreeType_Texture;
 
 void ntreeTexCheckCyclics(struct bNodeTree *ntree);
 struct bNodeTreeExec *ntreeTexBeginExecTree(struct bNodeTree *ntree);
@@ -31,7 +27,3 @@ int ntreeTexExecTree(struct bNodeTree *ntree,
                      int cfra,
                      int preview,
                      struct MTex *mtex);
-
-#ifdef __cplusplus
-}
-#endif

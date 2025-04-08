@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2022 Blender Foundation
+/* SPDX-FileCopyrightText: 2022 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -10,11 +10,11 @@
 
 #include "BLI_vector.hh"
 
-#include "IMB_colormanagement.h"
-#include "IMB_imbuf.h"
-#include "IMB_imbuf_types.h"
+#include "IMB_colormanagement.hh"
+#include "IMB_imbuf.hh"
+#include "IMB_imbuf_types.hh"
 
-namespace blender::draw::image_engine {
+namespace blender::image_engine {
 
 struct FloatImageBuffer {
   ImBuf *source_buffer = nullptr;
@@ -89,7 +89,7 @@ struct FloatBufferCache {
     }
 
     /* Generate a new float buffer. */
-    IMB_float_from_rect(image_buffer);
+    IMB_float_from_byte(image_buffer);
     ImBuf *new_imbuf = IMB_allocImBuf(image_buffer->x, image_buffer->y, image_buffer->planes, 0);
 
     IMB_assign_float_buffer(new_imbuf, IMB_steal_float_buffer(image_buffer), IB_TAKE_OWNERSHIP);
@@ -130,4 +130,4 @@ struct FloatBufferCache {
   }
 };
 
-}  // namespace blender::draw::image_engine
+}  // namespace blender::image_engine

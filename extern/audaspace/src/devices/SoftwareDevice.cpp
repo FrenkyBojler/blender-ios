@@ -473,8 +473,6 @@ bool SoftwareDevice::SoftwareHandle::setStopCallback(stopCallback callback, void
 	return true;
 }
 
-
-
 /******************************************************************************/
 /******************** SoftwareHandle 3DHandle Code ************************/
 /******************************************************************************/
@@ -718,7 +716,7 @@ void SoftwareDevice::create()
 	m_doppler_factor = 1.0f;
 	m_distance_model = DISTANCE_MODEL_INVERSE_CLAMPED;
 	m_flags = 0;
-	m_quality = false;
+	m_quality = ResampleQuality::FASTEST;
 }
 
 void SoftwareDevice::destroy()
@@ -726,11 +724,7 @@ void SoftwareDevice::destroy()
 	if(m_playback)
 		playing(m_playback = false);
 
-	while(!m_playingSounds.empty())
-		m_playingSounds.front()->stop();
-
-	while(!m_pausedSounds.empty())
-		m_pausedSounds.front()->stop();
+	stopAll();
 }
 
 void SoftwareDevice::mix(data_t* buffer, int length)
@@ -820,6 +814,9 @@ void SoftwareDevice::mix(data_t* buffer, int length)
 
 		pauseSounds.clear();
 		stopSounds.clear();
+
+		if(m_synchronizerState)
+			m_synchronizerPosition += length;
 	}
 }
 
@@ -829,7 +826,7 @@ void SoftwareDevice::setPanning(IHandle* handle, float pan)
 	h->m_user_pan = pan;
 }
 
-void SoftwareDevice::setQuality(bool quality)
+void SoftwareDevice::setQuality(ResampleQuality quality)
 {
 	m_quality = quality;
 }
@@ -886,10 +883,14 @@ std::shared_ptr<IHandle> SoftwareDevice::play(std::shared_ptr<IReader> reader, b
 	std::shared_ptr<ResampleReader> resampler;
 
 	// resample
-	if(m_quality)
-		resampler = std::shared_ptr<ResampleReader>(new JOSResampleReader(reader, m_specs.rate));
-	else
+	if (m_quality == ResampleQuality::FASTEST)
+	{
 		resampler = std::shared_ptr<ResampleReader>(new LinearResampleReader(reader, m_specs.rate));
+	}
+	else
+	{
+		resampler = std::shared_ptr<ResampleReader>(new JOSResampleReader(reader, m_specs.rate, m_quality));
+	}
 	reader = std::shared_ptr<IReader>(resampler);
 
 	// rechannel
@@ -946,11 +947,6 @@ float SoftwareDevice::getVolume() const
 void SoftwareDevice::setVolume(float volume)
 {
 	m_volume = volume;
-}
-
-ISynchronizer* SoftwareDevice::getSynchronizer()
-{
-	return &m_synchronizer;
 }
 
 /******************************************************************************/
@@ -1023,6 +1019,41 @@ void SoftwareDevice::setDistanceModel(DistanceModel model)
 		m_flags |= RENDER_DISTANCE;
 	else
 		m_flags &= ~RENDER_DISTANCE;
+}
+
+void SoftwareDevice::seekSynchronizer(double time)
+{
+	std::lock_guard<ILockable> lock(*this);
+
+	m_synchronizerPosition = uint64_t(time * m_specs.rate);
+}
+
+double SoftwareDevice::getSynchronizerPosition()
+{
+	return m_synchronizerPosition / m_specs.rate;
+}
+
+void SoftwareDevice::playSynchronizer()
+{
+	std::lock_guard<ILockable> lock(*this);
+
+	m_synchronizerState = 1;
+}
+
+void SoftwareDevice::stopSynchronizer()
+{
+	std::lock_guard<ILockable> lock(*this);
+
+	m_synchronizerState = 0;
+}
+
+void SoftwareDevice::setSyncCallback(syncFunction function, void* data)
+{
+}
+
+int SoftwareDevice::isSynchronizerPlaying()
+{
+	return m_synchronizerState;
 }
 
 AUD_NAMESPACE_END

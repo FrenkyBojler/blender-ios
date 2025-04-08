@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2022-2023 Blender Foundation
+# SPDX-FileCopyrightText: 2022-2023 Blender Authors
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
@@ -41,9 +41,14 @@ set(DPCPP_EXTRA_ARGS
   -DOpenCL_LIBRARY_SRC=file://${PACKAGE_DIR}/${ICDLOADER_FILE}
   -DBOOST_MP11_SOURCE_DIR=${BUILD_DIR}/mp11/src/external_mp11/
   -DLEVEL_ZERO_LIBRARY=${LIBDIR}/level-zero/lib/${LIBPREFIX}ze_loader${SHAREDLIBEXT}
-  -DLEVEL_ZERO_INCLUDE_DIR=${LIBDIR}/level-zero/include
+  -DLEVEL_ZERO_INCLUDE_DIR=${LIBDIR}/level-zero/include/level_zero
   -DLLVM_EXTERNAL_SPIRV_HEADERS_SOURCE_DIR=${BUILD_DIR}/spirvheaders/src/external_spirvheaders/
-  -DUNIFIED_RUNTIME_SOURCE_DIR=${BUILD_DIR}/unifiedruntime/src/external_unifiedruntime/
+  -DSYCL_PI_UR_USE_FETCH_CONTENT=OFF
+  -DSYCL_PI_UR_SOURCE_DIR=${BUILD_DIR}/unifiedruntime/src/external_unifiedruntime/
+  -DFETCHCONTENT_SOURCE_DIR_UNIFIED-MEMORY-FRAMEWORK=${BUILD_DIR}/unifiedmemoryframework/src/external_unifiedmemoryframework/
+  -DSYCL_UMF_DISABLE_HWLOC=ON
+  -DUMF_DISABLE_HWLOC=ON
+  -DUMF_BUILD_SHARED_LIBRARY=OFF
   # Below here is copied from an invocation of buildbot/config.py
   -DLLVM_ENABLE_ASSERTIONS=ON
   -DLLVM_TARGETS_TO_BUILD=X86
@@ -69,16 +74,29 @@ set(DPCPP_EXTRA_ARGS
   -DXPTI_ENABLE_WERROR=OFF
   -DSYCL_CLANG_EXTRA_FLAGS=
   -DSYCL_ENABLE_PLUGINS=level_zero
+  -DSYCL_ENABLE_EXTENSION_JIT=OFF
+  -DSYCL_ENABLE_MAJOR_RELEASE_PREVIEW_LIB=OFF
   -DCMAKE_INSTALL_RPATH=\$ORIGIN
   -DPython3_ROOT_DIR=${LIBDIR}/python/
   -DPython3_EXECUTABLE=${PYTHON_BINARY}
   -DPYTHON_EXECUTABLE=${PYTHON_BINARY}
   -DLLDB_ENABLE_CURSES=OFF
   -DLLVM_ENABLE_TERMINFO=OFF
+  -DLLVM_ENABLE_ZLIB=OFF
+  -DLLVM_ENABLE_ZSTD=FORCE_ON
+  -DLLVM_USE_STATIC_ZSTD=ON
+  -Dzstd_INCLUDE_DIR=${LIBDIR}/zstd/include
 )
 
 if(WIN32)
-  list(APPEND DPCPP_EXTRA_ARGS -DPython3_FIND_REGISTRY=NEVER)
+  list(APPEND DPCPP_EXTRA_ARGS
+    -DPython3_FIND_REGISTRY=NEVER
+    -Dzstd_LIBRARY=${LIBDIR}/zstd/lib/zstd_static.lib
+  )
+else()
+  list(APPEND DPCPP_EXTRA_ARGS
+    -Dzstd_LIBRARY=${LIBDIR}/zstd/lib/libzstd.a
+  )
 endif()
 
 ExternalProject_Add(external_dpcpp
@@ -89,14 +107,26 @@ ExternalProject_Add(external_dpcpp
   CMAKE_GENERATOR ${LLVM_GENERATOR}
   SOURCE_SUBDIR llvm
   LIST_SEPARATOR ^^
-  CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${LIBDIR}/dpcpp ${DPCPP_CMAKE_FLAGS} ${DPCPP_EXTRA_ARGS}
+
+  CMAKE_ARGS
+    -DCMAKE_INSTALL_PREFIX=${LIBDIR}/dpcpp
+    ${DPCPP_CMAKE_FLAGS}
+    ${DPCPP_EXTRA_ARGS}
+
   # CONFIGURE_COMMAND
   #   ${PYTHON_BINARY}
   #   ${BUILD_DIR}/dpcpp/src/external_dpcpp/buildbot/configure.py ${DPCPP_CONFIGURE_ARGS}
   # BUILD_COMMAND
   #   echo "." # ${PYTHON_BINARY} ${BUILD_DIR}/dpcpp/src/external_dpcpp/buildbot/compile.py
   INSTALL_COMMAND ${CMAKE_COMMAND} --build . -- deploy-sycl-toolchain
-  PATCH_COMMAND ${PATCH_CMD} -p 1 -d ${BUILD_DIR}/dpcpp/src/external_dpcpp < ${PATCH_DIR}/dpcpp.diff
+
+  PATCH_COMMAND ${PATCH_CMD} -p 1 -d
+    ${BUILD_DIR}/dpcpp/src/external_dpcpp <
+    ${PATCH_DIR}/dpcpp.diff &&
+    ${PATCH_CMD} -p 1 -d
+    ${BUILD_DIR}/dpcpp/src/external_dpcpp <
+    ${PATCH_DIR}/dpcpp_15124.diff
+
   INSTALL_DIR ${LIBDIR}/dpcpp
 )
 
@@ -111,10 +141,13 @@ add_dependencies(
   external_level-zero
   external_spirvheaders
   external_unifiedruntime
+  external_unifiedmemoryframework
+  external_zstd
 )
 
-if(BUILD_MODE STREQUAL Release AND WIN32)
-  ExternalProject_Add_Step(external_dpcpp after_install
+if(WIN32)
+  if(BUILD_MODE STREQUAL Release)
+    ExternalProject_Add_Step(external_dpcpp after_install
       COMMAND ${CMAKE_COMMAND} -E copy_directory ${LIBDIR}/dpcpp ${HARVEST_TARGET}/dpcpp
       COMMAND ${CMAKE_COMMAND} -E rm -f ${HARVEST_TARGET}/dpcpp/bin/clang-cl.exe
       COMMAND ${CMAKE_COMMAND} -E rm -f ${HARVEST_TARGET}/dpcpp/bin/clang-cpp.exe
@@ -125,5 +158,12 @@ if(BUILD_MODE STREQUAL Release AND WIN32)
       COMMAND ${CMAKE_COMMAND} -E rm -f ${HARVEST_TARGET}/dpcpp/bin/lld-link.exe
       COMMAND ${CMAKE_COMMAND} -E rm -f ${HARVEST_TARGET}/dpcpp/bin/wasm-ld.exe
       DEPENDEES install
-  )
+    )
+  endif()
+else()
+  harvest(external_dpcpp dpcpp/bin dpcpp/bin "*")
+  harvest(external_dpcpp dpcpp/include dpcpp/include "*")
+  harvest(external_dpcpp dpcpp/lib dpcpp/lib "libsycl*")
+  harvest(external_dpcpp dpcpp/lib dpcpp/lib "libur*")
+  harvest(external_dpcpp dpcpp/lib/clang dpcpp/lib/clang "*")
 endif()

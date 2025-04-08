@@ -1,11 +1,21 @@
+/* SPDX-FileCopyrightText: 2019-2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#pragma BLENDER_REQUIRE(common_view_lib.glsl)
-#pragma BLENDER_REQUIRE(select_lib.glsl)
+#include "infos/overlay_extra_info.hh"
+
+FRAGMENT_SHADER_CREATE_INFO(overlay_extra_groundline)
+
+#include "overlay_common_lib.glsl"
+#include "select_lib.glsl"
 
 void main()
 {
   fragColor = finalColor;
+#ifdef IS_SPOT_CONE
+  lineOutput = vec4(0.0);
+#else
   lineOutput = pack_line_data(gl_FragCoord.xy, edgeStart, edgePos);
-
   select_id_output(select_id);
+#endif
 }

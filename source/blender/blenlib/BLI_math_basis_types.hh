@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -23,7 +23,7 @@
  * - Curve Tangent-Space: X-left, Y-up, Z-forward
  */
 
-#include <iostream>
+#include <iosfwd>
 
 #include "BLI_math_base.hh"
 #include "BLI_math_vector_types.hh"
@@ -61,9 +61,11 @@ class Axis {
   constexpr Axis(const Value axis) : axis_(axis){};
 
   /** Convert an uppercase axis character 'X', 'Y' or 'Z' to an enum value. */
-  constexpr explicit Axis(char axis_char) : axis_(static_cast<Value>(axis_char - 'X'))
+  constexpr static Axis from_char(char axis_char)
   {
-    BLI_assert(Value::X <= axis_ && axis_ <= Value::Z);
+    const Axis axis = static_cast<Value>(axis_char - 'X');
+    BLI_assert(int(Value::X) <= axis.as_int() && axis.as_int() <= int(Value::Z));
+    return axis;
   }
 
   /** Allow casting from DNA enums stored as short / int. */
@@ -88,20 +90,7 @@ class Axis {
   /** Avoid hell. */
   explicit operator bool() const = delete;
 
-  friend std::ostream &operator<<(std::ostream &stream, const Axis axis)
-  {
-    switch (axis.axis_) {
-      default:
-        BLI_assert_unreachable();
-        return stream << "Invalid Axis";
-      case Value::X:
-        return stream << 'X';
-      case Value::Y:
-        return stream << 'Y';
-      case Value::Z:
-        return stream << 'Z';
-    }
-  }
+  friend std::ostream &operator<<(std::ostream &stream, const Axis axis);
 };
 
 /**
@@ -190,29 +179,15 @@ class AxisSigned {
   /** Avoid hell. */
   explicit operator bool() const = delete;
 
-  friend std::ostream &operator<<(std::ostream &stream, const AxisSigned axis)
-  {
-    switch (axis.axis_) {
-      default:
-        BLI_assert_unreachable();
-        return stream << "Invalid AxisSigned";
-      case Value::X_POS:
-      case Value::Y_POS:
-      case Value::Z_POS:
-      case Value::X_NEG:
-      case Value::Y_NEG:
-      case Value::Z_NEG:
-        return stream << axis.axis() << (axis.sign() == -1 ? '-' : '+');
-    }
-  }
+  friend std::ostream &operator<<(std::ostream &stream, const AxisSigned axis);
 };
 
-constexpr static bool operator<=(const Axis::Value a, const Axis::Value b)
+constexpr bool operator<=(const Axis::Value a, const Axis::Value b)
 {
   return int(a) <= int(b);
 }
 
-constexpr static bool operator<=(const AxisSigned::Value a, const AxisSigned::Value b)
+constexpr bool operator<=(const AxisSigned::Value a, const AxisSigned::Value b)
 {
   return int(a) <= int(b);
 }
@@ -346,9 +321,9 @@ template<> inline AxisSigned abs(const AxisSigned &axis)
 /** Create basis vector. */
 template<typename T> T to_vector(const Axis axis)
 {
-  BLI_assert(axis <= AxisSigned::from_int(T::type_length - 1));
+  BLI_assert(axis.as_int() < T::type_length);
   T vec{};
-  vec[axis] = 1;
+  vec[axis.as_int()] = 1;
   return vec;
 }
 
@@ -417,10 +392,7 @@ struct CartesianBasis {
     return axes.z;
   }
 
-  friend std::ostream &operator<<(std::ostream &stream, const CartesianBasis &rot)
-  {
-    return stream << "CartesianBasis" << rot.axes;
-  }
+  friend std::ostream &operator<<(std::ostream &stream, const CartesianBasis &rot);
 };
 
 /**

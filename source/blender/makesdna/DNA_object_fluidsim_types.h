@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2004-2005 Blender Foundation
+/* SPDX-FileCopyrightText: 2004-2005 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -11,10 +11,6 @@
 #include "DNA_ID.h"
 #include "DNA_defs.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 struct Ipo;
 
 typedef struct FluidVertexVelocity {
@@ -22,7 +18,7 @@ typedef struct FluidVertexVelocity {
 } FluidVertexVelocity;
 
 typedef struct FluidsimSettings {
-  /** For fast RNA access. */
+  /** DEPRECATED. For fast RNA access. */
   struct FluidsimModifierData *fmd;
   /* threadcont the calculation is done with */
   int threads;
@@ -64,15 +60,17 @@ typedef struct FluidsimSettings {
   /* gravity strength */
   float iniVelx, iniVely, iniVelz;
 
-  /* store output path, and file prefix for baked fluid surface */
-  /* strlens; 256= FILE_MAXFILE, 768= FILE_MAXDIR */
+  /**
+   * Store output path, and file prefix for baked fluid surface.
+   * String length; 256= #FILE_MAXFILE, 768= #FILE_MAXDIR.
+   */
   char surfdataPath[1024];
 
   /* store start coords of axis aligned bounding box together with size */
   /* values are initialized during derived mesh display. */
   float bbStart[3], bbSize[3];
 
-  /* animated params */
+  /** Animated parameters. */
   struct Ipo *ipo;
 
   /* additional flags depending on the type, lower short contains flags
@@ -120,7 +118,7 @@ typedef struct FluidsimSettings {
 
   int lastgoodframe;
 
-  /** Simulation/flow rate control (i.e. old "Fac-Time"). */
+  /** Simulation/flow rate control. */
   float animRate;
 } FluidsimSettings;
 
@@ -142,7 +140,3 @@ enum {
   OB_FLUIDSIM_ACTIVE = 1 << 1,
   OB_FLUIDSIM_OVERRIDE_TIME = 1 << 2,
 };
-
-#ifdef __cplusplus
-}
-#endif

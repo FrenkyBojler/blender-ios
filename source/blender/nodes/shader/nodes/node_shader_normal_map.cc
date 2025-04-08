@@ -1,13 +1,17 @@
-/* SPDX-FileCopyrightText: 2005 Blender Foundation
+/* SPDX-FileCopyrightText: 2005 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "DNA_node_types.h"
 #include "node_shader_util.hh"
+#include "node_util.hh"
 
-#include "BKE_context.h"
+#include "BKE_context.hh"
 #include "BKE_node_runtime.hh"
 
-#include "DEG_depsgraph_query.h"
+#include "DEG_depsgraph_query.hh"
+
+#include "RNA_access.hh"
 
 #include "UI_interface.hh"
 #include "UI_resources.hh"
@@ -16,35 +20,44 @@ namespace blender::nodes::node_shader_normal_map_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Float>("Strength").default_value(1.0f).min(0.0f).max(10.0f);
-  b.add_input<decl::Color>("Color").default_value({0.5f, 0.5f, 1.0f, 1.0f});
+  b.add_input<decl::Float>("Strength")
+      .default_value(1.0f)
+      .min(0.0f)
+      .max(10.0f)
+      .description("Strength of the normal mapping effect")
+      .translation_context(BLT_I18NCONTEXT_AMOUNT);
+  b.add_input<decl::Color>("Color")
+      .default_value({0.5f, 0.5f, 1.0f, 1.0f})
+      .description("Color that encodes the normal map in the specified space");
   b.add_output<decl::Vector>("Normal");
 }
 
 static void node_shader_buts_normal_map(uiLayout *layout, bContext *C, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "space", UI_ITEM_R_SPLIT_EMPTY_NAME, "", 0);
+  uiItemR(layout, ptr, "space", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
 
   if (RNA_enum_get(ptr, "space") == SHD_SPACE_TANGENT) {
     PointerRNA obptr = CTX_data_pointer_get(C, "active_object");
+    Object *object = static_cast<Object *>(obptr.data);
 
-    if (obptr.data && RNA_enum_get(&obptr, "type") == OB_MESH) {
-      PointerRNA eval_obptr;
+    if (object && object->type == OB_MESH) {
+      Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
 
-      Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-      DEG_get_evaluated_rna_pointer(depsgraph, &obptr, &eval_obptr);
-      PointerRNA dataptr = RNA_pointer_get(&eval_obptr, "data");
-      uiItemPointerR(layout, ptr, "uv_map", &dataptr, "uv_layers", "", ICON_NONE);
+      if (depsgraph) {
+        Object *object_eval = DEG_get_evaluated_object(depsgraph, object);
+        PointerRNA dataptr = RNA_id_pointer_create(static_cast<ID *>(object_eval->data));
+        uiItemPointerR(layout, ptr, "uv_map", &dataptr, "uv_layers", "", ICON_GROUP_UVS);
+        return;
+      }
     }
-    else {
-      uiItemR(layout, ptr, "uv_map", UI_ITEM_R_SPLIT_EMPTY_NAME, "", 0);
-    }
+
+    uiItemR(layout, ptr, "uv_map", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
   }
 }
 
 static void node_shader_init_normal_map(bNodeTree * /*ntree*/, bNode *node)
 {
-  NodeShaderNormalMap *attr = MEM_cnew<NodeShaderNormalMap>("NodeShaderNormalMap");
+  NodeShaderNormalMap *attr = MEM_callocN<NodeShaderNormalMap>("NodeShaderNormalMap");
   node->storage = attr;
 }
 
@@ -119,6 +132,58 @@ static int gpu_shader_normal_map(GPUMaterial *mat,
   return true;
 }
 
+NODE_SHADER_MATERIALX_BEGIN
+#ifdef WITH_MATERIALX
+{
+  NodeShaderNormalMap *normal_map_node = static_cast<NodeShaderNormalMap *>(node_->storage);
+  NodeItem color = get_input_value("Color", NodeItem::Type::Vector3);
+  NodeItem strength = get_input_value("Strength", NodeItem::Type::Float);
+
+#  if MATERIALX_MAJOR_VERSION <= 1 && MATERIALX_MINOR_VERSION <= 38
+  std::string space;
+  switch (normal_map_node->space) {
+    case SHD_SPACE_TANGENT:
+      space = "tangent";
+      break;
+    case SHD_SPACE_OBJECT:
+    case SHD_SPACE_BLENDER_OBJECT:
+      space = "object";
+      break;
+    case SHD_SPACE_WORLD:
+    case SHD_SPACE_BLENDER_WORLD:
+      /* World isn't supported, tangent space will be used */
+      space = "tangent";
+      break;
+    default:
+      BLI_assert_unreachable();
+  }
+
+  return create_node("normalmap",
+                     NodeItem::Type::Vector3,
+                     {{"in", color}, {"scale", strength}, {"space", val(space)}});
+#  else
+  if (normal_map_node->space == SHD_SPACE_TANGENT) {
+    return create_node("normalmap", NodeItem::Type::Vector3, {{"in", color}, {"scale", strength}});
+  }
+
+  /* Object space not supported yet. Despite the 1.38 implementation accepting
+   * object space argument, that seems to work either. */
+  NodeItem tangent = val(MaterialX::Vector3(1.0f, 0.0f, 0.0f));
+  NodeItem bitangent = val(MaterialX::Vector3(0.0f, 1.0f, 0.0f));
+  NodeItem normal = val(MaterialX::Vector3(0.0f, 0.0f, 1.0f));
+
+  return create_node("normalmap",
+                     NodeItem::Type::Vector3,
+                     {{"in", color},
+                      {"scale", strength},
+                      {"tangent", tangent},
+                      {"bitangent", bitangent},
+                      {"normal", normal}});
+#  endif
+}
+#endif
+NODE_SHADER_MATERIALX_END
+
 }  // namespace blender::nodes::node_shader_normal_map_cc
 
 /* node type definition */
@@ -126,16 +191,23 @@ void register_node_type_sh_normal_map()
 {
   namespace file_ns = blender::nodes::node_shader_normal_map_cc;
 
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
-  sh_node_type_base(&ntype, SH_NODE_NORMAL_MAP, "Normal Map", NODE_CLASS_OP_VECTOR);
+  sh_node_type_base(&ntype, "ShaderNodeNormalMap", SH_NODE_NORMAL_MAP);
+  ntype.ui_name = "Normal Map";
+  ntype.ui_description =
+      "Generate a perturbed normal from an RGB normal map image. Typically used for faking highly "
+      "detailed surfaces";
+  ntype.enum_name_legacy = "NORMAL_MAP";
+  ntype.nclass = NODE_CLASS_OP_VECTOR;
   ntype.declare = file_ns::node_declare;
   ntype.draw_buttons = file_ns::node_shader_buts_normal_map;
-  blender::bke::node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::MIDDLE);
+  blender::bke::node_type_size_preset(ntype, blender::bke::eNodeSizePreset::Middle);
   ntype.initfunc = file_ns::node_shader_init_normal_map;
-  node_type_storage(
-      &ntype, "NodeShaderNormalMap", node_free_standard_storage, node_copy_standard_storage);
+  blender::bke::node_type_storage(
+      ntype, "NodeShaderNormalMap", node_free_standard_storage, node_copy_standard_storage);
   ntype.gpu_fn = file_ns::gpu_shader_normal_map;
+  ntype.materialx_fn = file_ns::node_shader_materialx;
 
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(ntype);
 }

@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -32,6 +32,8 @@
  * makes it easy to experiment with different extremes of the mentioned trade-off and allows
  * finding a good compromise for each function.
  */
+
+#include <tuple>
 
 namespace blender {
 

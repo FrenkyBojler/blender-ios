@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2020 Blender Foundation
+/* SPDX-FileCopyrightText: 2020 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -9,8 +9,6 @@
 #pragma once
 
 #include "deg_builder_cache.h"
-
-#include "intern/depsgraph_type.h"
 
 struct Depsgraph;
 struct Main;
@@ -45,8 +43,8 @@ class AbstractBuilderPipeline {
   ViewLayer *view_layer_;
   DepsgraphBuilderCache builder_cache_;
 
-  virtual unique_ptr<DepsgraphNodeBuilder> construct_node_builder();
-  virtual unique_ptr<DepsgraphRelationBuilder> construct_relation_builder();
+  virtual std::unique_ptr<DepsgraphNodeBuilder> construct_node_builder();
+  virtual std::unique_ptr<DepsgraphRelationBuilder> construct_relation_builder();
 
   virtual void build_step_sanity_check();
   void build_step_nodes();

@@ -1,26 +1,24 @@
+/* SPDX-FileCopyrightText: 2020-2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#pragma BLENDER_REQUIRE(common_gpencil_lib.glsl)
-#pragma BLENDER_REQUIRE(common_colormanagement_lib.glsl)
+#include "infos/gpencil_info.hh"
 
-float length_squared(vec2 v)
-{
-  return dot(v, v);
-}
-float length_squared(vec3 v)
-{
-  return dot(v, v);
-}
+FRAGMENT_SHADER_CREATE_INFO(gpencil_geometry)
 
-vec3 gpencil_lighting(void)
+#include "common_colormanagement_lib.glsl"
+#include "draw_grease_pencil_lib.glsl"
+
+vec3 gpencil_lighting()
 {
   vec3 light_accum = vec3(0.0);
   for (int i = 0; i < GPENCIL_LIGHT_BUFFER_LEN; i++) {
-    if (gp_lights[i]._color.x == -1.0) {
+    if (vec3(gp_lights[i]._color).x == -1.0) {
       break;
     }
     vec3 L = gp_lights[i]._position - gp_interp.pos;
     float vis = 1.0;
-    gpLightType type = floatBitsToUint(gp_lights[i]._type);
+    gpLightType type = gpLightType(floatBitsToUint(gp_lights[i]._type));
     /* Spot Attenuation. */
     if (type == GP_LIGHT_TYPE_SPOT) {
       mat3 rot_scale = mat3(gp_lights[i]._right, gp_lights[i]._up, gp_lights[i]._forward);
@@ -54,20 +52,20 @@ vec3 gpencil_lighting(void)
 void main()
 {
   vec4 col;
-  if (flag_test(gp_interp.mat_flag, GP_STROKE_TEXTURE_USE)) {
-    bool premul = flag_test(gp_interp.mat_flag, GP_STROKE_TEXTURE_PREMUL);
+  if (flag_test(gp_interp_flat.mat_flag, GP_STROKE_TEXTURE_USE)) {
+    bool premul = flag_test(gp_interp_flat.mat_flag, GP_STROKE_TEXTURE_PREMUL);
     col = texture_read_as_linearrgb(gpStrokeTexture, premul, gp_interp.uv);
   }
-  else if (flag_test(gp_interp.mat_flag, GP_FILL_TEXTURE_USE)) {
-    bool use_clip = flag_test(gp_interp.mat_flag, GP_FILL_TEXTURE_CLIP);
+  else if (flag_test(gp_interp_flat.mat_flag, GP_FILL_TEXTURE_USE)) {
+    bool use_clip = flag_test(gp_interp_flat.mat_flag, GP_FILL_TEXTURE_CLIP);
     vec2 uvs = (use_clip) ? clamp(gp_interp.uv, 0.0, 1.0) : gp_interp.uv;
-    bool premul = flag_test(gp_interp.mat_flag, GP_FILL_TEXTURE_PREMUL);
+    bool premul = flag_test(gp_interp_flat.mat_flag, GP_FILL_TEXTURE_PREMUL);
     col = texture_read_as_linearrgb(gpFillTexture, premul, uvs);
   }
-  else if (flag_test(gp_interp.mat_flag, GP_FILL_GRADIENT_USE)) {
-    bool radial = flag_test(gp_interp.mat_flag, GP_FILL_GRADIENT_RADIAL);
+  else if (flag_test(gp_interp_flat.mat_flag, GP_FILL_GRADIENT_USE)) {
+    bool radial = flag_test(gp_interp_flat.mat_flag, GP_FILL_GRADIENT_RADIAL);
     float fac = clamp(radial ? length(gp_interp.uv * 2.0 - 1.0) : gp_interp.uv.x, 0.0, 1.0);
-    uint matid = gp_interp.mat_flag >> GPENCIl_MATID_SHIFT;
+    uint matid = gp_interp_flat.mat_flag >> GPENCIl_MATID_SHIFT;
     col = mix(gp_materials[matid].fill_color, gp_materials[matid].fill_mix_color, fac);
   }
   else /* SOLID */ {
@@ -76,22 +74,22 @@ void main()
   col.rgb *= col.a;
 
   /* Composite all other colors on top of texture color.
-   * Everything is premult by col.a to have the stencil effect. */
+   * Everything is pre-multiply by `col.a` to have the stencil effect. */
   fragColor = col * gp_interp.color_mul + col.a * gp_interp.color_add;
 
   fragColor.rgb *= gpencil_lighting();
 
-  fragColor *= gpencil_stroke_round_cap_mask(gp_interp.sspos.xy,
-                                             gp_interp.sspos.zw,
-                                             gp_interp.aspect,
-                                             gp_interp.thickness.x,
-                                             gp_interp.hardness);
+  fragColor *= gpencil_stroke_round_cap_mask(gp_interp_flat.sspos.xy,
+                                             gp_interp_flat.sspos.zw,
+                                             gp_interp_flat.aspect,
+                                             gp_interp_noperspective.thickness.x,
+                                             gp_interp_noperspective.hardness);
 
   /* To avoid aliasing artifacts, we reduce the opacity of small strokes. */
-  fragColor *= smoothstep(0.0, 1.0, gp_interp.thickness.y);
+  fragColor *= smoothstep(0.0, 1.0, gp_interp_noperspective.thickness.y);
 
   /* Holdout materials. */
-  if (flag_test(gp_interp.mat_flag, GP_STROKE_HOLDOUT | GP_FILL_HOLDOUT)) {
+  if (flag_test(gp_interp_flat.mat_flag, GP_STROKE_HOLDOUT | GP_FILL_HOLDOUT)) {
     revealColor = fragColor.aaaa;
   }
   else {
@@ -130,8 +128,8 @@ void main()
    * This has a cost as the depth test cannot happen early.
    * We could do this in the vertex shader but then perspective interpolation of uvs and
    * fragment clipping gets really complicated. */
-  if (gp_interp.depth >= 0.0) {
-    gl_FragDepth = gp_interp.depth;
+  if (gp_interp_flat.depth >= 0.0) {
+    gl_FragDepth = gp_interp_flat.depth;
   }
   else {
     gl_FragDepth = gl_FragCoord.z;

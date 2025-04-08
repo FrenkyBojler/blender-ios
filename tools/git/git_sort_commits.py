@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# SPDX-FileCopyrightText: 2023 Blender Foundation
+# SPDX-FileCopyrightText: 2023 Blender Authors
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
@@ -11,6 +11,10 @@ Example:
 
     git_sort_commits.py < commits.txt
 """
+
+__all__ = (
+    "main",
+)
 
 import sys
 import os

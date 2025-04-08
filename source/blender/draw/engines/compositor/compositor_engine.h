@@ -1,15 +1,15 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include "DRW_render.hh"
 
-extern DrawEngineType draw_engine_compositor_type;
+namespace blender::draw::compositor_engine {
 
-#ifdef __cplusplus
-}
-#endif
+struct Engine : public DrawEngine::Pointer {
+  DrawEngine *create_instance() final;
+};
+
+}  // namespace blender::draw::compositor_engine

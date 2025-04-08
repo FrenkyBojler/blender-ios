@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2008 Blender Foundation
+/* SPDX-FileCopyrightText: 2008 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -8,12 +8,13 @@
 
 #include "DNA_windowmanager_types.h"
 
-#include "MEM_guardedalloc.h"
+#include "BLI_listbase.h"
+#include "BLI_string.h"
 
-#include "BLI_blenlib.h"
+#include "BKE_context.hh"
+#include "BKE_screen.hh"
 
-#include "BKE_context.h"
-#include "BKE_screen.h"
+#include "DNA_text_types.h"
 
 #include "ED_screen.hh"
 
@@ -44,7 +45,7 @@ static ARegion *text_has_properties_region(ScrArea *area)
     return nullptr;
   }
 
-  arnew = static_cast<ARegion *>(MEM_callocN(sizeof(ARegion), "properties region"));
+  arnew = BKE_area_region_new();
 
   BLI_insertlinkafter(&area->regionbase, region, arnew);
   arnew->regiontype = RGN_TYPE_UI;
@@ -60,22 +61,45 @@ static bool text_properties_poll(bContext *C)
   return (CTX_wm_space_text(C) != nullptr);
 }
 
-static int text_text_search_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus text_text_search_exec(bContext *C, wmOperator * /*op*/)
 {
   ScrArea *area = CTX_wm_area(C);
   ARegion *region = text_has_properties_region(area);
   SpaceText *st = CTX_wm_space_text(C);
 
   if (region) {
-    if (region->flag & RGN_FLAG_HIDDEN) {
-      ED_region_toggle_hidden(C, region);
+    Text *text = st->text;
+
+    /* Use active text selection as search query, if selection is on a single line. */
+    if (text && (text->curl == text->sell) && (text->curc != text->selc)) {
+      const ARegion *active_region = CTX_wm_region(C);
+      if (active_region && active_region->regiontype == RGN_TYPE_WINDOW) {
+        const char *sel_start = text->curl->line + std::min(text->curc, text->selc);
+        const int sel_len = std::abs(text->curc - text->selc);
+        BLI_strncpy(st->findstr, sel_start, std::min(sel_len + 1, ST_MAX_FIND_STR));
+      }
     }
 
-    UI_panel_category_active_set(region, "Text");
+    bool draw = false;
 
-    /* cannot send a button activate yet for case when region wasn't visible yet */
-    /* flag gets checked and cleared in main draw callback */
-    st->flags |= ST_FIND_ACTIVATE;
+    if (region->flag & RGN_FLAG_HIDDEN) {
+      ED_region_toggle_hidden(C, region);
+      draw = true;
+    }
+
+    const char *active_category = UI_panel_category_active_get(region, false);
+    if (active_category && !STREQ(active_category, "Text")) {
+      UI_panel_category_active_set(region, "Text");
+      draw = true;
+    }
+
+    /* Build the layout and draw so `find_text` text button can be activated. */
+    if (draw) {
+      ED_region_do_layout(C, region);
+      ED_region_do_draw(C, region);
+    }
+
+    UI_textbutton_activate_rna(C, region, st, "find_text");
 
     ED_region_tag_redraw(region);
   }

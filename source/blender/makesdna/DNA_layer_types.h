@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -12,10 +12,6 @@
 #include "DNA_listBase.h"
 
 #include "BLI_utildefines.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 /**
  * Render-passes for EEVEE.
@@ -36,7 +32,7 @@ typedef enum eViewLayerEEVEEPassType {
   EEVEE_RENDER_PASS_ENVIRONMENT = (1 << 11),
   EEVEE_RENDER_PASS_SHADOW = (1 << 12),
   EEVEE_RENDER_PASS_AO = (1 << 13),
-  EEVEE_RENDER_PASS_BLOOM = (1 << 14),
+  EEVEE_RENDER_PASS_UNUSED_14 = (1 << 14), /* EEVEE_RENDER_PASS_BLOOM */
   EEVEE_RENDER_PASS_AOV = (1 << 15),
   /*
    * TODO(@jbakker): Clean up conflicting bits after EEVEE has been removed.
@@ -49,8 +45,9 @@ typedef enum eViewLayerEEVEEPassType {
   EEVEE_RENDER_PASS_CRYPTOMATTE_MATERIAL = (1 << 18),
   EEVEE_RENDER_PASS_VECTOR = (1 << 19),
   EEVEE_RENDER_PASS_TRANSPARENT = (1 << 20),
+  EEVEE_RENDER_PASS_POSITION = (1 << 21),
 } eViewLayerEEVEEPassType;
-#define EEVEE_RENDER_PASS_MAX_BIT 20
+#define EEVEE_RENDER_PASS_MAX_BIT 21
 ENUM_OPERATORS(eViewLayerEEVEEPassType, 1 << EEVEE_RENDER_PASS_MAX_BIT)
 
 /* #ViewLayerAOV.type */
@@ -96,13 +93,6 @@ typedef struct Base {
   unsigned short local_collections_bits;
   char _pad1[2];
 } Base;
-
-typedef struct ViewLayerEngineData {
-  struct ViewLayerEngineData *next, *prev;
-  struct DrawEngineType *engine_type;
-  void *storage;
-  void (*free)(void *storage);
-} ViewLayerEngineData;
 
 typedef struct LayerCollection {
   struct LayerCollection *next, *prev;
@@ -181,6 +171,7 @@ typedef struct ViewLayer {
   int samples;
 
   struct Material *mat_override;
+  struct World *world_override;
   /** Equivalent to datablocks ID properties. */
   struct IDProperty *id_properties;
 
@@ -196,8 +187,6 @@ typedef struct ViewLayer {
   ViewLayerLightgroup *active_lightgroup;
 
   /* Runtime data */
-  /** ViewLayerEngineData. */
-  ListBase drawdata;
   struct Base **object_bases_array;
   struct GHash *object_bases_hash;
 } ViewLayer;
@@ -277,8 +266,5 @@ enum {
   /* VIEW_LAYER_DEPRECATED  = (1 << 1), */
   VIEW_LAYER_FREESTYLE = (1 << 2),
   VIEW_LAYER_OUT_OF_SYNC = (1 << 3),
+  VIEW_LAYER_HAS_EXPORT_COLLECTIONS = (1 << 4),
 };
-
-#ifdef __cplusplus
-}
-#endif

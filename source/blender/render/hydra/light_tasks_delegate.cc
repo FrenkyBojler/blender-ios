@@ -1,9 +1,9 @@
-/* SPDX-FileCopyrightText: 2011-2022 Blender Foundation
+/* SPDX-FileCopyrightText: 2011-2022 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "light_tasks_delegate.h"
-#include "engine.h"
+#include "light_tasks_delegate.hh"
+#include "engine.hh"
 
 namespace blender::render::hydra {
 
@@ -28,7 +28,7 @@ pxr::VtValue LightTasksDelegate::Get(pxr::SdfPath const &id, pxr::TfToken const 
     if (id == simple_task_id_) {
       return pxr::VtValue(simple_task_params_);
     }
-    else if (id == skydome_task_id_) {
+    if (id == skydome_task_id_) {
       return pxr::VtValue(skydome_task_params_);
     }
   }

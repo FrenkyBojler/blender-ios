@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -7,10 +7,6 @@
 /** \file
  * \ingroup bke
  */
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 #ifdef WITH_OCEANSIM
 #  include "BLI_threads.h"
@@ -116,8 +112,4 @@ typedef struct Ocean {
   /* need some data here, C does not allow empty struct */
   int stub;
 } Ocean;
-#endif
-
-#ifdef __cplusplus
-}
 #endif

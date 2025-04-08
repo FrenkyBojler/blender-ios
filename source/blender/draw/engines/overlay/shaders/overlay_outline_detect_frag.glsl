@@ -1,5 +1,13 @@
+/* SPDX-FileCopyrightText: 2017-2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#pragma BLENDER_REQUIRE(common_view_lib.glsl)
+#include "infos/overlay_outline_info.hh"
+
+FRAGMENT_SHADER_CREATE_INFO(overlay_outline_detect)
+
+#include "draw_view_lib.glsl"
+#include "overlay_common_lib.glsl"
 
 #define XPOS (1 << 0)
 #define XNEG (1 << 1)
@@ -90,7 +98,7 @@ bool line_offset(bvec2 edges, vec2 ofs, inout vec2 line_point)
   return false;
 }
 
-/* Changes Antialiasing pattern and makes line thicker. 0.0 is thin. */
+/* Changes Anti-aliasing pattern and makes line thicker. 0.0 is thin. */
 #define PROXIMITY_OFS -0.35
 
 /* Use surrounding edges to approximate the outline direction to create smooth lines. */
@@ -162,7 +170,7 @@ void main()
   uint ref_col = ref;
 
   vec2 uvs = gl_FragCoord.xy * sizeViewportInv;
-  vec3 ofs = vec3(sizeViewportInv.xy, 0.0);
+  vec3 ofs = vec3(sizeViewportInv, 0.0);
 
   vec2 depth_uv = uvs;
 
@@ -222,7 +230,7 @@ void main()
     has_edge_neg_x = has_edge_neg_y = false;
   }
 
-  /* WATCH: Keep in sync with outlineId of the prepass. */
+  /* WATCH: Keep in sync with outlineId of the pre-pass. */
   uint color_id = ref_col >> 14u;
   if (ref_col == 0u) {
     fragColor = vec4(0.0);
@@ -240,11 +248,11 @@ void main()
   float ref_depth = textureLod(outlineDepth, depth_uv, 0.0).r;
   float scene_depth = textureLod(sceneDepth, depth_uv, 0.0).r;
 
-  /* Avoid bad cases of zfighting for occlusion only. */
+  /* Avoid bad cases of Z-fighting for occlusion only. */
   const float epsilon = 3.0 / 8388608.0;
   bool occluded = (ref_depth > scene_depth + epsilon);
 
-  /* NOTE: We never set alpha to 1.0 to avoid Antialiasing destroying the line. */
+  /* NOTE: We never set alpha to 1.0 to avoid Anti-aliasing destroying the line. */
   fragColor *= (occluded ? alphaOcclu : 1.0) * (254.0 / 255.0);
 
   int edge_case = 0;
@@ -267,7 +275,6 @@ void main()
   }
 
   vec2 line_start, line_end;
-  vec2 line_ofs;
   bvec4 extra_edges, extra_edges2;
   /* TODO: simplify this branching hell. */
   switch (edge_case) {

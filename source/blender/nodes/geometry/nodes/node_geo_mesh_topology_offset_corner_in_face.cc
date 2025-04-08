@@ -1,11 +1,8 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BKE_mesh.hh"
-#include "BKE_mesh_mapping.hh"
-
-#include "BLI_task.hh"
+#include "DNA_mesh_types.h"
 
 #include "node_geometry_util.hh"
 
@@ -38,10 +35,10 @@ class OffsetCornerInFaceFieldInput final : public bke::MeshFieldInput {
   }
 
   GVArray get_varray_for_context(const Mesh &mesh,
-                                 const eAttrDomain domain,
+                                 const AttrDomain domain,
                                  const IndexMask &mask) const final
   {
-    const IndexRange corner_range(mesh.totloop);
+    const IndexRange corner_range(mesh.corners_num);
     const OffsetIndices faces = mesh.faces();
 
     const bke::MeshFieldContext context{mesh, domain};
@@ -52,19 +49,16 @@ class OffsetCornerInFaceFieldInput final : public bke::MeshFieldInput {
     const VArray<int> corner_indices = evaluator.get_evaluated<int>(0);
     const VArray<int> offsets = evaluator.get_evaluated<int>(1);
 
-    Array<int> loop_to_face_map = bke::mesh::build_loop_to_face_map(faces);
+    const Span<int> corner_to_face = mesh.corner_to_face_map();
 
     Array<int> offset_corners(mask.min_array_size());
     mask.foreach_index_optimized<int>(GrainSize(2048), [&](const int selection_i) {
-      const int corner_i = corner_indices[selection_i];
+      const int corner = corner_indices[selection_i];
       const int offset = offsets[selection_i];
-      if (!corner_range.contains(corner_i)) {
-        offset_corners[selection_i] = 0;
-        return;
-      }
-
-      const IndexRange face = faces[loop_to_face_map[corner_i]];
-      offset_corners[selection_i] = apply_offset_in_cyclic_range(face, corner_i, offset);
+      const IndexRange face = faces[corner_to_face[corner]];
+      const int corner_index_in_face = corner - face.start();
+      offset_corners[selection_i] = face.start() + math::mod_periodic<int>(
+                                                       corner_index_in_face + offset, face.size());
     });
 
     return VArray<int>::ForContainer(std::move(offset_corners));
@@ -91,9 +85,9 @@ class OffsetCornerInFaceFieldInput final : public bke::MeshFieldInput {
     return false;
   }
 
-  std::optional<eAttrDomain> preferred_domain(const Mesh & /*mesh*/) const final
+  std::optional<AttrDomain> preferred_domain(const Mesh & /*mesh*/) const final
   {
-    return ATTR_DOMAIN_CORNER;
+    return AttrDomain::Corner;
   }
 };
 
@@ -107,14 +101,16 @@ static void node_geo_exec(GeoNodeExecParams params)
 
 static void node_register()
 {
-  static bNodeType ntype;
-  geo_node_type_base(&ntype,
-                     GEO_NODE_MESH_TOPOLOGY_OFFSET_CORNER_IN_FACE,
-                     "Offset Corner in Face",
-                     NODE_CLASS_INPUT);
+  static blender::bke::bNodeType ntype;
+  geo_node_type_base(
+      &ntype, "GeometryNodeOffsetCornerInFace", GEO_NODE_MESH_TOPOLOGY_OFFSET_CORNER_IN_FACE);
+  ntype.ui_name = "Offset Corner in Face";
+  ntype.ui_description = "Retrieve corners in the same face as another";
+  ntype.enum_name_legacy = "OFFSET_CORNER_IN_FACE";
+  ntype.nclass = NODE_CLASS_INPUT;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

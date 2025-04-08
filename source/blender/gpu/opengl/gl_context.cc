@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2020 Blender Foundation
+/* SPDX-FileCopyrightText: 2020 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -9,9 +9,9 @@
 #include "BLI_assert.h"
 #include "BLI_utildefines.h"
 
-#include "BKE_global.h"
+#include "BKE_global.hh"
 
-#include "GPU_framebuffer.h"
+#include "GPU_framebuffer.hh"
 
 #include "GHOST_C-api.h"
 
@@ -88,6 +88,8 @@ GLContext::GLContext(void *ghost_window, GLSharedOrphanLists &shared_orphan_list
 
 GLContext::~GLContext()
 {
+  process_frame_timings();
+  free_resources();
   BLI_assert(orphaned_framebuffers_.is_empty());
   BLI_assert(orphaned_vertarrays_.is_empty());
   /* For now don't allow GPUFrameBuffers to be reuse in another context. */
@@ -140,6 +142,7 @@ void GLContext::activate()
   /* Not really following the state but we should consider
    * no ubo bound when activating a context. */
   bound_ubo_slots = 0;
+  bound_ssbo_slots = 0;
 
   immActivate();
 }
@@ -157,7 +160,7 @@ void GLContext::begin_frame()
 
 void GLContext::end_frame()
 {
-  /* No-op. */
+  process_frame_timings();
 }
 
 /** \} */
@@ -174,6 +177,17 @@ void GLContext::flush()
 void GLContext::finish()
 {
   glFinish();
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name ShaderCompiler
+ * \{ */
+
+ShaderCompiler *GLContext::get_compiler()
+{
+  return GLBackend::get()->get_compiler();
 }
 
 /** \} */
@@ -304,7 +318,6 @@ void GLContext::vao_cache_unregister(GLVaoCache *cache)
 
 void GLContext::memory_statistics_get(int *r_total_mem, int *r_free_mem)
 {
-  /* TODO(merwin): use Apple's platform API to get this info. */
   if (epoxy_has_gl_extension("GL_NVX_gpu_memory_info")) {
     /* Returned value in Kb. */
     glGetIntegerv(GL_GPU_MEMORY_INFO_TOTAL_AVAILABLE_MEMORY_NVX, r_total_mem);

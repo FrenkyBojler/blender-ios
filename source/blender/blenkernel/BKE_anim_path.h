@@ -7,10 +7,6 @@
  * \ingroup bke
  */
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 struct CurveCache;
 struct Object;
 
@@ -21,7 +17,7 @@ int BKE_anim_path_get_array_size(const struct CurveCache *curve_cache);
 float BKE_anim_path_get_length(const struct CurveCache *curve_cache);
 
 /**
- * This function populates the 'ob->runtime.curve_cache->anim_path_accum_length' data.
+ * This function populates the 'ob->runtime->curve_cache->anim_path_accum_length' data.
  * You should never have to call this manually as it should already have been called by
  * 'BKE_displist_make_curveTypes'. Do not call this manually unless you know what you are doing.
  */
@@ -42,7 +38,3 @@ bool BKE_where_on_path(const struct Object *ob,
                        float r_quat[4],
                        float *r_radius,
                        float *r_weight);
-
-#ifdef __cplusplus
-}
-#endif

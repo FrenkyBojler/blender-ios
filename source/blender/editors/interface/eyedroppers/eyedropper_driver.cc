@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2009 Blender Foundation
+/* SPDX-FileCopyrightText: 2009 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -14,14 +14,12 @@
 #include "MEM_guardedalloc.h"
 
 #include "DNA_anim_types.h"
-#include "DNA_object_types.h"
 #include "DNA_screen_types.h"
 
-#include "BKE_animsys.h"
-#include "BKE_context.h"
+#include "BKE_context.hh"
 
-#include "DEG_depsgraph.h"
-#include "DEG_depsgraph_build.h"
+#include "DEG_depsgraph.hh"
+#include "DEG_depsgraph_build.hh"
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
@@ -39,25 +37,24 @@
 
 struct DriverDropper {
   /* Destination property (i.e. where we'll add a driver) */
-  PointerRNA ptr;
-  PropertyRNA *prop;
-  int index;
-  bool is_undo;
+  PointerRNA ptr = {};
+  PropertyRNA *prop = nullptr;
+  int index = 0;
+  bool is_undo = false;
 
   /* TODO: new target? */
 };
 
 static bool driverdropper_init(bContext *C, wmOperator *op)
 {
-  DriverDropper *ddr = MEM_cnew<DriverDropper>(__func__);
+  DriverDropper *ddr = MEM_new<DriverDropper>(__func__);
 
   uiBut *but = UI_context_active_but_prop_get(C, &ddr->ptr, &ddr->prop, &ddr->index);
 
   if ((ddr->ptr.data == nullptr) || (ddr->prop == nullptr) ||
-      (RNA_property_editable(&ddr->ptr, ddr->prop) == false) ||
-      (RNA_property_animateable(&ddr->ptr, ddr->prop) == false) || (but->flag & UI_BUT_DRIVEN))
+      (RNA_property_driver_editable(&ddr->ptr, ddr->prop) == false) || (but->flag & UI_BUT_DRIVEN))
   {
-    MEM_freeN(ddr);
+    MEM_delete(ddr);
     return false;
   }
   op->customdata = ddr;
@@ -71,7 +68,11 @@ static void driverdropper_exit(bContext *C, wmOperator *op)
 {
   WM_cursor_modal_restore(CTX_wm_window(C));
 
-  MEM_SAFE_FREE(op->customdata);
+  if (op->customdata) {
+    DriverDropper *ddr = static_cast<DriverDropper *>(op->customdata);
+    op->customdata = nullptr;
+    MEM_delete(ddr);
+  }
 }
 
 static void driverdropper_sample(bContext *C, wmOperator *op, const wmEvent *event)
@@ -91,19 +92,20 @@ static void driverdropper_sample(bContext *C, wmOperator *op, const wmEvent *eve
   PropertyRNA *target_prop = but->rnaprop;
   const int target_index = but->rnaindex;
 
-  char *target_path = RNA_path_from_ID_to_property(target_ptr, target_prop);
+  const std::optional<std::string> target_path = RNA_path_from_ID_to_property(target_ptr,
+                                                                              target_prop);
 
   /* Get paths for the destination. */
-  char *dst_path = RNA_path_from_ID_to_property(&ddr->ptr, ddr->prop);
+  const std::optional<std::string> dst_path = RNA_path_from_ID_to_property(&ddr->ptr, ddr->prop);
 
   /* Now create driver(s) */
   if (target_path && dst_path) {
     int success = ANIM_add_driver_with_target(op->reports,
                                               ddr->ptr.owner_id,
-                                              dst_path,
+                                              dst_path->c_str(),
                                               ddr->index,
                                               target_ptr->owner_id,
-                                              target_path,
+                                              target_path->c_str(),
                                               target_index,
                                               flag,
                                               DRIVER_TYPE_PYTHON,
@@ -117,14 +119,6 @@ static void driverdropper_sample(bContext *C, wmOperator *op, const wmEvent *eve
       WM_event_add_notifier(C, NC_ANIMATION | ND_FCURVES_ORDER, nullptr); /* XXX */
     }
   }
-
-  /* cleanup */
-  if (target_path) {
-    MEM_freeN(target_path);
-  }
-  if (dst_path) {
-    MEM_freeN(dst_path);
-  }
 }
 
 static void driverdropper_cancel(bContext *C, wmOperator *op)
@@ -133,7 +127,7 @@ static void driverdropper_cancel(bContext *C, wmOperator *op)
 }
 
 /* main modal status check */
-static int driverdropper_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus driverdropper_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   DriverDropper *ddr = static_cast<DriverDropper *>(op->customdata);
 
@@ -158,7 +152,9 @@ static int driverdropper_modal(bContext *C, wmOperator *op, const wmEvent *event
 }
 
 /* Modal Operator init */
-static int driverdropper_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+static wmOperatorStatus driverdropper_invoke(bContext *C,
+                                             wmOperator *op,
+                                             const wmEvent * /*event*/)
 {
   /* init */
   if (driverdropper_init(C, op)) {
@@ -176,7 +172,7 @@ static int driverdropper_invoke(bContext *C, wmOperator *op, const wmEvent * /*e
 }
 
 /* Repeat operator */
-static int driverdropper_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus driverdropper_exec(bContext *C, wmOperator *op)
 {
   /* init */
   if (driverdropper_init(C, op)) {

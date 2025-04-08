@@ -12,8 +12,9 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_blenlib.h"
-#include "BLI_kdopbvh.h"
+#include "BLI_color.hh"
+#include "BLI_kdopbvh.hh"
+#include "BLI_listbase.h"
 #include "BLI_math_color.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
@@ -21,29 +22,23 @@
 #include "BLI_task.h"
 #include "BLI_utildefines.h"
 
-#include "BLT_translation.h"
-
-#include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
 #include "DNA_particle_types.h"
-#include "DNA_scene_types.h"
 #include "DNA_texture_types.h"
 
-#include "BKE_colorband.h"
-#include "BKE_colortools.h"
-#include "BKE_customdata.h"
-#include "BKE_deform.h"
-#include "BKE_lattice.h"
+#include "BKE_attribute.hh"
+#include "BKE_colorband.hh"
+#include "BKE_colortools.hh"
+#include "BKE_customdata.hh"
+#include "BKE_deform.hh"
 #include "BKE_mesh.hh"
-#include "BKE_object.h"
+#include "BKE_object.hh"
 #include "BKE_particle.h"
-#include "BKE_scene.h"
+#include "BKE_scene.hh"
 
-#include "DEG_depsgraph.h"
-#include "DEG_depsgraph_query.h"
-
-#include "texture_common.h"
+#include "DEG_depsgraph.hh"
+#include "DEG_depsgraph_query.hh"
 
 #include "RE_texture.h"
 
@@ -75,7 +70,8 @@ static int point_data_used(PointDensity *pd)
     if (ELEM(pd->ob_color_source,
              TEX_PD_COLOR_VERTCOL,
              TEX_PD_COLOR_VERTWEIGHT,
-             TEX_PD_COLOR_VERTNOR)) {
+             TEX_PD_COLOR_VERTNOR))
+    {
       pd_bitflag |= POINT_DATA_COLOR;
     }
   }
@@ -153,8 +149,8 @@ static void alloc_point_data(PointDensity *pd)
   }
 
   if (data_size) {
-    pd->point_data = static_cast<float *>(
-        MEM_callocN(sizeof(float) * data_size * totpoints, "particle point data"));
+    pd->point_data = MEM_calloc_arrayN<float>(size_t(data_size) * size_t(totpoints),
+                                              "particle point data");
   }
 }
 
@@ -187,7 +183,7 @@ static void pointdensity_cache_psys(
   sim.psmd = psys_get_modifier(ob, psys);
 
   /* in case ob->world_to_object isn't up-to-date */
-  invert_m4_m4(ob->world_to_object, ob->object_to_world);
+  invert_m4_m4(ob->runtime->world_to_object.ptr(), ob->object_to_world().ptr());
 
   total_particles = psys->totpart + psys->totchild;
   psys_sim_data_init(&sim);
@@ -247,7 +243,7 @@ static void pointdensity_cache_psys(
     copy_v3_v3(partco, state.co);
 
     if (pd->psys_cache_space == TEX_PD_OBJECTSPACE) {
-      mul_m4_v3(ob->world_to_object, partco);
+      mul_m4_v3(ob->world_to_object().ptr(), partco);
     }
     else if (pd->psys_cache_space == TEX_PD_OBJECTLOC) {
       sub_v3_v3(partco, ob->loc);
@@ -278,37 +274,35 @@ static void pointdensity_cache_vertex_color(PointDensity *pd,
                                             Mesh *mesh,
                                             float *data_color)
 {
-  const int *corner_verts = BKE_mesh_corner_verts(mesh);
-  const int totloop = mesh->totloop;
-  char layername[MAX_CUSTOMDATA_LAYER_NAME];
+  using namespace blender;
+  const blender::Span<int> corner_verts = mesh->corner_verts();
+  const int totloop = mesh->corners_num;
   int i;
 
   BLI_assert(data_color);
 
-  if (!CustomData_has_layer(&mesh->loop_data, CD_PROP_BYTE_COLOR)) {
-    return;
-  }
-  CustomData_validate_layer_name(
-      &mesh->loop_data, CD_PROP_BYTE_COLOR, pd->vertex_attribute_name, layername);
-  const MLoopCol *mcol = static_cast<const MLoopCol *>(
-      CustomData_get_layer_named(&mesh->loop_data, CD_PROP_BYTE_COLOR, layername));
+  const bke::AttributeAccessor attributes = mesh->attributes();
+  const StringRef name = attributes.contains(pd->vertex_attribute_name) ?
+                             pd->vertex_attribute_name :
+                             (mesh->active_color_attribute ? mesh->active_color_attribute : "");
+
+  const VArray mcol = *attributes.lookup<ColorGeometry4b>(name, bke::AttrDomain::Corner);
   if (!mcol) {
     return;
   }
 
   /* Stores the number of MLoops using the same vertex, so we can normalize colors. */
-  int *mcorners = static_cast<int *>(
-      MEM_callocN(sizeof(int) * pd->totpoints, "point density corner count"));
+  int *mcorners = MEM_calloc_arrayN<int>(size_t(pd->totpoints), "point density corner count");
 
   for (i = 0; i < totloop; i++) {
     int v = corner_verts[i];
 
     if (mcorners[v] == 0) {
-      rgb_uchar_to_float(&data_color[v * 3], &mcol[i].r);
+      rgb_uchar_to_float(&data_color[v * 3], mcol[i]);
     }
     else {
       float col[3];
-      rgb_uchar_to_float(col, &mcol[i].r);
+      rgb_uchar_to_float(col, mcol[i]);
       add_v3_v3(&data_color[v * 3], col);
     }
 
@@ -332,7 +326,7 @@ static void pointdensity_cache_vertex_weight(PointDensity *pd,
                                              Mesh *mesh,
                                              float *data_color)
 {
-  const int totvert = mesh->totvert;
+  const int totvert = mesh->verts_num;
   int mdef_index;
   int i;
 
@@ -368,8 +362,8 @@ static void pointdensity_cache_vertex_weight(PointDensity *pd,
 static void pointdensity_cache_vertex_normal(Mesh *mesh, float *data_color)
 {
   BLI_assert(data_color);
-  const float(*vert_normals)[3] = BKE_mesh_vert_normals_ensure(mesh);
-  memcpy(data_color, vert_normals, sizeof(float[3]) * mesh->totvert);
+  const blender::Span<blender::float3> normals = mesh->vert_normals();
+  memcpy(data_color, normals.data(), sizeof(float[3]) * mesh->verts_num);
 }
 
 static void pointdensity_cache_object(PointDensity *pd, Object *ob)
@@ -391,8 +385,8 @@ static void pointdensity_cache_object(PointDensity *pd, Object *ob)
   }
 #endif
 
-  const float(*positions)[3] = BKE_mesh_vert_positions(mesh); /* local object space */
-  pd->totpoints = mesh->totvert;
+  const blender::Span<blender::float3> positions = mesh->vert_positions(); /* local object space */
+  pd->totpoints = mesh->verts_num;
   if (pd->totpoints == 0) {
     return;
   }
@@ -410,12 +404,12 @@ static void pointdensity_cache_object(PointDensity *pd, Object *ob)
       case TEX_PD_OBJECTSPACE:
         break;
       case TEX_PD_OBJECTLOC:
-        mul_m4_v3(ob->object_to_world, co);
+        mul_m4_v3(ob->object_to_world().ptr(), co);
         sub_v3_v3(co, ob->loc);
         break;
       case TEX_PD_WORLDSPACE:
       default:
-        mul_m4_v3(ob->object_to_world, co);
+        mul_m4_v3(ob->object_to_world().ptr(), co);
         break;
     }
 
@@ -525,7 +519,7 @@ static float density_falloff(PointDensityRangeData *pdr, int index, float square
       break;
     case TEX_PD_FALLOFF_PARTICLE_AGE:
       if (pdr->point_data_life) {
-        density = dist * MIN2(pdr->point_data_life[index], 1.0f);
+        density = dist * std::min(pdr->point_data_life[index], 1.0f);
       }
       else {
         density = dist;
@@ -791,7 +785,7 @@ static void particle_system_minmax(Depsgraph *depsgraph,
   sim.psys = psys;
   sim.psmd = psys_get_modifier(object, psys);
 
-  invert_m4_m4(imat, object->object_to_world);
+  invert_m4_m4(imat, object->object_to_world().ptr());
   total_particles = psys->totpart + psys->totchild;
   psys_sim_data_init(&sim);
 
@@ -827,6 +821,7 @@ void RE_point_density_minmax(Depsgraph *depsgraph,
                              float r_min[3],
                              float r_max[3])
 {
+  using namespace blender;
   Scene *scene = DEG_get_evaluated_scene(depsgraph);
   Object *object = pd->object;
   if (object == nullptr) {
@@ -853,12 +848,9 @@ void RE_point_density_minmax(Depsgraph *depsgraph,
   }
   else {
     const float radius[3] = {pd->radius, pd->radius, pd->radius};
-    const BoundBox *bb = BKE_object_boundbox_get(object);
-
-    if (bb != nullptr) {
-      BLI_assert((bb->flag & BOUNDBOX_DIRTY) == 0);
-      copy_v3_v3(r_min, bb->vec[0]);
-      copy_v3_v3(r_max, bb->vec[6]);
+    if (const std::optional<Bounds<float3>> bb = BKE_object_boundbox_get(object)) {
+      copy_v3_v3(r_min, bb->min);
+      copy_v3_v3(r_max, bb->max);
       /* Adjust texture space to include density points on the boundaries. */
       sub_v3_v3(r_min, radius);
       add_v3_v3(r_max, radius);

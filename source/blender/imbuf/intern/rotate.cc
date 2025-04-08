@@ -1,4 +1,5 @@
 /* SPDX-FileCopyrightText: 2001-2002 NaN Holding BV. All rights reserved.
+ * SPDX-FileCopyrightText: 2025 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -6,13 +7,87 @@
  * \ingroup imbuf
  */
 
+#include "BLI_task.hh"
 #include "BLI_utildefines.h"
 
 #include "MEM_guardedalloc.h"
 
-#include "IMB_imbuf.h"
-#include "IMB_imbuf_types.h"
-#include "imbuf.h"
+#include "IMB_imbuf.hh"
+#include "IMB_imbuf_types.hh"
+
+template<typename T>
+static void rotate_pixels(const int degrees,
+                          const int size_x,
+                          const int size_y,
+                          const T *src_pixels,
+                          T *dst_pixels,
+                          const int channels)
+{
+  using namespace blender;
+  threading::parallel_for(IndexRange(size_y), 256, [&](const IndexRange y_range) {
+    const T *src_pixel = src_pixels + y_range.first() * size_x * channels;
+    if (degrees == 90) {
+      for (int y : y_range) {
+        for (int x = 0; x < size_x; x++, src_pixel += channels) {
+          memcpy(&dst_pixels[(y + ((size_x - x - 1) * size_y)) * channels],
+                 src_pixel,
+                 sizeof(T) * channels);
+        }
+      }
+    }
+    else if (degrees == 180) {
+      for (int y : y_range) {
+        for (int x = 0; x < size_x; x++, src_pixel += channels) {
+          memcpy(&dst_pixels[(((size_y - y - 1) * size_x) + (size_x - x - 1)) * channels],
+                 src_pixel,
+                 sizeof(T) * channels);
+        }
+      }
+    }
+    else if (degrees == 270) {
+      for (int y : y_range) {
+        for (int x = 0; x < size_x; x++, src_pixel += channels) {
+          memcpy(&dst_pixels[((size_y - y - 1) + (x * size_y)) * channels],
+                 src_pixel,
+                 sizeof(T) * channels);
+        }
+      }
+    }
+  });
+}
+
+bool IMB_rotate_orthogonal(ImBuf *ibuf, int degrees)
+{
+  if (!ELEM(degrees, 90, 180, 270)) {
+    return false;
+  }
+
+  const int size_x = ibuf->x;
+  const int size_y = ibuf->y;
+
+  if (ELEM(degrees, 90, 270)) {
+    std::swap(ibuf->x, ibuf->y);
+  }
+  if (ibuf->float_buffer.data) {
+    const int channels = ibuf->channels;
+    const float *src_pixels = ibuf->float_buffer.data;
+    float *dst_pixels = MEM_malloc_arrayN<float>(
+        size_t(channels) * size_t(size_x) * size_t(size_y), __func__);
+    rotate_pixels<float>(degrees, size_x, size_y, src_pixels, dst_pixels, ibuf->channels);
+    IMB_assign_float_buffer(ibuf, dst_pixels, IB_TAKE_OWNERSHIP);
+    if (ibuf->byte_buffer.data) {
+      IMB_byte_from_float(ibuf);
+    }
+  }
+  else if (ibuf->byte_buffer.data) {
+    const uchar *src_pixels = ibuf->byte_buffer.data;
+    uchar *dst_pixels = MEM_malloc_arrayN<uchar>(4 * size_t(size_x) * size_t(size_y), __func__);
+    rotate_pixels<uchar>(degrees, size_x, size_y, src_pixels, dst_pixels, 4);
+    IMB_assign_byte_buffer(ibuf, dst_pixels, IB_TAKE_OWNERSHIP);
+  }
+
+  return true;
+}
 
 void IMB_flipy(ImBuf *ibuf)
 {
@@ -32,7 +107,7 @@ void IMB_flipy(ImBuf *ibuf)
 
     top = (uint *)ibuf->byte_buffer.data;
     bottom = top + ((y_size - 1) * x_size);
-    line = static_cast<uint *>(MEM_mallocN(stride, "linebuf"));
+    line = MEM_malloc_arrayN<uint>(x_size, "linebuf");
 
     y_size >>= 1;
 
@@ -57,7 +132,7 @@ void IMB_flipy(ImBuf *ibuf)
 
     topf = ibuf->float_buffer.data;
     bottomf = topf + 4 * ((y_size - 1) * x_size);
-    linef = static_cast<float *>(MEM_mallocN(stride, "linebuf"));
+    linef = MEM_malloc_arrayN<float>(4 * x_size, "linebuf");
 
     y_size >>= 1;
 
@@ -90,7 +165,7 @@ void IMB_flipx(ImBuf *ibuf)
     for (yi = y - 1; yi >= 0; yi--) {
       const size_t x_offset = size_t(x) * yi;
       for (xr = x - 1, xl = 0; xr >= xl; xr--, xl++) {
-        SWAP(uint, rect[x_offset + xr], rect[x_offset + xl]);
+        std::swap(rect[x_offset + xr], rect[x_offset + xl]);
       }
     }
   }

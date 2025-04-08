@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -31,8 +31,8 @@ class TreeElementLabel final : public AbstractTreeElement {
  public:
   TreeElementLabel(TreeElement &legacy_te, const char *label);
 
-  void setIcon(BIFIconID icon);
-  std::optional<BIFIconID> getIcon() const override;
+  void set_icon(BIFIconID icon);
+  std::optional<BIFIconID> get_icon() const override;
 };
 
 }  // namespace blender::ed::outliner

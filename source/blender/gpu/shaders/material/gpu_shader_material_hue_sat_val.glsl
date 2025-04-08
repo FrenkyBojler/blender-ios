@@ -1,4 +1,8 @@
-#pragma BLENDER_REQUIRE(gpu_shader_common_color_utils.glsl)
+/* SPDX-FileCopyrightText: 2019-2022 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
+
+#include "gpu_shader_common_color_utils.glsl"
 
 void hue_sat(float hue, float sat, float value, float fac, vec4 col, out vec4 outcol)
 {

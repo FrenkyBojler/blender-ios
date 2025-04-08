@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2016 Blender Foundation
+/* SPDX-FileCopyrightText: 2016 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -8,13 +8,18 @@
 
 #pragma once
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include "DRW_render.hh"
+
+struct RenderEngineType;
 
 extern RenderEngineType DRW_engine_viewport_workbench_type;
-extern RenderEngineType DRW_engine_viewport_workbench_next_type;
 
-#ifdef __cplusplus
+namespace blender::workbench {
+
+struct Engine : public DrawEngine::Pointer {
+  DrawEngine *create_instance() final;
+
+  static void free_static();
 };
-#endif
+
+}  // namespace blender::workbench

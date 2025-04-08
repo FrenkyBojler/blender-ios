@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -33,6 +33,7 @@ TEST(curves_geometry, Empty)
 {
   CurvesGeometry empty(0, 0);
   empty.cyclic();
+  EXPECT_TRUE(empty.is_empty());
   EXPECT_FALSE(empty.bounds_min_max());
 }
 
@@ -46,7 +47,7 @@ TEST(curves_geometry, Move)
   CurvesGeometry other = std::move(curves);
 
   /* The old curves should be empty, and the offsets are expected to be null. */
-  EXPECT_EQ(curves.points_num(), 0);        /* NOLINT: bugprone-use-after-move */
+  EXPECT_TRUE(curves.is_empty());           /* NOLINT: bugprone-use-after-move */
   EXPECT_EQ(curves.curve_offsets, nullptr); /* NOLINT: bugprone-use-after-move */
 
   /* Just a basic check that the new curves work okay. */

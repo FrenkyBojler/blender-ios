@@ -1,22 +1,23 @@
-/* SPDX-FileCopyrightText: 2020 Blender Foundation
+/* SPDX-FileCopyrightText: 2020 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 #include "testing/testing.h"
 
-#include "BKE_idtype.h"
-#include "BKE_lattice.h"
-
-#include "MEM_guardedalloc.h"
-
-#include "DNA_lattice_types.h"
-#include "DNA_mesh_types.h"
-#include "DNA_object_types.h"
-
-#include "BLI_rand.hh"
-
 #define DO_PERF_TESTS 0
 
 #if DO_PERF_TESTS
+
+#  include "BKE_idtype.hh"
+#  include "BKE_lattice.hh"
+
+#  include "MEM_guardedalloc.h"
+
+#  include "DNA_lattice_types.h"
+#  include "DNA_mesh_types.h"
+#  include "DNA_object_types.h"
+
+#  include "BLI_rand.hh"
+
 namespace blender::bke::tests {
 
 struct LatticeDeformTestContext {
@@ -33,7 +34,7 @@ static void test_lattice_deform_init(LatticeDeformTestContext *ctx,
                                      int32_t num_items)
 {
   /* Generate random input data between -5 and 5. */
-  ctx->coords = (float(*)[3])MEM_malloc_arrayN(num_items, sizeof(float[3]), __func__);
+  ctx->coords = MEM_malloc_arrayN<float[3]>(size_t(num_items), __func__);
   for (uint32_t index = 0; index < num_items; index++) {
     ctx->coords[index][0] = (rng->get_float() - 0.5f) * 10;
     ctx->coords[index][1] = (rng->get_float() - 0.5f) * 10;
