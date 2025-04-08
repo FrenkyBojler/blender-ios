@@ -8,8 +8,6 @@
 
 #include "GPU_debug.hh"
 
-#include "vk_context.hh"
-
 #include "vk_backend.hh"
 #include "vk_debug.hh"
 #include "vk_framebuffer.hh"

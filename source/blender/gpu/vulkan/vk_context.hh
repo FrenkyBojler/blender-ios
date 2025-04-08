@@ -12,7 +12,6 @@
 
 #include "gpu_context_private.hh"
 
-#include "vk_common.hh"
 
 #include "GHOST_Types.h"
 
