@@ -400,7 +400,8 @@ static void create_camera_curves(const ufbx_metadata &metadata,
     for (int i = 0; i < input_curve->keyframes.count; i++) {
       const ufbx_keyframe &fkey = input_curve->keyframes[i];
       float tf = float(fkey.time * fps + anim_offset);
-      float val = float(fkey.value * metadata.geometry_scale * metadata.root_scale);
+      /* Animation curves containing camera focus distance have values multiplied by 1000.0 */
+      float val = float(fkey.value / 1000.0 * metadata.geometry_scale * metadata.root_scale);
       set_curve_sample(curve, i, tf, val);
     }
     finalize_curve(curve);
