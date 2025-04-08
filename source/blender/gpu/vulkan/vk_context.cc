@@ -484,8 +484,8 @@ void VKContext::openxr_release_framebuffer_image_handler(GHOST_VulkanOpenXRData 
 
     case GHOST_kVulkanXRModeWin32:
 #ifdef _WIN32
-      /* Exported handle isn't consumed when importing and should be freed after use. */
-      // TODO: Implement
+      /* Exported handle isn't consumed during import and should be freed after use. */
+      CloseHandle(HANDLE(openxr_data.gpu.image_handle));
       openxr_data.gpu.image_handle = 0;
 #endif
       break;
