@@ -1094,8 +1094,8 @@ bool RE_engine_render(Render *re, bool do_all)
       if (RE_engine_test_break(engine)) {
         break;
       }
-      if (re->rendered_viewlayer) {
-        re->rendered_viewlayer(re->rvh, view_layer_iter);
+      if (re->rendered_viewlayer_cb) {
+        re->rendered_viewlayer_cb(re->rendered_vl_handle, view_layer_iter);
       }
     }
     FOREACH_VIEW_LAYER_TO_RENDER_END;

@@ -582,14 +582,14 @@ Render *RE_NewInteractiveCompositorRender(const Scene *scene)
 void RE_InitRenderCB(Render *re)
 {
   /* set default empty callbacks */
-  re->display_init = result_nothing;
-  re->display_clear = result_nothing;
-  re->display_update = result_rcti_nothing;
-  re->current_scene_update = current_scene_nothing;
-  re->prepare_viewlayer = prepare_viewlayer_nothing;
-  re->rendered_viewlayer = rendered_viewlayer_nothing;
-  re->progress = float_nothing;
-  re->test_break = default_break;
+  re->display_init_cb = result_nothing;
+  re->display_clear_cb = result_nothing;
+  re->display_update_cb = result_rcti_nothing;
+  re->current_scene_update_cb = current_scene_nothing;
+  re->prepare_viewlayer_cb = prepare_viewlayer_nothing;
+  re->rendered_viewlayer_cb = rendered_viewlayer_nothing;
+  re->progress_cb = float_nothing;
+  re->test_break_cb = default_break;
   if (G.background) {
     re->stats_draw_cb = stats_background;
   }
@@ -995,8 +995,8 @@ void RE_rendered_viewlayer_cb(Render *re,
                               void *handle,
                               void (*f)(void *handle, const ViewLayer *vl))
 {
-  re->rendered_viewlayer = f;
-  re->rvh = handle;
+  re->rendered_viewlayer_cb = f;
+  re->rendered_vl_handle = handle;
 }
 
 /** \} */

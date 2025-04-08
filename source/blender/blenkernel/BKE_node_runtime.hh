@@ -116,8 +116,6 @@ class DirtyState {
   }
 };
 
-using NodeIDVectorSet = VectorSet<bNode *, DefaultProbingStrategy, NodeIDHash, NodeIDEquality>;
-
 class bNodeTreeRuntime : NonCopyable, NonMovable {
  public:
   /**

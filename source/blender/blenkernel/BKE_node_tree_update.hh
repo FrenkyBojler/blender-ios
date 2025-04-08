@@ -74,6 +74,8 @@ struct NodeTreeUpdateExtraParams {
    * This can be used to tag the depsgraph if necessary.
    */
   std::function<void(bNodeTree &, ID &owner)> tree_output_changed_fn;
+
+  bool avoid_making_previews_dirty = false;
 };
 
 /**

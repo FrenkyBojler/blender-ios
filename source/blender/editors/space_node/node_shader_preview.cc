@@ -408,8 +408,7 @@ static void connect_nested_node_to_node(const Span<bNodeTreePath *> treepath,
     bNodeSocket *out_socket = blender::bke::node_find_enabled_input_socket(*output_node,
                                                                            route_name);
 
-    nodeAddLink(nested_nt, nested_node_iter, nested_socket_iter, output_node, out_socket);
-    BKE_ntree_update_main_tree(G.pr_main, nested_nt, &params);
+//    BKE_ntree_update_main_tree(G.pr_main, nested_nt, &params);
     bke::node_add_link(
         *nested_nt, *nested_node_iter, *nested_socket_iter, *output_node, *out_socket);
     BKE_ntree_update_after_single_tree_change(*G.pr_main, *nested_nt);
@@ -420,7 +419,7 @@ static void connect_nested_node_to_node(const Span<bNodeTreePath *> treepath,
 
     /* Update the sockets of the node because we added a new interface. */
     BKE_ntree_update_tag_node_property(path_prev->nodetree, nested_node_iter);
-    BKE_ntree_update_main_tree(G.pr_main, path_prev->nodetree, &params);
+//    BKE_ntree_update_main_tree(G.pr_main, path_prev->nodetree, &params);
     BKE_ntree_update_after_single_tree_change(*G.pr_main, *path_prev->nodetree);
 
     /* Now use the newly created socket of the node-group as previewing socket of the node-group
@@ -429,12 +428,7 @@ static void connect_nested_node_to_node(const Span<bNodeTreePath *> treepath,
                                                                        route_name);
   }
 
-  nodeAddLink(treepath.first()->nodetree,
-              nested_node_iter,
-              nested_socket_iter,
-              &final_node,
-              &final_socket);
-  BKE_ntree_update_main_tree(G.pr_main, treepath.first()->nodetree, &params);
+//  BKE_ntree_update_main_tree(G.pr_main, treepath.first()->nodetree, &params);
   bke::node_add_link(*treepath.first()->nodetree,
                      *nested_node_iter,
                      *nested_socket_iter,
@@ -589,8 +583,12 @@ static void rendered_viewlayer_update(void *pvl_data, const ViewLayer *vl)
     }
     return;
   }
-  bNode *single_node_rendered = nodeFindNodebyName(job_data->treepath_copy.last()->nodetree,
-                                                   vl->name);
+  bNode *single_node_rendered = nullptr;
+  LISTBASE_FOREACH(bNode *, node, &job_data->treepath_copy.last()->nodetree->nodes) {
+    if (STREQ(node->name, vl->name)) {
+      single_node_rendered = node;
+    }
+  }
   if (single_node_rendered == nullptr) {
     return;
   }
@@ -719,7 +717,12 @@ static DirtyState get_treepath_dirty_state(const ListBase *treepath)
        path_iter = path_iter->next)
   {
     treepath_dirty_state.merge(path_iter->nodetree->runtime->whole_tree_dirtystate);
-    bNode *group_node = nodeFindNodebyName(path_iter->prev->nodetree, path_iter->node_name);
+    bNode *group_node = nullptr;
+    LISTBASE_FOREACH(bNode *, node, &path_iter->prev->nodetree->nodes) {
+      if (STREQ(node->name, path_iter->node_name)) {
+        group_node = node;
+      }
+    }
     treepath_dirty_state.merge(group_node->runtime->dirtystate);
   }
   return treepath_dirty_state;
@@ -786,9 +789,9 @@ static void shader_preview_startjob(void *customdata, wmJobWorkerStatus *worker_
   if (size_changed) {
     job_data->tree_previews->preview_size = U.node_preview_res;
   }
-  job_data->stop = stop;
-  job_data->do_update = do_update;
-  *do_update = true;
+//  job_data->stop = stop;
+//  job_data->do_update = do_update;
+//  *do_update = true;
 
   for (bNode *node_iter : job_data->mat_copy->nodetree->all_nodes()) {
     if (node_iter->flag & NODE_DO_OUTPUT) {
@@ -892,12 +895,12 @@ static void ensure_nodetree_previews(const bContext &C,
   if (!update_needed(&treepath, &tree_previews, partial_tree_refresh, preview_type)) {
     return;
   }
-  if (tree_previews.rendering) {
-    WM_jobs_stop_type(CTX_wm_manager(&C), CTX_wm_space_node(&C), WM_JOB_TYPE_RENDER_PREVIEW);
+//  if (tree_previews.rendering) {
   if (tree_previews.running_job != nullptr) {
-    WM_jobs_stop(CTX_wm_manager(&C),
-                 CTX_wm_space_node(&C),
-                 reinterpret_cast<void *>(shader_preview_startjob));
+    WM_jobs_stop_type(CTX_wm_manager(&C), CTX_wm_space_node(&C), WM_JOB_TYPE_RENDER_PREVIEW);
+//    WM_jobs_stop(CTX_wm_manager(&C),
+//                 CTX_wm_space_node(&C),
+//                 reinterpret_cast<void *>(shader_preview_startjob));
     return;
   }
 

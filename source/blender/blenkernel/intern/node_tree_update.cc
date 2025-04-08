@@ -63,12 +63,6 @@ enum eNodeTreeChangedFlag {
   NTREE_CHANGED_SOCKET_LINK = (1 << 9),
   NTREE_CHANGED_INTERNAL_LINK = (1 << 10),
   NTREE_CHANGED_PARENT = (1 << 11),
-  NTREE_CHANGED_LINK = (1 << 4),
-  NTREE_CHANGED_REMOVED_NODE = (1 << 5),
-  NTREE_CHANGED_REMOVED_SOCKET = (1 << 6),
-  NTREE_CHANGED_SOCKET_PROPERTY = (1 << 7),
-  NTREE_CHANGED_INTERNAL_LINK = (1 << 8),
-  NTREE_CHANGED_PARENT = (1 << 9),
   NTREE_CHANGED_ALL = -1,
 };
 
@@ -801,7 +795,7 @@ class NodeTreeMainUpdater {
 
   void shader_node_previews_mark_dirty()
   {
-    if (params_ && params_->avoid_making_previews_dirty) {
+    if (params_.avoid_making_previews_dirty) {
       return;
     }
     for (const bNodeTree *ntree : update_result_by_tree_.keys()) {
@@ -817,7 +811,7 @@ class NodeTreeMainUpdater {
 
   void nodes_preview_mark_dirty(bNodeTree &ntree, Stack<bNode *> nodes_to_visit)
   {
-    if (ntree.type != NTREE_SHADER || (params_ && params_->avoid_making_previews_dirty)) {
+    if (ntree.type != NTREE_SHADER || params_.avoid_making_previews_dirty) {
       /* Those preview dirty states are only used for shader previews. */
       return;
     }
@@ -838,7 +832,7 @@ class NodeTreeMainUpdater {
             nodes_to_visit.push(child_node);
           }
 
-          if (child_node->type == SH_NODE_OUTPUT_MATERIAL &&
+          if (child_node->type_legacy == SH_NODE_OUTPUT_MATERIAL &&
               STREQ(propagation_socket->name, "Displacement")) {
             /* If the displacement changed in the output, then all shader nodes needs to be
              * redrawn. */
@@ -859,9 +853,9 @@ class NodeTreeMainUpdater {
     LISTBASE_FOREACH (bNode *, node_iter, &ntree.nodes) {
       if (node_iter->runtime->changed_flag != NTREE_CHANGED_NOTHING) {
         nodes_to_visit.push(node_iter);
-    ntree.runtime->previews_refresh_state++;
-    for (bNode *node : ntree.all_nodes()) {
-      if (!node->is_group()) {
+//    ntree.runtime->previews_refresh_state++;
+//    for (bNode *node : ntree.all_nodes()) {
+//      if (!node->is_group()) {
         continue;
       }
       LISTBASE_FOREACH (bNodeSocket *, socket_iter, &node_iter->inputs) {
