@@ -109,14 +109,7 @@ class Node : NonCopyable {
   /** \todo Move storage of image painting data to #Tree or elsewhere. */
   pixels::NodeData *pixels_ = nullptr;
 
-  std::optional<int> parent() const
-  {
-    if (parent_ == -1) {
-      return std::nullopt;
-    }
-
-    return parent_;
-  }
+  std::optional<int> parent() const;
   const Bounds<float3> &bounds() const;
   const Bounds<float3> &bounds_orig() const;
 };
@@ -616,6 +609,15 @@ void node_update_visibility_bmesh(BMeshNode &node);
 void update_node_bounds_mesh(Span<float3> positions, MeshNode &node);
 void update_node_bounds_grids(int grid_area, Span<float3> positions, GridsNode &node);
 void update_node_bounds_bmesh(BMeshNode &node);
+
+inline std::optional<int> Node::parent() const
+{
+  if (parent_ == -1) {
+    return std::nullopt;
+  }
+
+  return parent_;
+}
 
 inline const Bounds<float3> &Node::bounds() const
 {
