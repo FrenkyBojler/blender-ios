@@ -188,10 +188,7 @@ void import_skeleton_curves(Main *bmain,
   }
 
   blender::Vector<FCurve *> fcurves = channelbag.fcurve_create_many(nullptr, curve_desc.as_span());
-  if (fcurves.size() != curve_desc.size()) {
-    CLOG_ERROR(&LOG, "USD: animation curve count mismatch");
-    return;
-  }
+  BLI_assert_msg(fcurves.size() == curve_desc.size(), "USD: animation curve count mismatch");
   for (FCurve *fcu : fcurves) {
     if (fcu != nullptr) {
       BKE_fcurve_bezt_resize(fcu, num_samples);
