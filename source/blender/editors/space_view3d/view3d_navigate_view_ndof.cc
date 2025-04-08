@@ -810,16 +810,20 @@ static wmOperatorStatus ndof_orbit_zoom_invoke_impl(bContext *C,
      * so if there are users who like to separate orbit/pan operations - it can be a preference. */
     const bool is_orbit_around_pivot = (U.ndof_flag & NDOF_MODE_ORBIT) ||
                                        ED_view3d_offset_lock_check(v3d, rv3d);
+
+    /* NDOF motion should zoom if and only if auto orbit center mode is disabled or projection is set to orthographic. */
+    const bool can_zoom = !rv3d->is_persp ||
+                          ((U.ndof_flag & NDOF_ORBIT_CENTER_AUTO) == 0);
     const bool has_rotation = ndof_has_rotate(ndof, rv3d);
     bool has_translate, has_zoom;
 
-    if (is_orbit_around_pivot && ((U.ndof_flag & NDOF_ORBIT_CENTER_AUTO) == 0)) {
+    if (is_orbit_around_pivot && can_zoom) {
       /* Zoom along Z axis. */
       has_translate = !is_zero_v2(ndof->tvec) && ndof_has_translate(ndof, v3d, rv3d);
       has_zoom = (ndof->tvec[2] != 0.0f);
     }
     else {
-      /* Free preference or auto orbit center (Z translates). */
+      /* Free preference or auto orbit center in perspective mode (Z translates). */
       has_translate = ndof_has_translate(ndof, v3d, rv3d);
       has_zoom = false;
     }
