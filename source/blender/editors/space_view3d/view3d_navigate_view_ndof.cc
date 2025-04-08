@@ -782,13 +782,13 @@ static wmOperatorStatus ndof_orbit_zoom_invoke_impl(bContext *C,
     const bool has_rotation = ndof_has_rotate(ndof, rv3d);
     bool has_translate, has_zoom;
 
-    if (is_orbit_around_pivot) {
-      /* Orbit preference or forced lock (Z zooms). */
+    if (is_orbit_around_pivot && ((U.ndof_flag & NDOF_ORBIT_CENTER_AUTO) == 0)) {
+      /* Zoom along Z axis. */
       has_translate = !is_zero_v2(ndof->tvec) && ndof_has_translate(ndof, v3d, rv3d);
       has_zoom = (ndof->tvec[2] != 0.0f);
     }
     else {
-      /* Free preference (Z translates). */
+      /* Free preference or auto orbit center (Z translates). */
       has_translate = ndof_has_translate(ndof, v3d, rv3d);
       has_zoom = false;
     }
