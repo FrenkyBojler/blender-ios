@@ -256,17 +256,19 @@ TEST(blender_variables, path_apply_variables)
 
   /* Error: invalid format specifiers. */
   {
-    char path[FILE_MAX] = "{prime:}_{prime:.}_{prime:#.#.#}_{prime:sup}_{prime}";
+    char path[FILE_MAX] = "{prime:}_{prime:.}_{prime:#.#.#}_{prime:sup}_{prime::sup}_{prime}";
     const Vector<VariableParseError> errors = BKE_path_apply_variables(path, variables);
     const Vector<VariableParseError> expected_errors = {
         {VariableParseErrorType::FORMAT_SPECIFIER, IndexRange(0, 8)},
         {VariableParseErrorType::FORMAT_SPECIFIER, IndexRange(9, 9)},
         {VariableParseErrorType::FORMAT_SPECIFIER, IndexRange(19, 13)},
         {VariableParseErrorType::FORMAT_SPECIFIER, IndexRange(33, 11)},
+        {VariableParseErrorType::FORMAT_SPECIFIER, IndexRange(45, 12)},
     };
 
     EXPECT_EQ(errors, expected_errors);
-    EXPECT_EQ(blender::StringRef(path), "{prime:}_{prime:.}_{prime:#.#.#}_{prime:sup}_{prime}");
+    EXPECT_EQ(blender::StringRef(path),
+              "{prime:}_{prime:.}_{prime:#.#.#}_{prime:sup}_{prime::sup}_{prime}");
   }
 
   /* Error: unclosed variable. */

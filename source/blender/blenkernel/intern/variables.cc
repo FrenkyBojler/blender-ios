@@ -495,14 +495,12 @@ static std::optional<Token> next_token(char *path,
 
     /* Check if we've found a format splitter. */
     if (path[byte_index] == ':') {
-      if (format_specifier_split != -1) {
-        /* Found a second format specifier split. Syntax error. */
-        token.type = TokenType::VARIABLE_SYNTAX_ERROR;
-        token.byte_range = blender::IndexRange::from_begin_end(byte_index, byte_index + 1);
-        return token;
+      if (format_specifier_split == -1) {
+        /* Only set if it's the first ":" we've encountered in the variable
+         * reference. Subsequent ones will be handled in the format specifier
+         * parsing. */
+        format_specifier_split = byte_index;
       }
-
-      format_specifier_split = byte_index;
       continue;
     }
 
