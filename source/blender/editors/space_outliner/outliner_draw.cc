@@ -4126,8 +4126,8 @@ int ED_outliner_icon_from_id(const ID &id)
   return blender::ed::outliner::tree_element_get_icon_from_id(&id);
 }
 
-bool ED_outliner_support_searching(const SpaceOutliner* space_outliner)
+bool ED_outliner_support_searching(const SpaceOutliner *space_outliner)
 {
   return !((space_outliner->outlinevis == SO_OVERRIDES_LIBRARY) &&
-      (space_outliner->lib_override_view_mode == SO_LIB_OVERRIDE_VIEW_HIERARCHIES));
+           (space_outliner->lib_override_view_mode == SO_LIB_OVERRIDE_VIEW_HIERARCHIES));
 }
