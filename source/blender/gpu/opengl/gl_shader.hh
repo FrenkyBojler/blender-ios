@@ -240,7 +240,7 @@ class GLCompilerWorker {
   ~GLCompilerWorker();
 
   void compile(const GLSourcesBaked &sources);
-  bool is_ready();
+  void block_until_ready();
   bool load_program_binary(GLint program);
   void release();
 

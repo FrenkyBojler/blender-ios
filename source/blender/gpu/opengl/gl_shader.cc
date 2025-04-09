@@ -1625,18 +1625,15 @@ void GLCompilerWorker::compile(const GLSourcesBaked &sources)
   compilation_start = BLI_time_now_seconds();
 }
 
-bool GLCompilerWorker::is_ready()
+void GLCompilerWorker::block_until_ready()
 {
   BLI_assert(ELEM(state_, COMPILATION_REQUESTED, COMPILATION_READY));
   if (state_ == COMPILATION_READY) {
-    return true;
+    return;
   }
 
-  if (end_semaphore_->try_decrement()) {
-    state_ = COMPILATION_READY;
-  }
-
-  return state_ == COMPILATION_READY;
+  end_semaphore_->decrement();
+  state_ = COMPILATION_READY;
 }
 
 bool GLCompilerWorker::is_lost()
@@ -1821,6 +1818,7 @@ void GLShaderCompiler::specialize_shader(ShaderSpecialization &specialization)
   }
 
   GLCompilerWorker *worker = get_compiler_worker(sources);
+  worker->block_until_ready();
 
   std::lock_guard lock(mutex);
 
