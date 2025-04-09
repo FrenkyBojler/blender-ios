@@ -762,21 +762,8 @@ static wmOperatorStatus sequencer_slip_modal(bContext *C, wmOperator *op, const 
   const bool has_num_input = hasNumInput(&data->num_input);
 
   if (event->val == KM_PRESS && handleNumInput(C, &data->num_input, event)) {
-    /* Modal numerical input is active. */
-    if (has_num_input) {
-      slip_handle_num_input(C, op, area, data, scene);
-      return OPERATOR_RUNNING_MODAL;
-    }
-    /* Modal numerical input is inactive, try to handle numeric inputs from key press events. */
-    else {
-      /* Always remove the previous sub-frame adjustments we have potentially made
-       * with the mouse input when the user starts entering values by hand. */
-      float to_nearest_frame = -(data->prev_offset - round_fl_to_int(data->prev_offset));
-      slip_strips_delta(op, scene, data, to_nearest_frame);
-      data->virtual_mval_x += to_nearest_frame * UI_view2d_scale_get_x(v2d);
-
-      slip_handle_num_input(C, op, area, data, scene);
-    }
+    slip_handle_num_input(C, op, area, data, scene);
+    return OPERATOR_RUNNING_MODAL;
   }
 
   if (event->type == EVT_MODAL_MAP) {
