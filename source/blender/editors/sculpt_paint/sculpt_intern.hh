@@ -238,8 +238,8 @@ struct StrokeCache {
   float4x4 projection_mat;
 
   /* Clean this up! */
-  ViewContext *vc;
-  const Brush *brush;
+  ViewContext *vc = nullptr;
+  const Brush *brush = nullptr;
 
   float special_rotation;
   float3 grab_delta, grab_delta_symm;
@@ -363,9 +363,9 @@ struct StrokeCache {
   Array<float> layer_displacement_factor;
 
   float vertex_rotation; /* amount to rotate the vertices when using rotate brush */
-  Dial *dial;
+  Dial *dial = nullptr;
 
-  Brush *saved_active_brush;
+  Brush *saved_active_brush = nullptr;
   char saved_mask_brush_tool;
   int saved_smooth_size; /* smooth tool copies the size of the current tool */
 
@@ -388,6 +388,7 @@ struct StrokeCache {
   float4x4 stroke_local_mat;
   float multiplane_scrape_angle;
 
+  StrokeCache();
   ~StrokeCache();
 };
 
