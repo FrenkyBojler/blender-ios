@@ -522,7 +522,7 @@ void slip_modal_keymap(wmKeyConfig *keyconf)
   WM_modalkeymap_assign(keymap, "SEQUENCER_OT_slip");
 }
 
-static void slip_draw_status(bContext *C, wmOperator *op)
+static void slip_draw_status(bContext *C, const wmOperator *op)
 {
   SlipData *data = static_cast<SlipData *>(op->customdata);
 
@@ -535,7 +535,10 @@ static void slip_draw_status(bContext *C, wmOperator *op)
   status.opmodal(IFACE_("Clamp"), op->type, SLIP_MODAL_CLAMP_TOGGLE, data->clamp);
 }
 
-static void slip_update_header(Scene *scene, ScrArea *area, SlipData *data, float offset)
+static void slip_update_header(const Scene *scene,
+                               ScrArea *area,
+                               SlipData *data,
+                               const float offset)
 {
   if (area == nullptr) {
     return;
@@ -628,7 +631,7 @@ static wmOperatorStatus sequencer_slip_invoke(bContext *C, wmOperator *op, const
   return OPERATOR_RUNNING_MODAL;
 }
 
-static void slip_strips_delta(wmOperator *op, Scene *scene, SlipData *data, float delta)
+static void slip_strips_delta(wmOperator *op, Scene *scene, SlipData *data, const float delta)
 {
   float new_offset = data->prev_offset + delta;
   /* Calculate rounded whole frames between offsets, which cannot be determined from `delta` alone.
@@ -638,8 +641,8 @@ static void slip_strips_delta(wmOperator *op, Scene *scene, SlipData *data, floa
   float subframe_delta = 0.0f;
   /* Only apply subframe delta if the input is not an integer. */
   if (std::trunc(delta) != delta) {
-    /* Note that `subframe_delta` has opposite sign from `frame_delta`
-     * when `abs(delta)` < 1 and `abs(frame_delta)` >= 1 to undo its effect.  */
+    /* Note that `subframe_delta` has opposite sign to `frame_delta`
+     * when `abs(delta)` < `abs(frame_delta)` to undo its effect.  */
     subframe_delta = delta - frame_delta;
   }
 
@@ -736,7 +739,7 @@ static wmOperatorStatus sequencer_slip_exec(bContext *C, wmOperator *op)
 }
 
 static void slip_handle_num_input(
-    bContext *C, wmOperator *op, ScrArea *area, SlipData *data, Scene *scene)
+    const bContext *C, wmOperator *op, ScrArea *area, SlipData *data, Scene *scene)
 {
   float offset;
   applyNumInput(&data->num_input, &offset);
@@ -829,7 +832,7 @@ static wmOperatorStatus sequencer_slip_modal(bContext *C, wmOperator *op, const 
 
       float mouse_co[2];
       UI_view2d_region_to_view(v2d, data->virtual_mval_x, 0.0f, &mouse_co[0], &mouse_co[1]);
-      const float offset = mouse_co[0] - data->init_mouse_co[0];
+      float offset = mouse_co[0] - data->init_mouse_co[0];
       if (!data->precision) {
         offset = std::trunc(offset);
       }
