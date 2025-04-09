@@ -16,7 +16,7 @@
 
 #include "BKE_context.hh"
 #include "BKE_image.hh"
-#include "BKE_node_legacy_types.hh"
+#include "BKE_node_runtime.hh"
 
 #include "ED_gizmo_library.hh"
 #include "ED_screen.hh"
@@ -99,14 +99,14 @@ static bool WIDGETGROUP_node_transform_poll(const bContext *C, wmGizmoGroupType 
 {
   SpaceNode *snode = CTX_wm_space_node(C);
 
-  if ((snode->flag & SNODE_BACKDRAW) == 0) {
+  if (snode && (snode->flag & SNODE_BACKDRAW) == 0) {
     return false;
   }
 
   if (snode && snode->edittree && snode->edittree->type == NTREE_COMPOSIT) {
     bNode *node = bke::node_get_active(*snode->edittree);
 
-    if (node && ELEM(node->type_legacy, CMP_NODE_VIEWER)) {
+    if (node && node->is_type("CompositorNodeViewer")) {
       return true;
     }
   }
@@ -296,14 +296,14 @@ static bool WIDGETGROUP_node_crop_poll(const bContext *C, wmGizmoGroupType * /*g
 {
   SpaceNode *snode = CTX_wm_space_node(C);
 
-  if ((snode->flag & SNODE_BACKDRAW) == 0) {
+  if (snode && (snode->flag & SNODE_BACKDRAW) == 0) {
     return false;
   }
 
   if (snode && snode->edittree && snode->edittree->type == NTREE_COMPOSIT) {
     bNode *node = bke::node_get_active(*snode->edittree);
 
-    if (node && ELEM(node->type_legacy, CMP_NODE_CROP)) {
+    if (node && node->is_type("CompositorNodeCrop")) {
       /* ignore 'use_crop_size', we can't usefully edit the crop in this case. */
       if ((node->custom1 & (1 << 0)) == 0) {
         return true;
@@ -478,14 +478,14 @@ static bool WIDGETGROUP_node_box_mask_poll(const bContext *C, wmGizmoGroupType *
 {
   SpaceNode *snode = CTX_wm_space_node(C);
 
-  if ((snode->flag & SNODE_BACKDRAW) == 0) {
+  if (snode && (snode->flag & SNODE_BACKDRAW) == 0) {
     return false;
   }
 
   if (snode && snode->edittree && snode->edittree->type == NTREE_COMPOSIT) {
     bNode *node = bke::node_get_active(*snode->edittree);
 
-    if (node && ELEM(node->type_legacy, CMP_NODE_MASK_BOX)) {
+    if (node && node->is_type("CompositorNodeBoxMask")) {
       return true;
     }
   }
@@ -592,14 +592,14 @@ static bool WIDGETGROUP_node_sbeam_poll(const bContext *C, wmGizmoGroupType * /*
 {
   SpaceNode *snode = CTX_wm_space_node(C);
 
-  if ((snode->flag & SNODE_BACKDRAW) == 0) {
+  if (snode && (snode->flag & SNODE_BACKDRAW) == 0) {
     return false;
   }
 
   if (snode && snode->edittree && snode->edittree->type == NTREE_COMPOSIT) {
     bNode *node = bke::node_get_active(*snode->edittree);
 
-    if (node && ELEM(node->type_legacy, CMP_NODE_SUNBEAMS)) {
+    if (node && node->is_type("CompositorNodeSunBeams")) {
       return true;
     }
   }
@@ -699,14 +699,14 @@ static bool WIDGETGROUP_node_corner_pin_poll(const bContext *C, wmGizmoGroupType
 {
   SpaceNode *snode = CTX_wm_space_node(C);
 
-  if ((snode->flag & SNODE_BACKDRAW) == 0) {
+  if (snode && (snode->flag & SNODE_BACKDRAW) == 0) {
     return false;
   }
 
   if (snode && snode->edittree && snode->edittree->type == NTREE_COMPOSIT) {
     bNode *node = bke::node_get_active(*snode->edittree);
 
-    if (node && ELEM(node->type_legacy, CMP_NODE_CORNERPIN)) {
+    if (node && node->is_type("CompositorNodeCornerPin")) {
       return true;
     }
   }
