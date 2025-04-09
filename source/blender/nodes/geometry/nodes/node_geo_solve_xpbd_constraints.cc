@@ -662,6 +662,10 @@ static void set_constraint_data_output(GeoNodeExecParams params,
     if (data.geometry) {
       constraints.add(SocketInterfaceKey(data.type->ui_name), *stype, &(*data.geometry));
     }
+    else {
+      const GeometrySet geometry = {};
+      constraints.add(SocketInterfaceKey(data.type->ui_name), *stype, &geometry);
+    }
   }
 
   params.set_output("Constraints", std::move(constraints_ptr));
