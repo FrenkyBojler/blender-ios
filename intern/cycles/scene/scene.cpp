@@ -561,6 +561,19 @@ bool Scene::update(Progress &progress)
   return true;
 }
 
+bool Scene::update_camera_resolution(Progress &progress, int width, int height)
+{
+  if (!camera->set_screen_size(width, height)) {
+    return false;
+  }
+
+  camera->device_update(device, &dscene, this);
+
+  progress.set_status("Updating Device", "Writing constant memory");
+  device->const_copy_to("data", &dscene.data, sizeof(dscene.data));
+  return true;
+}
+
 static void log_kernel_features(const uint features)
 {
   VLOG_INFO << "Requested features:\n";

@@ -824,13 +824,16 @@ bool Camera::use_motion() const
   return motion.size() > 1;
 }
 
-void Camera::set_screen_size(const int width_, int height_)
+bool Camera::set_screen_size(const int width_, int height_)
 {
   if (width_ != width || height_ != height) {
     width = width_;
     height = height_;
     tag_modified();
+    return true;
   }
+
+  return false;
 }
 
 float Camera::motion_time(const int step) const
