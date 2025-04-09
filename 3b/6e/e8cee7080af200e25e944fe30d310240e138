@@ -32,3 +32,4 @@ Referenced by issue #88951, Move vertex group names from object to geometry
 Referenced by issue #88376, Vertex groups in copy linked object with wrong namming in field of modifier (Bevel)
 Referenced by issue #88334, Failure to preserve vertex groups through Geometry Nodes, new to 2.93
 Referenced by issue #63434, Undoing the removal of a vertex group in edit mode changes other vertex groups and doesnt bring the removed vertex group back
+Referenced by pull request #137225, Fix #63434: Edit mesh undo does not handle vertex group removal
