@@ -84,7 +84,7 @@ class DebugDraw {
     return module;
   }
 
-  void draw_line(float3 v1, float3 v2, uint color);
+  void draw_line(float3 v1, float3 v2, uint color, uint lifetime = 1);
 
   static uint color_pack(float4 color);
 
@@ -94,21 +94,33 @@ class DebugDraw {
   void clear_gpu_data();
 };
 
+/* Used for virtually infinite lifetime.
+ * Useful for debugging render or baking jobs. */
+constexpr uint drw_debug_persistent = ~0u;
 /**
  * Drawing functions that will draw wire-frames with the given color.
+ * `lifetime` is in redraw.
  */
-void drw_debug_line(float3 v1, float3 v2, float4 color = {1, 0, 0, 1});
-void drw_debug_polygon(Span<float3> face_verts, float4 color = {1, 0, 0, 1});
-void drw_debug_bbox(const BoundBox &bbox, const float4 color = {1, 0, 0, 1});
-void drw_debug_sphere(const float3 center, float radius, const float4 color = {1, 0, 0, 1});
-void drw_debug_point(const float3 center, float radius = 0.01f, const float4 color = {1, 0, 0, 1});
+void drw_debug_line(float3 v1, float3 v2, float4 color = {1, 0, 0, 1}, uint lifetime = 1);
+void drw_debug_polygon(Span<float3> face_verts, float4 color = {1, 0, 0, 1}, uint lifetime = 1);
+void drw_debug_bbox(const BoundBox &bbox, float4 color = {1, 0, 0, 1}, uint lifetime = 1);
+void drw_debug_sphere(const float3 center,
+                      float radius,
+                      float4 color = {1, 0, 0, 1},
+                      uint lifetime = 1);
+void drw_debug_point(const float3 center,
+                     float radius = 0.01f,
+                     float4 color = {1, 0, 0, 1},
+                     uint lifetime = 1);
 /**
  * Draw a matrix transformation as 3 colored axes.
  */
-void drw_debug_matrix(const float4x4 &m4);
+void drw_debug_matrix(const float4x4 &m4, uint lifetime = 1);
 /**
  * Draw a matrix as a 2 units length bounding box, centered on origin.
  */
-void drw_debug_matrix_as_bbox(const float4x4 &mat, const float4 color = {1, 0, 0, 1});
+void drw_debug_matrix_as_bbox(const float4x4 &mat,
+                              const float4 color = {1, 0, 0, 1},
+                              uint lifetime = 1);
 
 }  // namespace blender::draw
