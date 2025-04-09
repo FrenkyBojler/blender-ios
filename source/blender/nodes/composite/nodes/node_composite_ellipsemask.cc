@@ -95,7 +95,14 @@ static void ellipse_mask(const Result &base_mask,
   uv -= location;
   uv.y *= float(domain_size.y) / float(domain_size.x);
   uv = float2x2(float2(cos_angle, -sin_angle), float2(sin_angle, cos_angle)) * uv;
-  bool is_inside = math::length(uv / radius) < 1.0f;
+  bool is_inside;
+  if (radius.x == 0 || radius.y == 0) {
+    /* Avoid division by zero. Masks of size zero should have no effect. */
+    is_inside = false;
+  }
+  else {
+    is_inside = math::length(uv / radius) < 1.0f;
+  }
 
   float base_mask_value = base_mask.load_pixel<float, true>(texel);
   float value = value_mask.load_pixel<float, true>(texel);

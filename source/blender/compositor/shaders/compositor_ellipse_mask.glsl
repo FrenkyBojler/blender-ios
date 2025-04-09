@@ -12,7 +12,14 @@ void main()
   uv -= location;
   uv.y *= float(domain_size.y) / float(domain_size.x);
   uv = mat2(cos_angle, -sin_angle, sin_angle, cos_angle) * uv;
-  bool is_inside = length(uv / radius) < 1.0;
+  bool is_inside;
+  if (radius.x == 0 || radius.y == 0) {
+    /* Avoid division by zero. Masks of size zero should have no effect. */
+    is_inside = false;
+  }
+  else {
+    is_inside = length(uv / radius) < 1.0f;
+  }
 
   float base_mask_value = texture_load(base_mask_tx, texel).x;
   float value = texture_load(mask_value_tx, texel).x;
