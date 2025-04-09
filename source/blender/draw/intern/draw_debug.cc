@@ -75,6 +75,11 @@ void DebugDraw::clear_gpu_data()
   }
 }
 
+void drw_debug_clear()
+{
+  DebugDraw::get().reset();
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */

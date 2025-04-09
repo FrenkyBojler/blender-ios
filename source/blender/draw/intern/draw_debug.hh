@@ -123,4 +123,10 @@ void drw_debug_matrix_as_bbox(const float4x4 &mat,
                               const float4 color = {1, 0, 0, 1},
                               uint lifetime = 1);
 
+/**
+ * Clear all debug visuals.
+ * Usually called before populating persistent data to override previous visuals.
+ */
+void drw_debug_clear();
+
 }  // namespace blender::draw
