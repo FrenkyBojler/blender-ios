@@ -1047,12 +1047,9 @@ bool ShaderCompilerGeneric::batch_is_ready(BatchHandle handle)
 
 Vector<Shader *> ShaderCompilerGeneric::batch_finalize(BatchHandle &handle)
 {
-  while (!batch_is_ready(handle)) {
-    /*TODO: Notify. */
-    BLI_time_sleep_ms(1);
-  }
-
-  std::lock_guard lock(mutex_);
+  std::unique_lock lock(mutex_);
+  compilation_finished_notification_.wait(lock,
+                                          [&]() { return batches_.lookup(handle)->is_ready(); });
 
   Batch *batch = batches_.pop(handle);
   Vector<Shader *> shaders = std::move(batch->shaders);
@@ -1133,6 +1130,8 @@ void ShaderCompilerGeneric::run_thread()
         MEM_delete(batch);
       }
     }
+
+    compilation_finished_notification_.notify_all();
   }
 }
 

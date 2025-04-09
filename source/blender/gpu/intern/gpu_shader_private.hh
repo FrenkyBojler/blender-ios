@@ -225,6 +225,7 @@ class ShaderCompilerGeneric : public ShaderCompiler {
   };
   Map<BatchHandle, Batch *> batches_;
   std::mutex mutex_;
+  std::condition_variable compilation_finished_notification_;
 
   struct ParallelWork {
     Batch *batch = nullptr;
