@@ -86,9 +86,6 @@ void drw_debug_clear()
 /** \name Draw functions
  * \{ */
 
-/**
- * Drawing functions that will draw wire-frames with the given color.
- */
 void drw_debug_line(const float3 v1, const float3 v2, const float4 color, const uint lifetime)
 {
   DebugDraw &dd = DebugDraw::get();
@@ -157,16 +154,16 @@ void drw_debug_sphere(const float3 center, float radius, const float4 color, con
   }
 }
 
-void drw_debug_point(const float3 center, float radius, const float4 color, const uint lifetime)
+void drw_debug_point(const float3 pos, float rad, const float4 col, const uint lifetime)
 {
   static Vector<float3> point_verts = precompute_sphere_points(4);
 
   DebugDraw &dd = DebugDraw::get();
-  uint col = debug_color_pack(color);
+  uint color = debug_color_pack(col);
   for (auto i : IndexRange(point_verts.size() / 2)) {
-    float3 v0 = point_verts[i * 2] * radius + center;
-    float3 v1 = point_verts[i * 2 + 1] * radius + center;
-    dd.draw_line(v0, v1, col, lifetime);
+    float3 v0 = point_verts[i * 2] * rad + pos;
+    float3 v1 = point_verts[i * 2 + 1] * rad + pos;
+    dd.draw_line(v0, v1, color, lifetime);
   }
 }
 
@@ -226,13 +223,11 @@ void DebugDraw::draw_line(float3 v1, float3 v2, uint color, const uint lifetime)
 
 void DebugDraw::display_lines(View &view)
 {
-  if (vertex_len_.load() == 0 && gpu_draw_buf_used == false) {
+  const bool cpu_draw_buf_used = vertex_len_.load() != 0;
+
+  if (!cpu_draw_buf_used && !gpu_draw_buf_used) {
     return;
   }
-
-  GPU_debug_group_begin("Lines");
-
-  float4x4 persmat = view.persmat();
 
   command::StateSet::set(DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_LESS);
 
@@ -242,11 +237,11 @@ void DebugDraw::display_lines(View &view)
   gpu::Batch *batch = GPU_batch_procedural_lines_get();
   GPUShader *shader = DRW_shader_debug_draw_display_get();
   GPU_batch_set_shader(batch, shader);
-  GPU_shader_uniform_mat4(shader, "persmat", persmat.ptr());
+  GPU_shader_uniform_mat4(shader, "persmat", view.persmat().ptr());
   GPU_shader_uniform_2f(shader, "size_viewport", viewport_size[2], viewport_size[3]);
 
   if (gpu_draw_buf_used) {
-    GPU_debug_group_begin("GPU");
+    gpu::DebugScope debug_scope("GPU");
     /* Reset buffer. */
     gpu_draw_buf_.next()->command.vertex_len = 0;
     gpu_draw_buf_.next()->push_update();
@@ -256,11 +251,10 @@ void DebugDraw::display_lines(View &view)
     GPU_batch_draw_indirect(batch, *gpu_draw_buf_.current(), 0);
     GPU_storagebuf_unbind(*gpu_draw_buf_.current());
     GPU_storagebuf_unbind(*gpu_draw_buf_.next());
-    GPU_debug_group_end();
   }
 
   {
-    GPU_debug_group_begin("CPU");
+    gpu::DebugScope debug_scope("CPU");
     /* We might have race condition here (a writer thread might still be outputing vertices).
      * But that is ok. At worse, we will be missing some vertex data and show 1 corrupted line. */
     cpu_draw_buf_.current()->command.vertex_len = vertex_len_.load();
@@ -278,13 +272,10 @@ void DebugDraw::display_lines(View &view)
     /* Read result of lifetime management. */
     cpu_draw_buf_.next()->read();
     vertex_len_.store(min_ii(DRW_DEBUG_DRAW_VERT_MAX, cpu_draw_buf_.next()->command.vertex_len));
-    GPU_debug_group_end();
   }
 
   gpu_draw_buf_.swap();
   cpu_draw_buf_.swap();
-
-  GPU_debug_group_end();
 }
 
 void DebugDraw::display_to_view(View &view)

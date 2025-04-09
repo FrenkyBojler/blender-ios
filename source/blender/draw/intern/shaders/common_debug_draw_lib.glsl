@@ -21,7 +21,7 @@ SHADER_LIBRARY_CREATE_INFO(draw_debug_draw)
 bool drw_debug_draw_enable = true;
 #  define drw_debug_default_color vec4(1.0, 0.0, 0.0, 1.0)
 #  define drw_debug_default_lifetime 1
-#  define drw_debug_persistent (~0u)
+#  define drw_debug_persistent_lifetime (~0u)
 
 /* -------------------------------------------------------------------- */
 /** \name Internals
