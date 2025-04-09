@@ -12813,7 +12813,10 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("GeometryNode", "GeometryNodeExtrudeMesh");
   define("GeometryNode", "GeometryNodeFaceOfCorner");
   define("GeometryNode", "GeometryNodeFieldAtIndex");
+  define("GeometryNode", "GeometryNodeFieldAverage");
+  define("GeometryNode", "GeometryNodeFieldMinAndMax");
   define("GeometryNode", "GeometryNodeFieldOnDomain");
+  define("GeometryNode", "GeometryNodeFieldVariance");
   define("GeometryNode", "GeometryNodeFillCurve");
   define("GeometryNode", "GeometryNodeFilletCurve");
   define("GeometryNode", "GeometryNodeFlipFaces");
@@ -12940,6 +12943,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("GeometryNode", "GeometryNodeSetSplineCyclic");
   define("GeometryNode", "GeometryNodeSetSplineResolution");
   define("GeometryNode", "GeometryNodeSetGreasePencilColor");
+  define("GeometryNode", "GeometryNodeSetGreasePencilDepth");
   define("GeometryNode", "GeometryNodeSimulationInput", def_geo_simulation_input);
   define("GeometryNode", "GeometryNodeSimulationOutput", def_geo_simulation_output);
   define("GeometryNode", "GeometryNodeSortElements");
