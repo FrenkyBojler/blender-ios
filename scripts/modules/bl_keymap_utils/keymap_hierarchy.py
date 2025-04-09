@@ -181,7 +181,6 @@ _km_hierarchy = [
         ('Preview', 'SEQUENCE_EDITOR', 'WINDOW', [
             _km_expand_from_toolsystem('SEQUENCE_EDITOR', 'PREVIEW'),
         ]),
-        # ('Slip Modal', 'EMPTY', 'WINDOW', []), # TODO 143, i think this doesnt need to be explicitly exposed
     ]),
 
     ('File Browser', 'FILE_BROWSER', 'WINDOW', [
