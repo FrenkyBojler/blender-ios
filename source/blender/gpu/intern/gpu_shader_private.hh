@@ -243,7 +243,7 @@ class ShaderCompilerGeneric : public ShaderCompiler {
   BatchHandle next_batch_handle_ = 1;
 
  public:
-  ShaderCompilerGeneric(bool multithreaded = false,
+  ShaderCompilerGeneric(uint32_t threads_count = 1,
                         GPUWorker::ContextType context_type = GPUWorker::ContextType::PerThread,
                         bool support_specializations = false);
   ~ShaderCompilerGeneric() override;

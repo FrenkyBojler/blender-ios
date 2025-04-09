@@ -259,7 +259,9 @@ class GLShaderCompiler : public ShaderCompilerGeneric {
   GLShader::GLProgram *specialization_program_get(ShaderSpecialization &specialization);
 
  public:
-  GLShaderCompiler() : ShaderCompilerGeneric(true, GPUWorker::ContextType::PerThread, true){};
+  GLShaderCompiler()
+      : ShaderCompilerGeneric(
+            GPU_max_parallel_compilations(), GPUWorker::ContextType::PerThread, true){};
   virtual ~GLShaderCompiler() override;
 
   virtual Shader *compile_shader(const shader::ShaderCreateInfo &info) override;
