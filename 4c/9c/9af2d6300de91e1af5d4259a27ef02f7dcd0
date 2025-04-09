@@ -1,3 +1,4 @@
 Referenced by issue #135860, 4.4: Candidates for corrective releases
 Referenced by issue #137152, GreasePencil: Layer visible when loading in Blender 4.5
 Referenced by pull request #137161, Fix #137152: Grease Pencil: Layer flag is overridden during conversion
+Referenced by commit 58fa6a50ce2b57a6c8edd7c0fc66557412a33dab, Fix #137152: Grease Pencil: Layer flag is overridden during conversion
