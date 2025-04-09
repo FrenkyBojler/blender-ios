@@ -6552,6 +6552,7 @@ def km_node_resize_modal_map(_params):
 
     return keymap
 
+
 def km_sequencer_slip_modal_map(_params):
     items = []
     keymap = (
