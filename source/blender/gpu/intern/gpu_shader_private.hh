@@ -199,8 +199,8 @@ class ShaderCompilerGeneric : public ShaderCompiler {
 
     Vector<ShaderSpecialization> specializations;
 
-    std::atomic_int32_t pending_compilations = 0;
-    std::atomic_bool is_cancelled = false;
+    std::atomic<int> pending_compilations = 0;
+    std::atomic<bool> is_cancelled = false;
 
     bool is_specialization_batch()
     {
