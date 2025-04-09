@@ -1300,4 +1300,58 @@ SolverResult solve_global_system(GlobalSolverSystem &&system,
 
 /** \} */
 
+/* -------------------------------------------------------------------- */
+/** \name Residuals
+ * \{ */
+
+template<int num_components, typename ValueT>
+static void compute_residuals_t(const ConstraintEvalParams &params,
+                                const ConstraintTypeInfo &constraint_info,
+                                bke::MutableAttributeAccessor &attributes,
+                                StringRef attribute_id,
+                                const IndexMask &constraints_mask,
+                                const VariableIndexArrays &index_arrays)
+{
+}
+
+static void compute_residuals_n(const ConstraintEvalParams &params,
+                                const ConstraintTypeInfo &constraint_info,
+                                bke::MutableAttributeAccessor &attributes,
+                                StringRef attribute_id,
+                                const IndexMask &constraints_mask,
+                                const VariableIndexArrays &index_arrays,
+                                const int num_components)
+{
+  /* XXX Matrix types float2x3, float3x3, float2x4, float 3x4 have no registered CPPType, so a
+   * larger type is used for output arrays. */
+  switch (num_components) {
+    case 1:
+      compute_residuals_t<1, float>(
+          params, constraint_info, attributes, attribute_id, constraints_mask, index_arrays);
+      break;
+    case 2:
+      compute_residuals_t<2, float2>(
+          params, constraint_info, attributes, attribute_id, constraints_mask, index_arrays);
+      break;
+    case 3:
+      compute_residuals_t<3, float3>(
+          params, constraint_info, attributes, attribute_id, constraints_mask, index_arrays);
+      break;
+    default:
+      BLI_assert_unreachable();
+      break;
+  }
+}
+
+void compute_residuals(const ConstraintEvalParams &eval_params,
+                       const ConstraintTypeInfo &constraint_info,
+                       bke::MutableAttributeAccessor &attributes,
+                       StringRef attribute_id,
+                       const IndexMask &constraints_mask,
+                       const VariableIndexArrays &index_arrays)
+{
+}
+
+/** \} */
+
 }  // namespace blender::nodes::xpbd_constraints
