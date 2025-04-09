@@ -617,13 +617,10 @@ static void view3d_main_region_listener(const wmRegionListenerParams *params)
         case ND_SCENEBROWSE:
         case ND_LAYER_CONTENT:
           ED_region_tag_redraw(region);
-          /* Dont just call WM_gizmomap_tag_refresh() since having deleted an object would not
-           * update the GizmoMap fully [e.g. gzmap_context.highlight] while hovering a gizmo until
-           * the next MOUSEMOVE event. This could cause crashes, see #136563. Instead reinit fully.
-           */
-          WM_gizmomap_reinit(gzmap);
-          view3d_main_region_cursor(window, area, region);
-
+          WM_gizmomap_tag_refresh(gzmap);
+          /* Force an update of the gizmo highlights and cursors, in case an object gizmo
+           * appears/disappears under the mouse position. Can prevent crashes even, see #137146. */
+          WM_event_add_mousemove(window);
           if (v3d->localvd && v3d->localvd->runtime.flag & V3D_RUNTIME_LOCAL_MAYBE_EMPTY) {
             ED_area_tag_refresh(area);
           }
@@ -646,6 +643,9 @@ static void view3d_main_region_listener(const wmRegionListenerParams *params)
         case ND_MODE:
           ED_region_tag_redraw(region);
           WM_gizmomap_tag_refresh(gzmap);
+          /* Force an update of the gizmo highlights and cursors, in case an object gizmo
+           * appears/disappears under the mouse position. Can prevent crashes even, see #137146. */
+          WM_event_add_mousemove(window);
           break;
         case ND_WORLD:
           /* handled by space_view3d_listener() for v3d access */
