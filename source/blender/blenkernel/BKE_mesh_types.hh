@@ -110,6 +110,7 @@ class NormalsCache {
 
   MutableSpan<float3> ensure_vector_size(const int size);
   Span<float3> get_span() const;
+  /** \note The caller must ensure that the data is valid as long as the cache. */
   void store_varray(const VArray<float3> &data);
   void store_span(Span<float3> data);
   void store_vector(Vector<float3> &&data);
