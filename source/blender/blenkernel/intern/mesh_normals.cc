@@ -87,11 +87,6 @@ void NormalsCache::store_varray(const VArray<float3> &data)
   }
 }
 
-void NormalsCache::store_span(const Span<float3> data)
-{
-  this->data = data;
-}
-
 void NormalsCache::store_vector(Vector<float3> &&data)
 {
   this->data = std::move(data);
