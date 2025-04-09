@@ -96,8 +96,6 @@ class DebugDraw {
   static uint color_pack(float4 color);
 
  private:
-  DRWDebugVert vert_pack(float3 pos, uint color);
-
   void display_lines(View &view);
 
   void clear_gpu_data();

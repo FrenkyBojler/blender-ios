@@ -5,6 +5,7 @@
 #pragma once
 
 #if !defined(GPU_SHADER) && !defined(GLSL_CPP_STUBS)
+#  include "BLI_math_vector.hh"
 #  include "GPU_shader.hh"
 #  include "GPU_shader_shared_utils.hh"
 #  include "draw_defines.hh"
@@ -40,6 +41,8 @@ namespace blender::draw {
 struct ObjectRef;
 
 }  // namespace blender::draw
+
+using namespace blender::math;
 
 #  endif
 #endif
@@ -338,6 +341,17 @@ inline DRWDebugVert debug_vert_make(uint in_pos0, uint in_pos1, uint in_pos2, ui
   debug_vert.pos2 = in_pos2;
   debug_vert.vert_color = in_vert_color;
   return debug_vert;
+}
+
+inline uint debug_color_pack(float4 v_color)
+{
+  v_color = clamp(v_color, 0.0f, 1.0f);
+  uint result = 0;
+  result |= uint(v_color.x * 255.0) << 0u;
+  result |= uint(v_color.y * 255.0) << 8u;
+  result |= uint(v_color.z * 255.0) << 16u;
+  result |= uint(v_color.w * 255.0) << 24u;
+  return result;
 }
 
 /* Take the header (DrawCommand) into account. */

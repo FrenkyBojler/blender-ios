@@ -9,6 +9,7 @@
  */
 
 #include "BKE_object.hh"
+#include "BLI_math_bits.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_matrix.hh"
 #include "GPU_batch.hh"
@@ -82,14 +83,14 @@ void DebugDraw::clear_gpu_data()
 void drw_debug_line(float3 v1, float3 v2, float4 color)
 {
   DebugDraw &dd = DebugDraw::get();
-  dd.draw_line(v1, v2, DebugDraw::color_pack(color));
+  dd.draw_line(v1, v2, debug_color_pack(color));
 }
 
 void drw_debug_polygon(Span<float3> face_verts, float4 color)
 {
   BLI_assert(!face_verts.is_empty());
   DebugDraw &dd = DebugDraw::get();
-  uint col = DebugDraw::color_pack(color);
+  uint col = debug_color_pack(color);
   float3 v0 = face_verts.last();
   for (auto vert : face_verts) {
     float3 v1 = vert;
@@ -101,7 +102,7 @@ void drw_debug_polygon(Span<float3> face_verts, float4 color)
 void drw_debug_bbox(const BoundBox &bbox, const float4 color)
 {
   DebugDraw &dd = DebugDraw::get();
-  uint col = DebugDraw::color_pack(color);
+  uint col = debug_color_pack(color);
   dd.draw_line(bbox.vec[0], bbox.vec[1], col);
   dd.draw_line(bbox.vec[1], bbox.vec[2], col);
   dd.draw_line(bbox.vec[2], bbox.vec[3], col);
@@ -139,7 +140,7 @@ void drw_debug_sphere(const float3 center, float radius, const float4 color)
   static Vector<float3> sphere_verts = precompute_sphere_points(16);
 
   DebugDraw &dd = DebugDraw::get();
-  uint col = DebugDraw::color_pack(color);
+  uint col = debug_color_pack(color);
   for (auto i : IndexRange(sphere_verts.size() / 2)) {
     float3 v0 = sphere_verts[i * 2] * radius + center;
     float3 v1 = sphere_verts[i * 2 + 1] * radius + center;
@@ -152,7 +153,7 @@ void drw_debug_point(const float3 center, float radius, const float4 color)
   static Vector<float3> point_verts = precompute_sphere_points(4);
 
   DebugDraw &dd = DebugDraw::get();
-  uint col = DebugDraw::color_pack(color);
+  uint col = debug_color_pack(color);
   for (auto i : IndexRange(point_verts.size() / 2)) {
     float3 v0 = point_verts[i * 2] * radius + center;
     float3 v1 = point_verts[i * 2 + 1] * radius + center;
@@ -168,9 +169,9 @@ void drw_debug_matrix(const float4x4 &m4)
   float3 v3 = math::transform_point(m4, float3(0.0f, 0.0f, 1.0f));
 
   DebugDraw &dd = DebugDraw::get();
-  dd.draw_line(v0, v1, DebugDraw::color_pack(float4(1.0f, 0.0f, 0.0f, 1.0f)));
-  dd.draw_line(v0, v2, DebugDraw::color_pack(float4(0.0f, 1.0f, 0.0f, 1.0f)));
-  dd.draw_line(v0, v3, DebugDraw::color_pack(float4(0.0f, 0.0f, 1.0f, 1.0f)));
+  dd.draw_line(v0, v1, debug_color_pack(float4(1.0f, 0.0f, 0.0f, 1.0f)));
+  dd.draw_line(v0, v2, debug_color_pack(float4(0.0f, 1.0f, 0.0f, 1.0f)));
+  dd.draw_line(v0, v3, debug_color_pack(float4(0.0f, 0.0f, 1.0f, 1.0f)));
 }
 
 void drw_debug_matrix_as_bbox(const float4x4 &mat, const float4 color)
@@ -189,8 +190,6 @@ void drw_debug_matrix_as_bbox(const float4x4 &mat, const float4 color)
 /* -------------------------------------------------------------------- */
 /** \name Internals
  *
- * IMPORTANT: All of these are copied from the shader libraries (`common_debug_draw_lib.glsl`).
- * They need to be kept in sync to write the same data.
  * \{ */
 
 void DebugDraw::draw_line(float3 v1, float3 v2, uint color)
@@ -198,33 +197,12 @@ void DebugDraw::draw_line(float3 v1, float3 v2, uint color)
   DebugDrawBuf &buf = *cpu_draw_buf_;
   uint index = vertex_len_.fetch_add(2);
   if (index + 2 < DRW_DEBUG_DRAW_VERT_MAX) {
-    buf.verts[index + 0] = vert_pack(v1, color);
-    buf.verts[index + 1] = vert_pack(v2, color);
+    buf.verts[index + 0] = debug_vert_make(
+        float_as_uint(v1.x), float_as_uint(v1.y), float_as_uint(v1.z), color);
+    buf.verts[index + 1] = debug_vert_make(
+        float_as_uint(v2.x), float_as_uint(v2.y), float_as_uint(v2.z), color);
     buf.command.vertex_len += 2;
   }
-}
-
-uint DebugDraw::color_pack(float4 color)
-{
-  /* NOTE: keep in sync with #drw_debug_color_pack(). */
-
-  color = math::clamp(color, 0.0f, 1.0f);
-  uint result = 0;
-  result |= uint(color.x * 255.0f) << 0u;
-  result |= uint(color.y * 255.0f) << 8u;
-  result |= uint(color.z * 255.0f) << 16u;
-  result |= uint(color.w * 255.0f) << 24u;
-  return result;
-}
-
-DRWDebugVert DebugDraw::vert_pack(float3 pos, uint color)
-{
-  DRWDebugVert vert;
-  vert.pos0 = *reinterpret_cast<uint32_t *>(&pos.x);
-  vert.pos1 = *reinterpret_cast<uint32_t *>(&pos.y);
-  vert.pos2 = *reinterpret_cast<uint32_t *>(&pos.z);
-  vert.vert_color = color;
-  return vert;
 }
 
 /** \} */

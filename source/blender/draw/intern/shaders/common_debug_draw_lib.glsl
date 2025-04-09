@@ -32,17 +32,6 @@ uint drw_debug_start_draw(uint v_needed)
   return vertid;
 }
 
-uint drw_debug_color_pack(vec4 v_color)
-{
-  v_color = clamp(v_color, 0.0, 1.0);
-  uint result = 0;
-  result |= uint(v_color.x * 255.0) << 0u;
-  result |= uint(v_color.y * 255.0) << 8u;
-  result |= uint(v_color.z * 255.0) << 16u;
-  result |= uint(v_color.w * 255.0) << 24u;
-  return result;
-}
-
 void drw_debug_line(inout uint vertid, vec3 v1, vec3 v2, uint v_color)
 {
   drw_debug_verts_buf[vertid++] = debug_vert_make(
@@ -68,7 +57,7 @@ void drw_debug_line(vec3 v1, vec3 v2, vec4 v_color)
   const uint v_needed = 2;
   uint vertid = drw_debug_start_draw(v_needed);
   if (vertid + v_needed < DRW_DEBUG_DRAW_VERT_MAX) {
-    drw_debug_line(vertid, v1, v2, drw_debug_color_pack(v_color));
+    drw_debug_line(vertid, v1, v2, debug_color_pack(v_color));
   }
 }
 void drw_debug_line(vec3 v1, vec3 v2)
@@ -87,7 +76,7 @@ void drw_debug_quad(vec3 v1, vec3 v2, vec3 v3, vec3 v4, vec4 v_color)
   const uint v_needed = 8;
   uint vertid = drw_debug_start_draw(v_needed);
   if (vertid + v_needed < DRW_DEBUG_DRAW_VERT_MAX) {
-    uint pcolor = drw_debug_color_pack(v_color);
+    uint pcolor = debug_color_pack(v_color);
     drw_debug_line(vertid, v1, v2, pcolor);
     drw_debug_line(vertid, v2, v3, pcolor);
     drw_debug_line(vertid, v3, v4, pcolor);
@@ -118,7 +107,7 @@ void drw_debug_point(vec3 p, float radius, vec4 v_color)
   const uint v_needed = 12 * 2;
   uint vertid = drw_debug_start_draw(v_needed);
   if (vertid + v_needed < DRW_DEBUG_DRAW_VERT_MAX) {
-    uint pcolor = drw_debug_color_pack(v_color);
+    uint pcolor = debug_color_pack(v_color);
     drw_debug_line(vertid, v1, v2, pcolor);
     drw_debug_line(vertid, v2, v3, pcolor);
     drw_debug_line(vertid, v3, v4, pcolor);
@@ -154,7 +143,7 @@ void drw_debug_sphere(vec3 p, float radius, vec4 v_color)
   const uint v_needed = circle_resolution * 2 * 3;
   uint vertid = drw_debug_start_draw(v_needed);
   if (vertid + v_needed < DRW_DEBUG_DRAW_VERT_MAX) {
-    uint pcolor = drw_debug_color_pack(v_color);
+    uint pcolor = debug_color_pack(v_color);
     for (int axis = 0; axis < 3; axis++) {
       for (int edge = 0; edge < circle_resolution; edge++) {
         float angle1 = (2.0 * 3.141592) * float(edge + 0) / float(circle_resolution);
