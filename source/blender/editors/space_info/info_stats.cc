@@ -611,6 +611,13 @@ static void get_stats_string(char *info,
                               stats_fmt->totgpstroke,
                               stats_fmt->totgppoint);
   }
+  else if (ob && (ob->type == OB_CURVES)) {
+    *ofs += BLI_snprintf_rlen(info + *ofs,
+                              len - *ofs,
+
+                              IFACE_("Points:%s"),
+                              stats_fmt->totvertsculpt);
+  }
   else if (ob && (object_mode & OB_MODE_SCULPT)) {
     if (stats_is_object_dynamic_topology_sculpt(ob)) {
       *ofs += BLI_snprintf_rlen(info + *ofs,
