@@ -7304,7 +7304,6 @@ static void rna_def_userdef_filepaths(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "use_scripts_auto_execute", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_negative_sdna(prop, nullptr, "flag", USER_SCRIPT_AUTOEXEC_DISABLE);
-  RNA_def_property_boolean_default(prop, false);
   RNA_def_property_ui_text(prop,
                            "Auto Run Python Scripts",
                            "Allow any .blend file to run scripts automatically "
