@@ -789,9 +789,6 @@ static void shader_preview_startjob(void *customdata, wmJobWorkerStatus *worker_
   if (size_changed) {
     job_data->tree_previews->preview_size = U.node_preview_res;
   }
-//  job_data->stop = stop;
-//  job_data->do_update = do_update;
-//  *do_update = true;
 
   for (bNode *node_iter : job_data->mat_copy->nodetree->all_nodes()) {
     if (node_iter->flag & NODE_DO_OUTPUT) {
@@ -895,12 +892,8 @@ static void ensure_nodetree_previews(const bContext &C,
   if (!update_needed(&treepath, &tree_previews, partial_tree_refresh, preview_type)) {
     return;
   }
-//  if (tree_previews.rendering) {
   if (tree_previews.running_job != nullptr) {
     WM_jobs_stop_type(CTX_wm_manager(&C), CTX_wm_space_node(&C), WM_JOB_TYPE_RENDER_PREVIEW);
-//    WM_jobs_stop(CTX_wm_manager(&C),
-//                 CTX_wm_space_node(&C),
-//                 reinterpret_cast<void *>(shader_preview_startjob));
     return;
   }
 

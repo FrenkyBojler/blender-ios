@@ -1781,7 +1781,6 @@ static wmOperatorStatus node_preview_toggle_exec(bContext *C, wmOperator * /*op*
 
   node_flag_toggle_exec(snode, NODE_PREVIEW);
   snode->edittree->runtime->any_node_dirtystate.make_dirty();
-  node_flag_toggle_exec(snode, NODE_PREVIEW, true);
 
   WM_event_add_notifier(C, NC_NODE | NA_EDITED, &snode->edittree->id);
   WM_event_add_notifier(C, NC_NODE | ND_DISPLAY, &snode->edittree->id);
