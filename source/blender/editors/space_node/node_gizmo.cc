@@ -583,7 +583,7 @@ static bool WIDGETGROUP_node_ellipse_mask_poll(const bContext *C, wmGizmoGroupTy
 {
   SpaceNode *snode = CTX_wm_space_node(C);
 
-  if ((snode->flag & SNODE_BACKDRAW) == 0) {
+  if (snode && (snode->flag & SNODE_BACKDRAW) == 0) {
     return false;
   }
 
