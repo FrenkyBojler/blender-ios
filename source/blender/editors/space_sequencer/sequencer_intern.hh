@@ -10,6 +10,7 @@
 
 #include "BLI_map.hh"
 #include "BLI_span.hh"
+#include "BLI_string_ref.hh"
 #include "BLI_utility_mixins.hh"
 #include "BLI_vector.hh"
 #include "BLI_vector_set.hh"
@@ -172,12 +173,8 @@ void channel_draw_context_init(const bContext *C,
 /* `sequencer_edit.cc` */
 
 void slip_modal_keymap(wmKeyConfig *keyconf);
-bool strip_effect_get_new_inputs(Scene *scene,
-                                 bool ignore_active,
-                                 int num_inputs,
-                                 Strip **r_seq1,
-                                 Strip **r_seq2,
-                                 const char **r_error_str);
+VectorSet<Strip *> strip_effect_get_new_inputs(const Scene *scene, bool ignore_active = false);
+StringRef effect_inputs_validate(const VectorSet<Strip *> &inputs, int num_inputs);
 
 /* Operator helpers. */
 bool sequencer_edit_poll(bContext *C);

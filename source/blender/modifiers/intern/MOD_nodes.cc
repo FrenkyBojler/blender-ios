@@ -152,6 +152,11 @@ static void add_object_relation(
       DEG_add_customdata_mask(ctx->node, &object, &dependency_data_mask);
     }
   }
+  if (object.type == OB_CAMERA) {
+    if (info.camera_parameters) {
+      DEG_add_object_relation(ctx->node, &object, DEG_OB_COMP_PARAMETERS, "Nodes Modifier");
+    }
+  }
 }
 
 static void update_depsgraph(ModifierData *md, const ModifierUpdateDepsgraphContext *ctx)
@@ -218,7 +223,9 @@ static void update_depsgraph(ModifierData *md, const ModifierUpdateDepsgraphCont
   }
   if (eval_deps.needs_active_camera) {
     DEG_add_scene_camera_relation(ctx->node, ctx->scene, DEG_OB_COMP_TRANSFORM, "Nodes Modifier");
-    /* Active camera is a scene parameter that can change, so we need a relation for that, too. */
+  }
+  /* Active camera is a scene parameter that can change, so we need a relation for that, too. */
+  if (eval_deps.needs_active_camera || eval_deps.needs_scene_render_params) {
     DEG_add_scene_relation(ctx->node, ctx->scene, DEG_SCENE_COMP_PARAMETERS, "Nodes Modifier");
   }
 }
@@ -855,18 +862,17 @@ static void check_property_socket_sync(const Object *ob,
     const bNodeTreeInterfaceSocket *socket = nmd->node_group->interface_inputs()[i];
     const bke::bNodeSocketType *typeinfo = socket->socket_typeinfo();
     const eNodeSocketDatatype type = typeinfo ? eNodeSocketDatatype(typeinfo->type) : SOCK_CUSTOM;
+    if (type == SOCK_GEOMETRY) {
+      geometry_socket_count++;
+    }
     /* The first socket is the special geometry socket for the modifier object. */
     if (i == 0 && type == SOCK_GEOMETRY) {
-      geometry_socket_count++;
       continue;
     }
 
     IDProperty *property = properties.lookup_key_default_as(socket->identifier, nullptr);
     if (property == nullptr) {
-      if (ELEM(type, SOCK_GEOMETRY, SOCK_MATRIX)) {
-        geometry_socket_count++;
-      }
-      else {
+      if (!ELEM(type, SOCK_GEOMETRY, SOCK_MATRIX, SOCK_BUNDLE, SOCK_CLOSURE)) {
         BKE_modifier_set_error(
             ob, md, "Missing property for input socket \"%s\"", socket->name ? socket->name : "");
       }
@@ -1866,7 +1872,14 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
 
   modifyGeometry(md, ctx, geometry_set);
 
-  Mesh *new_mesh = geometry_set.get_component_for_write<bke::MeshComponent>().release();
+  bke::MeshComponent &mesh_component = geometry_set.get_component_for_write<bke::MeshComponent>();
+  if (mesh_component.get() != mesh) {
+    /* If this is the same as the input mesh, it's not necessary to make a copy of it even if it's
+     * not owned by the geometry set. That's because we know that the caller manages the ownership
+     * of the mesh. */
+    mesh_component.ensure_owns_direct_data();
+  }
+  Mesh *new_mesh = mesh_component.release();
   if (new_mesh == nullptr) {
     return BKE_mesh_new_nomain(0, 0, 0, 0);
   }
