@@ -23,7 +23,7 @@ void main()
 
   /* Lifetime management. */
   if (is_provoking_vertex && vert.lifetime > 1) {
-    uint vertid = atomicAdd(drw_debug_draw_v_count(out_debug_lines_buf), 2);
+    uint vertid = atomicAdd(drw_debug_draw_v_count(out_debug_lines_buf), 2u);
     if (vertid < DRW_DEBUG_DRAW_VERT_MAX) {
       uint out_line_id = vertid / 2u;
       vert.lifetime -= 1;
