@@ -32,17 +32,16 @@ class DebugDraw {
  private:
   using DebugDrawBuf = StorageBuffer<DRWDebugDrawBuffer>;
 
-  /** Data buffers containing all verts or chars to draw. */
-  DebugDrawBuf *cpu_draw_buf_ = nullptr;
-  DebugDrawBuf *gpu_draw_buf_ = nullptr;
-  /** True if the gpu buffer have been requested and may contain data to draw. */
-  bool gpu_draw_buf_used = false;
-
   /**
    * Ensure thread-safety when adding geometry to the CPU debug buffer.
    * GPU debug buffer currently expects draw submission to be externally synchronized.
    */
   std::atomic<int> vertex_len_;
+  /** Data buffers containing all verts or chars to draw. */
+  SwapChain<DebugDrawBuf *, 2> cpu_draw_buf_ = {};
+  SwapChain<DebugDrawBuf *, 2> gpu_draw_buf_ = {};
+  /** True if the gpu buffer have been requested and may contain data to draw. */
+  bool gpu_draw_buf_used = false;
 
   /* Reference counter used by GPUContext to allow freeing of DebugDrawBuf before the last
    * context is destroyed. */
@@ -50,30 +49,24 @@ class DebugDraw {
   std::mutex ref_count_mutex_;
 
  public:
-  DebugDraw();
-  ~DebugDraw(){};
+  void reset();
 
   /**
-   * Resets all buffers and reset model matrix state.
-   * Not to be called by user.
-   */
-  void init();
-
-  /**
-   * Will draw all debug shapes and text cached up until now to the current view / frame-buffer.
+   * Draw all debug shapes to the given current view / frame-buffer.
    * Draw buffers will be emptied and ready for new debug data.
    */
   void display_to_view(View &view);
 
-  /**
-   * Not to be called by user. Should become private.
-   */
+  /** Get GPU debug draw buffer. Can, return nullptr if WITH_DRAW_DEBUG is not enabled. */
   GPUStorageBuf *gpu_draw_buf_get();
 
   void acquire()
   {
     std::scoped_lock lock(ref_count_mutex_);
     ref_count_++;
+    if (ref_count_ == 1) {
+      reset();
+    }
   }
 
   void release()

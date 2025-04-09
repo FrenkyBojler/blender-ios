@@ -862,7 +862,7 @@ void Instance::draw_v3d(Manager &manager, View &view)
       }
     }
 
-    if (BLI_thread_is_main()) {
+    if (BLI_thread_is_main() && !state.hide_overlays) {
       DebugDraw::get().display_to_view(view);
     }
 

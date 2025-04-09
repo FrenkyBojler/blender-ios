@@ -27,17 +27,22 @@ bool drw_debug_draw_enable = true;
 
 uint drw_debug_start_draw(uint v_needed)
 {
-  uint vertid = atomicAdd(drw_debug_draw_v_count, v_needed);
-  vertid += drw_debug_draw_offset;
+  uint vertid = atomicAdd(drw_debug_draw_v_count(drw_debug_lines_buf), v_needed);
   return vertid;
 }
 
 void drw_debug_line(inout uint vertid, vec3 v1, vec3 v2, uint v_color)
 {
-  drw_debug_verts_buf[vertid++] = debug_vert_make(
-      floatBitsToUint(v1.x), floatBitsToUint(v1.y), floatBitsToUint(v1.z), v_color);
-  drw_debug_verts_buf[vertid++] = debug_vert_make(
-      floatBitsToUint(v2.x), floatBitsToUint(v2.y), floatBitsToUint(v2.z), v_color);
+  uint out_line_id = vertid / 2u;
+  drw_debug_lines_buf[out_line_id + drw_debug_draw_offset] = debug_line_make(floatBitsToUint(v1.x),
+                                                                             floatBitsToUint(v1.y),
+                                                                             floatBitsToUint(v1.z),
+                                                                             floatBitsToUint(v2.x),
+                                                                             floatBitsToUint(v2.y),
+                                                                             floatBitsToUint(v2.z),
+                                                                             v_color,
+                                                                             1);
+  vertid += 2;
 }
 
 /** \} */

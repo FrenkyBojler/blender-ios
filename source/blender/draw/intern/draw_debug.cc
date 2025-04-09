@@ -26,40 +26,39 @@ namespace blender::draw {
 /** \name Init and state
  * \{ */
 
-DebugDraw::DebugDraw()
+void DebugDraw::reset()
 {
-  init();
-};
+  for (int i = 0; i < 2; i++) {
+    vertex_len_.store(0);
 
-void DebugDraw::init()
-{
-  if (cpu_draw_buf_ == nullptr) {
-    cpu_draw_buf_ = MEM_new<DebugDrawBuf>("DebugDrawBuf-CPU", "DebugDrawBuf-CPU");
-    gpu_draw_buf_ = MEM_new<DebugDrawBuf>("DebugDrawBuf-GPU", "DebugDrawBuf-GPU");
+    if (cpu_draw_buf_.current() == nullptr) {
+      cpu_draw_buf_.current() = MEM_new<DebugDrawBuf>("DebugDrawBuf-CPU", "DebugDrawBuf-CPU");
+      gpu_draw_buf_.current() = MEM_new<DebugDrawBuf>("DebugDrawBuf-GPU", "DebugDrawBuf-GPU");
+    }
+
+    cpu_draw_buf_.current()->command.vertex_len = 0;
+    cpu_draw_buf_.current()->command.vertex_first = 0;
+    cpu_draw_buf_.current()->command.instance_len = 1;
+    cpu_draw_buf_.current()->command.instance_first_array = 0;
+
+    gpu_draw_buf_.current()->command.vertex_len = 0;
+    gpu_draw_buf_.current()->command.vertex_first = 0;
+    gpu_draw_buf_.current()->command.instance_len = 1;
+    gpu_draw_buf_.current()->command.instance_first_array = 0;
+    gpu_draw_buf_.current()->push_update();
+
+    cpu_draw_buf_.swap();
+    gpu_draw_buf_.swap();
   }
 
-  vertex_len_.store(0);
-
-  cpu_draw_buf_->command.vertex_len = 0;
-  cpu_draw_buf_->command.vertex_first = 0;
-  cpu_draw_buf_->command.instance_len = 1;
-  cpu_draw_buf_->command.instance_first_array = 0;
-
-  gpu_draw_buf_->command.vertex_len = 0;
-  gpu_draw_buf_->command.vertex_first = 0;
-  gpu_draw_buf_->command.instance_len = 1;
-  gpu_draw_buf_->command.instance_first_array = 0;
   gpu_draw_buf_used = false;
 }
 
 GPUStorageBuf *DebugDraw::gpu_draw_buf_get()
 {
 #ifdef WITH_DRAW_DEBUG
-  if (!gpu_draw_buf_used) {
-    gpu_draw_buf_used = true;
-    gpu_draw_buf_->push_update();
-  }
-  return *gpu_draw_buf_;
+  gpu_draw_buf_used = true;
+  return *gpu_draw_buf_.current();
 #else
   return nullptr;
 #endif
@@ -67,8 +66,13 @@ GPUStorageBuf *DebugDraw::gpu_draw_buf_get()
 
 void DebugDraw::clear_gpu_data()
 {
-  MEM_SAFE_DELETE(cpu_draw_buf_);
-  MEM_SAFE_DELETE(gpu_draw_buf_);
+  for (int i = 0; i < 2; i++) {
+    MEM_SAFE_DELETE(cpu_draw_buf_.current());
+    MEM_SAFE_DELETE(gpu_draw_buf_.current());
+
+    cpu_draw_buf_.swap();
+    gpu_draw_buf_.swap();
+  }
 }
 
 /** \} */
@@ -194,13 +198,17 @@ void drw_debug_matrix_as_bbox(const float4x4 &mat, const float4 color)
 
 void DebugDraw::draw_line(float3 v1, float3 v2, uint color)
 {
-  DebugDrawBuf &buf = *cpu_draw_buf_;
+  DebugDrawBuf &buf = *cpu_draw_buf_.current();
   uint index = vertex_len_.fetch_add(2);
   if (index + 2 < DRW_DEBUG_DRAW_VERT_MAX) {
-    buf.verts[index + 0] = debug_vert_make(
-        float_as_uint(v1.x), float_as_uint(v1.y), float_as_uint(v1.z), color);
-    buf.verts[index + 1] = debug_vert_make(
-        float_as_uint(v2.x), float_as_uint(v2.y), float_as_uint(v2.z), color);
+    buf.verts[index / 2] = debug_line_make(float_as_uint(v1.x),
+                                           float_as_uint(v1.y),
+                                           float_as_uint(v1.z),
+                                           float_as_uint(v2.x),
+                                           float_as_uint(v2.y),
+                                           float_as_uint(v2.z),
+                                           color,
+                                           1);
     buf.command.vertex_len += 2;
   }
 }
@@ -213,15 +221,11 @@ void DebugDraw::draw_line(float3 v1, float3 v2, uint color)
 
 void DebugDraw::display_lines(View &view)
 {
-  if (cpu_draw_buf_->command.vertex_len == 0 && gpu_draw_buf_used == false) {
+  if (vertex_len_.load() == 0 && gpu_draw_buf_used == false) {
     return;
   }
 
   GPU_debug_group_begin("Lines");
-  /* We might have race condition here (a writer thread might still be outputing vertices).
-   * But that is fine. At worse, we will be missing some vertex data and show 1 corrupted line. */
-  cpu_draw_buf_->command.vertex_len = vertex_len_.load();
-  cpu_draw_buf_->push_update();
 
   float4x4 persmat = view.persmat();
 
@@ -238,17 +242,42 @@ void DebugDraw::display_lines(View &view)
 
   if (gpu_draw_buf_used) {
     GPU_debug_group_begin("GPU");
-    GPU_storagebuf_bind(*gpu_draw_buf_, DRW_DEBUG_DRAW_SLOT);
-    GPU_batch_draw_indirect(batch, *gpu_draw_buf_, 0);
-    GPU_storagebuf_unbind(*gpu_draw_buf_);
+    /* Reset buffer. */
+    gpu_draw_buf_.next()->command.vertex_len = 0;
+    gpu_draw_buf_.next()->push_update();
+
+    GPU_storagebuf_bind(*gpu_draw_buf_.current(), DRW_DEBUG_DRAW_SLOT);
+    GPU_storagebuf_bind(*gpu_draw_buf_.next(), DRW_DEBUG_DRAW_FEEDBACK_SLOT);
+    GPU_batch_draw_indirect(batch, *gpu_draw_buf_.current(), 0);
+    GPU_storagebuf_unbind(*gpu_draw_buf_.current());
+    GPU_storagebuf_unbind(*gpu_draw_buf_.next());
     GPU_debug_group_end();
   }
 
-  GPU_debug_group_begin("CPU");
-  GPU_storagebuf_bind(*cpu_draw_buf_, DRW_DEBUG_DRAW_SLOT);
-  GPU_batch_draw_indirect(batch, *cpu_draw_buf_, 0);
-  GPU_storagebuf_unbind(*cpu_draw_buf_);
-  GPU_debug_group_end();
+  {
+    GPU_debug_group_begin("CPU");
+    /* We might have race condition here (a writer thread might still be outputing vertices).
+     * But that is ok. At worse, we will be missing some vertex data and show 1 corrupted line. */
+    cpu_draw_buf_.current()->command.vertex_len = vertex_len_.load();
+    cpu_draw_buf_.current()->push_update();
+    /* Reset buffer. */
+    cpu_draw_buf_.next()->command.vertex_len = 0;
+    cpu_draw_buf_.next()->push_update();
+
+    GPU_storagebuf_bind(*cpu_draw_buf_.current(), DRW_DEBUG_DRAW_SLOT);
+    GPU_storagebuf_bind(*cpu_draw_buf_.next(), DRW_DEBUG_DRAW_FEEDBACK_SLOT);
+    GPU_batch_draw_indirect(batch, *cpu_draw_buf_.current(), 0);
+    GPU_storagebuf_unbind(*cpu_draw_buf_.current());
+    GPU_storagebuf_unbind(*cpu_draw_buf_.next());
+
+    /* Read result of lifetime management. */
+    cpu_draw_buf_.next()->read();
+    vertex_len_.store(min_ii(DRW_DEBUG_DRAW_VERT_MAX, cpu_draw_buf_.next()->command.vertex_len));
+    GPU_debug_group_end();
+  }
+
+  gpu_draw_buf_.swap();
+  cpu_draw_buf_.swap();
 
   GPU_debug_group_end();
 }
@@ -261,8 +290,6 @@ void DebugDraw::display_to_view(View &view)
   GPU_debug_group_begin("DebugDraw");
 
   display_lines(view);
-  /* Init again so we don't draw the same thing twice. */
-  init();
 
   GPU_debug_group_end();
 }

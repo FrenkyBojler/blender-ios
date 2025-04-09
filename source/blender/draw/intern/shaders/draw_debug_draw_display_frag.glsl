@@ -23,14 +23,12 @@ vec4 pack_line_data(vec2 frag_co, vec2 edge_start, vec2 edge_pos)
     /* Add 0.1 to differentiate with cleared pixels. */
     return vec4(perp * 0.5 + 0.5, dist * 0.25 + 0.5 + 0.1, 1.0);
   }
-  else {
-    /* Default line if the origin is perfectly aligned with a pixel. */
-    return vec4(1.0, 0.0, 0.5 + 0.1, 1.0);
-  }
+  /* Default line if the origin is perfectly aligned with a pixel. */
+  return vec4(1.0, 0.0, 0.5 + 0.1, 1.0);
 }
 
 void main()
 {
-  out_color = interp.color;
-  out_line_data = pack_line_data(gl_FragCoord.xy, interp.edge_start, interp.edge_pos);
+  out_color = final_color;
+  out_line_data = pack_line_data(gl_FragCoord.xy, edge_start, edge_pos);
 }
