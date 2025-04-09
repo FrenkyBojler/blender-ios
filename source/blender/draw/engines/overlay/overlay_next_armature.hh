@@ -488,6 +488,8 @@ class Armatures : Overlay {
     const float *const_color = nullptr;
     /* Wire thickness. */
     float const_wire = 0.0f;
+    /* Maximum bone width. */
+    float max_width = 0.0f;
 
     bool do_relations = false;
     bool transparent = false;
@@ -535,6 +537,7 @@ class Armatures : Overlay {
     if ((ctx.ob->base_flag & BASE_SELECTED) && show_outline) {
       ctx.const_wire = 1.5f;
     }
+    ctx.max_width = arm.max_bone_width;
     return ctx;
   }
 
