@@ -12,6 +12,8 @@
 #include <cmath>
 #include <string>
 
+#include <fmt/format.h>
+
 /* Define macros in `DNA_genfile.h`. */
 #define DNA_GENFILE_VERSIONING_MACROS
 
@@ -2212,7 +2214,7 @@ void do_versions_after_linking_400(FileData *fd, Main *bmain)
     });
   }
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 18)) {
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 20)) {
     FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
       if (node_tree->type != NTREE_COMPOSIT) {
         continue;
