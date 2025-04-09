@@ -12,8 +12,6 @@
 #include <cmath>
 #include <string>
 
-#include <fmt/format.h>
-
 /* Define macros in `DNA_genfile.h`. */
 #define DNA_GENFILE_VERSIONING_MACROS
 
@@ -1761,12 +1759,9 @@ static void do_version_glare_node_star_45_option_to_inputs(bNodeTree *node_tree,
     return;
   }
 
-  /* Get the newly added input. */
-  bNodeSocket *diagonal_star = version_node_add_socket_if_not_exist(
-      node_tree, node, SOCK_IN, SOCK_BOOLEAN, PROP_NONE, "Diagonal Star", "Diagonal");
-
-  /* Assign the input the value from the old deprecated properties. */
-  diagonal_star->default_value_typed<bNodeSocketValueBoolean>()->value = storage->star_45;
+  bNodeSocket *diagonal_star_input = blender::bke::node_find_socket(
+      *node, SOCK_IN, "Diagonal Star");
+  diagonal_star_input->default_value_typed<bNodeSocketValueBoolean>()->value = storage->star_45;
 
   /* Compute the RNA path of the node. */
   char escaped_node_name[sizeof(node->name) * 2 + 1];
@@ -1781,14 +1776,9 @@ static void do_version_glare_node_star_45_option_to_inputs(bNodeTree *node_tree,
     }
 
     /* Change the RNA path of the FCurve from the old property to the new input. */
-    char *old_rna_path = fcurve->rna_path;
     if (BLI_str_endswith(fcurve->rna_path, "use_rotate_45")) {
+      MEM_freeN(fcurve->rna_path);
       fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[14].default_value");
-    }
-
-    /* The RNA path was changed, free the old path. */
-    if (fcurve->rna_path != old_rna_path) {
-      MEM_freeN(old_rna_path);
     }
   });
 }

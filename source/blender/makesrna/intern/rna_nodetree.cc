@@ -3785,6 +3785,30 @@ static void rna_NodeGlare_color_modulation_set(PointerRNA *ptr, const float valu
   RNA_float_set(&input_rna_pointer, "default_value", blender::math::clamp(value, 0.0f, 1.0f));
 }
 
+#  define RNA_NODE_PROPERTY_TO_INPUT_GETTER_SETTER(TYPE, RNA_TYPE_PREFIX, NAME, IDENTIFIER) \
+    static TYPE NAME##_get(PointerRNA *ptr) \
+    { \
+      bNode *node = static_cast<bNode *>(ptr->data); \
+      bNodeSocket *input = blender::bke::node_find_socket(*node, SOCK_IN, IDENTIFIER); \
+      PointerRNA input_rna_pointer = RNA_pointer_create_discrete( \
+          ptr->owner_id, &RNA_NodeSocket, input); \
+      return RNA_TYPE_PREFIX##_get(&input_rna_pointer, "default_value"); \
+    } \
+\
+    static void NAME##_set(PointerRNA *ptr, const TYPE value) \
+    { \
+      bNode *node = static_cast<bNode *>(ptr->data); \
+      bNodeSocket *input = blender::bke::node_find_socket(*node, SOCK_IN, IDENTIFIER); \
+      PointerRNA input_rna_pointer = RNA_pointer_create_discrete( \
+          ptr->owner_id, &RNA_NodeSocket, input); \
+      RNA_TYPE_PREFIX##_set(&input_rna_pointer, "default_value", value); \
+    }
+
+RNA_NODE_PROPERTY_TO_INPUT_GETTER_SETTER(bool,
+                                         RNA_boolean,
+                                         rna_NodeGlare_rotate_45,
+                                         "Diagonal Star")
+
 /* --------------------------------------------------------------------
  * White Balance Node.
  */
@@ -8324,6 +8348,15 @@ static void def_cmp_glare(BlenderRNA * /*brna*/, StructRNA *srna)
   RNA_def_property_range(prop, 0.75f, 1.0f);
   RNA_def_property_ui_text(
       prop, "Fade", "Streak fade-out factor. (Deprecated: Use Fade input instead)");
+
+  prop = RNA_def_property(srna, "use_rotate_45", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_funcs(
+      prop, "rna_NodeGlare_rotate_45_get", "rna_NodeGlare_rotate_45_set");
+  RNA_def_property_ui_text(prop,
+                           "Rotate 45°",
+                           "Simple star filter: add 45 degree rotation offset. (Deprecated: Use "
+                           "Diagonal input instead)");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 
   prop = RNA_def_property(srna, "size", PROP_INT, PROP_NONE);
   RNA_def_property_int_funcs(prop, "rna_NodeGlare_size_get", "rna_NodeGlare_size_set", nullptr);
