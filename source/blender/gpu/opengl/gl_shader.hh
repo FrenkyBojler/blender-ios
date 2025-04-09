@@ -16,6 +16,7 @@
 #include "BLI_subprocess.hh"
 #include "BLI_utility_mixins.hh"
 
+#include "GPU_capabilities.hh"
 #include "gpu_shader_create_info.hh"
 #include "gpu_shader_private.hh"
 

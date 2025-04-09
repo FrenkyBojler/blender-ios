@@ -157,6 +157,7 @@ static inline const Shader *unwrap(const GPUShader *vert)
   return reinterpret_cast<const Shader *>(vert);
 }
 
+/* TODO: Remove once Metal uses ShaderCompiler. */
 class ShaderCompiler {
  protected:
   struct Sources {
@@ -190,7 +191,11 @@ class ShaderCompiler {
   };
 };
 
-/* Generic implementation used as fallback. */
+/* TODO: Make this the base class and make compile_shader and specialize_shader the only virtual
+ * functions. */
+
+/* Base implementation for all the backends.
+ * Backends are expected to override compile_shader and specialize_shader if needed. */
 class ShaderCompilerGeneric : public ShaderCompiler {
  private:
   struct Batch {
@@ -251,15 +256,15 @@ class ShaderCompilerGeneric : public ShaderCompiler {
   virtual Shader *compile_shader(const shader::ShaderCreateInfo &info);
   virtual void specialize_shader(ShaderSpecialization & /*specialization*/){};
 
-  BatchHandle batch_compile(Span<const shader::ShaderCreateInfo *> &infos) override;
-  void batch_cancel(BatchHandle &handle) override;
-  bool batch_is_ready(BatchHandle handle) override;
-  Vector<Shader *> batch_finalize(BatchHandle &handle) override;
+  BatchHandle batch_compile(Span<const shader::ShaderCreateInfo *> &infos) final;
+  void batch_cancel(BatchHandle &handle) final;
+  bool batch_is_ready(BatchHandle handle) final;
+  Vector<Shader *> batch_finalize(BatchHandle &handle) final;
 
   virtual SpecializationBatchHandle precompile_specializations(
-      Span<ShaderSpecialization> specializations) override;
+      Span<ShaderSpecialization> specializations) final;
 
-  virtual bool specialization_batch_is_ready(SpecializationBatchHandle &handle) override;
+  virtual bool specialization_batch_is_ready(SpecializationBatchHandle &handle) final;
 };
 
 enum class Severity {
