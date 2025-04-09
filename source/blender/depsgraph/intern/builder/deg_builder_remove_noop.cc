@@ -68,13 +68,13 @@ void deg_graph_remove_unused_noops(Depsgraph *graph)
     OperationNode *to_remove = queue.front();
     queue.pop_front();
 
-    for (Relation *rel_in : to_remove->inlinks) {
-      if (!is_removable_relation(rel_in)) {
+    for (destruct_ptr<Relation> &rel_in : to_remove->inlinks) {
+      if (!is_removable_relation(rel_in.get())) {
         continue;
       }
 
       Node *dependency = rel_in->from;
-      relations_to_remove.append(rel_in);
+      relations_to_remove.append(rel_in.get());
 
       /* Queue parent no-op node that has now become unused. */
       OperationNode *operation = dependency->get_exit_operation();
@@ -88,8 +88,7 @@ void deg_graph_remove_unused_noops(Depsgraph *graph)
 
   /* Remove the relations. */
   for (Relation *relation : relations_to_remove) {
-    relation->unlink();
-    delete relation;
+    relation->unlink_and_destruct();
   }
 
   DEG_DEBUG_PRINTF((::Depsgraph *)graph,

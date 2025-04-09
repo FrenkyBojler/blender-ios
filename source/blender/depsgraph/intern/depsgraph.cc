@@ -190,7 +190,11 @@ Relation *Depsgraph::add_new_relation(Node *from, Node *to, const char *descript
 #endif
 
   /* Create new relation, and add it to the graph. */
-  rel = new Relation(from, to, description);
+  destruct_ptr<Relation> rel_ptr = this->build_allocator.construct<Relation>(
+      from, to, description);
+  rel = rel_ptr.get();
+  from->outlinks.append(rel);
+  from->inlinks.append(std::move(rel_ptr));
   rel->flag |= flags;
   return rel;
 }

@@ -46,7 +46,7 @@ static void deg_graph_tag_paths_recursive(Node *node)
     return;
   }
   node->custom_flags |= OP_VISITED;
-  for (Relation *rel : node->inlinks) {
+  for (destruct_ptr<Relation> &rel : node->inlinks) {
     deg_graph_tag_paths_recursive(rel->from);
     /* Do this only in inlinks loop, so the target node does not get
      * flagged. */
@@ -68,11 +68,11 @@ void deg_graph_transitive_reduction(Depsgraph *graph)
      * start with children, so the target node and direct children are not
      * flagged. */
     target->custom_flags |= OP_VISITED;
-    for (Relation *rel : target->inlinks) {
+    for (destruct_ptr<Relation> &rel : target->inlinks) {
       deg_graph_tag_paths_recursive(rel->from);
     }
     /* Remove redundant paths to the target. */
-    for (Relation *rel : target->inlinks) {
+    for (destruct_ptr<Relation> &rel : target->inlinks) {
       if (rel->from->type == NodeType::TIMESOURCE) {
         /* HACK: time source nodes don't get "custom_flags" flag
          * set/cleared. */
@@ -81,12 +81,11 @@ void deg_graph_transitive_reduction(Depsgraph *graph)
         continue;
       }
       if (rel->from->custom_flags & OP_REACHABLE) {
-        relations_to_remove.append(rel);
+        relations_to_remove.append(rel.get());
       }
     }
     for (Relation *rel : relations_to_remove) {
-      rel->unlink();
-      delete rel;
+      rel->unlink_and_destruct();
     }
     num_removed_relations += relations_to_remove.size();
     relations_to_remove.clear();

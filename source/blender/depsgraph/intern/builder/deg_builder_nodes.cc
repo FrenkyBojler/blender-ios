@@ -414,6 +414,7 @@ void DepsgraphNodeBuilder::begin_build()
   graph_->clear_all_nodes();
   graph_->operations.clear();
   graph_->entry_tags.clear();
+  graph_->build_allocator = {};
 }
 
 /* Utility callbacks for `BKE_library_foreach_ID_link`, used to detect when an evaluated ID is
