@@ -38,7 +38,6 @@ class InstanceBoundsField final : public bke::InstancesFieldInput {
   {
     const Span<int> handles = instances.reference_handles();
     Array<float3> bounds(instances.references().size());
-    Array<float3> output_bounds(mask.min_array_size());
 
     IndexMaskMemory memory;
     IndexMask handles_mask = handles.index_range();
@@ -50,7 +49,7 @@ class InstanceBoundsField final : public bke::InstancesFieldInput {
       handles_mask = IndexMask::from_bools(reference_is_in_mask.as_span(), memory);
     }
 
-    handles_mask.foreach_index(GrainSize(1024), [&](const int reference_index) {
+    handles_mask.foreach_index(GrainSize(128), [&](const int reference_index) {
       const blender::bke::InstanceReference &reference = instances.references()[reference_index];
       GeometrySet instance_geometry;
 
@@ -75,7 +74,8 @@ class InstanceBoundsField final : public bke::InstancesFieldInput {
       }
     });
 
-    mask.foreach_index([&](const int instance_index) {
+    Array<float3> output_bounds(mask.min_array_size());
+    mask.foreach_index(GrainSize(4096), [&](const int instance_index) {
       output_bounds[instance_index] = bounds[handles[instance_index]];
     });
 
@@ -98,12 +98,11 @@ class InstanceBoundsField final : public bke::InstancesFieldInput {
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  bool use_radius = params.extract_input<bool>("Use Radius");
-  Field<float3> min_field{std::make_shared<InstanceBoundsField>(use_radius, true)};
-  Field<float3> max_field{std::make_shared<InstanceBoundsField>(use_radius, false)};
-
-  params.set_output("Bounds Min", min_field);
-  params.set_output("Bounds Max", max_field);
+  const bool use_radius = params.extract_input<bool>("Use Radius");
+  params.set_output("Bounds Min",
+                    Field<float3>(std::make_shared<InstanceBoundsField>(use_radius, true)));
+  params.set_output("Bounds Max",
+                    Field<float3>(std::make_shared<InstanceBoundsField>(use_radius, false)));
 }
 
 static void node_register()
