@@ -1688,28 +1688,38 @@ GLShaderCompiler::~GLShaderCompiler()
 
 GLCompilerWorker *GLShaderCompiler::get_compiler_worker(const GLSourcesBaked &sources)
 {
+  auto try_get_compiler_worker = [&]() {
+    GLCompilerWorker *result = nullptr;
+    for (GLCompilerWorker *compiler : workers_) {
+      if (compiler->state_ == GLCompilerWorker::AVAILABLE) {
+        result = compiler;
+        break;
+      }
+    }
+
+    if (result) {
+      check_worker_is_lost(result);
+    }
+
+    if (!result && workers_.size() < GCaps.max_parallel_compilations) {
+      result = new GLCompilerWorker();
+      workers_.append(result);
+    }
+
+    return result;
+  };
+
   std::lock_guard lock(workers_mutex_);
 
   GLCompilerWorker *result = nullptr;
-  for (GLCompilerWorker *compiler : workers_) {
-    if (compiler->state_ == GLCompilerWorker::AVAILABLE) {
-      result = compiler;
+  while (true) {
+    if (result = try_get_compiler_worker()) {
+      BLI_time_sleep_ms(1);
       break;
     }
   }
 
-  if (result) {
-    check_worker_is_lost(result);
-  }
-
-  if (!result && workers_.size() < GCaps.max_parallel_compilations) {
-    result = new GLCompilerWorker();
-    workers_.append(result);
-  }
-
-  if (result) {
-    result->compile(sources);
-  }
+  result->compile(sources);
 
   return result;
 }
@@ -1740,13 +1750,7 @@ Shader *GLShaderCompiler::compile_shader(const shader::ShaderCreateInfo &info)
     return compile(info, false);
   }
 
-  GLCompilerWorker *worker = nullptr;
-  while (!worker) {
-    worker = get_compiler_worker(sources);
-    if (!worker) {
-      BLI_time_sleep_ms(1);
-    }
-  }
+  GLCompilerWorker *worker = get_compiler_worker(sources);
 
   if (!worker->load_program_binary(shader->program_active_->program_id) ||
       !shader->post_finalize(&info))
@@ -1816,17 +1820,7 @@ void GLShaderCompiler::specialize_shader(ShaderSpecialization &specialization)
     }
   }
 
-  GLCompilerWorker *worker = nullptr;
-  while (!worker) {
-    worker = get_compiler_worker(sources);
-    if (!worker) {
-      BLI_time_sleep_ms(1);
-    }
-  }
-
-  while ((!worker->is_ready())) {
-    BLI_time_sleep_ms(1);
-  }
+  GLCompilerWorker *worker = get_compiler_worker(sources);
 
   std::lock_guard lock(mutex);
 
