@@ -90,7 +90,7 @@ void DepsgraphRelationBuilder::build_ik_pose(Object *object,
     /* Different object - requires its transform. */
     if (data->tar != object) {
       ComponentKey target_key(&data->tar->id, NodeType::TRANSFORM);
-      add_relation(target_key, target_dependent_key, con->name);
+      add_relation(target_key, target_dependent_key, con->name_legacy);
       /* Ensure target evaluated copy is ready by the time IK tree is built just in case. */
       ComponentKey target_cow_key(&data->tar->id, NodeType::COPY_ON_EVAL);
       add_relation(target_cow_key,
@@ -103,14 +103,14 @@ void DepsgraphRelationBuilder::build_ik_pose(Object *object,
       /* Bone - use the final transformation. */
       OperationKey target_key(
           &data->tar->id, NodeType::BONE, data->subtarget, OperationCode::BONE_DONE);
-      add_relation(target_key, target_dependent_key, con->name);
+      add_relation(target_key, target_dependent_key, con->name_legacy);
     }
     else if (data->subtarget[0] && ELEM(data->tar->type, OB_MESH, OB_LATTICE)) {
       /* Vertex group target. */
       /* NOTE: for now, we don't need to represent vertex groups
        * separately. */
       ComponentKey target_key(&data->tar->id, NodeType::GEOMETRY);
-      add_relation(target_key, target_dependent_key, con->name);
+      add_relation(target_key, target_dependent_key, con->name_legacy);
       add_customdata_mask(data->tar, DEGCustomDataMeshMasks::MaskVert(CD_MASK_MDEFORMVERT));
     }
     if (data->tar == object && data->subtarget[0]) {
@@ -125,7 +125,7 @@ void DepsgraphRelationBuilder::build_ik_pose(Object *object,
     /* Different object - requires its transform. */
     if (data->poletar != object) {
       ComponentKey target_key(&data->poletar->id, NodeType::TRANSFORM);
-      add_relation(target_key, target_dependent_key, con->name);
+      add_relation(target_key, target_dependent_key, con->name_legacy);
       /* Ensure target evaluated copy is ready by the time IK tree is built just in case. */
       ComponentKey target_cow_key(&data->poletar->id, NodeType::COPY_ON_EVAL);
       add_relation(target_cow_key,
@@ -138,14 +138,14 @@ void DepsgraphRelationBuilder::build_ik_pose(Object *object,
       /* Bone - use the final transformation. */
       OperationKey target_key(
           &data->poletar->id, NodeType::BONE, data->polesubtarget, OperationCode::BONE_DONE);
-      add_relation(target_key, target_dependent_key, con->name);
+      add_relation(target_key, target_dependent_key, con->name_legacy);
     }
     else if (data->polesubtarget[0] && ELEM(data->poletar->type, OB_MESH, OB_LATTICE)) {
       /* Vertex group target. */
       /* NOTE: for now, we don't need to represent vertex groups
        * separately. */
       ComponentKey target_key(&data->poletar->id, NodeType::GEOMETRY);
-      add_relation(target_key, target_dependent_key, con->name);
+      add_relation(target_key, target_dependent_key, con->name_legacy);
       add_customdata_mask(data->poletar, DEGCustomDataMeshMasks::MaskVert(CD_MASK_MDEFORMVERT));
     }
   }

@@ -120,7 +120,12 @@ static bConstraint *constraint_find_original_for_update(bConstraintOb *cob, bCon
 
 void BKE_constraint_unique_name(bConstraint *con, ListBase *list)
 {
-  BLI_uniquename(list, con, DATA_("Const"), '.', offsetof(bConstraint, name), sizeof(con->name));
+  BLI_uniquename(list,
+                 con,
+                 DATA_("Const"),
+                 '.',
+                 offsetof(bConstraint, name_legacy),
+                 sizeof(con->name_legacy));
 }
 
 /* ----------------- Evaluation Loop Preparation --------------- */
@@ -2984,7 +2989,7 @@ static bool actcon_get_tarmat(Depsgraph *depsgraph,
 
   if (G.debug & G_DEBUG) {
     printf("do Action Constraint %s - Ob %s Pchan %s\n",
-           con->name,
+           con->name_legacy,
            cob->ob->id.name + 2,
            (cob->pchan) ? cob->pchan->name : nullptr);
   }
@@ -5771,7 +5776,7 @@ bool BKE_constraint_apply_for_object(Depsgraph *depsgraph,
    * target mesh). */
   Scene *scene_eval = DEG_get_evaluated_scene(depsgraph);
   Object *ob_eval = DEG_get_evaluated_object(depsgraph, ob);
-  bConstraint *con_eval = BKE_constraints_find_name(&ob_eval->constraints, con->name);
+  bConstraint *con_eval = BKE_constraints_find_name(&ob_eval->constraints, con->name_legacy);
 
   bConstraint *new_con = BKE_constraint_duplicate_ex(con_eval, 0, ID_IS_EDITABLE(ob));
   ListBase single_con = {new_con, new_con};
@@ -5824,7 +5829,7 @@ bool BKE_constraint_apply_for_pose(
   Scene *scene_eval = DEG_get_evaluated_scene(depsgraph);
   Object *ob_eval = DEG_get_evaluated_object(depsgraph, ob);
   bPoseChannel *pchan_eval = BKE_pose_channel_find_name(ob_eval->pose, pchan->name);
-  bConstraint *con_eval = BKE_constraints_find_name(&pchan_eval->constraints, con->name);
+  bConstraint *con_eval = BKE_constraints_find_name(&pchan_eval->constraints, con->name_legacy);
 
   bConstraint *new_con = BKE_constraint_duplicate_ex(con_eval, 0, ID_IS_EDITABLE(ob));
   ListBase single_con;
@@ -5919,7 +5924,7 @@ static bConstraint *add_new_constraint_internal(const char *name, short type)
   }
 
   /* copy the name */
-  STRNCPY(con->name, newName);
+  STRNCPY(con->name_legacy, newName);
 
   /* return the new constraint */
   return con;
@@ -6142,7 +6147,8 @@ void BKE_constraints_copy(ListBase *dst, const ListBase *src, bool do_extern)
 
 bConstraint *BKE_constraints_find_name(ListBase *list, const char *name)
 {
-  return static_cast<bConstraint *>(BLI_findstring(list, name, offsetof(bConstraint, name)));
+  return static_cast<bConstraint *>(
+      BLI_findstring(list, name, offsetof(bConstraint, name_legacy)));
 }
 
 bConstraint *BKE_constraints_active_get(ListBase *list)
@@ -6264,7 +6270,8 @@ static bConstraint *constraint_find_original(Object *ob,
     bConstraint *orig_con = static_cast<bConstraint *>(BLI_findlink(orig_constraints, index));
 
     /* Verify it has correct type and name. */
-    if (orig_con && orig_con->type == con->type && STREQ(orig_con->name, con->name)) {
+    if (orig_con && orig_con->type == con->type && STREQ(orig_con->name_legacy, con->name_legacy))
+    {
       if (r_orig_ob != nullptr) {
         *r_orig_ob = orig_ob;
       }

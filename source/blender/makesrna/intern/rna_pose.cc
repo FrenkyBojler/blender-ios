@@ -383,8 +383,11 @@ static void rna_PoseChannel_constraints_remove(
   Object *ob = (Object *)id;
 
   if (BLI_findindex(&pchan->constraints, con) == -1) {
-    BKE_reportf(
-        reports, RPT_ERROR, "Constraint '%s' not found in pose bone '%s'", con->name, pchan->name);
+    BKE_reportf(reports,
+                RPT_ERROR,
+                "Constraint '%s' not found in pose bone '%s'",
+                con->name_legacy,
+                pchan->name);
     return;
   }
 
@@ -454,7 +457,7 @@ bool rna_PoseChannel_constraints_override_apply(Main *bmain,
   /* Remember that insertion operations are defined and stored in correct order, which means that
    * even if we insert several items in a row, we always insert first one, then second one, etc.
    * So we should always find 'anchor' constraint in both _src *and* _dst */
-  const size_t name_offset = offsetof(bConstraint, name);
+  const size_t name_offset = offsetof(bConstraint, name_legacy);
   bConstraint *con_anchor = static_cast<bConstraint *>(
       BLI_listbase_string_or_index_find(&pchan_dst->constraints,
                                         opop->subitem_reference_name,

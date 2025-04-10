@@ -745,7 +745,7 @@ static bool edit_constraint_invoke_properties(bContext *C,
 
   if (ptr.data) {
     con = static_cast<bConstraint *>(ptr.data);
-    RNA_string_set(op->ptr, "constraint", con->name);
+    RNA_string_set(op->ptr, "constraint", con->name_legacy);
 
     list = constraint_list_from_constraint(ob, con, nullptr);
 
@@ -766,7 +766,7 @@ static bool edit_constraint_invoke_properties(bContext *C,
     if (!(panel_ptr == nullptr || RNA_pointer_is_null(panel_ptr))) {
       if (RNA_struct_is_a(panel_ptr->type, &RNA_Constraint)) {
         con = static_cast<bConstraint *>(panel_ptr->data);
-        RNA_string_set(op->ptr, "constraint", con->name);
+        RNA_string_set(op->ptr, "constraint", con->name_legacy);
         list = constraint_list_from_constraint(ob, con, nullptr);
         RNA_enum_set(op->ptr,
                      "owner",
@@ -812,7 +812,7 @@ static bConstraint *edit_constraint_property_get(bContext *C, wmOperator *op, Ob
   con = BKE_constraints_find_name(list, constraint_name);
 #if 0
   if (G.debug & G_DEBUG) {
-    printf("constraint found = %p, %s\n", (void *)con, (con) ? con->name : "<Not found>");
+    printf("constraint found = %p, %s\n", (void *)con, (con) ? con->name_legacy : "<Not found>");
   }
 #endif
 
@@ -1474,7 +1474,7 @@ static wmOperatorStatus constraint_delete_exec(bContext *C, wmOperator *op)
 
   /* Store name temporarily for report. */
   char name[MAX_NAME];
-  STRNCPY(name, con->name);
+  STRNCPY(name, con->name_legacy);
 
   /* free the constraint */
   if (BKE_constraint_remove_ex(lb, ob, con)) {
@@ -1547,7 +1547,7 @@ static wmOperatorStatus constraint_apply_exec(bContext *C, wmOperator *op)
 
   /* Store name temporarily for report. */
   char name[MAX_NAME];
-  STRNCPY(name, con->name);
+  STRNCPY(name, con->name_legacy);
   const bool is_first_constraint = con != constraints->first;
 
   /* Copy the constraint. */
@@ -1644,7 +1644,7 @@ static wmOperatorStatus constraint_copy_exec(bContext *C, wmOperator *op)
 
   /* Store name temporarily for report. */
   char name[MAX_NAME];
-  STRNCPY(name, con->name);
+  STRNCPY(name, con->name_legacy);
 
   /* Copy the constraint. */
   bConstraint *copy_con;

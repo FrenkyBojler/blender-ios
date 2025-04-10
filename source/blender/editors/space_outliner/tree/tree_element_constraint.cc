@@ -30,7 +30,7 @@ TreeElementConstraint::TreeElementConstraint(TreeElement &legacy_te,
     : AbstractTreeElement(legacy_te), /* object_(object), */ con_(con)
 {
   BLI_assert(legacy_te.store_elem->type == TSE_CONSTRAINT);
-  legacy_te.name = con_.name;
+  legacy_te.name = con_.name_legacy;
   legacy_te.directdata = &con_;
 }
 
