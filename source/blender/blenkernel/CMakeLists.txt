@@ -462,6 +462,7 @@ set(SRC
   BKE_movieclip.h
   BKE_multires.hh
   BKE_nla.hh
+  BKE_name_legacy_buffer_conversion.hh
   BKE_node.hh
   BKE_node_enum.hh
   BKE_node_legacy_types.hh

@@ -68,6 +68,7 @@
 #include "BKE_library.hh"
 #include "BKE_mesh_runtime.hh"
 #include "BKE_movieclip.h"
+#include "BKE_name_legacy_buffer_conversion.hh"
 #include "BKE_object.hh"
 #include "BKE_object_types.hh"
 #include "BKE_scene.hh"
@@ -6582,47 +6583,13 @@ void BKE_constraints_solve(Depsgraph *depsgraph,
   }
 }
 
-template<typename T, size_t S, char (T::*LegacyName)[S], char *T::*NamePtr>
-static void make_legacy_names_unique(ListBase *values)
-{
-  /* Optimistically copy current names to legacy names. This is good enough in the majority of
-   * cases. If there are duplicates, those will be resolved below. */
-  blender::Set<blender::StringRef> truncated_names;
-  bool found_duplicate_legacy_name = false;
-  LISTBASE_FOREACH (T *, value, values) {
-    STRNCPY_UTF8(value->*LegacyName, value->*NamePtr);
-    const int64_t num_truncated_bytes = int64_t(strlen(value->*LegacyName));
-    const blender::StringRef truncated_name{value->*NamePtr, num_truncated_bytes};
-    if (!truncated_names.add(truncated_name)) {
-      found_duplicate_legacy_name = true;
-    }
-  }
-  if (!found_duplicate_legacy_name) {
-    return;
-  }
-  const int count = BLI_listbase_count(values);
-  const int num_digits = std::to_string(count + 1).size();
-  /* Add 2 because of the separator dot and null terminator. */
-  const int suffix_len_with_null = num_digits + 2;
-  int i = 1;
-  LISTBASE_FOREACH (T *, value, values) {
-    if (strlen(value->*LegacyName) > S - suffix_len_with_null) {
-      size_t trimmed_old_len;
-      BLI_strnlen_utf8_ex(value->*LegacyName, S - suffix_len_with_null, &trimmed_old_len);
-      const std::string suffix = fmt::format(".{:0{}}", i, num_digits);
-      BLI_strncpy(value->*LegacyName + trimmed_old_len, suffix.c_str(), suffix_len_with_null);
-    }
-    i++;
-  }
-}
-
 void BKE_constraint_blend_write(BlendWriter *writer, ListBase *conlist)
 {
   if (!BLO_write_is_undo(writer)) {
-    make_legacy_names_unique<bConstraint,
-                             sizeof(bConstraint::name_legacy),
-                             &bConstraint::name_legacy,
-                             &bConstraint::name_ptr>(conlist);
+    blender::bke::update_legacy_name_buffers<bConstraint,
+                                             sizeof(bConstraint::name_legacy),
+                                             &bConstraint::name_legacy,
+                                             &bConstraint::name_ptr>(conlist);
   }
   LISTBASE_FOREACH (bConstraint *, con, conlist) {
     const bConstraintTypeInfo *cti = BKE_constraint_typeinfo_get(con);
