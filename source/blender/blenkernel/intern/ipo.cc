@@ -1152,10 +1152,9 @@ static char *get_rna_access(ID *id,
   if ((actname && actname[0]) && (constname && constname[0])) {
     /* Constraint in Pose-Channel */
     char actname_esc[sizeof(bActionChannel::name) * 2];
-    char constname_esc[sizeof(bConstraint::name_legacy) * 2];
     BLI_str_escape(actname_esc, actname, sizeof(actname_esc));
-    BLI_str_escape(constname_esc, constname, sizeof(constname_esc));
-    SNPRINTF(buf, "pose.bones[\"%s\"].constraints[\"%s\"]", actname_esc, constname_esc);
+    blender::StackString<> constname_esc = BLI_str_escape(constname);
+    SNPRINTF(buf, "pose.bones[\"%s\"].constraints[\"%s\"]", actname_esc, constname_esc.c_str());
   }
   else if (actname && actname[0]) {
     if ((blocktype == ID_OB) && STREQ(actname, "Object")) {
@@ -2267,7 +2266,7 @@ void do_versions_ipos_to_layered_actions(Main *bmain)
             /* although this was the constraint's local IPO, we still need to provide pchan + con
              * so that drivers can be added properly...
              */
-            ipo_to_animdata(bmain, id, con->ipo, pchan->name, con->name_legacy, nullptr);
+            ipo_to_animdata(bmain, id, con->ipo, pchan->name, con->name_ptr, nullptr);
             id_us_min(&con->ipo->id);
             con->ipo = nullptr;
           }
@@ -2287,7 +2286,7 @@ void do_versions_ipos_to_layered_actions(Main *bmain)
         /* although this was the constraint's local IPO, we still need to provide con
          * so that drivers can be added properly...
          */
-        ipo_to_animdata(bmain, id, con->ipo, nullptr, con->name_legacy, nullptr);
+        ipo_to_animdata(bmain, id, con->ipo, nullptr, con->name_ptr, nullptr);
         id_us_min(&con->ipo->id);
         con->ipo = nullptr;
       }
