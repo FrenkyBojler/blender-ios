@@ -13,9 +13,6 @@
 namespace blender::bke {
 class AttributeStorage;
 class AttributeStorageRuntime;
-enum class AttrDomain : int8_t;
-enum class AttrType : int16_t;
-enum class AttrStorageType : int8_t;
 }  // namespace blender::bke
 
 using AttributeStorageRuntimeHandle = blender::bke::AttributeStorageRuntime;
