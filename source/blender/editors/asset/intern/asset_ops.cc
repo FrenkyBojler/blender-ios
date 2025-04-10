@@ -1318,6 +1318,9 @@ static bool screenshot_preview_poll(bContext *C)
   }
 
   ID *id = id_from_selected_asset(C);
+  if (!id) {
+    return false;
+  }
 
   if (!ID_IS_LINKED(id)) {
     return WM_operator_winactive(C);
