@@ -33,6 +33,7 @@
 #include "DNA_movieclip_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_sequence_types.h"
+#include "DNA_space_types.h"
 #include "DNA_workspace_types.h"
 #include "DNA_world_types.h"
 
@@ -54,6 +55,7 @@
 #include "BLI_set.hh"
 #include "BLI_string.h"
 #include "BLI_string_ref.hh"
+#include "BLI_string_utf8.h"
 #include "BLI_string_utils.hh"
 
 #include "BKE_action.hh"
@@ -4452,6 +4454,43 @@ static void asset_browser_add_list_view(Main *bmain)
   }
 }
 
+static void version_show_texpaint_to_show_uv(Main *bmain)
+{
+  LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
+    LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+      LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
+        if (sl->spacetype == SPACE_IMAGE) {
+          SpaceImage *sima = reinterpret_cast<SpaceImage *>(sl);
+          if (sima->flag & SI_NO_DRAW_TEXPAINT) {
+            sima->flag |= SI_NO_DRAW_UV_GUIDE;
+          }
+        }
+      }
+    }
+  }
+}
+
+static void version_set_uv_face_overlay_defaults(Main *bmain)
+{
+  LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
+    LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+      LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
+        if (sl->spacetype == SPACE_IMAGE) {
+          SpaceImage *sima = reinterpret_cast<SpaceImage *>(sl);
+          /* Remove ID Code from screen name */
+          const char *workspace_name = screen->id.name + 2;
+          /* Don't set uv_face_opacity for Texture Paint or Shading since these are workspaces
+           * where it's important to have unobstructed view of the Image Editor to see Image
+           * Textures. UV Editing is the only other default workspace with an Image Editor.*/
+          if (STREQ(workspace_name, "UV Editing")) {
+            sima->uv_face_opacity = 1.0f;
+          }
+        }
+      }
+    }
+  }
+}
+
 void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
 {
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 1)) {
@@ -6665,6 +6704,54 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 17)) {
+    version_show_texpaint_to_show_uv(bmain);
+    version_set_uv_face_overlay_defaults(bmain);
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 18)) {
+    FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
+      if (ntree->type == NTREE_COMPOSIT) {
+        LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
+          if (node->type_legacy == CMP_NODE_CORNERPIN) {
+            node->custom1 = CMP_NODE_CORNER_PIN_INTERPOLATION_ANISOTROPIC;
+          }
+        }
+      }
+    }
+    FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 19)) {
+    LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
+      LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+        LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
+          if (sl->spacetype == SPACE_PROPERTIES) {
+            SpaceProperties *sbuts = reinterpret_cast<SpaceProperties *>(sl);
+            /* Translates to 0xFFFFFFFF, so other tabs can be added without versioning. */
+            sbuts->visible_tabs = uint(-1);
+          }
+        }
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 20)) {
+    /* Older files uses non-UTF8 aware string copy, ensure names are valid UTF8.
+     * The slot names are not unique so no further changes are needed. */
+    LISTBASE_FOREACH (Image *, image, &bmain->images) {
+      LISTBASE_FOREACH (RenderSlot *, slot, &image->renderslots) {
+        if (slot->name[0]) {
+          BLI_str_utf8_invalid_strip(slot->name, sizeof(slot->name));
+        }
+      }
+    }
+    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+      scene->r.ppm_factor = 72.0f;
+      scene->r.ppm_base = 0.0254f;
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 21)) {
     LISTBASE_FOREACH (bNodeTree *, ntree, &bmain->nodetrees) {
       if (ntree->type == NTREE_GEOMETRY) {
         node_interface_single_value_to_structure_type(ntree->tree_interface.root_panel.item);
@@ -6672,9 +6759,9 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
     }
   }
 
-  /* Always run this versioning; meshes are written with the legacy format which always needs to
-   * be converted to the new format on file load. Can be moved to a subversion check in a larger
-   * breaking release. */
+  /* Always run this versioning (keep at the bottom of the function). Meshes are written with the
+   * legacy format which always needs to be converted to the new format on file load. To be moved
+   * to a subversion check in 5.0. */
   LISTBASE_FOREACH (Mesh *, mesh, &bmain->meshes) {
     blender::bke::mesh_sculpt_mask_to_generic(*mesh);
     blender::bke::mesh_custom_normals_to_generic(*mesh);
