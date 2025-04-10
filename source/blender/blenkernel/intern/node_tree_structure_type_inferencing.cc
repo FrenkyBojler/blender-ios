@@ -338,7 +338,7 @@ static void propagate_right_to_left(const bNodeTree &tree,
   }
 }
 
-static StructureType merge_status_left_to_right(const StructureType a, const StructureType b)
+static StructureType left_to_right_merge(const StructureType a, const StructureType b)
 {
   if (a == b) {
     return a;
@@ -386,7 +386,7 @@ static bool simulation_zone_status_propagate(const bNode &input_node,
     /* First input node output is Delta Time which does not appear in the output node outputs. */
     const bNodeSocket &input_socket = input_node.output_socket(i + 1);
     const bNodeSocket &output_socket = output_node.output_socket(i);
-    const StructureType new_value = merge_status_left_to_right(
+    const StructureType new_value = left_to_right_merge(
         structure_types[input_socket.index_in_tree()],
         structure_types[output_socket.index_in_tree()]);
     if (structure_types[input_socket.index_in_tree()] != new_value) {
@@ -405,7 +405,7 @@ static bool repeat_zone_status_propagate(const bNode &input_node,
   for (const int i : output_node.output_sockets().index_range()) {
     const bNodeSocket &input_socket = input_node.output_socket(i + 1);
     const bNodeSocket &output_socket = output_node.output_socket(i);
-    const StructureType new_value = merge_status_left_to_right(
+    const StructureType new_value = left_to_right_merge(
         structure_types[input_socket.index_in_tree()],
         structure_types[output_socket.index_in_tree()]);
     if (structure_types[input_socket.index_in_tree()] != new_value) {
@@ -467,6 +467,15 @@ static bool propagate_zone_status(const bNodeTree &tree,
   return false;
 }
 
+static StructureType get_unconnected_input_structure_type(
+    const nodes::SocketDeclaration &declaration)
+{
+  if (declaration.input_field_type == nodes::InputSocketFieldType::Implicit) {
+    return StructureType::Field;
+  }
+  return StructureType::Single;
+}
+
 static void propagate_left_to_right(const bNodeTree &tree,
                                     const Span<nodes::StructureTypeInterface> node_interfaces,
                                     const Span<StructureType> group_input_structure_types,
@@ -492,19 +501,22 @@ static void propagate_left_to_right(const bNodeTree &tree,
           continue;
         }
         const nodes::SocketDeclaration &declaration = *input->runtime->declaration;
-        if (declaration.structure_type != StructureType::Dynamic) {
-          structure_types[input->index_in_tree()] = declaration.structure_type;
-          continue;
+
+        std::optional<StructureType> input_type;
+        for (const bNodeLink *link : input->directly_linked_links()) {
+          if (!link->is_used()) {
+            continue;
+          }
+          const StructureType new_type = structure_types[link->fromsock->index_in_tree()];
+          if (input_type) {
+            input_type = left_to_right_merge(*input_type, new_type);
+          }
+          else {
+            input_type = new_type;
+          }
         }
-        if (!input->is_directly_linked()) {
-          structure_types[input->index_in_tree()] = StructureType::Single;
-          continue;
-        }
-        const bNodeLink &link = *input->directly_linked_links().first();
-        if (!link.is_used()) {
-          continue;
-        }
-        structure_types[input->index_in_tree()] = structure_types[link.fromsock->index_in_tree()];
+        structure_types[input->index_in_tree()] = input_type.value_or(
+            get_unconnected_input_structure_type(declaration));
       }
 
       const nodes::StructureTypeInterface &interface = node_interfaces[node->index()];
@@ -515,18 +527,22 @@ static void propagate_left_to_right(const bNodeTree &tree,
           continue;
         }
         const nodes::SocketDeclaration &declaration = *output.runtime->declaration;
-        if (declaration.structure_type != StructureType::Dynamic) {
-          structure_types[output.index_in_tree()] = declaration.structure_type;
-          continue;
-        }
+
+        std::optional<StructureType> output_type;
         for (const int input_index : interface.outputs[output_index].linked_inputs) {
           const bNodeSocket &input = node->input_socket(input_index);
           if (!input.is_available()) {
             continue;
           }
-          structure_types[output.index_in_tree()] = merge_status_left_to_right(
-              structure_types[output.index_in_tree()], structure_types[input.index_in_tree()]);
+          const StructureType new_type = structure_types[input.index_in_tree()];
+          if (output_type) {
+            output_type = left_to_right_merge(*output_type, new_type);
+          }
+          else {
+            output_type = new_type;
+          }
         }
+        structure_types[output.index_in_tree()] = output_type.value_or(declaration.structure_type);
       }
 
       if (propagate_zone_status(tree, *node, structure_types)) {
