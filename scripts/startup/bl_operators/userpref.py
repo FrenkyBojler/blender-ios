@@ -620,6 +620,33 @@ class PREFERENCES_OT_theme_install(Operator):
         return {'RUNNING_MODAL'}
 
 
+class PREFERENCES_OT_theme_reload(Operator):
+    """Reload current Blender XML theme file"""
+    bl_idname = "preferences.theme_reload"
+    bl_label = "Reload Theme..."
+
+    def execute(self, context):
+        import traceback
+
+        filepath = context.preferences.themes[0].filepath
+
+        if filepath:
+            try:
+                bpy.ops.script.execute_preset(
+                    filepath=filepath,
+                    menu_idname="USERPREF_MT_interface_theme_presets",
+                )
+            except Exception:
+                traceback.print_exc()
+                return {'CANCELLED'}
+        else:
+            # Since "Default" theme has no filepath if we want to reload it we
+            # have to use dedicated operator
+            bpy.ops.preferences.reset_default_theme()
+
+        return {'FINISHED'}
+
+
 class PREFERENCES_OT_addon_refresh(Operator):
     """Scan add-on directories for new modules"""
     bl_idname = "preferences.addon_refresh"
@@ -1297,6 +1324,7 @@ classes = (
     PREFERENCES_OT_keyitem_restore,
     PREFERENCES_OT_keymap_restore,
     PREFERENCES_OT_theme_install,
+    PREFERENCES_OT_theme_reload,
     PREFERENCES_OT_studiolight_install,
     PREFERENCES_OT_studiolight_new,
     PREFERENCES_OT_studiolight_uninstall,

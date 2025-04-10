@@ -1030,6 +1030,7 @@ class USERPREF_PT_theme(ThemePanel, Panel):
         row.menu("USERPREF_MT_interface_theme_presets", text=preset_label)
         del filepath, preset_label
 
+        row.operator("preferences.theme_reload", text="", icon='FILE_REFRESH')
         row.operator("wm.interface_theme_preset_add", text="", icon='ADD')
         row.operator("wm.interface_theme_preset_remove", text="", icon='REMOVE')
 
