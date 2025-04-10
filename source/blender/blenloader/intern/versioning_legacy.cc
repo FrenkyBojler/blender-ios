@@ -407,8 +407,6 @@ static void do_version_free_effects_245(ListBase *lb)
 
 static void do_version_constraints_245(ListBase *lb)
 {
-  bConstraintTarget *ct;
-
   LISTBASE_FOREACH (bConstraint *, con, lb) {
     if (con->type == CONSTRAINT_TYPE_LOCLIKE) {
       bLocateLikeConstraint *data = (bLocateLikeConstraint *)con->data;
