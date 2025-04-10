@@ -11,7 +11,7 @@
 /**
  * This file implements some specific compute contexts for concepts in Blender.
  *
- * All compute contexts have to store the data that's required to uniquely identify it and to
+ * All compute contexts have to store the data that's required to uniquely identify them and to
  * compute its hash. Some compute contexts contain some optional additional data that provides more
  * information to code that uses the contexts.
  */
