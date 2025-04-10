@@ -129,10 +129,9 @@ static bool change_frame_poll(bContext *C)
 
 /* Returns the playhead snap threshold in frames. Of course that depends on the zoom level of the
  * editor. */
-static int get_snap_threshold(const ARegion *region)
+static int get_snap_threshold(const ToolSettings *tool_settings, const ARegion *region)
 {
-  /* TODO: move threshold to tool settings. */
-  const int snap_threshold = 30;
+  const int snap_threshold = tool_settings->playhead_snap_distance;
   return UI_view2d_region_to_view_x(&region->v2d, snap_threshold) -
          UI_view2d_region_to_view_x(&region->v2d, 0);
 }
@@ -470,7 +469,7 @@ static float apply_frame_snap(bContext *C, ChangeFrameData &op_data, const float
   }
 
   const ARegion *region = CTX_wm_region(C);
-  if (abs(snap_frame - frame) < get_snap_threshold(region)) {
+  if (abs(snap_frame - frame) < get_snap_threshold(scene->toolsettings, region)) {
     return snap_frame;
   }
 

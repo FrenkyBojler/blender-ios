@@ -1254,6 +1254,7 @@ class PlayheadSnappingPanel:
         col = layout.column(align=True)
 
         col.prop(tool_settings, "use_snap_playhead")
+        col.prop(tool_settings, "playhead_snap_distance")
         col.separator()
 
         col.prop(tool_settings, "snap_playhead_element", expand=True)

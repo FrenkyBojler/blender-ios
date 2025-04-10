@@ -1840,8 +1840,8 @@ typedef struct ToolSettings {
 
   int16_t snap_step_seconds;
   int16_t snap_step_frames;
-
-  char _pad8[4];
+  /* Pixel threshold that needs to be crossed before the playhead is snapped to a point. */
+  int playhead_snap_distance;
 
 } ToolSettings;
 
