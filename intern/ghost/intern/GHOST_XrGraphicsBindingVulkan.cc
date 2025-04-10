@@ -15,6 +15,10 @@
 #include "GHOST_XrGraphicsBindingVulkan.hh"
 #include "GHOST_Xr_intern.hh"
 
+#ifdef _WIN32
+#  include <vulkan/vulkan_win32.h>
+#endif
+
 /** OpenXR/Vulkan specific function pointers. */
 PFN_xrGetVulkanGraphicsRequirements2KHR
     GHOST_XrGraphicsBindingVulkan::s_xrGetVulkanGraphicsRequirements2KHR_fn = nullptr;
@@ -25,13 +29,22 @@ PFN_xrCreateVulkanInstanceKHR GHOST_XrGraphicsBindingVulkan::s_xrCreateVulkanIns
 PFN_xrCreateVulkanDeviceKHR GHOST_XrGraphicsBindingVulkan::s_xrCreateVulkanDeviceKHR_fn = nullptr;
 
 /* -------------------------------------------------------------------- */
+/** \name Constructor
+ * \{ */
+
+GHOST_XrGraphicsBindingVulkan::GHOST_XrGraphicsBindingVulkan(GHOST_Context &ghost_ctx)
+    : GHOST_IXrGraphicsBinding(), m_ghost_ctx(static_cast<GHOST_ContextVK &>(ghost_ctx))
+{
+}
+
+/* \} */
+
+/* -------------------------------------------------------------------- */
 /** \name Destroying resources.
  * \{ */
 
 GHOST_XrGraphicsBindingVulkan::~GHOST_XrGraphicsBindingVulkan()
 {
-  m_ghost_ctx = nullptr;
-
   /* Destroy buffer */
   if (m_vk_buffer != VK_NULL_HANDLE) {
     vmaUnmapMemory(m_vma_allocator, m_vk_buffer_allocation);
@@ -133,11 +146,10 @@ bool GHOST_XrGraphicsBindingVulkan::checkVersionRequirements(GHOST_Context &ghos
   return true;
 }
 
-void GHOST_XrGraphicsBindingVulkan::initFromGhostContext(GHOST_Context &ghost_ctx,
+void GHOST_XrGraphicsBindingVulkan::initFromGhostContext(GHOST_Context & /*ghost_ctx*/,
                                                          XrInstance instance,
                                                          XrSystemId system_id)
 {
-  m_ghost_ctx = static_cast<GHOST_ContextVK *>(&ghost_ctx);
   /* Create a new VkInstance that is compatible with OpenXR */
   VkApplicationInfo vk_application_info = {VK_STRUCTURE_TYPE_APPLICATION_INFO,
                                            nullptr,
@@ -264,7 +276,7 @@ void GHOST_XrGraphicsBindingVulkan::initFromGhostContext(GHOST_Context &ghost_ct
 GHOST_TVulkanXRModes GHOST_XrGraphicsBindingVulkan::choseDataTransferMode()
 {
   GHOST_VulkanHandles vulkan_handles;
-  m_ghost_ctx->getVulkanHandles(vulkan_handles);
+  m_ghost_ctx.getVulkanHandles(vulkan_handles);
 
   /* Retrieve the Context physical device properties. */
   VkPhysicalDeviceVulkan11Properties vk_physical_device_vulkan11_properties = {
@@ -311,6 +323,11 @@ GHOST_TVulkanXRModes GHOST_XrGraphicsBindingVulkan::choseDataTransferMode()
   };
 
 #ifdef _WIN32
+  bool has_vk_khr_external_memory_win32_extension = has_extension(
+      VK_KHR_EXTERNAL_MEMORY_WIN32_EXTENSION_NAME);
+  if (has_vk_khr_external_memory_win32_extension) {
+    return GHOST_kVulkanXRModeWin32;
+  }
 #elif defined(__APPLE__)
 #else /* UNIX/Linux */
   bool has_vk_khr_external_memory_fd_extension = has_extension(
@@ -408,15 +425,12 @@ void GHOST_XrGraphicsBindingVulkan::submitToSwapchainImage(
 
   switch (m_data_transfer_mode) {
     case GHOST_kVulkanXRModeFD:
+    case GHOST_kVulkanXRModeWin32:
       submitToSwapchainImageGpu(vulkan_image, draw_info);
       break;
 
     case GHOST_kVulkanXRModeCPU:
       submitToSwapchainImageCpu(vulkan_image, draw_info);
-      break;
-
-    default:
-      // assert(false);
       break;
   }
 }
@@ -430,7 +444,7 @@ void GHOST_XrGraphicsBindingVulkan::submitToSwapchainImageCpu(
 {
   /* Acquire frame buffer image. */
   GHOST_VulkanOpenXRData openxr_data = {GHOST_kVulkanXRModeCPU};
-  m_ghost_ctx->openxr_acquire_framebuffer_image_callback_(&openxr_data);
+  m_ghost_ctx.openxr_acquire_framebuffer_image_callback_(&openxr_data);
 
   /* Import render result. */
   VkDeviceSize component_size = 4 * sizeof(uint8_t);
@@ -536,7 +550,7 @@ void GHOST_XrGraphicsBindingVulkan::submitToSwapchainImageCpu(
   vkResetCommandBuffer(vk_command_buffer, 0);
 
   /* Release frame buffer image. */
-  m_ghost_ctx->openxr_release_framebuffer_image_callback_(&openxr_data);
+  m_ghost_ctx.openxr_release_framebuffer_image_callback_(&openxr_data);
 }
 
 /* \} */
@@ -549,13 +563,22 @@ void GHOST_XrGraphicsBindingVulkan::submitToSwapchainImageGpu(
     XrSwapchainImageVulkan2KHR &swapchain_image, const GHOST_XrDrawViewInfo &draw_info)
 {
   GHOST_VulkanOpenXRData openxr_data = {m_data_transfer_mode};
-  m_ghost_ctx->openxr_acquire_framebuffer_image_callback_(&openxr_data);
+  m_ghost_ctx.openxr_acquire_framebuffer_image_callback_(&openxr_data);
 
   /* Create an image handle */
   VkExternalMemoryImageCreateInfo vk_external_memory_image_info = {
-      VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO,
-      nullptr,
-      VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT};
+      VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO, nullptr, 0};
+
+  switch (m_data_transfer_mode) {
+    case GHOST_kVulkanXRModeFD:
+      vk_external_memory_image_info.handleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT;
+      break;
+    case GHOST_kVulkanXRModeWin32:
+      vk_external_memory_image_info.handleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT;
+      break;
+    case GHOST_kVulkanXRModeCPU:
+      break;
+  }
 
   VkImageCreateInfo vk_image_info = {VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
                                      &vk_external_memory_image_info,
@@ -581,16 +604,40 @@ void GHOST_XrGraphicsBindingVulkan::submitToSwapchainImageGpu(
   vkGetImageMemoryRequirements(m_vk_device, vk_image, &vk_memory_requirements);
 
   /* Import the memory */
+  VkDeviceMemory device_memory = VK_NULL_HANDLE;
   VkMemoryDedicatedAllocateInfo vk_memory_dedicated_allocation_info = {
       VK_STRUCTURE_TYPE_MEMORY_DEDICATED_ALLOCATE_INFO, nullptr, vk_image, VK_NULL_HANDLE};
-  VkImportMemoryFdInfoKHR import_memory_info = {VK_STRUCTURE_TYPE_IMPORT_MEMORY_FD_INFO_KHR,
-                                                &vk_memory_dedicated_allocation_info,
-                                                VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT,
-                                                int(openxr_data.gpu.image_handle)};
-  VkMemoryAllocateInfo allocate_info = {
-      VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO, &import_memory_info, vk_memory_requirements.size};
-  VkDeviceMemory device_memory;
-  vkAllocateMemory(m_vk_device, &allocate_info, nullptr, &device_memory);
+  switch (m_data_transfer_mode) {
+    case GHOST_kVulkanXRModeFD: {
+      VkImportMemoryFdInfoKHR import_memory_info = {VK_STRUCTURE_TYPE_IMPORT_MEMORY_FD_INFO_KHR,
+                                                    &vk_memory_dedicated_allocation_info,
+                                                    VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT,
+                                                    int(openxr_data.gpu.image_handle)};
+      VkMemoryAllocateInfo allocate_info = {VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+                                            &import_memory_info,
+                                            vk_memory_requirements.size};
+      vkAllocateMemory(m_vk_device, &allocate_info, nullptr, &device_memory);
+      break;
+    }
+
+    case GHOST_kVulkanXRModeWin32: {
+#ifdef _WIN32
+      VkImportMemoryWin32HandleInfoKHR import_memory_info = {
+          VK_STRUCTURE_TYPE_IMPORT_MEMORY_WIN32_HANDLE_INFO_KHR,
+          &vk_memory_dedicated_allocation_info,
+          VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT,
+          HANDLE(openxr_data.gpu.image_handle)};
+      VkMemoryAllocateInfo allocate_info = {VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+                                            &import_memory_info,
+                                            vk_memory_requirements.size};
+      vkAllocateMemory(m_vk_device, &allocate_info, nullptr, &device_memory);
+#endif
+      break;
+    }
+
+    case GHOST_kVulkanXRModeCPU:
+      break;
+  }
 
   /* Bind the imported memory to the image. */
   vkBindImageMemory(m_vk_device, vk_image, device_memory, openxr_data.gpu.memory_offset);
@@ -638,7 +685,7 @@ void GHOST_XrGraphicsBindingVulkan::submitToSwapchainImageGpu(
                        2,
                        vk_image_memory_barrier);
 
-  /* Copy image to swapchain */
+  /* Copy image to swap-chain. */
   VkImageCopy vk_image_copy = {{VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1},
                                {0, 0, 0},
                                {VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1},
@@ -652,7 +699,7 @@ void GHOST_XrGraphicsBindingVulkan::submitToSwapchainImageGpu(
                  1,
                  &vk_image_copy);
 
-  /* Swapchain needs to be in an VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL compatible layout. */
+  /* Swap-chain needs to be in an VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL compatible layout. */
   VkImageMemoryBarrier vk_image_memory_barrier2 = {VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
                                                    nullptr,
                                                    VK_ACCESS_TRANSFER_WRITE_BIT,
