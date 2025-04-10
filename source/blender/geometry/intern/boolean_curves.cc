@@ -724,6 +724,10 @@ void check_segments(const CurveBooleanOpParameters &op_params,
 {
   const IndexRange segments = all_segments_by_curve[curve_k];
 
+  if (segments.is_empty()) {
+    return;
+  }
+
   const Segment &first_segment = all_segments[segments.first()];
   const IndexMask &mask_shapes = is_subj ? clipping_shapes : shapes[subj_shape_id];
   auto [state_L, state_R] = LR_states_from_segment(
@@ -778,6 +782,10 @@ struct BooleanResult {
 
   void append_result(const BooleanResult &other_result, const int shape_id)
   {
+    if (other_result.segments.is_empty()) {
+      return;
+    }
+
     for (const int i : other_result.segment_offsets.index_range().drop_front(1)) {
       segment_offsets.append(other_result.segment_offsets[i] + segments.size());
     }
@@ -933,16 +941,17 @@ BooleanResult execute_single_boolean(const CurveBooleanOpParameters op_params,
 
     const int start_size = all_segments.size();
 
+    if (other_inter.size() == 0 && self_inter.size() == 0) {
+      all_segments.append(
+          Segment::from_curve(curve_k, points_k, is_cyclic[curve_k] || is_fill[curve_k]));
+      all_segments_by_curve[curve_k] = all_segments.index_range().drop_front(start_size);
+
+      return;
+    }
+
     Array<int> new_inters(other_inter.size() + self_inter.size());
     new_inters.as_mutable_span().take_back(other_inter.size()).copy_from(other_inter);
     new_inters.as_mutable_span().take_front(self_inter.size()).copy_from(self_inter);
-
-    if (new_inters.is_empty()) {
-      all_segments.append(
-          Segment::from_curve(curve_k, points_k, is_cyclic[curve_k] || is_fill[curve_k]));
-      all_segments_by_curve[curve_k] = IndexRange::from_single(all_segments.size());
-      return;
-    }
 
     Array<int> inter_sorted_ids = Array<int>(new_inters.size());
     array_utils::fill_index_range<int>(inter_sorted_ids);
@@ -1332,6 +1341,7 @@ bke::CurvesGeometry curve_boolean(const CurveBooleanOpParameters op_params,
 
   const VArray<bool> is_fills = *src_attributes.lookup<bool>("is_fill", bke::AttrDomain::Curve);
   const VArray<int> shape_ids = *src_attributes.lookup<int>("shape_id", bke::AttrDomain::Curve);
+
   const BooleanResult result = execute_boolean(op_params,
                                                src_positions_2d,
                                                curves.points_by_curve(),
@@ -1342,8 +1352,16 @@ bke::CurvesGeometry curve_boolean(const CurveBooleanOpParameters op_params,
                                                is_fills,
                                                curves.cyclic());
 
+  if (result.segments.is_empty()) {
+    return bke::CurvesGeometry();
+  }
+
   const OffsetIndices<int> dst_segments_by_curve = OffsetIndices<int>(result.segment_offsets);
   const OffsetIndices<int> dst_points_by_curve = OffsetIndices<int>(result.point_offsets);
+
+  if (dst_points_by_curve.total_size() == 0) {
+    return bke::CurvesGeometry();
+  }
 
   bke::CurvesGeometry dst_curves(dst_points_by_curve.total_size(), dst_points_by_curve.size());
   bke::MutableAttributeAccessor dst_attributes = dst_curves.attributes_for_write();
