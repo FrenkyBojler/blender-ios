@@ -79,7 +79,7 @@ void SmoothOperation::toggle_smooth_brush_on(const bContext &C)
   BKE_curvemapping_init(smooth_brush->curve);
 }
 
-void SmoothOperation::toggle_smooth_brush_on(const bContext &C)
+void SmoothOperation::toggle_smooth_brush_off(const bContext &C)
 {
   Paint *paint = BKE_paint_get_active_from_context(&C);
   Brush &brush = *BKE_paint_brush(paint);
