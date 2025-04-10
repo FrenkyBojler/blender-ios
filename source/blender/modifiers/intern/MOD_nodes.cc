@@ -1892,14 +1892,14 @@ static void modify_geometry_set(ModifierData *md,
   modifyGeometry(md, ctx, *geometry_set);
 }
 
-struct AttributeSearchData {
+struct SocketSearchData {
   uint32_t object_session_uid;
   char modifier_name[MAX_NAME];
   char socket_identifier[MAX_NAME];
   bool is_output;
 };
 /* This class must not have a destructor, since it is used by buttons and freed with #MEM_freeN. */
-BLI_STATIC_ASSERT(std::is_trivially_destructible_v<AttributeSearchData>, "");
+BLI_STATIC_ASSERT(std::is_trivially_destructible_v<SocketSearchData>, "");
 
 struct DrawGroupInputsContext {
   const bContext &C;
@@ -1912,7 +1912,7 @@ struct DrawGroupInputsContext {
 
 static NodesModifierData *get_modifier_data(Main &bmain,
                                             const wmWindowManager &wm,
-                                            const AttributeSearchData &data)
+                                            const SocketSearchData &data)
 {
   if (ED_screen_animation_playing(&wm)) {
     /* Work around an issue where the attribute search exec function has stale pointers when data
@@ -1946,7 +1946,7 @@ static geo_log::GeoTreeLog *get_root_tree_log(const NodesModifierData &nmd)
 static void attribute_search_update_fn(
     const bContext *C, void *arg, const char *str, uiSearchItems *items, const bool is_first)
 {
-  AttributeSearchData &data = *static_cast<AttributeSearchData *>(arg);
+  SocketSearchData &data = *static_cast<SocketSearchData *>(arg);
   const NodesModifierData *nmd = get_modifier_data(*CTX_data_main(C), *CTX_wm_manager(C), data);
   if (nmd == nullptr) {
     return;
@@ -2003,7 +2003,7 @@ static void attribute_search_exec_fn(bContext *C, void *data_v, void *item_v)
   if (item_v == nullptr) {
     return;
   }
-  AttributeSearchData &data = *static_cast<AttributeSearchData *>(data_v);
+  SocketSearchData &data = *static_cast<SocketSearchData *>(data_v);
   const auto &item = *static_cast<const geo_log::GeometryAttributeInfo *>(item_v);
   const NodesModifierData *nmd = get_modifier_data(*CTX_data_main(C), *CTX_wm_manager(C), data);
   if (nmd == nullptr) {
@@ -2053,7 +2053,7 @@ static void add_attribute_search_button(DrawGroupInputsContext &ctx,
     return;
   }
 
-  AttributeSearchData *data = MEM_callocN<AttributeSearchData>(__func__);
+  SocketSearchData *data = MEM_callocN<SocketSearchData>(__func__);
   data->object_session_uid = object->id.session_uid;
   STRNCPY(data->modifier_name, ctx.nmd.modifier.name);
   STRNCPY(data->socket_identifier, socket.identifier);
@@ -2142,7 +2142,7 @@ static void add_attribute_search_or_value_buttons(DrawGroupInputsContext &ctx,
 static void layer_name_search_update_fn(
     const bContext *C, void *arg, const char *str, uiSearchItems *items, const bool is_first)
 {
-  AttributeSearchData &data = *static_cast<AttributeSearchData *>(arg);
+  const SocketSearchData &data = *static_cast<SocketSearchData *>(arg);
   const NodesModifierData *nmd = get_modifier_data(*CTX_data_main(C), *CTX_wm_manager(C), data);
   if (nmd == nullptr) {
     return;
@@ -2190,8 +2190,8 @@ static void layer_name_search_update_fn(
 
 static void layer_name_search_exec_fn(bContext *C, void *data_v, void *item_v)
 {
-  AttributeSearchData &data = *static_cast<AttributeSearchData *>(data_v);
-  std::string *item = static_cast<std::string *>(item_v);
+  const SocketSearchData &data = *static_cast<SocketSearchData *>(data_v);
+  const std::string *item = static_cast<std::string *>(item_v);
   if (item == nullptr) {
     return;
   }
@@ -2252,7 +2252,7 @@ static void add_layer_name_search_button(DrawGroupInputsContext &ctx,
     return;
   }
 
-  AttributeSearchData *data = MEM_callocN<AttributeSearchData>(__func__);
+  SocketSearchData *data = MEM_callocN<SocketSearchData>(__func__);
   data->object_session_uid = object->id.session_uid;
   STRNCPY(data->modifier_name, ctx.nmd.modifier.name);
   STRNCPY(data->socket_identifier, socket.identifier);
@@ -2338,6 +2338,8 @@ static void draw_property_for_socket(DrawGroupInputsContext &ctx,
     case SOCK_BOOLEAN: {
       if (is_layer_selection_field(socket)) {
         add_layer_name_search_button(ctx, row, socket_id_esc, socket);
+        /* Adds a spacing at the end of the row. */
+        uiItemL(row, "", ICON_BLANK1);
         break;
       }
       ATTR_FALLTHROUGH;
