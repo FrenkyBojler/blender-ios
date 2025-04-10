@@ -169,7 +169,7 @@ bool operator==(const VariableParseError &left, const VariableParseError &right)
  *
  * \return An empty vector if valid, or a vector of the parse errors if invalid.
  */
-blender::Vector<VariableParseError> BKE_validate_variable_syntax(char path[FILE_MAX]);
+blender::Vector<VariableParseError> BKE_validate_variable_syntax(blender::StringRef path);
 
 /**
  * Perform variable substitution on the given path.

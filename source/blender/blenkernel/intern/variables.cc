@@ -581,7 +581,7 @@ static std::optional<VariableParseError> token_to_syntax_error(const Token &toke
   return std::nullopt;
 }
 
-blender::Vector<VariableParseError> BKE_validate_variable_syntax(const char path[FILE_MAX])
+blender::Vector<VariableParseError> BKE_validate_variable_syntax(blender::StringRef path)
 {
   const blender::Vector<Token> tokens = parse_path(path);
 

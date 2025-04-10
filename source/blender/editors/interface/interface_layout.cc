@@ -32,6 +32,7 @@
 #include "BKE_idprop.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_screen.hh"
+#include "BKE_variables.hh"
 
 #include "RNA_access.hh"
 #include "RNA_prototypes.hh"
@@ -1084,6 +1085,16 @@ static uiBut *ui_item_with_label(uiLayout *layout,
   if (ELEM(subtype, PROP_FILEPATH, PROP_DIRPATH)) {
     UI_block_layout_set_current(block, uiLayoutRow(sub, true));
     but = uiDefAutoButR(block, ptr, prop, index, "", icon, x, y, prop_but_width - UI_UNIT_X, h);
+
+    if (but != nullptr) {
+      if (ELEM(subtype, PROP_FILEPATH, PROP_DIRPATH)) {
+        if ((RNA_property_flag(prop) & PROP_SUPPORTS_VARIABLES) != 0) {
+          if (!BKE_validate_variable_syntax(but->drawstr.c_str()).is_empty()) {
+            UI_but_flag_enable(but, UI_BUT_REDALERT);
+          }
+        }
+      }
+    }
 
     /* BUTTONS_OT_file_browse calls UI_context_active_but_prop_get_filebrowser */
     uiDefIconButO(block,
