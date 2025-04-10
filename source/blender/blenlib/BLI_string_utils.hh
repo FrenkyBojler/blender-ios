@@ -145,7 +145,6 @@ size_t BLI_string_flip_side_name(char *name_dst,
  * incrementing its numeric suffix as necessary.
  *
  * \param unique_check: Return true if name is not unique
- * \param arg: Additional arg to unique_check--meaning is up to caller
  * \param defname: To initialize name if latter is empty
  * \param delim: Delimits numeric suffix in name
  * \param name: Name to be ensured unique
