@@ -44,7 +44,8 @@ struct LayerSearchData {
 /* This class must not have a destructor, since it is used by buttons and freed with #MEM_freeN. */
 BLI_STATIC_ASSERT(std::is_trivially_destructible_v<LayerSearchData>, "");
 
-static Vector<std::string> get_layer_names_from_context(const bContext &C, LayerSearchData &data)
+static Vector<const std::string *> get_layer_names_from_context(const bContext &C,
+                                                                LayerSearchData &data)
 {
   using namespace nodes::geo_eval_log;
 
@@ -73,7 +74,7 @@ static Vector<std::string> get_layer_names_from_context(const bContext &C, Layer
 
   /* For the named layer selection input node, collect layer names from all nodes in the group. */
   if (node->type_legacy == GEO_NODE_INPUT_NAMED_LAYER_SELECTION) {
-    Vector<std::string> layer_names;
+    Vector<const std::string *> layer_names;
     tree_logs.foreach_tree_log([&](GeoTreeLog &tree_log) {
       tree_log.ensure_socket_values();
       tree_log.ensure_layer_names();
@@ -81,7 +82,7 @@ static Vector<std::string> get_layer_names_from_context(const bContext &C, Layer
         if (!names.add(name)) {
           continue;
         }
-        layer_names.append(name);
+        layer_names.append(&name);
       }
     });
     return layer_names;
@@ -96,7 +97,7 @@ static Vector<std::string> get_layer_names_from_context(const bContext &C, Layer
     return {};
   }
 
-  Vector<std::string> layer_names;
+  Vector<const std::string *> layer_names;
   for (const bNodeSocket *input_socket : node->input_sockets()) {
     if (input_socket->type != SOCK_GEOMETRY) {
       continue;
@@ -111,7 +112,7 @@ static Vector<std::string> get_layer_names_from_context(const bContext &C, Layer
       {
         for (const std::string &name : grease_pencil_info->layer_names) {
           if (names.add(name)) {
-            layer_names.append(name);
+            layer_names.append(&name);
           }
         }
       }
@@ -129,7 +130,7 @@ static void layer_search_update_fn(
 
   LayerSearchData *data = static_cast<LayerSearchData *>(arg);
 
-  Vector<std::string> names = get_layer_names_from_context(*C, *data);
+  Vector<const std::string *> names = get_layer_names_from_context(*C, *data);
 
   ui::grease_pencil_layer_search_add_items(str, names, items, is_first);
 }

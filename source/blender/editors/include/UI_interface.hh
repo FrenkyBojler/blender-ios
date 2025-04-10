@@ -91,7 +91,7 @@ void attribute_search_add_items(StringRef str,
                                 uiSearchItems *items,
                                 bool is_first);
 void grease_pencil_layer_search_add_items(StringRef str,
-                                          Span<std::string> layer_names,
+                                          Span<const std::string *> layer_names,
                                           uiSearchItems *items,
                                           bool is_first);
 

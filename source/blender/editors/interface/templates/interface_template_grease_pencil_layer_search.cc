@@ -28,7 +28,7 @@
 namespace blender::ui {
 
 void grease_pencil_layer_search_add_items(const StringRef str,
-                                          const Span<std::string> layer_names,
+                                          const Span<const std::string *> layer_names,
                                           uiSearchItems *seach_items,
                                           const bool is_first)
 {
@@ -36,7 +36,13 @@ void grease_pencil_layer_search_add_items(const StringRef str,
 
   /* Any string may be valid, so add the current search string along with the hints. */
   if (!str.is_empty()) {
-    if (!layer_names.contains(str)) {
+    bool contained = false;
+    for (const std::string *name : layer_names) {
+      if (name != nullptr && str == *name) {
+        contained = true;
+      }
+    }
+    if (!contained) {
       dummy_str = str;
       UI_search_item_add(seach_items, str, &dummy_str, ICON_NONE, 0, 0);
     }
@@ -54,8 +60,8 @@ void grease_pencil_layer_search_add_items(const StringRef str,
   const StringRef string = is_first ? "" : str;
 
   ui::string_search::StringSearch<const std::string> search;
-  for (const std::string &name : layer_names) {
-    search.add(name, &name);
+  for (const std::string *name : layer_names) {
+    search.add(*name, name);
   }
 
   const Vector<const std::string *> filtered_names = search.query(string);
