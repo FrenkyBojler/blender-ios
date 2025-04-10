@@ -2,3 +2,4 @@ Referenced by issue #134264, Cannot undo asset catalog changes to before initial
 Referenced by pull request #135589, Fix #134264: Cannot undo asset catalog changes to before initial save
 Referenced by issue #136254, Assets Reload After each Save which makes it Invisible in the Search List for a second
 Referenced by pull request #137117, Fix #136254: Assets not available in search after saving file
+Referenced by commit 4f965e4d383dd518a9075f71db043971abc377d3, Fix #136254: Assets not available in search after saving file
