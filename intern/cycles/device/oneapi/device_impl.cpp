@@ -1356,6 +1356,9 @@ int parse_driver_build_version(const sycl::device &device)
     }
   }
 
+  if (driver_build_version == 0) {
+    VLOG_WARNING << "Unable to parse Intel GPU driver version: " << driver_version;
+  }
   return driver_build_version;
 }
 
@@ -1427,11 +1430,16 @@ std::vector<sycl::device> available_sycl_devices()
 #  endif
           if (check_driver_version) {
             int driver_build_version = parse_driver_build_version(device);
-            if ((driver_build_version > 100000 &&
-                 driver_build_version < lowest_supported_driver_version_win) ||
-                driver_build_version < lowest_supported_driver_version_neo)
-            {
+            const int lowest_supported_driver_version = (driver_build_version > 100000) ?
+                                                            lowest_supported_driver_version_win :
+                                                            lowest_supported_driver_version_neo;
+            if (driver_build_version < lowest_supported_driver_version) {
               filter_out = true;
+
+              VLOG_WARNING << "Driver version for device '"
+                           << device.get_info<sycl::info::device::name>()
+                           << "' is too old. Expected '" << lowest_supported_driver_version
+                           << "' or newer but got '" << driver_build_version << "'";
             }
           }
         }
