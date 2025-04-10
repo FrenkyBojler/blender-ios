@@ -309,7 +309,7 @@ RenderWork Session::run_update_for_next_iteration()
   const bool reset_buffers = delayed_reset_buffer_params();
 
   /* Update scene */
-  const bool reset_scene = update_scene(delayed_reset_.do_reset, scene_lock);
+  const bool reset_scene = update_scene(delayed_reset_.do_reset);
 
   /* Update buffers for new paramters. After scene update which influences the passes used. */
   bool have_tiles = true;
@@ -668,7 +668,7 @@ void Session::wait()
   }
 }
 
-bool Session::update_scene(const bool reset_samples, thread_scoped_lock &scene_lock)
+bool Session::update_scene(const bool reset_samples)
 {
   /* Update number of samples in the integrator.
    * Ideally this would need to happen once in `Session::set_samples()`, but the issue there is
@@ -683,26 +683,11 @@ bool Session::update_scene(const bool reset_samples, thread_scoped_lock &scene_l
   scene->integrator->set_sample_subset_offset(params.sample_subset_offset);
   scene->integrator->set_sample_subset_length(params.sample_subset_length);
 
-  /* Passes. */
   /* When multiple tiles are used SAMPLE_COUNT pass is used to keep track of possible partial
-   * tile results. It is safe to use generic update function here which checks for changes since
-   * changes in tile settings re-creates session, which ensures film is fully updated on tile
-   * changes. */
-  scene->film->update_passes(scene.get(), tile_manager_.has_multiple_tiles());
+   * tile results. */
+  scene->film->set_use_sample_count(tile_manager_.has_multiple_tiles());
 
   const bool reset = scene->need_reset(false);
-
-  {
-    /* Load render kernels, before device update where we upload data to the GPU.
-     * Do it outside of the scene mutex since the heavy part of the loading (i.e. kernel
-     * compilation) does not depend on the scene and some other functionality (like display
-     * driver) might be waiting on the scene mutex to synchronize display pass.
-     *
-     * The scene will lock itself for the short period if it needs to update kernel features. */
-    scene_lock.unlock();
-    scene->load_kernels(progress);
-    scene_lock.lock();
-  }
 
   if (scene->update(progress)) {
     profiler.reset(scene->shaders.size(), scene->objects.size());

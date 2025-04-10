@@ -204,7 +204,7 @@ class Session {
 
   void run_main_render_loop();
 
-  bool update_scene(const bool reset_samples, thread_scoped_lock &scene_lock);
+  bool update_scene(const bool reset_samples);
 
   void update_status_time(bool show_pause = false, bool show_done = false);
 
