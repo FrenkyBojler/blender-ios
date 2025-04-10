@@ -277,7 +277,6 @@ Tree Tree::from_mesh(const Mesh &mesh)
     build_nodes_recursive_mesh(
         material_index, leaf_limit, 0, -1, bounds, face_centers, 0, pbvh.prim_indices_, nodes);
   }
-
   build_mesh_leaf_nodes(mesh.verts_num, faces, corner_verts, nodes);
 
   pbvh.tag_positions_changed(nodes.index_range());
@@ -1115,8 +1114,8 @@ void Tree::flush_bounds_to_parents()
         node_mask.foreach_index([&](int i) {
           std::optional<int> parent = nodes[i].parent();
 
-          if (parent.has_value()) {
-            nodes_to_update.add(parent.value());
+          if (parent) {
+            nodes_to_update.add(*parent);
           }
         });
 
@@ -1135,13 +1134,12 @@ void Tree::flush_bounds_to_parents()
           const bool bounds_changed = node.bounds_.min != old_bounds.min ||
                                       node.bounds_.max != old_bounds.max;
 
-          if (bounds_changed && parent.has_value()) {
-            nodes_to_update.add(parent.value());
+          if (bounds_changed && parent) {
+            nodes_to_update.add(*parent);
           }
         }
       },
       this->nodes_);
-
   bounds_dirty_.clear_and_shrink();
 }
 
